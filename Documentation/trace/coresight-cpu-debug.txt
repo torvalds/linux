@@ -177,11 +177,11 @@ Here is an example of the debugging output format:
 ARM external debug module:
 coresight-cpu-debug 850000.debug: CPU[0]:
 coresight-cpu-debug 850000.debug:  EDPRSR:  00000001 (Power:On DLK:Unlock)
-coresight-cpu-debug 850000.debug:  EDPCSR:  [<ffff00000808e9bc>] handle_IPI+0x174/0x1d8
+coresight-cpu-debug 850000.debug:  EDPCSR:  handle_IPI+0x174/0x1d8
 coresight-cpu-debug 850000.debug:  EDCIDSR: 00000000
 coresight-cpu-debug 850000.debug:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)
 coresight-cpu-debug 852000.debug: CPU[1]:
 coresight-cpu-debug 852000.debug:  EDPRSR:  00000001 (Power:On DLK:Unlock)
-coresight-cpu-debug 852000.debug:  EDPCSR:  [<ffff0000087fab34>] debug_notifier_call+0x23c/0x358
+coresight-cpu-debug 852000.debug:  EDPCSR:  debug_notifier_call+0x23c/0x358
 coresight-cpu-debug 852000.debug:  EDCIDSR: 00000000
 coresight-cpu-debug 852000.debug:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)

@@ -160,7 +160,7 @@ static struct audit_parent *audit_init_parent(struct path *path)
 
 	fsnotify_init_mark(&parent->mark, audit_watch_group);
 	parent->mark.mask = AUDIT_FS_WATCH;
-	ret = fsnotify_add_mark(&parent->mark, inode, NULL, 0);
+	ret = fsnotify_add_inode_mark(&parent->mark, inode, 0);
 	if (ret < 0) {
 		audit_free_parent(parent);
 		return ERR_PTR(ret);
@@ -274,7 +274,7 @@ static void audit_update_watch(struct audit_parent *parent,
 		/* If the update involves invalidating rules, do the inode-based
 		 * filtering now, so we don't omit records. */
 		if (invalidating && !audit_dummy_context())
-			audit_filter_inodes(current, current->audit_context);
+			audit_filter_inodes(current, audit_context());
 
 		/* updating ino will likely change which audit_hash_list we
 		 * are on so we need a new watch for the new list */
@@ -472,12 +472,11 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 /* Update watch data in audit rules based on fsnotify events. */
 static int audit_watch_handle_event(struct fsnotify_group *group,
 				    struct inode *to_tell,
-				    struct fsnotify_mark *inode_mark,
-				    struct fsnotify_mark *vfsmount_mark,
 				    u32 mask, const void *data, int data_type,
 				    const unsigned char *dname, u32 cookie,
 				    struct fsnotify_iter_info *iter_info)
 {
+	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	const struct inode *inode;
 	struct audit_parent *parent;
 

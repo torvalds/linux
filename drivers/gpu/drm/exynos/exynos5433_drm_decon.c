@@ -31,7 +31,10 @@
 #define DSD_CFG_MUX 0x1004
 #define DSD_CFG_MUX_TE_UNMASK_GLOBAL BIT(13)
 
-#define WINDOWS_NR	3
+#define WINDOWS_NR	5
+#define PRIMARY_WIN	2
+#define CURSON_WIN	4
+
 #define MIN_FB_WIDTH_FOR_16WORD_BURST	128
 
 #define I80_HW_TRG	(1 << 0)
@@ -43,6 +46,9 @@ static const char * const decon_clks_name[] = {
 	"aclk_smmu_decon0x",
 	"aclk_xiu_decon0x",
 	"pclk_smmu_decon0x",
+	"aclk_smmu_decon1x",
+	"aclk_xiu_decon1x",
+	"pclk_smmu_decon1x",
 	"sclk_decon_vclk",
 	"sclk_decon_eclk",
 };
@@ -74,9 +80,8 @@ static const uint32_t decon_formats[] = {
 };
 
 static const enum drm_plane_type decon_win_types[WINDOWS_NR] = {
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_OVERLAY,
-	DRM_PLANE_TYPE_CURSOR,
+	[PRIMARY_WIN] = DRM_PLANE_TYPE_PRIMARY,
+	[CURSON_WIN] = DRM_PLANE_TYPE_CURSOR,
 };
 
 static inline void decon_set_bits(struct decon_context *ctx, u32 reg, u32 mask,
@@ -260,7 +265,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 	unsigned long val;
 
 	val = readl(ctx->addr + DECON_WINCONx(win));
-	val &= ~WINCONx_BPPMODE_MASK;
+	val &= WINCONx_ENWIN_F;
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_XRGB1555:
@@ -351,8 +356,8 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 		writel(val, ctx->addr + DECON_VIDOSDxB(win));
 	}
 
-	val = VIDOSD_Wx_ALPHA_R_F(0x0) | VIDOSD_Wx_ALPHA_G_F(0x0) |
-		VIDOSD_Wx_ALPHA_B_F(0x0);
+	val = VIDOSD_Wx_ALPHA_R_F(0xff) | VIDOSD_Wx_ALPHA_G_F(0xff) |
+		VIDOSD_Wx_ALPHA_B_F(0xff);
 	writel(val, ctx->addr + DECON_VIDOSDxC(win));
 
 	val = VIDOSD_Wx_ALPHA_R_F(0x0) | VIDOSD_Wx_ALPHA_G_F(0x0) |
@@ -552,12 +557,10 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	drm_dev->max_vblank_count = 0xffffffff;
 
 	for (win = ctx->first_win; win < WINDOWS_NR; win++) {
-		int tmp = (win == ctx->first_win) ? 0 : win;
-
 		ctx->configs[win].pixel_formats = decon_formats;
 		ctx->configs[win].num_pixel_formats = ARRAY_SIZE(decon_formats);
-		ctx->configs[win].zpos = win;
-		ctx->configs[win].type = decon_win_types[tmp];
+		ctx->configs[win].zpos = win - ctx->first_win;
+		ctx->configs[win].type = decon_win_types[win];
 
 		ret = exynos_plane_init(drm_dev, &ctx->planes[win], win,
 					&ctx->configs[win]);
@@ -565,7 +568,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[ctx->first_win];
+	exynos_plane = &ctx->planes[PRIMARY_WIN];
 	out_type = (ctx->out_type & IFTYPE_HDMI) ? EXYNOS_DISPLAY_TYPE_HDMI
 						  : EXYNOS_DISPLAY_TYPE_LCD;
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,

@@ -1620,7 +1620,7 @@ static void __init bootmem_init_nonnuma(void)
 	       (top_of_ram - total_ram) >> 20);
 
 	init_node_masks_nonnuma();
-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
+	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
 	allocate_node_data(0);
 	node_set_online(0);
 }

@@ -19,6 +19,7 @@
 #include <linux/cryptohash.h>
 #include <linux/set_memory.h>
 #include <linux/kallsyms.h>
+#include <linux/if_vlan.h>
 
 #include <net/sch_generic.h>
 
@@ -30,6 +31,7 @@ struct sock;
 struct seccomp_data;
 struct bpf_prog_aux;
 struct xdp_rxq_info;
+struct xdp_buff;
 
 /* ArgX, context and stack frame pointer register positions. Note,
  * Arg1, Arg2, Arg3, etc are used as argument mappings of function
@@ -46,7 +48,9 @@ struct xdp_rxq_info;
 /* Additional register mappings for converted user programs. */
 #define BPF_REG_A	BPF_REG_0
 #define BPF_REG_X	BPF_REG_7
-#define BPF_REG_TMP	BPF_REG_8
+#define BPF_REG_TMP	BPF_REG_2	/* scratch reg */
+#define BPF_REG_D	BPF_REG_8	/* data, callee-saved */
+#define BPF_REG_H	BPF_REG_9	/* hlen, callee-saved */
 
 /* Kernel hidden auxiliary/helper register for hardening step.
  * Only used by eBPF JITs. It's nothing more than a temporary
@@ -286,7 +290,20 @@ struct xdp_rxq_info;
 		.off   = OFF,					\
 		.imm   = 0 })
 
+/* Relative call */
+
+#define BPF_CALL_REL(TGT)					\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP | BPF_CALL,			\
+		.dst_reg = 0,					\
+		.src_reg = BPF_PSEUDO_CALL,			\
+		.off   = 0,					\
+		.imm   = TGT })
+
 /* Function call */
+
+#define BPF_CAST_CALL(x)					\
+		((u64 (*)(u64, u64, u64, u64, u64))(x))
 
 #define BPF_EMIT_CALL(FUNC)					\
 	((struct bpf_insn) {					\
@@ -453,21 +470,23 @@ struct sock_fprog_kern {
 };
 
 struct bpf_binary_header {
-	unsigned int pages;
-	u8 image[];
+	u32 pages;
+	/* Some arches need word alignment for their instructions */
+	u8 image[] __aligned(4);
 };
 
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	u16			jited:1,	/* Is our filter JIT'ed? */
 				jit_requested:1,/* archs need to JIT the prog */
-				locked:1,	/* Program image locked? */
+				undo_set_mem:1,	/* Passed set_memory_ro() checkpoint */
 				gpl_compatible:1, /* Is filter GPL compatible? */
 				cb_access:1,	/* Is control block accessed? */
 				dst_needed:1,	/* Do we need dst entry? */
 				blinded:1,	/* Was blinded */
 				is_func:1,	/* program is a bpf function */
-				kprobe_override:1; /* Do we override a kprobe? */
+				kprobe_override:1, /* Do we override a kprobe? */
+				has_callchain_buf:1; /* callchain buffer allocated? */
 	enum bpf_prog_type	type;		/* Type of BPF program */
 	enum bpf_attach_type	expected_attach_type; /* For some prog types */
 	u32			len;		/* Number of filter blocks */
@@ -500,14 +519,6 @@ struct bpf_skb_data_end {
 	void *data_end;
 };
 
-struct xdp_buff {
-	void *data;
-	void *data_end;
-	void *data_meta;
-	void *data_hard_start;
-	struct xdp_rxq_info *rxq;
-};
-
 struct sk_msg_buff {
 	void *data;
 	void *data_end;
@@ -519,9 +530,9 @@ struct sk_msg_buff {
 	int sg_end;
 	struct scatterlist sg_data[MAX_SKB_FRAGS];
 	bool sg_copy[MAX_SKB_FRAGS];
-	__u32 key;
 	__u32 flags;
-	struct bpf_map *map;
+	struct sock *sk_redir;
+	struct sock *sk;
 	struct sk_buff *skb;
 	struct list_head list;
 };
@@ -630,64 +641,59 @@ static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
 	return prog->type == BPF_PROG_TYPE_UNSPEC;
 }
 
-static inline bool
-bpf_ctx_narrow_access_ok(u32 off, u32 size, const u32 size_default)
+static inline u32 bpf_ctx_off_adjust_machine(u32 size)
 {
-	bool off_ok;
+	const u32 size_machine = sizeof(unsigned long);
+
+	if (size > size_machine && size % size_machine == 0)
+		size = size_machine;
+
+	return size;
+}
+
+static inline bool bpf_ctx_narrow_align_ok(u32 off, u32 size_access,
+					   u32 size_default)
+{
+	size_default = bpf_ctx_off_adjust_machine(size_default);
+	size_access  = bpf_ctx_off_adjust_machine(size_access);
+
 #ifdef __LITTLE_ENDIAN
-	off_ok = (off & (size_default - 1)) == 0;
+	return (off & (size_default - 1)) == 0;
 #else
-	off_ok = (off & (size_default - 1)) + size == size_default;
+	return (off & (size_default - 1)) + size_access == size_default;
 #endif
-	return off_ok && size <= size_default && (size & (size - 1)) == 0;
+}
+
+static inline bool
+bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
+{
+	return bpf_ctx_narrow_align_ok(off, size, size_default) &&
+	       size <= size_default && (size & (size - 1)) == 0;
 }
 
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
 
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
 static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
 {
-	fp->locked = 1;
-	WARN_ON_ONCE(set_memory_ro((unsigned long)fp, fp->pages));
+	fp->undo_set_mem = 1;
+	set_memory_ro((unsigned long)fp, fp->pages);
 }
 
 static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
 {
-	if (fp->locked) {
-		WARN_ON_ONCE(set_memory_rw((unsigned long)fp, fp->pages));
-		/* In case set_memory_rw() fails, we want to be the first
-		 * to crash here instead of some random place later on.
-		 */
-		fp->locked = 0;
-	}
+	if (fp->undo_set_mem)
+		set_memory_rw((unsigned long)fp, fp->pages);
 }
 
 static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
 {
-	WARN_ON_ONCE(set_memory_ro((unsigned long)hdr, hdr->pages));
+	set_memory_ro((unsigned long)hdr, hdr->pages);
 }
 
 static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
 {
-	WARN_ON_ONCE(set_memory_rw((unsigned long)hdr, hdr->pages));
+	set_memory_rw((unsigned long)hdr, hdr->pages);
 }
-#else
-static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
-{
-}
-
-static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
-{
-}
-
-static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
-{
-}
-
-static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
-{
-}
-#endif /* CONFIG_ARCH_HAS_SET_MEMORY */
 
 static inline struct bpf_binary_header *
 bpf_jit_binary_hdr(const struct bpf_prog *fp)
@@ -759,6 +765,21 @@ static inline bool bpf_dump_raw_ok(void)
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
 
+static inline int __xdp_generic_ok_fwd_dev(struct sk_buff *skb,
+					   struct net_device *fwd)
+{
+	unsigned int len;
+
+	if (unlikely(!(fwd->flags & IFF_UP)))
+		return -ENETDOWN;
+
+	len = fwd->mtu + fwd->hard_header_len + VLAN_HLEN;
+	if (skb->len > len)
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 /* The pair of xdp_do_redirect and xdp_do_flush_map MUST be called in the
  * same cpu context. Further for best results no more than a single map
  * for the do_redirect/do_flush pair should be used. This limitation is
@@ -766,26 +787,11 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
  * This does not appear to be a real limitation for existing software.
  */
 int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
-			    struct bpf_prog *prog);
+			    struct xdp_buff *xdp, struct bpf_prog *prog);
 int xdp_do_redirect(struct net_device *dev,
 		    struct xdp_buff *xdp,
 		    struct bpf_prog *prog);
 void xdp_do_flush_map(void);
-
-/* Drivers not supporting XDP metadata can use this helper, which
- * rejects any room expansion for metadata as a result.
- */
-static __always_inline void
-xdp_set_data_meta_invalid(struct xdp_buff *xdp)
-{
-	xdp->data_meta = xdp->data + 1;
-}
-
-static __always_inline bool
-xdp_data_meta_unsupported(const struct xdp_buff *xdp)
-{
-	return unlikely(xdp->data_meta > xdp->data);
-}
 
 void bpf_warn_invalid_xdp_action(u32 act);
 
@@ -949,6 +955,9 @@ static inline void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 }
 #endif /* CONFIG_BPF_JIT */
 
+void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp);
+void bpf_prog_kallsyms_del_all(struct bpf_prog *fp);
+
 #define BPF_ANC		BIT(15)
 
 static inline bool bpf_needs_clear_a(const struct sock_filter *first)
@@ -1029,6 +1038,7 @@ struct bpf_sock_addr_kern {
 	 * only two (src and dst) are available at convert_ctx_access time
 	 */
 	u64 tmp_reg;
+	void *t_ctx;	/* Attach type specific context. */
 };
 
 struct bpf_sock_ops_kern {

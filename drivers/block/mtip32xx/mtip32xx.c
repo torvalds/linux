@@ -2285,7 +2285,7 @@ static ssize_t mtip_hw_show_status(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(status, S_IRUGO, mtip_hw_show_status, NULL);
+static DEVICE_ATTR(status, 0444, mtip_hw_show_status, NULL);
 
 /* debugsfs entries */
 
@@ -2566,10 +2566,9 @@ static int mtip_hw_debugfs_init(struct driver_data *dd)
 		return -1;
 	}
 
-	debugfs_create_file("flags", S_IRUGO, dd->dfs_node, dd,
-							&mtip_flags_fops);
-	debugfs_create_file("registers", S_IRUGO, dd->dfs_node, dd,
-							&mtip_regs_fops);
+	debugfs_create_file("flags", 0444, dd->dfs_node, dd, &mtip_flags_fops);
+	debugfs_create_file("registers", 0444, dd->dfs_node, dd,
+			    &mtip_regs_fops);
 
 	return 0;
 }
@@ -2726,14 +2725,10 @@ static void mtip_softirq_done_fn(struct request *rq)
 	blk_mq_end_request(rq, cmd->status);
 }
 
-static void mtip_abort_cmd(struct request *req, void *data,
-							bool reserved)
+static void mtip_abort_cmd(struct request *req, void *data, bool reserved)
 {
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(req);
 	struct driver_data *dd = data;
-
-	if (!blk_mq_request_started(req))
-		return;
 
 	dbg_printk(MTIP_DRV_NAME " Aborting request, tag = %d\n", req->tag);
 
@@ -2742,13 +2737,9 @@ static void mtip_abort_cmd(struct request *req, void *data,
 	mtip_softirq_done_fn(req);
 }
 
-static void mtip_queue_cmd(struct request *req, void *data,
-							bool reserved)
+static void mtip_queue_cmd(struct request *req, void *data, bool reserved)
 {
 	struct driver_data *dd = data;
-
-	if (!blk_mq_request_started(req))
-		return;
 
 	set_bit(req->tag, dd->port->cmds_to_issue);
 	blk_abort_request(req);
@@ -3720,7 +3711,8 @@ static enum blk_eh_timer_return mtip_cmd_timeout(struct request *req,
 		struct mtip_cmd *cmd = blk_mq_rq_to_pdu(req);
 
 		cmd->status = BLK_STS_TIMEOUT;
-		return BLK_EH_HANDLED;
+		blk_mq_complete_request(req);
+		return BLK_EH_DONE;
 	}
 
 	if (test_bit(req->tag, dd->port->cmds_to_issue))
@@ -3862,7 +3854,6 @@ skip_create_disk:
 	blk_queue_max_hw_sectors(dd->queue, 0xffff);
 	blk_queue_max_segment_size(dd->queue, 0x400000);
 	blk_queue_io_min(dd->queue, 4096);
-	blk_queue_bounce_limit(dd->queue, dd->pdev->dma_mask);
 
 	/* Signal trim support */
 	if (dd->trim_supp == true) {
@@ -4273,7 +4264,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	if (!dd->isr_workq) {
 		dev_warn(&pdev->dev, "Can't create wq %d\n", dd->instance);
 		rv = -ENOMEM;
-		goto block_initialize_err;
+		goto setmask_err;
 	}
 
 	memset(cpu_list, 0, sizeof(cpu_list));
@@ -4614,7 +4605,7 @@ static int __init mtip_init(void)
 	}
 	if (dfs_parent) {
 		dfs_device_status = debugfs_create_file("device_status",
-					S_IRUGO, dfs_parent, NULL,
+					0444, dfs_parent, NULL,
 					&mtip_device_status_fops);
 		if (IS_ERR_OR_NULL(dfs_device_status)) {
 			pr_err("Error creating device_status node\n");

@@ -144,7 +144,7 @@ static int hns_roce_buddy_init(struct hns_roce_buddy *buddy, int max_order)
 		buddy->bits[i] = kcalloc(s, sizeof(long), GFP_KERNEL |
 					 __GFP_NOWARN);
 		if (!buddy->bits[i]) {
-			buddy->bits[i] = vzalloc(s * sizeof(long));
+			buddy->bits[i] = vzalloc(array_size(s, sizeof(long)));
 			if (!buddy->bits[i])
 				goto err_out_free;
 		}
@@ -1007,12 +1007,6 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	n = ib_umem_page_count(mr->umem);
-	if (mr->umem->page_shift != HNS_ROCE_HEM_PAGE_SHIFT) {
-		dev_err(dev, "Just support 4K page size but is 0x%lx now!\n",
-			BIT(mr->umem->page_shift));
-		ret = -EINVAL;
-		goto err_umem;
-	}
 
 	if (!hr_dev->caps.pbl_hop_num) {
 		if (n > HNS_ROCE_MAX_MTPT_PBL_NUM) {

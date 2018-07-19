@@ -5006,13 +5006,6 @@ static const struct regmap_config rt5677_regmap = {
 	.num_ranges = ARRAY_SIZE(rt5677_ranges),
 };
 
-static const struct i2c_device_id rt5677_i2c_id[] = {
-	{ "rt5677", RT5677 },
-	{ "rt5676", RT5676 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
-
 static const struct of_device_id rt5677_of_match[] = {
 	{ .compatible = "realtek,rt5677", RT5677 },
 	{ }
@@ -5130,8 +5123,7 @@ static void rt5677_free_irq(struct i2c_client *i2c)
 		regmap_del_irq_chip(i2c->irq, rt5677->irq_data);
 }
 
-static int rt5677_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5677_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5677_priv *rt5677;
 	int ret;
@@ -5278,9 +5270,8 @@ static struct i2c_driver rt5677_i2c_driver = {
 		.of_match_table = rt5677_of_match,
 		.acpi_match_table = ACPI_PTR(rt5677_acpi_match),
 	},
-	.probe = rt5677_i2c_probe,
+	.probe_new = rt5677_i2c_probe,
 	.remove   = rt5677_i2c_remove,
-	.id_table = rt5677_i2c_id,
 };
 module_i2c_driver(rt5677_i2c_driver);
 

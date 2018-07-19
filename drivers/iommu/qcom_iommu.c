@@ -885,16 +885,14 @@ static int qcom_iommu_device_remove(struct platform_device *pdev)
 
 static int __maybe_unused qcom_iommu_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct qcom_iommu_dev *qcom_iommu = platform_get_drvdata(pdev);
+	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(dev);
 
 	return qcom_iommu_enable_clocks(qcom_iommu);
 }
 
 static int __maybe_unused qcom_iommu_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct qcom_iommu_dev *qcom_iommu = platform_get_drvdata(pdev);
+	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(dev);
 
 	qcom_iommu_disable_clocks(qcom_iommu);
 

@@ -47,6 +47,17 @@ copy_user_generic(void *to, const void *from, unsigned len)
 }
 
 static __always_inline __must_check unsigned long
+copy_to_user_mcsafe(void *to, const void *from, unsigned len)
+{
+	unsigned long ret;
+
+	__uaccess_begin();
+	ret = memcpy_mcsafe(to, from, len);
+	__uaccess_end();
+	return ret;
+}
+
+static __always_inline __must_check unsigned long
 raw_copy_from_user(void *dst, const void __user *src, unsigned long size)
 {
 	int ret = 0;
@@ -193,5 +204,8 @@ __copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
 
 unsigned long
 copy_user_handle_tail(char *to, char *from, unsigned len);
+
+unsigned long
+mcsafe_handle_tail(char *to, char *from, unsigned len);
 
 #endif /* _ASM_X86_UACCESS_64_H */

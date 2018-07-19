@@ -65,6 +65,7 @@ static int btqcomsmd_cmd_callback(struct rpmsg_device *rpdev, void *data,
 {
 	struct btqcomsmd *btq = priv;
 
+	btq->hdev->stat.byte_rx += count;
 	return btqcomsmd_recv(btq->hdev, HCI_EVENT_PKT, data, count);
 }
 
@@ -76,12 +77,21 @@ static int btqcomsmd_send(struct hci_dev *hdev, struct sk_buff *skb)
 	switch (hci_skb_pkt_type(skb)) {
 	case HCI_ACLDATA_PKT:
 		ret = rpmsg_send(btq->acl_channel, skb->data, skb->len);
+		if (ret) {
+			hdev->stat.err_tx++;
+			break;
+		}
 		hdev->stat.acl_tx++;
 		hdev->stat.byte_tx += skb->len;
 		break;
 	case HCI_COMMAND_PKT:
 		ret = rpmsg_send(btq->cmd_channel, skb->data, skb->len);
+		if (ret) {
+			hdev->stat.err_tx++;
+			break;
+		}
 		hdev->stat.cmd_tx++;
+		hdev->stat.byte_tx += skb->len;
 		break;
 	default:
 		ret = -EILSEQ;

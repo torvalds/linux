@@ -21,7 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
-#include <linux/i2c-ocores.h>
+#include <linux/platform_data/i2c-ocores.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/log2.h>
@@ -222,10 +222,7 @@ static int ocores_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	i2c->nmsgs = num;
 	i2c->state = STATE_START;
 
-	oc_setreg(i2c, OCI2C_DATA,
-			(i2c->msg->addr << 1) |
-			((i2c->msg->flags & I2C_M_RD) ? 1:0));
-
+	oc_setreg(i2c, OCI2C_DATA, i2c_8bit_addr_from_msg(i2c->msg));
 	oc_setreg(i2c, OCI2C_CMD, OCI2C_CMD_START);
 
 	if (wait_event_timeout(i2c->wait, (i2c->state == STATE_ERROR) ||

@@ -1,3 +1,4 @@
+generic-y += compat.h
 generic-y += current.h
 generic-y += delay.h
 generic-y += div64.h

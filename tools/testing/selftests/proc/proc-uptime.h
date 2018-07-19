@@ -20,21 +20,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static unsigned long long xstrtoull(const char *p, char **end)
-{
-	if (*p == '0') {
-		*end = (char *)p + 1;
-		return 0;
-	} else if ('1' <= *p && *p <= '9') {
-		unsigned long long val;
-
-		errno = 0;
-		val = strtoull(p, end, 10);
-		assert(errno == 0);
-		return val;
-	} else
-		assert(0);
-}
+#include "proc.h"
 
 static void proc_uptime(int fd, uint64_t *uptime, uint64_t *idle)
 {

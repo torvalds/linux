@@ -21,8 +21,6 @@ Required root node properties:
 	- "samsung,smdk5420"	- for Exynos5420-based Samsung SMDK5420 eval board.
 	- "samsung,tm2"		- for Exynos5433-based Samsung TM2 board.
 	- "samsung,tm2e"	- for Exynos5433-based Samsung TM2E board.
-	- "samsung,sd5v1"	- for Exynos5440-based Samsung board.
-	- "samsung,ssdk5440"	- for Exynos5440-based Samsung board.
 
 * Other companies Exynos SoC based
   * FriendlyARM

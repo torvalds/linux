@@ -803,6 +803,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	unsigned int tot_len = sizeof(struct tcphdr);
 	struct dst_entry *dst;
 	__be32 *topt;
+	__u32 mark = 0;
 
 	if (tsecr)
 		tot_len += TCPOLEN_TSTAMP_ALIGNED;
@@ -871,7 +872,10 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 		fl6.flowi6_oif = oif;
 	}
 
-	fl6.flowi6_mark = IP6_REPLY_MARK(net, skb->mark);
+	if (sk)
+		mark = (sk->sk_state == TCP_TIME_WAIT) ?
+			inet_twsk(sk)->tw_mark : sk->sk_mark;
+	fl6.flowi6_mark = IP6_REPLY_MARK(net, skb->mark) ?: mark;
 	fl6.fl6_dport = t1->dest;
 	fl6.fl6_sport = t1->source;
 	fl6.flowi6_uid = sock_net_uid(net, sk && sk_fullsock(sk) ? sk : NULL);
@@ -1318,7 +1322,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 			}
 		}
 
-		tcp_rcv_established(sk, skb, tcp_hdr(skb));
+		tcp_rcv_established(sk, skb);
 		if (opt_skb)
 			goto ipv6_pktoptions;
 		return 0;
@@ -1474,6 +1478,10 @@ process:
 			sk_drops_add(sk, skb);
 			reqsk_put(req);
 			goto discard_it;
+		}
+		if (tcp_checksum_complete(skb)) {
+			reqsk_put(req);
+			goto csum_error;
 		}
 		if (unlikely(sk->sk_state != TCP_LISTEN)) {
 			inet_csk_reqsk_queue_drop_and_put(sk, req);
@@ -1909,30 +1917,28 @@ out:
 	return 0;
 }
 
-static const struct file_operations tcp6_afinfo_seq_fops = {
-	.open    = tcp_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net
+static const struct seq_operations tcp6_seq_ops = {
+	.show		= tcp6_seq_show,
+	.start		= tcp_seq_start,
+	.next		= tcp_seq_next,
+	.stop		= tcp_seq_stop,
 };
 
 static struct tcp_seq_afinfo tcp6_seq_afinfo = {
-	.name		= "tcp6",
 	.family		= AF_INET6,
-	.seq_fops	= &tcp6_afinfo_seq_fops,
-	.seq_ops	= {
-		.show		= tcp6_seq_show,
-	},
 };
 
 int __net_init tcp6_proc_init(struct net *net)
 {
-	return tcp_proc_register(net, &tcp6_seq_afinfo);
+	if (!proc_create_net_data("tcp6", 0444, net->proc_net, &tcp6_seq_ops,
+			sizeof(struct tcp_iter_state), &tcp6_seq_afinfo))
+		return -ENOMEM;
+	return 0;
 }
 
 void tcp6_proc_exit(struct net *net)
 {
-	tcp_proc_unregister(net, &tcp6_seq_afinfo);
+	remove_proc_entry("tcp6", net->proc_net);
 }
 #endif
 

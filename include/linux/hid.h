@@ -292,9 +292,12 @@ struct hid_item {
 #define HID_DG_CONTACTCOUNT	0x000d0054
 #define HID_DG_CONTACTMAX	0x000d0055
 #define HID_DG_SCANTIME		0x000d0056
+#define HID_DG_SURFACESWITCH	0x000d0057
+#define HID_DG_BUTTONSWITCH	0x000d0058
 #define HID_DG_BUTTONTYPE	0x000d0059
 #define HID_DG_BARRELSWITCH2	0x000d005a
 #define HID_DG_TOOLSERIALNUMBER	0x000d005b
+#define HID_DG_LATENCYMODE	0x000d0060
 
 #define HID_VD_ASUS_CUSTOM_MEDIA_KEYS	0xff310076
 /*
@@ -341,10 +344,12 @@ struct hid_item {
 /* BIT(8) reserved for backward compatibility, was HID_QUIRK_NO_EMPTY_INPUT */
 /* BIT(9) reserved for backward compatibility, was NO_INIT_INPUT_REPORTS */
 #define HID_QUIRK_ALWAYS_POLL			BIT(10)
+#define HID_QUIRK_INPUT_PER_APP			BIT(11)
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		BIT(16)
 #define HID_QUIRK_SKIP_OUTPUT_REPORT_ID		BIT(17)
 #define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	BIT(18)
 #define HID_QUIRK_HAVE_SPECIAL_DRIVER		BIT(19)
+#define HID_QUIRK_INCREMENT_USAGE_ON_DUPLICATE	BIT(20)
 #define HID_QUIRK_FULLSPEED_INTERVAL		BIT(28)
 #define HID_QUIRK_NO_INIT_REPORTS		BIT(29)
 #define HID_QUIRK_NO_IGNORE			BIT(30)
@@ -367,6 +372,7 @@ struct hid_item {
 #define HID_GROUP_RMI				0x0100
 #define HID_GROUP_WACOM				0x0101
 #define HID_GROUP_LOGITECH_DJ_DEVICE		0x0102
+#define HID_GROUP_STEAM				0x0103
 
 /*
  * HID protocol status
@@ -463,8 +469,10 @@ struct hid_field {
 
 struct hid_report {
 	struct list_head list;
-	unsigned id;					/* id of this report */
-	unsigned type;					/* report type */
+	struct list_head hidinput_list;
+	unsigned int id;				/* id of this report */
+	unsigned int type;				/* report type */
+	unsigned int application;			/* application usage for this report */
 	struct hid_field *field[HID_MAX_FIELDS];	/* fields of the report */
 	unsigned maxfield;				/* maximum valid field index */
 	unsigned size;					/* size of the report (bits) */
@@ -502,12 +510,16 @@ struct hid_output_fifo {
 
 #define HID_STAT_ADDED		BIT(0)
 #define HID_STAT_PARSED		BIT(1)
+#define HID_STAT_DUP_DETECTED	BIT(2)
+#define HID_STAT_REPROBED	BIT(3)
 
 struct hid_input {
 	struct list_head list;
 	struct hid_report *report;
 	struct input_dev *input;
+	const char *name;
 	bool registered;
+	struct list_head reports;	/* the list of reports */
 };
 
 enum hid_type {
@@ -568,7 +580,7 @@ struct hid_device {							/* device report descriptor */
 	bool battery_avoid_query;
 #endif
 
-	unsigned int status;						/* see STAT flags above */
+	unsigned long status;						/* see STAT flags above */
 	unsigned claimed;						/* Claimed by hidinput, hiddev? */
 	unsigned quirks;						/* Various quirks the device can pull on us */
 	bool io_started;						/* If IO has started */
@@ -864,7 +876,9 @@ void hid_output_report(struct hid_report *report, __u8 *data);
 void __hid_request(struct hid_device *hid, struct hid_report *rep, int reqtype);
 u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags);
 struct hid_device *hid_allocate_device(void);
-struct hid_report *hid_register_report(struct hid_device *device, unsigned type, unsigned id);
+struct hid_report *hid_register_report(struct hid_device *device,
+				       unsigned int type, unsigned int id,
+				       unsigned int application);
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
 struct hid_report *hid_validate_values(struct hid_device *hid,
 				       unsigned int type, unsigned int id,

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MEMREMAP_H_
 #define _LINUX_MEMREMAP_H_
-#include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/percpu-refcount.h>
 
@@ -30,13 +29,6 @@ struct vmem_altmap {
  * Specialize ZONE_DEVICE memory into multiple types each having differents
  * usage.
  *
- * MEMORY_DEVICE_HOST:
- * Persistent device memory (pmem): struct page might be allocated in different
- * memory and architecture might want to perform special actions. It is similar
- * to regular memory, in that the CPU can access it transparently. However,
- * it is likely to have different bandwidth and latency than regular memory.
- * See Documentation/nvdimm/nvdimm.txt for more information.
- *
  * MEMORY_DEVICE_PRIVATE:
  * Device memory that is not directly addressable by the CPU: CPU can neither
  * read nor write private memory. In this case, we do still have struct pages
@@ -45,7 +37,7 @@ struct vmem_altmap {
  * must be treated as an opaque object, rather than a "normal" struct page.
  *
  * A more complete discussion of unaddressable memory may be found in
- * include/linux/hmm.h and Documentation/vm/hmm.txt.
+ * include/linux/hmm.h and Documentation/vm/hmm.rst.
  *
  * MEMORY_DEVICE_PUBLIC:
  * Device memory that is cache coherent from device and CPU point of view. This
@@ -53,11 +45,19 @@ struct vmem_altmap {
  * driver can hotplug the device memory using ZONE_DEVICE and with that memory
  * type. Any page of a process can be migrated to such memory. However no one
  * should be allow to pin such memory so that it can always be evicted.
+ *
+ * MEMORY_DEVICE_FS_DAX:
+ * Host memory that has similar access semantics as System RAM i.e. DMA
+ * coherent and supports page pinning. In support of coordinating page
+ * pinning vs other operations MEMORY_DEVICE_FS_DAX arranges for a
+ * wakeup event whenever a page is unpinned and becomes idle. This
+ * wakeup is used to coordinate physical address space management (ex:
+ * fs truncate/hole punch) vs pinned pages (ex: device dma).
  */
 enum memory_type {
-	MEMORY_DEVICE_HOST = 0,
-	MEMORY_DEVICE_PRIVATE,
+	MEMORY_DEVICE_PRIVATE = 1,
 	MEMORY_DEVICE_PUBLIC,
+	MEMORY_DEVICE_FS_DAX,
 };
 
 /*
@@ -67,7 +67,7 @@ enum memory_type {
  *   page_free()
  *
  * Additional notes about MEMORY_DEVICE_PRIVATE may be found in
- * include/linux/hmm.h and Documentation/vm/hmm.txt. There is also a brief
+ * include/linux/hmm.h and Documentation/vm/hmm.rst. There is also a brief
  * explanation in include/linux/memory_hotplug.h.
  *
  * The page_fault() callback must migrate page back, from device memory to
@@ -129,8 +129,6 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 
 unsigned long vmem_altmap_offset(struct vmem_altmap *altmap);
 void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns);
-
-static inline bool is_zone_device_page(const struct page *page);
 #else
 static inline void *devm_memremap_pages(struct device *dev,
 		struct dev_pagemap *pgmap)
@@ -160,20 +158,6 @@ static inline void vmem_altmap_free(struct vmem_altmap *altmap,
 {
 }
 #endif /* CONFIG_ZONE_DEVICE */
-
-#if defined(CONFIG_DEVICE_PRIVATE) || defined(CONFIG_DEVICE_PUBLIC)
-static inline bool is_device_private_page(const struct page *page)
-{
-	return is_zone_device_page(page) &&
-		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
-}
-
-static inline bool is_device_public_page(const struct page *page)
-{
-	return is_zone_device_page(page) &&
-		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
-}
-#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
 
 static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
 {

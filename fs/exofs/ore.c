@@ -146,68 +146,82 @@ int  _ore_get_io_state(struct ore_layout *layout,
 			struct ore_io_state **pios)
 {
 	struct ore_io_state *ios;
-	struct page **pages;
-	struct osd_sg_entry *sgilist;
+	size_t size_ios, size_extra, size_total;
+	void *ios_extra;
+
+	/*
+	 * The desired layout looks like this, with the extra_allocation
+	 * items pointed at from fields within ios or per_dev:
+
 	struct __alloc_all_io_state {
 		struct ore_io_state ios;
 		struct ore_per_dev_state per_dev[numdevs];
 		union {
 			struct osd_sg_entry sglist[sgs_per_dev * numdevs];
 			struct page *pages[num_par_pages];
-		};
-	} *_aios;
+		} extra_allocation;
+	} whole_allocation;
 
-	if (likely(sizeof(*_aios) <= PAGE_SIZE)) {
-		_aios = kzalloc(sizeof(*_aios), GFP_KERNEL);
-		if (unlikely(!_aios)) {
-			ORE_DBGMSG("Failed kzalloc bytes=%zd\n",
-				   sizeof(*_aios));
+	*/
+
+	/* This should never happen, so abort early if it ever does. */
+	if (sgs_per_dev && num_par_pages) {
+		ORE_DBGMSG("Tried to use both pages and sglist\n");
+		*pios = NULL;
+		return -EINVAL;
+	}
+
+	if (numdevs > (INT_MAX - sizeof(*ios)) /
+		       sizeof(struct ore_per_dev_state))
+		return -ENOMEM;
+	size_ios = sizeof(*ios) + sizeof(struct ore_per_dev_state) * numdevs;
+
+	if (sgs_per_dev * numdevs > INT_MAX / sizeof(struct osd_sg_entry))
+		return -ENOMEM;
+	if (num_par_pages > INT_MAX / sizeof(struct page *))
+		return -ENOMEM;
+	size_extra = max(sizeof(struct osd_sg_entry) * (sgs_per_dev * numdevs),
+			 sizeof(struct page *) * num_par_pages);
+
+	size_total = size_ios + size_extra;
+
+	if (likely(size_total <= PAGE_SIZE)) {
+		ios = kzalloc(size_total, GFP_KERNEL);
+		if (unlikely(!ios)) {
+			ORE_DBGMSG("Failed kzalloc bytes=%zd\n", size_total);
 			*pios = NULL;
 			return -ENOMEM;
 		}
-		pages = num_par_pages ? _aios->pages : NULL;
-		sgilist = sgs_per_dev ? _aios->sglist : NULL;
-		ios = &_aios->ios;
+		ios_extra = (char *)ios + size_ios;
 	} else {
-		struct __alloc_small_io_state {
-			struct ore_io_state ios;
-			struct ore_per_dev_state per_dev[numdevs];
-		} *_aio_small;
-		union __extra_part {
-			struct osd_sg_entry sglist[sgs_per_dev * numdevs];
-			struct page *pages[num_par_pages];
-		} *extra_part;
-
-		_aio_small = kzalloc(sizeof(*_aio_small), GFP_KERNEL);
-		if (unlikely(!_aio_small)) {
+		ios = kzalloc(size_ios, GFP_KERNEL);
+		if (unlikely(!ios)) {
 			ORE_DBGMSG("Failed alloc first part bytes=%zd\n",
-				   sizeof(*_aio_small));
+				   size_ios);
 			*pios = NULL;
 			return -ENOMEM;
 		}
-		extra_part = kzalloc(sizeof(*extra_part), GFP_KERNEL);
-		if (unlikely(!extra_part)) {
+		ios_extra = kzalloc(size_extra, GFP_KERNEL);
+		if (unlikely(!ios_extra)) {
 			ORE_DBGMSG("Failed alloc second part bytes=%zd\n",
-				   sizeof(*extra_part));
-			kfree(_aio_small);
+				   size_extra);
+			kfree(ios);
 			*pios = NULL;
 			return -ENOMEM;
 		}
 
-		pages = num_par_pages ? extra_part->pages : NULL;
-		sgilist = sgs_per_dev ? extra_part->sglist : NULL;
 		/* In this case the per_dev[0].sgilist holds the pointer to
 		 * be freed
 		 */
-		ios = &_aio_small->ios;
 		ios->extra_part_alloc = true;
 	}
 
-	if (pages) {
-		ios->parity_pages = pages;
+	if (num_par_pages) {
+		ios->parity_pages = ios_extra;
 		ios->max_par_pages = num_par_pages;
 	}
-	if (sgilist) {
+	if (sgs_per_dev) {
+		struct osd_sg_entry *sgilist = ios_extra;
 		unsigned d;
 
 		for (d = 0; d < numdevs; ++d) {
@@ -790,7 +804,7 @@ int ore_create(struct ore_io_state *ios)
 	for (i = 0; i < ios->oc->numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(_ios_od(ios, i), GFP_KERNEL);
+		or = osd_start_request(_ios_od(ios, i));
 		if (unlikely(!or)) {
 			ORE_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -815,7 +829,7 @@ int ore_remove(struct ore_io_state *ios)
 	for (i = 0; i < ios->oc->numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(_ios_od(ios, i), GFP_KERNEL);
+		or = osd_start_request(_ios_od(ios, i));
 		if (unlikely(!or)) {
 			ORE_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -847,7 +861,7 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 		struct ore_per_dev_state *per_dev = &ios->per_dev[cur_comp];
 		struct osd_request *or;
 
-		or = osd_start_request(_ios_od(ios, dev), GFP_KERNEL);
+		or = osd_start_request(_ios_od(ios, dev));
 		if (unlikely(!or)) {
 			ORE_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -966,7 +980,7 @@ int _ore_read_mirror(struct ore_io_state *ios, unsigned cur_comp)
 		return 0; /* Just an empty slot */
 
 	first_dev = per_dev->dev + first_dev % ios->layout->mirrors_p1;
-	or = osd_start_request(_ios_od(ios, first_dev), GFP_KERNEL);
+	or = osd_start_request(_ios_od(ios, first_dev));
 	if (unlikely(!or)) {
 		ORE_ERR("%s: osd_start_request failed\n", __func__);
 		return -ENOMEM;
@@ -1060,7 +1074,7 @@ static int _truncate_mirrors(struct ore_io_state *ios, unsigned cur_comp,
 		struct ore_per_dev_state *per_dev = &ios->per_dev[cur_comp];
 		struct osd_request *or;
 
-		or = osd_start_request(_ios_od(ios, cur_comp), GFP_KERNEL);
+		or = osd_start_request(_ios_od(ios, cur_comp));
 		if (unlikely(!or)) {
 			ORE_ERR("%s: osd_start_request failed\n", __func__);
 			return -ENOMEM;

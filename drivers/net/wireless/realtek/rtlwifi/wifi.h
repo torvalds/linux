@@ -158,6 +158,30 @@ enum {
 	H2C_BT_PORT_ID = 0x71,
 };
 
+enum rtl_c2h_evt_v1 {
+	C2H_DBG = 0,
+	C2H_LB = 1,
+	C2H_TXBF = 2,
+	C2H_TX_REPORT = 3,
+	C2H_BT_INFO = 9,
+	C2H_BT_MP = 11,
+	C2H_RA_RPT = 12,
+
+	C2H_FW_SWCHNL = 0x10,
+	C2H_IQK_FINISH = 0x11,
+
+	C2H_EXT_V2 = 0xFF,
+};
+
+enum rtl_c2h_evt_v2 {
+	C2H_V2_CCX_RPT = 0x0F,
+};
+
+#define GET_C2H_CMD_ID(c2h)	({u8 *__c2h = c2h; __c2h[0]; })
+#define GET_C2H_SEQ(c2h)	({u8 *__c2h = c2h; __c2h[1]; })
+#define C2H_DATA_OFFSET		2
+#define GET_C2H_DATA_PTR(c2h)	({u8 *__c2h = c2h; &__c2h[C2H_DATA_OFFSET]; })
+
 #define GET_TX_REPORT_SN_V1(c2h)	(c2h[6])
 #define GET_TX_REPORT_ST_V1(c2h)	(c2h[0] & 0xC0)
 #define GET_TX_REPORT_RETRY_V1(c2h)	(c2h[2] & 0x3F)
@@ -1009,6 +1033,29 @@ enum dm_info_query {
 	DM_INFO_IQK_NG,
 	DM_INFO_SIZE,
 };
+
+enum rx_packet_type {
+	NORMAL_RX,
+	TX_REPORT1,
+	TX_REPORT2,
+	HIS_REPORT,
+	C2H_PACKET,
+};
+
+struct rtlwifi_tx_info {
+	int sn;
+	unsigned long send_time;
+};
+
+static inline struct rtlwifi_tx_info *rtl_tx_skb_cb_info(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	BUILD_BUG_ON(sizeof(struct rtlwifi_tx_info) >
+		     sizeof(info->status.status_driver_data));
+
+	return (struct rtlwifi_tx_info *)(info->status.status_driver_data);
+}
 
 struct octet_string {
 	u8 *octet;
@@ -1967,6 +2014,7 @@ struct rtl_tx_report {
 	u16 last_sent_sn;
 	unsigned long last_sent_time;
 	u16 last_recv_sn;
+	struct sk_buff_head queue;
 };
 
 struct rtl_ps_ctl {
@@ -2297,14 +2345,12 @@ struct rtl_hal_ops {
 	void (*set_default_port_id_cmd)(struct ieee80211_hw *hw);
 	bool (*get_btc_status) (void);
 	bool (*is_fw_header)(struct rtlwifi_firmware_header *hdr);
-	u32 (*rx_command_packet)(struct ieee80211_hw *hw,
-				 const struct rtl_stats *status, struct sk_buff *skb);
 	void (*add_wowlan_pattern)(struct ieee80211_hw *hw,
 				   struct rtl_wow_pattern *rtl_pattern,
 				   u8 index);
 	u16 (*get_available_desc)(struct ieee80211_hw *hw, u8 q_idx);
-	void (*c2h_content_parsing)(struct ieee80211_hw *hw, u8 tag, u8 len,
-				    u8 *val);
+	void (*c2h_ra_report_handler)(struct ieee80211_hw *hw,
+				      u8 *cmd_buf, u8 cmd_len);
 };
 
 struct rtl_intf_ops {
@@ -2750,7 +2796,7 @@ struct rtl_priv {
 	struct list_head entry_list;
 
 	/* c2hcmd list for kthread level access */
-	struct list_head c2hcmd_list;
+	struct sk_buff_head c2hcmd_queue;
 
 	struct rtl_debug dbg;
 	int max_fw_size;
@@ -2840,11 +2886,6 @@ enum bt_co_type {
 	BT_RTL8723B = 8,
 	BT_RTL8192E = 9,
 	BT_RTL8812A = 11,
-};
-
-enum bt_total_ant_num {
-	ANT_TOTAL_X2 = 0,
-	ANT_TOTAL_X1 = 1
 };
 
 enum bt_cur_state {

@@ -30,6 +30,7 @@
 
 static int zero;
 static int one = 1;
+static int two = 2;
 static int four = 4;
 static int thousand = 1000;
 static int gso_max_segs = GSO_MAX_SEGS;
@@ -46,6 +47,7 @@ static int tcp_syn_retries_min = 1;
 static int tcp_syn_retries_max = MAX_TCP_SYNCNT;
 static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
+static int comp_sack_nr_max = 255;
 
 /* obsolete */
 static int sysctl_tcp_low_latency __read_mostly;
@@ -263,8 +265,9 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 	    ipv4.sysctl_tcp_fastopen);
 	struct ctl_table tbl = { .maxlen = (TCP_FASTOPEN_KEY_LENGTH * 2 + 10) };
 	struct tcp_fastopen_context *ctxt;
-	int ret;
 	u32  user_key[4]; /* 16 bytes, matching TCP_FASTOPEN_KEY_LENGTH */
+	__le32 key[4];
+	int ret, i;
 
 	tbl.data = kmalloc(tbl.maxlen, GFP_KERNEL);
 	if (!tbl.data)
@@ -273,10 +276,13 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 	rcu_read_lock();
 	ctxt = rcu_dereference(net->ipv4.tcp_fastopen_ctx);
 	if (ctxt)
-		memcpy(user_key, ctxt->key, TCP_FASTOPEN_KEY_LENGTH);
+		memcpy(key, ctxt->key, TCP_FASTOPEN_KEY_LENGTH);
 	else
-		memset(user_key, 0, sizeof(user_key));
+		memset(key, 0, sizeof(key));
 	rcu_read_unlock();
+
+	for (i = 0; i < ARRAY_SIZE(key); i++)
+		user_key[i] = le32_to_cpu(key[i]);
 
 	snprintf(tbl.data, tbl.maxlen, "%08x-%08x-%08x-%08x",
 		user_key[0], user_key[1], user_key[2], user_key[3]);
@@ -288,13 +294,17 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 			ret = -EINVAL;
 			goto bad_key;
 		}
-		tcp_fastopen_reset_cipher(net, NULL, user_key,
+
+		for (i = 0; i < ARRAY_SIZE(user_key); i++)
+			key[i] = cpu_to_le32(user_key[i]);
+
+		tcp_fastopen_reset_cipher(net, NULL, key,
 					  TCP_FASTOPEN_KEY_LENGTH);
 	}
 
 bad_key:
 	pr_debug("proc FO key set 0x%x-%x-%x-%x <- 0x%s: %u\n",
-	       user_key[0], user_key[1], user_key[2], user_key[3],
+		user_key[0], user_key[1], user_key[2], user_key[3],
 	       (char *)tbl.data, ret);
 	kfree(tbl.data);
 	return ret;
@@ -844,7 +854,9 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_tw_reuse,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &two,
 	},
 	{
 		.procname	= "tcp_max_tw_buckets",
@@ -1150,6 +1162,22 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &one,
+	},
+	{
+		.procname	= "tcp_comp_sack_delay_ns",
+		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_delay_ns,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "tcp_comp_sack_nr",
+		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_nr,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &comp_sack_nr_max,
 	},
 	{
 		.procname	= "udp_rmem_min",

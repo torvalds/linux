@@ -59,6 +59,11 @@ static u32 nfp_mutex_unlocked(u16 interface)
 	return (u32)interface << 16 | 0x0000;
 }
 
+static u32 nfp_mutex_owner(u32 val)
+{
+	return val >> 16;
+}
+
 static bool nfp_mutex_is_locked(u32 val)
 {
 	return (val & 0xffff) == 0x000f;
@@ -350,4 +355,44 @@ int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
 	}
 
 	return nfp_mutex_is_locked(tmp) ? -EBUSY : -EINVAL;
+}
+
+/**
+ * nfp_cpp_mutex_reclaim() - Unlock mutex if held by local endpoint
+ * @cpp:	NFP CPP handle
+ * @target:	NFP CPP target ID (ie NFP_CPP_TARGET_CLS or NFP_CPP_TARGET_MU)
+ * @address:	Offset into the address space of the NFP CPP target ID
+ *
+ * Release lock if held by local system.  Extreme care is advised, call only
+ * when no local lock users can exist.
+ *
+ * Return:      0 if the lock was OK, 1 if locked by us, -errno on invalid mutex
+ */
+int nfp_cpp_mutex_reclaim(struct nfp_cpp *cpp, int target,
+			  unsigned long long address)
+{
+	const u32 mur = NFP_CPP_ID(target, 3, 0);	/* atomic_read */
+	const u32 muw = NFP_CPP_ID(target, 4, 0);	/* atomic_write */
+	u16 interface = nfp_cpp_interface(cpp);
+	int err;
+	u32 tmp;
+
+	err = nfp_cpp_mutex_validate(interface, &target, address);
+	if (err)
+		return err;
+
+	/* Check lock */
+	err = nfp_cpp_readl(cpp, mur, address, &tmp);
+	if (err < 0)
+		return err;
+
+	if (nfp_mutex_is_unlocked(tmp) || nfp_mutex_owner(tmp) != interface)
+		return 0;
+
+	/* Bust the lock */
+	err = nfp_cpp_writel(cpp, muw, address, nfp_mutex_unlocked(interface));
+	if (err < 0)
+		return err;
+
+	return 1;
 }

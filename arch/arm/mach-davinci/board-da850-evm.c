@@ -244,6 +244,7 @@ static struct davinci_aemif_timing da850_evm_nandflash_timing = {
 };
 
 static struct davinci_nand_pdata da850_evm_nandflash_data = {
+	.core_chipsel	= 1,
 	.parts		= da850_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(da850_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
@@ -773,7 +774,7 @@ static struct gpiod_lookup_table mmc_gpios_table = {
 		GPIO_LOOKUP("davinci_gpio.0", DA850_MMCSD_CD_PIN, "cd",
 			    GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("davinci_gpio.0", DA850_MMCSD_WP_PIN, "wp",
-			    GPIO_ACTIVE_LOW),
+			    GPIO_ACTIVE_HIGH),
 	},
 };
 

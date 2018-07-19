@@ -106,6 +106,7 @@ struct mma8452_data {
 	u8 ctrl_reg1;
 	u8 data_cfg;
 	const struct mma_chip_info *chip_info;
+	int sleep_val;
 };
 
  /**
@@ -193,7 +194,11 @@ static int mma8452_drdy(struct mma8452_data *data)
 		if ((ret & MMA8452_STATUS_DRDY) == MMA8452_STATUS_DRDY)
 			return 0;
 
-		msleep(20);
+		if (data->sleep_val <= 20)
+			usleep_range(data->sleep_val * 250,
+				     data->sleep_val * 500);
+		else
+			msleep(20);
 	}
 
 	dev_err(&data->client->dev, "data not ready\n");
@@ -544,6 +549,18 @@ static int mma8452_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int mma8452_calculate_sleep(struct mma8452_data *data)
+{
+	int ret, i = mma8452_get_odr_index(data);
+
+	if (mma8452_samp_freq[i][0] > 0)
+		ret = 1000 / mma8452_samp_freq[i][0];
+	else
+		ret = 1000;
+
+	return ret == 0 ? 1 : ret;
+}
+
 static int mma8452_standby(struct mma8452_data *data)
 {
 	return i2c_smbus_write_byte_data(data->client, MMA8452_CTRL_REG1,
@@ -699,6 +716,8 @@ static int mma8452_write_raw(struct iio_dev *indio_dev,
 		}
 		data->ctrl_reg1 &= ~MMA8452_CTRL_DR_MASK;
 		data->ctrl_reg1 |= i << MMA8452_CTRL_DR_SHIFT;
+
+		data->sleep_val = mma8452_calculate_sleep(data);
 
 		ret = mma8452_change_config(data, MMA8452_CTRL_REG1,
 					    data->ctrl_reg1);
@@ -1034,7 +1053,7 @@ static irqreturn_t mma8452_interrupt(int irq, void *p)
 	if (src < 0)
 		return IRQ_NONE;
 
-	if (!(src & data->chip_info->enabled_events))
+	if (!(src & (data->chip_info->enabled_events | MMA8452_INT_DRDY)))
 		return IRQ_NONE;
 
 	if (src & MMA8452_INT_DRDY) {
@@ -1593,6 +1612,9 @@ static int mma8452_probe(struct i2c_client *client,
 
 	data->ctrl_reg1 = MMA8452_CTRL_ACTIVE |
 			  (MMA8452_CTRL_DR_DEFAULT << MMA8452_CTRL_DR_SHIFT);
+
+	data->sleep_val = mma8452_calculate_sleep(data);
+
 	ret = i2c_smbus_write_byte_data(client, MMA8452_CTRL_REG1,
 					data->ctrl_reg1);
 	if (ret < 0)

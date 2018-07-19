@@ -933,7 +933,6 @@ static int nfp6000_area_read(struct nfp_cpp_area *area, void *kernel_vaddr,
 	u32 *wrptr32 = kernel_vaddr;
 	const u32 __iomem *rdptr32;
 	int n, width;
-	bool is_64;
 
 	priv = nfp_cpp_area_priv(area);
 	rdptr64 = priv->iomem + offset;
@@ -943,9 +942,14 @@ static int nfp6000_area_read(struct nfp_cpp_area *area, void *kernel_vaddr,
 		return -EFAULT;
 
 	width = priv->width.read;
-
 	if (width <= 0)
 		return -EINVAL;
+
+	/* MU reads via a PCIe2CPP BAR support 32bit (and other) lengths */
+	if (priv->target == (NFP_CPP_TARGET_MU & NFP_CPP_TARGET_ID_MASK) &&
+	    priv->action == NFP_CPP_ACTION_RW &&
+	    (offset % sizeof(u64) == 4 || length % sizeof(u64) == 4))
+		width = TARGET_WIDTH_32;
 
 	/* Unaligned? Translate to an explicit access */
 	if ((priv->offset + offset) & (width - 1))
@@ -956,36 +960,29 @@ static int nfp6000_area_read(struct nfp_cpp_area *area, void *kernel_vaddr,
 					     priv->offset + offset,
 					     kernel_vaddr, length, width);
 
-	is_64 = width == TARGET_WIDTH_64;
-
-	/* MU reads via a PCIe2CPP BAR supports 32bit (and other) lengths */
-	if (priv->target == (NFP_CPP_TARGET_ID_MASK & NFP_CPP_TARGET_MU) &&
-	    priv->action == NFP_CPP_ACTION_RW)
-		is_64 = false;
-
-	if (is_64) {
-		if (offset % sizeof(u64) != 0 || length % sizeof(u64) != 0)
-			return -EINVAL;
-	} else {
-		if (offset % sizeof(u32) != 0 || length % sizeof(u32) != 0)
-			return -EINVAL;
-	}
-
 	if (WARN_ON(!priv->bar))
 		return -EFAULT;
 
-	if (is_64)
-#ifndef __raw_readq
-		return -EINVAL;
-#else
-		for (n = 0; n < length; n += sizeof(u64))
-			*wrptr64++ = __raw_readq(rdptr64++);
-#endif
-	else
+	switch (width) {
+	case TARGET_WIDTH_32:
+		if (offset % sizeof(u32) != 0 || length % sizeof(u32) != 0)
+			return -EINVAL;
+
 		for (n = 0; n < length; n += sizeof(u32))
 			*wrptr32++ = __raw_readl(rdptr32++);
+		return n;
+#ifdef __raw_readq
+	case TARGET_WIDTH_64:
+		if (offset % sizeof(u64) != 0 || length % sizeof(u64) != 0)
+			return -EINVAL;
 
-	return n;
+		for (n = 0; n < length; n += sizeof(u64))
+			*wrptr64++ = __raw_readq(rdptr64++);
+		return n;
+#endif
+	default:
+		return -EINVAL;
+	}
 }
 
 static int
@@ -999,7 +996,6 @@ nfp6000_area_write(struct nfp_cpp_area *area,
 	struct nfp6000_area_priv *priv;
 	u32 __iomem *wrptr32;
 	int n, width;
-	bool is_64;
 
 	priv = nfp_cpp_area_priv(area);
 	wrptr64 = priv->iomem + offset;
@@ -1009,9 +1005,14 @@ nfp6000_area_write(struct nfp_cpp_area *area,
 		return -EFAULT;
 
 	width = priv->width.write;
-
 	if (width <= 0)
 		return -EINVAL;
+
+	/* MU writes via a PCIe2CPP BAR support 32bit (and other) lengths */
+	if (priv->target == (NFP_CPP_TARGET_ID_MASK & NFP_CPP_TARGET_MU) &&
+	    priv->action == NFP_CPP_ACTION_RW &&
+	    (offset % sizeof(u64) == 4 || length % sizeof(u64) == 4))
+		width = TARGET_WIDTH_32;
 
 	/* Unaligned? Translate to an explicit access */
 	if ((priv->offset + offset) & (width - 1))
@@ -1022,40 +1023,33 @@ nfp6000_area_write(struct nfp_cpp_area *area,
 					      priv->offset + offset,
 					      kernel_vaddr, length, width);
 
-	is_64 = width == TARGET_WIDTH_64;
-
-	/* MU writes via a PCIe2CPP BAR supports 32bit (and other) lengths */
-	if (priv->target == (NFP_CPP_TARGET_ID_MASK & NFP_CPP_TARGET_MU) &&
-	    priv->action == NFP_CPP_ACTION_RW)
-		is_64 = false;
-
-	if (is_64) {
-		if (offset % sizeof(u64) != 0 || length % sizeof(u64) != 0)
-			return -EINVAL;
-	} else {
-		if (offset % sizeof(u32) != 0 || length % sizeof(u32) != 0)
-			return -EINVAL;
-	}
-
 	if (WARN_ON(!priv->bar))
 		return -EFAULT;
 
-	if (is_64)
-#ifndef __raw_writeq
-		return -EINVAL;
-#else
-		for (n = 0; n < length; n += sizeof(u64)) {
-			__raw_writeq(*rdptr64++, wrptr64++);
-			wmb();
-		}
-#endif
-	else
+	switch (width) {
+	case TARGET_WIDTH_32:
+		if (offset % sizeof(u32) != 0 || length % sizeof(u32) != 0)
+			return -EINVAL;
+
 		for (n = 0; n < length; n += sizeof(u32)) {
 			__raw_writel(*rdptr32++, wrptr32++);
 			wmb();
 		}
+		return n;
+#ifdef __raw_writeq
+	case TARGET_WIDTH_64:
+		if (offset % sizeof(u64) != 0 || length % sizeof(u64) != 0)
+			return -EINVAL;
 
-	return n;
+		for (n = 0; n < length; n += sizeof(u64)) {
+			__raw_writeq(*rdptr64++, wrptr64++);
+			wmb();
+		}
+		return n;
+#endif
+	default:
+		return -EINVAL;
+	}
 }
 
 struct nfp6000_explicit_priv {
@@ -1330,6 +1324,7 @@ struct nfp_cpp *nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev)
 	/*  Finished with card initialization. */
 	dev_info(&pdev->dev,
 		 "Netronome Flow Processor NFP4000/NFP6000 PCIe Card Probe\n");
+	pcie_print_link_status(pdev);
 
 	nfp = kzalloc(sizeof(*nfp), GFP_KERNEL);
 	if (!nfp) {

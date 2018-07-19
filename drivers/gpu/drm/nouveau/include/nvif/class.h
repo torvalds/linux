@@ -52,6 +52,8 @@
 
 #define NV04_DISP                                     /* cl0046.h */ 0x00000046
 
+#define VOLTA_USERMODE_A                                             0x0000c361
+
 #define NV03_CHANNEL_DMA                              /* cl506b.h */ 0x0000006b
 #define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
 #define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
@@ -66,6 +68,7 @@
 #define KEPLER_CHANNEL_GPFIFO_B                       /* cla06f.h */ 0x0000a16f
 #define MAXWELL_CHANNEL_GPFIFO_A                      /* cla06f.h */ 0x0000b06f
 #define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
+#define VOLTA_CHANNEL_GPFIFO_A                        /* cla06f.h */ 0x0000c36f
 
 #define NV50_DISP                                     /* cl5070.h */ 0x00005070
 #define G82_DISP                                      /* cl5070.h */ 0x00008270
@@ -79,6 +82,7 @@
 #define GM200_DISP                                    /* cl5070.h */ 0x00009570
 #define GP100_DISP                                    /* cl5070.h */ 0x00009770
 #define GP102_DISP                                    /* cl5070.h */ 0x00009870
+#define GV100_DISP                                    /* cl5070.h */ 0x0000c370
 
 #define NV31_MPEG                                                    0x00003174
 #define G82_MPEG                                                     0x00008274
@@ -90,12 +94,15 @@
 #define GT214_DISP_CURSOR                             /* cl507a.h */ 0x0000857a
 #define GF110_DISP_CURSOR                             /* cl507a.h */ 0x0000907a
 #define GK104_DISP_CURSOR                             /* cl507a.h */ 0x0000917a
+#define GV100_DISP_CURSOR                             /* cl507a.h */ 0x0000c37a
 
 #define NV50_DISP_OVERLAY                             /* cl507b.h */ 0x0000507b
 #define G82_DISP_OVERLAY                              /* cl507b.h */ 0x0000827b
 #define GT214_DISP_OVERLAY                            /* cl507b.h */ 0x0000857b
 #define GF110_DISP_OVERLAY                            /* cl507b.h */ 0x0000907b
 #define GK104_DISP_OVERLAY                            /* cl507b.h */ 0x0000917b
+
+#define GV100_DISP_WINDOW_IMM_CHANNEL_DMA             /* clc37b.h */ 0x0000c37b
 
 #define NV50_DISP_BASE_CHANNEL_DMA                    /* cl507c.h */ 0x0000507c
 #define G82_DISP_BASE_CHANNEL_DMA                     /* cl507c.h */ 0x0000827c
@@ -117,6 +124,7 @@
 #define GM200_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000957d
 #define GP100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000977d
 #define GP102_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000987d
+#define GV100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000c37d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* cl507e.h */ 0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                  /* cl507e.h */ 0x0000827e
@@ -124,6 +132,8 @@
 #define GT214_DISP_OVERLAY_CHANNEL_DMA                /* cl507e.h */ 0x0000857e
 #define GF110_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000907e
 #define GK104_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000917e
+
+#define GV100_DISP_WINDOW_CHANNEL_DMA                 /* clc37e.h */ 0x0000c37e
 
 #define NV50_TESLA                                                   0x00005097
 #define G82_TESLA                                                    0x00008297
@@ -144,6 +154,8 @@
 
 #define PASCAL_A                                      /* cl9097.h */ 0x0000c097
 #define PASCAL_B                                      /* cl9097.h */ 0x0000c197
+
+#define VOLTA_A                                       /* cl9097.h */ 0x0000c397
 
 #define NV74_BSP                                                     0x000074b0
 
@@ -170,6 +182,7 @@
 #define MAXWELL_DMA_COPY_A                                           0x0000b0b5
 #define PASCAL_DMA_COPY_A                                            0x0000c0b5
 #define PASCAL_DMA_COPY_B                                            0x0000c1b5
+#define VOLTA_DMA_COPY_A                                             0x0000c3b5
 
 #define FERMI_DECOMPRESS                                             0x000090b8
 
@@ -183,6 +196,7 @@
 #define MAXWELL_COMPUTE_B                                            0x0000b1c0
 #define PASCAL_COMPUTE_A                                             0x0000c0c0
 #define PASCAL_COMPUTE_B                                             0x0000c1c0
+#define VOLTA_COMPUTE_A                                              0x0000c3c0
 
 #define NV74_CIPHER                                                  0x000074c1
 #endif

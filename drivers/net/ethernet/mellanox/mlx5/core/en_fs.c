@@ -277,7 +277,6 @@ static void mlx5e_del_vlan_rule(struct mlx5e_priv *priv,
 		}
 		break;
 	case MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID:
-		mlx5e_vport_context_update_vlans(priv);
 		if (priv->fs.vlan.active_cvlans_rule[vid]) {
 			mlx5_del_flow_rules(priv->fs.vlan.active_cvlans_rule[vid]);
 			priv->fs.vlan.active_cvlans_rule[vid] = NULL;

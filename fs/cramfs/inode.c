@@ -90,7 +90,7 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
 	const struct cramfs_inode *cramfs_inode, unsigned int offset)
 {
 	struct inode *inode;
-	static struct timespec zerotime;
+	static struct timespec64 zerotime;
 
 	inode = iget_locked(sb, cramino(cramfs_inode, offset));
 	if (!inode)
@@ -808,10 +808,7 @@ static struct dentry *cramfs_lookup(struct inode *dir, struct dentry *dentry, un
 	}
 out:
 	mutex_unlock(&read_mutex);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static int cramfs_readpage(struct file *file, struct page *page)

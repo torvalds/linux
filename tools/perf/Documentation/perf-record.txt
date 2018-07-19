@@ -57,6 +57,9 @@ OPTIONS
 			 FP mode, "dwarf" for DWARF mode, "lbr" for LBR mode and
 			 "no" for disable callgraph.
 	  - 'stack-size': user stack size for dwarf mode
+	  - 'name' : User defined event name. Single quotes (') may be used to
+		    escape symbols in the name from parsing by shell and tool
+		    like this: name=\'CPU_CLK_UNHALTED.THREAD:cmask=0x1\'.
 
           See the linkperf:perf-list[1] man page for more parameters.
 

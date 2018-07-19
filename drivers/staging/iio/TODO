@@ -1,4 +1,11 @@
-2016 10/09
+2018-04-15
+
+All affected drivers:
+Convert all uses of the old GPIO API from <linux/gpio.h> to the
+GPIO descriptor API in <linux/gpio/consumer.h> and look up GPIO
+lines from device tree, ACPI or board files, board files should
+use <linux/gpio/machine.h>.
+
 
 ADI Drivers:
 CC the device-drivers-devel@blackfin.uclinux.org mailing list when

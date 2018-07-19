@@ -840,7 +840,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 	struct lpfc_vport *port_iterator;
 	struct lpfc_vport **vports;
 	int index = 0;
-	vports = kzalloc((phba->max_vports + 1) * sizeof(struct lpfc_vport *),
+	vports = kcalloc(phba->max_vports + 1, sizeof(struct lpfc_vport *),
 			 GFP_KERNEL);
 	if (vports == NULL)
 		return NULL;

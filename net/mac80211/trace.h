@@ -2,6 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016 Intel Deutschland GmbH
+* Copyright (C) 2018 Intel Corporation
 */
 
 #if !defined(__MAC80211_DRIVER_TRACE) || defined(TRACE_HEADER_MULTI_READ)
@@ -1413,11 +1414,29 @@ DEFINE_EVENT(release_evt, drv_allow_buffered_frames,
 	TP_ARGS(local, sta, tids, num_frames, reason, more_data)
 );
 
-DEFINE_EVENT(local_sdata_evt, drv_mgd_prepare_tx,
+TRACE_EVENT(drv_mgd_prepare_tx,
 	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_sub_if_data *sdata),
+		 struct ieee80211_sub_if_data *sdata,
+		 u16 duration),
 
-	TP_ARGS(local, sdata)
+	TP_ARGS(local, sdata, duration),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u32, duration)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->duration = duration;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " duration: %u",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->duration
+	)
 );
 
 DEFINE_EVENT(local_sdata_evt, drv_mgd_protect_tdls_discover,

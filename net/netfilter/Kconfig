@@ -433,16 +433,15 @@ config NF_NAT_TFTP
 	default NF_NAT && NF_CONNTRACK_TFTP
 
 config NF_NAT_REDIRECT
-        tristate "IPv4/IPv6 redirect support"
-	depends on NF_NAT
-        help
-          This is the kernel functionality to redirect packets to local
-          machine through NAT.
+	bool
 
 config NETFILTER_SYNPROXY
 	tristate
 
 endif # NF_CONNTRACK
+
+config NF_OSF
+	tristate
 
 config NF_TABLES
 	select NETFILTER_NETLINK
@@ -473,24 +472,6 @@ config NF_TABLES_NETDEV
 	bool "Netfilter nf_tables netdev tables support"
 	help
 	  This option enables support for the "netdev" table.
-
-config NFT_EXTHDR
-	tristate "Netfilter nf_tables exthdr module"
-	help
-	  This option adds the "exthdr" expression that you can use to match
-	  IPv6 extension headers and tcp options.
-
-config NFT_META
-	tristate "Netfilter nf_tables meta module"
-	help
-	  This option adds the "meta" expression that you can use to match and
-	  to set packet metainformation such as the packet mark.
-
-config NFT_RT
-	tristate "Netfilter nf_tables routing module"
-	help
-	  This option adds the "rt" expression that you can use to match
-	  packet routing information such as the packet nexthop.
 
 config NFT_NUMGEN
 	tristate "Netfilter nf_tables number generator module"
@@ -535,6 +516,15 @@ config NFT_COUNTER
 	help
 	  This option adds the "counter" expression that you can use to
 	  include packet and byte counters in a rule.
+
+config NFT_CONNLIMIT
+	tristate "Netfilter nf_tables connlimit module"
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_CONNCOUNT
+	help
+	  This option adds the "connlimit" expression that you can use to
+	  ratelimit rule matchings per connections.
 
 config NFT_LOG
 	tristate "Netfilter nf_tables log module"
@@ -632,6 +622,15 @@ config NFT_FIB_INET
 	  The lookup will be delegated to the IPv4 or IPv6 FIB depending
 	  on the protocol of the packet.
 
+config NFT_SOCKET
+	tristate "Netfilter nf_tables socket match support"
+	depends on IPV6 || IPV6=n
+	select NF_SOCKET_IPV4
+	select NF_SOCKET_IPV6 if IPV6
+	help
+	  This option allows matching for the presence or absence of a
+	  corresponding socket and its attributes.
+
 if NF_TABLES_NETDEV
 
 config NF_DUP_NETDEV
@@ -667,8 +666,7 @@ endif # NF_TABLES
 
 config NF_FLOW_TABLE_INET
 	tristate "Netfilter flow table mixed IPv4/IPv6 module"
-	depends on NF_FLOW_TABLE_IPV4
-	depends on NF_FLOW_TABLE_IPV6
+	depends on NF_FLOW_TABLE
 	help
           This option adds the flow table mixed IPv4/IPv6 support.
 
@@ -1000,6 +998,8 @@ config NETFILTER_XT_TARGET_TPROXY
 	depends on IP_NF_MANGLE
 	select NF_DEFRAG_IPV4
 	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES != n
+	select NF_TPROXY_IPV4
+	select NF_TPROXY_IPV6 if IP6_NF_IPTABLES
 	help
 	  This option adds a `TPROXY' target, which is somewhat similar to
 	  REDIRECT.  It can only be used in the mangle table and is useful
@@ -1378,6 +1378,7 @@ config NETFILTER_XT_MATCH_NFACCT
 config NETFILTER_XT_MATCH_OSF
 	tristate '"osf" Passive OS fingerprint match'
 	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK
+	select NF_OSF
 	help
 	  This option selects the Passive OS Fingerprinting match module
 	  that allows to passively match the remote operating system by

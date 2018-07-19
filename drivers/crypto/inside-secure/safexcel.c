@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 
+#include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 
@@ -352,6 +353,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	/* H/W capabilities selection */
 	val = EIP197_FUNCTION_RSVD;
 	val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
+	val |= EIP197_PROTOCOL_ENCRYPT_HASH | EIP197_PROTOCOL_HASH_DECRYPT;
 	val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
 	val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
 	val |= EIP197_ALG_SHA2 | EIP197_ALG_HMAC_SHA2;
@@ -535,6 +537,27 @@ finalize:
 	/* let the CDR know we have pending descriptors */
 	writel((cdesc * priv->config.cd_offset) << 2,
 	       EIP197_HIA_CDR(priv, ring) + EIP197_HIA_xDR_PREP_COUNT);
+}
+
+inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
+				       struct safexcel_result_desc *rdesc)
+{
+	if (likely(!rdesc->result_data.error_code))
+		return 0;
+
+	if (rdesc->result_data.error_code & 0x407f) {
+		/* Fatal error (bits 0-7, 14) */
+		dev_err(priv->dev,
+			"cipher: result: result descriptor error (%d)\n",
+			rdesc->result_data.error_code);
+		return -EIO;
+	} else if (rdesc->result_data.error_code == BIT(9)) {
+		/* Authentication failed */
+		return -EBADMSG;
+	}
+
+	/* All other non-fatal errors */
+	return -EINVAL;
 }
 
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring)
@@ -770,6 +793,9 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_hmac_sha1,
 	&safexcel_alg_hmac_sha224,
 	&safexcel_alg_hmac_sha256,
+	&safexcel_alg_authenc_hmac_sha1_cbc_aes,
+	&safexcel_alg_authenc_hmac_sha224_cbc_aes,
+	&safexcel_alg_authenc_hmac_sha256_cbc_aes,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
@@ -781,6 +807,8 @@ static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
 
 		if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			ret = crypto_register_skcipher(&safexcel_algs[i]->alg.skcipher);
+		else if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_AEAD)
+			ret = crypto_register_aead(&safexcel_algs[i]->alg.aead);
 		else
 			ret = crypto_register_ahash(&safexcel_algs[i]->alg.ahash);
 
@@ -794,6 +822,8 @@ fail:
 	for (j = 0; j < i; j++) {
 		if (safexcel_algs[j]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			crypto_unregister_skcipher(&safexcel_algs[j]->alg.skcipher);
+		else if (safexcel_algs[j]->type == SAFEXCEL_ALG_TYPE_AEAD)
+			crypto_unregister_aead(&safexcel_algs[j]->alg.aead);
 		else
 			crypto_unregister_ahash(&safexcel_algs[j]->alg.ahash);
 	}
@@ -808,6 +838,8 @@ static void safexcel_unregister_algorithms(struct safexcel_crypto_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(safexcel_algs); i++) {
 		if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			crypto_unregister_skcipher(&safexcel_algs[i]->alg.skcipher);
+		else if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_AEAD)
+			crypto_unregister_aead(&safexcel_algs[i]->alg.aead);
 		else
 			crypto_unregister_ahash(&safexcel_algs[i]->alg.ahash);
 	}

@@ -1,29 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "i40e_type.h"
 #include "i40e_adminq.h"
@@ -1255,6 +1231,7 @@ i40e_status_code i40evf_aq_write_ddp(struct i40e_hw *hw, void *buff,
  * @hw: pointer to the hw struct
  * @buff: command buffer (size in bytes = buff_size)
  * @buff_size: buffer size in bytes
+ * @flags: AdminQ command flags
  * @cmd_details: pointer to command details structure or NULL
  **/
 enum

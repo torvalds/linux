@@ -410,7 +410,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 				struct rsp_que *rsp)
 {
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
-	ha->req_q_map = kzalloc(sizeof(struct req_que *) * ha->max_req_queues,
+	ha->req_q_map = kcalloc(ha->max_req_queues, sizeof(struct req_que *),
 				GFP_KERNEL);
 	if (!ha->req_q_map) {
 		ql_log(ql_log_fatal, vha, 0x003b,
@@ -418,7 +418,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 		goto fail_req_map;
 	}
 
-	ha->rsp_q_map = kzalloc(sizeof(struct rsp_que *) * ha->max_rsp_queues,
+	ha->rsp_q_map = kcalloc(ha->max_rsp_queues, sizeof(struct rsp_que *),
 				GFP_KERNEL);
 	if (!ha->rsp_q_map) {
 		ql_log(ql_log_fatal, vha, 0x003c,
@@ -4045,8 +4045,9 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	    (*rsp)->ring);
 	/* Allocate memory for NVRAM data for vports */
 	if (ha->nvram_npiv_size) {
-		ha->npiv_info = kzalloc(sizeof(struct qla_npiv_entry) *
-		    ha->nvram_npiv_size, GFP_KERNEL);
+		ha->npiv_info = kcalloc(ha->nvram_npiv_size,
+					sizeof(struct qla_npiv_entry),
+					GFP_KERNEL);
 		if (!ha->npiv_info) {
 			ql_log_pci(ql_log_fatal, ha->pdev, 0x002d,
 			    "Failed to allocate memory for npiv_info.\n");
@@ -4080,8 +4081,9 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	INIT_LIST_HEAD(&ha->vp_list);
 
 	/* Allocate memory for our loop_id bitmap */
-	ha->loop_id_map = kzalloc(BITS_TO_LONGS(LOOPID_MAP_SIZE) * sizeof(long),
-	    GFP_KERNEL);
+	ha->loop_id_map = kcalloc(BITS_TO_LONGS(LOOPID_MAP_SIZE),
+				  sizeof(long),
+				  GFP_KERNEL);
 	if (!ha->loop_id_map)
 		goto fail_loop_id_map;
 	else {
@@ -5063,6 +5065,10 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			break;
 		case QLA_EVT_SP_RETRY:
 			qla_sp_retry(vha, e);
+			break;
+		case QLA_EVT_IIDMA:
+			qla_do_iidma_work(vha, e->u.fcport.fcport);
+			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);

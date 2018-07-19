@@ -1,18 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Hardware spinlock public header
  *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com
  *
  * Contact: Ohad Ben-Cohen <ohad@wizery.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __LINUX_HWSPINLOCK_H
@@ -24,6 +16,7 @@
 /* hwspinlock mode argument */
 #define HWLOCK_IRQSTATE	0x01	/* Disable interrupts, save state */
 #define HWLOCK_IRQ	0x02	/* Disable interrupts, don't save state */
+#define HWLOCK_RAW	0x03
 
 struct device;
 struct device_node;
@@ -176,6 +169,25 @@ static inline int hwspin_trylock_irq(struct hwspinlock *hwlock)
 }
 
 /**
+ * hwspin_trylock_raw() - attempt to lock a specific hwspinlock
+ * @hwlock: an hwspinlock which we want to trylock
+ *
+ * This function attempts to lock an hwspinlock, and will immediately fail
+ * if the hwspinlock is already taken.
+ *
+ * Caution: User must protect the routine of getting hardware lock with mutex
+ * or spinlock to avoid dead-lock, that will let user can do some time-consuming
+ * or sleepable operations under the hardware lock.
+ *
+ * Returns 0 if we successfully locked the hwspinlock, -EBUSY if
+ * the hwspinlock was already taken, and -EINVAL if @hwlock is invalid.
+ */
+static inline int hwspin_trylock_raw(struct hwspinlock *hwlock)
+{
+	return __hwspin_trylock(hwlock, HWLOCK_RAW, NULL);
+}
+
+/**
  * hwspin_trylock() - attempt to lock a specific hwspinlock
  * @hwlock: an hwspinlock which we want to trylock
  *
@@ -243,6 +255,29 @@ int hwspin_lock_timeout_irq(struct hwspinlock *hwlock, unsigned int to)
 }
 
 /**
+ * hwspin_lock_timeout_raw() - lock an hwspinlock with timeout limit
+ * @hwlock: the hwspinlock to be locked
+ * @to: timeout value in msecs
+ *
+ * This function locks the underlying @hwlock. If the @hwlock
+ * is already taken, the function will busy loop waiting for it to
+ * be released, but give up when @timeout msecs have elapsed.
+ *
+ * Caution: User must protect the routine of getting hardware lock with mutex
+ * or spinlock to avoid dead-lock, that will let user can do some time-consuming
+ * or sleepable operations under the hardware lock.
+ *
+ * Returns 0 when the @hwlock was successfully taken, and an appropriate
+ * error code otherwise (most notably an -ETIMEDOUT if the @hwlock is still
+ * busy after @timeout msecs). The function will never sleep.
+ */
+static inline
+int hwspin_lock_timeout_raw(struct hwspinlock *hwlock, unsigned int to)
+{
+	return __hwspin_lock_timeout(hwlock, to, HWLOCK_RAW, NULL);
+}
+
+/**
  * hwspin_lock_timeout() - lock an hwspinlock with timeout limit
  * @hwlock: the hwspinlock to be locked
  * @to: timeout value in msecs
@@ -299,6 +334,21 @@ static inline void hwspin_unlock_irqrestore(struct hwspinlock *hwlock,
 static inline void hwspin_unlock_irq(struct hwspinlock *hwlock)
 {
 	__hwspin_unlock(hwlock, HWLOCK_IRQ, NULL);
+}
+
+/**
+ * hwspin_unlock_raw() - unlock hwspinlock
+ * @hwlock: a previously-acquired hwspinlock which we want to unlock
+ *
+ * This function will unlock a specific hwspinlock.
+ *
+ * @hwlock must be already locked (e.g. by hwspin_trylock()) before calling
+ * this function: it is a bug to call unlock on a @hwlock that is already
+ * unlocked.
+ */
+static inline void hwspin_unlock_raw(struct hwspinlock *hwlock)
+{
+	__hwspin_unlock(hwlock, HWLOCK_RAW, NULL);
 }
 
 /**

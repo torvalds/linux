@@ -127,7 +127,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		goto err_umem;
 	}
 
-	in->pas = kvzalloc(sizeof(*in->pas) * ncont, GFP_KERNEL);
+	in->pas = kvcalloc(ncont, sizeof(*in->pas), GFP_KERNEL);
 	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_umem;
@@ -189,7 +189,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	}
 
 	mlx5_ib_dbg(dev, "srq->buf.page_shift = %d\n", srq->buf.page_shift);
-	in->pas = kvzalloc(sizeof(*in->pas) * srq->buf.npages, GFP_KERNEL);
+	in->pas = kvcalloc(srq->buf.npages, sizeof(*in->pas), GFP_KERNEL);
 	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_buf;
@@ -266,18 +266,24 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 
 	desc_size = sizeof(struct mlx5_wqe_srq_next_seg) +
 		    srq->msrq.max_gs * sizeof(struct mlx5_wqe_data_seg);
-	if (desc_size == 0 || srq->msrq.max_gs > desc_size)
-		return ERR_PTR(-EINVAL);
+	if (desc_size == 0 || srq->msrq.max_gs > desc_size) {
+		err = -EINVAL;
+		goto err_srq;
+	}
 	desc_size = roundup_pow_of_two(desc_size);
 	desc_size = max_t(size_t, 32, desc_size);
-	if (desc_size < sizeof(struct mlx5_wqe_srq_next_seg))
-		return ERR_PTR(-EINVAL);
+	if (desc_size < sizeof(struct mlx5_wqe_srq_next_seg)) {
+		err = -EINVAL;
+		goto err_srq;
+	}
 	srq->msrq.max_avail_gather = (desc_size - sizeof(struct mlx5_wqe_srq_next_seg)) /
 		sizeof(struct mlx5_wqe_data_seg);
 	srq->msrq.wqe_shift = ilog2(desc_size);
 	buf_size = srq->msrq.max * desc_size;
-	if (buf_size < desc_size)
-		return ERR_PTR(-EINVAL);
+	if (buf_size < desc_size) {
+		err = -EINVAL;
+		goto err_srq;
+	}
 	in.type = init_attr->srq_type;
 
 	if (pd->uobject)

@@ -172,8 +172,6 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	struct list_head *pos, *temp;
 	struct sctp_chunk *chunk;
 	struct sctp_datamsg *msg;
-	struct sctp_sock *sp;
-	struct sctp_af *af;
 	int err;
 
 	msg = sctp_datamsg_new(GFP_KERNEL);
@@ -192,12 +190,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* This is the biggest possible DATA chunk that can fit into
 	 * the packet
 	 */
-	sp = sctp_sk(asoc->base.sk);
-	af = sp->pf->af;
-	max_data = asoc->pathmtu - af->net_header_len -
-		   sizeof(struct sctphdr) - sctp_datachk_len(&asoc->stream) -
-		   af->ip_options_len(asoc->base.sk);
-	max_data = SCTP_TRUNC4(max_data);
+	max_data = asoc->frag_point;
 
 	/* If the the peer requested that we authenticate DATA chunks
 	 * we need to account for bundling of the AUTH chunks along with
@@ -222,9 +215,6 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		}
 	}
 
-	/* Check what's our max considering the above */
-	max_data = min_t(size_t, max_data, asoc->frag_point);
-
 	/* Set first_len and then account for possible bundles on first frag */
 	first_len = max_data;
 
@@ -247,7 +237,9 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* Account for a different sized first fragment */
 	if (msg_len >= first_len) {
 		msg->can_delay = 0;
-		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_FRAGUSRMSGS);
+		if (msg_len > first_len)
+			SCTP_INC_STATS(sock_net(asoc->base.sk),
+				       SCTP_MIB_FRAGUSRMSGS);
 	} else {
 		/* Which may be the only one... */
 		first_len = msg_len;

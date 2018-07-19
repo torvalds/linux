@@ -460,13 +460,10 @@ static void finish_one_item(struct btrfs_delayed_root *delayed_root)
 {
 	int seq = atomic_inc_return(&delayed_root->items_seq);
 
-	/*
-	 * atomic_dec_return implies a barrier for waitqueue_active
-	 */
+	/* atomic_dec_return implies a barrier */
 	if ((atomic_dec_return(&delayed_root->items) <
-	    BTRFS_DELAYED_BACKGROUND || seq % BTRFS_DELAYED_BATCH == 0) &&
-	    waitqueue_active(&delayed_root->wait))
-		wake_up(&delayed_root->wait);
+	    BTRFS_DELAYED_BACKGROUND || seq % BTRFS_DELAYED_BATCH == 0))
+		cond_wake_up_nomb(&delayed_root->wait);
 }
 
 static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)

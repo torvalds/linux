@@ -27,11 +27,6 @@
 #include <net/sock_reuseport.h>
 #include <net/addrconf.h>
 
-#ifdef INET_CSK_DEBUG
-const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
-EXPORT_SYMBOL(inet_csk_timer_bug_msg);
-#endif
-
 #if IS_ENABLED(CONFIG_IPV6)
 /* match_wildcard == true:  IPV6_ADDR_ANY equals to any IPv6 addresses if IPv6
  *                          only, and any IPv4 addresses if not IPv6 only

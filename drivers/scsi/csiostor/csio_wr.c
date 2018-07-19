@@ -276,7 +276,7 @@ csio_wr_alloc_q(struct csio_hw *hw, uint32_t qsize, uint32_t wrsize,
 			q->un.iq.flq_idx = flq_idx;
 
 			flq = wrm->q_arr[q->un.iq.flq_idx];
-			flq->un.fl.bufs = kzalloc(flq->credits *
+			flq->un.fl.bufs = kcalloc(flq->credits,
 						  sizeof(struct csio_dma_buf),
 						  GFP_KERNEL);
 			if (!flq->un.fl.bufs) {
@@ -1579,7 +1579,7 @@ csio_wrm_init(struct csio_wrm *wrm, struct csio_hw *hw)
 		return -EINVAL;
 	}
 
-	wrm->q_arr = kzalloc(sizeof(struct csio_q *) * wrm->num_q, GFP_KERNEL);
+	wrm->q_arr = kcalloc(wrm->num_q, sizeof(struct csio_q *), GFP_KERNEL);
 	if (!wrm->q_arr)
 		goto err;
 

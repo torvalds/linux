@@ -212,8 +212,7 @@ static int gpio_charger_suspend(struct device *dev)
 
 static int gpio_charger_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
+	struct gpio_charger *gpio_charger = dev_get_drvdata(dev);
 
 	if (device_may_wakeup(dev) && gpio_charger->wakeup_enabled)
 		disable_irq_wake(gpio_charger->irq);

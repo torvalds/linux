@@ -176,6 +176,9 @@ int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 		      unsigned long in_modifier, u8 op_modifier, u16 op,
 		      unsigned long timeout)
 {
+	if (hr_dev->is_reset)
+		return 0;
+
 	if (hr_dev->cmd.use_events)
 		return hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
 					      in_modifier, op_modifier, op,

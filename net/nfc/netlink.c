@@ -206,7 +206,6 @@ int nfc_genl_targets_found(struct nfc_dev *dev)
 	return genlmsg_multicast(&nfc_genl_family, msg, 0, 0, GFP_ATOMIC);
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -237,7 +236,6 @@ int nfc_genl_target_lost(struct nfc_dev *dev, u32 target_idx)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -269,7 +267,6 @@ int nfc_genl_tm_activated(struct nfc_dev *dev, u32 protocol)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -299,7 +296,6 @@ int nfc_genl_tm_deactivated(struct nfc_dev *dev)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -340,7 +336,6 @@ int nfc_genl_device_added(struct nfc_dev *dev)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -370,7 +365,6 @@ int nfc_genl_device_removed(struct nfc_dev *dev)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -434,8 +428,6 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list)
 	return genlmsg_multicast(&nfc_genl_family, msg, 0, 0, GFP_ATOMIC);
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
-
 free_msg:
 	nlmsg_free(msg);
 
@@ -470,7 +462,6 @@ int nfc_genl_se_added(struct nfc_dev *dev, u32 se_idx, u16 type)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -501,7 +492,6 @@ int nfc_genl_se_removed(struct nfc_dev *dev, u32 se_idx)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -546,7 +536,6 @@ int nfc_genl_se_transaction(struct nfc_dev *dev, u8 se_idx,
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	/* evt_transaction is no more used */
 	devm_kfree(&dev->dev, evt_transaction);
@@ -585,7 +574,6 @@ int nfc_genl_se_connectivity(struct nfc_dev *dev, u8 se_idx)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -703,7 +691,6 @@ int nfc_genl_dep_link_up_event(struct nfc_dev *dev, u32 target_idx,
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -735,7 +722,6 @@ int nfc_genl_dep_link_down_event(struct nfc_dev *dev)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -1030,7 +1016,6 @@ static int nfc_genl_send_params(struct sk_buff *msg,
 	return 0;
 
 nla_put_failure:
-
 	genlmsg_cancel(msg, hdr);
 	return -EMSGSIZE;
 }
@@ -1290,7 +1275,6 @@ int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -1507,7 +1491,6 @@ static void se_io_cb(void *context, u8 *apdu, size_t apdu_len, int err)
 	return;
 
 nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	kfree(ctx);

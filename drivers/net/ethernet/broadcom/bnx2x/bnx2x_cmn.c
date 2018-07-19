@@ -1261,6 +1261,11 @@ void __bnx2x_link_report(struct bnx2x *bp)
 {
 	struct bnx2x_link_report_data cur_data;
 
+	if (bp->force_link_down) {
+		bp->link_vars.link_up = 0;
+		return;
+	}
+
 	/* reread mf_cfg */
 	if (IS_PF(bp) && !CHIP_IS_E1(bp))
 		bnx2x_read_mf_cfg(bp);
@@ -2817,6 +2822,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		bp->pending_max = 0;
 	}
 
+	bp->force_link_down = false;
 	if (bp->port.pmf) {
 		rc = bnx2x_initial_phy_init(bp, load_mode);
 		if (rc)
@@ -4962,8 +4968,13 @@ void bnx2x_tx_timeout(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-#ifdef BNX2X_STOP_ON_ERROR
+	/* We want the information of the dump logged,
+	 * but calling bnx2x_panic() would kill all chances of recovery.
+	 */
 	if (!bp->panic)
+#ifndef BNX2X_STOP_ON_ERROR
+		bnx2x_panic_dump(bp, false);
+#else
 		bnx2x_panic();
 #endif
 

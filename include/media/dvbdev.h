@@ -91,6 +91,7 @@ struct dvb_frontend;
  * @mfe_dvbdev:		Frontend device in use, in the case of MFE
  * @mfe_lock:		Lock to prevent using the other frontends when MFE is
  *			used.
+ * @mdev_lock:          Protect access to the mdev pointer.
  * @mdev:		pointer to struct media_device, used when the media
  *			controller is used.
  * @conn:		RF connector. Used only if the device has no separate
@@ -114,6 +115,7 @@ struct dvb_adapter {
 	struct mutex mfe_lock;		/* access lock for thread creation */
 
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	struct mutex mdev_lock;
 	struct media_device *mdev;
 	struct media_entity *conn;
 	struct media_pad *conn_pads;

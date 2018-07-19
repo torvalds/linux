@@ -140,6 +140,7 @@ struct intel_uncore {
 
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
 void intel_uncore_init(struct drm_i915_private *dev_priv);
+void intel_uncore_prune(struct drm_i915_private *dev_priv);
 bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv);
 bool intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv);
 void intel_uncore_fini(struct drm_i915_private *dev_priv);

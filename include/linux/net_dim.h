@@ -103,11 +103,12 @@ enum {
 #define NET_DIM_PARAMS_NUM_PROFILES 5
 /* Adaptive moderation profiles */
 #define NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE 256
+#define NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE 128
 #define NET_DIM_DEF_PROFILE_CQE 1
 #define NET_DIM_DEF_PROFILE_EQE 1
 
 /* All profiles sizes must be NET_PARAMS_DIM_NUM_PROFILES */
-#define NET_DIM_EQE_PROFILES { \
+#define NET_DIM_RX_EQE_PROFILES { \
 	{1,   NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
 	{8,   NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
 	{64,  NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
@@ -115,7 +116,7 @@ enum {
 	{256, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
 }
 
-#define NET_DIM_CQE_PROFILES { \
+#define NET_DIM_RX_CQE_PROFILES { \
 	{2,  256},             \
 	{8,  128},             \
 	{16, 64},              \
@@ -123,32 +124,68 @@ enum {
 	{64, 64}               \
 }
 
+#define NET_DIM_TX_EQE_PROFILES { \
+	{1,   NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE},  \
+	{8,   NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE},  \
+	{32,  NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE},  \
+	{64,  NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE},  \
+	{128, NET_DIM_DEFAULT_TX_CQ_MODERATION_PKTS_FROM_EQE}   \
+}
+
+#define NET_DIM_TX_CQE_PROFILES { \
+	{5,  128},  \
+	{8,  64},  \
+	{16, 32},  \
+	{32, 32},  \
+	{64, 32}   \
+}
+
 static const struct net_dim_cq_moder
-profile[NET_DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
-	NET_DIM_EQE_PROFILES,
-	NET_DIM_CQE_PROFILES,
+rx_profile[NET_DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
+	NET_DIM_RX_EQE_PROFILES,
+	NET_DIM_RX_CQE_PROFILES,
 };
 
-static inline struct net_dim_cq_moder net_dim_get_profile(u8 cq_period_mode,
-							  int ix)
-{
-	struct net_dim_cq_moder cq_moder;
+static const struct net_dim_cq_moder
+tx_profile[NET_DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
+	NET_DIM_TX_EQE_PROFILES,
+	NET_DIM_TX_CQE_PROFILES,
+};
 
-	cq_moder = profile[cq_period_mode][ix];
+static inline struct net_dim_cq_moder
+net_dim_get_rx_moderation(u8 cq_period_mode, int ix)
+{
+	struct net_dim_cq_moder cq_moder = rx_profile[cq_period_mode][ix];
+
 	cq_moder.cq_period_mode = cq_period_mode;
 	return cq_moder;
 }
 
-static inline struct net_dim_cq_moder net_dim_get_def_profile(u8 rx_cq_period_mode)
+static inline struct net_dim_cq_moder
+net_dim_get_def_rx_moderation(u8 cq_period_mode)
 {
-	int default_profile_ix;
+	u8 profile_ix = cq_period_mode == NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE ?
+			NET_DIM_DEF_PROFILE_CQE : NET_DIM_DEF_PROFILE_EQE;
 
-	if (rx_cq_period_mode == NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE)
-		default_profile_ix = NET_DIM_DEF_PROFILE_CQE;
-	else /* NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE */
-		default_profile_ix = NET_DIM_DEF_PROFILE_EQE;
+	return net_dim_get_rx_moderation(cq_period_mode, profile_ix);
+}
 
-	return net_dim_get_profile(rx_cq_period_mode, default_profile_ix);
+static inline struct net_dim_cq_moder
+net_dim_get_tx_moderation(u8 cq_period_mode, int ix)
+{
+	struct net_dim_cq_moder cq_moder = tx_profile[cq_period_mode][ix];
+
+	cq_moder.cq_period_mode = cq_period_mode;
+	return cq_moder;
+}
+
+static inline struct net_dim_cq_moder
+net_dim_get_def_tx_moderation(u8 cq_period_mode)
+{
+	u8 profile_ix = cq_period_mode == NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE ?
+			NET_DIM_DEF_PROFILE_CQE : NET_DIM_DEF_PROFILE_EQE;
+
+	return net_dim_get_tx_moderation(cq_period_mode, profile_ix);
 }
 
 static inline bool net_dim_on_top(struct net_dim *dim)

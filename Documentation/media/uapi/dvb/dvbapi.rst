@@ -62,7 +62,7 @@ Authors:
 
  - Original author of the Digital TV API documentation.
 
-- Carvalho Chehab, Mauro <m.chehab@kernel.org>
+- Carvalho Chehab, Mauro <mchehab+samsung@kernel.org>
 
  - Ported document to Docbook XML, addition of DVBv5 API, documentation gaps fix.
 

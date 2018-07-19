@@ -268,8 +268,6 @@ found:
 		goto out_check_final;
 	}
 
-	p = *head;
-	th2 = tcp_hdr(p);
 	tcp_flag_word(th2) |= flags & (TCP_FLAG_FIN | TCP_FLAG_PSH);
 
 out_check_final:

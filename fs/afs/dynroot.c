@@ -1,4 +1,4 @@
-/* dir.c: AFS dynamic root handling
+/* AFS dynamic root handling
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -46,7 +46,7 @@ static int afs_probe_cell_name(struct dentry *dentry)
 		return 0;
 	}
 
-	ret = dns_query("afsdb", name, len, "ipv4", NULL, NULL);
+	ret = dns_query("afsdb", name, len, "", NULL, NULL);
 	if (ret == -ENODATA)
 		ret = -EDESTADDRREQ;
 	return ret;
@@ -207,3 +207,125 @@ const struct dentry_operations afs_dynroot_dentry_operations = {
 	.d_release	= afs_d_release,
 	.d_automount	= afs_d_automount,
 };
+
+/*
+ * Create a manually added cell mount directory.
+ * - The caller must hold net->proc_cells_lock
+ */
+int afs_dynroot_mkdir(struct afs_net *net, struct afs_cell *cell)
+{
+	struct super_block *sb = net->dynroot_sb;
+	struct dentry *root, *subdir;
+	int ret;
+
+	if (!sb || atomic_read(&sb->s_active) == 0)
+		return 0;
+
+	/* Let the ->lookup op do the creation */
+	root = sb->s_root;
+	inode_lock(root->d_inode);
+	subdir = lookup_one_len(cell->name, root, cell->name_len);
+	if (IS_ERR(subdir)) {
+		ret = PTR_ERR(subdir);
+		goto unlock;
+	}
+
+	/* Note that we're retaining an extra ref on the dentry */
+	subdir->d_fsdata = (void *)1UL;
+	ret = 0;
+unlock:
+	inode_unlock(root->d_inode);
+	return ret;
+}
+
+/*
+ * Remove a manually added cell mount directory.
+ * - The caller must hold net->proc_cells_lock
+ */
+void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
+{
+	struct super_block *sb = net->dynroot_sb;
+	struct dentry *root, *subdir;
+
+	if (!sb || atomic_read(&sb->s_active) == 0)
+		return;
+
+	root = sb->s_root;
+	inode_lock(root->d_inode);
+
+	/* Don't want to trigger a lookup call, which will re-add the cell */
+	subdir = try_lookup_one_len(cell->name, root, cell->name_len);
+	if (IS_ERR_OR_NULL(subdir)) {
+		_debug("lookup %ld", PTR_ERR(subdir));
+		goto no_dentry;
+	}
+
+	_debug("rmdir %pd %u", subdir, d_count(subdir));
+
+	if (subdir->d_fsdata) {
+		_debug("unpin %u", d_count(subdir));
+		subdir->d_fsdata = NULL;
+		dput(subdir);
+	}
+	dput(subdir);
+no_dentry:
+	inode_unlock(root->d_inode);
+	_leave("");
+}
+
+/*
+ * Populate a newly created dynamic root with cell names.
+ */
+int afs_dynroot_populate(struct super_block *sb)
+{
+	struct afs_cell *cell;
+	struct afs_net *net = afs_sb2net(sb);
+	int ret;
+
+	if (mutex_lock_interruptible(&net->proc_cells_lock) < 0)
+		return -ERESTARTSYS;
+
+	net->dynroot_sb = sb;
+	list_for_each_entry(cell, &net->proc_cells, proc_link) {
+		ret = afs_dynroot_mkdir(net, cell);
+		if (ret < 0)
+			goto error;
+	}
+
+	ret = 0;
+out:
+	mutex_unlock(&net->proc_cells_lock);
+	return ret;
+
+error:
+	net->dynroot_sb = NULL;
+	goto out;
+}
+
+/*
+ * When a dynamic root that's in the process of being destroyed, depopulate it
+ * of pinned directories.
+ */
+void afs_dynroot_depopulate(struct super_block *sb)
+{
+	struct afs_net *net = afs_sb2net(sb);
+	struct dentry *root = sb->s_root, *subdir, *tmp;
+
+	/* Prevent more subdirs from being created */
+	mutex_lock(&net->proc_cells_lock);
+	if (net->dynroot_sb == sb)
+		net->dynroot_sb = NULL;
+	mutex_unlock(&net->proc_cells_lock);
+
+	inode_lock(root->d_inode);
+
+	/* Remove all the pins for dirs created for manually added cells */
+	list_for_each_entry_safe(subdir, tmp, &root->d_subdirs, d_child) {
+		if (subdir->d_fsdata) {
+			subdir->d_fsdata = NULL;
+			dput(subdir);
+		}
+	}
+
+	inode_unlock(root->d_inode);
+}

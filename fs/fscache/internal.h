@@ -31,6 +31,7 @@
 #include <linux/fscache-cache.h>
 #include <trace/events/fscache.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 
 #define FSCACHE_MIN_THREADS	4
 #define FSCACHE_MAX_THREADS	32
@@ -84,7 +85,7 @@ static inline void fscache_hist(atomic_t histogram[], unsigned long start_jif)
 	atomic_inc(&histogram[jif]);
 }
 
-extern const struct file_operations fscache_histogram_fops;
+extern const struct seq_operations fscache_histogram_ops;
 
 #else
 #define fscache_hist(hist, start_jif) do {} while (0)
@@ -294,7 +295,7 @@ static inline void fscache_stat_d(atomic_t *stat)
 
 #define __fscache_stat(stat) (stat)
 
-extern const struct file_operations fscache_stats_fops;
+int fscache_stats_show(struct seq_file *m, void *v);
 #else
 
 #define __fscache_stat(stat) (NULL)

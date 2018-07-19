@@ -254,8 +254,6 @@ static struct irq_chip vf610_gpio_irq_chip = {
 
 static int vf610_gpio_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id = of_match_device(vf610_gpio_dt_ids,
-							   &pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct vf610_gpio_port *port;
@@ -267,7 +265,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	if (!port)
 		return -ENOMEM;
 
-	port->sdata = of_id->data;
+	port->sdata = of_device_get_match_data(dev);
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	port->base = devm_ioremap_resource(dev, iores);
 	if (IS_ERR(port->base))

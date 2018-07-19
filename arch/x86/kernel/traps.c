@@ -299,6 +299,7 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
 		cond_local_irq_enable(regs);
+		clear_siginfo(&info);
 		do_trap(trapnr, signr, str, regs, error_code,
 			fill_trap_info(regs, signr, trapnr, &info));
 	}
@@ -834,16 +835,18 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 	char *str = (trapnr == X86_TRAP_MF) ? "fpu exception" :
 						"simd exception";
 
-	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, SIGFPE) == NOTIFY_STOP)
-		return;
 	cond_local_irq_enable(regs);
 
 	if (!user_mode(regs)) {
-		if (!fixup_exception(regs, trapnr)) {
-			task->thread.error_code = error_code;
-			task->thread.trap_nr = trapnr;
+		if (fixup_exception(regs, trapnr))
+			return;
+
+		task->thread.error_code = error_code;
+		task->thread.trap_nr = trapnr;
+
+		if (notify_die(DIE_TRAP, str, regs, error_code,
+					trapnr, SIGFPE) != NOTIFY_STOP)
 			die(str, regs, error_code);
-		}
 		return;
 	}
 
@@ -854,6 +857,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 
 	task->thread.trap_nr	= trapnr;
 	task->thread.error_code = error_code;
+	clear_siginfo(&info);
 	info.si_signo		= SIGFPE;
 	info.si_errno		= 0;
 	info.si_addr		= (void __user *)uprobe_get_trap_addr(regs);
@@ -929,6 +933,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	local_irq_enable();
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_BADSTK;

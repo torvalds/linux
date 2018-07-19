@@ -1,5 +1,5 @@
-menu "SoC Audio support for SuperH"
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+menu "SoC Audio support for Renesas SoCs"
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 
 config SND_SOC_PCM_SH7760
 	tristate "SoC Audio support for Renesas SH7760"
@@ -28,7 +28,7 @@ config SND_SOC_SH4_FSI
 
 config SND_SOC_SH4_SIU
 	tristate
-	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+	depends on ARCH_SHMOBILE && HAVE_CLK
 	select DMA_ENGINE
 	select DMADEVICES
 	select SH_DMAE

@@ -103,9 +103,10 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 }
 EXPORT_SYMBOL(unregister_tcf_proto_ops);
 
-bool tcf_queue_work(struct work_struct *work)
+bool tcf_queue_work(struct rcu_work *rwork, work_func_t func)
 {
-	return queue_work(tc_filter_wq, work);
+	INIT_RCU_WORK(rwork, func);
+	return queue_rcu_work(tc_filter_wq, rwork);
 }
 EXPORT_SYMBOL(tcf_queue_work);
 
@@ -434,6 +435,78 @@ static struct tcf_block *tcf_block_lookup(struct net *net, u32 block_index)
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
 	return idr_find(&tn->idr, block_index);
+}
+
+/* Find tcf block.
+ * Set q, parent, cl when appropriate.
+ */
+
+static struct tcf_block *tcf_block_find(struct net *net, struct Qdisc **q,
+					u32 *parent, unsigned long *cl,
+					int ifindex, u32 block_index,
+					struct netlink_ext_ack *extack)
+{
+	struct tcf_block *block;
+
+	if (ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
+		block = tcf_block_lookup(net, block_index);
+		if (!block) {
+			NL_SET_ERR_MSG(extack, "Block of given index was not found");
+			return ERR_PTR(-EINVAL);
+		}
+	} else {
+		const struct Qdisc_class_ops *cops;
+		struct net_device *dev;
+
+		/* Find link */
+		dev = __dev_get_by_index(net, ifindex);
+		if (!dev)
+			return ERR_PTR(-ENODEV);
+
+		/* Find qdisc */
+		if (!*parent) {
+			*q = dev->qdisc;
+			*parent = (*q)->handle;
+		} else {
+			*q = qdisc_lookup(dev, TC_H_MAJ(*parent));
+			if (!*q) {
+				NL_SET_ERR_MSG(extack, "Parent Qdisc doesn't exists");
+				return ERR_PTR(-EINVAL);
+			}
+		}
+
+		/* Is it classful? */
+		cops = (*q)->ops->cl_ops;
+		if (!cops) {
+			NL_SET_ERR_MSG(extack, "Qdisc not classful");
+			return ERR_PTR(-EINVAL);
+		}
+
+		if (!cops->tcf_block) {
+			NL_SET_ERR_MSG(extack, "Class doesn't support blocks");
+			return ERR_PTR(-EOPNOTSUPP);
+		}
+
+		/* Do we search for filter, attached to class? */
+		if (TC_H_MIN(*parent)) {
+			*cl = cops->find(*q, *parent);
+			if (*cl == 0) {
+				NL_SET_ERR_MSG(extack, "Specified class doesn't exist");
+				return ERR_PTR(-ENOENT);
+			}
+		}
+
+		/* And the last stroke */
+		block = cops->tcf_block(*q, *cl, extack);
+		if (!block)
+			return ERR_PTR(-EINVAL);
+		if (tcf_block_shared(block)) {
+			NL_SET_ERR_MSG(extack, "This filter block is shared. Please use the block index to manipulate the filters");
+			return ERR_PTR(-EOPNOTSUPP);
+		}
+	}
+
+	return block;
 }
 
 static struct tcf_chain *tcf_block_chain_zero(struct tcf_block *block)
@@ -983,9 +1056,7 @@ static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 			       q, parent, 0, event, false);
 }
 
-/* Add/change/delete/get a filter node */
-
-static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
+static int tc_new_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1006,8 +1077,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	int err;
 	int tp_created;
 
-	if ((n->nlmsg_type != RTM_GETTFILTER) &&
-	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
+	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 replay:
@@ -1025,24 +1095,13 @@ replay:
 	cl = 0;
 
 	if (prio == 0) {
-		switch (n->nlmsg_type) {
-		case RTM_DELTFILTER:
-			if (protocol || t->tcm_handle || tca[TCA_KIND]) {
-				NL_SET_ERR_MSG(extack, "Cannot flush filters with protocol, handle or kind set");
-				return -ENOENT;
-			}
-			break;
-		case RTM_NEWTFILTER:
-			/* If no priority is provided by the user,
-			 * we allocate one.
-			 */
-			if (n->nlmsg_flags & NLM_F_CREATE) {
-				prio = TC_H_MAKE(0x80000000U, 0U);
-				prio_allocate = true;
-				break;
-			}
-			/* fall-through */
-		default:
+		/* If no priority is provided by the user,
+		 * we allocate one.
+		 */
+		if (n->nlmsg_flags & NLM_F_CREATE) {
+			prio = TC_H_MAKE(0x80000000U, 0U);
+			prio_allocate = true;
+		} else {
 			NL_SET_ERR_MSG(extack, "Invalid filter command with priority of zero");
 			return -ENOENT;
 		}
@@ -1050,66 +1109,11 @@ replay:
 
 	/* Find head of filter chain. */
 
-	if (t->tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
-		block = tcf_block_lookup(net, t->tcm_block_index);
-		if (!block) {
-			NL_SET_ERR_MSG(extack, "Block of given index was not found");
-			err = -EINVAL;
-			goto errout;
-		}
-	} else {
-		const struct Qdisc_class_ops *cops;
-		struct net_device *dev;
-
-		/* Find link */
-		dev = __dev_get_by_index(net, t->tcm_ifindex);
-		if (!dev)
-			return -ENODEV;
-
-		/* Find qdisc */
-		if (!parent) {
-			q = dev->qdisc;
-			parent = q->handle;
-		} else {
-			q = qdisc_lookup(dev, TC_H_MAJ(t->tcm_parent));
-			if (!q) {
-				NL_SET_ERR_MSG(extack, "Parent Qdisc doesn't exists");
-				return -EINVAL;
-			}
-		}
-
-		/* Is it classful? */
-		cops = q->ops->cl_ops;
-		if (!cops) {
-			NL_SET_ERR_MSG(extack, "Qdisc not classful");
-			return -EINVAL;
-		}
-
-		if (!cops->tcf_block) {
-			NL_SET_ERR_MSG(extack, "Class doesn't support blocks");
-			return -EOPNOTSUPP;
-		}
-
-		/* Do we search for filter, attached to class? */
-		if (TC_H_MIN(parent)) {
-			cl = cops->find(q, parent);
-			if (cl == 0) {
-				NL_SET_ERR_MSG(extack, "Specified class doesn't exist");
-				return -ENOENT;
-			}
-		}
-
-		/* And the last stroke */
-		block = cops->tcf_block(q, cl, extack);
-		if (!block) {
-			err = -EINVAL;
-			goto errout;
-		}
-		if (tcf_block_shared(block)) {
-			NL_SET_ERR_MSG(extack, "This filter block is shared. Please use the block index to manipulate the filters");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
+	block = tcf_block_find(net, &q, &parent, &cl,
+			       t->tcm_ifindex, t->tcm_block_index, extack);
+	if (IS_ERR(block)) {
+		err = PTR_ERR(block);
+		goto errout;
 	}
 
 	chain_index = tca[TCA_CHAIN] ? nla_get_u32(tca[TCA_CHAIN]) : 0;
@@ -1118,19 +1122,10 @@ replay:
 		err = -EINVAL;
 		goto errout;
 	}
-	chain = tcf_chain_get(block, chain_index,
-			      n->nlmsg_type == RTM_NEWTFILTER);
+	chain = tcf_chain_get(block, chain_index, true);
 	if (!chain) {
 		NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
-		err = n->nlmsg_type == RTM_NEWTFILTER ? -ENOMEM : -EINVAL;
-		goto errout;
-	}
-
-	if (n->nlmsg_type == RTM_DELTFILTER && prio == 0) {
-		tfilter_notify_chain(net, skb, block, q, parent, n,
-				     chain, RTM_DELTFILTER);
-		tcf_chain_flush(chain);
-		err = 0;
+		err = -ENOMEM;
 		goto errout;
 	}
 
@@ -1151,8 +1146,7 @@ replay:
 			goto errout;
 		}
 
-		if (n->nlmsg_type != RTM_NEWTFILTER ||
-		    !(n->nlmsg_flags & NLM_F_CREATE)) {
+		if (!(n->nlmsg_flags & NLM_F_CREATE)) {
 			NL_SET_ERR_MSG(extack, "Need both RTM_NEWTFILTER and NLM_F_CREATE to create a new filter");
 			err = -ENOENT;
 			goto errout;
@@ -1177,56 +1171,15 @@ replay:
 	fh = tp->ops->get(tp, t->tcm_handle);
 
 	if (!fh) {
-		if (n->nlmsg_type == RTM_DELTFILTER && t->tcm_handle == 0) {
-			tcf_chain_tp_remove(chain, &chain_info, tp);
-			tfilter_notify(net, skb, n, tp, block, q, parent, fh,
-				       RTM_DELTFILTER, false);
-			tcf_proto_destroy(tp, extack);
-			err = 0;
-			goto errout;
-		}
-
-		if (n->nlmsg_type != RTM_NEWTFILTER ||
-		    !(n->nlmsg_flags & NLM_F_CREATE)) {
+		if (!(n->nlmsg_flags & NLM_F_CREATE)) {
 			NL_SET_ERR_MSG(extack, "Need both RTM_NEWTFILTER and NLM_F_CREATE to create a new filter");
 			err = -ENOENT;
 			goto errout;
 		}
-	} else {
-		bool last;
-
-		switch (n->nlmsg_type) {
-		case RTM_NEWTFILTER:
-			if (n->nlmsg_flags & NLM_F_EXCL) {
-				if (tp_created)
-					tcf_proto_destroy(tp, NULL);
-				NL_SET_ERR_MSG(extack, "Filter already exists");
-				err = -EEXIST;
-				goto errout;
-			}
-			break;
-		case RTM_DELTFILTER:
-			err = tfilter_del_notify(net, skb, n, tp, block,
-						 q, parent, fh, false, &last,
-						 extack);
-			if (err)
-				goto errout;
-			if (last) {
-				tcf_chain_tp_remove(chain, &chain_info, tp);
-				tcf_proto_destroy(tp, extack);
-			}
-			goto errout;
-		case RTM_GETTFILTER:
-			err = tfilter_notify(net, skb, n, tp, block, q, parent,
-					     fh, RTM_NEWTFILTER, true);
-			if (err < 0)
-				NL_SET_ERR_MSG(extack, "Failed to send filter notify message");
-			goto errout;
-		default:
-			NL_SET_ERR_MSG(extack, "Invalid netlink message type");
-			err = -EINVAL;
-			goto errout;
-		}
+	} else if (n->nlmsg_flags & NLM_F_EXCL) {
+		NL_SET_ERR_MSG(extack, "Filter already exists");
+		err = -EEXIST;
+		goto errout;
 	}
 
 	err = tp->ops->change(net, skb, tp, cl, t->tcm_handle, tca, &fh,
@@ -1248,6 +1201,202 @@ errout:
 	if (err == -EAGAIN)
 		/* Replay the request. */
 		goto replay;
+	return err;
+}
+
+static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
+			  struct netlink_ext_ack *extack)
+{
+	struct net *net = sock_net(skb->sk);
+	struct nlattr *tca[TCA_MAX + 1];
+	struct tcmsg *t;
+	u32 protocol;
+	u32 prio;
+	u32 parent;
+	u32 chain_index;
+	struct Qdisc *q = NULL;
+	struct tcf_chain_info chain_info;
+	struct tcf_chain *chain = NULL;
+	struct tcf_block *block;
+	struct tcf_proto *tp = NULL;
+	unsigned long cl = 0;
+	void *fh = NULL;
+	int err;
+
+	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL, extack);
+	if (err < 0)
+		return err;
+
+	t = nlmsg_data(n);
+	protocol = TC_H_MIN(t->tcm_info);
+	prio = TC_H_MAJ(t->tcm_info);
+	parent = t->tcm_parent;
+
+	if (prio == 0 && (protocol || t->tcm_handle || tca[TCA_KIND])) {
+		NL_SET_ERR_MSG(extack, "Cannot flush filters with protocol, handle or kind set");
+		return -ENOENT;
+	}
+
+	/* Find head of filter chain. */
+
+	block = tcf_block_find(net, &q, &parent, &cl,
+			       t->tcm_ifindex, t->tcm_block_index, extack);
+	if (IS_ERR(block)) {
+		err = PTR_ERR(block);
+		goto errout;
+	}
+
+	chain_index = tca[TCA_CHAIN] ? nla_get_u32(tca[TCA_CHAIN]) : 0;
+	if (chain_index > TC_ACT_EXT_VAL_MASK) {
+		NL_SET_ERR_MSG(extack, "Specified chain index exceeds upper limit");
+		err = -EINVAL;
+		goto errout;
+	}
+	chain = tcf_chain_get(block, chain_index, false);
+	if (!chain) {
+		NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	if (prio == 0) {
+		tfilter_notify_chain(net, skb, block, q, parent, n,
+				     chain, RTM_DELTFILTER);
+		tcf_chain_flush(chain);
+		err = 0;
+		goto errout;
+	}
+
+	tp = tcf_chain_tp_find(chain, &chain_info, protocol,
+			       prio, false);
+	if (!tp || IS_ERR(tp)) {
+		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
+		err = tp ? PTR_ERR(tp) : -ENOENT;
+		goto errout;
+	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
+		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	fh = tp->ops->get(tp, t->tcm_handle);
+
+	if (!fh) {
+		if (t->tcm_handle == 0) {
+			tcf_chain_tp_remove(chain, &chain_info, tp);
+			tfilter_notify(net, skb, n, tp, block, q, parent, fh,
+				       RTM_DELTFILTER, false);
+			tcf_proto_destroy(tp, extack);
+			err = 0;
+		} else {
+			NL_SET_ERR_MSG(extack, "Specified filter handle not found");
+			err = -ENOENT;
+		}
+	} else {
+		bool last;
+
+		err = tfilter_del_notify(net, skb, n, tp, block,
+					 q, parent, fh, false, &last,
+					 extack);
+		if (err)
+			goto errout;
+		if (last) {
+			tcf_chain_tp_remove(chain, &chain_info, tp);
+			tcf_proto_destroy(tp, extack);
+		}
+	}
+
+errout:
+	if (chain)
+		tcf_chain_put(chain);
+	return err;
+}
+
+static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
+			  struct netlink_ext_ack *extack)
+{
+	struct net *net = sock_net(skb->sk);
+	struct nlattr *tca[TCA_MAX + 1];
+	struct tcmsg *t;
+	u32 protocol;
+	u32 prio;
+	u32 parent;
+	u32 chain_index;
+	struct Qdisc *q = NULL;
+	struct tcf_chain_info chain_info;
+	struct tcf_chain *chain = NULL;
+	struct tcf_block *block;
+	struct tcf_proto *tp = NULL;
+	unsigned long cl = 0;
+	void *fh = NULL;
+	int err;
+
+	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL, extack);
+	if (err < 0)
+		return err;
+
+	t = nlmsg_data(n);
+	protocol = TC_H_MIN(t->tcm_info);
+	prio = TC_H_MAJ(t->tcm_info);
+	parent = t->tcm_parent;
+
+	if (prio == 0) {
+		NL_SET_ERR_MSG(extack, "Invalid filter command with priority of zero");
+		return -ENOENT;
+	}
+
+	/* Find head of filter chain. */
+
+	block = tcf_block_find(net, &q, &parent, &cl,
+			       t->tcm_ifindex, t->tcm_block_index, extack);
+	if (IS_ERR(block)) {
+		err = PTR_ERR(block);
+		goto errout;
+	}
+
+	chain_index = tca[TCA_CHAIN] ? nla_get_u32(tca[TCA_CHAIN]) : 0;
+	if (chain_index > TC_ACT_EXT_VAL_MASK) {
+		NL_SET_ERR_MSG(extack, "Specified chain index exceeds upper limit");
+		err = -EINVAL;
+		goto errout;
+	}
+	chain = tcf_chain_get(block, chain_index, false);
+	if (!chain) {
+		NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	tp = tcf_chain_tp_find(chain, &chain_info, protocol,
+			       prio, false);
+	if (!tp || IS_ERR(tp)) {
+		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
+		err = tp ? PTR_ERR(tp) : -ENOENT;
+		goto errout;
+	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
+		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	fh = tp->ops->get(tp, t->tcm_handle);
+
+	if (!fh) {
+		NL_SET_ERR_MSG(extack, "Specified filter handle not found");
+		err = -ENOENT;
+	} else {
+		err = tfilter_notify(net, skb, n, tp, block, q, parent,
+				     fh, RTM_NEWTFILTER, true);
+		if (err < 0)
+			NL_SET_ERR_MSG(extack, "Failed to send filter notify message");
+	}
+
+errout:
+	if (chain)
+		tcf_chain_put(chain);
 	return err;
 }
 
@@ -1633,9 +1782,9 @@ static int __init tc_filter_init(void)
 	if (err)
 		goto err_register_pernet_subsys;
 
-	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_ctl_tfilter, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_DELTFILTER, tc_ctl_tfilter, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETTFILTER, tc_ctl_tfilter,
+	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_new_tfilter, NULL, 0);
+	rtnl_register(PF_UNSPEC, RTM_DELTFILTER, tc_del_tfilter, NULL, 0);
+	rtnl_register(PF_UNSPEC, RTM_GETTFILTER, tc_get_tfilter,
 		      tc_dump_tfilter, 0);
 
 	return 0;

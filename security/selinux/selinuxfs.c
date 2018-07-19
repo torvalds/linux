@@ -167,11 +167,13 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 				      NULL);
 		if (length)
 			goto out;
-		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
-			"enforcing=%d old_enforcing=%d auid=%u ses=%u",
+		audit_log(audit_context(), GFP_KERNEL, AUDIT_MAC_STATUS,
+			"enforcing=%d old_enforcing=%d auid=%u ses=%u"
+			" enabled=%d old-enabled=%d lsm=selinux res=1",
 			new_value, old_value,
 			from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			audit_get_sessionid(current));
+			audit_get_sessionid(current),
+			selinux_enabled, selinux_enabled);
 		enforcing_set(state, new_value);
 		if (new_value)
 			avc_ss_reset(state->avc, 0);
@@ -279,6 +281,7 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	char *page;
 	ssize_t length;
 	int new_value;
+	int enforcing;
 
 	if (count >= PAGE_SIZE)
 		return -ENOMEM;
@@ -296,13 +299,16 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 		goto out;
 
 	if (new_value) {
+		enforcing = enforcing_enabled(fsi->state);
 		length = selinux_disable(fsi->state);
 		if (length)
 			goto out;
-		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
-			"selinux=0 auid=%u ses=%u",
+		audit_log(audit_context(), GFP_KERNEL, AUDIT_MAC_STATUS,
+			"enforcing=%d old_enforcing=%d auid=%u ses=%u"
+			" enabled=%d old-enabled=%d lsm=selinux res=1",
+			enforcing, enforcing,
 			from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			audit_get_sessionid(current));
+			audit_get_sessionid(current), 0, 1);
 	}
 
 	length = count;
@@ -435,25 +441,19 @@ static int sel_release_policy(struct inode *inode, struct file *filp)
 static ssize_t sel_read_policy(struct file *filp, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct selinux_fs_info *fsi = file_inode(filp)->i_sb->s_fs_info;
 	struct policy_load_memory *plm = filp->private_data;
 	int ret;
-
-	mutex_lock(&fsi->mutex);
 
 	ret = avc_has_perm(&selinux_state,
 			   current_sid(), SECINITSID_SECURITY,
 			  SECCLASS_SECURITY, SECURITY__READ_POLICY, NULL);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = simple_read_from_buffer(buf, count, ppos, plm->data, plm->len);
-out:
-	mutex_unlock(&fsi->mutex);
-	return ret;
+	return simple_read_from_buffer(buf, count, ppos, plm->data, plm->len);
 }
 
-static int sel_mmap_policy_fault(struct vm_fault *vmf)
+static vm_fault_t sel_mmap_policy_fault(struct vm_fault *vmf)
 {
 	struct policy_load_memory *plm = vmf->vma->vm_file->private_data;
 	unsigned long offset;
@@ -575,8 +575,8 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	length = count;
 
 out1:
-	audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
-		"policy loaded auid=%u ses=%u",
+	audit_log(audit_context(), GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
+		"auid=%u ses=%u lsm=selinux res=1",
 		from_kuid(&init_user_ns, audit_get_loginuid(current)),
 		audit_get_sessionid(current));
 out:
@@ -1182,25 +1182,29 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	ret = -EINVAL;
 	if (index >= fsi->bool_num || strcmp(name,
 					     fsi->bool_pending_names[index]))
-		goto out;
+		goto out_unlock;
 
 	ret = -ENOMEM;
 	page = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!page)
-		goto out;
+		goto out_unlock;
 
 	cur_enforcing = security_get_bool_value(fsi->state, index);
 	if (cur_enforcing < 0) {
 		ret = cur_enforcing;
-		goto out;
+		goto out_unlock;
 	}
 	length = scnprintf(page, PAGE_SIZE, "%d %d", cur_enforcing,
 			  fsi->bool_pending_values[index]);
-	ret = simple_read_from_buffer(buf, count, ppos, page, length);
-out:
 	mutex_unlock(&fsi->mutex);
+	ret = simple_read_from_buffer(buf, count, ppos, page, length);
+out_free:
 	free_page((unsigned long)page);
 	return ret;
+
+out_unlock:
+	mutex_unlock(&fsi->mutex);
+	goto out_free;
 }
 
 static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
@@ -1212,6 +1216,17 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	int new_value;
 	unsigned index = file_inode(filep)->i_ino & SEL_INO_MASK;
 	const char *name = filep->f_path.dentry->d_name.name;
+
+	if (count >= PAGE_SIZE)
+		return -ENOMEM;
+
+	/* No partial writes. */
+	if (*ppos != 0)
+		return -EINVAL;
+
+	page = memdup_user_nul(buf, count);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
 
 	mutex_lock(&fsi->mutex);
 
@@ -1226,22 +1241,6 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	if (index >= fsi->bool_num || strcmp(name,
 					     fsi->bool_pending_names[index]))
 		goto out;
-
-	length = -ENOMEM;
-	if (count >= PAGE_SIZE)
-		goto out;
-
-	/* No partial writes. */
-	length = -EINVAL;
-	if (*ppos != 0)
-		goto out;
-
-	page = memdup_user_nul(buf, count);
-	if (IS_ERR(page)) {
-		length = PTR_ERR(page);
-		page = NULL;
-		goto out;
-	}
 
 	length = -EINVAL;
 	if (sscanf(page, "%d", &new_value) != 1)
@@ -1274,6 +1273,17 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	ssize_t length;
 	int new_value;
 
+	if (count >= PAGE_SIZE)
+		return -ENOMEM;
+
+	/* No partial writes. */
+	if (*ppos != 0)
+		return -EINVAL;
+
+	page = memdup_user_nul(buf, count);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
+
 	mutex_lock(&fsi->mutex);
 
 	length = avc_has_perm(&selinux_state,
@@ -1282,22 +1292,6 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 			      NULL);
 	if (length)
 		goto out;
-
-	length = -ENOMEM;
-	if (count >= PAGE_SIZE)
-		goto out;
-
-	/* No partial writes. */
-	length = -EINVAL;
-	if (*ppos != 0)
-		goto out;
-
-	page = memdup_user_nul(buf, count);
-	if (IS_ERR(page)) {
-		length = PTR_ERR(page);
-		page = NULL;
-		goto out;
-	}
 
 	length = -EINVAL;
 	if (sscanf(page, "%d", &new_value) != 1)

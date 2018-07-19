@@ -71,6 +71,7 @@ struct report {
 	bool			group_set;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
+	struct annotation_options annotation_opts;
 	const char		*pretty_printing_style;
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
@@ -136,26 +137,25 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 
 	if (sort__mode == SORT_MODE__BRANCH) {
 		bi = he->branch_info;
-		err = addr_map_symbol__inc_samples(&bi->from, sample, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->from, sample, evsel);
 		if (err)
 			goto out;
 
-		err = addr_map_symbol__inc_samples(&bi->to, sample, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->to, sample, evsel);
 
 	} else if (rep->mem_mode) {
 		mi = he->mem_info;
-		err = addr_map_symbol__inc_samples(&mi->daddr, sample, evsel->idx);
+		err = addr_map_symbol__inc_samples(&mi->daddr, sample, evsel);
 		if (err)
 			goto out;
 
-		err = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
+		err = hist_entry__inc_addr_samples(he, sample, evsel, al->addr);
 
 	} else if (symbol_conf.cumulate_callchain) {
 		if (single)
-			err = hist_entry__inc_addr_samples(he, sample, evsel->idx,
-							   al->addr);
+			err = hist_entry__inc_addr_samples(he, sample, evsel, al->addr);
 	} else {
-		err = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
+		err = hist_entry__inc_addr_samples(he, sample, evsel, al->addr);
 	}
 
 out:
@@ -181,11 +181,11 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 			     rep->nonany_branch_mode);
 
 	bi = he->branch_info;
-	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel->idx);
+	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel);
 	if (err)
 		goto out;
 
-	err = addr_map_symbol__inc_samples(&bi->to, sample, evsel->idx);
+	err = addr_map_symbol__inc_samples(&bi->to, sample, evsel);
 
 	branch_type_count(&rep->brtype_stat, &bi->flags,
 			  bi->from.addr, bi->to.addr);
@@ -194,20 +194,11 @@ out:
 	return err;
 }
 
-/*
- * Events in data file are not collect in groups, but we still want
- * the group display. Set the artificial group and set the leader's
- * forced_leader flag to notify the display code.
- */
 static void setup_forced_leader(struct report *report,
 				struct perf_evlist *evlist)
 {
-	if (report->group_set && !evlist->nr_groups) {
-		struct perf_evsel *leader = perf_evlist__first(evlist);
-
-		perf_evlist__set_leader(evlist);
-		leader->forced_leader = true;
-	}
+	if (report->group_set)
+		perf_evlist__force_leader(evlist);
 }
 
 static int process_feature_event(struct perf_tool *tool,
@@ -226,7 +217,8 @@ static int process_feature_event(struct perf_tool *tool,
 	}
 
 	/*
-	 * All features are received, we can force the
+	 * (feat_id = HEADER_LAST_FEATURE) is the end marker which
+	 * means all features are received, now we can force the
 	 * group if needed.
 	 */
 	setup_forced_leader(rep, session->evlist);
@@ -523,12 +515,9 @@ static void report__warn_kptr_restrict(const struct report *rep)
 		    "As no suitable kallsyms nor vmlinux was found, kernel samples\n"
 		    "can't be resolved.";
 
-		if (kernel_map) {
-			const struct dso *kdso = kernel_map->dso;
-			if (!RB_EMPTY_ROOT(&kdso->symbols[MAP__FUNCTION])) {
-				desc = "If some relocation was applied (e.g. "
-				       "kexec) symbols may be misresolved.";
-			}
+		if (kernel_map && map__has_symbols(kernel_map)) {
+			desc = "If some relocation was applied (e.g. "
+			       "kexec) symbols may be misresolved.";
 		}
 
 		ui__warning(
@@ -573,7 +562,7 @@ static int report__browse_hists(struct report *rep)
 		ret = perf_evlist__tui_browse_hists(evlist, help, NULL,
 						    rep->min_percent,
 						    &session->header.env,
-						    true);
+						    true, &rep->annotation_opts);
 		/*
 		 * Usually "ret" is the last pressed key, and we only
 		 * care if the key notifies us to switch data file.
@@ -718,10 +707,7 @@ static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 
 static int map_groups__fprintf_task(struct map_groups *mg, int indent, FILE *fp)
 {
-	int printed = 0, i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		printed += maps__fprintf_task(&mg->maps[i], indent, fp);
-	return printed;
+	return maps__fprintf_task(&mg->maps, indent, fp);
 }
 
 static void task__print_level(struct task *task, FILE *fp, int level)
@@ -961,12 +947,6 @@ parse_percent_limit(const struct option *opt, const char *str,
 	return 0;
 }
 
-#define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function,percent"
-
-const char report_callchain_help[] = "Display call graph (stack chain/backtrace):\n\n"
-				     CALLCHAIN_REPORT_HELP
-				     "\n\t\t\t\tDefault: " CALLCHAIN_DEFAULT_OPT;
-
 int cmd_report(int argc, const char **argv)
 {
 	struct perf_session *session;
@@ -975,6 +955,10 @@ int cmd_report(int argc, const char **argv)
 	bool has_br_stack = false;
 	int branch_mode = -1;
 	bool branch_call_mode = false;
+#define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function,percent"
+	const char report_callchain_help[] = "Display call graph (stack chain/backtrace):\n\n"
+					     CALLCHAIN_REPORT_HELP
+					     "\n\t\t\t\tDefault: " CALLCHAIN_DEFAULT_OPT;
 	char callchain_default_opt[] = CALLCHAIN_DEFAULT_OPT;
 	const char * const report_usage[] = {
 		"perf report [<options>]",
@@ -1004,6 +988,7 @@ int cmd_report(int argc, const char **argv)
 		.max_stack		 = PERF_MAX_STACK_DEPTH,
 		.pretty_printing_style	 = "normal",
 		.socket_filter		 = -1,
+		.annotation_opts	 = annotation__default_options,
 	};
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
@@ -1093,11 +1078,11 @@ int cmd_report(int argc, const char **argv)
 		   "list of cpus to profile"),
 	OPT_BOOLEAN('I', "show-info", &report.show_full_info,
 		    "Display extended information about perf.data file"),
-	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
+	OPT_BOOLEAN(0, "source", &report.annotation_opts.annotate_src,
 		    "Interleave source code with assembly code (default)"),
-	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
+	OPT_BOOLEAN(0, "asm-raw", &report.annotation_opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
-	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &report.annotation_opts.disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
@@ -1108,7 +1093,7 @@ int cmd_report(int argc, const char **argv)
 		    parse_branch_mode),
 	OPT_BOOLEAN(0, "branch-history", &branch_call_mode,
 		    "add last branch records to call history"),
-	OPT_STRING(0, "objdump", &objdump_path, "path",
+	OPT_STRING(0, "objdump", &report.annotation_opts.objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Disable symbol demangling"),

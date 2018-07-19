@@ -131,8 +131,6 @@ static const struct i2c_hid_cmd hid_no_cmd =		{ .length = 0 };
  * static const struct i2c_hid_cmd hid_set_protocol_cmd = { I2C_HID_CMD(0x07) };
  */
 
-static DEFINE_MUTEX(i2c_hid_open_mut);
-
 /* The main device structure */
 struct i2c_hid {
 	struct i2c_client	*client;	/* i2c client */
@@ -486,7 +484,7 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 		return;
 	}
 
-	if ((ret_size > size) || (ret_size <= 2)) {
+	if ((ret_size > size) || (ret_size < 2)) {
 		dev_err(&ihid->client->dev, "%s: incomplete report (%d/%d)\n",
 			__func__, size, ret_size);
 		return;
@@ -868,6 +866,15 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 }
 
 #ifdef CONFIG_ACPI
+static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
+	/*
+	 * The CHPN0001 ACPI device, which is used to describe the Chipone
+	 * ICN8505 controller, has a _CID of PNP0C50 but is not HID compatible.
+	 */
+	{"CHPN0001", 0 },
+	{ },
+};
+
 static int i2c_hid_acpi_pdata(struct i2c_client *client,
 		struct i2c_hid_platform_data *pdata)
 {
@@ -879,13 +886,18 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 	acpi_handle handle;
 
 	handle = ACPI_HANDLE(&client->dev);
-	if (!handle || acpi_bus_get_device(handle, &adev))
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
+		dev_err(&client->dev, "Error could not get ACPI device\n");
+		return -ENODEV;
+	}
+
+	if (acpi_match_device_ids(adev, i2c_hid_acpi_blacklist) == 0)
 		return -ENODEV;
 
 	obj = acpi_evaluate_dsm_typed(handle, &i2c_hid_guid, 1, 1, NULL,
 				      ACPI_TYPE_INTEGER);
 	if (!obj) {
-		dev_err(&client->dev, "device _DSM execution failed\n");
+		dev_err(&client->dev, "Error _DSM call to get HID descriptor address failed\n");
 		return -ENODEV;
 	}
 
@@ -1000,11 +1012,8 @@ static int i2c_hid_probe(struct i2c_client *client,
 			goto err;
 	} else if (!platform_data) {
 		ret = i2c_hid_acpi_pdata(client, &ihid->pdata);
-		if (ret) {
-			dev_err(&client->dev,
-				"HID register address not provided\n");
+		if (ret)
 			goto err;
-		}
 	} else {
 		ihid->pdata = *platform_data;
 	}
@@ -1053,6 +1062,14 @@ static int i2c_hid_probe(struct i2c_client *client,
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	device_enable_async_suspend(&client->dev);
+
+	/* Make sure there is something at this address */
+	ret = i2c_smbus_read_byte(client);
+	if (ret < 0) {
+		dev_dbg(&client->dev, "nothing at this address: %d\n", ret);
+		ret = -ENXIO;
+		goto err_pm;
+	}
 
 	ret = i2c_hid_fetch_hid_descriptor(ihid);
 	if (ret < 0)

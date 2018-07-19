@@ -1068,7 +1068,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	if (!gpriv)
 		return -ENOMEM;
 
-	uep = kzalloc(sizeof(struct usbhsg_uep) * pipe_size, GFP_KERNEL);
+	uep = kcalloc(pipe_size, sizeof(struct usbhsg_uep), GFP_KERNEL);
 	if (!uep) {
 		ret = -ENOMEM;
 		goto usbhs_mod_gadget_probe_err_gpriv;

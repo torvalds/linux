@@ -4780,7 +4780,6 @@ static void sd_get_streamparm(struct gspca_dev *gspca_dev,
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	int fr, i;
 
-	cp->capability |= V4L2_CAP_TIMEPERFRAME;
 	tpf->numerator = 1;
 	i = get_fr_idx(gspca_dev);
 	if (i & 0x80) {

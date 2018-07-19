@@ -757,6 +757,11 @@
  *	@type contains the requested communications type.
  *	@protocol contains the requested protocol.
  *	@kern set to 1 if a kernel socket.
+ * @socket_socketpair:
+ *	Check permissions before creating a fresh pair of sockets.
+ *	@socka contains the first socket structure.
+ *	@sockb contains the second socket structure.
+ *	Return 0 if permission is granted and the connection was established.
  * @socket_bind:
  *	Check permission before socket protocol layer bind operation is
  *	performed and the socket @sock is bound to the address specified in the
@@ -1656,6 +1661,7 @@ union security_list_options {
 	int (*socket_create)(int family, int type, int protocol, int kern);
 	int (*socket_post_create)(struct socket *sock, int family, int type,
 					int protocol, int kern);
+	int (*socket_socketpair)(struct socket *socka, struct socket *sockb);
 	int (*socket_bind)(struct socket *sock, struct sockaddr *address,
 				int addrlen);
 	int (*socket_connect)(struct socket *sock, struct sockaddr *address,
@@ -1922,6 +1928,7 @@ struct security_hook_heads {
 	struct hlist_head unix_may_send;
 	struct hlist_head socket_create;
 	struct hlist_head socket_post_create;
+	struct hlist_head socket_socketpair;
 	struct hlist_head socket_bind;
 	struct hlist_head socket_connect;
 	struct hlist_head socket_listen;

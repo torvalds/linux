@@ -3208,13 +3208,13 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 
 	IPW_DEBUG_TRACE("<< :\n");
 
-	virts = kmalloc(sizeof(void *) * CB_NUMBER_OF_ELEMENTS_SMALL,
-			GFP_KERNEL);
+	virts = kmalloc_array(CB_NUMBER_OF_ELEMENTS_SMALL, sizeof(void *),
+			      GFP_KERNEL);
 	if (!virts)
 		return -ENOMEM;
 
-	phys = kmalloc(sizeof(dma_addr_t) * CB_NUMBER_OF_ELEMENTS_SMALL,
-			GFP_KERNEL);
+	phys = kmalloc_array(CB_NUMBER_OF_ELEMENTS_SMALL, sizeof(dma_addr_t),
+			     GFP_KERNEL);
 	if (!phys) {
 		kfree(virts);
 		return -ENOMEM;
@@ -3782,7 +3782,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 {
 	struct pci_dev *dev = priv->pci_dev;
 
-	q->txb = kmalloc(sizeof(q->txb[0]) * count, GFP_KERNEL);
+	q->txb = kmalloc_array(count, sizeof(q->txb[0]), GFP_KERNEL);
 	if (!q->txb) {
 		IPW_ERROR("vmalloc for auxiliary BD structures failed\n");
 		return -ENOMEM;
@@ -7557,8 +7557,7 @@ static int ipw_associate(void *data)
 	}
 
 	if (priv->status & STATUS_DISASSOCIATING) {
-		IPW_DEBUG_ASSOC("Not attempting association (in "
-				"disassociating)\n ");
+		IPW_DEBUG_ASSOC("Not attempting association (in disassociating)\n");
 		schedule_work(&priv->associate);
 		return 0;
 	}
@@ -12012,7 +12011,7 @@ MODULE_PARM_DESC(rtap_iface, "create the rtap interface (1 - create, default 0)"
 
 #ifdef CONFIG_IPW2200_QOS
 module_param(qos_enable, int, 0444);
-MODULE_PARM_DESC(qos_enable, "enable all QoS functionalitis");
+MODULE_PARM_DESC(qos_enable, "enable all QoS functionalities");
 
 module_param(qos_burst_enable, int, 0444);
 MODULE_PARM_DESC(qos_burst_enable, "enable QoS burst mode");

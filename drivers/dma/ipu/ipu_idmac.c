@@ -910,7 +910,8 @@ out:
 /* Called with ichan->chan_mutex held */
 static int idmac_desc_alloc(struct idmac_channel *ichan, int n)
 {
-	struct idmac_tx_desc *desc = vmalloc(n * sizeof(struct idmac_tx_desc));
+	struct idmac_tx_desc *desc =
+		vmalloc(array_size(n, sizeof(struct idmac_tx_desc)));
 	struct idmac *idmac = to_idmac(ichan->dma_chan.device);
 
 	if (!desc)

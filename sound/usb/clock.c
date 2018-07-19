@@ -443,10 +443,11 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 	data[0] = rate;
 	data[1] = rate >> 8;
 	data[2] = rate >> 16;
-	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
-				   data, sizeof(data))) < 0) {
+	err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
+			      UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
+			      data, sizeof(data));
+	if (err < 0) {
 		dev_err(&dev->dev, "%d:%d: cannot set freq %d to ep %#x\n",
 			iface, fmt->altsetting, rate, ep);
 		return err;
@@ -460,10 +461,11 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 	if (chip->sample_rate_read_error > 2)
 		return 0;
 
-	if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC_GET_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_IN,
-				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
-				   data, sizeof(data))) < 0) {
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC_GET_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_IN,
+			      UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
+			      data, sizeof(data));
+	if (err < 0) {
 		dev_err(&dev->dev, "%d:%d: cannot get freq at ep %#x\n",
 			iface, fmt->altsetting, ep);
 		chip->sample_rate_read_error++;
@@ -587,8 +589,15 @@ int snd_usb_init_sample_rate(struct snd_usb_audio *chip, int iface,
 	default:
 		return set_sample_rate_v1(chip, iface, alts, fmt, rate);
 
-	case UAC_VERSION_2:
 	case UAC_VERSION_3:
+		if (chip->badd_profile >= UAC3_FUNCTION_SUBCLASS_GENERIC_IO) {
+			if (rate != UAC3_BADD_SAMPLING_RATE)
+				return -ENXIO;
+			else
+				return 0;
+		}
+	/* fall through */
+	case UAC_VERSION_2:
 		return set_sample_rate_v2v3(chip, iface, alts, fmt, rate);
 	}
 }

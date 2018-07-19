@@ -185,6 +185,10 @@ nfp_flower_repr_netdev_init(struct nfp_app *app, struct net_device *netdev)
 static void
 nfp_flower_repr_netdev_clean(struct nfp_app *app, struct net_device *netdev)
 {
+	struct nfp_repr *repr = netdev_priv(netdev);
+
+	kfree(repr->app_priv);
+
 	tc_setup_cb_egdev_unregister(netdev, nfp_flower_setup_tc_egress_cb,
 				     netdev_priv(netdev));
 }
@@ -225,7 +229,9 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 	u8 nfp_pcie = nfp_cppcore_pcie_unit(app->pf->cpp);
 	struct nfp_flower_priv *priv = app->priv;
 	atomic_t *replies = &priv->reify_replies;
+	struct nfp_flower_repr_priv *repr_priv;
 	enum nfp_port_type port_type;
+	struct nfp_repr *nfp_repr;
 	struct nfp_reprs *reprs;
 	int i, err, reify_cnt;
 	const u8 queue = 0;
@@ -247,12 +253,25 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 			err = -ENOMEM;
 			goto err_reprs_clean;
 		}
-		RCU_INIT_POINTER(reprs->reprs[i], repr);
+
+		repr_priv = kzalloc(sizeof(*repr_priv), GFP_KERNEL);
+		if (!repr_priv) {
+			err = -ENOMEM;
+			goto err_reprs_clean;
+		}
+
+		nfp_repr = netdev_priv(repr);
+		nfp_repr->app_priv = repr_priv;
 
 		/* For now we only support 1 PF */
 		WARN_ON(repr_type == NFP_REPR_TYPE_PF && i);
 
 		port = nfp_port_alloc(app, port_type, repr);
+		if (IS_ERR(port)) {
+			err = PTR_ERR(port);
+			nfp_repr_free(repr);
+			goto err_reprs_clean;
+		}
 		if (repr_type == NFP_REPR_TYPE_PF) {
 			port->pf_id = i;
 			port->vnic = priv->nn->dp.ctrl_bar;
@@ -271,9 +290,11 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 				    port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
+			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
 
+		RCU_INIT_POINTER(reprs->reprs[i], repr);
 		nfp_info(app->cpp, "%s%d Representor(%s) created\n",
 			 repr_type == NFP_REPR_TYPE_PF ? "PF" : "VF", i,
 			 repr->name);
@@ -318,6 +339,8 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 {
 	struct nfp_eth_table *eth_tbl = app->pf->eth_tbl;
 	atomic_t *replies = &priv->reify_replies;
+	struct nfp_flower_repr_priv *repr_priv;
+	struct nfp_repr *nfp_repr;
 	struct sk_buff *ctrl_skb;
 	struct nfp_reprs *reprs;
 	int err, reify_cnt;
@@ -344,16 +367,26 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 			err = -ENOMEM;
 			goto err_reprs_clean;
 		}
-		RCU_INIT_POINTER(reprs->reprs[phys_port], repr);
+
+		repr_priv = kzalloc(sizeof(*repr_priv), GFP_KERNEL);
+		if (!repr_priv) {
+			err = -ENOMEM;
+			goto err_reprs_clean;
+		}
+
+		nfp_repr = netdev_priv(repr);
+		nfp_repr->app_priv = repr_priv;
 
 		port = nfp_port_alloc(app, NFP_PORT_PHYS_PORT, repr);
 		if (IS_ERR(port)) {
 			err = PTR_ERR(port);
+			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
 		err = nfp_port_init_phy_port(app->pf, app, port, i);
 		if (err) {
 			nfp_port_free(port);
+			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
 
@@ -365,6 +398,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 				    cmsg_port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
+			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
 
@@ -373,6 +407,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 					     eth_tbl->ports[i].base,
 					     phys_port);
 
+		RCU_INIT_POINTER(reprs->reprs[phys_port], repr);
 		nfp_info(app->cpp, "Phys Port %d Representor(%s) created\n",
 			 phys_port, repr->name);
 	}
@@ -420,6 +455,7 @@ static int nfp_flower_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 
 	eth_hw_addr_random(nn->dp.netdev);
 	netif_keep_dst(nn->dp.netdev);
+	nn->vnic_no_name = true;
 
 	return 0;
 
@@ -537,8 +573,22 @@ static int nfp_flower_init(struct nfp_app *app)
 	else
 		app_priv->flower_ext_feats = features;
 
+	/* Tell the firmware that the driver supports lag. */
+	err = nfp_rtsym_write_le(app->pf->rtbl,
+				 "_abi_flower_balance_sync_enable", 1);
+	if (!err) {
+		app_priv->flower_ext_feats |= NFP_FL_FEATS_LAG;
+		nfp_flower_lag_init(&app_priv->nfp_lag);
+	} else if (err == -ENOENT) {
+		nfp_warn(app->cpp, "LAG not supported by FW.\n");
+	} else {
+		goto err_cleanup_metadata;
+	}
+
 	return 0;
 
+err_cleanup_metadata:
+	nfp_flower_metadata_cleanup(app);
 err_free_app_priv:
 	vfree(app->priv);
 	return err;
@@ -551,6 +601,9 @@ static void nfp_flower_clean(struct nfp_app *app)
 	skb_queue_purge(&app_priv->cmsg_skbs_high);
 	skb_queue_purge(&app_priv->cmsg_skbs_low);
 	flush_work(&app_priv->cmsg_work);
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
+		nfp_flower_lag_cleanup(&app_priv->nfp_lag);
 
 	nfp_flower_metadata_cleanup(app);
 	vfree(app->priv);
@@ -618,11 +671,29 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 
 static int nfp_flower_start(struct nfp_app *app)
 {
+	struct nfp_flower_priv *app_priv = app->priv;
+	int err;
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+		err = nfp_flower_lag_reset(&app_priv->nfp_lag);
+		if (err)
+			return err;
+
+		err = register_netdevice_notifier(&app_priv->nfp_lag.lag_nb);
+		if (err)
+			return err;
+	}
+
 	return nfp_tunnel_config_start(app);
 }
 
 static void nfp_flower_stop(struct nfp_app *app)
 {
+	struct nfp_flower_priv *app_priv = app->priv;
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
+		unregister_netdevice_notifier(&app_priv->nfp_lag.lag_nb);
+
 	nfp_tunnel_config_stop(app);
 }
 

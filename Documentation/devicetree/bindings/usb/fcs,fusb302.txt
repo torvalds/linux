@@ -6,12 +6,6 @@ Required properties :
 - interrupts             : Interrupt specifier
 
 Optional properties :
-- fcs,max-sink-microvolt : Maximum voltage to negotiate when configured as sink
-- fcs,max-sink-microamp  : Maximum current to negotiate when configured as sink
-- fcs,max-sink-microwatt : Maximum power to negotiate when configured as sink
-			   If this is less then max-sink-microvolt *
-			   max-sink-microamp then the configured current will
-			   be clamped.
 - fcs,operating-sink-microwatt :
 			   Minimum amount of power accepted from a sink
 			   when negotiating

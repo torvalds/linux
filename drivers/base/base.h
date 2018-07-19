@@ -161,3 +161,6 @@ extern void device_links_driver_cleanup(struct device *dev);
 extern void device_links_no_driver(struct device *dev);
 extern bool device_links_busy(struct device *dev);
 extern void device_links_unbind_consumers(struct device *dev);
+
+/* device pm support */
+void device_pm_move_to_tail(struct device *dev);

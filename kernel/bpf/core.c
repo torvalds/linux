@@ -31,6 +31,7 @@
 #include <linux/rbtree_latch.h>
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
+#include <linux/perf_event.h>
 
 #include <asm/unaligned.h>
 
@@ -347,6 +348,20 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	BUG_ON(bpf_adj_branches(prog_adj, off, insn_delta, false));
 
 	return prog_adj;
+}
+
+void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp)
+{
+	int i;
+
+	for (i = 0; i < fp->aux->func_cnt; i++)
+		bpf_prog_kallsyms_del(fp->aux->func[i]);
+}
+
+void bpf_prog_kallsyms_del_all(struct bpf_prog *fp)
+{
+	bpf_prog_kallsyms_del_subprogs(fp);
+	bpf_prog_kallsyms_del(fp);
 }
 
 #ifdef CONFIG_BPF_JIT
@@ -683,23 +698,6 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 		*to++ = BPF_JMP_REG(from->code, from->dst_reg, BPF_REG_AX, off);
 		break;
 
-	case BPF_LD | BPF_ABS | BPF_W:
-	case BPF_LD | BPF_ABS | BPF_H:
-	case BPF_LD | BPF_ABS | BPF_B:
-		*to++ = BPF_ALU64_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ from->imm);
-		*to++ = BPF_ALU64_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
-		*to++ = BPF_LD_IND(from->code, BPF_REG_AX, 0);
-		break;
-
-	case BPF_LD | BPF_IND | BPF_W:
-	case BPF_LD | BPF_IND | BPF_H:
-	case BPF_LD | BPF_IND | BPF_B:
-		*to++ = BPF_ALU64_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ from->imm);
-		*to++ = BPF_ALU64_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
-		*to++ = BPF_ALU32_REG(BPF_ADD, BPF_REG_AX, from->src_reg);
-		*to++ = BPF_LD_IND(from->code, BPF_REG_AX, 0);
-		break;
-
 	case BPF_LD | BPF_IMM | BPF_DW:
 		*to++ = BPF_ALU64_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ aux[1].imm);
 		*to++ = BPF_ALU64_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
@@ -940,14 +938,7 @@ EXPORT_SYMBOL_GPL(__bpf_call_base);
 	INSN_3(LDX, MEM, W),			\
 	INSN_3(LDX, MEM, DW),			\
 	/*   Immediate based. */		\
-	INSN_3(LD, IMM, DW),			\
-	/*   Misc (old cBPF carry-over). */	\
-	INSN_3(LD, ABS, B),			\
-	INSN_3(LD, ABS, H),			\
-	INSN_3(LD, ABS, W),			\
-	INSN_3(LD, IND, B),			\
-	INSN_3(LD, IND, H),			\
-	INSN_3(LD, IND, W)
+	INSN_3(LD, IMM, DW)
 
 bool bpf_opcode_in_insntable(u8 code)
 {
@@ -957,6 +948,13 @@ bool bpf_opcode_in_insntable(u8 code)
 		[0 ... 255] = false,
 		/* Now overwrite non-defaults ... */
 		BPF_INSN_MAP(BPF_INSN_2_TBL, BPF_INSN_3_TBL),
+		/* UAPI exposed, but rewritten opcodes. cBPF carry-over. */
+		[BPF_LD | BPF_ABS | BPF_B] = true,
+		[BPF_LD | BPF_ABS | BPF_H] = true,
+		[BPF_LD | BPF_ABS | BPF_W] = true,
+		[BPF_LD | BPF_IND | BPF_B] = true,
+		[BPF_LD | BPF_IND | BPF_H] = true,
+		[BPF_LD | BPF_IND | BPF_W] = true,
 	};
 #undef BPF_INSN_3_TBL
 #undef BPF_INSN_2_TBL
@@ -987,8 +985,6 @@ static u64 ___bpf_prog_run(u64 *regs, const struct bpf_insn *insn, u64 *stack)
 #undef BPF_INSN_3_LBL
 #undef BPF_INSN_2_LBL
 	u32 tail_call_cnt = 0;
-	void *ptr;
-	int off;
 
 #define CONT	 ({ insn++; goto select_insn; })
 #define CONT_JMP ({ insn++; goto select_insn; })
@@ -1315,67 +1311,6 @@ out:
 		atomic64_add((u64) SRC, (atomic64_t *)(unsigned long)
 			     (DST + insn->off));
 		CONT;
-	LD_ABS_W: /* BPF_R0 = ntohl(*(u32 *) (skb->data + imm32)) */
-		off = IMM;
-load_word:
-		/* BPF_LD + BPD_ABS and BPF_LD + BPF_IND insns are only
-		 * appearing in the programs where ctx == skb
-		 * (see may_access_skb() in the verifier). All programs
-		 * keep 'ctx' in regs[BPF_REG_CTX] == BPF_R6,
-		 * bpf_convert_filter() saves it in BPF_R6, internal BPF
-		 * verifier will check that BPF_R6 == ctx.
-		 *
-		 * BPF_ABS and BPF_IND are wrappers of function calls,
-		 * so they scratch BPF_R1-BPF_R5 registers, preserve
-		 * BPF_R6-BPF_R9, and store return value into BPF_R0.
-		 *
-		 * Implicit input:
-		 *   ctx == skb == BPF_R6 == CTX
-		 *
-		 * Explicit input:
-		 *   SRC == any register
-		 *   IMM == 32-bit immediate
-		 *
-		 * Output:
-		 *   BPF_R0 - 8/16/32-bit skb data converted to cpu endianness
-		 */
-
-		ptr = bpf_load_pointer((struct sk_buff *) (unsigned long) CTX, off, 4, &tmp);
-		if (likely(ptr != NULL)) {
-			BPF_R0 = get_unaligned_be32(ptr);
-			CONT;
-		}
-
-		return 0;
-	LD_ABS_H: /* BPF_R0 = ntohs(*(u16 *) (skb->data + imm32)) */
-		off = IMM;
-load_half:
-		ptr = bpf_load_pointer((struct sk_buff *) (unsigned long) CTX, off, 2, &tmp);
-		if (likely(ptr != NULL)) {
-			BPF_R0 = get_unaligned_be16(ptr);
-			CONT;
-		}
-
-		return 0;
-	LD_ABS_B: /* BPF_R0 = *(u8 *) (skb->data + imm32) */
-		off = IMM;
-load_byte:
-		ptr = bpf_load_pointer((struct sk_buff *) (unsigned long) CTX, off, 1, &tmp);
-		if (likely(ptr != NULL)) {
-			BPF_R0 = *(u8 *)ptr;
-			CONT;
-		}
-
-		return 0;
-	LD_IND_W: /* BPF_R0 = ntohl(*(u32 *) (skb->data + src_reg + imm32)) */
-		off = IMM + SRC;
-		goto load_word;
-	LD_IND_H: /* BPF_R0 = ntohs(*(u16 *) (skb->data + src_reg + imm32)) */
-		off = IMM + SRC;
-		goto load_half;
-	LD_IND_B: /* BPF_R0 = *(u8 *) (skb->data + src_reg + imm32) */
-		off = IMM + SRC;
-		goto load_byte;
 
 	default_label:
 		/* If we ever reach this, we have a bug somewhere. Die hard here
@@ -1513,6 +1448,17 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
 	return 0;
 }
 
+static void bpf_prog_select_func(struct bpf_prog *fp)
+{
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+	u32 stack_depth = max_t(u32, fp->aux->stack_depth, 1);
+
+	fp->bpf_func = interpreters[(round_up(stack_depth, 32) / 32) - 1];
+#else
+	fp->bpf_func = __bpf_prog_ret0_warn;
+#endif
+}
+
 /**
  *	bpf_prog_select_runtime - select exec runtime for BPF program
  *	@fp: bpf_prog populated with internal BPF program
@@ -1523,13 +1469,13 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
  */
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 {
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
-	u32 stack_depth = max_t(u32, fp->aux->stack_depth, 1);
+	/* In case of BPF to BPF calls, verifier did all the prep
+	 * work with regards to JITing, etc.
+	 */
+	if (fp->bpf_func)
+		goto finalize;
 
-	fp->bpf_func = interpreters[(round_up(stack_depth, 32) / 32) - 1];
-#else
-	fp->bpf_func = __bpf_prog_ret0_warn;
-#endif
+	bpf_prog_select_func(fp);
 
 	/* eBPF JITs can rewrite the program in case constant
 	 * blinding is active. However, in case of error during
@@ -1550,6 +1496,8 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 		if (*err)
 			return fp;
 	}
+
+finalize:
 	bpf_prog_lock_ro(fp);
 
 	/* The tail call compatibility check can only be done at
@@ -1695,6 +1643,7 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 	int new_prog_cnt, carry_prog_cnt = 0;
 	struct bpf_prog **existing_prog;
 	struct bpf_prog_array *array;
+	bool found_exclude = false;
 	int new_prog_idx = 0;
 
 	/* Figure out how many existing progs we need to carry over to
@@ -1703,13 +1652,19 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 	if (old_array) {
 		existing_prog = old_array->progs;
 		for (; *existing_prog; existing_prog++) {
-			if (*existing_prog != exclude_prog &&
-			    *existing_prog != &dummy_bpf_prog.prog)
+			if (*existing_prog == exclude_prog) {
+				found_exclude = true;
+				continue;
+			}
+			if (*existing_prog != &dummy_bpf_prog.prog)
 				carry_prog_cnt++;
 			if (*existing_prog == include_prog)
 				return -EEXIST;
 		}
 	}
+
+	if (exclude_prog && !found_exclude)
+		return -ENOENT;
 
 	/* How many progs (not NULL) will be in the new array? */
 	new_prog_cnt = carry_prog_cnt;
@@ -1772,6 +1727,10 @@ static void bpf_prog_free_deferred(struct work_struct *work)
 	aux = container_of(work, struct bpf_prog_aux, work);
 	if (bpf_prog_is_dev_bound(aux))
 		bpf_prog_offload_destroy(aux->prog);
+#ifdef CONFIG_PERF_EVENTS
+	if (aux->prog->has_callchain_buf)
+		put_callchain_buffers();
+#endif
 	for (i = 0; i < aux->func_cnt; i++)
 		bpf_jit_free(aux->func[i]);
 	if (aux->func_cnt) {
@@ -1832,6 +1791,8 @@ const struct bpf_func_proto bpf_get_current_pid_tgid_proto __weak;
 const struct bpf_func_proto bpf_get_current_uid_gid_proto __weak;
 const struct bpf_func_proto bpf_get_current_comm_proto __weak;
 const struct bpf_func_proto bpf_sock_map_update_proto __weak;
+const struct bpf_func_proto bpf_sock_hash_update_proto __weak;
+const struct bpf_func_proto bpf_get_current_cgroup_id_proto __weak;
 
 const struct bpf_func_proto * __weak bpf_get_trace_printk_proto(void)
 {
@@ -1844,6 +1805,7 @@ bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
 {
 	return -ENOTSUPP;
 }
+EXPORT_SYMBOL_GPL(bpf_event_output);
 
 /* Always built-in helper functions. */
 const struct bpf_func_proto bpf_tail_call_proto = {
@@ -1890,9 +1852,3 @@ int __weak skb_copy_bits(const struct sk_buff *skb, int offset, void *to,
 #include <linux/bpf_trace.h>
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(xdp_exception);
-
-/* These are only used within the BPF_SYSCALL code */
-#ifdef CONFIG_BPF_SYSCALL
-EXPORT_TRACEPOINT_SYMBOL_GPL(bpf_prog_get_type);
-EXPORT_TRACEPOINT_SYMBOL_GPL(bpf_prog_put_rcu);
-#endif

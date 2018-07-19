@@ -527,7 +527,7 @@ static void construct(
 	REG_GET(MICROSECOND_TIME_BASE_DIV, XTAL_REF_DIV, &xtal_ref_div);
 
 	if (xtal_ref_div == 0) {
-		DC_LOG_WARNING("Invalid base timer divider\n",
+		DC_LOG_WARNING("Invalid base timer divider [%s]\n",
 				__func__);
 		xtal_ref_div = 2;
 	}

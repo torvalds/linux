@@ -406,13 +406,17 @@ struct phy_device {
 	u32 phy_id;
 
 	struct phy_c45_device_ids c45_ids;
-	bool is_c45;
-	bool is_internal;
-	bool is_pseudo_fixed_link;
-	bool has_fixups;
-	bool suspended;
-	bool sysfs_links;
-	bool loopback_enabled;
+	unsigned is_c45:1;
+	unsigned is_internal:1;
+	unsigned is_pseudo_fixed_link:1;
+	unsigned has_fixups:1;
+	unsigned suspended:1;
+	unsigned sysfs_links:1;
+	unsigned loopback_enabled:1;
+
+	unsigned autoneg:1;
+	/* The most recently read link state */
+	unsigned link:1;
 
 	enum phy_state state;
 
@@ -429,9 +433,6 @@ struct phy_device {
 	int pause;
 	int asym_pause;
 
-	/* The most recently read link state */
-	int link;
-
 	/* Enabled Interrupts */
 	u32 interrupts;
 
@@ -443,8 +444,6 @@ struct phy_device {
 
 	/* Energy efficient ethernet modes which should be prohibited */
 	u32 eee_broken_modes;
-
-	int autoneg;
 
 	int link_timeout;
 
@@ -1067,6 +1066,52 @@ int phy_ethtool_nway_reset(struct net_device *ndev);
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
 #endif
+
+/* Inline function for use within net/core/ethtool.c (built-in) */
+static inline int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_strings(phydev, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+
+static inline int phy_ethtool_get_sset_count(struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->drv)
+		return -EIO;
+
+	if (phydev->drv->get_sset_count &&
+	    phydev->drv->get_strings &&
+	    phydev->drv->get_stats) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->get_sset_count(phydev);
+		mutex_unlock(&phydev->lock);
+
+		return ret;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static inline int phy_ethtool_get_stats(struct phy_device *phydev,
+					struct ethtool_stats *stats, u64 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_stats(phydev, stats, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
 
 extern struct bus_type mdio_bus_type;
 

@@ -535,6 +535,13 @@
 # define cpu_has_shared_ftlb_entries 0
 #endif
 
+#ifdef CONFIG_MIPS_MT_SMP
+# define cpu_has_mipsmt_pertccounters \
+	(cpu_data[0].options & MIPS_CPU_MT_PER_TC_PERF_COUNTERS)
+#else
+# define cpu_has_mipsmt_pertccounters 0
+#endif /* CONFIG_MIPS_MT_SMP */
+
 /*
  * Guest capabilities
  */

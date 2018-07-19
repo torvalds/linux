@@ -357,8 +357,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	priv = devm_kzalloc(dev,
-			    sizeof(*priv) +
-				cap->num_channels * sizeof(priv->keycodes[0]),
+			    struct_size(priv, keycodes, cap->num_channels),
 			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;

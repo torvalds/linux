@@ -8,6 +8,17 @@ Required Properties:
 - reg:          Should contain the register base address and size of
                 the pin controller.
 - clocks:       phandle of the clock feeding the pin controller
+- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-ranges: Specifies the mapping between gpio controller and
+               pin-controller pins.
+- #gpio-cells: Should be two. The first cell is the gpio pin number
+               and the second cell is used for optional parameters.
+- interrupt-controller: Marks the device node as an interrupt controller.
+- #interrupt-cells: Specifies the number of cells needed to encode an
+                    interrupt.  Shall be set to 2.  The first cell
+                    defines the interrupt number, the second encodes
+                    the trigger flags described in
+                    bindings/interrupt-controller/interrupts.txt
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
@@ -164,6 +175,11 @@ Example:
                   compatible = "actions,s900-pinctrl";
                   reg = <0x0 0xe01b0000 0x0 0x1000>;
                   clocks = <&cmu CLK_GPIO>;
+                  gpio-controller;
+                  gpio-ranges = <&pinctrl 0 0 146>;
+                  #gpio-cells = <2>;
+                  interrupt-controller;
+                  #interrupt-cells = <2>;
 
                   uart2-default: uart2-default {
                           pinmux {

@@ -109,7 +109,7 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 	audit_update_mark(audit_mark, dentry->d_inode);
 	audit_mark->rule = krule;
 
-	ret = fsnotify_add_mark(&audit_mark->mark, inode, NULL, true);
+	ret = fsnotify_add_inode_mark(&audit_mark->mark, inode, true);
 	if (ret < 0) {
 		fsnotify_put_mark(&audit_mark->mark);
 		audit_mark = ERR_PTR(ret);
@@ -165,12 +165,11 @@ static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
 /* Update mark data in audit rules based on fsnotify events. */
 static int audit_mark_handle_event(struct fsnotify_group *group,
 				    struct inode *to_tell,
-				    struct fsnotify_mark *inode_mark,
-				    struct fsnotify_mark *vfsmount_mark,
 				    u32 mask, const void *data, int data_type,
 				    const unsigned char *dname, u32 cookie,
 				    struct fsnotify_iter_info *iter_info)
 {
+	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct audit_fsnotify_mark *audit_mark;
 	const struct inode *inode = NULL;
 

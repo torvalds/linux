@@ -231,15 +231,15 @@ static void kexec_prepare_cpus(void)
 	/* we are sure every CPU has IRQs off at this point */
 	kexec_all_irq_disabled = 1;
 
-	/* after we tell the others to go down */
-	if (ppc_md.kexec_cpu_down)
-		ppc_md.kexec_cpu_down(0, 0);
-
 	/*
 	 * Before removing MMU mappings make sure all CPUs have entered real
 	 * mode:
 	 */
 	kexec_prepare_cpus_wait(KEXEC_STATE_REAL_MODE);
+
+	/* after we tell the others to go down */
+	if (ppc_md.kexec_cpu_down)
+		ppc_md.kexec_cpu_down(0, 0);
 
 	put_cpu();
 }

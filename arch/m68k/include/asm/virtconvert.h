@@ -16,11 +16,13 @@
 /*
  * Change virtual addresses to physical addresses and vv.
  */
+#define virt_to_phys virt_to_phys
 static inline unsigned long virt_to_phys(void *address)
 {
 	return __pa(address);
 }
 
+#define phys_to_virt phys_to_virt
 static inline void *phys_to_virt(unsigned long address)
 {
 	return __va(address);

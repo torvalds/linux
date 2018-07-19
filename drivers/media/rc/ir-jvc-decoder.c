@@ -213,6 +213,7 @@ static struct ir_raw_handler jvc_handler = {
 	.decode		= ir_jvc_decode,
 	.encode		= ir_jvc_encode,
 	.carrier	= 38000,
+	.min_timeout	= JVC_TRAILER_SPACE,
 };
 
 static int __init ir_jvc_decode_init(void)

@@ -219,6 +219,9 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 	int target_clock = mode->clock;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	/* XXX: Validate clock range */
 
 	if (fixed_mode) {
@@ -253,6 +256,9 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 	 */
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
 
 	return true;
 }
@@ -536,7 +542,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			 */
 			intel_panel_init(&intel_connector->panel,
 					 intel_dvo_get_current_mode(intel_encoder),
-					 NULL, NULL);
+					 NULL);
 			intel_dvo->panel_wants_dither = true;
 		}
 

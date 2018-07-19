@@ -299,7 +299,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter);
 void opa_vnic_encap_skb(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
 u8 opa_vnic_get_vl(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
-u8 opa_vnic_calc_entropy(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
+u8 opa_vnic_calc_entropy(struct sk_buff *skb);
 void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter);
 void opa_vnic_release_mac_tbl(struct opa_vnic_adapter *adapter);
 void opa_vnic_query_mac_tbl(struct opa_vnic_adapter *adapter,

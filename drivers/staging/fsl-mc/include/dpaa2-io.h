@@ -52,7 +52,7 @@ struct dpaa2_io_desc {
 	int has_8prio;
 	int cpu;
 	void *regs_cena;
-	void *regs_cinh;
+	void __iomem *regs_cinh;
 	int dpio_id;
 	u32 qman_version;
 };

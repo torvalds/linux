@@ -768,20 +768,7 @@ static int loopback_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static const struct snd_pcm_ops loopback_playback_ops = {
-	.open =		loopback_open,
-	.close =	loopback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	loopback_hw_params,
-	.hw_free =	loopback_hw_free,
-	.prepare =	loopback_prepare,
-	.trigger =	loopback_trigger,
-	.pointer =	loopback_pointer,
-	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
-};
-
-static const struct snd_pcm_ops loopback_capture_ops = {
+static const struct snd_pcm_ops loopback_pcm_ops = {
 	.open =		loopback_open,
 	.close =	loopback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -804,8 +791,8 @@ static int loopback_pcm_new(struct loopback *loopback,
 			  substreams, substreams, &pcm);
 	if (err < 0)
 		return err;
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &loopback_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &loopback_capture_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &loopback_pcm_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &loopback_pcm_ops);
 
 	pcm->private_data = loopback;
 	pcm->info_flags = 0;

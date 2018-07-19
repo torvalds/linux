@@ -171,7 +171,6 @@ static inline int is_module_addr(void *addr)
 #define _PAGE_WRITE	0x020		/* SW pte write bit */
 #define _PAGE_SPECIAL	0x040		/* SW associated with special page */
 #define _PAGE_UNUSED	0x080		/* SW bit for pgste usage state */
-#define __HAVE_ARCH_PTE_SPECIAL
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
 #define _PAGE_SOFT_DIRTY 0x002		/* SW pte soft dirty bit */
@@ -507,10 +506,10 @@ static inline int mm_alloc_pgste(struct mm_struct *mm)
  * faults should no longer be backed by zero pages
  */
 #define mm_forbids_zeropage mm_has_pgste
-static inline int mm_use_skey(struct mm_struct *mm)
+static inline int mm_uses_skeys(struct mm_struct *mm)
 {
 #ifdef CONFIG_PGSTE
-	if (mm->context.use_skey)
+	if (mm->context.uses_skeys)
 		return 1;
 #endif
 	return 0;

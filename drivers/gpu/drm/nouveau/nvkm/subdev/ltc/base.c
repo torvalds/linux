@@ -55,6 +55,14 @@ nvkm_ltc_zbc_depth_get(struct nvkm_ltc *ltc, int index, const u32 depth)
 	return index;
 }
 
+int
+nvkm_ltc_zbc_stencil_get(struct nvkm_ltc *ltc, int index, const u32 stencil)
+{
+	ltc->zbc_stencil[index] = stencil;
+	ltc->func->zbc_clear_stencil(ltc, index, stencil);
+	return index;
+}
+
 void
 nvkm_ltc_invalidate(struct nvkm_ltc *ltc)
 {
@@ -92,6 +100,8 @@ nvkm_ltc_init(struct nvkm_subdev *subdev)
 	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
 		ltc->func->zbc_clear_color(ltc, i, ltc->zbc_color[i]);
 		ltc->func->zbc_clear_depth(ltc, i, ltc->zbc_depth[i]);
+		if (ltc->func->zbc_clear_stencil)
+			ltc->func->zbc_clear_stencil(ltc, i, ltc->zbc_stencil[i]);
 	}
 
 	ltc->func->init(ltc);

@@ -200,8 +200,8 @@ int qxl_device_init(struct qxl_device *qdev,
 		(~(uint64_t)0) >> (qdev->slot_id_bits + qdev->slot_gen_bits);
 
 	qdev->mem_slots =
-		kmalloc(qdev->n_mem_slots * sizeof(struct qxl_memslot),
-			GFP_KERNEL);
+		kmalloc_array(qdev->n_mem_slots, sizeof(struct qxl_memslot),
+			      GFP_KERNEL);
 
 	idr_init(&qdev->release_idr);
 	spin_lock_init(&qdev->release_idr_lock);

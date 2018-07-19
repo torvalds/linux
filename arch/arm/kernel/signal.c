@@ -541,6 +541,12 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	int ret;
 
 	/*
+	 * Increment event counter and perform fixup for the pre-signal
+	 * frame.
+	 */
+	rseq_signal_deliver(ksig, regs);
+
+	/*
 	 * Set up the stack frame
 	 */
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
@@ -660,6 +666,7 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 			} else {
 				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
+				rseq_handle_notify_resume(NULL, regs);
 			}
 		}
 		local_irq_disable();
@@ -703,3 +710,10 @@ asmlinkage void addr_limit_check_failed(void)
 {
 	addr_limit_user_check();
 }
+
+#ifdef CONFIG_DEBUG_RSEQ
+asmlinkage void do_rseq_syscall(struct pt_regs *regs)
+{
+	rseq_syscall(regs);
+}
+#endif

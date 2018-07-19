@@ -22,13 +22,14 @@
  *   pv_kick_wake	- # of vCPU kicks used for computing pv_latency_wake
  *   pv_latency_kick	- average latency (ns) of vCPU kick operation
  *   pv_latency_wake	- average latency (ns) from vCPU kick to wakeup
- *   pv_lock_slowpath	- # of locking operations via the slowpath
  *   pv_lock_stealing	- # of lock stealing operations
  *   pv_spurious_wakeup	- # of spurious wakeups in non-head vCPUs
  *   pv_wait_again	- # of wait's after a queue head vCPU kick
  *   pv_wait_early	- # of early vCPU wait's
  *   pv_wait_head	- # of vCPU wait's at the queue head
  *   pv_wait_node	- # of vCPU wait's at a non-head queue node
+ *   lock_pending	- # of locking operations via pending code
+ *   lock_slowpath	- # of locking operations via MCS lock queue
  *
  * Writing to the "reset_counters" file will reset all the above counter
  * values.
@@ -46,13 +47,14 @@ enum qlock_stats {
 	qstat_pv_kick_wake,
 	qstat_pv_latency_kick,
 	qstat_pv_latency_wake,
-	qstat_pv_lock_slowpath,
 	qstat_pv_lock_stealing,
 	qstat_pv_spurious_wakeup,
 	qstat_pv_wait_again,
 	qstat_pv_wait_early,
 	qstat_pv_wait_head,
 	qstat_pv_wait_node,
+	qstat_lock_pending,
+	qstat_lock_slowpath,
 	qstat_num,	/* Total number of statistical counters */
 	qstat_reset_cnts = qstat_num,
 };
@@ -73,12 +75,13 @@ static const char * const qstat_names[qstat_num + 1] = {
 	[qstat_pv_spurious_wakeup] = "pv_spurious_wakeup",
 	[qstat_pv_latency_kick]	   = "pv_latency_kick",
 	[qstat_pv_latency_wake]    = "pv_latency_wake",
-	[qstat_pv_lock_slowpath]   = "pv_lock_slowpath",
 	[qstat_pv_lock_stealing]   = "pv_lock_stealing",
 	[qstat_pv_wait_again]      = "pv_wait_again",
 	[qstat_pv_wait_early]      = "pv_wait_early",
 	[qstat_pv_wait_head]       = "pv_wait_head",
 	[qstat_pv_wait_node]       = "pv_wait_node",
+	[qstat_lock_pending]       = "lock_pending",
+	[qstat_lock_slowpath]      = "lock_slowpath",
 	[qstat_reset_cnts]         = "reset_counters",
 };
 

@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2018 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 /******************************************************************************
  Copyright (c)2006 - 2007 Myricom, Inc. for some LRO specific code
@@ -1014,24 +991,45 @@ static int ixgbevf_xmit_xdp_ring(struct ixgbevf_ring *ring,
 		return IXGBEVF_XDP_CONSUMED;
 
 	/* record the location of the first descriptor for this packet */
-	tx_buffer = &ring->tx_buffer_info[ring->next_to_use];
-	tx_buffer->bytecount = len;
-	tx_buffer->gso_segs = 1;
-	tx_buffer->protocol = 0;
-
 	i = ring->next_to_use;
-	tx_desc = IXGBEVF_TX_DESC(ring, i);
+	tx_buffer = &ring->tx_buffer_info[i];
 
 	dma_unmap_len_set(tx_buffer, len, len);
 	dma_unmap_addr_set(tx_buffer, dma, dma);
 	tx_buffer->data = xdp->data;
-	tx_desc->read.buffer_addr = cpu_to_le64(dma);
+	tx_buffer->bytecount = len;
+	tx_buffer->gso_segs = 1;
+	tx_buffer->protocol = 0;
+
+	/* Populate minimal context descriptor that will provide for the
+	 * fact that we are expected to process Ethernet frames.
+	 */
+	if (!test_bit(__IXGBEVF_TX_XDP_RING_PRIMED, &ring->state)) {
+		struct ixgbe_adv_tx_context_desc *context_desc;
+
+		set_bit(__IXGBEVF_TX_XDP_RING_PRIMED, &ring->state);
+
+		context_desc = IXGBEVF_TX_CTXTDESC(ring, 0);
+		context_desc->vlan_macip_lens	=
+			cpu_to_le32(ETH_HLEN << IXGBE_ADVTXD_MACLEN_SHIFT);
+		context_desc->seqnum_seed	= 0;
+		context_desc->type_tucmd_mlhl	=
+			cpu_to_le32(IXGBE_TXD_CMD_DEXT |
+				    IXGBE_ADVTXD_DTYP_CTXT);
+		context_desc->mss_l4len_idx	= 0;
+
+		i = 1;
+	}
 
 	/* put descriptor type bits */
 	cmd_type = IXGBE_ADVTXD_DTYP_DATA |
 		   IXGBE_ADVTXD_DCMD_DEXT |
 		   IXGBE_ADVTXD_DCMD_IFCS;
 	cmd_type |= len | IXGBE_TXD_CMD;
+
+	tx_desc = IXGBEVF_TX_DESC(ring, i);
+	tx_desc->read.buffer_addr = cpu_to_le64(dma);
+
 	tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type);
 	tx_desc->read.olinfo_status =
 			cpu_to_le32((len << IXGBE_ADVTXD_PAYLEN_SHIFT) |
@@ -1711,6 +1709,7 @@ static void ixgbevf_configure_tx_ring(struct ixgbevf_adapter *adapter,
 	       sizeof(struct ixgbevf_tx_buffer) * ring->count);
 
 	clear_bit(__IXGBEVF_HANG_CHECK_ARMED, &ring->state);
+	clear_bit(__IXGBEVF_TX_XDP_RING_PRIMED, &ring->state);
 
 	IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(reg_idx), txdctl);
 
@@ -3142,15 +3141,17 @@ static void ixgbevf_reset_subtask(struct ixgbevf_adapter *adapter)
 	if (!test_and_clear_bit(__IXGBEVF_RESET_REQUESTED, &adapter->state))
 		return;
 
+	rtnl_lock();
 	/* If we're already down or resetting, just bail */
 	if (test_bit(__IXGBEVF_DOWN, &adapter->state) ||
 	    test_bit(__IXGBEVF_REMOVING, &adapter->state) ||
-	    test_bit(__IXGBEVF_RESETTING, &adapter->state))
+	    test_bit(__IXGBEVF_RESETTING, &adapter->state)) {
+		rtnl_unlock();
 		return;
+	}
 
 	adapter->tx_timeout_count++;
 
-	rtnl_lock();
 	ixgbevf_reinit_locked(adapter);
 	rtnl_unlock();
 }
@@ -4187,6 +4188,7 @@ static int ixgbevf_set_mac(struct net_device *netdev, void *p)
 		return -EPERM;
 
 	ether_addr_copy(hw->mac.addr, addr->sa_data);
+	ether_addr_copy(hw->mac.perm_addr, addr->sa_data);
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 
 	return 0;
@@ -4770,13 +4772,13 @@ static pci_ers_result_t ixgbevf_io_error_detected(struct pci_dev *pdev,
 	rtnl_lock();
 	netif_device_detach(netdev);
 
+	if (netif_running(netdev))
+		ixgbevf_close_suspend(adapter);
+
 	if (state == pci_channel_io_perm_failure) {
 		rtnl_unlock();
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
-
-	if (netif_running(netdev))
-		ixgbevf_close_suspend(adapter);
 
 	if (!test_and_set_bit(__IXGBEVF_DISABLED, &adapter->state))
 		pci_disable_device(pdev);

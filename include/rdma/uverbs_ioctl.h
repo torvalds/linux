@@ -420,6 +420,17 @@ static inline void *uverbs_attr_get_obj(const struct uverbs_attr_bundle *attrs_b
 	return attr->obj_attr.uobject->object;
 }
 
+static inline struct ib_uobject *uverbs_attr_get_uobject(const struct uverbs_attr_bundle *attrs_bundle,
+							 u16 idx)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
+
+	if (IS_ERR(attr))
+		return ERR_CAST(attr);
+
+	return attr->obj_attr.uobject;
+}
+
 static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
 				 size_t idx, const void *from, size_t size)
 {

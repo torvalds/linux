@@ -54,6 +54,8 @@ struct udl_device {
 	struct usb_device *udev;
 	struct drm_crtc *crtc;
 
+	struct mutex gem_lock;
+
 	int sku_pixel_limit;
 
 	struct urb_list urbs;

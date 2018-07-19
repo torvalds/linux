@@ -114,16 +114,9 @@ static inline int elf_sym__is_label(const GElf_Sym *sym)
 		sym->st_shndx != SHN_ABS;
 }
 
-static bool elf_sym__is_a(GElf_Sym *sym, enum map_type type)
+static bool elf_sym__filter(GElf_Sym *sym)
 {
-	switch (type) {
-	case MAP__FUNCTION:
-		return elf_sym__is_function(sym);
-	case MAP__VARIABLE:
-		return elf_sym__is_object(sym);
-	default:
-		return false;
-	}
+	return elf_sym__is_function(sym) || elf_sym__is_object(sym);
 }
 
 static inline const char *elf_sym__name(const GElf_Sym *sym,
@@ -150,17 +143,10 @@ static inline bool elf_sec__is_data(const GElf_Shdr *shdr,
 	return strstr(elf_sec__name(shdr, secstrs), "data") != NULL;
 }
 
-static bool elf_sec__is_a(GElf_Shdr *shdr, Elf_Data *secstrs,
-			  enum map_type type)
+static bool elf_sec__filter(GElf_Shdr *shdr, Elf_Data *secstrs)
 {
-	switch (type) {
-	case MAP__FUNCTION:
-		return elf_sec__is_text(shdr, secstrs);
-	case MAP__VARIABLE:
-		return elf_sec__is_data(shdr, secstrs);
-	default:
-		return false;
-	}
+	return elf_sec__is_text(shdr, secstrs) || 
+	       elf_sec__is_data(shdr, secstrs);
 }
 
 static size_t elf_addr_to_index(Elf *elf, GElf_Addr addr)
@@ -256,7 +242,7 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
  * And always look at the original dso, not at debuginfo packages, that
  * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
  */
-int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *map)
+int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
@@ -364,12 +350,12 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 			free(demangled);
 
 			f = symbol__new(plt_offset, plt_entry_size,
-					STB_GLOBAL, sympltname);
+					STB_GLOBAL, STT_FUNC, sympltname);
 			if (!f)
 				goto out_elf_end;
 
 			plt_offset += plt_entry_size;
-			symbols__insert(&dso->symbols[map->type], f);
+			symbols__insert(&dso->symbols, f);
 			++nr;
 		}
 	} else if (shdr_rel_plt.sh_type == SHT_REL) {
@@ -390,12 +376,12 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 			free(demangled);
 
 			f = symbol__new(plt_offset, plt_entry_size,
-					STB_GLOBAL, sympltname);
+					STB_GLOBAL, STT_FUNC, sympltname);
 			if (!f)
 				goto out_elf_end;
 
 			plt_offset += plt_entry_size;
-			symbols__insert(&dso->symbols[map->type], f);
+			symbols__insert(&dso->symbols, f);
 			++nr;
 		}
 	}
@@ -811,6 +797,110 @@ static u64 ref_reloc(struct kmap *kmap)
 void __weak arch__sym_update(struct symbol *s __maybe_unused,
 		GElf_Sym *sym __maybe_unused) { }
 
+static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
+				      GElf_Sym *sym, GElf_Shdr *shdr,
+				      struct map_groups *kmaps, struct kmap *kmap,
+				      struct dso **curr_dsop, struct map **curr_mapp,
+				      const char *section_name,
+				      bool adjust_kernel_syms, bool kmodule, bool *remap_kernel)
+{
+	struct dso *curr_dso = *curr_dsop;
+	struct map *curr_map;
+	char dso_name[PATH_MAX];
+
+	/* Adjust symbol to map to file offset */
+	if (adjust_kernel_syms)
+		sym->st_value -= shdr->sh_addr - shdr->sh_offset;
+
+	if (strcmp(section_name, (curr_dso->short_name + dso->short_name_len)) == 0)
+		return 0;
+
+	if (strcmp(section_name, ".text") == 0) {
+		/*
+		 * The initial kernel mapping is based on
+		 * kallsyms and identity maps.  Overwrite it to
+		 * map to the kernel dso.
+		 */
+		if (*remap_kernel && dso->kernel) {
+			*remap_kernel = false;
+			map->start = shdr->sh_addr + ref_reloc(kmap);
+			map->end = map->start + shdr->sh_size;
+			map->pgoff = shdr->sh_offset;
+			map->map_ip = map__map_ip;
+			map->unmap_ip = map__unmap_ip;
+			/* Ensure maps are correctly ordered */
+			if (kmaps) {
+				map__get(map);
+				map_groups__remove(kmaps, map);
+				map_groups__insert(kmaps, map);
+				map__put(map);
+			}
+		}
+
+		/*
+		 * The initial module mapping is based on
+		 * /proc/modules mapped to offset zero.
+		 * Overwrite it to map to the module dso.
+		 */
+		if (*remap_kernel && kmodule) {
+			*remap_kernel = false;
+			map->pgoff = shdr->sh_offset;
+		}
+
+		*curr_mapp = map;
+		*curr_dsop = dso;
+		return 0;
+	}
+
+	if (!kmap)
+		return 0;
+
+	snprintf(dso_name, sizeof(dso_name), "%s%s", dso->short_name, section_name);
+
+	curr_map = map_groups__find_by_name(kmaps, dso_name);
+	if (curr_map == NULL) {
+		u64 start = sym->st_value;
+
+		if (kmodule)
+			start += map->start + shdr->sh_offset;
+
+		curr_dso = dso__new(dso_name);
+		if (curr_dso == NULL)
+			return -1;
+		curr_dso->kernel = dso->kernel;
+		curr_dso->long_name = dso->long_name;
+		curr_dso->long_name_len = dso->long_name_len;
+		curr_map = map__new2(start, curr_dso);
+		dso__put(curr_dso);
+		if (curr_map == NULL)
+			return -1;
+
+		if (adjust_kernel_syms) {
+			curr_map->start  = shdr->sh_addr + ref_reloc(kmap);
+			curr_map->end	 = curr_map->start + shdr->sh_size;
+			curr_map->pgoff	 = shdr->sh_offset;
+		} else {
+			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
+		}
+		curr_dso->symtab_type = dso->symtab_type;
+		map_groups__insert(kmaps, curr_map);
+		/*
+		 * Add it before we drop the referece to curr_map, i.e. while
+		 * we still are sure to have a reference to this DSO via
+		 * *curr_map->dso.
+		 */
+		dsos__add(&map->groups->machine->dsos, curr_dso);
+		/* kmaps already got it */
+		map__put(curr_map);
+		dso__set_loaded(curr_dso);
+		*curr_mapp = curr_map;
+		*curr_dsop = curr_dso;
+	} else
+		*curr_dsop = curr_map->dso;
+
+	return 0;
+}
+
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule)
 {
@@ -844,7 +934,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	 * have the wrong values for the dso maps, so remove them.
 	 */
 	if (kmodule && syms_ss->symtab)
-		symbols__delete(&dso->symbols[map->type]);
+		symbols__delete(&dso->symbols);
 
 	if (!syms_ss->symtab) {
 		/*
@@ -921,10 +1011,10 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
-	 * Initial kernel and module mappings do not map to the dso.  For
-	 * function mappings, flag the fixups.
+	 * Initial kernel and module mappings do not map to the dso.
+	 * Flag the fixups.
 	 */
-	if (map->type == MAP__FUNCTION && (dso->kernel || kmodule)) {
+	if (dso->kernel || kmodule) {
 		remap_kernel = true;
 		adjust_kernel_syms = dso->adjust_symbols;
 	}
@@ -936,7 +1026,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		const char *section_name;
 		bool used_opd = false;
 
-		if (!is_label && !elf_sym__is_a(&sym, map->type))
+		if (!is_label && !elf_sym__filter(&sym))
 			continue;
 
 		/* Reject ARM ELF "mapping symbols": these aren't unique and
@@ -974,7 +1064,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 		gelf_getshdr(sec, &shdr);
 
-		if (is_label && !elf_sec__is_a(&shdr, secstrs, map->type))
+		if (is_label && !elf_sec__filter(&shdr, secstrs))
 			continue;
 
 		section_name = elf_sec__name(&shdr, secstrs);
@@ -982,134 +1072,37 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		/* On ARM, symbols for thumb functions have 1 added to
 		 * the symbol address as a flag - remove it */
 		if ((ehdr.e_machine == EM_ARM) &&
-		    (map->type == MAP__FUNCTION) &&
+		    (GELF_ST_TYPE(sym.st_info) == STT_FUNC) &&
 		    (sym.st_value & 1))
 			--sym.st_value;
 
 		if (dso->kernel || kmodule) {
-			char dso_name[PATH_MAX];
-
-			/* Adjust symbol to map to file offset */
-			if (adjust_kernel_syms)
-				sym.st_value -= shdr.sh_addr - shdr.sh_offset;
-
-			if (strcmp(section_name,
-				   (curr_dso->short_name +
-				    dso->short_name_len)) == 0)
-				goto new_symbol;
-
-			if (strcmp(section_name, ".text") == 0) {
-				/*
-				 * The initial kernel mapping is based on
-				 * kallsyms and identity maps.  Overwrite it to
-				 * map to the kernel dso.
-				 */
-				if (remap_kernel && dso->kernel) {
-					remap_kernel = false;
-					map->start = shdr.sh_addr +
-						     ref_reloc(kmap);
-					map->end = map->start + shdr.sh_size;
-					map->pgoff = shdr.sh_offset;
-					map->map_ip = map__map_ip;
-					map->unmap_ip = map__unmap_ip;
-					/* Ensure maps are correctly ordered */
-					if (kmaps) {
-						map__get(map);
-						map_groups__remove(kmaps, map);
-						map_groups__insert(kmaps, map);
-						map__put(map);
-					}
-				}
-
-				/*
-				 * The initial module mapping is based on
-				 * /proc/modules mapped to offset zero.
-				 * Overwrite it to map to the module dso.
-				 */
-				if (remap_kernel && kmodule) {
-					remap_kernel = false;
-					map->pgoff = shdr.sh_offset;
-				}
-
-				curr_map = map;
-				curr_dso = dso;
-				goto new_symbol;
-			}
-
-			if (!kmap)
-				goto new_symbol;
-
-			snprintf(dso_name, sizeof(dso_name),
-				 "%s%s", dso->short_name, section_name);
-
-			curr_map = map_groups__find_by_name(kmaps, map->type, dso_name);
-			if (curr_map == NULL) {
-				u64 start = sym.st_value;
-
-				if (kmodule)
-					start += map->start + shdr.sh_offset;
-
-				curr_dso = dso__new(dso_name);
-				if (curr_dso == NULL)
-					goto out_elf_end;
-				curr_dso->kernel = dso->kernel;
-				curr_dso->long_name = dso->long_name;
-				curr_dso->long_name_len = dso->long_name_len;
-				curr_map = map__new2(start, curr_dso,
-						     map->type);
-				dso__put(curr_dso);
-				if (curr_map == NULL) {
-					goto out_elf_end;
-				}
-				if (adjust_kernel_syms) {
-					curr_map->start = shdr.sh_addr +
-							  ref_reloc(kmap);
-					curr_map->end = curr_map->start +
-							shdr.sh_size;
-					curr_map->pgoff = shdr.sh_offset;
-				} else {
-					curr_map->map_ip = identity__map_ip;
-					curr_map->unmap_ip = identity__map_ip;
-				}
-				curr_dso->symtab_type = dso->symtab_type;
-				map_groups__insert(kmaps, curr_map);
-				/*
-				 * Add it before we drop the referece to curr_map,
-				 * i.e. while we still are sure to have a reference
-				 * to this DSO via curr_map->dso.
-				 */
-				dsos__add(&map->groups->machine->dsos, curr_dso);
-				/* kmaps already got it */
-				map__put(curr_map);
-				dso__set_loaded(curr_dso, map->type);
-			} else
-				curr_dso = curr_map->dso;
-
-			goto new_symbol;
-		}
-
-		if ((used_opd && runtime_ss->adjust_symbols)
-				|| (!used_opd && syms_ss->adjust_symbols)) {
+			if (dso__process_kernel_symbol(dso, map, &sym, &shdr, kmaps, kmap, &curr_dso, &curr_map,
+						       section_name, adjust_kernel_syms, kmodule, &remap_kernel))
+				goto out_elf_end;
+		} else if ((used_opd && runtime_ss->adjust_symbols) ||
+			   (!used_opd && syms_ss->adjust_symbols)) {
 			pr_debug4("%s: adjusting symbol: st_value: %#" PRIx64 " "
 				  "sh_addr: %#" PRIx64 " sh_offset: %#" PRIx64 "\n", __func__,
 				  (u64)sym.st_value, (u64)shdr.sh_addr,
 				  (u64)shdr.sh_offset);
 			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 		}
-new_symbol:
+
 		demangled = demangle_sym(dso, kmodule, elf_name);
 		if (demangled != NULL)
 			elf_name = demangled;
 
 		f = symbol__new(sym.st_value, sym.st_size,
-				GELF_ST_BIND(sym.st_info), elf_name);
+				GELF_ST_BIND(sym.st_info),
+				GELF_ST_TYPE(sym.st_info), elf_name);
 		free(demangled);
 		if (!f)
 			goto out_elf_end;
 
 		arch__sym_update(f, &sym);
 
-		__symbols__insert(&curr_dso->symbols[curr_map->type], f, dso->kernel);
+		__symbols__insert(&curr_dso->symbols, f, dso->kernel);
 		nr++;
 	}
 
@@ -1117,14 +1110,14 @@ new_symbol:
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0) {
-		symbols__fixup_end(&dso->symbols[map->type]);
-		symbols__fixup_duplicate(&dso->symbols[map->type]);
+		symbols__fixup_end(&dso->symbols);
+		symbols__fixup_duplicate(&dso->symbols);
 		if (kmap) {
 			/*
 			 * We need to fixup this here too because we create new
 			 * maps here, for things like vsyscall sections.
 			 */
-			__map_groups__fixup_end(kmaps, map->type);
+			map_groups__fixup_end(kmaps);
 		}
 	}
 	err = nr;
@@ -1393,8 +1386,16 @@ static off_t kcore__write(struct kcore *kcore)
 
 struct phdr_data {
 	off_t offset;
+	off_t rel;
 	u64 addr;
 	u64 len;
+	struct list_head node;
+	struct phdr_data *remaps;
+};
+
+struct sym_data {
+	u64 addr;
+	struct list_head node;
 };
 
 struct kcore_copy_info {
@@ -1404,16 +1405,78 @@ struct kcore_copy_info {
 	u64 last_symbol;
 	u64 first_module;
 	u64 last_module_symbol;
-	struct phdr_data kernel_map;
-	struct phdr_data modules_map;
+	size_t phnum;
+	struct list_head phdrs;
+	struct list_head syms;
 };
+
+#define kcore_copy__for_each_phdr(k, p) \
+	list_for_each_entry((p), &(k)->phdrs, node)
+
+static struct phdr_data *phdr_data__new(u64 addr, u64 len, off_t offset)
+{
+	struct phdr_data *p = zalloc(sizeof(*p));
+
+	if (p) {
+		p->addr   = addr;
+		p->len    = len;
+		p->offset = offset;
+	}
+
+	return p;
+}
+
+static struct phdr_data *kcore_copy_info__addnew(struct kcore_copy_info *kci,
+						 u64 addr, u64 len,
+						 off_t offset)
+{
+	struct phdr_data *p = phdr_data__new(addr, len, offset);
+
+	if (p)
+		list_add_tail(&p->node, &kci->phdrs);
+
+	return p;
+}
+
+static void kcore_copy__free_phdrs(struct kcore_copy_info *kci)
+{
+	struct phdr_data *p, *tmp;
+
+	list_for_each_entry_safe(p, tmp, &kci->phdrs, node) {
+		list_del(&p->node);
+		free(p);
+	}
+}
+
+static struct sym_data *kcore_copy__new_sym(struct kcore_copy_info *kci,
+					    u64 addr)
+{
+	struct sym_data *s = zalloc(sizeof(*s));
+
+	if (s) {
+		s->addr = addr;
+		list_add_tail(&s->node, &kci->syms);
+	}
+
+	return s;
+}
+
+static void kcore_copy__free_syms(struct kcore_copy_info *kci)
+{
+	struct sym_data *s, *tmp;
+
+	list_for_each_entry_safe(s, tmp, &kci->syms, node) {
+		list_del(&s->node);
+		free(s);
+	}
+}
 
 static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
 					u64 start)
 {
 	struct kcore_copy_info *kci = arg;
 
-	if (!symbol_type__is_a(type, MAP__FUNCTION))
+	if (!kallsyms__is_function(type))
 		return 0;
 
 	if (strchr(name, '[')) {
@@ -1437,6 +1500,9 @@ static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
 		kci->etext = start;
 		return 0;
 	}
+
+	if (is_entry_trampoline(name) && !kcore_copy__new_sym(kci, start))
+		return -1;
 
 	return 0;
 }
@@ -1487,27 +1553,39 @@ static int kcore_copy__parse_modules(struct kcore_copy_info *kci,
 	return 0;
 }
 
-static void kcore_copy__map(struct phdr_data *p, u64 start, u64 end, u64 pgoff,
-			    u64 s, u64 e)
+static int kcore_copy__map(struct kcore_copy_info *kci, u64 start, u64 end,
+			   u64 pgoff, u64 s, u64 e)
 {
-	if (p->addr || s < start || s >= end)
-		return;
+	u64 len, offset;
 
-	p->addr = s;
-	p->offset = (s - start) + pgoff;
-	p->len = e < end ? e - s : end - s;
+	if (s < start || s >= end)
+		return 0;
+
+	offset = (s - start) + pgoff;
+	len = e < end ? e - s : end - s;
+
+	return kcore_copy_info__addnew(kci, s, len, offset) ? 0 : -1;
 }
 
 static int kcore_copy__read_map(u64 start, u64 len, u64 pgoff, void *data)
 {
 	struct kcore_copy_info *kci = data;
 	u64 end = start + len;
+	struct sym_data *sdat;
 
-	kcore_copy__map(&kci->kernel_map, start, end, pgoff, kci->stext,
-			kci->etext);
+	if (kcore_copy__map(kci, start, end, pgoff, kci->stext, kci->etext))
+		return -1;
 
-	kcore_copy__map(&kci->modules_map, start, end, pgoff, kci->first_module,
-			kci->last_module_symbol);
+	if (kcore_copy__map(kci, start, end, pgoff, kci->first_module,
+			    kci->last_module_symbol))
+		return -1;
+
+	list_for_each_entry(sdat, &kci->syms, node) {
+		u64 s = round_down(sdat->addr, page_size);
+
+		if (kcore_copy__map(kci, start, end, pgoff, s, s + len))
+			return -1;
+	}
 
 	return 0;
 }
@@ -1518,6 +1596,64 @@ static int kcore_copy__read_maps(struct kcore_copy_info *kci, Elf *elf)
 		return -1;
 
 	return 0;
+}
+
+static void kcore_copy__find_remaps(struct kcore_copy_info *kci)
+{
+	struct phdr_data *p, *k = NULL;
+	u64 kend;
+
+	if (!kci->stext)
+		return;
+
+	/* Find phdr that corresponds to the kernel map (contains stext) */
+	kcore_copy__for_each_phdr(kci, p) {
+		u64 pend = p->addr + p->len - 1;
+
+		if (p->addr <= kci->stext && pend >= kci->stext) {
+			k = p;
+			break;
+		}
+	}
+
+	if (!k)
+		return;
+
+	kend = k->offset + k->len;
+
+	/* Find phdrs that remap the kernel */
+	kcore_copy__for_each_phdr(kci, p) {
+		u64 pend = p->offset + p->len;
+
+		if (p == k)
+			continue;
+
+		if (p->offset >= k->offset && pend <= kend)
+			p->remaps = k;
+	}
+}
+
+static void kcore_copy__layout(struct kcore_copy_info *kci)
+{
+	struct phdr_data *p;
+	off_t rel = 0;
+
+	kcore_copy__find_remaps(kci);
+
+	kcore_copy__for_each_phdr(kci, p) {
+		if (!p->remaps) {
+			p->rel = rel;
+			rel += p->len;
+		}
+		kci->phnum += 1;
+	}
+
+	kcore_copy__for_each_phdr(kci, p) {
+		struct phdr_data *k = p->remaps;
+
+		if (k)
+			p->rel = p->offset - k->offset + k->rel;
+	}
 }
 
 static int kcore_copy__calc_maps(struct kcore_copy_info *kci, const char *dir,
@@ -1555,7 +1691,12 @@ static int kcore_copy__calc_maps(struct kcore_copy_info *kci, const char *dir,
 	if (kci->first_module && !kci->last_module_symbol)
 		return -1;
 
-	return kcore_copy__read_maps(kci, elf);
+	if (kcore_copy__read_maps(kci, elf))
+		return -1;
+
+	kcore_copy__layout(kci);
+
+	return 0;
 }
 
 static int kcore_copy__copy_file(const char *from_dir, const char *to_dir,
@@ -1678,12 +1819,15 @@ int kcore_copy(const char *from_dir, const char *to_dir)
 {
 	struct kcore kcore;
 	struct kcore extract;
-	size_t count = 2;
 	int idx = 0, err = -1;
-	off_t offset = page_size, sz, modules_offset = 0;
+	off_t offset, sz;
 	struct kcore_copy_info kci = { .stext = 0, };
 	char kcore_filename[PATH_MAX];
 	char extract_filename[PATH_MAX];
+	struct phdr_data *p;
+
+	INIT_LIST_HEAD(&kci.phdrs);
+	INIT_LIST_HEAD(&kci.syms);
 
 	if (kcore_copy__copy_file(from_dir, to_dir, "kallsyms"))
 		return -1;
@@ -1703,20 +1847,17 @@ int kcore_copy(const char *from_dir, const char *to_dir)
 	if (kcore__init(&extract, extract_filename, kcore.elfclass, false))
 		goto out_kcore_close;
 
-	if (!kci.modules_map.addr)
-		count -= 1;
-
-	if (kcore__copy_hdr(&kcore, &extract, count))
+	if (kcore__copy_hdr(&kcore, &extract, kci.phnum))
 		goto out_extract_close;
 
-	if (kcore__add_phdr(&extract, idx++, offset, kci.kernel_map.addr,
-			    kci.kernel_map.len))
-		goto out_extract_close;
+	offset = gelf_fsize(extract.elf, ELF_T_EHDR, 1, EV_CURRENT) +
+		 gelf_fsize(extract.elf, ELF_T_PHDR, kci.phnum, EV_CURRENT);
+	offset = round_up(offset, page_size);
 
-	if (kci.modules_map.addr) {
-		modules_offset = offset + kci.kernel_map.len;
-		if (kcore__add_phdr(&extract, idx, modules_offset,
-				    kci.modules_map.addr, kci.modules_map.len))
+	kcore_copy__for_each_phdr(&kci, p) {
+		off_t offs = p->rel + offset;
+
+		if (kcore__add_phdr(&extract, idx++, offs, p->addr, p->len))
 			goto out_extract_close;
 	}
 
@@ -1724,14 +1865,14 @@ int kcore_copy(const char *from_dir, const char *to_dir)
 	if (sz < 0 || sz > offset)
 		goto out_extract_close;
 
-	if (copy_bytes(kcore.fd, kci.kernel_map.offset, extract.fd, offset,
-		       kci.kernel_map.len))
-		goto out_extract_close;
+	kcore_copy__for_each_phdr(&kci, p) {
+		off_t offs = p->rel + offset;
 
-	if (modules_offset && copy_bytes(kcore.fd, kci.modules_map.offset,
-					 extract.fd, modules_offset,
-					 kci.modules_map.len))
-		goto out_extract_close;
+		if (p->remaps)
+			continue;
+		if (copy_bytes(kcore.fd, p->offset, extract.fd, offs, p->len))
+			goto out_extract_close;
+	}
 
 	if (kcore_copy__compare_file(from_dir, to_dir, "modules"))
 		goto out_extract_close;
@@ -1753,6 +1894,9 @@ out_unlink_modules:
 out_unlink_kallsyms:
 	if (err)
 		kcore_copy__unlink(to_dir, "kallsyms");
+
+	kcore_copy__free_phdrs(&kci);
+	kcore_copy__free_syms(&kci);
 
 	return err;
 }

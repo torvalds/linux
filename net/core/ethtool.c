@@ -92,6 +92,7 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_GSO_PARTIAL_BIT] =	 "tx-gso-partial",
 	[NETIF_F_GSO_SCTP_BIT] =	 "tx-sctp-segmentation",
 	[NETIF_F_GSO_ESP_BIT] =		 "tx-esp-segmentation",
+	[NETIF_F_GSO_UDP_L4_BIT] =	 "tx-udp-segmentation",
 
 	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
 	[NETIF_F_SCTP_CRC_BIT] =        "tx-checksum-sctp",
@@ -109,6 +110,7 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_HW_ESP_TX_CSUM_BIT] =	 "esp-tx-csum-hw-offload",
 	[NETIF_F_RX_UDP_TUNNEL_PORT_BIT] =	 "rx-udp_tunnel-port-offload",
 	[NETIF_F_HW_TLS_RECORD_BIT] =	"tls-hw-record",
+	[NETIF_F_HW_TLS_TX_BIT] =	 "tls-hw-tx-offload",
 };
 
 static const char
@@ -210,23 +212,6 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static int phy_get_sset_count(struct phy_device *phydev)
-{
-	int ret;
-
-	if (phydev->drv->get_sset_count &&
-	    phydev->drv->get_strings &&
-	    phydev->drv->get_stats) {
-		mutex_lock(&phydev->lock);
-		ret = phydev->drv->get_sset_count(phydev);
-		mutex_unlock(&phydev->lock);
-
-		return ret;
-	}
-
-	return -EOPNOTSUPP;
-}
-
 static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -243,12 +228,9 @@ static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 	if (sset == ETH_SS_PHY_TUNABLES)
 		return ARRAY_SIZE(phy_tunable_strings);
 
-	if (sset == ETH_SS_PHY_STATS) {
-		if (dev->phydev)
-			return phy_get_sset_count(dev->phydev);
-		else
-			return -EOPNOTSUPP;
-	}
+	if (sset == ETH_SS_PHY_STATS && dev->phydev &&
+	    !ops->get_ethtool_phy_stats)
+		return phy_ethtool_get_sset_count(dev->phydev);
 
 	if (ops->get_sset_count && ops->get_strings)
 		return ops->get_sset_count(dev, sset);
@@ -271,17 +253,10 @@ static void __ethtool_get_strings(struct net_device *dev,
 		memcpy(data, tunable_strings, sizeof(tunable_strings));
 	else if (stringset == ETH_SS_PHY_TUNABLES)
 		memcpy(data, phy_tunable_strings, sizeof(phy_tunable_strings));
-	else if (stringset == ETH_SS_PHY_STATS) {
-		struct phy_device *phydev = dev->phydev;
-
-		if (phydev) {
-			mutex_lock(&phydev->lock);
-			phydev->drv->get_strings(phydev, data);
-			mutex_unlock(&phydev->lock);
-		} else {
-			return;
-		}
-	} else
+	else if (stringset == ETH_SS_PHY_STATS && dev->phydev &&
+		 !ops->get_ethtool_phy_stats)
+		phy_ethtool_get_strings(dev->phydev, data);
+	else
 		/* ops->get_strings is valid because checked earlier */
 		ops->get_strings(dev, stringset, data);
 }
@@ -936,7 +911,7 @@ static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
 	memset(&info, 0, sizeof(info));
 	info.cmd = ETHTOOL_GSSET_INFO;
 
-	info_buf = kzalloc(n_bits * sizeof(u32), GFP_USER);
+	info_buf = kcalloc(n_bits, sizeof(u32), GFP_USER);
 	if (!info_buf)
 		return -ENOMEM;
 
@@ -1042,7 +1017,7 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 	if (info.cmd == ETHTOOL_GRXCLSRLALL) {
 		if (info.rule_cnt > 0) {
 			if (info.rule_cnt <= KMALLOC_MAX_SIZE / sizeof(u32))
-				rule_buf = kzalloc(info.rule_cnt * sizeof(u32),
+				rule_buf = kcalloc(info.rule_cnt, sizeof(u32),
 						   GFP_USER);
 			if (!rule_buf)
 				return -ENOMEM;
@@ -1841,7 +1816,7 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 		return -EFAULT;
 
 	test.len = test_len;
-	data = kmalloc(test_len * sizeof(u64), GFP_USER);
+	data = kmalloc_array(test_len, sizeof(u64), GFP_USER);
 	if (!data)
 		return -ENOMEM;
 
@@ -1877,7 +1852,7 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	WARN_ON_ONCE(!ret);
 
 	gstrings.len = ret;
-	data = vzalloc(gstrings.len * ETH_GSTRING_LEN);
+	data = vzalloc(array_size(gstrings.len, ETH_GSTRING_LEN));
 	if (gstrings.len && !data)
 		return -ENOMEM;
 
@@ -1977,7 +1952,7 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 		return -EFAULT;
 
 	stats.n_stats = n_stats;
-	data = vzalloc(n_stats * sizeof(u64));
+	data = vzalloc(array_size(n_stats, sizeof(u64)));
 	if (n_stats && !data)
 		return -ENOMEM;
 
@@ -1998,15 +1973,19 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 
 static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_stats stats;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
+	struct ethtool_stats stats;
 	u64 *data;
 	int ret, n_stats;
 
-	if (!phydev)
+	if (!phydev && (!ops->get_ethtool_phy_stats || !ops->get_sset_count))
 		return -EOPNOTSUPP;
 
-	n_stats = phy_get_sset_count(phydev);
+	if (dev->phydev && !ops->get_ethtool_phy_stats)
+		n_stats = phy_ethtool_get_sset_count(dev->phydev);
+	else
+		n_stats = ops->get_sset_count(dev, ETH_SS_PHY_STATS);
 	if (n_stats < 0)
 		return n_stats;
 	if (n_stats > S32_MAX / sizeof(u64))
@@ -2017,13 +1996,17 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 		return -EFAULT;
 
 	stats.n_stats = n_stats;
-	data = vzalloc(n_stats * sizeof(u64));
+	data = vzalloc(array_size(n_stats, sizeof(u64)));
 	if (n_stats && !data)
 		return -ENOMEM;
 
-	mutex_lock(&phydev->lock);
-	phydev->drv->get_stats(phydev, &stats, data);
-	mutex_unlock(&phydev->lock);
+	if (dev->phydev && !ops->get_ethtool_phy_stats) {
+		ret = phy_ethtool_get_stats(dev->phydev, &stats, data);
+		if (ret < 0)
+			return ret;
+	} else {
+		ops->get_ethtool_phy_stats(dev, &stats, data);
+	}
 
 	ret = -EFAULT;
 	if (copy_to_user(useraddr, &stats, sizeof(stats)))

@@ -6268,7 +6268,6 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 		 * flush the RSCN.  Otherwise, the outstanding requests
 		 * need to complete.
 		 */
-		vport->gidft_inp = 0;
 		if (lpfc_issue_gidft(vport) > 0)
 			return 1;
 	} else {

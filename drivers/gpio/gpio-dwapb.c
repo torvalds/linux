@@ -441,14 +441,19 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	irq_gc->chip_types[1].handler = handle_edge_irq;
 
 	if (!pp->irq_shared) {
-		irq_set_chained_handler_and_data(pp->irq, dwapb_irq_handler,
-						 gpio);
+		int i;
+
+		for (i = 0; i < pp->ngpio; i++) {
+			if (pp->irq[i] >= 0)
+				irq_set_chained_handler_and_data(pp->irq[i],
+						dwapb_irq_handler, gpio);
+		}
 	} else {
 		/*
 		 * Request a shared IRQ since where MFD would have devices
 		 * using the same irq pin
 		 */
-		err = devm_request_irq(gpio->dev, pp->irq,
+		err = devm_request_irq(gpio->dev, pp->irq[0],
 				       dwapb_irq_handler_mfd,
 				       IRQF_SHARED, "gpio-dwapb-mfd", gpio);
 		if (err) {
@@ -524,7 +529,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	if (pp->idx == 0)
 		port->gc.set_config = dwapb_gpio_set_config;
 
-	if (pp->irq)
+	if (pp->has_irq)
 		dwapb_configure_irqs(gpio, port, pp);
 
 	err = gpiochip_add_data(&port->gc, port);
@@ -535,7 +540,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 		port->is_registered = true;
 
 	/* Add GPIO-signaled ACPI event support */
-	if (pp->irq)
+	if (pp->has_irq)
 		acpi_gpiochip_request_interrupts(&port->gc);
 
 	return err;
@@ -557,7 +562,7 @@ dwapb_gpio_get_pdata(struct device *dev)
 	struct dwapb_platform_data *pdata;
 	struct dwapb_port_property *pp;
 	int nports;
-	int i;
+	int i, j;
 
 	nports = device_get_child_node_count(dev);
 	if (nports == 0)
@@ -575,6 +580,8 @@ dwapb_gpio_get_pdata(struct device *dev)
 
 	i = 0;
 	device_for_each_child_node(dev, fwnode)  {
+		struct device_node *np = NULL;
+
 		pp = &pdata->properties[i++];
 		pp->fwnode = fwnode;
 
@@ -594,23 +601,35 @@ dwapb_gpio_get_pdata(struct device *dev)
 			pp->ngpio = 32;
 		}
 
+		pp->irq_shared	= false;
+		pp->gpio_base	= -1;
+
 		/*
 		 * Only port A can provide interrupts in all configurations of
 		 * the IP.
 		 */
-		if (dev->of_node && pp->idx == 0 &&
-			fwnode_property_read_bool(fwnode,
+		if (pp->idx != 0)
+			continue;
+
+		if (dev->of_node && fwnode_property_read_bool(fwnode,
 						  "interrupt-controller")) {
-			pp->irq = irq_of_parse_and_map(to_of_node(fwnode), 0);
-			if (!pp->irq)
-				dev_warn(dev, "no irq for port%d\n", pp->idx);
+			np = to_of_node(fwnode);
 		}
 
-		if (has_acpi_companion(dev) && pp->idx == 0)
-			pp->irq = platform_get_irq(to_platform_device(dev), 0);
+		for (j = 0; j < pp->ngpio; j++) {
+			pp->irq[j] = -ENXIO;
 
-		pp->irq_shared	= false;
-		pp->gpio_base	= -1;
+			if (np)
+				pp->irq[j] = of_irq_get(np, j);
+			else if (has_acpi_companion(dev))
+				pp->irq[j] = platform_get_irq(to_platform_device(dev), j);
+
+			if (pp->irq[j] >= 0)
+				pp->has_irq = true;
+		}
+
+		if (!pp->has_irq)
+			dev_warn(dev, "no irq for port%d\n", pp->idx);
 	}
 
 	return pdata;
@@ -684,13 +703,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 
 	gpio->flags = 0;
 	if (dev->of_node) {
-		const struct of_device_id *of_devid;
-
-		of_devid = of_match_device(dwapb_of_match, dev);
-		if (of_devid) {
-			if (of_devid->data)
-				gpio->flags = (uintptr_t)of_devid->data;
-		}
+		gpio->flags = (uintptr_t)of_device_get_match_data(dev);
 	} else if (has_acpi_companion(dev)) {
 		const struct acpi_device_id *acpi_id;
 

@@ -1351,6 +1351,20 @@ config SCSI_ZORRO7XX
 	      accelerator card for the Amiga 1200,
 	    - the SCSI controller on the GVP Turbo 040/060 accelerator.
 
+config SCSI_ZORRO_ESP
+	tristate "Zorro ESP SCSI support"
+	depends on ZORRO && SCSI
+	select SCSI_SPI_ATTRS
+	help
+	  Support for various NCR53C9x (ESP) based SCSI controllers on Zorro
+	  expansion boards for the Amiga.
+	  This includes:
+	    - the Phase5 Blizzard 1230 II and IV SCSI controllers,
+	    - the Phase5 Blizzard 2060 SCSI controller,
+	    - the Phase5 Blizzard Cyberstorm and Cyberstorm II SCSI
+	      controllers,
+	    - the Fastlane Zorro III SCSI controller.
+
 config ATARI_SCSI
 	tristate "Atari native SCSI support"
 	depends on ATARI && SCSI

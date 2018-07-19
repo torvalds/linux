@@ -144,6 +144,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_GPIO_EVENT";
 	case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
 		return "MLX5_EVENT_TYPE_PORT_MODULE_EVENT";
+	case MLX5_EVENT_TYPE_TEMP_WARN_EVENT:
+		return "MLX5_EVENT_TYPE_TEMP_WARN_EVENT";
 	case MLX5_EVENT_TYPE_REMOTE_CONFIG:
 		return "MLX5_EVENT_TYPE_REMOTE_CONFIG";
 	case MLX5_EVENT_TYPE_DB_BF_CONGESTION:
@@ -162,6 +164,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_NIC_VPORT_CHANGE";
 	case MLX5_EVENT_TYPE_FPGA_ERROR:
 		return "MLX5_EVENT_TYPE_FPGA_ERROR";
+	case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
+		return "MLX5_EVENT_TYPE_FPGA_QP_ERROR";
 	case MLX5_EVENT_TYPE_GENERAL_EVENT:
 		return "MLX5_EVENT_TYPE_GENERAL_EVENT";
 	default:
@@ -396,6 +400,20 @@ static void general_event_handler(struct mlx5_core_dev *dev,
 	}
 }
 
+static void mlx5_temp_warning_event(struct mlx5_core_dev *dev,
+				    struct mlx5_eqe *eqe)
+{
+	u64 value_lsb;
+	u64 value_msb;
+
+	value_lsb = be64_to_cpu(eqe->data.temp_warning.sensor_warning_lsb);
+	value_msb = be64_to_cpu(eqe->data.temp_warning.sensor_warning_msb);
+
+	mlx5_core_warn(dev,
+		       "High temperature on sensors with bit set %llx %llx",
+		       value_msb, value_lsb);
+}
+
 /* caller must eventually call mlx5_cq_put on the returned cq */
 static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
 {
@@ -547,7 +565,12 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			break;
 
 		case MLX5_EVENT_TYPE_FPGA_ERROR:
+		case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
 			mlx5_fpga_event(dev, eqe->type, &eqe->data.raw);
+			break;
+
+		case MLX5_EVENT_TYPE_TEMP_WARN_EVENT:
+			mlx5_temp_warning_event(dev, eqe);
 			break;
 
 		case MLX5_EVENT_TYPE_GENERAL_EVENT:
@@ -822,10 +845,13 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PPS_EVENT);
 
 	if (MLX5_CAP_GEN(dev, fpga))
-		async_event_mask |= (1ull << MLX5_EVENT_TYPE_FPGA_ERROR);
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_FPGA_ERROR) |
+				    (1ull << MLX5_EVENT_TYPE_FPGA_QP_ERROR);
 	if (MLX5_CAP_GEN_MAX(dev, dct))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_DCT_DRAINED);
 
+	if (MLX5_CAP_GEN(dev, temp_warn_event))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_TEMP_WARN_EVENT);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,

@@ -1,6 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+ALL_TESTS="shared_block_test"
 NUM_NETIFS=4
 source tc_common.sh
 source lib.sh
@@ -109,14 +110,14 @@ trap cleanup EXIT
 setup_prepare
 setup_wait
 
-shared_block_test
+tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
 	log_info "Could not test offloaded functionality"
 else
 	tcflags="skip_sw"
-	shared_block_test
+	tests_run
 fi
 
 exit $EXIT_STATUS

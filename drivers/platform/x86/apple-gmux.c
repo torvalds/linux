@@ -495,7 +495,7 @@ static int gmux_set_power_state(enum vga_switcheroo_client_id id,
 	return gmux_set_discrete_state(apple_gmux_data, state);
 }
 
-static int gmux_get_client_id(struct pci_dev *pdev)
+static enum vga_switcheroo_client_id gmux_get_client_id(struct pci_dev *pdev)
 {
 	/*
 	 * Early Macbook Pros with switchable graphics use nvidia

@@ -171,8 +171,8 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 	int i;
 	int err;
 
-	apu_led->pled = devm_kzalloc(dev,
-		sizeof(struct apu_led_priv) * apu_led->num_led_instances,
+	apu_led->pled = devm_kcalloc(dev,
+		apu_led->num_led_instances, sizeof(struct apu_led_priv),
 		GFP_KERNEL);
 
 	if (!apu_led->pled)

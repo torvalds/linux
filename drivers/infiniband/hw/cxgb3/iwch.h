@@ -162,7 +162,6 @@ static inline int insert_handle(struct iwch_dev *rhp, struct idr *idr,
 	spin_unlock_irq(&rhp->lock);
 	idr_preload_end();
 
-	BUG_ON(ret == -ENOSPC);
 	return ret < 0 ? ret : 0;
 }
 

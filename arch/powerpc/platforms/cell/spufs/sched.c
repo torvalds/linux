@@ -1095,18 +1095,6 @@ static int show_spu_loadavg(struct seq_file *s, void *private)
 		atomic_read(&nr_spu_contexts),
 		idr_get_cursor(&task_active_pid_ns(current)->idr) - 1);
 	return 0;
-}
-
-static int spu_loadavg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_spu_loadavg, NULL);
-}
-
-static const struct file_operations spu_loadavg_fops = {
-	.open		= spu_loadavg_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
 };
 
 int __init spu_sched_init(void)
@@ -1135,7 +1123,7 @@ int __init spu_sched_init(void)
 
 	mod_timer(&spuloadavg_timer, 0);
 
-	entry = proc_create("spu_loadavg", 0, NULL, &spu_loadavg_fops);
+	entry = proc_create_single("spu_loadavg", 0, NULL, show_spu_loadavg);
 	if (!entry)
 		goto out_stop_kthread;
 

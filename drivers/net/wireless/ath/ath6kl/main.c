@@ -426,7 +426,7 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 {
 	u8 *ies = NULL, *wpa_ie = NULL, *pos;
 	size_t ies_len = 0;
-	struct station_info sinfo;
+	struct station_info *sinfo;
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "new station %pM aid=%d\n", mac_addr, aid);
 
@@ -482,16 +482,20 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 			   keymgmt, ucipher, auth, apsd_info);
 
 	/* send event to application */
-	memset(&sinfo, 0, sizeof(sinfo));
+	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	if (!sinfo)
+		return;
 
 	/* TODO: sinfo.generation */
 
-	sinfo.assoc_req_ies = ies;
-	sinfo.assoc_req_ies_len = ies_len;
+	sinfo->assoc_req_ies = ies;
+	sinfo->assoc_req_ies_len = ies_len;
 
-	cfg80211_new_sta(vif->ndev, mac_addr, &sinfo, GFP_KERNEL);
+	cfg80211_new_sta(vif->ndev, mac_addr, sinfo, GFP_KERNEL);
 
 	netif_wake_queue(vif->ndev);
+
+	kfree(sinfo);
 }
 
 void disconnect_timer_handler(struct timer_list *t)

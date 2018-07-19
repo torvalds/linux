@@ -140,7 +140,7 @@ static int dataflash_waitready(struct spi_device *spi)
 		if (status & (1 << 7))	/* RDY/nBSY */
 			return status;
 
-		msleep(3);
+		usleep_range(3000, 4000);
 	}
 }
 
@@ -733,8 +733,8 @@ static struct flash_info dataflash_data[] = {
 	{ "AT45DB642x",  0x1f2800, 8192, 1056, 11, SUP_POW2PS},
 	{ "at45db642d",  0x1f2800, 8192, 1024, 10, SUP_POW2PS | IS_POW2PS},
 
-	{ "AT45DB641E",  0x1f28000100, 32768, 264, 9, SUP_EXTID | SUP_POW2PS},
-	{ "at45db641e",  0x1f28000100, 32768, 256, 8, SUP_EXTID | SUP_POW2PS | IS_POW2PS},
+	{ "AT45DB641E",  0x1f28000100ULL, 32768, 264, 9, SUP_EXTID | SUP_POW2PS},
+	{ "at45db641e",  0x1f28000100ULL, 32768, 256, 8, SUP_EXTID | SUP_POW2PS | IS_POW2PS},
 };
 
 static struct flash_info *jedec_lookup(struct spi_device *spi,

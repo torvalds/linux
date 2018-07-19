@@ -35,7 +35,7 @@ config BATMAN_ADV
 config BATMAN_ADV_BATMAN_V
 	bool "B.A.T.M.A.N. V protocol (experimental)"
 	depends on BATMAN_ADV && !(CFG80211=m && BATMAN_ADV=y)
-	default n
+	default y
 	help
 	  This option enables the B.A.T.M.A.N. V protocol, the successor
 	  of the currently used B.A.T.M.A.N. IV protocol. The main
@@ -94,13 +94,13 @@ config BATMAN_ADV_DEBUGFS
 	bool "batman-adv debugfs entries"
 	depends on BATMAN_ADV
 	depends on DEBUG_FS
-	default y
+	default n
 	help
 	  Enable this to export routing related debug tables via debugfs.
 	  The information for each soft-interface and used hard-interface can be
 	  found under batman_adv/
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"

@@ -169,7 +169,7 @@ static enum dscl_mode_sel dpp1_dscl_get_dscl_mode(
 		const struct scaler_data *data,
 		bool dbg_always_scale)
 {
-	const long long one = dal_fixed31_32_one.value;
+	const long long one = dc_fixpt_one.value;
 
 	if (dpp_base->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT) {
 		/* DSCL is processing data in fixed format */
@@ -464,8 +464,8 @@ static enum lb_memory_config dpp1_dscl_find_lb_memory_config(struct dcn10_dpp *d
 	int num_part_y, num_part_c;
 	int vtaps = scl_data->taps.v_taps;
 	int vtaps_c = scl_data->taps.v_taps_c;
-	int ceil_vratio = dal_fixed31_32_ceil(scl_data->ratios.vert);
-	int ceil_vratio_c = dal_fixed31_32_ceil(scl_data->ratios.vert_c);
+	int ceil_vratio = dc_fixpt_ceil(scl_data->ratios.vert);
+	int ceil_vratio_c = dc_fixpt_ceil(scl_data->ratios.vert_c);
 	enum lb_memory_config mem_cfg = LB_MEMORY_CONFIG_0;
 
 	if (dpp->base.ctx->dc->debug.use_max_lb)
@@ -565,52 +565,52 @@ static void dpp1_dscl_set_manual_ratio_init(
 	uint32_t init_int = 0;
 
 	REG_SET(SCL_HORZ_FILTER_SCALE_RATIO, 0,
-			SCL_H_SCALE_RATIO, dal_fixed31_32_u2d19(data->ratios.horz) << 5);
+			SCL_H_SCALE_RATIO, dc_fixpt_u3d19(data->ratios.horz) << 5);
 
 	REG_SET(SCL_VERT_FILTER_SCALE_RATIO, 0,
-			SCL_V_SCALE_RATIO, dal_fixed31_32_u2d19(data->ratios.vert) << 5);
+			SCL_V_SCALE_RATIO, dc_fixpt_u3d19(data->ratios.vert) << 5);
 
 	REG_SET(SCL_HORZ_FILTER_SCALE_RATIO_C, 0,
-			SCL_H_SCALE_RATIO_C, dal_fixed31_32_u2d19(data->ratios.horz_c) << 5);
+			SCL_H_SCALE_RATIO_C, dc_fixpt_u3d19(data->ratios.horz_c) << 5);
 
 	REG_SET(SCL_VERT_FILTER_SCALE_RATIO_C, 0,
-			SCL_V_SCALE_RATIO_C, dal_fixed31_32_u2d19(data->ratios.vert_c) << 5);
+			SCL_V_SCALE_RATIO_C, dc_fixpt_u3d19(data->ratios.vert_c) << 5);
 
 	/*
 	 * 0.24 format for fraction, first five bits zeroed
 	 */
-	init_frac = dal_fixed31_32_u0d19(data->inits.h) << 5;
-	init_int = dal_fixed31_32_floor(data->inits.h);
+	init_frac = dc_fixpt_u0d19(data->inits.h) << 5;
+	init_int = dc_fixpt_floor(data->inits.h);
 	REG_SET_2(SCL_HORZ_FILTER_INIT, 0,
 		SCL_H_INIT_FRAC, init_frac,
 		SCL_H_INIT_INT, init_int);
 
-	init_frac = dal_fixed31_32_u0d19(data->inits.h_c) << 5;
-	init_int = dal_fixed31_32_floor(data->inits.h_c);
+	init_frac = dc_fixpt_u0d19(data->inits.h_c) << 5;
+	init_int = dc_fixpt_floor(data->inits.h_c);
 	REG_SET_2(SCL_HORZ_FILTER_INIT_C, 0,
 		SCL_H_INIT_FRAC_C, init_frac,
 		SCL_H_INIT_INT_C, init_int);
 
-	init_frac = dal_fixed31_32_u0d19(data->inits.v) << 5;
-	init_int = dal_fixed31_32_floor(data->inits.v);
+	init_frac = dc_fixpt_u0d19(data->inits.v) << 5;
+	init_int = dc_fixpt_floor(data->inits.v);
 	REG_SET_2(SCL_VERT_FILTER_INIT, 0,
 		SCL_V_INIT_FRAC, init_frac,
 		SCL_V_INIT_INT, init_int);
 
-	init_frac = dal_fixed31_32_u0d19(data->inits.v_bot) << 5;
-	init_int = dal_fixed31_32_floor(data->inits.v_bot);
+	init_frac = dc_fixpt_u0d19(data->inits.v_bot) << 5;
+	init_int = dc_fixpt_floor(data->inits.v_bot);
 	REG_SET_2(SCL_VERT_FILTER_INIT_BOT, 0,
 		SCL_V_INIT_FRAC_BOT, init_frac,
 		SCL_V_INIT_INT_BOT, init_int);
 
-	init_frac = dal_fixed31_32_u0d19(data->inits.v_c) << 5;
-	init_int = dal_fixed31_32_floor(data->inits.v_c);
+	init_frac = dc_fixpt_u0d19(data->inits.v_c) << 5;
+	init_int = dc_fixpt_floor(data->inits.v_c);
 	REG_SET_2(SCL_VERT_FILTER_INIT_C, 0,
 		SCL_V_INIT_FRAC_C, init_frac,
 		SCL_V_INIT_INT_C, init_int);
 
-	init_frac = dal_fixed31_32_u0d19(data->inits.v_c_bot) << 5;
-	init_int = dal_fixed31_32_floor(data->inits.v_c_bot);
+	init_frac = dc_fixpt_u0d19(data->inits.v_c_bot) << 5;
+	init_int = dc_fixpt_floor(data->inits.v_c_bot);
 	REG_SET_2(SCL_VERT_FILTER_INIT_BOT_C, 0,
 		SCL_V_INIT_FRAC_BOT_C, init_frac,
 		SCL_V_INIT_INT_BOT_C, init_int);

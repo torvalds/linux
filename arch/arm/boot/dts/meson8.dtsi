@@ -57,7 +57,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@200 {
+		cpu0: cpu@200 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
@@ -66,7 +66,7 @@
 			resets = <&clkc CLKC_RESET_CPU0_SOFT_RESET>;
 		};
 
-		cpu@201 {
+		cpu1: cpu@201 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
@@ -75,7 +75,7 @@
 			resets = <&clkc CLKC_RESET_CPU1_SOFT_RESET>;
 		};
 
-		cpu@202 {
+		cpu2: cpu@202 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
@@ -84,7 +84,7 @@
 			resets = <&clkc CLKC_RESET_CPU2_SOFT_RESET>;
 		};
 
-		cpu@203 {
+		cpu3: cpu@203 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
@@ -92,6 +92,15 @@
 			enable-method = "amlogic,meson8-smp";
 			resets = <&clkc CLKC_RESET_CPU3_SOFT_RESET>;
 		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
 	reserved-memory {
@@ -270,6 +279,22 @@
 			mux {
 				groups = "pwm_e";
 				function = "pwm_e";
+			};
+		};
+
+		uart_a1_pins: uart-a1 {
+			mux {
+				groups = "uart_tx_a1",
+				       "uart_rx_a1";
+				function = "uart_a";
+			};
+		};
+
+		uart_a1_cts_rts_pins: uart-a1-cts-rts {
+			mux {
+				groups = "uart_cts_a1",
+				       "uart_rts_a1";
+				function = "uart_a";
 			};
 		};
 	};

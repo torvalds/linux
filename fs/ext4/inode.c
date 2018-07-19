@@ -402,9 +402,9 @@ static int __check_block_validity(struct inode *inode, const char *func,
 	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), map->m_pblk,
 				   map->m_len)) {
 		ext4_error_inode(inode, func, line, map->m_pblk,
-				 "lblock %lu mapped to illegal pblock "
+				 "lblock %lu mapped to illegal pblock %llu "
 				 "(length %d)", (unsigned long) map->m_lblk,
-				 map->m_len);
+				 map->m_pblk, map->m_len);
 		return -EFSCORRUPTED;
 	}
 	return 0;
@@ -4298,28 +4298,28 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 		EXT4_BLOCK_SIZE_BITS(sb);
 	stop_block = (offset + length) >> EXT4_BLOCK_SIZE_BITS(sb);
 
-	/* If there are no blocks to remove, return now */
-	if (first_block >= stop_block)
-		goto out_stop;
+	/* If there are blocks to remove, do it */
+	if (stop_block > first_block) {
 
-	down_write(&EXT4_I(inode)->i_data_sem);
-	ext4_discard_preallocations(inode);
+		down_write(&EXT4_I(inode)->i_data_sem);
+		ext4_discard_preallocations(inode);
 
-	ret = ext4_es_remove_extent(inode, first_block,
-				    stop_block - first_block);
-	if (ret) {
+		ret = ext4_es_remove_extent(inode, first_block,
+					    stop_block - first_block);
+		if (ret) {
+			up_write(&EXT4_I(inode)->i_data_sem);
+			goto out_stop;
+		}
+
+		if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
+			ret = ext4_ext_remove_space(inode, first_block,
+						    stop_block - 1);
+		else
+			ret = ext4_ind_remove_space(handle, inode, first_block,
+						    stop_block);
+
 		up_write(&EXT4_I(inode)->i_data_sem);
-		goto out_stop;
 	}
-
-	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
-		ret = ext4_ext_remove_space(inode, first_block,
-					    stop_block - 1);
-	else
-		ret = ext4_ind_remove_space(handle, inode, first_block,
-					    stop_block);
-
-	up_write(&EXT4_I(inode)->i_data_sem);
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
 
@@ -4506,7 +4506,8 @@ static int __ext4_get_inode_loc(struct inode *inode,
 	int			inodes_per_block, inode_offset;
 
 	iloc->bh = NULL;
-	if (!ext4_valid_inum(sb, inode->i_ino))
+	if (inode->i_ino < EXT4_ROOT_INO ||
+	    inode->i_ino > le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count))
 		return -EFSCORRUPTED;
 
 	iloc->block_group = (inode->i_ino - 1) / EXT4_INODES_PER_GROUP(sb);
@@ -4701,19 +4702,21 @@ static blkcnt_t ext4_inode_blocks(struct ext4_inode *raw_inode,
 	}
 }
 
-static inline void ext4_iget_extra_inode(struct inode *inode,
+static inline int ext4_iget_extra_inode(struct inode *inode,
 					 struct ext4_inode *raw_inode,
 					 struct ext4_inode_info *ei)
 {
 	__le32 *magic = (void *)raw_inode +
 			EXT4_GOOD_OLD_INODE_SIZE + ei->i_extra_isize;
+
 	if (EXT4_GOOD_OLD_INODE_SIZE + ei->i_extra_isize + sizeof(__le32) <=
 	    EXT4_INODE_SIZE(inode->i_sb) &&
 	    *magic == cpu_to_le32(EXT4_XATTR_MAGIC)) {
 		ext4_set_inode_state(inode, EXT4_STATE_XATTR);
-		ext4_find_inline_data_nolock(inode);
+		return ext4_find_inline_data_nolock(inode);
 	} else
 		EXT4_I(inode)->i_inline_off = 0;
+	return 0;
 }
 
 int ext4_get_projid(struct inode *inode, kprojid_t *projid)
@@ -4722,6 +4725,26 @@ int ext4_get_projid(struct inode *inode, kprojid_t *projid)
 		return -EOPNOTSUPP;
 	*projid = EXT4_I(inode)->i_projid;
 	return 0;
+}
+
+/*
+ * ext4 has self-managed i_version for ea inodes, it stores the lower 32bit of
+ * refcount in i_version, so use raw values if inode has EXT4_EA_INODE_FL flag
+ * set.
+ */
+static inline void ext4_inode_set_iversion_queried(struct inode *inode, u64 val)
+{
+	if (unlikely(EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL))
+		inode_set_iversion_raw(inode, val);
+	else
+		inode_set_iversion_queried(inode, val);
+}
+static inline u64 ext4_inode_peek_iversion(const struct inode *inode)
+{
+	if (unlikely(EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL))
+		return inode_peek_iversion_raw(inode);
+	else
+		return inode_peek_iversion(inode);
 }
 
 struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
@@ -4893,7 +4916,9 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 			ei->i_extra_isize = sizeof(struct ext4_inode) -
 					    EXT4_GOOD_OLD_INODE_SIZE;
 		} else {
-			ext4_iget_extra_inode(inode, raw_inode, ei);
+			ret = ext4_iget_extra_inode(inode, raw_inode, ei);
+			if (ret)
+				goto bad_inode;
 		}
 	}
 
@@ -4910,7 +4935,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 				ivers |=
 		    (__u64)(le32_to_cpu(raw_inode->i_version_hi)) << 32;
 		}
-		inode_set_iversion_queried(inode, ivers);
+		ext4_inode_set_iversion_queried(inode, ivers);
 	}
 
 	ret = 0;
@@ -4945,6 +4970,13 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 		inode->i_op = &ext4_dir_inode_operations;
 		inode->i_fop = &ext4_dir_operations;
 	} else if (S_ISLNK(inode->i_mode)) {
+		/* VFS does not allow setting these so must be corruption */
+		if (IS_APPEND(inode) || IS_IMMUTABLE(inode)) {
+			EXT4_ERROR_INODE(inode,
+			  "immutable or append flags not allowed on symlinks");
+			ret = -EFSCORRUPTED;
+			goto bad_inode;
+		}
 		if (ext4_encrypted_inode(inode)) {
 			inode->i_op = &ext4_encrypted_symlink_inode_operations;
 			ext4_set_aops(inode);
@@ -5196,7 +5228,7 @@ static int ext4_do_update_inode(handle_t *handle,
 	}
 
 	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT))) {
-		u64 ivers = inode_peek_iversion(inode);
+		u64 ivers = ext4_inode_peek_iversion(inode);
 
 		raw_inode->i_disk_version = cpu_to_le32(ivers);
 		if (ei->i_extra_isize) {

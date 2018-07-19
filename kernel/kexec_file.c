@@ -793,7 +793,7 @@ static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 	 * The section headers in kexec_purgatory are read-only. In order to
 	 * have them modifiable make a temporary copy.
 	 */
-	sechdrs = vzalloc(pi->ehdr->e_shnum * sizeof(Elf_Shdr));
+	sechdrs = vzalloc(array_size(sizeof(Elf_Shdr), pi->ehdr->e_shnum));
 	if (!sechdrs)
 		return -ENOMEM;
 	memcpy(sechdrs, (void *)pi->ehdr + pi->ehdr->e_shoff,

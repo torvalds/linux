@@ -8,7 +8,6 @@
 menuconfig ARCH_EXYNOS
 	bool "Samsung EXYNOS"
 	depends on ARCH_MULTI_V7
-	select ARCH_HAS_BANDGAP
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_AMBA
@@ -107,18 +106,6 @@ config SOC_EXYNOS5420
 	bool "SAMSUNG EXYNOS5420"
 	default y
 	depends on ARCH_EXYNOS5
-
-config SOC_EXYNOS5440
-	bool "SAMSUNG EXYNOS5440"
-	default y
-	depends on ARCH_EXYNOS5
-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
-	select HAVE_ARM_ARCH_TIMER
-	select AUTO_ZRELADDR
-	select PINCTRL_EXYNOS5440
-	select PM_OPP
-	help
-	  Enable EXYNOS5440 SoC support
 
 config SOC_EXYNOS5800
 	bool "SAMSUNG EXYNOS5800"

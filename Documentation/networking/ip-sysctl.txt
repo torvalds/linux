@@ -26,7 +26,7 @@ ip_no_pmtu_disc - INTEGER
 	discarded. Outgoing frames are handled the same as in mode 1,
 	implicitly setting IP_PMTUDISC_DONT on every created socket.
 
-	Mode 3 is a hardend pmtu discover mode. The kernel will only
+	Mode 3 is a hardened pmtu discover mode. The kernel will only
 	accept fragmentation-needed errors if the underlying protocol
 	can verify them besides a plain socket lookup. Current
 	protocols for which pmtu events will be honored are TCP, SCTP
@@ -449,8 +449,10 @@ tcp_recovery - INTEGER
 	features.
 
 	RACK: 0x1 enables the RACK loss detection for fast detection of lost
-	      retransmissions and tail drops.
+	      retransmissions and tail drops. It also subsumes and disables
+	      RFC6675 recovery for SACK connections.
 	RACK: 0x2 makes RACK's reordering window static (min_rtt/4).
+	RACK: 0x4 disables RACK's DUPACK threshold heuristic
 
 	Default: 0x1
 
@@ -522,6 +524,19 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 
 tcp_sack - BOOLEAN
 	Enable select acknowledgments (SACKS).
+
+tcp_comp_sack_delay_ns - LONG INTEGER
+	TCP tries to reduce number of SACK sent, using a timer
+	based on 5% of SRTT, capped by this sysctl, in nano seconds.
+	The default is 1ms, based on TSO autosizing period.
+
+	Default : 1,000,000 ns (1 ms)
+
+tcp_comp_sack_nr - INTEGER
+	Max numer of SACK that can be compressed.
+	Using 0 disables SACK compression.
+
+	Detault : 44
 
 tcp_slow_start_after_idle - BOOLEAN
 	If set, provide RFC2861 behavior and time out the congestion
@@ -652,11 +667,15 @@ tcp_tso_win_divisor - INTEGER
 	building larger TSO frames.
 	Default: 3
 
-tcp_tw_reuse - BOOLEAN
-	Allow to reuse TIME-WAIT sockets for new connections when it is
-	safe from protocol viewpoint. Default value is 0.
+tcp_tw_reuse - INTEGER
+	Enable reuse of TIME-WAIT sockets for new connections when it is
+	safe from protocol viewpoint.
+	0 - disable
+	1 - global enable
+	2 - enable for loopback traffic only
 	It should not be changed without advice/request of technical
 	experts.
+	Default: 2
 
 tcp_window_scaling - BOOLEAN
 	Enable window scaling as defined in RFC1323.
@@ -1427,6 +1446,19 @@ ip6frag_low_thresh - INTEGER
 
 ip6frag_time - INTEGER
 	Time in seconds to keep an IPv6 fragment in memory.
+
+IPv6 Segment Routing:
+
+seg6_flowlabel - INTEGER
+	Controls the behaviour of computing the flowlabel of outer
+	IPv6 header in case of SR T.encaps
+
+	-1 set flowlabel to zero.
+	0 copy flowlabel from Inner packet in case of Inner IPv6
+		(Set flowlabel to 0 in case IPv4/L2)
+	1 Compute the flowlabel using seg6_make_flowlabel()
+
+	Default is 0.
 
 conf/default/*:
 	Change the interface-specific default settings.

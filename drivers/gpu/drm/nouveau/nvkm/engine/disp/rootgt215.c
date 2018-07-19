@@ -22,22 +22,19 @@
  * Authors: Ben Skeggs
  */
 #include "rootnv50.h"
-#include "dmacnv50.h"
+#include "channv50.h"
 
 #include <nvif/class.h>
 
 static const struct nv50_disp_root_func
 gt215_disp_root = {
-	.init = nv50_disp_root_init,
-	.fini = nv50_disp_root_fini,
-	.dmac = {
-		&gt215_disp_core_oclass,
-		&gt215_disp_base_oclass,
-		&gt215_disp_ovly_oclass,
-	},
-	.pioc = {
-		&gt215_disp_oimm_oclass,
-		&gt215_disp_curs_oclass,
+	.user = {
+		{{0,0,GT214_DISP_CURSOR             },  nv50_disp_curs_new },
+		{{0,0,GT214_DISP_OVERLAY            },  nv50_disp_oimm_new },
+		{{0,0,GT214_DISP_BASE_CHANNEL_DMA   },   g84_disp_base_new },
+		{{0,0,GT214_DISP_CORE_CHANNEL_DMA   },   g94_disp_core_new },
+		{{0,0,GT214_DISP_OVERLAY_CHANNEL_DMA},   g84_disp_ovly_new },
+		{}
 	},
 };
 

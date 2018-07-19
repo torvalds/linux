@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -149,10 +149,14 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
+	struct lpfc_nvme_rport *rport;
 	struct lpfc_nodelist *ndlp;
 	struct nvme_fc_remote_port *nrport;
-	uint64_t data1, data2, data3, tot;
+	struct lpfc_nvme_ctrl_stat *cstat;
+	uint64_t data1, data2, data3;
+	uint64_t totin, totout, tot;
 	char *statep;
+	int i;
 	int len = 0;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
@@ -293,6 +297,13 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	len = snprintf(buf, PAGE_SIZE, "NVME Initiator Enabled\n");
 
 	spin_lock_irq(shost->host_lock);
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"XRI Dist lpfc%d Total %d NVME %d SCSI %d ELS %d\n",
+			phba->brd_no,
+			phba->sli4_hba.max_cfg_param.max_xri,
+			phba->sli4_hba.nvme_xri_max,
+			phba->sli4_hba.scsi_xri_max,
+			lpfc_sli4_get_els_iocb_cnt(phba));
 
 	/* Port state is only one of two values for now. */
 	if (localport->port_id)
@@ -309,11 +320,14 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 			localport->port_id, statep);
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!ndlp->nrport)
+		rport = lpfc_ndlp_get_nrport(ndlp);
+		if (!rport)
 			continue;
 
 		/* local short-hand pointer. */
-		nrport = ndlp->nrport->remoteport;
+		nrport = rport->remoteport;
+		if (!nrport)
+			continue;
 
 		/* Port state is only one of two values for now. */
 		switch (nrport->port_state) {
@@ -364,11 +378,14 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	}
 	spin_unlock_irq(shost->host_lock);
 
+	if (!lport)
+		return len;
+
 	len += snprintf(buf + len, PAGE_SIZE - len, "\nNVME Statistics\n");
 	len += snprintf(buf+len, PAGE_SIZE-len,
 			"LS: Xmt %010x Cmpl %010x Abort %08x\n",
-			atomic_read(&phba->fc4NvmeLsRequests),
-			atomic_read(&phba->fc4NvmeLsCmpls),
+			atomic_read(&lport->fc4NvmeLsRequests),
+			atomic_read(&lport->fc4NvmeLsCmpls),
 			atomic_read(&lport->xmt_ls_abort));
 
 	len += snprintf(buf + len, PAGE_SIZE - len,
@@ -377,26 +394,31 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 			atomic_read(&lport->cmpl_ls_xb),
 			atomic_read(&lport->cmpl_ls_err));
 
-	tot = atomic_read(&phba->fc4NvmeIoCmpls);
-	data1 = atomic_read(&phba->fc4NvmeInputRequests);
-	data2 = atomic_read(&phba->fc4NvmeOutputRequests);
-	data3 = atomic_read(&phba->fc4NvmeControlRequests);
+	totin = 0;
+	totout = 0;
+	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
+		cstat = &lport->cstat[i];
+		tot = atomic_read(&cstat->fc4NvmeIoCmpls);
+		totin += tot;
+		data1 = atomic_read(&cstat->fc4NvmeInputRequests);
+		data2 = atomic_read(&cstat->fc4NvmeOutputRequests);
+		data3 = atomic_read(&cstat->fc4NvmeControlRequests);
+		totout += (data1 + data2 + data3);
+	}
 	len += snprintf(buf+len, PAGE_SIZE-len,
-			"FCP: Rd %016llx Wr %016llx IO %016llx\n",
-			data1, data2, data3);
+			"Total FCP Cmpl %016llx Issue %016llx "
+			"OutIO %016llx\n",
+			totin, totout, totout - totin);
 
 	len += snprintf(buf+len, PAGE_SIZE-len,
-			"    noxri %08x nondlp %08x qdepth %08x "
-			"wqerr %08x\n",
+			"      abort %08x noxri %08x nondlp %08x qdepth %08x "
+			"wqerr %08x err %08x\n",
+			atomic_read(&lport->xmt_fcp_abort),
 			atomic_read(&lport->xmt_fcp_noxri),
 			atomic_read(&lport->xmt_fcp_bad_ndlp),
 			atomic_read(&lport->xmt_fcp_qdepth),
+			atomic_read(&lport->xmt_fcp_err),
 			atomic_read(&lport->xmt_fcp_wqerr));
-
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"    Cmpl %016llx Outstanding %016llx Abort %08x\n",
-			tot, ((data1 + data2 + data3) - tot),
-			atomic_read(&lport->xmt_fcp_abort));
 
 	len += snprintf(buf + len, PAGE_SIZE - len,
 			"FCP CMPL: xb %08x Err %08x\n",
@@ -3280,6 +3302,9 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 {
 	struct Scsi_Host  *shost;
 	struct lpfc_nodelist  *ndlp;
+#if (IS_ENABLED(CONFIG_NVME_FC))
+	struct lpfc_nvme_rport *rport;
+#endif
 
 	shost = lpfc_shost_from_vport(vport);
 	spin_lock_irq(shost->host_lock);
@@ -3289,8 +3314,9 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 		if (ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 #if (IS_ENABLED(CONFIG_NVME_FC))
-		if (ndlp->nrport)
-			nvme_fc_set_remoteport_devloss(ndlp->nrport->remoteport,
+		rport = lpfc_ndlp_get_nrport(ndlp);
+		if (rport)
+			nvme_fc_set_remoteport_devloss(rport->remoteport,
 						       vport->cfg_devloss_tmo);
 #endif
 	}
@@ -3414,6 +3440,15 @@ LPFC_ATTR_R(nvmet_mrq,
 	    "Specify number of RQ pairs for processing NVMET cmds");
 
 /*
+ * lpfc_nvmet_mrq_post: Specify number of RQ buffer to initially post
+ * to each NVMET RQ. Range 64 to 2048, default is 512.
+ */
+LPFC_ATTR_R(nvmet_mrq_post,
+	    LPFC_NVMET_RQE_DEF_POST, LPFC_NVMET_RQE_MIN_POST,
+	    LPFC_NVMET_RQE_DEF_COUNT,
+	    "Specify number of RQ buffers to initially post");
+
+/*
  * lpfc_enable_fc4_type: Defines what FC4 types are supported.
  * Supported Values:  1 - register just FCP
  *                    3 - register both FCP and NVME
@@ -3469,8 +3504,49 @@ LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 512,
 # tgt_queue_depth:  This parameter is used to limit the number of outstanding
 # commands per target port. Value range is [10,65535]. Default value is 65535.
 */
-LPFC_VPORT_ATTR_RW(tgt_queue_depth, 65535, 10, 65535,
-		   "Max number of FCP commands we can queue to a specific target port");
+static uint lpfc_tgt_queue_depth = LPFC_MAX_TGT_QDEPTH;
+module_param(lpfc_tgt_queue_depth, uint, 0444);
+MODULE_PARM_DESC(lpfc_tgt_queue_depth, "Set max Target queue depth");
+lpfc_vport_param_show(tgt_queue_depth);
+lpfc_vport_param_init(tgt_queue_depth, LPFC_MAX_TGT_QDEPTH,
+		      LPFC_MIN_TGT_QDEPTH, LPFC_MAX_TGT_QDEPTH);
+
+/**
+ * lpfc_tgt_queue_depth_store: Sets an attribute value.
+ * @phba: pointer the the adapter structure.
+ * @val: integer attribute value.
+ *
+ * Description: Sets the parameter to the new value.
+ *
+ * Returns:
+ * zero on success
+ * -EINVAL if val is invalid
+ */
+static int
+lpfc_tgt_queue_depth_set(struct lpfc_vport *vport, uint val)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_nodelist *ndlp;
+
+	if (!lpfc_rangecheck(val, LPFC_MIN_TGT_QDEPTH, LPFC_MAX_TGT_QDEPTH))
+		return -EINVAL;
+
+	if (val == vport->cfg_tgt_queue_depth)
+		return 0;
+
+	spin_lock_irq(shost->host_lock);
+	vport->cfg_tgt_queue_depth = val;
+
+	/* Next loop thru nodelist and change cmd_qdepth */
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
+		ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
+
+	spin_unlock_irq(shost->host_lock);
+	return 0;
+}
+
+lpfc_vport_param_store(tgt_queue_depth);
+static DEVICE_ATTR_RW(lpfc_tgt_queue_depth);
 
 /*
 # hba_queue_depth:  This parameter is used to limit the number of outstanding
@@ -5302,6 +5378,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_suppress_rsp,
 	&dev_attr_lpfc_nvme_io_channel,
 	&dev_attr_lpfc_nvmet_mrq,
+	&dev_attr_lpfc_nvmet_mrq_post,
 	&dev_attr_lpfc_nvme_enable_fb,
 	&dev_attr_lpfc_nvmet_fb_size,
 	&dev_attr_lpfc_enable_bg,
@@ -6352,6 +6429,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 
 	lpfc_enable_fc4_type_init(phba, lpfc_enable_fc4_type);
 	lpfc_nvmet_mrq_init(phba, lpfc_nvmet_mrq);
+	lpfc_nvmet_mrq_post_init(phba, lpfc_nvmet_mrq_post);
 
 	/* Initialize first burst. Target vs Initiator are different. */
 	lpfc_nvme_enable_fb_init(phba, lpfc_nvme_enable_fb);

@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# 'info' prints the argument to stdout.
+$(info,hello world 0)
+
+# 'warning-if', if the first argument is y, sends the second argument to stderr,
+# and the message is prefixed with the current file name and line number.
+$(warning-if,y,hello world 1)
+
+# 'error-if' is similar, but it terminates the parsing immediately.
+# The following is just no-op since the first argument is not y.
+$(error-if,n,this should not be printed)
+
+# Shorthand
+warning = $(warning-if,y,$(1))
+
+# 'shell' executes a command, and returns its stdout.
+$(warning,$(shell,echo hello world 3))
+
+# Every newline in the output is replaced with a space,
+# but any trailing newlines are deleted.
+$(warning,$(shell,printf 'hello\nworld\n\n4\n\n\n'))
+
+# 'filename' is expanded to the currently parsed file name,
+# 'lineno' to the line number.
+$(warning,filename=$(filename))
+$(warning,lineno=$(lineno))

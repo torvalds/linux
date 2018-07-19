@@ -186,8 +186,8 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
 	return next;
 }
 
-static int do_brk(unsigned long addr, unsigned long len, struct list_head *uf);
-
+static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long flags,
+		struct list_head *uf);
 SYSCALL_DEFINE1(brk, unsigned long, brk)
 {
 	unsigned long retval;
@@ -245,7 +245,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 		goto out;
 
 	/* Ok, looks good - let it rip. */
-	if (do_brk(oldbrk, newbrk-oldbrk, &uf) < 0)
+	if (do_brk_flags(oldbrk, newbrk-oldbrk, 0, &uf) < 0)
 		goto out;
 
 set_brk:
@@ -2828,7 +2828,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	unsigned long ret = -EINVAL;
 	struct file *file;
 
-	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. See Documentation/vm/remap_file_pages.txt.\n",
+	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. See Documentation/vm/remap_file_pages.rst.\n",
 		     current->comm, current->pid);
 
 	if (prot)
@@ -2929,20 +2929,13 @@ static inline void verify_mm_writelocked(struct mm_struct *mm)
  *  anonymous maps.  eventually we may be able to do some
  *  brk-specific accounting here.
  */
-static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long flags, struct list_head *uf)
+static int do_brk_flags(unsigned long addr, unsigned long len, unsigned long flags, struct list_head *uf)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;
-	unsigned long len;
 	struct rb_node **rb_link, *rb_parent;
 	pgoff_t pgoff = addr >> PAGE_SHIFT;
 	int error;
-
-	len = PAGE_ALIGN(request);
-	if (len < request)
-		return -ENOMEM;
-	if (!len)
-		return 0;
 
 	/* Until we need other flags, refuse anything except VM_EXEC. */
 	if ((flags & (~VM_EXEC)) != 0)
@@ -3015,17 +3008,19 @@ out:
 	return 0;
 }
 
-static int do_brk(unsigned long addr, unsigned long len, struct list_head *uf)
-{
-	return do_brk_flags(addr, len, 0, uf);
-}
-
-int vm_brk_flags(unsigned long addr, unsigned long len, unsigned long flags)
+int vm_brk_flags(unsigned long addr, unsigned long request, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
+	unsigned long len;
 	int ret;
 	bool populate;
 	LIST_HEAD(uf);
+
+	len = PAGE_ALIGN(request);
+	if (len < request)
+		return -ENOMEM;
+	if (!len)
+		return 0;
 
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
@@ -3277,7 +3272,7 @@ void vm_stat_account(struct mm_struct *mm, vm_flags_t flags, long npages)
 		mm->data_vm += npages;
 }
 
-static int special_mapping_fault(struct vm_fault *vmf);
+static vm_fault_t special_mapping_fault(struct vm_fault *vmf);
 
 /*
  * Having a close hook prevents vma merging regardless of flags.
@@ -3316,7 +3311,7 @@ static const struct vm_operations_struct legacy_special_mapping_vmops = {
 	.fault = special_mapping_fault,
 };
 
-static int special_mapping_fault(struct vm_fault *vmf)
+static vm_fault_t special_mapping_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	pgoff_t pgoff;

@@ -146,8 +146,7 @@ netxen_get_minidump_template(struct netxen_adapter *adapter)
 	if ((cmd.rsp.cmd == NX_RCODE_SUCCESS) && (size == cmd.rsp.arg2)) {
 		memcpy(adapter->mdump.md_template, addr, size);
 	} else {
-		dev_err(&adapter->pdev->dev, "Failed to get minidump template, "
-			"err_code : %d, requested_size : %d, actual_size : %d\n ",
+		dev_err(&adapter->pdev->dev, "Failed to get minidump template, err_code : %d, requested_size : %d, actual_size : %d\n",
 			cmd.rsp.cmd, size, cmd.rsp.arg2);
 	}
 	pci_free_consistent(adapter->pdev, size, addr, md_template_addr);
@@ -180,8 +179,7 @@ netxen_setup_minidump(struct netxen_adapter *adapter)
 		if ((err == NX_RCODE_CMD_INVALID) ||
 			(err == NX_RCODE_CMD_NOT_IMPL)) {
 			dev_info(&adapter->pdev->dev,
-				"Flashed firmware version does not support minidump, "
-				"minimum version required is [ %u.%u.%u ].\n ",
+				"Flashed firmware version does not support minidump, minimum version required is [ %u.%u.%u ]\n",
 				NX_MD_SUPPORT_MAJOR, NX_MD_SUPPORT_MINOR,
 				NX_MD_SUPPORT_SUBVERSION);
 		}

@@ -151,7 +151,7 @@ Code  Seq#(hex)	Include File		Comments
 'J'	00-1F	drivers/scsi/gdth_ioctl.h
 'K'	all	linux/kd.h
 'L'	00-1F	linux/loop.h		conflict!
-'L'	10-1F	drivers/scsi/mpt2sas/mpt2sas_ctl.h	conflict!
+'L'	10-1F	drivers/scsi/mpt3sas/mpt3sas_ctl.h	conflict!
 'L'	20-2F	linux/lightnvm.h
 'L'	E0-FF	linux/ppdd.h		encrypted disk device driver
 					<http://linux01.gwdg.de/~alatham/ppdd.html>
@@ -296,7 +296,8 @@ Code  Seq#(hex)	Include File		Comments
 0x90	00	drivers/cdrom/sbpcd.h
 0x92	00-0F	drivers/usb/mon/mon_bin.c
 0x93	60-7F	linux/auto_fs.h
-0x94	all	fs/btrfs/ioctl.h
+0x94	all	fs/btrfs/ioctl.h	Btrfs filesystem
+		and linux/fs.h		some lifted to vfs/generic
 0x97	00-7F	fs/ceph/ioctl.h		Ceph file system
 0x99	00-0F				537-Addinboard driver
 					<mailto:buk@buks.ipn.de>
@@ -327,6 +328,7 @@ Code  Seq#(hex)	Include File		Comments
 0xCA	80-BF	uapi/scsi/cxlflash_ioctl.h
 0xCB	00-1F	CBM serial IEC bus	in development:
 					<mailto:michael.klein@puffin.lb.shuttle.de>
+0xCC	00-0F	drivers/misc/ibmvmc.h    pseries VMC driver
 0xCD	01	linux/reiserfs_fs.h
 0xCF	02	fs/cifs/ioctl.c
 0xDB	00-0F	drivers/char/mwave/mwavepub.h

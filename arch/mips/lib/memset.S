@@ -95,7 +95,7 @@
 
 	sltiu		t0, a2, STORSIZE	/* very small region? */
 	bnez		t0, .Lsmall_memset\@
-	andi		t0, a0, STORMASK	/* aligned? */
+	 andi		t0, a0, STORMASK	/* aligned? */
 
 #ifdef CONFIG_CPU_MICROMIPS
 	move		t8, a1			/* used by 'swp' instruction */
@@ -103,12 +103,12 @@
 #endif
 #ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	beqz		t0, 1f
-	PTR_SUBU	t0, STORSIZE		/* alignment in bytes */
+	 PTR_SUBU	t0, STORSIZE		/* alignment in bytes */
 #else
 	.set		noat
 	li		AT, STORSIZE
 	beqz		t0, 1f
-	PTR_SUBU	t0, AT			/* alignment in bytes */
+	 PTR_SUBU	t0, AT			/* alignment in bytes */
 	.set		at
 #endif
 
@@ -149,7 +149,7 @@
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
 	beqz		t1, .Lmemset_partial\@	/* no block to fill */
-	andi		t0, a2, 0x40-STORSIZE
+	 andi		t0, a2, 0x40-STORSIZE
 
 	PTR_ADDU	t1, a0			/* end address */
 	.set		reorder
@@ -174,7 +174,7 @@
 	.set		at
 #endif
 	jr		t1
-	PTR_ADDU	a0, t0			/* dest ptr */
+	 PTR_ADDU	a0, t0			/* dest ptr */
 
 	.set		push
 	.set		noreorder
@@ -186,7 +186,7 @@
 
 	beqz		a2, 1f
 #ifndef CONFIG_CPU_MIPSR6
-	PTR_ADDU	a0, a2			/* What's left */
+	 PTR_ADDU	a0, a2			/* What's left */
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_R, a1, -1(a0), .Llast_fixup\@)
@@ -194,7 +194,7 @@
 	EX(LONG_S_L, a1, -1(a0), .Llast_fixup\@)
 #endif
 #else
-	PTR_SUBU	t0, $0, a2
+	 PTR_SUBU	t0, $0, a2
 	PTR_ADDIU	t0, 1
 	STORE_BYTE(0)
 	STORE_BYTE(1)
@@ -210,11 +210,11 @@
 0:
 #endif
 1:	jr		ra
-	move		a2, zero
+	 move		a2, zero
 
 .Lsmall_memset\@:
 	beqz		a2, 2f
-	PTR_ADDU	t1, a0, a2
+	 PTR_ADDU	t1, a0, a2
 
 1:	PTR_ADDIU	a0, 1			/* fill bytewise */
 	R10KCBARRIER(0(ra))
@@ -222,7 +222,7 @@
 	 EX(sb, a1, -1(a0), .Lsmall_fixup\@)
 
 2:	jr		ra			/* done */
-	move		a2, zero
+	 move		a2, zero
 	.if __memset == 1
 	END(memset)
 	.set __memset, 0
@@ -238,7 +238,7 @@
 
 .Lfirst_fixup\@:
 	jr	ra
-	nop
+	 nop
 
 .Lfwd_fixup\@:
 	PTR_L		t0, TI_TASK($28)
@@ -246,7 +246,7 @@
 	LONG_L		t0, THREAD_BUADDR(t0)
 	LONG_ADDU	a2, t1
 	jr		ra
-	LONG_SUBU	a2, t0
+	 LONG_SUBU	a2, t0
 
 .Lpartial_fixup\@:
 	PTR_L		t0, TI_TASK($28)
@@ -254,7 +254,7 @@
 	LONG_L		t0, THREAD_BUADDR(t0)
 	LONG_ADDU	a2, a0
 	jr		ra
-	LONG_SUBU	a2, t0
+	 LONG_SUBU	a2, t0
 
 .Llast_fixup\@:
 	jr		ra
@@ -278,7 +278,7 @@
 LEAF(memset)
 EXPORT_SYMBOL(memset)
 	beqz		a1, 1f
-	move		v0, a0			/* result */
+	 move		v0, a0			/* result */
 
 	andi		a1, 0xff		/* spread fillword */
 	LONG_SLL		t1, a1, 8

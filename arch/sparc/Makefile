@@ -39,7 +39,7 @@ else
 # sparc64
 #
 
-CHECKFLAGS    += -D__sparc__ -D__sparc_v9__ -D__arch64__ -m64
+CHECKFLAGS    += -D__sparc__ -D__sparc_v9__ -D__arch64__
 LDFLAGS       := -m elf64_sparc
 export BITS   := 64
 UTS_MACHINE   := sparc64

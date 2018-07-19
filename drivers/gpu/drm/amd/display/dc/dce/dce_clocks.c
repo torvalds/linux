@@ -26,7 +26,7 @@
 #include "dce_clocks.h"
 #include "dm_services.h"
 #include "reg_helper.h"
-#include "fixed32_32.h"
+#include "fixed31_32.h"
 #include "bios_parser_interface.h"
 #include "dc.h"
 #include "dmcu.h"
@@ -35,7 +35,7 @@
 #endif
 #include "core_types.h"
 #include "dc_types.h"
-
+#include "dal_asic_id.h"
 
 #define TO_DCE_CLOCKS(clocks)\
 	container_of(clocks, struct dce_disp_clk, base)
@@ -228,19 +228,19 @@ static int dce_clocks_get_dp_ref_freq(struct display_clock *clk)
 	 generated according to average value (case as with previous ASICs)
 	  */
 	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
-		struct fixed32_32 ss_percentage = dal_fixed32_32_div_int(
-				dal_fixed32_32_from_fraction(
+		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
+				dc_fixpt_from_fraction(
 						clk_dce->dprefclk_ss_percentage,
 						clk_dce->dprefclk_ss_divider), 200);
-		struct fixed32_32 adj_dp_ref_clk_khz;
+		struct fixed31_32 adj_dp_ref_clk_khz;
 
-		ss_percentage = dal_fixed32_32_sub(dal_fixed32_32_one,
+		ss_percentage = dc_fixpt_sub(dc_fixpt_one,
 								ss_percentage);
 		adj_dp_ref_clk_khz =
-			dal_fixed32_32_mul_int(
+			dc_fixpt_mul_int(
 				ss_percentage,
 				dp_ref_clk_khz);
-		dp_ref_clk_khz = dal_fixed32_32_floor(adj_dp_ref_clk_khz);
+		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
 	}
 
 	return dp_ref_clk_khz;
@@ -256,19 +256,19 @@ static int dce_clocks_get_dp_ref_freq_wrkaround(struct display_clock *clk)
 	int dp_ref_clk_khz = 600000;
 
 	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
-		struct fixed32_32 ss_percentage = dal_fixed32_32_div_int(
-				dal_fixed32_32_from_fraction(
+		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
+				dc_fixpt_from_fraction(
 						clk_dce->dprefclk_ss_percentage,
 						clk_dce->dprefclk_ss_divider), 200);
-		struct fixed32_32 adj_dp_ref_clk_khz;
+		struct fixed31_32 adj_dp_ref_clk_khz;
 
-		ss_percentage = dal_fixed32_32_sub(dal_fixed32_32_one,
+		ss_percentage = dc_fixpt_sub(dc_fixpt_one,
 								ss_percentage);
 		adj_dp_ref_clk_khz =
-			dal_fixed32_32_mul_int(
+			dc_fixpt_mul_int(
 				ss_percentage,
 				dp_ref_clk_khz);
-		dp_ref_clk_khz = dal_fixed32_32_floor(adj_dp_ref_clk_khz);
+		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
 	}
 
 	return dp_ref_clk_khz;
@@ -413,9 +413,12 @@ static int dce112_set_clock(
 	/*VBIOS will determine DPREFCLK frequency, so we don't set it*/
 	dce_clk_params.target_clock_frequency = 0;
 	dce_clk_params.clock_type = DCECLOCK_TYPE_DPREFCLK;
-	dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK =
+	if (!ASICREV_IS_VEGA20_P(clk->ctx->asic_id.hw_internal_rev))
+		dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK =
 			(dce_clk_params.pll_id ==
 					CLOCK_SOURCE_COMBO_DISPLAY_PLL0);
+	else
+		dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK = false;
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 

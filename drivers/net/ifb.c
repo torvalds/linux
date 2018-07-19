@@ -102,7 +102,7 @@ static void ifb_ri_tasklet(unsigned long _txp)
 		if (!skb->tc_from_ingress) {
 			dev_queue_xmit(skb);
 		} else {
-			skb_pull(skb, skb->mac_len);
+			skb_pull_rcsum(skb, skb->mac_len);
 			netif_receive_skb(skb);
 		}
 	}

@@ -65,10 +65,10 @@ static bool hda_writeable_reg(struct device *dev, unsigned int reg)
 {
 	struct hdac_device *codec = dev_to_hdac_dev(dev);
 	unsigned int verb = get_verb(reg);
+	const unsigned int *v;
 	int i;
 
-	for (i = 0; i < codec->vendor_verbs.used; i++) {
-		unsigned int *v = snd_array_elem(&codec->vendor_verbs, i);
+	snd_array_for_each(&codec->vendor_verbs, i, v) {
 		if (verb == *v)
 			return true;
 	}

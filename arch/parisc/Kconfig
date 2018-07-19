@@ -51,6 +51,8 @@ config PARISC
 	select GENERIC_CLOCKEVENTS
 	select ARCH_NO_COHERENT_DMA_MMAP
 	select CPU_NO_EFFICIENT_FFS
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
@@ -109,12 +111,6 @@ config PM
 	bool
 
 config STACKTRACE_SUPPORT
-	def_bool y
-
-config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
 	def_bool y
 
 config ISA_DMA_API
@@ -248,11 +244,11 @@ config PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_16KB
 	bool "16KB"
-	depends on PA8X00
+	depends on PA8X00 && BROKEN
 
 config PARISC_PAGE_SIZE_64KB
 	bool "64KB"
-	depends on PA8X00
+	depends on PA8X00 && BROKEN
 
 endchoice
 
@@ -279,7 +275,7 @@ config SMP
 	  machines, but will use only one CPU of a multiprocessor machine.
 	  On a uniprocessor machine, the kernel will run faster if you say N.
 
-	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
+	  See also <file:Documentation/lockup-watchdogs.txt> and the SMP-HOWTO
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
@@ -351,7 +347,7 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "32"
+	default "4"
 
 endmenu
 

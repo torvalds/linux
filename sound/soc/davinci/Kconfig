@@ -24,7 +24,7 @@ config SND_DAVINCI_SOC_I2S
 
 config SND_DAVINCI_SOC_MCASP
 	tristate "Multichannel Audio Serial Port (McASP) support"
-	depends on SND_OMAP_SOC || SND_EDMA_SOC
+	depends on SND_SDMA_SOC || SND_EDMA_SOC
 	help
 	  Say Y or M here if you want to have support for McASP IP found in
 	  various Texas Instruments SoCs like:

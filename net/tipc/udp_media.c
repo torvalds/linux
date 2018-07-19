@@ -713,8 +713,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 			err = -EINVAL;
 			goto err;
 		}
-		b->mtu = dev->mtu - sizeof(struct iphdr)
-			- sizeof(struct udphdr);
+		b->mtu = b->media->mtu;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (local.proto == htons(ETH_P_IPV6)) {
 		udp_conf.family = AF_INET6;
@@ -803,6 +802,7 @@ struct tipc_media udp_media_info = {
 	.priority	= TIPC_DEF_LINK_PRI,
 	.tolerance	= TIPC_DEF_LINK_TOL,
 	.window		= TIPC_DEF_LINK_WIN,
+	.mtu		= TIPC_DEF_LINK_UDP_MTU,
 	.type_id	= TIPC_MEDIA_TYPE_UDP,
 	.hwaddr_len	= 0,
 	.name		= "udp"

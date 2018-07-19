@@ -1081,6 +1081,7 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.end_use = amdgpu_vce_ring_end_use,
 	.emit_wreg = vce_v4_0_emit_wreg,
 	.emit_reg_wait = vce_v4_0_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
 static void vce_v4_0_set_ring_funcs(struct amdgpu_device *adev)

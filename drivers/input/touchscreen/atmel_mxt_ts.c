@@ -194,6 +194,8 @@ enum t100_type {
 
 /* Delay times */
 #define MXT_BACKUP_TIME		50	/* msec */
+#define MXT_RESET_GPIO_TIME	20	/* msec */
+#define MXT_RESET_INVALID_CHG	100	/* msec */
 #define MXT_RESET_TIME		200	/* msec */
 #define MXT_RESET_TIMEOUT	3000	/* msec */
 #define MXT_CRC_TIMEOUT		1000	/* msec */
@@ -1208,7 +1210,7 @@ static int mxt_soft_reset(struct mxt_data *data)
 		return ret;
 
 	/* Ignore CHG line for 100ms after reset */
-	msleep(100);
+	msleep(MXT_RESET_INVALID_CHG);
 
 	mxt_acquire_irq(data);
 
@@ -2999,142 +3001,6 @@ static int mxt_parse_device_properties(struct mxt_data *data)
 	return 0;
 }
 
-#ifdef CONFIG_ACPI
-
-struct mxt_acpi_platform_data {
-	const char *hid;
-	const struct property_entry *props;
-};
-
-static unsigned int samus_touchpad_buttons[] = {
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	BTN_LEFT
-};
-
-static const struct property_entry samus_touchpad_props[] = {
-	PROPERTY_ENTRY_U32_ARRAY("linux,gpio-keymap", samus_touchpad_buttons),
-	{ }
-};
-
-static struct mxt_acpi_platform_data samus_platform_data[] = {
-	{
-		/* Touchpad */
-		.hid	= "ATML0000",
-		.props	= samus_touchpad_props,
-	},
-	{
-		/* Touchscreen */
-		.hid	= "ATML0001",
-	},
-	{ }
-};
-
-static unsigned int chromebook_tp_buttons[] = {
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	KEY_RESERVED,
-	BTN_LEFT
-};
-
-static const struct property_entry chromebook_tp_props[] = {
-	PROPERTY_ENTRY_U32_ARRAY("linux,gpio-keymap", chromebook_tp_buttons),
-	{ }
-};
-
-static struct mxt_acpi_platform_data chromebook_platform_data[] = {
-	{
-		/* Touchpad */
-		.hid	= "ATML0000",
-		.props	= chromebook_tp_props,
-	},
-	{
-		/* Touchscreen */
-		.hid	= "ATML0001",
-	},
-	{ }
-};
-
-static const struct dmi_system_id mxt_dmi_table[] = {
-	{
-		/* 2015 Google Pixel */
-		.ident = "Chromebook Pixel 2",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Samus"),
-		},
-		.driver_data = samus_platform_data,
-	},
-	{
-		/* Samsung Chromebook Pro */
-		.ident = "Samsung Chromebook Pro",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Caroline"),
-		},
-		.driver_data = samus_platform_data,
-	},
-	{
-		/* Other Google Chromebooks */
-		.ident = "Chromebook",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
-		},
-		.driver_data = chromebook_platform_data,
-	},
-	{ }
-};
-
-static int mxt_prepare_acpi_properties(struct i2c_client *client)
-{
-	struct acpi_device *adev;
-	const struct dmi_system_id *system_id;
-	const struct mxt_acpi_platform_data *acpi_pdata;
-
-	adev = ACPI_COMPANION(&client->dev);
-	if (!adev)
-		return -ENOENT;
-
-	system_id = dmi_first_match(mxt_dmi_table);
-	if (!system_id)
-		return -ENOENT;
-
-	acpi_pdata = system_id->driver_data;
-	if (!acpi_pdata)
-		return -ENOENT;
-
-	while (acpi_pdata->hid) {
-		if (!strcmp(acpi_device_hid(adev), acpi_pdata->hid)) {
-			/*
-			 * Remove previously installed properties if we
-			 * are probing this device not for the very first
-			 * time.
-			 */
-			device_remove_properties(&client->dev);
-
-			/*
-			 * Now install the platform-specific properties
-			 * that are missing from ACPI.
-			 */
-			device_add_properties(&client->dev, acpi_pdata->props);
-			break;
-		}
-
-		acpi_pdata++;
-	}
-
-	return 0;
-}
-#else
-static int mxt_prepare_acpi_properties(struct i2c_client *client)
-{
-	return -ENOENT;
-}
-#endif
-
 static const struct dmi_system_id chromebook_T9_suspend_dmi[] = {
 	{
 		.matches = {
@@ -3154,6 +3020,18 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct mxt_data *data;
 	int error;
+
+	/*
+	 * Ignore devices that do not have device properties attached to
+	 * them, as we need help determining whether we are dealing with
+	 * touch screen or touchpad.
+	 *
+	 * So far on x86 the only users of Atmel touch controllers are
+	 * Chromebooks, and chromeos_laptop driver will ensure that
+	 * necessary properties are provided (if firmware does not do that).
+	 */
+	if (!device_property_present(&client->dev, "compatible"))
+		return -ENXIO;
 
 	/*
 	 * Ignore ACPI devices representing bootloader mode.
@@ -3186,10 +3064,6 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	data->suspend_mode = dmi_check_system(chromebook_T9_suspend_dmi) ?
 		MXT_SUSPEND_T9_CTRL : MXT_SUSPEND_DEEP_SLEEP;
 
-	error = mxt_prepare_acpi_properties(client);
-	if (error && error != -ENOENT)
-		return error;
-
 	error = mxt_parse_device_properties(data);
 	if (error)
 		return error;
@@ -3210,19 +3084,13 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return error;
 	}
 
-	if (data->reset_gpio) {
-		data->in_bootloader = true;
-		msleep(MXT_RESET_TIME);
-		reinit_completion(&data->bl_completion);
-		gpiod_set_value(data->reset_gpio, 1);
-		error = mxt_wait_for_completion(data, &data->bl_completion,
-						MXT_RESET_TIMEOUT);
-		if (error)
-			return error;
-		data->in_bootloader = false;
-	}
-
 	disable_irq(client->irq);
+
+	if (data->reset_gpio) {
+		msleep(MXT_RESET_GPIO_TIME);
+		gpiod_set_value(data->reset_gpio, 1);
+		msleep(MXT_RESET_INVALID_CHG);
+	}
 
 	error = mxt_initialize(data);
 	if (error)

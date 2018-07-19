@@ -123,10 +123,4 @@
 #define TM_QW3_NSR_I		PPC_BIT8(2)
 #define TM_QW3_NSR_GRP_LVL	PPC_BIT8(3,7)
 
-/* Utilities to manipulate these (originaly from OPAL) */
-#define MASK_TO_LSH(m)		(__builtin_ffsl(m) - 1)
-#define GETFIELD(m, v)		(((v) & (m)) >> MASK_TO_LSH(m))
-#define SETFIELD(m, v, val)				\
-	(((v) & ~(m)) |	((((typeof(v))(val)) << MASK_TO_LSH(m)) & (m)))
-
 #endif /* _ASM_POWERPC_XIVE_REGS_H */

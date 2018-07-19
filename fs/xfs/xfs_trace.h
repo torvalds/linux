@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2009, Christoph Hellwig
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM xfs
@@ -441,8 +429,7 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__field(unsigned, bli_recur)
 		__field(int, bli_refcount)
 		__field(unsigned, bli_flags)
-		__field(void *, li_desc)
-		__field(unsigned, li_flags)
+		__field(unsigned long, li_flags)
 	),
 	TP_fast_assign(
 		__entry->dev = bip->bli_buf->b_target->bt_dev;
@@ -455,12 +442,11 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__entry->buf_hold = atomic_read(&bip->bli_buf->b_hold);
 		__entry->buf_pincount = atomic_read(&bip->bli_buf->b_pin_count);
 		__entry->buf_lockval = bip->bli_buf->b_sema.count;
-		__entry->li_desc = bip->bli_item.li_desc;
 		__entry->li_flags = bip->bli_item.li_flags;
 	),
 	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
 		  "lock %d flags %s recur %d refcount %d bliflags %s "
-		  "lidesc %p liflags %s",
+		  "liflags %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->buf_bno,
 		  __entry->buf_len,
@@ -471,7 +457,6 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		  __entry->bli_recur,
 		  __entry->bli_refcount,
 		  __print_flags(__entry->bli_flags, "|", XFS_BLI_FLAGS),
-		  __entry->li_desc,
 		  __print_flags(__entry->li_flags, "|", XFS_LI_FLAGS))
 )
 
@@ -1018,7 +1003,7 @@ DECLARE_EVENT_CLASS(xfs_log_item_class,
 		__field(dev_t, dev)
 		__field(void *, lip)
 		__field(uint, type)
-		__field(uint, flags)
+		__field(unsigned long, flags)
 		__field(xfs_lsn_t, lsn)
 	),
 	TP_fast_assign(
@@ -1070,7 +1055,7 @@ DECLARE_EVENT_CLASS(xfs_ail_class,
 		__field(dev_t, dev)
 		__field(void *, lip)
 		__field(uint, type)
-		__field(uint, flags)
+		__field(unsigned long, flags)
 		__field(xfs_lsn_t, old_lsn)
 		__field(xfs_lsn_t, new_lsn)
 	),
@@ -1750,6 +1735,7 @@ DECLARE_EVENT_CLASS(xfs_attr_class,
 		__field(int, namelen)
 		__field(int, valuelen)
 		__field(xfs_dahash_t, hashval)
+		__field(int, flags)
 		__field(int, op_flags)
 	),
 	TP_fast_assign(
@@ -1760,10 +1746,11 @@ DECLARE_EVENT_CLASS(xfs_attr_class,
 		__entry->namelen = args->namelen;
 		__entry->valuelen = args->valuelen;
 		__entry->hashval = args->hashval;
+		__entry->flags = args->flags;
 		__entry->op_flags = args->op_flags;
 	),
 	TP_printk("dev %d:%d ino 0x%llx name %.*s namelen %d valuelen %d "
-		  "hashval 0x%x op_flags %s",
+		  "hashval 0x%x flags %s op_flags %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->namelen,
@@ -1771,6 +1758,7 @@ DECLARE_EVENT_CLASS(xfs_attr_class,
 		  __entry->namelen,
 		  __entry->valuelen,
 		  __entry->hashval,
+		  __print_flags(__entry->flags, "|", XFS_ATTR_FLAGS),
 		  __print_flags(__entry->op_flags, "|", XFS_DA_OP_FLAGS))
 )
 
@@ -2243,30 +2231,35 @@ struct xfs_defer_pending;
 struct xfs_defer_ops;
 
 DECLARE_EVENT_CLASS(xfs_defer_class,
-	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop),
-	TP_ARGS(mp, dop),
+	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop,
+		 unsigned long caller_ip),
+	TP_ARGS(mp, dop, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(void *, dop)
 		__field(char, committed)
 		__field(char, low)
+		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
 		__entry->dop = dop;
 		__entry->committed = dop->dop_committed;
 		__entry->low = dop->dop_low;
+		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ops %p committed %d low %d",
+	TP_printk("dev %d:%d ops %p committed %d low %d, caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->dop,
 		  __entry->committed,
-		  __entry->low)
+		  __entry->low,
+		  (char *)__entry->caller_ip)
 )
 #define DEFINE_DEFER_EVENT(name) \
 DEFINE_EVENT(xfs_defer_class, name, \
-	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop), \
-	TP_ARGS(mp, dop))
+	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop, \
+		 unsigned long caller_ip), \
+	TP_ARGS(mp, dop, caller_ip))
 
 DECLARE_EVENT_CLASS(xfs_defer_error_class,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop, int error),
@@ -2433,6 +2426,8 @@ DEFINE_DEFER_PENDING_EVENT(xfs_defer_pending_abort);
 #define DEFINE_BMAP_FREE_DEFERRED_EVENT DEFINE_PHYS_EXTENT_DEFERRED_EVENT
 DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_bmap_free_defer);
 DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_bmap_free_deferred);
+DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_agfl_free_defer);
+DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_agfl_free_deferred);
 
 /* rmap tracepoints */
 DECLARE_EVENT_CLASS(xfs_rmap_class,
@@ -3345,6 +3340,43 @@ TRACE_EVENT(xfs_trans_resv_calc,
 		  __entry->logcount,
 		  __entry->logflags)
 );
+
+DECLARE_EVENT_CLASS(xfs_trans_class,
+	TP_PROTO(struct xfs_trans *tp, unsigned long caller_ip),
+	TP_ARGS(tp, caller_ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(uint32_t, tid)
+		__field(uint32_t, flags)
+		__field(unsigned long, caller_ip)
+	),
+	TP_fast_assign(
+		__entry->dev = tp->t_mountp->m_super->s_dev;
+		__entry->tid = 0;
+		if (tp->t_ticket)
+			__entry->tid = tp->t_ticket->t_tid;
+		__entry->flags = tp->t_flags;
+		__entry->caller_ip = caller_ip;
+	),
+	TP_printk("dev %d:%d trans %x flags 0x%x caller %pS",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->tid,
+		  __entry->flags,
+		  (char *)__entry->caller_ip)
+)
+
+#define DEFINE_TRANS_EVENT(name) \
+DEFINE_EVENT(xfs_trans_class, name, \
+	TP_PROTO(struct xfs_trans *tp, unsigned long caller_ip), \
+	TP_ARGS(tp, caller_ip))
+DEFINE_TRANS_EVENT(xfs_trans_alloc);
+DEFINE_TRANS_EVENT(xfs_trans_cancel);
+DEFINE_TRANS_EVENT(xfs_trans_commit);
+DEFINE_TRANS_EVENT(xfs_trans_dup);
+DEFINE_TRANS_EVENT(xfs_trans_free);
+DEFINE_TRANS_EVENT(xfs_trans_roll);
+DEFINE_TRANS_EVENT(xfs_trans_add_item);
+DEFINE_TRANS_EVENT(xfs_trans_free_items);
 
 #endif /* _TRACE_XFS_H */
 

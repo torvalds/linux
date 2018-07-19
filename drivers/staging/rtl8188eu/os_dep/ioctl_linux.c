@@ -129,7 +129,7 @@ static char *translate_scan(struct adapter *padapter,
 	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.Ssid.Ssid);
 
 	/* parsing HT_CAP_IE */
-	p = rtw_get_ie(&pnetwork->network.IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, pnetwork->network.IELength-12);
+	p = rtw_get_ie(&pnetwork->network.ies[12], _HT_CAPABILITY_IE_, &ht_ielen, pnetwork->network.ie_length-12);
 
 	if (p && ht_ielen > 0) {
 		struct ieee80211_ht_cap *pht_capie;
@@ -174,7 +174,7 @@ static char *translate_scan(struct adapter *padapter,
 
 	  /* Add mode */
 	iwe.cmd = SIOCGIWMODE;
-	memcpy(&le_tmp, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);
+	memcpy(&le_tmp, rtw_get_capability_from_ie(pnetwork->network.ies), 2);
 
 	cap = le16_to_cpu(le_tmp);
 
@@ -243,7 +243,7 @@ static char *translate_scan(struct adapter *padapter,
 		u16 wpa_len = 0, rsn_len = 0;
 		u8 *p;
 
-		rtw_get_sec_ie(pnetwork->network.IEs, pnetwork->network.IELength, rsn_ie, &rsn_len, wpa_ie, &wpa_len);
+		rtw_get_sec_ie(pnetwork->network.ies, pnetwork->network.ie_length, rsn_ie, &rsn_len, wpa_ie, &wpa_len);
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_wx_get_scan: ssid =%s\n", pnetwork->network.Ssid.Ssid));
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_wx_get_scan: wpa_len =%d rsn_len =%d\n", wpa_len, rsn_len));
 
@@ -286,9 +286,9 @@ static char *translate_scan(struct adapter *padapter,
 		uint cnt = 0, total_ielen;
 		u8 *wpsie_ptr = NULL;
 		uint wps_ielen = 0;
-		u8 *ie_ptr = pnetwork->network.IEs + _FIXED_IE_LENGTH_;
+		u8 *ie_ptr = pnetwork->network.ies + _FIXED_IE_LENGTH_;
 
-		total_ielen = pnetwork->network.IELength - _FIXED_IE_LENGTH_;
+		total_ielen = pnetwork->network.ie_length - _FIXED_IE_LENGTH_;
 
 		while (cnt < total_ielen) {
 			if (rtw_is_wps_ie(&ie_ptr[cnt], &wps_ielen) && (wps_ielen > 2)) {
@@ -644,7 +644,7 @@ static int rtw_wx_get_name(struct net_device *dev,
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE) == true) {
 		/* parsing HT_CAP_IE */
-		p = rtw_get_ie(&pcur_bss->IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, pcur_bss->IELength-12);
+		p = rtw_get_ie(&pcur_bss->ies[12], _HT_CAPABILITY_IE_, &ht_ielen, pcur_bss->ie_length-12);
 		if (p && ht_ielen > 0)
 			ht_cap = true;
 

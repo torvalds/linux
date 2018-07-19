@@ -125,9 +125,8 @@ enum {
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
 	LIBATA_DUMB_MAX_PRD	= ATA_MAX_PRD / 4,	/* Worst case */
 	ATA_DEF_QUEUE		= 1,
-	/* tag ATA_MAX_QUEUE - 1 is reserved for internal commands */
 	ATA_MAX_QUEUE		= 32,
-	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE - 1,
+	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE,
 	ATA_SHORT_PAUSE		= 16,
 
 	ATAPI_MAX_DRAIN		= 16 << 10,
@@ -211,6 +210,7 @@ enum {
 	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
 					    /* (doesn't imply presence) */
 	ATA_FLAG_SATA		= (1 << 1),
+	ATA_FLAG_NO_LPM		= (1 << 2), /* host not happy with LPM */
 	ATA_FLAG_NO_LOG_PAGE	= (1 << 5), /* do not issue log page read */
 	ATA_FLAG_NO_ATAPI	= (1 << 6), /* No ATAPI support */
 	ATA_FLAG_PIO_DMA	= (1 << 7), /* PIO cmds via DMA */
@@ -637,7 +637,8 @@ struct ata_queued_cmd {
 	u8			cdb[ATAPI_CDB_LEN];
 
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
-	unsigned int		tag;
+	unsigned int		tag;		/* libata core tag */
+	unsigned int		hw_tag;		/* driver tag */
 	unsigned int		n_elem;
 	unsigned int		orig_n_elem;
 
@@ -849,9 +850,9 @@ struct ata_port {
 	unsigned int		udma_mask;
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 
-	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE];
+	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE + 1];
 	unsigned long		sas_tag_allocated; /* for sas tag allocation only */
-	unsigned int		qc_active;
+	u64			qc_active;
 	int			nr_active_links; /* #links with active qcs */
 	unsigned int		sas_last_tag;	/* track next tag hw expects */
 
@@ -1130,10 +1131,11 @@ extern void ata_sas_async_probe(struct ata_port *ap);
 extern int ata_sas_sync_probe(struct ata_port *ap);
 extern int ata_sas_port_init(struct ata_port *);
 extern int ata_sas_port_start(struct ata_port *ap);
+extern int ata_sas_tport_add(struct device *parent, struct ata_port *ap);
+extern void ata_sas_tport_delete(struct ata_port *ap);
 extern void ata_sas_port_stop(struct ata_port *ap);
 extern int ata_sas_slave_configure(struct scsi_device *, struct ata_port *);
 extern int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap);
-extern enum blk_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd);
 extern int sata_scr_valid(struct ata_link *link);
 extern int sata_scr_read(struct ata_link *link, int reg, u32 *val);
 extern int sata_scr_write(struct ata_link *link, int reg, u32 val);
@@ -1184,7 +1186,7 @@ extern void ata_id_c_string(const u16 *id, unsigned char *s,
 extern unsigned int ata_do_dev_read_id(struct ata_device *dev,
 					struct ata_taskfile *tf, u16 *id);
 extern void ata_qc_complete(struct ata_queued_cmd *qc);
-extern int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active);
+extern int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active);
 extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd);
 extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
@@ -1359,7 +1361,6 @@ extern struct device_attribute *ata_common_sdev_attrs[];
 	.proc_name		= drv_name,			\
 	.slave_configure	= ata_scsi_slave_config,	\
 	.slave_destroy		= ata_scsi_slave_destroy,	\
-	.eh_timed_out		= ata_scsi_timed_out,		\
 	.bios_param		= ata_std_bios_param,		\
 	.unlock_native_capacity	= ata_scsi_unlock_native_capacity, \
 	.sdev_attrs		= ata_common_sdev_attrs
@@ -1485,15 +1486,38 @@ extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 			       const char *name);
 #endif
 
-static inline unsigned int ata_tag_valid(unsigned int tag)
-{
-	return (tag < ATA_MAX_QUEUE) ? 1 : 0;
-}
-
-static inline unsigned int ata_tag_internal(unsigned int tag)
+static inline bool ata_tag_internal(unsigned int tag)
 {
 	return tag == ATA_TAG_INTERNAL;
 }
+
+static inline bool ata_tag_valid(unsigned int tag)
+{
+	return tag < ATA_MAX_QUEUE || ata_tag_internal(tag);
+}
+
+#define __ata_qc_for_each(ap, qc, tag, max_tag, fn)		\
+	for ((tag) = 0; (tag) < (max_tag) &&			\
+	     ({ qc = fn((ap), (tag)); 1; }); (tag)++)		\
+
+/*
+ * Internal use only, iterate commands ignoring error handling and
+ * status of 'qc'.
+ */
+#define ata_qc_for_each_raw(ap, qc, tag)					\
+	__ata_qc_for_each(ap, qc, tag, ATA_MAX_QUEUE, __ata_qc_from_tag)
+
+/*
+ * Iterate all potential commands that can be queued
+ */
+#define ata_qc_for_each(ap, qc, tag)					\
+	__ata_qc_for_each(ap, qc, tag, ATA_MAX_QUEUE, ata_qc_from_tag)
+
+/*
+ * Like ata_qc_for_each, but with the internal tag included
+ */
+#define ata_qc_for_each_with_internal(ap, qc, tag)			\
+	__ata_qc_for_each(ap, qc, tag, ATA_MAX_QUEUE + 1, ata_qc_from_tag)
 
 /*
  * device helpers
@@ -1655,7 +1679,7 @@ static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 static inline struct ata_queued_cmd *__ata_qc_from_tag(struct ata_port *ap,
 						       unsigned int tag)
 {
-	if (likely(ata_tag_valid(tag)))
+	if (ata_tag_valid(tag))
 		return &ap->qcmd[tag];
 	return NULL;
 }

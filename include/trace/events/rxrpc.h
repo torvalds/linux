@@ -1459,6 +1459,38 @@ TRACE_EVENT(rxrpc_tx_fail,
 		      __print_symbolic(__entry->what, rxrpc_tx_fail_traces))
 	    );
 
+TRACE_EVENT(rxrpc_call_reset,
+	    TP_PROTO(struct rxrpc_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		debug_id	)
+		    __field(u32,			cid		)
+		    __field(u32,			call_id		)
+		    __field(rxrpc_serial_t,		call_serial	)
+		    __field(rxrpc_serial_t,		conn_serial	)
+		    __field(rxrpc_seq_t,		tx_seq		)
+		    __field(rxrpc_seq_t,		rx_seq		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->debug_id = call->debug_id;
+		    __entry->cid = call->cid;
+		    __entry->call_id = call->call_id;
+		    __entry->call_serial = call->rx_serial;
+		    __entry->conn_serial = call->conn->hi_serial;
+		    __entry->tx_seq = call->tx_hard_ack;
+		    __entry->rx_seq = call->ackr_seen;
+			   ),
+
+	    TP_printk("c=%08x %08x:%08x r=%08x/%08x tx=%08x rx=%08x",
+		      __entry->debug_id,
+		      __entry->cid, __entry->call_id,
+		      __entry->call_serial, __entry->conn_serial,
+		      __entry->tx_seq, __entry->rx_seq)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

@@ -635,6 +635,7 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 	siginfo_t info;
 	void __user *pc = (void __user *)instruction_pointer(regs);
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code  = ILL_ILLOPC;

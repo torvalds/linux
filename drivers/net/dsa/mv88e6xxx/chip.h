@@ -21,10 +21,6 @@
 #include <linux/timecounter.h>
 #include <net/dsa.h>
 
-#ifndef UINT64_MAX
-#define UINT64_MAX		(u64)(~((u64)0))
-#endif
-
 #define SMI_CMD			0x00
 #define SMI_CMD_BUSY		BIT(15)
 #define SMI_CMD_CLAUSE_22	BIT(12)
@@ -242,7 +238,7 @@ struct mv88e6xxx_chip {
 	struct gpio_desc *reset;
 
 	/* set to size of eeprom if supported by the switch */
-	int		eeprom_len;
+	u32 eeprom_len;
 
 	/* List of mdio busses */
 	struct list_head mdios;
@@ -298,6 +294,9 @@ struct mv88e6xxx_mdio_bus {
 };
 
 struct mv88e6xxx_ops {
+	int (*ieee_pri_map)(struct mv88e6xxx_chip *chip);
+	int (*ip_pri_map)(struct mv88e6xxx_chip *chip);
+
 	/* Ingress Rate Limit unit (IRL) operations */
 	int (*irl_init_all)(struct mv88e6xxx_chip *chip, int port);
 
@@ -406,6 +405,12 @@ struct mv88e6xxx_ops {
 			       uint64_t *data);
 	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+
+#define MV88E6XXX_CASCADE_PORT_NONE		0xe
+#define MV88E6XXX_CASCADE_PORT_MULTIPLE		0xf
+
+	int (*set_cascade_port)(struct mv88e6xxx_chip *chip, int port);
+
 	const struct mv88e6xxx_irq_ops *watchdog_ops;
 
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
@@ -431,6 +436,9 @@ struct mv88e6xxx_ops {
 
 	/* Interface to the AVB/PTP registers */
 	const struct mv88e6xxx_avb_ops *avb_ops;
+
+	/* Remote Management Unit operations */
+	int (*rmu_disable)(struct mv88e6xxx_chip *chip);
 };
 
 struct mv88e6xxx_irq_ops {

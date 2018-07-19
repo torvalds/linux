@@ -164,12 +164,11 @@ struct dwc2_hsotg_req;
  *       and has yet to be completed (maybe due to data move, or simply
  *       awaiting an ack from the core all the data has been completed).
  * @debugfs: File entry for debugfs file for this endpoint.
- * @lock: State lock to protect contents of endpoint.
  * @dir_in: Set to true if this endpoint is of the IN direction, which
  *          means that it is sending data to the Host.
  * @index: The index for the endpoint registers.
  * @mc: Multi Count - number of transactions per microframe
- * @interval - Interval for periodic endpoints, in frames or microframes.
+ * @interval: Interval for periodic endpoints, in frames or microframes.
  * @name: The name array passed to the USB core.
  * @halted: Set if the endpoint has been halted.
  * @periodic: Set if this is a periodic ep, such as Interrupt
@@ -178,10 +177,11 @@ struct dwc2_hsotg_req;
  * @desc_list_dma: The DMA address of descriptor chain currently in use.
  * @desc_list: Pointer to descriptor DMA chain head currently in use.
  * @desc_count: Count of entries within the DMA descriptor chain of EP.
- * @isoc_chain_num: Number of ISOC chain currently in use - either 0 or 1.
  * @next_desc: index of next free descriptor in the ISOC chain under SW control.
+ * @compl_desc: index of next descriptor to be completed by xFerComplete
  * @total_data: The total number of data bytes done.
  * @fifo_size: The size of the FIFO (for periodic IN endpoints)
+ * @fifo_index: For Dedicated FIFO operation, only FIFO0 can be used for EP0.
  * @fifo_load: The amount of data loaded into the FIFO (periodic IN)
  * @last_load: The offset of data for the last start of request.
  * @size_loaded: The last loaded size for DxEPTSIZE for periodic IN
@@ -231,8 +231,8 @@ struct dwc2_hsotg_ep {
 	struct dwc2_dma_desc	*desc_list;
 	u8			desc_count;
 
-	unsigned char		isoc_chain_num;
 	unsigned int		next_desc;
+	unsigned int		compl_desc;
 
 	char                    name[10];
 };
@@ -380,6 +380,12 @@ enum dwc2_ep0_state {
  *                      is FS.
  *                       0 - No (default)
  *                       1 - Yes
+ * @ipg_isoc_en:        Indicates the IPG supports is enabled or disabled.
+ *                       0 - Disable (default)
+ *                       1 - Enable
+ * @acg_enable:		For enabling Active Clock Gating in the controller
+ *                       0 - No
+ *                       1 - Yes
  * @ulpi_fs_ls:         Make ULPI phy operate in FS/LS mode only
  *                       0 - No (default)
  *                       1 - Yes
@@ -511,6 +517,7 @@ struct dwc2_core_params {
 	bool hird_threshold_en;
 	u8 hird_threshold;
 	bool activate_stm_fs_transceiver;
+	bool ipg_isoc_en;
 	u16 max_packet_count;
 	u32 max_transfer_size;
 	u32 ahbcfg;
@@ -548,7 +555,7 @@ struct dwc2_core_params {
  *
  * The values that are not in dwc2_core_params are documented below.
  *
- * @op_mode             Mode of Operation
+ * @op_mode:             Mode of Operation
  *                       0 - HNP- and SRP-Capable OTG (Host & Device)
  *                       1 - SRP-Capable OTG (Host & Device)
  *                       2 - Non-HNP and Non-SRP Capable OTG (Host & Device)
@@ -556,43 +563,102 @@ struct dwc2_core_params {
  *                       4 - Non-OTG Device
  *                       5 - SRP-Capable Host
  *                       6 - Non-OTG Host
- * @arch                Architecture
+ * @arch:                Architecture
  *                       0 - Slave only
  *                       1 - External DMA
  *                       2 - Internal DMA
- * @power_optimized     Are power optimizations enabled?
- * @num_dev_ep          Number of device endpoints available
- * @num_dev_in_eps      Number of device IN endpoints available
- * @num_dev_perio_in_ep Number of device periodic IN endpoints
- *                      available
- * @dev_token_q_depth   Device Mode IN Token Sequence Learning Queue
+ * @ipg_isoc_en:        This feature indicates that the controller supports
+ *                      the worst-case scenario of Rx followed by Rx
+ *                      Interpacket Gap (IPG) (32 bitTimes) as per the utmi
+ *                      specification for any token following ISOC OUT token.
+ *                       0 - Don't support
+ *                       1 - Support
+ * @power_optimized:    Are power optimizations enabled?
+ * @num_dev_ep:         Number of device endpoints available
+ * @num_dev_in_eps:     Number of device IN endpoints available
+ * @num_dev_perio_in_ep: Number of device periodic IN endpoints
+ *                       available
+ * @dev_token_q_depth:  Device Mode IN Token Sequence Learning Queue
  *                      Depth
  *                       0 to 30
- * @host_perio_tx_q_depth
+ * @host_perio_tx_q_depth:
  *                      Host Mode Periodic Request Queue Depth
  *                       2, 4 or 8
- * @nperio_tx_q_depth
+ * @nperio_tx_q_depth:
  *                      Non-Periodic Request Queue Depth
  *                       2, 4 or 8
- * @hs_phy_type         High-speed PHY interface type
+ * @hs_phy_type:         High-speed PHY interface type
  *                       0 - High-speed interface not supported
  *                       1 - UTMI+
  *                       2 - ULPI
  *                       3 - UTMI+ and ULPI
- * @fs_phy_type         Full-speed PHY interface type
+ * @fs_phy_type:         Full-speed PHY interface type
  *                       0 - Full speed interface not supported
  *                       1 - Dedicated full speed interface
  *                       2 - FS pins shared with UTMI+ pins
  *                       3 - FS pins shared with ULPI pins
  * @total_fifo_size:    Total internal RAM for FIFOs (bytes)
- * @hibernation		Is hibernation enabled?
- * @utmi_phy_data_width UTMI+ PHY data width
+ * @hibernation:	Is hibernation enabled?
+ * @utmi_phy_data_width: UTMI+ PHY data width
  *                       0 - 8 bits
  *                       1 - 16 bits
  *                       2 - 8 or 16 bits
  * @snpsid:             Value from SNPSID register
  * @dev_ep_dirs:        Direction of device endpoints (GHWCFG1)
- * @g_tx_fifo_size[]	Power-on values of TxFIFO sizes
+ * @g_tx_fifo_size:	Power-on values of TxFIFO sizes
+ * @dma_desc_enable:    When DMA mode is enabled, specifies whether to use
+ *                      address DMA mode or descriptor DMA mode for accessing
+ *                      the data FIFOs. The driver will automatically detect the
+ *                      value for this if none is specified.
+ *                       0 - Address DMA
+ *                       1 - Descriptor DMA (default, if available)
+ * @enable_dynamic_fifo: 0 - Use coreConsultant-specified FIFO size parameters
+ *                       1 - Allow dynamic FIFO sizing (default, if available)
+ * @en_multiple_tx_fifo: Specifies whether dedicated per-endpoint transmit FIFOs
+ *                      are enabled for non-periodic IN endpoints in device
+ *                      mode.
+ * @host_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
+ *                      in host mode when dynamic FIFO sizing is enabled
+ *                       16 to 32768
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
+ * @host_perio_tx_fifo_size: Number of 4-byte words in the periodic Tx FIFO in
+ *                      host mode when dynamic FIFO sizing is enabled
+ *                       16 to 32768
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
+ * @max_transfer_size:  The maximum transfer size supported, in bytes
+ *                       2047 to 65,535
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
+ * @max_packet_count:   The maximum number of packets in a transfer
+ *                       15 to 511
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
+ * @host_channels:      The number of host channel registers to use
+ *                       1 to 16
+ *                      Actual maximum value is autodetected and also
+ *                      the default.
+ * @dev_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
+ *			     in device mode when dynamic FIFO sizing is enabled
+ *			     16 to 32768
+ *			     Actual maximum value is autodetected and also
+ *			     the default.
+ * @i2c_enable:         Specifies whether to use the I2Cinterface for a full
+ *                      speed PHY. This parameter is only applicable if phy_type
+ *                      is FS.
+ *                       0 - No (default)
+ *                       1 - Yes
+ * @acg_enable:		For enabling Active Clock Gating in the controller
+ *                       0 - Disable
+ *                       1 - Enable
+ * @lpm_mode:		For enabling Link Power Management in the controller
+ *                       0 - Disable
+ *                       1 - Enable
+ * @rx_fifo_size:	Number of 4-byte words in the  Rx FIFO when dynamic
+ *			FIFO sizing is enabled 16 to 32768
+ *			Actual maximum value is autodetected and also
+ *			the default.
  */
 struct dwc2_hw_params {
 	unsigned op_mode:3;
@@ -622,6 +688,7 @@ struct dwc2_hw_params {
 	unsigned hibernation:1;
 	unsigned utmi_phy_data_width:2;
 	unsigned lpm_mode:1;
+	unsigned ipg_isoc_en:1;
 	u32 snpsid;
 	u32 dev_ep_dirs;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
@@ -642,7 +709,11 @@ struct dwc2_hw_params {
  * @gi2cctl:		Backup of GI2CCTL register
  * @glpmcfg:		Backup of GLPMCFG register
  * @gdfifocfg:		Backup of GDFIFOCFG register
+ * @pcgcctl:		Backup of PCGCCTL register
+ * @pcgcctl1:		Backup of PCGCCTL1 register
+ * @dtxfsiz:		Backup of DTXFSIZ registers for each endpoint
  * @gpwrdn:		Backup of GPWRDN register
+ * @valid:		True if registers values backuped.
  */
 struct dwc2_gregs_backup {
 	u32 gotgctl;
@@ -675,6 +746,7 @@ struct dwc2_gregs_backup {
  * @doeptsiz:		Backup of DOEPTSIZ register
  * @doepdma:		Backup of DOEPDMA register
  * @dtxfsiz:		Backup of DTXFSIZ registers for each endpoint
+ * @valid:      True if registers values backuped.
  */
 struct dwc2_dregs_backup {
 	u32 dcfg;
@@ -698,9 +770,10 @@ struct dwc2_dregs_backup {
  * @hcfg:		Backup of HCFG register
  * @haintmsk:		Backup of HAINTMSK register
  * @hcintmsk:		Backup of HCINTMSK register
- * @hptr0:		Backup of HPTR0 register
+ * @hprt0:		Backup of HPTR0 register
  * @hfir:		Backup of HFIR register
  * @hptxfsiz:		Backup of HPTXFSIZ register
+ * @valid:      True if registers values backuped.
  */
 struct dwc2_hregs_backup {
 	u32 hcfg;
@@ -800,7 +873,7 @@ struct dwc2_hregs_backup {
  * @regs:		Pointer to controller regs
  * @hw_params:          Parameters that were autodetected from the
  *                      hardware registers
- * @core_params:	Parameters that define how the core should be configured
+ * @params:	Parameters that define how the core should be configured
  * @op_state:           The operational State, during transitions (a_host=>
  *                      a_peripheral and b_device=>b_host) this may not match
  *                      the core, but allows the software to determine
@@ -809,10 +882,13 @@ struct dwc2_hregs_backup {
  *                      - USB_DR_MODE_PERIPHERAL
  *                      - USB_DR_MODE_HOST
  *                      - USB_DR_MODE_OTG
- * @hcd_enabled		Host mode sub-driver initialization indicator.
- * @gadget_enabled	Peripheral mode sub-driver initialization indicator.
- * @ll_hw_enabled	Status of low-level hardware resources.
+ * @hcd_enabled:	Host mode sub-driver initialization indicator.
+ * @gadget_enabled:	Peripheral mode sub-driver initialization indicator.
+ * @ll_hw_enabled:	Status of low-level hardware resources.
  * @hibernated:		True if core is hibernated
+ * @frame_number:       Frame number read from the core. For both device
+ *			and host modes. The value ranges are from 0
+ *			to HFNUM_MAX_FRNUM.
  * @phy:                The otg phy transceiver structure for phy control.
  * @uphy:               The otg phy transceiver structure for old USB phy
  *                      control.
@@ -832,13 +908,25 @@ struct dwc2_hregs_backup {
  *                      interrupt
  * @wkp_timer:          Timer object for handling Wakeup Detected interrupt
  * @lx_state:           Lx state of connected device
- * @gregs_backup: Backup of global registers during suspend
- * @dregs_backup: Backup of device registers during suspend
- * @hregs_backup: Backup of host registers during suspend
+ * @gr_backup: Backup of global registers during suspend
+ * @dr_backup: Backup of device registers during suspend
+ * @hr_backup: Backup of host registers during suspend
  *
  * These are for host mode:
  *
  * @flags:              Flags for handling root port state changes
+ * @flags.d32:          Contain all root port flags
+ * @flags.b:            Separate root port flags from each other
+ * @flags.b.port_connect_status_change: True if root port connect status
+ *                      changed
+ * @flags.b.port_connect_status: True if device connected to root port
+ * @flags.b.port_reset_change: True if root port reset status changed
+ * @flags.b.port_enable_change: True if root port enable status changed
+ * @flags.b.port_suspend_change: True if root port suspend status changed
+ * @flags.b.port_over_current_change: True if root port over current state
+ *                       changed.
+ * @flags.b.port_l1_change: True if root port l1 status changed
+ * @flags.b.reserved:   Reserved bits of root port register
  * @non_periodic_sched_inactive: Inactive QHs in the non-periodic schedule.
  *                      Transfers associated with these QHs are not currently
  *                      assigned to a host channel.
@@ -847,6 +935,9 @@ struct dwc2_hregs_backup {
  *                      assigned to a host channel.
  * @non_periodic_qh_ptr: Pointer to next QH to process in the active
  *                      non-periodic schedule
+ * @non_periodic_sched_waiting: Waiting QHs in the non-periodic schedule.
+ *                      Transfers associated with these QHs are not currently
+ *                      assigned to a host channel.
  * @periodic_sched_inactive: Inactive QHs in the periodic schedule. This is a
  *                      list of QHs for periodic transfers that are _not_
  *                      scheduled for the next frame. Each QH in the list has an
@@ -886,8 +977,6 @@ struct dwc2_hregs_backup {
  * @hs_periodic_bitmap: Bitmap used by the microframe scheduler any time the
  *                      host is in high speed mode; low speed schedules are
  *                      stored elsewhere since we need one per TT.
- * @frame_number:       Frame number read from the core at SOF. The value ranges
- *                      from 0 to HFNUM_MAX_FRNUM.
  * @periodic_qh_count:  Count of periodic QHs, if using several eps. Used for
  *                      SOF enable/disable.
  * @free_hc_list:       Free host channels in the controller. This is a list of
@@ -898,8 +987,8 @@ struct dwc2_hregs_backup {
  *                      host channel is available for non-periodic transactions.
  * @non_periodic_channels: Number of host channels assigned to non-periodic
  *                      transfers
- * @available_host_channels Number of host channels available for the microframe
- *                      scheduler to use
+ * @available_host_channels: Number of host channels available for the
+ *			     microframe scheduler to use
  * @hc_ptr_array:       Array of pointers to the host channel descriptors.
  *                      Allows accessing a host channel descriptor given the
  *                      host channel number. This is useful in interrupt
@@ -915,6 +1004,7 @@ struct dwc2_hregs_backup {
  * @frame_list_sz:      Frame list size
  * @desc_gen_cache:     Kmem cache for generic descriptors
  * @desc_hsisoc_cache:  Kmem cache for hs isochronous descriptors
+ * @unaligned_cache:    Kmem cache for DMA mode to handle non-aligned buf
  *
  * These are for peripheral mode:
  *
@@ -922,9 +1012,6 @@ struct dwc2_hregs_backup {
  * @dedicated_fifos:    Set if the hardware has dedicated IN-EP fifos.
  * @num_of_eps:         Number of available EPs (excluding EP0)
  * @debug_root:         Root directrory for debugfs.
- * @debug_file:         Main status file for debugfs.
- * @debug_testmode:     Testmode status file for debugfs.
- * @debug_fifo:         FIFO status file for debugfs.
  * @ep0_reply:          Request used for ep0 reply.
  * @ep0_buff:           Buffer for EP0 reply data, if needed.
  * @ctrl_buff:          Buffer for EP0 control requests.
@@ -939,7 +1026,37 @@ struct dwc2_hregs_backup {
  * @ctrl_in_desc:	EP0 IN data phase desc chain pointer
  * @ctrl_out_desc_dma:	EP0 OUT data phase desc chain DMA address
  * @ctrl_out_desc:	EP0 OUT data phase desc chain pointer
- * @eps:                The endpoints being supplied to the gadget framework
+ * @irq:		Interrupt request line number
+ * @clk:		Pointer to otg clock
+ * @reset:		Pointer to dwc2 reset controller
+ * @reset_ecc:          Pointer to dwc2 optional reset controller in Stratix10.
+ * @regset:		A pointer to a struct debugfs_regset32, which contains
+ *			a pointer to an array of register definitions, the
+ *			array size and the base address where the register bank
+ *			is to be found.
+ * @bus_suspended:	True if bus is suspended
+ * @last_frame_num:	Number of last frame. Range from 0 to  32768
+ * @frame_num_array:    Used only  if CONFIG_USB_DWC2_TRACK_MISSED_SOFS is
+ *			defined, for missed SOFs tracking. Array holds that
+ *			frame numbers, which not equal to last_frame_num +1
+ * @last_frame_num_array:   Used only  if CONFIG_USB_DWC2_TRACK_MISSED_SOFS is
+ *			    defined, for missed SOFs tracking.
+ *			    If current_frame_number != last_frame_num+1
+ *			    then last_frame_num added to this array
+ * @frame_num_idx:	Actual size of frame_num_array and last_frame_num_array
+ * @dumped_frame_num_array:	1 - if missed SOFs frame numbers dumbed
+ *				0 - if missed SOFs frame numbers not dumbed
+ * @fifo_mem:			Total internal RAM for FIFOs (bytes)
+ * @fifo_map:		Each bit intend for concrete fifo. If that bit is set,
+ *			then that fifo is used
+ * @gadget:		Represents a usb slave device
+ * @connected:		Used in slave mode. True if device connected with host
+ * @eps_in:		The IN endpoints being supplied to the gadget framework
+ * @eps_out:		The OUT endpoints being supplied to the gadget framework
+ * @new_connection:	Used in host mode. True if there are new connected
+ *			device
+ * @enabled:		Indicates the enabling state of controller
+ *
  */
 struct dwc2_hsotg {
 	struct device *dev;
@@ -954,6 +1071,7 @@ struct dwc2_hsotg {
 	unsigned int gadget_enabled:1;
 	unsigned int ll_hw_enabled:1;
 	unsigned int hibernated:1;
+	u16 frame_number;
 
 	struct phy *phy;
 	struct usb_phy *uphy;
@@ -1029,7 +1147,6 @@ struct dwc2_hsotg {
 	u16 periodic_usecs;
 	unsigned long hs_periodic_bitmap[
 		DIV_ROUND_UP(DWC2_HS_SCHEDULE_US, BITS_PER_LONG)];
-	u16 frame_number;
 	u16 periodic_qh_count;
 	bool bus_suspended;
 	bool new_connection;
@@ -1061,6 +1178,8 @@ struct dwc2_hsotg {
 	u32 frame_list_sz;
 	struct kmem_cache *desc_gen_cache;
 	struct kmem_cache *desc_hsisoc_cache;
+	struct kmem_cache *unaligned_cache;
+#define DWC2_KMEM_UNALIGNED_BUF_SIZE 1024
 
 #endif /* CONFIG_USB_DWC2_HOST || CONFIG_USB_DWC2_DUAL_ROLE */
 

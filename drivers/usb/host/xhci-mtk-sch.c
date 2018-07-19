@@ -58,7 +58,7 @@ static int get_bw_index(struct xhci_hcd *xhci, struct usb_device *udev,
 			bw_index = (virt_dev->real_port - 1) * 2 + 1;
 	} else {
 		/* add one more for each SS port */
-		bw_index = virt_dev->real_port + xhci->num_usb3_ports - 1;
+		bw_index = virt_dev->real_port + xhci->usb3_rhub.num_ports - 1;
 	}
 
 	return bw_index;
@@ -284,7 +284,7 @@ int xhci_mtk_sch_init(struct xhci_hcd_mtk *mtk)
 	int i;
 
 	/* ss IN and OUT are separated */
-	num_usb_bus = xhci->num_usb3_ports * 2 + xhci->num_usb2_ports;
+	num_usb_bus = xhci->usb3_rhub.num_ports * 2 + xhci->usb2_rhub.num_ports;
 
 	sch_array = kcalloc(num_usb_bus, sizeof(*sch_array), GFP_KERNEL);
 	if (sch_array == NULL)

@@ -97,7 +97,7 @@ struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 	struct smc_clc_msg_local lcl;
 	u8 qpn[3];		/* QP number */
 	__be32 rmb_rkey;	/* RMB rkey */
-	u8 conn_idx;		/* Connection index, which RMBE in RMB */
+	u8 rmbe_idx;		/* Index of RMBE in RMB */
 	__be32 rmbe_alert_token;/* unique connection id */
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8 rmbe_size : 4,	/* RMBE buf size (compressed notation) */

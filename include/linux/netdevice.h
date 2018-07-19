@@ -791,6 +791,7 @@ enum tc_setup_type {
 	TC_SETUP_QDISC_CBS,
 	TC_SETUP_QDISC_RED,
 	TC_SETUP_QDISC_PRIO,
+	TC_SETUP_QDISC_MQ,
 };
 
 /* These structures hold the attributes of bpf state that are being passed
@@ -817,10 +818,13 @@ enum bpf_netdev_command {
 	BPF_OFFLOAD_DESTROY,
 	BPF_OFFLOAD_MAP_ALLOC,
 	BPF_OFFLOAD_MAP_FREE,
+	XDP_QUERY_XSK_UMEM,
+	XDP_SETUP_XSK_UMEM,
 };
 
 struct bpf_prog_offload_ops;
 struct netlink_ext_ack;
+struct xdp_umem;
 
 struct netdev_bpf {
 	enum bpf_netdev_command command;
@@ -851,6 +855,11 @@ struct netdev_bpf {
 		struct {
 			struct bpf_offloaded_map *offmap;
 		};
+		/* XDP_SETUP_XSK_UMEM */
+		struct {
+			struct xdp_umem *umem;
+			u16 queue_id;
+		} xsk;
 	};
 };
 
@@ -862,6 +871,26 @@ struct xfrmdev_ops {
 	bool	(*xdo_dev_offload_ok) (struct sk_buff *skb,
 				       struct xfrm_state *x);
 	void	(*xdo_dev_state_advance_esn) (struct xfrm_state *x);
+};
+#endif
+
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+enum tls_offload_ctx_dir {
+	TLS_OFFLOAD_CTX_DIR_RX,
+	TLS_OFFLOAD_CTX_DIR_TX,
+};
+
+struct tls_crypto_info;
+struct tls_context;
+
+struct tlsdev_ops {
+	int (*tls_dev_add)(struct net_device *netdev, struct sock *sk,
+			   enum tls_offload_ctx_dir direction,
+			   struct tls_crypto_info *crypto_info,
+			   u32 start_offload_tcp_sn);
+	void (*tls_dev_del)(struct net_device *netdev,
+			    struct tls_context *ctx,
+			    enum tls_offload_ctx_dir direction);
 };
 #endif
 
@@ -1165,12 +1194,13 @@ struct dev_ifalias {
  *	This function is used to set or query state related to XDP on the
  *	netdevice and manage BPF offload. See definition of
  *	enum bpf_netdev_command for details.
- * int (*ndo_xdp_xmit)(struct net_device *dev, struct xdp_buff *xdp);
- *	This function is used to submit a XDP packet for transmit on a
- *	netdevice.
- * void (*ndo_xdp_flush)(struct net_device *dev);
- *	This function is used to inform the driver to flush a particular
- *	xdp tx queue. Must be called on same CPU as xdp_xmit.
+ * int (*ndo_xdp_xmit)(struct net_device *dev, int n, struct xdp_frame **xdp,
+ *			u32 flags);
+ *	This function is used to submit @n XDP packets for transmit on a
+ *	netdevice. Returns number of frames successfully transmitted, frames
+ *	that got dropped are freed/returned via xdp_return_frame().
+ *	Returns negative number, means general error invoking ndo, meaning
+ *	no frames were xmit'ed and core-caller will free all frames.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1355,9 +1385,11 @@ struct net_device_ops {
 						       int needed_headroom);
 	int			(*ndo_bpf)(struct net_device *dev,
 					   struct netdev_bpf *bpf);
-	int			(*ndo_xdp_xmit)(struct net_device *dev,
-						struct xdp_buff *xdp);
-	void			(*ndo_xdp_flush)(struct net_device *dev);
+	int			(*ndo_xdp_xmit)(struct net_device *dev, int n,
+						struct xdp_frame **xdp,
+						u32 flags);
+	int			(*ndo_xsk_async_xmit)(struct net_device *dev,
+						      u32 queue_id);
 };
 
 /**
@@ -1401,6 +1433,8 @@ struct net_device_ops {
  *	entity (i.e. the master device for bridged veth)
  * @IFF_MACSEC: device is a MACsec device
  * @IFF_NO_RX_HANDLER: device doesn't support the rx_handler hook
+ * @IFF_FAILOVER: device is a failover master device
+ * @IFF_FAILOVER_SLAVE: device is lower dev of a failover master device
  */
 enum netdev_priv_flags {
 	IFF_802_1Q_VLAN			= 1<<0,
@@ -1430,6 +1464,8 @@ enum netdev_priv_flags {
 	IFF_PHONY_HEADROOM		= 1<<24,
 	IFF_MACSEC			= 1<<25,
 	IFF_NO_RX_HANDLER		= 1<<26,
+	IFF_FAILOVER			= 1<<27,
+	IFF_FAILOVER_SLAVE		= 1<<28,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -1458,6 +1494,8 @@ enum netdev_priv_flags {
 #define IFF_RXFH_CONFIGURED		IFF_RXFH_CONFIGURED
 #define IFF_MACSEC			IFF_MACSEC
 #define IFF_NO_RX_HANDLER		IFF_NO_RX_HANDLER
+#define IFF_FAILOVER			IFF_FAILOVER
+#define IFF_FAILOVER_SLAVE		IFF_FAILOVER_SLAVE
 
 /**
  *	struct net_device - The DEVICE structure.
@@ -1748,6 +1786,10 @@ struct net_device {
 
 #ifdef CONFIG_XFRM_OFFLOAD
 	const struct xfrmdev_ops *xfrmdev_ops;
+#endif
+
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+	const struct tlsdev_ops *tlsdev_ops;
 #endif
 
 	const struct header_ops *header_ops;
@@ -2304,8 +2346,19 @@ enum netdev_lag_tx_type {
 	NETDEV_LAG_TX_TYPE_HASH,
 };
 
+enum netdev_lag_hash {
+	NETDEV_LAG_HASH_NONE,
+	NETDEV_LAG_HASH_L2,
+	NETDEV_LAG_HASH_L34,
+	NETDEV_LAG_HASH_L23,
+	NETDEV_LAG_HASH_E23,
+	NETDEV_LAG_HASH_E34,
+	NETDEV_LAG_HASH_UNKNOWN,
+};
+
 struct netdev_lag_upper_info {
 	enum netdev_lag_tx_type tx_type;
+	enum netdev_lag_hash hash_type;
 };
 
 struct netdev_lag_lower_state_info {
@@ -2486,6 +2539,7 @@ void dev_disable_lro(struct net_device *dev);
 int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *newskb);
 int dev_queue_xmit(struct sk_buff *skb);
 int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv);
+int dev_direct_xmit(struct sk_buff *skb, u16 queue_id);
 int register_netdevice(struct net_device *dev);
 void unregister_netdevice_queue(struct net_device *dev, struct list_head *head);
 void unregister_netdevice_many(struct list_head *head);
@@ -2735,10 +2789,30 @@ static inline void skb_gro_flush_final(struct sk_buff *skb, struct sk_buff **pp,
 	if (PTR_ERR(pp) != -EINPROGRESS)
 		NAPI_GRO_CB(skb)->flush |= flush;
 }
+static inline void skb_gro_flush_final_remcsum(struct sk_buff *skb,
+					       struct sk_buff **pp,
+					       int flush,
+					       struct gro_remcsum *grc)
+{
+	if (PTR_ERR(pp) != -EINPROGRESS) {
+		NAPI_GRO_CB(skb)->flush |= flush;
+		skb_gro_remcsum_cleanup(skb, grc);
+		skb->remcsum_offload = 0;
+	}
+}
 #else
 static inline void skb_gro_flush_final(struct sk_buff *skb, struct sk_buff **pp, int flush)
 {
 	NAPI_GRO_CB(skb)->flush |= flush;
+}
+static inline void skb_gro_flush_final_remcsum(struct sk_buff *skb,
+					       struct sk_buff **pp,
+					       int flush,
+					       struct gro_remcsum *grc)
+{
+	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_remcsum_cleanup(skb, grc);
+	skb->remcsum_offload = 0;
 }
 #endif
 
@@ -3212,19 +3286,6 @@ static inline int netif_set_xps_queue(struct net_device *dev,
 	return 0;
 }
 #endif
-
-u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
-		  unsigned int num_tx_queues);
-
-/*
- * Returns a Tx hash for the given packet when dev->real_num_tx_queues is used
- * as a distribution range limit for the returned value.
- */
-static inline u16 skb_tx_hash(const struct net_device *dev,
-			      struct sk_buff *skb)
-{
-	return __skb_tx_hash(dev, skb, dev->real_num_tx_queues);
-}
 
 /**
  *	netif_is_multiqueue - test if device has multiple transmit queues
@@ -4186,6 +4247,7 @@ static inline bool net_gso_ok(netdev_features_t features, int gso_type)
 	BUILD_BUG_ON(SKB_GSO_SCTP    != (NETIF_F_GSO_SCTP >> NETIF_F_GSO_SHIFT));
 	BUILD_BUG_ON(SKB_GSO_ESP != (NETIF_F_GSO_ESP >> NETIF_F_GSO_SHIFT));
 	BUILD_BUG_ON(SKB_GSO_UDP != (NETIF_F_GSO_UDP >> NETIF_F_GSO_SHIFT));
+	BUILD_BUG_ON(SKB_GSO_UDP_L4 != (NETIF_F_GSO_UDP_L4 >> NETIF_F_GSO_SHIFT));
 
 	return (features & feature) == feature;
 }
@@ -4306,6 +4368,16 @@ static inline bool netif_is_lag_port(const struct net_device *dev)
 static inline bool netif_is_rxfh_configured(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_RXFH_CONFIGURED;
+}
+
+static inline bool netif_is_failover(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_FAILOVER;
+}
+
+static inline bool netif_is_failover_slave(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_FAILOVER_SLAVE;
 }
 
 /* This device needs to keep skb dst for qdisc enqueue or ndo_start_xmit() */

@@ -8,7 +8,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -80,10 +80,11 @@ struct rvt_cq_wc {
  */
 struct rvt_cq {
 	struct ib_cq ibcq;
-	struct kthread_work comptask;
+	struct work_struct comptask;
 	spinlock_t lock; /* protect changes in this struct */
 	u8 notify;
 	u8 triggered;
+	int comp_vector_cpu;
 	struct rvt_dev_info *rdi;
 	struct rvt_cq_wc *queue;
 	struct rvt_mmap_info *ip;

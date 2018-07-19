@@ -590,7 +590,6 @@ static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
 				  VCHI_CALLBACK_MSG_AVAILABLE, NULL);
 
 		goto done;
-		break;
 
 	case VCHIQ_BULK_TRANSMIT_DONE:
 		service->callback(service->callback_param,

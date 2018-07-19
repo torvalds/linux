@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 
+generic-y += compat.h
 generic-y += exec.h
 generic-y += export.h
 generic-y += fb.h

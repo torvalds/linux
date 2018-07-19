@@ -430,32 +430,6 @@ static inline int sctp_list_single_entry(struct list_head *head)
 	return (head->next != head) && (head->next == head->prev);
 }
 
-/* Break down data chunks at this point.  */
-static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
-{
-	struct sctp_sock *sp = sctp_sk(asoc->base.sk);
-	struct sctp_af *af = sp->pf->af;
-	int frag = pmtu;
-
-	frag -= af->ip_options_len(asoc->base.sk);
-	frag -= af->net_header_len;
-	frag -= sizeof(struct sctphdr) + sctp_datachk_len(&asoc->stream);
-
-	if (asoc->user_frag)
-		frag = min_t(int, frag, asoc->user_frag);
-
-	frag = SCTP_TRUNC4(min_t(int, frag, SCTP_MAX_CHUNK_LEN -
-					    sctp_datachk_len(&asoc->stream)));
-
-	return frag;
-}
-
-static inline void sctp_assoc_pending_pmtu(struct sctp_association *asoc)
-{
-	sctp_assoc_sync_pmtu(asoc);
-	asoc->pmtu_pending = 0;
-}
-
 static inline bool sctp_chunk_pending(const struct sctp_chunk *chunk)
 {
 	return !list_empty(&chunk->list);
@@ -609,17 +583,29 @@ static inline struct dst_entry *sctp_transport_dst_check(struct sctp_transport *
 	return t->dst;
 }
 
-static inline bool sctp_transport_pmtu_check(struct sctp_transport *t)
+/* Calculate max payload size given a MTU, or the total overhead if
+ * given MTU is zero
+ */
+static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
+				     __u32 mtu, __u32 extra)
 {
-	__u32 pmtu = max_t(size_t, SCTP_TRUNC4(dst_mtu(t->dst)),
-			   SCTP_DEFAULT_MINSEGMENT);
+	__u32 overhead = sizeof(struct sctphdr) + extra;
 
-	if (t->pathmtu == pmtu)
-		return true;
+	if (sp)
+		overhead += sp->pf->af->net_header_len;
+	else
+		overhead += sizeof(struct ipv6hdr);
 
-	t->pathmtu = pmtu;
+	if (WARN_ON_ONCE(mtu && mtu <= overhead))
+		mtu = overhead;
 
-	return false;
+	return mtu ? mtu - overhead : overhead;
+}
+
+static inline __u32 sctp_dst_mtu(const struct dst_entry *dst)
+{
+	return SCTP_TRUNC4(max_t(__u32, dst_mtu(dst),
+				 SCTP_DEFAULT_MINSEGMENT));
 }
 
 #endif /* __net_sctp_h__ */

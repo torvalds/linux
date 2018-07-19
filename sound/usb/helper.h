@@ -18,16 +18,12 @@ unsigned char snd_usb_parse_datainterval(struct snd_usb_audio *chip,
  * retrieve usb_interface descriptor from the host interface
  * (conditional for compatibility with the older API)
  */
-#ifndef get_iface_desc
 #define get_iface_desc(iface)	(&(iface)->desc)
 #define get_endpoint(alt,ep)	(&(alt)->endpoint[ep].desc)
 #define get_ep_desc(ep)		(&(ep)->desc)
 #define get_cfg_desc(cfg)	(&(cfg)->desc)
-#endif
 
-#ifndef snd_usb_get_speed
 #define snd_usb_get_speed(dev) ((dev)->speed)
-#endif
 
 static inline int snd_usb_ctrl_intf(struct snd_usb_audio *chip)
 {

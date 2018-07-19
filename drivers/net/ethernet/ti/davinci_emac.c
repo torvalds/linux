@@ -1385,6 +1385,15 @@ static int emac_devioctl(struct net_device *ndev, struct ifreq *ifrq, int cmd)
 		return -EOPNOTSUPP;
 }
 
+static int match_first_device(struct device *dev, void *data)
+{
+	if (dev->parent && dev->parent->of_node)
+		return of_device_is_compatible(dev->parent->of_node,
+					       "ti,davinci_mdio");
+
+	return !strncmp(dev_name(dev), "davinci_mdio", 12);
+}
+
 /**
  * emac_dev_open - EMAC device open
  * @ndev: The DaVinci EMAC network adapter
@@ -1484,8 +1493,14 @@ static int emac_dev_open(struct net_device *ndev)
 
 	/* use the first phy on the bus if pdata did not give us a phy id */
 	if (!phydev && !priv->phy_id) {
-		phy = bus_find_device_by_name(&mdio_bus_type, NULL,
-					      "davinci_mdio");
+		/* NOTE: we can't use bus_find_device_by_name() here because
+		 * the device name is not guaranteed to be 'davinci_mdio'. On
+		 * some systems it can be 'davinci_mdio.0' so we need to use
+		 * strncmp() against the first part of the string to correctly
+		 * match it.
+		 */
+		phy = bus_find_device(&mdio_bus_type, NULL, NULL,
+				      match_first_device);
 		if (phy) {
 			priv->phy_id = dev_name(phy);
 			if (!priv->phy_id || !*priv->phy_id)
@@ -1930,8 +1945,8 @@ static int davinci_emac_probe(struct platform_device *pdev)
 
 	if (netif_msg_probe(priv)) {
 		dev_notice(&pdev->dev, "DaVinci EMAC Probe found device "
-			   "(regs: %p, irq: %d)\n",
-			   (void *)priv->emac_base_phys, ndev->irq);
+			   "(regs: %pa, irq: %d)\n",
+			   &priv->emac_base_phys, ndev->irq);
 	}
 	pm_runtime_put(&pdev->dev);
 

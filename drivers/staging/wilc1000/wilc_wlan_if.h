@@ -21,7 +21,6 @@
 
 #define HIF_SDIO		(0)
 #define HIF_SPI			BIT(0)
-#define HIF_SDIO_GPIO_IRQ	BIT(2)
 
 /********************************************
  *
@@ -48,12 +47,9 @@ struct sdio_cmd53 {
 	u32 block_size;
 };
 
-#define WILC_MAC_INDICATE_STATUS	0x1
-#define WILC_MAC_STATUS_INIT		-1
-#define WILC_MAC_STATUS_READY		0
-#define WILC_MAC_STATUS_CONNECT		1
-
-#define WILC_MAC_INDICATE_SCAN		0x2
+#define MAC_STATUS_INIT			-1
+#define MAC_STATUS_CONNECTED		1
+#define MAC_STATUS_DISCONNECTED		0
 
 struct tx_complete_data {
 	int size;
@@ -120,10 +116,6 @@ enum {
 	G_AUTO_PREAMBLE		= 2,	/* Auto Preamble Selection */
 };
 
-#define MAC_CONNECTED		1
-#define MAC_DISCONNECTED	0
-
-#define SCAN_DONE		TRUE
 enum {
 	PASSIVE_SCAN		= 0,
 	ACTIVE_SCAN		= 1,
@@ -741,7 +733,7 @@ enum {
 
 	WID_DEL_BEACON			= 0x00CA,
 
-	WID_LOGTerminal_Switch		= 0x00CD,
+	WID_LOG_TERMINAL_SWITCH		= 0x00CD,
 	WID_TX_POWER			= 0x00CE,
 	/*  EMAC Short WID list */
 	/*  RTS Threshold */

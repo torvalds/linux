@@ -442,12 +442,33 @@ static void sh_eth_modify(struct net_device *ndev, int enum_index, u32 clear,
 static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
 			     int enum_index)
 {
-	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
+	u16 offset = mdp->reg_offset[enum_index];
+
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return;
+
+	iowrite32(data, mdp->tsu_addr + offset);
 }
 
 static u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 {
-	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
+	u16 offset = mdp->reg_offset[enum_index];
+
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return ~0U;
+
+	return ioread32(mdp->tsu_addr + offset);
+}
+
+static void sh_eth_soft_swap(char *src, int len)
+{
+#ifdef __LITTLE_ENDIAN
+	u32 *p = (u32 *)src;
+	u32 *maxp = p + DIV_ROUND_UP(len, sizeof(u32));
+
+	for (; p < maxp; p++)
+		*p = swab32(*p);
+#endif
 }
 
 static void sh_eth_select_mii(struct net_device *ndev)
@@ -456,6 +477,9 @@ static void sh_eth_select_mii(struct net_device *ndev)
 	u32 value;
 
 	switch (mdp->phy_interface) {
+	case PHY_INTERFACE_MODE_RGMII ... PHY_INTERFACE_MODE_RGMII_TXID:
+		value = 0x3;
+		break;
 	case PHY_INTERFACE_MODE_GMII:
 		value = 0x2;
 		break;
@@ -693,7 +717,7 @@ static struct sh_eth_cpu_data rcar_gen1_data = {
 			  EESIPR_RTLFIP | EESIPR_RTSFIP |
 			  EESIPR_PREIP | EESIPR_CERFIP,
 
-	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
+	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_TRO,
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE,
 	.fdr_value	= 0x00000f0f,
@@ -725,7 +749,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 			  EESIPR_RTLFIP | EESIPR_RTSFIP |
 			  EESIPR_PREIP | EESIPR_CERFIP,
 
-	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
+	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_TRO,
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE,
 	.fdr_value	= 0x00000f0f,
@@ -739,6 +763,49 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 	.no_xdfar	= 1,
 	.rmiimode	= 1,
 	.magic		= 1,
+};
+
+/* R8A77980 */
+static struct sh_eth_cpu_data r8a77980_data = {
+	.soft_reset	= sh_eth_soft_reset_gether,
+
+	.set_duplex	= sh_eth_set_duplex,
+	.set_rate	= sh_eth_set_rate_gether,
+
+	.register_type  = SH_ETH_REG_GIGABIT,
+
+	.edtrr_trns	= EDTRR_TRNS_GETHER,
+	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD | ECSR_MPD,
+	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP |
+			  ECSIPR_MPDIP,
+	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
+			  EESIPR_FTCIP | EESIPR_TDEIP | EESIPR_TFUFIP |
+			  EESIPR_FRIP | EESIPR_RDEIP | EESIPR_RFOFIP |
+			  EESIPR_RMAFIP | EESIPR_RRFIP |
+			  EESIPR_RTLFIP | EESIPR_RTSFIP |
+			  EESIPR_PREIP | EESIPR_CERFIP,
+
+	.tx_check       = EESR_FTC | EESR_CD | EESR_TRO,
+	.eesr_err_check = EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
+			  EESR_RFE | EESR_RDE | EESR_RFRMER |
+			  EESR_TFE | EESR_TDE | EESR_ECI,
+	.fdr_value	= 0x0000070f,
+
+	.apr		= 1,
+	.mpr		= 1,
+	.tpauser	= 1,
+	.bculr		= 1,
+	.hw_swap	= 1,
+	.nbst		= 1,
+	.rpadir		= 1,
+	.rpadir_value   = 2 << 16,
+	.no_trimd	= 1,
+	.no_ade		= 1,
+	.xdfar_rw	= 1,
+	.hw_checksum	= 1,
+	.select_mii	= 1,
+	.magic		= 1,
+	.cexcr		= 1,
 };
 #endif /* CONFIG_OF */
 
@@ -775,7 +842,7 @@ static struct sh_eth_cpu_data sh7724_data = {
 			  EESIPR_RTLFIP | EESIPR_RTSFIP |
 			  EESIPR_PREIP | EESIPR_CERFIP,
 
-	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
+	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_TRO,
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE,
 
@@ -820,7 +887,7 @@ static struct sh_eth_cpu_data sh7757_data = {
 			  EESIPR_RRFIP | EESIPR_RTLFIP | EESIPR_RTSFIP |
 			  EESIPR_PREIP | EESIPR_CERFIP,
 
-	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
+	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_TRO,
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE,
 
@@ -1421,8 +1488,13 @@ static int sh_eth_dev_init(struct net_device *ndev)
 
 	sh_eth_write(ndev, mdp->cd->trscer_err_mask, TRSCER);
 
+	/* DMA transfer burst mode */
+	if (mdp->cd->nbst)
+		sh_eth_modify(ndev, EDMR, EDMR_NBST, EDMR_NBST);
+
+	/* Burst cycle count upper-limit */
 	if (mdp->cd->bculr)
-		sh_eth_write(ndev, 0x800, BCULR);	/* Burst sycle set */
+		sh_eth_write(ndev, 0x800, BCULR);
 
 	sh_eth_write(ndev, mdp->cd->fcftr_value, FCFTR);
 
@@ -2610,12 +2682,6 @@ static int sh_eth_change_mtu(struct net_device *ndev, int new_mtu)
 }
 
 /* For TSU_POSTn. Please refer to the manual about this (strange) bitfields */
-static void *sh_eth_tsu_get_post_reg_offset(struct sh_eth_private *mdp,
-					    int entry)
-{
-	return sh_eth_tsu_get_offset(mdp, TSU_POST1) + (entry / 8 * 4);
-}
-
 static u32 sh_eth_tsu_get_post_mask(int entry)
 {
 	return 0x0f << (28 - ((entry % 8) * 4));
@@ -2630,27 +2696,25 @@ static void sh_eth_tsu_enable_cam_entry_post(struct net_device *ndev,
 					     int entry)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int reg = TSU_POST1 + entry / 8;
 	u32 tmp;
-	void *reg_offset;
 
-	reg_offset = sh_eth_tsu_get_post_reg_offset(mdp, entry);
-	tmp = ioread32(reg_offset);
-	iowrite32(tmp | sh_eth_tsu_get_post_bit(mdp, entry), reg_offset);
+	tmp = sh_eth_tsu_read(mdp, reg);
+	sh_eth_tsu_write(mdp, tmp | sh_eth_tsu_get_post_bit(mdp, entry), reg);
 }
 
 static bool sh_eth_tsu_disable_cam_entry_post(struct net_device *ndev,
 					      int entry)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int reg = TSU_POST1 + entry / 8;
 	u32 post_mask, ref_mask, tmp;
-	void *reg_offset;
 
-	reg_offset = sh_eth_tsu_get_post_reg_offset(mdp, entry);
 	post_mask = sh_eth_tsu_get_post_mask(entry);
 	ref_mask = sh_eth_tsu_get_post_bit(mdp, entry) & ~post_mask;
 
-	tmp = ioread32(reg_offset);
-	iowrite32(tmp & ~post_mask, reg_offset);
+	tmp = sh_eth_tsu_read(mdp, reg);
+	sh_eth_tsu_write(mdp, tmp & ~post_mask, reg);
 
 	/* If other port enables, the function returns "true" */
 	return tmp & ref_mask;
@@ -3023,15 +3087,10 @@ static int sh_mdio_init(struct sh_eth_private *mdp,
 		 pdev->name, pdev->id);
 
 	/* register MDIO bus */
-	if (dev->of_node) {
-		ret = of_mdiobus_register(mdp->mii_bus, dev->of_node);
-	} else {
-		if (pd->phy_irq > 0)
-			mdp->mii_bus->irq[pd->phy] = pd->phy_irq;
+	if (pd->phy_irq > 0)
+		mdp->mii_bus->irq[pd->phy] = pd->phy_irq;
 
-		ret = mdiobus_register(mdp->mii_bus);
-	}
-
+	ret = of_mdiobus_register(mdp->mii_bus, dev->of_node);
 	if (ret)
 		goto out_free_bus;
 
@@ -3130,6 +3189,7 @@ static const struct of_device_id sh_eth_match_table[] = {
 	{ .compatible = "renesas,ether-r8a7791", .data = &rcar_gen2_data },
 	{ .compatible = "renesas,ether-r8a7793", .data = &rcar_gen2_data },
 	{ .compatible = "renesas,ether-r8a7794", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,gether-r8a77980", .data = &r8a77980_data },
 	{ .compatible = "renesas,ether-r7s72100", .data = &r7s72100_data },
 	{ .compatible = "renesas,rcar-gen1-ether", .data = &rcar_gen1_data },
 	{ .compatible = "renesas,rcar-gen2-ether", .data = &rcar_gen2_data },

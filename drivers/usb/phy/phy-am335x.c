@@ -96,8 +96,7 @@ static int am335x_phy_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int am335x_phy_suspend(struct device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct am335x_phy *am_phy = platform_get_drvdata(pdev);
+	struct am335x_phy *am_phy = dev_get_drvdata(dev);
 
 	/*
 	 * Enable phy wakeup only if dev->power.can_wakeup is true.
@@ -117,8 +116,7 @@ static int am335x_phy_suspend(struct device *dev)
 
 static int am335x_phy_resume(struct device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct am335x_phy	*am_phy = platform_get_drvdata(pdev);
+	struct am335x_phy	*am_phy = dev_get_drvdata(dev);
 
 	phy_ctrl_power(am_phy->phy_ctrl, am_phy->id, am_phy->dr_mode, true);
 

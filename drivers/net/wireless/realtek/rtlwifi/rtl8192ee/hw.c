@@ -2574,11 +2574,11 @@ void rtl92ee_read_bt_coexist_info_from_hwpg(struct ieee80211_hw *hw,
 			rtlpriv->btcoexist.btc_info.btcoexist = 0;
 
 		rtlpriv->btcoexist.btc_info.bt_type = BT_RTL8192E;
-		rtlpriv->btcoexist.btc_info.ant_num = ANT_TOTAL_X2;
+		rtlpriv->btcoexist.btc_info.ant_num = ANT_X2;
 	} else {
 		rtlpriv->btcoexist.btc_info.btcoexist = 1;
 		rtlpriv->btcoexist.btc_info.bt_type = BT_RTL8192E;
-		rtlpriv->btcoexist.btc_info.ant_num = ANT_TOTAL_X1;
+		rtlpriv->btcoexist.btc_info.ant_num = ANT_X1;
 	}
 }
 

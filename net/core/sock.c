@@ -226,7 +226,8 @@ static struct lock_class_key af_family_kern_slock_keys[AF_MAX];
   x "AF_RXRPC" ,	x "AF_ISDN"     ,	x "AF_PHONET"   , \
   x "AF_IEEE802154",	x "AF_CAIF"	,	x "AF_ALG"      , \
   x "AF_NFC"   ,	x "AF_VSOCK"    ,	x "AF_KCM"      , \
-  x "AF_QIPCRTR",	x "AF_SMC"	,	x "AF_MAX"
+  x "AF_QIPCRTR",	x "AF_SMC"	,	x "AF_XDP"	, \
+  x "AF_MAX"
 
 static const char *const af_family_key_strings[AF_MAX+1] = {
 	_sock_locks("sk_lock-")
@@ -262,7 +263,8 @@ static const char *const af_family_rlock_key_strings[AF_MAX+1] = {
   "rlock-AF_RXRPC" , "rlock-AF_ISDN"     , "rlock-AF_PHONET"   ,
   "rlock-AF_IEEE802154", "rlock-AF_CAIF" , "rlock-AF_ALG"      ,
   "rlock-AF_NFC"   , "rlock-AF_VSOCK"    , "rlock-AF_KCM"      ,
-  "rlock-AF_QIPCRTR", "rlock-AF_SMC"     , "rlock-AF_MAX"
+  "rlock-AF_QIPCRTR", "rlock-AF_SMC"     , "rlock-AF_XDP"      ,
+  "rlock-AF_MAX"
 };
 static const char *const af_family_wlock_key_strings[AF_MAX+1] = {
   "wlock-AF_UNSPEC", "wlock-AF_UNIX"     , "wlock-AF_INET"     ,
@@ -279,7 +281,8 @@ static const char *const af_family_wlock_key_strings[AF_MAX+1] = {
   "wlock-AF_RXRPC" , "wlock-AF_ISDN"     , "wlock-AF_PHONET"   ,
   "wlock-AF_IEEE802154", "wlock-AF_CAIF" , "wlock-AF_ALG"      ,
   "wlock-AF_NFC"   , "wlock-AF_VSOCK"    , "wlock-AF_KCM"      ,
-  "wlock-AF_QIPCRTR", "wlock-AF_SMC"     , "wlock-AF_MAX"
+  "wlock-AF_QIPCRTR", "wlock-AF_SMC"     , "wlock-AF_XDP"      ,
+  "wlock-AF_MAX"
 };
 static const char *const af_family_elock_key_strings[AF_MAX+1] = {
   "elock-AF_UNSPEC", "elock-AF_UNIX"     , "elock-AF_INET"     ,
@@ -296,7 +299,8 @@ static const char *const af_family_elock_key_strings[AF_MAX+1] = {
   "elock-AF_RXRPC" , "elock-AF_ISDN"     , "elock-AF_PHONET"   ,
   "elock-AF_IEEE802154", "elock-AF_CAIF" , "elock-AF_ALG"      ,
   "elock-AF_NFC"   , "elock-AF_VSOCK"    , "elock-AF_KCM"      ,
-  "elock-AF_QIPCRTR", "elock-AF_SMC"     , "elock-AF_MAX"
+  "elock-AF_QIPCRTR", "elock-AF_SMC"     , "elock-AF_XDP"      ,
+  "elock-AF_MAX"
 };
 
 /*
@@ -323,8 +327,8 @@ EXPORT_SYMBOL(sysctl_optmem_max);
 
 int sysctl_tstamp_allow_data __read_mostly = 1;
 
-struct static_key memalloc_socks = STATIC_KEY_INIT_FALSE;
-EXPORT_SYMBOL_GPL(memalloc_socks);
+DEFINE_STATIC_KEY_FALSE(memalloc_socks_key);
+EXPORT_SYMBOL_GPL(memalloc_socks_key);
 
 /**
  * sk_set_memalloc - sets %SOCK_MEMALLOC
@@ -338,7 +342,7 @@ void sk_set_memalloc(struct sock *sk)
 {
 	sock_set_flag(sk, SOCK_MEMALLOC);
 	sk->sk_allocation |= __GFP_MEMALLOC;
-	static_key_slow_inc(&memalloc_socks);
+	static_branch_inc(&memalloc_socks_key);
 }
 EXPORT_SYMBOL_GPL(sk_set_memalloc);
 
@@ -346,7 +350,7 @@ void sk_clear_memalloc(struct sock *sk)
 {
 	sock_reset_flag(sk, SOCK_MEMALLOC);
 	sk->sk_allocation &= ~__GFP_MEMALLOC;
-	static_key_slow_dec(&memalloc_socks);
+	static_branch_dec(&memalloc_socks_key);
 
 	/*
 	 * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forward
@@ -905,7 +909,10 @@ set_rcvbuf:
 	case SO_RCVLOWAT:
 		if (val < 0)
 			val = INT_MAX;
-		sk->sk_rcvlowat = val ? : 1;
+		if (sock->ops->set_rcvlowat)
+			ret = sock->ops->set_rcvlowat(sk, val);
+		else
+			sk->sk_rcvlowat = val ? : 1;
 		break;
 
 	case SO_RCVTIMEO:
@@ -2567,12 +2574,6 @@ int sock_no_getname(struct socket *sock, struct sockaddr *saddr,
 }
 EXPORT_SYMBOL(sock_no_getname);
 
-__poll_t sock_no_poll(struct file *file, struct socket *sock, poll_table *pt)
-{
-	return 0;
-}
-EXPORT_SYMBOL(sock_no_poll);
-
 int sock_no_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	return -EOPNOTSUPP;
@@ -3242,7 +3243,8 @@ static int req_prot_init(const struct proto *prot)
 
 	rsk_prot->slab = kmem_cache_create(rsk_prot->slab_name,
 					   rsk_prot->obj_size, 0,
-					   prot->slab_flags, NULL);
+					   SLAB_ACCOUNT | prot->slab_flags,
+					   NULL);
 
 	if (!rsk_prot->slab) {
 		pr_crit("%s: Can't create request sock SLAB cache!\n",
@@ -3257,7 +3259,8 @@ int proto_register(struct proto *prot, int alloc_slab)
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create_usercopy(prot->name,
 					prot->obj_size, 0,
-					SLAB_HWCACHE_ALIGN | prot->slab_flags,
+					SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
+					prot->slab_flags,
 					prot->useroffset, prot->usersize,
 					NULL);
 
@@ -3280,6 +3283,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 				kmem_cache_create(prot->twsk_prot->twsk_slab_name,
 						  prot->twsk_prot->twsk_obj_size,
 						  0,
+						  SLAB_ACCOUNT |
 						  prot->slab_flags,
 						  NULL);
 			if (prot->twsk_prot->twsk_slab == NULL)
@@ -3439,22 +3443,10 @@ static const struct seq_operations proto_seq_ops = {
 	.show   = proto_seq_show,
 };
 
-static int proto_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &proto_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations proto_seq_fops = {
-	.open		= proto_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 static __net_init int proto_init_net(struct net *net)
 {
-	if (!proc_create("protocols", 0444, net->proc_net, &proto_seq_fops))
+	if (!proc_create_net("protocols", 0444, net->proc_net, &proto_seq_ops,
+			sizeof(struct seq_net_private)))
 		return -ENOMEM;
 
 	return 0;

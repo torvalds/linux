@@ -224,10 +224,8 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
 	 * or update_mmu_cache() have the necessary barriers.
 	 */
-	if (pte_valid_not_user(pte)) {
+	if (pte_valid_not_user(pte))
 		dsb(ishst);
-		isb();
-	}
 }
 
 extern void __sync_icache_dcache(pte_t pteval);
@@ -305,8 +303,6 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 #define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-
-#define __HAVE_ARCH_PTE_SPECIAL
 
 static inline pte_t pgd_pte(pgd_t pgd)
 {
@@ -436,7 +432,6 @@ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 	WRITE_ONCE(*pmdp, pmd);
 	dsb(ishst);
-	isb();
 }
 
 static inline void pmd_clear(pmd_t *pmdp)
@@ -487,7 +482,6 @@ static inline void set_pud(pud_t *pudp, pud_t pud)
 {
 	WRITE_ONCE(*pudp, pud);
 	dsb(ishst);
-	isb();
 }
 
 static inline void pud_clear(pud_t *pudp)

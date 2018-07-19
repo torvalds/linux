@@ -406,7 +406,7 @@ static blk_status_t dm_dispatch_clone_request(struct request *clone, struct requ
 	if (blk_queue_io_stat(clone->q))
 		clone->rq_flags |= RQF_IO_STAT;
 
-	clone->start_time = jiffies;
+	clone->start_time_ns = ktime_get_ns();
 	r = blk_insert_cloned_request(clone->q, clone);
 	if (r != BLK_STS_OK && r != BLK_STS_RESOURCE && r != BLK_STS_DEV_RESOURCE)
 		/* must complete clone in terms of original request */
@@ -433,7 +433,7 @@ static int setup_clone(struct request *clone, struct request *rq,
 {
 	int r;
 
-	r = blk_rq_prep_clone(clone, rq, tio->md->bs, gfp_mask,
+	r = blk_rq_prep_clone(clone, rq, &tio->md->bs, gfp_mask,
 			      dm_rq_bio_constructor, tio);
 	if (r)
 		return r;

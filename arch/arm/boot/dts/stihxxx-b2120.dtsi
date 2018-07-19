@@ -154,8 +154,8 @@
 			reg		= <0x08a20000 0x10000>,
 					  <0x08a00000 0x4000>;
 			reg-names	= "c8sectpfe", "c8sectpfe-ram";
-			interrupts	= <GIC_SPI 34 IRQ_TYPE_NONE>,
-					  <GIC_SPI 35 IRQ_TYPE_NONE>;
+			interrupts	= <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+					  <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names	= "c8sectpfe-error-irq",
 					  "c8sectpfe-idle-irq";
 			pinctrl-0	= <&pinctrl_tsin0_serial>;

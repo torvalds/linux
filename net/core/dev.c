@@ -1285,6 +1285,7 @@ int dev_set_alias(struct net_device *dev, const char *alias, size_t len)
 
 	return len;
 }
+EXPORT_SYMBOL(dev_set_alias);
 
 /**
  *	dev_get_alias - get ifalias of a device
@@ -1586,7 +1587,7 @@ const char *netdev_cmd_to_name(enum netdev_cmd cmd)
 	N(UDP_TUNNEL_DROP_INFO) N(CHANGE_TX_QUEUE_LEN)
 	N(CVLAN_FILTER_PUSH_INFO) N(CVLAN_FILTER_DROP_INFO)
 	N(SVLAN_FILTER_PUSH_INFO) N(SVLAN_FILTER_DROP_INFO)
-	};
+	}
 #undef N
 	return "UNKNOWN_NETDEV_EVENT";
 }
@@ -1754,38 +1755,38 @@ int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 EXPORT_SYMBOL(call_netdevice_notifiers);
 
 #ifdef CONFIG_NET_INGRESS
-static struct static_key ingress_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(ingress_needed_key);
 
 void net_inc_ingress_queue(void)
 {
-	static_key_slow_inc(&ingress_needed);
+	static_branch_inc(&ingress_needed_key);
 }
 EXPORT_SYMBOL_GPL(net_inc_ingress_queue);
 
 void net_dec_ingress_queue(void)
 {
-	static_key_slow_dec(&ingress_needed);
+	static_branch_dec(&ingress_needed_key);
 }
 EXPORT_SYMBOL_GPL(net_dec_ingress_queue);
 #endif
 
 #ifdef CONFIG_NET_EGRESS
-static struct static_key egress_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(egress_needed_key);
 
 void net_inc_egress_queue(void)
 {
-	static_key_slow_inc(&egress_needed);
+	static_branch_inc(&egress_needed_key);
 }
 EXPORT_SYMBOL_GPL(net_inc_egress_queue);
 
 void net_dec_egress_queue(void)
 {
-	static_key_slow_dec(&egress_needed);
+	static_branch_dec(&egress_needed_key);
 }
 EXPORT_SYMBOL_GPL(net_dec_egress_queue);
 #endif
 
-static struct static_key netstamp_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(netstamp_needed_key);
 #ifdef HAVE_JUMP_LABEL
 static atomic_t netstamp_needed_deferred;
 static atomic_t netstamp_wanted;
@@ -1796,9 +1797,9 @@ static void netstamp_clear(struct work_struct *work)
 
 	wanted = atomic_add_return(deferred, &netstamp_wanted);
 	if (wanted > 0)
-		static_key_enable(&netstamp_needed);
+		static_branch_enable(&netstamp_needed_key);
 	else
-		static_key_disable(&netstamp_needed);
+		static_branch_disable(&netstamp_needed_key);
 }
 static DECLARE_WORK(netstamp_work, netstamp_clear);
 #endif
@@ -1818,7 +1819,7 @@ void net_enable_timestamp(void)
 	atomic_inc(&netstamp_needed_deferred);
 	schedule_work(&netstamp_work);
 #else
-	static_key_slow_inc(&netstamp_needed);
+	static_branch_inc(&netstamp_needed_key);
 #endif
 }
 EXPORT_SYMBOL(net_enable_timestamp);
@@ -1838,7 +1839,7 @@ void net_disable_timestamp(void)
 	atomic_dec(&netstamp_needed_deferred);
 	schedule_work(&netstamp_work);
 #else
-	static_key_slow_dec(&netstamp_needed);
+	static_branch_dec(&netstamp_needed_key);
 #endif
 }
 EXPORT_SYMBOL(net_disable_timestamp);
@@ -1846,15 +1847,15 @@ EXPORT_SYMBOL(net_disable_timestamp);
 static inline void net_timestamp_set(struct sk_buff *skb)
 {
 	skb->tstamp = 0;
-	if (static_key_false(&netstamp_needed))
+	if (static_branch_unlikely(&netstamp_needed_key))
 		__net_timestamp(skb);
 }
 
-#define net_timestamp_check(COND, SKB)			\
-	if (static_key_false(&netstamp_needed)) {		\
-		if ((COND) && !(SKB)->tstamp)	\
-			__net_timestamp(SKB);		\
-	}						\
+#define net_timestamp_check(COND, SKB)				\
+	if (static_branch_unlikely(&netstamp_needed_key)) {	\
+		if ((COND) && !(SKB)->tstamp)			\
+			__net_timestamp(SKB);			\
+	}							\
 
 bool is_skb_forwardable(const struct net_device *dev, const struct sk_buff *skb)
 {
@@ -2614,17 +2615,16 @@ EXPORT_SYMBOL(netif_device_attach);
  * Returns a Tx hash based on the given packet descriptor a Tx queues' number
  * to be used as a distribution range.
  */
-u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
-		  unsigned int num_tx_queues)
+static u16 skb_tx_hash(const struct net_device *dev, struct sk_buff *skb)
 {
 	u32 hash;
 	u16 qoffset = 0;
-	u16 qcount = num_tx_queues;
+	u16 qcount = dev->real_num_tx_queues;
 
 	if (skb_rx_queue_recorded(skb)) {
 		hash = skb_get_rx_queue(skb);
-		while (unlikely(hash >= num_tx_queues))
-			hash -= num_tx_queues;
+		while (unlikely(hash >= qcount))
+			hash -= qcount;
 		return hash;
 	}
 
@@ -2637,7 +2637,6 @@ u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
 
 	return (u16) reciprocal_scale(skb_get_hash(skb), qcount) + qoffset;
 }
-EXPORT_SYMBOL(__skb_tx_hash);
 
 static void skb_warn_bad_offload(const struct sk_buff *skb)
 {
@@ -2884,11 +2883,7 @@ void netdev_rx_csum_fault(struct net_device *dev)
 EXPORT_SYMBOL(netdev_rx_csum_fault);
 #endif
 
-/* Actually, we should eliminate this check as soon as we know, that:
- * 1. IOMMU is present and allows to map all the memory.
- * 2. No high memory really exists on this machine.
- */
-
+/* XXX: check that highmem exists at all on the given machine. */
 static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 {
 #ifdef CONFIG_HIGHMEM
@@ -2899,20 +2894,6 @@ static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 			if (PageHighMem(skb_frag_page(frag)))
-				return 1;
-		}
-	}
-
-	if (PCI_DMA_BUS_IS_PHYS) {
-		struct device *pdev = dev->dev.parent;
-
-		if (!pdev)
-			return 0;
-		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			dma_addr_t addr = page_to_phys(skb_frag_page(frag));
-
-			if (!pdev->dma_mask || addr + PAGE_SIZE - 1 > *pdev->dma_mask)
 				return 1;
 		}
 	}
@@ -3113,6 +3094,10 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 	if (unlikely(!skb))
 		goto out_null;
 
+	skb = sk_validate_xmit_skb(skb, dev);
+	if (unlikely(!skb))
+		goto out_null;
+
 	if (netif_needs_gso(skb, features)) {
 		struct sk_buff *segs;
 
@@ -3241,7 +3226,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 			rc = NET_XMIT_DROP;
 		} else {
 			rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
-			__qdisc_run(q);
+			qdisc_run(q);
 		}
 
 		if (unlikely(to_free))
@@ -3529,7 +3514,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_at_ingress = 0;
 # ifdef CONFIG_NET_EGRESS
-	if (static_key_false(&egress_needed)) {
+	if (static_branch_unlikely(&egress_needed_key)) {
 		skb = sch_handle_egress(skb, &rc, dev);
 		if (!skb)
 			goto out;
@@ -3624,6 +3609,44 @@ int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv)
 }
 EXPORT_SYMBOL(dev_queue_xmit_accel);
 
+int dev_direct_xmit(struct sk_buff *skb, u16 queue_id)
+{
+	struct net_device *dev = skb->dev;
+	struct sk_buff *orig_skb = skb;
+	struct netdev_queue *txq;
+	int ret = NETDEV_TX_BUSY;
+	bool again = false;
+
+	if (unlikely(!netif_running(dev) ||
+		     !netif_carrier_ok(dev)))
+		goto drop;
+
+	skb = validate_xmit_skb_list(skb, dev, &again);
+	if (skb != orig_skb)
+		goto drop;
+
+	skb_set_queue_mapping(skb, queue_id);
+	txq = skb_get_tx_queue(dev, skb);
+
+	local_bh_disable();
+
+	HARD_TX_LOCK(dev, txq, smp_processor_id());
+	if (!netif_xmit_frozen_or_drv_stopped(txq))
+		ret = netdev_start_xmit(skb, dev, txq, false);
+	HARD_TX_UNLOCK(dev, txq);
+
+	local_bh_enable();
+
+	if (!dev_xmit_complete(ret))
+		kfree_skb(skb);
+
+	return ret;
+drop:
+	atomic_long_inc(&dev->tx_dropped);
+	kfree_skb_list(skb);
+	return NET_XMIT_DROP;
+}
+EXPORT_SYMBOL(dev_direct_xmit);
 
 /*************************************************************************
  *			Receiver routines
@@ -3993,12 +4016,12 @@ static struct netdev_rx_queue *netif_get_rxqueue(struct sk_buff *skb)
 }
 
 static u32 netif_receive_generic_xdp(struct sk_buff *skb,
+				     struct xdp_buff *xdp,
 				     struct bpf_prog *xdp_prog)
 {
 	struct netdev_rx_queue *rxqueue;
+	void *orig_data, *orig_data_end;
 	u32 metalen, act = XDP_DROP;
-	struct xdp_buff xdp;
-	void *orig_data;
 	int hlen, off;
 	u32 mac_len;
 
@@ -4033,23 +4056,34 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	 */
 	mac_len = skb->data - skb_mac_header(skb);
 	hlen = skb_headlen(skb) + mac_len;
-	xdp.data = skb->data - mac_len;
-	xdp.data_meta = xdp.data;
-	xdp.data_end = xdp.data + hlen;
-	xdp.data_hard_start = skb->data - skb_headroom(skb);
-	orig_data = xdp.data;
+	xdp->data = skb->data - mac_len;
+	xdp->data_meta = xdp->data;
+	xdp->data_end = xdp->data + hlen;
+	xdp->data_hard_start = skb->data - skb_headroom(skb);
+	orig_data_end = xdp->data_end;
+	orig_data = xdp->data;
 
 	rxqueue = netif_get_rxqueue(skb);
-	xdp.rxq = &rxqueue->xdp_rxq;
+	xdp->rxq = &rxqueue->xdp_rxq;
 
-	act = bpf_prog_run_xdp(xdp_prog, &xdp);
+	act = bpf_prog_run_xdp(xdp_prog, xdp);
 
-	off = xdp.data - orig_data;
+	off = xdp->data - orig_data;
 	if (off > 0)
 		__skb_pull(skb, off);
 	else if (off < 0)
 		__skb_push(skb, -off);
 	skb->mac_header += off;
+
+	/* check if bpf_xdp_adjust_tail was used. it can only "shrink"
+	 * pckt.
+	 */
+	off = orig_data_end - xdp->data_end;
+	if (off != 0) {
+		skb_set_tail_pointer(skb, xdp->data_end - xdp->data);
+		skb->len -= off;
+
+	}
 
 	switch (act) {
 	case XDP_REDIRECT:
@@ -4057,7 +4091,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 		__skb_push(skb, mac_len);
 		break;
 	case XDP_PASS:
-		metalen = xdp.data - xdp.data_meta;
+		metalen = xdp->data - xdp->data_meta;
 		if (metalen)
 			skb_metadata_set(skb, metalen);
 		break;
@@ -4102,22 +4136,24 @@ void generic_xdp_tx(struct sk_buff *skb, struct bpf_prog *xdp_prog)
 }
 EXPORT_SYMBOL_GPL(generic_xdp_tx);
 
-static struct static_key generic_xdp_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(generic_xdp_needed_key);
 
 int do_xdp_generic(struct bpf_prog *xdp_prog, struct sk_buff *skb)
 {
 	if (xdp_prog) {
-		u32 act = netif_receive_generic_xdp(skb, xdp_prog);
+		struct xdp_buff xdp;
+		u32 act;
 		int err;
 
+		act = netif_receive_generic_xdp(skb, &xdp, xdp_prog);
 		if (act != XDP_PASS) {
 			switch (act) {
 			case XDP_REDIRECT:
 				err = xdp_do_generic_redirect(skb->dev, skb,
-							      xdp_prog);
+							      &xdp, xdp_prog);
 				if (err)
 					goto out_redir;
-			/* fallthru to submit skb */
+				break;
 			case XDP_TX:
 				generic_xdp_tx(skb, xdp_prog);
 				break;
@@ -4140,7 +4176,7 @@ static int netif_rx_internal(struct sk_buff *skb)
 
 	trace_netif_rx(skb);
 
-	if (static_key_false(&generic_xdp_needed)) {
+	if (static_branch_unlikely(&generic_xdp_needed_key)) {
 		int ret;
 
 		preempt_disable();
@@ -4512,7 +4548,7 @@ another_round:
 
 skip_taps:
 #ifdef CONFIG_NET_INGRESS
-	if (static_key_false(&ingress_needed)) {
+	if (static_branch_unlikely(&ingress_needed_key)) {
 		skb = sch_handle_ingress(skb, &pt_prev, &ret, orig_dev);
 		if (!skb)
 			goto out;
@@ -4672,9 +4708,9 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 			bpf_prog_put(old);
 
 		if (old && !new) {
-			static_key_slow_dec(&generic_xdp_needed);
+			static_branch_dec(&generic_xdp_needed_key);
 		} else if (new && !old) {
-			static_key_slow_inc(&generic_xdp_needed);
+			static_branch_inc(&generic_xdp_needed_key);
 			dev_disable_lro(dev);
 			dev_disable_gro_hw(dev);
 		}
@@ -4702,7 +4738,7 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 	if (skb_defer_rx_timestamp(skb))
 		return NET_RX_SUCCESS;
 
-	if (static_key_false(&generic_xdp_needed)) {
+	if (static_branch_unlikely(&generic_xdp_needed_key)) {
 		int ret;
 
 		preempt_disable();
@@ -6749,15 +6785,15 @@ static int __dev_set_promiscuity(struct net_device *dev, int inc, bool notify)
 			dev->flags & IFF_PROMISC ? "entered" : "left");
 		if (audit_enabled) {
 			current_uid_gid(&uid, &gid);
-			audit_log(current->audit_context, GFP_ATOMIC,
-				AUDIT_ANOM_PROMISCUOUS,
-				"dev=%s prom=%d old_prom=%d auid=%u uid=%u gid=%u ses=%u",
-				dev->name, (dev->flags & IFF_PROMISC),
-				(old_flags & IFF_PROMISC),
-				from_kuid(&init_user_ns, audit_get_loginuid(current)),
-				from_kuid(&init_user_ns, uid),
-				from_kgid(&init_user_ns, gid),
-				audit_get_sessionid(current));
+			audit_log(audit_context(), GFP_ATOMIC,
+				  AUDIT_ANOM_PROMISCUOUS,
+				  "dev=%s prom=%d old_prom=%d auid=%u uid=%u gid=%u ses=%u",
+				  dev->name, (dev->flags & IFF_PROMISC),
+				  (old_flags & IFF_PROMISC),
+				  from_kuid(&init_user_ns, audit_get_loginuid(current)),
+				  from_kuid(&init_user_ns, uid),
+				  from_kgid(&init_user_ns, gid),
+				  audit_get_sessionid(current));
 		}
 
 		dev_change_rx_flags(dev, IFF_PROMISC);
@@ -7870,6 +7906,8 @@ int register_netdevice(struct net_device *dev)
 	int ret;
 	struct net *net = dev_net(dev);
 
+	BUILD_BUG_ON(sizeof(netdev_features_t) * BITS_PER_BYTE <
+		     NETDEV_FEATURE_COUNT);
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
 
@@ -8605,7 +8643,8 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 		/* We get here if we can't use the current device name */
 		if (!pat)
 			goto out;
-		if (dev_get_valid_name(net, dev, pat) < 0)
+		err = dev_get_valid_name(net, dev, pat);
+		if (err < 0)
 			goto out;
 	}
 
@@ -8617,7 +8656,6 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	dev_close(dev);
 
 	/* And unlink it from device chain */
-	err = -ENODEV;
 	unlist_netdevice(dev);
 
 	synchronize_net();
@@ -8785,7 +8823,7 @@ static struct hlist_head * __net_init netdev_create_hash(void)
 	int i;
 	struct hlist_head *hash;
 
-	hash = kmalloc(sizeof(*hash) * NETDEV_HASHENTRIES, GFP_KERNEL);
+	hash = kmalloc_array(NETDEV_HASHENTRIES, sizeof(*hash), GFP_KERNEL);
 	if (hash != NULL)
 		for (i = 0; i < NETDEV_HASHENTRIES; i++)
 			INIT_HLIST_HEAD(&hash[i]);

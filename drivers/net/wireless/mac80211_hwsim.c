@@ -2514,7 +2514,6 @@ static void hwsim_mcast_new_radio(int id, struct genl_info *info,
 	return;
 
 out_err:
-	genlmsg_cancel(mcast_skb, data);
 	nlmsg_free(mcast_skb);
 }
 
@@ -2650,6 +2649,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, TDLS_WIDER_BW);
 	if (rctbl)
 		ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
@@ -3572,11 +3572,14 @@ static int __init init_mac80211_hwsim(void)
 	hwsim_wq = alloc_workqueue("hwsim_wq", 0, 0);
 	if (!hwsim_wq)
 		return -ENOMEM;
-	rhashtable_init(&hwsim_radios_rht, &hwsim_rht_params);
+
+	err = rhashtable_init(&hwsim_radios_rht, &hwsim_rht_params);
+	if (err)
+		goto out_free_wq;
 
 	err = register_pernet_device(&hwsim_net_ops);
 	if (err)
-		return err;
+		goto out_free_rht;
 
 	err = platform_driver_register(&mac80211_hwsim_driver);
 	if (err)
@@ -3701,6 +3704,10 @@ out_unregister_driver:
 	platform_driver_unregister(&mac80211_hwsim_driver);
 out_unregister_pernet:
 	unregister_pernet_device(&hwsim_net_ops);
+out_free_rht:
+	rhashtable_destroy(&hwsim_radios_rht);
+out_free_wq:
+	destroy_workqueue(hwsim_wq);
 	return err;
 }
 module_init(init_mac80211_hwsim);

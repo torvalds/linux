@@ -86,6 +86,7 @@
 #define VI_POLARIS10_P_A0 80
 #define VI_POLARIS11_M_A0 90
 #define VI_POLARIS12_V_A0 100
+#define VI_VEGAM_A0 110
 
 #define VI_UNKNOWN 0xFF
 
@@ -98,7 +99,9 @@
 		(eChipRev < VI_POLARIS11_M_A0))
 #define ASIC_REV_IS_POLARIS11_M(eChipRev) ((eChipRev >= VI_POLARIS11_M_A0) &&  \
 		(eChipRev < VI_POLARIS12_V_A0))
-#define ASIC_REV_IS_POLARIS12_V(eChipRev) (eChipRev >= VI_POLARIS12_V_A0)
+#define ASIC_REV_IS_POLARIS12_V(eChipRev) ((eChipRev >= VI_POLARIS12_V_A0) && \
+		(eChipRev < VI_VEGAM_A0))
+#define ASIC_REV_IS_VEGAM(eChipRev) (eChipRev >= VI_VEGAM_A0)
 
 /* DCE11 */
 #define CZ_CARRIZO_A0 0x01
@@ -110,17 +113,19 @@
 	((rev >= STONEY_A0) && (rev < CZ_UNKNOWN))
 
 /* DCE12 */
+#define AI_UNKNOWN 0xFF
 
 #define AI_GREENLAND_P_A0 1
 #define AI_GREENLAND_P_A1 2
 #define AI_UNKNOWN 0xFF
 
 #define AI_VEGA12_P_A0 20
+#define AI_VEGA20_P_A0 40
 #define ASICREV_IS_GREENLAND_M(eChipRev)  (eChipRev < AI_VEGA12_P_A0)
 #define ASICREV_IS_GREENLAND_P(eChipRev)  (eChipRev < AI_VEGA12_P_A0)
 
-#define ASICREV_IS_VEGA12_P(eChipRev) ((eChipRev >= AI_VEGA12_P_A0) && (eChipRev < AI_UNKNOWN))
-#define ASICREV_IS_VEGA12_p(eChipRev) ((eChipRev >= AI_VEGA12_P_A0) && (eChipRev < AI_UNKNOWN))
+#define ASICREV_IS_VEGA12_P(eChipRev) ((eChipRev >= AI_VEGA12_P_A0) && (eChipRev < AI_VEGA20_P_A0))
+#define ASICREV_IS_VEGA20_P(eChipRev) ((eChipRev >= AI_VEGA20_P_A0) && (eChipRev < AI_UNKNOWN))
 
 /* DCN1_0 */
 #define INTERNAL_REV_RAVEN_A0             0x00    /* First spin of Raven */

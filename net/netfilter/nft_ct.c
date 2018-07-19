@@ -826,7 +826,8 @@ static int nft_ct_helper_obj_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static void nft_ct_helper_obj_destroy(struct nft_object *obj)
+static void nft_ct_helper_obj_destroy(const struct nft_ctx *ctx,
+				      struct nft_object *obj)
 {
 	struct nft_ct_helper_obj *priv = nft_obj_data(obj);
 

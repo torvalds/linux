@@ -332,25 +332,10 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	 * NOTE: This must match the parsing done in smp_setup_cpu_maps.
 	 */
 	for (i = 0; i < nthreads; i++) {
-		/*
-		 * version 2 of the kexec param format adds the phys cpuid of
-		 * booted proc.
-		 */
-		if (fdt_version(initial_boot_params) >= 2) {
-			if (be32_to_cpu(intserv[i]) ==
-			    fdt_boot_cpuid_phys(initial_boot_params)) {
-				found = boot_cpu_count;
-				found_thread = i;
-			}
-		} else {
-			/*
-			 * Check if it's the boot-cpu, set it's hw index now,
-			 * unfortunately this format did not support booting
-			 * off secondary threads.
-			 */
-			if (of_get_flat_dt_prop(node,
-					"linux,boot-cpu", NULL) != NULL)
-				found = boot_cpu_count;
+		if (be32_to_cpu(intserv[i]) ==
+			fdt_boot_cpuid_phys(initial_boot_params)) {
+			found = boot_cpu_count;
+			found_thread = i;
 		}
 #ifdef CONFIG_SMP
 		/* logical cpu id is always 0 on UP kernels */

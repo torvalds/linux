@@ -66,7 +66,8 @@ int __cgroup_bpf_run_filter_sk(struct sock *sk,
 
 int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 				      struct sockaddr *uaddr,
-				      enum bpf_attach_type type);
+				      enum bpf_attach_type type,
+				      void *t_ctx);
 
 int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
 				     struct bpf_sock_ops_kern *sock_ops,
@@ -120,16 +121,18 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 ({									       \
 	int __ret = 0;							       \
 	if (cgroup_bpf_enabled)						       \
-		__ret = __cgroup_bpf_run_filter_sock_addr(sk, uaddr, type);    \
+		__ret = __cgroup_bpf_run_filter_sock_addr(sk, uaddr, type,     \
+							  NULL);	       \
 	__ret;								       \
 })
 
-#define BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, type)			       \
+#define BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, type, t_ctx)		       \
 ({									       \
 	int __ret = 0;							       \
 	if (cgroup_bpf_enabled)	{					       \
 		lock_sock(sk);						       \
-		__ret = __cgroup_bpf_run_filter_sock_addr(sk, uaddr, type);    \
+		__ret = __cgroup_bpf_run_filter_sock_addr(sk, uaddr, type,     \
+							  t_ctx);	       \
 		release_sock(sk);					       \
 	}								       \
 	__ret;								       \
@@ -151,10 +154,16 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 	BPF_CGROUP_RUN_SA_PROG(sk, uaddr, BPF_CGROUP_INET6_CONNECT)
 
 #define BPF_CGROUP_RUN_PROG_INET4_CONNECT_LOCK(sk, uaddr)		       \
-	BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, BPF_CGROUP_INET4_CONNECT)
+	BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, BPF_CGROUP_INET4_CONNECT, NULL)
 
 #define BPF_CGROUP_RUN_PROG_INET6_CONNECT_LOCK(sk, uaddr)		       \
-	BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, BPF_CGROUP_INET6_CONNECT)
+	BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, BPF_CGROUP_INET6_CONNECT, NULL)
+
+#define BPF_CGROUP_RUN_PROG_UDP4_SENDMSG_LOCK(sk, uaddr, t_ctx)		       \
+	BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, BPF_CGROUP_UDP4_SENDMSG, t_ctx)
+
+#define BPF_CGROUP_RUN_PROG_UDP6_SENDMSG_LOCK(sk, uaddr, t_ctx)		       \
+	BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, BPF_CGROUP_UDP6_SENDMSG, t_ctx)
 
 #define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops)				       \
 ({									       \
@@ -179,12 +188,39 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 									      \
 	__ret;								      \
 })
+int cgroup_bpf_prog_attach(const union bpf_attr *attr,
+			   enum bpf_prog_type ptype, struct bpf_prog *prog);
+int cgroup_bpf_prog_detach(const union bpf_attr *attr,
+			   enum bpf_prog_type ptype);
+int cgroup_bpf_prog_query(const union bpf_attr *attr,
+			  union bpf_attr __user *uattr);
 #else
 
+struct bpf_prog;
 struct cgroup_bpf {};
 static inline void cgroup_bpf_put(struct cgroup *cgrp) {}
 static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 
+static inline int cgroup_bpf_prog_attach(const union bpf_attr *attr,
+					 enum bpf_prog_type ptype,
+					 struct bpf_prog *prog)
+{
+	return -EINVAL;
+}
+
+static inline int cgroup_bpf_prog_detach(const union bpf_attr *attr,
+					 enum bpf_prog_type ptype)
+{
+	return -EINVAL;
+}
+
+static inline int cgroup_bpf_prog_query(const union bpf_attr *attr,
+					union bpf_attr __user *uattr)
+{
+	return -EINVAL;
+}
+
+#define cgroup_bpf_enabled (0)
 #define BPF_CGROUP_PRE_CONNECT_ENABLED(sk) (0)
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk,skb) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET_EGRESS(sk,skb) ({ 0; })
@@ -197,6 +233,8 @@ static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 #define BPF_CGROUP_RUN_PROG_INET4_CONNECT_LOCK(sk, uaddr) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET6_CONNECT(sk, uaddr) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET6_CONNECT_LOCK(sk, uaddr) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_UDP4_SENDMSG_LOCK(sk, uaddr, t_ctx) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_UDP6_SENDMSG_LOCK(sk, uaddr, t_ctx) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type,major,minor,access) ({ 0; })
 

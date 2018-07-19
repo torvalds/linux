@@ -227,6 +227,25 @@ find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 	return entry;
 }
 
+static void nfqnl_reinject(struct nf_queue_entry *entry, unsigned int verdict)
+{
+	struct nf_ct_hook *ct_hook;
+	int err;
+
+	if (verdict == NF_ACCEPT ||
+	    verdict == NF_STOP) {
+		rcu_read_lock();
+		ct_hook = rcu_dereference(nf_ct_hook);
+		if (ct_hook) {
+			err = ct_hook->update(entry->state.net, entry->skb);
+			if (err < 0)
+				verdict = NF_DROP;
+		}
+		rcu_read_unlock();
+	}
+	nf_reinject(entry, verdict);
+}
+
 static void
 nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 {
@@ -237,7 +256,7 @@ nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 		if (!cmpfn || cmpfn(entry, data)) {
 			list_del(&entry->list);
 			queue->queue_total--;
-			nf_reinject(entry, NF_DROP);
+			nfqnl_reinject(entry, NF_DROP);
 		}
 	}
 	spin_unlock_bh(&queue->lock);
@@ -686,7 +705,7 @@ err_out_free_nskb:
 err_out_unlock:
 	spin_unlock_bh(&queue->lock);
 	if (failopen)
-		nf_reinject(entry, NF_ACCEPT);
+		nfqnl_reinject(entry, NF_ACCEPT);
 err_out:
 	return err;
 }
@@ -1085,7 +1104,8 @@ static int nfqnl_recv_verdict_batch(struct net *net, struct sock *ctnl,
 	list_for_each_entry_safe(entry, tmp, &batch_list, list) {
 		if (nfqa[NFQA_MARK])
 			entry->skb->mark = ntohl(nla_get_be32(nfqa[NFQA_MARK]));
-		nf_reinject(entry, verdict);
+
+		nfqnl_reinject(entry, verdict);
 	}
 	return 0;
 }
@@ -1208,7 +1228,7 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 	if (nfqa[NFQA_MARK])
 		entry->skb->mark = ntohl(nla_get_be32(nfqa[NFQA_MARK]));
 
-	nf_reinject(entry, verdict);
+	nfqnl_reinject(entry, verdict);
 	return 0;
 }
 
@@ -1223,6 +1243,9 @@ static int nfqnl_recv_unsupp(struct net *net, struct sock *ctnl,
 static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 	[NFQA_CFG_CMD]		= { .len = sizeof(struct nfqnl_msg_config_cmd) },
 	[NFQA_CFG_PARAMS]	= { .len = sizeof(struct nfqnl_msg_config_params) },
+	[NFQA_CFG_QUEUE_MAXLEN]	= { .type = NLA_U32 },
+	[NFQA_CFG_MASK]		= { .type = NLA_U32 },
+	[NFQA_CFG_FLAGS]	= { .type = NLA_U32 },
 };
 
 static const struct nf_queue_handler nfqh = {
@@ -1469,20 +1492,6 @@ static const struct seq_operations nfqnl_seq_ops = {
 	.stop	= seq_stop,
 	.show	= seq_show,
 };
-
-static int nfqnl_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &nfqnl_seq_ops,
-			sizeof(struct iter_state));
-}
-
-static const struct file_operations nfqnl_file_ops = {
-	.open	 = nfqnl_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 #endif /* PROC_FS */
 
 static int __net_init nfnl_queue_net_init(struct net *net)
@@ -1496,8 +1505,8 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 	spin_lock_init(&q->instances_lock);
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("nfnetlink_queue", 0440,
-			 net->nf.proc_netfilter, &nfqnl_file_ops))
+	if (!proc_create_net("nfnetlink_queue", 0440, net->nf.proc_netfilter,
+			&nfqnl_seq_ops, sizeof(struct iter_state)))
 		return -ENOMEM;
 #endif
 	nf_register_queue_handler(net, &nfqh);

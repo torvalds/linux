@@ -7127,7 +7127,7 @@ static int airo_get_aplist(struct net_device *dev,
 	int i;
 	int loseSync = capable(CAP_NET_ADMIN) ? 1: -1;
 
-	qual = kmalloc(IW_MAX_AP * sizeof(*qual), GFP_KERNEL);
+	qual = kmalloc_array(IW_MAX_AP, sizeof(*qual), GFP_KERNEL);
 	if (!qual)
 		return -ENOMEM;
 

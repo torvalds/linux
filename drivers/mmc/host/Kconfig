@@ -345,11 +345,11 @@ config MMC_SDHCI_IPROC
 	  If unsure, say N.
 
 config MMC_MESON_GX
-	tristate "Amlogic S905/GX* SD/MMC Host Controller support"
+	tristate "Amlogic S905/GX*/AXG SD/MMC Host Controller support"
 	depends on ARCH_MESON && MMC
 	help
 	  This selects support for the Amlogic SD/MMC Host Controller
-	  found on the S905/GX* family of SoCs.  This controller is
+	  found on the S905/GX*/AXG family of SoCs.  This controller is
 	  MMC 5.1 compliant and supports SD, eMMC and SDIO interfaces.
 
 	  If you have a controller with this interface, say Y here.
@@ -358,7 +358,6 @@ config MMC_MESON_MX_SDIO
 	tristate "Amlogic Meson6/Meson8/Meson8b SD/MMC Host Controller support"
 	depends on ARCH_MESON || COMPILE_TEST
 	depends on COMMON_CLK
-	depends on HAS_DMA
 	depends on OF
 	help
 	  This selects support for the SD/MMC Host Controller on
@@ -401,7 +400,6 @@ config MMC_OMAP
 
 config MMC_OMAP_HS
 	tristate "TI OMAP High Speed Multimedia Card Interface support"
-	depends on HAS_DMA
 	depends on ARCH_OMAP2PLUS || ARCH_KEYSTONE || COMPILE_TEST
 	help
 	  This selects the TI OMAP High Speed Multimedia card Interface.
@@ -511,7 +509,6 @@ config MMC_DAVINCI
 
 config MMC_GOLDFISH
 	tristate "goldfish qemu Multimedia Card Interface support"
-	depends on HAS_DMA
 	depends on GOLDFISH || COMPILE_TEST
 	help
 	  This selects the Goldfish Multimedia card Interface emulation
@@ -605,7 +602,7 @@ config MMC_SDHI
 
 config MMC_SDHI_SYS_DMAC
 	tristate "DMA for SDHI SD/SDIO controllers using SYS-DMAC"
-	depends on MMC_SDHI && HAS_DMA
+	depends on MMC_SDHI
 	default MMC_SDHI if (SUPERH || ARM)
 	help
 	  This provides DMA support for SDHI SD/SDIO controllers
@@ -615,7 +612,7 @@ config MMC_SDHI_SYS_DMAC
 config MMC_SDHI_INTERNAL_DMAC
 	tristate "DMA for SDHI SD/SDIO controllers using on-chip bus mastering"
 	depends on ARM64 || COMPILE_TEST
-	depends on MMC_SDHI && HAS_DMA
+	depends on MMC_SDHI
 	default MMC_SDHI if ARM64
 	help
 	  This provides DMA support for SDHI SD/SDIO controllers
@@ -669,7 +666,6 @@ config MMC_CAVIUM_THUNDERX
 
 config MMC_DW
 	tristate "Synopsys DesignWare Memory Card Interface"
-	depends on HAS_DMA
 	depends on ARC || ARM || ARM64 || MIPS || COMPILE_TEST
 	help
 	  This selects support for the Synopsys DesignWare Mobile Storage IP
@@ -689,6 +685,15 @@ config MMC_DW_PLTFM
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say Y.
+
+config MMC_DW_BLUEFIELD
+	tristate "BlueField specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW
+	select MMC_DW_PLTFM
+	help
+	  This selects support for Mellanox BlueField SoC specific extensions to
+	  the Synopsys DesignWare Memory Card Interface driver. Select this
+	  option for platforms based on Mellanox BlueField SoC's.
 
 config MMC_DW_EXYNOS
 	tristate "Exynos specific extensions for Synopsys DW Memory Card Interface"
@@ -748,7 +753,6 @@ config MMC_DW_ZX
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
-	depends on HAS_DMA
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	help
 	  This selects the MMC Host Interface controller (MMCIF) found in various
@@ -756,11 +760,12 @@ config MMC_SH_MMCIF
 
 
 config MMC_JZ4740
-	tristate "JZ4740 SD/Multimedia Card Interface support"
-	depends on MACH_JZ4740
+	tristate "Ingenic JZ47xx SD/Multimedia Card Interface support"
+	depends on MACH_JZ4740 || MACH_JZ4780
 	help
-	  This selects support for the SD/MMC controller on Ingenic JZ4740
-	  SoCs.
+	  This selects support for the SD/MMC controller on Ingenic
+	  JZ4740, JZ4750, JZ4770 and JZ4780 SoCs.
+
 	  If you have a board based on such a SoC and with a SD/MMC slot,
 	  say Y or M here.
 
@@ -868,7 +873,6 @@ config MMC_TOSHIBA_PCI
 config MMC_BCM2835
 	tristate "Broadcom BCM2835 SDHOST MMC Controller support"
 	depends on ARCH_BCM2835 || COMPILE_TEST
-	depends on HAS_DMA
 	help
 	  This selects the BCM2835 SDHOST MMC controller. If you have
 	  a BCM2835 platform with SD or MMC devices, say Y or M here.

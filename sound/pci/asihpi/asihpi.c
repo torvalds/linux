@@ -69,27 +69,27 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 static bool enable_hpi_hwdep = 1;
 
-module_param_array(index, int, NULL, S_IRUGO);
+module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "ALSA index value for AudioScience soundcard.");
 
-module_param_array(id, charp, NULL, S_IRUGO);
+module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ALSA ID string for AudioScience soundcard.");
 
-module_param_array(enable, bool, NULL, S_IRUGO);
+module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "ALSA enable AudioScience soundcard.");
 
-module_param(enable_hpi_hwdep, bool, S_IRUGO|S_IWUSR);
+module_param(enable_hpi_hwdep, bool, 0644);
 MODULE_PARM_DESC(enable_hpi_hwdep,
 		"ALSA enable HPI hwdep for AudioScience soundcard ");
 
 /* identify driver */
 #ifdef KERNEL_ALSA_BUILD
 static char *build_info = "Built using headers from kernel source";
-module_param(build_info, charp, S_IRUGO);
+module_param(build_info, charp, 0444);
 MODULE_PARM_DESC(build_info, "Built using headers from kernel source");
 #else
 static char *build_info = "Built within ALSA source";
-module_param(build_info, charp, S_IRUGO);
+module_param(build_info, charp, 0444);
 MODULE_PARM_DESC(build_info, "Built within ALSA source");
 #endif
 

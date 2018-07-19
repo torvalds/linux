@@ -2,8 +2,6 @@
 #ifndef __ASM_S390_PCI_H
 #define __ASM_S390_PCI_H
 
-/* must be set before including asm-generic/pci.h */
-#define PCI_DMA_BUS_IS_PHYS (0)
 /* must be set before including pci_clp.h */
 #define PCI_BAR_COUNT	6
 

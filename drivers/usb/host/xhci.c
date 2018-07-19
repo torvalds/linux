@@ -33,8 +33,8 @@ static int link_quirk;
 module_param(link_quirk, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(link_quirk, "Don't clear the chain bit on a link TRB");
 
-static unsigned int quirks;
-module_param(quirks, uint, S_IRUGO);
+static unsigned long long quirks;
+module_param(quirks, ullong, S_IRUGO);
 MODULE_PARM_DESC(quirks, "Bit flags for quirks to be enabled as default");
 
 /* TODO: copied from ehci-hcd.c - can this be refactored? */
@@ -209,6 +209,68 @@ int xhci_reset(struct xhci_hcd *xhci)
 	return ret;
 }
 
+static void xhci_zero_64b_regs(struct xhci_hcd *xhci)
+{
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
+	int err, i;
+	u64 val;
+
+	/*
+	 * Some Renesas controllers get into a weird state if they are
+	 * reset while programmed with 64bit addresses (they will preserve
+	 * the top half of the address in internal, non visible
+	 * registers). You end up with half the address coming from the
+	 * kernel, and the other half coming from the firmware. Also,
+	 * changing the programming leads to extra accesses even if the
+	 * controller is supposed to be halted. The controller ends up with
+	 * a fatal fault, and is then ripe for being properly reset.
+	 *
+	 * Special care is taken to only apply this if the device is behind
+	 * an iommu. Doing anything when there is no iommu is definitely
+	 * unsafe...
+	 */
+	if (!(xhci->quirks & XHCI_ZERO_64B_REGS) || !dev->iommu_group)
+		return;
+
+	xhci_info(xhci, "Zeroing 64bit base registers, expecting fault\n");
+
+	/* Clear HSEIE so that faults do not get signaled */
+	val = readl(&xhci->op_regs->command);
+	val &= ~CMD_HSEIE;
+	writel(val, &xhci->op_regs->command);
+
+	/* Clear HSE (aka FATAL) */
+	val = readl(&xhci->op_regs->status);
+	val |= STS_FATAL;
+	writel(val, &xhci->op_regs->status);
+
+	/* Now zero the registers, and brace for impact */
+	val = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
+	if (upper_32_bits(val))
+		xhci_write_64(xhci, 0, &xhci->op_regs->dcbaa_ptr);
+	val = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+	if (upper_32_bits(val))
+		xhci_write_64(xhci, 0, &xhci->op_regs->cmd_ring);
+
+	for (i = 0; i < HCS_MAX_INTRS(xhci->hcs_params1); i++) {
+		struct xhci_intr_reg __iomem *ir;
+
+		ir = &xhci->run_regs->ir_set[i];
+		val = xhci_read_64(xhci, &ir->erst_base);
+		if (upper_32_bits(val))
+			xhci_write_64(xhci, 0, &ir->erst_base);
+		val= xhci_read_64(xhci, &ir->erst_dequeue);
+		if (upper_32_bits(val))
+			xhci_write_64(xhci, 0, &ir->erst_dequeue);
+	}
+
+	/* Wait for the fault to appear. It will be cleared on reset */
+	err = xhci_handshake(&xhci->op_regs->status,
+			     STS_FATAL, STS_FATAL,
+			     XHCI_MAX_HALT_USEC);
+	if (!err)
+		xhci_info(xhci, "Fault detected\n");
+}
 
 #ifdef CONFIG_USB_PCI
 /*
@@ -400,13 +462,15 @@ static void compliance_mode_recovery(struct timer_list *t)
 {
 	struct xhci_hcd *xhci;
 	struct usb_hcd *hcd;
+	struct xhci_hub *rhub;
 	u32 temp;
 	int i;
 
 	xhci = from_timer(xhci, t, comp_mode_recovery_timer);
+	rhub = &xhci->usb3_rhub;
 
-	for (i = 0; i < xhci->num_usb3_ports; i++) {
-		temp = readl(xhci->usb3_ports[i]);
+	for (i = 0; i < rhub->num_ports; i++) {
+		temp = readl(rhub->ports[i]->addr);
 		if ((temp & PORT_PLS_MASK) == USB_SS_PORT_LS_COMP_MOD) {
 			/*
 			 * Compliance Mode Detected. Letting USB Core
@@ -426,7 +490,7 @@ static void compliance_mode_recovery(struct timer_list *t)
 		}
 	}
 
-	if (xhci->port_status_u0 != ((1 << xhci->num_usb3_ports)-1))
+	if (xhci->port_status_u0 != ((1 << rhub->num_ports) - 1))
 		mod_timer(&xhci->comp_mode_recovery_timer,
 			jiffies + msecs_to_jiffies(COMP_MODE_RCVRY_MSECS));
 }
@@ -483,7 +547,7 @@ static bool xhci_compliance_mode_recovery_timer_quirk_check(void)
 
 static int xhci_all_ports_seen_u0(struct xhci_hcd *xhci)
 {
-	return (xhci->port_status_u0 == ((1 << xhci->num_usb3_ports)-1));
+	return (xhci->port_status_u0 == ((1 << xhci->usb3_rhub.num_ports) - 1));
 }
 
 
@@ -812,36 +876,71 @@ static void xhci_clear_command_ring(struct xhci_hcd *xhci)
 
 static void xhci_disable_port_wake_on_bits(struct xhci_hcd *xhci)
 {
+	struct xhci_port **ports;
 	int port_index;
-	__le32 __iomem **port_array;
 	unsigned long flags;
 	u32 t1, t2;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	/* disable usb3 ports Wake bits */
-	port_index = xhci->num_usb3_ports;
-	port_array = xhci->usb3_ports;
+	port_index = xhci->usb3_rhub.num_ports;
+	ports = xhci->usb3_rhub.ports;
 	while (port_index--) {
-		t1 = readl(port_array[port_index]);
+		t1 = readl(ports[port_index]->addr);
 		t1 = xhci_port_state_to_neutral(t1);
 		t2 = t1 & ~PORT_WAKE_BITS;
 		if (t1 != t2)
-			writel(t2, port_array[port_index]);
+			writel(t2, ports[port_index]->addr);
 	}
 
 	/* disable usb2 ports Wake bits */
-	port_index = xhci->num_usb2_ports;
-	port_array = xhci->usb2_ports;
+	port_index = xhci->usb2_rhub.num_ports;
+	ports = xhci->usb2_rhub.ports;
 	while (port_index--) {
-		t1 = readl(port_array[port_index]);
+		t1 = readl(ports[port_index]->addr);
 		t1 = xhci_port_state_to_neutral(t1);
 		t2 = t1 & ~PORT_WAKE_BITS;
 		if (t1 != t2)
-			writel(t2, port_array[port_index]);
+			writel(t2, ports[port_index]->addr);
 	}
 
 	spin_unlock_irqrestore(&xhci->lock, flags);
+}
+
+static bool xhci_pending_portevent(struct xhci_hcd *xhci)
+{
+	struct xhci_port	**ports;
+	int			port_index;
+	u32			status;
+	u32			portsc;
+
+	status = readl(&xhci->op_regs->status);
+	if (status & STS_EINT)
+		return true;
+	/*
+	 * Checking STS_EINT is not enough as there is a lag between a change
+	 * bit being set and the Port Status Change Event that it generated
+	 * being written to the Event Ring. See note in xhci 1.1 section 4.19.2.
+	 */
+
+	port_index = xhci->usb2_rhub.num_ports;
+	ports = xhci->usb2_rhub.ports;
+	while (port_index--) {
+		portsc = readl(ports[port_index]->addr);
+		if (portsc & PORT_CHANGE_MASK ||
+		    (portsc & PORT_PLS_MASK) == XDEV_RESUME)
+			return true;
+	}
+	port_index = xhci->usb3_rhub.num_ports;
+	ports = xhci->usb3_rhub.ports;
+	while (port_index--) {
+		portsc = readl(ports[port_index]->addr);
+		if (portsc & PORT_CHANGE_MASK ||
+		    (portsc & PORT_PLS_MASK) == XDEV_RESUME)
+			return true;
+	}
+	return false;
 }
 
 /*
@@ -945,7 +1044,7 @@ EXPORT_SYMBOL_GPL(xhci_suspend);
  */
 int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 {
-	u32			command, temp = 0, status;
+	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	struct usb_hcd		*secondary_hcd;
 	int			retval = 0;
@@ -979,8 +1078,13 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		command = readl(&xhci->op_regs->command);
 		command |= CMD_CRS;
 		writel(command, &xhci->op_regs->command);
+		/*
+		 * Some controllers take up to 55+ ms to complete the controller
+		 * restore so setting the timeout to 100ms. Xhci specification
+		 * doesn't mention any timeout value.
+		 */
 		if (xhci_handshake(&xhci->op_regs->status,
-			      STS_RESTORE, 0, 10 * 1000)) {
+			      STS_RESTORE, 0, 100 * 1000)) {
 			xhci_warn(xhci, "WARN: xHC restore state timeout\n");
 			spin_unlock_irq(&xhci->lock);
 			return -ETIMEDOUT;
@@ -1004,6 +1108,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 		xhci_dbg(xhci, "Stop HCD\n");
 		xhci_halt(xhci);
+		xhci_zero_64b_regs(xhci);
 		xhci_reset(xhci);
 		spin_unlock_irq(&xhci->lock);
 		xhci_cleanup_msix(xhci);
@@ -1069,8 +1174,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
  done:
 	if (retval == 0) {
 		/* Resume root hubs only when have pending events. */
-		status = readl(&xhci->op_regs->status);
-		if (status & STS_EINT) {
+		if (xhci_pending_portevent(xhci)) {
 			usb_hcd_resume_root_hub(xhci->shared_hcd);
 			usb_hcd_resume_root_hub(hcd);
 		}
@@ -3976,18 +4080,10 @@ static int xhci_enable_device(struct usb_hcd *hcd, struct usb_device *udev)
  */
 int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1)
 {
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	__le32 __iomem *base_addr = &xhci->op_regs->port_status_base;
-	__le32 __iomem *addr;
-	int raw_port;
+	struct xhci_hub *rhub;
 
-	if (hcd->speed < HCD_USB3)
-		addr = xhci->usb2_ports[port1 - 1];
-	else
-		addr = xhci->usb3_ports[port1 - 1];
-
-	raw_port = (addr - base_addr)/NUM_PORT_REGS + 1;
-	return raw_port;
+	rhub = xhci_get_rhub(hcd);
+	return rhub->ports[port1 - 1]->hw_portnum + 1;
 }
 
 /*
@@ -4120,7 +4216,7 @@ static int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 			struct usb_device *udev, int enable)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	__le32 __iomem	**port_array;
+	struct xhci_port **ports;
 	__le32 __iomem	*pm_addr, *hlpm_addr;
 	u32		pm_val, hlpm_val, field;
 	unsigned int	port_num;
@@ -4141,11 +4237,11 @@ static int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
-	port_array = xhci->usb2_ports;
+	ports = xhci->usb2_rhub.ports;
 	port_num = udev->portnum - 1;
-	pm_addr = port_array[port_num] + PORTPMSC;
+	pm_addr = ports[port_num]->addr + PORTPMSC;
 	pm_val = readl(pm_addr);
-	hlpm_addr = port_array[port_num] + PORTHLPMC;
+	hlpm_addr = ports[port_num]->addr + PORTHLPMC;
 	field = le32_to_cpu(udev->bos->ext_cap->bmAttributes);
 
 	xhci_dbg(xhci, "%s port %d USB2 hardware LPM\n",
@@ -4858,6 +4954,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		xhci->main_hcd = hcd;
+		xhci->usb2_rhub.hcd = hcd;
 		/* Mark the first roothub as being USB 2.0.
 		 * The xHCI driver will register the USB 3.0 roothub.
 		 */
@@ -4883,6 +4980,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 			  minor_rev,
 			  minor_rev ? "Enhanced" : "");
 
+		xhci->usb3_rhub.hcd = hcd;
 		/* xHCI private pointer was set in xhci_pci_probe for the second
 		 * registered roothub.
 		 */
@@ -4920,6 +5018,8 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	retval = xhci_halt(xhci);
 	if (retval)
 		return retval;
+
+	xhci_zero_64b_regs(xhci);
 
 	xhci_dbg(xhci, "Resetting HCD\n");
 	/* Reset the internal HC memory state and registers. */
@@ -4963,7 +5063,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		return retval;
 	xhci_dbg(xhci, "Called HCD init\n");
 
-	xhci_info(xhci, "hcc params 0x%08x hci version 0x%x quirks 0x%08x\n",
+	xhci_info(xhci, "hcc params 0x%08x hci version 0x%x quirks 0x%016llx\n",
 		  xhci->hcc_params, xhci->hci_version, xhci->quirks);
 
 	return 0;

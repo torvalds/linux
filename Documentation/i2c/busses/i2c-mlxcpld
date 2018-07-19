@@ -20,6 +20,10 @@ The next transaction types are supported:
  - Write Byte/Block.
 
 Registers:
+CPBLTY		0x0 - capability reg.
+			Bits [6:5] - transaction length. b01 - 72B is supported,
+			36B in other case.
+			Bit 7 - SMBus block read support.
 CTRL		0x1 - control reg.
 			Resets all the registers.
 HALF_CYC	0x4 - cycle reg.

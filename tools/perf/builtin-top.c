@@ -123,14 +123,9 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 	}
 
 	notes = symbol__annotation(sym);
-	if (notes->src != NULL) {
-		pthread_mutex_lock(&notes->lock);
-		goto out_assign;
-	}
-
 	pthread_mutex_lock(&notes->lock);
 
-	if (symbol__alloc_hist(sym) < 0) {
+	if (!symbol__hists(sym, top->evlist->nr_entries)) {
 		pthread_mutex_unlock(&notes->lock);
 		pr_err("Not enough memory for annotating '%s' symbol!\n",
 		       sym->name);
@@ -138,9 +133,8 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__annotate(sym, map, evsel, 0, NULL);
+	err = symbol__annotate(sym, map, evsel, 0, &top->annotation_opts, NULL);
 	if (err == 0) {
-out_assign:
 		top->sym_filter_entry = he;
 	} else {
 		char msg[BUFSIZ];
@@ -188,7 +182,7 @@ static void ui__warn_map_erange(struct map *map, struct symbol *sym, u64 ip)
 static void perf_top__record_precise_ip(struct perf_top *top,
 					struct hist_entry *he,
 					struct perf_sample *sample,
-					int counter, u64 ip)
+					struct perf_evsel *evsel, u64 ip)
 {
 	struct annotation *notes;
 	struct symbol *sym = he->ms.sym;
@@ -204,7 +198,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	err = hist_entry__inc_addr_samples(he, sample, counter, ip);
+	err = hist_entry__inc_addr_samples(he, sample, evsel, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 
@@ -249,10 +243,9 @@ static void perf_top__show_details(struct perf_top *top)
 		goto out_unlock;
 
 	printf("Showing %s for %s\n", perf_evsel__name(top->sym_evsel), symbol->name);
-	printf("  Events  Pcnt (>=%d%%)\n", top->sym_pcnt_filter);
+	printf("  Events  Pcnt (>=%d%%)\n", top->annotation_opts.min_pcnt);
 
-	more = symbol__annotate_printf(symbol, he->ms.map, top->sym_evsel,
-				       0, top->sym_pcnt_filter, top->print_entries, 4);
+	more = symbol__annotate_printf(symbol, he->ms.map, top->sym_evsel, &top->annotation_opts);
 
 	if (top->evlist->enabled) {
 		if (top->zero)
@@ -412,7 +405,7 @@ static void perf_top__print_mapped_keys(struct perf_top *top)
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", top->count_filter);
 
-	fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", top->sym_pcnt_filter);
+	fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", top->annotation_opts.min_pcnt);
 	fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
 	fprintf(stdout, "\t[S]     stop annotation.\n");
 
@@ -515,7 +508,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 			prompt_integer(&top->count_filter, "Enter display event count filter");
 			break;
 		case 'F':
-			prompt_percent(&top->sym_pcnt_filter,
+			prompt_percent(&top->annotation_opts.min_pcnt,
 				       "Enter details display event filter (percent)");
 			break;
 		case 'K':
@@ -613,7 +606,8 @@ static void *display_thread_tui(void *arg)
 	perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
 				      top->min_percent,
 				      &top->session->header.env,
-				      !top->record_opts.overwrite);
+				      !top->record_opts.overwrite,
+				      &top->annotation_opts);
 
 	done = 1;
 	return NULL;
@@ -691,7 +685,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 	struct perf_evsel *evsel = iter->evsel;
 
 	if (perf_hpp_list.sym && single)
-		perf_top__record_precise_ip(top, he, iter->sample, evsel->idx, al->addr);
+		perf_top__record_precise_ip(top, he, iter->sample, evsel, al->addr);
 
 	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
 		     !(top->record_opts.branch_stack & PERF_SAMPLE_BRANCH_ANY));
@@ -742,7 +736,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 "Kernel address maps (/proc/{kallsyms,modules}) are restricted.\n\n"
 "Check /proc/sys/kernel/kptr_restrict.\n\n"
 "Kernel%s samples will not be resolved.\n",
-			  al.map && !RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION]) ?
+			  al.map && map__has_symbols(al.map) ?
 			  " modules" : "");
 			if (use_browser <= 0)
 				sleep(5);
@@ -750,7 +744,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		machine->kptr_restrict_warned = true;
 	}
 
-	if (al.sym == NULL) {
+	if (al.sym == NULL && al.map != NULL) {
 		const char *msg = "Kernel samples will not be resolved.\n";
 		/*
 		 * As we do lazy loading of symtabs we only will know if the
@@ -764,8 +758,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		 * invalid --vmlinux ;-)
 		 */
 		if (!machine->kptr_restrict_warned && !top->vmlinux_warned &&
-		    al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
-		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
+		    __map__is_kernel(al.map) && map__has_symbols(al.map)) {
 			if (symbol_conf.vmlinux_name) {
 				char serr[256];
 				dso__strerror_load(al.map->dso, serr, sizeof(serr));
@@ -1084,8 +1077,9 @@ static int __cmd_top(struct perf_top *top)
 	if (top->session == NULL)
 		return -1;
 
-	if (!objdump_path) {
-		ret = perf_env__lookup_objdump(&top->session->header.env);
+	if (!top->annotation_opts.objdump_path) {
+		ret = perf_env__lookup_objdump(&top->session->header.env,
+					       &top->annotation_opts.objdump_path);
 		if (ret)
 			goto out_delete;
 	}
@@ -1265,8 +1259,8 @@ int cmd_top(int argc, const char **argv)
 			.proc_map_timeout    = 500,
 			.overwrite	= 1,
 		},
-		.max_stack	     = sysctl_perf_event_max_stack,
-		.sym_pcnt_filter     = 5,
+		.max_stack	     = sysctl__max_stack(),
+		.annotation_opts     = annotation__default_options,
 		.nr_threads_synthesize = UINT_MAX,
 	};
 	struct record_opts *opts = &top.record_opts;
@@ -1348,15 +1342,15 @@ int cmd_top(int argc, const char **argv)
 		   "only consider symbols in these comms"),
 	OPT_STRING(0, "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
-	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
+	OPT_BOOLEAN(0, "source", &top.annotation_opts.annotate_src,
 		    "Interleave source code with assembly code (default)"),
-	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
+	OPT_BOOLEAN(0, "asm-raw", &top.annotation_opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
-	OPT_STRING(0, "objdump", &objdump_path, "path",
+	OPT_STRING(0, "objdump", &top.annotation_opts.objdump_path, "path",
 		    "objdump binary to use for disassembly and annotations"),
-	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &top.annotation_opts.disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING('u', "uid", &target->uid_str, "user", "user to profile"),
 	OPT_CALLBACK(0, "percent-limit", &top, "percent",
@@ -1391,6 +1385,9 @@ int cmd_top(int argc, const char **argv)
 
 	if (status < 0)
 		return status;
+
+	top.annotation_opts.min_pcnt = 5;
+	top.annotation_opts.context  = 4;
 
 	top.evlist = perf_evlist__new();
 	if (top.evlist == NULL)
@@ -1468,8 +1465,6 @@ int cmd_top(int argc, const char **argv)
 			  errno == ENOENT ? "No such process" : str_error_r(errno, errbuf, sizeof(errbuf)));
 		goto out_delete_evlist;
 	}
-
-	symbol_conf.nr_events = top.evlist->nr_entries;
 
 	if (top.delay_secs < 1)
 		top.delay_secs = 1;

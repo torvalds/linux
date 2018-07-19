@@ -460,7 +460,7 @@ this retry process in the next article.
 Automount points are locations in the filesystem where an attempt to
 lookup a name can trigger changes to how that lookup should be
 handled, in particular by mounting a filesystem there.  These are
-covered in greater detail in autofs4.txt in the Linux documentation
+covered in greater detail in autofs.txt in the Linux documentation
 tree, but a few notes specifically related to path lookup are in order
 here.
 

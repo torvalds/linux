@@ -580,6 +580,7 @@ static void __dentry_kill(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	if (likely(can_free))
 		dentry_free(dentry);
+	cond_resched();
 }
 
 static struct dentry *__lock_parent(struct dentry *dentry)
@@ -827,30 +828,24 @@ static inline bool fast_dput(struct dentry *dentry)
  */
 void dput(struct dentry *dentry)
 {
-	if (unlikely(!dentry))
-		return;
+	while (dentry) {
+		might_sleep();
 
-repeat:
-	might_sleep();
+		rcu_read_lock();
+		if (likely(fast_dput(dentry))) {
+			rcu_read_unlock();
+			return;
+		}
 
-	rcu_read_lock();
-	if (likely(fast_dput(dentry))) {
+		/* Slow case: now with the dentry lock held */
 		rcu_read_unlock();
-		return;
-	}
 
-	/* Slow case: now with the dentry lock held */
-	rcu_read_unlock();
+		if (likely(retain_dentry(dentry))) {
+			spin_unlock(&dentry->d_lock);
+			return;
+		}
 
-	if (likely(retain_dentry(dentry))) {
-		spin_unlock(&dentry->d_lock);
-		return;
-	}
-
-	dentry = dentry_kill(dentry);
-	if (dentry) {
-		cond_resched();
-		goto repeat;
+		dentry = dentry_kill(dentry);
 	}
 }
 EXPORT_SYMBOL(dput);
@@ -907,6 +902,35 @@ repeat:
 }
 EXPORT_SYMBOL(dget_parent);
 
+static struct dentry * __d_find_any_alias(struct inode *inode)
+{
+	struct dentry *alias;
+
+	if (hlist_empty(&inode->i_dentry))
+		return NULL;
+	alias = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
+	__dget(alias);
+	return alias;
+}
+
+/**
+ * d_find_any_alias - find any alias for a given inode
+ * @inode: inode to find an alias for
+ *
+ * If any aliases exist for the given inode, take and return a
+ * reference for one of them.  If no aliases exist, return %NULL.
+ */
+struct dentry *d_find_any_alias(struct inode *inode)
+{
+	struct dentry *de;
+
+	spin_lock(&inode->i_lock);
+	de = __d_find_any_alias(inode);
+	spin_unlock(&inode->i_lock);
+	return de;
+}
+EXPORT_SYMBOL(d_find_any_alias);
+
 /**
  * d_find_alias - grab a hashed alias of inode
  * @inode: inode in question
@@ -923,34 +947,19 @@ EXPORT_SYMBOL(dget_parent);
  */
 static struct dentry *__d_find_alias(struct inode *inode)
 {
-	struct dentry *alias, *discon_alias;
+	struct dentry *alias;
 
-again:
-	discon_alias = NULL;
+	if (S_ISDIR(inode->i_mode))
+		return __d_find_any_alias(inode);
+
 	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
 		spin_lock(&alias->d_lock);
- 		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
-			if (IS_ROOT(alias) &&
-			    (alias->d_flags & DCACHE_DISCONNECTED)) {
-				discon_alias = alias;
-			} else {
-				__dget_dlock(alias);
-				spin_unlock(&alias->d_lock);
-				return alias;
-			}
-		}
-		spin_unlock(&alias->d_lock);
-	}
-	if (discon_alias) {
-		alias = discon_alias;
-		spin_lock(&alias->d_lock);
-		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
+ 		if (!d_unhashed(alias)) {
 			__dget_dlock(alias);
 			spin_unlock(&alias->d_lock);
 			return alias;
 		}
 		spin_unlock(&alias->d_lock);
-		goto again;
 	}
 	return NULL;
 }
@@ -1051,8 +1060,6 @@ static void shrink_dentry_list(struct list_head *list)
 {
 	while (!list_empty(list)) {
 		struct dentry *dentry, *parent;
-
-		cond_resched();
 
 		dentry = list_entry(list->prev, struct dentry, d_lru);
 		spin_lock(&dentry->d_lock);
@@ -1230,13 +1237,11 @@ enum d_walk_ret {
  * @parent:	start of walk
  * @data:	data passed to @enter() and @finish()
  * @enter:	callback when first entering the dentry
- * @finish:	callback when successfully finished the walk
  *
- * The @enter() and @finish() callbacks are called with d_lock held.
+ * The @enter() callbacks are called with d_lock held.
  */
 static void d_walk(struct dentry *parent, void *data,
-		   enum d_walk_ret (*enter)(void *, struct dentry *),
-		   void (*finish)(void *))
+		   enum d_walk_ret (*enter)(void *, struct dentry *))
 {
 	struct dentry *this_parent;
 	struct list_head *next;
@@ -1325,8 +1330,6 @@ ascend:
 	if (need_seqretry(&rename_lock, seq))
 		goto rename_retry;
 	rcu_read_unlock();
-	if (finish)
-		finish(data);
 
 out_unlock:
 	spin_unlock(&this_parent->d_lock);
@@ -1375,7 +1378,7 @@ int path_has_submounts(const struct path *parent)
 	struct check_mount data = { .mnt = parent->mnt, .mounted = 0 };
 
 	read_seqlock_excl(&mount_lock);
-	d_walk(parent->dentry, &data, path_check_mount, NULL);
+	d_walk(parent->dentry, &data, path_check_mount);
 	read_sequnlock_excl(&mount_lock);
 
 	return data.mounted;
@@ -1483,11 +1486,16 @@ void shrink_dcache_parent(struct dentry *parent)
 		data.start = parent;
 		data.found = 0;
 
-		d_walk(parent, &data, select_collect, NULL);
+		d_walk(parent, &data, select_collect);
+
+		if (!list_empty(&data.dispose)) {
+			shrink_dentry_list(&data.dispose);
+			continue;
+		}
+
+		cond_resched();
 		if (!data.found)
 			break;
-
-		shrink_dentry_list(&data.dispose);
 	}
 }
 EXPORT_SYMBOL(shrink_dcache_parent);
@@ -1518,7 +1526,7 @@ static enum d_walk_ret umount_check(void *_data, struct dentry *dentry)
 static void do_one_tree(struct dentry *dentry)
 {
 	shrink_dcache_parent(dentry);
-	d_walk(dentry, dentry, umount_check, NULL);
+	d_walk(dentry, dentry, umount_check);
 	d_drop(dentry);
 	dput(dentry);
 }
@@ -1542,78 +1550,48 @@ void shrink_dcache_for_umount(struct super_block *sb)
 	}
 }
 
-struct detach_data {
-	struct select_data select;
-	struct dentry *mountpoint;
-};
-static enum d_walk_ret detach_and_collect(void *_data, struct dentry *dentry)
+static enum d_walk_ret find_submount(void *_data, struct dentry *dentry)
 {
-	struct detach_data *data = _data;
-
+	struct dentry **victim = _data;
 	if (d_mountpoint(dentry)) {
 		__dget_dlock(dentry);
-		data->mountpoint = dentry;
+		*victim = dentry;
 		return D_WALK_QUIT;
 	}
-
-	return select_collect(&data->select, dentry);
-}
-
-static void check_and_drop(void *_data)
-{
-	struct detach_data *data = _data;
-
-	if (!data->mountpoint && list_empty(&data->select.dispose))
-		__d_drop(data->select.start);
+	return D_WALK_CONTINUE;
 }
 
 /**
  * d_invalidate - detach submounts, prune dcache, and drop
  * @dentry: dentry to invalidate (aka detach, prune and drop)
- *
- * no dcache lock.
- *
- * The final d_drop is done as an atomic operation relative to
- * rename_lock ensuring there are no races with d_set_mounted.  This
- * ensures there are no unhashed dentries on the path to a mountpoint.
  */
 void d_invalidate(struct dentry *dentry)
 {
-	/*
-	 * If it's already been dropped, return OK.
-	 */
+	bool had_submounts = false;
 	spin_lock(&dentry->d_lock);
 	if (d_unhashed(dentry)) {
 		spin_unlock(&dentry->d_lock);
 		return;
 	}
+	__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
 
 	/* Negative dentries can be dropped without further checks */
-	if (!dentry->d_inode) {
-		d_drop(dentry);
+	if (!dentry->d_inode)
 		return;
-	}
 
+	shrink_dcache_parent(dentry);
 	for (;;) {
-		struct detach_data data;
-
-		data.mountpoint = NULL;
-		INIT_LIST_HEAD(&data.select.dispose);
-		data.select.start = dentry;
-		data.select.found = 0;
-
-		d_walk(dentry, &data, detach_and_collect, check_and_drop);
-
-		if (!list_empty(&data.select.dispose))
-			shrink_dentry_list(&data.select.dispose);
-		else if (!data.mountpoint)
+		struct dentry *victim = NULL;
+		d_walk(dentry, &victim, find_submount);
+		if (!victim) {
+			if (had_submounts)
+				shrink_dcache_parent(dentry);
 			return;
-
-		if (data.mountpoint) {
-			detach_mounts(data.mountpoint);
-			dput(data.mountpoint);
 		}
+		had_submounts = true;
+		detach_mounts(victim);
+		dput(victim);
 	}
 }
 EXPORT_SYMBOL(d_invalidate);
@@ -1962,35 +1940,6 @@ struct dentry *d_make_root(struct inode *root_inode)
 	return res;
 }
 EXPORT_SYMBOL(d_make_root);
-
-static struct dentry * __d_find_any_alias(struct inode *inode)
-{
-	struct dentry *alias;
-
-	if (hlist_empty(&inode->i_dentry))
-		return NULL;
-	alias = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
-	__dget(alias);
-	return alias;
-}
-
-/**
- * d_find_any_alias - find any alias for a given inode
- * @inode: inode to find an alias for
- *
- * If any aliases exist for the given inode, take and return a
- * reference for one of them.  If no aliases exist, return %NULL.
- */
-struct dentry *d_find_any_alias(struct inode *inode)
-{
-	struct dentry *de;
-
-	spin_lock(&inode->i_lock);
-	de = __d_find_any_alias(inode);
-	spin_unlock(&inode->i_lock);
-	return de;
-}
-EXPORT_SYMBOL(d_find_any_alias);
 
 static struct dentry *__d_instantiate_anon(struct dentry *dentry,
 					   struct inode *inode,
@@ -3134,7 +3083,7 @@ static enum d_walk_ret d_genocide_kill(void *data, struct dentry *dentry)
 
 void d_genocide(struct dentry *parent)
 {
-	d_walk(parent, parent, d_genocide_kill, NULL);
+	d_walk(parent, parent, d_genocide_kill);
 }
 
 EXPORT_SYMBOL(d_genocide);

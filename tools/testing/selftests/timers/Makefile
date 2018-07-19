@@ -5,13 +5,13 @@ LDFLAGS += -lrt -lpthread -lm
 # these are all "safe" tests that don't modify
 # system time or require escalated privileges
 TEST_GEN_PROGS = posix_timers nanosleep nsleep-lat set-timer-lat mqueue-lat \
-	     inconsistency-check raw_skew threadtest rtctest
+	     inconsistency-check raw_skew threadtest rtcpie
 
 DESTRUCTIVE_TESTS = alarmtimer-suspend valid-adjtimex adjtick change_skew \
 		      skew_consistency clocksource-switch freq-step leap-a-day \
 		      leapcrash set-tai set-2038 set-tz
 
-TEST_GEN_PROGS_EXTENDED = $(DESTRUCTIVE_TESTS) rtctest_setdate
+TEST_GEN_PROGS_EXTENDED = $(DESTRUCTIVE_TESTS)
 
 
 include ../lib.mk

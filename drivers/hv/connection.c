@@ -63,6 +63,9 @@ static __u32 vmbus_get_next_version(__u32 current_version)
 	case (VERSION_WIN10):
 		return VERSION_WIN8_1;
 
+	case (VERSION_WIN10_V5):
+		return VERSION_WIN10;
+
 	case (VERSION_WS2008):
 	default:
 		return VERSION_INVAL;
@@ -80,9 +83,29 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 
 	msg = (struct vmbus_channel_initiate_contact *)msginfo->msg;
 
+	memset(msg, 0, sizeof(*msg));
 	msg->header.msgtype = CHANNELMSG_INITIATE_CONTACT;
 	msg->vmbus_version_requested = version;
-	msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
+
+	/*
+	 * VMBus protocol 5.0 (VERSION_WIN10_V5) requires that we must use
+	 * VMBUS_MESSAGE_CONNECTION_ID_4 for the Initiate Contact Message,
+	 * and for subsequent messages, we must use the Message Connection ID
+	 * field in the host-returned Version Response Message. And, with
+	 * VERSION_WIN10_V5, we don't use msg->interrupt_page, but we tell
+	 * the host explicitly that we still use VMBUS_MESSAGE_SINT(2) for
+	 * compatibility.
+	 *
+	 * On old hosts, we should always use VMBUS_MESSAGE_CONNECTION_ID (1).
+	 */
+	if (version >= VERSION_WIN10_V5) {
+		msg->msg_sint = VMBUS_MESSAGE_SINT;
+		vmbus_connection.msg_conn_id = VMBUS_MESSAGE_CONNECTION_ID_4;
+	} else {
+		msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
+		vmbus_connection.msg_conn_id = VMBUS_MESSAGE_CONNECTION_ID;
+	}
+
 	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages[0]);
 	msg->monitor_page2 = virt_to_phys(vmbus_connection.monitor_pages[1]);
 	/*
@@ -137,6 +160,10 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	/* Check if successful */
 	if (msginfo->response.version_response.version_supported) {
 		vmbus_connection.conn_state = CONNECTED;
+
+		if (version >= VERSION_WIN10_V5)
+			vmbus_connection.msg_conn_id =
+				msginfo->response.version_response.msg_conn_id;
 	} else {
 		return -ECONNREFUSED;
 	}
@@ -354,13 +381,14 @@ void vmbus_on_event(unsigned long data)
  */
 int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 {
+	struct vmbus_channel_message_header *hdr;
 	union hv_connection_id conn_id;
 	int ret = 0;
 	int retries = 0;
 	u32 usec = 1;
 
 	conn_id.asu32 = 0;
-	conn_id.u.id = VMBUS_MESSAGE_CONNECTION_ID;
+	conn_id.u.id = vmbus_connection.msg_conn_id;
 
 	/*
 	 * hv_post_message() can have transient failures because of
@@ -372,6 +400,18 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 
 		switch (ret) {
 		case HV_STATUS_INVALID_CONNECTION_ID:
+			/*
+			 * See vmbus_negotiate_version(): VMBus protocol 5.0
+			 * requires that we must use
+			 * VMBUS_MESSAGE_CONNECTION_ID_4 for the Initiate
+			 * Contact message, but on old hosts that only
+			 * support VMBus protocol 4.0 or lower, here we get
+			 * HV_STATUS_INVALID_CONNECTION_ID and we should
+			 * return an error immediately without retrying.
+			 */
+			hdr = buffer;
+			if (hdr->msgtype == CHANNELMSG_INITIATE_CONTACT)
+				return -EINVAL;
 			/*
 			 * We could get this if we send messages too
 			 * frequently.

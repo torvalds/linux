@@ -252,7 +252,7 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 	if (nr || !footbridge_cfn_mode())
 		return 0;
 
-	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	res = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
 	if (!res) {
 		printk("out of memory for root bus resources");
 		return 0;

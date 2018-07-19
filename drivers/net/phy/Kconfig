@@ -118,10 +118,17 @@ config MDIO_I2C
 
 config MDIO_MOXART
 	tristate "MOXA ART MDIO interface support"
-	depends on ARCH_MOXART
+	depends on ARCH_MOXART || COMPILE_TEST
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the MOXA ART SoC
+
+config MDIO_MSCC_MIIM
+	tristate "Microsemi MIIM interface support"
+	depends on HAS_IOMEM
+	help
+	  This driver supports the MIIM (MDIO) interface found in the network
+	  switches of the Microsemi SoCs
 
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
@@ -135,7 +142,7 @@ config MDIO_OCTEON
 
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the Allwinner SoC that have an EMAC (A10,
@@ -218,6 +225,12 @@ config AQUANTIA_PHY
 	---help---
 	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
 
+config ASIX_PHY
+	tristate "Asix PHYs"
+	help
+	  Currently supports the Asix Electronics PHY found in the X-Surf 100
+	  AX88796B package.
+
 config AT803X_PHY
 	tristate "AT803X PHYs"
 	---help---
@@ -284,6 +297,11 @@ config DP83822_PHY
 	tristate "Texas Instruments DP83822 PHY"
 	---help---
 	  Supports the DP83822 PHY.
+
+config DP83TC811_PHY
+	tristate "Texas Instruments DP83TC822 PHY"
+	---help---
+	  Supports the DP83TC822 PHY.
 
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
@@ -353,6 +371,11 @@ config MICROCHIP_PHY
 	tristate "Microchip PHYs"
 	help
 	  Supports the LAN88XX PHYs.
+
+config MICROCHIP_T1_PHY
+	tristate "Microchip T1 PHYs"
+	---help---
+	  Supports the LAN87XX PHYs.
 
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"

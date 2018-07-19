@@ -9,7 +9,7 @@ config NET_DSA
 	depends on HAVE_NET_DSA && MAY_USE_DEVLINK
 	depends on BRIDGE || BRIDGE=n
 	select NET_SWITCHDEV
-	select PHYLIB
+	select PHYLINK
 	---help---
 	  Say Y if you want to enable support for the hardware switches supported
 	  by the Distributed Switch Architecture.

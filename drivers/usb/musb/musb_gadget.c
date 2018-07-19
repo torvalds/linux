@@ -1794,16 +1794,12 @@ int musb_gadget_setup(struct musb *musb)
 	musb->g.speed = USB_SPEED_UNKNOWN;
 
 	MUSB_DEV_MODE(musb);
-	musb->xceiv->otg->default_a = 0;
 	musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 
 	/* this "gadget" abstracts/virtualizes the controller */
 	musb->g.name = musb_driver_name;
-#if IS_ENABLED(CONFIG_USB_MUSB_DUAL_ROLE)
-	musb->g.is_otg = 1;
-#elif IS_ENABLED(CONFIG_USB_MUSB_GADGET)
+	/* don't support otg protocols */
 	musb->g.is_otg = 0;
-#endif
 	INIT_DELAYED_WORK(&musb->gadget_work, musb_gadget_work);
 	musb_g_init_endpoints(musb);
 
@@ -1823,7 +1819,7 @@ err:
 
 void musb_gadget_cleanup(struct musb *musb)
 {
-	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+	if (musb->port_mode == MUSB_HOST)
 		return;
 
 	cancel_delayed_work_sync(&musb->gadget_work);

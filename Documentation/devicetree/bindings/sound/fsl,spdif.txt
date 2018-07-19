@@ -33,6 +33,8 @@ Required properties:
 			  it. This property is optional depending on the SoC
 			  design.
 
+Optional properties:
+
    - big-endian		: If this property is absent, the native endian mode
 			  will be in use as default, or the big endian mode
 			  will be in use for all the device registers.

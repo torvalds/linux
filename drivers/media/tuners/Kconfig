@@ -284,4 +284,11 @@ config MEDIA_TUNER_QM1D1C0042
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Sharp QM1D1C0042 trellis coded 8PSK tuner driver.
+
+config MEDIA_TUNER_QM1D1B0004
+	tristate "Sharp QM1D1B0004 tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Sharp QM1D1B0004 ISDB-S tuner driver.
 endmenu

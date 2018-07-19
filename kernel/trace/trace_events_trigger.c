@@ -97,7 +97,6 @@ EXPORT_SYMBOL_GPL(event_triggers_call);
  * event_triggers_post_call - Call 'post_triggers' for a trace event
  * @file: The trace_event_file associated with the event
  * @tt: enum event_trigger_type containing a set bit for each trigger to invoke
- * @rec: The trace entry for the event
  *
  * For each trigger associated with an event, invoke the trigger
  * function registered with the associated trigger command, if the
@@ -108,8 +107,7 @@ EXPORT_SYMBOL_GPL(event_triggers_call);
  */
 void
 event_triggers_post_call(struct trace_event_file *file,
-			 enum event_trigger_type tt,
-			 void *rec, struct ring_buffer_event *event)
+			 enum event_trigger_type tt)
 {
 	struct event_trigger_data *data;
 
@@ -117,7 +115,7 @@ event_triggers_post_call(struct trace_event_file *file,
 		if (data->paused)
 			continue;
 		if (data->cmd_ops->trigger_type & tt)
-			data->ops->func(data, rec, event);
+			data->ops->func(data, NULL, NULL);
 	}
 }
 EXPORT_SYMBOL_GPL(event_triggers_post_call);

@@ -474,8 +474,8 @@ static int longhaul_get_ranges(void)
 		return -EINVAL;
 	}
 
-	longhaul_table = kzalloc((numscales + 1) * sizeof(*longhaul_table),
-			GFP_KERNEL);
+	longhaul_table = kcalloc(numscales + 1, sizeof(*longhaul_table),
+				 GFP_KERNEL);
 	if (!longhaul_table)
 		return -ENOMEM;
 

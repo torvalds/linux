@@ -268,7 +268,8 @@ static void dpd_exit(struct dfs_pattern_detector *dpd)
 }
 
 static bool
-dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
+dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event,
+	      struct radar_detector_specs *rs)
 {
 	u32 i;
 	struct channel_detector *cd;
@@ -294,6 +295,8 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 		struct pri_detector *pd = cd->detectors[i];
 		struct pri_sequence *ps = pd->add_pulse(pd, event);
 		if (ps != NULL) {
+			if (rs != NULL)
+				memcpy(rs, pd->rs, sizeof(*rs));
 			ath_dbg(dpd->common, DFS,
 				"DFS: radar found on freq=%d: id=%d, pri=%d, "
 				"count=%d, count_false=%d\n",

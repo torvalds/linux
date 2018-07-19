@@ -770,27 +770,35 @@ static void mlxsw_core_driver_put(const char *kind)
 
 static int mlxsw_devlink_port_split(struct devlink *devlink,
 				    unsigned int port_index,
-				    unsigned int count)
+				    unsigned int count,
+				    struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	if (port_index >= mlxsw_core->max_ports)
+	if (port_index >= mlxsw_core->max_ports) {
+		NL_SET_ERR_MSG_MOD(extack, "Port index exceeds maximum number of ports");
 		return -EINVAL;
+	}
 	if (!mlxsw_core->driver->port_split)
 		return -EOPNOTSUPP;
-	return mlxsw_core->driver->port_split(mlxsw_core, port_index, count);
+	return mlxsw_core->driver->port_split(mlxsw_core, port_index, count,
+					      extack);
 }
 
 static int mlxsw_devlink_port_unsplit(struct devlink *devlink,
-				      unsigned int port_index)
+				      unsigned int port_index,
+				      struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	if (port_index >= mlxsw_core->max_ports)
+	if (port_index >= mlxsw_core->max_ports) {
+		NL_SET_ERR_MSG_MOD(extack, "Port index exceeds maximum number of ports");
 		return -EINVAL;
+	}
 	if (!mlxsw_core->driver->port_unsplit)
 		return -EOPNOTSUPP;
-	return mlxsw_core->driver->port_unsplit(mlxsw_core, port_index);
+	return mlxsw_core->driver->port_unsplit(mlxsw_core, port_index,
+						extack);
 }
 
 static int
@@ -963,17 +971,16 @@ mlxsw_devlink_sb_occ_tc_port_bind_get(struct devlink_port *devlink_port,
 						     pool_type, p_cur, p_max);
 }
 
-static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink)
+static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink,
+						struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
-	const struct mlxsw_bus *mlxsw_bus = mlxsw_core->bus;
 	int err;
 
-	if (!mlxsw_bus->reset)
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_RESET))
 		return -EOPNOTSUPP;
 
 	mlxsw_core_bus_device_unregister(mlxsw_core, true);
-	mlxsw_bus->reset(mlxsw_core->bus_priv);
 	err = mlxsw_core_bus_device_register(mlxsw_core->bus_info,
 					     mlxsw_core->bus,
 					     mlxsw_core->bus_priv, true,
@@ -1480,6 +1487,7 @@ static int mlxsw_core_reg_access_cmd(struct mlxsw_core *mlxsw_core,
 {
 	enum mlxsw_emad_op_tlv_status status;
 	int err, n_retry;
+	bool reset_ok;
 	char *in_mbox, *out_mbox, *tmp;
 
 	dev_dbg(mlxsw_core->bus_info->dev, "Reg cmd access (reg_id=%x(%s),type=%s)\n",
@@ -1501,9 +1509,16 @@ static int mlxsw_core_reg_access_cmd(struct mlxsw_core *mlxsw_core,
 	tmp = in_mbox + MLXSW_EMAD_OP_TLV_LEN * sizeof(u32);
 	mlxsw_emad_pack_reg_tlv(tmp, reg, payload);
 
+	/* There is a special treatment needed for MRSR (reset) register.
+	 * The command interface will return error after the command
+	 * is executed, so tell the lower layer to expect it
+	 * and cope accordingly.
+	 */
+	reset_ok = reg->id == MLXSW_REG_MRSR_ID;
+
 	n_retry = 0;
 retry:
-	err = mlxsw_cmd_access_reg(mlxsw_core, in_mbox, out_mbox);
+	err = mlxsw_cmd_access_reg(mlxsw_core, reset_ok, in_mbox, out_mbox);
 	if (!err) {
 		err = mlxsw_emad_process_status(out_mbox, &status);
 		if (err) {
@@ -1714,15 +1729,16 @@ EXPORT_SYMBOL(mlxsw_core_port_fini);
 
 void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 			     void *port_driver_priv, struct net_device *dev,
-			     bool split, u32 split_group)
+			     u32 port_number, bool split,
+			     u32 split_port_subnumber)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
 					&mlxsw_core->ports[local_port];
 	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
 
 	mlxsw_core_port->port_driver_priv = port_driver_priv;
-	if (split)
-		devlink_port_split_set(devlink_port, split_group);
+	devlink_port_attrs_set(devlink_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
+			       port_number, split, split_port_subnumber);
 	devlink_port_type_eth_set(devlink_port, dev);
 }
 EXPORT_SYMBOL(mlxsw_core_port_eth_set);
@@ -1762,6 +1778,17 @@ enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_port_type_get);
 
+int mlxsw_core_port_get_phys_port_name(struct mlxsw_core *mlxsw_core,
+				       u8 local_port, char *name, size_t len)
+{
+	struct mlxsw_core_port *mlxsw_core_port =
+					&mlxsw_core->ports[local_port];
+	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
+
+	return devlink_port_get_phys_port_name(devlink_port, name, len);
+}
+EXPORT_SYMBOL(mlxsw_core_port_get_phys_port_name);
+
 static void mlxsw_core_buf_dump_dbg(struct mlxsw_core *mlxsw_core,
 				    const char *buf, size_t size)
 {
@@ -1781,7 +1808,7 @@ static void mlxsw_core_buf_dump_dbg(struct mlxsw_core *mlxsw_core,
 }
 
 int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
-		   u32 in_mod, bool out_mbox_direct,
+		   u32 in_mod, bool out_mbox_direct, bool reset_ok,
 		   char *in_mbox, size_t in_mbox_size,
 		   char *out_mbox, size_t out_mbox_size)
 {
@@ -1804,7 +1831,15 @@ int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
 					in_mbox, in_mbox_size,
 					out_mbox, out_mbox_size, &status);
 
-	if (err == -EIO && status != MLXSW_CMD_STATUS_OK) {
+	if (!err && out_mbox) {
+		dev_dbg(mlxsw_core->bus_info->dev, "Output mailbox:\n");
+		mlxsw_core_buf_dump_dbg(mlxsw_core, out_mbox, out_mbox_size);
+	}
+
+	if (reset_ok && err == -EIO &&
+	    status == MLXSW_CMD_STATUS_RUNNING_RESET) {
+		err = 0;
+	} else if (err == -EIO && status != MLXSW_CMD_STATUS_OK) {
 		dev_err(mlxsw_core->bus_info->dev, "Cmd exec failed (opcode=%x(%s),opcode_mod=%x,in_mod=%x,status=%x(%s))\n",
 			opcode, mlxsw_cmd_opcode_str(opcode), opcode_mod,
 			in_mod, status, mlxsw_cmd_status_str(status));
@@ -1814,10 +1849,6 @@ int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
 			in_mod);
 	}
 
-	if (!err && out_mbox) {
-		dev_dbg(mlxsw_core->bus_info->dev, "Output mailbox:\n");
-		mlxsw_core_buf_dump_dbg(mlxsw_core, out_mbox, out_mbox_size);
-	}
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_cmd_exec);

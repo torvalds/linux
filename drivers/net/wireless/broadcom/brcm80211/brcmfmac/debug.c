@@ -40,7 +40,8 @@ int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 	if (!dump)
 		return -ENOMEM;
 
-	memcpy(dump, data, len);
+	if (data && len > 0)
+		memcpy(dump, data, len);
 	err = brcmf_bus_get_memdump(bus, dump + len, ramsize);
 	if (err) {
 		vfree(dump);

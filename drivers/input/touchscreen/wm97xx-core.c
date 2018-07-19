@@ -68,7 +68,7 @@
  * The default values correspond to Mainstone II in QVGA mode
  *
  * Please read
- * Documentation/input/input-programming.txt for more details.
+ * Documentation/input/input-programming.rst for more details.
  */
 
 static int abs_x[3] = {150, 4000, 5};

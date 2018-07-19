@@ -668,8 +668,9 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  * For a completely stable walk you should construct your own data
  * structure outside the hash table.
  *
- * This function may sleep so you must not call it from interrupt
- * context or with spin locks held.
+ * This function may be called from any process context, including
+ * non-preemptable context, but cannot be called from softirq or
+ * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.
  */
@@ -726,6 +727,7 @@ int rhashtable_walk_start_check(struct rhashtable_iter *iter)
 	__acquires(RCU)
 {
 	struct rhashtable *ht = iter->ht;
+	bool rhlist = ht->rhlist;
 
 	rcu_read_lock();
 
@@ -734,11 +736,52 @@ int rhashtable_walk_start_check(struct rhashtable_iter *iter)
 		list_del(&iter->walker.list);
 	spin_unlock(&ht->lock);
 
-	if (!iter->walker.tbl && !iter->end_of_table) {
+	if (iter->end_of_table)
+		return 0;
+	if (!iter->walker.tbl) {
 		iter->walker.tbl = rht_dereference_rcu(ht->tbl, ht);
+		iter->slot = 0;
+		iter->skip = 0;
 		return -EAGAIN;
 	}
 
+	if (iter->p && !rhlist) {
+		/*
+		 * We need to validate that 'p' is still in the table, and
+		 * if so, update 'skip'
+		 */
+		struct rhash_head *p;
+		int skip = 0;
+		rht_for_each_rcu(p, iter->walker.tbl, iter->slot) {
+			skip++;
+			if (p == iter->p) {
+				iter->skip = skip;
+				goto found;
+			}
+		}
+		iter->p = NULL;
+	} else if (iter->p && rhlist) {
+		/* Need to validate that 'list' is still in the table, and
+		 * if so, update 'skip' and 'p'.
+		 */
+		struct rhash_head *p;
+		struct rhlist_head *list;
+		int skip = 0;
+		rht_for_each_rcu(p, iter->walker.tbl, iter->slot) {
+			for (list = container_of(p, struct rhlist_head, rhead);
+			     list;
+			     list = rcu_dereference(list->next)) {
+				skip++;
+				if (list == iter->list) {
+					iter->p = p;
+					skip = skip;
+					goto found;
+				}
+			}
+		}
+		iter->p = NULL;
+	}
+found:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rhashtable_walk_start_check);
@@ -913,8 +956,6 @@ void rhashtable_walk_stop(struct rhashtable_iter *iter)
 	else
 		iter->walker.tbl = NULL;
 	spin_unlock(&ht->lock);
-
-	iter->p = NULL;
 
 out:
 	rcu_read_unlock();

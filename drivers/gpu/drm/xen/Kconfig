@@ -1,0 +1,17 @@
+config DRM_XEN
+	bool "DRM Support for Xen guest OS"
+	depends on XEN
+	help
+	  Choose this option if you want to enable DRM support
+	  for Xen.
+
+config DRM_XEN_FRONTEND
+	tristate "Para-virtualized frontend driver for Xen guest OS"
+	depends on DRM_XEN
+	depends on DRM
+	select DRM_KMS_HELPER
+	select VIDEOMODE_HELPERS
+	select XEN_XENBUS_FRONTEND
+	help
+	  Choose this option if you want to enable a para-virtualized
+	  frontend DRM/KMS driver for Xen guest OSes.

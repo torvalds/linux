@@ -116,7 +116,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	bool ret = false;
 
 	do {
-		ret = nvif_mthd(&disp->disp, 0, &args, sizeof(args));
+		ret = nvif_mthd(&disp->disp.object, 0, &args, sizeof(args));
 		if (ret != 0)
 			return false;
 
@@ -175,7 +175,7 @@ nouveau_display_vblank_init(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		ret = nvif_notify_init(&disp->disp,
+		ret = nvif_notify_init(&disp->disp.object,
 				       nouveau_display_vblank_handler, false,
 				       NV04_DISP_NTFY_VBLANK,
 				       &(struct nvif_notify_head_req_v0) {
@@ -338,11 +338,9 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 	if (c) {                                                               \
 		p = drm_property_create(dev, DRM_MODE_PROP_ENUM, n, c);        \
 		l = (list);                                                    \
-		c = 0;                                                         \
 		while (p && l->gen_mask) {                                     \
 			if (l->gen_mask & (1 << (gen))) {                      \
-				drm_property_add_enum(p, c, l->type, l->name); \
-				c++;                                           \
+				drm_property_add_enum(p, l->type, l->name);    \
 			}                                                      \
 			l++;                                                   \
 		}                                                              \
@@ -456,10 +454,10 @@ nouveau_display_create_properties(struct drm_device *dev)
 	struct nouveau_display *disp = nouveau_display(dev);
 	int gen;
 
-	if (disp->disp.oclass < NV50_DISP)
+	if (disp->disp.object.oclass < NV50_DISP)
 		gen = 0;
 	else
-	if (disp->disp.oclass < GF110_DISP)
+	if (disp->disp.object.oclass < GF110_DISP)
 		gen = 1;
 	else
 		gen = 2;
@@ -535,31 +533,10 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_disable(dev);
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
-		static const u16 oclass[] = {
-			GP102_DISP,
-			GP100_DISP,
-			GM200_DISP,
-			GM107_DISP,
-			GK110_DISP,
-			GK104_DISP,
-			GF110_DISP,
-			GT214_DISP,
-			GT206_DISP,
-			GT200_DISP,
-			G82_DISP,
-			NV50_DISP,
-			NV04_DISP,
-		};
-		int i;
-
-		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nvif_object_init(&drm->client.device.object, 0,
-					       oclass[i], NULL, 0, &disp->disp);
-		}
-
+		ret = nvif_disp_ctor(&drm->client.device, 0, &disp->disp);
 		if (ret == 0) {
 			nouveau_display_create_properties(dev);
-			if (disp->disp.oclass < NV50_DISP)
+			if (disp->disp.object.oclass < NV50_DISP)
 				ret = nv04_display_create(dev);
 			else
 				ret = nv50_display_create(dev);
@@ -613,7 +590,7 @@ nouveau_display_destroy(struct drm_device *dev)
 	if (disp->dtor)
 		disp->dtor(dev);
 
-	nvif_object_fini(&disp->disp);
+	nvif_disp_dtor(&disp->disp);
 
 	nouveau_drm(dev)->display = NULL;
 	kfree(disp);

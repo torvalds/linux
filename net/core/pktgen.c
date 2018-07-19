@@ -3603,7 +3603,8 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 		return -ENOMEM;
 
 	strcpy(pkt_dev->odevname, ifname);
-	pkt_dev->flows = vzalloc_node(MAX_CFLOWS * sizeof(struct flow_state),
+	pkt_dev->flows = vzalloc_node(array_size(MAX_CFLOWS,
+						 sizeof(struct flow_state)),
 				      node);
 	if (pkt_dev->flows == NULL) {
 		kfree(pkt_dev);

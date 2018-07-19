@@ -11,10 +11,6 @@
 
 #define S5P_VA_CHIPID		S3C_ADDR(0x02000000)
 
-#define S5P_VA_COREPERI_BASE	S3C_ADDR(0x02800000)
-#define S5P_VA_COREPERI(x)	(S5P_VA_COREPERI_BASE + (x))
-#define S5P_VA_SCU		S5P_VA_COREPERI(0x0)
-
 #define VA_VIC(x)		(S3C_VA_IRQ + ((x) * 0x10000))
 #define VA_VIC0			VA_VIC(0)
 #define VA_VIC1			VA_VIC(1)

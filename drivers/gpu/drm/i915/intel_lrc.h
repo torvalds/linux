@@ -108,7 +108,7 @@ static inline uint64_t
 intel_lr_context_descriptor(struct i915_gem_context *ctx,
 			    struct intel_engine_cs *engine)
 {
-	return ctx->engine[engine->id].lrc_desc;
+	return to_intel_context(ctx, engine)->lrc_desc;
 }
 
 #endif /* _INTEL_LRC_H_ */

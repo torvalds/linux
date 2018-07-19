@@ -268,8 +268,7 @@ static int xwdt_remove(struct platform_device *pdev)
  */
 static int __maybe_unused xwdt_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct xwdt_device *xdev = platform_get_drvdata(pdev);
+	struct xwdt_device *xdev = dev_get_drvdata(dev);
 
 	if (watchdog_active(&xdev->xilinx_wdt_wdd))
 		xilinx_wdt_stop(&xdev->xilinx_wdt_wdd);
@@ -285,8 +284,7 @@ static int __maybe_unused xwdt_suspend(struct device *dev)
  */
 static int __maybe_unused xwdt_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct xwdt_device *xdev = platform_get_drvdata(pdev);
+	struct xwdt_device *xdev = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (watchdog_active(&xdev->xilinx_wdt_wdd))

@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
-#include <sys/mman.h>
+#include <linux/mman.h>
 #include "sort.h"
 #include "hist.h"
 #include "comm.h"
@@ -282,7 +282,7 @@ static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 
 	ret += repsep_snprintf(bf + ret, size - ret, "[%c] ", level);
 	if (sym && map) {
-		if (map->type == MAP__VARIABLE) {
+		if (sym->type == STT_OBJECT) {
 			ret += repsep_snprintf(bf + ret, size - ret, "%s", sym->name);
 			ret += repsep_snprintf(bf + ret, size - ret, "+0x%llx",
 					ip - map->unmap_ip(map, sym->start));
@@ -331,24 +331,18 @@ struct sort_entry sort_sym = {
 
 /* --sort srcline */
 
-char *hist_entry__get_srcline(struct hist_entry *he)
+char *hist_entry__srcline(struct hist_entry *he)
 {
-	struct map *map = he->ms.map;
-
-	if (!map)
-		return SRCLINE_UNKNOWN;
-
-	return get_srcline(map->dso, map__rip_2objdump(map, he->ip),
-			   he->ms.sym, true, true, he->ip);
+	return map__srcline(he->ms.map, he->ip, he->ms.sym);
 }
 
 static int64_t
 sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	if (!left->srcline)
-		left->srcline = hist_entry__get_srcline(left);
+		left->srcline = hist_entry__srcline(left);
 	if (!right->srcline)
-		right->srcline = hist_entry__get_srcline(right);
+		right->srcline = hist_entry__srcline(right);
 
 	return strcmp(right->srcline, left->srcline);
 }
@@ -357,7 +351,7 @@ static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
 					size_t size, unsigned int width)
 {
 	if (!he->srcline)
-		he->srcline = hist_entry__get_srcline(he);
+		he->srcline = hist_entry__srcline(he);
 
 	return repsep_snprintf(bf, size, "%-.*s", width, he->srcline);
 }
@@ -371,33 +365,20 @@ struct sort_entry sort_srcline = {
 
 /* --sort srcline_from */
 
+static char *addr_map_symbol__srcline(struct addr_map_symbol *ams)
+{
+	return map__srcline(ams->map, ams->al_addr, ams->sym);
+}
+
 static int64_t
 sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	if (!left->branch_info->srcline_from) {
-		struct map *map = left->branch_info->from.map;
-		if (!map)
-			left->branch_info->srcline_from = SRCLINE_UNKNOWN;
-		else
-			left->branch_info->srcline_from = get_srcline(map->dso,
-					   map__rip_2objdump(map,
-							     left->branch_info->from.al_addr),
-							 left->branch_info->from.sym,
-							 true, true,
-							 left->branch_info->from.al_addr);
-	}
-	if (!right->branch_info->srcline_from) {
-		struct map *map = right->branch_info->from.map;
-		if (!map)
-			right->branch_info->srcline_from = SRCLINE_UNKNOWN;
-		else
-			right->branch_info->srcline_from = get_srcline(map->dso,
-					     map__rip_2objdump(map,
-							       right->branch_info->from.al_addr),
-						     right->branch_info->from.sym,
-						     true, true,
-						     right->branch_info->from.al_addr);
-	}
+	if (!left->branch_info->srcline_from)
+		left->branch_info->srcline_from = addr_map_symbol__srcline(&left->branch_info->from);
+
+	if (!right->branch_info->srcline_from)
+		right->branch_info->srcline_from = addr_map_symbol__srcline(&right->branch_info->from);
+
 	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
 }
 
@@ -419,30 +400,12 @@ struct sort_entry sort_srcline_from = {
 static int64_t
 sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	if (!left->branch_info->srcline_to) {
-		struct map *map = left->branch_info->to.map;
-		if (!map)
-			left->branch_info->srcline_to = SRCLINE_UNKNOWN;
-		else
-			left->branch_info->srcline_to = get_srcline(map->dso,
-					   map__rip_2objdump(map,
-							     left->branch_info->to.al_addr),
-							 left->branch_info->from.sym,
-							 true, true,
-							 left->branch_info->to.al_addr);
-	}
-	if (!right->branch_info->srcline_to) {
-		struct map *map = right->branch_info->to.map;
-		if (!map)
-			right->branch_info->srcline_to = SRCLINE_UNKNOWN;
-		else
-			right->branch_info->srcline_to = get_srcline(map->dso,
-					     map__rip_2objdump(map,
-							       right->branch_info->to.al_addr),
-						     right->branch_info->to.sym,
-						     true, true,
-						     right->branch_info->to.al_addr);
-	}
+	if (!left->branch_info->srcline_to)
+		left->branch_info->srcline_to = addr_map_symbol__srcline(&left->branch_info->to);
+
+	if (!right->branch_info->srcline_to)
+		right->branch_info->srcline_to = addr_map_symbol__srcline(&right->branch_info->to);
+
 	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
 }
 
@@ -1211,7 +1174,7 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 
 		/* print [s] for shared data mmaps */
 		if ((he->cpumode != PERF_RECORD_MISC_KERNEL) &&
-		     map && (map->type == MAP__VARIABLE) &&
+		     map && !(map->prot & PROT_EXEC) &&
 		    (map->flags & MAP_SHARED) &&
 		    (map->maj || map->min || map->ino ||
 		     map->ino_generation))
@@ -2582,7 +2545,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		if (sort__mode != SORT_MODE__MEMORY)
 			return -EINVAL;
 
-		if (sd->entry == &sort_mem_dcacheline && cacheline_size == 0)
+		if (sd->entry == &sort_mem_dcacheline && cacheline_size() == 0)
 			return -EINVAL;
 
 		if (sd->entry == &sort_mem_daddr_sym)
@@ -2628,7 +2591,7 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 		if (*tok) {
 			ret = sort_dimension__add(list, tok, evlist, level);
 			if (ret == -EINVAL) {
-				if (!cacheline_size && !strncasecmp(tok, "dcacheline", strlen(tok)))
+				if (!cacheline_size() && !strncasecmp(tok, "dcacheline", strlen(tok)))
 					pr_err("The \"dcacheline\" --sort key needs to know the cacheline size and it couldn't be determined on this system");
 				else
 					pr_err("Invalid --sort key: `%s'", tok);

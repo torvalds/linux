@@ -46,6 +46,8 @@
 
 #include "internal.h"
 
+#define KIOCB_KEY		0
+
 #define AIO_RING_MAGIC			0xa10a10a1
 #define AIO_RING_COMPAT_FEATURES	1
 #define AIO_RING_INCOMPAT_FEATURES	0
@@ -156,21 +158,17 @@ struct kioctx {
 	unsigned		id;
 };
 
-/*
- * We use ki_cancel == KIOCB_CANCELLED to indicate that a kiocb has been either
- * cancelled or completed (this makes a certain amount of sense because
- * successful cancellation - io_cancel() - does deliver the completion to
- * userspace).
- *
- * And since most things don't implement kiocb cancellation and we'd really like
- * kiocb completion to be lockless when possible, we use ki_cancel to
- * synchronize cancellation and completion - we only set it to KIOCB_CANCELLED
- * with xchg() or cmpxchg(), see batch_complete_aio() and kiocb_cancel().
- */
-#define KIOCB_CANCELLED		((void *) (~0ULL))
+struct fsync_iocb {
+	struct work_struct	work;
+	struct file		*file;
+	bool			datasync;
+};
 
 struct aio_kiocb {
-	struct kiocb		common;
+	union {
+		struct kiocb		rw;
+		struct fsync_iocb	fsync;
+	};
 
 	struct kioctx		*ki_ctx;
 	kiocb_cancel_fn		*ki_cancel;
@@ -264,9 +262,6 @@ static int __init aio_setup(void)
 
 	kiocb_cachep = KMEM_CACHE(aio_kiocb, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 	kioctx_cachep = KMEM_CACHE(kioctx,SLAB_HWCACHE_ALIGN|SLAB_PANIC);
-
-	pr_debug("sizeof(struct page) = %zu\n", sizeof(struct page));
-
 	return 0;
 }
 __initcall(aio_setup);
@@ -552,41 +547,19 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 
 void kiocb_set_cancel_fn(struct kiocb *iocb, kiocb_cancel_fn *cancel)
 {
-	struct aio_kiocb *req = container_of(iocb, struct aio_kiocb, common);
+	struct aio_kiocb *req = container_of(iocb, struct aio_kiocb, rw);
 	struct kioctx *ctx = req->ki_ctx;
 	unsigned long flags;
 
+	if (WARN_ON_ONCE(!list_empty(&req->ki_list)))
+		return;
+
 	spin_lock_irqsave(&ctx->ctx_lock, flags);
-
-	if (!req->ki_list.next)
-		list_add(&req->ki_list, &ctx->active_reqs);
-
+	list_add_tail(&req->ki_list, &ctx->active_reqs);
 	req->ki_cancel = cancel;
-
 	spin_unlock_irqrestore(&ctx->ctx_lock, flags);
 }
 EXPORT_SYMBOL(kiocb_set_cancel_fn);
-
-static int kiocb_cancel(struct aio_kiocb *kiocb)
-{
-	kiocb_cancel_fn *old, *cancel;
-
-	/*
-	 * Don't want to set kiocb->ki_cancel = KIOCB_CANCELLED unless it
-	 * actually has a cancel function, hence the cmpxchg()
-	 */
-
-	cancel = READ_ONCE(kiocb->ki_cancel);
-	do {
-		if (!cancel || cancel == KIOCB_CANCELLED)
-			return -EINVAL;
-
-		old = cancel;
-		cancel = cmpxchg(&kiocb->ki_cancel, old, KIOCB_CANCELLED);
-	} while (cancel != old);
-
-	return cancel(&kiocb->common);
-}
 
 /*
  * free_ioctx() should be RCU delayed to synchronize against the RCU
@@ -634,7 +607,7 @@ static void free_ioctx_users(struct percpu_ref *ref)
 	while (!list_empty(&ctx->active_reqs)) {
 		req = list_first_entry(&ctx->active_reqs,
 				       struct aio_kiocb, ki_list);
-		kiocb_cancel(req);
+		req->ki_cancel(&req->rw);
 		list_del_init(&req->ki_list);
 	}
 
@@ -1041,21 +1014,12 @@ static inline struct aio_kiocb *aio_get_req(struct kioctx *ctx)
 		goto out_put;
 
 	percpu_ref_get(&ctx->reqs);
-
+	INIT_LIST_HEAD(&req->ki_list);
 	req->ki_ctx = ctx;
 	return req;
 out_put:
 	put_reqs_available(ctx, 1);
 	return NULL;
-}
-
-static void kiocb_free(struct aio_kiocb *req)
-{
-	if (req->common.ki_filp)
-		fput(req->common.ki_filp);
-	if (req->ki_eventfd != NULL)
-		eventfd_ctx_put(req->ki_eventfd);
-	kmem_cache_free(kiocb_cachep, req);
 }
 
 static struct kioctx *lookup_ioctx(unsigned long ctx_id)
@@ -1088,43 +1052,13 @@ out:
 /* aio_complete
  *	Called when the io request on the given iocb is complete.
  */
-static void aio_complete(struct kiocb *kiocb, long res, long res2)
+static void aio_complete(struct aio_kiocb *iocb, long res, long res2)
 {
-	struct aio_kiocb *iocb = container_of(kiocb, struct aio_kiocb, common);
 	struct kioctx	*ctx = iocb->ki_ctx;
 	struct aio_ring	*ring;
 	struct io_event	*ev_page, *event;
 	unsigned tail, pos, head;
 	unsigned long	flags;
-
-	if (kiocb->ki_flags & IOCB_WRITE) {
-		struct file *file = kiocb->ki_filp;
-
-		/*
-		 * Tell lockdep we inherited freeze protection from submission
-		 * thread.
-		 */
-		if (S_ISREG(file_inode(file)->i_mode))
-			__sb_writers_acquired(file_inode(file)->i_sb, SB_FREEZE_WRITE);
-		file_end_write(file);
-	}
-
-	/*
-	 * Special case handling for sync iocbs:
-	 *  - events go directly into the iocb for fast handling
-	 *  - the sync task with the iocb in its stack holds the single iocb
-	 *    ref, no other paths have a way to get another ref
-	 *  - the sync task helpfully left a reference to itself in the iocb
-	 */
-	BUG_ON(is_sync_kiocb(kiocb));
-
-	if (iocb->ki_list.next) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ctx->ctx_lock, flags);
-		list_del(&iocb->ki_list);
-		spin_unlock_irqrestore(&ctx->ctx_lock, flags);
-	}
 
 	/*
 	 * Add a completion event to the ring buffer. Must be done holding
@@ -1179,11 +1113,12 @@ static void aio_complete(struct kiocb *kiocb, long res, long res2)
 	 * eventfd. The eventfd_signal() function is safe to be called
 	 * from IRQ context.
 	 */
-	if (iocb->ki_eventfd != NULL)
+	if (iocb->ki_eventfd) {
 		eventfd_signal(iocb->ki_eventfd, 1);
+		eventfd_ctx_put(iocb->ki_eventfd);
+	}
 
-	/* everything turned out well, dispose of the aiocb. */
-	kiocb_free(iocb);
+	kmem_cache_free(kiocb_cachep, iocb);
 
 	/*
 	 * We have to order our ring_info tail store above and test
@@ -1249,13 +1184,12 @@ static long aio_read_events_ring(struct kioctx *ctx,
 		if (head == tail)
 			break;
 
-		avail = min(avail, nr - ret);
-		avail = min_t(long, avail, AIO_EVENTS_PER_PAGE -
-			    ((head + AIO_EVENTS_OFFSET) % AIO_EVENTS_PER_PAGE));
-
 		pos = head + AIO_EVENTS_OFFSET;
 		page = ctx->ring_pages[pos / AIO_EVENTS_PER_PAGE];
 		pos %= AIO_EVENTS_PER_PAGE;
+
+		avail = min(avail, nr - ret);
+		avail = min_t(long, avail, AIO_EVENTS_PER_PAGE - pos);
 
 		ev = kmap(page);
 		copy_ret = copy_to_user(event + ret, ev + pos,
@@ -1327,10 +1261,6 @@ static long read_events(struct kioctx *ctx, long min_nr, long nr,
 		wait_event_interruptible_hrtimeout(ctx->wait,
 				aio_read_events(ctx, min_nr, nr, event, &ret),
 				until);
-
-	if (!ret && signal_pending(current))
-		ret = -EINTR;
-
 	return ret;
 }
 
@@ -1446,6 +1376,74 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	return -EINVAL;
 }
 
+static void aio_remove_iocb(struct aio_kiocb *iocb)
+{
+	struct kioctx *ctx = iocb->ki_ctx;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->ctx_lock, flags);
+	list_del(&iocb->ki_list);
+	spin_unlock_irqrestore(&ctx->ctx_lock, flags);
+}
+
+static void aio_complete_rw(struct kiocb *kiocb, long res, long res2)
+{
+	struct aio_kiocb *iocb = container_of(kiocb, struct aio_kiocb, rw);
+
+	if (!list_empty_careful(&iocb->ki_list))
+		aio_remove_iocb(iocb);
+
+	if (kiocb->ki_flags & IOCB_WRITE) {
+		struct inode *inode = file_inode(kiocb->ki_filp);
+
+		/*
+		 * Tell lockdep we inherited freeze protection from submission
+		 * thread.
+		 */
+		if (S_ISREG(inode->i_mode))
+			__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
+		file_end_write(kiocb->ki_filp);
+	}
+
+	fput(kiocb->ki_filp);
+	aio_complete(iocb, res, res2);
+}
+
+static int aio_prep_rw(struct kiocb *req, struct iocb *iocb)
+{
+	int ret;
+
+	req->ki_filp = fget(iocb->aio_fildes);
+	if (unlikely(!req->ki_filp))
+		return -EBADF;
+	req->ki_complete = aio_complete_rw;
+	req->ki_pos = iocb->aio_offset;
+	req->ki_flags = iocb_flags(req->ki_filp);
+	if (iocb->aio_flags & IOCB_FLAG_RESFD)
+		req->ki_flags |= IOCB_EVENTFD;
+	req->ki_hint = ki_hint_validate(file_write_hint(req->ki_filp));
+	if (iocb->aio_flags & IOCB_FLAG_IOPRIO) {
+		/*
+		 * If the IOCB_FLAG_IOPRIO flag of aio_flags is set, then
+		 * aio_reqprio is interpreted as an I/O scheduling
+		 * class and priority.
+		 */
+		ret = ioprio_check_cap(iocb->aio_reqprio);
+		if (ret) {
+			pr_debug("aio ioprio check cap error: %d\n", ret);
+			return ret;
+		}
+
+		req->ki_ioprio = iocb->aio_reqprio;
+	} else
+		req->ki_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0);
+
+	ret = kiocb_set_rw_flags(req, iocb->aio_rw_flags);
+	if (unlikely(ret))
+		fput(req->ki_filp);
+	return ret;
+}
+
 static int aio_setup_rw(int rw, struct iocb *iocb, struct iovec **iovec,
 		bool vectored, bool compat, struct iov_iter *iter)
 {
@@ -1465,11 +1463,11 @@ static int aio_setup_rw(int rw, struct iocb *iocb, struct iovec **iovec,
 	return import_iovec(rw, buf, len, UIO_FASTIOV, iovec, iter);
 }
 
-static inline ssize_t aio_ret(struct kiocb *req, ssize_t ret)
+static inline void aio_rw_done(struct kiocb *req, ssize_t ret)
 {
 	switch (ret) {
 	case -EIOCBQUEUED:
-		return ret;
+		break;
 	case -ERESTARTSYS:
 	case -ERESTARTNOINTR:
 	case -ERESTARTNOHAND:
@@ -1481,85 +1479,140 @@ static inline ssize_t aio_ret(struct kiocb *req, ssize_t ret)
 		ret = -EINTR;
 		/*FALLTHRU*/
 	default:
-		aio_complete(req, ret, 0);
-		return 0;
+		aio_complete_rw(req, ret, 0);
 	}
 }
 
 static ssize_t aio_read(struct kiocb *req, struct iocb *iocb, bool vectored,
 		bool compat)
 {
-	struct file *file = req->ki_filp;
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct iov_iter iter;
+	struct file *file;
 	ssize_t ret;
 
+	ret = aio_prep_rw(req, iocb);
+	if (ret)
+		return ret;
+	file = req->ki_filp;
+
+	ret = -EBADF;
 	if (unlikely(!(file->f_mode & FMODE_READ)))
-		return -EBADF;
+		goto out_fput;
+	ret = -EINVAL;
 	if (unlikely(!file->f_op->read_iter))
-		return -EINVAL;
+		goto out_fput;
 
 	ret = aio_setup_rw(READ, iocb, &iovec, vectored, compat, &iter);
 	if (ret)
-		return ret;
+		goto out_fput;
 	ret = rw_verify_area(READ, file, &req->ki_pos, iov_iter_count(&iter));
 	if (!ret)
-		ret = aio_ret(req, call_read_iter(file, req, &iter));
+		aio_rw_done(req, call_read_iter(file, req, &iter));
 	kfree(iovec);
+out_fput:
+	if (unlikely(ret))
+		fput(file);
 	return ret;
 }
 
 static ssize_t aio_write(struct kiocb *req, struct iocb *iocb, bool vectored,
 		bool compat)
 {
-	struct file *file = req->ki_filp;
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct iov_iter iter;
-	ssize_t ret;
-
-	if (unlikely(!(file->f_mode & FMODE_WRITE)))
-		return -EBADF;
-	if (unlikely(!file->f_op->write_iter))
-		return -EINVAL;
-
-	ret = aio_setup_rw(WRITE, iocb, &iovec, vectored, compat, &iter);
-	if (ret)
-		return ret;
-	ret = rw_verify_area(WRITE, file, &req->ki_pos, iov_iter_count(&iter));
-	if (!ret) {
-		req->ki_flags |= IOCB_WRITE;
-		file_start_write(file);
-		ret = aio_ret(req, call_write_iter(file, req, &iter));
-		/*
-		 * We release freeze protection in aio_complete().  Fool lockdep
-		 * by telling it the lock got released so that it doesn't
-		 * complain about held lock when we return to userspace.
-		 */
-		if (S_ISREG(file_inode(file)->i_mode))
-			__sb_writers_release(file_inode(file)->i_sb, SB_FREEZE_WRITE);
-	}
-	kfree(iovec);
-	return ret;
-}
-
-static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
-			 struct iocb *iocb, bool compat)
-{
-	struct aio_kiocb *req;
 	struct file *file;
 	ssize_t ret;
 
+	ret = aio_prep_rw(req, iocb);
+	if (ret)
+		return ret;
+	file = req->ki_filp;
+
+	ret = -EBADF;
+	if (unlikely(!(file->f_mode & FMODE_WRITE)))
+		goto out_fput;
+	ret = -EINVAL;
+	if (unlikely(!file->f_op->write_iter))
+		goto out_fput;
+
+	ret = aio_setup_rw(WRITE, iocb, &iovec, vectored, compat, &iter);
+	if (ret)
+		goto out_fput;
+	ret = rw_verify_area(WRITE, file, &req->ki_pos, iov_iter_count(&iter));
+	if (!ret) {
+		/*
+		 * Open-code file_start_write here to grab freeze protection,
+		 * which will be released by another thread in
+		 * aio_complete_rw().  Fool lockdep by telling it the lock got
+		 * released so that it doesn't complain about the held lock when
+		 * we return to userspace.
+		 */
+		if (S_ISREG(file_inode(file)->i_mode)) {
+			__sb_start_write(file_inode(file)->i_sb, SB_FREEZE_WRITE, true);
+			__sb_writers_release(file_inode(file)->i_sb, SB_FREEZE_WRITE);
+		}
+		req->ki_flags |= IOCB_WRITE;
+		aio_rw_done(req, call_write_iter(file, req, &iter));
+	}
+	kfree(iovec);
+out_fput:
+	if (unlikely(ret))
+		fput(file);
+	return ret;
+}
+
+static void aio_fsync_work(struct work_struct *work)
+{
+	struct fsync_iocb *req = container_of(work, struct fsync_iocb, work);
+	int ret;
+
+	ret = vfs_fsync(req->file, req->datasync);
+	fput(req->file);
+	aio_complete(container_of(req, struct aio_kiocb, fsync), ret, 0);
+}
+
+static int aio_fsync(struct fsync_iocb *req, struct iocb *iocb, bool datasync)
+{
+	if (unlikely(iocb->aio_buf || iocb->aio_offset || iocb->aio_nbytes ||
+			iocb->aio_rw_flags))
+		return -EINVAL;
+
+	req->file = fget(iocb->aio_fildes);
+	if (unlikely(!req->file))
+		return -EBADF;
+	if (unlikely(!req->file->f_op->fsync)) {
+		fput(req->file);
+		return -EINVAL;
+	}
+
+	req->datasync = datasync;
+	INIT_WORK(&req->work, aio_fsync_work);
+	schedule_work(&req->work);
+	return 0;
+}
+
+static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
+			 bool compat)
+{
+	struct aio_kiocb *req;
+	struct iocb iocb;
+	ssize_t ret;
+
+	if (unlikely(copy_from_user(&iocb, user_iocb, sizeof(iocb))))
+		return -EFAULT;
+
 	/* enforce forwards compatibility on users */
-	if (unlikely(iocb->aio_reserved2)) {
+	if (unlikely(iocb.aio_reserved2)) {
 		pr_debug("EINVAL: reserve field set\n");
 		return -EINVAL;
 	}
 
 	/* prevent overflows */
 	if (unlikely(
-	    (iocb->aio_buf != (unsigned long)iocb->aio_buf) ||
-	    (iocb->aio_nbytes != (size_t)iocb->aio_nbytes) ||
-	    ((ssize_t)iocb->aio_nbytes < 0)
+	    (iocb.aio_buf != (unsigned long)iocb.aio_buf) ||
+	    (iocb.aio_nbytes != (size_t)iocb.aio_nbytes) ||
+	    ((ssize_t)iocb.aio_nbytes < 0)
 	   )) {
 		pr_debug("EINVAL: overflow check\n");
 		return -EINVAL;
@@ -1569,37 +1622,19 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	if (unlikely(!req))
 		return -EAGAIN;
 
-	req->common.ki_filp = file = fget(iocb->aio_fildes);
-	if (unlikely(!req->common.ki_filp)) {
-		ret = -EBADF;
-		goto out_put_req;
-	}
-	req->common.ki_pos = iocb->aio_offset;
-	req->common.ki_complete = aio_complete;
-	req->common.ki_flags = iocb_flags(req->common.ki_filp);
-	req->common.ki_hint = file_write_hint(file);
-
-	if (iocb->aio_flags & IOCB_FLAG_RESFD) {
+	if (iocb.aio_flags & IOCB_FLAG_RESFD) {
 		/*
 		 * If the IOCB_FLAG_RESFD flag of aio_flags is set, get an
 		 * instance of the file* now. The file descriptor must be
 		 * an eventfd() fd, and will be signaled for each completed
 		 * event using the eventfd_signal() function.
 		 */
-		req->ki_eventfd = eventfd_ctx_fdget((int) iocb->aio_resfd);
+		req->ki_eventfd = eventfd_ctx_fdget((int) iocb.aio_resfd);
 		if (IS_ERR(req->ki_eventfd)) {
 			ret = PTR_ERR(req->ki_eventfd);
 			req->ki_eventfd = NULL;
 			goto out_put_req;
 		}
-
-		req->common.ki_flags |= IOCB_EVENTFD;
-	}
-
-	ret = kiocb_set_rw_flags(&req->common, iocb->aio_rw_flags);
-	if (unlikely(ret)) {
-		pr_debug("EINVAL: aio_rw_flags\n");
-		goto out_put_req;
 	}
 
 	ret = put_user(KIOCB_KEY, &user_iocb->aio_key);
@@ -1609,90 +1644,48 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	}
 
 	req->ki_user_iocb = user_iocb;
-	req->ki_user_data = iocb->aio_data;
+	req->ki_user_data = iocb.aio_data;
 
-	get_file(file);
-	switch (iocb->aio_lio_opcode) {
+	switch (iocb.aio_lio_opcode) {
 	case IOCB_CMD_PREAD:
-		ret = aio_read(&req->common, iocb, false, compat);
+		ret = aio_read(&req->rw, &iocb, false, compat);
 		break;
 	case IOCB_CMD_PWRITE:
-		ret = aio_write(&req->common, iocb, false, compat);
+		ret = aio_write(&req->rw, &iocb, false, compat);
 		break;
 	case IOCB_CMD_PREADV:
-		ret = aio_read(&req->common, iocb, true, compat);
+		ret = aio_read(&req->rw, &iocb, true, compat);
 		break;
 	case IOCB_CMD_PWRITEV:
-		ret = aio_write(&req->common, iocb, true, compat);
+		ret = aio_write(&req->rw, &iocb, true, compat);
+		break;
+	case IOCB_CMD_FSYNC:
+		ret = aio_fsync(&req->fsync, &iocb, false);
+		break;
+	case IOCB_CMD_FDSYNC:
+		ret = aio_fsync(&req->fsync, &iocb, true);
 		break;
 	default:
-		pr_debug("invalid aio operation %d\n", iocb->aio_lio_opcode);
+		pr_debug("invalid aio operation %d\n", iocb.aio_lio_opcode);
 		ret = -EINVAL;
 		break;
 	}
-	fput(file);
 
-	if (ret && ret != -EIOCBQUEUED)
+	/*
+	 * If ret is 0, we'd either done aio_complete() ourselves or have
+	 * arranged for that to be done asynchronously.  Anything non-zero
+	 * means that we need to destroy req ourselves.
+	 */
+	if (ret)
 		goto out_put_req;
 	return 0;
 out_put_req:
 	put_reqs_available(ctx, 1);
 	percpu_ref_put(&ctx->reqs);
-	kiocb_free(req);
+	if (req->ki_eventfd)
+		eventfd_ctx_put(req->ki_eventfd);
+	kmem_cache_free(kiocb_cachep, req);
 	return ret;
-}
-
-static long do_io_submit(aio_context_t ctx_id, long nr,
-			  struct iocb __user *__user *iocbpp, bool compat)
-{
-	struct kioctx *ctx;
-	long ret = 0;
-	int i = 0;
-	struct blk_plug plug;
-
-	if (unlikely(nr < 0))
-		return -EINVAL;
-
-	if (unlikely(nr > LONG_MAX/sizeof(*iocbpp)))
-		nr = LONG_MAX/sizeof(*iocbpp);
-
-	if (unlikely(!access_ok(VERIFY_READ, iocbpp, (nr*sizeof(*iocbpp)))))
-		return -EFAULT;
-
-	ctx = lookup_ioctx(ctx_id);
-	if (unlikely(!ctx)) {
-		pr_debug("EINVAL: invalid context id\n");
-		return -EINVAL;
-	}
-
-	blk_start_plug(&plug);
-
-	/*
-	 * AKPM: should this return a partial result if some of the IOs were
-	 * successfully submitted?
-	 */
-	for (i=0; i<nr; i++) {
-		struct iocb __user *user_iocb;
-		struct iocb tmp;
-
-		if (unlikely(__get_user(user_iocb, iocbpp + i))) {
-			ret = -EFAULT;
-			break;
-		}
-
-		if (unlikely(copy_from_user(&tmp, user_iocb, sizeof(tmp)))) {
-			ret = -EFAULT;
-			break;
-		}
-
-		ret = io_submit_one(ctx, user_iocb, &tmp, compat);
-		if (ret)
-			break;
-	}
-	blk_finish_plug(&plug);
-
-	percpu_ref_put(&ctx->users);
-	return i ? i : ret;
 }
 
 /* sys_io_submit:
@@ -1710,44 +1703,80 @@ static long do_io_submit(aio_context_t ctx_id, long nr,
 SYSCALL_DEFINE3(io_submit, aio_context_t, ctx_id, long, nr,
 		struct iocb __user * __user *, iocbpp)
 {
-	return do_io_submit(ctx_id, nr, iocbpp, 0);
-}
-
-#ifdef CONFIG_COMPAT
-static inline long
-copy_iocb(long nr, u32 __user *ptr32, struct iocb __user * __user *ptr64)
-{
-	compat_uptr_t uptr;
-	int i;
-
-	for (i = 0; i < nr; ++i) {
-		if (get_user(uptr, ptr32 + i))
-			return -EFAULT;
-		if (put_user(compat_ptr(uptr), ptr64 + i))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-#define MAX_AIO_SUBMITS 	(PAGE_SIZE/sizeof(struct iocb *))
-
-COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
-		       int, nr, u32 __user *, iocb)
-{
-	struct iocb __user * __user *iocb64;
-	long ret;
+	struct kioctx *ctx;
+	long ret = 0;
+	int i = 0;
+	struct blk_plug plug;
 
 	if (unlikely(nr < 0))
 		return -EINVAL;
 
-	if (nr > MAX_AIO_SUBMITS)
-		nr = MAX_AIO_SUBMITS;
+	ctx = lookup_ioctx(ctx_id);
+	if (unlikely(!ctx)) {
+		pr_debug("EINVAL: invalid context id\n");
+		return -EINVAL;
+	}
 
-	iocb64 = compat_alloc_user_space(nr * sizeof(*iocb64));
-	ret = copy_iocb(nr, iocb, iocb64);
-	if (!ret)
-		ret = do_io_submit(ctx_id, nr, iocb64, 1);
-	return ret;
+	if (nr > ctx->nr_events)
+		nr = ctx->nr_events;
+
+	blk_start_plug(&plug);
+	for (i = 0; i < nr; i++) {
+		struct iocb __user *user_iocb;
+
+		if (unlikely(get_user(user_iocb, iocbpp + i))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = io_submit_one(ctx, user_iocb, false);
+		if (ret)
+			break;
+	}
+	blk_finish_plug(&plug);
+
+	percpu_ref_put(&ctx->users);
+	return i ? i : ret;
+}
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
+		       int, nr, compat_uptr_t __user *, iocbpp)
+{
+	struct kioctx *ctx;
+	long ret = 0;
+	int i = 0;
+	struct blk_plug plug;
+
+	if (unlikely(nr < 0))
+		return -EINVAL;
+
+	ctx = lookup_ioctx(ctx_id);
+	if (unlikely(!ctx)) {
+		pr_debug("EINVAL: invalid context id\n");
+		return -EINVAL;
+	}
+
+	if (nr > ctx->nr_events)
+		nr = ctx->nr_events;
+
+	blk_start_plug(&plug);
+	for (i = 0; i < nr; i++) {
+		compat_uptr_t user_iocb;
+
+		if (unlikely(get_user(user_iocb, iocbpp + i))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = io_submit_one(ctx, compat_ptr(user_iocb), true);
+		if (ret)
+			break;
+	}
+	blk_finish_plug(&plug);
+
+	percpu_ref_put(&ctx->users);
+	return i ? i : ret;
 }
 #endif
 
@@ -1755,14 +1784,11 @@ COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
  *	Finds a given iocb for cancellation.
  */
 static struct aio_kiocb *
-lookup_kiocb(struct kioctx *ctx, struct iocb __user *iocb, u32 key)
+lookup_kiocb(struct kioctx *ctx, struct iocb __user *iocb)
 {
 	struct aio_kiocb *kiocb;
 
 	assert_spin_locked(&ctx->ctx_lock);
-
-	if (key != KIOCB_KEY)
-		return NULL;
 
 	/* TODO: use a hash or array, this sucks. */
 	list_for_each_entry(kiocb, &ctx->active_reqs, ki_list) {
@@ -1787,25 +1813,24 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 {
 	struct kioctx *ctx;
 	struct aio_kiocb *kiocb;
+	int ret = -EINVAL;
 	u32 key;
-	int ret;
 
-	ret = get_user(key, &iocb->aio_key);
-	if (unlikely(ret))
+	if (unlikely(get_user(key, &iocb->aio_key)))
 		return -EFAULT;
+	if (unlikely(key != KIOCB_KEY))
+		return -EINVAL;
 
 	ctx = lookup_ioctx(ctx_id);
 	if (unlikely(!ctx))
 		return -EINVAL;
 
 	spin_lock_irq(&ctx->ctx_lock);
-
-	kiocb = lookup_kiocb(ctx, iocb, key);
-	if (kiocb)
-		ret = kiocb_cancel(kiocb);
-	else
-		ret = -EINVAL;
-
+	kiocb = lookup_kiocb(ctx, iocb);
+	if (kiocb) {
+		ret = kiocb->ki_cancel(&kiocb->rw);
+		list_del_init(&kiocb->ki_list);
+	}
 	spin_unlock_irq(&ctx->ctx_lock);
 
 	if (!ret) {
@@ -1860,13 +1885,60 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 		struct timespec __user *, timeout)
 {
 	struct timespec64	ts;
+	int			ret;
 
-	if (timeout) {
-		if (unlikely(get_timespec64(&ts, timeout)))
+	if (timeout && unlikely(get_timespec64(&ts, timeout)))
+		return -EFAULT;
+
+	ret = do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &ts : NULL);
+	if (!ret && signal_pending(current))
+		ret = -EINTR;
+	return ret;
+}
+
+SYSCALL_DEFINE6(io_pgetevents,
+		aio_context_t, ctx_id,
+		long, min_nr,
+		long, nr,
+		struct io_event __user *, events,
+		struct timespec __user *, timeout,
+		const struct __aio_sigset __user *, usig)
+{
+	struct __aio_sigset	ksig = { NULL, };
+	sigset_t		ksigmask, sigsaved;
+	struct timespec64	ts;
+	int ret;
+
+	if (timeout && unlikely(get_timespec64(&ts, timeout)))
+		return -EFAULT;
+
+	if (usig && copy_from_user(&ksig, usig, sizeof(ksig)))
+		return -EFAULT;
+
+	if (ksig.sigmask) {
+		if (ksig.sigsetsize != sizeof(sigset_t))
+			return -EINVAL;
+		if (copy_from_user(&ksigmask, ksig.sigmask, sizeof(ksigmask)))
 			return -EFAULT;
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
 	}
 
-	return do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &ts : NULL);
+	ret = do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &ts : NULL);
+	if (signal_pending(current)) {
+		if (ksig.sigmask) {
+			current->saved_sigmask = sigsaved;
+			set_restore_sigmask();
+		}
+
+		if (!ret)
+			ret = -ERESTARTNOHAND;
+	} else {
+		if (ksig.sigmask)
+			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	}
+
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT
@@ -1877,13 +1949,64 @@ COMPAT_SYSCALL_DEFINE5(io_getevents, compat_aio_context_t, ctx_id,
 		       struct compat_timespec __user *, timeout)
 {
 	struct timespec64 t;
+	int ret;
 
-	if (timeout) {
-		if (compat_get_timespec64(&t, timeout))
+	if (timeout && compat_get_timespec64(&t, timeout))
+		return -EFAULT;
+
+	ret = do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &t : NULL);
+	if (!ret && signal_pending(current))
+		ret = -EINTR;
+	return ret;
+}
+
+
+struct __compat_aio_sigset {
+	compat_sigset_t __user	*sigmask;
+	compat_size_t		sigsetsize;
+};
+
+COMPAT_SYSCALL_DEFINE6(io_pgetevents,
+		compat_aio_context_t, ctx_id,
+		compat_long_t, min_nr,
+		compat_long_t, nr,
+		struct io_event __user *, events,
+		struct compat_timespec __user *, timeout,
+		const struct __compat_aio_sigset __user *, usig)
+{
+	struct __compat_aio_sigset ksig = { NULL, };
+	sigset_t ksigmask, sigsaved;
+	struct timespec64 t;
+	int ret;
+
+	if (timeout && compat_get_timespec64(&t, timeout))
+		return -EFAULT;
+
+	if (usig && copy_from_user(&ksig, usig, sizeof(ksig)))
+		return -EFAULT;
+
+	if (ksig.sigmask) {
+		if (ksig.sigsetsize != sizeof(compat_sigset_t))
+			return -EINVAL;
+		if (get_compat_sigset(&ksigmask, ksig.sigmask))
 			return -EFAULT;
-
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
 	}
 
-	return do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &t : NULL);
+	ret = do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &t : NULL);
+	if (signal_pending(current)) {
+		if (ksig.sigmask) {
+			current->saved_sigmask = sigsaved;
+			set_restore_sigmask();
+		}
+		if (!ret)
+			ret = -ERESTARTNOHAND;
+	} else {
+		if (ksig.sigmask)
+			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	}
+
+	return ret;
 }
 #endif

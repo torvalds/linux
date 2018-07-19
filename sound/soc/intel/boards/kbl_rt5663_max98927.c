@@ -299,7 +299,8 @@ static int kabylake_rt5663_codec_init(struct snd_soc_pcm_runtime *rtd)
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
 
-	rt5663_set_jack_detect(component, &ctx->kabylake_headset);
+	snd_soc_component_set_jack(component, &ctx->kabylake_headset, NULL);
+
 	return ret;
 }
 
@@ -972,7 +973,7 @@ static int kabylake_audio_probe(struct platform_device *pdev)
 	struct skl_machine_pdata *pdata;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 

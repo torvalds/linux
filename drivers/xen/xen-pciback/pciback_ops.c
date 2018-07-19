@@ -234,7 +234,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 	if (dev->msi_enabled || !(cmd & PCI_COMMAND_MEMORY))
 		return -ENXIO;
 
-	entries = kmalloc(op->value * sizeof(*entries), GFP_KERNEL);
+	entries = kmalloc_array(op->value, sizeof(*entries), GFP_KERNEL);
 	if (entries == NULL)
 		return -ENOMEM;
 

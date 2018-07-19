@@ -1431,11 +1431,11 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
 			  const struct nlattr *attr)
 {
-	typeof(nfnetlink_parse_nat_setup_hook) parse_nat_setup;
+	struct nf_nat_hook *nat_hook;
 	int err;
 
-	parse_nat_setup = rcu_dereference(nfnetlink_parse_nat_setup_hook);
-	if (!parse_nat_setup) {
+	nat_hook = rcu_dereference(nf_nat_hook);
+	if (!nat_hook) {
 #ifdef CONFIG_MODULES
 		rcu_read_unlock();
 		nfnl_unlock(NFNL_SUBSYS_CTNETLINK);
@@ -1446,13 +1446,14 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 		}
 		nfnl_lock(NFNL_SUBSYS_CTNETLINK);
 		rcu_read_lock();
-		if (nfnetlink_parse_nat_setup_hook)
+		nat_hook = rcu_dereference(nf_nat_hook);
+		if (nat_hook)
 			return -EAGAIN;
 #endif
 		return -EOPNOTSUPP;
 	}
 
-	err = parse_nat_setup(ct, manip, attr);
+	err = nat_hook->parse_nat_setup(ct, manip, attr);
 	if (err == -EAGAIN) {
 #ifdef CONFIG_MODULES
 		rcu_read_unlock();
@@ -2203,6 +2204,9 @@ ctnetlink_stat_ct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	nfmsg->res_id	    = 0;
 
 	if (nla_put_be32(skb, CTA_STATS_GLOBAL_ENTRIES, htonl(nr_conntracks)))
+		goto nla_put_failure;
+
+	if (nla_put_be32(skb, CTA_STATS_GLOBAL_MAX_ENTRIES, htonl(nf_conntrack_max)))
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);

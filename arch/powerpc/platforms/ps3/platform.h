@@ -57,7 +57,7 @@ static inline void ps3_smp_cleanup_cpu(int cpu) { }
 /* time */
 
 void __init ps3_calibrate_decr(void);
-unsigned long __init ps3_get_boot_time(void);
+time64_t __init ps3_get_boot_time(void);
 void ps3_get_rtc_time(struct rtc_time *time);
 int ps3_set_rtc_time(struct rtc_time *time);
 

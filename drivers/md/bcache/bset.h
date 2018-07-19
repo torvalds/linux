@@ -347,7 +347,7 @@ static inline struct bkey *bch_bset_search(struct btree_keys *b,
 /* Sorting */
 
 struct bset_sort_state {
-	mempool_t		*pool;
+	mempool_t		pool;
 
 	unsigned		page_order;
 	unsigned		crit_factor;

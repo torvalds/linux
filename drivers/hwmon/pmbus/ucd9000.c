@@ -454,8 +454,8 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 	 */
 	if (mid->driver_data == ucd9090 || mid->driver_data == ucd90160 ||
 	    mid->driver_data == ucd90910) {
-		entries = devm_kzalloc(&client->dev,
-				       sizeof(*entries) * UCD9000_GPI_COUNT,
+		entries = devm_kcalloc(&client->dev,
+				       UCD9000_GPI_COUNT, sizeof(*entries),
 				       GFP_KERNEL);
 		if (!entries)
 			return -ENOMEM;

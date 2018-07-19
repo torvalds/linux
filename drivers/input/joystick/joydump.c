@@ -80,7 +80,7 @@ static int joydump_connect(struct gameport *gameport, struct gameport_driver *dr
 
 	timeout = gameport_time(gameport, 10000); /* 10 ms */
 
-	buf = kmalloc(BUF_SIZE * sizeof(struct joydump), GFP_KERNEL);
+	buf = kmalloc_array(BUF_SIZE, sizeof(struct joydump), GFP_KERNEL);
 	if (!buf) {
 		printk(KERN_INFO "joydump: no memory for testing\n");
 		goto jd_end;

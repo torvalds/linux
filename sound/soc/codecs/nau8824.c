@@ -205,11 +205,11 @@ static int nau8824_sema_acquire(struct nau8824 *nau8824, long timeout)
 	if (timeout) {
 		ret = down_timeout(&nau8824->jd_sem, timeout);
 		if (ret < 0)
-			dev_warn(nau8824->dev, "Acquire semaphone timeout\n");
+			dev_warn(nau8824->dev, "Acquire semaphore timeout\n");
 	} else {
 		ret = down_interruptible(&nau8824->jd_sem);
 		if (ret < 0)
-			dev_warn(nau8824->dev, "Acquire semaphone fail\n");
+			dev_warn(nau8824->dev, "Acquire semaphore fail\n");
 	}
 
 	return ret;
@@ -409,6 +409,15 @@ static const struct snd_kcontrol_new nau8824_snd_controls[] = {
 
 	SOC_SINGLE("DACL LR Mix", NAU8824_REG_DAC_MUTE_CTRL, 0, 1, 0),
 	SOC_SINGLE("DACR LR Mix", NAU8824_REG_DAC_MUTE_CTRL, 1, 1, 0),
+
+	SOC_SINGLE("THD for key media",
+		NAU8824_REG_VDET_THRESHOLD_1, 8, 0xff, 0),
+	SOC_SINGLE("THD for key voice command",
+		NAU8824_REG_VDET_THRESHOLD_1, 0, 0xff, 0),
+	SOC_SINGLE("THD for key volume up",
+		NAU8824_REG_VDET_THRESHOLD_2, 8, 0xff, 0),
+	SOC_SINGLE("THD for key volume down",
+		NAU8824_REG_VDET_THRESHOLD_2, 0, 0xff, 0),
 };
 
 static int nau8824_output_dac_event(struct snd_soc_dapm_widget *w,

@@ -5,6 +5,8 @@
 #include <linux/firmware.h>
 #include <linux/device.h>
 
+#include "firmware.h"
+
 /**
  * struct firmware_fallback_config - firmware fallback configuration settings
  *
@@ -29,10 +31,10 @@ struct firmware_fallback_config {
 };
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
-int fw_sysfs_fallback(struct firmware *fw, const char *name,
-		      struct device *device,
-		      unsigned int opt_flags,
-		      int ret);
+int firmware_fallback_sysfs(struct firmware *fw, const char *name,
+			    struct device *device,
+			    enum fw_opt opt_flags,
+			    int ret);
 void kill_pending_fw_fallback_reqs(bool only_kill_custom);
 
 void fw_fallback_set_cache_timeout(void);
@@ -41,10 +43,10 @@ void fw_fallback_set_default_timeout(void);
 int register_sysfs_loader(void);
 void unregister_sysfs_loader(void);
 #else /* CONFIG_FW_LOADER_USER_HELPER */
-static inline int fw_sysfs_fallback(struct firmware *fw, const char *name,
-				    struct device *device,
-				    unsigned int opt_flags,
-				    int ret)
+static inline int firmware_fallback_sysfs(struct firmware *fw, const char *name,
+					  struct device *device,
+					  enum fw_opt opt_flags,
+					  int ret)
 {
 	/* Keep carrying over the same error */
 	return ret;

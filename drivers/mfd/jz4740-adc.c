@@ -212,10 +212,8 @@ static int jz4740_adc_probe(struct platform_device *pdev)
 	int irq_base;
 
 	adc = devm_kzalloc(&pdev->dev, sizeof(*adc), GFP_KERNEL);
-	if (!adc) {
-		dev_err(&pdev->dev, "Failed to allocate driver structure\n");
+	if (!adc)
 		return -ENOMEM;
-	}
 
 	adc->irq = platform_get_irq(pdev, 0);
 	if (adc->irq < 0) {

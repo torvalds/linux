@@ -82,24 +82,13 @@ function
  1. invokes optional hostt->eh_timed_out() callback.  Return value can
     be one of
 
-    - BLK_EH_HANDLED
-	This indicates that eh_timed_out() dealt with the timeout.
-	The command is passed back to the block layer and completed
-	via __blk_complete_requests().
-
-	*NOTE* After returning BLK_EH_HANDLED the SCSI layer is
-	assumed to be finished with the command, and no other
-	functions from the SCSI layer will be called. So this
-	should typically only be returned if the eh_timed_out()
-	handler raced with normal completion.
-
     - BLK_EH_RESET_TIMER
 	This indicates that more time is required to finish the
 	command.  Timer is restarted.  This action is counted as a
 	retry and only allowed scmd->allowed + 1(!) times.  Once the
-	limit is reached, action for BLK_EH_NOT_HANDLED is taken instead.
+	limit is reached, action for BLK_EH_DONE is taken instead.
 
-    - BLK_EH_NOT_HANDLED
+    - BLK_EH_DONE
         eh_timed_out() callback did not handle the command.
 	Step #2 is taken.
 

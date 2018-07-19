@@ -20,7 +20,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/power/smartreflex.h>
-#include <linux/i2c-omap.h>
+#include <linux/platform_data/i2c-omap.h>
 
 #include <linux/omap-dma.h>
 
@@ -804,6 +804,7 @@ static struct omap_hwmod omap54xx_gpio8_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig omap54xx_i2c_sysc = {
+	.rev_offs	= 0,
 	.sysc_offs	= 0x0010,
 	.syss_offs	= 0x0090,
 	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
@@ -974,6 +975,7 @@ static struct omap_hwmod omap54xx_mailbox_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig omap54xx_mcbsp_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x008c,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_ENAWAKEUP |
 			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
@@ -1997,6 +1999,7 @@ static struct omap_hwmod omap54xx_ocp2scp3_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig omap54xx_sata_sysc = {
+	.rev_offs	= 0x00fc,
 	.sysc_offs	= 0x0000,
 	.sysc_flags	= (SYSC_HAS_MIDLEMODE | SYSC_HAS_SIDLEMODE),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |

@@ -21,6 +21,9 @@
 /* &a[0] degrades to a pointer: a different type from an array */
 #define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
 
+#ifndef __pure
+#define  __pure		__attribute__((pure))
+#endif
 #define  noinline	__attribute__((noinline))
 #ifndef __packed
 #define __packed	__attribute__((packed))

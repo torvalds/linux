@@ -737,7 +737,7 @@ static inline struct audit_buffer *xfrm_audit_start(const char *op)
 
 	if (audit_enabled == 0)
 		return NULL;
-	audit_buf = audit_log_start(current->audit_context, GFP_ATOMIC,
+	audit_buf = audit_log_start(audit_context(), GFP_ATOMIC,
 				    AUDIT_MAC_IPSEC_EVENT);
 	if (audit_buf == NULL)
 		return NULL;
@@ -752,7 +752,7 @@ static inline void xfrm_audit_helper_usrinfo(bool task_valid,
 					    audit_get_loginuid(current) :
 					    INVALID_UID);
 	const unsigned int ses = task_valid ? audit_get_sessionid(current) :
-		(unsigned int) -1;
+		AUDIT_SID_UNSET;
 
 	audit_log_format(audit_buf, " auid=%u ses=%u", auid, ses);
 	audit_log_task_context(audit_buf);

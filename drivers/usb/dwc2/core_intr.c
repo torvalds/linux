@@ -778,6 +778,14 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 		goto out;
 	}
 
+	/* Reading current frame number value in device or host modes. */
+	if (dwc2_is_device_mode(hsotg))
+		hsotg->frame_number = (dwc2_readl(hsotg->regs + DSTS)
+				       & DSTS_SOFFN_MASK) >> DSTS_SOFFN_SHIFT;
+	else
+		hsotg->frame_number = (dwc2_readl(hsotg->regs + HFNUM)
+				       & HFNUM_FRNUM_MASK) >> HFNUM_FRNUM_SHIFT;
+
 	gintsts = dwc2_read_common_intr(hsotg);
 	if (gintsts & ~GINTSTS_PRTINT)
 		retval = IRQ_HANDLED;

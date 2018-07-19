@@ -206,7 +206,6 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 
 	/* put the frame in the reordering buffer */
 	r->reorder_buf[index] = skb;
-	r->reorder_time[index] = jiffies;
 	r->stored_mpdu_num++;
 	wil_reorder_release(ndev, r);
 
@@ -252,11 +251,8 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 
 	r->reorder_buf =
 		kcalloc(size, sizeof(struct sk_buff *), GFP_KERNEL);
-	r->reorder_time =
-		kcalloc(size, sizeof(unsigned long), GFP_KERNEL);
-	if (!r->reorder_buf || !r->reorder_time) {
+	if (!r->reorder_buf) {
 		kfree(r->reorder_buf);
-		kfree(r->reorder_time);
 		kfree(r);
 		return NULL;
 	}
@@ -286,7 +282,6 @@ void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 		kfree_skb(r->reorder_buf[i]);
 
 	kfree(r->reorder_buf);
-	kfree(r->reorder_time);
 	kfree(r);
 }
 

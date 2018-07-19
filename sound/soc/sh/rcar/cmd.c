@@ -125,20 +125,19 @@ static struct rsnd_mod_ops rsnd_cmd_ops = {
 	.stop	= rsnd_cmd_stop,
 };
 
+static struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id)
+{
+	if (WARN_ON(id < 0 || id >= rsnd_cmd_nr(priv)))
+		id = 0;
+
+	return rsnd_mod_get((struct rsnd_cmd *)(priv->cmd) + id);
+}
 int rsnd_cmd_attach(struct rsnd_dai_stream *io, int id)
 {
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct rsnd_mod *mod = rsnd_cmd_mod_get(priv, id);
 
 	return rsnd_dai_connect(mod, io, mod->type);
-}
-
-struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id)
-{
-	if (WARN_ON(id < 0 || id >= rsnd_cmd_nr(priv)))
-		id = 0;
-
-	return rsnd_mod_get((struct rsnd_cmd *)(priv->cmd) + id);
 }
 
 int rsnd_cmd_probe(struct rsnd_priv *priv)
@@ -156,7 +155,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	if (!nr)
 		return 0;
 
-	cmd = devm_kzalloc(dev, sizeof(*cmd) * nr, GFP_KERNEL);
+	cmd = devm_kcalloc(dev, nr, sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
 

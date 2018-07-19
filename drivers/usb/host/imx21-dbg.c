@@ -417,46 +417,22 @@ DEFINE_SHOW_ATTRIBUTE(debug_isoc);
 
 static void create_debug_files(struct imx21 *imx21)
 {
-	imx21->debug_root = debugfs_create_dir(dev_name(imx21->dev), NULL);
-	if (!imx21->debug_root)
-		goto failed_create_rootdir;
+	struct dentry *root;
 
-	if (!debugfs_create_file("status", S_IRUGO,
-			imx21->debug_root, imx21, &debug_status_fops))
-		goto failed_create;
+	root = debugfs_create_dir(dev_name(imx21->dev), NULL);
+	imx21->debug_root = root;
 
-	if (!debugfs_create_file("dmem", S_IRUGO,
-			imx21->debug_root, imx21, &debug_dmem_fops))
-		goto failed_create;
-
-	if (!debugfs_create_file("etd", S_IRUGO,
-			imx21->debug_root, imx21, &debug_etd_fops))
-		goto failed_create;
-
-	if (!debugfs_create_file("statistics", S_IRUGO,
-			imx21->debug_root, imx21, &debug_statistics_fops))
-		goto failed_create;
-
-	if (!debugfs_create_file("isoc", S_IRUGO,
-			imx21->debug_root, imx21, &debug_isoc_fops))
-		goto failed_create;
-
-	return;
-
-failed_create:
-	debugfs_remove_recursive(imx21->debug_root);
-
-failed_create_rootdir:
-	imx21->debug_root = NULL;
+	debugfs_create_file("status", S_IRUGO, root, imx21, &debug_status_fops);
+	debugfs_create_file("dmem", S_IRUGO, root, imx21, &debug_dmem_fops);
+	debugfs_create_file("etd", S_IRUGO, root, imx21, &debug_etd_fops);
+	debugfs_create_file("statistics", S_IRUGO, root, imx21,
+			    &debug_statistics_fops);
+	debugfs_create_file("isoc", S_IRUGO, root, imx21, &debug_isoc_fops);
 }
-
 
 static void remove_debug_files(struct imx21 *imx21)
 {
-	if (imx21->debug_root) {
-		debugfs_remove_recursive(imx21->debug_root);
-		imx21->debug_root = NULL;
-	}
+	debugfs_remove_recursive(imx21->debug_root);
 }
 
 #endif

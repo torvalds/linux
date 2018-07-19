@@ -11,24 +11,21 @@ config SND_SOC_LPASS_CPU
 
 config SND_SOC_LPASS_PLATFORM
 	tristate
-	depends on HAS_DMA
 	select REGMAP_MMIO
 
 config SND_SOC_LPASS_IPQ806X
 	tristate
-	depends on HAS_DMA
 	select SND_SOC_LPASS_CPU
 	select SND_SOC_LPASS_PLATFORM
 
 config SND_SOC_LPASS_APQ8016
 	tristate
-	depends on HAS_DMA
 	select SND_SOC_LPASS_CPU
 	select SND_SOC_LPASS_PLATFORM
 
 config SND_SOC_STORM
 	tristate "ASoC I2S support for Storm boards"
-	depends on SND_SOC_QCOM && HAS_DMA
+	depends on SND_SOC_QCOM
 	select SND_SOC_LPASS_IPQ806X
 	select SND_SOC_MAX98357A
 	help
@@ -37,9 +34,59 @@ config SND_SOC_STORM
 
 config SND_SOC_APQ8016_SBC
 	tristate "SoC Audio support for APQ8016 SBC platforms"
-	depends on SND_SOC_QCOM && HAS_DMA
+	depends on SND_SOC_QCOM
 	select SND_SOC_LPASS_APQ8016
 	help
           Support for Qualcomm Technologies LPASS audio block in
           APQ8016 SOC-based systems.
           Say Y if you want to use audio devices on MI2S.
+
+config SND_SOC_QDSP6_COMMON
+	tristate
+
+config SND_SOC_QDSP6_CORE
+	tristate
+
+config SND_SOC_QDSP6_AFE
+	tristate
+
+config SND_SOC_QDSP6_AFE_DAI
+	tristate
+
+config SND_SOC_QDSP6_ADM
+	tristate
+
+config SND_SOC_QDSP6_ROUTING
+	tristate
+
+config SND_SOC_QDSP6_ASM
+	tristate
+
+config SND_SOC_QDSP6_ASM_DAI
+	tristate
+
+config SND_SOC_QDSP6
+	tristate "SoC ALSA audio driver for QDSP6"
+	depends on QCOM_APR && HAS_DMA
+	select SND_SOC_QDSP6_COMMON
+	select SND_SOC_QDSP6_CORE
+	select SND_SOC_QDSP6_AFE
+	select SND_SOC_QDSP6_AFE_DAI
+	select SND_SOC_QDSP6_ADM
+	select SND_SOC_QDSP6_ROUTING
+	select SND_SOC_QDSP6_ASM
+	select SND_SOC_QDSP6_ASM_DAI
+	help
+	 To add support for MSM QDSP6 Soc Audio.
+	 This will enable sound soc platform specific
+	 audio drivers. This includes q6asm, q6adm,
+	 q6afe interfaces to DSP using apr.
+
+config SND_SOC_MSM8996
+	tristate "SoC Machine driver for MSM8996 and APQ8096 boards"
+	depends on QCOM_APR
+	select SND_SOC_QDSP6
+	help
+          Support for Qualcomm Technologies LPASS audio block in
+          APQ8096 SoC-based systems.
+          Say Y if you want to use audio device on this SoCs

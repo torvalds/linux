@@ -31,6 +31,7 @@
 #include "amdgpu_sched.h"
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
+#include "atom.h"
 
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
@@ -214,6 +215,18 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->gfx.rlc_fw_version;
 		fw_info->feature = adev->gfx.rlc_feature_version;
 		break;
+	case AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_CNTL:
+		fw_info->ver = adev->gfx.rlc_srlc_fw_version;
+		fw_info->feature = adev->gfx.rlc_srlc_feature_version;
+		break;
+	case AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_GPM_MEM:
+		fw_info->ver = adev->gfx.rlc_srlg_fw_version;
+		fw_info->feature = adev->gfx.rlc_srlg_feature_version;
+		break;
+	case AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_SRM_MEM:
+		fw_info->ver = adev->gfx.rlc_srls_fw_version;
+		fw_info->feature = adev->gfx.rlc_srls_feature_version;
+		break;
 	case AMDGPU_INFO_FW_GFX_MEC:
 		if (query_fw->index == 0) {
 			fw_info->ver = adev->gfx.mec_fw_version;
@@ -273,11 +286,14 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	struct drm_crtc *crtc;
 	uint32_t ui32 = 0;
 	uint64_t ui64 = 0;
-	int i, found;
+	int i, j, found;
 	int ui32_size = sizeof(ui32);
 
 	if (!info->return_size || !info->return_pointer)
 		return -EINVAL;
+
+	/* Ensure IB tests are run on ring */
+	flush_delayed_work(&adev->late_init_work);
 
 	switch (info->query) {
 	case AMDGPU_INFO_ACCEL_WORKING:
@@ -332,7 +348,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_UVD:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			ring_mask = adev->uvd.ring.ready ? 1 : 0;
+			for (i = 0; i < adev->uvd.num_uvd_inst; i++)
+				ring_mask |= ((adev->uvd.inst[i].ring.ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
 			ib_size_alignment = 16;
 			break;
@@ -345,8 +362,11 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_UVD_ENC:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			for (i = 0; i < adev->uvd.num_enc_rings; i++)
-				ring_mask |= ((adev->uvd.ring_enc[i].ready ? 1 : 0) << i);
+			for (i = 0; i < adev->uvd.num_uvd_inst; i++)
+				for (j = 0; j < adev->uvd.num_enc_rings; j++)
+					ring_mask |=
+					((adev->uvd.inst[i].ring_enc[j].ready ? 1 : 0) <<
+					(j + i * adev->uvd.num_enc_rings));
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
 			ib_size_alignment = 1;
 			break;
@@ -701,10 +721,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 	}
 	case AMDGPU_INFO_SENSOR: {
-		struct pp_gpu_power query = {0};
-		int query_size = sizeof(query);
-
-		if (amdgpu_dpm == 0)
+		if (!adev->pm.dpm_enabled)
 			return -ENOENT;
 
 		switch (info->sensor_info.type) {
@@ -746,10 +763,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			/* get average GPU power */
 			if (amdgpu_dpm_read_sensor(adev,
 						   AMDGPU_PP_SENSOR_GPU_POWER,
-						   (void *)&query, &query_size)) {
+						   (void *)&ui32, &ui32_size)) {
 				return -EINVAL;
 			}
-			ui32 = query.average_gpu_power >> 8;
+			ui32 >>= 8;
 			break;
 		case AMDGPU_INFO_SENSOR_VDDNB:
 			/* get VDDNB in millivolts */
@@ -913,8 +930,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 		return;
 
 	pm_runtime_get_sync(dev->dev);
-
-	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
+	amdgpu_ctx_mgr_entity_fini(&fpriv->ctx_mgr);
 
 	if (adev->asic_type != CHIP_RAVEN) {
 		amdgpu_uvd_free_handles(adev, file_priv);
@@ -935,6 +951,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	pd = amdgpu_bo_ref(fpriv->vm.root.base.bo);
 
 	amdgpu_vm_fini(adev, &fpriv->vm);
+	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
+
 	if (pasid)
 		amdgpu_pasid_free_delayed(pd->tbo.resv, pasid);
 	amdgpu_bo_unref(&pd);
@@ -1088,6 +1106,7 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_amdgpu_info_firmware fw_info;
 	struct drm_amdgpu_query_fw query_fw;
+	struct atom_context *ctx = adev->mode_info.atom_context;
 	int ret, i;
 
 	/* VCE */
@@ -1144,6 +1163,30 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 	seq_printf(m, "RLC feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLC SAVE RESTORE LIST CNTL */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_CNTL;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLC SRLC feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLC SAVE RESTORE LIST GPM MEM */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_GPM_MEM;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLC SRLG feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLC SAVE RESTORE LIST SRM MEM */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_SRM_MEM;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLC SRLS feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
 
 	/* MEC */
@@ -1209,6 +1252,9 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 		return ret;
 	seq_printf(m, "VCN feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
+
+
+	seq_printf(m, "VBIOS version: %s\n", ctx->vbios_version);
 
 	return 0;
 }

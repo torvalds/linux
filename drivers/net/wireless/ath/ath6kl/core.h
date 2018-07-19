@@ -914,7 +914,7 @@ void ath6kl_tx_data_cleanup(struct ath6kl *ar);
 
 struct ath6kl_cookie *ath6kl_alloc_cookie(struct ath6kl *ar);
 void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie);
-int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev);
 
 struct aggr_info *aggr_init(struct ath6kl_vif *vif);
 void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info *aggr_info,

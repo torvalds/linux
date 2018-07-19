@@ -132,7 +132,7 @@ static void exynos_drm_plane_reset(struct drm_plane *plane)
 	if (plane->state) {
 		exynos_state = to_exynos_plane_state(plane->state);
 		if (exynos_state->base.fb)
-			drm_framebuffer_unreference(exynos_state->base.fb);
+			drm_framebuffer_put(exynos_state->base.fb);
 		kfree(exynos_state);
 		plane->state = NULL;
 	}
@@ -289,13 +289,12 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 };
 
 static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
-					      bool immutable)
+					      int zpos, bool immutable)
 {
-	/* FIXME */
 	if (immutable)
-		drm_plane_create_zpos_immutable_property(plane, 0);
+		drm_plane_create_zpos_immutable_property(plane, zpos);
 	else
-		drm_plane_create_zpos_property(plane, 0, 0, MAX_PLANE - 1);
+		drm_plane_create_zpos_property(plane, zpos, 0, MAX_PLANE - 1);
 }
 
 int exynos_plane_init(struct drm_device *dev,
@@ -320,7 +319,7 @@ int exynos_plane_init(struct drm_device *dev,
 	exynos_plane->index = index;
 	exynos_plane->config = config;
 
-	exynos_plane_attach_zpos_property(&exynos_plane->base,
+	exynos_plane_attach_zpos_property(&exynos_plane->base, config->zpos,
 			   !(config->capabilities & EXYNOS_DRM_PLANE_CAP_ZPOS));
 
 	return 0;

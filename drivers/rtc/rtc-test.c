@@ -13,135 +13,139 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 
-static int test_mmss64;
-module_param(test_mmss64, int, 0644);
-MODULE_PARM_DESC(test_mmss64, "Test struct rtc_class_ops.set_mmss64().");
+#define MAX_RTC_TEST 3
 
-static struct platform_device *test0 = NULL, *test1 = NULL;
+struct rtc_test_data {
+	struct rtc_device *rtc;
+	time64_t offset;
+	struct timer_list alarm;
+	bool alarm_en;
+};
 
-static int test_rtc_read_alarm(struct device *dev,
-	struct rtc_wkalrm *alrm)
+struct platform_device *pdev[MAX_RTC_TEST];
+
+static int test_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
+	struct rtc_test_data *rtd = dev_get_drvdata(dev);
+	time64_t alarm;
+
+	alarm = (rtd->alarm.expires - jiffies) / HZ;
+	alarm += ktime_get_real_seconds() + rtd->offset;
+
+	rtc_time64_to_tm(alarm, &alrm->time);
+	alrm->enabled = rtd->alarm_en;
+
 	return 0;
 }
 
-static int test_rtc_set_alarm(struct device *dev,
-	struct rtc_wkalrm *alrm)
+static int test_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
+	struct rtc_test_data *rtd = dev_get_drvdata(dev);
+	ktime_t timeout;
+	u64 expires;
+
+	timeout = rtc_tm_to_time64(&alrm->time) - ktime_get_real_seconds();
+	timeout -= rtd->offset;
+
+	del_timer(&rtd->alarm);
+
+	expires = jiffies + timeout * HZ;
+	if (expires > U32_MAX)
+		expires = U32_MAX;
+
+	pr_err("ABE: %s +%d %s\n", __FILE__, __LINE__, __func__);
+	rtd->alarm.expires = expires;
+
+	if (alrm->enabled)
+		add_timer(&rtd->alarm);
+
+	rtd->alarm_en = alrm->enabled;
+
 	return 0;
 }
 
-static int test_rtc_read_time(struct device *dev,
-	struct rtc_time *tm)
+static int test_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	rtc_time64_to_tm(ktime_get_real_seconds(), tm);
+	struct rtc_test_data *rtd = dev_get_drvdata(dev);
+
+	rtc_time64_to_tm(ktime_get_real_seconds() + rtd->offset, tm);
+
 	return 0;
 }
 
 static int test_rtc_set_mmss64(struct device *dev, time64_t secs)
 {
-	dev_info(dev, "%s, secs = %lld\n", __func__, (long long)secs);
-	return 0;
-}
+	struct rtc_test_data *rtd = dev_get_drvdata(dev);
 
-static int test_rtc_set_mmss(struct device *dev, unsigned long secs)
-{
-	dev_info(dev, "%s, secs = %lu\n", __func__, secs);
-	return 0;
-}
-
-static int test_rtc_proc(struct device *dev, struct seq_file *seq)
-{
-	struct platform_device *plat_dev = to_platform_device(dev);
-
-	seq_printf(seq, "test\t\t: yes\n");
-	seq_printf(seq, "id\t\t: %d\n", plat_dev->id);
+	rtd->offset = secs - ktime_get_real_seconds();
 
 	return 0;
 }
 
 static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
+	struct rtc_test_data *rtd = dev_get_drvdata(dev);
+
+	rtd->alarm_en = enable;
+	if (enable)
+		add_timer(&rtd->alarm);
+	else
+		del_timer(&rtd->alarm);
+
 	return 0;
 }
 
-static struct rtc_class_ops test_rtc_ops = {
-	.proc = test_rtc_proc,
+static const struct rtc_class_ops test_rtc_ops_noalm = {
 	.read_time = test_rtc_read_time,
-	.read_alarm = test_rtc_read_alarm,
-	.set_alarm = test_rtc_set_alarm,
-	.set_mmss = test_rtc_set_mmss,
+	.set_mmss64 = test_rtc_set_mmss64,
 	.alarm_irq_enable = test_rtc_alarm_irq_enable,
 };
 
-static ssize_t test_irq_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static const struct rtc_class_ops test_rtc_ops = {
+	.read_time = test_rtc_read_time,
+	.read_alarm = test_rtc_read_alarm,
+	.set_alarm = test_rtc_set_alarm,
+	.set_mmss64 = test_rtc_set_mmss64,
+	.alarm_irq_enable = test_rtc_alarm_irq_enable,
+};
+
+static void test_rtc_alarm_handler(struct timer_list *t)
 {
-	return sprintf(buf, "%d\n", 42);
+	struct rtc_test_data *rtd = from_timer(rtd, t, alarm);
+
+	rtc_update_irq(rtd->rtc, 1, RTC_AF | RTC_IRQF);
 }
-static ssize_t test_irq_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	int retval;
-	struct platform_device *plat_dev = to_platform_device(dev);
-	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
-
-	retval = count;
-	if (strncmp(buf, "tick", 4) == 0 && rtc->pie_enabled)
-		rtc_update_irq(rtc, 1, RTC_PF | RTC_IRQF);
-	else if (strncmp(buf, "alarm", 5) == 0) {
-		struct rtc_wkalrm alrm;
-		int err = rtc_read_alarm(rtc, &alrm);
-
-		if (!err && alrm.enabled)
-			rtc_update_irq(rtc, 1, RTC_AF | RTC_IRQF);
-
-	} else if (strncmp(buf, "update", 6) == 0 && rtc->uie_rtctimer.enabled)
-		rtc_update_irq(rtc, 1, RTC_UF | RTC_IRQF);
-	else
-		retval = -EINVAL;
-
-	return retval;
-}
-static DEVICE_ATTR(irq, S_IRUGO | S_IWUSR, test_irq_show, test_irq_store);
 
 static int test_probe(struct platform_device *plat_dev)
 {
-	int err;
-	struct rtc_device *rtc;
+	struct rtc_test_data *rtd;
 
-	if (test_mmss64) {
-		test_rtc_ops.set_mmss64 = test_rtc_set_mmss64;
-		test_rtc_ops.set_mmss = NULL;
+	rtd = devm_kzalloc(&plat_dev->dev, sizeof(*rtd), GFP_KERNEL);
+	if (!rtd)
+		return -ENOMEM;
+
+	platform_set_drvdata(plat_dev, rtd);
+
+	rtd->rtc = devm_rtc_allocate_device(&plat_dev->dev);
+	if (IS_ERR(rtd->rtc))
+		return PTR_ERR(rtd->rtc);
+
+	switch (plat_dev->id) {
+	case 0:
+		rtd->rtc->ops = &test_rtc_ops_noalm;
+		break;
+	default:
+		rtd->rtc->ops = &test_rtc_ops;
 	}
 
-	rtc = devm_rtc_device_register(&plat_dev->dev, "test",
-				&test_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		return PTR_ERR(rtc);
-	}
+	timer_setup(&rtd->alarm, test_rtc_alarm_handler, 0);
+	rtd->alarm.expires = 0;
 
-	err = device_create_file(&plat_dev->dev, &dev_attr_irq);
-	if (err)
-		dev_err(&plat_dev->dev, "Unable to create sysfs entry: %s\n",
-			dev_attr_irq.attr.name);
-
-	platform_set_drvdata(plat_dev, rtc);
-
-	return 0;
-}
-
-static int test_remove(struct platform_device *plat_dev)
-{
-	device_remove_file(&plat_dev->dev, &dev_attr_irq);
-
-	return 0;
+	return rtc_register_device(rtd->rtc);
 }
 
 static struct platform_driver test_driver = {
 	.probe	= test_probe,
-	.remove = test_remove,
 	.driver = {
 		.name = "rtc-test",
 	},
@@ -149,47 +153,45 @@ static struct platform_driver test_driver = {
 
 static int __init test_init(void)
 {
-	int err;
+	int i, err;
 
 	if ((err = platform_driver_register(&test_driver)))
 		return err;
 
-	if ((test0 = platform_device_alloc("rtc-test", 0)) == NULL) {
-		err = -ENOMEM;
-		goto exit_driver_unregister;
+	err = -ENOMEM;
+	for (i = 0; i < MAX_RTC_TEST; i++) {
+		pdev[i] = platform_device_alloc("rtc-test", i);
+		if (!pdev[i])
+			goto exit_free_mem;
 	}
 
-	if ((test1 = platform_device_alloc("rtc-test", 1)) == NULL) {
-		err = -ENOMEM;
-		goto exit_put_test0;
+	for (i = 0; i < MAX_RTC_TEST; i++) {
+		err = platform_device_add(pdev[i]);
+		if (err)
+			goto exit_device_del;
 	}
-
-	if ((err = platform_device_add(test0)))
-		goto exit_put_test1;
-
-	if ((err = platform_device_add(test1)))
-		goto exit_del_test0;
 
 	return 0;
 
-exit_del_test0:
-	platform_device_del(test0);
+exit_device_del:
+	for (; i > 0; i--)
+		platform_device_del(pdev[i - 1]);
 
-exit_put_test1:
-	platform_device_put(test1);
+exit_free_mem:
+	for (i = 0; i < MAX_RTC_TEST; i++)
+		platform_device_put(pdev[i]);
 
-exit_put_test0:
-	platform_device_put(test0);
-
-exit_driver_unregister:
 	platform_driver_unregister(&test_driver);
 	return err;
 }
 
 static void __exit test_exit(void)
 {
-	platform_device_unregister(test0);
-	platform_device_unregister(test1);
+	int i;
+
+	for (i = 0; i < MAX_RTC_TEST; i++)
+		platform_device_unregister(pdev[i]);
+
 	platform_driver_unregister(&test_driver);
 }
 

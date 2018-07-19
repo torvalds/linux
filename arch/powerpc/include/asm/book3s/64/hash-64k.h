@@ -46,6 +46,13 @@
 #define H_PTE_FRAG_SIZE_SHIFT  (H_PTE_INDEX_SIZE + 3 + 1)
 #define H_PTE_FRAG_NR	(PAGE_SIZE >> H_PTE_FRAG_SIZE_SHIFT)
 
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
+#define H_PMD_FRAG_SIZE_SHIFT  (H_PMD_INDEX_SIZE + 3 + 1)
+#else
+#define H_PMD_FRAG_SIZE_SHIFT  (H_PMD_INDEX_SIZE + 3)
+#endif
+#define H_PMD_FRAG_NR	(PAGE_SIZE >> H_PMD_FRAG_SIZE_SHIFT)
+
 #ifndef __ASSEMBLY__
 #include <asm/errno.h>
 

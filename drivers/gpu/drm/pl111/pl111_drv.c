@@ -60,6 +60,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/of_reserved_mem.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
@@ -207,6 +208,24 @@ finish:
 	return ret;
 }
 
+static struct drm_gem_object *
+pl111_gem_import_sg_table(struct drm_device *dev,
+			  struct dma_buf_attachment *attach,
+			  struct sg_table *sgt)
+{
+	struct pl111_drm_dev_private *priv = dev->dev_private;
+
+	/*
+	 * When using device-specific reserved memory we can't import
+	 * DMA buffers: those are passed by reference in any global
+	 * memory and we can only handle a specific range of memory.
+	 */
+	if (priv->use_device_memory)
+		return ERR_PTR(-EINVAL);
+
+	return drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
+}
+
 DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
 
 static struct drm_driver pl111_drm_driver = {
@@ -227,7 +246,7 @@ static struct drm_driver pl111_drm_driver = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
+	.gem_prime_import_sg_table = pl111_gem_import_sg_table,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
 
@@ -257,6 +276,12 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	drm->dev_private = priv;
 	priv->variant = variant;
 
+	ret = of_reserved_mem_device_init(dev);
+	if (!ret) {
+		dev_info(dev, "using device-specific reserved memory\n");
+		priv->use_device_memory = true;
+	}
+
 	if (of_property_read_u32(dev->of_node, "max-memory-bandwidth",
 				 &priv->memory_bw)) {
 		dev_info(dev, "no max memory bandwidth specified, assume unlimited\n");
@@ -275,7 +300,8 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	priv->regs = devm_ioremap_resource(dev, &amba_dev->res);
 	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "%s failed mmio\n", __func__);
-		return PTR_ERR(priv->regs);
+		ret = PTR_ERR(priv->regs);
+		goto dev_unref;
 	}
 
 	/* This may override some variant settings */
@@ -305,11 +331,14 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 
 dev_unref:
 	drm_dev_unref(drm);
+	of_reserved_mem_device_release(dev);
+
 	return ret;
 }
 
 static int pl111_amba_remove(struct amba_device *amba_dev)
 {
+	struct device *dev = &amba_dev->dev;
 	struct drm_device *drm = amba_get_drvdata(amba_dev);
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 
@@ -319,6 +348,7 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
 	drm_dev_unref(drm);
+	of_reserved_mem_device_release(dev);
 
 	return 0;
 }

@@ -29,8 +29,8 @@ Some implementation details about the firmware cache setup:
 * If an asynchronous call is used the firmware cache is only set up for a
   device if if the second argument (uevent) to request_firmware_nowait() is
   true. When uevent is true it requests that a kobject uevent be sent to
-  userspace for the firmware request. For details refer to the Fackback
-  mechanism documented below.
+  userspace for the firmware request through the sysfs fallback mechanism
+  if the firmware file is not found.
 
 * If the firmware cache is determined to be needed as per the above two
   criteria the firmware cache is setup by adding a devres entry for the

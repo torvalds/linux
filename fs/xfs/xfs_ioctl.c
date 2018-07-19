@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -39,7 +27,6 @@
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
 #include "xfs_trans.h"
-#include "xfs_pnfs.h"
 #include "xfs_acl.h"
 #include "xfs_btree.h"
 #include <linux/fsmap.h>
@@ -614,7 +601,7 @@ xfs_ioc_space(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct iattr		iattr;
 	enum xfs_prealloc_flags	flags = 0;
-	uint			iolock = XFS_IOLOCK_EXCL;
+	uint			iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	int			error;
 
 	/*
@@ -644,12 +631,9 @@ xfs_ioc_space(
 		return error;
 
 	xfs_ilock(ip, iolock);
-	error = xfs_break_layouts(inode, &iolock);
+	error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
 	if (error)
 		goto out_unlock;
-
-	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-	iolock |= XFS_MMAPLOCK_EXCL;
 
 	switch (bf->l_whence) {
 	case 0: /*SEEK_SET*/
@@ -1098,12 +1082,15 @@ xfs_ioctl_setattr_dax_invalidate(
 	/*
 	 * It is only valid to set the DAX flag on regular files and
 	 * directories on filesystems where the block size is equal to the page
-	 * size. On directories it serves as an inherit hint.
+	 * size. On directories it serves as an inherited hint so we don't
+	 * have to check the device for dax support or flush pagecache.
 	 */
 	if (fa->fsx_xflags & FS_XFLAG_DAX) {
 		if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
 			return -EINVAL;
-		if (bdev_dax_supported(sb, sb->s_blocksize) < 0)
+		if (S_ISREG(inode->i_mode) &&
+		    !bdev_dax_supported(xfs_find_bdev_for_inode(VFS_I(ip)),
+				sb->s_blocksize))
 			return -EINVAL;
 	}
 
@@ -1111,6 +1098,9 @@ xfs_ioctl_setattr_dax_invalidate(
 	if ((fa->fsx_xflags & FS_XFLAG_DAX) && IS_DAX(inode))
 		return 0;
 	if (!(fa->fsx_xflags & FS_XFLAG_DAX) && !IS_DAX(inode))
+		return 0;
+
+	if (S_ISDIR(inode->i_mode))
 		return 0;
 
 	/* lock, flush and invalidate mapping in preparation for flag change */
@@ -1811,6 +1801,88 @@ xfs_ioc_swapext(
 	return error;
 }
 
+static int
+xfs_ioc_getlabel(
+	struct xfs_mount	*mp,
+	char			__user *user_label)
+{
+	struct xfs_sb		*sbp = &mp->m_sb;
+	char			label[XFSLABEL_MAX + 1];
+
+	/* Paranoia */
+	BUILD_BUG_ON(sizeof(sbp->sb_fname) > FSLABEL_MAX);
+
+	/* 1 larger than sb_fname, so this ensures a trailing NUL char */
+	memset(label, 0, sizeof(label));
+	spin_lock(&mp->m_sb_lock);
+	strncpy(label, sbp->sb_fname, XFSLABEL_MAX);
+	spin_unlock(&mp->m_sb_lock);
+
+	if (copy_to_user(user_label, label, sizeof(label)))
+		return -EFAULT;
+	return 0;
+}
+
+static int
+xfs_ioc_setlabel(
+	struct file		*filp,
+	struct xfs_mount	*mp,
+	char			__user *newlabel)
+{
+	struct xfs_sb		*sbp = &mp->m_sb;
+	char			label[XFSLABEL_MAX + 1];
+	size_t			len;
+	int			error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	/*
+	 * The generic ioctl allows up to FSLABEL_MAX chars, but XFS is much
+	 * smaller, at 12 bytes.  We copy one more to be sure we find the
+	 * (required) NULL character to test the incoming label length.
+	 * NB: The on disk label doesn't need to be null terminated.
+	 */
+	if (copy_from_user(label, newlabel, XFSLABEL_MAX + 1))
+		return -EFAULT;
+	len = strnlen(label, XFSLABEL_MAX + 1);
+	if (len > sizeof(sbp->sb_fname))
+		return -EINVAL;
+
+	error = mnt_want_write_file(filp);
+	if (error)
+		return error;
+
+	spin_lock(&mp->m_sb_lock);
+	memset(sbp->sb_fname, 0, sizeof(sbp->sb_fname));
+	memcpy(sbp->sb_fname, label, len);
+	spin_unlock(&mp->m_sb_lock);
+
+	/*
+	 * Now we do several things to satisfy userspace.
+	 * In addition to normal logging of the primary superblock, we also
+	 * immediately write these changes to sector zero for the primary, then
+	 * update all backup supers (as xfs_db does for a label change), then
+	 * invalidate the block device page cache.  This is so that any prior
+	 * buffered reads from userspace (i.e. from blkid) are invalidated,
+	 * and userspace will see the newly-written label.
+	 */
+	error = xfs_sync_sb_buf(mp);
+	if (error)
+		goto out;
+	/*
+	 * growfs also updates backup supers so lock against that.
+	 */
+	mutex_lock(&mp->m_growlock);
+	error = xfs_update_secondary_sbs(mp);
+	mutex_unlock(&mp->m_growlock);
+
+	invalidate_bdev(mp->m_ddev_targp->bt_bdev);
+
+out:
+	mnt_drop_write_file(filp);
+	return error;
+}
+
 /*
  * Note: some of the ioctl's return positive numbers as a
  * byte count indicating success, such as readlink_by_handle.
@@ -1834,6 +1906,10 @@ xfs_file_ioctl(
 	switch (cmd) {
 	case FITRIM:
 		return xfs_ioc_trim(mp, arg);
+	case FS_IOC_GETFSLABEL:
+		return xfs_ioc_getlabel(mp, arg);
+	case FS_IOC_SETFSLABEL:
+		return xfs_ioc_setlabel(filp, mp, arg);
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
 	case XFS_IOC_RESVSP:

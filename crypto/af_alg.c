@@ -347,7 +347,6 @@ static const struct proto_ops alg_proto_ops = {
 	.sendpage	=	sock_no_sendpage,
 	.sendmsg	=	sock_no_sendmsg,
 	.recvmsg	=	sock_no_recvmsg,
-	.poll		=	sock_no_poll,
 
 	.bind		=	alg_bind,
 	.release	=	af_alg_release,
@@ -501,8 +500,8 @@ int af_alg_alloc_tsgl(struct sock *sk)
 		sg = sgl->sg;
 
 	if (!sg || sgl->cur >= MAX_SGL_ENTS) {
-		sgl = sock_kmalloc(sk, sizeof(*sgl) +
-				       sizeof(sgl->sg[0]) * (MAX_SGL_ENTS + 1),
+		sgl = sock_kmalloc(sk,
+				   struct_size(sgl, sg, (MAX_SGL_ENTS + 1)),
 				   GFP_KERNEL);
 		if (!sgl)
 			return -ENOMEM;

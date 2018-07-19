@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <linux/bpf.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 #define MAX_ENTRIES	20

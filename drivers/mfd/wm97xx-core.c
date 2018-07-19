@@ -278,7 +278,7 @@ static int wm97xx_ac97_probe(struct ac97_codec_device *adev)
 
 	codec_pdata = &wm97xx->codec_pdata;
 	codec_pdata->ac97 = wm97xx->ac97;
-	codec_pdata->batt_pdata = pdata->batt_pdata;
+	codec_pdata->batt_pdata = pdata ? pdata->batt_pdata : NULL;
 
 	switch (adev->vendor_id) {
 	case WM9705_VENDOR_ID:

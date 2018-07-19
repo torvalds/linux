@@ -244,7 +244,7 @@ static void cdv_intel_lvds_restore(struct drm_connector *connector)
 {
 }
 
-static int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status cdv_intel_lvds_mode_valid(struct drm_connector *connector,
 			      struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;

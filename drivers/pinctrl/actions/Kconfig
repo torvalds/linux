@@ -1,0 +1,15 @@
+config PINCTRL_OWL
+	bool "Actions Semi OWL pinctrl driver"
+	depends on (ARCH_ACTIONS || COMPILE_TEST) && OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	help
+	  Say Y here to enable Actions Semi OWL pinctrl driver
+
+config PINCTRL_S900
+	bool "Actions Semi S900 pinctrl driver"
+	depends on PINCTRL_OWL
+	help
+	  Say Y here to enable Actions Semi S900 pinctrl driver

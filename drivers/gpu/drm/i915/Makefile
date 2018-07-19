@@ -12,12 +12,16 @@
 # Note the danger in using -Wall -Wextra is that when CI updates gcc we
 # will most likely get a sudden build breakage... Hopefully we will fix
 # new warnings before CI updates!
-subdir-ccflags-y := -Wall -Wextra
+subdir-ccflags-y := -Wall -Wextra -Wvla
 subdir-ccflags-y += $(call cc-disable-warning, unused-parameter)
 subdir-ccflags-y += $(call cc-disable-warning, type-limits)
 subdir-ccflags-y += $(call cc-disable-warning, missing-field-initializers)
 subdir-ccflags-y += $(call cc-disable-warning, implicit-fallthrough)
 subdir-ccflags-y += $(call cc-disable-warning, unused-but-set-variable)
+# clang warnings
+subdir-ccflags-y += $(call cc-disable-warning, sign-compare)
+subdir-ccflags-y += $(call cc-disable-warning, sometimes-uninitialized)
+subdir-ccflags-y += $(call cc-disable-warning, initializer-overrides)
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 
 # Fine grained warnings disable
@@ -43,7 +47,8 @@ i915-y := i915_drv.o \
 	  intel_csr.o \
 	  intel_device_info.o \
 	  intel_pm.o \
-	  intel_runtime_pm.o
+	  intel_runtime_pm.o \
+	  intel_workarounds.o
 
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o intel_pipe_crc.o
@@ -66,11 +71,11 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_shrinker.o \
 	  i915_gem_stolen.o \
 	  i915_gem_tiling.o \
-	  i915_gem_timeline.o \
 	  i915_gem_userptr.o \
 	  i915_gemfs.o \
 	  i915_query.o \
 	  i915_request.o \
+	  i915_timeline.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
 	  intel_breadcrumbs.o \
@@ -79,7 +84,8 @@ i915-y += i915_cmd_parser.o \
 	  intel_lrc.o \
 	  intel_mocs.o \
 	  intel_ringbuffer.o \
-	  intel_uncore.o
+	  intel_uncore.o \
+	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support
 i915-y += intel_uc.o \
@@ -152,7 +158,8 @@ i915-y += dvo_ch7017.o \
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	selftests/i915_random.o \
-	selftests/i915_selftest.o
+	selftests/i915_selftest.o \
+	selftests/igt_flush_test.o
 
 # virtual gpu code
 i915-y += i915_vgpu.o
@@ -171,7 +178,8 @@ i915-y += i915_perf.o \
 	  i915_oa_glk.o \
 	  i915_oa_cflgt2.o \
 	  i915_oa_cflgt3.o \
-	  i915_oa_cnl.o
+	  i915_oa_cnl.o \
+	  i915_oa_icl.o
 
 ifeq ($(CONFIG_DRM_I915_GVT),y)
 i915-y += intel_gvt.o

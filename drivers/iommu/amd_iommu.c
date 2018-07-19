@@ -354,6 +354,9 @@ static bool pci_iommuv2_capable(struct pci_dev *pdev)
 	};
 	int i, pos;
 
+	if (pci_ats_disabled())
+		return false;
+
 	for (i = 0; i < 3; ++i) {
 		pos = pci_find_ext_capability(pdev, caps[i]);
 		if (pos == 0)
@@ -544,7 +547,7 @@ static void amd_iommu_report_page_fault(u16 devid, u16 domain_id,
 static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 {
 	struct device *dev = iommu->iommu.dev;
-	int type, devid, domid, flags;
+	int type, devid, pasid, flags, tag;
 	volatile u32 *event = __evt;
 	int count = 0;
 	u64 address;
@@ -552,7 +555,7 @@ static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 retry:
 	type    = (event[1] >> EVENT_TYPE_SHIFT)  & EVENT_TYPE_MASK;
 	devid   = (event[0] >> EVENT_DEVID_SHIFT) & EVENT_DEVID_MASK;
-	domid   = (event[1] >> EVENT_DOMID_SHIFT) & EVENT_DOMID_MASK;
+	pasid   = PPR_PASID(*(u64 *)&event[0]);
 	flags   = (event[1] >> EVENT_FLAGS_SHIFT) & EVENT_FLAGS_MASK;
 	address = (u64)(((u64)event[3]) << 32) | event[2];
 
@@ -567,7 +570,7 @@ retry:
 	}
 
 	if (type == EVENT_TYPE_IO_FAULT) {
-		amd_iommu_report_page_fault(devid, domid, address, flags);
+		amd_iommu_report_page_fault(devid, pasid, address, flags);
 		return;
 	} else {
 		dev_err(dev, "AMD-Vi: Event logged [");
@@ -575,10 +578,9 @@ retry:
 
 	switch (type) {
 	case EVENT_TYPE_ILL_DEV:
-		dev_err(dev, "ILLEGAL_DEV_TABLE_ENTRY device=%02x:%02x.%x "
-			"address=0x%016llx flags=0x%04x]\n",
+		dev_err(dev, "ILLEGAL_DEV_TABLE_ENTRY device=%02x:%02x.%x pasid=0x%05x address=0x%016llx flags=0x%04x]\n",
 			PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
-			address, flags);
+			pasid, address, flags);
 		dump_dte_entry(devid);
 		break;
 	case EVENT_TYPE_DEV_TAB_ERR:
@@ -588,34 +590,38 @@ retry:
 			address, flags);
 		break;
 	case EVENT_TYPE_PAGE_TAB_ERR:
-		dev_err(dev, "PAGE_TAB_HARDWARE_ERROR device=%02x:%02x.%x "
-			"domain=0x%04x address=0x%016llx flags=0x%04x]\n",
+		dev_err(dev, "PAGE_TAB_HARDWARE_ERROR device=%02x:%02x.%x domain=0x%04x address=0x%016llx flags=0x%04x]\n",
 			PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
-			domid, address, flags);
+			pasid, address, flags);
 		break;
 	case EVENT_TYPE_ILL_CMD:
 		dev_err(dev, "ILLEGAL_COMMAND_ERROR address=0x%016llx]\n", address);
 		dump_command(address);
 		break;
 	case EVENT_TYPE_CMD_HARD_ERR:
-		dev_err(dev, "COMMAND_HARDWARE_ERROR address=0x%016llx "
-			"flags=0x%04x]\n", address, flags);
+		dev_err(dev, "COMMAND_HARDWARE_ERROR address=0x%016llx flags=0x%04x]\n",
+			address, flags);
 		break;
 	case EVENT_TYPE_IOTLB_INV_TO:
-		dev_err(dev, "IOTLB_INV_TIMEOUT device=%02x:%02x.%x "
-			"address=0x%016llx]\n",
+		dev_err(dev, "IOTLB_INV_TIMEOUT device=%02x:%02x.%x address=0x%016llx]\n",
 			PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
 			address);
 		break;
 	case EVENT_TYPE_INV_DEV_REQ:
-		dev_err(dev, "INVALID_DEVICE_REQUEST device=%02x:%02x.%x "
-			"address=0x%016llx flags=0x%04x]\n",
+		dev_err(dev, "INVALID_DEVICE_REQUEST device=%02x:%02x.%x pasid=0x%05x address=0x%016llx flags=0x%04x]\n",
 			PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
-			address, flags);
+			pasid, address, flags);
+		break;
+	case EVENT_TYPE_INV_PPR_REQ:
+		pasid = ((event[0] >> 16) & 0xFFFF)
+			| ((event[1] << 6) & 0xF0000);
+		tag = event[1] & 0x03FF;
+		dev_err(dev, "INVALID_PPR_REQUEST device=%02x:%02x.%x pasid=0x%05x address=0x%016llx flags=0x%04x]\n",
+			PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
+			pasid, address, flags);
 		break;
 	default:
-		dev_err(dev, KERN_ERR "UNKNOWN event[0]=0x%08x event[1]=0x%08x "
-			"event[2]=0x%08x event[3]=0x%08x\n",
+		dev_err(dev, "UNKNOWN event[0]=0x%08x event[1]=0x%08x event[2]=0x%08x event[3]=0x%08x\n",
 			event[0], event[1], event[2], event[3]);
 	}
 
@@ -1911,15 +1917,6 @@ static void do_detach(struct iommu_dev_data *dev_data)
 	struct amd_iommu *iommu;
 	u16 alias;
 
-	/*
-	 * First check if the device is still attached. It might already
-	 * be detached from its domain because the generic
-	 * iommu_detach_group code detached it and we try again here in
-	 * our alias handling.
-	 */
-	if (!dev_data->domain)
-		return;
-
 	iommu = amd_iommu_rlookup_table[dev_data->devid];
 	alias = dev_data->alias;
 
@@ -1939,8 +1936,8 @@ static void do_detach(struct iommu_dev_data *dev_data)
 }
 
 /*
- * If a device is not yet associated with a domain, this function does
- * assigns it visible for the hardware
+ * If a device is not yet associated with a domain, this function makes the
+ * device visible in the domain
  */
 static int __attach_device(struct iommu_dev_data *dev_data,
 			   struct protection_domain *domain)
@@ -2061,8 +2058,8 @@ static bool pci_pri_tlp_required(struct pci_dev *pdev)
 }
 
 /*
- * If a device is not yet associated with a domain, this function
- * assigns it visible for the hardware
+ * If a device is not yet associated with a domain, this function makes the
+ * device visible in the domain
  */
 static int attach_device(struct device *dev,
 			 struct protection_domain *domain)
@@ -2124,9 +2121,6 @@ static void __detach_device(struct iommu_dev_data *dev_data)
 	 */
 	WARN_ON(!irqs_disabled());
 
-	if (WARN_ON(!dev_data->domain))
-		return;
-
 	domain = dev_data->domain;
 
 	spin_lock(&domain->lock);
@@ -2147,6 +2141,15 @@ static void detach_device(struct device *dev)
 
 	dev_data = get_dev_data(dev);
 	domain   = dev_data->domain;
+
+	/*
+	 * First check if the device is still attached. It might already
+	 * be detached from its domain because the generic
+	 * iommu_detach_group code detached it and we try again here in
+	 * our alias handling.
+	 */
+	if (WARN_ON(!dev_data->domain))
+		return;
 
 	/* lock device table */
 	spin_lock_irqsave(&amd_iommu_devtable_lock, flags);
@@ -2593,32 +2596,51 @@ static void *alloc_coherent(struct device *dev, size_t size,
 			    unsigned long attrs)
 {
 	u64 dma_mask = dev->coherent_dma_mask;
-	struct protection_domain *domain = get_domain(dev);
-	bool is_direct = false;
-	void *virt_addr;
+	struct protection_domain *domain;
+	struct dma_ops_domain *dma_dom;
+	struct page *page;
 
-	if (IS_ERR(domain)) {
-		if (PTR_ERR(domain) != -EINVAL)
+	domain = get_domain(dev);
+	if (PTR_ERR(domain) == -EINVAL) {
+		page = alloc_pages(flag, get_order(size));
+		*dma_addr = page_to_phys(page);
+		return page_address(page);
+	} else if (IS_ERR(domain))
+		return NULL;
+
+	dma_dom   = to_dma_ops_domain(domain);
+	size	  = PAGE_ALIGN(size);
+	dma_mask  = dev->coherent_dma_mask;
+	flag     &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+	flag     |= __GFP_ZERO;
+
+	page = alloc_pages(flag | __GFP_NOWARN,  get_order(size));
+	if (!page) {
+		if (!gfpflags_allow_blocking(flag))
 			return NULL;
-		is_direct = true;
-	}
 
-	virt_addr = dma_direct_alloc(dev, size, dma_addr, flag, attrs);
-	if (!virt_addr || is_direct)
-		return virt_addr;
+		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
+						 get_order(size), flag);
+		if (!page)
+			return NULL;
+	}
 
 	if (!dma_mask)
 		dma_mask = *dev->dma_mask;
 
-	*dma_addr = __map_single(dev, to_dma_ops_domain(domain),
-			virt_to_phys(virt_addr), PAGE_ALIGN(size),
-			DMA_BIDIRECTIONAL, dma_mask);
+	*dma_addr = __map_single(dev, dma_dom, page_to_phys(page),
+				 size, DMA_BIDIRECTIONAL, dma_mask);
+
 	if (*dma_addr == AMD_IOMMU_MAPPING_ERROR)
 		goto out_free;
-	return virt_addr;
+
+	return page_address(page);
 
 out_free:
-	dma_direct_free(dev, size, virt_addr, *dma_addr, attrs);
+
+	if (!dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT))
+		__free_pages(page, get_order(size));
+
 	return NULL;
 }
 
@@ -2629,17 +2651,24 @@ static void free_coherent(struct device *dev, size_t size,
 			  void *virt_addr, dma_addr_t dma_addr,
 			  unsigned long attrs)
 {
-	struct protection_domain *domain = get_domain(dev);
+	struct protection_domain *domain;
+	struct dma_ops_domain *dma_dom;
+	struct page *page;
 
+	page = virt_to_page(virt_addr);
 	size = PAGE_ALIGN(size);
 
-	if (!IS_ERR(domain)) {
-		struct dma_ops_domain *dma_dom = to_dma_ops_domain(domain);
+	domain = get_domain(dev);
+	if (IS_ERR(domain))
+		goto free_mem;
 
-		__unmap_single(dma_dom, dma_addr, size, DMA_BIDIRECTIONAL);
-	}
+	dma_dom = to_dma_ops_domain(domain);
 
-	dma_direct_free(dev, size, virt_addr, dma_addr, attrs);
+	__unmap_single(dma_dom, dma_addr, size, DMA_BIDIRECTIONAL);
+
+free_mem:
+	if (!dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT))
+		__free_pages(page, get_order(size));
 }
 
 /*
@@ -2793,6 +2822,7 @@ static void cleanup_domain(struct protection_domain *domain)
 	while (!list_empty(&domain->dev_list)) {
 		entry = list_first_entry(&domain->dev_list,
 					 struct iommu_dev_data, list);
+		BUG_ON(!entry->domain);
 		__detach_device(entry);
 	}
 
@@ -3523,9 +3553,11 @@ int amd_iommu_device_info(struct pci_dev *pdev,
 
 	memset(info, 0, sizeof(*info));
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ATS);
-	if (pos)
-		info->flags |= AMD_IOMMU_DEVICE_FLAG_ATS_SUP;
+	if (!pci_ats_disabled()) {
+		pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ATS);
+		if (pos)
+			info->flags |= AMD_IOMMU_DEVICE_FLAG_ATS_SUP;
+	}
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (pos)
@@ -4379,7 +4411,7 @@ static void ir_compose_msi_msg(struct irq_data *irq_data, struct msi_msg *msg)
 
 static struct irq_chip amd_ir_chip = {
 	.name			= "AMD-IR",
-	.irq_ack		= ir_ack_apic_edge,
+	.irq_ack		= apic_ack_irq,
 	.irq_set_affinity	= amd_ir_set_affinity,
 	.irq_set_vcpu_affinity	= amd_ir_set_vcpu_affinity,
 	.irq_compose_msi_msg	= ir_compose_msi_msg,

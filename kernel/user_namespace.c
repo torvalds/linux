@@ -764,8 +764,9 @@ static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
 		struct uid_gid_extent *forward;
 
 		/* Allocate memory for 340 mappings. */
-		forward = kmalloc(sizeof(struct uid_gid_extent) *
-				 UID_GID_MAP_MAX_EXTENTS, GFP_KERNEL);
+		forward = kmalloc_array(UID_GID_MAP_MAX_EXTENTS,
+					sizeof(struct uid_gid_extent),
+					GFP_KERNEL);
 		if (!forward)
 			return -ENOMEM;
 
@@ -1235,6 +1236,7 @@ bool current_in_userns(const struct user_namespace *target_ns)
 {
 	return in_userns(target_ns, current_user_ns());
 }
+EXPORT_SYMBOL(current_in_userns);
 
 static inline struct user_namespace *to_user_ns(struct ns_common *ns)
 {

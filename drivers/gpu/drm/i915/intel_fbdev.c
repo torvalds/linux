@@ -221,6 +221,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unlock;
 	}
 
+	fb = &ifbdev->fb->base;
+	intel_fb_obj_flush(intel_fb_obj(fb), ORIGIN_DIRTYFB);
+
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		DRM_ERROR("Failed to allocate fb_info\n");
@@ -229,8 +232,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	}
 
 	info->par = helper;
-
-	fb = &ifbdev->fb->base;
 
 	ifbdev->helper.fb = fb;
 
@@ -640,7 +641,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		if (!crtc->state->active)
 			continue;
 
-		WARN(!crtc->primary->fb,
+		WARN(!crtc->primary->state->fb,
 		     "re-used BIOS config but lost an fb on crtc %d\n",
 		     crtc->base.id);
 	}

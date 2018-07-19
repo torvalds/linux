@@ -14,6 +14,7 @@ Core utilities
    kernel-api
    assoc_array
    atomic_ops
+   cachetlb
    refcount-vs-atomic
    cpu_hotplug
    idr
@@ -25,6 +26,8 @@ Core utilities
    genalloc
    errseq
    printk-formats
+   circular-buffers
+   gfp_mask-from-fs-io
 
 Interfaces for kernel debugging
 ===============================

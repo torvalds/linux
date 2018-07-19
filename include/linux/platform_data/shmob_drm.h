@@ -18,9 +18,6 @@
 
 #include <drm/drm_mode.h>
 
-struct sh_mobile_meram_cfg;
-struct sh_mobile_meram_info;
-
 enum shmob_drm_clk_source {
 	SHMOB_DRM_CLK_BUS,
 	SHMOB_DRM_CLK_PERIPHERAL,
@@ -93,7 +90,6 @@ struct shmob_drm_platform_data {
 	struct shmob_drm_interface_data iface;
 	struct shmob_drm_panel_data panel;
 	struct shmob_drm_backlight_data backlight;
-	const struct sh_mobile_meram_cfg *meram;
 };
 
 #endif /* __SHMOB_DRM_H__ */

@@ -128,17 +128,6 @@ enum rtl8192e_h2c_cmd {
 	MAX_92E_H2CCMD
 };
 
-enum rtl8192e_c2h_evt {
-	C2H_8192E_DBG = 0,
-	C2H_8192E_LB = 1,
-	C2H_8192E_TXBF = 2,
-	C2H_8192E_TX_REPORT = 3,
-	C2H_8192E_BT_INFO = 9,
-	C2H_8192E_BT_MP = 11,
-	C2H_8192E_RA_RPT = 12,
-	MAX_8192E_C2HEVENT
-};
-
 #define pagenum_128(_len)	\
 	(u32)(((_len) >> 7) + ((_len) & 0x7F ? 1 : 0))
 
@@ -190,7 +179,6 @@ void rtl92ee_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
 void rtl92ee_set_fw_media_status_rpt_cmd(struct ieee80211_hw *hw, u8 mstatus);
 void rtl92ee_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
 void rtl92ee_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
-void rtl92ee_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len);
-void rtl92ee_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
-				 u8 c2h_cmd_len, u8 *tmp_buf);
+void rtl92ee_c2h_ra_report_handler(struct ieee80211_hw *hw,
+				   u8 *cmd_buf, u8 cmd_len);
 #endif

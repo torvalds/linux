@@ -1702,6 +1702,141 @@ int tcp_peek_len(struct socket *sock)
 }
 EXPORT_SYMBOL(tcp_peek_len);
 
+/* Make sure sk_rcvbuf is big enough to satisfy SO_RCVLOWAT hint */
+int tcp_set_rcvlowat(struct sock *sk, int val)
+{
+	int cap;
+
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
+		cap = sk->sk_rcvbuf >> 1;
+	else
+		cap = sock_net(sk)->ipv4.sysctl_tcp_rmem[2] >> 1;
+	val = min(val, cap);
+	sk->sk_rcvlowat = val ? : 1;
+
+	/* Check if we need to signal EPOLLIN right now */
+	tcp_data_ready(sk);
+
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
+		return 0;
+
+	val <<= 1;
+	if (val > sk->sk_rcvbuf) {
+		sk->sk_rcvbuf = val;
+		tcp_sk(sk)->window_clamp = tcp_win_from_space(sk, val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(tcp_set_rcvlowat);
+
+#ifdef CONFIG_MMU
+static const struct vm_operations_struct tcp_vm_ops = {
+};
+
+int tcp_mmap(struct file *file, struct socket *sock,
+	     struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
+		return -EPERM;
+	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
+
+	/* Instruct vm_insert_page() to not down_read(mmap_sem) */
+	vma->vm_flags |= VM_MIXEDMAP;
+
+	vma->vm_ops = &tcp_vm_ops;
+	return 0;
+}
+EXPORT_SYMBOL(tcp_mmap);
+
+static int tcp_zerocopy_receive(struct sock *sk,
+				struct tcp_zerocopy_receive *zc)
+{
+	unsigned long address = (unsigned long)zc->address;
+	const skb_frag_t *frags = NULL;
+	u32 length = 0, seq, offset;
+	struct vm_area_struct *vma;
+	struct sk_buff *skb = NULL;
+	struct tcp_sock *tp;
+	int ret;
+
+	if (address & (PAGE_SIZE - 1) || address != zc->address)
+		return -EINVAL;
+
+	if (sk->sk_state == TCP_LISTEN)
+		return -ENOTCONN;
+
+	sock_rps_record_flow(sk);
+
+	down_read(&current->mm->mmap_sem);
+
+	ret = -EINVAL;
+	vma = find_vma(current->mm, address);
+	if (!vma || vma->vm_start > address || vma->vm_ops != &tcp_vm_ops)
+		goto out;
+	zc->length = min_t(unsigned long, zc->length, vma->vm_end - address);
+
+	tp = tcp_sk(sk);
+	seq = tp->copied_seq;
+	zc->length = min_t(u32, zc->length, tcp_inq(sk));
+	zc->length &= ~(PAGE_SIZE - 1);
+
+	zap_page_range(vma, address, zc->length);
+
+	zc->recv_skip_hint = 0;
+	ret = 0;
+	while (length + PAGE_SIZE <= zc->length) {
+		if (zc->recv_skip_hint < PAGE_SIZE) {
+			if (skb) {
+				skb = skb->next;
+				offset = seq - TCP_SKB_CB(skb)->seq;
+			} else {
+				skb = tcp_recv_skb(sk, seq, &offset);
+			}
+
+			zc->recv_skip_hint = skb->len - offset;
+			offset -= skb_headlen(skb);
+			if ((int)offset < 0 || skb_has_frag_list(skb))
+				break;
+			frags = skb_shinfo(skb)->frags;
+			while (offset) {
+				if (frags->size > offset)
+					goto out;
+				offset -= frags->size;
+				frags++;
+			}
+		}
+		if (frags->size != PAGE_SIZE || frags->page_offset)
+			break;
+		ret = vm_insert_page(vma, address + length,
+				     skb_frag_page(frags));
+		if (ret)
+			break;
+		length += PAGE_SIZE;
+		seq += PAGE_SIZE;
+		zc->recv_skip_hint -= PAGE_SIZE;
+		frags++;
+	}
+out:
+	up_read(&current->mm->mmap_sem);
+	if (length) {
+		tp->copied_seq = seq;
+		tcp_rcv_space_adjust(sk);
+
+		/* Clean up data we have read: This will do ACK frames. */
+		tcp_recv_skb(sk, seq, &offset);
+		tcp_cleanup_rbuf(sk, length);
+		ret = 0;
+		if (length == zc->length)
+			zc->recv_skip_hint = 0;
+	} else {
+		if (!zc->recv_skip_hint && sock_flag(sk, SOCK_DONE))
+			ret = -EIO;
+	}
+	zc->length = length;
+	return ret;
+}
+#endif
+
 static void tcp_update_recv_tstamps(struct sk_buff *skb,
 				    struct scm_timestamping *tss)
 {
@@ -1757,6 +1892,22 @@ static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
 	}
 }
 
+static int tcp_inq_hint(struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	u32 copied_seq = READ_ONCE(tp->copied_seq);
+	u32 rcv_nxt = READ_ONCE(tp->rcv_nxt);
+	int inq;
+
+	inq = rcv_nxt - copied_seq;
+	if (unlikely(inq < 0 || copied_seq != READ_ONCE(tp->copied_seq))) {
+		lock_sock(sk);
+		inq = tp->rcv_nxt - tp->copied_seq;
+		release_sock(sk);
+	}
+	return inq;
+}
+
 /*
  *	This routine copies from a sock struct into the user buffer.
  *
@@ -1773,13 +1924,14 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 	u32 peek_seq;
 	u32 *seq;
 	unsigned long used;
-	int err;
+	int err, inq;
 	int target;		/* Read at least this many bytes */
 	long timeo;
 	struct sk_buff *skb, *last;
 	u32 urg_hole = 0;
 	struct scm_timestamping tss;
 	bool has_tss = false;
+	bool has_cmsg;
 
 	if (unlikely(flags & MSG_ERRQUEUE))
 		return inet_recv_error(sk, msg, len, addr_len);
@@ -1794,6 +1946,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 	if (sk->sk_state == TCP_LISTEN)
 		goto out;
 
+	has_cmsg = tp->recvmsg_inq;
 	timeo = sock_rcvtimeo(sk, nonblock);
 
 	/* Urgent data needs to be handled specially. */
@@ -1980,6 +2133,7 @@ skip_copy:
 		if (TCP_SKB_CB(skb)->has_rxtstamp) {
 			tcp_update_recv_tstamps(skb, &tss);
 			has_tss = true;
+			has_cmsg = true;
 		}
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 			goto found_fin_ok;
@@ -1999,13 +2153,20 @@ skip_copy:
 	 * on connected socket. I was just happy when found this 8) --ANK
 	 */
 
-	if (has_tss)
-		tcp_recv_timestamp(msg, sk, &tss);
-
 	/* Clean up data we have read: This will do ACK frames. */
 	tcp_cleanup_rbuf(sk, copied);
 
 	release_sock(sk);
+
+	if (has_cmsg) {
+		if (has_tss)
+			tcp_recv_timestamp(msg, sk, &tss);
+		if (tp->recvmsg_inq) {
+			inq = tcp_inq_hint(sk);
+			put_cmsg(msg, SOL_TCP, TCP_CM_INQ, sizeof(inq), &inq);
+		}
+	}
+
 	return copied;
 
 out:
@@ -2422,6 +2583,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 	tp->snd_cwnd_cnt = 0;
 	tp->window_clamp = 0;
+	tp->delivered_ce = 0;
 	tcp_set_ca_state(sk, TCP_CA_Open);
 	tp->is_sack_reneg = 0;
 	tcp_clear_retrans(tp);
@@ -2435,6 +2597,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	dst_release(sk->sk_rx_dst);
 	sk->sk_rx_dst = NULL;
 	tcp_saved_syn_free(tp);
+	tp->compressed_ack = 0;
 
 	/* Clean up fastopen related fields */
 	tcp_free_fastopen_req(tp);
@@ -2873,6 +3036,12 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		tp->notsent_lowat = val;
 		sk->sk_write_space(sk);
 		break;
+	case TCP_INQ:
+		if (val > 1 || val < 0)
+			err = -EINVAL;
+		else
+			tp->recvmsg_inq = val;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -3031,6 +3200,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	rate64 = tcp_compute_delivery_rate(tp);
 	if (rate64)
 		info->tcpi_delivery_rate = rate64;
+	info->tcpi_delivered = tp->delivered;
+	info->tcpi_delivered_ce = tp->delivered_ce;
 	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
@@ -3044,7 +3215,7 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 	u32 rate;
 
 	stats = alloc_skb(7 * nla_total_size_64bit(sizeof(u64)) +
-			  5 * nla_total_size(sizeof(u32)) +
+			  7 * nla_total_size(sizeof(u32)) +
 			  3 * nla_total_size(sizeof(u8)), GFP_ATOMIC);
 	if (!stats)
 		return NULL;
@@ -3075,9 +3246,12 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 	nla_put_u8(stats, TCP_NLA_RECUR_RETRANS, inet_csk(sk)->icsk_retransmits);
 	nla_put_u8(stats, TCP_NLA_DELIVERY_RATE_APP_LMT, !!tp->rate_app_limited);
 	nla_put_u32(stats, TCP_NLA_SND_SSTHRESH, tp->snd_ssthresh);
+	nla_put_u32(stats, TCP_NLA_DELIVERED, tp->delivered);
+	nla_put_u32(stats, TCP_NLA_DELIVERED_CE, tp->delivered_ce);
 
 	nla_put_u32(stats, TCP_NLA_SNDQ_SIZE, tp->write_seq - tp->snd_una);
 	nla_put_u8(stats, TCP_NLA_CA_STATE, inet_csk(sk)->icsk_ca_state);
+
 	return stats;
 }
 
@@ -3293,6 +3467,9 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 	case TCP_NOTSENT_LOWAT:
 		val = tp->notsent_lowat;
 		break;
+	case TCP_INQ:
+		val = tp->recvmsg_inq;
+		break;
 	case TCP_SAVE_SYN:
 		val = tp->save_syn;
 		break;
@@ -3329,6 +3506,25 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		}
 		return 0;
 	}
+#ifdef CONFIG_MMU
+	case TCP_ZEROCOPY_RECEIVE: {
+		struct tcp_zerocopy_receive zc;
+		int err;
+
+		if (get_user(len, optlen))
+			return -EFAULT;
+		if (len != sizeof(zc))
+			return -EINVAL;
+		if (copy_from_user(&zc, optval, len))
+			return -EFAULT;
+		lock_sock(sk);
+		err = tcp_zerocopy_receive(sk, &zc);
+		release_sock(sk);
+		if (!err && copy_to_user(optval, &zc, len))
+			err = -EFAULT;
+		return err;
+	}
+#endif
 	default:
 		return -ENOPROTOOPT;
 	}

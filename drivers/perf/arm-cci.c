@@ -120,9 +120,9 @@ enum cci_models {
 
 static void pmu_write_counters(struct cci_pmu *cci_pmu,
 				 unsigned long *mask);
-static ssize_t cci_pmu_format_show(struct device *dev,
+static ssize_t __maybe_unused cci_pmu_format_show(struct device *dev,
 			struct device_attribute *attr, char *buf);
-static ssize_t cci_pmu_event_show(struct device *dev,
+static ssize_t __maybe_unused cci_pmu_event_show(struct device *dev,
 			struct device_attribute *attr, char *buf);
 
 #define CCI_EXT_ATTR_ENTRY(_name, _func, _config) 				\
@@ -1184,16 +1184,11 @@ static int cci_pmu_add(struct perf_event *event, int flags)
 	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx;
-	int err = 0;
-
-	perf_pmu_disable(event->pmu);
 
 	/* If we don't have a space for the counter then finish early. */
 	idx = pmu_get_event_idx(hw_events, event);
-	if (idx < 0) {
-		err = idx;
-		goto out;
-	}
+	if (idx < 0)
+		return idx;
 
 	event->hw.idx = idx;
 	hw_events->events[idx] = event;
@@ -1205,9 +1200,7 @@ static int cci_pmu_add(struct perf_event *event, int flags)
 	/* Propagate our changes to the userspace mapping. */
 	perf_event_update_userpage(event);
 
-out:
-	perf_pmu_enable(event->pmu);
-	return err;
+	return 0;
 }
 
 static void cci_pmu_del(struct perf_event *event, int flags)
@@ -1303,15 +1296,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 * Store the event encoding into the config_base field.
 	 */
 	hwc->config_base	    |= (unsigned long)mapping;
-
-	/*
-	 * Limit the sample_period to half of the counter width. That way, the
-	 * new counter value is far less likely to overtake the previous one
-	 * unless you have some serious IRQ latency issues.
-	 */
-	hwc->sample_period  = CCI_PMU_CNTR_MASK >> 1;
-	hwc->last_period    = hwc->sample_period;
-	local64_set(&hwc->period_left, hwc->sample_period);
 
 	if (event->group_leader != event) {
 		if (validate_group(event) != 0)
@@ -1423,6 +1407,7 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 	pmu_format_attr_group.attrs = model->format_attrs;
 
 	cci_pmu->pmu = (struct pmu) {
+		.module		= THIS_MODULE,
 		.name		= cci_pmu->model->name,
 		.task_ctx_nr	= perf_invalid_context,
 		.pmu_enable	= cci_pmu_enable,
@@ -1466,7 +1451,7 @@ static int cci_pmu_offline_cpu(unsigned int cpu)
 	return 0;
 }
 
-static struct cci_pmu_model cci_pmu_models[] = {
+static __maybe_unused struct cci_pmu_model cci_pmu_models[] = {
 #ifdef CONFIG_ARM_CCI400_PMU
 	[CCI400_R0] = {
 		.name = "CCI_400",
@@ -1588,6 +1573,7 @@ static const struct of_device_id arm_cci_pmu_matches[] = {
 #endif
 	{},
 };
+MODULE_DEVICE_TABLE(of, arm_cci_pmu_matches);
 
 static bool is_duplicate_irq(int irq, int *irqs, int nr_irqs)
 {
@@ -1709,14 +1695,27 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int cci_pmu_remove(struct platform_device *pdev)
+{
+	if (!g_cci_pmu)
+		return 0;
+
+	cpuhp_remove_state(CPUHP_AP_PERF_ARM_CCI_ONLINE);
+	perf_pmu_unregister(&g_cci_pmu->pmu);
+	g_cci_pmu = NULL;
+
+	return 0;
+}
+
 static struct platform_driver cci_pmu_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = arm_cci_pmu_matches,
 		  },
 	.probe = cci_pmu_probe,
+	.remove = cci_pmu_remove,
 };
 
-builtin_platform_driver(cci_pmu_driver);
-MODULE_LICENSE("GPL");
+module_platform_driver(cci_pmu_driver);
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ARM CCI PMU support");

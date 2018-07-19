@@ -395,12 +395,6 @@ static inline unsigned int sata_fsl_tag(unsigned int tag,
 {
 	/* We let libATA core do actual (queue) tag allocation */
 
-	/* all non NCQ/queued commands should have tag#0 */
-	if (ata_tag_internal(tag)) {
-		DPRINTK("mapping internal cmds to tag#0\n");
-		return 0;
-	}
-
 	if (unlikely(tag >= SATA_FSL_QUEUE_DEPTH)) {
 		DPRINTK("tag %d invalid : out of range\n", tag);
 		return 0;
@@ -519,7 +513,7 @@ static void sata_fsl_qc_prep(struct ata_queued_cmd *qc)
 	struct sata_fsl_port_priv *pp = ap->private_data;
 	struct sata_fsl_host_priv *host_priv = ap->host->private_data;
 	void __iomem *hcr_base = host_priv->hcr_base;
-	unsigned int tag = sata_fsl_tag(qc->tag, hcr_base);
+	unsigned int tag = sata_fsl_tag(qc->hw_tag, hcr_base);
 	struct command_desc *cd;
 	u32 desc_info = CMD_DESC_RES | CMD_DESC_SNOOP_ENABLE;
 	u32 num_prde = 0;
@@ -566,7 +560,7 @@ static unsigned int sata_fsl_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct sata_fsl_host_priv *host_priv = ap->host->private_data;
 	void __iomem *hcr_base = host_priv->hcr_base;
-	unsigned int tag = sata_fsl_tag(qc->tag, hcr_base);
+	unsigned int tag = sata_fsl_tag(qc->hw_tag, hcr_base);
 
 	VPRINTK("xx_qc_issue called,CQ=0x%x,CA=0x%x,CE=0x%x,CC=0x%x\n",
 		ioread32(CQ + hcr_base),
@@ -595,7 +589,7 @@ static bool sata_fsl_qc_fill_rtf(struct ata_queued_cmd *qc)
 	struct sata_fsl_port_priv *pp = qc->ap->private_data;
 	struct sata_fsl_host_priv *host_priv = qc->ap->host->private_data;
 	void __iomem *hcr_base = host_priv->hcr_base;
-	unsigned int tag = sata_fsl_tag(qc->tag, hcr_base);
+	unsigned int tag = sata_fsl_tag(qc->hw_tag, hcr_base);
 	struct command_desc *cd;
 
 	cd = pp->cmdentry + tag;
@@ -1229,8 +1223,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 
 	/* Workaround for data length mismatch errata */
 	if (unlikely(hstatus & INT_ON_DATA_LENGTH_MISMATCH)) {
-		for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
-			qc = ata_qc_from_tag(ap, tag);
+		ata_qc_for_each_with_internal(ap, qc, tag) {
 			if (qc && ata_is_atapi(qc->tf.protocol)) {
 				u32 hcontrol;
 				/* Set HControl[27] to clear error registers */
@@ -1266,7 +1259,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 	}
 
 	VPRINTK("Status of all queues :\n");
-	VPRINTK("done_mask/CC = 0x%x, CA = 0x%x, CE=0x%x,CQ=0x%x,apqa=0x%x\n",
+	VPRINTK("done_mask/CC = 0x%x, CA = 0x%x, CE=0x%x,CQ=0x%x,apqa=0x%llx\n",
 		done_mask,
 		ioread32(hcr_base + CA),
 		ioread32(hcr_base + CE),
@@ -1293,7 +1286,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 		ata_qc_complete_multiple(ap, ap->qc_active ^ done_mask);
 		return;
 
-	} else if ((ap->qc_active & (1 << ATA_TAG_INTERNAL))) {
+	} else if ((ap->qc_active & (1ULL << ATA_TAG_INTERNAL))) {
 		iowrite32(1, hcr_base + CC);
 		qc = ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 

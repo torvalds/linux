@@ -1267,8 +1267,8 @@ static void rtl8192eu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 		reg_ecc = result[candidate][7];
 		dev_dbg(dev, "%s: candidate is %x\n", __func__, candidate);
 		dev_dbg(dev,
-			"%s: e94 =%x e9c=%x ea4=%x eac=%x eb4=%x ebc=%x ec4=%x "
-			"ecc=%x\n ", __func__, reg_e94, reg_e9c,
+			"%s: e94 =%x e9c=%x ea4=%x eac=%x eb4=%x ebc=%x ec4=%x ecc=%x\n",
+			__func__, reg_e94, reg_e9c,
 			reg_ea4, reg_eac, reg_eb4, reg_ebc, reg_ec4, reg_ecc);
 		path_a_ok = true;
 		path_b_ok = true;

@@ -46,15 +46,10 @@ struct driver_data {
 	u32 clear_sr;
 	u32 mask_sr;
 
-	/* Message Transfer pump */
-	struct tasklet_struct pump_transfers;
-
 	/* DMA engine support */
 	atomic_t dma_running;
 
-	/* Current message transfer state info */
-	struct spi_transfer *cur_transfer;
-	size_t len;
+	/* Current transfer state info */
 	void *tx;
 	void *tx_end;
 	void *rx;
@@ -104,11 +99,6 @@ static  inline void pxa2xx_spi_write(const struct driver_data *drv_data,
 	__raw_writel(val, drv_data->ioaddr + reg);
 }
 
-#define START_STATE ((void *)0)
-#define RUNNING_STATE ((void *)1)
-#define DONE_STATE ((void *)2)
-#define ERROR_STATE ((void *)-1)
-
 #define DMA_ALIGNMENT		8
 
 static inline int pxa25x_ssp_comp(struct driver_data *drv_data)
@@ -133,14 +123,15 @@ static inline void write_SSSR_CS(struct driver_data *drv_data, u32 val)
 }
 
 extern int pxa2xx_spi_flush(struct driver_data *drv_data);
-extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 
 #define MAX_DMA_LEN		SZ_64K
 #define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)
 
 extern irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data);
-extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst);
+extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data,
+				  struct spi_transfer *xfer);
 extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
+extern void pxa2xx_spi_dma_stop(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
 extern int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,

@@ -52,15 +52,6 @@
 #include <asm/syscalls.h>
 #include <asm/switch_to.h>
 
-
-asmlinkage long ppc32_select(u32 n, compat_ulong_t __user *inp,
-		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
-		compat_uptr_t tvp_x)
-{
-	/* sign extend n */
-	return compat_sys_select((int)n, inp, outp, exp, compat_ptr(tvp_x));
-}
-
 unsigned long compat_sys_mmap2(unsigned long addr, size_t len,
 			  unsigned long prot, unsigned long flags,
 			  unsigned long fd, unsigned long pgoff)

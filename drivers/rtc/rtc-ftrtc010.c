@@ -73,8 +73,8 @@ static int ftrtc010_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct ftrtc010_rtc *rtc = dev_get_drvdata(dev);
 
-	unsigned int  days, hour, min, sec;
-	unsigned long offset, time;
+	u32 days, hour, min, sec, offset;
+	timeu64_t time;
 
 	sec  = readl(rtc->rtc_base + FTRTC010_RTC_SECOND);
 	min  = readl(rtc->rtc_base + FTRTC010_RTC_MINUTE);
@@ -84,7 +84,7 @@ static int ftrtc010_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	time = offset + days * 86400 + hour * 3600 + min * 60 + sec;
 
-	rtc_time_to_tm(time, tm);
+	rtc_time64_to_tm(time, tm);
 
 	return 0;
 }
@@ -92,13 +92,10 @@ static int ftrtc010_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int ftrtc010_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct ftrtc010_rtc *rtc = dev_get_drvdata(dev);
-	unsigned int sec, min, hour, day;
-	unsigned long offset, time;
+	u32 sec, min, hour, day, offset;
+	timeu64_t time;
 
-	if (tm->tm_year >= 2148)	/* EPOCH Year + 179 */
-		return -EINVAL;
-
-	rtc_tm_to_time(tm, &time);
+	time = rtc_tm_to_time64(tm);
 
 	sec = readl(rtc->rtc_base + FTRTC010_RTC_SECOND);
 	min = readl(rtc->rtc_base + FTRTC010_RTC_MINUTE);
@@ -120,6 +117,7 @@ static const struct rtc_class_ops ftrtc010_rtc_ops = {
 
 static int ftrtc010_rtc_probe(struct platform_device *pdev)
 {
+	u32 days, hour, min, sec;
 	struct ftrtc010_rtc *rtc;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -166,14 +164,27 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 	if (!rtc->rtc_base)
 		return -ENOMEM;
 
+	rtc->rtc_dev = devm_rtc_allocate_device(dev);
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
+
+	rtc->rtc_dev->ops = &ftrtc010_rtc_ops;
+
+	sec  = readl(rtc->rtc_base + FTRTC010_RTC_SECOND);
+	min  = readl(rtc->rtc_base + FTRTC010_RTC_MINUTE);
+	hour = readl(rtc->rtc_base + FTRTC010_RTC_HOUR);
+	days = readl(rtc->rtc_base + FTRTC010_RTC_DAYS);
+
+	rtc->rtc_dev->range_min = (u64)days * 86400 + hour * 3600 +
+				  min * 60 + sec;
+	rtc->rtc_dev->range_max = U32_MAX + rtc->rtc_dev->range_min;
+
 	ret = devm_request_irq(dev, rtc->rtc_irq, ftrtc010_rtc_interrupt,
 			       IRQF_SHARED, pdev->name, dev);
 	if (unlikely(ret))
 		return ret;
 
-	rtc->rtc_dev = rtc_device_register(pdev->name, dev,
-					   &ftrtc010_rtc_ops, THIS_MODULE);
-	return PTR_ERR_OR_ZERO(rtc->rtc_dev);
+	return rtc_register_device(rtc->rtc_dev);
 }
 
 static int ftrtc010_rtc_remove(struct platform_device *pdev)
@@ -184,7 +195,6 @@ static int ftrtc010_rtc_remove(struct platform_device *pdev)
 		clk_disable_unprepare(rtc->extclk);
 	if (!IS_ERR(rtc->pclk))
 		clk_disable_unprepare(rtc->pclk);
-	rtc_device_unregister(rtc->rtc_dev);
 
 	return 0;
 }

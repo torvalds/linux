@@ -185,8 +185,6 @@ static int qxlfb_framebuffer_dirty(struct drm_framebuffer *fb,
 	/*
 	 * we are using a shadow draw buffer, at qdev->surface0_shadow
 	 */
-	qxl_io_log(qdev, "dirty x[%d, %d], y[%d, %d]\n", clips->x1, clips->x2,
-		   clips->y1, clips->y2);
 	image->dx = clips->x1;
 	image->dy = clips->y1;
 	image->width = clips->x2 - clips->x1;
@@ -243,7 +241,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	DRM_DEBUG_DRIVER("%dx%d %d\n", mode_cmd.width,
 			 mode_cmd.height, mode_cmd.pitches[0]);
 
-	shadow = vmalloc(mode_cmd.pitches[0] * mode_cmd.height);
+	shadow = vmalloc(array_size(mode_cmd.pitches[0], mode_cmd.height));
 	/* TODO: what's the usual response to memory allocation errors? */
 	BUG_ON(!shadow);
 	DRM_DEBUG_DRIVER("surface0 at gpu offset %lld, mmap_offset %lld (virt %p, shadow %p)\n",

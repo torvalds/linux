@@ -62,7 +62,7 @@ struct device_node *k2_skiplist[2];
 
 static int __init fixup_one_level_bus_range(struct device_node *node, int higher)
 {
-	for (; node != 0;node = node->sibling) {
+	for (; node; node = node->sibling) {
 		const int * bus_range;
 		const unsigned int *class_code;
 		int len;
@@ -1219,7 +1219,7 @@ static void fixup_u4_pcie(struct pci_dev* dev)
 			region = r;
 	}
 	/* Nothing found, bail */
-	if (region == 0)
+	if (!region)
 		return;
 
 	/* Print things out */

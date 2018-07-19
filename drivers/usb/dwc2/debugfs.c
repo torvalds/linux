@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * debugfs.c - Designware USB2 DRD controller debugfs
  *
  * Copyright (C) 2015 Intel Corporation
@@ -16,12 +16,13 @@
 
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
 	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+
 /**
- * testmode_write - debugfs: change usb test mode
- * @seq: The seq file to write to.
- * @v: Unused parameter.
- *
- * This debugfs entry modify the current usb test mode.
+ * testmode_write() - change usb test mode state.
+ * @file: The  file to write to.
+ * @ubuf: The buffer where user wrote.
+ * @count: The ubuf size.
+ * @ppos: Unused parameter.
  */
 static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
 		count, loff_t *ppos)
@@ -55,9 +56,9 @@ static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
 }
 
 /**
- * testmode_show - debugfs: show usb test mode state
- * @seq: The seq file to write to.
- * @v: Unused parameter.
+ * testmode_show() - debugfs: show usb test mode state
+ * @s: The seq file to write to.
+ * @unused: Unused parameter.
  *
  * This debugfs entry shows which usb test mode is currently enabled.
  */
@@ -293,52 +294,30 @@ DEFINE_SHOW_ATTRIBUTE(ep);
 static void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 {
 	struct dentry *root;
-	struct dentry *file;
 	unsigned int epidx;
 
 	root = hsotg->debug_root;
 
 	/* create general state file */
-
-	file = debugfs_create_file("state", 0444, root, hsotg, &state_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create state\n", __func__);
-
-	file = debugfs_create_file("testmode", 0644, root, hsotg,
-				   &testmode_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create testmode\n",
-			__func__);
-
-	file = debugfs_create_file("fifo", 0444, root, hsotg, &fifo_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create fifo\n", __func__);
+	debugfs_create_file("state", 0444, root, hsotg, &state_fops);
+	debugfs_create_file("testmode", 0644, root, hsotg, &testmode_fops);
+	debugfs_create_file("fifo", 0444, root, hsotg, &fifo_fops);
 
 	/* Create one file for each out endpoint */
 	for (epidx = 0; epidx < hsotg->num_of_eps; epidx++) {
 		struct dwc2_hsotg_ep *ep;
 
 		ep = hsotg->eps_out[epidx];
-		if (ep) {
-			file = debugfs_create_file(ep->name, 0444,
-						   root, ep, &ep_fops);
-			if (IS_ERR(file))
-				dev_err(hsotg->dev, "failed to create %s debug file\n",
-					ep->name);
-		}
+		if (ep)
+			debugfs_create_file(ep->name, 0444, root, ep, &ep_fops);
 	}
 	/* Create one file for each in endpoint. EP0 is handled with out eps */
 	for (epidx = 1; epidx < hsotg->num_of_eps; epidx++) {
 		struct dwc2_hsotg_ep *ep;
 
 		ep = hsotg->eps_in[epidx];
-		if (ep) {
-			file = debugfs_create_file(ep->name, 0444,
-						   root, ep, &ep_fops);
-			if (IS_ERR(file))
-				dev_err(hsotg->dev, "failed to create %s debug file\n",
-					ep->name);
-		}
+		if (ep)
+			debugfs_create_file(ep->name, 0444, root, ep, &ep_fops);
 	}
 }
 #else
@@ -368,7 +347,7 @@ static const struct debugfs_reg32 dwc2_regs[] = {
 	dump_register(GINTSTS),
 	dump_register(GINTMSK),
 	dump_register(GRXSTSR),
-	dump_register(GRXSTSP),
+	/* Omit GRXSTSP */
 	dump_register(GRXFSIZ),
 	dump_register(GNPTXFSIZ),
 	dump_register(GNPTXSTS),
@@ -710,6 +689,7 @@ static int params_show(struct seq_file *seq, void *v)
 	print_param(seq, p, phy_ulpi_ddr);
 	print_param(seq, p, phy_ulpi_ext_vbus);
 	print_param(seq, p, i2c_enable);
+	print_param(seq, p, ipg_isoc_en);
 	print_param(seq, p, ulpi_fs_ls);
 	print_param(seq, p, host_support_fs_ls_low_power);
 	print_param(seq, p, host_ls_low_power_phy_clk);
@@ -790,32 +770,14 @@ DEFINE_SHOW_ATTRIBUTE(dr_mode);
 int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 {
 	int			ret;
-	struct dentry		*file;
+	struct dentry		*root;
 
-	hsotg->debug_root = debugfs_create_dir(dev_name(hsotg->dev), NULL);
-	if (!hsotg->debug_root) {
-		ret = -ENOMEM;
-		goto err0;
-	}
+	root = debugfs_create_dir(dev_name(hsotg->dev), NULL);
+	hsotg->debug_root = root;
 
-	file = debugfs_create_file("params", 0444,
-				   hsotg->debug_root,
-				   hsotg, &params_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create params\n", __func__);
-
-	file = debugfs_create_file("hw_params", 0444,
-				   hsotg->debug_root,
-				   hsotg, &hw_params_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create hw_params\n",
-			__func__);
-
-	file = debugfs_create_file("dr_mode", 0444,
-				   hsotg->debug_root,
-				   hsotg, &dr_mode_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create dr_mode\n", __func__);
+	debugfs_create_file("params", 0444, root, hsotg, &params_fops);
+	debugfs_create_file("hw_params", 0444, root, hsotg, &hw_params_fops);
+	debugfs_create_file("dr_mode", 0444, root, hsotg, &dr_mode_fops);
 
 	/* Add gadget debugfs nodes */
 	dwc2_hsotg_create_debug(hsotg);
@@ -824,24 +786,18 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 								GFP_KERNEL);
 	if (!hsotg->regset) {
 		ret = -ENOMEM;
-		goto err1;
+		goto err;
 	}
 
 	hsotg->regset->regs = dwc2_regs;
 	hsotg->regset->nregs = ARRAY_SIZE(dwc2_regs);
 	hsotg->regset->base = hsotg->regs;
 
-	file = debugfs_create_regset32("regdump", 0444, hsotg->debug_root,
-				       hsotg->regset);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
+	debugfs_create_regset32("regdump", 0444, root, hsotg->regset);
 
 	return 0;
-err1:
+err:
 	debugfs_remove_recursive(hsotg->debug_root);
-err0:
 	return ret;
 }
 

@@ -454,12 +454,6 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-/**
- * fec_ptp_hwtstamp_ioctl - control hardware time stamping
- * @ndev: pointer to net_device
- * @ifreq: ioctl data
- * @cmd: particular ioctl requested
- */
 int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);

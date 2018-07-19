@@ -473,6 +473,36 @@ struct channel_path_desc_fmt0 *ccw_device_get_chp_desc(struct ccw_device *cdev,
 }
 
 /**
+ * ccw_device_get_util_str() - return newly allocated utility strings
+ * @cdev: device to obtain the utility strings for
+ * @chp_idx: index of the channel path
+ *
+ * On success return a newly allocated copy of the utility strings
+ * associated with the given channel path. Return %NULL on error.
+ */
+u8 *ccw_device_get_util_str(struct ccw_device *cdev, int chp_idx)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	struct channel_path *chp;
+	struct chp_id chpid;
+	u8 *util_str;
+
+	chp_id_init(&chpid);
+	chpid.id = sch->schib.pmcw.chpid[chp_idx];
+	chp = chpid_to_chp(chpid);
+
+	util_str = kmalloc(sizeof(chp->desc_fmt3.util_str), GFP_KERNEL);
+	if (!util_str)
+		return NULL;
+
+	mutex_lock(&chp->lock);
+	memcpy(util_str, chp->desc_fmt3.util_str, sizeof(chp->desc_fmt3.util_str));
+	mutex_unlock(&chp->lock);
+
+	return util_str;
+}
+
+/**
  * ccw_device_get_id() - obtain a ccw device id
  * @cdev: device to obtain the id for
  * @dev_id: where to fill in the values
@@ -682,3 +712,4 @@ EXPORT_SYMBOL(ccw_device_start_key);
 EXPORT_SYMBOL(ccw_device_get_ciw);
 EXPORT_SYMBOL(ccw_device_get_path_mask);
 EXPORT_SYMBOL_GPL(ccw_device_get_chp_desc);
+EXPORT_SYMBOL_GPL(ccw_device_get_util_str);

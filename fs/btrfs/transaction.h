@@ -139,7 +139,6 @@ struct btrfs_pending_snapshot {
 	struct btrfs_path *path;
 	/* block reservation for the operation */
 	struct btrfs_block_rsv block_rsv;
-	u64 qgroup_reserved;
 	/* extra metadata reservation for relocation */
 	int error;
 	bool readonly;

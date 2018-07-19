@@ -310,6 +310,10 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 	case -ETIME:
 		_debug("no conn");
 		goto iterate_address;
+
+	case -ECONNRESET:
+		_debug("call reset");
+		goto failed;
 	}
 
 restart_from_beginning:

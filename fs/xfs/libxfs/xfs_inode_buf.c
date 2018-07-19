@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -201,11 +189,6 @@ xfs_imap_to_bp(
 			ASSERT(buf_flags & XBF_TRYLOCK);
 			return error;
 		}
-
-		if (error == -EFSCORRUPTED &&
-		    (iget_flags & XFS_IGET_UNTRUSTED))
-			return -EINVAL;
-
 		xfs_warn(mp, "%s: xfs_trans_read_buf() returned error %d.",
 			__func__, error);
 		return error;
@@ -391,12 +374,54 @@ xfs_log_dinode_to_disk(
 	}
 }
 
+static xfs_failaddr_t
+xfs_dinode_verify_fork(
+	struct xfs_dinode	*dip,
+	struct xfs_mount	*mp,
+	int			whichfork)
+{
+	uint32_t		di_nextents = XFS_DFORK_NEXTENTS(dip, whichfork);
+
+	switch (XFS_DFORK_FORMAT(dip, whichfork)) {
+	case XFS_DINODE_FMT_LOCAL:
+		/*
+		 * no local regular files yet
+		 */
+		if (whichfork == XFS_DATA_FORK) {
+			if (S_ISREG(be16_to_cpu(dip->di_mode)))
+				return __this_address;
+			if (be64_to_cpu(dip->di_size) >
+					XFS_DFORK_SIZE(dip, mp, whichfork))
+				return __this_address;
+		}
+		if (di_nextents)
+			return __this_address;
+		break;
+	case XFS_DINODE_FMT_EXTENTS:
+		if (di_nextents > XFS_DFORK_MAXEXT(dip, mp, whichfork))
+			return __this_address;
+		break;
+	case XFS_DINODE_FMT_BTREE:
+		if (whichfork == XFS_ATTR_FORK) {
+			if (di_nextents > MAXAEXTNUM)
+				return __this_address;
+		} else if (di_nextents > MAXEXTNUM) {
+			return __this_address;
+		}
+		break;
+	default:
+		return __this_address;
+	}
+	return NULL;
+}
+
 xfs_failaddr_t
 xfs_dinode_verify(
 	struct xfs_mount	*mp,
 	xfs_ino_t		ino,
 	struct xfs_dinode	*dip)
 {
+	xfs_failaddr_t		fa;
 	uint16_t		mode;
 	uint16_t		flags;
 	uint64_t		flags2;
@@ -457,24 +482,9 @@ xfs_dinode_verify(
 	case S_IFREG:
 	case S_IFLNK:
 	case S_IFDIR:
-		switch (dip->di_format) {
-		case XFS_DINODE_FMT_LOCAL:
-			/*
-			 * no local regular files yet
-			 */
-			if (S_ISREG(mode))
-				return __this_address;
-			if (di_size > XFS_DFORK_DSIZE(dip, mp))
-				return __this_address;
-			if (dip->di_nextents)
-				return __this_address;
-			/* fall through */
-		case XFS_DINODE_FMT_EXTENTS:
-		case XFS_DINODE_FMT_BTREE:
-			break;
-		default:
-			return __this_address;
-		}
+		fa = xfs_dinode_verify_fork(dip, mp, XFS_DATA_FORK);
+		if (fa)
+			return fa;
 		break;
 	case 0:
 		/* Uninitialized inode ok. */
@@ -484,17 +494,9 @@ xfs_dinode_verify(
 	}
 
 	if (XFS_DFORK_Q(dip)) {
-		switch (dip->di_aformat) {
-		case XFS_DINODE_FMT_LOCAL:
-			if (dip->di_anextents)
-				return __this_address;
-		/* fall through */
-		case XFS_DINODE_FMT_EXTENTS:
-		case XFS_DINODE_FMT_BTREE:
-			break;
-		default:
-			return __this_address;
-		}
+		fa = xfs_dinode_verify_fork(dip, mp, XFS_ATTR_FORK);
+		if (fa)
+			return fa;
 	} else {
 		/*
 		 * If there is no fork offset, this may be a freshly-made inode
@@ -513,6 +515,12 @@ xfs_dinode_verify(
 			return __this_address;
 	}
 
+	/* extent size hint validation */
+	fa = xfs_inode_validate_extsize(mp, be32_to_cpu(dip->di_extsize),
+			mode, flags);
+	if (fa)
+		return fa;
+
 	/* only version 3 or greater inodes are extensively verified here */
 	if (dip->di_version < 3)
 		return NULL;
@@ -521,7 +529,7 @@ xfs_dinode_verify(
 
 	/* don't allow reflink/cowextsize if we don't have reflink */
 	if ((flags2 & (XFS_DIFLAG2_REFLINK | XFS_DIFLAG2_COWEXTSIZE)) &&
-            !xfs_sb_version_hasreflink(&mp->m_sb))
+	     !xfs_sb_version_hasreflink(&mp->m_sb))
 		return __this_address;
 
 	/* only regular files get reflink */
@@ -535,6 +543,12 @@ xfs_dinode_verify(
 	/* don't let reflink and dax mix */
 	if ((flags2 & XFS_DIFLAG2_REFLINK) && (flags2 & XFS_DIFLAG2_DAX))
 		return __this_address;
+
+	/* COW extent size hint validation */
+	fa = xfs_inode_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
+			mode, flags, flags2);
+	if (fa)
+		return fa;
 
 	return NULL;
 }

@@ -778,7 +778,7 @@ ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
 		goto out;
 	}
 	if (nr_segs > fast_segs) {
-		iov = kmalloc(nr_segs*sizeof(struct iovec), GFP_KERNEL);
+		iov = kmalloc_array(nr_segs, sizeof(struct iovec), GFP_KERNEL);
 		if (iov == NULL) {
 			ret = -ENOMEM;
 			goto out;
@@ -849,7 +849,7 @@ ssize_t compat_rw_copy_check_uvector(int type,
 		goto out;
 	if (nr_segs > fast_segs) {
 		ret = -ENOMEM;
-		iov = kmalloc(nr_segs*sizeof(struct iovec), GFP_KERNEL);
+		iov = kmalloc_array(nr_segs, sizeof(struct iovec), GFP_KERNEL);
 		if (iov == NULL)
 			goto out;
 	}
@@ -2023,7 +2023,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 		ret = mnt_want_write_file(dst_file);
 		if (ret) {
 			info->status = ret;
-			goto next_loop;
+			goto next_fdput;
 		}
 
 		dst_off = info->dest_offset;
@@ -2058,9 +2058,9 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 
 next_file:
 		mnt_drop_write_file(dst_file);
-next_loop:
+next_fdput:
 		fdput(dst_fd);
-
+next_loop:
 		if (fatal_signal_pending(current))
 			goto out;
 	}

@@ -157,7 +157,6 @@ mt76x2_skb_tx_info(struct sk_buff *skb)
 	return (void *) info->status.status_driver_data;
 }
 
-int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard);
 int mt76x2_mac_start(struct mt76x2_dev *dev);
 void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force);
 void mt76x2_mac_resume(struct mt76x2_dev *dev);

@@ -22,10 +22,13 @@ void func(struct fbtft_par *par, int len, ...)                                \
 	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {                    \
 		va_start(args, len);                                          \
 		for (i = 0; i < len; i++) {                                   \
-			buf[i] = modifier((data_type)va_arg(args, unsigned int)); \
+			buf[i] = modifier((data_type)va_arg(args,             \
+							    unsigned int));   \
 		}                                                             \
 		va_end(args);                                                 \
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device, buffer_type, buf, len, "%s: ", __func__); \
+		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par,                  \
+				  par->info->device, buffer_type, buf, len,   \
+				  "%s: ", __func__);                          \
 	}                                                                     \
 									      \
 	va_start(args, len);                                                  \
@@ -37,7 +40,8 @@ void func(struct fbtft_par *par, int len, ...)                                \
 	}                                                                     \
 									      \
 	*buf = modifier((data_type)va_arg(args, unsigned int));               \
-	ret = fbtft_write_buf_dc(par, par->buf, sizeof(data_type) + offset, 0); \
+	ret = fbtft_write_buf_dc(par, par->buf, sizeof(data_type) + offset,   \
+				 0);                                          \
 	if (ret < 0)							      \
 		goto out;						      \
 	len--;                                                                \
@@ -48,7 +52,8 @@ void func(struct fbtft_par *par, int len, ...)                                \
 	if (len) {                                                            \
 		i = len;                                                      \
 		while (i--)						      \
-			*buf++ = modifier((data_type)va_arg(args, unsigned int)); \
+			*buf++ = modifier((data_type)va_arg(args,             \
+							    unsigned int));   \
 		fbtft_write_buf_dc(par, par->buf,			      \
 				   len * (sizeof(data_type) + offset), 1);    \
 	}                                                                     \

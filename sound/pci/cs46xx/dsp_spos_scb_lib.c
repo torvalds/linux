@@ -271,7 +271,7 @@ void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
       
 			entry->content = SNDRV_INFO_CONTENT_TEXT;
 			entry->private_data = scb_info;
-			entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
+			entry->mode = S_IFREG | 0644;
       
 			entry->c.text.read = cs46xx_dsp_proc_scb_info_read;
       

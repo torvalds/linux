@@ -1311,15 +1311,20 @@ rdwr_status btmrvl_sdio_rdwr_firmware(struct btmrvl_private *priv,
 }
 
 /* This function dump sdio register and memory data */
-static void btmrvl_sdio_dump_firmware(struct btmrvl_private *priv)
+static void btmrvl_sdio_coredump(struct device *dev)
 {
-	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct btmrvl_sdio_card *card;
+	struct btmrvl_private *priv;
 	int ret = 0;
 	unsigned int reg, reg_start, reg_end;
 	enum rdwr_status stat;
 	u8 *dbg_ptr, *end_ptr, *fw_dump_data, *fw_dump_ptr;
 	u8 dump_num = 0, idx, i, read_reg, doneflag = 0;
 	u32 memory_size, fw_dump_len = 0;
+
+	card = sdio_get_drvdata(func);
+	priv = card->priv;
 
 	/* dump sdio register first */
 	btmrvl_sdio_dump_regs(priv);
@@ -1547,7 +1552,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	priv->hw_host_to_card = btmrvl_sdio_host_to_card;
 	priv->hw_wakeup_firmware = btmrvl_sdio_wakeup_fw;
 	priv->hw_process_int_status = btmrvl_sdio_process_int_status;
-	priv->firmware_dump = btmrvl_sdio_dump_firmware;
 
 	if (btmrvl_register_hdev(priv)) {
 		BT_ERR("Register hdev failed!");
@@ -1717,6 +1721,7 @@ static struct sdio_driver bt_mrvl_sdio = {
 	.remove		= btmrvl_sdio_remove,
 	.drv = {
 		.owner = THIS_MODULE,
+		.coredump = btmrvl_sdio_coredump,
 		.pm = &btmrvl_sdio_pm_ops,
 	}
 };

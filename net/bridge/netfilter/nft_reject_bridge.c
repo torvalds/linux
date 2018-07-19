@@ -261,7 +261,7 @@ static void nft_reject_br_send_v6_unreach(struct net *net,
 	if (!reject6_br_csum_ok(oldskb, hook))
 		return;
 
-	nskb = alloc_skb(sizeof(struct iphdr) + sizeof(struct icmp6hdr) +
+	nskb = alloc_skb(sizeof(struct ipv6hdr) + sizeof(struct icmp6hdr) +
 			 LL_MAX_HEADER + len, GFP_ATOMIC);
 	if (!nskb)
 		return;

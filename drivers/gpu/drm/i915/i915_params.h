@@ -48,9 +48,10 @@ struct drm_printer;
 	param(int, enable_ips, 1) \
 	param(int, invert_brightness, 0) \
 	param(int, enable_guc, 0) \
-	param(int, guc_log_level, 0) \
+	param(int, guc_log_level, -1) \
 	param(char *, guc_firmware_path, NULL) \
 	param(char *, huc_firmware_path, NULL) \
+	param(char *, dmc_firmware_path, NULL) \
 	param(int, mmio_debug, 0) \
 	param(int, edp_vswing, 0) \
 	param(int, reset, 2) \

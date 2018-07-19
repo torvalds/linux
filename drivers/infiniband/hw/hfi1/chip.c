@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -65,6 +65,7 @@
 #include "aspm.h"
 #include "affinity.h"
 #include "debugfs.h"
+#include "fault.h"
 
 #define NUM_IB_PORTS 1
 
@@ -1032,8 +1033,8 @@ static void read_vc_remote_fabric(struct hfi1_devdata *dd, u8 *vau, u8 *z,
 				  u8 *vcu, u16 *vl15buf, u8 *crc_sizes);
 static void read_vc_remote_link_width(struct hfi1_devdata *dd,
 				      u8 *remote_tx_rate, u16 *link_widths);
-static void read_vc_local_link_width(struct hfi1_devdata *dd, u8 *misc_bits,
-				     u8 *flag_bits, u16 *link_widths);
+static void read_vc_local_link_mode(struct hfi1_devdata *dd, u8 *misc_bits,
+				    u8 *flag_bits, u16 *link_widths);
 static void read_remote_device_id(struct hfi1_devdata *dd, u16 *device_id,
 				  u8 *device_rev);
 static void read_local_lni(struct hfi1_devdata *dd, u8 *enable_lane_rx);
@@ -6355,6 +6356,18 @@ static void handle_8051_request(struct hfi1_pportdata *ppd)
 			    type);
 		hreq_response(dd, HREQ_NOT_SUPPORTED, 0);
 		break;
+	case HREQ_LCB_RESET:
+		/* Put the LCB, RX FPE and TX FPE into reset */
+		write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_INTO_RESET);
+		/* Make sure the write completed */
+		(void)read_csr(dd, DCC_CFG_RESET);
+		/* Hold the reset long enough to take effect */
+		udelay(1);
+		/* Take the LCB, RX FPE and TX FPE out of reset */
+		write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_OUT_OF_RESET);
+		hreq_response(dd, HREQ_SUCCESS, 0);
+
+		break;
 	case HREQ_CONFIG_DONE:
 		hreq_response(dd, HREQ_SUCCESS, 0);
 		break;
@@ -6465,8 +6478,7 @@ static void lcb_shutdown(struct hfi1_devdata *dd, int abort)
 	dd->lcb_err_en = read_csr(dd, DC_LCB_ERR_EN);
 	reg = read_csr(dd, DCC_CFG_RESET);
 	write_csr(dd, DCC_CFG_RESET, reg |
-		  (1ull << DCC_CFG_RESET_RESET_LCB_SHIFT) |
-		  (1ull << DCC_CFG_RESET_RESET_RX_FPE_SHIFT));
+		  DCC_CFG_RESET_RESET_LCB | DCC_CFG_RESET_RESET_RX_FPE);
 	(void)read_csr(dd, DCC_CFG_RESET); /* make sure the write completed */
 	if (!abort) {
 		udelay(1);    /* must hold for the longer of 16cclks or 20ns */
@@ -6531,7 +6543,7 @@ static void _dc_start(struct hfi1_devdata *dd)
 			   __func__);
 
 	/* Take away reset for LCB and RX FPE (set in lcb_shutdown). */
-	write_csr(dd, DCC_CFG_RESET, 0x10);
+	write_csr(dd, DCC_CFG_RESET, LCB_RX_FPE_TX_FPE_OUT_OF_RESET);
 	/* lcb_shutdown() with abort=1 does not restore these */
 	write_csr(dd, DC_LCB_ERR_EN, dd->lcb_err_en);
 	dd->dc_shutdown = 0;
@@ -6829,7 +6841,7 @@ static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 		}
 		rcvmask = HFI1_RCVCTRL_CTXT_ENB;
 		/* HFI1_RCVCTRL_TAILUPD_[ENB|DIS] needs to be set explicitly */
-		rcvmask |= HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ?
+		rcvmask |= rcd->rcvhdrtail_kvaddr ?
 			HFI1_RCVCTRL_TAILUPD_ENB : HFI1_RCVCTRL_TAILUPD_DIS;
 		hfi1_rcvctrl(dd, rcvmask, rcd);
 		hfi1_rcd_put(rcd);
@@ -7352,7 +7364,7 @@ static void get_linkup_widths(struct hfi1_devdata *dd, u16 *tx_width,
 	u8 misc_bits, local_flags;
 	u16 active_tx, active_rx;
 
-	read_vc_local_link_width(dd, &misc_bits, &local_flags, &widths);
+	read_vc_local_link_mode(dd, &misc_bits, &local_flags, &widths);
 	tx = widths >> 12;
 	rx = (widths >> 8) & 0xf;
 
@@ -8355,7 +8367,7 @@ static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
 	u32 tail;
 	int present;
 
-	if (!HFI1_CAP_IS_KSET(DMA_RTAIL))
+	if (!rcd->rcvhdrtail_kvaddr)
 		present = (rcd->seq_cnt ==
 				rhf_rcv_seq(rhf_to_cpu(get_rhf_addr(rcd))));
 	else /* is RDMA rtail */
@@ -8824,29 +8836,29 @@ static int write_vc_local_fabric(struct hfi1_devdata *dd, u8 vau, u8 z, u8 vcu,
 				GENERAL_CONFIG, frame);
 }
 
-static void read_vc_local_link_width(struct hfi1_devdata *dd, u8 *misc_bits,
-				     u8 *flag_bits, u16 *link_widths)
+static void read_vc_local_link_mode(struct hfi1_devdata *dd, u8 *misc_bits,
+				    u8 *flag_bits, u16 *link_widths)
 {
 	u32 frame;
 
-	read_8051_config(dd, VERIFY_CAP_LOCAL_LINK_WIDTH, GENERAL_CONFIG,
+	read_8051_config(dd, VERIFY_CAP_LOCAL_LINK_MODE, GENERAL_CONFIG,
 			 &frame);
 	*misc_bits = (frame >> MISC_CONFIG_BITS_SHIFT) & MISC_CONFIG_BITS_MASK;
 	*flag_bits = (frame >> LOCAL_FLAG_BITS_SHIFT) & LOCAL_FLAG_BITS_MASK;
 	*link_widths = (frame >> LINK_WIDTH_SHIFT) & LINK_WIDTH_MASK;
 }
 
-static int write_vc_local_link_width(struct hfi1_devdata *dd,
-				     u8 misc_bits,
-				     u8 flag_bits,
-				     u16 link_widths)
+static int write_vc_local_link_mode(struct hfi1_devdata *dd,
+				    u8 misc_bits,
+				    u8 flag_bits,
+				    u16 link_widths)
 {
 	u32 frame;
 
 	frame = (u32)misc_bits << MISC_CONFIG_BITS_SHIFT
 		| (u32)flag_bits << LOCAL_FLAG_BITS_SHIFT
 		| (u32)link_widths << LINK_WIDTH_SHIFT;
-	return load_8051_config(dd, VERIFY_CAP_LOCAL_LINK_WIDTH, GENERAL_CONFIG,
+	return load_8051_config(dd, VERIFY_CAP_LOCAL_LINK_MODE, GENERAL_CONFIG,
 		     frame);
 }
 
@@ -9316,8 +9328,16 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	if (loopback == LOOPBACK_SERDES)
 		misc_bits |= 1 << LOOPBACK_SERDES_CONFIG_BIT_MASK_SHIFT;
 
-	ret = write_vc_local_link_width(dd, misc_bits, 0,
-					opa_to_vc_link_widths(
+	/*
+	 * An external device configuration request is used to reset the LCB
+	 * to retry to obtain operational lanes when the first attempt is
+	 * unsuccesful.
+	 */
+	if (dd->dc8051_ver >= dc8051_ver(1, 25, 0))
+		misc_bits |= 1 << EXT_CFG_LCB_RESET_SUPPORTED_SHIFT;
+
+	ret = write_vc_local_link_mode(dd, misc_bits, 0,
+				       opa_to_vc_link_widths(
 						ppd->link_width_enabled));
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
@@ -10495,9 +10515,9 @@ u32 driver_pstate(struct hfi1_pportdata *ppd)
 	case HLS_DN_OFFLINE:
 		return OPA_PORTPHYSSTATE_OFFLINE;
 	case HLS_VERIFY_CAP:
-		return IB_PORTPHYSSTATE_POLLING;
+		return IB_PORTPHYSSTATE_TRAINING;
 	case HLS_GOING_UP:
-		return IB_PORTPHYSSTATE_POLLING;
+		return IB_PORTPHYSSTATE_TRAINING;
 	case HLS_GOING_OFFLINE:
 		return OPA_PORTPHYSSTATE_OFFLINE;
 	case HLS_LINK_COOLDOWN:
@@ -11823,7 +11843,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		/* reset the tail and hdr addresses, and sequence count */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_ADDR,
 				rcd->rcvhdrq_dma);
-		if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL))
+		if (rcd->rcvhdrtail_kvaddr)
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
 					rcd->rcvhdrqtailaddr_dma);
 		rcd->seq_cnt = 1;
@@ -11903,7 +11923,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		rcvctrl |= RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
 	if (op & HFI1_RCVCTRL_INTRAVAIL_DIS)
 		rcvctrl &= ~RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
-	if (op & HFI1_RCVCTRL_TAILUPD_ENB && rcd->rcvhdrqtailaddr_dma)
+	if ((op & HFI1_RCVCTRL_TAILUPD_ENB) && rcd->rcvhdrtail_kvaddr)
 		rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 	if (op & HFI1_RCVCTRL_TAILUPD_DIS) {
 		/* See comment on RcvCtxtCtrl.TailUpd above */
@@ -14620,7 +14640,9 @@ static void init_rxe(struct hfi1_devdata *dd)
 
 	/* Have 16 bytes (4DW) of bypass header available in header queue */
 	val = read_csr(dd, RCV_BYPASS);
-	val |= (4ull << 16);
+	val &= ~RCV_BYPASS_HDR_SIZE_SMASK;
+	val |= ((4ull & RCV_BYPASS_HDR_SIZE_MASK) <<
+		RCV_BYPASS_HDR_SIZE_SHIFT);
 	write_csr(dd, RCV_BYPASS, val);
 }
 
@@ -15022,13 +15044,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret < 0)
 		goto bail_cleanup;
 
-	/* verify that reads actually work, save revision for reset check */
-	dd->revision = read_csr(dd, CCE_REVISION);
-	if (dd->revision == ~(u64)0) {
-		dd_dev_err(dd, "cannot read chip CSRs\n");
-		ret = -EINVAL;
-		goto bail_cleanup;
-	}
 	dd->majrev = (dd->revision >> CCE_REVISION_CHIP_REV_MAJOR_SHIFT)
 			& CCE_REVISION_CHIP_REV_MAJOR_MASK;
 	dd->minrev = (dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT)
@@ -15224,6 +15239,10 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret)
 		goto bail_cleanup;
 
+	ret = hfi1_comp_vectors_set_up(dd);
+	if (ret)
+		goto bail_clear_intr;
+
 	/* set up LCB access - must be after set_up_interrupts() */
 	init_lcb_access(dd);
 
@@ -15266,6 +15285,7 @@ bail_free_rcverr:
 bail_free_cntrs:
 	free_cntrs(dd);
 bail_clear_intr:
+	hfi1_comp_vectors_clean_up(dd);
 	hfi1_clean_up_interrupts(dd);
 bail_cleanup:
 	hfi1_pcie_ddcleanup(dd);

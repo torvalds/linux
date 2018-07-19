@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
@@ -1175,7 +1176,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	reservation_object_init(&bo->ttm_resv);
 	atomic_inc(&bo->bdev->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
-	bo->priority = 0;
 
 	/*
 	 * For ttm_bo_type_device buffers, allocate

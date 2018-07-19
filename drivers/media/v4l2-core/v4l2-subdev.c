@@ -502,10 +502,25 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
+static long subdev_do_ioctl_lock(struct file *file, unsigned int cmd, void *arg)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->lock;
+	long ret = -ENODEV;
+
+	if (lock && mutex_lock_interruptible(lock))
+		return -ERESTARTSYS;
+	if (video_is_registered(vdev))
+		ret = subdev_do_ioctl(file, cmd, arg);
+	if (lock)
+		mutex_unlock(lock);
+	return ret;
+}
+
 static long subdev_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
-	return video_usercopy(file, cmd, arg, subdev_do_ioctl);
+	return video_usercopy(file, cmd, arg, subdev_do_ioctl_lock);
 }
 
 #ifdef CONFIG_COMPAT

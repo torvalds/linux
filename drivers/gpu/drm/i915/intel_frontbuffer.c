@@ -80,7 +80,7 @@ void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 	}
 
 	might_sleep();
-	intel_psr_invalidate(dev_priv, frontbuffer_bits);
+	intel_psr_invalidate(dev_priv, frontbuffer_bits, origin);
 	intel_edp_drrs_invalidate(dev_priv, frontbuffer_bits);
 	intel_fbc_invalidate(dev_priv, frontbuffer_bits, origin);
 }

@@ -218,8 +218,7 @@ static void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 {
 	siginfo_t info;
 
-	memset(&info, 0, sizeof(info));
-
+	clear_siginfo(&info);
 	info.si_signo = SIGFPE;
 	info.si_code = sicode;
 	info.si_addr = (void __user *)(instruction_pointer(regs) - 4);

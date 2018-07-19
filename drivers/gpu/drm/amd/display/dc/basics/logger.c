@@ -61,7 +61,7 @@ static const struct dc_log_type_info log_type_info_tbl[] = {
 		{LOG_EVENT_UNDERFLOW,       "Underflow"},
 		{LOG_IF_TRACE,              "InterfaceTrace"},
 		{LOG_DTN,                   "DTN"},
-		{LOG_PROFILING,             "Profiling"}
+		{LOG_DISPLAYSTATS,          "DisplayStats"}
 };
 
 
@@ -364,7 +364,7 @@ void dm_logger_open(
 	entry->type = log_type;
 	entry->logger = logger;
 
-	entry->buf = kzalloc(DAL_LOGGER_BUFFER_MAX_SIZE * sizeof(char),
+	entry->buf = kzalloc(DAL_LOGGER_BUFFER_MAX_SIZE,
 			     GFP_KERNEL);
 
 	entry->buf_offset = 0;
@@ -402,3 +402,4 @@ cleanup:
 		entry->max_buf_bytes = 0;
 	}
 }
+

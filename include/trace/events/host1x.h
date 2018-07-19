@@ -115,16 +115,15 @@ TRACE_EVENT(host1x_cdma_push_gather,
 );
 
 TRACE_EVENT(host1x_channel_submit,
-	TP_PROTO(const char *name, u32 cmdbufs, u32 relocs, u32 waitchks,
-			u32 syncpt_id, u32 syncpt_incrs),
+	TP_PROTO(const char *name, u32 cmdbufs, u32 relocs, u32 syncpt_id,
+		 u32 syncpt_incrs),
 
-	TP_ARGS(name, cmdbufs, relocs, waitchks, syncpt_id, syncpt_incrs),
+	TP_ARGS(name, cmdbufs, relocs, syncpt_id, syncpt_incrs),
 
 	TP_STRUCT__entry(
 		__field(const char *, name)
 		__field(u32, cmdbufs)
 		__field(u32, relocs)
-		__field(u32, waitchks)
 		__field(u32, syncpt_id)
 		__field(u32, syncpt_incrs)
 	),
@@ -133,15 +132,14 @@ TRACE_EVENT(host1x_channel_submit,
 		__entry->name = name;
 		__entry->cmdbufs = cmdbufs;
 		__entry->relocs = relocs;
-		__entry->waitchks = waitchks;
 		__entry->syncpt_id = syncpt_id;
 		__entry->syncpt_incrs = syncpt_incrs;
 	),
 
-	TP_printk("name=%s, cmdbufs=%u, relocs=%u, waitchks=%d,"
-		"syncpt_id=%u, syncpt_incrs=%u",
-	  __entry->name, __entry->cmdbufs, __entry->relocs, __entry->waitchks,
-	  __entry->syncpt_id, __entry->syncpt_incrs)
+	TP_printk("name=%s, cmdbufs=%u, relocs=%u, syncpt_id=%u, "
+		  "syncpt_incrs=%u",
+		  __entry->name, __entry->cmdbufs, __entry->relocs,
+		  __entry->syncpt_id, __entry->syncpt_incrs)
 );
 
 TRACE_EVENT(host1x_channel_submitted,

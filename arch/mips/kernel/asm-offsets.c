@@ -83,7 +83,7 @@ void output_task_defines(void)
 	OFFSET(TASK_FLAGS, task_struct, flags);
 	OFFSET(TASK_MM, task_struct, mm);
 	OFFSET(TASK_PID, task_struct, pid);
-#if defined(CONFIG_CC_STACKPROTECTOR)
+#if defined(CONFIG_STACKPROTECTOR)
 	OFFSET(TASK_STACK_CANARY, task_struct, stack_canary);
 #endif
 	DEFINE(TASK_STRUCT_SIZE, sizeof(struct task_struct));

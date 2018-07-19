@@ -864,7 +864,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		return;
 	}
 
-	drv_mgd_prepare_tx(local, sdata);
+	drv_mgd_prepare_tx(local, sdata, 0);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
@@ -2022,7 +2022,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 		 */
 		if (ieee80211_hw_check(&local->hw, DEAUTH_NEED_MGD_TX_PREP) &&
 		    !ifmgd->have_beacon)
-			drv_mgd_prepare_tx(sdata->local, sdata);
+			drv_mgd_prepare_tx(sdata->local, sdata, 0);
 
 		ieee80211_send_deauth_disassoc(sdata, ifmgd->bssid, stype,
 					       reason, tx, frame_buf);
@@ -2560,7 +2560,7 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 	if (!elems.challenge)
 		return;
 	auth_data->expected_transaction = 4;
-	drv_mgd_prepare_tx(sdata->local, sdata);
+	drv_mgd_prepare_tx(sdata->local, sdata, 0);
 	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 		tx_flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
 			   IEEE80211_TX_INTFL_MLME_CONN_TX;
@@ -3769,6 +3769,7 @@ static int ieee80211_auth(struct ieee80211_sub_if_data *sdata)
 	u32 tx_flags = 0;
 	u16 trans = 1;
 	u16 status = 0;
+	u16 prepare_tx_duration = 0;
 
 	sdata_assert_lock(sdata);
 
@@ -3790,7 +3791,11 @@ static int ieee80211_auth(struct ieee80211_sub_if_data *sdata)
 		return -ETIMEDOUT;
 	}
 
-	drv_mgd_prepare_tx(local, sdata);
+	if (auth_data->algorithm == WLAN_AUTH_SAE)
+		prepare_tx_duration =
+			jiffies_to_msecs(IEEE80211_AUTH_TIMEOUT_SAE);
+
+	drv_mgd_prepare_tx(local, sdata, prepare_tx_duration);
 
 	sdata_info(sdata, "send auth to %pM (try %d/%d)\n",
 		   auth_data->bss->bssid, auth_data->tries,
@@ -4994,7 +4999,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			   req->bssid, req->reason_code,
 			   ieee80211_get_reason_code_string(req->reason_code));
 
-		drv_mgd_prepare_tx(sdata->local, sdata);
+		drv_mgd_prepare_tx(sdata->local, sdata, 0);
 		ieee80211_send_deauth_disassoc(sdata, req->bssid,
 					       IEEE80211_STYPE_DEAUTH,
 					       req->reason_code, tx,
@@ -5014,7 +5019,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			   req->bssid, req->reason_code,
 			   ieee80211_get_reason_code_string(req->reason_code));
 
-		drv_mgd_prepare_tx(sdata->local, sdata);
+		drv_mgd_prepare_tx(sdata->local, sdata, 0);
 		ieee80211_send_deauth_disassoc(sdata, req->bssid,
 					       IEEE80211_STYPE_DEAUTH,
 					       req->reason_code, tx,

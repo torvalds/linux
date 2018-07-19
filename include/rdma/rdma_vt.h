@@ -2,7 +2,7 @@
 #define DEF_RDMA_VT_H
 
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -167,7 +167,6 @@ struct rvt_driver_params {
 	int qpn_res_end;
 	int nports;
 	int npkeys;
-	char cq_name[RVT_CQN_MAX];
 	int node;
 	int psn_mask;
 	int psn_shift;
@@ -347,6 +346,9 @@ struct rvt_driver_provided {
 
 	/* Notify driver to restart rc */
 	void (*notify_restart_rc)(struct rvt_qp *qp, u32 psn, int wait);
+
+	/* Get and return CPU to pin CQ processing thread */
+	int (*comp_vect_cpu_lookup)(struct rvt_dev_info *rdi, int comp_vect);
 };
 
 struct rvt_dev_info {
@@ -402,7 +404,6 @@ struct rvt_dev_info {
 	spinlock_t pending_lock; /* protect pending mmap list */
 
 	/* CQ */
-	struct kthread_worker *worker; /* per device cq worker */
 	u32 n_cqs_allocated;    /* number of CQs allocated for device */
 	spinlock_t n_cqs_lock; /* protect count of in use cqs */
 

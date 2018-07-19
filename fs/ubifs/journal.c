@@ -98,9 +98,8 @@ static inline void zero_trun_node_unused(struct ubifs_trun_node *trun)
  *
  * This function reserves space in journal head @head. If the reservation
  * succeeded, the journal head stays locked and later has to be unlocked using
- * 'release_head()'. 'write_node()' and 'write_head()' functions also unlock
- * it. Returns zero in case of success, %-EAGAIN if commit has to be done, and
- * other negative error codes in case of other failures.
+ * 'release_head()'. Returns zero in case of success, %-EAGAIN if commit has to
+ * be done, and other negative error codes in case of other failures.
  */
 static int reserve_space(struct ubifs_info *c, int jhead, int len)
 {
@@ -1283,10 +1282,11 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 			      int *new_len)
 {
 	void *buf;
-	int err, dlen, compr_type, out_len, old_dlen;
+	int err, compr_type;
+	u32 dlen, out_len, old_dlen;
 
 	out_len = le32_to_cpu(dn->size);
-	buf = kmalloc(out_len * WORST_COMPR_FACTOR, GFP_NOFS);
+	buf = kmalloc_array(out_len, WORST_COMPR_FACTOR, GFP_NOFS);
 	if (!buf)
 		return -ENOMEM;
 

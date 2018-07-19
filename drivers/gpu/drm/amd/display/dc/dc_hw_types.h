@@ -423,6 +423,11 @@ enum dc_gamma_type {
 	GAMMA_CS_TFM_1D = 3,
 };
 
+struct dc_csc_transform {
+	uint16_t matrix[12];
+	bool enable_adjustment;
+};
+
 struct dc_gamma {
 	struct kref refcount;
 	enum dc_gamma_type type;

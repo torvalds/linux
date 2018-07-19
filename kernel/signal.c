@@ -1244,19 +1244,12 @@ struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
 {
 	struct sighand_struct *sighand;
 
+	rcu_read_lock();
 	for (;;) {
-		/*
-		 * Disable interrupts early to avoid deadlocks.
-		 * See rcu_read_unlock() comment header for details.
-		 */
-		local_irq_save(*flags);
-		rcu_read_lock();
 		sighand = rcu_dereference(tsk->sighand);
-		if (unlikely(sighand == NULL)) {
-			rcu_read_unlock();
-			local_irq_restore(*flags);
+		if (unlikely(sighand == NULL))
 			break;
-		}
+
 		/*
 		 * This sighand can be already freed and even reused, but
 		 * we rely on SLAB_TYPESAFE_BY_RCU and sighand_ctor() which
@@ -1268,15 +1261,12 @@ struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
 		 * __exit_signal(). In the latter case the next iteration
 		 * must see ->sighand == NULL.
 		 */
-		spin_lock(&sighand->siglock);
-		if (likely(sighand == tsk->sighand)) {
-			rcu_read_unlock();
+		spin_lock_irqsave(&sighand->siglock, *flags);
+		if (likely(sighand == tsk->sighand))
 			break;
-		}
-		spin_unlock(&sighand->siglock);
-		rcu_read_unlock();
-		local_irq_restore(*flags);
+		spin_unlock_irqrestore(&sighand->siglock, *flags);
 	}
+	rcu_read_unlock();
 
 	return sighand;
 }
@@ -1539,7 +1529,6 @@ int send_sig_fault(int sig, int code, void __user *addr
 	return send_sig_info(info.si_signo, &info, t);
 }
 
-#if defined(BUS_MCEERR_AO) && defined(BUS_MCEERR_AR)
 int force_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct *t)
 {
 	struct siginfo info;
@@ -1568,9 +1557,7 @@ int send_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct *
 	return send_sig_info(info.si_signo, &info, t);
 }
 EXPORT_SYMBOL(send_sig_mceerr);
-#endif
 
-#ifdef SEGV_BNDERR
 int force_sig_bnderr(void __user *addr, void __user *lower, void __user *upper)
 {
 	struct siginfo info;
@@ -1584,7 +1571,6 @@ int force_sig_bnderr(void __user *addr, void __user *lower, void __user *upper)
 	info.si_upper = upper;
 	return force_sig_info(info.si_signo, &info, current);
 }
-#endif
 
 #ifdef SEGV_PKUERR
 int force_sig_pkuerr(void __user *addr, u32 pkey)
@@ -2837,8 +2823,19 @@ enum siginfo_layout siginfo_layout(int sig, int si_code)
 			[SIGPOLL] = { NSIGPOLL, SIL_POLL },
 			[SIGSYS]  = { NSIGSYS,  SIL_SYS },
 		};
-		if ((sig < ARRAY_SIZE(filter)) && (si_code <= filter[sig].limit))
+		if ((sig < ARRAY_SIZE(filter)) && (si_code <= filter[sig].limit)) {
 			layout = filter[sig].layout;
+			/* Handle the exceptions */
+			if ((sig == SIGBUS) &&
+			    (si_code >= BUS_MCEERR_AR) && (si_code <= BUS_MCEERR_AO))
+				layout = SIL_FAULT_MCEERR;
+			else if ((sig == SIGSEGV) && (si_code == SEGV_BNDERR))
+				layout = SIL_FAULT_BNDERR;
+#ifdef SEGV_PKUERR
+			else if ((sig == SIGSEGV) && (si_code == SEGV_PKUERR))
+				layout = SIL_FAULT_PKUERR;
+#endif
+		}
 		else if (si_code <= NSIGPOLL)
 			layout = SIL_POLL;
 	} else {
@@ -2848,104 +2845,15 @@ enum siginfo_layout siginfo_layout(int sig, int si_code)
 			layout = SIL_POLL;
 		else if (si_code < 0)
 			layout = SIL_RT;
-		/* Tests to support buggy kernel ABIs */
-#ifdef TRAP_FIXME
-		if ((sig == SIGTRAP) && (si_code == TRAP_FIXME))
-			layout = SIL_FAULT;
-#endif
-#ifdef FPE_FIXME
-		if ((sig == SIGFPE) && (si_code == FPE_FIXME))
-			layout = SIL_FAULT;
-#endif
 	}
 	return layout;
 }
 
 int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 {
-	int err;
-
-	if (!access_ok (VERIFY_WRITE, to, sizeof(siginfo_t)))
+	if (copy_to_user(to, from , sizeof(struct siginfo)))
 		return -EFAULT;
-	if (from->si_code < 0)
-		return __copy_to_user(to, from, sizeof(siginfo_t))
-			? -EFAULT : 0;
-	/*
-	 * If you change siginfo_t structure, please be sure
-	 * this code is fixed accordingly.
-	 * Please remember to update the signalfd_copyinfo() function
-	 * inside fs/signalfd.c too, in case siginfo_t changes.
-	 * It should never copy any pad contained in the structure
-	 * to avoid security leaks, but must copy the generic
-	 * 3 ints plus the relevant union member.
-	 */
-	err = __put_user(from->si_signo, &to->si_signo);
-	err |= __put_user(from->si_errno, &to->si_errno);
-	err |= __put_user(from->si_code, &to->si_code);
-	switch (siginfo_layout(from->si_signo, from->si_code)) {
-	case SIL_KILL:
-		err |= __put_user(from->si_pid, &to->si_pid);
-		err |= __put_user(from->si_uid, &to->si_uid);
-		break;
-	case SIL_TIMER:
-		/* Unreached SI_TIMER is negative */
-		break;
-	case SIL_POLL:
-		err |= __put_user(from->si_band, &to->si_band);
-		err |= __put_user(from->si_fd, &to->si_fd);
-		break;
-	case SIL_FAULT:
-		err |= __put_user(from->si_addr, &to->si_addr);
-#ifdef __ARCH_SI_TRAPNO
-		err |= __put_user(from->si_trapno, &to->si_trapno);
-#endif
-#ifdef __ia64__
-		err |= __put_user(from->si_imm, &to->si_imm);
-		err |= __put_user(from->si_flags, &to->si_flags);
-		err |= __put_user(from->si_isr, &to->si_isr);
-#endif
-		/*
-		 * Other callers might not initialize the si_lsb field,
-		 * so check explicitly for the right codes here.
-		 */
-#ifdef BUS_MCEERR_AR
-		if (from->si_signo == SIGBUS && from->si_code == BUS_MCEERR_AR)
-			err |= __put_user(from->si_addr_lsb, &to->si_addr_lsb);
-#endif
-#ifdef BUS_MCEERR_AO
-		if (from->si_signo == SIGBUS && from->si_code == BUS_MCEERR_AO)
-			err |= __put_user(from->si_addr_lsb, &to->si_addr_lsb);
-#endif
-#ifdef SEGV_BNDERR
-		if (from->si_signo == SIGSEGV && from->si_code == SEGV_BNDERR) {
-			err |= __put_user(from->si_lower, &to->si_lower);
-			err |= __put_user(from->si_upper, &to->si_upper);
-		}
-#endif
-#ifdef SEGV_PKUERR
-		if (from->si_signo == SIGSEGV && from->si_code == SEGV_PKUERR)
-			err |= __put_user(from->si_pkey, &to->si_pkey);
-#endif
-		break;
-	case SIL_CHLD:
-		err |= __put_user(from->si_pid, &to->si_pid);
-		err |= __put_user(from->si_uid, &to->si_uid);
-		err |= __put_user(from->si_status, &to->si_status);
-		err |= __put_user(from->si_utime, &to->si_utime);
-		err |= __put_user(from->si_stime, &to->si_stime);
-		break;
-	case SIL_RT:
-		err |= __put_user(from->si_pid, &to->si_pid);
-		err |= __put_user(from->si_uid, &to->si_uid);
-		err |= __put_user(from->si_ptr, &to->si_ptr);
-		break;
-	case SIL_SYS:
-		err |= __put_user(from->si_call_addr, &to->si_call_addr);
-		err |= __put_user(from->si_syscall, &to->si_syscall);
-		err |= __put_user(from->si_arch, &to->si_arch);
-		break;
-	}
-	return err;
+	return 0;
 }
 
 #ifdef CONFIG_COMPAT
@@ -2984,27 +2892,28 @@ int __copy_siginfo_to_user32(struct compat_siginfo __user *to,
 #ifdef __ARCH_SI_TRAPNO
 		new.si_trapno = from->si_trapno;
 #endif
-#ifdef BUS_MCEERR_AR
-		if ((from->si_signo == SIGBUS) && (from->si_code == BUS_MCEERR_AR))
-			new.si_addr_lsb = from->si_addr_lsb;
+		break;
+	case SIL_FAULT_MCEERR:
+		new.si_addr = ptr_to_compat(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		new.si_trapno = from->si_trapno;
 #endif
-#ifdef BUS_MCEERR_AO
-		if ((from->si_signo == SIGBUS) && (from->si_code == BUS_MCEERR_AO))
-			new.si_addr_lsb = from->si_addr_lsb;
+		new.si_addr_lsb = from->si_addr_lsb;
+		break;
+	case SIL_FAULT_BNDERR:
+		new.si_addr = ptr_to_compat(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		new.si_trapno = from->si_trapno;
 #endif
-#ifdef SEGV_BNDERR
-		if ((from->si_signo == SIGSEGV) &&
-		    (from->si_code == SEGV_BNDERR)) {
-			new.si_lower = ptr_to_compat(from->si_lower);
-			new.si_upper = ptr_to_compat(from->si_upper);
-		}
+		new.si_lower = ptr_to_compat(from->si_lower);
+		new.si_upper = ptr_to_compat(from->si_upper);
+		break;
+	case SIL_FAULT_PKUERR:
+		new.si_addr = ptr_to_compat(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		new.si_trapno = from->si_trapno;
 #endif
-#ifdef SEGV_PKUERR
-		if ((from->si_signo == SIGSEGV) &&
-		    (from->si_code == SEGV_PKUERR))
-			new.si_pkey = from->si_pkey;
-#endif
-
+		new.si_pkey = from->si_pkey;
 		break;
 	case SIL_CHLD:
 		new.si_pid    = from->si_pid;
@@ -3070,24 +2979,28 @@ int copy_siginfo_from_user32(struct siginfo *to,
 #ifdef __ARCH_SI_TRAPNO
 		to->si_trapno = from.si_trapno;
 #endif
-#ifdef BUS_MCEERR_AR
-		if ((from.si_signo == SIGBUS) && (from.si_code == BUS_MCEERR_AR))
-			to->si_addr_lsb = from.si_addr_lsb;
+		break;
+	case SIL_FAULT_MCEERR:
+		to->si_addr = compat_ptr(from.si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from.si_trapno;
 #endif
-#ifdef BUS_MCEER_AO
-		if ((from.si_signo == SIGBUS) && (from.si_code == BUS_MCEERR_AO))
-			to->si_addr_lsb = from.si_addr_lsb;
+		to->si_addr_lsb = from.si_addr_lsb;
+		break;
+	case SIL_FAULT_BNDERR:
+		to->si_addr = compat_ptr(from.si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from.si_trapno;
 #endif
-#ifdef SEGV_BNDERR
-		if ((from.si_signo == SIGSEGV) && (from.si_code == SEGV_BNDERR)) {
-			to->si_lower = compat_ptr(from.si_lower);
-			to->si_upper = compat_ptr(from.si_upper);
-		}
+		to->si_lower = compat_ptr(from.si_lower);
+		to->si_upper = compat_ptr(from.si_upper);
+		break;
+	case SIL_FAULT_PKUERR:
+		to->si_addr = compat_ptr(from.si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from.si_trapno;
 #endif
-#ifdef SEGV_PKUERR
-		if ((from.si_signo == SIGSEGV) && (from.si_code == SEGV_PKUERR))
-			to->si_pkey = from.si_pkey;
-#endif
+		to->si_pkey = from.si_pkey;
 		break;
 	case SIL_CHLD:
 		to->si_pid    = from.si_pid;

@@ -1141,7 +1141,8 @@ static int ethoc_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "ethoc: num_tx: %d num_rx: %d\n",
 		priv->num_tx, priv->num_rx);
 
-	priv->vma = devm_kzalloc(&pdev->dev, num_bd*sizeof(void *), GFP_KERNEL);
+	priv->vma = devm_kcalloc(&pdev->dev, num_bd, sizeof(void *),
+				 GFP_KERNEL);
 	if (!priv->vma) {
 		ret = -ENOMEM;
 		goto free;
@@ -1246,8 +1247,7 @@ error:
 	mdiobus_unregister(priv->mdio);
 	mdiobus_free(priv->mdio);
 free2:
-	if (priv->clk)
-		clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk);
 free:
 	free_netdev(netdev);
 out:
@@ -1271,8 +1271,7 @@ static int ethoc_remove(struct platform_device *pdev)
 			mdiobus_unregister(priv->mdio);
 			mdiobus_free(priv->mdio);
 		}
-		if (priv->clk)
-			clk_disable_unprepare(priv->clk);
+		clk_disable_unprepare(priv->clk);
 		unregister_netdev(netdev);
 		free_netdev(netdev);
 	}

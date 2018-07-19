@@ -1920,7 +1920,7 @@ static int enic_open(struct net_device *netdev)
 {
 	struct enic *enic = netdev_priv(netdev);
 	unsigned int i;
-	int err;
+	int err, ret;
 
 	err = enic_request_intr(enic);
 	if (err) {
@@ -1971,16 +1971,15 @@ static int enic_open(struct net_device *netdev)
 		vnic_intr_unmask(&enic->intr[i]);
 
 	enic_notify_timer_start(enic);
-	enic_rfs_flw_tbl_init(enic);
+	enic_rfs_timer_start(enic);
 
 	return 0;
 
 err_out_free_rq:
 	for (i = 0; i < enic->rq_count; i++) {
-		err = vnic_rq_disable(&enic->rq[i]);
-		if (err)
-			return err;
-		vnic_rq_clean(&enic->rq[i], enic_free_rq_buf);
+		ret = vnic_rq_disable(&enic->rq[i]);
+		if (!ret)
+			vnic_rq_clean(&enic->rq[i], enic_free_rq_buf);
 	}
 	enic_dev_notify_unset(enic);
 err_out_free_intr:
@@ -2320,16 +2319,24 @@ static int enic_set_rss_nic_cfg(struct enic *enic)
 {
 	struct device *dev = enic_get_dev(enic);
 	const u8 rss_default_cpu = 0;
-	u8 rss_hash_type = NIC_CFG_RSS_HASH_TYPE_IPV4 |
-		NIC_CFG_RSS_HASH_TYPE_TCP_IPV4 |
-		NIC_CFG_RSS_HASH_TYPE_IPV6 |
-		NIC_CFG_RSS_HASH_TYPE_TCP_IPV6;
 	const u8 rss_hash_bits = 7;
 	const u8 rss_base_cpu = 0;
+	u8 rss_hash_type;
+	int res;
 	u8 rss_enable = ENIC_SETTING(enic, RSS) && (enic->rq_count > 1);
 
-	if (vnic_dev_capable_udp_rss(enic->vdev))
-		rss_hash_type |= NIC_CFG_RSS_HASH_TYPE_UDP;
+	spin_lock_bh(&enic->devcmd_lock);
+	res = vnic_dev_capable_rss_hash_type(enic->vdev, &rss_hash_type);
+	spin_unlock_bh(&enic->devcmd_lock);
+	if (res) {
+		/* defaults for old adapters
+		 */
+		rss_hash_type = NIC_CFG_RSS_HASH_TYPE_IPV4	|
+				NIC_CFG_RSS_HASH_TYPE_TCP_IPV4	|
+				NIC_CFG_RSS_HASH_TYPE_IPV6	|
+				NIC_CFG_RSS_HASH_TYPE_TCP_IPV6;
+	}
+
 	if (rss_enable) {
 		if (!enic_set_rsskey(enic)) {
 			if (enic_set_rsscpu(enic, rss_hash_bits)) {
@@ -2896,6 +2903,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	timer_setup(&enic->notify_timer, enic_notify_timer, 0);
 
+	enic_rfs_flw_tbl_init(enic);
 	enic_set_rx_coal_setting(enic);
 	INIT_WORK(&enic->reset, enic_reset);
 	INIT_WORK(&enic->tx_hang_reset, enic_tx_hang_reset);

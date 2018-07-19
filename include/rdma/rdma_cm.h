@@ -420,4 +420,7 @@ const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
 void rdma_read_gids(struct rdma_cm_id *cm_id, union ib_gid *sgid,
 		    union ib_gid *dgid);
 
+struct iw_cm_id *rdma_iw_cm_id(struct rdma_cm_id *cm_id);
+struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res);
+
 #endif /* RDMA_CM_H */

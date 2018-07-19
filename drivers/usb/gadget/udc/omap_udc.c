@@ -2432,22 +2432,9 @@ static int proc_udc_show(struct seq_file *s, void *_)
 	return 0;
 }
 
-static int proc_udc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_udc_show, NULL);
-}
-
-static const struct file_operations proc_ops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_udc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void create_proc_file(void)
 {
-	proc_create(proc_filename, 0, NULL, &proc_ops);
+	proc_create_single(proc_filename, 0, NULL, proc_udc_show);
 }
 
 static void remove_proc_file(void)

@@ -44,9 +44,8 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	 * bus_hz = cclkin / RK3288_CLKGEN_DIV
 	 * ios->clock = (div == 0) ? bus_hz : (bus_hz / (2 * div))
 	 *
-	 * Note: div can only be 0 or 1
-	 *       if DDR50 8bit mode(only emmc work in 8bit mode),
-	 *       div must be set 1
+	 * Note: div can only be 0 or 1, but div must be set to 1 for eMMC
+	 * DDR52 8-bit mode.
 	 */
 	if (ios->bus_width == MMC_BUS_WIDTH_8 &&
 	    ios->timing == MMC_TIMING_MMC_DDR52)

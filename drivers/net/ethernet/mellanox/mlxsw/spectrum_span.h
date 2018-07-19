@@ -63,6 +63,7 @@ struct mlxsw_sp_span_parms {
 	unsigned char smac[ETH_ALEN];
 	union mlxsw_sp_l3addr daddr;
 	union mlxsw_sp_l3addr saddr;
+	u16 vid;
 };
 
 struct mlxsw_sp_span_entry_ops;

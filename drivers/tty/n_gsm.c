@@ -2675,7 +2675,7 @@ static inline void muxnet_put(struct gsm_mux_net *mux_net)
 	kref_put(&mux_net->ref, net_free);
 }
 
-static int gsm_mux_net_start_xmit(struct sk_buff *skb,
+static netdev_tx_t gsm_mux_net_start_xmit(struct sk_buff *skb,
 				      struct net_device *net)
 {
 	struct gsm_mux_net *mux_net = netdev_priv(net);

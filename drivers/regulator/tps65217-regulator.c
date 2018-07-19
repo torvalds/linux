@@ -229,8 +229,9 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	unsigned int val;
 
 	/* Allocate memory for strobes */
-	tps->strobes = devm_kzalloc(&pdev->dev, sizeof(u8) *
-				    TPS65217_NUM_REGULATOR, GFP_KERNEL);
+	tps->strobes = devm_kcalloc(&pdev->dev,
+				    TPS65217_NUM_REGULATOR, sizeof(u8),
+				    GFP_KERNEL);
 
 	platform_set_drvdata(pdev, tps);
 

@@ -244,7 +244,7 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 	u8 __user **data_ptrs;
 	int i, res;
 
-	data_ptrs = kmalloc(nmsgs * sizeof(u8 __user *), GFP_KERNEL);
+	data_ptrs = kmalloc_array(nmsgs, sizeof(u8 __user *), GFP_KERNEL);
 	if (data_ptrs == NULL) {
 		kfree(msgs);
 		return -ENOMEM;

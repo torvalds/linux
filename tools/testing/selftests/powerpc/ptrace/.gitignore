@@ -8,3 +8,5 @@ ptrace-vsx
 ptrace-tm-vsx
 ptrace-tm-spd-vsx
 ptrace-tm-spr
+ptrace-hwbreak
+perf-hwbreak

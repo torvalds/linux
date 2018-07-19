@@ -573,9 +573,13 @@ static int mt7530_phy_write(struct dsa_switch *ds, int port, int regnum,
 }
 
 static void
-mt7530_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+mt7530_get_strings(struct dsa_switch *ds, int port, u32 stringset,
+		   uint8_t *data)
 {
 	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(mt7530_mib); i++)
 		strncpy(data + i * ETH_GSTRING_LEN, mt7530_mib[i].name,
@@ -604,8 +608,11 @@ mt7530_get_ethtool_stats(struct dsa_switch *ds, int port,
 }
 
 static int
-mt7530_get_sset_count(struct dsa_switch *ds, int port)
+mt7530_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
+	if (sset != ETH_SS_STATS)
+		return 0;
+
 	return ARRAY_SIZE(mt7530_mib);
 }
 

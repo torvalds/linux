@@ -69,7 +69,7 @@ FEATURE_USER = .libbpf
 FEATURE_TESTS = libelf libelf-getphdrnum libelf-mmap bpf
 FEATURE_DISPLAY = libelf bpf
 
-INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi
+INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi -I$(srctree)/tools/perf
 FEATURE_CHECK_CFLAGS-bpf = $(INCLUDES)
 
 check_feat := 1
@@ -189,6 +189,7 @@ install_headers:
 	$(call QUIET_INSTALL, headers) \
 		$(call do_install,bpf.h,$(prefix)/include/bpf,644); \
 		$(call do_install,libbpf.h,$(prefix)/include/bpf,644);
+		$(call do_install,btf.h,$(prefix)/include/bpf,644);
 
 install: install_lib
 

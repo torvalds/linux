@@ -14,6 +14,9 @@
 
 # This performs a series tests against the proc sysctl interface.
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 TEST_NAME="sysctl"
 TEST_DRIVER="test_${TEST_NAME}"
 TEST_DIR=$(dirname $0)
@@ -41,7 +44,7 @@ test_modprobe()
                echo "$0: $DIR not present" >&2
                echo "You must have the following enabled in your kernel:" >&2
                cat $TEST_DIR/config >&2
-               exit 1
+               exit $ksft_skip
        fi
 }
 
@@ -98,28 +101,30 @@ test_reqs()
 	uid=$(id -u)
 	if [ $uid -ne 0 ]; then
 		echo $msg must be run as root >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if ! which perl 2> /dev/null > /dev/null; then
 		echo "$0: You need perl installed"
-		exit 1
+		exit $ksft_skip
 	fi
 	if ! which getconf 2> /dev/null > /dev/null; then
 		echo "$0: You need getconf installed"
-		exit 1
+		exit $ksft_skip
 	fi
 	if ! which diff 2> /dev/null > /dev/null; then
 		echo "$0: You need diff installed"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
 function load_req_mod()
 {
-	trap "test_modprobe" EXIT
-
 	if [ ! -d $DIR ]; then
+		if ! modprobe -q -n $TEST_DRIVER; then
+			echo "$0: module $TEST_DRIVER not found [SKIP]"
+			exit $ksft_skip
+		fi
 		modprobe $TEST_DRIVER
 		if [ $? -ne 0 ]; then
 			exit
@@ -765,6 +770,7 @@ function parse_args()
 test_reqs
 allow_user_defaults
 check_production_sysctl_writes_strict
+test_modprobe
 load_req_mod
 
 trap "test_finish" EXIT

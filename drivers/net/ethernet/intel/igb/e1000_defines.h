@@ -1,26 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
@@ -491,6 +470,8 @@
  * manageability enabled, allowing us room for 15 multicast addresses.
  */
 #define E1000_RAH_AV  0x80000000        /* Receive descriptor valid */
+#define E1000_RAH_ASEL_SRC_ADDR 0x00010000
+#define E1000_RAH_QSEL_ENABLE 0x10000000
 #define E1000_RAL_MAC_ADDR_LEN 4
 #define E1000_RAH_MAC_ADDR_LEN 2
 #define E1000_RAH_POOL_MASK 0x03FC0000

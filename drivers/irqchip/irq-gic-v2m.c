@@ -199,7 +199,7 @@ static int gicv2m_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 fail:
 	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
-	gicv2m_unalloc_msi(v2m, hwirq, get_count_order(nr_irqs));
+	gicv2m_unalloc_msi(v2m, hwirq, nr_irqs);
 	return err;
 }
 
@@ -361,7 +361,7 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
 		break;
 	}
 
-	v2m->bm = kzalloc(sizeof(long) * BITS_TO_LONGS(v2m->nr_spis),
+	v2m->bm = kcalloc(BITS_TO_LONGS(v2m->nr_spis), sizeof(long),
 			  GFP_KERNEL);
 	if (!v2m->bm) {
 		ret = -ENOMEM;

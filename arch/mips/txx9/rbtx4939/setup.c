@@ -219,7 +219,7 @@ static int __init rbtx4939_led_probe(struct platform_device *pdev)
 		"nand-disk",
 	};
 
-	leds_data = kzalloc(sizeof(*leds_data) * RBTX4939_MAX_7SEGLEDS,
+	leds_data = kcalloc(RBTX4939_MAX_7SEGLEDS, sizeof(*leds_data),
 			    GFP_KERNEL);
 	if (!leds_data)
 		return -ENOMEM;

@@ -137,11 +137,6 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 		chan->dev->card_info->tuner_config[chan->number];
 	const struct stv6110x_devctl *ctl;
 
-	if (chan->number < 2)
-		i2c = &chan->dev->channel[0].i2c_adapter;
-	else
-		i2c = &chan->dev->channel[1].i2c_adapter;
-
 	ctl = dvb_attach(stv6110x_attach, chan->fe, tunerconf, i2c);
 	if (ctl == NULL) {
 		dev_err(pdev, "No STV6110X found!\n");
@@ -304,14 +299,6 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 	struct stv090x_config *feconf = (struct stv090x_config *)
 		chan->dev->card_info->fe_config[chan->number];
 
-	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
-	/* Note: Both adapters share the same i2c bus, but the demod     */
-	/*       driver requires that each demod has its own i2c adapter */
-	if (chan->number < 2)
-		i2c = &chan->dev->channel[0].i2c_adapter;
-	else
-		i2c = &chan->dev->channel[1].i2c_adapter;
-
 	chan->fe = dvb_attach(stv090x_attach, feconf, i2c,
 			(chan->number & 1) == 0 ? STV090x_DEMODULATOR_0
 						: STV090x_DEMODULATOR_1);
@@ -340,6 +327,7 @@ static struct stv0910_cfg stv0910_p = {
 	.parallel = 1,
 	.rptlvl   = 4,
 	.clk      = 30000000,
+	.tsspeed  = 0x28,
 };
 
 static struct lnbh25_config lnbh25_cfg = {
@@ -721,7 +709,6 @@ static int cineS2_probe(struct ngene_channel *chan)
 
 
 static struct lgdt330x_config aver_m780 = {
-	.demod_address = 0xb2 >> 1,
 	.demod_chip    = LGDT3303,
 	.serial_mpeg   = 0x00, /* PARALLEL */
 	.clock_polarity_flip = 1,
@@ -738,7 +725,8 @@ static int demod_attach_lg330x(struct ngene_channel *chan)
 {
 	struct device *pdev = &chan->dev->pci_dev->dev;
 
-	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780, &chan->i2c_adapter);
+	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780,
+			      0xb2 >> 1, &chan->i2c_adapter);
 	if (chan->fe == NULL) {
 		dev_err(pdev, "No LGDT330x found!\n");
 		return -ENODEV;

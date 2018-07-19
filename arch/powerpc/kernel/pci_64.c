@@ -203,8 +203,8 @@ void pcibios_setup_phb_io_space(struct pci_controller *hose)
 #define IOBASE_ISA_IO		3
 #define IOBASE_ISA_MEM		4
 
-long sys_pciconfig_iobase(long which, unsigned long in_bus,
-			  unsigned long in_devfn)
+SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, in_bus,
+			  unsigned long, in_devfn)
 {
 	struct pci_controller* hose;
 	struct pci_bus *tmp_bus, *bus = NULL;

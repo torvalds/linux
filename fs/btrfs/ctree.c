@@ -2330,7 +2330,7 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
 			no_skips = 1;
 
 		t = path->nodes[i];
-		if (i >= lowest_unlock && i > skip_level && path->locks[i]) {
+		if (i >= lowest_unlock && i > skip_level) {
 			btrfs_tree_unlock_rw(t, path->locks[i]);
 			path->locks[i] = 0;
 			if (write_lock_level &&
@@ -2432,7 +2432,6 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	btrfs_unlock_up_safe(p, level + 1);
 	btrfs_set_path_blocking(p);
 
-	free_extent_buffer(tmp);
 	if (p->reada != READA_NONE)
 		reada_for_search(fs_info, p, level, slot, key->objectid);
 
@@ -2446,7 +2445,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 		 * and give up so that our caller doesn't loop forever
 		 * on our EAGAINs.
 		 */
-		if (!btrfs_buffer_uptodate(tmp, 0, 0))
+		if (!extent_buffer_uptodate(tmp))
 			ret = -EIO;
 		free_extent_buffer(tmp);
 	} else {
@@ -2599,6 +2598,78 @@ int btrfs_find_item(struct btrfs_root *fs_root, struct btrfs_path *path,
 	return 0;
 }
 
+static struct extent_buffer *btrfs_search_slot_get_root(struct btrfs_root *root,
+							struct btrfs_path *p,
+							int write_lock_level)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct extent_buffer *b;
+	int root_lock;
+	int level = 0;
+
+	/* We try very hard to do read locks on the root */
+	root_lock = BTRFS_READ_LOCK;
+
+	if (p->search_commit_root) {
+		/* The commit roots are read only so we always do read locks */
+		if (p->need_commit_sem)
+			down_read(&fs_info->commit_root_sem);
+		b = root->commit_root;
+		extent_buffer_get(b);
+		level = btrfs_header_level(b);
+		if (p->need_commit_sem)
+			up_read(&fs_info->commit_root_sem);
+		/*
+		 * Ensure that all callers have set skip_locking when
+		 * p->search_commit_root = 1.
+		 */
+		ASSERT(p->skip_locking == 1);
+
+		goto out;
+	}
+
+	if (p->skip_locking) {
+		b = btrfs_root_node(root);
+		level = btrfs_header_level(b);
+		goto out;
+	}
+
+	/*
+	 * If the level is set to maximum, we can skip trying to get the read
+	 * lock.
+	 */
+	if (write_lock_level < BTRFS_MAX_LEVEL) {
+		/*
+		 * We don't know the level of the root node until we actually
+		 * have it read locked
+		 */
+		b = btrfs_read_lock_root_node(root);
+		level = btrfs_header_level(b);
+		if (level > write_lock_level)
+			goto out;
+
+		/* Whoops, must trade for write lock */
+		btrfs_tree_read_unlock(b);
+		free_extent_buffer(b);
+	}
+
+	b = btrfs_lock_root_node(root);
+	root_lock = BTRFS_WRITE_LOCK;
+
+	/* The level might have changed, check again */
+	level = btrfs_header_level(b);
+
+out:
+	p->nodes[level] = b;
+	if (!p->skip_locking)
+		p->locks[level] = root_lock;
+	/*
+	 * Callers are responsible for dropping b's references.
+	 */
+	return b;
+}
+
+
 /*
  * btrfs_search_slot - look for a key in a tree and perform necessary
  * modifications to preserve tree invariants.
@@ -2635,7 +2706,6 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	int err;
 	int level;
 	int lowest_unlock = 1;
-	int root_lock;
 	/* everything at write_lock_level or lower must be write locked */
 	int write_lock_level = 0;
 	u8 lowest_level = 0;
@@ -2673,50 +2743,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 
 again:
 	prev_cmp = -1;
-	/*
-	 * we try very hard to do read locks on the root
-	 */
-	root_lock = BTRFS_READ_LOCK;
-	level = 0;
-	if (p->search_commit_root) {
-		/*
-		 * the commit roots are read only
-		 * so we always do read locks
-		 */
-		if (p->need_commit_sem)
-			down_read(&fs_info->commit_root_sem);
-		b = root->commit_root;
-		extent_buffer_get(b);
-		level = btrfs_header_level(b);
-		if (p->need_commit_sem)
-			up_read(&fs_info->commit_root_sem);
-		if (!p->skip_locking)
-			btrfs_tree_read_lock(b);
-	} else {
-		if (p->skip_locking) {
-			b = btrfs_root_node(root);
-			level = btrfs_header_level(b);
-		} else {
-			/* we don't know the level of the root node
-			 * until we actually have it read locked
-			 */
-			b = btrfs_read_lock_root_node(root);
-			level = btrfs_header_level(b);
-			if (level <= write_lock_level) {
-				/* whoops, must trade for write lock */
-				btrfs_tree_read_unlock(b);
-				free_extent_buffer(b);
-				b = btrfs_lock_root_node(root);
-				root_lock = BTRFS_WRITE_LOCK;
-
-				/* the level might have changed, check again */
-				level = btrfs_header_level(b);
-			}
-		}
-	}
-	p->nodes[level] = b;
-	if (!p->skip_locking)
-		p->locks[level] = root_lock;
+	b = btrfs_search_slot_get_root(root, p, write_lock_level);
 
 	while (b) {
 		level = btrfs_header_level(b);

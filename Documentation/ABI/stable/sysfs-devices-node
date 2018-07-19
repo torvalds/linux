@@ -90,4 +90,4 @@ Date:		December 2009
 Contact:	Lee Schermerhorn <lee.schermerhorn@hp.com>
 Description:
 		The node's huge page size control/query attributes.
-		See Documentation/vm/hugetlbpage.txt
+		See Documentation/admin-guide/mm/hugetlbpage.rst

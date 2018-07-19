@@ -1,4 +1,14 @@
 #! /usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
+
+# This code is taken from the OpenSSL project but the author (Andy Polyakov)
+# has relicensed it under the GPLv2. Therefore this program is free software;
+# you can redistribute it and/or modify it under the terms of the GNU General
+# Public License version 2 as published by the Free Software Foundation.
+#
+# The original headers, including the original license headers, are
+# included below for completeness.
+
 # Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
@@ -11,8 +21,6 @@
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
-#
-# Permission to use under GPLv2 terms is granted.
 # ====================================================================
 #
 # SHA256/512 for ARMv8.

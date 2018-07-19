@@ -30,8 +30,6 @@ struct bus_type;
 
 extern void dma_debug_add_bus(struct bus_type *bus);
 
-extern void dma_debug_init(u32 num_entries);
-
 extern int dma_debug_resize_entries(u32 num_entries);
 
 extern void debug_dma_map_page(struct device *dev, struct page *page,
@@ -97,10 +95,6 @@ extern void debug_dma_assert_idle(struct page *page);
 #else /* CONFIG_DMA_API_DEBUG */
 
 static inline void dma_debug_add_bus(struct bus_type *bus)
-{
-}
-
-static inline void dma_debug_init(u32 num_entries)
 {
 }
 

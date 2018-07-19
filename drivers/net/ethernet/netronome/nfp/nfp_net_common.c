@@ -1722,7 +1722,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 			act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
-			pkt_len -= xdp.data - orig_data;
+			pkt_len = xdp.data_end - xdp.data;
 			pkt_off += xdp.data - orig_data;
 
 			switch (act) {
@@ -3121,7 +3121,7 @@ static void nfp_net_stat64(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 	int r;
 
-	for (r = 0; r < nn->dp.num_r_vecs; r++) {
+	for (r = 0; r < nn->max_r_vecs; r++) {
 		struct nfp_net_r_vector *r_vec = &nn->r_vecs[r];
 		u64 data[3];
 		unsigned int start;
@@ -3275,6 +3275,25 @@ nfp_net_features_check(struct sk_buff *skb, struct net_device *dev,
 		return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 
 	return features;
+}
+
+static int
+nfp_net_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	int n;
+
+	if (nn->port)
+		return nfp_port_get_phys_port_name(netdev, name, len);
+
+	if (nn->dp.is_vf || nn->vnic_no_name)
+		return -EOPNOTSUPP;
+
+	n = snprintf(name, len, "n%d", nn->id);
+	if (n >= len)
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
@@ -3475,7 +3494,7 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_set_mac_address	= nfp_net_set_mac_address,
 	.ndo_set_features	= nfp_net_set_features,
 	.ndo_features_check	= nfp_net_features_check,
-	.ndo_get_phys_port_name	= nfp_port_get_phys_port_name,
+	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
 	.ndo_udp_tunnel_add	= nfp_net_add_vxlan_port,
 	.ndo_udp_tunnel_del	= nfp_net_del_vxlan_port,
 	.ndo_bpf		= nfp_net_xdp,

@@ -370,26 +370,57 @@ EXPORT_SYMBOL_GPL(pci_get_hp_params);
 
 /**
  * pciehp_is_native - Check whether a hotplug port is handled by the OS
- * @pdev: Hotplug port to check
+ * @bridge: Hotplug port to check
  *
- * Walk up from @pdev to the host bridge, obtain its cached _OSC Control Field
- * and return the value of the "PCI Express Native Hot Plug control" bit.
- * On failure to obtain the _OSC Control Field return %false.
+ * Returns true if the given @bridge is handled by the native PCIe hotplug
+ * driver.
  */
-bool pciehp_is_native(struct pci_dev *pdev)
+bool pciehp_is_native(struct pci_dev *bridge)
 {
-	struct acpi_pci_root *root;
-	acpi_handle handle;
+	const struct pci_host_bridge *host;
+	u32 slot_cap;
 
-	handle = acpi_find_root_bridge_handle(pdev);
-	if (!handle)
+	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE))
 		return false;
 
-	root = acpi_pci_find_root(handle);
-	if (!root)
+	pcie_capability_read_dword(bridge, PCI_EXP_SLTCAP, &slot_cap);
+	if (!(slot_cap & PCI_EXP_SLTCAP_HPC))
 		return false;
 
-	return root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL;
+	if (pcie_ports_native)
+		return true;
+
+	host = pci_find_host_bridge(bridge->bus);
+	return host->native_pcie_hotplug;
+}
+
+/**
+ * shpchp_is_native - Check whether a hotplug port is handled by the OS
+ * @bridge: Hotplug port to check
+ *
+ * Returns true if the given @bridge is handled by the native SHPC hotplug
+ * driver.
+ */
+bool shpchp_is_native(struct pci_dev *bridge)
+{
+	const struct pci_host_bridge *host;
+
+	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_SHPC))
+		return false;
+
+	/*
+	 * It is assumed that AMD GOLAM chips support SHPC but they do not
+	 * have SHPC capability.
+	 */
+	if (bridge->vendor == PCI_VENDOR_ID_AMD &&
+	    bridge->device == PCI_DEVICE_ID_AMD_GOLAM_7450)
+		return true;
+
+	if (!pci_find_capability(bridge, PCI_CAP_ID_SHPC))
+		return false;
+
+	host = pci_find_host_bridge(bridge->bus);
+	return host->native_shpc_hotplug;
 }
 
 /**
@@ -597,6 +628,18 @@ static int acpi_pci_wakeup(struct pci_dev *dev, bool enable)
 static bool acpi_pci_need_resume(struct pci_dev *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+
+	/*
+	 * In some cases (eg. Samsung 305V4A) leaving a bridge in suspend over
+	 * system-wide suspend/resume confuses the platform firmware, so avoid
+	 * doing that, unless the bridge has a driver that should take care of
+	 * the PM handling.  According to Section 16.1.6 of ACPI 6.2, endpoint
+	 * devices are expected to be in D3 before invoking the S3 entry path
+	 * from the firmware, so they should not be affected by this issue.
+	 */
+	if (pci_is_bridge(dev) && !dev->driver &&
+	    acpi_target_system_state() != ACPI_STATE_S0)
+		return true;
 
 	if (!adev || !acpi_device_power_manageable(adev))
 		return false;

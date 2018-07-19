@@ -71,7 +71,6 @@ struct stm32_usbphyc {
 	struct stm32_usbphyc_phy **phys;
 	int nphys;
 	int switch_setup;
-	bool pll_enabled;
 };
 
 static inline void stm32_usbphyc_set_bits(void __iomem *reg, u32 bits)
@@ -84,7 +83,8 @@ static inline void stm32_usbphyc_clr_bits(void __iomem *reg, u32 bits)
 	writel_relaxed(readl_relaxed(reg) & ~bits, reg);
 }
 
-static void stm32_usbphyc_get_pll_params(u32 clk_rate, struct pll_params *pll_params)
+static void stm32_usbphyc_get_pll_params(u32 clk_rate,
+					 struct pll_params *pll_params)
 {
 	unsigned long long fvco, ndiv, frac;
 
@@ -271,7 +271,6 @@ static struct phy *stm32_usbphyc_of_xlate(struct device *dev,
 	struct stm32_usbphyc *usbphyc = dev_get_drvdata(dev);
 	struct stm32_usbphyc_phy *usbphyc_phy = NULL;
 	struct device_node *phynode = args->np;
-
 	int port = 0;
 
 	for (port = 0; port < usbphyc->nphys; port++) {
@@ -367,8 +366,8 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		if (IS_ERR(phy)) {
 			ret = PTR_ERR(phy);
 			if (ret != -EPROBE_DEFER)
-				dev_err(dev,
-					"failed to create phy%d: %d\n", i, ret);
+				dev_err(dev, "failed to create phy%d: %d\n",
+					port, ret);
 			goto put_child;
 		}
 

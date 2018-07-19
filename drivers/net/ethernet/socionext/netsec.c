@@ -973,7 +973,7 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 		goto err;
 	}
 
-	dring->desc = kzalloc(DESC_NUM * sizeof(*dring->desc), GFP_KERNEL);
+	dring->desc = kcalloc(DESC_NUM, sizeof(*dring->desc), GFP_KERNEL);
 	if (!dring->desc) {
 		ret = -ENOMEM;
 		goto err;
@@ -1057,7 +1057,8 @@ static int netsec_netdev_load_microcode(struct netsec_priv *priv)
 	return 0;
 }
 
-static int netsec_reset_hardware(struct netsec_priv *priv)
+static int netsec_reset_hardware(struct netsec_priv *priv,
+				 bool load_ucode)
 {
 	u32 value;
 	int err;
@@ -1102,11 +1103,14 @@ static int netsec_reset_hardware(struct netsec_priv *priv)
 	netsec_write(priv, NETSEC_REG_NRM_RX_CONFIG,
 		     1 << NETSEC_REG_DESC_ENDIAN);
 
-	err = netsec_netdev_load_microcode(priv);
-	if (err) {
-		netif_err(priv, probe, priv->ndev,
-			  "%s: failed to load microcode (%d)\n", __func__, err);
-		return err;
+	if (load_ucode) {
+		err = netsec_netdev_load_microcode(priv);
+		if (err) {
+			netif_err(priv, probe, priv->ndev,
+				  "%s: failed to load microcode (%d)\n",
+				  __func__, err);
+			return err;
+		}
 	}
 
 	/* start DMA engines */
@@ -1313,8 +1317,8 @@ static int netsec_netdev_open(struct net_device *ndev)
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
 
-	/* Enable RX intr. */
-	netsec_write(priv, NETSEC_REG_INTEN_SET, NETSEC_IRQ_RX);
+	/* Enable TX+RX intr. */
+	netsec_write(priv, NETSEC_REG_INTEN_SET, NETSEC_IRQ_RX | NETSEC_IRQ_TX);
 
 	return 0;
 err3:
@@ -1328,6 +1332,7 @@ err1:
 
 static int netsec_netdev_stop(struct net_device *ndev)
 {
+	int ret;
 	struct netsec_priv *priv = netdev_priv(ndev);
 
 	netif_stop_queue(priv->ndev);
@@ -1343,12 +1348,14 @@ static int netsec_netdev_stop(struct net_device *ndev)
 	netsec_uninit_pkt_dring(priv, NETSEC_RING_TX);
 	netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
 
+	ret = netsec_reset_hardware(priv, false);
+
 	phy_stop(ndev->phydev);
 	phy_disconnect(ndev->phydev);
 
 	pm_runtime_put_sync(priv->dev);
 
-	return 0;
+	return ret;
 }
 
 static int netsec_netdev_init(struct net_device *ndev)
@@ -1364,7 +1371,7 @@ static int netsec_netdev_init(struct net_device *ndev)
 	if (ret)
 		goto err1;
 
-	ret = netsec_reset_hardware(priv);
+	ret = netsec_reset_hardware(priv, true);
 	if (ret)
 		goto err2;
 

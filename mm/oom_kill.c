@@ -256,7 +256,7 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
 	int nid;
 
 	if (is_memcg_oom(oc)) {
-		oc->totalpages = mem_cgroup_get_limit(oc->memcg) ?: 1;
+		oc->totalpages = mem_cgroup_get_max(oc->memcg) ?: 1;
 		return CONSTRAINT_MEMCG;
 	}
 
@@ -913,7 +913,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 
 	/* Raise event before sending signal: task reaper must see this */
 	count_vm_event(OOM_KILL);
-	count_memcg_event_mm(mm, OOM_KILL);
+	memcg_memory_event_mm(mm, MEMCG_OOM_KILL);
 
 	/*
 	 * We should send SIGKILL before granting access to memory reserves

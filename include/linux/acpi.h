@@ -443,6 +443,9 @@ int acpi_check_resource_conflict(const struct resource *res);
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
 
+acpi_status acpi_release_memory(acpi_handle handle, struct resource *res,
+				u32 level);
+
 int acpi_resources_are_enforced(void);
 
 #ifdef CONFIG_HIBERNATION
@@ -506,7 +509,8 @@ extern bool osc_pc_lpi_support_confirmed;
 #define OSC_PCI_EXPRESS_PME_CONTROL		0x00000004
 #define OSC_PCI_EXPRESS_AER_CONTROL		0x00000008
 #define OSC_PCI_EXPRESS_CAPABILITY_CONTROL	0x00000010
-#define OSC_PCI_CONTROL_MASKS			0x0000001f
+#define OSC_PCI_EXPRESS_LTR_CONTROL		0x00000020
+#define OSC_PCI_CONTROL_MASKS			0x0000003f
 
 #define ACPI_GSB_ACCESS_ATTRIB_QUICK		0x00000002
 #define ACPI_GSB_ACCESS_ATTRIB_SEND_RCV         0x00000004
@@ -578,6 +582,7 @@ int acpi_match_platform_list(const struct acpi_platform_list *plat);
 
 extern void acpi_early_init(void);
 extern void acpi_subsystem_init(void);
+extern void arch_post_acpi_subsys_init(void);
 
 extern int acpi_nvs_register(__u64 start, __u64 size);
 
@@ -899,7 +904,7 @@ static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
 static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 {
-	return -ENODEV;
+	return 0;
 }
 #endif
 
@@ -1292,6 +1297,25 @@ int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res)
 int lpit_read_residency_count_address(u64 *address);
 #else
 static inline int lpit_read_residency_count_address(u64 *address)
+{
+	return -EINVAL;
+}
+#endif
+
+#ifdef CONFIG_ACPI_PPTT
+int find_acpi_cpu_topology(unsigned int cpu, int level);
+int find_acpi_cpu_topology_package(unsigned int cpu);
+int find_acpi_cpu_cache_topology(unsigned int cpu, int level);
+#else
+static inline int find_acpi_cpu_topology(unsigned int cpu, int level)
+{
+	return -EINVAL;
+}
+static inline int find_acpi_cpu_topology_package(unsigned int cpu)
+{
+	return -EINVAL;
+}
+static inline int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 {
 	return -EINVAL;
 }

@@ -269,7 +269,7 @@ struct bcache_device {
 	atomic_t		*stripe_sectors_dirty;
 	unsigned long		*full_dirty_stripes;
 
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 	unsigned		data_csum:1;
 
@@ -345,6 +345,7 @@ struct cached_dev {
 
 	struct keybuf		writeback_keys;
 
+	struct task_struct	*status_update_thread;
 	/*
 	 * Order the write-half of writeback operations strongly in dispatch
 	 * order.  (Maintain LBA order; don't allow reads completing out of
@@ -392,6 +393,7 @@ struct cached_dev {
 #define DEFAULT_CACHED_DEV_ERROR_LIMIT	64
 	atomic_t		io_errors;
 	unsigned		error_limit;
+	unsigned		offline_seconds;
 
 	char			backing_dev_name[BDEVNAME_SIZE];
 };
@@ -528,9 +530,9 @@ struct cache_set {
 	struct closure		sb_write;
 	struct semaphore	sb_write_mutex;
 
-	mempool_t		*search;
-	mempool_t		*bio_meta;
-	struct bio_set		*bio_split;
+	mempool_t		search;
+	mempool_t		bio_meta;
+	struct bio_set		bio_split;
 
 	/* For the btree cache */
 	struct shrinker		shrink;
@@ -655,7 +657,7 @@ struct cache_set {
 	 * A btree node on disk could have too many bsets for an iterator to fit
 	 * on the stack - have to dynamically allocate them
 	 */
-	mempool_t		*fill_iter;
+	mempool_t		fill_iter;
 
 	struct bset_sort_state	sort;
 
@@ -956,8 +958,6 @@ void bch_prio_write(struct cache *);
 void bch_write_bdev_super(struct cached_dev *, struct closure *);
 
 extern struct workqueue_struct *bcache_wq;
-extern const char * const bch_cache_modes[];
-extern const char * const bch_stop_on_failure_modes[];
 extern struct mutex bch_register_lock;
 extern struct list_head bch_cache_sets;
 

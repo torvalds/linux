@@ -13,14 +13,6 @@
 / {
 	compatible = "amlogic,meson-gxl";
 
-	reserved-memory {
-		/* Alternate 3 MiB reserved for ARM Trusted Firmware (BL31) */
-		secmon_reserved_alt: secmon@5000000 {
-			reg = <0x0 0x05000000 0x0 0x300000>;
-			no-map;
-		};
-	};
-
 	soc {
 		usb0: usb@c9000000 {
 			status = "disabled";
@@ -267,11 +259,10 @@
 	clock-names = "isfr", "iahb", "venci";
 };
 
-&hiubus {
-	clkc: clock-controller@0 {
-		compatible = "amlogic,gxl-clkc", "amlogic,gxbb-clkc";
+&sysctrl {
+	clkc: clock-controller {
+		compatible = "amlogic,gxl-clkc";
 		#clock-cells = <1>;
-		reg = <0x0 0x0 0x0 0x3db>;
 	};
 };
 
@@ -725,13 +716,15 @@
 		 <&clkc CLKID_SD_EMMC_A_CLK0>,
 		 <&clkc CLKID_FCLK_DIV2>;
 	clock-names = "core", "clkin0", "clkin1";
+	resets = <&reset RESET_SD_EMMC_A>;
 };
 
 &sd_emmc_b {
 	clocks = <&clkc CLKID_SD_EMMC_B>,
 		 <&clkc CLKID_SD_EMMC_B_CLK0>,
 		 <&clkc CLKID_FCLK_DIV2>;
-       clock-names = "core", "clkin0", "clkin1";
+	clock-names = "core", "clkin0", "clkin1";
+	resets = <&reset RESET_SD_EMMC_B>;
 };
 
 &sd_emmc_c {
@@ -739,6 +732,7 @@
 		 <&clkc CLKID_SD_EMMC_C_CLK0>,
 		 <&clkc CLKID_FCLK_DIV2>;
 	clock-names = "core", "clkin0", "clkin1";
+	resets = <&reset RESET_SD_EMMC_C>;
 };
 
 &spicc {
@@ -758,12 +752,12 @@
 };
 
 &uart_AO {
-	clocks = <&xtal>, <&clkc CLKID_CLK81>, <&xtal>;
+	clocks = <&xtal>, <&clkc_AO CLKID_AO_UART1>, <&xtal>;
 	clock-names = "xtal", "pclk", "baud";
 };
 
 &uart_AO_B {
-	clocks = <&xtal>, <&clkc CLKID_CLK81>, <&xtal>;
+	clocks = <&xtal>, <&clkc_AO CLKID_AO_UART2>, <&xtal>;
 	clock-names = "xtal", "pclk", "baud";
 };
 

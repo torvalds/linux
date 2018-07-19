@@ -367,7 +367,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 	obj_per_chunk = MTHCA_TABLE_CHUNK_SIZE / obj_size;
 	num_icm = DIV_ROUND_UP(nobj, obj_per_chunk);
 
-	table = kmalloc(sizeof *table + num_icm * sizeof *table->icm, GFP_KERNEL);
+	table = kmalloc(struct_size(table, icm, num_icm), GFP_KERNEL);
 	if (!table)
 		return NULL;
 
@@ -529,7 +529,7 @@ struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev)
 		return NULL;
 
 	npages = dev->uar_table.uarc_size / MTHCA_ICM_PAGE_SIZE;
-	db_tab = kmalloc(sizeof *db_tab + npages * sizeof *db_tab->page, GFP_KERNEL);
+	db_tab = kmalloc(struct_size(db_tab, page, npages), GFP_KERNEL);
 	if (!db_tab)
 		return ERR_PTR(-ENOMEM);
 
@@ -712,9 +712,9 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 	dev->db_tab->max_group1 = 0;
 	dev->db_tab->min_group2 = dev->db_tab->npages - 1;
 
-	dev->db_tab->page = kmalloc(dev->db_tab->npages *
-				    sizeof *dev->db_tab->page,
-				    GFP_KERNEL);
+	dev->db_tab->page = kmalloc_array(dev->db_tab->npages,
+					  sizeof(*dev->db_tab->page),
+					  GFP_KERNEL);
 	if (!dev->db_tab->page) {
 		kfree(dev->db_tab);
 		return -ENOMEM;

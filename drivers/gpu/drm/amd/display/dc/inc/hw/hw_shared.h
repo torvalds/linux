@@ -140,11 +140,6 @@ enum opp_regamma {
 	OPP_REGAMMA_USER
 };
 
-struct csc_transform {
-	uint16_t matrix[12];
-	bool enable_adjustment;
-};
-
 struct dc_bias_and_scale {
 	uint16_t scale_red;
 	uint16_t bias_red;
@@ -191,4 +186,9 @@ enum controller_dp_test_pattern {
 	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA
 };
 
+enum dc_lut_mode {
+	LUT_BYPASS,
+	LUT_RAM_A,
+	LUT_RAM_B
+};
 #endif /* __DAL_HW_SHARED_H__ */

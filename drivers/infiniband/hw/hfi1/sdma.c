@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -923,9 +923,10 @@ ssize_t sdma_set_cpu_to_sde_map(struct sdma_engine *sde, const char *buf,
 	cpumask_var_t mask, new_mask;
 	unsigned long cpu;
 	int ret, vl, sz;
+	struct sdma_rht_node *rht_node;
 
 	vl = sdma_engine_get_vl(sde);
-	if (unlikely(vl < 0))
+	if (unlikely(vl < 0 || vl >= ARRAY_SIZE(rht_node->map)))
 		return -EINVAL;
 
 	ret = zalloc_cpumask_var(&mask, GFP_KERNEL);
@@ -953,17 +954,10 @@ ssize_t sdma_set_cpu_to_sde_map(struct sdma_engine *sde, const char *buf,
 	mutex_lock(&process_to_sde_mutex);
 
 	for_each_cpu(cpu, mask) {
-		struct sdma_rht_node *rht_node;
-
 		/* Check if we have this already mapped */
 		if (cpumask_test_cpu(cpu, &sde->cpu_mask)) {
 			cpumask_set_cpu(cpu, new_mask);
 			continue;
-		}
-
-		if (vl >= ARRAY_SIZE(rht_node->map)) {
-			ret = -EINVAL;
-			goto out;
 		}
 
 		rht_node = rhashtable_lookup_fast(dd->sdma_rht, &cpu,
@@ -1467,7 +1461,8 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		if (!sde->descq)
 			goto bail;
 		sde->tx_ring =
-			kvzalloc_node(sizeof(struct sdma_txreq *) * descq_cnt,
+			kvzalloc_node(array_size(descq_cnt,
+						 sizeof(struct sdma_txreq *)),
 				      GFP_KERNEL, dd->node);
 		if (!sde->tx_ring)
 			goto bail;

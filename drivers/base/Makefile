@@ -8,10 +8,7 @@ obj-y			:= component.o core.o bus.o dd.o syscore.o \
 			   topology.o container.o property.o cacheinfo.o \
 			   devcon.o
 obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
-obj-$(CONFIG_DMA_CMA) += dma-contiguous.o
 obj-y			+= power/
-obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
-obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
 obj-$(CONFIG_ISA_BUS_API)	+= isa.o
 obj-y				+= firmware_loader/
 obj-$(CONFIG_NUMA)	+= node.o

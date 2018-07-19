@@ -122,9 +122,7 @@ static void deferred_probe_work_func(struct work_struct *work)
 		 * the list is a good order for suspend but deferred
 		 * probe makes that very unsafe.
 		 */
-		device_pm_lock();
-		device_pm_move_last(dev);
-		device_pm_unlock();
+		device_pm_move_to_tail(dev);
 
 		dev_dbg(dev, "Retrying from deferred list\n");
 		if (initcall_debug && !initcalls_done)
@@ -817,13 +815,13 @@ static int __driver_attach(struct device *dev, void *data)
 		return ret;
 	} /* ret > 0 means positive match */
 
-	if (dev->parent)	/* Needed for USB */
+	if (dev->parent && dev->bus->need_parent_lock)
 		device_lock(dev->parent);
 	device_lock(dev);
 	if (!dev->driver)
 		driver_probe_device(drv, dev);
 	device_unlock(dev);
-	if (dev->parent)
+	if (dev->parent && dev->bus->need_parent_lock)
 		device_unlock(dev->parent);
 
 	return 0;
@@ -919,7 +917,7 @@ void device_release_driver_internal(struct device *dev,
 				    struct device_driver *drv,
 				    struct device *parent)
 {
-	if (parent)
+	if (parent && dev->bus->need_parent_lock)
 		device_lock(parent);
 
 	device_lock(dev);
@@ -927,7 +925,7 @@ void device_release_driver_internal(struct device *dev,
 		__device_release_driver(dev, parent);
 
 	device_unlock(dev);
-	if (parent)
+	if (parent && dev->bus->need_parent_lock)
 		device_unlock(parent);
 }
 

@@ -35,9 +35,6 @@ config GENERIC_BUG
 config GENERIC_BUG_RELATIVE_POINTERS
 	def_bool y
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
 config GENERIC_LOCKBREAK
 	def_bool y if SMP && PREEMPT
 
@@ -68,6 +65,7 @@ config S390
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
 	select ARCH_HAS_KCOV
+	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
@@ -133,7 +131,6 @@ config S390
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
 	select DMA_DIRECT_OPS
 	select HAVE_DYNAMIC_FTRACE
@@ -163,6 +160,7 @@ config S390
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select MODULES_USE_ELF_RELA
@@ -709,7 +707,11 @@ config QDIO
 menuconfig PCI
 	bool "PCI support"
 	select PCI_MSI
+	select IOMMU_HELPER
 	select IOMMU_SUPPORT
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
+
 	help
 	  Enable PCI support.
 
@@ -731,15 +733,6 @@ config PCI_DOMAINS
 	def_bool PCI
 
 config HAS_IOMEM
-	def_bool PCI
-
-config IOMMU_HELPER
-	def_bool PCI
-
-config NEED_SG_DMA_LENGTH
-	def_bool PCI
-
-config NEED_DMA_MAP_STATE
 	def_bool PCI
 
 config CHSC_SCH
@@ -846,6 +839,10 @@ config CCW
 	def_bool y
 
 source "drivers/Kconfig"
+
+config HAVE_PNETID
+	tristate
+	default (SMC || CCWGROUP)
 
 source "fs/Kconfig"
 

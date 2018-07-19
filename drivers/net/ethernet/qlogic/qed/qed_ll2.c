@@ -201,8 +201,9 @@ void qed_ll2b_complete_rx_packet(void *cxt, struct qed_ll2_comp_rx_data *data)
 
 	skb = build_skb(buffer->data, 0);
 	if (!skb) {
-		rc = -ENOMEM;
-		goto out_post;
+		DP_INFO(cdev, "Failed to build SKB\n");
+		kfree(buffer->data);
+		goto out_post1;
 	}
 
 	data->u.placement_offset += NET_SKB_PAD;
@@ -224,8 +225,14 @@ void qed_ll2b_complete_rx_packet(void *cxt, struct qed_ll2_comp_rx_data *data)
 		cdev->ll2->cbs->rx_cb(cdev->ll2->cb_cookie, skb,
 				      data->opaque_data_0,
 				      data->opaque_data_1);
+	} else {
+		DP_VERBOSE(p_hwfn, (NETIF_MSG_RX_STATUS | NETIF_MSG_PKTDATA |
+				    QED_MSG_LL2 | QED_MSG_STORAGE),
+			   "Dropping the packet\n");
+		kfree(buffer->data);
 	}
 
+out_post1:
 	/* Update Buffer information and update FW producer */
 	buffer->data = new_data;
 	buffer->phys_addr = new_phys_addr;
@@ -960,12 +967,16 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->drop_ttl0_flg = p_ll2_conn->input.rx_drop_ttl0_flg;
 	p_ramrod->inner_vlan_stripping_en =
 		p_ll2_conn->input.rx_vlan_removal_en;
+
+	if (test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits) &&
+	    p_ll2_conn->input.conn_type == QED_LL2_TYPE_FCOE)
+		p_ramrod->report_outer_vlan = 1;
 	p_ramrod->queue_id = p_ll2_conn->queue_id;
 	p_ramrod->main_func_queue = p_ll2_conn->main_func_queue ? 1 : 0;
 
-	if ((IS_MF_DEFAULT(p_hwfn) || IS_MF_SI(p_hwfn)) &&
-	    p_ramrod->main_func_queue && (conn_type != QED_LL2_TYPE_ROCE) &&
-	    (conn_type != QED_LL2_TYPE_IWARP)) {
+	if (test_bit(QED_MF_LL2_NON_UNICAST, &p_hwfn->cdev->mf_bits) &&
+	    p_ramrod->main_func_queue && conn_type != QED_LL2_TYPE_ROCE &&
+	    conn_type != QED_LL2_TYPE_IWARP) {
 		p_ramrod->mf_si_bcast_accept_all = 1;
 		p_ramrod->mf_si_mcast_accept_all = 1;
 	} else {
@@ -1534,11 +1545,12 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	qed_ll2_establish_connection_ooo(p_hwfn, p_ll2_conn);
 
 	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_FCOE) {
+		if (!test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
+			qed_llh_add_protocol_filter(p_hwfn, p_ptt,
+						    ETH_P_FCOE, 0,
+						    QED_LLH_FILTER_ETHERTYPE);
 		qed_llh_add_protocol_filter(p_hwfn, p_ptt,
-					    0x8906, 0,
-					    QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_add_protocol_filter(p_hwfn, p_ptt,
-					    0x8914, 0,
+					    ETH_P_FIP, 0,
 					    QED_LLH_FILTER_ETHERTYPE);
 	}
 
@@ -1694,11 +1706,16 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 
 	start_bd = (struct core_tx_bd *)qed_chain_produce(p_tx_chain);
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn) &&
-	    p_ll2->input.conn_type == QED_LL2_TYPE_OOO)
+	    p_ll2->input.conn_type == QED_LL2_TYPE_OOO) {
 		start_bd->nw_vlan_or_lb_echo =
 		    cpu_to_le16(IWARP_LL2_IN_ORDER_TX_QUEUE);
-	else
+	} else {
 		start_bd->nw_vlan_or_lb_echo = cpu_to_le16(pkt->vlan);
+		if (test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits) &&
+		    p_ll2->input.conn_type == QED_LL2_TYPE_FCOE)
+			pkt->remove_stag = true;
+	}
+
 	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_L4_HDR_OFFSET_W,
 		  cpu_to_le16(pkt->l4_hdr_offset_w));
 	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_TX_DST, tx_dest);
@@ -1709,6 +1726,9 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_IP_CSUM, !!(pkt->enable_ip_cksum));
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_L4_CSUM, !!(pkt->enable_l4_cksum));
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_IP_LEN, !!(pkt->calc_ip_len));
+	SET_FIELD(bd_data, CORE_TX_BD_DATA_DISABLE_STAG_INSERTION,
+		  !!(pkt->remove_stag));
+
 	start_bd->bd_data.as_bitfield = cpu_to_le16(bd_data);
 	DMA_REGPAIR_LE(start_bd->addr, pkt->first_frag);
 	start_bd->nbytes = cpu_to_le16(pkt->first_frag_len);
@@ -1933,11 +1953,12 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 		qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
 
 	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_FCOE) {
+		if (!test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
+			qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
+						       ETH_P_FCOE, 0,
+						      QED_LLH_FILTER_ETHERTYPE);
 		qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
-					       0x8906, 0,
-					       QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
-					       0x8914, 0,
+					       ETH_P_FIP, 0,
 					       QED_LLH_FILTER_ETHERTYPE);
 	}
 
@@ -2399,7 +2420,8 @@ fail:
 	return -EINVAL;
 }
 
-static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
+static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
+			      unsigned long xmit_flags)
 {
 	struct qed_ll2_tx_pkt_info pkt;
 	const skb_frag_t *frag;
@@ -2444,6 +2466,9 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 	pkt.first_frag = mapping;
 	pkt.first_frag_len = skb->len;
 	pkt.cookie = skb;
+	if (test_bit(QED_MF_UFP_SPECIFIC, &cdev->mf_bits) &&
+	    test_bit(QED_LL2_XMIT_FLAGS_FIP_DISCOVERY, &xmit_flags))
+		pkt.remove_stag = true;
 
 	rc = qed_ll2_prepare_tx_packet(&cdev->hwfns[0], cdev->ll2->handle,
 				       &pkt, 1);

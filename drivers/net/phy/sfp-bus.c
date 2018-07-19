@@ -132,6 +132,13 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			br_max = br_nom + br_nom * id->ext.br_min / 100;
 			br_min = br_nom - br_nom * id->ext.br_min / 100;
 		}
+
+		/* When using passive cables, in case neither BR,min nor BR,max
+		 * are specified, set br_min to 0 as the nominal value is then
+		 * used as the maximum.
+		 */
+		if (br_min == br_max && id->base.sfp_ct_passive)
+			br_min = 0;
 	}
 
 	/* Set ethtool support from the compliance fields. */

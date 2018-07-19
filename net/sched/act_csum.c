@@ -648,6 +648,11 @@ static int tcf_csum_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static size_t tcf_csum_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_csum));
+}
+
 static struct tc_action_ops act_csum_ops = {
 	.kind		= "csum",
 	.type		= TCA_ACT_CSUM,
@@ -658,6 +663,7 @@ static struct tc_action_ops act_csum_ops = {
 	.cleanup	= tcf_csum_cleanup,
 	.walk		= tcf_csum_walker,
 	.lookup		= tcf_csum_search,
+	.get_fill_size  = tcf_csum_get_fill_size,
 	.size		= sizeof(struct tcf_csum),
 };
 

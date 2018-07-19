@@ -813,7 +813,7 @@ static void mcast_add_one(struct ib_device *device)
 	int i;
 	int count = 0;
 
-	dev = kmalloc(sizeof *dev + device->phys_port_cnt * sizeof *port,
+	dev = kmalloc(struct_size(dev, port, device->phys_port_cnt),
 		      GFP_KERNEL);
 	if (!dev)
 		return;

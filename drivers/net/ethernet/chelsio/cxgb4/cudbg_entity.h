@@ -62,6 +62,18 @@ struct cudbg_hw_sched {
 	u32 map;
 };
 
+#define SGE_QBASE_DATA_REG_NUM 4
+
+struct sge_qbase_reg_field {
+	u32 reg_addr;
+	u32 reg_data[SGE_QBASE_DATA_REG_NUM];
+	/* Max supported PFs */
+	u32 pf_data_value[PCIE_FW_MASTER_M + 1][SGE_QBASE_DATA_REG_NUM];
+	/* Max supported VFs */
+	u32 vf_data_value[T6_VF_M + 1][SGE_QBASE_DATA_REG_NUM];
+	u32 vfcount; /* Actual number of max vfs in current configuration */
+};
+
 struct ireg_field {
 	u32 ireg_addr;
 	u32 ireg_data;
@@ -235,6 +247,9 @@ struct cudbg_vpd_data {
 };
 
 #define CUDBG_MAX_TCAM_TID 0x800
+#define CUDBG_T6_CLIP 1536
+#define CUDBG_MAX_TID_COMP_EN 6144
+#define CUDBG_MAX_TID_COMP_DIS 3072
 
 enum cudbg_le_entry_types {
 	LE_ET_UNKNOWN = 0,
@@ -352,6 +367,11 @@ static const u32 t5_tp_mib_index_array[9][IREG_NUM_ELEM] = {
 static const u32 t5_sge_dbg_index_array[2][IREG_NUM_ELEM] = {
 	{0x10cc, 0x10d0, 0x0, 16},
 	{0x10cc, 0x10d4, 0x0, 16},
+};
+
+static const u32 t6_sge_qbase_index_array[] = {
+	/* 1 addr reg SGE_QBASE_INDEX and 4 data reg SGE_QBASE_MAP[0-3] */
+	0x1250, 0x1240, 0x1244, 0x1248, 0x124c,
 };
 
 static const u32 t5_pcie_pdbg_array[][IREG_NUM_ELEM] = {

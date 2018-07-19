@@ -1003,7 +1003,7 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 
 	rxe_add_ref(pd);
 
-	err = rxe_mem_init_dma(rxe, pd, access, mr);
+	err = rxe_mem_init_dma(pd, access, mr);
 	if (err)
 		goto err2;
 
@@ -1038,7 +1038,7 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 
 	rxe_add_ref(pd);
 
-	err = rxe_mem_init_user(rxe, pd, start, length, iova,
+	err = rxe_mem_init_user(pd, start, length, iova,
 				access, udata, mr);
 	if (err)
 		goto err3;
@@ -1086,7 +1086,7 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd,
 
 	rxe_add_ref(pd);
 
-	err = rxe_mem_init_fast(rxe, pd, max_num_sg, mr);
+	err = rxe_mem_init_fast(pd, max_num_sg, mr);
 	if (err)
 		goto err2;
 

@@ -1,4 +1,4 @@
-Kernel Connection Mulitplexor
+Kernel Connection Multiplexor
 -----------------------------
 
 Kernel Connection Multiplexor (KCM) is a mechanism that provides a message based
@@ -31,7 +31,7 @@ KCM implements an NxM multiplexor in the kernel as diagrammed below:
 KCM sockets
 -----------
 
-The KCM sockets provide the user interface to the muliplexor. All the KCM sockets
+The KCM sockets provide the user interface to the multiplexor. All the KCM sockets
 bound to a multiplexor are considered to have equivalent function, and I/O
 operations in different sockets may be done in parallel without the need for
 synchronization between threads in userspace.
@@ -199,7 +199,7 @@ while. Example use:
 BFP programs for message delineation
 ------------------------------------
 
-BPF programs can be compiled using the BPF LLVM backend. For exmple,
+BPF programs can be compiled using the BPF LLVM backend. For example,
 the BPF program for parsing Thrift is:
 
   #include "bpf.h" /* for __sk_buff */
@@ -222,7 +222,7 @@ messages. The kernel provides necessary assurances that messages are sent
 and received atomically. This relieves much of the burden applications have
 in mapping a message based protocol onto the TCP stream. KCM also make
 application layer messages a unit of work in the kernel for the purposes of
-steerng and scheduling, which in turn allows a simpler networking model in
+steering and scheduling, which in turn allows a simpler networking model in
 multithreaded applications.
 
 Configurations
@@ -272,7 +272,7 @@ on the socket thus waking up the application thread. When the application
 sees the error (which may just be a disconnect) it should unattach the
 socket from KCM and then close it. It is assumed that once an error is
 posted on the TCP socket the data stream is unrecoverable (i.e. an error
-may have occurred in the middle of receiving a messssge).
+may have occurred in the middle of receiving a message).
 
 TCP connection monitoring
 -------------------------

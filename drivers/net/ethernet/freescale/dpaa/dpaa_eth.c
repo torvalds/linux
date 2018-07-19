@@ -125,6 +125,9 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 /* Default alignment for start of data in an Rx FD */
 #define DPAA_FD_DATA_ALIGNMENT  16
 
+/* The DPAA requires 256 bytes reserved and mapped for the SGT */
+#define DPAA_SGT_SIZE 256
+
 /* Values for the L3R field of the FM Parse Results
  */
 /* L3 Type field: First IP Present IPv4 */
@@ -664,7 +667,7 @@ static struct dpaa_fq *dpaa_fq_alloc(struct device *dev,
 	struct dpaa_fq *dpaa_fq;
 	int i;
 
-	dpaa_fq = devm_kzalloc(dev, sizeof(*dpaa_fq) * count,
+	dpaa_fq = devm_kcalloc(dev, count, sizeof(*dpaa_fq),
 			       GFP_KERNEL);
 	if (!dpaa_fq)
 		return NULL;
@@ -1617,8 +1620,8 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 
 	if (unlikely(qm_fd_get_format(fd) == qm_fd_sg)) {
 		nr_frags = skb_shinfo(skb)->nr_frags;
-		dma_unmap_single(dev, addr, qm_fd_get_offset(fd) +
-				 sizeof(struct qm_sg_entry) * (1 + nr_frags),
+		dma_unmap_single(dev, addr,
+				 qm_fd_get_offset(fd) + DPAA_SGT_SIZE,
 				 dma_dir);
 
 		/* The sgt buffer has been allocated with netdev_alloc_frag(),
@@ -1903,8 +1906,7 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	void *sgt_buf;
 
 	/* get a page frag to store the SGTable */
-	sz = SKB_DATA_ALIGN(priv->tx_headroom +
-		sizeof(struct qm_sg_entry) * (1 + nr_frags));
+	sz = SKB_DATA_ALIGN(priv->tx_headroom + DPAA_SGT_SIZE);
 	sgt_buf = netdev_alloc_frag(sz);
 	if (unlikely(!sgt_buf)) {
 		netdev_err(net_dev, "netdev_alloc_frag() failed for size %d\n",
@@ -1972,9 +1974,8 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	skbh = (struct sk_buff **)buffer_start;
 	*skbh = skb;
 
-	addr = dma_map_single(dev, buffer_start, priv->tx_headroom +
-			      sizeof(struct qm_sg_entry) * (1 + nr_frags),
-			      dma_dir);
+	addr = dma_map_single(dev, buffer_start,
+			      priv->tx_headroom + DPAA_SGT_SIZE, dma_dir);
 	if (unlikely(dma_mapping_error(dev, addr))) {
 		dev_err(dev, "DMA mapping failed");
 		err = -EINVAL;

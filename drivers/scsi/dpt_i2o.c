@@ -1706,7 +1706,7 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 	u32 reply_size = 0;
 	u32 __user *user_msg = arg;
 	u32 __user * user_reply = NULL;
-	void *sg_list[pHba->sg_tablesize];
+	void **sg_list = NULL;
 	u32 sg_offset = 0;
 	u32 sg_count = 0;
 	int sg_index = 0;
@@ -1748,19 +1748,23 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 	msg[2] = 0x40000000; // IOCTL context
 	msg[3] = adpt_ioctl_to_context(pHba, reply);
 	if (msg[3] == (u32)-1) {
-		kfree(reply);
-		return -EBUSY;
+		rcode = -EBUSY;
+		goto free;
 	}
 
-	memset(sg_list,0, sizeof(sg_list[0])*pHba->sg_tablesize);
+	sg_list = kcalloc(pHba->sg_tablesize, sizeof(*sg_list), GFP_KERNEL);
+	if (!sg_list) {
+		rcode = -ENOMEM;
+		goto free;
+	}
 	if(sg_offset) {
 		// TODO add 64 bit API
 		struct sg_simple_element *sg =  (struct sg_simple_element*) (msg+sg_offset);
 		sg_count = (size - sg_offset*4) / sizeof(struct sg_simple_element);
 		if (sg_count > pHba->sg_tablesize){
 			printk(KERN_DEBUG"%s:IOCTL SG List too large (%u)\n", pHba->name,sg_count);
-			kfree (reply);
-			return -EINVAL;
+			rcode = -EINVAL;
+			goto free;
 		}
 
 		for(i = 0; i < sg_count; i++) {
@@ -1879,7 +1883,6 @@ cleanup:
 	if (rcode != -ETIME && rcode != -EINTR) {
 		struct sg_simple_element *sg =
 				(struct sg_simple_element*) (msg +sg_offset);
-		kfree (reply);
 		while(sg_index) {
 			if(sg_list[--sg_index]) {
 				dma_free_coherent(&pHba->pDev->dev,
@@ -1889,6 +1892,10 @@ cleanup:
 			}
 		}
 	}
+
+free:
+	kfree(sg_list);
+	kfree(reply);
 	return rcode;
 }
 

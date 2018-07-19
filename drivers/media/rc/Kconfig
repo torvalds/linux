@@ -25,6 +25,19 @@ config LIRC
 	   passes raw IR to and from userspace, which is needed for
 	   IR transmitting (aka "blasting") and for the lirc daemon.
 
+config BPF_LIRC_MODE2
+	bool "Support for eBPF programs attached to lirc devices"
+	depends on BPF_SYSCALL
+	depends on RC_CORE=y
+	depends on LIRC
+	help
+	   Allow attaching eBPF programs to a lirc device using the bpf(2)
+	   syscall command BPF_PROG_ATTACH. This is supported for raw IR
+	   receivers.
+
+	   These eBPF programs can be used to decode IR into scancodes, for
+	   IR protocols not supported by the kernel decoders.
+
 menuconfig RC_DECODERS
 	bool "Remote controller decoders"
 	depends on RC_CORE
@@ -149,7 +162,7 @@ config RC_ATI_REMOTE
 
 config IR_ENE
 	tristate "ENE eHome Receiver/Transceiver (pnp id: ENE0100/ENE02xxx)"
-	depends on PNP
+	depends on PNP || COMPILE_TEST
 	depends on RC_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
@@ -210,7 +223,7 @@ config IR_MCEUSB
 
 config IR_ITE_CIR
 	tristate "ITE Tech Inc. IT8712/IT8512 Consumer Infrared Transceiver"
-	depends on PNP
+	depends on PNP || COMPILE_TEST
 	depends on RC_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receivers
@@ -223,7 +236,7 @@ config IR_ITE_CIR
 
 config IR_FINTEK
 	tristate "Fintek Consumer Infrared Transceiver"
-	depends on PNP
+	depends on PNP || COMPILE_TEST
 	depends on RC_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
@@ -257,7 +270,7 @@ config IR_MTK
 
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
-	depends on PNP
+	depends on PNP || COMPILE_TEST
 	depends on RC_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
@@ -305,7 +318,7 @@ config IR_STREAMZAP
 
 config IR_WINBOND_CIR
 	tristate "Winbond IR remote control"
-	depends on X86 && PNP
+	depends on (X86 && PNP) || COMPILE_TEST
 	depends on RC_CORE
 	select NEW_LEDS
 	select LEDS_CLASS

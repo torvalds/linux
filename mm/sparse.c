@@ -190,15 +190,13 @@ static inline int next_present_section_nr(int section_nr)
 		section_nr++;
 		if (present_section_nr(section_nr))
 			return section_nr;
-	} while ((section_nr < NR_MEM_SECTIONS) &&
-		 (section_nr <= __highest_present_section_nr));
+	} while ((section_nr <= __highest_present_section_nr));
 
 	return -1;
 }
 #define for_each_present_section_nr(start, section_nr)		\
 	for (section_nr = next_present_section_nr(start-1);	\
 	     ((section_nr >= 0) &&				\
-	      (section_nr < NR_MEM_SECTIONS) &&			\
 	      (section_nr <= __highest_present_section_nr));	\
 	     section_nr = next_present_section_nr(section_nr))
 
@@ -524,7 +522,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
 		map_count = 1;
 	}
 	/* ok, last chunk */
-	alloc_func(data, pnum_begin, NR_MEM_SECTIONS,
+	alloc_func(data, pnum_begin, __highest_present_section_nr+1,
 						map_count, nodeid_begin);
 }
 

@@ -18,6 +18,7 @@
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
+#include "rcar_du_of.h"
 
 /* -----------------------------------------------------------------------------
  * Generic Overlay Handling

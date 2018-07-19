@@ -27,6 +27,7 @@
 #define __DC_HUBBUB_DCN10_H__
 
 #include "core_types.h"
+#include "dchubbub.h"
 
 #define HUBHUB_REG_LIST_DCN()\
 	SR(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A),\
@@ -47,7 +48,8 @@
 	SR(DCHUBBUB_ARB_DF_REQ_OUTSTAND),\
 	SR(DCHUBBUB_GLOBAL_TIMER_CNTL), \
 	SR(DCHUBBUB_TEST_DEBUG_INDEX), \
-	SR(DCHUBBUB_TEST_DEBUG_DATA)
+	SR(DCHUBBUB_TEST_DEBUG_DATA),\
+	SR(DCHUBBUB_SOFT_RESET)
 
 #define HUBBUB_SR_WATERMARK_REG_LIST()\
 	SR(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A),\
@@ -104,6 +106,7 @@ struct dcn_hubbub_registers {
 	uint32_t DCHUBBUB_SDPIF_AGP_BOT;
 	uint32_t DCHUBBUB_SDPIF_AGP_TOP;
 	uint32_t DCHUBBUB_CRC_CTRL;
+	uint32_t DCHUBBUB_SOFT_RESET;
 };
 
 /* set field name */
@@ -113,6 +116,7 @@ struct dcn_hubbub_registers {
 
 #define HUBBUB_MASK_SH_LIST_DCN(mask_sh)\
 		HUBBUB_SF(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, mask_sh), \
+		HUBBUB_SF(DCHUBBUB_SOFT_RESET, DCHUBBUB_GLOBAL_SOFT_RESET, mask_sh), \
 		HUBBUB_SF(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL, DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, mask_sh), \
 		HUBBUB_SF(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL, DCHUBBUB_ARB_WATERMARK_CHANGE_DONE_INTERRUPT_DISABLE, mask_sh), \
 		HUBBUB_SF(DCHUBBUB_ARB_DRAM_STATE_CNTL, DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, mask_sh), \
@@ -142,6 +146,7 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_SAT_LEVEL;\
 		type DCHUBBUB_ARB_MIN_REQ_OUTSTAND;\
 		type DCHUBBUB_GLOBAL_TIMER_REFDIV;\
+		type DCHUBBUB_GLOBAL_SOFT_RESET; \
 		type SDPIF_FB_TOP;\
 		type SDPIF_FB_BASE;\
 		type SDPIF_FB_OFFSET;\
@@ -173,12 +178,6 @@ struct dcn_hubbub_wm {
 	struct dcn_hubbub_wm_set sets[4];
 };
 
-struct hubbub_funcs {
-	void (*update_dchub)(
-			struct hubbub *hubbub,
-			struct dchub_init_data *dh_data);
-};
-
 struct hubbub {
 	const struct hubbub_funcs *funcs;
 	struct dc_context *ctx;
@@ -206,6 +205,7 @@ void hubbub1_toggle_watermark_change_req(
 void hubbub1_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm);
 
+void hubbub1_soft_reset(struct hubbub *hubbub, bool reset);
 void hubbub1_construct(struct hubbub *hubbub,
 	struct dc_context *ctx,
 	const struct dcn_hubbub_registers *hubbub_regs,

@@ -28,7 +28,7 @@
 
 #include <linux/irqchip/arm-gic-v4.h>
 
-#define VGIC_V3_MAX_CPUS	255
+#define VGIC_V3_MAX_CPUS	512
 #define VGIC_V2_MAX_CPUS	8
 #define VGIC_NR_IRQS_LEGACY     256
 #define VGIC_NR_SGIS		16
@@ -201,6 +201,14 @@ struct vgic_its {
 
 struct vgic_state_iter;
 
+struct vgic_redist_region {
+	u32 index;
+	gpa_t base;
+	u32 count; /* number of redistributors or 0 if single region */
+	u32 free_index; /* index of the next free redistributor */
+	struct list_head list;
+};
+
 struct vgic_dist {
 	bool			in_kernel;
 	bool			ready;
@@ -220,10 +228,7 @@ struct vgic_dist {
 		/* either a GICv2 CPU interface */
 		gpa_t			vgic_cpu_base;
 		/* or a number of GICv3 redistributor regions */
-		struct {
-			gpa_t		vgic_redist_base;
-			gpa_t		vgic_redist_free_offset;
-		};
+		struct list_head rd_regions;
 	};
 
 	/* distributor enabled */
@@ -311,6 +316,7 @@ struct vgic_cpu {
 	 */
 	struct vgic_io_device	rd_iodev;
 	struct vgic_io_device	sgi_iodev;
+	struct vgic_redist_region *rdreg;
 
 	/* Contains the attributes and gpa of the LPI pending tables. */
 	u64 pendbaser;
@@ -332,7 +338,6 @@ void kvm_vgic_early_init(struct kvm *kvm);
 int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu);
 int kvm_vgic_create(struct kvm *kvm, u32 type);
 void kvm_vgic_destroy(struct kvm *kvm);
-void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu);
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
 int kvm_vgic_map_resources(struct kvm *kvm);
 int kvm_vgic_hyp_init(void);

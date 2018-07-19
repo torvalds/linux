@@ -340,7 +340,7 @@ static void _drm_lease_revoke(struct drm_master *top)
 				break;
 
 			/* Over */
-			master = list_entry(master->lessee_list.next, struct drm_master, lessee_list);
+			master = list_next_entry(master, lessee_list);
 		}
 	}
 }

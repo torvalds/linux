@@ -9,7 +9,9 @@
 
 #include <linux/clk.h>
 #include <linux/host1x.h>
+#include <linux/iommu.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
@@ -19,13 +21,20 @@
 #include "gem.h"
 #include "gr3d.h"
 
+struct gr3d_soc {
+	unsigned int version;
+};
+
 struct gr3d {
+	struct iommu_group *group;
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
 	struct clk *clk_secondary;
 	struct clk *clk;
 	struct reset_control *rst_secondary;
 	struct reset_control *rst;
+
+	const struct gr3d_soc *soc;
 
 	DECLARE_BITMAP(addr_regs, GR3D_NUM_REGS);
 };
@@ -41,6 +50,7 @@ static int gr3d_init(struct host1x_client *client)
 	struct drm_device *dev = dev_get_drvdata(client->parent);
 	unsigned long flags = HOST1X_SYNCPT_HAS_BASE;
 	struct gr3d *gr3d = to_gr3d(drm);
+	int err;
 
 	gr3d->channel = host1x_channel_request(client->dev);
 	if (!gr3d->channel)
@@ -48,11 +58,33 @@ static int gr3d_init(struct host1x_client *client)
 
 	client->syncpts[0] = host1x_syncpt_request(client, flags);
 	if (!client->syncpts[0]) {
-		host1x_channel_put(gr3d->channel);
-		return -ENOMEM;
+		err = -ENOMEM;
+		dev_err(client->dev, "failed to request syncpoint: %d\n", err);
+		goto put;
 	}
 
-	return tegra_drm_register_client(dev->dev_private, drm);
+	gr3d->group = host1x_client_iommu_attach(client, false);
+	if (IS_ERR(gr3d->group)) {
+		err = PTR_ERR(gr3d->group);
+		dev_err(client->dev, "failed to attach to domain: %d\n", err);
+		goto free;
+	}
+
+	err = tegra_drm_register_client(dev->dev_private, drm);
+	if (err < 0) {
+		dev_err(client->dev, "failed to register client: %d\n", err);
+		goto detach;
+	}
+
+	return 0;
+
+detach:
+	host1x_client_iommu_detach(client, gr3d->group);
+free:
+	host1x_syncpt_free(client->syncpts[0]);
+put:
+	host1x_channel_put(gr3d->channel);
+	return err;
 }
 
 static int gr3d_exit(struct host1x_client *client)
@@ -66,6 +98,7 @@ static int gr3d_exit(struct host1x_client *client)
 	if (err < 0)
 		return err;
 
+	host1x_client_iommu_detach(client, gr3d->group);
 	host1x_syncpt_free(client->syncpts[0]);
 	host1x_channel_put(gr3d->channel);
 
@@ -125,10 +158,22 @@ static const struct tegra_drm_client_ops gr3d_ops = {
 	.submit = tegra_drm_submit,
 };
 
+static const struct gr3d_soc tegra20_gr3d_soc = {
+	.version = 0x20,
+};
+
+static const struct gr3d_soc tegra30_gr3d_soc = {
+	.version = 0x30,
+};
+
+static const struct gr3d_soc tegra114_gr3d_soc = {
+	.version = 0x35,
+};
+
 static const struct of_device_id tegra_gr3d_match[] = {
-	{ .compatible = "nvidia,tegra114-gr3d" },
-	{ .compatible = "nvidia,tegra30-gr3d" },
-	{ .compatible = "nvidia,tegra20-gr3d" },
+	{ .compatible = "nvidia,tegra114-gr3d", .data = &tegra114_gr3d_soc },
+	{ .compatible = "nvidia,tegra30-gr3d", .data = &tegra30_gr3d_soc },
+	{ .compatible = "nvidia,tegra20-gr3d", .data = &tegra20_gr3d_soc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_gr3d_match);
@@ -250,6 +295,8 @@ static int gr3d_probe(struct platform_device *pdev)
 	if (!gr3d)
 		return -ENOMEM;
 
+	gr3d->soc = of_device_get_match_data(&pdev->dev);
+
 	syncpts = devm_kzalloc(&pdev->dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
 		return -ENOMEM;
@@ -307,6 +354,7 @@ static int gr3d_probe(struct platform_device *pdev)
 	gr3d->client.base.num_syncpts = 1;
 
 	INIT_LIST_HEAD(&gr3d->client.list);
+	gr3d->client.version = gr3d->soc->version;
 	gr3d->client.ops = &gr3d_ops;
 
 	err = host1x_client_register(&gr3d->client.base);

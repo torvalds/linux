@@ -55,6 +55,7 @@
 #include <rdma/iw_cm.h>
 #include <rdma/rdma_netlink.h>
 #include <rdma/iw_portmap.h>
+#include <rdma/restrack.h>
 
 #include "cxgb4.h"
 #include "cxgb4_uld.h"
@@ -1081,5 +1082,9 @@ extern int db_coalescing_threshold;
 extern int use_dsgl;
 void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
 struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp);
+
+typedef int c4iw_restrack_func(struct sk_buff *msg,
+			       struct rdma_restrack_entry *res);
+extern c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX];
 
 #endif

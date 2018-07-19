@@ -301,26 +301,27 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 		___ieee80211_stop_tx_ba_session(sta, i, reason);
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 
-	/* stopping might queue the work again - so cancel only afterwards */
-	cancel_work_sync(&sta->ampdu_mlme.work);
-
 	/*
 	 * In case the tear down is part of a reconfigure due to HW restart
 	 * request, it is possible that the low level driver requested to stop
 	 * the BA session, so handle it to properly clean tid_tx data.
 	 */
-	mutex_lock(&sta->ampdu_mlme.mtx);
-	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
-		struct tid_ampdu_tx *tid_tx =
-			rcu_dereference_protected_tid_tx(sta, i);
+	if(reason == AGG_STOP_DESTROY_STA) {
+		cancel_work_sync(&sta->ampdu_mlme.work);
 
-		if (!tid_tx)
-			continue;
+		mutex_lock(&sta->ampdu_mlme.mtx);
+		for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+			struct tid_ampdu_tx *tid_tx =
+				rcu_dereference_protected_tid_tx(sta, i);
 
-		if (test_and_clear_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state))
-			ieee80211_stop_tx_ba_cb(sta, i, tid_tx);
+			if (!tid_tx)
+				continue;
+
+			if (test_and_clear_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state))
+				ieee80211_stop_tx_ba_cb(sta, i, tid_tx);
+		}
+		mutex_unlock(&sta->ampdu_mlme.mtx);
 	}
-	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
 void ieee80211_ba_session_work(struct work_struct *work)
@@ -328,16 +329,11 @@ void ieee80211_ba_session_work(struct work_struct *work)
 	struct sta_info *sta =
 		container_of(work, struct sta_info, ampdu_mlme.work);
 	struct tid_ampdu_tx *tid_tx;
+	bool blocked;
 	int tid;
 
-	/*
-	 * When this flag is set, new sessions should be
-	 * blocked, and existing sessions will be torn
-	 * down by the code that set the flag, so this
-	 * need not run.
-	 */
-	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA))
-		return;
+	/* When this flag is set, new sessions should be blocked. */
+	blocked = test_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
 	for (tid = 0; tid < IEEE80211_NUM_TIDS; tid++) {
@@ -352,7 +348,8 @@ void ieee80211_ba_session_work(struct work_struct *work)
 				sta, tid, WLAN_BACK_RECIPIENT,
 				WLAN_REASON_UNSPECIFIED, true);
 
-		if (test_and_clear_bit(tid,
+		if (!blocked &&
+		    test_and_clear_bit(tid,
 				       sta->ampdu_mlme.tid_rx_manage_offl))
 			___ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
 							 IEEE80211_MAX_AMPDU_BUF,
@@ -367,7 +364,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		spin_lock_bh(&sta->lock);
 
 		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
-		if (tid_tx) {
+		if (!blocked && tid_tx) {
 			/*
 			 * Assign it over to the normal tid_tx array
 			 * where it "goes live".
@@ -390,7 +387,8 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		if (!tid_tx)
 			continue;
 
-		if (test_and_clear_bit(HT_AGG_STATE_START_CB, &tid_tx->state))
+		if (!blocked &&
+		    test_and_clear_bit(HT_AGG_STATE_START_CB, &tid_tx->state))
 			ieee80211_start_tx_ba_cb(sta, tid, tid_tx);
 		if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,

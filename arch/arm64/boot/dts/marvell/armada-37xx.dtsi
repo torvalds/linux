@@ -148,10 +148,13 @@
 				compatible = "marvell,armada3710-nb-pinctrl",
 					     "syscon", "simple-mfd";
 				reg = <0x13800 0x100>, <0x13C00 0x20>;
+				/* MPP1[19:0] */
 				gpionb: gpio {
 					#gpio-cells = <2>;
 					gpio-ranges = <&pinctrl_nb 0 0 36>;
 					gpio-controller;
+					interrupt-controller;
+					#interrupt-cells = <2>;
 					interrupts =
 					<GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
@@ -209,10 +212,13 @@
 				compatible = "marvell,armada3710-sb-pinctrl",
 					     "syscon", "simple-mfd";
 				reg = <0x18800 0x100>, <0x18C00 0x20>;
+				/* MPP2[23:0] */
 				gpiosb: gpio {
 					#gpio-cells = <2>;
 					gpio-ranges = <&pinctrl_sb 0 0 30>;
 					gpio-controller;
+					interrupt-controller;
+					#interrupt-cells = <2>;
 					interrupts =
 					<GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,

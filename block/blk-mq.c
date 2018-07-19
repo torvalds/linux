@@ -309,7 +309,8 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	RB_CLEAR_NODE(&rq->rb_node);
 	rq->rq_disk = NULL;
 	rq->part = NULL;
-	rq->start_time = jiffies;
+	rq->start_time_ns = ktime_get_ns();
+	rq->io_start_time_ns = 0;
 	rq->nr_phys_segments = 0;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	rq->nr_integrity_segments = 0;
@@ -328,11 +329,10 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 
 #ifdef CONFIG_BLK_CGROUP
 	rq->rl = NULL;
-	set_start_time_ns(rq);
-	rq->io_start_time_ns = 0;
 #endif
 
 	data->ctx->rq_dispatched[op_is_sync(op)]++;
+	refcount_set(&rq->ref, 1);
 	return rq;
 }
 
@@ -361,9 +361,11 @@ static struct request *blk_mq_get_request(struct request_queue *q,
 
 		/*
 		 * Flush requests are special and go directly to the
-		 * dispatch list.
+		 * dispatch list. Don't include reserved tags in the
+		 * limiting, as it isn't useful.
 		 */
-		if (!op_is_flush(op) && e->type->ops.mq.limit_depth)
+		if (!op_is_flush(op) && e->type->ops.mq.limit_depth &&
+		    !(data->flags & BLK_MQ_REQ_RESERVED))
 			e->type->ops.mq.limit_depth(op, data);
 	}
 
@@ -464,13 +466,27 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blk_mq_alloc_request_hctx);
 
+static void __blk_mq_free_request(struct request *rq)
+{
+	struct request_queue *q = rq->q;
+	struct blk_mq_ctx *ctx = rq->mq_ctx;
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+	const int sched_tag = rq->internal_tag;
+
+	if (rq->tag != -1)
+		blk_mq_put_tag(hctx, hctx->tags, ctx, rq->tag);
+	if (sched_tag != -1)
+		blk_mq_put_tag(hctx, hctx->sched_tags, ctx, sched_tag);
+	blk_mq_sched_restart(hctx);
+	blk_queue_exit(q);
+}
+
 void blk_mq_free_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
-	const int sched_tag = rq->internal_tag;
 
 	if (rq->rq_flags & RQF_ELVPRIV) {
 		if (e && e->type->ops.mq.finish_request)
@@ -488,27 +504,30 @@ void blk_mq_free_request(struct request *rq)
 	if (unlikely(laptop_mode && !blk_rq_is_passthrough(rq)))
 		laptop_io_completion(q->backing_dev_info);
 
-	wbt_done(q->rq_wb, &rq->issue_stat);
+	wbt_done(q->rq_wb, rq);
 
 	if (blk_rq_rl(rq))
 		blk_put_rl(blk_rq_rl(rq));
 
-	blk_mq_rq_update_state(rq, MQ_RQ_IDLE);
-	if (rq->tag != -1)
-		blk_mq_put_tag(hctx, hctx->tags, ctx, rq->tag);
-	if (sched_tag != -1)
-		blk_mq_put_tag(hctx, hctx->sched_tags, ctx, sched_tag);
-	blk_mq_sched_restart(hctx);
-	blk_queue_exit(q);
+	WRITE_ONCE(rq->state, MQ_RQ_IDLE);
+	if (refcount_dec_and_test(&rq->ref))
+		__blk_mq_free_request(rq);
 }
 EXPORT_SYMBOL_GPL(blk_mq_free_request);
 
 inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 {
-	blk_account_io_done(rq);
+	u64 now = ktime_get_ns();
+
+	if (rq->rq_flags & RQF_STATS) {
+		blk_mq_poll_stats_start(rq->q);
+		blk_stat_add(rq, now);
+	}
+
+	blk_account_io_done(rq, now);
 
 	if (rq->end_io) {
-		wbt_done(rq->q->rq_wb, &rq->issue_stat);
+		wbt_done(rq->q->rq_wb, rq);
 		rq->end_io(rq, error);
 	} else {
 		if (unlikely(blk_bidi_rq(rq)))
@@ -539,15 +558,12 @@ static void __blk_mq_complete_request(struct request *rq)
 	bool shared = false;
 	int cpu;
 
-	WARN_ON_ONCE(blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT);
-	blk_mq_rq_update_state(rq, MQ_RQ_COMPLETE);
+	if (cmpxchg(&rq->state, MQ_RQ_IN_FLIGHT, MQ_RQ_COMPLETE) !=
+			MQ_RQ_IN_FLIGHT)
+		return;
 
 	if (rq->internal_tag != -1)
 		blk_mq_sched_completed_request(rq);
-	if (rq->rq_flags & RQF_STATS) {
-		blk_mq_poll_stats_start(rq->q);
-		blk_stat_add(rq);
-	}
 
 	if (!test_bit(QUEUE_FLAG_SAME_COMP, &rq->q->queue_flags)) {
 		rq->q->softirq_done_fn(rq);
@@ -589,36 +605,6 @@ static void hctx_lock(struct blk_mq_hw_ctx *hctx, int *srcu_idx)
 		*srcu_idx = srcu_read_lock(hctx->srcu);
 }
 
-static void blk_mq_rq_update_aborted_gstate(struct request *rq, u64 gstate)
-{
-	unsigned long flags;
-
-	/*
-	 * blk_mq_rq_aborted_gstate() is used from the completion path and
-	 * can thus be called from irq context.  u64_stats_fetch in the
-	 * middle of update on the same CPU leads to lockup.  Disable irq
-	 * while updating.
-	 */
-	local_irq_save(flags);
-	u64_stats_update_begin(&rq->aborted_gstate_sync);
-	rq->aborted_gstate = gstate;
-	u64_stats_update_end(&rq->aborted_gstate_sync);
-	local_irq_restore(flags);
-}
-
-static u64 blk_mq_rq_aborted_gstate(struct request *rq)
-{
-	unsigned int start;
-	u64 aborted_gstate;
-
-	do {
-		start = u64_stats_fetch_begin(&rq->aborted_gstate_sync);
-		aborted_gstate = rq->aborted_gstate;
-	} while (u64_stats_fetch_retry(&rq->aborted_gstate_sync, start));
-
-	return aborted_gstate;
-}
-
 /**
  * blk_mq_complete_request - end I/O on a request
  * @rq:		the request being processed
@@ -629,28 +615,9 @@ static u64 blk_mq_rq_aborted_gstate(struct request *rq)
  **/
 void blk_mq_complete_request(struct request *rq)
 {
-	struct request_queue *q = rq->q;
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, rq->mq_ctx->cpu);
-	int srcu_idx;
-
-	if (unlikely(blk_should_fake_timeout(q)))
+	if (unlikely(blk_should_fake_timeout(rq->q)))
 		return;
-
-	/*
-	 * If @rq->aborted_gstate equals the current instance, timeout is
-	 * claiming @rq and we lost.  This is synchronized through
-	 * hctx_lock().  See blk_mq_timeout_work() for details.
-	 *
-	 * Completion path never blocks and we can directly use RCU here
-	 * instead of hctx_lock() which can be either RCU or SRCU.
-	 * However, that would complicate paths which want to synchronize
-	 * against us.  Let stay in sync with the issue path so that
-	 * hctx_lock() covers both issue and completion paths.
-	 */
-	hctx_lock(hctx, &srcu_idx);
-	if (blk_mq_rq_aborted_gstate(rq) != rq->gstate)
-		__blk_mq_complete_request(rq);
-	hctx_unlock(hctx, srcu_idx);
+	__blk_mq_complete_request(rq);
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
@@ -669,32 +636,18 @@ void blk_mq_start_request(struct request *rq)
 	trace_block_rq_issue(q, rq);
 
 	if (test_bit(QUEUE_FLAG_STATS, &q->queue_flags)) {
-		blk_stat_set_issue(&rq->issue_stat, blk_rq_sectors(rq));
+		rq->io_start_time_ns = ktime_get_ns();
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+		rq->throtl_size = blk_rq_sectors(rq);
+#endif
 		rq->rq_flags |= RQF_STATS;
-		wbt_issue(q->rq_wb, &rq->issue_stat);
+		wbt_issue(q->rq_wb, rq);
 	}
 
 	WARN_ON_ONCE(blk_mq_rq_state(rq) != MQ_RQ_IDLE);
 
-	/*
-	 * Mark @rq in-flight which also advances the generation number,
-	 * and register for timeout.  Protect with a seqcount to allow the
-	 * timeout path to read both @rq->gstate and @rq->deadline
-	 * coherently.
-	 *
-	 * This is the only place where a request is marked in-flight.  If
-	 * the timeout path reads an in-flight @rq->gstate, the
-	 * @rq->deadline it reads together under @rq->gstate_seq is
-	 * guaranteed to be the matching one.
-	 */
-	preempt_disable();
-	write_seqcount_begin(&rq->gstate_seq);
-
-	blk_mq_rq_update_state(rq, MQ_RQ_IN_FLIGHT);
 	blk_add_timer(rq);
-
-	write_seqcount_end(&rq->gstate_seq);
-	preempt_enable();
+	WRITE_ONCE(rq->state, MQ_RQ_IN_FLIGHT);
 
 	if (q->dma_drain_size && blk_rq_bytes(rq)) {
 		/*
@@ -707,11 +660,6 @@ void blk_mq_start_request(struct request *rq)
 }
 EXPORT_SYMBOL(blk_mq_start_request);
 
-/*
- * When we reach here because queue is busy, it's safe to change the state
- * to IDLE without checking @rq->aborted_gstate because we should still be
- * holding the RCU read lock and thus protected against timeout.
- */
 static void __blk_mq_requeue_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
@@ -719,10 +667,11 @@ static void __blk_mq_requeue_request(struct request *rq)
 	blk_mq_put_driver_tag(rq);
 
 	trace_block_rq_requeue(q, rq);
-	wbt_requeue(q->rq_wb, &rq->issue_stat);
+	wbt_requeue(q->rq_wb, rq);
 
-	if (blk_mq_rq_state(rq) != MQ_RQ_IDLE) {
-		blk_mq_rq_update_state(rq, MQ_RQ_IDLE);
+	if (blk_mq_request_started(rq)) {
+		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
+		rq->rq_flags &= ~RQF_TIMED_OUT;
 		if (q->dma_drain_size && blk_rq_bytes(rq))
 			rq->nr_phys_segments--;
 	}
@@ -820,101 +769,82 @@ struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
-struct blk_mq_timeout_data {
-	unsigned long next;
-	unsigned int next_set;
-	unsigned int nr_expired;
-};
-
 static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 {
-	const struct blk_mq_ops *ops = req->q->mq_ops;
-	enum blk_eh_timer_return ret = BLK_EH_RESET_TIMER;
+	req->rq_flags |= RQF_TIMED_OUT;
+	if (req->q->mq_ops->timeout) {
+		enum blk_eh_timer_return ret;
 
-	req->rq_flags |= RQF_MQ_TIMEOUT_EXPIRED;
-
-	if (ops->timeout)
-		ret = ops->timeout(req, reserved);
-
-	switch (ret) {
-	case BLK_EH_HANDLED:
-		__blk_mq_complete_request(req);
-		break;
-	case BLK_EH_RESET_TIMER:
-		/*
-		 * As nothing prevents from completion happening while
-		 * ->aborted_gstate is set, this may lead to ignored
-		 * completions and further spurious timeouts.
-		 */
-		blk_mq_rq_update_aborted_gstate(req, 0);
-		blk_add_timer(req);
-		break;
-	case BLK_EH_NOT_HANDLED:
-		break;
-	default:
-		printk(KERN_ERR "block: bad eh return: %d\n", ret);
-		break;
+		ret = req->q->mq_ops->timeout(req, reserved);
+		if (ret == BLK_EH_DONE)
+			return;
+		WARN_ON_ONCE(ret != BLK_EH_RESET_TIMER);
 	}
+
+	blk_add_timer(req);
+}
+
+static bool blk_mq_req_expired(struct request *rq, unsigned long *next)
+{
+	unsigned long deadline;
+
+	if (blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT)
+		return false;
+	if (rq->rq_flags & RQF_TIMED_OUT)
+		return false;
+
+	deadline = blk_rq_deadline(rq);
+	if (time_after_eq(jiffies, deadline))
+		return true;
+
+	if (*next == 0)
+		*next = deadline;
+	else if (time_after(*next, deadline))
+		*next = deadline;
+	return false;
 }
 
 static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 		struct request *rq, void *priv, bool reserved)
 {
-	struct blk_mq_timeout_data *data = priv;
-	unsigned long gstate, deadline;
-	int start;
+	unsigned long *next = priv;
 
-	might_sleep();
-
-	if (rq->rq_flags & RQF_MQ_TIMEOUT_EXPIRED)
+	/*
+	 * Just do a quick check if it is expired before locking the request in
+	 * so we're not unnecessarilly synchronizing across CPUs.
+	 */
+	if (!blk_mq_req_expired(rq, next))
 		return;
 
-	/* read coherent snapshots of @rq->state_gen and @rq->deadline */
-	while (true) {
-		start = read_seqcount_begin(&rq->gstate_seq);
-		gstate = READ_ONCE(rq->gstate);
-		deadline = blk_rq_deadline(rq);
-		if (!read_seqcount_retry(&rq->gstate_seq, start))
-			break;
-		cond_resched();
-	}
-
-	/* if in-flight && overdue, mark for abortion */
-	if ((gstate & MQ_RQ_STATE_MASK) == MQ_RQ_IN_FLIGHT &&
-	    time_after_eq(jiffies, deadline)) {
-		blk_mq_rq_update_aborted_gstate(rq, gstate);
-		data->nr_expired++;
-		hctx->nr_expired++;
-	} else if (!data->next_set || time_after(data->next, deadline)) {
-		data->next = deadline;
-		data->next_set = 1;
-	}
-}
-
-static void blk_mq_terminate_expired(struct blk_mq_hw_ctx *hctx,
-		struct request *rq, void *priv, bool reserved)
-{
 	/*
-	 * We marked @rq->aborted_gstate and waited for RCU.  If there were
-	 * completions that we lost to, they would have finished and
-	 * updated @rq->gstate by now; otherwise, the completion path is
-	 * now guaranteed to see @rq->aborted_gstate and yield.  If
-	 * @rq->aborted_gstate still matches @rq->gstate, @rq is ours.
+	 * We have reason to believe the request may be expired. Take a
+	 * reference on the request to lock this request lifetime into its
+	 * currently allocated context to prevent it from being reallocated in
+	 * the event the completion by-passes this timeout handler.
+	 *
+	 * If the reference was already released, then the driver beat the
+	 * timeout handler to posting a natural completion.
 	 */
-	if (!(rq->rq_flags & RQF_MQ_TIMEOUT_EXPIRED) &&
-	    READ_ONCE(rq->gstate) == rq->aborted_gstate)
+	if (!refcount_inc_not_zero(&rq->ref))
+		return;
+
+	/*
+	 * The request is now locked and cannot be reallocated underneath the
+	 * timeout handler's processing. Re-verify this exact request is truly
+	 * expired; if it is not expired, then the request was completed and
+	 * reallocated as a new request.
+	 */
+	if (blk_mq_req_expired(rq, next))
 		blk_mq_rq_timed_out(rq, reserved);
+	if (refcount_dec_and_test(&rq->ref))
+		__blk_mq_free_request(rq);
 }
 
 static void blk_mq_timeout_work(struct work_struct *work)
 {
 	struct request_queue *q =
 		container_of(work, struct request_queue, timeout_work);
-	struct blk_mq_timeout_data data = {
-		.next		= 0,
-		.next_set	= 0,
-		.nr_expired	= 0,
-	};
+	unsigned long next = 0;
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
@@ -934,39 +864,10 @@ static void blk_mq_timeout_work(struct work_struct *work)
 	if (!percpu_ref_tryget(&q->q_usage_counter))
 		return;
 
-	/* scan for the expired ones and set their ->aborted_gstate */
-	blk_mq_queue_tag_busy_iter(q, blk_mq_check_expired, &data);
+	blk_mq_queue_tag_busy_iter(q, blk_mq_check_expired, &next);
 
-	if (data.nr_expired) {
-		bool has_rcu = false;
-
-		/*
-		 * Wait till everyone sees ->aborted_gstate.  The
-		 * sequential waits for SRCUs aren't ideal.  If this ever
-		 * becomes a problem, we can add per-hw_ctx rcu_head and
-		 * wait in parallel.
-		 */
-		queue_for_each_hw_ctx(q, hctx, i) {
-			if (!hctx->nr_expired)
-				continue;
-
-			if (!(hctx->flags & BLK_MQ_F_BLOCKING))
-				has_rcu = true;
-			else
-				synchronize_srcu(hctx->srcu);
-
-			hctx->nr_expired = 0;
-		}
-		if (has_rcu)
-			synchronize_rcu();
-
-		/* terminate the ones we won */
-		blk_mq_queue_tag_busy_iter(q, blk_mq_terminate_expired, NULL);
-	}
-
-	if (data.next_set) {
-		data.next = blk_rq_timeout(round_jiffies_up(data.next));
-		mod_timer(&q->timeout, data.next);
+	if (next != 0) {
+		mod_timer(&q->timeout, next);
 	} else {
 		/*
 		 * Request timeouts are handled as a forward rolling timer. If
@@ -1029,7 +930,7 @@ static bool dispatch_rq_from_ctx(struct sbitmap *sb, unsigned int bitnr,
 	struct blk_mq_ctx *ctx = hctx->ctxs[bitnr];
 
 	spin_lock(&ctx->lock);
-	if (unlikely(!list_empty(&ctx->rq_list))) {
+	if (!list_empty(&ctx->rq_list)) {
 		dispatch_data->rq = list_entry_rq(ctx->rq_list.next);
 		list_del_init(&dispatch_data->rq->queuelist);
 		if (list_empty(&ctx->rq_list))
@@ -1174,6 +1075,9 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx **hctx,
 
 #define BLK_MQ_RESOURCE_DELAY	3		/* ms units */
 
+/*
+ * Returns true if we did some work AND can potentially do more.
+ */
 bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 			     bool got_budget)
 {
@@ -1304,7 +1208,16 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 			blk_mq_run_hw_queue(hctx, true);
 		else if (needs_restart && (ret == BLK_STS_RESOURCE))
 			blk_mq_delay_run_hw_queue(hctx, BLK_MQ_RESOURCE_DELAY);
+
+		return false;
 	}
+
+	/*
+	 * If the host/device is unable to accept more work, inform the
+	 * caller of that.
+	 */
+	if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE)
+		return false;
 
 	return (queued + errors) != 0;
 }
@@ -1578,7 +1491,7 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 	 * If we are stopped, don't run the queue.
 	 */
 	if (test_bit(BLK_MQ_S_STOPPED, &hctx->state))
-		clear_bit(BLK_MQ_S_STOPPED, &hctx->state);
+		return;
 
 	__blk_mq_run_hw_queue(hctx);
 }
@@ -1714,15 +1627,6 @@ static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 	blk_rq_set_rl(rq, blk_get_rl(rq->q, bio));
 
 	blk_account_io_start(rq, true);
-}
-
-static inline void blk_mq_queue_io(struct blk_mq_hw_ctx *hctx,
-				   struct blk_mq_ctx *ctx,
-				   struct request *rq)
-{
-	spin_lock(&ctx->lock);
-	__blk_mq_insert_request(hctx, rq, false);
-	spin_unlock(&ctx->lock);
 }
 
 static blk_qc_t request_to_qc_t(struct blk_mq_hw_ctx *hctx, struct request *rq)
@@ -1882,7 +1786,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		return BLK_QC_T_NONE;
 	}
 
-	wbt_track(&rq->issue_stat, wb_acct);
+	wbt_track(rq, wb_acct);
 
 	cookie = request_to_qc_t(data.hctx, rq);
 
@@ -1949,15 +1853,10 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
-	} else if (q->elevator) {
-		blk_mq_put_ctx(data.ctx);
-		blk_mq_bio_to_request(rq, bio);
-		blk_mq_sched_insert_request(rq, false, true, true);
 	} else {
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_queue_io(data.hctx, data.ctx, rq);
-		blk_mq_run_hw_queue(data.hctx, true);
+		blk_mq_sched_insert_request(rq, false, true, true);
 	}
 
 	return cookie;
@@ -2020,7 +1919,7 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 	if (!tags)
 		return NULL;
 
-	tags->rqs = kzalloc_node(nr_tags * sizeof(struct request *),
+	tags->rqs = kcalloc_node(nr_tags, sizeof(struct request *),
 				 GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
 				 node);
 	if (!tags->rqs) {
@@ -2028,9 +1927,9 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 		return NULL;
 	}
 
-	tags->static_rqs = kzalloc_node(nr_tags * sizeof(struct request *),
-				 GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
-				 node);
+	tags->static_rqs = kcalloc_node(nr_tags, sizeof(struct request *),
+					GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
+					node);
 	if (!tags->static_rqs) {
 		kfree(tags->rqs);
 		blk_mq_free_tags(tags);
@@ -2056,15 +1955,7 @@ static int blk_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 			return ret;
 	}
 
-	seqcount_init(&rq->gstate_seq);
-	u64_stats_init(&rq->aborted_gstate_sync);
-	/*
-	 * start gstate with gen 1 instead of 0, otherwise it will be equal
-	 * to aborted_gstate, and be identified timed out by
-	 * blk_mq_terminate_expired.
-	 */
-	WRITE_ONCE(rq->gstate, MQ_RQ_GEN_INC);
-
+	WRITE_ONCE(rq->state, MQ_RQ_IDLE);
 	return 0;
 }
 
@@ -2365,6 +2256,7 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	queue_for_each_hw_ctx(q, hctx, i) {
 		cpumask_clear(hctx->cpumask);
 		hctx->nr_ctx = 0;
+		hctx->dispatch_from = NULL;
 	}
 
 	/*
@@ -2473,7 +2365,6 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 
 	mutex_lock(&set->tag_list_lock);
 	list_del_rcu(&q->tag_set_list);
-	INIT_LIST_HEAD(&q->tag_set_list);
 	if (list_is_singular(&set->tag_list)) {
 		/* just transitioned to unshared */
 		set->flags &= ~BLK_MQ_F_TAG_SHARED;
@@ -2481,8 +2372,8 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 		blk_mq_update_tag_set_depth(set, false);
 	}
 	mutex_unlock(&set->tag_list_lock);
-
 	synchronize_rcu();
+	INIT_LIST_HEAD(&q->tag_set_list);
 }
 
 static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
@@ -2646,7 +2537,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	/* init q->mq_kobj and sw queues' kobjects */
 	blk_mq_sysfs_init(q);
 
-	q->queue_hw_ctx = kzalloc_node(nr_cpu_ids * sizeof(*(q->queue_hw_ctx)),
+	q->queue_hw_ctx = kcalloc_node(nr_cpu_ids, sizeof(*(q->queue_hw_ctx)),
 						GFP_KERNEL, set->numa_node);
 	if (!q->queue_hw_ctx)
 		goto err_percpu;
@@ -2697,7 +2588,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	if (!(set->flags & BLK_MQ_F_NO_SCHED)) {
 		int ret;
 
-		ret = blk_mq_sched_init(q);
+		ret = elevator_init_mq(q);
 		if (ret)
 			return ERR_PTR(ret);
 	}
@@ -2865,14 +2756,14 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	if (set->nr_hw_queues > nr_cpu_ids)
 		set->nr_hw_queues = nr_cpu_ids;
 
-	set->tags = kzalloc_node(nr_cpu_ids * sizeof(struct blk_mq_tags *),
+	set->tags = kcalloc_node(nr_cpu_ids, sizeof(struct blk_mq_tags *),
 				 GFP_KERNEL, set->numa_node);
 	if (!set->tags)
 		return -ENOMEM;
 
 	ret = -ENOMEM;
-	set->mq_map = kzalloc_node(sizeof(*set->mq_map) * nr_cpu_ids,
-			GFP_KERNEL, set->numa_node);
+	set->mq_map = kcalloc_node(nr_cpu_ids, sizeof(*set->mq_map),
+				   GFP_KERNEL, set->numa_node);
 	if (!set->mq_map)
 		goto out_free_tags;
 

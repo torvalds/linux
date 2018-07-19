@@ -127,6 +127,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	struct amdgpu_vm *vm;
 	uint64_t fence_ctx;
 	uint32_t status = 0, alloc_size;
+	unsigned fence_flags = 0;
 
 	unsigned i;
 	int r = 0;
@@ -227,7 +228,16 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 #endif
 		amdgpu_asic_invalidate_hdp(adev, ring);
 
-	r = amdgpu_fence_emit(ring, f);
+	if (ib->flags & AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE)
+		fence_flags |= AMDGPU_FENCE_FLAG_TC_WB_ONLY;
+
+	/* wrap the last IB with fence */
+	if (job && job->uf_addr) {
+		amdgpu_ring_emit_fence(ring, job->uf_addr, job->uf_sequence,
+				       fence_flags | AMDGPU_FENCE_FLAG_64BIT);
+	}
+
+	r = amdgpu_fence_emit(ring, f, fence_flags);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vmid)
@@ -238,12 +248,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if (ring->funcs->insert_end)
 		ring->funcs->insert_end(ring);
-
-	/* wrap the last IB with fence */
-	if (job && job->uf_addr) {
-		amdgpu_ring_emit_fence(ring, job->uf_addr, job->uf_sequence,
-				       AMDGPU_FENCE_FLAG_64BIT);
-	}
 
 	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);

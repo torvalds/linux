@@ -18,7 +18,6 @@
 #include <asm/errno.h>
 #include "internal.h"
 
-static int proc_keys_open(struct inode *inode, struct file *file);
 static void *proc_keys_start(struct seq_file *p, loff_t *_pos);
 static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos);
 static void proc_keys_stop(struct seq_file *p, void *v);
@@ -31,14 +30,6 @@ static const struct seq_operations proc_keys_ops = {
 	.show	= proc_keys_show,
 };
 
-static const struct file_operations proc_keys_fops = {
-	.open		= proc_keys_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static int proc_key_users_open(struct inode *inode, struct file *file);
 static void *proc_key_users_start(struct seq_file *p, loff_t *_pos);
 static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos);
 static void proc_key_users_stop(struct seq_file *p, void *v);
@@ -51,13 +42,6 @@ static const struct seq_operations proc_key_users_ops = {
 	.show	= proc_key_users_show,
 };
 
-static const struct file_operations proc_key_users_fops = {
-	.open		= proc_key_users_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 /*
  * Declare the /proc files.
  */
@@ -65,11 +49,11 @@ static int __init key_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = proc_create("keys", 0, NULL, &proc_keys_fops);
+	p = proc_create_seq("keys", 0, NULL, &proc_keys_ops);
 	if (!p)
 		panic("Cannot create /proc/keys\n");
 
-	p = proc_create("key-users", 0, NULL, &proc_key_users_fops);
+	p = proc_create_seq("key-users", 0, NULL, &proc_key_users_ops);
 	if (!p)
 		panic("Cannot create /proc/key-users\n");
 
@@ -94,11 +78,6 @@ static struct rb_node *key_serial_next(struct seq_file *p, struct rb_node *n)
 		n = rb_next(n);
 	}
 	return n;
-}
-
-static int proc_keys_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &proc_keys_ops);
 }
 
 static struct key *find_ge_key(struct seq_file *p, key_serial_t id)
@@ -291,15 +270,6 @@ static struct rb_node *key_user_first(struct user_namespace *user_ns, struct rb_
 {
 	struct rb_node *n = rb_first(r);
 	return __key_user_next(user_ns, n);
-}
-
-/*
- * Implement "/proc/key-users" to provides a list of the key users and their
- * quotas.
- */
-static int proc_key_users_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &proc_key_users_ops);
 }
 
 static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)

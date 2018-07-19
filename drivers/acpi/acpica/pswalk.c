@@ -25,21 +25,47 @@ ACPI_MODULE_NAME("pswalk")
  * DESCRIPTION: Delete a portion of or an entire parse tree.
  *
  ******************************************************************************/
+#include "amlcode.h"
 void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 {
 	union acpi_parse_object *op = subtree_root;
 	union acpi_parse_object *next = NULL;
 	union acpi_parse_object *parent = NULL;
+	u32 level = 0;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_delete_parse_tree, subtree_root);
+
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE_TREES, " root %p\n", subtree_root));
 
 	/* Visit all nodes in the subtree */
 
 	while (op) {
-
-		/* Check if we are not ascending */
-
 		if (op != parent) {
+
+			/* This is the descending case */
+
+			if (ACPI_IS_DEBUG_ENABLED
+			    (ACPI_LV_PARSE_TREES, _COMPONENT)) {
+
+				/* This debug option will print the entire parse tree */
+
+				acpi_os_printf("      %*.s%s %p", (level * 4),
+					       " ",
+					       acpi_ps_get_opcode_name(op->
+								       common.
+								       aml_opcode),
+					       op);
+
+				if (op->named.aml_opcode == AML_INT_NAMEPATH_OP) {
+					acpi_os_printf("  %4.4s",
+						       op->common.value.string);
+				}
+				if (op->named.aml_opcode == AML_STRING_OP) {
+					acpi_os_printf("  %s",
+						       op->common.value.string);
+				}
+				acpi_os_printf("\n");
+			}
 
 			/* Look for an argument or child of the current op */
 
@@ -49,6 +75,7 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 				/* Still going downward in tree (Op is not completed yet) */
 
 				op = next;
+				level++;
 				continue;
 			}
 		}
@@ -69,6 +96,7 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 		if (next) {
 			op = next;
 		} else {
+			level--;
 			op = parent;
 		}
 	}

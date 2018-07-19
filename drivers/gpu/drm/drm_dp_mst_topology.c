@@ -2941,12 +2941,14 @@ static void drm_dp_mst_dump_mstb(struct seq_file *m,
 	}
 }
 
+#define DP_PAYLOAD_TABLE_SIZE		64
+
 static bool dump_dp_payload_table(struct drm_dp_mst_topology_mgr *mgr,
 				  char *buf)
 {
 	int i;
 
-	for (i = 0; i < 64; i += 16) {
+	for (i = 0; i < DP_PAYLOAD_TABLE_SIZE; i += 16) {
 		if (drm_dp_dpcd_read(mgr->aux,
 				     DP_PAYLOAD_TABLE_UPDATE_STATUS + i,
 				     &buf[i], 16) != 16)
@@ -3015,7 +3017,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary) {
-		u8 buf[64];
+		u8 buf[DP_PAYLOAD_TABLE_SIZE];
 		int ret;
 
 		ret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, buf, DP_RECEIVER_CAP_SIZE);
@@ -3033,8 +3035,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 		seq_printf(m, " revision: hw: %x.%x sw: %x.%x\n",
 			   buf[0x9] >> 4, buf[0x9] & 0xf, buf[0xa], buf[0xb]);
 		if (dump_dp_payload_table(mgr, buf))
-			seq_printf(m, "payload table: %*ph\n", 63, buf);
-
+			seq_printf(m, "payload table: %*ph\n", DP_PAYLOAD_TABLE_SIZE, buf);
 	}
 
 	mutex_unlock(&mgr->lock);

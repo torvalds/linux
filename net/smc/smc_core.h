@@ -23,9 +23,8 @@
 struct smc_lgr_list {			/* list of link group definition */
 	struct list_head	list;
 	spinlock_t		lock;	/* protects list of link groups */
+	u32			num;	/* unique link group number */
 };
-
-extern struct smc_lgr_list	smc_lgr_list; /* list of link groups */
 
 enum smc_lgr_role {		/* possible roles of a link group */
 	SMC_CLNT,	/* client */
@@ -79,6 +78,7 @@ struct smc_link {
 	dma_addr_t		wr_rx_dma_addr;	/* DMA address of wr_rx_bufs */
 	u64			wr_rx_id;	/* seq # of last recv WR */
 	u32			wr_rx_cnt;	/* number of WR recv buffers */
+	unsigned long		wr_rx_tstamp;	/* jiffies when last buf rx */
 
 	struct ib_reg_wr	wr_reg;		/* WR register memory region */
 	wait_queue_head_t	wr_reg_wait;	/* wait for wr_reg result */
@@ -95,12 +95,18 @@ struct smc_link {
 	u8			link_id;	/* unique # within link group */
 
 	enum smc_link_state	state;		/* state of link */
+	struct workqueue_struct *llc_wq;	/* single thread work queue */
 	struct completion	llc_confirm;	/* wait for rx of conf link */
 	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
 	int			llc_confirm_rc; /* rc from confirm link msg */
 	int			llc_confirm_resp_rc; /* rc from conf_resp msg */
 	struct completion	llc_add;	/* wait for rx of add link */
 	struct completion	llc_add_resp;	/* wait for rx of add link rsp*/
+	struct delayed_work	llc_testlink_wrk; /* testlink worker */
+	struct completion	llc_testlink_resp; /* wait for rx of testlink */
+	int			llc_testlink_time; /* testlink interval */
+	struct completion	llc_confirm_rkey; /* wait 4 rx of cnf rkey */
+	int			llc_confirm_rkey_rc; /* rc from cnf rkey msg */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol
@@ -116,6 +122,8 @@ struct smc_link {
 struct smc_buf_desc {
 	struct list_head	list;
 	void			*cpu_addr;	/* virtual address of buffer */
+	struct page		*pages;
+	int			len;		/* length of buffer */
 	struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];/* virtual buffer */
 	struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
 						/* for rmb only: memory region
@@ -133,6 +141,12 @@ struct smc_rtoken {				/* address/key of remote RMB */
 };
 
 #define SMC_LGR_ID_SIZE		4
+#define SMC_BUF_MIN_SIZE	16384	/* minimum size of an RMB */
+#define SMC_RMBE_SIZES		16	/* number of distinct RMBE sizes */
+/* theoretically, the RFC states that largest size would be 512K,
+ * i.e. compressed 5 and thus 6 sizes (0..5), despite
+ * struct smc_clc_msg_accept_confirm.rmbe_size being a 4 bit value (0..15)
+ */
 
 struct smc_link_group {
 	struct list_head	list;
@@ -158,7 +172,8 @@ struct smc_link_group {
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
-	bool			sync_err;	/* lgr no longer fits to peer */
+	u8			sync_err : 1;	/* lgr no longer fits to peer */
+	u8			terminating : 1;/* lgr is terminating */
 };
 
 /* Find the connection associated with the given alert token in the link group.
@@ -196,11 +211,14 @@ static inline struct smc_connection *smc_lgr_find_conn(
 
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
+struct smc_clc_msg_local;
 
 void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
+void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
 int smc_buf_create(struct smc_sock *smc);
+int smc_uncompress_bufsize(u8 compressed);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
 int smc_rtoken_add(struct smc_link_group *lgr, __be64 nw_vaddr, __be32 nw_rkey);
@@ -209,4 +227,9 @@ void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
+void smc_conn_free(struct smc_connection *conn);
+int smc_conn_create(struct smc_sock *smc,
+		    struct smc_ib_device *smcibdev, u8 ibport,
+		    struct smc_clc_msg_local *lcl, int srv_first_contact);
+void smc_core_exit(void);
 #endif

@@ -47,19 +47,6 @@ static int pnpconfig_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int pnpconfig_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pnpconfig_proc_show, NULL);
-}
-
-static const struct file_operations pnpconfig_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pnpconfig_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int escd_info_proc_show(struct seq_file *m, void *v)
 {
 	struct escd_info_struc escd;
@@ -73,19 +60,6 @@ static int escd_info_proc_show(struct seq_file *m, void *v)
 			escd.escd_size, escd.nv_storage_base);
 	return 0;
 }
-
-static int escd_info_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, escd_info_proc_show, NULL);
-}
-
-static const struct file_operations escd_info_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= escd_info_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 #define MAX_SANE_ESCD_SIZE (32*1024)
 static int escd_proc_show(struct seq_file *m, void *v)
@@ -129,19 +103,6 @@ static int escd_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int escd_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, escd_proc_show, NULL);
-}
-
-static const struct file_operations escd_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= escd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int pnp_legacyres_proc_show(struct seq_file *m, void *v)
 {
 	void *buf;
@@ -158,19 +119,6 @@ static int pnp_legacyres_proc_show(struct seq_file *m, void *v)
 	kfree(buf);
 	return 0;
 }
-
-static int pnp_legacyres_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pnp_legacyres_proc_show, NULL);
-}
-
-static const struct file_operations pnp_legacyres_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pnp_legacyres_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int pnp_devices_proc_show(struct seq_file *m, void *v)
 {
@@ -201,19 +149,6 @@ static int pnp_devices_proc_show(struct seq_file *m, void *v)
 	kfree(node);
 	return 0;
 }
-
-static int pnp_devices_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pnp_devices_proc_show, NULL);
-}
-
-static const struct file_operations pnp_devices_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= pnp_devices_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int pnpbios_proc_show(struct seq_file *m, void *v)
 {
@@ -318,12 +253,13 @@ int __init pnpbios_proc_init(void)
 	proc_pnp_boot = proc_mkdir("boot", proc_pnp);
 	if (!proc_pnp_boot)
 		return -EIO;
-	proc_create("devices", 0, proc_pnp, &pnp_devices_proc_fops);
-	proc_create("configuration_info", 0, proc_pnp, &pnpconfig_proc_fops);
-	proc_create("escd_info", 0, proc_pnp, &escd_info_proc_fops);
-	proc_create("escd", S_IRUSR, proc_pnp, &escd_proc_fops);
-	proc_create("legacy_device_resources", 0, proc_pnp, &pnp_legacyres_proc_fops);
-
+	proc_create_single("devices", 0, proc_pnp, pnp_devices_proc_show);
+	proc_create_single("configuration_info", 0, proc_pnp,
+			pnpconfig_proc_show);
+	proc_create_single("escd_info", 0, proc_pnp, escd_info_proc_show);
+	proc_create_single("escd", S_IRUSR, proc_pnp, escd_proc_show);
+	proc_create_single("legacy_device_resources", 0, proc_pnp,
+			pnp_legacyres_proc_show);
 	return 0;
 }
 

@@ -43,7 +43,7 @@ int ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
 	return err;
 }
 
-struct dentry *ovl_lookup_temp(struct dentry *workdir)
+static struct dentry *ovl_lookup_temp(struct dentry *workdir)
 {
 	struct dentry *temp;
 	char name[20];
@@ -114,36 +114,72 @@ kill_whiteout:
 	goto out;
 }
 
-int ovl_create_real(struct inode *dir, struct dentry *newdentry,
-		    struct cattr *attr, struct dentry *hardlink, bool debug)
+static int ovl_mkdir_real(struct inode *dir, struct dentry **newdentry,
+			  umode_t mode)
+{
+	int err;
+	struct dentry *d, *dentry = *newdentry;
+
+	err = ovl_do_mkdir(dir, dentry, mode);
+	if (err)
+		return err;
+
+	if (likely(!d_unhashed(dentry)))
+		return 0;
+
+	/*
+	 * vfs_mkdir() may succeed and leave the dentry passed
+	 * to it unhashed and negative. If that happens, try to
+	 * lookup a new hashed and positive dentry.
+	 */
+	d = lookup_one_len(dentry->d_name.name, dentry->d_parent,
+			   dentry->d_name.len);
+	if (IS_ERR(d)) {
+		pr_warn("overlayfs: failed lookup after mkdir (%pd2, err=%i).\n",
+			dentry, err);
+		return PTR_ERR(d);
+	}
+	dput(dentry);
+	*newdentry = d;
+
+	return 0;
+}
+
+struct dentry *ovl_create_real(struct inode *dir, struct dentry *newdentry,
+			       struct ovl_cattr *attr)
 {
 	int err;
 
-	if (newdentry->d_inode)
-		return -ESTALE;
+	if (IS_ERR(newdentry))
+		return newdentry;
 
-	if (hardlink) {
-		err = ovl_do_link(hardlink, dir, newdentry, debug);
+	err = -ESTALE;
+	if (newdentry->d_inode)
+		goto out;
+
+	if (attr->hardlink) {
+		err = ovl_do_link(attr->hardlink, dir, newdentry);
 	} else {
 		switch (attr->mode & S_IFMT) {
 		case S_IFREG:
-			err = ovl_do_create(dir, newdentry, attr->mode, debug);
+			err = ovl_do_create(dir, newdentry, attr->mode);
 			break;
 
 		case S_IFDIR:
-			err = ovl_do_mkdir(dir, newdentry, attr->mode, debug);
+			/* mkdir is special... */
+			err =  ovl_mkdir_real(dir, &newdentry, attr->mode);
 			break;
 
 		case S_IFCHR:
 		case S_IFBLK:
 		case S_IFIFO:
 		case S_IFSOCK:
-			err = ovl_do_mknod(dir, newdentry,
-					   attr->mode, attr->rdev, debug);
+			err = ovl_do_mknod(dir, newdentry, attr->mode,
+					   attr->rdev);
 			break;
 
 		case S_IFLNK:
-			err = ovl_do_symlink(dir, newdentry, attr->link, debug);
+			err = ovl_do_symlink(dir, newdentry, attr->link);
 			break;
 
 		default:
@@ -155,9 +191,20 @@ int ovl_create_real(struct inode *dir, struct dentry *newdentry,
 		 * Not quite sure if non-instantiated dentry is legal or not.
 		 * VFS doesn't seem to care so check and warn here.
 		 */
-		err = -ENOENT;
+		err = -EIO;
 	}
-	return err;
+out:
+	if (err) {
+		dput(newdentry);
+		return ERR_PTR(err);
+	}
+	return newdentry;
+}
+
+struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr)
+{
+	return ovl_create_real(d_inode(workdir), ovl_lookup_temp(workdir),
+			       attr);
 }
 
 static int ovl_set_opaque_xerr(struct dentry *dentry, struct dentry *upper,
@@ -182,24 +229,54 @@ static int ovl_set_opaque(struct dentry *dentry, struct dentry *upperdentry)
 	return ovl_set_opaque_xerr(dentry, upperdentry, -EIO);
 }
 
-/* Common operations required to be done after creation of file on upper */
-static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
-			    struct dentry *newdentry, bool hardlink)
+/*
+ * Common operations required to be done after creation of file on upper.
+ * If @hardlink is false, then @inode is a pre-allocated inode, we may or
+ * may not use to instantiate the new dentry.
+ */
+static int ovl_instantiate(struct dentry *dentry, struct inode *inode,
+			   struct dentry *newdentry, bool hardlink)
 {
+	struct ovl_inode_params oip = {
+		.upperdentry = newdentry,
+		.newinode = inode,
+	};
+
 	ovl_dentry_version_inc(dentry->d_parent, false);
 	ovl_dentry_set_upper_alias(dentry);
 	if (!hardlink) {
-		ovl_inode_update(inode, newdentry);
-		ovl_copyattr(newdentry->d_inode, inode);
+		/*
+		 * ovl_obtain_alias() can be called after ovl_create_real()
+		 * and before we get here, so we may get an inode from cache
+		 * with the same real upperdentry that is not the inode we
+		 * pre-allocated.  In this case we will use the cached inode
+		 * to instantiate the new dentry.
+		 *
+		 * XXX: if we ever use ovl_obtain_alias() to decode directory
+		 * file handles, need to use ovl_get_inode_locked() and
+		 * d_instantiate_new() here to prevent from creating two
+		 * hashed directory inode aliases.
+		 */
+		inode = ovl_get_inode(dentry->d_sb, &oip);
+		if (WARN_ON(IS_ERR(inode)))
+			return PTR_ERR(inode);
 	} else {
 		WARN_ON(ovl_inode_real(inode) != d_inode(newdentry));
 		dput(newdentry);
 		inc_nlink(inode);
 	}
+
 	d_instantiate(dentry, inode);
+	if (inode != oip.newinode) {
+		pr_warn_ratelimited("overlayfs: newly created inode found in cache (%pd2)\n",
+				    dentry);
+	}
+
 	/* Force lookup of new upper hardlink to find its lower */
 	if (hardlink)
 		d_drop(dentry);
+
+	return 0;
 }
 
 static bool ovl_type_merge(struct dentry *dentry)
@@ -213,38 +290,42 @@ static bool ovl_type_origin(struct dentry *dentry)
 }
 
 static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
-			    struct cattr *attr, struct dentry *hardlink)
+			    struct ovl_cattr *attr)
 {
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
 	struct inode *udir = upperdir->d_inode;
 	struct dentry *newdentry;
 	int err;
 
-	if (!hardlink && !IS_POSIXACL(udir))
+	if (!attr->hardlink && !IS_POSIXACL(udir))
 		attr->mode &= ~current_umask();
 
 	inode_lock_nested(udir, I_MUTEX_PARENT);
-	newdentry = lookup_one_len(dentry->d_name.name, upperdir,
-				   dentry->d_name.len);
+	newdentry = ovl_create_real(udir,
+				    lookup_one_len(dentry->d_name.name,
+						   upperdir,
+						   dentry->d_name.len),
+				    attr);
 	err = PTR_ERR(newdentry);
 	if (IS_ERR(newdentry))
 		goto out_unlock;
-	err = ovl_create_real(udir, newdentry, attr, hardlink, false);
-	if (err)
-		goto out_dput;
 
 	if (ovl_type_merge(dentry->d_parent) && d_is_dir(newdentry)) {
 		/* Setting opaque here is just an optimization, allow to fail */
 		ovl_set_opaque(dentry, newdentry);
 	}
 
-	ovl_instantiate(dentry, inode, newdentry, !!hardlink);
-	newdentry = NULL;
-out_dput:
-	dput(newdentry);
+	err = ovl_instantiate(dentry, inode, newdentry, !!attr->hardlink);
+	if (err)
+		goto out_cleanup;
 out_unlock:
 	inode_unlock(udir);
 	return err;
+
+out_cleanup:
+	ovl_cleanup(udir, newdentry);
+	dput(newdentry);
+	goto out_unlock;
 }
 
 static struct dentry *ovl_clear_empty(struct dentry *dentry,
@@ -280,15 +361,10 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	if (upper->d_parent->d_inode != udir)
 		goto out_unlock;
 
-	opaquedir = ovl_lookup_temp(workdir);
+	opaquedir = ovl_create_temp(workdir, OVL_CATTR(stat.mode));
 	err = PTR_ERR(opaquedir);
 	if (IS_ERR(opaquedir))
 		goto out_unlock;
-
-	err = ovl_create_real(wdir, opaquedir,
-			      &(struct cattr){.mode = stat.mode}, NULL, true);
-	if (err)
-		goto out_dput;
 
 	err = ovl_copy_xattr(upper, opaquedir);
 	if (err)
@@ -319,7 +395,6 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 
 out_cleanup:
 	ovl_cleanup(wdir, opaquedir);
-out_dput:
 	dput(opaquedir);
 out_unlock:
 	unlock_rename(workdir, upperdir);
@@ -354,8 +429,7 @@ out_free:
 }
 
 static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
-				    struct cattr *cattr,
-				    struct dentry *hardlink)
+				    struct ovl_cattr *cattr)
 {
 	struct dentry *workdir = ovl_workdir(dentry);
 	struct inode *wdir = workdir->d_inode;
@@ -365,6 +439,7 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 	struct dentry *newdentry;
 	int err;
 	struct posix_acl *acl, *default_acl;
+	bool hardlink = !!cattr->hardlink;
 
 	if (WARN_ON(!workdir))
 		return -EROFS;
@@ -380,20 +455,16 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 	if (err)
 		goto out;
 
-	newdentry = ovl_lookup_temp(workdir);
-	err = PTR_ERR(newdentry);
-	if (IS_ERR(newdentry))
-		goto out_unlock;
-
 	upper = lookup_one_len(dentry->d_name.name, upperdir,
 			       dentry->d_name.len);
 	err = PTR_ERR(upper);
 	if (IS_ERR(upper))
-		goto out_dput;
+		goto out_unlock;
 
-	err = ovl_create_real(wdir, newdentry, cattr, hardlink, true);
-	if (err)
-		goto out_dput2;
+	newdentry = ovl_create_temp(workdir, cattr);
+	err = PTR_ERR(newdentry);
+	if (IS_ERR(newdentry))
+		goto out_dput;
 
 	/*
 	 * mode could have been mutilated due to umask (e.g. sgid directory)
@@ -439,12 +510,11 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 		if (err)
 			goto out_cleanup;
 	}
-	ovl_instantiate(dentry, inode, newdentry, !!hardlink);
-	newdentry = NULL;
-out_dput2:
-	dput(upper);
+	err = ovl_instantiate(dentry, inode, newdentry, hardlink);
+	if (err)
+		goto out_cleanup;
 out_dput:
-	dput(newdentry);
+	dput(upper);
 out_unlock:
 	unlock_rename(workdir, upperdir);
 out:
@@ -456,12 +526,12 @@ out:
 
 out_cleanup:
 	ovl_cleanup(wdir, newdentry);
-	goto out_dput2;
+	dput(newdentry);
+	goto out_dput;
 }
 
 static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
-			      struct cattr *attr, struct dentry *hardlink,
-			      bool origin)
+			      struct ovl_cattr *attr, bool origin)
 {
 	int err;
 	const struct cred *old_cred;
@@ -489,7 +559,7 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 	if (override_cred) {
 		override_cred->fsuid = inode->i_uid;
 		override_cred->fsgid = inode->i_gid;
-		if (!hardlink) {
+		if (!attr->hardlink) {
 			err = security_dentry_create_files_as(dentry,
 					attr->mode, &dentry->d_name, old_cred,
 					override_cred);
@@ -502,21 +572,12 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 		put_cred(override_cred);
 
 		if (!ovl_dentry_is_whiteout(dentry))
-			err = ovl_create_upper(dentry, inode, attr,
-						hardlink);
+			err = ovl_create_upper(dentry, inode, attr);
 		else
-			err = ovl_create_over_whiteout(dentry, inode, attr,
-							hardlink);
+			err = ovl_create_over_whiteout(dentry, inode, attr);
 	}
 out_revert_creds:
 	revert_creds(old_cred);
-	if (!err) {
-		struct inode *realinode = d_inode(ovl_dentry_upper(dentry));
-
-		WARN_ON(inode->i_mode != realinode->i_mode);
-		WARN_ON(!uid_eq(inode->i_uid, realinode->i_uid));
-		WARN_ON(!gid_eq(inode->i_gid, realinode->i_gid));
-	}
 	return err;
 }
 
@@ -525,7 +586,7 @@ static int ovl_create_object(struct dentry *dentry, int mode, dev_t rdev,
 {
 	int err;
 	struct inode *inode;
-	struct cattr attr = {
+	struct ovl_cattr attr = {
 		.rdev = rdev,
 		.link = link,
 	};
@@ -534,6 +595,7 @@ static int ovl_create_object(struct dentry *dentry, int mode, dev_t rdev,
 	if (err)
 		goto out;
 
+	/* Preallocate inode to be used by ovl_get_inode() */
 	err = -ENOMEM;
 	inode = ovl_new_inode(dentry->d_sb, mode, rdev);
 	if (!inode)
@@ -542,8 +604,9 @@ static int ovl_create_object(struct dentry *dentry, int mode, dev_t rdev,
 	inode_init_owner(inode, dentry->d_parent->d_inode, mode);
 	attr.mode = inode->i_mode;
 
-	err = ovl_create_or_link(dentry, inode, &attr, NULL, false);
-	if (err)
+	err = ovl_create_or_link(dentry, inode, &attr, false);
+	/* Did we end up using the preallocated inode? */
+	if (inode != d_inode(dentry))
 		iput(inode);
 
 out_drop_write:
@@ -601,8 +664,9 @@ static int ovl_link(struct dentry *old, struct inode *newdir,
 	inode = d_inode(old);
 	ihold(inode);
 
-	err = ovl_create_or_link(new, inode, NULL, ovl_dentry_upper(old),
-				 ovl_type_origin(old));
+	err = ovl_create_or_link(new, inode,
+			&(struct ovl_cattr) {.hardlink = ovl_dentry_upper(old)},
+			ovl_type_origin(old));
 	if (err)
 		iput(inode);
 

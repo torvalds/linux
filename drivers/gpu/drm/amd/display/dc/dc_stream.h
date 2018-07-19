@@ -58,18 +58,20 @@ struct dc_stream_state {
 
 	struct freesync_context freesync_ctx;
 
-	struct dc_hdr_static_metadata hdr_static_metadata;
+	struct dc_info_packet hdr_static_metadata;
 	struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
-	struct csc_transform csc_color_matrix;
+	struct dc_csc_transform csc_color_matrix;
 
 	enum dc_color_space output_color_space;
 	enum dc_dither_option dither_option;
 
 	enum view_3d_format view_format;
-	enum color_transfer_func output_tf;
 
 	bool ignore_msa_timing_param;
+
+	unsigned long long periodic_fn_vsync_delta;
+
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
 	/* PSR info */
@@ -110,9 +112,10 @@ struct dc_stream_update {
 	struct rect src;
 	struct rect dst;
 	struct dc_transfer_func *out_transfer_func;
-	struct dc_hdr_static_metadata *hdr_static_metadata;
-	enum color_transfer_func color_output_tf;
+	struct dc_info_packet *hdr_static_metadata;
 	unsigned int *abm_level;
+
+	unsigned long long *periodic_fn_vsync_delta;
 };
 
 bool dc_is_stream_unchanged(
@@ -130,13 +133,6 @@ bool dc_is_stream_scaling_unchanged(
  *   Surfaces attributes are programmed and configured to be composed into stream.
  *   This does not trigger a flip.  No surface address is programmed.
  */
-
-bool dc_commit_planes_to_stream(
-		struct dc *dc,
-		struct dc_plane_state **plane_states,
-		uint8_t new_plane_count,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *state);
 
 void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
@@ -207,14 +203,6 @@ bool dc_add_all_planes_for_stream(
 		struct dc_state *context);
 
 enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
-
-/*
- * This function takes a stream and checks if it is guaranteed to be supported.
- * Guaranteed means that MAX_COFUNC similar streams are supported.
- *
- * After this call:
- *   No hardware is programmed for call.  Only validation is done.
- */
 
 /*
  * Set up streams and links associated to drive sinks

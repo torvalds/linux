@@ -518,14 +518,7 @@ void synchronize_user_stack(void)
 
 static void stack_unaligned(unsigned long sp)
 {
-	siginfo_t info;
-
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRALN;
-	info.si_addr = (void __user *) sp;
-	info.si_trapno = 0;
-	force_sig_info(SIGBUS, &info, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) sp, 0, current);
 }
 
 void fault_in_user_windows(void)

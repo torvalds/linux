@@ -60,10 +60,6 @@
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
 #endif
-#ifndef _PMD_SIZE
-#define _PMD_SIZE	0
-#define PMD_PAGE_SIZE(pmd)	bad_call_to_PMD_PAGE_SIZE()
-#endif
 #ifndef _PMD_USER
 #define _PMD_USER	0
 #endif
@@ -88,11 +84,7 @@
 #define _PTE_NONE_MASK	_PAGE_HPTEFLAGS
 #endif
 
-/* Make sure we get a link error if PMD_PAGE_SIZE is ever called on a
- * kernel without large page PMD support
- */
 #ifndef __ASSEMBLY__
-extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 
 /*
  * Don't just check for any non zero bits in __PAGE_USER, since for book3e
@@ -215,9 +207,6 @@ static inline bool pte_user(pte_t pte)
 /* Advertise special mapping type for AGP */
 #define PAGE_AGP		(PAGE_KERNEL_NC)
 #define HAVE_PAGE_AGP
-
-/* Advertise support for _PAGE_SPECIAL */
-#define __HAVE_ARCH_PTE_SPECIAL
 
 #ifndef _PAGE_READ
 /* if not defined, we should not find _PAGE_WRITE too */

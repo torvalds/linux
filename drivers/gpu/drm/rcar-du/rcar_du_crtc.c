@@ -691,6 +691,52 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.atomic_disable = rcar_du_crtc_atomic_disable,
 };
 
+static struct drm_crtc_state *
+rcar_du_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc_state *state;
+	struct rcar_du_crtc_state *copy;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	state = to_rcar_crtc_state(crtc->state);
+	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	if (copy == NULL)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &copy->state);
+
+	return &copy->state;
+}
+
+static void rcar_du_crtc_atomic_destroy_state(struct drm_crtc *crtc,
+					      struct drm_crtc_state *state)
+{
+	__drm_atomic_helper_crtc_destroy_state(state);
+	kfree(to_rcar_crtc_state(state));
+}
+
+static void rcar_du_crtc_reset(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc_state *state;
+
+	if (crtc->state) {
+		rcar_du_crtc_atomic_destroy_state(crtc, crtc->state);
+		crtc->state = NULL;
+	}
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state == NULL)
+		return;
+
+	state->crc.source = VSP1_DU_CRC_NONE;
+	state->crc.index = 0;
+
+	crtc->state = &state->state;
+	crtc->state->crtc = crtc;
+}
+
 static int rcar_du_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
@@ -710,15 +756,111 @@ static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
 	rcrtc->vblank_enable = false;
 }
 
-static const struct drm_crtc_funcs crtc_funcs = {
-	.reset = drm_atomic_helper_crtc_reset,
+static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
+				       const char *source_name,
+				       size_t *values_cnt)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_crtc_state *crtc_state;
+	struct drm_atomic_state *state;
+	enum vsp1_du_crc_source source;
+	unsigned int index = 0;
+	unsigned int i;
+	int ret;
+
+	/*
+	 * Parse the source name. Supported values are "plane%u" to compute the
+	 * CRC on an input plane (%u is the plane ID), and "auto" to compute the
+	 * CRC on the composer (VSP) output.
+	 */
+	if (!source_name) {
+		source = VSP1_DU_CRC_NONE;
+	} else if (!strcmp(source_name, "auto")) {
+		source = VSP1_DU_CRC_OUTPUT;
+	} else if (strstarts(source_name, "plane")) {
+		source = VSP1_DU_CRC_PLANE;
+
+		ret = kstrtouint(source_name + strlen("plane"), 10, &index);
+		if (ret < 0)
+			return ret;
+
+		for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
+			if (index == rcrtc->vsp->planes[i].plane.base.id) {
+				index = i;
+				break;
+			}
+		}
+
+		if (i >= rcrtc->vsp->num_planes)
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
+	*values_cnt = 1;
+
+	/* Perform an atomic commit to set the CRC source. */
+	drm_modeset_acquire_init(&ctx, 0);
+
+	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	state->acquire_ctx = &ctx;
+
+retry:
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (!IS_ERR(crtc_state)) {
+		struct rcar_du_crtc_state *rcrtc_state;
+
+		rcrtc_state = to_rcar_crtc_state(crtc_state);
+		rcrtc_state->crc.source = source;
+		rcrtc_state->crc.index = index;
+
+		ret = drm_atomic_commit(state);
+	} else {
+		ret = PTR_ERR(crtc_state);
+	}
+
+	if (ret == -EDEADLK) {
+		drm_atomic_state_clear(state);
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	drm_atomic_state_put(state);
+
+unlock:
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	return 0;
+}
+
+static const struct drm_crtc_funcs crtc_funcs_gen2 = {
+	.reset = rcar_du_crtc_reset,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.atomic_duplicate_state = rcar_du_crtc_atomic_duplicate_state,
+	.atomic_destroy_state = rcar_du_crtc_atomic_destroy_state,
 	.enable_vblank = rcar_du_crtc_enable_vblank,
 	.disable_vblank = rcar_du_crtc_disable_vblank,
+};
+
+static const struct drm_crtc_funcs crtc_funcs_gen3 = {
+	.reset = rcar_du_crtc_reset,
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.atomic_duplicate_state = rcar_du_crtc_atomic_duplicate_state,
+	.atomic_destroy_state = rcar_du_crtc_atomic_destroy_state,
+	.enable_vblank = rcar_du_crtc_enable_vblank,
+	.disable_vblank = rcar_du_crtc_disable_vblank,
+	.set_crc_source = rcar_du_crtc_set_crc_source,
 };
 
 /* -----------------------------------------------------------------------------
@@ -767,7 +909,8 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
  * Initialization
  */
 
-int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
+int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
+			unsigned int hwindex)
 {
 	static const unsigned int mmio_offsets[] = {
 		DU0_REG_OFFSET, DU1_REG_OFFSET, DU2_REG_OFFSET, DU3_REG_OFFSET
@@ -775,7 +918,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	struct rcar_du_device *rcdu = rgrp->dev;
 	struct platform_device *pdev = to_platform_device(rcdu->dev);
-	struct rcar_du_crtc *rcrtc = &rcdu->crtcs[index];
+	struct rcar_du_crtc *rcrtc = &rcdu->crtcs[swindex];
 	struct drm_crtc *crtc = &rcrtc->crtc;
 	struct drm_plane *primary;
 	unsigned int irqflags;
@@ -787,7 +930,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	/* Get the CRTC clock and the optional external clock. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {
-		sprintf(clk_name, "du.%u", index);
+		sprintf(clk_name, "du.%u", hwindex);
 		name = clk_name;
 	} else {
 		name = NULL;
@@ -795,16 +938,16 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	rcrtc->clock = devm_clk_get(rcdu->dev, name);
 	if (IS_ERR(rcrtc->clock)) {
-		dev_err(rcdu->dev, "no clock for CRTC %u\n", index);
+		dev_err(rcdu->dev, "no clock for DU channel %u\n", hwindex);
 		return PTR_ERR(rcrtc->clock);
 	}
 
-	sprintf(clk_name, "dclkin.%u", index);
+	sprintf(clk_name, "dclkin.%u", hwindex);
 	clk = devm_clk_get(rcdu->dev, clk_name);
 	if (!IS_ERR(clk)) {
 		rcrtc->extclock = clk;
 	} else if (PTR_ERR(rcrtc->clock) == -EPROBE_DEFER) {
-		dev_info(rcdu->dev, "can't get external clock %u\n", index);
+		dev_info(rcdu->dev, "can't get external clock %u\n", hwindex);
 		return -EPROBE_DEFER;
 	}
 
@@ -813,16 +956,18 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	spin_lock_init(&rcrtc->vblank_lock);
 
 	rcrtc->group = rgrp;
-	rcrtc->mmio_offset = mmio_offsets[index];
-	rcrtc->index = index;
+	rcrtc->mmio_offset = mmio_offsets[hwindex];
+	rcrtc->index = hwindex;
 
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE))
 		primary = &rcrtc->vsp->planes[rcrtc->vsp_pipe].plane;
 	else
-		primary = &rgrp->planes[index % 2].plane;
+		primary = &rgrp->planes[swindex % 2].plane;
 
-	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc, primary,
-					NULL, &crtc_funcs, NULL);
+	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc, primary, NULL,
+					rcdu->info->gen <= 2 ?
+					&crtc_funcs_gen2 : &crtc_funcs_gen3,
+					NULL);
 	if (ret < 0)
 		return ret;
 
@@ -833,7 +978,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	/* Register the interrupt handler. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {
-		irq = platform_get_irq(pdev, index);
+		/* The IRQ's are associated with the CRTC (sw)index. */
+		irq = platform_get_irq(pdev, swindex);
 		irqflags = 0;
 	} else {
 		irq = platform_get_irq(pdev, 0);
@@ -841,7 +987,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	}
 
 	if (irq < 0) {
-		dev_err(rcdu->dev, "no IRQ for CRTC %u\n", index);
+		dev_err(rcdu->dev, "no IRQ for CRTC %u\n", swindex);
 		return irq;
 	}
 
@@ -849,7 +995,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 			       dev_name(rcdu->dev), rcrtc);
 	if (ret < 0) {
 		dev_err(rcdu->dev,
-			"failed to register IRQ for CRTC %u\n", index);
+			"failed to register IRQ for CRTC %u\n", swindex);
 		return ret;
 	}
 

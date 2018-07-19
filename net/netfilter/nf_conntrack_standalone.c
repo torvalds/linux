@@ -375,19 +375,6 @@ static const struct seq_operations ct_seq_ops = {
 	.show  = ct_seq_show
 };
 
-static int ct_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ct_seq_ops,
-			sizeof(struct ct_iter_state));
-}
-
-static const struct file_operations ct_file_ops = {
-	.open    = ct_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
-
 static void *ct_cpu_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct net *net = seq_file_net(seq);
@@ -467,26 +454,14 @@ static const struct seq_operations ct_cpu_seq_ops = {
 	.show	= ct_cpu_seq_show,
 };
 
-static int ct_cpu_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ct_cpu_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations ct_cpu_seq_fops = {
-	.open	 = ct_cpu_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 static int nf_conntrack_standalone_init_proc(struct net *net)
 {
 	struct proc_dir_entry *pde;
 	kuid_t root_uid;
 	kgid_t root_gid;
 
-	pde = proc_create("nf_conntrack", 0440, net->proc_net, &ct_file_ops);
+	pde = proc_create_net("nf_conntrack", 0440, net->proc_net, &ct_seq_ops,
+			sizeof(struct ct_iter_state));
 	if (!pde)
 		goto out_nf_conntrack;
 
@@ -495,8 +470,8 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 	if (uid_valid(root_uid) && gid_valid(root_gid))
 		proc_set_user(pde, root_uid, root_gid);
 
-	pde = proc_create("nf_conntrack", 0444, net->proc_net_stat,
-			  &ct_cpu_seq_fops);
+	pde = proc_create_net("nf_conntrack", 0444, net->proc_net_stat,
+			&ct_cpu_seq_ops, sizeof(struct seq_net_private));
 	if (!pde)
 		goto out_stat_nf_conntrack;
 	return 0;

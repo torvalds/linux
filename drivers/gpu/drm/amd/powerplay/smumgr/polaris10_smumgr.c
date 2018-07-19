@@ -52,8 +52,6 @@
 #include "dce/dce_10_0_sh_mask.h"
 
 #define POLARIS10_SMC_SIZE 0x20000
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
 #define POWERTUNE_DEFAULT_SET_MAX    1
 #define VDDC_VDDCI_DELTA            200
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -295,24 +293,15 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!(smu7_is_smc_ram_running(hwmgr)
-		|| cgs_is_virtualization_enabled(hwmgr->device))) {
+	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->not_vf) {
 		smu_data->protected_mode = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
 		smu_data->smu7_data.security_hard_key = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
 
 		/* Check if SMU is running in protected mode */
-		if (smu_data->protected_mode == 0) {
+		if (smu_data->protected_mode == 0)
 			result = polaris10_start_smu_in_non_protection_mode(hwmgr);
-		} else {
+		else
 			result = polaris10_start_smu_in_protection_mode(hwmgr);
-
-			/* If failed, try with different security Key. */
-			if (result != 0) {
-				smu_data->smu7_data.security_hard_key ^= 1;
-				cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
-				result = polaris10_start_smu_in_protection_mode(hwmgr);
-			}
-		}
 
 		if (result != 0)
 			PP_ASSERT_WITH_CODE(0, "Failed to load SMU ucode.", return result);
@@ -951,11 +940,11 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	level->DownHyst = data->current_profile_setting.sclk_down_hyst;
 	level->VoltageDownHyst = 0;
 	level->PowerThrottle = 0;
-	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
+	data->display_timing.min_clock_in_sr = hwmgr->display_config->min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
 		level->DeepSleepDivId = smu7_get_sleep_divider_id_from_clock(clock,
-								hwmgr->display_config.min_core_set_clock_in_sr);
+								hwmgr->display_config->min_core_set_clock_in_sr);
 
 	/* Default to slow, highest DPM level will be
 	 * set to PPSMC_DISPLAY_WATERMARK_LOW later.
@@ -1085,11 +1074,9 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int result = 0;
-	struct cgs_display_info info = {0, 0, NULL};
 	uint32_t mclk_stutter_mode_threshold = 40000;
 	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	if (hwmgr->od_enabled)
 		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_mclk;
@@ -1115,7 +1102,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	mem_level->StutterEnable = false;
 	mem_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
-	data->display_timing.num_existing_displays = info.display_count;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
 
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&

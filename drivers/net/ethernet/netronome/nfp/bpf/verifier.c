@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Netronome Systems, Inc.
+ * Copyright (C) 2016-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -36,6 +36,8 @@
 #include <linux/kernel.h>
 #include <linux/pkt_cls.h>
 
+#include "../nfp_app.h"
+#include "../nfp_main.h"
 #include "fw.h"
 #include "main.h"
 
@@ -149,15 +151,6 @@ nfp_bpf_map_call_ok(const char *fname, struct bpf_verifier_env *env,
 		return false;
 	}
 
-	/* Rest of the checks is only if we re-parse the same insn */
-	if (!meta->func_id)
-		return true;
-
-	if (meta->arg1.map_ptr != reg1->map_ptr) {
-		pr_vlog(env, "%s: called for different map\n", fname);
-		return false;
-	}
-
 	return true;
 }
 
@@ -215,6 +208,71 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 			break;
 		pr_vlog(env, "bpf_get_prandom_u32(): FW doesn't support random number generation\n");
 		return -EOPNOTSUPP;
+
+	case BPF_FUNC_perf_event_output:
+		BUILD_BUG_ON(NFP_BPF_SCALAR_VALUE != SCALAR_VALUE ||
+			     NFP_BPF_MAP_VALUE != PTR_TO_MAP_VALUE ||
+			     NFP_BPF_STACK != PTR_TO_STACK ||
+			     NFP_BPF_PACKET_DATA != PTR_TO_PACKET);
+
+		if (!bpf->helpers.perf_event_output) {
+			pr_vlog(env, "event_output: not supported by FW\n");
+			return -EOPNOTSUPP;
+		}
+
+		/* Force current CPU to make sure we can report the event
+		 * wherever we get the control message from FW.
+		 */
+		if (reg3->var_off.mask & BPF_F_INDEX_MASK ||
+		    (reg3->var_off.value & BPF_F_INDEX_MASK) !=
+		    BPF_F_CURRENT_CPU) {
+			char tn_buf[48];
+
+			tnum_strn(tn_buf, sizeof(tn_buf), reg3->var_off);
+			pr_vlog(env, "event_output: must use BPF_F_CURRENT_CPU, var_off: %s\n",
+				tn_buf);
+			return -EOPNOTSUPP;
+		}
+
+		/* Save space in meta, we don't care about arguments other
+		 * than 4th meta, shove it into arg1.
+		 */
+		reg1 = cur_regs(env) + BPF_REG_4;
+
+		if (reg1->type != SCALAR_VALUE /* NULL ptr */ &&
+		    reg1->type != PTR_TO_STACK &&
+		    reg1->type != PTR_TO_MAP_VALUE &&
+		    reg1->type != PTR_TO_PACKET) {
+			pr_vlog(env, "event_output: unsupported ptr type: %d\n",
+				reg1->type);
+			return -EOPNOTSUPP;
+		}
+
+		if (reg1->type == PTR_TO_STACK &&
+		    !nfp_bpf_stack_arg_ok("event_output", env, reg1, NULL))
+			return -EOPNOTSUPP;
+
+		/* Warn user that on offload NFP may return success even if map
+		 * is not going to accept the event, since the event output is
+		 * fully async and device won't know the state of the map.
+		 * There is also FW limitation on the event length.
+		 *
+		 * Lost events will not show up on the perf ring, driver
+		 * won't see them at all.  Events may also get reordered.
+		 */
+		dev_warn_once(&nfp_prog->bpf->app->pf->pdev->dev,
+			      "bpf: note: return codes and behavior of bpf_event_output() helper differs for offloaded programs!\n");
+		pr_vlog(env, "warning: return codes and behavior of event_output helper differ for offload!\n");
+
+		if (!meta->func_id)
+			break;
+
+		if (reg1->type != meta->arg1.type) {
+			pr_vlog(env, "event_output: ptr type changed: %d %d\n",
+				meta->arg1.type, reg1->type);
+			return -EINVAL;
+		}
+		break;
 
 	default:
 		pr_vlog(env, "unsupported function id: %d\n", func_id);
@@ -410,6 +468,30 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 }
 
 static int
+nfp_bpf_check_store(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		    struct bpf_verifier_env *env)
+{
+	const struct bpf_reg_state *reg = cur_regs(env) + meta->insn.dst_reg;
+
+	if (reg->type == PTR_TO_CTX) {
+		if (nfp_prog->type == BPF_PROG_TYPE_XDP) {
+			/* XDP ctx accesses must be 4B in size */
+			switch (meta->insn.off) {
+			case offsetof(struct xdp_md, rx_queue_index):
+				if (nfp_prog->bpf->queue_select)
+					goto exit_check_ptr;
+				pr_vlog(env, "queue selection not supported by FW\n");
+				return -EOPNOTSUPP;
+			}
+		}
+		pr_vlog(env, "unsupported store to context field\n");
+		return -EOPNOTSUPP;
+	}
+exit_check_ptr:
+	return nfp_bpf_check_ptr(nfp_prog, meta, env, meta->insn.dst_reg);
+}
+
+static int
 nfp_bpf_check_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		   struct bpf_verifier_env *env)
 {
@@ -464,10 +546,18 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.src_reg);
 	if (is_mbpf_store(meta))
-		return nfp_bpf_check_ptr(nfp_prog, meta, env,
-					 meta->insn.dst_reg);
+		return nfp_bpf_check_store(nfp_prog, meta, env);
+
 	if (is_mbpf_xadd(meta))
 		return nfp_bpf_check_xadd(nfp_prog, meta, env);
+
+	if (is_mbpf_indir_shift(meta)) {
+		const struct bpf_reg_state *sreg =
+			cur_regs(env) + meta->insn.src_reg;
+
+		meta->umin = min(meta->umin, sreg->umin_value);
+		meta->umax = max(meta->umax, sreg->umax_value);
+	}
 
 	return 0;
 }

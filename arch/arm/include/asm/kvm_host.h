@@ -21,6 +21,7 @@
 
 #include <linux/types.h>
 #include <linux/kvm_types.h>
+#include <asm/cputype.h>
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
@@ -280,6 +281,7 @@ void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot);
 
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr);
 
+static inline bool kvm_arch_check_sve_has_vhe(void) { return true; }
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
@@ -303,19 +305,49 @@ int kvm_arm_vcpu_arch_get_attr(struct kvm_vcpu *vcpu,
 int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
 
-/* All host FP/SIMD state is restored on guest exit, so nothing to save: */
-static inline void kvm_fpsimd_flush_cpu_state(void) {}
+/*
+ * VFP/NEON switching is all done by the hyp switch code, so no need to
+ * coordinate with host context handling for this state:
+ */
+static inline void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu) {}
 
 static inline void kvm_arm_vhe_guest_enter(void) {}
 static inline void kvm_arm_vhe_guest_exit(void) {}
 
 static inline bool kvm_arm_harden_branch_predictor(void)
 {
+	switch(read_cpuid_part()) {
+#ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
+	case ARM_CPU_PART_BRAHMA_B15:
+	case ARM_CPU_PART_CORTEX_A12:
+	case ARM_CPU_PART_CORTEX_A15:
+	case ARM_CPU_PART_CORTEX_A17:
+		return true;
+#endif
+	default:
+		return false;
+	}
+}
+
+#define KVM_SSBD_UNKNOWN		-1
+#define KVM_SSBD_FORCE_DISABLE		0
+#define KVM_SSBD_KERNEL		1
+#define KVM_SSBD_FORCE_ENABLE		2
+#define KVM_SSBD_MITIGATED		3
+
+static inline int kvm_arm_have_ssbd(void)
+{
 	/* No way to detect it yet, pretend it is not there. */
-	return false;
+	return KVM_SSBD_UNKNOWN;
 }
 
 static inline void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu) {}
 static inline void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu) {}
+
+#define __KVM_HAVE_ARCH_VM_ALLOC
+struct kvm *kvm_arch_alloc_vm(void);
+void kvm_arch_free_vm(struct kvm *kvm);
 
 #endif /* __ARM_KVM_HOST_H__ */

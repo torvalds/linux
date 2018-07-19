@@ -16,7 +16,7 @@
 #include <linux/export.h>
 #include <linux/log2.h>
 #include <linux/of_device.h>
-#include <linux/iommu-common.h>
+#include <asm/iommu-common.h>
 
 #include <asm/iommu.h>
 #include <asm/irq.h>

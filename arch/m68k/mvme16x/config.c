@@ -400,12 +400,14 @@ int mvme16x_hwclk(int op, struct rtc_time *t)
 	if (!op) {
 		rtc->ctrl = RTC_READ;
 		t->tm_year = bcd2int (rtc->bcd_year);
-		t->tm_mon  = bcd2int (rtc->bcd_mth);
+		t->tm_mon  = bcd2int(rtc->bcd_mth) - 1;
 		t->tm_mday = bcd2int (rtc->bcd_dom);
 		t->tm_hour = bcd2int (rtc->bcd_hr);
 		t->tm_min  = bcd2int (rtc->bcd_min);
 		t->tm_sec  = bcd2int (rtc->bcd_sec);
 		rtc->ctrl = 0;
+		if (t->tm_year < 70)
+			t->tm_year += 100;
 	}
 	return 0;
 }

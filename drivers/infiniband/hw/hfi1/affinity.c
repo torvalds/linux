@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -75,6 +75,58 @@ static inline void init_cpu_mask_set(struct cpu_mask_set *set)
 	cpumask_clear(&set->mask);
 	cpumask_clear(&set->used);
 	set->gen = 0;
+}
+
+/* Increment generation of CPU set if needed */
+static void _cpu_mask_set_gen_inc(struct cpu_mask_set *set)
+{
+	if (cpumask_equal(&set->mask, &set->used)) {
+		/*
+		 * We've used up all the CPUs, bump up the generation
+		 * and reset the 'used' map
+		 */
+		set->gen++;
+		cpumask_clear(&set->used);
+	}
+}
+
+static void _cpu_mask_set_gen_dec(struct cpu_mask_set *set)
+{
+	if (cpumask_empty(&set->used) && set->gen) {
+		set->gen--;
+		cpumask_copy(&set->used, &set->mask);
+	}
+}
+
+/* Get the first CPU from the list of unused CPUs in a CPU set data structure */
+static int cpu_mask_set_get_first(struct cpu_mask_set *set, cpumask_var_t diff)
+{
+	int cpu;
+
+	if (!diff || !set)
+		return -EINVAL;
+
+	_cpu_mask_set_gen_inc(set);
+
+	/* Find out CPUs left in CPU mask */
+	cpumask_andnot(diff, &set->mask, &set->used);
+
+	cpu = cpumask_first(diff);
+	if (cpu >= nr_cpu_ids) /* empty */
+		cpu = -EINVAL;
+	else
+		cpumask_set_cpu(cpu, &set->used);
+
+	return cpu;
+}
+
+static void cpu_mask_set_put(struct cpu_mask_set *set, int cpu)
+{
+	if (!set)
+		return;
+
+	cpumask_clear_cpu(cpu, &set->used);
+	_cpu_mask_set_gen_dec(set);
 }
 
 /* Initialize non-HT cpu cores mask */
@@ -156,7 +208,13 @@ int node_affinity_init(void)
 	return 0;
 }
 
-void node_affinity_destroy(void)
+static void node_affinity_destroy(struct hfi1_affinity_node *entry)
+{
+	free_percpu(entry->comp_vect_affinity);
+	kfree(entry);
+}
+
+void node_affinity_destroy_all(void)
 {
 	struct list_head *pos, *q;
 	struct hfi1_affinity_node *entry;
@@ -166,7 +224,7 @@ void node_affinity_destroy(void)
 		entry = list_entry(pos, struct hfi1_affinity_node,
 				   list);
 		list_del(pos);
-		kfree(entry);
+		node_affinity_destroy(entry);
 	}
 	mutex_unlock(&node_affinity.lock);
 	kfree(hfi1_per_node_cntr);
@@ -180,6 +238,7 @@ static struct hfi1_affinity_node *node_affinity_allocate(int node)
 	if (!entry)
 		return NULL;
 	entry->node = node;
+	entry->comp_vect_affinity = alloc_percpu(u16);
 	INIT_LIST_HEAD(&entry->list);
 
 	return entry;
@@ -209,6 +268,341 @@ static struct hfi1_affinity_node *node_affinity_lookup(int node)
 	return NULL;
 }
 
+static int per_cpu_affinity_get(cpumask_var_t possible_cpumask,
+				u16 __percpu *comp_vect_affinity)
+{
+	int curr_cpu;
+	u16 cntr;
+	u16 prev_cntr;
+	int ret_cpu;
+
+	if (!possible_cpumask) {
+		ret_cpu = -EINVAL;
+		goto fail;
+	}
+
+	if (!comp_vect_affinity) {
+		ret_cpu = -EINVAL;
+		goto fail;
+	}
+
+	ret_cpu = cpumask_first(possible_cpumask);
+	if (ret_cpu >= nr_cpu_ids) {
+		ret_cpu = -EINVAL;
+		goto fail;
+	}
+
+	prev_cntr = *per_cpu_ptr(comp_vect_affinity, ret_cpu);
+	for_each_cpu(curr_cpu, possible_cpumask) {
+		cntr = *per_cpu_ptr(comp_vect_affinity, curr_cpu);
+
+		if (cntr < prev_cntr) {
+			ret_cpu = curr_cpu;
+			prev_cntr = cntr;
+		}
+	}
+
+	*per_cpu_ptr(comp_vect_affinity, ret_cpu) += 1;
+
+fail:
+	return ret_cpu;
+}
+
+static int per_cpu_affinity_put_max(cpumask_var_t possible_cpumask,
+				    u16 __percpu *comp_vect_affinity)
+{
+	int curr_cpu;
+	int max_cpu;
+	u16 cntr;
+	u16 prev_cntr;
+
+	if (!possible_cpumask)
+		return -EINVAL;
+
+	if (!comp_vect_affinity)
+		return -EINVAL;
+
+	max_cpu = cpumask_first(possible_cpumask);
+	if (max_cpu >= nr_cpu_ids)
+		return -EINVAL;
+
+	prev_cntr = *per_cpu_ptr(comp_vect_affinity, max_cpu);
+	for_each_cpu(curr_cpu, possible_cpumask) {
+		cntr = *per_cpu_ptr(comp_vect_affinity, curr_cpu);
+
+		if (cntr > prev_cntr) {
+			max_cpu = curr_cpu;
+			prev_cntr = cntr;
+		}
+	}
+
+	*per_cpu_ptr(comp_vect_affinity, max_cpu) -= 1;
+
+	return max_cpu;
+}
+
+/*
+ * Non-interrupt CPUs are used first, then interrupt CPUs.
+ * Two already allocated cpu masks must be passed.
+ */
+static int _dev_comp_vect_cpu_get(struct hfi1_devdata *dd,
+				  struct hfi1_affinity_node *entry,
+				  cpumask_var_t non_intr_cpus,
+				  cpumask_var_t available_cpus)
+	__must_hold(&node_affinity.lock)
+{
+	int cpu;
+	struct cpu_mask_set *set = dd->comp_vect;
+
+	lockdep_assert_held(&node_affinity.lock);
+	if (!non_intr_cpus) {
+		cpu = -1;
+		goto fail;
+	}
+
+	if (!available_cpus) {
+		cpu = -1;
+		goto fail;
+	}
+
+	/* Available CPUs for pinning completion vectors */
+	_cpu_mask_set_gen_inc(set);
+	cpumask_andnot(available_cpus, &set->mask, &set->used);
+
+	/* Available CPUs without SDMA engine interrupts */
+	cpumask_andnot(non_intr_cpus, available_cpus,
+		       &entry->def_intr.used);
+
+	/* If there are non-interrupt CPUs available, use them first */
+	if (!cpumask_empty(non_intr_cpus))
+		cpu = cpumask_first(non_intr_cpus);
+	else /* Otherwise, use interrupt CPUs */
+		cpu = cpumask_first(available_cpus);
+
+	if (cpu >= nr_cpu_ids) { /* empty */
+		cpu = -1;
+		goto fail;
+	}
+	cpumask_set_cpu(cpu, &set->used);
+
+fail:
+	return cpu;
+}
+
+static void _dev_comp_vect_cpu_put(struct hfi1_devdata *dd, int cpu)
+{
+	struct cpu_mask_set *set = dd->comp_vect;
+
+	if (cpu < 0)
+		return;
+
+	cpu_mask_set_put(set, cpu);
+}
+
+/* _dev_comp_vect_mappings_destroy() is reentrant */
+static void _dev_comp_vect_mappings_destroy(struct hfi1_devdata *dd)
+{
+	int i, cpu;
+
+	if (!dd->comp_vect_mappings)
+		return;
+
+	for (i = 0; i < dd->comp_vect_possible_cpus; i++) {
+		cpu = dd->comp_vect_mappings[i];
+		_dev_comp_vect_cpu_put(dd, cpu);
+		dd->comp_vect_mappings[i] = -1;
+		hfi1_cdbg(AFFINITY,
+			  "[%s] Release CPU %d from completion vector %d",
+			  rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), cpu, i);
+	}
+
+	kfree(dd->comp_vect_mappings);
+	dd->comp_vect_mappings = NULL;
+}
+
+/*
+ * This function creates the table for looking up CPUs for completion vectors.
+ * num_comp_vectors needs to have been initilized before calling this function.
+ */
+static int _dev_comp_vect_mappings_create(struct hfi1_devdata *dd,
+					  struct hfi1_affinity_node *entry)
+	__must_hold(&node_affinity.lock)
+{
+	int i, cpu, ret;
+	cpumask_var_t non_intr_cpus;
+	cpumask_var_t available_cpus;
+
+	lockdep_assert_held(&node_affinity.lock);
+
+	if (!zalloc_cpumask_var(&non_intr_cpus, GFP_KERNEL))
+		return -ENOMEM;
+
+	if (!zalloc_cpumask_var(&available_cpus, GFP_KERNEL)) {
+		free_cpumask_var(non_intr_cpus);
+		return -ENOMEM;
+	}
+
+	dd->comp_vect_mappings = kcalloc(dd->comp_vect_possible_cpus,
+					 sizeof(*dd->comp_vect_mappings),
+					 GFP_KERNEL);
+	if (!dd->comp_vect_mappings) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+	for (i = 0; i < dd->comp_vect_possible_cpus; i++)
+		dd->comp_vect_mappings[i] = -1;
+
+	for (i = 0; i < dd->comp_vect_possible_cpus; i++) {
+		cpu = _dev_comp_vect_cpu_get(dd, entry, non_intr_cpus,
+					     available_cpus);
+		if (cpu < 0) {
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		dd->comp_vect_mappings[i] = cpu;
+		hfi1_cdbg(AFFINITY,
+			  "[%s] Completion Vector %d -> CPU %d",
+			  rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), i, cpu);
+	}
+
+	return 0;
+
+fail:
+	free_cpumask_var(available_cpus);
+	free_cpumask_var(non_intr_cpus);
+	_dev_comp_vect_mappings_destroy(dd);
+
+	return ret;
+}
+
+int hfi1_comp_vectors_set_up(struct hfi1_devdata *dd)
+{
+	int ret;
+	struct hfi1_affinity_node *entry;
+
+	mutex_lock(&node_affinity.lock);
+	entry = node_affinity_lookup(dd->node);
+	if (!entry) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+	ret = _dev_comp_vect_mappings_create(dd, entry);
+unlock:
+	mutex_unlock(&node_affinity.lock);
+
+	return ret;
+}
+
+void hfi1_comp_vectors_clean_up(struct hfi1_devdata *dd)
+{
+	_dev_comp_vect_mappings_destroy(dd);
+}
+
+int hfi1_comp_vect_mappings_lookup(struct rvt_dev_info *rdi, int comp_vect)
+{
+	struct hfi1_ibdev *verbs_dev = dev_from_rdi(rdi);
+	struct hfi1_devdata *dd = dd_from_dev(verbs_dev);
+
+	if (!dd->comp_vect_mappings)
+		return -EINVAL;
+	if (comp_vect >= dd->comp_vect_possible_cpus)
+		return -EINVAL;
+
+	return dd->comp_vect_mappings[comp_vect];
+}
+
+/*
+ * It assumes dd->comp_vect_possible_cpus is available.
+ */
+static int _dev_comp_vect_cpu_mask_init(struct hfi1_devdata *dd,
+					struct hfi1_affinity_node *entry,
+					bool first_dev_init)
+	__must_hold(&node_affinity.lock)
+{
+	int i, j, curr_cpu;
+	int possible_cpus_comp_vect = 0;
+	struct cpumask *dev_comp_vect_mask = &dd->comp_vect->mask;
+
+	lockdep_assert_held(&node_affinity.lock);
+	/*
+	 * If there's only one CPU available for completion vectors, then
+	 * there will only be one completion vector available. Othewise,
+	 * the number of completion vector available will be the number of
+	 * available CPUs divide it by the number of devices in the
+	 * local NUMA node.
+	 */
+	if (cpumask_weight(&entry->comp_vect_mask) == 1) {
+		possible_cpus_comp_vect = 1;
+		dd_dev_warn(dd,
+			    "Number of kernel receive queues is too large for completion vector affinity to be effective\n");
+	} else {
+		possible_cpus_comp_vect +=
+			cpumask_weight(&entry->comp_vect_mask) /
+				       hfi1_per_node_cntr[dd->node];
+
+		/*
+		 * If the completion vector CPUs available doesn't divide
+		 * evenly among devices, then the first device device to be
+		 * initialized gets an extra CPU.
+		 */
+		if (first_dev_init &&
+		    cpumask_weight(&entry->comp_vect_mask) %
+		    hfi1_per_node_cntr[dd->node] != 0)
+			possible_cpus_comp_vect++;
+	}
+
+	dd->comp_vect_possible_cpus = possible_cpus_comp_vect;
+
+	/* Reserving CPUs for device completion vector */
+	for (i = 0; i < dd->comp_vect_possible_cpus; i++) {
+		curr_cpu = per_cpu_affinity_get(&entry->comp_vect_mask,
+						entry->comp_vect_affinity);
+		if (curr_cpu < 0)
+			goto fail;
+
+		cpumask_set_cpu(curr_cpu, dev_comp_vect_mask);
+	}
+
+	hfi1_cdbg(AFFINITY,
+		  "[%s] Completion vector affinity CPU set(s) %*pbl",
+		  rvt_get_ibdev_name(&(dd)->verbs_dev.rdi),
+		  cpumask_pr_args(dev_comp_vect_mask));
+
+	return 0;
+
+fail:
+	for (j = 0; j < i; j++)
+		per_cpu_affinity_put_max(&entry->comp_vect_mask,
+					 entry->comp_vect_affinity);
+
+	return curr_cpu;
+}
+
+/*
+ * It assumes dd->comp_vect_possible_cpus is available.
+ */
+static void _dev_comp_vect_cpu_mask_clean_up(struct hfi1_devdata *dd,
+					     struct hfi1_affinity_node *entry)
+	__must_hold(&node_affinity.lock)
+{
+	int i, cpu;
+
+	lockdep_assert_held(&node_affinity.lock);
+	if (!dd->comp_vect_possible_cpus)
+		return;
+
+	for (i = 0; i < dd->comp_vect_possible_cpus; i++) {
+		cpu = per_cpu_affinity_put_max(&dd->comp_vect->mask,
+					       entry->comp_vect_affinity);
+		/* Clearing CPU in device completion vector cpu mask */
+		if (cpu >= 0)
+			cpumask_clear_cpu(cpu, &dd->comp_vect->mask);
+	}
+
+	dd->comp_vect_possible_cpus = 0;
+}
+
 /*
  * Interrupt affinity.
  *
@@ -225,7 +619,8 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 	int node = pcibus_to_node(dd->pcidev->bus);
 	struct hfi1_affinity_node *entry;
 	const struct cpumask *local_mask;
-	int curr_cpu, possible, i;
+	int curr_cpu, possible, i, ret;
+	bool new_entry = false;
 
 	if (node < 0)
 		node = numa_node_id();
@@ -247,11 +642,14 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 		if (!entry) {
 			dd_dev_err(dd,
 				   "Unable to allocate global affinity node\n");
-			mutex_unlock(&node_affinity.lock);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto fail;
 		}
+		new_entry = true;
+
 		init_cpu_mask_set(&entry->def_intr);
 		init_cpu_mask_set(&entry->rcv_intr);
+		cpumask_clear(&entry->comp_vect_mask);
 		cpumask_clear(&entry->general_intr_mask);
 		/* Use the "real" cpu mask of this node as the default */
 		cpumask_and(&entry->def_intr.mask, &node_affinity.real_cpu_mask,
@@ -304,10 +702,64 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 					     &entry->general_intr_mask);
 		}
 
-		node_affinity_add_tail(entry);
+		/* Determine completion vector CPUs for the entire node */
+		cpumask_and(&entry->comp_vect_mask,
+			    &node_affinity.real_cpu_mask, local_mask);
+		cpumask_andnot(&entry->comp_vect_mask,
+			       &entry->comp_vect_mask,
+			       &entry->rcv_intr.mask);
+		cpumask_andnot(&entry->comp_vect_mask,
+			       &entry->comp_vect_mask,
+			       &entry->general_intr_mask);
+
+		/*
+		 * If there ends up being 0 CPU cores leftover for completion
+		 * vectors, use the same CPU core as the general/control
+		 * context.
+		 */
+		if (cpumask_weight(&entry->comp_vect_mask) == 0)
+			cpumask_copy(&entry->comp_vect_mask,
+				     &entry->general_intr_mask);
 	}
+
+	ret = _dev_comp_vect_cpu_mask_init(dd, entry, new_entry);
+	if (ret < 0)
+		goto fail;
+
+	if (new_entry)
+		node_affinity_add_tail(entry);
+
 	mutex_unlock(&node_affinity.lock);
+
 	return 0;
+
+fail:
+	if (new_entry)
+		node_affinity_destroy(entry);
+	mutex_unlock(&node_affinity.lock);
+	return ret;
+}
+
+void hfi1_dev_affinity_clean_up(struct hfi1_devdata *dd)
+{
+	struct hfi1_affinity_node *entry;
+
+	if (dd->node < 0)
+		return;
+
+	mutex_lock(&node_affinity.lock);
+	entry = node_affinity_lookup(dd->node);
+	if (!entry)
+		goto unlock;
+
+	/*
+	 * Free device completion vector CPUs to be used by future
+	 * completion vectors
+	 */
+	_dev_comp_vect_cpu_mask_clean_up(dd, entry);
+unlock:
+	mutex_unlock(&node_affinity.lock);
+	dd->node = -1;
 }
 
 /*
@@ -456,17 +908,12 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 		if (!zalloc_cpumask_var(&diff, GFP_KERNEL))
 			return -ENOMEM;
 
-		if (cpumask_equal(&set->mask, &set->used)) {
-			/*
-			 * We've used up all the CPUs, bump up the generation
-			 * and reset the 'used' map
-			 */
-			set->gen++;
-			cpumask_clear(&set->used);
+		cpu = cpu_mask_set_get_first(set, diff);
+		if (cpu < 0) {
+			free_cpumask_var(diff);
+			dd_dev_err(dd, "Failure to obtain CPU for IRQ\n");
+			return cpu;
 		}
-		cpumask_andnot(diff, &set->mask, &set->used);
-		cpu = cpumask_first(diff);
-		cpumask_set_cpu(cpu, &set->used);
 
 		free_cpumask_var(diff);
 	}
@@ -526,10 +973,7 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 
 	if (set) {
 		cpumask_andnot(&set->used, &set->used, &msix->mask);
-		if (cpumask_empty(&set->used) && set->gen) {
-			set->gen--;
-			cpumask_copy(&set->used, &set->mask);
-		}
+		_cpu_mask_set_gen_dec(set);
 	}
 
 	irq_set_affinity_hint(msix->irq, NULL);
@@ -640,10 +1084,7 @@ int hfi1_get_proc_affinity(int node)
 	 * If we've used all available HW threads, clear the mask and start
 	 * overloading.
 	 */
-	if (cpumask_equal(&set->mask, &set->used)) {
-		set->gen++;
-		cpumask_clear(&set->used);
-	}
+	_cpu_mask_set_gen_inc(set);
 
 	/*
 	 * If NUMA node has CPUs used by interrupt handlers, include them in the
@@ -767,11 +1208,7 @@ void hfi1_put_proc_affinity(int cpu)
 		return;
 
 	mutex_lock(&affinity->lock);
-	cpumask_clear_cpu(cpu, &set->used);
+	cpu_mask_set_put(set, cpu);
 	hfi1_cdbg(PROC, "Returning CPU %d for future process assignment", cpu);
-	if (cpumask_empty(&set->used) && set->gen) {
-		set->gen--;
-		cpumask_copy(&set->used, &set->mask);
-	}
 	mutex_unlock(&affinity->lock);
 }

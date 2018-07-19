@@ -32,14 +32,17 @@
 #include <linux/device.h>
 #include <linux/netdevice.h>
 #include "en.h"
-
-#define MLX5E_MAX_PRIORITY 8
+#include "en/port.h"
+#include "en/port_buffer.h"
 
 #define MLX5E_100MB (100000)
 #define MLX5E_1GB   (1000000)
 
 #define MLX5E_CEE_STATE_UP    1
 #define MLX5E_CEE_STATE_DOWN  0
+
+/* Max supported cable length is 1000 meters */
+#define MLX5E_MAX_CABLE_LENGTH 1000
 
 enum {
 	MLX5E_VENDOR_TC_GROUP_NUM = 7,
@@ -338,6 +341,9 @@ static int mlx5e_dcbnl_ieee_getpfc(struct net_device *dev,
 		pfc->indications[i] = PPORT_PER_PRIO_GET(pstats, i, rx_pause);
 	}
 
+	if (MLX5_BUFFER_SUPPORTED(mdev))
+		pfc->delay = priv->dcbx.cable_len;
+
 	return mlx5_query_port_pfc(mdev, &pfc->pfc_en, NULL);
 }
 
@@ -346,16 +352,39 @@ static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 old_cable_len = priv->dcbx.cable_len;
+	struct ieee_pfc pfc_new;
+	u32 changed = 0;
 	u8 curr_pfc_en;
-	int ret;
+	int ret = 0;
 
+	/* pfc_en */
 	mlx5_query_port_pfc(mdev, &curr_pfc_en, NULL);
+	if (pfc->pfc_en != curr_pfc_en) {
+		ret = mlx5_set_port_pfc(mdev, pfc->pfc_en, pfc->pfc_en);
+		if (ret)
+			return ret;
+		mlx5_toggle_port_link(mdev);
+		changed |= MLX5E_PORT_BUFFER_PFC;
+	}
 
-	if (pfc->pfc_en == curr_pfc_en)
-		return 0;
+	if (pfc->delay &&
+	    pfc->delay < MLX5E_MAX_CABLE_LENGTH &&
+	    pfc->delay != priv->dcbx.cable_len) {
+		priv->dcbx.cable_len = pfc->delay;
+		changed |= MLX5E_PORT_BUFFER_CABLE_LEN;
+	}
 
-	ret = mlx5_set_port_pfc(mdev, pfc->pfc_en, pfc->pfc_en);
-	mlx5_toggle_port_link(mdev);
+	if (MLX5_BUFFER_SUPPORTED(mdev)) {
+		pfc_new.pfc_en = (changed & MLX5E_PORT_BUFFER_PFC) ? pfc->pfc_en : curr_pfc_en;
+		if (priv->dcbx.manual_buffer)
+			ret = mlx5e_port_manual_buffer_config(priv, changed,
+							      dev->mtu, &pfc_new,
+							      NULL, NULL);
+
+		if (ret && (changed & MLX5E_PORT_BUFFER_CABLE_LEN))
+			priv->dcbx.cable_len = old_cable_len;
+	}
 
 	if (!ret) {
 		mlx5e_dbg(HW, priv,
@@ -873,6 +902,90 @@ static void mlx5e_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 	cee_cfg->pfc_enable = state;
 }
 
+static int mlx5e_dcbnl_getbuffer(struct net_device *dev,
+				 struct dcbnl_buffer *dcb_buffer)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_port_buffer port_buffer;
+	u8 buffer[MLX5E_MAX_PRIORITY];
+	int i, err;
+
+	if (!MLX5_BUFFER_SUPPORTED(mdev))
+		return -EOPNOTSUPP;
+
+	err = mlx5e_port_query_priority2buffer(mdev, buffer);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLX5E_MAX_PRIORITY; i++)
+		dcb_buffer->prio2buffer[i] = buffer[i];
+
+	err = mlx5e_port_query_buffer(priv, &port_buffer);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLX5E_MAX_BUFFER; i++)
+		dcb_buffer->buffer_size[i] = port_buffer.buffer[i].size;
+	dcb_buffer->total_size = port_buffer.port_buffer_size;
+
+	return 0;
+}
+
+static int mlx5e_dcbnl_setbuffer(struct net_device *dev,
+				 struct dcbnl_buffer *dcb_buffer)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_port_buffer port_buffer;
+	u8 old_prio2buffer[MLX5E_MAX_PRIORITY];
+	u32 *buffer_size = NULL;
+	u8 *prio2buffer = NULL;
+	u32 changed = 0;
+	int i, err;
+
+	if (!MLX5_BUFFER_SUPPORTED(mdev))
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < DCBX_MAX_BUFFERS; i++)
+		mlx5_core_dbg(mdev, "buffer[%d]=%d\n", i, dcb_buffer->buffer_size[i]);
+
+	for (i = 0; i < MLX5E_MAX_PRIORITY; i++)
+		mlx5_core_dbg(mdev, "priority %d buffer%d\n", i, dcb_buffer->prio2buffer[i]);
+
+	err = mlx5e_port_query_priority2buffer(mdev, old_prio2buffer);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLX5E_MAX_PRIORITY; i++) {
+		if (dcb_buffer->prio2buffer[i] != old_prio2buffer[i]) {
+			changed |= MLX5E_PORT_BUFFER_PRIO2BUFFER;
+			prio2buffer = dcb_buffer->prio2buffer;
+			break;
+		}
+	}
+
+	err = mlx5e_port_query_buffer(priv, &port_buffer);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
+		if (port_buffer.buffer[i].size != dcb_buffer->buffer_size[i]) {
+			changed |= MLX5E_PORT_BUFFER_SIZE;
+			buffer_size = dcb_buffer->buffer_size;
+			break;
+		}
+	}
+
+	if (!changed)
+		return 0;
+
+	priv->dcbx.manual_buffer = true;
+	err = mlx5e_port_manual_buffer_config(priv, changed, dev->mtu, NULL,
+					      buffer_size, prio2buffer);
+	return err;
+}
+
 const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.ieee_getets	= mlx5e_dcbnl_ieee_getets,
 	.ieee_setets	= mlx5e_dcbnl_ieee_setets,
@@ -884,6 +997,8 @@ const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.ieee_delapp    = mlx5e_dcbnl_ieee_delapp,
 	.getdcbx	= mlx5e_dcbnl_getdcbx,
 	.setdcbx	= mlx5e_dcbnl_setdcbx,
+	.dcbnl_getbuffer = mlx5e_dcbnl_getbuffer,
+	.dcbnl_setbuffer = mlx5e_dcbnl_setbuffer,
 
 /* CEE interfaces */
 	.setall         = mlx5e_dcbnl_setall,
@@ -1090,6 +1205,9 @@ void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv)
 			 DCB_CAP_DCBX_VER_IEEE;
 	if (priv->dcbx.mode == MLX5E_DCBX_PARAM_VER_OPER_HOST)
 		priv->dcbx.cap |= DCB_CAP_DCBX_HOST;
+
+	priv->dcbx.manual_buffer = false;
+	priv->dcbx.cable_len = MLX5E_DEFAULT_CABLE_LEN;
 
 	mlx5e_ets_init(priv);
 }

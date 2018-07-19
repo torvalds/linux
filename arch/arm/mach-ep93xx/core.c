@@ -635,6 +635,7 @@ EXPORT_SYMBOL(ep93xx_keypad_release_gpio);
  *************************************************************************/
 static struct resource ep93xx_i2s_resource[] = {
 	DEFINE_RES_MEM(EP93XX_I2S_PHYS_BASE, 0x100),
+	DEFINE_RES_IRQ(IRQ_EP93XX_SAI),
 };
 
 static struct platform_device ep93xx_i2s_device = {

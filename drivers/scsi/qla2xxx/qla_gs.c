@@ -3175,7 +3175,6 @@ int qla24xx_async_gidpn(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 done_free_sp:
 	sp->free(sp);
-	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	return rval;
@@ -3239,7 +3238,7 @@ void qla24xx_handle_gpsc_event(scsi_qla_host_t *vha, struct event_arg *ea)
 		return;
 	}
 
-	qla24xx_post_upd_fcport_work(vha, ea->fcport);
+	qla_post_iidma_work(vha, fcport);
 }
 
 static void qla24xx_async_gpsc_sp_done(void *s, int res)
@@ -3256,8 +3255,6 @@ static void qla24xx_async_gpsc_sp_done(void *s, int res)
 	ql_dbg(ql_dbg_disc, vha, 0x2053,
 	    "Async done-%s res %x, WWPN %8phC \n",
 	    sp->name, res, fcport->port_name);
-
-	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 
 	if (res == (DID_ERROR << 16)) {
 		/* entry status error */
@@ -3327,7 +3324,6 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!sp)
 		goto done;
 
-	fcport->flags |= FCF_ASYNC_SENT;
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "gpsc";
 	sp->gen1 = fcport->rscn_gen;
@@ -3862,6 +3858,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 	bool found;
 	struct fab_scan_rp *rp;
 	unsigned long flags;
+	u8 recheck = 0;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "%s enter\n", __func__);
@@ -3914,8 +3911,8 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			if (memcmp(rp->port_name, fcport->port_name, WWN_SIZE))
 				continue;
+			fcport->rscn_rcvd = 0;
 			fcport->scan_state = QLA_FCPORT_FOUND;
-			fcport->d_id.b24 = rp->id.b24;
 			found = true;
 			/*
 			 * If device was not a fabric device before.
@@ -3923,7 +3920,10 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0) {
 				qla2x00_clear_loop_id(fcport);
 				fcport->flags |= FCF_FABRIC_DEVICE;
+			} else if (fcport->d_id.b24 != rp->id.b24) {
+				qlt_schedule_sess_for_deletion(fcport);
 			}
+			fcport->d_id.b24 = rp->id.b24;
 			break;
 		}
 
@@ -3940,10 +3940,13 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 	 * Logout all previous fabric dev marked lost, except FCP2 devices.
 	 */
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
-		if ((fcport->flags & FCF_FABRIC_DEVICE) == 0)
+		if ((fcport->flags & FCF_FABRIC_DEVICE) == 0) {
+			fcport->rscn_rcvd = 0;
 			continue;
+		}
 
 		if (fcport->scan_state != QLA_FCPORT_FOUND) {
+			fcport->rscn_rcvd = 0;
 			if ((qla_dual_mode_enabled(vha) ||
 				qla_ini_mode_enabled(vha)) &&
 			    atomic_read(&fcport->state) == FCS_ONLINE) {
@@ -3961,15 +3964,31 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 					continue;
 				}
 			}
-		} else
-			qla24xx_fcport_handle_login(vha, fcport);
+		} else {
+			if (fcport->rscn_rcvd ||
+			    fcport->disc_state != DSC_LOGIN_COMPLETE) {
+				fcport->rscn_rcvd = 0;
+				qla24xx_fcport_handle_login(vha, fcport);
+			}
+		}
 	}
 
+	recheck = 1;
 out:
 	qla24xx_sp_unmap(vha, sp);
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
 	spin_unlock_irqrestore(&vha->work_lock, flags);
+
+	if (recheck) {
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			if (fcport->rscn_rcvd) {
+				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+				break;
+			}
+		}
+	}
 }
 
 static void qla2x00_find_free_fcp_nvme_slot(struct scsi_qla_host *vha,
@@ -4532,7 +4551,6 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 done_free_sp:
 	sp->free(sp);
-	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	return rval;
 }
@@ -4594,7 +4612,6 @@ static void qla2x00_async_gfpnid_sp_done(void *s, int res)
 	struct event_arg ea;
 	u64 wwn;
 
-	fcport->flags &= ~FCF_ASYNC_SENT;
 	wwn = wwn_to_u64(fpn);
 	if (wwn)
 		memcpy(fcport->fabric_port_name, fpn, WWN_SIZE);
@@ -4623,12 +4640,10 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
 		return rval;
 
-	fcport->disc_state = DSC_GFPN_ID;
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
 	if (!sp)
 		goto done;
 
-	fcport->flags |= FCF_ASYNC_SENT;
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "gfpnid";
 	sp->gen1 = fcport->rscn_gen;

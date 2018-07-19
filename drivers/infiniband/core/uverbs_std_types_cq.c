@@ -65,7 +65,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	struct ib_cq_init_attr attr = {};
 	struct ib_cq                   *cq;
 	struct ib_uverbs_completion_event_file    *ev_file = NULL;
-	const struct uverbs_attr *ev_file_attr;
 	struct ib_uobject *ev_file_uobj;
 
 	if (!(ib_dev->uverbs_cmd_mask & 1ULL << IB_USER_VERBS_CMD_CREATE_CQ))
@@ -87,10 +86,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 						UVERBS_ATTR_CREATE_CQ_FLAGS)))
 		return -EFAULT;
 
-	ev_file_attr = uverbs_attr_get(attrs, UVERBS_ATTR_CREATE_CQ_COMP_CHANNEL);
-	if (!IS_ERR(ev_file_attr)) {
-		ev_file_uobj = ev_file_attr->obj_attr.uobject;
-
+	ev_file_uobj = uverbs_attr_get_uobject(attrs, UVERBS_ATTR_CREATE_CQ_COMP_CHANNEL);
+	if (!IS_ERR(ev_file_uobj)) {
 		ev_file = container_of(ev_file_uobj,
 				       struct ib_uverbs_completion_event_file,
 				       uobj_file.uobj);
@@ -102,8 +99,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 		goto err_event_file;
 	}
 
-	obj = container_of(uverbs_attr_get(attrs,
-					   UVERBS_ATTR_CREATE_CQ_HANDLE)->obj_attr.uobject,
+	obj = container_of(uverbs_attr_get_uobject(attrs,
+						   UVERBS_ATTR_CREATE_CQ_HANDLE),
 			   typeof(*obj), uobject);
 	obj->uverbs_file	   = ucontext->ufile;
 	obj->comp_events_reported  = 0;
@@ -170,12 +167,16 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(struct ib_device *ib_dev,
 						    struct ib_uverbs_file *file,
 						    struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_destroy_cq_resp resp;
 	struct ib_uobject *uobj =
-		uverbs_attr_get(attrs, UVERBS_ATTR_DESTROY_CQ_HANDLE)->obj_attr.uobject;
-	struct ib_ucq_object *obj = container_of(uobj, struct ib_ucq_object,
-						 uobject);
+		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_DESTROY_CQ_HANDLE);
+	struct ib_uverbs_destroy_cq_resp resp;
+	struct ib_ucq_object *obj;
 	int ret;
+
+	if (IS_ERR(uobj))
+		return PTR_ERR(uobj);
+
+	obj = container_of(uobj, struct ib_ucq_object, uobject);
 
 	if (!(ib_dev->uverbs_cmd_mask & 1ULL << IB_USER_VERBS_CMD_DESTROY_CQ))
 		return -EOPNOTSUPP;

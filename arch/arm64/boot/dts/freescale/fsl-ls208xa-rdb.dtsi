@@ -134,7 +134,7 @@
 
 &dspi {
 	status = "okay";
-	dflash0: n25q512a {
+	dflash0: n25q512a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "st,m25p80";

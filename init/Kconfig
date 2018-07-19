@@ -1,20 +1,27 @@
-config ARCH
-	string
-	option env="ARCH"
-
-config KERNELVERSION
-	string
-	option env="KERNELVERSION"
-
 config DEFCONFIG_LIST
 	string
 	depends on !UML
 	option defconfig_list
-	default "/lib/modules/$UNAME_RELEASE/.config"
+	default "/lib/modules/$(shell,uname --release)/.config"
 	default "/etc/kernel-config"
-	default "/boot/config-$UNAME_RELEASE"
-	default "$ARCH_DEFCONFIG"
-	default "arch/$ARCH/defconfig"
+	default "/boot/config-$(shell,uname --release)"
+	default ARCH_DEFCONFIG
+	default "arch/$(ARCH)/defconfig"
+
+config CC_IS_GCC
+	def_bool $(success,$(CC) --version | head -n 1 | grep -q gcc)
+
+config GCC_VERSION
+	int
+	default $(shell,$(srctree)/scripts/gcc-version.sh -p $(CC) | sed 's/^0*//') if CC_IS_GCC
+	default 0
+
+config CC_IS_CLANG
+	def_bool $(success,$(CC) --version | head -n 1 | grep -q clang)
+
+config CLANG_VERSION
+	int
+	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
 
 config CONSTRUCTORS
 	bool
@@ -53,15 +60,6 @@ config INIT_ENV_ARG_LIMIT
 	help
 	  Maximum of each of the number of arguments and environment
 	  variables passed to init from the kernel command line.
-
-
-config CROSS_COMPILE
-	string "Cross-compiler tool prefix"
-	help
-	  Same as running 'make CROSS_COMPILE=prefix-' but stored for
-	  default make runs in this kernel build directory.  You don't
-	  need to set this unless you want the configured kernel build
-	  directory to select the cross-compiler automatically.
 
 config COMPILE_TEST
 	bool "Compile also drivers which will not load"
@@ -1038,6 +1036,32 @@ config CC_OPTIMIZE_FOR_SIZE
 
 endchoice
 
+config HAVE_LD_DEAD_CODE_DATA_ELIMINATION
+	bool
+	help
+	  This requires that the arch annotates or otherwise protects
+	  its external entry points from being discarded. Linker scripts
+	  must also merge .text.*, .data.*, and .bss.* correctly into
+	  output sections. Care must be taken not to pull in unrelated
+	  sections (e.g., '.text.init'). Typically '.' in section names
+	  is used to distinguish them from label names / C identifiers.
+
+config LD_DEAD_CODE_DATA_ELIMINATION
+	bool "Dead code and data elimination (EXPERIMENTAL)"
+	depends on HAVE_LD_DEAD_CODE_DATA_ELIMINATION
+	depends on EXPERT
+	help
+	  Enable this if you want to do dead code and data elimination with
+	  the linker by compiling with -ffunction-sections -fdata-sections,
+	  and linking with --gc-sections.
+
+	  This can reduce on disk and in-memory size of the kernel
+	  code and static data, particularly for small configs and
+	  on small systems. This has the possibility of introducing
+	  silently broken kernel if the required annotations are not
+	  present. This option is not well tested yet, so use at your
+	  own risk.
+
 config SYSCTL
 	bool
 
@@ -1391,6 +1415,7 @@ config BPF_SYSCALL
 	bool "Enable bpf() system call"
 	select ANON_INODES
 	select BPF
+	select IRQ_WORK
 	default n
 	help
 	  Enable the bpf() system call that allows to manipulate eBPF
@@ -1416,6 +1441,29 @@ config ARCH_HAS_MEMBARRIER_CALLBACKS
 
 config ARCH_HAS_MEMBARRIER_SYNC_CORE
 	bool
+
+config RSEQ
+	bool "Enable rseq() system call" if EXPERT
+	default y
+	depends on HAVE_RSEQ
+	select MEMBARRIER
+	help
+	  Enable the restartable sequences system call. It provides a
+	  user-space cache for the current CPU number value, which
+	  speeds up getting the current CPU number from user-space,
+	  as well as an ABI to speed up user-space operations on
+	  per-CPU data.
+
+	  If unsure, say Y.
+
+config DEBUG_RSEQ
+	default n
+	bool "Enabled debugging of rseq() system call" if EXPERT
+	depends on RSEQ && DEBUG_KERNEL
+	help
+	  Enable extra debugging checks for the rseq system call.
+
+	  If unsure, say N.
 
 config EMBEDDED
 	bool "Embedded system"
@@ -1669,10 +1717,6 @@ config TRACEPOINTS
 source "arch/Kconfig"
 
 endmenu		# General setup
-
-config HAVE_GENERIC_DMA_COHERENT
-	bool
-	default n
 
 config RT_MUTEXES
 	bool

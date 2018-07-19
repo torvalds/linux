@@ -1132,7 +1132,8 @@ EXPORT_SYMBOL_GPL(nvdimm_has_flush);
 
 int nvdimm_has_cache(struct nd_region *nd_region)
 {
-	return is_nd_pmem(&nd_region->dev);
+	return is_nd_pmem(&nd_region->dev) &&
+		!test_bit(ND_REGION_PERSIST_CACHE, &nd_region->flags);
 }
 EXPORT_SYMBOL_GPL(nvdimm_has_cache);
 

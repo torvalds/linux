@@ -9,6 +9,15 @@ config TYPEC_TCPCI
 	help
 	  Type-C Port Controller driver for TCPCI-compliant controller.
 
+config TYPEC_RT1711H
+	tristate "Richtek RT1711H Type-C chip driver"
+	depends on I2C
+	select TYPEC_TCPCI
+	help
+	  Richtek RT1711H Type-C chip driver that works with
+	  Type-C Port Controller Manager to provide USB PD and USB
+	  Type-C functionalities.
+
 endif
 
 endmenu

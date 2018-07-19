@@ -347,6 +347,7 @@ config HW_RANDOM_STM32
 	tristate "STMicroelectronics STM32 random number generator"
 	depends on HW_RANDOM && (ARCH_STM32 || COMPILE_TEST)
 	depends on HAS_IOMEM
+	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on STM32 microcontrollers.

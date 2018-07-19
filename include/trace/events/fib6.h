@@ -12,14 +12,14 @@
 
 TRACE_EVENT(fib6_table_lookup,
 
-	TP_PROTO(const struct net *net, const struct rt6_info *rt,
+	TP_PROTO(const struct net *net, const struct fib6_info *f6i,
 		 struct fib6_table *table, const struct flowi6 *flp),
 
-	TP_ARGS(net, rt, table, flp),
+	TP_ARGS(net, f6i, table, flp),
 
 	TP_STRUCT__entry(
 		__field(	u32,	tb_id		)
-
+		__field(	int,	err		)
 		__field(	int,	oif		)
 		__field(	int,	iif		)
 		__field(	__u8,	tos		)
@@ -27,7 +27,10 @@ TRACE_EVENT(fib6_table_lookup,
 		__field(	__u8,	flags		)
 		__array(	__u8,	src,	16	)
 		__array(	__u8,	dst,	16	)
-
+		__field(        u16,	sport		)
+		__field(        u16,	dport		)
+		__field(        u8,	proto		)
+		__field(        u8,	rt_type		)
 		__dynamic_array(	char,	name,	IFNAMSIZ )
 		__array(		__u8,	gw,	16	 )
 	),
@@ -36,6 +39,7 @@ TRACE_EVENT(fib6_table_lookup,
 		struct in6_addr *in6;
 
 		__entry->tb_id = table->tb6_id;
+		__entry->err = ip6_rt_type_to_error(f6i->fib6_type);
 		__entry->oif = flp->flowi6_oif;
 		__entry->iif = flp->flowi6_iif;
 		__entry->tos = ip6_tclass(flp->flowlabel);
@@ -48,27 +52,38 @@ TRACE_EVENT(fib6_table_lookup,
 		in6 = (struct in6_addr *)__entry->dst;
 		*in6 = flp->daddr;
 
-		if (rt->rt6i_idev) {
-			__assign_str(name, rt->rt6i_idev->dev->name);
+		__entry->proto = flp->flowi6_proto;
+		if (__entry->proto == IPPROTO_TCP ||
+		    __entry->proto == IPPROTO_UDP) {
+			__entry->sport = ntohs(flp->fl6_sport);
+			__entry->dport = ntohs(flp->fl6_dport);
 		} else {
-			__assign_str(name, "");
+			__entry->sport = 0;
+			__entry->dport = 0;
 		}
-		if (rt == net->ipv6.ip6_null_entry) {
+
+		if (f6i->fib6_nh.nh_dev) {
+			__assign_str(name, f6i->fib6_nh.nh_dev);
+		} else {
+			__assign_str(name, "-");
+		}
+		if (f6i == net->ipv6.fib6_null_entry) {
 			struct in6_addr in6_zero = {};
 
 			in6 = (struct in6_addr *)__entry->gw;
 			*in6 = in6_zero;
 
-		} else if (rt) {
+		} else if (f6i) {
 			in6 = (struct in6_addr *)__entry->gw;
-			*in6 = rt->rt6i_gateway;
+			*in6 = f6i->fib6_nh.nh_gw;
 		}
 	),
 
-	TP_printk("table %3u oif %d iif %d src %pI6c dst %pI6c tos %d scope %d flags %x ==> dev %s gw %pI6c",
-		  __entry->tb_id, __entry->oif, __entry->iif,
-		  __entry->src, __entry->dst, __entry->tos, __entry->scope,
-		  __entry->flags, __get_str(name), __entry->gw)
+	TP_printk("table %3u oif %d iif %d proto %u %pI6c/%u -> %pI6c/%u tos %d scope %d flags %x ==> dev %s gw %pI6c err %d",
+		  __entry->tb_id, __entry->oif, __entry->iif, __entry->proto,
+		  __entry->src, __entry->sport, __entry->dst, __entry->dport,
+		  __entry->tos, __entry->scope, __entry->flags,
+		  __get_str(name), __entry->gw, __entry->err)
 );
 
 #endif /* _TRACE_FIB6_H */

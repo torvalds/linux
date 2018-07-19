@@ -340,54 +340,28 @@ DEFINE_SHOW_ATTRIBUTE(ci_registers);
  *
  * This function returns an error code
  */
-int dbg_create_files(struct ci_hdrc *ci)
+void dbg_create_files(struct ci_hdrc *ci)
 {
-	struct dentry *dent;
-
 	ci->debugfs = debugfs_create_dir(dev_name(ci->dev), NULL);
-	if (!ci->debugfs)
-		return -ENOMEM;
 
-	dent = debugfs_create_file("device", S_IRUGO, ci->debugfs, ci,
-				   &ci_device_fops);
-	if (!dent)
-		goto err;
-
-	dent = debugfs_create_file("port_test", S_IRUGO | S_IWUSR, ci->debugfs,
-				   ci, &ci_port_test_fops);
-	if (!dent)
-		goto err;
-
-	dent = debugfs_create_file("qheads", S_IRUGO, ci->debugfs, ci,
-				   &ci_qheads_fops);
-	if (!dent)
-		goto err;
-
-	dent = debugfs_create_file("requests", S_IRUGO, ci->debugfs, ci,
-				   &ci_requests_fops);
-	if (!dent)
-		goto err;
+	debugfs_create_file("device", S_IRUGO, ci->debugfs, ci,
+			    &ci_device_fops);
+	debugfs_create_file("port_test", S_IRUGO | S_IWUSR, ci->debugfs, ci,
+			    &ci_port_test_fops);
+	debugfs_create_file("qheads", S_IRUGO, ci->debugfs, ci,
+			    &ci_qheads_fops);
+	debugfs_create_file("requests", S_IRUGO, ci->debugfs, ci,
+			    &ci_requests_fops);
 
 	if (ci_otg_is_fsm_mode(ci)) {
-		dent = debugfs_create_file("otg", S_IRUGO, ci->debugfs, ci,
-					&ci_otg_fops);
-		if (!dent)
-			goto err;
+		debugfs_create_file("otg", S_IRUGO, ci->debugfs, ci,
+				    &ci_otg_fops);
 	}
 
-	dent = debugfs_create_file("role", S_IRUGO | S_IWUSR, ci->debugfs, ci,
-				   &ci_role_fops);
-	if (!dent)
-		goto err;
-
-	dent = debugfs_create_file("registers", S_IRUGO, ci->debugfs, ci,
-				&ci_registers_fops);
-
-	if (dent)
-		return 0;
-err:
-	debugfs_remove_recursive(ci->debugfs);
-	return -ENOMEM;
+	debugfs_create_file("role", S_IRUGO | S_IWUSR, ci->debugfs, ci,
+			    &ci_role_fops);
+	debugfs_create_file("registers", S_IRUGO, ci->debugfs, ci,
+			    &ci_registers_fops);
 }
 
 /**

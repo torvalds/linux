@@ -210,42 +210,6 @@ static const struct seq_operations atalk_seq_socket_ops = {
 	.show   = atalk_seq_socket_show,
 };
 
-static int atalk_seq_interface_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &atalk_seq_interface_ops);
-}
-
-static int atalk_seq_route_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &atalk_seq_route_ops);
-}
-
-static int atalk_seq_socket_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &atalk_seq_socket_ops);
-}
-
-static const struct file_operations atalk_seq_interface_fops = {
-	.open		= atalk_seq_interface_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static const struct file_operations atalk_seq_route_fops = {
-	.open		= atalk_seq_route_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static const struct file_operations atalk_seq_socket_fops = {
-	.open		= atalk_seq_socket_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static struct proc_dir_entry *atalk_proc_dir;
 
 int __init atalk_proc_init(void)
@@ -257,22 +221,23 @@ int __init atalk_proc_init(void)
 	if (!atalk_proc_dir)
 		goto out;
 
-	p = proc_create("interface", 0444, atalk_proc_dir,
-			&atalk_seq_interface_fops);
+	p = proc_create_seq("interface", 0444, atalk_proc_dir,
+			&atalk_seq_interface_ops);
 	if (!p)
 		goto out_interface;
 
-	p = proc_create("route", 0444, atalk_proc_dir,
-			&atalk_seq_route_fops);
+	p = proc_create_seq("route", 0444, atalk_proc_dir,
+			&atalk_seq_route_ops);
 	if (!p)
 		goto out_route;
 
-	p = proc_create("socket", 0444, atalk_proc_dir,
-			&atalk_seq_socket_fops);
+	p = proc_create_seq("socket", 0444, atalk_proc_dir,
+			&atalk_seq_socket_ops);
 	if (!p)
 		goto out_socket;
 
-	p = proc_create("arp", 0444, atalk_proc_dir, &atalk_seq_arp_fops);
+	p = proc_create_seq_private("arp", 0444, atalk_proc_dir, &aarp_seq_ops,
+			sizeof(struct aarp_iter_state), NULL);
 	if (!p)
 		goto out_arp;
 

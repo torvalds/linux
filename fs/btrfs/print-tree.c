@@ -166,6 +166,25 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 	}
 }
 
+/*
+ * Helper to output refs and locking status of extent buffer.  Useful to debug
+ * race condition related problems.
+ */
+static void print_eb_refs_lock(struct extent_buffer *eb)
+{
+#ifdef CONFIG_BTRFS_DEBUG
+	btrfs_info(eb->fs_info,
+"refs %u lock (w:%d r:%d bw:%d br:%d sw:%d sr:%d) lock_owner %u current %u",
+		   atomic_read(&eb->refs), atomic_read(&eb->write_locks),
+		   atomic_read(&eb->read_locks),
+		   atomic_read(&eb->blocking_writers),
+		   atomic_read(&eb->blocking_readers),
+		   atomic_read(&eb->spinning_writers),
+		   atomic_read(&eb->spinning_readers),
+		   eb->lock_owner, current->pid);
+#endif
+}
+
 void btrfs_print_leaf(struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
@@ -193,6 +212,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 		   "leaf %llu gen %llu total ptrs %d free space %d owner %llu",
 		   btrfs_header_bytenr(l), btrfs_header_generation(l), nr,
 		   btrfs_leaf_free_space(fs_info, l), btrfs_header_owner(l));
+	print_eb_refs_lock(l);
 	for (i = 0 ; i < nr ; i++) {
 		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
@@ -347,6 +367,7 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 		   btrfs_header_bytenr(c), level, btrfs_header_generation(c),
 		   nr, (u32)BTRFS_NODEPTRS_PER_BLOCK(fs_info) - nr,
 		   btrfs_header_owner(c));
+	print_eb_refs_lock(c);
 	for (i = 0; i < nr; i++) {
 		btrfs_node_key_to_cpu(c, &key, i);
 		pr_info("\tkey %d (%llu %u %llu) block %llu gen %llu\n",

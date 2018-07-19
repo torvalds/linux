@@ -554,7 +554,7 @@ struct iwl_trans_ops {
 	/* 22000 functions */
 	int (*txq_alloc)(struct iwl_trans *trans,
 			 struct iwl_tx_queue_cfg_cmd *cmd,
-			 int cmd_id,
+			 int cmd_id, int size,
 			 unsigned int queue_wdg_timeout);
 	void (*txq_free)(struct iwl_trans *trans, int queue);
 
@@ -691,6 +691,8 @@ enum iwl_plat_pm_mode {
  * @wide_cmd_header: true when ucode supports wide command header format
  * @num_rx_queues: number of RX queues allocated by the transport;
  *	the transport must set this before calling iwl_drv_start()
+ * @iml_len: the length of the image loader
+ * @iml: a pointer to the image loader itself
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
@@ -734,6 +736,9 @@ struct iwl_trans {
 	bool wide_cmd_header;
 
 	u8 num_rx_queues;
+
+	size_t iml_len;
+	u8 *iml;
 
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;
@@ -952,8 +957,8 @@ iwl_trans_txq_free(struct iwl_trans *trans, int queue)
 static inline int
 iwl_trans_txq_alloc(struct iwl_trans *trans,
 		    struct iwl_tx_queue_cfg_cmd *cmd,
-		    int cmd_id,
-		    unsigned int queue_wdg_timeout)
+		    int cmd_id, int size,
+		    unsigned int wdg_timeout)
 {
 	might_sleep();
 
@@ -965,7 +970,7 @@ iwl_trans_txq_alloc(struct iwl_trans *trans,
 		return -EIO;
 	}
 
-	return trans->ops->txq_alloc(trans, cmd, cmd_id, queue_wdg_timeout);
+	return trans->ops->txq_alloc(trans, cmd, cmd_id, size, wdg_timeout);
 }
 
 static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,

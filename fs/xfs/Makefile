@@ -1,19 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (c) 2000-2005 Silicon Graphics, Inc.
 # All Rights Reserved.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation.
-#
-# This program is distributed in the hope that it would be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write the Free Software Foundation,
-# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 
 ccflags-y += -I$(src)			# needed for trace events
@@ -28,6 +16,7 @@ xfs-y				+= xfs_trace.o
 
 # build the libxfs code first
 xfs-y				+= $(addprefix libxfs/, \
+				   xfs_ag.o \
 				   xfs_alloc.o \
 				   xfs_alloc_btree.o \
 				   xfs_attr.o \
@@ -61,6 +50,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_sb.o \
 				   xfs_symlink_remote.o \
 				   xfs_trans_resv.o \
+				   xfs_types.o \
 				   )
 # xfs_rtbitmap is shared with libxfs
 xfs-$(CONFIG_XFS_RT)		+= $(addprefix libxfs/, \
@@ -163,4 +153,12 @@ xfs-y				+= $(addprefix scrub/, \
 
 xfs-$(CONFIG_XFS_RT)		+= scrub/rtbitmap.o
 xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
+
+# online repair
+ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
+xfs-y				+= $(addprefix scrub/, \
+				   agheader_repair.o \
+				   repair.o \
+				   )
+endif
 endif

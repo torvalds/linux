@@ -48,7 +48,6 @@
 #include "tcm_qla2xxx.h"
 
 static struct workqueue_struct *tcm_qla2xxx_free_wq;
-static struct workqueue_struct *tcm_qla2xxx_cmd_wq;
 
 /*
  * Parse WWN.
@@ -628,6 +627,32 @@ static int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, u64 lun,
 
 	return target_submit_tmr(se_cmd, sess->se_sess, NULL, lun, mcmd,
 	    transl_tmr_func, GFP_ATOMIC, tag, flags);
+}
+
+static struct qla_tgt_cmd *tcm_qla2xxx_find_cmd_by_tag(struct fc_port *sess,
+    uint64_t tag)
+{
+	struct qla_tgt_cmd *cmd = NULL;
+	struct se_cmd *secmd;
+	unsigned long flags;
+
+	if (!sess->se_sess)
+		return NULL;
+
+	spin_lock_irqsave(&sess->se_sess->sess_cmd_lock, flags);
+	list_for_each_entry(secmd, &sess->se_sess->sess_cmd_list, se_cmd_list) {
+		/* skip task management functions, including tmr->task_cmd */
+		if (secmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
+			continue;
+
+		if (secmd->tag == tag) {
+			cmd = container_of(secmd, struct qla_tgt_cmd, se_cmd);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&sess->se_sess->sess_cmd_lock, flags);
+
+	return cmd;
 }
 
 static int tcm_qla2xxx_queue_data_in(struct se_cmd *se_cmd)
@@ -1608,6 +1633,7 @@ static void tcm_qla2xxx_update_sess(struct fc_port *sess, port_id_t s_id,
  * Calls into tcm_qla2xxx used by qla2xxx LLD I/O path.
  */
 static struct qla_tgt_func_tmpl tcm_qla2xxx_template = {
+	.find_cmd_by_tag	= tcm_qla2xxx_find_cmd_by_tag,
 	.handle_cmd		= tcm_qla2xxx_handle_cmd,
 	.handle_data		= tcm_qla2xxx_handle_data,
 	.handle_tmr		= tcm_qla2xxx_handle_tmr,
@@ -1635,7 +1661,9 @@ static int tcm_qla2xxx_init_lport(struct tcm_qla2xxx_lport *lport)
 		return rc;
 	}
 
-	lport->lport_loopid_map = vzalloc(sizeof(struct tcm_qla2xxx_fc_loopid) * 65536);
+	lport->lport_loopid_map =
+		vzalloc(array_size(65536,
+				   sizeof(struct tcm_qla2xxx_fc_loopid)));
 	if (!lport->lport_loopid_map) {
 		pr_err("Unable to allocate lport->lport_loopid_map of %zu bytes\n",
 		    sizeof(struct tcm_qla2xxx_fc_loopid) * 65536);
@@ -1976,16 +2004,8 @@ static int tcm_qla2xxx_register_configfs(void)
 		goto out_fabric_npiv;
 	}
 
-	tcm_qla2xxx_cmd_wq = alloc_workqueue("tcm_qla2xxx_cmd", 0, 0);
-	if (!tcm_qla2xxx_cmd_wq) {
-		ret = -ENOMEM;
-		goto out_free_wq;
-	}
-
 	return 0;
 
-out_free_wq:
-	destroy_workqueue(tcm_qla2xxx_free_wq);
 out_fabric_npiv:
 	target_unregister_template(&tcm_qla2xxx_npiv_ops);
 out_fabric:
@@ -1995,7 +2015,6 @@ out_fabric:
 
 static void tcm_qla2xxx_deregister_configfs(void)
 {
-	destroy_workqueue(tcm_qla2xxx_cmd_wq);
 	destroy_workqueue(tcm_qla2xxx_free_wq);
 
 	target_unregister_template(&tcm_qla2xxx_ops);

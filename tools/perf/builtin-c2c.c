@@ -56,16 +56,16 @@ struct c2c_hist_entry {
 
 	struct compute_stats	 cstats;
 
+	unsigned long		 paddr;
+	unsigned long		 paddr_cnt;
+	bool			 paddr_zero;
+	char			*nodestr;
+
 	/*
 	 * must be at the end,
 	 * because of its callchain dynamic entry
 	 */
 	struct hist_entry	he;
-
-	unsigned long		 paddr;
-	unsigned long		 paddr_cnt;
-	bool			 paddr_zero;
-	char			*nodestr;
 };
 
 static char const *coalesce_default = "pid,iaddr";
@@ -1976,7 +1976,7 @@ static int filter_cb(struct hist_entry *he)
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 
 	if (c2c.show_src && !he->srcline)
-		he->srcline = hist_entry__get_srcline(he);
+		he->srcline = hist_entry__srcline(he);
 
 	calc_width(c2c_he);
 

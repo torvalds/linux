@@ -34,7 +34,6 @@
 #include "atomfirmware.h"
 #include "cgs_common.h"
 #include "vega12_inc.h"
-#include "pp_soc15.h"
 #include "pppcielanes.h"
 #include "vega12_hwmgr.h"
 #include "vega12_processpptables.h"
@@ -82,6 +81,7 @@ static void vega12_set_default_registry_data(struct pp_hwmgr *hwmgr)
 
 	data->registry_data.disallowed_features = 0x0;
 	data->registry_data.od_state_in_dc_support = 0;
+	data->registry_data.thermal_support = 1;
 	data->registry_data.skip_baco_hardware = 0;
 
 	data->registry_data.log_avfs_param = 0;
@@ -546,6 +546,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -565,6 +566,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -585,6 +587,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -605,6 +608,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 		return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -625,6 +629,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -645,6 +650,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 		return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -666,6 +672,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -686,6 +693,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -706,6 +714,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -726,6 +735,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 		dpm_table->dpm_levels[i].value = clock;
+		dpm_table->dpm_levels[i].enabled = true;
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
@@ -794,6 +804,9 @@ static int vega12_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
 		data->vbios_boot_state.uc_cooling_id = boot_up_values.ucCoolingID;
+		data->vbios_boot_state.eclock = boot_up_values.ulEClk;
+		data->vbios_boot_state.dclock = boot_up_values.ulDClk;
+		data->vbios_boot_state.vclock = boot_up_values.ulVClk;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetMinDeepSleepDcefclk,
 			(uint32_t)(data->vbios_boot_state.dcef_clock / 100));
@@ -992,14 +1005,54 @@ static uint32_t vega12_find_highest_dpm_level(
 
 static int vega12_upload_dpm_min_level(struct pp_hwmgr *hwmgr)
 {
+	struct vega12_hwmgr *data = hwmgr->backend;
+	if (data->smc_state_table.gfx_boot_level !=
+			data->dpm_table.gfx_table.dpm_state.soft_min_level) {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetSoftMinByFreq,
+			PPCLK_GFXCLK<<16 | data->dpm_table.gfx_table.dpm_levels[data->smc_state_table.gfx_boot_level].value);
+		data->dpm_table.gfx_table.dpm_state.soft_min_level =
+				data->smc_state_table.gfx_boot_level;
+	}
+
+	if (data->smc_state_table.mem_boot_level !=
+			data->dpm_table.mem_table.dpm_state.soft_min_level) {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetSoftMinByFreq,
+			PPCLK_UCLK<<16 | data->dpm_table.mem_table.dpm_levels[data->smc_state_table.mem_boot_level].value);
+		data->dpm_table.mem_table.dpm_state.soft_min_level =
+				data->smc_state_table.mem_boot_level;
+	}
+
 	return 0;
+
 }
 
 static int vega12_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 {
+	struct vega12_hwmgr *data = hwmgr->backend;
+	if (data->smc_state_table.gfx_max_level !=
+		data->dpm_table.gfx_table.dpm_state.soft_max_level) {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetSoftMaxByFreq,
+			/* plus the vale by 1 to align the resolution */
+			PPCLK_GFXCLK<<16 | (data->dpm_table.gfx_table.dpm_levels[data->smc_state_table.gfx_max_level].value + 1));
+		data->dpm_table.gfx_table.dpm_state.soft_max_level =
+				data->smc_state_table.gfx_max_level;
+	}
+
+	if (data->smc_state_table.mem_max_level !=
+		data->dpm_table.mem_table.dpm_state.soft_max_level) {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetSoftMaxByFreq,
+			/* plus the vale by 1 to align the resolution */
+			PPCLK_UCLK<<16 | (data->dpm_table.mem_table.dpm_levels[data->smc_state_table.mem_max_level].value + 1));
+		data->dpm_table.mem_table.dpm_state.soft_max_level =
+				data->smc_state_table.mem_max_level;
+	}
+
 	return 0;
 }
-
 
 int vega12_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
@@ -1064,8 +1117,7 @@ static uint32_t vega12_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 	return (mem_clk * 100);
 }
 
-static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr,
-		struct pp_gpu_power *query)
+static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr, uint32_t *query)
 {
 #if 0
 	uint32_t value;
@@ -1077,7 +1129,7 @@ static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr,
 
 	vega12_read_arg_from_smc(hwmgr, &value);
 	/* power value is an integer */
-	query->average_gpu_power = value << 8;
+	*query = value << 8;
 #endif
 	return 0;
 }
@@ -1186,12 +1238,8 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		if (*size < sizeof(struct pp_gpu_power))
-			ret = -EINVAL;
-		else {
-			*size = sizeof(struct pp_gpu_power);
-			ret = vega12_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
-		}
+		ret = vega12_get_gpu_power(hwmgr, (uint32_t *)value);
+
 		break;
 	default:
 		ret = -EINVAL;
@@ -1260,23 +1308,18 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 {
 	struct vega12_hwmgr *data =
 			(struct vega12_hwmgr *)(hwmgr->backend);
-	uint32_t num_active_disps = 0;
-	struct cgs_display_info info = {0};
 	struct PP_Clocks min_clocks = {0};
 	struct pp_display_clock_request clock_req;
 	uint32_t clk_request;
 
-	info.mode_info = NULL;
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	num_active_disps = info.display_count;
-	if (num_active_disps > 1)
+	if (hwmgr->display_config->num_display > 1)
 		vega12_notify_smc_display_change(hwmgr, false);
 	else
 		vega12_notify_smc_display_change(hwmgr, true);
 
-	min_clocks.dcefClock = hwmgr->display_config.min_dcef_set_clk;
-	min_clocks.dcefClockInSR = hwmgr->display_config.min_dcef_deep_sleep_set_clk;
-	min_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
+	min_clocks.dcefClock = hwmgr->display_config->min_dcef_set_clk;
+	min_clocks.dcefClockInSR = hwmgr->display_config->min_dcef_deep_sleep_set_clk;
+	min_clocks.memoryClock = hwmgr->display_config->min_mem_set_clock;
 
 	if (data->smu_features[GNLD_DPM_DCEFCLK].supported) {
 		clock_req.clock_type = amd_pp_dcef_clock;
@@ -1832,9 +1875,7 @@ static int vega12_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 	int result = 0;
-	uint32_t num_turned_on_displays = 1;
 	Watermarks_t *wm_table = &(data->smc_state_table.water_marks_table);
-	struct cgs_display_info info = {0};
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
@@ -1846,12 +1887,9 @@ static int vega12_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 		data->smu_features[GNLD_DPM_DCEFCLK].supported &&
-		data->smu_features[GNLD_DPM_SOCCLK].supported) {
-		cgs_get_active_displays_info(hwmgr->device, &info);
-		num_turned_on_displays = info.display_count;
+		data->smu_features[GNLD_DPM_SOCCLK].supported)
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_NumOfDisplays, num_turned_on_displays);
-	}
+			PPSMC_MSG_NumOfDisplays, hwmgr->display_config->num_display);
 
 	return result;
 }
@@ -1894,15 +1932,12 @@ vega12_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmg
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 	bool is_update_required = false;
-	struct cgs_display_info info = {0, 0, NULL};
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	if (data->display_timing.num_existing_displays != info.display_count)
+	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
 		is_update_required = true;
 
 	if (data->registry_data.gfx_clk_deep_sleep_support) {
-		if (data->display_timing.min_clock_in_sr != hwmgr->display_config.min_core_set_clock_in_sr)
+		if (data->display_timing.min_clock_in_sr != hwmgr->display_config->min_core_set_clock_in_sr)
 			is_update_required = true;
 	}
 

@@ -57,11 +57,13 @@ enum nfp_app_id {
 	NFP_APP_CORE_NIC	= 0x1,
 	NFP_APP_BPF_NIC		= 0x2,
 	NFP_APP_FLOWER_NIC	= 0x3,
+	NFP_APP_ACTIVE_BUFFER_MGMT_NIC = 0x4,
 };
 
 extern const struct nfp_app_type app_nic;
 extern const struct nfp_app_type app_bpf;
 extern const struct nfp_app_type app_flower;
+extern const struct nfp_app_type app_abm;
 
 /**
  * struct nfp_app_type - application definition
@@ -88,6 +90,9 @@ extern const struct nfp_app_type app_flower;
  * @repr_stop:	representor netdev stop callback
  * @check_mtu:	MTU change request on a netdev (verify it is valid)
  * @repr_change_mtu:	MTU change request on repr (make and verify change)
+ * @port_get_stats:		get extra ethtool statistics for a port
+ * @port_get_stats_count:	get count of extra statistics for a port
+ * @port_get_stats_strings:	get strings for extra statistics
  * @start:	start application logic
  * @stop:	stop application logic
  * @ctrl_msg_rx:    control message handler
@@ -95,6 +100,7 @@ extern const struct nfp_app_type app_flower;
  * @bpf:	BPF ndo offload-related calls
  * @xdp_offload:    offload an XDP program
  * @eswitch_mode_get:    get SR-IOV eswitch mode
+ * @eswitch_mode_set:    set SR-IOV eswitch mode (under pf->lock)
  * @sriov_enable: app-specific sriov initialisation
  * @sriov_disable: app-specific sriov clean-up
  * @repr_get:	get representor netdev
@@ -129,6 +135,12 @@ struct nfp_app_type {
 	int (*repr_change_mtu)(struct nfp_app *app, struct net_device *netdev,
 			       int new_mtu);
 
+	u64 *(*port_get_stats)(struct nfp_app *app,
+			       struct nfp_port *port, u64 *data);
+	int (*port_get_stats_count)(struct nfp_app *app, struct nfp_port *port);
+	u8 *(*port_get_stats_strings)(struct nfp_app *app,
+				      struct nfp_port *port, u8 *data);
+
 	int (*start)(struct nfp_app *app);
 	void (*stop)(struct nfp_app *app);
 
@@ -146,6 +158,7 @@ struct nfp_app_type {
 	void (*sriov_disable)(struct nfp_app *app);
 
 	enum devlink_eswitch_mode (*eswitch_mode_get)(struct nfp_app *app);
+	int (*eswitch_mode_set)(struct nfp_app *app, u16 mode);
 	struct net_device *(*repr_get)(struct nfp_app *app, u32 id);
 };
 
@@ -370,6 +383,13 @@ static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
 	return 0;
 }
 
+static inline int nfp_app_eswitch_mode_set(struct nfp_app *app, u16 mode)
+{
+	if (!app->type->eswitch_mode_set)
+		return -EOPNOTSUPP;
+	return app->type->eswitch_mode_set(app, mode);
+}
+
 static inline int nfp_app_sriov_enable(struct nfp_app *app, int num_vfs)
 {
 	if (!app || !app->type->sriov_enable)
@@ -393,6 +413,10 @@ static inline struct net_device *nfp_app_repr_get(struct nfp_app *app, u32 id)
 
 struct nfp_app *nfp_app_from_netdev(struct net_device *netdev);
 
+u64 *nfp_app_port_get_stats(struct nfp_port *port, u64 *data);
+int nfp_app_port_get_stats_count(struct nfp_port *port);
+u8 *nfp_app_port_get_stats_strings(struct nfp_port *port, u8 *data);
+
 struct nfp_reprs *
 nfp_reprs_get_locked(struct nfp_app *app, enum nfp_repr_type type);
 struct nfp_reprs *
@@ -410,5 +434,7 @@ void nfp_app_free(struct nfp_app *app);
 
 int nfp_app_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 			   unsigned int id);
+int nfp_app_nic_vnic_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
+				   struct nfp_net *nn, unsigned int id);
 
 #endif

@@ -485,7 +485,7 @@ void cdv_intel_attach_force_audio_property(struct drm_connector *connector)
 			return;
 
 		for (i = 0; i < ARRAY_SIZE(force_audio_names); i++)
-			drm_property_add_enum(prop, i, i-1, force_audio_names[i]);
+			drm_property_add_enum(prop, i-1, force_audio_names[i]);
 
 		dev_priv->force_audio_property = prop;
 	}
@@ -514,7 +514,7 @@ void cdv_intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 			return;
 
 		for (i = 0; i < ARRAY_SIZE(broadcast_rgb_names); i++)
-			drm_property_add_enum(prop, i, i, broadcast_rgb_names[i]);
+			drm_property_add_enum(prop, i, broadcast_rgb_names[i]);
 
 		dev_priv->broadcast_rgb_property = prop;
 	}

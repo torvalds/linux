@@ -24,6 +24,19 @@
 
 #include <nvif/if000a.h>
 
+int
+nvif_mem_init_map(struct nvif_mmu *mmu, u8 type, u64 size, struct nvif_mem *mem)
+{
+	int ret = nvif_mem_init(mmu, mmu->mem, NVIF_MEM_MAPPABLE | type, 0,
+				size, NULL, 0, mem);
+	if (ret == 0) {
+		ret = nvif_object_map(&mem->object, NULL, 0);
+		if (ret)
+			nvif_mem_fini(mem);
+	}
+	return ret;
+}
+
 void
 nvif_mem_fini(struct nvif_mem *mem)
 {

@@ -188,7 +188,7 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 				  unsigned int array_size,
 				  struct gpio_desc **desc_array,
 				  int *value_array);
-void gpiod_set_array_value_complex(bool raw, bool can_sleep,
+int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				   unsigned int array_size,
 				   struct gpio_desc **desc_array,
 				   int *value_array);

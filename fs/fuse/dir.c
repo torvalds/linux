@@ -858,8 +858,8 @@ static void fuse_fillattr(struct inode *inode, struct fuse_attr *attr,
 	stat->ino = attr->ino;
 	stat->mode = (inode->i_mode & S_IFMT) | (attr->mode & 07777);
 	stat->nlink = attr->nlink;
-	stat->uid = make_kuid(&init_user_ns, attr->uid);
-	stat->gid = make_kgid(&init_user_ns, attr->gid);
+	stat->uid = make_kuid(fc->user_ns, attr->uid);
+	stat->gid = make_kgid(fc->user_ns, attr->gid);
 	stat->rdev = inode->i_rdev;
 	stat->atime.tv_sec = attr->atime;
 	stat->atime.tv_nsec = attr->atimensec;
@@ -924,12 +924,20 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 }
 
 static int fuse_update_get_attr(struct inode *inode, struct file *file,
-				struct kstat *stat)
+				struct kstat *stat, unsigned int flags)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	int err = 0;
+	bool sync;
 
-	if (time_before64(fi->i_time, get_jiffies_64())) {
+	if (flags & AT_STATX_FORCE_SYNC)
+		sync = true;
+	else if (flags & AT_STATX_DONT_SYNC)
+		sync = false;
+	else
+		sync = time_before64(fi->i_time, get_jiffies_64());
+
+	if (sync) {
 		forget_all_cached_acls(inode);
 		err = fuse_do_getattr(inode, stat, file);
 	} else if (stat) {
@@ -943,7 +951,7 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 
 int fuse_update_attributes(struct inode *inode, struct file *file)
 {
-	return fuse_update_get_attr(inode, file, NULL);
+	return fuse_update_get_attr(inode, file, NULL, 0);
 }
 
 int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
@@ -1030,7 +1038,7 @@ int fuse_allow_current_process(struct fuse_conn *fc)
 	const struct cred *cred;
 
 	if (fc->allow_other)
-		return 1;
+		return current_in_userns(fc->user_ns);
 
 	cred = current_cred();
 	if (uid_eq(cred->euid, fc->user_id) &&
@@ -1475,17 +1483,17 @@ static bool update_mtime(unsigned ivalid, bool trust_local_mtime)
 	return true;
 }
 
-static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg,
-			   bool trust_local_cmtime)
+static void iattr_to_fattr(struct fuse_conn *fc, struct iattr *iattr,
+			   struct fuse_setattr_in *arg, bool trust_local_cmtime)
 {
 	unsigned ivalid = iattr->ia_valid;
 
 	if (ivalid & ATTR_MODE)
 		arg->valid |= FATTR_MODE,   arg->mode = iattr->ia_mode;
 	if (ivalid & ATTR_UID)
-		arg->valid |= FATTR_UID,    arg->uid = from_kuid(&init_user_ns, iattr->ia_uid);
+		arg->valid |= FATTR_UID,    arg->uid = from_kuid(fc->user_ns, iattr->ia_uid);
 	if (ivalid & ATTR_GID)
-		arg->valid |= FATTR_GID,    arg->gid = from_kgid(&init_user_ns, iattr->ia_gid);
+		arg->valid |= FATTR_GID,    arg->gid = from_kgid(fc->user_ns, iattr->ia_gid);
 	if (ivalid & ATTR_SIZE)
 		arg->valid |= FATTR_SIZE,   arg->size = iattr->ia_size;
 	if (ivalid & ATTR_ATIME) {
@@ -1629,8 +1637,19 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		return err;
 
 	if (attr->ia_valid & ATTR_OPEN) {
-		if (fc->atomic_o_trunc)
+		/* This is coming from open(..., ... | O_TRUNC); */
+		WARN_ON(!(attr->ia_valid & ATTR_SIZE));
+		WARN_ON(attr->ia_size != 0);
+		if (fc->atomic_o_trunc) {
+			/*
+			 * No need to send request to userspace, since actual
+			 * truncation has already been done by OPEN.  But still
+			 * need to truncate page cache.
+			 */
+			i_size_write(inode, 0);
+			truncate_pagecache(inode, 0);
 			return 0;
+		}
 		file = NULL;
 	}
 
@@ -1646,7 +1665,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 
 	memset(&inarg, 0, sizeof(inarg));
 	memset(&outarg, 0, sizeof(outarg));
-	iattr_to_fattr(attr, &inarg, trust_local_cmtime);
+	iattr_to_fattr(fc, attr, &inarg, trust_local_cmtime);
 	if (file) {
 		struct fuse_file *ff = file->private_data;
 		inarg.valid |= FATTR_FH;
@@ -1783,7 +1802,7 @@ static int fuse_getattr(const struct path *path, struct kstat *stat,
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
-	return fuse_update_get_attr(inode, NULL, stat);
+	return fuse_update_get_attr(inode, NULL, stat, flags);
 }
 
 static const struct inode_operations fuse_dir_inode_operations = {

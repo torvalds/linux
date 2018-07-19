@@ -21,13 +21,15 @@
 #include "core.h"
 #include "sh_pfc.h"
 
+#define CFG_FLAGS SH_PFC_PIN_CFG_DRIVE_STRENGTH
+
 #define CPU_ALL_PORT(fn, sfx)						\
-	PORT_GP_CFG_22(0, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
-	PORT_GP_CFG_28(1, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
-	PORT_GP_CFG_17(2, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
-	PORT_GP_CFG_17(3, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
-	PORT_GP_CFG_6(4, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
-	PORT_GP_CFG_15(5, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH)
+	PORT_GP_CFG_22(0, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE), \
+	PORT_GP_CFG_28(1, fn, sfx, CFG_FLAGS),				\
+	PORT_GP_CFG_17(2, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE), \
+	PORT_GP_CFG_17(3, fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE), \
+	PORT_GP_CFG_6(4,  fn, sfx, CFG_FLAGS),				\
+	PORT_GP_CFG_15(5, fn, sfx, CFG_FLAGS)
 /*
  * F_() : just information
  * FM() : macro for FN_xxx / xxx_MARK
@@ -2382,18 +2384,31 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+enum ioctrl_regs {
+	IOCTRL30,
+	IOCTRL31,
+	IOCTRL32,
+};
+
+static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
+	[IOCTRL30] = { 0xe6060380 },
+	[IOCTRL31] = { 0xe6060384 },
+	[IOCTRL32] = { 0xe6060388 },
+	{ /* sentinel */ },
+};
+
 static int r8a77970_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin,
 				   u32 *pocctrl)
 {
 	int bit = pin & 0x1f;
 
-	*pocctrl = 0xe6060380;
+	*pocctrl = pinmux_ioctrl_regs[IOCTRL30].reg;
 	if (pin >= RCAR_GP_PIN(0, 0) && pin <= RCAR_GP_PIN(0, 21))
 		return bit;
 	if (pin >= RCAR_GP_PIN(2, 0) && pin <= RCAR_GP_PIN(2, 9))
 		return bit + 22;
 
-	*pocctrl += 4;
+	*pocctrl = pinmux_ioctrl_regs[IOCTRL31].reg;
 	if (pin >= RCAR_GP_PIN(2, 10) && pin <= RCAR_GP_PIN(2, 16))
 		return bit - 10;
 	if (pin >= RCAR_GP_PIN(3, 0) && pin <= RCAR_GP_PIN(3, 16))
@@ -2421,6 +2436,7 @@ const struct sh_pfc_soc_info r8a77970_pinmux_info = {
 	.nr_functions = ARRAY_SIZE(pinmux_functions),
 
 	.cfg_regs = pinmux_config_regs,
+	.ioctrl_regs = pinmux_ioctrl_regs,
 
 	.pinmux_data = pinmux_data,
 	.pinmux_data_size = ARRAY_SIZE(pinmux_data),

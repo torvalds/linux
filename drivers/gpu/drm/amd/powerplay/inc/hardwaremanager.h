@@ -377,11 +377,7 @@ struct phm_clocks {
 #define DPMTABLE_UPDATE_SCLK        0x00000004
 #define DPMTABLE_UPDATE_MCLK        0x00000008
 #define DPMTABLE_OD_UPDATE_VDDC     0x00000010
-
-/* To determine if sclk and mclk are in overdrive state */
-#define SCLK_OVERDRIVE_ENABLED           0x00000001
-#define MCLK_OVERDRIVE_ENABLED           0x00000002
-#define VDDC_OVERDRIVE_ENABLED           0x00000010
+#define DPMTABLE_UPDATE_SOCCLK      0x00000020
 
 struct phm_odn_performance_level {
 	uint32_t clock;
@@ -414,7 +410,10 @@ extern int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				   struct pp_power_state *adjusted_ps,
 			     const struct pp_power_state *current_ps);
 
+extern int phm_apply_clock_adjust_rules(struct pp_hwmgr *hwmgr);
+
 extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level);
+extern int phm_pre_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
 extern int phm_register_irq_handlers(struct pp_hwmgr *hwmgr);
