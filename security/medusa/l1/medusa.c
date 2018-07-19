@@ -1228,7 +1228,7 @@ static int medusa_l1_syslog(int type)
 	return 0;
 }
 
-static int medusa_l1_settime(const struct timespec *ts, const struct timezone *tz)
+static int medusa_l1_settime(const struct timespec64 *ts, const struct timezone *tz)
 {
 	return 0;
 }
