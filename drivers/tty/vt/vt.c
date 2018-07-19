@@ -104,6 +104,7 @@
 #include <linux/kdb.h>
 #include <linux/ctype.h>
 #include <linux/bsearch.h>
+#include <linux/gcd.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -434,20 +435,29 @@ static void vc_uniscr_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 	struct uni_screen *uniscr = get_vc_uniscr(vc);
 
 	if (uniscr) {
-		unsigned int s, d, rescue, clear;
-		char32_t *save[nr];
+		unsigned int i, j, k, sz, d, clear;
 
-		s = clear = t;
-		d = t + nr;
-		rescue = b - nr;
-		if (dir == SM_UP) {
-			swap(s, d);
-			swap(clear, rescue);
+		sz = b - t;
+		clear = b - nr;
+		d = nr;
+		if (dir == SM_DOWN) {
+			clear = t;
+			d = sz - nr;
 		}
-		memcpy(save, uniscr->lines + rescue, nr * sizeof(*save));
-		memmove(uniscr->lines + d, uniscr->lines + s,
-			(b - t - nr) * sizeof(*uniscr->lines));
-		memcpy(uniscr->lines + clear, save, nr * sizeof(*save));
+		for (i = 0; i < gcd(d, sz); i++) {
+			char32_t *tmp = uniscr->lines[t + i];
+			j = i;
+			while (1) {
+				k = j + d;
+				if (k >= sz)
+					k -= sz;
+				if (k == i)
+					break;
+				uniscr->lines[t + j] = uniscr->lines[t + k];
+				j = k;
+			}
+			uniscr->lines[t + j] = tmp;
+		}
 		vc_uniscr_clear_lines(vc, clear, nr);
 	}
 }
