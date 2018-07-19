@@ -3259,9 +3259,24 @@ static int vega10_populate_and_upload_sclk_mclk_dpm_levels(
 {
 	int result = 0;
 	struct vega10_hwmgr *data = hwmgr->backend;
+	struct vega10_dpm_table *dpm_table = &data->dpm_table;
+	struct vega10_odn_dpm_table *odn_table = &data->odn_dpm_table;
+	struct vega10_odn_clock_voltage_dependency_table *odn_clk_table = &odn_table->vdd_dep_on_sclk;
+	int count;
 
 	if (!data->need_update_dpm_table)
 		return 0;
+
+	if (hwmgr->od_enabled && data->need_update_dpm_table & DPMTABLE_OD_UPDATE_SCLK) {
+		for (count = 0; count < dpm_table->gfx_table.count; count++)
+			dpm_table->gfx_table.dpm_levels[count].value = odn_clk_table->entries[count].clk;
+	}
+
+	odn_clk_table = &odn_table->vdd_dep_on_mclk;
+	if (hwmgr->od_enabled && data->need_update_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
+		for (count = 0; count < dpm_table->mem_table.count; count++)
+			dpm_table->mem_table.dpm_levels[count].value = odn_clk_table->entries[count].clk;
+	}
 
 	if (data->need_update_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK + DPMTABLE_UPDATE_SOCCLK)) {
