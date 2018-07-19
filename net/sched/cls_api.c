@@ -818,7 +818,7 @@ int tcf_block_cb_register(struct tcf_block *block,
 
 	block_cb = __tcf_block_cb_register(block, cb, cb_ident, cb_priv,
 					   extack);
-	return IS_ERR(block_cb) ? PTR_ERR(block_cb) : 0;
+	return PTR_ERR_OR_ZERO(block_cb);
 }
 EXPORT_SYMBOL(tcf_block_cb_register);
 
