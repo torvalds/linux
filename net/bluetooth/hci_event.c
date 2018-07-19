@@ -1547,6 +1547,8 @@ static void hci_cc_set_ext_adv_param(struct hci_dev *hdev, struct sk_buff *skb)
 		if (adv_instance)
 			adv_instance->tx_power = rp->tx_power;
 	}
+	/* Update adv data as tx power is known now */
+	hci_req_update_adv_data(hdev, hdev->cur_adv_instance);
 	hci_dev_unlock(hdev);
 }
 

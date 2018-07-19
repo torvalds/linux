@@ -1174,29 +1174,58 @@ static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
 void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_scan_rsp_data cp;
 	u8 len;
 
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
-	memset(&cp, 0, sizeof(cp));
+	if (ext_adv_capable(hdev)) {
+		struct hci_cp_le_set_ext_scan_rsp_data cp;
 
-	if (instance)
-		len = create_instance_scan_rsp_data(hdev, instance, cp.data);
-	else
-		len = create_default_scan_rsp_data(hdev, cp.data);
+		memset(&cp, 0, sizeof(cp));
 
-	if (hdev->scan_rsp_data_len == len &&
-	    !memcmp(cp.data, hdev->scan_rsp_data, len))
-		return;
+		if (instance)
+			len = create_instance_scan_rsp_data(hdev, instance,
+							    cp.data);
+		else
+			len = create_default_scan_rsp_data(hdev, cp.data);
 
-	memcpy(hdev->scan_rsp_data, cp.data, sizeof(cp.data));
-	hdev->scan_rsp_data_len = len;
+		if (hdev->scan_rsp_data_len == len &&
+		    !memcmp(cp.data, hdev->scan_rsp_data, len))
+			return;
 
-	cp.length = len;
+		memcpy(hdev->scan_rsp_data, cp.data, sizeof(cp.data));
+		hdev->scan_rsp_data_len = len;
 
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_RSP_DATA, sizeof(cp), &cp);
+		cp.handle = 0;
+		cp.length = len;
+		cp.operation = LE_SET_ADV_DATA_OP_COMPLETE;
+		cp.frag_pref = LE_SET_ADV_DATA_NO_FRAG;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_RSP_DATA, sizeof(cp),
+			    &cp);
+	} else {
+		struct hci_cp_le_set_scan_rsp_data cp;
+
+		memset(&cp, 0, sizeof(cp));
+
+		if (instance)
+			len = create_instance_scan_rsp_data(hdev, instance,
+							    cp.data);
+		else
+			len = create_default_scan_rsp_data(hdev, cp.data);
+
+		if (hdev->scan_rsp_data_len == len &&
+		    !memcmp(cp.data, hdev->scan_rsp_data, len))
+			return;
+
+		memcpy(hdev->scan_rsp_data, cp.data, sizeof(cp.data));
+		hdev->scan_rsp_data_len = len;
+
+		cp.length = len;
+
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_RSP_DATA, sizeof(cp), &cp);
+	}
 }
 
 static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
@@ -1282,27 +1311,51 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 void __hci_req_update_adv_data(struct hci_request *req, u8 instance)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_adv_data cp;
 	u8 len;
 
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
-	memset(&cp, 0, sizeof(cp));
+	if (ext_adv_capable(hdev)) {
+		struct hci_cp_le_set_ext_adv_data cp;
 
-	len = create_instance_adv_data(hdev, instance, cp.data);
+		memset(&cp, 0, sizeof(cp));
 
-	/* There's nothing to do if the data hasn't changed */
-	if (hdev->adv_data_len == len &&
-	    memcmp(cp.data, hdev->adv_data, len) == 0)
-		return;
+		len = create_instance_adv_data(hdev, instance, cp.data);
 
-	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
-	hdev->adv_data_len = len;
+		/* There's nothing to do if the data hasn't changed */
+		if (hdev->adv_data_len == len &&
+		    memcmp(cp.data, hdev->adv_data, len) == 0)
+			return;
 
-	cp.length = len;
+		memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
+		hdev->adv_data_len = len;
 
-	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
+		cp.length = len;
+		cp.handle = 0;
+		cp.operation = LE_SET_ADV_DATA_OP_COMPLETE;
+		cp.frag_pref = LE_SET_ADV_DATA_NO_FRAG;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_DATA, sizeof(cp), &cp);
+	} else {
+		struct hci_cp_le_set_adv_data cp;
+
+		memset(&cp, 0, sizeof(cp));
+
+		len = create_instance_adv_data(hdev, instance, cp.data);
+
+		/* There's nothing to do if the data hasn't changed */
+		if (hdev->adv_data_len == len &&
+		    memcmp(cp.data, hdev->adv_data, len) == 0)
+			return;
+
+		memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
+		hdev->adv_data_len = len;
+
+		cp.length = len;
+
+		hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
+	}
 }
 
 int hci_req_update_adv_data(struct hci_dev *hdev, u8 instance)
@@ -1377,8 +1430,7 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static int __hci_req_setup_ext_adv_instance(struct hci_request *req,
-					    u8 instance)
+int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 {
 	struct hci_cp_le_set_ext_adv_params cp;
 	struct hci_dev *hdev = req->hdev;
@@ -1453,6 +1505,7 @@ int __hci_req_start_ext_adv(struct hci_request *req, u8 instance)
 	if (err < 0)
 		return err;
 
+	__hci_req_update_scan_rsp_data(req, instance);
 	__hci_req_enable_ext_advertising(req);
 
 	return 0;
@@ -2500,14 +2553,25 @@ static int powered_update_hci(struct hci_request *req, unsigned long opt)
 		 */
 		if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
 		    list_empty(&hdev->adv_instances)) {
-			__hci_req_update_adv_data(req, 0x00);
-			__hci_req_update_scan_rsp_data(req, 0x00);
+			int err;
+
+			if (ext_adv_capable(hdev)) {
+				err = __hci_req_setup_ext_adv_instance(req,
+								       0x00);
+				if (!err)
+					__hci_req_update_scan_rsp_data(req,
+								       0x00);
+			} else {
+				err = 0;
+				__hci_req_update_adv_data(req, 0x00);
+				__hci_req_update_scan_rsp_data(req, 0x00);
+			}
 
 			if (hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
-				if (ext_adv_capable(hdev))
-					__hci_req_start_ext_adv(req, 0x00);
-				else
+				if (!ext_adv_capable(hdev))
 					__hci_req_enable_advertising(req);
+				else if (!err)
+					__hci_req_enable_ext_advertising(req);
 			}
 		} else if (!list_empty(&hdev->adv_instances)) {
 			struct adv_info *adv_instance;

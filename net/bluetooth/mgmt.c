@@ -1847,10 +1847,17 @@ static void le_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 	 */
 	if (hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
 		struct hci_request req;
-
 		hci_req_init(&req, hdev);
-		__hci_req_update_adv_data(&req, 0x00);
-		__hci_req_update_scan_rsp_data(&req, 0x00);
+		if (ext_adv_capable(hdev)) {
+			int err;
+
+			err = __hci_req_setup_ext_adv_instance(&req, 0x00);
+			if (!err)
+				__hci_req_update_scan_rsp_data(&req, 0x00);
+		} else {
+			__hci_req_update_adv_data(&req, 0x00);
+			__hci_req_update_scan_rsp_data(&req, 0x00);
+		}
 		hci_req_run(&req, NULL);
 		hci_update_background_scan(hdev);
 	}
