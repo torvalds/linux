@@ -27,16 +27,9 @@ struct hclge_desc {
 	__le32 data[6];
 };
 
-struct hclge_desc_cb {
-	dma_addr_t dma;
-	void *va;
-	u32 length;
-};
-
 struct hclge_cmq_ring {
 	dma_addr_t desc_dma_addr;
 	struct hclge_desc *desc;
-	struct hclge_desc_cb *desc_cb;
 	struct hclge_dev *dev;
 	u32 head;
 	u32 tail;

@@ -140,12 +140,6 @@ enum hclge_evt_cause {
 };
 
 #define HCLGE_MPF_ENBALE 1
-struct hclge_caps {
-	u16 num_tqp;
-	u16 num_buffer_cell;
-	u32 flag;
-	u16 vmdq;
-};
 
 enum HCLGE_MAC_SPEED {
 	HCLGE_MAC_SPEED_10M	= 10,		/* 10 Mbps */
@@ -191,7 +185,6 @@ struct hclge_hw {
 	struct hclge_mac mac;
 	int num_vec;
 	struct hclge_cmq cmq;
-	struct hclge_caps caps;
 };
 
 /* TQP stats */
