@@ -115,7 +115,7 @@ int pciehp_sysfs_enable_slot(struct slot *slot);
 int pciehp_sysfs_disable_slot(struct slot *slot);
 void pciehp_queue_interrupt_event(struct slot *slot, u32 event_type);
 int pciehp_configure_device(struct slot *p_slot);
-int pciehp_unconfigure_device(struct slot *p_slot);
+void pciehp_unconfigure_device(struct slot *p_slot);
 void pciehp_queue_pushbutton_work(struct work_struct *work);
 struct controller *pcie_init(struct pcie_device *dev);
 int pcie_init_notification(struct controller *ctrl);

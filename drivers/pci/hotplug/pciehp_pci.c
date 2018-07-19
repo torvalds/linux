@@ -62,9 +62,8 @@ int pciehp_configure_device(struct slot *p_slot)
 	return ret;
 }
 
-int pciehp_unconfigure_device(struct slot *p_slot)
+void pciehp_unconfigure_device(struct slot *p_slot)
 {
-	int rc = 0;
 	u8 presence = 0;
 	struct pci_dev *dev, *temp;
 	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
@@ -107,5 +106,4 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	}
 
 	pci_unlock_rescan_remove();
-	return rc;
 }

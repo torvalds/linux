@@ -119,14 +119,11 @@ err_exit:
  * remove_board - Turns off slot and LEDs
  * @p_slot: slot where board is being removed
  */
-static int remove_board(struct slot *p_slot)
+static void remove_board(struct slot *p_slot)
 {
-	int retval;
 	struct controller *ctrl = p_slot->ctrl;
 
-	retval = pciehp_unconfigure_device(p_slot);
-	if (retval)
-		return retval;
+	pciehp_unconfigure_device(p_slot);
 
 	if (POWER_CTRL(ctrl)) {
 		pciehp_power_off_slot(p_slot);
@@ -141,7 +138,6 @@ static int remove_board(struct slot *p_slot)
 
 	/* turn off Green LED */
 	pciehp_green_led_off(p_slot);
-	return 0;
 }
 
 struct power_work_info {
@@ -421,7 +417,8 @@ int pciehp_disable_slot(struct slot *p_slot)
 		}
 	}
 
-	return remove_board(p_slot);
+	remove_board(p_slot);
+	return 0;
 }
 
 int pciehp_sysfs_enable_slot(struct slot *p_slot)
