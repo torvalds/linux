@@ -50,6 +50,7 @@ struct imx6_pcie {
 	struct regmap		*iomuxc_gpr;
 	struct reset_control	*pciephy_reset;
 	struct reset_control	*apps_reset;
+	struct reset_control	*turnoff_reset;
 	enum imx6_pcie_variants variant;
 	u32			tx_deemph_gen1;
 	u32			tx_deemph_gen2_3p5db;
@@ -770,6 +771,21 @@ static void imx6_pcie_ltssm_disable(struct device *dev)
 	}
 }
 
+static void imx6_pcie_pm_turnoff(struct imx6_pcie *imx6_pcie)
+{
+	reset_control_assert(imx6_pcie->turnoff_reset);
+	reset_control_deassert(imx6_pcie->turnoff_reset);
+
+	/*
+	 * Components with an upstream port must respond to
+	 * PME_Turn_Off with PME_TO_Ack but we can't check.
+	 *
+	 * The standard recommends a 1-10ms timeout after which to
+	 * proceed anyway as if acks were received.
+	 */
+	usleep_range(1000, 10000);
+}
+
 static void imx6_pcie_clk_disable(struct imx6_pcie *imx6_pcie)
 {
 	clk_disable_unprepare(imx6_pcie->pcie);
@@ -790,6 +806,7 @@ static int imx6_pcie_suspend_noirq(struct device *dev)
 	if (imx6_pcie->variant != IMX7D)
 		return 0;
 
+	imx6_pcie_pm_turnoff(imx6_pcie);
 	imx6_pcie_clk_disable(imx6_pcie);
 	imx6_pcie_ltssm_disable(dev);
 
@@ -915,6 +932,13 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 		break;
 	default:
 		break;
+	}
+
+	/* Grab turnoff reset */
+	imx6_pcie->turnoff_reset = devm_reset_control_get_optional_exclusive(dev, "turnoff");
+	if (IS_ERR(imx6_pcie->turnoff_reset)) {
+		dev_err(dev, "Failed to get TURNOFF reset control\n");
+		return PTR_ERR(imx6_pcie->turnoff_reset);
 	}
 
 	/* Grab GPR config register range */
