@@ -6718,18 +6718,6 @@ err_free_buf:
 }
 EXPORT_SYMBOL(nand_scan_tail);
 
-/*
- * is_module_text_address() isn't exported, and it's mostly a pointless
- * test if this is a module _anyway_ -- they'd have to try _really_ hard
- * to call us from in-kernel code if the core NAND support is modular.
- */
-#ifdef MODULE
-#define caller_is_module() (1)
-#else
-#define caller_is_module() \
-	is_module_text_address((unsigned long)__builtin_return_address(0))
-#endif
-
 /**
  * nand_scan_with_ids - [NAND Interface] Scan for the NAND device
  * @mtd: MTD device structure
