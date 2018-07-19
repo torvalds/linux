@@ -453,6 +453,16 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 	unsigned int n;
 
 	/*
+	 * We can skip acquiring intel_runtime_pm_get() here as it was taken
+	 * on our behalf by the request (see i915_gem_mark_busy()) and it will
+	 * not be relinquished until the device is idle (see
+	 * i915_gem_idle_work_handler()). As a precaution, we make sure
+	 * that all ELSP are drained i.e. we have processed the CSB,
+	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
+	 */
+	GEM_BUG_ON(!engine->i915->gt.awake);
+
+	/*
 	 * ELSQ note: the submit queue is not cleared after being submitted
 	 * to the HW so we need to make sure we always clean it up. This is
 	 * currently ensured by the fact that we always write the same number
@@ -1043,16 +1053,6 @@ static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
 {
 	lockdep_assert_held(&engine->timeline.lock);
 
-	/*
-	 * We can skip acquiring intel_runtime_pm_get() here as it was taken
-	 * on our behalf by the request (see i915_gem_mark_busy()) and it will
-	 * not be relinquished until the device is idle (see
-	 * i915_gem_idle_work_handler()). As a precaution, we make sure
-	 * that all ELSP are drained i.e. we have processed the CSB,
-	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
-	 */
-	GEM_BUG_ON(!engine->i915->gt.awake);
-
 	process_csb(engine);
 	if (!execlists_is_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT))
 		execlists_dequeue(engine);
@@ -1073,10 +1073,7 @@ static void execlists_submission_tasklet(unsigned long data)
 		  engine->execlists.active);
 
 	spin_lock_irqsave(&engine->timeline.lock, flags);
-
-	if (engine->i915->gt.awake) /* we may be delayed until after we idle! */
-		__execlists_submission_tasklet(engine);
-
+	__execlists_submission_tasklet(engine);
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
