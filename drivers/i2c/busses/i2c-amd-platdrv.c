@@ -71,34 +71,37 @@ struct amd_i2c_dev {
 
 };
 
-static int i2c_amd_read_completion(union i2c_event_base event, void *dev_ctx)
+static int i2c_amd_read_completion(struct i2c_event event, void *dev_ctx)
 {
 	struct amd_i2c_dev *i2c_dev = (struct amd_i2c_dev *)dev_ctx;
 	struct amd_i2c_common *commond = &i2c_dev->i2c_common;
-	int i = 0;
+	int i;
+	int buf_len;
 
-	if (event.r.status == i2c_readcomplete_event) {
-		if (event.r.length <= 32) {
+	if (event.base.r.status == i2c_readcomplete_event) {
+		if (event.base.r.length <= 32) {
 			pr_devel(" in %s i2c_dev->msg_buf :%p\n",
 				 __func__, i2c_dev->msg_buf);
 
 			memcpy(i2c_dev->msg_buf->buf,
-			       (unsigned char *)event.buf, event.r.length);
+			       (unsigned char *)event.buf, event.base.r.length);
 
-			for (i = 0; i < ((event.r.length + 3) / 4); i++)
+			buf_len = (event.base.r.length + 3) / 4;
+			for (i = 0; i < buf_len; i++)
 				pr_devel("%s:%s readdata:%x\n",
 					 DRIVER_NAME, __func__, event.buf[i]);
 
 		} else {
 			memcpy(i2c_dev->msg_buf->buf,
 			       (unsigned char *)commond->read_cfg.buf,
-				event.r.length);
+				event.base.r.length);
 			pr_devel("%s:%s virt:%llx phy_addr:%llx\n",
 				 DRIVER_NAME, __func__,
 				(u64)commond->read_cfg.buf,
 				(u64)commond->read_cfg.phy_addr);
 
-			for (i = 0; i < ((event.r.length + 3) / 4); i++)
+			buf_len = (event.base.r.length + 3) / 4;
+			for (i = 0; i < buf_len; i++)
 				pr_devel("%s:%s readdata:%x\n",
 					 DRIVER_NAME, __func__, ((unsigned int *)
 				commond->read_cfg.buf)[i]);
@@ -110,21 +113,21 @@ static int i2c_amd_read_completion(union i2c_event_base event, void *dev_ctx)
 	return 0;
 }
 
-static int i2c_amd_write_completion(union i2c_event_base event, void *dev_ctx)
+static int i2c_amd_write_completion(struct i2c_event event, void *dev_ctx)
 {
 	struct amd_i2c_dev *i2c_dev = (struct amd_i2c_dev *)dev_ctx;
 
-	if (event.r.status == i2c_writecomplete_event)
+	if (event.base.r.status == i2c_writecomplete_event)
 		complete(&i2c_dev->msg_complete);
 
 	return 0;
 }
 
-static int i2c_amd_connect_completion(union i2c_event_base event, void *dev_ctx)
+static int i2c_amd_connect_completion(struct i2c_event event, void *dev_ctx)
 {
 	struct amd_i2c_dev *i2c_dev = (struct amd_i2c_dev *)dev_ctx;
 
-	if (event.r.status == i2c_busenable_complete)
+	if (event.base.r.status == i2c_busenable_complete)
 		complete(&i2c_dev->msg_complete);
 
 	return 0;
@@ -168,7 +171,7 @@ static int i2c_amd_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	struct amd_i2c_dev *dev = i2c_get_adapdata(adap);
 	struct amd_i2c_common *i2c_common = &dev->i2c_common;
 
-	int i = 0;
+	int i;
 	unsigned long timeout;
 	struct i2c_msg *pmsg;
 	unsigned char *dma_buf = NULL;

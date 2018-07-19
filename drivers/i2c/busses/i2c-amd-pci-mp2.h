@@ -163,16 +163,18 @@ enum status_type {
 	i2C_bus_notinitialized
 };
 
-union i2c_event_base {
-	u32 ul;
-	struct {
-		enum response_type response : 2; /*!< bit: 0..1 I2C res type */
-		enum status_type status : 5; /*!< bit: 2..6 status_type */
-		enum mem_type mem_type : 1; /*!< bit: 7 0-DRAM;1- C2PMsg o/p */
-		enum i2c_bus_index bus_id : 4; /*!< bit: 8..11 I2C Bus ID */
-		u32 length : 12; /*!< bit:16..29 length */
-		u32 slave_addr : 8; /*!< bit: 15 debug msg include in p2c msg */
-	} r; /*!< Structure used for bit access */
+struct i2c_event {
+	union {
+		u32 ul;
+		struct {
+			enum response_type response : 2; /*!< bit: 0..1 I2C res type */
+			enum status_type status : 5; /*!< bit: 2..6 status_type */
+			enum mem_type mem_type : 1; /*!< bit: 7 0-DRAM;1- C2PMsg o/p */
+			enum i2c_bus_index bus_id : 4; /*!< bit: 8..11 I2C Bus ID */
+			u32 length : 12; /*!< bit:16..29 length */
+			u32 slave_addr : 8; /*!< bit: 15 debug msg include in p2c msg */
+		} r; /*!< Structure used for bit access */
+	} base;
 	u32 *buf;
 };
 
@@ -204,9 +206,9 @@ struct i2c_read_config {
 
 // struct to send/receive data b/w pci and i2c drivers
 struct amd_i2c_pci_ops {
-	int (*read_complete)(union i2c_event_base event, void *dev_ctx);
-	int (*write_complete)(union i2c_event_base event, void *dev_ctx);
-	int (*connect_complete)(union i2c_event_base event, void *dev_ctx);
+	int (*read_complete)(struct i2c_event event, void *dev_ctx);
+	int (*write_complete)(struct i2c_event event, void *dev_ctx);
+	int (*connect_complete)(struct i2c_event event, void *dev_ctx);
 };
 
 struct amd_i2c_common {
@@ -222,7 +224,7 @@ struct amd_mp2_dev {
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_info;
 	void __iomem *mmio;
-	union i2c_event_base eventval;
+	struct i2c_event eventval;
 	enum i2c_cmd reqcmd;
 	struct i2c_connect_config connect_cfg;
 	struct i2c_read_config read_cfg;

@@ -111,11 +111,6 @@ int amd_mp2_read(struct pci_dev *dev, struct i2c_read_config read_cfg)
 
 	if (read_cfg.length <= 32) {
 		i2c_cmd_base.s.mem_type = use_c2pmsg;
-		if (!privdata->eventval.buf) {
-			dev_err(ndev_dev(privdata), "%s no mem for buf received\n",
-				__func__);
-			return -ENOMEM;
-		}
 		privdata->eventval.buf = (u32 *)read_cfg.buf;
 		dev_dbg(ndev_dev(privdata), "%s buf: %llx\n", __func__,
 			(u64)privdata->eventval.buf);
@@ -164,7 +159,8 @@ int amd_mp2_write(struct pci_dev *dev, struct i2c_write_config write_cfg)
 {
 	struct amd_mp2_dev *privdata = pci_get_drvdata(dev);
 	union i2c_cmd_base i2c_cmd_base;
-	int i = 0;
+	int i;
+	int buf_len;
 
 	privdata->requested = true;
 	dev_dbg(ndev_dev(privdata), "%s addr: %x id: %d\n", __func__,
@@ -198,7 +194,8 @@ int amd_mp2_write(struct pci_dev *dev, struct i2c_write_config write_cfg)
 
 	if (write_cfg.length <= 32) {
 		i2c_cmd_base.s.mem_type = use_c2pmsg;
-		for (i = 0; i < ((write_cfg.length + 3) / 4); i++) {
+		buf_len = (write_cfg.length + 3) / 4;
+		for (i = 0; i < buf_len; i++) {
 			writel(write_cfg.buf[i],
 			       privdata->mmio + (AMD_C2P_MSG2 + i * 4));
 		}
@@ -241,15 +238,17 @@ static void amd_mp2_pci_work(struct work_struct *work)
 {
 	struct amd_mp2_dev *privdata = mp2_dev(work);
 	u32 readdata = 0;
-	int i = 0;
-	int sts = privdata->eventval.r.status;
-	int res = privdata->eventval.r.response;
-	int len = privdata->eventval.r.length;
+	int i;
+	int buf_len;
+	int sts = privdata->eventval.base.r.status;
+	int res = privdata->eventval.base.r.response;
+	int len = privdata->eventval.base.r.length;
 
 	if (res == command_success && sts == i2c_readcomplete_event) {
 		if (privdata->ops->read_complete) {
 			if (len <= 32) {
-				for (i = 0; i < ((len + 3) / 4); i++) {
+				buf_len = (len + 3) / 4;
+				for (i = 0; i < buf_len; i++) {
 					readdata = readl(privdata->mmio +
 							(AMD_C2P_MSG2 + i * 4));
 					privdata->eventval.buf[i] = readdata;
@@ -284,12 +283,12 @@ static irqreturn_t amd_mp2_irq_isr(int irq, void *dev)
 	val = readl(privdata->mmio + AMD_P2C_MSG1);
 	if (val != 0) {
 		writel(0, privdata->mmio + AMD_P2C_MSG_INTEN);
-		privdata->eventval.ul = val;
+		privdata->eventval.base.ul = val;
 	} else {
 		val = readl(privdata->mmio + AMD_P2C_MSG2);
 		if (val != 0) {
 			writel(0, privdata->mmio + AMD_P2C_MSG_INTEN);
-			privdata->eventval.ul = val;
+			privdata->eventval.base.ul = val;
 		}
 	}
 
