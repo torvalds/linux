@@ -2464,6 +2464,9 @@ static void vega20_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
 
+	if (data->vce_power_gated == bgate)
+		return ;
+
 	data->vce_power_gated = bgate;
 	vega20_enable_disable_vce_dpm(hwmgr, !bgate);
 }
@@ -2471,6 +2474,9 @@ static void vega20_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 static void vega20_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+
+	if (data->uvd_power_gated == bgate)
+		return ;
 
 	data->uvd_power_gated = bgate;
 	vega20_enable_disable_uvd_dpm(hwmgr, !bgate);
