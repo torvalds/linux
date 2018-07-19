@@ -371,6 +371,17 @@
 		status = "disabled";
 	};
 
+	usic: usb@fe340000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0xfe340000 0x0 0x30000>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&cru HCLK_HSIC>, <&cru SCLK_HSICPHY>,
+			 <&cru PCLK_HSICPHY>;
+		clock-names = "hclk_hsic", "clk_hsicphy", "pclk_hsicphy";
+		rockchip-has-usic;
+		status = "disabled";
+	};
+
 	usb_host0_ehci: usb@fe380000 {
 		compatible = "generic-ehci";
 		reg = <0x0 0xfe380000 0x0 0x20000>;
