@@ -2332,20 +2332,6 @@ static int qeth_get_mtu_outof_framesize(int framesize)
 	}
 }
 
-static int qeth_mtu_is_valid(struct qeth_card *card, int mtu)
-{
-	switch (card->info.type) {
-	case QETH_CARD_TYPE_OSD:
-	case QETH_CARD_TYPE_OSM:
-	case QETH_CARD_TYPE_OSX:
-	case QETH_CARD_TYPE_IQD:
-		return ((mtu >= 576) && (mtu <= card->dev->max_mtu));
-	case QETH_CARD_TYPE_OSN:
-	default:
-		return 1;
-	}
-}
-
 static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 		unsigned long data)
 {
@@ -4204,24 +4190,6 @@ void qeth_setadp_promisc_mode(struct qeth_card *card)
 }
 EXPORT_SYMBOL_GPL(qeth_setadp_promisc_mode);
 
-int qeth_change_mtu(struct net_device *dev, int new_mtu)
-{
-	struct qeth_card *card;
-	char dbf_text[15];
-
-	card = dev->ml_priv;
-
-	QETH_CARD_TEXT(card, 4, "chgmtu");
-	sprintf(dbf_text, "%8x", new_mtu);
-	QETH_CARD_TEXT(card, 4, dbf_text);
-
-	if (!qeth_mtu_is_valid(card, new_mtu))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(qeth_change_mtu);
-
 struct net_device_stats *qeth_get_stats(struct net_device *dev)
 {
 	struct qeth_card *card;
@@ -5696,7 +5664,7 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 
 	dev->ml_priv = card;
 	dev->watchdog_timeo = QETH_TX_TIMEOUT;
-	dev->min_mtu = 64;
+	dev->min_mtu = IS_OSN(card) ? 64 : 576;
 	 /* initialized when device first goes online: */
 	dev->max_mtu = 0;
 	dev->mtu = 0;

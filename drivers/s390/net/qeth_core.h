@@ -993,7 +993,6 @@ void qeth_clear_cmd_buffers(struct qeth_channel *);
 void qeth_clear_qdio_buffers(struct qeth_card *);
 void qeth_setadp_promisc_mode(struct qeth_card *);
 struct net_device_stats *qeth_get_stats(struct net_device *);
-int qeth_change_mtu(struct net_device *, int);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *);
 void qeth_prepare_control_data(struct qeth_card *, int,
