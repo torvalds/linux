@@ -540,20 +540,6 @@ static u16 __find_equiv_id(unsigned int cpu)
 	return find_equiv_id(equiv_cpu_table, uci->cpu_sig.sig);
 }
 
-static u32 find_cpu_family_by_equiv_cpu(u16 equiv_cpu)
-{
-	int i = 0;
-
-	BUG_ON(!equiv_cpu_table);
-
-	while (equiv_cpu_table[i].equiv_cpu != 0) {
-		if (equiv_cpu == equiv_cpu_table[i].equiv_cpu)
-			return equiv_cpu_table[i].installed_cpu;
-		i++;
-	}
-	return 0;
-}
-
 /*
  * a small, trivial cache of per-family ucode patches
  */
@@ -732,7 +718,7 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	struct microcode_header_amd *mc_hdr;
 	unsigned int patch_size, crnt_size;
 	struct ucode_patch *patch;
-	u32 proc_fam;
+	u8 patch_fam;
 	u16 proc_id;
 
 	patch_size = verify_patch(family, fw, leftover, false);
@@ -746,15 +732,8 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	mc_hdr	    = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
 	proc_id	    = mc_hdr->processor_rev_id;
 
-	proc_fam = find_cpu_family_by_equiv_cpu(proc_id);
-	if (!proc_fam) {
-		pr_err("No patch family for equiv ID: 0x%04x\n", proc_id);
-		return crnt_size;
-	}
-
-	/* check if patch is for the current family */
-	proc_fam = ((proc_fam >> 8) & 0xf) + ((proc_fam >> 20) & 0xff);
-	if (proc_fam != family)
+	patch_fam = 0xf + (proc_id >> 12);
+	if (patch_fam != family)
 		return crnt_size;
 
 	if (mc_hdr->nb_dev_id || mc_hdr->sb_dev_id) {
