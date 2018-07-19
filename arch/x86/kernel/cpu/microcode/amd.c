@@ -139,11 +139,15 @@ static bool verify_equivalence_table(const u8 *buf, size_t buf_size, bool early)
  * Check whether there is a valid, non-truncated microcode patch section at the
  * beginning of @buf of size @buf_size. Set @early to use this function in the
  * early path.
+ *
+ * On success, @sh_psize returns the patch size according to the section header,
+ * to the caller.
  */
-static bool verify_patch_section(const u8 *buf, size_t buf_size, bool early)
+static bool
+__verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize, bool early)
 {
+	u32 p_type, p_size;
 	const u32 *hdr;
-	u32 patch_type, patch_size;
 
 	if (buf_size < SECTION_HDR_SIZE) {
 		if (!early)
@@ -153,23 +157,25 @@ static bool verify_patch_section(const u8 *buf, size_t buf_size, bool early)
 	}
 
 	hdr = (const u32 *)buf;
-	patch_type = hdr[0];
-	patch_size = hdr[1];
+	p_type = hdr[0];
+	p_size = hdr[1];
 
-	if (patch_type != UCODE_UCODE_TYPE) {
+	if (p_type != UCODE_UCODE_TYPE) {
 		if (!early)
 			pr_debug("Invalid type field (0x%x) in container file section header.\n",
-				patch_type);
+				p_type);
 
 		return false;
 	}
 
-	if (patch_size < sizeof(struct microcode_header_amd)) {
+	if (p_size < sizeof(struct microcode_header_amd)) {
 		if (!early)
-			pr_debug("Patch of size %u too short.\n", patch_size);
+			pr_debug("Patch of size %u too short.\n", p_size);
 
 		return false;
 	}
+
+	*sh_psize = p_size;
 
 	return true;
 }
@@ -181,7 +187,7 @@ static bool verify_patch_section(const u8 *buf, size_t buf_size, bool early)
  * header.
  */
 static unsigned int
-verify_patch_size(u8 family, u32 sh_psize, unsigned int buf_size)
+__verify_patch_size(u8 family, u32 sh_psize, unsigned int buf_size)
 {
 	u32 max_size;
 
@@ -210,6 +216,34 @@ verify_patch_size(u8 family, u32 sh_psize, unsigned int buf_size)
 	}
 
 	return sh_psize;
+}
+
+static unsigned int
+verify_patch(u8 family, const u8 *buf, unsigned int buf_size, bool early)
+{
+	u32 sh_psize;
+
+	if (!__verify_patch_section(buf, buf_size, &sh_psize, early))
+		return 0;
+	/*
+	 * The section header length is not included in this indicated size
+	 * but is present in the leftover file length so we need to subtract
+	 * it before passing this value to the function below.
+	 */
+	buf_size -= SECTION_HDR_SIZE;
+
+	/*
+	 * Check if the remaining buffer is big enough to contain a patch of
+	 * size sh_psize, as the section claims.
+	 */
+	if (buf_size < sh_psize) {
+		if (!early)
+			pr_debug("Patch of size %u truncated.\n", sh_psize);
+
+		return 0;
+	}
+
+	return __verify_patch_size(family, sh_psize, buf_size);
 }
 
 /*
@@ -687,7 +721,7 @@ static void cleanup(void)
 }
 
 /*
- * We return the current size even if some of the checks failed so that
+ * Return a non-negative value even if some of the checks failed so that
  * we can skip over the next patch. If we return a negative value, we
  * signal a grave error like a memory allocation has failed and the
  * driver cannot continue functioning normally. In such cases, we tear
@@ -695,14 +729,20 @@ static void cleanup(void)
  */
 static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 {
-	unsigned int sh_psize, crnt_size, ret;
 	struct microcode_header_amd *mc_hdr;
+	unsigned int patch_size, crnt_size;
 	struct ucode_patch *patch;
 	u32 proc_fam;
 	u16 proc_id;
 
-	sh_psize    = *(u32 *)(fw + 4);
-	crnt_size   = sh_psize + SECTION_HDR_SIZE;
+	patch_size = verify_patch(family, fw, leftover, false);
+	if (!patch_size) {
+		pr_debug("Patch size mismatch.\n");
+		return 1;
+	}
+
+	/* If initial rough pokes pass, we can start looking at the header. */
+	crnt_size   = patch_size + SECTION_HDR_SIZE;
 	mc_hdr	    = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
 	proc_id	    = mc_hdr->processor_rev_id;
 
@@ -723,24 +763,13 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 		return crnt_size;
 	}
 
-	/*
-	 * The section header length is not included in this indicated size
-	 * but is present in the leftover file length so we need to subtract
-	 * it before passing this value to the function below.
-	 */
-	ret = verify_patch_size(family, sh_psize, leftover - SECTION_HDR_SIZE);
-	if (!ret) {
-		pr_err("Patch-ID 0x%08x: size mismatch.\n", mc_hdr->patch_id);
-		return crnt_size;
-	}
-
 	patch = kzalloc(sizeof(*patch), GFP_KERNEL);
 	if (!patch) {
 		pr_err("Patch allocation failure.\n");
 		return -EINVAL;
 	}
 
-	patch->data = kmemdup(fw + SECTION_HDR_SIZE, sh_psize, GFP_KERNEL);
+	patch->data = kmemdup(fw + SECTION_HDR_SIZE, patch_size, GFP_KERNEL);
 	if (!patch->data) {
 		pr_err("Patch data allocation failure.\n");
 		kfree(patch);
