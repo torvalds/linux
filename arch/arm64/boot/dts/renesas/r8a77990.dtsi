@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Device Tree Source for the r8a77990 SoC
+ * Device Tree Source for the R-Car E3 (R8A77990) SoC
  *
  * Copyright (C) 2018 Renesas Electronics Corp.
  */
