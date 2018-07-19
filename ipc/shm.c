@@ -593,6 +593,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	if (unlikely(!shp))
 		return -ENOMEM;
 
+	shp->shm_perm.rcu_free = shm_rcu_free;
 	shp->shm_perm.key = key;
 	shp->shm_perm.mode = (shmflg & S_IRWXUGO);
 	shp->mlock_user = NULL;

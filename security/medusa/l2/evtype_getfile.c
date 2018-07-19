@@ -181,7 +181,7 @@ int medusa_l1_inode_alloc_security(struct inode *inode);
  * @dentry: dentry to get the information for.
  * @mnt: optional vfsmount structure for that dentry
  *
- * This routine expects the existing, but !MED_MAGIC_VALID dentry.
+ * This routine expects the existing, but !MED_MAGIC_VALID Medusa dentry's inode security struct!
  */
 int file_kobj_validate_dentry(struct dentry * dentry, struct vfsmount * mnt)
 {

@@ -19,6 +19,7 @@
 #include <linux/syscalls.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
+#include <linux/msg.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/proc_fs.h>
@@ -56,6 +57,7 @@
 #include <linux/cred.h>
 #include <linux/medusa/l3/registry.h>
 #include <linux/medusa/l1/inode.h> 
+#include <linux/medusa/l1/ipc.h> 
 #include <linux/medusa/l4/comm.h>
 #include <linux/medusa/l1/file_handlers.h>
 #include <linux/medusa/l1/task.h>
@@ -64,6 +66,7 @@
 #include "../l2/kobject_file.h"
 #include "../l2/kobject_fuck.h"
 #include "../l0/init_medusa.h"
+#include "../../../ipc/util.h"
 
 int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 int medusa_l1_inode_alloc_security(struct inode *inode);
@@ -648,8 +651,42 @@ static void medusa_l1_task_to_inode(struct task_struct *p, struct inode *inode)
 {
 }
 
+//IPC hooks
+
+/*
+ * helper function not LSM hook
+ */
+int medusa_l1_ipc_alloc_security(struct kern_ipc_perm *ipcp, unsigned int ipc_class)
+{
+	struct medusa_l1_ipc_s *med;
+
+	med = (struct medusa_l1_ipc_s*) kmalloc(sizeof(struct medusa_l1_ipc_s), GFP_KERNEL);
+	if (med == NULL)
+		return -ENOMEM;
+
+	med->ipc_class = ipc_class;
+	ipcp->security = med;
+	return 0;
+}
+
+/*
+ * helper function not LSM hook
+ */
+void medusa_l1_ipc_free_security(struct kern_ipc_perm *ipcp)
+{
+	struct medusa_l1_ipc_s *med;
+	
+	if(ipcp->security != NULL) {
+		med = ipcp->security;
+		ipcp->security = NULL;
+		kfree(med);
+	}
+}
+
 static int medusa_l1_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
+	if(medusa_ipc_permission(ipcp, flag) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -658,93 +695,133 @@ static void medusa_l1_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 	*secid = 0;
 }
 
-static int medusa_l1_msg_msg_alloc_security(struct msg_msg *msg)
+//Message queue IPC
+int medusa_l1_msg_msg_alloc_security(struct msg_msg *msg)
 {
+	struct medusa_l1_ipc_s *med;
+
+	med = (struct medusa_l1_ipc_s*) kmalloc(sizeof(struct medusa_l1_ipc_s), GFP_KERNEL);
+	if (med == NULL)
+		return -ENOMEM;
+
+	msg->security = med;
 	return 0;
 }
 
-static void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
+void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
 {
+	struct medusa_l1_ipc_s *med;
+	
+	if(msg->security != NULL) {
+		med = msg->security;
+		msg->security = NULL;
+		kfree(med);
+	}
 }
 
-static int medusa_l1_msg_queue_alloc_security(struct kern_ipc_perm *msq)
+int medusa_l1_msg_queue_alloc_security(struct kern_ipc_perm *msq)
 {
-	return 0;
+	return medusa_l1_ipc_alloc_security(msq, MED_IPC_MSG);
 }
 
-static void medusa_l1_msg_queue_free_security(struct kern_ipc_perm *msq)
+void medusa_l1_msg_queue_free_security(struct kern_ipc_perm *msq)
 {
+	medusa_l1_ipc_free_security(msq);
 }
 
 static int medusa_l1_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg)
 {
+	if(medusa_ipc_associate(msq, msqflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd)
 {
+	if(medusa_ipc_ctl(msq, cmd) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_msg_queue_msgsnd(struct kern_ipc_perm *msq, struct msg_msg *msg,
 				int msgflg)
 {
+	if(medusa_ipc_msgsnd(msq, msg, msgflg) == MED_NO)
+		return -EPERM;
 	return 0;
 }
 
 static int medusa_l1_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg *msg,
 				struct task_struct *target, long type, int mode)
 {
+	if(medusa_ipc_msgrcv(msq, msg, target, type, mode) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
-static int medusa_l1_shm_alloc_security(struct kern_ipc_perm *shp)
+//shared memory
+int medusa_l1_shm_alloc_security(struct kern_ipc_perm *shp)
 {
-	return 0;
+	return medusa_l1_ipc_alloc_security(shp, MED_IPC_SHM);
 }
 
-static void medusa_l1_shm_free_security(struct kern_ipc_perm *shp)
+void medusa_l1_shm_free_security(struct kern_ipc_perm *shp)
 {
+	return medusa_l1_ipc_free_security(shp);	
 }
 
 static int medusa_l1_shm_associate(struct kern_ipc_perm *shp, int shmflg)
 {
+	if(medusa_ipc_associate(shp, shmflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_shm_shmctl(struct kern_ipc_perm *shp, int cmd)
 {
+	if(medusa_ipc_ctl(shp, cmd) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_shm_shmat(struct kern_ipc_perm *shp, char __user *shmaddr,
 			 int shmflg)
 {
+	if(medusa_ipc_shmat(shp, shmaddr, shmflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
-static int medusa_l1_sem_alloc_security(struct kern_ipc_perm *sma)
+//Semaphores
+int medusa_l1_sem_alloc_security(struct kern_ipc_perm *sma)
 {
-	return 0;
+	return medusa_l1_ipc_alloc_security(sma, MED_IPC_SEM);
 }
 
-static void medusa_l1_sem_free_security(struct kern_ipc_perm *sma)
+void medusa_l1_sem_free_security(struct kern_ipc_perm *sma)
 {
+	return medusa_l1_ipc_free_security(sma);
 }
 
 static int medusa_l1_sem_associate(struct kern_ipc_perm *sma, int semflg)
 {
+	if(medusa_ipc_associate(sma, semflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_sem_semctl(struct kern_ipc_perm *sma, int cmd)
 {
+	if(medusa_ipc_ctl(sma, cmd) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 			 unsigned nsops, int alter)
 {
+	if(medusa_ipc_semop(sma, sops, nsops, alter) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -1531,6 +1608,14 @@ struct security_hook_list medusa_l1_hooks_special[] = {
 	LSM_HOOK_INIT(inode_free_security, medusa_l1_inode_free_security),
 	LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
 	LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
+	LSM_HOOK_INIT(msg_msg_alloc_security, medusa_l1_msg_msg_alloc_security),
+	LSM_HOOK_INIT(msg_queue_alloc_security, medusa_l1_msg_queue_alloc_security),
+	LSM_HOOK_INIT(shm_alloc_security, medusa_l1_shm_alloc_security),
+	LSM_HOOK_INIT(sem_alloc_security, medusa_l1_sem_alloc_security),
+	LSM_HOOK_INIT(msg_msg_free_security, medusa_l1_msg_msg_free_security),
+	LSM_HOOK_INIT(msg_queue_free_security, medusa_l1_msg_queue_free_security),
+	LSM_HOOK_INIT(shm_free_security, medusa_l1_shm_free_security),
+	LSM_HOOK_INIT(sem_free_security, medusa_l1_sem_free_security),
 };
 
 void __init medusa_init(void);
@@ -1571,6 +1656,8 @@ static int __init medusa_l1_init(void)
 	struct list_head *pos, *q;
 	struct inode_list *tmp = NULL;
 	struct cred_list *tmp_cred;
+	struct msg_msg_list *tmp_msg;
+	struct kern_ipc_perm_list *tmp_ipcp;
 
 	/* register the hooks */	
 	if (!security_module_enable("medusa"))
@@ -1599,6 +1686,22 @@ static int __init medusa_l1_init(void)
 		kfree(tmp); 
 	}
 	
+	list_for_each_safe(pos, q, &l0_msg_msg_list.list) {
+		tmp_msg = list_entry(pos, struct msg_msg_list, list);
+		medusa_l1_msg_msg_alloc_security(tmp_msg->msg);
+		printk("medusa: l1_msg_msg_alloc for an entry in the l0 list");
+		list_del(pos);
+		kfree(tmp);
+	}
+
+	list_for_each_safe(pos, q, &l0_kern_ipc_perm_list.list) {
+		tmp_ipcp = list_entry(pos, struct kern_ipc_perm_list, list);
+		tmp_ipcp->medusa_l1_ipc_alloc_security(tmp_ipcp->ipcp);
+		printk("medusa: l1_ipc_alloc for an entry in the l0 list");
+		list_del(pos);
+		kfree(tmp);
+	}
+
 	l1_initialized = true;
 	
 	mutex_unlock(&l0_mutex);

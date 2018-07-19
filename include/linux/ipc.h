@@ -26,6 +26,10 @@ struct kern_ipc_perm {
 
 	struct rcu_head rcu;
 	refcount_t refcount;
+	/* routine to call to free an existing IPC object */
+	/* it is used by ipc_rcu_putref() if refcount is zero */
+	/* can be one of sem_rcu_free, shm_rcu_free, msg_rcu_free */
+	void (*rcu_free)(struct rcu_head *head);
 } ____cacheline_aligned_in_smp __randomize_layout;
 
 #endif /* _LINUX_IPC_H */
