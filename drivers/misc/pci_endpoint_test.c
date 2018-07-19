@@ -35,38 +35,43 @@
 
 #include <uapi/linux/pcitest.h>
 
-#define DRV_MODULE_NAME			"pci-endpoint-test"
+#define DRV_MODULE_NAME				"pci-endpoint-test"
 
-#define PCI_ENDPOINT_TEST_MAGIC		0x0
+#define IRQ_TYPE_LEGACY				0
+#define IRQ_TYPE_MSI				1
 
-#define PCI_ENDPOINT_TEST_COMMAND	0x4
-#define COMMAND_RAISE_LEGACY_IRQ	BIT(0)
-#define COMMAND_RAISE_MSI_IRQ		BIT(1)
-#define MSI_NUMBER_SHIFT		2
-/* 6 bits for MSI number */
-#define COMMAND_READ                    BIT(8)
-#define COMMAND_WRITE                   BIT(9)
-#define COMMAND_COPY                    BIT(10)
+#define PCI_ENDPOINT_TEST_MAGIC			0x0
 
-#define PCI_ENDPOINT_TEST_STATUS	0x8
-#define STATUS_READ_SUCCESS             BIT(0)
-#define STATUS_READ_FAIL                BIT(1)
-#define STATUS_WRITE_SUCCESS            BIT(2)
-#define STATUS_WRITE_FAIL               BIT(3)
-#define STATUS_COPY_SUCCESS             BIT(4)
-#define STATUS_COPY_FAIL                BIT(5)
-#define STATUS_IRQ_RAISED               BIT(6)
-#define STATUS_SRC_ADDR_INVALID         BIT(7)
-#define STATUS_DST_ADDR_INVALID         BIT(8)
+#define PCI_ENDPOINT_TEST_COMMAND		0x4
+#define COMMAND_RAISE_LEGACY_IRQ		BIT(0)
+#define COMMAND_RAISE_MSI_IRQ			BIT(1)
+/* BIT(2) is reserved for raising MSI-X IRQ command */
+#define COMMAND_READ				BIT(3)
+#define COMMAND_WRITE				BIT(4)
+#define COMMAND_COPY				BIT(5)
 
-#define PCI_ENDPOINT_TEST_LOWER_SRC_ADDR	0xc
+#define PCI_ENDPOINT_TEST_STATUS		0x8
+#define STATUS_READ_SUCCESS			BIT(0)
+#define STATUS_READ_FAIL			BIT(1)
+#define STATUS_WRITE_SUCCESS			BIT(2)
+#define STATUS_WRITE_FAIL			BIT(3)
+#define STATUS_COPY_SUCCESS			BIT(4)
+#define STATUS_COPY_FAIL			BIT(5)
+#define STATUS_IRQ_RAISED			BIT(6)
+#define STATUS_SRC_ADDR_INVALID			BIT(7)
+#define STATUS_DST_ADDR_INVALID			BIT(8)
+
+#define PCI_ENDPOINT_TEST_LOWER_SRC_ADDR	0x0c
 #define PCI_ENDPOINT_TEST_UPPER_SRC_ADDR	0x10
 
 #define PCI_ENDPOINT_TEST_LOWER_DST_ADDR	0x14
 #define PCI_ENDPOINT_TEST_UPPER_DST_ADDR	0x18
 
-#define PCI_ENDPOINT_TEST_SIZE		0x1c
-#define PCI_ENDPOINT_TEST_CHECKSUM	0x20
+#define PCI_ENDPOINT_TEST_SIZE			0x1c
+#define PCI_ENDPOINT_TEST_CHECKSUM		0x20
+
+#define PCI_ENDPOINT_TEST_IRQ_TYPE		0x24
+#define PCI_ENDPOINT_TEST_IRQ_NUMBER		0x28
 
 static DEFINE_IDA(pci_endpoint_test_ida);
 
@@ -179,6 +184,9 @@ static bool pci_endpoint_test_legacy_irq(struct pci_endpoint_test *test)
 {
 	u32 val;
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
+				 IRQ_TYPE_LEGACY);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 0);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
 				 COMMAND_RAISE_LEGACY_IRQ);
 	val = wait_for_completion_timeout(&test->irq_raised,
@@ -195,8 +203,10 @@ static bool pci_endpoint_test_msi_irq(struct pci_endpoint_test *test,
 	u32 val;
 	struct pci_dev *pdev = test->pdev;
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
+				 IRQ_TYPE_MSI);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, msi_num);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
-				 msi_num << MSI_NUMBER_SHIFT |
 				 COMMAND_RAISE_MSI_IRQ);
 	val = wait_for_completion_timeout(&test->irq_raised,
 					  msecs_to_jiffies(1000));
@@ -281,8 +291,11 @@ static bool pci_endpoint_test_copy(struct pci_endpoint_test *test, size_t size)
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_SIZE,
 				 size);
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
+				 no_msi ? IRQ_TYPE_LEGACY : IRQ_TYPE_MSI);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 1);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
-				 1 << MSI_NUMBER_SHIFT | COMMAND_COPY);
+				 COMMAND_COPY);
 
 	wait_for_completion(&test->irq_raised);
 
@@ -348,8 +361,11 @@ static bool pci_endpoint_test_write(struct pci_endpoint_test *test, size_t size)
 
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_SIZE, size);
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
+				 no_msi ? IRQ_TYPE_LEGACY : IRQ_TYPE_MSI);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 1);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
-				 1 << MSI_NUMBER_SHIFT | COMMAND_READ);
+				 COMMAND_READ);
 
 	wait_for_completion(&test->irq_raised);
 
@@ -403,8 +419,11 @@ static bool pci_endpoint_test_read(struct pci_endpoint_test *test, size_t size)
 
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_SIZE, size);
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
+				 no_msi ? IRQ_TYPE_LEGACY : IRQ_TYPE_MSI);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 1);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
-				 1 << MSI_NUMBER_SHIFT | COMMAND_WRITE);
+				 COMMAND_WRITE);
 
 	wait_for_completion(&test->irq_raised);
 
