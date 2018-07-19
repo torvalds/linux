@@ -22,7 +22,7 @@
 
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t
-xfs_scrub_btree_cur_fsbno(
+xchk_btree_cur_fsbno(
 	struct xfs_btree_cur		*cur,
 	int				level)
 {

@@ -50,7 +50,7 @@ xfs_repair_attempt(
 
 	trace_xfs_repair_attempt(ip, sc->sm, error);
 
-	xfs_scrub_ag_btcur_free(&sc->sa);
+	xchk_ag_btcur_free(&sc->sa);
 
 	/* Repair whatever's broken. */
 	ASSERT(sc->ops->repair);
@@ -110,7 +110,7 @@ xfs_repair_probe(
 {
 	int				error = 0;
 
-	if (xfs_scrub_should_terminate(sc, &error))
+	if (xchk_should_terminate(sc, &error))
 		return error;
 
 	return 0;

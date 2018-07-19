@@ -32,7 +32,7 @@
 
 /* Set us up to scrub an inode's extended attributes. */
 int
-xfs_scrub_setup_xattr(
+xchk_setup_xattr(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
@@ -50,12 +50,12 @@ xfs_scrub_setup_xattr(
 	if (!sc->buf)
 		return -ENOMEM;
 
-	return xfs_scrub_setup_inode_contents(sc, ip, 0);
+	return xchk_setup_inode_contents(sc, ip, 0);
 }
 
 /* Extended Attributes */
 
-struct xfs_scrub_xattr {
+struct xchk_xattr {
 	struct xfs_attr_list_context	context;
 	struct xfs_scrub_context	*sc;
 };
@@ -69,22 +69,22 @@ struct xfs_scrub_xattr {
  * or if we get more or less data than we expected.
  */
 static void
-xfs_scrub_xattr_listent(
+xchk_xattr_listent(
 	struct xfs_attr_list_context	*context,
 	int				flags,
 	unsigned char			*name,
 	int				namelen,
 	int				valuelen)
 {
-	struct xfs_scrub_xattr		*sx;
+	struct xchk_xattr		*sx;
 	struct xfs_da_args		args = { NULL };
 	int				error = 0;
 
-	sx = container_of(context, struct xfs_scrub_xattr, context);
+	sx = container_of(context, struct xchk_xattr, context);
 
 	if (flags & XFS_ATTR_INCOMPLETE) {
 		/* Incomplete attr key, just mark the inode for preening. */
-		xfs_scrub_ino_set_preen(sx->sc, context->dp->i_ino);
+		xchk_ino_set_preen(sx->sc, context->dp->i_ino);
 		return;
 	}
 
@@ -106,11 +106,11 @@ xfs_scrub_xattr_listent(
 	error = xfs_attr_get_ilocked(context->dp, &args);
 	if (error == -EEXIST)
 		error = 0;
-	if (!xfs_scrub_fblock_process_error(sx->sc, XFS_ATTR_FORK, args.blkno,
+	if (!xchk_fblock_process_error(sx->sc, XFS_ATTR_FORK, args.blkno,
 			&error))
 		goto fail_xref;
 	if (args.valuelen != valuelen)
-		xfs_scrub_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK,
+		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK,
 					     args.blkno);
 fail_xref:
 	if (sx->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
@@ -126,7 +126,7 @@ fail_xref:
  * the smallest address
  */
 STATIC bool
-xfs_scrub_xattr_set_map(
+xchk_xattr_set_map(
 	struct xfs_scrub_context	*sc,
 	unsigned long			*map,
 	unsigned int			start,
@@ -154,7 +154,7 @@ xfs_scrub_xattr_set_map(
  * attr freemap has problems or points to used space.
  */
 STATIC bool
-xfs_scrub_xattr_check_freemap(
+xchk_xattr_check_freemap(
 	struct xfs_scrub_context	*sc,
 	unsigned long			*map,
 	struct xfs_attr3_icleaf_hdr	*leafhdr)
@@ -168,7 +168,7 @@ xfs_scrub_xattr_check_freemap(
 	freemap = (unsigned long *)sc->buf + BITS_TO_LONGS(mapsize);
 	bitmap_zero(freemap, mapsize);
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
-		if (!xfs_scrub_xattr_set_map(sc, freemap,
+		if (!xchk_xattr_set_map(sc, freemap,
 				leafhdr->freemap[i].base,
 				leafhdr->freemap[i].size))
 			return false;
@@ -184,8 +184,8 @@ xfs_scrub_xattr_check_freemap(
  * Returns the number of bytes used for the name/value data.
  */
 STATIC void
-xfs_scrub_xattr_entry(
-	struct xfs_scrub_da_btree	*ds,
+xchk_xattr_entry(
+	struct xchk_da_btree		*ds,
 	int				level,
 	char				*buf_end,
 	struct xfs_attr_leafblock	*leaf,
@@ -204,17 +204,17 @@ xfs_scrub_xattr_entry(
 	unsigned int			namesize;
 
 	if (ent->pad2 != 0)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 
 	/* Hash values in order? */
 	if (be32_to_cpu(ent->hashval) < *last_hashval)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 	*last_hashval = be32_to_cpu(ent->hashval);
 
 	nameidx = be16_to_cpu(ent->nameidx);
 	if (nameidx < leafhdr->firstused ||
 	    nameidx >= mp->m_attr_geo->blksize) {
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 		return;
 	}
 
@@ -225,27 +225,27 @@ xfs_scrub_xattr_entry(
 				be16_to_cpu(lentry->valuelen));
 		name_end = (char *)lentry + namesize;
 		if (lentry->namelen == 0)
-			xfs_scrub_da_set_corrupt(ds, level);
+			xchk_da_set_corrupt(ds, level);
 	} else {
 		rentry = xfs_attr3_leaf_name_remote(leaf, idx);
 		namesize = xfs_attr_leaf_entsize_remote(rentry->namelen);
 		name_end = (char *)rentry + namesize;
 		if (rentry->namelen == 0 || rentry->valueblk == 0)
-			xfs_scrub_da_set_corrupt(ds, level);
+			xchk_da_set_corrupt(ds, level);
 	}
 	if (name_end > buf_end)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 
-	if (!xfs_scrub_xattr_set_map(ds->sc, usedmap, nameidx, namesize))
-		xfs_scrub_da_set_corrupt(ds, level);
+	if (!xchk_xattr_set_map(ds->sc, usedmap, nameidx, namesize))
+		xchk_da_set_corrupt(ds, level);
 	if (!(ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		*usedbytes += namesize;
 }
 
 /* Scrub an attribute leaf. */
 STATIC int
-xfs_scrub_xattr_block(
-	struct xfs_scrub_da_btree	*ds,
+xchk_xattr_block(
+	struct xchk_da_btree		*ds,
 	int				level)
 {
 	struct xfs_attr3_icleaf_hdr	leafhdr;
@@ -275,10 +275,10 @@ xfs_scrub_xattr_block(
 
 		if (leaf->hdr.pad1 != 0 || leaf->hdr.pad2 != 0 ||
 		    leaf->hdr.info.hdr.pad != 0)
-			xfs_scrub_da_set_corrupt(ds, level);
+			xchk_da_set_corrupt(ds, level);
 	} else {
 		if (leaf->hdr.pad1 != 0 || leaf->hdr.info.pad != 0)
-			xfs_scrub_da_set_corrupt(ds, level);
+			xchk_da_set_corrupt(ds, level);
 	}
 
 	/* Check the leaf header */
@@ -286,44 +286,44 @@ xfs_scrub_xattr_block(
 	hdrsize = xfs_attr3_leaf_hdr_size(leaf);
 
 	if (leafhdr.usedbytes > mp->m_attr_geo->blksize)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 	if (leafhdr.firstused > mp->m_attr_geo->blksize)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 	if (leafhdr.firstused < hdrsize)
-		xfs_scrub_da_set_corrupt(ds, level);
-	if (!xfs_scrub_xattr_set_map(ds->sc, usedmap, 0, hdrsize))
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
+	if (!xchk_xattr_set_map(ds->sc, usedmap, 0, hdrsize))
+		xchk_da_set_corrupt(ds, level);
 
 	if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
 	entries = xfs_attr3_leaf_entryp(leaf);
 	if ((char *)&entries[leafhdr.count] > (char *)leaf + leafhdr.firstused)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 
 	buf_end = (char *)bp->b_addr + mp->m_attr_geo->blksize;
 	for (i = 0, ent = entries; i < leafhdr.count; ent++, i++) {
 		/* Mark the leaf entry itself. */
 		off = (char *)ent - (char *)leaf;
-		if (!xfs_scrub_xattr_set_map(ds->sc, usedmap, off,
+		if (!xchk_xattr_set_map(ds->sc, usedmap, off,
 				sizeof(xfs_attr_leaf_entry_t))) {
-			xfs_scrub_da_set_corrupt(ds, level);
+			xchk_da_set_corrupt(ds, level);
 			goto out;
 		}
 
 		/* Check the entry and nameval. */
-		xfs_scrub_xattr_entry(ds, level, buf_end, leaf, &leafhdr,
+		xchk_xattr_entry(ds, level, buf_end, leaf, &leafhdr,
 				usedmap, ent, i, &usedbytes, &last_hashval);
 
 		if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			goto out;
 	}
 
-	if (!xfs_scrub_xattr_check_freemap(ds->sc, usedmap, &leafhdr))
-		xfs_scrub_da_set_corrupt(ds, level);
+	if (!xchk_xattr_check_freemap(ds->sc, usedmap, &leafhdr))
+		xchk_da_set_corrupt(ds, level);
 
 	if (leafhdr.usedbytes != usedbytes)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 
 out:
 	return 0;
@@ -331,8 +331,8 @@ out:
 
 /* Scrub a attribute btree record. */
 STATIC int
-xfs_scrub_xattr_rec(
-	struct xfs_scrub_da_btree	*ds,
+xchk_xattr_rec(
+	struct xchk_da_btree		*ds,
 	int				level,
 	void				*rec)
 {
@@ -352,14 +352,14 @@ xfs_scrub_xattr_rec(
 	blk = &ds->state->path.blk[level];
 
 	/* Check the whole block, if necessary. */
-	error = xfs_scrub_xattr_block(ds, level);
+	error = xchk_xattr_block(ds, level);
 	if (error)
 		goto out;
 	if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
 	/* Check the hash of the entry. */
-	error = xfs_scrub_da_btree_hash(ds, level, &ent->hashval);
+	error = xchk_da_btree_hash(ds, level, &ent->hashval);
 	if (error)
 		goto out;
 
@@ -368,7 +368,7 @@ xfs_scrub_xattr_rec(
 	hdrsize = xfs_attr3_leaf_hdr_size(bp->b_addr);
 	nameidx = be16_to_cpu(ent->nameidx);
 	if (nameidx < hdrsize || nameidx >= mp->m_attr_geo->blksize) {
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 		goto out;
 	}
 
@@ -377,12 +377,12 @@ xfs_scrub_xattr_rec(
 	badflags = ~(XFS_ATTR_LOCAL | XFS_ATTR_ROOT | XFS_ATTR_SECURE |
 			XFS_ATTR_INCOMPLETE);
 	if ((ent->flags & badflags) != 0)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 	if (ent->flags & XFS_ATTR_LOCAL) {
 		lentry = (struct xfs_attr_leaf_name_local *)
 				(((char *)bp->b_addr) + nameidx);
 		if (lentry->namelen <= 0) {
-			xfs_scrub_da_set_corrupt(ds, level);
+			xchk_da_set_corrupt(ds, level);
 			goto out;
 		}
 		calc_hash = xfs_da_hashname(lentry->nameval, lentry->namelen);
@@ -390,13 +390,13 @@ xfs_scrub_xattr_rec(
 		rentry = (struct xfs_attr_leaf_name_remote *)
 				(((char *)bp->b_addr) + nameidx);
 		if (rentry->namelen <= 0) {
-			xfs_scrub_da_set_corrupt(ds, level);
+			xchk_da_set_corrupt(ds, level);
 			goto out;
 		}
 		calc_hash = xfs_da_hashname(rentry->name, rentry->namelen);
 	}
 	if (calc_hash != hash)
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 
 out:
 	return error;
@@ -404,10 +404,10 @@ out:
 
 /* Scrub the extended attribute metadata. */
 int
-xfs_scrub_xattr(
+xchk_xattr(
 	struct xfs_scrub_context	*sc)
 {
-	struct xfs_scrub_xattr		sx;
+	struct xchk_xattr		sx;
 	struct attrlist_cursor_kern	cursor = { 0 };
 	xfs_dablk_t			last_checked = -1U;
 	int				error = 0;
@@ -417,7 +417,7 @@ xfs_scrub_xattr(
 
 	memset(&sx, 0, sizeof(sx));
 	/* Check attribute tree structure */
-	error = xfs_scrub_da_btree(sc, XFS_ATTR_FORK, xfs_scrub_xattr_rec,
+	error = xchk_da_btree(sc, XFS_ATTR_FORK, xchk_xattr_rec,
 			&last_checked);
 	if (error)
 		goto out;
@@ -429,7 +429,7 @@ xfs_scrub_xattr(
 	sx.context.dp = sc->ip;
 	sx.context.cursor = &cursor;
 	sx.context.resynch = 1;
-	sx.context.put_listent = xfs_scrub_xattr_listent;
+	sx.context.put_listent = xchk_xattr_listent;
 	sx.context.tp = sc->tp;
 	sx.context.flags = ATTR_INCOMPLETE;
 	sx.sc = sc;
@@ -438,7 +438,7 @@ xfs_scrub_xattr(
 	 * Look up every xattr in this file by name.
 	 *
 	 * Use the backend implementation of xfs_attr_list to call
-	 * xfs_scrub_xattr_listent on every attribute key in this inode.
+	 * xchk_xattr_listent on every attribute key in this inode.
 	 * In other words, we use the same iterator/callback mechanism
 	 * that listattr uses to scrub extended attributes, though in our
 	 * _listent function, we check the value of the attribute.
@@ -451,7 +451,7 @@ xfs_scrub_xattr(
 	 * locking order.
 	 */
 	error = xfs_attr_list_int_ilocked(&sx.context);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_ATTR_FORK, 0, &error))
+	if (!xchk_fblock_process_error(sc, XFS_ATTR_FORK, 0, &error))
 		goto out;
 out:
 	return error;

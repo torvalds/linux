@@ -28,11 +28,11 @@
  * Set us up to scrub free space btrees.
  */
 int
-xfs_scrub_setup_ag_allocbt(
+xchk_setup_ag_allocbt(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	return xfs_scrub_setup_ag_btree(sc, ip, false);
+	return xchk_setup_ag_btree(sc, ip, false);
 }
 
 /* Free space btree scrubber. */
@@ -41,7 +41,7 @@ xfs_scrub_setup_ag_allocbt(
  * bnobt/cntbt record, respectively.
  */
 STATIC void
-xfs_scrub_allocbt_xref_other(
+xchk_allocbt_xref_other(
 	struct xfs_scrub_context	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
@@ -56,32 +56,32 @@ xfs_scrub_allocbt_xref_other(
 		pcur = &sc->sa.cnt_cur;
 	else
 		pcur = &sc->sa.bno_cur;
-	if (!*pcur || xfs_scrub_skip_xref(sc->sm))
+	if (!*pcur || xchk_skip_xref(sc->sm))
 		return;
 
 	error = xfs_alloc_lookup_le(*pcur, agbno, len, &has_otherrec);
-	if (!xfs_scrub_should_check_xref(sc, &error, pcur))
+	if (!xchk_should_check_xref(sc, &error, pcur))
 		return;
 	if (!has_otherrec) {
-		xfs_scrub_btree_xref_set_corrupt(sc, *pcur, 0);
+		xchk_btree_xref_set_corrupt(sc, *pcur, 0);
 		return;
 	}
 
 	error = xfs_alloc_get_rec(*pcur, &fbno, &flen, &has_otherrec);
-	if (!xfs_scrub_should_check_xref(sc, &error, pcur))
+	if (!xchk_should_check_xref(sc, &error, pcur))
 		return;
 	if (!has_otherrec) {
-		xfs_scrub_btree_xref_set_corrupt(sc, *pcur, 0);
+		xchk_btree_xref_set_corrupt(sc, *pcur, 0);
 		return;
 	}
 
 	if (fbno != agbno || flen != len)
-		xfs_scrub_btree_xref_set_corrupt(sc, *pcur, 0);
+		xchk_btree_xref_set_corrupt(sc, *pcur, 0);
 }
 
 /* Cross-reference with the other btrees. */
 STATIC void
-xfs_scrub_allocbt_xref(
+xchk_allocbt_xref(
 	struct xfs_scrub_context	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
@@ -89,16 +89,16 @@ xfs_scrub_allocbt_xref(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
-	xfs_scrub_allocbt_xref_other(sc, agbno, len);
-	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, len);
-	xfs_scrub_xref_has_no_owner(sc, agbno, len);
-	xfs_scrub_xref_is_not_shared(sc, agbno, len);
+	xchk_allocbt_xref_other(sc, agbno, len);
+	xchk_xref_is_not_inode_chunk(sc, agbno, len);
+	xchk_xref_has_no_owner(sc, agbno, len);
+	xchk_xref_is_not_shared(sc, agbno, len);
 }
 
 /* Scrub a bnobt/cntbt record. */
 STATIC int
-xfs_scrub_allocbt_rec(
-	struct xfs_scrub_btree		*bs,
+xchk_allocbt_rec(
+	struct xchk_btree		*bs,
 	union xfs_btree_rec		*rec)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
@@ -113,16 +113,16 @@ xfs_scrub_allocbt_rec(
 	if (bno + len <= bno ||
 	    !xfs_verify_agbno(mp, agno, bno) ||
 	    !xfs_verify_agbno(mp, agno, bno + len - 1))
-		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
-	xfs_scrub_allocbt_xref(bs->sc, bno, len);
+	xchk_allocbt_xref(bs->sc, bno, len);
 
 	return error;
 }
 
 /* Scrub the freespace btrees for some AG. */
 STATIC int
-xfs_scrub_allocbt(
+xchk_allocbt(
 	struct xfs_scrub_context	*sc,
 	xfs_btnum_t			which)
 {
@@ -131,26 +131,26 @@ xfs_scrub_allocbt(
 
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
 	cur = which == XFS_BTNUM_BNO ? sc->sa.bno_cur : sc->sa.cnt_cur;
-	return xfs_scrub_btree(sc, cur, xfs_scrub_allocbt_rec, &oinfo, NULL);
+	return xchk_btree(sc, cur, xchk_allocbt_rec, &oinfo, NULL);
 }
 
 int
-xfs_scrub_bnobt(
+xchk_bnobt(
 	struct xfs_scrub_context	*sc)
 {
-	return xfs_scrub_allocbt(sc, XFS_BTNUM_BNO);
+	return xchk_allocbt(sc, XFS_BTNUM_BNO);
 }
 
 int
-xfs_scrub_cntbt(
+xchk_cntbt(
 	struct xfs_scrub_context	*sc)
 {
-	return xfs_scrub_allocbt(sc, XFS_BTNUM_CNT);
+	return xchk_allocbt(sc, XFS_BTNUM_CNT);
 }
 
 /* xref check that the extent is not free */
 void
-xfs_scrub_xref_is_used_space(
+xchk_xref_is_used_space(
 	struct xfs_scrub_context	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
@@ -158,12 +158,12 @@ xfs_scrub_xref_is_used_space(
 	bool				is_freesp;
 	int				error;
 
-	if (!sc->sa.bno_cur || xfs_scrub_skip_xref(sc->sm))
+	if (!sc->sa.bno_cur || xchk_skip_xref(sc->sm))
 		return;
 
 	error = xfs_alloc_has_record(sc->sa.bno_cur, agbno, len, &is_freesp);
-	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.bno_cur))
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.bno_cur))
 		return;
 	if (is_freesp)
-		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.bno_cur, 0);
+		xchk_btree_xref_set_corrupt(sc, sc->sa.bno_cur, 0);
 }

@@ -29,18 +29,18 @@
  * Set us up to scrub reverse mapping btrees.
  */
 int
-xfs_scrub_setup_ag_rmapbt(
+xchk_setup_ag_rmapbt(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	return xfs_scrub_setup_ag_btree(sc, ip, false);
+	return xchk_setup_ag_btree(sc, ip, false);
 }
 
 /* Reverse-mapping scrubber. */
 
 /* Cross-reference a rmap against the refcount btree. */
 STATIC void
-xfs_scrub_rmapbt_xref_refc(
+xchk_rmapbt_xref_refc(
 	struct xfs_scrub_context	*sc,
 	struct xfs_rmap_irec		*irec)
 {
@@ -52,7 +52,7 @@ xfs_scrub_rmapbt_xref_refc(
 	bool				is_unwritten;
 	int				error;
 
-	if (!sc->sa.refc_cur || xfs_scrub_skip_xref(sc->sm))
+	if (!sc->sa.refc_cur || xchk_skip_xref(sc->sm))
 		return;
 
 	non_inode = XFS_RMAP_NON_INODE_OWNER(irec->rm_owner);
@@ -63,15 +63,15 @@ xfs_scrub_rmapbt_xref_refc(
 	/* If this is shared, must be a data fork extent. */
 	error = xfs_refcount_find_shared(sc->sa.refc_cur, irec->rm_startblock,
 			irec->rm_blockcount, &fbno, &flen, false);
-	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.refc_cur))
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.refc_cur))
 		return;
 	if (flen != 0 && (non_inode || is_attr || is_bmbt || is_unwritten))
-		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
+		xchk_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
 }
 
 /* Cross-reference with the other btrees. */
 STATIC void
-xfs_scrub_rmapbt_xref(
+xchk_rmapbt_xref(
 	struct xfs_scrub_context	*sc,
 	struct xfs_rmap_irec		*irec)
 {
@@ -81,22 +81,22 @@ xfs_scrub_rmapbt_xref(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
-	xfs_scrub_xref_is_used_space(sc, agbno, len);
+	xchk_xref_is_used_space(sc, agbno, len);
 	if (irec->rm_owner == XFS_RMAP_OWN_INODES)
-		xfs_scrub_xref_is_inode_chunk(sc, agbno, len);
+		xchk_xref_is_inode_chunk(sc, agbno, len);
 	else
-		xfs_scrub_xref_is_not_inode_chunk(sc, agbno, len);
+		xchk_xref_is_not_inode_chunk(sc, agbno, len);
 	if (irec->rm_owner == XFS_RMAP_OWN_COW)
-		xfs_scrub_xref_is_cow_staging(sc, irec->rm_startblock,
+		xchk_xref_is_cow_staging(sc, irec->rm_startblock,
 				irec->rm_blockcount);
 	else
-		xfs_scrub_rmapbt_xref_refc(sc, irec);
+		xchk_rmapbt_xref_refc(sc, irec);
 }
 
 /* Scrub an rmapbt record. */
 STATIC int
-xfs_scrub_rmapbt_rec(
-	struct xfs_scrub_btree		*bs,
+xchk_rmapbt_rec(
+	struct xchk_btree		*bs,
 	union xfs_btree_rec		*rec)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
@@ -109,12 +109,12 @@ xfs_scrub_rmapbt_rec(
 	int				error;
 
 	error = xfs_rmap_btrec_to_irec(rec, &irec);
-	if (!xfs_scrub_btree_process_error(bs->sc, bs->cur, 0, &error))
+	if (!xchk_btree_process_error(bs->sc, bs->cur, 0, &error))
 		goto out;
 
 	/* Check extent. */
 	if (irec.rm_startblock + irec.rm_blockcount <= irec.rm_startblock)
-		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	if (irec.rm_owner == XFS_RMAP_OWN_FS) {
 		/*
@@ -124,7 +124,7 @@ xfs_scrub_rmapbt_rec(
 		 */
 		if (irec.rm_startblock != 0 ||
 		    irec.rm_blockcount != XFS_AGFL_BLOCK(mp) + 1)
-			xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 	} else {
 		/*
 		 * Otherwise we must point somewhere past the static metadata
@@ -133,7 +133,7 @@ xfs_scrub_rmapbt_rec(
 		if (!xfs_verify_agbno(mp, agno, irec.rm_startblock) ||
 		    !xfs_verify_agbno(mp, agno, irec.rm_startblock +
 				irec.rm_blockcount - 1))
-			xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 	}
 
 	/* Check flags. */
@@ -143,47 +143,47 @@ xfs_scrub_rmapbt_rec(
 	is_unwritten = irec.rm_flags & XFS_RMAP_UNWRITTEN;
 
 	if (is_bmbt && irec.rm_offset != 0)
-		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	if (non_inode && irec.rm_offset != 0)
-		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	if (is_unwritten && (is_bmbt || non_inode || is_attr))
-		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	if (non_inode && (is_bmbt || is_unwritten || is_attr))
-		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	if (!non_inode) {
 		if (!xfs_verify_ino(mp, irec.rm_owner))
-			xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 	} else {
 		/* Non-inode owner within the magic values? */
 		if (irec.rm_owner <= XFS_RMAP_OWN_MIN ||
 		    irec.rm_owner > XFS_RMAP_OWN_FS)
-			xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 	}
 
-	xfs_scrub_rmapbt_xref(bs->sc, &irec);
+	xchk_rmapbt_xref(bs->sc, &irec);
 out:
 	return error;
 }
 
 /* Scrub the rmap btree for some AG. */
 int
-xfs_scrub_rmapbt(
+xchk_rmapbt(
 	struct xfs_scrub_context	*sc)
 {
 	struct xfs_owner_info		oinfo;
 
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
-	return xfs_scrub_btree(sc, sc->sa.rmap_cur, xfs_scrub_rmapbt_rec,
+	return xchk_btree(sc, sc->sa.rmap_cur, xchk_rmapbt_rec,
 			&oinfo, NULL);
 }
 
 /* xref check that the extent is owned by a given owner */
 static inline void
-xfs_scrub_xref_check_owner(
+xchk_xref_check_owner(
 	struct xfs_scrub_context	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
@@ -193,42 +193,42 @@ xfs_scrub_xref_check_owner(
 	bool				has_rmap;
 	int				error;
 
-	if (!sc->sa.rmap_cur || xfs_scrub_skip_xref(sc->sm))
+	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
 
 	error = xfs_rmap_record_exists(sc->sa.rmap_cur, bno, len, oinfo,
 			&has_rmap);
-	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (has_rmap != should_have_rmap)
-		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }
 
 /* xref check that the extent is owned by a given owner */
 void
-xfs_scrub_xref_is_owned_by(
+xchk_xref_is_owned_by(
 	struct xfs_scrub_context	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	struct xfs_owner_info		*oinfo)
 {
-	xfs_scrub_xref_check_owner(sc, bno, len, oinfo, true);
+	xchk_xref_check_owner(sc, bno, len, oinfo, true);
 }
 
 /* xref check that the extent is not owned by a given owner */
 void
-xfs_scrub_xref_is_not_owned_by(
+xchk_xref_is_not_owned_by(
 	struct xfs_scrub_context	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	struct xfs_owner_info		*oinfo)
 {
-	xfs_scrub_xref_check_owner(sc, bno, len, oinfo, false);
+	xchk_xref_check_owner(sc, bno, len, oinfo, false);
 }
 
 /* xref check that the extent has no reverse mapping at all */
 void
-xfs_scrub_xref_has_no_owner(
+xchk_xref_has_no_owner(
 	struct xfs_scrub_context	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len)
@@ -236,12 +236,12 @@ xfs_scrub_xref_has_no_owner(
 	bool				has_rmap;
 	int				error;
 
-	if (!sc->sa.rmap_cur || xfs_scrub_skip_xref(sc->sm))
+	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
 
 	error = xfs_rmap_has_record(sc->sa.rmap_cur, bno, len, &has_rmap);
-	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (has_rmap)
-		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }

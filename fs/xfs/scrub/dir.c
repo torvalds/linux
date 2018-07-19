@@ -31,18 +31,18 @@
 
 /* Set us up to scrub directories. */
 int
-xfs_scrub_setup_directory(
+xchk_setup_directory(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	return xfs_scrub_setup_inode_contents(sc, ip, 0);
+	return xchk_setup_inode_contents(sc, ip, 0);
 }
 
 /* Directories */
 
 /* Scrub a directory entry. */
 
-struct xfs_scrub_dir_ctx {
+struct xchk_dir_ctx {
 	/* VFS fill-directory iterator */
 	struct dir_context		dir_iter;
 
@@ -51,8 +51,8 @@ struct xfs_scrub_dir_ctx {
 
 /* Check that an inode's mode matches a given DT_ type. */
 STATIC int
-xfs_scrub_dir_check_ftype(
-	struct xfs_scrub_dir_ctx	*sdc,
+xchk_dir_check_ftype(
+	struct xchk_dir_ctx		*sdc,
 	xfs_fileoff_t			offset,
 	xfs_ino_t			inum,
 	int				dtype)
@@ -64,7 +64,7 @@ xfs_scrub_dir_check_ftype(
 
 	if (!xfs_sb_version_hasftype(&mp->m_sb)) {
 		if (dtype != DT_UNKNOWN && dtype != DT_DIR)
-			xfs_scrub_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
+			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
 		goto out;
 	}
@@ -78,7 +78,7 @@ xfs_scrub_dir_check_ftype(
 	 * inodes can trigger immediate inactive cleanup of the inode.
 	 */
 	error = xfs_iget(mp, sdc->sc->tp, inum, 0, 0, &ip);
-	if (!xfs_scrub_fblock_xref_process_error(sdc->sc, XFS_DATA_FORK, offset,
+	if (!xchk_fblock_xref_process_error(sdc->sc, XFS_DATA_FORK, offset,
 			&error))
 		goto out;
 
@@ -86,7 +86,7 @@ xfs_scrub_dir_check_ftype(
 	ino_dtype = xfs_dir3_get_dtype(mp,
 			xfs_mode_to_ftype(VFS_I(ip)->i_mode));
 	if (ino_dtype != dtype)
-		xfs_scrub_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
 	iput(VFS_I(ip));
 out:
 	return error;
@@ -101,7 +101,7 @@ out:
  * we can look up this filename.  Finally, we check the ftype.
  */
 STATIC int
-xfs_scrub_dir_actor(
+xchk_dir_actor(
 	struct dir_context		*dir_iter,
 	const char			*name,
 	int				namelen,
@@ -111,13 +111,13 @@ xfs_scrub_dir_actor(
 {
 	struct xfs_mount		*mp;
 	struct xfs_inode		*ip;
-	struct xfs_scrub_dir_ctx	*sdc;
+	struct xchk_dir_ctx		*sdc;
 	struct xfs_name			xname;
 	xfs_ino_t			lookup_ino;
 	xfs_dablk_t			offset;
 	int				error = 0;
 
-	sdc = container_of(dir_iter, struct xfs_scrub_dir_ctx, dir_iter);
+	sdc = container_of(dir_iter, struct xchk_dir_ctx, dir_iter);
 	ip = sdc->sc->ip;
 	mp = ip->i_mount;
 	offset = xfs_dir2_db_to_da(mp->m_dir_geo,
@@ -125,17 +125,17 @@ xfs_scrub_dir_actor(
 
 	/* Does this inode number make sense? */
 	if (!xfs_verify_dir_ino(mp, ino)) {
-		xfs_scrub_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
 		goto out;
 	}
 
 	if (!strncmp(".", name, namelen)) {
 		/* If this is "." then check that the inum matches the dir. */
 		if (xfs_sb_version_hasftype(&mp->m_sb) && type != DT_DIR)
-			xfs_scrub_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
+			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
 		if (ino != ip->i_ino)
-			xfs_scrub_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
+			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
 	} else if (!strncmp("..", name, namelen)) {
 		/*
@@ -143,10 +143,10 @@ xfs_scrub_dir_actor(
 		 * matches this dir.
 		 */
 		if (xfs_sb_version_hasftype(&mp->m_sb) && type != DT_DIR)
-			xfs_scrub_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
+			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
 		if (ip->i_ino == mp->m_sb.sb_rootino && ino != ip->i_ino)
-			xfs_scrub_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
+			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
 	}
 
@@ -156,23 +156,23 @@ xfs_scrub_dir_actor(
 	xname.type = XFS_DIR3_FT_UNKNOWN;
 
 	error = xfs_dir_lookup(sdc->sc->tp, ip, &xname, &lookup_ino, NULL);
-	if (!xfs_scrub_fblock_process_error(sdc->sc, XFS_DATA_FORK, offset,
+	if (!xchk_fblock_process_error(sdc->sc, XFS_DATA_FORK, offset,
 			&error))
 		goto out;
 	if (lookup_ino != ino) {
-		xfs_scrub_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
 		goto out;
 	}
 
 	/* Verify the file type.  This function absorbs error codes. */
-	error = xfs_scrub_dir_check_ftype(sdc, offset, lookup_ino, type);
+	error = xchk_dir_check_ftype(sdc, offset, lookup_ino, type);
 	if (error)
 		goto out;
 out:
 	/*
 	 * A negative error code returned here is supposed to cause the
 	 * dir_emit caller (xfs_readdir) to abort the directory iteration
-	 * and return zero to xfs_scrub_directory.
+	 * and return zero to xchk_directory.
 	 */
 	if (error == 0 && sdc->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return -EFSCORRUPTED;
@@ -181,8 +181,8 @@ out:
 
 /* Scrub a directory btree record. */
 STATIC int
-xfs_scrub_dir_rec(
-	struct xfs_scrub_da_btree	*ds,
+xchk_dir_rec(
+	struct xchk_da_btree		*ds,
 	int				level,
 	void				*rec)
 {
@@ -203,7 +203,7 @@ xfs_scrub_dir_rec(
 	int				error;
 
 	/* Check the hash of the entry. */
-	error = xfs_scrub_da_btree_hash(ds, level, &ent->hashval);
+	error = xchk_da_btree_hash(ds, level, &ent->hashval);
 	if (error)
 		goto out;
 
@@ -218,18 +218,18 @@ xfs_scrub_dir_rec(
 	rec_bno = xfs_dir2_db_to_da(mp->m_dir_geo, db);
 
 	if (rec_bno >= mp->m_dir_geo->leafblk) {
-		xfs_scrub_da_set_corrupt(ds, level);
+		xchk_da_set_corrupt(ds, level);
 		goto out;
 	}
 	error = xfs_dir3_data_read(ds->dargs.trans, dp, rec_bno, -2, &bp);
-	if (!xfs_scrub_fblock_process_error(ds->sc, XFS_DATA_FORK, rec_bno,
+	if (!xchk_fblock_process_error(ds->sc, XFS_DATA_FORK, rec_bno,
 			&error))
 		goto out;
 	if (!bp) {
-		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 		goto out;
 	}
-	xfs_scrub_buffer_recheck(ds->sc, bp);
+	xchk_buffer_recheck(ds->sc, bp);
 
 	if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out_relse;
@@ -240,7 +240,7 @@ xfs_scrub_dir_rec(
 	p = (char *)mp->m_dir_inode_ops->data_entry_p(bp->b_addr);
 	endp = xfs_dir3_data_endp(mp->m_dir_geo, bp->b_addr);
 	if (!endp) {
-		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 		goto out_relse;
 	}
 	while (p < endp) {
@@ -258,7 +258,7 @@ xfs_scrub_dir_rec(
 		p += mp->m_dir_inode_ops->data_entsize(dep->namelen);
 	}
 	if (p >= endp) {
-		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 		goto out_relse;
 	}
 
@@ -267,14 +267,14 @@ xfs_scrub_dir_rec(
 	hash = be32_to_cpu(ent->hashval);
 	tag = be16_to_cpup(dp->d_ops->data_entry_tag_p(dent));
 	if (!xfs_verify_dir_ino(mp, ino) || tag != off)
-		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 	if (dent->namelen == 0) {
-		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 		goto out_relse;
 	}
 	calc_hash = xfs_da_hashname(dent->name, dent->namelen);
 	if (calc_hash != hash)
-		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 
 out_relse:
 	xfs_trans_brelse(ds->dargs.trans, bp);
@@ -288,7 +288,7 @@ out:
  * shortest, and that there aren't any bogus entries.
  */
 STATIC void
-xfs_scrub_directory_check_free_entry(
+xchk_directory_check_free_entry(
 	struct xfs_scrub_context	*sc,
 	xfs_dablk_t			lblk,
 	struct xfs_dir2_data_free	*bf,
@@ -308,12 +308,12 @@ xfs_scrub_directory_check_free_entry(
 			return;
 
 	/* Unused entry should be in the bestfrees but wasn't found. */
-	xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+	xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 }
 
 /* Check free space info in a directory data block. */
 STATIC int
-xfs_scrub_directory_data_bestfree(
+xchk_directory_data_bestfree(
 	struct xfs_scrub_context	*sc,
 	xfs_dablk_t			lblk,
 	bool				is_block)
@@ -339,15 +339,15 @@ xfs_scrub_directory_data_bestfree(
 	if (is_block) {
 		/* dir block format */
 		if (lblk != XFS_B_TO_FSBT(mp, XFS_DIR2_DATA_OFFSET))
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		error = xfs_dir3_block_read(sc->tp, sc->ip, &bp);
 	} else {
 		/* dir data format */
 		error = xfs_dir3_data_read(sc->tp, sc->ip, lblk, -1, &bp);
 	}
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
 		goto out;
-	xfs_scrub_buffer_recheck(sc, bp);
+	xchk_buffer_recheck(sc, bp);
 
 	/* XXX: Check xfs_dir3_data_hdr.pad is zero once we start setting it. */
 
@@ -362,7 +362,7 @@ xfs_scrub_directory_data_bestfree(
 		if (offset == 0)
 			continue;
 		if (offset >= mp->m_dir_geo->blksize) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
 		dup = (struct xfs_dir2_data_unused *)(bp->b_addr + offset);
@@ -372,13 +372,13 @@ xfs_scrub_directory_data_bestfree(
 		if (dup->freetag != cpu_to_be16(XFS_DIR2_DATA_FREE_TAG) ||
 		    be16_to_cpu(dup->length) != be16_to_cpu(dfp->length) ||
 		    tag != ((char *)dup - (char *)bp->b_addr)) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
 
 		/* bestfree records should be ordered largest to smallest */
 		if (smallest_bestfree < be16_to_cpu(dfp->length)) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
 
@@ -400,7 +400,7 @@ xfs_scrub_directory_data_bestfree(
 			dep = (struct xfs_dir2_data_entry *)ptr;
 			newlen = d_ops->data_entsize(dep->namelen);
 			if (newlen <= 0) {
-				xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK,
+				xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
 						lblk);
 				goto out_buf;
 			}
@@ -411,7 +411,7 @@ xfs_scrub_directory_data_bestfree(
 		/* Spot check this free entry */
 		tag = be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup));
 		if (tag != ((char *)dup - (char *)bp->b_addr)) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
 
@@ -419,14 +419,14 @@ xfs_scrub_directory_data_bestfree(
 		 * Either this entry is a bestfree or it's smaller than
 		 * any of the bestfrees.
 		 */
-		xfs_scrub_directory_check_free_entry(sc, lblk, bf, dup);
+		xchk_directory_check_free_entry(sc, lblk, bf, dup);
 		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			goto out_buf;
 
 		/* Move on. */
 		newlen = be16_to_cpu(dup->length);
 		if (newlen <= 0) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
 		ptr += newlen;
@@ -436,11 +436,11 @@ xfs_scrub_directory_data_bestfree(
 
 	/* We're required to fill all the space. */
 	if (ptr != endptr)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 
 	/* Did we see at least as many free slots as there are bestfrees? */
 	if (nr_frees < nr_bestfrees)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 out_buf:
 	xfs_trans_brelse(sc->tp, bp);
 out:
@@ -454,7 +454,7 @@ out:
  * array is in order.
  */
 STATIC void
-xfs_scrub_directory_check_freesp(
+xchk_directory_check_freesp(
 	struct xfs_scrub_context	*sc,
 	xfs_dablk_t			lblk,
 	struct xfs_buf			*dbp,
@@ -465,15 +465,15 @@ xfs_scrub_directory_check_freesp(
 	dfp = sc->ip->d_ops->data_bestfree_p(dbp->b_addr);
 
 	if (len != be16_to_cpu(dfp->length))
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 
 	if (len > 0 && be16_to_cpu(dfp->offset) == 0)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 }
 
 /* Check free space info in a directory leaf1 block. */
 STATIC int
-xfs_scrub_directory_leaf1_bestfree(
+xchk_directory_leaf1_bestfree(
 	struct xfs_scrub_context	*sc,
 	struct xfs_da_args		*args,
 	xfs_dablk_t			lblk)
@@ -497,9 +497,9 @@ xfs_scrub_directory_leaf1_bestfree(
 
 	/* Read the free space block. */
 	error = xfs_dir3_leaf_read(sc->tp, sc->ip, lblk, -1, &bp);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
 		goto out;
-	xfs_scrub_buffer_recheck(sc, bp);
+	xchk_buffer_recheck(sc, bp);
 
 	leaf = bp->b_addr;
 	d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
@@ -512,7 +512,7 @@ xfs_scrub_directory_leaf1_bestfree(
 		struct xfs_dir3_leaf_hdr	*hdr3 = bp->b_addr;
 
 		if (hdr3->pad != cpu_to_be32(0))
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 	}
 
 	/*
@@ -520,19 +520,19 @@ xfs_scrub_directory_leaf1_bestfree(
 	 * blocks that can fit under i_size.
 	 */
 	if (bestcount != xfs_dir2_byte_to_db(geo, sc->ip->i_d.di_size)) {
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		goto out;
 	}
 
 	/* Is the leaf count even remotely sane? */
 	if (leafhdr.count > d_ops->leaf_max_ents(geo)) {
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		goto out;
 	}
 
 	/* Leaves and bests don't overlap in leaf format. */
 	if ((char *)&ents[leafhdr.count] > (char *)bestp) {
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		goto out;
 	}
 
@@ -540,13 +540,13 @@ xfs_scrub_directory_leaf1_bestfree(
 	for (i = 0; i < leafhdr.count; i++) {
 		hash = be32_to_cpu(ents[i].hashval);
 		if (i > 0 && lasthash > hash)
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		lasthash = hash;
 		if (ents[i].address == cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
 			stale++;
 	}
 	if (leafhdr.stale != stale)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
@@ -557,10 +557,10 @@ xfs_scrub_directory_leaf1_bestfree(
 			continue;
 		error = xfs_dir3_data_read(sc->tp, sc->ip,
 				i * args->geo->fsbcount, -1, &dbp);
-		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk,
+		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk,
 				&error))
 			break;
-		xfs_scrub_directory_check_freesp(sc, lblk, dbp, best);
+		xchk_directory_check_freesp(sc, lblk, dbp, best);
 		xfs_trans_brelse(sc->tp, dbp);
 		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			goto out;
@@ -571,7 +571,7 @@ out:
 
 /* Check free space info in a directory freespace block. */
 STATIC int
-xfs_scrub_directory_free_bestfree(
+xchk_directory_free_bestfree(
 	struct xfs_scrub_context	*sc,
 	struct xfs_da_args		*args,
 	xfs_dablk_t			lblk)
@@ -587,15 +587,15 @@ xfs_scrub_directory_free_bestfree(
 
 	/* Read the free space block */
 	error = xfs_dir2_free_read(sc->tp, sc->ip, lblk, &bp);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
 		goto out;
-	xfs_scrub_buffer_recheck(sc, bp);
+	xchk_buffer_recheck(sc, bp);
 
 	if (xfs_sb_version_hascrc(&sc->mp->m_sb)) {
 		struct xfs_dir3_free_hdr	*hdr3 = bp->b_addr;
 
 		if (hdr3->pad != cpu_to_be32(0))
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 	}
 
 	/* Check all the entries. */
@@ -610,22 +610,22 @@ xfs_scrub_directory_free_bestfree(
 		error = xfs_dir3_data_read(sc->tp, sc->ip,
 				(freehdr.firstdb + i) * args->geo->fsbcount,
 				-1, &dbp);
-		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk,
+		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk,
 				&error))
 			break;
-		xfs_scrub_directory_check_freesp(sc, lblk, dbp, best);
+		xchk_directory_check_freesp(sc, lblk, dbp, best);
 		xfs_trans_brelse(sc->tp, dbp);
 	}
 
 	if (freehdr.nused + stale != freehdr.nvalid)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 out:
 	return error;
 }
 
 /* Check free space information in directories. */
 STATIC int
-xfs_scrub_directory_blocks(
+xchk_directory_blocks(
 	struct xfs_scrub_context	*sc)
 {
 	struct xfs_bmbt_irec		got;
@@ -656,7 +656,7 @@ xfs_scrub_directory_blocks(
 	args.geo = mp->m_dir_geo;
 	args.trans = sc->tp;
 	error = xfs_dir2_isblock(&args, &is_block);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
 		goto out;
 
 	/* Iterate all the data extents in the directory... */
@@ -666,7 +666,7 @@ xfs_scrub_directory_blocks(
 		if (is_block &&
 		    (got.br_startoff > 0 ||
 		     got.br_blockcount != args.geo->fsbcount)) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK,
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
 					got.br_startoff);
 			break;
 		}
@@ -690,7 +690,7 @@ xfs_scrub_directory_blocks(
 				args.geo->fsbcount);
 		     lblk < got.br_startoff + got.br_blockcount;
 		     lblk += args.geo->fsbcount) {
-			error = xfs_scrub_directory_data_bestfree(sc, lblk,
+			error = xchk_directory_data_bestfree(sc, lblk,
 					is_block);
 			if (error)
 				goto out;
@@ -709,10 +709,10 @@ xfs_scrub_directory_blocks(
 	    got.br_blockcount == args.geo->fsbcount &&
 	    !xfs_iext_next_extent(ifp, &icur, &got)) {
 		if (is_block) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out;
 		}
-		error = xfs_scrub_directory_leaf1_bestfree(sc, &args,
+		error = xchk_directory_leaf1_bestfree(sc, &args,
 				leaf_lblk);
 		if (error)
 			goto out;
@@ -731,11 +731,11 @@ xfs_scrub_directory_blocks(
 		 */
 		lblk = got.br_startoff;
 		if (lblk & ~0xFFFFFFFFULL) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out;
 		}
 		if (is_block) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out;
 		}
 
@@ -754,7 +754,7 @@ xfs_scrub_directory_blocks(
 				args.geo->fsbcount);
 		     lblk < got.br_startoff + got.br_blockcount;
 		     lblk += args.geo->fsbcount) {
-			error = xfs_scrub_directory_free_bestfree(sc, &args,
+			error = xchk_directory_free_bestfree(sc, &args,
 					lblk);
 			if (error)
 				goto out;
@@ -769,11 +769,11 @@ out:
 
 /* Scrub a whole directory. */
 int
-xfs_scrub_directory(
+xchk_directory(
 	struct xfs_scrub_context	*sc)
 {
-	struct xfs_scrub_dir_ctx	sdc = {
-		.dir_iter.actor = xfs_scrub_dir_actor,
+	struct xchk_dir_ctx		sdc = {
+		.dir_iter.actor = xchk_dir_actor,
 		.dir_iter.pos = 0,
 		.sc = sc,
 	};
@@ -786,12 +786,12 @@ xfs_scrub_directory(
 
 	/* Plausible size? */
 	if (sc->ip->i_d.di_size < xfs_dir2_sf_hdr_size(0)) {
-		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
 		goto out;
 	}
 
 	/* Check directory tree structure */
-	error = xfs_scrub_da_btree(sc, XFS_DATA_FORK, xfs_scrub_dir_rec, NULL);
+	error = xchk_da_btree(sc, XFS_DATA_FORK, xchk_dir_rec, NULL);
 	if (error)
 		return error;
 
@@ -799,7 +799,7 @@ xfs_scrub_directory(
 		return error;
 
 	/* Check the freespace. */
-	error = xfs_scrub_directory_blocks(sc);
+	error = xchk_directory_blocks(sc);
 	if (error)
 		return error;
 
@@ -816,7 +816,7 @@ xfs_scrub_directory(
 	/*
 	 * Look up every name in this directory by hash.
 	 *
-	 * Use the xfs_readdir function to call xfs_scrub_dir_actor on
+	 * Use the xfs_readdir function to call xchk_dir_actor on
 	 * every directory entry in this directory.  In _actor, we check
 	 * the name, inode number, and ftype (if applicable) of the
 	 * entry.  xfs_readdir uses the VFS filldir functions to provide
@@ -834,7 +834,7 @@ xfs_scrub_directory(
 	xfs_iunlock(sc->ip, XFS_ILOCK_EXCL);
 	while (true) {
 		error = xfs_readdir(sc->tp, sc->ip, &sdc.dir_iter, bufsize);
-		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0,
+		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0,
 				&error))
 			goto out;
 		if (oldpos == sdc.dir_iter.pos)

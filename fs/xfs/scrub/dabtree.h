@@ -8,7 +8,7 @@
 
 /* dir/attr btree */
 
-struct xfs_scrub_da_btree {
+struct xchk_da_btree {
 	struct xfs_da_args		dargs;
 	xfs_dahash_t			hashes[XFS_DA_NODE_MAXDEPTH];
 	int				maxrecs[XFS_DA_NODE_MAXDEPTH];
@@ -28,18 +28,18 @@ struct xfs_scrub_da_btree {
 	int				tree_level;
 };
 
-typedef int (*xfs_scrub_da_btree_rec_fn)(struct xfs_scrub_da_btree *ds,
+typedef int (*xchk_da_btree_rec_fn)(struct xchk_da_btree *ds,
 		int level, void *rec);
 
 /* Check for da btree operation errors. */
-bool xfs_scrub_da_process_error(struct xfs_scrub_da_btree *ds, int level, int *error);
+bool xchk_da_process_error(struct xchk_da_btree *ds, int level, int *error);
 
 /* Check for da btree corruption. */
-void xfs_scrub_da_set_corrupt(struct xfs_scrub_da_btree *ds, int level);
+void xchk_da_set_corrupt(struct xchk_da_btree *ds, int level);
 
-int xfs_scrub_da_btree_hash(struct xfs_scrub_da_btree *ds, int level,
+int xchk_da_btree_hash(struct xchk_da_btree *ds, int level,
 			    __be32 *hashp);
-int xfs_scrub_da_btree(struct xfs_scrub_context *sc, int whichfork,
-		       xfs_scrub_da_btree_rec_fn scrub_fn, void *private);
+int xchk_da_btree(struct xfs_scrub_context *sc, int whichfork,
+		       xchk_da_btree_rec_fn scrub_fn, void *private);
 
 #endif /* __XFS_SCRUB_DABTREE_H__ */

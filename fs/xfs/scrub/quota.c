@@ -30,7 +30,7 @@
 
 /* Convert a scrub type code to a DQ flag, or return 0 if error. */
 static inline uint
-xfs_scrub_quota_to_dqtype(
+xchk_quota_to_dqtype(
 	struct xfs_scrub_context	*sc)
 {
 	switch (sc->sm->sm_type) {
@@ -47,7 +47,7 @@ xfs_scrub_quota_to_dqtype(
 
 /* Set us up to scrub a quota. */
 int
-xfs_scrub_setup_quota(
+xchk_setup_quota(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
@@ -57,14 +57,14 @@ xfs_scrub_setup_quota(
 	if (!XFS_IS_QUOTA_RUNNING(sc->mp) || !XFS_IS_QUOTA_ON(sc->mp))
 		return -ENOENT;
 
-	dqtype = xfs_scrub_quota_to_dqtype(sc);
+	dqtype = xchk_quota_to_dqtype(sc);
 	if (dqtype == 0)
 		return -EINVAL;
 	sc->has_quotaofflock = true;
 	mutex_lock(&sc->mp->m_quotainfo->qi_quotaofflock);
 	if (!xfs_this_quota_on(sc->mp, dqtype))
 		return -ENOENT;
-	error = xfs_scrub_setup_fs(sc, ip);
+	error = xchk_setup_fs(sc, ip);
 	if (error)
 		return error;
 	sc->ip = xfs_quota_inode(sc->mp, dqtype);
@@ -75,19 +75,19 @@ xfs_scrub_setup_quota(
 
 /* Quotas. */
 
-struct xfs_scrub_quota_info {
+struct xchk_quota_info {
 	struct xfs_scrub_context	*sc;
 	xfs_dqid_t			last_id;
 };
 
 /* Scrub the fields in an individual quota item. */
 STATIC int
-xfs_scrub_quota_item(
+xchk_quota_item(
 	struct xfs_dquot		*dq,
 	uint				dqtype,
 	void				*priv)
 {
-	struct xfs_scrub_quota_info	*sqi = priv;
+	struct xchk_quota_info		*sqi = priv;
 	struct xfs_scrub_context	*sc = sqi->sc;
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_disk_dquot		*d = &dq->q_core;
@@ -111,16 +111,16 @@ xfs_scrub_quota_item(
 	 */
 	offset = id / qi->qi_dqperchunk;
 	if (id && id <= sqi->last_id)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	sqi->last_id = id;
 
 	/* Did we get the dquot type we wanted? */
 	if (dqtype != (d->d_flags & XFS_DQ_ALLTYPES))
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	if (d->d_pad0 != cpu_to_be32(0) || d->d_pad != cpu_to_be16(0))
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	/* Check the limits. */
 	bhard = be64_to_cpu(d->d_blk_hardlimit);
@@ -140,19 +140,19 @@ xfs_scrub_quota_item(
 	 * the hard limit.
 	 */
 	if (bhard > mp->m_sb.sb_dblocks)
-		xfs_scrub_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 	if (bsoft > bhard)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	if (ihard > mp->m_maxicount)
-		xfs_scrub_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 	if (isoft > ihard)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	if (rhard > mp->m_sb.sb_rblocks)
-		xfs_scrub_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 	if (rsoft > rhard)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	/* Check the resource counts. */
 	bcount = be64_to_cpu(d->d_bcount);
@@ -167,15 +167,15 @@ xfs_scrub_quota_item(
 	 */
 	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
 		if (mp->m_sb.sb_dblocks < bcount)
-			xfs_scrub_fblock_set_warning(sc, XFS_DATA_FORK,
+			xchk_fblock_set_warning(sc, XFS_DATA_FORK,
 					offset);
 	} else {
 		if (mp->m_sb.sb_dblocks < bcount)
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK,
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
 					offset);
 	}
 	if (icount > fs_icount || rcount > mp->m_sb.sb_rblocks)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	/*
 	 * We can violate the hard limits if the admin suddenly sets a
@@ -183,18 +183,18 @@ xfs_scrub_quota_item(
 	 * admin review.
 	 */
 	if (id != 0 && bhard != 0 && bcount > bhard)
-		xfs_scrub_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 	if (id != 0 && ihard != 0 && icount > ihard)
-		xfs_scrub_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 	if (id != 0 && rhard != 0 && rcount > rhard)
-		xfs_scrub_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 
 	return 0;
 }
 
 /* Check the quota's data fork. */
 STATIC int
-xfs_scrub_quota_data_fork(
+xchk_quota_data_fork(
 	struct xfs_scrub_context	*sc)
 {
 	struct xfs_bmbt_irec		irec = { 0 };
@@ -205,7 +205,7 @@ xfs_scrub_quota_data_fork(
 	int				error = 0;
 
 	/* Invoke the fork scrubber. */
-	error = xfs_scrub_metadata_inode_forks(sc);
+	error = xchk_metadata_inode_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
@@ -213,7 +213,7 @@ xfs_scrub_quota_data_fork(
 	max_dqid_off = ((xfs_dqid_t)-1) / qi->qi_dqperchunk;
 	ifp = XFS_IFORK_PTR(sc->ip, XFS_DATA_FORK);
 	for_each_xfs_iext(ifp, &icur, &irec) {
-		if (xfs_scrub_should_terminate(sc, &error))
+		if (xchk_should_terminate(sc, &error))
 			break;
 		/*
 		 * delalloc extents or blocks mapped above the highest
@@ -222,7 +222,7 @@ xfs_scrub_quota_data_fork(
 		if (isnullstartblock(irec.br_startblock) ||
 		    irec.br_startoff > max_dqid_off ||
 		    irec.br_startoff + irec.br_blockcount - 1 > max_dqid_off) {
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK,
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
 					irec.br_startoff);
 			break;
 		}
@@ -233,19 +233,19 @@ xfs_scrub_quota_data_fork(
 
 /* Scrub all of a quota type's items. */
 int
-xfs_scrub_quota(
+xchk_quota(
 	struct xfs_scrub_context	*sc)
 {
-	struct xfs_scrub_quota_info	sqi;
+	struct xchk_quota_info		sqi;
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_quotainfo		*qi = mp->m_quotainfo;
 	uint				dqtype;
 	int				error = 0;
 
-	dqtype = xfs_scrub_quota_to_dqtype(sc);
+	dqtype = xchk_quota_to_dqtype(sc);
 
 	/* Look for problem extents. */
-	error = xfs_scrub_quota_data_fork(sc);
+	error = xchk_quota_data_fork(sc);
 	if (error)
 		goto out;
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
@@ -260,10 +260,10 @@ xfs_scrub_quota(
 	sc->ilock_flags = 0;
 	sqi.sc = sc;
 	sqi.last_id = 0;
-	error = xfs_qm_dqiterate(mp, dqtype, xfs_scrub_quota_item, &sqi);
+	error = xfs_qm_dqiterate(mp, dqtype, xchk_quota_item, &sqi);
 	sc->ilock_flags = XFS_ILOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK,
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK,
 			sqi.last_id * qi->qi_dqperchunk, &error))
 		goto out;
 

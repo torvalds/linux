@@ -9,14 +9,14 @@
 struct xfs_scrub_context;
 
 /* Type info and names for the scrub types. */
-enum xfs_scrub_type {
+enum xchk_type {
 	ST_NONE = 1,	/* disabled */
 	ST_PERAG,	/* per-AG metadata */
 	ST_FS,		/* per-FS metadata */
 	ST_INODE,	/* per-inode metadata */
 };
 
-struct xfs_scrub_meta_ops {
+struct xchk_meta_ops {
 	/* Acquire whatever resources are needed for the operation. */
 	int		(*setup)(struct xfs_scrub_context *,
 				 struct xfs_inode *);
@@ -31,11 +31,11 @@ struct xfs_scrub_meta_ops {
 	bool		(*has)(struct xfs_sb *);
 
 	/* type describing required/allowed inputs */
-	enum xfs_scrub_type	type;
+	enum xchk_type	type;
 };
 
 /* Buffer pointers and btree cursors for an entire AG. */
-struct xfs_scrub_ag {
+struct xchk_ag {
 	xfs_agnumber_t			agno;
 	struct xfs_perag		*pag;
 
@@ -57,7 +57,7 @@ struct xfs_scrub_context {
 	/* General scrub state. */
 	struct xfs_mount		*mp;
 	struct xfs_scrub_metadata	*sm;
-	const struct xfs_scrub_meta_ops	*ops;
+	const struct xchk_meta_ops	*ops;
 	struct xfs_trans		*tp;
 	struct xfs_inode		*ip;
 	void				*buf;
@@ -66,78 +66,78 @@ struct xfs_scrub_context {
 	bool				has_quotaofflock;
 
 	/* State tracking for single-AG operations. */
-	struct xfs_scrub_ag		sa;
+	struct xchk_ag		sa;
 };
 
 /* Metadata scrubbers */
-int xfs_scrub_tester(struct xfs_scrub_context *sc);
-int xfs_scrub_superblock(struct xfs_scrub_context *sc);
-int xfs_scrub_agf(struct xfs_scrub_context *sc);
-int xfs_scrub_agfl(struct xfs_scrub_context *sc);
-int xfs_scrub_agi(struct xfs_scrub_context *sc);
-int xfs_scrub_bnobt(struct xfs_scrub_context *sc);
-int xfs_scrub_cntbt(struct xfs_scrub_context *sc);
-int xfs_scrub_inobt(struct xfs_scrub_context *sc);
-int xfs_scrub_finobt(struct xfs_scrub_context *sc);
-int xfs_scrub_rmapbt(struct xfs_scrub_context *sc);
-int xfs_scrub_refcountbt(struct xfs_scrub_context *sc);
-int xfs_scrub_inode(struct xfs_scrub_context *sc);
-int xfs_scrub_bmap_data(struct xfs_scrub_context *sc);
-int xfs_scrub_bmap_attr(struct xfs_scrub_context *sc);
-int xfs_scrub_bmap_cow(struct xfs_scrub_context *sc);
-int xfs_scrub_directory(struct xfs_scrub_context *sc);
-int xfs_scrub_xattr(struct xfs_scrub_context *sc);
-int xfs_scrub_symlink(struct xfs_scrub_context *sc);
-int xfs_scrub_parent(struct xfs_scrub_context *sc);
+int xchk_tester(struct xfs_scrub_context *sc);
+int xchk_superblock(struct xfs_scrub_context *sc);
+int xchk_agf(struct xfs_scrub_context *sc);
+int xchk_agfl(struct xfs_scrub_context *sc);
+int xchk_agi(struct xfs_scrub_context *sc);
+int xchk_bnobt(struct xfs_scrub_context *sc);
+int xchk_cntbt(struct xfs_scrub_context *sc);
+int xchk_inobt(struct xfs_scrub_context *sc);
+int xchk_finobt(struct xfs_scrub_context *sc);
+int xchk_rmapbt(struct xfs_scrub_context *sc);
+int xchk_refcountbt(struct xfs_scrub_context *sc);
+int xchk_inode(struct xfs_scrub_context *sc);
+int xchk_bmap_data(struct xfs_scrub_context *sc);
+int xchk_bmap_attr(struct xfs_scrub_context *sc);
+int xchk_bmap_cow(struct xfs_scrub_context *sc);
+int xchk_directory(struct xfs_scrub_context *sc);
+int xchk_xattr(struct xfs_scrub_context *sc);
+int xchk_symlink(struct xfs_scrub_context *sc);
+int xchk_parent(struct xfs_scrub_context *sc);
 #ifdef CONFIG_XFS_RT
-int xfs_scrub_rtbitmap(struct xfs_scrub_context *sc);
-int xfs_scrub_rtsummary(struct xfs_scrub_context *sc);
+int xchk_rtbitmap(struct xfs_scrub_context *sc);
+int xchk_rtsummary(struct xfs_scrub_context *sc);
 #else
 static inline int
-xfs_scrub_rtbitmap(struct xfs_scrub_context *sc)
+xchk_rtbitmap(struct xfs_scrub_context *sc)
 {
 	return -ENOENT;
 }
 static inline int
-xfs_scrub_rtsummary(struct xfs_scrub_context *sc)
+xchk_rtsummary(struct xfs_scrub_context *sc)
 {
 	return -ENOENT;
 }
 #endif
 #ifdef CONFIG_XFS_QUOTA
-int xfs_scrub_quota(struct xfs_scrub_context *sc);
+int xchk_quota(struct xfs_scrub_context *sc);
 #else
 static inline int
-xfs_scrub_quota(struct xfs_scrub_context *sc)
+xchk_quota(struct xfs_scrub_context *sc)
 {
 	return -ENOENT;
 }
 #endif
 
 /* cross-referencing helpers */
-void xfs_scrub_xref_is_used_space(struct xfs_scrub_context *sc,
+void xchk_xref_is_used_space(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len);
-void xfs_scrub_xref_is_not_inode_chunk(struct xfs_scrub_context *sc,
+void xchk_xref_is_not_inode_chunk(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len);
-void xfs_scrub_xref_is_inode_chunk(struct xfs_scrub_context *sc,
+void xchk_xref_is_inode_chunk(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len);
-void xfs_scrub_xref_is_owned_by(struct xfs_scrub_context *sc,
+void xchk_xref_is_owned_by(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len,
 		struct xfs_owner_info *oinfo);
-void xfs_scrub_xref_is_not_owned_by(struct xfs_scrub_context *sc,
+void xchk_xref_is_not_owned_by(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len,
 		struct xfs_owner_info *oinfo);
-void xfs_scrub_xref_has_no_owner(struct xfs_scrub_context *sc,
+void xchk_xref_has_no_owner(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len);
-void xfs_scrub_xref_is_cow_staging(struct xfs_scrub_context *sc,
+void xchk_xref_is_cow_staging(struct xfs_scrub_context *sc,
 		xfs_agblock_t bno, xfs_extlen_t len);
-void xfs_scrub_xref_is_not_shared(struct xfs_scrub_context *sc,
+void xchk_xref_is_not_shared(struct xfs_scrub_context *sc,
 		xfs_agblock_t bno, xfs_extlen_t len);
 #ifdef CONFIG_XFS_RT
-void xfs_scrub_xref_is_used_rt_space(struct xfs_scrub_context *sc,
+void xchk_xref_is_used_rt_space(struct xfs_scrub_context *sc,
 		xfs_rtblock_t rtbno, xfs_extlen_t len);
 #else
-# define xfs_scrub_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
+# define xchk_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
 #endif
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */

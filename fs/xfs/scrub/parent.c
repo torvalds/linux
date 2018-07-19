@@ -27,18 +27,18 @@
 
 /* Set us up to scrub parents. */
 int
-xfs_scrub_setup_parent(
+xchk_setup_parent(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	return xfs_scrub_setup_inode_contents(sc, ip, 0);
+	return xchk_setup_inode_contents(sc, ip, 0);
 }
 
 /* Parent pointers */
 
 /* Look for an entry in a parent pointing to this inode. */
 
-struct xfs_scrub_parent_ctx {
+struct xchk_parent_ctx {
 	struct dir_context		dc;
 	xfs_ino_t			ino;
 	xfs_nlink_t			nlink;
@@ -46,7 +46,7 @@ struct xfs_scrub_parent_ctx {
 
 /* Look for a single entry in a directory pointing to an inode. */
 STATIC int
-xfs_scrub_parent_actor(
+xchk_parent_actor(
 	struct dir_context		*dc,
 	const char			*name,
 	int				namelen,
@@ -54,9 +54,9 @@ xfs_scrub_parent_actor(
 	u64				ino,
 	unsigned			type)
 {
-	struct xfs_scrub_parent_ctx	*spc;
+	struct xchk_parent_ctx		*spc;
 
-	spc = container_of(dc, struct xfs_scrub_parent_ctx, dc);
+	spc = container_of(dc, struct xchk_parent_ctx, dc);
 	if (spc->ino == ino)
 		spc->nlink++;
 	return 0;
@@ -64,13 +64,13 @@ xfs_scrub_parent_actor(
 
 /* Count the number of dentries in the parent dir that point to this inode. */
 STATIC int
-xfs_scrub_parent_count_parent_dentries(
+xchk_parent_count_parent_dentries(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*parent,
 	xfs_nlink_t			*nlink)
 {
-	struct xfs_scrub_parent_ctx	spc = {
-		.dc.actor = xfs_scrub_parent_actor,
+	struct xchk_parent_ctx		spc = {
+		.dc.actor = xchk_parent_actor,
 		.dc.pos = 0,
 		.ino = sc->ip->i_ino,
 		.nlink = 0,
@@ -120,7 +120,7 @@ out:
  * entry pointing back to the inode being scrubbed.
  */
 STATIC int
-xfs_scrub_parent_validate(
+xchk_parent_validate(
 	struct xfs_scrub_context	*sc,
 	xfs_ino_t			dnum,
 	bool				*try_again)
@@ -138,7 +138,7 @@ xfs_scrub_parent_validate(
 
 	/* '..' must not point to ourselves. */
 	if (sc->ip->i_ino == dnum) {
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
 
@@ -165,13 +165,13 @@ xfs_scrub_parent_validate(
 	error = xfs_iget(mp, sc->tp, dnum, XFS_IGET_UNTRUSTED, 0, &dp);
 	if (error == -EINVAL) {
 		error = -EFSCORRUPTED;
-		xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
+		xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
 		goto out;
 	}
-	if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
+	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
 	if (dp == sc->ip || !S_ISDIR(VFS_I(dp)->i_mode)) {
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out_rele;
 	}
 
@@ -183,12 +183,12 @@ xfs_scrub_parent_validate(
 	 * the child inodes.
 	 */
 	if (xfs_ilock_nowait(dp, XFS_IOLOCK_SHARED)) {
-		error = xfs_scrub_parent_count_parent_dentries(sc, dp, &nlink);
-		if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0,
+		error = xchk_parent_count_parent_dentries(sc, dp, &nlink);
+		if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0,
 				&error))
 			goto out_unlock;
 		if (nlink != expected_nlink)
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out_unlock;
 	}
 
@@ -200,18 +200,18 @@ xfs_scrub_parent_validate(
 	 */
 	xfs_iunlock(sc->ip, sc->ilock_flags);
 	sc->ilock_flags = 0;
-	error = xfs_scrub_ilock_inverted(dp, XFS_IOLOCK_SHARED);
+	error = xchk_ilock_inverted(dp, XFS_IOLOCK_SHARED);
 	if (error)
 		goto out_rele;
 
 	/* Go looking for our dentry. */
-	error = xfs_scrub_parent_count_parent_dentries(sc, dp, &nlink);
-	if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
+	error = xchk_parent_count_parent_dentries(sc, dp, &nlink);
+	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out_unlock;
 
 	/* Drop the parent lock, relock this inode. */
 	xfs_iunlock(dp, XFS_IOLOCK_SHARED);
-	error = xfs_scrub_ilock_inverted(sc->ip, XFS_IOLOCK_EXCL);
+	error = xchk_ilock_inverted(sc->ip, XFS_IOLOCK_EXCL);
 	if (error)
 		goto out_rele;
 	sc->ilock_flags = XFS_IOLOCK_EXCL;
@@ -225,7 +225,7 @@ xfs_scrub_parent_validate(
 
 	/* Look up '..' to see if the inode changed. */
 	error = xfs_dir_lookup(sc->tp, sc->ip, &xfs_name_dotdot, &dnum, NULL);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out_rele;
 
 	/* Drat, parent changed.  Try again! */
@@ -241,7 +241,7 @@ xfs_scrub_parent_validate(
 	 * for us in the parent.
 	 */
 	if (nlink != expected_nlink)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return error;
 
 out_unlock:
@@ -254,7 +254,7 @@ out:
 
 /* Scrub a parent pointer. */
 int
-xfs_scrub_parent(
+xchk_parent(
 	struct xfs_scrub_context	*sc)
 {
 	struct xfs_mount		*mp = sc->mp;
@@ -272,7 +272,7 @@ xfs_scrub_parent(
 
 	/* We're not a special inode, are we? */
 	if (!xfs_verify_dir_ino(mp, sc->ip->i_ino)) {
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
 
@@ -288,10 +288,10 @@ xfs_scrub_parent(
 
 	/* Look up '..' */
 	error = xfs_dir_lookup(sc->tp, sc->ip, &xfs_name_dotdot, &dnum, NULL);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
 	if (!xfs_verify_dir_ino(mp, dnum)) {
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
 
@@ -299,12 +299,12 @@ xfs_scrub_parent(
 	if (sc->ip == mp->m_rootip) {
 		if (sc->ip->i_ino != mp->m_sb.sb_rootino ||
 		    sc->ip->i_ino != dnum)
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
 
 	do {
-		error = xfs_scrub_parent_validate(sc, dnum, &try_again);
+		error = xchk_parent_validate(sc, dnum, &try_again);
 		if (error)
 			goto out;
 	} while (try_again && ++tries < 20);
@@ -314,7 +314,7 @@ xfs_scrub_parent(
 	 * incomplete.  Userspace can decide if it wants to try again.
 	 */
 	if (try_again && tries == 20)
-		xfs_scrub_set_incomplete(sc);
+		xchk_set_incomplete(sc);
 out:
 	/*
 	 * If we failed to lock the parent inode even after a retry, just mark
@@ -322,7 +322,7 @@ out:
 	 */
 	if (sc->try_harder && error == -EDEADLOCK) {
 		error = 0;
-		xfs_scrub_set_incomplete(sc);
+		xchk_set_incomplete(sc);
 	}
 	return error;
 }

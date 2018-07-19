@@ -25,7 +25,7 @@
 
 /* Set us up to scrub a symbolic link. */
 int
-xfs_scrub_setup_symlink(
+xchk_setup_symlink(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
@@ -34,13 +34,13 @@ xfs_scrub_setup_symlink(
 	if (!sc->buf)
 		return -ENOMEM;
 
-	return xfs_scrub_setup_inode_contents(sc, ip, 0);
+	return xchk_setup_inode_contents(sc, ip, 0);
 }
 
 /* Symbolic links. */
 
 int
-xfs_scrub_symlink(
+xchk_symlink(
 	struct xfs_scrub_context	*sc)
 {
 	struct xfs_inode		*ip = sc->ip;
@@ -55,7 +55,7 @@ xfs_scrub_symlink(
 
 	/* Plausible size? */
 	if (len > XFS_SYMLINK_MAXLEN || len <= 0) {
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
 
@@ -63,16 +63,16 @@ xfs_scrub_symlink(
 	if (ifp->if_flags & XFS_IFINLINE) {
 		if (len > XFS_IFORK_DSIZE(ip) ||
 		    len > strnlen(ifp->if_u1.if_data, XFS_IFORK_DSIZE(ip)))
-			xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
 
 	/* Remote symlink; must read the contents. */
 	error = xfs_readlink_bmap_ilocked(sc->ip, sc->buf);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
 	if (strnlen(sc->buf, XFS_SYMLINK_MAXLEN) < len)
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 out:
 	return error;
 }

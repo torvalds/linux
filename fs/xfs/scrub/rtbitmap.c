@@ -25,13 +25,13 @@
 
 /* Set us up with the realtime metadata locked. */
 int
-xfs_scrub_setup_rt(
+xchk_setup_rt(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
 	int				error;
 
-	error = xfs_scrub_setup_fs(sc, ip);
+	error = xchk_setup_fs(sc, ip);
 	if (error)
 		return error;
 
@@ -46,7 +46,7 @@ xfs_scrub_setup_rt(
 
 /* Scrub a free extent record from the realtime bitmap. */
 STATIC int
-xfs_scrub_rtbitmap_rec(
+xchk_rtbitmap_rec(
 	struct xfs_trans		*tp,
 	struct xfs_rtalloc_rec		*rec,
 	void				*priv)
@@ -61,24 +61,24 @@ xfs_scrub_rtbitmap_rec(
 	if (startblock + blockcount <= startblock ||
 	    !xfs_verify_rtbno(sc->mp, startblock) ||
 	    !xfs_verify_rtbno(sc->mp, startblock + blockcount - 1))
-		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return 0;
 }
 
 /* Scrub the realtime bitmap. */
 int
-xfs_scrub_rtbitmap(
+xchk_rtbitmap(
 	struct xfs_scrub_context	*sc)
 {
 	int				error;
 
 	/* Invoke the fork scrubber. */
-	error = xfs_scrub_metadata_inode_forks(sc);
+	error = xchk_metadata_inode_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
-	error = xfs_rtalloc_query_all(sc->tp, xfs_scrub_rtbitmap_rec, sc);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
+	error = xfs_rtalloc_query_all(sc->tp, xchk_rtbitmap_rec, sc);
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
 
 out:
@@ -87,7 +87,7 @@ out:
 
 /* Scrub the realtime summary. */
 int
-xfs_scrub_rtsummary(
+xchk_rtsummary(
 	struct xfs_scrub_context	*sc)
 {
 	struct xfs_inode		*rsumip = sc->mp->m_rsumip;
@@ -107,12 +107,12 @@ xfs_scrub_rtsummary(
 	xfs_ilock(sc->ip, sc->ilock_flags);
 
 	/* Invoke the fork scrubber. */
-	error = xfs_scrub_metadata_inode_forks(sc);
+	error = xchk_metadata_inode_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		goto out;
 
 	/* XXX: implement this some day */
-	xfs_scrub_set_incomplete(sc);
+	xchk_set_incomplete(sc);
 out:
 	/* Switch back to the rtbitmap inode and lock flags. */
 	xfs_iunlock(sc->ip, sc->ilock_flags);
@@ -124,7 +124,7 @@ out:
 
 /* xref check that the extent is not free in the rtbitmap */
 void
-xfs_scrub_xref_is_used_rt_space(
+xchk_xref_is_used_rt_space(
 	struct xfs_scrub_context	*sc,
 	xfs_rtblock_t			fsbno,
 	xfs_extlen_t			len)
@@ -135,7 +135,7 @@ xfs_scrub_xref_is_used_rt_space(
 	bool				is_free;
 	int				error;
 
-	if (xfs_scrub_skip_xref(sc->sm))
+	if (xchk_skip_xref(sc->sm))
 		return;
 
 	startext = fsbno;
@@ -147,10 +147,10 @@ xfs_scrub_xref_is_used_rt_space(
 	xfs_ilock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 	error = xfs_rtalloc_extent_is_free(sc->mp, sc->tp, startext, extcount,
 			&is_free);
-	if (!xfs_scrub_should_check_xref(sc, &error, NULL))
+	if (!xchk_should_check_xref(sc, &error, NULL))
 		goto out_unlock;
 	if (is_free)
-		xfs_scrub_ino_xref_set_corrupt(sc, sc->mp->m_rbmip->i_ino);
+		xchk_ino_xref_set_corrupt(sc, sc->mp->m_rbmip->i_ino);
 out_unlock:
 	xfs_iunlock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 }
