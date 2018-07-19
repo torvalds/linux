@@ -4270,6 +4270,7 @@ F:	drivers/i2c/busses/i2c-diolan-u2c.c
 FILESYSTEM DIRECT ACCESS (DAX)
 M:	Matthew Wilcox <mawilcox@microsoft.com>
 M:	Ross Zwisler <zwisler@kernel.org>
+M:	Jan Kara <jack@suse.cz>
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
 F:	fs/dax.c
