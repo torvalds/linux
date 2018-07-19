@@ -2579,7 +2579,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	} else
 		return -ENODEV;
 
-	card->dev->mtu = card->info.initial_mtu;
 	card->dev->ethtool_ops = &qeth_l3_ethtool_ops;
 	card->dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	card->dev->needed_headroom = sizeof(struct qeth_hdr) - ETH_HLEN;

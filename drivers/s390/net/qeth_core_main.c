@@ -2278,19 +2278,42 @@ static int qeth_cm_setup(struct qeth_card *card)
 
 }
 
-static int qeth_get_initial_mtu_for_card(struct qeth_card *card)
+static int qeth_update_max_mtu(struct qeth_card *card, unsigned int max_mtu)
 {
-	switch (card->info.type) {
-	case QETH_CARD_TYPE_IQD:
-		return card->info.max_mtu;
-	case QETH_CARD_TYPE_OSD:
-	case QETH_CARD_TYPE_OSX:
-		if (!card->options.layer2)
-			return ETH_DATA_LEN - 8; /* L3: allow for LLC + SNAP */
-		/* fall through */
-	default:
-		return ETH_DATA_LEN;
+	struct net_device *dev = card->dev;
+	unsigned int new_mtu;
+
+	if (!max_mtu) {
+		/* IQD needs accurate max MTU to set up its RX buffers: */
+		if (IS_IQD(card))
+			return -EINVAL;
+		/* tolerate quirky HW: */
+		max_mtu = ETH_MAX_MTU;
 	}
+
+	rtnl_lock();
+	if (IS_IQD(card)) {
+		/* move any device with default MTU to new max MTU: */
+		new_mtu = (dev->mtu == dev->max_mtu) ? max_mtu : dev->mtu;
+
+		/* adjust RX buffer size to new max MTU: */
+		card->qdio.in_buf_size = max_mtu + 2 * PAGE_SIZE;
+		if (dev->max_mtu && dev->max_mtu != max_mtu)
+			qeth_free_qdio_buffers(card);
+	} else {
+		if (dev->mtu)
+			new_mtu = dev->mtu;
+		/* default MTUs for first setup: */
+		else if (card->options.layer2)
+			new_mtu = ETH_DATA_LEN;
+		else
+			new_mtu = ETH_DATA_LEN - 8; /* allow for LLC + SNAP */
+	}
+
+	dev->max_mtu = max_mtu;
+	dev->mtu = min(new_mtu, max_mtu);
+	rtnl_unlock();
+	return 0;
 }
 
 static int qeth_get_mtu_outof_framesize(int framesize)
@@ -2316,8 +2339,7 @@ static int qeth_mtu_is_valid(struct qeth_card *card, int mtu)
 	case QETH_CARD_TYPE_OSM:
 	case QETH_CARD_TYPE_OSX:
 	case QETH_CARD_TYPE_IQD:
-		return ((mtu >= 576) &&
-			(mtu <= card->info.max_mtu));
+		return ((mtu >= 576) && (mtu <= card->dev->max_mtu));
 	case QETH_CARD_TYPE_OSN:
 	default:
 		return 1;
@@ -2342,28 +2364,10 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 	if (card->info.type == QETH_CARD_TYPE_IQD) {
 		memcpy(&framesize, QETH_ULP_ENABLE_RESP_MAX_MTU(iob->data), 2);
 		mtu = qeth_get_mtu_outof_framesize(framesize);
-		if (!mtu) {
-			iob->rc = -EINVAL;
-			QETH_DBF_TEXT_(SETUP, 2, "  rc%d", iob->rc);
-			return 0;
-		}
-		if (card->info.initial_mtu && (card->info.initial_mtu != mtu)) {
-			/* frame size has changed */
-			if ((card->dev->mtu == card->info.initial_mtu) ||
-			    (card->dev->mtu > mtu))
-				card->dev->mtu = mtu;
-			qeth_free_qdio_buffers(card);
-		}
-		card->info.initial_mtu = mtu;
-		card->info.max_mtu = mtu;
-		card->qdio.in_buf_size = mtu + 2 * PAGE_SIZE;
 	} else {
-		card->info.max_mtu = *(__u16 *)QETH_ULP_ENABLE_RESP_MAX_MTU(
-			iob->data);
-		card->info.initial_mtu = min(card->info.max_mtu,
-					qeth_get_initial_mtu_for_card(card));
-		card->qdio.in_buf_size = QETH_IN_BUF_SIZE_DEFAULT;
+		mtu = *(__u16 *)QETH_ULP_ENABLE_RESP_MAX_MTU(iob->data);
 	}
+	*(u16 *)reply->param = mtu;
 
 	memcpy(&len, QETH_ULP_ENABLE_RESP_DIFINFO_LEN(iob->data), 2);
 	if (len >= QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE) {
@@ -2382,6 +2386,7 @@ static int qeth_ulp_enable(struct qeth_card *card)
 	int rc;
 	char prot_type;
 	struct qeth_cmd_buffer *iob;
+	u16 max_mtu;
 
 	/*FIXME: trace view callbacks*/
 	QETH_DBF_TEXT(SETUP, 2, "ulpenabl");
@@ -2404,9 +2409,10 @@ static int qeth_ulp_enable(struct qeth_card *card)
 	memcpy(QETH_ULP_ENABLE_FILTER_TOKEN(iob->data),
 	       &card->token.ulp_filter_w, QETH_MPC_TOKEN_LENGTH);
 	rc = qeth_send_control_data(card, ULP_ENABLE_SIZE, iob,
-				    qeth_ulp_enable_cb, NULL);
-	return rc;
-
+				    qeth_ulp_enable_cb, &max_mtu);
+	if (rc)
+		return rc;
+	return qeth_update_max_mtu(card, max_mtu);
 }
 
 static int qeth_ulp_setup_cb(struct qeth_card *card, struct qeth_reply *reply,
@@ -5691,7 +5697,9 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 	dev->ml_priv = card;
 	dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	dev->min_mtu = 64;
-	dev->max_mtu = ETH_MAX_MTU;
+	 /* initialized when device first goes online: */
+	dev->max_mtu = 0;
+	dev->mtu = 0;
 	SET_NETDEV_DEV(dev, &card->gdev->dev);
 	netif_carrier_off(dev);
 	return dev;

@@ -944,7 +944,6 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		return 0;
 
 	card->dev->priv_flags |= IFF_UNICAST_FLT;
-	card->dev->mtu = card->info.initial_mtu;
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
 	if (card->info.type == QETH_CARD_TYPE_OSN) {
 		card->dev->ethtool_ops = &qeth_l2_osn_ops;

@@ -660,8 +660,6 @@ struct qeth_card_info {
 	int mac_bits;
 	enum qeth_card_types type;
 	enum qeth_link_types link_type;
-	int initial_mtu;
-	int max_mtu;
 	int broadcast_capable;
 	int unique_id;
 	bool layer_enforced;
