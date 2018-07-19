@@ -3,6 +3,7 @@
  * Copyright (c) 2017 Andreas Färber
  */
 
+#include <dt-bindings/clock/actions,s700-cmu.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
@@ -87,6 +88,12 @@
 		#clock-cells = <0>;
 	};
 
+	losc: losc {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -151,6 +158,13 @@
 			reg = <0x0 0xe012c000 0x0 0x2000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+		};
+
+		cmu: clock-controller@e0168000 {
+			compatible = "actions,s700-cmu";
+			reg = <0x0 0xe0168000 0x0 0x1000>;
+			clocks = <&hosc>, <&losc>;
+			#clock-cells = <1>;
 		};
 
 		sps: power-controller@e01b0100 {
