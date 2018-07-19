@@ -4798,10 +4798,15 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 		 * the advertising address type.
 		 */
 		conn->resp_addr_type = hdev->adv_addr_type;
-		if (hdev->adv_addr_type == ADDR_LE_DEV_RANDOM)
-			bacpy(&conn->resp_addr, &hdev->random_addr);
-		else
+		if (hdev->adv_addr_type == ADDR_LE_DEV_RANDOM) {
+			/* In case of ext adv, resp_addr will be updated in
+			 * Adv Terminated event.
+			 */
+			if (!ext_adv_capable(hdev))
+				bacpy(&conn->resp_addr, &hdev->random_addr);
+		} else {
 			bacpy(&conn->resp_addr, &hdev->bdaddr);
+		}
 
 		conn->init_addr_type = bdaddr_type;
 		bacpy(&conn->init_addr, bdaddr);
@@ -4929,6 +4934,34 @@ static void hci_le_enh_conn_complete_evt(struct hci_dev *hdev,
 			     le16_to_cpu(ev->interval),
 			     le16_to_cpu(ev->latency),
 			     le16_to_cpu(ev->supervision_timeout));
+}
+
+static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_evt_le_ext_adv_set_term *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+
+	if (ev->status)
+		return;
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->conn_handle));
+	if (conn) {
+		struct adv_info *adv_instance;
+
+		if (hdev->adv_addr_type != ADDR_LE_DEV_RANDOM)
+			return;
+
+		if (!hdev->cur_adv_instance) {
+			bacpy(&conn->resp_addr, &hdev->random_addr);
+			return;
+		}
+
+		adv_instance = hci_find_adv_instance(hdev, hdev->cur_adv_instance);
+		if (adv_instance)
+			bacpy(&conn->resp_addr, &adv_instance->random_addr);
+	}
 }
 
 static void hci_le_conn_update_complete_evt(struct hci_dev *hdev,
@@ -5576,6 +5609,10 @@ static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_ENHANCED_CONN_COMPLETE:
 		hci_le_enh_conn_complete_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LE_EXT_ADV_SET_TERM:
+		hci_le_ext_adv_term_evt(hdev, skb);
 		break;
 
 	default:

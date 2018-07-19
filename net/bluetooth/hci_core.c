@@ -712,6 +712,14 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 						 * Complete
 						 */
 
+		/* If the controller supports the LE Extended Advertising
+		 * command, enable the corresponding event.
+		 */
+		if (ext_adv_capable(hdev))
+			events[2] |= 0x02;	/* LE Advertising Set
+						 * Terminated
+						 */
+
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
 
