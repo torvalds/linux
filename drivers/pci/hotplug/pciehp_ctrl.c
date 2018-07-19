@@ -412,9 +412,6 @@ int pciehp_disable_slot(struct slot *p_slot)
 	u8 getstatus = 0;
 	struct controller *ctrl = p_slot->ctrl;
 
-	if (!p_slot->ctrl)
-		return 1;
-
 	if (POWER_CTRL(p_slot->ctrl)) {
 		pciehp_get_power_status(p_slot, &getstatus);
 		if (!getstatus) {
