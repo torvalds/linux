@@ -581,8 +581,6 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	struct controller *ctrl = (struct controller *)dev_id;
 	struct slot *slot = ctrl->slot;
 	u32 events;
-	u8 present;
-	bool link;
 
 	synchronize_hardirq(irq);
 	events = atomic_xchg(&ctrl->pending_events, 0);
@@ -593,34 +591,25 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	if (events & PCI_EXP_SLTSTA_ABP) {
 		ctrl_info(ctrl, "Slot(%s): Attention button pressed\n",
 			  slot_name(slot));
-		pciehp_queue_interrupt_event(slot, INT_BUTTON_PRESS);
+		pciehp_handle_button_press(slot);
 	}
 
 	/*
 	 * Check Link Status Changed at higher precedence than Presence
 	 * Detect Changed.  The PDS value may be set to "card present" from
-	 * out-of-band detection, which may be in conflict with a Link Down
-	 * and cause the wrong event to queue.
+	 * out-of-band detection, which may be in conflict with a Link Down.
 	 */
-	if (events & PCI_EXP_SLTSTA_DLLSC) {
-		link = pciehp_check_link_active(ctrl);
-		ctrl_info(ctrl, "Slot(%s): Link %s\n", slot_name(slot),
-			  link ? "Up" : "Down");
-		pciehp_queue_interrupt_event(slot, link ? INT_LINK_UP :
-					     INT_LINK_DOWN);
-	} else if (events & PCI_EXP_SLTSTA_PDC) {
-		pciehp_get_adapter_status(slot, &present);
-		ctrl_info(ctrl, "Slot(%s): Card %spresent\n", slot_name(slot),
-			  present ? "" : "not ");
-		pciehp_queue_interrupt_event(slot, present ? INT_PRESENCE_ON :
-					     INT_PRESENCE_OFF);
-	}
+	if (events & PCI_EXP_SLTSTA_DLLSC)
+		pciehp_handle_link_change(slot);
+	else if (events & PCI_EXP_SLTSTA_PDC)
+		pciehp_handle_presence_change(slot);
 
 	/* Check Power Fault Detected */
 	if ((events & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {
 		ctrl->power_fault_detected = 1;
 		ctrl_err(ctrl, "Slot(%s): Power fault\n", slot_name(slot));
-		pciehp_queue_interrupt_event(slot, INT_POWER_FAULT);
+		pciehp_set_attention_status(slot, 1);
+		pciehp_green_led_off(slot);
 	}
 
 	return IRQ_HANDLED;

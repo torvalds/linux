@@ -69,8 +69,7 @@ do {									\
  *	protects scheduling, execution and cancellation of @work
  * @hotplug_lock: serializes calls to pciehp_enable_slot() and
  *	pciehp_disable_slot()
- * @wq: work queue on which @work is scheduled;
- *	also used to queue interrupt events and slot enablement and disablement
+ * @wq: work queue on which @work is scheduled
  */
 struct slot {
 	u8 state;
@@ -80,12 +79,6 @@ struct slot {
 	struct mutex lock;
 	struct mutex hotplug_lock;
 	struct workqueue_struct *wq;
-};
-
-struct event_info {
-	u32 event_type;
-	struct slot *p_slot;
-	struct work_struct work;
 };
 
 /**
@@ -131,13 +124,6 @@ struct controller {
 	atomic_t pending_events;
 };
 
-#define INT_PRESENCE_ON			1
-#define INT_PRESENCE_OFF		2
-#define INT_POWER_FAULT			3
-#define INT_BUTTON_PRESS		4
-#define INT_LINK_UP			5
-#define INT_LINK_DOWN			6
-
 #define STATIC_STATE			0
 #define BLINKINGON_STATE		1
 #define BLINKINGOFF_STATE		2
@@ -156,7 +142,9 @@ struct controller {
 
 int pciehp_sysfs_enable_slot(struct slot *slot);
 int pciehp_sysfs_disable_slot(struct slot *slot);
-void pciehp_queue_interrupt_event(struct slot *slot, u32 event_type);
+void pciehp_handle_button_press(struct slot *slot);
+void pciehp_handle_link_change(struct slot *slot);
+void pciehp_handle_presence_change(struct slot *slot);
 int pciehp_configure_device(struct slot *p_slot);
 void pciehp_unconfigure_device(struct slot *p_slot);
 void pciehp_queue_pushbutton_work(struct work_struct *work);
