@@ -364,7 +364,6 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			       struct acpi_bus_event *event)
 {
 	struct amdgpu_atif *atif = adev->atif;
-	struct atif_sbios_requests req;
 	int count;
 
 	DRM_DEBUG_DRIVER("event, device_class = %s, type = %#x\n",
@@ -379,42 +378,46 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 		/* Not our event */
 		return NOTIFY_DONE;
 
-	/* Check pending SBIOS requests */
-	count = amdgpu_atif_get_sbios_requests(atif, &req);
+	if (atif->functions.sbios_requests) {
+		struct atif_sbios_requests req;
 
-	if (count <= 0)
-		return NOTIFY_DONE;
+		/* Check pending SBIOS requests */
+		count = amdgpu_atif_get_sbios_requests(atif, &req);
 
-	DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
+		if (count <= 0)
+			return NOTIFY_DONE;
 
-	if (req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) {
-		struct amdgpu_encoder *enc = atif->encoder_for_bl;
+		DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
-		if (enc) {
-			struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
+		if (req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) {
+			struct amdgpu_encoder *enc = atif->encoder_for_bl;
 
-			DRM_DEBUG_DRIVER("Changing brightness to %d\n",
-					req.backlight_level);
+			if (enc) {
+				struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
 
-			amdgpu_display_backlight_set_level(adev, enc, req.backlight_level);
+				DRM_DEBUG_DRIVER("Changing brightness to %d\n",
+						 req.backlight_level);
+
+				amdgpu_display_backlight_set_level(adev, enc, req.backlight_level);
 
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-			backlight_force_update(dig->bl_dev,
-					       BACKLIGHT_UPDATE_HOTKEY);
+				backlight_force_update(dig->bl_dev,
+						       BACKLIGHT_UPDATE_HOTKEY);
 #endif
+			}
 		}
-	}
-	if (req.pending & ATIF_DGPU_DISPLAY_EVENT) {
-		if ((adev->flags & AMD_IS_PX) &&
-		    amdgpu_atpx_dgpu_req_power_for_displays()) {
-			pm_runtime_get_sync(adev->ddev->dev);
-			/* Just fire off a uevent and let userspace tell us what to do */
-			drm_helper_hpd_irq_event(adev->ddev);
-			pm_runtime_mark_last_busy(adev->ddev->dev);
-			pm_runtime_put_autosuspend(adev->ddev->dev);
+		if (req.pending & ATIF_DGPU_DISPLAY_EVENT) {
+			if ((adev->flags & AMD_IS_PX) &&
+			    amdgpu_atpx_dgpu_req_power_for_displays()) {
+				pm_runtime_get_sync(adev->ddev->dev);
+				/* Just fire off a uevent and let userspace tell us what to do */
+				drm_helper_hpd_irq_event(adev->ddev);
+				pm_runtime_mark_last_busy(adev->ddev->dev);
+				pm_runtime_put_autosuspend(adev->ddev->dev);
+			}
 		}
+		/* TODO: check other events */
 	}
-	/* TODO: check other events */
 
 	/* We've handled the event, stop the notifier chain. The ACPI interface
 	 * overloads ACPI_VIDEO_NOTIFY_PROBE, we don't want to send that to
