@@ -112,6 +112,8 @@ struct event_info {
  * @notification_enabled: whether the IRQ was requested successfully
  * @power_fault_detected: whether a power fault was detected by the hardware
  *	that has not yet been cleared by the user
+ * @pending_events: used by the IRQ handler to save events retrieved from the
+ *	Slot Status register for later consumption by the IRQ thread
  */
 struct controller {
 	struct mutex ctrl_lock;
@@ -126,6 +128,7 @@ struct controller {
 	unsigned int link_active_reporting:1;
 	unsigned int notification_enabled:1;
 	unsigned int power_fault_detected;
+	atomic_t pending_events;
 };
 
 #define INT_PRESENCE_ON			1

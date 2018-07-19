@@ -31,7 +31,8 @@ static inline struct pci_dev *ctrl_dev(struct controller *ctrl)
 	return ctrl->pcie->port;
 }
 
-static irqreturn_t pcie_isr(int irq, void *dev_id);
+static irqreturn_t pciehp_isr(int irq, void *dev_id);
+static irqreturn_t pciehp_ist(int irq, void *dev_id);
 static void start_int_poll_timer(struct controller *ctrl, int sec);
 
 /* This is the interrupt polling timeout function. */
@@ -40,7 +41,8 @@ static void int_poll_timeout(struct timer_list *t)
 	struct controller *ctrl = from_timer(ctrl, t, poll_timer);
 
 	/* Poll for interrupt events.  regs == NULL => polling */
-	pcie_isr(0, ctrl);
+	while (pciehp_isr(IRQ_NOTCONNECTED, ctrl) == IRQ_WAKE_THREAD)
+		pciehp_ist(IRQ_NOTCONNECTED, ctrl);
 
 	if (!pciehp_poll_time)
 		pciehp_poll_time = 2; /* default polling interval is 2 sec */
@@ -71,7 +73,8 @@ static inline int pciehp_request_irq(struct controller *ctrl)
 	}
 
 	/* Installs the interrupt handler */
-	retval = request_irq(irq, pcie_isr, IRQF_SHARED, MY_NAME, ctrl);
+	retval = request_threaded_irq(irq, pciehp_isr, pciehp_ist,
+				      IRQF_SHARED, MY_NAME, ctrl);
 	if (retval)
 		ctrl_err(ctrl, "Cannot get irq %d for the hotplug controller\n",
 			 irq);
@@ -539,12 +542,11 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
-	struct slot *slot = ctrl->slot;
 	u16 status, events;
-	u8 present;
-	bool link;
 
-	/* Interrupts cannot originate from a controller that's asleep */
+	/*
+	 * Interrupts only occur in D3hot or shallower (PCIe r4.0, sec 6.7.3.4).
+	 */
 	if (pdev->current_state == PCI_D3cold)
 		return IRQ_NONE;
 
@@ -572,24 +574,46 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	if (!events)
 		return IRQ_NONE;
 
-	/* Capture link status before clearing interrupts */
-	if (events & PCI_EXP_SLTSTA_DLLSC)
-		link = pciehp_check_link_active(ctrl);
-
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, events);
 	ctrl_dbg(ctrl, "pending interrupts %#06x from Slot Status\n", events);
 
-	/* Check Command Complete Interrupt Pending */
+	/*
+	 * Command Completed notifications are not deferred to the
+	 * IRQ thread because it may be waiting for their arrival.
+	 */
 	if (events & PCI_EXP_SLTSTA_CC) {
 		ctrl->cmd_busy = 0;
 		smp_mb();
 		wake_up(&ctrl->queue);
+
+		if (events == PCI_EXP_SLTSTA_CC)
+			return IRQ_HANDLED;
+
+		events &= ~PCI_EXP_SLTSTA_CC;
 	}
 
 	if (pdev->ignore_hotplug) {
 		ctrl_dbg(ctrl, "ignoring hotplug event %#06x\n", events);
 		return IRQ_HANDLED;
 	}
+
+	/* Save pending events for consumption by IRQ thread. */
+	atomic_or(events, &ctrl->pending_events);
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t pciehp_ist(int irq, void *dev_id)
+{
+	struct controller *ctrl = (struct controller *)dev_id;
+	struct slot *slot = ctrl->slot;
+	u32 events;
+	u8 present;
+	bool link;
+
+	synchronize_hardirq(irq);
+	events = atomic_xchg(&ctrl->pending_events, 0);
+	if (!events)
+		return IRQ_NONE;
 
 	/* Check Attention Button Pressed */
 	if (events & PCI_EXP_SLTSTA_ABP) {
@@ -605,12 +629,13 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	 * and cause the wrong event to queue.
 	 */
 	if (events & PCI_EXP_SLTSTA_DLLSC) {
+		link = pciehp_check_link_active(ctrl);
 		ctrl_info(ctrl, "Slot(%s): Link %s\n", slot_name(slot),
 			  link ? "Up" : "Down");
 		pciehp_queue_interrupt_event(slot, link ? INT_LINK_UP :
 					     INT_LINK_DOWN);
 	} else if (events & PCI_EXP_SLTSTA_PDC) {
-		present = !!(status & PCI_EXP_SLTSTA_PDS);
+		pciehp_get_adapter_status(slot, &present);
 		ctrl_info(ctrl, "Slot(%s): Card %spresent\n", slot_name(slot),
 			  present ? "" : "not ");
 		pciehp_queue_interrupt_event(slot, present ? INT_PRESENCE_ON :
@@ -625,25 +650,6 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	}
 
 	return IRQ_HANDLED;
-}
-
-static irqreturn_t pcie_isr(int irq, void *dev_id)
-{
-	irqreturn_t rc, handled = IRQ_NONE;
-
-	/*
-	 * To guarantee that all interrupt events are serviced, we need to
-	 * re-inspect Slot Status register after clearing what is presumed
-	 * to be the last pending interrupt.
-	 */
-	do {
-		rc = pciehp_isr(irq, dev_id);
-		if (rc == IRQ_HANDLED)
-			handled = IRQ_HANDLED;
-	} while (rc == IRQ_HANDLED);
-
-	/* Return IRQ_HANDLED if we handled one or more events */
-	return handled;
 }
 
 static void pcie_enable_notification(struct controller *ctrl)
