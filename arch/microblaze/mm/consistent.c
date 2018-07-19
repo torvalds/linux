@@ -33,6 +33,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/gfp.h>
+#include <linux/dma-noncoherent.h>
 
 #include <asm/pgalloc.h>
 #include <linux/io.h>
@@ -59,7 +60,8 @@
  * uncached region.  This will no doubt cause big problems if memory allocated
  * here is not also freed properly. -- JW
  */
-void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
+void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp, unsigned long attrs)
 {
 	unsigned long order, vaddr;
 	void *ret;
@@ -154,7 +156,6 @@ void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
 
 	return ret;
 }
-EXPORT_SYMBOL(consistent_alloc);
 
 #ifdef CONFIG_MMU
 static pte_t *consistent_virt_to_pte(void *vaddr)
@@ -178,7 +179,8 @@ unsigned long consistent_virt_to_pfn(void *vaddr)
 /*
  * free page(s) as defined by the above mapping.
  */
-void consistent_free(size_t size, void *vaddr)
+void arch_dma_free(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_addr, unsigned long attrs)
 {
 	struct page *page;
 
@@ -218,7 +220,6 @@ void consistent_free(size_t size, void *vaddr)
 	flush_tlb_all();
 #endif
 }
-EXPORT_SYMBOL(consistent_free);
 
 /*
  * make an area consistent.
