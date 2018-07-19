@@ -485,10 +485,12 @@ void pci_no_aer(void);
 void pci_aer_init(struct pci_dev *dev);
 void pci_aer_exit(struct pci_dev *dev);
 extern const struct attribute_group aer_stats_attr_group;
+void pci_aer_clear_fatal_status(struct pci_dev *dev);
 #else
 static inline void pci_no_aer(void) { }
 static inline int pci_aer_init(struct pci_dev *d) { return -ENODEV; }
 static inline void pci_aer_exit(struct pci_dev *d) { }
+static inline void pci_aer_clear_fatal_status(struct pci_dev *dev) { }
 #endif
 
 #endif /* DRIVERS_PCI_H */
