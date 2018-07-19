@@ -2672,6 +2672,8 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_sync(dapm);
 
+	flush_work(&dsp->boot_work);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_preloader_put);
