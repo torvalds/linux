@@ -62,12 +62,6 @@ static int reset_slot(struct hotplug_slot *slot, int probe);
  */
 static void release_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct slot *slot = hotplug_slot->private;
-
-	/* queued work needs hotplug_slot name */
-	cancel_delayed_work(&slot->work);
-	drain_workqueue(slot->wq);
-
 	kfree(hotplug_slot->ops);
 	kfree(hotplug_slot->info);
 	kfree(hotplug_slot);

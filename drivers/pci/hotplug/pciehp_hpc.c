@@ -767,26 +767,19 @@ static int pcie_init_slot(struct controller *ctrl)
 	if (!slot)
 		return -ENOMEM;
 
-	slot->wq = alloc_ordered_workqueue("pciehp-%u", 0, PSN(ctrl));
-	if (!slot->wq)
-		goto abort;
-
 	slot->ctrl = ctrl;
 	mutex_init(&slot->lock);
 	mutex_init(&slot->hotplug_lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	ctrl->slot = slot;
 	return 0;
-abort:
-	kfree(slot);
-	return -ENOMEM;
 }
 
 static void pcie_cleanup_slot(struct controller *ctrl)
 {
 	struct slot *slot = ctrl->slot;
 
-	destroy_workqueue(slot->wq);
+	cancel_delayed_work_sync(&slot->work);
 	kfree(slot);
 }
 

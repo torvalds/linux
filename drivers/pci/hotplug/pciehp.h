@@ -69,7 +69,6 @@ do {									\
  *	protects scheduling, execution and cancellation of @work
  * @hotplug_lock: serializes calls to pciehp_enable_slot() and
  *	pciehp_disable_slot()
- * @wq: work queue on which @work is scheduled
  */
 struct slot {
 	u8 state;
@@ -78,7 +77,6 @@ struct slot {
 	struct delayed_work work;
 	struct mutex lock;
 	struct mutex hotplug_lock;
-	struct workqueue_struct *wq;
 };
 
 /**
