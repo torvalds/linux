@@ -96,7 +96,8 @@ medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd)
 
 		process_kern2kobj(&process, current);
 		if (likely(object_p)) {
-			if (ipc_kern2kobj(object_p, ipcp) <= 0)
+			/* 3-th argument is true: decrement IPC object's refcount in returned object */
+			if (ipc_kern2kobj(object_p, ipcp, true) <= 0)
 				goto out;
 			access.ipc_class = object_p->ipc_class;
 		}

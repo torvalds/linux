@@ -70,7 +70,8 @@ medusa_answer_t medusa_ipc_associate(struct kern_ipc_perm *ipcp, int flag)
 	
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_associate_access, &task_security(current))) {
 		process_kern2kobj(&process, current);
-		if (ipc_kern2kobj(&object, ipcp) == NULL)
+		/* 3-th argument is true: decrement IPC object's refcount in returned object */
+		if (ipc_kern2kobj(&object, ipcp, true) == NULL)
 			goto out;
 
 		memset(&access, '\0', sizeof(struct ipc_associate_access));

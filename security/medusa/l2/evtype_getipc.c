@@ -23,15 +23,23 @@ int __init ipc_evtype_init(void) {
 
 /*
  * This routine expects the existing, but !MED_MAGIC_VALID Medusa ipcp security struct!
+ * For validity of an IPC object, it must be always called after ipc_getref(),
+ * before ipc_putref() functions.
+ *
+ * ipc_getref() increases ipcp->refcount, co we tell to ipc_kern2kobj() function
+ * to decrease it; of course not in ipcp->refcount, but in its copy in ipc_kobject
  */
 int ipc_kobj_validate_ipcp(struct kern_ipc_perm *ipcp) {
 	medusa_answer_t retval;
 	struct ipc_event event;
 	struct ipc_kobject sender;
 
-	memset(&event, '\0', sizeof(struct ipc_event));
 	INIT_MEDUSA_OBJECT_VARS(ipc_security(ipcp));
-	ipc_kern2kobj(&sender, ipcp);
+	/* 3-th argument is true: decrement IPC object's refcount in returned object */
+	if (unlikely(ipc_kern2kobj(&sender, ipcp, true) == NULL))
+		return MED_ERR;
+
+	memset(&event, '\0', sizeof(struct ipc_event));
 	retval = MED_DECIDE(ipc_event, &event, &sender, &sender);
 	if (retval != MED_ERR)
 		return 1;

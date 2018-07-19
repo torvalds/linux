@@ -1,7 +1,11 @@
 #include <linux/msg.h>
 #include "../../../ipc/util.h" //TODO
-#include "ipc_utils.h"
 #include "kobject_ipc.h"
+
+/* from ipc/shm.c, ipc/sem.c, ipc/msg.c */
+#define shm_ids(ns)	((ns)->ids[IPC_SHM_IDS])
+#define sem_ids(ns)	((ns)->ids[IPC_SEM_IDS])
+#define msg_ids(ns)	((ns)->ids[IPC_MSG_IDS])
 
 static struct ipc_kobject storage;
 
@@ -40,17 +44,51 @@ MED_ATTRS(ipc_kobject) {
 };
 
 /**
+ * medusa_get_ipc_ids - retrieve ipc_ids structure from namespace by @ipc_class
+ * @ipc_class is type of ipc mechanism; defined values see in l1/ipc.h
+ * return: ipc_ids struct or NULL if @ipc_class is unknown
+ */
+static inline struct ipc_ids *medusa_get_ipc_ids(unsigned int ipc_class)
+{
+	struct ipc_namespace *ns;
+
+	/*
+	 * TODO: get_ipc_ns(current->...)
+	 * see: ipc/util.c sysvipc_proc_open line 880...
+	 */
+	ns = current->nsproxy->ipc_ns;
+
+	switch (ipc_class) {
+	case MED_IPC_SEM:
+		return &sem_ids(ns);
+	case MED_IPC_SHM:
+		return &shm_ids(ns);
+	case MED_IPC_MSG:
+		return &msg_ids(ns);
+	}
+	return NULL;
+}
+
+/**
  * ipc_kern2kobj - convert function from kernel structure to kobject
  * @ipc_kobj - pointer to ipc_kobject where data will be stored 
  * @ipcp - pointer to kernel structure used to get data
- * Return: pointer to ipc_kobject with data on success, NULL on error
+ * @dec_refcount - if set, decrement IPC object's refcount in returned @ipc_kobj
+ * Return: pointer to @ipc_kobj with data on success, NULL on error (@ipc_kobj
+ *	or @ipcp->security NULL)
  *
  * This routine expects existing Medusa ipcp security struct.
  * For validity of an IPC object, it must be always called after ipc_getref(),
  * before ipc_putref() functions.
  */
-struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc_perm * ipcp)
+inline struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc_perm * ipcp, bool dec_refcount)
 {
+	if (unlikely(!ipc_kobj || !ipc_security(ipcp))) {
+		MED_PRINTF("ERROR: NULL pointer: ipc_kern2kobj: ipc_kobj=%p or ipcp=%p", \
+			ipc_kobj, ipcp);
+		return NULL;
+	}
+
 	memset(ipc_kobj, '\0', sizeof(struct ipc_kobject));
 
 	rcu_read_lock();
@@ -60,34 +98,53 @@ struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc
 	COPY_MEDUSA_OBJECT_VARS(ipc_kobj, ipc_security(ipcp));
 	rcu_read_unlock();
 
-	/* due to ipc_getref() refcount of an IPC object is increased by 1 */
-	refcount_dec(&ipc_kobj->ipc_perm.refcount);
+	/*
+	 * Due to ipc_getref() refcount of an IPC object is increased by 1,
+	 * so if @dec_refcount is true, we decrement it. Of course, not in
+	 * ipcp->refcount but in its copy in returned @ipc_kobj.
+	 *
+	 * Almost always is ipc_kern2kobj() called with @dec_refcount true;
+	 * only in case of ipc_kobj operation fetch() not.
+	 */
+	if (likely(dec_refcount))
+		refcount_dec(&ipc_kobj->ipc_perm.refcount);
 
 	return ipc_kobj;
 }
 
 /**
- * TODO TODO TODO
- * write races to IPC object! need ipc_trylock_object()
+ * ipc_kobj2kern - convert function from kobject to kernel structure
+ * @ipc_kobj - pointer to ipc_kobject used to get data
+ * @ipcp - pointer to kernel structure where data will be stored
+ * Return: MED_ERR on error (@ipc_kobj or @ipcp->security NULL), MED_OK otherwise
+ *
+ * This routine expects existing Medusa @ipcp security struct.
+ * Due to write acces to an IPC object, this function must be called
+ * within an RCU update section with ipcp->lock held.
+ *
+ * For now, it is called only from ipc_kobject update() operation.
  */
-medusa_answer_t ipc_kobj2kern(struct ipc_kobject *ipc_obj, struct kern_ipc_perm *ipcp)
+static inline medusa_answer_t ipc_kobj2kern(struct ipc_kobject *ipc_kobj, struct kern_ipc_perm *ipcp)
 {
-	struct medusa_l1_ipc_s *security_s = (struct medusa_l1_ipc_s*)ipcp->security;
-	if (!security_s)
+	if (unlikely(!ipc_kobj || !ipc_security(ipcp))) {
+		MED_PRINTF("ERROR: NULL pointer: ipc_kobj2kern: ipc_kobj=%p or ipcp=%p", \
+			ipc_kobj, ipcp);
 		return MED_ERR;
+	}
 
-	rcu_read_lock();
-	COPY_WRITE_IPC_VARS(ipcp, &(ipc_obj->ipc_perm));
-	COPY_MEDUSA_OBJECT_VARS(ipc_security(ipcp), ipc_obj);
+	COPY_WRITE_IPC_VARS(ipcp, &(ipc_kobj->ipc_perm));
+	COPY_MEDUSA_OBJECT_VARS(ipc_security(ipcp), ipc_kobj);
 	MED_MAGIC_VALIDATE(ipc_security(ipcp));
-	rcu_read_unlock();
 	
 	return MED_OK;
 }
 
 /**
- * ipc_fetch - common logic for fetching data from kernel
- * TODO TODO TODO
+ * ipc_fetch - fetch data related to requested IPC object by authorisation server
+ * @kobj - pointer to ipc_kobject which one holds identification of the requested
+ *	IPC object
+ * Return: pointer to new ipc_kobject with related IPC object data on success, NULL
+ *	on error (@kobj is NULL, not existing IPC object)
  */
 struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s *kobj)
 {
@@ -106,11 +163,22 @@ struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s *kobj)
 
 	rcu_read_lock();
 
+	/*
+	 * Call inside RCU critical section, IPC object is not locked
+	 * on return of ipc_obtain_object_check().
+	 */
 	ipcp = ipc_obtain_object_check(ids, ipc_kobj->ipc_perm.id);
 	if(IS_ERR(ipcp) || !ipcp)
 		goto out_rcu_unlock;
 
-	new_kobj = ipc_kern2kobj(&storage, ipcp);
+	/*
+	 * IPC object can be marked to deletion (races with IPC_RMID)
+	 * but it's OK; we are in RCU, so IPC struct is not deleted yet.
+	 *
+	 * Third argument is false - do not decrement IPC object refcount
+	 * in returned ipc_kobj.
+	 */
+	new_kobj = ipc_kern2kobj(&storage, ipcp, false);
 
 out_rcu_unlock:
 	rcu_read_unlock();
@@ -119,9 +187,10 @@ out_err:
 }
 
 /**
- * ipc_update - common logic for updating data in kernel by kobject data
- * TODO TODO TODO
- * Return: void pointer to memory area where kobject is stored or NULL on error
+ * ipc_update - update kernel-side data related to related IPC object @kobj
+ * @kobj - pointer to ipc_kobject which one holds identification of therelated
+ *	IPC object
+ * Return: MED_OK if successfull, MED_ERR otherwise
  */
 medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
 {
@@ -140,21 +209,28 @@ medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
 	
 	rcu_read_lock();
 
-	// Call inside RCU critical section
-	// Object is not locked on exit
+	/*
+	 * Call inside RCU critical section, IPC object is not locked
+	 * on return of ipc_obtain_object_check().
+	 */
 	ipcp = ipc_obtain_object_check(ids, ipc_kobj->ipc_perm.id);
 	if(IS_ERR(ipcp) || !ipcp)
 		goto out_rcu_unlock;
 
-	// TODO TODO TODO FIXME 
-	//if (!ipc_rcu_getref(ipcp))
-	//	goto out_rcu_unlock;
+	/*
+	 * IPC object can be marked to deletion (races with IPC_RMID)
+	 * but it's OK; we are in RCU, so IPC struct is not deleted yet.
+	 * Obtaining ipcp->lock we check races.
+	 */
 	ipc_lock_object(ipcp);
-	// update kernel structure	
+	if (!ipc_valid_object(ipcp))
+		goto out_ipc_unlock;
+
+	/* IPC object is valid, so update kernel structure */
 	retval = ipc_kobj2kern(ipc_kobj, ipcp);
 
+out_ipc_unlock:
 	ipc_unlock_object(ipcp);
-	//ipc_rcu_putref(ipcp, ipc_rcu_free);	
 out_rcu_unlock:
 	rcu_read_unlock();
 out_err:

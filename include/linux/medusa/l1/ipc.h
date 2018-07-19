@@ -30,12 +30,10 @@
  *
  * @ipc_class - medusa_l1_ipc_s is stored in 'struct kern_ipc_perm' of each System V object,
  *	so we need store extra information about IPC type in 'ipc_class' struct member
- * @mutex_rwmutex - TODO TODO TODO
  * @MEDUSA_OBJECT_VARS - members used in Medusa VS access evaluation process
  */
 struct medusa_l1_ipc_s {
-	unsigned int ipc_class;
-	struct mutex rwmutex;
+	unsigned int ipc_class;	/* type of a System V IPC object */
 	MEDUSA_OBJECT_VARS;
 };
 
