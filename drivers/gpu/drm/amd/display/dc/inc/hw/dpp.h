@@ -45,6 +45,7 @@ struct dpp_grph_csc_adjustment {
 };
 
 struct dcn_dpp_state {
+	uint32_t is_enabled;
 	uint32_t igam_lut_mode;
 	uint32_t igam_input_format;
 	uint32_t dgam_lut_mode;

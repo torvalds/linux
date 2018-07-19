@@ -103,6 +103,8 @@ void dpp_read_state(struct dpp *dpp_base,
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
+	REG_GET(DPP_CONTROL,
+			DPP_CLOCK_ENABLE, &s->is_enabled);
 	REG_GET(CM_IGAM_CONTROL,
 			CM_IGAM_LUT_MODE, &s->igam_lut_mode);
 	REG_GET(CM_IGAM_CONTROL,

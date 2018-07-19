@@ -88,7 +88,7 @@ static void log_mpc_crc(struct dc *dc)
 void dcn10_log_hubbub_state(struct dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	struct dcn_hubbub_wm wm;
+	struct dcn_hubbub_wm wm = {0};
 	int i;
 
 	hubbub1_wm_read_state(dc->res_pool->hubbub, &wm);
@@ -244,9 +244,12 @@ void dcn10_log_hw_state(struct dc *dc)
 			"C31 C32   C33 C34\n");
 	for (i = 0; i < pool->pipe_count; i++) {
 		struct dpp *dpp = pool->dpps[i];
-		struct dcn_dpp_state s;
+		struct dcn_dpp_state s = {0};
 
 		dpp->funcs->dpp_read_state(dpp, &s);
+
+		if (!s.is_enabled)
+			continue;
 
 		DTN_INFO("[%2d]:  %11xh  %-11s  %-11s  %-11s"
 				"%8x    %08xh %08xh %08xh %08xh %08xh %08xh",
