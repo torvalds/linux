@@ -2223,7 +2223,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	if (args->flags & I915_EXEC_RESOURCE_STREAMER) {
 		if (!HAS_RESOURCE_STREAMER(eb.i915)) {
-			DRM_DEBUG("RS is only allowed for Haswell, Gen8 and above\n");
+			DRM_DEBUG("RS is only allowed for Haswell and Gen8 - Gen10\n");
 			return -EINVAL;
 		}
 		if (eb.engine->id != RCS) {

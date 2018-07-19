@@ -604,13 +604,13 @@ static const struct intel_device_info intel_cannonlake_info = {
 	GEN(11), \
 	.ddb_size = 2048, \
 	.has_csr = 0, \
+	.has_resource_streamer = 0, \
 	.has_logical_ring_elsq = 1
 
 static const struct intel_device_info intel_icelake_11_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ICELAKE),
 	.is_alpha_support = 1,
-	.has_resource_streamer = 0,
 	.ring_mask = RENDER_RING | BLT_RING | VEBOX_RING | BSD_RING | BSD3_RING,
 };
 
