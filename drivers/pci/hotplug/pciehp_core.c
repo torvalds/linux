@@ -284,6 +284,10 @@ static int pciehp_resume_noirq(struct pcie_device *dev)
 	struct controller *ctrl = get_service_data(dev);
 	struct slot *slot = ctrl->slot;
 
+	/* pci_restore_state() just wrote to the Slot Control register */
+	ctrl->cmd_started = jiffies;
+	ctrl->cmd_busy = true;
+
 	/* clear spurious events from rediscovery of inserted card */
 	if (slot->state == ON_STATE || slot->state == BLINKINGOFF_STATE)
 		pcie_clear_hotplug_events(ctrl);
