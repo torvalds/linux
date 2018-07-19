@@ -9,6 +9,7 @@
 
 #include <linux/slab.h>
 #include <linux/cpumask.h>
+#include <linux/kmemleak.h>
 #include <linux/percpu.h>
 
 struct vmemmap_backing {
@@ -83,6 +84,13 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	pgd = kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
 			       pgtable_gfp_flags(mm, GFP_KERNEL));
 	/*
+	 * Don't scan the PGD for pointers, it contains references to PUDs but
+	 * those references are not full pointers and so can't be recognised by
+	 * kmemleak.
+	 */
+	kmemleak_no_scan(pgd);
+
+	/*
 	 * With hugetlb, we don't clear the second half of the page table.
 	 * If we share the same slab cache with the pmd or pud level table,
 	 * we need to make sure we zero out the full table on alloc.
@@ -110,8 +118,19 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return kmem_cache_alloc(PGT_CACHE(PUD_CACHE_INDEX),
-		pgtable_gfp_flags(mm, GFP_KERNEL));
+	pud_t *pud;
+
+	pud = kmem_cache_alloc(PGT_CACHE(PUD_CACHE_INDEX),
+			       pgtable_gfp_flags(mm, GFP_KERNEL));
+	/*
+	 * Tell kmemleak to ignore the PUD, that means don't scan it for
+	 * pointers and don't consider it a leak. PUDs are typically only
+	 * referred to by their PGD, but kmemleak is not able to recognise those
+	 * as pointers, leading to false leak reports.
+	 */
+	kmemleak_ignore(pud);
+
+	return pud;
 }
 
 static inline void pud_free(struct mm_struct *mm, pud_t *pud)
