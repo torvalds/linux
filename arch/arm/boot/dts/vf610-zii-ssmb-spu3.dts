@@ -23,7 +23,7 @@
 		stdout-path = &uart0;
 	};
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x20000000>;
 	};
 
@@ -128,8 +128,6 @@
 			compatible = "marvell,mv88e6190";
 			pinctrl-0 = <&pinctrl_gpio_switch0>;
 			pinctrl-names = "default";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0>;
 			eeprom-length = <65536>;
 			reset-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
