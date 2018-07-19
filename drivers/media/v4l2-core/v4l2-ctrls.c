@@ -2511,12 +2511,6 @@ void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active)
 }
 EXPORT_SYMBOL(v4l2_ctrl_activate);
 
-/* Grab/ungrab a control.
-   Typically used when streaming starts and you want to grab controls,
-   preventing the user from changing them.
-
-   Just call this and the framework will block any attempts to change
-   these controls. */
 void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed)
 {
 	bool old;
