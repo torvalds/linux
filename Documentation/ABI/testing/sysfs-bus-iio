@@ -1307,13 +1307,16 @@ What:		/sys/.../iio:deviceX/in_intensityY_raw
 What:		/sys/.../iio:deviceX/in_intensityY_ir_raw
 What:		/sys/.../iio:deviceX/in_intensityY_both_raw
 What:		/sys/.../iio:deviceX/in_intensityY_uv_raw
+What:		/sys/.../iio:deviceX/in_intensityY_duv_raw
 KernelVersion:	3.4
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Unit-less light intensity. Modifiers both and ir indicate
 		that measurements contain visible and infrared light
-		components or just infrared light, respectively. Modifier uv indicates
-		that measurements contain ultraviolet light components.
+		components or just infrared light, respectively. Modifier
+		uv indicates that measurements contain ultraviolet light
+		components. Modifier duv indicates that measurements
+		contain deep ultraviolet light components.
 
 What:		/sys/.../iio:deviceX/in_uvindex_input
 KernelVersion:	4.6
