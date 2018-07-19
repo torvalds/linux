@@ -315,6 +315,9 @@ struct hci_dev {
 	unsigned long	sco_last_tx;
 	unsigned long	le_last_tx;
 
+	__u8		le_tx_def_phys;
+	__u8		le_rx_def_phys;
+
 	struct workqueue_struct	*workqueue;
 	struct workqueue_struct	*req_workqueue;
 

@@ -830,10 +830,9 @@ static int hci_init4_req(struct hci_request *req, unsigned long opt)
 	if (hdev->commands[35] & 0x20) {
 		struct hci_cp_le_set_default_phy cp;
 
-		/* No transmitter PHY or receiver PHY preferences */
-		cp.all_phys = 0x03;
-		cp.tx_phys = 0;
-		cp.rx_phys = 0;
+		cp.all_phys = 0x00;
+		cp.tx_phys = hdev->le_tx_def_phys;
+		cp.rx_phys = hdev->le_rx_def_phys;
 
 		hci_req_add(req, HCI_OP_LE_SET_DEFAULT_PHY, sizeof(cp), &cp);
 	}
@@ -3027,6 +3026,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_max_tx_time = 0x0148;
 	hdev->le_max_rx_len = 0x001b;
 	hdev->le_max_rx_time = 0x0148;
+	hdev->le_tx_def_phys = HCI_LE_SET_PHY_1M;
+	hdev->le_rx_def_phys = HCI_LE_SET_PHY_1M;
 
 	hdev->rpa_timeout = HCI_DEFAULT_RPA_TIMEOUT;
 	hdev->discov_interleaved_timeout = DISCOV_INTERLEAVED_TIMEOUT;
