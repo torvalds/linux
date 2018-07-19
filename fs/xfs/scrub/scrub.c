@@ -151,7 +151,7 @@
  */
 static int
 xchk_probe(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	int				error = 0;
 
@@ -166,7 +166,7 @@ xchk_probe(
 /* Free all the resources and finish the transactions. */
 STATIC int
 xchk_teardown(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip_in,
 	int				error)
 {
@@ -447,7 +447,7 @@ out:
 }
 
 #ifdef CONFIG_XFS_ONLINE_REPAIR
-static inline void xchk_postmortem(struct xfs_scrub_context *sc)
+static inline void xchk_postmortem(struct xfs_scrub *sc)
 {
 	/*
 	 * Userspace asked us to repair something, we repaired it, rescanned
@@ -460,7 +460,7 @@ static inline void xchk_postmortem(struct xfs_scrub_context *sc)
 		xrep_failure(sc->mp);
 }
 #else
-static inline void xchk_postmortem(struct xfs_scrub_context *sc)
+static inline void xchk_postmortem(struct xfs_scrub *sc)
 {
 	/*
 	 * Userspace asked us to scrub something, it's broken, and we have no
@@ -479,7 +479,7 @@ xfs_scrub_metadata(
 	struct xfs_inode		*ip,
 	struct xfs_scrub_metadata	*sm)
 {
-	struct xfs_scrub_context	sc;
+	struct xfs_scrub	sc;
 	struct xfs_mount		*mp = ip->i_mount;
 	bool				try_harder = false;
 	bool				already_fixed = false;

@@ -30,7 +30,7 @@
  */
 int
 xchk_setup_ag_rmapbt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, false);
@@ -41,7 +41,7 @@ xchk_setup_ag_rmapbt(
 /* Cross-reference a rmap against the refcount btree. */
 STATIC void
 xchk_rmapbt_xref_refc(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_rmap_irec		*irec)
 {
 	xfs_agblock_t			fbno;
@@ -72,7 +72,7 @@ xchk_rmapbt_xref_refc(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_rmapbt_xref(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_rmap_irec		*irec)
 {
 	xfs_agblock_t			agbno = irec->rm_startblock;
@@ -172,7 +172,7 @@ out:
 /* Scrub the rmap btree for some AG. */
 int
 xchk_rmapbt(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_owner_info		oinfo;
 
@@ -184,7 +184,7 @@ xchk_rmapbt(
 /* xref check that the extent is owned by a given owner */
 static inline void
 xchk_xref_check_owner(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	struct xfs_owner_info		*oinfo,
@@ -207,7 +207,7 @@ xchk_xref_check_owner(
 /* xref check that the extent is owned by a given owner */
 void
 xchk_xref_is_owned_by(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	struct xfs_owner_info		*oinfo)
@@ -218,7 +218,7 @@ xchk_xref_is_owned_by(
 /* xref check that the extent is not owned by a given owner */
 void
 xchk_xref_is_not_owned_by(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	struct xfs_owner_info		*oinfo)
@@ -229,7 +229,7 @@ xchk_xref_is_not_owned_by(
 /* xref check that the extent has no reverse mapping at all */
 void
 xchk_xref_has_no_owner(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len)
 {

@@ -9,20 +9,20 @@
 /* btree scrub */
 
 /* Check for btree operation errors. */
-bool xchk_btree_process_error(struct xfs_scrub_context *sc,
+bool xchk_btree_process_error(struct xfs_scrub *sc,
 		struct xfs_btree_cur *cur, int level, int *error);
 
 /* Check for btree xref operation errors. */
-bool xchk_btree_xref_process_error(struct xfs_scrub_context *sc,
+bool xchk_btree_xref_process_error(struct xfs_scrub *sc,
 				struct xfs_btree_cur *cur, int level,
 				int *error);
 
 /* Check for btree corruption. */
-void xchk_btree_set_corrupt(struct xfs_scrub_context *sc,
+void xchk_btree_set_corrupt(struct xfs_scrub *sc,
 		struct xfs_btree_cur *cur, int level);
 
 /* Check for btree xref discrepancies. */
-void xchk_btree_xref_set_corrupt(struct xfs_scrub_context *sc,
+void xchk_btree_xref_set_corrupt(struct xfs_scrub *sc,
 		struct xfs_btree_cur *cur, int level);
 
 struct xchk_btree;
@@ -32,7 +32,7 @@ typedef int (*xchk_btree_rec_fn)(
 
 struct xchk_btree {
 	/* caller-provided scrub state */
-	struct xfs_scrub_context	*sc;
+	struct xfs_scrub	*sc;
 	struct xfs_btree_cur		*cur;
 	xchk_btree_rec_fn		scrub_rec;
 	struct xfs_owner_info		*oinfo;
@@ -45,7 +45,7 @@ struct xchk_btree {
 	bool				firstkey[XFS_BTREE_MAXLEVELS];
 	struct list_head		to_check;
 };
-int xchk_btree(struct xfs_scrub_context *sc, struct xfs_btree_cur *cur,
+int xchk_btree(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		    xchk_btree_rec_fn scrub_fn,
 		    struct xfs_owner_info *oinfo, void *private);
 

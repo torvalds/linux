@@ -31,7 +31,7 @@
 /* Convert a scrub type code to a DQ flag, or return 0 if error. */
 static inline uint
 xchk_quota_to_dqtype(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	switch (sc->sm->sm_type) {
 	case XFS_SCRUB_TYPE_UQUOTA:
@@ -48,7 +48,7 @@ xchk_quota_to_dqtype(
 /* Set us up to scrub a quota. */
 int
 xchk_setup_quota(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	uint				dqtype;
@@ -76,7 +76,7 @@ xchk_setup_quota(
 /* Quotas. */
 
 struct xchk_quota_info {
-	struct xfs_scrub_context	*sc;
+	struct xfs_scrub	*sc;
 	xfs_dqid_t			last_id;
 };
 
@@ -88,7 +88,7 @@ xchk_quota_item(
 	void				*priv)
 {
 	struct xchk_quota_info		*sqi = priv;
-	struct xfs_scrub_context	*sc = sqi->sc;
+	struct xfs_scrub	*sc = sqi->sc;
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_disk_dquot		*d = &dq->q_core;
 	struct xfs_quotainfo		*qi = mp->m_quotainfo;
@@ -195,7 +195,7 @@ xchk_quota_item(
 /* Check the quota's data fork. */
 STATIC int
 xchk_quota_data_fork(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_bmbt_irec		irec = { 0 };
 	struct xfs_iext_cursor		icur;
@@ -234,7 +234,7 @@ xchk_quota_data_fork(
 /* Scrub all of a quota type's items. */
 int
 xchk_quota(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xchk_quota_info		sqi;
 	struct xfs_mount		*mp = sc->mp;

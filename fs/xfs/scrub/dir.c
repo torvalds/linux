@@ -32,7 +32,7 @@
 /* Set us up to scrub directories. */
 int
 xchk_setup_directory(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	return xchk_setup_inode_contents(sc, ip, 0);
@@ -46,7 +46,7 @@ struct xchk_dir_ctx {
 	/* VFS fill-directory iterator */
 	struct dir_context		dir_iter;
 
-	struct xfs_scrub_context	*sc;
+	struct xfs_scrub	*sc;
 };
 
 /* Check that an inode's mode matches a given DT_ type. */
@@ -289,7 +289,7 @@ out:
  */
 STATIC void
 xchk_directory_check_free_entry(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_dablk_t			lblk,
 	struct xfs_dir2_data_free	*bf,
 	struct xfs_dir2_data_unused	*dup)
@@ -314,7 +314,7 @@ xchk_directory_check_free_entry(
 /* Check free space info in a directory data block. */
 STATIC int
 xchk_directory_data_bestfree(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_dablk_t			lblk,
 	bool				is_block)
 {
@@ -455,7 +455,7 @@ out:
  */
 STATIC void
 xchk_directory_check_freesp(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_dablk_t			lblk,
 	struct xfs_buf			*dbp,
 	unsigned int			len)
@@ -474,7 +474,7 @@ xchk_directory_check_freesp(
 /* Check free space info in a directory leaf1 block. */
 STATIC int
 xchk_directory_leaf1_bestfree(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_da_args		*args,
 	xfs_dablk_t			lblk)
 {
@@ -572,7 +572,7 @@ out:
 /* Check free space info in a directory freespace block. */
 STATIC int
 xchk_directory_free_bestfree(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_da_args		*args,
 	xfs_dablk_t			lblk)
 {
@@ -626,7 +626,7 @@ out:
 /* Check free space information in directories. */
 STATIC int
 xchk_directory_blocks(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_bmbt_irec		got;
 	struct xfs_da_args		args;
@@ -770,7 +770,7 @@ out:
 /* Scrub a whole directory. */
 int
 xchk_directory(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xchk_dir_ctx		sdc = {
 		.dir_iter.actor = xchk_dir_actor,

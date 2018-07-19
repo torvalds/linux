@@ -13,7 +13,7 @@ struct xchk_da_btree {
 	xfs_dahash_t			hashes[XFS_DA_NODE_MAXDEPTH];
 	int				maxrecs[XFS_DA_NODE_MAXDEPTH];
 	struct xfs_da_state		*state;
-	struct xfs_scrub_context	*sc;
+	struct xfs_scrub	*sc;
 	void				*private;
 
 	/*
@@ -39,7 +39,7 @@ void xchk_da_set_corrupt(struct xchk_da_btree *ds, int level);
 
 int xchk_da_btree_hash(struct xchk_da_btree *ds, int level,
 			    __be32 *hashp);
-int xchk_da_btree(struct xfs_scrub_context *sc, int whichfork,
+int xchk_da_btree(struct xfs_scrub *sc, int whichfork,
 		       xchk_da_btree_rec_fn scrub_fn, void *private);
 
 #endif /* __XFS_SCRUB_DABTREE_H__ */

@@ -59,7 +59,7 @@ DEFINE_SCRUB_EVENT(xrep_attempt);
 DEFINE_SCRUB_EVENT(xrep_done);
 
 TRACE_EVENT(xchk_op_error,
-	TP_PROTO(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
+	TP_PROTO(struct xfs_scrub *sc, xfs_agnumber_t agno,
 		 xfs_agblock_t bno, int error, void *ret_ip),
 	TP_ARGS(sc, agno, bno, error, ret_ip),
 	TP_STRUCT__entry(
@@ -88,7 +88,7 @@ TRACE_EVENT(xchk_op_error,
 );
 
 TRACE_EVENT(xchk_file_op_error,
-	TP_PROTO(struct xfs_scrub_context *sc, int whichfork,
+	TP_PROTO(struct xfs_scrub *sc, int whichfork,
 		 xfs_fileoff_t offset, int error, void *ret_ip),
 	TP_ARGS(sc, whichfork, offset, error, ret_ip),
 	TP_STRUCT__entry(
@@ -120,7 +120,7 @@ TRACE_EVENT(xchk_file_op_error,
 );
 
 DECLARE_EVENT_CLASS(xchk_block_error_class,
-	TP_PROTO(struct xfs_scrub_context *sc, xfs_daddr_t daddr, void *ret_ip),
+	TP_PROTO(struct xfs_scrub *sc, xfs_daddr_t daddr, void *ret_ip),
 	TP_ARGS(sc, daddr, ret_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -154,7 +154,7 @@ DECLARE_EVENT_CLASS(xchk_block_error_class,
 
 #define DEFINE_SCRUB_BLOCK_ERROR_EVENT(name) \
 DEFINE_EVENT(xchk_block_error_class, name, \
-	TP_PROTO(struct xfs_scrub_context *sc, xfs_daddr_t daddr, \
+	TP_PROTO(struct xfs_scrub *sc, xfs_daddr_t daddr, \
 		 void *ret_ip), \
 	TP_ARGS(sc, daddr, ret_ip))
 
@@ -162,7 +162,7 @@ DEFINE_SCRUB_BLOCK_ERROR_EVENT(xchk_block_error);
 DEFINE_SCRUB_BLOCK_ERROR_EVENT(xchk_block_preen);
 
 DECLARE_EVENT_CLASS(xchk_ino_error_class,
-	TP_PROTO(struct xfs_scrub_context *sc, xfs_ino_t ino, void *ret_ip),
+	TP_PROTO(struct xfs_scrub *sc, xfs_ino_t ino, void *ret_ip),
 	TP_ARGS(sc, ino, ret_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -185,7 +185,7 @@ DECLARE_EVENT_CLASS(xchk_ino_error_class,
 
 #define DEFINE_SCRUB_INO_ERROR_EVENT(name) \
 DEFINE_EVENT(xchk_ino_error_class, name, \
-	TP_PROTO(struct xfs_scrub_context *sc, xfs_ino_t ino, \
+	TP_PROTO(struct xfs_scrub *sc, xfs_ino_t ino, \
 		 void *ret_ip), \
 	TP_ARGS(sc, ino, ret_ip))
 
@@ -194,7 +194,7 @@ DEFINE_SCRUB_INO_ERROR_EVENT(xchk_ino_preen);
 DEFINE_SCRUB_INO_ERROR_EVENT(xchk_ino_warning);
 
 DECLARE_EVENT_CLASS(xchk_fblock_error_class,
-	TP_PROTO(struct xfs_scrub_context *sc, int whichfork,
+	TP_PROTO(struct xfs_scrub *sc, int whichfork,
 		 xfs_fileoff_t offset, void *ret_ip),
 	TP_ARGS(sc, whichfork, offset, ret_ip),
 	TP_STRUCT__entry(
@@ -224,7 +224,7 @@ DECLARE_EVENT_CLASS(xchk_fblock_error_class,
 
 #define DEFINE_SCRUB_FBLOCK_ERROR_EVENT(name) \
 DEFINE_EVENT(xchk_fblock_error_class, name, \
-	TP_PROTO(struct xfs_scrub_context *sc, int whichfork, \
+	TP_PROTO(struct xfs_scrub *sc, int whichfork, \
 		 xfs_fileoff_t offset, void *ret_ip), \
 	TP_ARGS(sc, whichfork, offset, ret_ip))
 
@@ -232,7 +232,7 @@ DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_error);
 DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_warning);
 
 TRACE_EVENT(xchk_incomplete,
-	TP_PROTO(struct xfs_scrub_context *sc, void *ret_ip),
+	TP_PROTO(struct xfs_scrub *sc, void *ret_ip),
 	TP_ARGS(sc, ret_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -251,7 +251,7 @@ TRACE_EVENT(xchk_incomplete,
 );
 
 TRACE_EVENT(xchk_btree_op_error,
-	TP_PROTO(struct xfs_scrub_context *sc, struct xfs_btree_cur *cur,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		 int level, int error, void *ret_ip),
 	TP_ARGS(sc, cur, level, error, ret_ip),
 	TP_STRUCT__entry(
@@ -291,7 +291,7 @@ TRACE_EVENT(xchk_btree_op_error,
 );
 
 TRACE_EVENT(xchk_ifork_btree_op_error,
-	TP_PROTO(struct xfs_scrub_context *sc, struct xfs_btree_cur *cur,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		 int level, int error, void *ret_ip),
 	TP_ARGS(sc, cur, level, error, ret_ip),
 	TP_STRUCT__entry(
@@ -336,7 +336,7 @@ TRACE_EVENT(xchk_ifork_btree_op_error,
 );
 
 TRACE_EVENT(xchk_btree_error,
-	TP_PROTO(struct xfs_scrub_context *sc, struct xfs_btree_cur *cur,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		 int level, void *ret_ip),
 	TP_ARGS(sc, cur, level, ret_ip),
 	TP_STRUCT__entry(
@@ -372,7 +372,7 @@ TRACE_EVENT(xchk_btree_error,
 );
 
 TRACE_EVENT(xchk_ifork_btree_error,
-	TP_PROTO(struct xfs_scrub_context *sc, struct xfs_btree_cur *cur,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		 int level, void *ret_ip),
 	TP_ARGS(sc, cur, level, ret_ip),
 	TP_STRUCT__entry(
@@ -414,7 +414,7 @@ TRACE_EVENT(xchk_ifork_btree_error,
 );
 
 DECLARE_EVENT_CLASS(xchk_sbtree_class,
-	TP_PROTO(struct xfs_scrub_context *sc, struct xfs_btree_cur *cur,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		 int level),
 	TP_ARGS(sc, cur, level),
 	TP_STRUCT__entry(
@@ -451,7 +451,7 @@ DECLARE_EVENT_CLASS(xchk_sbtree_class,
 )
 #define DEFINE_SCRUB_SBTREE_EVENT(name) \
 DEFINE_EVENT(xchk_sbtree_class, name, \
-	TP_PROTO(struct xfs_scrub_context *sc, struct xfs_btree_cur *cur, \
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_btree_cur *cur, \
 		 int level), \
 	TP_ARGS(sc, cur, level))
 
@@ -459,7 +459,7 @@ DEFINE_SCRUB_SBTREE_EVENT(xchk_btree_rec);
 DEFINE_SCRUB_SBTREE_EVENT(xchk_btree_key);
 
 TRACE_EVENT(xchk_xref_error,
-	TP_PROTO(struct xfs_scrub_context *sc, int error, void *ret_ip),
+	TP_PROTO(struct xfs_scrub *sc, int error, void *ret_ip),
 	TP_ARGS(sc, error, ret_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)

@@ -34,7 +34,7 @@
 /* Set us up with an inode's bmap. */
 int
 xchk_setup_inode_bmap(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	int				error;
@@ -79,7 +79,7 @@ out:
  */
 
 struct xchk_bmap_info {
-	struct xfs_scrub_context	*sc;
+	struct xfs_scrub	*sc;
 	xfs_fileoff_t			lastoff;
 	bool				is_rt;
 	bool				is_shared;
@@ -391,7 +391,7 @@ xchk_bmapbt_rec(
 /* Scan the btree records. */
 STATIC int
 xchk_bmap_btree(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	struct xchk_bmap_info		*info)
 {
@@ -409,7 +409,7 @@ xchk_bmap_btree(
 }
 
 struct xchk_bmap_check_rmap_info {
-	struct xfs_scrub_context	*sc;
+	struct xfs_scrub	*sc;
 	int				whichfork;
 	struct xfs_iext_cursor		icur;
 };
@@ -424,7 +424,7 @@ xchk_bmap_check_rmap(
 	struct xfs_bmbt_irec		irec;
 	struct xchk_bmap_check_rmap_info	*sbcri = priv;
 	struct xfs_ifork		*ifp;
-	struct xfs_scrub_context	*sc = sbcri->sc;
+	struct xfs_scrub	*sc = sbcri->sc;
 	bool				have_map;
 
 	/* Is this even the right fork? */
@@ -488,7 +488,7 @@ out:
 /* Make sure each rmap has a corresponding bmbt entry. */
 STATIC int
 xchk_bmap_check_ag_rmaps(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	xfs_agnumber_t			agno)
 {
@@ -522,7 +522,7 @@ out_agf:
 /* Make sure each rmap has a corresponding bmbt entry. */
 STATIC int
 xchk_bmap_check_rmaps(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork)
 {
 	loff_t				size;
@@ -579,7 +579,7 @@ xchk_bmap_check_rmaps(
  */
 STATIC int
 xchk_bmap(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork)
 {
 	struct xfs_bmbt_irec		irec;
@@ -694,7 +694,7 @@ out:
 /* Scrub an inode's data fork. */
 int
 xchk_bmap_data(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	return xchk_bmap(sc, XFS_DATA_FORK);
 }
@@ -702,7 +702,7 @@ xchk_bmap_data(
 /* Scrub an inode's attr fork. */
 int
 xchk_bmap_attr(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	return xchk_bmap(sc, XFS_ATTR_FORK);
 }
@@ -710,7 +710,7 @@ xchk_bmap_attr(
 /* Scrub an inode's CoW fork. */
 int
 xchk_bmap_cow(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	if (!xfs_is_reflink_inode(sc->ip))
 		return -ENOENT;

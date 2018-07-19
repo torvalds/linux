@@ -26,7 +26,7 @@
 /* Set us up to scrub a symbolic link. */
 int
 xchk_setup_symlink(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	/* Allocate the buffer without the inode lock held. */
@@ -41,7 +41,7 @@ xchk_setup_symlink(
 
 int
 xchk_symlink(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_inode		*ip = sc->ip;
 	struct xfs_ifork		*ifp;

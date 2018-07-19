@@ -28,7 +28,7 @@
 /* Set us up to scrub parents. */
 int
 xchk_setup_parent(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	return xchk_setup_inode_contents(sc, ip, 0);
@@ -65,7 +65,7 @@ xchk_parent_actor(
 /* Count the number of dentries in the parent dir that point to this inode. */
 STATIC int
 xchk_parent_count_parent_dentries(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*parent,
 	xfs_nlink_t			*nlink)
 {
@@ -121,7 +121,7 @@ out:
  */
 STATIC int
 xchk_parent_validate(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_ino_t			dnum,
 	bool				*try_again)
 {
@@ -255,7 +255,7 @@ out:
 /* Scrub a parent pointer. */
 int
 xchk_parent(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_mount		*mp = sc->mp;
 	xfs_ino_t			dnum;

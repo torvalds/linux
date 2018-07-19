@@ -40,7 +40,7 @@ xchk_da_process_error(
 	int				level,
 	int				*error)
 {
-	struct xfs_scrub_context	*sc = ds->sc;
+	struct xfs_scrub	*sc = ds->sc;
 
 	if (*error == 0)
 		return true;
@@ -75,7 +75,7 @@ xchk_da_set_corrupt(
 	struct xchk_da_btree		*ds,
 	int				level)
 {
-	struct xfs_scrub_context	*sc = ds->sc;
+	struct xfs_scrub	*sc = ds->sc;
 
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 
@@ -474,7 +474,7 @@ out_nobuf:
 /* Visit all nodes and leaves of a da btree. */
 int
 xchk_da_btree(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	xchk_da_btree_rec_fn	scrub_fn,
 	void				*private)

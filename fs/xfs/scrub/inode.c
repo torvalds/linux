@@ -38,7 +38,7 @@
  */
 int
 xchk_setup_inode(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	int				error;
@@ -77,7 +77,7 @@ out:
 /* Validate di_extsize hint. */
 STATIC void
 xchk_inode_extsize(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino,
 	uint16_t			mode,
@@ -99,7 +99,7 @@ xchk_inode_extsize(
  */
 STATIC void
 xchk_inode_cowextsize(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino,
 	uint16_t			mode,
@@ -118,7 +118,7 @@ xchk_inode_cowextsize(
 /* Make sure the di_flags make sense for the inode. */
 STATIC void
 xchk_inode_flags(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino,
 	uint16_t			mode,
@@ -163,7 +163,7 @@ bad:
 /* Make sure the di_flags2 make sense for the inode. */
 STATIC void
 xchk_inode_flags2(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino,
 	uint16_t			mode,
@@ -206,7 +206,7 @@ bad:
 /* Scrub all the ondisk inode fields. */
 STATIC void
 xchk_dinode(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino)
 {
@@ -426,7 +426,7 @@ xchk_dinode(
  */
 static void
 xchk_inode_xref_finobt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_ino_t			ino)
 {
 	struct xfs_inobt_rec_incore	rec;
@@ -469,7 +469,7 @@ xchk_inode_xref_finobt(
 /* Cross reference the inode fields with the forks. */
 STATIC void
 xchk_inode_xref_bmap(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_dinode		*dip)
 {
 	xfs_extnum_t			nextents;
@@ -503,7 +503,7 @@ xchk_inode_xref_bmap(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_inode_xref(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_ino_t			ino,
 	struct xfs_dinode		*dip)
 {
@@ -540,7 +540,7 @@ xchk_inode_xref(
  */
 static void
 xchk_inode_check_reflink_iflag(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_ino_t			ino)
 {
 	struct xfs_mount		*mp = sc->mp;
@@ -564,7 +564,7 @@ xchk_inode_check_reflink_iflag(
 /* Scrub an inode. */
 int
 xchk_inode(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_dinode		di;
 	int				error = 0;

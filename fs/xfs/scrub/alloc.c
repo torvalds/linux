@@ -29,7 +29,7 @@
  */
 int
 xchk_setup_ag_allocbt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, false);
@@ -42,7 +42,7 @@ xchk_setup_ag_allocbt(
  */
 STATIC void
 xchk_allocbt_xref_other(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {
@@ -82,7 +82,7 @@ xchk_allocbt_xref_other(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_allocbt_xref(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {
@@ -123,7 +123,7 @@ xchk_allocbt_rec(
 /* Scrub the freespace btrees for some AG. */
 STATIC int
 xchk_allocbt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_btnum_t			which)
 {
 	struct xfs_owner_info		oinfo;
@@ -136,14 +136,14 @@ xchk_allocbt(
 
 int
 xchk_bnobt(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	return xchk_allocbt(sc, XFS_BTNUM_BNO);
 }
 
 int
 xchk_cntbt(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	return xchk_allocbt(sc, XFS_BTNUM_CNT);
 }
@@ -151,7 +151,7 @@ xchk_cntbt(
 /* xref check that the extent is not free */
 void
 xchk_xref_is_used_space(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {

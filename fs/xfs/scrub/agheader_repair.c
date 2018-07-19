@@ -29,7 +29,7 @@
 /* Repair the superblock. */
 int
 xrep_superblock(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_buf			*bp;

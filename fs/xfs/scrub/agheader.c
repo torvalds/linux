@@ -29,7 +29,7 @@
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_superblock_xref(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_buf			*bp)
 {
 	struct xfs_owner_info		oinfo;
@@ -66,7 +66,7 @@ xchk_superblock_xref(
  */
 int
 xchk_superblock(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_buf			*bp;
@@ -365,7 +365,7 @@ xchk_agf_record_bno_lengths(
 /* Check agf_freeblks */
 static inline void
 xchk_agf_xref_freeblks(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
 	xfs_extlen_t			blocks = 0;
@@ -385,7 +385,7 @@ xchk_agf_xref_freeblks(
 /* Cross reference the AGF with the cntbt (freespace by length btree) */
 static inline void
 xchk_agf_xref_cntbt(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
 	xfs_agblock_t			agbno;
@@ -417,7 +417,7 @@ xchk_agf_xref_cntbt(
 /* Check the btree block counts in the AGF against the btrees. */
 STATIC void
 xchk_agf_xref_btreeblks(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
 	struct xfs_mount		*mp = sc->mp;
@@ -463,7 +463,7 @@ xchk_agf_xref_btreeblks(
 /* Check agf_refcount_blocks against tree size */
 static inline void
 xchk_agf_xref_refcblks(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
 	xfs_agblock_t			blocks;
@@ -482,7 +482,7 @@ xchk_agf_xref_refcblks(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_agf_xref(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_owner_info		oinfo;
 	struct xfs_mount		*mp = sc->mp;
@@ -514,7 +514,7 @@ xchk_agf_xref(
 /* Scrub the AGF. */
 int
 xchk_agf(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_agf			*agf;
@@ -602,13 +602,13 @@ struct xchk_agfl_info {
 	unsigned int			sz_entries;
 	unsigned int			nr_entries;
 	xfs_agblock_t			*entries;
-	struct xfs_scrub_context	*sc;
+	struct xfs_scrub	*sc;
 };
 
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_agfl_block_xref(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	struct xfs_owner_info		*oinfo)
 {
@@ -629,7 +629,7 @@ xchk_agfl_block(
 	void				*priv)
 {
 	struct xchk_agfl_info		*sai = priv;
-	struct xfs_scrub_context	*sc = sai->sc;
+	struct xfs_scrub	*sc = sai->sc;
 	xfs_agnumber_t			agno = sc->sa.agno;
 
 	if (xfs_verify_agbno(mp, agno, agbno) &&
@@ -660,7 +660,7 @@ xchk_agblock_cmp(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_agfl_xref(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_owner_info		oinfo;
 	struct xfs_mount		*mp = sc->mp;
@@ -691,7 +691,7 @@ xchk_agfl_xref(
 /* Scrub the AGFL. */
 int
 xchk_agfl(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xchk_agfl_info		sai;
 	struct xfs_agf			*agf;
@@ -768,7 +768,7 @@ out:
 /* Check agi_count/agi_freecount */
 static inline void
 xchk_agi_xref_icounts(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_agi			*agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
 	xfs_agino_t			icount;
@@ -789,7 +789,7 @@ xchk_agi_xref_icounts(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_agi_xref(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_owner_info		oinfo;
 	struct xfs_mount		*mp = sc->mp;
@@ -818,7 +818,7 @@ xchk_agi_xref(
 /* Scrub the AGI. */
 int
 xchk_agi(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_agi			*agi;

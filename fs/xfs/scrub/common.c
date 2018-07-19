@@ -69,7 +69,7 @@
 /* Check for operational errors. */
 static bool
 __xchk_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agnumber_t			agno,
 	xfs_agblock_t			bno,
 	int				*error,
@@ -99,7 +99,7 @@ __xchk_process_error(
 
 bool
 xchk_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agnumber_t			agno,
 	xfs_agblock_t			bno,
 	int				*error)
@@ -110,7 +110,7 @@ xchk_process_error(
 
 bool
 xchk_xref_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agnumber_t			agno,
 	xfs_agblock_t			bno,
 	int				*error)
@@ -122,7 +122,7 @@ xchk_xref_process_error(
 /* Check for operational errors for a file offset. */
 static bool
 __xchk_fblock_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	xfs_fileoff_t			offset,
 	int				*error,
@@ -152,7 +152,7 @@ __xchk_fblock_process_error(
 
 bool
 xchk_fblock_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	xfs_fileoff_t			offset,
 	int				*error)
@@ -163,7 +163,7 @@ xchk_fblock_process_error(
 
 bool
 xchk_fblock_xref_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	xfs_fileoff_t			offset,
 	int				*error)
@@ -187,7 +187,7 @@ xchk_fblock_xref_process_error(
 /* Record a block which could be optimized. */
 void
 xchk_block_set_preen(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_buf			*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
@@ -201,7 +201,7 @@ xchk_block_set_preen(
  */
 void
 xchk_ino_set_preen(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_ino_t			ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
@@ -211,7 +211,7 @@ xchk_ino_set_preen(
 /* Record a corrupt block. */
 void
 xchk_block_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_buf			*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
@@ -221,7 +221,7 @@ xchk_block_set_corrupt(
 /* Record a corruption while cross-referencing. */
 void
 xchk_block_xref_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_buf			*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
@@ -235,7 +235,7 @@ xchk_block_xref_set_corrupt(
  */
 void
 xchk_ino_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_ino_t			ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
@@ -245,7 +245,7 @@ xchk_ino_set_corrupt(
 /* Record a corruption while cross-referencing with an inode. */
 void
 xchk_ino_xref_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_ino_t			ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
@@ -255,7 +255,7 @@ xchk_ino_xref_set_corrupt(
 /* Record corruption in a block indexed by a file fork. */
 void
 xchk_fblock_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	xfs_fileoff_t			offset)
 {
@@ -266,7 +266,7 @@ xchk_fblock_set_corrupt(
 /* Record a corruption while cross-referencing a fork block. */
 void
 xchk_fblock_xref_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	xfs_fileoff_t			offset)
 {
@@ -280,7 +280,7 @@ xchk_fblock_xref_set_corrupt(
  */
 void
 xchk_ino_set_warning(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_ino_t			ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_WARNING;
@@ -290,7 +290,7 @@ xchk_ino_set_warning(
 /* Warn about a block indexed by a file fork that needs review. */
 void
 xchk_fblock_set_warning(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				whichfork,
 	xfs_fileoff_t			offset)
 {
@@ -301,7 +301,7 @@ xchk_fblock_set_warning(
 /* Signal an incomplete scrub. */
 void
 xchk_set_incomplete(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_INCOMPLETE;
 	trace_xchk_incomplete(sc, __return_address);
@@ -345,7 +345,7 @@ xchk_count_rmap_ownedby_irec(
  */
 int
 xchk_count_rmap_ownedby_ag(
-	struct xfs_scrub_context		*sc,
+	struct xfs_scrub		*sc,
 	struct xfs_btree_cur			*cur,
 	struct xfs_owner_info			*oinfo,
 	xfs_filblks_t				*blocks)
@@ -371,7 +371,7 @@ xchk_count_rmap_ownedby_ag(
 /* Decide if we want to return an AG header read failure. */
 static inline bool
 want_ag_read_header_failure(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	unsigned int			type)
 {
 	/* Return all AG header read failures when scanning btrees. */
@@ -398,7 +398,7 @@ want_ag_read_header_failure(
  */
 int
 xchk_ag_read_headers(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agnumber_t			agno,
 	struct xfs_buf			**agi,
 	struct xfs_buf			**agf,
@@ -452,7 +452,7 @@ xchk_ag_btcur_free(
 /* Initialize all the btree cursors for an AG. */
 int
 xchk_ag_btcur_init(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xchk_ag		*sa)
 {
 	struct xfs_mount		*mp = sc->mp;
@@ -512,7 +512,7 @@ err:
 /* Release the AG header context and btree cursors. */
 void
 xchk_ag_free(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xchk_ag		*sa)
 {
 	xchk_ag_btcur_free(sa);
@@ -544,7 +544,7 @@ xchk_ag_free(
  */
 int
 xchk_ag_init(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agnumber_t			agno,
 	struct xchk_ag		*sa)
 {
@@ -586,7 +586,7 @@ xchk_perag_get(
  */
 int
 xchk_trans_alloc(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	uint				resblks)
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
@@ -599,7 +599,7 @@ xchk_trans_alloc(
 /* Set us up with a transaction and an empty context. */
 int
 xchk_setup_fs(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	uint				resblks;
@@ -611,7 +611,7 @@ xchk_setup_fs(
 /* Set us up with AG headers and btree cursors. */
 int
 xchk_setup_ag_btree(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip,
 	bool				force_log)
 {
@@ -658,7 +658,7 @@ xchk_checkpoint_log(
  */
 int
 xchk_get_inode(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip_in)
 {
 	struct xfs_imap			imap;
@@ -722,7 +722,7 @@ xchk_get_inode(
 /* Set us up to scrub a file's contents. */
 int
 xchk_setup_inode_contents(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip,
 	unsigned int			resblks)
 {
@@ -753,7 +753,7 @@ out:
  */
 bool
 xchk_should_check_xref(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				*error,
 	struct xfs_btree_cur		**curpp)
 {
@@ -788,7 +788,7 @@ xchk_should_check_xref(
 /* Run the structure verifiers on in-memory buffers to detect bad memory. */
 void
 xchk_buffer_recheck(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_buf			*bp)
 {
 	xfs_failaddr_t			fa;
@@ -814,7 +814,7 @@ xchk_buffer_recheck(
  */
 int
 xchk_metadata_inode_forks(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	__u32				smtype;
 	bool				shared;

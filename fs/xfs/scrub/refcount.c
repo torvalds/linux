@@ -29,7 +29,7 @@
  */
 int
 xchk_setup_ag_refcountbt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, false);
@@ -79,7 +79,7 @@ struct xchk_refcnt_frag {
 };
 
 struct xchk_refcnt_check {
-	struct xfs_scrub_context	*sc;
+	struct xfs_scrub	*sc;
 	struct list_head		fragments;
 
 	/* refcount extent we're examining */
@@ -278,7 +278,7 @@ done:
 /* Use the rmap entries covering this extent to verify the refcount. */
 STATIC void
 xchk_refcountbt_xref_rmap(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	xfs_nlink_t			refcount)
@@ -325,7 +325,7 @@ out_free:
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_refcountbt_xref(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len,
 	xfs_nlink_t			refcount)
@@ -382,7 +382,7 @@ xchk_refcountbt_rec(
 /* Make sure we have as many refc blocks as the rmap says. */
 STATIC void
 xchk_refcount_xref_rmap(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_owner_info		*oinfo,
 	xfs_filblks_t			cow_blocks)
 {
@@ -417,7 +417,7 @@ xchk_refcount_xref_rmap(
 /* Scrub the refcount btree for some AG. */
 int
 xchk_refcountbt(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_owner_info		oinfo;
 	xfs_agblock_t			cow_blocks = 0;
@@ -437,7 +437,7 @@ xchk_refcountbt(
 /* xref check that a cow staging extent is marked in the refcountbt. */
 void
 xchk_xref_is_cow_staging(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {
@@ -483,7 +483,7 @@ xchk_xref_is_cow_staging(
  */
 void
 xchk_xref_is_not_shared(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {

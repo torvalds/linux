@@ -30,7 +30,7 @@
  */
 static bool
 __xchk_btree_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_btree_cur		*cur,
 	int				level,
 	int				*error,
@@ -65,7 +65,7 @@ __xchk_btree_process_error(
 
 bool
 xchk_btree_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_btree_cur		*cur,
 	int				level,
 	int				*error)
@@ -76,7 +76,7 @@ xchk_btree_process_error(
 
 bool
 xchk_btree_xref_process_error(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_btree_cur		*cur,
 	int				level,
 	int				*error)
@@ -88,7 +88,7 @@ xchk_btree_xref_process_error(
 /* Record btree block corruption. */
 static void
 __xchk_btree_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_btree_cur		*cur,
 	int				level,
 	__u32				errflag,
@@ -106,7 +106,7 @@ __xchk_btree_set_corrupt(
 
 void
 xchk_btree_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_btree_cur		*cur,
 	int				level)
 {
@@ -116,7 +116,7 @@ xchk_btree_set_corrupt(
 
 void
 xchk_btree_xref_set_corrupt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_btree_cur		*cur,
 	int				level)
 {
@@ -583,7 +583,7 @@ xchk_btree_block_keys(
  */
 int
 xchk_btree(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_btree_cur		*cur,
 	xchk_btree_rec_fn		scrub_fn,
 	struct xfs_owner_info		*oinfo,

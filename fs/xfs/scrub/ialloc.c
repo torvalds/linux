@@ -36,7 +36,7 @@
  */
 int
 xchk_setup_ag_iallocbt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, sc->try_harder);
@@ -51,7 +51,7 @@ xchk_setup_ag_iallocbt(
  */
 static inline void
 xchk_iallocbt_chunk_xref_other(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inobt_rec_incore	*irec,
 	xfs_agino_t			agino)
 {
@@ -76,7 +76,7 @@ xchk_iallocbt_chunk_xref_other(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_iallocbt_chunk_xref(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inobt_rec_incore	*irec,
 	xfs_agino_t			agino,
 	xfs_agblock_t			agbno,
@@ -363,7 +363,7 @@ out:
  */
 STATIC void
 xchk_iallocbt_xref_rmap_btreeblks(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				which)
 {
 	struct xfs_owner_info		oinfo;
@@ -403,7 +403,7 @@ xchk_iallocbt_xref_rmap_btreeblks(
  */
 STATIC void
 xchk_iallocbt_xref_rmap_inodes(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	int				which,
 	xfs_filblks_t			inode_blocks)
 {
@@ -427,7 +427,7 @@ xchk_iallocbt_xref_rmap_inodes(
 /* Scrub the inode btrees for some AG. */
 STATIC int
 xchk_iallocbt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_btnum_t			which)
 {
 	struct xfs_btree_cur		*cur;
@@ -459,14 +459,14 @@ xchk_iallocbt(
 
 int
 xchk_inobt(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	return xchk_iallocbt(sc, XFS_BTNUM_INO);
 }
 
 int
 xchk_finobt(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	return xchk_iallocbt(sc, XFS_BTNUM_FINO);
 }
@@ -474,7 +474,7 @@ xchk_finobt(
 /* See if an inode btree has (or doesn't have) an inode chunk record. */
 static inline void
 xchk_xref_inode_check(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len,
 	struct xfs_btree_cur		**icur,
@@ -496,7 +496,7 @@ xchk_xref_inode_check(
 /* xref check that the extent is not covered by inodes */
 void
 xchk_xref_is_not_inode_chunk(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {
@@ -507,7 +507,7 @@ xchk_xref_is_not_inode_chunk(
 /* xref check that the extent is covered by inodes */
 void
 xchk_xref_is_inode_chunk(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {

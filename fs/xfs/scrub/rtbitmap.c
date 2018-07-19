@@ -26,7 +26,7 @@
 /* Set us up with the realtime metadata locked. */
 int
 xchk_setup_rt(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	struct xfs_inode		*ip)
 {
 	int				error;
@@ -51,7 +51,7 @@ xchk_rtbitmap_rec(
 	struct xfs_rtalloc_rec		*rec,
 	void				*priv)
 {
-	struct xfs_scrub_context	*sc = priv;
+	struct xfs_scrub	*sc = priv;
 	xfs_rtblock_t			startblock;
 	xfs_rtblock_t			blockcount;
 
@@ -68,7 +68,7 @@ xchk_rtbitmap_rec(
 /* Scrub the realtime bitmap. */
 int
 xchk_rtbitmap(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	int				error;
 
@@ -88,7 +88,7 @@ out:
 /* Scrub the realtime summary. */
 int
 xchk_rtsummary(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_inode		*rsumip = sc->mp->m_rsumip;
 	struct xfs_inode		*old_ip = sc->ip;
@@ -125,7 +125,7 @@ out:
 /* xref check that the extent is not free in the rtbitmap */
 void
 xchk_xref_is_used_rt_space(
-	struct xfs_scrub_context	*sc,
+	struct xfs_scrub	*sc,
 	xfs_rtblock_t			fsbno,
 	xfs_extlen_t			len)
 {
