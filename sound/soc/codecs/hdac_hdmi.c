@@ -1530,6 +1530,11 @@ free_widgets:
 	return ret;
 }
 
+static int hdac_hdmi_pin2port(void *aptr, int pin)
+{
+	return pin - 4; /* map NID 0x05 -> port #1 */
+}
+
 static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 {
 	struct hdac_device *hdev = aptr;
@@ -1583,7 +1588,8 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 
 }
 
-static struct i915_audio_component_audio_ops aops = {
+static struct drm_audio_component_audio_ops aops = {
+	.pin2port	= hdac_hdmi_pin2port,
 	.pin_eld_notify	= hdac_hdmi_eld_notify_cb,
 };
 
@@ -1812,7 +1818,7 @@ static int hdmi_codec_probe(struct snd_soc_component *component)
 		return ret;
 
 	aops.audio_ptr = hdev;
-	ret = snd_hdac_i915_register_notifier(&aops);
+	ret = snd_hdac_acomp_register_notifier(hdev->bus, &aops);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "notifier register failed: err: %d\n", ret);
 		return ret;
