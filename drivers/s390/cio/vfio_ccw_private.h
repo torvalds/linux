@@ -3,9 +3,11 @@
  * Private stuff for vfio_ccw driver
  *
  * Copyright IBM Corp. 2017
+ * Copyright Red Hat, Inc. 2019
  *
  * Author(s): Dong Jia Shi <bjsdjshi@linux.vnet.ibm.com>
  *            Xiao Feng Ren <renxiaof@linux.vnet.ibm.com>
+ *            Cornelia Huck <cohuck@redhat.com>
  */
 
 #ifndef _VFIO_CCW_PRIVATE_H_
@@ -19,6 +21,38 @@
 #include "css.h"
 #include "vfio_ccw_cp.h"
 
+#define VFIO_CCW_OFFSET_SHIFT   10
+#define VFIO_CCW_OFFSET_TO_INDEX(off)	(off >> VFIO_CCW_OFFSET_SHIFT)
+#define VFIO_CCW_INDEX_TO_OFFSET(index)	((u64)(index) << VFIO_CCW_OFFSET_SHIFT)
+#define VFIO_CCW_OFFSET_MASK	(((u64)(1) << VFIO_CCW_OFFSET_SHIFT) - 1)
+
+/* capability chain handling similar to vfio-pci */
+struct vfio_ccw_private;
+struct vfio_ccw_region;
+
+struct vfio_ccw_regops {
+	ssize_t	(*read)(struct vfio_ccw_private *private, char __user *buf,
+			size_t count, loff_t *ppos);
+	ssize_t	(*write)(struct vfio_ccw_private *private,
+			 const char __user *buf, size_t count, loff_t *ppos);
+	void	(*release)(struct vfio_ccw_private *private,
+			   struct vfio_ccw_region *region);
+};
+
+struct vfio_ccw_region {
+	u32				type;
+	u32				subtype;
+	const struct vfio_ccw_regops	*ops;
+	void				*data;
+	size_t				size;
+	u32				flags;
+};
+
+int vfio_ccw_register_dev_region(struct vfio_ccw_private *private,
+				 unsigned int subtype,
+				 const struct vfio_ccw_regops *ops,
+				 size_t size, u32 flags, void *data);
+
 /**
  * struct vfio_ccw_private
  * @sch: pointer to the subchannel
@@ -29,6 +63,8 @@
  * @nb: notifier for vfio events
  * @io_region: MMIO region to input/output I/O arguments/results
  * @io_mutex: protect against concurrent update of I/O regions
+ * @region: additional regions for other subchannel operations
+ * @num_regions: number of additional regions
  * @cp: channel program for the current I/O operation
  * @irb: irb info received from interrupt
  * @scsw: scsw info
@@ -44,6 +80,8 @@ struct vfio_ccw_private {
 	struct notifier_block	nb;
 	struct ccw_io_region	*io_region;
 	struct mutex		io_mutex;
+	struct vfio_ccw_region *region;
+	int num_regions;
 
 	struct channel_program	cp;
 	struct irb		irb;
