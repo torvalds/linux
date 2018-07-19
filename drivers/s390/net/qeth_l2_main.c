@@ -672,10 +672,11 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 			    int ipv)
 {
 	int push_len = sizeof(struct qeth_hdr);
-	unsigned int elements, nr_frags;
 	unsigned int hdr_elements = 0;
 	struct qeth_hdr *hdr = NULL;
 	unsigned int hd_len = 0;
+	unsigned int elements;
+	bool is_sg;
 	int rc;
 
 	/* fix hardware limitation: as long as we do not have sbal
@@ -693,7 +694,6 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 		if (rc)
 			return rc;
 	}
-	nr_frags = skb_shinfo(skb)->nr_frags;
 
 	rc = skb_cow_head(skb, push_len);
 	if (rc)
@@ -720,15 +720,16 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 	}
 	elements += hdr_elements;
 
+	is_sg = skb_is_nonlinear(skb);
 	/* TODO: remove the skb_orphan() once TX completion is fast enough */
 	skb_orphan(skb);
 	rc = qeth_do_send_packet(card, queue, skb, hdr, 0, hd_len, elements);
 out:
 	if (!rc) {
-		if (card->options.performance_stats && nr_frags) {
-			card->perf_stats.sg_skbs_sent++;
-			/* nr_frags + skb->data */
-			card->perf_stats.sg_frags_sent += nr_frags + 1;
+		if (card->options.performance_stats) {
+			card->perf_stats.buf_elements_sent += elements;
+			if (is_sg)
+				card->perf_stats.sg_skbs_sent++;
 		}
 	} else {
 		if (hd_len)

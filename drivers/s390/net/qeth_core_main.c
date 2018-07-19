@@ -5970,7 +5970,7 @@ static struct {
 	{"tx skbs packing"},
 	{"tx buffers packing"},
 	{"tx sg skbs"},
-	{"tx sg frags"},
+	{"tx buffer elements"},
 /* 10 */{"rx sg skbs"},
 	{"rx sg frags"},
 	{"rx sg page allocs"},
@@ -6029,7 +6029,7 @@ void qeth_core_get_ethtool_stats(struct net_device *dev,
 	data[6] = card->perf_stats.skbs_sent_pack;
 	data[7] = card->perf_stats.bufs_sent_pack;
 	data[8] = card->perf_stats.sg_skbs_sent;
-	data[9] = card->perf_stats.sg_frags_sent;
+	data[9] = card->perf_stats.buf_elements_sent;
 	data[10] = card->perf_stats.sg_skbs_rx;
 	data[11] = card->perf_stats.sg_frags_rx;
 	data[12] = card->perf_stats.sg_alloc_page_rx;
