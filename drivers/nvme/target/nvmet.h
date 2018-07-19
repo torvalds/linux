@@ -64,6 +64,7 @@ struct nvmet_ns {
 	loff_t			size;
 	u8			nguid[16];
 	uuid_t			uuid;
+	u32			anagrpid;
 
 	bool			buffered_io;
 	bool			enabled;
@@ -115,6 +116,7 @@ struct nvmet_port {
 	struct list_head		subsystems;
 	struct config_group		referrals_group;
 	struct list_head		referrals;
+	enum nvme_ana_state		*ana_state;
 	void				*priv;
 	bool				enabled;
 	int				inline_data_size;
@@ -370,6 +372,15 @@ u32 nvmet_get_log_page_len(struct nvme_command *cmd);
  */
 #define NVMET_MAX_NAMESPACES	1024
 
+/*
+ * 0 is not a valid ANA group ID, so we start numbering at 1.
+ *
+ * ANA Group 1 exists without manual intervention, has namespaces assigned to it
+ * by default, and is available in an optimized state through all ports.
+ */
+#define NVMET_MAX_ANAGRPS	1
+#define NVMET_DEFAULT_ANA_GRPID	1
+
 #define NVMET_KAS		10
 #define NVMET_DISC_KATO		120
 
@@ -382,6 +393,10 @@ void nvmet_exit_discovery(void);
 extern struct nvmet_subsys *nvmet_disc_subsys;
 extern u64 nvmet_genctr;
 extern struct rw_semaphore nvmet_config_sem;
+
+extern u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
+extern u64 nvmet_ana_chgcnt;
+extern struct rw_semaphore nvmet_ana_sem;
 
 bool nvmet_host_allowed(struct nvmet_req *req, struct nvmet_subsys *subsys,
 		const char *hostnqn);

@@ -182,6 +182,69 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static u32 nvmet_format_ana_group(struct nvmet_req *req, u32 grpid,
+		struct nvme_ana_group_desc *desc)
+{
+	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	struct nvmet_ns *ns;
+	u32 count = 0;
+
+	if (!(req->cmd->get_log_page.lsp & NVME_ANA_LOG_RGO)) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(ns, &ctrl->subsys->namespaces, dev_link)
+			if (ns->anagrpid == grpid)
+				desc->nsids[count++] = cpu_to_le32(ns->nsid);
+		rcu_read_unlock();
+	}
+
+	desc->grpid = cpu_to_le32(grpid);
+	desc->nnsids = cpu_to_le32(count);
+	desc->chgcnt = cpu_to_le64(nvmet_ana_chgcnt);
+	desc->state = req->port->ana_state[grpid];
+	memset(desc->rsvd17, 0, sizeof(desc->rsvd17));
+	return sizeof(struct nvme_ana_group_desc) + count * sizeof(__le32);
+}
+
+static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
+{
+	struct nvme_ana_rsp_hdr hdr = { 0, };
+	struct nvme_ana_group_desc *desc;
+	size_t offset = sizeof(struct nvme_ana_rsp_hdr); /* start beyond hdr */
+	size_t len;
+	u32 grpid;
+	u16 ngrps = 0;
+	u16 status;
+
+	status = NVME_SC_INTERNAL;
+	desc = kmalloc(sizeof(struct nvme_ana_group_desc) +
+			NVMET_MAX_NAMESPACES * sizeof(__le32), GFP_KERNEL);
+	if (!desc)
+		goto out;
+
+	down_read(&nvmet_ana_sem);
+	for (grpid = 1; grpid <= NVMET_MAX_ANAGRPS; grpid++) {
+		if (!nvmet_ana_group_enabled[grpid])
+			continue;
+		len = nvmet_format_ana_group(req, grpid, desc);
+		status = nvmet_copy_to_sgl(req, offset, desc, len);
+		if (status)
+			break;
+		offset += len;
+		ngrps++;
+	}
+
+	hdr.chgcnt = cpu_to_le64(nvmet_ana_chgcnt);
+	hdr.ngrps = cpu_to_le16(ngrps);
+	up_read(&nvmet_ana_sem);
+
+	kfree(desc);
+
+	/* copy the header last once we know the number of groups */
+	status = nvmet_copy_to_sgl(req, 0, &hdr, sizeof(hdr));
+out:
+	nvmet_req_complete(req, status);
+}
+
 static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
@@ -213,8 +276,8 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	 * the safest is to leave it as zeroes.
 	 */
 
-	/* we support multiple ports and multiples hosts: */
-	id->cmic = (1 << 0) | (1 << 1);
+	/* we support multiple ports, multiples hosts and ANA: */
+	id->cmic = (1 << 0) | (1 << 1) | (1 << 3);
 
 	/* no limit on data transfer sizes for now */
 	id->mdts = 0;
@@ -282,6 +345,11 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 
 	id->msdbd = ctrl->ops->msdbd;
 
+	id->anacap = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4);
+	id->anatt = 10; /* random value */
+	id->anagrpmax = cpu_to_le32(NVMET_MAX_ANAGRPS);
+	id->nanagrpid = cpu_to_le32(NVMET_MAX_ANAGRPS);
+
 	/*
 	 * Meh, we don't really support any power state.  Fake up the same
 	 * values that qemu does.
@@ -323,8 +391,15 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	 * nuse = ncap = nsze isn't always true, but we have no way to find
 	 * that out from the underlying device.
 	 */
-	id->ncap = id->nuse = id->nsze =
-		cpu_to_le64(ns->size >> ns->blksize_shift);
+	id->ncap = id->nsze = cpu_to_le64(ns->size >> ns->blksize_shift);
+	switch (req->port->ana_state[ns->anagrpid]) {
+	case NVME_ANA_INACCESSIBLE:
+	case NVME_ANA_PERSISTENT_LOSS:
+		break;
+	default:
+		id->nuse = id->nsze;
+		break;
+        }
 
 	/*
 	 * We just provide a single LBA format that matches what the
@@ -338,6 +413,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	 * controllers, but also with any other user of the block device.
 	 */
 	id->nmic = (1 << 0);
+	id->anagrpid = cpu_to_le32(ns->anagrpid);
 
 	memcpy(&id->nguid, &ns->nguid, sizeof(id->nguid));
 
@@ -619,6 +695,9 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 			return 0;
 		case NVME_LOG_CMD_EFFECTS:
 			req->execute = nvmet_execute_get_log_cmd_effects_ns;
+			return 0;
+		case NVME_LOG_ANA:
+			req->execute = nvmet_execute_get_log_page_ana;
 			return 0;
 		}
 		break;

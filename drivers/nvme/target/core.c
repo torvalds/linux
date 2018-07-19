@@ -40,6 +40,10 @@ static DEFINE_IDA(cntlid_ida);
  */
 DECLARE_RWSEM(nvmet_config_sem);
 
+u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
+u64 nvmet_ana_chgcnt;
+DECLARE_RWSEM(nvmet_ana_sem);
+
 static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
 		const char *subsysnqn);
 
@@ -430,6 +434,10 @@ void nvmet_ns_free(struct nvmet_ns *ns)
 {
 	nvmet_ns_disable(ns);
 
+	down_write(&nvmet_ana_sem);
+	nvmet_ana_group_enabled[ns->anagrpid]--;
+	up_write(&nvmet_ana_sem);
+
 	kfree(ns->device_path);
 	kfree(ns);
 }
@@ -447,6 +455,12 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 
 	ns->nsid = nsid;
 	ns->subsys = subsys;
+
+	down_write(&nvmet_ana_sem);
+	ns->anagrpid = NVMET_DEFAULT_ANA_GRPID;
+	nvmet_ana_group_enabled[ns->anagrpid]++;
+	up_write(&nvmet_ana_sem);
+
 	uuid_gen(&ns->uuid);
 	ns->buffered_io = false;
 
@@ -554,6 +568,20 @@ int nvmet_sq_init(struct nvmet_sq *sq)
 }
 EXPORT_SYMBOL_GPL(nvmet_sq_init);
 
+static inline u16 nvmet_check_ana_state(struct nvmet_port *port,
+		struct nvmet_ns *ns)
+{
+	enum nvme_ana_state state = port->ana_state[ns->anagrpid];
+
+	if (unlikely(state == NVME_ANA_INACCESSIBLE))
+		return NVME_SC_ANA_INACCESSIBLE;
+	if (unlikely(state == NVME_ANA_PERSISTENT_LOSS))
+		return NVME_SC_ANA_PERSISTENT_LOSS;
+	if (unlikely(state == NVME_ANA_CHANGE))
+		return NVME_SC_ANA_TRANSITION;
+	return 0;
+}
+
 static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
@@ -566,6 +594,9 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	req->ns = nvmet_find_namespace(req->sq->ctrl, cmd->rw.nsid);
 	if (unlikely(!req->ns))
 		return NVME_SC_INVALID_NS | NVME_SC_DNR;
+	ret = nvmet_check_ana_state(req->port, req->ns);
+	if (unlikely(ret))
+		return ret;
 
 	if (req->ns->file)
 		return nvmet_file_parse_io_cmd(req);
@@ -1123,12 +1154,15 @@ static int __init nvmet_init(void)
 {
 	int error;
 
+	nvmet_ana_group_enabled[NVMET_DEFAULT_ANA_GRPID] = 1;
+
 	buffered_io_wq = alloc_workqueue("nvmet-buffered-io-wq",
 			WQ_MEM_RECLAIM, 0);
 	if (!buffered_io_wq) {
 		error = -ENOMEM;
 		goto out;
 	}
+
 	error = nvmet_init_discovery();
 	if (error)
 		goto out;

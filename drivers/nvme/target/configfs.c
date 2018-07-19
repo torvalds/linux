@@ -923,6 +923,7 @@ static void nvmet_port_release(struct config_item *item)
 {
 	struct nvmet_port *port = to_nvmet_port(item);
 
+	kfree(port->ana_state);
 	kfree(port);
 }
 
@@ -958,6 +959,15 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
+
+	port->ana_state = kcalloc(NVMET_MAX_ANAGRPS + 1,
+			sizeof(*port->ana_state), GFP_KERNEL);
+	if (!port->ana_state) {
+		kfree(port);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	port->ana_state[NVMET_DEFAULT_ANA_GRPID] = NVME_ANA_OPTIMIZED;
 
 	INIT_LIST_HEAD(&port->entry);
 	INIT_LIST_HEAD(&port->subsystems);
