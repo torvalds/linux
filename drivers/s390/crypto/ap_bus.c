@@ -474,7 +474,7 @@ static int ap_poll_thread_start(void)
 		return 0;
 	mutex_lock(&ap_poll_thread_mutex);
 	ap_poll_kthread = kthread_run(ap_poll_thread, NULL, "appoll");
-	rc = PTR_RET(ap_poll_kthread);
+	rc = PTR_ERR_OR_ZERO(ap_poll_kthread);
 	if (rc)
 		ap_poll_kthread = NULL;
 	mutex_unlock(&ap_poll_thread_mutex);
@@ -1242,7 +1242,7 @@ static int __init ap_module_init(void)
 
 	/* Create /sys/devices/ap. */
 	ap_root_device = root_device_register("ap");
-	rc = PTR_RET(ap_root_device);
+	rc = PTR_ERR_OR_ZERO(ap_root_device);
 	if (rc)
 		goto out_bus;
 
