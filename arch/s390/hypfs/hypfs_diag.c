@@ -497,7 +497,7 @@ static int hypfs_create_cpu_files(struct dentry *cpus_dir, void *cpu_info)
 	}
 	diag224_idx2name(cpu_info__ctidx(diag204_info_type, cpu_info), buffer);
 	rc = hypfs_create_str(cpu_dir, "type", buffer);
-	return PTR_RET(rc);
+	return PTR_ERR_OR_ZERO(rc);
 }
 
 static void *hypfs_create_lpar_files(struct dentry *systems_dir, void *part_hdr)
@@ -544,7 +544,7 @@ static int hypfs_create_phys_cpu_files(struct dentry *cpus_dir, void *cpu_info)
 		return PTR_ERR(rc);
 	diag224_idx2name(phys_cpu__ctidx(diag204_info_type, cpu_info), buffer);
 	rc = hypfs_create_str(cpu_dir, "type", buffer);
-	return PTR_RET(rc);
+	return PTR_ERR_OR_ZERO(rc);
 }
 
 static void *hypfs_create_phys_files(struct dentry *parent_dir, void *phys_hdr)
