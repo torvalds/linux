@@ -10,11 +10,8 @@
 #include <linux/file.h>
 #include "msgfmt.h"
 
-#define UMH_start _binary_net_bpfilter_bpfilter_umh_start
-#define UMH_end _binary_net_bpfilter_bpfilter_umh_end
-
-extern char UMH_start;
-extern char UMH_end;
+extern char bpfilter_umh_start;
+extern char bpfilter_umh_end;
 
 static struct umh_info info;
 /* since ip_getsockopt() can run in parallel, serialize access to umh */
@@ -93,7 +90,9 @@ static int __init load_umh(void)
 	int err;
 
 	/* fork usermode process */
-	err = fork_usermode_blob(&UMH_start, &UMH_end - &UMH_start, &info);
+	err = fork_usermode_blob(&bpfilter_umh_start,
+				 &bpfilter_umh_end - &bpfilter_umh_start,
+				 &info);
 	if (err)
 		return err;
 	pr_info("Loaded bpfilter_umh pid %d\n", info.pid);

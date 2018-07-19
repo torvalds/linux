@@ -1424,7 +1424,7 @@ static struct pinctrl_desc mtk_desc = {
 
 static int mtk_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 {
-	struct mtk_pinctrl *hw = dev_get_drvdata(chip->parent);
+	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
 	int value, err;
 
 	err = mtk_hw_get_value(hw, gpio, PINCTRL_PIN_REG_DI, &value);
@@ -1436,7 +1436,7 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 
 static void mtk_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 {
-	struct mtk_pinctrl *hw = dev_get_drvdata(chip->parent);
+	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
 
 	mtk_hw_set_value(hw, gpio, PINCTRL_PIN_REG_DO, !!value);
 }
@@ -1508,11 +1508,20 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	if (ret < 0)
 		return ret;
 
-	ret = gpiochip_add_pin_range(chip, dev_name(hw->dev), 0, 0,
-				     chip->ngpio);
-	if (ret < 0) {
-		gpiochip_remove(chip);
-		return ret;
+	/* Just for backward compatible for these old pinctrl nodes without
+	 * "gpio-ranges" property. Otherwise, called directly from a
+	 * DeviceTree-supported pinctrl driver is DEPRECATED.
+	 * Please see Section 2.1 of
+	 * Documentation/devicetree/bindings/gpio/gpio.txt on how to
+	 * bind pinctrl and gpio drivers via the "gpio-ranges" property.
+	 */
+	if (!of_find_property(np, "gpio-ranges", NULL)) {
+		ret = gpiochip_add_pin_range(chip, dev_name(hw->dev), 0, 0,
+					     chip->ngpio);
+		if (ret < 0) {
+			gpiochip_remove(chip);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -1695,15 +1704,16 @@ static int mtk_pinctrl_probe(struct platform_device *pdev)
 	mtk_desc.custom_conf_items = mtk_conf_items;
 #endif
 
-	hw->pctrl = devm_pinctrl_register(&pdev->dev, &mtk_desc, hw);
-	if (IS_ERR(hw->pctrl))
-		return PTR_ERR(hw->pctrl);
+	err = devm_pinctrl_register_and_init(&pdev->dev, &mtk_desc, hw,
+					     &hw->pctrl);
+	if (err)
+		return err;
 
 	/* Setup groups descriptions per SoC types */
 	err = mtk_build_groups(hw);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to build groups\n");
-		return 0;
+		return err;
 	}
 
 	/* Setup functions descriptions per SoC types */
@@ -1713,16 +1723,24 @@ static int mtk_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = mtk_build_gpiochip(hw, pdev->dev.of_node);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to add gpio_chip\n");
+	/* For able to make pinctrl_claim_hogs, we must not enable pinctrl
+	 * until all groups and functions are being added one.
+	 */
+	err = pinctrl_enable(hw->pctrl);
+	if (err)
 		return err;
-	}
 
 	err = mtk_build_eint(hw, pdev);
 	if (err)
 		dev_warn(&pdev->dev,
 			 "Failed to add EINT, but pinctrl still can work\n");
+
+	/* Build gpiochip should be after pinctrl_enable is done */
+	err = mtk_build_gpiochip(hw, pdev->dev.of_node);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to add gpio_chip\n");
+		return err;
+	}
 
 	platform_set_drvdata(pdev, hw);
 

@@ -765,7 +765,7 @@ static int hw_atl_a0_hw_packet_filter_set(struct aq_hw_s *self,
 
 static int hw_atl_a0_hw_multicast_list_set(struct aq_hw_s *self,
 					   u8 ar_mac
-					   [AQ_CFG_MULTICAST_ADDRESS_MAX]
+					   [AQ_HW_MULTICAST_ADDRESS_MAX]
 					   [ETH_ALEN],
 					   u32 count)
 {
