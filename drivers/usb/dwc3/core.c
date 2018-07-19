@@ -100,7 +100,10 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 	 * XHCI driver will reset the host block. If dwc3 was configured for
 	 * host-only mode, then we can return early.
 	 */
-	if (dwc->dr_mode == USB_DR_MODE_HOST)
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	if (dwc->dr_mode == USB_DR_MODE_HOST ||
+	    (dwc->dr_mode == USB_DR_MODE_OTG &&
+	    DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_HOST))
 		return 0;
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
@@ -126,6 +129,17 @@ static int dwc3_soft_reset(struct dwc3 *dwc)
 {
 	unsigned long timeout;
 	u32 reg;
+
+	/*
+	 * We're resetting only the device side because, if we're in host mode,
+	 * XHCI driver will reset the host block. If dwc3 was configured for
+	 * host-only mode, then we can return early.
+	 */
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	if (dwc->dr_mode == USB_DR_MODE_HOST ||
+	    (dwc->dr_mode == USB_DR_MODE_OTG &&
+	    DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_HOST))
+		return 0;
 
 	timeout = jiffies + msecs_to_jiffies(500);
 	dwc3_writel(dwc->regs, DWC3_DCTL, DWC3_DCTL_CSFTRST);
