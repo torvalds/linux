@@ -279,6 +279,18 @@ static int pciehp_suspend(struct pcie_device *dev)
 	return 0;
 }
 
+static int pciehp_resume_noirq(struct pcie_device *dev)
+{
+	struct controller *ctrl = get_service_data(dev);
+	struct slot *slot = ctrl->slot;
+
+	/* clear spurious events from rediscovery of inserted card */
+	if (slot->state == ON_STATE || slot->state == BLINKINGOFF_STATE)
+		pcie_clear_hotplug_events(ctrl);
+
+	return 0;
+}
+
 static int pciehp_resume(struct pcie_device *dev)
 {
 	struct controller *ctrl;
@@ -286,10 +298,6 @@ static int pciehp_resume(struct pcie_device *dev)
 	u8 status;
 
 	ctrl = get_service_data(dev);
-
-	/* reinitialize the chipset's event detection logic */
-	pcie_reenable_notification(ctrl);
-
 	slot = ctrl->slot;
 
 	/* Check if slot is occupied */
@@ -316,6 +324,7 @@ static struct pcie_port_service_driver hpdriver_portdrv = {
 
 #ifdef	CONFIG_PM
 	.suspend	= pciehp_suspend,
+	.resume_noirq	= pciehp_resume_noirq,
 	.resume		= pciehp_resume,
 #endif	/* PM */
 };

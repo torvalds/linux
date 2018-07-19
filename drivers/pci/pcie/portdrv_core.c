@@ -380,6 +380,12 @@ int pcie_port_device_suspend(struct device *dev)
 	return device_for_each_child(dev, &off, pm_iter);
 }
 
+int pcie_port_device_resume_noirq(struct device *dev)
+{
+	size_t off = offsetof(struct pcie_port_service_driver, resume_noirq);
+	return device_for_each_child(dev, &off, pm_iter);
+}
+
 /**
  * pcie_port_device_resume - resume port services associated with a PCIe port
  * @dev: PCI Express port to handle
