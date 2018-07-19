@@ -3328,6 +3328,187 @@ static int get_phy_configuration(struct sock *sk, struct hci_dev *hdev,
 				 &rp, sizeof(rp));
 }
 
+static void set_default_phy_complete(struct hci_dev *hdev, u8 status,
+				     u16 opcode, struct sk_buff *skb)
+{
+	struct mgmt_cp_set_phy_confguration *cp;
+	struct mgmt_pending_cmd *cmd;
+
+	BT_DBG("status 0x%02x", status);
+
+	hci_dev_lock(hdev);
+
+	cmd = pending_find(MGMT_OP_SET_PHY_CONFIGURATION, hdev);
+	if (!cmd)
+		goto unlock;
+
+	cp = cmd->param;
+
+	if (status) {
+		mgmt_cmd_status(cmd->sk, hdev->id,
+				MGMT_OP_SET_PHY_CONFIGURATION,
+				mgmt_status(status));
+	} else {
+		mgmt_cmd_complete(cmd->sk, hdev->id,
+				  MGMT_OP_SET_PHY_CONFIGURATION, 0,
+				  NULL, 0);
+	}
+
+	mgmt_pending_remove(cmd);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
+static int set_phy_configuration(struct sock *sk, struct hci_dev *hdev,
+				 void *data, u16 len)
+{
+	struct mgmt_cp_set_phy_confguration *cp = data;
+	struct hci_cp_le_set_default_phy cp_phy;
+	struct mgmt_pending_cmd *cmd;
+	struct hci_request req;
+	u32 selected_phys, configurable_phys, supported_phys, unconfigure_phys;
+	u16 pkt_type = (HCI_DH1 | HCI_DM1);
+	int err;
+
+	BT_DBG("sock %p %s", sk, hdev->name);
+
+	configurable_phys = get_configurable_phys(hdev);
+	supported_phys = get_supported_phys(hdev);
+	selected_phys = __le32_to_cpu(cp->selected_phys);
+
+	if (selected_phys & ~supported_phys)
+		return mgmt_cmd_status(sk, hdev->id,
+				       MGMT_OP_SET_PHY_CONFIGURATION,
+				       MGMT_STATUS_INVALID_PARAMS);
+
+	unconfigure_phys = supported_phys & ~configurable_phys;
+
+	if ((selected_phys & unconfigure_phys) != unconfigure_phys)
+		return mgmt_cmd_status(sk, hdev->id,
+				       MGMT_OP_SET_PHY_CONFIGURATION,
+				       MGMT_STATUS_INVALID_PARAMS);
+
+	if (selected_phys == get_selected_phys(hdev))
+		return mgmt_cmd_complete(sk, hdev->id,
+					 MGMT_OP_SET_PHY_CONFIGURATION,
+					 0, NULL, 0);
+
+	hci_dev_lock(hdev);
+
+	if (!hdev_is_powered(hdev)) {
+		err = mgmt_cmd_status(sk, hdev->id,
+				      MGMT_OP_SET_PHY_CONFIGURATION,
+				      MGMT_STATUS_REJECTED);
+		goto unlock;
+	}
+
+	if (pending_find(MGMT_OP_SET_PHY_CONFIGURATION, hdev)) {
+		err = mgmt_cmd_status(sk, hdev->id,
+				      MGMT_OP_SET_PHY_CONFIGURATION,
+				      MGMT_STATUS_BUSY);
+		goto unlock;
+	}
+
+	if (selected_phys & MGMT_PHY_BR_1M_3SLOT)
+		pkt_type |= (HCI_DH3 | HCI_DM3);
+	else
+		pkt_type &= ~(HCI_DH3 | HCI_DM3);
+
+	if (selected_phys & MGMT_PHY_BR_1M_5SLOT)
+		pkt_type |= (HCI_DH5 | HCI_DM5);
+	else
+		pkt_type &= ~(HCI_DH5 | HCI_DM5);
+
+	if (selected_phys & MGMT_PHY_EDR_2M_1SLOT)
+		pkt_type &= ~HCI_2DH1;
+	else
+		pkt_type |= HCI_2DH1;
+
+	if (selected_phys & MGMT_PHY_EDR_2M_3SLOT)
+		pkt_type &= ~HCI_2DH3;
+	else
+		pkt_type |= HCI_2DH3;
+
+	if (selected_phys & MGMT_PHY_EDR_2M_5SLOT)
+		pkt_type &= ~HCI_2DH5;
+	else
+		pkt_type |= HCI_2DH5;
+
+	if (selected_phys & MGMT_PHY_EDR_3M_1SLOT)
+		pkt_type &= ~HCI_3DH1;
+	else
+		pkt_type |= HCI_3DH1;
+
+	if (selected_phys & MGMT_PHY_EDR_3M_3SLOT)
+		pkt_type &= ~HCI_3DH3;
+	else
+		pkt_type |= HCI_3DH3;
+
+	if (selected_phys & MGMT_PHY_EDR_3M_5SLOT)
+		pkt_type &= ~HCI_3DH5;
+	else
+		pkt_type |= HCI_3DH5;
+
+	if (pkt_type != hdev->pkt_type)
+		hdev->pkt_type = pkt_type;
+
+	if ((selected_phys & MGMT_PHY_LE_MASK) ==
+	    (get_selected_phys(hdev) & MGMT_PHY_LE_MASK)) {
+		err = mgmt_cmd_complete(sk, hdev->id,
+					MGMT_OP_SET_PHY_CONFIGURATION,
+					0, NULL, 0);
+
+		goto unlock;
+	}
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_SET_PHY_CONFIGURATION, hdev, data,
+			       len);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	hci_req_init(&req, hdev);
+
+	memset(&cp_phy, 0, sizeof(cp_phy));
+
+	if (!(selected_phys & MGMT_PHY_LE_TX_MASK))
+		cp_phy.all_phys |= 0x01;
+
+	if (!(selected_phys & MGMT_PHY_LE_RX_MASK))
+		cp_phy.all_phys |= 0x02;
+
+	if (selected_phys & MGMT_PHY_LE_1M_TX)
+		cp_phy.tx_phys |= HCI_LE_SET_PHY_1M;
+
+	if (selected_phys & MGMT_PHY_LE_2M_TX)
+		cp_phy.tx_phys |= HCI_LE_SET_PHY_2M;
+
+	if (selected_phys & MGMT_PHY_LE_CODED_TX)
+		cp_phy.tx_phys |= HCI_LE_SET_PHY_CODED;
+
+	if (selected_phys & MGMT_PHY_LE_1M_RX)
+		cp_phy.rx_phys |= HCI_LE_SET_PHY_1M;
+
+	if (selected_phys & MGMT_PHY_LE_2M_RX)
+		cp_phy.rx_phys |= HCI_LE_SET_PHY_2M;
+
+	if (selected_phys & MGMT_PHY_LE_CODED_RX)
+		cp_phy.rx_phys |= HCI_LE_SET_PHY_CODED;
+
+	hci_req_add(&req, HCI_OP_LE_SET_DEFAULT_PHY, sizeof(cp_phy), &cp_phy);
+
+	err = hci_req_run_skb(&req, set_default_phy_complete);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+unlock:
+	hci_dev_unlock(hdev);
+
+	return err;
+}
+
 static void read_local_oob_data_complete(struct hci_dev *hdev, u8 status,
 				         u16 opcode, struct sk_buff *skb)
 {
@@ -6689,6 +6870,7 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 						HCI_MGMT_UNTRUSTED },
 	{ set_appearance,	   MGMT_SET_APPEARANCE_SIZE },
 	{ get_phy_configuration,   MGMT_GET_PHY_CONFIGURATION_SIZE },
+	{ set_phy_configuration,   MGMT_SET_PHY_CONFIGURATION_SIZE },
 };
 
 void mgmt_index_added(struct hci_dev *hdev)
