@@ -663,7 +663,7 @@ qed_sp_update_mcast_bin(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->common.update_approx_mcast_flg = 1;
 	for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
-		u32 *p_bins = (u32 *)p_params->bins;
+		u32 *p_bins = p_params->bins;
 
 		p_ramrod->approx_mcast.bins[i] = cpu_to_le32(p_bins[i]);
 	}
@@ -1474,8 +1474,8 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 			enum spq_mode comp_mode,
 			struct qed_spq_comp_cb *p_comp_data)
 {
-	unsigned long bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 	struct vport_update_ramrod_data *p_ramrod = NULL;
+	u32 bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	u8 abs_vport_id = 0;
@@ -1511,26 +1511,25 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 	/* explicitly clear out the entire vector */
 	memset(&p_ramrod->approx_mcast.bins, 0,
 	       sizeof(p_ramrod->approx_mcast.bins));
-	memset(bins, 0, sizeof(unsigned long) *
-	       ETH_MULTICAST_MAC_BINS_IN_REGS);
+	memset(bins, 0, sizeof(bins));
 	/* filter ADD op is explicit set op and it removes
 	 *  any existing filters for the vport
 	 */
 	if (p_filter_cmd->opcode == QED_FILTER_ADD) {
 		for (i = 0; i < p_filter_cmd->num_mc_addrs; i++) {
-			u32 bit;
+			u32 bit, nbits;
 
 			bit = qed_mcast_bin_from_mac(p_filter_cmd->mac[i]);
-			__set_bit(bit, bins);
+			nbits = sizeof(u32) * BITS_PER_BYTE;
+			bins[bit / nbits] |= 1 << (bit % nbits);
 		}
 
 		/* Convert to correct endianity */
 		for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
 			struct vport_update_ramrod_mcast *p_ramrod_bins;
-			u32 *p_bins = (u32 *)bins;
 
 			p_ramrod_bins = &p_ramrod->approx_mcast;
-			p_ramrod_bins->bins[i] = cpu_to_le32(p_bins[i]);
+			p_ramrod_bins->bins[i] = cpu_to_le32(bins[i]);
 		}
 	}
 
