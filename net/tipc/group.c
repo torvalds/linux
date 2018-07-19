@@ -227,8 +227,8 @@ void tipc_group_delete(struct net *net, struct tipc_group *grp)
 	kfree(grp);
 }
 
-struct tipc_member *tipc_group_find_member(struct tipc_group *grp,
-					   u32 node, u32 port)
+static struct tipc_member *tipc_group_find_member(struct tipc_group *grp,
+						  u32 node, u32 port)
 {
 	struct rb_node *n = grp->members.rb_node;
 	u64 nkey, key = (u64)node << 32 | port;
