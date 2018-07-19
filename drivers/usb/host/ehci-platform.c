@@ -69,6 +69,25 @@ static void ehci_rockchip_relinquish_port(struct usb_hcd *hcd, int portnum)
 	ehci_writel(ehci, portsc, status_reg);
 }
 
+#define USIC_MICROFRAME_OFFSET	0x90
+#define USIC_SCALE_DOWN_OFFSET	0xa0
+#define USIC_ENABLE_OFFSET	0xb0
+#define USIC_ENABLE		BIT(0)
+#define USIC_SCALE_DOWN		BIT(2)
+#define USIC_MICROFRAME_COUNT	0x1d4d
+
+static void ehci_usic_init(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+
+	ehci_writel(ehci, USIC_ENABLE,
+		    hcd->regs + USIC_ENABLE_OFFSET);
+	ehci_writel(ehci, USIC_MICROFRAME_COUNT,
+		    hcd->regs + USIC_MICROFRAME_OFFSET);
+	ehci_writel(ehci, USIC_SCALE_DOWN,
+		    hcd->regs + USIC_SCALE_DOWN_OFFSET);
+}
+
 static int ehci_platform_reset(struct usb_hcd *hcd)
 {
 	struct platform_device *pdev = to_platform_device(hcd->self.controller);
@@ -385,6 +404,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
 		goto err_power;
+
+	if (of_usb_get_phy_mode(dev->dev.of_node) == USBPHY_INTERFACE_MODE_HSIC)
+		ehci_usic_init(hcd);
 
 	device_wakeup_enable(hcd->self.controller);
 	device_enable_async_suspend(hcd->self.controller);
