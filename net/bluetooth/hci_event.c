@@ -5137,21 +5137,45 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
-static u8 convert_legacy_evt_type(u16 evt_type)
+static u8 ext_evt_type_to_legacy(u16 evt_type)
 {
-	switch (evt_type) {
-	case LE_LEGACY_ADV_IND:
-		return LE_ADV_IND;
-	case LE_LEGACY_ADV_DIRECT_IND:
-		return LE_ADV_DIRECT_IND;
-	case LE_LEGACY_ADV_SCAN_IND:
-		return LE_ADV_SCAN_IND;
-	case LE_LEGACY_NONCONN_IND:
-		return LE_ADV_NONCONN_IND;
-	case LE_LEGACY_SCAN_RSP_ADV:
-	case LE_LEGACY_SCAN_RSP_ADV_SCAN:
-		return LE_ADV_SCAN_RSP;
+	if (evt_type & LE_EXT_ADV_LEGACY_PDU) {
+		switch (evt_type) {
+		case LE_LEGACY_ADV_IND:
+			return LE_ADV_IND;
+		case LE_LEGACY_ADV_DIRECT_IND:
+			return LE_ADV_DIRECT_IND;
+		case LE_LEGACY_ADV_SCAN_IND:
+			return LE_ADV_SCAN_IND;
+		case LE_LEGACY_NONCONN_IND:
+			return LE_ADV_NONCONN_IND;
+		case LE_LEGACY_SCAN_RSP_ADV:
+		case LE_LEGACY_SCAN_RSP_ADV_SCAN:
+			return LE_ADV_SCAN_RSP;
+		}
+
+		BT_ERR_RATELIMITED("Unknown advertising packet type: 0x%02x",
+				   evt_type);
+
+		return LE_ADV_INVALID;
 	}
+
+	if (evt_type & LE_EXT_ADV_CONN_IND) {
+		if (evt_type & LE_EXT_ADV_DIRECT_IND)
+			return LE_ADV_DIRECT_IND;
+
+		return LE_ADV_IND;
+	}
+
+	if (evt_type & LE_EXT_ADV_SCAN_RSP)
+		return LE_ADV_SCAN_RSP;
+
+	if (evt_type & LE_EXT_ADV_SCAN_IND)
+		return LE_ADV_SCAN_IND;
+
+	if (evt_type == LE_EXT_ADV_NON_CONN_IND ||
+	    evt_type & LE_EXT_ADV_DIRECT_IND)
+		return LE_ADV_NONCONN_IND;
 
 	BT_ERR_RATELIMITED("Unknown advertising packet type: 0x%02x",
 				   evt_type);
@@ -5172,7 +5196,7 @@ static void hci_le_ext_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		u16 evt_type;
 
 		evt_type = __le16_to_cpu(ev->evt_type);
-		legacy_evt_type = convert_legacy_evt_type(evt_type);
+		legacy_evt_type = ext_evt_type_to_legacy(evt_type);
 		if (legacy_evt_type != LE_ADV_INVALID) {
 			process_adv_report(hdev, legacy_evt_type, &ev->bdaddr,
 					   ev->bdaddr_type, NULL, 0, ev->rssi,
