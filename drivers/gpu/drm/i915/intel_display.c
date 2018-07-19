@@ -2988,6 +2988,7 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 	int w = drm_rect_width(&plane_state->base.src) >> 16;
 	int h = drm_rect_height(&plane_state->base.src) >> 16;
 	int dst_x = plane_state->base.dst.x1;
+	int dst_w = drm_rect_width(&plane_state->base.dst);
 	int pipe_src_w = crtc_state->pipe_src_w;
 	int max_width = skl_max_plane_width(fb, 0, rotation);
 	int max_height = 4096;
@@ -3009,10 +3010,10 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 	 * screen may cause FIFO underflow and display corruption.
 	 */
 	if ((IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
-	    (dst_x + w < 4 || dst_x > pipe_src_w - 4)) {
+	    (dst_x + dst_w < 4 || dst_x > pipe_src_w - 4)) {
 		DRM_DEBUG_KMS("requested plane X %s position %d invalid (valid range %d-%d)\n",
-			      dst_x + w < 4 ? "end" : "start",
-			      dst_x + w < 4 ? dst_x + w : dst_x,
+			      dst_x + dst_w < 4 ? "end" : "start",
+			      dst_x + dst_w < 4 ? dst_x + dst_w : dst_x,
 			      4, pipe_src_w - 4);
 		return -ERANGE;
 	}
