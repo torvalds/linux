@@ -1554,6 +1554,7 @@ out_unlocked:
 static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	loff_t i_size;
 	loff_t ret;
 
@@ -1598,7 +1599,7 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 		break;
 	}
 
-	ret = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+	ret = vfs_setpos(file, offset, max(i_size, fsc->max_file_size));
 
 out:
 	inode_unlock(inode);
