@@ -1678,6 +1678,7 @@ static int rcu_torture_fwd_prog(void *args)
 	int idx;
 	unsigned long stopat;
 	bool tested = false;
+	int tested_tries = 0;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fwd_progress task started");
 	do {
@@ -1692,6 +1693,7 @@ static int rcu_torture_fwd_prog(void *args)
 			if (!fwd_progress_need_resched || need_resched())
 				cond_resched();
 		}
+		tested_tries++;
 		if (!time_before(jiffies, stopat) && !torture_must_stop()) {
 			tested = true;
 			cver = cver == READ_ONCE(rcu_torture_current_version);
@@ -1701,7 +1703,8 @@ static int rcu_torture_fwd_prog(void *args)
 		/* Avoid slow periods, better to test when busy. */
 		stutter_wait("rcu_torture_fwd_prog");
 	} while (!torture_must_stop());
-	WARN_ON(!tested);
+	/* Short runs might not contain a valid forward-progress attempt. */
+	WARN_ON(!tested && tested_tries >= 5);
 	torture_kthread_stopping("rcu_torture_fwd_prog");
 	return 0;
 }
