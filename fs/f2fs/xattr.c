@@ -136,6 +136,8 @@ static int f2fs_xattr_advise_set(const struct xattr_handler *handler,
 		size_t size, int flags)
 {
 	struct inode *inode = d_inode(dentry);
+	unsigned char old_advise = F2FS_I(inode)->i_advise;
+	unsigned char new_advise;
 
 	if (strcmp(name, "") != 0)
 		return -EINVAL;
@@ -144,7 +146,14 @@ static int f2fs_xattr_advise_set(const struct xattr_handler *handler,
 	if (value == NULL)
 		return -EINVAL;
 
-	F2FS_I(inode)->i_advise |= *(char *)value;
+	new_advise = *(char *)value;
+	if (new_advise & ~FADVISE_MODIFIABLE_BITS)
+		return -EINVAL;
+
+	new_advise = new_advise & FADVISE_MODIFIABLE_BITS;
+	new_advise |= old_advise & ~FADVISE_MODIFIABLE_BITS;
+
+	F2FS_I(inode)->i_advise = new_advise;
 	f2fs_mark_inode_dirty_sync(inode, true);
 	return 0;
 }
