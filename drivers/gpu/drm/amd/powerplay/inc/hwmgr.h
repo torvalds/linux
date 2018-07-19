@@ -247,6 +247,7 @@ struct pp_hwmgr_func {
 	int (*powerdown_uvd)(struct pp_hwmgr *hwmgr);
 	void (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
 	void (*powergate_uvd)(struct pp_hwmgr *hwmgr, bool bgate);
+	void (*powergate_acp)(struct pp_hwmgr *hwmgr, bool bgate);
 	uint32_t (*get_mclk)(struct pp_hwmgr *hwmgr, bool low);
 	uint32_t (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,

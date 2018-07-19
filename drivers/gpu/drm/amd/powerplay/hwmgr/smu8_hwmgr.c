@@ -664,8 +664,13 @@ static void smu8_init_power_gate_state(struct pp_hwmgr *hwmgr)
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
 	data->samu_power_gated = false;
+#ifdef CONFIG_DRM_AMD_ACP
 	data->acp_power_gated = false;
-	data->pgacpinit = true;
+#else
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	data->acp_power_gated = true;
+#endif
+
 }
 
 static void smu8_init_sclk_threshold(struct pp_hwmgr *hwmgr)
@@ -1886,6 +1891,19 @@ static int smu8_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 }
 
 
+static void smu8_dpm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct smu8_hwmgr *data = hwmgr->backend;
+
+	if (data->acp_power_gated == bgate)
+		return;
+
+	if (bgate)
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	else
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerON);
+}
+
 static void smu8_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct smu8_hwmgr *data = hwmgr->backend;
@@ -1951,6 +1969,7 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.powerdown_uvd = smu8_dpm_powerdown_uvd,
 	.powergate_uvd = smu8_dpm_powergate_uvd,
 	.powergate_vce = smu8_dpm_powergate_vce,
+	.powergate_acp = smu8_dpm_powergate_acp,
 	.get_mclk = smu8_dpm_get_mclk,
 	.get_sclk = smu8_dpm_get_sclk,
 	.patch_boot_state = smu8_dpm_patch_boot_state,
