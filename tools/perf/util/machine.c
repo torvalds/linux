@@ -408,6 +408,30 @@ out_err:
 }
 
 /*
+ * Front-end cache - TID lookups come in blocks,
+ * so most of the time we dont have to look up
+ * the full rbtree:
+ */
+static struct thread*
+threads__get_last_match(struct threads *threads, struct machine *machine,
+			int pid, int tid)
+{
+	struct thread *th;
+
+	th = threads->last_match;
+	if (th != NULL) {
+		if (th->tid == tid) {
+			machine__update_thread_pid(machine, th, pid);
+			return thread__get(th);
+		}
+
+		threads->last_match = NULL;
+	}
+
+	return NULL;
+}
+
+/*
  * Caller must eventually drop thread->refcnt returned with a successful
  * lookup/new thread inserted.
  */
@@ -420,20 +444,9 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	struct rb_node *parent = NULL;
 	struct thread *th;
 
-	/*
-	 * Front-end cache - TID lookups come in blocks,
-	 * so most of the time we dont have to look up
-	 * the full rbtree:
-	 */
-	th = threads->last_match;
-	if (th != NULL) {
-		if (th->tid == tid) {
-			machine__update_thread_pid(machine, th, pid);
-			return thread__get(th);
-		}
-
-		threads->last_match = NULL;
-	}
+	th = threads__get_last_match(threads, machine, pid, tid);
+	if (th)
+		return th;
 
 	while (*p != NULL) {
 		parent = *p;
