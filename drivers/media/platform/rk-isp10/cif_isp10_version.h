@@ -94,8 +94,17 @@
  *
  *v0.1.0xd
  *1. Support RGB24(xRGB8888) format of SP Path.
+ *
+ *v0.1.0xe
+ *1. fix owned_by_drv_count is not 0 when stop stream.
+ *2. fix write fmt is not correct when setting mi_ctrl.
+ *3. modify for dumpsys tool.
+ *4. remove "Measurement late" check.
+ *5. modify for af function.
+ *6. add module parameter for dumpsys.
+ *
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xd)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xe)
 
 #endif
