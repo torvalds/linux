@@ -1129,6 +1129,8 @@ static void hci_cc_le_set_ext_adv_enable(struct hci_dev *hdev,
 			queue_delayed_work(hdev->workqueue,
 					   &conn->le_conn_timeout,
 					   conn->conn_timeout);
+	} else {
+		hci_dev_clear_flag(hdev, HCI_LE_ADV);
 	}
 
 	hci_dev_unlock(hdev);

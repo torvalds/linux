@@ -1956,6 +1956,9 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	} else {
 		if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 			__hci_req_disable_advertising(&req);
+
+		if (ext_adv_capable(hdev))
+			__hci_req_clear_ext_adv_sets(&req);
 	}
 
 	hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
