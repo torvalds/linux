@@ -1676,16 +1676,21 @@ static int rcu_torture_fwd_prog(void *args)
 	unsigned long cver;
 	unsigned long gps;
 	int idx;
+	int sd;
+	int sd4;
 	unsigned long stopat;
 	bool tested = false;
 	int tested_tries = 0;
+	static DEFINE_TORTURE_RANDOM(trs);
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fwd_progress task started");
 	do {
 		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
 		cver = READ_ONCE(rcu_torture_current_version);
 		gps = cur_ops->get_gp_seq();
-		stopat = jiffies + cur_ops->stall_dur() / fwd_progress_div;
+		sd = cur_ops->stall_dur() + 1;
+		sd4 = (sd + fwd_progress_div - 1) / fwd_progress_div;
+		stopat = jiffies + sd4 + torture_random(&trs) % (sd - sd4);
 		while (time_before(jiffies, stopat) && !torture_must_stop()) {
 			idx = cur_ops->readlock();
 			udelay(10);
