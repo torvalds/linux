@@ -32,10 +32,10 @@
 #include <asm/reboot.h>
 #include <asm/kvmclock.h>
 
-static int kvmclock __ro_after_init = 1;
-static int msr_kvm_system_time = MSR_KVM_SYSTEM_TIME;
-static int msr_kvm_wall_clock = MSR_KVM_WALL_CLOCK;
-static u64 kvm_sched_clock_offset;
+static int kvmclock __initdata = 1;
+static int msr_kvm_system_time __ro_after_init = MSR_KVM_SYSTEM_TIME;
+static int msr_kvm_wall_clock __ro_after_init = MSR_KVM_WALL_CLOCK;
+static u64 kvm_sched_clock_offset __ro_after_init;
 
 static int __init parse_no_kvmclock(char *arg)
 {
@@ -50,7 +50,7 @@ early_param("no-kvmclock", parse_no_kvmclock);
 static u8 hv_clock_mem[PAGE_ALIGN(HV_CLOCK_SIZE)] __aligned(PAGE_SIZE);
 
 /* The hypervisor will put information about time periodically here */
-static struct pvclock_vsyscall_time_info *hv_clock;
+static struct pvclock_vsyscall_time_info *hv_clock __ro_after_init;
 static struct pvclock_wall_clock wall_clock;
 
 /*
