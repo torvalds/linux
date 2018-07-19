@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -23,7 +24,7 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <linux/platform_data/jz4740/jz4740_nand.h>
 
