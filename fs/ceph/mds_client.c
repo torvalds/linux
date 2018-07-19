@@ -4018,7 +4018,8 @@ void ceph_mdsc_handle_mdsmap(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 	} else {
 		mdsc->mdsmap = newmap;  /* first mds map */
 	}
-	mdsc->fsc->sb->s_maxbytes = mdsc->mdsmap->m_max_file_size;
+	mdsc->fsc->max_file_size = min((loff_t)mdsc->mdsmap->m_max_file_size,
+					MAX_LFS_FILESIZE);
 
 	__wake_requests(mdsc, &mdsc->waiting_for_map);
 	ceph_monc_got_map(&mdsc->fsc->client->monc, CEPH_SUB_MDSMAP,

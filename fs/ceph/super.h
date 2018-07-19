@@ -98,6 +98,7 @@ struct ceph_fs_client {
 
 	unsigned long mount_state;
 	int min_caps;                  /* min caps i added */
+	loff_t max_file_size;
 
 	struct ceph_mds_client *mdsc;
 
