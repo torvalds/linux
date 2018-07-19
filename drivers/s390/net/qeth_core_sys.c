@@ -423,6 +423,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 	if (card->discipline) {
 		card->discipline->remove(card->gdev);
 		qeth_core_free_discipline(card);
+		card->options.layer2 = -1;
 	}
 
 	rc = qeth_core_load_discipline(card, newdis);
