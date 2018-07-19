@@ -144,8 +144,7 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		goto out;
 	}
 	card->info.portno = portno;
-	if (card->dev)
-		card->dev->dev_port = portno;
+	card->dev->dev_port = portno;
 out:
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
@@ -388,6 +387,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
+	struct net_device *ndev;
 	char *tmp;
 	int i, rc = 0;
 	enum qeth_discipline_id newdis;
@@ -424,9 +424,19 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 
 	card->info.mac_bits = 0;
 	if (card->discipline) {
+		/* start with a new, pristine netdevice: */
+		ndev = qeth_clone_netdev(card->dev);
+		if (!ndev) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
 		card->discipline->remove(card->gdev);
 		qeth_core_free_discipline(card);
 		card->options.layer2 = -1;
+
+		free_netdev(card->dev);
+		card->dev = ndev;
 	}
 
 	rc = qeth_core_load_discipline(card, newdis);

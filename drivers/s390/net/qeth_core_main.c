@@ -653,8 +653,7 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 						cmd->hdr.return_code, card);
 				}
 				card->lan_online = 0;
-				if (card->dev)
-					netif_carrier_off(card->dev);
+				netif_carrier_off(card->dev);
 				return NULL;
 			case IPA_CMD_STARTLAN:
 				dev_info(&card->gdev->dev,
@@ -2350,9 +2349,8 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 		}
 		if (card->info.initial_mtu && (card->info.initial_mtu != mtu)) {
 			/* frame size has changed */
-			if (card->dev &&
-			    ((card->dev->mtu == card->info.initial_mtu) ||
-			     (card->dev->mtu > mtu)))
+			if ((card->dev->mtu == card->info.initial_mtu) ||
+			    (card->dev->mtu > mtu))
 				card->dev->mtu = mtu;
 			qeth_free_qdio_buffers(card);
 		}
@@ -3578,7 +3576,7 @@ static void qeth_qdio_start_poll(struct ccw_device *ccwdev, int queue,
 {
 	struct qeth_card *card = (struct qeth_card *)card_ptr;
 
-	if (card->dev && (card->dev->flags & IFF_UP))
+	if (card->dev->flags & IFF_UP)
 		napi_schedule(&card->napi);
 }
 
@@ -4794,9 +4792,6 @@ int qeth_vm_request_mac(struct qeth_card *card)
 
 	QETH_DBF_TEXT(SETUP, 2, "vmreqmac");
 
-	if (!card->dev)
-		return -ENODEV;
-
 	request = kzalloc(sizeof(*request), GFP_KERNEL | GFP_DMA);
 	response = kzalloc(sizeof(*response), GFP_KERNEL | GFP_DMA);
 	if (!request || !response) {
@@ -5676,6 +5671,44 @@ static void qeth_clear_dbf_list(void)
 	mutex_unlock(&qeth_dbf_list_mutex);
 }
 
+static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
+{
+	struct net_device *dev;
+
+	switch (card->info.type) {
+	case QETH_CARD_TYPE_IQD:
+		dev = alloc_netdev(0, "hsi%d", NET_NAME_UNKNOWN, ether_setup);
+		break;
+	case QETH_CARD_TYPE_OSN:
+		dev = alloc_netdev(0, "osn%d", NET_NAME_UNKNOWN, ether_setup);
+		break;
+	default:
+		dev = alloc_etherdev(0);
+	}
+
+	if (!dev)
+		return NULL;
+
+	dev->ml_priv = card;
+	dev->watchdog_timeo = QETH_TX_TIMEOUT;
+	dev->min_mtu = 64;
+	dev->max_mtu = ETH_MAX_MTU;
+	SET_NETDEV_DEV(dev, &card->gdev->dev);
+	netif_carrier_off(dev);
+	return dev;
+}
+
+struct net_device *qeth_clone_netdev(struct net_device *orig)
+{
+	struct net_device *clone = qeth_alloc_netdev(orig->ml_priv);
+
+	if (!clone)
+		return NULL;
+
+	clone->dev_port = orig->dev_port;
+	return clone;
+}
+
 static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card;
@@ -5725,6 +5758,10 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 		goto err_card;
 	}
 
+	card->dev = qeth_alloc_netdev(card);
+	if (!card->dev)
+		goto err_card;
+
 	qeth_determine_capabilities(card);
 	enforced_disc = qeth_enforce_discipline(card);
 	switch (enforced_disc) {
@@ -5735,7 +5772,7 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 		card->info.layer_enforced = true;
 		rc = qeth_core_load_discipline(card, enforced_disc);
 		if (rc)
-			goto err_card;
+			goto err_load;
 
 		gdev->dev.type = (card->info.type != QETH_CARD_TYPE_OSN)
 					? card->discipline->devtype
@@ -5753,6 +5790,8 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 
 err_disc:
 	qeth_core_free_discipline(card);
+err_load:
+	free_netdev(card->dev);
 err_card:
 	qeth_core_free_card(card);
 err_dev:
@@ -5775,10 +5814,10 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 	write_lock_irqsave(&qeth_core_card_list.rwlock, flags);
 	list_del(&card->list);
 	write_unlock_irqrestore(&qeth_core_card_list.rwlock, flags);
+	free_netdev(card->dev);
 	qeth_core_free_card(card);
 	dev_set_drvdata(&gdev->dev, NULL);
 	put_device(&gdev->dev);
-	return;
 }
 
 static int qeth_core_set_online(struct ccwgroup_device *gdev)

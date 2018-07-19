@@ -966,6 +966,7 @@ extern struct qeth_card_list_struct qeth_core_card_list;
 extern struct kmem_cache *qeth_core_header_cache;
 extern struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS];
 
+struct net_device *qeth_clone_netdev(struct net_device *orig);
 void qeth_set_recovery_task(struct qeth_card *);
 void qeth_clear_recovery_task(struct qeth_card *);
 void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
