@@ -79,7 +79,7 @@ config I2C_AMD8111
 
 config I2C_AMD_MP2
 	tristate "AMD MP2"
-	depends on PCI
+	depends on ACPI && PCI
 	help
 	  If you say yes to this option, support will be included for mp2
 	  I2C interface.
