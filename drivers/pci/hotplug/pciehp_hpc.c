@@ -322,7 +322,9 @@ int pciehp_get_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 	struct pci_dev *pdev = ctrl_dev(slot->ctrl);
 	u16 slot_ctrl;
 
+	pci_config_pm_runtime_get(pdev);
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
+	pci_config_pm_runtime_put(pdev);
 	*status = (slot_ctrl & (PCI_EXP_SLTCTL_AIC | PCI_EXP_SLTCTL_PIC)) >> 6;
 	return 0;
 }
@@ -333,7 +335,9 @@ void pciehp_get_attention_status(struct slot *slot, u8 *status)
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_ctrl;
 
+	pci_config_pm_runtime_get(pdev);
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
+	pci_config_pm_runtime_put(pdev);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x, value read %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_ctrl);
 
@@ -408,9 +412,12 @@ int pciehp_set_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 {
 	struct slot *slot = hotplug_slot->private;
 	struct controller *ctrl = slot->ctrl;
+	struct pci_dev *pdev = ctrl_dev(ctrl);
 
+	pci_config_pm_runtime_get(pdev);
 	pcie_write_cmd_nowait(ctrl, status << 6,
 			      PCI_EXP_SLTCTL_AIC | PCI_EXP_SLTCTL_PIC);
+	pci_config_pm_runtime_put(pdev);
 	return 0;
 }
 
