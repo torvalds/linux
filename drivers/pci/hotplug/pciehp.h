@@ -57,11 +57,26 @@ do {									\
 	dev_warn(&ctrl->pcie->device, format, ## arg)
 
 #define SLOT_NAME_SIZE 10
+
+/**
+ * struct slot - PCIe hotplug slot
+ * @state: current state machine position
+ * @ctrl: pointer to the slot's controller structure
+ * @hotplug_slot: pointer to the structure registered with the PCI hotplug core
+ * @work: work item to turn the slot on or off after 5 seconds in response to
+ *	an Attention Button press
+ * @lock: protects reads and writes of @state;
+ *	protects scheduling, execution and cancellation of @work
+ * @hotplug_lock: serializes calls to pciehp_enable_slot() and
+ *	pciehp_disable_slot()
+ * @wq: work queue on which @work is scheduled;
+ *	also used to queue interrupt events and slot enablement and disablement
+ */
 struct slot {
 	u8 state;
 	struct controller *ctrl;
 	struct hotplug_slot *hotplug_slot;
-	struct delayed_work work;	/* work for button event */
+	struct delayed_work work;
 	struct mutex lock;
 	struct mutex hotplug_lock;
 	struct workqueue_struct *wq;
@@ -73,11 +88,36 @@ struct event_info {
 	struct work_struct work;
 };
 
+/**
+ * struct controller - PCIe hotplug controller
+ * @ctrl_lock: serializes writes to the Slot Control register
+ * @pcie: pointer to the controller's PCIe port service device
+ * @slot: pointer to the controller's slot structure
+ * @queue: wait queue to wake up on reception of a Command Completed event,
+ *	used for synchronous writes to the Slot Control register
+ * @slot_cap: cached copy of the Slot Capabilities register
+ * @slot_ctrl: cached copy of the Slot Control register
+ * @poll_timer: timer to poll for slot events if no IRQ is available,
+ *	enabled with pciehp_poll_mode module parameter
+ * @cmd_started: jiffies when the Slot Control register was last written;
+ *	the next write is allowed 1 second later, absent a Command Completed
+ *	interrupt (PCIe r4.0, sec 6.7.3.2)
+ * @cmd_busy: flag set on Slot Control register write, cleared by IRQ handler
+ *	on reception of a Command Completed event
+ * @link_active_reporting: cached copy of Data Link Layer Link Active Reporting
+ *	Capable bit in Link Capabilities register; if this bit is zero, the
+ *	Data Link Layer Link Active bit in the Link Status register will never
+ *	be set and the driver is thus confined to wait 1 second before assuming
+ *	the link to a hotplugged device is up and accessing it
+ * @notification_enabled: whether the IRQ was requested successfully
+ * @power_fault_detected: whether a power fault was detected by the hardware
+ *	that has not yet been cleared by the user
+ */
 struct controller {
-	struct mutex ctrl_lock;		/* controller lock */
-	struct pcie_device *pcie;	/* PCI Express port service */
+	struct mutex ctrl_lock;
+	struct pcie_device *pcie;
 	struct slot *slot;
-	wait_queue_head_t queue;	/* sleep & wake process */
+	wait_queue_head_t queue;
 	u32 slot_cap;
 	u16 slot_ctrl;
 	struct timer_list poll_timer;
