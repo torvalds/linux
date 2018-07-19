@@ -227,6 +227,13 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
 	unsigned		need_oc_pp_cycle:1; /* MPC834X port power */
 	unsigned		imx28_write_fix:1; /* For Freescale i.MX28 */
+	unsigned		has_usic:1;
+	#define	USIC_MICROFRAME_OFFSET	0x90
+	#define USIC_SCALE_DOWN_OFFSET	0xa0
+	#define USIC_ENABLE_OFFSET	0xb0
+	#define USIC_ENABLE		BIT(0)
+	#define USIC_SCALE_DOWN		BIT(2)
+	#define USIC_MICROFRAME_COUNT	0x1d4d
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)

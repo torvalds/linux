@@ -15,6 +15,7 @@ Optional properties:
  - needs-reset-on-resume : boolean, set this to force EHCI reset after resume
  - has-transaction-translator : boolean, set this if EHCI have a Transaction
 				Translator built into the root hub.
+ - rockchip-has-usic : boolean, set this if EHCI use usic phy.
  - clocks : a list of phandle + clock specifier pairs
  - phys : phandle + phy specifier pair
  - phy-names : "usb"

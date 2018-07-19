@@ -63,6 +63,18 @@ static void ehci_rockchip_relinquish_port(struct usb_hcd *hcd, int portnum)
 	ehci_writel(ehci, portsc, status_reg);
 }
 
+static void ehci_rockchip_usic_init(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+
+	ehci_writel(ehci, USIC_ENABLE,
+		    hcd->regs + USIC_ENABLE_OFFSET);
+	ehci_writel(ehci, USIC_MICROFRAME_COUNT,
+		    hcd->regs + USIC_MICROFRAME_OFFSET);
+	ehci_writel(ehci, USIC_SCALE_DOWN,
+		    hcd->regs + USIC_SCALE_DOWN_OFFSET);
+}
+
 static int ehci_platform_reset(struct usb_hcd *hcd)
 {
 	struct platform_device *pdev = to_platform_device(hcd->self.controller);
@@ -222,6 +234,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 			hcd->rk3288_relinquish_port_quirk = 1;
 		}
 
+		if (of_property_read_bool(dev->dev.of_node,
+					  "rockchip-has-usic"))
+			ehci->has_usic = 1;
+
 		priv->num_phys = of_count_phandle_with_args(dev->dev.of_node,
 				"phys", "#phy-cells");
 
@@ -312,6 +328,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
 		goto err_power;
+
+	if (ehci->has_usic)
+		ehci_rockchip_usic_init(hcd);
 
 	device_wakeup_enable(hcd->self.controller);
 	platform_set_drvdata(dev, hcd);
