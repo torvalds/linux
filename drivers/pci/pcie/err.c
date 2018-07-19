@@ -252,6 +252,7 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 			dev->error_state = state;
 		pci_walk_bus(dev->subordinate, cb, &result_data);
 		if (cb == report_resume) {
+			pci_aer_clear_device_status(dev);
 			pci_cleanup_aer_uncorrect_error_status(dev);
 			dev->error_state = pci_channel_io_normal;
 		}
@@ -312,6 +313,7 @@ void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
 		 * of the bridge and clear the error status of the bridge.
 		 */
 		pci_aer_clear_fatal_status(dev);
+		pci_aer_clear_device_status(dev);
 	}
 
 	if (result == PCI_ERS_RESULT_RECOVERED) {
