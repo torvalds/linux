@@ -75,19 +75,12 @@ struct hclge_cmq {
 	enum hclge_cmd_status last_status;
 };
 
-#define HCLGE_CMD_FLAG_IN_VALID_SHIFT	0
-#define HCLGE_CMD_FLAG_OUT_VALID_SHIFT	1
-#define HCLGE_CMD_FLAG_NEXT_SHIFT	2
-#define HCLGE_CMD_FLAG_WR_OR_RD_SHIFT	3
-#define HCLGE_CMD_FLAG_NO_INTR_SHIFT	4
-#define HCLGE_CMD_FLAG_ERR_INTR_SHIFT	5
-
-#define HCLGE_CMD_FLAG_IN	BIT(HCLGE_CMD_FLAG_IN_VALID_SHIFT)
-#define HCLGE_CMD_FLAG_OUT	BIT(HCLGE_CMD_FLAG_OUT_VALID_SHIFT)
-#define HCLGE_CMD_FLAG_NEXT	BIT(HCLGE_CMD_FLAG_NEXT_SHIFT)
-#define HCLGE_CMD_FLAG_WR	BIT(HCLGE_CMD_FLAG_WR_OR_RD_SHIFT)
-#define HCLGE_CMD_FLAG_NO_INTR	BIT(HCLGE_CMD_FLAG_NO_INTR_SHIFT)
-#define HCLGE_CMD_FLAG_ERR_INTR	BIT(HCLGE_CMD_FLAG_ERR_INTR_SHIFT)
+#define HCLGE_CMD_FLAG_IN	BIT(0)
+#define HCLGE_CMD_FLAG_OUT	BIT(1)
+#define HCLGE_CMD_FLAG_NEXT	BIT(2)
+#define HCLGE_CMD_FLAG_WR	BIT(3)
+#define HCLGE_CMD_FLAG_NO_INTR	BIT(4)
+#define HCLGE_CMD_FLAG_ERR_INTR	BIT(5)
 
 enum hclge_opcode_type {
 	/* Generic commands */
@@ -379,7 +372,7 @@ struct hclge_pf_res_cmd {
 	__le16 msixcap_localid_ba_nic;
 	__le16 msixcap_localid_ba_rocee;
 #define HCLGE_PF_VEC_NUM_S		0
-#define HCLGE_PF_VEC_NUM_M		(0xff << HCLGE_PF_VEC_NUM_S)
+#define HCLGE_PF_VEC_NUM_M		GENMASK(7, 0)
 	__le16 pf_intr_vector_number;
 	__le16 pf_own_fun_number;
 	__le32 rsv[3];
@@ -468,8 +461,8 @@ struct hclge_rss_tc_mode_cmd {
 	u8 rsv[8];
 };
 
-#define HCLGE_LINK_STS_B	0
-#define HCLGE_LINK_STATUS	BIT(HCLGE_LINK_STS_B)
+#define HCLGE_LINK_STATUS_UP_B	0
+#define HCLGE_LINK_STATUS_UP_M	BIT(HCLGE_LINK_STATUS_UP_B)
 struct hclge_link_status_cmd {
 	u8 status;
 	u8 rsv[23];

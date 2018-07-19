@@ -2349,7 +2349,7 @@ static int hclge_get_mac_link_status(struct hclge_dev *hdev)
 	}
 
 	req = (struct hclge_link_status_cmd *)desc.data;
-	link_status = req->status & HCLGE_LINK_STATUS;
+	link_status = req->status & HCLGE_LINK_STATUS_UP_M;
 
 	return !!link_status;
 }
