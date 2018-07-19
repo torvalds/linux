@@ -1675,11 +1675,11 @@ xfs_refcount_recover_cow_leftovers(
 	high.rc.rc_startblock = -1U;
 	error = xfs_btree_query_range(cur, &low, &high,
 			xfs_refcount_recover_extent, &debris);
-	if (error)
-		goto out_cursor;
-	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 	xfs_trans_brelse(tp, agbp);
 	xfs_trans_cancel(tp);
+	if (error)
+		goto out_free;
 
 	/* Now iterate the list to free the leftovers */
 	list_for_each_entry_safe(rr, n, &debris, rr_list) {
@@ -1727,11 +1727,6 @@ out_free:
 		kmem_free(rr);
 	}
 	return error;
-
-out_cursor:
-	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
-	xfs_trans_brelse(tp, agbp);
-	goto out_trans;
 }
 
 /* Is there a record covering a given extent? */

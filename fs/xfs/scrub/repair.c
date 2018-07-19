@@ -747,9 +747,9 @@ xfs_repair_dispose_btree_block(
 
 	/* Can we find any other rmappings? */
 	error = xfs_rmap_has_other_keys(cur, agbno, 1, oinfo, &has_other_rmap);
+	xfs_btree_del_cursor(cur, error);
 	if (error)
-		goto out_cur;
-	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
+		goto out_free;
 
 	/*
 	 * If there are other rmappings, this block is cross linked and must
@@ -779,8 +779,7 @@ xfs_repair_dispose_btree_block(
 		return xfs_trans_roll_inode(&sc->tp, sc->ip);
 	return xfs_repair_roll_ag_trans(sc);
 
-out_cur:
-	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+out_free:
 	if (agf_bp != sc->sa.agf_bp)
 		xfs_trans_brelse(sc->tp, agf_bp);
 	return error;
