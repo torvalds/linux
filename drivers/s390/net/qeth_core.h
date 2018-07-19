@@ -1048,8 +1048,8 @@ netdev_features_t qeth_features_check(struct sk_buff *skb,
 				      netdev_features_t features);
 int qeth_vm_request_mac(struct qeth_card *card);
 int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
-		       struct qeth_hdr **hdr, unsigned int len,
-		       unsigned int *elements);
+		       struct qeth_hdr **hdr, unsigned int hdr_len,
+		       unsigned int proto_len, unsigned int *elements);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

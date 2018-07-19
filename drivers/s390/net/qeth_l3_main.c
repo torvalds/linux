@@ -2181,7 +2181,8 @@ static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
 	skb_pull(skb, ETH_HLEN);
 	frame_len = skb->len;
 
-	push_len = qeth_add_hw_header(card, skb, &hdr, hw_hdr_len, &elements);
+	push_len = qeth_add_hw_header(card, skb, &hdr, hw_hdr_len, 0,
+				      &elements);
 	if (push_len < 0)
 		return push_len;
 	if (!push_len) {

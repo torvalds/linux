@@ -671,17 +671,19 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 			    struct qeth_qdio_out_q *queue, int cast_type,
 			    int ipv)
 {
-	int push_len = sizeof(struct qeth_hdr);
+	const unsigned int hw_hdr_len = sizeof(struct qeth_hdr);
 	struct qeth_hdr *hdr = NULL;
 	unsigned int hd_len = 0;
 	unsigned int elements;
+	int push_len, rc;
 	bool is_sg;
-	int rc;
 
-	rc = skb_cow_head(skb, push_len);
+	rc = skb_cow_head(skb, hw_hdr_len);
 	if (rc)
 		return rc;
-	push_len = qeth_add_hw_header(card, skb, &hdr, push_len, &elements);
+
+	push_len = qeth_add_hw_header(card, skb, &hdr, hw_hdr_len, 0,
+				      &elements);
 	if (push_len < 0)
 		return push_len;
 	if (!push_len) {
@@ -707,7 +709,7 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 				card->perf_stats.sg_skbs_sent++;
 		}
 	} else {
-		if (hd_len)
+		if (!push_len)
 			kmem_cache_free(qeth_core_header_cache, hdr);
 		if (rc == -EBUSY)
 			/* roll back to ETH header */

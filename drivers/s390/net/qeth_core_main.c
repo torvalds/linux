@@ -3895,7 +3895,9 @@ EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
  * @skb: skb that the HW header should be added to.
  * @hdr: double pointer to a qeth_hdr. When returning with >= 0,
  *	 it contains a valid pointer to a qeth_hdr.
- * @len: length of the HW header.
+ * @hdr_len: length of the HW header.
+ * @proto_len: length of protocol headers that need to be in same page as the
+ *	       HW header.
  *
  * Returns the pushed length. If the header can't be pushed on
  * (eg. because it would cross a page boundary), it is allocated from
@@ -3904,31 +3906,32 @@ EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
  * Error to create the hdr is indicated by returning with < 0.
  */
 int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
-		       struct qeth_hdr **hdr, unsigned int len,
-		       unsigned int *elements)
+		       struct qeth_hdr **hdr, unsigned int hdr_len,
+		       unsigned int proto_len, unsigned int *elements)
 {
 	const unsigned int max_elements = QETH_MAX_BUFFER_ELEMENTS(card);
+	const unsigned int contiguous = proto_len ? proto_len : 1;
 	unsigned int __elements;
 	addr_t start, end;
 	bool push_ok;
 	int rc;
 
 check_layout:
-	start = (addr_t)skb->data - len;
+	start = (addr_t)skb->data - hdr_len;
 	end = (addr_t)skb->data;
 
-	if (qeth_get_elements_for_range(start, end + 1) == 1) {
+	if (qeth_get_elements_for_range(start, end + contiguous) == 1) {
 		/* Push HW header into same page as first protocol header. */
 		push_ok = true;
 		__elements = qeth_count_elements(skb, 0);
-	} else {
+	} else if (!proto_len && qeth_get_elements_for_range(start, end) == 1) {
+		/* Push HW header into a new page. */
+		push_ok = true;
 		__elements = 1 + qeth_count_elements(skb, 0);
-		if (qeth_get_elements_for_range(start, end) == 1)
-			/* Push HW header into a new page. */
-			push_ok = true;
-		else
-			/* Use header cache. */
-			push_ok = false;
+	} else {
+		/* Use header cache, copy protocol headers up. */
+		push_ok = false;
+		__elements = 1 + qeth_count_elements(skb, proto_len);
 	}
 
 	/* Compress skb to fit into one IO buffer: */
@@ -3957,13 +3960,15 @@ check_layout:
 	*elements = __elements;
 	/* Add the header: */
 	if (push_ok) {
-		*hdr = skb_push(skb, len);
-		return len;
+		*hdr = skb_push(skb, hdr_len);
+		return hdr_len;
 	}
 	/* fall back */
 	*hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
 	if (!*hdr)
 		return -ENOMEM;
+	/* Copy protocol headers behind HW header: */
+	skb_copy_from_linear_data(skb, ((char *)*hdr) + hdr_len, proto_len);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qeth_add_hw_header);
