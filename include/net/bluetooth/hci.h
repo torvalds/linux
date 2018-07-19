@@ -1540,7 +1540,9 @@ struct hci_cp_le_set_ext_scan_params {
 	__u8    data[0];
 } __packed;
 
-#define LE_SCAN_PHY_1M 0x01
+#define LE_SCAN_PHY_1M		0x01
+#define LE_SCAN_PHY_2M		0x02
+#define LE_SCAN_PHY_CODED	0x04
 
 struct hci_cp_le_scan_phy_params {
 	__u8    type;
