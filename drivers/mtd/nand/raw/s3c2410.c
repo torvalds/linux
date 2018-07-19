@@ -1134,8 +1134,13 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "mapped registers at %p\n", info->regs);
 
-	sets = (plat != NULL) ? plat->sets : NULL;
-	nr_sets = (plat != NULL) ? plat->nr_sets : 1;
+	if (!plat->sets || plat->nr_sets < 1) {
+		err = -EINVAL;
+		goto exit_error;
+	}
+
+	sets = plat->sets;
+	nr_sets = plat->nr_sets;
 
 	info->mtd_count = nr_sets;
 
@@ -1152,7 +1157,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	nmtd = info->mtds;
 
-	for (setno = 0; setno < nr_sets; setno++, nmtd++) {
+	for (setno = 0; setno < nr_sets; setno++, nmtd++, sets++) {
 		struct mtd_info *mtd = nand_to_mtd(&nmtd->chip);
 
 		pr_debug("initialising set %d (%p, info %p)\n",
@@ -1174,9 +1179,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 			goto exit_error;
 
 		s3c2410_nand_add_partition(info, nmtd, sets);
-
-		if (sets != NULL)
-			sets++;
 	}
 
 	/* initialise the hardware */
