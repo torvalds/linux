@@ -4643,9 +4643,9 @@ int extent_buffer_under_io(struct extent_buffer *eb)
 }
 
 /*
- * Helper for releasing extent buffer page.
+ * Release all pages attached to the extent buffer.
  */
-static void btrfs_release_extent_buffer_page(struct extent_buffer *eb)
+static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
 {
 	int i;
 	int num_pages;
@@ -4696,7 +4696,7 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb)
  */
 static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 {
-	btrfs_release_extent_buffer_page(eb);
+	btrfs_release_extent_buffer_pages(eb);
 	__free_extent_buffer(eb);
 }
 
@@ -5085,7 +5085,7 @@ static int release_extent_buffer(struct extent_buffer *eb)
 		}
 
 		/* Should be safe to release our pages at this point */
-		btrfs_release_extent_buffer_page(eb);
+		btrfs_release_extent_buffer_pages(eb);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 		if (unlikely(test_bit(EXTENT_BUFFER_DUMMY, &eb->bflags))) {
 			__free_extent_buffer(eb);
