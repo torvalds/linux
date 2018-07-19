@@ -307,10 +307,8 @@ xfrmi_xmit2(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	if (!dst)
 		goto tx_err_link_failure;
 
-	fl->flowi_xfrm.if_id = xi->p.if_id;
-
 	dst_hold(dst);
-	dst = xfrm_lookup(xi->net, dst, fl, NULL, 0);
+	dst = xfrm_lookup_with_ifid(xi->net, dst, fl, NULL, 0, xi->p.if_id);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		dst = NULL;

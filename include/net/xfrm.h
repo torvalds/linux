@@ -1557,7 +1557,7 @@ struct xfrm_state *xfrm_state_find(const xfrm_address_t *daddr,
 				   const struct flowi *fl,
 				   struct xfrm_tmpl *tmpl,
 				   struct xfrm_policy *pol, int *err,
-				   unsigned short family);
+				   unsigned short family, u32 if_id);
 struct xfrm_state *xfrm_stateonly_find(struct net *net, u32 mark, u32 if_id,
 				       xfrm_address_t *daddr,
 				       xfrm_address_t *saddr,
