@@ -30,7 +30,6 @@
 bool pciehp_debug;
 bool pciehp_poll_mode;
 int pciehp_poll_time;
-static bool pciehp_force;
 
 /*
  * not really modular, but the easiest way to keep compat with existing
@@ -39,11 +38,9 @@ static bool pciehp_force;
 module_param(pciehp_debug, bool, 0644);
 module_param(pciehp_poll_mode, bool, 0644);
 module_param(pciehp_poll_time, int, 0644);
-module_param(pciehp_force, bool, 0644);
 MODULE_PARM_DESC(pciehp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
-MODULE_PARM_DESC(pciehp_force, "Force pciehp, even if OSHP is missing");
 
 #define PCIE_MODULE_NAME "pciehp"
 
@@ -243,11 +240,10 @@ static int pciehp_probe(struct pcie_device *dev)
 	mutex_lock(&slot->lock);
 	pciehp_get_adapter_status(slot, &occupied);
 	pciehp_get_power_status(slot, &poweron);
-	if (pciehp_force &&
-	    ((occupied && (slot->state == OFF_STATE ||
-			   slot->state == BLINKINGON_STATE)) ||
-	     (!occupied && (slot->state == ON_STATE ||
-			    slot->state == BLINKINGOFF_STATE))))
+	if ((occupied && (slot->state == OFF_STATE ||
+			  slot->state == BLINKINGON_STATE)) ||
+	    (!occupied && (slot->state == ON_STATE ||
+			   slot->state == BLINKINGOFF_STATE)))
 		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
 	/* If empty slot's power status is on, turn power off */
 	if (!occupied && poweron && POWER_CTRL(ctrl))
