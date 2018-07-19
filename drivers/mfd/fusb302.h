@@ -448,6 +448,7 @@ struct notify_info {
 	int pin_assignment_def;
 	bool attention;
 	u32 dp_status;
+	u32 dp_caps;
 };
 
 enum tx_state {
