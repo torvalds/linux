@@ -1440,6 +1440,87 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
+			   bool use_rpa, struct adv_info *adv_instance,
+			   u8 *own_addr_type, bdaddr_t *rand_addr)
+{
+	int err;
+
+	bacpy(rand_addr, BDADDR_ANY);
+
+	/* If privacy is enabled use a resolvable private address. If
+	 * current RPA has expired then generate a new one.
+	 */
+	if (use_rpa) {
+		int to;
+
+		*own_addr_type = ADDR_LE_DEV_RANDOM;
+
+		if (adv_instance) {
+			if (!adv_instance->rpa_expired &&
+			    !bacmp(&adv_instance->random_addr, &hdev->rpa))
+				return 0;
+
+			adv_instance->rpa_expired = false;
+		} else {
+			if (!hci_dev_test_and_clear_flag(hdev, HCI_RPA_EXPIRED) &&
+			    !bacmp(&hdev->random_addr, &hdev->rpa))
+				return 0;
+		}
+
+		err = smp_generate_rpa(hdev, hdev->irk, &hdev->rpa);
+		if (err < 0) {
+			BT_ERR("%s failed to generate new RPA", hdev->name);
+			return err;
+		}
+
+		bacpy(rand_addr, &hdev->rpa);
+
+		to = msecs_to_jiffies(hdev->rpa_timeout * 1000);
+		if (adv_instance)
+			queue_delayed_work(hdev->workqueue,
+					   &adv_instance->rpa_expired_cb, to);
+		else
+			queue_delayed_work(hdev->workqueue,
+					   &hdev->rpa_expired, to);
+
+		return 0;
+	}
+
+	/* In case of required privacy without resolvable private address,
+	 * use an non-resolvable private address. This is useful for
+	 * non-connectable advertising.
+	 */
+	if (require_privacy) {
+		bdaddr_t nrpa;
+
+		while (true) {
+			/* The non-resolvable private address is generated
+			 * from random six bytes with the two most significant
+			 * bits cleared.
+			 */
+			get_random_bytes(&nrpa, 6);
+			nrpa.b[5] &= 0x3f;
+
+			/* The non-resolvable private address shall not be
+			 * equal to the public address.
+			 */
+			if (bacmp(&hdev->bdaddr, &nrpa))
+				break;
+		}
+
+		*own_addr_type = ADDR_LE_DEV_RANDOM;
+		bacpy(rand_addr, &nrpa);
+
+		return 0;
+	}
+
+	/* No privacy so use a public address. */
+	*own_addr_type = ADDR_LE_DEV_PUBLIC;
+
+	return 0;
+}
+
 void __hci_req_clear_ext_adv_sets(struct hci_request *req)
 {
 	hci_req_add(req, HCI_OP_LE_CLEAR_ADV_SETS, 0, NULL);
@@ -1451,8 +1532,20 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	struct hci_dev *hdev = req->hdev;
 	bool connectable;
 	u32 flags;
+	bdaddr_t random_addr;
+	u8 own_addr_type;
+	int err;
+	struct adv_info *adv_instance;
 	/* In ext adv set param interval is 3 octets */
 	const u8 adv_interval[3] = { 0x00, 0x08, 0x00 };
+
+	if (instance > 0) {
+		adv_instance = hci_find_adv_instance(hdev, instance);
+		if (!adv_instance)
+			return -EINVAL;
+	} else {
+		adv_instance = NULL;
+	}
 
 	flags = get_adv_instance_flags(hdev, instance);
 
@@ -1464,6 +1557,16 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 
 	 if (!is_advertising_allowed(hdev, connectable))
 		return -EPERM;
+
+	/* Set require_privacy to true only when non-connectable
+	 * advertising is used. In that case it is fine to use a
+	 * non-resolvable private address.
+	 */
+	err = hci_get_random_address(hdev, !connectable,
+				     adv_use_rpa(hdev, flags), adv_instance,
+				     &own_addr_type, &random_addr);
+	if (err < 0)
+		return err;
 
 	memset(&cp, 0, sizeof(cp));
 
@@ -1477,7 +1580,7 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	else
 		cp.evt_properties = cpu_to_le16(LE_LEGACY_NONCONN_IND);
 
-	cp.own_addr_type = BDADDR_LE_PUBLIC;
+	cp.own_addr_type = own_addr_type;
 	cp.channel_map = hdev->le_adv_channel_map;
 	cp.tx_power = 127;
 	cp.primary_phy = HCI_ADV_PHY_1M;
@@ -1485,6 +1588,29 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	cp.handle = 0;
 
 	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(cp), &cp);
+
+	if (own_addr_type == ADDR_LE_DEV_RANDOM &&
+	    bacmp(&random_addr, BDADDR_ANY)) {
+		struct hci_cp_le_set_adv_set_rand_addr cp;
+
+		/* Check if random address need to be updated */
+		if (adv_instance) {
+			if (!bacmp(&random_addr, &adv_instance->random_addr))
+				return 0;
+		} else {
+			if (!bacmp(&random_addr, &hdev->random_addr))
+				return 0;
+		}
+
+		memset(&cp, 0, sizeof(cp));
+
+		cp.handle = 0;
+		bacpy(&cp.bdaddr, &random_addr);
+
+		hci_req_add(req,
+			    HCI_OP_LE_SET_ADV_SET_RAND_ADDR,
+			    sizeof(cp), &cp);
+	}
 
 	return 0;
 }

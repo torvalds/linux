@@ -1649,6 +1649,12 @@ struct hci_cp_le_set_ext_scan_rsp_data {
 
 #define HCI_OP_LE_CLEAR_ADV_SETS	0x203d
 
+#define HCI_OP_LE_SET_ADV_SET_RAND_ADDR	0x2035
+struct hci_cp_le_set_adv_set_rand_addr {
+	__u8  handle;
+	bdaddr_t  bdaddr;
+} __packed;
+
 /* ---- HCI Events ---- */
 #define HCI_EV_INQUIRY_COMPLETE		0x01
 

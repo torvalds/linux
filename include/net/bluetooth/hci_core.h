@@ -172,6 +172,9 @@ struct adv_info {
 	__u16	scan_rsp_len;
 	__u8	scan_rsp_data[HCI_MAX_AD_LENGTH];
 	__s8	tx_power;
+	bdaddr_t	random_addr;
+	bool 		rpa_expired;
+	struct delayed_work	rpa_expired_cb;
 };
 
 #define HCI_MAX_ADV_INSTANCES		5
@@ -1113,6 +1116,7 @@ int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
 			 u16 scan_rsp_len, u8 *scan_rsp_data,
 			 u16 timeout, u16 duration);
 int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance);
+void hci_adv_instances_set_rpa_expired(struct hci_dev *hdev, bool rpa_expired);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 

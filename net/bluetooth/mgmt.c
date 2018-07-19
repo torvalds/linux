@@ -4972,6 +4972,7 @@ static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 		changed = !hci_dev_test_and_set_flag(hdev, HCI_PRIVACY);
 		memcpy(hdev->irk, cp->irk, sizeof(hdev->irk));
 		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
+		hci_adv_instances_set_rpa_expired(hdev, true);
 		if (cp->privacy == 0x02)
 			hci_dev_set_flag(hdev, HCI_LIMITED_PRIVACY);
 		else
@@ -4980,6 +4981,7 @@ static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 		changed = hci_dev_test_and_clear_flag(hdev, HCI_PRIVACY);
 		memset(hdev->irk, 0, sizeof(hdev->irk));
 		hci_dev_clear_flag(hdev, HCI_RPA_EXPIRED);
+		hci_adv_instances_set_rpa_expired(hdev, false);
 		hci_dev_clear_flag(hdev, HCI_LIMITED_PRIVACY);
 	}
 

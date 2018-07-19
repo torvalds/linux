@@ -873,6 +873,14 @@ static void hci_req_directed_advertising(struct hci_request *req,
 
 	if (ext_adv_capable(hdev)) {
 		struct hci_cp_le_set_ext_adv_params cp;
+		bdaddr_t random_addr;
+
+		/* Set require_privacy to false so that the remote device has a
+		 * chance of identifying us.
+		 */
+		if (hci_get_random_address(hdev, false, conn_use_rpa(conn), NULL,
+					   &own_addr_type, &random_addr) < 0)
+			return;
 
 		memset(&cp, 0, sizeof(cp));
 
@@ -888,6 +896,21 @@ static void hci_req_directed_advertising(struct hci_request *req,
 		bacpy(&cp.peer_addr, &conn->dst);
 
 		hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(cp), &cp);
+
+		if (own_addr_type == ADDR_LE_DEV_RANDOM &&
+		    bacmp(&random_addr, BDADDR_ANY) &&
+		    bacmp(&random_addr, &hdev->random_addr)) {
+			struct hci_cp_le_set_adv_set_rand_addr cp;
+
+			memset(&cp, 0, sizeof(cp));
+
+			cp.handle = 0;
+			bacpy(&cp.bdaddr, &random_addr);
+
+			hci_req_add(req,
+				    HCI_OP_LE_SET_ADV_SET_RAND_ADDR,
+				    sizeof(cp), &cp);
+		}
 
 		__hci_req_enable_ext_advertising(req);
 	} else {
