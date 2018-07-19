@@ -488,7 +488,7 @@ static int vega12_get_number_of_dpm_level(struct pp_hwmgr *hwmgr,
 static int vega12_get_dpm_frequency_by_index(struct pp_hwmgr *hwmgr,
 		PPCLK_e clkID, uint32_t index, uint32_t *clock)
 {
-	int result;
+	int result = 0;
 
 	/*
 	 *SMU expects the Clock ID to be in the top 16 bits.
