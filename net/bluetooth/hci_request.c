@@ -1536,6 +1536,7 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	u8 own_addr_type;
 	int err;
 	struct adv_info *adv_instance;
+	bool secondary_adv;
 	/* In ext adv set param interval is 3 octets */
 	const u8 adv_interval[3] = { 0x00, 0x08, 0x00 };
 
@@ -1573,19 +1574,41 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	memcpy(cp.min_interval, adv_interval, sizeof(cp.min_interval));
 	memcpy(cp.max_interval, adv_interval, sizeof(cp.max_interval));
 
-	if (connectable)
-		cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_IND);
-	else if (get_adv_instance_scan_rsp_len(hdev, instance))
-		cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_SCAN_IND);
-	else
-		cp.evt_properties = cpu_to_le16(LE_LEGACY_NONCONN_IND);
+	secondary_adv = (flags & MGMT_ADV_FLAG_SEC_MASK);
+
+	if (connectable) {
+		if (secondary_adv)
+			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_CONN_IND);
+		else
+			cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_IND);
+	} else if (get_adv_instance_scan_rsp_len(hdev, instance)) {
+		if (secondary_adv)
+			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_SCAN_IND);
+		else
+			cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_SCAN_IND);
+	} else {
+		if (secondary_adv)
+			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_NON_CONN_IND);
+		else
+			cp.evt_properties = cpu_to_le16(LE_LEGACY_NONCONN_IND);
+	}
 
 	cp.own_addr_type = own_addr_type;
 	cp.channel_map = hdev->le_adv_channel_map;
 	cp.tx_power = 127;
-	cp.primary_phy = HCI_ADV_PHY_1M;
-	cp.secondary_phy = HCI_ADV_PHY_1M;
 	cp.handle = 0;
+
+	if (flags & MGMT_ADV_FLAG_SEC_2M) {
+		cp.primary_phy = HCI_ADV_PHY_1M;
+		cp.secondary_phy = HCI_ADV_PHY_2M;
+	} else if (flags & MGMT_ADV_FLAG_SEC_CODED) {
+		cp.primary_phy = HCI_ADV_PHY_CODED;
+		cp.secondary_phy = HCI_ADV_PHY_CODED;
+	} else {
+		/* In all other cases use 1M */
+		cp.primary_phy = HCI_ADV_PHY_1M;
+		cp.secondary_phy = HCI_ADV_PHY_1M;
+	}
 
 	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(cp), &cp);
 

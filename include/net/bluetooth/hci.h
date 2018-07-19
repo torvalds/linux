@@ -410,6 +410,8 @@ enum {
 #define HCI_LE_SLAVE_FEATURES		0x08
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
+#define HCI_LE_PHY_2M			0x01
+#define HCI_LE_PHY_CODED		0x08
 #define HCI_LE_EXT_ADV			0x10
 #define HCI_LE_EXT_SCAN_POLICY		0x80
 #define HCI_LE_PHY_2M			0x01
@@ -1606,6 +1608,8 @@ struct hci_cp_le_set_ext_adv_params {
 } __packed;
 
 #define HCI_ADV_PHY_1M		0X01
+#define HCI_ADV_PHY_2M		0x02
+#define HCI_ADV_PHY_CODED	0x03
 
 struct hci_rp_le_set_ext_adv_params {
 	__u8  status;

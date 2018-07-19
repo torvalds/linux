@@ -6339,6 +6339,16 @@ static u32 get_supported_adv_flags(struct hci_dev *hdev)
 	    ext_adv_capable(hdev))
 		flags |= MGMT_ADV_FLAG_TX_POWER;
 
+	if (ext_adv_capable(hdev)) {
+		flags |= MGMT_ADV_FLAG_SEC_1M;
+
+		if (hdev->le_features[1] & HCI_LE_PHY_2M)
+			flags |= MGMT_ADV_FLAG_SEC_2M;
+
+		if (hdev->le_features[1] & HCI_LE_PHY_CODED)
+			flags |= MGMT_ADV_FLAG_SEC_CODED;
+	}
+
 	return flags;
 }
 
@@ -6544,7 +6554,7 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	struct mgmt_cp_add_advertising *cp = data;
 	struct mgmt_rp_add_advertising rp;
 	u32 flags;
-	u32 supported_flags;
+	u32 supported_flags, phy_flags;
 	u8 status;
 	u16 timeout, duration;
 	unsigned int prev_instance_cnt = hdev->adv_instance_cnt;
@@ -6574,10 +6584,12 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	duration = __le16_to_cpu(cp->duration);
 
 	/* The current implementation only supports a subset of the specified
-	 * flags.
+	 * flags. Also need to check mutual exclusiveness of sec flags.
 	 */
 	supported_flags = get_supported_adv_flags(hdev);
-	if (flags & ~supported_flags)
+	phy_flags = flags & MGMT_ADV_FLAG_SEC_MASK;
+	if (flags & ~supported_flags ||
+	    ((phy_flags && (phy_flags ^ (phy_flags & -phy_flags)))))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
 				       MGMT_STATUS_INVALID_PARAMS);
 

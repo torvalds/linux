@@ -562,6 +562,12 @@ struct mgmt_rp_add_advertising {
 #define MGMT_ADV_FLAG_TX_POWER		BIT(4)
 #define MGMT_ADV_FLAG_APPEARANCE	BIT(5)
 #define MGMT_ADV_FLAG_LOCAL_NAME	BIT(6)
+#define MGMT_ADV_FLAG_SEC_1M 		BIT(7)
+#define MGMT_ADV_FLAG_SEC_2M 		BIT(8)
+#define MGMT_ADV_FLAG_SEC_CODED 	BIT(9)
+
+#define MGMT_ADV_FLAG_SEC_MASK	(MGMT_ADV_FLAG_SEC_1M | MGMT_ADV_FLAG_SEC_2M | \
+				 MGMT_ADV_FLAG_SEC_CODED)
 
 #define MGMT_OP_REMOVE_ADVERTISING	0x003F
 struct mgmt_cp_remove_advertising {
