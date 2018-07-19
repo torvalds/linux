@@ -312,11 +312,7 @@ ENTRY(startup_kdump)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
 	l	%r15,.Lstack-.LPG0(%r13)
 	brasl	%r14,verify_facilities
-#ifdef CONFIG_KERNEL_UNCOMPRESSED
-	jg	startup_continue
-#else
-	jg	startup_decompressor
-#endif
+	brasl	%r14,startup_kernel
 
 .Lstack:
 	.long	0x8000 + THREAD_SIZE - STACK_FRAME_OVERHEAD

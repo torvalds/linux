@@ -12,6 +12,7 @@
 #include <asm/sclp.h>
 #include <asm/ipl.h>
 #include "sizes.h"
+#include "decompressor.h"
 
 /*
  * gzip declarations
@@ -82,7 +83,7 @@ static void error(char *x)
 	asm volatile("lpsw %0" : : "Q" (psw));
 }
 
-unsigned long decompress_kernel(void)
+void *decompress_kernel(unsigned long *uncompressed_size)
 {
 	void *output, *kernel_end;
 
@@ -111,6 +112,8 @@ unsigned long decompress_kernel(void)
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 
 	__decompress(input_data, input_len, NULL, NULL, output, 0, NULL, error);
-	return (unsigned long) output;
+	if (uncompressed_size)
+		*uncompressed_size = SZ__bss_start;
+	return output;
 }
 
