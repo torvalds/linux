@@ -677,9 +677,6 @@ static void destruct(struct dce110_resource_pool *pool)
 			pool->base.timing_generators[i] = NULL;
 		}
 
-		if (pool->base.engines[i] != NULL)
-			dce110_engine_destroy(&pool->base.engines[i]);
-
 	}
 
 	for (i = 0; i < pool->base.stream_enc_count; i++) {
