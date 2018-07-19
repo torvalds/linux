@@ -4224,19 +4224,18 @@ void __weak pcibios_reset_secondary_bus(struct pci_dev *dev)
 }
 
 /**
- * pci_reset_bridge_secondary_bus - Reset the secondary bus on a PCI bridge.
+ * pci_bridge_secondary_bus_reset - Reset the secondary bus on a PCI bridge.
  * @dev: Bridge device
  *
  * Use the bridge control register to assert reset on the secondary bus.
  * Devices on the secondary bus are left in power-on state.
  */
-int pci_reset_bridge_secondary_bus(struct pci_dev *dev)
+int pci_bridge_secondary_bus_reset(struct pci_dev *dev)
 {
 	pcibios_reset_secondary_bus(dev);
 
 	return pci_dev_wait(dev, "bus reset", PCIE_RESET_READY_POLL_MS);
 }
-EXPORT_SYMBOL_GPL(pci_reset_bridge_secondary_bus);
 
 static int pci_parent_bus_reset(struct pci_dev *dev, int probe)
 {
@@ -4253,7 +4252,7 @@ static int pci_parent_bus_reset(struct pci_dev *dev, int probe)
 	if (probe)
 		return 0;
 
-	return pci_reset_bridge_secondary_bus(dev->bus->self);
+	return pci_bridge_secondary_bus_reset(dev->bus->self);
 }
 
 static int pci_reset_hotplug_slot(struct hotplug_slot *hotplug, int probe)
@@ -4860,7 +4859,7 @@ static int pci_bus_reset(struct pci_bus *bus, int probe)
 
 	might_sleep();
 
-	ret = pci_reset_bridge_secondary_bus(bus->self);
+	ret = pci_bridge_secondary_bus_reset(bus->self);
 
 	pci_bus_unlock(bus);
 
@@ -4924,7 +4923,7 @@ int pci_try_reset_bus(struct pci_bus *bus)
 
 	if (pci_bus_trylock(bus)) {
 		might_sleep();
-		rc = pci_reset_bridge_secondary_bus(bus->self);
+		rc = pci_bridge_secondary_bus_reset(bus->self);
 		pci_bus_unlock(bus);
 	} else
 		rc = -EAGAIN;
