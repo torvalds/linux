@@ -162,7 +162,7 @@ xfs_reflink_find_shared(
 	error = xfs_refcount_find_shared(cur, agbno, aglen, fbno, flen,
 			find_end_of_shared);
 
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 
 	xfs_trans_brelse(tp, agbp);
 	return error;

@@ -128,7 +128,7 @@ next_extent:
 	}
 
 out_del_cursor:
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 	xfs_buf_relse(agbp);
 out_put_perag:
 	xfs_perag_put(pag);

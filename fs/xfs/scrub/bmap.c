@@ -404,8 +404,7 @@ xfs_scrub_bmap_btree(
 	cur = xfs_bmbt_init_cursor(mp, sc->tp, ip, whichfork);
 	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, whichfork);
 	error = xfs_scrub_btree(sc, cur, xfs_scrub_bmapbt_rec, &oinfo, info);
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR :
-					  XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 	return error;
 }
 
@@ -514,7 +513,7 @@ xfs_scrub_bmap_check_ag_rmaps(
 	if (error == XFS_BTREE_QUERY_RANGE_ABORT)
 		error = 0;
 
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 out_agf:
 	xfs_trans_brelse(sc->tp, agf);
 	return error;

@@ -566,7 +566,7 @@ xfs_inobt_count_blocks(
 
 	cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno, btnum);
 	error = xfs_btree_count_blocks(cur, tree_blocks);
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 	xfs_buf_relse(agbp);
 
 	return error;

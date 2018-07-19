@@ -1009,7 +1009,7 @@ xfs_repair_find_ag_btree_roots(
 
 	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno);
 	error = xfs_rmap_query_all(cur, xfs_repair_findroot_rmap, &ri);
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 
 	return error;
 }
