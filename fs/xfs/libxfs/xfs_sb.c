@@ -804,6 +804,7 @@ xfs_initialize_perag_data(
 	uint64_t	bfree = 0;
 	uint64_t	bfreelst = 0;
 	uint64_t	btree = 0;
+	uint64_t	fdblocks;
 	int		error;
 
 	for (index = 0; index < agcount; index++) {
@@ -827,17 +828,31 @@ xfs_initialize_perag_data(
 		btree += pag->pagf_btreeblks;
 		xfs_perag_put(pag);
 	}
+	fdblocks = bfree + bfreelst + btree;
+
+	/*
+	 * If the new summary counts are obviously incorrect, fail the
+	 * mount operation because that implies the AGFs are also corrupt.
+	 * Clear BAD_SUMMARY so that we don't unmount with a dirty log, which
+	 * will prevent xfs_repair from fixing anything.
+	 */
+	if (fdblocks > sbp->sb_dblocks || ifree > ialloc) {
+		xfs_alert(mp, "AGF corruption. Please run xfs_repair.");
+		error = -EFSCORRUPTED;
+		goto out;
+	}
 
 	/* Overwrite incore superblock counters with just-read data */
 	spin_lock(&mp->m_sb_lock);
 	sbp->sb_ifree = ifree;
 	sbp->sb_icount = ialloc;
-	sbp->sb_fdblocks = bfree + bfreelst + btree;
+	sbp->sb_fdblocks = fdblocks;
 	spin_unlock(&mp->m_sb_lock);
 
 	xfs_reinit_percpu_counters(mp);
-
-	return 0;
+out:
+	mp->m_flags &= ~XFS_MOUNT_BAD_SUMMARY;
+	return error;
 }
 
 /*
