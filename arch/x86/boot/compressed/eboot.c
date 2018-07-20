@@ -359,6 +359,7 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 		if (status != EFI_SUCCESS)
 			continue;
 
+		pciio = NULL;
 		efi_call_early(handle_protocol, handle, &pciio_proto, &pciio);
 
 		status = efi_call_proto(efi_uga_draw_protocol, get_mode, uga,
