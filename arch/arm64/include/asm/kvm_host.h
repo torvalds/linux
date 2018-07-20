@@ -412,4 +412,27 @@ static inline bool kvm_arm_harden_branch_predictor(void)
 	return cpus_have_const_cap(ARM64_HARDEN_BRANCH_PREDICTOR);
 }
 
+#define KVM_SSBD_UNKNOWN		-1
+#define KVM_SSBD_FORCE_DISABLE		0
+#define KVM_SSBD_KERNEL		1
+#define KVM_SSBD_FORCE_ENABLE		2
+#define KVM_SSBD_MITIGATED		3
+
+static inline int kvm_arm_have_ssbd(void)
+{
+	switch (arm64_get_ssbd_state()) {
+	case ARM64_SSBD_FORCE_DISABLE:
+		return KVM_SSBD_FORCE_DISABLE;
+	case ARM64_SSBD_KERNEL:
+		return KVM_SSBD_KERNEL;
+	case ARM64_SSBD_FORCE_ENABLE:
+		return KVM_SSBD_FORCE_ENABLE;
+	case ARM64_SSBD_MITIGATED:
+		return KVM_SSBD_MITIGATED;
+	case ARM64_SSBD_UNKNOWN:
+	default:
+		return KVM_SSBD_UNKNOWN;
+	}
+}
+
 #endif /* __ARM64_KVM_HOST_H__ */
