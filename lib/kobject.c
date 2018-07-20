@@ -35,6 +35,25 @@ const void *kobject_namespace(struct kobject *kobj)
 	return kobj->ktype->namespace(kobj);
 }
 
+/**
+ * kobject_get_ownership - get sysfs ownership data for @kobj
+ * @kobj: kobject in question
+ * @uid: kernel user ID for sysfs objects
+ * @gid: kernel group ID for sysfs objects
+ *
+ * Returns initial uid/gid pair that should be used when creating sysfs
+ * representation of given kobject. Normally used to adjust ownership of
+ * objects in a container.
+ */
+void kobject_get_ownership(struct kobject *kobj, kuid_t *uid, kgid_t *gid)
+{
+	*uid = GLOBAL_ROOT_UID;
+	*gid = GLOBAL_ROOT_GID;
+
+	if (kobj->ktype->get_ownership)
+		kobj->ktype->get_ownership(kobj, uid, gid);
+}
+
 /*
  * populate_dir - populate directory with attributes.
  * @kobj: object we're working on.

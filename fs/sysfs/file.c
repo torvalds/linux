@@ -245,7 +245,7 @@ static const struct kernfs_ops sysfs_bin_kfops_mmap = {
 
 int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 			   const struct attribute *attr, bool is_bin,
-			   umode_t mode, const void *ns)
+			   umode_t mode, kuid_t uid, kgid_t gid, const void *ns)
 {
 	struct lock_class_key *key = NULL;
 	const struct kernfs_ops *ops;
@@ -302,8 +302,8 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 	if (!attr->ignore_lockdep)
 		key = attr->key ?: (struct lock_class_key *)&attr->skey;
 #endif
-	kn = __kernfs_create_file(parent, attr->name,
-				  mode & 0777, GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
+
+	kn = __kernfs_create_file(parent, attr->name, mode & 0777, uid, gid,
 				  size, ops, (void *)attr, ns, key);
 	if (IS_ERR(kn)) {
 		if (PTR_ERR(kn) == -EEXIST)
@@ -311,12 +311,6 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 		return PTR_ERR(kn);
 	}
 	return 0;
-}
-
-int sysfs_add_file(struct kernfs_node *parent, const struct attribute *attr,
-		   bool is_bin)
-{
-	return sysfs_add_file_mode_ns(parent, attr, is_bin, attr->mode, NULL);
 }
 
 /**
@@ -328,9 +322,14 @@ int sysfs_add_file(struct kernfs_node *parent, const struct attribute *attr,
 int sysfs_create_file_ns(struct kobject *kobj, const struct attribute *attr,
 			 const void *ns)
 {
+	kuid_t uid;
+	kgid_t gid;
+
 	BUG_ON(!kobj || !kobj->sd || !attr);
 
-	return sysfs_add_file_mode_ns(kobj->sd, attr, false, attr->mode, ns);
+	kobject_get_ownership(kobj, &uid, &gid);
+	return sysfs_add_file_mode_ns(kobj->sd, attr, false, attr->mode,
+				      uid, gid, ns);
 
 }
 EXPORT_SYMBOL_GPL(sysfs_create_file_ns);
@@ -359,6 +358,8 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
 {
 	struct kernfs_node *parent;
+	kuid_t uid;
+	kgid_t gid;
 	int error;
 
 	if (group) {
@@ -371,7 +372,9 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 	if (!parent)
 		return -ENOENT;
 
-	error = sysfs_add_file(parent, attr, false);
+	kobject_get_ownership(kobj, &uid, &gid);
+	error = sysfs_add_file_mode_ns(kobj->sd, attr, false,
+				       attr->mode, uid, gid, NULL);
 	kernfs_put(parent);
 
 	return error;
@@ -487,9 +490,14 @@ EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);
 int sysfs_create_bin_file(struct kobject *kobj,
 			  const struct bin_attribute *attr)
 {
+	kuid_t uid;
+	kgid_t gid;
+
 	BUG_ON(!kobj || !kobj->sd || !attr);
 
-	return sysfs_add_file(kobj->sd, &attr->attr, true);
+	kobject_get_ownership(kobj, &uid, &gid);
+	return sysfs_add_file_mode_ns(kobj->sd, &attr->attr, true,
+				      attr->attr.mode, uid, gid, NULL);
 }
 EXPORT_SYMBOL_GPL(sysfs_create_bin_file);
 
