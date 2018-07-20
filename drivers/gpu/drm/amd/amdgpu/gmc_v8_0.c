@@ -44,6 +44,7 @@
 
 #include "amdgpu_atombios.h"
 
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 static void gmc_v8_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -1101,11 +1102,11 @@ static int gmc_v8_0_sw_init(void *handle)
 		adev->gmc.vram_type = gmc_v8_0_convert_vram_type(tmp);
 	}
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 146, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_PAGE_INV_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 147, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_MEM_PROT_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
@@ -1447,8 +1448,13 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 		gmc_v8_0_set_fault_enable_default(adev, false);
 
 	if (printk_ratelimit()) {
-		dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
-			entry->src_id, entry->src_data[0]);
+		struct amdgpu_task_info task_info = { 0 };
+
+		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
+
+		dev_err(adev->dev, "GPU fault detected: %d 0x%08x for process %s pid %d thread %s pid %d\n",
+			entry->src_id, entry->src_data[0], task_info.process_name,
+			task_info.tgid, task_info.task_name, task_info.pid);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
 			addr);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",

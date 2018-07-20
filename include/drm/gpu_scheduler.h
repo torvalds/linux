@@ -93,6 +93,7 @@ struct drm_sched_entity {
  * struct drm_sched_rq - queue of entities to be scheduled.
  *
  * @lock: to modify the entities list.
+ * @sched: the scheduler to which this rq belongs to.
  * @entities: list of the entities to be scheduled.
  * @current_entity: the entity which is to be scheduled.
  *
@@ -102,6 +103,7 @@ struct drm_sched_entity {
  */
 struct drm_sched_rq {
 	spinlock_t			lock;
+	struct drm_gpu_scheduler	*sched;
 	struct list_head		entities;
 	struct drm_sched_entity		*current_entity;
 };
@@ -280,9 +282,9 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const char *name);
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
 
-int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
-			  struct drm_sched_entity *entity,
-			  struct drm_sched_rq *rq,
+int drm_sched_entity_init(struct drm_sched_entity *entity,
+			  struct drm_sched_rq **rq_list,
+			  unsigned int num_rq_list,
 			  atomic_t *guilty);
 long drm_sched_entity_flush(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity, long timeout);

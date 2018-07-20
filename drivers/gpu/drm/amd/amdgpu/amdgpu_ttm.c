@@ -104,8 +104,6 @@ static void amdgpu_ttm_mem_global_release(struct drm_global_reference *ref)
 static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 {
 	struct drm_global_reference *global_ref;
-	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
 	int r;
 
 	/* ensure reference is false in case init fails */
@@ -138,21 +136,10 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 
 	mutex_init(&adev->mman.gtt_window_lock);
 
-	ring = adev->mman.buffer_funcs_ring;
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-	r = drm_sched_entity_init(&ring->sched, &adev->mman.entity,
-				  rq, NULL);
-	if (r) {
-		DRM_ERROR("Failed setting up TTM BO move run queue.\n");
-		goto error_entity;
-	}
-
 	adev->mman.mem_global_referenced = true;
 
 	return 0;
 
-error_entity:
-	drm_global_item_unref(&adev->mman.bo_global_ref.ref);
 error_bo:
 	drm_global_item_unref(&adev->mman.mem_global_ref);
 error_mem:
@@ -162,8 +149,6 @@ error_mem:
 static void amdgpu_ttm_global_fini(struct amdgpu_device *adev)
 {
 	if (adev->mman.mem_global_referenced) {
-		drm_sched_entity_destroy(adev->mman.entity.sched,
-				      &adev->mman.entity);
 		mutex_destroy(&adev->mman.gtt_window_lock);
 		drm_global_item_unref(&adev->mman.bo_global_ref.ref);
 		drm_global_item_unref(&adev->mman.mem_global_ref);
@@ -1695,7 +1680,7 @@ static int amdgpu_ttm_fw_reserve_vram_init(struct amdgpu_device *adev)
 			AMDGPU_GEM_DOMAIN_VRAM,
 			adev->fw_vram_usage.start_offset,
 			(adev->fw_vram_usage.start_offset +
-			adev->fw_vram_usage.size), NULL);
+			adev->fw_vram_usage.size));
 		if (r)
 			goto error_pin;
 		r = amdgpu_bo_kmap(adev->fw_vram_usage.reserved_bo,
@@ -1921,9 +1906,28 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 {
 	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
 	uint64_t size;
+	int r;
 
-	if (!adev->mman.initialized || adev->in_gpu_reset)
+	if (!adev->mman.initialized || adev->in_gpu_reset ||
+	    adev->mman.buffer_funcs_enabled == enable)
 		return;
+
+	if (enable) {
+		struct amdgpu_ring *ring;
+		struct drm_sched_rq *rq;
+
+		ring = adev->mman.buffer_funcs_ring;
+		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
+		r = drm_sched_entity_init(&adev->mman.entity, &rq, 1, NULL);
+		if (r) {
+			DRM_ERROR("Failed setting up TTM BO move entity (%d)\n",
+				  r);
+			return;
+		}
+	} else {
+		drm_sched_entity_destroy(adev->mman.entity.sched,
+					 &adev->mman.entity);
+	}
 
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
 	if (enable)
@@ -2002,7 +2006,7 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 	if (r)
 		goto error_free;
 
-	r = amdgpu_job_submit(job, ring, &adev->mman.entity,
+	r = amdgpu_job_submit(job, &adev->mman.entity,
 			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
 	if (r)
 		goto error_free;
@@ -2071,24 +2075,19 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
-	if (direct_submit) {
-		r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs,
-				       NULL, fence);
-		job->fence = dma_fence_get(*fence);
-		if (r)
-			DRM_ERROR("Error scheduling IBs (%d)\n", r);
-		amdgpu_job_free(job);
-	} else {
-		r = amdgpu_job_submit(job, ring, &adev->mman.entity,
+	if (direct_submit)
+		r = amdgpu_job_submit_direct(job, ring, fence);
+	else
+		r = amdgpu_job_submit(job, &adev->mman.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
-		if (r)
-			goto error_free;
-	}
+	if (r)
+		goto error_free;
 
 	return r;
 
 error_free:
 	amdgpu_job_free(job);
+	DRM_ERROR("Error scheduling IBs (%d)\n", r);
 	return r;
 }
 
@@ -2171,7 +2170,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
-	r = amdgpu_job_submit(job, ring, &adev->mman.entity,
+	r = amdgpu_job_submit(job, &adev->mman.entity,
 			      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
 	if (r)
 		goto error_free;

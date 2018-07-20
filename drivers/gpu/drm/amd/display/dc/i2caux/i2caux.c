@@ -59,7 +59,7 @@
 
 #include "dce120/i2caux_dce120.h"
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 #include "dcn10/i2caux_dcn10.h"
 #endif
 
@@ -91,7 +91,7 @@ struct i2caux *dal_i2caux_create(
 		return dal_i2caux_dce100_create(ctx);
 	case DCE_VERSION_12_0:
 		return dal_i2caux_dce120_create(ctx);
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case DCN_VERSION_1_0:
 		return dal_i2caux_dcn10_create(ctx);
 #endif
@@ -254,7 +254,6 @@ bool dal_i2caux_submit_aux_command(
 			break;
 		}
 
-		cmd->payloads->length = request.payload.length;
 		++index_of_payload;
 	}
 

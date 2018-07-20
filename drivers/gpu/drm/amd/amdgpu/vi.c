@@ -1363,11 +1363,11 @@ static int vi_common_set_clockgating_state_by_smu(void *handle,
 
 	if (adev->cg_flags & (AMD_CG_SUPPORT_MC_LS | AMD_CG_SUPPORT_MC_MGCG)) {
 		if (adev->cg_flags & AMD_CG_SUPPORT_MC_LS) {
-			pp_support_state = AMD_CG_SUPPORT_MC_LS;
+			pp_support_state = PP_STATE_SUPPORT_LS;
 			pp_state = PP_STATE_LS;
 		}
 		if (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG) {
-			pp_support_state |= AMD_CG_SUPPORT_MC_MGCG;
+			pp_support_state |= PP_STATE_SUPPORT_CG;
 			pp_state |= PP_STATE_CG;
 		}
 		if (state == AMD_CG_STATE_UNGATE)
@@ -1382,11 +1382,11 @@ static int vi_common_set_clockgating_state_by_smu(void *handle,
 
 	if (adev->cg_flags & (AMD_CG_SUPPORT_SDMA_LS | AMD_CG_SUPPORT_SDMA_MGCG)) {
 		if (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS) {
-			pp_support_state = AMD_CG_SUPPORT_SDMA_LS;
+			pp_support_state = PP_STATE_SUPPORT_LS;
 			pp_state = PP_STATE_LS;
 		}
 		if (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG) {
-			pp_support_state |= AMD_CG_SUPPORT_SDMA_MGCG;
+			pp_support_state |= PP_STATE_SUPPORT_CG;
 			pp_state |= PP_STATE_CG;
 		}
 		if (state == AMD_CG_STATE_UNGATE)
@@ -1401,11 +1401,11 @@ static int vi_common_set_clockgating_state_by_smu(void *handle,
 
 	if (adev->cg_flags & (AMD_CG_SUPPORT_HDP_LS | AMD_CG_SUPPORT_HDP_MGCG)) {
 		if (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS) {
-			pp_support_state = AMD_CG_SUPPORT_HDP_LS;
+			pp_support_state = PP_STATE_SUPPORT_LS;
 			pp_state = PP_STATE_LS;
 		}
 		if (adev->cg_flags & AMD_CG_SUPPORT_HDP_MGCG) {
-			pp_support_state |= AMD_CG_SUPPORT_HDP_MGCG;
+			pp_support_state |= PP_STATE_SUPPORT_CG;
 			pp_state |= PP_STATE_CG;
 		}
 		if (state == AMD_CG_STATE_UNGATE)

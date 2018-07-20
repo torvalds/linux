@@ -147,10 +147,10 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		smu7_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_AI:
-		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
 		case CHIP_VEGA20:
+			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
 			break;

@@ -9,14 +9,6 @@ config DRM_AMD_DC
 	  support for AMDGPU. This adds required support for Vega and
 	  Raven ASICs.
 
-config DRM_AMD_DC_DCN1_0
-	bool "DCN 1.0 Raven family"
-	depends on DRM_AMD_DC && X86
-	default y
-	help
-	  Choose this option if you want to have
-	  RV family for display engine
-
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
 	depends on DRM_AMD_DC

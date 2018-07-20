@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.52"
+#define DC_VER "3.1.56"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -169,6 +169,12 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 };
 
+enum visual_confirm {
+	VISUAL_CONFIRM_DISABLE = 0,
+	VISUAL_CONFIRM_SURFACE = 1,
+	VISUAL_CONFIRM_HDR = 2,
+};
+
 enum dcc_option {
 	DCC_ENABLE = 0,
 	DCC_DISABLE = 1,
@@ -202,7 +208,7 @@ struct dc_clocks {
 };
 
 struct dc_debug {
-	bool surface_visual_confirm;
+	enum visual_confirm visual_confirm;
 	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
@@ -249,7 +255,15 @@ struct dc_debug {
 	bool always_use_regamma;
 	bool p010_mpo_support;
 	bool recovery_enabled;
+	bool avoid_vbios_exec_table;
+	bool scl_reset_length10;
+	bool hdmi20_disable;
 
+	struct {
+		uint32_t ltFailCount;
+		uint32_t i2cErrorCount;
+		uint32_t auxErrorCount;
+	} debug_data;
 };
 struct dc_state;
 struct resource_pool;
@@ -275,7 +289,7 @@ struct dc {
 	/* Inputs into BW and WM calculations. */
 	struct bw_calcs_dceip *bw_dceip;
 	struct bw_calcs_vbios *bw_vbios;
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	struct dcn_soc_bounding_box *dcn_soc;
 	struct dcn_ip_params *dcn_ip;
 	struct display_mode_lib dml;
@@ -384,7 +398,8 @@ enum dc_transfer_func_predefined {
 	TRANSFER_FUNCTION_LINEAR,
 	TRANSFER_FUNCTION_UNITY,
 	TRANSFER_FUNCTION_HLG,
-	TRANSFER_FUNCTION_HLG12
+	TRANSFER_FUNCTION_HLG12,
+	TRANSFER_FUNCTION_GAMMA22
 };
 
 struct dc_transfer_func {
@@ -627,9 +642,14 @@ struct dpcd_caps {
 	struct dc_dongle_caps dongle_caps;
 
 	uint32_t sink_dev_id;
+	int8_t sink_dev_id_str[6];
+	int8_t sink_hw_revision;
+	int8_t sink_fw_revision[2];
+
 	uint32_t branch_dev_id;
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
+	int8_t branch_fw_revision[2];
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;

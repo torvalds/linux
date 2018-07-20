@@ -77,8 +77,6 @@ struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
-
-	struct dal_logger *logger;
 	void *cgs_device;
 
 	enum dce_environment dce_environment;
@@ -194,6 +192,7 @@ union display_content_support {
 
 struct dc_panel_patch {
 	unsigned int dppowerup_delay;
+	unsigned int extra_t12_ms;
 };
 
 struct dc_edid_caps {

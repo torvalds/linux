@@ -73,6 +73,7 @@
 #include "amdgpu_virt.h"
 #include "amdgpu_gart.h"
 #include "amdgpu_debugfs.h"
+#include "amdgpu_job.h"
 
 /*
  * Modules parameters.
@@ -105,11 +106,8 @@ extern int amdgpu_vm_fault_stop;
 extern int amdgpu_vm_debug;
 extern int amdgpu_vm_update_mode;
 extern int amdgpu_dc;
-extern int amdgpu_dc_log;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
-extern int amdgpu_no_evict;
-extern int amdgpu_direct_gma_size;
 extern uint amdgpu_pcie_gen_cap;
 extern uint amdgpu_pcie_lane_cap;
 extern uint amdgpu_cg_mask;
@@ -600,17 +598,6 @@ struct amdgpu_ib {
 
 extern const struct drm_sched_backend_ops amdgpu_sched_ops;
 
-int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job, struct amdgpu_vm *vm);
-int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
-			     struct amdgpu_job **job);
-
-void amdgpu_job_free_resources(struct amdgpu_job *job);
-void amdgpu_job_free(struct amdgpu_job *job);
-int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
-		      struct drm_sched_entity *entity, void *owner,
-		      struct dma_fence **f);
-
 /*
  * Queue manager
  */
@@ -732,6 +719,14 @@ void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
 			     struct list_head *validated);
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list);
 void amdgpu_bo_list_free(struct amdgpu_bo_list *list);
+int amdgpu_bo_create_list_entry_array(struct drm_amdgpu_bo_list_in *in,
+				      struct drm_amdgpu_bo_list_entry **info_param);
+
+int amdgpu_bo_list_create(struct amdgpu_device *adev,
+				 struct drm_file *filp,
+				 struct drm_amdgpu_bo_list_entry *info,
+				 unsigned num_entries,
+				 struct amdgpu_bo_list **list);
 
 /*
  * GFX stuff
@@ -1029,6 +1024,7 @@ struct amdgpu_cs_parser {
 
 	/* scheduler job object */
 	struct amdgpu_job	*job;
+	struct amdgpu_ring	*ring;
 
 	/* buffer objects */
 	struct ww_acquire_ctx		ticket;
@@ -1049,40 +1045,6 @@ struct amdgpu_cs_parser {
 	unsigned num_post_dep_syncobjs;
 	struct drm_syncobj **post_dep_syncobjs;
 };
-
-#define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0) /* bit set means command submit involves a preamble IB */
-#define AMDGPU_PREAMBLE_IB_PRESENT_FIRST    (1 << 1) /* bit set means preamble IB is first presented in belonging context */
-#define AMDGPU_HAVE_CTX_SWITCH              (1 << 2) /* bit set means context switch occured */
-
-struct amdgpu_job {
-	struct drm_sched_job    base;
-	struct amdgpu_device	*adev;
-	struct amdgpu_vm	*vm;
-	struct amdgpu_ring	*ring;
-	struct amdgpu_sync	sync;
-	struct amdgpu_sync	sched_sync;
-	struct amdgpu_ib	*ibs;
-	struct dma_fence	*fence; /* the hw fence */
-	uint32_t		preamble_status;
-	uint32_t		num_ibs;
-	void			*owner;
-	uint64_t		fence_ctx; /* the fence_context this job uses */
-	bool                    vm_needs_flush;
-	uint64_t		vm_pd_addr;
-	unsigned		vmid;
-	unsigned		pasid;
-	uint32_t		gds_base, gds_size;
-	uint32_t		gws_base, gws_size;
-	uint32_t		oa_base, oa_size;
-	uint32_t		vram_lost_counter;
-
-	/* user fence handling */
-	uint64_t		uf_addr;
-	uint64_t		uf_sequence;
-
-};
-#define to_amdgpu_job(sched_job)		\
-		container_of((sched_job), struct amdgpu_job, base)
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,
 				      uint32_t ib_idx, int idx)
@@ -1398,6 +1360,7 @@ enum amd_hw_ip_block_type {
 	PWR_HWIP,
 	NBIF_HWIP,
 	THM_HWIP,
+	CLK_HWIP,
 	MAX_HWIP
 };
 
@@ -1588,9 +1551,9 @@ struct amdgpu_device {
 	DECLARE_HASHTABLE(mn_hash, 7);
 
 	/* tracking pinned memory */
-	u64 vram_pin_size;
-	u64 invisible_pin_size;
-	u64 gart_pin_size;
+	atomic64_t vram_pin_size;
+	atomic64_t visible_pin_size;
+	atomic64_t gart_pin_size;
 
 	/* amdkfd interface */
 	struct kfd_dev          *kfd;

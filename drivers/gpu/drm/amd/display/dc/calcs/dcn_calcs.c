@@ -250,7 +250,24 @@ static void pipe_ctx_to_e2e_pipe_params (
 	else if (pipe->bottom_pipe != NULL && pipe->bottom_pipe->plane_state == pipe->plane_state)
 		input->src.is_hsplit = true;
 
-	input->src.dcc                 = pipe->plane_state->dcc.enable;
+	if (pipe->plane_res.dpp->ctx->dc->debug.optimized_watermark) {
+		/*
+		 * this method requires us to always re-calculate watermark when dcc change
+		 * between flip.
+		 */
+		input->src.dcc = pipe->plane_state->dcc.enable ? 1 : 0;
+	} else {
+		/*
+		 * allow us to disable dcc on the fly without re-calculating WM
+		 *
+		 * extra overhead for DCC is quite small.  for 1080p WM without
+		 * DCC is only 0.417us lower (urgent goes from 6.979us to 6.562us)
+		 */
+		unsigned int bpe;
+
+		input->src.dcc = pipe->plane_res.dpp->ctx->dc->res_pool->hubbub->funcs->
+			dcc_support_pixel_format(pipe->plane_state->format, &bpe) ? 1 : 0;
+	}
 	input->src.dcc_rate            = 1;
 	input->src.meta_pitch          = pipe->plane_state->dcc.grph.meta_pitch;
 	input->src.source_scan         = dm_horz;

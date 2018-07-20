@@ -501,13 +501,13 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case AMDGPU_INFO_VRAM_GTT: {
 		struct drm_amdgpu_info_vram_gtt vram_gtt;
 
-		vram_gtt.vram_size = adev->gmc.real_vram_size;
-		vram_gtt.vram_size -= adev->vram_pin_size;
-		vram_gtt.vram_cpu_accessible_size = adev->gmc.visible_vram_size;
-		vram_gtt.vram_cpu_accessible_size -= (adev->vram_pin_size - adev->invisible_pin_size);
+		vram_gtt.vram_size = adev->gmc.real_vram_size -
+			atomic64_read(&adev->vram_pin_size);
+		vram_gtt.vram_cpu_accessible_size = adev->gmc.visible_vram_size -
+			atomic64_read(&adev->visible_pin_size);
 		vram_gtt.gtt_size = adev->mman.bdev.man[TTM_PL_TT].size;
 		vram_gtt.gtt_size *= PAGE_SIZE;
-		vram_gtt.gtt_size -= adev->gart_pin_size;
+		vram_gtt.gtt_size -= atomic64_read(&adev->gart_pin_size);
 		return copy_to_user(out, &vram_gtt,
 				    min((size_t)size, sizeof(vram_gtt))) ? -EFAULT : 0;
 	}
@@ -516,17 +516,16 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		memset(&mem, 0, sizeof(mem));
 		mem.vram.total_heap_size = adev->gmc.real_vram_size;
-		mem.vram.usable_heap_size =
-			adev->gmc.real_vram_size - adev->vram_pin_size;
+		mem.vram.usable_heap_size = adev->gmc.real_vram_size -
+			atomic64_read(&adev->vram_pin_size);
 		mem.vram.heap_usage =
 			amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
 
 		mem.cpu_accessible_vram.total_heap_size =
 			adev->gmc.visible_vram_size;
-		mem.cpu_accessible_vram.usable_heap_size =
-			adev->gmc.visible_vram_size -
-			(adev->vram_pin_size - adev->invisible_pin_size);
+		mem.cpu_accessible_vram.usable_heap_size = adev->gmc.visible_vram_size -
+			atomic64_read(&adev->visible_pin_size);
 		mem.cpu_accessible_vram.heap_usage =
 			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.cpu_accessible_vram.max_allocation =
@@ -534,8 +533,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		mem.gtt.total_heap_size = adev->mman.bdev.man[TTM_PL_TT].size;
 		mem.gtt.total_heap_size *= PAGE_SIZE;
-		mem.gtt.usable_heap_size = mem.gtt.total_heap_size
-			- adev->gart_pin_size;
+		mem.gtt.usable_heap_size = mem.gtt.total_heap_size -
+			atomic64_read(&adev->gart_pin_size);
 		mem.gtt.heap_usage =
 			amdgpu_gtt_mgr_usage(&adev->mman.bdev.man[TTM_PL_TT]);
 		mem.gtt.max_allocation = mem.gtt.usable_heap_size * 3 / 4;

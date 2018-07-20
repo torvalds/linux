@@ -313,7 +313,7 @@ static enum signal_type get_basic_signal_type(
  * @brief
  * Check whether there is a dongle on DP connector
  */
-static bool is_dp_sink_present(struct dc_link *link)
+bool dc_link_is_dp_sink_present(struct dc_link *link)
 {
 	enum gpio_result gpio_result;
 	uint32_t clock_pin = 0;
@@ -406,7 +406,7 @@ static enum signal_type link_detect_sink(
 			 * we assume signal is DVI; it could be corrected
 			 * to HDMI after dongle detection
 			 */
-			if (!is_dp_sink_present(link))
+			if (!dm_helpers_is_dp_sink_present(link))
 				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		}
 	}
@@ -498,6 +498,10 @@ static bool detect_dp(
 			sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
 			link->type = dc_connection_mst_branch;
 
+			dal_ddc_service_set_transaction_type(
+							link->ddc,
+							sink_caps->transaction_type);
+
 			/*
 			 * This call will initiate MST topology discovery. Which
 			 * will detect MST ports and add new DRM connector DRM
@@ -524,6 +528,10 @@ static bool detect_dp(
 			 */
 			if (reason == DETECT_REASON_BOOT)
 				boot = true;
+
+			dm_helpers_dp_update_branch_info(
+				link->ctx,
+				link);
 
 			if (!dm_helpers_dp_mst_start_top_mgr(
 				link->ctx,

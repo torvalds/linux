@@ -69,11 +69,13 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb);
  *
  * Initializes a scheduler runqueue.
  */
-static void drm_sched_rq_init(struct drm_sched_rq *rq)
+static void drm_sched_rq_init(struct drm_gpu_scheduler *sched,
+			      struct drm_sched_rq *rq)
 {
 	spin_lock_init(&rq->lock);
 	INIT_LIST_HEAD(&rq->entities);
 	rq->current_entity = NULL;
+	rq->sched = sched;
 }
 
 /**
@@ -160,26 +162,30 @@ drm_sched_rq_select_entity(struct drm_sched_rq *rq)
  * drm_sched_entity_init - Init a context entity used by scheduler when
  * submit to HW ring.
  *
- * @sched: scheduler instance
  * @entity: scheduler entity to init
- * @rq: the run queue this entity belongs
+ * @rq_list: the list of run queue on which jobs from this
+ *           entity can be submitted
+ * @num_rq_list: number of run queue in rq_list
  * @guilty: atomic_t set to 1 when a job on this queue
  *          is found to be guilty causing a timeout
  *
+ * Note: the rq_list should have atleast one element to schedule
+ *       the entity
+ *
  * Returns 0 on success or a negative error code on failure.
 */
-int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
-			  struct drm_sched_entity *entity,
-			  struct drm_sched_rq *rq,
+int drm_sched_entity_init(struct drm_sched_entity *entity,
+			  struct drm_sched_rq **rq_list,
+			  unsigned int num_rq_list,
 			  atomic_t *guilty)
 {
-	if (!(sched && entity && rq))
+	if (!(entity && rq_list && num_rq_list > 0 && rq_list[0]))
 		return -EINVAL;
 
 	memset(entity, 0, sizeof(struct drm_sched_entity));
 	INIT_LIST_HEAD(&entity->list);
-	entity->rq = rq;
-	entity->sched = sched;
+	entity->rq = rq_list[0];
+	entity->sched = rq_list[0]->sched;
 	entity->guilty = guilty;
 	entity->last_scheduled = NULL;
 
@@ -541,6 +547,11 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 	if (first) {
 		/* Add the entity to the run queue */
 		spin_lock(&entity->rq_lock);
+		if (!entity->rq) {
+			DRM_ERROR("Trying to push to a killed entity\n");
+			spin_unlock(&entity->rq_lock);
+			return;
+		}
 		drm_sched_rq_add_entity(entity->rq, entity);
 		spin_unlock(&entity->rq_lock);
 		drm_sched_wakeup(sched);
@@ -926,7 +937,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	sched->timeout = timeout;
 	sched->hang_limit = hang_limit;
 	for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_MAX; i++)
-		drm_sched_rq_init(&sched->sched_rq[i]);
+		drm_sched_rq_init(sched, &sched->sched_rq[i]);
 
 	init_waitqueue_head(&sched->wake_up_worker);
 	init_waitqueue_head(&sched->job_scheduled);

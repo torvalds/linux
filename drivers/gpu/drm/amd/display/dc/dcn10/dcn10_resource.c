@@ -1035,11 +1035,11 @@ static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_st
 	return DC_OK;
 }
 
-static struct dc_cap_funcs cap_funcs = {
+static const struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = dcn10_get_dcc_compression_cap
 };
 
-static struct resource_funcs dcn10_res_pool_funcs = {
+static const struct resource_funcs dcn10_res_pool_funcs = {
 	.destroy = dcn10_destroy_resource_pool,
 	.link_enc_create = dcn10_link_encoder_create,
 	.validate_bandwidth = dcn_validate_bandwidth,

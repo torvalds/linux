@@ -35,6 +35,8 @@
 #include "mmhub/mmhub_9_1_offset.h"
 #include "mmhub/mmhub_9_1_sh_mask.h"
 
+#include "ivsrcid/vcn/irqsrcs_vcn_1_0.h"
+
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev);
@@ -77,13 +79,13 @@ static int vcn_v1_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* VCN DEC TRAP */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN, 124, &adev->vcn.irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN, VCN_1_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT, &adev->vcn.irq);
 	if (r)
 		return r;
 
 	/* VCN ENC TRAP */
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
-		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN, i + 119,
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN, i + VCN_1_0__SRCID__UVD_ENC_GENERAL_PURPOSE,
 					&adev->vcn.irq);
 		if (r)
 			return r;
@@ -600,11 +602,11 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 	/* disable byte swapping */
 	lmi_swap_cntl = 0;
 
-	vcn_v1_0_mc_resume(adev);
-
 	vcn_1_0_disable_static_power_gating(adev);
 	/* disable clock gating */
 	vcn_v1_0_disable_clock_gating(adev);
+
+	vcn_v1_0_mc_resume(adev);
 
 	/* disable interupt */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN), 0,

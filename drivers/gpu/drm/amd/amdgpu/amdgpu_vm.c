@@ -156,6 +156,9 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 		return;
 	list_add_tail(&base->bo_list, &bo->va);
 
+	if (bo->tbo.type == ttm_bo_type_kernel)
+		list_move(&base->vm_status, &vm->relocated);
+
 	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
 		return;
 
@@ -422,8 +425,8 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	r = amdgpu_job_submit(job, ring, &vm->entity,
-			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
+	r = amdgpu_job_submit(job, &vm->entity, AMDGPU_FENCE_OWNER_UNDEFINED,
+			      &fence);
 	if (r)
 		goto error_free;
 
@@ -540,7 +543,6 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			pt->parent = amdgpu_bo_ref(parent->base.bo);
 
 			amdgpu_vm_bo_base_init(&entry->base, vm, pt);
-			list_move(&entry->base.vm_status, &vm->relocated);
 		}
 
 		if (level < AMDGPU_VM_PTB) {
@@ -1118,8 +1120,8 @@ restart:
 		amdgpu_sync_resv(adev, &job->sync, root->tbo.resv,
 				 AMDGPU_FENCE_OWNER_VM, false);
 		WARN_ON(params.ib->length_dw > ndw);
-		r = amdgpu_job_submit(job, ring, &vm->entity,
-				      AMDGPU_FENCE_OWNER_VM, &fence);
+		r = amdgpu_job_submit(job, &vm->entity, AMDGPU_FENCE_OWNER_VM,
+				      &fence);
 		if (r)
 			goto error;
 
@@ -1483,8 +1485,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	amdgpu_ring_pad_ib(ring, params.ib);
 	WARN_ON(params.ib->length_dw > ndw);
-	r = amdgpu_job_submit(job, ring, &vm->entity,
-			      AMDGPU_FENCE_OWNER_VM, &f);
+	r = amdgpu_job_submit(job, &vm->entity, AMDGPU_FENCE_OWNER_VM, &f);
 	if (r)
 		goto error_free;
 
@@ -1645,18 +1646,17 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	uint64_t flags;
 	int r;
 
-	if (clear || !bo_va->base.bo) {
+	if (clear || !bo) {
 		mem = NULL;
 		nodes = NULL;
 		exclusive = NULL;
 	} else {
 		struct ttm_dma_tt *ttm;
 
-		mem = &bo_va->base.bo->tbo.mem;
+		mem = &bo->tbo.mem;
 		nodes = mem->mm_node;
 		if (mem->mem_type == TTM_PL_TT) {
-			ttm = container_of(bo_va->base.bo->tbo.ttm,
-					   struct ttm_dma_tt, ttm);
+			ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
 			pages_addr = ttm->dma_address;
 		}
 		exclusive = reservation_object_get_excl(bo->tbo.resv);
@@ -2562,8 +2562,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	ring_instance %= adev->vm_manager.vm_pte_num_rings;
 	ring = adev->vm_manager.vm_pte_rings[ring_instance];
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-	r = drm_sched_entity_init(&ring->sched, &vm->entity,
-				  rq, NULL);
+	r = drm_sched_entity_init(&vm->entity, &rq, 1, NULL);
 	if (r)
 		return r;
 
@@ -2941,4 +2940,43 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	}
 
 	return 0;
+}
+
+/**
+ * amdgpu_vm_get_task_info - Extracts task info for a PASID.
+ *
+ * @dev: drm device pointer
+ * @pasid: PASID identifier for VM
+ * @task_info: task_info to fill.
+ */
+void amdgpu_vm_get_task_info(struct amdgpu_device *adev, unsigned int pasid,
+			 struct amdgpu_task_info *task_info)
+{
+	struct amdgpu_vm *vm;
+
+	spin_lock(&adev->vm_manager.pasid_lock);
+
+	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
+	if (vm)
+		*task_info = vm->task_info;
+
+	spin_unlock(&adev->vm_manager.pasid_lock);
+}
+
+/**
+ * amdgpu_vm_set_task_info - Sets VMs task info.
+ *
+ * @vm: vm for which to set the info
+ */
+void amdgpu_vm_set_task_info(struct amdgpu_vm *vm)
+{
+	if (!vm->task_info.pid) {
+		vm->task_info.pid = current->pid;
+		get_task_comm(vm->task_info.task_name, current);
+
+		if (current->group_leader->mm == current->mm) {
+			vm->task_info.tgid = current->group_leader->pid;
+			get_task_comm(vm->task_info.process_name, current->group_leader);
+		}
+	}
 }

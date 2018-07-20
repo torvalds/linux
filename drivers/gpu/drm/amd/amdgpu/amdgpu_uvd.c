@@ -263,21 +263,20 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 			dev_err(adev->dev, "(%d) failed to allocate UVD bo\n", r);
 			return r;
 		}
-
-		ring = &adev->uvd.inst[j].ring;
-		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-		r = drm_sched_entity_init(&ring->sched, &adev->uvd.inst[j].entity,
-					  rq, NULL);
-		if (r != 0) {
-			DRM_ERROR("Failed setting up UVD(%d) run queue.\n", j);
-			return r;
-		}
-
-		for (i = 0; i < adev->uvd.max_handles; ++i) {
-			atomic_set(&adev->uvd.inst[j].handles[i], 0);
-			adev->uvd.inst[j].filp[i] = NULL;
-		}
 	}
+
+	ring = &adev->uvd.inst[0].ring;
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+	r = drm_sched_entity_init(&adev->uvd.entity, &rq, 1, NULL);
+	if (r) {
+		DRM_ERROR("Failed setting up UVD kernel entity.\n");
+		return r;
+	}
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
+		atomic_set(&adev->uvd.handles[i], 0);
+		adev->uvd.filp[i] = NULL;
+	}
+
 	/* from uvd v5.0 HW addressing capacity increased to 64 bits */
 	if (!amdgpu_device_ip_block_version_cmp(adev, AMD_IP_BLOCK_TYPE_UVD, 5, 0))
 		adev->uvd.address_64_bit = true;
@@ -306,10 +305,11 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 {
 	int i, j;
 
+	drm_sched_entity_destroy(&adev->uvd.inst->ring.sched,
+				 &adev->uvd.entity);
+
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
 		kfree(adev->uvd.inst[j].saved_bo);
-
-		drm_sched_entity_destroy(&adev->uvd.inst[j].ring.sched, &adev->uvd.inst[j].entity);
 
 		amdgpu_bo_free_kernel(&adev->uvd.inst[j].vcpu_bo,
 				      &adev->uvd.inst[j].gpu_addr,
@@ -333,19 +333,19 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 
 	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
+	/* only valid for physical mode */
+	if (adev->asic_type < CHIP_POLARIS10) {
+		for (i = 0; i < adev->uvd.max_handles; ++i)
+			if (atomic_read(&adev->uvd.handles[i]))
+				break;
+
+		if (i == adev->uvd.max_handles)
+			return 0;
+	}
+
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
 		if (adev->uvd.inst[j].vcpu_bo == NULL)
 			continue;
-
-		/* only valid for physical mode */
-		if (adev->asic_type < CHIP_POLARIS10) {
-			for (i = 0; i < adev->uvd.max_handles; ++i)
-				if (atomic_read(&adev->uvd.inst[j].handles[i]))
-					break;
-
-			if (i == adev->uvd.max_handles)
-				continue;
-		}
 
 		size = amdgpu_bo_size(adev->uvd.inst[j].vcpu_bo);
 		ptr = adev->uvd.inst[j].cpu_addr;
@@ -398,30 +398,27 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 
 void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 {
-	struct amdgpu_ring *ring;
-	int i, j, r;
+	struct amdgpu_ring *ring = &adev->uvd.inst[0].ring;
+	int i, r;
 
-	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
-		ring = &adev->uvd.inst[j].ring;
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
+		uint32_t handle = atomic_read(&adev->uvd.handles[i]);
 
-		for (i = 0; i < adev->uvd.max_handles; ++i) {
-			uint32_t handle = atomic_read(&adev->uvd.inst[j].handles[i]);
-			if (handle != 0 && adev->uvd.inst[j].filp[i] == filp) {
-				struct dma_fence *fence;
+		if (handle != 0 && adev->uvd.filp[i] == filp) {
+			struct dma_fence *fence;
 
-				r = amdgpu_uvd_get_destroy_msg(ring, handle,
-							       false, &fence);
-				if (r) {
-					DRM_ERROR("Error destroying UVD(%d) %d!\n", j, r);
-					continue;
-				}
-
-				dma_fence_wait(fence, false);
-				dma_fence_put(fence);
-
-				adev->uvd.inst[j].filp[i] = NULL;
-				atomic_set(&adev->uvd.inst[j].handles[i], 0);
+			r = amdgpu_uvd_get_destroy_msg(ring, handle, false,
+						       &fence);
+			if (r) {
+				DRM_ERROR("Error destroying UVD %d!\n", r);
+				continue;
 			}
+
+			dma_fence_wait(fence, false);
+			dma_fence_put(fence);
+
+			adev->uvd.filp[i] = NULL;
+			atomic_set(&adev->uvd.handles[i], 0);
 		}
 	}
 }
@@ -696,16 +693,15 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 	void *ptr;
 	long r;
 	int i;
-	uint32_t ip_instance = ctx->parser->job->ring->me;
 
 	if (offset & 0x3F) {
-		DRM_ERROR("UVD(%d) messages must be 64 byte aligned!\n", ip_instance);
+		DRM_ERROR("UVD messages must be 64 byte aligned!\n");
 		return -EINVAL;
 	}
 
 	r = amdgpu_bo_kmap(bo, &ptr);
 	if (r) {
-		DRM_ERROR("Failed mapping the UVD(%d) message (%ld)!\n", ip_instance, r);
+		DRM_ERROR("Failed mapping the UVD) message (%ld)!\n", r);
 		return r;
 	}
 
@@ -715,7 +711,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 	handle = msg[2];
 
 	if (handle == 0) {
-		DRM_ERROR("Invalid UVD(%d) handle!\n", ip_instance);
+		DRM_ERROR("Invalid UVD handle!\n");
 		return -EINVAL;
 	}
 
@@ -726,18 +722,19 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 		/* try to alloc a new handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i) {
-			if (atomic_read(&adev->uvd.inst[ip_instance].handles[i]) == handle) {
-				DRM_ERROR("(%d)Handle 0x%x already in use!\n", ip_instance, handle);
+			if (atomic_read(&adev->uvd.handles[i]) == handle) {
+				DRM_ERROR(")Handle 0x%x already in use!\n",
+					  handle);
 				return -EINVAL;
 			}
 
-			if (!atomic_cmpxchg(&adev->uvd.inst[ip_instance].handles[i], 0, handle)) {
-				adev->uvd.inst[ip_instance].filp[i] = ctx->parser->filp;
+			if (!atomic_cmpxchg(&adev->uvd.handles[i], 0, handle)) {
+				adev->uvd.filp[i] = ctx->parser->filp;
 				return 0;
 			}
 		}
 
-		DRM_ERROR("No more free UVD(%d) handles!\n", ip_instance);
+		DRM_ERROR("No more free UVD handles!\n");
 		return -ENOSPC;
 
 	case 1:
@@ -749,27 +746,27 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 		/* validate the handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i) {
-			if (atomic_read(&adev->uvd.inst[ip_instance].handles[i]) == handle) {
-				if (adev->uvd.inst[ip_instance].filp[i] != ctx->parser->filp) {
-					DRM_ERROR("UVD(%d) handle collision detected!\n", ip_instance);
+			if (atomic_read(&adev->uvd.handles[i]) == handle) {
+				if (adev->uvd.filp[i] != ctx->parser->filp) {
+					DRM_ERROR("UVD handle collision detected!\n");
 					return -EINVAL;
 				}
 				return 0;
 			}
 		}
 
-		DRM_ERROR("Invalid UVD(%d) handle 0x%x!\n", ip_instance, handle);
+		DRM_ERROR("Invalid UVD handle 0x%x!\n", handle);
 		return -ENOENT;
 
 	case 2:
 		/* it's a destroy msg, free the handle */
 		for (i = 0; i < adev->uvd.max_handles; ++i)
-			atomic_cmpxchg(&adev->uvd.inst[ip_instance].handles[i], handle, 0);
+			atomic_cmpxchg(&adev->uvd.handles[i], handle, 0);
 		amdgpu_bo_kunmap(bo);
 		return 0;
 
 	default:
-		DRM_ERROR("Illegal UVD(%d) message type (%d)!\n", ip_instance, msg_type);
+		DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
 		return -EINVAL;
 	}
 	BUG();
@@ -1062,19 +1059,16 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 		if (r < 0)
 			goto err_free;
 
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-		job->fence = dma_fence_get(f);
+		r = amdgpu_job_submit_direct(job, ring, &f);
 		if (r)
 			goto err_free;
-
-		amdgpu_job_free(job);
 	} else {
 		r = amdgpu_sync_resv(adev, &job->sync, bo->tbo.resv,
 				     AMDGPU_FENCE_OWNER_UNDEFINED, false);
 		if (r)
 			goto err_free;
 
-		r = amdgpu_job_submit(job, ring, &adev->uvd.inst[ring->me].entity,
+		r = amdgpu_job_submit(job, &adev->uvd.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 		if (r)
 			goto err_free;
@@ -1276,7 +1270,7 @@ uint32_t amdgpu_uvd_used_handles(struct amdgpu_device *adev)
 		 * necessarily linear. So we need to count
 		 * all non-zero handles.
 		 */
-		if (atomic_read(&adev->uvd.inst->handles[i]))
+		if (atomic_read(&adev->uvd.handles[i]))
 			used_handles++;
 	}
 

@@ -2896,11 +2896,6 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	vega10_enable_disable_PCC_limit_feature(hwmgr, true);
 
-	if ((hwmgr->smu_version == 0x001c2c00) ||
-			(hwmgr->smu_version == 0x001c2d00))
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_UpdatePkgPwrPidAlpha, 1);
-
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 		PPSMC_MSG_ConfigureTelemetry, data->config_telemetry);
 
@@ -3801,7 +3796,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 	if (i < dpm_table->count) {
 		clock_req.clock_type = amd_pp_dcef_clock;
-		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value;
+		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value * 10;
 		if (!vega10_display_clock_voltage_request(hwmgr, &clock_req)) {
 			smum_send_msg_to_smc_with_parameter(
 					hwmgr, PPSMC_MSG_SetMinDeepSleepDcefclk,

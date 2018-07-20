@@ -63,10 +63,34 @@ static bool amdgpu_need_backup(struct amdgpu_device *adev)
 	return true;
 }
 
+/**
+ * amdgpu_bo_subtract_pin_size - Remove BO from pin_size accounting
+ *
+ * @bo: &amdgpu_bo buffer object
+ *
+ * This function is called when a BO stops being pinned, and updates the
+ * &amdgpu_device pin_size values accordingly.
+ */
+static void amdgpu_bo_subtract_pin_size(struct amdgpu_bo *bo)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+
+	if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
+		atomic64_sub(amdgpu_bo_size(bo), &adev->vram_pin_size);
+		atomic64_sub(amdgpu_vram_mgr_bo_visible_size(bo),
+			     &adev->visible_pin_size);
+	} else if (bo->tbo.mem.mem_type == TTM_PL_TT) {
+		atomic64_sub(amdgpu_bo_size(bo), &adev->gart_pin_size);
+	}
+}
+
 static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
 	struct amdgpu_bo *bo = ttm_to_amdgpu_bo(tbo);
+
+	if (WARN_ON_ONCE(bo->pin_count > 0))
+		amdgpu_bo_subtract_pin_size(bo);
 
 	if (bo->kfd_bo)
 		amdgpu_amdkfd_unreserve_system_memory_limit(bo);
@@ -252,22 +276,33 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 		goto error_free;
 	}
 
-	r = amdgpu_bo_pin(*bo_ptr, domain, gpu_addr);
+	r = amdgpu_bo_pin(*bo_ptr, domain);
 	if (r) {
 		dev_err(adev->dev, "(%d) kernel bo pin failed\n", r);
 		goto error_unreserve;
 	}
 
+	r = amdgpu_ttm_alloc_gart(&(*bo_ptr)->tbo);
+	if (r) {
+		dev_err(adev->dev, "%p bind failed\n", *bo_ptr);
+		goto error_unpin;
+	}
+
+	if (gpu_addr)
+		*gpu_addr = amdgpu_bo_gpu_offset(*bo_ptr);
+
 	if (cpu_addr) {
 		r = amdgpu_bo_kmap(*bo_ptr, cpu_addr);
 		if (r) {
 			dev_err(adev->dev, "(%d) kernel bo map failed\n", r);
-			goto error_unreserve;
+			goto error_unpin;
 		}
 	}
 
 	return 0;
 
+error_unpin:
+	amdgpu_bo_unpin(*bo_ptr);
 error_unreserve:
 	amdgpu_bo_unreserve(*bo_ptr);
 
@@ -817,7 +852,6 @@ void amdgpu_bo_unref(struct amdgpu_bo **bo)
  * @domain: domain to be pinned to
  * @min_offset: the start of requested address range
  * @max_offset: the end of requested address range
- * @gpu_addr: GPU offset of the &amdgpu_bo buffer object
  *
  * Pins the buffer object according to requested domain and address range. If
  * the memory is unbound gart memory, binds the pages into gart table. Adjusts
@@ -835,8 +869,7 @@ void amdgpu_bo_unref(struct amdgpu_bo **bo)
  * 0 for success or a negative error code on failure.
  */
 int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
-			     u64 min_offset, u64 max_offset,
-			     u64 *gpu_addr)
+			     u64 min_offset, u64 max_offset)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_operation_ctx ctx = { false, false };
@@ -868,8 +901,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 			return -EINVAL;
 
 		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = amdgpu_bo_gpu_offset(bo);
 
 		if (max_offset != 0) {
 			u64 domain_start = bo->tbo.bdev->man[mem_type].gpu_offset;
@@ -905,22 +936,15 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		goto error;
 	}
 
-	r = amdgpu_ttm_alloc_gart(&bo->tbo);
-	if (unlikely(r)) {
-		dev_err(adev->dev, "%p bind failed\n", bo);
-		goto error;
-	}
-
 	bo->pin_count = 1;
-	if (gpu_addr != NULL)
-		*gpu_addr = amdgpu_bo_gpu_offset(bo);
 
 	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
-		adev->vram_pin_size += amdgpu_bo_size(bo);
-		adev->invisible_pin_size += amdgpu_vram_mgr_bo_invisible_size(bo);
+		atomic64_add(amdgpu_bo_size(bo), &adev->vram_pin_size);
+		atomic64_add(amdgpu_vram_mgr_bo_visible_size(bo),
+			     &adev->visible_pin_size);
 	} else if (domain == AMDGPU_GEM_DOMAIN_GTT) {
-		adev->gart_pin_size += amdgpu_bo_size(bo);
+		atomic64_add(amdgpu_bo_size(bo), &adev->gart_pin_size);
 	}
 
 error:
@@ -931,7 +955,6 @@ error:
  * amdgpu_bo_pin - pin an &amdgpu_bo buffer object
  * @bo: &amdgpu_bo buffer object to be pinned
  * @domain: domain to be pinned to
- * @gpu_addr: GPU offset of the &amdgpu_bo buffer object
  *
  * A simple wrapper to amdgpu_bo_pin_restricted().
  * Provides a simpler API for buffers that do not have any strict restrictions
@@ -940,9 +963,9 @@ error:
  * Returns:
  * 0 for success or a negative error code on failure.
  */
-int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain, u64 *gpu_addr)
+int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain)
 {
-	return amdgpu_bo_pin_restricted(bo, domain, 0, 0, gpu_addr);
+	return amdgpu_bo_pin_restricted(bo, domain, 0, 0);
 }
 
 /**
@@ -969,12 +992,7 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 	if (bo->pin_count)
 		return 0;
 
-	if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
-		adev->vram_pin_size -= amdgpu_bo_size(bo);
-		adev->invisible_pin_size -= amdgpu_vram_mgr_bo_invisible_size(bo);
-	} else if (bo->tbo.mem.mem_type == TTM_PL_TT) {
-		adev->gart_pin_size -= amdgpu_bo_size(bo);
-	}
+	amdgpu_bo_subtract_pin_size(bo);
 
 	for (i = 0; i < bo->placement.num_placement; i++) {
 		bo->placements[i].lpfn = 0;

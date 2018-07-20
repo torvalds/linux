@@ -128,8 +128,20 @@ static void process_read_reply(
 			ctx->status =
 				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
 			ctx->operation_succeeded = false;
+		} else if (ctx->returned_byte < ctx->current_read_length) {
+			ctx->current_read_length -= ctx->returned_byte;
+
+			ctx->offset += ctx->returned_byte;
+
+			++ctx->invalid_reply_retry_aux_on_ack;
+
+			if (ctx->invalid_reply_retry_aux_on_ack >
+				AUX_INVALID_REPLY_RETRY_COUNTER) {
+				ctx->status =
+				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
+				ctx->operation_succeeded = false;
+			}
 		} else {
-			ctx->current_read_length = ctx->returned_byte;
 			ctx->status = I2CAUX_TRANSACTION_STATUS_SUCCEEDED;
 			ctx->transaction_complete = true;
 			ctx->operation_succeeded = true;
@@ -290,7 +302,6 @@ static bool read_command(
 				ctx.operation_succeeded);
 	}
 
-	request->payload.length = ctx.reply.length;
 	return ctx.operation_succeeded;
 }
 

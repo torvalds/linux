@@ -194,7 +194,7 @@ struct pp_smumgr_func {
 	int (*request_smu_load_fw)(struct pp_hwmgr  *hwmgr);
 	int (*request_smu_load_specific_fw)(struct pp_hwmgr  *hwmgr,
 					    uint32_t firmware);
-	int (*get_argument)(struct pp_hwmgr  *hwmgr);
+	uint32_t (*get_argument)(struct pp_hwmgr  *hwmgr);
 	int (*send_msg_to_smc)(struct pp_hwmgr  *hwmgr, uint16_t msg);
 	int (*send_msg_to_smc_with_parameter)(struct pp_hwmgr  *hwmgr,
 					  uint16_t msg, uint32_t parameter);

@@ -211,6 +211,8 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		fences += amdgpu_fence_count_emitted(&adev->vcn.ring_enc[i]);
 	}
 
+	fences += amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg);
+
 	if (fences == 0) {
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
@@ -227,7 +229,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
-	if (set_clocks && adev->pm.dpm_enabled) {
+	if (set_clocks) {
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, true);
 		else
@@ -306,12 +308,9 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 	}
 	ib->length_dw = 16;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err_free;
-
-	amdgpu_job_free(job);
 
 	amdgpu_bo_fence(bo, f, false);
 	amdgpu_bo_unreserve(bo);
@@ -497,12 +496,10 @@ static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -551,12 +548,10 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -664,12 +659,10 @@ static int amdgpu_vcn_jpeg_set_reg(struct amdgpu_ring *ring, uint32_t handle,
 	}
 	ib->length_dw = 16;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);

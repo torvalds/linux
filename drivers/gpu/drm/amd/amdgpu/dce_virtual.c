@@ -36,6 +36,7 @@
 #include "dce_v10_0.h"
 #include "dce_v11_0.h"
 #include "dce_virtual.h"
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 #define DCE_VIRTUAL_VBLANK_PERIOD 16666666
 
@@ -371,7 +372,7 @@ static int dce_virtual_sw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 229, &adev->crtc_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SMU_DISP_TIMER2_TRIGGER, &adev->crtc_irq);
 	if (r)
 		return r;
 

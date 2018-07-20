@@ -168,11 +168,19 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	}
 
 
-	ret = amdgpu_bo_pin(abo, domain, NULL);
+	ret = amdgpu_bo_pin(abo, domain);
 	if (ret) {
 		amdgpu_bo_unreserve(abo);
 		goto out_unref;
 	}
+
+	ret = amdgpu_ttm_alloc_gart(&abo->tbo);
+	if (ret) {
+		amdgpu_bo_unreserve(abo);
+		dev_err(adev->dev, "%p bind failed\n", abo);
+		goto out_unref;
+	}
+
 	ret = amdgpu_bo_kmap(abo, NULL);
 	amdgpu_bo_unreserve(abo);
 	if (ret) {

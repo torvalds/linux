@@ -60,7 +60,7 @@
 
 #include "modules/inc/mod_freesync.h"
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 #include "ivsrcid/irqsrcs_dcn_1_0.h"
 
 #include "dcn/dcn_1_0_offset.h"
@@ -1041,7 +1041,7 @@ static void handle_hpd_rx_irq(void *param)
 	if (dc_link->type != dc_connection_mst_branch)
 		mutex_lock(&aconnector->hpd_lock);
 
-	if (dc_link_handle_hpd_rx_irq(dc_link, NULL) &&
+	if (dc_link_handle_hpd_rx_irq(dc_link, NULL, NULL) &&
 			!is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (dc_link_detect(dc_link, DETECT_REASON_HPDRX)) {
@@ -1192,7 +1192,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	return 0;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 /* Register IRQ sources and initialize IRQ callbacks */
 static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 {
@@ -1526,7 +1526,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			goto fail;
 		}
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case CHIP_RAVEN:
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
@@ -1725,7 +1725,7 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_dig = 6;
 		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case CHIP_RAVEN:
 		adev->mode_info.num_crtc = 4;
 		adev->mode_info.num_hpd = 4;
@@ -3094,14 +3094,24 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	else
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 
-	r = amdgpu_bo_pin(rbo, domain, &afb->address);
-	amdgpu_bo_unreserve(rbo);
-
+	r = amdgpu_bo_pin(rbo, domain);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to pin framebuffer with error %d\n", r);
+		amdgpu_bo_unreserve(rbo);
 		return r;
 	}
+
+	r = amdgpu_ttm_alloc_gart(&rbo->tbo);
+	if (unlikely(r != 0)) {
+		amdgpu_bo_unpin(rbo);
+		amdgpu_bo_unreserve(rbo);
+		DRM_ERROR("%p bind failed\n", rbo);
+		return r;
+	}
+	amdgpu_bo_unreserve(rbo);
+
+	afb->address = amdgpu_bo_gpu_offset(rbo);
 
 	amdgpu_bo_ref(rbo);
 
@@ -3499,7 +3509,6 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	aconnector->base.stereo_allowed = false;
 	aconnector->base.dpms = DRM_MODE_DPMS_OFF;
 	aconnector->hpd.hpd = AMDGPU_HPD_NONE; /* not used */
-
 	mutex_init(&aconnector->hpd_lock);
 
 	/* configure support HPD hot plug connector_>polled default value is 0
@@ -3508,9 +3517,13 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	switch (connector_type) {
 	case DRM_MODE_CONNECTOR_HDMIA:
 		aconnector->base.polled = DRM_CONNECTOR_POLL_HPD;
+		aconnector->base.ycbcr_420_allowed =
+			link->link_enc->features.ycbcr420_supported ? true : false;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		aconnector->base.polled = DRM_CONNECTOR_POLL_HPD;
+		aconnector->base.ycbcr_420_allowed =
+			link->link_enc->features.ycbcr420_supported ? true : false;
 		break;
 	case DRM_MODE_CONNECTOR_DVID:
 		aconnector->base.polled = DRM_CONNECTOR_POLL_HPD;

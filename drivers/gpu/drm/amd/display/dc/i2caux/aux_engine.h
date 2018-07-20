@@ -44,6 +44,12 @@ struct aux_engine_funcs {
 	void (*process_channel_reply)(
 		struct aux_engine *engine,
 		struct aux_reply_transaction_data *reply);
+	int (*read_channel_reply)(
+		struct aux_engine *engine,
+		uint32_t size,
+		uint8_t *buffer,
+		uint8_t *reply_result,
+		uint32_t *sw_status);
 	enum aux_channel_operation_result (*get_channel_status)(
 		struct aux_engine *engine,
 		uint8_t *returned_bytes);

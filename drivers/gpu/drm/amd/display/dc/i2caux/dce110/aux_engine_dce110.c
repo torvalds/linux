@@ -275,61 +275,92 @@ static void submit_channel_request(
 	REG_UPDATE(AUX_SW_CONTROL, AUX_SW_GO, 1);
 }
 
+static int read_channel_reply(struct aux_engine *engine, uint32_t size,
+			      uint8_t *buffer, uint8_t *reply_result,
+			      uint32_t *sw_status)
+{
+	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
+	uint32_t bytes_replied;
+	uint32_t reply_result_32;
+
+	*sw_status = REG_GET(AUX_SW_STATUS, AUX_SW_REPLY_BYTE_COUNT,
+			     &bytes_replied);
+
+	/* In case HPD is LOW, exit AUX transaction */
+	if ((*sw_status & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK))
+		return -1;
+
+	/* Need at least the status byte */
+	if (!bytes_replied)
+		return -1;
+
+	REG_UPDATE_1BY1_3(AUX_SW_DATA,
+			  AUX_SW_INDEX, 0,
+			  AUX_SW_AUTOINCREMENT_DISABLE, 1,
+			  AUX_SW_DATA_RW, 1);
+
+	REG_GET(AUX_SW_DATA, AUX_SW_DATA, &reply_result_32);
+	reply_result_32 = reply_result_32 >> 4;
+	*reply_result = (uint8_t)reply_result_32;
+
+	if (reply_result_32 == 0) { /* ACK */
+		uint32_t i = 0;
+
+		/* First byte was already used to get the command status */
+		--bytes_replied;
+
+		/* Do not overflow buffer */
+		if (bytes_replied > size)
+			return -1;
+
+		while (i < bytes_replied) {
+			uint32_t aux_sw_data_val;
+
+			REG_GET(AUX_SW_DATA, AUX_SW_DATA, &aux_sw_data_val);
+			buffer[i] = aux_sw_data_val;
+			++i;
+		}
+
+		return i;
+	}
+
+	return 0;
+}
+
 static void process_channel_reply(
 	struct aux_engine *engine,
 	struct aux_reply_transaction_data *reply)
 {
-	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
+	int bytes_replied;
+	uint8_t reply_result;
+	uint32_t sw_status;
 
-	/* Need to do a read to get the number of bytes to process
-	 * Alternatively, this information can be passed -
-	 * but that causes coupling which isn't good either. */
-
-	uint32_t bytes_replied;
-	uint32_t value;
-
-	value = REG_GET(AUX_SW_STATUS,
-			AUX_SW_REPLY_BYTE_COUNT, &bytes_replied);
+	bytes_replied = read_channel_reply(engine, reply->length, reply->data,
+					   &reply_result, &sw_status);
 
 	/* in case HPD is LOW, exit AUX transaction */
-	if ((value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
-		reply->status = AUX_TRANSACTION_REPLY_HPD_DISCON;
+	if ((sw_status & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
+		reply->status = AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON;
 		return;
 	}
 
-	if (bytes_replied) {
-		uint32_t reply_result;
-
-		REG_UPDATE_1BY1_3(AUX_SW_DATA,
-				AUX_SW_INDEX, 0,
-				AUX_SW_AUTOINCREMENT_DISABLE, 1,
-				AUX_SW_DATA_RW, 1);
-
-		REG_GET(AUX_SW_DATA,
-				AUX_SW_DATA, &reply_result);
-
-		reply_result = reply_result >> 4;
+	if (bytes_replied < 0) {
+		/* Need to handle an error case...
+		 * Hopefully, upper layer function won't call this function if
+		 * the number of bytes in the reply was 0, because there was
+		 * surely an error that was asserted that should have been
+		 * handled for hot plug case, this could happens
+		 */
+		if (!(sw_status & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
+			reply->status = AUX_TRANSACTION_REPLY_INVALID;
+			ASSERT_CRITICAL(false);
+			return;
+		}
+	} else {
 
 		switch (reply_result) {
-		case 0: /* ACK */ {
-			uint32_t i = 0;
-
-			/* first byte was already used
-			 * to get the command status */
-			--bytes_replied;
-
-			while (i < bytes_replied) {
-				uint32_t aux_sw_data_val;
-
-				REG_GET(AUX_SW_DATA,
-						AUX_SW_DATA, &aux_sw_data_val);
-
-				reply->data[i] = aux_sw_data_val;
-				++i;
-			}
-
+		case 0: /* ACK */
 			reply->status = AUX_TRANSACTION_REPLY_AUX_ACK;
-		}
 		break;
 		case 1: /* NACK */
 			reply->status = AUX_TRANSACTION_REPLY_AUX_NACK;
@@ -345,17 +376,6 @@ static void process_channel_reply(
 		break;
 		default:
 			reply->status = AUX_TRANSACTION_REPLY_INVALID;
-		}
-	} else {
-		/* Need to handle an error case...
-		 * hopefully, upper layer function won't call this function
-		 * if the number of bytes in the reply was 0
-		 * because there was surely an error that was asserted
-		 * that should have been handled
-		 * for hot plug case, this could happens*/
-		if (!(value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
-			reply->status = AUX_TRANSACTION_REPLY_INVALID;
-			ASSERT_CRITICAL(false);
 		}
 	}
 }
@@ -427,6 +447,7 @@ static const struct aux_engine_funcs aux_engine_funcs = {
 	.acquire_engine = acquire_engine,
 	.submit_channel_request = submit_channel_request,
 	.process_channel_reply = process_channel_reply,
+	.read_channel_reply = read_channel_reply,
 	.get_channel_status = get_channel_status,
 	.is_engine_available = is_engine_available,
 };

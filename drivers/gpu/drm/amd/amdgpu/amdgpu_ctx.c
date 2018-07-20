@@ -90,8 +90,8 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 		if (ring == &adev->gfx.kiq.ring)
 			continue;
 
-		r = drm_sched_entity_init(&ring->sched, &ctx->rings[i].entity,
-					  rq, &ctx->guilty);
+		r = drm_sched_entity_init(&ctx->rings[i].entity,
+					  &rq, 1, &ctx->guilty);
 		if (r)
 			goto failed;
 	}

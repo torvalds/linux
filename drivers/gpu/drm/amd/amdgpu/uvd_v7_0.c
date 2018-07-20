@@ -39,6 +39,7 @@
 #include "hdp/hdp_4_0_offset.h"
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
+#include "ivsrcid/uvd/irqsrcs_uvd_7_0.h"
 
 #define UVD7_MAX_HW_INSTANCES_VEGA20			2
 
@@ -249,12 +250,10 @@ static int uvd_v7_0_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t handle
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -312,19 +311,13 @@ int uvd_v7_0_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-		job->fence = dma_fence_get(f);
-		if (r)
-			goto err;
-
-		amdgpu_job_free(job);
-	} else {
-		r = amdgpu_job_submit(job, ring, &ring->adev->vce.entity,
+	if (direct)
+		r = amdgpu_job_submit_direct(job, ring, &f);
+	else
+		r = amdgpu_job_submit(job, &ring->adev->vce.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
-		if (r)
-			goto err;
-	}
+	if (r)
+		goto err;
 
 	if (fence)
 		*fence = dma_fence_get(f);
@@ -396,19 +389,18 @@ static int uvd_v7_0_early_init(void *handle)
 static int uvd_v7_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
 	int i, j, r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
 		/* UVD TRAP */
-		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], 124, &adev->uvd.inst[j].irq);
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], UVD_7_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT, &adev->uvd.inst[j].irq);
 		if (r)
 			return r;
 
 		/* UVD ENC TRAP */
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
-			r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], i + 119, &adev->uvd.inst[j].irq);
+			r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], i + UVD_7_0__SRCID__UVD_ENC_GEN_PURP, &adev->uvd.inst[j].irq);
 			if (r)
 				return r;
 		}
@@ -426,17 +418,6 @@ static int uvd_v7_0_sw_init(void *handle)
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
 		DRM_INFO("PSP loading UVD firmware\n");
-	}
-
-	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
-		ring = &adev->uvd.inst[j].ring_enc[0];
-		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-		r = drm_sched_entity_init(&ring->sched, &adev->uvd.inst[j].entity_enc,
-					  rq, NULL);
-		if (r) {
-			DRM_ERROR("(%d)Failed setting up UVD ENC run queue.\n", j);
-			return r;
-		}
 	}
 
 	r = amdgpu_uvd_resume(adev);
@@ -491,8 +472,6 @@ static int uvd_v7_0_sw_fini(void *handle)
 		return r;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
-		drm_sched_entity_destroy(&adev->uvd.inst[j].ring_enc[0].sched, &adev->uvd.inst[j].entity_enc);
-
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->uvd.inst[j].ring_enc[i]);
 	}

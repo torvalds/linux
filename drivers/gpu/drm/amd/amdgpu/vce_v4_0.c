@@ -39,6 +39,8 @@
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
 
+#include "ivsrcid/vce/irqsrcs_vce_4_0.h"
+
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
 
 #define VCE_V4_0_FW_SIZE	(384 * 1024)

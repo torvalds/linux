@@ -80,7 +80,7 @@ enum SMU10_TABLE_ID {
 	SMU10_CLOCKTABLE,
 };
 
-extern int smum_get_argument(struct pp_hwmgr *hwmgr);
+extern uint32_t smum_get_argument(struct pp_hwmgr *hwmgr);
 
 extern int smum_download_powerplay_table(struct pp_hwmgr *hwmgr, void **table);
 

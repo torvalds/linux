@@ -172,7 +172,7 @@ bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
  * false - no change in Downstream port status. No further action required
  * from DM. */
 bool dc_link_handle_hpd_rx_irq(struct dc_link *dc_link,
-		union hpd_irq_data *hpd_irq_dpcd_data);
+		union hpd_irq_data *hpd_irq_dpcd_data, bool *out_link_loss);
 
 struct dc_sink_init_data;
 
@@ -210,9 +210,28 @@ bool dc_link_dp_set_test_pattern(
 
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
+bool dc_link_is_dp_sink_present(struct dc_link *link);
+
 /*
  * DPCD access interfaces
  */
+
+void dc_link_set_drive_settings(struct dc *dc,
+				struct link_training_settings *lt_settings,
+				const struct dc_link *link);
+void dc_link_perform_link_training(struct dc *dc,
+				   struct dc_link_settings *link_setting,
+				   bool skip_video_pattern);
+void dc_link_set_preferred_link_settings(struct dc *dc,
+					 struct dc_link_settings *link_setting,
+					 struct dc_link *link);
+void dc_link_enable_hpd(const struct dc_link *link);
+void dc_link_disable_hpd(const struct dc_link *link);
+void dc_link_set_test_pattern(struct dc_link *link,
+			enum dp_test_pattern test_pattern,
+			const struct link_training_settings *p_link_settings,
+			const unsigned char *p_custom_pattern,
+			unsigned int cust_pattern_size);
 
 bool dc_submit_i2c(
 		struct dc *dc,

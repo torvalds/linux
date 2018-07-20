@@ -68,11 +68,11 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 		if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
 			goto out_unlock;
 
-		ttm_bo_reference(bo);
+		ttm_bo_get(bo);
 		up_read(&vmf->vma->vm_mm->mmap_sem);
 		(void) dma_fence_wait(bo->moving, true);
 		ttm_bo_unreserve(bo);
-		ttm_bo_unref(&bo);
+		ttm_bo_put(bo);
 		goto out_unlock;
 	}
 
@@ -138,10 +138,10 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 
 		if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
 			if (!(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
-				ttm_bo_reference(bo);
+				ttm_bo_get(bo);
 				up_read(&vmf->vma->vm_mm->mmap_sem);
 				(void) ttm_bo_wait_unreserved(bo);
-				ttm_bo_unref(&bo);
+				ttm_bo_put(bo);
 			}
 
 			return VM_FAULT_RETRY;
@@ -302,14 +302,14 @@ static void ttm_bo_vm_open(struct vm_area_struct *vma)
 
 	WARN_ON(bo->bdev->dev_mapping != vma->vm_file->f_mapping);
 
-	(void)ttm_bo_reference(bo);
+	ttm_bo_get(bo);
 }
 
 static void ttm_bo_vm_close(struct vm_area_struct *vma)
 {
 	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)vma->vm_private_data;
 
-	ttm_bo_unref(&bo);
+	ttm_bo_put(bo);
 	vma->vm_private_data = NULL;
 }
 
@@ -461,7 +461,7 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 out_unref:
-	ttm_bo_unref(&bo);
+	ttm_bo_put(bo);
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_mmap);
@@ -471,8 +471,10 @@ int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 	if (vma->vm_pgoff != 0)
 		return -EACCES;
 
+	ttm_bo_get(bo);
+
 	vma->vm_ops = &ttm_bo_vm_ops;
-	vma->vm_private_data = ttm_bo_reference(bo);
+	vma->vm_private_data = bo;
 	vma->vm_flags |= VM_MIXEDMAP;
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND;
 	return 0;

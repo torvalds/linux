@@ -2200,7 +2200,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case CHIP_RAVEN:
 #endif
 		return amdgpu_dc != 0;
@@ -2758,11 +2758,10 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
 			r = amdgpu_bo_reserve(aobj, true);
 			if (r == 0) {
-				r = amdgpu_bo_pin(aobj,
-						  AMDGPU_GEM_DOMAIN_VRAM,
-						  &amdgpu_crtc->cursor_addr);
+				r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
 				if (r != 0)
 					DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
+				amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
 				amdgpu_bo_unreserve(aobj);
 			}
 		}
@@ -3254,7 +3253,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 		kthread_park(ring->sched.thread);
 
-		if (job && job->ring->idx != i)
+		if (job && job->base.sched == &ring->sched)
 			continue;
 
 		drm_sched_hw_job_reset(&ring->sched, &job->base);
@@ -3278,7 +3277,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		 * or all rings (in the case @job is NULL)
 		 * after above amdgpu_reset accomplished
 		 */
-		if ((!job || job->ring->idx == i) && !r)
+		if ((!job || job->base.sched == &ring->sched) && !r)
 			drm_sched_job_recovery(&ring->sched);
 
 		kthread_unpark(ring->sched.thread);

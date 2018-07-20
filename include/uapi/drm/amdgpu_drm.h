@@ -516,6 +516,7 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_CHUNK_ID_DEPENDENCIES	0x03
 #define AMDGPU_CHUNK_ID_SYNCOBJ_IN      0x04
 #define AMDGPU_CHUNK_ID_SYNCOBJ_OUT     0x05
+#define AMDGPU_CHUNK_ID_BO_HANDLES      0x06
 
 struct drm_amdgpu_cs_chunk {
 	__u32		chunk_id;

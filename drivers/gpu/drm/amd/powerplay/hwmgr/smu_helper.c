@@ -25,6 +25,9 @@
 #include "ppatomctrl.h"
 #include "ppsmc.h"
 #include "atom.h"
+#include "ivsrcid/thm/irqsrcs_thm_9_0.h"
+#include "ivsrcid/smuio/irqsrcs_smuio_9_0.h"
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 uint8_t convert_to_vid(uint16_t vddc)
 {
@@ -543,17 +546,17 @@ int phm_irq_process(struct amdgpu_device *adev,
 	uint32_t src_id = entry->src_id;
 
 	if (client_id == AMDGPU_IH_CLIENTID_LEGACY) {
-		if (src_id == 230)
+		if (src_id == VISLANDS30_IV_SRCID_CG_TSS_THERMAL_LOW_TO_HIGH)
 			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
 						PCI_BUS_NUM(adev->pdev->devfn),
 						PCI_SLOT(adev->pdev->devfn),
 						PCI_FUNC(adev->pdev->devfn));
-		else if (src_id == 231)
+		else if (src_id == VISLANDS30_IV_SRCID_CG_TSS_THERMAL_HIGH_TO_LOW)
 			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
 					PCI_BUS_NUM(adev->pdev->devfn),
 					PCI_SLOT(adev->pdev->devfn),
 					PCI_FUNC(adev->pdev->devfn));
-		else if (src_id == 83)
+		else if (src_id == VISLANDS30_IV_SRCID_GPIO_19)
 			pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
 					PCI_BUS_NUM(adev->pdev->devfn),
 					PCI_SLOT(adev->pdev->devfn),
@@ -594,17 +597,17 @@ int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr)
 
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			SOC15_IH_CLIENTID_THM,
-			0,
+			THM_9_0__SRCID__THM_DIG_THERM_L2H,
 			source);
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			SOC15_IH_CLIENTID_THM,
-			1,
+			THM_9_0__SRCID__THM_DIG_THERM_H2L,
 			source);
 
 	/* Register CTF(GPIO_19) interrupt */
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			SOC15_IH_CLIENTID_ROM_SMUIO,
-			83,
+			SMUIO_9_0__SRCID__SMUIO_GPIO19,
 			source);
 
 	return 0;

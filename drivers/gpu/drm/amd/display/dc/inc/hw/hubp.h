@@ -43,10 +43,9 @@ enum cursor_lines_per_chunk {
 };
 
 struct hubp {
-	struct hubp_funcs *funcs;
+	const struct hubp_funcs *funcs;
 	struct dc_context *ctx;
 	struct dc_plane_address request_address;
-	struct dc_plane_address current_address;
 	int inst;
 
 	/* run time states */

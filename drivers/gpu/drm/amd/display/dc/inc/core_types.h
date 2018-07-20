@@ -33,7 +33,7 @@
 #include "dc_bios_types.h"
 #include "mem_input.h"
 #include "hubp.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 #include "mpc.h"
 #endif
 
@@ -148,7 +148,6 @@ struct resource_pool {
 	unsigned int underlay_pipe_index;
 	unsigned int stream_enc_count;
 	unsigned int ref_clock_inKhz;
-	unsigned int dentist_vco_freq_khz;
 	unsigned int timing_generator_count;
 
 	/*
@@ -222,7 +221,7 @@ struct pipe_ctx {
 	struct pipe_ctx *top_pipe;
 	struct pipe_ctx *bottom_pipe;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	struct _vcs_dpi_display_dlg_regs_st dlg_regs;
 	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
@@ -277,7 +276,7 @@ struct dc_state {
 
 	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 

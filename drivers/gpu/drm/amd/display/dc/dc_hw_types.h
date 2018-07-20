@@ -404,9 +404,11 @@ struct dc_cursor_position {
 struct dc_cursor_mi_param {
 	unsigned int pixel_clk_khz;
 	unsigned int ref_clk_khz;
-	unsigned int viewport_x_start;
-	unsigned int viewport_width;
+	struct rect viewport;
 	struct fixed31_32 h_scale_ratio;
+	struct fixed31_32 v_scale_ratio;
+	enum dc_rotation_angle rotation;
+	bool mirror;
 };
 
 /* IPP related types */
@@ -490,11 +492,17 @@ struct dc_cursor_attributes {
 	uint32_t height;
 
 	enum dc_cursor_color_format color_format;
+	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* In case we support HW Cursor rotation in the future */
 	enum dc_rotation_angle rotation_angle;
 
 	union dc_cursor_attribute_flags attribute_flags;
+};
+
+struct dpp_cursor_attributes {
+	int bias;
+	int scale;
 };
 
 /* OPP */

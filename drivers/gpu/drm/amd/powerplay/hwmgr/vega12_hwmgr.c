@@ -423,6 +423,11 @@ static int vega12_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			hwmgr->thermal_controller.advanceFanControlParameters.usFanPWMMinLimit *
 			hwmgr->thermal_controller.fanInfo.ulMaxRPM / 100;
 
+	if (hwmgr->feature_mask & PP_GFXOFF_MASK)
+		data->gfxoff_controlled_by_driver = true;
+	else
+		data->gfxoff_controlled_by_driver = false;
+
 	return result;
 }
 
@@ -472,7 +477,7 @@ static int vega12_get_number_of_dpm_level(struct pp_hwmgr *hwmgr,
 			"[GetNumOfDpmLevel] failed to get dpm levels!",
 			return ret);
 
-	vega12_read_arg_from_smc(hwmgr, num_of_levels);
+	*num_of_levels = smum_get_argument(hwmgr);
 	PP_ASSERT_WITH_CODE(*num_of_levels > 0,
 			"[GetNumOfDpmLevel] number of clk levels is invalid!",
 			return -EINVAL);
@@ -483,7 +488,7 @@ static int vega12_get_number_of_dpm_level(struct pp_hwmgr *hwmgr,
 static int vega12_get_dpm_frequency_by_index(struct pp_hwmgr *hwmgr,
 		PPCLK_e clkID, uint32_t index, uint32_t *clock)
 {
-	int result;
+	int result = 0;
 
 	/*
 	 *SMU expects the Clock ID to be in the top 16 bits.
@@ -494,11 +499,7 @@ static int vega12_get_dpm_frequency_by_index(struct pp_hwmgr *hwmgr,
 		"[GetDpmFrequencyByIndex] Failed to get dpm frequency from SMU!",
 		return -EINVAL);
 
-	result = vega12_read_arg_from_smc(hwmgr, clock);
-
-	PP_ASSERT_WITH_CODE(*clock != 0,
-		"[GetDPMFrequencyByIndex] Failed to get dpm frequency by index.!",
-		return -EINVAL);
+	*clock = smum_get_argument(hwmgr);
 
 	return result;
 }
@@ -879,21 +880,21 @@ static int vega12_get_all_clock_ranges_helper(struct pp_hwmgr *hwmgr,
 		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetMaxDpmFreq, (clkid << 16)) == 0,
 		"[GetClockRanges] Failed to get max ac clock from SMC!",
 		return -EINVAL);
-	vega12_read_arg_from_smc(hwmgr, &(clock->ACMax));
+	clock->ACMax = smum_get_argument(hwmgr);
 
 	/* AC Min */
 	PP_ASSERT_WITH_CODE(
 		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetMinDpmFreq, (clkid << 16)) == 0,
 		"[GetClockRanges] Failed to get min ac clock from SMC!",
 		return -EINVAL);
-	vega12_read_arg_from_smc(hwmgr, &(clock->ACMin));
+	clock->ACMin = smum_get_argument(hwmgr);
 
 	/* DC Max */
 	PP_ASSERT_WITH_CODE(
 		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetDcModeMaxDpmFreq, (clkid << 16)) == 0,
 		"[GetClockRanges] Failed to get max dc clock from SMC!",
 		return -EINVAL);
-	vega12_read_arg_from_smc(hwmgr, &(clock->DCMax));
+	clock->DCMax = smum_get_argument(hwmgr);
 
 	return 0;
 }
@@ -1214,7 +1215,7 @@ static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr, uint32_t *query)
 			"Failed to get current package power!",
 			return -EINVAL);
 
-	vega12_read_arg_from_smc(hwmgr, &value);
+	value = smum_get_argument(hwmgr);
 	/* power value is an integer */
 	*query = value << 8;
 #endif
@@ -1230,11 +1231,8 @@ static int vega12_get_current_gfx_clk_freq(struct pp_hwmgr *hwmgr, uint32_t *gfx
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_GetDpmClockFreq, (PPCLK_GFXCLK << 16)) == 0,
 			"[GetCurrentGfxClkFreq] Attempt to get Current GFXCLK Frequency Failed!",
-			return -1);
-	PP_ASSERT_WITH_CODE(
-			vega12_read_arg_from_smc(hwmgr, &gfx_clk) == 0,
-			"[GetCurrentGfxClkFreq] Attempt to read arg from SMC Failed",
-			return -1);
+			return -EINVAL);
+	gfx_clk = smum_get_argument(hwmgr);
 
 	*gfx_freq = gfx_clk * 100;
 
@@ -1250,11 +1248,8 @@ static int vega12_get_current_mclk_freq(struct pp_hwmgr *hwmgr, uint32_t *mclk_f
 	PP_ASSERT_WITH_CODE(
 			smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetDpmClockFreq, (PPCLK_UCLK << 16)) == 0,
 			"[GetCurrentMClkFreq] Attempt to get Current MCLK Frequency Failed!",
-			return -1);
-	PP_ASSERT_WITH_CODE(
-			vega12_read_arg_from_smc(hwmgr, &mem_clk) == 0,
-			"[GetCurrentMClkFreq] Attempt to read arg from SMC Failed",
-			return -1);
+			return -EINVAL);
+	mem_clk = smum_get_argument(hwmgr);
 
 	*mclk_freq = mem_clk * 100;
 
@@ -1271,16 +1266,12 @@ static int vega12_get_current_activity_percent(
 #if 0
 	ret = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetAverageGfxActivity, 0);
 	if (!ret) {
-		ret = vega12_read_arg_from_smc(hwmgr, &current_activity);
-		if (!ret) {
-			if (current_activity > 100) {
-				PP_ASSERT(false,
-					"[GetCurrentActivityPercent] Activity Percentage Exceeds 100!");
-				current_activity = 100;
-			}
-		} else
+		current_activity = smum_get_argument(hwmgr);
+		if (current_activity > 100) {
 			PP_ASSERT(false,
-				"[GetCurrentActivityPercent] Attempt To Read Average Graphics Activity from SMU Failed!");
+				  "[GetCurrentActivityPercent] Activity Percentage Exceeds 100!");
+			current_activity = 100;
+		}
 	} else
 		PP_ASSERT(false,
 			"[GetCurrentActivityPercent] Attempt To Send Get Average Graphics Activity to SMU Failed!");
@@ -1361,7 +1352,6 @@ int vega12_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 	if (data->smu_features[GNLD_DPM_DCEFCLK].enabled) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
-			clk_freq = clock_req->clock_freq_in_khz / 100;
 			clk_select = PPCLK_DCEFCLK;
 			break;
 		case amd_pp_disp_clock:
@@ -1410,7 +1400,7 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 
 	if (data->smu_features[GNLD_DPM_DCEFCLK].supported) {
 		clock_req.clock_type = amd_pp_dcef_clock;
-		clock_req.clock_freq_in_khz = min_clocks.dcefClock;
+		clock_req.clock_freq_in_khz = min_clocks.dcefClock/10;
 		if (!vega12_display_clock_voltage_request(hwmgr, &clock_req)) {
 			if (data->smu_features[GNLD_DS_DCEFCLK].supported)
 				PP_ASSERT_WITH_CODE(
@@ -1877,7 +1867,7 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
 		break;
 
 	case PP_MCLK:
@@ -1893,7 +1883,7 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
 		break;
 
 	case PP_PCIE:
@@ -2329,6 +2319,38 @@ static int vega12_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega12_enable_gfx_off(struct pp_hwmgr *hwmgr)
+{
+	struct vega12_hwmgr *data =
+			(struct vega12_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	if (data->gfxoff_controlled_by_driver)
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_AllowGfxOff);
+
+	return ret;
+}
+
+static int vega12_disable_gfx_off(struct pp_hwmgr *hwmgr)
+{
+	struct vega12_hwmgr *data =
+			(struct vega12_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	if (data->gfxoff_controlled_by_driver)
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisallowGfxOff);
+
+	return ret;
+}
+
+static int vega12_gfx_off_control(struct pp_hwmgr *hwmgr, bool enable)
+{
+	if (enable)
+		return vega12_enable_gfx_off(hwmgr);
+	else
+		return vega12_disable_gfx_off(hwmgr);
+}
+
 static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.backend_init = vega12_hwmgr_backend_init,
 	.backend_fini = vega12_hwmgr_backend_fini,
@@ -2378,6 +2400,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.get_thermal_temperature_range = vega12_get_thermal_temperature_range,
 	.register_irq_handlers = smu9_register_irq_handlers,
 	.start_thermal_controller = vega12_start_thermal_controller,
+	.powergate_gfx = vega12_gfx_off_control,
 };
 
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr)

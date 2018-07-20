@@ -864,17 +864,22 @@ void hwss_edp_power_control(
 		if (power_up) {
 			unsigned long long current_ts = dm_get_timestamp(ctx);
 			unsigned long long duration_in_ms =
-					dm_get_elapse_time_in_ns(
+					div64_u64(dm_get_elapse_time_in_ns(
 							ctx,
 							current_ts,
-							div64_u64(link->link_trace.time_stamp.edp_poweroff, 1000000));
+							link->link_trace.time_stamp.edp_poweroff), 1000000);
 			unsigned long long wait_time_ms = 0;
 
 			/* max 500ms from LCDVDD off to on */
+			unsigned long long edp_poweroff_time_ms = 500;
+
+			if (link->local_sink != NULL)
+				edp_poweroff_time_ms =
+						500 + link->local_sink->edid_caps.panel_patch.extra_t12_ms;
 			if (link->link_trace.time_stamp.edp_poweroff == 0)
-				wait_time_ms = 500;
-			else if (duration_in_ms < 500)
-				wait_time_ms = 500 - duration_in_ms;
+				wait_time_ms = edp_poweroff_time_ms;
+			else if (duration_in_ms < edp_poweroff_time_ms)
+				wait_time_ms = edp_poweroff_time_ms - duration_in_ms;
 
 			if (wait_time_ms) {
 				msleep(wait_time_ms);
@@ -1245,13 +1250,13 @@ static void program_scaler(const struct dc *dc,
 {
 	struct tg_color color = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	/* TOFPGA */
 	if (pipe_ctx->plane_res.xfm->funcs->transform_set_pixel_storage_depth == NULL)
 		return;
 #endif
 
-	if (dc->debug.surface_visual_confirm)
+	if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
 		get_surface_visual_confirm_color(pipe_ctx, &color);
 	else
 		color_space_to_black_color(dc,
@@ -2801,9 +2806,11 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	struct dc_cursor_mi_param param = {
 		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_khz,
 		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
-		.viewport_x_start = pipe_ctx->plane_res.scl_data.viewport.x,
-		.viewport_width = pipe_ctx->plane_res.scl_data.viewport.width,
-		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz
+		.viewport = pipe_ctx->plane_res.scl_data.viewport,
+		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,
+		.v_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.vert,
+		.rotation = pipe_ctx->plane_state->rotation,
+		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
 
 	if (pipe_ctx->plane_state->address.type

@@ -232,7 +232,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 	}
 
 	/* pin buffer into GTT */
-	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT, NULL);
+	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
 	if (r)
 		goto error_unreserve;
 

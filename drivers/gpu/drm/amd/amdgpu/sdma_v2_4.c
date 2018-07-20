@@ -44,6 +44,8 @@
 
 #include "iceland_sdma_pkt_open.h"
 
+#include "ivsrcid/ivsrcid_vislands30.h"
+
 static void sdma_v2_4_set_ring_funcs(struct amdgpu_device *adev);
 static void sdma_v2_4_set_buffer_funcs(struct amdgpu_device *adev);
 static void sdma_v2_4_set_vm_pte_funcs(struct amdgpu_device *adev);
@@ -896,7 +898,7 @@ static int sdma_v2_4_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 224,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SDMA_TRAP,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
@@ -908,7 +910,7 @@ static int sdma_v2_4_sw_init(void *handle)
 		return r;
 
 	/* SDMA Privileged inst */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 247,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SDMA_SRBM_WRITE,
 			      &adev->sdma.illegal_inst_irq);
 	if (r)
 		return r;
