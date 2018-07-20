@@ -511,6 +511,7 @@ struct nfsd42_write_res {
 	u64			wr_bytes_written;
 	u32			wr_stable_how;
 	nfs4_verifier		wr_verifier;
+	stateid_t		cb_stateid;
 };
 
 struct nfsd4_copy {
@@ -526,6 +527,11 @@ struct nfsd4_copy {
 
 	/* response */
 	struct nfsd42_write_res	cp_res;
+
+	/* for cb_offload */
+	struct nfsd4_callback	cp_cb;
+	__be32			nfserr;
+	struct knfsd_fh		fh;
 };
 
 struct nfsd4_seek {
