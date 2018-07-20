@@ -430,7 +430,6 @@ static int vhost_net_enable_vq(struct vhost_net *n,
 
 static int vhost_net_tx_get_vq_desc(struct vhost_net *net,
 				    struct vhost_virtqueue *vq,
-				    struct iovec iov[], unsigned int iov_size,
 				    unsigned int *out_num, unsigned int *in_num,
 				    bool *busyloop_intr)
 {
@@ -512,9 +511,8 @@ static void handle_tx(struct vhost_net *net)
 			vhost_zerocopy_signal_used(net, vq);
 
 		busyloop_intr = false;
-		head = vhost_net_tx_get_vq_desc(net, vq, vq->iov,
-						ARRAY_SIZE(vq->iov),
-						&out, &in, &busyloop_intr);
+		head = vhost_net_tx_get_vq_desc(net, vq, &out, &in,
+						&busyloop_intr);
 		/* On error, stop handling until the next kick. */
 		if (unlikely(head < 0))
 			break;
