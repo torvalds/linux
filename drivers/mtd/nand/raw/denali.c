@@ -1205,6 +1205,115 @@ static int denali_multidev_fixup(struct denali_nand_info *denali)
 	return 0;
 }
 
+static int denali_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	int ret;
+
+	if (ioread32(denali->reg + FEATURES) & FEATURES__DMA)
+		denali->dma_avail = 1;
+
+	if (denali->dma_avail) {
+		int dma_bit = denali->caps & DENALI_CAP_DMA_64BIT ? 64 : 32;
+
+		ret = dma_set_mask(denali->dev, DMA_BIT_MASK(dma_bit));
+		if (ret) {
+			dev_info(denali->dev,
+				 "Failed to set DMA mask. Disabling DMA.\n");
+			denali->dma_avail = 0;
+		}
+	}
+
+	if (denali->dma_avail) {
+		chip->options |= NAND_USE_BOUNCE_BUFFER;
+		chip->buf_align = 16;
+		if (denali->caps & DENALI_CAP_DMA_64BIT)
+			denali->setup_dma = denali_setup_dma64;
+		else
+			denali->setup_dma = denali_setup_dma32;
+	}
+
+	chip->bbt_options |= NAND_BBT_USE_FLASH;
+	chip->bbt_options |= NAND_BBT_NO_OOB;
+	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
+	chip->options |= NAND_NO_SUBPAGE_WRITE;
+
+	ret = nand_ecc_choose_conf(chip, denali->ecc_caps,
+				   mtd->oobsize - denali->oob_skip_bytes);
+	if (ret) {
+		dev_err(denali->dev, "Failed to setup ECC settings.\n");
+		return ret;
+	}
+
+	dev_dbg(denali->dev,
+		"chosen ECC settings: step=%d, strength=%d, bytes=%d\n",
+		chip->ecc.size, chip->ecc.strength, chip->ecc.bytes);
+
+	iowrite32(FIELD_PREP(ECC_CORRECTION__ERASE_THRESHOLD, 1) |
+		  FIELD_PREP(ECC_CORRECTION__VALUE, chip->ecc.strength),
+		  denali->reg + ECC_CORRECTION);
+	iowrite32(mtd->erasesize / mtd->writesize,
+		  denali->reg + PAGES_PER_BLOCK);
+	iowrite32(chip->options & NAND_BUSWIDTH_16 ? 1 : 0,
+		  denali->reg + DEVICE_WIDTH);
+	iowrite32(chip->options & NAND_ROW_ADDR_3 ? 0 : TWO_ROW_ADDR_CYCLES__FLAG,
+		  denali->reg + TWO_ROW_ADDR_CYCLES);
+	iowrite32(mtd->writesize, denali->reg + DEVICE_MAIN_AREA_SIZE);
+	iowrite32(mtd->oobsize, denali->reg + DEVICE_SPARE_AREA_SIZE);
+
+	iowrite32(chip->ecc.size, denali->reg + CFG_DATA_BLOCK_SIZE);
+	iowrite32(chip->ecc.size, denali->reg + CFG_LAST_DATA_BLOCK_SIZE);
+	/* chip->ecc.steps is set by nand_scan_tail(); not available here */
+	iowrite32(mtd->writesize / chip->ecc.size,
+		  denali->reg + CFG_NUM_DATA_BLOCKS);
+
+	mtd_set_ooblayout(mtd, &denali_ooblayout_ops);
+
+	if (chip->options & NAND_BUSWIDTH_16) {
+		chip->read_buf = denali_read_buf16;
+		chip->write_buf = denali_write_buf16;
+	} else {
+		chip->read_buf = denali_read_buf;
+		chip->write_buf = denali_write_buf;
+	}
+	chip->ecc.read_page = denali_read_page;
+	chip->ecc.read_page_raw = denali_read_page_raw;
+	chip->ecc.write_page = denali_write_page;
+	chip->ecc.write_page_raw = denali_write_page_raw;
+	chip->ecc.read_oob = denali_read_oob;
+	chip->ecc.write_oob = denali_write_oob;
+	chip->erase = denali_erase;
+
+	ret = denali_multidev_fixup(denali);
+	if (ret)
+		return ret;
+
+	/*
+	 * This buffer is DMA-mapped by denali_{read,write}_page_raw.  Do not
+	 * use devm_kmalloc() because the memory allocated by devm_ does not
+	 * guarantee DMA-safe alignment.
+	 */
+	denali->buf = kmalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
+	if (!denali->buf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void denali_detach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct denali_nand_info *denali = mtd_to_denali(mtd);
+
+	kfree(denali->buf);
+}
+
+static const struct nand_controller_ops denali_controller_ops = {
+	.attach_chip = denali_attach_chip,
+	.detach_chip = denali_detach_chip,
+};
+
 int denali_init(struct denali_nand_info *denali)
 {
 	struct nand_chip *chip = &denali->nand;
@@ -1257,114 +1366,21 @@ int denali_init(struct denali_nand_info *denali)
 	if (denali->clk_rate && denali->clk_x_rate)
 		chip->setup_data_interface = denali_setup_data_interface;
 
-	ret = nand_scan_ident(mtd, denali->max_banks, NULL);
+	chip->dummy_controller.ops = &denali_controller_ops;
+	ret = nand_scan(mtd, denali->max_banks);
 	if (ret)
 		goto disable_irq;
-
-	if (ioread32(denali->reg + FEATURES) & FEATURES__DMA)
-		denali->dma_avail = 1;
-
-	if (denali->dma_avail) {
-		int dma_bit = denali->caps & DENALI_CAP_DMA_64BIT ? 64 : 32;
-
-		ret = dma_set_mask(denali->dev, DMA_BIT_MASK(dma_bit));
-		if (ret) {
-			dev_info(denali->dev,
-				 "Failed to set DMA mask. Disabling DMA.\n");
-			denali->dma_avail = 0;
-		}
-	}
-
-	if (denali->dma_avail) {
-		chip->options |= NAND_USE_BOUNCE_BUFFER;
-		chip->buf_align = 16;
-		if (denali->caps & DENALI_CAP_DMA_64BIT)
-			denali->setup_dma = denali_setup_dma64;
-		else
-			denali->setup_dma = denali_setup_dma32;
-	}
-
-	chip->bbt_options |= NAND_BBT_USE_FLASH;
-	chip->bbt_options |= NAND_BBT_NO_OOB;
-	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
-	chip->options |= NAND_NO_SUBPAGE_WRITE;
-
-	ret = nand_ecc_choose_conf(chip, denali->ecc_caps,
-				   mtd->oobsize - denali->oob_skip_bytes);
-	if (ret) {
-		dev_err(denali->dev, "Failed to setup ECC settings.\n");
-		goto disable_irq;
-	}
-
-	dev_dbg(denali->dev,
-		"chosen ECC settings: step=%d, strength=%d, bytes=%d\n",
-		chip->ecc.size, chip->ecc.strength, chip->ecc.bytes);
-
-	iowrite32(FIELD_PREP(ECC_CORRECTION__ERASE_THRESHOLD, 1) |
-		  FIELD_PREP(ECC_CORRECTION__VALUE, chip->ecc.strength),
-		  denali->reg + ECC_CORRECTION);
-	iowrite32(mtd->erasesize / mtd->writesize,
-		  denali->reg + PAGES_PER_BLOCK);
-	iowrite32(chip->options & NAND_BUSWIDTH_16 ? 1 : 0,
-		  denali->reg + DEVICE_WIDTH);
-	iowrite32(chip->options & NAND_ROW_ADDR_3 ? 0 : TWO_ROW_ADDR_CYCLES__FLAG,
-		  denali->reg + TWO_ROW_ADDR_CYCLES);
-	iowrite32(mtd->writesize, denali->reg + DEVICE_MAIN_AREA_SIZE);
-	iowrite32(mtd->oobsize, denali->reg + DEVICE_SPARE_AREA_SIZE);
-
-	iowrite32(chip->ecc.size, denali->reg + CFG_DATA_BLOCK_SIZE);
-	iowrite32(chip->ecc.size, denali->reg + CFG_LAST_DATA_BLOCK_SIZE);
-	/* chip->ecc.steps is set by nand_scan_tail(); not available here */
-	iowrite32(mtd->writesize / chip->ecc.size,
-		  denali->reg + CFG_NUM_DATA_BLOCKS);
-
-	mtd_set_ooblayout(mtd, &denali_ooblayout_ops);
-
-	if (chip->options & NAND_BUSWIDTH_16) {
-		chip->read_buf = denali_read_buf16;
-		chip->write_buf = denali_write_buf16;
-	} else {
-		chip->read_buf = denali_read_buf;
-		chip->write_buf = denali_write_buf;
-	}
-	chip->ecc.read_page = denali_read_page;
-	chip->ecc.read_page_raw = denali_read_page_raw;
-	chip->ecc.write_page = denali_write_page;
-	chip->ecc.write_page_raw = denali_write_page_raw;
-	chip->ecc.read_oob = denali_read_oob;
-	chip->ecc.write_oob = denali_write_oob;
-	chip->erase = denali_erase;
-
-	ret = denali_multidev_fixup(denali);
-	if (ret)
-		goto disable_irq;
-
-	/*
-	 * This buffer is DMA-mapped by denali_{read,write}_page_raw.  Do not
-	 * use devm_kmalloc() because the memory allocated by devm_ does not
-	 * guarantee DMA-safe alignment.
-	 */
-	denali->buf = kmalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
-	if (!denali->buf) {
-		ret = -ENOMEM;
-		goto disable_irq;
-	}
-
-	ret = nand_scan_tail(mtd);
-	if (ret)
-		goto free_buf;
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(denali->dev, "Failed to register MTD: %d\n", ret);
 		goto cleanup_nand;
 	}
+
 	return 0;
 
 cleanup_nand:
 	nand_cleanup(chip);
-free_buf:
-	kfree(denali->buf);
 disable_irq:
 	denali_disable_irq(denali);
 
@@ -1377,7 +1393,6 @@ void denali_remove(struct denali_nand_info *denali)
 	struct mtd_info *mtd = nand_to_mtd(&denali->nand);
 
 	nand_release(mtd);
-	kfree(denali->buf);
 	denali_disable_irq(denali);
 }
 EXPORT_SYMBOL(denali_remove);
