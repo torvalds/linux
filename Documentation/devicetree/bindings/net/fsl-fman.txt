@@ -238,7 +238,7 @@ PROPERTIES
 		Must include one of the following:
 		- "fsl,fman-dtsec" for dTSEC MAC
 		- "fsl,fman-xgec" for XGEC MAC
-		- "fsl,fman-memac for mEMAC MAC
+		- "fsl,fman-memac" for mEMAC MAC
 
 - cell-index
 		Usage: required

@@ -15,7 +15,7 @@ Required properties:
   include "nvidia,tegra30-ictlr".	
 - reg : Specifies base physical address and size of the registers.
   Each controller must be described separately (Tegra20 has 4 of them,
-  whereas Tegra30 and later have 5"  
+  whereas Tegra30 and later have 5).
 - interrupt-controller : Identifies the node as an interrupt controller.
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. The value must be 3.

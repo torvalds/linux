@@ -107,6 +107,8 @@ static void smc_close_active_abort(struct smc_sock *smc)
 	}
 	switch (sk->sk_state) {
 	case SMC_INIT:
+		sk->sk_state = SMC_PEERABORTWAIT;
+		break;
 	case SMC_ACTIVE:
 		sk->sk_state = SMC_PEERABORTWAIT;
 		release_sock(sk);

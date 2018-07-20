@@ -127,7 +127,7 @@ enum stu300_error {
 
 /*
  * The number of address send athemps tried before giving up.
- * If the first one failes it seems like 5 to 8 attempts are required.
+ * If the first one fails it seems like 5 to 8 attempts are required.
  */
 #define NUM_ADDR_RESEND_ATTEMPTS 12
 

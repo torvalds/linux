@@ -862,6 +862,7 @@ static u32 tipc_node_suggest_addr(struct net *net, u32 addr)
 }
 
 /* tipc_node_try_addr(): Check if addr can be used by peer, suggest other if not
+ * Returns suggested address if any, otherwise 0
  */
 u32 tipc_node_try_addr(struct net *net, u8 *id, u32 addr)
 {
@@ -884,12 +885,14 @@ u32 tipc_node_try_addr(struct net *net, u8 *id, u32 addr)
 	if (n) {
 		addr = n->addr;
 		tipc_node_put(n);
+		return addr;
 	}
-	/* Even this node may be in trial phase */
+
+	/* Even this node may be in conflict */
 	if (tn->trial_addr == addr)
 		return tipc_node_suggest_addr(net, addr);
 
-	return addr;
+	return 0;
 }
 
 void tipc_node_check_dest(struct net *net, u32 addr,

@@ -37,7 +37,7 @@
  *		is done in the "stmmac files"
  */
 
-/* struct emac_variant - Descrive dwmac-sun8i hardware variant
+/* struct emac_variant - Describe dwmac-sun8i hardware variant
  * @default_syscon_value:	The default value of the EMAC register in syscon
  *				This value is used for disabling properly EMAC
  *				and used as a good starting value in case of the
