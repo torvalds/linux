@@ -28,23 +28,24 @@ MED_ATTRS(force_kobject) {
 static medusa_answer_t force_update(struct medusa_kobject_s * kobj)
 {
 	struct task_struct * p;
-	medusa_answer_t retval;
+	medusa_answer_t retval = MED_ERR;
 	char * buf;
 
+	/* kmalloc() with GFP_KERNEL may sleep; it can't be in RCU */
+	buf = kmalloc(MAX_FORCE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return retval;
+
 	printk("force: 1\n");
-	retval = MED_ERR;
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	//p = find_task_by_pid(((struct force_kobject *)kobj)->pid);
 	p = pid_task(find_vpid(((struct force_kobject *)kobj)->pid), PIDTYPE_PID);
 	if (!p)
-		goto out_unlock;
+		goto out_kfree;
 	printk("force: 2\n");
 	if (task_security(p).force_code)
-		goto out_unlock;
+		goto out_kfree;
 	printk("force: 3\n");
-	buf = kmalloc(MAX_FORCE_SIZE, GFP_KERNEL);
-	if (!buf)
-		goto out_unlock;
 	memcpy(buf, ((struct force_kobject *)kobj)->code, MAX_FORCE_SIZE);
 	printk("force: 4 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
 		((struct force_kobject *)kobj)->code[0],
@@ -54,8 +55,11 @@ static medusa_answer_t force_update(struct medusa_kobject_s * kobj)
 	);
 	task_security(p).force_code = buf;
 	retval = MED_OK;
+	goto out_unlock;
+out_kfree:
+	kfree(buf);
 out_unlock:
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	return retval;
 }
 

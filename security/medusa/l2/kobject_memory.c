@@ -99,19 +99,20 @@ static struct medusa_kobject_s * memory_fetch(struct medusa_kobject_s * key_obj)
 	storage.pid = ((struct memory_kobject *) key_obj)->pid;
 	storage.address = ((struct memory_kobject *) key_obj)->address;
 	storage.size = ((struct memory_kobject *) key_obj)->size;
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	//p = find_task_by_pid(storage.pid);
 	p = pid_task(find_vpid(storage.pid), PIDTYPE_PID);
 	if (p) {
 		get_task_struct(p);
-		read_unlock_irq(&tasklist_lock);
+		rcu_read_unlock();
+		/* TODO: access_process_vm() may sleep? we need it in RCU? */
 		ret = access_process_vm(p, (unsigned long)storage.address, storage.data, storage.size, 0);
 		//free_task_struct(p);
 		free_task(p);
 		storage.retval = ret;
 		return (struct medusa_kobject_s *)&storage;
 	}
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	/* subject to change */
 	storage.retval = -ESRCH;
 	return (struct medusa_kobject_s *)&storage;
@@ -122,12 +123,13 @@ static medusa_answer_t memory_update(struct medusa_kobject_s * kobj)
 	int ret;
 	struct task_struct * p;
 
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	//p = find_task_by_pid(((struct memory_kobject *) kobj)->pid);
 	p = pid_task(find_vpid(((struct memory_kobject *) kobj)->pid), PIDTYPE_PID);
 	if (p) {
 		get_task_struct(p);
-		read_unlock_irq(&tasklist_lock);
+		rcu_read_unlock();
+		/* TODO: access_process_vm() may sleep? we need it in RCU? */
 		ret = access_process_vm(p,
 			(unsigned long)
 				((struct memory_kobject *) kobj)->address,
@@ -139,7 +141,7 @@ static medusa_answer_t memory_update(struct medusa_kobject_s * kobj)
 		return (ret == ((struct memory_kobject *) kobj)->size) ?
 			MED_OK : MED_ERR;
 	}
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	return MED_ERR;
 }
 

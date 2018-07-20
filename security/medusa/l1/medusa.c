@@ -1708,7 +1708,11 @@ static int __init medusa_l1_init(void)
 
 	medusa_init();
 
-	read_lock(&tasklist_lock);
+	/*
+	 * L1 is initialized, new processes call L1 hooks
+	 * it is enough to lock RCU read-side
+	 */
+	rcu_read_lock();
 	for_each_process(process) {
 		struct medusa_l1_task_s* med;
 		struct cred* tmp;
@@ -1717,10 +1721,12 @@ static int __init medusa_l1_init(void)
 			continue;
 		}
 
-		med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), GFP_KERNEL);
-
-		if (med == NULL)
+		/* cannot sleep inside an RCU, use GFP_ATOMIC flag */
+		med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), GFP_ATOMIC);
+		if (med == NULL) {
+			rcu_read_unlock();
 			return -ENOMEM;
+		}
 
 		tmp = (struct cred*) process->cred;
 		tmp->security = med;
@@ -1728,7 +1734,7 @@ static int __init medusa_l1_init(void)
 
 		medusa_init_process(process);
 	}
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	iterate_supers(medusa_l1_init_sb, NULL);
 
