@@ -45,13 +45,13 @@ Kernel breakdown features by version
 | DSA      |  N  |  Y  |  Y  |  Y  |  Y  |   Y  |
 | USB      |  Y  |  Y  |  Y  |  Y?  |     |  ?   |
 | VLAN     |     |     |  Y  |     |     |  ?   |
-| HW NAT   |     |  Y  |  N |     |     |     |
-| HW QOS   |     |  Y  |  N |     |     |     |
+| HW NAT   |     |  Y  |  (Y) |     |     |     |
+| HW QOS   |     |  Y  |  (?) |     |     |     |
 | Crypto   |  Y  |  Y  |  Y  |  Y?  |     |     |
 | WIFI     |     |     |  Y  |  Y |  Y  |   Y  |
 | BT       |     |     |     |     |     |     |
 | VIDEO    |  Y  |  N  |  Y  |  Y  |     |     |
-| AUDIO    |  Y  |  N  |  N  |  N  |     |     |
+| ACPI |  ?  |  N  |  Y  |  N  |     |     |
 ||| other Options ||||     |
 | OpenVPN  |  ?  |  Y  |  Y  |  ?  |     |   ?  |
 | iptables |  ?  |  ?  |  Y  |  ?  |     |   ?  |
@@ -59,7 +59,10 @@ Kernel breakdown features by version
 
 ? = unsure
 
-() = testing (separate Branch wlan/hdmi)
+() = testing (separate Branch wlan/hdmi/hwnat/hwqos)
+
+HW-NAT only works between LAN and WAN (bridge unclear, wifi now working)
+ACPI-feature means System is powered off, not only halted (power-consumption ~0.2W, no reboot on reset), reboot-problem with soldered power-switch (see https://github.com/frank-w/BPI-R2-4.14/issues/35). Power-off is also initiated by pressing the power-switch
 
 kernel 4.4: https://github.com/frank-w/BPI-R2-4.4
 
