@@ -128,6 +128,15 @@ config DRM_TI_TFP410
 	---help---
 	  Texas Instruments TFP410 DVI/HDMI Transmitter driver
 
+config DRM_TI_SN65DSI86
+	tristate "TI SN65DSI86 DSI to eDP bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	help
+	  Texas Instruments SN65DSI86 DSI to eDP Bridge driver
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"
