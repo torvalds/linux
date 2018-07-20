@@ -200,4 +200,19 @@ struct ioctl_gntdev_grant_copy {
 /* Send an interrupt on the indicated event channel */
 #define UNMAP_NOTIFY_SEND_EVENT 0x2
 
+/*
+ * Flags to be used while requesting memory mapping's backing storage
+ * to be allocated with DMA API.
+ */
+
+/*
+ * The buffer is backed with memory allocated with dma_alloc_wc.
+ */
+#define GNTDEV_DMA_FLAG_WC		(1 << 0)
+
+/*
+ * The buffer is backed with memory allocated with dma_alloc_coherent.
+ */
+#define GNTDEV_DMA_FLAG_COHERENT	(1 << 1)
+
 #endif /* __LINUX_PUBLIC_GNTDEV_H__ */
