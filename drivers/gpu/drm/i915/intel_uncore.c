@@ -283,14 +283,24 @@ fw_domains_reset(struct drm_i915_private *i915,
 		fw_domain_reset(i915, d);
 }
 
+static inline u32 gt_thread_status(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	val = __raw_i915_read32(dev_priv, GEN6_GT_THREAD_STATUS_REG);
+	val &= GEN6_GT_THREAD_STATUS_CORE_MASK;
+
+	return val;
+}
+
 static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
 {
-	/* w/a for a sporadic read returning 0 by waiting for the GT
+	/*
+	 * w/a for a sporadic read returning 0 by waiting for the GT
 	 * thread to wake up.
 	 */
-	if (wait_for_atomic_us((__raw_i915_read32(dev_priv, GEN6_GT_THREAD_STATUS_REG) &
-				GEN6_GT_THREAD_STATUS_CORE_MASK) == 0, 500))
-		DRM_ERROR("GT thread status wait timed out\n");
+	WARN_ONCE(wait_for_atomic_us(gt_thread_status(dev_priv) == 0, 5000),
+		  "GT thread status wait timed out\n");
 }
 
 static void fw_domains_get_with_thread_status(struct drm_i915_private *dev_priv,
