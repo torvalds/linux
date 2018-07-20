@@ -57,13 +57,8 @@ ENDPROC(__vhe_hyp_call)
 el1_sync:				// Guest trapped into EL2
 	stp	x0, x1, [sp, #-16]!
 
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	x1, esr_el2
-alternative_else
-	mrs	x1, esr_el1
-alternative_endif
-	lsr	x0, x1, #ESR_ELx_EC_SHIFT
-
+	mrs	x0, esr_el2
+	lsr	x0, x0, #ESR_ELx_EC_SHIFT
 	cmp	x0, #ESR_ELx_EC_HVC64
 	ccmp	x0, #ESR_ELx_EC_HVC32, #4, ne
 	b.ne	el1_trap
@@ -117,10 +112,14 @@ el1_hvc_guest:
 	eret
 
 el1_trap:
+	get_vcpu_ptr	x1, x0
+
+	mrs		x0, esr_el2
+	lsr		x0, x0, #ESR_ELx_EC_SHIFT
 	/*
 	 * x0: ESR_EC
+	 * x1: vcpu pointer
 	 */
-	ldr	x1, [sp, #16 + 8]	// vcpu stored by __guest_enter
 
 	/*
 	 * We trap the first access to the FP/SIMD to save the host context
@@ -138,13 +137,13 @@ alternative_else_nop_endif
 
 el1_irq:
 	stp     x0, x1, [sp, #-16]!
-	ldr	x1, [sp, #16 + 8]
+	get_vcpu_ptr	x1, x0
 	mov	x0, #ARM_EXCEPTION_IRQ
 	b	__guest_exit
 
 el1_error:
 	stp     x0, x1, [sp, #-16]!
-	ldr	x1, [sp, #16 + 8]
+	get_vcpu_ptr	x1, x0
 	mov	x0, #ARM_EXCEPTION_EL1_SERROR
 	b	__guest_exit
 
@@ -180,14 +179,7 @@ ENTRY(__hyp_do_panic)
 ENDPROC(__hyp_do_panic)
 
 ENTRY(__hyp_panic)
-	/*
-	 * '=kvm_host_cpu_state' is a host VA from the constant pool, it may
-	 * not be accessible by this address from EL2, hyp_panic() converts
-	 * it with kern_hyp_va() before use.
-	 */
-	ldr	x0, =kvm_host_cpu_state
-	mrs	x1, tpidr_el2
-	add	x0, x0, x1
+	get_host_ctxt x0, x1
 	b	hyp_panic
 ENDPROC(__hyp_panic)
 

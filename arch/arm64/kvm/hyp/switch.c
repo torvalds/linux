@@ -437,7 +437,7 @@ static hyp_alternate_select(__hyp_call_panic,
 			    __hyp_call_panic_nvhe, __hyp_call_panic_vhe,
 			    ARM64_HAS_VIRT_HOST_EXTN);
 
-void __hyp_text __noreturn hyp_panic(struct kvm_cpu_context *__host_ctxt)
+void __hyp_text __noreturn hyp_panic(struct kvm_cpu_context *host_ctxt)
 {
 	struct kvm_vcpu *vcpu = NULL;
 
@@ -446,9 +446,6 @@ void __hyp_text __noreturn hyp_panic(struct kvm_cpu_context *__host_ctxt)
 	u64 par = read_sysreg(par_el1);
 
 	if (read_sysreg(vttbr_el2)) {
-		struct kvm_cpu_context *host_ctxt;
-
-		host_ctxt = kern_hyp_va(__host_ctxt);
 		vcpu = host_ctxt->__hyp_running_vcpu;
 		__timer_save_state(vcpu);
 		__deactivate_traps(vcpu);

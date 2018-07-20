@@ -33,6 +33,7 @@
 #define KVM_ARM64_DEBUG_DIRTY_SHIFT	0
 #define KVM_ARM64_DEBUG_DIRTY		(1 << KVM_ARM64_DEBUG_DIRTY_SHIFT)
 
+/* Translate a kernel address of @sym into its equivalent linear mapping */
 #define kvm_ksym_ref(sym)						\
 	({								\
 		void *val = &sym;					\
@@ -67,6 +68,20 @@ extern u32 __kvm_get_mdcr_el2(void);
 extern u32 __init_stage2_translation(void);
 
 extern void __qcom_hyp_sanitize_btac_predictors(void);
+
+#else /* __ASSEMBLY__ */
+
+.macro get_host_ctxt reg, tmp
+	adr_l	\reg, kvm_host_cpu_state
+	mrs	\tmp, tpidr_el2
+	add	\reg, \reg, \tmp
+.endm
+
+.macro get_vcpu_ptr vcpu, ctxt
+	get_host_ctxt \ctxt, \vcpu
+	ldr	\vcpu, [\ctxt, #HOST_CONTEXT_VCPU]
+	kern_hyp_va	\vcpu
+.endm
 
 #endif
 
