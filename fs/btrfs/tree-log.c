@@ -1290,6 +1290,46 @@ again:
 	return ret;
 }
 
+static int btrfs_inode_ref_exists(struct inode *inode, struct inode *dir,
+				  const u8 ref_type, const char *name,
+				  const int namelen)
+{
+	struct btrfs_key key;
+	struct btrfs_path *path;
+	const u64 parent_id = btrfs_ino(BTRFS_I(dir));
+	int ret;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	key.objectid = btrfs_ino(BTRFS_I(inode));
+	key.type = ref_type;
+	if (key.type == BTRFS_INODE_REF_KEY)
+		key.offset = parent_id;
+	else
+		key.offset = btrfs_extref_hash(parent_id, name, namelen);
+
+	ret = btrfs_search_slot(NULL, BTRFS_I(inode)->root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+	if (ret > 0) {
+		ret = 0;
+		goto out;
+	}
+	if (key.type == BTRFS_INODE_EXTREF_KEY)
+		ret = btrfs_find_name_in_ext_backref(path->nodes[0],
+						     path->slots[0], parent_id,
+						     name, namelen, NULL);
+	else
+		ret = btrfs_find_name_in_backref(path->nodes[0], path->slots[0],
+						 name, namelen, NULL);
+
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
 /*
  * replay one inode back reference item found in the log tree.
  * eb, slot and key refer to the buffer and key found in the log tree.
@@ -1398,6 +1438,32 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 					goto out;
 				}
 			}
+
+			/*
+			 * If a reference item already exists for this inode
+			 * with the same parent and name, but different index,
+			 * drop it and the corresponding directory index entries
+			 * from the parent before adding the new reference item
+			 * and dir index entries, otherwise we would fail with
+			 * -EEXIST returned from btrfs_add_link() below.
+			 */
+			ret = btrfs_inode_ref_exists(inode, dir, key->type,
+						     name, namelen);
+			if (ret > 0) {
+				ret = btrfs_unlink_inode(trans, root,
+							 BTRFS_I(dir),
+							 BTRFS_I(inode),
+							 name, namelen);
+				/*
+				 * If we dropped the link count to 0, bump it so
+				 * that later the iput() on the inode will not
+				 * free it. We will fixup the link count later.
+				 */
+				if (!ret && inode->i_nlink == 0)
+					inc_nlink(inode);
+			}
+			if (ret < 0)
+				goto out;
 
 			/* insert our name */
 			ret = btrfs_add_link(trans, BTRFS_I(dir),
