@@ -125,6 +125,38 @@
 			nvidia,head = <1>;
 		};
 
+		dsi@54300000 {
+			compatible = "nvidia,tegra124-dsi";
+			reg = <0x0 0x54300000 0x0 0x00040000>;
+			clocks = <&tegra_car TEGRA124_CLK_DSIA>,
+				 <&tegra_car TEGRA124_CLK_DSIALP>,
+				 <&tegra_car TEGRA124_CLK_PLL_D_OUT0>;
+			clock-names = "dsi", "lp", "parent";
+			resets = <&tegra_car TEGRA124_CLK_DSIA>;
+			reset-names = "dsi";
+			nvidia,mipi-calibrate = <&mipi 0x060>; /* DSIA & DSIB pads */
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		dsi@54400000 {
+			compatible = "nvidia,tegra124-dsi";
+			reg = <0x0 0x54400000 0x0 0x00040000>;
+			clocks = <&tegra_car TEGRA124_CLK_DSIB>,
+				 <&tegra_car TEGRA124_CLK_DSIBLP>,
+				 <&tegra_car TEGRA124_CLK_PLL_D_OUT0>;
+			clock-names = "dsi", "lp", "parent";
+			resets = <&tegra_car TEGRA124_CLK_DSIB>;
+			reset-names = "dsi";
+			nvidia,mipi-calibrate = <&mipi 0x060>; /* DSIA & DSIB pads */
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		hdmi: hdmi@54280000 {
 			compatible = "nvidia,tegra124-hdmi";
 			reg = <0x0 0x54280000 0x0 0x00040000>;
