@@ -514,6 +514,9 @@ config VIDEO_VIM2M
 	---help---
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
+
+source "drivers/media/platform/vicodec/Kconfig"
+
 endif #V4L_TEST_DRIVERS
 
 menuconfig DVB_PLATFORM_DRIVERS
