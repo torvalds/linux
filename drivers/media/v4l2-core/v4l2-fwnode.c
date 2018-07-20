@@ -55,9 +55,13 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 	u32 v;
 	int rval;
 
-	if (bus_type == V4L2_FWNODE_BUS_TYPE_CSI2_DPHY)
+	if (bus_type == V4L2_FWNODE_BUS_TYPE_CSI2_DPHY) {
 		num_data_lanes = min_t(u32, bus->num_data_lanes,
 				       V4L2_FWNODE_CSI2_MAX_DATA_LANES);
+
+		for (i = 0; i < num_data_lanes; i++)
+			array[i] = bus->data_lanes[i];
+	}
 
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
 	if (rval > 0) {
@@ -66,15 +70,15 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 
 		fwnode_property_read_u32_array(fwnode, "data-lanes", array,
 					       num_data_lanes);
+	}
 
-		for (i = 0; i < num_data_lanes; i++) {
-			if (lanes_used & BIT(array[i]))
-				pr_warn("duplicated lane %u in data-lanes\n",
-					array[i]);
-			lanes_used |= BIT(array[i]);
+	for (i = 0; i < num_data_lanes; i++) {
+		if (lanes_used & BIT(array[i]))
+			pr_warn("duplicated lane %u in data-lanes\n",
+				array[i]);
+		lanes_used |= BIT(array[i]);
 
-			pr_debug("lane %u position %u\n", i, array[i]);
-		}
+		pr_debug("lane %u position %u\n", i, array[i]);
 	}
 
 	rval = fwnode_property_read_u32_array(fwnode, "lane-polarities", NULL,
