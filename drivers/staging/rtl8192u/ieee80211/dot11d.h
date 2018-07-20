@@ -7,7 +7,7 @@
 struct chnl_txpower_triple {
 	u8  first_channel;
 	u8  num_channels;
-	u8  MaxTxPowerInDbm;
+	u8  max_tx_pwr_dbm;
 };
 
 typedef enum _DOT11D_STATE {
