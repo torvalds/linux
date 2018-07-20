@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/uio/uio.c
  *
@@ -9,8 +10,6 @@
  * Userspace IO
  *
  * Base Functions
- *
- * Licensed under the GPLv2 only.
  */
 
 #include <linux/module.h>
