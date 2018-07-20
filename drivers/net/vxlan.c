@@ -3195,6 +3195,7 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 {
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_fdb *f = NULL;
 	int err;
 
 	err = vxlan_dev_configure(net, dev, conf, false, extack);
@@ -3205,27 +3206,38 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 
 	/* create an fdb entry for a valid default destination */
 	if (!vxlan_addr_any(&vxlan->default_dst.remote_ip)) {
-		err = vxlan_fdb_update(vxlan, all_zeros_mac,
+		err = vxlan_fdb_create(vxlan, all_zeros_mac,
 				       &vxlan->default_dst.remote_ip,
 				       NUD_REACHABLE | NUD_PERMANENT,
-				       NLM_F_EXCL | NLM_F_CREATE,
 				       vxlan->cfg.dst_port,
 				       vxlan->default_dst.remote_vni,
 				       vxlan->default_dst.remote_vni,
 				       vxlan->default_dst.remote_ifindex,
-				       NTF_SELF);
+				       NTF_SELF, &f);
 		if (err)
 			return err;
 	}
 
 	err = register_netdevice(dev);
+	if (err)
+		goto errout;
+
+	err = rtnl_configure_link(dev, NULL);
 	if (err) {
-		vxlan_fdb_delete_default(vxlan, vxlan->default_dst.remote_vni);
-		return err;
+		unregister_netdevice(dev);
+		goto errout;
 	}
+
+	/* notify default fdb entry */
+	if (f)
+		vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_NEWNEIGH);
 
 	list_add(&vxlan->next, &vn->vxlan_list);
 	return 0;
+errout:
+	if (f)
+		vxlan_fdb_destroy(vxlan, f, false);
+	return err;
 }
 
 static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
@@ -3460,6 +3472,7 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 	struct vxlan_rdst *dst = &vxlan->default_dst;
 	struct vxlan_rdst old_dst;
 	struct vxlan_config conf;
+	struct vxlan_fdb *f = NULL;
 	int err;
 
 	err = vxlan_nl2conf(tb, data,
@@ -3485,19 +3498,19 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 					   old_dst.remote_ifindex, 0);
 
 		if (!vxlan_addr_any(&dst->remote_ip)) {
-			err = vxlan_fdb_update(vxlan, all_zeros_mac,
+			err = vxlan_fdb_create(vxlan, all_zeros_mac,
 					       &dst->remote_ip,
 					       NUD_REACHABLE | NUD_PERMANENT,
-					       NLM_F_CREATE | NLM_F_APPEND,
 					       vxlan->cfg.dst_port,
 					       dst->remote_vni,
 					       dst->remote_vni,
 					       dst->remote_ifindex,
-					       NTF_SELF);
+					       NTF_SELF, &f);
 			if (err) {
 				spin_unlock_bh(&vxlan->hash_lock);
 				return err;
 			}
+			vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_NEWNEIGH);
 		}
 		spin_unlock_bh(&vxlan->hash_lock);
 	}
