@@ -60,6 +60,46 @@ static void prom_putchar_dummy(char ch)
 	/* nothing to do */
 }
 
+static void prom_enable_uart(u32 id)
+{
+	void __iomem *gpio_base;
+	u32 uart_en;
+	u32 t;
+
+	switch (id) {
+	case REV_ID_MAJOR_AR71XX:
+		uart_en = AR71XX_GPIO_FUNC_UART_EN;
+		break;
+
+	case REV_ID_MAJOR_AR7240:
+	case REV_ID_MAJOR_AR7241:
+	case REV_ID_MAJOR_AR7242:
+		uart_en = AR724X_GPIO_FUNC_UART_EN;
+		break;
+
+	case REV_ID_MAJOR_AR913X:
+		uart_en = AR913X_GPIO_FUNC_UART_EN;
+		break;
+
+	case REV_ID_MAJOR_AR9330:
+	case REV_ID_MAJOR_AR9331:
+		uart_en = AR933X_GPIO_FUNC_UART_EN;
+		break;
+
+	case REV_ID_MAJOR_AR9341:
+	case REV_ID_MAJOR_AR9342:
+	case REV_ID_MAJOR_AR9344:
+		/* TODO */
+	default:
+		return;
+	}
+
+	gpio_base = (void __iomem *)KSEG1ADDR(AR71XX_GPIO_BASE);
+	t = __raw_readl(gpio_base + AR71XX_GPIO_REG_FUNC);
+	t |= uart_en;
+	__raw_writel(t, gpio_base + AR71XX_GPIO_REG_FUNC);
+}
+
 static void prom_putchar_init(void)
 {
 	void __iomem *base;
@@ -94,8 +134,10 @@ static void prom_putchar_init(void)
 
 	default:
 		_prom_putchar = prom_putchar_dummy;
-		break;
+		return;
 	}
+
+	prom_enable_uart(id);
 }
 
 void prom_putchar(char ch)
