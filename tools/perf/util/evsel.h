@@ -405,6 +405,12 @@ static inline bool perf_evsel__is_bpf_output(struct perf_evsel *evsel)
 	return perf_evsel__match(evsel, SOFTWARE, SW_BPF_OUTPUT);
 }
 
+static inline bool perf_evsel__is_clock(struct perf_evsel *evsel)
+{
+	return perf_evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK) ||
+	       perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
+}
+
 struct perf_attr_details {
 	bool freq;
 	bool verbose;

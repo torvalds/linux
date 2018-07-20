@@ -296,18 +296,6 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
 }
 
-/*
- * Does the counter have nsecs as a unit?
- */
-static inline int nsec_counter(struct perf_evsel *evsel)
-{
-	if (perf_evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK) ||
-	    perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
-		return 1;
-
-	return 0;
-}
-
 static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
@@ -1058,34 +1046,6 @@ static void print_metric_header(void *ctx, const char *color __maybe_unused,
 		fprintf(os->fh, "%*s ", metric_only_len, unit);
 }
 
-static void nsec_printout(int id, int nr, struct perf_evsel *evsel, double avg)
-{
-	FILE *output = stat_config.output;
-	double msecs = avg / NSEC_PER_MSEC;
-	const char *fmt_v, *fmt_n;
-	char name[25];
-
-	fmt_v = csv_output ? "%.6f%s" : "%18.6f%s";
-	fmt_n = csv_output ? "%s" : "%-25s";
-
-	aggr_printout(evsel, id, nr);
-
-	scnprintf(name, sizeof(name), "%s%s",
-		  perf_evsel__name(evsel), csv_output ? "" : " (msec)");
-
-	fprintf(output, fmt_v, msecs, csv_sep);
-
-	if (csv_output)
-		fprintf(output, "%s%s", evsel->unit, csv_sep);
-	else
-		fprintf(output, "%-*s%s", unit_width, evsel->unit, csv_sep);
-
-	fprintf(output, fmt_n, name);
-
-	if (evsel->cgrp)
-		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
-}
-
 static int first_shadow_cpu(struct perf_evsel *evsel, int id)
 {
 	int i;
@@ -1241,11 +1201,7 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 		return;
 	}
 
-	if (metric_only)
-		/* nothing */;
-	else if (nsec_counter(counter))
-		nsec_printout(id, nr, counter, uval);
-	else
+	if (!metric_only)
 		abs_printout(id, nr, counter, uval);
 
 	out.print_metric = pm;
@@ -1331,7 +1287,7 @@ static void collect_all_aliases(struct perf_evsel *counter,
 		    alias->scale != counter->scale ||
 		    alias->cgrp != counter->cgrp ||
 		    strcmp(alias->unit, counter->unit) ||
-		    nsec_counter(alias) != nsec_counter(counter))
+		    perf_evsel__is_clock(alias) != perf_evsel__is_clock(counter))
 			break;
 		alias->merged_stat = true;
 		cb(alias, data, false);
