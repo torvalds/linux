@@ -41,69 +41,6 @@ static void setup_boot_services##bits(struct efi_config *c)		\
 BOOT_SERVICES(32);
 BOOT_SERVICES(64);
 
-static inline efi_status_t __open_volume32(void *__image, void **__fh)
-{
-	efi_file_io_interface_t *io;
-	efi_loaded_image_32_t *image = __image;
-	efi_file_handle_32_t *fh;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
-	efi_status_t status;
-	void *handle = (void *)(unsigned long)image->device_handle;
-	unsigned long func;
-
-	status = efi_call_early(handle_protocol, handle,
-				&fs_proto, (void **)&io);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to handle fs_proto\n");
-		return status;
-	}
-
-	func = (unsigned long)io->open_volume;
-	status = efi_early->call(func, io, &fh);
-	if (status != EFI_SUCCESS)
-		efi_printk(sys_table, "Failed to open volume\n");
-
-	*__fh = fh;
-
-	return status;
-}
-
-static inline efi_status_t __open_volume64(void *__image, void **__fh)
-{
-	efi_file_io_interface_t *io;
-	efi_loaded_image_64_t *image = __image;
-	efi_file_handle_64_t *fh;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
-	efi_status_t status;
-	void *handle = (void *)(unsigned long)image->device_handle;
-	unsigned long func;
-
-	status = efi_call_early(handle_protocol, handle,
-				&fs_proto, (void **)&io);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to handle fs_proto\n");
-		return status;
-	}
-
-	func = (unsigned long)io->open_volume;
-	status = efi_early->call(func, io, &fh);
-	if (status != EFI_SUCCESS)
-		efi_printk(sys_table, "Failed to open volume\n");
-
-	*__fh = fh;
-
-	return status;
-}
-
-efi_status_t
-efi_open_volume(efi_system_table_t *sys_table, void *__image, void **__fh)
-{
-	if (efi_early->is64)
-		return __open_volume64(__image, __fh);
-
-	return __open_volume32(__image, __fh);
-}
-
 void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 {
 	efi_call_proto(efi_simple_text_output_protocol, output_string,

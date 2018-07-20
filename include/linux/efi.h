@@ -894,6 +894,16 @@ typedef struct _efi_file_handle {
 	void *flush;
 } efi_file_handle_t;
 
+typedef struct {
+	u64 revision;
+	u32 open_volume;
+} efi_file_io_interface_32_t;
+
+typedef struct {
+	u64 revision;
+	u64 open_volume;
+} efi_file_io_interface_64_t;
+
 typedef struct _efi_file_io_interface {
 	u64 revision;
 	int (*open_volume)(struct _efi_file_io_interface *,
