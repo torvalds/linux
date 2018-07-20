@@ -39,6 +39,8 @@ enum {
 	TCA_TUNNEL_KEY_ENC_OPTS,	/* Nested TCA_TUNNEL_KEY_ENC_OPTS_
 					 * attributes
 					 */
+	TCA_TUNNEL_KEY_ENC_TOS,		/* u8 */
+	TCA_TUNNEL_KEY_ENC_TTL,		/* u8 */
 	__TCA_TUNNEL_KEY_MAX,
 };
 
