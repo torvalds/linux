@@ -52,7 +52,6 @@ enum drm_sched_priority {
  *        runqueue.
  * @rq: runqueue to which this entity belongs.
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
- * @sched: the scheduler instance to which this entity is enqueued.
  * @job_queue: the list of jobs of this entity.
  * @fence_seq: a linearly increasing seqno incremented with each
  *             new &drm_sched_fence which is part of the entity.
@@ -76,7 +75,6 @@ struct drm_sched_entity {
 	struct list_head		list;
 	struct drm_sched_rq		*rq;
 	spinlock_t			rq_lock;
-	struct drm_gpu_scheduler	*sched;
 
 	struct spsc_queue		job_queue;
 

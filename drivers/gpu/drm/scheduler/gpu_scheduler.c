@@ -185,7 +185,6 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 	memset(entity, 0, sizeof(struct drm_sched_entity));
 	INIT_LIST_HEAD(&entity->list);
 	entity->rq = rq_list[0];
-	entity->sched = rq_list[0]->sched;
 	entity->guilty = guilty;
 	entity->last_scheduled = NULL;
 
@@ -210,8 +209,8 @@ EXPORT_SYMBOL(drm_sched_entity_init);
 static bool drm_sched_entity_is_initialized(struct drm_gpu_scheduler *sched,
 					    struct drm_sched_entity *entity)
 {
-	return entity->sched == sched &&
-		entity->rq != NULL;
+	return entity->rq != NULL &&
+		entity->rq->sched == sched;
 }
 
 /**
@@ -278,7 +277,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 	struct drm_gpu_scheduler *sched;
 	long ret = timeout;
 
-	sched = entity->sched;
+	sched = entity->rq->sched;
 	if (!drm_sched_entity_is_initialized(sched, entity))
 		return ret;
 	/**
@@ -317,7 +316,7 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 {
 	struct drm_gpu_scheduler *sched;
 
-	sched = entity->sched;
+	sched = entity->rq->sched;
 	drm_sched_entity_set_rq(entity, NULL);
 
 	/* Consumption of existing IBs wasn't completed. Forcefully
@@ -388,7 +387,7 @@ static void drm_sched_entity_wakeup(struct dma_fence *f, struct dma_fence_cb *cb
 		container_of(cb, struct drm_sched_entity, cb);
 	entity->dependency = NULL;
 	dma_fence_put(f);
-	drm_sched_wakeup(entity->sched);
+	drm_sched_wakeup(entity->rq->sched);
 }
 
 static void drm_sched_entity_clear_dep(struct dma_fence *f, struct dma_fence_cb *cb)
@@ -438,7 +437,7 @@ EXPORT_SYMBOL(drm_sched_entity_set_rq);
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity)
 {
-	struct drm_gpu_scheduler *sched = entity->sched;
+	struct drm_gpu_scheduler *sched = entity->rq->sched;
 	struct drm_sched_fence *s_fence;
 
 	if (!fence || dma_fence_is_signaled(fence))
@@ -455,7 +454,7 @@ EXPORT_SYMBOL(drm_sched_dependency_optimized);
 
 static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 {
-	struct drm_gpu_scheduler *sched = entity->sched;
+	struct drm_gpu_scheduler *sched = entity->rq->sched;
 	struct dma_fence * fence = entity->dependency;
 	struct drm_sched_fence *s_fence;
 
@@ -500,7 +499,7 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 static struct drm_sched_job *
 drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 {
-	struct drm_gpu_scheduler *sched = entity->sched;
+	struct drm_gpu_scheduler *sched = entity->rq->sched;
 	struct drm_sched_job *sched_job = to_drm_sched_job(
 						spsc_queue_peek(&entity->job_queue));
 
@@ -744,7 +743,7 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		       struct drm_sched_entity *entity,
 		       void *owner)
 {
-	struct drm_gpu_scheduler *sched = entity->sched;
+	struct drm_gpu_scheduler *sched = entity->rq->sched;
 
 	job->sched = sched;
 	job->entity = entity;

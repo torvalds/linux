@@ -387,7 +387,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		ats_entries = 0;
 	}
 
-	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
+	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
 
 	r = reservation_object_reserve_shared(bo->tbo.resv);
 	if (r)
@@ -1113,7 +1113,7 @@ restart:
 		struct amdgpu_ring *ring;
 		struct dma_fence *fence;
 
-		ring = container_of(vm->entity.sched, struct amdgpu_ring,
+		ring = container_of(vm->entity.rq->sched, struct amdgpu_ring,
 				    sched);
 
 		amdgpu_ring_pad_ib(ring, params.ib);
@@ -1403,7 +1403,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 					   addr, flags);
 	}
 
-	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
+	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
 
 	nptes = last - start + 1;
 

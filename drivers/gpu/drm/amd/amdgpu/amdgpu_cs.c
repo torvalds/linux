@@ -1262,7 +1262,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	priority = job->base.s_priority;
 	drm_sched_entity_push_job(&job->base, entity);
 
-	ring = to_amdgpu_ring(entity->sched);
+	ring = to_amdgpu_ring(entity->rq->sched);
 	amdgpu_ring_priority_get(ring, priority);
 
 	ttm_eu_fence_buffer_objects(&p->ticket, &p->validated, p->fence);
