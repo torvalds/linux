@@ -2691,11 +2691,9 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			DRM_ERROR("amdgpu asic reset failed\n");
 	}
 
-	if (fbcon) {
-		console_lock();
+	if (fbcon)
 		amdgpu_fbdev_set_suspend(adev, 1);
-		console_unlock();
-	}
+
 	return 0;
 }
 
@@ -2780,9 +2778,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 			}
 			drm_modeset_unlock_all(dev);
 		}
-		console_lock();
 		amdgpu_fbdev_set_suspend(adev, 0);
-		console_unlock();
 	}
 
 	drm_kms_helper_poll_enable(dev);
