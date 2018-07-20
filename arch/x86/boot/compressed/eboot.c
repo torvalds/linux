@@ -404,7 +404,7 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		return NULL;
 
-	if (efi_early->is64)
+	if (efi_is_64bit())
 		setup_boot_services64(efi_early);
 	else
 		setup_boot_services32(efi_early);
@@ -639,7 +639,6 @@ struct exit_boot_struct {
 	struct efi_info		*efi;
 	struct setup_data	*e820ext;
 	__u32			e820ext_size;
-	bool			is64;
 };
 
 static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
@@ -666,7 +665,8 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 		first = false;
 	}
 
-	signature = p->is64 ? EFI64_LOADER_SIGNATURE : EFI32_LOADER_SIGNATURE;
+	signature = efi_is_64bit() ? EFI64_LOADER_SIGNATURE
+				   : EFI32_LOADER_SIGNATURE;
 	memcpy(&p->efi->efi_loader_signature, signature, sizeof(__u32));
 
 	p->efi->efi_systab		= (unsigned long)sys_table_arg;
@@ -683,8 +683,7 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 	return EFI_SUCCESS;
 }
 
-static efi_status_t exit_boot(struct boot_params *boot_params,
-			      void *handle, bool is64)
+static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
 {
 	unsigned long map_sz, key, desc_size, buff_size;
 	efi_memory_desc_t *mem_map;
@@ -705,7 +704,6 @@ static efi_status_t exit_boot(struct boot_params *boot_params,
 	priv.efi		= &boot_params->efi_info;
 	priv.e820ext		= NULL;
 	priv.e820ext_size	= 0;
-	priv.is64		= is64;
 
 	/* Might as well exit boot services now */
 	status = efi_exit_boot_services(sys_table, handle, &map, &priv,
@@ -740,13 +738,11 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 	struct desc_struct *desc;
 	void *handle;
 	efi_system_table_t *_table;
-	bool is64;
 
 	efi_early = c;
 
 	_table = (efi_system_table_t *)(unsigned long)efi_early->table;
 	handle = (void *)(unsigned long)efi_early->image_handle;
-	is64 = efi_early->is64;
 
 	sys_table = _table;
 
@@ -754,7 +750,7 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		goto fail;
 
-	if (is64)
+	if (efi_is_64bit())
 		setup_boot_services64(efi_early);
 	else
 		setup_boot_services32(efi_early);
@@ -810,7 +806,7 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 		hdr->code32_start = bzimage_addr;
 	}
 
-	status = exit_boot(boot_params, handle, is64);
+	status = exit_boot(boot_params, handle);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table, "exit_boot() failed!\n");
 		goto fail;
