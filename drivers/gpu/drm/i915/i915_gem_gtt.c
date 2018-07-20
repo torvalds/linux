@@ -3654,6 +3654,10 @@ void i915_ggtt_enable_guc(struct drm_i915_private *i915)
 
 void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 {
+	/* XXX Temporary pardon for error unload */
+	if (i915->ggtt.invalidate == gen6_ggtt_invalidate)
+		return;
+
 	/* We should only be called after i915_ggtt_enable_guc() */
 	GEM_BUG_ON(i915->ggtt.invalidate != guc_ggtt_invalidate);
 
