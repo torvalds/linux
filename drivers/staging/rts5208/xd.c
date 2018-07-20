@@ -787,9 +787,8 @@ static int reset_xd(struct rtsx_chip *chip)
 	}
 
 	dev_dbg(rtsx_dev(chip), "CIS block: 0x%x\n", xd_card->cis_block);
-	if (xd_card->cis_block == 0xFFFF) {
+	if (xd_card->cis_block == 0xFFFF)
 		return STATUS_FAIL;
-	}
 
 	chip->capacity[chip->card2lun[XD_CARD]] = xd_card->capacity;
 
