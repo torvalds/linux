@@ -656,6 +656,7 @@ struct kvm_vcpu_arch {
 	seqcount_t cputm_seqcount;
 	__u64 cputm_start;
 	bool gs_enabled;
+	bool skey_enabled;
 };
 
 struct kvm_vm_stat {
