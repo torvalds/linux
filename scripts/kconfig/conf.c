@@ -496,6 +496,7 @@ int main(int ac, char **av)
 	int opt;
 	const char *name, *defconfig_file = NULL /* gcc uninit */;
 	struct stat tmpstat;
+	int no_conf_write = 0;
 
 	tty_stdio = isatty(0) && isatty(1);
 
@@ -633,13 +634,14 @@ int main(int ac, char **av)
 	}
 
 	if (sync_kconfig) {
-		if (conf_get_changed()) {
-			name = getenv("KCONFIG_NOSILENTUPDATE");
-			if (name && *name) {
+		name = getenv("KCONFIG_NOSILENTUPDATE");
+		if (name && *name) {
+			if (conf_get_changed()) {
 				fprintf(stderr,
 					"\n*** The configuration requires explicit update.\n\n");
 				return 1;
 			}
+			no_conf_write = 1;
 		}
 	}
 
@@ -688,7 +690,7 @@ int main(int ac, char **av)
 		/* syncconfig is used during the build so we shall update autoconf.
 		 * All other commands are only used to generate a config.
 		 */
-		if (conf_get_changed() && conf_write(NULL)) {
+		if (!no_conf_write && conf_write(NULL)) {
 			fprintf(stderr, "\n*** Error during writing of the configuration.\n\n");
 			exit(1);
 		}
