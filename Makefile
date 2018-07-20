@@ -649,10 +649,6 @@ include/config/auto.conf:
 	/bin/false)
 
 endif # may-sync-config
-
-else
-# Dummy target needed, because used as prerequisite
-include/config/auto.conf: ;
 endif # $(dot-config)
 
 KBUILD_CFLAGS	+= $(call cc-option,-fno-delete-null-pointer-checks,)
@@ -1047,15 +1043,14 @@ define filechk_kernel.release
 endef
 
 # Store (new) KERNELRELEASE string in include/config/kernel.release
-include/config/kernel.release: include/config/auto.conf FORCE
+include/config/kernel.release: $(srctree)/Makefile FORCE
 	$(call filechk,kernel.release)
 
 # Additional helpers built in scripts/
 # Carefully list dependencies so we do not try to build scripts twice
 # in parallel
 PHONY += scripts
-scripts: scripts_basic include/config/auto.conf include/config/tristate.conf \
-	 asm-generic gcc-plugins $(autoksyms_h)
+scripts: scripts_basic asm-generic gcc-plugins $(autoksyms_h)
 	$(Q)$(MAKE) $(build)=$(@)
 
 # Things we need to do before we recursively start building the kernel
@@ -1085,8 +1080,7 @@ endif
 # that need to depend on updated CONFIG_* values can be checked here.
 prepare2: prepare3 outputmakefile asm-generic
 
-prepare1: prepare2 $(version_h) $(autoksyms_h) include/generated/utsrelease.h \
-                   include/config/auto.conf
+prepare1: prepare2 $(version_h) $(autoksyms_h) include/generated/utsrelease.h
 	$(cmd_crmodverdir)
 
 archprepare: archheaders archscripts prepare1 scripts_basic
@@ -1224,7 +1218,7 @@ modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux) modules.builtin
 modules.builtin: $(vmlinux-dirs:%=%/modules.builtin)
 	$(Q)$(AWK) '!x[$$0]++' $^ > $(objtree)/modules.builtin
 
-%/modules.builtin: include/config/auto.conf
+%/modules.builtin: include/config/auto.conf include/config/tristate.conf
 	$(Q)$(MAKE) $(modbuiltin)=$*
 
 
