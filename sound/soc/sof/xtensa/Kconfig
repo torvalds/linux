@@ -1,0 +1,3 @@
+config SND_SOC_SOF_XTENSA
+	tristate
+
