@@ -409,6 +409,7 @@ static void sierra_outdat_callback(struct urb *urb)
 	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
 	struct sierra_intf_private *intfdata;
 	int status = urb->status;
+	unsigned long flags;
 
 	intfdata = usb_get_serial_data(port->serial);
 
@@ -419,12 +420,12 @@ static void sierra_outdat_callback(struct urb *urb)
 		dev_dbg(&port->dev, "%s - nonzero write bulk status "
 		    "received: %d\n", __func__, status);
 
-	spin_lock(&portdata->lock);
+	spin_lock_irqsave(&portdata->lock, flags);
 	--portdata->outstanding_urbs;
-	spin_unlock(&portdata->lock);
-	spin_lock(&intfdata->susp_lock);
+	spin_unlock_irqrestore(&portdata->lock, flags);
+	spin_lock_irqsave(&intfdata->susp_lock, flags);
 	--intfdata->in_flight;
-	spin_unlock(&intfdata->susp_lock);
+	spin_unlock_irqrestore(&intfdata->susp_lock, flags);
 
 	usb_serial_port_softint(port);
 }
@@ -770,9 +771,9 @@ static void sierra_close(struct usb_serial_port *port)
 		kfree(urb->transfer_buffer);
 		usb_free_urb(urb);
 		usb_autopm_put_interface_async(serial->interface);
-		spin_lock(&portdata->lock);
+		spin_lock_irq(&portdata->lock);
 		portdata->outstanding_urbs--;
-		spin_unlock(&portdata->lock);
+		spin_unlock_irq(&portdata->lock);
 	}
 
 	sierra_stop_rx_urbs(port);

@@ -104,7 +104,7 @@ static inline int ssu100_getregister(struct usb_device *dev,
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			      QT_SET_GET_REGISTER, 0xc0, reg,
 			      uart, data, sizeof(*data), 300);
-	if (ret < sizeof(*data)) {
+	if (ret < (int)sizeof(*data)) {
 		if (ret >= 0)
 			ret = -EIO;
 	}
