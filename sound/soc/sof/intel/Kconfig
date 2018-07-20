@@ -101,4 +101,15 @@ config SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_PCI
 	select SND_SOC_ACPI_INTEL_MATCH
 
+config SND_SOC_SOF_HDA
+	tristate "SOF support for HDA Links(HDA/HDMI)"
+	depends on SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_HDAC_HDA
+	select SND_SOC_HDAC_HDMI
+	help
+          This adds support for HDA links(HDA/HDMI) with Sound Open Firmware
+		  for Intel(R) platforms.
+          Say Y if you want to enble HDA links with SOF.
+          If unsure select "N".
+
 endif ## SND_SOC_SOF_INTEL
