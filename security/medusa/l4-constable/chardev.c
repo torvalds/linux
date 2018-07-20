@@ -86,7 +86,7 @@ static atomic_t announce_ready = ATOMIC_INIT(0);
 /* a question from kernel to constable */
 static atomic_t questions = ATOMIC_INIT(0);
 static atomic_t questions_waiting = ATOMIC_INIT(0);
-static atomic_t decision_request_id = ATOMIC_INIT(0);
+static atomic_t decision_request_id = ATOMIC_INIT(-1);
 /* and the answer */
 static medusa_answer_t user_answer = MED_ERR;
 
@@ -309,9 +309,6 @@ static void post_write(void* mem) {
 }
 
 static int am_i_constable(void) {
-	struct task_struct* task;
-	struct list_head *i;
-	int ret = 0;
 
 	if (!constable)
 		return 0;
@@ -510,7 +507,7 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 	tele_mem_decide[0].args.putPtr.what = (MCPptr_t)decision_evtype; // possibility to encryption JK march 2015
 	local_tele_item->size += sizeof(MCPptr_t);
 	tele_mem_decide[1].opcode = tp_PUT32;
-	tele_mem_decide[1].args.put32.what = atomic_read(&decision_request_id);
+	tele_mem_decide[1].args.put32.what = atomic_inc_return(&decision_request_id);
 	local_req_id = tele_mem_decide[1].args.put32.what;
 	local_tele_item->size += sizeof(uint32_t);
 	tele_mem_decide[2].opcode = tp_CUTNPASTE;
@@ -543,7 +540,6 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 	}
 	pr_info("medusa: new question %i\n", local_req_id);
 	// prepare for next decision
-	atomic_inc(&decision_request_id);
 #undef decision_evtype
 	// insert teleport structure to the queue
 	down(&queue_lock);
@@ -1183,7 +1179,7 @@ static int user_release(struct inode *inode, struct file *file)
 	atomic_set(&questions, 0);
 	atomic_set(&questions_waiting, 0);
 	atomic_set(&announce_ready, 0);
-	atomic_set(&decision_request_id, 0);
+	atomic_set(&decision_request_id, -1);
 	atomic_set(&currently_receiving, 0);
 	recv_req_id = -1;
 
