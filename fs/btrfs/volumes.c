@@ -1833,9 +1833,10 @@ static struct btrfs_device * btrfs_find_next_active_device(
  * where this function called, there should be always be another device (or
  * this_dev) which is active.
  */
-void btrfs_assign_next_active_device(struct btrfs_fs_info *fs_info,
-		struct btrfs_device *device, struct btrfs_device *this_dev)
+void btrfs_assign_next_active_device(struct btrfs_device *device,
+				     struct btrfs_device *this_dev)
 {
+	struct btrfs_fs_info *fs_info = device->fs_info;
 	struct btrfs_device *next_device;
 
 	if (this_dev)
@@ -1945,7 +1946,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
 		cur_devices->missing_devices--;
 
-	btrfs_assign_next_active_device(fs_info, device, NULL);
+	btrfs_assign_next_active_device(device, NULL);
 
 	if (device->bdev) {
 		cur_devices->open_devices--;
@@ -2077,7 +2078,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 
 	fs_devices->num_devices--;
 
-	btrfs_assign_next_active_device(fs_info, tgtdev, NULL);
+	btrfs_assign_next_active_device(tgtdev, NULL);
 
 	list_del_rcu(&tgtdev->dev_list);
 
