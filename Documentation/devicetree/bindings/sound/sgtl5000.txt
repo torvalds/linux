@@ -17,7 +17,7 @@ Optional properties:
 
 - VDDD-supply : the regulator provider of VDDD
 
-- micbias-resistor-k-ohms : the bias resistor to be used in kOmhs
+- micbias-resistor-k-ohms : the bias resistor to be used in kOhms
 	The resistor can take values of 2k, 4k or 8k.
 	If set to 0 it will be off.
 	If this node is not mentioned or if the value is unknown, then
