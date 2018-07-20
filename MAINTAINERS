@@ -13557,6 +13557,13 @@ L:	linux-block@vger.kernel.org
 S:	Maintained
 F:	drivers/block/skd*[ch]
 
+STI AUDIO (ASoC) DRIVERS
+M:	Arnaud Pouliquen <arnaud.pouliquen@st.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/st,sti-asoc-card.txt
+F:	sound/soc/sti/
+
 STI CEC DRIVER
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
 S:	Maintained
