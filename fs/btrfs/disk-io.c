@@ -2154,8 +2154,6 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 
 static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
 {
-	fs_info->dev_replace.lock_owner = 0;
-	atomic_set(&fs_info->dev_replace.nesting_level, 0);
 	mutex_init(&fs_info->dev_replace.lock_finishing_cancel_unmount);
 	rwlock_init(&fs_info->dev_replace.lock);
 	atomic_set(&fs_info->dev_replace.read_locks, 0);

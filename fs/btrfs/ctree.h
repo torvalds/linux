@@ -365,8 +365,6 @@ struct btrfs_dev_replace {
 	struct btrfs_device *srcdev;
 	struct btrfs_device *tgtdev;
 
-	pid_t lock_owner;
-	atomic_t nesting_level;
 	struct mutex lock_finishing_cancel_unmount;
 	rwlock_t lock;
 	atomic_t read_locks;
