@@ -605,6 +605,9 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 	if (!func->old_name || !func->new_func)
 		return -EINVAL;
 
+	if (strlen(func->old_name) >= KSYM_NAME_LEN)
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&func->stack_node);
 	func->patched = false;
 	func->transition = false;
@@ -676,6 +679,9 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 	const char *name;
 
 	if (!obj->funcs)
+		return -EINVAL;
+
+	if (klp_is_module(obj) && strlen(obj->name) >= MODULE_NAME_LEN)
 		return -EINVAL;
 
 	obj->patched = false;
