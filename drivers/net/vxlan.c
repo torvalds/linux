@@ -774,13 +774,15 @@ static void vxlan_fdb_free(struct rcu_head *head)
 	kfree(f);
 }
 
-static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f)
+static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
+			      bool do_notify)
 {
 	netdev_dbg(vxlan->dev,
 		    "delete %pM\n", f->eth_addr);
 
 	--vxlan->addrcnt;
-	vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_DELNEIGH);
+	if (do_notify)
+		vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_DELNEIGH);
 
 	hlist_del_rcu(&f->hlist);
 	call_rcu(&f->rcu, vxlan_fdb_free);
@@ -930,7 +932,7 @@ static int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
 		goto out;
 	}
 
-	vxlan_fdb_destroy(vxlan, f);
+	vxlan_fdb_destroy(vxlan, f, true);
 
 out:
 	return 0;
@@ -2397,7 +2399,7 @@ static void vxlan_cleanup(struct timer_list *t)
 					   "garbage collect %pM\n",
 					   f->eth_addr);
 				f->state = NUD_STALE;
-				vxlan_fdb_destroy(vxlan, f);
+				vxlan_fdb_destroy(vxlan, f, true);
 			} else if (time_before(timeout, next_timer))
 				next_timer = timeout;
 		}
@@ -2448,7 +2450,7 @@ static void vxlan_fdb_delete_default(struct vxlan_dev *vxlan, __be32 vni)
 	spin_lock_bh(&vxlan->hash_lock);
 	f = __vxlan_find_mac(vxlan, all_zeros_mac, vni);
 	if (f)
-		vxlan_fdb_destroy(vxlan, f);
+		vxlan_fdb_destroy(vxlan, f, true);
 	spin_unlock_bh(&vxlan->hash_lock);
 }
 
@@ -2502,7 +2504,7 @@ static void vxlan_flush(struct vxlan_dev *vxlan, bool do_all)
 				continue;
 			/* the all_zeros_mac entry is deleted at vxlan_uninit */
 			if (!is_zero_ether_addr(f->eth_addr))
-				vxlan_fdb_destroy(vxlan, f);
+				vxlan_fdb_destroy(vxlan, f, true);
 		}
 	}
 	spin_unlock_bh(&vxlan->hash_lock);
