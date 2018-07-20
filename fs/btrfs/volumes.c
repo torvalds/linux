@@ -1666,10 +1666,8 @@ error:
  * the btrfs_device struct should be fully filled in
  */
 static int btrfs_add_dev_item(struct btrfs_trans_handle *trans,
-			    struct btrfs_fs_info *fs_info,
 			    struct btrfs_device *device)
 {
-	struct btrfs_root *root = fs_info->chunk_root;
 	int ret;
 	struct btrfs_path *path;
 	struct btrfs_dev_item *dev_item;
@@ -1685,8 +1683,8 @@ static int btrfs_add_dev_item(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_DEV_ITEM_KEY;
 	key.offset = device->devid;
 
-	ret = btrfs_insert_empty_item(trans, root, path, &key,
-				      sizeof(*dev_item));
+	ret = btrfs_insert_empty_item(trans, trans->fs_info->chunk_root, path,
+				      &key, sizeof(*dev_item));
 	if (ret)
 		goto out;
 
@@ -1711,7 +1709,7 @@ static int btrfs_add_dev_item(struct btrfs_trans_handle *trans,
 	ptr = btrfs_device_uuid(dev_item);
 	write_extent_buffer(leaf, device->uuid, ptr, BTRFS_UUID_SIZE);
 	ptr = btrfs_device_fsid(dev_item);
-	write_extent_buffer(leaf, fs_info->fsid, ptr, BTRFS_FSID_SIZE);
+	write_extent_buffer(leaf, trans->fs_info->fsid, ptr, BTRFS_FSID_SIZE);
 	btrfs_mark_buffer_dirty(leaf);
 
 	ret = 0;
@@ -2449,7 +2447,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		}
 	}
 
-	ret = btrfs_add_dev_item(trans, fs_info, device);
+	ret = btrfs_add_dev_item(trans, device);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto error_sysfs;
