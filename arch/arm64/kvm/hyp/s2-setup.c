@@ -84,8 +84,5 @@ u32 __hyp_text __init_stage2_translation(void)
 
 	write_sysreg(val, vtcr_el2);
 
-	/* copy tpidr_el1 into tpidr_el2 for use by HYP */
-	write_sysreg(read_sysreg(tpidr_el1), tpidr_el2);
-
 	return parange;
 }
