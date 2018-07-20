@@ -152,6 +152,16 @@ config XEN_GNTDEV
 	help
 	  Allows userspace processes to use grants.
 
+config XEN_GNTDEV_DMABUF
+	bool "Add support for dma-buf grant access device driver extension"
+	depends on XEN_GNTDEV && XEN_GRANT_DMA_ALLOC && DMA_SHARED_BUFFER
+	help
+	  Allows userspace processes and kernel modules to use Xen backed
+	  dma-buf implementation. With this extension grant references to
+	  the pages of an imported dma-buf can be exported for other domain
+	  use and grant references coming from a foreign domain can be
+	  converted into a local dma-buf for local export.
+
 config XEN_GRANT_DEV_ALLOC
 	tristate "User-space grant reference allocator driver"
 	depends on XEN

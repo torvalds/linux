@@ -16,6 +16,8 @@
 #include <linux/mmu_notifier.h>
 #include <linux/types.h>
 
+struct gntdev_dmabuf_priv;
+
 struct gntdev_priv {
 	/* Maps with visible offsets in the file descriptor. */
 	struct list_head maps;
@@ -32,6 +34,10 @@ struct gntdev_priv {
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 	/* Device for which DMA memory is allocated. */
 	struct device *dma_dev;
+#endif
+
+#ifdef CONFIG_XEN_GNTDEV_DMABUF
+	struct gntdev_dmabuf_priv *dmabuf_priv;
 #endif
 };
 

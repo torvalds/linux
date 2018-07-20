@@ -48,6 +48,9 @@
 #include <asm/xen/hypercall.h>
 
 #include "gntdev-common.h"
+#ifdef CONFIG_XEN_GNTDEV_DMABUF
+#include "gntdev-dmabuf.h"
+#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Derek G. Murray <Derek.Murray@cl.cam.ac.uk>, "
@@ -566,6 +569,15 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 	INIT_LIST_HEAD(&priv->freeable_maps);
 	mutex_init(&priv->lock);
 
+#ifdef CONFIG_XEN_GNTDEV_DMABUF
+	priv->dmabuf_priv = gntdev_dmabuf_init();
+	if (IS_ERR(priv->dmabuf_priv)) {
+		ret = PTR_ERR(priv->dmabuf_priv);
+		kfree(priv);
+		return ret;
+	}
+#endif
+
 	if (use_ptemod) {
 		priv->mm = get_task_mm(current);
 		if (!priv->mm) {
@@ -616,8 +628,13 @@ static int gntdev_release(struct inode *inode, struct file *flip)
 	WARN_ON(!list_empty(&priv->freeable_maps));
 	mutex_unlock(&priv->lock);
 
+#ifdef CONFIG_XEN_GNTDEV_DMABUF
+	gntdev_dmabuf_fini(priv->dmabuf_priv);
+#endif
+
 	if (use_ptemod)
 		mmu_notifier_unregister(&priv->mn, priv->mm);
+
 	kfree(priv);
 	return 0;
 }
@@ -1008,6 +1025,20 @@ static long gntdev_ioctl(struct file *flip,
 
 	case IOCTL_GNTDEV_GRANT_COPY:
 		return gntdev_ioctl_grant_copy(priv, ptr);
+
+#ifdef CONFIG_XEN_GNTDEV_DMABUF
+	case IOCTL_GNTDEV_DMABUF_EXP_FROM_REFS:
+		return gntdev_ioctl_dmabuf_exp_from_refs(priv, use_ptemod, ptr);
+
+	case IOCTL_GNTDEV_DMABUF_EXP_WAIT_RELEASED:
+		return gntdev_ioctl_dmabuf_exp_wait_released(priv, ptr);
+
+	case IOCTL_GNTDEV_DMABUF_IMP_TO_REFS:
+		return gntdev_ioctl_dmabuf_imp_to_refs(priv, ptr);
+
+	case IOCTL_GNTDEV_DMABUF_IMP_RELEASE:
+		return gntdev_ioctl_dmabuf_imp_release(priv, ptr);
+#endif
 
 	default:
 		pr_debug("priv %p, unknown cmd %x\n", priv, cmd);
