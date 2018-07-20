@@ -1163,9 +1163,7 @@ void format_all_counters(struct thread_data *t, struct core_data *c, struct pkg_
 	if (!printed || !summary_only)
 		print_header("\t");
 
-	if (topo.num_cpus > 1)
-		format_counters(&average.threads, &average.cores,
-			&average.packages);
+	format_counters(&average.threads, &average.cores, &average.packages);
 
 	printed = 1;
 
