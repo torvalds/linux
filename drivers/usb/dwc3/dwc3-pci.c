@@ -49,6 +49,7 @@
  * @pci: our link to PCI bus
  * @guid: _DSM GUID
  * @has_dsm_for_pm: true for devices which need to run _DSM on runtime PM
+ * @wakeup_work: work for asynchronous resume
  */
 struct dwc3_pci {
 	struct platform_device *dwc3;
