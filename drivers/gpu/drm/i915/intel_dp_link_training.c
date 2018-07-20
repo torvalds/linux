@@ -129,7 +129,8 @@ static bool
 intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 {
 	uint8_t voltage;
-	int voltage_tries, max_vswing_tries, cr_tries, max_cr_tries;
+	int voltage_tries, cr_tries, max_cr_tries;
+	bool max_vswing_reached = false;
 	uint8_t link_config[2];
 	uint8_t link_bw, rate_select;
 
@@ -182,7 +183,6 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		max_cr_tries = 80;
 
 	voltage_tries = 1;
-	max_vswing_tries = 0;
 	for (cr_tries = 0; cr_tries < max_cr_tries; ++cr_tries) {
 		uint8_t link_status[DP_LINK_STATUS_SIZE];
 
@@ -203,7 +203,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			return false;
 		}
 
-		if (max_vswing_tries == 1) {
+		if (max_vswing_reached) {
 			DRM_DEBUG_KMS("Max Voltage Swing reached\n");
 			return false;
 		}
@@ -224,7 +224,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			voltage_tries = 1;
 
 		if (intel_dp_link_max_vswing_reached(intel_dp))
-			++max_vswing_tries;
+			max_vswing_reached = true;
 
 	}
 	DRM_ERROR("Failed clock recovery %d times, giving up!\n", max_cr_tries);
