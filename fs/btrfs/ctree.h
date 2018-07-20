@@ -1219,7 +1219,6 @@ struct btrfs_root {
 	u64 defrag_trans_start;
 	struct btrfs_key defrag_progress;
 	struct btrfs_key defrag_max;
-	char *name;
 
 	/* the dirty list is only used by non-reference counted roots */
 	struct list_head dirty_list;
