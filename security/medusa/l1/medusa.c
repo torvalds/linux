@@ -1709,6 +1709,18 @@ static int __init medusa_l1_init(void)
 	medusa_init();
 
 	/*
+	 * TODO TODO TODO: first initialize NULL security structs,
+	 * then replace security hooks and set l1_initialized to true
+	 *
+	 * during initialization process of security struct
+	 * there has no sence to call acctypes on l2 layer (auth server
+	 * may not be connected)
+	 * call only validation of security struct!
+	 * (review also inodes, processes and IPC objects initialization
+	 * from l0 lists)
+	 */
+
+	/*
 	 * L1 is initialized, new processes call L1 hooks
 	 * it is enough to lock RCU read-side
 	 */
@@ -1732,6 +1744,7 @@ static int __init medusa_l1_init(void)
 		tmp->security = med;
 		printk("medusa_init: task %s (pid %d)\n", process->comm, task_pid_nr(process));
 
+		/* TODO: if auth server is connected, this acctype may sleep! */
 		medusa_init_process(process);
 	}
 	rcu_read_unlock();
