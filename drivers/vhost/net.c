@@ -514,6 +514,12 @@ static int get_tx_bufs(struct vhost_net *net,
 	return ret;
 }
 
+static bool tx_can_batch(struct vhost_virtqueue *vq, size_t total_len)
+{
+	return total_len < VHOST_NET_WEIGHT &&
+	       !vhost_vq_avail_empty(vq->dev, vq);
+}
+
 /* Expects to be always run from workqueue - which acts as
  * read-size critical section for our kind of RCU. */
 static void handle_tx(struct vhost_net *net)
@@ -598,8 +604,7 @@ static void handle_tx(struct vhost_net *net)
 			ubufs = NULL;
 		}
 		total_len += len;
-		if (total_len < VHOST_NET_WEIGHT &&
-		    !vhost_vq_avail_empty(&net->dev, vq) &&
+		if (tx_can_batch(vq, total_len) &&
 		    likely(!vhost_exceeds_maxpend(net))) {
 			msg.msg_flags |= MSG_MORE;
 		} else {
