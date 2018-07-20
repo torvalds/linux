@@ -1561,10 +1561,14 @@ out:
 		if (x1->curlft.use_time)
 			xfrm_state_check_expire(x1);
 
-		if (x->props.smark.m || x->props.smark.v) {
+		if (x->props.smark.m || x->props.smark.v || x->if_id) {
 			spin_lock_bh(&net->xfrm.xfrm_state_lock);
 
-			x1->props.smark = x->props.smark;
+			if (x->props.smark.m || x->props.smark.v)
+				x1->props.smark = x->props.smark;
+
+			if (x->if_id)
+				x1->if_id = x->if_id;
 
 			__xfrm_state_bump_genids(x1);
 			spin_unlock_bh(&net->xfrm.xfrm_state_lock);
