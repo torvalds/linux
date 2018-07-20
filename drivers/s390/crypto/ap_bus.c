@@ -34,6 +34,7 @@
 #include <linux/crypto.h>
 #include <linux/mod_devicetable.h>
 #include <linux/debugfs.h>
+#include <linux/ctype.h>
 
 #include "ap_bus.h"
 #include "ap_debug.h"
@@ -51,10 +52,25 @@ static int ap_thread_flag;
 module_param_named(poll_thread, ap_thread_flag, int, 0440);
 MODULE_PARM_DESC(poll_thread, "Turn on/off poll thread, default is 0 (off).");
 
+static char *apm_str;
+module_param_named(apmask, apm_str, charp, 0440);
+MODULE_PARM_DESC(apmask, "AP bus adapter mask.");
+
+static char *aqm_str;
+module_param_named(aqmask, aqm_str, charp, 0440);
+MODULE_PARM_DESC(aqmask, "AP bus domain mask.");
+
 static struct device *ap_root_device;
 
 DEFINE_SPINLOCK(ap_list_lock);
 LIST_HEAD(ap_card_list);
+
+/* Default permissions (card and domain masking) */
+static struct ap_perms {
+	DECLARE_BITMAP(apm, AP_DEVICES);
+	DECLARE_BITMAP(aqm, AP_DOMAINS);
+} ap_perms;
+static DEFINE_MUTEX(ap_perms_mutex);
 
 static struct ap_config_info *ap_configuration;
 static bool initialised;
@@ -670,11 +686,97 @@ static struct bus_type ap_bus_type = {
 	.pm = &ap_bus_pm_ops,
 };
 
+static int __ap_revise_reserved(struct device *dev, void *dummy)
+{
+	int rc, card, queue, devres, drvres;
+
+	if (is_queue_dev(dev)) {
+		card = AP_QID_CARD(to_ap_queue(dev)->qid);
+		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
+		mutex_lock(&ap_perms_mutex);
+		devres = test_bit_inv(card, ap_perms.apm)
+			&& test_bit_inv(queue, ap_perms.aqm);
+		mutex_unlock(&ap_perms_mutex);
+		drvres = to_ap_drv(dev->driver)->flags
+			& AP_DRIVER_FLAG_DEFAULT;
+		if (!!devres != !!drvres) {
+			AP_DBF(DBF_DEBUG, "reprobing queue=%02x.%04x\n",
+			       card, queue);
+			rc = device_reprobe(dev);
+		}
+	}
+
+	return 0;
+}
+
+static void ap_bus_revise_bindings(void)
+{
+	bus_for_each_dev(&ap_bus_type, NULL, NULL, __ap_revise_reserved);
+}
+
+int ap_owned_by_def_drv(int card, int queue)
+{
+	int rc = 0;
+
+	if (card < 0 || card >= AP_DEVICES || queue < 0 || queue >= AP_DOMAINS)
+		return -EINVAL;
+
+	mutex_lock(&ap_perms_mutex);
+
+	if (test_bit_inv(card, ap_perms.apm)
+	    && test_bit_inv(queue, ap_perms.aqm))
+		rc = 1;
+
+	mutex_unlock(&ap_perms_mutex);
+
+	return rc;
+}
+EXPORT_SYMBOL(ap_owned_by_def_drv);
+
+int ap_apqn_in_matrix_owned_by_def_drv(unsigned long *apm,
+				       unsigned long *aqm)
+{
+	int card, queue, rc = 0;
+
+	mutex_lock(&ap_perms_mutex);
+
+	for (card = 0; !rc && card < AP_DEVICES; card++)
+		if (test_bit_inv(card, apm) &&
+		    test_bit_inv(card, ap_perms.apm))
+			for (queue = 0; !rc && queue < AP_DOMAINS; queue++)
+				if (test_bit_inv(queue, aqm) &&
+				    test_bit_inv(queue, ap_perms.aqm))
+					rc = 1;
+
+	mutex_unlock(&ap_perms_mutex);
+
+	return rc;
+}
+EXPORT_SYMBOL(ap_apqn_in_matrix_owned_by_def_drv);
+
 static int ap_device_probe(struct device *dev)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	struct ap_driver *ap_drv = to_ap_drv(dev->driver);
-	int rc;
+	int card, queue, devres, drvres, rc;
+
+	if (is_queue_dev(dev)) {
+		/*
+		 * If the apqn is marked as reserved/used by ap bus and
+		 * default drivers, only probe with drivers with the default
+		 * flag set. If it is not marked, only probe with drivers
+		 * with the default flag not set.
+		 */
+		card = AP_QID_CARD(to_ap_queue(dev)->qid);
+		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
+		mutex_lock(&ap_perms_mutex);
+		devres = test_bit_inv(card, ap_perms.apm)
+			&& test_bit_inv(queue, ap_perms.aqm);
+		mutex_unlock(&ap_perms_mutex);
+		drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
+		if (!!devres != !!drvres)
+			return -ENODEV;
+	}
 
 	/* Add queue/card to list of active queues/cards */
 	spin_lock_bh(&ap_list_lock);
@@ -757,6 +859,36 @@ EXPORT_SYMBOL(ap_bus_force_rescan);
 /*
  * AP bus attributes.
  */
+
+static int hex2bitmap(const char *str, unsigned long *bitmap, int bits)
+{
+	int i, n, b;
+
+	/* bits needs to be a multiple of 8 */
+	if (bits & 0x07)
+		return -EINVAL;
+
+	memset(bitmap, 0, bits / 8);
+
+	if (str[0] == '0' && str[1] == 'x')
+		str++;
+	if (*str == 'x')
+		str++;
+
+	for (i = 0; isxdigit(*str) && i < bits; str++) {
+		b = hex_to_bin(*str);
+		for (n = 0; n < 4; n++)
+			if (b & (0x08 >> n))
+				set_bit_inv(i + n, bitmap);
+		i += 4;
+	}
+
+	if (i < 4 || isxdigit(*str))
+		return -EINVAL;
+
+	return 0;
+}
+
 static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", ap_domain_index);
@@ -768,7 +900,8 @@ static ssize_t ap_domain_store(struct bus_type *bus,
 	int domain;
 
 	if (sscanf(buf, "%i\n", &domain) != 1 ||
-	    domain < 0 || domain > ap_max_domain_id)
+	    domain < 0 || domain > ap_max_domain_id ||
+	    !test_bit_inv(domain, ap_perms.aqm))
 		return -EINVAL;
 	spin_lock_bh(&ap_domain_lock);
 	ap_domain_index = domain;
@@ -903,6 +1036,114 @@ static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 
 static BUS_ATTR_RO(ap_max_domain_id);
 
+static ssize_t apmask_show(struct bus_type *bus, char *buf)
+{
+	int rc;
+
+	if (mutex_lock_interruptible(&ap_perms_mutex))
+		return -ERESTARTSYS;
+	rc = snprintf(buf, PAGE_SIZE,
+		      "0x%016lx%016lx%016lx%016lx\n",
+		      ap_perms.apm[0], ap_perms.apm[1],
+		      ap_perms.apm[2], ap_perms.apm[3]);
+	mutex_unlock(&ap_perms_mutex);
+
+	return rc;
+}
+
+static ssize_t apmask_store(struct bus_type *bus, const char *buf,
+			    size_t count)
+{
+	int i;
+
+	if (*buf == '+' || *buf == '-') {
+		if (kstrtoint(buf, 0, &i))
+			return -EINVAL;
+		if (i <= -AP_DEVICES || i >= AP_DEVICES)
+			return -EINVAL;
+		if (mutex_lock_interruptible(&ap_perms_mutex))
+			return -ERESTARTSYS;
+		if (*buf == '-')
+			clear_bit_inv(-i, ap_perms.apm);
+		else
+			set_bit_inv(i, ap_perms.apm);
+	} else {
+		DECLARE_BITMAP(apm, AP_DEVICES);
+
+		i = hex2bitmap(buf, apm, AP_DEVICES);
+		if (i)
+			return i;
+		if (mutex_lock_interruptible(&ap_perms_mutex))
+			return -ERESTARTSYS;
+		for (i = 0; i < AP_DEVICES; i++)
+			if (test_bit_inv(i, apm))
+				set_bit_inv(i, ap_perms.apm);
+			else
+				clear_bit_inv(i, ap_perms.apm);
+	}
+	mutex_unlock(&ap_perms_mutex);
+
+	ap_bus_revise_bindings();
+
+	return count;
+}
+
+static BUS_ATTR_RW(apmask);
+
+static ssize_t aqmask_show(struct bus_type *bus, char *buf)
+{
+	int rc;
+
+	if (mutex_lock_interruptible(&ap_perms_mutex))
+		return -ERESTARTSYS;
+	rc = snprintf(buf, PAGE_SIZE,
+		      "0x%016lx%016lx%016lx%016lx\n",
+		      ap_perms.aqm[0], ap_perms.aqm[1],
+		      ap_perms.aqm[2], ap_perms.aqm[3]);
+	mutex_unlock(&ap_perms_mutex);
+
+	return rc;
+}
+
+static ssize_t aqmask_store(struct bus_type *bus, const char *buf,
+			    size_t count)
+{
+	int i;
+
+	if (*buf == '+' || *buf == '-') {
+		if (kstrtoint(buf, 0, &i))
+			return -EINVAL;
+		if (i <= -AP_DEVICES || i >= AP_DEVICES)
+			return -EINVAL;
+		if (mutex_lock_interruptible(&ap_perms_mutex))
+			return -ERESTARTSYS;
+		if (*buf == '-')
+			clear_bit_inv(-i, ap_perms.aqm);
+		else
+			set_bit_inv(i, ap_perms.aqm);
+	} else {
+		DECLARE_BITMAP(aqm, AP_DEVICES);
+
+		i = hex2bitmap(buf, aqm, AP_DEVICES);
+		if (i)
+			return i;
+		if (mutex_lock_interruptible(&ap_perms_mutex))
+			return -ERESTARTSYS;
+		for (i = 0; i < AP_DEVICES; i++)
+			if (test_bit_inv(i, aqm))
+				set_bit_inv(i, ap_perms.aqm);
+			else
+				clear_bit_inv(i, ap_perms.aqm);
+	}
+	mutex_unlock(&ap_perms_mutex);
+
+	ap_bus_revise_bindings();
+
+	return count;
+}
+
+static BUS_ATTR_RW(aqmask);
+
 static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
 	&bus_attr_ap_control_domain_mask,
@@ -912,6 +1153,8 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_interrupts,
 	&bus_attr_poll_timeout,
 	&bus_attr_ap_max_domain_id,
+	&bus_attr_apmask,
+	&bus_attr_aqmask,
 	NULL,
 };
 
@@ -940,7 +1183,8 @@ static int ap_select_domain(void)
 	best_domain = -1;
 	max_count = 0;
 	for (i = 0; i < AP_DOMAINS; i++) {
-		if (!ap_test_config_domain(i))
+		if (!ap_test_config_domain(i) ||
+		    !test_bit_inv(i, ap_perms.aqm))
 			continue;
 		count = 0;
 		for (j = 0; j < AP_DEVICES; j++) {
@@ -1190,6 +1434,37 @@ static int __init ap_debug_init(void)
 	return 0;
 }
 
+static void __init ap_perms_init(void)
+{
+	int i, rc;
+
+	/* start with all resources useable */
+	memset(&ap_perms.apm, 0xFF, sizeof(ap_perms.apm));
+	memset(&ap_perms.aqm, 0xFF, sizeof(ap_perms.aqm));
+
+	/* process kernel parameters apm and aqm if given */
+	if (apm_str) {
+		DECLARE_BITMAP(apm, AP_DEVICES);
+
+		rc = hex2bitmap(apm_str, apm, AP_DEVICES);
+		if (rc == 0) {
+			for (i = 0; i < AP_DEVICES; i++)
+				if (!test_bit_inv(i, apm))
+					clear_bit_inv(i, ap_perms.apm);
+		}
+	}
+	if (aqm_str) {
+		DECLARE_BITMAP(aqm, AP_DOMAINS);
+
+		rc = hex2bitmap(aqm_str, aqm, AP_DOMAINS);
+		if (rc == 0) {
+			for (i = 0; i < AP_DOMAINS; i++)
+				if (!test_bit_inv(i, aqm))
+					clear_bit_inv(i, ap_perms.aqm);
+		}
+	}
+}
+
 /**
  * ap_module_init(): The module initialization code.
  *
@@ -1209,6 +1484,9 @@ static int __init ap_module_init(void)
 		return -ENODEV;
 	}
 
+	/* set up the AP permissions (ap and aq masks) */
+	ap_perms_init();
+
 	/* Get AP configuration data if available */
 	ap_init_configuration();
 
@@ -1217,7 +1495,9 @@ static int __init ap_module_init(void)
 			ap_max_domain_id ? ap_max_domain_id : AP_DOMAINS - 1;
 	else
 		max_domain_id = 15;
-	if (ap_domain_index < -1 || ap_domain_index > max_domain_id) {
+	if (ap_domain_index < -1 || ap_domain_index > max_domain_id ||
+	    (ap_domain_index >= 0 &&
+	     !test_bit_inv(ap_domain_index, ap_perms.aqm))) {
 		pr_warn("%d is not a valid cryptographic domain\n",
 			ap_domain_index);
 		ap_domain_index = -1;
