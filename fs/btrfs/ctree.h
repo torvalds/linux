@@ -3425,7 +3425,7 @@ do {								\
 #ifdef CONFIG_BTRFS_ASSERT
 
 __cold
-static inline void assfail(char *expr, char *file, int line)
+static inline void assfail(const char *expr, const char *file, int line)
 {
 	pr_err("assertion failed: %s, file: %s, line: %d\n",
 	       expr, file, line);
