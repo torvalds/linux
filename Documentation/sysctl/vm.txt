@@ -45,6 +45,7 @@ Currently, these files are in /proc/sys/vm:
 - mmap_rnd_bits
 - mmap_rnd_compat_bits
 - nr_hugepages
+- nr_hugepages_mempolicy
 - nr_overcommit_hugepages
 - nr_trim_pages         (only if CONFIG_MMU=n)
 - numa_zonelist_order
@@ -527,6 +528,15 @@ This value can be changed after boot using the
 nr_hugepages
 
 Change the minimum size of the hugepage pool.
+
+See Documentation/admin-guide/mm/hugetlbpage.rst
+
+==============================================================
+
+nr_hugepages_mempolicy
+
+Change the size of the hugepage pool at run-time on a specific
+set of NUMA nodes.
 
 See Documentation/admin-guide/mm/hugetlbpage.rst
 
