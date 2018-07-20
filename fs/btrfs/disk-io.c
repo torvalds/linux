@@ -52,7 +52,6 @@
 
 static const struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
-static void free_fs_root(struct btrfs_root *root);
 static void btrfs_destroy_ordered_extents(struct btrfs_root *root);
 static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 				      struct btrfs_fs_info *fs_info);
@@ -1504,7 +1503,7 @@ int btrfs_init_fs_root(struct btrfs_root *root)
 
 	return 0;
 fail:
-	/* the caller is responsible to call free_fs_root */
+	/* The caller is responsible to call btrfs_free_fs_root */
 	return ret;
 }
 
@@ -1609,14 +1608,14 @@ again:
 	ret = btrfs_insert_fs_root(fs_info, root);
 	if (ret) {
 		if (ret == -EEXIST) {
-			free_fs_root(root);
+			btrfs_free_fs_root(root);
 			goto again;
 		}
 		goto fail;
 	}
 	return root;
 fail:
-	free_fs_root(root);
+	btrfs_free_fs_root(root);
 	return ERR_PTR(ret);
 }
 
@@ -3831,10 +3830,10 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 		__btrfs_remove_free_space_cache(root->free_ino_pinned);
 	if (root->free_ino_ctl)
 		__btrfs_remove_free_space_cache(root->free_ino_ctl);
-	free_fs_root(root);
+	btrfs_free_fs_root(root);
 }
 
-static void free_fs_root(struct btrfs_root *root)
+void btrfs_free_fs_root(struct btrfs_root *root)
 {
 	iput(root->ino_cache_inode);
 	WARN_ON(!RB_EMPTY_ROOT(&root->inode_tree));
@@ -3847,11 +3846,6 @@ static void free_fs_root(struct btrfs_root *root)
 	kfree(root->free_ino_ctl);
 	kfree(root->free_ino_pinned);
 	btrfs_put_fs_root(root);
-}
-
-void btrfs_free_fs_root(struct btrfs_root *root)
-{
-	free_fs_root(root);
 }
 
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
