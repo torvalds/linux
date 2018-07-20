@@ -1698,35 +1698,17 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 
 static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_ring *tx_ring = &adapter->test_tx_ring;
-	struct ixgbe_ring *rx_ring = &adapter->test_rx_ring;
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 reg_ctl;
-
-	/* shut down the DMA engines now so they can be reinitialized later */
+	/* Shut down the DMA engines now so they can be reinitialized later,
+	 * since the test rings and normally used rings should overlap on
+	 * queue 0 we can just use the standard disable Rx/Tx calls and they
+	 * will take care of disabling the test rings for us.
+	 */
 
 	/* first Rx */
-	hw->mac.ops.disable_rx(hw);
-	ixgbe_disable_rx_queue(adapter, rx_ring);
+	ixgbe_disable_rx(adapter);
 
 	/* now Tx */
-	reg_ctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(tx_ring->reg_idx));
-	reg_ctl &= ~IXGBE_TXDCTL_ENABLE;
-	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(tx_ring->reg_idx), reg_ctl);
-
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-		reg_ctl = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
-		reg_ctl &= ~IXGBE_DMATXCTL_TE;
-		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL, reg_ctl);
-		break;
-	default:
-		break;
-	}
+	ixgbe_disable_tx(adapter);
 
 	ixgbe_reset(adapter);
 
