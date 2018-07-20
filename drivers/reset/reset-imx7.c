@@ -80,7 +80,7 @@ static int imx7_reset_set(struct reset_controller_dev *rcdev,
 {
 	struct imx7_src *imx7src = to_imx7_src(rcdev);
 	const struct imx7_src_signal *signal = &imx7_src_signals[id];
-	unsigned int value = 0;
+	unsigned int value = assert ? signal->bit : 0;
 
 	switch (id) {
 	case IMX7_RESET_PCIEPHY:
