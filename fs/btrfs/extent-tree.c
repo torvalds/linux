@@ -10022,8 +10022,7 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 					sizeof(item));
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
-		ret = btrfs_finish_chunk_alloc(trans, fs_info, key.objectid,
-					       key.offset);
+		ret = btrfs_finish_chunk_alloc(trans, key.objectid, key.offset);
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
 		add_block_group_free_space(trans, block_group);
@@ -10594,8 +10593,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 * Btrfs_remove_chunk will abort the transaction if things go
 		 * horribly wrong.
 		 */
-		ret = btrfs_remove_chunk(trans, fs_info,
-					 block_group->key.objectid);
+		ret = btrfs_remove_chunk(trans, block_group->key.objectid);
 
 		if (ret) {
 			if (trimming)

@@ -2716,9 +2716,9 @@ static struct extent_map *get_chunk_map(struct btrfs_fs_info *fs_info,
 	return em;
 }
 
-int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info, u64 chunk_offset)
+int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct extent_map *em;
 	struct map_lookup *map;
 	u64 dev_extent_len = 0;
@@ -2858,7 +2858,7 @@ static int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 	 * step two, delete the device extents and the
 	 * chunk tree entries
 	 */
-	ret = btrfs_remove_chunk(trans, fs_info, chunk_offset);
+	ret = btrfs_remove_chunk(trans, chunk_offset);
 	btrfs_end_transaction(trans);
 	return ret;
 }
@@ -4842,9 +4842,9 @@ error:
 }
 
 int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info,
-				u64 chunk_offset, u64 chunk_size)
+			     u64 chunk_offset, u64 chunk_size)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *extent_root = fs_info->extent_root;
 	struct btrfs_root *chunk_root = fs_info->chunk_root;
 	struct btrfs_key key;
