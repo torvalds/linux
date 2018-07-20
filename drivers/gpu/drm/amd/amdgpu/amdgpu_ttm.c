@@ -1927,6 +1927,8 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 	} else {
 		drm_sched_entity_destroy(adev->mman.entity.sched,
 					 &adev->mman.entity);
+		dma_fence_put(man->move);
+		man->move = NULL;
 	}
 
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
