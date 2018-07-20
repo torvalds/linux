@@ -485,3 +485,5 @@ static struct platform_driver realtek_smi_driver = {
 	.remove = realtek_smi_remove,
 };
 module_platform_driver(realtek_smi_driver);
+
+MODULE_LICENSE("GPL");
