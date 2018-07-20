@@ -414,8 +414,16 @@
 	andl	$(0x0000ffff), PT_CS(%esp)
 
 	/* Special case - entry from kernel mode via entry stack */
-	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
-	jz	.Lentry_from_kernel_\@
+#ifdef CONFIG_VM86
+	movl	PT_EFLAGS(%esp), %ecx		# mix EFLAGS and CS
+	movb	PT_CS(%esp), %cl
+	andl	$(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %ecx
+#else
+	movl	PT_CS(%esp), %ecx
+	andl	$SEGMENT_RPL_MASK, %ecx
+#endif
+	cmpl	$USER_RPL, %ecx
+	jb	.Lentry_from_kernel_\@
 
 	/* Bytes to copy */
 	movl	$PTREGS_SIZE, %ecx
