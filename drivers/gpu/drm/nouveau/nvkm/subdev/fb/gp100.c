@@ -37,6 +37,14 @@ gp100_fb_init_unkn(struct nvkm_fb *base)
 }
 
 void
+gp100_fb_init_remapper(struct nvkm_fb *fb)
+{
+	struct nvkm_device *device = fb->subdev.device;
+	/* Disable address remapper. */
+	nvkm_mask(device, 0x100c14, 0x00040000, 0x00000000);
+}
+
+void
 gp100_fb_init(struct nvkm_fb *base)
 {
 	struct gf100_fb *fb = gf100_fb(base);
@@ -56,6 +64,7 @@ gp100_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
 	.init = gp100_fb_init,
+	.init_remapper = gp100_fb_init_remapper,
 	.init_page = gm200_fb_init_page,
 	.init_unkn = gp100_fb_init_unkn,
 	.ram_new = gp100_ram_new,
