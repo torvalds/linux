@@ -813,7 +813,7 @@ static int uio_mmap(struct file *filep, struct vm_area_struct *vma)
 
 out:
 	mutex_unlock(&idev->info_lock);
-	return 0;
+	return ret;
 }
 
 static const struct file_operations uio_fops = {
