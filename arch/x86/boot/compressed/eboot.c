@@ -321,7 +321,7 @@ static void setup_quirks(struct boot_params *boot_params)
 static efi_status_t
 setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 {
-	struct efi_uga_draw_protocol *uga = NULL, *first_uga;
+	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
 	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	unsigned long nr_ugas;
 	u32 *handles = (u32 *)uga_handle;
@@ -366,7 +366,7 @@ setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 static efi_status_t
 setup_uga64(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 {
-	struct efi_uga_draw_protocol *uga = NULL, *first_uga;
+	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
 	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	unsigned long nr_ugas;
 	u64 *handles = (u64 *)uga_handle;
