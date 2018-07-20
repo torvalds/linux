@@ -74,6 +74,7 @@
 	.unfenced_needs_alignment = 1, \
 	.ring_mask = RENDER_RING, \
 	.has_snoop = true, \
+	.has_coherent_ggtt = false, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	CURSOR_OFFSETS
@@ -110,6 +111,7 @@ static const struct intel_device_info intel_i865g_info = {
 	.has_gmch_display = 1, \
 	.ring_mask = RENDER_RING, \
 	.has_snoop = true, \
+	.has_coherent_ggtt = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	CURSOR_OFFSETS
@@ -117,6 +119,7 @@ static const struct intel_device_info intel_i865g_info = {
 static const struct intel_device_info intel_i915g_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_I915G),
+	.has_coherent_ggtt = false,
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.hws_needs_physical = 1,
@@ -178,6 +181,7 @@ static const struct intel_device_info intel_pineview_info = {
 	.has_gmch_display = 1, \
 	.ring_mask = RENDER_RING, \
 	.has_snoop = true, \
+	.has_coherent_ggtt = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	CURSOR_OFFSETS
@@ -220,6 +224,7 @@ static const struct intel_device_info intel_gm45_info = {
 	.has_hotplug = 1, \
 	.ring_mask = RENDER_RING | BSD_RING, \
 	.has_snoop = true, \
+	.has_coherent_ggtt = true, \
 	/* ilk does support rc6, but we do not implement [power] contexts */ \
 	.has_rc6 = 0, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -243,6 +248,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.has_hotplug = 1, \
 	.has_fbc = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
+	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
@@ -287,6 +293,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.has_hotplug = 1, \
 	.has_fbc = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
+	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
@@ -347,6 +354,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.has_aliasing_ppgtt = 1,
 	.has_full_ppgtt = 1,
 	.has_snoop = true,
+	.has_coherent_ggtt = false,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_DEFAULT_PAGE_SIZES,
@@ -441,6 +449,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_full_ppgtt = 1,
 	.has_reset_engine = 1,
 	.has_snoop = true,
+	.has_coherent_ggtt = false,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_DEFAULT_PAGE_SIZES,
 	GEN_CHV_PIPEOFFSETS,
@@ -517,6 +526,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.has_full_48bit_ppgtt = 1, \
 	.has_reset_engine = 1, \
 	.has_snoop = true, \
+	.has_coherent_ggtt = false, \
 	.has_ipc = 1, \
 	GEN9_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_PIPEOFFSETS, \

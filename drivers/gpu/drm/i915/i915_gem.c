@@ -802,6 +802,11 @@ void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 	 * that was!).
 	 */
 
+	wmb();
+
+	if (INTEL_INFO(dev_priv)->has_coherent_ggtt)
+		return;
+
 	i915_gem_chipset_flush(dev_priv);
 
 	intel_runtime_pm_get(dev_priv);

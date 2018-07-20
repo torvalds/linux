@@ -441,6 +441,9 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
 		value = 1000 * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz;
 		break;
+	case I915_PARAM_MMAP_GTT_COHERENT:
+		value = INTEL_INFO(dev_priv)->has_coherent_ggtt;
+		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
