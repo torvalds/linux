@@ -90,7 +90,7 @@ Required properties:
       - "scif_clk" for the optional external clock source for the frequency
 	divider (SCIF_CLK).
 
-Note: Each enabled SCIx UART should have an alias correctly numbered in the
+Note: Each enabled SCIx UART may have an optional "serialN" alias in the
 "aliases" node.
 
 Optional properties:
