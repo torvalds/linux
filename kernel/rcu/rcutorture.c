@@ -1710,6 +1710,8 @@ static int rcu_torture_fwd_prog(void *args)
 	static DEFINE_TORTURE_RANDOM(trs);
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fwd_progress task started");
+	if (!IS_ENABLED(CONFIG_SMP) || !IS_ENABLED(CONFIG_RCU_BOOST))
+		set_user_nice(current, MAX_NICE);
 	if  (cur_ops->call && cur_ops->sync && cur_ops->cb_barrier) {
 		init_rcu_head_on_stack(&fcs.rh);
 		cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
