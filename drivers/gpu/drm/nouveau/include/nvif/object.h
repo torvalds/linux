@@ -78,7 +78,7 @@ struct nvif_mclass {
 #define nvif_mclass(o,m) ({                                                    \
 	struct nvif_object *object = (o);                                      \
 	struct nvif_sclass *sclass;                                            \
-	const typeof(m[0]) *mclass = (m);                                      \
+	typeof(m[0]) *mclass = (m);                                            \
 	int ret = -ENODEV;                                                     \
 	int cnt, i, j;                                                         \
                                                                                \
