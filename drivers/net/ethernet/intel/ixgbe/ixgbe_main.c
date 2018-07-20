@@ -5814,6 +5814,13 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	if (test_and_set_bit(__IXGBE_DOWN, &adapter->state))
 		return; /* do nothing if already down */
 
+	/* Shut off incoming Tx traffic */
+	netif_tx_stop_all_queues(netdev);
+
+	/* call carrier off first to avoid false dev_watchdog timeouts */
+	netif_carrier_off(netdev);
+	netif_tx_disable(netdev);
+
 	/* disable receives */
 	hw->mac.ops.disable_rx(hw);
 
@@ -5822,16 +5829,9 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 		/* this call also flushes the previous write */
 		ixgbe_disable_rx_queue(adapter, adapter->rx_ring[i]);
 
-	usleep_range(10000, 20000);
-
 	/* synchronize_sched() needed for pending XDP buffers to drain */
 	if (adapter->xdp_ring[0])
 		synchronize_sched();
-	netif_tx_stop_all_queues(netdev);
-
-	/* call carrier off first to avoid false dev_watchdog timeouts */
-	netif_carrier_off(netdev);
-	netif_tx_disable(netdev);
 
 	ixgbe_irq_disable(adapter);
 
