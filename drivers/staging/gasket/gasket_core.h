@@ -314,9 +314,12 @@ struct gasket_dev {
 	struct hlist_node legacy_hlist_node;
 };
 
+/* Type of the ioctl handler callback. */
+typedef long (*gasket_ioctl_handler_cb_t)
+		(struct file *file, uint cmd, void __user *argp);
 /* Type of the ioctl permissions check callback. See below. */
 typedef int (*gasket_ioctl_permissions_cb_t)(
-	struct file *filp, uint cmd, ulong arg);
+	struct file *filp, uint cmd, void __user *argp);
 
 /*
  * Device type descriptor.
@@ -550,7 +553,7 @@ struct gasket_driver_desc {
 	 * return -EINVAL. Should return an error status (either -EINVAL or
 	 * the error result of the ioctl being handled).
 	 */
-	long (*ioctl_handler_cb)(struct file *filp, uint cmd, ulong arg);
+	gasket_ioctl_handler_cb_t ioctl_handler_cb;
 
 	/*
 	 * device_status_cb: Callback to determine device health.
