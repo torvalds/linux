@@ -199,21 +199,28 @@ static int wilc_sdio_resume(struct device *dev)
 	return 0;
 }
 
+static const struct of_device_id wilc_of_match[] = {
+	{ .compatible = "microchip,wilc1000-sdio", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, wilc_of_match);
+
 static const struct dev_pm_ops wilc_sdio_pm_ops = {
 	.suspend = wilc_sdio_suspend,
 	.resume = wilc_sdio_resume,
 };
 
-static struct sdio_driver wilc1000_sdio_driver = {
+static struct sdio_driver wilc_sdio_driver = {
 	.name		= SDIO_MODALIAS,
 	.id_table	= wilc_sdio_ids,
 	.probe		= linux_sdio_probe,
 	.remove		= linux_sdio_remove,
 	.drv = {
 		.pm = &wilc_sdio_pm_ops,
+		.of_match_table = wilc_of_match,
 	}
 };
-module_driver(wilc1000_sdio_driver,
+module_driver(wilc_sdio_driver,
 	      sdio_register_driver,
 	      sdio_unregister_driver);
 MODULE_LICENSE("GPL");
