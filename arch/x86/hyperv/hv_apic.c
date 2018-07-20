@@ -168,7 +168,7 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 	for_each_cpu(cur_cpu, mask) {
 		vcpu = hv_cpu_number_to_vp_number(cur_cpu);
 		if (vcpu == VP_INVAL)
-			return true;
+			return false;
 
 		/*
 		 * This particular version of the IPI hypercall can
