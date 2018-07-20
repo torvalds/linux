@@ -1896,7 +1896,8 @@ static int vega20_notify_smc_display_config_after_ps_adjustment(
 	int ret = 0;
 
 	if ((hwmgr->display_config->num_display > 1) &&
-	     !hwmgr->display_config->multi_monitor_in_sync)
+	     !hwmgr->display_config->multi_monitor_in_sync &&
+	     !hwmgr->display_config->nb_pstate_switch_disable)
 		vega20_notify_smc_display_change(hwmgr, false);
 	else
 		vega20_notify_smc_display_change(hwmgr, true);
