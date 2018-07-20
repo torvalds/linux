@@ -814,6 +814,13 @@ static void rb_free_work(struct work_struct *work)
 
 	vfree(base);
 	kfree(rb);
+
+	/*
+	 * FIXME: PAE workaround for vmalloc_fault(): Make sure buffer is
+	 * unmapped in all page-tables.
+	 */
+	if (IS_ENABLED(CONFIG_X86_PAE))
+		vmalloc_sync_all();
 }
 
 void rb_free(struct ring_buffer *rb)
@@ -839,6 +846,15 @@ struct ring_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 	all_buf = vmalloc_user((nr_pages + 1) * PAGE_SIZE);
 	if (!all_buf)
 		goto fail_all_buf;
+
+	/*
+	 * FIXME: PAE workaround for vmalloc_fault(): The buffer is
+	 * accessed in NMI handlers, make sure it is mapped in all
+	 * page-tables in the system so that we don't fault on the range in
+	 * an NMI handler.
+	 */
+	if (IS_ENABLED(CONFIG_X86_PAE))
+		vmalloc_sync_all();
 
 	rb->user_page = all_buf;
 	rb->data_pages[0] = all_buf + PAGE_SIZE;
