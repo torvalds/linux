@@ -233,7 +233,7 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 		edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
 
 		if (!edid) {
-			drm_mode_connector_update_edid_property(
+			drm_connector_update_edid_property(
 				&aconnector->base,
 				NULL);
 			return ret;
@@ -261,7 +261,7 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 					connector, aconnector->edid);
 	}
 
-	drm_mode_connector_update_edid_property(
+	drm_connector_update_edid_property(
 					&aconnector->base, aconnector->edid);
 
 	ret = drm_add_edid_modes(connector, aconnector->edid);
@@ -345,7 +345,7 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 						aconnector, connector->base.id, aconnector->mst_port);
 
 			aconnector->port = port;
-			drm_mode_connector_set_path_property(connector, pathprop);
+			drm_connector_set_path_property(connector, pathprop);
 
 			drm_connector_list_iter_end(&conn_iter);
 			aconnector->mst_connected = true;
@@ -393,7 +393,7 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 		dev->mode_config.tile_property,
 		0);
 
-	drm_mode_connector_set_path_property(connector, pathprop);
+	drm_connector_set_path_property(connector, pathprop);
 
 	/*
 	 * Initialize connector state before adding the connectror to drm and
@@ -441,7 +441,7 @@ static void dm_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 static void dm_dp_mst_link_status_reset(struct drm_connector *connector)
 {
 	mutex_lock(&connector->dev->mode_config.mutex);
-	drm_mode_connector_set_link_status_property(connector, DRM_MODE_LINK_STATUS_BAD);
+	drm_connector_set_link_status_property(connector, DRM_MODE_LINK_STATUS_BAD);
 	mutex_unlock(&connector->dev->mode_config.mutex);
 }
 

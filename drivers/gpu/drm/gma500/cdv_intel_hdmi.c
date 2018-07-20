@@ -216,7 +216,7 @@ static int cdv_hdmi_get_modes(struct drm_connector *connector)
 
 	edid = drm_get_edid(connector, &gma_encoder->i2c_bus->adapter);
 	if (edid) {
-		drm_mode_connector_update_edid_property(connector, edid);
+		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	}

@@ -449,7 +449,7 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "dac-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_dac_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }
 
@@ -875,7 +875,7 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 	int ret = 0;
 
 	mstc->edid = drm_dp_mst_get_edid(&mstc->connector, mstc->port->mgr, mstc->port);
-	drm_mode_connector_update_edid_property(&mstc->connector, mstc->edid);
+	drm_connector_update_edid_property(&mstc->connector, mstc->edid);
 	if (mstc->edid)
 		ret = drm_add_edid_modes(&mstc->connector, mstc->edid);
 
@@ -952,11 +952,11 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	nouveau_conn_attach_properties(&mstc->connector);
 
 	for (i = 0; i < ARRAY_SIZE(mstm->msto) && mstm->msto[i]; i++)
-		drm_mode_connector_attach_encoder(&mstc->connector, &mstm->msto[i]->encoder);
+		drm_connector_attach_encoder(&mstc->connector, &mstm->msto[i]->encoder);
 
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.tile_property, 0);
-	drm_mode_connector_set_path_property(&mstc->connector, path);
+	drm_connector_set_path_property(&mstc->connector, path);
 	return 0;
 }
 
@@ -1443,7 +1443,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "sor-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_sor_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	if (dcbe->type == DCB_OUTPUT_DP) {
 		struct nv50_disp *disp = nv50_disp(encoder->dev);
@@ -1601,7 +1601,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "pior-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_pior_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }
 

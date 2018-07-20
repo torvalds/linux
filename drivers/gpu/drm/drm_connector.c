@@ -48,7 +48,7 @@
  *
  * Connectors must be attached to an encoder to be used. For devices that map
  * connectors to encoders 1:1, the connector should be attached at
- * initialization time with a call to drm_mode_connector_attach_encoder(). The
+ * initialization time with a call to drm_connector_attach_encoder(). The
  * driver must also set the &drm_connector.encoder field to point to the
  * attached encoder.
  *
@@ -291,7 +291,7 @@ out_put:
 EXPORT_SYMBOL(drm_connector_init);
 
 /**
- * drm_mode_connector_attach_encoder - attach a connector to an encoder
+ * drm_connector_attach_encoder - attach a connector to an encoder
  * @connector: connector to attach
  * @encoder: encoder to attach @connector to
  *
@@ -302,8 +302,8 @@ EXPORT_SYMBOL(drm_connector_init);
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_connector_attach_encoder(struct drm_connector *connector,
-				      struct drm_encoder *encoder)
+int drm_connector_attach_encoder(struct drm_connector *connector,
+				 struct drm_encoder *encoder)
 {
 	int i;
 
@@ -329,7 +329,7 @@ int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 	}
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(drm_mode_connector_attach_encoder);
+EXPORT_SYMBOL(drm_connector_attach_encoder);
 
 /**
  * drm_connector_has_possible_encoder - check if the connector and encoder are assosicated with each other
@@ -606,7 +606,7 @@ __drm_connector_put_safe(struct drm_connector *conn)
 
 /**
  * drm_connector_list_iter_next - return next connector
- * @iter: connectr_list iterator
+ * @iter: connector_list iterator
  *
  * Returns the next connector for @iter, or NULL when the list walk has
  * completed.
@@ -814,7 +814,7 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  * 	Blob property which contains the current EDID read from the sink. This
  * 	is useful to parse sink identification information like vendor, model
  * 	and serial. Drivers should update this property by calling
- * 	drm_mode_connector_update_edid_property(), usually after having parsed
+ * 	drm_connector_update_edid_property(), usually after having parsed
  * 	the EDID using drm_add_edid_modes(). Userspace cannot change this
  * 	property.
  * DPMS:
@@ -852,7 +852,7 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  * PATH:
  * 	Connector path property to identify how this sink is physically
  * 	connected. Used by DP MST. This should be set by calling
- * 	drm_mode_connector_set_path_property(), in the case of DP MST with the
+ * 	drm_connector_set_path_property(), in the case of DP MST with the
  * 	path property the MST manager created. Userspace cannot change this
  * 	property.
  * TILE:
@@ -863,14 +863,14 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  * 	are not gen-locked. Note that for tiled panels which are genlocked, like
  * 	dual-link LVDS or dual-link DSI, the driver should try to not expose the
  * 	tiling and virtualize both &drm_crtc and &drm_plane if needed. Drivers
- * 	should update this value using drm_mode_connector_set_tile_property().
+ * 	should update this value using drm_connector_set_tile_property().
  * 	Userspace cannot change this property.
  * link-status:
  *      Connector link-status property to indicate the status of link. The
  *      default value of link-status is "GOOD". If something fails during or
  *      after modeset, the kernel driver may set this to "BAD" and issue a
  *      hotplug uevent. Drivers should update this value using
- *      drm_mode_connector_set_link_status_property().
+ *      drm_connector_set_link_status_property().
  * non_desktop:
  * 	Indicates the output should be ignored for purposes of displaying a
  * 	standard desktop environment or console. This is most likely because
@@ -1425,7 +1425,7 @@ int drm_mode_create_suggested_offset_properties(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_suggested_offset_properties);
 
 /**
- * drm_mode_connector_set_path_property - set tile property on connector
+ * drm_connector_set_path_property - set tile property on connector
  * @connector: connector to set property on.
  * @path: path to use for property; must not be NULL.
  *
@@ -1437,8 +1437,8 @@ EXPORT_SYMBOL(drm_mode_create_suggested_offset_properties);
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_connector_set_path_property(struct drm_connector *connector,
-					 const char *path)
+int drm_connector_set_path_property(struct drm_connector *connector,
+				    const char *path)
 {
 	struct drm_device *dev = connector->dev;
 	int ret;
@@ -1451,10 +1451,10 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 	                                       dev->mode_config.path_property);
 	return ret;
 }
-EXPORT_SYMBOL(drm_mode_connector_set_path_property);
+EXPORT_SYMBOL(drm_connector_set_path_property);
 
 /**
- * drm_mode_connector_set_tile_property - set tile property on connector
+ * drm_connector_set_tile_property - set tile property on connector
  * @connector: connector to set property on.
  *
  * This looks up the tile information for a connector, and creates a
@@ -1464,7 +1464,7 @@ EXPORT_SYMBOL(drm_mode_connector_set_path_property);
  * Returns:
  * Zero on success, errno on failure.
  */
-int drm_mode_connector_set_tile_property(struct drm_connector *connector)
+int drm_connector_set_tile_property(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	char tile[256];
@@ -1494,10 +1494,10 @@ int drm_mode_connector_set_tile_property(struct drm_connector *connector)
 	                                       dev->mode_config.tile_property);
 	return ret;
 }
-EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
+EXPORT_SYMBOL(drm_connector_set_tile_property);
 
 /**
- * drm_mode_connector_update_edid_property - update the edid property of a connector
+ * drm_connector_update_edid_property - update the edid property of a connector
  * @connector: drm connector
  * @edid: new value of the edid property
  *
@@ -1507,8 +1507,8 @@ EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-					    const struct edid *edid)
+int drm_connector_update_edid_property(struct drm_connector *connector,
+				       const struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
 	size_t size = 0;
@@ -1546,10 +1546,10 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	                                       dev->mode_config.edid_property);
 	return ret;
 }
-EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
+EXPORT_SYMBOL(drm_connector_update_edid_property);
 
 /**
- * drm_mode_connector_set_link_status_property - Set link status property of a connector
+ * drm_connector_set_link_status_property - Set link status property of a connector
  * @connector: drm connector
  * @link_status: new value of link status property (0: Good, 1: Bad)
  *
@@ -1567,8 +1567,8 @@ EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
  * it is not limited to DP or link training. For example, if we implement
  * asynchronous setcrtc, this property can be used to report any failures in that.
  */
-void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
-						 uint64_t link_status)
+void drm_connector_set_link_status_property(struct drm_connector *connector,
+					    uint64_t link_status)
 {
 	struct drm_device *dev = connector->dev;
 
@@ -1576,7 +1576,7 @@ void drm_mode_connector_set_link_status_property(struct drm_connector *connector
 	connector->state->link_status = link_status;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
-EXPORT_SYMBOL(drm_mode_connector_set_link_status_property);
+EXPORT_SYMBOL(drm_connector_set_link_status_property);
 
 /**
  * drm_connector_init_panel_orientation_property -
@@ -1629,7 +1629,7 @@ int drm_connector_init_panel_orientation_property(
 }
 EXPORT_SYMBOL(drm_connector_init_panel_orientation_property);
 
-int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
+int drm_connector_set_obj_prop(struct drm_mode_object *obj,
 				    struct drm_property *property,
 				    uint64_t value)
 {
@@ -1647,8 +1647,8 @@ int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 	return ret;
 }
 
-int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
-				       void *data, struct drm_file *file_priv)
+int drm_connector_property_set_ioctl(struct drm_device *dev,
+				     void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_connector_set_property *conn_set_prop = data;
 	struct drm_mode_obj_set_property obj_set_prop = {

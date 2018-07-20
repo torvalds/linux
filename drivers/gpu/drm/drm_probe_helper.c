@@ -360,7 +360,7 @@ EXPORT_SYMBOL(drm_helper_probe_detect);
  *    using the VESA GTF/CVT formulas.
  *
  * 3. Modes are moved from the probed_modes list to the modes list. Potential
- *    duplicates are merged together (see drm_mode_connector_list_update()).
+ *    duplicates are merged together (see drm_connector_list_update()).
  *    After this step the probed_modes list will be empty again.
  *
  * 4. Any non-stale mode on the modes list then undergoes validation
@@ -472,7 +472,7 @@ retry:
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
 			connector->base.id, connector->name);
-		drm_mode_connector_update_edid_property(connector, NULL);
+		drm_connector_update_edid_property(connector, NULL);
 		verbose_prune = false;
 		goto prune;
 	}
@@ -485,7 +485,7 @@ retry:
 	if (count == 0)
 		goto prune;
 
-	drm_mode_connector_list_update(connector);
+	drm_connector_list_update(connector);
 
 	if (connector->interlace_allowed)
 		mode_flags |= DRM_MODE_FLAG_INTERLACE;

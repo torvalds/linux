@@ -144,7 +144,7 @@ cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
 	of_reserved_mem_device_release(dev);
 free_drm:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	return ret;
 }
 
@@ -157,7 +157,7 @@ static void sun4i_drv_unbind(struct device *dev)
 	sun4i_framebuffer_free(drm);
 	drm_mode_config_cleanup(drm);
 	of_reserved_mem_device_release(dev);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops sun4i_drv_master_ops = {
@@ -216,7 +216,8 @@ static bool sun4i_drv_node_is_tcon_with_ch0(struct device_node *node)
 
 static bool sun4i_drv_node_is_tcon_top(struct device_node *node)
 {
-	return !!of_match_node(sun8i_tcon_top_of_table, node);
+	return IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
+		!!of_match_node(sun8i_tcon_top_of_table, node);
 }
 
 static int compare_of(struct device *dev, void *data)

@@ -1131,7 +1131,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 				    intel_gmbus_get_adapter(dev_priv, pin));
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
-			drm_mode_connector_update_edid_property(connector,
+			drm_connector_update_edid_property(connector,
 								edid);
 		} else {
 			kfree(edid);

@@ -215,7 +215,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 			goto err_cleanup_connector;
 		}
 
-		drm_mode_connector_attach_encoder(&rgb->connector,
+		drm_connector_attach_encoder(&rgb->connector,
 						  &rgb->encoder);
 
 		ret = drm_panel_attach(tcon->panel, &rgb->connector);

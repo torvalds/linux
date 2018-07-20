@@ -1911,7 +1911,7 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 	if (edid != NULL) {
 		if (intel_sdvo_connector_matches_edid(to_intel_sdvo_connector(connector),
 						      edid)) {
-			drm_mode_connector_update_edid_property(connector, edid);
+			drm_connector_update_edid_property(connector, edid);
 			drm_add_edid_modes(connector, edid);
 		}
 

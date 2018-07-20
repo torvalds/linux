@@ -3657,7 +3657,7 @@ u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 	plane_color_ctl |= PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	plane_color_ctl |= glk_plane_color_ctl_alpha(fb->format->format);
 
-	if (intel_format_is_yuv(fb->format->format)) {
+	if (fb->format->is_yuv) {
 		if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
 			plane_color_ctl |= PLANE_COLOR_CSC_MODE_YUV709_TO_RGB709;
 		else
@@ -15933,8 +15933,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 				    struct intel_encoder *encoder)
 {
 	connector->encoder = encoder;
-	drm_mode_connector_attach_encoder(&connector->base,
-					  &encoder->base);
+	drm_connector_attach_encoder(&connector->base, &encoder->base);
 }
 
 /*

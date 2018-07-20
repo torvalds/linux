@@ -782,7 +782,7 @@ static int mtk_dsi_create_connector(struct drm_device *drm, struct mtk_dsi *dsi)
 	drm_connector_helper_add(&dsi->conn, &mtk_dsi_connector_helper_funcs);
 
 	dsi->conn.dpms = DRM_MODE_DPMS_OFF;
-	drm_mode_connector_attach_encoder(&dsi->conn, &dsi->encoder);
+	drm_connector_attach_encoder(&dsi->conn, &dsi->encoder);
 
 	if (dsi->panel) {
 		ret = drm_panel_attach(dsi->panel, &dsi->conn);

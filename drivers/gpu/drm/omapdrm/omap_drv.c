@@ -274,7 +274,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		if (IS_ERR(crtc))
 			return PTR_ERR(crtc);
 
-		drm_mode_connector_attach_encoder(connector, encoder);
+		drm_connector_attach_encoder(connector, encoder);
 		encoder->possible_crtcs = (1 << crtc_idx);
 
 		priv->crtcs[priv->num_crtcs++] = crtc;

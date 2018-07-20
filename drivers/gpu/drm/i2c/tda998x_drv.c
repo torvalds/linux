@@ -1243,7 +1243,7 @@ static int tda998x_connector_get_modes(struct drm_connector *connector)
 		return 0;
 	}
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	n = drm_add_edid_modes(connector, edid);
 
 	kfree(edid);
@@ -1301,7 +1301,7 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 	if (ret)
 		return ret;
 
-	drm_mode_connector_attach_encoder(&priv->connector, &priv->encoder);
+	drm_connector_attach_encoder(&priv->connector, &priv->encoder);
 
 	return 0;
 }

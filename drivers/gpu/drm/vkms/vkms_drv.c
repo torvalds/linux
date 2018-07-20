@@ -9,6 +9,8 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_fb_helper.h>
 #include "vkms_drv.h"
 
 #define DRIVER_NAME	"vkms"
@@ -16,12 +18,6 @@
 #define DRIVER_DATE	"20180514"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
-
-#define XRES_MIN    32
-#define YRES_MIN    32
-
-#define XRES_MAX  8192
-#define YRES_MAX  8192
 
 static struct vkms_device *vkms_device;
 
@@ -37,6 +33,12 @@ static const struct file_operations vkms_driver_fops = {
 	.release	= drm_release,
 };
 
+static const struct vm_operations_struct vkms_gem_vm_ops = {
+	.fault = vkms_gem_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
 static void vkms_release(struct drm_device *dev)
 {
 	struct vkms_device *vkms = container_of(dev, struct vkms_device, drm);
@@ -50,6 +52,11 @@ static struct drm_driver vkms_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	.release		= vkms_release,
 	.fops			= &vkms_driver_fops,
+	.dumb_create		= vkms_dumb_create,
+	.dumb_map_offset	= vkms_dumb_map,
+	.gem_vm_ops		= &vkms_gem_vm_ops,
+	.gem_free_object_unlocked = vkms_gem_free_object,
+	.get_vblank_timestamp	= vkms_get_vblank_timestamp,
 
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
@@ -59,6 +66,7 @@ static struct drm_driver vkms_driver = {
 };
 
 static const struct drm_mode_config_funcs vkms_mode_funcs = {
+	.fb_create = drm_gem_fb_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -93,6 +101,14 @@ static int __init vkms_init(void)
 		platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
 	if (IS_ERR(vkms_device->platform)) {
 		ret = PTR_ERR(vkms_device->platform);
+		goto out_fini;
+	}
+
+	vkms_device->drm.irq_enabled = true;
+
+	ret = drm_vblank_init(&vkms_device->drm, 1);
+	if (ret) {
+		DRM_ERROR("Failed to vblank\n");
 		goto out_fini;
 	}
 

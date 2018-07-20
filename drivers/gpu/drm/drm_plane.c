@@ -583,6 +583,52 @@ int drm_plane_check_pixel_format(struct drm_plane *plane,
 	return 0;
 }
 
+static int __setplane_check(struct drm_plane *plane,
+			    struct drm_crtc *crtc,
+			    struct drm_framebuffer *fb,
+			    int32_t crtc_x, int32_t crtc_y,
+			    uint32_t crtc_w, uint32_t crtc_h,
+			    uint32_t src_x, uint32_t src_y,
+			    uint32_t src_w, uint32_t src_h)
+{
+	int ret;
+
+	/* Check whether this plane is usable on this CRTC */
+	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
+		DRM_DEBUG_KMS("Invalid crtc for plane\n");
+		return -EINVAL;
+	}
+
+	/* Check whether this plane supports the fb pixel format. */
+	ret = drm_plane_check_pixel_format(plane, fb->format->format,
+					   fb->modifier);
+	if (ret) {
+		struct drm_format_name_buf format_name;
+
+		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
+			      drm_get_format_name(fb->format->format,
+						  &format_name),
+			      fb->modifier);
+		return ret;
+	}
+
+	/* Give drivers some help against integer overflows */
+	if (crtc_w > INT_MAX ||
+	    crtc_x > INT_MAX - (int32_t) crtc_w ||
+	    crtc_h > INT_MAX ||
+	    crtc_y > INT_MAX - (int32_t) crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      crtc_w, crtc_h, crtc_x, crtc_y);
+		return -ERANGE;
+	}
+
+	ret = drm_framebuffer_check_src_coords(src_x, src_y, src_w, src_h, fb);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 /*
  * __setplane_internal - setplane handler for internal callers
  *
@@ -603,6 +649,8 @@ static int __setplane_internal(struct drm_plane *plane,
 {
 	int ret = 0;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(plane->dev));
+
 	/* No fb means shut it down */
 	if (!fb) {
 		plane->old_fb = plane->fb;
@@ -616,37 +664,9 @@ static int __setplane_internal(struct drm_plane *plane,
 		goto out;
 	}
 
-	/* Check whether this plane is usable on this CRTC */
-	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
-		DRM_DEBUG_KMS("Invalid crtc for plane\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, fb->format->format,
-					   fb->modifier);
-	if (ret) {
-		struct drm_format_name_buf format_name;
-		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
-			      drm_get_format_name(fb->format->format,
-						  &format_name),
-			      fb->modifier);
-		goto out;
-	}
-
-	/* Give drivers some help against integer overflows */
-	if (crtc_w > INT_MAX ||
-	    crtc_x > INT_MAX - (int32_t) crtc_w ||
-	    crtc_h > INT_MAX ||
-	    crtc_y > INT_MAX - (int32_t) crtc_h) {
-		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
-			      crtc_w, crtc_h, crtc_x, crtc_y);
-		ret = -ERANGE;
-		goto out;
-	}
-
-	ret = drm_framebuffer_check_src_coords(src_x, src_y, src_w, src_h, fb);
+	ret = __setplane_check(plane, crtc, fb,
+			       crtc_x, crtc_y, crtc_w, crtc_h,
+			       src_x, src_y, src_w, src_h);
 	if (ret)
 		goto out;
 
@@ -655,11 +675,9 @@ static int __setplane_internal(struct drm_plane *plane,
 					 crtc_x, crtc_y, crtc_w, crtc_h,
 					 src_x, src_y, src_w, src_h, ctx);
 	if (!ret) {
-		if (!plane->state) {
-			plane->crtc = crtc;
-			plane->fb = fb;
-			drm_framebuffer_get(plane->fb);
-		}
+		plane->crtc = crtc;
+		plane->fb = fb;
+		drm_framebuffer_get(plane->fb);
 	} else {
 		plane->old_fb = NULL;
 	}
@@ -670,6 +688,41 @@ out:
 	plane->old_fb = NULL;
 
 	return ret;
+}
+
+static int __setplane_atomic(struct drm_plane *plane,
+			     struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb,
+			     int32_t crtc_x, int32_t crtc_y,
+			     uint32_t crtc_w, uint32_t crtc_h,
+			     uint32_t src_x, uint32_t src_y,
+			     uint32_t src_w, uint32_t src_h,
+			     struct drm_modeset_acquire_ctx *ctx)
+{
+	int ret;
+
+	WARN_ON(!drm_drv_uses_atomic_modeset(plane->dev));
+
+	/* No fb means shut it down */
+	if (!fb)
+		return plane->funcs->disable_plane(plane, ctx);
+
+	/*
+	 * FIXME: This is redundant with drm_atomic_plane_check(),
+	 * but the legacy cursor/"async" .update_plane() tricks
+	 * don't call that so we still need this here. Should remove
+	 * this when all .update_plane() implementations have been
+	 * fixed to call drm_atomic_plane_check().
+	 */
+	ret = __setplane_check(plane, crtc, fb,
+			       crtc_x, crtc_y, crtc_w, crtc_h,
+			       src_x, src_y, src_w, src_h);
+	if (ret)
+		return ret;
+
+	return plane->funcs->update_plane(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h, ctx);
 }
 
 static int setplane_internal(struct drm_plane *plane,
@@ -689,9 +742,15 @@ retry:
 	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
 	if (ret)
 		goto fail;
-	ret = __setplane_internal(plane, crtc, fb,
-				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  src_x, src_y, src_w, src_h, &ctx);
+
+	if (drm_drv_uses_atomic_modeset(plane->dev))
+		ret = __setplane_atomic(plane, crtc, fb,
+					crtc_x, crtc_y, crtc_w, crtc_h,
+					src_x, src_y, src_w, src_h, &ctx);
+	else
+		ret = __setplane_internal(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h, &ctx);
 
 fail:
 	if (ret == -EDEADLK) {
@@ -823,9 +882,14 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 		src_h = fb->height << 16;
 	}
 
-	ret = __setplane_internal(plane, crtc, fb,
-				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  0, 0, src_w, src_h, ctx);
+	if (drm_drv_uses_atomic_modeset(dev))
+		ret = __setplane_atomic(plane, crtc, fb,
+					crtc_x, crtc_y, crtc_w, crtc_h,
+					0, 0, src_w, src_h, ctx);
+	else
+		ret = __setplane_internal(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  0, 0, src_w, src_h, ctx);
 
 	if (fb)
 		drm_framebuffer_put(fb);

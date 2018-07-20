@@ -63,7 +63,7 @@ pl111_mode_valid(struct drm_crtc *crtc,
 	 * We use the pixelclock to also account for interlaced modes, the
 	 * resulting bandwidth is in bytes per second.
 	 */
-	bw = mode->clock * 1000; /* In Hz */
+	bw = mode->clock * 1000ULL; /* In Hz */
 	bw = bw * mode->hdisplay * mode->vdisplay * cpp;
 	bw = div_u64(bw, mode->htotal * mode->vtotal);
 

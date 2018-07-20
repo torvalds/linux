@@ -149,7 +149,7 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 			goto err_cleanup_connector;
 		}
 
-		drm_mode_connector_attach_encoder(&lvds->connector,
+		drm_connector_attach_encoder(&lvds->connector,
 						  &lvds->encoder);
 
 		ret = drm_panel_attach(tcon->panel, &lvds->connector);

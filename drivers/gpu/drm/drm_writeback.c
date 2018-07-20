@@ -25,8 +25,8 @@
  *
  * * Writeback connectors don't provide a way to output visually to the user.
  *
- * * Writeback connectors should always report as "disconnected" (so that
- *   clients which don't understand them will ignore them).
+ * * Writeback connectors are visible to userspace only when the client sets
+ *   DRM_CLIENT_CAP_WRITEBACK_CONNECTORS.
  *
  * * Writeback connectors don't have EDID.
  *
@@ -202,7 +202,7 @@ int drm_writeback_connector_init(struct drm_device *dev,
 	if (ret)
 		goto connector_fail;
 
-	ret = drm_mode_connector_attach_encoder(connector,
+	ret = drm_connector_attach_encoder(connector,
 						&wb_connector->encoder);
 	if (ret)
 		goto attach_fail;

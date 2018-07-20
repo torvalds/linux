@@ -2268,7 +2268,7 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 		drm_mode_probed_add(connector, mode);
 	}
 
-	drm_mode_connector_list_update(connector);
+	drm_connector_list_update(connector);
 	/* Move the prefered mode first, help apps pick the right mode. */
 	drm_mode_sort(&connector->modes);
 

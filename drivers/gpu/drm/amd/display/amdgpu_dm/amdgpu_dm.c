@@ -903,14 +903,14 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector)
 				(struct edid *) sink->dc_edid.raw_edid;
 
 
-			drm_mode_connector_update_edid_property(connector,
+			drm_connector_update_edid_property(connector,
 					aconnector->edid);
 		}
 		amdgpu_dm_add_sink_to_freesync_module(connector, aconnector->edid);
 
 	} else {
 		amdgpu_dm_remove_sink_from_freesync_module(connector);
-		drm_mode_connector_update_edid_property(connector, NULL);
+		drm_connector_update_edid_property(connector, NULL);
 		aconnector->num_modes = 0;
 		aconnector->dc_sink = NULL;
 		aconnector->edid = NULL;
@@ -3663,7 +3663,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 		link,
 		link_index);
 
-	drm_mode_connector_attach_encoder(
+	drm_connector_attach_encoder(
 		&aconnector->base, &aencoder->base);
 
 	drm_connector_register(&aconnector->base);
