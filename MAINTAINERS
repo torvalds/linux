@@ -13577,6 +13577,14 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/stk1160/
 
+STM32 AUDIO (ASoC) DRIVERS
+M:	Olivier Moysan <olivier.moysan@st.com>
+M:	Arnaud Pouliquen <arnaud.pouliquen@st.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/st,stm32-*.txt
+F:	sound/soc/stm/
+
 STM32 TIMER/LPTIMER DRIVERS
 M:	Fabrice Gasnier <fabrice.gasnier@st.com>
 S:	Maintained
