@@ -113,12 +113,13 @@ static int wilc_bus_probe(struct spi_device *spi)
 	if (gpio < 0)
 		gpio = GPIO_NUM;
 
-	ret = wilc_netdev_init(&wilc, NULL, HIF_SPI, GPIO_NUM, &wilc_hif_spi);
+	ret = wilc_netdev_init(&wilc, NULL, HIF_SPI, &wilc_hif_spi);
 	if (ret)
 		return ret;
 
 	spi_set_drvdata(spi, wilc);
 	wilc->dev = &spi->dev;
+	wilc->gpio = gpio;
 
 	return 0;
 }

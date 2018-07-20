@@ -1053,7 +1053,7 @@ static const struct net_device_ops wilc_netdev_ops = {
 };
 
 int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
-		     int gpio, const struct wilc_hif_func *ops)
+		     const struct wilc_hif_func *ops)
 {
 	int i, ret;
 	struct wilc_vif *vif;
@@ -1066,7 +1066,6 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 	*wilc = wl;
 	wl->io_type = io_type;
-	wl->gpio = gpio;
 	wl->hif_func = ops;
 	INIT_LIST_HEAD(&wl->txq_head.list);
 	INIT_LIST_HEAD(&wl->rxq_head.list);
