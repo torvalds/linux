@@ -273,11 +273,12 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
  *
  * Returns the remaining time in jiffies left from the input timeout
  */
-long drm_sched_entity_flush(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity, long timeout)
+long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 {
+	struct drm_gpu_scheduler *sched;
 	long ret = timeout;
 
+	sched = entity->sched;
 	if (!drm_sched_entity_is_initialized(sched, entity))
 		return ret;
 	/**
@@ -312,10 +313,11 @@ EXPORT_SYMBOL(drm_sched_entity_flush);
  * entity and signals all jobs with an error code if the process was killed.
  *
  */
-void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity)
+void drm_sched_entity_fini(struct drm_sched_entity *entity)
 {
+	struct drm_gpu_scheduler *sched;
 
+	sched = entity->sched;
 	drm_sched_entity_set_rq(entity, NULL);
 
 	/* Consumption of existing IBs wasn't completed. Forcefully
@@ -373,11 +375,10 @@ EXPORT_SYMBOL(drm_sched_entity_fini);
  *
  * Calls drm_sched_entity_do_release() and drm_sched_entity_cleanup()
  */
-void drm_sched_entity_destroy(struct drm_gpu_scheduler *sched,
-				struct drm_sched_entity *entity)
+void drm_sched_entity_destroy(struct drm_sched_entity *entity)
 {
-	drm_sched_entity_flush(sched, entity, MAX_WAIT_SCHED_ENTITY_Q_EMPTY);
-	drm_sched_entity_fini(sched, entity);
+	drm_sched_entity_flush(entity, MAX_WAIT_SCHED_ENTITY_Q_EMPTY);
+	drm_sched_entity_fini(entity);
 }
 EXPORT_SYMBOL(drm_sched_entity_destroy);
 
@@ -740,10 +741,11 @@ EXPORT_SYMBOL(drm_sched_job_recovery);
  * Returns 0 for success, negative error code otherwise.
  */
 int drm_sched_job_init(struct drm_sched_job *job,
-		       struct drm_gpu_scheduler *sched,
 		       struct drm_sched_entity *entity,
 		       void *owner)
 {
+	struct drm_gpu_scheduler *sched = entity->sched;
+
 	job->sched = sched;
 	job->entity = entity;
 	job->s_priority = entity->rq - sched->sched_rq;

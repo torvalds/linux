@@ -118,8 +118,8 @@ int etnaviv_sched_push_job(struct drm_sched_entity *sched_entity,
 {
 	int ret;
 
-	ret = drm_sched_job_init(&submit->sched_job, &submit->gpu->sched,
-				 sched_entity, submit->cmdbuf.ctx);
+	ret = drm_sched_job_init(&submit->sched_job, sched_entity,
+				 submit->cmdbuf.ctx);
 	if (ret)
 		return ret;
 

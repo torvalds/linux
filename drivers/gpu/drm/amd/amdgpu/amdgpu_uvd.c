@@ -305,8 +305,7 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 {
 	int i, j;
 
-	drm_sched_entity_destroy(&adev->uvd.inst->ring.sched,
-				 &adev->uvd.entity);
+	drm_sched_entity_destroy(&adev->uvd.entity);
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
 		kfree(adev->uvd.inst[j].saved_bo);

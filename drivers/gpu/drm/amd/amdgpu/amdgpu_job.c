@@ -133,7 +133,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 	if (!f)
 		return -EINVAL;
 
-	r = drm_sched_job_init(&job->base, entity->sched, entity, owner);
+	r = drm_sched_job_init(&job->base, entity, owner);
 	if (r)
 		return r;
 

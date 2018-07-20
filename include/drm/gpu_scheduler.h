@@ -286,12 +286,9 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 			  struct drm_sched_rq **rq_list,
 			  unsigned int num_rq_list,
 			  atomic_t *guilty);
-long drm_sched_entity_flush(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity, long timeout);
-void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity);
-void drm_sched_entity_destroy(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity);
+long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout);
+void drm_sched_entity_fini(struct drm_sched_entity *entity);
+void drm_sched_entity_destroy(struct drm_sched_entity *entity);
 void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 			       struct drm_sched_entity *entity);
 void drm_sched_entity_set_rq(struct drm_sched_entity *entity,
@@ -302,7 +299,6 @@ struct drm_sched_fence *drm_sched_fence_create(
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence);
 void drm_sched_fence_finished(struct drm_sched_fence *fence);
 int drm_sched_job_init(struct drm_sched_job *job,
-		       struct drm_gpu_scheduler *sched,
 		       struct drm_sched_entity *entity,
 		       void *owner);
 void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched,

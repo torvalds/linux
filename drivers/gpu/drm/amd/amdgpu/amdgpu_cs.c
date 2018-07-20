@@ -1232,7 +1232,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job = p->job;
 	p->job = NULL;
 
-	r = drm_sched_job_init(&job->base, &ring->sched, entity, p->filp);
+	r = drm_sched_job_init(&job->base, entity, p->filp);
 	if (r) {
 		amdgpu_job_free(job);
 		amdgpu_mn_unlock(p->mn);

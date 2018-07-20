@@ -1925,8 +1925,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 			return;
 		}
 	} else {
-		drm_sched_entity_destroy(adev->mman.entity.sched,
-					 &adev->mman.entity);
+		drm_sched_entity_destroy(&adev->mman.entity);
 		dma_fence_put(man->move);
 		man->move = NULL;
 	}
