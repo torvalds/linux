@@ -197,13 +197,14 @@ void clear_sched_clock_stable(void)
 
 static void __sched_clock_gtod_offset(void)
 {
-	__gtod_offset = (sched_clock() + __sched_clock_offset) - ktime_get_ns();
+	struct sched_clock_data *scd = this_scd();
+
+	__scd_stamp(scd);
+	__gtod_offset = (scd->tick_raw + __sched_clock_offset) - scd->tick_gtod;
 }
 
 void __init sched_clock_init(void)
 {
-	unsigned long flags;
-
 	/*
 	 * Set __gtod_offset such that once we mark sched_clock_running,
 	 * sched_clock_tick() continues where sched_clock() left off.
@@ -211,16 +212,11 @@ void __init sched_clock_init(void)
 	 * Even if TSC is buggered, we're still UP at this point so it
 	 * can't really be out of sync.
 	 */
-	local_irq_save(flags);
+	local_irq_disable();
 	__sched_clock_gtod_offset();
-	local_irq_restore(flags);
+	local_irq_enable();
 
 	static_branch_inc(&sched_clock_running);
-
-	/* Now that sched_clock_running is set adjust scd */
-	local_irq_save(flags);
-	sched_clock_tick();
-	local_irq_restore(flags);
 }
 /*
  * We run this as late_initcall() such that it runs after all built-in drivers,
