@@ -403,7 +403,7 @@ static void raise_exception(struct fsg_common *common, enum fsg_state new_state)
 		common->exception_req_tag = common->ep0_req_tag;
 		common->state = new_state;
 		if (common->thread_task)
-			send_sig_info(SIGUSR1, SEND_SIG_FORCED,
+			send_sig_info(SIGUSR1, SEND_SIG_PRIV,
 				      common->thread_task);
 	}
 	spin_unlock_irqrestore(&common->lock, flags);

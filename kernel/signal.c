@@ -1057,7 +1057,7 @@ static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	 * fast-pathed signals for kernel-internal things like SIGSTOP
 	 * or SIGKILL.
 	 */
-	if (info == SEND_SIG_FORCED)
+	if ((info == SEND_SIG_FORCED) || (t->flags & PF_KTHREAD))
 		goto out_set;
 
 	/*
