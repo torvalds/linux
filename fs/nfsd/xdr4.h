@@ -545,6 +545,15 @@ struct nfsd4_seek {
 	loff_t		seek_pos;
 };
 
+struct nfsd4_offload_status {
+	/* request */
+	stateid_t	stateid;
+
+	/* response */
+	u64		count;
+	u32		status;
+};
+
 struct nfsd4_op {
 	int					opnum;
 	const struct nfsd4_operation *		opdesc;
@@ -603,6 +612,7 @@ struct nfsd4_op {
 		struct nfsd4_fallocate		deallocate;
 		struct nfsd4_clone		clone;
 		struct nfsd4_copy		copy;
+		struct nfsd4_offload_status	offload_status;
 		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;

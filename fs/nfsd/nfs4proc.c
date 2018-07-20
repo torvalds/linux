@@ -1144,6 +1144,13 @@ nfsd4_fallocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	fput(file);
 	return status;
 }
+static __be32
+nfsd4_offload_status(struct svc_rqst *rqstp,
+		     struct nfsd4_compound_state *cstate,
+		     union nfsd4_op_u *u)
+{
+	return nfserr_notsupp;
+}
 
 static __be32
 nfsd4_allocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
@@ -2047,6 +2054,14 @@ static inline u32 nfsd4_copy_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 		1 /* cr_synchronous */) * sizeof(__be32);
 }
 
+static inline u32 nfsd4_offload_status_rsize(struct svc_rqst *rqstp,
+					     struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size +
+		2 /* osr_count */ +
+		1 /* osr_complete<1> optional 0 for now */) * sizeof(__be32);
+}
+
 #ifdef CONFIG_NFSD_PNFS
 static inline u32 nfsd4_getdeviceinfo_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
@@ -2459,6 +2474,11 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = nfsd4_seek,
 		.op_name = "OP_SEEK",
 		.op_rsize_bop = nfsd4_seek_rsize,
+	},
+	[OP_OFFLOAD_STATUS] = {
+		.op_func = nfsd4_offload_status,
+		.op_name = "OP_OFFLOAD_STATUS",
+		.op_rsize_bop = nfsd4_offload_status_rsize,
 	},
 };
 
