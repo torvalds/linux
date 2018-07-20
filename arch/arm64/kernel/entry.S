@@ -902,6 +902,9 @@ ret_to_user:
 	cbnz	x2, work_pending
 finish_ret_to_user:
 	enable_step_tsk x1, x2
+#ifdef CONFIG_GCC_PLUGIN_STACKLEAK
+	bl	stackleak_erase
+#endif
 	kernel_exit 0
 ENDPROC(ret_to_user)
 
