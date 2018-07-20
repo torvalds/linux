@@ -300,13 +300,6 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
 #define ioremap_wc(offset, size)					\
 	__ioremap_mode((offset), (size), boot_cpu_data.writecombine)
 
-/*
- * This is a MIPS specific ioremap variant. ioremap_cacheable_cow
- * requests a cachable mapping with CWB attribute enabled.
- */
-#define ioremap_cacheable_cow(offset, size)				\
-	__ioremap_mode((offset), (size), _CACHE_CACHABLE_COW)
-
 static inline void iounmap(const volatile void __iomem *addr)
 {
 	if (plat_iounmap(addr))
