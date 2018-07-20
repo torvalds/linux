@@ -1591,7 +1591,7 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 	driver_desc = gasket_dev->internal_desc->driver_desc;
 
-	if (vma->vm_start & (PAGE_SIZE - 1)) {
+	if (vma->vm_start & ~PAGE_MASK) {
 		gasket_log_error(
 			gasket_dev, "Base address not page-aligned: 0x%p\n",
 			(void *)vma->vm_start);
