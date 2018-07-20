@@ -22,7 +22,7 @@
 #define trace_gasket_ioctl_config_coherent_allocator(x, ...)
 #endif
 
-static uint gasket_ioctl_check_permissions(struct file *filp, uint cmd);
+static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd);
 static int gasket_set_event_fd(struct gasket_dev *dev, ulong arg);
 static int gasket_read_page_table_size(
 	struct gasket_dev *gasket_dev, ulong arg);
@@ -167,12 +167,13 @@ long gasket_is_supported_ioctl(uint cmd)
  * @filp: File structure pointer describing this node usage session.
  * @cmd: ioctl number to handle.
  *
- * Standard permissions checker.
+ * Check permissions for Gasket ioctls.
+ * Returns true if the file opener may execute this ioctl, or false otherwise.
  */
-static uint gasket_ioctl_check_permissions(struct file *filp, uint cmd)
+static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd)
 {
-	uint alive, root, device_owner;
-	fmode_t read, write;
+	bool alive;
+	bool read, write;
 	struct gasket_dev *gasket_dev = (struct gasket_dev *)filp->private_data;
 
 	alive = (gasket_dev->status == GASKET_STATUS_ALIVE);
@@ -183,36 +184,33 @@ static uint gasket_ioctl_check_permissions(struct file *filp, uint cmd)
 			alive, gasket_dev->status);
 	}
 
-	root = capable(CAP_SYS_ADMIN);
-	read = filp->f_mode & FMODE_READ;
-	write = filp->f_mode & FMODE_WRITE;
-	device_owner = (gasket_dev->dev_info.ownership.is_owned &&
-			current->tgid == gasket_dev->dev_info.ownership.owner);
+	read = !!(filp->f_mode & FMODE_READ);
+	write = !!(filp->f_mode & FMODE_WRITE);
 
 	switch (cmd) {
 	case GASKET_IOCTL_RESET:
 	case GASKET_IOCTL_CLEAR_INTERRUPT_COUNTS:
-		return root || (write && device_owner);
+		return write;
 
 	case GASKET_IOCTL_PAGE_TABLE_SIZE:
 	case GASKET_IOCTL_SIMPLE_PAGE_TABLE_SIZE:
 	case GASKET_IOCTL_NUMBER_PAGE_TABLES:
-		return root || read;
+		return read;
 
 	case GASKET_IOCTL_PARTITION_PAGE_TABLE:
 	case GASKET_IOCTL_CONFIG_COHERENT_ALLOCATOR:
-		return alive && (root || (write && device_owner));
+		return alive && write;
 
 	case GASKET_IOCTL_MAP_BUFFER:
 	case GASKET_IOCTL_UNMAP_BUFFER:
-		return alive && (root || (write && device_owner));
+		return alive && write;
 
 	case GASKET_IOCTL_CLEAR_EVENTFD:
 	case GASKET_IOCTL_SET_EVENTFD:
-		return alive && (root || (write && device_owner));
+		return alive && write;
 	}
 
-	return 0; /* unknown permissions */
+	return false; /* unknown permissions */
 }
 
 /*
