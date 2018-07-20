@@ -1808,15 +1808,24 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(TRANS_DDI_FUNC_CTL(cpu_transcoder), temp);
 }
 
-void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
-				       enum transcoder cpu_transcoder)
+void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	i915_reg_t reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
 	uint32_t val = I915_READ(reg);
 
 	val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK | TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
 	val |= TRANS_DDI_PORT_NONE;
 	I915_WRITE(reg, val);
+
+	if (dev_priv->quirks & QUIRK_INCREASE_DDI_DISABLED_TIME &&
+	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		DRM_DEBUG_KMS("Quirk Increase DDI disabled time\n");
+		/* Quirk time at 100ms for reliable operation */
+		msleep(100);
+	}
 }
 
 int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
@@ -3630,7 +3639,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			goto err;
 
 		intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
-		dev_priv->hotplug.irq_port[port] = intel_dig_port;
 	}
 
 	/* In theory we don't need the encoder->type check, but leave it just in

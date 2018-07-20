@@ -466,11 +466,13 @@ void intel_guc_to_host_event_handler_mmio(struct intel_guc *guc)
 	 * could happen that GuC sets the bit for 2nd interrupt but Host
 	 * clears out the bit on handling the 1st interrupt.
 	 */
+	disable_rpm_wakeref_asserts(dev_priv);
 	spin_lock(&guc->irq_lock);
 	val = I915_READ(SOFT_SCRATCH(15));
 	msg = val & guc->msg_enabled_mask;
 	I915_WRITE(SOFT_SCRATCH(15), val & ~msg);
 	spin_unlock(&guc->irq_lock);
+	enable_rpm_wakeref_asserts(dev_priv);
 
 	intel_guc_to_host_process_recv_msg(guc, msg);
 }

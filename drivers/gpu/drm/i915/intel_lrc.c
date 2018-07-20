@@ -273,7 +273,7 @@ lookup_priolist(struct intel_engine_cs *engine, int prio)
 find_priolist:
 	/* most positive priority is scheduled first, equal priorities fifo */
 	rb = NULL;
-	parent = &execlists->queue.rb_node;
+	parent = &execlists->queue.rb_root.rb_node;
 	while (*parent) {
 		rb = *parent;
 		p = to_priolist(rb);
@@ -311,10 +311,7 @@ find_priolist:
 	p->priority = prio;
 	INIT_LIST_HEAD(&p->requests);
 	rb_link_node(&p->node, rb, parent);
-	rb_insert_color(&p->node, &execlists->queue);
-
-	if (first)
-		execlists->first = &p->node;
+	rb_insert_color_cached(&p->node, &execlists->queue, first);
 
 	return p;
 }
@@ -456,6 +453,16 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 	unsigned int n;
 
 	/*
+	 * We can skip acquiring intel_runtime_pm_get() here as it was taken
+	 * on our behalf by the request (see i915_gem_mark_busy()) and it will
+	 * not be relinquished until the device is idle (see
+	 * i915_gem_idle_work_handler()). As a precaution, we make sure
+	 * that all ELSP are drained i.e. we have processed the CSB,
+	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
+	 */
+	GEM_BUG_ON(!engine->i915->gt.awake);
+
+	/*
 	 * ELSQ note: the submit queue is not cleared after being submitted
 	 * to the HW so we need to make sure we always clean it up. This is
 	 * currently ensured by the fact that we always write the same number
@@ -562,12 +569,13 @@ static void complete_preempt_context(struct intel_engine_execlists *execlists)
 {
 	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
 
+	if (inject_preempt_hang(execlists))
+		return;
+
 	execlists_cancel_port_requests(execlists);
 	__unwind_incomplete_requests(container_of(execlists,
 						  struct intel_engine_cs,
 						  execlists));
-
-	execlists_clear_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
 }
 
 static void execlists_dequeue(struct intel_engine_cs *engine)
@@ -601,9 +609,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * sequence of requests as being the most optimal (fewest wake ups
 	 * and context switches) submission.
 	 */
-
-	rb = execlists->first;
-	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
 	if (last) {
 		/*
@@ -666,7 +671,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		last->tail = last->wa_tail;
 	}
 
-	while (rb) {
+	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
 
@@ -725,8 +730,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			submit = true;
 		}
 
-		rb = rb_next(rb);
-		rb_erase(&p->node, &execlists->queue);
+		rb_erase_cached(&p->node, &execlists->queue);
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
@@ -752,14 +756,14 @@ done:
 	execlists->queue_priority =
 		port != execlists->port ? rq_prio(last) : INT_MIN;
 
-	execlists->first = rb;
 	if (submit) {
 		port_assign(port, last);
 		execlists_submit_ports(engine);
 	}
 
 	/* We must always keep the beast fed if we have work piled up */
-	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
+	GEM_BUG_ON(rb_first_cached(&execlists->queue) &&
+		   !port_isset(execlists->port));
 
 	/* Re-evaluate the executing context setup after each preemptive kick */
 	if (last)
@@ -799,73 +803,7 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 		port++;
 	}
 
-	execlists_user_end(execlists);
-}
-
-static void clear_gtiir(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	int i;
-
-	/*
-	 * Clear any pending interrupt state.
-	 *
-	 * We do it twice out of paranoia that some of the IIR are
-	 * double buffered, and so if we only reset it once there may
-	 * still be an interrupt pending.
-	 */
-	if (INTEL_GEN(dev_priv) >= 11) {
-		static const struct {
-			u8 bank;
-			u8 bit;
-		} gen11_gtiir[] = {
-			[RCS] = {0, GEN11_RCS0},
-			[BCS] = {0, GEN11_BCS},
-			[_VCS(0)] = {1, GEN11_VCS(0)},
-			[_VCS(1)] = {1, GEN11_VCS(1)},
-			[_VCS(2)] = {1, GEN11_VCS(2)},
-			[_VCS(3)] = {1, GEN11_VCS(3)},
-			[_VECS(0)] = {1, GEN11_VECS(0)},
-			[_VECS(1)] = {1, GEN11_VECS(1)},
-		};
-		unsigned long irqflags;
-
-		GEM_BUG_ON(engine->id >= ARRAY_SIZE(gen11_gtiir));
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-		for (i = 0; i < 2; i++) {
-			gen11_reset_one_iir(dev_priv,
-					    gen11_gtiir[engine->id].bank,
-					    gen11_gtiir[engine->id].bit);
-		}
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	} else {
-		static const u8 gtiir[] = {
-			[RCS]  = 0,
-			[BCS]  = 0,
-			[VCS]  = 1,
-			[VCS2] = 1,
-			[VECS] = 3,
-		};
-
-		GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
-
-		for (i = 0; i < 2; i++) {
-			I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
-				   engine->irq_keep_mask);
-			POSTING_READ(GEN8_GT_IIR(gtiir[engine->id]));
-		}
-		GEM_BUG_ON(I915_READ(GEN8_GT_IIR(gtiir[engine->id])) &
-			   engine->irq_keep_mask);
-	}
-}
-
-static void reset_irq(struct intel_engine_cs *engine)
-{
-	/* Mark all CS interrupts as complete */
-	smp_store_mb(engine->execlists.active, 0);
-
-	clear_gtiir(engine);
+	execlists_clear_all_active(execlists);
 }
 
 static void reset_csb_pointers(struct intel_engine_execlists *execlists)
@@ -881,6 +819,11 @@ static void reset_csb_pointers(struct intel_engine_execlists *execlists)
 	 */
 	execlists->csb_head = execlists->csb_write_reset;
 	WRITE_ONCE(*execlists->csb_write, execlists->csb_write_reset);
+}
+
+static void nop_submission_tasklet(unsigned long data)
+{
+	/* The driver is wedged; don't process any more events. */
 }
 
 static void execlists_cancel_requests(struct intel_engine_cs *engine)
@@ -911,7 +854,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
 	execlists_cancel_port_requests(execlists);
-	reset_irq(engine);
+	execlists_user_end(execlists);
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->timeline.requests, link) {
@@ -921,8 +864,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	}
 
 	/* Flush the queued requests to the timeline list (for retiring). */
-	rb = execlists->first;
-	while (rb) {
+	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
 
 		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
@@ -932,8 +874,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 			__i915_request_submit(rq);
 		}
 
-		rb = rb_next(rb);
-		rb_erase(&p->node, &execlists->queue);
+		rb_erase_cached(&p->node, &execlists->queue);
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
@@ -942,9 +883,11 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
 	execlists->queue_priority = INT_MIN;
-	execlists->queue = RB_ROOT;
-	execlists->first = NULL;
+	execlists->queue = RB_ROOT_CACHED;
 	GEM_BUG_ON(port_isset(execlists->port));
+
+	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
+	execlists->tasklet.func = nop_submission_tasklet;
 
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
@@ -1110,16 +1053,6 @@ static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
 {
 	lockdep_assert_held(&engine->timeline.lock);
 
-	/*
-	 * We can skip acquiring intel_runtime_pm_get() here as it was taken
-	 * on our behalf by the request (see i915_gem_mark_busy()) and it will
-	 * not be relinquished until the device is idle (see
-	 * i915_gem_idle_work_handler()). As a precaution, we make sure
-	 * that all ELSP are drained i.e. we have processed the CSB,
-	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
-	 */
-	GEM_BUG_ON(!engine->i915->gt.awake);
-
 	process_csb(engine);
 	if (!execlists_is_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT))
 		execlists_dequeue(engine);
@@ -1140,10 +1073,7 @@ static void execlists_submission_tasklet(unsigned long data)
 		  engine->execlists.active);
 
 	spin_lock_irqsave(&engine->timeline.lock, flags);
-
-	if (engine->i915->gt.awake) /* we may be delayed until after we idle! */
-		__execlists_submission_tasklet(engine);
-
+	__execlists_submission_tasklet(engine);
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
@@ -1191,7 +1121,7 @@ static void execlists_submit_request(struct i915_request *request)
 
 	queue_request(engine, &request->sched, rq_prio(request));
 
-	GEM_BUG_ON(!engine->execlists.first);
+	GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 	GEM_BUG_ON(list_empty(&request->sched.link));
 
 	submit_queue(engine, rq_prio(request));
@@ -1852,7 +1782,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 		return ret;
 
 	intel_engine_reset_breadcrumbs(engine);
-	intel_engine_init_hangcheck(engine);
 
 	if (GEM_SHOW_DEBUG() && unexpected_starting_state(engine)) {
 		struct drm_printer p = drm_debug_printer(__func__);
@@ -1986,7 +1915,6 @@ static void execlists_reset(struct intel_engine_cs *engine,
 	 * requests were completed.
 	 */
 	execlists_cancel_port_requests(execlists);
-	reset_irq(engine);
 
 	/* Push back any incomplete requests for replay after the reset. */
 	__unwind_incomplete_requests(engine);
@@ -2044,7 +1972,7 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
 	/* After a GPU reset, we may have requests to replay */
-	if (execlists->first)
+	if (!RB_EMPTY_ROOT(&execlists->queue.rb_root))
 		tasklet_schedule(&execlists->tasklet);
 
 	/*
@@ -2364,7 +2292,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	kfree(engine);
 }
 
-static void execlists_set_default_submission(struct intel_engine_cs *engine)
+void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = execlists_submit_request;
 	engine->cancel_requests = execlists_cancel_requests;
@@ -2404,7 +2332,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->emit_breadcrumb = gen8_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_sz;
 
-	engine->set_default_submission = execlists_set_default_submission;
+	engine->set_default_submission = intel_execlists_set_default_submission;
 
 	if (INTEL_GEN(engine->i915) < 11) {
 		engine->irq_enable = gen8_logical_ring_enable_irq;

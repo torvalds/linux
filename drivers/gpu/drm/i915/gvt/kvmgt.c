@@ -94,6 +94,7 @@ struct gvt_dma {
 	struct rb_node dma_addr_node;
 	gfn_t gfn;
 	dma_addr_t dma_addr;
+	unsigned long size;
 	struct kref ref;
 };
 
@@ -106,22 +107,83 @@ static int kvmgt_guest_init(struct mdev_device *mdev);
 static void intel_vgpu_release_work(struct work_struct *work);
 static bool kvmgt_guest_exit(struct kvmgt_guest_info *info);
 
-static int gvt_dma_map_page(struct intel_vgpu *vgpu, unsigned long gfn,
-		dma_addr_t *dma_addr)
+static void gvt_unpin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
+		unsigned long size)
 {
-	struct device *dev = &vgpu->gvt->dev_priv->drm.pdev->dev;
-	struct page *page;
-	unsigned long pfn;
+	int total_pages;
+	int npage;
 	int ret;
 
-	/* Pin the page first. */
-	ret = vfio_pin_pages(mdev_dev(vgpu->vdev.mdev), &gfn, 1,
-			     IOMMU_READ | IOMMU_WRITE, &pfn);
-	if (ret != 1) {
-		gvt_vgpu_err("vfio_pin_pages failed for gfn 0x%lx: %d\n",
-			     gfn, ret);
-		return -EINVAL;
+	total_pages = roundup(size, PAGE_SIZE) / PAGE_SIZE;
+
+	for (npage = 0; npage < total_pages; npage++) {
+		unsigned long cur_gfn = gfn + npage;
+
+		ret = vfio_unpin_pages(mdev_dev(vgpu->vdev.mdev), &cur_gfn, 1);
+		WARN_ON(ret != 1);
 	}
+}
+
+/* Pin a normal or compound guest page for dma. */
+static int gvt_pin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
+		unsigned long size, struct page **page)
+{
+	unsigned long base_pfn = 0;
+	int total_pages;
+	int npage;
+	int ret;
+
+	total_pages = roundup(size, PAGE_SIZE) / PAGE_SIZE;
+	/*
+	 * We pin the pages one-by-one to avoid allocating a big arrary
+	 * on stack to hold pfns.
+	 */
+	for (npage = 0; npage < total_pages; npage++) {
+		unsigned long cur_gfn = gfn + npage;
+		unsigned long pfn;
+
+		ret = vfio_pin_pages(mdev_dev(vgpu->vdev.mdev), &cur_gfn, 1,
+				     IOMMU_READ | IOMMU_WRITE, &pfn);
+		if (ret != 1) {
+			gvt_vgpu_err("vfio_pin_pages failed for gfn 0x%lx, ret %d\n",
+				     cur_gfn, ret);
+			goto err;
+		}
+
+		if (!pfn_valid(pfn)) {
+			gvt_vgpu_err("pfn 0x%lx is not mem backed\n", pfn);
+			npage++;
+			ret = -EFAULT;
+			goto err;
+		}
+
+		if (npage == 0)
+			base_pfn = pfn;
+		else if (base_pfn + npage != pfn) {
+			gvt_vgpu_err("The pages are not continuous\n");
+			ret = -EINVAL;
+			npage++;
+			goto err;
+		}
+	}
+
+	*page = pfn_to_page(base_pfn);
+	return 0;
+err:
+	gvt_unpin_guest_page(vgpu, gfn, npage * PAGE_SIZE);
+	return ret;
+}
+
+static int gvt_dma_map_page(struct intel_vgpu *vgpu, unsigned long gfn,
+		dma_addr_t *dma_addr, unsigned long size)
+{
+	struct device *dev = &vgpu->gvt->dev_priv->drm.pdev->dev;
+	struct page *page = NULL;
+	int ret;
+
+	ret = gvt_pin_guest_page(vgpu, gfn, size, &page);
+	if (ret)
+		return ret;
 
 	if (!pfn_valid(pfn)) {
 		gvt_vgpu_err("pfn 0x%lx is not mem backed\n", pfn);
@@ -130,27 +192,24 @@ static int gvt_dma_map_page(struct intel_vgpu *vgpu, unsigned long gfn,
 	}
 
 	/* Setup DMA mapping. */
-	page = pfn_to_page(pfn);
-	*dma_addr = dma_map_page(dev, page, 0, PAGE_SIZE,
-				 PCI_DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, *dma_addr)) {
-		gvt_vgpu_err("DMA mapping failed for gfn 0x%lx\n", gfn);
-		vfio_unpin_pages(mdev_dev(vgpu->vdev.mdev), &gfn, 1);
-		return -ENOMEM;
+	*dma_addr = dma_map_page(dev, page, 0, size, PCI_DMA_BIDIRECTIONAL);
+	ret = dma_mapping_error(dev, *dma_addr);
+	if (ret) {
+		gvt_vgpu_err("DMA mapping failed for pfn 0x%lx, ret %d\n",
+			     page_to_pfn(page), ret);
+		gvt_unpin_guest_page(vgpu, gfn, size);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void gvt_dma_unmap_page(struct intel_vgpu *vgpu, unsigned long gfn,
-		dma_addr_t dma_addr)
+		dma_addr_t dma_addr, unsigned long size)
 {
 	struct device *dev = &vgpu->gvt->dev_priv->drm.pdev->dev;
-	int ret;
 
-	dma_unmap_page(dev, dma_addr, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	ret = vfio_unpin_pages(mdev_dev(vgpu->vdev.mdev), &gfn, 1);
-	WARN_ON(ret != 1);
+	dma_unmap_page(dev, dma_addr, size, PCI_DMA_BIDIRECTIONAL);
+	gvt_unpin_guest_page(vgpu, gfn, size);
 }
 
 static struct gvt_dma *__gvt_cache_find_dma_addr(struct intel_vgpu *vgpu,
@@ -191,7 +250,7 @@ static struct gvt_dma *__gvt_cache_find_gfn(struct intel_vgpu *vgpu, gfn_t gfn)
 }
 
 static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
-		dma_addr_t dma_addr)
+		dma_addr_t dma_addr, unsigned long size)
 {
 	struct gvt_dma *new, *itr;
 	struct rb_node **link, *parent = NULL;
@@ -203,6 +262,7 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 	new->vgpu = vgpu;
 	new->gfn = gfn;
 	new->dma_addr = dma_addr;
+	new->size = size;
 	kref_init(&new->ref);
 
 	/* gfn_cache maps gfn to struct gvt_dma. */
@@ -260,7 +320,7 @@ static void gvt_cache_destroy(struct intel_vgpu *vgpu)
 			break;
 		}
 		dma = rb_entry(node, struct gvt_dma, gfn_node);
-		gvt_dma_unmap_page(vgpu, dma->gfn, dma->dma_addr);
+		gvt_dma_unmap_page(vgpu, dma->gfn, dma->dma_addr, dma->size);
 		__gvt_cache_remove_entry(vgpu, dma);
 		mutex_unlock(&vgpu->vdev.cache_lock);
 	}
@@ -515,7 +575,8 @@ static int intel_vgpu_iommu_notifier(struct notifier_block *nb,
 			if (!entry)
 				continue;
 
-			gvt_dma_unmap_page(vgpu, entry->gfn, entry->dma_addr);
+			gvt_dma_unmap_page(vgpu, entry->gfn, entry->dma_addr,
+					   entry->size);
 			__gvt_cache_remove_entry(vgpu, entry);
 		}
 		mutex_unlock(&vgpu->vdev.cache_lock);
@@ -1648,7 +1709,7 @@ static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
 }
 
 int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
-		dma_addr_t *dma_addr)
+		unsigned long size, dma_addr_t *dma_addr)
 {
 	struct kvmgt_guest_info *info;
 	struct intel_vgpu *vgpu;
@@ -1665,11 +1726,11 @@ int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
 
 	entry = __gvt_cache_find_gfn(info->vgpu, gfn);
 	if (!entry) {
-		ret = gvt_dma_map_page(vgpu, gfn, dma_addr);
+		ret = gvt_dma_map_page(vgpu, gfn, dma_addr, size);
 		if (ret)
 			goto err_unlock;
 
-		ret = __gvt_cache_add(info->vgpu, gfn, *dma_addr);
+		ret = __gvt_cache_add(info->vgpu, gfn, *dma_addr, size);
 		if (ret)
 			goto err_unmap;
 	} else {
@@ -1681,7 +1742,7 @@ int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
 	return 0;
 
 err_unmap:
-	gvt_dma_unmap_page(vgpu, gfn, *dma_addr);
+	gvt_dma_unmap_page(vgpu, gfn, *dma_addr, size);
 err_unlock:
 	mutex_unlock(&info->vgpu->vdev.cache_lock);
 	return ret;
@@ -1691,7 +1752,8 @@ static void __gvt_dma_release(struct kref *ref)
 {
 	struct gvt_dma *entry = container_of(ref, typeof(*entry), ref);
 
-	gvt_dma_unmap_page(entry->vgpu, entry->gfn, entry->dma_addr);
+	gvt_dma_unmap_page(entry->vgpu, entry->gfn, entry->dma_addr,
+			   entry->size);
 	__gvt_cache_remove_entry(entry->vgpu, entry);
 }
 

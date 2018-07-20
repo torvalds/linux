@@ -104,8 +104,13 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	dev_printk(level, kdev, "[" DRM_NAME ":%ps] %pV",
-		   __builtin_return_address(0), &vaf);
+	if (is_error)
+		dev_printk(level, kdev, "%pV", &vaf);
+	else
+		dev_printk(level, kdev, "[" DRM_NAME ":%ps] %pV",
+			   __builtin_return_address(0), &vaf);
+
+	va_end(args);
 
 	if (is_error && !shown_bug_once) {
 		/*
@@ -117,8 +122,6 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 			dev_notice(kdev, "%s", FDO_BUG_MSG);
 		shown_bug_once = true;
 	}
-
-	va_end(args);
 }
 
 /* Map PCH device id to PCH type, or PCH_NONE if unknown. */
@@ -679,7 +682,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = i915_gem_init(dev_priv);
 	if (ret)
-		goto cleanup_irq;
+		goto cleanup_modeset;
 
 	intel_setup_overlay(dev_priv);
 
@@ -699,6 +702,8 @@ cleanup_gem:
 	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 	i915_gem_fini(dev_priv);
+cleanup_modeset:
+	intel_modeset_cleanup(dev);
 cleanup_irq:
 	drm_irq_uninstall(dev);
 	intel_teardown_gmbus(dev_priv);
@@ -895,7 +900,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	spin_lock_init(&dev_priv->uncore.lock);
 
 	mutex_init(&dev_priv->sb_lock);
-	mutex_init(&dev_priv->modeset_restore_lock);
 	mutex_init(&dev_priv->av_mutex);
 	mutex_init(&dev_priv->wm.wm_mutex);
 	mutex_init(&dev_priv->pps_mutex);
@@ -1149,8 +1153,6 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_uncore_sanitize(dev_priv);
 
-	intel_opregion_setup(dev_priv);
-
 	i915_gem_load_init_fences(dev_priv);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -1179,10 +1181,16 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	ret = intel_gvt_init(dev_priv);
 	if (ret)
-		goto err_ggtt;
+		goto err_msi;
+
+	intel_opregion_setup(dev_priv);
 
 	return 0;
 
+err_msi:
+	if (pdev->msi_enabled)
+		pci_disable_msi(pdev);
+	pm_qos_remove_request(&dev_priv->pm_qos);
 err_ggtt:
 	i915_ggtt_cleanup_hw(dev_priv);
 err_perf:
@@ -1415,6 +1423,7 @@ out_fini:
 	drm_dev_fini(&dev_priv->drm);
 out_free:
 	kfree(dev_priv);
+	pci_set_drvdata(pdev, NULL);
 	return ret;
 }
 
@@ -1560,11 +1569,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	pci_power_t opregion_target_state;
 
-	/* ignore lid events during suspend */
-	mutex_lock(&dev_priv->modeset_restore_lock);
-	dev_priv->modeset_restore = MODESET_SUSPENDED;
-	mutex_unlock(&dev_priv->modeset_restore_lock);
-
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	/* We do a lot of poking in a lot of registers, make sure they work
@@ -1577,7 +1581,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_display_suspend(dev);
 
-	intel_dp_mst_suspend(dev);
+	intel_dp_mst_suspend(dev_priv);
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 	intel_hpd_cancel_work(dev_priv);
@@ -1742,7 +1746,7 @@ static int i915_drm_resume(struct drm_device *dev)
 		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	intel_dp_mst_resume(dev);
+	intel_dp_mst_resume(dev_priv);
 
 	intel_display_resume(dev);
 
@@ -1759,10 +1763,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_opregion_register(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
-
-	mutex_lock(&dev_priv->modeset_restore_lock);
-	dev_priv->modeset_restore = MODESET_DONE;
-	mutex_unlock(&dev_priv->modeset_restore_lock);
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 

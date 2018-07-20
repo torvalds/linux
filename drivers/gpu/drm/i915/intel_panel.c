@@ -375,26 +375,6 @@ out:
 	pipe_config->gmch_pfit.lvds_border_bits = border;
 }
 
-enum drm_connector_status
-intel_panel_detect(struct drm_i915_private *dev_priv)
-{
-	/* Assume that the BIOS does not lie through the OpRegion... */
-	if (!i915_modparams.panel_ignore_lid && dev_priv->opregion.lid_state) {
-		return *dev_priv->opregion.lid_state & 0x1 ?
-			connector_status_connected :
-			connector_status_disconnected;
-	}
-
-	switch (i915_modparams.panel_ignore_lid) {
-	case -2:
-		return connector_status_connected;
-	case -1:
-		return connector_status_disconnected;
-	default:
-		return connector_status_unknown;
-	}
-}
-
 /**
  * scale - scale values from one range to another
  * @source_val: value in range [@source_min..@source_max]

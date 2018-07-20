@@ -467,8 +467,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
 	execlists->queue_priority = INT_MIN;
-	execlists->queue = RB_ROOT;
-	execlists->first = NULL;
+	execlists->queue = RB_ROOT_CACHED;
 }
 
 /**
@@ -990,21 +989,23 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 
 	/* Waiting to drain ELSP? */
 	if (READ_ONCE(engine->execlists.active)) {
-		struct intel_engine_execlists *execlists = &engine->execlists;
+		struct tasklet_struct *t = &engine->execlists.tasklet;
 
 		local_bh_disable();
-		if (tasklet_trylock(&execlists->tasklet)) {
-			execlists->tasklet.func(execlists->tasklet.data);
-			tasklet_unlock(&execlists->tasklet);
+		if (tasklet_trylock(t)) {
+			/* Must wait for any GPU reset in progress. */
+			if (__tasklet_is_enabled(t))
+				t->func(t->data);
+			tasklet_unlock(t);
 		}
 		local_bh_enable();
 
-		if (READ_ONCE(execlists->active))
+		if (READ_ONCE(engine->execlists.active))
 			return false;
 	}
 
 	/* ELSP is empty, but there are ready requests? E.g. after reset */
-	if (READ_ONCE(engine->execlists.first))
+	if (!RB_EMPTY_ROOT(&engine->execlists.queue.rb_root))
 		return false;
 
 	/* Ring stopped? */
@@ -1540,7 +1541,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	last = NULL;
 	count = 0;
 	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
-	for (rb = execlists->first; rb; rb = rb_next(rb)) {
+	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
 		struct i915_priolist *p =
 			rb_entry(rb, typeof(*p), node);
 

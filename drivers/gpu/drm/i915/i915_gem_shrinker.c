@@ -23,6 +23,7 @@
  */
 
 #include <linux/oom.h>
+#include <linux/sched/mm.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -530,4 +531,15 @@ void i915_gem_shrinker_unregister(struct drm_i915_private *i915)
 	WARN_ON(unregister_vmap_purge_notifier(&i915->mm.vmap_notifier));
 	WARN_ON(unregister_oom_notifier(&i915->mm.oom_notifier));
 	unregister_shrinker(&i915->mm.shrinker);
+}
+
+void i915_gem_shrinker_taints_mutex(struct mutex *mutex)
+{
+	if (!IS_ENABLED(CONFIG_LOCKDEP))
+		return;
+
+	fs_reclaim_acquire(GFP_KERNEL);
+	mutex_lock(mutex);
+	mutex_unlock(mutex);
+	fs_reclaim_release(GFP_KERNEL);
 }

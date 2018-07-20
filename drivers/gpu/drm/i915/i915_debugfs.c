@@ -2592,6 +2592,41 @@ static const struct file_operations i915_guc_log_relay_fops = {
 	.release = i915_guc_log_relay_release,
 };
 
+static int i915_psr_sink_status_show(struct seq_file *m, void *data)
+{
+	u8 val;
+	static const char * const sink_status[] = {
+		"inactive",
+		"transition to active, capture and display",
+		"active, display from RFB",
+		"active, capture and display on sink device timings",
+		"transition to inactive, capture and display, timing re-sync",
+		"reserved",
+		"reserved",
+		"sink internal error",
+	};
+	struct drm_connector *connector = m->private;
+	struct intel_dp *intel_dp =
+		enc_to_intel_dp(&intel_attached_encoder(connector)->base);
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val) == 1) {
+		const char *str = "unknown";
+
+		val &= DP_PSR_SINK_STATE_MASK;
+		if (val < ARRAY_SIZE(sink_status))
+			str = sink_status[val];
+		seq_printf(m, "Sink PSR status: 0x%x [%s]\n", val, str);
+	} else {
+		DRM_ERROR("dpcd read (at %u) failed\n", DP_PSR_STATUS);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(i915_psr_sink_status);
+
 static void
 psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 {
@@ -2643,26 +2678,6 @@ psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 	seq_printf(m, "Source PSR status: 0x%x [%s]\n", psr_status, "unknown");
 }
 
-static const char *psr_sink_status(u8 val)
-{
-	static const char * const sink_status[] = {
-		"inactive",
-		"transition to active, capture and display",
-		"active, display from RFB",
-		"active, capture and display on sink device timings",
-		"transition to inactive, capture and display, timing re-sync",
-		"reserved",
-		"reserved",
-		"sink internal error"
-	};
-
-	val &= DP_PSR_SINK_STATE_MASK;
-	if (val < ARRAY_SIZE(sink_status))
-		return sink_status[val];
-
-	return "unknown";
-}
-
 static int i915_edp_psr_status(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -2706,15 +2721,6 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	}
 
 	psr_source_status(dev_priv, m);
-
-	if (dev_priv->psr.enabled) {
-		struct drm_dp_aux *aux = &dev_priv->psr.enabled->aux;
-		u8 val;
-
-		if (drm_dp_dpcd_readb(aux, DP_PSR_STATUS, &val) == 1)
-			seq_printf(m, "Sink PSR status: 0x%x [%s]\n", val,
-				   psr_sink_status(val));
-	}
 	mutex_unlock(&dev_priv->psr.lock);
 
 	if (READ_ONCE(dev_priv->psr.debug)) {
@@ -2760,86 +2766,6 @@ i915_edp_psr_debug_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(i915_edp_psr_debug_fops,
 			i915_edp_psr_debug_get, i915_edp_psr_debug_set,
 			"%llu\n");
-
-static int i915_sink_crc(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-	struct intel_dp *intel_dp = NULL;
-	struct drm_modeset_acquire_ctx ctx;
-	int ret;
-	u8 crc[6];
-
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-
-	drm_connector_list_iter_begin(dev, &conn_iter);
-
-	for_each_intel_connector_iter(connector, &conn_iter) {
-		struct drm_crtc *crtc;
-		struct drm_connector_state *state;
-		struct intel_crtc_state *crtc_state;
-
-		if (connector->base.connector_type != DRM_MODE_CONNECTOR_eDP)
-			continue;
-
-retry:
-		ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
-		if (ret)
-			goto err;
-
-		state = connector->base.state;
-		if (!state->best_encoder)
-			continue;
-
-		crtc = state->crtc;
-		ret = drm_modeset_lock(&crtc->mutex, &ctx);
-		if (ret)
-			goto err;
-
-		crtc_state = to_intel_crtc_state(crtc->state);
-		if (!crtc_state->base.active)
-			continue;
-
-		/*
-		 * We need to wait for all crtc updates to complete, to make
-		 * sure any pending modesets and plane updates are completed.
-		 */
-		if (crtc_state->base.commit) {
-			ret = wait_for_completion_interruptible(&crtc_state->base.commit->hw_done);
-
-			if (ret)
-				goto err;
-		}
-
-		intel_dp = enc_to_intel_dp(state->best_encoder);
-
-		ret = intel_dp_sink_crc(intel_dp, crtc_state, crc);
-		if (ret)
-			goto err;
-
-		seq_printf(m, "%02x%02x%02x%02x%02x%02x\n",
-			   crc[0], crc[1], crc[2],
-			   crc[3], crc[4], crc[5]);
-		goto out;
-
-err:
-		if (ret == -EDEADLK) {
-			ret = drm_modeset_backoff(&ctx);
-			if (!ret)
-				goto retry;
-		}
-		goto out;
-	}
-	ret = -ENODEV;
-out:
-	drm_connector_list_iter_end(&conn_iter);
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-
-	return ret;
-}
 
 static int i915_energy_uJ(struct seq_file *m, void *data)
 {
@@ -4786,7 +4712,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},
 	{"i915_llc", i915_llc, 0},
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
-	{"i915_sink_crc_eDP1", i915_sink_crc, 0},
 	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_runtime_pm_status", i915_runtime_pm_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
@@ -4968,9 +4893,12 @@ int i915_debugfs_connector_add(struct drm_connector *connector)
 		debugfs_create_file("i915_dpcd", S_IRUGO, root,
 				    connector, &i915_dpcd_fops);
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		debugfs_create_file("i915_panel_timings", S_IRUGO, root,
 				    connector, &i915_panel_fops);
+		debugfs_create_file("i915_psr_sink_status", S_IRUGO, root,
+				    connector, &i915_psr_sink_status_fops);
+	}
 
 	return 0;
 }

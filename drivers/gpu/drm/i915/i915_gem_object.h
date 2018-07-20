@@ -141,7 +141,6 @@ struct drm_i915_gem_object {
 	 * Is the object to be mapped as read-only to the GPU
 	 * Only honoured if hardware has relevant pte bit
 	 */
-	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
 	unsigned int cache_coherent:2;
 #define I915_BO_CACHE_COHERENT_FOR_READ BIT(0)
@@ -268,7 +267,6 @@ struct drm_i915_gem_object {
 	union {
 		struct i915_gem_userptr {
 			uintptr_t ptr;
-			unsigned read_only :1;
 
 			struct i915_mm_struct *mm;
 			struct i915_mmu_object *mmu_object;
@@ -356,6 +354,18 @@ static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 {
 	reservation_object_unlock(obj->resv);
+}
+
+static inline void
+i915_gem_object_set_readonly(struct drm_i915_gem_object *obj)
+{
+	obj->base.vma_node.readonly = true;
+}
+
+static inline bool
+i915_gem_object_is_readonly(const struct drm_i915_gem_object *obj)
+{
+	return obj->base.vma_node.readonly;
 }
 
 static inline bool

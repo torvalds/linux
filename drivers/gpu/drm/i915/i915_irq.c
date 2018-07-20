@@ -263,9 +263,9 @@ static u32
 gen11_gt_engine_identity(struct drm_i915_private * const i915,
 			 const unsigned int bank, const unsigned int bit);
 
-bool gen11_reset_one_iir(struct drm_i915_private * const i915,
-			 const unsigned int bank,
-			 const unsigned int bit)
+static bool gen11_reset_one_iir(struct drm_i915_private * const i915,
+				const unsigned int bank,
+				const unsigned int bit)
 {
 	void __iomem * const regs = i915->regs;
 	u32 dw;
@@ -1576,122 +1576,122 @@ static void gen8_gt_irq_handler(struct drm_i915_private *i915,
 	}
 }
 
-static bool gen11_port_hotplug_long_detect(enum port port, u32 val)
+static bool gen11_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_C:
+	switch (pin) {
+	case HPD_PORT_C:
 		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC1);
-	case PORT_D:
+	case HPD_PORT_D:
 		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC2);
-	case PORT_E:
+	case HPD_PORT_E:
 		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC3);
-	case PORT_F:
+	case HPD_PORT_F:
 		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC4);
 	default:
 		return false;
 	}
 }
 
-static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
+static bool bxt_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_A:
+	switch (pin) {
+	case HPD_PORT_A:
 		return val & PORTA_HOTPLUG_LONG_DETECT;
-	case PORT_B:
+	case HPD_PORT_B:
 		return val & PORTB_HOTPLUG_LONG_DETECT;
-	case PORT_C:
+	case HPD_PORT_C:
 		return val & PORTC_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
 }
 
-static bool icp_ddi_port_hotplug_long_detect(enum port port, u32 val)
+static bool icp_ddi_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_A:
+	switch (pin) {
+	case HPD_PORT_A:
 		return val & ICP_DDIA_HPD_LONG_DETECT;
-	case PORT_B:
+	case HPD_PORT_B:
 		return val & ICP_DDIB_HPD_LONG_DETECT;
 	default:
 		return false;
 	}
 }
 
-static bool icp_tc_port_hotplug_long_detect(enum port port, u32 val)
+static bool icp_tc_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_C:
+	switch (pin) {
+	case HPD_PORT_C:
 		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC1);
-	case PORT_D:
+	case HPD_PORT_D:
 		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC2);
-	case PORT_E:
+	case HPD_PORT_E:
 		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC3);
-	case PORT_F:
+	case HPD_PORT_F:
 		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC4);
 	default:
 		return false;
 	}
 }
 
-static bool spt_port_hotplug2_long_detect(enum port port, u32 val)
+static bool spt_port_hotplug2_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_E:
+	switch (pin) {
+	case HPD_PORT_E:
 		return val & PORTE_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
 }
 
-static bool spt_port_hotplug_long_detect(enum port port, u32 val)
+static bool spt_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_A:
+	switch (pin) {
+	case HPD_PORT_A:
 		return val & PORTA_HOTPLUG_LONG_DETECT;
-	case PORT_B:
+	case HPD_PORT_B:
 		return val & PORTB_HOTPLUG_LONG_DETECT;
-	case PORT_C:
+	case HPD_PORT_C:
 		return val & PORTC_HOTPLUG_LONG_DETECT;
-	case PORT_D:
+	case HPD_PORT_D:
 		return val & PORTD_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
 }
 
-static bool ilk_port_hotplug_long_detect(enum port port, u32 val)
+static bool ilk_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_A:
+	switch (pin) {
+	case HPD_PORT_A:
 		return val & DIGITAL_PORTA_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
 }
 
-static bool pch_port_hotplug_long_detect(enum port port, u32 val)
+static bool pch_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_B:
+	switch (pin) {
+	case HPD_PORT_B:
 		return val & PORTB_HOTPLUG_LONG_DETECT;
-	case PORT_C:
+	case HPD_PORT_C:
 		return val & PORTC_HOTPLUG_LONG_DETECT;
-	case PORT_D:
+	case HPD_PORT_D:
 		return val & PORTD_HOTPLUG_LONG_DETECT;
 	default:
 		return false;
 	}
 }
 
-static bool i9xx_port_hotplug_long_detect(enum port port, u32 val)
+static bool i9xx_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
-	switch (port) {
-	case PORT_B:
+	switch (pin) {
+	case HPD_PORT_B:
 		return val & PORTB_HOTPLUG_INT_LONG_PULSE;
-	case PORT_C:
+	case HPD_PORT_C:
 		return val & PORTC_HOTPLUG_INT_LONG_PULSE;
-	case PORT_D:
+	case HPD_PORT_D:
 		return val & PORTD_HOTPLUG_INT_LONG_PULSE;
 	default:
 		return false;
@@ -1709,27 +1709,22 @@ static void intel_get_hpd_pins(struct drm_i915_private *dev_priv,
 			       u32 *pin_mask, u32 *long_mask,
 			       u32 hotplug_trigger, u32 dig_hotplug_reg,
 			       const u32 hpd[HPD_NUM_PINS],
-			       bool long_pulse_detect(enum port port, u32 val))
+			       bool long_pulse_detect(enum hpd_pin pin, u32 val))
 {
-	enum port port;
-	int i;
+	enum hpd_pin pin;
 
-	for_each_hpd_pin(i) {
-		if ((hpd[i] & hotplug_trigger) == 0)
+	for_each_hpd_pin(pin) {
+		if ((hpd[pin] & hotplug_trigger) == 0)
 			continue;
 
-		*pin_mask |= BIT(i);
+		*pin_mask |= BIT(pin);
 
-		port = intel_hpd_pin_to_port(dev_priv, i);
-		if (port == PORT_NONE)
-			continue;
-
-		if (long_pulse_detect(port, dig_hotplug_reg))
-			*long_mask |= BIT(i);
+		if (long_pulse_detect(pin, dig_hotplug_reg))
+			*long_mask |= BIT(pin);
 	}
 
-	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x, pins 0x%08x\n",
-			 hotplug_trigger, dig_hotplug_reg, *pin_mask);
+	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x, pins 0x%08x, long 0x%08x\n",
+			 hotplug_trigger, dig_hotplug_reg, *pin_mask, *long_mask);
 
 }
 

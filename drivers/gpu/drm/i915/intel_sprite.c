@@ -104,7 +104,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	 * VBL interrupts will start the PSR exit and prevent a PSR
 	 * re-entry as well.
 	 */
-	if (CAN_PSR(dev_priv) && intel_psr_wait_for_idle(dev_priv))
+	if (intel_psr_wait_for_idle(new_crtc_state))
 		DRM_ERROR("PSR idle timed out, atomic update may fail\n");
 
 	local_irq_disable();

@@ -86,8 +86,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20180709"
-#define DRIVER_TIMESTAMP	1531175967
+#define DRIVER_DATE		"20180719"
+#define DRIVER_TIMESTAMP	1532015279
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -299,7 +299,6 @@ struct i915_hotplug {
 	u32 event_bits;
 	struct delayed_work reenable_work;
 
-	struct intel_digital_port *irq_port[I915_MAX_PORTS];
 	u32 long_port_mask;
 	u32 short_port_mask;
 	struct work_struct dig_port_work;
@@ -650,6 +649,7 @@ enum intel_sbi_destination {
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
 #define QUIRK_PIN_SWIZZLED_PAGES (1<<5)
 #define QUIRK_INCREASE_T12_DELAY (1<<6)
+#define QUIRK_INCREASE_DDI_DISABLED_TIME (1<<7)
 
 struct intel_fbdev;
 struct intel_fbc_work;
@@ -1001,12 +1001,6 @@ struct i915_gem_mm {
 #define I915_SEQNO_DEAD_TIMEOUT   (12 * HZ) /* Seqno dead with active head */
 
 #define I915_ENGINE_WEDGED_TIMEOUT  (60 * HZ)  /* Reset but no recovery? */
-
-enum modeset_restore {
-	MODESET_ON_LID_OPEN,
-	MODESET_DONE,
-	MODESET_SUSPENDED,
-};
 
 #define DP_AUX_A 0x40
 #define DP_AUX_B 0x10
@@ -1730,8 +1724,6 @@ struct drm_i915_private {
 
 	unsigned long quirks;
 
-	enum modeset_restore modeset_restore;
-	struct mutex modeset_restore_lock;
 	struct drm_atomic_state *modeset_restore_state;
 	struct drm_modeset_acquire_ctx reset_ctx;
 
@@ -2557,6 +2549,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 	 IS_SKL_GT3(dev_priv) || IS_SKL_GT4(dev_priv))
 
 #define HAS_GMBUS_IRQ(dev_priv) (INTEL_GEN(dev_priv) >= 4)
+#define HAS_GMBUS_BURST_READ(dev_priv) (INTEL_GEN(dev_priv) >= 10 || \
+					IS_GEMINILAKE(dev_priv) || \
+					IS_KABYLAKE(dev_priv))
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
@@ -2739,8 +2734,6 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 void intel_hpd_init(struct drm_i915_private *dev_priv);
 void intel_hpd_init_work(struct drm_i915_private *dev_priv);
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
-enum port intel_hpd_pin_to_port(struct drm_i915_private *dev_priv,
-				enum hpd_pin pin);
 enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
 				   enum port port);
 bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
@@ -3304,7 +3297,7 @@ unsigned long i915_gem_shrink(struct drm_i915_private *i915,
 unsigned long i915_gem_shrink_all(struct drm_i915_private *i915);
 void i915_gem_shrinker_register(struct drm_i915_private *i915);
 void i915_gem_shrinker_unregister(struct drm_i915_private *i915);
-
+void i915_gem_shrinker_taints_mutex(struct mutex *mutex);
 
 /* i915_gem_tiling.c */
 static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)

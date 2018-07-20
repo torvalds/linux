@@ -802,7 +802,7 @@ void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 	 * that was!).
 	 */
 
-	wmb();
+	i915_gem_chipset_flush(dev_priv);
 
 	intel_runtime_pm_get(dev_priv);
 	spin_lock_irq(&dev_priv->uncore.lock);
@@ -1627,6 +1627,12 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		goto err;
 	}
 
+	/* Writes not allowed into this read-only object */
+	if (i915_gem_object_is_readonly(obj)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
 	trace_i915_gem_object_pwrite(obj, args->offset, args->size);
 
 	ret = -ENODEV;
@@ -2011,6 +2017,10 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	struct i915_vma *vma;
 	pgoff_t page_offset;
 	int ret;
+
+	/* Sanity check that we allow writing into this object */
+	if (i915_gem_object_is_readonly(obj) && write)
+		return VM_FAULT_SIGBUS;
 
 	/* We don't use vmf->pgoff since that has the fake offset */
 	page_offset = (vmf->address - area->vm_start) >> PAGE_SHIFT;
@@ -5029,32 +5039,32 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	mutex_unlock(&i915->drm.struct_mutex);
 }
 
-int i915_gem_suspend(struct drm_i915_private *dev_priv)
+int i915_gem_suspend(struct drm_i915_private *i915)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
 	GEM_TRACE("\n");
 
-	intel_runtime_pm_get(dev_priv);
-	intel_suspend_gt_powersave(dev_priv);
+	intel_runtime_pm_get(i915);
+	intel_suspend_gt_powersave(i915);
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&i915->drm.struct_mutex);
 
-	/* We have to flush all the executing contexts to main memory so
+	/*
+	 * We have to flush all the executing contexts to main memory so
 	 * that they can saved in the hibernation image. To ensure the last
 	 * context image is coherent, we have to switch away from it. That
-	 * leaves the dev_priv->kernel_context still active when
+	 * leaves the i915->kernel_context still active when
 	 * we actually suspend, and its image in memory may not match the GPU
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
-		ret = i915_gem_switch_to_kernel_context(dev_priv);
+	if (!i915_terminally_wedged(&i915->gpu_error)) {
+		ret = i915_gem_switch_to_kernel_context(i915);
 		if (ret)
 			goto err_unlock;
 
-		ret = i915_gem_wait_for_idle(dev_priv,
+		ret = i915_gem_wait_for_idle(i915,
 					     I915_WAIT_INTERRUPTIBLE |
 					     I915_WAIT_LOCKED |
 					     I915_WAIT_FOR_IDLE_BOOST,
@@ -5062,33 +5072,37 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 		if (ret && ret != -EIO)
 			goto err_unlock;
 
-		assert_kernel_context_is_current(dev_priv);
+		assert_kernel_context_is_current(i915);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	i915_retire_requests(i915); /* ensure we flush after wedging */
 
-	intel_uc_suspend(dev_priv);
+	mutex_unlock(&i915->drm.struct_mutex);
 
-	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
-	cancel_delayed_work_sync(&dev_priv->gt.retire_work);
+	intel_uc_suspend(i915);
 
-	/* As the idle_work is rearming if it detects a race, play safe and
+	cancel_delayed_work_sync(&i915->gpu_error.hangcheck_work);
+	cancel_delayed_work_sync(&i915->gt.retire_work);
+
+	/*
+	 * As the idle_work is rearming if it detects a race, play safe and
 	 * repeat the flush until it is definitely idle.
 	 */
-	drain_delayed_work(&dev_priv->gt.idle_work);
+	drain_delayed_work(&i915->gt.idle_work);
 
-	/* Assert that we sucessfully flushed all the work and
+	/*
+	 * Assert that we successfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.
 	 */
-	WARN_ON(dev_priv->gt.awake);
-	if (WARN_ON(!intel_engines_are_idle(dev_priv)))
-		i915_gem_set_wedged(dev_priv); /* no hope, discard everything */
+	WARN_ON(i915->gt.awake);
+	if (WARN_ON(!intel_engines_are_idle(i915)))
+		i915_gem_set_wedged(i915); /* no hope, discard everything */
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(i915);
 	return 0;
 
 err_unlock:
-	mutex_unlock(&dev->struct_mutex);
-	intel_runtime_pm_put(dev_priv);
+	mutex_unlock(&i915->drm.struct_mutex);
+	intel_runtime_pm_put(i915);
 	return ret;
 }
 
@@ -5311,13 +5325,17 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	ret = __i915_gem_restart_engines(dev_priv);
 	if (ret)
 		goto cleanup_uc;
-out:
+
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	return ret;
+
+	return 0;
 
 cleanup_uc:
 	intel_uc_fini_hw(dev_priv);
-	goto out;
+out:
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+
+	return ret;
 }
 
 static int __intel_engines_record_defaults(struct drm_i915_private *i915)
@@ -5547,6 +5565,8 @@ err_init_hw:
 
 	WARN_ON(i915_gem_suspend(dev_priv));
 	i915_gem_suspend_late(dev_priv);
+
+	i915_gem_drain_workqueue(dev_priv);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);

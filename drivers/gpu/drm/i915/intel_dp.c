@@ -600,14 +600,8 @@ static enum pipe vlv_find_free_pps(struct drm_i915_private *dev_priv)
 	 * We don't have power sequencer currently.
 	 * Pick one that's not used by other ports.
 	 */
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp;
-
-		if (encoder->type != INTEL_OUTPUT_DP &&
-		    encoder->type != INTEL_OUTPUT_EDP)
-			continue;
-
-		intel_dp = enc_to_intel_dp(&encoder->base);
+	for_each_intel_dp(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
 		if (encoder->type == INTEL_OUTPUT_EDP) {
 			WARN_ON(intel_dp->active_pipe != INVALID_PIPE &&
@@ -799,19 +793,8 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 	 * should use them always.
 	 */
 
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp;
-
-		if (encoder->type != INTEL_OUTPUT_DP &&
-		    encoder->type != INTEL_OUTPUT_EDP &&
-		    encoder->type != INTEL_OUTPUT_DDI)
-			continue;
-
-		intel_dp = enc_to_intel_dp(&encoder->base);
-
-		/* Skip pure DVI/HDMI DDI encoders */
-		if (!i915_mmio_reg_valid(intel_dp->output_reg))
-			continue;
+	for_each_intel_dp(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
 		WARN_ON(intel_dp->active_pipe != INVALID_PIPE);
 
@@ -2830,10 +2813,6 @@ static void vlv_disable_dp(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *old_crtc_state,
 			   const struct drm_connector_state *old_conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-
-	intel_psr_disable(intel_dp, old_crtc_state);
-
 	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
 }
 
@@ -3046,10 +3025,7 @@ static void vlv_enable_dp(struct intel_encoder *encoder,
 			  const struct intel_crtc_state *pipe_config,
 			  const struct drm_connector_state *conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-
 	intel_edp_backlight_on(pipe_config, conn_state);
-	intel_psr_enable(intel_dp, pipe_config);
 }
 
 static void g4x_pre_enable_dp(struct intel_encoder *encoder,
@@ -3104,16 +3080,9 @@ static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp;
-		enum port port;
-
-		if (encoder->type != INTEL_OUTPUT_DP &&
-		    encoder->type != INTEL_OUTPUT_EDP)
-			continue;
-
-		intel_dp = enc_to_intel_dp(&encoder->base);
-		port = dp_to_dig_port(intel_dp)->base.port;
+	for_each_intel_dp(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+		enum port port = encoder->port;
 
 		WARN(intel_dp->active_pipe == pipe,
 		     "stealing pipe %c power sequencer from active (e)DP port %c\n",
@@ -3905,129 +3874,6 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 					intel_dp->is_mst);
 }
 
-static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp,
-				  struct intel_crtc_state *crtc_state, bool disable_wa)
-{
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
-	u8 buf;
-	int ret = 0;
-	int count = 0;
-	int attempts = 10;
-
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
-		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
-		ret = -EIO;
-		goto out;
-	}
-
-	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-			       buf & ~DP_TEST_SINK_START) < 0) {
-		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
-		ret = -EIO;
-		goto out;
-	}
-
-	do {
-		intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
-
-		if (drm_dp_dpcd_readb(&intel_dp->aux,
-				      DP_TEST_SINK_MISC, &buf) < 0) {
-			ret = -EIO;
-			goto out;
-		}
-		count = buf & DP_TEST_COUNT_MASK;
-	} while (--attempts && count);
-
-	if (attempts == 0) {
-		DRM_DEBUG_KMS("TIMEOUT: Sink CRC counter is not zeroed after calculation is stopped\n");
-		ret = -ETIMEDOUT;
-	}
-
- out:
-	if (disable_wa)
-		hsw_enable_ips(crtc_state);
-	return ret;
-}
-
-static int intel_dp_sink_crc_start(struct intel_dp *intel_dp,
-				   struct intel_crtc_state *crtc_state)
-{
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
-	u8 buf;
-	int ret;
-
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
-		return -EIO;
-
-	if (!(buf & DP_TEST_CRC_SUPPORTED))
-		return -ENOTTY;
-
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0)
-		return -EIO;
-
-	if (buf & DP_TEST_SINK_START) {
-		ret = intel_dp_sink_crc_stop(intel_dp, crtc_state, false);
-		if (ret)
-			return ret;
-	}
-
-	hsw_disable_ips(crtc_state);
-
-	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-			       buf | DP_TEST_SINK_START) < 0) {
-		hsw_enable_ips(crtc_state);
-		return -EIO;
-	}
-
-	intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
-	return 0;
-}
-
-int intel_dp_sink_crc(struct intel_dp *intel_dp, struct intel_crtc_state *crtc_state, u8 *crc)
-{
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
-	u8 buf;
-	int count, ret;
-	int attempts = 6;
-
-	ret = intel_dp_sink_crc_start(intel_dp, crtc_state);
-	if (ret)
-		return ret;
-
-	do {
-		intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
-
-		if (drm_dp_dpcd_readb(&intel_dp->aux,
-				      DP_TEST_SINK_MISC, &buf) < 0) {
-			ret = -EIO;
-			goto stop;
-		}
-		count = buf & DP_TEST_COUNT_MASK;
-
-	} while (--attempts && count == 0);
-
-	if (attempts == 0) {
-		DRM_ERROR("Panel is unable to calculate any CRC after 6 vblanks\n");
-		ret = -ETIMEDOUT;
-		goto stop;
-	}
-
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0) {
-		ret = -EIO;
-		goto stop;
-	}
-
-stop:
-	intel_dp_sink_crc_stop(intel_dp, crtc_state, true);
-	return ret;
-}
-
 static bool
 intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
@@ -4563,14 +4409,7 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 static enum drm_connector_status
 edp_detect(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
-	enum drm_connector_status status;
-
-	status = intel_panel_detect(dev_priv);
-	if (status == connector_status_unknown)
-		status = connector_status_connected;
-
-	return status;
+	return connector_status_connected;
 }
 
 static bool ibx_digital_port_connected(struct intel_encoder *encoder)
@@ -4833,7 +4672,7 @@ intel_dp_long_pulse(struct intel_connector *connector)
 
 	intel_display_power_get(dev_priv, intel_dp->aux_power_domain);
 
-	/* Can't disconnect eDP, but you can close the lid... */
+	/* Can't disconnect eDP */
 	if (intel_dp_is_edp(intel_dp))
 		status = edp_detect(intel_dp);
 	else if (intel_digital_port_connected(&dp_to_dig_port(intel_dp)->base))
@@ -6508,7 +6347,6 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder->port = port;
 
 	intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
-	dev_priv->hotplug.irq_port[port] = intel_dig_port;
 
 	if (port != PORT_A)
 		intel_infoframe_init(intel_dig_port);
@@ -6527,37 +6365,44 @@ err_connector_alloc:
 	return false;
 }
 
-void intel_dp_mst_suspend(struct drm_device *dev)
+void intel_dp_mst_suspend(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int i;
+	struct intel_encoder *encoder;
 
-	/* disable MST */
-	for (i = 0; i < I915_MAX_PORTS; i++) {
-		struct intel_digital_port *intel_dig_port = dev_priv->hotplug.irq_port[i];
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp;
 
-		if (!intel_dig_port || !intel_dig_port->dp.can_mst)
+		if (encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
-		if (intel_dig_port->dp.is_mst)
-			drm_dp_mst_topology_mgr_suspend(&intel_dig_port->dp.mst_mgr);
+		intel_dp = enc_to_intel_dp(&encoder->base);
+
+		if (!intel_dp->can_mst)
+			continue;
+
+		if (intel_dp->is_mst)
+			drm_dp_mst_topology_mgr_suspend(&intel_dp->mst_mgr);
 	}
 }
 
-void intel_dp_mst_resume(struct drm_device *dev)
+void intel_dp_mst_resume(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int i;
+	struct intel_encoder *encoder;
 
-	for (i = 0; i < I915_MAX_PORTS; i++) {
-		struct intel_digital_port *intel_dig_port = dev_priv->hotplug.irq_port[i];
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp;
 		int ret;
 
-		if (!intel_dig_port || !intel_dig_port->dp.can_mst)
+		if (encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
-		ret = drm_dp_mst_topology_mgr_resume(&intel_dig_port->dp.mst_mgr);
+		intel_dp = enc_to_intel_dp(&encoder->base);
+
+		if (!intel_dp->can_mst)
+			continue;
+
+		ret = drm_dp_mst_topology_mgr_resume(&intel_dp->mst_mgr);
 		if (ret)
-			intel_dp_check_mst_status(&intel_dig_port->dp);
+			intel_dp_check_mst_status(intel_dp);
 	}
 }

@@ -717,10 +717,15 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	cancel_work_sync(&dev_priv->psr.work);
 }
 
-int intel_psr_wait_for_idle(struct drm_i915_private *dev_priv)
+int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	i915_reg_t reg;
 	u32 mask;
+
+	if (!new_crtc_state->has_psr)
+		return 0;
 
 	/*
 	 * The sole user right now is intel_pipe_update_start(),
@@ -965,16 +970,6 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	else
 		/* For new platforms let's respect VBT back again */
 		dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
-
-	/* Override link_standby x link_off defaults */
-	if (i915_modparams.enable_psr == 2 && !dev_priv->psr.link_standby) {
-		DRM_DEBUG_KMS("PSR: Forcing link standby\n");
-		dev_priv->psr.link_standby = true;
-	}
-	if (i915_modparams.enable_psr == 3 && dev_priv->psr.link_standby) {
-		DRM_DEBUG_KMS("PSR: Forcing main link off\n");
-		dev_priv->psr.link_standby = false;
-	}
 
 	INIT_WORK(&dev_priv->psr.work, intel_psr_work);
 	mutex_init(&dev_priv->psr.lock);
