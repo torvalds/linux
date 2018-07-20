@@ -78,8 +78,12 @@ void rcu_qs(void)
  */
 void rcu_check_callbacks(int user)
 {
-	if (user)
+	if (user) {
 		rcu_qs();
+	} else if (rcu_ctrlblk.donetail != rcu_ctrlblk.curtail) {
+		set_tsk_need_resched(current);
+		set_preempt_need_resched();
+	}
 }
 
 /* Invoke the RCU callbacks whose grace period has elapsed.  */
