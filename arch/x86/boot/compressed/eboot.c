@@ -318,96 +318,6 @@ static void setup_quirks(struct boot_params *boot_params)
 	}
 }
 
-static efi_status_t
-setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
-{
-	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
-	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
-	unsigned long nr_ugas;
-	u32 *handles = (u32 *)uga_handle;
-	efi_status_t status = EFI_INVALID_PARAMETER;
-	int i;
-
-	first_uga = NULL;
-	nr_ugas = size / sizeof(u32);
-	for (i = 0; i < nr_ugas; i++) {
-		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
-		u32 w, h, depth, refresh;
-		void *pciio;
-		u32 handle = handles[i];
-
-		status = efi_call_early(handle_protocol, handle,
-					&uga_proto, (void **)&uga);
-		if (status != EFI_SUCCESS)
-			continue;
-
-		efi_call_early(handle_protocol, handle, &pciio_proto, &pciio);
-
-		status = efi_early->call((unsigned long)uga->get_mode, uga,
-					 &w, &h, &depth, &refresh);
-		if (status == EFI_SUCCESS && (!first_uga || pciio)) {
-			*width = w;
-			*height = h;
-
-			/*
-			 * Once we've found a UGA supporting PCIIO,
-			 * don't bother looking any further.
-			 */
-			if (pciio)
-				break;
-
-			first_uga = uga;
-		}
-	}
-
-	return status;
-}
-
-static efi_status_t
-setup_uga64(void **uga_handle, unsigned long size, u32 *width, u32 *height)
-{
-	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
-	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
-	unsigned long nr_ugas;
-	u64 *handles = (u64 *)uga_handle;
-	efi_status_t status = EFI_INVALID_PARAMETER;
-	int i;
-
-	first_uga = NULL;
-	nr_ugas = size / sizeof(u64);
-	for (i = 0; i < nr_ugas; i++) {
-		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
-		u32 w, h, depth, refresh;
-		void *pciio;
-		u64 handle = handles[i];
-
-		status = efi_call_early(handle_protocol, handle,
-					&uga_proto, (void **)&uga);
-		if (status != EFI_SUCCESS)
-			continue;
-
-		efi_call_early(handle_protocol, handle, &pciio_proto, &pciio);
-
-		status = efi_early->call((unsigned long)uga->get_mode, uga,
-					 &w, &h, &depth, &refresh);
-		if (status == EFI_SUCCESS && (!first_uga || pciio)) {
-			*width = w;
-			*height = h;
-
-			/*
-			 * Once we've found a UGA supporting PCIIO,
-			 * don't bother looking any further.
-			 */
-			if (pciio)
-				break;
-
-			first_uga = uga;
-		}
-	}
-
-	return status;
-}
-
 /*
  * See if we have Universal Graphics Adapter (UGA) protocol
  */
@@ -417,6 +327,9 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 	efi_status_t status;
 	u32 width, height;
 	void **uga_handle = NULL;
+	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
+	unsigned long nr_ugas;
+	int i;
 
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				size, (void **)&uga_handle);
@@ -432,10 +345,38 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 	height = 0;
 	width = 0;
 
-	if (efi_early->is64)
-		status = setup_uga64(uga_handle, size, &width, &height);
-	else
-		status = setup_uga32(uga_handle, size, &width, &height);
+	first_uga = NULL;
+	nr_ugas = size / (efi_is_64bit() ? sizeof(u64) : sizeof(u32));
+	for (i = 0; i < nr_ugas; i++) {
+		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
+		u32 w, h, depth, refresh;
+		void *pciio;
+		unsigned long handle = efi_is_64bit() ? ((u64 *)uga_handle)[i]
+						      : ((u32 *)uga_handle)[i];
+
+		status = efi_call_early(handle_protocol, handle,
+					uga_proto, (void **)&uga);
+		if (status != EFI_SUCCESS)
+			continue;
+
+		efi_call_early(handle_protocol, handle, &pciio_proto, &pciio);
+
+		status = efi_call_proto(efi_uga_draw_protocol, get_mode, uga,
+					&w, &h, &depth, &refresh);
+		if (status == EFI_SUCCESS && (!first_uga || pciio)) {
+			width = w;
+			height = h;
+
+			/*
+			 * Once we've found a UGA supporting PCIIO,
+			 * don't bother looking any further.
+			 */
+			if (pciio)
+				break;
+
+			first_uga = uga;
+		}
+	}
 
 	if (!width && !height)
 		goto free_handle;
