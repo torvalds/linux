@@ -194,6 +194,8 @@ struct kvm_cpu_context {
 		u64 sys_regs[NR_SYS_REGS];
 		u32 copro[NR_COPRO_REGS];
 	};
+
+	struct kvm_vcpu *__hyp_running_vcpu;
 };
 
 typedef struct kvm_cpu_context kvm_cpu_context_t;

@@ -289,9 +289,9 @@ int __hyp_text __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	u64 exit_code;
 
 	vcpu = kern_hyp_va(vcpu);
-	write_sysreg(vcpu, tpidr_el2);
 
 	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
+	host_ctxt->__hyp_running_vcpu = vcpu;
 	guest_ctxt = &vcpu->arch.ctxt;
 
 	__sysreg_save_host_state(host_ctxt);
@@ -406,7 +406,8 @@ again:
 
 static const char __hyp_panic_string[] = "HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%p\n";
 
-static void __hyp_text __hyp_call_panic_nvhe(u64 spsr, u64 elr, u64 par)
+static void __hyp_text __hyp_call_panic_nvhe(u64 spsr, u64 elr, u64 par,
+					     struct kvm_vcpu *vcpu)
 {
 	unsigned long str_va;
 
@@ -420,35 +421,35 @@ static void __hyp_text __hyp_call_panic_nvhe(u64 spsr, u64 elr, u64 par)
 	__hyp_do_panic(str_va,
 		       spsr,  elr,
 		       read_sysreg(esr_el2),   read_sysreg_el2(far),
-		       read_sysreg(hpfar_el2), par,
-		       (void *)read_sysreg(tpidr_el2));
+		       read_sysreg(hpfar_el2), par, vcpu);
 }
 
-static void __hyp_text __hyp_call_panic_vhe(u64 spsr, u64 elr, u64 par)
+static void __hyp_text __hyp_call_panic_vhe(u64 spsr, u64 elr, u64 par,
+					    struct kvm_vcpu *vcpu)
 {
 	panic(__hyp_panic_string,
 	      spsr,  elr,
 	      read_sysreg_el2(esr),   read_sysreg_el2(far),
-	      read_sysreg(hpfar_el2), par,
-	      (void *)read_sysreg(tpidr_el2));
+	      read_sysreg(hpfar_el2), par, vcpu);
 }
 
 static hyp_alternate_select(__hyp_call_panic,
 			    __hyp_call_panic_nvhe, __hyp_call_panic_vhe,
 			    ARM64_HAS_VIRT_HOST_EXTN);
 
-void __hyp_text __noreturn __hyp_panic(void)
+void __hyp_text __noreturn hyp_panic(struct kvm_cpu_context *__host_ctxt)
 {
+	struct kvm_vcpu *vcpu = NULL;
+
 	u64 spsr = read_sysreg_el2(spsr);
 	u64 elr = read_sysreg_el2(elr);
 	u64 par = read_sysreg(par_el1);
 
 	if (read_sysreg(vttbr_el2)) {
-		struct kvm_vcpu *vcpu;
 		struct kvm_cpu_context *host_ctxt;
 
-		vcpu = (struct kvm_vcpu *)read_sysreg(tpidr_el2);
-		host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
+		host_ctxt = kern_hyp_va(__host_ctxt);
+		vcpu = host_ctxt->__hyp_running_vcpu;
 		__timer_save_state(vcpu);
 		__deactivate_traps(vcpu);
 		__deactivate_vm(vcpu);
@@ -456,7 +457,7 @@ void __hyp_text __noreturn __hyp_panic(void)
 	}
 
 	/* Call panic for real */
-	__hyp_call_panic()(spsr, elr, par);
+	__hyp_call_panic()(spsr, elr, par, vcpu);
 
 	unreachable();
 }
