@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/kthread.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
@@ -127,28 +126,23 @@ static int init_irq(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
 
-	if ((gpio_request(wl->gpio_irq, "WILC_INTR") == 0) &&
-	    (gpio_direction_input(wl->gpio_irq) == 0)) {
-		wl->dev_irq_num = gpio_to_irq(wl->gpio_irq);
-	} else {
-		ret = -1;
+	ret = gpiod_direction_input(wl->gpio_irq);
+	if (ret) {
 		netdev_err(dev, "could not obtain gpio for WILC_INTR\n");
+		return ret;
 	}
 
-	if (ret != -1 && request_threaded_irq(wl->dev_irq_num,
-					      isr_uh_routine,
-					      isr_bh_routine,
-					      IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					      "WILC_IRQ", dev) < 0) {
-		netdev_err(dev, "Failed to request IRQ GPIO: %d\n",
-			   wl->gpio_irq);
-		gpio_free(wl->gpio_irq);
-		ret = -1;
-	} else {
-		netdev_dbg(dev,
-			   "IRQ request succeeded IRQ-NUM= %d on GPIO: %d\n",
-			   wl->dev_irq_num, wl->gpio_irq);
-	}
+	wl->dev_irq_num = gpiod_to_irq(wl->gpio_irq);
+
+	ret = request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
+				   isr_bh_routine,
+				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				   "WILC_IRQ", dev);
+	if (ret < 0)
+		netdev_err(dev, "Failed to request IRQ\n");
+	else
+		netdev_dbg(dev, "IRQ request succeeded IRQ-NUM= %d\n",
+			   wl->dev_irq_num);
 
 	return ret;
 }
@@ -159,10 +153,8 @@ static void deinit_irq(struct net_device *dev)
 	struct wilc *wilc = vif->wilc;
 
 	/* Deinitialize IRQ */
-	if (wilc->dev_irq_num) {
+	if (wilc->dev_irq_num)
 		free_irq(wilc->dev_irq_num, wilc);
-		gpio_free(wilc->gpio_irq);
-	}
 }
 
 void wilc_mac_indicate(struct wilc *wilc)
@@ -652,7 +644,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			goto fail_locks;
 		}
 
-		if (wl->gpio_irq >= 0 && init_irq(dev)) {
+		if (wl->gpio_irq && init_irq(dev)) {
 			ret = -EIO;
 			goto fail_locks;
 		}

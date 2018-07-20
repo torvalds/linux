@@ -6,7 +6,7 @@
  */
 
 #include <linux/mmc/sdio_func.h>
-#include <linux/of_gpio.h>
+#include <linux/mmc/host.h>
 
 #include "wilc_wfi_netdevice.h"
 
@@ -108,13 +108,17 @@ static int linux_sdio_probe(struct sdio_func *func,
 			    const struct sdio_device_id *id)
 {
 	struct wilc *wilc;
-	int gpio, ret;
+	int ret;
+	struct gpio_desc *gpio = NULL;
 
-	gpio = -1;
 	if (IS_ENABLED(CONFIG_WILC1000_HW_OOB_INTR)) {
-		gpio = of_get_gpio(func->dev.of_node, 0);
-		if (gpio < 0)
-			gpio = GPIO_NUM;
+		gpio = gpiod_get(&func->dev, "irq", GPIOD_IN);
+		if (IS_ERR(gpio)) {
+			/* get the GPIO descriptor from hardcode GPIO number */
+			gpio = gpio_to_desc(GPIO_NUM);
+			if (!gpio)
+				dev_err(&func->dev, "failed to get irq gpio\n");
+		}
 	}
 
 	dev_dbg(&func->dev, "Initializing netdev\n");
@@ -133,7 +137,12 @@ static int linux_sdio_probe(struct sdio_func *func,
 
 static void linux_sdio_remove(struct sdio_func *func)
 {
-	wilc_netdev_cleanup(sdio_get_drvdata(func));
+	struct wilc *wilc = sdio_get_drvdata(func);
+
+	/* free the GPIO in module remove */
+	if (wilc->gpio_irq)
+		gpiod_put(wilc->gpio_irq);
+	wilc_netdev_cleanup(wilc);
 }
 
 static int sdio_reset(struct wilc *wilc)

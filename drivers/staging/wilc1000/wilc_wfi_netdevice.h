@@ -7,6 +7,7 @@
 #include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
+#include <linux/gpio/consumer.h>
 
 #include "host_interface.h"
 #include "wilc_wlan.h"
@@ -121,7 +122,7 @@ struct wilc {
 	const struct wilc_hif_func *hif_func;
 	int io_type;
 	int mac_status;
-	int gpio_irq;
+	struct gpio_desc *gpio_irq;
 	bool initialized;
 	int dev_irq_num;
 	int close;
