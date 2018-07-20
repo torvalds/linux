@@ -2606,13 +2606,22 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 		"sink internal error",
 	};
 	struct drm_connector *connector = m->private;
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_dp *intel_dp =
 		enc_to_intel_dp(&intel_attached_encoder(connector)->base);
+	int ret;
+
+	if (!CAN_PSR(dev_priv)) {
+		seq_puts(m, "PSR Unsupported\n");
+		return -ENODEV;
+	}
 
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val) == 1) {
+	ret = drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val);
+
+	if (ret == 1) {
 		const char *str = "unknown";
 
 		val &= DP_PSR_SINK_STATE_MASK;
@@ -2620,7 +2629,7 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 			str = sink_status[val];
 		seq_printf(m, "Sink PSR status: 0x%x [%s]\n", val, str);
 	} else {
-		DRM_ERROR("dpcd read (at %u) failed\n", DP_PSR_STATUS);
+		return ret;
 	}
 
 	return 0;
