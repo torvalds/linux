@@ -1357,7 +1357,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing,
 					pipe_ctx->stream->periodic_fn_vsync_delta);
 
-			if (stream_update->hdr_static_metadata ||
+			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||
 					stream_update->vsc_infopacket) {
 				resource_build_info_frame(pipe_ctx);
