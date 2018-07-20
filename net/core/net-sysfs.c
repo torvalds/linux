@@ -1087,6 +1087,9 @@ static ssize_t tx_maxrate_store(struct netdev_queue *queue,
 	int err, index = get_netdev_queue_index(queue);
 	u32 rate = 0;
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	err = kstrtou32(buf, 10, &rate);
 	if (err < 0)
 		return err;
