@@ -7,6 +7,7 @@
 #include "gasket_interrupt.h"
 #include "gasket_logging.h"
 #include "gasket_page_table.h"
+#include <linux/compiler.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 
@@ -39,13 +40,14 @@ static int gasket_config_coherent_allocator(
  * standard ioctl dispatch function.
  * @filp: File structure pointer describing this node usage session.
  * @cmd: ioctl number to handle.
- * @arg: ioctl-specific data pointer.
+ * @argp: ioctl-specific data pointer.
  *
  * Standard ioctl dispatcher; forwards operations to individual handlers.
  */
-long gasket_handle_ioctl(struct file *filp, uint cmd, ulong arg)
+long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 {
 	struct gasket_dev *gasket_dev;
+	unsigned long arg = (unsigned long)argp;
 	int retval;
 
 	gasket_dev = (struct gasket_dev *)filp->private_data;
@@ -53,7 +55,7 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, ulong arg)
 
 	if (gasket_get_ioctl_permissions_cb(gasket_dev)) {
 		retval = gasket_get_ioctl_permissions_cb(gasket_dev)(
-			filp, cmd, arg);
+			filp, cmd, argp);
 		if (retval < 0) {
 			trace_gasket_ioctl_exit(-EPERM);
 			return retval;

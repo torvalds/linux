@@ -5,6 +5,8 @@
 
 #include "gasket_core.h"
 
+#include <linux/compiler.h>
+
 /*
  * Handle Gasket common ioctls.
  * @filp: Pointer to the ioctl's file.
@@ -13,7 +15,7 @@
  *
  * Returns 0 on success and nonzero on failure.
  */
-long gasket_handle_ioctl(struct file *filp, uint cmd, ulong arg);
+long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp);
 
 /*
  * Determines if an ioctl is part of the standard Gasket framework.
