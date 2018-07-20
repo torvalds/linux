@@ -272,14 +272,14 @@ extern void ignore_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
 extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info);
 
-static inline int kernel_dequeue_signal(siginfo_t *info)
+static inline int kernel_dequeue_signal(void)
 {
 	struct task_struct *tsk = current;
 	siginfo_t __info;
 	int ret;
 
 	spin_lock_irq(&tsk->sighand->siglock);
-	ret = dequeue_signal(tsk, &tsk->blocked, info ?: &__info);
+	ret = dequeue_signal(tsk, &tsk->blocked, &__info);
 	spin_unlock_irq(&tsk->sighand->siglock);
 
 	return ret;
