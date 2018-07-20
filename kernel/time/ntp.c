@@ -642,7 +642,7 @@ void ntp_notify_cmos_timer(void)
 /*
  * Propagate a new txc->status value into the NTP state:
  */
-static inline void process_adj_status(struct timex *txc, struct timespec64 *ts)
+static inline void process_adj_status(const struct timex *txc)
 {
 	if ((time_status & STA_PLL) && !(txc->status & STA_PLL)) {
 		time_state = TIME_OK;
@@ -665,12 +665,10 @@ static inline void process_adj_status(struct timex *txc, struct timespec64 *ts)
 }
 
 
-static inline void process_adjtimex_modes(struct timex *txc,
-						struct timespec64 *ts,
-						s32 *time_tai)
+static inline void process_adjtimex_modes(const struct timex *txc, s32 *time_tai)
 {
 	if (txc->modes & ADJ_STATUS)
-		process_adj_status(txc, ts);
+		process_adj_status(txc);
 
 	if (txc->modes & ADJ_NANO)
 		time_status |= STA_NANO;
@@ -718,7 +716,7 @@ static inline void process_adjtimex_modes(struct timex *txc,
  * adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
  */
-int __do_adjtimex(struct timex *txc, struct timespec64 *ts, s32 *time_tai)
+int __do_adjtimex(struct timex *txc, const struct timespec64 *ts, s32 *time_tai)
 {
 	int result;
 
@@ -735,7 +733,7 @@ int __do_adjtimex(struct timex *txc, struct timespec64 *ts, s32 *time_tai)
 
 		/* If there are input parameters, then process them: */
 		if (txc->modes)
-			process_adjtimex_modes(txc, ts, time_tai);
+			process_adjtimex_modes(txc, time_tai);
 
 		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
 				  NTP_SCALE_SHIFT);
@@ -1022,12 +1020,11 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 
 static int __init ntp_tick_adj_setup(char *str)
 {
-	int rc = kstrtol(str, 0, (long *)&ntp_tick_adj);
-
+	int rc = kstrtos64(str, 0, &ntp_tick_adj);
 	if (rc)
 		return rc;
-	ntp_tick_adj <<= NTP_SCALE_SHIFT;
 
+	ntp_tick_adj <<= NTP_SCALE_SHIFT;
 	return 1;
 }
 
