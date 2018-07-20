@@ -45,6 +45,17 @@
 			device_type = "cpu";
 			next-level-cache = <&l2>;
 			reg = <1>;
+
+			clocks = <&chip_clk CLKID_CPU>;
+			clock-latency = <100000>;
+			/* Can be modified by the bootloader */
+			operating-points = <
+				/* kHz    uV */
+				1200000 1200000
+				1000000 1200000
+				800000  1200000
+				600000  1200000
+			>;
 		};
 
 		cpu2: cpu@2 {
@@ -52,6 +63,17 @@
 			device_type = "cpu";
 			next-level-cache = <&l2>;
 			reg = <2>;
+
+			clocks = <&chip_clk CLKID_CPU>;
+			clock-latency = <100000>;
+			/* Can be modified by the bootloader */
+			operating-points = <
+				/* kHz    uV */
+				1200000 1200000
+				1000000 1200000
+				800000  1200000
+				600000  1200000
+			>;
 		};
 
 		cpu3: cpu@3 {
@@ -59,6 +81,17 @@
 			device_type = "cpu";
 			next-level-cache = <&l2>;
 			reg = <3>;
+
+			clocks = <&chip_clk CLKID_CPU>;
+			clock-latency = <100000>;
+			/* Can be modified by the bootloader */
+			operating-points = <
+				/* kHz    uV */
+				1200000 1200000
+				1000000 1200000
+				800000  1200000
+				600000  1200000
+			>;
 		};
 	};
 
