@@ -125,7 +125,7 @@ static int linux_sdio_probe(struct sdio_func *func,
 	}
 	sdio_set_drvdata(func, wilc);
 	wilc->dev = &func->dev;
-	wilc->gpio = gpio;
+	wilc->gpio_irq = gpio;
 
 	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;

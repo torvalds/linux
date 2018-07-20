@@ -127,9 +127,9 @@ static int init_irq(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
 
-	if ((gpio_request(wl->gpio, "WILC_INTR") == 0) &&
-	    (gpio_direction_input(wl->gpio) == 0)) {
-		wl->dev_irq_num = gpio_to_irq(wl->gpio);
+	if ((gpio_request(wl->gpio_irq, "WILC_INTR") == 0) &&
+	    (gpio_direction_input(wl->gpio_irq) == 0)) {
+		wl->dev_irq_num = gpio_to_irq(wl->gpio_irq);
 	} else {
 		ret = -1;
 		netdev_err(dev, "could not obtain gpio for WILC_INTR\n");
@@ -140,13 +140,14 @@ static int init_irq(struct net_device *dev)
 					      isr_bh_routine,
 					      IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					      "WILC_IRQ", dev) < 0) {
-		netdev_err(dev, "Failed to request IRQ GPIO: %d\n", wl->gpio);
-		gpio_free(wl->gpio);
+		netdev_err(dev, "Failed to request IRQ GPIO: %d\n",
+			   wl->gpio_irq);
+		gpio_free(wl->gpio_irq);
 		ret = -1;
 	} else {
 		netdev_dbg(dev,
 			   "IRQ request succeeded IRQ-NUM= %d on GPIO: %d\n",
-			   wl->dev_irq_num, wl->gpio);
+			   wl->dev_irq_num, wl->gpio_irq);
 	}
 
 	return ret;
@@ -160,7 +161,7 @@ static void deinit_irq(struct net_device *dev)
 	/* Deinitialize IRQ */
 	if (wilc->dev_irq_num) {
 		free_irq(wilc->dev_irq_num, wilc);
-		gpio_free(wilc->gpio);
+		gpio_free(wilc->gpio_irq);
 	}
 }
 
@@ -651,7 +652,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			goto fail_locks;
 		}
 
-		if (wl->gpio >= 0 && init_irq(dev)) {
+		if (wl->gpio_irq >= 0 && init_irq(dev)) {
 			ret = -EIO;
 			goto fail_locks;
 		}

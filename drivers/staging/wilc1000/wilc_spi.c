@@ -119,7 +119,7 @@ static int wilc_bus_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, wilc);
 	wilc->dev = &spi->dev;
-	wilc->gpio = gpio;
+	wilc->gpio_irq = gpio;
 
 	return 0;
 }
