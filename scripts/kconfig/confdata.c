@@ -818,6 +818,35 @@ next:
 	return 0;
 }
 
+/* write a dependency file as used by kbuild to track dependencies */
+static int conf_write_dep(const char *name)
+{
+	struct file *file;
+	FILE *out;
+
+	if (!name)
+		name = ".kconfig.d";
+	out = fopen("..config.tmp", "w");
+	if (!out)
+		return 1;
+	fprintf(out, "deps_config := \\\n");
+	for (file = file_list; file; file = file->next) {
+		if (file->next)
+			fprintf(out, "\t%s \\\n", file->name);
+		else
+			fprintf(out, "\t%s\n", file->name);
+	}
+	fprintf(out, "\n%s: \\\n"
+		     "\t$(deps_config)\n\n", conf_get_autoconfig_name());
+
+	env_write_dep(out, conf_get_autoconfig_name());
+
+	fprintf(out, "\n$(deps_config): ;\n");
+	fclose(out);
+	rename("..config.tmp", name);
+	return 0;
+}
+
 static int conf_split_config(void)
 {
 	const char *name;
@@ -940,7 +969,7 @@ int conf_write_autoconf(void)
 
 	sym_clear_all_valid();
 
-	file_write_dep("include/config/auto.conf.cmd");
+	conf_write_dep("include/config/auto.conf.cmd");
 
 	if (conf_split_config())
 		return 1;
