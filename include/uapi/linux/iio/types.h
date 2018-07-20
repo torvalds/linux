@@ -45,6 +45,7 @@ enum iio_chan_type {
 	IIO_INDEX,
 	IIO_GRAVITY,
 	IIO_POSITIONRELATIVE,
+	IIO_PHASE,
 };
 
 enum iio_modifier {
