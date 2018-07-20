@@ -848,16 +848,30 @@ xfs_log_write_unmount_record(
 	struct xlog_in_core	*iclog;
 	struct xlog_ticket	*tic = NULL;
 	xfs_lsn_t		lsn;
+	uint			flags = XLOG_UNMOUNT_TRANS;
 	int			error;
 
 	error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0);
 	if (error)
 		goto out_err;
 
+	/*
+	 * If we think the summary counters are bad, clear the unmount header
+	 * flag in the unmount record so that the summary counters will be
+	 * recalculated during log recovery at next mount.  Refer to
+	 * xlog_check_unmount_rec for more details.
+	 */
+	if (XFS_TEST_ERROR((mp->m_flags & XFS_MOUNT_BAD_SUMMARY), mp,
+			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
+		xfs_alert(mp, "%s: will fix summary counters at next mount",
+				__func__);
+		flags &= ~XLOG_UNMOUNT_TRANS;
+	}
+
 	/* remove inited flag, and account for space used */
 	tic->t_flags = 0;
 	tic->t_curr_res -= sizeof(magic);
-	error = xlog_write(log, &vec, tic, &lsn, NULL, XLOG_UNMOUNT_TRANS);
+	error = xlog_write(log, &vec, tic, &lsn, NULL, flags);
 	/*
 	 * At this point, we're umounting anyway, so there's no point in
 	 * transitioning log state to IOERROR. Just continue...

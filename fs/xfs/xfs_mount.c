@@ -1423,3 +1423,16 @@ xfs_dev_is_read_only(
 	}
 	return 0;
 }
+
+/* Force the summary counters to be recalculated at next mount. */
+void
+xfs_force_summary_recalc(
+	struct xfs_mount	*mp)
+{
+	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
+		return;
+
+	spin_lock(&mp->m_sb_lock);
+	mp->m_flags |= XFS_MOUNT_BAD_SUMMARY;
+	spin_unlock(&mp->m_sb_lock);
+}
