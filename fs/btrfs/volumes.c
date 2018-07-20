@@ -1996,12 +1996,11 @@ error_undo:
 	goto out;
 }
 
-void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
-					struct btrfs_device *srcdev)
+void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_device *srcdev)
 {
 	struct btrfs_fs_devices *fs_devices;
 
-	lockdep_assert_held(&fs_info->fs_devices->device_list_mutex);
+	lockdep_assert_held(&srcdev->fs_info->fs_devices->device_list_mutex);
 
 	/*
 	 * in case of fs with no seed, srcdev->fs_devices will point

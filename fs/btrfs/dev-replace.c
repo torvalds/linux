@@ -667,7 +667,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 
 	btrfs_rm_dev_replace_blocked(fs_info);
 
-	btrfs_rm_dev_replace_remove_srcdev(fs_info, src_device);
+	btrfs_rm_dev_replace_remove_srcdev(src_device);
 
 	btrfs_rm_dev_replace_unblocked(fs_info);
 

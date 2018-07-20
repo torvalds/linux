@@ -452,8 +452,7 @@ void btrfs_init_devices_late(struct btrfs_fs_info *fs_info);
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
-void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
-					struct btrfs_device *srcdev);
+void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_device *srcdev);
 void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
 				      struct btrfs_device *srcdev);
 void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
