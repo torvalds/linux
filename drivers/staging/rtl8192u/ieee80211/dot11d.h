@@ -4,11 +4,11 @@
 
 #include "ieee80211.h"
 
-typedef struct _CHNL_TXPOWER_TRIPLE {
+struct chnl_txpower_triple {
 	u8 FirstChnl;
 	u8  NumChnls;
 	u8  MaxTxPowerInDbm;
-} CHNL_TXPOWER_TRIPLE, *PCHNL_TXPOWER_TRIPLE;
+};
 
 typedef enum _DOT11D_STATE {
 	DOT11D_STATE_NONE = 0,
