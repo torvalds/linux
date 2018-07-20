@@ -1098,6 +1098,9 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 {
 	struct kfd_topology_device *dev;
 	struct kfd_topology_device *out_dev = NULL;
+	struct kfd_mem_properties *mem;
+	struct kfd_cache_properties *cache;
+	struct kfd_iolink_properties *iolink;
 
 	down_write(&topology_lock);
 	list_for_each_entry(dev, &topology_device_list, list) {
@@ -1111,6 +1114,13 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
 			dev->gpu = gpu;
 			out_dev = dev;
+
+			list_for_each_entry(mem, &dev->mem_props, list)
+				mem->gpu = dev->gpu;
+			list_for_each_entry(cache, &dev->cache_props, list)
+				cache->gpu = dev->gpu;
+			list_for_each_entry(iolink, &dev->io_link_props, list)
+				iolink->gpu = dev->gpu;
 			break;
 		}
 	}
