@@ -525,6 +525,14 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		return -ENOMEM;
 	}
 
+	/* mem alloc for the CORB/RIRB ringbuffers */
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
+				  PAGE_SIZE, &sdev->hda->hbus.core.rb);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: RB alloc failed\n");
+		return -ENOMEM;
+	}
+
 	/* create capture streams */
 	for (i = 0; i < num_capture; i++) {
 		stream = &hdev->cstream[i];
