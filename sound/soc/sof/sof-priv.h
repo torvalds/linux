@@ -362,6 +362,9 @@ struct snd_sof_dev {
 	void *private;			/* core does not touch this */
 };
 
+#define sof_to_bus(s)  (&(s)->hda->hbus.core)
+#define sof_to_hbus(s) (&(s)->hda->hbus)
+
 /*
  * SOF platform private struct used as drvdata of
  * platform dev (e.g. pci/acpi/spi...) drvdata.
