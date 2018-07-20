@@ -391,7 +391,8 @@ static int sd_zbc_check_capacity(struct scsi_disk *sdkp, unsigned char *buf)
  * Check that all zones of the device are equal. The last zone can however
  * be smaller. The zone size must also be a power of two number of LBAs.
  *
- * Returns the zone size in bytes upon success or an error code upon failure.
+ * Returns the zone size in number of blocks upon success or an error code
+ * upon failure.
  */
 static s64 sd_zbc_check_zone_size(struct scsi_disk *sdkp)
 {
@@ -401,7 +402,7 @@ static s64 sd_zbc_check_zone_size(struct scsi_disk *sdkp)
 	unsigned char *rec;
 	unsigned int buf_len;
 	unsigned int list_length;
-	int ret;
+	s64 ret;
 	u8 same;
 
 	/* Get a buffer */
