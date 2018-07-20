@@ -262,16 +262,16 @@ static void gasket_perform_unmapping(
 static void gasket_free_extended_subtable(
 	struct gasket_page_table *pg_tbl, struct gasket_page_table_entry *pte,
 	u64 __iomem *att_reg);
-static int gasket_release_page(struct page *page);
+static bool gasket_release_page(struct page *page);
 
 /* Other/utility declarations */
-static inline int gasket_addr_is_simple(
+static inline bool gasket_addr_is_simple(
 	struct gasket_page_table *pg_tbl, ulong addr);
-static int gasket_is_simple_dev_addr_bad(
+static bool gasket_is_simple_dev_addr_bad(
 	struct gasket_page_table *pg_tbl, ulong dev_addr, uint num_pages);
-static int gasket_is_extended_dev_addr_bad(
+static bool gasket_is_extended_dev_addr_bad(
 	struct gasket_page_table *pg_tbl, ulong dev_addr, uint num_pages);
-static int gasket_is_pte_range_free(
+static bool gasket_is_pte_range_free(
 	struct gasket_page_table_entry *pte, uint num_entries);
 static void gasket_page_table_garbage_collect_nolock(
 	struct gasket_page_table *pg_tbl);
@@ -558,7 +558,7 @@ fail:
 }
 
 /* See gasket_page_table.h for description. */
-int gasket_page_table_are_addrs_bad(
+bool gasket_page_table_are_addrs_bad(
 	struct gasket_page_table *pg_tbl, ulong host_addr, ulong dev_addr,
 	ulong bytes)
 {
@@ -567,7 +567,7 @@ int gasket_page_table_are_addrs_bad(
 			pg_tbl,
 			"host mapping address 0x%lx must be page aligned",
 			host_addr);
-		return 1;
+		return true;
 	}
 
 	return gasket_page_table_is_dev_addr_bad(pg_tbl, dev_addr, bytes);
@@ -575,7 +575,7 @@ int gasket_page_table_are_addrs_bad(
 EXPORT_SYMBOL(gasket_page_table_are_addrs_bad);
 
 /* See gasket_page_table.h for description. */
-int gasket_page_table_is_dev_addr_bad(
+bool gasket_page_table_is_dev_addr_bad(
 	struct gasket_page_table *pg_tbl, ulong dev_addr, ulong bytes)
 {
 	uint num_pages = bytes / PAGE_SIZE;
@@ -584,7 +584,7 @@ int gasket_page_table_is_dev_addr_bad(
 		gasket_pg_tbl_error(
 			pg_tbl,
 			"mapping size 0x%lX must be page aligned", bytes);
-		return 1;
+		return true;
 	}
 
 	if (num_pages == 0) {
@@ -592,7 +592,7 @@ int gasket_page_table_is_dev_addr_bad(
 			pg_tbl,
 			"requested mapping is less than one page: %lu / %lu",
 			bytes, PAGE_SIZE);
-		return 1;
+		return true;
 	}
 
 	if (gasket_addr_is_simple(pg_tbl, dev_addr))
@@ -1285,23 +1285,23 @@ static void gasket_free_extended_subtable(
 /*
  * Safely return a page to the OS.
  * @page: The page to return to the OS.
- * Returns 1 if the page was released, 0 if it was
+ * Returns true if the page was released, false if it was
  * ignored.
  */
-static int gasket_release_page(struct page *page)
+static bool gasket_release_page(struct page *page)
 {
 	if (!page)
-		return 0;
+		return false;
 
 	if (!PageReserved(page))
 		SetPageDirty(page);
 	put_page(page);
 
-	return 1;
+	return true;
 }
 
 /* Evaluates to nonzero if the specified virtual address is simple. */
-static inline int gasket_addr_is_simple(
+static inline bool gasket_addr_is_simple(
 	struct gasket_page_table *pg_tbl, ulong addr)
 {
 	return !((addr) & (pg_tbl)->extended_flag);
@@ -1317,7 +1317,7 @@ static inline int gasket_addr_is_simple(
  * address to/from page + offset) and that the requested page range starts and
  * ends within the set of currently-partitioned simple pages.
  */
-static int gasket_is_simple_dev_addr_bad(
+static bool gasket_is_simple_dev_addr_bad(
 	struct gasket_page_table *pg_tbl, ulong dev_addr, uint num_pages)
 {
 	ulong page_offset = dev_addr & (PAGE_SIZE - 1);
@@ -1328,7 +1328,7 @@ static int gasket_is_simple_dev_addr_bad(
 		pg_tbl, 1, page_index, page_offset) != dev_addr) {
 		gasket_pg_tbl_error(
 			pg_tbl, "address is invalid, 0x%lX", dev_addr);
-		return 1;
+		return true;
 	}
 
 	if (page_index >= pg_tbl->num_simple_entries) {
@@ -1336,7 +1336,7 @@ static int gasket_is_simple_dev_addr_bad(
 			pg_tbl,
 			"starting slot at %lu is too large, max is < %u",
 			page_index, pg_tbl->num_simple_entries);
-		return 1;
+		return true;
 	}
 
 	if (page_index + num_pages > pg_tbl->num_simple_entries) {
@@ -1344,10 +1344,10 @@ static int gasket_is_simple_dev_addr_bad(
 			pg_tbl,
 			"ending slot at %lu is too large, max is <= %u",
 			page_index + num_pages, pg_tbl->num_simple_entries);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /*
@@ -1359,7 +1359,7 @@ static int gasket_is_simple_dev_addr_bad(
  * @dev_addr: The device address to which the pages will be mapped.
  * @num_pages: The number of second-level/sub pages in the range to consider.
  */
-static int gasket_is_extended_dev_addr_bad(
+static bool gasket_is_extended_dev_addr_bad(
 	struct gasket_page_table *pg_tbl, ulong dev_addr, uint num_pages)
 {
 	/* Starting byte index of dev_addr into the first mapped page */
@@ -1373,7 +1373,7 @@ static int gasket_is_extended_dev_addr_bad(
 	if (addr >> (GASKET_EXTENDED_LVL0_WIDTH + GASKET_EXTENDED_LVL0_SHIFT)) {
 		gasket_pg_tbl_error(pg_tbl, "device address out of bound, 0x%p",
 				    (void *)dev_addr);
-		return 1;
+		return true;
 	}
 
 	/* Find the starting sub-page index in the space of all sub-pages. */
@@ -1391,7 +1391,7 @@ static int gasket_is_extended_dev_addr_bad(
 		pg_tbl, 0, page_global_idx, page_offset) != dev_addr) {
 		gasket_pg_tbl_error(
 			pg_tbl, "address is invalid, 0x%p", (void *)dev_addr);
-		return 1;
+		return true;
 	}
 
 	if (page_lvl0_idx >= pg_tbl->num_extended_entries) {
@@ -1399,7 +1399,7 @@ static int gasket_is_extended_dev_addr_bad(
 			pg_tbl,
 			"starting level 0 slot at %lu is too large, max is < "
 			"%u", page_lvl0_idx, pg_tbl->num_extended_entries);
-		return 1;
+		return true;
 	}
 
 	if (page_lvl0_idx + num_lvl0_pages > pg_tbl->num_extended_entries) {
@@ -1408,10 +1408,10 @@ static int gasket_is_extended_dev_addr_bad(
 			"ending level 0 slot at %lu is too large, max is <= %u",
 			page_lvl0_idx + num_lvl0_pages,
 			pg_tbl->num_extended_entries);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /*
@@ -1425,17 +1425,17 @@ static int gasket_is_extended_dev_addr_bad(
  *
  * The page table mutex must be held before this call.
  */
-static int gasket_is_pte_range_free(
+static bool gasket_is_pte_range_free(
 	struct gasket_page_table_entry *ptes, uint num_entries)
 {
 	int i;
 
 	for (i = 0; i < num_entries; i++) {
 		if (ptes[i].status != PTE_FREE)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /*
