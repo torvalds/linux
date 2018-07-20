@@ -6,7 +6,7 @@
 
 struct chnl_txpower_triple {
 	u8  first_channel;
-	u8  NumChnls;
+	u8  num_channels;
 	u8  MaxTxPowerInDbm;
 };
 

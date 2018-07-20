@@ -69,7 +69,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 			netdev_err(dev->dev, "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........1\n");
 			return;
 		}
-		if (MAX_CHANNEL_NUMBER < (pTriple->first_channel + pTriple->NumChnls)) {
+		if (MAX_CHANNEL_NUMBER < (pTriple->first_channel + pTriple->num_channels)) {
 			/* It is not a valid set of channel id, so stop
 			 * processing.
 			 */
@@ -77,7 +77,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 			return;
 		}
 
-		for (j = 0; j < pTriple->NumChnls; j++) {
+		for (j = 0; j < pTriple->num_channels; j++) {
 			pDot11dInfo->channel_map[pTriple->first_channel + j] = 1;
 			pDot11dInfo->MaxTxPwrDbmList[pTriple->first_channel + j] = pTriple->MaxTxPowerInDbm;
 			MaxChnlNum = pTriple->first_channel + j;
