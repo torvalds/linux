@@ -974,6 +974,7 @@ static int handle_exit(void)
 					  "\n\n");
 			return 1;
 		}
+		conf_write_autoconf(0);
 		/* fall through */
 	case -1:
 		if (!silent)

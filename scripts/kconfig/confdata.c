@@ -1013,12 +1013,16 @@ out:
 	return res;
 }
 
-int conf_write_autoconf(void)
+int conf_write_autoconf(int overwrite)
 {
 	struct symbol *sym;
 	const char *name;
+	const char *autoconf_name = conf_get_autoconfig_name();
 	FILE *out, *tristate, *out_h;
 	int i;
+
+	if (!overwrite && is_present(autoconf_name))
+		return 0;
 
 	sym_clear_all_valid();
 
@@ -1082,14 +1086,13 @@ int conf_write_autoconf(void)
 	if (rename(".tmpconfig_tristate", name))
 		return 1;
 
-	name = conf_get_autoconfig_name();
-	if (make_parent_dir(name))
+	if (make_parent_dir(autoconf_name))
 		return 1;
 	/*
 	 * This must be the last step, kbuild has a dependency on auto.conf
 	 * and this marks the successful completion of the previous steps.
 	 */
-	if (rename(".tmpconfig", name))
+	if (rename(".tmpconfig", autoconf_name))
 		return 1;
 
 	return 0;
