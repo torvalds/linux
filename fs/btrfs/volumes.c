@@ -7043,9 +7043,9 @@ out:
 }
 
 static int update_dev_stat_item(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info,
 				struct btrfs_device *device)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *dev_root = fs_info->dev_root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -7138,7 +7138,7 @@ int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
 		 */
 		smp_rmb();
 
-		ret = update_dev_stat_item(trans, fs_info, device);
+		ret = update_dev_stat_item(trans, device);
 		if (!ret)
 			atomic_sub(stats_cnt, &device->dev_stats_ccnt);
 	}
