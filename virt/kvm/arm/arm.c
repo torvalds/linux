@@ -1411,6 +1411,10 @@ static int init_hyp_mode(void)
 		}
 	}
 
+	err = hyp_map_aux_data();
+	if (err)
+		kvm_err("Cannot map host auxilary data: %d\n", err);
+
 	return 0;
 
 out_err:

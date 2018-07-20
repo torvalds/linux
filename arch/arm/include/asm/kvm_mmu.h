@@ -254,6 +254,11 @@ static inline int kvm_map_vectors(void)
 	return 0;
 }
 
+static inline int hyp_map_aux_data(void)
+{
+	return 0;
+}
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __ARM_KVM_MMU_H__ */
