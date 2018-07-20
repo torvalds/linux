@@ -4,12 +4,12 @@
  * Increment 'v', if 'v' is below 'below'. Returns true if we succeeded,
  * false if 'v' + 1 would be bigger than 'below'.
  */
-static bool atomic_inc_below(atomic_t *v, int below)
+static bool atomic_inc_below(atomic_t *v, unsigned int below)
 {
-	int cur = atomic_read(v);
+	unsigned int cur = atomic_read(v);
 
 	for (;;) {
-		int old;
+		unsigned int old;
 
 		if (cur >= below)
 			return false;
@@ -22,7 +22,7 @@ static bool atomic_inc_below(atomic_t *v, int below)
 	return true;
 }
 
-bool rq_wait_inc_below(struct rq_wait *rq_wait, int limit)
+bool rq_wait_inc_below(struct rq_wait *rq_wait, unsigned int limit)
 {
 	return atomic_inc_below(&rq_wait->inflight, limit);
 }
