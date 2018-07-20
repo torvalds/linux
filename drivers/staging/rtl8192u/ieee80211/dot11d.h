@@ -5,7 +5,7 @@
 #include "ieee80211.h"
 
 struct chnl_txpower_triple {
-	u8 FirstChnl;
+	u8  first_channel;
 	u8  NumChnls;
 	u8  MaxTxPowerInDbm;
 };

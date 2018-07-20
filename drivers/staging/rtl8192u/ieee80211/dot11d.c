@@ -62,14 +62,14 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 	NumTriples = (CoutryIeLen - 3) / 3; /* skip 3-byte country string. */
 	pTriple = (struct chnl_txpower_triple *)(pCoutryIe + 3);
 	for (i = 0; i < NumTriples; i++) {
-		if (MaxChnlNum >= pTriple->FirstChnl) {
+		if (MaxChnlNum >= pTriple->first_channel) {
 			/* It is not in a monotonically increasing order, so
 			 * stop processing.
 			 */
 			netdev_err(dev->dev, "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........1\n");
 			return;
 		}
-		if (MAX_CHANNEL_NUMBER < (pTriple->FirstChnl + pTriple->NumChnls)) {
+		if (MAX_CHANNEL_NUMBER < (pTriple->first_channel + pTriple->NumChnls)) {
 			/* It is not a valid set of channel id, so stop
 			 * processing.
 			 */
@@ -78,9 +78,9 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 		}
 
 		for (j = 0; j < pTriple->NumChnls; j++) {
-			pDot11dInfo->channel_map[pTriple->FirstChnl + j] = 1;
-			pDot11dInfo->MaxTxPwrDbmList[pTriple->FirstChnl + j] = pTriple->MaxTxPowerInDbm;
-			MaxChnlNum = pTriple->FirstChnl + j;
+			pDot11dInfo->channel_map[pTriple->first_channel + j] = 1;
+			pDot11dInfo->MaxTxPwrDbmList[pTriple->first_channel + j] = pTriple->MaxTxPowerInDbm;
+			MaxChnlNum = pTriple->first_channel + j;
 		}
 
 		pTriple = (struct chnl_txpower_triple *)((u8 *)pTriple + 3);
