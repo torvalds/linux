@@ -5,6 +5,7 @@
  * Copyright (C) 2018 Google, Inc.
  */
 
+#include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -142,9 +143,10 @@ static int apex_get_status(struct gasket_dev *gasket_dev);
 
 static bool apex_ioctl_check_permissions(struct file *file, uint cmd);
 
-static long apex_ioctl(struct file *file, uint cmd, ulong arg);
+static long apex_ioctl(struct file *file, uint cmd, void __user *argp);
 
-static long apex_clock_gating(struct gasket_dev *gasket_dev, ulong arg);
+static long apex_clock_gating(struct gasket_dev *gasket_dev,
+			      struct apex_gate_clock_ioctl __user *argp);
 
 static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type);
 
@@ -635,7 +637,7 @@ static bool apex_ioctl_check_permissions(struct file *filp, uint cmd)
 /*
  * Apex-specific ioctl handler.
  */
-static long apex_ioctl(struct file *filp, uint cmd, ulong arg)
+static long apex_ioctl(struct file *filp, uint cmd, void __user *argp)
 {
 	struct gasket_dev *gasket_dev = filp->private_data;
 
@@ -644,7 +646,7 @@ static long apex_ioctl(struct file *filp, uint cmd, ulong arg)
 
 	switch (cmd) {
 	case APEX_IOCTL_GATE_CLOCK:
-		return apex_clock_gating(gasket_dev, arg);
+		return apex_clock_gating(gasket_dev, argp);
 	default:
 		return -ENOTTY; /* unknown command */
 	}
@@ -653,16 +655,17 @@ static long apex_ioctl(struct file *filp, uint cmd, ulong arg)
 /*
  * Gates or un-gates Apex clock.
  * @gasket_dev: Gasket device pointer.
- * @arg: User ioctl arg, in this case to a apex_gate_clock_ioctl struct.
+ * @argp: User ioctl arg, pointer to a apex_gate_clock_ioctl struct.
  */
-static long apex_clock_gating(struct gasket_dev *gasket_dev, ulong arg)
+static long apex_clock_gating(struct gasket_dev *gasket_dev,
+			      struct apex_gate_clock_ioctl __user *argp)
 {
 	struct apex_gate_clock_ioctl ibuf;
 
 	if (bypass_top_level || !allow_sw_clock_gating)
 		return 0;
 
-	if (copy_from_user(&ibuf, (void __user *)arg, sizeof(ibuf)))
+	if (copy_from_user(&ibuf, argp, sizeof(ibuf)))
 		return -EFAULT;
 
 	gasket_log_error(gasket_dev, "%s %llu", __func__, ibuf.enable);
