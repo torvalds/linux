@@ -484,14 +484,37 @@ static int dmar_forcedac;
 static int intel_iommu_strict;
 static int intel_iommu_superpage = 1;
 static int intel_iommu_ecs = 1;
+static int intel_iommu_pasid28;
 static int iommu_identity_mapping;
 
 #define IDENTMAP_ALL		1
 #define IDENTMAP_GFX		2
 #define IDENTMAP_AZALIA		4
 
-#define ecs_enabled(iommu)	(intel_iommu_ecs && ecap_ecs(iommu->ecap))
-#define pasid_enabled(iommu)	(ecs_enabled(iommu) && ecap_pasid(iommu->ecap))
+/* Broadwell and Skylake have broken ECS support — normal so-called "second
+ * level" translation of DMA requests-without-PASID doesn't actually happen
+ * unless you also set the NESTE bit in an extended context-entry. Which of
+ * course means that SVM doesn't work because it's trying to do nested
+ * translation of the physical addresses it finds in the process page tables,
+ * through the IOVA->phys mapping found in the "second level" page tables.
+ *
+ * The VT-d specification was retroactively changed to change the definition
+ * of the capability bits and pretend that Broadwell/Skylake never happened...
+ * but unfortunately the wrong bit was changed. It's ECS which is broken, but
+ * for some reason it was the PASID capability bit which was redefined (from
+ * bit 28 on BDW/SKL to bit 40 in future).
+ *
+ * So our test for ECS needs to eschew those implementations which set the old
+ * PASID capabiity bit 28, since those are the ones on which ECS is broken.
+ * Unless we are working around the 'pasid28' limitations, that is, by putting
+ * the device into passthrough mode for normal DMA and thus masking the bug.
+ */
+#define ecs_enabled(iommu) (intel_iommu_ecs && ecap_ecs(iommu->ecap) && \
+			    (intel_iommu_pasid28 || !ecap_broken_pasid(iommu->ecap)))
+/* PASID support is thus enabled if ECS is enabled and *either* of the old
+ * or new capability bits are set. */
+#define pasid_enabled(iommu) (ecs_enabled(iommu) &&			\
+			      (ecap_pasid(iommu->ecap) || ecap_broken_pasid(iommu->ecap)))
 
 int intel_iommu_gfx_mapped;
 EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
@@ -554,6 +577,11 @@ static int __init intel_iommu_setup(char *str)
 			printk(KERN_INFO
 				"Intel-IOMMU: disable extended context table support\n");
 			intel_iommu_ecs = 0;
+		} else if (!strncmp(str, "pasid28", 7)) {
+			printk(KERN_INFO
+				"Intel-IOMMU: enable pre-production PASID support\n");
+			intel_iommu_pasid28 = 1;
+			iommu_identity_mapping |= IDENTMAP_GFX;
 		} else if (!strncmp(str, "tboot_noforce", 13)) {
 			printk(KERN_INFO
 				"Intel-IOMMU: not forcing on after tboot. This could expose security risk for tboot\n");
