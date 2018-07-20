@@ -2063,10 +2063,9 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
 	}
 }
 
-void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
-				      struct btrfs_device *tgtdev)
+void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev)
 {
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_fs_devices *fs_devices = tgtdev->fs_info->fs_devices;
 
 	WARN_ON(!tgtdev);
 	mutex_lock(&fs_devices->device_list_mutex);

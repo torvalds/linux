@@ -506,7 +506,7 @@ leave:
 	dev_replace->srcdev = NULL;
 	dev_replace->tgtdev = NULL;
 	btrfs_dev_replace_write_unlock(dev_replace);
-	btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+	btrfs_destroy_dev_replace_tgtdev(tgt_device);
 	return ret;
 }
 
@@ -632,7 +632,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		btrfs_rm_dev_replace_blocked(fs_info);
 		if (tgt_device)
-			btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+			btrfs_destroy_dev_replace_tgtdev(tgt_device);
 		btrfs_rm_dev_replace_unblocked(fs_info);
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 
@@ -821,7 +821,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		btrfs_dev_name(tgt_device));
 
 	if (tgt_device)
-		btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+		btrfs_destroy_dev_replace_tgtdev(tgt_device);
 
 leave:
 	mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
