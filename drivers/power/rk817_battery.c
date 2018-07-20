@@ -1299,6 +1299,13 @@ static int rk817_bat_get_charge_status(struct rk817_battery_device *battery)
 
 	status = rk817_bat_field_read(battery, CHG_STS);
 
+	if (status == CC_OR_CV_CHRG) {
+		if (battery->rsoc == 100 * 1000) {
+			DBG("charge to finish\n");
+			status = CHARGE_FINISH;
+		}
+	}
+
 	switch (status) {
 	case CHRG_OFF:
 		DBG("charge off...\n");
