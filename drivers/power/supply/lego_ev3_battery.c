@@ -52,7 +52,7 @@ static int lego_ev3_battery_get_property(struct power_supply *psy,
 			return ret;
 
 		val->intval *= 2000;
-		val->intval += 200000;
+		val->intval += 50000;
 
 		/* plus adjust for shunt resistor drop */
 		ret = iio_read_channel_processed(batt->iio_i, &val2);
