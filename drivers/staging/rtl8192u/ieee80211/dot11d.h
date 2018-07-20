@@ -4,7 +4,6 @@
 
 #include "ieee80211.h"
 
-
 typedef struct _CHNL_TXPOWER_TRIPLE {
 	u8 FirstChnl;
 	u8  NumChnls;
@@ -58,7 +57,6 @@ typedef struct _RT_DOT11D_INFO {
 #define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
 
 #define IS_DOT11D_STATE_DONE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->State == DOT11D_STATE_DONE)
-
 
 void
 Dot11d_Init(
