@@ -450,7 +450,7 @@ static const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id)
  */
 static bool btf_type_int_is_regular(const struct btf_type *t)
 {
-	u16 nr_bits, nr_bytes;
+	u8 nr_bits, nr_bytes;
 	u32 int_data;
 
 	int_data = btf_type_int(t);
@@ -993,12 +993,16 @@ static void btf_int_bits_seq_show(const struct btf *btf,
 {
 	u16 left_shift_bits, right_shift_bits;
 	u32 int_data = btf_type_int(t);
-	u16 nr_bits = BTF_INT_BITS(int_data);
-	u16 total_bits_offset;
-	u16 nr_copy_bytes;
-	u16 nr_copy_bits;
+	u8 nr_bits = BTF_INT_BITS(int_data);
+	u8 total_bits_offset;
+	u8 nr_copy_bytes;
+	u8 nr_copy_bits;
 	u64 print_num;
 
+	/*
+	 * bits_offset is at most 7.
+	 * BTF_INT_OFFSET() cannot exceed 64 bits.
+	 */
 	total_bits_offset = bits_offset + BTF_INT_OFFSET(int_data);
 	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
 	bits_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
@@ -1028,7 +1032,7 @@ static void btf_int_seq_show(const struct btf *btf, const struct btf_type *t,
 	u32 int_data = btf_type_int(t);
 	u8 encoding = BTF_INT_ENCODING(int_data);
 	bool sign = encoding & BTF_INT_SIGNED;
-	u32 nr_bits = BTF_INT_BITS(int_data);
+	u8 nr_bits = BTF_INT_BITS(int_data);
 
 	if (bits_offset || BTF_INT_OFFSET(int_data) ||
 	    BITS_PER_BYTE_MASKED(nr_bits)) {
