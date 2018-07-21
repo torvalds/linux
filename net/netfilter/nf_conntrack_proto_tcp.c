@@ -21,6 +21,7 @@
 #include <net/ip6_checksum.h>
 #include <asm/unaligned.h>
 
+#include <net/ip.h>
 #include <net/tcp.h>
 
 #include <linux/netfilter.h>

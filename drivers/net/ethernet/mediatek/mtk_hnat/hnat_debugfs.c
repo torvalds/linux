@@ -423,7 +423,7 @@ static const struct debugfs_reg32 hnat_regs[] = {
 	dump_register(CAH_RDATA),
 };
 
-int __init hnat_init_debugfs(struct hnat_priv *h)
+int hnat_init_debugfs(struct hnat_priv *h)
 {
 	int ret = 0;
 	struct dentry *root;
