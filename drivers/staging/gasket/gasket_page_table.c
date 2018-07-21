@@ -605,10 +605,8 @@ EXPORT_SYMBOL(gasket_page_table_is_dev_addr_bad);
 /* See gasket_page_table.h for description. */
 uint gasket_page_table_max_size(struct gasket_page_table *page_table)
 {
-	if (!page_table) {
-		gasket_nodev_error("Passed a null page table.");
+	if (!page_table)
 		return 0;
-	}
 	return page_table->config.total_entries;
 }
 EXPORT_SYMBOL(gasket_page_table_max_size);
@@ -616,11 +614,8 @@ EXPORT_SYMBOL(gasket_page_table_max_size);
 /* See gasket_page_table.h for description. */
 uint gasket_page_table_num_entries(struct gasket_page_table *pg_tbl)
 {
-	if (!pg_tbl) {
-		gasket_nodev_error("Passed a null page table.");
+	if (!pg_tbl)
 		return 0;
-	}
-
 	return pg_tbl->num_simple_entries + pg_tbl->num_extended_entries;
 }
 EXPORT_SYMBOL(gasket_page_table_num_entries);
@@ -628,11 +623,8 @@ EXPORT_SYMBOL(gasket_page_table_num_entries);
 /* See gasket_page_table.h for description. */
 uint gasket_page_table_num_simple_entries(struct gasket_page_table *pg_tbl)
 {
-	if (!pg_tbl) {
-		gasket_nodev_error("Passed a null page table.");
+	if (!pg_tbl)
 		return 0;
-	}
-
 	return pg_tbl->num_simple_entries;
 }
 EXPORT_SYMBOL(gasket_page_table_num_simple_entries);
@@ -640,11 +632,8 @@ EXPORT_SYMBOL(gasket_page_table_num_simple_entries);
 /* See gasket_page_table.h for description. */
 uint gasket_page_table_num_active_pages(struct gasket_page_table *pg_tbl)
 {
-	if (!pg_tbl) {
-		gasket_nodev_error("Passed a null page table.");
+	if (!pg_tbl)
 		return 0;
-	}
-
 	return pg_tbl->num_active_pages;
 }
 EXPORT_SYMBOL(gasket_page_table_num_active_pages);
@@ -652,10 +641,8 @@ EXPORT_SYMBOL(gasket_page_table_num_active_pages);
 /* See gasket_page_table.h */
 int gasket_page_table_system_status(struct gasket_page_table *page_table)
 {
-	if (!page_table) {
-		gasket_nodev_error("Passed a null page table.");
+	if (!page_table)
 		return GASKET_STATUS_LAMED;
-	}
 
 	if (gasket_page_table_num_entries(page_table) == 0) {
 		gasket_nodev_debug("Page table size is 0.");
