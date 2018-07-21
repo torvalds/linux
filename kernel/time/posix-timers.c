@@ -433,11 +433,13 @@ static enum hrtimer_restart posix_timer_fn(struct hrtimer *timer)
 
 static struct pid *good_sigevent(sigevent_t * event)
 {
-	struct task_struct *rtn = current->group_leader;
+	struct pid *pid = task_tgid(current);
+	struct task_struct *rtn;
 
 	switch (event->sigev_notify) {
 	case SIGEV_SIGNAL | SIGEV_THREAD_ID:
-		rtn = find_task_by_vpid(event->sigev_notify_thread_id);
+		pid = find_vpid(event->sigev_notify_thread_id);
+		rtn = pid_task(pid, PIDTYPE_PID);
 		if (!rtn || !same_thread_group(rtn, current))
 			return NULL;
 		/* FALLTHRU */
@@ -447,7 +449,7 @@ static struct pid *good_sigevent(sigevent_t * event)
 			return NULL;
 		/* FALLTHRU */
 	case SIGEV_NONE:
-		return task_pid(rtn);
+		return pid;
 	default:
 		return NULL;
 	}
