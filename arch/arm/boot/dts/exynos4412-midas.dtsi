@@ -138,6 +138,8 @@
 			compatible = "maxim,max77693";
 			interrupt-parent = <&gpx1>;
 			interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77693_irq>;
 			reg = <0x66>;
 
 			regulators {
@@ -1006,6 +1008,11 @@
 &pinctrl_1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep1>;
+
+	max77693_irq: max77693-irq {
+		samsung,pins = "gpx1-5";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
 
 	hdmi_hpd: hdmi-hpd {
 		samsung,pins = "gpx3-7";
