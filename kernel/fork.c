@@ -315,7 +315,13 @@ struct vm_area_struct *vm_area_alloc(void)
 
 struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig)
 {
-	return kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+	struct vm_area_struct *new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+
+	if (new) {
+		*new = *orig;
+		INIT_LIST_HEAD(&new->anon_vma_chain);
+	}
+	return new;
 }
 
 void vm_area_free(struct vm_area_struct *vma)
@@ -473,8 +479,6 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 		tmp = vm_area_dup(mpnt);
 		if (!tmp)
 			goto fail_nomem;
-		*tmp = *mpnt;
-		INIT_LIST_HEAD(&tmp->anon_vma_chain);
 		retval = vma_dup_policy(mpnt, tmp);
 		if (retval)
 			goto fail_nomem_policy;

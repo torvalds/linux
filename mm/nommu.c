@@ -1476,7 +1476,6 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	/* most fields are the same, copy all, and then fixup */
-	*new = *vma;
 	*region = *vma->vm_region;
 	new->vm_region = region;
 
