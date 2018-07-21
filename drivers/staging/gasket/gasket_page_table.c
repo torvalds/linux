@@ -306,7 +306,7 @@ int gasket_page_table_init(
 	 * hardware register that contains the page table size.
 	 */
 	if (total_entries == ULONG_MAX) {
-		gasket_nodev_error(
+		gasket_nodev_debug(
 			"Error reading page table size. "
 			"Initializing page table with size 0.");
 		total_entries = 0;
@@ -323,7 +323,7 @@ int gasket_page_table_init(
 
 	*ppg_tbl = kzalloc(sizeof(**ppg_tbl), GFP_KERNEL);
 	if (!*ppg_tbl) {
-		gasket_nodev_error("No memory for page table.");
+		gasket_nodev_debug("No memory for page table.");
 		return -ENOMEM;
 	}
 
@@ -332,7 +332,7 @@ int gasket_page_table_init(
 	if (bytes != 0) {
 		pg_tbl->entries = vmalloc(bytes);
 		if (!pg_tbl->entries) {
-			gasket_nodev_error(
+			gasket_nodev_debug(
 				"No memory for address translation metadata.");
 			kfree(pg_tbl);
 			*ppg_tbl = NULL;
@@ -658,7 +658,7 @@ int gasket_page_table_system_status(struct gasket_page_table *page_table)
 	}
 
 	if (gasket_page_table_num_entries(page_table) == 0) {
-		gasket_nodev_error("Page table size is 0.");
+		gasket_nodev_debug("Page table size is 0.");
 		return GASKET_STATUS_LAMED;
 	}
 
@@ -903,7 +903,7 @@ static int gasket_perform_mapping(
 				(unsigned long long)ptes[i].dma_addr);
 
 			if (ptes[i].dma_addr == -1) {
-				gasket_nodev_error(
+				gasket_nodev_debug(
 					"%s i %d"
 					" -> fail to map page %llx "
 					"[pfn %p ohys %p]\n",
@@ -1612,7 +1612,7 @@ int gasket_set_user_virt(
 	 */
 	pg_tbl = gasket_dev->page_table[0];
 	if (!pg_tbl) {
-		gasket_nodev_error(
+		gasket_nodev_debug(
 			"%s: invalid page table index", __func__);
 		return 0;
 	}
