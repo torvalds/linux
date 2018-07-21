@@ -1199,12 +1199,6 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	return send_signal(sig, info, p, PIDTYPE_TGID);
 }
 
-static int
-specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
-{
-	return send_signal(sig, info, t, PIDTYPE_PID);
-}
-
 int do_send_sig_info(int sig, struct siginfo *info, struct task_struct *p,
 			enum pid_type type)
 {
@@ -1254,7 +1248,7 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 	 */
 	if (action->sa.sa_handler == SIG_DFL && !t->ptrace)
 		t->signal->flags &= ~SIGNAL_UNKILLABLE;
-	ret = specific_send_sig_info(sig, info, t);
+	ret = send_signal(sig, info, t, PIDTYPE_PID);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 
 	return ret;
@@ -2330,7 +2324,7 @@ static int ptrace_signal(int signr, siginfo_t *info)
 
 	/* If the (new) signal is now blocked, requeue it.  */
 	if (sigismember(&current->blocked, signr)) {
-		specific_send_sig_info(signr, info, current);
+		send_signal(signr, info, current, PIDTYPE_PID);
 		signr = 0;
 	}
 
