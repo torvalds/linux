@@ -39,14 +39,14 @@ u8 RSN_CIPHER_SUITE_WEP104[] = { 0x00, 0x0f, 0xac, 5 };
 /*  for adhoc-master to generate ie and provide supported-rate to fw */
 /*  */
 
-static u8	WIFI_CCKRATES[] = {
+static u8 WIFI_CCKRATES[] = {
 	IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK
-	};
+};
 
-static u8	WIFI_OFDMRATES[] = {
+static u8 WIFI_OFDMRATES[] = {
 	 IEEE80211_OFDM_RATE_6MB,
 	 IEEE80211_OFDM_RATE_9MB,
 	 IEEE80211_OFDM_RATE_12MB,
@@ -55,7 +55,7 @@ static u8	WIFI_OFDMRATES[] = {
 	 IEEE80211_OFDM_RATE_36MB,
 	 IEEE80211_OFDM_RATE_48MB,
 	 IEEE80211_OFDM_RATE_54MB
-	};
+};
 
 int rtw_get_bit_value_from_ieee_value(u8 val)
 {
@@ -492,7 +492,7 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 {
 	u8 authmode, sec_idx, i;
 	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
-	uint	cnt;
+	uint cnt;
 
 	/* Search required WPA or WPA2 IE and copy to sec_ie[] */
 
@@ -970,7 +970,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	u16 wpa_len = 0, rsn_len = 0;
 	struct HT_info_element *pht_info = NULL;
 	uint len;
-	unsigned char		*p;
+	unsigned char *p;
 
 	memcpy(&le_tmp, rtw_get_capability_from_ie(pnetwork->network.ies), 2);
 	cap = le16_to_cpu(le_tmp);
