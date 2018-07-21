@@ -404,6 +404,20 @@ err_release_free:
 	return -EINVAL;
 }
 
+static int nfp_bpf_ndo_init(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_app_bpf *bpf = app->priv;
+
+	return bpf_offload_dev_netdev_register(bpf->bpf_dev, netdev);
+}
+
+static void nfp_bpf_ndo_uninit(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_app_bpf *bpf = app->priv;
+
+	bpf_offload_dev_netdev_unregister(bpf->bpf_dev, netdev);
+}
+
 static int nfp_bpf_init(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf;
@@ -427,6 +441,11 @@ static int nfp_bpf_init(struct nfp_app *app)
 	if (err)
 		goto err_free_neutral_maps;
 
+	bpf->bpf_dev = bpf_offload_dev_create();
+	err = PTR_ERR_OR_ZERO(bpf->bpf_dev);
+	if (err)
+		goto err_free_neutral_maps;
+
 	return 0;
 
 err_free_neutral_maps:
@@ -445,6 +464,7 @@ static void nfp_bpf_clean(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf = app->priv;
 
+	bpf_offload_dev_destroy(bpf->bpf_dev);
 	WARN_ON(!skb_queue_empty(&bpf->cmsg_replies));
 	WARN_ON(!list_empty(&bpf->map_list));
 	WARN_ON(bpf->maps_in_use || bpf->map_elems_in_use);
@@ -465,6 +485,9 @@ const struct nfp_app_type app_bpf = {
 	.check_mtu	= nfp_bpf_check_mtu,
 
 	.extra_cap	= nfp_bpf_extra_cap,
+
+	.ndo_init	= nfp_bpf_ndo_init,
+	.ndo_uninit	= nfp_bpf_ndo_uninit,
 
 	.vnic_alloc	= nfp_bpf_vnic_alloc,
 	.vnic_free	= nfp_bpf_vnic_free,
