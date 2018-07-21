@@ -21,8 +21,8 @@ struct rt_dot11d_info {
 
 	bool enabled; /* dot11MultiDomainCapabilityEnabled */
 
-	u16 country_ie_len; /* > 0 if CountryIeBuf[] contains valid country information element. */
-	u8  CountryIeBuf[MAX_IE_LEN];
+	u16 country_ie_len; /* > 0 if country_ie_buf[] contains valid country information element. */
+	u8  country_ie_buf[MAX_IE_LEN];
 	u8  CountryIeSrcAddr[6]; /* Source AP of the country IE. */
 	u8  CountryIeWatchdog;
 
@@ -50,7 +50,7 @@ struct rt_dot11d_info {
 #define IS_COUNTRY_IE_CHANGED(__pIeeeDev, __Ie) \
 	(((__Ie).Length == 0 || (__Ie).Length != GET_DOT11D_INFO(__pIeeeDev)->country_ie_len) ? \
 	FALSE : \
-	(!memcmp(GET_DOT11D_INFO(__pIeeeDev)->CountryIeBuf, (__Ie).Octet, (__Ie).Length)))
+	(!memcmp(GET_DOT11D_INFO(__pIeeeDev)->country_ie_buf, (__Ie).Octet, (__Ie).Length)))
 
 #define CIE_WATCHDOG_TH 1
 #define GET_CIE_WATCHDOG(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->CountryIeWatchdog)

@@ -94,7 +94,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 	UPDATE_CIE_SRC(dev, pTaddr);
 
 	pDot11dInfo->country_ie_len = CoutryIeLen;
-	memcpy(pDot11dInfo->CountryIeBuf, pCoutryIe, CoutryIeLen);
+	memcpy(pDot11dInfo->country_ie_buf, pCoutryIe, CoutryIeLen);
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
 EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
