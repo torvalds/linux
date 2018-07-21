@@ -114,7 +114,7 @@ ia64_init_addr_space (void)
 	 * the problem.  When the process attempts to write to the register backing store
 	 * for the first time, it will get a SEGFAULT in this case.
 	 */
-	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+	vma = vm_area_alloc();
 	if (vma) {
 		INIT_LIST_HEAD(&vma->anon_vma_chain);
 		vma->vm_mm = current->mm;
@@ -125,7 +125,7 @@ ia64_init_addr_space (void)
 		down_write(&current->mm->mmap_sem);
 		if (insert_vm_struct(current->mm, vma)) {
 			up_write(&current->mm->mmap_sem);
-			kmem_cache_free(vm_area_cachep, vma);
+			vm_area_free(vma);
 			return;
 		}
 		up_write(&current->mm->mmap_sem);
@@ -133,7 +133,7 @@ ia64_init_addr_space (void)
 
 	/* map NaT-page at address zero to speed up speculative dereferencing of NULL: */
 	if (!(current->personality & MMAP_PAGE_ZERO)) {
-		vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+		vma = vm_area_alloc();
 		if (vma) {
 			INIT_LIST_HEAD(&vma->anon_vma_chain);
 			vma->vm_mm = current->mm;
@@ -144,7 +144,7 @@ ia64_init_addr_space (void)
 			down_write(&current->mm->mmap_sem);
 			if (insert_vm_struct(current->mm, vma)) {
 				up_write(&current->mm->mmap_sem);
-				kmem_cache_free(vm_area_cachep, vma);
+				vm_area_free(vma);
 				return;
 			}
 			up_write(&current->mm->mmap_sem);
