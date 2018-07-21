@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017 MediaTek Inc.
- * Author: John Crispin <john@phrozen.org>
+ * Author: John pCrispin <john@phrozen.org>
  *	   Sean Wang <sean.wang@mediatek.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1214,7 +1214,6 @@
 		resets = <&ethsys 0>;
 		reset-names = "mtketh";
 	};
-
 
 	crypto: crypto@1b240000 {
 		compatible = "mediatek,mt7623-crypto";
