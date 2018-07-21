@@ -195,9 +195,6 @@ static int nfp_bpf_setup_tc_block(struct net_device *netdev,
 	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
 
-	if (tcf_block_shared(f->block))
-		return -EOPNOTSUPP;
-
 	switch (f->command) {
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block,
