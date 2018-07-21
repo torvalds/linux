@@ -351,7 +351,8 @@ dtb-$(CONFIG_SOC_IMX27) += \
 	imx27-phytec-phycore-rdk.dtb \
 	imx27-phytec-phycard-s-rdk.dtb
 dtb-$(CONFIG_SOC_IMX31) += \
-	imx31-bug.dtb
+	imx31-bug.dtb \
+	imx31-lite.dtb
 dtb-$(CONFIG_SOC_IMX35) += \
 	imx35-eukrea-mbimxsd35-baseboard.dtb \
 	imx35-pdk.dtb
@@ -364,10 +365,14 @@ dtb-$(CONFIG_SOC_IMX51) += \
 	imx51-digi-connectcore-jsk.dtb \
 	imx51-eukrea-mbimxsd51-baseboard.dtb \
 	imx51-ts4800.dtb \
-	imx51-zii-rdu1.dtb
+	imx51-zii-rdu1.dtb \
+	imx51-zii-scu2-mezz.dtb \
+	imx51-zii-scu3-esb.dtb
 dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-ard.dtb \
 	imx53-cx9020.dtb \
+	imx53-kp-ddc.dtb \
+	imx53-kp-hsc.dtb \
 	imx53-m53evk.dtb \
 	imx53-mba53.dtb \
 	imx53-ppd.dtb \
@@ -406,6 +411,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-hummingboard2-emmc-som-v15.dtb \
 	imx6dl-hummingboard2-som-v15.dtb \
 	imx6dl-icore.dtb \
+	imx6dl-icore-mipi.dtb \
 	imx6dl-icore-rqs.dtb \
 	imx6dl-mamoj.dtb \
 	imx6dl-nit6xlite.dtb \
@@ -527,6 +533,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
 	imx6sl-warp.dtb
+dtb-$(CONFIG_SOC_IMX6SLL) += \
+	imx6sll-evk.dtb
 dtb-$(CONFIG_SOC_IMX6SX) += \
 	imx6sx-nitrogen6sx.dtb \
 	imx6sx-sabreauto.dtb \
@@ -539,6 +547,7 @@ dtb-$(CONFIG_SOC_IMX6SX) += \
 	imx6sx-udoo-neo-full.dtb
 dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ul-14x14-evk.dtb \
+	imx6ul-ccimx6ulsbcexpress.dtb \
 	imx6ul-geam.dtb \
 	imx6ul-isiot-emmc.dtb \
 	imx6ul-isiot-nand.dtb \
@@ -573,8 +582,10 @@ dtb-$(CONFIG_SOC_VF610) += \
 	vf610-cosmic.dtb \
 	vf610m4-cosmic.dtb \
 	vf610-twr.dtb \
+	vf610-zii-cfu1.dtb \
 	vf610-zii-dev-rev-b.dtb \
-	vf610-zii-dev-rev-c.dtb
+	vf610-zii-dev-rev-c.dtb \
+	vf610-zii-ssmb-spu3.dtb
 dtb-$(CONFIG_ARCH_MXS) += \
 	imx23-evk.dtb \
 	imx23-olinuxino.dtb \

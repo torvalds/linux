@@ -62,6 +62,7 @@
 			device_type = "cpu";
 			reg = <0>;
 			clock-latency = <61036>; /* two CLK32 periods */
+			#cooling-cells = <2>;
 			operating-points = <
 				/* kHz	uV */
 				696000	1275000

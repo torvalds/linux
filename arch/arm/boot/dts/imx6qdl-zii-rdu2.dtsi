@@ -320,9 +320,35 @@
 	rave-sp {
 		compatible = "zii,rave-sp-rdu2";
 		current-speed = <1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
 		watchdog {
 			compatible = "zii,rave-sp-watchdog";
+		};
+
+		backlight {
+			compatible = "zii,rave-sp-backlight";
+		};
+
+		pwrbutton {
+			compatible = "zii,rave-sp-pwrbutton";
+		};
+
+		eeprom@a3 {
+			compatible = "zii,rave-sp-eeprom";
+			reg = <0xa3 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			zii,eeprom-name = "dds-eeprom";
+		};
+
+		eeprom@a4 {
+			compatible = "zii,rave-sp-eeprom";
+			reg = <0xa4 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			zii,eeprom-name = "main-eeprom";
 		};
 	};
 };
@@ -569,14 +595,14 @@
 
 		rmi4-f11@11 {
 			reg = <0x11>;
-			touchscreen-inverted-y;
+			touchscreen-inverted-x;
 			touchscreen-swapped-x-y;
 			syna,sensor-type = <1>;
 		};
 
 		rmi4-f12@12 {
 			reg = <0x12>;
-			touchscreen-inverted-y;
+			touchscreen-inverted-x;
 			touchscreen-swapped-x-y;
 			syna,sensor-type = <1>;
 		};

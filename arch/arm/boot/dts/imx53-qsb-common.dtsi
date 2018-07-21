@@ -153,7 +153,6 @@
 	imx53-qsb {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK 0x80000000
 				MX53_PAD_GPIO_8__GPIO1_8          0x80000000
 				MX53_PAD_PATA_DATA14__GPIO2_14    0x80000000
 				MX53_PAD_PATA_DATA15__GPIO2_15    0x80000000
@@ -177,6 +176,12 @@
 				MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD	0x80000000
 				MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS	0x80000000
 				MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD	0x80000000
+			>;
+		};
+
+		pinctrl_codec: codecgrp {
+			fsl,pins = <
+				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK	0x1c4
 			>;
 		};
 
@@ -310,6 +315,8 @@
 	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_codec>;
 		#sound-dai-cells = <0>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
