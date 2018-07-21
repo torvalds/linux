@@ -170,7 +170,7 @@ static int guc_shared_data_create(struct intel_guc *guc)
 
 	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma);
+		i915_vma_unpin_and_release(&vma, 0);
 		return PTR_ERR(vaddr);
 	}
 
@@ -182,8 +182,7 @@ static int guc_shared_data_create(struct intel_guc *guc)
 
 static void guc_shared_data_destroy(struct intel_guc *guc)
 {
-	i915_gem_object_unpin_map(guc->shared_data->obj);
-	i915_vma_unpin_and_release(&guc->shared_data);
+	i915_vma_unpin_and_release(&guc->shared_data, I915_VMA_RELEASE_MAP);
 }
 
 int intel_guc_init(struct intel_guc *guc)

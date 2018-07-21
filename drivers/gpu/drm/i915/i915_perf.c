@@ -1338,14 +1338,12 @@ free_oa_buffer(struct drm_i915_private *i915)
 {
 	mutex_lock(&i915->drm.struct_mutex);
 
-	i915_gem_object_unpin_map(i915->perf.oa.oa_buffer.vma->obj);
-	i915_vma_unpin(i915->perf.oa.oa_buffer.vma);
-	i915_gem_object_put(i915->perf.oa.oa_buffer.vma->obj);
-
-	i915->perf.oa.oa_buffer.vma = NULL;
-	i915->perf.oa.oa_buffer.vaddr = NULL;
+	i915_vma_unpin_and_release(&i915->perf.oa.oa_buffer.vma,
+				   I915_VMA_RELEASE_MAP);
 
 	mutex_unlock(&i915->drm.struct_mutex);
+
+	i915->perf.oa.oa_buffer.vaddr = NULL;
 }
 
 static void i915_oa_stream_destroy(struct i915_perf_stream *stream)

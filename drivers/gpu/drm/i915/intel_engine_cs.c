@@ -527,7 +527,7 @@ err_unref:
 
 void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
 {
-	i915_vma_unpin_and_release(&engine->scratch);
+	i915_vma_unpin_and_release(&engine->scratch, 0);
 }
 
 static void cleanup_phys_status_page(struct intel_engine_cs *engine)
@@ -543,20 +543,8 @@ static void cleanup_phys_status_page(struct intel_engine_cs *engine)
 
 static void cleanup_status_page(struct intel_engine_cs *engine)
 {
-	struct i915_vma *vma;
-	struct drm_i915_gem_object *obj;
-
-	vma = fetch_and_zero(&engine->status_page.vma);
-	if (!vma)
-		return;
-
-	obj = vma->obj;
-
-	i915_vma_unpin(vma);
-	i915_vma_close(vma);
-
-	i915_gem_object_unpin_map(obj);
-	__i915_gem_object_release_unless_active(obj);
+	i915_vma_unpin_and_release(&engine->status_page.vma,
+				   I915_VMA_RELEASE_MAP);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)

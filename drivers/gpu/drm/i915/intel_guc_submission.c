@@ -317,7 +317,7 @@ static int guc_stage_desc_pool_create(struct intel_guc *guc)
 
 	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma);
+		i915_vma_unpin_and_release(&vma, 0);
 		return PTR_ERR(vaddr);
 	}
 
@@ -331,8 +331,7 @@ static int guc_stage_desc_pool_create(struct intel_guc *guc)
 static void guc_stage_desc_pool_destroy(struct intel_guc *guc)
 {
 	ida_destroy(&guc->stage_ids);
-	i915_gem_object_unpin_map(guc->stage_desc_pool->obj);
-	i915_vma_unpin_and_release(&guc->stage_desc_pool);
+	i915_vma_unpin_and_release(&guc->stage_desc_pool, I915_VMA_RELEASE_MAP);
 }
 
 /*
@@ -1008,7 +1007,7 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 err_vaddr:
 	i915_gem_object_unpin_map(client->vma->obj);
 err_vma:
-	i915_vma_unpin_and_release(&client->vma);
+	i915_vma_unpin_and_release(&client->vma, 0);
 err_id:
 	ida_simple_remove(&guc->stage_ids, client->stage_id);
 err_client:
@@ -1020,8 +1019,7 @@ static void guc_client_free(struct intel_guc_client *client)
 {
 	unreserve_doorbell(client);
 	guc_stage_desc_fini(client->guc, client);
-	i915_gem_object_unpin_map(client->vma->obj);
-	i915_vma_unpin_and_release(&client->vma);
+	i915_vma_unpin_and_release(&client->vma, I915_VMA_RELEASE_MAP);
 	ida_simple_remove(&client->guc->stage_ids, client->stage_id);
 	kfree(client);
 }
