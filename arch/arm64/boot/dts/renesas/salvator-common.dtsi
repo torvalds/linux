@@ -33,7 +33,7 @@
 / {
 	aliases {
 		serial0 = &scif2;
-		serial1 = &scif1;
+		serial1 = &hscif1;
 		ethernet0 = &avb;
 	};
 
@@ -344,7 +344,7 @@
 
 	uart-has-rtscts;
 	/* Please only enable hscif1 or scif1 */
-	/* status = "okay"; */
+	status = "okay";
 };
 
 &hsusb {
@@ -446,7 +446,7 @@
 			};
 		};
 
-		port@10 {
+		port@a {
 			reg = <10>;
 
 			adv7482_txa: endpoint {
@@ -456,7 +456,7 @@
 			};
 		};
 
-		port@11 {
+		port@b {
 			reg = <11>;
 
 			adv7482_txb: endpoint {
@@ -723,7 +723,7 @@
 
 	uart-has-rtscts;
 	/* Please only enable hscif1 or scif1 */
-	status = "okay";
+	/* status = "okay"; */
 };
 
 &scif2 {
@@ -850,7 +850,7 @@
 	status = "okay";
 };
 
-&wdt0 {
+&rwdt {
 	timeout-sec = <60>;
 	status = "okay";
 };
