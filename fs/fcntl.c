@@ -767,11 +767,11 @@ static void send_sigio_to_task(struct task_struct *p,
 			else
 				si.si_band = mangle_poll(band_table[reason - POLL_IN]);
 			si.si_fd    = fd;
-			if (!do_send_sig_info(signum, &si, p, type != PIDTYPE_PID))
+			if (!do_send_sig_info(signum, &si, p, type))
 				break;
 		/* fall-through: fall back on the old plain SIGIO signal */
 		case 0:
-			do_send_sig_info(SIGIO, SEND_SIG_PRIV, p, type != PIDTYPE_PID);
+			do_send_sig_info(SIGIO, SEND_SIG_PRIV, p, type);
 	}
 }
 
@@ -808,7 +808,7 @@ static void send_sigurg_to_task(struct task_struct *p,
 				struct fown_struct *fown, enum pid_type type)
 {
 	if (sigio_perm(p, fown, SIGURG))
-		do_send_sig_info(SIGURG, SEND_SIG_PRIV, p, type != PIDTYPE_PID);
+		do_send_sig_info(SIGURG, SEND_SIG_PRIV, p, type);
 }
 
 int send_sigurg(struct fown_struct *fown)

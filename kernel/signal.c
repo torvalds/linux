@@ -1161,13 +1161,13 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 }
 
 int do_send_sig_info(int sig, struct siginfo *info, struct task_struct *p,
-			bool group)
+			enum pid_type type)
 {
 	unsigned long flags;
 	int ret = -ESRCH;
 
 	if (lock_task_sighand(p, &flags)) {
-		ret = send_signal(sig, info, p, group);
+		ret = send_signal(sig, info, p, type != PIDTYPE_PID);
 		unlock_task_sighand(p, &flags);
 	}
 
@@ -1284,7 +1284,7 @@ int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p,
 	rcu_read_unlock();
 
 	if (!ret && sig)
-		ret = do_send_sig_info(sig, info, p, true);
+		ret = do_send_sig_info(sig, info, p, type);
 
 	return ret;
 }
@@ -1448,7 +1448,7 @@ int send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	if (!valid_signal(sig))
 		return -EINVAL;
 
-	return do_send_sig_info(sig, info, p, false);
+	return do_send_sig_info(sig, info, p, PIDTYPE_PID);
 }
 
 #define __si_special(priv) \
@@ -3199,7 +3199,7 @@ do_send_specific(pid_t tgid, pid_t pid, int sig, struct siginfo *info)
 		 * probe.  No signal is actually delivered.
 		 */
 		if (!error && sig) {
-			error = do_send_sig_info(sig, info, p, false);
+			error = do_send_sig_info(sig, info, p, PIDTYPE_PID);
 			/*
 			 * If lock_task_sighand() failed we pretend the task
 			 * dies after receiving the signal. The window is tiny,
