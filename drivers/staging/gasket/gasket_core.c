@@ -1587,11 +1587,6 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 	int num_map_regions = 0;
 	enum do_map_region_status map_status;
 
-	if (!gasket_dev) {
-		gasket_nodev_error("Unable to retrieve device data");
-		trace_gasket_mmap_exit(-EINVAL);
-		return -EINVAL;
-	}
 	driver_desc = gasket_dev->internal_desc->driver_desc;
 
 	if (vma->vm_start & ~PAGE_MASK) {
@@ -1785,17 +1780,7 @@ static long gasket_ioctl(struct file *filp, uint cmd, ulong arg)
 	void __user *argp = (void __user *)arg;
 	char path[256];
 
-	if (!filp)
-		return -ENODEV;
-
 	gasket_dev = (struct gasket_dev *)filp->private_data;
-	if (!gasket_dev) {
-		gasket_nodev_error(
-			"Unable to find Gasket structure for file %s",
-			d_path(&filp->f_path, path, 256));
-		return -ENODEV;
-	}
-
 	driver_desc = gasket_dev->internal_desc->driver_desc;
 	if (!driver_desc) {
 		gasket_log_error(
