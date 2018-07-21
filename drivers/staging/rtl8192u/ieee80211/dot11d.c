@@ -12,7 +12,7 @@ void Dot11d_Init(struct ieee80211_device *ieee)
 	pDot11dInfo->State = DOT11D_STATE_NONE;
 	pDot11dInfo->country_ie_len = 0;
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
-	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(pDot11dInfo->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER+1);
 	RESET_CIE_WATCHDOG(ieee);
 
 	netdev_info(ieee->dev, "Dot11d_Init()\n");
@@ -26,7 +26,7 @@ void Dot11d_Reset(struct ieee80211_device *ieee)
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
 	/* Clear old channel map */
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
-	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(pDot11dInfo->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER+1);
 	/* Set new channel map */
 	for (i = 1; i <= 11; i++)
 		(pDot11dInfo->channel_map)[i] = 1;
@@ -57,7 +57,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 	struct chnl_txpower_triple *pTriple;
 
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
-	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(pDot11dInfo->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER+1);
 	MaxChnlNum = 0;
 	NumTriples = (CoutryIeLen - 3) / 3; /* skip 3-byte country string. */
 	pTriple = (struct chnl_txpower_triple *)(pCoutryIe + 3);
@@ -79,7 +79,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 
 		for (j = 0; j < pTriple->num_channels; j++) {
 			pDot11dInfo->channel_map[pTriple->first_channel + j] = 1;
-			pDot11dInfo->MaxTxPwrDbmList[pTriple->first_channel + j] = pTriple->max_tx_pwr_dbm;
+			pDot11dInfo->max_tx_pwr_dbm_list[pTriple->first_channel + j] = pTriple->max_tx_pwr_dbm;
 			MaxChnlNum = pTriple->first_channel + j;
 		}
 
@@ -109,7 +109,7 @@ u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
 		return MaxTxPwrInDbm;
 	}
 	if (pDot11dInfo->channel_map[Channel])
-		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];
+		MaxTxPwrInDbm = pDot11dInfo->max_tx_pwr_dbm_list[Channel];
 
 	return MaxTxPwrInDbm;
 }
