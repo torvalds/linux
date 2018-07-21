@@ -304,13 +304,14 @@ int bch2_set_acl(struct mnt_idmap *idmap,
 	umode_t mode = inode->v.i_mode;
 	int ret;
 
+	mutex_lock(&inode->ei_update_lock);
+	bch2_trans_init(&trans, c);
+
 	if (type == ACL_TYPE_ACCESS && acl) {
 		ret = posix_acl_update_mode(idmap, &inode->v, &mode, &acl);
 		if (ret)
-			return ret;
+			goto err;
 	}
-
-	bch2_trans_init(&trans, c);
 retry:
 	bch2_trans_begin(&trans);
 
@@ -336,6 +337,7 @@ retry:
 	set_cached_acl(&inode->v, type, acl);
 err:
 	bch2_trans_exit(&trans);
+	mutex_unlock(&inode->ei_update_lock);
 
 	return ret;
 }
