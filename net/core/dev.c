@@ -6115,19 +6115,24 @@ static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
-		    int (*poll)(struct napi_struct *, int), int weight)
+static void init_gro_hash(struct napi_struct *napi)
 {
 	int i;
 
-	INIT_LIST_HEAD(&napi->poll_list);
-	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
-	napi->timer.function = napi_watchdog;
-	napi->gro_bitmask = 0;
 	for (i = 0; i < GRO_HASH_BUCKETS; i++) {
 		INIT_LIST_HEAD(&napi->gro_hash[i].list);
 		napi->gro_hash[i].count = 0;
 	}
+	napi->gro_bitmask = 0;
+}
+
+void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
+		    int (*poll)(struct napi_struct *, int), int weight)
+{
+	INIT_LIST_HEAD(&napi->poll_list);
+	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
+	napi->timer.function = napi_watchdog;
+	init_gro_hash(napi);
 	napi->skb = NULL;
 	napi->poll = poll;
 	if (weight > NAPI_POLL_WEIGHT)
@@ -9554,6 +9559,7 @@ static int __init net_dev_init(void)
 		sd->cpu = i;
 #endif
 
+		init_gro_hash(&sd->backlog);
 		sd->backlog.poll = process_backlog;
 		sd->backlog.weight = weight_p;
 	}
