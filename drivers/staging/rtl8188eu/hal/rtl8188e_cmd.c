@@ -57,7 +57,6 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 	u32 h2c_cmd_ex = 0;
 	s32 ret = _FAIL;
 
-
 	if (!adapt->bFWReady) {
 		DBG_88E("%s(): return H2C cmd because fw is not ready\n",
 			__func__);
@@ -110,8 +109,6 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 	ret = _SUCCESS;
 
 exit:
-
-
 	return ret;
 }
 
@@ -196,7 +193,6 @@ void rtl8188e_set_FwPwrMode_cmd(struct adapter *adapt, u8 Mode)
 		H2CSetPwrMode.PwrState = 0x0C;/*  AllON(0x0C), RFON(0x04), RFOFF(0x00) */
 
 	FillH2CCmd_88E(adapt, H2C_PS_PWR_MODE, sizeof(H2CSetPwrMode), (u8 *)&H2CSetPwrMode);
-
 }
 
 void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt)
@@ -553,7 +549,6 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 	bool	bcn_valid = false;
 	u8 DLBcnCount = 0;
 	u32 poll = 0;
-
 
 	DBG_88E("%s mstatus(%x)\n", __func__, mstatus);
 

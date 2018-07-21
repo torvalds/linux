@@ -87,7 +87,6 @@ void rtw_hal_free_recv_priv(struct adapter *padapter)
 		DBG_88E(KERN_WARNING "rx_skb_queue not empty\n");
 	skb_queue_purge(&precvpriv->rx_skb_queue);
 
-
 	if (skb_queue_len(&precvpriv->free_recv_skb_queue))
 		DBG_88E(KERN_WARNING "free_recv_skb_queue not empty, %d\n",
 				skb_queue_len(&precvpriv->free_recv_skb_queue));

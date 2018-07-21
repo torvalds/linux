@@ -355,7 +355,6 @@ void rtw_stop_drv_threads(struct adapter *padapter)
 	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
 		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
-
 }
 
 static u8 rtw_init_default_value(struct adapter *padapter)
@@ -433,7 +432,6 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 {
 	u8	ret8 = _SUCCESS;
 
-
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_init_drv_sw\n"));
 
 	if ((rtw_init_cmd_priv(&padapter->cmdpriv)) == _FAIL) {
@@ -489,7 +487,6 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 exit:
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_init_drv_sw\n"));
-
 
 	return ret8;
 }
@@ -652,7 +649,6 @@ netdev_open_error:
 
 	return _FAIL;
 }
-
 
 int rtw_ips_pwr_up(struct adapter *padapter)
 {

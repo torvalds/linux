@@ -133,7 +133,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 	}
 
 	usb_put_dev(interface_to_usbdev(usb_intf));
-
 }
 
 void usb_intf_stop(struct adapter *padapter)

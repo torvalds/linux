@@ -44,7 +44,6 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 	u8 *ptr;
 	u8 direction;
 
-
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
 		tx_agc[RF_PATH_A] = 0x3f3f3f3f;
 		tx_agc[RF_PATH_B] = 0x3f3f3f3f;

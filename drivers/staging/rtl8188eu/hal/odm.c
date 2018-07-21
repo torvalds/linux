@@ -156,7 +156,6 @@ u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8] = {
 	{0x09, 0x08, 0x07, 0x04, 0x00, 0x00, 0x00, 0x00}  /*  32, -16.0dB */
 };
 
-
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
 

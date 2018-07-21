@@ -70,7 +70,6 @@ static s32 iol_InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 	return rst;
 }
 
-
 s32 rtl8188e_iol_efuse_patch(struct adapter *padapter)
 {
 	s32	result = _SUCCESS;
@@ -399,7 +398,6 @@ static u8 Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
 		else if (chnl == 14)		/*  Channel 14 */
 			*pGroup = 5;
 	} else {
-
 		/* probably, this branch is suitable only for 5 GHz */
 
 		bIn24G = false;

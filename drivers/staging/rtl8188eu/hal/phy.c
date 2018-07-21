@@ -352,7 +352,6 @@ void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
 			pwr_value = dm_odm->BbSwingIdxCck -
 				     dm_odm->BbSwingIdxCckBase;
 		}
-
 	}
 
 	if (pwr_value >= ODM_TXPWRTRACK_MAX_IDX_88E && *direction == 1)
@@ -879,7 +878,6 @@ static void mac_setting_calibration(struct adapter *adapt, u32 *mac_reg, u32 *ba
 
 static void path_a_standby(struct adapter *adapt)
 {
-
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x0);
 	phy_set_bb_reg(adapt, 0x840, bMaskDWord, 0x00010000);
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x80800000);
@@ -1003,7 +1001,6 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 		retry_count = 2;
 
 	if (t == 0) {
-
 		/*  Save ADDA parameters, turn Path A ADDA on */
 		save_adda_registers(adapt, adda_reg, dm_odm->RFCalibrateInfo.ADDA_backup,
 				    IQK_ADDA_REG_NUM);

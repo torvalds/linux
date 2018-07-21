@@ -267,7 +267,6 @@ static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 i
 					}
 				}
 			}
-
 		}
 
 		/*  firmware download is checksumed, don't retry */
@@ -291,7 +290,6 @@ u8 usb_read8(struct adapter *adapter, u32 addr)
 	u16 len;
 	u8 data = 0;
 
-
 	request = 0x05;
 	requesttype = 0x01;/* read_in */
 	index = 0;/* n/a */
@@ -301,9 +299,7 @@ u8 usb_read8(struct adapter *adapter, u32 addr)
 
 	usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
 
-
 	return data;
-
 }
 
 u16 usb_read16(struct adapter *adapter, u32 addr)
@@ -334,7 +330,6 @@ u32 usb_read32(struct adapter *adapter, u32 addr)
 	u16 len;
 	__le32 data;
 
-
 	request = 0x05;
 	requesttype = 0x01;/* read_in */
 	index = 0;/* n/a */
@@ -343,7 +338,6 @@ u32 usb_read32(struct adapter *adapter, u32 addr)
 	len = 4;
 
 	usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
-
 
 	return le32_to_cpu(data);
 }
@@ -428,7 +422,6 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf)
 	int err;
 	unsigned int pipe;
 	u32 ret = _SUCCESS;
-
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
 	    adapter->pwrctrlpriv.pnp_bstop_trx) {
@@ -532,7 +525,6 @@ int usb_write16(struct adapter *adapter, u32 addr, u16 val)
 	u16 len;
 	__le32 data;
 
-
 	request = 0x05;
 	requesttype = 0x00;/* write_out */
 	index = 0;/* n/a */
@@ -544,8 +536,6 @@ int usb_write16(struct adapter *adapter, u32 addr, u16 val)
 
 	return usbctrl_vendorreq(adapter, request, wvalue,
 				 index, &data, len, requesttype);
-
-
 }
 
 int usb_write32(struct adapter *adapter, u32 addr, u32 val)
@@ -557,7 +547,6 @@ int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 	u16 len;
 	__le32 data;
 
-
 	request = 0x05;
 	requesttype = 0x00;/* write_out */
 	index = 0;/* n/a */
@@ -568,8 +557,6 @@ int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 
 	return usbctrl_vendorreq(adapter, request, wvalue,
 				 index, &data, len, requesttype);
-
-
 }
 
 static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
@@ -662,7 +649,6 @@ u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, struct xmit_buf 
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)xmitbuf->priv_data;
 	struct usb_device *pusbd = pdvobj->pusbdev;
-
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("+usb_write_port\n"));
 

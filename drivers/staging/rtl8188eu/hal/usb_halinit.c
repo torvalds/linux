@@ -994,7 +994,6 @@ exit:
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("<=== usb_inirp_init\n"));
 
-
 	return status;
 }
 
