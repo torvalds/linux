@@ -9691,15 +9691,15 @@ static void vmx_l1d_flush(struct kvm_vcpu *vcpu)
 	/*
 	 * This code is only executed when the the flush mode is 'cond' or
 	 * 'always'
-	 *
-	 * If 'flush always', keep the flush bit set, otherwise clear
-	 * it. The flush bit gets set again either from vcpu_run() or from
-	 * one of the unsafe VMEXIT handlers.
 	 */
-	if (static_branch_unlikely(&vmx_l1d_flush_always))
-		vcpu->arch.l1tf_flush_l1d = true;
-	else
+	if (!static_branch_unlikely(&vmx_l1d_flush_always)) {
+		/*
+		 * Clear the flush bit, it gets set again either from
+		 * vcpu_run() or from one of the unsafe VMEXIT
+		 * handlers.
+		 */
 		vcpu->arch.l1tf_flush_l1d = false;
+	}
 
 	vcpu->stat.l1d_flush++;
 
