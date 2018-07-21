@@ -104,6 +104,7 @@ void bch2_btree_node_iter_fix(struct btree_iter *, struct btree *,
 			      unsigned, unsigned);
 
 int bch2_btree_iter_unlock(struct btree_iter *);
+bool bch2_btree_iter_relock(struct btree_iter *);
 
 bool __bch2_btree_iter_upgrade(struct btree_iter *, unsigned);
 bool __bch2_btree_iter_upgrade_nounlock(struct btree_iter *, unsigned);

@@ -203,8 +203,6 @@ static inline bool bch2_btree_node_relock(struct btree_iter *iter,
 		__bch2_btree_node_relock(iter, level);
 }
 
-bool bch2_btree_iter_relock(struct btree_iter *);
-
 void bch2_btree_node_unlock_write(struct btree *, struct btree_iter *);
 
 void __bch2_btree_node_lock_write(struct btree *, struct btree_iter *);

@@ -287,11 +287,11 @@ static int bch2_extent_update(struct btree_trans *trans,
 			      bool direct,
 			      s64 *total_delta)
 {
-	struct btree_iter *inode_iter = NULL;
 	struct bch_inode_unpacked inode_u;
 	struct bkey_inode_buf inode_p;
 	bool allocating = false;
 	bool extended = false;
+	bool inode_locked = false;
 	s64 i_sectors_delta;
 	int ret;
 
@@ -314,16 +314,20 @@ static int bch2_extent_update(struct btree_trans *trans,
 	/* XXX: inode->i_size locking */
 	if (i_sectors_delta ||
 	    new_i_size > inode->ei_inode.bi_size) {
-		inode_iter = bch2_trans_get_iter(trans,
-			BTREE_ID_INODES,
-			POS(k->k.p.inode, 0),
-			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-		if (IS_ERR(inode_iter))
-			return PTR_ERR(inode_iter);
+		bch2_btree_iter_unlock(extent_iter);
+		mutex_lock(&inode->ei_update_lock);
 
-		ret = bch2_btree_iter_traverse(inode_iter);
-		if (ret)
-			goto err;
+		if (!bch2_btree_iter_relock(extent_iter)) {
+			mutex_unlock(&inode->ei_update_lock);
+			return -EINTR;
+		}
+
+		inode_locked = true;
+
+		if (!inode->ei_inode_update)
+			inode->ei_inode_update =
+				bch2_deferred_update_alloc(trans->c,
+							BTREE_ID_INODES, 64);
 
 		inode_u = inode->ei_inode;
 		inode_u.bi_sectors += i_sectors_delta;
@@ -337,7 +341,8 @@ static int bch2_extent_update(struct btree_trans *trans,
 
 		bch2_inode_pack(&inode_p, &inode_u);
 		bch2_trans_update(trans,
-			BTREE_INSERT_ENTRY(inode_iter, &inode_p.inode.k_i));
+			BTREE_INSERT_DEFERRED(inode->ei_inode_update,
+					      &inode_p.inode.k_i));
 	}
 
 	ret = bch2_trans_commit(trans, disk_res,
@@ -371,13 +376,15 @@ static int bch2_extent_update(struct btree_trans *trans,
 	if (total_delta)
 		*total_delta += i_sectors_delta;
 err:
-	if (!IS_ERR_OR_NULL(inode_iter))
-		bch2_trans_iter_put(trans, inode_iter);
+	if (inode_locked)
+		mutex_unlock(&inode->ei_update_lock);
+
 	return ret;
 }
 
 static int bchfs_write_index_update(struct bch_write_op *wop)
 {
+	struct bch_fs *c = wop->c;
 	struct bchfs_write_op *op = container_of(wop,
 				struct bchfs_write_op, op);
 	struct quota_res *quota_res = op->is_dio
@@ -392,7 +399,7 @@ static int bchfs_write_index_update(struct bch_write_op *wop)
 
 	BUG_ON(k->k.p.inode != inode->v.i_ino);
 
-	bch2_trans_init(&trans, wop->c);
+	bch2_trans_init(&trans, c);
 	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans,
