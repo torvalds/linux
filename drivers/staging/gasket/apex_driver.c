@@ -710,14 +710,14 @@ static ssize_t sysfs_show(
 	gasket_dev = gasket_sysfs_get_device_data(device);
 	if (!gasket_dev) {
 		gasket_nodev_error("No Apex device sysfs mapping found");
-		return 0;
+		return -ENODEV;
 	}
 
 	gasket_attr = gasket_sysfs_get_attr(device, attr);
 	if (!gasket_attr) {
 		gasket_nodev_error("No Apex device sysfs attr data found");
 		gasket_sysfs_put_device_data(device, gasket_dev);
-		return 0;
+		return -ENODEV;
 	}
 
 	type = (enum sysfs_attribute_type)gasket_sysfs_get_attr(device, attr);
