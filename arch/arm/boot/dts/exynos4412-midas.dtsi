@@ -94,6 +94,8 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys>;
 
 		key-down {
 			gpios = <&gpx3 3 GPIO_ACTIVE_LOW>;
@@ -1008,6 +1010,11 @@
 &pinctrl_1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep1>;
+
+	gpio_keys: gpio-keys {
+		samsung,pins = "gpx0-1", "gpx2-2", "gpx2-7", "gpx3-3";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
 
 	max77693_irq: max77693-irq {
 		samsung,pins = "gpx1-5";
