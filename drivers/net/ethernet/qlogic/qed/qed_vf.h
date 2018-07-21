@@ -392,7 +392,12 @@ struct vfpf_vport_update_mcast_bin_tlv {
 	struct channel_tlv tl;
 	u8 padding[4];
 
-	u64 bins[8];
+	/* There are only 256 approx bins, and in HSI they're divided into
+	 * 32-bit values. As old VFs used to set-bit to the values on its side,
+	 * the upper half of the array is never expected to contain any data.
+	 */
+	u64 bins[4];
+	u64 obsolete_bins[4];
 };
 
 struct vfpf_vport_update_accept_param_tlv {
