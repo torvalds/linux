@@ -287,7 +287,7 @@ int gasket_interrupt_reinit(struct gasket_dev *gasket_dev)
 	int ret;
 
 	if (!gasket_dev->interrupt_data) {
-		gasket_log_error(
+		gasket_log_debug(
 			gasket_dev,
 			"Attempted to reinit uninitialized interrupt data.");
 		return -EINVAL;
@@ -305,7 +305,7 @@ int gasket_interrupt_reinit(struct gasket_dev *gasket_dev)
 	case PCI_MSI:
 	case PLATFORM_WIRE:
 	default:
-		gasket_nodev_error(
+		gasket_nodev_debug(
 			"Cannot handle unsupported interrupt type %d.",
 			gasket_dev->interrupt_data->type);
 		ret = -EINVAL;
@@ -351,7 +351,7 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 		gasket_dev->interrupt_data;
 
 	if (!interrupt_data) {
-		gasket_log_error(
+		gasket_log_debug(
 			gasket_dev, "Interrupt data is not initialized.");
 		return;
 	}
@@ -365,7 +365,7 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 	}
 
 	if (interrupt_data->type != PCI_MSIX) {
-		gasket_nodev_error(
+		gasket_nodev_debug(
 			"Cannot handle unsupported interrupt type %d.",
 			interrupt_data->type);
 		return;
@@ -403,7 +403,7 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 				pack_shift = 3 * interrupt_data->pack_width;
 				break;
 			default:
-				gasket_nodev_error(
+				gasket_nodev_debug(
 					"Found interrupt description with "
 					"unknown enum %d.",
 					interrupt_data->interrupts[i].packing);
@@ -445,7 +445,7 @@ void gasket_interrupt_cleanup(struct gasket_dev *gasket_dev)
 	case PCI_MSI:
 	case PLATFORM_WIRE:
 	default:
-		gasket_nodev_error(
+		gasket_nodev_debug(
 			"Cannot handle unsupported interrupt type %d.",
 			interrupt_data->type);
 	};
@@ -460,18 +460,18 @@ void gasket_interrupt_cleanup(struct gasket_dev *gasket_dev)
 int gasket_interrupt_system_status(struct gasket_dev *gasket_dev)
 {
 	if (!gasket_dev->interrupt_data) {
-		gasket_nodev_info("Interrupt data is null.");
+		gasket_nodev_debug("Interrupt data is null.");
 		return GASKET_STATUS_DEAD;
 	}
 
 	if (!gasket_dev->interrupt_data->msix_configured) {
-		gasket_nodev_info("Interrupt not initialized.");
+		gasket_nodev_debug("Interrupt not initialized.");
 		return GASKET_STATUS_LAMED;
 	}
 
 	if (gasket_dev->interrupt_data->num_configured !=
 		gasket_dev->interrupt_data->num_interrupts) {
-		gasket_nodev_info("Not all interrupts were configured.");
+		gasket_nodev_debug("Not all interrupts were configured.");
 		return GASKET_STATUS_LAMED;
 	}
 
@@ -516,14 +516,14 @@ static ssize_t interrupt_sysfs_show(
 
 	gasket_dev = gasket_sysfs_get_device_data(device);
 	if (!gasket_dev) {
-		gasket_nodev_error(
+		gasket_nodev_debug(
 			"No sysfs mapping found for device 0x%p", device);
 		return 0;
 	}
 
 	gasket_attr = gasket_sysfs_get_attr(device, attr);
 	if (!gasket_attr) {
-		gasket_nodev_error(
+		gasket_nodev_debug(
 			"No sysfs attr data found for device 0x%p", device);
 		gasket_sysfs_put_device_data(device, gasket_dev);
 		return 0;
@@ -545,7 +545,7 @@ static ssize_t interrupt_sysfs_show(
 		ret = total_written;
 		break;
 	default:
-		gasket_log_error(
+		gasket_log_debug(
 			gasket_dev, "Unknown attribute: %s", attr->attr.name);
 		ret = 0;
 		break;
