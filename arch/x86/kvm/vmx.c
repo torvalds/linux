@@ -189,7 +189,7 @@ module_param(ple_window_max, uint, 0444);
 extern const ulong vmx_return;
 
 static DEFINE_STATIC_KEY_FALSE(vmx_l1d_should_flush);
-static DEFINE_STATIC_KEY_FALSE(vmx_l1d_flush_always);
+static DEFINE_STATIC_KEY_FALSE(vmx_l1d_flush_cond);
 static DEFINE_MUTEX(vmx_l1d_flush_mutex);
 
 /* Storage for pre module init parameter parsing */
@@ -263,10 +263,10 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 	else
 		static_branch_disable(&vmx_l1d_should_flush);
 
-	if (l1tf == VMENTER_L1D_FLUSH_ALWAYS)
-		static_branch_enable(&vmx_l1d_flush_always);
+	if (l1tf == VMENTER_L1D_FLUSH_COND)
+		static_branch_enable(&vmx_l1d_flush_cond);
 	else
-		static_branch_disable(&vmx_l1d_flush_always);
+		static_branch_disable(&vmx_l1d_flush_cond);
 	return 0;
 }
 
@@ -9692,7 +9692,7 @@ static void vmx_l1d_flush(struct kvm_vcpu *vcpu)
 	 * This code is only executed when the the flush mode is 'cond' or
 	 * 'always'
 	 */
-	if (!static_branch_unlikely(&vmx_l1d_flush_always)) {
+	if (static_branch_likely(&vmx_l1d_flush_cond)) {
 		/*
 		 * Clear the flush bit, it gets set again either from
 		 * vcpu_run() or from one of the unsafe VMEXIT
