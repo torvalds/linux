@@ -477,6 +477,48 @@
 					};
 				};
 
+				pdm_dclk_a14_pins: pdm_dclk_a14 {
+					mux {
+						groups = "pdm_dclk_a14";
+						function = "pdm";
+					};
+				};
+
+				pdm_dclk_a19_pins: pdm_dclk_a19 {
+					mux {
+						groups = "pdm_dclk_a19";
+						function = "pdm";
+					};
+				};
+
+				pdm_din0_pins: pdm_din0 {
+					mux {
+						groups = "pdm_din0";
+						function = "pdm";
+					};
+				};
+
+				pdm_din1_pins: pdm_din1 {
+					mux {
+						groups = "pdm_din1";
+						function = "pdm";
+					};
+				};
+
+				pdm_din2_pins: pdm_din2 {
+					mux {
+						groups = "pdm_din2";
+						function = "pdm";
+					};
+				};
+
+				pdm_din3_pins: pdm_din3 {
+					mux {
+						groups = "pdm_din3";
+						function = "pdm";
+					};
+				};
+
 				pwm_a_a_pins: pwm_a_a {
 					mux {
 						groups = "pwm_a_a";
@@ -558,6 +600,76 @@
 					mux {
 						groups = "pwm_d_x16";
 						function = "pwm_d";
+					};
+				};
+
+				spdif_in_z_pins: spdif_in_z {
+					mux {
+						groups = "spdif_in_z";
+						function = "spdif_in";
+					};
+				};
+
+				spdif_in_a1_pins: spdif_in_a1 {
+					mux {
+						groups = "spdif_in_a1";
+						function = "spdif_in";
+					};
+				};
+
+				spdif_in_a7_pins: spdif_in_a7 {
+					mux {
+						groups = "spdif_in_a7";
+						function = "spdif_in";
+					};
+				};
+
+				spdif_in_a19_pins: spdif_in_a19 {
+					mux {
+						groups = "spdif_in_a19";
+						function = "spdif_in";
+					};
+				};
+
+				spdif_in_a20_pins: spdif_in_a20 {
+					mux {
+						groups = "spdif_in_a20";
+						function = "spdif_in";
+					};
+				};
+
+				spdif_out_z_pins: spdif_out_z {
+					mux {
+						groups = "spdif_out_z";
+						function = "spdif_out";
+					};
+				};
+
+				spdif_out_a1_pins: spdif_out_a1 {
+					mux {
+						groups = "spdif_out_a1";
+						function = "spdif_out";
+					};
+				};
+
+				spdif_out_a11_pins: spdif_out_a11 {
+					mux {
+						groups = "spdif_out_a11";
+						function = "spdif_out";
+					};
+				};
+
+				spdif_out_a19_pins: spdif_out_a19 {
+					mux {
+						groups = "spdif_out_a19";
+						function = "spdif_out";
+					};
+				};
+
+				spdif_out_a20_pins: spdif_out_a20 {
+					mux {
+						groups = "spdif_out_a20";
+						function = "spdif_out";
 					};
 				};
 
@@ -1192,6 +1304,20 @@
 				compatible = "amlogic,meson-gxbb-ir";
 				reg = <0x0 0x8000 0x0 0x20>;
 				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
+			saradc: adc@9000 {
+				compatible = "amlogic,meson-axg-saradc",
+					"amlogic,meson-saradc";
+				reg = <0x0 0x9000 0x0 0x38>;
+				#io-channel-cells = <1>;
+				interrupts = <GIC_SPI 73 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&xtal>,
+					<&clkc_AO CLKID_AO_SAR_ADC>,
+					<&clkc_AO CLKID_AO_SAR_ADC_CLK>,
+					<&clkc_AO CLKID_AO_SAR_ADC_SEL>;
+				clock-names = "clkin", "core", "adc_clk", "adc_sel";
 				status = "disabled";
 			};
 		};

@@ -6,14 +6,65 @@
 /dts-v1/;
 
 #include "meson-axg.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	compatible = "amlogic,s400", "amlogic,a113d", "amlogic,meson-axg";
 	model = "Amlogic Meson AXG S400 Development Board";
 
+	adc_keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 0>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+
+		button-next {
+			label = "Next";
+			linux,code = <KEY_NEXT>;
+			press-threshold-microvolt = <1116000>; /* 62% */
+		};
+
+		button-prev {
+			label = "Previous";
+			linux,code = <KEY_PREVIOUS>;
+			press-threshold-microvolt = <900000>; /* 50% */
+		};
+
+		button-wifi {
+			label = "Wifi";
+			linux,code = <KEY_WLAN>;
+			press-threshold-microvolt = <684000>; /* 38% */
+		};
+
+		button-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <468000>; /* 26% */
+		};
+
+		button-down {
+			label = "Volume Down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <252000>; /* 14% */
+		};
+
+		button-voice {
+			label = "Voice";
+			linux,code = <KEY_VOICECOMMAND>;
+			press-threshold-microvolt = <0>; /* 0% */
+		};
+	};
+
 	aliases {
 		serial0 = &uart_AO;
 		serial1 = &uart_A;
+	};
+
+	main_12v: regulator-main_12v {
+		compatible = "regulator-fixed";
+		regulator-name = "12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
 	};
 
 	vddio_boot: regulator-vddio_boot {
@@ -62,6 +113,40 @@
 		clock-frequency = <32768>;
 		pwms = <&pwm_ab 0 30518 0>; /* PWM_A at 32.768KHz */
 	};
+
+	speaker-leds {
+		compatible = "gpio-leds";
+
+		aled1 {
+			label = "speaker:aled1";
+			gpios = <&gpio_speaker 7 0>;
+		};
+
+		aled2 {
+			label = "speaker:aled2";
+			gpios = <&gpio_speaker 6 0>;
+		};
+
+		aled3 {
+			label = "speaker:aled3";
+			gpios = <&gpio_speaker 5 0>;
+		};
+
+		aled4 {
+			label = "speaker:aled4";
+			gpios = <&gpio_speaker 4 0>;
+		};
+
+		aled5 {
+			label = "speaker:aled5";
+			gpios = <&gpio_speaker 3 0>;
+		};
+
+		aled6 {
+			label = "speaker:aled6";
+			gpios = <&gpio_speaker 2 0>;
+		};
+	};
 };
 
 &ethmac {
@@ -106,12 +191,33 @@
 	status = "okay";
 	pinctrl-0 = <&i2c1_z_pins>;
 	pinctrl-names = "default";
+
+	speaker_amp1: audio-codec@1b {
+		compatible = "ti,tas5707";
+		reg = <0x1b>;
+		reset-gpios = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_LOW>;
+		#sound-dai-cells = <0>;
+		AVDD-supply = <&vcc_3v3>;
+		DVDD-supply = <&vcc_3v3>;
+		PVDD_A-supply = <&main_12v>;
+		PVDD_B-supply = <&main_12v>;
+		PVDD_C-supply = <&main_12v>;
+		PVDD_D-supply = <&main_12v>;
+	};
 };
 
 &i2c_AO {
 	status = "okay";
 	pinctrl-0 = <&i2c_ao_sck_10_pins>, <&i2c_ao_sda_11_pins>;
 	pinctrl-names = "default";
+
+	gpio_speaker: gpio-controller@1f {
+		compatible = "nxp,pca9557";
+		reg = <0x1f>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		vcc-supply = <&vddao_3v3>;
+	};
 };
 
 &pwm_ab {
@@ -165,4 +271,9 @@
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 	};
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vddio_ao18>;
 };
