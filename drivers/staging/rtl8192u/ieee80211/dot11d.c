@@ -10,7 +10,7 @@ void Dot11d_Init(struct ieee80211_device *ieee)
 	pDot11dInfo->enabled = false;
 
 	pDot11dInfo->State = DOT11D_STATE_NONE;
-	pDot11dInfo->CountryIeLen = 0;
+	pDot11dInfo->country_ie_len = 0;
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
 	RESET_CIE_WATCHDOG(ieee);
@@ -35,7 +35,7 @@ void Dot11d_Reset(struct ieee80211_device *ieee)
 		(pDot11dInfo->channel_map)[i] = 2;
 
 	pDot11dInfo->State = DOT11D_STATE_NONE;
-	pDot11dInfo->CountryIeLen = 0;
+	pDot11dInfo->country_ie_len = 0;
 	RESET_CIE_WATCHDOG(ieee);
 }
 EXPORT_SYMBOL(Dot11d_Reset);
@@ -93,7 +93,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 
 	UPDATE_CIE_SRC(dev, pTaddr);
 
-	pDot11dInfo->CountryIeLen = CoutryIeLen;
+	pDot11dInfo->country_ie_len = CoutryIeLen;
 	memcpy(pDot11dInfo->CountryIeBuf, pCoutryIe, CoutryIeLen);
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
