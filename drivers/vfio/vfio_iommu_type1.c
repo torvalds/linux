@@ -339,18 +339,16 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 	struct page *page[1];
 	struct vm_area_struct *vma;
 	struct vm_area_struct *vmas[1];
+	unsigned int flags = 0;
 	int ret;
 
+	if (prot & IOMMU_WRITE)
+		flags |= FOLL_WRITE;
+
+	down_read(&mm->mmap_sem);
 	if (mm == current->mm) {
-		ret = get_user_pages_longterm(vaddr, 1, !!(prot & IOMMU_WRITE),
-					      page, vmas);
+		ret = get_user_pages_longterm(vaddr, 1, flags, page, vmas);
 	} else {
-		unsigned int flags = 0;
-
-		if (prot & IOMMU_WRITE)
-			flags |= FOLL_WRITE;
-
-		down_read(&mm->mmap_sem);
 		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
 					    vmas, NULL);
 		/*
@@ -364,8 +362,8 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 			ret = -EOPNOTSUPP;
 			put_page(page[0]);
 		}
-		up_read(&mm->mmap_sem);
 	}
+	up_read(&mm->mmap_sem);
 
 	if (ret == 1) {
 		*pfn = page_to_pfn(page[0]);

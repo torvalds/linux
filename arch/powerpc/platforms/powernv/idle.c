@@ -78,7 +78,7 @@ static int pnv_save_sprs_for_deep_states(void)
 	uint64_t msr_val = MSR_IDLE;
 	uint64_t psscr_val = pnv_deepest_stop_psscr_val;
 
-	for_each_possible_cpu(cpu) {
+	for_each_present_cpu(cpu) {
 		uint64_t pir = get_hard_smp_processor_id(cpu);
 		uint64_t hsprg0_val = (uint64_t)&paca[cpu];
 
@@ -741,7 +741,7 @@ static int __init pnv_init_idle_states(void)
 		int cpu;
 
 		pr_info("powernv: idle: Saving PACA pointers of all CPUs in their thread sibling PACA\n");
-		for_each_possible_cpu(cpu) {
+		for_each_present_cpu(cpu) {
 			int base_cpu = cpu_first_thread_sibling(cpu);
 			int idx = cpu_thread_in_core(cpu);
 			int i;

@@ -889,6 +889,7 @@ cifs_demultiplex_thread(void *p)
 			continue;
 		server->total_read += length;
 
+		mid_entry = NULL;
 		if (server->ops->is_transform_hdr &&
 		    server->ops->receive_transform &&
 		    server->ops->is_transform_hdr(buf)) {
@@ -903,8 +904,11 @@ cifs_demultiplex_thread(void *p)
 				length = mid_entry->receive(server, mid_entry);
 		}
 
-		if (length < 0)
+		if (length < 0) {
+			if (mid_entry)
+				cifs_mid_q_entry_release(mid_entry);
 			continue;
+		}
 
 		if (server->large_buf)
 			buf = server->bigbuf;
@@ -920,6 +924,8 @@ cifs_demultiplex_thread(void *p)
 
 			if (!mid_entry->multiRsp || mid_entry->multiEnd)
 				mid_entry->callback(mid_entry);
+
+			cifs_mid_q_entry_release(mid_entry);
 		} else if (server->ops->is_oplock_break &&
 			   server->ops->is_oplock_break(buf, server)) {
 			cifs_dbg(FYI, "Received oplock break\n");

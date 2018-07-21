@@ -133,6 +133,8 @@ all.config
 # Kdevelop4
 *.kdev4
 
+*.asn1.c
+*.asn1.h
 
 # own
 arch/arm/boot/zImage-dtb

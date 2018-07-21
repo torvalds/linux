@@ -18,7 +18,7 @@ config NET_MEDIATEK_HNAT
 	tristate "MediaTek MT7623 hardware NAT support"
 	depends on NET_MEDIATEK_SOC && NF_CONNTRACK && NF_CONNTRACK_IPV4 && IP_NF_NAT && IP_NF_TARGET_MASQUERADE
 	---help---
-	  This driver supports the hardwaer NAT in the
+	  This driver supports the hardware NAT in the
 	  MediaTek MT2701/MT7623 chipset family.
 
 config NET_MEDIATEK_HW_QOS

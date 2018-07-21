@@ -182,7 +182,6 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	}
 
 	*dest = 0;
- again:
 	rt = (void *)ip6_route_lookup(nft_net(pkt), &fl6, lookup_flags);
 	if (rt->dst.error)
 		goto put_rt_err;
@@ -191,15 +190,8 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	if (rt->rt6i_flags & (RTF_REJECT | RTF_ANYCAST | RTF_LOCAL))
 		goto put_rt_err;
 
-	if (oif && oif != rt->rt6i_idev->dev) {
-		/* multipath route? Try again with F_IFACE */
-		if ((lookup_flags & RT6_LOOKUP_F_IFACE) == 0) {
-			lookup_flags |= RT6_LOOKUP_F_IFACE;
-			fl6.flowi6_oif = oif->ifindex;
-			ip6_rt_put(rt);
-			goto again;
-		}
-	}
+	if (oif && oif != rt->rt6i_idev->dev)
+		goto put_rt_err;
 
 	switch (priv->result) {
 	case NFT_FIB_RESULT_OIF:

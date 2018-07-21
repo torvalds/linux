@@ -1,5 +1,4 @@
-
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2014-2018 MediaTek Inc.
  *
@@ -7,8 +6,8 @@
  *	   Sean Wang <sean.wang@mediatek.com>
  */
 
-#ifndef _LINUX_RTC_MT6397_H_
-#define _LINUX_RTC_MT6397_H_
+#ifndef _LINUX_MFD_MT6397_RTC_H_
+#define _LINUX_MFD_MT6397_RTC_H_
 
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
@@ -62,12 +61,11 @@ struct mt6397_rtc {
 	struct device		*dev;
 	struct rtc_device	*rtc_dev;
 
-	/* protect registers accessing */
+	/* Protect register access from multiple tasks */
 	struct mutex		lock;
 	struct regmap		*regmap;
 	int			irq;
 	u32			addr_base;
 };
 
-#endif /* _LINUX_RTC_MT6397_H_ */
-
+#endif /* _LINUX_MFD_MT6397_RTC_H_ */

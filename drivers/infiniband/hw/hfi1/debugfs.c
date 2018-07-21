@@ -1179,7 +1179,8 @@ DEBUGFS_FILE_OPS(fault_stats);
 
 static void fault_exit_opcode_debugfs(struct hfi1_ibdev *ibd)
 {
-	debugfs_remove_recursive(ibd->fault_opcode->dir);
+	if (ibd->fault_opcode)
+		debugfs_remove_recursive(ibd->fault_opcode->dir);
 	kfree(ibd->fault_opcode);
 	ibd->fault_opcode = NULL;
 }
@@ -1207,6 +1208,7 @@ static int fault_init_opcode_debugfs(struct hfi1_ibdev *ibd)
 					  &ibd->fault_opcode->attr);
 	if (IS_ERR(ibd->fault_opcode->dir)) {
 		kfree(ibd->fault_opcode);
+		ibd->fault_opcode = NULL;
 		return -ENOENT;
 	}
 
@@ -1230,7 +1232,8 @@ fail:
 
 static void fault_exit_packet_debugfs(struct hfi1_ibdev *ibd)
 {
-	debugfs_remove_recursive(ibd->fault_packet->dir);
+	if (ibd->fault_packet)
+		debugfs_remove_recursive(ibd->fault_packet->dir);
 	kfree(ibd->fault_packet);
 	ibd->fault_packet = NULL;
 }
@@ -1256,6 +1259,7 @@ static int fault_init_packet_debugfs(struct hfi1_ibdev *ibd)
 					  &ibd->fault_opcode->attr);
 	if (IS_ERR(ibd->fault_packet->dir)) {
 		kfree(ibd->fault_packet);
+		ibd->fault_packet = NULL;
 		return -ENOENT;
 	}
 

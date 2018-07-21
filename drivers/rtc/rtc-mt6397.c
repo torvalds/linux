@@ -13,11 +13,10 @@
 #include <linux/mfd/mt6397/core.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/rtc.h>
-#include <linux/rtc/mt6397.h>
+#include <linux/mfd/mt6397/rtc.h>
 
 static int mtk_rtc_write_trigger(struct mt6397_rtc *rtc)
 {
@@ -33,7 +32,7 @@ static int mtk_rtc_write_trigger(struct mt6397_rtc *rtc)
 				       !(data & RTC_BBPU_CBUSY),
 				       MTK_RTC_POLL_DELAY_US,
 				       MTK_RTC_POLL_TIMEOUT);
-	if (ret)
+	if (ret < 0)
 		dev_err(rtc->dev, "failed to write WRTGE: %d\n", ret);
 
 	return ret;
@@ -284,15 +283,13 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, "mt6397-rtc",
-						&mtk_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc_dev)) {
-		dev_err(&pdev->dev, "register rtc device failed\n");
-		ret = PTR_ERR(rtc->rtc_dev);
-		return ret;
-	}
+	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
 
-	return devm_of_platform_populate(&pdev->dev);
+	rtc->rtc_dev->ops = &mtk_rtc_ops;
+
+	return rtc_register_device(rtc->rtc_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP

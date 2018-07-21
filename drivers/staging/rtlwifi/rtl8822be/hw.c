@@ -814,7 +814,7 @@ static void _rtl8822be_enable_aspm_back_door(struct ieee80211_hw *hw)
 		return;
 
 	pci_read_config_byte(rtlpci->pdev, 0x70f, &tmp);
-	pci_write_config_byte(rtlpci->pdev, 0x70f, tmp | BIT(7));
+	pci_write_config_byte(rtlpci->pdev, 0x70f, tmp | ASPM_L1_LATENCY << 3);
 
 	pci_read_config_byte(rtlpci->pdev, 0x719, &tmp);
 	pci_write_config_byte(rtlpci->pdev, 0x719, tmp | BIT(3) | BIT(4));

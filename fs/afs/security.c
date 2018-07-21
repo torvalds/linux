@@ -323,18 +323,14 @@ int afs_permission(struct inode *inode, int mask)
 	       mask, access, S_ISDIR(inode->i_mode) ? "dir" : "file");
 
 	if (S_ISDIR(inode->i_mode)) {
-		if (mask & MAY_EXEC) {
+		if (mask & (MAY_EXEC | MAY_READ | MAY_CHDIR)) {
 			if (!(access & AFS_ACE_LOOKUP))
 				goto permission_denied;
-		} else if (mask & MAY_READ) {
-			if (!(access & AFS_ACE_LOOKUP))
-				goto permission_denied;
-		} else if (mask & MAY_WRITE) {
+		}
+		if (mask & MAY_WRITE) {
 			if (!(access & (AFS_ACE_DELETE | /* rmdir, unlink, rename from */
 					AFS_ACE_INSERT))) /* create, mkdir, symlink, rename to */
 				goto permission_denied;
-		} else {
-			BUG();
 		}
 	} else {
 		if (!(access & AFS_ACE_LOOKUP))

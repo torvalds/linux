@@ -277,6 +277,11 @@ if [ -n "$kernver" ]; then
 			umount /media/$USER/BPI-ROOT
 			;;
 
+ 		"uenv")
+			echo "edit uEnv.txt"
+			nano /media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uEnv.txt
+			;;
+
 		"defconfig")
 			echo "Edit def config"
 			nano arch/arm/configs/mt7623n_evb_fwu_defconfig

@@ -152,15 +152,6 @@ stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
 the default option --strip-debug will be used.  Otherwise,
 INSTALL_MOD_STRIP value will be used as the options to the strip command.
 
-INSTALL_FW_PATH
---------------------------------------------------
-INSTALL_FW_PATH specifies where to install the firmware blobs.
-The default value is:
-
-    $(INSTALL_MOD_PATH)/lib/firmware
-
-The value can be overridden in which case the default value is ignored.
-
 INSTALL_HDR_PATH
 --------------------------------------------------
 INSTALL_HDR_PATH specifies where to install user space headers when
