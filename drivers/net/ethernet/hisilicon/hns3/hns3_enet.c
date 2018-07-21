@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
@@ -62,9 +56,9 @@ static const struct pci_device_id hns3_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, hns3_pci_tbl);
 
-static irqreturn_t hns3_irq_handle(int irq, void *dev)
+static irqreturn_t hns3_irq_handle(int irq, void *vector)
 {
-	struct hns3_enet_tqp_vector *tqp_vector = dev;
+	struct hns3_enet_tqp_vector *tqp_vector = vector;
 
 	napi_schedule(&tqp_vector->napi);
 

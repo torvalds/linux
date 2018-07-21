@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #ifndef __HCLGE_CMD_H
 #define __HCLGE_CMD_H
@@ -27,17 +21,10 @@ struct hclge_desc {
 	__le32 data[6];
 };
 
-struct hclge_desc_cb {
-	dma_addr_t dma;
-	void *va;
-	u32 length;
-};
-
 struct hclge_cmq_ring {
 	dma_addr_t desc_dma_addr;
 	struct hclge_desc *desc;
-	struct hclge_desc_cb *desc_cb;
-	struct hclge_dev  *dev;
+	struct hclge_dev *dev;
 	u32 head;
 	u32 tail;
 
@@ -45,7 +32,7 @@ struct hclge_cmq_ring {
 	u16 desc_num;
 	int next_to_use;
 	int next_to_clean;
-	u8 flag;
+	u8 ring_type; /* cmq ring type */
 	spinlock_t lock; /* Command queue lock */
 };
 
@@ -71,26 +58,19 @@ struct hclge_misc_vector {
 struct hclge_cmq {
 	struct hclge_cmq_ring csq;
 	struct hclge_cmq_ring crq;
-	u16 tx_timeout; /* Tx timeout */
+	u16 tx_timeout;
 	enum hclge_cmd_status last_status;
 };
 
-#define HCLGE_CMD_FLAG_IN_VALID_SHIFT	0
-#define HCLGE_CMD_FLAG_OUT_VALID_SHIFT	1
-#define HCLGE_CMD_FLAG_NEXT_SHIFT	2
-#define HCLGE_CMD_FLAG_WR_OR_RD_SHIFT	3
-#define HCLGE_CMD_FLAG_NO_INTR_SHIFT	4
-#define HCLGE_CMD_FLAG_ERR_INTR_SHIFT	5
-
-#define HCLGE_CMD_FLAG_IN	BIT(HCLGE_CMD_FLAG_IN_VALID_SHIFT)
-#define HCLGE_CMD_FLAG_OUT	BIT(HCLGE_CMD_FLAG_OUT_VALID_SHIFT)
-#define HCLGE_CMD_FLAG_NEXT	BIT(HCLGE_CMD_FLAG_NEXT_SHIFT)
-#define HCLGE_CMD_FLAG_WR	BIT(HCLGE_CMD_FLAG_WR_OR_RD_SHIFT)
-#define HCLGE_CMD_FLAG_NO_INTR	BIT(HCLGE_CMD_FLAG_NO_INTR_SHIFT)
-#define HCLGE_CMD_FLAG_ERR_INTR	BIT(HCLGE_CMD_FLAG_ERR_INTR_SHIFT)
+#define HCLGE_CMD_FLAG_IN	BIT(0)
+#define HCLGE_CMD_FLAG_OUT	BIT(1)
+#define HCLGE_CMD_FLAG_NEXT	BIT(2)
+#define HCLGE_CMD_FLAG_WR	BIT(3)
+#define HCLGE_CMD_FLAG_NO_INTR	BIT(4)
+#define HCLGE_CMD_FLAG_ERR_INTR	BIT(5)
 
 enum hclge_opcode_type {
-	/* Generic command */
+	/* Generic commands */
 	HCLGE_OPC_QUERY_FW_VER		= 0x0001,
 	HCLGE_OPC_CFG_RST_TRIGGER	= 0x0020,
 	HCLGE_OPC_GBL_RST_STATUS	= 0x0021,
@@ -106,18 +86,16 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_REG_NUM		= 0x0040,
 	HCLGE_OPC_QUERY_32_BIT_REG	= 0x0041,
 	HCLGE_OPC_QUERY_64_BIT_REG	= 0x0042,
-	/* Device management command */
 
-	/* MAC commond */
+	/* MAC command */
 	HCLGE_OPC_CONFIG_MAC_MODE	= 0x0301,
 	HCLGE_OPC_CONFIG_AN_MODE	= 0x0304,
 	HCLGE_OPC_QUERY_AN_RESULT	= 0x0306,
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
-	/* MACSEC command */
 
-	/* PFC/Pause CMD*/
+	/* PFC/Pause commands */
 	HCLGE_OPC_CFG_MAC_PAUSE_EN      = 0x0701,
 	HCLGE_OPC_CFG_PFC_PAUSE_EN      = 0x0702,
 	HCLGE_OPC_CFG_MAC_PARA          = 0x0703,
@@ -148,7 +126,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_TM_QS_SCH_MODE_CFG    = 0x0814,
 	HCLGE_OPC_TM_BP_TO_QSET_MAPPING = 0x0815,
 
-	/* Packet buffer allocate command */
+	/* Packet buffer allocate commands */
 	HCLGE_OPC_TX_BUFF_ALLOC		= 0x0901,
 	HCLGE_OPC_RX_PRIV_BUFF_ALLOC	= 0x0902,
 	HCLGE_OPC_RX_PRIV_WL_ALLOC	= 0x0903,
@@ -156,11 +134,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_RX_COM_WL_ALLOC	= 0x0905,
 	HCLGE_OPC_RX_GBL_PKT_CNT	= 0x0906,
 
-	/* PTP command */
 	/* TQP management command */
 	HCLGE_OPC_SET_TQP_MAP		= 0x0A01,
 
-	/* TQP command */
+	/* TQP commands */
 	HCLGE_OPC_CFG_TX_QUEUE		= 0x0B01,
 	HCLGE_OPC_QUERY_TX_POINTER	= 0x0B02,
 	HCLGE_OPC_QUERY_TX_STATUS	= 0x0B03,
@@ -172,10 +149,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
 	HCLGE_OPC_RESET_TQP_QUEUE	= 0x0B22,
 
-	/* TSO cmd */
+	/* TSO command */
 	HCLGE_OPC_TSO_GENERIC_CONFIG	= 0x0C01,
 
-	/* RSS cmd */
+	/* RSS commands */
 	HCLGE_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
 	HCLGE_OPC_RSS_INDIR_TABLE	= 0x0D07,
 	HCLGE_OPC_RSS_TC_MODE		= 0x0D08,
@@ -184,15 +161,15 @@ enum hclge_opcode_type {
 	/* Promisuous mode command */
 	HCLGE_OPC_CFG_PROMISC_MODE	= 0x0E01,
 
-	/* Vlan offload command */
+	/* Vlan offload commands */
 	HCLGE_OPC_VLAN_PORT_TX_CFG	= 0x0F01,
 	HCLGE_OPC_VLAN_PORT_RX_CFG	= 0x0F02,
 
-	/* Interrupts cmd */
+	/* Interrupts commands */
 	HCLGE_OPC_ADD_RING_TO_VECTOR	= 0x1503,
 	HCLGE_OPC_DEL_RING_TO_VECTOR	= 0x1504,
 
-	/* MAC command */
+	/* MAC commands */
 	HCLGE_OPC_MAC_VLAN_ADD		    = 0x1000,
 	HCLGE_OPC_MAC_VLAN_REMOVE	    = 0x1001,
 	HCLGE_OPC_MAC_VLAN_TYPE_ID	    = 0x1002,
@@ -201,13 +178,13 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_ETHTYPE_REMOVE	= 0x1011,
 	HCLGE_OPC_MAC_VLAN_MASK_SET	= 0x1012,
 
-	/* Multicast linear table cmd */
+	/* Multicast linear table commands */
 	HCLGE_OPC_MTA_MAC_MODE_CFG	    = 0x1020,
 	HCLGE_OPC_MTA_MAC_FUNC_CFG	    = 0x1021,
 	HCLGE_OPC_MTA_TBL_ITEM_CFG	    = 0x1022,
 	HCLGE_OPC_MTA_TBL_ITEM_QUERY	= 0x1023,
 
-	/* VLAN command */
+	/* VLAN commands */
 	HCLGE_OPC_VLAN_FILTER_CTRL	    = 0x1100,
 	HCLGE_OPC_VLAN_FILTER_PF_CFG	= 0x1101,
 	HCLGE_OPC_VLAN_FILTER_VF_CFG	= 0x1102,
@@ -215,7 +192,7 @@ enum hclge_opcode_type {
 	/* MDIO command */
 	HCLGE_OPC_MDIO_CONFIG		= 0x1900,
 
-	/* QCN command */
+	/* QCN commands */
 	HCLGE_OPC_QCN_MOD_CFG		= 0x1A01,
 	HCLGE_OPC_QCN_GRP_TMPLT_CFG	= 0x1A02,
 	HCLGE_OPC_QCN_SHAPPING_IR_CFG	= 0x1A03,
@@ -225,7 +202,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QCN_AJUST_INIT	= 0x1A07,
 	HCLGE_OPC_QCN_DFX_CNT_STATUS    = 0x1A08,
 
-	/* Mailbox cmd */
+	/* Mailbox command */
 	HCLGEVF_OPC_MBX_PF_TO_VF	= 0x2000,
 
 	/* Led command */
@@ -382,7 +359,7 @@ struct hclge_pf_res_cmd {
 	__le16 msixcap_localid_ba_nic;
 	__le16 msixcap_localid_ba_rocee;
 #define HCLGE_PF_VEC_NUM_S		0
-#define HCLGE_PF_VEC_NUM_M		(0xff << HCLGE_PF_VEC_NUM_S)
+#define HCLGE_PF_VEC_NUM_M		GENMASK(7, 0)
 	__le16 pf_intr_vector_number;
 	__le16 pf_own_fun_number;
 	__le32 rsv[3];
@@ -471,8 +448,8 @@ struct hclge_rss_tc_mode_cmd {
 	u8 rsv[8];
 };
 
-#define HCLGE_LINK_STS_B	0
-#define HCLGE_LINK_STATUS	BIT(HCLGE_LINK_STS_B)
+#define HCLGE_LINK_STATUS_UP_B	0
+#define HCLGE_LINK_STATUS_UP_M	BIT(HCLGE_LINK_STATUS_UP_B)
 struct hclge_link_status_cmd {
 	u8 status;
 	u8 rsv[23];
@@ -582,13 +559,13 @@ enum hclge_mac_vlan_tbl_opcode {
 	HCLGE_MAC_VLAN_LKUP,    /* Lookup a entry through mac_vlan key */
 };
 
-#define HCLGE_MAC_VLAN_BIT0_EN_B	0x0
-#define HCLGE_MAC_VLAN_BIT1_EN_B	0x1
-#define HCLGE_MAC_EPORT_SW_EN_B		0xc
-#define HCLGE_MAC_EPORT_TYPE_B		0xb
-#define HCLGE_MAC_EPORT_VFID_S		0x3
+#define HCLGE_MAC_VLAN_BIT0_EN_B	0
+#define HCLGE_MAC_VLAN_BIT1_EN_B	1
+#define HCLGE_MAC_EPORT_SW_EN_B		12
+#define HCLGE_MAC_EPORT_TYPE_B		11
+#define HCLGE_MAC_EPORT_VFID_S		3
 #define HCLGE_MAC_EPORT_VFID_M		GENMASK(10, 3)
-#define HCLGE_MAC_EPORT_PFID_S		0x0
+#define HCLGE_MAC_EPORT_PFID_S		0
 #define HCLGE_MAC_EPORT_PFID_M		GENMASK(2, 0)
 struct hclge_mac_vlan_tbl_entry_cmd {
 	u8	flags;
@@ -604,7 +581,7 @@ struct hclge_mac_vlan_tbl_entry_cmd {
 	u8      rsv2[6];
 };
 
-#define HCLGE_VLAN_MASK_EN_B		0x0
+#define HCLGE_VLAN_MASK_EN_B		0
 struct hclge_mac_vlan_mask_entry_cmd {
 	u8 rsv0[2];
 	u8 vlan_mask;
@@ -635,23 +612,23 @@ struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      rsv3[2];
 };
 
-#define HCLGE_CFG_MTA_MAC_SEL_S		0x0
+#define HCLGE_CFG_MTA_MAC_SEL_S		0
 #define HCLGE_CFG_MTA_MAC_SEL_M		GENMASK(1, 0)
-#define HCLGE_CFG_MTA_MAC_EN_B		0x7
+#define HCLGE_CFG_MTA_MAC_EN_B		7
 struct hclge_mta_filter_mode_cmd {
 	u8	dmac_sel_en; /* Use lowest 2 bit as sel_mode, bit 7 as enable */
 	u8      rsv[23];
 };
 
-#define HCLGE_CFG_FUNC_MTA_ACCEPT_B	0x0
+#define HCLGE_CFG_FUNC_MTA_ACCEPT_B	0
 struct hclge_cfg_func_mta_filter_cmd {
 	u8	accept; /* Only used lowest 1 bit */
 	u8      function_id;
 	u8      rsv[22];
 };
 
-#define HCLGE_CFG_MTA_ITEM_ACCEPT_B	0x0
-#define HCLGE_CFG_MTA_ITEM_IDX_S	0x0
+#define HCLGE_CFG_MTA_ITEM_ACCEPT_B	0
+#define HCLGE_CFG_MTA_ITEM_IDX_S	0
 #define HCLGE_CFG_MTA_ITEM_IDX_M	GENMASK(11, 0)
 struct hclge_cfg_func_mta_item_cmd {
 	__le16	item_idx; /* Only used lowest 12 bit */
