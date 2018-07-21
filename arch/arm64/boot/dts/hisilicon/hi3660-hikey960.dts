@@ -574,21 +574,35 @@
 };
 
 &dwmmc1 {
+	bus-width = <0x4>;
+	cap-sd-highspeed;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	disable-wp;
+	cd-inverted;
+	cd-gpios = <&gpio25 3 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd_pmx_func
+		     &sd_clk_cfg_func
+		     &sd_cfg_func>;
 	vmmc-supply = <&ldo16>;
 	vqmmc-supply = <&ldo9>;
 	status = "okay";
 };
 
 &dwmmc2 { /* WIFI */
+	bus-width = <0x4>;
+	non-removable;
 	broken-cd;
+	cap-power-off-card;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio_pmx_func
+		     &sdio_clk_cfg_func
+		     &sdio_cfg_func>;
 	/* WL_EN */
 	vmmc-supply = <&wlan_en>;
-	ti,non-removable;
-	non-removable;
-	cap-power-off-card;
-	keep-power-in-suspend;
-	#address-cells = <0x1>;
-	#size-cells = <0x0>;
 	status = "ok";
 
 	wlcore: wlcore@2 {

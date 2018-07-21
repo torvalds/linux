@@ -61,7 +61,7 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <592>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
 			operating-points-v2 = <&cluster0_opp>;
@@ -75,7 +75,7 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <592>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
 			operating-points-v2 = <&cluster0_opp>;
@@ -87,7 +87,7 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <592>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
 			operating-points-v2 = <&cluster0_opp>;
@@ -99,7 +99,7 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <592>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
 			operating-points-v2 = <&cluster0_opp>;
@@ -111,7 +111,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
+			cpu-idle-states = <&CPU_SLEEP_1 &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
 			operating-points-v2 = <&cluster1_opp>;
@@ -125,7 +125,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
+			cpu-idle-states = <&CPU_SLEEP_1 &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
 			operating-points-v2 = <&cluster1_opp>;
@@ -137,7 +137,7 @@
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
+			cpu-idle-states = <&CPU_SLEEP_1 &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
 			operating-points-v2 = <&cluster1_opp>;
@@ -149,7 +149,7 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
+			cpu-idle-states = <&CPU_SLEEP_1 &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
 			operating-points-v2 = <&cluster1_opp>;
@@ -158,31 +158,40 @@
 		idle-states {
 			entry-method = "psci";
 
-			CPU_SLEEP: cpu-sleep {
+			CPU_SLEEP_0: cpu-sleep-0 {
 				compatible = "arm,idle-state";
 				local-timer-stop;
 				arm,psci-suspend-param = <0x0010000>;
-				entry-latency-us = <40>;
-				exit-latency-us = <70>;
-				min-residency-us = <3000>;
+				entry-latency-us = <400>;
+				exit-latency-us = <650>;
+				min-residency-us = <1500>;
 			};
-
 			CLUSTER_SLEEP_0: cluster-sleep-0 {
 				compatible = "arm,idle-state";
 				local-timer-stop;
 				arm,psci-suspend-param = <0x1010000>;
 				entry-latency-us = <500>;
-				exit-latency-us = <5000>;
-				min-residency-us = <20000>;
+				exit-latency-us = <1600>;
+				min-residency-us = <3500>;
+			};
+
+
+			CPU_SLEEP_1: cpu-sleep-1 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <400>;
+				exit-latency-us = <550>;
+				min-residency-us = <1500>;
 			};
 
 			CLUSTER_SLEEP_1: cluster-sleep-1 {
 				compatible = "arm,idle-state";
 				local-timer-stop;
 				arm,psci-suspend-param = <0x1010000>;
-				entry-latency-us = <1000>;
-				exit-latency-us = <5000>;
-				min-residency-us = <20000>;
+				entry-latency-us = <800>;
+				exit-latency-us = <2900>;
+				min-residency-us = <3500>;
 			};
 		};
 
@@ -1002,16 +1011,10 @@
 
 		/* SD */
 		dwmmc1: dwmmc1@ff37f000 {
+			compatible = "hisilicon,hi3660-dw-mshc";
+			reg = <0x0 0xff37f000 0x0 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			cd-inverted;
-			compatible = "hisilicon,hi3660-dw-mshc";
-			bus-width = <0x4>;
-			disable-wp;
-			cap-sd-highspeed;
-			supports-highspeed;
-			card-detect-delay = <200>;
-			reg = <0x0 0xff37f000 0x0 0x1000>;
 			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SD>,
 				<&crg_ctrl HI3660_HCLK_GATE_SD>;
@@ -1019,29 +1022,17 @@
 			clock-frequency = <3200000>;
 			resets = <&crg_rst 0x94 18>;
 			reset-names = "reset";
-			cd-gpios = <&gpio25 3 0>;
 			hisilicon,peripheral-syscon = <&sctrl>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&sd_pmx_func
-				     &sd_clk_cfg_func
-				     &sd_cfg_func>;
-			sd-uhs-sdr12;
-			sd-uhs-sdr25;
-			sd-uhs-sdr50;
-			sd-uhs-sdr104;
+			card-detect-delay = <200>;
 			status = "disabled";
-
-			slot@0 {
-				reg = <0x0>;
-				bus-width = <4>;
-				disable-wp;
-			};
 		};
 
 		/* SDIO */
 		dwmmc2: dwmmc2@ff3ff000 {
 			compatible = "hisilicon,hi3660-dw-mshc";
 			reg = <0x0 0xff3ff000 0x0 0x1000>;
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
 			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SDIO0>,
 				 <&crg_ctrl HI3660_HCLK_GATE_SDIO0>;
@@ -1049,12 +1040,6 @@
 			resets = <&crg_rst 0x94 20>;
 			reset-names = "reset";
 			card-detect-delay = <200>;
-			supports-highspeed;
-			keep-power-in-suspend;
-			pinctrl-names = "default";
-			pinctrl-0 = <&sdio_pmx_func
-				     &sdio_clk_cfg_func
-				     &sdio_cfg_func>;
 			status = "disabled";
 		};
 
