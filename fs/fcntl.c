@@ -723,7 +723,7 @@ static inline int sigio_perm(struct task_struct *p,
 
 static void send_sigio_to_task(struct task_struct *p,
 			       struct fown_struct *fown,
-			       int fd, int reason, int group)
+			       int fd, int reason, enum pid_type type)
 {
 	/*
 	 * F_SETSIG can change ->signum lockless in parallel, make
@@ -767,11 +767,11 @@ static void send_sigio_to_task(struct task_struct *p,
 			else
 				si.si_band = mangle_poll(band_table[reason - POLL_IN]);
 			si.si_fd    = fd;
-			if (!do_send_sig_info(signum, &si, p, group))
+			if (!do_send_sig_info(signum, &si, p, type != PIDTYPE_PID))
 				break;
 		/* fall-through: fall back on the old plain SIGIO signal */
 		case 0:
-			do_send_sig_info(SIGIO, SEND_SIG_PRIV, p, group);
+			do_send_sig_info(SIGIO, SEND_SIG_PRIV, p, type != PIDTYPE_PID);
 	}
 }
 
@@ -780,14 +780,10 @@ void send_sigio(struct fown_struct *fown, int fd, int band)
 	struct task_struct *p;
 	enum pid_type type;
 	struct pid *pid;
-	int group = 1;
 	
 	read_lock(&fown->lock);
 
 	type = fown->pid_type;
-	if (type == PIDTYPE_PID)
-		group = 0;
-
 	pid = fown->pid;
 	if (!pid)
 		goto out_unlock_fown;
@@ -795,12 +791,12 @@ void send_sigio(struct fown_struct *fown, int fd, int band)
 	if (type <= PIDTYPE_TGID) {
 		rcu_read_lock();
 		p = pid_task(pid, PIDTYPE_PID);
-		send_sigio_to_task(p, fown, fd, band, group);
+		send_sigio_to_task(p, fown, fd, band, type);
 		rcu_read_unlock();
 	} else {
 		read_lock(&tasklist_lock);
 		do_each_pid_task(pid, type, p) {
-			send_sigio_to_task(p, fown, fd, band, group);
+			send_sigio_to_task(p, fown, fd, band, type);
 		} while_each_pid_task(pid, type, p);
 		read_unlock(&tasklist_lock);
 	}
@@ -809,10 +805,10 @@ void send_sigio(struct fown_struct *fown, int fd, int band)
 }
 
 static void send_sigurg_to_task(struct task_struct *p,
-				struct fown_struct *fown, int group)
+				struct fown_struct *fown, enum pid_type type)
 {
 	if (sigio_perm(p, fown, SIGURG))
-		do_send_sig_info(SIGURG, SEND_SIG_PRIV, p, group);
+		do_send_sig_info(SIGURG, SEND_SIG_PRIV, p, type != PIDTYPE_PID);
 }
 
 int send_sigurg(struct fown_struct *fown)
@@ -820,15 +816,11 @@ int send_sigurg(struct fown_struct *fown)
 	struct task_struct *p;
 	enum pid_type type;
 	struct pid *pid;
-	int group = 1;
 	int ret = 0;
 	
 	read_lock(&fown->lock);
 
 	type = fown->pid_type;
-	if (type == PIDTYPE_PID)
-		group = 0;
-
 	pid = fown->pid;
 	if (!pid)
 		goto out_unlock_fown;
@@ -838,12 +830,12 @@ int send_sigurg(struct fown_struct *fown)
 	if (type <= PIDTYPE_TGID) {
 		rcu_read_lock();
 		p = pid_task(pid, PIDTYPE_PID);
-		send_sigurg_to_task(p, fown, group);
+		send_sigurg_to_task(p, fown, type);
 		rcu_read_unlock();
 	} else {
 		read_lock(&tasklist_lock);
 		do_each_pid_task(pid, type, p) {
-			send_sigurg_to_task(p, fown, group);
+			send_sigurg_to_task(p, fown, type);
 		} while_each_pid_task(pid, type, p);
 		read_unlock(&tasklist_lock);
 	}
