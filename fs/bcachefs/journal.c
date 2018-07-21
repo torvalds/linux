@@ -727,6 +727,10 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	if (!journal_buckets)
 		goto err;
 
+	/*
+	 * We may be called from the device add path, before the new device has
+	 * actually been added to the running filesystem:
+	 */
 	if (c)
 		spin_lock(&c->journal.lock);
 
@@ -743,10 +747,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		long bucket;
 
 		if (new_fs) {
-			percpu_down_read(&c->usage_lock);
 			bucket = bch2_bucket_alloc_new_fs(ca);
-			percpu_up_read(&c->usage_lock);
-
 			if (bucket < 0) {
 				ret = -ENOSPC;
 				goto err;
@@ -765,6 +766,8 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (c) {
 			percpu_down_read(&c->usage_lock);
 			spin_lock(&c->journal.lock);
+		} else {
+			preempt_disable();
 		}
 
 		__array_insert_item(ja->buckets,		ja->nr, ja->last_idx);
@@ -792,6 +795,8 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (c) {
 			spin_unlock(&c->journal.lock);
 			percpu_up_read(&c->usage_lock);
+		} else {
+			preempt_enable();
 		}
 
 		if (!new_fs)
