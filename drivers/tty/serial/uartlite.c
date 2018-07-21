@@ -690,9 +690,44 @@ static int ulite_release(struct device *dev)
 	return rc;
 }
 
+/**
+ * ulite_suspend - Stop the device.
+ *
+ * @dev: handle to the device structure.
+ * Return: 0 always.
+ */
+static int __maybe_unused ulite_suspend(struct device *dev)
+{
+	struct uart_port *port = dev_get_drvdata(dev);
+
+	if (port)
+		uart_suspend_port(&ulite_uart_driver, port);
+
+	return 0;
+}
+
+/**
+ * ulite_resume - Resume the device.
+ *
+ * @dev: handle to the device structure.
+ * Return: 0 on success, errno otherwise.
+ */
+static int __maybe_unused ulite_resume(struct device *dev)
+{
+	struct uart_port *port = dev_get_drvdata(dev);
+
+	if (port)
+		uart_resume_port(&ulite_uart_driver, port);
+
+	return 0;
+}
+
 /* ---------------------------------------------------------------------
  * Platform bus binding
  */
+
+static SIMPLE_DEV_PM_OPS(ulite_pm_ops, ulite_suspend, ulite_resume);
+
 #if defined(CONFIG_OF)
 /* Match table for of_platform binding */
 static const struct of_device_id ulite_of_match[] = {
@@ -768,6 +803,7 @@ static struct platform_driver ulite_platform_driver = {
 	.driver = {
 		.name  = "uartlite",
 		.of_match_table = of_match_ptr(ulite_of_match),
+		.pm = &ulite_pm_ops,
 	},
 };
 
