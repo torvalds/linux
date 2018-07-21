@@ -26,6 +26,7 @@
 #include <net/sock.h>
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
+#include <net/net_namespace.h>
 
 #include "br_private.h"
 
@@ -204,11 +205,19 @@ static void release_nbp(struct kobject *kobj)
 	kfree(p);
 }
 
+static void brport_get_ownership(struct kobject *kobj, kuid_t *uid, kgid_t *gid)
+{
+	struct net_bridge_port *p = kobj_to_brport(kobj);
+
+	net_ns_get_ownership(dev_net(p->dev), uid, gid);
+}
+
 static struct kobj_type brport_ktype = {
 #ifdef CONFIG_SYSFS
 	.sysfs_ops = &brport_sysfs_ops,
 #endif
 	.release = release_nbp,
+	.get_ownership = brport_get_ownership,
 };
 
 static void destroy_nbp(struct net_bridge_port *p)
