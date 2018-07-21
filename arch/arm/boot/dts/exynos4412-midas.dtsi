@@ -580,6 +580,8 @@
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx0>;
 		interrupts = <7 IRQ_TYPE_NONE>;
+		pinctrl-0 = <&max77686_irq>;
+		pinctrl-names = "default";
 		reg = <0x09>;
 		#clock-cells = <1>;
 
@@ -1015,6 +1017,11 @@
 
 	gpio_keys: gpio-keys {
 		samsung,pins = "gpx0-1", "gpx2-2", "gpx2-7", "gpx3-3";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	max77686_irq: max77686-irq {
+		samsung,pins = "gpx0-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
