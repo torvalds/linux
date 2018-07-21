@@ -247,6 +247,34 @@ static struct btf_raw_test raw_tests[] = {
 	.max_entries = 4,
 },
 
+{
+	.descr = "struct test #3 Invalid member offset",
+	.raw_types = {
+		/* int */					/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int64 */					/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 64, 8),
+
+		/* struct A { */				/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), 16),
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),	/* int m;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),		/* int64 n; */
+		/* } */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0",
+	.str_sec_size = sizeof("\0A\0m\0n\0"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_test3_map",
+	.key_size = sizeof(int),
+	.value_size = 16,
+	.key_type_id = 1,
+	.value_type_id = 3,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid member bits_offset",
+},
+
 /* Test member exceeds the size of struct.
  *
  * struct A {
