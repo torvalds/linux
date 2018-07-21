@@ -155,6 +155,15 @@ function deb {
     #rm debian/bananapi-r2-image/lib/modules/${ver}/{build,source}
     #mkdir debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
     #cp cryptodev-linux/cryptodev.ko debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
+	cat > debian/bananapi-r2-image/DEBIAN/postinst << EOF
+#!/bin/sh
+echo "kernel=${uimagename}">>/boot/bananapi/bpi-r2/linux/uEnv.txt
+EOF
+	cat > debian/bananapi-r2-image/DEBIAN/postrm << EOF
+#!/bin/sh
+cp /boot/bananapi/bpi-r2/linux/uEnv.txt /boot/bananapi/bpi-r2/linux/uEnv.txt.bak
+grep -v  ${uimagename} /boot/bananapi/bpi-r2/linux/uEnv.txt.bak > /boot/bananapi/bpi-r2/linux/uEnv.txt
+EOF
     cat > debian/bananapi-r2-image/DEBIAN/control << EOF
 Package: bananapi-r2-image-${kernbranch}
 Version: ${kernver}-1
