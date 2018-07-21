@@ -16,8 +16,8 @@ enum dot11d_state {
 	DOT11D_STATE_DONE,
 };
 
-typedef struct _RT_DOT11D_INFO {
-	/* DECLARE_RT_OBJECT(RT_DOT11D_INFO); */
+struct rt_dot11d_info {
+	/* DECLARE_RT_OBJECT(rt_dot11d_info); */
 
 	bool bEnabled; /* dot11MultiDomainCapabilityEnabled */
 
@@ -30,15 +30,16 @@ typedef struct _RT_DOT11D_INFO {
 	u8  MaxTxPwrDbmList[MAX_CHANNEL_NUMBER+1];
 
 	enum dot11d_state State;
-} RT_DOT11D_INFO, *PRT_DOT11D_INFO;
-#define eqMacAddr(a, b)		(((a)[0] == (b)[0] && \
+};
+
+#define eqMacAddr(a, b)		(((a)[0] == (b)[0] &&		    \
 	(a)[1] == (b)[1] && (a)[2] == (b)[2] && (a)[3] == (b)[3] && \
 	(a)[4] == (b)[4] && (a)[5] == (b)[5]) ? 1 : 0)
 #define cpMacAddr(des, src)	      ((des)[0] = (src)[0], \
 	(des)[1] = (src)[1], (des)[2] = (src)[2], \
 	(des)[3] = (src)[3], (des)[4] = (src)[4], \
 	(des)[5] = (src)[5])
-#define GET_DOT11D_INFO(__pIeeeDev) ((PRT_DOT11D_INFO)((__pIeeeDev)->pDot11dInfo))
+#define GET_DOT11D_INFO(__pIeeeDev) ((struct rt_dot11d_info *)((__pIeeeDev)->pDot11dInfo))
 
 #define IS_DOT11D_ENABLE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->bEnabled)
 #define IS_COUNTRY_IE_VALID(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->CountryIeLen > 0)

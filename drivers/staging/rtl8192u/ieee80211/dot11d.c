@@ -5,7 +5,7 @@
 
 void Dot11d_Init(struct ieee80211_device *ieee)
 {
-	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
+	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
 
 	pDot11dInfo->bEnabled = false;
 
@@ -23,7 +23,7 @@ EXPORT_SYMBOL(Dot11d_Init);
 void Dot11d_Reset(struct ieee80211_device *ieee)
 {
 	u32 i;
-	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
+	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
 	/* Clear old channel map */
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
@@ -52,7 +52,7 @@ EXPORT_SYMBOL(Dot11d_Reset);
 void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 			    u16 CoutryIeLen, u8 *pCoutryIe)
 {
-	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
+	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 i, j, NumTriples, MaxChnlNum;
 	struct chnl_txpower_triple *pTriple;
 
@@ -101,7 +101,7 @@ EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
 
 u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
 {
-	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
+	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 MaxTxPwrInDbm = 255;
 
 	if (Channel > MAX_CHANNEL_NUMBER) {
@@ -117,7 +117,7 @@ EXPORT_SYMBOL(DOT11D_GetMaxTxPwrInDbm);
 
 void DOT11D_ScanComplete(struct ieee80211_device *dev)
 {
-	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
+	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 
 	switch (pDot11dInfo->State) {
 	case DOT11D_STATE_LEARNED:
@@ -138,7 +138,7 @@ EXPORT_SYMBOL(DOT11D_ScanComplete);
 
 int IsLegalChannel(struct ieee80211_device *dev, u8 channel)
 {
-	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
+	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 
 	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_err(dev->dev, "IsLegalChannel(): Invalid Channel\n");
@@ -152,7 +152,7 @@ EXPORT_SYMBOL(IsLegalChannel);
 
 int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
 {
-	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
+	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 default_chn = 0;
 	u32 i = 0;
 
