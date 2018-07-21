@@ -9,7 +9,7 @@ void Dot11d_Init(struct ieee80211_device *ieee)
 
 	pDot11dInfo->enabled = false;
 
-	pDot11dInfo->State = DOT11D_STATE_NONE;
+	pDot11dInfo->state = DOT11D_STATE_NONE;
 	pDot11dInfo->country_ie_len = 0;
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
 	memset(pDot11dInfo->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER+1);
@@ -34,7 +34,7 @@ void Dot11d_Reset(struct ieee80211_device *ieee)
 	for (i = 12; i <= 14; i++)
 		(pDot11dInfo->channel_map)[i] = 2;
 
-	pDot11dInfo->State = DOT11D_STATE_NONE;
+	pDot11dInfo->state = DOT11D_STATE_NONE;
 	pDot11dInfo->country_ie_len = 0;
 	RESET_CIE_WATCHDOG(ieee);
 }
@@ -95,7 +95,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 
 	pDot11dInfo->country_ie_len = CoutryIeLen;
 	memcpy(pDot11dInfo->country_ie_buf, pCoutryIe, CoutryIeLen);
-	pDot11dInfo->State = DOT11D_STATE_LEARNED;
+	pDot11dInfo->state = DOT11D_STATE_LEARNED;
 }
 EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
 
@@ -119,9 +119,9 @@ void DOT11D_ScanComplete(struct ieee80211_device *dev)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 
-	switch (pDot11dInfo->State) {
+	switch (pDot11dInfo->state) {
 	case DOT11D_STATE_LEARNED:
-		pDot11dInfo->State = DOT11D_STATE_DONE;
+		pDot11dInfo->state = DOT11D_STATE_DONE;
 		break;
 
 	case DOT11D_STATE_DONE:

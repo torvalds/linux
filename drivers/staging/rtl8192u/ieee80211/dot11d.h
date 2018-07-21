@@ -29,7 +29,7 @@ struct rt_dot11d_info {
 	u8  channel_map[MAX_CHANNEL_NUMBER+1];  /* !Value 0: Invalid, 1: Valid (active scan), 2: Valid (passive scan) */
 	u8  max_tx_pwr_dbm_list[MAX_CHANNEL_NUMBER+1];
 
-	enum dot11d_state State;
+	enum dot11d_state state;
 };
 
 #define eqMacAddr(a, b)		(((a)[0] == (b)[0] &&		    \
