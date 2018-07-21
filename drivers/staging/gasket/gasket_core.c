@@ -2026,9 +2026,7 @@ const struct gasket_driver_desc *gasket_get_driver_desc(struct gasket_dev *dev)
  */
 struct device *gasket_get_device(struct gasket_dev *dev)
 {
-	if (dev->pci_dev)
-		return &dev->pci_dev->dev;
-	return NULL;
+	return &dev->pci_dev->dev;
 }
 
 /**
