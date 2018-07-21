@@ -107,7 +107,7 @@ static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 	memset(&pTsCommonInfo->t_spec, 0, sizeof(TSPEC_BODY));
 	memset(&pTsCommonInfo->t_class, 0, sizeof(QOS_TCLAS)*TCLAS_NUM);
 	pTsCommonInfo->t_clas_proc = 0;
-	pTsCommonInfo->TClasNum = 0;
+	pTsCommonInfo->t_clas_num = 0;
 }
 
 static void ResetTxTsEntry(PTX_TS_RECORD pTS)
@@ -282,7 +282,7 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 		memcpy((u8 *)(&(pTsCommonInfo->t_class[count])), (u8 *)pTCLAS, sizeof(QOS_TCLAS));
 
 	pTsCommonInfo->t_clas_proc = TCLAS_Proc;
-	pTsCommonInfo->TClasNum = TCLAS_Num;
+	pTsCommonInfo->t_clas_num = TCLAS_Num;
 }
 
 

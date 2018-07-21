@@ -23,7 +23,7 @@ struct ts_common_info {
 	TSPEC_BODY			t_spec;
 	QOS_TCLAS			t_class[TCLAS_NUM];
 	u8				t_clas_proc;
-	u8				TClasNum;
+	u8				t_clas_num;
 };
 
 typedef struct _TX_TS_RECORD {
