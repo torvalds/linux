@@ -11,7 +11,6 @@
 #include <linux/clk-provider.h>
 #include <linux/init.h>
 #include <linux/of_address.h>
-#include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -21,8 +20,6 @@
 #include "clk-regmap.h"
 
 static DEFINE_SPINLOCK(meson_clk_lock);
-
-static void __iomem *clk_base;
 
 struct meson8b_clk_reset {
 	struct reset_controller_dev reset;
@@ -1111,62 +1108,12 @@ static const struct regmap_config clkc_regmap_config = {
 	.reg_stride     = 4,
 };
 
-static int meson8b_clkc_probe(struct platform_device *pdev)
-{
-	int ret, i;
-	struct device *dev = &pdev->dev;
-	struct regmap *map;
-
-	if (!clk_base)
-		return -ENXIO;
-
-	map = devm_regmap_init_mmio(dev, clk_base, &clkc_regmap_config);
-	if (IS_ERR(map))
-		return PTR_ERR(map);
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(meson8b_clk_regmaps); i++)
-		meson8b_clk_regmaps[i]->map = map;
-
-	/*
-	 * register all clks
-	 * CLKID_UNUSED = 0, so skip it and start with CLKID_XTAL = 1
-	 */
-	for (i = CLKID_XTAL; i < CLK_NR_CLKS; i++) {
-		/* array might be sparse */
-		if (!meson8b_hw_onecell_data.hws[i])
-			continue;
-
-		ret = devm_clk_hw_register(dev, meson8b_hw_onecell_data.hws[i]);
-		if (ret)
-			return ret;
-	}
-
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   &meson8b_hw_onecell_data);
-}
-
-static const struct of_device_id meson8b_clkc_match_table[] = {
-	{ .compatible = "amlogic,meson8-clkc" },
-	{ .compatible = "amlogic,meson8b-clkc" },
-	{ .compatible = "amlogic,meson8m2-clkc" },
-	{ }
-};
-
-static struct platform_driver meson8b_driver = {
-	.probe		= meson8b_clkc_probe,
-	.driver		= {
-		.name	= "meson8b-clkc",
-		.of_match_table = meson8b_clkc_match_table,
-	},
-};
-
-builtin_platform_driver(meson8b_driver);
-
-static void __init meson8b_clkc_reset_init(struct device_node *np)
+static void __init meson8b_clkc_init(struct device_node *np)
 {
 	struct meson8b_clk_reset *rstc;
-	int ret;
+	void __iomem *clk_base;
+	struct regmap *map;
+	int i, ret;
 
 	/* Generic clocks, PLLs and some of the reset-bits */
 	clk_base = of_iomap(np, 1);
@@ -1174,6 +1121,10 @@ static void __init meson8b_clkc_reset_init(struct device_node *np)
 		pr_err("%s: Unable to map clk base\n", __func__);
 		return;
 	}
+
+	map = regmap_init_mmio(NULL, clk_base, &clkc_regmap_config);
+	if (IS_ERR(map))
+		return;
 
 	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
 	if (!rstc)
@@ -1190,11 +1141,34 @@ static void __init meson8b_clkc_reset_init(struct device_node *np)
 		       __func__, ret);
 		return;
 	}
+
+	/* Populate regmap for the regmap backed clocks */
+	for (i = 0; i < ARRAY_SIZE(meson8b_clk_regmaps); i++)
+		meson8b_clk_regmaps[i]->map = map;
+
+	/*
+	 * register all clks
+	 * CLKID_UNUSED = 0, so skip it and start with CLKID_XTAL = 1
+	 */
+	for (i = CLKID_XTAL; i < CLK_NR_CLKS; i++) {
+		/* array might be sparse */
+		if (!meson8b_hw_onecell_data.hws[i])
+			continue;
+
+		ret = clk_hw_register(NULL, meson8b_hw_onecell_data.hws[i]);
+		if (ret)
+			return;
+	}
+
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &meson8b_hw_onecell_data);
+	if (ret)
+		pr_err("%s: failed to register clock provider\n", __func__);
 }
 
 CLK_OF_DECLARE_DRIVER(meson8_clkc, "amlogic,meson8-clkc",
-		      meson8b_clkc_reset_init);
+		      meson8b_clkc_init);
 CLK_OF_DECLARE_DRIVER(meson8b_clkc, "amlogic,meson8b-clkc",
-		      meson8b_clkc_reset_init);
+		      meson8b_clkc_init);
 CLK_OF_DECLARE_DRIVER(meson8m2_clkc, "amlogic,meson8m2-clkc",
-		      meson8b_clkc_reset_init);
+		      meson8b_clkc_init);
