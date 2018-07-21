@@ -476,7 +476,7 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	/* Parse partitions and register the MTD device */
-	return mtd_device_parse_register(mtd, NULL, NULL, NULL, 0);
+	return mtd_device_register(mtd, NULL, 0);
 }
 
 /*
