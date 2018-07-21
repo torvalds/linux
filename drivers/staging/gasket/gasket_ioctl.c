@@ -73,7 +73,7 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 		}
 	} else if (!gasket_ioctl_check_permissions(filp, cmd)) {
 		trace_gasket_ioctl_exit(-EPERM);
-		gasket_log_error(gasket_dev, "ioctl cmd=%x noperm.", cmd);
+		gasket_log_debug(gasket_dev, "ioctl cmd=%x noperm.", cmd);
 		return -EPERM;
 	}
 
@@ -132,7 +132,7 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 		 * the arg.
 		 */
 		trace_gasket_ioctl_integer_data(arg);
-		gasket_log_warn(
+		gasket_log_debug(
 			gasket_dev,
 			"Unknown ioctl cmd=0x%x not caught by "
 			"gasket_is_supported_ioctl",
@@ -329,7 +329,7 @@ static int gasket_partition_page_table(
 		gasket_dev->page_table[ibuf.page_table_index]);
 
 	if (ibuf.size > max_page_table_size) {
-		gasket_log_error(
+		gasket_log_debug(
 			gasket_dev,
 			"Partition request 0x%llx too large, max is 0x%x.",
 			ibuf.size, max_page_table_size);
