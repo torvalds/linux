@@ -65,6 +65,7 @@ enum qeth_card_types {
 };
 
 #define IS_IQD(card)	((card)->info.type == QETH_CARD_TYPE_IQD)
+#define IS_OSN(card)	((card)->info.type == QETH_CARD_TYPE_OSN)
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
 /* only the first two bytes are looked at in qeth_get_cardname_short */
