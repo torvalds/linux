@@ -24,7 +24,7 @@ struct rt_dot11d_info {
 	u16 country_ie_len; /* > 0 if country_ie_buf[] contains valid country information element. */
 	u8  country_ie_buf[MAX_IE_LEN];
 	u8  country_ie_src_addr[6]; /* Source AP of the country IE. */
-	u8  CountryIeWatchdog;
+	u8  country_ie_watchdog;
 
 	u8  channel_map[MAX_CHANNEL_NUMBER+1];  /* !Value 0: Invalid, 1: Valid (active scan), 2: Valid (passive scan) */
 	u8  MaxTxPwrDbmList[MAX_CHANNEL_NUMBER+1];
@@ -53,7 +53,7 @@ struct rt_dot11d_info {
 	(!memcmp(GET_DOT11D_INFO(__pIeeeDev)->country_ie_buf, (__Ie).Octet, (__Ie).Length)))
 
 #define CIE_WATCHDOG_TH 1
-#define GET_CIE_WATCHDOG(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->CountryIeWatchdog)
+#define GET_CIE_WATCHDOG(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->country_ie_watchdog)
 #define RESET_CIE_WATCHDOG(__pIeeeDev) (GET_CIE_WATCHDOG(__pIeeeDev) = 0)
 #define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
 
