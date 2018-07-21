@@ -65,7 +65,7 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 	if (ioctl_permissions_cb) {
 		retval = ioctl_permissions_cb(filp, cmd, argp);
 		if (retval < 0) {
-			trace_gasket_ioctl_exit(-EPERM);
+			trace_gasket_ioctl_exit(retval);
 			return retval;
 		} else if (retval == 0) {
 			trace_gasket_ioctl_exit(-EPERM);
