@@ -31,7 +31,7 @@ static void nft_socket_eval(const struct nft_expr *expr,
 		case NFPROTO_IPV4:
 			sk = nf_sk_lookup_slow_v4(nft_net(pkt), skb, nft_in(pkt));
 			break;
-#if IS_ENABLED(CONFIG_NF_SOCKET_IPV6)
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
 		case NFPROTO_IPV6:
 			sk = nf_sk_lookup_slow_v6(nft_net(pkt), skb, nft_in(pkt));
 			break;
@@ -43,7 +43,7 @@ static void nft_socket_eval(const struct nft_expr *expr,
 		}
 
 	if (!sk) {
-		nft_reg_store8(dest, 0);
+		regs->verdict.code = NFT_BREAK;
 		return;
 	}
 
@@ -53,6 +53,14 @@ static void nft_socket_eval(const struct nft_expr *expr,
 	switch(priv->key) {
 	case NFT_SOCKET_TRANSPARENT:
 		nft_reg_store8(dest, inet_sk_transparent(sk));
+		break;
+	case NFT_SOCKET_MARK:
+		if (sk_fullsock(sk)) {
+			*dest = sk->sk_mark;
+		} else {
+			regs->verdict.code = NFT_BREAK;
+			return;
+		}
 		break;
 	default:
 		WARN_ON(1);
@@ -77,7 +85,7 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 
 	switch(ctx->family) {
 	case NFPROTO_IPV4:
-#if IS_ENABLED(CONFIG_NF_SOCKET_IPV6)
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
 	case NFPROTO_IPV6:
 #endif
 	case NFPROTO_INET:
@@ -90,6 +98,9 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 	switch(priv->key) {
 	case NFT_SOCKET_TRANSPARENT:
 		len = sizeof(u8);
+		break;
+	case NFT_SOCKET_MARK:
+		len = sizeof(u32);
 		break;
 	default:
 		return -EOPNOTSUPP;

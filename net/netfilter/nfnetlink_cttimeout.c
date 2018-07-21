@@ -26,7 +26,6 @@
 #include <net/sock.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
-#include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
@@ -47,7 +46,7 @@ static const struct nla_policy cttimeout_nla_policy[CTA_TIMEOUT_MAX+1] = {
 };
 
 static int
-ctnl_timeout_parse_policy(void *timeouts,
+ctnl_timeout_parse_policy(void *timeout,
 			  const struct nf_conntrack_l4proto *l4proto,
 			  struct net *net, const struct nlattr *attr)
 {
@@ -68,7 +67,7 @@ ctnl_timeout_parse_policy(void *timeouts,
 	if (ret < 0)
 		goto err;
 
-	ret = l4proto->ctnl_timeout.nlattr_to_obj(tb, net, timeouts);
+	ret = l4proto->ctnl_timeout.nlattr_to_obj(tb, net, timeout);
 
 err:
 	kfree(tb);
@@ -373,7 +372,6 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 				 struct netlink_ext_ack *extack)
 {
 	const struct nf_conntrack_l4proto *l4proto;
-	unsigned int *timeouts;
 	__u16 l3num;
 	__u8 l4num;
 	int ret;
@@ -393,9 +391,7 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 		goto err;
 	}
 
-	timeouts = l4proto->get_timeouts(net);
-
-	ret = ctnl_timeout_parse_policy(timeouts, l4proto, net,
+	ret = ctnl_timeout_parse_policy(NULL, l4proto, net,
 					cda[CTA_TIMEOUT_DATA]);
 	if (ret < 0)
 		goto err;
@@ -432,7 +428,6 @@ cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 
 	if (likely(l4proto->ctnl_timeout.obj_to_nlattr)) {
 		struct nlattr *nest_parms;
-		unsigned int *timeouts = l4proto->get_timeouts(net);
 		int ret;
 
 		nest_parms = nla_nest_start(skb,
@@ -440,7 +435,7 @@ cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 		if (!nest_parms)
 			goto nla_put_failure;
 
-		ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, timeouts);
+		ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, NULL);
 		if (ret < 0)
 			goto nla_put_failure;
 

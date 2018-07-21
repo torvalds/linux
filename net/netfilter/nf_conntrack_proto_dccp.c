@@ -23,6 +23,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_log.h>
 
 /* Timeouts are based on values from RFC4340:
@@ -388,31 +389,8 @@ static inline struct nf_dccp_net *dccp_pernet(struct net *net)
 	return &net->ct.nf_ct_proto.dccp;
 }
 
-static bool dccp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			      struct net *net, struct nf_conntrack_tuple *tuple)
-{
-	struct dccp_hdr _hdr, *dh;
-
-	/* Actually only need first 4 bytes to get ports. */
-	dh = skb_header_pointer(skb, dataoff, 4, &_hdr);
-	if (dh == NULL)
-		return false;
-
-	tuple->src.u.dccp.port = dh->dccph_sport;
-	tuple->dst.u.dccp.port = dh->dccph_dport;
-	return true;
-}
-
-static bool dccp_invert_tuple(struct nf_conntrack_tuple *inv,
-			      const struct nf_conntrack_tuple *tuple)
-{
-	inv->src.u.dccp.port = tuple->dst.u.dccp.port;
-	inv->dst.u.dccp.port = tuple->src.u.dccp.port;
-	return true;
-}
-
 static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff, unsigned int *timeouts)
+		     unsigned int dataoff)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_dccp_net *dn;
@@ -460,19 +438,14 @@ static u64 dccp_ack_seq(const struct dccp_hdr *dh)
 		     ntohl(dhack->dccph_ack_nr_low);
 }
 
-static unsigned int *dccp_get_timeouts(struct net *net)
-{
-	return dccp_pernet(net)->dccp_timeout;
-}
-
 static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       unsigned int *timeouts)
+		       unsigned int dataoff, enum ip_conntrack_info ctinfo)
 {
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
 	u_int8_t type, old_state, new_state;
 	enum ct_dccp_roles role;
+	unsigned int *timeouts;
 
 	dh = skb_header_pointer(skb, dataoff, sizeof(_dh), &_dh);
 	BUG_ON(dh == NULL);
@@ -546,6 +519,9 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 	if (new_state != old_state)
 		nf_conntrack_event_cache(IPCT_PROTOINFO, ct);
 
+	timeouts = nf_ct_timeout_lookup(ct);
+	if (!timeouts)
+		timeouts = dccp_pernet(nf_ct_net(ct))->dccp_timeout;
 	nf_ct_refresh_acct(ct, ctinfo, skb, timeouts[new_state]);
 
 	return NF_ACCEPT;
@@ -864,11 +840,8 @@ static struct nf_proto_net *dccp_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
-	.pkt_to_tuple		= dccp_pkt_to_tuple,
-	.invert_tuple		= dccp_invert_tuple,
 	.new			= dccp_new,
 	.packet			= dccp_packet,
-	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
@@ -900,11 +873,8 @@ EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 	.l3proto		= AF_INET6,
 	.l4proto		= IPPROTO_DCCP,
-	.pkt_to_tuple		= dccp_pkt_to_tuple,
-	.invert_tuple		= dccp_invert_tuple,
 	.new			= dccp_new,
 	.packet			= dccp_packet,
-	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS

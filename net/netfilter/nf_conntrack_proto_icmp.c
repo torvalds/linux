@@ -19,6 +19,7 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_log.h>
 
@@ -80,12 +81,16 @@ static unsigned int *icmp_get_timeouts(struct net *net)
 static int icmp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo,
-		       unsigned int *timeout)
+		       enum ip_conntrack_info ctinfo)
 {
 	/* Do not immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
 	   and also to handle correctly ICMP echo reply duplicates. */
+	unsigned int *timeout = nf_ct_timeout_lookup(ct);
+
+	if (!timeout)
+		timeout = icmp_get_timeouts(nf_ct_net(ct));
+
 	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
 
 	return NF_ACCEPT;
@@ -93,7 +98,7 @@ static int icmp_packet(struct nf_conn *ct,
 
 /* Called when a new connection for this protocol found. */
 static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff, unsigned int *timeouts)
+		     unsigned int dataoff)
 {
 	static const u_int8_t valid_new[] = {
 		[ICMP_ECHO] = 1,
@@ -142,8 +147,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
-	if (!nf_ct_invert_tuple(&innertuple, &origtuple,
-				&nf_conntrack_l3proto_ipv4, innerproto)) {
+	if (!nf_ct_invert_tuple(&innertuple, &origtuple, innerproto)) {
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}
@@ -281,9 +285,11 @@ static int icmp_timeout_nlattr_to_obj(struct nlattr *tb[],
 	struct nf_icmp_net *in = icmp_pernet(net);
 
 	if (tb[CTA_TIMEOUT_ICMP_TIMEOUT]) {
+		if (!timeout)
+			timeout = &in->timeout;
 		*timeout =
 			ntohl(nla_get_be32(tb[CTA_TIMEOUT_ICMP_TIMEOUT])) * HZ;
-	} else {
+	} else if (timeout) {
 		/* Set default ICMP timeout. */
 		*timeout = in->timeout;
 	}
@@ -358,7 +364,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
 	.packet			= icmp_packet,
-	.get_timeouts		= icmp_get_timeouts,
 	.new			= icmp_new,
 	.error			= icmp_error,
 	.destroy		= NULL,

@@ -3,12 +3,6 @@
 # Makefile for the netfilter modules on top of IPv4.
 #
 
-# objects for l3 independent conntrack
-nf_conntrack_ipv4-y	:=  nf_conntrack_l3proto_ipv4.o nf_conntrack_proto_icmp.o
-
-# connection tracking
-obj-$(CONFIG_NF_CONNTRACK_IPV4) += nf_conntrack_ipv4.o
-
 nf_nat_ipv4-y		:= nf_nat_l3proto_ipv4.o nf_nat_proto_icmp.o
 nf_nat_ipv4-$(CONFIG_NF_NAT_MASQUERADE_IPV4) += nf_nat_masquerade_ipv4.o
 obj-$(CONFIG_NF_NAT_IPV4) += nf_nat_ipv4.o

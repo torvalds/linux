@@ -23,6 +23,7 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
 #include <net/netfilter/nf_log.h>
@@ -93,9 +94,13 @@ static unsigned int *icmpv6_get_timeouts(struct net *net)
 static int icmpv6_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo,
-		       unsigned int *timeout)
+		       enum ip_conntrack_info ctinfo)
 {
+	unsigned int *timeout = nf_ct_timeout_lookup(ct);
+
+	if (!timeout)
+		timeout = icmpv6_get_timeouts(nf_ct_net(ct));
+
 	/* Do not immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
 	   and also to handle correctly ICMP echo reply duplicates. */
@@ -106,7 +111,7 @@ static int icmpv6_packet(struct nf_conn *ct,
 
 /* Called when a new connection for this protocol found. */
 static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff, unsigned int *timeouts)
+		       unsigned int dataoff)
 {
 	static const u_int8_t valid_new[] = {
 		[ICMPV6_ECHO_REQUEST - 128] = 1,
@@ -152,8 +157,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
-	if (!nf_ct_invert_tuple(&intuple, &origtuple,
-				&nf_conntrack_l3proto_ipv6, inproto)) {
+	if (!nf_ct_invert_tuple(&intuple, &origtuple, inproto)) {
 		pr_debug("icmpv6_error: Can't invert tuple\n");
 		return -NF_ACCEPT;
 	}
@@ -281,6 +285,8 @@ static int icmpv6_timeout_nlattr_to_obj(struct nlattr *tb[],
 	unsigned int *timeout = data;
 	struct nf_icmp_net *in = icmpv6_pernet(net);
 
+	if (!timeout)
+		timeout = icmpv6_get_timeouts(net);
 	if (tb[CTA_TIMEOUT_ICMPV6_TIMEOUT]) {
 		*timeout =
 		    ntohl(nla_get_be32(tb[CTA_TIMEOUT_ICMPV6_TIMEOUT])) * HZ;
@@ -359,7 +365,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
 	.packet			= icmpv6_packet,
-	.get_timeouts		= icmpv6_get_timeouts,
 	.new			= icmpv6_new,
 	.error			= icmpv6_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

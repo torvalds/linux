@@ -38,7 +38,6 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
-#include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_acct.h>
@@ -81,9 +80,26 @@ nla_put_failure:
 	return -1;
 }
 
+static int ipv4_tuple_to_nlattr(struct sk_buff *skb,
+				const struct nf_conntrack_tuple *tuple)
+{
+	if (nla_put_in_addr(skb, CTA_IP_V4_SRC, tuple->src.u3.ip) ||
+	    nla_put_in_addr(skb, CTA_IP_V4_DST, tuple->dst.u3.ip))
+		return -EMSGSIZE;
+	return 0;
+}
+
+static int ipv6_tuple_to_nlattr(struct sk_buff *skb,
+				const struct nf_conntrack_tuple *tuple)
+{
+	if (nla_put_in6_addr(skb, CTA_IP_V6_SRC, &tuple->src.u3.in6) ||
+	    nla_put_in6_addr(skb, CTA_IP_V6_DST, &tuple->dst.u3.in6))
+		return -EMSGSIZE;
+	return 0;
+}
+
 static int ctnetlink_dump_tuples_ip(struct sk_buff *skb,
-				    const struct nf_conntrack_tuple *tuple,
-				    const struct nf_conntrack_l3proto *l3proto)
+				    const struct nf_conntrack_tuple *tuple)
 {
 	int ret = 0;
 	struct nlattr *nest_parms;
@@ -92,8 +108,14 @@ static int ctnetlink_dump_tuples_ip(struct sk_buff *skb,
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	if (likely(l3proto->tuple_to_nlattr))
-		ret = l3proto->tuple_to_nlattr(skb, tuple);
+	switch (tuple->src.l3num) {
+	case NFPROTO_IPV4:
+		ret = ipv4_tuple_to_nlattr(skb, tuple);
+		break;
+	case NFPROTO_IPV6:
+		ret = ipv6_tuple_to_nlattr(skb, tuple);
+		break;
+	}
 
 	nla_nest_end(skb, nest_parms);
 
@@ -106,13 +128,11 @@ nla_put_failure:
 static int ctnetlink_dump_tuples(struct sk_buff *skb,
 				 const struct nf_conntrack_tuple *tuple)
 {
-	const struct nf_conntrack_l3proto *l3proto;
 	const struct nf_conntrack_l4proto *l4proto;
 	int ret;
 
 	rcu_read_lock();
-	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
-	ret = ctnetlink_dump_tuples_ip(skb, tuple, l3proto);
+	ret = ctnetlink_dump_tuples_ip(skb, tuple);
 
 	if (ret >= 0) {
 		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
@@ -556,15 +576,20 @@ nla_put_failure:
 	return -1;
 }
 
+static const struct nla_policy cta_ip_nla_policy[CTA_IP_MAX + 1] = {
+	[CTA_IP_V4_SRC]	= { .type = NLA_U32 },
+	[CTA_IP_V4_DST]	= { .type = NLA_U32 },
+	[CTA_IP_V6_SRC]	= { .len = sizeof(__be32) * 4 },
+	[CTA_IP_V6_DST]	= { .len = sizeof(__be32) * 4 },
+};
+
 #if defined(CONFIG_NETFILTER_NETLINK_GLUE_CT) || defined(CONFIG_NF_CONNTRACK_EVENTS)
 static size_t ctnetlink_proto_size(const struct nf_conn *ct)
 {
-	const struct nf_conntrack_l3proto *l3proto;
 	const struct nf_conntrack_l4proto *l4proto;
 	size_t len, len4 = 0;
 
-	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
-	len = l3proto->nla_size;
+	len = nla_policy_len(cta_ip_nla_policy, CTA_IP_MAX + 1);
 	len *= 3u; /* ORIG, REPLY, MASTER */
 
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
@@ -936,28 +961,53 @@ out:
 	return skb->len;
 }
 
+static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
+				struct nf_conntrack_tuple *t)
+{
+	if (!tb[CTA_IP_V4_SRC] || !tb[CTA_IP_V4_DST])
+		return -EINVAL;
+
+	t->src.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_SRC]);
+	t->dst.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_DST]);
+
+	return 0;
+}
+
+static int ipv6_nlattr_to_tuple(struct nlattr *tb[],
+				struct nf_conntrack_tuple *t)
+{
+	if (!tb[CTA_IP_V6_SRC] || !tb[CTA_IP_V6_DST])
+		return -EINVAL;
+
+	t->src.u3.in6 = nla_get_in6_addr(tb[CTA_IP_V6_SRC]);
+	t->dst.u3.in6 = nla_get_in6_addr(tb[CTA_IP_V6_DST]);
+
+	return 0;
+}
+
 static int ctnetlink_parse_tuple_ip(struct nlattr *attr,
 				    struct nf_conntrack_tuple *tuple)
 {
 	struct nlattr *tb[CTA_IP_MAX+1];
-	struct nf_conntrack_l3proto *l3proto;
 	int ret = 0;
 
 	ret = nla_parse_nested(tb, CTA_IP_MAX, attr, NULL, NULL);
 	if (ret < 0)
 		return ret;
 
-	rcu_read_lock();
-	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
+	ret = nla_validate_nested(attr, CTA_IP_MAX,
+				  cta_ip_nla_policy, NULL);
+	if (ret)
+		return ret;
 
-	if (likely(l3proto->nlattr_to_tuple)) {
-		ret = nla_validate_nested(attr, CTA_IP_MAX,
-					  l3proto->nla_policy, NULL);
-		if (ret == 0)
-			ret = l3proto->nlattr_to_tuple(tb, tuple);
+	switch (tuple->src.l3num) {
+	case NFPROTO_IPV4:
+		ret = ipv4_nlattr_to_tuple(tb, tuple);
+		break;
+	case NFPROTO_IPV6:
+		ret = ipv6_nlattr_to_tuple(tb, tuple);
+		break;
 	}
-
-	rcu_read_unlock();
 
 	return ret;
 }
@@ -1897,7 +1947,7 @@ ctnetlink_create_conntrack(struct net *net,
 		} else {
 			struct nf_conn_help *help;
 
-			help = nf_ct_helper_ext_add(ct, helper, GFP_ATOMIC);
+			help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 			if (help == NULL) {
 				err = -ENOMEM;
 				goto err2;
@@ -2581,7 +2631,6 @@ static int ctnetlink_exp_dump_mask(struct sk_buff *skb,
 				   const struct nf_conntrack_tuple *tuple,
 				   const struct nf_conntrack_tuple_mask *mask)
 {
-	const struct nf_conntrack_l3proto *l3proto;
 	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple m;
 	struct nlattr *nest_parms;
@@ -2597,8 +2646,7 @@ static int ctnetlink_exp_dump_mask(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	rcu_read_lock();
-	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
-	ret = ctnetlink_dump_tuples_ip(skb, &m, l3proto);
+	ret = ctnetlink_dump_tuples_ip(skb, &m);
 	if (ret >= 0) {
 		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
 					       tuple->dst.protonum);
