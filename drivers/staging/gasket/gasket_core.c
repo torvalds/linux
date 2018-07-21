@@ -205,7 +205,7 @@ static inline int check_and_invoke_callback(
 {
 	int ret = 0;
 
-	gasket_nodev_error("check_and_invoke_callback %p", gasket_dev);
+	gasket_nodev_error("check_and_invoke_callback %p", cb_function);
 	if (cb_function) {
 		mutex_lock(&gasket_dev->mutex);
 		ret = cb_function(gasket_dev);
