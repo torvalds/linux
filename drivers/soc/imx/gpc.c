@@ -47,7 +47,6 @@ struct imx_pm_domain {
 	unsigned int reg_offs;
 	signed char cntr_pdn_bit;
 	unsigned int ipg_rate_mhz;
-	unsigned int flags;
 };
 
 static inline struct imx_pm_domain *
@@ -61,9 +60,6 @@ static int imx6_pm_domain_power_off(struct generic_pm_domain *genpd)
 	struct imx_pm_domain *pd = to_imx_pm_domain(genpd);
 	int iso, iso2sw;
 	u32 val;
-
-	if (pd->flags & PGC_DOMAIN_FLAG_NO_PD)
-		return -EBUSY;
 
 	/* Read ISO and ISO2SW power down delays */
 	regmap_read(pd->regmap, pd->reg_offs + GPC_PGC_PUPSCR_OFFS, &val);
@@ -288,26 +284,31 @@ static struct imx_pm_domain imx_gpc_domains[] = {
 struct imx_gpc_dt_data {
 	int num_domains;
 	bool err009619_present;
+	bool err006287_present;
 };
 
 static const struct imx_gpc_dt_data imx6q_dt_data = {
 	.num_domains = 2,
 	.err009619_present = false,
+	.err006287_present = false,
 };
 
 static const struct imx_gpc_dt_data imx6qp_dt_data = {
 	.num_domains = 2,
 	.err009619_present = true,
+	.err006287_present = false,
 };
 
 static const struct imx_gpc_dt_data imx6sl_dt_data = {
 	.num_domains = 3,
 	.err009619_present = false,
+	.err006287_present = true,
 };
 
 static const struct imx_gpc_dt_data imx6sx_dt_data = {
 	.num_domains = 4,
 	.err009619_present = false,
+	.err006287_present = false,
 };
 
 static const struct of_device_id imx_gpc_dt_ids[] = {
@@ -413,8 +414,13 @@ static int imx_gpc_probe(struct platform_device *pdev)
 
 	/* Disable PU power down in normal operation if ERR009619 is present */
 	if (of_id_data->err009619_present)
-		imx_gpc_domains[GPC_PGC_DOMAIN_PU].flags |=
-				PGC_DOMAIN_FLAG_NO_PD;
+		imx_gpc_domains[GPC_PGC_DOMAIN_PU].base.flags |=
+				GENPD_FLAG_ALWAYS_ON;
+
+	/* Keep DISP always on if ERR006287 is present */
+	if (of_id_data->err006287_present)
+		imx_gpc_domains[GPC_PGC_DOMAIN_DISPLAY].base.flags |=
+				GENPD_FLAG_ALWAYS_ON;
 
 	if (!pgc_node) {
 		ret = imx_gpc_old_dt_init(&pdev->dev, regmap,
