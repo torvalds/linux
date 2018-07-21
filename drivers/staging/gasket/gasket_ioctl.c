@@ -55,14 +55,15 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 {
 	struct gasket_dev *gasket_dev;
 	unsigned long arg = (unsigned long)argp;
+	gasket_ioctl_permissions_cb_t ioctl_permissions_cb;
 	int retval;
 
 	gasket_dev = (struct gasket_dev *)filp->private_data;
 	trace_gasket_ioctl_entry(gasket_dev->dev_info.name, cmd);
 
-	if (gasket_get_ioctl_permissions_cb(gasket_dev)) {
-		retval = gasket_get_ioctl_permissions_cb(gasket_dev)(
-			filp, cmd, argp);
+	ioctl_permissions_cb = gasket_get_ioctl_permissions_cb(gasket_dev);
+	if (ioctl_permissions_cb) {
+		retval = ioctl_permissions_cb(filp, cmd, argp);
 		if (retval < 0) {
 			trace_gasket_ioctl_exit(-EPERM);
 			return retval;
