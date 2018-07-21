@@ -19,7 +19,7 @@ enum dot11d_state {
 struct rt_dot11d_info {
 	/* DECLARE_RT_OBJECT(rt_dot11d_info); */
 
-	bool bEnabled; /* dot11MultiDomainCapabilityEnabled */
+	bool enabled; /* dot11MultiDomainCapabilityEnabled */
 
 	u16 CountryIeLen; /* > 0 if CountryIeBuf[] contains valid country information element. */
 	u8  CountryIeBuf[MAX_IE_LEN];
@@ -41,7 +41,7 @@ struct rt_dot11d_info {
 	(des)[5] = (src)[5])
 #define GET_DOT11D_INFO(__pIeeeDev) ((struct rt_dot11d_info *)((__pIeeeDev)->pDot11dInfo))
 
-#define IS_DOT11D_ENABLE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->bEnabled)
+#define IS_DOT11D_ENABLE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->enabled)
 #define IS_COUNTRY_IE_VALID(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->CountryIeLen > 0)
 
 #define IS_EQUAL_CIE_SRC(__pIeeeDev, __pTa) eqMacAddr(GET_DOT11D_INFO(__pIeeeDev)->CountryIeSrcAddr, __pTa)

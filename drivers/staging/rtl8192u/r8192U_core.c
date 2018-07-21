@@ -211,7 +211,7 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv *priv)
 		/* this flag enabled to follow 11d country IE setting,
 		 * otherwise, it shall follow global domain settings.
 		 */
-		GET_DOT11D_INFO(ieee)->bEnabled = 0;
+		GET_DOT11D_INFO(ieee)->enabled = 0;
 		Dot11d_Reset(ieee);
 		ieee->bGlobalDomain = true;
 		break;
