@@ -441,8 +441,10 @@ static int gasket_config_coherent_allocator(
 			gasket_dev, ibuf.size, &ibuf.dma_address,
 			ibuf.page_table_index);
 	}
+	if (ret)
+		return ret;
 	if (copy_to_user(argp, &ibuf, sizeof(ibuf)))
 		return -EFAULT;
 
-	return ret;
+	return 0;
 }
