@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * at91-gatwick.dts - Device Tree file for the Gatwick board
+ *
+ *  Copyright (C) 2018 Laird
+ *
+ */
+/dts-v1/;
+#include "at91-wb50n.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Laird Workgroup Bridge 50N - Project Gatwick";
+	compatible = "laird,gatwick", "laird,wb50n", "atmel,sama5d31", "atmel,sama5d3", "atmel,sama5";
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_key_gpio>;
+
+		reset-button {
+			label = "Reset Button";
+			linux,code = <KEY_SETUP>;
+			gpios = <&pioE 31 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		ethernet {
+			label = "gatwick:yellow:ethernet";
+			gpios = <&pioA 10 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		wifi {
+			label = "gatwick:green:wifi";
+			gpios = <&pioA 28 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		ble {
+			label = "gatwick:blue:ble";
+			gpios = <&pioA 22 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		lora {
+			label = "gatwick:orange:lora";
+			gpios = <&pioA 26 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		blank {
+			label = "gatwick:green:blank";
+			gpios = <&pioA 24 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		user {
+			label = "gatwick:yellow:user";
+			gpios = <&pioA 12 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+};
+
+&pinctrl {
+	board {
+		pinctrl_key_gpio: key_gpio_0 {
+		  atmel,pins =
+			  <AT91_PIOE 31 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>; /* PE31 GPIO with pullup deglitch */
+	  };
+	};
+};
+
+&mmc0 {
+	status = "okay";
+};
+
+&macb1 {
+	status = "okay";
+};
+
+&dbgu {
+	status = "okay";
+};
+
+/* FTDI USART */
+&usart0 {
+	status = "okay";
+};
+
+/* GPS USART */
+&usart1 {
+	pinctrl-0 = <&pinctrl_usart1>;
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+
+	spidev@0 {
+		compatible = "semtech,sx1301";
+		reg = <0>;
+		spi-max-frequency = <8000000>;
+	};
+};
+
+&usb1 {
+	status = "okay";
+	/delete-property/atmel,oc-gpio;
+};
+
+&usb2 {
+	status = "okay";
+};
