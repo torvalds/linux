@@ -205,7 +205,8 @@ static inline int check_and_invoke_callback(
 {
 	int ret = 0;
 
-	gasket_nodev_error("check_and_invoke_callback %p", cb_function);
+	gasket_log_debug(gasket_dev, "check_and_invoke_callback %p",
+			 cb_function);
 	if (cb_function) {
 		mutex_lock(&gasket_dev->mutex);
 		ret = cb_function(gasket_dev);
@@ -227,7 +228,7 @@ static inline int gasket_check_and_invoke_callback_nolock(
 	int ret = 0;
 
 	if (cb_function) {
-		gasket_log_info(
+		gasket_log_debug(
 			gasket_dev, "Invoking device-specific callback.");
 		ret = cb_function(gasket_dev);
 	}
@@ -1177,7 +1178,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE) {
 		ownership->write_open_count--;
 		if (ownership->write_open_count == 0) {
-			gasket_log_info(gasket_dev, "Device is now free");
+			gasket_log_debug(gasket_dev, "Device is now free");
 			ownership->is_owned = 0;
 			ownership->owner = 0;
 
@@ -1198,7 +1199,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 		}
 	}
 
-	gasket_log_info(
+	gasket_log_debug(
 		gasket_dev, "New open count (owning tgid %u): %d",
 		ownership->owner, ownership->write_open_count);
 	mutex_unlock(&gasket_dev->mutex);
@@ -1225,7 +1226,7 @@ static bool gasket_mmap_has_permissions(
 
 	/* Never allow non-sysadmins to access to a dead device. */
 	if (gasket_dev->status != GASKET_STATUS_ALIVE) {
-		gasket_log_info(gasket_dev, "Device is dead.");
+		gasket_log_debug(gasket_dev, "Device is dead.");
 		return false;
 	}
 
@@ -1233,7 +1234,7 @@ static bool gasket_mmap_has_permissions(
 	requested_permissions =
 		(vma->vm_flags & (VM_WRITE | VM_READ | VM_EXEC));
 	if (requested_permissions & ~(bar_permissions)) {
-		gasket_log_info(
+		gasket_log_debug(
 			gasket_dev,
 			"Attempting to map a region with requested permissions "
 			"0x%x, but region has permissions 0x%x.",
@@ -1244,7 +1245,7 @@ static bool gasket_mmap_has_permissions(
 	/* Do not allow a non-owner to write. */
 	if ((vma->vm_flags & VM_WRITE) &&
 	    !gasket_owned_by_current_tgid(&gasket_dev->dev_info)) {
-		gasket_log_info(
+		gasket_log_debug(
 			gasket_dev,
 			"Attempting to mmap a region for write without owning "
 			"device.");
@@ -1736,15 +1737,16 @@ static int gasket_get_hw_status(struct gasket_dev *gasket_dev)
 	status = gasket_check_and_invoke_callback_nolock(
 		gasket_dev, driver_desc->device_status_cb);
 	if (status != GASKET_STATUS_ALIVE) {
-		gasket_log_info(gasket_dev, "Hardware reported status %d.",
-				status);
+		gasket_log_debug(gasket_dev, "Hardware reported status %d.",
+				 status);
 		return status;
 	}
 
 	status = gasket_interrupt_system_status(gasket_dev);
 	if (status != GASKET_STATUS_ALIVE) {
-		gasket_log_info(gasket_dev,
-				"Interrupt system reported status %d.", status);
+		gasket_log_debug(gasket_dev,
+				 "Interrupt system reported status %d.",
+				 status);
 		return status;
 	}
 
@@ -1752,7 +1754,7 @@ static int gasket_get_hw_status(struct gasket_dev *gasket_dev)
 		status = gasket_page_table_system_status(
 			gasket_dev->page_table[i]);
 		if (status != GASKET_STATUS_ALIVE) {
-			gasket_log_info(
+			gasket_log_debug(
 				gasket_dev, "Page table %d reported status %d.",
 				i, status);
 			return status;
@@ -1783,7 +1785,7 @@ static long gasket_ioctl(struct file *filp, uint cmd, ulong arg)
 	gasket_dev = (struct gasket_dev *)filp->private_data;
 	driver_desc = gasket_dev->internal_desc->driver_desc;
 	if (!driver_desc) {
-		gasket_log_error(
+		gasket_log_debug(
 			gasket_dev,
 			"Unable to find device descriptor for file %s",
 			d_path(&filp->f_path, path, 256));
@@ -1831,7 +1833,7 @@ int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type)
 	/* Perform a device reset of the requested type. */
 	ret = driver_desc->device_reset_cb(gasket_dev, reset_type);
 	if (ret) {
-		gasket_log_error(
+		gasket_log_debug(
 			gasket_dev, "Device reset cb returned %d.", ret);
 		return ret;
 	}
@@ -1842,7 +1844,7 @@ int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type)
 
 	ret = gasket_interrupt_reinit(gasket_dev);
 	if (ret) {
-		gasket_log_error(
+		gasket_log_debug(
 			gasket_dev, "Unable to reinit interrupts: %d.", ret);
 		return ret;
 	}
@@ -1850,7 +1852,7 @@ int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type)
 	/* Get current device health. */
 	gasket_dev->status = gasket_get_hw_status(gasket_dev);
 	if (gasket_dev->status == GASKET_STATUS_DEAD) {
-		gasket_log_error(gasket_dev, "Device reported as dead.");
+		gasket_log_debug(gasket_dev, "Device reported as dead.");
 		return -EINVAL;
 	}
 
@@ -2002,7 +2004,7 @@ static ssize_t gasket_sysfs_data_show(
 		}
 		break;
 	default:
-		gasket_log_error(
+		gasket_log_debug(
 			gasket_dev, "Unknown attribute: %s", attr->attr.name);
 		ret = 0;
 		break;
@@ -2056,7 +2058,7 @@ int gasket_wait_with_reschedule(
 		msleep(delay_ms);
 		retries++;
 	}
-	gasket_log_error(gasket_dev, "%s timeout: reg %llx timeout (%llu ms)",
+	gasket_log_debug(gasket_dev, "%s timeout: reg %llx timeout (%llu ms)",
 			 __func__, offset, max_retries * delay_ms);
 	return -ETIMEDOUT;
 }
