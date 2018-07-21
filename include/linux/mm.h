@@ -155,7 +155,7 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
  * mmap() functions).
  */
 
-struct vm_area_struct *vm_area_alloc(void);
+struct vm_area_struct *vm_area_alloc(struct mm_struct *);
 struct vm_area_struct *vm_area_dup(struct vm_area_struct *);
 void vm_area_free(struct vm_area_struct *);
 

@@ -308,9 +308,15 @@ static struct kmem_cache *vm_area_cachep;
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
 
-struct vm_area_struct *vm_area_alloc(void)
+struct vm_area_struct *vm_area_alloc(struct mm_struct *mm)
 {
-	return kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+	struct vm_area_struct *vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+
+	if (vma) {
+		vma->vm_mm = mm;
+		INIT_LIST_HEAD(&vma->anon_vma_chain);
+	}
+	return vma;
 }
 
 struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig)
