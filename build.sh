@@ -133,6 +133,7 @@ function install {
 function deb {
 #set -x
   ver=${kernver}-bpi-r2-${gitbranch}
+  uimagename=uImage_${kernver}-${gitbranch}
   echo "deb package ${ver}"
   prepare_SD
 
@@ -148,7 +149,7 @@ function deb {
 
   #sudo mount --bind ../SD/BPI-ROOT/lib/modules debian/bananapi-r2-image/lib/modules/
   if test -e ./uImage && test -d ../SD/BPI-ROOT/lib/modules/${ver}; then
-    cp ./uImage debian/bananapi-r2-image/boot/bananapi/bpi-r2/linux/uImage_${ver}
+    cp ./uImage debian/bananapi-r2-image/boot/bananapi/bpi-r2/linux/${uimagename}
 #    pwd
     cp -r ../SD/BPI-ROOT/lib/modules/${ver} debian/bananapi-r2-image/lib/modules/
     #rm debian/bananapi-r2-image/lib/modules/${ver}/{build,source}
