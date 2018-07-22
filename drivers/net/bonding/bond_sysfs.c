@@ -160,14 +160,19 @@ static ssize_t bonding_sysfs_store_option(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_option *opt;
+	char *buffer_clone;
 	int ret;
 
 	opt = bond_opt_get_by_name(attr->attr.name);
 	if (WARN_ON(!opt))
 		return -ENOENT;
-	ret = bond_opt_tryset_rtnl(bond, opt->id, (char *)buffer);
+	buffer_clone = kstrndup(buffer, count, GFP_KERNEL);
+	if (!buffer_clone)
+		return -ENOMEM;
+	ret = bond_opt_tryset_rtnl(bond, opt->id, buffer_clone);
 	if (!ret)
 		ret = count;
+	kfree(buffer_clone);
 
 	return ret;
 }
