@@ -490,7 +490,7 @@ out:
 			bch2_btree_iter_verify_locks(linked);
 			BUG_ON((trans->flags & BTREE_INSERT_NOUNLOCK) &&
 			       trans->did_work &&
-			       linked->uptodate >= BTREE_ITER_NEED_RELOCK);
+			       !btree_node_locked(linked, 0));
 		}
 
 		/* make sure we didn't lose an error: */
