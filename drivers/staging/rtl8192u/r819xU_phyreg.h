@@ -46,19 +46,9 @@
 #define rCCK0_System				0xa00
 #define rCCK0_AFESetting			0xa04
 #define rCCK0_CCA					0xa08
-#define rCCK0_RxAGC1				0xa0c  /* AGC default value, saturation level */
-#define rCCK0_RxAGC2				0xa10  /* AGC & DAGC */
-#define rCCK0_RxHP				0xa14
-#define rCCK0_DSPParameter1		0xa18  /* Timing recovery & Channel estimation threshold */
-#define rCCK0_DSPParameter2		0xa1c  /* SQ threshold */
 #define rCCK0_TxFilter1				0xa20
 #define rCCK0_TxFilter2				0xa24
 #define rCCK0_DebugPort				0xa28  /* debug port and Tx filter3 */
-#define rCCK0_FalseAlarmReport		0xa2c  /* 0xa2d */
-#define rCCK0_TRSSIReport			0xa50
-#define rCCK0_RxReport				0xa54  /* 0xa57 */
-#define rCCK0_FACounterLower		0xa5c  /* 0xa5b */
-#define rCCK0_FACounterUpper		0xa58  /* 0xa5c */
 
 /* page c */
 #define rOFDM0_LSTF				0xc00
