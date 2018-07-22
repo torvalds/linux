@@ -104,11 +104,6 @@
 /* Zebra4 */
 #define rGlobalCtrl				0
 
-/* RTL8258 */
-#define rRTL8258_TxLPF				0x11
-#define rRTL8258_RxLPF				0x13
-#define rRTL8258_RSSILPF		0xa
-
 /* Bit Mask
  * page-1
  */
