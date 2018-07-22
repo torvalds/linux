@@ -131,12 +131,6 @@
  */
 #define bZebra1_ChannelNum        0xf80
 
-/* Zebra4 */
-#define bRTL8256RegModeCtrl1      0x100
-#define bRTL8256RegModeCtrl0      0x40
-#define bRTL8256_TxLPFBW          0x18
-#define bRTL8256_RxLPFBW          0x600
-
 /* RTL8258 */
 #define bRTL8258_TxLPFBW          0xc
 #define bRTL8258_RxLPFBW          0xc00
