@@ -849,6 +849,10 @@ retry:
 		journal_seq_copy(i.dst_dir, journal_seq);
 	}
 
+	journal_seq_copy(i.src_inode, journal_seq);
+	if (i.dst_inode)
+		journal_seq_copy(i.dst_inode, journal_seq);
+
 	bch2_inode_update_after_write(c, i.src_inode, &src_inode_u,
 				      ATTR_CTIME);
 	if (i.dst_inode)
