@@ -124,15 +124,7 @@
 #define bCCKSideBand				0x10
 
 /* page e */
-#define bTxAGCRate18_06			0x7f7f7f7f
-#define bTxAGCRate54_24			0x7f7f7f7f
-#define bTxAGCRateMCS32		0x7f
 #define bTxAGCRateCCK			0x7f00
-#define bTxAGCRateMCS3_MCS0	0x7f7f7f7f
-#define bTxAGCRateMCS7_MCS4	0x7f7f7f7f
-#define bTxAGCRateMCS11_MCS8	0x7f7f7f7f
-#define bTxAGCRateMCS15_MCS12	0x7f7f7f7f
-
 
 /* Rx Pseduo noise */
 #define bRxPesudoNoiseOn         0x20000000
