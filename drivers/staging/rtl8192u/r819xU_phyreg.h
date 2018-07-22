@@ -85,33 +85,6 @@
 /* page d */
 #define rOFDM1_LSTF				0xd00
 #define rOFDM1_TRxPathEnable		0xd04
-#define rOFDM1_CFO				0xd08
-#define rOFDM1_CSI1				0xd10
-#define rOFDM1_SBD				0xd14
-#define rOFDM1_CSI2				0xd18
-#define rOFDM1_CFOTracking			0xd2c
-#define rOFDM1_TRxMesaure1		0xd34
-#define rOFDM1_IntfDet				0xd3c
-#define rOFDM1_PseudoNoiseStateAB 0xd50
-#define rOFDM1_PseudoNoiseStateCD 0xd54
-#define rOFDM1_RxPseudoNoiseWgt   0xd58
-#define rOFDM_PHYCounter1			0xda0  /* cca, parity fail */
-#define rOFDM_PHYCounter2			0xda4  /* rate illegal, crc8 fail */
-
-#define rOFDM_PHYCounter3			0xda8  /* MCS not support */
-#define rOFDM_ShortCFOAB			0xdac
-#define rOFDM_ShortCFOCD			0xdb0
-#define rOFDM_LongCFOAB				0xdb4
-#define rOFDM_LongCFOCD				0xdb8
-#define rOFDM_TailCFOAB				0xdbc
-#define rOFDM_TailCFOCD				0xdc0
-#define rOFDM_PWMeasure1		0xdc4
-#define rOFDM_PWMeasure2		0xdc8
-#define rOFDM_BWReport				0xdcc
-#define rOFDM_AGCReport				0xdd0
-#define rOFDM_RxSNR				0xdd4
-#define rOFDM_RxEVMCSI				0xdd8
-#define rOFDM_SIGReport				0xddc
 
 /* page e */
 #define rTxAGC_Rate18_06			0xe00
