@@ -32,14 +32,8 @@ void bch2_journal_buf_put_slowpath(struct journal *j, bool need_write_just_set)
 	    test_bit(JOURNAL_NEED_WRITE, &j->flags))
 		bch2_time_stats_update(j->delay_time,
 				       j->need_write_time);
-#if 0
-	closure_call(&j->io, bch2_journal_write, NULL, NULL);
-#else
-	/* Shut sparse up: */
-	closure_init(&j->io, NULL);
-	set_closure_fn(&j->io, bch2_journal_write, NULL);
-	bch2_journal_write(&j->io);
-#endif
+
+	closure_call(&j->io, bch2_journal_write, system_highpri_wq, NULL);
 }
 
 static void journal_pin_new_entry(struct journal *j, int count)
@@ -171,13 +165,6 @@ static enum {
 
 	cancel_delayed_work(&j->write_work);
 	spin_unlock(&j->lock);
-
-	if (c->bucket_journal_seq > 1 << 14) {
-		c->bucket_journal_seq = 0;
-		bch2_bucket_seq_cleanup(c);
-	}
-
-	c->bucket_journal_seq++;
 
 	/* ugh - might be called from __journal_res_get() under wait_event() */
 	__set_current_state(TASK_RUNNING);
@@ -943,6 +930,7 @@ void bch2_fs_journal_stop(struct journal *j)
 
 void bch2_fs_journal_start(struct journal *j)
 {
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_seq_blacklist *bl;
 	u64 blacklist = 0;
 
@@ -963,6 +951,8 @@ void bch2_fs_journal_start(struct journal *j)
 	 */
 	journal_pin_new_entry(j, 1);
 	bch2_journal_buf_init(j);
+
+	c->last_bucket_seq_cleanup = journal_cur_seq(j);
 
 	spin_unlock(&j->lock);
 

@@ -147,12 +147,19 @@ static void bch2_disk_reservations_verify(struct bch_fs *c, int flags) {}
  */
 void bch2_bucket_seq_cleanup(struct bch_fs *c)
 {
+	u64 journal_seq = atomic64_read(&c->journal.seq);
 	u16 last_seq_ondisk = c->journal.last_seq_ondisk;
 	struct bch_dev *ca;
 	struct bucket_array *buckets;
 	struct bucket *g;
 	struct bucket_mark m;
 	unsigned i;
+
+	if (journal_seq - c->last_bucket_seq_cleanup <
+	    (1U << (BUCKET_JOURNAL_SEQ_BITS - 2)))
+		return;
+
+	c->last_bucket_seq_cleanup = journal_seq;
 
 	for_each_member_device(ca, c, i) {
 		down_read(&ca->bucket_lock);

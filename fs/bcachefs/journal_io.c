@@ -1384,6 +1384,8 @@ no_io:
 	extent_for_each_ptr(bkey_i_to_s_extent(&j->key), ptr)
 		ptr->offset += sectors;
 
+	bch2_bucket_seq_cleanup(c);
+
 	continue_at(cl, journal_write_done, system_highpri_wq);
 	return;
 err:

@@ -4,6 +4,8 @@
 
 #include "util.h"
 
+#define BUCKET_JOURNAL_SEQ_BITS		16
+
 struct bucket_mark {
 	union {
 	struct {

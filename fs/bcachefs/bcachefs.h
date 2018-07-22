@@ -719,7 +719,7 @@ struct bch_fs {
 
 	struct journal		journal;
 
-	unsigned		bucket_journal_seq;
+	u64			last_bucket_seq_cleanup;
 
 	/* The rest of this all shows up in sysfs */
 	atomic_long_t		read_realloc_races;
