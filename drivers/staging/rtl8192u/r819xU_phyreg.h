@@ -51,10 +51,7 @@
 #define rCCK0_DebugPort				0xa28  /* debug port and Tx filter3 */
 
 /* page c */
-#define rOFDM0_LSTF				0xc00
 #define rOFDM0_TRxPathEnable		0xc04
-#define rOFDM0_TRMuxPar				0xc08
-#define rOFDM0_TRSWIsolation			0xc0c
 #define rOFDM0_XARxAFE				0xc10  /* RxIQ DC offset, Rx digital filter, DC notch filter */
 #define rOFDM0_XARxIQImbalance		0xc14  /* RxIQ imblance matrix */
 #define rOFDM0_XBRxAFE				0xc18
@@ -66,10 +63,6 @@
 #define rOFDM0_RxDetector1			0xc30  /* PD,BW & SBD */
 #define rOFDM0_RxDetector2			0xc34  /* SBD & Fame Sync.*/
 #define rOFDM0_RxDetector3			0xc38  /* Frame Sync.*/
-#define rOFDM0_RxDetector4			0xc3c  /* PD, SBD, Frame Sync & Short-GI */
-#define rOFDM0_RxDSP				0xc40  /* Rx Sync Path */
-#define rOFDM0_CFOandDAGC		0xc44  /* CFO & DAGC */
-#define rOFDM0_CCADropThreshold		0xc48 /* CCA Drop threshold */
 #define rOFDM0_ECCAThreshold		0xc4c /* energy CCA */
 #define rOFDM0_XAAGCCore1		0xc50
 #define rOFDM0_XAAGCCore2		0xc54
@@ -79,10 +72,6 @@
 #define rOFDM0_XCAGCCore2		0xc64
 #define rOFDM0_XDAGCCore1		0xc68
 #define rOFDM0_XDAGCCore2		0xc6c
-#define rOFDM0_AGCParameter1		0xc70
-#define rOFDM0_AGCParameter2		0xc74
-#define rOFDM0_AGCRSSITable		0xc78
-#define rOFDM0_HTSTFAGC				0xc7c
 #define rOFDM0_XATxIQImbalance		0xc80
 #define rOFDM0_XATxAFE				0xc84
 #define rOFDM0_XBTxIQImbalance		0xc88
@@ -91,16 +80,6 @@
 #define rOFDM0_XCTxAFE				0xc94
 #define rOFDM0_XDTxIQImbalance		0xc98
 #define rOFDM0_XDTxAFE				0xc9c
-#define rOFDM0_RxHPParameter		0xce0
-#define rOFDM0_TxPseudoNoiseWgt		0xce4
-#define rOFDM0_FrameSync			0xcf0
-#define rOFDM0_DFSReport			0xcf4
-#define rOFDM0_TxCoeff1				0xca4
-#define rOFDM0_TxCoeff2				0xca8
-#define rOFDM0_TxCoeff3				0xcac
-#define rOFDM0_TxCoeff4				0xcb0
-#define rOFDM0_TxCoeff5				0xcb4
-#define rOFDM0_TxCoeff6				0xcb8
 
 
 /* page d */
