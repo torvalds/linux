@@ -1388,7 +1388,7 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 				  MMC_CAP_ERASE | MMC_CAP_SDIO_IRQ;
 
 	if (host->cfg->clk_delays || host->use_new_timings)
-		mmc->caps      |= MMC_CAP_1_8V_DDR;
+		mmc->caps      |= MMC_CAP_1_8V_DDR | MMC_CAP_3_3V_DDR;
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
