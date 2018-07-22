@@ -807,17 +807,38 @@ struct bch_xattr {
 
 /* Bucket/allocation information: */
 
-enum {
-	BCH_ALLOC_FIELD_READ_TIME	= 0,
-	BCH_ALLOC_FIELD_WRITE_TIME	= 1,
-};
-
 struct bch_alloc {
 	struct bch_val		v;
 	__u8			fields;
 	__u8			gen;
 	__u8			data[];
 } __attribute__((packed, aligned(8)));
+
+#define BCH_ALLOC_FIELDS()			\
+	x(read_time, 2)				\
+	x(write_time, 2)			\
+	x(data_type, 1)				\
+	x(dirty_sectors, 2)			\
+	x(cached_sectors, 2)
+
+enum {
+#define x(name, bytes) BCH_ALLOC_FIELD_##name,
+	BCH_ALLOC_FIELDS()
+#undef x
+	BCH_ALLOC_FIELD_NR
+};
+
+static const unsigned BCH_ALLOC_FIELD_BYTES[] = {
+#define x(name, bytes) [BCH_ALLOC_FIELD_##name] = bytes,
+	BCH_ALLOC_FIELDS()
+#undef x
+};
+
+#define x(name, bytes) + bytes
+static const unsigned BKEY_ALLOC_VAL_U64s_MAX =
+	DIV_ROUND_UP(offsetof(struct bch_alloc, data)
+		     BCH_ALLOC_FIELDS(), sizeof(u64));
+#undef x
 
 /* Quotas: */
 

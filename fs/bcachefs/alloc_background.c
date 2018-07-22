@@ -23,6 +23,13 @@
 #include <linux/sched/task.h>
 #include <linux/sort.h>
 
+static const char * const bch2_alloc_field_names[] = {
+#define x(name, bytes) #name,
+	BCH_ALLOC_FIELDS()
+#undef x
+	NULL
+};
+
 static void bch2_recalc_oldest_io(struct bch_fs *, struct bch_dev *, int);
 
 /* Ratelimiting/PD controllers */
@@ -62,14 +69,73 @@ static void pd_controllers_update(struct work_struct *work)
 
 /* Persistent alloc info: */
 
+static inline u64 get_alloc_field(const struct bch_alloc *a,
+				  const void **p, unsigned field)
+{
+	unsigned bytes = BCH_ALLOC_FIELD_BYTES[field];
+	u64 v;
+
+	if (!(a->fields & (1 << field)))
+		return 0;
+
+	switch (bytes) {
+	case 1:
+		v = *((const u8 *) *p);
+		break;
+	case 2:
+		v = le16_to_cpup(*p);
+		break;
+	case 4:
+		v = le32_to_cpup(*p);
+		break;
+	case 8:
+		v = le64_to_cpup(*p);
+		break;
+	default:
+		BUG();
+	}
+
+	*p += bytes;
+	return v;
+}
+
+static inline void put_alloc_field(struct bkey_i_alloc *a, void **p,
+				   unsigned field, u64 v)
+{
+	unsigned bytes = BCH_ALLOC_FIELD_BYTES[field];
+
+	if (!v)
+		return;
+
+	a->v.fields |= 1 << field;
+
+	switch (bytes) {
+	case 1:
+		*((u8 *) *p) = v;
+		break;
+	case 2:
+		*((__le16 *) *p) = cpu_to_le16(v);
+		break;
+	case 4:
+		*((__le32 *) *p) = cpu_to_le32(v);
+		break;
+	case 8:
+		*((__le64 *) *p) = cpu_to_le64(v);
+		break;
+	default:
+		BUG();
+	}
+
+	*p += bytes;
+}
+
 static unsigned bch_alloc_val_u64s(const struct bch_alloc *a)
 {
-	unsigned bytes = offsetof(struct bch_alloc, data);
+	unsigned i, bytes = offsetof(struct bch_alloc, data);
 
-	if (a->fields & (1 << BCH_ALLOC_FIELD_READ_TIME))
-		bytes += 2;
-	if (a->fields & (1 << BCH_ALLOC_FIELD_WRITE_TIME))
-		bytes += 2;
+	for (i = 0; i < ARRAY_SIZE(BCH_ALLOC_FIELD_BYTES); i++)
+		if (a->fields & (1 << i))
+			bytes += BCH_ALLOC_FIELD_BYTES[i];
 
 	return DIV_ROUND_UP(bytes, sizeof(u64));
 }
@@ -93,58 +159,55 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bkey_s_c k)
 {
 	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
+	const void *d = a.v->data;
+	unsigned i;
 
 	pr_buf(out, "gen %u", a.v->gen);
+
+	for (i = 0; i < BCH_ALLOC_FIELD_NR; i++)
+		if (a.v->fields & (1 << i))
+			pr_buf(out, " %s %llu",
+			       bch2_alloc_field_names[i],
+			       get_alloc_field(a.v, &d, i));
 }
 
-static inline unsigned get_alloc_field(const u8 **p, unsigned bytes)
+static void __alloc_read_key(struct bucket *g, const struct bch_alloc *a)
 {
-	unsigned v;
+	const void *d = a->data;
+	unsigned idx = 0;
 
-	switch (bytes) {
-	case 1:
-		v = **p;
-		break;
-	case 2:
-		v = le16_to_cpup((void *) *p);
-		break;
-	case 4:
-		v = le32_to_cpup((void *) *p);
-		break;
-	default:
-		BUG();
-	}
-
-	*p += bytes;
-	return v;
+	g->_mark.gen		= a->gen;
+	g->gen_valid		= 1;
+	g->io_time[READ]	= get_alloc_field(a, &d, idx++);
+	g->io_time[WRITE]	= get_alloc_field(a, &d, idx++);
+	g->_mark.data_type	= get_alloc_field(a, &d, idx++);
+	g->_mark.dirty_sectors	= get_alloc_field(a, &d, idx++);
+	g->_mark.cached_sectors	= get_alloc_field(a, &d, idx++);
 }
 
-static inline void put_alloc_field(u8 **p, unsigned bytes, unsigned v)
+static void __alloc_write_key(struct bkey_i_alloc *a, struct bucket *g)
 {
-	switch (bytes) {
-	case 1:
-		**p = v;
-		break;
-	case 2:
-		*((__le16 *) *p) = cpu_to_le16(v);
-		break;
-	case 4:
-		*((__le32 *) *p) = cpu_to_le32(v);
-		break;
-	default:
-		BUG();
-	}
+	struct bucket_mark m = READ_ONCE(g->mark);
+	unsigned idx = 0;
+	void *d = a->v.data;
 
-	*p += bytes;
+	a->v.fields	= 0;
+	a->v.gen	= m.gen;
+
+	d = a->v.data;
+	put_alloc_field(a, &d, idx++, g->io_time[READ]);
+	put_alloc_field(a, &d, idx++, g->io_time[WRITE]);
+	put_alloc_field(a, &d, idx++, m.data_type);
+	put_alloc_field(a, &d, idx++, m.dirty_sectors);
+	put_alloc_field(a, &d, idx++, m.cached_sectors);
+
+	set_bkey_val_bytes(&a->k, (void *) d - (void *) &a->v);
 }
 
 static void bch2_alloc_read_key(struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bch_dev *ca;
 	struct bkey_s_c_alloc a;
-	struct bucket_mark new;
-	struct bucket *g;
-	const u8 *d;
 
 	if (k.k->type != KEY_TYPE_alloc)
 		return;
@@ -156,19 +219,7 @@ static void bch2_alloc_read_key(struct bch_fs *c, struct bkey_s_c k)
 		return;
 
 	percpu_down_read(&c->usage_lock);
-
-	g = bucket(ca, a.k->p.offset);
-	bucket_cmpxchg(g, new, ({
-		new.gen = a.v->gen;
-		new.gen_valid = 1;
-	}));
-
-	d = a.v->data;
-	if (a.v->fields & (1 << BCH_ALLOC_FIELD_READ_TIME))
-		g->io_time[READ] = get_alloc_field(&d, 2);
-	if (a.v->fields & (1 << BCH_ALLOC_FIELD_WRITE_TIME))
-		g->io_time[WRITE] = get_alloc_field(&d, 2);
-
+	__alloc_read_key(bucket(ca, a.k->p.offset), a.v);
 	percpu_up_read(&c->usage_lock);
 }
 
@@ -222,28 +273,21 @@ static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
 				  size_t b, struct btree_iter *iter,
 				  u64 *journal_seq, unsigned flags)
 {
-	struct bucket_mark m;
-	__BKEY_PADDED(k, DIV_ROUND_UP(sizeof(struct bch_alloc), 8)) alloc_key;
-	struct bucket *g;
-	struct bkey_i_alloc *a;
+#if 0
+	__BKEY_PADDED(k, BKEY_ALLOC_VAL_U64s_MAX) alloc_key;
+#else
+	/* hack: */
+	__BKEY_PADDED(k, 8) alloc_key;
+#endif
+	struct bkey_i_alloc *a = bkey_alloc_init(&alloc_key.k);
 	int ret;
-	u8 *d;
+
+	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
+
+	a->k.p = POS(ca->dev_idx, b);
 
 	percpu_down_read(&c->usage_lock);
-	g = bucket(ca, b);
-
-	m = READ_ONCE(g->mark);
-	a = bkey_alloc_init(&alloc_key.k);
-	a->k.p		= POS(ca->dev_idx, b);
-	a->v.fields	= 0;
-	a->v.gen	= m.gen;
-	set_bkey_val_u64s(&a->k, bch_alloc_val_u64s(&a->v));
-
-	d = a->v.data;
-	if (a->v.fields & (1 << BCH_ALLOC_FIELD_READ_TIME))
-		put_alloc_field(&d, 2, g->io_time[READ]);
-	if (a->v.fields & (1 << BCH_ALLOC_FIELD_WRITE_TIME))
-		put_alloc_field(&d, 2, g->io_time[WRITE]);
+	__alloc_write_key(a, bucket(ca, b));
 	percpu_up_read(&c->usage_lock);
 
 	bch2_btree_iter_cond_resched(iter);
@@ -1295,7 +1339,7 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 		     bu < buckets->nbuckets; bu++) {
 			m = READ_ONCE(buckets->b[bu].mark);
 
-			if (!m.gen_valid ||
+			if (!buckets->b[bu].gen_valid ||
 			    !is_available_bucket(m) ||
 			    m.cached_sectors)
 				continue;

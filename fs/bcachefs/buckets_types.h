@@ -9,28 +9,25 @@
 
 struct bucket_mark {
 	union {
-	struct {
-		atomic64_t	v;
-	};
+	atomic64_t	v;
 
 	struct {
-		u8		gen;
-		u8		data_type:3,
-				gen_valid:1,
-				owned_by_allocator:1,
-				nouse:1,
-				journal_seq_valid:1,
-				stripe:1;
-		u16		dirty_sectors;
-		u16		cached_sectors;
+	u8		gen;
+	u8		data_type:3,
+			owned_by_allocator:1,
+			nouse:1,
+			journal_seq_valid:1,
+			stripe:1;
+	u16		dirty_sectors;
+	u16		cached_sectors;
 
-		/*
-		 * low bits of journal sequence number when this bucket was most
-		 * recently modified: if journal_seq_valid is set, this bucket
-		 * can't be reused until the journal sequence number written to
-		 * disk is >= the bucket's journal sequence number:
-		 */
-		u16		journal_seq;
+	/*
+	 * low bits of journal sequence number when this bucket was most
+	 * recently modified: if journal_seq_valid is set, this bucket can't be
+	 * reused until the journal sequence number written to disk is >= the
+	 * bucket's journal sequence number:
+	 */
+	u16		journal_seq;
 	};
 	};
 };
@@ -42,6 +39,7 @@ struct bucket {
 	};
 
 	u16				io_time[2];
+	unsigned			gen_valid:1;
 };
 
 struct bucket_array {

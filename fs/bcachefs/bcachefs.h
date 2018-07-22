@@ -619,8 +619,6 @@ struct bch_fs {
 
 	struct percpu_rw_semaphore usage_lock;
 
-	struct closure_waitlist	freelist_wait;
-
 	/*
 	 * When we invalidate buckets, we use both the priority and the amount
 	 * of good data to determine which buckets to reuse first - to weight
@@ -633,6 +631,7 @@ struct bch_fs {
 
 	/* ALLOCATOR */
 	spinlock_t		freelist_lock;
+	struct closure_waitlist	freelist_wait;
 	u8			open_buckets_freelist;
 	u8			open_buckets_nr_free;
 	struct closure_waitlist	open_buckets_wait;
