@@ -47,7 +47,7 @@ static struct page **vdso64_pagelist;
  */
 unsigned int __read_mostly vdso_enabled = 1;
 
-static int vdso_fault(const struct vm_special_mapping *sm,
+static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page **vdso_pagelist;
