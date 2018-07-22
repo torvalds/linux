@@ -126,17 +126,6 @@
 /* page e */
 #define bTxAGCRateCCK			0x7f00
 
-/* Rx Pseduo noise */
-#define bRxPesudoNoiseOn         0x20000000
-#define bRxPesudoNoise_A         0xff
-#define bRxPesudoNoise_B         0xff00
-#define bRxPesudoNoise_C         0xff0000
-#define bRxPesudoNoise_D         0xff000000
-#define bPesudoNoiseState_A      0xffff
-#define bPesudoNoiseState_B      0xffff0000
-#define bPesudoNoiseState_C      0xffff
-#define bPesudoNoiseState_D      0xffff0000
-
 /* RF
  * Zebra1
  */
