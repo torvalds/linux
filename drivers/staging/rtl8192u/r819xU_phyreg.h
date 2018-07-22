@@ -132,74 +132,15 @@
 #define bZebra1_ChannelNum        0xf80
 
 /* RTL8258 */
-#define bRTL8258_TxLPFBW          0xc
-#define bRTL8258_RxLPFBW          0xc00
-#define bRTL8258_RSSILPFBW        0xc0
-
-/* byte endable for sb_write */
-#define bByte0                    0x1
-#define bByte1                    0x2
-#define bByte2                    0x4
-#define bByte3                    0x8
-#define bWord0                    0x3
-#define bWord1                    0xc
-#define bDWord                    0xf
-
 /* for PutRegsetting & GetRegSetting BitMask */
 #define bMaskByte0                0xff
 #define bMaskByte1                0xff00
 #define bMaskByte2                0xff0000
-#define bMaskByte3                0xff000000
 #define bMaskHWord                0xffff0000
 #define bMaskLWord                0x0000ffff
 #define bMaskDWord                0xffffffff
 
 /* for PutRFRegsetting & GetRFRegSetting BitMask */
 #define bMask12Bits               0xfff
-
-#define bEnable                   0x1
-#define bDisable                  0x0
-
-#define LeftAntenna               0x0
-#define RightAntenna              0x1
-
-#define tCheckTxStatus            500   /* 500ms */
-#define tUpdateRxCounter          100   /* 100ms */
-
-#define rateCCK     0
-#define rateOFDM    1
-#define rateHT      2
-
-/* define Register-End */
-#define bPMAC_End                 0x1ff
-#define bFPGAPHY0_End             0x8ff
-#define bFPGAPHY1_End             0x9ff
-#define bCCKPHY0_End              0xaff
-#define bOFDMPHY0_End             0xcff
-#define bOFDMPHY1_End             0xdff
-
-/* define max debug item in each debug page
- * #define bMaxItem_FPGA_PHY0        0x9
- * #define bMaxItem_FPGA_PHY1        0x3
- * #define bMaxItem_PHY_11B          0x16
- * #define bMaxItem_OFDM_PHY0        0x29
- * #define bMaxItem_OFDM_PHY1        0x0
- */
-
-#define bPMACControl              0x0
-#define bWMACControl              0x1
-#define bWNICControl              0x2
-
-#define PathA                     0x0
-#define PathB                     0x1
-#define PathC                     0x2
-#define PathD                     0x3
-
-#define	rRTL8256RxMixerPole		0xb
-#define		bZebraRxMixerPole		0x6
-#define		rRTL8256TxBBOPBias        0x9
-#define		bRTL8256TxBBOPBias       0x400
-#define		rRTL8256TxBBBW             19
-#define		bRTL8256TxBBBW			0x18
 
 #endif	/* __INC_HAL8190PCIPHYREG_H */
