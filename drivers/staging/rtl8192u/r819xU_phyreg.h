@@ -7,14 +7,7 @@
 
 /* page8 */
 #define rFPGA0_RFMOD				0x800  /* RF mode & CCK TxSC */
-#define rFPGA0_TxInfo				0x804
-#define rFPGA0_PSDFunction			0x808
 #define rFPGA0_TxGainStage			0x80c
-#define rFPGA0_RFTiming1			0x810
-#define rFPGA0_RFTiming2			0x814
-/* #define rFPGA0_XC_RFTiming			0x818
- * #define rFPGA0_XD_RFTiming			0x81c
- */
 #define rFPGA0_XA_HSSIParameter1	0x820
 #define rFPGA0_XA_HSSIParameter2	0x824
 #define rFPGA0_XB_HSSIParameter1	0x828
@@ -27,8 +20,6 @@
 #define rFPGA0_XB_LSSIParameter		0x844
 #define rFPGA0_XC_LSSIParameter		0x848
 #define rFPGA0_XD_LSSIParameter		0x84c
-#define rFPGA0_RFWakeUpParameter	0x850
-#define rFPGA0_RFSleepUpParameter	0x854
 #define rFPGA0_XAB_SwitchControl	0x858
 #define rFPGA0_XCD_SwitchControl	0x85c
 #define rFPGA0_XA_RFInterfaceOE		0x860
@@ -40,14 +31,11 @@
 #define rFPGA0_XAB_RFParameter		0x878
 #define rFPGA0_XCD_RFParameter		0x87c
 #define rFPGA0_AnalogParameter1		0x880
-#define rFPGA0_AnalogParameter2		0x884
-#define rFPGA0_AnalogParameter3		0x888
 #define rFPGA0_AnalogParameter4		0x88c
 #define rFPGA0_XA_LSSIReadBack		0x8a0
 #define rFPGA0_XB_LSSIReadBack		0x8a4
 #define rFPGA0_XC_LSSIReadBack		0x8a8
 #define rFPGA0_XD_LSSIReadBack		0x8ac
-#define rFPGA0_PSDReport			0x8b4
 #define rFPGA0_XAB_RFInterfaceRB	0x8e0
 #define rFPGA0_XCD_RFInterfaceRB	0x8e4
 
