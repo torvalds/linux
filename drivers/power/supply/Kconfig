@@ -103,7 +103,7 @@ config BATTERY_CPCAP
 
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
-	depends on W1 && W1_SLAVE_DS2760
+	depends on W1
 	help
 	  Say Y here to enable support for batteries with ds2760 chip.
 
