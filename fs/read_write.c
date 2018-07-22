@@ -1407,7 +1407,6 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		goto fput_in;
 	if (!(out.file->f_mode & FMODE_WRITE))
 		goto fput_out;
-	retval = -EINVAL;
 	in_inode = file_inode(in.file);
 	out_inode = file_inode(out.file);
 	out_pos = out.file->f_pos;
