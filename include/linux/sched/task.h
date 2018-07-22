@@ -75,7 +75,7 @@ extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, 
 extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
 struct task_struct *fork_idle(int);
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-extern long kernel_wait4(pid_t, int *, int, struct rusage *);
+extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
 
 extern void free_task(struct task_struct *tsk);
 
