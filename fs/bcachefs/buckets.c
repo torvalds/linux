@@ -454,17 +454,11 @@ void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 	       c->gc_pos.phase == GC_PHASE_DONE);
 }
 
-#define saturated_add(ca, dst, src, max)			\
+#define checked_add(a, b)					\
 do {								\
-	BUG_ON((int) (dst) + (src) < 0);			\
-	if ((dst) == (max))					\
-		;						\
-	else if ((dst) + (src) <= (max))			\
-		dst += (src);					\
-	else {							\
-		dst = (max);					\
-		trace_sectors_saturated(ca);		\
-	}							\
+	unsigned _res = (unsigned) (a) + (b);			\
+	(a) = _res;						\
+	BUG_ON((a) != _res);					\
 } while (0)
 
 void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
@@ -489,9 +483,9 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 
 	g = bucket(ca, b);
 	old = bucket_data_cmpxchg(c, ca, g, new, ({
-		saturated_add(ca, new.dirty_sectors, sectors,
-			      GC_MAX_SECTORS_USED);
-		new.data_type		= type;
+		new.data_type = type;
+		checked_add(new.dirty_sectors, sectors);
+		new.dirty_sectors += sectors;
 	}));
 
 	rcu_read_unlock();
@@ -525,7 +519,6 @@ static void bch2_mark_pointer(struct bch_fs *c,
 			      u64 journal_seq, unsigned flags)
 {
 	struct bucket_mark old, new;
-	unsigned saturated;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 	struct bucket *g = PTR_BUCKET(ca, ptr);
 	enum bch_data_type data_type = type == S_META
@@ -560,7 +553,6 @@ static void bch2_mark_pointer(struct bch_fs *c,
 	v = atomic64_read(&g->_mark.v);
 	do {
 		new.v.counter = old.v.counter = v;
-		saturated = 0;
 
 		/*
 		 * Check this after reading bucket mark to guard against
@@ -574,17 +566,10 @@ static void bch2_mark_pointer(struct bch_fs *c,
 			return;
 		}
 
-		if (!ptr->cached &&
-		    new.dirty_sectors == GC_MAX_SECTORS_USED &&
-		    sectors < 0)
-			saturated = -sectors;
-
-		if (ptr->cached)
-			saturated_add(ca, new.cached_sectors, sectors,
-				      GC_MAX_SECTORS_USED);
+		if (!ptr->cached)
+			checked_add(new.dirty_sectors, sectors);
 		else
-			saturated_add(ca, new.dirty_sectors, sectors,
-				      GC_MAX_SECTORS_USED);
+			checked_add(new.cached_sectors, sectors);
 
 		if (!new.dirty_sectors &&
 		    !new.cached_sectors) {
@@ -610,16 +595,6 @@ static void bch2_mark_pointer(struct bch_fs *c,
 
 	BUG_ON(!(flags & BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE) &&
 	       bucket_became_unavailable(c, old, new));
-
-	if (saturated &&
-	    atomic_long_add_return(saturated,
-				   &ca->saturated_count) >=
-	    bucket_to_sector(ca, ca->free_inc.size)) {
-		if (c->gc_thread) {
-			trace_gc_sectors_saturated(c);
-			wake_up_process(c->gc_thread);
-		}
-	}
 }
 
 void bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,

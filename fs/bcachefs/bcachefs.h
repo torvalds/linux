@@ -413,7 +413,6 @@ struct bch_dev {
 	/* last calculated minimum prio */
 	u16			max_last_bucket_io[2];
 
-	atomic_long_t		saturated_count;
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
 	u64			allocator_journal_seq_flush;

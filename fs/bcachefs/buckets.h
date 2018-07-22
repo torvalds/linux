@@ -115,11 +115,6 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 
 /* bucket gc marks */
 
-/* The dirty and cached sector counts saturate. If this occurs,
- * reference counting alone will not free the bucket, and a btree
- * GC must be performed. */
-#define GC_MAX_SECTORS_USED ((1U << 15) - 1)
-
 static inline unsigned bucket_sectors_used(struct bucket_mark mark)
 {
 	return mark.dirty_sectors + mark.cached_sectors;

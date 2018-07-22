@@ -44,21 +44,6 @@ DECLARE_EVENT_CLASS(bkey,
 		  __entry->offset, __entry->size)
 );
 
-DECLARE_EVENT_CLASS(bch_dev,
-	TP_PROTO(struct bch_dev *ca),
-	TP_ARGS(ca),
-
-	TP_STRUCT__entry(
-		__array(char,		uuid,	16	)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->uuid, ca->uuid.b, 16);
-	),
-
-	TP_printk("%pU", __entry->uuid)
-);
-
 DECLARE_EVENT_CLASS(bch_fs,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c),
@@ -357,16 +342,6 @@ DEFINE_EVENT(bch_fs, gc_coalesce_start,
 );
 
 DEFINE_EVENT(bch_fs, gc_coalesce_end,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
-);
-
-DEFINE_EVENT(bch_dev, sectors_saturated,
-	TP_PROTO(struct bch_dev *ca),
-	TP_ARGS(ca)
-);
-
-DEFINE_EVENT(bch_fs, gc_sectors_saturated,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c)
 );

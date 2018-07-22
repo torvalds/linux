@@ -570,9 +570,6 @@ void bch2_gc(struct bch_fs *c)
 	bch2_mark_pending_btree_node_frees(c);
 	bch2_mark_allocator_buckets(c);
 
-	for_each_member_device(ca, c, i)
-		atomic_long_set(&ca->saturated_count, 0);
-
 	/* Indicates that gc is no longer in progress: */
 	gc_pos_set(c, gc_phase(GC_PHASE_DONE));
 	c->gc_count++;
