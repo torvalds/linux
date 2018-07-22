@@ -9,6 +9,8 @@ struct bch_dev;
 struct bch_fs;
 struct bch_devs_List;
 
+#define ALLOC_SCAN_BATCH(ca)		((ca)->mi.nbuckets >> 9)
+
 const char *bch2_alloc_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_alloc_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
 

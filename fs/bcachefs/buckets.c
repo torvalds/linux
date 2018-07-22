@@ -405,7 +405,7 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	_old;							\
 })
 
-bool bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
+void bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 			    size_t b, struct bucket_mark *old)
 {
 	struct bucket *g;
@@ -416,8 +416,7 @@ bool bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 	g = bucket(ca, b);
 
 	*old = bucket_data_cmpxchg(c, ca, g, new, ({
-		if (!is_available_bucket(new))
-			return false;
+		BUG_ON(!is_available_bucket(new));
 
 		new.owned_by_allocator	= 1;
 		new.data_type		= 0;
@@ -429,7 +428,6 @@ bool bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 	if (!old->owned_by_allocator && old->cached_sectors)
 		trace_invalidate(ca, bucket_to_sector(ca, b),
 				 old->cached_sectors);
-	return true;
 }
 
 void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
@@ -822,7 +820,8 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	/* XXX: these should be tunable */
 	size_t reserve_none	= max_t(size_t, 4, ca->mi.nbuckets >> 9);
 	size_t copygc_reserve	= max_t(size_t, 16, ca->mi.nbuckets >> 7);
-	size_t free_inc_reserve = copygc_reserve / 2;
+	size_t free_inc_nr	= max(max_t(size_t, 16, ca->mi.nbuckets >> 12),
+				      btree_reserve);
 	bool resize = ca->buckets != NULL,
 	     start_copygc = ca->copygc_thread != NULL;
 	int ret = -ENOMEM;
@@ -845,8 +844,8 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	    !init_fifo(&free[RESERVE_MOVINGGC],
 		       copygc_reserve, GFP_KERNEL) ||
 	    !init_fifo(&free[RESERVE_NONE], reserve_none, GFP_KERNEL) ||
-	    !init_fifo(&free_inc,	free_inc_reserve, GFP_KERNEL) ||
-	    !init_heap(&alloc_heap,	free_inc_reserve, GFP_KERNEL) ||
+	    !init_fifo(&free_inc,	free_inc_nr, GFP_KERNEL) ||
+	    !init_heap(&alloc_heap,	ALLOC_SCAN_BATCH(ca) << 1, GFP_KERNEL) ||
 	    !init_heap(&copygc_heap,	copygc_reserve, GFP_KERNEL))
 		goto err;
 

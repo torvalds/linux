@@ -270,6 +270,10 @@ do {									\
 		"Store the journal sequence number in the version "	\
 		"number of every btree key, and verify that btree "	\
 		"update ordering is preserved during recovery")		\
+	BCH_DEBUG_PARAM(test_alloc_startup,				\
+		"Force allocator startup to use the slowpath where it"	\
+		"can't find enough free buckets without invalidating"	\
+		"cached data")
 
 #define BCH_DEBUG_PARAMS_ALL() BCH_DEBUG_PARAMS_ALWAYS() BCH_DEBUG_PARAMS_DEBUG()
 
@@ -403,7 +407,6 @@ struct bch_dev {
 	alloc_fifo		free[RESERVE_NR];
 	alloc_fifo		free_inc;
 	spinlock_t		freelist_lock;
-	size_t			nr_invalidated;
 
 	u8			open_buckets_partial[OPEN_BUCKETS_COUNT];
 	unsigned		open_buckets_partial_nr;
@@ -415,8 +418,6 @@ struct bch_dev {
 
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
-	u64			allocator_journal_seq_flush;
-	bool			allocator_invalidating_data;
 	bool			allocator_blocked;
 
 	alloc_heap		alloc_heap;

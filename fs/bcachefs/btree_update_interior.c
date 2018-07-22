@@ -1145,7 +1145,8 @@ static void bch2_btree_set_root(struct btree_update *as, struct btree *b,
 	struct btree *old;
 
 	trace_btree_set_root(c, b);
-	BUG_ON(!b->written);
+	BUG_ON(!b->written &&
+	       !test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags));
 
 	old = btree_node_root(c, b);
 
