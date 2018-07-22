@@ -103,8 +103,6 @@
 
 /* Zebra4 */
 #define rGlobalCtrl				0
-#define rRTL8256_TxLPF				19
-#define rRTL8256_RxLPF				11
 
 /* RTL8258 */
 #define rRTL8258_TxLPF				0x11
