@@ -5,37 +5,6 @@
 
 #define   RF_DATA				0x1d4					/* FW will write RF data in the register.*/
 
-/* Register duplicate register due to connection: RF_Mode, TRxRN, NumOf L-STF
- * page 1
- */
-#define rPMAC_Reset				0x100
-#define rPMAC_TxStart				0x104
-#define rPMAC_TxLegacySIG			0x108
-#define rPMAC_TxHTSIG1				0x10c
-#define rPMAC_TxHTSIG2				0x110
-#define rPMAC_PHYDebug				0x114
-#define rPMAC_TxPacketNum			0x118
-#define rPMAC_TxIdle				0x11c
-#define rPMAC_TxMACHeader0		0x120
-#define rPMAC_TxMACHeader1		0x124
-#define rPMAC_TxMACHeader2		0x128
-#define rPMAC_TxMACHeader3		0x12c
-#define rPMAC_TxMACHeader4		0x130
-#define rPMAC_TxMACHeader5		0x134
-#define rPMAC_TxDataType			0x138
-#define rPMAC_TxRandomSeed			0x13c
-#define rPMAC_CCKPLCPPreamble		0x140
-#define rPMAC_CCKPLCPHeader			0x144
-#define rPMAC_CCKCRC16				0x148
-#define rPMAC_OFDMRxCRC32OK		0x170
-#define rPMAC_OFDMRxCRC32Er		0x174
-#define rPMAC_OFDMRxParityEr			0x178
-#define rPMAC_OFDMRxCRC8Er		0x17c
-#define rPMAC_CCKCRxRC16Er			0x180
-#define rPMAC_CCKCRxRC32Er			0x184
-#define rPMAC_CCKCRxRC32OK			0x188
-#define rPMAC_TxStatus				0x18c
-
 /* page8 */
 #define rFPGA0_RFMOD				0x800  /* RF mode & CCK TxSC */
 #define rFPGA0_TxInfo				0x804
