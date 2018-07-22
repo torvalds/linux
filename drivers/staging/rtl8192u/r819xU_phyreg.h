@@ -99,16 +99,7 @@
 /* RF
  * Zebra1
  */
-#define rZebra1_HSSIEnable		0x0
-#define rZebra1_TRxEnable1		0x1
-#define rZebra1_TRxEnable2		0x2
-#define rZebra1_AGC				0x4
-#define rZebra1_ChargePump		0x5
 #define rZebra1_Channel				0x7
-#define rZebra1_TxGain				0x8
-#define rZebra1_TxLPF				0x9
-#define rZebra1_RxLPF				0xb
-#define rZebra1_RxHPFCorner		0xc
 
 /* Zebra4 */
 #define rGlobalCtrl				0
