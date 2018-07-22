@@ -129,15 +129,7 @@
 /* RF
  * Zebra1
  */
-#define bZebra1_HSSIEnable        0x8
-#define bZebra1_TRxControl        0xc00
-#define bZebra1_TRxGainSetting    0x07f
-#define bZebra1_RxCorner          0xc00
-#define bZebra1_TxChargePump      0x38
-#define bZebra1_RxChargePump      0x7
 #define bZebra1_ChannelNum        0xf80
-#define bZebra1_TxLPFBW           0x400
-#define bZebra1_RxLPFBW           0x600
 
 /* Zebra4 */
 #define bRTL8256RegModeCtrl1      0x100
