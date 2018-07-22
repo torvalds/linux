@@ -41,9 +41,6 @@
 
 /* page 9 */
 #define rFPGA1_RFMOD				0x900  /* RF mode & OFDM TxSC */
-#define rFPGA1_TxBlock				0x904
-#define rFPGA1_DebugSelect			0x908
-#define rFPGA1_TxInfo				0x90c
 
 /* page a */
 #define rCCK0_System				0xa00
