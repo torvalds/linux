@@ -120,19 +120,6 @@
 #define bLSSIReadBackData			0xfff
 #define bXtalCap					0x0f000000
 
-/* page-9 */
-#define bOFDMTxSC				0x30000000
-#define bCCKTxOn					0x1
-#define bOFDMTxOn				0x2
-#define bDebugPage				0xfff  /* reset debug page and also HWord, LWord */
-#define bDebugItem				0xff   /* reset debug page and LWord */
-#define bAntL					0x10
-#define bAntNonHT					0x100
-#define bAntHT1					0x1000
-#define bAntHT2						0x10000
-#define bAntHT1S1					0x100000
-#define bAntNonHTS1				0x1000000
-
 /* page-a */
 #define bCCKBBMode				0x3
 #define bCCKTxPowerSaving			0x80
