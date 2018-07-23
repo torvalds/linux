@@ -6361,9 +6361,6 @@ static void ept_set_mmio_spte_mask(void)
  */
 static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 {
-#ifdef CONFIG_X86_64
-	unsigned long a;
-#endif
 	int i;
 
 	if (enable_shadow_vmcs) {
@@ -6418,15 +6415,8 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write16(HOST_FS_SELECTOR, 0);            /* 22.2.4 */
 	vmcs_write16(HOST_GS_SELECTOR, 0);            /* 22.2.4 */
 	vmx_set_constant_host_state(vmx);
-#ifdef CONFIG_X86_64
-	rdmsrl(MSR_FS_BASE, a);
-	vmcs_writel(HOST_FS_BASE, a); /* 22.2.4 */
-	rdmsrl(MSR_GS_BASE, a);
-	vmcs_writel(HOST_GS_BASE, a); /* 22.2.4 */
-#else
 	vmcs_writel(HOST_FS_BASE, 0); /* 22.2.4 */
 	vmcs_writel(HOST_GS_BASE, 0); /* 22.2.4 */
-#endif
 
 	if (cpu_has_vmx_vmfunc())
 		vmcs_write64(VM_FUNCTION_CONTROL, 0);
