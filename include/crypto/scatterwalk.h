@@ -22,14 +22,8 @@
 #include <linux/scatterlist.h>
 
 static inline void scatterwalk_crypto_chain(struct scatterlist *head,
-					    struct scatterlist *sg,
-					    int chain, int num)
+					    struct scatterlist *sg, int num)
 {
-	if (chain) {
-		head->length += sg->length;
-		sg = sg_next(sg);
-	}
-
 	if (sg)
 		sg_chain(head, num, sg);
 	else

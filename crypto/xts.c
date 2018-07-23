@@ -138,7 +138,7 @@ static int post_crypt(struct skcipher_request *req)
 	if (rctx->dst != sg) {
 		rctx->dst[0] = *sg;
 		sg_unmark_end(rctx->dst);
-		scatterwalk_crypto_chain(rctx->dst, sg_next(sg), 0, 2);
+		scatterwalk_crypto_chain(rctx->dst, sg_next(sg), 2);
 	}
 	rctx->dst[0].length -= offset - sg->offset;
 	rctx->dst[0].offset = offset;
@@ -204,7 +204,7 @@ static int pre_crypt(struct skcipher_request *req)
 	if (rctx->src != sg) {
 		rctx->src[0] = *sg;
 		sg_unmark_end(rctx->src);
-		scatterwalk_crypto_chain(rctx->src, sg_next(sg), 0, 2);
+		scatterwalk_crypto_chain(rctx->src, sg_next(sg), 2);
 	}
 	rctx->src[0].length -= offset - sg->offset;
 	rctx->src[0].offset = offset;
