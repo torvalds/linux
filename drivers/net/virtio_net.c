@@ -84,6 +84,7 @@ struct virtnet_sq_stats {
 	u64 bytes;
 	u64 xdp_tx;
 	u64 xdp_tx_drops;
+	u64 kicks;
 };
 
 struct virtnet_rq_stat_items {
@@ -94,6 +95,7 @@ struct virtnet_rq_stat_items {
 	u64 xdp_tx;
 	u64 xdp_redirects;
 	u64 xdp_drops;
+	u64 kicks;
 };
 
 struct virtnet_rq_stats {
@@ -117,6 +119,7 @@ static const struct virtnet_stat_desc virtnet_sq_stats_desc[] = {
 	{ "bytes",		VIRTNET_SQ_STAT(bytes) },
 	{ "xdp_tx",		VIRTNET_SQ_STAT(xdp_tx) },
 	{ "xdp_tx_drops",	VIRTNET_SQ_STAT(xdp_tx_drops) },
+	{ "kicks",		VIRTNET_SQ_STAT(kicks) },
 };
 
 static const struct virtnet_stat_desc virtnet_rq_stats_desc[] = {
@@ -127,6 +130,7 @@ static const struct virtnet_stat_desc virtnet_rq_stats_desc[] = {
 	{ "xdp_tx",		VIRTNET_RQ_STAT(xdp_tx) },
 	{ "xdp_redirects",	VIRTNET_RQ_STAT(xdp_redirects) },
 	{ "xdp_drops",		VIRTNET_RQ_STAT(xdp_drops) },
+	{ "kicks",		VIRTNET_RQ_STAT(kicks) },
 };
 
 #define VIRTNET_SQ_STATS_LEN	ARRAY_SIZE(virtnet_sq_stats_desc)
@@ -507,6 +511,7 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	struct send_queue *sq;
 	unsigned int len;
 	int drops = 0;
+	int kicks = 0;
 	int ret, err;
 	int i;
 
@@ -543,12 +548,15 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	}
 	ret = n - drops;
 
-	if (flags & XDP_XMIT_FLUSH)
-		virtqueue_kick(sq->vq);
+	if (flags & XDP_XMIT_FLUSH) {
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq))
+			kicks = 1;
+	}
 out:
 	u64_stats_update_begin(&sq->stats.syncp);
 	sq->stats.xdp_tx += n;
 	sq->stats.xdp_tx_drops += drops;
+	sq->stats.kicks += kicks;
 	u64_stats_update_end(&sq->stats.syncp);
 
 	return ret;
@@ -1226,7 +1234,12 @@ static bool try_fill_recv(struct virtnet_info *vi, struct receive_queue *rq,
 		if (err)
 			break;
 	} while (rq->vq->num_free);
-	virtqueue_kick(rq->vq);
+	if (virtqueue_kick_prepare(rq->vq) && virtqueue_notify(rq->vq)) {
+		u64_stats_update_begin(&rq->stats.syncp);
+		rq->stats.items.kicks++;
+		u64_stats_update_end(&rq->stats.syncp);
+	}
+
 	return !oom;
 }
 
@@ -1416,7 +1429,11 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 
 	if (xdp_xmit & VIRTIO_XDP_TX) {
 		sq = virtnet_xdp_sq(vi);
-		virtqueue_kick(sq->vq);
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq)) {
+			u64_stats_update_begin(&sq->stats.syncp);
+			sq->stats.kicks++;
+			u64_stats_update_end(&sq->stats.syncp);
+		}
 	}
 
 	return received;
@@ -1578,8 +1595,13 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (kick || netif_xmit_stopped(txq))
-		virtqueue_kick(sq->vq);
+	if (kick || netif_xmit_stopped(txq)) {
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq)) {
+			u64_stats_update_begin(&sq->stats.syncp);
+			sq->stats.kicks++;
+			u64_stats_update_end(&sq->stats.syncp);
+		}
+	}
 
 	return NETDEV_TX_OK;
 }
