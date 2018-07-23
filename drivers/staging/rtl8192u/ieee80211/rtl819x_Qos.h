@@ -214,17 +214,6 @@ typedef union _QOS_TCLAS {
 	} TYPE2_8021Q;
 } QOS_TCLAS, *PQOS_TCLAS;
 
-//typedef struct _WMM_TSTREAM{
-//
-//- TSPEC
-//- AC (which to mapping)
-//} WMM_TSTREAM, *PWMM_TSTREAM;
-typedef struct _QOS_TSTREAM {
-	u8			AC;
-	WMM_TSPEC		TSpec;
-	QOS_TCLAS		TClass;
-} QOS_TSTREAM, *PQOS_TSTREAM;
-
 //typedef struct _U_APSD{
 //- TriggerEnable [4]
 //- MaxSPLength
