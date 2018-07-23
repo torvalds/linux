@@ -661,6 +661,10 @@ struct i2c_adapter_quirks {
 					 I2C_AQ_COMB_READ_SECOND | I2C_AQ_COMB_SAME_ADDR)
 /* clock stretching is not supported */
 #define I2C_AQ_NO_CLK_STRETCH		BIT(4)
+/* message cannot have length of 0 */
+#define I2C_AQ_NO_ZERO_LEN_READ		BIT(5)
+#define I2C_AQ_NO_ZERO_LEN_WRITE	BIT(6)
+#define I2C_AQ_NO_ZERO_LEN		(I2C_AQ_NO_ZERO_LEN_READ | I2C_AQ_NO_ZERO_LEN_WRITE)
 
 /*
  * i2c_adapter is the structure used to identify a physical i2c bus along

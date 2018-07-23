@@ -1839,9 +1839,15 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
 		if (msgs[i].flags & I2C_M_RD) {
 			if (do_len_check && i2c_quirk_exceeded(len, q->max_read_len))
 				return i2c_quirk_error(adap, &msgs[i], "msg too long");
+
+			if (q->flags & I2C_AQ_NO_ZERO_LEN_READ && len == 0)
+				return i2c_quirk_error(adap, &msgs[i], "no zero length");
 		} else {
 			if (do_len_check && i2c_quirk_exceeded(len, q->max_write_len))
 				return i2c_quirk_error(adap, &msgs[i], "msg too long");
+
+			if (q->flags & I2C_AQ_NO_ZERO_LEN_WRITE && len == 0)
+				return i2c_quirk_error(adap, &msgs[i], "no zero length");
 		}
 	}
 
