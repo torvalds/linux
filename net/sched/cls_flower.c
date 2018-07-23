@@ -1194,6 +1194,42 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	return 0;
 }
 
+static void fl_hw_create_tmplt(struct tcf_chain *chain,
+			       struct fl_flow_tmplt *tmplt)
+{
+	struct tc_cls_flower_offload cls_flower = {};
+	struct tcf_block *block = chain->block;
+	struct tcf_exts dummy_exts = { 0, };
+
+	cls_flower.common.chain_index = chain->index;
+	cls_flower.command = TC_CLSFLOWER_TMPLT_CREATE;
+	cls_flower.cookie = (unsigned long) tmplt;
+	cls_flower.dissector = &tmplt->dissector;
+	cls_flower.mask = &tmplt->mask;
+	cls_flower.key = &tmplt->dummy_key;
+	cls_flower.exts = &dummy_exts;
+
+	/* We don't care if driver (any of them) fails to handle this
+	 * call. It serves just as a hint for it.
+	 */
+	tc_setup_cb_call(block, NULL, TC_SETUP_CLSFLOWER,
+			 &cls_flower, false);
+}
+
+static void fl_hw_destroy_tmplt(struct tcf_chain *chain,
+				struct fl_flow_tmplt *tmplt)
+{
+	struct tc_cls_flower_offload cls_flower = {};
+	struct tcf_block *block = chain->block;
+
+	cls_flower.common.chain_index = chain->index;
+	cls_flower.command = TC_CLSFLOWER_TMPLT_DESTROY;
+	cls_flower.cookie = (unsigned long) tmplt;
+
+	tc_setup_cb_call(block, NULL, TC_SETUP_CLSFLOWER,
+			 &cls_flower, false);
+}
+
 static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 			     struct nlattr **tca,
 			     struct netlink_ext_ack *extack)
@@ -1224,6 +1260,8 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 
 	fl_init_dissector(&tmplt->dissector, &tmplt->mask);
 
+	fl_hw_create_tmplt(chain, tmplt);
+
 	return tmplt;
 
 errout_tmplt:
@@ -1237,6 +1275,7 @@ static void fl_tmplt_destroy(void *tmplt_priv)
 {
 	struct fl_flow_tmplt *tmplt = tmplt_priv;
 
+	fl_hw_destroy_tmplt(tmplt->chain, tmplt);
 	kfree(tmplt);
 }
 
