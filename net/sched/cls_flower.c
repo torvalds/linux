@@ -72,6 +72,13 @@ struct fl_flow_mask {
 	struct list_head list;
 };
 
+struct fl_flow_tmplt {
+	struct fl_flow_key dummy_key;
+	struct fl_flow_key mask;
+	struct flow_dissector dissector;
+	struct tcf_chain *chain;
+};
+
 struct cls_fl_head {
 	struct rhashtable ht;
 	struct list_head masks;
@@ -145,6 +152,23 @@ static void fl_set_masked_key(struct fl_flow_key *mkey, struct fl_flow_key *key,
 
 	for (i = 0; i < fl_mask_range(mask); i += sizeof(long))
 		*lmkey++ = *lkey++ & *lmask++;
+}
+
+static bool fl_mask_fits_tmplt(struct fl_flow_tmplt *tmplt,
+			       struct fl_flow_mask *mask)
+{
+	const long *lmask = fl_key_get_start(&mask->key, mask);
+	const long *ltmplt;
+	int i;
+
+	if (!tmplt)
+		return true;
+	ltmplt = fl_key_get_start(&tmplt->mask, mask);
+	for (i = 0; i < fl_mask_range(mask); i += sizeof(long)) {
+		if (~*ltmplt++ & *lmask++)
+			return false;
+	}
+	return true;
 }
 
 static void fl_clear_masked_range(struct fl_flow_key *key,
@@ -939,6 +963,7 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 			struct cls_fl_filter *f, struct fl_flow_mask *mask,
 			unsigned long base, struct nlattr **tb,
 			struct nlattr *est, bool ovr,
+			struct fl_flow_tmplt *tmplt,
 			struct netlink_ext_ack *extack)
 {
 	int err;
@@ -958,6 +983,11 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 
 	fl_mask_update_range(mask);
 	fl_set_masked_key(&f->mkey, &f->key, mask);
+
+	if (!fl_mask_fits_tmplt(tmplt, mask)) {
+		NL_SET_ERR_MSG_MOD(extack, "Mask does not fit the template");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1024,7 +1054,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	err = fl_set_parms(net, tp, fnew, &mask, base, tb, tca[TCA_RATE], ovr,
-			   extack);
+			   tp->chain->tmplt_priv, extack);
 	if (err)
 		goto errout_idr;
 
@@ -1162,6 +1192,52 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	}
 
 	return 0;
+}
+
+static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
+			     struct nlattr **tca,
+			     struct netlink_ext_ack *extack)
+{
+	struct fl_flow_tmplt *tmplt;
+	struct nlattr **tb;
+	int err;
+
+	if (!tca[TCA_OPTIONS])
+		return ERR_PTR(-EINVAL);
+
+	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
+	if (!tb)
+		return ERR_PTR(-ENOBUFS);
+	err = nla_parse_nested(tb, TCA_FLOWER_MAX, tca[TCA_OPTIONS],
+			       fl_policy, NULL);
+	if (err)
+		goto errout_tb;
+
+	tmplt = kzalloc(sizeof(*tmplt), GFP_KERNEL);
+	if (!tmplt)
+		goto errout_tb;
+	tmplt->chain = chain;
+	err = fl_set_key(net, tb, &tmplt->dummy_key, &tmplt->mask, extack);
+	if (err)
+		goto errout_tmplt;
+	kfree(tb);
+
+	fl_init_dissector(&tmplt->dissector, &tmplt->mask);
+
+	return tmplt;
+
+errout_tmplt:
+	kfree(tmplt);
+errout_tb:
+	kfree(tb);
+	return ERR_PTR(err);
+}
+
+static void fl_tmplt_destroy(void *tmplt_priv)
+{
+	struct fl_flow_tmplt *tmplt = tmplt_priv;
+
+	kfree(tmplt);
 }
 
 static int fl_dump_key_val(struct sk_buff *skb,
@@ -1536,6 +1612,31 @@ nla_put_failure:
 	return -1;
 }
 
+static int fl_tmplt_dump(struct sk_buff *skb, struct net *net, void *tmplt_priv)
+{
+	struct fl_flow_tmplt *tmplt = tmplt_priv;
+	struct fl_flow_key *key, *mask;
+	struct nlattr *nest;
+
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (!nest)
+		goto nla_put_failure;
+
+	key = &tmplt->dummy_key;
+	mask = &tmplt->mask;
+
+	if (fl_dump_key(skb, net, key, mask))
+		goto nla_put_failure;
+
+	nla_nest_end(skb, nest);
+
+	return skb->len;
+
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
+}
+
 static void fl_bind_class(void *fh, u32 classid, unsigned long cl)
 {
 	struct cls_fl_filter *f = fh;
@@ -1556,6 +1657,9 @@ static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.reoffload	= fl_reoffload,
 	.dump		= fl_dump,
 	.bind_class	= fl_bind_class,
+	.tmplt_create	= fl_tmplt_create,
+	.tmplt_destroy	= fl_tmplt_destroy,
+	.tmplt_dump	= fl_tmplt_dump,
 	.owner		= THIS_MODULE,
 };
 
