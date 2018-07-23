@@ -1620,6 +1620,7 @@ struct kvm_xen_vcpu_attr {
 };
 
 #define KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO	0x0
+#define KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO	0x1
 
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {

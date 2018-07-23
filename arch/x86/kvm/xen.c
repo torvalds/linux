@@ -141,6 +141,17 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		}
 		break;
 
+	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO:
+		r = kvm_gfn_to_hva_cache_init(vcpu->kvm,
+					      &vcpu->arch.xen.vcpu_time_info_cache,
+					      data->u.gpa,
+					      sizeof(struct pvclock_vcpu_time_info));
+		if (!r) {
+			vcpu->arch.xen.vcpu_time_info_set = true;
+			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -160,6 +171,13 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO:
 		if (vcpu->arch.xen.vcpu_info_set) {
 			data->u.gpa = vcpu->arch.xen.vcpu_info_cache.gpa;
+			r = 0;
+		}
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO:
+		if (vcpu->arch.xen.vcpu_time_info_set) {
+			data->u.gpa = vcpu->arch.xen.vcpu_time_info_cache.gpa;
 			r = 0;
 		}
 		break;
