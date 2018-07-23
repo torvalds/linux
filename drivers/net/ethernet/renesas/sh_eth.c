@@ -439,6 +439,11 @@ static void sh_eth_modify(struct net_device *ndev, int enum_index, u32 clear,
 		     enum_index);
 }
 
+static void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp, int enum_index)
+{
+	return mdp->tsu_addr + mdp->reg_offset[enum_index];
+}
+
 static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
 			     int enum_index)
 {
