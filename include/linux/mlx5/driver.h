@@ -585,6 +585,7 @@ struct mlx5_irq_info {
 struct mlx5_fc_stats {
 	struct rb_root counters;
 	struct llist_head addlist;
+	struct llist_head dellist;
 
 	struct workqueue_struct *wq;
 	struct delayed_work work;

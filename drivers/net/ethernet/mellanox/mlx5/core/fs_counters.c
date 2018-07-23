@@ -58,7 +58,7 @@
  *   - spawn thread to do the actual destroy
  *
  * - destroy (user context)
- *   - mark a counter as deleted
+ *   - add a counter to lockless dellist
  *   - spawn thread to do the actual del
  *
  * - dump (user context)
@@ -171,9 +171,8 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 						 priv.fc_stats.work.work);
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
 	struct llist_node *tmplist = llist_del_all(&fc_stats->addlist);
+	struct mlx5_fc *counter = NULL, *last = NULL, *tmp;
 	unsigned long now = jiffies;
-	struct mlx5_fc *counter = NULL;
-	struct mlx5_fc *last = NULL;
 	struct rb_node *node;
 
 	if (tmplist || !RB_EMPTY_ROOT(&fc_stats->counters))
@@ -183,26 +182,17 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 	llist_for_each_entry(counter, tmplist, addlist)
 		mlx5_fc_stats_insert(&fc_stats->counters, counter);
 
-	node = rb_first(&fc_stats->counters);
-	while (node) {
-		counter = rb_entry(node, struct mlx5_fc, node);
+	tmplist = llist_del_all(&fc_stats->dellist);
+	llist_for_each_entry_safe(counter, tmp, tmplist, dellist) {
+		rb_erase(&counter->node, &fc_stats->counters);
 
-		node = rb_next(node);
-
-		if (counter->deleted) {
-			rb_erase(&counter->node, &fc_stats->counters);
-
-			mlx5_cmd_fc_free(dev, counter->id);
-
-			kfree(counter);
-			continue;
-		}
-
-		last = counter;
+		mlx5_free_fc(dev, counter);
 	}
 
-	if (time_before(now, fc_stats->next_query) || !last)
+	node = rb_last(&fc_stats->counters);
+	if (time_before(now, fc_stats->next_query) || !node)
 		return;
+	last = rb_entry(node, struct mlx5_fc, node);
 
 	node = rb_first(&fc_stats->counters);
 	while (node) {
@@ -254,13 +244,12 @@ void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 		return;
 
 	if (counter->aging) {
-		counter->deleted = true;
+		llist_add(&counter->dellist, &fc_stats->dellist);
 		mod_delayed_work(fc_stats->wq, &fc_stats->work, 0);
 		return;
 	}
 
-	mlx5_cmd_fc_free(dev, counter->id);
-	kfree(counter);
+	mlx5_free_fc(dev, counter);
 }
 EXPORT_SYMBOL(mlx5_fc_destroy);
 
@@ -270,6 +259,7 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 
 	fc_stats->counters = RB_ROOT;
 	init_llist_head(&fc_stats->addlist);
+	init_llist_head(&fc_stats->dellist);
 
 	fc_stats->wq = create_singlethread_workqueue("mlx5_fc");
 	if (!fc_stats->wq)

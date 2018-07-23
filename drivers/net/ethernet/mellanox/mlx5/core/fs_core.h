@@ -141,6 +141,7 @@ struct mlx5_fc_cache {
 struct mlx5_fc {
 	struct rb_node node;
 	struct llist_node addlist;
+	struct llist_node dellist;
 
 	/* last{packets,bytes} members are used when calculating the delta since
 	 * last reading
@@ -149,7 +150,6 @@ struct mlx5_fc {
 	u64 lastbytes;
 
 	u32 id;
-	bool deleted;
 	bool aging;
 
 	struct mlx5_fc_cache cache ____cacheline_aligned_in_smp;
