@@ -69,6 +69,11 @@ struct thread_group_cputimer {
 	bool checking_timer;
 };
 
+struct multiprocess_signals {
+	sigset_t signal;
+	struct hlist_node node;
+};
+
 /*
  * NOTE! "signal_struct" does not have its own
  * locking, because a shared signal_struct always
@@ -89,6 +94,9 @@ struct signal_struct {
 
 	/* shared signal handling: */
 	struct sigpending	shared_pending;
+
+	/* For collecting multiprocess signals during fork */
+	struct hlist_head	multiprocess;
 
 	/* thread group exit support */
 	int			group_exit_code;
