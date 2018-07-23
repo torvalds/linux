@@ -24,8 +24,18 @@
 #define HW_CFG_LRST_				BIT(1)
 
 #define PMT_CTL					(0x014)
+#define PMT_CTL_ETH_PHY_D3_COLD_OVR_		BIT(27)
+#define PMT_CTL_MAC_D3_RX_CLK_OVR_		BIT(25)
+#define PMT_CTL_ETH_PHY_EDPD_PLL_CTL_		BIT(24)
+#define PMT_CTL_ETH_PHY_D3_OVR_			BIT(23)
+#define PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_		BIT(18)
+#define PMT_CTL_GPIO_WAKEUP_EN_			BIT(15)
+#define PMT_CTL_EEE_WAKEUP_EN_			BIT(13)
 #define PMT_CTL_READY_				BIT(7)
 #define PMT_CTL_ETH_PHY_RST_			BIT(4)
+#define PMT_CTL_WOL_EN_				BIT(3)
+#define PMT_CTL_ETH_PHY_WAKE_EN_		BIT(2)
+#define PMT_CTL_WUPS_MASK_			(0x00000003)
 
 #define DP_SEL				(0x024)
 #define DP_SEL_DPRDY_			BIT(31)
@@ -107,6 +117,38 @@
 
 #define MAC_MII_DATA			(0x124)
 
+#define MAC_WUCSR				(0x140)
+#define MAC_WUCSR_RFE_WAKE_EN_			BIT(14)
+#define MAC_WUCSR_PFDA_EN_			BIT(3)
+#define MAC_WUCSR_WAKE_EN_			BIT(2)
+#define MAC_WUCSR_MPEN_				BIT(1)
+#define MAC_WUCSR_BCST_EN_			BIT(0)
+
+#define MAC_WK_SRC				(0x144)
+
+#define MAC_WUF_CFG0			(0x150)
+#define MAC_NUM_OF_WUF_CFG		(32)
+#define MAC_WUF_CFG_BEGIN		(MAC_WUF_CFG0)
+#define MAC_WUF_CFG(index)		(MAC_WUF_CFG_BEGIN + (4 * (index)))
+#define MAC_WUF_CFG_EN_			BIT(31)
+#define MAC_WUF_CFG_TYPE_MCAST_		(0x02000000)
+#define MAC_WUF_CFG_TYPE_ALL_		(0x01000000)
+#define MAC_WUF_CFG_OFFSET_SHIFT_	(16)
+#define MAC_WUF_CFG_CRC16_MASK_		(0x0000FFFF)
+
+#define MAC_WUF_MASK0_0			(0x200)
+#define MAC_WUF_MASK0_1			(0x204)
+#define MAC_WUF_MASK0_2			(0x208)
+#define MAC_WUF_MASK0_3			(0x20C)
+#define MAC_WUF_MASK0_BEGIN		(MAC_WUF_MASK0_0)
+#define MAC_WUF_MASK1_BEGIN		(MAC_WUF_MASK0_1)
+#define MAC_WUF_MASK2_BEGIN		(MAC_WUF_MASK0_2)
+#define MAC_WUF_MASK3_BEGIN		(MAC_WUF_MASK0_3)
+#define MAC_WUF_MASK0(index)		(MAC_WUF_MASK0_BEGIN + (0x10 * (index)))
+#define MAC_WUF_MASK1(index)		(MAC_WUF_MASK1_BEGIN + (0x10 * (index)))
+#define MAC_WUF_MASK2(index)		(MAC_WUF_MASK2_BEGIN + (0x10 * (index)))
+#define MAC_WUF_MASK3(index)		(MAC_WUF_MASK3_BEGIN + (0x10 * (index)))
+
 /* offset 0x400 - 0x500, x may range from 0 to 32, for a total of 33 entries */
 #define RFE_ADDR_FILT_HI(x)		(0x400 + (8 * (x)))
 #define RFE_ADDR_FILT_HI_VALID_		BIT(31)
@@ -120,6 +162,8 @@
 #define RFE_CTL_AU_			BIT(8)
 #define RFE_CTL_MCAST_HASH_		BIT(3)
 #define RFE_CTL_DA_PERFECT_		BIT(1)
+
+#define MAC_WUCSR2			(0x600)
 
 #define INT_STS				(0x780)
 #define INT_BIT_DMA_RX_(channel)	BIT(24 + (channel))
@@ -534,6 +578,9 @@ struct lan743x_adapter {
 	struct net_device       *netdev;
 	struct mii_bus		*mdiobus;
 	int                     msg_enable;
+#ifdef CONFIG_PM
+	u32			wolopts;
+#endif
 	struct pci_dev		*pdev;
 	struct lan743x_csr      csr;
 	struct lan743x_intr     intr;

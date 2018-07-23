@@ -415,6 +415,49 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+#ifdef CONFIG_PM
+static void lan743x_ethtool_get_wol(struct net_device *netdev,
+				    struct ethtool_wolinfo *wol)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	wol->supported = 0;
+	wol->wolopts = 0;
+	phy_ethtool_get_wol(netdev->phydev, wol);
+
+	wol->supported |= WAKE_BCAST | WAKE_UCAST | WAKE_MCAST |
+		WAKE_MAGIC | WAKE_PHY | WAKE_ARP;
+
+	wol->wolopts |= adapter->wolopts;
+}
+
+static int lan743x_ethtool_set_wol(struct net_device *netdev,
+				   struct ethtool_wolinfo *wol)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	adapter->wolopts = 0;
+	if (wol->wolopts & WAKE_UCAST)
+		adapter->wolopts |= WAKE_UCAST;
+	if (wol->wolopts & WAKE_MCAST)
+		adapter->wolopts |= WAKE_MCAST;
+	if (wol->wolopts & WAKE_BCAST)
+		adapter->wolopts |= WAKE_BCAST;
+	if (wol->wolopts & WAKE_MAGIC)
+		adapter->wolopts |= WAKE_MAGIC;
+	if (wol->wolopts & WAKE_PHY)
+		adapter->wolopts |= WAKE_PHY;
+	if (wol->wolopts & WAKE_ARP)
+		adapter->wolopts |= WAKE_ARP;
+
+	device_set_wakeup_enable(&adapter->pdev->dev, (bool)wol->wolopts);
+
+	phy_ethtool_set_wol(netdev->phydev, wol);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_drvinfo = lan743x_ethtool_get_drvinfo,
 	.get_msglevel = lan743x_ethtool_get_msglevel,
@@ -429,4 +472,8 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_sset_count = lan743x_ethtool_get_sset_count,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+#ifdef CONFIG_PM
+	.get_wol = lan743x_ethtool_get_wol,
+	.set_wol = lan743x_ethtool_set_wol,
+#endif
 };

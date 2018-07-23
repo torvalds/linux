@@ -11,6 +11,7 @@
 #include <linux/phy.h>
 #include <linux/rtnetlink.h>
 #include <linux/iopoll.h>
+#include <linux/crc16.h>
 #include "lan743x_main.h"
 #include "lan743x_ethtool.h"
 
@@ -2749,9 +2750,181 @@ static void lan743x_pcidev_shutdown(struct pci_dev *pdev)
 		lan743x_netdev_close(netdev);
 	rtnl_unlock();
 
+#ifdef CONFIG_PM
+	pci_save_state(pdev);
+#endif
+
 	/* clean up lan743x portion */
 	lan743x_hardware_cleanup(adapter);
 }
+
+#ifdef CONFIG_PM
+static u16 lan743x_pm_wakeframe_crc16(const u8 *buf, int len)
+{
+	return bitrev16(crc16(0xFFFF, buf, len));
+}
+
+static void lan743x_pm_set_wol(struct lan743x_adapter *adapter)
+{
+	const u8 ipv4_multicast[3] = { 0x01, 0x00, 0x5E };
+	const u8 ipv6_multicast[3] = { 0x33, 0x33 };
+	const u8 arp_type[2] = { 0x08, 0x06 };
+	int mask_index;
+	u32 pmtctl;
+	u32 wucsr;
+	u32 macrx;
+	u16 crc;
+
+	for (mask_index = 0; mask_index < MAC_NUM_OF_WUF_CFG; mask_index++)
+		lan743x_csr_write(adapter, MAC_WUF_CFG(mask_index), 0);
+
+	/* clear wake settings */
+	pmtctl = lan743x_csr_read(adapter, PMT_CTL);
+	pmtctl |= PMT_CTL_WUPS_MASK_;
+	pmtctl &= ~(PMT_CTL_GPIO_WAKEUP_EN_ | PMT_CTL_EEE_WAKEUP_EN_ |
+		PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_ |
+		PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_ | PMT_CTL_ETH_PHY_WAKE_EN_);
+
+	macrx = lan743x_csr_read(adapter, MAC_RX);
+
+	wucsr = 0;
+	mask_index = 0;
+
+	pmtctl |= PMT_CTL_ETH_PHY_D3_COLD_OVR_ | PMT_CTL_ETH_PHY_D3_OVR_;
+
+	if (adapter->wolopts & WAKE_PHY) {
+		pmtctl |= PMT_CTL_ETH_PHY_EDPD_PLL_CTL_;
+		pmtctl |= PMT_CTL_ETH_PHY_WAKE_EN_;
+	}
+	if (adapter->wolopts & WAKE_MAGIC) {
+		wucsr |= MAC_WUCSR_MPEN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+	}
+	if (adapter->wolopts & WAKE_UCAST) {
+		wucsr |= MAC_WUCSR_RFE_WAKE_EN_ | MAC_WUCSR_PFDA_EN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
+	}
+	if (adapter->wolopts & WAKE_BCAST) {
+		wucsr |= MAC_WUCSR_RFE_WAKE_EN_ | MAC_WUCSR_BCST_EN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
+	}
+	if (adapter->wolopts & WAKE_MCAST) {
+		/* IPv4 multicast */
+		crc = lan743x_pm_wakeframe_crc16(ipv4_multicast, 3);
+		lan743x_csr_write(adapter, MAC_WUF_CFG(mask_index),
+				  MAC_WUF_CFG_EN_ | MAC_WUF_CFG_TYPE_MCAST_ |
+				  (0 << MAC_WUF_CFG_OFFSET_SHIFT_) |
+				  (crc & MAC_WUF_CFG_CRC16_MASK_));
+		lan743x_csr_write(adapter, MAC_WUF_MASK0(mask_index), 7);
+		lan743x_csr_write(adapter, MAC_WUF_MASK1(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK2(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK3(mask_index), 0);
+		mask_index++;
+
+		/* IPv6 multicast */
+		crc = lan743x_pm_wakeframe_crc16(ipv6_multicast, 2);
+		lan743x_csr_write(adapter, MAC_WUF_CFG(mask_index),
+				  MAC_WUF_CFG_EN_ | MAC_WUF_CFG_TYPE_MCAST_ |
+				  (0 << MAC_WUF_CFG_OFFSET_SHIFT_) |
+				  (crc & MAC_WUF_CFG_CRC16_MASK_));
+		lan743x_csr_write(adapter, MAC_WUF_MASK0(mask_index), 3);
+		lan743x_csr_write(adapter, MAC_WUF_MASK1(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK2(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK3(mask_index), 0);
+		mask_index++;
+
+		wucsr |= MAC_WUCSR_RFE_WAKE_EN_ | MAC_WUCSR_WAKE_EN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
+	}
+	if (adapter->wolopts & WAKE_ARP) {
+		/* set MAC_WUF_CFG & WUF_MASK
+		 * for packettype (offset 12,13) = ARP (0x0806)
+		 */
+		crc = lan743x_pm_wakeframe_crc16(arp_type, 2);
+		lan743x_csr_write(adapter, MAC_WUF_CFG(mask_index),
+				  MAC_WUF_CFG_EN_ | MAC_WUF_CFG_TYPE_ALL_ |
+				  (0 << MAC_WUF_CFG_OFFSET_SHIFT_) |
+				  (crc & MAC_WUF_CFG_CRC16_MASK_));
+		lan743x_csr_write(adapter, MAC_WUF_MASK0(mask_index), 0x3000);
+		lan743x_csr_write(adapter, MAC_WUF_MASK1(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK2(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK3(mask_index), 0);
+		mask_index++;
+
+		wucsr |= MAC_WUCSR_RFE_WAKE_EN_ | MAC_WUCSR_WAKE_EN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
+	}
+
+	lan743x_csr_write(adapter, MAC_WUCSR, wucsr);
+	lan743x_csr_write(adapter, PMT_CTL, pmtctl);
+	lan743x_csr_write(adapter, MAC_RX, macrx);
+}
+
+static int lan743x_pm_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	int ret;
+
+	lan743x_pcidev_shutdown(pdev);
+
+	/* clear all wakes */
+	lan743x_csr_write(adapter, MAC_WUCSR, 0);
+	lan743x_csr_write(adapter, MAC_WUCSR2, 0);
+	lan743x_csr_write(adapter, MAC_WK_SRC, 0xFFFFFFFF);
+
+	if (adapter->wolopts)
+		lan743x_pm_set_wol(adapter);
+
+	/* Host sets PME_En, put D3hot */
+	ret = pci_prepare_to_sleep(pdev);
+
+	return 0;
+}
+
+static int lan743x_pm_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	int ret;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
+
+	ret = lan743x_hardware_init(adapter, pdev);
+	if (ret) {
+		netif_err(adapter, probe, adapter->netdev,
+			  "lan743x_hardware_init returned %d\n", ret);
+	}
+
+	/* open netdev when netdev is at running state while resume.
+	 * For instance, it is true when system wakesup after pm-suspend
+	 * However, it is false when system wakes up after suspend GUI menu
+	 */
+	if (netif_running(netdev))
+		lan743x_netdev_open(netdev);
+
+	netif_device_attach(netdev);
+
+	return 0;
+}
+
+const struct dev_pm_ops lan743x_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(lan743x_pm_suspend, lan743x_pm_resume)
+};
+#endif /*CONFIG_PM */
 
 static const struct pci_device_id lan743x_pcidev_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SMSC, PCI_DEVICE_ID_SMSC_LAN7430) },
@@ -2763,6 +2936,9 @@ static struct pci_driver lan743x_pcidev_driver = {
 	.id_table = lan743x_pcidev_tbl,
 	.probe    = lan743x_pcidev_probe,
 	.remove   = lan743x_pcidev_remove,
+#ifdef CONFIG_PM
+	.driver.pm = &lan743x_pm_ops,
+#endif
 	.shutdown = lan743x_pcidev_shutdown,
 };
 
