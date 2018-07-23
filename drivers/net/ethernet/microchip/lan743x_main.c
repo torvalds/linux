@@ -1025,6 +1025,24 @@ return_error:
 	return ret;
 }
 
+static void lan743x_rfe_open(struct lan743x_adapter *adapter)
+{
+	lan743x_csr_write(adapter, RFE_RSS_CFG,
+		RFE_RSS_CFG_UDP_IPV6_EX_ |
+		RFE_RSS_CFG_TCP_IPV6_EX_ |
+		RFE_RSS_CFG_IPV6_EX_ |
+		RFE_RSS_CFG_UDP_IPV6_ |
+		RFE_RSS_CFG_TCP_IPV6_ |
+		RFE_RSS_CFG_IPV6_ |
+		RFE_RSS_CFG_UDP_IPV4_ |
+		RFE_RSS_CFG_TCP_IPV4_ |
+		RFE_RSS_CFG_IPV4_ |
+		RFE_RSS_CFG_VALID_HASH_BITS_ |
+		RFE_RSS_CFG_RSS_QUEUE_ENABLE_ |
+		RFE_RSS_CFG_RSS_HASH_STORE_ |
+		RFE_RSS_CFG_RSS_ENABLE_);
+}
+
 static void lan743x_rfe_update_mac_address(struct lan743x_adapter *adapter)
 {
 	u8 *mac_addr;
@@ -2418,6 +2436,8 @@ static int lan743x_netdev_open(struct net_device *netdev)
 	ret = lan743x_phy_open(adapter);
 	if (ret)
 		goto close_mac;
+
+	lan743x_rfe_open(adapter);
 
 	for (index = 0; index < LAN743X_USED_RX_CHANNELS; index++) {
 		ret = lan743x_rx_open(&adapter->rx[index]);

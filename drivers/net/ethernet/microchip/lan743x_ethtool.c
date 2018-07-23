@@ -415,6 +415,133 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+static int lan743x_ethtool_get_rxnfc(struct net_device *netdev,
+				     struct ethtool_rxnfc *rxnfc,
+				     u32 *rule_locs)
+{
+	switch (rxnfc->cmd) {
+	case ETHTOOL_GRXFH:
+		rxnfc->data = 0;
+		switch (rxnfc->flow_type) {
+		case TCP_V4_FLOW:case UDP_V4_FLOW:
+		case TCP_V6_FLOW:case UDP_V6_FLOW:
+			rxnfc->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case IPV4_FLOW: case IPV6_FLOW:
+			rxnfc->data |= RXH_IP_SRC | RXH_IP_DST;
+			return 0;
+		}
+		break;
+	case ETHTOOL_GRXRINGS:
+		rxnfc->data = LAN743X_USED_RX_CHANNELS;
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
+static u32 lan743x_ethtool_get_rxfh_key_size(struct net_device *netdev)
+{
+	return 40;
+}
+
+static u32 lan743x_ethtool_get_rxfh_indir_size(struct net_device *netdev)
+{
+	return 128;
+}
+
+static int lan743x_ethtool_get_rxfh(struct net_device *netdev,
+				    u32 *indir, u8 *key, u8 *hfunc)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	if (indir) {
+		int dw_index;
+		int byte_index = 0;
+
+		for (dw_index = 0; dw_index < 32; dw_index++) {
+			u32 four_entries =
+				lan743x_csr_read(adapter, RFE_INDX(dw_index));
+
+			byte_index = dw_index << 2;
+			indir[byte_index + 0] =
+				((four_entries >> 0) & 0x000000FF);
+			indir[byte_index + 1] =
+				((four_entries >> 8) & 0x000000FF);
+			indir[byte_index + 2] =
+				((four_entries >> 16) & 0x000000FF);
+			indir[byte_index + 3] =
+				((four_entries >> 24) & 0x000000FF);
+		}
+	}
+	if (key) {
+		int dword_index;
+		int byte_index = 0;
+
+		for (dword_index = 0; dword_index < 10; dword_index++) {
+			u32 four_entries =
+				lan743x_csr_read(adapter,
+						 RFE_HASH_KEY(dword_index));
+
+			byte_index = dword_index << 2;
+			key[byte_index + 0] =
+				((four_entries >> 0) & 0x000000FF);
+			key[byte_index + 1] =
+				((four_entries >> 8) & 0x000000FF);
+			key[byte_index + 2] =
+				((four_entries >> 16) & 0x000000FF);
+			key[byte_index + 3] =
+				((four_entries >> 24) & 0x000000FF);
+		}
+	}
+	if (hfunc)
+		(*hfunc) = ETH_RSS_HASH_TOP;
+	return 0;
+}
+
+static int lan743x_ethtool_set_rxfh(struct net_device *netdev,
+				    const u32 *indir, const u8 *key,
+				    const u8 hfunc)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
+
+	if (indir) {
+		u32 indir_value = 0;
+		int dword_index = 0;
+		int byte_index = 0;
+
+		for (dword_index = 0; dword_index < 32; dword_index++) {
+			byte_index = dword_index << 2;
+			indir_value =
+				(((indir[byte_index + 0] & 0x000000FF) << 0) |
+				((indir[byte_index + 1] & 0x000000FF) << 8) |
+				((indir[byte_index + 2] & 0x000000FF) << 16) |
+				((indir[byte_index + 3] & 0x000000FF) << 24));
+			lan743x_csr_write(adapter, RFE_INDX(dword_index),
+					  indir_value);
+		}
+	}
+	if (key) {
+		int dword_index = 0;
+		int byte_index = 0;
+		u32 key_value = 0;
+
+		for (dword_index = 0; dword_index < 10; dword_index++) {
+			byte_index = dword_index << 2;
+			key_value =
+				((((u32)(key[byte_index + 0])) << 0) |
+				(((u32)(key[byte_index + 1])) << 8) |
+				(((u32)(key[byte_index + 2])) << 16) |
+				(((u32)(key[byte_index + 3])) << 24));
+			lan743x_csr_write(adapter, RFE_HASH_KEY(dword_index),
+					  key_value);
+		}
+	}
+	return 0;
+}
+
 static int lan743x_ethtool_get_eee(struct net_device *netdev,
 				   struct ethtool_eee *eee)
 {
@@ -553,6 +680,11 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_strings = lan743x_ethtool_get_strings,
 	.get_ethtool_stats = lan743x_ethtool_get_ethtool_stats,
 	.get_sset_count = lan743x_ethtool_get_sset_count,
+	.get_rxnfc = lan743x_ethtool_get_rxnfc,
+	.get_rxfh_key_size = lan743x_ethtool_get_rxfh_key_size,
+	.get_rxfh_indir_size = lan743x_ethtool_get_rxfh_indir_size,
+	.get_rxfh = lan743x_ethtool_get_rxfh,
+	.set_rxfh = lan743x_ethtool_set_rxfh,
 	.get_eee = lan743x_ethtool_get_eee,
 	.set_eee = lan743x_ethtool_set_eee,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,

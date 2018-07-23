@@ -166,6 +166,25 @@
 #define RFE_CTL_MCAST_HASH_		BIT(3)
 #define RFE_CTL_DA_PERFECT_		BIT(1)
 
+#define RFE_RSS_CFG			(0x554)
+#define RFE_RSS_CFG_UDP_IPV6_EX_	BIT(16)
+#define RFE_RSS_CFG_TCP_IPV6_EX_	BIT(15)
+#define RFE_RSS_CFG_IPV6_EX_		BIT(14)
+#define RFE_RSS_CFG_UDP_IPV6_		BIT(13)
+#define RFE_RSS_CFG_TCP_IPV6_		BIT(12)
+#define RFE_RSS_CFG_IPV6_		BIT(11)
+#define RFE_RSS_CFG_UDP_IPV4_		BIT(10)
+#define RFE_RSS_CFG_TCP_IPV4_		BIT(9)
+#define RFE_RSS_CFG_IPV4_		BIT(8)
+#define RFE_RSS_CFG_VALID_HASH_BITS_	(0x000000E0)
+#define RFE_RSS_CFG_RSS_QUEUE_ENABLE_	BIT(2)
+#define RFE_RSS_CFG_RSS_HASH_STORE_	BIT(1)
+#define RFE_RSS_CFG_RSS_ENABLE_		BIT(0)
+
+#define RFE_HASH_KEY(index)		(0x558 + (index << 2))
+
+#define RFE_INDX(index)			(0x580 + (index << 2))
+
 #define MAC_WUCSR2			(0x600)
 
 #define INT_STS				(0x780)
