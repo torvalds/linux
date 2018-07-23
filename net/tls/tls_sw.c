@@ -135,9 +135,10 @@ static int alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
 		pfrag->offset += use;
 
 		sge = sg + num_elem - 1;
-		if (num_elem > first_coalesce && sg_page(sg) == pfrag->page &&
-		    sg->offset + sg->length == orig_offset) {
-			sg->length += use;
+
+		if (num_elem > first_coalesce && sg_page(sge) == pfrag->page &&
+		    sge->offset + sge->length == orig_offset) {
+			sge->length += use;
 		} else {
 			sge++;
 			sg_unmark_end(sge);
