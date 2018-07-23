@@ -42,7 +42,7 @@
 #include "bios_parser_interface.h"
 
 #include "bios_parser_common.h"
-/* TODO remove - only needed for default i2c speed */
+
 #include "dc.h"
 
 #define THREE_PERCENT_OF_10000 300
@@ -2671,11 +2671,9 @@ static bool i2c_read(
 
 		cmd.payloads = payloads;
 		cmd.number_of_payloads = ARRAY_SIZE(payloads);
-
-		/* TODO route this through drm i2c_adapter */
-		result = dal_i2caux_submit_i2c_command(
-				ddc->ctx->i2caux,
-				ddc,
+		result = dc_submit_i2c(
+				ddc->ctx->dc,
+				ddc->hw_info.ddc_channel,
 				&cmd);
 	}
 

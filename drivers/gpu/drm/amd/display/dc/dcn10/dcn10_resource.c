@@ -65,6 +65,7 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
+#include "dce/dce_i2c.h"
 
 const struct _vcs_dpi_ip_params_st dcn1_0_ip = {
 	.rob_buffer_size_kbytes = 64,
@@ -610,7 +611,40 @@ struct aux_engine *dcn10_aux_engine_create(
 
 	return &aux_engine->base;
 }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
 
+static const struct dce_i2c_registers i2c_hw_regs[] = {
+		i2c_inst_regs(1),
+		i2c_inst_regs(2),
+		i2c_inst_regs(3),
+		i2c_inst_regs(4),
+		i2c_inst_regs(5),
+		i2c_inst_regs(6),
+};
+
+static const struct dce_i2c_shift i2c_shifts = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_i2c_mask i2c_masks = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
+};
+
+struct dce_i2c_hw *dcn10_i2c_hw_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce_i2c_hw *dce_i2c_hw =
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+
+	if (!dce_i2c_hw)
+		return NULL;
+
+	dcn1_i2c_hw_construct(dce_i2c_hw, ctx, inst,
+				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
+
+	return dce_i2c_hw;
+}
 static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 {
 	struct dcn10_mpc *mpc10 = kzalloc(sizeof(struct dcn10_mpc),
@@ -862,6 +896,14 @@ static void destruct(struct dcn10_resource_pool *pool)
 
 		if (pool->base.engines[i] != NULL)
 			pool->base.engines[i]->funcs->destroy_engine(&pool->base.engines[i]);
+		if (pool->base.hw_i2cs[i] != NULL) {
+			kfree(pool->base.hw_i2cs[i]);
+			pool->base.hw_i2cs[i] = NULL;
+		}
+		if (pool->base.sw_i2cs[i] != NULL) {
+			kfree(pool->base.sw_i2cs[i]);
+			pool->base.sw_i2cs[i] = NULL;
+		}
 	}
 
 	for (i = 0; i < pool->base.stream_enc_count; i++)
@@ -1300,7 +1342,14 @@ static bool construct(
 				"DC:failed to create aux engine!!\n");
 			goto fail;
 		}
-
+		pool->base.hw_i2cs[i] = dcn10_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create hw i2c!!\n");
+			goto fail;
+		}
+		pool->base.sw_i2cs[i] = NULL;
 		/* check next valid pipe */
 		j++;
 	}

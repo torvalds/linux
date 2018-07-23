@@ -56,6 +56,7 @@
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_abm.h"
+#include "dce/dce_i2c.h"
 /* TODO remove this include */
 
 #ifndef mmMC_HUB_RDREQ_DMIF_LIMIT
@@ -480,7 +481,54 @@ struct aux_engine *dce80_aux_engine_create(
 
 	return &aux_engine->base;
 }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
 
+static const struct dce_i2c_registers i2c_hw_regs[] = {
+		i2c_inst_regs(1),
+		i2c_inst_regs(2),
+		i2c_inst_regs(3),
+		i2c_inst_regs(4),
+		i2c_inst_regs(5),
+		i2c_inst_regs(6),
+};
+
+static const struct dce_i2c_shift i2c_shifts = {
+		I2C_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
+};
+
+static const struct dce_i2c_mask i2c_masks = {
+		I2C_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
+};
+
+struct dce_i2c_hw *dce80_i2c_hw_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce_i2c_hw *dce_i2c_hw =
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+
+	if (!dce_i2c_hw)
+		return NULL;
+
+	dce_i2c_hw_construct(dce_i2c_hw, ctx, inst,
+				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
+
+	return dce_i2c_hw;
+}
+
+struct dce_i2c_sw *dce80_i2c_sw_create(
+	struct dc_context *ctx)
+{
+	struct dce_i2c_sw *dce_i2c_sw =
+		kzalloc(sizeof(struct dce_i2c_sw), GFP_KERNEL);
+
+	if (!dce_i2c_sw)
+		return NULL;
+
+	dce_i2c_sw_construct(dce_i2c_sw, ctx);
+
+	return dce_i2c_sw;
+}
 static struct stream_encoder *dce80_stream_encoder_create(
 	enum engine_id eng_id,
 	struct dc_context *ctx)
@@ -691,6 +739,14 @@ static void destruct(struct dce110_resource_pool *pool)
 
 		if (pool->base.engines[i] != NULL)
 			dce110_engine_destroy(&pool->base.engines[i]);
+		if (pool->base.hw_i2cs[i] != NULL) {
+			kfree(pool->base.hw_i2cs[i]);
+			pool->base.hw_i2cs[i] = NULL;
+		}
+		if (pool->base.sw_i2cs[i] != NULL) {
+			kfree(pool->base.sw_i2cs[i]);
+			pool->base.sw_i2cs[i] = NULL;
+		}
 	}
 
 	for (i = 0; i < pool->base.stream_enc_count; i++) {
@@ -887,6 +943,7 @@ static bool dce80_construct(
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
 	}
+
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
 		pool->base.dccg->max_clks_state =
 					static_clk_info.max_clocks_state;
@@ -941,6 +998,20 @@ static bool dce80_construct(
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC:failed to create aux engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.hw_i2cs[i] = dce80_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create i2c engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.sw_i2cs[i] = dce80_i2c_sw_create(ctx);
+		if (pool->base.sw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create sw i2c!!\n");
 			goto res_create_fail;
 		}
 	}
@@ -1129,6 +1200,20 @@ static bool dce81_construct(
 			dm_error("DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
+		pool->base.hw_i2cs[i] = dce80_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create i2c engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.sw_i2cs[i] = dce80_i2c_sw_create(ctx);
+		if (pool->base.sw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create sw i2c!!\n");
+			goto res_create_fail;
+		}
 	}
 
 	dc->caps.max_planes =  pool->base.pipe_count;
@@ -1309,6 +1394,20 @@ static bool dce83_construct(
 		if (pool->base.opps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error("DC: failed to create output pixel processor!\n");
+			goto res_create_fail;
+		}
+		pool->base.hw_i2cs[i] = dce80_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create i2c engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.sw_i2cs[i] = dce80_i2c_sw_create(ctx);
+		if (pool->base.sw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create sw i2c!!\n");
 			goto res_create_fail;
 		}
 	}

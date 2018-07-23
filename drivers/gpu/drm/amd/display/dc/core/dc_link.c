@@ -1530,8 +1530,8 @@ static bool i2c_write(struct pipe_ctx *pipe_ctx,
 	payload.write = true;
 	cmd.payloads = &payload;
 
-	if (dc_submit_i2c(pipe_ctx->stream->ctx->dc,
-			pipe_ctx->stream->sink->link->link_index, &cmd))
+	if (dm_helpers_submit_i2c(pipe_ctx->stream->ctx,
+			pipe_ctx->stream->sink->link, &cmd))
 		return true;
 
 	return false;

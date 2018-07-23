@@ -54,6 +54,7 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
+#include "dce/dce_i2c.h"
 
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
@@ -392,7 +393,40 @@ struct aux_engine *dce120_aux_engine_create(
 
 	return &aux_engine->base;
 }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
 
+static const struct dce_i2c_registers i2c_hw_regs[] = {
+		i2c_inst_regs(1),
+		i2c_inst_regs(2),
+		i2c_inst_regs(3),
+		i2c_inst_regs(4),
+		i2c_inst_regs(5),
+		i2c_inst_regs(6),
+};
+
+static const struct dce_i2c_shift i2c_shifts = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_i2c_mask i2c_masks = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
+};
+
+struct dce_i2c_hw *dce120_i2c_hw_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce_i2c_hw *dce_i2c_hw =
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+
+	if (!dce_i2c_hw)
+		return NULL;
+
+	dce112_i2c_hw_construct(dce_i2c_hw, ctx, inst,
+				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
+
+	return dce_i2c_hw;
+}
 static const struct bios_registers bios_regs = {
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6 + NBIO_BASE(mmBIOS_SCRATCH_6_BASE_IDX)
 };
@@ -501,7 +535,14 @@ static void destruct(struct dce110_resource_pool *pool)
 
 		if (pool->base.engines[i] != NULL)
 			dce110_engine_destroy(&pool->base.engines[i]);
-
+		if (pool->base.hw_i2cs[i] != NULL) {
+			kfree(pool->base.hw_i2cs[i]);
+			pool->base.hw_i2cs[i] = NULL;
+		}
+		if (pool->base.sw_i2cs[i] != NULL) {
+			kfree(pool->base.sw_i2cs[i]);
+			pool->base.sw_i2cs[i] = NULL;
+		}
 	}
 
 	for (i = 0; i < pool->base.audio_count; i++) {
@@ -957,6 +998,7 @@ static bool construct(
 		goto res_create_fail;
 	}
 
+
 	irq_init_data.ctx = dc->ctx;
 	pool->base.irqs = dal_irq_service_dce120_create(&irq_init_data);
 	if (!pool->base.irqs)
@@ -1021,13 +1063,20 @@ static bool construct(
 				"DC: failed to create output pixel processor!\n");
 		}
 		pool->base.engines[i] = dce120_aux_engine_create(ctx, i);
-				if (pool->base.engines[i] == NULL) {
-					BREAK_TO_DEBUGGER();
-					dm_error(
-						"DC:failed to create aux engine!!\n");
-					goto res_create_fail;
-				}
-
+		if (pool->base.engines[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create aux engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.hw_i2cs[i] = dce120_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create i2c engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.sw_i2cs[i] = NULL;
 		/* check next valid pipe */
 		j++;
 	}

@@ -54,6 +54,9 @@
 #include "hubp.h"
 
 #include "dc_link_dp.h"
+
+#include "dce/dce_i2c.h"
+
 #define DC_LOGGER \
 	dc->ctx->logger
 
@@ -1673,9 +1676,8 @@ bool dc_submit_i2c(
 
 	struct dc_link *link = dc->links[link_index];
 	struct ddc_service *ddc = link->ddc;
-
-	return dal_i2caux_submit_i2c_command(
-		ddc->ctx->i2caux,
+	return dce_i2c_submit_command(
+		dc->res_pool,
 		ddc->ddc_pin,
 		cmd);
 }

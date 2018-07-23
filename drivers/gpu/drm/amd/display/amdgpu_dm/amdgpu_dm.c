@@ -71,8 +71,6 @@
 
 #include "modules/inc/mod_freesync.h"
 
-#include "i2caux_interface.h"
-
 /* basic init/fini API */
 static int amdgpu_dm_init(struct amdgpu_device *adev);
 static void amdgpu_dm_fini(struct amdgpu_device *adev);
@@ -3610,9 +3608,9 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 		cmd.payloads[i].data = msgs[i].buf;
 	}
 
-	if (dal_i2caux_submit_i2c_command(
-			ddc_service->ctx->i2caux,
-			ddc_service->ddc_pin,
+	if (dc_submit_i2c(
+			ddc_service->ctx->dc,
+			ddc_service->ddc_pin->hw_info.ddc_channel,
 			&cmd))
 		result = num;
 
@@ -3648,6 +3646,7 @@ create_i2c(struct ddc_service *ddc_service,
 	snprintf(i2c->base.name, sizeof(i2c->base.name), "AMDGPU DM i2c hw bus %d", link_index);
 	i2c_set_adapdata(&i2c->base, i2c);
 	i2c->ddc_service = ddc_service;
+	i2c->ddc_service->ddc_pin->hw_info.ddc_channel = link_index;
 
 	return i2c;
 }
