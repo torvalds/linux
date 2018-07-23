@@ -2702,6 +2702,9 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 
 	drm_kms_helper_poll_disable(dev);
 
+	if (fbcon)
+		amdgpu_fbdev_set_suspend(adev, 1);
+
 	if (!amdgpu_device_has_dc_support(adev)) {
 		/* turn off display hw */
 		drm_modeset_lock_all(dev);
@@ -2766,9 +2769,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 		if (r)
 			DRM_ERROR("amdgpu asic reset failed\n");
 	}
-
-	if (fbcon)
-		amdgpu_fbdev_set_suspend(adev, 1);
 
 	return 0;
 }
