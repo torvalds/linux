@@ -589,7 +589,7 @@ struct rxrpc_call {
 	 */
 #define RXRPC_RXTX_BUFF_SIZE	64
 #define RXRPC_RXTX_BUFF_MASK	(RXRPC_RXTX_BUFF_SIZE - 1)
-#define RXRPC_INIT_RX_WINDOW_SIZE 32
+#define RXRPC_INIT_RX_WINDOW_SIZE 63
 	struct sk_buff		**rxtx_buffer;
 	u8			*rxtx_annotations;
 #define RXRPC_TX_ANNO_ACK	0
