@@ -2271,6 +2271,39 @@ done:
 	return skb->len;
 }
 
+static int nf_tables_dump_rules_start(struct netlink_callback *cb)
+{
+	const struct nlattr * const *nla = cb->data;
+	struct nft_rule_dump_ctx *ctx = NULL;
+
+	if (nla[NFTA_RULE_TABLE] || nla[NFTA_RULE_CHAIN]) {
+		ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
+		if (!ctx)
+			return -ENOMEM;
+
+		if (nla[NFTA_RULE_TABLE]) {
+			ctx->table = nla_strdup(nla[NFTA_RULE_TABLE],
+							GFP_ATOMIC);
+			if (!ctx->table) {
+				kfree(ctx);
+				return -ENOMEM;
+			}
+		}
+		if (nla[NFTA_RULE_CHAIN]) {
+			ctx->chain = nla_strdup(nla[NFTA_RULE_CHAIN],
+						GFP_ATOMIC);
+			if (!ctx->chain) {
+				kfree(ctx->table);
+				kfree(ctx);
+				return -ENOMEM;
+			}
+		}
+	}
+
+	cb->data = ctx;
+	return 0;
+}
+
 static int nf_tables_dump_rules_done(struct netlink_callback *cb)
 {
 	struct nft_rule_dump_ctx *ctx = cb->data;
@@ -2300,37 +2333,12 @@ static int nf_tables_getrule(struct net *net, struct sock *nlsk,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
+			.start= nf_tables_dump_rules_start,
 			.dump = nf_tables_dump_rules,
 			.done = nf_tables_dump_rules_done,
 			.module = THIS_MODULE,
+			.data = (void *)nla,
 		};
-
-		if (nla[NFTA_RULE_TABLE] || nla[NFTA_RULE_CHAIN]) {
-			struct nft_rule_dump_ctx *ctx;
-
-			ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
-			if (!ctx)
-				return -ENOMEM;
-
-			if (nla[NFTA_RULE_TABLE]) {
-				ctx->table = nla_strdup(nla[NFTA_RULE_TABLE],
-							GFP_ATOMIC);
-				if (!ctx->table) {
-					kfree(ctx);
-					return -ENOMEM;
-				}
-			}
-			if (nla[NFTA_RULE_CHAIN]) {
-				ctx->chain = nla_strdup(nla[NFTA_RULE_CHAIN],
-							GFP_ATOMIC);
-				if (!ctx->chain) {
-					kfree(ctx->table);
-					kfree(ctx);
-					return -ENOMEM;
-				}
-			}
-			c.data = ctx;
-		}
 
 		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
 	}
@@ -3181,6 +3189,18 @@ done:
 	return skb->len;
 }
 
+static int nf_tables_dump_sets_start(struct netlink_callback *cb)
+{
+	struct nft_ctx *ctx_dump = NULL;
+
+	ctx_dump = kmemdup(cb->data, sizeof(*ctx_dump), GFP_ATOMIC);
+	if (ctx_dump == NULL)
+		return -ENOMEM;
+
+	cb->data = ctx_dump;
+	return 0;
+}
+
 static int nf_tables_dump_sets_done(struct netlink_callback *cb)
 {
 	kfree(cb->data);
@@ -3208,18 +3228,12 @@ static int nf_tables_getset(struct net *net, struct sock *nlsk,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
+			.start = nf_tables_dump_sets_start,
 			.dump = nf_tables_dump_sets,
 			.done = nf_tables_dump_sets_done,
+			.data = &ctx,
 			.module = THIS_MODULE,
 		};
-		struct nft_ctx *ctx_dump;
-
-		ctx_dump = kmalloc(sizeof(*ctx_dump), GFP_ATOMIC);
-		if (ctx_dump == NULL)
-			return -ENOMEM;
-
-		*ctx_dump = ctx;
-		c.data = ctx_dump;
 
 		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
 	}
@@ -3869,6 +3883,15 @@ nla_put_failure:
 	return -ENOSPC;
 }
 
+static int nf_tables_dump_set_start(struct netlink_callback *cb)
+{
+	struct nft_set_dump_ctx *dump_ctx = cb->data;
+
+	cb->data = kmemdup(dump_ctx, sizeof(*dump_ctx), GFP_ATOMIC);
+
+	return cb->data ? 0 : -ENOMEM;
+}
+
 static int nf_tables_dump_set_done(struct netlink_callback *cb)
 {
 	kfree(cb->data);
@@ -4022,20 +4045,17 @@ static int nf_tables_getsetelem(struct net *net, struct sock *nlsk,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
+			.start = nf_tables_dump_set_start,
 			.dump = nf_tables_dump_set,
 			.done = nf_tables_dump_set_done,
 			.module = THIS_MODULE,
 		};
-		struct nft_set_dump_ctx *dump_ctx;
+		struct nft_set_dump_ctx dump_ctx = {
+			.set = set,
+			.ctx = ctx,
+		};
 
-		dump_ctx = kmalloc(sizeof(*dump_ctx), GFP_ATOMIC);
-		if (!dump_ctx)
-			return -ENOMEM;
-
-		dump_ctx->set = set;
-		dump_ctx->ctx = ctx;
-
-		c.data = dump_ctx;
+		c.data = &dump_ctx;
 		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
 	}
 
@@ -4995,6 +5015,32 @@ done:
 	return skb->len;
 }
 
+static int nf_tables_dump_obj_start(struct netlink_callback *cb)
+{
+	const struct nlattr * const *nla = cb->data;
+	struct nft_obj_filter *filter = NULL;
+
+	if (nla[NFTA_OBJ_TABLE] || nla[NFTA_OBJ_TYPE]) {
+		filter = kzalloc(sizeof(*filter), GFP_ATOMIC);
+		if (!filter)
+			return -ENOMEM;
+
+		if (nla[NFTA_OBJ_TABLE]) {
+			filter->table = nla_strdup(nla[NFTA_OBJ_TABLE], GFP_ATOMIC);
+			if (!filter->table) {
+				kfree(filter);
+				return -ENOMEM;
+			}
+		}
+
+		if (nla[NFTA_OBJ_TYPE])
+			filter->type = ntohl(nla_get_be32(nla[NFTA_OBJ_TYPE]));
+	}
+
+	cb->data = filter;
+	return 0;
+}
+
 static int nf_tables_dump_obj_done(struct netlink_callback *cb)
 {
 	struct nft_obj_filter *filter = cb->data;
@@ -5005,28 +5051,6 @@ static int nf_tables_dump_obj_done(struct netlink_callback *cb)
 	}
 
 	return 0;
-}
-
-static struct nft_obj_filter *
-nft_obj_filter_alloc(const struct nlattr * const nla[])
-{
-	struct nft_obj_filter *filter;
-
-	filter = kzalloc(sizeof(*filter), GFP_ATOMIC);
-	if (!filter)
-		return ERR_PTR(-ENOMEM);
-
-	if (nla[NFTA_OBJ_TABLE]) {
-		filter->table = nla_strdup(nla[NFTA_OBJ_TABLE], GFP_ATOMIC);
-		if (!filter->table) {
-			kfree(filter);
-			return ERR_PTR(-ENOMEM);
-		}
-	}
-	if (nla[NFTA_OBJ_TYPE])
-		filter->type = ntohl(nla_get_be32(nla[NFTA_OBJ_TYPE]));
-
-	return filter;
 }
 
 /* called with rcu_read_lock held */
@@ -5047,21 +5071,13 @@ static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
+			.start = nf_tables_dump_obj_start,
 			.dump = nf_tables_dump_obj,
 			.done = nf_tables_dump_obj_done,
 			.module = THIS_MODULE,
+			.data = (void *)nla,
 		};
 
-		if (nla[NFTA_OBJ_TABLE] ||
-		    nla[NFTA_OBJ_TYPE]) {
-			struct nft_obj_filter *filter;
-
-			filter = nft_obj_filter_alloc(nla);
-			if (IS_ERR(filter))
-				return -ENOMEM;
-
-			c.data = filter;
-		}
 		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
 	}
 
@@ -5667,6 +5683,28 @@ done:
 	return skb->len;
 }
 
+static int nf_tables_dump_flowtable_start(struct netlink_callback *cb)
+{
+	const struct nlattr * const *nla = cb->data;
+	struct nft_flowtable_filter *filter = NULL;
+
+	if (nla[NFTA_FLOWTABLE_TABLE]) {
+		filter = kzalloc(sizeof(*filter), GFP_ATOMIC);
+		if (!filter)
+			return -ENOMEM;
+
+		filter->table = nla_strdup(nla[NFTA_FLOWTABLE_TABLE],
+					   GFP_ATOMIC);
+		if (!filter->table) {
+			kfree(filter);
+			return -ENOMEM;
+		}
+	}
+
+	cb->data = filter;
+	return 0;
+}
+
 static int nf_tables_dump_flowtable_done(struct netlink_callback *cb)
 {
 	struct nft_flowtable_filter *filter = cb->data;
@@ -5678,26 +5716,6 @@ static int nf_tables_dump_flowtable_done(struct netlink_callback *cb)
 	kfree(filter);
 
 	return 0;
-}
-
-static struct nft_flowtable_filter *
-nft_flowtable_filter_alloc(const struct nlattr * const nla[])
-{
-	struct nft_flowtable_filter *filter;
-
-	filter = kzalloc(sizeof(*filter), GFP_ATOMIC);
-	if (!filter)
-		return ERR_PTR(-ENOMEM);
-
-	if (nla[NFTA_FLOWTABLE_TABLE]) {
-		filter->table = nla_strdup(nla[NFTA_FLOWTABLE_TABLE],
-					   GFP_ATOMIC);
-		if (!filter->table) {
-			kfree(filter);
-			return ERR_PTR(-ENOMEM);
-		}
-	}
-	return filter;
 }
 
 /* called with rcu_read_lock held */
@@ -5717,20 +5735,13 @@ static int nf_tables_getflowtable(struct net *net, struct sock *nlsk,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
+			.start = nf_tables_dump_flowtable_start,
 			.dump = nf_tables_dump_flowtable,
 			.done = nf_tables_dump_flowtable_done,
 			.module = THIS_MODULE,
+			.data = (void *)nla,
 		};
 
-		if (nla[NFTA_FLOWTABLE_TABLE]) {
-			struct nft_flowtable_filter *filter;
-
-			filter = nft_flowtable_filter_alloc(nla);
-			if (IS_ERR(filter))
-				return -ENOMEM;
-
-			c.data = filter;
-		}
 		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
 	}
 
