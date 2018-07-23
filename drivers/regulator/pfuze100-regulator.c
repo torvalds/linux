@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 
+#define PFUZE_FLAG_DISABLE_SW	BIT(1)
+
 #define PFUZE_NUMREGS		128
 #define PFUZE100_VOL_OFFSET	0
 #define PFUZE100_STANDBY_OFFSET	1
@@ -50,10 +52,12 @@ struct pfuze_regulator {
 	struct regulator_desc desc;
 	unsigned char stby_reg;
 	unsigned char stby_mask;
+	bool sw_reg;
 };
 
 struct pfuze_chip {
 	int	chip_id;
+	int     flags;
 	struct regmap *regmap;
 	struct device *dev;
 	struct pfuze_regulator regulator_descs[PFUZE100_MAX_REGULATOR];
@@ -170,6 +174,17 @@ static const struct regulator_ops pfuze100_sw_regulator_ops = {
 	.set_ramp_delay = pfuze100_set_ramp_delay,
 };
 
+static const struct regulator_ops pfuze100_sw_disable_regulator_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
+	.list_voltage = regulator_list_voltage_linear,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_voltage_time_sel = regulator_set_voltage_time_sel,
+	.set_ramp_delay = pfuze100_set_ramp_delay,
+};
+
 static const struct regulator_ops pfuze100_swb_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -209,9 +224,12 @@ static const struct regulator_ops pfuze100_swb_regulator_ops = {
 			.uV_step = (step),	\
 			.vsel_reg = (base) + PFUZE100_VOL_OFFSET,	\
 			.vsel_mask = 0x3f,	\
+			.enable_reg = (base) + PFUZE100_MODE_OFFSET,	\
+			.enable_mask = 0xf,	\
 		},	\
 		.stby_reg = (base) + PFUZE100_STANDBY_OFFSET,	\
 		.stby_mask = 0x3f,	\
+		.sw_reg = true,		\
 	}
 
 #define PFUZE100_SWB_REG(_chip, _name, base, mask, voltages)	\
@@ -471,6 +489,9 @@ static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 	if (!np)
 		return -EINVAL;
 
+	if (of_property_read_bool(np, "fsl,pfuze-support-disable-sw"))
+		chip->flags |= PFUZE_FLAG_DISABLE_SW;
+
 	parent = of_get_child_by_name(np, "regulators");
 	if (!parent) {
 		dev_err(dev, "regulators node not found\n");
@@ -700,6 +721,21 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 					desc->uV_step = 50000;
 					desc->n_voltages = 51;
 				}
+			}
+		}
+
+		/*
+		 * Allow SW regulators to turn off. Checking it trough a flag is
+		 * a workaround to keep the backward compatibility with existing
+		 * old dtb's which may relay on the fact that we didn't disable
+		 * the switched regulator till yet.
+		 */
+		if (pfuze_chip->flags & PFUZE_FLAG_DISABLE_SW) {
+			if (pfuze_chip->regulator_descs[i].sw_reg) {
+				desc->ops = &pfuze100_sw_disable_regulator_ops;
+				desc->enable_val = 0x8;
+				desc->disable_val = 0x0;
+				desc->enable_time = 500;
 			}
 		}
 
