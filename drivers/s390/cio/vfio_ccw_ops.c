@@ -150,11 +150,20 @@ static int vfio_ccw_mdev_open(struct mdev_device *mdev)
 	struct vfio_ccw_private *private =
 		dev_get_drvdata(mdev_parent_dev(mdev));
 	unsigned long events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
+	int ret;
 
 	private->nb.notifier_call = vfio_ccw_mdev_notifier;
 
-	return vfio_register_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
-				      &events, &private->nb);
+	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
+				     &events, &private->nb);
+	if (ret)
+		return ret;
+
+	ret = vfio_ccw_register_async_dev_regions(private);
+	if (ret)
+		vfio_unregister_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
+					 &private->nb);
+	return ret;
 }
 
 static void vfio_ccw_mdev_release(struct mdev_device *mdev)

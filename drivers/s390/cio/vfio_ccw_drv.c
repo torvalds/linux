@@ -3,9 +3,11 @@
  * VFIO based Physical Subchannel device driver
  *
  * Copyright IBM Corp. 2017
+ * Copyright Red Hat, Inc. 2019
  *
  * Author(s): Dong Jia Shi <bjsdjshi@linux.vnet.ibm.com>
  *            Xiao Feng Ren <renxiaof@linux.vnet.ibm.com>
+ *            Cornelia Huck <cohuck@redhat.com>
  */
 
 #include <linux/module.h>
@@ -23,6 +25,7 @@
 
 struct workqueue_struct *vfio_ccw_work_q;
 static struct kmem_cache *vfio_ccw_io_region;
+static struct kmem_cache *vfio_ccw_cmd_region;
 
 /*
  * Helpers
@@ -110,7 +113,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 {
 	struct pmcw *pmcw = &sch->schib.pmcw;
 	struct vfio_ccw_private *private;
-	int ret;
+	int ret = -ENOMEM;
 
 	if (pmcw->qf) {
 		dev_warn(&sch->dev, "vfio: ccw: does not support QDIO: %s\n",
@@ -124,10 +127,13 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	private->io_region = kmem_cache_zalloc(vfio_ccw_io_region,
 					       GFP_KERNEL | GFP_DMA);
-	if (!private->io_region) {
-		kfree(private);
-		return -ENOMEM;
-	}
+	if (!private->io_region)
+		goto out_free;
+
+	private->cmd_region = kmem_cache_zalloc(vfio_ccw_cmd_region,
+						GFP_KERNEL | GFP_DMA);
+	if (!private->cmd_region)
+		goto out_free;
 
 	private->sch = sch;
 	dev_set_drvdata(&sch->dev, private);
@@ -155,7 +161,10 @@ out_disable:
 	cio_disable_subchannel(sch);
 out_free:
 	dev_set_drvdata(&sch->dev, NULL);
-	kmem_cache_free(vfio_ccw_io_region, private->io_region);
+	if (private->cmd_region)
+		kmem_cache_free(vfio_ccw_cmd_region, private->cmd_region);
+	if (private->io_region)
+		kmem_cache_free(vfio_ccw_io_region, private->io_region);
 	kfree(private);
 	return ret;
 }
@@ -170,6 +179,7 @@ static int vfio_ccw_sch_remove(struct subchannel *sch)
 
 	dev_set_drvdata(&sch->dev, NULL);
 
+	kmem_cache_free(vfio_ccw_cmd_region, private->cmd_region);
 	kmem_cache_free(vfio_ccw_io_region, private->io_region);
 	kfree(private);
 
@@ -244,7 +254,7 @@ static struct css_driver vfio_ccw_sch_driver = {
 
 static int __init vfio_ccw_sch_init(void)
 {
-	int ret;
+	int ret = -ENOMEM;
 
 	vfio_ccw_work_q = create_singlethread_workqueue("vfio-ccw");
 	if (!vfio_ccw_work_q)
@@ -254,19 +264,29 @@ static int __init vfio_ccw_sch_init(void)
 					sizeof(struct ccw_io_region), 0,
 					SLAB_ACCOUNT, 0,
 					sizeof(struct ccw_io_region), NULL);
-	if (!vfio_ccw_io_region) {
-		destroy_workqueue(vfio_ccw_work_q);
-		return -ENOMEM;
-	}
+	if (!vfio_ccw_io_region)
+		goto out_err;
+
+	vfio_ccw_cmd_region = kmem_cache_create_usercopy("vfio_ccw_cmd_region",
+					sizeof(struct ccw_cmd_region), 0,
+					SLAB_ACCOUNT, 0,
+					sizeof(struct ccw_cmd_region), NULL);
+	if (!vfio_ccw_cmd_region)
+		goto out_err;
 
 	isc_register(VFIO_CCW_ISC);
 	ret = css_driver_register(&vfio_ccw_sch_driver);
 	if (ret) {
 		isc_unregister(VFIO_CCW_ISC);
-		kmem_cache_destroy(vfio_ccw_io_region);
-		destroy_workqueue(vfio_ccw_work_q);
+		goto out_err;
 	}
 
+	return ret;
+
+out_err:
+	kmem_cache_destroy(vfio_ccw_cmd_region);
+	kmem_cache_destroy(vfio_ccw_io_region);
+	destroy_workqueue(vfio_ccw_work_q);
 	return ret;
 }
 
