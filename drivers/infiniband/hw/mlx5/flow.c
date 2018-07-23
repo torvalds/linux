@@ -242,3 +242,13 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_FLOW_MATCHER,
 
 DECLARE_UVERBS_OBJECT_TREE(flow_objects,
 			   &UVERBS_OBJECT(MLX5_IB_OBJECT_FLOW_MATCHER));
+
+int mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root)
+{
+	int i = 0;
+
+	root[i++] = &flow_objects;
+	root[i++] = &mlx5_ib_fs;
+
+	return i;
+}

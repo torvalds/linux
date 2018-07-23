@@ -1236,6 +1236,7 @@ struct mlx5_ib_flow_handler *mlx5_ib_raw_fs_rule_add(
 	struct mlx5_ib_dev *dev, struct mlx5_ib_flow_matcher *fs_matcher,
 	void *cmd_in, int inlen, int dest_id, int dest_type);
 bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type);
+int mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root);
 #else
 static inline int
 mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
@@ -1244,16 +1245,15 @@ static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
 					struct mlx5_ib_ucontext *context) {}
 static inline const struct uverbs_object_tree_def *
 mlx5_ib_get_devx_tree(void) { return NULL; }
-static inline struct mlx5_ib_flow_handler *mlx5_ib_raw_fs_rule_add(
-	struct mlx5_ib_dev *dev, struct mlx5_ib_flow_matcher *fs_matcher,
-	void *cmd_in, int inlen, int dest_id, int dest_type)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
 static inline bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id,
 					     int *dest_type)
 {
 	return false;
+}
+static inline int
+mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root)
+{
+	return 0;
 }
 #endif
 static inline void init_query_mad(struct ib_smp *mad)
