@@ -42,6 +42,16 @@
 
 #define DP_DATA_0			(0x030)
 
+#define E2P_CMD				(0x040)
+#define E2P_CMD_EPC_BUSY_		BIT(31)
+#define E2P_CMD_EPC_CMD_WRITE_		(0x30000000)
+#define E2P_CMD_EPC_CMD_EWEN_		(0x20000000)
+#define E2P_CMD_EPC_CMD_READ_		(0x00000000)
+#define E2P_CMD_EPC_TIMEOUT_		BIT(10)
+#define E2P_CMD_EPC_ADDR_MASK_		(0x000001FF)
+
+#define E2P_DATA			(0x044)
+
 #define FCT_RX_CTL			(0xAC)
 #define FCT_RX_CTL_EN_(channel)		BIT(28 + (channel))
 #define FCT_RX_CTL_DIS_(channel)	BIT(24 + (channel))
@@ -287,6 +297,29 @@
 #define TX_CFG_C_TX_INT_EN_R2C_			BIT(4)
 #define TX_CFG_C_TX_DMA_INT_STS_AUTO_CLR_	BIT(3)
 #define TX_CFG_C_TX_INT_STS_R2C_MODE_MASK_	(0x00000007)
+
+#define OTP_PWR_DN				(0x1000)
+#define OTP_PWR_DN_PWRDN_N_			BIT(0)
+
+#define OTP_ADDR1				(0x1004)
+#define OTP_ADDR1_15_11_MASK_			(0x1F)
+
+#define OTP_ADDR2				(0x1008)
+#define OTP_ADDR2_10_3_MASK_			(0xFF)
+
+#define OTP_PRGM_DATA				(0x1010)
+
+#define OTP_PRGM_MODE				(0x1014)
+#define OTP_PRGM_MODE_BYTE_			BIT(0)
+
+#define OTP_TST_CMD				(0x1024)
+#define OTP_TST_CMD_PRGVRFY_			BIT(3)
+
+#define OTP_CMD_GO				(0x1028)
+#define OTP_CMD_GO_GO_				BIT(0)
+
+#define OTP_STATUS				(0x1030)
+#define OTP_STATUS_BUSY_			BIT(0)
 
 /* MAC statistics registers */
 #define STAT_RX_FCS_ERRORS			(0x1200)

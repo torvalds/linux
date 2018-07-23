@@ -7,6 +7,178 @@
 #include <linux/pci.h>
 #include <linux/phy.h>
 
+/* eeprom */
+#define LAN743X_EEPROM_MAGIC		    (0x74A5)
+#define LAN743X_OTP_MAGIC		    (0x74F3)
+#define EEPROM_INDICATOR_1		    (0xA5)
+#define EEPROM_INDICATOR_2		    (0xAA)
+#define EEPROM_MAC_OFFSET		    (0x01)
+#define MAX_EEPROM_SIZE			    512
+#define OTP_INDICATOR_1			    (0xF3)
+#define OTP_INDICATOR_2			    (0xF7)
+
+static int lan743x_otp_write(struct lan743x_adapter *adapter, u32 offset,
+			     u32 length, u8 *data)
+{
+	unsigned long timeout;
+	u32 buf;
+	int i;
+
+	buf = lan743x_csr_read(adapter, OTP_PWR_DN);
+
+	if (buf & OTP_PWR_DN_PWRDN_N_) {
+		/* clear it and wait to be cleared */
+		lan743x_csr_write(adapter, OTP_PWR_DN, 0);
+
+		timeout = jiffies + HZ;
+		do {
+			udelay(1);
+			buf = lan743x_csr_read(adapter, OTP_PWR_DN);
+			if (time_after(jiffies, timeout)) {
+				netif_warn(adapter, drv, adapter->netdev,
+					   "timeout on OTP_PWR_DN completion\n");
+				return -EIO;
+			}
+		} while (buf & OTP_PWR_DN_PWRDN_N_);
+	}
+
+	/* set to BYTE program mode */
+	lan743x_csr_write(adapter, OTP_PRGM_MODE, OTP_PRGM_MODE_BYTE_);
+
+	for (i = 0; i < length; i++) {
+		lan743x_csr_write(adapter, OTP_ADDR1,
+				  ((offset + i) >> 8) &
+				  OTP_ADDR1_15_11_MASK_);
+		lan743x_csr_write(adapter, OTP_ADDR2,
+				  ((offset + i) &
+				  OTP_ADDR2_10_3_MASK_));
+		lan743x_csr_write(adapter, OTP_PRGM_DATA, data[i]);
+		lan743x_csr_write(adapter, OTP_TST_CMD, OTP_TST_CMD_PRGVRFY_);
+		lan743x_csr_write(adapter, OTP_CMD_GO, OTP_CMD_GO_GO_);
+
+		timeout = jiffies + HZ;
+		do {
+			udelay(1);
+			buf = lan743x_csr_read(adapter, OTP_STATUS);
+			if (time_after(jiffies, timeout)) {
+				netif_warn(adapter, drv, adapter->netdev,
+					   "Timeout on OTP_STATUS completion\n");
+				return -EIO;
+			}
+		} while (buf & OTP_STATUS_BUSY_);
+	}
+
+	return 0;
+}
+
+static int lan743x_eeprom_wait(struct lan743x_adapter *adapter)
+{
+	unsigned long start_time = jiffies;
+	u32 val;
+
+	do {
+		val = lan743x_csr_read(adapter, E2P_CMD);
+
+		if (!(val & E2P_CMD_EPC_BUSY_) ||
+		    (val & E2P_CMD_EPC_TIMEOUT_))
+			break;
+		usleep_range(40, 100);
+	} while (!time_after(jiffies, start_time + HZ));
+
+	if (val & (E2P_CMD_EPC_TIMEOUT_ | E2P_CMD_EPC_BUSY_)) {
+		netif_warn(adapter, drv, adapter->netdev,
+			   "EEPROM read operation timeout\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int lan743x_eeprom_confirm_not_busy(struct lan743x_adapter *adapter)
+{
+	unsigned long start_time = jiffies;
+	u32 val;
+
+	do {
+		val = lan743x_csr_read(adapter, E2P_CMD);
+
+		if (!(val & E2P_CMD_EPC_BUSY_))
+			return 0;
+
+		usleep_range(40, 100);
+	} while (!time_after(jiffies, start_time + HZ));
+
+	netif_warn(adapter, drv, adapter->netdev, "EEPROM is busy\n");
+	return -EIO;
+}
+
+static int lan743x_eeprom_read(struct lan743x_adapter *adapter,
+			       u32 offset, u32 length, u8 *data)
+{
+	int retval;
+	u32 val;
+	int i;
+
+	retval = lan743x_eeprom_confirm_not_busy(adapter);
+	if (retval)
+		return retval;
+
+	for (i = 0; i < length; i++) {
+		val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_READ_;
+		val |= (offset & E2P_CMD_EPC_ADDR_MASK_);
+		lan743x_csr_write(adapter, E2P_CMD, val);
+
+		retval = lan743x_eeprom_wait(adapter);
+		if (retval < 0)
+			return retval;
+
+		val = lan743x_csr_read(adapter, E2P_DATA);
+		data[i] = val & 0xFF;
+		offset++;
+	}
+
+	return 0;
+}
+
+static int lan743x_eeprom_write(struct lan743x_adapter *adapter,
+				u32 offset, u32 length, u8 *data)
+{
+	int retval;
+	u32 val;
+	int i;
+
+	retval = lan743x_eeprom_confirm_not_busy(adapter);
+	if (retval)
+		return retval;
+
+	/* Issue write/erase enable command */
+	val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_EWEN_;
+	lan743x_csr_write(adapter, E2P_CMD, val);
+
+	retval = lan743x_eeprom_wait(adapter);
+	if (retval < 0)
+		return retval;
+
+	for (i = 0; i < length; i++) {
+		/* Fill data register */
+		val = data[i];
+		lan743x_csr_write(adapter, E2P_DATA, val);
+
+		/* Send "write" command */
+		val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_WRITE_;
+		val |= (offset & E2P_CMD_EPC_ADDR_MASK_);
+		lan743x_csr_write(adapter, E2P_CMD, val);
+
+		retval = lan743x_eeprom_wait(adapter);
+		if (retval < 0)
+			return retval;
+
+		offset++;
+	}
+
+	return 0;
+}
+
 static void lan743x_ethtool_get_drvinfo(struct net_device *netdev,
 					struct ethtool_drvinfo *info)
 {
@@ -30,6 +202,40 @@ static void lan743x_ethtool_set_msglevel(struct net_device *netdev,
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
 
 	adapter->msg_enable = msglevel;
+}
+
+static int lan743x_ethtool_get_eeprom_len(struct net_device *netdev)
+{
+	return MAX_EEPROM_SIZE;
+}
+
+static int lan743x_ethtool_get_eeprom(struct net_device *netdev,
+				      struct ethtool_eeprom *ee, u8 *data)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	return lan743x_eeprom_read(adapter, ee->offset, ee->len, data);
+}
+
+static int lan743x_ethtool_set_eeprom(struct net_device *netdev,
+				      struct ethtool_eeprom *ee, u8 *data)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	int ret = -EINVAL;
+
+	if (ee->magic == LAN743X_EEPROM_MAGIC)
+		ret = lan743x_eeprom_write(adapter, ee->offset, ee->len,
+					   data);
+	/* Beware!  OTP is One Time Programming ONLY!
+	 * So do some strict condition check before messing up
+	 */
+	else if ((ee->magic == LAN743X_OTP_MAGIC) &&
+		 (ee->offset == 0) &&
+		 (ee->len == MAX_EEPROM_SIZE) &&
+		 (data[0] == OTP_INDICATOR_1))
+		ret = lan743x_otp_write(adapter, ee->offset, ee->len, data);
+
+	return ret;
 }
 
 static const char lan743x_set0_hw_cnt_strings[][ETH_GSTRING_LEN] = {
@@ -215,6 +421,9 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.set_msglevel = lan743x_ethtool_set_msglevel,
 	.get_link = ethtool_op_get_link,
 
+	.get_eeprom_len = lan743x_ethtool_get_eeprom_len,
+	.get_eeprom = lan743x_ethtool_get_eeprom,
+	.set_eeprom = lan743x_ethtool_set_eeprom,
 	.get_strings = lan743x_ethtool_get_strings,
 	.get_ethtool_stats = lan743x_ethtool_get_ethtool_stats,
 	.get_sset_count = lan743x_ethtool_get_sset_count,
