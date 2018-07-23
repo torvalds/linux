@@ -36,6 +36,7 @@
 #include <linux/refcount.h>
 #include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
+#include <linux/llist.h>
 
 enum fs_node_type {
 	FS_TYPE_NAMESPACE,
@@ -139,7 +140,7 @@ struct mlx5_fc_cache {
 
 struct mlx5_fc {
 	struct rb_node node;
-	struct list_head list;
+	struct llist_node addlist;
 
 	/* last{packets,bytes} members are used when calculating the delta since
 	 * last reading

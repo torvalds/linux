@@ -584,9 +584,7 @@ struct mlx5_irq_info {
 
 struct mlx5_fc_stats {
 	struct rb_root counters;
-	struct list_head addlist;
-	/* protect addlist add/splice operations */
-	spinlock_t addlist_lock;
+	struct llist_head addlist;
 
 	struct workqueue_struct *wq;
 	struct delayed_work work;

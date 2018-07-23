@@ -52,7 +52,9 @@
  * access to counter list:
  * - create (user context)
  *   - mlx5_fc_create() only adds to an addlist to be used by
- *     mlx5_fc_stats_query_work(). addlist is protected by a spinlock.
+ *     mlx5_fc_stats_query_work(). addlist is a lockless single linked list
+ *     that doesn't require any additional synchronization when adding single
+ *     node.
  *   - spawn thread to do the actual destroy
  *
  * - destroy (user context)
@@ -156,28 +158,29 @@ out:
 	return node;
 }
 
+static void mlx5_free_fc(struct mlx5_core_dev *dev,
+			 struct mlx5_fc *counter)
+{
+	mlx5_cmd_fc_free(dev, counter->id);
+	kfree(counter);
+}
+
 static void mlx5_fc_stats_work(struct work_struct *work)
 {
 	struct mlx5_core_dev *dev = container_of(work, struct mlx5_core_dev,
 						 priv.fc_stats.work.work);
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+	struct llist_node *tmplist = llist_del_all(&fc_stats->addlist);
 	unsigned long now = jiffies;
 	struct mlx5_fc *counter = NULL;
 	struct mlx5_fc *last = NULL;
 	struct rb_node *node;
-	LIST_HEAD(tmplist);
 
-	spin_lock(&fc_stats->addlist_lock);
-
-	list_splice_tail_init(&fc_stats->addlist, &tmplist);
-
-	if (!list_empty(&tmplist) || !RB_EMPTY_ROOT(&fc_stats->counters))
+	if (tmplist || !RB_EMPTY_ROOT(&fc_stats->counters))
 		queue_delayed_work(fc_stats->wq, &fc_stats->work,
 				   fc_stats->sampling_interval);
 
-	spin_unlock(&fc_stats->addlist_lock);
-
-	list_for_each_entry(counter, &tmplist, list)
+	llist_for_each_entry(counter, tmplist, addlist)
 		mlx5_fc_stats_insert(&fc_stats->counters, counter);
 
 	node = rb_first(&fc_stats->counters);
@@ -229,9 +232,7 @@ struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
 		counter->cache.lastuse = jiffies;
 		counter->aging = true;
 
-		spin_lock(&fc_stats->addlist_lock);
-		list_add(&counter->list, &fc_stats->addlist);
-		spin_unlock(&fc_stats->addlist_lock);
+		llist_add(&counter->addlist, &fc_stats->addlist);
 
 		mod_delayed_work(fc_stats->wq, &fc_stats->work, 0);
 	}
@@ -268,8 +269,7 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
 
 	fc_stats->counters = RB_ROOT;
-	INIT_LIST_HEAD(&fc_stats->addlist);
-	spin_lock_init(&fc_stats->addlist_lock);
+	init_llist_head(&fc_stats->addlist);
 
 	fc_stats->wq = create_singlethread_workqueue("mlx5_fc");
 	if (!fc_stats->wq)
@@ -284,6 +284,7 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 {
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+	struct llist_node *tmplist;
 	struct mlx5_fc *counter;
 	struct mlx5_fc *tmp;
 	struct rb_node *node;
@@ -292,13 +293,9 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 	destroy_workqueue(dev->priv.fc_stats.wq);
 	dev->priv.fc_stats.wq = NULL;
 
-	list_for_each_entry_safe(counter, tmp, &fc_stats->addlist, list) {
-		list_del(&counter->list);
-
-		mlx5_cmd_fc_free(dev, counter->id);
-
-		kfree(counter);
-	}
+	tmplist = llist_del_all(&fc_stats->addlist);
+	llist_for_each_entry_safe(counter, tmp, tmplist, addlist)
+		mlx5_free_fc(dev, counter);
 
 	node = rb_first(&fc_stats->counters);
 	while (node) {
@@ -308,9 +305,7 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 
 		rb_erase(&counter->node, &fc_stats->counters);
 
-		mlx5_cmd_fc_free(dev, counter->id);
-
-		kfree(counter);
+		mlx5_free_fc(dev, counter);
 	}
 }
 
