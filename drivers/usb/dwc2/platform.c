@@ -333,6 +333,9 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	if (hsotg->params.activate_stm_id_vb_detection)
 		regulator_disable(hsotg->usb33d);
 
+	pm_runtime_put_sync(hsotg->dev);
+	pm_runtime_disable(hsotg->dev);
+
 	if (hsotg->ll_hw_enabled)
 		dwc2_lowlevel_hw_disable(hsotg);
 
@@ -483,6 +486,11 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		return retval;
 
 	hsotg->needs_byte_swap = dwc2_check_core_endianness(hsotg);
+
+	pm_runtime_enable(hsotg->dev);
+	retval = pm_runtime_get_sync(hsotg->dev);
+	if (retval < 0)
+		goto error;
 
 	retval = dwc2_get_dr_mode(hsotg);
 	if (retval)
@@ -640,6 +648,8 @@ error_init:
 	if (hsotg->params.activate_stm_id_vb_detection)
 		regulator_disable(hsotg->usb33d);
 error:
+	pm_runtime_put_sync(hsotg->dev);
+	pm_runtime_disable(hsotg->dev);
 	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL)
 		dwc2_lowlevel_hw_disable(hsotg);
 	return retval;
