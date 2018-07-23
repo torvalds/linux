@@ -6,7 +6,7 @@
 menuconfig ACPI
 	bool "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on !IA64_HP_SIM
-	depends on IA64 || X86 || ARM64
+	depends on IA64 || X86 || (ARM64 && EFI)
 	depends on PCI
 	select PNP
 	default y if (IA64 || X86)
