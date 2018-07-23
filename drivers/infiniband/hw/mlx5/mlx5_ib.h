@@ -46,6 +46,7 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/mlx5-abi.h>
 #include <rdma/uverbs_ioctl.h>
+#include <rdma/mlx5_user_ioctl_cmds.h>
 
 #define mlx5_ib_dbg(dev, format, arg...)				\
 pr_debug("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
@@ -171,6 +172,16 @@ struct mlx5_ib_flow_handler {
 	struct mlx5_ib_flow_prio	*prio;
 	struct mlx5_flow_handle		*rule;
 	struct ib_counters		*ibcounters;
+};
+
+struct mlx5_ib_flow_matcher {
+	struct mlx5_ib_match_params matcher_mask;
+	int			mask_len;
+	enum mlx5_ib_flow_type	flow_type;
+	u16			priority;
+	struct mlx5_core_dev	*mdev;
+	atomic_t		usecnt;
+	u8			match_criteria_enable;
 };
 
 struct mlx5_ib_flow_db {

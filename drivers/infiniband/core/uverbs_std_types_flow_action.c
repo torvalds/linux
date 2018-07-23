@@ -376,8 +376,7 @@ static const struct uverbs_attr_spec uverbs_flow_action_esp_keymat[] = {
 static const struct uverbs_attr_spec uverbs_flow_action_esp_replay[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_NONE] = {
 		.type = UVERBS_ATTR_TYPE_PTR_IN,
-		/* No need to specify any data */
-		UVERBS_ATTR_SIZE(0, 0),
+		UVERBS_ATTR_NO_DATA(),
 	},
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP] = {
 		.type = UVERBS_ATTR_TYPE_PTR_IN,

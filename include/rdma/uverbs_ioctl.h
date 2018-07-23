@@ -204,6 +204,8 @@ struct uverbs_object_tree_def {
 #define UVERBS_ATTR_SIZE(_min_len, _len)			\
 	.u.ptr.min_len = _min_len, .u.ptr.len = _len
 
+#define UVERBS_ATTR_NO_DATA() UVERBS_ATTR_SIZE(0, 0)
+
 /*
  * Specifies a uapi structure that cannot be extended. The user must always
  * supply the whole structure and nothing more. The structure must be declared
