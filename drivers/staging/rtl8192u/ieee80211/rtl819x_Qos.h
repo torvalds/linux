@@ -112,21 +112,6 @@ typedef union _TSPEC_BODY {
 	} f;	// Field
 } TSPEC_BODY, *PTSPEC_BODY;
 
-typedef	u8		AC_UAPSD, *PAC_UAPSD;
-
-#define	GET_VO_UAPSD(_apsd) ((_apsd) & BIT(0))
-#define	SET_VO_UAPSD(_apsd) ((_apsd) |= BIT(0))
-
-#define	GET_VI_UAPSD(_apsd) ((_apsd) & BIT(1))
-#define	SET_VI_UAPSD(_apsd) ((_apsd) |= BIT(1))
-
-#define	GET_BK_UAPSD(_apsd) ((_apsd) & BIT(2))
-#define	SET_BK_UAPSD(_apsd) ((_apsd) |= BIT(2))
-
-#define	GET_BE_UAPSD(_apsd) ((_apsd) & BIT(3))
-#define	SET_BE_UAPSD(_apsd) ((_apsd) |= BIT(3))
-
-
 //typedef struct _TCLASS{
 // TODO
 //} TCLASS, *PTCLASS;
