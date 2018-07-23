@@ -204,11 +204,12 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 	chain = kzalloc(sizeof(*chain), GFP_KERNEL);
 	if (!chain)
 		return NULL;
-	INIT_LIST_HEAD(&chain->filter_chain_list);
 	list_add_tail(&chain->list, &block->chain_list);
 	chain->block = block;
 	chain->index = chain_index;
 	chain->refcnt = 1;
+	if (!chain->index)
+		block->chain0.chain = chain;
 	return chain;
 }
 
@@ -218,12 +219,16 @@ static void tcf_chain_head_change_item(struct tcf_filter_chain_list_item *item,
 	if (item->chain_head_change)
 		item->chain_head_change(tp_head, item->chain_head_change_priv);
 }
-static void tcf_chain_head_change(struct tcf_chain *chain,
-				  struct tcf_proto *tp_head)
+
+static void tcf_chain0_head_change(struct tcf_chain *chain,
+				   struct tcf_proto *tp_head)
 {
 	struct tcf_filter_chain_list_item *item;
+	struct tcf_block *block = chain->block;
 
-	list_for_each_entry(item, &chain->filter_chain_list, list)
+	if (chain->index)
+		return;
+	list_for_each_entry(item, &block->chain0.filter_chain_list, list)
 		tcf_chain_head_change_item(item, tp_head);
 }
 
@@ -231,7 +236,7 @@ static void tcf_chain_flush(struct tcf_chain *chain)
 {
 	struct tcf_proto *tp = rtnl_dereference(chain->filter_chain);
 
-	tcf_chain_head_change(chain, NULL);
+	tcf_chain0_head_change(chain, NULL);
 	while (tp) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);
 		tcf_proto_destroy(tp, NULL);
@@ -245,8 +250,10 @@ static void tcf_chain_destroy(struct tcf_chain *chain)
 	struct tcf_block *block = chain->block;
 
 	list_del(&chain->list);
+	if (!chain->index)
+		block->chain0.chain = NULL;
 	kfree(chain);
-	if (list_empty(&block->chain_list))
+	if (list_empty(&block->chain_list) && block->refcnt == 0)
 		kfree(block);
 }
 
@@ -346,10 +353,11 @@ no_offload_dev_dec:
 }
 
 static int
-tcf_chain_head_change_cb_add(struct tcf_chain *chain,
-			     struct tcf_block_ext_info *ei,
-			     struct netlink_ext_ack *extack)
+tcf_chain0_head_change_cb_add(struct tcf_block *block,
+			      struct tcf_block_ext_info *ei,
+			      struct netlink_ext_ack *extack)
 {
+	struct tcf_chain *chain0 = block->chain0.chain;
 	struct tcf_filter_chain_list_item *item;
 
 	item = kmalloc(sizeof(*item), GFP_KERNEL);
@@ -359,23 +367,25 @@ tcf_chain_head_change_cb_add(struct tcf_chain *chain,
 	}
 	item->chain_head_change = ei->chain_head_change;
 	item->chain_head_change_priv = ei->chain_head_change_priv;
-	if (chain->filter_chain)
-		tcf_chain_head_change_item(item, chain->filter_chain);
-	list_add(&item->list, &chain->filter_chain_list);
+	if (chain0 && chain0->filter_chain)
+		tcf_chain_head_change_item(item, chain0->filter_chain);
+	list_add(&item->list, &block->chain0.filter_chain_list);
 	return 0;
 }
 
 static void
-tcf_chain_head_change_cb_del(struct tcf_chain *chain,
-			     struct tcf_block_ext_info *ei)
+tcf_chain0_head_change_cb_del(struct tcf_block *block,
+			      struct tcf_block_ext_info *ei)
 {
+	struct tcf_chain *chain0 = block->chain0.chain;
 	struct tcf_filter_chain_list_item *item;
 
-	list_for_each_entry(item, &chain->filter_chain_list, list) {
+	list_for_each_entry(item, &block->chain0.filter_chain_list, list) {
 		if ((!ei->chain_head_change && !ei->chain_head_change_priv) ||
 		    (item->chain_head_change == ei->chain_head_change &&
 		     item->chain_head_change_priv == ei->chain_head_change_priv)) {
-			tcf_chain_head_change_item(item, NULL);
+			if (chain0)
+				tcf_chain_head_change_item(item, NULL);
 			list_del(&item->list);
 			kfree(item);
 			return;
@@ -411,8 +421,6 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 					  struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block;
-	struct tcf_chain *chain;
-	int err;
 
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block) {
@@ -422,14 +430,8 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 	INIT_LIST_HEAD(&block->chain_list);
 	INIT_LIST_HEAD(&block->cb_list);
 	INIT_LIST_HEAD(&block->owner_list);
+	INIT_LIST_HEAD(&block->chain0.filter_chain_list);
 
-	/* Create chain 0 by default, it has to be always present. */
-	chain = tcf_chain_create(block, 0);
-	if (!chain) {
-		NL_SET_ERR_MSG(extack, "Failed to create new tcf chain");
-		err = -ENOMEM;
-		goto err_chain_create;
-	}
 	block->refcnt = 1;
 	block->net = net;
 	block->index = block_index;
@@ -438,10 +440,6 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 	if (!tcf_block_shared(block))
 		block->q = q;
 	return block;
-
-err_chain_create:
-	kfree(block);
-	return ERR_PTR(err);
 }
 
 static struct tcf_block *tcf_block_lookup(struct net *net, u32 block_index)
@@ -521,11 +519,6 @@ static struct tcf_block *tcf_block_find(struct net *net, struct Qdisc **q,
 	}
 
 	return block;
-}
-
-static struct tcf_chain *tcf_block_chain_zero(struct tcf_block *block)
-{
-	return list_first_entry(&block->chain_list, struct tcf_chain, list);
 }
 
 struct tcf_block_owner_item {
@@ -621,10 +614,9 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 
 	tcf_block_owner_netif_keep_dst(block, q, ei->binder_type);
 
-	err = tcf_chain_head_change_cb_add(tcf_block_chain_zero(block),
-					   ei, extack);
+	err = tcf_chain0_head_change_cb_add(block, ei, extack);
 	if (err)
-		goto err_chain_head_change_cb_add;
+		goto err_chain0_head_change_cb_add;
 
 	err = tcf_block_offload_bind(block, q, ei, extack);
 	if (err)
@@ -634,15 +626,14 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 	return 0;
 
 err_block_offload_bind:
-	tcf_chain_head_change_cb_del(tcf_block_chain_zero(block), ei);
-err_chain_head_change_cb_add:
+	tcf_chain0_head_change_cb_del(block, ei);
+err_chain0_head_change_cb_add:
 	tcf_block_owner_del(block, q, ei->binder_type);
 err_block_owner_add:
 	if (created) {
 		if (tcf_block_shared(block))
 			tcf_block_remove(block, net);
 err_block_insert:
-		kfree(tcf_block_chain_zero(block));
 		kfree(block);
 	} else {
 		block->refcnt--;
@@ -682,10 +673,10 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 
 	if (!block)
 		return;
-	tcf_chain_head_change_cb_del(tcf_block_chain_zero(block), ei);
+	tcf_chain0_head_change_cb_del(block, ei);
 	tcf_block_owner_del(block, q, ei->binder_type);
 
-	if (--block->refcnt == 0) {
+	if (block->refcnt == 1) {
 		if (tcf_block_shared(block))
 			tcf_block_remove(block, block->net);
 
@@ -701,13 +692,14 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 
 	tcf_block_offload_unbind(block, q, ei);
 
-	if (block->refcnt == 0) {
+	if (block->refcnt == 1) {
 		/* At this point, all the chains should have refcnt >= 1. */
 		list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
 			tcf_chain_put(chain);
 
-		/* Finally, put chain 0 and allow block to be freed. */
-		tcf_chain_put(tcf_block_chain_zero(block));
+		block->refcnt--;
+		if (list_empty(&block->chain_list))
+			kfree(block);
 	}
 }
 EXPORT_SYMBOL(tcf_block_put_ext);
@@ -947,7 +939,7 @@ static void tcf_chain_tp_insert(struct tcf_chain *chain,
 				struct tcf_proto *tp)
 {
 	if (*chain_info->pprev == chain->filter_chain)
-		tcf_chain_head_change(chain, tp);
+		tcf_chain0_head_change(chain, tp);
 	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain_info));
 	rcu_assign_pointer(*chain_info->pprev, tp);
 	tcf_chain_hold(chain);
@@ -960,7 +952,7 @@ static void tcf_chain_tp_remove(struct tcf_chain *chain,
 	struct tcf_proto *next = rtnl_dereference(chain_info->next);
 
 	if (tp == chain->filter_chain)
-		tcf_chain_head_change(chain, next);
+		tcf_chain0_head_change(chain, next);
 	RCU_INIT_POINTER(*chain_info->pprev, next);
 	tcf_chain_put(chain);
 }

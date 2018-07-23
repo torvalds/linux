@@ -300,7 +300,6 @@ typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
 
 struct tcf_chain {
 	struct tcf_proto __rcu *filter_chain;
-	struct list_head filter_chain_list;
 	struct list_head list;
 	struct tcf_block *block;
 	u32 index; /* chain index */
@@ -318,6 +317,10 @@ struct tcf_block {
 	bool keep_dst;
 	unsigned int offloadcnt; /* Number of oddloaded filters */
 	unsigned int nooffloaddevcnt; /* Number of devs unable to do offload */
+	struct {
+		struct tcf_chain *chain;
+		struct list_head filter_chain_list;
+	} chain0;
 };
 
 static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
