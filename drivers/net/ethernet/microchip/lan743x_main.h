@@ -24,8 +24,18 @@
 #define HW_CFG_LRST_				BIT(1)
 
 #define PMT_CTL					(0x014)
+#define PMT_CTL_ETH_PHY_D3_COLD_OVR_		BIT(27)
+#define PMT_CTL_MAC_D3_RX_CLK_OVR_		BIT(25)
+#define PMT_CTL_ETH_PHY_EDPD_PLL_CTL_		BIT(24)
+#define PMT_CTL_ETH_PHY_D3_OVR_			BIT(23)
+#define PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_		BIT(18)
+#define PMT_CTL_GPIO_WAKEUP_EN_			BIT(15)
+#define PMT_CTL_EEE_WAKEUP_EN_			BIT(13)
 #define PMT_CTL_READY_				BIT(7)
 #define PMT_CTL_ETH_PHY_RST_			BIT(4)
+#define PMT_CTL_WOL_EN_				BIT(3)
+#define PMT_CTL_ETH_PHY_WAKE_EN_		BIT(2)
+#define PMT_CTL_WUPS_MASK_			(0x00000003)
 
 #define DP_SEL				(0x024)
 #define DP_SEL_DPRDY_			BIT(31)
@@ -41,6 +51,16 @@
 #define DP_ADDR				(0x02C)
 
 #define DP_DATA_0			(0x030)
+
+#define E2P_CMD				(0x040)
+#define E2P_CMD_EPC_BUSY_		BIT(31)
+#define E2P_CMD_EPC_CMD_WRITE_		(0x30000000)
+#define E2P_CMD_EPC_CMD_EWEN_		(0x20000000)
+#define E2P_CMD_EPC_CMD_READ_		(0x00000000)
+#define E2P_CMD_EPC_TIMEOUT_		BIT(10)
+#define E2P_CMD_EPC_ADDR_MASK_		(0x000001FF)
+
+#define E2P_DATA			(0x044)
 
 #define FCT_RX_CTL			(0xAC)
 #define FCT_RX_CTL_EN_(channel)		BIT(28 + (channel))
@@ -62,6 +82,7 @@
 	((value << 0) & FCT_FLOW_CTL_ON_THRESHOLD_)
 
 #define MAC_CR				(0x100)
+#define MAC_CR_EEE_EN_			BIT(17)
 #define MAC_CR_ADD_			BIT(12)
 #define MAC_CR_ASD_			BIT(11)
 #define MAC_CR_CNTR_RST_		BIT(5)
@@ -97,6 +118,40 @@
 
 #define MAC_MII_DATA			(0x124)
 
+#define MAC_EEE_TX_LPI_REQ_DLY_CNT		(0x130)
+
+#define MAC_WUCSR				(0x140)
+#define MAC_WUCSR_RFE_WAKE_EN_			BIT(14)
+#define MAC_WUCSR_PFDA_EN_			BIT(3)
+#define MAC_WUCSR_WAKE_EN_			BIT(2)
+#define MAC_WUCSR_MPEN_				BIT(1)
+#define MAC_WUCSR_BCST_EN_			BIT(0)
+
+#define MAC_WK_SRC				(0x144)
+
+#define MAC_WUF_CFG0			(0x150)
+#define MAC_NUM_OF_WUF_CFG		(32)
+#define MAC_WUF_CFG_BEGIN		(MAC_WUF_CFG0)
+#define MAC_WUF_CFG(index)		(MAC_WUF_CFG_BEGIN + (4 * (index)))
+#define MAC_WUF_CFG_EN_			BIT(31)
+#define MAC_WUF_CFG_TYPE_MCAST_		(0x02000000)
+#define MAC_WUF_CFG_TYPE_ALL_		(0x01000000)
+#define MAC_WUF_CFG_OFFSET_SHIFT_	(16)
+#define MAC_WUF_CFG_CRC16_MASK_		(0x0000FFFF)
+
+#define MAC_WUF_MASK0_0			(0x200)
+#define MAC_WUF_MASK0_1			(0x204)
+#define MAC_WUF_MASK0_2			(0x208)
+#define MAC_WUF_MASK0_3			(0x20C)
+#define MAC_WUF_MASK0_BEGIN		(MAC_WUF_MASK0_0)
+#define MAC_WUF_MASK1_BEGIN		(MAC_WUF_MASK0_1)
+#define MAC_WUF_MASK2_BEGIN		(MAC_WUF_MASK0_2)
+#define MAC_WUF_MASK3_BEGIN		(MAC_WUF_MASK0_3)
+#define MAC_WUF_MASK0(index)		(MAC_WUF_MASK0_BEGIN + (0x10 * (index)))
+#define MAC_WUF_MASK1(index)		(MAC_WUF_MASK1_BEGIN + (0x10 * (index)))
+#define MAC_WUF_MASK2(index)		(MAC_WUF_MASK2_BEGIN + (0x10 * (index)))
+#define MAC_WUF_MASK3(index)		(MAC_WUF_MASK3_BEGIN + (0x10 * (index)))
+
 /* offset 0x400 - 0x500, x may range from 0 to 32, for a total of 33 entries */
 #define RFE_ADDR_FILT_HI(x)		(0x400 + (8 * (x)))
 #define RFE_ADDR_FILT_HI_VALID_		BIT(31)
@@ -110,6 +165,27 @@
 #define RFE_CTL_AU_			BIT(8)
 #define RFE_CTL_MCAST_HASH_		BIT(3)
 #define RFE_CTL_DA_PERFECT_		BIT(1)
+
+#define RFE_RSS_CFG			(0x554)
+#define RFE_RSS_CFG_UDP_IPV6_EX_	BIT(16)
+#define RFE_RSS_CFG_TCP_IPV6_EX_	BIT(15)
+#define RFE_RSS_CFG_IPV6_EX_		BIT(14)
+#define RFE_RSS_CFG_UDP_IPV6_		BIT(13)
+#define RFE_RSS_CFG_TCP_IPV6_		BIT(12)
+#define RFE_RSS_CFG_IPV6_		BIT(11)
+#define RFE_RSS_CFG_UDP_IPV4_		BIT(10)
+#define RFE_RSS_CFG_TCP_IPV4_		BIT(9)
+#define RFE_RSS_CFG_IPV4_		BIT(8)
+#define RFE_RSS_CFG_VALID_HASH_BITS_	(0x000000E0)
+#define RFE_RSS_CFG_RSS_QUEUE_ENABLE_	BIT(2)
+#define RFE_RSS_CFG_RSS_HASH_STORE_	BIT(1)
+#define RFE_RSS_CFG_RSS_ENABLE_		BIT(0)
+
+#define RFE_HASH_KEY(index)		(0x558 + (index << 2))
+
+#define RFE_INDX(index)			(0x580 + (index << 2))
+
+#define MAC_WUCSR2			(0x600)
 
 #define INT_STS				(0x780)
 #define INT_BIT_DMA_RX_(channel)	BIT(24 + (channel))
@@ -288,9 +364,33 @@
 #define TX_CFG_C_TX_DMA_INT_STS_AUTO_CLR_	BIT(3)
 #define TX_CFG_C_TX_INT_STS_R2C_MODE_MASK_	(0x00000007)
 
+#define OTP_PWR_DN				(0x1000)
+#define OTP_PWR_DN_PWRDN_N_			BIT(0)
+
+#define OTP_ADDR1				(0x1004)
+#define OTP_ADDR1_15_11_MASK_			(0x1F)
+
+#define OTP_ADDR2				(0x1008)
+#define OTP_ADDR2_10_3_MASK_			(0xFF)
+
+#define OTP_PRGM_DATA				(0x1010)
+
+#define OTP_PRGM_MODE				(0x1014)
+#define OTP_PRGM_MODE_BYTE_			BIT(0)
+
+#define OTP_TST_CMD				(0x1024)
+#define OTP_TST_CMD_PRGVRFY_			BIT(3)
+
+#define OTP_CMD_GO				(0x1028)
+#define OTP_CMD_GO_GO_				BIT(0)
+
+#define OTP_STATUS				(0x1030)
+#define OTP_STATUS_BUSY_			BIT(0)
+
 /* MAC statistics registers */
 #define STAT_RX_FCS_ERRORS			(0x1200)
 #define STAT_RX_ALIGNMENT_ERRORS		(0x1204)
+#define STAT_RX_FRAGMENT_ERRORS			(0x1208)
 #define STAT_RX_JABBER_ERRORS			(0x120C)
 #define STAT_RX_UNDERSIZE_FRAME_ERRORS		(0x1210)
 #define STAT_RX_OVERSIZE_FRAME_ERRORS		(0x1214)
@@ -298,12 +398,26 @@
 #define STAT_RX_UNICAST_BYTE_COUNT		(0x121C)
 #define STAT_RX_BROADCAST_BYTE_COUNT		(0x1220)
 #define STAT_RX_MULTICAST_BYTE_COUNT		(0x1224)
+#define STAT_RX_UNICAST_FRAMES			(0x1228)
+#define STAT_RX_BROADCAST_FRAMES		(0x122C)
 #define STAT_RX_MULTICAST_FRAMES		(0x1230)
+#define STAT_RX_PAUSE_FRAMES			(0x1234)
+#define STAT_RX_64_BYTE_FRAMES			(0x1238)
+#define STAT_RX_65_127_BYTE_FRAMES		(0x123C)
+#define STAT_RX_128_255_BYTE_FRAMES		(0x1240)
+#define STAT_RX_256_511_BYTES_FRAMES		(0x1244)
+#define STAT_RX_512_1023_BYTE_FRAMES		(0x1248)
+#define STAT_RX_1024_1518_BYTE_FRAMES		(0x124C)
+#define STAT_RX_GREATER_1518_BYTE_FRAMES	(0x1250)
 #define STAT_RX_TOTAL_FRAMES			(0x1254)
+#define STAT_EEE_RX_LPI_TRANSITIONS		(0x1258)
+#define STAT_EEE_RX_LPI_TIME			(0x125C)
+#define STAT_RX_COUNTER_ROLLOVER_STATUS		(0x127C)
 
 #define STAT_TX_FCS_ERRORS			(0x1280)
 #define STAT_TX_EXCESS_DEFERRAL_ERRORS		(0x1284)
 #define STAT_TX_CARRIER_ERRORS			(0x1288)
+#define STAT_TX_BAD_BYTE_COUNT			(0x128C)
 #define STAT_TX_SINGLE_COLLISIONS		(0x1290)
 #define STAT_TX_MULTIPLE_COLLISIONS		(0x1294)
 #define STAT_TX_EXCESSIVE_COLLISION		(0x1298)
@@ -311,8 +425,21 @@
 #define STAT_TX_UNICAST_BYTE_COUNT		(0x12A0)
 #define STAT_TX_BROADCAST_BYTE_COUNT		(0x12A4)
 #define STAT_TX_MULTICAST_BYTE_COUNT		(0x12A8)
+#define STAT_TX_UNICAST_FRAMES			(0x12AC)
+#define STAT_TX_BROADCAST_FRAMES		(0x12B0)
 #define STAT_TX_MULTICAST_FRAMES		(0x12B4)
+#define STAT_TX_PAUSE_FRAMES			(0x12B8)
+#define STAT_TX_64_BYTE_FRAMES			(0x12BC)
+#define STAT_TX_65_127_BYTE_FRAMES		(0x12C0)
+#define STAT_TX_128_255_BYTE_FRAMES		(0x12C4)
+#define STAT_TX_256_511_BYTES_FRAMES		(0x12C8)
+#define STAT_TX_512_1023_BYTE_FRAMES		(0x12CC)
+#define STAT_TX_1024_1518_BYTE_FRAMES		(0x12D0)
+#define STAT_TX_GREATER_1518_BYTE_FRAMES	(0x12D4)
 #define STAT_TX_TOTAL_FRAMES			(0x12D8)
+#define STAT_EEE_TX_LPI_TRANSITIONS		(0x12DC)
+#define STAT_EEE_TX_LPI_TIME			(0x12E0)
+#define STAT_TX_COUNTER_ROLLOVER_STATUS		(0x12FC)
 
 /* End of Register definitions */
 
@@ -473,6 +600,9 @@ struct lan743x_adapter {
 	struct net_device       *netdev;
 	struct mii_bus		*mdiobus;
 	int                     msg_enable;
+#ifdef CONFIG_PM
+	u32			wolopts;
+#endif
 	struct pci_dev		*pdev;
 	struct lan743x_csr      csr;
 	struct lan743x_intr     intr;
@@ -593,5 +723,8 @@ struct lan743x_rx_buffer_info {
 #define RX_PROCESS_RESULT_NOTHING_TO_DO     (0)
 #define RX_PROCESS_RESULT_PACKET_RECEIVED   (1)
 #define RX_PROCESS_RESULT_PACKET_DROPPED    (2)
+
+u32 lan743x_csr_read(struct lan743x_adapter *adapter, int offset);
+void lan743x_csr_write(struct lan743x_adapter *adapter, int offset, u32 data);
 
 #endif /* _LAN743X_H */
