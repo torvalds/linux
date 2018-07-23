@@ -2,6 +2,9 @@
 #ifndef __LINUX_GOLDFISH_H
 #define __LINUX_GOLDFISH_H
 
+#include <linux/types.h>
+#include <linux/io.h>
+
 /* Helpers for Goldfish virtual platform */
 
 static inline void gf_write_ptr(const void *ptr, void __iomem *portl,
