@@ -57,6 +57,14 @@
 			#interrupt-cells = <2>;
 		};
 
+		efuse@380 {
+			compatible = "sprd,sc27xx-efuse", "sprd,sc2731-efuse";
+			reg = <0x380>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			hwlocks = <&hwlock 12>;
+		};
+
 		vibrator@ec8 {
 			compatible = "sprd,sc27xx-vibrator", "sprd,sc2731-vibrator";
 			reg = <0xec8>;
