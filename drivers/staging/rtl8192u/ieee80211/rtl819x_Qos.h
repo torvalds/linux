@@ -189,12 +189,6 @@ typedef struct _OCTET_STRING {
 	u16             Length;
 } OCTET_STRING, *POCTET_STRING;
 
-//
-// Ref: sQoSCtlLng and QoSCtl definition in 8185 QoS code.
-//#define QoSCtl   ((	(Adapter->bRegQoS) && (Adapter->dot11QoS.QoSMode &(QOS_EDCA|QOS_HCCA))	  )  ?sQoSCtlLng:0)
-//
-#define sQoSCtlLng			2
-
 //Added by joseph
 //UP Mapping to AC, using in MgntQuery_SequenceNumber() and maybe for DSCP
 //#define UP2AC(up)			((up<3)?((up==0)?1:0):(up>>1))
