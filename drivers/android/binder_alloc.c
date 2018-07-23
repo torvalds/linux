@@ -17,7 +17,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <asm/cacheflush.h>
 #include <linux/list.h>
 #include <linux/sched/mm.h>
 #include <linux/module.h>
@@ -28,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/list_lru.h>
+#include <asm/cacheflush.h>
 #include "binder_alloc.h"
 #include "binder_trace.h"
 
