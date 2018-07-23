@@ -590,6 +590,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	 */
 	smp_wmb();
 	chan->call_id	= call_id;
+	chan->call_debug_id = call->debug_id;
 	rcu_assign_pointer(chan->call, call);
 	wake_up(&call->waitq);
 }

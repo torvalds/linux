@@ -665,11 +665,13 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
 		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
-				    rxrpc_tx_fail_conn_challenge);
+				    rxrpc_tx_point_rxkad_challenge);
 		return -EAGAIN;
 	}
 
 	conn->params.peer->last_tx_at = ktime_get_real();
+	trace_rxrpc_tx_packet(conn->debug_id, &whdr,
+			      rxrpc_tx_point_rxkad_challenge);
 	_leave(" = 0");
 	return 0;
 }
@@ -721,11 +723,12 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 3, len);
 	if (ret < 0) {
 		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
-				    rxrpc_tx_fail_conn_response);
+				    rxrpc_tx_point_rxkad_response);
 		return -EAGAIN;
 	}
 
 	conn->params.peer->last_tx_at = ktime_get_real();
+	trace_rxrpc_tx_packet(0, &whdr, rxrpc_tx_point_rxkad_response);
 	_leave(" = 0");
 	return 0;
 }
