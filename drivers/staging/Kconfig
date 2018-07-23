@@ -124,4 +124,6 @@ source "drivers/staging/mt7621-dts/Kconfig"
 
 source "drivers/staging/gasket/Kconfig"
 
+source "drivers/staging/axis-fifo/Kconfig"
+
 endif # STAGING

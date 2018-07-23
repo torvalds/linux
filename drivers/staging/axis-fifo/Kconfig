@@ -1,0 +1,9 @@
+#
+# "Xilinx AXI-Stream FIFO IP core driver"
+#
+config XIL_AXIS_FIFO
+	tristate "Xilinx AXI-Stream FIFO IP core driver"
+	default n
+	help
+	  This adds support for the Xilinx AXI-Stream
+	  FIFO IP core driver.
