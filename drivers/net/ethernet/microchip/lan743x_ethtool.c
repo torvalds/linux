@@ -17,6 +17,21 @@ static void lan743x_ethtool_get_drvinfo(struct net_device *netdev,
 		pci_name(adapter->pdev), sizeof(info->bus_info));
 }
 
+static u32 lan743x_ethtool_get_msglevel(struct net_device *netdev)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->msg_enable;
+}
+
+static void lan743x_ethtool_set_msglevel(struct net_device *netdev,
+					 u32 msglevel)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	adapter->msg_enable = msglevel;
+}
+
 static const char lan743x_set0_hw_cnt_strings[][ETH_GSTRING_LEN] = {
 	"RX FCS Errors",
 	"RX Alignment Errors",
@@ -196,6 +211,8 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 
 const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_drvinfo = lan743x_ethtool_get_drvinfo,
+	.get_msglevel = lan743x_ethtool_get_msglevel,
+	.set_msglevel = lan743x_ethtool_set_msglevel,
 	.get_link = ethtool_op_get_link,
 
 	.get_strings = lan743x_ethtool_get_strings,
