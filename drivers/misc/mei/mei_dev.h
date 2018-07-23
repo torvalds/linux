@@ -29,7 +29,6 @@
 #define MEI_SLOT_SIZE             sizeof(u32)
 #define MEI_RD_MSG_BUF_SIZE       (128 * MEI_SLOT_SIZE)
 
-
 /*
  * Number of Maximum MEI Clients
  */
@@ -271,7 +270,7 @@ struct mei_cl {
  *
  * @hbuf_free_slots  : query for write buffer empty slots
  * @hbuf_is_ready    : query if write buffer is empty
- * @hbuf_max_len     : query for write buffer max len
+ * @hbuf_depth       : query for write buffer depth
  *
  * @write            : write a message to FW
  *
@@ -301,7 +300,7 @@ struct mei_hw_ops {
 
 	int (*hbuf_free_slots)(struct mei_device *dev);
 	bool (*hbuf_is_ready)(struct mei_device *dev);
-	size_t (*hbuf_max_len)(const struct mei_device *dev);
+	u32 (*hbuf_depth)(const struct mei_device *dev);
 	int (*write)(struct mei_device *dev,
 		     struct mei_msg_hdr *hdr,
 		     const unsigned char *buf);
@@ -411,7 +410,6 @@ struct mei_fw_version {
  * @rd_msg_buf  : control messages buffer
  * @rd_msg_hdr  : read message header storage
  *
- * @hbuf_depth  : depth of hardware host/write buffer is slots
  * @hbuf_is_ready : query if the host host/write buffer is ready
  *
  * @version     : HBM protocol version in use
@@ -489,7 +487,6 @@ struct mei_device {
 	u32 rd_msg_hdr;
 
 	/* write buffer */
-	u8 hbuf_depth;
 	bool hbuf_is_ready;
 
 	struct hbm_version version;
@@ -655,9 +652,9 @@ static inline int mei_hbuf_empty_slots(struct mei_device *dev)
 	return dev->ops->hbuf_free_slots(dev);
 }
 
-static inline size_t mei_hbuf_max_len(const struct mei_device *dev)
+static inline u32 mei_hbuf_depth(const struct mei_device *dev)
 {
-	return dev->ops->hbuf_max_len(dev);
+	return dev->ops->hbuf_depth(dev);
 }
 
 static inline int mei_write_message(struct mei_device *dev,

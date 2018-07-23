@@ -1556,8 +1556,8 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
 	size_t len;
-	u32 msg_slots;
-	int slots;
+	size_t hbuf_len;
+	int hbuf_slots;
 	int rets;
 	bool first_chunk;
 
@@ -1579,29 +1579,30 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return 0;
 	}
 
-	slots = mei_hbuf_empty_slots(dev);
-	if (slots < 0)
-		return -EOVERFLOW;
-
-	len = buf->size - cb->buf_idx;
-	msg_slots = mei_data2slots(len);
-
 	mei_hdr.host_addr = mei_cl_host_addr(cl);
 	mei_hdr.me_addr = mei_cl_me_id(cl);
 	mei_hdr.reserved = 0;
+	mei_hdr.msg_complete = 0;
 	mei_hdr.internal = cb->internal;
 
-	if ((u32)slots >= msg_slots) {
+	len = buf->size - cb->buf_idx;
+	hbuf_slots = mei_hbuf_empty_slots(dev);
+	if (hbuf_slots < 0) {
+		rets = -EOVERFLOW;
+		goto err;
+	}
+	hbuf_len = mei_slots2data(hbuf_slots) - sizeof(struct mei_msg_hdr);
+
+	/**
+	 * Split the message only if we can write the whole host buffer
+	 * otherwise wait for next time the host buffer is empty.
+	 */
+	if (hbuf_len >= len) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
-	/* Split the message only if we can write the whole host buffer */
-	} else if ((u32)slots == dev->hbuf_depth) {
-		msg_slots = slots;
-		len = mei_slots2data(slots) - sizeof(struct mei_msg_hdr);
-		mei_hdr.length = len;
-		mei_hdr.msg_complete = 0;
+	} else if ((u32)hbuf_slots == mei_hbuf_depth(dev)) {
+		mei_hdr.length = hbuf_len;
 	} else {
-		/* wait for next time the host buffer is empty */
 		return 0;
 	}
 
@@ -1650,6 +1651,8 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
 	size_t len;
+	size_t hbuf_len;
+	int hbuf_slots;
 	ssize_t rets;
 	bool blocking;
 
@@ -1692,19 +1695,25 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 		rets = len;
 		goto out;
 	}
+
 	if (!mei_hbuf_acquire(dev)) {
 		cl_dbg(dev, cl, "Cannot acquire the host buffer: not sending.\n");
 		rets = len;
 		goto out;
 	}
 
-	/* Check for a maximum length */
-	if (len > mei_hbuf_max_len(dev)) {
-		mei_hdr.length = mei_hbuf_max_len(dev);
-		mei_hdr.msg_complete = 0;
-	} else {
+	hbuf_slots = mei_hbuf_empty_slots(dev);
+	if (hbuf_slots < 0) {
+		rets = -EOVERFLOW;
+		goto out;
+	}
+
+	hbuf_len = mei_slots2data(hbuf_slots) - sizeof(struct mei_msg_hdr);
+	if (hbuf_len >= len) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
+	} else {
+		mei_hdr.length = hbuf_len;
 	}
 
 	rets = mei_write_message(dev, &mei_hdr, buf->data);

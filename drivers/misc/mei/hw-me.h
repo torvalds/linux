@@ -52,12 +52,14 @@ struct mei_cfg {
  * @mem_addr: io memory address
  * @pg_state: power gating state
  * @d0i3_supported: di03 support
+ * @hbuf_depth: depth of hardware host/write buffer in slots
  */
 struct mei_me_hw {
 	const struct mei_cfg *cfg;
 	void __iomem *mem_addr;
 	enum mei_pg_state pg_state;
 	bool d0i3_supported;
+	u8 hbuf_depth;
 };
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)

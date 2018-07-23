@@ -31,6 +31,7 @@
 
 #include "mei-trace.h"
 
+#define TXE_HBUF_DEPTH (PAYLOAD_SIZE / MEI_SLOT_SIZE)
 
 /**
  * mei_txe_reg_read - Reads 32bit data from the txe device
@@ -681,9 +682,6 @@ static void mei_txe_hw_config(struct mei_device *dev)
 
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 
-	/* Doesn't change in runtime */
-	dev->hbuf_depth = PAYLOAD_SIZE / MEI_SLOT_SIZE;
-
 	hw->aliveness = mei_txe_aliveness_get(dev);
 	hw->readiness = mei_txe_readiness_get(dev);
 
@@ -710,7 +708,7 @@ static int mei_txe_write(struct mei_device *dev,
 	unsigned long rem;
 	unsigned long length;
 	unsigned long i;
-	u32 slots = dev->hbuf_depth;
+	u32 slots = TXE_HBUF_DEPTH;
 	u32 *reg_buf = (u32 *)buf;
 	u32 dw_cnt;
 
@@ -762,15 +760,15 @@ static int mei_txe_write(struct mei_device *dev,
 }
 
 /**
- * mei_txe_hbuf_max_len - mimics the me hbuf circular buffer
+ * mei_txe_hbuf_depth - mimics the me hbuf circular buffer
  *
  * @dev: the device structure
  *
- * Return: the PAYLOAD_SIZE - header size
+ * Return: the TXE_HBUF_DEPTH
  */
-static size_t mei_txe_hbuf_max_len(const struct mei_device *dev)
+static u32 mei_txe_hbuf_depth(const struct mei_device *dev)
 {
-	return PAYLOAD_SIZE - sizeof(struct mei_msg_hdr);
+	return TXE_HBUF_DEPTH;
 }
 
 /**
@@ -778,7 +776,7 @@ static size_t mei_txe_hbuf_max_len(const struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * Return: always hbuf_depth
+ * Return: always TXE_HBUF_DEPTH
  */
 static int mei_txe_hbuf_empty_slots(struct mei_device *dev)
 {
@@ -797,7 +795,7 @@ static int mei_txe_hbuf_empty_slots(struct mei_device *dev)
 static int mei_txe_count_full_read_slots(struct mei_device *dev)
 {
 	/* read buffers has static size */
-	return  PAYLOAD_SIZE / MEI_SLOT_SIZE;
+	return TXE_HBUF_DEPTH;
 }
 
 /**
@@ -1140,7 +1138,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 	/* Input Ready: Detection if host can write to SeC */
 	if (test_and_clear_bit(TXE_INTR_IN_READY_BIT, &hw->intr_cause)) {
 		dev->hbuf_is_ready = true;
-		hw->slots = dev->hbuf_depth;
+		hw->slots = TXE_HBUF_DEPTH;
 	}
 
 	if (hw->aliveness && dev->hbuf_is_ready) {
@@ -1186,7 +1184,7 @@ static const struct mei_hw_ops mei_txe_hw_ops = {
 
 	.hbuf_free_slots = mei_txe_hbuf_empty_slots,
 	.hbuf_is_ready = mei_txe_is_input_ready,
-	.hbuf_max_len = mei_txe_hbuf_max_len,
+	.hbuf_depth = mei_txe_hbuf_depth,
 
 	.write = mei_txe_write,
 

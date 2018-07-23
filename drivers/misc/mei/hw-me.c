@@ -228,7 +228,7 @@ static void mei_me_hw_config(struct mei_device *dev)
 
 	/* Doesn't change in runtime */
 	hcsr = mei_hcsr_read(dev);
-	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
+	hw->hbuf_depth = (hcsr & H_CBD) >> 24;
 
 	reg = 0;
 	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
@@ -490,28 +490,31 @@ static bool mei_me_hbuf_is_empty(struct mei_device *dev)
  */
 static int mei_me_hbuf_empty_slots(struct mei_device *dev)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	unsigned char filled_slots, empty_slots;
 
 	filled_slots = mei_hbuf_filled_slots(dev);
-	empty_slots = dev->hbuf_depth - filled_slots;
+	empty_slots = hw->hbuf_depth - filled_slots;
 
 	/* check for overflow */
-	if (filled_slots > dev->hbuf_depth)
+	if (filled_slots > hw->hbuf_depth)
 		return -EOVERFLOW;
 
 	return empty_slots;
 }
 
 /**
- * mei_me_hbuf_max_len - returns size of hw buffer.
+ * mei_me_hbuf_depth - returns depth of the hw buffer.
  *
  * @dev: the device structure
  *
- * Return: size of hw buffer in bytes
+ * Return: size of hw buffer in slots
  */
-static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
+static u32 mei_me_hbuf_depth(const struct mei_device *dev)
 {
-	return mei_slots2data(dev->hbuf_depth) - sizeof(struct mei_msg_hdr);
+	struct mei_me_hw *hw = to_me_hw(dev);
+
+	return hw->hbuf_depth;
 }
 
 
@@ -1317,7 +1320,7 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 
 	.hbuf_free_slots = mei_me_hbuf_empty_slots,
 	.hbuf_is_ready = mei_me_hbuf_is_empty,
-	.hbuf_max_len = mei_me_hbuf_max_len,
+	.hbuf_depth = mei_me_hbuf_depth,
 
 	.write = mei_me_hbuf_write,
 
