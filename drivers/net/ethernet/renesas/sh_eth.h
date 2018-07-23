@@ -558,10 +558,4 @@ struct sh_eth_private {
 	unsigned wol_enabled:1;
 };
 
-static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
-					  int enum_index)
-{
-	return mdp->tsu_addr + mdp->reg_offset[enum_index];
-}
-
 #endif	/* #ifndef __SH_ETH_H__ */
