@@ -2480,6 +2480,11 @@ static ssize_t tcmu_block_dev_store(struct config_item *item, const char *page,
 	u8 val;
 	int ret;
 
+	if (!target_dev_configured(&udev->se_dev)) {
+		pr_err("Device is not configured.\n");
+		return -EINVAL;
+	}
+
 	ret = kstrtou8(page, 0, &val);
 	if (ret < 0)
 		return ret;
@@ -2506,6 +2511,11 @@ static ssize_t tcmu_reset_ring_store(struct config_item *item, const char *page,
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	u8 val;
 	int ret;
+
+	if (!target_dev_configured(&udev->se_dev)) {
+		pr_err("Device is not configured.\n");
+		return -EINVAL;
+	}
 
 	ret = kstrtou8(page, 0, &val);
 	if (ret < 0)
