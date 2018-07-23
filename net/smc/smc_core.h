@@ -266,4 +266,9 @@ int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 		    u64 peer_gid);
 void smcd_conn_free(struct smc_connection *conn);
 void smc_core_exit(void);
+
+static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)
+{
+	return container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+}
 #endif

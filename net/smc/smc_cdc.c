@@ -365,7 +365,7 @@ static void smc_cdc_rx_handler(struct ib_wc *wc, void *buf)
 		return; /* invalid message */
 
 	/* lookup connection */
-	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+	lgr = smc_get_lgr(link);
 	read_lock_bh(&lgr->conns_lock);
 	conn = smc_lgr_find_conn(ntohl(cdc->token), lgr);
 	read_unlock_bh(&lgr->conns_lock);
