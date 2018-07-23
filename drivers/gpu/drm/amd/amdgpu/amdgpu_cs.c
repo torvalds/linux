@@ -916,7 +916,7 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 	int r;
 
 	/* Only for UVD/VCE VM emulation */
-	if (p->ring->funcs->parse_cs) {
+	if (p->ring->funcs->parse_cs || p->ring->funcs->patch_cs_in_place) {
 		unsigned i, j;
 
 		for (i = 0, j = 0; i < p->nchunks && j < p->job->num_ibs; i++) {
@@ -957,12 +957,20 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 			offset = m->start * AMDGPU_GPU_PAGE_SIZE;
 			kptr += va_start - offset;
 
-			memcpy(ib->ptr, kptr, chunk_ib->ib_bytes);
-			amdgpu_bo_kunmap(aobj);
+			if (p->ring->funcs->parse_cs) {
+				memcpy(ib->ptr, kptr, chunk_ib->ib_bytes);
+				amdgpu_bo_kunmap(aobj);
 
-			r = amdgpu_ring_parse_cs(ring, p, j);
-			if (r)
-				return r;
+				r = amdgpu_ring_parse_cs(ring, p, j);
+				if (r)
+					return r;
+			} else {
+				ib->ptr = (uint32_t *)kptr;
+				r = amdgpu_ring_patch_cs_in_place(ring, p, j);
+				amdgpu_bo_kunmap(aobj);
+				if (r)
+					return r;
+			}
 
 			j++;
 		}
