@@ -4,25 +4,6 @@
 
 #define	MAX_WMMELE_LENGTH	64
 
-//
-// QoS mode.
-// enum 0, 1, 2, 4: since we can use the OR(|) operation.
-//
-// QOS_MODE is redefined for enum can't be ++, | under C++ compiler, 2006.05.17, by rcnjko.
-//typedef	enum _QOS_MODE{
-//	QOS_DISABLE		= 0,
-//	QOS_WMM			= 1,
-//	QOS_EDCA			= 2,
-//	QOS_HCCA			= 4,
-//}QOS_MODE,*PQOS_MODE;
-//
-#define QOS_DISABLE		0
-#define QOS_WMM			1
-#define QOS_WMMSA		2
-#define QOS_EDCA		4
-#define QOS_HCCA		8
-#define QOS_WMM_UAPSD		16   //WMM Power Save, 2006-06-14 Isaiah
-
 #define AC_PARAM_SIZE	4
 #define WMM_PARAM_ELE_BODY_LEN	18
 
@@ -506,14 +487,11 @@ typedef struct _BSS_QOS {
 	AC_PARAM		AcParameter[4];
 } BSS_QOS, *PBSS_QOS;
 
-
 //
 // Ref: sQoSCtlLng and QoSCtl definition in 8185 QoS code.
 //#define QoSCtl   ((	(Adapter->bRegQoS) && (Adapter->dot11QoS.QoSMode &(QOS_EDCA|QOS_HCCA))	  )  ?sQoSCtlLng:0)
 //
 #define sQoSCtlLng			2
-#define	QOS_CTRL_LEN(_QosMode)		((_QosMode > QOS_DISABLE) ? sQoSCtlLng : 0)
-
 
 //Added by joseph
 //UP Mapping to AC, using in MgntQuery_SequenceNumber() and maybe for DSCP
