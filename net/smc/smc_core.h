@@ -192,8 +192,7 @@ struct smc_link_group {
 			struct smc_rtoken	rtokens[SMC_RMBS_PER_LGR_MAX]
 						[SMC_LINKS_PER_LGR_MAX];
 						/* remote addr/key pairs */
-			unsigned long		rtokens_used_mask[BITS_TO_LONGS
-							(SMC_RMBS_PER_LGR_MAX)];
+			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
 		};
 		struct { /* SMC-D */
