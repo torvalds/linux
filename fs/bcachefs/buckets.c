@@ -818,9 +818,9 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	size_t btree_reserve	= DIV_ROUND_UP(BTREE_NODE_RESERVE,
 			     ca->mi.bucket_size / c->opts.btree_node_size);
 	/* XXX: these should be tunable */
-	size_t reserve_none	= max_t(size_t, 4, ca->mi.nbuckets >> 9);
-	size_t copygc_reserve	= max_t(size_t, 16, ca->mi.nbuckets >> 7);
-	size_t free_inc_nr	= max(max_t(size_t, 16, ca->mi.nbuckets >> 12),
+	size_t reserve_none	= max_t(size_t, 4, nbuckets >> 9);
+	size_t copygc_reserve	= max_t(size_t, 16, nbuckets >> 7);
+	size_t free_inc_nr	= max(max_t(size_t, 16, nbuckets >> 12),
 				      btree_reserve);
 	bool resize = ca->buckets != NULL,
 	     start_copygc = ca->copygc_thread != NULL;
