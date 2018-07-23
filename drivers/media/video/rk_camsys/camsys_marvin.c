@@ -652,13 +652,14 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 			clk_prepare_enable(clk->clk_mipi_24m);
 		}
 		clk->in_on = true;
-
+		pm_runtime_get_sync(&camsys_dev->pdev->dev);
 		camsys_trace(1, "%s clock(f: %ld Hz) in turn on",
 			dev_name(camsys_dev->miscdev.this_device), isp_clk);
 		camsys_mrv_reset_cb(ptr, 1);
 		udelay(100);
 		camsys_mrv_reset_cb(ptr, 0);
 		} else if (!on && clk->in_on) {
+		pm_runtime_put_sync(&camsys_dev->pdev->dev);
 		clk_disable_unprepare(clk->aclk_isp);
 		clk_disable_unprepare(clk->hclk_isp);
 		clk_disable_unprepare(clk->isp);
@@ -929,8 +930,7 @@ static int camsys_mrv_remove_cb(struct platform_device *pdev)
 		if (!IS_ERR_OR_NULL(mrv_clk->pclkin_isp1)) {
 			devm_clk_put(&pdev->dev, mrv_clk->pclkin_isp1);
 		}
-		if (CHIP_TYPE == 3399)
-			pm_runtime_disable(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
 		kfree(mrv_clk);
 		mrv_clk = NULL;
 	}
@@ -975,6 +975,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	}
 	if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366 ||
 	    CHIP_TYPE == 3326) {
+		pm_runtime_enable(&pdev->dev);
 		/* mrv_clk->pd_isp = devm_clk_get(&pdev->dev, "pd_isp"); */
 		mrv_clk->aclk_isp	 = devm_clk_get(&pdev->dev, "aclk_isp");
 		mrv_clk->hclk_isp	 = devm_clk_get(&pdev->dev, "hclk_isp");
@@ -1081,6 +1082,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 			}
 		}
 	} else{
+		pm_runtime_enable(&pdev->dev);
 		/*mrv_clk->pd_isp	  =                */
 		/*	devm_clk_get(&pdev->dev, "pd_isp");*/
 		mrv_clk->aclk_isp	  =

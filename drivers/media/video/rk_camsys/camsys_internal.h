@@ -212,9 +212,11 @@
 	   CSIHOST_PHY_SHUTDOWNZ and CSIHOST_DPHY_RSTZ is
 	   csi host control interface;so DPHY_RX1_SRC_SEL_MASK
 	   should be set DPHY_RX1_SRC_SEL_CSI.
+*v0.0x30.0:
+       1) rk3326 and other platform power management implementation.
 */
 
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x29, 0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x30, 0)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
