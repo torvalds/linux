@@ -4134,6 +4134,20 @@ ib_get_vector_affinity(struct ib_device *device, int comp_vector)
 
 }
 
+static inline void ib_set_flow(struct ib_uobject *uobj, struct ib_flow *ibflow,
+			       struct ib_qp *qp, struct ib_device *device)
+{
+	uobj->object = ibflow;
+	ibflow->uobject = uobj;
+
+	if (qp) {
+		atomic_inc(&qp->usecnt);
+		ibflow->qp = qp;
+	}
+
+	ibflow->device = device;
+}
+
 /**
  * rdma_roce_rescan_device - Rescan all of the network devices in the system
  * and add their gids, as needed, to the relevant RoCE devices.

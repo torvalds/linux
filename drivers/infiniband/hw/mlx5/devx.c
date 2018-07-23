@@ -87,6 +87,28 @@ void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
 	mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 }
 
+bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type)
+{
+	struct devx_obj *devx_obj = obj;
+	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, devx_obj->dinbox, opcode);
+
+	switch (opcode) {
+	case MLX5_CMD_OP_DESTROY_TIR:
+		*dest_type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+		*dest_id = MLX5_GET(general_obj_in_cmd_hdr, devx_obj->dinbox,
+				    obj_id);
+		return true;
+
+	case MLX5_CMD_OP_DESTROY_FLOW_TABLE:
+		*dest_type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		*dest_id = MLX5_GET(destroy_flow_table_in, devx_obj->dinbox,
+				    table_id);
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int devx_is_valid_obj_id(struct devx_obj *obj, const void *in)
 {
 	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);

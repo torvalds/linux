@@ -3641,6 +3641,15 @@ unlock:
 	return ERR_PTR(err);
 }
 
+struct mlx5_ib_flow_handler *
+mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
+			struct mlx5_ib_flow_matcher *fs_matcher,
+			void *cmd_in, int inlen, int dest_id,
+			int dest_type)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
 static u32 mlx5_ib_flow_action_flags_to_accel_xfrm_flags(u32 mlx5_flags)
 {
 	u32 flags = 0;
