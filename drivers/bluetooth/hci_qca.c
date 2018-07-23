@@ -405,7 +405,7 @@ static int qca_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p qca_open", hu);
 
-	qca = kzalloc(sizeof(struct qca_data), GFP_ATOMIC);
+	qca = kzalloc(sizeof(struct qca_data), GFP_KERNEL);
 	if (!qca)
 		return -ENOMEM;
 
@@ -891,7 +891,7 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 
 	cmd[4] = baudrate;
 
-	skb = bt_skb_alloc(sizeof(cmd), GFP_ATOMIC);
+	skb = bt_skb_alloc(sizeof(cmd), GFP_KERNEL);
 	if (!skb) {
 		bt_dev_err(hdev, "Failed to allocate baudrate packet");
 		return -ENOMEM;
