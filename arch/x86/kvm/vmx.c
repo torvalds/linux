@@ -2772,12 +2772,30 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 	load_fixmap_gdt(raw_smp_processor_id());
 }
 
-static void vmx_load_host_state(struct vcpu_vmx *vmx)
+#ifdef CONFIG_X86_64
+static u64 vmx_read_guest_kernel_gs_base(struct vcpu_vmx *vmx)
 {
-	preempt_disable();
-	__vmx_load_host_state(vmx);
-	preempt_enable();
+	if (is_long_mode(&vmx->vcpu)) {
+		preempt_disable();
+		if (vmx->loaded_cpu_state)
+			rdmsrl(MSR_KERNEL_GS_BASE,
+			       vmx->msr_guest_kernel_gs_base);
+		preempt_enable();
+	}
+	return vmx->msr_guest_kernel_gs_base;
 }
+
+static void vmx_write_guest_kernel_gs_base(struct vcpu_vmx *vmx, u64 data)
+{
+	if (is_long_mode(&vmx->vcpu)) {
+		preempt_disable();
+		if (vmx->loaded_cpu_state)
+			wrmsrl(MSR_KERNEL_GS_BASE, data);
+		preempt_enable();
+	}
+	vmx->msr_guest_kernel_gs_base = data;
+}
+#endif
 
 static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 {
@@ -3857,8 +3875,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vmcs_readl(GUEST_GS_BASE);
 		break;
 	case MSR_KERNEL_GS_BASE:
-		vmx_load_host_state(vmx);
-		msr_info->data = vmx->msr_guest_kernel_gs_base;
+		msr_info->data = vmx_read_guest_kernel_gs_base(vmx);
 		break;
 #endif
 	case MSR_EFER:
@@ -3958,8 +3975,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vmcs_writel(GUEST_GS_BASE, data);
 		break;
 	case MSR_KERNEL_GS_BASE:
-		vmx_load_host_state(vmx);
-		vmx->msr_guest_kernel_gs_base = data;
+		vmx_write_guest_kernel_gs_base(vmx, data);
 		break;
 #endif
 	case MSR_IA32_SYSENTER_CS:
@@ -4849,10 +4865,18 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 		return;
 
 	/*
-	 * Force kernel_gs_base reloading before EFER changes, as control
-	 * of this msr depends on is_long_mode().
+	 * MSR_KERNEL_GS_BASE is not intercepted when the guest is in
+	 * 64-bit mode as a 64-bit kernel may frequently access the
+	 * MSR.  This means we need to manually save/restore the MSR
+	 * when switching between guest and host state, but only if
+	 * the guest is in 64-bit mode.  Sync our cached value if the
+	 * guest is transitioning to 32-bit mode and the CPU contains
+	 * guest state, i.e. the cache is stale.
 	 */
-	vmx_load_host_state(to_vmx(vcpu));
+#ifdef CONFIG_X86_64
+	if (!(efer & EFER_LMA))
+		(void)vmx_read_guest_kernel_gs_base(vmx);
+#endif
 	vcpu->arch.efer = efer;
 	if (efer & EFER_LMA) {
 		vm_entry_controls_setbit(to_vmx(vcpu), VM_ENTRY_IA32E_MODE);
