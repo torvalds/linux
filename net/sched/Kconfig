@@ -251,6 +251,19 @@ config NET_SCH_MQPRIO
 
 	  If unsure, say N.
 
+config NET_SCH_SKBPRIO
+	tristate "SKB priority queue scheduler (SKBPRIO)"
+	help
+	  Say Y here if you want to use the SKB priority queue
+	  scheduler. This schedules packets according to skb->priority,
+	  which is useful for request packets in DoS mitigation systems such
+	  as Gatekeeper.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sch_skbprio.
+
+	  If unsure, say N.
+
 config NET_SCH_CHOKE
 	tristate "CHOose and Keep responsive flow scheduler (CHOKE)"
 	help
