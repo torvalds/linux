@@ -396,7 +396,7 @@ enum rxrpc_tx_point {
 #define rxrpc_propose_ack_outcomes \
 	EM(rxrpc_propose_ack_subsume,		" Subsume") \
 	EM(rxrpc_propose_ack_update,		" Update") \
-	E_(rxrpc_propose_ack_use,		"")
+	E_(rxrpc_propose_ack_use,		" New")
 
 #define rxrpc_congest_modes \
 	EM(RXRPC_CALL_CONGEST_AVOIDANCE,	"CongAvoid") \
