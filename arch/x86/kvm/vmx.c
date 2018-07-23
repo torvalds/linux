@@ -219,6 +219,21 @@ struct vmcs {
 };
 
 /*
+ * vmcs_host_state tracks registers that are loaded from the VMCS on VMEXIT
+ * and whose values change infrequently, but are not constant.  I.e. this is
+ * used as a write-through cache of the corresponding VMCS fields.
+ */
+struct vmcs_host_state {
+	unsigned long cr3;	/* May not match real cr3 */
+	unsigned long cr4;	/* May not match real cr4 */
+
+	u16           fs_sel, gs_sel, ldt_sel;
+#ifdef CONFIG_X86_64
+	u16           ds_sel, es_sel;
+#endif
+};
+
+/*
  * Track a VMCS that may be loaded on a certain CPU. If it is (cpu!=-1), also
  * remember whether it was VMLAUNCHed, and maintain a linked list of all VMCSs
  * loaded on this CPU (so we can clear them if the CPU goes down).
@@ -229,14 +244,13 @@ struct loaded_vmcs {
 	int cpu;
 	bool launched;
 	bool nmi_known_unmasked;
-	unsigned long vmcs_host_cr3;	/* May not match real cr3 */
-	unsigned long vmcs_host_cr4;	/* May not match real cr4 */
 	/* Support for vnmi-less CPUs */
 	int soft_vnmi_blocked;
 	ktime_t entry_time;
 	s64 vnmi_blocked_time;
 	unsigned long *msr_bitmap;
 	struct list_head loaded_vmcss_on_cpu_link;
+	struct vmcs_host_state host_state;
 };
 
 struct shared_msr_entry {
@@ -819,12 +833,6 @@ struct vcpu_vmx {
 		struct vmx_msr_entry host[NR_AUTOLOAD_MSRS];
 	} msr_autoload;
 
-	struct {
-		u16           fs_sel, gs_sel, ldt_sel;
-#ifdef CONFIG_X86_64
-		u16           ds_sel, es_sel;
-#endif
-	} host_state;
 	struct {
 		int vm86_active;
 		ulong save_rflags;
@@ -2662,6 +2670,7 @@ static unsigned long segment_base(u16 selector)
 static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct vmcs_host_state *host_state;
 #ifdef CONFIG_X86_64
 	int cpu = raw_smp_processor_id();
 #endif
@@ -2673,16 +2682,17 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 		return;
 
 	vmx->loaded_cpu_state = vmx->loaded_vmcs;
+	host_state = &vmx->loaded_cpu_state->host_state;
 
 	/*
 	 * Set host fs and gs selectors.  Unfortunately, 22.2.3 does not
 	 * allow segment selectors with cpl > 0 or ti == 1.
 	 */
-	vmx->host_state.ldt_sel = kvm_read_ldt();
+	host_state->ldt_sel = kvm_read_ldt();
 
 #ifdef CONFIG_X86_64
-	savesegment(ds, vmx->host_state.ds_sel);
-	savesegment(es, vmx->host_state.es_sel);
+	savesegment(ds, host_state->ds_sel);
+	savesegment(es, host_state->es_sel);
 
 	gs_base = cpu_kernelmode_gs_base(cpu);
 	if (likely(is_64bit_mm(current->mm))) {
@@ -2707,12 +2717,12 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	gs_base = segment_base(gs_sel);
 #endif
 
-	vmx->host_state.fs_sel = fs_sel;
+	host_state->fs_sel = fs_sel;
 	if (!(fs_sel & 7))
 		vmcs_write16(HOST_FS_SELECTOR, fs_sel);
 	else
 		vmcs_write16(HOST_FS_SELECTOR, 0);
-	vmx->host_state.gs_sel = gs_sel;
+	host_state->gs_sel = gs_sel;
 	if (!(gs_sel & 7))
 		vmcs_write16(HOST_GS_SELECTOR, gs_sel);
 	else
@@ -2729,10 +2739,13 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 
 static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 {
+	struct vmcs_host_state *host_state;
+
 	if (!vmx->loaded_cpu_state)
 		return;
 
 	WARN_ON_ONCE(vmx->loaded_cpu_state != vmx->loaded_vmcs);
+	host_state = &vmx->loaded_cpu_state->host_state;
 
 	++vmx->vcpu.stat.host_state_reload;
 	vmx->loaded_cpu_state = NULL;
@@ -2741,20 +2754,20 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 	if (is_long_mode(&vmx->vcpu))
 		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 #endif
-	if (vmx->host_state.ldt_sel || (vmx->host_state.gs_sel & 7)) {
-		kvm_load_ldt(vmx->host_state.ldt_sel);
+	if (host_state->ldt_sel || (host_state->gs_sel & 7)) {
+		kvm_load_ldt(host_state->ldt_sel);
 #ifdef CONFIG_X86_64
-		load_gs_index(vmx->host_state.gs_sel);
+		load_gs_index(host_state->gs_sel);
 #else
-		loadsegment(gs, vmx->host_state.gs_sel);
+		loadsegment(gs, host_state->gs_sel);
 #endif
 	}
-	if (vmx->host_state.fs_sel & 7)
-		loadsegment(fs, vmx->host_state.fs_sel);
+	if (host_state->fs_sel & 7)
+		loadsegment(fs, host_state->fs_sel);
 #ifdef CONFIG_X86_64
-	if (unlikely(vmx->host_state.ds_sel | vmx->host_state.es_sel)) {
-		loadsegment(ds, vmx->host_state.ds_sel);
-		loadsegment(es, vmx->host_state.es_sel);
+	if (unlikely(host_state->ds_sel | host_state->es_sel)) {
+		loadsegment(ds, host_state->ds_sel);
+		loadsegment(es, host_state->es_sel);
 	}
 #endif
 	invalidate_tss_limit();
@@ -4574,6 +4587,9 @@ static int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 			evmcs->hv_enlightenments_control.msr_bitmap = 1;
 		}
 	}
+
+	memset(&loaded_vmcs->host_state, 0, sizeof(struct vmcs_host_state));
+
 	return 0;
 
 out_vmcs:
@@ -6080,12 +6096,12 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	 */
 	cr3 = __read_cr3();
 	vmcs_writel(HOST_CR3, cr3);		/* 22.2.3  FIXME: shadow tables */
-	vmx->loaded_vmcs->vmcs_host_cr3 = cr3;
+	vmx->loaded_vmcs->host_state.cr3 = cr3;
 
 	/* Save the most likely value for this task's CR4 in the VMCS. */
 	cr4 = cr4_read_shadow();
 	vmcs_writel(HOST_CR4, cr4);			/* 22.2.3, 22.2.5 */
-	vmx->loaded_vmcs->vmcs_host_cr4 = cr4;
+	vmx->loaded_vmcs->host_state.cr4 = cr4;
 
 	vmcs_write16(HOST_CS_SELECTOR, __KERNEL_CS);  /* 22.2.4 */
 #ifdef CONFIG_X86_64
@@ -10356,15 +10372,15 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
 
 	cr3 = __get_current_cr3_fast();
-	if (unlikely(cr3 != vmx->loaded_vmcs->vmcs_host_cr3)) {
+	if (unlikely(cr3 != vmx->loaded_vmcs->host_state.cr3)) {
 		vmcs_writel(HOST_CR3, cr3);
-		vmx->loaded_vmcs->vmcs_host_cr3 = cr3;
+		vmx->loaded_vmcs->host_state.cr3 = cr3;
 	}
 
 	cr4 = cr4_read_shadow();
-	if (unlikely(cr4 != vmx->loaded_vmcs->vmcs_host_cr4)) {
+	if (unlikely(cr4 != vmx->loaded_vmcs->host_state.cr4)) {
 		vmcs_writel(HOST_CR4, cr4);
-		vmx->loaded_vmcs->vmcs_host_cr4 = cr4;
+		vmx->loaded_vmcs->host_state.cr4 = cr4;
 	}
 
 	/* When single-stepping over STI and MOV SS, we must clear the
