@@ -170,6 +170,58 @@ void br_manage_promisc(struct net_bridge *br)
 	}
 }
 
+int nbp_backup_change(struct net_bridge_port *p,
+		      struct net_device *backup_dev)
+{
+	struct net_bridge_port *old_backup = rtnl_dereference(p->backup_port);
+	struct net_bridge_port *backup_p = NULL;
+
+	ASSERT_RTNL();
+
+	if (backup_dev) {
+		if (!br_port_exists(backup_dev))
+			return -ENOENT;
+
+		backup_p = br_port_get_rtnl(backup_dev);
+		if (backup_p->br != p->br)
+			return -EINVAL;
+	}
+
+	if (p == backup_p)
+		return -EINVAL;
+
+	if (old_backup == backup_p)
+		return 0;
+
+	/* if the backup link is already set, clear it */
+	if (old_backup)
+		old_backup->backup_redirected_cnt--;
+
+	if (backup_p)
+		backup_p->backup_redirected_cnt++;
+	rcu_assign_pointer(p->backup_port, backup_p);
+
+	return 0;
+}
+
+static void nbp_backup_clear(struct net_bridge_port *p)
+{
+	nbp_backup_change(p, NULL);
+	if (p->backup_redirected_cnt) {
+		struct net_bridge_port *cur_p;
+
+		list_for_each_entry(cur_p, &p->br->port_list, list) {
+			struct net_bridge_port *backup_p;
+
+			backup_p = rtnl_dereference(cur_p->backup_port);
+			if (backup_p == p)
+				nbp_backup_change(cur_p, NULL);
+		}
+	}
+
+	WARN_ON(rcu_access_pointer(p->backup_port) || p->backup_redirected_cnt);
+}
+
 static void nbp_update_port_count(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
@@ -295,6 +347,7 @@ static void del_nbp(struct net_bridge_port *p)
 	nbp_vlan_flush(p);
 	br_fdb_delete_by_port(br, p, 0, 1);
 	switchdev_deferred_process();
+	nbp_backup_clear(p);
 
 	nbp_update_port_count(br);
 

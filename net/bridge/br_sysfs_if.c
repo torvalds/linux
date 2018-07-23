@@ -25,6 +25,15 @@ struct brport_attribute {
 	struct attribute	attr;
 	ssize_t (*show)(struct net_bridge_port *, char *);
 	int (*store)(struct net_bridge_port *, unsigned long);
+	int (*store_raw)(struct net_bridge_port *, char *);
+};
+
+#define BRPORT_ATTR_RAW(_name, _mode, _show, _store)			\
+const struct brport_attribute brport_attr_##_name = {			\
+	.attr		= {.name = __stringify(_name),			\
+			   .mode = _mode },				\
+	.show		= _show,					\
+	.store_raw	= _store,					\
 };
 
 #define BRPORT_ATTR(_name, _mode, _show, _store)		\
@@ -182,6 +191,38 @@ static int store_group_fwd_mask(struct net_bridge_port *p,
 static BRPORT_ATTR(group_fwd_mask, 0644, show_group_fwd_mask,
 		   store_group_fwd_mask);
 
+static ssize_t show_backup_port(struct net_bridge_port *p, char *buf)
+{
+	struct net_bridge_port *backup_p;
+	int ret = 0;
+
+	rcu_read_lock();
+	backup_p = rcu_dereference(p->backup_port);
+	if (backup_p)
+		ret = sprintf(buf, "%s\n", backup_p->dev->name);
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static int store_backup_port(struct net_bridge_port *p, char *buf)
+{
+	struct net_device *backup_dev = NULL;
+	char *nl = strchr(buf, '\n');
+
+	if (nl)
+		*nl = '\0';
+
+	if (strlen(buf) > 0) {
+		backup_dev = __dev_get_by_name(dev_net(p->dev), buf);
+		if (!backup_dev)
+			return -ENOENT;
+	}
+
+	return nbp_backup_change(p, backup_dev);
+}
+static BRPORT_ATTR_RAW(backup_port, 0644, show_backup_port, store_backup_port);
+
 BRPORT_ATTR_FLAG(hairpin_mode, BR_HAIRPIN_MODE);
 BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
@@ -245,6 +286,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_group_fwd_mask,
 	&brport_attr_neigh_suppress,
 	&brport_attr_isolated,
+	&brport_attr_backup_port,
 	NULL
 };
 
@@ -269,27 +311,46 @@ static ssize_t brport_store(struct kobject *kobj,
 	struct brport_attribute *brport_attr = to_brport_attr(attr);
 	struct net_bridge_port *p = kobj_to_brport(kobj);
 	ssize_t ret = -EINVAL;
-	char *endp;
 	unsigned long val;
+	char *endp;
 
 	if (!ns_capable(dev_net(p->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (endp != buf) {
-		if (!rtnl_trylock())
-			return restart_syscall();
-		if (p->dev && p->br && brport_attr->store) {
-			spin_lock_bh(&p->br->lock);
-			ret = brport_attr->store(p, val);
-			spin_unlock_bh(&p->br->lock);
-			if (!ret) {
-				br_ifinfo_notify(RTM_NEWLINK, NULL, p);
-				ret = count;
-			}
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (!p->dev || !p->br)
+		goto out_unlock;
+
+	if (brport_attr->store_raw) {
+		char *buf_copy;
+
+		buf_copy = kstrndup(buf, count, GFP_KERNEL);
+		if (!buf_copy) {
+			ret = -ENOMEM;
+			goto out_unlock;
 		}
-		rtnl_unlock();
+		spin_lock_bh(&p->br->lock);
+		ret = brport_attr->store_raw(p, buf_copy);
+		spin_unlock_bh(&p->br->lock);
+		kfree(buf_copy);
+	} else if (brport_attr->store) {
+		val = simple_strtoul(buf, &endp, 0);
+		if (endp == buf)
+			goto out_unlock;
+		spin_lock_bh(&p->br->lock);
+		ret = brport_attr->store(p, val);
+		spin_unlock_bh(&p->br->lock);
 	}
+
+	if (!ret) {
+		br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+		ret = count;
+	}
+out_unlock:
+	rtnl_unlock();
+
 	return ret;
 }
 
