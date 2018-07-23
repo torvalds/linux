@@ -46,6 +46,8 @@
 #include "cpts.h"
 #include "davinci_cpdma.h"
 
+#include <net/pkt_sched.h>
+
 #define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
 			 NETIF_MSG_DRV		| NETIF_MSG_LINK	| \
 			 NETIF_MSG_IFUP		| NETIF_MSG_INTR	| \
@@ -154,8 +156,12 @@ do {								\
 #define IRQ_NUM			2
 #define CPSW_MAX_QUEUES		8
 #define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
+#define CPSW_FIFO_QUEUE_TYPE_SHIFT	16
+#define CPSW_FIFO_SHAPE_EN_SHIFT	16
+#define CPSW_FIFO_RATE_EN_SHIFT		20
 #define CPSW_TC_NUM			4
 #define CPSW_FIFO_SHAPERS_NUM		(CPSW_TC_NUM - 1)
+#define CPSW_PCT_MASK			0x7f
 
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_SHIFT	29
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_MSK		GENMASK(2, 0)
@@ -458,6 +464,8 @@ struct cpsw_priv {
 	bool				rx_pause;
 	bool				tx_pause;
 	bool				mqprio_hw;
+	int				fifo_bw[CPSW_TC_NUM];
+	int				shp_cfg_speed;
 	u32 emac_port;
 	struct cpsw_common *cpsw;
 };
@@ -1082,6 +1090,38 @@ static void cpsw_set_slave_mac(struct cpsw_slave *slave,
 	slave_write(slave, mac_lo(priv->mac_addr), SA_LO);
 }
 
+static bool cpsw_shp_is_off(struct cpsw_priv *priv)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 shift, mask, val;
+
+	val = readl_relaxed(&cpsw->regs->ptype);
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	shift = CPSW_FIFO_SHAPE_EN_SHIFT + 3 * slave->slave_num;
+	mask = 7 << shift;
+	val = val & mask;
+
+	return !val;
+}
+
+static void cpsw_fifo_shp_on(struct cpsw_priv *priv, int fifo, int on)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 shift, mask, val;
+
+	val = readl_relaxed(&cpsw->regs->ptype);
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	shift = CPSW_FIFO_SHAPE_EN_SHIFT + 3 * slave->slave_num;
+	mask = (1 << --fifo) << shift;
+	val = on ? val | mask : val & ~mask;
+
+	writel_relaxed(val, &cpsw->regs->ptype);
+}
+
 static void _cpsw_adjust_link(struct cpsw_slave *slave,
 			      struct cpsw_priv *priv, bool *link)
 {
@@ -1121,6 +1161,12 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 			mac_control |= BIT(4);
 
 		*link = true;
+
+		if (priv->shp_cfg_speed &&
+		    priv->shp_cfg_speed != slave->phy->speed &&
+		    !cpsw_shp_is_off(priv))
+			dev_warn(priv->dev,
+				 "Speed was changed, CBS shaper speeds are changed!");
 	} else {
 		mac_control = 0;
 		/* disable forwarding */
@@ -1588,6 +1634,178 @@ static int cpsw_tc_to_fifo(int tc, int num_tc)
 		return 0;
 
 	return CPSW_FIFO_SHAPERS_NUM - tc;
+}
+
+static int cpsw_set_fifo_bw(struct cpsw_priv *priv, int fifo, int bw)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	u32 val = 0, send_pct, shift;
+	struct cpsw_slave *slave;
+	int pct = 0, i;
+
+	if (bw > priv->shp_cfg_speed * 1000)
+		goto err;
+
+	/* shaping has to stay enabled for highest fifos linearly
+	 * and fifo bw no more then interface can allow
+	 */
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	send_pct = slave_read(slave, SEND_PERCENT);
+	for (i = CPSW_FIFO_SHAPERS_NUM; i > 0; i--) {
+		if (!bw) {
+			if (i >= fifo || !priv->fifo_bw[i])
+				continue;
+
+			dev_warn(priv->dev, "Prev FIFO%d is shaped", i);
+			continue;
+		}
+
+		if (!priv->fifo_bw[i] && i > fifo) {
+			dev_err(priv->dev, "Upper FIFO%d is not shaped", i);
+			return -EINVAL;
+		}
+
+		shift = (i - 1) * 8;
+		if (i == fifo) {
+			send_pct &= ~(CPSW_PCT_MASK << shift);
+			val = DIV_ROUND_UP(bw, priv->shp_cfg_speed * 10);
+			if (!val)
+				val = 1;
+
+			send_pct |= val << shift;
+			pct += val;
+			continue;
+		}
+
+		if (priv->fifo_bw[i])
+			pct += (send_pct >> shift) & CPSW_PCT_MASK;
+	}
+
+	if (pct >= 100)
+		goto err;
+
+	slave_write(slave, send_pct, SEND_PERCENT);
+	priv->fifo_bw[fifo] = bw;
+
+	dev_warn(priv->dev, "set FIFO%d bw = %d\n", fifo,
+		 DIV_ROUND_CLOSEST(val * priv->shp_cfg_speed, 100));
+
+	return 0;
+err:
+	dev_err(priv->dev, "Bandwidth doesn't fit in tc configuration");
+	return -EINVAL;
+}
+
+static int cpsw_set_fifo_rlimit(struct cpsw_priv *priv, int fifo, int bw)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 tx_in_ctl_rg, val;
+	int ret;
+
+	ret = cpsw_set_fifo_bw(priv, fifo, bw);
+	if (ret)
+		return ret;
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	tx_in_ctl_rg = cpsw->version == CPSW_VERSION_1 ?
+		       CPSW1_TX_IN_CTL : CPSW2_TX_IN_CTL;
+
+	if (!bw)
+		cpsw_fifo_shp_on(priv, fifo, bw);
+
+	val = slave_read(slave, tx_in_ctl_rg);
+	if (cpsw_shp_is_off(priv)) {
+		/* disable FIFOs rate limited queues */
+		val &= ~(0xf << CPSW_FIFO_RATE_EN_SHIFT);
+
+		/* set type of FIFO queues to normal priority mode */
+		val &= ~(3 << CPSW_FIFO_QUEUE_TYPE_SHIFT);
+
+		/* set type of FIFO queues to be rate limited */
+		if (bw)
+			val |= 2 << CPSW_FIFO_QUEUE_TYPE_SHIFT;
+		else
+			priv->shp_cfg_speed = 0;
+	}
+
+	/* toggle a FIFO rate limited queue */
+	if (bw)
+		val |= BIT(fifo + CPSW_FIFO_RATE_EN_SHIFT);
+	else
+		val &= ~BIT(fifo + CPSW_FIFO_RATE_EN_SHIFT);
+	slave_write(slave, val, tx_in_ctl_rg);
+
+	/* FIFO transmit shape enable */
+	cpsw_fifo_shp_on(priv, fifo, bw);
+	return 0;
+}
+
+/* Defaults:
+ * class A - prio 3
+ * class B - prio 2
+ * shaping for class A should be set first
+ */
+static int cpsw_set_cbs(struct net_device *ndev,
+			struct tc_cbs_qopt_offload *qopt)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	int prev_speed = 0;
+	int tc, ret, fifo;
+	u32 bw = 0;
+
+	tc = netdev_txq_to_tc(priv->ndev, qopt->queue);
+
+	/* enable channels in backward order, as highest FIFOs must be rate
+	 * limited first and for compliance with CPDMA rate limited channels
+	 * that also used in bacward order. FIFO0 cannot be rate limited.
+	 */
+	fifo = cpsw_tc_to_fifo(tc, ndev->num_tc);
+	if (!fifo) {
+		dev_err(priv->dev, "Last tc%d can't be rate limited", tc);
+		return -EINVAL;
+	}
+
+	/* do nothing, it's disabled anyway */
+	if (!qopt->enable && !priv->fifo_bw[fifo])
+		return 0;
+
+	/* shapers can be set if link speed is known */
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	if (slave->phy && slave->phy->link) {
+		if (priv->shp_cfg_speed &&
+		    priv->shp_cfg_speed != slave->phy->speed)
+			prev_speed = priv->shp_cfg_speed;
+
+		priv->shp_cfg_speed = slave->phy->speed;
+	}
+
+	if (!priv->shp_cfg_speed) {
+		dev_err(priv->dev, "Link speed is not known");
+		return -1;
+	}
+
+	ret = pm_runtime_get_sync(cpsw->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(cpsw->dev);
+		return ret;
+	}
+
+	bw = qopt->enable ? qopt->idleslope : 0;
+	ret = cpsw_set_fifo_rlimit(priv, fifo, bw);
+	if (ret) {
+		priv->shp_cfg_speed = prev_speed;
+		prev_speed = 0;
+	}
+
+	if (bw && prev_speed)
+		dev_warn(priv->dev,
+			 "Speed was changed, CBS shaper speeds are changed!");
+
+	pm_runtime_put_sync(cpsw->dev);
+	return ret;
 }
 
 static int cpsw_ndo_open(struct net_device *ndev)
@@ -2264,6 +2482,9 @@ static int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 			     void *type_data)
 {
 	switch (type) {
+	case TC_SETUP_QDISC_CBS:
+		return cpsw_set_cbs(ndev, type_data);
+
 	case TC_SETUP_QDISC_MQPRIO:
 		return cpsw_set_mqprio(ndev, type_data);
 
