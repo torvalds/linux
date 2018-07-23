@@ -1528,6 +1528,26 @@ TRACE_EVENT(rxrpc_call_reset,
 		      __entry->tx_seq, __entry->rx_seq)
 	    );
 
+TRACE_EVENT(rxrpc_notify_socket,
+	    TP_PROTO(unsigned int debug_id, rxrpc_serial_t serial),
+
+	    TP_ARGS(debug_id, serial),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		debug_id	)
+		    __field(rxrpc_serial_t,		serial		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->debug_id = debug_id;
+		    __entry->serial = serial;
+			   ),
+
+	    TP_printk("c=%08x r=%08x",
+		      __entry->debug_id,
+		      __entry->serial)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */
