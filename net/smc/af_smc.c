@@ -1755,12 +1755,8 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 		    smc->sk.sk_state == SMC_CLOSED) {
 			answ = 0;
 		} else {
-			smc_curs_write(&cons,
-			       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
-				       conn);
-			smc_curs_write(&urg,
-				       smc_curs_read(&conn->urg_curs, conn),
-				       conn);
+			smc_curs_copy(&cons, &conn->local_tx_ctrl.cons, conn);
+			smc_curs_copy(&urg, &conn->urg_curs, conn);
 			answ = smc_curs_diff(conn->rmb_desc->len,
 					     &cons, &urg) == 1;
 		}

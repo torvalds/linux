@@ -20,12 +20,19 @@ struct smc_diag_req {
 struct smc_diag_msg {
 	__u8	diag_family;
 	__u8	diag_state;
-	__u8	diag_fallback;
+	__u8	diag_mode;
 	__u8	diag_shutdown;
 	struct inet_diag_sockid id;
 
 	__u32	diag_uid;
 	__u64	diag_inode;
+};
+
+/* Mode of a connection */
+enum {
+	SMC_DIAG_MODE_SMCR,
+	SMC_DIAG_MODE_FALLBACK_TCP,
+	SMC_DIAG_MODE_SMCD,
 };
 
 /* Extensions */

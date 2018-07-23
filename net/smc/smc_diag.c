@@ -91,7 +91,12 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 	r = nlmsg_data(nlh);
 	smc_diag_msg_common_fill(r, sk);
 	r->diag_state = sk->sk_state;
-	r->diag_fallback = smc->use_fallback;
+	if (smc->use_fallback)
+		r->diag_mode = SMC_DIAG_MODE_FALLBACK_TCP;
+	else if (smc->conn.lgr && smc->conn.lgr->is_smcd)
+		r->diag_mode = SMC_DIAG_MODE_SMCD;
+	else
+		r->diag_mode = SMC_DIAG_MODE_SMCR;
 	user_ns = sk_user_ns(NETLINK_CB(cb->skb).sk);
 	if (smc_diag_msg_attrs_fill(sk, skb, r, user_ns))
 		goto errout;

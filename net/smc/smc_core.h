@@ -192,8 +192,7 @@ struct smc_link_group {
 			struct smc_rtoken	rtokens[SMC_RMBS_PER_LGR_MAX]
 						[SMC_LINKS_PER_LGR_MAX];
 						/* remote addr/key pairs */
-			unsigned long		rtokens_used_mask[BITS_TO_LONGS
-							(SMC_RMBS_PER_LGR_MAX)];
+			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
 		};
 		struct { /* SMC-D */
@@ -266,4 +265,9 @@ int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 		    u64 peer_gid);
 void smcd_conn_free(struct smc_connection *conn);
 void smc_core_exit(void);
+
+static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)
+{
+	return container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+}
 #endif
