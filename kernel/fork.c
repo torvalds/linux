@@ -1934,18 +1934,20 @@ static __latent_entropy struct task_struct *copy_process(
 		goto bad_fork_cancel_cgroup;
 	}
 
-	/*
-	 * Process group and session signals need to be delivered to just the
-	 * parent before the fork or both the parent and the child after the
-	 * fork. Restart if a signal comes in before we add the new process to
-	 * it's process group.
-	 * A fatal signal pending means that current will exit, so the new
-	 * thread can't slip out of an OOM kill (or normal SIGKILL).
-	*/
-	recalc_sigpending();
-	if (signal_pending(current)) {
-		retval = -ERESTARTNOINTR;
-		goto bad_fork_cancel_cgroup;
+	if (!(clone_flags & CLONE_THREAD)) {
+		/*
+		 * Process group and session signals need to be delivered to just the
+		 * parent before the fork or both the parent and the child after the
+		 * fork. Restart if a signal comes in before we add the new process to
+		 * it's process group.
+		 * A fatal signal pending means that current will exit, so the new
+		 * thread can't slip out of an OOM kill (or normal SIGKILL).
+		 */
+		recalc_sigpending();
+		if (signal_pending(current)) {
+			retval = -ERESTARTNOINTR;
+			goto bad_fork_cancel_cgroup;
+		}
 	}
 
 
@@ -1982,6 +1984,7 @@ static __latent_entropy struct task_struct *copy_process(
 			current->signal->nr_threads++;
 			atomic_inc(&current->signal->live);
 			atomic_inc(&current->signal->sigcnt);
+			task_join_group_stop(p);
 			list_add_tail_rcu(&p->thread_group,
 					  &p->group_leader->thread_group);
 			list_add_tail_rcu(&p->thread_node,

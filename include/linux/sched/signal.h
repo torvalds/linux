@@ -385,6 +385,8 @@ static inline void ptrace_signal_wake_up(struct task_struct *t, bool resume)
 	signal_wake_up_state(t, resume ? __TASK_TRACED : 0);
 }
 
+void task_join_group_stop(struct task_struct *task);
+
 #ifdef TIF_RESTORE_SIGMASK
 /*
  * Legacy restore_sigmask accessors.  These are inefficient on
