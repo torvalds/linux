@@ -17,6 +17,28 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		led-controller@200 {
+			compatible = "sprd,sc27xx-bltc", "sprd,sc2731-bltc";
+			reg = <0x200>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@0 {
+				label = "red";
+				reg = <0x0>;
+			};
+
+			led@1 {
+				label = "green";
+				reg = <0x1>;
+			};
+
+			led@2 {
+				label = "blue";
+				reg = <0x2>;
+			};
+		};
+
 		rtc@280 {
 			compatible = "sprd,sc27xx-rtc", "sprd,sc2731-rtc";
 			reg = <0x280>;
