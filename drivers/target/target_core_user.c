@@ -2017,8 +2017,8 @@ enum {
 static match_table_t tokens = {
 	{Opt_dev_config, "dev_config=%s"},
 	{Opt_dev_size, "dev_size=%u"},
-	{Opt_hw_block_size, "hw_block_size=%u"},
-	{Opt_hw_max_sectors, "hw_max_sectors=%u"},
+	{Opt_hw_block_size, "hw_block_size=%d"},
+	{Opt_hw_max_sectors, "hw_max_sectors=%d"},
 	{Opt_nl_reply_supported, "nl_reply_supported=%d"},
 	{Opt_max_data_area_mb, "max_data_area_mb=%d"},
 	{Opt_err, NULL}
@@ -2026,25 +2026,21 @@ static match_table_t tokens = {
 
 static int tcmu_set_dev_attrib(substring_t *arg, u32 *dev_attrib)
 {
-	unsigned long tmp_ul;
-	char *arg_p;
-	int ret;
+	int val, ret;
 
-	arg_p = match_strdup(arg);
-	if (!arg_p)
-		return -ENOMEM;
-
-	ret = kstrtoul(arg_p, 0, &tmp_ul);
-	kfree(arg_p);
+	ret = match_int(arg, &val);
 	if (ret < 0) {
-		pr_err("kstrtoul() failed for dev attrib\n");
+		pr_err("match_int() failed for dev attrib. Error %d.\n",
+		       ret);
 		return ret;
 	}
-	if (!tmp_ul) {
-		pr_err("dev attrib must be nonzero\n");
+
+	if (val <= 0) {
+		pr_err("Invalid dev attrib value %d. Must be greater than zero.\n",
+		       val);
 		return -EINVAL;
 	}
-	*dev_attrib = tmp_ul;
+	*dev_attrib = val;
 	return 0;
 }
 
@@ -2131,15 +2127,10 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 					&(dev->dev_attrib.hw_max_sectors));
 			break;
 		case Opt_nl_reply_supported:
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
-				break;
-			}
-			ret = kstrtoint(arg_p, 0, &udev->nl_reply_supported);
-			kfree(arg_p);
+			ret = match_int(&args[0], &udev->nl_reply_supported);
 			if (ret < 0)
-				pr_err("kstrtoint() failed for nl_reply_supported=\n");
+				pr_err("match_int() failed for nl_reply_supported=. Error %d.\n",
+				       ret);
 			break;
 		case Opt_max_data_area_mb:
 			ret = tcmu_set_max_blocks_param(udev, &args[0]);
