@@ -237,6 +237,7 @@ struct net_bridge_port {
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
+	struct net_bridge_port		__rcu *backup_port;
 
 	/* STP */
 	u8				priority;
@@ -281,6 +282,7 @@ struct net_bridge_port {
 	int				offload_fwd_mark;
 #endif
 	u16				group_fwd_mask;
+	u16				backup_redirected_cnt;
 };
 
 #define kobj_to_brport(obj)	container_of(obj, struct net_bridge_port, kobj)
@@ -597,6 +599,7 @@ netdev_features_t br_features_recompute(struct net_bridge *br,
 					netdev_features_t features);
 void br_port_flags_change(struct net_bridge_port *port, unsigned long mask);
 void br_manage_promisc(struct net_bridge *br);
+int nbp_backup_change(struct net_bridge_port *p, struct net_device *backup_dev);
 
 /* br_input.c */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb);

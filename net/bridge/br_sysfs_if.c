@@ -191,6 +191,38 @@ static int store_group_fwd_mask(struct net_bridge_port *p,
 static BRPORT_ATTR(group_fwd_mask, 0644, show_group_fwd_mask,
 		   store_group_fwd_mask);
 
+static ssize_t show_backup_port(struct net_bridge_port *p, char *buf)
+{
+	struct net_bridge_port *backup_p;
+	int ret = 0;
+
+	rcu_read_lock();
+	backup_p = rcu_dereference(p->backup_port);
+	if (backup_p)
+		ret = sprintf(buf, "%s\n", backup_p->dev->name);
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static int store_backup_port(struct net_bridge_port *p, char *buf)
+{
+	struct net_device *backup_dev = NULL;
+	char *nl = strchr(buf, '\n');
+
+	if (nl)
+		*nl = '\0';
+
+	if (strlen(buf) > 0) {
+		backup_dev = __dev_get_by_name(dev_net(p->dev), buf);
+		if (!backup_dev)
+			return -ENOENT;
+	}
+
+	return nbp_backup_change(p, backup_dev);
+}
+static BRPORT_ATTR_RAW(backup_port, 0644, show_backup_port, store_backup_port);
+
 BRPORT_ATTR_FLAG(hairpin_mode, BR_HAIRPIN_MODE);
 BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
@@ -254,6 +286,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_group_fwd_mask,
 	&brport_attr_neigh_suppress,
 	&brport_attr_isolated,
+	&brport_attr_backup_port,
 	NULL
 };
 
