@@ -325,6 +325,7 @@ err_fbdev:
 err_vblank:
 	pm_runtime_disable(drm->dev);
 err_pm_active:
+	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
 err_unload:
 	of_node_put(hdlcd->crtc.port);
@@ -350,16 +351,18 @@ static void hdlcd_drm_unbind(struct device *dev)
 	component_unbind_all(dev, drm);
 	of_node_put(hdlcd->crtc.port);
 	hdlcd->crtc.port = NULL;
-	pm_runtime_get_sync(drm->dev);
+	pm_runtime_get_sync(dev);
+	drm_crtc_vblank_off(&hdlcd->crtc);
 	drm_irq_uninstall(drm);
-	pm_runtime_put_sync(drm->dev);
-	pm_runtime_disable(drm->dev);
-	of_reserved_mem_device_release(drm->dev);
 	drm_atomic_helper_shutdown(drm);
+	pm_runtime_put(dev);
+	if (pm_runtime_enabled(dev))
+		pm_runtime_disable(dev);
+	of_reserved_mem_device_release(dev);
 	drm_mode_config_cleanup(drm);
-	drm_dev_put(drm);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops hdlcd_master_ops = {
