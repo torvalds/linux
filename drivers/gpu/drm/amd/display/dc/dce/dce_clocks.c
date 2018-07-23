@@ -463,7 +463,7 @@ static void dce12_update_clocks(struct dccg *dccg,
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->dispclk_khz;
-		dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
+		new_clocks->dispclk_khz = dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
 		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
 
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
@@ -661,7 +661,7 @@ static void dce_update_clocks(struct dccg *dccg,
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
-		dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
+		new_clocks->dispclk_khz = dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
 		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
 	}
 }
