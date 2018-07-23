@@ -129,8 +129,10 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		_proto("Tx ABORT %%%u { %d } [re]", serial, conn->local_abort);
 		break;
 	case RXRPC_PACKET_TYPE_ACK:
-		trace_rxrpc_tx_ack(NULL, serial, chan->last_seq, 0,
-				   RXRPC_ACK_DUPLICATE, 0);
+		trace_rxrpc_tx_ack(NULL, serial,
+				   ntohl(pkt.ack.firstPacket),
+				   ntohl(pkt.ack.serial),
+				   pkt.ack.reason, 0);
 		_proto("Tx ACK %%%u [re]", serial);
 		break;
 	}
