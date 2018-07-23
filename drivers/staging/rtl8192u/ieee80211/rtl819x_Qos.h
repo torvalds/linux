@@ -10,56 +10,6 @@
 #define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
 
 //
-// QoS Control Field
-// Ref:
-//	1. WMM spec 2.1.6: QoS Control Field, p.9.
-//	2. 802.11e/D13.0 7.1.3.5, p.26.
-//
-typedef	union _QOS_CTRL_FIELD {
-	u8	charData[2];
-	u16	shortData;
-
-	// WMM spec
-	struct {
-		u8		UP:3;
-		u8		usRsvd1:1;
-		u8		EOSP:1;
-		u8		AckPolicy:2;
-		u8		usRsvd2:1;
-		u8		ucRsvdByte;
-	} WMM;
-
-	// 802.11e: QoS data type frame sent by non-AP QSTAs.
-	struct {
-		u8		TID:4;
-		u8		bIsQsize:1;// 0: BIT[8:15] is TXOP Duration Requested, 1: BIT[8:15] is Queue Size.
-		u8		AckPolicy:2;
-		u8		usRsvd:1;
-		u8		TxopOrQsize;	// (BIT4=0)TXOP Duration Requested or (BIT4=1)Queue Size.
-	} BySta;
-
-	// 802.11e: QoS data, QoS Null, and QoS Data+CF-Ack frames sent by HC.
-	struct {
-		u8		TID:4;
-		u8		EOSP:1;
-		u8		AckPolicy:2;
-		u8		usRsvd:1;
-		u8		PSBufState;		// QAP PS Buffer State.
-	} ByHc_Data;
-
-	// 802.11e: QoS (+) CF-Poll frames sent by HC.
-	struct {
-		u8		TID:4;
-		u8		EOSP:1;
-		u8		AckPolicy:2;
-		u8		usRsvd:1;
-		u8		TxopLimit;		// TXOP Limit.
-	} ByHc_CFP;
-
-} QOS_CTRL_FIELD, *PQOS_CTRL_FIELD;
-
-
-//
 // QoS Info Field
 // Ref:
 //	1. WMM spec 2.2.1: WME Information Element, p.11.
