@@ -469,25 +469,6 @@ typedef struct _STA_QOS {
 } STA_QOS, *PSTA_QOS;
 
 //
-// BSS QOS data.
-// Ref: BssDscr in 8185 code. [def. in BssDscr.h]
-//
-typedef struct _BSS_QOS {
-	u32		        bdQoSMode;    // QOS_MODE
-
-	u8			bdWMMIEBuf[MAX_WMMELE_LENGTH];
-	u8		*bdWMMIE;
-
-	QOS_ELE_SUBTYPE		EleSubType;
-
-	u8			*pWMMInfoEle;
-	u8			*pWMMParamEle;
-
-	QOS_INFO_FIELD		QosInfoField;
-	AC_PARAM		AcParameter[4];
-} BSS_QOS, *PBSS_QOS;
-
-//
 // Ref: sQoSCtlLng and QoSCtl definition in 8185 QoS code.
 //#define QoSCtl   ((	(Adapter->bRegQoS) && (Adapter->dot11QoS.QoSMode &(QOS_EDCA|QOS_HCCA))	  )  ?sQoSCtlLng:0)
 //
