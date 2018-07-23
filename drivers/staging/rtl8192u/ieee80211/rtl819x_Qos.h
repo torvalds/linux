@@ -112,21 +112,6 @@ typedef union _TSPEC_BODY {
 	} f;	// Field
 } TSPEC_BODY, *PTSPEC_BODY;
 
-
-//
-// WMM TSPEC Element.
-// Ref: WMM spec 2.2.11: WME TSPEC Element, p.16.
-//
-typedef struct _WMM_TSPEC {
-	u8		ID;
-	u8		Length;
-	u8		OUI[3];
-	u8		OUI_Type;
-	u8		OUI_SubType;
-	u8		Version;
-	TSPEC_BODY	Body;
-} WMM_TSPEC, *PWMM_TSPEC;
-
 //
 // ACM implementation method.
 // Annie, 2005-12-13.
