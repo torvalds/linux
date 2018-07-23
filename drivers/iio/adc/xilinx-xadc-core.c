@@ -1226,14 +1226,14 @@ static int xadc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_samplerate_trigger;
 
-	ret = xadc->ops->setup(pdev, indio_dev, xadc->irq);
-	if (ret)
-		goto err_clk_disable_unprepare;
-
 	ret = request_irq(xadc->irq, xadc->ops->interrupt_handler, 0,
 			dev_name(&pdev->dev), indio_dev);
 	if (ret)
 		goto err_clk_disable_unprepare;
+
+	ret = xadc->ops->setup(pdev, indio_dev, xadc->irq);
+	if (ret)
+		goto err_free_irq;
 
 	for (i = 0; i < 16; i++)
 		xadc_read_adc_reg(xadc, XADC_REG_THRESHOLD(i),
