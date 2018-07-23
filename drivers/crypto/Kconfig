@@ -759,4 +759,6 @@ config CRYPTO_DEV_CCREE
 	  cryptographic operations on the system REE.
 	  If unsure say Y.
 
+source "drivers/crypto/hisilicon/Kconfig"
+
 endif # CRYPTO_HW
