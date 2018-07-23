@@ -1014,6 +1014,7 @@ void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size)
 		 * Limit coherent and dma mask based on size
 		 * retrieved from firmware.
 		 */
+		dev->bus_dma_mask = mask;
 		dev->coherent_dma_mask = mask;
 		*dev->dma_mask = mask;
 	}
