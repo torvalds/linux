@@ -320,6 +320,7 @@ recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (wc->status != IB_WC_SUCCESS)
 		goto err_out;
 
+	c->rc->size = wc->byte_len;
 	err = p9_parse_header(c->rc, NULL, NULL, &tag, 1);
 	if (err)
 		goto err_out;
