@@ -68,6 +68,7 @@ struct xadc {
 	spinlock_t lock;
 
 	struct completion completion;
+	int irq;
 };
 
 struct xadc_ops {
