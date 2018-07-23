@@ -19180,7 +19180,8 @@ static void dhd_sysfs_exit(dhd_info_t *dhd)
 	}
 
 	/* Releae the kobject */
-	kobject_put(&dhd->dhd_kobj);
+	if (dhd->dhd_kobj.state_initialized)
+		kobject_put(&dhd->dhd_kobj);
 }
 
 #ifdef DHD_DEBUG_UART

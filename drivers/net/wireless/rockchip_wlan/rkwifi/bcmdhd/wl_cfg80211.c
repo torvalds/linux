@@ -14050,6 +14050,7 @@ static s32 wl_create_event_handler(struct bcm_cfg80211 *cfg)
 	}
 
 	if (!cfg->event_workq) {
+		WL_ERR(("event_workq alloc_workqueue failed\n"));
 		ret = -ENOMEM;
 	} else {
 		INIT_WORK(&cfg->event_work, wl_event_handler);
@@ -15245,6 +15246,14 @@ static s32 wl_init_priv(struct bcm_cfg80211 *cfg)
 	init_waitqueue_head(&cfg->netif_change_event);
 	init_completion(&cfg->send_af_done);
 	init_completion(&cfg->iface_disable);
+	mutex_init(&cfg->usr_sync);
+	mutex_init(&cfg->event_sync);
+	mutex_init(&cfg->scan_complete);
+	mutex_init(&cfg->if_sync);
+	mutex_init(&cfg->pm_sync);
+#ifdef WLTDLS
+	mutex_init(&cfg->tdls_sync);
+#endif /* WLTDLS */
 	wl_init_eq(cfg);
 	err = wl_init_priv_mem(cfg);
 	if (err)
@@ -15252,13 +15261,6 @@ static s32 wl_init_priv(struct bcm_cfg80211 *cfg)
 	if (wl_create_event_handler(cfg))
 		return -ENOMEM;
 	wl_init_event_handler(cfg);
-	mutex_init(&cfg->usr_sync);
-	mutex_init(&cfg->event_sync);
-	mutex_init(&cfg->scan_complete);
-	mutex_init(&cfg->if_sync);
-#ifdef WLTDLS
-	mutex_init(&cfg->tdls_sync);
-#endif /* WLTDLS */
 	err = wl_init_scan(cfg);
 	if (err)
 		return err;
@@ -15285,9 +15287,11 @@ static void wl_deinit_priv(struct bcm_cfg80211 *cfg)
 	wl_destroy_event_handler(cfg);
 	wl_flush_eq(cfg);
 	wl_link_down(cfg);
-	del_timer_sync(&cfg->scan_timeout);
+	if (cfg->scan_timeout.function)
+		del_timer_sync(&cfg->scan_timeout);
 #ifdef DHD_LOSSLESS_ROAMING
-	del_timer_sync(&cfg->roam_timeout);
+	if (cfg->roam_timeout.function)
+		del_timer_sync(&cfg->roam_timeout);
 #endif
 	wl_deinit_priv_mem(cfg);
 	if (wl_cfg80211_netdev_notifier_registered) {
@@ -15398,7 +15402,7 @@ struct bcm_cfg80211 *wl_get_cfg(struct net_device *ndev)
 {
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 
-	if (!wdev)
+	if (!wdev || !wdev->wiphy)
 		return NULL;
 
 	return wiphy_priv(wdev->wiphy);
@@ -15443,14 +15447,14 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *context)
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
 	cfg->state_notifier = wl_notifier_change_state;
-	err = wl_alloc_netinfo(cfg, ndev, wdev, WL_MODE_BSS, PM_ENABLE, 0);
-	if (err) {
-		WL_ERR(("Failed to alloc net_info (%d)\n", err));
-		goto cfg80211_attach_out;
-	}
 	err = wl_init_priv(cfg);
 	if (err) {
 		WL_ERR(("Failed to init iwm_priv (%d)\n", err));
+		goto cfg80211_attach_out;
+	}
+	err = wl_alloc_netinfo(cfg, ndev, wdev, wdev->iftype, PM_ENABLE, 0);
+	if (err) {
+		WL_ERR(("Failed to alloc net_info (%d)\n", err));
 		goto cfg80211_attach_out;
 	}
 
@@ -15495,7 +15499,6 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *context)
 #endif 
 
 	INIT_DELAYED_WORK(&cfg->pm_enable_work, wl_cfg80211_work_handler);
-	mutex_init(&cfg->pm_sync);
 
 #if defined(STAT_REPORT)
 	err = wl_attach_stat_report(cfg);
@@ -15506,8 +15509,7 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *context)
 	return err;
 
 cfg80211_attach_out:
-	wl_setup_rfkill(cfg, FALSE);
-	wl_free_wdev(cfg);
+	wl_cfg80211_detach(cfg);
 	return err;
 }
 
@@ -16298,12 +16300,14 @@ static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 
 	WL_DBG(("In\n"));
 
-	err = wl_create_event_handler(cfg);
-	if (err) {
-		WL_ERR(("wl_create_event_handler failed\n"));
-		return err;
+	if (!dhd_download_fw_on_driverload) {
+		err = wl_create_event_handler(cfg);
+		if (err) {
+			WL_ERR(("wl_create_event_handler failed\n"));
+			return err;
+		}
+		wl_init_event_handler(cfg);
 	}
-	wl_init_event_handler(cfg);
 
 	err = dhd_config_dongle(cfg);
 	if (unlikely(err))
@@ -16331,19 +16335,7 @@ static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 			return err;
 		}
 	}
-	if (!dhd_download_fw_on_driverload) {
-		err = wl_create_event_handler(cfg);
-		if (err) {
-			WL_ERR(("wl_create_event_handler failed\n"));
-			return err;
-		}
-		wl_init_event_handler(cfg);
-	}
-	err = wl_init_scan(cfg);
-	if (err) {
-		WL_ERR(("wl_init_scan failed\n"));
-		return err;
-	}
+
 #ifdef DHD_LOSSLESS_ROAMING
 	if (timer_pending(&cfg->roam_timeout)) {
 		del_timer_sync(&cfg->roam_timeout);
@@ -16680,9 +16672,11 @@ int wl_cfg80211_hang(struct net_device *dev, u16 reason)
 s32 wl_cfg80211_down(struct net_device *dev)
 {
 	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
-	s32 err;
+	s32 err = 0;
 
 	WL_DBG(("In\n"));
+	if (cfg == NULL)
+		return err;
 	mutex_lock(&cfg->usr_sync);
 #if defined(RSSIAVG)
 	wl_free_rssi_cache(&g_rssi_cache_ctrl);

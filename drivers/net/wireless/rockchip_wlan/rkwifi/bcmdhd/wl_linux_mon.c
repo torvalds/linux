@@ -388,8 +388,8 @@ int dhd_monitor_uninit(void)
 {
 	int i;
 	struct net_device *ndev;
-	mutex_lock(&g_monitor.lock);
 	if (g_monitor.monitor_state != MONITOR_STATE_DEINIT) {
+		mutex_lock(&g_monitor.lock);
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			ndev = g_monitor.mon_if[i].mon_ndev;
 			if (ndev) {
@@ -400,7 +400,7 @@ int dhd_monitor_uninit(void)
 			}
 		}
 		g_monitor.monitor_state = MONITOR_STATE_DEINIT;
+		mutex_unlock(&g_monitor.lock);
 	}
-	mutex_unlock(&g_monitor.lock);
 	return 0;
 }
