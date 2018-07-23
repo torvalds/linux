@@ -457,16 +457,22 @@ static int __virtnet_xdp_xmit_one(struct virtnet_info *vi,
 	return 0;
 }
 
+static struct send_queue *virtnet_xdp_sq(struct virtnet_info *vi)
+{
+	unsigned int qp;
+
+	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
+	return &vi->sq[qp];
+}
+
 static int __virtnet_xdp_tx_xmit(struct virtnet_info *vi,
 				   struct xdp_frame *xdpf)
 {
 	struct xdp_frame *xdpf_sent;
 	struct send_queue *sq;
 	unsigned int len;
-	unsigned int qp;
 
-	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
-	sq = &vi->sq[qp];
+	sq = virtnet_xdp_sq(vi);
 
 	/* Free up any pending old buffers before queueing new ones. */
 	while ((xdpf_sent = virtqueue_get_buf(sq->vq, &len)) != NULL)
@@ -484,7 +490,6 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	struct bpf_prog *xdp_prog;
 	struct send_queue *sq;
 	unsigned int len;
-	unsigned int qp;
 	int drops = 0;
 	int err;
 	int i;
@@ -492,8 +497,7 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
-	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
-	sq = &vi->sq[qp];
+	sq = virtnet_xdp_sq(vi);
 
 	/* Only allow ndo_xdp_xmit if XDP is loaded on dev, as this
 	 * indicate XDP resources have been successfully allocated.
@@ -1349,7 +1353,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct receive_queue, napi);
 	struct virtnet_info *vi = rq->vq->vdev->priv;
 	struct send_queue *sq;
-	unsigned int received, qp;
+	unsigned int received;
 	unsigned int xdp_xmit = 0;
 
 	virtnet_poll_cleantx(rq);
@@ -1364,9 +1368,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 		xdp_do_flush_map();
 
 	if (xdp_xmit & VIRTIO_XDP_TX) {
-		qp = vi->curr_queue_pairs - vi->xdp_queue_pairs +
-		     smp_processor_id();
-		sq = &vi->sq[qp];
+		sq = virtnet_xdp_sq(vi);
 		virtqueue_kick(sq->vq);
 	}
 
