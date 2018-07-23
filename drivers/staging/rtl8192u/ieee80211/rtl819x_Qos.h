@@ -416,59 +416,6 @@ typedef struct _OCTET_STRING {
 } OCTET_STRING, *POCTET_STRING;
 
 //
-// STA QoS data.
-// Ref: DOT11_QOS in 8185 code. [def. in QoS_mp.h]
-//
-typedef struct _STA_QOS {
-	//DECLARE_RT_OBJECT(STA_QOS);
-	u8				WMMIEBuf[MAX_WMMELE_LENGTH];
-	u8				*WMMIE;
-
-	// Part 1. Self QoS Mode.
-	u32			        QosCapability;  // QOS_MODE QoS Capability, 2006-06-14 Isaiah
-	u32			        CurrentQosMode; // QOS_MODE
-
-	// For WMM Power Save Mode :
-	// ACs are trigger/delivery enabled or legacy power save enabled. 2006-06-13 Isaiah
-	AC_UAPSD			b4ac_Uapsd;  //VoUapsd(bit0), ViUapsd(bit1),  BkUapsd(bit2), BeUapsd(bit3),
-	AC_UAPSD			Curr4acUapsd;
-	u8				bInServicePeriod;
-	u8				MaxSPLength;
-	int				NumBcnBeforeTrigger;
-
-	// Part 2. EDCA Parameter (perAC)
-	u8				*pWMMInfoEle;
-	u8				WMMParamEle[WMM_PARAM_ELEMENT_SIZE];
-	u8				WMMPELength;
-
-	// <Bruce_Note>
-	//2 ToDo: remove the Qos Info Field and replace it by the above WMM Info element.
-	// By Bruce, 2008-01-30.
-	// Part 2. EDCA Parameter (perAC)
-	QOS_INFO_FIELD			QosInfoField_STA;	// Maintained by STA
-	QOS_INFO_FIELD			QosInfoField_AP;	// Retrieved from AP
-
-	AC_PARAM			CurAcParameters[4];
-
-	// Part 3. ACM
-	ACM				acm[4];
-	ACM_METHOD			AcmMethod;
-
-	// Part 4. Per TID (Part 5: TCLASS will be described by TStream)
-	QOS_TSTREAM			TStream[16];
-	WMM_TSPEC			TSpec;
-
-	u32				QBssWirelessMode;
-
-	// No Ack Setting
-	u8				bNoAck;
-
-	// Enable/Disable Rx immediate BA capability.
-	u8				bEnableRxImmBA;
-
-} STA_QOS, *PSTA_QOS;
-
-//
 // Ref: sQoSCtlLng and QoSCtl definition in 8185 QoS code.
 //#define QoSCtl   ((	(Adapter->bRegQoS) && (Adapter->dot11QoS.QoSMode &(QOS_EDCA|QOS_HCCA))	  )  ?sQoSCtlLng:0)
 //
