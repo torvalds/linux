@@ -42,6 +42,8 @@
 #define EXYNOS_SWRESET				0x0400
 
 #define S5P_WAKEUP_STAT				0x0600
+/* Value for EXYNOS_EINT_WAKEUP_MASK disabling all external wakeup interrupts */
+#define EXYNOS_EINT_WAKEUP_MASK_DISABLED	0xffffffff
 #define EXYNOS_EINT_WAKEUP_MASK			0x0604
 #define S5P_WAKEUP_MASK				0x0608
 #define S5P_WAKEUP_MASK2				0x0614
