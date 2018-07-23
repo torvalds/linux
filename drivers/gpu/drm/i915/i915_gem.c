@@ -3312,8 +3312,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 	}
 
-	set_bit(I915_WEDGED, &i915->gpu_error.flags);
-	smp_mb__after_atomic();
+	if (test_and_set_bit(I915_WEDGED, &i915->gpu_error.flags))
+		goto out;
 
 	/*
 	 * First, stop submission to hw, but do not yet complete requests by
@@ -3372,6 +3372,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		i915_gem_reset_finish_engine(engine);
 	}
 
+out:
 	GEM_TRACE("end\n");
 
 	wake_up_all(&i915->gpu_error.reset_queue);
