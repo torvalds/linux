@@ -172,6 +172,8 @@ struct mlx5_ib_flow_handler {
 	struct mlx5_ib_flow_prio	*prio;
 	struct mlx5_flow_handle		*rule;
 	struct ib_counters		*ibcounters;
+	struct mlx5_ib_dev		*dev;
+	struct mlx5_ib_flow_matcher	*flow_matcher;
 };
 
 struct mlx5_ib_flow_matcher {
