@@ -415,6 +415,89 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+static int lan743x_ethtool_get_eee(struct net_device *netdev,
+				   struct ethtool_eee *eee)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	struct phy_device *phydev = netdev->phydev;
+	u32 buf;
+	int ret;
+
+	if (!phydev)
+		return -EIO;
+	if (!phydev->drv) {
+		netif_err(adapter, drv, adapter->netdev,
+			  "Missing PHY Driver\n");
+		return -EIO;
+	}
+
+	ret = phy_ethtool_get_eee(phydev, eee);
+	if (ret < 0)
+		return ret;
+
+	buf = lan743x_csr_read(adapter, MAC_CR);
+	if (buf & MAC_CR_EEE_EN_) {
+		eee->eee_enabled = true;
+		eee->eee_active = !!(eee->advertised & eee->lp_advertised);
+		eee->tx_lpi_enabled = true;
+		/* EEE_TX_LPI_REQ_DLY & tx_lpi_timer are same uSec unit */
+		buf = lan743x_csr_read(adapter, MAC_EEE_TX_LPI_REQ_DLY_CNT);
+		eee->tx_lpi_timer = buf;
+	} else {
+		eee->eee_enabled = false;
+		eee->eee_active = false;
+		eee->tx_lpi_enabled = false;
+		eee->tx_lpi_timer = 0;
+	}
+
+	return 0;
+}
+
+static int lan743x_ethtool_set_eee(struct net_device *netdev,
+				   struct ethtool_eee *eee)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	struct phy_device *phydev = NULL;
+	u32 buf = 0;
+	int ret = 0;
+
+	if (!netdev)
+		return -EINVAL;
+	adapter = netdev_priv(netdev);
+	if (!adapter)
+		return -EINVAL;
+	phydev = netdev->phydev;
+	if (!phydev)
+		return -EIO;
+	if (!phydev->drv) {
+		netif_err(adapter, drv, adapter->netdev,
+			  "Missing PHY Driver\n");
+		return -EIO;
+	}
+
+	if (eee->eee_enabled) {
+		ret = phy_init_eee(phydev, 0);
+		if (ret) {
+			netif_err(adapter, drv, adapter->netdev,
+				  "EEE initialization failed\n");
+			return ret;
+		}
+
+		buf = (u32)eee->tx_lpi_timer;
+		lan743x_csr_write(adapter, MAC_EEE_TX_LPI_REQ_DLY_CNT, buf);
+
+		buf = lan743x_csr_read(adapter, MAC_CR);
+		buf |= MAC_CR_EEE_EN_;
+		lan743x_csr_write(adapter, MAC_CR, buf);
+	} else {
+		buf = lan743x_csr_read(adapter, MAC_CR);
+		buf &= ~MAC_CR_EEE_EN_;
+		lan743x_csr_write(adapter, MAC_CR, buf);
+	}
+
+	return phy_ethtool_set_eee(phydev, eee);
+}
+
 #ifdef CONFIG_PM
 static void lan743x_ethtool_get_wol(struct net_device *netdev,
 				    struct ethtool_wolinfo *wol)
@@ -470,6 +553,8 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_strings = lan743x_ethtool_get_strings,
 	.get_ethtool_stats = lan743x_ethtool_get_ethtool_stats,
 	.get_sset_count = lan743x_ethtool_get_sset_count,
+	.get_eee = lan743x_ethtool_get_eee,
+	.set_eee = lan743x_ethtool_set_eee,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 #ifdef CONFIG_PM

@@ -82,6 +82,7 @@
 	((value << 0) & FCT_FLOW_CTL_ON_THRESHOLD_)
 
 #define MAC_CR				(0x100)
+#define MAC_CR_EEE_EN_			BIT(17)
 #define MAC_CR_ADD_			BIT(12)
 #define MAC_CR_ASD_			BIT(11)
 #define MAC_CR_CNTR_RST_		BIT(5)
@@ -116,6 +117,8 @@
 #define MAC_MII_ACC_MII_BUSY_		BIT(0)
 
 #define MAC_MII_DATA			(0x124)
+
+#define MAC_EEE_TX_LPI_REQ_DLY_CNT		(0x130)
 
 #define MAC_WUCSR				(0x140)
 #define MAC_WUCSR_RFE_WAKE_EN_			BIT(14)
