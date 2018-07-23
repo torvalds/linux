@@ -1209,6 +1209,8 @@ static void journal_write_done(struct closure *cl)
 	u64 seq = le64_to_cpu(w->data->seq);
 	u64 last_seq = le64_to_cpu(w->data->last_seq);
 
+	bch2_time_stats_update(j->write_time, j->write_start_time);
+
 	if (!devs.nr) {
 		bch_err(c, "unable to write journal to sufficient devices");
 		goto err;
@@ -1216,11 +1218,11 @@ static void journal_write_done(struct closure *cl)
 
 	if (bch2_mark_replicas(c, BCH_DATA_JOURNAL, devs))
 		goto err;
-out:
-	bch2_time_stats_update(j->write_time, j->write_start_time);
 
 	spin_lock(&j->lock);
+	j->seq_ondisk		= seq;
 	j->last_seq_ondisk	= last_seq;
+
 	if (seq >= j->pin.front)
 		journal_seq_pin(j, seq)->devs = devs;
 
@@ -1232,7 +1234,7 @@ out:
 	 * bch2_fs_journal_stop():
 	 */
 	mod_delayed_work(system_freezable_wq, &j->reclaim_work, 0);
-
+out:
 	/* also must come before signalling write completion: */
 	closure_debug_destroy(cl);
 
@@ -1250,6 +1252,7 @@ out:
 err:
 	bch2_fatal_error(c);
 	bch2_journal_halt(j);
+	spin_lock(&j->lock);
 	goto out;
 }
 

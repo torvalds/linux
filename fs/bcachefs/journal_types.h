@@ -151,7 +151,8 @@ struct journal {
 	/* Sequence number of most recent journal entry (last entry in @pin) */
 	atomic64_t		seq;
 
-	/* last_seq from the most recent journal entry written */
+	/* seq, last_seq from the most recent journal entry successfully written */
+	u64			seq_ondisk;
 	u64			last_seq_ondisk;
 
 	/*
