@@ -155,10 +155,8 @@ static int smc_rx_splice(struct pipe_inode_info *pipe, char *src, size_t len,
 	struct splice_pipe_desc spd;
 	struct partial_page partial;
 	struct smc_spd_priv *priv;
-	struct page *page;
 	int bytes;
 
-	page = virt_to_page(smc->conn.rmb_desc->cpu_addr);
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -170,7 +168,7 @@ static int smc_rx_splice(struct pipe_inode_info *pipe, char *src, size_t len,
 
 	spd.nr_pages_max = 1;
 	spd.nr_pages = 1;
-	spd.pages = &page;
+	spd.pages = &smc->conn.rmb_desc->pages;
 	spd.partial = &partial;
 	spd.ops = &smc_pipe_ops;
 	spd.spd_release = smc_rx_spd_release;
