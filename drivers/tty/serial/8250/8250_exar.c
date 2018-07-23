@@ -377,7 +377,6 @@ static int
 pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		   struct uart_8250_port *port, int idx)
 {
-	const struct exar8250_board *board = priv->board;
 	const struct exar8250_platform *platform;
 	const struct dmi_system_id *dmi_match;
 	unsigned int offset = idx * 0x400;
