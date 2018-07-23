@@ -414,7 +414,7 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
 					   f->common.chain_index,
-					   MLXSW_SP_ACL_PROFILE_FLOWER);
+					   MLXSW_SP_ACL_PROFILE_FLOWER, NULL);
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
@@ -458,7 +458,7 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
 					   f->common.chain_index,
-					   MLXSW_SP_ACL_PROFILE_FLOWER);
+					   MLXSW_SP_ACL_PROFILE_FLOWER, NULL);
 	if (IS_ERR(ruleset))
 		return;
 
@@ -484,7 +484,7 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
 					   f->common.chain_index,
-					   MLXSW_SP_ACL_PROFILE_FLOWER);
+					   MLXSW_SP_ACL_PROFILE_FLOWER, NULL);
 	if (WARN_ON(IS_ERR(ruleset)))
 		return -EINVAL;
 
@@ -505,4 +505,42 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 err_rule_get_stats:
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 	return err;
+}
+
+int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_block *block,
+				 struct tc_cls_flower_offload *f)
+{
+	struct mlxsw_sp_acl_ruleset *ruleset;
+	struct mlxsw_sp_acl_rule_info rulei;
+	int err;
+
+	memset(&rulei, 0, sizeof(rulei));
+	err = mlxsw_sp_flower_parse(mlxsw_sp, block, &rulei, f);
+	if (err)
+		return err;
+	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
+					   f->common.chain_index,
+					   MLXSW_SP_ACL_PROFILE_FLOWER,
+					   &rulei.values.elusage);
+	if (IS_ERR(ruleset))
+		return PTR_ERR(ruleset);
+	/* keep the reference to the ruleset */
+	return 0;
+}
+
+void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_block *block,
+				   struct tc_cls_flower_offload *f)
+{
+	struct mlxsw_sp_acl_ruleset *ruleset;
+
+	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
+					   f->common.chain_index,
+					   MLXSW_SP_ACL_PROFILE_FLOWER, NULL);
+	if (IS_ERR(ruleset))
+		return;
+	/* put the reference to the ruleset kept in create */
+	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 }

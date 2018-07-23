@@ -1455,6 +1455,11 @@ mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_acl_block *acl_block,
 		return 0;
 	case TC_CLSFLOWER_STATS:
 		return mlxsw_sp_flower_stats(mlxsw_sp, acl_block, f);
+	case TC_CLSFLOWER_TMPLT_CREATE:
+		return mlxsw_sp_flower_tmplt_create(mlxsw_sp, acl_block, f);
+	case TC_CLSFLOWER_TMPLT_DESTROY:
+		mlxsw_sp_flower_tmplt_destroy(mlxsw_sp, acl_block, f);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}

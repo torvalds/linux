@@ -317,7 +317,8 @@ int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 static struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_block *block, u32 chain_index,
-			    const struct mlxsw_sp_acl_profile_ops *ops)
+			    const struct mlxsw_sp_acl_profile_ops *ops,
+			    struct mlxsw_afk_element_usage *tmplt_elusage)
 {
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -337,7 +338,8 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rhashtable_init;
 
-	err = ops->ruleset_add(mlxsw_sp, &acl->tcam, ruleset->priv);
+	err = ops->ruleset_add(mlxsw_sp, &acl->tcam, ruleset->priv,
+			       tmplt_elusage);
 	if (err)
 		goto err_ops_ruleset_add;
 
@@ -419,7 +421,8 @@ mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_block *block, u32 chain_index,
-			 enum mlxsw_sp_acl_profile profile)
+			 enum mlxsw_sp_acl_profile profile,
+			 struct mlxsw_afk_element_usage *tmplt_elusage)
 {
 	const struct mlxsw_sp_acl_profile_ops *ops;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
@@ -434,7 +437,8 @@ mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_acl_ruleset_ref_inc(ruleset);
 		return ruleset;
 	}
-	return mlxsw_sp_acl_ruleset_create(mlxsw_sp, block, chain_index, ops);
+	return mlxsw_sp_acl_ruleset_create(mlxsw_sp, block, chain_index, ops,
+					   tmplt_elusage);
 }
 
 void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
