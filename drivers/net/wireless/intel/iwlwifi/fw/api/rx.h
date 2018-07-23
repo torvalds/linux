@@ -697,6 +697,55 @@ struct iwl_rx_mpdu_desc {
 #define IWL_CD_STTS_WIFI_STATUS_POS	4
 #define IWL_CD_STTS_WIFI_STATUS_MSK	0xF0
 
+#define RX_NO_DATA_CHAIN_A_POS		0
+#define RX_NO_DATA_CHAIN_A_MSK		(0xff << RX_NO_DATA_CHAIN_A_POS)
+#define RX_NO_DATA_CHAIN_B_POS		8
+#define RX_NO_DATA_CHAIN_B_MSK		(0xff << RX_NO_DATA_CHAIN_B_POS)
+#define RX_NO_DATA_CHANNEL_POS		16
+#define RX_NO_DATA_CHANNEL_MSK		(0xff << RX_NO_DATA_CHANNEL_POS)
+
+#define RX_NO_DATA_INFO_TYPE_POS	0
+#define RX_NO_DATA_INFO_TYPE_MSK	(0xff << RX_NO_DATA_INFO_TYPE_POS)
+#define RX_NO_DATA_INFO_TYPE_NONE	0
+#define RX_NO_DATA_INFO_TYPE_RX_ERR	1
+#define RX_NO_DATA_INFO_TYPE_NDP	2
+#define RX_NO_DATA_INFO_TYPE_MU_UNMATCHED	3
+#define RX_NO_DATA_INFO_TYPE_HE_TB_UNMATCHED	4
+
+#define RX_NO_DATA_INFO_ERR_POS		8
+#define RX_NO_DATA_INFO_ERR_MSK		(0xff << RX_NO_DATA_INFO_ERR_POS)
+#define RX_NO_DATA_INFO_ERR_NONE	0
+#define RX_NO_DATA_INFO_ERR_BAD_PLCP	1
+#define RX_NO_DATA_INFO_ERR_UNSUPPORTED_RATE	2
+#define RX_NO_DATA_INFO_ERR_NO_DELIM		3
+#define RX_NO_DATA_INFO_ERR_BAD_MAC_HDR	4
+
+#define RX_NO_DATA_FRAME_TIME_POS	0
+#define RX_NO_DATA_FRAME_TIME_MSK	(0xfffff << RX_NO_DATA_FRAME_TIME_POS)
+
+/**
+ * struct iwl_rx_no_data - RX no data descriptor
+ * @info: 7:0 frame type, 15:8 RX error type
+ * @rssi: 7:0 energy chain-A,
+ *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
+ * @on_air_rise_time: GP2 during on air rise
+ * @fr_time: frame time
+ * @rate: rate/mcs of frame
+ * @phy_info: &enum iwl_rx_phy_data0 and &enum iwl_rx_phy_info_type
+ * @rx_vec: DW-12:9 raw RX vectors from DSP according to modulation type.
+ *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
+ *	for HE: OFDM_RX_VECTOR_HE_SIGA1_OUT, OFDM_RX_VECTOR_HE_SIGA2_OUT
+ */
+struct iwl_rx_no_data {
+	__le32 info;
+	__le32 rssi;
+	__le32 on_air_rise_time;
+	__le32 fr_time;
+	__le32 rate;
+	__le32 phy_info[2];
+	__le32 rx_vec[3];
+} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1 */
+
 /**
  * enum iwl_completion_desc_transfer_status -  transfer status (bits 1-3)
  * @IWL_CD_STTS_UNUSED: unused

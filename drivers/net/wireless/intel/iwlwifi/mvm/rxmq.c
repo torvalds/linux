@@ -200,7 +200,8 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 
-	if (iwl_mvm_check_pn(mvm, skb, queue, sta)) {
+	if (!(rx_status->flag & RX_FLAG_NO_PSDU) &&
+	    iwl_mvm_check_pn(mvm, skb, queue, sta)) {
 		kfree_skb(skb);
 	} else {
 		unsigned int radiotap_len = 0;
@@ -1606,6 +1607,129 @@ out:
 	rcu_read_unlock();
 }
 
+void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
+			    struct iwl_rx_cmd_buffer *rxb, int queue)
+{
+	struct ieee80211_rx_status *rx_status;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_rx_no_data *desc = (void *)pkt->data;
+	u32 rate_n_flags = le32_to_cpu(desc->rate);
+	u32 gp2_on_air_rise = le32_to_cpu(desc->on_air_rise_time);
+	u32 rssi = le32_to_cpu(desc->rssi);
+	u32 info_type = le32_to_cpu(desc->info) & RX_NO_DATA_INFO_TYPE_MSK;
+	u16 phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD;
+	struct ieee80211_sta *sta = NULL;
+	struct sk_buff *skb;
+	u8 channel, energy_a, energy_b;
+	struct iwl_mvm_rx_phy_data phy_data = {
+		.d0 = desc->phy_info[0],
+		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
+	};
+
+	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
+		return;
+
+	/* Currently only NDP type is supported */
+	if (info_type != RX_NO_DATA_INFO_TYPE_NDP)
+		return;
+
+	energy_a = (rssi & RX_NO_DATA_CHAIN_A_MSK) >> RX_NO_DATA_CHAIN_A_POS;
+	energy_b = (rssi & RX_NO_DATA_CHAIN_B_MSK) >> RX_NO_DATA_CHAIN_B_POS;
+	channel = (rssi & RX_NO_DATA_CHANNEL_MSK) >> RX_NO_DATA_CHANNEL_POS;
+
+	phy_data.info_type =
+		le32_get_bits(desc->phy_info[1],
+			      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
+
+	/* Dont use dev_alloc_skb(), we'll have enough headroom once
+	 * ieee80211_hdr pulled.
+	 */
+	skb = alloc_skb(128, GFP_ATOMIC);
+	if (!skb) {
+		IWL_ERR(mvm, "alloc_skb failed\n");
+		return;
+	}
+
+	rx_status = IEEE80211_SKB_RXCB(skb);
+
+	/* 0-length PSDU */
+	rx_status->flag |= RX_FLAG_NO_PSDU;
+	/* currently this is the only type for which we get this notif */
+	rx_status->zero_length_psdu_type =
+		IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING;
+
+	/* This may be overridden by iwl_mvm_rx_he() to HE_RU */
+	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
+	case RATE_MCS_CHAN_WIDTH_20:
+		break;
+	case RATE_MCS_CHAN_WIDTH_40:
+		rx_status->bw = RATE_INFO_BW_40;
+		break;
+	case RATE_MCS_CHAN_WIDTH_80:
+		rx_status->bw = RATE_INFO_BW_80;
+		break;
+	case RATE_MCS_CHAN_WIDTH_160:
+		rx_status->bw = RATE_INFO_BW_160;
+		break;
+	}
+
+	if (rate_n_flags & RATE_MCS_HE_MSK)
+		iwl_mvm_rx_he(mvm, skb, &phy_data, rate_n_flags,
+			      phy_info, queue);
+
+	iwl_mvm_decode_lsig(skb, &phy_data);
+
+	rx_status->device_timestamp = gp2_on_air_rise;
+	rx_status->band = channel > 14 ? NL80211_BAND_5GHZ :
+		NL80211_BAND_2GHZ;
+	rx_status->freq = ieee80211_channel_to_frequency(channel,
+							 rx_status->band);
+	iwl_mvm_get_signal_strength(mvm, rx_status, rate_n_flags, energy_a,
+				    energy_b);
+
+	rcu_read_lock();
+
+	if (!(rate_n_flags & RATE_MCS_CCK_MSK) &&
+	    rate_n_flags & RATE_MCS_SGI_MSK)
+		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
+	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
+		rx_status->enc_flags |= RX_ENC_FLAG_HT_GF;
+	if (rate_n_flags & RATE_MCS_LDPC_MSK)
+		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
+	if (rate_n_flags & RATE_MCS_HT_MSK) {
+		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
+				RATE_MCS_STBC_POS;
+		rx_status->encoding = RX_ENC_HT;
+		rx_status->rate_idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK;
+		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
+	} else if (rate_n_flags & RATE_MCS_VHT_MSK) {
+		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
+				RATE_MCS_STBC_POS;
+		rx_status->nss =
+			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
+						RATE_VHT_MCS_NSS_POS) + 1;
+		rx_status->rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
+		rx_status->encoding = RX_ENC_VHT;
+		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
+		if (rate_n_flags & RATE_MCS_BF_MSK)
+			rx_status->enc_flags |= RX_ENC_FLAG_BF;
+	} else if (!(rate_n_flags & RATE_MCS_HE_MSK)) {
+		int rate = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
+							       rx_status->band);
+
+		if (WARN(rate < 0 || rate > 0xFF,
+			 "Invalid rate flags 0x%x, band %d,\n",
+			 rate_n_flags, rx_status->band)) {
+			kfree_skb(skb);
+			goto out;
+		}
+		rx_status->rate_idx = rate;
+	}
+
+	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
+out:
+	rcu_read_unlock();
+}
 void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 			      struct iwl_rx_cmd_buffer *rxb, int queue)
 {
