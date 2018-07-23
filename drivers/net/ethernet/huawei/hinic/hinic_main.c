@@ -981,6 +981,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	hinic_hwdev_cb_register(nic_dev->hwdev, HINIC_MGMT_MSG_CMD_LINK_STATUS,
 				nic_dev, link_status_event_handler);
 
+	SET_NETDEV_DEV(netdev, &pdev->dev);
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to register netdev\n");
