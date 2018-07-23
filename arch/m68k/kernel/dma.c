@@ -9,6 +9,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -165,3 +166,12 @@ const struct dma_map_ops m68k_dma_ops = {
 	.sync_sg_for_device	= m68k_dma_sync_sg_for_device,
 };
 EXPORT_SYMBOL(m68k_dma_ops);
+
+void arch_setup_pdev_archdata(struct platform_device *pdev)
+{
+	if (pdev->dev.coherent_dma_mask == DMA_MASK_NONE &&
+	    pdev->dev.dma_mask == NULL) {
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	}
+}

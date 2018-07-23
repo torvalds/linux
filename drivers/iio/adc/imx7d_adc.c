@@ -604,5 +604,5 @@ static struct platform_driver imx7d_adc_driver = {
 module_platform_driver(imx7d_adc_driver);
 
 MODULE_AUTHOR("Haibo Chen <haibo.chen@freescale.com>");
-MODULE_DESCRIPTION("Freeacale IMX7D ADC driver");
+MODULE_DESCRIPTION("Freescale IMX7D ADC driver");
 MODULE_LICENSE("GPL v2");

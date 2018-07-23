@@ -2176,8 +2176,8 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 	}
 
 	/* Allocate the max possible entries we need. */
-	entries = devm_kzalloc(data->dev,
-			       sizeof(*entries) * (data->info->pages * 10),
+	entries = devm_kcalloc(data->dev,
+			       data->info->pages * 10, sizeof(*entries),
 			       GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;

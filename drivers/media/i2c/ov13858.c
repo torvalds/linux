@@ -1796,7 +1796,6 @@ MODULE_DEVICE_TABLE(acpi, ov13858_acpi_ids);
 static struct i2c_driver ov13858_i2c_driver = {
 	.driver = {
 		.name = "ov13858",
-		.owner = THIS_MODULE,
 		.pm = &ov13858_pm_ops,
 		.acpi_match_table = ACPI_PTR(ov13858_acpi_ids),
 	},

@@ -681,6 +681,7 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 	drm_fb_cma_fbdev_fini(dev);
 	flush_workqueue(dc->wq);
 	drm_kms_helper_poll_fini(dev);
+	drm_atomic_helper_shutdown(dev);
 	drm_mode_config_cleanup(dev);
 
 	pm_runtime_get_sync(dev->dev);

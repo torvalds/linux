@@ -19,6 +19,8 @@
 #include <linux/regmap.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#include "mtk-eint.h"
+
 #define NO_EINT_SUPPORT    255
 #define MT_EDGE_SENSITIVE           0
 #define MT_LEVEL_SENSITIVE          1
@@ -258,9 +260,8 @@ struct mtk_pinctrl_devdata {
 	unsigned char  port_shf;
 	unsigned char  port_mask;
 	unsigned char  port_align;
-	struct mtk_eint_offsets eint_offsets;
-	unsigned int	ap_num;
-	unsigned int	db_cnt;
+	struct mtk_eint_hw eint_hw;
+	struct mtk_eint_regs *eint_regs;
 };
 
 struct mtk_pinctrl {
@@ -274,11 +275,7 @@ struct mtk_pinctrl {
 	const char          **grp_names;
 	struct pinctrl_dev      *pctl_dev;
 	const struct mtk_pinctrl_devdata  *devdata;
-	void __iomem		*eint_reg_base;
-	struct irq_domain	*domain;
-	int			*eint_dual_edges;
-	u32 *wake_mask;
-	u32 *cur_mask;
+	struct mtk_eint *eint;
 };
 
 int mtk_pctrl_init(struct platform_device *pdev,

@@ -761,7 +761,7 @@ requests, especially from new, unknown developers.  If in doubt you can use
 the pull request as the cover letter for a normal posting of the patch
 series, giving the maintainer the option of using either.
 
-A pull request should have [GIT] or [PULL] in the subject line.  The
+A pull request should have [GIT PULL] in the subject line.  The
 request itself should include the repository name and the branch of
 interest on a single line; it should look something like::
 

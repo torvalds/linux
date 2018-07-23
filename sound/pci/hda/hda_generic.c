@@ -264,10 +264,10 @@ static struct nid_path *get_nid_path(struct hda_codec *codec,
 				     int anchor_nid)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	struct nid_path *path;
 	int i;
 
-	for (i = 0; i < spec->paths.used; i++) {
-		struct nid_path *path = snd_array_elem(&spec->paths, i);
+	snd_array_for_each(&spec->paths, i, path) {
 		if (path->depth <= 0)
 			continue;
 		if ((!from_nid || path->path[0] == from_nid) &&
@@ -325,10 +325,10 @@ EXPORT_SYMBOL_GPL(snd_hda_get_path_from_idx);
 static bool is_dac_already_used(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	const struct nid_path *path;
 	int i;
 
-	for (i = 0; i < spec->paths.used; i++) {
-		struct nid_path *path = snd_array_elem(&spec->paths, i);
+	snd_array_for_each(&spec->paths, i, path) {
 		if (path->path[0] == nid)
 			return true;
 	}
@@ -351,11 +351,11 @@ static bool is_reachable_path(struct hda_codec *codec,
 static bool is_ctl_used(struct hda_codec *codec, unsigned int val, int type)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	const struct nid_path *path;
 	int i;
 
 	val &= AMP_VAL_COMPARE_MASK;
-	for (i = 0; i < spec->paths.used; i++) {
-		struct nid_path *path = snd_array_elem(&spec->paths, i);
+	snd_array_for_each(&spec->paths, i, path) {
 		if ((path->ctls[type] & AMP_VAL_COMPARE_MASK) == val)
 			return true;
 	}
@@ -638,13 +638,13 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 {
 	struct hda_gen_spec *spec = codec->spec;
 	int type = get_wcaps_type(get_wcaps(codec, nid));
+	const struct nid_path *path;
 	int i, n;
 
 	if (nid == codec->core.afg)
 		return true;
 
-	for (n = 0; n < spec->paths.used; n++) {
-		struct nid_path *path = snd_array_elem(&spec->paths, n);
+	snd_array_for_each(&spec->paths, n, path) {
 		if (!path->active)
 			continue;
 		if (codec->power_save_node) {
@@ -2065,7 +2065,7 @@ static int parse_output_paths(struct hda_codec *codec)
 			snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
 						HDA_OUTPUT, spec->vmaster_tlv);
 			if (spec->dac_min_mute)
-				spec->vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
+				spec->vmaster_tlv[SNDRV_CTL_TLVO_DB_SCALE_MUTE_AND_STEP] |= TLV_DB_SCALE_MUTE;
 		}
 	}
 
@@ -2696,10 +2696,10 @@ static const struct snd_kcontrol_new out_jack_mode_enum = {
 static bool find_kctl_name(struct hda_codec *codec, const char *name, int idx)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	const struct snd_kcontrol_new *kctl;
 	int i;
 
-	for (i = 0; i < spec->kctls.used; i++) {
-		struct snd_kcontrol_new *kctl = snd_array_elem(&spec->kctls, i);
+	snd_array_for_each(&spec->kctls, i, kctl) {
 		if (!strcmp(kctl->name, name) && kctl->index == idx)
 			return true;
 	}
@@ -4021,8 +4021,7 @@ static hda_nid_t set_path_power(struct hda_codec *codec, hda_nid_t nid,
 	struct nid_path *path;
 	int n;
 
-	for (n = 0; n < spec->paths.used; n++) {
-		path = snd_array_elem(&spec->paths, n);
+	snd_array_for_each(&spec->paths, n, path) {
 		if (!path->depth)
 			continue;
 		if (path->path[0] == nid ||
@@ -5831,10 +5830,10 @@ static void init_digital(struct hda_codec *codec)
  */
 static void clear_unsol_on_unused_pins(struct hda_codec *codec)
 {
+	const struct hda_pincfg *pin;
 	int i;
 
-	for (i = 0; i < codec->init_pins.used; i++) {
-		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+	snd_array_for_each(&codec->init_pins, i, pin) {
 		hda_nid_t nid = pin->nid;
 		if (is_jack_detectable(codec, nid) &&
 		    !snd_hda_jack_tbl_get(codec, nid))

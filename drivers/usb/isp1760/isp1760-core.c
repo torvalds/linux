@@ -31,7 +31,7 @@ static void isp1760_init_core(struct isp1760_device *isp)
 	/* Low-level chip reset */
 	if (isp->rst_gpio) {
 		gpiod_set_value_cansleep(isp->rst_gpio, 1);
-		mdelay(50);
+		msleep(50);
 		gpiod_set_value_cansleep(isp->rst_gpio, 0);
 	}
 

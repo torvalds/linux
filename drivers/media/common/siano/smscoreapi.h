@@ -190,6 +190,8 @@ struct smscore_device_t {
 
 	int mode, modes_supported;
 
+	gfp_t gfp_buf_flags;
+
 	/* host <--> device messages */
 	struct completion version_ex_done, data_download_done, trigger_done;
 	struct completion data_validity_done, device_ready_done;
@@ -1125,6 +1127,7 @@ extern void smscore_unregister_hotplug(hotplug_t hotplug);
 
 extern int smscore_register_device(struct smsdevice_params_t *params,
 				   struct smscore_device_t **coredev,
+				   gfp_t gfp_buf_flags,
 				   void *mdev);
 extern void smscore_unregister_device(struct smscore_device_t *coredev);
 

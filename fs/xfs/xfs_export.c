@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2004-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_format.h"
@@ -140,15 +128,24 @@ xfs_nfs_get_inode(
 	 */
 	error = xfs_iget(mp, NULL, ino, XFS_IGET_UNTRUSTED, 0, &ip);
 	if (error) {
+
 		/*
 		 * EINVAL means the inode cluster doesn't exist anymore.
-		 * This implies the filehandle is stale, so we should
-		 * translate it here.
+		 * EFSCORRUPTED means the metadata pointing to the inode cluster
+		 * or the inode cluster itself is corrupt.  This implies the
+		 * filehandle is stale, so we should translate it here.
 		 * We don't use ESTALE directly down the chain to not
 		 * confuse applications using bulkstat that expect EINVAL.
 		 */
-		if (error == -EINVAL || error == -ENOENT)
+		switch (error) {
+		case -EINVAL:
+		case -ENOENT:
+		case -EFSCORRUPTED:
 			error = -ESTALE;
+			break;
+		default:
+			break;
+		}
 		return ERR_PTR(error);
 	}
 

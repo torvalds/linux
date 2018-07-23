@@ -51,14 +51,9 @@ static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, un
 	if (dentry->d_name.len > SYSV_NAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 	ino = sysv_inode_by_name(dentry);
-
-	if (ino) {
+	if (ino)
 		inode = sysv_iget(dir->i_sb, ino);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
-	}
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static int sysv_mknod(struct inode * dir, struct dentry * dentry, umode_t mode, dev_t rdev)

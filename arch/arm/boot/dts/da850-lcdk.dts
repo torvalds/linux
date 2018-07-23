@@ -21,8 +21,8 @@
 		stdout-path = "serial2:115200n8";
 	};
 
-	memory {
-		device_type = "memory";
+	memory@c0000000 {
+		/* 128 MB DDR2 SDRAM @ 0xc0000000 */
 		reg = <0xc0000000 0x08000000>;
 	};
 

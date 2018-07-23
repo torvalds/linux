@@ -24,7 +24,6 @@
 #include <linux/regmap.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
@@ -88,7 +87,6 @@
 #define FG_LOW_CAP_CRIT_THR			4   /* 4 perc */
 #define FG_LOW_CAP_SHDN_THR			0   /* 0 perc */
 
-#define STATUS_MON_DELAY_JIFFIES    (HZ * 60)   /*60 sec */
 #define NR_RETRY_CNT    3
 #define DEV_NAME	"axp288_fuel_gauge"
 
@@ -128,7 +126,6 @@ struct axp288_fg_info {
 	struct mutex lock;
 	int status;
 	int max_volt;
-	struct delayed_work status_monitor;
 	struct dentry *debug_file;
 };
 
@@ -592,16 +589,6 @@ static int fuel_gauge_property_is_writeable(struct power_supply *psy,
 	return ret;
 }
 
-static void fuel_gauge_status_monitor(struct work_struct *work)
-{
-	struct axp288_fg_info *info = container_of(work,
-		struct axp288_fg_info, status_monitor.work);
-
-	fuel_gauge_get_status(info);
-	power_supply_changed(info->bat);
-	schedule_delayed_work(&info->status_monitor, STATUS_MON_DELAY_JIFFIES);
-}
-
 static irqreturn_t fuel_gauge_thread_handler(int irq, void *dev)
 {
 	struct axp288_fg_info *info = dev;
@@ -754,8 +741,19 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		[BAT_D_CURR] = "axp288-chrg-d-curr",
 		[BAT_VOLT] = "axp288-batt-volt",
 	};
+	unsigned int val;
 
 	if (dmi_check_system(axp288_fuel_gauge_blacklist))
+		return -ENODEV;
+
+	/*
+	 * On some devices the fuelgauge and charger parts of the axp288 are
+	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
+	 */
+	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
+	if (ret < 0)
+		return ret;
+	if (val == 0)
 		return -ENODEV;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -770,7 +768,6 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 
 	mutex_init(&info->lock);
-	INIT_DELAYED_WORK(&info->status_monitor, fuel_gauge_status_monitor);
 
 	for (i = 0; i < IIO_CHANNEL_NUM; i++) {
 		/*
@@ -830,7 +827,6 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 	fuel_gauge_create_debugfs(info);
 	fuel_gauge_init_irq(info);
-	schedule_delayed_work(&info->status_monitor, STATUS_MON_DELAY_JIFFIES);
 
 	return 0;
 
@@ -853,7 +849,6 @@ static int axp288_fuel_gauge_remove(struct platform_device *pdev)
 	struct axp288_fg_info *info = platform_get_drvdata(pdev);
 	int i;
 
-	cancel_delayed_work_sync(&info->status_monitor);
 	power_supply_unregister(info->bat);
 	fuel_gauge_remove_debugfs(info);
 

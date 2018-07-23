@@ -3941,8 +3941,9 @@ static fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16)
 	CAP16_TO_CAP32(FC_RX);
 	CAP16_TO_CAP32(FC_TX);
 	CAP16_TO_CAP32(ANEG);
-	CAP16_TO_CAP32(MDIX);
+	CAP16_TO_CAP32(FORCE_PAUSE);
 	CAP16_TO_CAP32(MDIAUTO);
+	CAP16_TO_CAP32(MDISTRAIGHT);
 	CAP16_TO_CAP32(FEC_RS);
 	CAP16_TO_CAP32(FEC_BASER_RS);
 	CAP16_TO_CAP32(802_3_PAUSE);
@@ -3982,8 +3983,9 @@ static fw_port_cap16_t fwcaps32_to_caps16(fw_port_cap32_t caps32)
 	CAP32_TO_CAP16(802_3_PAUSE);
 	CAP32_TO_CAP16(802_3_ASM_DIR);
 	CAP32_TO_CAP16(ANEG);
-	CAP32_TO_CAP16(MDIX);
+	CAP32_TO_CAP16(FORCE_PAUSE);
 	CAP32_TO_CAP16(MDIAUTO);
+	CAP32_TO_CAP16(MDISTRAIGHT);
 	CAP32_TO_CAP16(FEC_RS);
 	CAP32_TO_CAP16(FEC_BASER_RS);
 
@@ -4014,6 +4016,8 @@ static inline fw_port_cap32_t cc_to_fwcap_pause(enum cc_pause cc_pause)
 		fw_pause |= FW_PORT_CAP32_FC_RX;
 	if (cc_pause & PAUSE_TX)
 		fw_pause |= FW_PORT_CAP32_FC_TX;
+	if (!(cc_pause & PAUSE_AUTONEG))
+		fw_pause |= FW_PORT_CAP32_FORCE_PAUSE;
 
 	return fw_pause;
 }
@@ -4058,14 +4062,17 @@ static inline fw_port_cap32_t cc_to_fwcap_fec(enum cc_fec cc_fec)
  *	- If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
  *	  otherwise do it later based on the outcome of auto-negotiation.
  */
-int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
-		  unsigned int port, struct link_config *lc)
+int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
+		       unsigned int port, struct link_config *lc,
+		       bool sleep_ok, int timeout)
 {
 	unsigned int fw_caps = adapter->params.fw_caps_support;
-	struct fw_port_cmd cmd;
-	unsigned int fw_mdi = FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO);
 	fw_port_cap32_t fw_fc, cc_fec, fw_fec, rcap;
+	struct fw_port_cmd cmd;
+	unsigned int fw_mdi;
+	int ret;
 
+	fw_mdi = (FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO) & lc->pcaps);
 	/* Convert driver coding of Pause Frame Flow Control settings into the
 	 * Firmware's API.
 	 */
@@ -4087,7 +4094,7 @@ int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
 	/* Figure out what our Requested Port Capabilities are going to be.
 	 */
 	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
-		rcap = (lc->pcaps & ADVERT_MASK) | fw_fc | fw_fec;
+		rcap = lc->acaps | fw_fc | fw_fec;
 		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
 		lc->fec = cc_fec;
 	} else if (lc->autoneg == AUTONEG_DISABLE) {
@@ -4096,6 +4103,17 @@ int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
 		lc->fec = cc_fec;
 	} else {
 		rcap = lc->acaps | fw_fc | fw_fec | fw_mdi;
+	}
+
+	/* Note that older Firmware doesn't have FW_PORT_CAP32_FORCE_PAUSE, so
+	 * we need to exclude this from this check in order to maintain
+	 * compatibility ...
+	 */
+	if ((rcap & ~lc->pcaps) & ~FW_PORT_CAP32_FORCE_PAUSE) {
+		dev_err(adapter->pdev_dev,
+			"Requested Port Capabilities %#x exceed Physical Port Capabilities %#x\n",
+			rcap, lc->pcaps);
+		return -EINVAL;
 	}
 
 	/* And send that on to the Firmware ...
@@ -4108,12 +4126,21 @@ int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
 		cpu_to_be32(FW_PORT_CMD_ACTION_V(fw_caps == FW_CAPS16
 						 ? FW_PORT_ACTION_L1_CFG
 						 : FW_PORT_ACTION_L1_CFG32) |
-			    FW_LEN16(cmd));
+						 FW_LEN16(cmd));
 	if (fw_caps == FW_CAPS16)
 		cmd.u.l1cfg.rcap = cpu_to_be32(fwcaps32_to_caps16(rcap));
 	else
 		cmd.u.l1cfg32.rcap32 = cpu_to_be32(rcap);
-	return t4_wr_mbox(adapter, mbox, &cmd, sizeof(cmd), NULL);
+
+	ret = t4_wr_mbox_meat_timeout(adapter, mbox, &cmd, sizeof(cmd), NULL,
+				      sleep_ok, timeout);
+	if (ret) {
+		dev_err(adapter->pdev_dev,
+			"Requested Port Capabilities %#x rejected, error %d\n",
+			rcap, -ret);
+		return ret;
+	}
+	return ret;
 }
 
 /**
@@ -7513,6 +7540,43 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *      t4_free_encap_mac_filt - frees MPS entry at given index
+ *      @adap: the adapter
+ *      @viid: the VI id
+ *      @idx: index of MPS entry to be freed
+ *      @sleep_ok: call is allowed to sleep
+ *
+ *      Frees the MPS entry at supplied index
+ *
+ *      Returns a negative error number or zero on success
+ */
+int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			   int idx, bool sleep_ok)
+{
+	struct fw_vi_mac_exact *p;
+	u8 addr[] = {0, 0, 0, 0, 0, 0};
+	struct fw_vi_mac_cmd c;
+	int ret = 0;
+	u32 exact;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_CMD_EXEC_V(0) |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	exact = FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_EXACTMAC);
+	c.freemacs_to_len16 = cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(0) |
+					  exact |
+					  FW_CMD_LEN16_V(1));
+	p = c.u.exact;
+	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
+				      FW_VI_MAC_CMD_IDX_V(idx));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	return ret;
+}
+
+/**
  *	t4_free_raw_mac_filt - Frees a raw mac entry in mps tcam
  *	@adap: the adapter
  *	@viid: the VI id
@@ -7560,6 +7624,55 @@ int t4_free_raw_mac_filt(struct adapter *adap, unsigned int viid,
 	memcpy((u8 *)&p->data1m[0] + 2, mask, ETH_ALEN);
 
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+}
+
+/**
+ *      t4_alloc_encap_mac_filt - Adds a mac entry in mps tcam with VNI support
+ *      @adap: the adapter
+ *      @viid: the VI id
+ *      @mac: the MAC address
+ *      @mask: the mask
+ *      @vni: the VNI id for the tunnel protocol
+ *      @vni_mask: mask for the VNI id
+ *      @dip_hit: to enable DIP match for the MPS entry
+ *      @lookup_type: MAC address for inner (1) or outer (0) header
+ *      @sleep_ok: call is allowed to sleep
+ *
+ *      Allocates an MPS entry with specified MAC address and VNI value.
+ *
+ *      Returns a negative error number or the allocated index for this mac.
+ */
+int t4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			    const u8 *addr, const u8 *mask, unsigned int vni,
+			    unsigned int vni_mask, u8 dip_hit, u8 lookup_type,
+			    bool sleep_ok)
+{
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_vni *p = c.u.exact_vni;
+	int ret = 0;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	val = FW_CMD_LEN16_V(1) |
+	      FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_EXACTMAC_VNI);
+	c.freemacs_to_len16 = cpu_to_be32(val);
+	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
+				      FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_ADD_MAC));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	memcpy(p->macaddr_mask, mask, sizeof(p->macaddr_mask));
+
+	p->lookup_type_to_vni =
+		cpu_to_be32(FW_VI_MAC_CMD_VNI_V(vni) |
+			    FW_VI_MAC_CMD_DIP_HIT_V(dip_hit) |
+			    FW_VI_MAC_CMD_LOOKUP_TYPE_V(lookup_type));
+	p->vni_mask_pkd = cpu_to_be32(FW_VI_MAC_CMD_VNI_MASK_V(vni_mask));
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	if (ret == 0)
+		ret = FW_VI_MAC_CMD_IDX_G(be16_to_cpu(p->valid_to_idx));
+	return ret;
 }
 
 /**
@@ -7909,6 +8022,34 @@ int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *	t4_enable_pi_params - enable/disable a Port's Virtual Interface
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @pi: the Port Information structure
+ *      @rx_en: 1=enable Rx, 0=disable Rx
+ *      @tx_en: 1=enable Tx, 0=disable Tx
+ *      @dcb_en: 1=enable delivery of Data Center Bridging messages.
+ *
+ *      Enables/disables a Port's Virtual Interface.  Note that setting DCB
+ *	Enable only makes sense when enabling a Virtual Interface ...
+ *	If the Virtual Interface enable/disable operation is successful,
+ *	we notify the OS-specific code of a potential Link Status change
+ *	via the OS Contract API t4_os_link_changed().
+ */
+int t4_enable_pi_params(struct adapter *adap, unsigned int mbox,
+			struct port_info *pi,
+			bool rx_en, bool tx_en, bool dcb_en)
+{
+	int ret = t4_enable_vi_params(adap, mbox, pi->viid,
+				      rx_en, tx_en, dcb_en);
+	if (ret)
+		return ret;
+	t4_os_link_changed(adap, pi->port_id,
+			   rx_en && tx_en && pi->link_cfg.link_ok);
+	return 0;
+}
+
+/**
  *	t4_identify_port - identify a VI's port by blinking its LED
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -8249,6 +8390,9 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 	fc = fwcap_to_cc_pause(linkattr);
 	speed = fwcap_to_speed(linkattr);
 
+	lc->new_module = false;
+	lc->redo_l1cfg = false;
+
 	if (mod_type != pi->mod_type) {
 		/* With the newer SFP28 and QSFP28 Transceiver Module Types,
 		 * various fundamental Port Capabilities which used to be
@@ -8283,6 +8427,8 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 		pi->port_type = port_type;
 
 		pi->mod_type = mod_type;
+
+		lc->new_module = t4_is_inserted_mod_type(mod_type);
 		t4_os_portmod_changed(adapter, pi->port_id);
 	}
 
@@ -8301,7 +8447,9 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 		lc->lpacaps = lpacaps;
 		lc->acaps = acaps & ADVERT_MASK;
 
-		if (lc->acaps & FW_PORT_CAP32_ANEG) {
+		if (!(lc->acaps & FW_PORT_CAP32_ANEG)) {
+			lc->autoneg = AUTONEG_DISABLE;
+		} else if (lc->acaps & FW_PORT_CAP32_ANEG) {
 			lc->autoneg = AUTONEG_ENABLE;
 		} else {
 			/* When Autoneg is disabled, user needs to set
@@ -8315,6 +8463,26 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 
 		t4_os_link_changed(adapter, pi->port_id, link_ok);
 	}
+
+	if (lc->new_module && lc->redo_l1cfg) {
+		struct link_config old_lc;
+		int ret;
+
+		/* Save the current L1 Configuration and restore it if an
+		 * error occurs.  We probably should fix the l1_cfg*()
+		 * routines not to change the link_config when an error
+		 * occurs ...
+		 */
+		old_lc = *lc;
+		ret = t4_link_l1cfg_ns(adapter, adapter->mbox, pi->lport, lc);
+		if (ret) {
+			*lc = old_lc;
+			dev_warn(adapter->pdev_dev,
+				 "Attempt to update new Transceiver Module settings failed\n");
+		}
+	}
+	lc->new_module = false;
+	lc->redo_l1cfg = false;
 }
 
 /**
@@ -8486,6 +8654,13 @@ static void init_link_config(struct link_config *lc, fw_port_cap32_t pcaps,
 	lc->requested_fec = FEC_AUTO;
 	lc->fec = fwcap_to_cc_fec(lc->def_acaps);
 
+	/* If the Port is capable of Auto-Negtotiation, initialize it as
+	 * "enabled" and copy over all of the Physical Port Capabilities
+	 * to the Advertised Port Capabilities.  Otherwise mark it as
+	 * Auto-Negotiate disabled and select the highest supported speed
+	 * for the link.  Note parallel structure in t4_link_l1cfg_core()
+	 * and t4_handle_get_port_info().
+	 */
 	if (lc->pcaps & FW_PORT_CAP32_ANEG) {
 		lc->acaps = lc->pcaps & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
@@ -8493,6 +8668,7 @@ static void init_link_config(struct link_config *lc, fw_port_cap32_t pcaps,
 	} else {
 		lc->acaps = 0;
 		lc->autoneg = AUTONEG_DISABLE;
+		lc->speed_caps = fwcap_to_fwspeed(acaps);
 	}
 }
 

@@ -789,8 +789,8 @@ static int bitmap_storage_alloc(struct bitmap_storage *store,
 	num_pages = DIV_ROUND_UP(bytes, PAGE_SIZE);
 	offset = slot_number * num_pages;
 
-	store->filemap = kmalloc(sizeof(struct page *)
-				 * num_pages, GFP_KERNEL);
+	store->filemap = kmalloc_array(num_pages, sizeof(struct page *),
+				       GFP_KERNEL);
 	if (!store->filemap)
 		return -ENOMEM;
 
@@ -2117,7 +2117,7 @@ int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 
 	pages = DIV_ROUND_UP(chunks, PAGE_COUNTER_RATIO);
 
-	new_bp = kzalloc(pages * sizeof(*new_bp), GFP_KERNEL);
+	new_bp = kcalloc(pages, sizeof(*new_bp), GFP_KERNEL);
 	ret = -ENOMEM;
 	if (!new_bp) {
 		bitmap_file_unmap(&store);

@@ -78,7 +78,7 @@ struct nvif_mclass {
 #define nvif_mclass(o,m) ({                                                    \
 	struct nvif_object *object = (o);                                      \
 	struct nvif_sclass *sclass;                                            \
-	const typeof(m[0]) *mclass = (m);                                      \
+	typeof(m[0]) *mclass = (m);                                            \
 	int ret = -ENODEV;                                                     \
 	int cnt, i, j;                                                         \
                                                                                \
@@ -97,6 +97,22 @@ struct nvif_mclass {
 		nvif_object_sclass_put(&sclass);                               \
 	}                                                                      \
 	ret;                                                                   \
+})
+
+#define nvif_sclass(o,m,u) ({                                                  \
+	const typeof(m[0]) *_mclass = (m);                                     \
+	s32 _oclass = (u);                                                     \
+	int _cid;                                                              \
+	if (_oclass) {                                                         \
+		for (_cid = 0; _mclass[_cid].oclass; _cid++) {                 \
+			if (_mclass[_cid].oclass == _oclass)                   \
+				break;                                         \
+		}                                                              \
+		_cid = _mclass[_cid].oclass ? _cid : -ENOSYS;                  \
+	} else {                                                               \
+		_cid = nvif_mclass((o), _mclass);                              \
+	}                                                                      \
+	_cid;                                                                  \
 })
 
 /*XXX*/

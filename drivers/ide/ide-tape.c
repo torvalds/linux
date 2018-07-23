@@ -854,7 +854,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 	BUG_ON(cmd != REQ_IDETAPE_READ && cmd != REQ_IDETAPE_WRITE);
 	BUG_ON(size < 0 || size % tape->blk_size);
 
-	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, 0);
 	ide_req(rq)->type = ATA_PRIV_MISC;
 	scsi_req(rq)->cmd[13] = cmd;
 	rq->rq_disk = tape->disk;
@@ -862,7 +862,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 
 	if (size) {
 		ret = blk_rq_map_kern(drive->queue, rq, tape->buf, size,
-				      __GFP_RECLAIM);
+				      GFP_NOIO);
 		if (ret)
 			goto out_put;
 	}
@@ -1847,22 +1847,9 @@ static int idetape_name_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int idetape_name_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idetape_name_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations idetape_name_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= idetape_name_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static ide_proc_entry_t idetape_proc[] = {
-	{ "capacity",	S_IFREG|S_IRUGO,	&ide_capacity_proc_fops	},
-	{ "name",	S_IFREG|S_IRUGO,	&idetape_name_proc_fops	},
+	{ "capacity",	S_IFREG|S_IRUGO,	ide_capacity_proc_show	},
+	{ "name",	S_IFREG|S_IRUGO,	idetape_name_proc_show	},
 	{}
 };
 

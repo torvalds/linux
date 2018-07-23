@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/etherdevice.h>
-#include <linux/ip.h>
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <linux/hashtable.h>
@@ -195,23 +194,6 @@ static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	return RTN_UNSPEC;
 }
 
-static void qeth_l2_hdr_csum(struct qeth_card *card, struct qeth_hdr *hdr,
-			     struct sk_buff *skb)
-{
-	struct iphdr *iph = ip_hdr(skb);
-
-	/* tcph->check contains already the pseudo hdr checksum
-	 * so just set the header flags
-	 */
-	if (iph->protocol == IPPROTO_UDP)
-		hdr->hdr.l2.flags[1] |= QETH_HDR_EXT_UDP;
-	hdr->hdr.l2.flags[1] |= QETH_HDR_EXT_CSUM_TRANSP_REQ |
-		QETH_HDR_EXT_CSUM_HDR_REQ;
-	iph->check = 0;
-	if (card->options.performance_stats)
-		card->perf_stats.tx_csum++;
-}
-
 static void qeth_l2_fill_header(struct qeth_hdr *hdr, struct sk_buff *skb,
 				int cast_type, unsigned int data_len)
 {
@@ -297,12 +279,13 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 static void qeth_l2_process_vlans(struct qeth_card *card)
 {
 	struct qeth_vlan_vid *id;
+
 	QETH_CARD_TEXT(card, 3, "L2prcvln");
-	spin_lock_bh(&card->vlanlock);
+	mutex_lock(&card->vid_list_mutex);
 	list_for_each_entry(id, &card->vid_list, list) {
 		qeth_l2_send_setdelvlan(card, id->vid, IPA_CMD_SETVLAN);
 	}
-	spin_unlock_bh(&card->vlanlock);
+	mutex_unlock(&card->vid_list_mutex);
 }
 
 static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
@@ -319,7 +302,7 @@ static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
 		QETH_CARD_TEXT(card, 3, "aidREC");
 		return 0;
 	}
-	id = kmalloc(sizeof(struct qeth_vlan_vid), GFP_ATOMIC);
+	id = kmalloc(sizeof(*id), GFP_KERNEL);
 	if (id) {
 		id->vid = vid;
 		rc = qeth_l2_send_setdelvlan(card, vid, IPA_CMD_SETVLAN);
@@ -327,9 +310,9 @@ static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
 			kfree(id);
 			return rc;
 		}
-		spin_lock_bh(&card->vlanlock);
+		mutex_lock(&card->vid_list_mutex);
 		list_add_tail(&id->list, &card->vid_list);
-		spin_unlock_bh(&card->vlanlock);
+		mutex_unlock(&card->vid_list_mutex);
 	} else {
 		return -ENOMEM;
 	}
@@ -348,7 +331,7 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 		QETH_CARD_TEXT(card, 3, "kidREC");
 		return 0;
 	}
-	spin_lock_bh(&card->vlanlock);
+	mutex_lock(&card->vid_list_mutex);
 	list_for_each_entry(id, &card->vid_list, list) {
 		if (id->vid == vid) {
 			list_del(&id->list);
@@ -356,7 +339,7 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 			break;
 		}
 	}
-	spin_unlock_bh(&card->vlanlock);
+	mutex_unlock(&card->vid_list_mutex);
 	if (tmpid) {
 		rc = qeth_l2_send_setdelvlan(card, vid, IPA_CMD_DELVLAN);
 		kfree(tmpid);
@@ -423,15 +406,7 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 		switch (hdr->hdr.l2.id) {
 		case QETH_HEADER_TYPE_LAYER2:
 			skb->protocol = eth_type_trans(skb, skb->dev);
-			if ((card->dev->features & NETIF_F_RXCSUM)
-			   && ((hdr->hdr.l2.flags[1] &
-				(QETH_HDR_EXT_CSUM_HDR_REQ |
-				   QETH_HDR_EXT_CSUM_TRANSP_REQ)) ==
-				(QETH_HDR_EXT_CSUM_HDR_REQ |
-				   QETH_HDR_EXT_CSUM_TRANSP_REQ)))
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
-			else
-				skb->ip_summed = CHECKSUM_NONE;
+			qeth_rx_csum(card, skb, hdr->hdr.l2.flags[1]);
 			if (skb->protocol == htons(ETH_P_802_2))
 				*((__u32 *)skb->cb) = ++card->seqno.pkt_seqno;
 			len = skb->len;
@@ -464,7 +439,6 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 static int qeth_l2_request_initial_mac(struct qeth_card *card)
 {
 	int rc = 0;
-	char vendor_pre[] = {0x02, 0x00, 0x00};
 
 	QETH_DBF_TEXT(SETUP, 2, "l2reqmac");
 	QETH_DBF_TEXT_(SETUP, 2, "doL2%s", CARD_BUS_ID(card));
@@ -484,16 +458,20 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 	    card->info.type == QETH_CARD_TYPE_OSX ||
 	    card->info.guestlan) {
 		rc = qeth_setadpparms_change_macaddr(card);
-		if (rc) {
-			QETH_DBF_MESSAGE(2, "couldn't get MAC address on "
-				"device %s: x%x\n", CARD_BUS_ID(card), rc);
-			QETH_DBF_TEXT_(SETUP, 2, "1err%04x", rc);
-			return rc;
-		}
-	} else {
-		eth_random_addr(card->dev->dev_addr);
-		memcpy(card->dev->dev_addr, vendor_pre, 3);
+		if (!rc)
+			goto out;
+		QETH_DBF_MESSAGE(2, "READ_MAC Assist failed on device %s: x%x\n",
+				 CARD_BUS_ID(card), rc);
+		QETH_DBF_TEXT_(SETUP, 2, "1err%04x", rc);
+		/* fall back once more: */
 	}
+
+	/* some devices don't support a custom MAC address: */
+	if (card->info.type == QETH_CARD_TYPE_OSM ||
+	    card->info.type == QETH_CARD_TYPE_OSX)
+		return (rc) ? rc : -EADDRNOTAVAIL;
+	eth_hw_addr_random(card->dev);
+
 out:
 	QETH_DBF_HEX(SETUP, 2, card->dev->dev_addr, card->dev->addr_len);
 	return 0;
@@ -685,7 +663,8 @@ out:
 }
 
 static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
-			    struct qeth_qdio_out_q *queue, int cast_type)
+			    struct qeth_qdio_out_q *queue, int cast_type,
+			    int ipv)
 {
 	int push_len = sizeof(struct qeth_hdr);
 	unsigned int elements, nr_frags;
@@ -723,8 +702,11 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 		hdr_elements = 1;
 	}
 	qeth_l2_fill_header(hdr, skb, cast_type, skb->len - push_len);
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		qeth_l2_hdr_csum(card, hdr, skb);
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
+		if (card->options.performance_stats)
+			card->perf_stats.tx_csum++;
+	}
 
 	elements = qeth_get_elements_no(card, skb, hdr_elements, 0);
 	if (!elements) {
@@ -776,6 +758,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 {
 	struct qeth_card *card = dev->ml_priv;
 	int cast_type = qeth_l2_get_cast_type(card, skb);
+	int ipv = qeth_get_ip_version(skb);
 	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
 	int rc;
@@ -783,7 +766,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	if (card->qdio.do_prio_queueing || (cast_type &&
 					card->info.is_multicast_different))
 		queue = card->qdio.out_qs[qeth_get_priority_queue(card, skb,
-					qeth_get_ip_version(skb), cast_type)];
+					ipv, cast_type)];
 	else
 		queue = card->qdio.out_qs[card->qdio.default_out_queue];
 
@@ -806,7 +789,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 		rc = qeth_l2_xmit_iqd(card, skb, queue, cast_type);
 		break;
 	default:
-		rc = qeth_l2_xmit_osa(card, skb, queue, cast_type);
+		rc = qeth_l2_xmit_osa(card, skb, queue, cast_type, ipv);
 	}
 
 	if (!rc) {
@@ -983,6 +966,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	card->dev->mtu = card->info.initial_mtu;
 	card->dev->min_mtu = 64;
 	card->dev->max_mtu = ETH_MAX_MTU;
+	card->dev->dev_port = card->info.portno;
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
 	if (card->info.type == QETH_CARD_TYPE_OSN) {
 		card->dev->ethtool_ops = &qeth_l2_osn_ops;
@@ -1011,10 +995,15 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 			card->dev->hw_features |= NETIF_F_IP_CSUM;
 			card->dev->vlan_features |= NETIF_F_IP_CSUM;
 		}
-		if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM)) {
-			card->dev->hw_features |= NETIF_F_RXCSUM;
-			card->dev->vlan_features |= NETIF_F_RXCSUM;
-		}
+	}
+	if (qeth_is_supported6(card, IPA_OUTBOUND_CHECKSUM_V6)) {
+		card->dev->hw_features |= NETIF_F_IPV6_CSUM;
+		card->dev->vlan_features |= NETIF_F_IPV6_CSUM;
+	}
+	if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM) ||
+	    qeth_is_supported6(card, IPA_INBOUND_CHECKSUM_V6)) {
+		card->dev->hw_features |= NETIF_F_RXCSUM;
+		card->dev->vlan_features |= NETIF_F_RXCSUM;
 	}
 
 	card->info.broadcast_capable = 1;
@@ -1315,9 +1304,6 @@ static int qeth_l2_control_event(struct qeth_card *card,
 
 struct qeth_discipline qeth_l2_discipline = {
 	.devtype = &qeth_l2_devtype,
-	.start_poll = qeth_qdio_start_poll,
-	.input_handler = (qdio_handler_t *) qeth_qdio_input_handler,
-	.output_handler = (qdio_handler_t *) qeth_qdio_output_handler,
 	.process_rx_buffer = qeth_l2_process_inbound_buffer,
 	.recover = qeth_l2_recover,
 	.setup = qeth_l2_probe_device,

@@ -44,6 +44,7 @@
 #define WO(_f)      ((_f##_OFFSET) >> 2)
 
 #define ATH10K_SCAN_ID 0
+#define ATH10K_SCAN_CHANNEL_SWITCH_WMI_EVT_OVERHEAD 10 /* msec */
 #define WMI_READY_TIMEOUT (5 * HZ)
 #define ATH10K_FLUSH_TIMEOUT_HZ (5 * HZ)
 #define ATH10K_CONNECTION_LOSS_HZ (3 * HZ)
@@ -51,6 +52,8 @@
 
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
+
+#define ATH10K_INVALID_RSSI 128
 
 #define ATH10K_MAX_NUM_MGMT_PENDING 128
 
@@ -173,6 +176,7 @@ struct ath10k_wmi {
 	struct completion service_ready;
 	struct completion unified_ready;
 	struct completion barrier;
+	struct completion radar_confirm;
 	wait_queue_head_t tx_credits_wq;
 	DECLARE_BITMAP(svc_map, WMI_SERVICE_MAX);
 	struct wmi_cmd_map *cmd;
@@ -373,6 +377,21 @@ struct ath10k_dfs_stats {
 	u32 pulses_detected;
 	u32 pulses_discarded;
 	u32 radar_detected;
+};
+
+enum ath10k_radar_confirmation_state {
+	ATH10K_RADAR_CONFIRMATION_IDLE = 0,
+	ATH10K_RADAR_CONFIRMATION_INPROGRESS,
+	ATH10K_RADAR_CONFIRMATION_STOPPED,
+};
+
+struct ath10k_radar_found_info {
+	u32 pri_min;
+	u32 pri_max;
+	u32 width_min;
+	u32 width_max;
+	u32 sidx_min;
+	u32 sidx_max;
 };
 
 #define ATH10K_MAX_NUM_PEER_IDS (1 << 11) /* htt rx_desc limit */
@@ -1106,6 +1125,11 @@ struct ath10k {
 	void *ce_priv;
 
 	u32 sta_tid_stats_mask;
+
+	/* protected by data_lock */
+	enum ath10k_radar_confirmation_state radar_conf_state;
+	struct ath10k_radar_found_info last_radar_info;
+	struct work_struct radar_confirmation_work;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

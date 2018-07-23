@@ -46,7 +46,7 @@ static void mdp5_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 
-	drm_plane_helper_disable(plane);
+	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 
 	kfree(mdp5_plane);
@@ -244,20 +244,6 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.atomic_destroy_state = mdp5_plane_destroy_state,
 		.atomic_print_state = mdp5_plane_atomic_print_state,
 };
-
-static int mdp5_plane_prepare_fb(struct drm_plane *plane,
-				 struct drm_plane_state *new_state)
-{
-	struct mdp5_kms *mdp5_kms = get_kms(plane);
-	struct msm_kms *kms = &mdp5_kms->base.base;
-	struct drm_framebuffer *fb = new_state->fb;
-
-	if (!new_state->fb)
-		return 0;
-
-	DBG("%s: prepare: FB[%u]", plane->name, fb->base.id);
-	return msm_framebuffer_prepare(fb, kms->aspace);
-}
 
 static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 				  struct drm_plane_state *old_state)
@@ -526,7 +512,7 @@ static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
 	if (plane_enabled(new_state)) {
 		struct mdp5_ctl *ctl;
 		struct mdp5_pipeline *pipeline =
-					mdp5_crtc_get_pipeline(plane->crtc);
+					mdp5_crtc_get_pipeline(new_state->crtc);
 		int ret;
 
 		ret = mdp5_plane_mode_set(plane, new_state->crtc, new_state->fb,
@@ -543,7 +529,7 @@ static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs mdp5_plane_helper_funcs = {
-		.prepare_fb = mdp5_plane_prepare_fb,
+		.prepare_fb = msm_atomic_prepare_fb,
 		.cleanup_fb = mdp5_plane_cleanup_fb,
 		.atomic_check = mdp5_plane_atomic_check,
 		.atomic_update = mdp5_plane_atomic_update,
@@ -1042,8 +1028,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 				     crtc_x + crtc_w, crtc_y, crtc_w, crtc_h,
 				     src_img_w, src_img_h,
 				     src_x + src_w, src_y, src_w, src_h);
-
-	plane->fb = fb;
 
 	return ret;
 }

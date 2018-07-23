@@ -2,7 +2,7 @@
  * Toppoly TD028TTEC1 panel support
  *
  * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Neo 1973 code (jbt6k74.c):
  * Copyright (C) 2006-2007 by OpenMoko, Inc.

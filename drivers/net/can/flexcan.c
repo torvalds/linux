@@ -200,6 +200,7 @@
 #define FLEXCAN_QUIRK_DISABLE_MECR	BIT(4) /* Disable Memory error detection */
 #define FLEXCAN_QUIRK_USE_OFF_TIMESTAMP	BIT(5) /* Use timestamp based offloading */
 #define FLEXCAN_QUIRK_BROKEN_PERR_STATE	BIT(6) /* No interrupt for error passive */
+#define FLEXCAN_QUIRK_DEFAULT_BIG_ENDIAN	BIT(7) /* default to BE register access */
 
 /* Structure of the message buffer */
 struct flexcan_mb {
@@ -287,6 +288,12 @@ struct flexcan_priv {
 };
 
 static const struct flexcan_devtype_data fsl_p1010_devtype_data = {
+	.quirks = FLEXCAN_QUIRK_BROKEN_WERR_STATE |
+		FLEXCAN_QUIRK_BROKEN_PERR_STATE |
+		FLEXCAN_QUIRK_DEFAULT_BIG_ENDIAN,
+};
+
+static const struct flexcan_devtype_data fsl_imx25_devtype_data = {
 	.quirks = FLEXCAN_QUIRK_BROKEN_WERR_STATE |
 		FLEXCAN_QUIRK_BROKEN_PERR_STATE,
 };
@@ -1251,9 +1258,9 @@ static void unregister_flexcandev(struct net_device *dev)
 static const struct of_device_id flexcan_of_match[] = {
 	{ .compatible = "fsl,imx6q-flexcan", .data = &fsl_imx6q_devtype_data, },
 	{ .compatible = "fsl,imx28-flexcan", .data = &fsl_imx28_devtype_data, },
-	{ .compatible = "fsl,imx53-flexcan", .data = &fsl_p1010_devtype_data, },
-	{ .compatible = "fsl,imx35-flexcan", .data = &fsl_p1010_devtype_data, },
-	{ .compatible = "fsl,imx25-flexcan", .data = &fsl_p1010_devtype_data, },
+	{ .compatible = "fsl,imx53-flexcan", .data = &fsl_imx25_devtype_data, },
+	{ .compatible = "fsl,imx35-flexcan", .data = &fsl_imx25_devtype_data, },
+	{ .compatible = "fsl,imx25-flexcan", .data = &fsl_imx25_devtype_data, },
 	{ .compatible = "fsl,p1010-flexcan", .data = &fsl_p1010_devtype_data, },
 	{ .compatible = "fsl,vf610-flexcan", .data = &fsl_vf610_devtype_data, },
 	{ .compatible = "fsl,ls1021ar2-flexcan", .data = &fsl_ls1021a_r2_devtype_data, },
@@ -1337,18 +1344,13 @@ static int flexcan_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(dev);
 
-	if (of_property_read_bool(pdev->dev.of_node, "big-endian")) {
+	if (of_property_read_bool(pdev->dev.of_node, "big-endian") ||
+	    devtype_data->quirks & FLEXCAN_QUIRK_DEFAULT_BIG_ENDIAN) {
 		priv->read = flexcan_read_be;
 		priv->write = flexcan_write_be;
 	} else {
-		if (of_device_is_compatible(pdev->dev.of_node,
-					    "fsl,p1010-flexcan")) {
-			priv->read = flexcan_read_be;
-			priv->write = flexcan_write_be;
-		} else {
-			priv->read = flexcan_read_le;
-			priv->write = flexcan_write_le;
-		}
+		priv->read = flexcan_read_le;
+		priv->write = flexcan_write_le;
 	}
 
 	priv->can.clock.freq = clock_freq;

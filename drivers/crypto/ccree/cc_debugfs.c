@@ -26,7 +26,8 @@ struct cc_debugfs_ctx {
 static struct dentry *cc_debugfs_dir;
 
 static struct debugfs_reg32 debug_regs[] = {
-	CC_DEBUG_REG(HOST_SIGNATURE),
+	{ .name = "SIGNATURE" }, /* Must be 0th */
+	{ .name = "VERSION" }, /* Must be 1st */
 	CC_DEBUG_REG(HOST_IRR),
 	CC_DEBUG_REG(HOST_POWER_DOWN_EN),
 	CC_DEBUG_REG(AXIM_MON_ERR),
@@ -34,7 +35,6 @@ static struct debugfs_reg32 debug_regs[] = {
 	CC_DEBUG_REG(HOST_IMR),
 	CC_DEBUG_REG(AXIM_CFG),
 	CC_DEBUG_REG(AXIM_CACHE_PARAMS),
-	CC_DEBUG_REG(HOST_VERSION),
 	CC_DEBUG_REG(GPR_HOST),
 	CC_DEBUG_REG(AXIM_MON_COMP),
 };
@@ -57,6 +57,9 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 	struct cc_debugfs_ctx *ctx;
 	struct debugfs_regset32 *regset;
 	struct dentry *file;
+
+	debug_regs[0].offset = drvdata->sig_offset;
+	debug_regs[1].offset = drvdata->ver_offset;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)

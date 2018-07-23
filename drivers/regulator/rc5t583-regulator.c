@@ -132,8 +132,10 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	regs = devm_kzalloc(&pdev->dev, RC5T583_REGULATOR_MAX *
-			sizeof(struct rc5t583_regulator), GFP_KERNEL);
+	regs = devm_kcalloc(&pdev->dev,
+			    RC5T583_REGULATOR_MAX,
+			    sizeof(struct rc5t583_regulator),
+			    GFP_KERNEL);
 	if (!regs)
 		return -ENOMEM;
 

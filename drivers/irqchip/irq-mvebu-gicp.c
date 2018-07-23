@@ -19,8 +19,6 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-#include "irq-mvebu-gicp.h"
-
 #define GICP_SETSPI_NSR_OFFSET	0x0
 #define GICP_CLRSPI_NSR_OFFSET	0x8
 
@@ -55,34 +53,18 @@ static int gicp_idx_to_spi(struct mvebu_gicp *gicp, int idx)
 	return -EINVAL;
 }
 
-int mvebu_gicp_get_doorbells(struct device_node *dn, phys_addr_t *setspi,
-			     phys_addr_t *clrspi)
-{
-	struct platform_device *pdev;
-	struct mvebu_gicp *gicp;
-
-	pdev = of_find_device_by_node(dn);
-	if (!pdev)
-		return -ENODEV;
-
-	gicp = platform_get_drvdata(pdev);
-	if (!gicp)
-		return -ENODEV;
-
-	*setspi = gicp->res->start + GICP_SETSPI_NSR_OFFSET;
-	*clrspi = gicp->res->start + GICP_CLRSPI_NSR_OFFSET;
-
-	return 0;
-}
-
 static void gicp_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct mvebu_gicp *gicp = data->chip_data;
 	phys_addr_t setspi = gicp->res->start + GICP_SETSPI_NSR_OFFSET;
+	phys_addr_t clrspi = gicp->res->start + GICP_CLRSPI_NSR_OFFSET;
 
-	msg->data = data->hwirq;
-	msg->address_lo = lower_32_bits(setspi);
-	msg->address_hi = upper_32_bits(setspi);
+	msg[0].data = data->hwirq;
+	msg[0].address_lo = lower_32_bits(setspi);
+	msg[0].address_hi = upper_32_bits(setspi);
+	msg[1].data = data->hwirq;
+	msg[1].address_lo = lower_32_bits(clrspi);
+	msg[1].address_hi = upper_32_bits(clrspi);
 }
 
 static struct irq_chip gicp_irq_chip = {
@@ -170,13 +152,15 @@ static const struct irq_domain_ops gicp_domain_ops = {
 static struct irq_chip gicp_msi_irq_chip = {
 	.name		= "GICP",
 	.irq_set_type	= irq_chip_set_type_parent,
+	.flags		= IRQCHIP_SUPPORTS_LEVEL_MSI,
 };
 
 static struct msi_domain_ops gicp_msi_ops = {
 };
 
 static struct msi_domain_info gicp_msi_domain_info = {
-	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS),
+	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		   MSI_FLAG_LEVEL_CAPABLE),
 	.ops	= &gicp_msi_ops,
 	.chip	= &gicp_msi_irq_chip,
 };
@@ -207,8 +191,8 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 	gicp->spi_ranges_cnt = ret / 2;
 
 	gicp->spi_ranges =
-		devm_kzalloc(&pdev->dev,
-			     gicp->spi_ranges_cnt *
+		devm_kcalloc(&pdev->dev,
+			     gicp->spi_ranges_cnt,
 			     sizeof(struct mvebu_gicp_spi_range),
 			     GFP_KERNEL);
 	if (!gicp->spi_ranges)
@@ -226,8 +210,8 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 		gicp->spi_cnt += gicp->spi_ranges[i].count;
 	}
 
-	gicp->spi_bitmap = devm_kzalloc(&pdev->dev,
-				BITS_TO_LONGS(gicp->spi_cnt) * sizeof(long),
+	gicp->spi_bitmap = devm_kcalloc(&pdev->dev,
+				BITS_TO_LONGS(gicp->spi_cnt), sizeof(long),
 				GFP_KERNEL);
 	if (!gicp->spi_bitmap)
 		return -ENOMEM;

@@ -207,6 +207,7 @@ static int si544_calc_muldiv(struct clk_si544_muldiv *settings,
 
 	/* And the fractional bits using the remainder */
 	vco = (u64)tmp << 32;
+	vco += FXO / 2; /* Round to nearest multiple */
 	do_div(vco, FXO);
 	settings->fb_div_frac = vco;
 

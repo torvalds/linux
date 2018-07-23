@@ -1385,7 +1385,6 @@ MODULE_DEVICE_TABLE(of, ov5695_of_match);
 static struct i2c_driver ov5695_i2c_driver = {
 	.driver = {
 		.name = "ov5695",
-		.owner = THIS_MODULE,
 		.pm = &ov5695_pm_ops,
 		.of_match_table = of_match_ptr(ov5695_of_match),
 	},

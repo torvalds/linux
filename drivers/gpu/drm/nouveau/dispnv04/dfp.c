@@ -716,6 +716,6 @@ nv04_dfp_create(struct drm_connector *connector, struct dcb_output *entry)
 	    entry->location != DCB_LOC_ON_CHIP)
 		nv04_tmds_slave_init(encoder);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }

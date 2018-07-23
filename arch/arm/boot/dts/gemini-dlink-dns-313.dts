@@ -15,7 +15,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory {
+	memory@0 {
 		/* 64 MB SDRAM in a Nanya NT5DS32M16BS-6K package */
 		device_type = "memory";
 		reg = <0x00000000 0x4000000>;
@@ -26,15 +26,15 @@
 	};
 
 	chosen {
+		bootargs = "console=ttyS0,19200n8 root=/dev/sda4 rw rootwait";
 		stdout-path = "uart0:19200n8";
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
+
 		button-esc {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_ESC>;
 			label = "reset";
@@ -59,14 +59,13 @@
 			label = "dns313:green:disk";
 			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-			linux,default-trigger = "ide-disk";
-			/* Ideally should activate while reading */
+			linux,default-trigger = "disk-read";
 		};
 		led-disk-red {
 			label = "dns313:red:disk";
 			gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-			/* Ideally should activate while writing */
+			linux,default-trigger = "disk-write";
 		};
 	};
 
@@ -158,8 +157,12 @@
 
 	soc {
 		flash@30000000 {
+			/*
+			 * This is a Eon EN29LV400AB 512 KiB flash with
+			 * three partitions.
+			 */
+			compatible = "cortina,gemini-flash", "jedec-flash";
 			status = "okay";
-			/* 512KB of flash */
 			reg = <0x30000000 0x00080000>;
 
 			/*

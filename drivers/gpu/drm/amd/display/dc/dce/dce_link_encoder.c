@@ -113,6 +113,7 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.connect_dig_be_to_fe = dce110_link_encoder_connect_dig_be_to_fe,
 	.enable_hpd = dce110_link_encoder_enable_hpd,
 	.disable_hpd = dce110_link_encoder_disable_hpd,
+	.is_dig_enabled = dce110_is_dig_enabled,
 	.destroy = dce110_link_encoder_destroy
 };
 
@@ -535,8 +536,9 @@ void dce110_psr_program_secondary_packet(struct link_encoder *enc,
 		DP_SEC_GSP0_PRIORITY, 1);
 }
 
-static bool is_dig_enabled(const struct dce110_link_encoder *enc110)
+bool dce110_is_dig_enabled(struct link_encoder *enc)
 {
+	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	uint32_t value;
 
 	REG_GET(DIG_BE_EN_CNTL, DIG_ENABLE, &value);
@@ -643,6 +645,9 @@ static bool dce110_link_encoder_validate_hdmi_output(
 
 	if (!enc110->base.features.flags.bits.HDMI_6GB_EN &&
 		adjusted_pix_clk_khz >= 300000)
+		return false;
+	if (enc110->base.ctx->dc->debug.hdmi20_disable &&
+		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 	return true;
 }
@@ -770,6 +775,9 @@ void dce110_link_encoder_construct(
 		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
 				__func__,
 				result);
+	}
+	if (enc110->base.ctx->dc->debug.hdmi20_disable) {
+		enc110->base.features.flags.bits.HDMI_6GB_EN = 0;
 	}
 }
 
@@ -1031,7 +1039,7 @@ void dce110_link_encoder_disable_output(
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
-	if (!is_dig_enabled(enc110)) {
+	if (!dce110_is_dig_enabled(enc)) {
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
 		return;
 	}

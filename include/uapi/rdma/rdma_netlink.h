@@ -249,9 +249,21 @@ enum rdma_nldev_command {
 	RDMA_NLDEV_NUM_OPS
 };
 
+enum {
+	RDMA_NLDEV_ATTR_ENTRY_STRLEN = 16,
+};
+
+enum rdma_nldev_print_type {
+	RDMA_NLDEV_PRINT_TYPE_UNSPEC,
+	RDMA_NLDEV_PRINT_TYPE_HEX,
+};
+
 enum rdma_nldev_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	RDMA_NLDEV_ATTR_UNSPEC,
+
+	/* Pad attribute for 64b alignment */
+	RDMA_NLDEV_ATTR_PAD = RDMA_NLDEV_ATTR_UNSPEC,
 
 	/* Identifier for ib_device */
 	RDMA_NLDEV_ATTR_DEV_INDEX,		/* u32 */
@@ -387,7 +399,6 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_RES_PD_ENTRY,		/* nested table */
 	RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY,	/* u32 */
 	RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY,	/* u32 */
-
 	/*
 	 * Provides logical name and index of netdevice which is
 	 * connected to physical port. This information is relevant
@@ -400,7 +411,24 @@ enum rdma_nldev_attr {
 	 */
 	RDMA_NLDEV_ATTR_NDEV_INDEX,		/* u32 */
 	RDMA_NLDEV_ATTR_NDEV_NAME,		/* string */
+	/*
+	 * driver-specific attributes.
+	 */
+	RDMA_NLDEV_ATTR_DRIVER,			/* nested table */
+	RDMA_NLDEV_ATTR_DRIVER_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_DRIVER_STRING,		/* string */
+	/*
+	 * u8 values from enum rdma_nldev_print_type
+	 */
+	RDMA_NLDEV_ATTR_DRIVER_PRINT_TYPE,	/* u8 */
+	RDMA_NLDEV_ATTR_DRIVER_S32,		/* s32 */
+	RDMA_NLDEV_ATTR_DRIVER_U32,		/* u32 */
+	RDMA_NLDEV_ATTR_DRIVER_S64,		/* s64 */
+	RDMA_NLDEV_ATTR_DRIVER_U64,		/* u64 */
 
+	/*
+	 * Always the end
+	 */
 	RDMA_NLDEV_ATTR_MAX
 };
 #endif /* _UAPI_RDMA_NETLINK_H */

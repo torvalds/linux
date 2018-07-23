@@ -394,8 +394,9 @@ static int mlx5_init_pin_config(struct mlx5_clock *clock)
 	int i;
 
 	clock->ptp_info.pin_config =
-			kzalloc(sizeof(*clock->ptp_info.pin_config) *
-				clock->ptp_info.n_pins, GFP_KERNEL);
+			kcalloc(clock->ptp_info.n_pins,
+				sizeof(*clock->ptp_info.pin_config),
+				GFP_KERNEL);
 	if (!clock->ptp_info.pin_config)
 		return -ENOMEM;
 	clock->ptp_info.enable = mlx5_ptp_enable;

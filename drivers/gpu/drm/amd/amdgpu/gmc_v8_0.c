@@ -44,6 +44,7 @@
 
 #include "amdgpu_atombios.h"
 
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 static void gmc_v8_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -138,6 +139,7 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		amdgpu_device_program_register_sequence(adev,
 							golden_settings_polaris11_a11,
 							ARRAY_SIZE(golden_settings_polaris11_a11));
@@ -231,6 +233,7 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
+	case CHIP_VEGAM:
 		return 0;
 	default: BUG();
 	}
@@ -567,9 +570,10 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	/* set the gart size */
 	if (amdgpu_gart_size == -1) {
 		switch (adev->asic_type) {
-		case CHIP_POLARIS11: /* all engines support GPUVM */
 		case CHIP_POLARIS10: /* all engines support GPUVM */
+		case CHIP_POLARIS11: /* all engines support GPUVM */
 		case CHIP_POLARIS12: /* all engines support GPUVM */
+		case CHIP_VEGAM:     /* all engines support GPUVM */
 		default:
 			adev->gmc.gart_size = 256ULL << 20;
 			break;
@@ -1049,10 +1053,31 @@ static int gmc_v8_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_bo_late_init(adev);
+
 	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
 		return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 	else
 		return 0;
+}
+
+static unsigned gmc_v8_0_get_vbios_fb_size(struct amdgpu_device *adev)
+{
+	u32 d1vga_control = RREG32(mmD1VGA_CONTROL);
+	unsigned size;
+
+	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
+		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+	} else {
+		u32 viewport = RREG32(mmVIEWPORT_SIZE);
+		size = (REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
+			REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_WIDTH) *
+			4);
+	}
+	/* return 0 if the pre-OS buffer uses up most of vram */
+	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
+		return 0;
+	return size;
 }
 
 #define mmMC_SEQ_MISC0_FIJI 0xA71
@@ -1068,7 +1093,8 @@ static int gmc_v8_0_sw_init(void *handle)
 	} else {
 		u32 tmp;
 
-		if (adev->asic_type == CHIP_FIJI)
+		if ((adev->asic_type == CHIP_FIJI) ||
+		    (adev->asic_type == CHIP_VEGAM))
 			tmp = RREG32(mmMC_SEQ_MISC0_FIJI);
 		else
 			tmp = RREG32(mmMC_SEQ_MISC0);
@@ -1076,11 +1102,11 @@ static int gmc_v8_0_sw_init(void *handle)
 		adev->gmc.vram_type = gmc_v8_0_convert_vram_type(tmp);
 	}
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 146, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_PAGE_INV_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 147, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_MEM_PROT_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
@@ -1095,8 +1121,6 @@ static int gmc_v8_0_sw_init(void *handle)
 	 * internal address space.
 	 */
 	adev->gmc.mc_mask = 0xffffffffffULL; /* 40 bit MC */
-
-	adev->gmc.stolen_size = 256 * 1024;
 
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 40-bits.
@@ -1127,6 +1151,8 @@ static int gmc_v8_0_sw_init(void *handle)
 	r = gmc_v8_0_mc_init(adev);
 	if (r)
 		return r;
+
+	adev->gmc.stolen_size = gmc_v8_0_get_vbios_fb_size(adev);
 
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
@@ -1422,8 +1448,13 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 		gmc_v8_0_set_fault_enable_default(adev, false);
 
 	if (printk_ratelimit()) {
-		dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
-			entry->src_id, entry->src_data[0]);
+		struct amdgpu_task_info task_info = { 0 };
+
+		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
+
+		dev_err(adev->dev, "GPU fault detected: %d 0x%08x for process %s pid %d thread %s pid %d\n",
+			entry->src_id, entry->src_data[0], task_info.process_name,
+			task_info.tgid, task_info.task_name, task_info.pid);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
 			addr);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",

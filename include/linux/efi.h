@@ -395,9 +395,9 @@ typedef struct {
 	u32 attributes;
 	u32 get_bar_attributes;
 	u32 set_bar_attributes;
-	uint64_t romsize;
-	void *romimage;
-} efi_pci_io_protocol_32;
+	u64 romsize;
+	u32 romimage;
+} efi_pci_io_protocol_32_t;
 
 typedef struct {
 	u64 poll_mem;
@@ -415,9 +415,9 @@ typedef struct {
 	u64 attributes;
 	u64 get_bar_attributes;
 	u64 set_bar_attributes;
-	uint64_t romsize;
-	void *romimage;
-} efi_pci_io_protocol_64;
+	u64 romsize;
+	u64 romimage;
+} efi_pci_io_protocol_64_t;
 
 typedef struct {
 	void *poll_mem;
@@ -437,7 +437,7 @@ typedef struct {
 	void *set_bar_attributes;
 	uint64_t romsize;
 	void *romimage;
-} efi_pci_io_protocol;
+} efi_pci_io_protocol_t;
 
 #define EFI_PCI_IO_ATTRIBUTE_ISA_MOTHERBOARD_IO 0x0001
 #define EFI_PCI_IO_ATTRIBUTE_ISA_IO 0x0002

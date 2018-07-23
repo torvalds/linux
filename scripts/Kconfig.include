@@ -1,0 +1,30 @@
+# Kconfig helper macros
+
+# Convenient variables
+comma       := ,
+quote       := "
+squote      := '
+empty       :=
+space       := $(empty) $(empty)
+dollar      := $
+right_paren := )
+left_paren  := (
+
+# $(if-success,<command>,<then>,<else>)
+# Return <then> if <command> exits with 0, <else> otherwise.
+if-success = $(shell,{ $(1); } >/dev/null 2>&1 && echo "$(2)" || echo "$(3)")
+
+# $(success,<command>)
+# Return y if <command> exits with 0, n otherwise
+success = $(if-success,$(1),y,n)
+
+# $(cc-option,<flag>)
+# Return y if the compiler supports <flag>, n otherwise
+cc-option = $(success,$(CC) -Werror $(1) -E -x c /dev/null -o /dev/null)
+
+# $(ld-option,<flag>)
+# Return y if the linker supports <flag>, n otherwise
+ld-option = $(success,$(LD) -v $(1))
+
+# gcc version including patch level
+gcc-version := $(shell,$(srctree)/scripts/gcc-version.sh -p $(CC) | sed 's/^0*//')

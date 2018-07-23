@@ -3141,7 +3141,7 @@ bnad_set_rx_ucast_fltr(struct bnad *bnad)
 	if (uc_count > bna_attr(&bnad->bna)->num_ucmac)
 		goto mode_default;
 
-	mac_list = kzalloc(uc_count * ETH_ALEN, GFP_ATOMIC);
+	mac_list = kcalloc(ETH_ALEN, uc_count, GFP_ATOMIC);
 	if (mac_list == NULL)
 		goto mode_default;
 
@@ -3182,7 +3182,7 @@ bnad_set_rx_mcast_fltr(struct bnad *bnad)
 	if (mc_count > bna_attr(&bnad->bna)->num_mcmac)
 		goto mode_allmulti;
 
-	mac_list = kzalloc((mc_count + 1) * ETH_ALEN, GFP_ATOMIC);
+	mac_list = kcalloc(mc_count + 1, ETH_ALEN, GFP_ATOMIC);
 
 	if (mac_list == NULL)
 		goto mode_allmulti;

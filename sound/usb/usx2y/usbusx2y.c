@@ -266,7 +266,9 @@ int usX2Y_AsyncSeq04_init(struct usX2Ydev *usX2Y)
 	int	err = 0,
 		i;
 
-	if (NULL == (usX2Y->AS04.buffer = kmalloc(URB_DataLen_AsyncSeq*URBS_AsyncSeq, GFP_KERNEL))) {
+	usX2Y->AS04.buffer = kmalloc_array(URBS_AsyncSeq,
+					   URB_DataLen_AsyncSeq, GFP_KERNEL);
+	if (NULL == usX2Y->AS04.buffer) {
 		err = -ENOMEM;
 	} else
 		for (i = 0; i < URBS_AsyncSeq; ++i) {

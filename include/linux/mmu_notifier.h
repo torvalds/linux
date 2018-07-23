@@ -174,7 +174,7 @@ struct mmu_notifier_ops {
 	 * invalidate_range_start()/end() notifiers, as
 	 * invalidate_range() alread catches the points in time when an
 	 * external TLB range needs to be flushed. For more in depth
-	 * discussion on this see Documentation/vm/mmu_notifier.txt
+	 * discussion on this see Documentation/vm/mmu_notifier.rst
 	 *
 	 * Note that this function might be called with just a sub-range
 	 * of what was passed to invalidate_range_start()/end(), if

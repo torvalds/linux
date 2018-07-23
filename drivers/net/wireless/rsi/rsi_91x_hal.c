@@ -45,7 +45,7 @@ int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
 	return status;
 }
 
-static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
+int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_hdr *wh = NULL;
@@ -55,7 +55,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_mgmt_desc *mgmt_desc;
 	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss = NULL;
-	struct xtended_desc *xtend_desc = NULL;
+	struct rsi_xtended_desc *xtend_desc = NULL;
 	u8 header_size;
 	u32 dword_align_bytes = 0;
 
@@ -69,7 +69,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	vif = tx_params->vif;
 
 	/* Update header size */
-	header_size = FRAME_DESC_SZ + sizeof(struct xtended_desc);
+	header_size = FRAME_DESC_SZ + sizeof(struct rsi_xtended_desc);
 	if (header_size > skb_headroom(skb)) {
 		rsi_dbg(ERR_ZONE,
 			"%s: Failed to add extended descriptor\n",
@@ -92,7 +92,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 
 	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
-	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
+	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];
 
 	rsi_set_len_qno(&mgmt_desc->len_qno, (skb->len - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
@@ -112,17 +112,6 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 
 	if (conf_is_ht40(conf))
 		mgmt_desc->bbp_info = cpu_to_le16(FULL40M_ENABLE);
-
-	if (ieee80211_is_probe_req(wh->frame_control)) {
-		if (!bss->assoc) {
-			rsi_dbg(INFO_ZONE,
-				"%s: blocking mgmt queue\n", __func__);
-			mgmt_desc->misc_flags = RSI_DESC_REQUIRE_CFM_TO_HOST;
-			xtend_desc->confirm_frame_type = PROBEREQ_CONFIRM;
-			common->mgmt_q_block = true;
-			rsi_dbg(INFO_ZONE, "Mgmt queue blocked\n");
-		}
-	}
 
 	if (ieee80211_is_probe_resp(wh->frame_control)) {
 		mgmt_desc->misc_flags |= (RSI_ADD_DELTA_TSF_VAP_ID |
@@ -149,7 +138,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 }
 
 /* This function prepares descriptor for given data packet */
-static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
+int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_vif *vif;
@@ -158,7 +147,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss;
 	struct rsi_data_desc *data_desc;
-	struct xtended_desc *xtend_desc;
+	struct rsi_xtended_desc *xtend_desc;
 	u8 ieee80211_size = MIN_802_11_HDR_LEN;
 	u8 header_size;
 	u8 vap_id = 0;
@@ -170,7 +159,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	bss = &vif->bss_conf;
 	tx_params = (struct skb_info *)info->driver_data;
 
-	header_size = FRAME_DESC_SZ + sizeof(struct xtended_desc);
+	header_size = FRAME_DESC_SZ + sizeof(struct rsi_xtended_desc);
 	if (header_size > skb_headroom(skb)) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to send pkt\n", __func__);
 		return -ENOSPC;
@@ -188,7 +177,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	data_desc = (struct rsi_data_desc *)skb->data;
 	memset(data_desc, 0, header_size);
 
-	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
+	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 	seq_num = IEEE80211_SEQ_TO_SN(le16_to_cpu(wh->seq_ctrl));
 
@@ -243,6 +232,18 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		data_desc->misc_flags |= RSI_FETCH_RETRY_CNT_FRM_HST;
 #define EAPOL_RETRY_CNT 15
 		xtend_desc->retry_cnt = EAPOL_RETRY_CNT;
+
+		if (common->eapol4_confirm)
+			skb->priority = VO_Q;
+		else
+			rsi_set_len_qno(&data_desc->len_qno,
+					(skb->len - FRAME_DESC_SZ),
+					RSI_WIFI_MGMT_Q);
+		if ((skb->len - header_size) == EAPOL4_PACKET_LEN) {
+			data_desc->misc_flags |=
+				RSI_DESC_REQUIRE_CFM_TO_HOST;
+			xtend_desc->confirm_frame_type = EAPOL4_CONFIRM;
+		}
 	}
 
 	data_desc->mac_flags = cpu_to_le16(seq_num & 0xfff);
@@ -282,8 +283,11 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_vif *vif;
 	struct ieee80211_tx_info *info;
+	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss;
+	struct ieee80211_hdr *wh;
 	int status = -EINVAL;
+	u8 header_size;
 
 	if (!skb)
 		return 0;
@@ -295,14 +299,13 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 		goto err;
 	vif = info->control.vif;
 	bss = &vif->bss_conf;
+	tx_params = (struct skb_info *)info->driver_data;
+	header_size = tx_params->internal_hdr_size;
+	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 
 	if (((vif->type == NL80211_IFTYPE_STATION) ||
 	     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
 	    (!bss->assoc))
-		goto err;
-
-	status = rsi_prepare_data_desc(common, skb);
-	if (status)
 		goto err;
 
 	status = rsi_send_pkt_to_bus(common, skb);
@@ -327,12 +330,18 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		      struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_bss_conf *bss;
+	struct ieee80211_hdr *wh;
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
+	struct rsi_mgmt_desc *mgmt_desc;
+	struct rsi_xtended_desc *xtend_desc;
 	int status = -E2BIG;
+	u8 header_size;
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;
+	header_size = tx_params->internal_hdr_size;
 
 	if (tx_params->flags & INTERNAL_MGMT_PKT) {
 		status = adapter->host_intf_ops->write_pkt(common->priv,
@@ -346,15 +355,25 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		return status;
 	}
 
-	if (FRAME_DESC_SZ > skb_headroom(skb))
-		goto err;
+	bss = &info->control.vif->bss_conf;
+	wh = (struct ieee80211_hdr *)&skb->data[header_size];
+	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
+	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];
 
-	rsi_prepare_mgmt_desc(common, skb);
+	/* Indicate to firmware to give cfm for probe */
+	if (ieee80211_is_probe_req(wh->frame_control) && !bss->assoc) {
+		rsi_dbg(INFO_ZONE,
+			"%s: blocking mgmt queue\n", __func__);
+		mgmt_desc->misc_flags = RSI_DESC_REQUIRE_CFM_TO_HOST;
+		xtend_desc->confirm_frame_type = PROBEREQ_CONFIRM;
+		common->mgmt_q_block = true;
+		rsi_dbg(INFO_ZONE, "Mgmt queue blocked\n");
+	}
+
 	status = rsi_send_pkt_to_bus(common, skb);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write the packet\n", __func__);
 
-err:
 	rsi_indicate_tx_status(common->priv, skb, status);
 	return status;
 }
@@ -616,28 +635,32 @@ static int bl_write_header(struct rsi_hw *adapter, u8 *flash_content,
 			   u32 content_size)
 {
 	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
-	struct bl_header bl_hdr;
+	struct bl_header *bl_hdr;
 	u32 write_addr, write_len;
 	int status;
 
-	bl_hdr.flags = 0;
-	bl_hdr.image_no = cpu_to_le32(adapter->priv->coex_mode);
-	bl_hdr.check_sum = cpu_to_le32(
-				*(u32 *)&flash_content[CHECK_SUM_OFFSET]);
-	bl_hdr.flash_start_address = cpu_to_le32(
-					*(u32 *)&flash_content[ADDR_OFFSET]);
-	bl_hdr.flash_len = cpu_to_le32(*(u32 *)&flash_content[LEN_OFFSET]);
+	bl_hdr = kzalloc(sizeof(*bl_hdr), GFP_KERNEL);
+	if (!bl_hdr)
+		return -ENOMEM;
+
+	bl_hdr->flags = 0;
+	bl_hdr->image_no = cpu_to_le32(adapter->priv->coex_mode);
+	bl_hdr->check_sum =
+		cpu_to_le32(*(u32 *)&flash_content[CHECK_SUM_OFFSET]);
+	bl_hdr->flash_start_address =
+		cpu_to_le32(*(u32 *)&flash_content[ADDR_OFFSET]);
+	bl_hdr->flash_len = cpu_to_le32(*(u32 *)&flash_content[LEN_OFFSET]);
 	write_len = sizeof(struct bl_header);
 
 	if (adapter->rsi_host_intf == RSI_HOST_INTF_USB) {
 		write_addr = PING_BUFFER_ADDRESS;
 		status = hif_ops->write_reg_multiple(adapter, write_addr,
-						 (u8 *)&bl_hdr, write_len);
+						 (u8 *)bl_hdr, write_len);
 		if (status < 0) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to load Version/CRC structure\n",
 				__func__);
-			return status;
+			goto fail;
 		}
 	} else {
 		write_addr = PING_BUFFER_ADDRESS >> 16;
@@ -646,20 +669,23 @@ static int bl_write_header(struct rsi_hw *adapter, u8 *flash_content,
 			rsi_dbg(ERR_ZONE,
 				"%s: Unable to set ms word to common reg\n",
 				__func__);
-			return status;
+			goto fail;
 		}
 		write_addr = RSI_SD_REQUEST_MASTER |
 			     (PING_BUFFER_ADDRESS & 0xFFFF);
 		status = hif_ops->write_reg_multiple(adapter, write_addr,
-						 (u8 *)&bl_hdr, write_len);
+						 (u8 *)bl_hdr, write_len);
 		if (status < 0) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to load Version/CRC structure\n",
 				__func__);
-			return status;
+			goto fail;
 		}
 	}
-	return 0;
+	status = 0;
+fail:
+	kfree(bl_hdr);
+	return status;
 }
 
 static u32 read_flash_capacity(struct rsi_hw *adapter)

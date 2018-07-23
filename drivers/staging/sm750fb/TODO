@@ -9,8 +9,11 @@ TODO:
 - must be ported to the atomic kms framework in the drm subsystem (which will
   give you a basic fbdev driver for free)
 
+Note:
+- This driver will be removed from staging after the drm driver is ready
+- The drm driver is getting ready at https://gitlab.com/sudipm/sm750/tree/sm750
+
 Please send any patches to
 	Greg Kroah-Hartman <greg@kroah.com>
 	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 	Teddy Wang <teddy.wang@siliconmotion.com>
-	Sudip Mukherjee <sudip@vectorindia.org>

@@ -1239,6 +1239,12 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		break;
+	case CHIP_VEGA10:
+	case CHIP_RAVEN:
+		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
+			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
+			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
+		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",
 		     dev->gpu->device_info->asic_family);

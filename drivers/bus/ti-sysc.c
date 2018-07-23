@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
@@ -32,10 +33,18 @@ static const char * const reg_names[] = { "rev", "sysc", "syss", };
 enum sysc_clocks {
 	SYSC_FCK,
 	SYSC_ICK,
+	SYSC_OPTFCK0,
+	SYSC_OPTFCK1,
+	SYSC_OPTFCK2,
+	SYSC_OPTFCK3,
+	SYSC_OPTFCK4,
+	SYSC_OPTFCK5,
+	SYSC_OPTFCK6,
+	SYSC_OPTFCK7,
 	SYSC_MAX_CLOCKS,
 };
 
-static const char * const clock_names[] = { "fck", "ick", };
+static const char * const clock_names[SYSC_ICK + 1] = { "fck", "ick", };
 
 #define SYSC_IDLEMODE_MASK		3
 #define SYSC_CLOCKACTIVITY_MASK		3
@@ -48,6 +57,8 @@ static const char * const clock_names[] = { "fck", "ick", };
  * @module_va: virtual address of the interconnect target module
  * @offsets: register offsets from module base
  * @clocks: clocks used by the interconnect target module
+ * @clock_roles: clock role names for the found clocks
+ * @nr_clocks: number of clocks used by the interconnect target module
  * @legacy_mode: configured for legacy mode if set
  * @cap: interconnect target module capabilities
  * @cfg: interconnect target module configuration
@@ -61,7 +72,10 @@ struct sysc {
 	u32 module_size;
 	void __iomem *module_va;
 	int offsets[SYSC_MAX_REGS];
-	struct clk *clocks[SYSC_MAX_CLOCKS];
+	struct clk **clocks;
+	const char **clock_roles;
+	int nr_clocks;
+	struct reset_control *rsts;
 	const char *legacy_mode;
 	const struct sysc_capabilities *cap;
 	struct sysc_config cfg;
@@ -88,6 +102,11 @@ static u32 sysc_read(struct sysc *ddata, int offset)
 	return readl_relaxed(ddata->module_va + offset);
 }
 
+static bool sysc_opt_clks_needed(struct sysc *ddata)
+{
+	return !!(ddata->cfg.quirks & SYSC_QUIRK_OPT_CLKS_NEEDED);
+}
+
 static u32 sysc_read_revision(struct sysc *ddata)
 {
 	int offset = ddata->offsets[SYSC_REVISION];
@@ -98,21 +117,28 @@ static u32 sysc_read_revision(struct sysc *ddata)
 	return sysc_read(ddata, offset);
 }
 
-static int sysc_get_one_clock(struct sysc *ddata,
-			      enum sysc_clocks index)
+static int sysc_get_one_clock(struct sysc *ddata, const char *name)
 {
-	const char *name;
-	int error;
+	int error, i, index = -ENODEV;
 
-	switch (index) {
-	case SYSC_FCK:
-		break;
-	case SYSC_ICK:
-		break;
-	default:
-		return -EINVAL;
+	if (!strncmp(clock_names[SYSC_FCK], name, 3))
+		index = SYSC_FCK;
+	else if (!strncmp(clock_names[SYSC_ICK], name, 3))
+		index = SYSC_ICK;
+
+	if (index < 0) {
+		for (i = SYSC_OPTFCK0; i < SYSC_MAX_CLOCKS; i++) {
+			if (!ddata->clocks[i]) {
+				index = i;
+				break;
+			}
+		}
 	}
-	name = clock_names[index];
+
+	if (index < 0) {
+		dev_err(ddata->dev, "clock %s not added\n", name);
+		return index;
+	}
 
 	ddata->clocks[index] = devm_clk_get(ddata->dev, name);
 	if (IS_ERR(ddata->clocks[index])) {
@@ -138,13 +164,89 @@ static int sysc_get_one_clock(struct sysc *ddata,
 
 static int sysc_get_clocks(struct sysc *ddata)
 {
-	int i, error;
+	struct device_node *np = ddata->dev->of_node;
+	struct property *prop;
+	const char *name;
+	int nr_fck = 0, nr_ick = 0, i, error = 0;
 
-	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
-		error = sysc_get_one_clock(ddata, i);
+	ddata->clock_roles = devm_kzalloc(ddata->dev,
+					  sizeof(*ddata->clock_roles) *
+					  SYSC_MAX_CLOCKS,
+					  GFP_KERNEL);
+	if (!ddata->clock_roles)
+		return -ENOMEM;
+
+	of_property_for_each_string(np, "clock-names", prop, name) {
+		if (!strncmp(clock_names[SYSC_FCK], name, 3))
+			nr_fck++;
+		if (!strncmp(clock_names[SYSC_ICK], name, 3))
+			nr_ick++;
+		ddata->clock_roles[ddata->nr_clocks] = name;
+		ddata->nr_clocks++;
+	}
+
+	if (ddata->nr_clocks < 1)
+		return 0;
+
+	if (ddata->nr_clocks > SYSC_MAX_CLOCKS) {
+		dev_err(ddata->dev, "too many clocks for %pOF\n", np);
+
+		return -EINVAL;
+	}
+
+	if (nr_fck > 1 || nr_ick > 1) {
+		dev_err(ddata->dev, "max one fck and ick for %pOF\n", np);
+
+		return -EINVAL;
+	}
+
+	ddata->clocks = devm_kzalloc(ddata->dev,
+				     sizeof(*ddata->clocks) * ddata->nr_clocks,
+				     GFP_KERNEL);
+	if (!ddata->clocks)
+		return -ENOMEM;
+
+	for (i = 0; i < ddata->nr_clocks; i++) {
+		error = sysc_get_one_clock(ddata, ddata->clock_roles[i]);
 		if (error && error != -ENOENT)
 			return error;
 	}
+
+	return 0;
+}
+
+/**
+ * sysc_init_resets - reset module on init
+ * @ddata: device driver data
+ *
+ * A module can have both OCP softreset control and external rstctrl.
+ * If more complicated rstctrl resets are needed, please handle these
+ * directly from the child device driver and map only the module reset
+ * for the parent interconnect target module device.
+ *
+ * Automatic reset of the module on init can be skipped with the
+ * "ti,no-reset-on-init" device tree property.
+ */
+static int sysc_init_resets(struct sysc *ddata)
+{
+	int error;
+
+	ddata->rsts =
+		devm_reset_control_array_get_optional_exclusive(ddata->dev);
+	if (IS_ERR(ddata->rsts))
+		return PTR_ERR(ddata->rsts);
+
+	if (ddata->cfg.quirks & SYSC_QUIRK_NO_RESET_ON_INIT)
+		goto deassert;
+
+	error = reset_control_assert(ddata->rsts);
+	if (error)
+		return error;
+
+deassert:
+	error = reset_control_deassert(ddata->rsts);
+	if (error)
+		return error;
 
 	return 0;
 }
@@ -533,9 +635,13 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 		goto idled;
 	}
 
-	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
+	for (i = 0; i < ddata->nr_clocks; i++) {
 		if (IS_ERR_OR_NULL(ddata->clocks[i]))
 			continue;
+
+		if (i >= SYSC_OPTFCK0 && !sysc_opt_clks_needed(ddata))
+			break;
+
 		clk_disable(ddata->clocks[i]);
 	}
 
@@ -572,9 +678,13 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 		goto awake;
 	}
 
-	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
+	for (i = 0; i < ddata->nr_clocks; i++) {
 		if (IS_ERR_OR_NULL(ddata->clocks[i]))
 			continue;
+
+		if (i >= SYSC_OPTFCK0 && !sysc_opt_clks_needed(ddata))
+			break;
+
 		error = clk_enable(ddata->clocks[i]);
 		if (error)
 			return error;
@@ -590,23 +700,103 @@ awake:
 static int sysc_suspend(struct device *dev)
 {
 	struct sysc *ddata;
+	int error;
 
 	ddata = dev_get_drvdata(dev);
 
+	if (ddata->cfg.quirks & (SYSC_QUIRK_RESOURCE_PROVIDER |
+				 SYSC_QUIRK_LEGACY_IDLE))
+		return 0;
+
 	if (!ddata->enabled)
 		return 0;
+
+	dev_dbg(ddata->dev, "%s %s\n", __func__,
+		ddata->name ? ddata->name : "");
+
+	error = pm_runtime_put_sync_suspend(dev);
+	if (error < 0) {
+		dev_warn(ddata->dev, "%s not idle %i %s\n",
+			 __func__, error,
+			 ddata->name ? ddata->name : "");
+
+		return 0;
+	}
+
+	ddata->needs_resume = true;
+
+	return 0;
+}
+
+static int sysc_resume(struct device *dev)
+{
+	struct sysc *ddata;
+	int error;
+
+	ddata = dev_get_drvdata(dev);
+
+	if (ddata->cfg.quirks & (SYSC_QUIRK_RESOURCE_PROVIDER |
+				 SYSC_QUIRK_LEGACY_IDLE))
+		return 0;
+
+	if (ddata->needs_resume) {
+		dev_dbg(ddata->dev, "%s %s\n", __func__,
+			ddata->name ? ddata->name : "");
+
+		error = pm_runtime_get_sync(dev);
+		if (error < 0) {
+			dev_err(ddata->dev, "%s  error %i %s\n",
+				__func__, error,
+				 ddata->name ? ddata->name : "");
+
+			return error;
+		}
+
+		ddata->needs_resume = false;
+	}
+
+	return 0;
+}
+
+static int sysc_noirq_suspend(struct device *dev)
+{
+	struct sysc *ddata;
+
+	ddata = dev_get_drvdata(dev);
+
+	if (ddata->cfg.quirks & SYSC_QUIRK_LEGACY_IDLE)
+		return 0;
+
+	if (!(ddata->cfg.quirks & SYSC_QUIRK_RESOURCE_PROVIDER))
+		return 0;
+
+	if (!ddata->enabled)
+		return 0;
+
+	dev_dbg(ddata->dev, "%s %s\n", __func__,
+		ddata->name ? ddata->name : "");
 
 	ddata->needs_resume = true;
 
 	return sysc_runtime_suspend(dev);
 }
 
-static int sysc_resume(struct device *dev)
+static int sysc_noirq_resume(struct device *dev)
 {
 	struct sysc *ddata;
 
 	ddata = dev_get_drvdata(dev);
+
+	if (ddata->cfg.quirks & SYSC_QUIRK_LEGACY_IDLE)
+		return 0;
+
+	if (!(ddata->cfg.quirks & SYSC_QUIRK_RESOURCE_PROVIDER))
+		return 0;
+
 	if (ddata->needs_resume) {
+		dev_dbg(ddata->dev, "%s %s\n", __func__,
+			ddata->name ? ddata->name : "");
+
 		ddata->needs_resume = false;
 
 		return sysc_runtime_resume(dev);
@@ -618,6 +808,7 @@ static int sysc_resume(struct device *dev)
 
 static const struct dev_pm_ops sysc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sysc_suspend, sysc_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sysc_noirq_suspend, sysc_noirq_resume)
 	SET_RUNTIME_PM_OPS(sysc_runtime_suspend,
 			   sysc_runtime_resume,
 			   NULL)
@@ -649,9 +840,29 @@ struct sysc_revision_quirk {
 	}
 
 static const struct sysc_revision_quirk sysc_revision_quirks[] = {
+	/* These need to use noirq_suspend */
+	SYSC_QUIRK("control", 0, 0, 0x10, -1, 0x40000900, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+	SYSC_QUIRK("i2c", 0, 0, 0x10, 0x90, 0x5040000a, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+	SYSC_QUIRK("mcspi", 0, 0, 0x10, -1, 0x40300a0b, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+	SYSC_QUIRK("prcm", 0, 0, -1, -1, 0x40000100, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+	SYSC_QUIRK("ocp2scp", 0, 0, 0x10, 0x14, 0x50060005, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+	SYSC_QUIRK("padconf", 0, 0, 0x10, -1, 0x4fff0800, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+	SYSC_QUIRK("scm", 0, 0, 0x10, -1, 0x40000900, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+	SYSC_QUIRK("scrm", 0, 0, -1, -1, 0x00000010, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+	SYSC_QUIRK("sdma", 0, 0, 0x2c, 0x28, 0x00010900, 0xffffffff,
+		   SYSC_QUIRK_RESOURCE_PROVIDER),
+
 	/* These drivers need to be fixed to not use pm_runtime_irq_safe() */
 	SYSC_QUIRK("gpio", 0, 0, 0x10, 0x114, 0x50600801, 0xffffffff,
-		   SYSC_QUIRK_LEGACY_IDLE),
+		   SYSC_QUIRK_LEGACY_IDLE | SYSC_QUIRK_OPT_CLKS_IN_RESET),
 	SYSC_QUIRK("mmu", 0, 0, 0x10, 0x14, 0x00000020, 0xffffffff,
 		   SYSC_QUIRK_LEGACY_IDLE),
 	SYSC_QUIRK("mmu", 0, 0, 0x10, 0x14, 0x00000030, 0xffffffff,
@@ -664,8 +875,40 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 		   SYSC_QUIRK_LEGACY_IDLE),
 	SYSC_QUIRK("timer", 0, 0, 0x10, 0x14, 0x00000015, 0xffffffff,
 		   SYSC_QUIRK_LEGACY_IDLE),
+	/* Some timers on omap4 and later */
+	SYSC_QUIRK("timer", 0, 0, 0x10, -1, 0x4fff1301, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
 	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x00000052, 0xffffffff,
 		   SYSC_QUIRK_LEGACY_IDLE),
+	/* Uarts on omap4 and later */
+	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x50411e03, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+
+	/* These devices don't yet suspend properly without legacy setting */
+	SYSC_QUIRK("sdio", 0, 0, 0x10, -1, 0x40202301, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("wdt", 0, 0, 0x10, 0x14, 0x502a0500, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("wdt", 0, 0, 0x10, 0x14, 0x502a0d00, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+
+#ifdef DEBUG
+	SYSC_QUIRK("aess", 0, 0, 0x10, -1, 0x40000000, 0xffffffff, 0),
+	SYSC_QUIRK("gpu", 0, 0x1fc00, 0x1fc10, -1, 0, 0, 0),
+	SYSC_QUIRK("hdq1w", 0, 0, 0x14, 0x18, 0x00000006, 0xffffffff, 0),
+	SYSC_QUIRK("hsi", 0, 0, 0x10, 0x14, 0x50043101, 0xffffffff, 0),
+	SYSC_QUIRK("iss", 0, 0, 0x10, -1, 0x40000101, 0xffffffff, 0),
+	SYSC_QUIRK("mcasp", 0, 0, 0x4, -1, 0x44306302, 0xffffffff, 0),
+	SYSC_QUIRK("mcbsp", 0, -1, 0x8c, -1, 0, 0, 0),
+	SYSC_QUIRK("mailbox", 0, 0, 0x10, -1, 0x00000400, 0xffffffff, 0),
+	SYSC_QUIRK("slimbus", 0, 0, 0x10, -1, 0x40000902, 0xffffffff, 0),
+	SYSC_QUIRK("slimbus", 0, 0, 0x10, -1, 0x40002903, 0xffffffff, 0),
+	SYSC_QUIRK("spinlock", 0, 0, 0x10, -1, 0x50020000, 0xffffffff, 0),
+	SYSC_QUIRK("usbhstll", 0, 0, 0x10, 0x14, 0x00000004, 0xffffffff, 0),
+	SYSC_QUIRK("usb_host_hs", 0, 0, 0x10, 0x14, 0x50700100, 0xffffffff, 0),
+	SYSC_QUIRK("usb_otg_hs", 0, 0x400, 0x404, 0x408, 0x00000050,
+		   0xffffffff, 0),
+#endif
 };
 
 static void sysc_init_revision_quirks(struct sysc *ddata)
@@ -716,6 +959,7 @@ static int sysc_init_module(struct sysc *ddata)
 
 		return 0;
 	}
+
 	ddata->revision = sysc_read_revision(ddata);
 	pm_runtime_put_sync(ddata->dev);
 
@@ -811,29 +1055,58 @@ static int sysc_init_syss_mask(struct sysc *ddata)
 }
 
 /*
- * Many child device drivers need to have fck available to get the clock
- * rate for device internal configuration.
+ * Many child device drivers need to have fck and opt clocks available
+ * to get the clock rate for device internal configuration etc.
  */
-static int sysc_child_add_fck(struct sysc *ddata,
-			      struct device *child)
+static int sysc_child_add_named_clock(struct sysc *ddata,
+				      struct device *child,
+				      const char *name)
 {
-	struct clk *fck;
+	struct clk *clk;
 	struct clk_lookup *l;
-	const char *name = clock_names[SYSC_FCK];
+	int error = 0;
 
-	if (IS_ERR_OR_NULL(ddata->clocks[SYSC_FCK]))
+	if (!name)
 		return 0;
 
-	fck = clk_get(child, name);
-	if (!IS_ERR(fck)) {
-		clk_put(fck);
+	clk = clk_get(child, name);
+	if (!IS_ERR(clk)) {
+		clk_put(clk);
 
 		return -EEXIST;
 	}
 
-	l = clkdev_create(ddata->clocks[SYSC_FCK], name, dev_name(child));
+	clk = clk_get(ddata->dev, name);
+	if (IS_ERR(clk))
+		return -ENODEV;
 
-	return l ? 0 : -ENODEV;
+	l = clkdev_create(clk, name, dev_name(child));
+	if (!l)
+		error = -ENOMEM;
+
+	clk_put(clk);
+
+	return error;
+}
+
+static int sysc_child_add_clocks(struct sysc *ddata,
+				 struct device *child)
+{
+	int i, error;
+
+	for (i = 0; i < ddata->nr_clocks; i++) {
+		error = sysc_child_add_named_clock(ddata,
+						   child,
+						   ddata->clock_roles[i]);
+		if (error && error != -EEXIST) {
+			dev_err(ddata->dev, "could not add child clock %s: %i\n",
+				ddata->clock_roles[i], error);
+
+			return error;
+		}
+	}
+
+	return 0;
 }
 
 static struct device_type sysc_device_type = {
@@ -891,18 +1164,33 @@ static int sysc_child_suspend_noirq(struct device *dev)
 
 	ddata = sysc_child_to_parent(dev);
 
+	dev_dbg(ddata->dev, "%s %s\n", __func__,
+		ddata->name ? ddata->name : "");
+
 	error = pm_generic_suspend_noirq(dev);
-	if (error)
+	if (error) {
+		dev_err(dev, "%s error at %i: %i\n",
+			__func__, __LINE__, error);
+
 		return error;
+	}
 
 	if (!pm_runtime_status_suspended(dev)) {
 		error = pm_generic_runtime_suspend(dev);
-		if (error)
+		if (error) {
+			dev_err(dev, "%s error at %i: %i\n",
+				__func__, __LINE__, error);
+
 			return error;
+		}
 
 		error = sysc_runtime_suspend(ddata->dev);
-		if (error)
+		if (error) {
+			dev_err(dev, "%s error at %i: %i\n",
+				__func__, __LINE__, error);
+
 			return error;
+		}
 
 		ddata->child_needs_resume = true;
 	}
@@ -916,6 +1204,9 @@ static int sysc_child_resume_noirq(struct device *dev)
 	int error;
 
 	ddata = sysc_child_to_parent(dev);
+
+	dev_dbg(ddata->dev, "%s %s\n", __func__,
+		ddata->name ? ddata->name : "");
 
 	if (ddata->child_needs_resume) {
 		ddata->child_needs_resume = false;
@@ -983,10 +1274,9 @@ static int sysc_notifier_call(struct notifier_block *nb,
 
 	switch (event) {
 	case BUS_NOTIFY_ADD_DEVICE:
-		error = sysc_child_add_fck(ddata, dev);
-		if (error && error != -EEXIST)
-			dev_warn(ddata->dev, "could not add %s fck: %i\n",
-				 dev_name(dev), error);
+		error = sysc_child_add_clocks(ddata, dev);
+		if (error)
+			return error;
 		sysc_legacy_idle_quirk(ddata, dev);
 		break;
 	default:
@@ -1314,6 +1604,11 @@ static void ti_sysc_idle(struct work_struct *work)
 		pm_runtime_put_sync(ddata->dev);
 }
 
+static const struct of_device_id sysc_match_table[] = {
+	{ .compatible = "simple-bus", },
+	{ /* sentinel */ },
+};
+
 static int sysc_probe(struct platform_device *pdev)
 {
 	struct ti_sysc_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -1359,8 +1654,11 @@ static int sysc_probe(struct platform_device *pdev)
 	if (error)
 		goto unprepare;
 
-	pm_runtime_enable(ddata->dev);
+	error = sysc_init_resets(ddata);
+	if (error)
+		return error;
 
+	pm_runtime_enable(ddata->dev);
 	error = sysc_init_module(ddata);
 	if (error)
 		goto unprepare;
@@ -1375,8 +1673,8 @@ static int sysc_probe(struct platform_device *pdev)
 	sysc_show_registers(ddata);
 
 	ddata->dev->type = &sysc_device_type;
-	error = of_platform_populate(ddata->dev->of_node,
-				     NULL, pdata ? pdata->auxdata : NULL,
+	error = of_platform_populate(ddata->dev->of_node, sysc_match_table,
+				     pdata ? pdata->auxdata : NULL,
 				     ddata->dev);
 	if (error)
 		goto err;
@@ -1390,6 +1688,9 @@ static int sysc_probe(struct platform_device *pdev)
 	} else {
 		pm_runtime_put(&pdev->dev);
 	}
+
+	if (!of_get_available_child_count(ddata->dev->of_node))
+		reset_control_assert(ddata->rsts);
 
 	return 0;
 
@@ -1420,6 +1721,7 @@ static int sysc_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	reset_control_assert(ddata->rsts);
 
 unprepare:
 	sysc_unprepare(ddata);

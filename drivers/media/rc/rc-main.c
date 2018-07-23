@@ -26,50 +26,50 @@ static const struct {
 	unsigned int repeat_period;
 	unsigned int scancode_bits;
 } protocols[] = {
-	[RC_PROTO_UNKNOWN] = { .name = "unknown", .repeat_period = 250 },
-	[RC_PROTO_OTHER] = { .name = "other", .repeat_period = 250 },
+	[RC_PROTO_UNKNOWN] = { .name = "unknown", .repeat_period = 125 },
+	[RC_PROTO_OTHER] = { .name = "other", .repeat_period = 125 },
 	[RC_PROTO_RC5] = { .name = "rc-5",
-		.scancode_bits = 0x1f7f, .repeat_period = 250 },
+		.scancode_bits = 0x1f7f, .repeat_period = 114 },
 	[RC_PROTO_RC5X_20] = { .name = "rc-5x-20",
-		.scancode_bits = 0x1f7f3f, .repeat_period = 250 },
+		.scancode_bits = 0x1f7f3f, .repeat_period = 114 },
 	[RC_PROTO_RC5_SZ] = { .name = "rc-5-sz",
-		.scancode_bits = 0x2fff, .repeat_period = 250 },
+		.scancode_bits = 0x2fff, .repeat_period = 114 },
 	[RC_PROTO_JVC] = { .name = "jvc",
-		.scancode_bits = 0xffff, .repeat_period = 250 },
+		.scancode_bits = 0xffff, .repeat_period = 125 },
 	[RC_PROTO_SONY12] = { .name = "sony-12",
-		.scancode_bits = 0x1f007f, .repeat_period = 250 },
+		.scancode_bits = 0x1f007f, .repeat_period = 100 },
 	[RC_PROTO_SONY15] = { .name = "sony-15",
-		.scancode_bits = 0xff007f, .repeat_period = 250 },
+		.scancode_bits = 0xff007f, .repeat_period = 100 },
 	[RC_PROTO_SONY20] = { .name = "sony-20",
-		.scancode_bits = 0x1fff7f, .repeat_period = 250 },
+		.scancode_bits = 0x1fff7f, .repeat_period = 100 },
 	[RC_PROTO_NEC] = { .name = "nec",
-		.scancode_bits = 0xffff, .repeat_period = 250 },
+		.scancode_bits = 0xffff, .repeat_period = 110 },
 	[RC_PROTO_NECX] = { .name = "nec-x",
-		.scancode_bits = 0xffffff, .repeat_period = 250 },
+		.scancode_bits = 0xffffff, .repeat_period = 110 },
 	[RC_PROTO_NEC32] = { .name = "nec-32",
-		.scancode_bits = 0xffffffff, .repeat_period = 250 },
+		.scancode_bits = 0xffffffff, .repeat_period = 110 },
 	[RC_PROTO_SANYO] = { .name = "sanyo",
-		.scancode_bits = 0x1fffff, .repeat_period = 250 },
+		.scancode_bits = 0x1fffff, .repeat_period = 125 },
 	[RC_PROTO_MCIR2_KBD] = { .name = "mcir2-kbd",
-		.scancode_bits = 0xffff, .repeat_period = 250 },
+		.scancode_bits = 0xffffff, .repeat_period = 100 },
 	[RC_PROTO_MCIR2_MSE] = { .name = "mcir2-mse",
-		.scancode_bits = 0x1fffff, .repeat_period = 250 },
+		.scancode_bits = 0x1fffff, .repeat_period = 100 },
 	[RC_PROTO_RC6_0] = { .name = "rc-6-0",
-		.scancode_bits = 0xffff, .repeat_period = 250 },
+		.scancode_bits = 0xffff, .repeat_period = 114 },
 	[RC_PROTO_RC6_6A_20] = { .name = "rc-6-6a-20",
-		.scancode_bits = 0xfffff, .repeat_period = 250 },
+		.scancode_bits = 0xfffff, .repeat_period = 114 },
 	[RC_PROTO_RC6_6A_24] = { .name = "rc-6-6a-24",
-		.scancode_bits = 0xffffff, .repeat_period = 250 },
+		.scancode_bits = 0xffffff, .repeat_period = 114 },
 	[RC_PROTO_RC6_6A_32] = { .name = "rc-6-6a-32",
-		.scancode_bits = 0xffffffff, .repeat_period = 250 },
+		.scancode_bits = 0xffffffff, .repeat_period = 114 },
 	[RC_PROTO_RC6_MCE] = { .name = "rc-6-mce",
-		.scancode_bits = 0xffff7fff, .repeat_period = 250 },
+		.scancode_bits = 0xffff7fff, .repeat_period = 114 },
 	[RC_PROTO_SHARP] = { .name = "sharp",
-		.scancode_bits = 0x1fff, .repeat_period = 250 },
-	[RC_PROTO_XMP] = { .name = "xmp", .repeat_period = 250 },
-	[RC_PROTO_CEC] = { .name = "cec", .repeat_period = 550 },
+		.scancode_bits = 0x1fff, .repeat_period = 125 },
+	[RC_PROTO_XMP] = { .name = "xmp", .repeat_period = 125 },
+	[RC_PROTO_CEC] = { .name = "cec", .repeat_period = 0 },
 	[RC_PROTO_IMON] = { .name = "imon",
-		.scancode_bits = 0x7fffffff, .repeat_period = 250 },
+		.scancode_bits = 0x7fffffff, .repeat_period = 114 },
 };
 
 /* Used to keep track of known keymaps */
@@ -690,7 +690,8 @@ static void ir_timer_repeat(struct timer_list *t)
 void rc_repeat(struct rc_dev *dev)
 {
 	unsigned long flags;
-	unsigned int timeout = protocols[dev->last_protocol].repeat_period;
+	unsigned int timeout = nsecs_to_jiffies(dev->timeout) +
+		msecs_to_jiffies(protocols[dev->last_protocol].repeat_period);
 	struct lirc_scancode sc = {
 		.scancode = dev->last_scancode, .rc_proto = dev->last_protocol,
 		.keycode = dev->keypressed ? dev->last_keycode : KEY_RESERVED,
@@ -706,7 +707,7 @@ void rc_repeat(struct rc_dev *dev)
 	input_sync(dev->input_dev);
 
 	if (dev->keypressed) {
-		dev->keyup_jiffies = jiffies + msecs_to_jiffies(timeout);
+		dev->keyup_jiffies = jiffies + timeout;
 		mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
 	}
 
@@ -801,7 +802,7 @@ void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
 	ir_do_keydown(dev, protocol, scancode, keycode, toggle);
 
 	if (dev->keypressed) {
-		dev->keyup_jiffies = jiffies +
+		dev->keyup_jiffies = jiffies + nsecs_to_jiffies(dev->timeout) +
 			msecs_to_jiffies(protocols[protocol].repeat_period);
 		mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
 	}
@@ -1241,15 +1242,15 @@ static ssize_t store_protocols(struct device *device,
 	if (rc < 0)
 		goto out;
 
+	if (dev->driver_type == RC_DRIVER_IR_RAW)
+		ir_raw_load_modules(&new_protocols);
+
 	rc = dev->change_protocol(dev, &new_protocols);
 	if (rc < 0) {
 		dev_dbg(&dev->dev, "Error setting protocols to 0x%llx\n",
 			(long long)new_protocols);
 		goto out;
 	}
-
-	if (dev->driver_type == RC_DRIVER_IR_RAW)
-		ir_raw_load_modules(&new_protocols);
 
 	if (new_protocols != old_protocols) {
 		*current_protocols = new_protocols;
@@ -1647,6 +1648,7 @@ struct rc_dev *rc_allocate_device(enum rc_driver_type type)
 		dev->input_dev->setkeycode = ir_setkeycode;
 		input_set_drvdata(dev->input_dev, dev);
 
+		dev->timeout = IR_DEFAULT_TIMEOUT;
 		timer_setup(&dev->timer_keyup, ir_timer_keyup, 0);
 		timer_setup(&dev->timer_repeat, ir_timer_repeat, 0);
 
@@ -1735,15 +1737,15 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 	if (dev->driver_type == RC_DRIVER_SCANCODE && !dev->change_protocol)
 		dev->enabled_protocols = dev->allowed_protocols;
 
+	if (dev->driver_type == RC_DRIVER_IR_RAW)
+		ir_raw_load_modules(&rc_proto);
+
 	if (dev->change_protocol) {
 		rc = dev->change_protocol(dev, &rc_proto);
 		if (rc < 0)
 			goto out_table;
 		dev->enabled_protocols = rc_proto;
 	}
-
-	if (dev->driver_type == RC_DRIVER_IR_RAW)
-		ir_raw_load_modules(&rc_proto);
 
 	set_bit(EV_KEY, dev->input_dev->evbit);
 	set_bit(EV_REP, dev->input_dev->evbit);
@@ -1860,6 +1862,8 @@ int rc_register_device(struct rc_dev *dev)
 		 dev->device_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
+	dev->registered = true;
+
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
 		rc = rc_setup_rx_device(dev);
 		if (rc)
@@ -1878,8 +1882,6 @@ int rc_register_device(struct rc_dev *dev)
 		if (rc < 0)
 			goto out_lirc;
 	}
-
-	dev->registered = true;
 
 	dev_dbg(&dev->dev, "Registered rc%u (driver: %s)\n", dev->minor,
 		dev->driver_name ? dev->driver_name : "unknown");

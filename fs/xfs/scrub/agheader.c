@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -37,68 +23,6 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
-
-/*
- * Walk all the blocks in the AGFL.  The fn function can return any negative
- * error code or XFS_BTREE_QUERY_RANGE_ABORT.
- */
-int
-xfs_scrub_walk_agfl(
-	struct xfs_scrub_context	*sc,
-	int				(*fn)(struct xfs_scrub_context *,
-					      xfs_agblock_t bno, void *),
-	void				*priv)
-{
-	struct xfs_agf			*agf;
-	__be32				*agfl_bno;
-	struct xfs_mount		*mp = sc->mp;
-	unsigned int			flfirst;
-	unsigned int			fllast;
-	int				i;
-	int				error;
-
-	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
-	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, sc->sa.agfl_bp);
-	flfirst = be32_to_cpu(agf->agf_flfirst);
-	fllast = be32_to_cpu(agf->agf_fllast);
-
-	/* Nothing to walk in an empty AGFL. */
-	if (agf->agf_flcount == cpu_to_be32(0))
-		return 0;
-
-	/* first to last is a consecutive list. */
-	if (fllast >= flfirst) {
-		for (i = flfirst; i <= fllast; i++) {
-			error = fn(sc, be32_to_cpu(agfl_bno[i]), priv);
-			if (error)
-				return error;
-			if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-				return error;
-		}
-
-		return 0;
-	}
-
-	/* first to the end */
-	for (i = flfirst; i < xfs_agfl_size(mp); i++) {
-		error = fn(sc, be32_to_cpu(agfl_bno[i]), priv);
-		if (error)
-			return error;
-		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-			return error;
-	}
-
-	/* the start to last. */
-	for (i = 0; i <= fllast; i++) {
-		error = fn(sc, be32_to_cpu(agfl_bno[i]), priv);
-		if (error)
-			return error;
-		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-			return error;
-	}
-
-	return 0;
-}
 
 /* Superblock */
 
@@ -157,9 +81,7 @@ xfs_scrub_superblock(
 	if (agno == 0)
 		return 0;
 
-	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
-		  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
-		  XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_sb_buf_ops);
+	error = xfs_sb_read_secondary(mp, sc->tp, agno, &bp);
 	/*
 	 * The superblock verifier can return several different error codes
 	 * if it thinks the superblock doesn't look right.  For a mount these
@@ -680,6 +602,7 @@ struct xfs_scrub_agfl_info {
 	unsigned int			sz_entries;
 	unsigned int			nr_entries;
 	xfs_agblock_t			*entries;
+	struct xfs_scrub_context	*sc;
 };
 
 /* Cross-reference with the other btrees. */
@@ -701,12 +624,12 @@ xfs_scrub_agfl_block_xref(
 /* Scrub an AGFL block. */
 STATIC int
 xfs_scrub_agfl_block(
-	struct xfs_scrub_context	*sc,
+	struct xfs_mount		*mp,
 	xfs_agblock_t			agbno,
 	void				*priv)
 {
-	struct xfs_mount		*mp = sc->mp;
 	struct xfs_scrub_agfl_info	*sai = priv;
+	struct xfs_scrub_context	*sc = sai->sc;
 	xfs_agnumber_t			agno = sc->sa.agno;
 
 	if (xfs_verify_agbno(mp, agno, agbno) &&
@@ -716,6 +639,9 @@ xfs_scrub_agfl_block(
 		xfs_scrub_block_set_corrupt(sc, sc->sa.agfl_bp);
 
 	xfs_scrub_agfl_block_xref(sc, agbno, priv);
+
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return XFS_BTREE_QUERY_RANGE_ABORT;
 
 	return 0;
 }
@@ -796,8 +722,10 @@ xfs_scrub_agfl(
 		goto out;
 	}
 	memset(&sai, 0, sizeof(sai));
+	sai.sc = sc;
 	sai.sz_entries = agflcount;
-	sai.entries = kmem_zalloc(sizeof(xfs_agblock_t) * agflcount, KM_NOFS);
+	sai.entries = kmem_zalloc(sizeof(xfs_agblock_t) * agflcount,
+			KM_MAYFAIL);
 	if (!sai.entries) {
 		error = -ENOMEM;
 		goto out;
@@ -805,7 +733,12 @@ xfs_scrub_agfl(
 
 	/* Check the blocks in the AGFL. */
 	xfs_rmap_ag_owner(&sai.oinfo, XFS_RMAP_OWN_AG);
-	error = xfs_scrub_walk_agfl(sc, xfs_scrub_agfl_block, &sai);
+	error = xfs_agfl_walk(sc->mp, XFS_BUF_TO_AGF(sc->sa.agf_bp),
+			sc->sa.agfl_bp, xfs_scrub_agfl_block, &sai);
+	if (error == XFS_BTREE_QUERY_RANGE_ABORT) {
+		error = 0;
+		goto out_free;
+	}
 	if (error)
 		goto out_free;
 
@@ -934,7 +867,7 @@ xfs_scrub_agi(
 	}
 
 	/* Check inode counters */
-	xfs_ialloc_agino_range(mp, agno, &first_agino, &last_agino);
+	xfs_agino_range(mp, agno, &first_agino, &last_agino);
 	icount = be32_to_cpu(agi->agi_count);
 	if (icount > last_agino - first_agino + 1 ||
 	    icount < be32_to_cpu(agi->agi_freecount))

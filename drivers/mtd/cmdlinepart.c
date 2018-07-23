@@ -190,7 +190,10 @@ static struct mtd_partition * newpart(char *s,
 		extra_mem = (unsigned char *)(parts + *num_parts);
 	}
 
-	/* enter this partition (offset will be calculated later if it is zero at this point) */
+	/*
+	 * enter this partition (offset will be calculated later if it is
+	 * OFFSET_CONTINUOUS at this point)
+	 */
 	parts[this_part].size = size;
 	parts[this_part].offset = offset;
 	parts[this_part].mask_flags = mask_flags;

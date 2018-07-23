@@ -242,6 +242,58 @@ error_exit:
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ns_init_one_package
+ *
+ * PARAMETERS:  obj_handle      - Node
+ *              level           - Current nesting level
+ *              context         - Not used
+ *              return_value    - Not used
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Callback from acpi_walk_namespace. Invoked for every package
+ *              within the namespace. Used during dynamic load of an SSDT.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_init_one_package(acpi_handle obj_handle,
+			 u32 level, void *context, void **return_value)
+{
+	acpi_status status;
+	union acpi_operand_object *obj_desc;
+	struct acpi_namespace_node *node =
+	    (struct acpi_namespace_node *)obj_handle;
+
+	obj_desc = acpi_ns_get_attached_object(node);
+	if (!obj_desc) {
+		return (AE_OK);
+	}
+
+	/* Exit if package is already initialized */
+
+	if (obj_desc->package.flags & AOPOBJ_DATA_VALID) {
+		return (AE_OK);
+	}
+
+	status = acpi_ds_get_package_arguments(obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return (AE_OK);
+	}
+
+	status =
+	    acpi_ut_walk_package_tree(obj_desc, NULL,
+				      acpi_ds_init_package_element, NULL);
+	if (ACPI_FAILURE(status)) {
+		return (AE_OK);
+	}
+
+	obj_desc->package.flags |= AOPOBJ_DATA_VALID;
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ns_init_one_object
  *
  * PARAMETERS:  obj_handle      - Node
@@ -360,27 +412,11 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 
 	case ACPI_TYPE_PACKAGE:
 
+		/* Complete the initialization/resolution of the package object */
+
 		info->package_init++;
-		status = acpi_ds_get_package_arguments(obj_desc);
-		if (ACPI_FAILURE(status)) {
-			break;
-		}
-
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
-				      "%s: Completing resolution of Package elements\n",
-				      ACPI_GET_FUNCTION_NAME));
-
-		/*
-		 * Resolve all named references in package objects (and all
-		 * sub-packages). This action has been deferred until the entire
-		 * namespace has been loaded, in order to support external and
-		 * forward references from individual package elements (05/2017).
-		 */
-		status = acpi_ut_walk_package_tree(obj_desc, NULL,
-						   acpi_ds_init_package_element,
-						   NULL);
-
-		obj_desc->package.flags |= AOPOBJ_DATA_VALID;
+		status =
+		    acpi_ns_init_one_package(obj_handle, level, NULL, NULL);
 		break;
 
 	default:

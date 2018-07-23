@@ -135,15 +135,15 @@ static const struct dce110_timing_generator_offsets dce100_tg_offsets[] = {
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
 
-static const struct dce_disp_clk_registers disp_clk_regs = {
+static const struct dccg_registers disp_clk_regs = {
 		CLK_COMMON_REG_LIST_DCE_BASE()
 };
 
-static const struct dce_disp_clk_shift disp_clk_shift = {
+static const struct dccg_shift disp_clk_shift = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
 };
 
-static const struct dce_disp_clk_mask disp_clk_mask = {
+static const struct dccg_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
@@ -644,8 +644,8 @@ static void destruct(struct dce110_resource_pool *pool)
 			dce_aud_destroy(&pool->base.audios[i]);
 	}
 
-	if (pool->base.display_clock != NULL)
-		dce_disp_clk_destroy(&pool->base.display_clock);
+	if (pool->base.dccg != NULL)
+		dce_dccg_destroy(&pool->base.dccg);
 
 	if (pool->base.abm != NULL)
 				dce_abm_destroy(&pool->base.abm);
@@ -733,38 +733,6 @@ enum dc_status dce100_add_stream_to_ctx(
 	return result;
 }
 
-enum dc_status dce100_validate_guaranteed(
-		struct dc  *dc,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *context)
-{
-	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->streams[0] = dc_stream;
-	dc_stream_retain(context->streams[0]);
-	context->stream_count++;
-
-	result = resource_map_pool_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = resource_map_clock_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = build_mapped_resource(dc, context, dc_stream);
-
-	if (result == DC_OK) {
-		validate_guaranteed_copy_streams(
-				context, dc->caps.max_streams);
-		result = resource_build_scaling_params_for_context(dc, context);
-	}
-
-	if (result == DC_OK)
-		if (!dce100_validate_bandwidth(dc, context))
-			result = DC_FAIL_BANDWIDTH_VALIDATE;
-
-	return result;
-}
-
 static void dce100_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
@@ -786,7 +754,6 @@ enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state, s
 static const struct resource_funcs dce100_res_pool_funcs = {
 	.destroy = dce100_destroy_resource_pool,
 	.link_enc_create = dce100_link_encoder_create,
-	.validate_guaranteed = dce100_validate_guaranteed,
 	.validate_bandwidth = dce100_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,
@@ -850,11 +817,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dce_disp_clk_create(ctx,
+	pool->base.dccg = dce_dccg_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.display_clock == NULL) {
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -884,7 +851,7 @@ static bool construct(
 	 * max_clock_state
 	 */
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.display_clock->max_clks_state =
+		pool->base.dccg->max_clks_state =
 					static_clk_info.max_clocks_state;
 	{
 		struct irq_service_init_data init_data;

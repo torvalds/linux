@@ -26,8 +26,7 @@
 #include "hpfs.h"
 
 #define EIOERROR  EIO
-#define EFSERROR  EPERM
-#define EMEMERROR ENOMEM
+#define EFSERROR  EUCLEAN
 
 #define ANODE_ALLOC_FWD	512
 #define FNODE_ALLOC_FWD	0

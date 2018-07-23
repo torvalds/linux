@@ -14,8 +14,9 @@
 
 #include <linux/delay.h>
 #include <linux/file.h>
+#include <linux/interrupt.h>
+#include <linux/pci.h>
 #include <linux/syscalls.h>
-#include <misc/cxl.h>
 #include <asm/unaligned.h>
 
 #include <scsi/scsi.h>
@@ -269,6 +270,7 @@ static int afu_attach(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 	int rc = 0;
 	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
 	u64 val;
+	int i;
 
 	/* Unlock cap and restrict user to read/write cmds in translated mode */
 	readq_be(&ctrl_map->mbox_r);
@@ -280,6 +282,19 @@ static int afu_attach(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 			__func__, val);
 		rc = -EAGAIN;
 		goto out;
+	}
+
+	if (afu_is_ocxl_lisn(afu)) {
+		/* Set up the LISN effective address for each interrupt */
+		for (i = 0; i < ctxi->irqs; i++) {
+			val = cfg->ops->get_irq_objhndl(ctxi->ctx, i);
+			writeq_be(val, &ctrl_map->lisn_ea[i]);
+		}
+
+		/* Use primary HWQ PASID as identifier for all interrupts */
+		val = hwq->ctx_hndl;
+		writeq_be(SISL_LISN_PASID(val, val), &ctrl_map->lisn_pasid[0]);
+		writeq_be(SISL_LISN_PASID(0UL, val), &ctrl_map->lisn_pasid[1]);
 	}
 
 	/* Set up MMIO registers pointing to the RHT */
@@ -974,6 +989,10 @@ static int cxlflash_disk_detach(struct scsi_device *sdev,
  * theoretically never occur), every call into this routine results
  * in a complete freeing of a context.
  *
+ * Detaching the LUN is typically an ioctl() operation and the underlying
+ * code assumes that ioctl_rwsem has been acquired as a reader. To support
+ * that design point, the semaphore is acquired and released around detach.
+ *
  * Return: 0 on success
  */
 static int cxlflash_cxl_release(struct inode *inode, struct file *file)
@@ -1012,9 +1031,11 @@ static int cxlflash_cxl_release(struct inode *inode, struct file *file)
 
 	dev_dbg(dev, "%s: close for ctxid=%d\n", __func__, ctxid);
 
+	down_read(&cfg->ioctl_rwsem);
 	detach.context_id = ctxi->ctxid;
 	list_for_each_entry_safe(lun_access, t, &ctxi->luns, list)
 		_cxlflash_disk_detach(lun_access->sdev, ctxi, &detach);
+	up_read(&cfg->ioctl_rwsem);
 out_release:
 	cfg->ops->fd_release(inode, file);
 out:

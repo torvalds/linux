@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
+/* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
 /*
  * p80211types.h
  *
@@ -118,11 +118,6 @@
 					/* where the size of the DATA itself */
 					/* is a DID-LEN-DATA triple */
 					/* with a max size of 4+4+384 */
-
-/*----------------------------------------------------------------*/
-/* The following macro creates a name for an enum */
-
-#define MKENUMNAME(name) p80211enum_ ## name
 
 /*----------------------------------------------------------------
  * The following constants and macros are used to construct and
@@ -347,31 +342,5 @@ typedef void (*p80211_totext_t) (struct catlistitem *, u32 did, u8 *itembuf,
 typedef void (*p80211_fromtext_t) (struct catlistitem *, u32 did, u8 *itembuf,
 				   char *textbuf);
 typedef u32(*p80211_valid_t) (struct catlistitem *, u32 did, u8 *itembuf);
-
-/*----------------------------------------------------------------*/
-/* Enumeration Lists */
-/*  The following are the external declarations */
-/*  for all enumerations  */
-
-extern struct p80211enum MKENUMNAME(truth);
-extern struct p80211enum MKENUMNAME(ifstate);
-extern struct p80211enum MKENUMNAME(powermgmt);
-extern struct p80211enum MKENUMNAME(bsstype);
-extern struct p80211enum MKENUMNAME(authalg);
-extern struct p80211enum MKENUMNAME(phytype);
-extern struct p80211enum MKENUMNAME(temptype);
-extern struct p80211enum MKENUMNAME(regdomain);
-extern struct p80211enum MKENUMNAME(ccamode);
-extern struct p80211enum MKENUMNAME(diversity);
-extern struct p80211enum MKENUMNAME(scantype);
-extern struct p80211enum MKENUMNAME(resultcode);
-extern struct p80211enum MKENUMNAME(reason);
-extern struct p80211enum MKENUMNAME(status);
-extern struct p80211enum MKENUMNAME(msgcode);
-extern struct p80211enum MKENUMNAME(msgitem_status);
-
-extern struct p80211enum MKENUMNAME(lnxroam_reason);
-
-extern struct p80211enum MKENUMNAME(p2preamble);
 
 #endif /* _P80211TYPES_H */

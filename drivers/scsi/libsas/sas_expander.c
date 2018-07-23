@@ -443,7 +443,7 @@ static int sas_expander_discover(struct domain_device *dev)
 	struct expander_device *ex = &dev->ex_dev;
 	int res = -ENOMEM;
 
-	ex->ex_phy = kzalloc(sizeof(*ex->ex_phy)*ex->num_phys, GFP_KERNEL);
+	ex->ex_phy = kcalloc(ex->num_phys, sizeof(*ex->ex_phy), GFP_KERNEL);
 	if (!ex->ex_phy)
 		return -ENOMEM;
 

@@ -113,12 +113,17 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->gart.robj == NULL) {
-		r = amdgpu_bo_create(adev, adev->gart.table_size, PAGE_SIZE,
-				     AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				     ttm_bo_type_kernel, NULL,
-				     &adev->gart.robj);
+		struct amdgpu_bo_param bp;
+
+		memset(&bp, 0, sizeof(bp));
+		bp.size = adev->gart.table_size;
+		bp.byte_align = PAGE_SIZE;
+		bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
+		bp.flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+		bp.type = ttm_bo_type_kernel;
+		bp.resv = NULL;
+		r = amdgpu_bo_create(adev, &bp, &adev->gart.robj);
 		if (r) {
 			return r;
 		}
@@ -138,14 +143,12 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
  */
 int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev)
 {
-	uint64_t gpu_addr;
 	int r;
 
 	r = amdgpu_bo_reserve(adev->gart.robj, false);
 	if (unlikely(r != 0))
 		return r;
-	r = amdgpu_bo_pin(adev->gart.robj,
-				AMDGPU_GEM_DOMAIN_VRAM, &gpu_addr);
+	r = amdgpu_bo_pin(adev->gart.robj, AMDGPU_GEM_DOMAIN_VRAM);
 	if (r) {
 		amdgpu_bo_unreserve(adev->gart.robj);
 		return r;
@@ -154,7 +157,7 @@ int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev)
 	if (r)
 		amdgpu_bo_unpin(adev->gart.robj);
 	amdgpu_bo_unreserve(adev->gart.robj);
-	adev->gart.table_addr = gpu_addr;
+	adev->gart.table_addr = amdgpu_bo_gpu_offset(adev->gart.robj);
 	return r;
 }
 
@@ -229,7 +232,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	}
 
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
-	p = t / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
+	p = t / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 	for (i = 0; i < pages; i++, p++) {
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 		adev->gart.pages[p] = NULL;
@@ -238,7 +241,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 		if (!adev->gart.ptr)
 			continue;
 
-		for (j = 0; j < (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE); j++, t++) {
+		for (j = 0; j < AMDGPU_GPU_PAGES_IN_CPU_PAGE; j++, t++) {
 			amdgpu_gmc_set_pte_pde(adev, adev->gart.ptr,
 					       t, page_base, flags);
 			page_base += AMDGPU_GPU_PAGE_SIZE;
@@ -277,7 +280,7 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
 
 	for (i = 0; i < pages; i++) {
 		page_base = dma_addr[i];
-		for (j = 0; j < (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE); j++, t++) {
+		for (j = 0; j < AMDGPU_GPU_PAGES_IN_CPU_PAGE; j++, t++) {
 			amdgpu_gmc_set_pte_pde(adev, dst, t, page_base, flags);
 			page_base += AMDGPU_GPU_PAGE_SIZE;
 		}
@@ -314,7 +317,7 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
-	p = t / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
+	p = t / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 	for (i = 0; i < pages; i++, p++)
 		adev->gart.pages[p] = pagelist ? pagelist[i] : NULL;
 #endif
@@ -364,7 +367,8 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	/* Allocate pages table */
-	adev->gart.pages = vzalloc(sizeof(void *) * adev->gart.num_cpu_pages);
+	adev->gart.pages = vzalloc(array_size(sizeof(void *),
+					      adev->gart.num_cpu_pages));
 	if (adev->gart.pages == NULL)
 		return -ENOMEM;
 #endif

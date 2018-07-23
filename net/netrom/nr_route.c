@@ -888,23 +888,11 @@ static int nr_node_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations nr_node_seqops = {
+const struct seq_operations nr_node_seqops = {
 	.start = nr_node_start,
 	.next = nr_node_next,
 	.stop = nr_node_stop,
 	.show = nr_node_show,
-};
-
-static int nr_node_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &nr_node_seqops);
-}
-
-const struct file_operations nr_nodes_fops = {
-	.open = nr_node_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
 };
 
 static void *nr_neigh_start(struct seq_file *seq, loff_t *pos)
@@ -954,25 +942,12 @@ static int nr_neigh_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations nr_neigh_seqops = {
+const struct seq_operations nr_neigh_seqops = {
 	.start = nr_neigh_start,
 	.next = nr_neigh_next,
 	.stop = nr_neigh_stop,
 	.show = nr_neigh_show,
 };
-
-static int nr_neigh_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &nr_neigh_seqops);
-}
-
-const struct file_operations nr_neigh_fops = {
-	.open = nr_neigh_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
-
 #endif
 
 /*

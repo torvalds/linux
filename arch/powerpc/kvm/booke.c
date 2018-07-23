@@ -77,8 +77,10 @@ void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 {
 	int i;
 
-	printk("pc:   %08lx msr:  %08llx\n", vcpu->arch.pc, vcpu->arch.shared->msr);
-	printk("lr:   %08lx ctr:  %08lx\n", vcpu->arch.lr, vcpu->arch.ctr);
+	printk("pc:   %08lx msr:  %08llx\n", vcpu->arch.regs.nip,
+			vcpu->arch.shared->msr);
+	printk("lr:   %08lx ctr:  %08lx\n", vcpu->arch.regs.link,
+			vcpu->arch.regs.ctr);
 	printk("srr0: %08llx srr1: %08llx\n", vcpu->arch.shared->srr0,
 					    vcpu->arch.shared->srr1);
 
@@ -491,24 +493,25 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	if (allowed) {
 		switch (int_class) {
 		case INT_CLASS_NONCRIT:
-			set_guest_srr(vcpu, vcpu->arch.pc,
+			set_guest_srr(vcpu, vcpu->arch.regs.nip,
 				      vcpu->arch.shared->msr);
 			break;
 		case INT_CLASS_CRIT:
-			set_guest_csrr(vcpu, vcpu->arch.pc,
+			set_guest_csrr(vcpu, vcpu->arch.regs.nip,
 				       vcpu->arch.shared->msr);
 			break;
 		case INT_CLASS_DBG:
-			set_guest_dsrr(vcpu, vcpu->arch.pc,
+			set_guest_dsrr(vcpu, vcpu->arch.regs.nip,
 				       vcpu->arch.shared->msr);
 			break;
 		case INT_CLASS_MC:
-			set_guest_mcsrr(vcpu, vcpu->arch.pc,
+			set_guest_mcsrr(vcpu, vcpu->arch.regs.nip,
 					vcpu->arch.shared->msr);
 			break;
 		}
 
-		vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[priority];
+		vcpu->arch.regs.nip = vcpu->arch.ivpr |
+					vcpu->arch.ivor[priority];
 		if (update_esr == true)
 			kvmppc_set_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
@@ -826,7 +829,7 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	case EMULATE_FAIL:
 		printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
-		       __func__, vcpu->arch.pc, vcpu->arch.last_inst);
+		       __func__, vcpu->arch.regs.nip, vcpu->arch.last_inst);
 		/* For debugging, encode the failing instruction and
 		 * report it to userspace. */
 		run->hw.hardware_exit_reason = ~0ULL << 32;
@@ -875,7 +878,7 @@ static int kvmppc_handle_debug(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	 */
 	vcpu->arch.dbsr = 0;
 	run->debug.arch.status = 0;
-	run->debug.arch.address = vcpu->arch.pc;
+	run->debug.arch.address = vcpu->arch.regs.nip;
 
 	if (dbsr & (DBSR_IAC1 | DBSR_IAC2 | DBSR_IAC3 | DBSR_IAC4)) {
 		run->debug.arch.status |= KVMPPC_DEBUG_BREAKPOINT;
@@ -971,7 +974,7 @@ static int kvmppc_resume_inst_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	case EMULATE_FAIL:
 		pr_debug("%s: load instruction from guest address %lx failed\n",
-		       __func__, vcpu->arch.pc);
+		       __func__, vcpu->arch.regs.nip);
 		/* For debugging, encode the failing instruction and
 		 * report it to userspace. */
 		run->hw.hardware_exit_reason = ~0ULL << 32;
@@ -1169,7 +1172,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOKE_INTERRUPT_SPE_FP_DATA:
 	case BOOKE_INTERRUPT_SPE_FP_ROUND:
 		printk(KERN_CRIT "%s: unexpected SPE interrupt %u at %08lx\n",
-		       __func__, exit_nr, vcpu->arch.pc);
+		       __func__, exit_nr, vcpu->arch.regs.nip);
 		run->hw.hardware_exit_reason = exit_nr;
 		r = RESUME_HOST;
 		break;
@@ -1299,7 +1302,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	case BOOKE_INTERRUPT_ITLB_MISS: {
-		unsigned long eaddr = vcpu->arch.pc;
+		unsigned long eaddr = vcpu->arch.regs.nip;
 		gpa_t gpaddr;
 		gfn_t gfn;
 		int gtlb_index;
@@ -1391,7 +1394,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	int i;
 	int r;
 
-	vcpu->arch.pc = 0;
+	vcpu->arch.regs.nip = 0;
 	vcpu->arch.shared->pir = vcpu->vcpu_id;
 	kvmppc_set_gpr(vcpu, 1, (16<<20) - 8); /* -8 for the callee-save LR slot */
 	kvmppc_set_msr(vcpu, 0);
@@ -1440,10 +1443,10 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	vcpu_load(vcpu);
 
-	regs->pc = vcpu->arch.pc;
+	regs->pc = vcpu->arch.regs.nip;
 	regs->cr = kvmppc_get_cr(vcpu);
-	regs->ctr = vcpu->arch.ctr;
-	regs->lr = vcpu->arch.lr;
+	regs->ctr = vcpu->arch.regs.ctr;
+	regs->lr = vcpu->arch.regs.link;
 	regs->xer = kvmppc_get_xer(vcpu);
 	regs->msr = vcpu->arch.shared->msr;
 	regs->srr0 = kvmppc_get_srr0(vcpu);
@@ -1471,10 +1474,10 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	vcpu_load(vcpu);
 
-	vcpu->arch.pc = regs->pc;
+	vcpu->arch.regs.nip = regs->pc;
 	kvmppc_set_cr(vcpu, regs->cr);
-	vcpu->arch.ctr = regs->ctr;
-	vcpu->arch.lr = regs->lr;
+	vcpu->arch.regs.ctr = regs->ctr;
+	vcpu->arch.regs.link = regs->lr;
 	kvmppc_set_xer(vcpu, regs->xer);
 	kvmppc_set_msr(vcpu, regs->msr);
 	kvmppc_set_srr0(vcpu, regs->srr0);

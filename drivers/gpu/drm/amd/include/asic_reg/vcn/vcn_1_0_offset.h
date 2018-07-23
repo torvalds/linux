@@ -89,6 +89,8 @@
 #define mmUVD_JPEG_RB_SIZE_BASE_IDX                                                                    1
 #define mmUVD_JPEG_ADDR_CONFIG                                                                         0x021f
 #define mmUVD_JPEG_ADDR_CONFIG_BASE_IDX                                                                1
+#define mmUVD_JPEG_PITCH                                                                               0x0222
+#define mmUVD_JPEG_PITCH_BASE_IDX                                                                      1
 #define mmUVD_JPEG_GPCOM_CMD                                                                           0x022c
 #define mmUVD_JPEG_GPCOM_CMD_BASE_IDX                                                                  1
 #define mmUVD_JPEG_GPCOM_DATA0                                                                         0x022d
@@ -203,6 +205,8 @@
 #define mmUVD_RB_WPTR4_BASE_IDX                                                                        1
 #define mmUVD_JRBC_RB_RPTR                                                                             0x0457
 #define mmUVD_JRBC_RB_RPTR_BASE_IDX                                                                    1
+#define mmUVD_LMI_JPEG_VMID                                                                            0x045d
+#define mmUVD_LMI_JPEG_VMID_BASE_IDX                                                                   1
 #define mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH                                                            0x045e
 #define mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH_BASE_IDX                                                   1
 #define mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW                                                             0x045f
@@ -231,6 +235,8 @@
 #define mmUVD_LMI_JRBC_IB_64BIT_BAR_HIGH_BASE_IDX                                                      1
 #define mmUVD_LMI_JRBC_IB_VMID                                                                         0x0507
 #define mmUVD_LMI_JRBC_IB_VMID_BASE_IDX                                                                1
+#define mmUVD_LMI_JRBC_RB_VMID                                                                         0x0508
+#define mmUVD_LMI_JRBC_RB_VMID_BASE_IDX                                                                1
 #define mmUVD_JRBC_RB_WPTR                                                                             0x0509
 #define mmUVD_JRBC_RB_WPTR_BASE_IDX                                                                    1
 #define mmUVD_JRBC_RB_CNTL                                                                             0x050a
@@ -239,6 +245,20 @@
 #define mmUVD_JRBC_IB_SIZE_BASE_IDX                                                                    1
 #define mmUVD_JRBC_LMI_SWAP_CNTL                                                                       0x050d
 #define mmUVD_JRBC_LMI_SWAP_CNTL_BASE_IDX                                                              1
+#define mmUVD_LMI_JRBC_RB_MEM_WR_64BIT_BAR_LOW                                                         0x050e
+#define mmUVD_LMI_JRBC_RB_MEM_WR_64BIT_BAR_LOW_BASE_IDX                                                1
+#define mmUVD_LMI_JRBC_RB_MEM_WR_64BIT_BAR_HIGH                                                        0x050f
+#define mmUVD_LMI_JRBC_RB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                               1
+#define mmUVD_LMI_JRBC_RB_MEM_RD_64BIT_BAR_LOW                                                         0x0510
+#define mmUVD_LMI_JRBC_RB_MEM_RD_64BIT_BAR_LOW_BASE_IDX                                                1
+#define mmUVD_LMI_JRBC_RB_MEM_RD_64BIT_BAR_HIGH                                                        0x0511
+#define mmUVD_LMI_JRBC_RB_MEM_RD_64BIT_BAR_HIGH_BASE_IDX                                               1
+#define mmUVD_JRBC_RB_REF_DATA                                                                         0x0512
+#define mmUVD_JRBC_RB_REF_DATA_BASE_IDX                                                                1
+#define mmUVD_JRBC_RB_COND_RD_TIMER                                                                    0x0513
+#define mmUVD_JRBC_RB_COND_RD_TIMER_BASE_IDX                                                           1
+#define mmUVD_JRBC_EXTERNAL_REG_BASE                                                                   0x0517
+#define mmUVD_JRBC_EXTERNAL_REG_BASE_BASE_IDX                                                          1
 #define mmUVD_JRBC_SOFT_RESET                                                                          0x0519
 #define mmUVD_JRBC_SOFT_RESET_BASE_IDX                                                                 1
 #define mmUVD_JRBC_STATUS                                                                              0x051a

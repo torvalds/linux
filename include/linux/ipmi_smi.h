@@ -22,8 +22,10 @@
 
 struct device;
 
-/* This files describes the interface for IPMI system management interface
-   drivers to bind into the IPMI message handler. */
+/*
+ * This files describes the interface for IPMI system management interface
+ * drivers to bind into the IPMI message handler.
+ */
 
 /* Structure for the low-level drivers. */
 typedef struct ipmi_smi *ipmi_smi_t;
@@ -61,12 +63,20 @@ struct ipmi_smi_msg {
 struct ipmi_smi_handlers {
 	struct module *owner;
 
-	/* The low-level interface cannot start sending messages to
-	   the upper layer until this function is called.  This may
-	   not be NULL, the lower layer must take the interface from
-	   this call. */
-	int (*start_processing)(void       *send_info,
-				ipmi_smi_t new_intf);
+	/*
+	 * The low-level interface cannot start sending messages to
+	 * the upper layer until this function is called.  This may
+	 * not be NULL, the lower layer must take the interface from
+	 * this call.
+	 */
+	int (*start_processing)(void            *send_info,
+				struct ipmi_smi *new_intf);
+
+	/*
+	 * When called, the low-level interface should disable all
+	 * processing, it should be complete shut down when it returns.
+	 */
+	void (*shutdown)(void *send_info);
 
 	/*
 	 * Get the detailed private info of the low level interface and store
@@ -75,25 +85,31 @@ struct ipmi_smi_handlers {
 	 */
 	int (*get_smi_info)(void *send_info, struct ipmi_smi_info *data);
 
-	/* Called to enqueue an SMI message to be sent.  This
-	   operation is not allowed to fail.  If an error occurs, it
-	   should report back the error in a received message.  It may
-	   do this in the current call context, since no write locks
-	   are held when this is run.  Message are delivered one at
-	   a time by the message handler, a new message will not be
-	   delivered until the previous message is returned. */
+	/*
+	 * Called to enqueue an SMI message to be sent.  This
+	 * operation is not allowed to fail.  If an error occurs, it
+	 * should report back the error in a received message.  It may
+	 * do this in the current call context, since no write locks
+	 * are held when this is run.  Message are delivered one at
+	 * a time by the message handler, a new message will not be
+	 * delivered until the previous message is returned.
+	 */
 	void (*sender)(void                *send_info,
 		       struct ipmi_smi_msg *msg);
 
-	/* Called by the upper layer to request that we try to get
-	   events from the BMC we are attached to. */
+	/*
+	 * Called by the upper layer to request that we try to get
+	 * events from the BMC we are attached to.
+	 */
 	void (*request_events)(void *send_info);
 
-	/* Called by the upper layer when some user requires that the
-	   interface watch for events, received messages, watchdog
-	   pretimeouts, or not.  Used by the SMI to know if it should
-	   watch for these.  This may be NULL if the SMI does not
-	   implement it. */
+	/*
+	 * Called by the upper layer when some user requires that the
+	 * interface watch for events, received messages, watchdog
+	 * pretimeouts, or not.  Used by the SMI to know if it should
+	 * watch for these.  This may be NULL if the SMI does not
+	 * implement it.
+	 */
 	void (*set_need_watch)(void *send_info, bool enable);
 
 	/*
@@ -101,30 +117,29 @@ struct ipmi_smi_handlers {
 	 */
 	void (*flush_messages)(void *send_info);
 
-	/* Called when the interface should go into "run to
-	   completion" mode.  If this call sets the value to true, the
-	   interface should make sure that all messages are flushed
-	   out and that none are pending, and any new requests are run
-	   to completion immediately. */
+	/*
+	 * Called when the interface should go into "run to
+	 * completion" mode.  If this call sets the value to true, the
+	 * interface should make sure that all messages are flushed
+	 * out and that none are pending, and any new requests are run
+	 * to completion immediately.
+	 */
 	void (*set_run_to_completion)(void *send_info, bool run_to_completion);
 
-	/* Called to poll for work to do.  This is so upper layers can
-	   poll for operations during things like crash dumps. */
+	/*
+	 * Called to poll for work to do.  This is so upper layers can
+	 * poll for operations during things like crash dumps.
+	 */
 	void (*poll)(void *send_info);
 
-	/* Enable/disable firmware maintenance mode.  Note that this
-	   is *not* the modes defined, this is simply an on/off
-	   setting.  The message handler does the mode handling.  Note
-	   that this is called from interrupt context, so it cannot
-	   block. */
+	/*
+	 * Enable/disable firmware maintenance mode.  Note that this
+	 * is *not* the modes defined, this is simply an on/off
+	 * setting.  The message handler does the mode handling.  Note
+	 * that this is called from interrupt context, so it cannot
+	 * block.
+	 */
 	void (*set_maintenance_mode)(void *send_info, bool enable);
-
-	/* Tell the handler that we are using it/not using it.  The
-	   message handler get the modules that this handler belongs
-	   to; this function lets the SMI claim any modules that it
-	   uses.  These may be NULL if this is not required. */
-	int (*inc_usecount)(void *send_info);
-	void (*dec_usecount)(void *send_info);
 };
 
 struct ipmi_device_id {
@@ -143,7 +158,8 @@ struct ipmi_device_id {
 #define ipmi_version_major(v) ((v)->ipmi_version & 0xf)
 #define ipmi_version_minor(v) ((v)->ipmi_version >> 4)
 
-/* Take a pointer to an IPMI response and extract device id information from
+/*
+ * Take a pointer to an IPMI response and extract device id information from
  * it. @netfn is in the IPMI_NETFN_ format, so may need to be shifted from
  * a SI response.
  */
@@ -187,12 +203,14 @@ static inline int ipmi_demangle_device_id(uint8_t netfn, uint8_t cmd,
 	return 0;
 }
 
-/* Add a low-level interface to the IPMI driver.  Note that if the
-   interface doesn't know its slave address, it should pass in zero.
-   The low-level interface should not deliver any messages to the
-   upper layer until the start_processing() function in the handlers
-   is called, and the lower layer must get the interface from that
-   call. */
+/*
+ * Add a low-level interface to the IPMI driver.  Note that if the
+ * interface doesn't know its slave address, it should pass in zero.
+ * The low-level interface should not deliver any messages to the
+ * upper layer until the start_processing() function in the handlers
+ * is called, and the lower layer must get the interface from that
+ * call.
+ */
 int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		      void                     *send_info,
 		      struct device            *dev,
@@ -202,7 +220,7 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
  * Remove a low-level interface from the IPMI driver.  This will
  * return an error if the interface is still in use by a user.
  */
-int ipmi_unregister_smi(ipmi_smi_t intf);
+void ipmi_unregister_smi(struct ipmi_smi *intf);
 
 /*
  * The lower layer reports received messages through this interface.
@@ -210,25 +228,16 @@ int ipmi_unregister_smi(ipmi_smi_t intf);
  * the lower layer gets an error sending a message, it should format
  * an error response in the message response.
  */
-void ipmi_smi_msg_received(ipmi_smi_t          intf,
+void ipmi_smi_msg_received(struct ipmi_smi     *intf,
 			   struct ipmi_smi_msg *msg);
 
 /* The lower layer received a watchdog pre-timeout on interface. */
-void ipmi_smi_watchdog_pretimeout(ipmi_smi_t intf);
+void ipmi_smi_watchdog_pretimeout(struct ipmi_smi *intf);
 
 struct ipmi_smi_msg *ipmi_alloc_smi_msg(void);
 static inline void ipmi_free_smi_msg(struct ipmi_smi_msg *msg)
 {
 	msg->done(msg);
 }
-
-#ifdef CONFIG_IPMI_PROC_INTERFACE
-/* Allow the lower layer to add things to the proc filesystem
-   directory for this interface.  Note that the entry will
-   automatically be dstroyed when the interface is destroyed. */
-int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
-			    const struct file_operations *proc_ops,
-			    void *data);
-#endif
 
 #endif /* __LINUX_IPMI_SMI_H */

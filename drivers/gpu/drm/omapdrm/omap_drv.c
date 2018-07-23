@@ -274,7 +274,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		if (IS_ERR(crtc))
 			return PTR_ERR(crtc);
 
-		drm_mode_connector_attach_encoder(connector, encoder);
+		drm_connector_attach_encoder(connector, encoder);
 		encoder->possible_crtcs = (1 << crtc_idx);
 
 		priv->crtcs[priv->num_crtcs++] = crtc;
@@ -493,7 +493,7 @@ static struct drm_driver omap_drm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = omap_gem_prime_export,
 	.gem_prime_import = omap_gem_prime_import,
-	.gem_free_object = omap_gem_free_object,
+	.gem_free_object_unlocked = omap_gem_free_object,
 	.gem_vm_ops = &omap_gem_vm_ops,
 	.dumb_create = omap_gem_dumb_create,
 	.dumb_map_offset = omap_gem_dumb_map_offset,
@@ -540,7 +540,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	priv->omaprev = soc ? (unsigned int)soc->data : 0;
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
-	spin_lock_init(&priv->list_lock);
+	mutex_init(&priv->list_lock);
 	INIT_LIST_HEAD(&priv->obj_list);
 
 	/* Allocate and initialize the DRM device. */

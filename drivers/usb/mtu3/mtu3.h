@@ -196,10 +196,12 @@ struct mtu3_gpd_ring {
 * @vbus: vbus 5V used by host mode
 * @edev: external connector used to detect vbus and iddig changes
 * @vbus_nb: notifier for vbus detection
-* @vbus_nb: notifier for iddig(idpin) detection
-* @extcon_reg_dwork: delay work for extcon notifier register, waiting for
-*		xHCI driver initialization, it's necessary for system bootup
-*		as device.
+* @vbus_work : work of vbus detection notifier, used to avoid sleep in
+*		notifier callback which is atomic context
+* @vbus_event : event of vbus detecion notifier
+* @id_nb : notifier for iddig(idpin) detection
+* @id_work : work of iddig detection notifier
+* @id_event : event of iddig detecion notifier
 * @is_u3_drd: whether port0 supports usb3.0 dual-role device or not
 * @manual_drd_enabled: it's true when supports dual-role device by debugfs
 *		to switch host/device modes depending on user input.
@@ -208,8 +210,11 @@ struct otg_switch_mtk {
 	struct regulator *vbus;
 	struct extcon_dev *edev;
 	struct notifier_block vbus_nb;
+	struct work_struct vbus_work;
+	unsigned long vbus_event;
 	struct notifier_block id_nb;
-	struct delayed_work extcon_reg_dwork;
+	struct work_struct id_work;
+	unsigned long id_event;
 	bool is_u3_drd;
 	bool manual_drd_enabled;
 };

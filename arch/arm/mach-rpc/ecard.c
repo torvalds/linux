@@ -657,25 +657,13 @@ static int ecard_devices_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ecard_devices_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ecard_devices_proc_show, NULL);
-}
-
-static const struct file_operations bus_ecard_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ecard_devices_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static struct proc_dir_entry *proc_bus_ecard_dir = NULL;
 
 static void ecard_proc_init(void)
 {
 	proc_bus_ecard_dir = proc_mkdir("bus/ecard", NULL);
-	proc_create("devices", 0, proc_bus_ecard_dir, &bus_ecard_proc_fops);
+	proc_create_single("devices", 0, proc_bus_ecard_dir,
+			ecard_devices_proc_show);
 }
 
 #define ec_set_resource(ec,nr,st,sz)				\

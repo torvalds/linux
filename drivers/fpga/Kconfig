@@ -53,7 +53,6 @@ config FPGA_MGR_ALTERA_CVP
 config FPGA_MGR_ZYNQ_FPGA
 	tristate "Xilinx Zynq FPGA"
 	depends on ARCH_ZYNQ || COMPILE_TEST
-	depends on HAS_DMA
 	help
 	  FPGA manager driver support for Xilinx Zynq FPGAs.
 
@@ -69,6 +68,13 @@ config FPGA_MGR_ICE40_SPI
 	depends on OF && SPI
 	help
 	  FPGA manager driver support for Lattice iCE40 FPGAs over SPI.
+
+config FPGA_MGR_MACHXO2_SPI
+	tristate "Lattice MachXO2 SPI"
+	depends on SPI
+	help
+	  FPGA manager driver support for Lattice MachXO2 configuration
+	  over slave SPI interface.
 
 config FPGA_MGR_TS73XX
 	tristate "Technologic Systems TS-73xx SBC FPGA Manager"

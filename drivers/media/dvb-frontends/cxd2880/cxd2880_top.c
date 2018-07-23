@@ -520,6 +520,15 @@ static int cxd2880_init(struct dvb_frontend *fe)
 		pr_err("cxd2880 integ init failed %d\n", ret);
 		return ret;
 	}
+
+	ret = cxd2880_tnrdmd_set_cfg(&priv->tnrdmd,
+				     CXD2880_TNRDMD_CFG_TSPIN_CURRENT,
+				     0x00);
+	if (ret) {
+		mutex_unlock(priv->spi_mutex);
+		pr_err("cxd2880 set config failed %d\n", ret);
+		return ret;
+	}
 	mutex_unlock(priv->spi_mutex);
 
 	pr_debug("OK.\n");
@@ -1126,7 +1135,7 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 	priv = fe->demodulator_priv;
 	c = &fe->dtv_property_cache;
 
-	if (!(status & FE_HAS_LOCK)) {
+	if (!(status & FE_HAS_LOCK) || !(status & FE_HAS_CARRIER)) {
 		c->pre_bit_error.len = 1;
 		c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		c->pre_bit_count.len = 1;
@@ -1345,7 +1354,8 @@ static int cxd2880_read_status(struct dvb_frontend *fe,
 
 	pr_debug("status %d\n", *status);
 
-	if (priv->s == 0 && (*status & FE_HAS_LOCK)) {
+	if (priv->s == 0 && (*status & FE_HAS_LOCK) &&
+	    (*status & FE_HAS_CARRIER)) {
 		mutex_lock(priv->spi_mutex);
 		if (c->delivery_system == SYS_DVBT) {
 			ret = cxd2880_set_ber_per_period_t(fe);

@@ -293,6 +293,9 @@ void __init setup_arch(char **cmdline_p)
 	/* paging_init() sets up the MMU and marks all pages as reserved */
 	paging_init();
 
+	/* invalidate all TLB entries because the new mapping is created */
+	__nds32__tlbop_flua();
+
 	/* use generic way to parse */
 	parse_early_param();
 

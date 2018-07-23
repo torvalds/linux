@@ -30,6 +30,11 @@
 #define EVM_INIT_MASK (EVM_INIT_HMAC | EVM_INIT_X509 | EVM_SETUP_COMPLETE | \
 		       EVM_ALLOW_METADATA_WRITES)
 
+struct xattr_list {
+	struct list_head list;
+	char *name;
+};
+
 extern int evm_initialized;
 
 #define EVM_ATTR_FSUUID		0x0001
@@ -40,7 +45,7 @@ extern struct crypto_shash *hmac_tfm;
 extern struct crypto_shash *hash_tfm;
 
 /* List of EVM protected security xattrs */
-extern char *evm_config_xattrnames[];
+extern struct list_head evm_config_xattrnames;
 
 int evm_init_key(void);
 int evm_update_evmxattr(struct dentry *dentry,

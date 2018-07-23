@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/srcu.h>
 
+#include <drm/drm_client.h>
 #include <drm/drm_drv.h>
 #include <drm/drmP.h>
 
@@ -53,13 +54,14 @@ MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
 MODULE_DESCRIPTION("DRM shared core routines");
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
-"\t\tBit 0 (0x01) will enable CORE messages (drm core code)\n"
-"\t\tBit 1 (0x02) will enable DRIVER messages (drm controller code)\n"
-"\t\tBit 2 (0x04) will enable KMS messages (modesetting code)\n"
-"\t\tBit 3 (0x08) will enable PRIME messages (prime code)\n"
-"\t\tBit 4 (0x10) will enable ATOMIC messages (atomic code)\n"
-"\t\tBit 5 (0x20) will enable VBL messages (vblank code)\n"
-"\t\tBit 7 (0x80) will enable LEASE messages (leasing code)");
+"\t\tBit 0 (0x01)  will enable CORE messages (drm core code)\n"
+"\t\tBit 1 (0x02)  will enable DRIVER messages (drm controller code)\n"
+"\t\tBit 2 (0x04)  will enable KMS messages (modesetting code)\n"
+"\t\tBit 3 (0x08)  will enable PRIME messages (prime code)\n"
+"\t\tBit 4 (0x10)  will enable ATOMIC messages (atomic code)\n"
+"\t\tBit 5 (0x20)  will enable VBL messages (vblank code)\n"
+"\t\tBit 7 (0x80)  will enable LEASE messages (leasing code)\n"
+"\t\tBit 8 (0x100) will enable DP messages (displayport code)");
 module_param_named(debug, drm_debug, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
@@ -99,8 +101,6 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 		return &dev->primary;
 	case DRM_MINOR_RENDER:
 		return &dev->render;
-	case DRM_MINOR_CONTROL:
-		return &dev->control;
 	default:
 		BUG();
 	}
@@ -371,13 +371,6 @@ EXPORT_SYMBOL(drm_dev_exit);
  */
 void drm_dev_unplug(struct drm_device *dev)
 {
-	drm_dev_unregister(dev);
-
-	mutex_lock(&drm_global_mutex);
-	if (dev->open_count == 0)
-		drm_dev_put(dev);
-	mutex_unlock(&drm_global_mutex);
-
 	/*
 	 * After synchronizing any critical read section is guaranteed to see
 	 * the new value of ->unplugged, and any critical section which might
@@ -386,6 +379,13 @@ void drm_dev_unplug(struct drm_device *dev)
 	 */
 	dev->unplugged = true;
 	synchronize_srcu(&drm_unplug_srcu);
+
+	drm_dev_unregister(dev);
+
+	mutex_lock(&drm_global_mutex);
+	if (dev->open_count == 0)
+		drm_dev_put(dev);
+	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
 
@@ -507,6 +507,8 @@ int drm_dev_init(struct drm_device *dev,
 	dev->driver = driver;
 
 	INIT_LIST_HEAD(&dev->filelist);
+	INIT_LIST_HEAD(&dev->filelist_internal);
+	INIT_LIST_HEAD(&dev->clientlist);
 	INIT_LIST_HEAD(&dev->ctxlist);
 	INIT_LIST_HEAD(&dev->vmalist);
 	INIT_LIST_HEAD(&dev->maplist);
@@ -516,6 +518,7 @@ int drm_dev_init(struct drm_device *dev,
 	spin_lock_init(&dev->event_lock);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->filelist_mutex);
+	mutex_init(&dev->clientlist_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
 
@@ -567,11 +570,11 @@ err_ctxbitmap:
 err_minors:
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
-	drm_minor_free(dev, DRM_MINOR_CONTROL);
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
 	mutex_destroy(&dev->master_mutex);
 	mutex_destroy(&dev->ctxlist_mutex);
+	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
 	return ret;
@@ -603,10 +606,10 @@ void drm_dev_fini(struct drm_device *dev)
 
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
-	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
 	mutex_destroy(&dev->master_mutex);
 	mutex_destroy(&dev->ctxlist_mutex);
+	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
 	kfree(dev->unique);
@@ -760,7 +763,7 @@ static void remove_compat_control_link(struct drm_device *dev)
 	if (!minor)
 		return;
 
-	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index);
+	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
 	if (!name)
 		return;
 
@@ -795,10 +798,6 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	int ret;
 
 	mutex_lock(&drm_global_mutex);
-
-	ret = drm_minor_register(dev, DRM_MINOR_CONTROL);
-	if (ret)
-		goto err_minors;
 
 	ret = drm_minor_register(dev, DRM_MINOR_RENDER);
 	if (ret)
@@ -837,7 +836,6 @@ err_minors:
 	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 out_unlock:
 	mutex_unlock(&drm_global_mutex);
 	return ret;
@@ -867,6 +865,8 @@ void drm_dev_unregister(struct drm_device *dev)
 
 	dev->registered = false;
 
+	drm_client_dev_unregister(dev);
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_modeset_unregister_all(dev);
 
@@ -882,7 +882,6 @@ void drm_dev_unregister(struct drm_device *dev)
 	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
 

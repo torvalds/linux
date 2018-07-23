@@ -206,7 +206,7 @@ static void __init of_dra7_apll_setup(struct device_node *node)
 		goto cleanup;
 	}
 
-	parent_names = kzalloc(sizeof(char *) * init->num_parents, GFP_KERNEL);
+	parent_names = kcalloc(init->num_parents, sizeof(char *), GFP_KERNEL);
 	if (!parent_names)
 		goto cleanup;
 

@@ -1456,7 +1456,7 @@ int reiserfs_init_bitmap_cache(struct super_block *sb)
 	struct reiserfs_bitmap_info *bitmap;
 	unsigned int bmap_nr = reiserfs_bmap_count(sb);
 
-	bitmap = vmalloc(sizeof(*bitmap) * bmap_nr);
+	bitmap = vmalloc(array_size(bmap_nr, sizeof(*bitmap)));
 	if (bitmap == NULL)
 		return -ENOMEM;
 

@@ -12,7 +12,7 @@
  *
  * On Avermedia M135A with IR model RM-JX, the same codes exist on both
  * Positivo (BR) and original IR, initial version and remote control codes
- * added by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * added by Mauro Carvalho Chehab <mchehab@kernel.org>
  *
  * Positivo also ships Avermedia M135A with model RM-K6, extra control
  * codes added by Herton Ronaldo Krzesinski <herton@mandriva.com.br>

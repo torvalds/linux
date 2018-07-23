@@ -1080,6 +1080,37 @@ struct sta_bss_parameters {
 };
 
 /**
+ * struct cfg80211_txq_stats - TXQ statistics for this TID
+ * @filled: bitmap of flags using the bits of &enum nl80211_txq_stats to
+ *	indicate the relevant values in this struct are filled
+ * @backlog_bytes: total number of bytes currently backlogged
+ * @backlog_packets: total number of packets currently backlogged
+ * @flows: number of new flows seen
+ * @drops: total number of packets dropped
+ * @ecn_marks: total number of packets marked with ECN CE
+ * @overlimit: number of drops due to queue space overflow
+ * @overmemory: number of drops due to memory limit overflow
+ * @collisions: number of hash collisions
+ * @tx_bytes: total number of bytes dequeued
+ * @tx_packets: total number of packets dequeued
+ * @max_flows: maximum number of flows supported
+ */
+struct cfg80211_txq_stats {
+	u32 filled;
+	u32 backlog_bytes;
+	u32 backlog_packets;
+	u32 flows;
+	u32 drops;
+	u32 ecn_marks;
+	u32 overlimit;
+	u32 overmemory;
+	u32 collisions;
+	u32 tx_bytes;
+	u32 tx_packets;
+	u32 max_flows;
+};
+
+/**
  * struct cfg80211_tid_stats - per-TID statistics
  * @filled: bitmap of flags using the bits of &enum nl80211_tid_stats to
  *	indicate the relevant values in this struct are filled
@@ -1088,6 +1119,7 @@ struct sta_bss_parameters {
  * @tx_msdu_retries: number of retries (not counting the first) for
  *	transmitted MSDUs
  * @tx_msdu_failed: number of failed transmitted MSDUs
+ * @txq_stats: TXQ statistics
  */
 struct cfg80211_tid_stats {
 	u32 filled;
@@ -1095,6 +1127,7 @@ struct cfg80211_tid_stats {
 	u64 tx_msdu;
 	u64 tx_msdu_retries;
 	u64 tx_msdu_failed;
+	struct cfg80211_txq_stats txq_stats;
 };
 
 #define IEEE80211_MAX_CHAINS	4
@@ -1151,7 +1184,10 @@ struct cfg80211_tid_stats {
  * @rx_duration: aggregate PPDU duration(usecs) for all the frames from a peer
  * @pertid: per-TID statistics, see &struct cfg80211_tid_stats, using the last
  *	(IEEE80211_NUM_TIDS) index for MSDUs not encapsulated in QoS-MPDUs.
+ *	Note that this doesn't use the @filled bit, but is used if non-NULL.
  * @ack_signal: signal strength (in dBm) of the last ACK frame.
+ * @avg_ack_signal: average rssi value of ack packet for the no of msdu's has
+ *	been sent.
  */
 struct station_info {
 	u64 filled;
@@ -1195,8 +1231,9 @@ struct station_info {
 	u64 rx_beacon;
 	u64 rx_duration;
 	u8 rx_beacon_signal_avg;
-	struct cfg80211_tid_stats pertid[IEEE80211_NUM_TIDS + 1];
+	struct cfg80211_tid_stats *pertid;
 	s8 ack_signal;
+	s8 avg_ack_signal;
 };
 
 #if IS_ENABLED(CONFIG_CFG80211)
@@ -2188,9 +2225,14 @@ struct cfg80211_connect_params {
  * have to be updated as part of update_connect_params() call.
  *
  * @UPDATE_ASSOC_IES: Indicates whether association request IEs are updated
+ * @UPDATE_FILS_ERP_INFO: Indicates that FILS connection parameters (realm,
+ *	username, erp sequence number and rrk) are updated
+ * @UPDATE_AUTH_TYPE: Indicates that authentication type is updated
  */
 enum cfg80211_connect_params_changed {
 	UPDATE_ASSOC_IES		= BIT(0),
+	UPDATE_FILS_ERP_INFO		= BIT(1),
+	UPDATE_AUTH_TYPE		= BIT(2),
 };
 
 /**
@@ -2201,6 +2243,9 @@ enum cfg80211_connect_params_changed {
  * @WIPHY_PARAM_RTS_THRESHOLD: wiphy->rts_threshold has changed
  * @WIPHY_PARAM_COVERAGE_CLASS: coverage class changed
  * @WIPHY_PARAM_DYN_ACK: dynack has been enabled
+ * @WIPHY_PARAM_TXQ_LIMIT: TXQ packet limit has been changed
+ * @WIPHY_PARAM_TXQ_MEMORY_LIMIT: TXQ memory limit has been changed
+ * @WIPHY_PARAM_TXQ_QUANTUM: TXQ scheduler quantum
  */
 enum wiphy_params_flags {
 	WIPHY_PARAM_RETRY_SHORT		= 1 << 0,
@@ -2209,6 +2254,9 @@ enum wiphy_params_flags {
 	WIPHY_PARAM_RTS_THRESHOLD	= 1 << 3,
 	WIPHY_PARAM_COVERAGE_CLASS	= 1 << 4,
 	WIPHY_PARAM_DYN_ACK		= 1 << 5,
+	WIPHY_PARAM_TXQ_LIMIT		= 1 << 6,
+	WIPHY_PARAM_TXQ_MEMORY_LIMIT	= 1 << 7,
+	WIPHY_PARAM_TXQ_QUANTUM		= 1 << 8,
 };
 
 /**
@@ -2961,6 +3009,9 @@ struct cfg80211_external_auth_params {
  *
  * @set_multicast_to_unicast: configure multicast to unicast conversion for BSS
  *
+ * @get_txq_stats: Get TXQ stats for interface or phy. If wdev is %NULL, this
+ *      function should return phy stats, and interface stats otherwise.
+ *
  * @set_pmk: configure the PMK to be used for offloaded 802.1X 4-Way handshake.
  *	If not deleted through @del_pmk the PMK remains valid until disconnect
  *	upon which the driver should clear it.
@@ -3261,6 +3312,10 @@ struct cfg80211_ops {
 	int	(*set_multicast_to_unicast)(struct wiphy *wiphy,
 					    struct net_device *dev,
 					    const bool enabled);
+
+	int	(*get_txq_stats)(struct wiphy *wiphy,
+				 struct wireless_dev *wdev,
+				 struct cfg80211_txq_stats *txqstats);
 
 	int	(*set_pmk)(struct wiphy *wiphy, struct net_device *dev,
 			   const struct cfg80211_pmk_conf *conf);
@@ -3806,6 +3861,10 @@ struct wiphy_iftype_ext_capab {
  *	bitmap of &enum nl80211_band values.  For instance, for
  *	NL80211_BAND_2GHZ, bit 0 would be set
  *	(i.e. BIT(NL80211_BAND_2GHZ)).
+ *
+ * @txq_limit: configuration of internal TX queue frame limit
+ * @txq_memory_limit: configuration internal TX queue memory limit
+ * @txq_quantum: configuration of internal TX queue scheduler quantum
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -3939,6 +3998,10 @@ struct wiphy {
 	u64 cookie_counter;
 
 	u8 nan_supported_bands;
+
+	u32 txq_limit;
+	u32 txq_memory_limit;
+	u32 txq_quantum;
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
@@ -5363,6 +5426,30 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
 #endif
 
 /**
+ * struct cfg80211_fils_resp_params - FILS connection response params
+ * @kek: KEK derived from a successful FILS connection (may be %NULL)
+ * @kek_len: Length of @fils_kek in octets
+ * @update_erp_next_seq_num: Boolean value to specify whether the value in
+ *	@erp_next_seq_num is valid.
+ * @erp_next_seq_num: The next sequence number to use in ERP message in
+ *	FILS Authentication. This value should be specified irrespective of the
+ *	status for a FILS connection.
+ * @pmk: A new PMK if derived from a successful FILS connection (may be %NULL).
+ * @pmk_len: Length of @pmk in octets
+ * @pmkid: A new PMKID if derived from a successful FILS connection or the PMKID
+ *	used for this FILS connection (may be %NULL).
+ */
+struct cfg80211_fils_resp_params {
+	const u8 *kek;
+	size_t kek_len;
+	bool update_erp_next_seq_num;
+	u16 erp_next_seq_num;
+	const u8 *pmk;
+	size_t pmk_len;
+	const u8 *pmkid;
+};
+
+/**
  * struct cfg80211_connect_resp_params - Connection response params
  * @status: Status code, %WLAN_STATUS_SUCCESS for successful connection, use
  *	%WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
@@ -5380,17 +5467,7 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  * @req_ie_len: Association request IEs length
  * @resp_ie: Association response IEs (may be %NULL)
  * @resp_ie_len: Association response IEs length
- * @fils_kek: KEK derived from a successful FILS connection (may be %NULL)
- * @fils_kek_len: Length of @fils_kek in octets
- * @update_erp_next_seq_num: Boolean value to specify whether the value in
- *	@fils_erp_next_seq_num is valid.
- * @fils_erp_next_seq_num: The next sequence number to use in ERP message in
- *	FILS Authentication. This value should be specified irrespective of the
- *	status for a FILS connection.
- * @pmk: A new PMK if derived from a successful FILS connection (may be %NULL).
- * @pmk_len: Length of @pmk in octets
- * @pmkid: A new PMKID if derived from a successful FILS connection or the PMKID
- *	used for this FILS connection (may be %NULL).
+ * @fils: FILS connection response parameters.
  * @timeout_reason: Reason for connection timeout. This is used when the
  *	connection fails due to a timeout instead of an explicit rejection from
  *	the AP. %NL80211_TIMEOUT_UNSPECIFIED is used when the timeout reason is
@@ -5406,13 +5483,7 @@ struct cfg80211_connect_resp_params {
 	size_t req_ie_len;
 	const u8 *resp_ie;
 	size_t resp_ie_len;
-	const u8 *fils_kek;
-	size_t fils_kek_len;
-	bool update_erp_next_seq_num;
-	u16 fils_erp_next_seq_num;
-	const u8 *pmk;
-	size_t pmk_len;
-	const u8 *pmkid;
+	struct cfg80211_fils_resp_params fils;
 	enum nl80211_timeout_reason timeout_reason;
 };
 
@@ -5558,6 +5629,7 @@ cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,
  * @req_ie_len: association request IEs length
  * @resp_ie: association response IEs (may be %NULL)
  * @resp_ie_len: assoc response IEs length
+ * @fils: FILS related roaming information.
  */
 struct cfg80211_roam_info {
 	struct ieee80211_channel *channel;
@@ -5567,6 +5639,7 @@ struct cfg80211_roam_info {
 	size_t req_ie_len;
 	const u8 *resp_ie;
 	size_t resp_ie_len;
+	struct cfg80211_fils_resp_params fils;
 };
 
 /**
@@ -5648,6 +5721,26 @@ void cfg80211_remain_on_channel_expired(struct wireless_dev *wdev, u64 cookie,
 					struct ieee80211_channel *chan,
 					gfp_t gfp);
 
+/**
+ * cfg80211_sinfo_alloc_tid_stats - allocate per-tid statistics.
+ *
+ * @sinfo: the station information
+ * @gfp: allocation flags
+ */
+int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp);
+
+/**
+ * cfg80211_sinfo_release_content - release contents of station info
+ * @sinfo: the station information
+ *
+ * Releases any potentially allocated sub-information of the station
+ * information, but not the struct itself (since it's typically on
+ * the stack.)
+ */
+static inline void cfg80211_sinfo_release_content(struct station_info *sinfo)
+{
+	kfree(sinfo->pertid);
+}
 
 /**
  * cfg80211_new_sta - notify userspace about station

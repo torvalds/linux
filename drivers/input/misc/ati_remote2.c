@@ -22,7 +22,7 @@ MODULE_LICENSE("GPL");
 /*
  * ATI Remote Wonder II Channel Configuration
  *
- * The remote control can by assigned one of sixteen "channels" in order to facilitate
+ * The remote control can be assigned one of sixteen "channels" in order to facilitate
  * the use of multiple remote controls within range of each other.
  * A remote's "channel" may be altered by pressing and holding the "PC" button for
  * approximately 3 seconds, after which the button will slowly flash the count of the

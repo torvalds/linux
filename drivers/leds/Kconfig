@@ -104,6 +104,19 @@ config LEDS_CPCAP
 	  This option enables support for LEDs offered by Motorola's
 	  CPCAP PMIC.
 
+config LEDS_CR0014114
+	tristate "LED Support for Crane CR0014114"
+	depends on LEDS_CLASS
+	depends on SPI
+	depends on OF
+	help
+	  This option enables support for CR0014114 LED Board which
+	  is widely used in vending machines produced by
+	  Crane Merchandising Systems.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-cr0014114.
+
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
 	depends on LEDS_CLASS
@@ -144,6 +157,15 @@ config LEDS_LM3692X
 	help
 	  This option enables support for the TI LM3692x family
 	  of white LED string drivers used for backlighting.
+
+config LEDS_LM3601X
+	tristate "LED support for LM3601x Chips"
+	depends on LEDS_CLASS && I2C
+	depends on LEDS_CLASS_FLASH
+	select REGMAP_I2C
+	help
+	  This option enables support for the TI LM3601x family
+	  of flash, torch and indicator classes.
 
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
@@ -646,6 +668,17 @@ config LEDS_IS31FL32XX
 	  Say Y here to include support for ISSI IS31FL32XX and Si-En SN32xx
 	  LED controllers. They are I2C devices with multiple constant-current
 	  channels, each with independent 256-level PWM control.
+
+config LEDS_SC27XX_BLTC
+	tristate "LED support for the SC27xx breathing light controller"
+	depends on LEDS_CLASS && MFD_SC27XX_PMIC
+	depends on OF
+	help
+	  Say Y here to include support for the SC27xx breathing light controller
+	  LEDs.
+
+	  This driver can also be built as a module. If so the module will be
+	  called leds-sc27xx-bltc.
 
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 

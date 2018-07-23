@@ -99,7 +99,7 @@ int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np)
 		goto error_encoder_cleanup;
 	}
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0) {
 		dev_err(drm->dev, "could not attach connector to encoder\n");
 		drm_connector_unregister(connector);

@@ -22,8 +22,6 @@ Optional properties:
 - reset : phandle + reset specifier pair
 - reset-names : must contain "ahb"
 - allwinner,rb : shall contain the native Ready/Busy ids.
- or
-- rb-gpios : shall contain the gpios used as R/B pins.
 - nand-ecc-mode : one of the supported ECC modes ("hw", "soft", "soft_bch" or
 		  "none")
 

@@ -153,15 +153,15 @@ static const struct dce110_timing_generator_offsets dce80_tg_offsets[] = {
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
 
-static const struct dce_disp_clk_registers disp_clk_regs = {
+static const struct dccg_registers disp_clk_regs = {
 		CLK_COMMON_REG_LIST_DCE_BASE()
 };
 
-static const struct dce_disp_clk_shift disp_clk_shift = {
+static const struct dccg_shift disp_clk_shift = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
 };
 
-static const struct dce_disp_clk_mask disp_clk_mask = {
+static const struct dccg_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
@@ -683,29 +683,12 @@ static void destruct(struct dce110_resource_pool *pool)
 		}
 	}
 
-	if (pool->base.display_clock != NULL)
-		dce_disp_clk_destroy(&pool->base.display_clock);
+	if (pool->base.dccg != NULL)
+		dce_dccg_destroy(&pool->base.dccg);
 
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
 	}
-}
-
-static enum dc_status build_mapped_resource(
-		const struct dc *dc,
-		struct dc_state *context,
-		struct dc_stream_state *stream)
-{
-	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
-
-	if (!pipe_ctx)
-		return DC_ERROR_UNEXPECTED;
-
-	dce110_resource_build_pipe_hw_param(pipe_ctx);
-
-	resource_build_info_frame(pipe_ctx);
-
-	return DC_OK;
 }
 
 bool dce80_validate_bandwidth(
@@ -749,37 +732,6 @@ enum dc_status dce80_validate_global(
 	return DC_OK;
 }
 
-enum dc_status dce80_validate_guaranteed(
-		struct dc *dc,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *context)
-{
-	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->streams[0] = dc_stream;
-	dc_stream_retain(context->streams[0]);
-	context->stream_count++;
-
-	result = resource_map_pool_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = resource_map_clock_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = build_mapped_resource(dc, context, dc_stream);
-
-	if (result == DC_OK) {
-		validate_guaranteed_copy_streams(
-				context, dc->caps.max_streams);
-		result = resource_build_scaling_params_for_context(dc, context);
-	}
-
-	if (result == DC_OK)
-		result = dce80_validate_bandwidth(dc, context);
-
-	return result;
-}
-
 static void dce80_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
@@ -792,7 +744,6 @@ static void dce80_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce80_res_pool_funcs = {
 	.destroy = dce80_destroy_resource_pool,
 	.link_enc_create = dce80_link_encoder_create,
-	.validate_guaranteed = dce80_validate_guaranteed,
 	.validate_bandwidth = dce80_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,
@@ -871,11 +822,11 @@ static bool dce80_construct(
 		}
 	}
 
-	pool->base.display_clock = dce_disp_clk_create(ctx,
+	pool->base.dccg = dce_dccg_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.display_clock == NULL) {
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -901,7 +852,7 @@ static bool dce80_construct(
 		goto res_create_fail;
 	}
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.display_clock->max_clks_state =
+		pool->base.dccg->max_clks_state =
 					static_clk_info.max_clocks_state;
 
 	{
@@ -1055,11 +1006,11 @@ static bool dce81_construct(
 		}
 	}
 
-	pool->base.display_clock = dce_disp_clk_create(ctx,
+	pool->base.dccg = dce_dccg_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.display_clock == NULL) {
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -1086,7 +1037,7 @@ static bool dce81_construct(
 	}
 
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.display_clock->max_clks_state =
+		pool->base.dccg->max_clks_state =
 					static_clk_info.max_clocks_state;
 
 	{
@@ -1236,11 +1187,11 @@ static bool dce83_construct(
 		}
 	}
 
-	pool->base.display_clock = dce_disp_clk_create(ctx,
+	pool->base.dccg = dce_dccg_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.display_clock == NULL) {
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -1267,7 +1218,7 @@ static bool dce83_construct(
 	}
 
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.display_clock->max_clks_state =
+		pool->base.dccg->max_clks_state =
 					static_clk_info.max_clocks_state;
 
 	{

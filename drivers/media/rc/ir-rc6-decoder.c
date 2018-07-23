@@ -145,9 +145,6 @@ again:
 		return 0;
 
 	case STATE_HEADER_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == RC6_HEADER_NBITS)
 			data->state = STATE_TOGGLE_START;
 		else
@@ -165,10 +162,6 @@ again:
 		return 0;
 
 	case STATE_TOGGLE_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev) ||
-		    !geq_margin(ev.duration, RC6_TOGGLE_END, RC6_UNIT / 2))
-			break;
-
 		if (!(data->header & RC6_STARTBIT_MASK)) {
 			dev_dbg(&dev->dev, "RC6 invalid start bit\n");
 			break;
@@ -210,9 +203,6 @@ again:
 		break;
 
 	case STATE_BODY_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == data->wanted_bits)
 			data->state = STATE_FINISHED;
 		else
@@ -394,6 +384,7 @@ static struct ir_raw_handler rc6_handler = {
 	.decode		= ir_rc6_decode,
 	.encode		= ir_rc6_encode,
 	.carrier	= 36000,
+	.min_timeout	= RC6_SUFFIX_SPACE,
 };
 
 static int __init ir_rc6_decode_init(void)

@@ -539,7 +539,7 @@ static int gmac_setup_txqs(struct net_device *netdev)
 	}
 
 	if (port->txq_dma_base & ~DMA_Q_BASE_MASK) {
-		dev_warn(geth->dev, "TX queue base it not aligned\n");
+		dev_warn(geth->dev, "TX queue base is not aligned\n");
 		kfree(skb_tab);
 		return -ENOMEM;
 	}
@@ -680,7 +680,7 @@ static int gmac_setup_rxq(struct net_device *netdev)
 	if (!port->rxq_ring)
 		return -ENOMEM;
 	if (port->rxq_dma_base & ~NONTOE_QHDR0_BASE_MASK) {
-		dev_warn(geth->dev, "RX queue base it not aligned\n");
+		dev_warn(geth->dev, "RX queue base is not aligned\n");
 		return -ENOMEM;
 	}
 
@@ -905,13 +905,13 @@ static int geth_setup_freeq(struct gemini_ethernet *geth)
 	if (!geth->freeq_ring)
 		return -ENOMEM;
 	if (geth->freeq_dma_base & ~DMA_Q_BASE_MASK) {
-		dev_warn(geth->dev, "queue ring base it not aligned\n");
+		dev_warn(geth->dev, "queue ring base is not aligned\n");
 		goto err_freeq;
 	}
 
 	/* Allocate a mapping to page look-up index */
-	geth->freeq_pages = kzalloc(pages * sizeof(*geth->freeq_pages),
-				   GFP_KERNEL);
+	geth->freeq_pages = kcalloc(pages, sizeof(*geth->freeq_pages),
+				    GFP_KERNEL);
 	if (!geth->freeq_pages)
 		goto err_freeq;
 	geth->num_freeq_pages = pages;

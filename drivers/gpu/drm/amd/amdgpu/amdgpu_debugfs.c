@@ -28,8 +28,13 @@
 #include <linux/debugfs.h>
 #include "amdgpu.h"
 
-/*
- * Debugfs
+/**
+ * amdgpu_debugfs_add_files - Add simple debugfs entries
+ *
+ * @adev:  Device to attach debugfs entries to
+ * @files:  Array of function callbacks that respond to reads
+ * @nfiles: Number of callbacks to register
+ *
  */
 int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 			     const struct drm_info_list *files,
@@ -64,7 +69,33 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 
 #if defined(CONFIG_DEBUG_FS)
 
-
+/**
+ * amdgpu_debugfs_process_reg_op - Handle MMIO register reads/writes
+ *
+ * @read: True if reading
+ * @f: open file handle
+ * @buf: User buffer to write/read to
+ * @size: Number of bytes to write/read
+ * @pos:  Offset to seek to
+ *
+ * This debugfs entry has special meaning on the offset being sought.
+ * Various bits have different meanings:
+ *
+ * Bit 62:  Indicates a GRBM bank switch is needed
+ * Bit 61:  Indicates a SRBM bank switch is needed (implies bit 62 is
+ * 			zero)
+ * Bits 24..33: The SE or ME selector if needed
+ * Bits 34..43: The SH (or SA) or PIPE selector if needed
+ * Bits 44..53: The INSTANCE (or CU/WGP) or QUEUE selector if needed
+ *
+ * Bit 23:  Indicates that the PM power gating lock should be held
+ * 			This is necessary to read registers that might be
+ * 			unreliable during a power gating transistion.
+ *
+ * The lower bits are the BYTE offset of the register to read.  This
+ * allows reading multiple registers in a single call and having
+ * the returned size reflect that.
+ */
 static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		char __user *buf, size_t size, loff_t *pos)
 {
@@ -164,19 +195,37 @@ end:
 	return result;
 }
 
-
+/**
+ * amdgpu_debugfs_regs_read - Callback for reading MMIO registers
+ */
 static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	return amdgpu_debugfs_process_reg_op(true, f, buf, size, pos);
 }
 
+/**
+ * amdgpu_debugfs_regs_write - Callback for writing MMIO registers
+ */
 static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
 	return amdgpu_debugfs_process_reg_op(false, f, (char __user *)buf, size, pos);
 }
 
+
+/**
+ * amdgpu_debugfs_regs_pcie_read - Read from a PCIE register
+ *
+ * @f: open file handle
+ * @buf: User buffer to store read data in
+ * @size: Number of bytes to read
+ * @pos:  Offset to seek to
+ *
+ * The lower bits are the BYTE offset of the register to read.  This
+ * allows reading multiple registers in a single call and having
+ * the returned size reflect that.
+ */
 static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -204,6 +253,18 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 	return result;
 }
 
+/**
+ * amdgpu_debugfs_regs_pcie_write - Write to a PCIE register
+ *
+ * @f: open file handle
+ * @buf: User buffer to write data from
+ * @size: Number of bytes to write
+ * @pos:  Offset to seek to
+ *
+ * The lower bits are the BYTE offset of the register to write.  This
+ * allows writing multiple registers in a single call and having
+ * the returned size reflect that.
+ */
 static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
@@ -232,6 +293,18 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 	return result;
 }
 
+/**
+ * amdgpu_debugfs_regs_didt_read - Read from a DIDT register
+ *
+ * @f: open file handle
+ * @buf: User buffer to store read data in
+ * @size: Number of bytes to read
+ * @pos:  Offset to seek to
+ *
+ * The lower bits are the BYTE offset of the register to read.  This
+ * allows reading multiple registers in a single call and having
+ * the returned size reflect that.
+ */
 static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -259,6 +332,18 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 	return result;
 }
 
+/**
+ * amdgpu_debugfs_regs_didt_write - Write to a DIDT register
+ *
+ * @f: open file handle
+ * @buf: User buffer to write data from
+ * @size: Number of bytes to write
+ * @pos:  Offset to seek to
+ *
+ * The lower bits are the BYTE offset of the register to write.  This
+ * allows writing multiple registers in a single call and having
+ * the returned size reflect that.
+ */
 static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
@@ -287,6 +372,18 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 	return result;
 }
 
+/**
+ * amdgpu_debugfs_regs_smc_read - Read from a SMC register
+ *
+ * @f: open file handle
+ * @buf: User buffer to store read data in
+ * @size: Number of bytes to read
+ * @pos:  Offset to seek to
+ *
+ * The lower bits are the BYTE offset of the register to read.  This
+ * allows reading multiple registers in a single call and having
+ * the returned size reflect that.
+ */
 static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -314,6 +411,18 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 	return result;
 }
 
+/**
+ * amdgpu_debugfs_regs_smc_write - Write to a SMC register
+ *
+ * @f: open file handle
+ * @buf: User buffer to write data from
+ * @size: Number of bytes to write
+ * @pos:  Offset to seek to
+ *
+ * The lower bits are the BYTE offset of the register to write.  This
+ * allows writing multiple registers in a single call and having
+ * the returned size reflect that.
+ */
 static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
@@ -341,6 +450,20 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 
 	return result;
 }
+
+/**
+ * amdgpu_debugfs_gca_config_read - Read from gfx config data
+ *
+ * @f: open file handle
+ * @buf: User buffer to store read data in
+ * @size: Number of bytes to read
+ * @pos:  Offset to seek to
+ *
+ * This file is used to access configuration data in a somewhat
+ * stable fashion.  The format is a series of DWORDs with the first
+ * indicating which revision it is.  New content is appended to the
+ * end so that older software can still read the data.
+ */
 
 static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
@@ -418,6 +541,19 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	return result;
 }
 
+/**
+ * amdgpu_debugfs_sensor_read - Read from the powerplay sensors
+ *
+ * @f: open file handle
+ * @buf: User buffer to store read data in
+ * @size: Number of bytes to read
+ * @pos:  Offset to seek to
+ *
+ * The offset is treated as the BYTE address of one of the sensors
+ * enumerated in amd/include/kgd_pp_interface.h under the
+ * 'amd_pp_sensors' enumeration.  For instance to read the UVD VCLK
+ * you would use the offset 3 * 4 = 12.
+ */
 static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -428,7 +564,7 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 	if (size & 3 || *pos & 0x3)
 		return -EINVAL;
 
-	if (amdgpu_dpm == 0)
+	if (!adev->pm.dpm_enabled)
 		return -EINVAL;
 
 	/* convert offset to sensor number */
@@ -457,6 +593,27 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 	return !r ? outsize : r;
 }
 
+/** amdgpu_debugfs_wave_read - Read WAVE STATUS data
+ *
+ * @f: open file handle
+ * @buf: User buffer to store read data in
+ * @size: Number of bytes to read
+ * @pos:  Offset to seek to
+ *
+ * The offset being sought changes which wave that the status data
+ * will be returned for.  The bits are used as follows:
+ *
+ * Bits 0..6: 	Byte offset into data
+ * Bits 7..14:	SE selector
+ * Bits 15..22:	SH/SA selector
+ * Bits 23..30: CU/{WGP+SIMD} selector
+ * Bits 31..36: WAVE ID selector
+ * Bits 37..44: SIMD ID selector
+ *
+ * The returned data begins with one DWORD of version information
+ * Followed by WAVE STATUS registers relevant to the GFX IP version
+ * being used.  See gfx_v8_0_read_wave_data() for an example output.
+ */
 static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -507,6 +664,28 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 	return result;
 }
 
+/** amdgpu_debugfs_gpr_read - Read wave gprs
+ *
+ * @f: open file handle
+ * @buf: User buffer to store read data in
+ * @size: Number of bytes to read
+ * @pos:  Offset to seek to
+ *
+ * The offset being sought changes which wave that the status data
+ * will be returned for.  The bits are used as follows:
+ *
+ * Bits 0..11:	Byte offset into data
+ * Bits 12..19:	SE selector
+ * Bits 20..27:	SH/SA selector
+ * Bits 28..35: CU/{WGP+SIMD} selector
+ * Bits 36..43: WAVE ID selector
+ * Bits 37..44: SIMD ID selector
+ * Bits 52..59: Thread selector
+ * Bits 60..61: Bank selector (VGPR=0,SGPR=1)
+ *
+ * The return data comes from the SGPR or VGPR register bank for
+ * the selected operational unit.
+ */
 static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -637,6 +816,12 @@ static const char *debugfs_regs_names[] = {
 	"amdgpu_gpr",
 };
 
+/**
+ * amdgpu_debugfs_regs_init -	Initialize debugfs entries that provide
+ * 								register access.
+ *
+ * @adev: The device to attach the debugfs entries to
+ */
 int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 {
 	struct drm_minor *minor = adev->ddev->primary;

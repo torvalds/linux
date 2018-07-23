@@ -131,6 +131,7 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_RunAcgInOpenLoop               0x5E
 #define PPSMC_MSG_InitializeAcg                  0x5F
 #define PPSMC_MSG_GetCurrPkgPwr                  0x61
+#define PPSMC_MSG_GetAverageGfxclkActualFrequency 0x63
 #define PPSMC_MSG_SetPccThrottleLevel            0x67
 #define PPSMC_MSG_UpdatePkgPwrPidAlpha           0x68
 #define PPSMC_Message_Count                      0x69

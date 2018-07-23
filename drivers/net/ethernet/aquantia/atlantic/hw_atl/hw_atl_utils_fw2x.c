@@ -107,7 +107,7 @@ static int aq_fw2x_update_link_status(struct aq_hw_s *self)
 	return 0;
 }
 
-int aq_fw2x_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
+static int aq_fw2x_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 {
 	int err = 0;
 	u32 h = 0U;

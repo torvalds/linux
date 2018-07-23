@@ -195,7 +195,10 @@ struct bnxt_qplib_rcfw {
 void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);
 int bnxt_qplib_alloc_rcfw_channel(struct pci_dev *pdev,
 				  struct bnxt_qplib_rcfw *rcfw, int qp_tbl_sz);
+void bnxt_qplib_rcfw_stop_irq(struct bnxt_qplib_rcfw *rcfw, bool kill);
 void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);
+int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
+			      bool need_init);
 int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 				   struct bnxt_qplib_rcfw *rcfw,
 				   int msix_vector,

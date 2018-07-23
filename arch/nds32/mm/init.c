@@ -30,6 +30,7 @@ extern unsigned long phys_initrd_size;
  * zero-initialized data and COW.
  */
 struct page *empty_zero_page;
+EXPORT_SYMBOL(empty_zero_page);
 
 static void __init zone_sizes_init(void)
 {

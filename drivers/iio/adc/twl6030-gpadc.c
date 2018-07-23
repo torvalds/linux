@@ -898,9 +898,10 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 
 	gpadc = iio_priv(indio_dev);
 
-	gpadc->twl6030_cal_tbl = devm_kzalloc(dev,
-					sizeof(*gpadc->twl6030_cal_tbl) *
-					pdata->nchannels, GFP_KERNEL);
+	gpadc->twl6030_cal_tbl = devm_kcalloc(dev,
+					pdata->nchannels,
+					sizeof(*gpadc->twl6030_cal_tbl),
+					GFP_KERNEL);
 	if (!gpadc->twl6030_cal_tbl)
 		return -ENOMEM;
 

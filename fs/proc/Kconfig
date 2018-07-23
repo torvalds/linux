@@ -43,6 +43,21 @@ config PROC_VMCORE
         help
         Exports the dump image of crashed kernel in ELF format.
 
+config PROC_VMCORE_DEVICE_DUMP
+	bool "Device Hardware/Firmware Log Collection"
+	depends on PROC_VMCORE
+	default n
+	help
+	  After kernel panic, device drivers can collect the device
+	  specific snapshot of their hardware or firmware before the
+	  underlying devices are initialized in crash recovery kernel.
+	  Note that the device driver must be present in the crash
+	  recovery kernel's initramfs to collect its underlying device
+	  snapshot.
+
+	  If you say Y here, the collected device dumps will be added
+	  as ELF notes to /proc/vmcore.
+
 config PROC_SYSCTL
 	bool "Sysctl support (/proc/sys)" if EXPERT
 	depends on PROC_FS

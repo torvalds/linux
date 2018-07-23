@@ -990,12 +990,7 @@ static void __free_workspace(int type, struct list_head *workspace,
 		btrfs_compress_op[idx]->free_workspace(workspace);
 	atomic_dec(total_ws);
 wake:
-	/*
-	 * Make sure counter is updated before we wake up waiters.
-	 */
-	smp_mb();
-	if (waitqueue_active(ws_wait))
-		wake_up(ws_wait);
+	cond_wake_up(ws_wait);
 }
 
 static void free_workspace(int type, struct list_head *ws)

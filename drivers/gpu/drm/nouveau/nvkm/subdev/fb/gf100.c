@@ -46,10 +46,10 @@ gf100_fb_oneinit(struct nvkm_fb *base)
 {
 	struct gf100_fb *fb = gf100_fb(base);
 	struct nvkm_device *device = fb->base.subdev.device;
-	int ret, size = 0x1000;
+	int ret, size = 1 << (fb->base.page ? fb->base.page : 17);
 
 	size = nvkm_longopt(device->cfgopt, "MmuDebugBufferSize", size);
-	size = min(size, 0x1000);
+	size = max(size, 0x1000);
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, size, 0x1000,
 			      true, &fb->base.mmu_rd);

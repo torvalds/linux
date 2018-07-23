@@ -35,27 +35,28 @@ static const char * const integrity_status_msg[] = {
 };
 int evm_hmac_attrs;
 
-char *evm_config_xattrnames[] = {
+static struct xattr_list evm_config_default_xattrnames[] = {
 #ifdef CONFIG_SECURITY_SELINUX
-	XATTR_NAME_SELINUX,
+	{.name = XATTR_NAME_SELINUX},
 #endif
 #ifdef CONFIG_SECURITY_SMACK
-	XATTR_NAME_SMACK,
+	{.name = XATTR_NAME_SMACK},
 #ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	XATTR_NAME_SMACKEXEC,
-	XATTR_NAME_SMACKTRANSMUTE,
-	XATTR_NAME_SMACKMMAP,
+	{.name = XATTR_NAME_SMACKEXEC},
+	{.name = XATTR_NAME_SMACKTRANSMUTE},
+	{.name = XATTR_NAME_SMACKMMAP},
 #endif
 #endif
 #ifdef CONFIG_SECURITY_APPARMOR
-	XATTR_NAME_APPARMOR,
+	{.name = XATTR_NAME_APPARMOR},
 #endif
 #ifdef CONFIG_IMA_APPRAISE
-	XATTR_NAME_IMA,
+	{.name = XATTR_NAME_IMA},
 #endif
-	XATTR_NAME_CAPS,
-	NULL
+	{.name = XATTR_NAME_CAPS},
 };
+
+LIST_HEAD(evm_config_xattrnames);
 
 static int evm_fixmode;
 static int __init evm_set_fixmode(char *str)
@@ -68,6 +69,17 @@ __setup("evm=", evm_set_fixmode);
 
 static void __init evm_init_config(void)
 {
+	int i, xattrs;
+
+	xattrs = ARRAY_SIZE(evm_config_default_xattrnames);
+
+	pr_info("Initialising EVM extended attributes:\n");
+	for (i = 0; i < xattrs; i++) {
+		pr_info("%s\n", evm_config_default_xattrnames[i].name);
+		list_add_tail(&evm_config_default_xattrnames[i].list,
+			      &evm_config_xattrnames);
+	}
+
 #ifdef CONFIG_EVM_ATTR_FSUUID
 	evm_hmac_attrs |= EVM_ATTR_FSUUID;
 #endif
@@ -82,15 +94,15 @@ static bool evm_key_loaded(void)
 static int evm_find_protected_xattrs(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
-	char **xattr;
+	struct xattr_list *xattr;
 	int error;
 	int count = 0;
 
 	if (!(inode->i_opflags & IOP_XATTR))
 		return -EOPNOTSUPP;
 
-	for (xattr = evm_config_xattrnames; *xattr != NULL; xattr++) {
-		error = __vfs_getxattr(dentry, inode, *xattr, NULL, 0);
+	list_for_each_entry_rcu(xattr, &evm_config_xattrnames, list) {
+		error = __vfs_getxattr(dentry, inode, xattr->name, NULL, 0);
 		if (error < 0) {
 			if (error == -ENODATA)
 				continue;
@@ -211,24 +223,25 @@ out:
 
 static int evm_protected_xattr(const char *req_xattr_name)
 {
-	char **xattrname;
 	int namelen;
 	int found = 0;
+	struct xattr_list *xattr;
 
 	namelen = strlen(req_xattr_name);
-	for (xattrname = evm_config_xattrnames; *xattrname != NULL; xattrname++) {
-		if ((strlen(*xattrname) == namelen)
-		    && (strncmp(req_xattr_name, *xattrname, namelen) == 0)) {
+	list_for_each_entry_rcu(xattr, &evm_config_xattrnames, list) {
+		if ((strlen(xattr->name) == namelen)
+		    && (strncmp(req_xattr_name, xattr->name, namelen) == 0)) {
 			found = 1;
 			break;
 		}
 		if (strncmp(req_xattr_name,
-			    *xattrname + XATTR_SECURITY_PREFIX_LEN,
+			    xattr->name + XATTR_SECURITY_PREFIX_LEN,
 			    strlen(req_xattr_name)) == 0) {
 			found = 1;
 			break;
 		}
 	}
+
 	return found;
 }
 
@@ -544,35 +557,35 @@ void __init evm_load_x509(void)
 static int __init init_evm(void)
 {
 	int error;
+	struct list_head *pos, *q;
+	struct xattr_list *xattr;
 
 	evm_init_config();
 
 	error = integrity_init_keyring(INTEGRITY_KEYRING_EVM);
 	if (error)
-		return error;
+		goto error;
 
 	error = evm_init_secfs();
 	if (error < 0) {
 		pr_info("Error registering secfs\n");
-		return error;
+		goto error;
 	}
 
-	return 0;
+error:
+	if (error != 0) {
+		if (!list_empty(&evm_config_xattrnames)) {
+			list_for_each_safe(pos, q, &evm_config_xattrnames) {
+				xattr = list_entry(pos, struct xattr_list,
+						   list);
+				list_del(pos);
+			}
+		}
+	}
+
+	return error;
 }
 
-/*
- * evm_display_config - list the EVM protected security extended attributes
- */
-static int __init evm_display_config(void)
-{
-	char **xattrname;
-
-	for (xattrname = evm_config_xattrnames; *xattrname != NULL; xattrname++)
-		pr_info("%s\n", *xattrname);
-	return 0;
-}
-
-pure_initcall(evm_display_config);
 late_initcall(init_evm);
 
 MODULE_DESCRIPTION("Extended Verification Module");

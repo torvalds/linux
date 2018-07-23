@@ -285,7 +285,7 @@ void rtc_nvmem_unregister(struct rtc_device *rtc);
 static inline int rtc_nvmem_register(struct rtc_device *rtc,
 				     struct nvmem_config *nvmem_config)
 {
-	return -ENODEV;
+	return 0;
 }
 static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif

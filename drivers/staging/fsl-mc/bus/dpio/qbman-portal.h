@@ -15,7 +15,7 @@ struct qbman_swp;
 /* qbman software portal descriptor structure */
 struct qbman_swp_desc {
 	void *cena_bar; /* Cache-enabled portal base address */
-	void *cinh_bar; /* Cache-inhibited portal base address */
+	void __iomem *cinh_bar; /* Cache-inhibited portal base address */
 	u32 qman_version;
 };
 
@@ -102,7 +102,7 @@ struct qbman_release_desc {
 /* portal data structure */
 struct qbman_swp {
 	const struct qbman_swp_desc *desc;
-	void __iomem *addr_cena;
+	void *addr_cena;
 	void __iomem *addr_cinh;
 
 	/* Management commands */

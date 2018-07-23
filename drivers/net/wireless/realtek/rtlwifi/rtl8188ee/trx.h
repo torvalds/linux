@@ -790,8 +790,4 @@ void rtl88ee_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
 void rtl88ee_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			     bool firstseg, bool lastseg,
 			     struct sk_buff *skb);
-u32 rtl88ee_rx_command_packet(struct ieee80211_hw *hw,
-			      const struct rtl_stats *status,
-			      struct sk_buff *skb);
-
 #endif

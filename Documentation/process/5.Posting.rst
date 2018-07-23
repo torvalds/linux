@@ -10,8 +10,8 @@ of conventions and procedures which are used in the posting of patches;
 following them will make life much easier for everybody involved.  This
 document will attempt to cover these expectations in reasonable detail;
 more information can also be found in the files process/submitting-patches.rst,
-process/submitting-drivers.rst, and process/submit-checklist.rst in the kernel documentation
-directory.
+process/submitting-drivers.rst, and process/submit-checklist.rst in the kernel
+documentation directory.
 
 
 When to post
@@ -198,8 +198,8 @@ pass it to diff with the "-X" option.
 
 The tags mentioned above are used to describe how various developers have
 been associated with the development of this patch.  They are described in
-detail in the process/submitting-patches.rst document; what follows here is a brief
-summary.  Each of these lines has the format:
+detail in the process/submitting-patches.rst document; what follows here is a
+brief summary.  Each of these lines has the format:
 
 ::
 
@@ -210,8 +210,8 @@ The tags in common use are:
  - Signed-off-by: this is a developer's certification that he or she has
    the right to submit the patch for inclusion into the kernel.  It is an
    agreement to the Developer's Certificate of Origin, the full text of
-   which can be found in Documentation/process/submitting-patches.rst.  Code without a
-   proper signoff cannot be merged into the mainline.
+   which can be found in Documentation/process/submitting-patches.rst.  Code
+   without a proper signoff cannot be merged into the mainline.
 
  - Co-developed-by: states that the patch was also created by another developer
    along with the original author.  This is useful at times when multiple
@@ -226,8 +226,8 @@ The tags in common use are:
    it to work.
 
  - Reviewed-by: the named developer has reviewed the patch for correctness;
-   see the reviewer's statement in Documentation/process/submitting-patches.rst for more
-   detail.
+   see the reviewer's statement in Documentation/process/submitting-patches.rst
+   for more detail.
 
  - Reported-by: names a user who reported a problem which is fixed by this
    patch; this tag is used to give credit to the (often underappreciated)

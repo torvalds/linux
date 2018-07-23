@@ -154,6 +154,56 @@
 				clocks = <&aon_gate CLK_SPLK_EB>;
 			};
 
+			eic_debounce: gpio@40210000 {
+				compatible = "sprd,sc9860-eic-debounce";
+				reg = <0 0x40210000 0 0x80>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			eic_latch: gpio@40210080 {
+				compatible = "sprd,sc9860-eic-latch";
+				reg = <0 0x40210080 0 0x20>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			eic_async: gpio@402100a0 {
+				compatible = "sprd,sc9860-eic-async";
+				reg = <0 0x402100a0 0 0x20>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			eic_sync: gpio@402100c0 {
+				compatible = "sprd,sc9860-eic-sync";
+				reg = <0 0x402100c0 0 0x20>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			ap_gpio: gpio@40280000 {
+				compatible = "sprd,sc9860-gpio";
+				reg = <0 0x40280000 0 0x1000>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			pin_controller: pinctrl@402a0000 {
 				compatible = "sprd,sc9860-pinctrl";
 				reg = <0 0x402a0000 0 0x10000>;
@@ -164,8 +214,9 @@
 				reg = <0 0x40310000 0 0x1000>;
 				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 				timeout-sec = <12>;
-				clock-names = "enable";
-				clocks = <&aon_gate CLK_APCPU_WDG_EB>;
+				clock-names = "enable", "rtc_enable";
+				clocks = <&aon_gate CLK_APCPU_WDG_EB>,
+				       <&aon_gate CLK_AP_WDG_RTC_EB>;
 			};
 		};
 

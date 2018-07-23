@@ -475,7 +475,6 @@ MODULE_DEVICE_TABLE(of, uio_fsl_elbc_gpcm_match);
 static struct platform_driver uio_fsl_elbc_gpcm_driver = {
 	.driver = {
 		.name = "fsl,elbc-gpcm-uio",
-		.owner = THIS_MODULE,
 		.of_match_table = uio_fsl_elbc_gpcm_match,
 	},
 	.probe = uio_fsl_elbc_gpcm_probe,

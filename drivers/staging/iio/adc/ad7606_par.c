@@ -18,8 +18,7 @@
 static int ad7606_par16_read_block(struct device *dev,
 				   int count, void *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	insw((unsigned long)st->base_address, buf, count);
@@ -34,8 +33,7 @@ static const struct ad7606_bus_ops ad7606_par16_bops = {
 static int ad7606_par8_read_block(struct device *dev,
 				  int count, void *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	insb((unsigned long)st->base_address, buf, count * 2);

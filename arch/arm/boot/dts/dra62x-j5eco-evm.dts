@@ -10,7 +10,7 @@
 
 / {
 	model = "DRA62x J5 Eco EVM";
-	compatible = "ti,dra62x-j5eco-evm", "ti,dra62x", "ti,dm8148";
+	compatible = "ti,dra62x-j5eco-evm", "ti,dra62x", "ti,dm8148", "ti,dm814";
 
 	memory@80000000 {
 		device_type = "memory";

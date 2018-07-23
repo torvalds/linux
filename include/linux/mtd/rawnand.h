@@ -28,7 +28,14 @@ struct nand_flash_dev;
 struct device_node;
 
 /* Scan and identify a NAND device */
-int nand_scan(struct mtd_info *mtd, int max_chips);
+int nand_scan_with_ids(struct mtd_info *mtd, int max_chips,
+		       struct nand_flash_dev *ids);
+
+static inline int nand_scan(struct mtd_info *mtd, int max_chips)
+{
+	return nand_scan_with_ids(mtd, max_chips, NULL);
+}
+
 /*
  * Separate phases of nand_scan(), allowing board driver to intervene
  * and override command or ECC setup according to flash type.
@@ -740,8 +747,9 @@ enum nand_data_interface_type {
 
 /**
  * struct nand_data_interface - NAND interface timing
- * @type:	type of the timing
- * @timings:	The timing, type according to @type
+ * @type:	 type of the timing
+ * @timings:	 The timing, type according to @type
+ * @timings.sdr: Use it when @type is %NAND_SDR_IFACE.
  */
 struct nand_data_interface {
 	enum nand_data_interface_type type;
@@ -798,8 +806,9 @@ struct nand_op_addr_instr {
 /**
  * struct nand_op_data_instr - Definition of a data instruction
  * @len: number of data bytes to move
- * @in: buffer to fill when reading from the NAND chip
- * @out: buffer to read from when writing to the NAND chip
+ * @buf: buffer to fill
+ * @buf.in: buffer to fill when reading from the NAND chip
+ * @buf.out: buffer to read from when writing to the NAND chip
  * @force_8bit: force 8-bit access
  *
  * Please note that "in" and "out" are inverted from the ONFI specification
@@ -842,9 +851,13 @@ enum nand_op_instr_type {
 /**
  * struct nand_op_instr - Instruction object
  * @type: the instruction type
- * @cmd/@addr/@data/@waitrdy: extra data associated to the instruction.
- *                            You'll have to use the appropriate element
- *                            depending on @type
+ * @ctx:  extra data associated to the instruction. You'll have to use the
+ *        appropriate element depending on @type
+ * @ctx.cmd: use it if @type is %NAND_OP_CMD_INSTR
+ * @ctx.addr: use it if @type is %NAND_OP_ADDR_INSTR
+ * @ctx.data: use it if @type is %NAND_OP_DATA_IN_INSTR
+ *	      or %NAND_OP_DATA_OUT_INSTR
+ * @ctx.waitrdy: use it if @type is %NAND_OP_WAITRDY_INSTR
  * @delay_ns: delay the controller should apply after the instruction has been
  *	      issued on the bus. Most modern controllers have internal timings
  *	      control logic, and in this case, the controller driver can ignore
@@ -867,12 +880,18 @@ struct nand_op_instr {
  * tBERS (during an erase) which all of them are u64 values that cannot be
  * divided by usual kernel macros and must be handled with the special
  * DIV_ROUND_UP_ULL() macro.
+ *
+ * Cast to type of dividend is needed here to guarantee that the result won't
+ * be an unsigned long long when the dividend is an unsigned long (or smaller),
+ * which is what the compiler does when it sees ternary operator with 2
+ * different return types (picks the largest type to make sure there's no
+ * loss).
  */
-#define __DIVIDE(dividend, divisor) ({					\
-	sizeof(dividend) == sizeof(u32) ?				\
-		DIV_ROUND_UP(dividend, divisor) :			\
-		DIV_ROUND_UP_ULL(dividend, divisor);			\
-		})
+#define __DIVIDE(dividend, divisor) ({						\
+	(__typeof__(dividend))(sizeof(dividend) <= sizeof(unsigned long) ?	\
+			       DIV_ROUND_UP(dividend, divisor) :		\
+			       DIV_ROUND_UP_ULL(dividend, divisor)); 		\
+	})
 #define PSEC_TO_NSEC(x) __DIVIDE(x, 1000)
 #define PSEC_TO_MSEC(x) __DIVIDE(x, 1000000000)
 
@@ -997,7 +1016,9 @@ struct nand_op_parser_data_constraints {
  * struct nand_op_parser_pattern_elem - One element of a pattern
  * @type: the instructuction type
  * @optional: whether this element of the pattern is optional or mandatory
- * @addr/@data: address or data constraint (number of cycles or data length)
+ * @ctx: address or data constraint
+ * @ctx.addr: address constraint (number of cycles)
+ * @ctx.data: data constraint (data length)
  */
 struct nand_op_parser_pattern_elem {
 	enum nand_op_instr_type type;
@@ -1224,6 +1245,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  *			devices.
  * @priv:		[OPTIONAL] pointer to private chip data
  * @manufacturer:	[INTERN] Contains manufacturer information
+ * @manufacturer.desc:	[INTERN] Contains manufacturer's description
+ * @manufacturer.priv:	[INTERN] Contains manufacturer private information
  */
 
 struct nand_chip {

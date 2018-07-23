@@ -13,18 +13,6 @@
 #include "cc_driver.h"
 #include "cc_buffer_mgr.h"
 
-/* Crypto cipher flags */
-#define CC_CRYPTO_CIPHER_KEY_KFDE0	BIT(0)
-#define CC_CRYPTO_CIPHER_KEY_KFDE1	BIT(1)
-#define CC_CRYPTO_CIPHER_KEY_KFDE2	BIT(2)
-#define CC_CRYPTO_CIPHER_KEY_KFDE3	BIT(3)
-#define CC_CRYPTO_CIPHER_DU_SIZE_512B	BIT(4)
-
-#define CC_CRYPTO_CIPHER_KEY_KFDE_MASK (CC_CRYPTO_CIPHER_KEY_KFDE0 | \
-					CC_CRYPTO_CIPHER_KEY_KFDE1 | \
-					CC_CRYPTO_CIPHER_KEY_KFDE2 | \
-					CC_CRYPTO_CIPHER_KEY_KFDE3)
-
 struct cipher_req_ctx {
 	struct async_gen_req_ctx gen_ctx;
 	enum cc_req_dma_buf_type dma_buf_type;
@@ -42,18 +30,12 @@ int cc_cipher_alloc(struct cc_drvdata *drvdata);
 
 int cc_cipher_free(struct cc_drvdata *drvdata);
 
-struct arm_hw_key_info {
-	int hw_key1;
-	int hw_key2;
-};
+struct cc_hkey_info {
+	u16 keylen;
+	u8 hw_key1;
+	u8 hw_key2;
+} __packed;
 
-/*
- * This is a stub function that will replaced when we
- * implement secure keys
- */
-static inline bool cc_is_hw_key(struct crypto_tfm *tfm)
-{
-	return false;
-}
+#define CC_HW_KEY_SIZE sizeof(struct cc_hkey_info)
 
 #endif /*__CC_CIPHER_H__*/

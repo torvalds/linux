@@ -860,7 +860,7 @@ int vidioc_g_edid(struct file *file, void *_fh,
 		return -ENODATA;
 	if (edid->start_block >= dev->edid_blocks)
 		return -EINVAL;
-	if (edid->start_block + edid->blocks > dev->edid_blocks)
+	if (edid->blocks > dev->edid_blocks - edid->start_block)
 		edid->blocks = dev->edid_blocks - edid->start_block;
 	if (adap)
 		cec_set_edid_phys_addr(dev->edid, dev->edid_blocks * 128, adap->phys_addr);

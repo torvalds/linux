@@ -54,9 +54,8 @@
 
 #define DC_LOGGER \
 		dc->ctx->logger
-#if defined(CONFIG_DRM_AMD_DC_FBC)
+
 #include "dce110/dce110_compressor.h"
-#endif
 
 #include "reg_helper.h"
 
@@ -147,15 +146,15 @@ static const struct dce110_timing_generator_offsets dce110_tg_offsets[] = {
 #define SRI(reg_name, block, id)\
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
-static const struct dce_disp_clk_registers disp_clk_regs = {
+static const struct dccg_registers disp_clk_regs = {
 		CLK_COMMON_REG_LIST_DCE_BASE()
 };
 
-static const struct dce_disp_clk_shift disp_clk_shift = {
+static const struct dccg_shift disp_clk_shift = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
 };
 
-static const struct dce_disp_clk_mask disp_clk_mask = {
+static const struct dccg_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
@@ -680,8 +679,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.display_clock != NULL)
-		dce_disp_clk_destroy(&pool->base.display_clock);
+	if (pool->base.dccg != NULL)
+		dce_dccg_destroy(&pool->base.dccg);
 
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
@@ -795,43 +794,38 @@ static bool dce110_validate_bandwidth(
 
 	if (memcmp(&dc->current_state->bw.dce,
 			&context->bw.dce, sizeof(context->bw.dce))) {
-		struct log_entry log_entry;
-		dm_logger_open(
-			dc->ctx->logger,
-			&log_entry,
-			LOG_BANDWIDTH_CALCS);
-		dm_logger_append(&log_entry, "%s: finish,\n"
+
+		DC_LOG_BANDWIDTH_CALCS(
+			"%s: finish,\n"
 			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d\n",
+			"stutMark_b: %d stutMark_a: %d\n"
+			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
+			"stutMark_b: %d stutMark_a: %d\n"
+			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
+			"stutMark_b: %d stutMark_a: %d stutter_mode_enable: %d\n"
+			"cstate: %d pstate: %d nbpstate: %d sync: %d dispclk: %d\n"
+			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n"
+			,
 			__func__,
 			context->bw.dce.nbp_state_change_wm_ns[0].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[0].a_mark,
 			context->bw.dce.urgent_wm_ns[0].b_mark,
 			context->bw.dce.urgent_wm_ns[0].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[0].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].a_mark);
-		dm_logger_append(&log_entry,
-			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d\n",
+			context->bw.dce.stutter_exit_wm_ns[0].a_mark,
 			context->bw.dce.nbp_state_change_wm_ns[1].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[1].a_mark,
 			context->bw.dce.urgent_wm_ns[1].b_mark,
 			context->bw.dce.urgent_wm_ns[1].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[1].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].a_mark);
-		dm_logger_append(&log_entry,
-			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d stutter_mode_enable: %d\n",
+			context->bw.dce.stutter_exit_wm_ns[1].a_mark,
 			context->bw.dce.nbp_state_change_wm_ns[2].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[2].a_mark,
 			context->bw.dce.urgent_wm_ns[2].b_mark,
 			context->bw.dce.urgent_wm_ns[2].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[2].b_mark,
 			context->bw.dce.stutter_exit_wm_ns[2].a_mark,
-			context->bw.dce.stutter_mode_enable);
-		dm_logger_append(&log_entry,
-			"cstate: %d pstate: %d nbpstate: %d sync: %d dispclk: %d\n"
-			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n",
+			context->bw.dce.stutter_mode_enable,
 			context->bw.dce.cpuc_state_change_enable,
 			context->bw.dce.cpup_state_change_enable,
 			context->bw.dce.nbp_state_change_enable,
@@ -841,7 +835,6 @@ static bool dce110_validate_bandwidth(
 			context->bw.dce.sclk_deep_sleep_khz,
 			context->bw.dce.yclk_khz,
 			context->bw.dce.blackout_recovery_time_us);
-		dm_logger_close(&log_entry);
 	}
 	return result;
 }
@@ -930,38 +923,6 @@ static enum dc_status dce110_add_stream_to_ctx(
 	return result;
 }
 
-static enum dc_status dce110_validate_guaranteed(
-		struct dc *dc,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *context)
-{
-	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->streams[0] = dc_stream;
-	dc_stream_retain(context->streams[0]);
-	context->stream_count++;
-
-	result = resource_map_pool_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = resource_map_clock_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = build_mapped_resource(dc, context, dc_stream);
-
-	if (result == DC_OK) {
-		validate_guaranteed_copy_streams(
-				context, dc->caps.max_streams);
-		result = resource_build_scaling_params_for_context(dc, context);
-	}
-
-	if (result == DC_OK)
-		if (!dce110_validate_bandwidth(dc, context))
-			result = DC_FAIL_BANDWIDTH_VALIDATE;
-
-	return result;
-}
-
 static struct pipe_ctx *dce110_acquire_underlay(
 		struct dc_state *context,
 		const struct resource_pool *pool,
@@ -1036,7 +997,6 @@ static void dce110_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce110_res_pool_funcs = {
 	.destroy = dce110_destroy_resource_pool,
 	.link_enc_create = dce110_link_encoder_create,
-	.validate_guaranteed = dce110_validate_guaranteed,
 	.validate_bandwidth = dce110_validate_bandwidth,
 	.validate_plane = dce110_validate_plane,
 	.acquire_idle_pipe_for_layer = dce110_acquire_underlay,
@@ -1213,11 +1173,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dce110_disp_clk_create(ctx,
+	pool->base.dccg = dce110_dccg_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.display_clock == NULL) {
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -1247,7 +1207,7 @@ static bool construct(
 	 * max_clock_state
 	 */
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.display_clock->max_clks_state =
+		pool->base.dccg->max_clks_state =
 				static_clk_info.max_clocks_state;
 
 	{
@@ -1300,12 +1260,8 @@ static bool construct(
 		}
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_FBC)
 	dc->fbc_compressor = dce110_compressor_create(ctx);
 
-
-
-#endif
 	if (!underlay_create(ctx, &pool->base))
 		goto res_create_fail;
 

@@ -402,13 +402,3 @@ static const struct dma_map_ops mips_default_dma_map_ops = {
 
 const struct dma_map_ops *mips_dma_map_ops = &mips_default_dma_map_ops;
 EXPORT_SYMBOL(mips_dma_map_ops);
-
-#define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
-
-static int __init mips_dma_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-
-	return 0;
-}
-fs_initcall(mips_dma_init);

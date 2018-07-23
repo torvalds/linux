@@ -271,8 +271,9 @@ static void prism2_info_scanresults(local_info_t *local, unsigned char *buf,
 	left -= 4;
 
 	new_count = left / sizeof(struct hfa384x_scan_result);
-	results = kmalloc(new_count * sizeof(struct hfa384x_hostscan_result),
-			  GFP_ATOMIC);
+	results = kmalloc_array(new_count,
+				sizeof(struct hfa384x_hostscan_result),
+				GFP_ATOMIC);
 	if (results == NULL)
 		return;
 

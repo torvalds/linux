@@ -27,7 +27,12 @@
 #include <linux/via-core.h>
 #include <linux/via-gpio.h>
 #include <linux/via_i2c.h>
+
+#ifdef CONFIG_X86
 #include <asm/olpc.h>
+#else
+#define machine_is_olpc(x) 0
+#endif
 
 #include "via-camera.h"
 
@@ -178,7 +183,7 @@ static int via_sensor_power_setup(struct via_camera *cam)
 
 	cam->power_gpio = viafb_gpio_lookup("VGPIO3");
 	cam->reset_gpio = viafb_gpio_lookup("VGPIO2");
-	if (cam->power_gpio < 0 || cam->reset_gpio < 0) {
+	if (!gpio_is_valid(cam->power_gpio) || !gpio_is_valid(cam->reset_gpio)) {
 		dev_err(&cam->platdev->dev, "Unable to find GPIO lines\n");
 		return -EINVAL;
 	}

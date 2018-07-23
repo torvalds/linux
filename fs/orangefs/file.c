@@ -162,7 +162,7 @@ populate_shared_memory:
 				else
 					ret = 0;
 				break;
-			/* 
+			/*
 			 * If the op was in progress when the interrupt
 			 * occurred, then the client-core was able to
 			 * trigger the write.
@@ -544,7 +544,7 @@ static int orangefs_fault(struct vm_fault *vmf)
 	return filemap_fault(vmf);
 }
 
-const struct vm_operations_struct orangefs_file_vm_ops = {
+static const struct vm_operations_struct orangefs_file_vm_ops = {
 	.fault = orangefs_fault,
 	.map_pages = filemap_map_pages,
 	.page_mkwrite = filemap_page_mkwrite,

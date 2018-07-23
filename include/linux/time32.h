@@ -18,24 +18,13 @@
 /* timespec64 is defined as timespec here */
 static inline struct timespec timespec64_to_timespec(const struct timespec64 ts64)
 {
-	return ts64;
+	return *(const struct timespec *)&ts64;
 }
 
 static inline struct timespec64 timespec_to_timespec64(const struct timespec ts)
 {
-	return ts;
+	return *(const struct timespec64 *)&ts;
 }
-
-# define timespec_equal			timespec64_equal
-# define timespec_compare		timespec64_compare
-# define set_normalized_timespec	set_normalized_timespec64
-# define timespec_add			timespec64_add
-# define timespec_sub			timespec64_sub
-# define timespec_valid			timespec64_valid
-# define timespec_valid_strict		timespec64_valid_strict
-# define timespec_to_ns			timespec64_to_ns
-# define ns_to_timespec			ns_to_timespec64
-# define timespec_add_ns		timespec64_add_ns
 
 #else
 static inline struct timespec timespec64_to_timespec(const struct timespec64 ts64)
@@ -55,6 +44,7 @@ static inline struct timespec64 timespec_to_timespec64(const struct timespec ts)
 	ret.tv_nsec = ts.tv_nsec;
 	return ret;
 }
+#endif
 
 static inline int timespec_equal(const struct timespec *a,
 				 const struct timespec *b)
@@ -158,8 +148,6 @@ static __always_inline void timespec_add_ns(struct timespec *a, u64 ns)
 	a->tv_sec += __iter_div_u64_rem(a->tv_nsec + ns, NSEC_PER_SEC, &ns);
 	a->tv_nsec = ns;
 }
-
-#endif
 
 /**
  * time_to_tm - converts the calendar time to local broken-down time

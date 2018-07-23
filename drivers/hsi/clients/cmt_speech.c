@@ -1098,7 +1098,7 @@ static void cs_hsi_stop(struct cs_hsi_iface *hi)
 	kfree(hi);
 }
 
-static int cs_char_vma_fault(struct vm_fault *vmf)
+static vm_fault_t cs_char_vma_fault(struct vm_fault *vmf)
 {
 	struct cs_char *csdata = vmf->vma->vm_private_data;
 	struct page *page;

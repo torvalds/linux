@@ -5,10 +5,6 @@
 
 source "drivers/pci/pcie/Kconfig"
 
-config PCI_BUS_ADDR_T_64BIT
-	def_bool y if (ARCH_DMA_ADDR_T_64BIT || 64BIT)
-	depends on PCI
-
 config PCI_MSI
 	bool "Message Signaled Interrupts (MSI and MSI-X)"
 	depends on PCI
@@ -68,6 +64,18 @@ config PCI_STUB
 	help
 	  Say Y or M here if you want be able to reserve a PCI device
 	  when it is going to be assigned to a guest operating system.
+
+	  When in doubt, say N.
+
+config PCI_PF_STUB
+	tristate "PCI PF Stub driver"
+	depends on PCI
+	depends on PCI_IOV
+	help
+	  Say Y or M here if you want to enable support for devices that
+	  require SR-IOV support, while at the same time the PF itself is
+	  not providing any actual services on the host itself such as
+	  storage or networking.
 
 	  When in doubt, say N.
 
@@ -137,8 +145,6 @@ config PCI_HYPERV
           PCI devices from a PCI backend to support PCI driver domains.
 
 source "drivers/pci/hotplug/Kconfig"
-source "drivers/pci/cadence/Kconfig"
-source "drivers/pci/dwc/Kconfig"
-source "drivers/pci/host/Kconfig"
+source "drivers/pci/controller/Kconfig"
 source "drivers/pci/endpoint/Kconfig"
 source "drivers/pci/switch/Kconfig"

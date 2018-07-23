@@ -232,6 +232,7 @@ static void dccp_write_xmitlet(unsigned long data)
 	else
 		dccp_write_xmit(sk);
 	bh_unlock_sock(sk);
+	sock_put(sk);
 }
 
 static void dccp_write_xmit_timer(struct timer_list *t)
@@ -240,7 +241,6 @@ static void dccp_write_xmit_timer(struct timer_list *t)
 	struct sock *sk = &dp->dccps_inet_connection.icsk_inet.sk;
 
 	dccp_write_xmitlet((unsigned long)sk);
-	sock_put(sk);
 }
 
 void dccp_init_xmit_timers(struct sock *sk)

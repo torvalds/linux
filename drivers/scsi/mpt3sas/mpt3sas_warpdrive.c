@@ -177,7 +177,8 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 		if (mpt3sas_config_get_phys_disk_pg0(ioc, &mpi_reply,
 		    &pd_pg0, MPI2_PHYSDISK_PGAD_FORM_PHYSDISKNUM,
 		    vol_pg0->PhysDisk[count].PhysDiskNum) ||
-		    pd_pg0.DevHandle == MPT3SAS_INVALID_DEVICE_HANDLE) {
+		    le16_to_cpu(pd_pg0.DevHandle) ==
+		    MPT3SAS_INVALID_DEVICE_HANDLE) {
 			pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is "
 			    "disabled for the drive with handle(0x%04x) member"
 			    "handle retrieval failed for member number=%d\n",

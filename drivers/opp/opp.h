@@ -140,7 +140,6 @@ enum opp_table_access {
  * @genpd_performance_state: Device's power domain support performance state.
  * @set_opp: Platform specific set_opp callback
  * @set_opp_data: Data to be passed to set_opp callback
- * @get_pstate: Platform specific get_pstate callback
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
  *
@@ -178,7 +177,6 @@ struct opp_table {
 
 	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	struct dev_pm_set_opp_data *set_opp_data;
-	int (*get_pstate)(struct device *dev, unsigned long rate);
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -187,14 +185,16 @@ struct opp_table {
 };
 
 /* Routines internal to opp core */
+void dev_pm_opp_get(struct dev_pm_opp *opp);
 void _get_opp_table_kref(struct opp_table *opp_table);
+int _get_opp_count(struct opp_table *opp_table);
 struct opp_table *_find_opp_table(struct device *dev);
 struct opp_device *_add_opp_dev(const struct device *dev, struct opp_table *opp_table);
 void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev, bool remove_all);
 void _dev_pm_opp_find_and_remove_table(struct device *dev, bool remove_all);
 struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table);
 void _opp_free(struct dev_pm_opp *opp);
-int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table);
+int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table, bool rate_not_available);
 int _opp_add_v1(struct opp_table *opp_table, struct device *dev, unsigned long freq, long u_volt, bool dynamic);
 void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, bool of);
 struct opp_table *_add_opp_table(struct device *dev);

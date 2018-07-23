@@ -111,7 +111,7 @@
 static const struct of_device_id rsnd_of_match[] = {
 	{ .compatible = "renesas,rcar_sound-gen1", .data = (void *)RSND_GEN1 },
 	{ .compatible = "renesas,rcar_sound-gen2", .data = (void *)RSND_GEN2 },
-	{ .compatible = "renesas,rcar_sound-gen3", .data = (void *)RSND_GEN2 }, /* gen2 compatible */
+	{ .compatible = "renesas,rcar_sound-gen3", .data = (void *)RSND_GEN3 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rsnd_of_match);
@@ -1110,8 +1110,8 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	if (!nr)
 		return -EINVAL;
 
-	rdrv = devm_kzalloc(dev, sizeof(*rdrv) * nr, GFP_KERNEL);
-	rdai = devm_kzalloc(dev, sizeof(*rdai) * nr, GFP_KERNEL);
+	rdrv = devm_kcalloc(dev, nr, sizeof(*rdrv), GFP_KERNEL);
+	rdai = devm_kcalloc(dev, nr, sizeof(*rdai), GFP_KERNEL);
 	if (!rdrv || !rdai)
 		return -ENOMEM;
 
@@ -1352,6 +1352,37 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 #define PREALLOC_BUFFER		(32 * 1024)
 #define PREALLOC_BUFFER_MAX	(32 * 1024)
 
+static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
+				  struct rsnd_dai_stream *io,
+				  int stream)
+{
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct snd_pcm_substream *substream;
+	int err;
+
+	/*
+	 * use Audio-DMAC dev if we can use IPMMU
+	 * see
+	 *	rsnd_dmaen_attach()
+	 */
+	if (io->dmac_dev)
+		dev = io->dmac_dev;
+
+	for (substream = rtd->pcm->streams[stream].substream;
+	     substream;
+	     substream = substream->next) {
+		err = snd_pcm_lib_preallocate_pages(substream,
+					SNDRV_DMA_TYPE_DEV,
+					dev,
+					PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->cpu_dai;
@@ -1366,11 +1397,17 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	return snd_pcm_lib_preallocate_pages_for_all(
-		rtd->pcm,
-		SNDRV_DMA_TYPE_DEV,
-		rtd->card->snd_card->dev,
-		PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+	ret = rsnd_preallocate_pages(rtd, &rdai->playback,
+				     SNDRV_PCM_STREAM_PLAYBACK);
+	if (ret)
+		return ret;
+
+	ret = rsnd_preallocate_pages(rtd, &rdai->capture,
+				     SNDRV_PCM_STREAM_CAPTURE);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static const struct snd_soc_component_driver rsnd_soc_component = {

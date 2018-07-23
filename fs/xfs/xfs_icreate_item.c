@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2008-2010, 2013 Dave Chinner
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -91,7 +79,7 @@ xfs_icreate_item_unlock(
 {
 	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
 
-	if (icp->ic_item.li_flags & XFS_LI_ABORTED)
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
 		kmem_zone_free(xfs_icreate_zone, icp);
 	return;
 }
@@ -184,5 +172,5 @@ xfs_icreate_log(
 
 	xfs_trans_add_item(tp, &icp->ic_item);
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	icp->ic_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &icp->ic_item.li_flags);
 }

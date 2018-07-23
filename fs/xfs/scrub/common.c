@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -44,11 +30,14 @@
 #include "xfs_rmap_btree.h"
 #include "xfs_log.h"
 #include "xfs_trans_priv.h"
+#include "xfs_attr.h"
+#include "xfs_reflink.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
 #include "scrub/btree.h"
+#include "scrub/repair.h"
 
 /* Common code for the metadata scrubbers. */
 
@@ -539,6 +528,10 @@ xfs_scrub_ag_free(
 		xfs_trans_brelse(sc->tp, sa->agi_bp);
 		sa->agi_bp = NULL;
 	}
+	if (sa->pag) {
+		xfs_perag_put(sa->pag);
+		sa->pag = NULL;
+	}
 	sa->agno = NULLAGNUMBER;
 }
 
@@ -566,7 +559,42 @@ xfs_scrub_ag_init(
 	return xfs_scrub_ag_btcur_init(sc, sa);
 }
 
+/*
+ * Grab the per-ag structure if we haven't already gotten it.  Teardown of the
+ * xfs_scrub_ag will release it for us.
+ */
+void
+xfs_scrub_perag_get(
+	struct xfs_mount	*mp,
+	struct xfs_scrub_ag	*sa)
+{
+	if (!sa->pag)
+		sa->pag = xfs_perag_get(mp, sa->agno);
+}
+
 /* Per-scrubber setup functions */
+
+/*
+ * Grab an empty transaction so that we can re-grab locked buffers if
+ * one of our btrees turns out to be cyclic.
+ *
+ * If we're going to repair something, we need to ask for the largest possible
+ * log reservation so that we can handle the worst case scenario for metadata
+ * updates while rebuilding a metadata item.  We also need to reserve as many
+ * blocks in the head transaction as we think we're going to need to rebuild
+ * the metadata object.
+ */
+int
+xfs_scrub_trans_alloc(
+	struct xfs_scrub_context	*sc,
+	uint				resblks)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+		return xfs_trans_alloc(sc->mp, &M_RES(sc->mp)->tr_itruncate,
+				resblks, 0, 0, &sc->tp);
+
+	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
+}
 
 /* Set us up with a transaction and an empty context. */
 int
@@ -574,7 +602,10 @@ xfs_scrub_setup_fs(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	return xfs_scrub_trans_alloc(sc->sm, sc->mp, &sc->tp);
+	uint				resblks;
+
+	resblks = xfs_repair_calc_ag_resblks(sc);
+	return xfs_scrub_trans_alloc(sc, resblks);
 }
 
 /* Set us up with AG headers and btree cursors. */
@@ -695,7 +726,6 @@ xfs_scrub_setup_inode_contents(
 	struct xfs_inode		*ip,
 	unsigned int			resblks)
 {
-	struct xfs_mount		*mp = sc->mp;
 	int				error;
 
 	error = xfs_scrub_get_inode(sc, ip);
@@ -705,7 +735,7 @@ xfs_scrub_setup_inode_contents(
 	/* Got the inode, lock it and we're ready to go. */
 	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
-	error = xfs_scrub_trans_alloc(sc->sm, mp, &sc->tp);
+	error = xfs_scrub_trans_alloc(sc, resblks);
 	if (error)
 		goto out;
 	sc->ilock_flags |= XFS_ILOCK_EXCL;
@@ -727,6 +757,10 @@ xfs_scrub_should_check_xref(
 	int				*error,
 	struct xfs_btree_cur		**curpp)
 {
+	/* No point in xref if we already know we're corrupt. */
+	if (xfs_scrub_skip_xref(sc->sm))
+		return false;
+
 	if (*error == 0)
 		return true;
 
@@ -772,4 +806,81 @@ xfs_scrub_buffer_recheck(
 		return;
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 	trace_xfs_scrub_block_error(sc, bp->b_bn, fa);
+}
+
+/*
+ * Scrub the attr/data forks of a metadata inode.  The metadata inode must be
+ * pointed to by sc->ip and the ILOCK must be held.
+ */
+int
+xfs_scrub_metadata_inode_forks(
+	struct xfs_scrub_context	*sc)
+{
+	__u32				smtype;
+	bool				shared;
+	int				error;
+
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return 0;
+
+	/* Metadata inodes don't live on the rt device. */
+	if (sc->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
+		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+		return 0;
+	}
+
+	/* They should never participate in reflink. */
+	if (xfs_is_reflink_inode(sc->ip)) {
+		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+		return 0;
+	}
+
+	/* They also should never have extended attributes. */
+	if (xfs_inode_hasattr(sc->ip)) {
+		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+		return 0;
+	}
+
+	/* Invoke the data fork scrubber. */
+	smtype = sc->sm->sm_type;
+	sc->sm->sm_type = XFS_SCRUB_TYPE_BMBTD;
+	error = xfs_scrub_bmap_data(sc);
+	sc->sm->sm_type = smtype;
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		return error;
+
+	/* Look for incorrect shared blocks. */
+	if (xfs_sb_version_hasreflink(&sc->mp->m_sb)) {
+		error = xfs_reflink_inode_has_shared_extents(sc->tp, sc->ip,
+				&shared);
+		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0,
+				&error))
+			return error;
+		if (shared)
+			xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
+	}
+
+	return error;
+}
+
+/*
+ * Try to lock an inode in violation of the usual locking order rules.  For
+ * example, trying to get the IOLOCK while in transaction context, or just
+ * plain breaking AG-order or inode-order inode locking rules.  Either way,
+ * the only way to avoid an ABBA deadlock is to use trylock and back off if
+ * we can't.
+ */
+int
+xfs_scrub_ilock_inverted(
+	struct xfs_inode	*ip,
+	uint			lock_mode)
+{
+	int			i;
+
+	for (i = 0; i < 20; i++) {
+		if (xfs_ilock_nowait(ip, lock_mode))
+			return 0;
+		delay(1);
+	}
+	return -EDEADLOCK;
 }

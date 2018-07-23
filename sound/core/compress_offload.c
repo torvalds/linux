@@ -1001,7 +1001,7 @@ static int snd_compress_proc_init(struct snd_compr *compr)
 					   compr->card->proc_root);
 	if (!entry)
 		return -ENOMEM;
-	entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	entry->mode = S_IFDIR | 0555;
 	if (snd_info_register(entry) < 0) {
 		snd_info_free_entry(entry);
 		return -ENOMEM;

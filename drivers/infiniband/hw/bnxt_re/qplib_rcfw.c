@@ -582,19 +582,29 @@ fail:
 	return -ENOMEM;
 }
 
-void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
+void bnxt_qplib_rcfw_stop_irq(struct bnxt_qplib_rcfw *rcfw, bool kill)
 {
-	unsigned long indx;
-
-	/* Make sure the HW channel is stopped! */
-	synchronize_irq(rcfw->vector);
 	tasklet_disable(&rcfw->worker);
-	tasklet_kill(&rcfw->worker);
+	/* Mask h/w interrupts */
+	CREQ_DB(rcfw->creq_bar_reg_iomem, rcfw->creq.cons,
+		rcfw->creq.max_elements);
+	/* Sync with last running IRQ-handler */
+	synchronize_irq(rcfw->vector);
+	if (kill)
+		tasklet_kill(&rcfw->worker);
 
 	if (rcfw->requested) {
 		free_irq(rcfw->vector, rcfw);
 		rcfw->requested = false;
 	}
+}
+
+void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
+{
+	unsigned long indx;
+
+	bnxt_qplib_rcfw_stop_irq(rcfw, true);
+
 	if (rcfw->cmdq_bar_reg_iomem)
 		iounmap(rcfw->cmdq_bar_reg_iomem);
 	rcfw->cmdq_bar_reg_iomem = NULL;
@@ -612,6 +622,31 @@ void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 
 	rcfw->aeq_handler = NULL;
 	rcfw->vector = 0;
+}
+
+int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
+			      bool need_init)
+{
+	int rc;
+
+	if (rcfw->requested)
+		return -EFAULT;
+
+	rcfw->vector = msix_vector;
+	if (need_init)
+		tasklet_init(&rcfw->worker,
+			     bnxt_qplib_service_creq, (unsigned long)rcfw);
+	else
+		tasklet_enable(&rcfw->worker);
+	rc = request_irq(rcfw->vector, bnxt_qplib_creq_irq, 0,
+			 "bnxt_qplib_creq", rcfw);
+	if (rc)
+		return rc;
+	rcfw->requested = true;
+	CREQ_DB_REARM(rcfw->creq_bar_reg_iomem, rcfw->creq.cons,
+		      rcfw->creq.max_elements);
+
+	return 0;
 }
 
 int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
@@ -675,27 +710,17 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 	rcfw->creq_qp_event_processed = 0;
 	rcfw->creq_func_event_processed = 0;
 
-	rcfw->vector = msix_vector;
 	if (aeq_handler)
 		rcfw->aeq_handler = aeq_handler;
+	init_waitqueue_head(&rcfw->waitq);
 
-	tasklet_init(&rcfw->worker, bnxt_qplib_service_creq,
-		     (unsigned long)rcfw);
-
-	rcfw->requested = false;
-	rc = request_irq(rcfw->vector, bnxt_qplib_creq_irq, 0,
-			 "bnxt_qplib_creq", rcfw);
+	rc = bnxt_qplib_rcfw_start_irq(rcfw, msix_vector, true);
 	if (rc) {
 		dev_err(&rcfw->pdev->dev,
 			"QPLIB: Failed to request IRQ for CREQ rc = 0x%x", rc);
 		bnxt_qplib_disable_rcfw_channel(rcfw);
 		return rc;
 	}
-	rcfw->requested = true;
-
-	init_waitqueue_head(&rcfw->waitq);
-
-	CREQ_DB_REARM(rcfw->creq_bar_reg_iomem, 0, rcfw->creq.max_elements);
 
 	init.cmdq_pbl = cpu_to_le64(rcfw->cmdq.pbl[PBL_LVL_0].pg_map_arr[0]);
 	init.cmdq_size_cmdq_lvl = cpu_to_le16(

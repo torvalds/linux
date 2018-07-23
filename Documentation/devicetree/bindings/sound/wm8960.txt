@@ -23,7 +23,7 @@ Optional properties:
 
 Example:
 
-codec: wm8960@1a {
+wm8960: codec@1a {
 	compatible = "wlf,wm8960";
 	reg = <0x1a>;
 

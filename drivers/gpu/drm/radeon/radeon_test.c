@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright 2009 VMware, Inc.
  *
@@ -59,7 +60,7 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 	n = rdev->mc.gtt_size - rdev->gart_pin_size;
 	n /= size;
 
-	gtt_obj = kzalloc(n * sizeof(*gtt_obj), GFP_KERNEL);
+	gtt_obj = kcalloc(n, sizeof(*gtt_obj), GFP_KERNEL);
 	if (!gtt_obj) {
 		DRM_ERROR("Failed to allocate %d pointers\n", n);
 		r = 1;

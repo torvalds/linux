@@ -117,9 +117,6 @@ void native_restore_msi_irqs(struct pci_dev *dev);
 #define native_setup_msi_irqs		NULL
 #define native_teardown_msi_irq		NULL
 #endif
-
-#define PCI_DMA_BUS_IS_PHYS (dma_ops->is_phys)
-
 #endif  /* __KERNEL__ */
 
 #ifdef CONFIG_X86_64

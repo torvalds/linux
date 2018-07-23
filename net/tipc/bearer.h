@@ -94,6 +94,8 @@ struct tipc_bearer;
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
+ * @mtu: max packet size bearer can support for media type not dependent on
+ * underlying device MTU
  * @type_id: TIPC media identifier
  * @hwaddr_len: TIPC media address len
  * @name: media name
@@ -118,6 +120,7 @@ struct tipc_media {
 	u32 priority;
 	u32 tolerance;
 	u32 window;
+	u32 mtu;
 	u32 type_id;
 	u32 hwaddr_len;
 	char name[TIPC_MAX_MEDIA_NAME];

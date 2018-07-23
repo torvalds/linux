@@ -131,7 +131,7 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 	u64 start_pfn, end_pfn, nr_pages;
 	u64 base_pfn;
 
-	if (!NODE_DATA(nid) || !node_spanned_pages(nid))
+	if (!node_spanned_pages(nid))
 		return 0;
 
 	start_pfn = node_start_pfn(nid);

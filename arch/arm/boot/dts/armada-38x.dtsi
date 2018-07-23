@@ -163,7 +163,7 @@
 			};
 
 			uart0: serial@12000 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "marvell,armada-38x-uart";
 				reg = <0x12000 0x100>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
@@ -173,7 +173,7 @@
 			};
 
 			uart1: serial@12100 {
-				compatible = "snps,dw-apb-uart";
+				compatible = "marvell,armada-38x-uart";
 				reg = <0x12100 0x100>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
@@ -551,11 +551,11 @@
 				status = "okay";
 			};
 
-			nand: flash@d0000 {
-				compatible = "marvell,armada370-nand";
+			nand_controller: nand-controller@d0000 {
+				compatible = "marvell,armada370-nand-controller";
 				reg = <0xd0000 0x54>;
 				#address-cells = <1>;
-				#size-cells = <1>;
+				#size-cells = <0>;
 				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&coredivclk 0>;
 				status = "disabled";

@@ -98,6 +98,27 @@ void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags);
 #endif
 
 /*
+ * RAW spinlock primitives. If the OS does not provide them, fallback to
+ * spinlock primitives
+ */
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_raw_lock
+# define acpi_os_create_raw_lock(out_handle)	acpi_os_create_lock(out_handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_delete_raw_lock
+# define acpi_os_delete_raw_lock(handle)	acpi_os_delete_lock(handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_acquire_raw_lock
+# define acpi_os_acquire_raw_lock(handle)	acpi_os_acquire_lock(handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_release_raw_lock
+# define acpi_os_release_raw_lock(handle, flags)	\
+	acpi_os_release_lock(handle, flags)
+#endif
+
+/*
  * Semaphore primitives
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_semaphore

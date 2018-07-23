@@ -7,9 +7,9 @@
 #ifdef CONFIG_DWARF_UNWINDER
 #define DWARF_EH_FRAME							\
 	.eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {			\
-		  VMLINUX_SYMBOL(__start_eh_frame) = .;			\
+		  __start_eh_frame = .;					\
 		  *(.eh_frame)						\
-		  VMLINUX_SYMBOL(__stop_eh_frame) = .;			\
+		  __stop_eh_frame = .;					\
 	}
 #else
 #define DWARF_EH_FRAME

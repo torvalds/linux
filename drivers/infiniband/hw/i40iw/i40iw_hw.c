@@ -331,7 +331,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 		switch (info->ae_id) {
 		case I40IW_AE_LLP_FIN_RECEIVED:
 			if (qp->term_flags)
-				continue;
+				break;
 			if (atomic_inc_return(&iwqp->close_timer_started) == 1) {
 				iwqp->hw_tcp_state = I40IW_TCP_STATE_CLOSE_WAIT;
 				if ((iwqp->hw_tcp_state == I40IW_TCP_STATE_CLOSE_WAIT) &&
@@ -360,7 +360,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			break;
 		case I40IW_AE_LLP_CONNECTION_RESET:
 			if (atomic_read(&iwqp->close_timer_started))
-				continue;
+				break;
 			i40iw_cm_disconn(iwqp);
 			break;
 		case I40IW_AE_QP_SUSPEND_COMPLETE:
@@ -443,13 +443,37 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 int i40iw_manage_apbvt(struct i40iw_device *iwdev, u16 accel_local_port, bool add_port)
 {
 	struct i40iw_apbvt_info *info;
-	enum i40iw_status_code status;
 	struct i40iw_cqp_request *cqp_request;
 	struct cqp_commands_info *cqp_info;
+	unsigned long flags;
+	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
+	enum i40iw_status_code status = 0;
+	bool in_use;
+
+	/* apbvt_lock is held across CQP delete APBVT OP (non-waiting) to
+	 * protect against race where add APBVT CQP can race ahead of the delete
+	 * APBVT for same port.
+	 */
+	spin_lock_irqsave(&cm_core->apbvt_lock, flags);
+
+	if (!add_port) {
+		in_use = i40iw_port_in_use(cm_core, accel_local_port);
+		if (in_use)
+			goto exit;
+		clear_bit(accel_local_port, cm_core->ports_in_use);
+	} else {
+		in_use = test_and_set_bit(accel_local_port,
+					  cm_core->ports_in_use);
+		spin_unlock_irqrestore(&cm_core->apbvt_lock, flags);
+		if (in_use)
+			return 0;
+	}
 
 	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, add_port);
-	if (!cqp_request)
-		return -ENOMEM;
+	if (!cqp_request) {
+		status = -ENOMEM;
+		goto exit;
+	}
 
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.manage_apbvt_entry.info;
@@ -465,6 +489,10 @@ int i40iw_manage_apbvt(struct i40iw_device *iwdev, u16 accel_local_port, bool ad
 	status = i40iw_handle_cqp_op(iwdev, cqp_request);
 	if (status)
 		i40iw_pr_err("CQP-OP Manage APBVT entry fail");
+exit:
+	if (!add_port)
+		spin_unlock_irqrestore(&cm_core->apbvt_lock, flags);
+
 	return status;
 }
 

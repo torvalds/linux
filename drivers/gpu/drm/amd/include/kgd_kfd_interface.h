@@ -100,6 +100,21 @@ struct kgd2kfd_shared_resources {
 	/* Bit n == 1 means Queue n is available for KFD */
 	DECLARE_BITMAP(queue_bitmap, KGD_MAX_QUEUES);
 
+	/* Doorbell assignments (SOC15 and later chips only). Only
+	 * specific doorbells are routed to each SDMA engine. Others
+	 * are routed to IH and VCN. They are not usable by the CP.
+	 *
+	 * Any doorbell number D that satisfies the following condition
+	 * is reserved: (D & reserved_doorbell_mask) == reserved_doorbell_val
+	 *
+	 * KFD currently uses 1024 (= 0x3ff) doorbells per process. If
+	 * doorbells 0x0f0-0x0f7 and 0x2f-0x2f7 are reserved, that means
+	 * mask would be set to 0x1f8 and val set to 0x0f0.
+	 */
+	unsigned int sdma_doorbell[2][2];
+	unsigned int reserved_doorbell_mask;
+	unsigned int reserved_doorbell_val;
+
 	/* Base address of doorbell aperture. */
 	phys_addr_t doorbell_physical_address;
 
@@ -172,8 +187,6 @@ struct tile_config {
  *
  * @set_pasid_vmid_mapping: Exposes pasid/vmid pair to the H/W for no cp
  * scheduling mode. Only used for no cp scheduling mode.
- *
- * @init_pipeline: Initialized the compute pipelines.
  *
  * @hqd_load: Loads the mqd structure to a H/W hqd slot. used only for no cp
  * sceduling mode.
@@ -273,9 +286,6 @@ struct kfd2kgd_calls {
 
 	int (*set_pasid_vmid_mapping)(struct kgd_dev *kgd, unsigned int pasid,
 					unsigned int vmid);
-
-	int (*init_pipeline)(struct kgd_dev *kgd, uint32_t pipe_id,
-				uint32_t hpd_size, uint64_t hpd_gpu_addr);
 
 	int (*init_interrupts)(struct kgd_dev *kgd, uint32_t pipe_id);
 
@@ -382,6 +392,10 @@ struct kfd2kgd_calls {
  *
  * @resume: Notifies amdkfd about a resume action done to a kgd device
  *
+ * @quiesce_mm: Quiesce all user queue access to specified MM address space
+ *
+ * @resume_mm: Resume user queue access to specified MM address space
+ *
  * @schedule_evict_and_restore_process: Schedules work queue that will prepare
  * for safe eviction of KFD BOs that belong to the specified process.
  *
@@ -399,6 +413,8 @@ struct kgd2kfd_calls {
 	void (*interrupt)(struct kfd_dev *kfd, const void *ih_ring_entry);
 	void (*suspend)(struct kfd_dev *kfd);
 	int (*resume)(struct kfd_dev *kfd);
+	int (*quiesce_mm)(struct mm_struct *mm);
+	int (*resume_mm)(struct mm_struct *mm);
 	int (*schedule_evict_and_restore_process)(struct mm_struct *mm,
 			struct dma_fence *fence);
 };

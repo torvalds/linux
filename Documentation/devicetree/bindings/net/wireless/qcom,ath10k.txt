@@ -4,6 +4,7 @@ Required properties:
 - compatible: Should be one of the following:
 	* "qcom,ath10k"
 	* "qcom,ipq4019-wifi"
+	* "qcom,wcn3990-wifi"
 
 PCI based devices uses compatible string "qcom,ath10k" and takes calibration
 data along with board specific data via "qcom,ath10k-calibration-data".
@@ -18,8 +19,12 @@ In general, entry "qcom,ath10k-pre-calibration-data" and
 "qcom,ath10k-calibration-data" conflict with each other and only one
 can be provided per device.
 
+SNOC based devices (i.e. wcn3990) uses compatible string "qcom,wcn3990-wifi".
+
 Optional properties:
 - reg: Address and length of the register set for the device.
+- reg-names: Must include the list of following reg names,
+	     "membase"
 - resets: Must contain an entry for each entry in reset-names.
           See ../reset/reseti.txt for details.
 - reset-names: Must include the list of following reset names,
@@ -49,6 +54,8 @@ Optional properties:
 				 hw versions.
 - qcom,ath10k-pre-calibration-data : pre calibration data as an array,
 				     the length can vary between hw versions.
+- <supply-name>-supply: handle to the regulator device tree node
+			   optional "supply-name" is "vdd-0.8-cx-mx".
 
 Example (to supply the calibration data alone):
 
@@ -118,4 +125,28 @@ wifi0: wifi@a000000 {
 	qcom,msi_addr = <0x0b006040>;
 	qcom,msi_base = <0x40>;
 	qcom,ath10k-pre-calibration-data = [ 01 02 03 ... ];
+};
+
+Example (to supply wcn3990 SoC wifi block details):
+
+wifi@18000000 {
+		compatible = "qcom,wcn3990-wifi";
+		reg = <0x18800000 0x800000>;
+		reg-names = "membase";
+		clocks = <&clock_gcc clk_aggre2_noc_clk>;
+		clock-names = "smmu_aggre2_noc_clk"
+		interrupts =
+			   <0 130 0 /* CE0 */ >,
+			   <0 131 0 /* CE1 */ >,
+			   <0 132 0 /* CE2 */ >,
+			   <0 133 0 /* CE3 */ >,
+			   <0 134 0 /* CE4 */ >,
+			   <0 135 0 /* CE5 */ >,
+			   <0 136 0 /* CE6 */ >,
+			   <0 137 0 /* CE7 */ >,
+			   <0 138 0 /* CE8 */ >,
+			   <0 139 0 /* CE9 */ >,
+			   <0 140 0 /* CE10 */ >,
+			   <0 141 0 /* CE11 */ >;
+		vdd-0.8-cx-mx-supply = <&pm8998_l5>;
 };

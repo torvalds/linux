@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_data/pcf857x.h>
 #include <linux/platform_data/at24.h>
+#include <linux/platform_data/gpio-davinci.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
@@ -152,6 +153,7 @@ static struct davinci_aemif_timing davinci_evm_nandflash_timing = {
 };
 
 static struct davinci_nand_pdata davinci_evm_nandflash_data = {
+	.core_chipsel	= 0,
 	.parts		= davinci_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
@@ -596,12 +598,15 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 	},
 };
 
+#define DM644X_I2C_SDA_PIN	GPIO_TO_PIN(2, 12)
+#define DM644X_I2C_SCL_PIN	GPIO_TO_PIN(2, 11)
+
 static struct gpiod_lookup_table i2c_recovery_gpiod_table = {
-	.dev_id = "i2c_davinci",
+	.dev_id = "i2c_davinci.1",
 	.table = {
-		GPIO_LOOKUP("davinci_gpio", 44, "sda",
+		GPIO_LOOKUP("davinci_gpio.0", DM644X_I2C_SDA_PIN, "sda",
 			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
-		GPIO_LOOKUP("davinci_gpio", 43, "scl",
+		GPIO_LOOKUP("davinci_gpio.0", DM644X_I2C_SCL_PIN, "scl",
 			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
@@ -767,6 +772,8 @@ static __init void davinci_evm_init(void)
 	int ret;
 	struct clk *aemif_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	dm644x_init_devices();
 
 	ret = dm644x_gpio_register();
 	if (ret)

@@ -47,7 +47,7 @@ int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 	if (size <= PAGE_SIZE / sizeof(*ht->table))
 		ht->table = kcalloc(size, sizeof(*ht->table), GFP_KERNEL);
 	else
-		ht->table = vzalloc(size*sizeof(*ht->table));
+		ht->table = vzalloc(array_size(size, sizeof(*ht->table)));
 	if (!ht->table) {
 		DRM_ERROR("Out of memory for hash table\n");
 		return -ENOMEM;

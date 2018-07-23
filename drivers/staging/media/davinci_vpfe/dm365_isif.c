@@ -1397,14 +1397,9 @@ __isif_get_format(struct vpfe_isif_device *isif,
 		  struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 		  enum v4l2_subdev_format_whence which)
 {
-	if (which == V4L2_SUBDEV_FORMAT_TRY) {
-		struct v4l2_subdev_format fmt;
-
-		fmt.pad = pad;
-		fmt.which = which;
-
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&isif->subdev, cfg, pad);
-	}
+
 	return &isif->formats[pad];
 }
 

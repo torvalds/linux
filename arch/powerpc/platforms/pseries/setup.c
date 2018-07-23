@@ -534,6 +534,7 @@ void pseries_setup_rfi_flush(void)
 		 security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR);
 
 	setup_rfi_flush(types, enable);
+	setup_barrier_nospec();
 }
 
 #ifdef CONFIG_PCI_IOV
@@ -710,6 +711,7 @@ static void __init pSeries_setup_arch(void)
 	fwnmi_init();
 
 	pseries_setup_rfi_flush();
+	setup_stf_barrier();
 
 	/* By default, only probe PCI (can be overridden by rtas_pci) */
 	pci_add_flags(PCI_PROBE_ONLY);

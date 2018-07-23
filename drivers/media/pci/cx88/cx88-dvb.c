@@ -411,21 +411,18 @@ static int lgdt330x_set_ts_param(struct dvb_frontend *fe, int is_punctured)
 }
 
 static struct lgdt330x_config fusionhdtv_3_gold = {
-	.demod_address = 0x0e,
 	.demod_chip    = LGDT3302,
 	.serial_mpeg   = 0x04, /* TPSERIAL for 3302 in TOP_CONTROL */
 	.set_ts_params = lgdt330x_set_ts_param,
 };
 
 static const struct lgdt330x_config fusionhdtv_5_gold = {
-	.demod_address = 0x0e,
 	.demod_chip    = LGDT3303,
 	.serial_mpeg   = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
 	.set_ts_params = lgdt330x_set_ts_param,
 };
 
 static const struct lgdt330x_config pchdtv_hd5500 = {
-	.demod_address = 0x59,
 	.demod_chip    = LGDT3303,
 	.serial_mpeg   = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
 	.set_ts_params = lgdt330x_set_ts_param,
@@ -1237,6 +1234,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fusionhdtv_3_gold.pll_rf_set = lgdt330x_pll_rf_set;
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
+					       0x0e,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
@@ -1255,6 +1253,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		mdelay(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
+					       0x0e,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
@@ -1273,6 +1272,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		mdelay(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_5_gold,
+					       0x0e,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
@@ -1294,6 +1294,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		mdelay(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &pchdtv_hd5500,
+					       0x59,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,

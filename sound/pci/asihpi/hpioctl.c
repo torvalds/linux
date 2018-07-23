@@ -46,14 +46,14 @@ MODULE_FIRMWARE("asihpi/dsp8900.bin");
 #endif
 
 static int prealloc_stream_buf;
-module_param(prealloc_stream_buf, int, S_IRUGO);
+module_param(prealloc_stream_buf, int, 0444);
 MODULE_PARM_DESC(prealloc_stream_buf,
 	"Preallocate size for per-adapter stream buffer");
 
 /* Allow the debug level to be changed after module load.
  E.g.   echo 2 > /sys/module/asihpi/parameters/hpiDebugLevel
 */
-module_param(hpi_debug_level, int, S_IRUGO | S_IWUSR);
+module_param(hpi_debug_level, int, 0644);
 MODULE_PARM_DESC(hpi_debug_level, "debug verbosity 0..5");
 
 /* List of adapters found */

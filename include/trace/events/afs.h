@@ -575,6 +575,48 @@ TRACE_EVENT(afs_protocol_error,
 		      __entry->call, __entry->error, __entry->where)
 	    );
 
+TRACE_EVENT(afs_cm_no_server,
+	    TP_PROTO(struct afs_call *call, struct sockaddr_rxrpc *srx),
+
+	    TP_ARGS(call, srx),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			call	)
+		    __field(unsigned int,			op_id	)
+		    __field_struct(struct sockaddr_rxrpc,	srx	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call->debug_id;
+		    __entry->op_id = call->operation_ID;
+		    memcpy(&__entry->srx, srx, sizeof(__entry->srx));
+			   ),
+
+	    TP_printk("c=%08x op=%u %pISpc",
+		      __entry->call, __entry->op_id, &__entry->srx.transport)
+	    );
+
+TRACE_EVENT(afs_cm_no_server_u,
+	    TP_PROTO(struct afs_call *call, const uuid_t *uuid),
+
+	    TP_ARGS(call, uuid),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			call	)
+		    __field(unsigned int,			op_id	)
+		    __field_struct(uuid_t,			uuid	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call->debug_id;
+		    __entry->op_id = call->operation_ID;
+		    memcpy(&__entry->uuid, uuid, sizeof(__entry->uuid));
+			   ),
+
+	    TP_printk("c=%08x op=%u %pU",
+		      __entry->call, __entry->op_id, &__entry->uuid)
+	    );
+
 #endif /* _TRACE_AFS_H */
 
 /* This part must be outside protection */

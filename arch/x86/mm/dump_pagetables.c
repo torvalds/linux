@@ -360,7 +360,7 @@ static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
 				void *pt)
 {
 	if (__pa(pt) == __pa(kasan_zero_pmd) ||
-	    (pgtable_l5_enabled && __pa(pt) == __pa(kasan_zero_p4d)) ||
+	    (pgtable_l5_enabled() && __pa(pt) == __pa(kasan_zero_p4d)) ||
 	    __pa(pt) == __pa(kasan_zero_pud)) {
 		pgprotval_t prot = pte_flags(kasan_zero_pte[0]);
 		note_page(m, st, __pgprot(prot), 0, 5);
@@ -476,8 +476,8 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 	}
 }
 
-#define pgd_large(a) (pgtable_l5_enabled ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
-#define pgd_none(a)  (pgtable_l5_enabled ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
+#define pgd_large(a) (pgtable_l5_enabled() ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
+#define pgd_none(a)  (pgtable_l5_enabled() ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
 
 static inline bool is_hypervisor_range(int idx)
 {

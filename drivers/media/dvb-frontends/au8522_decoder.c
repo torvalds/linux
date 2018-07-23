@@ -280,14 +280,12 @@ static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 			AU8522_TOREGAAGC_REG0E5H_CVBS);
 	au8522_writereg(state, AU8522_REG016H, AU8522_REG016H_CVBS);
 
-	if (is_svideo) {
-		/* Despite what the table says, for the HVR-950q we still need
-		   to be in CVBS mode for the S-Video input (reason unknown). */
-		/* filter_coef_type = 3; */
-		filter_coef_type = 5;
-	} else {
-		filter_coef_type = 5;
-	}
+	/*
+	 * Despite what the table says, for the HVR-950q we still need
+	 * to be in CVBS mode for the S-Video input (reason unknown).
+	 */
+	/* filter_coef_type = 3; */
+	filter_coef_type = 5;
 
 	/* Load the Video Decoder Filter Coefficients */
 	for (i = 0; i < NUM_FILTER_COEF; i++) {

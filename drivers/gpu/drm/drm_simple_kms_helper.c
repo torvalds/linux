@@ -52,7 +52,7 @@ static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
 	bool has_primary = state->plane_mask &
-			   BIT(drm_plane_index(crtc->primary));
+			   drm_plane_mask(crtc->primary);
 
 	/* We always want to have an active plane with an active CRTC */
 	if (has_primary != state->enable)
@@ -281,13 +281,13 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	encoder->possible_crtcs = 1 << drm_crtc_index(crtc);
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
 	ret = drm_encoder_init(dev, encoder, &drm_simple_kms_encoder_funcs,
 			       DRM_MODE_ENCODER_NONE, NULL);
 	if (ret || !connector)
 		return ret;
 
-	return drm_mode_connector_attach_encoder(connector, encoder);
+	return drm_connector_attach_encoder(connector, encoder);
 }
 EXPORT_SYMBOL(drm_simple_display_pipe_init);
 

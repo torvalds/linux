@@ -36,8 +36,6 @@ static int throtl_quantum = 32;
  */
 #define LATENCY_FILTERED_HD (1000L) /* 1ms */
 
-#define SKIP_LATENCY (((u64)1) << BLK_STAT_RES_SHIFT)
-
 static struct blkcg_policy blkcg_policy_throtl;
 
 /* A workqueue to queue throttle related work */
@@ -821,7 +819,7 @@ static bool throtl_slice_used(struct throtl_grp *tg, bool rw)
 	if (time_in_range(jiffies, tg->slice_start[rw], tg->slice_end[rw]))
 		return false;
 
-	return 1;
+	return true;
 }
 
 /* Trim the used slices and adjust slice start accordingly */
@@ -931,7 +929,7 @@ static bool tg_with_in_iops_limit(struct throtl_grp *tg, struct bio *bio,
 
 	if (wait)
 		*wait = jiffy_wait;
-	return 0;
+	return false;
 }
 
 static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
@@ -974,7 +972,7 @@ static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	jiffy_wait = jiffy_wait + (jiffy_elapsed_rnd - jiffy_elapsed);
 	if (wait)
 		*wait = jiffy_wait;
-	return 0;
+	return false;
 }
 
 /*
@@ -1024,7 +1022,7 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 	    tg_with_in_iops_limit(tg, bio, &iops_wait)) {
 		if (wait)
 			*wait = 0;
-		return 1;
+		return true;
 	}
 
 	max_wait = max(bps_wait, iops_wait);
@@ -1035,7 +1033,7 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 	if (time_before(tg->slice_end[rw], jiffies + max_wait))
 		throtl_extend_slice(tg, rw, jiffies + max_wait);
 
-	return 0;
+	return false;
 }
 
 static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
@@ -1209,7 +1207,7 @@ static int throtl_select_dispatch(struct throtl_service_queue *parent_sq)
 
 	while (1) {
 		struct throtl_grp *tg = throtl_rb_first(parent_sq);
-		struct throtl_service_queue *sq = &tg->service_queue;
+		struct throtl_service_queue *sq;
 
 		if (!tg)
 			break;
@@ -1221,6 +1219,7 @@ static int throtl_select_dispatch(struct throtl_service_queue *parent_sq)
 
 		nr_disp += throtl_dispatch_tg(tg);
 
+		sq = &tg->service_queue;
 		if (sq->nr_queued[0] || sq->nr_queued[1])
 			tg_update_disptime(tg);
 
@@ -2139,7 +2138,7 @@ static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
 		bio->bi_cg_private = tg;
 		blkg_get(tg_to_blkg(tg));
 	}
-	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
+	bio_issue_init(&bio->bi_issue, bio_sectors(bio));
 #endif
 }
 
@@ -2251,7 +2250,7 @@ out:
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 	if (throttled || !td->track_bio_latency)
-		bio->bi_issue_stat.stat |= SKIP_LATENCY;
+		bio->bi_issue.value |= BIO_ISSUE_THROTL_SKIP_LATENCY;
 #endif
 	return throttled;
 }
@@ -2281,8 +2280,7 @@ void blk_throtl_stat_add(struct request *rq, u64 time_ns)
 	struct request_queue *q = rq->q;
 	struct throtl_data *td = q->td;
 
-	throtl_track_latency(td, blk_stat_size(&rq->issue_stat),
-		req_op(rq), time_ns >> 10);
+	throtl_track_latency(td, rq->throtl_size, req_op(rq), time_ns >> 10);
 }
 
 void blk_throtl_bio_endio(struct bio *bio)
@@ -2302,8 +2300,8 @@ void blk_throtl_bio_endio(struct bio *bio)
 	finish_time_ns = ktime_get_ns();
 	tg->last_finish_time = finish_time_ns >> 10;
 
-	start_time = blk_stat_time(&bio->bi_issue_stat) >> 10;
-	finish_time = __blk_stat_time(finish_time_ns) >> 10;
+	start_time = bio_issue_time(&bio->bi_issue) >> 10;
+	finish_time = __bio_issue_time(finish_time_ns) >> 10;
 	if (!start_time || finish_time <= start_time) {
 		blkg_put(tg_to_blkg(tg));
 		return;
@@ -2311,16 +2309,15 @@ void blk_throtl_bio_endio(struct bio *bio)
 
 	lat = finish_time - start_time;
 	/* this is only for bio based driver */
-	if (!(bio->bi_issue_stat.stat & SKIP_LATENCY))
-		throtl_track_latency(tg->td, blk_stat_size(&bio->bi_issue_stat),
-			bio_op(bio), lat);
+	if (!(bio->bi_issue.value & BIO_ISSUE_THROTL_SKIP_LATENCY))
+		throtl_track_latency(tg->td, bio_issue_size(&bio->bi_issue),
+				     bio_op(bio), lat);
 
 	if (tg->latency_target && lat >= tg->td->filtered_latency) {
 		int bucket;
 		unsigned int threshold;
 
-		bucket = request_bucket_index(
-			blk_stat_size(&bio->bi_issue_stat));
+		bucket = request_bucket_index(bio_issue_size(&bio->bi_issue));
 		threshold = tg->td->avg_buckets[rw][bucket].latency +
 			tg->latency_target;
 		if (lat > threshold)

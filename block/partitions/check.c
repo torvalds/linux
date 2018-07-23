@@ -122,7 +122,7 @@ static struct parsed_partitions *allocate_partitions(struct gendisk *hd)
 		return NULL;
 
 	nr = disk_max_parts(hd);
-	state->parts = vzalloc(nr * sizeof(state->parts[0]));
+	state->parts = vzalloc(array_size(nr, sizeof(state->parts[0])));
 	if (!state->parts) {
 		kfree(state);
 		return NULL;

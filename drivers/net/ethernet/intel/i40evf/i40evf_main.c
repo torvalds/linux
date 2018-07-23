@@ -1,29 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "i40evf.h"
 #include "i40e_prototype.h"
@@ -473,6 +449,7 @@ static void i40evf_irq_affinity_release(struct kref *ref) {}
 /**
  * i40evf_request_traffic_irqs - Initialize MSI-X interrupts
  * @adapter: board private structure
+ * @basename: device basename
  *
  * Allocates MSI-X vectors for tx and rx handling, and requests
  * interrupts from the kernel.
@@ -705,7 +682,7 @@ i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 
 	f = i40evf_find_vlan(adapter, vlan);
 	if (!f) {
-		f = kzalloc(sizeof(*f), GFP_ATOMIC);
+		f = kzalloc(sizeof(*f), GFP_KERNEL);
 		if (!f)
 			goto clearout;
 
@@ -745,6 +722,7 @@ static void i40evf_del_vlan(struct i40evf_adapter *adapter, u16 vlan)
 /**
  * i40evf_vlan_rx_add_vid - Add a VLAN filter to a device
  * @netdev: network device struct
+ * @proto: unused protocol data
  * @vid: VLAN tag
  **/
 static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
@@ -762,6 +740,7 @@ static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
 /**
  * i40evf_vlan_rx_kill_vid - Remove a VLAN filter from a device
  * @netdev: network device struct
+ * @proto: unused protocol data
  * @vid: VLAN tag
  **/
 static int i40evf_vlan_rx_kill_vid(struct net_device *netdev,
@@ -1946,7 +1925,8 @@ continue_reset:
 	 * ndo_open() returning, so we can't assume it means all our open
 	 * tasks have finished, since we're not holding the rtnl_lock here.
 	 */
-	running = (adapter->state == __I40EVF_RUNNING);
+	running = ((adapter->state == __I40EVF_RUNNING) ||
+		   (adapter->state == __I40EVF_RESETTING));
 
 	if (running) {
 		netif_carrier_off(netdev);
@@ -2352,7 +2332,7 @@ static int i40evf_validate_ch_config(struct i40evf_adapter *adapter,
 		total_max_rate += tx_rate;
 		num_qps += mqprio_qopt->qopt.count[i];
 	}
-	if (num_qps > MAX_QUEUES)
+	if (num_qps > I40EVF_MAX_REQ_QUEUES)
 		return -EINVAL;
 
 	ret = i40evf_validate_tx_bandwidth(adapter, total_max_rate);
@@ -3160,7 +3140,7 @@ static int i40evf_set_features(struct net_device *netdev,
 /**
  * i40evf_features_check - Validate encapsulated packet conforms to limits
  * @skb: skb buff
- * @netdev: This physical port's netdev
+ * @dev: This physical port's netdev
  * @features: Offload features that the stack believes apply
  **/
 static netdev_features_t i40evf_features_check(struct sk_buff *skb,
@@ -3377,6 +3357,24 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 
 	if (vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN)
 		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	/* Do not turn on offloads when they are requested to be turned off.
+	 * TSO needs minimum 576 bytes to work correctly.
+	 */
+	if (netdev->wanted_features) {
+		if (!(netdev->wanted_features & NETIF_F_TSO) ||
+		    netdev->mtu < 576)
+			netdev->features &= ~NETIF_F_TSO;
+		if (!(netdev->wanted_features & NETIF_F_TSO6) ||
+		    netdev->mtu < 576)
+			netdev->features &= ~NETIF_F_TSO6;
+		if (!(netdev->wanted_features & NETIF_F_TSO_ECN))
+			netdev->features &= ~NETIF_F_TSO_ECN;
+		if (!(netdev->wanted_features & NETIF_F_GRO))
+			netdev->features &= ~NETIF_F_GRO;
+		if (!(netdev->wanted_features & NETIF_F_GSO))
+			netdev->features &= ~NETIF_F_GSO;
+	}
 
 	adapter->vsi.id = adapter->vsi_res->vsi_id;
 
@@ -3692,7 +3690,8 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	netdev = alloc_etherdev_mq(sizeof(struct i40evf_adapter), MAX_QUEUES);
+	netdev = alloc_etherdev_mq(sizeof(struct i40evf_adapter),
+				   I40EVF_MAX_REQ_QUEUES);
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_alloc_etherdev;

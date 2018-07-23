@@ -1,31 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*******************************************************************************
-
-  Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2016 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #ifndef _IXGBE_TYPE_H_
 #define _IXGBE_TYPE_H_
@@ -625,13 +599,15 @@ struct ixgbe_nvm_version {
 #define IXGBE_SECTXCTRL_STORE_FORWARD   0x00000004
 
 #define IXGBE_SECTXSTAT_SECTX_RDY       0x00000001
-#define IXGBE_SECTXSTAT_ECC_TXERR       0x00000002
+#define IXGBE_SECTXSTAT_SECTX_OFF_DIS   0x00000002
+#define IXGBE_SECTXSTAT_ECC_TXERR       0x00000004
 
 #define IXGBE_SECRXCTRL_SECRX_DIS       0x00000001
 #define IXGBE_SECRXCTRL_RX_DIS          0x00000002
 
 #define IXGBE_SECRXSTAT_SECRX_RDY       0x00000001
-#define IXGBE_SECRXSTAT_ECC_RXERR       0x00000002
+#define IXGBE_SECRXSTAT_SECRX_OFF_DIS   0x00000002
+#define IXGBE_SECRXSTAT_ECC_RXERR       0x00000004
 
 /* LinkSec (MacSec) Registers */
 #define IXGBE_LSECTXCAP         0x08A00

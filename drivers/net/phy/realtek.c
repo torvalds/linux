@@ -145,6 +145,20 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	return phy_modify_paged(phydev, 0xd08, 0x11, RTL8211F_TX_DELAY, val);
 }
 
+static int rtl8211b_suspend(struct phy_device *phydev)
+{
+	phy_write(phydev, MII_MMD_DATA, BIT(9));
+
+	return genphy_suspend(phydev);
+}
+
+static int rtl8211b_resume(struct phy_device *phydev)
+{
+	phy_write(phydev, MII_MMD_DATA, 0);
+
+	return genphy_resume(phydev);
+}
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		.phy_id         = 0x00008201,
@@ -174,6 +188,8 @@ static struct phy_driver realtek_drvs[] = {
 		.config_intr	= &rtl8211b_config_intr,
 		.read_mmd	= &genphy_read_mmd_unsupported,
 		.write_mmd	= &genphy_write_mmd_unsupported,
+		.suspend	= rtl8211b_suspend,
+		.resume		= rtl8211b_resume,
 	}, {
 		.phy_id		= 0x001cc914,
 		.name		= "RTL8211DN Gigabit Ethernet",

@@ -176,7 +176,6 @@ struct private_data {
 	void __iomem *dmem;
 	void __iomem *imem;
 	struct device *dev;
-	unsigned int index;
 	struct mutex lock;
 };
 
@@ -674,10 +673,8 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct private_data *priv;
-	struct device *dpfe_dev;
 	struct init_data init;
 	struct resource *res;
-	u32 index;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -686,11 +683,6 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 
 	mutex_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
-
-	/* Cell index is optional; default to 0 if not present. */
-	ret = of_property_read_u32(dev->of_node, "cell-index", &index);
-	if (ret)
-		index = 0;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dpfe-cpu");
 	priv->regs = devm_ioremap_resource(dev, res);
@@ -715,35 +707,20 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 
 	ret = brcmstb_dpfe_download_firmware(pdev, &init);
 	if (ret)
-		goto err;
+		return ret;
 
-	dpfe_dev = devm_kzalloc(dev, sizeof(*dpfe_dev), GFP_KERNEL);
-	if (!dpfe_dev) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	priv->dev = dpfe_dev;
-	priv->index = index;
-
-	dpfe_dev->parent = dev;
-	dpfe_dev->groups = dpfe_groups;
-	dpfe_dev->of_node = dev->of_node;
-	dev_set_drvdata(dpfe_dev, priv);
-	dev_set_name(dpfe_dev, "dpfe%u", index);
-
-	ret = device_register(dpfe_dev);
-	if (ret)
-		goto err;
-
-	dev_info(dev, "registered.\n");
-
-	return 0;
-
-err:
-	dev_err(dev, "failed to initialize -- error %d\n", ret);
+	ret = sysfs_create_groups(&pdev->dev.kobj, dpfe_groups);
+	if (!ret)
+		dev_info(dev, "registered.\n");
 
 	return ret;
+}
+
+static int brcmstb_dpfe_remove(struct platform_device *pdev)
+{
+	sysfs_remove_groups(&pdev->dev.kobj, dpfe_groups);
+
+	return 0;
 }
 
 static const struct of_device_id brcmstb_dpfe_of_match[] = {
@@ -758,6 +735,7 @@ static struct platform_driver brcmstb_dpfe_driver = {
 		.of_match_table = brcmstb_dpfe_of_match,
 	},
 	.probe = brcmstb_dpfe_probe,
+	.remove	= brcmstb_dpfe_remove,
 	.resume = brcmstb_dpfe_resume,
 };
 

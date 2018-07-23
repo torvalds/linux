@@ -198,8 +198,8 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		ngpio = ARCH_NR_GPIOS;
 
 	nbank = DIV_ROUND_UP(ngpio, 32);
-	chips = devm_kzalloc(dev,
-			     nbank * sizeof(struct davinci_gpio_controller),
+	chips = devm_kcalloc(dev,
+			     nbank, sizeof(struct davinci_gpio_controller),
 			     GFP_KERNEL);
 	if (!chips)
 		return -ENOMEM;
@@ -610,14 +610,12 @@ done:
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id davinci_gpio_ids[] = {
 	{ .compatible = "ti,keystone-gpio", keystone_gpio_get_irq_chip},
 	{ .compatible = "ti,dm6441-gpio", davinci_gpio_get_irq_chip},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, davinci_gpio_ids);
-#endif
 
 static struct platform_driver davinci_gpio_driver = {
 	.probe		= davinci_gpio_probe,

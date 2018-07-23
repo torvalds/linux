@@ -201,13 +201,16 @@ int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port);
 void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port);
 void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 			     void *port_driver_priv, struct net_device *dev,
-			     bool split, u32 split_group);
+			     u32 port_number, bool split,
+			     u32 split_port_subnumber);
 void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 			    void *port_driver_priv);
 void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
 			   void *port_driver_priv);
 enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 						u8 local_port);
+int mlxsw_core_port_get_phys_port_name(struct mlxsw_core *mlxsw_core,
+				       u8 local_port, char *name, size_t len);
 
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
 bool mlxsw_core_schedule_work(struct work_struct *work);
@@ -271,8 +274,9 @@ struct mlxsw_driver {
 	int (*port_type_set)(struct mlxsw_core *mlxsw_core, u8 local_port,
 			     enum devlink_port_type new_type);
 	int (*port_split)(struct mlxsw_core *mlxsw_core, u8 local_port,
-			  unsigned int count);
-	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port);
+			  unsigned int count, struct netlink_ext_ack *extack);
+	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port,
+			    struct netlink_ext_ack *extack);
 	int (*sb_pool_get)(struct mlxsw_core *mlxsw_core,
 			   unsigned int sb_index, u16 pool_index,
 			   struct devlink_sb_pool_info *pool_info);
@@ -334,6 +338,7 @@ u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
 	mlxsw_core_res_get(mlxsw_core, MLXSW_RES_ID_##short_res_id)
 
 #define MLXSW_BUS_F_TXRX	BIT(0)
+#define MLXSW_BUS_F_RESET	BIT(1)
 
 struct mlxsw_bus {
 	const char *kind;
@@ -341,7 +346,6 @@ struct mlxsw_bus {
 		    const struct mlxsw_config_profile *profile,
 		    struct mlxsw_res *res);
 	void (*fini)(void *bus_priv);
-	void (*reset)(void *bus_priv);
 	bool (*skb_transmit_busy)(void *bus_priv,
 				  const struct mlxsw_tx_info *tx_info);
 	int (*skb_transmit)(void *bus_priv, struct sk_buff *skb,

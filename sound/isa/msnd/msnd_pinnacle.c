@@ -757,9 +757,9 @@ static int snd_msnd_pinnacle_cfg_reset(int cfg)
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 
-module_param_array(index, int, NULL, S_IRUGO);
+module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for msnd_pinnacle soundcard.");
-module_param_array(id, charp, NULL, S_IRUGO);
+module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for msnd_pinnacle soundcard.");
 
 static long io[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
@@ -801,22 +801,22 @@ MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(INITCODEFILE);
 MODULE_FIRMWARE(PERMCODEFILE);
 
-module_param_hw_array(io, long, ioport, NULL, S_IRUGO);
+module_param_hw_array(io, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(io, "IO port #");
-module_param_hw_array(irq, int, irq, NULL, S_IRUGO);
-module_param_hw_array(mem, long, iomem, NULL, S_IRUGO);
-module_param_array(write_ndelay, int, NULL, S_IRUGO);
-module_param(calibrate_signal, int, S_IRUGO);
+module_param_hw_array(irq, int, irq, NULL, 0444);
+module_param_hw_array(mem, long, iomem, NULL, 0444);
+module_param_array(write_ndelay, int, NULL, 0444);
+module_param(calibrate_signal, int, 0444);
 #ifndef MSND_CLASSIC
-module_param_array(digital, int, NULL, S_IRUGO);
-module_param_hw_array(cfg, long, ioport, NULL, S_IRUGO);
-module_param_array(reset, int, 0, S_IRUGO);
-module_param_hw_array(mpu_io, long, ioport, NULL, S_IRUGO);
-module_param_hw_array(mpu_irq, int, irq, NULL, S_IRUGO);
-module_param_hw_array(ide_io0, long, ioport, NULL, S_IRUGO);
-module_param_hw_array(ide_io1, long, ioport, NULL, S_IRUGO);
-module_param_hw_array(ide_irq, int, irq, NULL, S_IRUGO);
-module_param_hw_array(joystick_io, long, ioport, NULL, S_IRUGO);
+module_param_array(digital, int, NULL, 0444);
+module_param_hw_array(cfg, long, ioport, NULL, 0444);
+module_param_array(reset, int, 0, 0444);
+module_param_hw_array(mpu_io, long, ioport, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
+module_param_hw_array(ide_io0, long, ioport, NULL, 0444);
+module_param_hw_array(ide_io1, long, ioport, NULL, 0444);
+module_param_hw_array(ide_irq, int, irq, NULL, 0444);
+module_param_hw_array(joystick_io, long, ioport, NULL, 0444);
 #endif
 
 

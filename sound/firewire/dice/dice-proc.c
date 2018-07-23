@@ -148,12 +148,12 @@ static void dice_proc_read(struct snd_info_entry *entry,
 				   >> CLOCK_RATE_SHIFT));
 	snd_iprintf(buffer, "  ext status: %08x\n", buf.global.extended_status);
 	snd_iprintf(buffer, "  sample rate: %u\n", buf.global.sample_rate);
-	snd_iprintf(buffer, "  version: %u.%u.%u.%u\n",
-		    (buf.global.version >> 24) & 0xff,
-		    (buf.global.version >> 16) & 0xff,
-		    (buf.global.version >>  8) & 0xff,
-		    (buf.global.version >>  0) & 0xff);
 	if (quadlets >= 90) {
+		snd_iprintf(buffer, "  version: %u.%u.%u.%u\n",
+			    (buf.global.version >> 24) & 0xff,
+			    (buf.global.version >> 16) & 0xff,
+			    (buf.global.version >>  8) & 0xff,
+			    (buf.global.version >>  0) & 0xff);
 		snd_iprintf(buffer, "  clock caps:");
 		for (i = 0; i <= 6; ++i)
 			if (buf.global.clock_caps & (1 << i))
@@ -243,10 +243,74 @@ static void dice_proc_read(struct snd_info_entry *entry,
 	}
 }
 
-void snd_dice_create_proc(struct snd_dice *dice)
+static void dice_proc_read_formation(struct snd_info_entry *entry,
+				     struct snd_info_buffer *buffer)
+{
+	static const char *const rate_labels[] = {
+		[SND_DICE_RATE_MODE_LOW]	= "low",
+		[SND_DICE_RATE_MODE_MIDDLE]	= "middle",
+		[SND_DICE_RATE_MODE_HIGH]	= "high",
+	};
+	struct snd_dice *dice = entry->private_data;
+	int i, j;
+
+	snd_iprintf(buffer, "Output stream from unit:\n");
+	for (i = 0; i < SND_DICE_RATE_MODE_COUNT; ++i)
+		snd_iprintf(buffer, "\t%s", rate_labels[i]);
+	snd_iprintf(buffer, "\tMIDI\n");
+	for (i = 0; i < MAX_STREAMS; ++i) {
+		snd_iprintf(buffer, "Tx %u:", i);
+		for (j = 0; j < SND_DICE_RATE_MODE_COUNT; ++j)
+			snd_iprintf(buffer, "\t%u", dice->tx_pcm_chs[i][j]);
+		snd_iprintf(buffer, "\t%u\n", dice->tx_midi_ports[i]);
+	}
+
+	snd_iprintf(buffer, "Input stream to unit:\n");
+	for (i = 0; i < SND_DICE_RATE_MODE_COUNT; ++i)
+		snd_iprintf(buffer, "\t%s", rate_labels[i]);
+	snd_iprintf(buffer, "\n");
+	for (i = 0; i < MAX_STREAMS; ++i) {
+		snd_iprintf(buffer, "Rx %u:", i);
+		for (j = 0; j < SND_DICE_RATE_MODE_COUNT; ++j)
+			snd_iprintf(buffer, "\t%u", dice->rx_pcm_chs[i][j]);
+		snd_iprintf(buffer, "\t%u\n", dice->rx_midi_ports[i]);
+	}
+}
+
+static void add_node(struct snd_dice *dice, struct snd_info_entry *root,
+		     const char *name,
+		     void (*op)(struct snd_info_entry *entry,
+				struct snd_info_buffer *buffer))
 {
 	struct snd_info_entry *entry;
 
-	if (!snd_card_proc_new(dice->card, "dice", &entry))
-		snd_info_set_text_ops(entry, dice, dice_proc_read);
+	entry = snd_info_create_card_entry(dice->card, name, root);
+	if (!entry)
+		return;
+
+	snd_info_set_text_ops(entry, dice, op);
+	if (snd_info_register(entry) < 0)
+		snd_info_free_entry(entry);
+}
+
+void snd_dice_create_proc(struct snd_dice *dice)
+{
+	struct snd_info_entry *root;
+
+	/*
+	 * All nodes are automatically removed at snd_card_disconnect(),
+	 * by following to link list.
+	 */
+	root = snd_info_create_card_entry(dice->card, "firewire",
+					  dice->card->proc_root);
+	if (!root)
+		return;
+	root->mode = S_IFDIR | 0555;
+	if (snd_info_register(root) < 0) {
+		snd_info_free_entry(root);
+		return;
+	}
+
+	add_node(dice, root, "dice", dice_proc_read);
+	add_node(dice, root, "formation", dice_proc_read_formation);
 }

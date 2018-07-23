@@ -455,8 +455,9 @@ struct kobject *power_kobj;
  * state - control system sleep states.
  *
  * show() returns available sleep state labels, which may be "mem", "standby",
- * "freeze" and "disk" (hibernation).  See Documentation/power/states.txt for a
- * description of what they mean.
+ * "freeze" and "disk" (hibernation).
+ * See Documentation/admin-guide/pm/sleep-states.rst for a description of
+ * what they mean.
  *
  * store() accepts one of those strings, translates it into the proper
  * enumerated value, and initiates a suspend transition.

@@ -124,11 +124,11 @@ struct kmem_cache *drbd_request_cache;
 struct kmem_cache *drbd_ee_cache;	/* peer requests */
 struct kmem_cache *drbd_bm_ext_cache;	/* bitmap extents */
 struct kmem_cache *drbd_al_ext_cache;	/* activity log extents */
-mempool_t *drbd_request_mempool;
-mempool_t *drbd_ee_mempool;
-mempool_t *drbd_md_io_page_pool;
-struct bio_set *drbd_md_io_bio_set;
-struct bio_set *drbd_io_bio_set;
+mempool_t drbd_request_mempool;
+mempool_t drbd_ee_mempool;
+mempool_t drbd_md_io_page_pool;
+struct bio_set drbd_md_io_bio_set;
+struct bio_set drbd_io_bio_set;
 
 /* I do not use a standard mempool, because:
    1) I want to hand out the pre-allocated objects first.
@@ -153,10 +153,10 @@ struct bio *bio_alloc_drbd(gfp_t gfp_mask)
 {
 	struct bio *bio;
 
-	if (!drbd_md_io_bio_set)
+	if (!bioset_initialized(&drbd_md_io_bio_set))
 		return bio_alloc(gfp_mask, 1);
 
-	bio = bio_alloc_bioset(gfp_mask, 1, drbd_md_io_bio_set);
+	bio = bio_alloc_bioset(gfp_mask, 1, &drbd_md_io_bio_set);
 	if (!bio)
 		return NULL;
 	return bio;
@@ -511,7 +511,8 @@ static void drbd_calc_cpu_mask(cpumask_var_t *cpu_mask)
 {
 	unsigned int *resources_per_cpu, min_index = ~0;
 
-	resources_per_cpu = kzalloc(nr_cpu_ids * sizeof(*resources_per_cpu), GFP_KERNEL);
+	resources_per_cpu = kcalloc(nr_cpu_ids, sizeof(*resources_per_cpu),
+				    GFP_KERNEL);
 	if (resources_per_cpu) {
 		struct drbd_resource *resource;
 		unsigned int cpu, min = ~0;
@@ -2097,16 +2098,11 @@ static void drbd_destroy_mempools(void)
 
 	/* D_ASSERT(device, atomic_read(&drbd_pp_vacant)==0); */
 
-	if (drbd_io_bio_set)
-		bioset_free(drbd_io_bio_set);
-	if (drbd_md_io_bio_set)
-		bioset_free(drbd_md_io_bio_set);
-	if (drbd_md_io_page_pool)
-		mempool_destroy(drbd_md_io_page_pool);
-	if (drbd_ee_mempool)
-		mempool_destroy(drbd_ee_mempool);
-	if (drbd_request_mempool)
-		mempool_destroy(drbd_request_mempool);
+	bioset_exit(&drbd_io_bio_set);
+	bioset_exit(&drbd_md_io_bio_set);
+	mempool_exit(&drbd_md_io_page_pool);
+	mempool_exit(&drbd_ee_mempool);
+	mempool_exit(&drbd_request_mempool);
 	if (drbd_ee_cache)
 		kmem_cache_destroy(drbd_ee_cache);
 	if (drbd_request_cache)
@@ -2116,11 +2112,6 @@ static void drbd_destroy_mempools(void)
 	if (drbd_al_ext_cache)
 		kmem_cache_destroy(drbd_al_ext_cache);
 
-	drbd_io_bio_set      = NULL;
-	drbd_md_io_bio_set   = NULL;
-	drbd_md_io_page_pool = NULL;
-	drbd_ee_mempool      = NULL;
-	drbd_request_mempool = NULL;
 	drbd_ee_cache        = NULL;
 	drbd_request_cache   = NULL;
 	drbd_bm_ext_cache    = NULL;
@@ -2133,18 +2124,7 @@ static int drbd_create_mempools(void)
 {
 	struct page *page;
 	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count;
-	int i;
-
-	/* prepare our caches and mempools */
-	drbd_request_mempool = NULL;
-	drbd_ee_cache        = NULL;
-	drbd_request_cache   = NULL;
-	drbd_bm_ext_cache    = NULL;
-	drbd_al_ext_cache    = NULL;
-	drbd_pp_pool         = NULL;
-	drbd_md_io_page_pool = NULL;
-	drbd_md_io_bio_set   = NULL;
-	drbd_io_bio_set      = NULL;
+	int i, ret;
 
 	/* caches */
 	drbd_request_cache = kmem_cache_create(
@@ -2168,26 +2148,26 @@ static int drbd_create_mempools(void)
 		goto Enomem;
 
 	/* mempools */
-	drbd_io_bio_set = bioset_create(BIO_POOL_SIZE, 0, 0);
-	if (drbd_io_bio_set == NULL)
+	ret = bioset_init(&drbd_io_bio_set, BIO_POOL_SIZE, 0, 0);
+	if (ret)
 		goto Enomem;
 
-	drbd_md_io_bio_set = bioset_create(DRBD_MIN_POOL_PAGES, 0,
-					   BIOSET_NEED_BVECS);
-	if (drbd_md_io_bio_set == NULL)
+	ret = bioset_init(&drbd_md_io_bio_set, DRBD_MIN_POOL_PAGES, 0,
+			  BIOSET_NEED_BVECS);
+	if (ret)
 		goto Enomem;
 
-	drbd_md_io_page_pool = mempool_create_page_pool(DRBD_MIN_POOL_PAGES, 0);
-	if (drbd_md_io_page_pool == NULL)
+	ret = mempool_init_page_pool(&drbd_md_io_page_pool, DRBD_MIN_POOL_PAGES, 0);
+	if (ret)
 		goto Enomem;
 
-	drbd_request_mempool = mempool_create_slab_pool(number,
-		drbd_request_cache);
-	if (drbd_request_mempool == NULL)
+	ret = mempool_init_slab_pool(&drbd_request_mempool, number,
+				     drbd_request_cache);
+	if (ret)
 		goto Enomem;
 
-	drbd_ee_mempool = mempool_create_slab_pool(number, drbd_ee_cache);
-	if (drbd_ee_mempool == NULL)
+	ret = mempool_init_slab_pool(&drbd_ee_mempool, number, drbd_ee_cache);
+	if (ret)
 		goto Enomem;
 
 	/* drbd's page pool */
@@ -3010,7 +2990,7 @@ static int __init drbd_init(void)
 		goto fail;
 
 	err = -ENOMEM;
-	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
+	drbd_proc = proc_create_single("drbd", S_IFREG | 0444 , NULL, drbd_seq_show);
 	if (!drbd_proc)	{
 		pr_err("unable to register proc file\n");
 		goto fail;

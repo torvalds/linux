@@ -1,12 +1,18 @@
 menu "MediaTek pinctrl drivers"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 
+config EINT_MTK
+	bool "MediaTek External Interrupt Support"
+	depends on PINCTRL_MTK || PINCTRL_MT7622 || COMPILE_TEST
+	select IRQ_DOMAIN
+
 config PINCTRL_MTK
 	bool
 	depends on OF
 	select PINMUX
 	select GENERIC_PINCONF
 	select GPIOLIB
+	select EINT_MTK
 	select OF_GPIO
 
 # For ARMv7 SoCs

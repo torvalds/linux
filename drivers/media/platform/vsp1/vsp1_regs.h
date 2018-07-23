@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * vsp1_regs.h  --  R-Car VSP1 Registers Definitions
  *
  * Copyright (C) 2013 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #ifndef __VSP1_REGS_H__
@@ -311,6 +308,44 @@
 #define VI6_WPF_WRBCK_CTRL_WBMD		(1 << 0)
 
 /* -----------------------------------------------------------------------------
+ * UIF Control Registers
+ */
+
+#define VI6_UIF_OFFSET			0x100
+
+#define VI6_UIF_DISCOM_DOCMCR		0x1c00
+#define VI6_UIF_DISCOM_DOCMCR_CMPRU	(1 << 16)
+#define VI6_UIF_DISCOM_DOCMCR_CMPR	(1 << 0)
+
+#define VI6_UIF_DISCOM_DOCMSTR		0x1c04
+#define VI6_UIF_DISCOM_DOCMSTR_CMPPRE	(1 << 1)
+#define VI6_UIF_DISCOM_DOCMSTR_CMPST	(1 << 0)
+
+#define VI6_UIF_DISCOM_DOCMCLSTR	0x1c08
+#define VI6_UIF_DISCOM_DOCMCLSTR_CMPCLPRE	(1 << 1)
+#define VI6_UIF_DISCOM_DOCMCLSTR_CMPCLST	(1 << 0)
+
+#define VI6_UIF_DISCOM_DOCMIENR		0x1c0c
+#define VI6_UIF_DISCOM_DOCMIENR_CMPPREIEN	(1 << 1)
+#define VI6_UIF_DISCOM_DOCMIENR_CMPIEN		(1 << 0)
+
+#define VI6_UIF_DISCOM_DOCMMDR		0x1c10
+#define VI6_UIF_DISCOM_DOCMMDR_INTHRH(n)	((n) << 16)
+
+#define VI6_UIF_DISCOM_DOCMPMR		0x1c14
+#define VI6_UIF_DISCOM_DOCMPMR_CMPDFF(n)	((n) << 17)
+#define VI6_UIF_DISCOM_DOCMPMR_CMPDFA(n)	((n) << 8)
+#define VI6_UIF_DISCOM_DOCMPMR_CMPDAUF		(1 << 7)
+#define VI6_UIF_DISCOM_DOCMPMR_SEL(n)		((n) << 0)
+
+#define VI6_UIF_DISCOM_DOCMECRCR	0x1c18
+#define VI6_UIF_DISCOM_DOCMCCRCR	0x1c1c
+#define VI6_UIF_DISCOM_DOCMSPXR		0x1c20
+#define VI6_UIF_DISCOM_DOCMSPYR		0x1c24
+#define VI6_UIF_DISCOM_DOCMSZXR		0x1c28
+#define VI6_UIF_DISCOM_DOCMSZYR		0x1c2c
+
+/* -----------------------------------------------------------------------------
  * DPR Control Registers
  */
 
@@ -342,7 +377,10 @@
 #define VI6_DPR_SMPPT_PT_MASK		(0x3f << 0)
 #define VI6_DPR_SMPPT_PT_SHIFT		0
 
+#define VI6_DPR_UIF_ROUTE(n)		(0x2074 + (n) * 4)
+
 #define VI6_DPR_NODE_RPF(n)		(n)
+#define VI6_DPR_NODE_UIF(n)		(12 + (n))
 #define VI6_DPR_NODE_SRU		16
 #define VI6_DPR_NODE_UDS(n)		(17 + (n))
 #define VI6_DPR_NODE_LUT		22

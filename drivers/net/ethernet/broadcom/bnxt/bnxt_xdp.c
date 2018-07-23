@@ -113,10 +113,10 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	if (tx_avail != bp->tx_ring_size)
 		*event &= ~BNXT_RX_EVENT;
 
+	*len = xdp.data_end - xdp.data;
 	if (orig_data != xdp.data) {
 		offset = xdp.data - xdp.data_hard_start;
 		*data_ptr = xdp.data_hard_start + offset;
-		*len = xdp.data_end - xdp.data;
 	}
 	switch (act) {
 	case XDP_PASS:

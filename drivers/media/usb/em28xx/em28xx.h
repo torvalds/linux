@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
  *		      Ludovico Cavedon <cavedon@sssup.it>
- *		      Mauro Carvalho Chehab <mchehab@infradead.org>
+ *		      Mauro Carvalho Chehab <mchehab@kernel.org>
  * Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
  *
  * Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>
@@ -148,6 +148,7 @@
 #define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB  99
 #define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 100
 #define EM2884_BOARD_TERRATEC_H6		  101
+#define EM2882_BOARD_ZOLID_HYBRID_TV_STICK		102
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

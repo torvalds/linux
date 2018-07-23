@@ -19,6 +19,7 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/ptr_ring.h>
+#include <net/xdp.h>
 
 #include <linux/sched.h>
 #include <linux/workqueue.h>
@@ -137,27 +138,6 @@ free_cmap:
 	return ERR_PTR(err);
 }
 
-static void __cpu_map_queue_destructor(void *ptr)
-{
-	/* The tear-down procedure should have made sure that queue is
-	 * empty.  See __cpu_map_entry_replace() and work-queue
-	 * invoked cpu_map_kthread_stop(). Catch any broken behaviour
-	 * gracefully and warn once.
-	 */
-	if (WARN_ON_ONCE(ptr))
-		page_frag_free(ptr);
-}
-
-static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
-{
-	if (atomic_dec_and_test(&rcpu->refcnt)) {
-		/* The queue should be empty at this point */
-		ptr_ring_cleanup(rcpu->queue, __cpu_map_queue_destructor);
-		kfree(rcpu->queue);
-		kfree(rcpu);
-	}
-}
-
 static void get_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
 {
 	atomic_inc(&rcpu->refcnt);
@@ -179,45 +159,8 @@ static void cpu_map_kthread_stop(struct work_struct *work)
 	kthread_stop(rcpu->kthread);
 }
 
-/* For now, xdp_pkt is a cpumap internal data structure, with info
- * carried between enqueue to dequeue. It is mapped into the top
- * headroom of the packet, to avoid allocating separate mem.
- */
-struct xdp_pkt {
-	void *data;
-	u16 len;
-	u16 headroom;
-	u16 metasize;
-	struct net_device *dev_rx;
-};
-
-/* Convert xdp_buff to xdp_pkt */
-static struct xdp_pkt *convert_to_xdp_pkt(struct xdp_buff *xdp)
-{
-	struct xdp_pkt *xdp_pkt;
-	int metasize;
-	int headroom;
-
-	/* Assure headroom is available for storing info */
-	headroom = xdp->data - xdp->data_hard_start;
-	metasize = xdp->data - xdp->data_meta;
-	metasize = metasize > 0 ? metasize : 0;
-	if (unlikely((headroom - metasize) < sizeof(*xdp_pkt)))
-		return NULL;
-
-	/* Store info in top of packet */
-	xdp_pkt = xdp->data_hard_start;
-
-	xdp_pkt->data = xdp->data;
-	xdp_pkt->len  = xdp->data_end - xdp->data;
-	xdp_pkt->headroom = headroom - sizeof(*xdp_pkt);
-	xdp_pkt->metasize = metasize;
-
-	return xdp_pkt;
-}
-
 static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
-					 struct xdp_pkt *xdp_pkt)
+					 struct xdp_frame *xdpf)
 {
 	unsigned int frame_size;
 	void *pkt_data_start;
@@ -232,7 +175,7 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 	 * would be preferred to set frame_size to 2048 or 4096
 	 * depending on the driver.
 	 *   frame_size = 2048;
-	 *   frame_len  = frame_size - sizeof(*xdp_pkt);
+	 *   frame_len  = frame_size - sizeof(*xdp_frame);
 	 *
 	 * Instead, with info avail, skb_shared_info in placed after
 	 * packet len.  This, unfortunately fakes the truesize.
@@ -240,21 +183,21 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 	 * is not at a fixed memory location, with mixed length
 	 * packets, which is bad for cache-line hotness.
 	 */
-	frame_size = SKB_DATA_ALIGN(xdp_pkt->len) + xdp_pkt->headroom +
+	frame_size = SKB_DATA_ALIGN(xdpf->len) + xdpf->headroom +
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-	pkt_data_start = xdp_pkt->data - xdp_pkt->headroom;
+	pkt_data_start = xdpf->data - xdpf->headroom;
 	skb = build_skb(pkt_data_start, frame_size);
 	if (!skb)
 		return NULL;
 
-	skb_reserve(skb, xdp_pkt->headroom);
-	__skb_put(skb, xdp_pkt->len);
-	if (xdp_pkt->metasize)
-		skb_metadata_set(skb, xdp_pkt->metasize);
+	skb_reserve(skb, xdpf->headroom);
+	__skb_put(skb, xdpf->len);
+	if (xdpf->metasize)
+		skb_metadata_set(skb, xdpf->metasize);
 
 	/* Essential SKB info: protocol and skb->dev */
-	skb->protocol = eth_type_trans(skb, xdp_pkt->dev_rx);
+	skb->protocol = eth_type_trans(skb, xdpf->dev_rx);
 
 	/* Optional SKB info, currently missing:
 	 * - HW checksum info		(skb->ip_summed)
@@ -263,6 +206,31 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 	 */
 
 	return skb;
+}
+
+static void __cpu_map_ring_cleanup(struct ptr_ring *ring)
+{
+	/* The tear-down procedure should have made sure that queue is
+	 * empty.  See __cpu_map_entry_replace() and work-queue
+	 * invoked cpu_map_kthread_stop(). Catch any broken behaviour
+	 * gracefully and warn once.
+	 */
+	struct xdp_frame *xdpf;
+
+	while ((xdpf = ptr_ring_consume(ring)))
+		if (WARN_ON_ONCE(xdpf))
+			xdp_return_frame(xdpf);
+}
+
+static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
+{
+	if (atomic_dec_and_test(&rcpu->refcnt)) {
+		/* The queue should be empty at this point */
+		__cpu_map_ring_cleanup(rcpu->queue);
+		ptr_ring_cleanup(rcpu->queue, NULL);
+		kfree(rcpu->queue);
+		kfree(rcpu);
+	}
 }
 
 static int cpu_map_kthread_run(void *data)
@@ -278,7 +246,7 @@ static int cpu_map_kthread_run(void *data)
 	 */
 	while (!kthread_should_stop() || !__ptr_ring_empty(rcpu->queue)) {
 		unsigned int processed = 0, drops = 0, sched = 0;
-		struct xdp_pkt *xdp_pkt;
+		struct xdp_frame *xdpf;
 
 		/* Release CPU reschedule checks */
 		if (__ptr_ring_empty(rcpu->queue)) {
@@ -301,13 +269,13 @@ static int cpu_map_kthread_run(void *data)
 		 * kthread CPU pinned. Lockless access to ptr_ring
 		 * consume side valid as no-resize allowed of queue.
 		 */
-		while ((xdp_pkt = __ptr_ring_consume(rcpu->queue))) {
+		while ((xdpf = __ptr_ring_consume(rcpu->queue))) {
 			struct sk_buff *skb;
 			int ret;
 
-			skb = cpu_map_build_skb(rcpu, xdp_pkt);
+			skb = cpu_map_build_skb(rcpu, xdpf);
 			if (!skb) {
-				page_frag_free(xdp_pkt);
+				xdp_return_frame(xdpf);
 				continue;
 			}
 
@@ -604,13 +572,13 @@ static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
 	spin_lock(&q->producer_lock);
 
 	for (i = 0; i < bq->count; i++) {
-		void *xdp_pkt = bq->q[i];
+		struct xdp_frame *xdpf = bq->q[i];
 		int err;
 
-		err = __ptr_ring_produce(q, xdp_pkt);
+		err = __ptr_ring_produce(q, xdpf);
 		if (err) {
 			drops++;
-			page_frag_free(xdp_pkt); /* Free xdp_pkt */
+			xdp_return_frame_rx_napi(xdpf);
 		}
 		processed++;
 	}
@@ -625,7 +593,7 @@ static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
 /* Runs under RCU-read-side, plus in softirq under NAPI protection.
  * Thus, safe percpu variable access.
  */
-static int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_pkt *xdp_pkt)
+static int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_frame *xdpf)
 {
 	struct xdp_bulk_queue *bq = this_cpu_ptr(rcpu->bulkq);
 
@@ -636,28 +604,28 @@ static int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_pkt *xdp_pkt)
 	 * driver to code invoking us to finished, due to driver
 	 * (e.g. ixgbe) recycle tricks based on page-refcnt.
 	 *
-	 * Thus, incoming xdp_pkt is always queued here (else we race
+	 * Thus, incoming xdp_frame is always queued here (else we race
 	 * with another CPU on page-refcnt and remaining driver code).
 	 * Queue time is very short, as driver will invoke flush
 	 * operation, when completing napi->poll call.
 	 */
-	bq->q[bq->count++] = xdp_pkt;
+	bq->q[bq->count++] = xdpf;
 	return 0;
 }
 
 int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 		    struct net_device *dev_rx)
 {
-	struct xdp_pkt *xdp_pkt;
+	struct xdp_frame *xdpf;
 
-	xdp_pkt = convert_to_xdp_pkt(xdp);
-	if (unlikely(!xdp_pkt))
+	xdpf = convert_to_xdp_frame(xdp);
+	if (unlikely(!xdpf))
 		return -EOVERFLOW;
 
 	/* Info needed when constructing SKB on remote CPU */
-	xdp_pkt->dev_rx = dev_rx;
+	xdpf->dev_rx = dev_rx;
 
-	bq_enqueue(rcpu, xdp_pkt);
+	bq_enqueue(rcpu, xdpf);
 	return 0;
 }
 

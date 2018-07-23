@@ -19,9 +19,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include "modpost.h"
-#include "../../include/generated/autoconf.h"
 #include "../../include/linux/license.h"
-#include "../../include/linux/export.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
 static int modversions = 0;
@@ -123,7 +121,7 @@ void *do_nofail(void *ptr, const char *expr)
 /* A list of all modules we processed */
 static struct module *modules;
 
-static struct module *find_module(char *modname)
+static struct module *find_module(const char *modname)
 {
 	struct module *mod;
 
@@ -591,34 +589,31 @@ static void parse_elf_finish(struct elf_info *info)
 static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 {
 	/* ignore __this_module, it will be resolved shortly */
-	if (strcmp(symname, VMLINUX_SYMBOL_STR(__this_module)) == 0)
+	if (strcmp(symname, "__this_module") == 0)
 		return 1;
 	/* ignore global offset table */
 	if (strcmp(symname, "_GLOBAL_OFFSET_TABLE_") == 0)
 		return 1;
 	if (info->hdr->e_machine == EM_PPC)
 		/* Special register function linked on all modules during final link of .ko */
-		if (strncmp(symname, "_restgpr_", sizeof("_restgpr_") - 1) == 0 ||
-		    strncmp(symname, "_savegpr_", sizeof("_savegpr_") - 1) == 0 ||
-		    strncmp(symname, "_rest32gpr_", sizeof("_rest32gpr_") - 1) == 0 ||
-		    strncmp(symname, "_save32gpr_", sizeof("_save32gpr_") - 1) == 0 ||
-		    strncmp(symname, "_restvr_", sizeof("_restvr_") - 1) == 0 ||
-		    strncmp(symname, "_savevr_", sizeof("_savevr_") - 1) == 0)
+		if (strstarts(symname, "_restgpr_") ||
+		    strstarts(symname, "_savegpr_") ||
+		    strstarts(symname, "_rest32gpr_") ||
+		    strstarts(symname, "_save32gpr_") ||
+		    strstarts(symname, "_restvr_") ||
+		    strstarts(symname, "_savevr_"))
 			return 1;
 	if (info->hdr->e_machine == EM_PPC64)
 		/* Special register function linked on all modules during final link of .ko */
-		if (strncmp(symname, "_restgpr0_", sizeof("_restgpr0_") - 1) == 0 ||
-		    strncmp(symname, "_savegpr0_", sizeof("_savegpr0_") - 1) == 0 ||
-		    strncmp(symname, "_restvr_", sizeof("_restvr_") - 1) == 0 ||
-		    strncmp(symname, "_savevr_", sizeof("_savevr_") - 1) == 0 ||
+		if (strstarts(symname, "_restgpr0_") ||
+		    strstarts(symname, "_savegpr0_") ||
+		    strstarts(symname, "_restvr_") ||
+		    strstarts(symname, "_savevr_") ||
 		    strcmp(symname, ".TOC.") == 0)
 			return 1;
 	/* Do not ignore this symbol */
 	return 0;
 }
-
-#define CRC_PFX     VMLINUX_SYMBOL_STR(__crc_)
-#define KSYMTAB_PFX VMLINUX_SYMBOL_STR(__ksymtab_)
 
 static void handle_modversions(struct module *mod, struct elf_info *info,
 			       Elf_Sym *sym, const char *symname)
@@ -628,13 +623,13 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 	bool is_crc = false;
 
 	if ((!is_vmlinux(mod->name) || mod->is_dot_o) &&
-	    strncmp(symname, "__ksymtab", 9) == 0)
+	    strstarts(symname, "__ksymtab"))
 		export = export_from_secname(info, get_secindex(info, sym));
 	else
 		export = export_from_sec(info, get_secindex(info, sym));
 
 	/* CRC'd symbol */
-	if (strncmp(symname, CRC_PFX, strlen(CRC_PFX)) == 0) {
+	if (strstarts(symname, "__crc_")) {
 		is_crc = true;
 		crc = (unsigned int) sym->st_value;
 		if (sym->st_shndx != SHN_UNDEF && sym->st_shndx != SHN_ABS) {
@@ -647,13 +642,13 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 				info->sechdrs[sym->st_shndx].sh_addr : 0);
 			crc = *crcp;
 		}
-		sym_update_crc(symname + strlen(CRC_PFX), mod, crc,
+		sym_update_crc(symname + strlen("__crc_"), mod, crc,
 				export);
 	}
 
 	switch (sym->st_shndx) {
 	case SHN_COMMON:
-		if (!strncmp(symname, "__gnu_lto_", sizeof("__gnu_lto_")-1)) {
+		if (strstarts(symname, "__gnu_lto_")) {
 			/* Should warn here, but modpost runs before the linker */
 		} else
 			warn("\"%s\" [%s] is COMMON symbol\n", symname, mod->name);
@@ -685,15 +680,10 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 		}
 #endif
 
-#ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
-		if (symname[0] != '_')
-			break;
-		else
-			symname++;
-#endif
 		if (is_crc) {
 			const char *e = is_vmlinux(mod->name) ?"":".ko";
-			warn("EXPORT symbol \"%s\" [%s%s] version generation failed, symbol will not be versioned.\n", symname + strlen(CRC_PFX), mod->name, e);
+			warn("EXPORT symbol \"%s\" [%s%s] version generation failed, symbol will not be versioned.\n",
+			     symname + strlen("__crc_"), mod->name, e);
 		}
 		mod->unres = alloc_symbol(symname,
 					  ELF_ST_BIND(sym->st_info) == STB_WEAK,
@@ -701,13 +691,13 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 		break;
 	default:
 		/* All exported symbols */
-		if (strncmp(symname, KSYMTAB_PFX, strlen(KSYMTAB_PFX)) == 0) {
-			sym_add_exported(symname + strlen(KSYMTAB_PFX), mod,
+		if (strstarts(symname, "__ksymtab_")) {
+			sym_add_exported(symname + strlen("__ksymtab_"), mod,
 					export);
 		}
-		if (strcmp(symname, VMLINUX_SYMBOL_STR(init_module)) == 0)
+		if (strcmp(symname, "init_module") == 0)
 			mod->has_init = 1;
-		if (strcmp(symname, VMLINUX_SYMBOL_STR(cleanup_module)) == 0)
+		if (strcmp(symname, "cleanup_module") == 0)
 			mod->has_cleanup = 1;
 		break;
 	}
@@ -734,16 +724,17 @@ static char *next_string(char *string, unsigned long *secsize)
 	return string;
 }
 
-static char *get_next_modinfo(void *modinfo, unsigned long modinfo_len,
-			      const char *tag, char *info)
+static char *get_next_modinfo(struct elf_info *info, const char *tag,
+			      char *prev)
 {
 	char *p;
 	unsigned int taglen = strlen(tag);
-	unsigned long size = modinfo_len;
+	char *modinfo = info->modinfo;
+	unsigned long size = info->modinfo_len;
 
-	if (info) {
-		size -= info - (char *)modinfo;
-		modinfo = next_string(info, &size);
+	if (prev) {
+		size -= prev - modinfo;
+		modinfo = next_string(prev, &size);
 	}
 
 	for (p = modinfo; p; p = next_string(p, &size)) {
@@ -753,11 +744,10 @@ static char *get_next_modinfo(void *modinfo, unsigned long modinfo_len,
 	return NULL;
 }
 
-static char *get_modinfo(void *modinfo, unsigned long modinfo_len,
-			 const char *tag)
+static char *get_modinfo(struct elf_info *info, const char *tag)
 
 {
-	return get_next_modinfo(modinfo, modinfo_len, tag, NULL);
+	return get_next_modinfo(info, tag, NULL);
 }
 
 /**
@@ -1181,13 +1171,13 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 	/* Check for pattern 1 */
 	if (match(tosec, init_data_sections) &&
 	    match(fromsec, data_sections) &&
-	    (strncmp(fromsym, "__param", strlen("__param")) == 0))
+	    strstarts(fromsym, "__param"))
 		return 0;
 
 	/* Check for pattern 1a */
 	if (strcmp(tosec, ".init.text") == 0 &&
 	    match(fromsec, data_sections) &&
-	    (strncmp(fromsym, "__param_ops_", strlen("__param_ops_")) == 0))
+	    strstarts(fromsym, "__param_ops_"))
 		return 0;
 
 	/* Check for pattern 2 */
@@ -1542,8 +1532,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	from = find_elf_symbol2(elf, r->r_offset, fromsec);
 	fromsym = sym_name(elf, from);
 
-	if (!strncmp(fromsym, "reference___initcall",
-		     sizeof("reference___initcall")-1))
+	if (strstarts(fromsym, "reference___initcall"))
 		return;
 
 	tosec = sec_name(elf, get_secindex(elf, sym));
@@ -1940,7 +1929,7 @@ static char *remove_dot(char *s)
 	return s;
 }
 
-static void read_symbols(char *modname)
+static void read_symbols(const char *modname)
 {
 	const char *symname;
 	char *version;
@@ -1961,7 +1950,7 @@ static void read_symbols(char *modname)
 		mod->skip = 1;
 	}
 
-	license = get_modinfo(info.modinfo, info.modinfo_len, "license");
+	license = get_modinfo(&info, "license");
 	if (!license && !is_vmlinux(modname))
 		warn("modpost: missing MODULE_LICENSE() in %s\n"
 		     "see include/linux/module.h for "
@@ -1973,8 +1962,7 @@ static void read_symbols(char *modname)
 			mod->gpl_compatible = 0;
 			break;
 		}
-		license = get_next_modinfo(info.modinfo, info.modinfo_len,
-					   "license", license);
+		license = get_next_modinfo(&info, "license", license);
 	}
 
 	for (sym = info.symtab_start; sym < info.symtab_stop; sym++) {
@@ -1983,11 +1971,10 @@ static void read_symbols(char *modname)
 		handle_modversions(mod, &info, sym, symname);
 		handle_moddevtable(mod, &info, sym, symname);
 	}
-	if (!is_vmlinux(modname) ||
-	     (is_vmlinux(modname) && vmlinux_section_warnings))
+	if (!is_vmlinux(modname) || vmlinux_section_warnings)
 		check_sec_ref(mod, modname, &info);
 
-	version = get_modinfo(info.modinfo, info.modinfo_len, "version");
+	version = get_modinfo(&info, "version");
 	if (version)
 		maybe_frob_rcs_version(modname, version, info.modinfo,
 				       version - (char *)info.hdr);
@@ -2174,9 +2161,7 @@ static void add_retpoline(struct buffer *b)
 
 static void add_staging_flag(struct buffer *b, const char *name)
 {
-	static const char *staging_dir = "drivers/staging";
-
-	if (strncmp(staging_dir, name, strlen(staging_dir)) == 0)
+	if (strstarts(name, "drivers/staging"))
 		buf_printf(b, "\nMODULE_INFO(staging, \"Y\");\n");
 }
 
@@ -2230,7 +2215,7 @@ static int add_versions(struct buffer *b, struct module *mod)
 			err = 1;
 			break;
 		}
-		buf_printf(b, "\t{ %#8x, __VMLINUX_SYMBOL_STR(%s) },\n",
+		buf_printf(b, "\t{ %#8x, \"%s\" },\n",
 			   s->crc, s->name);
 	}
 

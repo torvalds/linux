@@ -383,6 +383,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	 */
 
 	PPC_LL	r6, HSTATE_HOST_MSR(r13)
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/*
+	 * We don't want to change MSR[TS] bits via rfi here.
+	 * The actual TM handling logic will be in host with
+	 * recovered DR/IR bits after HSTATE_VMHANDLER.
+	 * And MSR_TM can be enabled in HOST_MSR so rfid may
+	 * not suppress this change and can lead to exception.
+	 * Manually set MSR to prevent TS state change here.
+	 */
+	mfmsr   r7
+	rldicl  r7, r7, 64 - MSR_TS_S_LG, 62
+	rldimi  r6, r7, MSR_TS_S_LG, 63 - MSR_TS_T_LG
+#endif
 	PPC_LL	r8, HSTATE_VMHANDLER(r13)
 
 #ifdef CONFIG_PPC64

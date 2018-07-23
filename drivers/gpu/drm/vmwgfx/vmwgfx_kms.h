@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -90,7 +90,7 @@ struct vmw_kms_dirty {
 #define vmw_framebuffer_to_vfbs(x) \
 	container_of(x, struct vmw_framebuffer_surface, base.base)
 #define vmw_framebuffer_to_vfbd(x) \
-	container_of(x, struct vmw_framebuffer_dmabuf, base.base)
+	container_of(x, struct vmw_framebuffer_bo, base.base)
 
 /**
  * Base class for framebuffers
@@ -102,7 +102,7 @@ struct vmw_framebuffer {
 	struct drm_framebuffer base;
 	int (*pin)(struct vmw_framebuffer *fb);
 	int (*unpin)(struct vmw_framebuffer *fb);
-	bool dmabuf;
+	bool bo;
 	struct ttm_base_object *user_obj;
 	uint32_t user_handle;
 };
@@ -117,15 +117,15 @@ struct vmw_clip_rect {
 struct vmw_framebuffer_surface {
 	struct vmw_framebuffer base;
 	struct vmw_surface *surface;
-	struct vmw_dma_buffer *buffer;
+	struct vmw_buffer_object *buffer;
 	struct list_head head;
-	bool is_dmabuf_proxy;  /* true if this is proxy surface for DMA buf */
+	bool is_bo_proxy;  /* true if this is proxy surface for DMA buf */
 };
 
 
-struct vmw_framebuffer_dmabuf {
+struct vmw_framebuffer_bo {
 	struct vmw_framebuffer base;
-	struct vmw_dma_buffer *buffer;
+	struct vmw_buffer_object *buffer;
 };
 
 
@@ -161,18 +161,18 @@ struct vmw_crtc_state {
  *
  * @base DRM plane object
  * @surf Display surface for STDU
- * @dmabuf display dmabuf for SOU
+ * @bo display bo for SOU
  * @content_fb_type Used by STDU.
- * @dmabuf_size Size of the dmabuf, used by Screen Object Display Unit
+ * @bo_size Size of the bo, used by Screen Object Display Unit
  * @pinned pin count for STDU display surface
  */
 struct vmw_plane_state {
 	struct drm_plane_state base;
 	struct vmw_surface *surf;
-	struct vmw_dma_buffer *dmabuf;
+	struct vmw_buffer_object *bo;
 
 	int content_fb_type;
-	unsigned long dmabuf_size;
+	unsigned long bo_size;
 
 	int pinned;
 
@@ -192,6 +192,24 @@ struct vmw_connector_state {
 	struct drm_connector_state base;
 
 	bool is_implicit;
+
+	/**
+	 * @gui_x:
+	 *
+	 * vmwgfx connector property representing the x position of this display
+	 * unit (connector is synonymous to display unit) in overall topology.
+	 * This is what the device expect as xRoot while creating screen.
+	 */
+	int gui_x;
+
+	/**
+	 * @gui_y:
+	 *
+	 * vmwgfx connector property representing the y position of this display
+	 * unit (connector is synonymous to display unit) in overall topology.
+	 * This is what the device expect as yRoot while creating screen.
+	 */
+	int gui_y;
 };
 
 /**
@@ -209,7 +227,7 @@ struct vmw_display_unit {
 	struct drm_plane cursor;
 
 	struct vmw_surface *cursor_surface;
-	struct vmw_dma_buffer *cursor_dmabuf;
+	struct vmw_buffer_object *cursor_bo;
 	size_t cursor_age;
 
 	int cursor_x;
@@ -243,7 +261,7 @@ struct vmw_display_unit {
 
 struct vmw_validation_ctx {
 	struct vmw_resource *res;
-	struct vmw_dma_buffer *buf;
+	struct vmw_buffer_object *buf;
 };
 
 #define vmw_crtc_to_du(x) \
@@ -291,14 +309,14 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 			 struct vmw_kms_dirty *dirty);
 
 int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
-				  struct vmw_dma_buffer *buf,
+				  struct vmw_buffer_object *buf,
 				  bool interruptible,
 				  bool validate_as_mob,
 				  bool for_cpu_blit);
-void vmw_kms_helper_buffer_revert(struct vmw_dma_buffer *buf);
+void vmw_kms_helper_buffer_revert(struct vmw_buffer_object *buf);
 void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 				  struct drm_file *file_priv,
-				  struct vmw_dma_buffer *buf,
+				  struct vmw_buffer_object *buf,
 				  struct vmw_fence_obj **out_fence,
 				  struct drm_vmw_fence_rep __user *
 				  user_fence_rep);
@@ -316,7 +334,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 		     uint32_t num_clips);
 struct vmw_framebuffer *
 vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
-			struct vmw_dma_buffer *dmabuf,
+			struct vmw_buffer_object *bo,
 			struct vmw_surface *surface,
 			bool only_2d,
 			const struct drm_mode_fb_cmd2 *mode_cmd);
@@ -384,11 +402,11 @@ void vmw_du_connector_destroy_state(struct drm_connector *connector,
  */
 int vmw_kms_ldu_init_display(struct vmw_private *dev_priv);
 int vmw_kms_ldu_close_display(struct vmw_private *dev_priv);
-int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
-				struct vmw_framebuffer *framebuffer,
-				unsigned flags, unsigned color,
-				struct drm_clip_rect *clips,
-				unsigned num_clips, int increment);
+int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
+			    struct vmw_framebuffer *framebuffer,
+			    unsigned int flags, unsigned int color,
+			    struct drm_clip_rect *clips,
+			    unsigned int num_clips, int increment);
 int vmw_kms_update_proxy(struct vmw_resource *res,
 			 const struct drm_clip_rect *clips,
 			 unsigned num_clips,
@@ -408,14 +426,14 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 				 unsigned num_clips, int inc,
 				 struct vmw_fence_obj **out_fence,
 				 struct drm_crtc *crtc);
-int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
-				struct vmw_framebuffer *framebuffer,
-				struct drm_clip_rect *clips,
-				struct drm_vmw_rect *vclips,
-				unsigned num_clips, int increment,
-				bool interruptible,
-				struct vmw_fence_obj **out_fence,
-				struct drm_crtc *crtc);
+int vmw_kms_sou_do_bo_dirty(struct vmw_private *dev_priv,
+			    struct vmw_framebuffer *framebuffer,
+			    struct drm_clip_rect *clips,
+			    struct drm_vmw_rect *vclips,
+			    unsigned int num_clips, int increment,
+			    bool interruptible,
+			    struct vmw_fence_obj **out_fence,
+			    struct drm_crtc *crtc);
 int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 			 struct drm_file *file_priv,
 			 struct vmw_framebuffer *vfb,

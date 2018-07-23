@@ -371,9 +371,7 @@ static int initialize_timer(struct snd_seq_timer *tmr)
 
 	tmr->ticks = 1;
 	if (!(t->hw.flags & SNDRV_TIMER_HW_SLAVE)) {
-		unsigned long r = t->hw.resolution;
-		if (! r && t->hw.c_resolution)
-			r = t->hw.c_resolution(t);
+		unsigned long r = snd_timer_resolution(tmr->timeri);
 		if (r) {
 			tmr->ticks = (unsigned int)(1000000000uL / (r * freq));
 			if (! tmr->ticks)

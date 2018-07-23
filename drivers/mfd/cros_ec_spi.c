@@ -419,10 +419,25 @@ static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 		/* Verify that EC can process command */
 		for (i = 0; i < len; i++) {
 			rx_byte = rx_buf[i];
+			/*
+			 * Seeing the PAST_END, RX_BAD_DATA, or NOT_READY
+			 * markers are all signs that the EC didn't fully
+			 * receive our command. e.g., if the EC is flashing
+			 * itself, it can't respond to any commands and instead
+			 * clocks out EC_SPI_PAST_END from its SPI hardware
+			 * buffer. Similar occurrences can happen if the AP is
+			 * too slow to clock out data after asserting CS -- the
+			 * EC will abort and fill its buffer with
+			 * EC_SPI_RX_BAD_DATA.
+			 *
+			 * In all cases, these errors should be safe to retry.
+			 * Report -EAGAIN and let the caller decide what to do
+			 * about that.
+			 */
 			if (rx_byte == EC_SPI_PAST_END  ||
 			    rx_byte == EC_SPI_RX_BAD_DATA ||
 			    rx_byte == EC_SPI_NOT_READY) {
-				ret = -EREMOTEIO;
+				ret = -EAGAIN;
 				break;
 			}
 		}
@@ -431,7 +446,7 @@ static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	if (!ret)
 		ret = cros_ec_spi_receive_packet(ec_dev,
 				ec_msg->insize + sizeof(*response));
-	else
+	else if (ret != -EAGAIN)
 		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 
 	final_ret = terminate_request(ec_dev);
@@ -537,10 +552,11 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 		/* Verify that EC can process command */
 		for (i = 0; i < len; i++) {
 			rx_byte = rx_buf[i];
+			/* See comments in cros_ec_pkt_xfer_spi() */
 			if (rx_byte == EC_SPI_PAST_END  ||
 			    rx_byte == EC_SPI_RX_BAD_DATA ||
 			    rx_byte == EC_SPI_NOT_READY) {
-				ret = -EREMOTEIO;
+				ret = -EAGAIN;
 				break;
 			}
 		}
@@ -549,7 +565,7 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	if (!ret)
 		ret = cros_ec_spi_receive_response(ec_dev,
 				ec_msg->insize + EC_MSG_TX_PROTO_BYTES);
-	else
+	else if (ret != -EAGAIN)
 		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 
 	final_ret = terminate_request(ec_dev);

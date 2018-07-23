@@ -471,8 +471,8 @@ void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
 						RENG_EXECUTE_ON_REG_UPDATE, 1);
 		WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE, pctl1_reng_execute);
 
-		if (adev->powerplay.pp_funcs->set_mmhub_powergating_by_smu)
-			amdgpu_dpm_set_mmhub_powergating_by_smu(adev);
+		if (adev->powerplay.pp_funcs->set_powergating_by_smu)
+			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GMC, true);
 
 	} else {
 		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
@@ -734,6 +734,7 @@ int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		mmhub_v1_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);

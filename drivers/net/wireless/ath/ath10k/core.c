@@ -90,6 +90,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA988X_HW_2_0_VERSION,
@@ -119,6 +121,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -148,6 +153,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -176,6 +184,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -204,6 +215,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -232,6 +246,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -263,6 +280,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -297,6 +317,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -336,6 +359,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -374,6 +400,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -402,6 +431,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -432,6 +464,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -467,6 +502,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+		.per_ce_irq = false,
+		.shadow_reg_support = false,
+		.rri_on_ddr = false,
 	},
 	{
 		.id = WCN3990_HW_1_0_DEV_VERSION,
@@ -487,6 +525,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = TARGET_HL_10_TLV_NUM_WDS_ENTRIES,
 		.target_64bit = true,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL_DUAL_MAC,
+		.per_ce_irq = true,
+		.shadow_reg_support = true,
+		.rri_on_ddr = true,
 	},
 };
 
@@ -653,7 +694,7 @@ static const struct firmware *ath10k_fetch_fw_file(struct ath10k *ar,
 		dir = ".";
 
 	snprintf(filename, sizeof(filename), "%s/%s", dir, file);
-	ret = request_firmware(&fw, filename, ar->dev);
+	ret = firmware_request_nowarn(&fw, filename, ar->dev);
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot fw request '%s': %d\n",
 		   filename, ret);
 
@@ -1253,14 +1294,61 @@ out:
 	return ret;
 }
 
+static int ath10k_core_search_bd(struct ath10k *ar,
+				 const char *boardname,
+				 const u8 *data,
+				 size_t len)
+{
+	size_t ie_len;
+	struct ath10k_fw_ie *hdr;
+	int ret = -ENOENT, ie_id;
+
+	while (len > sizeof(struct ath10k_fw_ie)) {
+		hdr = (struct ath10k_fw_ie *)data;
+		ie_id = le32_to_cpu(hdr->id);
+		ie_len = le32_to_cpu(hdr->len);
+
+		len -= sizeof(*hdr);
+		data = hdr->data;
+
+		if (len < ALIGN(ie_len, 4)) {
+			ath10k_err(ar, "invalid length for board ie_id %d ie_len %zu len %zu\n",
+				   ie_id, ie_len, len);
+			return -EINVAL;
+		}
+
+		switch (ie_id) {
+		case ATH10K_BD_IE_BOARD:
+			ret = ath10k_core_parse_bd_ie_board(ar, data, ie_len,
+							    boardname);
+			if (ret == -ENOENT)
+				/* no match found, continue */
+				break;
+
+			/* either found or error, so stop searching */
+			goto out;
+		}
+
+		/* jump over the padding */
+		ie_len = ALIGN(ie_len, 4);
+
+		len -= ie_len;
+		data += ie_len;
+	}
+
+out:
+	/* return result of parse_bd_ie_board() or -ENOENT */
+	return ret;
+}
+
 static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 					      const char *boardname,
+					      const char *fallback_boardname,
 					      const char *filename)
 {
-	size_t len, magic_len, ie_len;
-	struct ath10k_fw_ie *hdr;
+	size_t len, magic_len;
 	const u8 *data;
-	int ret, ie_id;
+	int ret;
 
 	ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
 							ar->hw_params.fw.dir,
@@ -1298,68 +1386,22 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 	data += magic_len;
 	len -= magic_len;
 
-	while (len > sizeof(struct ath10k_fw_ie)) {
-		hdr = (struct ath10k_fw_ie *)data;
-		ie_id = le32_to_cpu(hdr->id);
-		ie_len = le32_to_cpu(hdr->len);
+	/* attempt to find boardname in the IE list */
+	ret = ath10k_core_search_bd(ar, boardname, data, len);
 
-		len -= sizeof(*hdr);
-		data = hdr->data;
+	/* if we didn't find it and have a fallback name, try that */
+	if (ret == -ENOENT && fallback_boardname)
+		ret = ath10k_core_search_bd(ar, fallback_boardname, data, len);
 
-		if (len < ALIGN(ie_len, 4)) {
-			ath10k_err(ar, "invalid length for board ie_id %d ie_len %zu len %zu\n",
-				   ie_id, ie_len, len);
-			ret = -EINVAL;
-			goto err;
-		}
-
-		switch (ie_id) {
-		case ATH10K_BD_IE_BOARD:
-			ret = ath10k_core_parse_bd_ie_board(ar, data, ie_len,
-							    boardname);
-			if (ret == -ENOENT && ar->id.bdf_ext[0] != '\0') {
-				/* try default bdf if variant was not found */
-				char *s, *v = ",variant=";
-				char boardname2[100];
-
-				strlcpy(boardname2, boardname,
-					sizeof(boardname2));
-
-				s = strstr(boardname2, v);
-				if (s)
-					*s = '\0';  /* strip ",variant=%s" */
-
-				ret = ath10k_core_parse_bd_ie_board(ar, data,
-								    ie_len,
-								    boardname2);
-			}
-
-			if (ret == -ENOENT)
-				/* no match found, continue */
-				break;
-			else if (ret)
-				/* there was an error, bail out */
-				goto err;
-
-			/* board data found */
-			goto out;
-		}
-
-		/* jump over the padding */
-		ie_len = ALIGN(ie_len, 4);
-
-		len -= ie_len;
-		data += ie_len;
-	}
-
-out:
-	if (!ar->normal_mode_fw.board_data || !ar->normal_mode_fw.board_len) {
+	if (ret == -ENOENT) {
 		ath10k_err(ar,
 			   "failed to fetch board data for %s from %s/%s\n",
 			   boardname, ar->hw_params.fw.dir, filename);
 		ret = -ENODATA;
-		goto err;
 	}
+
+	if (ret)
+		goto err;
 
 	return 0;
 
@@ -1369,12 +1411,12 @@ err:
 }
 
 static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
-					 size_t name_len)
+					 size_t name_len, bool with_variant)
 {
 	/* strlen(',variant=') + strlen(ar->id.bdf_ext) */
 	char variant[9 + ATH10K_SMBIOS_BDF_EXT_STR_LENGTH] = { 0 };
 
-	if (ar->id.bdf_ext[0] != '\0')
+	if (with_variant && ar->id.bdf_ext[0] != '\0')
 		scnprintf(variant, sizeof(variant), ",variant=%s",
 			  ar->id.bdf_ext);
 
@@ -1400,17 +1442,26 @@ out:
 
 static int ath10k_core_fetch_board_file(struct ath10k *ar)
 {
-	char boardname[100];
+	char boardname[100], fallback_boardname[100];
 	int ret;
 
-	ret = ath10k_core_create_board_name(ar, boardname, sizeof(boardname));
+	ret = ath10k_core_create_board_name(ar, boardname,
+					    sizeof(boardname), true);
 	if (ret) {
 		ath10k_err(ar, "failed to create board name: %d", ret);
 		return ret;
 	}
 
+	ret = ath10k_core_create_board_name(ar, fallback_boardname,
+					    sizeof(boardname), false);
+	if (ret) {
+		ath10k_err(ar, "failed to create fallback board name: %d", ret);
+		return ret;
+	}
+
 	ar->bd_api = 2;
 	ret = ath10k_core_fetch_board_data_api_n(ar, boardname,
+						 fallback_boardname,
 						 ATH10K_BOARD_API2_FILE);
 	if (!ret)
 		goto success;
@@ -2472,6 +2523,14 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		ar->hw->wiphy->hw_version = target_info.version;
 		break;
 	case ATH10K_BUS_SNOC:
+		memset(&target_info, 0, sizeof(target_info));
+		ret = ath10k_hif_get_target_info(ar, &target_info);
+		if (ret) {
+			ath10k_err(ar, "could not get target info (%d)\n", ret);
+			goto err_power_down;
+		}
+		ar->target_version = target_info.version;
+		ar->hw->wiphy->hw_version = target_info.version;
 		break;
 	default:
 		ath10k_err(ar, "incorrect hif bus type: %d\n", ar->hif.bus);

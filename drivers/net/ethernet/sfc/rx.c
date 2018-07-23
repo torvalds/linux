@@ -839,6 +839,8 @@ static void efx_filter_rfs_work(struct work_struct *data)
 	int rc;
 
 	rc = efx->type->filter_insert(efx, &req->spec, true);
+	if (rc >= 0)
+		rc %= efx->type->max_rx_ip_filters;
 	if (efx->rps_hash_table) {
 		spin_lock_bh(&efx->rps_hash_lock);
 		rule = efx_rps_hash_find(efx, &req->spec);

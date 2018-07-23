@@ -99,7 +99,7 @@ static int _osd_get_print_system_info(struct osd_dev *od,
 	int nelem = ARRAY_SIZE(get_attrs), a = 0;
 	int ret;
 
-	or = osd_start_request(od, GFP_KERNEL);
+	or = osd_start_request(od);
 	if (!or)
 		return -ENOMEM;
 
@@ -409,16 +409,15 @@ static void _osd_request_free(struct osd_request *or)
 	kfree(or);
 }
 
-struct osd_request *osd_start_request(struct osd_dev *dev, gfp_t gfp)
+struct osd_request *osd_start_request(struct osd_dev *dev)
 {
 	struct osd_request *or;
 
-	or = _osd_request_alloc(gfp);
+	or = _osd_request_alloc(GFP_KERNEL);
 	if (!or)
 		return NULL;
 
 	or->osd_dev = dev;
-	or->alloc_flags = gfp;
 	or->timeout = dev->def_timeout;
 	or->retries = OSD_REQ_RETRIES;
 
@@ -546,7 +545,7 @@ static int _osd_realloc_seg(struct osd_request *or,
 	if (seg->alloc_size >= max_bytes)
 		return 0;
 
-	buff = krealloc(seg->buff, max_bytes, or->alloc_flags);
+	buff = krealloc(seg->buff, max_bytes, GFP_KERNEL);
 	if (!buff) {
 		OSD_ERR("Failed to Realloc %d-bytes was-%d\n", max_bytes,
 			seg->alloc_size);
@@ -728,7 +727,7 @@ static int _osd_req_list_objects(struct osd_request *or,
 		_osd_req_encode_olist(or, list);
 
 	WARN_ON(or->in.bio);
-	bio = bio_map_kern(q, list, len, or->alloc_flags);
+	bio = bio_map_kern(q, list, len, GFP_KERNEL);
 	if (IS_ERR(bio)) {
 		OSD_ERR("!!! Failed to allocate list_objects BIO\n");
 		return PTR_ERR(bio);
@@ -1190,14 +1189,14 @@ static int _req_append_segment(struct osd_request *or,
 			pad_buff = io->pad_buff;
 
 		ret = blk_rq_map_kern(io->req->q, io->req, pad_buff, padding,
-				       or->alloc_flags);
+				       GFP_KERNEL);
 		if (ret)
 			return ret;
 		io->total_bytes += padding;
 	}
 
 	ret = blk_rq_map_kern(io->req->q, io->req, seg->buff, seg->total_bytes,
-			       or->alloc_flags);
+			       GFP_KERNEL);
 	if (ret)
 		return ret;
 
@@ -1564,14 +1563,14 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
  * osd_finalize_request and helpers
  */
 static struct request *_make_request(struct request_queue *q, bool has_write,
-			      struct _osd_io_info *oii, gfp_t flags)
+			      struct _osd_io_info *oii)
 {
 	struct request *req;
 	struct bio *bio = oii->bio;
 	int ret;
 
 	req = blk_get_request(q, has_write ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,
-			flags);
+			0);
 	if (IS_ERR(req))
 		return req;
 
@@ -1589,13 +1588,12 @@ static struct request *_make_request(struct request_queue *q, bool has_write,
 static int _init_blk_request(struct osd_request *or,
 	bool has_in, bool has_out)
 {
-	gfp_t flags = or->alloc_flags;
 	struct scsi_device *scsi_device = or->osd_dev->scsi_device;
 	struct request_queue *q = scsi_device->request_queue;
 	struct request *req;
 	int ret;
 
-	req = _make_request(q, has_out, has_out ? &or->out : &or->in, flags);
+	req = _make_request(q, has_out, has_out ? &or->out : &or->in);
 	if (IS_ERR(req)) {
 		ret = PTR_ERR(req);
 		goto out;
@@ -1611,7 +1609,7 @@ static int _init_blk_request(struct osd_request *or,
 		or->out.req = req;
 		if (has_in) {
 			/* allocate bidi request */
-			req = _make_request(q, false, &or->in, flags);
+			req = _make_request(q, false, &or->in);
 			if (IS_ERR(req)) {
 				OSD_DEBUG("blk_get_request for bidi failed\n");
 				ret = PTR_ERR(req);
@@ -1842,14 +1840,14 @@ int osd_req_decode_sense_full(struct osd_request *or,
 		case osd_sense_response_integrity_check:
 		{
 			struct osd_sense_response_integrity_check_descriptor
-				*osricd = cur_descriptor;
-			const unsigned len =
-					  sizeof(osricd->integrity_check_value);
-			char key_dump[len*4 + 2]; /* 2nibbles+space+ASCII */
+				*d = cur_descriptor;
+			/* 2nibbles+space+ASCII */
+			char dump[sizeof(d->integrity_check_value) * 4 + 2];
 
-			hex_dump_to_buffer(osricd->integrity_check_value, len,
-				       32, 1, key_dump, sizeof(key_dump), true);
-			OSD_SENSE_PRINT2("response_integrity [%s]\n", key_dump);
+			hex_dump_to_buffer(d->integrity_check_value,
+					sizeof(d->integrity_check_value),
+					32, 1, dump, sizeof(dump), true);
+			OSD_SENSE_PRINT2("response_integrity [%s]\n", dump);
 		}
 		case osd_sense_attribute_identification:
 		{

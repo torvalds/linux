@@ -3,6 +3,12 @@ config COMMON_CLK_AMLOGIC
 	depends on OF
 	depends on ARCH_MESON || COMPILE_TEST
 
+config COMMON_CLK_MESON_AO
+	bool
+	depends on OF
+	depends on ARCH_MESON || COMPILE_TEST
+	select COMMON_CLK_REGMAP_MESON
+
 config COMMON_CLK_REGMAP_MESON
 	bool
 	select REGMAP
@@ -21,6 +27,7 @@ config COMMON_CLK_GXBB
 	bool
 	depends on COMMON_CLK_AMLOGIC
 	select RESET_CONTROLLER
+	select COMMON_CLK_MESON_AO
 	select COMMON_CLK_REGMAP_MESON
 	select MFD_SYSCON
 	help
@@ -31,6 +38,7 @@ config COMMON_CLK_AXG
 	bool
 	depends on COMMON_CLK_AMLOGIC
 	select RESET_CONTROLLER
+	select COMMON_CLK_MESON_AO
 	select COMMON_CLK_REGMAP_MESON
 	select MFD_SYSCON
 	help

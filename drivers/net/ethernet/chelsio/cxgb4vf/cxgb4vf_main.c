@@ -274,7 +274,7 @@ static int link_start(struct net_device *dev)
 	 * is enabled on a port.
 	 */
 	if (ret == 0)
-		ret = t4vf_enable_vi(pi->adapter, pi->viid, true, true);
+		ret = t4vf_enable_pi(pi->adapter, pi, true, true);
 
 	/* The Virtual Interfaces are connected to an internal switch on the
 	 * chip which allows VIs attached to the same port to talk to each
@@ -822,8 +822,7 @@ static int cxgb4vf_stop(struct net_device *dev)
 
 	netif_tx_stop_all_queues(dev);
 	netif_carrier_off(dev);
-	t4vf_enable_vi(adapter, pi->viid, false, false);
-	pi->link_cfg.link_ok = 0;
+	t4vf_enable_pi(adapter, pi, false, false);
 
 	clear_bit(pi->port_id, &adapter->open_device_map);
 	if (adapter->open_device_map == 0)
@@ -1417,6 +1416,22 @@ static int cxgb4vf_get_link_ksettings(struct net_device *dev,
 	} else {
 		base->speed = SPEED_UNKNOWN;
 		base->duplex = DUPLEX_UNKNOWN;
+	}
+
+	if (pi->link_cfg.fc & PAUSE_RX) {
+		if (pi->link_cfg.fc & PAUSE_TX) {
+			ethtool_link_ksettings_add_link_mode(link_ksettings,
+							     advertising,
+							     Pause);
+		} else {
+			ethtool_link_ksettings_add_link_mode(link_ksettings,
+							     advertising,
+							     Asym_Pause);
+		}
+	} else if (pi->link_cfg.fc & PAUSE_TX) {
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising,
+						     Asym_Pause);
 	}
 
 	base->autoneg = pi->link_cfg.autoneg;

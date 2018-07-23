@@ -1,1 +1,1 @@
-libbpf-y := libbpf.o bpf.o nlattr.o
+libbpf-y := libbpf.o bpf.o nlattr.o btf.o

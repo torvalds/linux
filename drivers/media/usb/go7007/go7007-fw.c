@@ -1514,7 +1514,10 @@ static int do_special(struct go7007 *go, u16 type, __le16 *code, int space,
 		case V4L2_PIX_FMT_MPEG4:
 			return gen_mpeg4hdr_to_package(go, code, space,
 								framelen);
+		default:
+			break;
 		}
+		break;
 	case SPECIAL_BRC_CTRL:
 		return brctrl_to_package(go, code, space, framelen);
 	case SPECIAL_CONFIG:
@@ -1576,7 +1579,7 @@ int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen)
 			GO7007_FW_NAME);
 		return -1;
 	}
-	code = kzalloc(codespace * 2, GFP_KERNEL);
+	code = kcalloc(codespace, 2, GFP_KERNEL);
 	if (code == NULL)
 		goto fw_failed;
 

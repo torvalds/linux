@@ -710,7 +710,7 @@ static void pm121_create_cpu_fans(void)
 	wf_cpu_pid_init(&pm121_cpu_state->pid, &pid_param);
 
 	pr_debug("pm121: CPU Fan control initialized.\n");
-	pr_debug("       ttarged=%d.%03d, tmax=%d.%03d, min=%d RPM, max=%d RPM,\n",
+	pr_debug("       ttarget=%d.%03d, tmax=%d.%03d, min=%d RPM, max=%d RPM,\n",
 		 FIX32TOPRINT(pid_param.ttarget), FIX32TOPRINT(pid_param.tmax),
 		 pid_param.min, pid_param.max);
 

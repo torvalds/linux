@@ -128,4 +128,5 @@ extern int init_imc_pmu(struct device_node *parent,
 				struct imc_pmu *pmu_ptr, int pmu_id);
 extern void thread_imc_disable(void);
 extern int get_max_nest_dev(void);
+extern void unregister_thread_imc(void);
 #endif /* __ASM_POWERPC_IMC_PMU_H */

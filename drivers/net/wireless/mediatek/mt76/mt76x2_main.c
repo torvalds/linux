@@ -104,7 +104,7 @@ mt76x2_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		idx += 8;
 
 	mvif->idx = idx;
-	mvif->group_wcid.idx = 254 - idx;
+	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
 	mt76x2_txq_init(dev, vif->txq);
 
@@ -124,11 +124,14 @@ mt76x2_set_channel(struct mt76x2_dev *dev, struct cfg80211_chan_def *chandef)
 {
 	int ret;
 
+	cancel_delayed_work_sync(&dev->cal_work);
+
+	set_bit(MT76_RESET, &dev->mt76.state);
+
 	mt76_set_channel(&dev->mt76);
 
 	tasklet_disable(&dev->pre_tbtt_tasklet);
 	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
-	cancel_delayed_work_sync(&dev->cal_work);
 
 	mt76x2_mac_stop(dev, true);
 	ret = mt76x2_phy_set_channel(dev, chandef);
@@ -142,6 +145,10 @@ mt76x2_set_channel(struct mt76x2_dev *dev, struct cfg80211_chan_def *chandef)
 	mt76x2_mac_resume(dev);
 	tasklet_enable(&dev->dfs_pd.dfs_tasklet);
 	tasklet_enable(&dev->pre_tbtt_tasklet);
+
+	clear_bit(MT76_RESET, &dev->mt76.state);
+
+	mt76_txq_schedule_all(&dev->mt76);
 
 	return ret;
 }
@@ -247,8 +254,7 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		int slottime = info->use_short_slot ? 9 : 20;
 
 		dev->slottime = slottime;
-		mt76_rmw_field(dev, MT_BKOFF_SLOT_CFG,
-			       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
+		mt76x2_set_tx_ackto(dev);
 	}
 
 	mutex_unlock(&dev->mutex);
@@ -321,6 +327,7 @@ mt76x2_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
 	int idx = msta->wcid.idx;
 
+	mt76_stop_tx_queues(&dev->mt76, sta, true);
 	mt76x2_mac_wcid_set_drop(dev, idx, ps);
 }
 
@@ -452,7 +459,6 @@ mt76x2_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
 	tasklet_enable(&dev->pre_tbtt_tasklet);
-	mt76_txq_schedule_all(&dev->mt76);
 }
 
 static void

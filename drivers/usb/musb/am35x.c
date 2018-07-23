@@ -201,7 +201,6 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
-	struct usb_otg *otg = musb->xceiv->otg;
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
 	u32 epintr, usbintr;
@@ -264,14 +263,12 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
-			otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
 			del_timer(&musb->dev_timer);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
-			otg->default_a = 0;
 			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}

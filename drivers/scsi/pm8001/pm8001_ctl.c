@@ -705,7 +705,7 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
 		return -EINPROGRESS;
 	pm8001_ha->fw_status = FLASH_IN_PROGRESS;
 
-	cmd_ptr = kzalloc(count*2, GFP_KERNEL);
+	cmd_ptr = kcalloc(count, 2, GFP_KERNEL);
 	if (!cmd_ptr) {
 		pm8001_ha->fw_status = FAIL_OUT_MEMORY;
 		return -ENOMEM;

@@ -22,14 +22,12 @@
  * Authors: Ben Skeggs
  */
 #include "rootnv50.h"
-#include "dmacnv50.h"
+#include "channv50.h"
 #include "dp.h"
 #include "head.h"
 #include "ior.h"
 
 #include <core/client.h>
-#include <core/ramht.h>
-#include <subdev/timer.h>
 
 #include <nvif/class.h>
 #include <nvif/cl5070.h>
@@ -271,23 +269,12 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 }
 
 static int
-nv50_disp_root_dmac_new_(const struct nvkm_oclass *oclass,
-			 void *data, u32 size, struct nvkm_object **pobject)
+nv50_disp_root_child_new_(const struct nvkm_oclass *oclass,
+			  void *argv, u32 argc, struct nvkm_object **pobject)
 {
-	const struct nv50_disp_dmac_oclass *sclass = oclass->priv;
-	struct nv50_disp_root *root = nv50_disp_root(oclass->parent);
-	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid,
-			    oclass, data, size, pobject);
-}
-
-static int
-nv50_disp_root_pioc_new_(const struct nvkm_oclass *oclass,
-			 void *data, u32 size, struct nvkm_object **pobject)
-{
-	const struct nv50_disp_pioc_oclass *sclass = oclass->priv;
-	struct nv50_disp_root *root = nv50_disp_root(oclass->parent);
-	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid.ctrl,
-			    sclass->chid.user, oclass, data, size, pobject);
+	struct nv50_disp *disp = nv50_disp_root(oclass->parent)->disp;
+	const struct nv50_disp_user *user = oclass->priv;
+	return user->ctor(oclass, argv, argc, disp, pobject);
 }
 
 static int
@@ -296,68 +283,26 @@ nv50_disp_root_child_get_(struct nvkm_object *object, int index,
 {
 	struct nv50_disp_root *root = nv50_disp_root(object);
 
-	if (index < ARRAY_SIZE(root->func->dmac)) {
-		sclass->base = root->func->dmac[index]->base;
-		sclass->priv = root->func->dmac[index];
-		sclass->ctor = nv50_disp_root_dmac_new_;
-		return 0;
-	}
-
-	index -= ARRAY_SIZE(root->func->dmac);
-
-	if (index < ARRAY_SIZE(root->func->pioc)) {
-		sclass->base = root->func->pioc[index]->base;
-		sclass->priv = root->func->pioc[index];
-		sclass->ctor = nv50_disp_root_pioc_new_;
+	if (root->func->user[index].ctor) {
+		sclass->base = root->func->user[index].base;
+		sclass->priv = root->func->user + index;
+		sclass->ctor = nv50_disp_root_child_new_;
 		return 0;
 	}
 
 	return -EINVAL;
 }
 
-static int
-nv50_disp_root_fini_(struct nvkm_object *object, bool suspend)
-{
-	struct nv50_disp_root *root = nv50_disp_root(object);
-	root->func->fini(root);
-	return 0;
-}
-
-static int
-nv50_disp_root_init_(struct nvkm_object *object)
-{
-	struct nv50_disp_root *root = nv50_disp_root(object);
-	struct nvkm_ior *ior;
-	int ret;
-
-	ret = root->func->init(root);
-	if (ret)
-		return ret;
-
-	/* Set 'normal' (ie. when it's attached to a head) state for
-	 * each output resource to 'fully enabled'.
-	 */
-	list_for_each_entry(ior, &root->disp->base.ior, head) {
-		ior->func->power(ior, true, true, true, true, true);
-	}
-
-	return 0;
-}
-
 static void *
 nv50_disp_root_dtor_(struct nvkm_object *object)
 {
 	struct nv50_disp_root *root = nv50_disp_root(object);
-	nvkm_ramht_del(&root->ramht);
-	nvkm_gpuobj_del(&root->instmem);
 	return root;
 }
 
 static const struct nvkm_object_func
 nv50_disp_root_ = {
 	.dtor = nv50_disp_root_dtor_,
-	.init = nv50_disp_root_init_,
-	.fini = nv50_disp_root_fini_,
 	.mthd = nv50_disp_root_mthd_,
 	.ntfy = nvkm_disp_ntfy,
 	.sclass = nv50_disp_root_child_get_,
@@ -370,8 +315,6 @@ nv50_disp_root_new_(const struct nv50_disp_root_func *func,
 {
 	struct nv50_disp *disp = nv50_disp(base);
 	struct nv50_disp_root *root;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	int ret;
 
 	if (!(root = kzalloc(sizeof(*root), GFP_KERNEL)))
 		return -ENOMEM;
@@ -380,102 +323,18 @@ nv50_disp_root_new_(const struct nv50_disp_root_func *func,
 	nvkm_object_ctor(&nv50_disp_root_, oclass, &root->object);
 	root->func = func;
 	root->disp = disp;
-
-	ret = nvkm_gpuobj_new(disp->base.engine.subdev.device, 0x10000, 0x10000,
-			      false, NULL, &root->instmem);
-	if (ret)
-		return ret;
-
-	return nvkm_ramht_new(device, 0x1000, 0, root->instmem, &root->ramht);
-}
-
-void
-nv50_disp_root_fini(struct nv50_disp_root *root)
-{
-	struct nvkm_device *device = root->disp->base.engine.subdev.device;
-	/* disable all interrupts */
-	nvkm_wr32(device, 0x610024, 0x00000000);
-	nvkm_wr32(device, 0x610020, 0x00000000);
-}
-
-int
-nv50_disp_root_init(struct nv50_disp_root *root)
-{
-	struct nv50_disp *disp = root->disp;
-	struct nvkm_head *head;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	u32 tmp;
-	int i;
-
-	/* The below segments of code copying values from one register to
-	 * another appear to inform EVO of the display capabilities or
-	 * something similar.  NFI what the 0x614004 caps are for..
-	 */
-	tmp = nvkm_rd32(device, 0x614004);
-	nvkm_wr32(device, 0x610184, tmp);
-
-	/* ... CRTC caps */
-	list_for_each_entry(head, &disp->base.head, head) {
-		tmp = nvkm_rd32(device, 0x616100 + (head->id * 0x800));
-		nvkm_wr32(device, 0x610190 + (head->id * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x616104 + (head->id * 0x800));
-		nvkm_wr32(device, 0x610194 + (head->id * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x616108 + (head->id * 0x800));
-		nvkm_wr32(device, 0x610198 + (head->id * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x61610c + (head->id * 0x800));
-		nvkm_wr32(device, 0x61019c + (head->id * 0x10), tmp);
-	}
-
-	/* ... DAC caps */
-	for (i = 0; i < disp->func->dac.nr; i++) {
-		tmp = nvkm_rd32(device, 0x61a000 + (i * 0x800));
-		nvkm_wr32(device, 0x6101d0 + (i * 0x04), tmp);
-	}
-
-	/* ... SOR caps */
-	for (i = 0; i < disp->func->sor.nr; i++) {
-		tmp = nvkm_rd32(device, 0x61c000 + (i * 0x800));
-		nvkm_wr32(device, 0x6101e0 + (i * 0x04), tmp);
-	}
-
-	/* ... PIOR caps */
-	for (i = 0; i < disp->func->pior.nr; i++) {
-		tmp = nvkm_rd32(device, 0x61e000 + (i * 0x800));
-		nvkm_wr32(device, 0x6101f0 + (i * 0x04), tmp);
-	}
-
-	/* steal display away from vbios, or something like that */
-	if (nvkm_rd32(device, 0x610024) & 0x00000100) {
-		nvkm_wr32(device, 0x610024, 0x00000100);
-		nvkm_mask(device, 0x6194e8, 0x00000001, 0x00000000);
-		if (nvkm_msec(device, 2000,
-			if (!(nvkm_rd32(device, 0x6194e8) & 0x00000002))
-				break;
-		) < 0)
-			return -EBUSY;
-	}
-
-	/* point at display engine memory area (hash table, objects) */
-	nvkm_wr32(device, 0x610010, (root->instmem->addr >> 8) | 9);
-
-	/* enable supervisor interrupts, disable everything else */
-	nvkm_wr32(device, 0x61002c, 0x00000370);
-	nvkm_wr32(device, 0x610028, 0x00000000);
 	return 0;
 }
 
 static const struct nv50_disp_root_func
 nv50_disp_root = {
-	.init = nv50_disp_root_init,
-	.fini = nv50_disp_root_fini,
-	.dmac = {
-		&nv50_disp_core_oclass,
-		&nv50_disp_base_oclass,
-		&nv50_disp_ovly_oclass,
-	},
-	.pioc = {
-		&nv50_disp_oimm_oclass,
-		&nv50_disp_curs_oclass,
+	.user = {
+		{{0,0,NV50_DISP_CURSOR             }, nv50_disp_curs_new },
+		{{0,0,NV50_DISP_OVERLAY            }, nv50_disp_oimm_new },
+		{{0,0,NV50_DISP_BASE_CHANNEL_DMA   }, nv50_disp_base_new },
+		{{0,0,NV50_DISP_CORE_CHANNEL_DMA   }, nv50_disp_core_new },
+		{{0,0,NV50_DISP_OVERLAY_CHANNEL_DMA}, nv50_disp_ovly_new },
+		{}
 	},
 };
 

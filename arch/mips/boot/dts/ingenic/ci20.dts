@@ -36,6 +36,28 @@
 	clock-frequency = <48000000>;
 };
 
+&mmc0 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <50000000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_mmc0>;
+
+	cd-gpios = <&gpf 20 GPIO_ACTIVE_LOW>;
+};
+
+&mmc1 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <50000000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_mmc1>;
+};
+
 &uart0 {
 	status = "okay";
 
@@ -201,6 +223,18 @@
 	pins_nemc_cs6: nemc-cs6 {
 		function = "nemc-cs6";
 		groups = "nemc-cs6";
+		bias-disable;
+	};
+
+	pins_mmc0: mmc0 {
+		function = "mmc0";
+		groups = "mmc0-1bit-e", "mmc0-4bit-e";
+		bias-disable;
+	};
+
+	pins_mmc1: mmc1 {
+		function = "mmc1";
+		groups = "mmc1-1bit-d", "mmc1-4bit-d";
 		bias-disable;
 	};
 };

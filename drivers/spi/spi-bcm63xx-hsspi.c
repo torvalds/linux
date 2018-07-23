@@ -352,21 +352,30 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		return ret;
+
 	rate = clk_get_rate(clk);
 	if (!rate) {
 		struct clk *pll_clk = devm_clk_get(dev, "pll");
 
-		if (IS_ERR(pll_clk))
-			return PTR_ERR(pll_clk);
+		if (IS_ERR(pll_clk)) {
+			ret = PTR_ERR(pll_clk);
+			goto out_disable_clk;
+		}
+
+		ret = clk_prepare_enable(pll_clk);
+		if (ret)
+			goto out_disable_clk;
 
 		rate = clk_get_rate(pll_clk);
-		if (!rate)
-			return -EINVAL;
+		clk_disable_unprepare(pll_clk);
+		if (!rate) {
+			ret = -EINVAL;
+			goto out_disable_clk;
+		}
 	}
-
-	ret = clk_prepare_enable(clk);
-	if (ret)
-		return ret;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*bs));
 	if (!master) {

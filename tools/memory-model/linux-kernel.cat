@@ -5,10 +5,10 @@
  * Copyright (C) 2017 Alan Stern <stern@rowland.harvard.edu>,
  *                    Andrea Parri <parri.andrea@gmail.com>
  *
- * An earlier version of this file appears in the companion webpage for
+ * An earlier version of this file appeared in the companion webpage for
  * "Frightening small children and disconcerting grown-ups: Concurrency
  * in the Linux kernel" by Alglave, Maranget, McKenney, Parri, and Stern,
- * which is to appear in ASPLOS 2018.
+ * which appeared in ASPLOS 2018.
  *)
 
 "Linux-kernel memory consistency model"
@@ -100,22 +100,29 @@ let rscs = po ; crit^-1 ; po?
  * one but two non-rf relations, but only in conjunction with an RCU
  * read-side critical section.
  *)
-let link = hb* ; pb* ; prop
-
-(* Chains that affect the RCU grace-period guarantee *)
-let gp-link = gp ; link
-let rscs-link = rscs ; link
+let rcu-link = hb* ; pb* ; prop
 
 (*
- * A cycle containing at least as many grace periods as RCU read-side
- * critical sections is forbidden.
+ * Any sequence containing at least as many grace periods as RCU read-side
+ * critical sections (joined by rcu-link) acts as a generalized strong fence.
  *)
-let rec rcu-path =
-	gp-link |
-	(gp-link ; rscs-link) |
-	(rscs-link ; gp-link) |
-	(rcu-path ; rcu-path) |
-	(gp-link ; rcu-path ; rscs-link) |
-	(rscs-link ; rcu-path ; gp-link)
+let rec rcu-fence = gp |
+	(gp ; rcu-link ; rscs) |
+	(rscs ; rcu-link ; gp) |
+	(gp ; rcu-link ; rcu-fence ; rcu-link ; rscs) |
+	(rscs ; rcu-link ; rcu-fence ; rcu-link ; gp) |
+	(rcu-fence ; rcu-link ; rcu-fence)
 
-irreflexive rcu-path as rcu
+(* rb orders instructions just as pb does *)
+let rb = prop ; rcu-fence ; hb* ; pb*
+
+irreflexive rb as rcu
+
+(*
+ * The happens-before, propagation, and rcu constraints are all
+ * expressions of temporal ordering.  They could be replaced by
+ * a single constraint on an "executes-before" relation, xb:
+ *
+ * let xb = hb | pb | rb
+ * acyclic xb as executes-before
+ *)

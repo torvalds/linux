@@ -340,7 +340,7 @@ static void *bsd_alloc(struct isdn_ppp_comp_data *data)
 	 * Allocate space for the dictionary. This may be more than one page in
 	 * length.
 	 */
-	db->dict = vmalloc(hsize * sizeof(struct bsd_dict));
+	db->dict = vmalloc(array_size(hsize, sizeof(struct bsd_dict)));
 	if (!db->dict) {
 		bsd_free(db);
 		return NULL;
@@ -353,7 +353,8 @@ static void *bsd_alloc(struct isdn_ppp_comp_data *data)
 	if (!decomp)
 		db->lens = NULL;
 	else {
-		db->lens = vmalloc((maxmaxcode + 1) * sizeof(db->lens[0]));
+		db->lens = vmalloc(array_size(sizeof(db->lens[0]),
+					      maxmaxcode + 1));
 		if (!db->lens) {
 			bsd_free(db);
 			return (NULL);

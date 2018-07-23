@@ -101,6 +101,9 @@ static void platform_msi_update_chip_ops(struct msi_domain_info *info)
 		chip->irq_set_affinity = msi_domain_set_affinity;
 	if (!chip->irq_write_msi_msg)
 		chip->irq_write_msi_msg = platform_msi_write_msg;
+	if (WARN_ON((info->flags & MSI_FLAG_LEVEL_CAPABLE) &&
+		    !(chip->flags & IRQCHIP_SUPPORTS_LEVEL_MSI)))
+		info->flags &= ~MSI_FLAG_LEVEL_CAPABLE;
 }
 
 static void platform_msi_free_descs(struct device *dev, int base, int nvec)

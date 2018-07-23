@@ -58,7 +58,10 @@ struct msm_pinctrl {
 	struct device *dev;
 	struct pinctrl_dev *pctrl;
 	struct gpio_chip chip;
+	struct pinctrl_desc desc;
 	struct notifier_block restart_nb;
+
+	struct irq_chip irq_chip;
 	int irq;
 
 	raw_spinlock_t lock;
@@ -390,13 +393,6 @@ static const struct pinconf_ops msm_pinconf_ops = {
 	.pin_config_group_set	= msm_config_group_set,
 };
 
-static struct pinctrl_desc msm_pinctrl_desc = {
-	.pctlops = &msm_pinctrl_ops,
-	.pmxops = &msm_pinmux_ops,
-	.confops = &msm_pinconf_ops,
-	.owner = THIS_MODULE,
-};
-
 static int msm_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	const struct msm_pingroup *g;
@@ -506,13 +502,20 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	int is_out;
 	int drive;
 	int pull;
-	u32 ctl_reg;
+	int val;
+	u32 ctl_reg, io_reg;
 
-	static const char * const pulls[] = {
+	static const char * const pulls_keeper[] = {
 		"no pull",
 		"pull down",
 		"keeper",
 		"pull up"
+	};
+
+	static const char * const pulls_no_keeper[] = {
+		"no pull",
+		"pull down",
+		"pull up",
 	};
 
 	if (!gpiochip_line_is_valid(chip, offset))
@@ -520,15 +523,25 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 
 	g = &pctrl->soc->groups[offset];
 	ctl_reg = readl(pctrl->regs + g->ctl_reg);
+	io_reg = readl(pctrl->regs + g->io_reg);
 
 	is_out = !!(ctl_reg & BIT(g->oe_bit));
 	func = (ctl_reg >> g->mux_bit) & 7;
 	drive = (ctl_reg >> g->drv_bit) & 7;
 	pull = (ctl_reg >> g->pull_bit) & 3;
 
-	seq_printf(s, " %-8s: %-3s %d", g->name, is_out ? "out" : "in", func);
+	if (is_out)
+		val = !!(io_reg & BIT(g->out_bit));
+	else
+		val = !!(io_reg & BIT(g->in_bit));
+
+	seq_printf(s, " %-8s: %-3s", g->name, is_out ? "out" : "in");
+	seq_printf(s, " %-4s func%d", val ? "high" : "low", func);
 	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
-	seq_printf(s, " %s", pulls[pull]);
+	if (pctrl->soc->pull_no_keeper)
+		seq_printf(s, " %s", pulls_no_keeper[pull]);
+	else
+		seq_printf(s, " %s", pulls_keeper[pull]);
 	seq_puts(s, "\n");
 }
 
@@ -776,15 +789,6 @@ static int msm_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
-static struct irq_chip msm_gpio_irq_chip = {
-	.name           = "msmgpio",
-	.irq_mask       = msm_gpio_irq_mask,
-	.irq_unmask     = msm_gpio_irq_unmask,
-	.irq_ack        = msm_gpio_irq_ack,
-	.irq_set_type   = msm_gpio_irq_set_type,
-	.irq_set_wake   = msm_gpio_irq_set_wake,
-};
-
 static void msm_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
@@ -877,6 +881,13 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	chip->of_node = pctrl->dev->of_node;
 	chip->need_valid_mask = msm_gpio_needs_valid_mask(pctrl);
 
+	pctrl->irq_chip.name = "msmgpio";
+	pctrl->irq_chip.irq_mask = msm_gpio_irq_mask;
+	pctrl->irq_chip.irq_unmask = msm_gpio_irq_unmask;
+	pctrl->irq_chip.irq_ack = msm_gpio_irq_ack;
+	pctrl->irq_chip.irq_set_type = msm_gpio_irq_set_type;
+	pctrl->irq_chip.irq_set_wake = msm_gpio_irq_set_wake;
+
 	ret = gpiochip_add_data(&pctrl->chip, pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "Failed register gpiochip\n");
@@ -890,15 +901,28 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 		return ret;
 	}
 
-	ret = gpiochip_add_pin_range(&pctrl->chip, dev_name(pctrl->dev), 0, 0, chip->ngpio);
-	if (ret) {
-		dev_err(pctrl->dev, "Failed to add pin range\n");
-		gpiochip_remove(&pctrl->chip);
-		return ret;
+	/*
+	 * For DeviceTree-supported systems, the gpio core checks the
+	 * pinctrl's device node for the "gpio-ranges" property.
+	 * If it is present, it takes care of adding the pin ranges
+	 * for the driver. In this case the driver can skip ahead.
+	 *
+	 * In order to remain compatible with older, existing DeviceTree
+	 * files which don't set the "gpio-ranges" property or systems that
+	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
+	 */
+	if (!of_property_read_bool(pctrl->dev->of_node, "gpio-ranges")) {
+		ret = gpiochip_add_pin_range(&pctrl->chip,
+			dev_name(pctrl->dev), 0, 0, chip->ngpio);
+		if (ret) {
+			dev_err(pctrl->dev, "Failed to add pin range\n");
+			gpiochip_remove(&pctrl->chip);
+			return ret;
+		}
 	}
 
 	ret = gpiochip_irqchip_add(chip,
-				   &msm_gpio_irq_chip,
+				   &pctrl->irq_chip,
 				   0,
 				   handle_edge_irq,
 				   IRQ_TYPE_NONE);
@@ -908,7 +932,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 		return -ENOSYS;
 	}
 
-	gpiochip_set_chained_irqchip(chip, &msm_gpio_irq_chip, pctrl->irq,
+	gpiochip_set_chained_irqchip(chip, &pctrl->irq_chip, pctrl->irq,
 				     msm_gpio_irq_handler);
 
 	return 0;
@@ -979,11 +1003,15 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 		return pctrl->irq;
 	}
 
-	msm_pinctrl_desc.name = dev_name(&pdev->dev);
-	msm_pinctrl_desc.pins = pctrl->soc->pins;
-	msm_pinctrl_desc.npins = pctrl->soc->npins;
-	pctrl->pctrl = devm_pinctrl_register(&pdev->dev, &msm_pinctrl_desc,
-					     pctrl);
+	pctrl->desc.owner = THIS_MODULE;
+	pctrl->desc.pctlops = &msm_pinctrl_ops;
+	pctrl->desc.pmxops = &msm_pinmux_ops;
+	pctrl->desc.confops = &msm_pinconf_ops;
+	pctrl->desc.name = dev_name(&pdev->dev);
+	pctrl->desc.pins = pctrl->soc->pins;
+	pctrl->desc.npins = pctrl->soc->npins;
+
+	pctrl->pctrl = devm_pinctrl_register(&pdev->dev, &pctrl->desc, pctrl);
 	if (IS_ERR(pctrl->pctrl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		return PTR_ERR(pctrl->pctrl);

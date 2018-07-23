@@ -7,6 +7,9 @@
 
 #include <linux/linkage.h>
 #include <asm/export.h>
+#include <asm/nospec-insn.h>
+
+	GEN_BR_THUNK %r14
 
 /*
  * void *memmove(void *dest, const void *src, size_t n)
@@ -33,14 +36,14 @@ ENTRY(memmove)
 .Lmemmove_forward_remainder:
 	larl	%r5,.Lmemmove_mvc
 	ex	%r4,0(%r5)
-	br	%r14
+	BR_EX	%r14
 .Lmemmove_reverse:
 	ic	%r0,0(%r4,%r3)
 	stc	%r0,0(%r4,%r1)
 	brctg	%r4,.Lmemmove_reverse
 	ic	%r0,0(%r4,%r3)
 	stc	%r0,0(%r4,%r1)
-	br	%r14
+	BR_EX	%r14
 .Lmemmove_mvc:
 	mvc	0(1,%r1),0(%r3)
 EXPORT_SYMBOL(memmove)
@@ -77,7 +80,7 @@ ENTRY(memset)
 .Lmemset_clear_remainder:
 	larl	%r3,.Lmemset_xc
 	ex	%r4,0(%r3)
-	br	%r14
+	BR_EX	%r14
 .Lmemset_fill:
 	cghi	%r4,1
 	lgr	%r1,%r2
@@ -95,10 +98,10 @@ ENTRY(memset)
 	stc	%r3,0(%r1)
 	larl	%r5,.Lmemset_mvc
 	ex	%r4,0(%r5)
-	br	%r14
+	BR_EX	%r14
 .Lmemset_fill_exit:
 	stc	%r3,0(%r1)
-	br	%r14
+	BR_EX	%r14
 .Lmemset_xc:
 	xc	0(1,%r1),0(%r1)
 .Lmemset_mvc:
@@ -121,7 +124,7 @@ ENTRY(memcpy)
 .Lmemcpy_remainder:
 	larl	%r5,.Lmemcpy_mvc
 	ex	%r4,0(%r5)
-	br	%r14
+	BR_EX	%r14
 .Lmemcpy_loop:
 	mvc	0(256,%r1),0(%r3)
 	la	%r1,256(%r1)
@@ -159,10 +162,10 @@ ENTRY(__memset\bits)
 	\insn	%r3,0(%r1)
 	larl	%r5,.L__memset_mvc\bits
 	ex	%r4,0(%r5)
-	br	%r14
+	BR_EX	%r14
 .L__memset_exit\bits:
 	\insn	%r3,0(%r2)
-	br	%r14
+	BR_EX	%r14
 .L__memset_mvc\bits:
 	mvc	\bytes(1,%r1),0(%r1)
 .endm

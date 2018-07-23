@@ -2852,20 +2852,6 @@ static const struct seq_operations unix_seq_ops = {
 	.stop   = unix_seq_stop,
 	.show   = unix_seq_show,
 };
-
-static int unix_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &unix_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations unix_seq_fops = {
-	.open		= unix_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 #endif
 
 static const struct net_proto_family unix_family_ops = {
@@ -2884,7 +2870,8 @@ static int __net_init unix_net_init(struct net *net)
 		goto out;
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("unix", 0, net->proc_net, &unix_seq_fops)) {
+	if (!proc_create_net("unix", 0, net->proc_net, &unix_seq_ops,
+			sizeof(struct seq_net_private))) {
 		unix_sysctl_unregister(net);
 		goto out;
 	}

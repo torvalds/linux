@@ -14,22 +14,9 @@ static int idefloppy_capacity_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int idefloppy_capacity_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idefloppy_capacity_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations idefloppy_capacity_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= idefloppy_capacity_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 ide_proc_entry_t ide_floppy_proc[] = {
-	{ "capacity",	S_IFREG|S_IRUGO, &idefloppy_capacity_proc_fops	},
-	{ "geometry",	S_IFREG|S_IRUGO, &ide_geometry_proc_fops	},
+	{ "capacity",	S_IFREG|S_IRUGO, idefloppy_capacity_proc_show	},
+	{ "geometry",	S_IFREG|S_IRUGO, ide_geometry_proc_show		},
 	{}
 };
 

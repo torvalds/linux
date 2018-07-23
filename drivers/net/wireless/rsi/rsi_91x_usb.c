@@ -687,6 +687,14 @@ static int rsi_reset_card(struct rsi_hw *adapter)
 	 */
 	msleep(100);
 
+	ret = rsi_usb_master_reg_write(adapter, SWBL_REGOUT,
+				       RSI_FW_WDT_DISABLE_REQ,
+				       RSI_COMMON_REG_SIZE);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE, "Disabling firmware watchdog timer failed\n");
+		goto fail;
+	}
+
 	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1,
 				 RSI_ULP_WRITE_2, 32);
 	if (ret < 0)

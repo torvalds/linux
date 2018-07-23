@@ -111,8 +111,9 @@ static enum blk_eh_timer_return mmc_cqe_timed_out(struct request *req)
 				__mmc_cqe_recovery_notifier(mq);
 			return BLK_EH_RESET_TIMER;
 		}
-		/* No timeout */
-		return BLK_EH_HANDLED;
+		/* No timeout (XXX: huh? comment doesn't make much sense) */
+		blk_mq_complete_request(req);
+		return BLK_EH_DONE;
 	default:
 		/* Timeout is handled by mmc core */
 		return BLK_EH_RESET_TIMER;

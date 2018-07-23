@@ -17,12 +17,6 @@
 
 #define PCI_IRQ_NONE		0xffffffff
 
-/* The PCI address space does not equal the physical memory
- * address space.  The networking and block device layers use
- * this boolean for bounce buffer decisions.
- */
-#define PCI_DMA_BUS_IS_PHYS	(0)
-
 /* PCI IOMMU mapping bypass support. */
 
 /* PCI 64-bit addressing works for all slots on all controller

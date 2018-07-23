@@ -28,39 +28,39 @@ static void rxrpc_store_error(struct rxrpc_peer *, struct sock_exterr_skb *);
  * Find the peer associated with an ICMP packet.
  */
 static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
-						     const struct sk_buff *skb)
+						     const struct sk_buff *skb,
+						     struct sockaddr_rxrpc *srx)
 {
 	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
-	struct sockaddr_rxrpc srx;
 
 	_enter("");
 
-	memset(&srx, 0, sizeof(srx));
-	srx.transport_type = local->srx.transport_type;
-	srx.transport_len = local->srx.transport_len;
-	srx.transport.family = local->srx.transport.family;
+	memset(srx, 0, sizeof(*srx));
+	srx->transport_type = local->srx.transport_type;
+	srx->transport_len = local->srx.transport_len;
+	srx->transport.family = local->srx.transport.family;
 
 	/* Can we see an ICMP4 packet on an ICMP6 listening socket?  and vice
 	 * versa?
 	 */
-	switch (srx.transport.family) {
+	switch (srx->transport.family) {
 	case AF_INET:
-		srx.transport.sin.sin_port = serr->port;
+		srx->transport.sin.sin_port = serr->port;
 		switch (serr->ee.ee_origin) {
 		case SO_EE_ORIGIN_ICMP:
 			_net("Rx ICMP");
-			memcpy(&srx.transport.sin.sin_addr,
+			memcpy(&srx->transport.sin.sin_addr,
 			       skb_network_header(skb) + serr->addr_offset,
 			       sizeof(struct in_addr));
 			break;
 		case SO_EE_ORIGIN_ICMP6:
 			_net("Rx ICMP6 on v4 sock");
-			memcpy(&srx.transport.sin.sin_addr,
+			memcpy(&srx->transport.sin.sin_addr,
 			       skb_network_header(skb) + serr->addr_offset + 12,
 			       sizeof(struct in_addr));
 			break;
 		default:
-			memcpy(&srx.transport.sin.sin_addr, &ip_hdr(skb)->saddr,
+			memcpy(&srx->transport.sin.sin_addr, &ip_hdr(skb)->saddr,
 			       sizeof(struct in_addr));
 			break;
 		}
@@ -68,25 +68,25 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 
 #ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
-		srx.transport.sin6.sin6_port = serr->port;
+		srx->transport.sin6.sin6_port = serr->port;
 		switch (serr->ee.ee_origin) {
 		case SO_EE_ORIGIN_ICMP6:
 			_net("Rx ICMP6");
-			memcpy(&srx.transport.sin6.sin6_addr,
+			memcpy(&srx->transport.sin6.sin6_addr,
 			       skb_network_header(skb) + serr->addr_offset,
 			       sizeof(struct in6_addr));
 			break;
 		case SO_EE_ORIGIN_ICMP:
 			_net("Rx ICMP on v6 sock");
-			srx.transport.sin6.sin6_addr.s6_addr32[0] = 0;
-			srx.transport.sin6.sin6_addr.s6_addr32[1] = 0;
-			srx.transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-			memcpy(srx.transport.sin6.sin6_addr.s6_addr + 12,
+			srx->transport.sin6.sin6_addr.s6_addr32[0] = 0;
+			srx->transport.sin6.sin6_addr.s6_addr32[1] = 0;
+			srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
+			memcpy(srx->transport.sin6.sin6_addr.s6_addr + 12,
 			       skb_network_header(skb) + serr->addr_offset,
 			       sizeof(struct in_addr));
 			break;
 		default:
-			memcpy(&srx.transport.sin6.sin6_addr,
+			memcpy(&srx->transport.sin6.sin6_addr,
 			       &ipv6_hdr(skb)->saddr,
 			       sizeof(struct in6_addr));
 			break;
@@ -98,7 +98,7 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 		BUG();
 	}
 
-	return rxrpc_lookup_peer_rcu(local, &srx);
+	return rxrpc_lookup_peer_rcu(local, srx);
 }
 
 /*
@@ -146,6 +146,7 @@ static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, struct sock_exterr_skb *se
 void rxrpc_error_report(struct sock *sk)
 {
 	struct sock_exterr_skb *serr;
+	struct sockaddr_rxrpc srx;
 	struct rxrpc_local *local = sk->sk_user_data;
 	struct rxrpc_peer *peer;
 	struct sk_buff *skb;
@@ -166,7 +167,7 @@ void rxrpc_error_report(struct sock *sk)
 	}
 
 	rcu_read_lock();
-	peer = rxrpc_lookup_peer_icmp_rcu(local, skb);
+	peer = rxrpc_lookup_peer_icmp_rcu(local, skb, &srx);
 	if (peer && !rxrpc_get_peer_maybe(peer))
 		peer = NULL;
 	if (!peer) {
@@ -175,6 +176,8 @@ void rxrpc_error_report(struct sock *sk)
 		_leave(" [no peer]");
 		return;
 	}
+
+	trace_rxrpc_rx_icmp(peer, &serr->ee, &srx);
 
 	if ((serr->ee.ee_origin == SO_EE_ORIGIN_ICMP &&
 	     serr->ee.ee_type == ICMP_DEST_UNREACH &&
@@ -208,9 +211,6 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 	_enter("");
 
 	ee = &serr->ee;
-
-	_net("Rx Error o=%d t=%d c=%d e=%d",
-	     ee->ee_origin, ee->ee_type, ee->ee_code, ee->ee_errno);
 
 	err = ee->ee_errno;
 

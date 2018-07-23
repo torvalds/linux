@@ -57,7 +57,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 			DEBUG(SHOW_TRACING,
-			      "cleanup skb %p skb->data %p skb->len %u truesize %u\n ",
+			      "cleanup skb %p skb->data %p skb->len %u truesize %u\n",
 			      skb, skb->data, skb->len, skb->truesize);
 #endif
 
@@ -328,7 +328,7 @@ islpci_eth_receive(islpci_private *priv)
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 	DEBUG(SHOW_TRACING,
-	      "frq->addr %x skb->data %p skb->len %u offset %u truesize %u\n ",
+	      "frq->addr %x skb->data %p skb->len %u offset %u truesize %u\n",
 	      control_block->rx_data_low[priv->free_data_rx].address, skb->data,
 	      skb->len, offset, skb->truesize);
 #endif
@@ -436,7 +436,7 @@ islpci_eth_receive(islpci_private *priv)
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 		DEBUG(SHOW_TRACING,
-		      "new alloc skb %p skb->data %p skb->len %u index %u truesize %u\n ",
+		      "new alloc skb %p skb->data %p skb->len %u index %u truesize %u\n",
 		      skb, skb->data, skb->len, index, skb->truesize);
 #endif
 

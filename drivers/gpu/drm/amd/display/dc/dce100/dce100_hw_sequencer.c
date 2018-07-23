@@ -125,17 +125,54 @@ static void dce100_pplib_apply_display_requirements(
 	dc->prev_display_config = *pp_display_cfg;
 }
 
+/* unit: in_khz before mode set, get pixel clock from context. ASIC register
+ * may not be programmed yet
+ */
+static uint32_t get_max_pixel_clock_for_all_paths(
+	struct dc *dc,
+	struct dc_state *context)
+{
+	uint32_t max_pix_clk = 0;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream == NULL)
+			continue;
+
+		/* do not check under lay */
+		if (pipe_ctx->top_pipe)
+			continue;
+
+		if (pipe_ctx->stream_res.pix_clk_params.requested_pix_clk > max_pix_clk)
+			max_pix_clk =
+				pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
+	}
+
+	if (max_pix_clk == 0)
+		ASSERT(0);
+
+	return max_pix_clk;
+}
+
 void dce100_set_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool decrease_allowed)
 {
-	if (decrease_allowed || context->bw.dce.dispclk_khz > dc->current_state->bw.dce.dispclk_khz) {
-		dc->res_pool->display_clock->funcs->set_clock(
-				dc->res_pool->display_clock,
-				context->bw.dce.dispclk_khz * 115 / 100);
-		dc->current_state->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz;
-	}
+	struct dc_clocks req_clks;
+
+	req_clks.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
+	req_clks.phyclk_khz = get_max_pixel_clock_for_all_paths(dc, context);
+
+	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
+
+	dc->res_pool->dccg->funcs->update_clocks(
+			dc->res_pool->dccg,
+			&req_clks,
+			decrease_allowed);
+
 	dce100_pplib_apply_display_requirements(dc, context);
 }
 

@@ -378,7 +378,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	if (!priv->external_connector &&
 	    ((priv->num_encoders == 0) || (priv->num_connectors == 0))) {
 		dev_err(dev, "no encoders/connectors found\n");
-		ret = -ENXIO;
+		ret = -EPROBE_DEFER;
 		goto init_failed;
 	}
 

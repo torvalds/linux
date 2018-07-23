@@ -687,7 +687,6 @@ static enum i40iw_status_code i40iw_configure_ceq_vector(struct i40iw_device *iw
 							 struct i40iw_msix_vector *msix_vec)
 {
 	enum i40iw_status_code status;
-	cpumask_t mask;
 
 	if (iwdev->msix_shared && !ceq_id) {
 		tasklet_init(&iwdev->dpc_tasklet, i40iw_dpc, (unsigned long)iwdev);
@@ -697,9 +696,9 @@ static enum i40iw_status_code i40iw_configure_ceq_vector(struct i40iw_device *iw
 		status = request_irq(msix_vec->irq, i40iw_ceq_handler, 0, "CEQ", iwceq);
 	}
 
-	cpumask_clear(&mask);
-	cpumask_set_cpu(msix_vec->cpu_affinity, &mask);
-	irq_set_affinity_hint(msix_vec->irq, &mask);
+	cpumask_clear(&msix_vec->mask);
+	cpumask_set_cpu(msix_vec->cpu_affinity, &msix_vec->mask);
+	irq_set_affinity_hint(msix_vec->irq, &msix_vec->mask);
 
 	if (status) {
 		i40iw_pr_err("ceq irq config fail\n");
@@ -1758,7 +1757,7 @@ static void i40iw_l2param_change(struct i40e_info *ldev, struct i40e_client *cli
 		return;
 
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
 		return;
 

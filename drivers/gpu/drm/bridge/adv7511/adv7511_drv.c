@@ -601,7 +601,7 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 		__adv7511_power_off(adv7511);
 
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	count = drm_add_edid_modes(connector, edid);
 
 	adv7511_set_config_csc(adv7511, connector, adv7511->rgb,
@@ -860,7 +860,7 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 	}
 	drm_connector_helper_add(&adv->connector,
 				 &adv7511_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(&adv->connector, bridge->encoder);
+	drm_connector_attach_encoder(&adv->connector, bridge->encoder);
 
 	if (adv->type == ADV7533)
 		ret = adv7533_attach_dsi(adv);
@@ -1127,7 +1127,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	}
 
 	if (adv7511->gpio_pd) {
-		mdelay(5);
+		usleep_range(5000, 6000);
 		gpiod_set_value_cansleep(adv7511->gpio_pd, 0);
 	}
 

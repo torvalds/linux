@@ -192,6 +192,7 @@ struct i2c_hw_engine_dce110 {
 	/* number of pending transactions (before GO) */
 	uint32_t transaction_count;
 	uint32_t engine_keep_power_up_count;
+	uint32_t i2_setup_time_limit;
 };
 
 struct i2c_hw_engine_dce110_create_arg {
@@ -207,4 +208,11 @@ struct i2c_hw_engine_dce110_create_arg {
 struct i2c_engine *dal_i2c_hw_engine_dce110_create(
 	const struct i2c_hw_engine_dce110_create_arg *arg);
 
+enum {
+	I2C_SETUP_TIME_LIMIT_DCE = 255,
+	I2C_SETUP_TIME_LIMIT_DCN = 3,
+	I2C_HW_BUFFER_SIZE = 538,
+	I2C_SEND_RESET_LENGTH_9 = 9,
+	I2C_SEND_RESET_LENGTH_10 = 10,
+};
 #endif

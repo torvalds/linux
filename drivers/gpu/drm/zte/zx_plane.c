@@ -446,7 +446,7 @@ static const struct drm_plane_helper_funcs zx_gl_plane_helper_funcs = {
 
 static void zx_plane_destroy(struct drm_plane *plane)
 {
-	drm_plane_helper_disable(plane);
+	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 }
 

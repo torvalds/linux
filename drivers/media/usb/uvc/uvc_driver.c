@@ -1871,13 +1871,6 @@ static void uvc_unregister_video(struct uvc_device *dev)
 {
 	struct uvc_streaming *stream;
 
-	/* Unregistering all video devices might result in uvc_delete() being
-	 * called from inside the loop if there's no open file handle. To avoid
-	 * that, increment the refcount before iterating over the streams and
-	 * decrement it when done.
-	 */
-	kref_get(&dev->ref);
-
 	list_for_each_entry(stream, &dev->streams, list) {
 		if (!video_is_registered(&stream->vdev))
 			continue;
@@ -1887,8 +1880,6 @@ static void uvc_unregister_video(struct uvc_device *dev)
 
 		uvc_debugfs_cleanup_stream(stream);
 	}
-
-	kref_put(&dev->ref, uvc_delete);
 }
 
 int uvc_register_video_device(struct uvc_device *dev,
@@ -2184,6 +2175,7 @@ static int uvc_probe(struct usb_interface *intf,
 
 error:
 	uvc_unregister_video(dev);
+	kref_put(&dev->ref, uvc_delete);
 	return -ENODEV;
 }
 
@@ -2201,6 +2193,7 @@ static void uvc_disconnect(struct usb_interface *intf)
 		return;
 
 	uvc_unregister_video(dev);
+	kref_put(&dev->ref, uvc_delete);
 }
 
 static int uvc_suspend(struct usb_interface *intf, pm_message_t message)

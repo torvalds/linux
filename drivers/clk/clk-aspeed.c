@@ -14,7 +14,9 @@
 
 #include <dt-bindings/clock/aspeed-clock.h>
 
-#define ASPEED_NUM_CLKS		35
+#define ASPEED_NUM_CLKS		36
+
+#define ASPEED_RESET2_OFFSET	32
 
 #define ASPEED_RESET_CTRL	0x04
 #define ASPEED_CLK_SELECTION	0x08
@@ -30,6 +32,7 @@
 #define  CLKIN_25MHZ_EN		BIT(23)
 #define  AST2400_CLK_SOURCE_SEL	BIT(18)
 #define ASPEED_CLK_SELECTION_2	0xd8
+#define ASPEED_RESET_CTRL2	0xd4
 
 /* Globally visible clocks */
 static DEFINE_SPINLOCK(aspeed_clk_lock);
@@ -88,7 +91,7 @@ static const struct aspeed_gate_data aspeed_gates[] = {
 	[ASPEED_CLK_GATE_GCLK] =	{  1,  7, "gclk-gate",		NULL,	0 }, /* 2D engine */
 	[ASPEED_CLK_GATE_MCLK] =	{  2, -1, "mclk-gate",		"mpll",	CLK_IS_CRITICAL }, /* SDRAM */
 	[ASPEED_CLK_GATE_VCLK] =	{  3,  6, "vclk-gate",		NULL,	0 }, /* Video Capture */
-	[ASPEED_CLK_GATE_BCLK] =	{  4, 10, "bclk-gate",		"bclk",	0 }, /* PCIe/PCI */
+	[ASPEED_CLK_GATE_BCLK] =	{  4,  8, "bclk-gate",		"bclk",	0 }, /* PCIe/PCI */
 	[ASPEED_CLK_GATE_DCLK] =	{  5, -1, "dclk-gate",		NULL,	0 }, /* DAC */
 	[ASPEED_CLK_GATE_REFCLK] =	{  6, -1, "refclk-gate",	"clkin", CLK_IS_CRITICAL },
 	[ASPEED_CLK_GATE_USBPORT2CLK] =	{  7,  3, "usb-port2-gate",	NULL,	0 }, /* USB2.0 Host port 2 */
@@ -291,47 +294,72 @@ struct aspeed_reset {
 #define to_aspeed_reset(p) container_of((p), struct aspeed_reset, rcdev)
 
 static const u8 aspeed_resets[] = {
+	/* SCU04 resets */
 	[ASPEED_RESET_XDMA]	= 25,
 	[ASPEED_RESET_MCTP]	= 24,
 	[ASPEED_RESET_ADC]	= 23,
 	[ASPEED_RESET_JTAG_MASTER] = 22,
 	[ASPEED_RESET_MIC]	= 18,
 	[ASPEED_RESET_PWM]	=  9,
-	[ASPEED_RESET_PCIVGA]	=  8,
+	[ASPEED_RESET_PECI]	= 10,
 	[ASPEED_RESET_I2C]	=  2,
 	[ASPEED_RESET_AHB]	=  1,
+
+	/*
+	 * SCUD4 resets start at an offset to separate them from
+	 * the SCU04 resets.
+	 */
+	[ASPEED_RESET_CRT1]	= ASPEED_RESET2_OFFSET + 5,
 };
 
 static int aspeed_reset_deassert(struct reset_controller_dev *rcdev,
 				 unsigned long id)
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
-	u32 rst = BIT(aspeed_resets[id]);
+	u32 reg = ASPEED_RESET_CTRL;
+	u32 bit = aspeed_resets[id];
 
-	return regmap_update_bits(ar->map, ASPEED_RESET_CTRL, rst, 0);
+	if (bit >= ASPEED_RESET2_OFFSET) {
+		bit -= ASPEED_RESET2_OFFSET;
+		reg = ASPEED_RESET_CTRL2;
+	}
+
+	return regmap_update_bits(ar->map, reg, BIT(bit), 0);
 }
 
 static int aspeed_reset_assert(struct reset_controller_dev *rcdev,
 			       unsigned long id)
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
-	u32 rst = BIT(aspeed_resets[id]);
+	u32 reg = ASPEED_RESET_CTRL;
+	u32 bit = aspeed_resets[id];
 
-	return regmap_update_bits(ar->map, ASPEED_RESET_CTRL, rst, rst);
+	if (bit >= ASPEED_RESET2_OFFSET) {
+		bit -= ASPEED_RESET2_OFFSET;
+		reg = ASPEED_RESET_CTRL2;
+	}
+
+	return regmap_update_bits(ar->map, reg, BIT(bit), BIT(bit));
 }
 
 static int aspeed_reset_status(struct reset_controller_dev *rcdev,
 			       unsigned long id)
 {
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
-	u32 val, rst = BIT(aspeed_resets[id]);
-	int ret;
+	u32 reg = ASPEED_RESET_CTRL;
+	u32 bit = aspeed_resets[id];
+	int ret, val;
 
-	ret = regmap_read(ar->map, ASPEED_RESET_CTRL, &val);
+	if (bit >= ASPEED_RESET2_OFFSET) {
+		bit -= ASPEED_RESET2_OFFSET;
+		reg = ASPEED_RESET_CTRL2;
+	}
+
+	ret = regmap_read(ar->map, reg, &val);
 	if (ret)
 		return ret;
 
-	return !!(val & rst);
+	return !!(val & BIT(bit));
 }
 
 static const struct reset_control_ops aspeed_reset_ops = {
@@ -473,6 +501,13 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_BCLK] = hw;
+
+	/* Fixed 24MHz clock */
+	hw = clk_hw_register_fixed_rate(NULL, "fixed-24m", "clkin",
+					0, 24000000);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_clk_data->hws[ASPEED_CLK_24M] = hw;
 
 	/*
 	 * TODO: There are a number of clocks that not included in this driver
@@ -627,9 +662,9 @@ static void __init aspeed_cc_init(struct device_node *np)
 	if (!scu_base)
 		return;
 
-	aspeed_clk_data = kzalloc(sizeof(*aspeed_clk_data) +
-			sizeof(*aspeed_clk_data->hws) * ASPEED_NUM_CLKS,
-			GFP_KERNEL);
+	aspeed_clk_data = kzalloc(struct_size(aspeed_clk_data, hws,
+					      ASPEED_NUM_CLKS),
+				  GFP_KERNEL);
 	if (!aspeed_clk_data)
 		return;
 

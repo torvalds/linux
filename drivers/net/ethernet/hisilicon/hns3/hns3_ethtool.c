@@ -74,7 +74,7 @@ struct hns3_link_mode_mapping {
 	u32 ethtool_link_mode;
 };
 
-static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop)
+static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
 	int ret;
@@ -85,11 +85,7 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop)
 
 	switch (loop) {
 	case HNAE3_MAC_INTER_LOOP_MAC:
-		ret = h->ae_algo->ops->set_loopback(h, loop, true);
-		break;
-	case HNAE3_MAC_LOOP_NONE:
-		ret = h->ae_algo->ops->set_loopback(h,
-			HNAE3_MAC_INTER_LOOP_MAC, false);
+		ret = h->ae_algo->ops->set_loopback(h, loop, en);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -99,10 +95,7 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop)
 	if (ret)
 		return ret;
 
-	if (loop == HNAE3_MAC_LOOP_NONE)
-		h->ae_algo->ops->set_promisc_mode(h, ndev->flags & IFF_PROMISC);
-	else
-		h->ae_algo->ops->set_promisc_mode(h, 1);
+	h->ae_algo->ops->set_promisc_mode(h, en, en);
 
 	return ret;
 }
@@ -115,6 +108,10 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 	if (!h->ae_algo->ops->start)
 		return -EOPNOTSUPP;
 
+	ret = hns3_nic_reset_all_ring(h);
+	if (ret)
+		return ret;
+
 	ret = h->ae_algo->ops->start(h);
 	if (ret) {
 		netdev_err(ndev,
@@ -122,13 +119,13 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 		return ret;
 	}
 
-	ret = hns3_lp_setup(ndev, loop_mode);
+	ret = hns3_lp_setup(ndev, loop_mode, true);
 	usleep_range(10000, 20000);
 
 	return ret;
 }
 
-static int hns3_lp_down(struct net_device *ndev)
+static int hns3_lp_down(struct net_device *ndev, enum hnae3_loop loop_mode)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
 	int ret;
@@ -136,7 +133,7 @@ static int hns3_lp_down(struct net_device *ndev)
 	if (!h->ae_algo->ops->stop)
 		return -EOPNOTSUPP;
 
-	ret = hns3_lp_setup(ndev, HNAE3_MAC_LOOP_NONE);
+	ret = hns3_lp_setup(ndev, loop_mode, false);
 	if (ret) {
 		netdev_err(ndev, "lb_setup return error: %d\n", ret);
 		return ret;
@@ -332,7 +329,7 @@ static void hns3_self_test(struct net_device *ndev,
 		data[test_index] = hns3_lp_up(ndev, loop_type);
 		if (!data[test_index]) {
 			data[test_index] = hns3_lp_run_test(ndev, loop_type);
-			hns3_lp_down(ndev);
+			hns3_lp_down(ndev, loop_type);
 		}
 
 		if (data[test_index])

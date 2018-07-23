@@ -177,14 +177,14 @@ BUGS
 ****
 
 
-Report bugs to Mauro Carvalho Chehab <mchehab@s-opensource.com>
+Report bugs to Mauro Carvalho Chehab <mchehab@kernel.org>
 
 
 COPYRIGHT
 *********
 
 
-Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab@s-opensource.com>.
+Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
 
 License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
 

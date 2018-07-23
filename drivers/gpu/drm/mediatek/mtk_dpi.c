@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/clk.h>
+#include <video/videomode.h>
 
 #include "mtk_dpi_regs.h"
 #include "mtk_drm_ddp_comp.h"
@@ -429,34 +430,35 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	struct mtk_dpi_sync_param vsync_leven = { 0 };
 	struct mtk_dpi_sync_param vsync_rodd = { 0 };
 	struct mtk_dpi_sync_param vsync_reven = { 0 };
-	unsigned long pix_rate;
+	struct videomode vm = { 0 };
 	unsigned long pll_rate;
 	unsigned int factor;
 
 	/* let pll_rate can fix the valid range of tvdpll (1G~2GHz) */
-	pix_rate = 1000UL * mode->clock;
+
 	if (mode->clock <= 27000)
-		factor = 16 * 3;
+		factor = 3 << 4;
 	else if (mode->clock <= 84000)
-		factor = 8 * 3;
+		factor = 3 << 3;
 	else if (mode->clock <= 167000)
-		factor = 4 * 3;
+		factor = 3 << 2;
 	else
-		factor = 2 * 3;
-	pll_rate = pix_rate * factor;
+		factor = 3 << 1;
+	drm_display_mode_to_videomode(mode, &vm);
+	pll_rate = vm.pixelclock * factor;
 
 	dev_dbg(dpi->dev, "Want PLL %lu Hz, pixel clock %lu Hz\n",
-		pll_rate, pix_rate);
+		pll_rate, vm.pixelclock);
 
 	clk_set_rate(dpi->tvd_clk, pll_rate);
 	pll_rate = clk_get_rate(dpi->tvd_clk);
 
-	pix_rate = pll_rate / factor;
-	clk_set_rate(dpi->pixel_clk, pix_rate);
-	pix_rate = clk_get_rate(dpi->pixel_clk);
+	vm.pixelclock = pll_rate / factor;
+	clk_set_rate(dpi->pixel_clk, vm.pixelclock);
+	vm.pixelclock = clk_get_rate(dpi->pixel_clk);
 
 	dev_dbg(dpi->dev, "Got  PLL %lu Hz, pixel clock %lu Hz\n",
-		pll_rate, pix_rate);
+		pll_rate, vm.pixelclock);
 
 	limit.c_bottom = 0x0010;
 	limit.c_top = 0x0FE0;
@@ -465,33 +467,31 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 
 	dpi_pol.ck_pol = MTK_DPI_POLARITY_FALLING;
 	dpi_pol.de_pol = MTK_DPI_POLARITY_RISING;
-	dpi_pol.hsync_pol = mode->flags & DRM_MODE_FLAG_PHSYNC ?
+	dpi_pol.hsync_pol = vm.flags & DISPLAY_FLAGS_HSYNC_HIGH ?
 			    MTK_DPI_POLARITY_FALLING : MTK_DPI_POLARITY_RISING;
-	dpi_pol.vsync_pol = mode->flags & DRM_MODE_FLAG_PVSYNC ?
+	dpi_pol.vsync_pol = vm.flags & DISPLAY_FLAGS_VSYNC_HIGH ?
 			    MTK_DPI_POLARITY_FALLING : MTK_DPI_POLARITY_RISING;
-
-	hsync.sync_width = mode->hsync_end - mode->hsync_start;
-	hsync.back_porch = mode->htotal - mode->hsync_end;
-	hsync.front_porch = mode->hsync_start - mode->hdisplay;
+	hsync.sync_width = vm.hsync_len;
+	hsync.back_porch = vm.hback_porch;
+	hsync.front_porch = vm.hfront_porch;
 	hsync.shift_half_line = false;
-
-	vsync_lodd.sync_width = mode->vsync_end - mode->vsync_start;
-	vsync_lodd.back_porch = mode->vtotal - mode->vsync_end;
-	vsync_lodd.front_porch = mode->vsync_start - mode->vdisplay;
+	vsync_lodd.sync_width = vm.vsync_len;
+	vsync_lodd.back_porch = vm.vback_porch;
+	vsync_lodd.front_porch = vm.vfront_porch;
 	vsync_lodd.shift_half_line = false;
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE &&
+	if (vm.flags & DISPLAY_FLAGS_INTERLACED &&
 	    mode->flags & DRM_MODE_FLAG_3D_MASK) {
 		vsync_leven = vsync_lodd;
 		vsync_rodd = vsync_lodd;
 		vsync_reven = vsync_lodd;
 		vsync_leven.shift_half_line = true;
 		vsync_reven.shift_half_line = true;
-	} else if (mode->flags & DRM_MODE_FLAG_INTERLACE &&
+	} else if (vm.flags & DISPLAY_FLAGS_INTERLACED &&
 		   !(mode->flags & DRM_MODE_FLAG_3D_MASK)) {
 		vsync_leven = vsync_lodd;
 		vsync_leven.shift_half_line = true;
-	} else if (!(mode->flags & DRM_MODE_FLAG_INTERLACE) &&
+	} else if (!(vm.flags & DISPLAY_FLAGS_INTERLACED) &&
 		   mode->flags & DRM_MODE_FLAG_3D_MASK) {
 		vsync_rodd = vsync_lodd;
 	}
@@ -505,12 +505,12 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	mtk_dpi_config_vsync_reven(dpi, &vsync_reven);
 
 	mtk_dpi_config_3d(dpi, !!(mode->flags & DRM_MODE_FLAG_3D_MASK));
-	mtk_dpi_config_interface(dpi, !!(mode->flags &
-					 DRM_MODE_FLAG_INTERLACE));
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		mtk_dpi_config_fb_size(dpi, mode->hdisplay, mode->vdisplay / 2);
+	mtk_dpi_config_interface(dpi, !!(vm.flags &
+					 DISPLAY_FLAGS_INTERLACED));
+	if (vm.flags & DISPLAY_FLAGS_INTERLACED)
+		mtk_dpi_config_fb_size(dpi, vm.hactive, vm.vactive >> 1);
 	else
-		mtk_dpi_config_fb_size(dpi, mode->hdisplay, mode->vdisplay);
+		mtk_dpi_config_fb_size(dpi, vm.hactive, vm.vactive);
 
 	mtk_dpi_config_channel_limit(dpi, &limit);
 	mtk_dpi_config_bit_num(dpi, dpi->bit_num);

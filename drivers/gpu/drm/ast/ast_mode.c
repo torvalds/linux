@@ -790,12 +790,12 @@ static int ast_get_modes(struct drm_connector *connector)
 	if (!flags)
 		edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
 	if (edid) {
-		drm_mode_connector_update_edid_property(&ast_connector->base, edid);
+		drm_connector_update_edid_property(&ast_connector->base, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 		return ret;
 	} else
-		drm_mode_connector_update_edid_property(&ast_connector->base, NULL);
+		drm_connector_update_edid_property(&ast_connector->base, NULL);
 	return 0;
 }
 
@@ -900,7 +900,7 @@ static int ast_connector_init(struct drm_device *dev)
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
 	encoder = list_first_entry(&dev->mode_config.encoder_list, struct drm_encoder, head);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	ast_connector->i2c = ast_i2c_create(dev);
 	if (!ast_connector->i2c)

@@ -163,7 +163,8 @@ fq_find(struct net *net, __be32 id, const struct ipv6hdr *hdr, int iif)
 }
 
 static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
-			   struct frag_hdr *fhdr, int nhoff)
+			  struct frag_hdr *fhdr, int nhoff,
+			  u32 *prob_offset)
 {
 	struct sk_buff *prev, *next;
 	struct net_device *dev;
@@ -179,11 +180,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 			((u8 *)(fhdr + 1) - (u8 *)(ipv6_hdr(skb) + 1)));
 
 	if ((unsigned int)end > IPV6_MAXPLEN) {
-		__IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
-				IPSTATS_MIB_INHDRERRORS);
-		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
-				  ((u8 *)&fhdr->frag_off -
-				   skb_network_header(skb)));
+		*prob_offset = (u8 *)&fhdr->frag_off - skb_network_header(skb);
 		return -1;
 	}
 
@@ -214,10 +211,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 			/* RFC2460 says always send parameter problem in
 			 * this case. -DaveM
 			 */
-			__IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
-					IPSTATS_MIB_INHDRERRORS);
-			icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
-					  offsetof(struct ipv6hdr, payload_len));
+			*prob_offset = offsetof(struct ipv6hdr, payload_len);
 			return -1;
 		}
 		if (end > fq->q.len) {
@@ -519,15 +513,22 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	iif = skb->dev ? skb->dev->ifindex : 0;
 	fq = fq_find(net, fhdr->identification, hdr, iif);
 	if (fq) {
+		u32 prob_offset = 0;
 		int ret;
 
 		spin_lock(&fq->q.lock);
 
 		fq->iif = iif;
-		ret = ip6_frag_queue(fq, skb, fhdr, IP6CB(skb)->nhoff);
+		ret = ip6_frag_queue(fq, skb, fhdr, IP6CB(skb)->nhoff,
+				     &prob_offset);
 
 		spin_unlock(&fq->q.lock);
 		inet_frag_put(&fq->q);
+		if (prob_offset) {
+			__IP6_INC_STATS(net, __in6_dev_get_safely(skb->dev),
+					IPSTATS_MIB_INHDRERRORS);
+			icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, prob_offset);
+		}
 		return ret;
 	}
 
@@ -536,7 +537,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	return -1;
 
 fail_hdr:
-	__IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
+	__IP6_INC_STATS(net, __in6_dev_get_safely(skb->dev),
 			IPSTATS_MIB_INHDRERRORS);
 	icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, skb_network_header_len(skb));
 	return -1;

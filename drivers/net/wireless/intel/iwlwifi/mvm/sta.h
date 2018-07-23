@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -35,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -376,6 +373,7 @@ struct iwl_mvm_rxq_dup_data {
  *	tid.
  * @max_agg_bufsize: the maximal size of the AGG buffer for this station
  * @sta_type: station type
+ * @sta_state: station state according to enum %ieee80211_sta_state
  * @bt_reduced_txpower: is reduced tx power enabled for this station
  * @next_status_eosp: the next reclaimed packet is a PS-Poll response and
  *	we need to signal the EOSP
@@ -391,7 +389,9 @@ struct iwl_mvm_rxq_dup_data {
  * @tx_protection: reference counter for controlling the Tx protection.
  * @tt_tx_protection: is thermal throttling enable Tx protection?
  * @disable_tx: is tx to this STA disabled?
- * @tlc_amsdu: true if A-MSDU is allowed
+ * @amsdu_enabled: bitmap of TX AMSDU allowed TIDs.
+ *	In case TLC offload is not active it is either 0xFFFF or 0.
+ * @max_amsdu_len: max AMSDU length
  * @agg_tids: bitmap of tids whose status is operational aggregated (IWL_AGG_ON)
  * @sleep_tx_count: the number of frames that we told the firmware to let out
  *	even when that station is asleep. This is useful in case the queue
@@ -414,6 +414,7 @@ struct iwl_mvm_sta {
 	u16 tid_disable_agg;
 	u8 max_agg_bufsize;
 	enum iwl_sta_type sta_type;
+	enum ieee80211_sta_state sta_state;
 	bool bt_reduced_txpower;
 	bool next_status_eosp;
 	spinlock_t lock;
@@ -436,9 +437,9 @@ struct iwl_mvm_sta {
 	bool tt_tx_protection;
 
 	bool disable_tx;
-	bool tlc_amsdu;
+	u16 amsdu_enabled;
+	u16 max_amsdu_len;
 	bool sleeping;
-	bool associated;
 	u8 agg_tids;
 	u8 sleep_tx_count;
 	u8 avg_energy;

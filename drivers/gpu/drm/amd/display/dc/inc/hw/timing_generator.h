@@ -140,6 +140,9 @@ struct timing_generator_funcs {
 	void (*program_timing)(struct timing_generator *tg,
 							const struct dc_crtc_timing *timing,
 							bool use_vbios);
+	void (*program_vline_interrupt)(struct timing_generator *optc,
+			const struct dc_crtc_timing *dc_crtc_timing,
+			unsigned long long vsync_delta);
 	bool (*enable_crtc)(struct timing_generator *tg);
 	bool (*disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);
@@ -153,6 +156,9 @@ struct timing_generator_funcs {
 		uint32_t *v_blank_end,
 		uint32_t *h_position,
 		uint32_t *v_position);
+	bool (*get_otg_active_size)(struct timing_generator *optc,
+			uint32_t *otg_active_width,
+			uint32_t *otg_active_height);
 	void (*set_early_control)(struct timing_generator *tg,
 							   uint32_t early_cntl);
 	void (*wait_for_state)(struct timing_generator *tg,

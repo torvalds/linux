@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2015-2018 Etnaviv Project
  */
 
 #include <linux/component.h>
@@ -1038,11 +1027,6 @@ static const char *etnaviv_fence_get_timeline_name(struct dma_fence *fence)
 	return dev_name(f->gpu->dev);
 }
 
-static bool etnaviv_fence_enable_signaling(struct dma_fence *fence)
-{
-	return true;
-}
-
 static bool etnaviv_fence_signaled(struct dma_fence *fence)
 {
 	struct etnaviv_fence *f = to_etnaviv_fence(fence);
@@ -1060,9 +1044,7 @@ static void etnaviv_fence_release(struct dma_fence *fence)
 static const struct dma_fence_ops etnaviv_fence_ops = {
 	.get_driver_name = etnaviv_fence_get_driver_name,
 	.get_timeline_name = etnaviv_fence_get_timeline_name,
-	.enable_signaling = etnaviv_fence_enable_signaling,
 	.signaled = etnaviv_fence_signaled,
-	.wait = dma_fence_default_wait,
 	.release = etnaviv_fence_release,
 };
 
@@ -1735,6 +1717,7 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct etnaviv_gpu *gpu;
+	struct resource *res;
 	int err;
 
 	gpu = devm_kzalloc(dev, sizeof(*gpu), GFP_KERNEL);
@@ -1746,7 +1729,8 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	mutex_init(&gpu->fence_idr_lock);
 
 	/* Map registers: */
-	gpu->mmio = etnaviv_ioremap(pdev, NULL, dev_name(gpu->dev));
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	gpu->mmio = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(gpu->mmio))
 		return PTR_ERR(gpu->mmio);
 

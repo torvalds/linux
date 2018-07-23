@@ -52,6 +52,13 @@ config USB_XHCI_PLATFORM
 
 	  If unsure, say N.
 
+config USB_XHCI_HISTB
+	tristate "xHCI support for HiSilicon STB SoCs"
+	depends on USB_XHCI_PLATFORM && (ARCH_HISI || COMPILE_TEST)
+	help
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in HiSilicon STB SoCs.
+
 config USB_XHCI_MTK
 	tristate "xHCI support for MediaTek SoCs"
 	select MFD_SYSCON
@@ -234,9 +241,7 @@ config USB_EHCI_TEGRA
        tristate "NVIDIA Tegra HCD support"
        depends on ARCH_TEGRA
        select USB_EHCI_ROOT_HUB_TT
-       select USB_PHY
-	select USB_ULPI
-	select USB_ULPI_VIEWPORT
+       select USB_TEGRA_PHY
        help
          This driver enables support for the internal USB Host Controllers
          found in NVIDIA Tegra SoCs. The controllers are EHCI compliant.

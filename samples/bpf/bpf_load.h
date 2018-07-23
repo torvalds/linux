@@ -2,12 +2,12 @@
 #ifndef __BPF_LOAD_H
 #define __BPF_LOAD_H
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 
 #define MAX_MAPS 32
 #define MAX_PROGS 32
 
-struct bpf_map_def {
+struct bpf_load_map_def {
 	unsigned int type;
 	unsigned int key_size;
 	unsigned int value_size;
@@ -21,7 +21,7 @@ struct bpf_map_data {
 	int fd;
 	char *name;
 	size_t elf_offset;
-	struct bpf_map_def def;
+	struct bpf_load_map_def def;
 };
 
 typedef void (*fixup_map_cb)(struct bpf_map_data *map, int idx);
@@ -54,12 +54,5 @@ int load_bpf_file(char *path);
 int load_bpf_file_fixup_map(const char *path, fixup_map_cb fixup_map);
 
 void read_trace_pipe(void);
-struct ksym {
-	long addr;
-	char *name;
-};
-
-int load_kallsyms(void);
-struct ksym *ksym_search(long key);
 int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
 #endif

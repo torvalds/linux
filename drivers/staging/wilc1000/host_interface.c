@@ -1,18 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/slab.h>
-#include <linux/time.h>
-#include <linux/kthread.h>
-#include <linux/delay.h>
-#include <linux/completion.h>
-#include <linux/list.h>
-#include <linux/workqueue.h>
-#include "host_interface.h"
-#include <linux/spinlock.h>
-#include <linux/errno.h>
-#include "coreconfigurator.h"
-#include "wilc_wlan.h"
-#include "wilc_wlan_if.h"
-#include <linux/etherdevice.h>
 #include "wilc_wfi_netdevice.h"
 
 #define HOST_IF_MSG_SCAN                        0
@@ -53,13 +39,12 @@
 #define HOST_IF_SCAN_TIMEOUT                    4000
 #define HOST_IF_CONNECT_TIMEOUT                 9500
 
-#define BA_SESSION_DEFAULT_BUFFER_SIZE          16
-#define BA_SESSION_DEFAULT_TIMEOUT              1000
-#define BLOCK_ACK_REQ_SIZE                      0x14
 #define FALSE_FRMWR_CHANNEL			100
 
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
+
+#define REAL_JOIN_REQ				0
 
 struct host_if_wpa_attr {
 	u8 *key;
@@ -232,7 +217,7 @@ struct join_bss_param {
 
 static struct host_if_drv *terminated_handle;
 bool wilc_optaining_ip;
-static u8 P2P_LISTEN_STATE;
+static u8 p2p_listen_state;
 static struct workqueue_struct *hif_workqueue;
 static struct completion hif_thread_comp;
 static struct completion hif_driver_comp;
@@ -245,18 +230,11 @@ u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
 static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 
-static bool scan_while_connected;
-
 static s8 rssi;
 static u8 set_ip[2][4];
 static u8 get_ip[2][4];
 static u32 inactive_time;
-static u8 del_beacon;
 static u32 clients_count;
-
-#define REAL_JOIN_REQ 0
-#define FLUSHED_JOIN_REQ 1
-#define FLUSHED_BYTE_POS 79
 
 static void *host_int_parse_join_bss_param(struct network_info *info);
 static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
@@ -599,7 +577,7 @@ static void handle_cfg_param(struct wilc_vif *vif, struct cfg_param_attr *param)
 			wid_list[i].size = sizeof(char);
 			hif_drv->cfg_values.preamble_type = preamble_type;
 		} else {
-			netdev_err(vif->ndev, "Preamle Range(0~2) over\n");
+			netdev_err(vif->ndev, "Preamble Range(0~2) over\n");
 			goto unlock;
 		}
 		i++;
@@ -841,11 +819,6 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 	wid_list[index].size = sizeof(char);
 	wid_list[index].val = (s8 *)&scan_info->src;
 	index++;
-
-	if (hif_drv->hif_state == HOST_IF_CONNECTED)
-		scan_while_connected = true;
-	else if (hif_drv->hif_state == HOST_IF_IDLE)
-		scan_while_connected = false;
 
 	result = wilc_send_config_pkt(vif, SET_CFG, wid_list,
 				      index,
@@ -1144,10 +1117,8 @@ error:
 			}
 
 			conn_attr->result(CONN_DISCONN_EVENT_CONN_RESP,
-							       &conn_info,
-							       MAC_DISCONNECTED,
-							       NULL,
-							       conn_attr->arg);
+					  &conn_info, MAC_STATUS_DISCONNECTED,
+					  NULL, conn_attr->arg);
 			hif_drv->hif_state = HOST_IF_IDLE;
 			kfree(conn_info.req_ies);
 			conn_info.req_ies = NULL;
@@ -1185,8 +1156,6 @@ static s32 handle_connect_timeout(struct wilc_vif *vif)
 
 	hif_drv->hif_state = HOST_IF_IDLE;
 
-	scan_while_connected = false;
-
 	memset(&info, 0, sizeof(struct connect_info));
 
 	if (hif_drv->usr_conn_req.conn_result) {
@@ -1197,15 +1166,16 @@ static s32 handle_connect_timeout(struct wilc_vif *vif)
 
 		if (hif_drv->usr_conn_req.ies) {
 			info.req_ies_len = hif_drv->usr_conn_req.ies_len;
-			info.req_ies = kmalloc(hif_drv->usr_conn_req.ies_len, GFP_KERNEL);
-			memcpy(info.req_ies,
-			       hif_drv->usr_conn_req.ies,
-			       hif_drv->usr_conn_req.ies_len);
+			info.req_ies = kmemdup(hif_drv->usr_conn_req.ies,
+					       hif_drv->usr_conn_req.ies_len,
+					       GFP_KERNEL);
+			if (!info.req_ies)
+				return -ENOMEM;
 		}
 
 		hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_CONN_RESP,
 						  &info,
-						  MAC_DISCONNECTED,
+						  MAC_STATUS_DISCONNECTED,
 						  NULL,
 						  hif_drv->usr_conn_req.arg);
 
@@ -1327,62 +1297,47 @@ static inline void host_int_free_user_conn_req(struct host_if_drv *hif_drv)
 static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 						  u8 mac_status)
 {
-	struct connect_resp_info *connect_resp_info = NULL;
 	struct connect_info conn_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	memset(&conn_info, 0, sizeof(struct connect_info));
 
-	if (mac_status == MAC_CONNECTED) {
-		u32 rcvd_assoc_resp_info_len;
+	if (mac_status == MAC_STATUS_CONNECTED) {
+		u32 assoc_resp_info_len;
 
 		memset(rcv_assoc_resp, 0, MAX_ASSOC_RESP_FRAME_SIZE);
 
 		host_int_get_assoc_res_info(vif, rcv_assoc_resp,
 					    MAX_ASSOC_RESP_FRAME_SIZE,
-					    &rcvd_assoc_resp_info_len);
+					    &assoc_resp_info_len);
 
-		if (rcvd_assoc_resp_info_len != 0) {
+		if (assoc_resp_info_len != 0) {
 			s32 err = 0;
 
-			err = wilc_parse_assoc_resp_info(rcv_assoc_resp, rcvd_assoc_resp_info_len,
-							 &connect_resp_info);
-			if (err) {
+			err = wilc_parse_assoc_resp_info(rcv_assoc_resp,
+							 assoc_resp_info_len,
+							 &conn_info);
+			if (err)
 				netdev_err(vif->ndev,
 					   "wilc_parse_assoc_resp_info() returned error %d\n",
 					   err);
-			} else {
-				conn_info.status = connect_resp_info->status;
-
-				if (conn_info.status == SUCCESSFUL_STATUSCODE &&
-				    connect_resp_info->ies) {
-					conn_info.resp_ies = kmemdup(connect_resp_info->ies,
-								     connect_resp_info->ies_len,
-								     GFP_KERNEL);
-					if (conn_info.resp_ies)
-						conn_info.resp_ies_len = connect_resp_info->ies_len;
-				}
-
-				kfree(connect_resp_info->ies);
-				kfree(connect_resp_info);
-			}
 		}
 	}
 
-	if (mac_status == MAC_CONNECTED &&
+	if (mac_status == MAC_STATUS_CONNECTED &&
 	    conn_info.status != SUCCESSFUL_STATUSCODE) {
 		netdev_err(vif->ndev,
-			   "Received MAC status is MAC_CONNECTED while the received status code in Asoc Resp is not SUCCESSFUL_STATUSCODE\n");
+			   "Received MAC status is MAC_STATUS_CONNECTED while the received status code in Asoc Resp is not SUCCESSFUL_STATUSCODE\n");
 		eth_zero_addr(wilc_connected_ssid);
-	} else if (mac_status == MAC_DISCONNECTED)    {
-		netdev_err(vif->ndev, "Received MAC status is MAC_DISCONNECTED\n");
+	} else if (mac_status == MAC_STATUS_DISCONNECTED)    {
+		netdev_err(vif->ndev, "Received MAC status is MAC_STATUS_DISCONNECTED\n");
 		eth_zero_addr(wilc_connected_ssid);
 	}
 
 	if (hif_drv->usr_conn_req.bssid) {
 		memcpy(conn_info.bssid, hif_drv->usr_conn_req.bssid, 6);
 
-		if (mac_status == MAC_CONNECTED &&
+		if (mac_status == MAC_STATUS_CONNECTED &&
 		    conn_info.status == SUCCESSFUL_STATUSCODE) {
 			memcpy(hif_drv->assoc_bssid,
 			       hif_drv->usr_conn_req.bssid, ETH_ALEN);
@@ -1402,7 +1357,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 					  &conn_info, mac_status, NULL,
 					  hif_drv->usr_conn_req.arg);
 
-	if (mac_status == MAC_CONNECTED &&
+	if (mac_status == MAC_STATUS_CONNECTED &&
 	    conn_info.status == SUCCESSFUL_STATUSCODE) {
 		wilc_set_power_mgmt(vif, 0, 0);
 
@@ -1413,7 +1368,6 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 			  jiffies + msecs_to_jiffies(10000));
 	} else {
 		hif_drv->hif_state = HOST_IF_IDLE;
-		scan_while_connected = false;
 	}
 
 	kfree(conn_info.resp_ies);
@@ -1428,6 +1382,7 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 {
 	struct disconnect_info disconn_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
+	wilc_connect_result conn_result = hif_drv->usr_conn_req.conn_result;
 
 	memset(&disconn_info, 0, sizeof(struct disconnect_info));
 
@@ -1440,13 +1395,12 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 	disconn_info.ie = NULL;
 	disconn_info.ie_len = 0;
 
-	if (hif_drv->usr_conn_req.conn_result) {
+	if (conn_result) {
 		wilc_optaining_ip = false;
 		wilc_set_power_mgmt(vif, 0, 0);
 
-		hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
-						  NULL, 0, &disconn_info,
-						  hif_drv->usr_conn_req.arg);
+		conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF, NULL, 0,
+			    &disconn_info, hif_drv->usr_conn_req.arg);
 	} else {
 		netdev_err(vif->ndev, "Connect result NULL\n");
 	}
@@ -1455,7 +1409,6 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 
 	host_int_free_user_conn_req(hif_drv);
 	hif_drv->hif_state = HOST_IF_IDLE;
-	scan_while_connected = false;
 }
 
 static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
@@ -1463,13 +1416,7 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 {
 	s32 result = 0;
 	u8 msg_type = 0;
-	u8 msg_id = 0;
-	u16 msg_len = 0;
-	u16 wid_id = (u16)WID_NIL;
-	u8 wid_len  = 0;
 	u8 mac_status;
-	u8 mac_status_reason_code;
-	u8 mac_status_additional_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!rcvd_info->buffer) {
@@ -1503,19 +1450,13 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 			return -EFAULT;
 		}
 
-		msg_id = rcvd_info->buffer[1];
-		msg_len = MAKE_WORD16(rcvd_info->buffer[2], rcvd_info->buffer[3]);
-		wid_id = MAKE_WORD16(rcvd_info->buffer[4], rcvd_info->buffer[5]);
-		wid_len = rcvd_info->buffer[6];
 		mac_status  = rcvd_info->buffer[7];
-		mac_status_reason_code = rcvd_info->buffer[8];
-		mac_status_additional_info = rcvd_info->buffer[9];
 		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
 			host_int_parse_assoc_resp_info(vif, mac_status);
-		} else if ((mac_status == MAC_DISCONNECTED) &&
+		} else if ((mac_status == MAC_STATUS_DISCONNECTED) &&
 			   (hif_drv->hif_state == HOST_IF_CONNECTED)) {
 			host_int_handle_disconnect(vif);
-		} else if ((mac_status == MAC_DISCONNECTED) &&
+		} else if ((mac_status == MAC_STATUS_DISCONNECTED) &&
 			   (hif_drv->usr_scan_req.scan_result)) {
 			del_timer(&hif_drv->scan_timer);
 			if (hif_drv->usr_scan_req.scan_result)
@@ -1529,15 +1470,46 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 	return result;
 }
 
+static int wilc_pmksa_key_copy(struct wilc_vif *vif, struct key_attr *hif_key)
+{
+	int i;
+	int ret;
+	struct wid wid;
+	u8 *key_buf;
+
+	key_buf = kmalloc((hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1,
+			  GFP_KERNEL);
+	if (!key_buf)
+		return -ENOMEM;
+
+	key_buf[0] = hif_key->attr.pmkid.numpmkid;
+
+	for (i = 0; i < hif_key->attr.pmkid.numpmkid; i++) {
+		memcpy(key_buf + ((PMKSA_KEY_LEN * i) + 1),
+		       hif_key->attr.pmkid.pmkidlist[i].bssid, ETH_ALEN);
+		memcpy(key_buf + ((PMKSA_KEY_LEN * i) + ETH_ALEN + 1),
+		       hif_key->attr.pmkid.pmkidlist[i].pmkid, PMKID_LEN);
+	}
+
+	wid.id = (u16)WID_PMKID_INFO;
+	wid.type = WID_STR;
+	wid.val = (s8 *)key_buf;
+	wid.size = (hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1;
+
+	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
+
+	kfree(key_buf);
+
+	return ret;
+}
+
 static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 	struct wid wid_list[5];
-	u8 i;
 	u8 *key_buf;
-	s8 s8idxarray[1];
-	s8 ret = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	switch (hif_key->type) {
@@ -1556,8 +1528,10 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 
 			key_buf = kmalloc(hif_key->attr.wep.key_len + 2,
 					  GFP_KERNEL);
-			if (!key_buf)
-				return -ENOMEM;
+			if (!key_buf) {
+				result = -ENOMEM;
+				goto out_wep;
+			}
 
 			key_buf[0] = hif_key->attr.wep.index;
 			key_buf[1] = hif_key->attr.wep.key_len;
@@ -1577,9 +1551,12 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
 		} else if (hif_key->action & ADDKEY) {
-			key_buf = kmalloc(hif_key->attr.wep.key_len + 2, GFP_KERNEL);
-			if (!key_buf)
-				return -ENOMEM;
+			key_buf = kmalloc(hif_key->attr.wep.key_len + 2,
+					  GFP_KERNEL);
+			if (!key_buf) {
+				result = -ENOMEM;
+				goto out_wep;
+			}
 			key_buf[0] = hif_key->attr.wep.index;
 			memcpy(key_buf + 1, &hif_key->attr.wep.key_len, 1);
 			memcpy(key_buf + 2, hif_key->attr.wep.key,
@@ -1599,8 +1576,7 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 			wid.id = (u16)WID_REMOVE_WEP_KEY;
 			wid.type = WID_STR;
 
-			s8idxarray[0] = (s8)hif_key->attr.wep.index;
-			wid.val = s8idxarray;
+			wid.val = (s8 *)&hif_key->attr.wep.index;
 			wid.size = 1;
 
 			result = wilc_send_config_pkt(vif, SET_CFG,
@@ -1616,6 +1592,7 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 		}
+out_wep:
 		complete(&hif_drv->comp_test_key_block);
 		break;
 
@@ -1623,7 +1600,7 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 		if (hif_key->action & ADDKEY_AP) {
 			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
-				ret = -ENOMEM;
+				result = -ENOMEM;
 				goto out_wpa_rx_gtk;
 			}
 
@@ -1650,11 +1627,10 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 						      wilc_get_vif_idx(vif));
 
 			kfree(key_buf);
-			complete(&hif_drv->comp_test_key_block);
 		} else if (hif_key->action & ADDKEY) {
 			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
-				ret = -ENOMEM;
+				result = -ENOMEM;
 				goto out_wpa_rx_gtk;
 			}
 
@@ -1679,21 +1655,18 @@ static int handle_key(struct wilc_vif *vif, struct key_attr *hif_key)
 						      wilc_get_vif_idx(vif));
 
 			kfree(key_buf);
-			complete(&hif_drv->comp_test_key_block);
 		}
 out_wpa_rx_gtk:
+		complete(&hif_drv->comp_test_key_block);
 		kfree(hif_key->attr.wpa.key);
 		kfree(hif_key->attr.wpa.seq);
-		if (ret)
-			return ret;
-
 		break;
 
 	case WPA_PTK:
 		if (hif_key->action & ADDKEY_AP) {
 			key_buf = kmalloc(PTK_KEY_MSG_LEN + 1, GFP_KERNEL);
 			if (!key_buf) {
-				ret = -ENOMEM;
+				result = -ENOMEM;
 				goto out_wpa_ptk;
 			}
 
@@ -1717,12 +1690,10 @@ out_wpa_rx_gtk:
 						      wid_list, 2,
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
-			complete(&hif_drv->comp_test_key_block);
 		} else if (hif_key->action & ADDKEY) {
 			key_buf = kmalloc(PTK_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
-				netdev_err(vif->ndev, "No buffer send PTK\n");
-				ret = -ENOMEM;
+				result = -ENOMEM;
 				goto out_wpa_ptk;
 			}
 
@@ -1740,37 +1711,15 @@ out_wpa_rx_gtk:
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
-			complete(&hif_drv->comp_test_key_block);
 		}
 
 out_wpa_ptk:
+		complete(&hif_drv->comp_test_key_block);
 		kfree(hif_key->attr.wpa.key);
-		if (ret)
-			return ret;
-
 		break;
 
 	case PMKSA:
-		key_buf = kmalloc((hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1, GFP_KERNEL);
-		if (!key_buf)
-			return -ENOMEM;
-
-		key_buf[0] = hif_key->attr.pmkid.numpmkid;
-
-		for (i = 0; i < hif_key->attr.pmkid.numpmkid; i++) {
-			memcpy(key_buf + ((PMKSA_KEY_LEN * i) + 1), hif_key->attr.pmkid.pmkidlist[i].bssid, ETH_ALEN);
-			memcpy(key_buf + ((PMKSA_KEY_LEN * i) + ETH_ALEN + 1), hif_key->attr.pmkid.pmkidlist[i].pmkid, PMKID_LEN);
-		}
-
-		wid.id = (u16)WID_PMKID_INFO;
-		wid.type = WID_STR;
-		wid.val = (s8 *)key_buf;
-		wid.size = (hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1;
-
-		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-					      wilc_get_vif_idx(vif));
-
-		kfree(key_buf);
+		result = wilc_pmksa_key_copy(vif, hif_key);
 		break;
 	}
 
@@ -1832,8 +1781,6 @@ static void handle_disconnect(struct wilc_vif *vif)
 	} else {
 		netdev_err(vif->ndev, "conn_result = NULL\n");
 	}
-
-	scan_while_connected = false;
 
 	hif_drv->hif_state = HOST_IF_IDLE;
 
@@ -2035,17 +1982,12 @@ static void handle_del_beacon(struct wilc_vif *vif)
 {
 	s32 result = 0;
 	struct wid wid;
-	u8 *cur_byte;
+	u8 del_beacon = 0;
 
 	wid.id = (u16)WID_DEL_BEACON;
 	wid.type = WID_CHAR;
 	wid.size = sizeof(char);
 	wid.val = &del_beacon;
-
-	if (!wid.val)
-		return;
-
-	cur_byte = wid.val;
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2156,7 +2098,6 @@ static void handle_del_station(struct wilc_vif *vif, struct del_sta *param)
 {
 	s32 result = 0;
 	struct wid wid;
-	u8 *cur_byte;
 
 	wid.id = (u16)WID_REMOVE_STA;
 	wid.type = WID_BIN;
@@ -2166,9 +2107,7 @@ static void handle_del_station(struct wilc_vif *vif, struct del_sta *param)
 	if (!wid.val)
 		goto error;
 
-	cur_byte = wid.val;
-
-	ether_addr_copy(cur_byte, param->mac_addr);
+	ether_addr_copy(wid.val, param->mac_addr);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2260,19 +2199,16 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to set remain on channel\n");
 
 error:
-	{
-		P2P_LISTEN_STATE = 1;
-		hif_drv->remain_on_ch_timer_vif = vif;
-		mod_timer(&hif_drv->remain_on_ch_timer,
-			  jiffies +
-			  msecs_to_jiffies(hif_remain_ch->duration));
+	p2p_listen_state = 1;
+	hif_drv->remain_on_ch_timer_vif = vif;
+	mod_timer(&hif_drv->remain_on_ch_timer,
+		  jiffies + msecs_to_jiffies(hif_remain_ch->duration));
 
-		if (hif_drv->remain_on_ch.ready)
-			hif_drv->remain_on_ch.ready(hif_drv->remain_on_ch.arg);
+	if (hif_drv->remain_on_ch.ready)
+		hif_drv->remain_on_ch.ready(hif_drv->remain_on_ch.arg);
 
-		if (hif_drv->remain_on_ch_pending)
-			hif_drv->remain_on_ch_pending = 0;
-	}
+	if (hif_drv->remain_on_ch_pending)
+		hif_drv->remain_on_ch_pending = 0;
 
 	return result;
 }
@@ -2317,7 +2253,7 @@ static u32 handle_listen_state_expired(struct wilc_vif *vif,
 	s32 result = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (P2P_LISTEN_STATE) {
+	if (p2p_listen_state) {
 		remain_on_chan_flag = false;
 		wid.id = (u16)WID_REMAIN_ON_CHAN;
 		wid.type = WID_STR;
@@ -2335,20 +2271,19 @@ static u32 handle_listen_state_expired(struct wilc_vif *vif,
 		kfree(wid.val);
 		if (result != 0) {
 			netdev_err(vif->ndev, "Failed to set remain channel\n");
-			goto _done_;
+			return result;
 		}
 
 		if (hif_drv->remain_on_ch.expired) {
 			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.arg,
 						      hif_remain_ch->id);
 		}
-		P2P_LISTEN_STATE = 0;
+		p2p_listen_state = 0;
 	} else {
 		netdev_dbg(vif->ndev, "Not in listen state\n");
 		result = -EFAULT;
 	}
 
-_done_:
 	return result;
 }
 
@@ -2662,18 +2597,6 @@ static void timer_connect_cb(struct timer_list *t)
 	msg.id = HOST_IF_MSG_CONNECT_TIMER_FIRED;
 
 	wilc_enqueue_cmd(&msg);
-}
-
-s32 wilc_remove_key(struct host_if_drv *hif_drv, const u8 *sta_addr)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_REMOVE_KEY;
-	wid.type = WID_STR;
-	wid.val = (s8 *)sta_addr;
-	wid.size = 6;
-
-	return 0;
 }
 
 int wilc_remove_wep_key(struct wilc_vif *vif, u8 index)
@@ -3335,7 +3258,6 @@ static void get_periodic_rssi(struct timer_list *unused)
 
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 {
-	int result = 0;
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;
 	struct wilc *wilc;
@@ -3344,15 +3266,12 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
-	scan_while_connected = false;
-
 	init_completion(&hif_wait_response);
 
 	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
-	if (!hif_drv) {
-		result = -ENOMEM;
-		goto _fail_;
-	}
+	if (!hif_drv)
+		return -ENOMEM;
+
 	*hif_drv_handler = hif_drv;
 	for (i = 0; i < wilc->vif_num; i++)
 		if (dev == wilc->vif[i]->ndev) {
@@ -3363,7 +3282,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	wilc_optaining_ip = false;
 
-	if (clients_count == 0)	{
+	if (clients_count == 0) {
 		init_completion(&hif_thread_comp);
 		init_completion(&hif_driver_comp);
 		mutex_init(&hif_deinit_lock);
@@ -3374,12 +3293,12 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	init_completion(&hif_drv->comp_get_rssi);
 	init_completion(&hif_drv->comp_inactive_time);
 
-	if (clients_count == 0)	{
+	if (clients_count == 0) {
 		hif_workqueue = create_singlethread_workqueue("WILC_wq");
 		if (!hif_workqueue) {
 			netdev_err(vif->ndev, "Failed to create workqueue\n");
-			result = -ENOMEM;
-			goto _fail_;
+			kfree(hif_drv);
+			return -ENOMEM;
 		}
 
 		periodic_rssi_vif = vif;
@@ -3407,8 +3326,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	clients_count++;
 
-_fail_:
-	return result;
+	return 0;
 }
 
 int wilc_deinit(struct wilc_vif *vif)
@@ -3442,8 +3360,6 @@ int wilc_deinit(struct wilc_vif *vif)
 	}
 
 	hif_drv->hif_state = HOST_IF_IDLE;
-
-	scan_while_connected = false;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
@@ -3895,23 +3811,148 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
 	return result;
 }
 
-static void *host_int_parse_join_bss_param(struct network_info *info)
+static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
+					 u16 *out_index, u8 *pcipher_tc,
+					 u8 *auth_total_cnt, u32 tsf_lo,
+					 u8 *rates_no)
 {
-	struct join_bss_param *param = NULL;
-	u8 *ies;
-	u16 ies_len;
-	u16 index = 0;
-	u8 rates_no = 0;
 	u8 ext_rates_no;
 	u16 offset;
 	u8 pcipher_cnt;
 	u8 auth_cnt;
+	u8 i, j;
+	u16 index = *out_index;
+
+	if (ies[index] == SUPP_RATES_IE) {
+		*rates_no = ies[index + 1];
+		param->supp_rates[0] = *rates_no;
+		index += 2;
+
+		for (i = 0; i < *rates_no; i++)
+			param->supp_rates[i + 1] = ies[index + i];
+
+		index += *rates_no;
+	} else if (ies[index] == EXT_SUPP_RATES_IE) {
+		ext_rates_no = ies[index + 1];
+		if (ext_rates_no > (MAX_RATES_SUPPORTED - *rates_no))
+			param->supp_rates[0] = MAX_RATES_SUPPORTED;
+		else
+			param->supp_rates[0] += ext_rates_no;
+		index += 2;
+		for (i = 0; i < (param->supp_rates[0] - *rates_no); i++)
+			param->supp_rates[*rates_no + i + 1] = ies[index + i];
+
+		index += ext_rates_no;
+	} else if (ies[index] == HT_CAPABILITY_IE) {
+		param->ht_capable = true;
+		index += ies[index + 1] + 2;
+	} else if ((ies[index] == WMM_IE) &&
+		   (ies[index + 2] == 0x00) && (ies[index + 3] == 0x50) &&
+		   (ies[index + 4] == 0xF2) && (ies[index + 5] == 0x02) &&
+		   ((ies[index + 6] == 0x00) || (ies[index + 6] == 0x01)) &&
+		   (ies[index + 7] == 0x01)) {
+		param->wmm_cap = true;
+
+		if (ies[index + 8] & BIT(7))
+			param->uapsd_cap = true;
+		index += ies[index + 1] + 2;
+	} else if ((ies[index] == P2P_IE) &&
+		 (ies[index + 2] == 0x50) && (ies[index + 3] == 0x6f) &&
+		 (ies[index + 4] == 0x9a) &&
+		 (ies[index + 5] == 0x09) && (ies[index + 6] == 0x0c)) {
+		u16 p2p_cnt;
+
+		param->tsf = tsf_lo;
+		param->noa_enabled = 1;
+		param->idx = ies[index + 9];
+
+		if (ies[index + 10] & BIT(7)) {
+			param->opp_enabled = 1;
+			param->ct_window = ies[index + 10];
+		} else {
+			param->opp_enabled = 0;
+		}
+
+		param->cnt = ies[index + 11];
+		p2p_cnt = index + 12;
+
+		memcpy(param->duration, ies + p2p_cnt, 4);
+		p2p_cnt += 4;
+
+		memcpy(param->interval, ies + p2p_cnt, 4);
+		p2p_cnt += 4;
+
+		memcpy(param->start_time, ies + p2p_cnt, 4);
+
+		index += ies[index + 1] + 2;
+	} else if ((ies[index] == RSN_IE) ||
+		 ((ies[index] == WPA_IE) && (ies[index + 2] == 0x00) &&
+		  (ies[index + 3] == 0x50) && (ies[index + 4] == 0xF2) &&
+		  (ies[index + 5] == 0x01))) {
+		u16 rsn_idx = index;
+
+		if (ies[rsn_idx] == RSN_IE) {
+			param->mode_802_11i = 2;
+		} else {
+			if (param->mode_802_11i == 0)
+				param->mode_802_11i = 1;
+			rsn_idx += 4;
+		}
+
+		rsn_idx += 7;
+		param->rsn_grp_policy = ies[rsn_idx];
+		rsn_idx++;
+		offset = ies[rsn_idx] * 4;
+		pcipher_cnt = (ies[rsn_idx] > 3) ? 3 : ies[rsn_idx];
+		rsn_idx += 2;
+
+		i = *pcipher_tc;
+		j = 0;
+		for (; i < (pcipher_cnt + *pcipher_tc) && i < 3; i++, j++) {
+			u8 *policy =  &param->rsn_pcip_policy[i];
+
+			*policy = ies[rsn_idx + ((j + 1) * 4) - 1];
+		}
+
+		*pcipher_tc += pcipher_cnt;
+		rsn_idx += offset;
+
+		offset = ies[rsn_idx] * 4;
+
+		auth_cnt = (ies[rsn_idx] > 3) ? 3 : ies[rsn_idx];
+		rsn_idx += 2;
+		i = *auth_total_cnt;
+		j = 0;
+		for (; i < (*auth_total_cnt + auth_cnt); i++, j++) {
+			u8 *policy =  &param->rsn_auth_policy[i];
+
+			*policy = ies[rsn_idx + ((j + 1) * 4) - 1];
+		}
+
+		*auth_total_cnt += auth_cnt;
+		rsn_idx += offset;
+
+		if (ies[index] == RSN_IE) {
+			param->rsn_cap[0] = ies[rsn_idx];
+			param->rsn_cap[1] = ies[rsn_idx + 1];
+			rsn_idx += 2;
+		}
+		param->rsn_found = true;
+		index += ies[index + 1] + 2;
+	} else {
+		index += ies[index + 1] + 2;
+	}
+
+	*out_index = index;
+}
+
+static void *host_int_parse_join_bss_param(struct network_info *info)
+{
+	struct join_bss_param *param = NULL;
+	u16 index = 0;
+	u8 rates_no = 0;
 	u8 pcipher_total_cnt = 0;
 	u8 auth_total_cnt = 0;
-	u8 i, j;
-
-	ies = info->ies;
-	ies_len = info->ies_len;
 
 	param = kzalloc(sizeof(*param), GFP_KERNEL);
 	if (!param)
@@ -3926,119 +3967,11 @@ static void *host_int_parse_join_bss_param(struct network_info *info)
 	memset(param->rsn_pcip_policy, 0xFF, 3);
 	memset(param->rsn_auth_policy, 0xFF, 3);
 
-	while (index < ies_len) {
-		if (ies[index] == SUPP_RATES_IE) {
-			rates_no = ies[index + 1];
-			param->supp_rates[0] = rates_no;
-			index += 2;
-
-			for (i = 0; i < rates_no; i++)
-				param->supp_rates[i + 1] = ies[index + i];
-
-			index += rates_no;
-		} else if (ies[index] == EXT_SUPP_RATES_IE) {
-			ext_rates_no = ies[index + 1];
-			if (ext_rates_no > (MAX_RATES_SUPPORTED - rates_no))
-				param->supp_rates[0] = MAX_RATES_SUPPORTED;
-			else
-				param->supp_rates[0] += ext_rates_no;
-			index += 2;
-			for (i = 0; i < (param->supp_rates[0] - rates_no); i++)
-				param->supp_rates[rates_no + i + 1] = ies[index + i];
-
-			index += ext_rates_no;
-		} else if (ies[index] == HT_CAPABILITY_IE) {
-			param->ht_capable = true;
-			index += ies[index + 1] + 2;
-		} else if ((ies[index] == WMM_IE) &&
-			   (ies[index + 2] == 0x00) && (ies[index + 3] == 0x50) &&
-			   (ies[index + 4] == 0xF2) &&
-			   (ies[index + 5] == 0x02) &&
-			   ((ies[index + 6] == 0x00) || (ies[index + 6] == 0x01)) &&
-			   (ies[index + 7] == 0x01)) {
-			param->wmm_cap = true;
-
-			if (ies[index + 8] & BIT(7))
-				param->uapsd_cap = true;
-			index += ies[index + 1] + 2;
-		} else if ((ies[index] == P2P_IE) &&
-			 (ies[index + 2] == 0x50) && (ies[index + 3] == 0x6f) &&
-			 (ies[index + 4] == 0x9a) &&
-			 (ies[index + 5] == 0x09) && (ies[index + 6] == 0x0c)) {
-			u16 p2p_cnt;
-
-			param->tsf = info->tsf_lo;
-			param->noa_enabled = 1;
-			param->idx = ies[index + 9];
-
-			if (ies[index + 10] & BIT(7)) {
-				param->opp_enabled = 1;
-				param->ct_window = ies[index + 10];
-			} else {
-				param->opp_enabled = 0;
-			}
-
-			param->cnt = ies[index + 11];
-			p2p_cnt = index + 12;
-
-			memcpy(param->duration, ies + p2p_cnt, 4);
-			p2p_cnt += 4;
-
-			memcpy(param->interval, ies + p2p_cnt, 4);
-			p2p_cnt += 4;
-
-			memcpy(param->start_time, ies + p2p_cnt, 4);
-
-			index += ies[index + 1] + 2;
-		} else if ((ies[index] == RSN_IE) ||
-			 ((ies[index] == WPA_IE) && (ies[index + 2] == 0x00) &&
-			  (ies[index + 3] == 0x50) && (ies[index + 4] == 0xF2) &&
-			  (ies[index + 5] == 0x01)))	{
-			u16 rsn_idx = index;
-
-			if (ies[rsn_idx] == RSN_IE)	{
-				param->mode_802_11i = 2;
-			} else {
-				if (param->mode_802_11i == 0)
-					param->mode_802_11i = 1;
-				rsn_idx += 4;
-			}
-
-			rsn_idx += 7;
-			param->rsn_grp_policy = ies[rsn_idx];
-			rsn_idx++;
-			offset = ies[rsn_idx] * 4;
-			pcipher_cnt = (ies[rsn_idx] > 3) ? 3 : ies[rsn_idx];
-			rsn_idx += 2;
-
-			for (i = pcipher_total_cnt, j = 0; i < pcipher_cnt + pcipher_total_cnt && i < 3; i++, j++)
-				param->rsn_pcip_policy[i] = ies[rsn_idx + ((j + 1) * 4) - 1];
-
-			pcipher_total_cnt += pcipher_cnt;
-			rsn_idx += offset;
-
-			offset = ies[rsn_idx] * 4;
-
-			auth_cnt = (ies[rsn_idx] > 3) ? 3 : ies[rsn_idx];
-			rsn_idx += 2;
-
-			for (i = auth_total_cnt, j = 0; i < auth_total_cnt + auth_cnt; i++, j++)
-				param->rsn_auth_policy[i] = ies[rsn_idx + ((j + 1) * 4) - 1];
-
-			auth_total_cnt += auth_cnt;
-			rsn_idx += offset;
-
-			if (ies[index] == RSN_IE) {
-				param->rsn_cap[0] = ies[rsn_idx];
-				param->rsn_cap[1] = ies[rsn_idx + 1];
-				rsn_idx += 2;
-			}
-			param->rsn_found = true;
-			index += ies[index + 1] + 2;
-		} else {
-			index += ies[index + 1] + 2;
-		}
-	}
+	while (index < info->ies_len)
+		host_int_fill_join_bss_param(param, info->ies, &index,
+					     &pcipher_total_cnt,
+					     &auth_total_cnt, info->tsf_lo,
+					     &rates_no);
 
 	return (void *)param;
 }

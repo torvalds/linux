@@ -33,6 +33,9 @@
 	.DPREFCLK_CNTL = mmDPREFCLK_CNTL, \
 	.DENTIST_DISPCLK_CNTL = mmDENTIST_DISPCLK_CNTL
 
+#define CLK_COMMON_REG_LIST_DCN_BASE() \
+	SR(DENTIST_DISPCLK_CNTL)
+
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
@@ -40,58 +43,37 @@
 	CLK_SF(DPREFCLK_CNTL, DPREFCLK_SRC_SEL, mask_sh), \
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, mask_sh)
 
+#define CLK_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh) \
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, mask_sh),\
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, mask_sh)
+
 #define CLK_REG_FIELD_LIST(type) \
 	type DPREFCLK_SRC_SEL; \
-	type DENTIST_DPREFCLK_WDIVIDER;
+	type DENTIST_DPREFCLK_WDIVIDER; \
+	type DENTIST_DISPCLK_WDIVIDER; \
+	type DENTIST_DISPCLK_CHG_DONE;
 
-struct dce_disp_clk_shift {
+struct dccg_shift {
 	CLK_REG_FIELD_LIST(uint8_t)
 };
 
-struct dce_disp_clk_mask {
+struct dccg_mask {
 	CLK_REG_FIELD_LIST(uint32_t)
 };
 
-struct dce_disp_clk_registers {
+struct dccg_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
 };
 
-/* Array identifiers and count for the divider ranges.*/
-enum dce_divider_range_count {
-	DIVIDER_RANGE_01 = 0,
-	DIVIDER_RANGE_02,
-	DIVIDER_RANGE_03,
-	DIVIDER_RANGE_MAX /* == 3*/
-};
-
-enum dce_divider_error_types {
-	INVALID_DID = 0,
-	INVALID_DIVIDER = 1
-};
-
-struct dce_divider_range {
-	int div_range_start;
-	/* The end of this range of dividers.*/
-	int div_range_end;
-	/* The distance between each divider in this range.*/
-	int div_range_step;
-	/* The divider id for the lowest divider.*/
-	int did_min;
-	/* The divider id for the highest divider.*/
-	int did_max;
-};
-
-struct dce_disp_clk {
-	struct display_clock base;
-	const struct dce_disp_clk_registers *regs;
-	const struct dce_disp_clk_shift *clk_shift;
-	const struct dce_disp_clk_mask *clk_mask;
+struct dce_dccg {
+	struct dccg base;
+	const struct dccg_registers *regs;
+	const struct dccg_shift *clk_shift;
+	const struct dccg_mask *clk_mask;
 
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
-	struct dce_divider_range divider_ranges[DIVIDER_RANGE_MAX];
 
-	bool use_max_disp_clk;
 	int dentist_vco_freq_khz;
 
 	/* Cache the status of DFS-bypass feature*/
@@ -106,32 +88,33 @@ struct dce_disp_clk {
 	int dprefclk_ss_percentage;
 	/* DPREFCLK SS percentage Divider (100 or 1000) */
 	int dprefclk_ss_divider;
-
-	/* max disp_clk from PPLIB for max validation display clock*/
-	int max_displ_clk_in_khz;
 };
 
 
-struct display_clock *dce_disp_clk_create(
+struct dccg *dce_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask);
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask);
 
-struct display_clock *dce110_disp_clk_create(
+struct dccg *dce110_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask);
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask);
 
-struct display_clock *dce112_disp_clk_create(
+struct dccg *dce112_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask);
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask);
 
-struct display_clock *dce120_disp_clk_create(struct dc_context *ctx);
+struct dccg *dce120_dccg_create(struct dc_context *ctx);
 
-void dce_disp_clk_destroy(struct display_clock **disp_clk);
+#ifdef CONFIG_X86
+struct dccg *dcn1_dccg_create(struct dc_context *ctx);
+#endif
+
+void dce_dccg_destroy(struct dccg **dccg);
 
 #endif /* _DCE_CLOCKS_H_ */

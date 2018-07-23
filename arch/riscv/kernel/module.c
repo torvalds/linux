@@ -17,6 +17,17 @@
 #include <linux/errno.h>
 #include <linux/moduleloader.h>
 
+static int apply_r_riscv_32_rela(struct module *me, u32 *location, Elf_Addr v)
+{
+	if (v != (u32)v) {
+		pr_err("%s: value %016llx out of range for 32-bit field\n",
+		       me->name, v);
+		return -EINVAL;
+	}
+	*location = v;
+	return 0;
+}
+
 static int apply_r_riscv_64_rela(struct module *me, u32 *location, Elf_Addr v)
 {
 	*(u64 *)location = v;
@@ -265,6 +276,7 @@ static int apply_r_riscv_sub32_rela(struct module *me, u32 *location,
 
 static int (*reloc_handlers_rela[]) (struct module *me, u32 *location,
 				Elf_Addr v) = {
+	[R_RISCV_32]			= apply_r_riscv_32_rela,
 	[R_RISCV_64]			= apply_r_riscv_64_rela,
 	[R_RISCV_BRANCH]		= apply_r_riscv_branch_rela,
 	[R_RISCV_JAL]			= apply_r_riscv_jal_rela,

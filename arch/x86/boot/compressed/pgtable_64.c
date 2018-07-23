@@ -23,14 +23,6 @@ struct paging_config {
 static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
 
 /*
- * The page table is going to be used instead of page table in the trampoline
- * memory.
- *
- * It must not be in BSS as BSS is cleared after cleanup_trampoline().
- */
-static char top_pgtable[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
-
-/*
  * Trampoline address will be printed by extract_kernel() for debugging
  * purposes.
  *
@@ -39,16 +31,23 @@ static char top_pgtable[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
  */
 unsigned long *trampoline_32bit __section(.data);
 
-struct paging_config paging_prepare(void)
+extern struct boot_params *boot_params;
+int cmdline_find_option_bool(const char *option);
+
+struct paging_config paging_prepare(void *rmode)
 {
 	struct paging_config paging_config = {};
 	unsigned long bios_start, ebda_start;
 
+	/* Initialize boot_params. Required for cmdline_find_option_bool(). */
+	boot_params = rmode;
+
 	/*
 	 * Check if LA57 is desired and supported.
 	 *
-	 * There are two parts to the check:
+	 * There are several parts to the check:
 	 *   - if the kernel supports 5-level paging: CONFIG_X86_5LEVEL=y
+	 *   - if user asked to disable 5-level paging: no5lvl in cmdline
 	 *   - if the machine supports 5-level paging:
 	 *     + CPUID leaf 7 is supported
 	 *     + the leaf has the feature bit set
@@ -56,6 +55,7 @@ struct paging_config paging_prepare(void)
 	 * That's substitute for boot_cpu_has() in early boot code.
 	 */
 	if (IS_ENABLED(CONFIG_X86_5LEVEL) &&
+			!cmdline_find_option_bool("no5lvl") &&
 			native_cpuid_eax(0) >= 7 &&
 			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31)))) {
 		paging_config.l5_required = 1;
@@ -134,19 +134,19 @@ out:
 	return paging_config;
 }
 
-void cleanup_trampoline(void)
+void cleanup_trampoline(void *pgtable)
 {
 	void *trampoline_pgtable;
 
-	trampoline_pgtable = trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET;
+	trampoline_pgtable = trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET / sizeof(unsigned long);
 
 	/*
 	 * Move the top level page table out of trampoline memory,
 	 * if it's there.
 	 */
 	if ((void *)__native_read_cr3() == trampoline_pgtable) {
-		memcpy(top_pgtable, trampoline_pgtable, PAGE_SIZE);
-		native_write_cr3((unsigned long)top_pgtable);
+		memcpy(pgtable, trampoline_pgtable, PAGE_SIZE);
+		native_write_cr3((unsigned long)pgtable);
 	}
 
 	/* Restore trampoline memory */

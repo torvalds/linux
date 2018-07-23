@@ -124,7 +124,6 @@ int main(int argc, char *argv[])
 	fprintf(fout, "fs_use_xattr reiserfs user_u:base_r:base_t;\n");
 	fprintf(fout, "fs_use_xattr jffs2 user_u:base_r:base_t;\n");
 	fprintf(fout, "fs_use_xattr gfs2 user_u:base_r:base_t;\n");
-	fprintf(fout, "fs_use_xattr lustre user_u:base_r:base_t;\n");
 
 	fprintf(fout, "fs_use_task eventpollfs user_u:base_r:base_t;\n");
 	fprintf(fout, "fs_use_task pipefs user_u:base_r:base_t;\n");

@@ -654,7 +654,7 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 	pkts = priv->rx_max_coalesced_frames;
 
 	if (ec->use_adaptive_rx_coalesce && !priv->dim.use_dim) {
-		moder = net_dim_get_def_profile(priv->dim.dim.mode);
+		moder = net_dim_get_def_rx_moderation(priv->dim.dim.mode);
 		usecs = moder.usec;
 		pkts = moder.pkts;
 	}
@@ -1064,7 +1064,7 @@ static void bcm_sysport_dim_work(struct work_struct *work)
 	struct bcm_sysport_priv *priv =
 			container_of(ndim, struct bcm_sysport_priv, dim);
 	struct net_dim_cq_moder cur_profile =
-				net_dim_get_profile(dim->mode, dim->profile_ix);
+			net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
 
 	bcm_sysport_set_rx_coalesce(priv, cur_profile.usec, cur_profile.pkts);
 	dim->state = NET_DIM_START_MEASURE;
@@ -1437,7 +1437,7 @@ static void bcm_sysport_init_rx_coalesce(struct bcm_sysport_priv *priv)
 
 	/* If DIM was enabled, re-apply default parameters */
 	if (dim->use_dim) {
-		moder = net_dim_get_def_profile(dim->dim.mode);
+		moder = net_dim_get_def_rx_moderation(dim->dim.mode);
 		usecs = moder.usec;
 		pkts = moder.pkts;
 	}
@@ -2144,14 +2144,21 @@ static const struct net_device_ops bcm_sysport_netdev_ops = {
 	.ndo_select_queue	= bcm_sysport_select_queue,
 };
 
-static int bcm_sysport_map_queues(struct net_device *dev,
+static int bcm_sysport_map_queues(struct notifier_block *nb,
 				  struct dsa_notifier_register_info *info)
 {
-	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	struct bcm_sysport_tx_ring *ring;
+	struct bcm_sysport_priv *priv;
 	struct net_device *slave_dev;
 	unsigned int num_tx_queues;
 	unsigned int q, start, port;
+	struct net_device *dev;
+
+	priv = container_of(nb, struct bcm_sysport_priv, dsa_notifier);
+	if (priv->netdev != info->master)
+		return 0;
+
+	dev = info->master;
 
 	/* We can't be setting up queue inspection for non directly attached
 	 * switches
@@ -2174,11 +2181,12 @@ static int bcm_sysport_map_queues(struct net_device *dev,
 	if (priv->is_lite)
 		netif_set_real_num_tx_queues(slave_dev,
 					     slave_dev->num_tx_queues / 2);
+
 	num_tx_queues = slave_dev->real_num_tx_queues;
 
 	if (priv->per_port_num_tx_queues &&
 	    priv->per_port_num_tx_queues != num_tx_queues)
-		netdev_warn(slave_dev, "asymetric number of per-port queues\n");
+		netdev_warn(slave_dev, "asymmetric number of per-port queues\n");
 
 	priv->per_port_num_tx_queues = num_tx_queues;
 
@@ -2201,7 +2209,7 @@ static int bcm_sysport_map_queues(struct net_device *dev,
 	return 0;
 }
 
-static int bcm_sysport_dsa_notifier(struct notifier_block *unused,
+static int bcm_sysport_dsa_notifier(struct notifier_block *nb,
 				    unsigned long event, void *ptr)
 {
 	struct dsa_notifier_register_info *info;
@@ -2211,7 +2219,7 @@ static int bcm_sysport_dsa_notifier(struct notifier_block *unused,
 
 	info = ptr;
 
-	return notifier_from_errno(bcm_sysport_map_queues(info->master, info));
+	return notifier_from_errno(bcm_sysport_map_queues(nb, info));
 }
 
 #define REV_FMT	"v%2x.%02x"

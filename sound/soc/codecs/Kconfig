@@ -106,6 +106,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
+	select SND_SOC_MT6351 if MTK_PMIC_WRAP
 	select SND_SOC_NAU8540 if I2C
 	select SND_SOC_NAU8810 if I2C
 	select SND_SOC_NAU8824 if I2C
@@ -126,6 +127,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT274 if I2C
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
+	select SND_SOC_RT1305 if I2C
 	select SND_SOC_RT5514 if I2C
 	select SND_SOC_RT5616 if I2C
 	select SND_SOC_RT5631 if I2C
@@ -136,12 +138,14 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5660 if I2C
 	select SND_SOC_RT5663 if I2C
 	select SND_SOC_RT5665 if I2C
+	select SND_SOC_RT5668 if I2C
 	select SND_SOC_RT5670 if I2C
 	select SND_SOC_RT5677 if I2C && SPI_MASTER
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SIRF_AUDIO_CODEC
 	select SND_SOC_SPDIF
+	select SND_SOC_SSM2305
 	select SND_SOC_SSM2518 if I2C
 	select SND_SOC_SSM2602_SPI if SPI_MASTER
 	select SND_SOC_SSM2602_I2C if I2C
@@ -168,6 +172,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
 	select SND_SOC_TSCS42XX if I2C
+	select SND_SOC_TSCS454 if I2C
 	select SND_SOC_TS3A227E if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_TWL6040 if TWL6040_CORE
@@ -770,8 +775,10 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5660=y
 	default y if SND_SOC_RT5663=y
 	default y if SND_SOC_RT5665=y
+	default y if SND_SOC_RT5668=y
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
+	default y if SND_SOC_RT1305=y
 	default m if SND_SOC_RT5514=m
 	default m if SND_SOC_RT5616=m
 	default m if SND_SOC_RT5640=m
@@ -781,8 +788,10 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5660=m
 	default m if SND_SOC_RT5663=m
 	default m if SND_SOC_RT5665=m
+	default m if SND_SOC_RT5668=m
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
+	default m if SND_SOC_RT1305=m
 
 config SND_SOC_RL6347A
 	tristate
@@ -804,6 +813,9 @@ config SND_SOC_RT286
 config SND_SOC_RT298
 	tristate
 	depends on I2C
+
+config SND_SOC_RT1305
+	tristate
 
 config SND_SOC_RT5514
 	tristate
@@ -844,6 +856,9 @@ config SND_SOC_RT5663
 config SND_SOC_RT5665
 	tristate
 
+config SND_SOC_RT5668
+	tristate
+
 config SND_SOC_RT5670
 	tristate
 
@@ -882,6 +897,12 @@ config SND_SOC_SIRF_AUDIO_CODEC
 
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
+
+config SND_SOC_SSM2305
+	tristate "Analog Devices SSM2305 Class-D Amplifier"
+	help
+	  Enable support for Analog Devices SSM2305 filterless
+	  high-efficiency mono Class-D audio power amplifiers.
 
 config SND_SOC_SSM2518
 	tristate
@@ -1011,6 +1032,13 @@ config SND_SOC_TSCS42XX
 	help
 	  Add support for Tempo Semiconductor's TSCS42xx audio CODEC.
 
+config SND_SOC_TSCS454
+	tristate "Tempo Semiconductor TSCS454 CODEC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Add support for Tempo Semiconductor's TSCS454 audio CODEC.
+
 config SND_SOC_TWL4030
 	select MFD_TWL4030_AUDIO
 	tristate
@@ -1111,7 +1139,7 @@ config SND_SOC_WM8776
 	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8782
-	tristate
+	tristate "Wolfson Microelectronics WM8782 ADC"
 
 config SND_SOC_WM8804
 	tristate
@@ -1246,6 +1274,9 @@ config SND_SOC_MC13783
 
 config SND_SOC_ML26124
 	tristate
+
+config SND_SOC_MT6351
+	tristate "MediaTek MT6351 Codec"
 
 config SND_SOC_NAU8540
        tristate "Nuvoton Technology Corporation NAU85L40 CODEC"

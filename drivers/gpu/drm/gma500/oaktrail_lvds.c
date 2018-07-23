@@ -376,7 +376,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	 * preferred mode is the right one.
 	 */
 	if (edid) {
-		drm_mode_connector_update_edid_property(connector, edid);
+		drm_connector_update_edid_property(connector, edid);
 		drm_add_edid_modes(connector, edid);
 		kfree(edid);
 

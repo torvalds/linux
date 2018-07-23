@@ -231,26 +231,32 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``CEC_TX_STATUS_OK``
       - 0x01
       - The message was transmitted successfully. This is mutually
-	exclusive with :ref:`CEC_TX_STATUS_MAX_RETRIES <CEC-TX-STATUS-MAX-RETRIES>`. Other bits can still
-	be set if earlier attempts met with failure before the transmit
-	was eventually successful.
+	exclusive with :ref:`CEC_TX_STATUS_MAX_RETRIES <CEC-TX-STATUS-MAX-RETRIES>`.
+	Other bits can still be set if earlier attempts met with failure before
+	the transmit was eventually successful.
     * .. _`CEC-TX-STATUS-ARB-LOST`:
 
       - ``CEC_TX_STATUS_ARB_LOST``
       - 0x02
-      - CEC line arbitration was lost.
+      - CEC line arbitration was lost, i.e. another transmit started at the
+        same time with a higher priority. Optional status, not all hardware
+	can detect this error condition.
     * .. _`CEC-TX-STATUS-NACK`:
 
       - ``CEC_TX_STATUS_NACK``
       - 0x04
-      - Message was not acknowledged.
+      - Message was not acknowledged. Note that some hardware cannot tell apart
+        a 'Not Acknowledged' status from other error conditions, i.e. the result
+	of a transmit is just OK or FAIL. In that case this status will be
+	returned when the transmit failed.
     * .. _`CEC-TX-STATUS-LOW-DRIVE`:
 
       - ``CEC_TX_STATUS_LOW_DRIVE``
       - 0x08
       - Low drive was detected on the CEC bus. This indicates that a
 	follower detected an error on the bus and requests a
-	retransmission.
+	retransmission. Optional status, not all hardware can detect this
+	error condition.
     * .. _`CEC-TX-STATUS-ERROR`:
 
       - ``CEC_TX_STATUS_ERROR``
@@ -258,14 +264,14 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - Some error occurred. This is used for any errors that do not fit
 	``CEC_TX_STATUS_ARB_LOST`` or ``CEC_TX_STATUS_LOW_DRIVE``, either because
 	the hardware could not tell which error occurred, or because the hardware
-	tested for other conditions besides those two.
+	tested for other conditions besides those two. Optional status.
     * .. _`CEC-TX-STATUS-MAX-RETRIES`:
 
       - ``CEC_TX_STATUS_MAX_RETRIES``
       - 0x20
       - The transmit failed after one or more retries. This status bit is
-	mutually exclusive with :ref:`CEC_TX_STATUS_OK <CEC-TX-STATUS-OK>`. Other bits can still
-	be set to explain which failures were seen.
+	mutually exclusive with :ref:`CEC_TX_STATUS_OK <CEC-TX-STATUS-OK>`.
+	Other bits can still be set to explain which failures were seen.
 
 
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|

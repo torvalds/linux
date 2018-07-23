@@ -19,8 +19,8 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -300,26 +300,6 @@ static int tps65090_regulator_disable_ext_control(
 	return tps65090_config_ext_control(ri, false);
 }
 
-static void tps65090_configure_regulator_config(
-		struct tps65090_regulator_plat_data *tps_pdata,
-		struct regulator_config *config)
-{
-	if (gpio_is_valid(tps_pdata->gpio)) {
-		int gpio_flag = GPIOF_OUT_INIT_LOW;
-
-		if (tps_pdata->reg_init_data->constraints.always_on ||
-				tps_pdata->reg_init_data->constraints.boot_on)
-			gpio_flag = GPIOF_OUT_INIT_HIGH;
-
-		config->ena_gpio = tps_pdata->gpio;
-		config->ena_gpio_initialized = true;
-		config->ena_gpio_flags = gpio_flag;
-	} else {
-		config->ena_gpio = -EINVAL;
-		config->ena_gpio_initialized = false;
-	}
-}
-
 #ifdef CONFIG_OF
 static struct of_regulator_match tps65090_matches[] = {
 	{ .name = "dcdc1", },
@@ -351,8 +331,9 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 	if (!tps65090_pdata)
 		return ERR_PTR(-ENOMEM);
 
-	reg_pdata = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX *
-				sizeof(*reg_pdata), GFP_KERNEL);
+	reg_pdata = devm_kcalloc(&pdev->dev,
+				 TPS65090_REGULATOR_MAX, sizeof(*reg_pdata),
+				 GFP_KERNEL);
 	if (!reg_pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -385,9 +366,26 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 		rpdata->enable_ext_control = of_property_read_bool(
 					tps65090_matches[idx].of_node,
 					"ti,enable-ext-control");
-		if (rpdata->enable_ext_control)
-			rpdata->gpio = of_get_named_gpio(np,
-					"dcdc-ext-control-gpios", 0);
+		if (rpdata->enable_ext_control) {
+			enum gpiod_flags gflags;
+
+			if (ri_data->constraints.always_on ||
+			    ri_data->constraints.boot_on)
+				gflags = GPIOD_OUT_HIGH;
+			else
+				gflags = GPIOD_OUT_LOW;
+
+			rpdata->gpiod = devm_gpiod_get_from_of_node(&pdev->dev,
+								    tps65090_matches[idx].of_node,
+								    "dcdc-ext-control-gpios", 0,
+								    gflags,
+								    "tps65090");
+			if (IS_ERR(rpdata->gpiod))
+				return ERR_CAST(rpdata->gpiod);
+			if (!rpdata->gpiod)
+				dev_err(&pdev->dev,
+					"could not find DCDC external control GPIO\n");
+		}
 
 		if (of_property_read_u32(tps65090_matches[idx].of_node,
 					 "ti,overcurrent-wait",
@@ -432,8 +430,9 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 		return tps65090_pdata ? PTR_ERR(tps65090_pdata) : -EINVAL;
 	}
 
-	pmic = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX * sizeof(*pmic),
-			GFP_KERNEL);
+	pmic = devm_kcalloc(&pdev->dev,
+			    TPS65090_REGULATOR_MAX, sizeof(*pmic),
+			    GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -455,8 +454,7 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 		 */
 		if (tps_pdata && is_dcdc(num) && tps_pdata->reg_init_data) {
 			if (tps_pdata->enable_ext_control) {
-				tps65090_configure_regulator_config(
-						tps_pdata, &config);
+				config.ena_gpiod = tps_pdata->gpiod;
 				ri->desc->ops = &tps65090_ext_control_ops;
 			} else {
 				ret = tps65090_regulator_disable_ext_control(

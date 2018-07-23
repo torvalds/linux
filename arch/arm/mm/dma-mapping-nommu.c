@@ -241,12 +241,3 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 void arch_teardown_dma_ops(struct device *dev)
 {
 }
-
-#define PREALLOC_DMA_DEBUG_ENTRIES	4096
-
-static int __init dma_debug_do_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-	return 0;
-}
-core_initcall(dma_debug_do_init);

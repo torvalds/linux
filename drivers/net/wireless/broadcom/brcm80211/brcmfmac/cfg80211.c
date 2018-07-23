@@ -1264,7 +1264,7 @@ static void brcmf_link_down(struct brcmf_cfg80211_vif *vif, u16 reason)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (test_and_clear_bit(BRCMF_VIF_STATUS_CONNECTED, &vif->sme_state)) {
-		brcmf_dbg(INFO, "Call WLC_DISASSOC to stop excess roaming\n ");
+		brcmf_dbg(INFO, "Call WLC_DISASSOC to stop excess roaming\n");
 		err = brcmf_fil_cmd_data_set(vif->ifp,
 					     BRCMF_C_DISASSOC, NULL, 0);
 		if (err) {
@@ -2728,9 +2728,8 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 				   struct brcmf_bss_info_le *bi)
 {
 	struct wiphy *wiphy = cfg_to_wiphy(cfg);
-	struct ieee80211_channel *notify_channel;
 	struct cfg80211_bss *bss;
-	struct ieee80211_supported_band *band;
+	enum nl80211_band band;
 	struct brcmu_chan ch;
 	u16 channel;
 	u32 freq;
@@ -2738,7 +2737,7 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 	u16 notify_interval;
 	u8 *notify_ie;
 	size_t notify_ielen;
-	s32 notify_signal;
+	struct cfg80211_inform_bss bss_data = {};
 
 	if (le32_to_cpu(bi->length) > WL_BSS_INFO_MAX) {
 		brcmf_err("Bss info is larger than buffer. Discarding\n");
@@ -2753,32 +2752,33 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 	channel = bi->ctl_ch;
 
 	if (channel <= CH_MAX_2G_CHANNEL)
-		band = wiphy->bands[NL80211_BAND_2GHZ];
+		band = NL80211_BAND_2GHZ;
 	else
-		band = wiphy->bands[NL80211_BAND_5GHZ];
+		band = NL80211_BAND_5GHZ;
 
-	freq = ieee80211_channel_to_frequency(channel, band->band);
-	notify_channel = ieee80211_get_channel(wiphy, freq);
+	freq = ieee80211_channel_to_frequency(channel, band);
+	bss_data.chan = ieee80211_get_channel(wiphy, freq);
+	bss_data.scan_width = NL80211_BSS_CHAN_WIDTH_20;
+	bss_data.boottime_ns = ktime_to_ns(ktime_get_boottime());
 
 	notify_capability = le16_to_cpu(bi->capability);
 	notify_interval = le16_to_cpu(bi->beacon_period);
 	notify_ie = (u8 *)bi + le16_to_cpu(bi->ie_offset);
 	notify_ielen = le32_to_cpu(bi->ie_length);
-	notify_signal = (s16)le16_to_cpu(bi->RSSI) * 100;
+	bss_data.signal = (s16)le16_to_cpu(bi->RSSI) * 100;
 
 	brcmf_dbg(CONN, "bssid: %pM\n", bi->BSSID);
 	brcmf_dbg(CONN, "Channel: %d(%d)\n", channel, freq);
 	brcmf_dbg(CONN, "Capability: %X\n", notify_capability);
 	brcmf_dbg(CONN, "Beacon interval: %d\n", notify_interval);
-	brcmf_dbg(CONN, "Signal: %d\n", notify_signal);
+	brcmf_dbg(CONN, "Signal: %d\n", bss_data.signal);
 
-	bss = cfg80211_inform_bss(wiphy, notify_channel,
-				  CFG80211_BSS_FTYPE_UNKNOWN,
-				  (const u8 *)bi->BSSID,
-				  0, notify_capability,
-				  notify_interval, notify_ie,
-				  notify_ielen, notify_signal,
-				  GFP_KERNEL);
+	bss = cfg80211_inform_bss_data(wiphy, &bss_data,
+				       CFG80211_BSS_FTYPE_UNKNOWN,
+				       (const u8 *)bi->BSSID,
+				       0, notify_capability,
+				       notify_interval, notify_ie,
+				       notify_ielen, GFP_KERNEL);
 
 	if (!bss)
 		return -ENOMEM;
@@ -5498,7 +5498,7 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 	static int generation;
 	u32 event = e->event_code;
 	u32 reason = e->reason;
-	struct station_info sinfo;
+	struct station_info *sinfo;
 
 	brcmf_dbg(CONN, "event %s (%u), reason %d\n",
 		  brcmf_fweh_event_name(event), event, reason);
@@ -5511,16 +5511,22 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 
 	if (((event == BRCMF_E_ASSOC_IND) || (event == BRCMF_E_REASSOC_IND)) &&
 	    (reason == BRCMF_E_STATUS_SUCCESS)) {
-		memset(&sinfo, 0, sizeof(sinfo));
 		if (!data) {
 			brcmf_err("No IEs present in ASSOC/REASSOC_IND");
 			return -EINVAL;
 		}
-		sinfo.assoc_req_ies = data;
-		sinfo.assoc_req_ies_len = e->datalen;
+
+		sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+		if (!sinfo)
+			return -ENOMEM;
+
+		sinfo->assoc_req_ies = data;
+		sinfo->assoc_req_ies_len = e->datalen;
 		generation++;
-		sinfo.generation = generation;
-		cfg80211_new_sta(ndev, e->addr, &sinfo, GFP_KERNEL);
+		sinfo->generation = generation;
+		cfg80211_new_sta(ndev, e->addr, sinfo, GFP_KERNEL);
+
+		kfree(sinfo);
 	} else if ((event == BRCMF_E_DISASSOC_IND) ||
 		   (event == BRCMF_E_DEAUTH_IND) ||
 		   (event == BRCMF_E_DEAUTH)) {
@@ -6512,6 +6518,7 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 
 	wiphy->flags |= WIPHY_FLAG_NETNS_OK |
 			WIPHY_FLAG_PS_ON_BY_DEFAULT |
+			WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_OFFCHAN_TX |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_TDLS))

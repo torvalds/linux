@@ -86,6 +86,11 @@ Optional CPU/CODEC subnodes properties:
 					  in dai startup() and disabled with
 					  clk_disable_unprepare() in dai
 					  shutdown().
+					  If a clock is specified and a
+					  multiplication factor is given with
+					  mclk-fs, the clock will be set to the
+					  calculated mclk frequency when the
+					  stream starts.
 - system-clock-direction-out		: specifies clock direction as 'out' on
 					  initialization. It is useful for some aCPUs with
 					  fixed clocks.

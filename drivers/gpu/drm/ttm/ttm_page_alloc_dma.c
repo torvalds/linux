@@ -463,8 +463,9 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
 	if (use_static)
 		pages_to_free = static_buf;
 	else
-		pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
-					GFP_KERNEL);
+		pages_to_free = kmalloc_array(npages_to_free,
+					      sizeof(struct page *),
+					      GFP_KERNEL);
 
 	if (!pages_to_free) {
 		pr_debug("%s: Failed to allocate memory for pool free operation\n",
@@ -753,7 +754,8 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 			(unsigned)(PAGE_SIZE/sizeof(struct page *)));
 
 	/* allocate array for page caching change */
-	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
+	caching_array = kmalloc_array(max_cpages, sizeof(struct page *),
+				      GFP_KERNEL);
 
 	if (!caching_array) {
 		pr_debug("%s: Unable to allocate table for new pages\n",
@@ -910,7 +912,8 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
 		gfp_flags |= __GFP_ZERO;
 
 	if (huge) {
-		gfp_flags |= GFP_TRANSHUGE;
+		gfp_flags |= GFP_TRANSHUGE_LIGHT | __GFP_NORETRY |
+			__GFP_KSWAPD_RECLAIM;
 		gfp_flags &= ~__GFP_MOVABLE;
 		gfp_flags &= ~__GFP_COMP;
 	}

@@ -170,6 +170,12 @@ struct nouveau_drm {
 	/* synchronisation */
 	void *fence;
 
+	/* Global channel management. */
+	struct {
+		int nr;
+		u64 context_base;
+	} chan;
+
 	/* context for accelerated drm-internal operations */
 	struct nouveau_channel *cechan;
 	struct nouveau_channel *channel;

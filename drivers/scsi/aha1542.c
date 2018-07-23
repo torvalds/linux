@@ -400,7 +400,8 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 #endif
 	if (bufflen) {	/* allocate memory before taking host_lock */
 		sg_count = scsi_sg_count(cmd);
-		cptr = kmalloc(sizeof(*cptr) * sg_count, GFP_KERNEL | GFP_DMA);
+		cptr = kmalloc_array(sg_count, sizeof(*cptr),
+				     GFP_KERNEL | GFP_DMA);
 		if (!cptr)
 			return SCSI_MLQUEUE_HOST_BUSY;
 	} else {

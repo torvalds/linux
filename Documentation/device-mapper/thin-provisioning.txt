@@ -264,7 +264,10 @@ i) Constructor
 			   data device, but just remove the mapping.
 
       read_only: Don't allow any changes to be made to the pool
-		 metadata.
+		 metadata.  This mode is only available after the
+		 thin-pool has been created and first used in full
+		 read/write mode.  It cannot be specified on initial
+		 thin-pool creation.
 
       error_if_no_space: Error IOs, instead of queueing, if no space.
 

@@ -131,6 +131,12 @@ DMA Fences
 ----------
 
 .. kernel-doc:: drivers/dma-buf/dma-fence.c
+   :doc: DMA fences overview
+
+DMA Fences Functions Reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/dma-buf/dma-fence.c
    :export:
 
 .. kernel-doc:: include/linux/dma-fence.h

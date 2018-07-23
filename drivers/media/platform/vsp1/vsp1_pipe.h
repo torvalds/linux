@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * vsp1_pipe.h  --  R-Car VSP1 Pipeline
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef __VSP1_PIPE_H__
 #define __VSP1_PIPE_H__
@@ -99,14 +95,15 @@ struct vsp1_partition {
  * @num_inputs: number of RPFs
  * @inputs: array of RPFs in the pipeline (indexed by RPF index)
  * @output: WPF at the output of the pipeline
- * @bru: BRU entity, if present
+ * @brx: BRx entity, if present
  * @hgo: HGO entity, if present
  * @hgt: HGT entity, if present
  * @lif: LIF entity, if present
  * @uds: UDS entity, if present
  * @uds_input: entity at the input of the UDS, if the UDS is present
  * @entities: list of entities in the pipeline
- * @dl: display list associated with the pipeline
+ * @stream_config: cached stream configuration for video pipelines
+ * @configured: when false the @stream_config shall be written to the hardware
  * @partitions: The number of partitions used to process one frame
  * @partition: The current partition for configuration to process
  * @part_table: The pre-calculated partitions used by the pipeline
@@ -118,7 +115,7 @@ struct vsp1_pipeline {
 	enum vsp1_pipeline_state state;
 	wait_queue_head_t wq;
 
-	void (*frame_end)(struct vsp1_pipeline *pipe, bool completed);
+	void (*frame_end)(struct vsp1_pipeline *pipe, unsigned int completion);
 
 	struct mutex lock;
 	struct kref kref;
@@ -129,7 +126,7 @@ struct vsp1_pipeline {
 	unsigned int num_inputs;
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
 	struct vsp1_rwpf *output;
-	struct vsp1_entity *bru;
+	struct vsp1_entity *brx;
 	struct vsp1_entity *hgo;
 	struct vsp1_entity *hgt;
 	struct vsp1_entity *lif;
@@ -143,7 +140,8 @@ struct vsp1_pipeline {
 	 */
 	struct list_head entities;
 
-	struct vsp1_dl_list *dl;
+	struct vsp1_dl_body *stream_config;
+	bool configured;
 
 	unsigned int partitions;
 	struct vsp1_partition *partition;
@@ -161,15 +159,13 @@ bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe);
 
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
-				   struct vsp1_dl_list *dl, unsigned int alpha);
+				   struct vsp1_dl_body *dlb,
+				   unsigned int alpha);
 
 void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
 				       struct vsp1_partition *partition,
 				       unsigned int index,
 				       struct vsp1_partition_window *window);
-
-void vsp1_pipelines_suspend(struct vsp1_device *vsp1);
-void vsp1_pipelines_resume(struct vsp1_device *vsp1);
 
 const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 						    u32 fourcc);

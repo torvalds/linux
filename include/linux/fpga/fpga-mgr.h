@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * FPGA Framework
  *
  *  Copyright (C) 2013-2016 Altera Corporation
  *  Copyright (C) 2017 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef _LINUX_FPGA_MGR_H
 #define _LINUX_FPGA_MGR_H
@@ -170,9 +159,11 @@ struct fpga_manager *fpga_mgr_get(struct device *dev);
 
 void fpga_mgr_put(struct fpga_manager *mgr);
 
-int fpga_mgr_register(struct device *dev, const char *name,
-		      const struct fpga_manager_ops *mops, void *priv);
-
-void fpga_mgr_unregister(struct device *dev);
+struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
+				     const struct fpga_manager_ops *mops,
+				     void *priv);
+void fpga_mgr_free(struct fpga_manager *mgr);
+int fpga_mgr_register(struct fpga_manager *mgr);
+void fpga_mgr_unregister(struct fpga_manager *mgr);
 
 #endif /*_LINUX_FPGA_MGR_H */

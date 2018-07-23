@@ -41,11 +41,11 @@ static void gmc_v6_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static int gmc_v6_0_wait_for_idle(void *handle);
 
-MODULE_FIRMWARE("radeon/tahiti_mc.bin");
-MODULE_FIRMWARE("radeon/pitcairn_mc.bin");
-MODULE_FIRMWARE("radeon/verde_mc.bin");
-MODULE_FIRMWARE("radeon/oland_mc.bin");
-MODULE_FIRMWARE("radeon/si58_mc.bin");
+MODULE_FIRMWARE("amdgpu/tahiti_mc.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_mc.bin");
+MODULE_FIRMWARE("amdgpu/verde_mc.bin");
+MODULE_FIRMWARE("amdgpu/oland_mc.bin");
+MODULE_FIRMWARE("amdgpu/si58_mc.bin");
 
 #define MC_SEQ_MISC0__MT__MASK   0xf0000000
 #define MC_SEQ_MISC0__MT__GDDR1  0x10000000
@@ -134,9 +134,9 @@ static int gmc_v6_0_init_microcode(struct amdgpu_device *adev)
 		is_58_fw = true;
 
 	if (is_58_fw)
-		snprintf(fw_name, sizeof(fw_name), "radeon/si58_mc.bin");
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/si58_mc.bin");
 	else
-		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mc.bin", chip_name);
 	err = request_firmware(&adev->gmc.fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -819,10 +819,31 @@ static int gmc_v6_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_bo_late_init(adev);
+
 	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
 		return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 	else
 		return 0;
+}
+
+static unsigned gmc_v6_0_get_vbios_fb_size(struct amdgpu_device *adev)
+{
+	u32 d1vga_control = RREG32(mmD1VGA_CONTROL);
+	unsigned size;
+
+	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
+		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+	} else {
+		u32 viewport = RREG32(mmVIEWPORT_SIZE);
+		size = (REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
+			REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_WIDTH) *
+			4);
+	}
+	/* return 0 if the pre-OS buffer uses up most of vram */
+	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
+		return 0;
+	return size;
 }
 
 static int gmc_v6_0_sw_init(void *handle)
@@ -851,8 +872,6 @@ static int gmc_v6_0_sw_init(void *handle)
 
 	adev->gmc.mc_mask = 0xffffffffffULL;
 
-	adev->gmc.stolen_size = 256 * 1024;
-
 	adev->need_dma32 = false;
 	dma_bits = adev->need_dma32 ? 32 : 40;
 	r = pci_set_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
@@ -877,6 +896,8 @@ static int gmc_v6_0_sw_init(void *handle)
 	r = gmc_v6_0_mc_init(adev);
 	if (r)
 		return r;
+
+	adev->gmc.stolen_size = gmc_v6_0_get_vbios_fb_size(adev);
 
 	r = amdgpu_bo_init(adev);
 	if (r)

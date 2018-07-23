@@ -20,14 +20,16 @@
 #include <acpi/pcc.h>
 #include <acpi/processor.h>
 
-/* Only support CPPCv2 for now. */
-#define CPPC_NUM_ENT	21
-#define CPPC_REV	2
+/* Support CPPCv2 and CPPCv3  */
+#define CPPC_V2_REV	2
+#define CPPC_V3_REV	3
+#define CPPC_V2_NUM_ENT	21
+#define CPPC_V3_NUM_ENT	23
 
 #define PCC_CMD_COMPLETE_MASK	(1 << 0)
 #define PCC_ERROR_MASK		(1 << 2)
 
-#define MAX_CPC_REG_ENT 19
+#define MAX_CPC_REG_ENT 21
 
 /* CPPC specific PCC commands. */
 #define	CMD_READ 0
@@ -91,6 +93,8 @@ enum cppc_regs {
 	AUTO_ACT_WINDOW,
 	ENERGY_PERF,
 	REFERENCE_PERF,
+	LOWEST_FREQ,
+	NOMINAL_FREQ,
 };
 
 /*
@@ -104,6 +108,8 @@ struct cppc_perf_caps {
 	u32 nominal_perf;
 	u32 lowest_perf;
 	u32 lowest_nonlinear_perf;
+	u32 lowest_freq;
+	u32 nominal_freq;
 };
 
 struct cppc_perf_ctrls {

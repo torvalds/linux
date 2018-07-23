@@ -55,6 +55,7 @@
 #include <rdma/iw_cm.h>
 #include <rdma/rdma_netlink.h>
 #include <rdma/iw_portmap.h>
+#include <rdma/restrack.h>
 
 #include "cxgb4.h"
 #include "cxgb4_uld.h"
@@ -185,6 +186,10 @@ struct c4iw_rdev {
 	struct wr_log_entry *wr_log;
 	int wr_log_size;
 	struct workqueue_struct *free_workq;
+	struct completion rqt_compl;
+	struct completion pbl_compl;
+	struct kref rqt_kref;
+	struct kref pbl_kref;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
@@ -1049,7 +1054,7 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_ocqp_pool_free(struct c4iw_rdev *rdev, u32 addr, int size);
-void c4iw_flush_hw_cq(struct c4iw_cq *chp);
+void c4iw_flush_hw_cq(struct c4iw_cq *chp, struct c4iw_qp *flush_qhp);
 void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
 int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);
 int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count);
@@ -1077,5 +1082,9 @@ extern int db_coalescing_threshold;
 extern int use_dsgl;
 void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
 struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp);
+
+typedef int c4iw_restrack_func(struct sk_buff *msg,
+			       struct rdma_restrack_entry *res);
+extern c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX];
 
 #endif

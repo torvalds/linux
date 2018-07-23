@@ -28,20 +28,14 @@
 struct tcindex_filter_result {
 	struct tcf_exts		exts;
 	struct tcf_result	res;
-	union {
-		struct work_struct	work;
-		struct rcu_head		rcu;
-	};
+	struct rcu_work		rwork;
 };
 
 struct tcindex_filter {
 	u16 key;
 	struct tcindex_filter_result result;
 	struct tcindex_filter __rcu *next;
-	union {
-		struct work_struct work;
-		struct rcu_head rcu;
-	};
+	struct rcu_work rwork;
 };
 
 
@@ -152,19 +146,12 @@ static void tcindex_destroy_rexts_work(struct work_struct *work)
 {
 	struct tcindex_filter_result *r;
 
-	r = container_of(work, struct tcindex_filter_result, work);
+	r = container_of(to_rcu_work(work),
+			 struct tcindex_filter_result,
+			 rwork);
 	rtnl_lock();
 	__tcindex_destroy_rexts(r);
 	rtnl_unlock();
-}
-
-static void tcindex_destroy_rexts(struct rcu_head *head)
-{
-	struct tcindex_filter_result *r;
-
-	r = container_of(head, struct tcindex_filter_result, rcu);
-	INIT_WORK(&r->work, tcindex_destroy_rexts_work);
-	tcf_queue_work(&r->work);
 }
 
 static void __tcindex_destroy_fexts(struct tcindex_filter *f)
@@ -176,21 +163,13 @@ static void __tcindex_destroy_fexts(struct tcindex_filter *f)
 
 static void tcindex_destroy_fexts_work(struct work_struct *work)
 {
-	struct tcindex_filter *f = container_of(work, struct tcindex_filter,
-						work);
+	struct tcindex_filter *f = container_of(to_rcu_work(work),
+						struct tcindex_filter,
+						rwork);
 
 	rtnl_lock();
 	__tcindex_destroy_fexts(f);
 	rtnl_unlock();
-}
-
-static void tcindex_destroy_fexts(struct rcu_head *head)
-{
-	struct tcindex_filter *f = container_of(head, struct tcindex_filter,
-						rcu);
-
-	INIT_WORK(&f->work, tcindex_destroy_fexts_work);
-	tcf_queue_work(&f->work);
 }
 
 static int tcindex_delete(struct tcf_proto *tp, void *arg, bool *last,
@@ -228,12 +207,12 @@ found:
 	 */
 	if (f) {
 		if (tcf_exts_get_net(&f->result.exts))
-			call_rcu(&f->rcu, tcindex_destroy_fexts);
+			tcf_queue_work(&f->rwork, tcindex_destroy_fexts_work);
 		else
 			__tcindex_destroy_fexts(f);
 	} else {
 		if (tcf_exts_get_net(&r->exts))
-			call_rcu(&r->rcu, tcindex_destroy_rexts);
+			tcf_queue_work(&r->rwork, tcindex_destroy_rexts_work);
 		else
 			__tcindex_destroy_rexts(r);
 	}

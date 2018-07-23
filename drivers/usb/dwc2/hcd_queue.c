@@ -383,7 +383,7 @@ static unsigned long *dwc2_get_ls_map(struct dwc2_hsotg *hsotg,
 	/* Get the map and adjust if this is a multi_tt hub */
 	map = qh->dwc_tt->periodic_bitmaps;
 	if (qh->dwc_tt->usb_tt->multi)
-		map += DWC2_ELEMENTS_PER_LS_BITMAP * qh->ttport;
+		map += DWC2_ELEMENTS_PER_LS_BITMAP * (qh->ttport - 1);
 
 	return map;
 }
@@ -679,6 +679,7 @@ static int dwc2_hs_pmap_schedule(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
  *
  * @hsotg:       The HCD state structure for the DWC OTG controller.
  * @qh:          QH for the periodic transfer.
+ * @index:       Transfer index
  */
 static void dwc2_hs_pmap_unschedule(struct dwc2_hsotg *hsotg,
 				    struct dwc2_qh *qh, int index)
@@ -1276,7 +1277,7 @@ static void dwc2_do_unreserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  * release the reservation.  This worker is called after the appropriate
  * delay.
  *
- * @work: Pointer to a qh unreserve_work.
+ * @t: Address to a qh unreserve_work.
  */
 static void dwc2_unreserve_timer_fn(struct timer_list *t)
 {
@@ -1631,7 +1632,7 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
  * @hsotg:        The HCD state structure for the DWC OTG controller
  * @urb:          Holds the information about the device/endpoint needed
  *                to initialize the QH
- * @atomic_alloc: Flag to do atomic allocation if needed
+ * @mem_flags:   Flags for allocating memory.
  *
  * Return: Pointer to the newly allocated QH, or NULL on error
  */
@@ -1695,6 +1696,9 @@ void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	if (qh->desc_list)
 		dwc2_hcd_qh_free_ddma(hsotg, qh);
+	else if (hsotg->unaligned_cache && qh->dw_align_buf)
+		kmem_cache_free(hsotg->unaligned_cache, qh->dw_align_buf);
+
 	kfree(qh);
 }
 

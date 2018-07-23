@@ -22,7 +22,6 @@
 #include <linux/hrtimer.h>
 
 #include <media/rc-core.h>
-#include <linux/platform_data/media/ir-rx51.h>
 
 #define WBUF_LEN 256
 
@@ -31,7 +30,6 @@ struct ir_rx51 {
 	struct pwm_device *pwm;
 	struct hrtimer timer;
 	struct device	     *dev;
-	struct ir_rx51_platform_data *pdata;
 	wait_queue_head_t     wqueue;
 
 	unsigned int	freq;		/* carrier frequency */
@@ -130,10 +128,9 @@ static int ir_rx51_tx(struct rc_dev *dev, unsigned int *buffer,
 		ir_rx51->wbuf[count] = -1; /* Insert termination mark */
 
 	/*
-	 * Adjust latency requirements so the device doesn't go in too
-	 * deep sleep states
+	 * REVISIT: Adjust latency requirements so the device doesn't go in too
+	 * deep sleep states with pm_qos_add_request().
 	 */
-	ir_rx51->pdata->set_max_mpu_wakeup_lat(ir_rx51->dev, 50);
 
 	ir_rx51_on(ir_rx51);
 	ir_rx51->wbuf_index = 1;
@@ -146,8 +143,7 @@ static int ir_rx51_tx(struct rc_dev *dev, unsigned int *buffer,
 	 */
 	wait_event_interruptible(ir_rx51->wqueue, ir_rx51->wbuf_index < 0);
 
-	/* We can sleep again */
-	ir_rx51->pdata->set_max_mpu_wakeup_lat(ir_rx51->dev, -1);
+	/* REVISIT: Remove pm_qos constraint, we can sleep again */
 
 	return count;
 }
@@ -243,13 +239,6 @@ static int ir_rx51_probe(struct platform_device *dev)
 {
 	struct pwm_device *pwm;
 	struct rc_dev *rcdev;
-
-	ir_rx51.pdata = dev->dev.platform_data;
-
-	if (!ir_rx51.pdata) {
-		dev_err(&dev->dev, "Platform Data is missing\n");
-		return -ENXIO;
-	}
 
 	pwm = pwm_get(&dev->dev, NULL);
 	if (IS_ERR(pwm)) {

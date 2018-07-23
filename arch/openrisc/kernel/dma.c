@@ -247,14 +247,3 @@ const struct dma_map_ops or1k_dma_map_ops = {
 	.sync_single_for_device = or1k_sync_single_for_device,
 };
 EXPORT_SYMBOL(or1k_dma_map_ops);
-
-/* Number of entries preallocated for DMA-API debugging */
-#define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
-
-static int __init dma_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-
-	return 0;
-}
-fs_initcall(dma_init);

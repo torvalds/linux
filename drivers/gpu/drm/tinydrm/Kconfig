@@ -20,6 +20,17 @@ config TINYDRM_ILI9225
 
 	  If M is selected the module will be called ili9225.
 
+config TINYDRM_ILI9341
+	tristate "DRM support for ILI9341 display panels"
+	depends on DRM_TINYDRM && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select TINYDRM_MIPI_DBI
+	help
+	  DRM driver for the following Ilitek ILI9341 panels:
+	  * YX240QV29-T 2.4" 240x320 TFT (Adafruit 2.4")
+
+	  If M is selected the module will be called ili9341.
+
 config TINYDRM_MI0283QT
 	tristate "DRM support for MI0283QT"
 	depends on DRM_TINYDRM && SPI

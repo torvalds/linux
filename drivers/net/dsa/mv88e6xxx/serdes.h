@@ -19,6 +19,8 @@
 #define MV88E6352_ADDR_SERDES		0x0f
 #define MV88E6352_SERDES_PAGE_FIBER	0x01
 
+#define MV88E6341_ADDR_SERDES		0x15
+
 #define MV88E6390_PORT9_LANE0		0x09
 #define MV88E6390_PORT9_LANE1		0x12
 #define MV88E6390_PORT9_LANE2		0x13
@@ -42,6 +44,7 @@
 #define MV88E6390_SGMII_CONTROL_LOOPBACK	BIT(14)
 #define MV88E6390_SGMII_CONTROL_PDOWN		BIT(11)
 
+int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);

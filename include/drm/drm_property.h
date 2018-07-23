@@ -147,10 +147,10 @@ struct drm_property {
 	 *     properties are not exposed to legacy userspace.
 	 *
 	 * DRM_MODE_PROP_IMMUTABLE
-	 *     Set for properties where userspace cannot be changed by
+	 *     Set for properties whose values cannot be changed by
 	 *     userspace. The kernel is allowed to update the value of these
 	 *     properties. This is generally used to expose probe state to
-	 *     usersapce, e.g. the EDID, or the connector path property on DP
+	 *     userspace, e.g. the EDID, or the connector path property on DP
 	 *     MST sinks.
 	 */
 	uint32_t flags;
@@ -260,7 +260,7 @@ struct drm_property *drm_property_create_object(struct drm_device *dev,
 						uint32_t type);
 struct drm_property *drm_property_create_bool(struct drm_device *dev,
 					      u32 flags, const char *name);
-int drm_property_add_enum(struct drm_property *property, int index,
+int drm_property_add_enum(struct drm_property *property,
 			  uint64_t value, const char *name);
 void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 

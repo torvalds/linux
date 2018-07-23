@@ -1,0 +1,12 @@
+Innolux G070Y2-L01 7" WVGA (800x480) TFT LCD panel
+
+Required properties:
+- compatible: should be "innolux,g070y2-l01"
+- power-supply: as specified in the base binding
+
+Optional properties:
+- backlight: as specified in the base binding
+- enable-gpios: as specified in the base binding
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

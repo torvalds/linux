@@ -52,7 +52,7 @@ static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 	iattrs->ia_uid = GLOBAL_ROOT_UID;
 	iattrs->ia_gid = GLOBAL_ROOT_GID;
 
-	ktime_get_real_ts(&iattrs->ia_atime);
+	ktime_get_real_ts64(&iattrs->ia_atime);
 	iattrs->ia_mtime = iattrs->ia_atime;
 	iattrs->ia_ctime = iattrs->ia_atime;
 
@@ -176,9 +176,9 @@ static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)
 	struct super_block *sb = inode->i_sb;
 	inode->i_uid = iattr->ia_uid;
 	inode->i_gid = iattr->ia_gid;
-	inode->i_atime = timespec_trunc(iattr->ia_atime, sb->s_time_gran);
-	inode->i_mtime = timespec_trunc(iattr->ia_mtime, sb->s_time_gran);
-	inode->i_ctime = timespec_trunc(iattr->ia_ctime, sb->s_time_gran);
+	inode->i_atime = timespec64_trunc(iattr->ia_atime, sb->s_time_gran);
+	inode->i_mtime = timespec64_trunc(iattr->ia_mtime, sb->s_time_gran);
+	inode->i_ctime = timespec64_trunc(iattr->ia_ctime, sb->s_time_gran);
 }
 
 static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)

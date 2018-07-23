@@ -214,18 +214,6 @@ static inline void armada_37xx_update_reg(unsigned int *reg,
 	}
 }
 
-static int armada_37xx_get_func_reg(struct armada_37xx_pin_group *grp,
-				    const char *func)
-{
-	int f;
-
-	for (f = 0; (f < NB_FUNCS) && grp->funcs[f]; f++)
-		if (!strcmp(grp->funcs[f], func))
-			return f;
-
-	return -ENOTSUPP;
-}
-
 static struct armada_37xx_pin_group *armada_37xx_find_next_grp_by_pin(
 	struct armada_37xx_pinctrl *info, int pin, int *grp)
 {
@@ -344,10 +332,9 @@ static int armada_37xx_pmx_set_by_name(struct pinctrl_dev *pctldev,
 	dev_dbg(info->dev, "enable function %s group %s\n",
 		name, grp->name);
 
-	func = armada_37xx_get_func_reg(grp, name);
-
+	func = match_string(grp->funcs, NB_FUNCS, name);
 	if (func < 0)
-		return func;
+		return -ENOTSUPP;
 
 	val = grp->val[func];
 
@@ -679,12 +666,13 @@ static void armada_37xx_irq_handler(struct irq_desc *desc)
 					writel(1 << hwirq,
 					       info->base +
 					       IRQ_STATUS + 4 * i);
-					continue;
+					goto update_status;
 				}
 			}
 
 			generic_handle_irq(virq);
 
+update_status:
 			/* Update status in case a new IRQ appears */
 			spin_lock_irqsave(&info->irq_lock, flags);
 			status = readl_relaxed(info->base +
@@ -868,9 +856,10 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 		struct armada_37xx_pin_group *grp = &info->groups[n];
 		int i, j, f;
 
-		grp->pins = devm_kzalloc(info->dev,
-					 (grp->npins + grp->extra_npins) *
-					 sizeof(*grp->pins), GFP_KERNEL);
+		grp->pins = devm_kcalloc(info->dev,
+					 grp->npins + grp->extra_npins,
+					 sizeof(*grp->pins),
+					 GFP_KERNEL);
 		if (!grp->pins)
 			return -ENOMEM;
 
@@ -920,7 +909,8 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 		const char **groups;
 		int g;
 
-		funcs[n].groups = devm_kzalloc(info->dev, funcs[n].ngroups *
+		funcs[n].groups = devm_kcalloc(info->dev,
+					       funcs[n].ngroups,
 					       sizeof(*(funcs[n].groups)),
 					       GFP_KERNEL);
 		if (!funcs[n].groups)
@@ -932,12 +922,12 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 			struct armada_37xx_pin_group *gp = &info->groups[g];
 			int f;
 
-			for (f = 0; (f < NB_FUNCS) && gp->funcs[f]; f++) {
-				if (strcmp(gp->funcs[f], name) == 0) {
-					*groups = gp->name;
-					groups++;
-				}
-			}
+			f = match_string(gp->funcs, NB_FUNCS, name);
+			if (f < 0)
+				continue;
+
+			*groups = gp->name;
+			groups++;
 		}
 	}
 	return 0;
@@ -960,8 +950,9 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	ctrldesc->pmxops = &armada_37xx_pmx_ops;
 	ctrldesc->confops = &armada_37xx_pinconf_ops;
 
-	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
-			       pin_data->nr_pins, GFP_KERNEL);
+	pindesc = devm_kcalloc(&pdev->dev,
+			       pin_data->nr_pins, sizeof(*pindesc),
+			       GFP_KERNEL);
 	if (!pindesc)
 		return -ENOMEM;
 
@@ -980,8 +971,10 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	 * we allocate functions for number of pins and hope there are
 	 * fewer unique functions than pins available
 	 */
-	info->funcs = devm_kzalloc(&pdev->dev, pin_data->nr_pins *
-			   sizeof(struct armada_37xx_pmx_func), GFP_KERNEL);
+	info->funcs = devm_kcalloc(&pdev->dev,
+				   pin_data->nr_pins,
+				   sizeof(struct armada_37xx_pmx_func),
+				   GFP_KERNEL);
 	if (!info->funcs)
 		return -ENOMEM;
 

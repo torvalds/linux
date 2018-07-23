@@ -5,6 +5,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -97,27 +98,27 @@ static u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
  */
 static void remove_monitor_info(struct sk_buff *skb,
 				unsigned int present_fcs_len,
-				unsigned int rtap_vendor_space)
+				unsigned int rtap_space)
 {
 	if (present_fcs_len)
 		__pskb_trim(skb, skb->len - present_fcs_len);
-	__pskb_pull(skb, rtap_vendor_space);
+	__pskb_pull(skb, rtap_space);
 }
 
 static inline bool should_drop_frame(struct sk_buff *skb, int present_fcs_len,
-				     unsigned int rtap_vendor_space)
+				     unsigned int rtap_space)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr;
 
-	hdr = (void *)(skb->data + rtap_vendor_space);
+	hdr = (void *)(skb->data + rtap_space);
 
 	if (status->flag & (RX_FLAG_FAILED_FCS_CRC |
 			    RX_FLAG_FAILED_PLCP_CRC |
 			    RX_FLAG_ONLY_MONITOR))
 		return true;
 
-	if (unlikely(skb->len < 16 + present_fcs_len + rtap_vendor_space))
+	if (unlikely(skb->len < 16 + present_fcs_len + rtap_space))
 		return true;
 
 	if (ieee80211_is_ctl(hdr->frame_control) &&
@@ -199,7 +200,7 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 
 static void ieee80211_handle_mu_mimo_mon(struct ieee80211_sub_if_data *sdata,
 					 struct sk_buff *skb,
-					 int rtap_vendor_space)
+					 int rtap_space)
 {
 	struct {
 		struct ieee80211_hdr_3addr hdr;
@@ -212,14 +213,14 @@ static void ieee80211_handle_mu_mimo_mon(struct ieee80211_sub_if_data *sdata,
 
 	BUILD_BUG_ON(sizeof(action) != IEEE80211_MIN_ACTION_SIZE + 1);
 
-	if (skb->len < rtap_vendor_space + sizeof(action) +
+	if (skb->len < rtap_space + sizeof(action) +
 		       VHT_MUMIMO_GROUPS_DATA_LEN)
 		return;
 
 	if (!is_valid_ether_addr(sdata->u.mntr.mu_follow_addr))
 		return;
 
-	skb_copy_bits(skb, rtap_vendor_space, &action, sizeof(action));
+	skb_copy_bits(skb, rtap_space, &action, sizeof(action));
 
 	if (!ieee80211_is_action(action.hdr.frame_control))
 		return;
@@ -545,7 +546,7 @@ static struct sk_buff *
 ieee80211_make_monitor_skb(struct ieee80211_local *local,
 			   struct sk_buff **origskb,
 			   struct ieee80211_rate *rate,
-			   int rtap_vendor_space, bool use_origskb)
+			   int rtap_space, bool use_origskb)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(*origskb);
 	int rt_hdrlen, needed_headroom;
@@ -553,7 +554,7 @@ ieee80211_make_monitor_skb(struct ieee80211_local *local,
 
 	/* room for the radiotap header based on driver features */
 	rt_hdrlen = ieee80211_rx_radiotap_hdrlen(local, status, *origskb);
-	needed_headroom = rt_hdrlen - rtap_vendor_space;
+	needed_headroom = rt_hdrlen - rtap_space;
 
 	if (use_origskb) {
 		/* only need to expand headroom if necessary */
@@ -607,7 +608,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	struct ieee80211_sub_if_data *sdata;
 	struct sk_buff *monskb = NULL;
 	int present_fcs_len = 0;
-	unsigned int rtap_vendor_space = 0;
+	unsigned int rtap_space = 0;
 	struct ieee80211_sub_if_data *monitor_sdata =
 		rcu_dereference(local->monitor_sdata);
 	bool only_monitor = false;
@@ -615,7 +616,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	if (unlikely(status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA)) {
 		struct ieee80211_vendor_radiotap *rtap = (void *)origskb->data;
 
-		rtap_vendor_space = sizeof(*rtap) + rtap->len + rtap->pad;
+		rtap_space += sizeof(*rtap) + rtap->len + rtap->pad;
 	}
 
 	/*
@@ -638,13 +639,12 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	}
 
 	/* ensure hdr->frame_control and vendor radiotap data are in skb head */
-	if (!pskb_may_pull(origskb, 2 + rtap_vendor_space)) {
+	if (!pskb_may_pull(origskb, 2 + rtap_space)) {
 		dev_kfree_skb(origskb);
 		return NULL;
 	}
 
-	only_monitor = should_drop_frame(origskb, present_fcs_len,
-					 rtap_vendor_space);
+	only_monitor = should_drop_frame(origskb, present_fcs_len, rtap_space);
 
 	if (!local->monitors || (status->flag & RX_FLAG_SKIP_MONITOR)) {
 		if (only_monitor) {
@@ -652,12 +652,11 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 			return NULL;
 		}
 
-		remove_monitor_info(origskb, present_fcs_len,
-				    rtap_vendor_space);
+		remove_monitor_info(origskb, present_fcs_len, rtap_space);
 		return origskb;
 	}
 
-	ieee80211_handle_mu_mimo_mon(monitor_sdata, origskb, rtap_vendor_space);
+	ieee80211_handle_mu_mimo_mon(monitor_sdata, origskb, rtap_space);
 
 	list_for_each_entry_rcu(sdata, &local->mon_list, u.mntr.list) {
 		bool last_monitor = list_is_last(&sdata->u.mntr.list,
@@ -665,8 +664,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 		if (!monskb)
 			monskb = ieee80211_make_monitor_skb(local, &origskb,
-							    rate,
-							    rtap_vendor_space,
+							    rate, rtap_space,
 							    only_monitor &&
 							    last_monitor);
 
@@ -698,7 +696,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	if (!origskb)
 		return NULL;
 
-	remove_monitor_info(origskb, present_fcs_len, rtap_vendor_space);
+	remove_monitor_info(origskb, present_fcs_len, rtap_space);
 	return origskb;
 }
 

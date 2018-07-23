@@ -188,8 +188,8 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	buf_cfg.be_alloc = front_info->cfg.be_alloc;
 
 	shbuf = xen_drm_front_shbuf_alloc(&buf_cfg);
-	if (!shbuf)
-		return -ENOMEM;
+	if (IS_ERR(shbuf))
+		return PTR_ERR(shbuf);
 
 	ret = dbuf_add_to_list(front_info, shbuf, dbuf_cookie);
 	if (ret < 0) {
@@ -543,8 +543,8 @@ static int xen_drm_drv_init(struct xen_drm_front_info *front_info)
 	front_info->drm_info = drm_info;
 
 	drm_dev = drm_dev_alloc(&xen_drm_driver, dev);
-	if (!drm_dev) {
-		ret = -ENOMEM;
+	if (IS_ERR(drm_dev)) {
+		ret = PTR_ERR(drm_dev);
 		goto fail;
 	}
 
@@ -623,7 +623,7 @@ static int displback_initwait(struct xen_drm_front_info *front_info)
 	if (ret < 0)
 		return ret;
 
-	DRM_INFO("Have %d conector(s)\n", cfg->num_connectors);
+	DRM_INFO("Have %d connector(s)\n", cfg->num_connectors);
 	/* Create event channels for all connectors and publish */
 	ret = xen_drm_front_evtchnl_create_all(front_info);
 	if (ret < 0)
@@ -737,9 +737,8 @@ static int xen_drv_probe(struct xenbus_device *xb_dev,
 	 * is not correct: to fix this call of_dma_configure() with a NULL
 	 * node to set default DMA ops.
 	 */
-	dev->bus->force_dma = true;
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	ret = of_dma_configure(dev, NULL);
+	ret = of_dma_configure(dev, NULL, true);
 	if (ret < 0) {
 		DRM_ERROR("Cannot setup DMA ops, ret %d", ret);
 		return ret;
@@ -778,7 +777,7 @@ static int xen_drv_remove(struct xenbus_device *dev)
 	 */
 	while ((xenbus_read_unsigned(front_info->xb_dev->otherend, "state",
 				     XenbusStateUnknown) != XenbusStateInitWait) &&
-				     to--)
+				     --to)
 		msleep(10);
 
 	if (!to) {

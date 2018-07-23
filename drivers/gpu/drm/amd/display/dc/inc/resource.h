@@ -38,6 +38,7 @@ enum dce_version resource_parse_asic_id(
 
 struct resource_caps {
 	int num_timing_generator;
+	int num_opp;
 	int num_video_plane;
 	int num_audio;
 	int num_stream_encoder;
@@ -138,10 +139,6 @@ bool resource_validate_attach_surfaces(
 		const struct dc_state *old_context,
 		struct dc_state *context,
 		const struct resource_pool *pool);
-
-void validate_guaranteed_copy_streams(
-		struct dc_state *context,
-		int max_streams);
 
 void resource_validate_ctx_update_pointer_after_copy(
 		const struct dc_state *src_ctx,

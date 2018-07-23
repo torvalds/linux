@@ -149,6 +149,12 @@ static inline void __maybe_unused remove_quirk(struct mmc_card *card, int data)
 	card->quirks &= ~data;
 }
 
+static inline void __maybe_unused add_limit_rate_quirk(struct mmc_card *card,
+						       int data)
+{
+	card->quirk_max_rate = data;
+}
+
 /*
  * Quirk add/remove for MMC products.
  */

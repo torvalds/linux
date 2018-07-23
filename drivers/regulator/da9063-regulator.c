@@ -681,8 +681,8 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	pdata->regulator_data = devm_kzalloc(&pdev->dev,
-					num * sizeof(*pdata->regulator_data),
+	pdata->regulator_data = devm_kcalloc(&pdev->dev,
+					num, sizeof(*pdata->regulator_data),
 					GFP_KERNEL);
 	if (!pdata->regulator_data)
 		return ERR_PTR(-ENOMEM);

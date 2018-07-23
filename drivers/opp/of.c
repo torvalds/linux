@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/of_device.h>
+#include <linux/pm_domain.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 
@@ -250,20 +251,17 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
 /* Returns opp descriptor node for a device node, caller must
  * do of_node_put() */
-static struct device_node *_opp_of_get_opp_desc_node(struct device_node *np)
+static struct device_node *_opp_of_get_opp_desc_node(struct device_node *np,
+						     int index)
 {
-	/*
-	 * There should be only ONE phandle present in "operating-points-v2"
-	 * property.
-	 */
-
-	return of_parse_phandle(np, "operating-points-v2", 0);
+	/* "operating-points-v2" can be an array for power domain providers */
+	return of_parse_phandle(np, "operating-points-v2", index);
 }
 
 /* Returns opp descriptor node for a device, caller must do of_node_put() */
 struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
 {
-	return _opp_of_get_opp_desc_node(dev->of_node);
+	return _opp_of_get_opp_desc_node(dev->of_node, 0);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_node);
 
@@ -289,9 +287,10 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 			      struct device_node *np)
 {
 	struct dev_pm_opp *new_opp;
-	u64 rate;
+	u64 rate = 0;
 	u32 val;
 	int ret;
+	bool rate_not_available = false;
 
 	new_opp = _opp_allocate(opp_table);
 	if (!new_opp)
@@ -299,8 +298,21 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 
 	ret = of_property_read_u64(np, "opp-hz", &rate);
 	if (ret < 0) {
-		dev_err(dev, "%s: opp-hz not found\n", __func__);
-		goto free_opp;
+		/* "opp-hz" is optional for devices like power domains. */
+		if (!of_find_property(dev->of_node, "#power-domain-cells",
+				      NULL)) {
+			dev_err(dev, "%s: opp-hz not found\n", __func__);
+			goto free_opp;
+		}
+
+		rate_not_available = true;
+	} else {
+		/*
+		 * Rate is defined as an unsigned long in clk API, and so
+		 * casting explicitly to its type. Must be fixed once rate is 64
+		 * bit guaranteed in clk API.
+		 */
+		new_opp->rate = (unsigned long)rate;
 	}
 
 	/* Check if the OPP supports hardware's hierarchy of versions or not */
@@ -309,12 +321,6 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 		goto free_opp;
 	}
 
-	/*
-	 * Rate is defined as an unsigned long in clk API, and so casting
-	 * explicitly to its type. Must be fixed once rate is 64 bit
-	 * guaranteed in clk API.
-	 */
-	new_opp->rate = (unsigned long)rate;
 	new_opp->turbo = of_property_read_bool(np, "turbo-mode");
 
 	new_opp->np = np;
@@ -324,11 +330,13 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 	if (!of_property_read_u32(np, "clock-latency-ns", &val))
 		new_opp->clock_latency_ns = val;
 
+	new_opp->pstate = of_genpd_opp_to_performance_state(dev, np);
+
 	ret = opp_parse_supplies(new_opp, dev, opp_table);
 	if (ret)
 		goto free_opp;
 
-	ret = _opp_add(dev, new_opp, opp_table);
+	ret = _opp_add(dev, new_opp, opp_table, rate_not_available);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
 		if (ret == -EBUSY)
@@ -374,7 +382,8 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 {
 	struct device_node *np;
 	struct opp_table *opp_table;
-	int ret = 0, count = 0;
+	int ret = 0, count = 0, pstate_count = 0;
+	struct dev_pm_opp *opp;
 
 	opp_table = _managed_opp(opp_np);
 	if (opp_table) {
@@ -407,6 +416,20 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 		ret = -ENOENT;
 		goto put_opp_table;
 	}
+
+	list_for_each_entry(opp, &opp_table->opp_list, node)
+		pstate_count += !!opp->pstate;
+
+	/* Either all or none of the nodes shall have performance state set */
+	if (pstate_count && pstate_count != count) {
+		dev_err(dev, "Not all nodes have performance state set (%d: %d)\n",
+			count, pstate_count);
+		ret = -ENOENT;
+		goto put_opp_table;
+	}
+
+	if (pstate_count)
+		opp_table->genpd_performance_state = true;
 
 	opp_table->np = opp_np;
 	if (of_property_read_bool(opp_np, "opp-shared"))
@@ -508,6 +531,54 @@ int dev_pm_opp_of_add_table(struct device *dev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
+
+/**
+ * dev_pm_opp_of_add_table_indexed() - Initialize indexed opp table from device tree
+ * @dev:	device pointer used to lookup OPP table.
+ * @index:	Index number.
+ *
+ * Register the initial OPP table with the OPP library for given device only
+ * using the "operating-points-v2" property.
+ *
+ * Return:
+ * 0		On success OR
+ *		Duplicate OPPs (both freq and volt are same) and opp->available
+ * -EEXIST	Freq are same and volt are different OR
+ *		Duplicate OPPs (both freq and volt are same) and !opp->available
+ * -ENOMEM	Memory allocation failure
+ * -ENODEV	when 'operating-points' property is not found or is invalid data
+ *		in device node.
+ * -ENODATA	when empty 'operating-points' property is found
+ * -EINVAL	when invalid entries are found in opp-v2 table
+ */
+int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
+{
+	struct device_node *opp_np;
+	int ret, count;
+
+again:
+	opp_np = _opp_of_get_opp_desc_node(dev->of_node, index);
+	if (!opp_np) {
+		/*
+		 * If only one phandle is present, then the same OPP table
+		 * applies for all index requests.
+		 */
+		count = of_count_phandle_with_args(dev->of_node,
+						   "operating-points-v2", NULL);
+		if (count == 1 && index) {
+			index = 0;
+			goto again;
+		}
+
+		return -ENODEV;
+	}
+
+	ret = _of_add_opp_table_v2(dev, opp_np);
+	of_node_put(opp_np);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
 
 /* CPU device specific helpers */
 
@@ -613,7 +684,7 @@ int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 		}
 
 		/* Get OPP descriptor node */
-		tmp_np = _opp_of_get_opp_desc_node(cpu_np);
+		tmp_np = _opp_of_get_opp_desc_node(cpu_np, 0);
 		of_node_put(cpu_np);
 		if (!tmp_np) {
 			pr_err("%pOF: Couldn't find opp node\n", cpu_np);
@@ -633,3 +704,76 @@ put_cpu_node:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
+
+/**
+ * of_dev_pm_opp_find_required_opp() - Search for required OPP.
+ * @dev: The device whose OPP node is referenced by the 'np' DT node.
+ * @np: Node that contains the "required-opps" property.
+ *
+ * Returns the OPP of the device 'dev', whose phandle is present in the "np"
+ * node. Although the "required-opps" property supports having multiple
+ * phandles, this helper routine only parses the very first phandle in the list.
+ *
+ * Return: Matching opp, else returns ERR_PTR in case of error and should be
+ * handled using IS_ERR.
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *of_dev_pm_opp_find_required_opp(struct device *dev,
+						   struct device_node *np)
+{
+	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ENODEV);
+	struct device_node *required_np;
+	struct opp_table *opp_table;
+
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return ERR_CAST(opp_table);
+
+	required_np = of_parse_phandle(np, "required-opps", 0);
+	if (unlikely(!required_np)) {
+		dev_err(dev, "Unable to parse required-opps\n");
+		goto put_opp_table;
+	}
+
+	mutex_lock(&opp_table->lock);
+
+	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+		if (temp_opp->available && temp_opp->np == required_np) {
+			opp = temp_opp;
+
+			/* Increment the reference count of OPP */
+			dev_pm_opp_get(opp);
+			break;
+		}
+	}
+
+	mutex_unlock(&opp_table->lock);
+
+	of_node_put(required_np);
+put_opp_table:
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return opp;
+}
+EXPORT_SYMBOL_GPL(of_dev_pm_opp_find_required_opp);
+
+/**
+ * dev_pm_opp_get_of_node() - Gets the DT node corresponding to an opp
+ * @opp:	opp for which DT node has to be returned for
+ *
+ * Return: DT node corresponding to the opp, else 0 on success.
+ *
+ * The caller needs to put the node with of_node_put() after using it.
+ */
+struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp)
+{
+	if (IS_ERR_OR_NULL(opp)) {
+		pr_err("%s: Invalid parameters\n", __func__);
+		return NULL;
+	}
+
+	return of_node_get(opp->np);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);

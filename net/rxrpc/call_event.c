@@ -392,7 +392,13 @@ recheck_state:
 
 	/* Process events */
 	if (test_and_clear_bit(RXRPC_CALL_EV_EXPIRED, &call->events)) {
-		rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ETIME);
+		if (test_bit(RXRPC_CALL_RX_HEARD, &call->flags) &&
+		    (int)call->conn->hi_serial - (int)call->rx_serial > 0) {
+			trace_rxrpc_call_reset(call);
+			rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ECONNRESET);
+		} else {
+			rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ETIME);
+		}
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		goto recheck_state;
 	}

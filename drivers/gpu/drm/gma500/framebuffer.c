@@ -33,6 +33,7 @@
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
@@ -40,14 +41,9 @@
 #include "framebuffer.h"
 #include "gtt.h"
 
-static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb);
-static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
-					      struct drm_file *file_priv,
-					      unsigned int *handle);
-
 static const struct drm_framebuffer_funcs psb_fb_funcs = {
-	.destroy = psb_user_framebuffer_destroy,
-	.create_handle = psb_user_framebuffer_create_handle,
+	.destroy = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
 };
 
 #define CMAP_TOHW(_val, _width) ((((_val) << (_width)) + 0x7FFF - (_val)) >> 16)
@@ -96,17 +92,18 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct psb_fbdev *fbdev = info->par;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_device *dev = psbfb->base.dev;
+	struct gtt_range *gtt = to_gtt_range(psbfb->base.obj[0]);
 
 	/*
 	 *	We have to poke our nose in here. The core fb code assumes
 	 *	panning is part of the hardware that can be invoked before
 	 *	the actual fb is mapped. In our case that isn't quite true.
 	 */
-	if (psbfb->gtt->npage) {
+	if (gtt->npage) {
 		/* GTT roll shifts in 4K pages, we need to shift the right
 		   number of pages */
 		int pages = info->fix.line_length >> 12;
-		psb_gtt_roll(dev, psbfb->gtt, var->yoffset * pages);
+		psb_gtt_roll(dev, gtt, var->yoffset * pages);
 	}
         return 0;
 }
@@ -117,13 +114,14 @@ static int psbfb_vm_fault(struct vm_fault *vmf)
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct gtt_range *gtt = to_gtt_range(psbfb->base.obj[0]);
 	int page_num;
 	int i;
 	unsigned long address;
 	int ret;
 	unsigned long pfn;
 	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base +
-				  psbfb->gtt->offset;
+				  gtt->offset;
 
 	page_num = vma_pages(vma);
 	address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
@@ -246,7 +244,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 
 	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
-	fb->gtt = gt;
+	fb->base.obj[0] = &gt->gem;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
 	if (ret) {
 		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
@@ -518,8 +516,8 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 	drm_framebuffer_unregister_private(&psbfb->base);
 	drm_framebuffer_cleanup(&psbfb->base);
 
-	if (psbfb->gtt)
-		drm_gem_object_unreference_unlocked(&psbfb->gtt->gem);
+	if (psbfb->base.obj[0])
+		drm_gem_object_put_unlocked(psbfb->base.obj[0]);
 	return 0;
 }
 
@@ -574,44 +572,6 @@ static void psb_fbdev_fini(struct drm_device *dev)
 	psb_fbdev_destroy(dev, dev_priv->fbdev);
 	kfree(dev_priv->fbdev);
 	dev_priv->fbdev = NULL;
-}
-
-/**
- *	psb_user_framebuffer_create_handle - add hamdle to a framebuffer
- *	@fb: framebuffer
- *	@file_priv: our DRM file
- *	@handle: returned handle
- *
- *	Our framebuffer object is a GTT range which also contains a GEM
- *	object. We need to turn it into a handle for userspace. GEM will do
- *	the work for us
- */
-static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
-					      struct drm_file *file_priv,
-					      unsigned int *handle)
-{
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
-	struct gtt_range *r = psbfb->gtt;
-	return drm_gem_handle_create(file_priv, &r->gem, handle);
-}
-
-/**
- *	psb_user_framebuffer_destroy	-	destruct user created fb
- *	@fb: framebuffer
- *
- *	User framebuffers are backed by GEM objects so all we have to do is
- *	clean up a bit and drop the reference, GEM will handle the fallout
- */
-static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
-	struct gtt_range *r = psbfb->gtt;
-
-	/* Let DRM do its clean up */
-	drm_framebuffer_cleanup(fb);
-	/*  We are no longer using the resource in GEM */
-	drm_gem_object_unreference_unlocked(&r->gem);
-	kfree(fb);
 }
 
 static const struct drm_mode_config_funcs psb_mode_funcs = {

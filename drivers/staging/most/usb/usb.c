@@ -338,7 +338,6 @@ static void hdm_write_completion(struct urb *urb)
 	struct mbo *mbo = urb->context;
 	struct most_dev *mdev = to_mdev(mbo->ifp);
 	unsigned int channel = mbo->hdm_channel_id;
-	struct device *dev = &mdev->usb_device->dev;
 	spinlock_t *lock = mdev->channel_lock + channel;
 	unsigned long flags;
 
@@ -354,7 +353,9 @@ static void hdm_write_completion(struct urb *urb)
 			mbo->status = MBO_SUCCESS;
 			break;
 		case -EPIPE:
-			dev_warn(dev, "Broken OUT pipe detected\n");
+			dev_warn(&mdev->usb_device->dev,
+				 "Broken pipe on ep%02x\n",
+				 mdev->ep_address[channel]);
 			mdev->is_channel_healthy[channel] = false;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -507,7 +508,8 @@ static void hdm_read_completion(struct urb *urb)
 			}
 			break;
 		case -EPIPE:
-			dev_warn(dev, "Broken IN pipe detected\n");
+			dev_warn(dev, "Broken pipe on ep%02x\n",
+				 mdev->ep_address[channel]);
 			mdev->is_channel_healthy[channel] = false;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -517,7 +519,8 @@ static void hdm_read_completion(struct urb *urb)
 			mbo->status = MBO_E_CLOSE;
 			break;
 		case -EOVERFLOW:
-			dev_warn(dev, "Babble on IN pipe detected\n");
+			dev_warn(dev, "Babble on ep%02x\n",
+				 mdev->ep_address[channel]);
 			break;
 		}
 	}
@@ -549,7 +552,6 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 {
 	struct most_dev *mdev;
 	struct most_channel_config *conf;
-	struct device *dev;
 	int retval = 0;
 	struct urb *urb;
 	unsigned long length;
@@ -562,14 +564,18 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 
 	mdev = to_mdev(iface);
 	conf = &mdev->conf[channel];
-	dev = &mdev->usb_device->dev;
 
-	if (!mdev->usb_device)
-		return -ENODEV;
+	mutex_lock(&mdev->io_mutex);
+	if (!mdev->usb_device) {
+		retval = -ENODEV;
+		goto _exit;
+	}
 
 	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_ATOMIC);
-	if (!urb)
-		return -ENOMEM;
+	if (!urb) {
+		retval = -ENOMEM;
+		goto _exit;
+	}
 
 	if ((conf->direction & MOST_CH_TX) && mdev->padding_active[channel] &&
 	    hdm_add_padding(mdev, channel, mbo)) {
@@ -589,7 +595,8 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 				  length,
 				  hdm_write_completion,
 				  mbo);
-		if (conf->data_type != MOST_CH_ISOC)
+		if (conf->data_type != MOST_CH_ISOC &&
+		    conf->data_type != MOST_CH_SYNC)
 			urb->transfer_flags |= URB_ZERO_PACKET;
 	} else {
 		usb_fill_bulk_urb(urb, mdev->usb_device,
@@ -606,16 +613,35 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	if (retval) {
-		dev_err(dev, "URB submit failed with error %d.\n", retval);
+		dev_err(&mdev->usb_device->dev,
+			"URB submit failed with error %d.\n", retval);
 		goto _error_1;
 	}
-	return 0;
+	goto _exit;
 
 _error_1:
 	usb_unanchor_urb(urb);
 _error:
 	usb_free_urb(urb);
+_exit:
+	mutex_unlock(&mdev->io_mutex);
 	return retval;
+}
+
+static void *hdm_dma_alloc(struct mbo *mbo, u32 size)
+{
+	struct most_dev *mdev = to_mdev(mbo->ifp);
+
+	return usb_alloc_coherent(mdev->usb_device, size, GFP_KERNEL,
+				  &mbo->bus_address);
+}
+
+static void hdm_dma_free(struct mbo *mbo, u32 size)
+{
+	struct most_dev *mdev = to_mdev(mbo->ifp);
+
+	usb_free_coherent(mdev->usb_device, size, mbo->virt_address,
+			  mbo->bus_address);
 }
 
 /**
@@ -1027,11 +1053,14 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
 
 	mdev->iface.mod = hdm_usb_fops.owner;
+	mdev->iface.driver_dev = &interface->dev;
 	mdev->iface.interface = ITYPE_USB;
 	mdev->iface.configure = hdm_configure_channel;
 	mdev->iface.request_netinfo = hdm_request_netinfo;
 	mdev->iface.enqueue = hdm_enqueue;
 	mdev->iface.poison_channel = hdm_poison_channel;
+	mdev->iface.dma_alloc = hdm_dma_alloc;
+	mdev->iface.dma_free = hdm_dma_free;
 	mdev->iface.description = mdev->description;
 	mdev->iface.num_channels = num_endpoints;
 

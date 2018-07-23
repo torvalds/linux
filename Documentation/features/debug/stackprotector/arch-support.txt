@@ -1,6 +1,6 @@
 #
 # Feature name:          stackprotector
-#         Kconfig:       HAVE_CC_STACKPROTECTOR
+#         Kconfig:       HAVE_STACKPROTECTOR
 #         description:   arch supports compiler driven stack overflow protection
 #
     -----------------------
@@ -17,10 +17,12 @@
     |        m68k: | TODO |
     |  microblaze: | TODO |
     |        mips: |  ok  |
+    |       nds32: | TODO |
     |       nios2: | TODO |
     |    openrisc: | TODO |
     |      parisc: | TODO |
     |     powerpc: | TODO |
+    |       riscv: | TODO |
     |        s390: | TODO |
     |          sh: |  ok  |
     |       sparc: | TODO |

@@ -28,6 +28,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 
+#include "../kselftest.h"
+
 #ifndef MSR_IA32_TSC_ADJUST
 #define MSR_IA32_TSC_ADJUST 0x3b
 #endif
@@ -189,8 +191,8 @@ int main(int argc, char *argv[])
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
 	if (!(entry->ecx & CPUID_VMX)) {
-		printf("nested VMX not enabled, skipping test");
-		return 0;
+		fprintf(stderr, "nested VMX not enabled, skipping test\n");
+		exit(KSFT_SKIP);
 	}
 
 	vm = vm_create_default_vmx(VCPU_ID, (void *) l1_guest_code);

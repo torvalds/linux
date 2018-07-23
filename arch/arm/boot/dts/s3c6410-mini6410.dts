@@ -19,7 +19,8 @@
 	model = "FriendlyARM Mini6410 board based on S3C6410";
 	compatible = "friendlyarm,mini6410", "samsung,s3c6410";
 
-	memory {
+	memory@50000000 {
+		device_type = "memory";
 		reg = <0x50000000 0x10000000>;
 	};
 

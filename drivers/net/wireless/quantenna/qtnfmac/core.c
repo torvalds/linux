@@ -76,7 +76,7 @@ static int qtnf_netdev_close(struct net_device *ndev)
 
 /* Netdev handler for data transmission.
  */
-static int
+static netdev_tx_t
 qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct qtnf_vif *vif;
@@ -394,7 +394,6 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev = alloc_netdev_mqs(sizeof(struct qtnf_vif *), name,
 			       name_assign_type, ether_setup, 1, 1);
 	if (!dev) {
-		memset(&vif->wdev, 0, sizeof(vif->wdev));
 		vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 		return -ENOMEM;
 	}
@@ -629,7 +628,7 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 	if (bus->fw_state == QTNF_FW_STATE_ACTIVE)
 		qtnf_cmd_send_deinit_fw(bus);
 
-	bus->fw_state = QTNF_FW_STATE_DEAD;
+	bus->fw_state = QTNF_FW_STATE_DETACHED;
 
 	if (bus->workqueue) {
 		flush_workqueue(bus->workqueue);

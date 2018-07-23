@@ -71,6 +71,8 @@
 #define UART_BRDV		0x10
 #define  BRDV_BAUD_MASK         0x3FF
 
+#define UART_OSAMP		0x14
+
 #define MVEBU_NR_UARTS		2
 
 #define MVEBU_UART_TYPE		"mvebu-uart"
@@ -108,6 +110,17 @@ struct mvebu_uart_driver_data {
 	struct uart_flags flags;
 };
 
+/* Saved registers during suspend */
+struct mvebu_uart_pm_regs {
+	unsigned int rbr;
+	unsigned int tsh;
+	unsigned int ctrl;
+	unsigned int intr;
+	unsigned int stat;
+	unsigned int brdv;
+	unsigned int osamp;
+};
+
 /* MVEBU UART driver structure */
 struct mvebu_uart {
 	struct uart_port *port;
@@ -115,6 +128,9 @@ struct mvebu_uart {
 	int irq[UART_IRQ_COUNT];
 	unsigned char __iomem *nb;
 	struct mvebu_uart_driver_data *data;
+#if defined(CONFIG_PM)
+	struct mvebu_uart_pm_regs pm_regs;
+#endif /* CONFIG_PM */
 };
 
 static struct mvebu_uart *to_mvuart(struct uart_port *port)
@@ -718,6 +734,51 @@ static struct uart_driver mvebu_uart_driver = {
 #endif
 };
 
+#if defined(CONFIG_PM)
+static int mvebu_uart_suspend(struct device *dev)
+{
+	struct mvebu_uart *mvuart = dev_get_drvdata(dev);
+	struct uart_port *port = mvuart->port;
+
+	uart_suspend_port(&mvebu_uart_driver, port);
+
+	mvuart->pm_regs.rbr = readl(port->membase + UART_RBR(port));
+	mvuart->pm_regs.tsh = readl(port->membase + UART_TSH(port));
+	mvuart->pm_regs.ctrl = readl(port->membase + UART_CTRL(port));
+	mvuart->pm_regs.intr = readl(port->membase + UART_INTR(port));
+	mvuart->pm_regs.stat = readl(port->membase + UART_STAT);
+	mvuart->pm_regs.brdv = readl(port->membase + UART_BRDV);
+	mvuart->pm_regs.osamp = readl(port->membase + UART_OSAMP);
+
+	device_set_wakeup_enable(dev, true);
+
+	return 0;
+}
+
+static int mvebu_uart_resume(struct device *dev)
+{
+	struct mvebu_uart *mvuart = dev_get_drvdata(dev);
+	struct uart_port *port = mvuart->port;
+
+	writel(mvuart->pm_regs.rbr, port->membase + UART_RBR(port));
+	writel(mvuart->pm_regs.tsh, port->membase + UART_TSH(port));
+	writel(mvuart->pm_regs.ctrl, port->membase + UART_CTRL(port));
+	writel(mvuart->pm_regs.intr, port->membase + UART_INTR(port));
+	writel(mvuart->pm_regs.stat, port->membase + UART_STAT);
+	writel(mvuart->pm_regs.brdv, port->membase + UART_BRDV);
+	writel(mvuart->pm_regs.osamp, port->membase + UART_OSAMP);
+
+	uart_resume_port(&mvebu_uart_driver, port);
+
+	return 0;
+}
+
+static const struct dev_pm_ops mvebu_uart_pm_ops = {
+	.suspend        = mvebu_uart_suspend,
+	.resume         = mvebu_uart_resume,
+};
+#endif /* CONFIG_PM */
+
 static const struct of_device_id mvebu_uart_of_match[];
 
 /* Counter to keep track of each UART port id when not using CONFIG_OF */
@@ -891,6 +952,9 @@ static struct platform_driver mvebu_uart_platform_driver = {
 		.name  = "mvebu-uart",
 		.of_match_table = of_match_ptr(mvebu_uart_of_match),
 		.suppress_bind_attrs = true,
+#if defined(CONFIG_PM)
+		.pm	= &mvebu_uart_pm_ops,
+#endif /* CONFIG_PM */
 	},
 };
 

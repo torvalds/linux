@@ -115,7 +115,6 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
-	HCLGE_OPC_STATS_MAC_TRAFFIC	= 0x0314,
 	/* MACSEC command */
 
 	/* PFC/Pause CMD*/
@@ -484,6 +483,8 @@ struct hclge_promisc_param {
 	u8 enable;
 };
 
+#define HCLGE_PROMISC_TX_EN_B	BIT(4)
+#define HCLGE_PROMISC_RX_EN_B	BIT(5)
 #define HCLGE_PROMISC_EN_B	1
 #define HCLGE_PROMISC_EN_ALL	0x7
 #define HCLGE_PROMISC_EN_UC	0x1
@@ -704,11 +705,14 @@ struct hclge_vlan_filter_vf_cfg_cmd {
 	u8  vf_bitmap[16];
 };
 
-#define HCLGE_ACCEPT_TAG_B		0
-#define HCLGE_ACCEPT_UNTAG_B		1
+#define HCLGE_ACCEPT_TAG1_B		0
+#define HCLGE_ACCEPT_UNTAG1_B		1
 #define HCLGE_PORT_INS_TAG1_EN_B	2
 #define HCLGE_PORT_INS_TAG2_EN_B	3
 #define HCLGE_CFG_NIC_ROCE_SEL_B	4
+#define HCLGE_ACCEPT_TAG2_B		5
+#define HCLGE_ACCEPT_UNTAG2_B		6
+
 struct hclge_vport_vtag_tx_cfg_cmd {
 	u8 vport_vlan_cfg;
 	u8 vf_offset;
@@ -813,21 +817,13 @@ struct hclge_reset_cmd {
 #define HCLGE_NIC_CMQ_DESC_NUM		1024
 #define HCLGE_NIC_CMQ_DESC_NUM_S	3
 
-#define HCLGE_LED_PORT_SPEED_STATE_S	0
-#define HCLGE_LED_PORT_SPEED_STATE_M	GENMASK(5, 0)
-#define HCLGE_LED_ACTIVITY_STATE_S	0
-#define HCLGE_LED_ACTIVITY_STATE_M	GENMASK(1, 0)
-#define HCLGE_LED_LINK_STATE_S		0
-#define HCLGE_LED_LINK_STATE_M		GENMASK(1, 0)
 #define HCLGE_LED_LOCATE_STATE_S	0
 #define HCLGE_LED_LOCATE_STATE_M	GENMASK(1, 0)
 
 struct hclge_set_led_state_cmd {
-	u8 port_speed_led_config;
-	u8 link_led_config;
-	u8 activity_led_config;
+	u8 rsv1[3];
 	u8 locate_led_config;
-	u8 rsv[20];
+	u8 rsv2[20];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

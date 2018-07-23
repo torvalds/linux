@@ -135,19 +135,25 @@ struct mvebu_comhy_conf {
 static const struct mvebu_comhy_conf mvebu_comphy_cp110_modes[] = {
 	/* lane 0 */
 	MVEBU_COMPHY_CONF(0, 1, PHY_MODE_SGMII, 0x1),
+	MVEBU_COMPHY_CONF(0, 1, PHY_MODE_2500SGMII, 0x1),
 	/* lane 1 */
 	MVEBU_COMPHY_CONF(1, 2, PHY_MODE_SGMII, 0x1),
+	MVEBU_COMPHY_CONF(1, 2, PHY_MODE_2500SGMII, 0x1),
 	/* lane 2 */
 	MVEBU_COMPHY_CONF(2, 0, PHY_MODE_SGMII, 0x1),
+	MVEBU_COMPHY_CONF(2, 0, PHY_MODE_2500SGMII, 0x1),
 	MVEBU_COMPHY_CONF(2, 0, PHY_MODE_10GKR, 0x1),
 	/* lane 3 */
 	MVEBU_COMPHY_CONF(3, 1, PHY_MODE_SGMII, 0x2),
+	MVEBU_COMPHY_CONF(3, 1, PHY_MODE_2500SGMII, 0x2),
 	/* lane 4 */
 	MVEBU_COMPHY_CONF(4, 0, PHY_MODE_SGMII, 0x2),
+	MVEBU_COMPHY_CONF(4, 0, PHY_MODE_2500SGMII, 0x2),
 	MVEBU_COMPHY_CONF(4, 0, PHY_MODE_10GKR, 0x2),
 	MVEBU_COMPHY_CONF(4, 1, PHY_MODE_SGMII, 0x1),
 	/* lane 5 */
 	MVEBU_COMPHY_CONF(5, 2, PHY_MODE_SGMII, 0x1),
+	MVEBU_COMPHY_CONF(5, 2, PHY_MODE_2500SGMII, 0x1),
 };
 
 struct mvebu_comphy_priv {
@@ -206,6 +212,10 @@ static void mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane,
 	if (mode == PHY_MODE_10GKR)
 		val |= MVEBU_COMPHY_SERDES_CFG0_GEN_RX(0xe) |
 		       MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0xe);
+	else if (mode == PHY_MODE_2500SGMII)
+		val |= MVEBU_COMPHY_SERDES_CFG0_GEN_RX(0x8) |
+		       MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0x8) |
+		       MVEBU_COMPHY_SERDES_CFG0_HALF_BUS;
 	else if (mode == PHY_MODE_SGMII)
 		val |= MVEBU_COMPHY_SERDES_CFG0_GEN_RX(0x6) |
 		       MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0x6) |
@@ -296,13 +306,13 @@ static int mvebu_comphy_init_plls(struct mvebu_comphy_lane *lane,
 	return 0;
 }
 
-static int mvebu_comphy_set_mode_sgmii(struct phy *phy)
+static int mvebu_comphy_set_mode_sgmii(struct phy *phy, enum phy_mode mode)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 	struct mvebu_comphy_priv *priv = lane->priv;
 	u32 val;
 
-	mvebu_comphy_ethernet_init_reset(lane, PHY_MODE_SGMII);
+	mvebu_comphy_ethernet_init_reset(lane, mode);
 
 	val = readl(priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
 	val &= ~MVEBU_COMPHY_RX_CTRL1_CLK8T_EN;
@@ -487,7 +497,8 @@ static int mvebu_comphy_power_on(struct phy *phy)
 
 	switch (lane->mode) {
 	case PHY_MODE_SGMII:
-		ret = mvebu_comphy_set_mode_sgmii(phy);
+	case PHY_MODE_2500SGMII:
+		ret = mvebu_comphy_set_mode_sgmii(phy, lane->mode);
 		break;
 	case PHY_MODE_10GKR:
 		ret = mvebu_comphy_set_mode_10gkr(phy);

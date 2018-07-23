@@ -11,7 +11,7 @@
  *	under the terms of the GNU General Public License as published by the
  *	Free Software Foundation, version 2.
  *
- * see Documentation/dvb/README.dvb-usb for more information
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 #include <media/dvb-usb-ids.h>
 #include "dw2102.h"
@@ -61,9 +61,7 @@
 #define P1100_FIRMWARE  "dvb-usb-p1100.fw"
 #define P7500_FIRMWARE  "dvb-usb-p7500.fw"
 
-#define	err_str "did not find the firmware file. (%s) " \
-		"Please see linux/Documentation/dvb/ for more details " \
-		"on firmware-problems."
+#define	err_str "did not find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware"
 
 struct dw2102_state {
 	u8 initialized;

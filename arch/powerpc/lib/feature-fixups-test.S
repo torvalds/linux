@@ -167,16 +167,52 @@ globl(ftr_fixup_test6_expected)
 	blt	2b
 	b	3f
 	b	1b
-2:	or	1,1,1
+3:	or	1,1,1
 	or	2,2,2
-3:	or	3,3,3
+	or	3,3,3
 
+globl(ftr_fixup_test7)
+	or	1,1,1
+BEGIN_FTR_SECTION
+	or	2,2,2
+	or	2,2,2
+	or	2,2,2
+	or	2,2,2
+	or	2,2,2
+	or	2,2,2
+	or	2,2,2
+FTR_SECTION_ELSE
+2:	b	3f
+3:	or	5,5,5
+	beq	3b
+	b	1f
+	or	6,6,6
+	b	2b
+	bdnz	3b
+1:
+ALT_FTR_SECTION_END(0, 1)
+	or	1,1,1
+	or	1,1,1
+
+globl(end_ftr_fixup_test7)
+	nop
+
+globl(ftr_fixup_test7_expected)
+	or	1,1,1
+2:	b	3f
+3:	or	5,5,5
+	beq	3b
+	b	1f
+	or	6,6,6
+	b	2b
+	bdnz	3b
+1:	or	1,1,1
 
 #if 0
 /* Test that if we have a larger else case the assembler spots it and
  * reports an error. #if 0'ed so as not to break the build normally.
  */
-ftr_fixup_test7:
+ftr_fixup_test_too_big:
 	or	1,1,1
 BEGIN_FTR_SECTION
 	or	2,2,2

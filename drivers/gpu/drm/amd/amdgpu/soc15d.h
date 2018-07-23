@@ -53,6 +53,29 @@
 
 #define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
 
+#define	PACKETJ_CONDITION_CHECK0	0
+#define	PACKETJ_CONDITION_CHECK1	1
+#define	PACKETJ_CONDITION_CHECK2	2
+#define	PACKETJ_CONDITION_CHECK3	3
+#define	PACKETJ_CONDITION_CHECK4	4
+#define	PACKETJ_CONDITION_CHECK5	5
+#define	PACKETJ_CONDITION_CHECK6	6
+#define	PACKETJ_CONDITION_CHECK7	7
+
+#define	PACKETJ_TYPE0	0
+#define	PACKETJ_TYPE1	1
+#define	PACKETJ_TYPE2	2
+#define	PACKETJ_TYPE3	3
+#define	PACKETJ_TYPE4	4
+#define	PACKETJ_TYPE5	5
+#define	PACKETJ_TYPE6	6
+#define	PACKETJ_TYPE7	7
+
+#define PACKETJ(reg, r, cond, type)	((reg & 0x3FFFF) |			\
+			 ((r & 0x3F) << 18) |			\
+			 ((cond & 0xF) << 24) |				\
+			 ((type & 0xF) << 28))
+
 /* Packet 3 types */
 #define	PACKET3_NOP					0x10
 #define	PACKET3_SET_BASE				0x11
@@ -159,6 +182,7 @@
 #define		EOP_TC_WB_ACTION_EN                     (1 << 15) /* L2 */
 #define		EOP_TCL1_ACTION_EN                      (1 << 16)
 #define		EOP_TC_ACTION_EN                        (1 << 17) /* L2 */
+#define		EOP_TC_NC_ACTION_EN			(1 << 19)
 #define		EOP_TC_MD_ACTION_EN			(1 << 21) /* L2 metadata */
 
 #define		DATA_SEL(x)                             ((x) << 29)
@@ -268,6 +292,11 @@
 			 * x=1: tmz_end
 			 */
 
+#define	PACKET3_INVALIDATE_TLBS				0x98
+#              define PACKET3_INVALIDATE_TLBS_DST_SEL(x)     ((x) << 0)
+#              define PACKET3_INVALIDATE_TLBS_ALL_HUB(x)     ((x) << 4)
+#              define PACKET3_INVALIDATE_TLBS_PASID(x)       ((x) << 5)
+#              define PACKET3_INVALIDATE_TLBS_FLUSH_TYPE(x)  ((x) << 29)
 #define PACKET3_SET_RESOURCES				0xA0
 /* 1. header
  * 2. CONTROL

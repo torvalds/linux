@@ -6,8 +6,11 @@
  * Copyright 2018, Anton Blanchard, IBM Corp.
  */
 
-void _exit(int);
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
+
 void _start(void)
 {
-	_exit(0);
+	syscall(SYS_exit, 0);
 }

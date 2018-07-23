@@ -27,8 +27,8 @@
  *   ATI HDTV Wonder (NXT2004)
  *
  * This driver needs external firmware. Please use the command
- * "<kerneldir>/Documentation/dvb/get_dvb_firmware nxt2002" or
- * "<kerneldir>/Documentation/dvb/get_dvb_firmware nxt2004" to
+ * "<kerneldir>/scripts/get_dvb_firmware nxt2002" or
+ * "<kerneldir>/scripts/get_dvb_firmware nxt2004" to
  * download/extract the appropriate firmware, and then copy it to
  * /usr/lib/hotplug/firmware/ or /lib/firmware/
  * (depending on configuration of firmware hotplug).

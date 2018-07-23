@@ -135,6 +135,18 @@ static void asoc_simple_card_shutdown(struct snd_pcm_substream *substream)
 	asoc_simple_card_clk_disable(&dai_props->codec_dai);
 }
 
+static int asoc_simple_set_clk_rate(struct asoc_simple_dai *simple_dai,
+				    unsigned long rate)
+{
+	if (!simple_dai->clk)
+		return 0;
+
+	if (clk_get_rate(simple_dai->clk) == rate)
+		return 0;
+
+	return clk_set_rate(simple_dai->clk, rate);
+}
+
 static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
@@ -154,6 +166,15 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 
 	if (mclk_fs) {
 		mclk = params_rate(params) * mclk_fs;
+
+		ret = asoc_simple_set_clk_rate(&dai_props->codec_dai, mclk);
+		if (ret < 0)
+			return ret;
+
+		ret = asoc_simple_set_clk_rate(&dai_props->cpu_dai, mclk);
+		if (ret < 0)
+			return ret;
+
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					     SND_SOC_CLOCK_IN);
 		if (ret && ret != -ENOTSUPP)
@@ -319,8 +340,8 @@ static int asoc_simple_card_parse_aux_devs(struct device_node *node,
 	if (n <= 0)
 		return -EINVAL;
 
-	card->aux_dev = devm_kzalloc(dev,
-			n * sizeof(*card->aux_dev), GFP_KERNEL);
+	card->aux_dev = devm_kcalloc(dev,
+			n, sizeof(*card->aux_dev), GFP_KERNEL);
 	if (!card->aux_dev)
 		return -ENOMEM;
 
@@ -414,8 +435,8 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
-	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
+	dai_props = devm_kcalloc(dev, num, sizeof(*dai_props), GFP_KERNEL);
+	dai_link  = devm_kcalloc(dev, num, sizeof(*dai_link), GFP_KERNEL);
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
 

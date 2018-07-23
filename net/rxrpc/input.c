@@ -971,7 +971,7 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 	if (timo) {
 		unsigned long now = jiffies, expect_rx_by;
 
-		expect_rx_by = jiffies + timo;
+		expect_rx_by = now + timo;
 		WRITE_ONCE(call->expect_rx_by, expect_rx_by);
 		rxrpc_reduce_call_timer(call, expect_rx_by, now,
 					rxrpc_timer_set_for_normal);
@@ -1278,8 +1278,14 @@ void rxrpc_data_ready(struct sock *udp_sk)
 			call = NULL;
 		}
 
-		if (call && sp->hdr.serviceId != call->service_id)
-			call->service_id = sp->hdr.serviceId;
+		if (call) {
+			if (sp->hdr.serviceId != call->service_id)
+				call->service_id = sp->hdr.serviceId;
+			if ((int)sp->hdr.serial - (int)call->rx_serial > 0)
+				call->rx_serial = sp->hdr.serial;
+			if (!test_bit(RXRPC_CALL_RX_HEARD, &call->flags))
+				set_bit(RXRPC_CALL_RX_HEARD, &call->flags);
+		}
 	} else {
 		skew = 0;
 		call = NULL;

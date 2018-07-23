@@ -144,6 +144,12 @@ int ext4_find_inline_data_nolock(struct inode *inode)
 		goto out;
 
 	if (!is.s.not_found) {
+		if (is.s.here->e_value_inum) {
+			EXT4_ERROR_INODE(inode, "inline data xattr refers "
+					 "to an external xattr inode");
+			error = -EFSCORRUPTED;
+			goto out;
+		}
 		EXT4_I(inode)->i_inline_off = (u16)((void *)is.s.here -
 					(void *)ext4_raw_inode(&is.iloc));
 		EXT4_I(inode)->i_inline_size = EXT4_MIN_INLINE_DATA_SIZE +
@@ -1835,8 +1841,8 @@ int ext4_inline_data_iomap(struct inode *inode, struct iomap *iomap)
 	iomap->offset = 0;
 	iomap->length = min_t(loff_t, ext4_get_inline_size(inode),
 			      i_size_read(inode));
-	iomap->type = 0;
-	iomap->flags = IOMAP_F_DATA_INLINE;
+	iomap->type = IOMAP_INLINE;
+	iomap->flags = 0;
 
 out:
 	up_read(&EXT4_I(inode)->xattr_sem);

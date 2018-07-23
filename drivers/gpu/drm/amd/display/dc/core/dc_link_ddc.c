@@ -33,6 +33,10 @@
 #include "include/vector.h"
 #include "core_types.h"
 #include "dc_link_ddc.h"
+#include "i2caux/engine.h"
+#include "i2caux/i2c_engine.h"
+#include "i2caux/aux_engine.h"
+#include "i2caux/i2caux.h"
 
 #define AUX_POWER_UP_WA_DELAY 500
 #define I2C_OVER_AUX_DEFER_WA_DELAY 70
@@ -629,79 +633,62 @@ bool dal_ddc_service_query_ddc_data(
 	return ret;
 }
 
-ssize_t dal_ddc_service_read_dpcd_data(
-	struct ddc_service *ddc,
-	bool i2c,
-	enum i2c_mot_mode mot,
-	uint32_t address,
-	uint8_t *data,
-	uint32_t len)
+int dc_link_aux_transfer(struct ddc_service *ddc,
+			     unsigned int address,
+			     uint8_t *reply,
+			     void *buffer,
+			     unsigned int size,
+			     enum aux_transaction_type type,
+			     enum i2caux_transaction_action action)
 {
-	struct aux_payload read_payload = {
-		.i2c_over_aux = i2c,
-		.write = false,
-		.address = address,
-		.length = len,
-		.data = data,
-	};
-	struct aux_command command = {
-		.payloads = &read_payload,
-		.number_of_payloads = 1,
-		.defer_delay = 0,
-		.max_defer_write_retry = 0,
-		.mot = mot
-	};
+	struct i2caux *i2caux = ddc->ctx->i2caux;
+	struct ddc *ddc_pin = ddc->ddc_pin;
+	struct aux_engine *engine;
+	enum aux_channel_operation_result operation_result;
+	struct aux_request_transaction_data aux_req;
+	struct aux_reply_transaction_data aux_rep;
+	uint8_t returned_bytes = 0;
+	int res = -1;
+	uint32_t status;
 
-	if (len > DEFAULT_AUX_MAX_DATA_SIZE) {
-		BREAK_TO_DEBUGGER();
-		return DDC_RESULT_FAILED_INVALID_OPERATION;
+	memset(&aux_req, 0, sizeof(aux_req));
+	memset(&aux_rep, 0, sizeof(aux_rep));
+
+	engine = i2caux->funcs->acquire_aux_engine(i2caux, ddc_pin);
+
+	aux_req.type = type;
+	aux_req.action = action;
+
+	aux_req.address = address;
+	aux_req.delay = 0;
+	aux_req.length = size;
+	aux_req.data = buffer;
+
+	engine->funcs->submit_channel_request(engine, &aux_req);
+	operation_result = engine->funcs->get_channel_status(engine, &returned_bytes);
+
+	switch (operation_result) {
+	case AUX_CHANNEL_OPERATION_SUCCEEDED:
+		res = returned_bytes;
+
+		if (res <= size && res >= 0)
+			res = engine->funcs->read_channel_reply(engine, size,
+								buffer, reply,
+								&status);
+
+		break;
+	case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
+		res = 0;
+		break;
+	case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
+	case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
+	case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+		res = -1;
+		break;
 	}
 
-	if (dal_i2caux_submit_aux_command(
-		ddc->ctx->i2caux,
-		ddc->ddc_pin,
-		&command)) {
-		return (ssize_t)command.payloads->length;
-	}
-
-	return DDC_RESULT_FAILED_OPERATION;
-}
-
-enum ddc_result dal_ddc_service_write_dpcd_data(
-	struct ddc_service *ddc,
-	bool i2c,
-	enum i2c_mot_mode mot,
-	uint32_t address,
-	const uint8_t *data,
-	uint32_t len)
-{
-	struct aux_payload write_payload = {
-		.i2c_over_aux = i2c,
-		.write = true,
-		.address = address,
-		.length = len,
-		.data = (uint8_t *)data,
-	};
-	struct aux_command command = {
-		.payloads = &write_payload,
-		.number_of_payloads = 1,
-		.defer_delay = 0,
-		.max_defer_write_retry = 0,
-		.mot = mot
-	};
-
-	if (len > DEFAULT_AUX_MAX_DATA_SIZE) {
-		BREAK_TO_DEBUGGER();
-		return DDC_RESULT_FAILED_INVALID_OPERATION;
-	}
-
-	if (dal_i2caux_submit_aux_command(
-		ddc->ctx->i2caux,
-		ddc->ddc_pin,
-		&command))
-		return DDC_RESULT_SUCESSFULL;
-
-	return DDC_RESULT_FAILED_OPERATION;
+	i2caux->funcs->release_engine(i2caux, &engine->base);
+	return res;
 }
 
 /*test only function*/

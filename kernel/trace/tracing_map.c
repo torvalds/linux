@@ -1075,7 +1075,7 @@ int tracing_map_sort_entries(struct tracing_map *map,
 	struct tracing_map_sort_entry *sort_entry, **entries;
 	int i, n_entries, ret;
 
-	entries = vmalloc(map->max_elts * sizeof(sort_entry));
+	entries = vmalloc(array_size(sizeof(sort_entry), map->max_elts));
 	if (!entries)
 		return -ENOMEM;
 

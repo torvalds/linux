@@ -510,7 +510,7 @@ static int eld_proc_new(struct hdmi_spec_per_pin *per_pin, int index)
 
 	snd_info_set_text_ops(entry, per_pin, print_eld_info);
 	entry->c.text.write = write_eld_info;
-	entry->mode |= S_IWUSR;
+	entry->mode |= 0200;
 	per_pin->proc_entry = entry;
 
 	return 0;
@@ -3740,6 +3740,11 @@ static int patch_atihdmi(struct hda_codec *codec)
 	}
 
 	spec->chmap.channels_max = max(spec->chmap.channels_max, 8u);
+
+	/* AMD GPUs have neither EPSS nor CLKSTOP bits, hence preventing
+	 * the link-down as is.  Tell the core to allow it.
+	 */
+	codec->link_down_at_suspend = 1;
 
 	return 0;
 }

@@ -46,7 +46,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 	int bpp = fb->base.format->cpp[0];
 	int x2, y2;
 	unsigned long flags;
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(fb->obj);
+	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(fb->base.obj[0]);
 
 	if ((width <= 0) ||
 	    (x + width > fb->base.width) ||
@@ -121,7 +121,7 @@ int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *vgfb,
 			     unsigned int num_clips)
 {
 	struct virtio_gpu_device *vgdev = vgfb->base.dev->dev_private;
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(vgfb->obj);
+	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(vgfb->base.obj[0]);
 	struct drm_clip_rect norect;
 	struct drm_clip_rect *clips_ptr;
 	int left, right, top, bottom;
@@ -305,8 +305,8 @@ static int virtio_gpu_fbdev_destroy(struct drm_device *dev,
 
 	drm_fb_helper_unregister_fbi(&vgfbdev->helper);
 
-	if (vgfb->obj)
-		vgfb->obj = NULL;
+	if (vgfb->base.obj[0])
+		vgfb->base.obj[0] = NULL;
 	drm_fb_helper_fini(&vgfbdev->helper);
 	drm_framebuffer_cleanup(&vgfb->base);
 

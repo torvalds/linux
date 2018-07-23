@@ -1807,8 +1807,9 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 	clp->cl_name.data = kmemdup(name.data, name.len, GFP_KERNEL);
 	if (clp->cl_name.data == NULL)
 		goto err_no_name;
-	clp->cl_ownerstr_hashtbl = kmalloc(sizeof(struct list_head) *
-			OWNER_HASH_SIZE, GFP_KERNEL);
+	clp->cl_ownerstr_hashtbl = kmalloc_array(OWNER_HASH_SIZE,
+						 sizeof(struct list_head),
+						 GFP_KERNEL);
 	if (!clp->cl_ownerstr_hashtbl)
 		goto err_no_hashtbl;
 	for (i = 0; i < OWNER_HASH_SIZE; i++)
@@ -4378,8 +4379,11 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 	spin_unlock(&state_lock);
 
 	if (status)
-		destroy_unhashed_deleg(dp);
+		goto out_unlock;
+
 	return dp;
+out_unlock:
+	vfs_setlease(fp->fi_deleg_file, F_UNLCK, NULL, (void **)&dp);
 out_clnt_odstate:
 	put_clnt_odstate(dp->dl_clnt_odstate);
 out_stid:
@@ -7093,16 +7097,19 @@ static int nfs4_state_create_net(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int i;
 
-	nn->conf_id_hashtbl = kmalloc(sizeof(struct list_head) *
-			CLIENT_HASH_SIZE, GFP_KERNEL);
+	nn->conf_id_hashtbl = kmalloc_array(CLIENT_HASH_SIZE,
+					    sizeof(struct list_head),
+					    GFP_KERNEL);
 	if (!nn->conf_id_hashtbl)
 		goto err;
-	nn->unconf_id_hashtbl = kmalloc(sizeof(struct list_head) *
-			CLIENT_HASH_SIZE, GFP_KERNEL);
+	nn->unconf_id_hashtbl = kmalloc_array(CLIENT_HASH_SIZE,
+					      sizeof(struct list_head),
+					      GFP_KERNEL);
 	if (!nn->unconf_id_hashtbl)
 		goto err_unconf_id;
-	nn->sessionid_hashtbl = kmalloc(sizeof(struct list_head) *
-			SESSION_HASH_SIZE, GFP_KERNEL);
+	nn->sessionid_hashtbl = kmalloc_array(SESSION_HASH_SIZE,
+					      sizeof(struct list_head),
+					      GFP_KERNEL);
 	if (!nn->sessionid_hashtbl)
 		goto err_sessionid;
 

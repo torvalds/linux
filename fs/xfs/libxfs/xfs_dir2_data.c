@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -32,6 +20,11 @@
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
 #include "xfs_log.h"
+
+static xfs_failaddr_t xfs_dir2_data_freefind_verify(
+		struct xfs_dir2_data_hdr *hdr, struct xfs_dir2_data_free *bf,
+		struct xfs_dir2_data_unused *dup,
+		struct xfs_dir2_data_free **bf_ent);
 
 /*
  * Check the consistency of the data block.
@@ -147,6 +140,8 @@ __xfs_dir3_data_check(
 		 * doesn't need to be there.
 		 */
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+			xfs_failaddr_t	fa;
+
 			if (lastfree != 0)
 				return __this_address;
 			if (endp < p + be16_to_cpu(dup->length))
@@ -154,7 +149,9 @@ __xfs_dir3_data_check(
 			if (be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup)) !=
 			    (char *)dup - (char *)hdr)
 				return __this_address;
-			dfp = xfs_dir2_data_freefind(hdr, bf, dup);
+			fa = xfs_dir2_data_freefind_verify(hdr, bf, dup, &dfp);
+			if (fa)
+				return fa;
 			if (dfp) {
 				i = (int)(dfp - bf);
 				if ((freeseen & (1 << i)) != 0)
@@ -242,7 +239,8 @@ xfs_dir3_data_check(
 	if (!fa)
 		return;
 	xfs_corruption_error(__func__, XFS_ERRLEVEL_LOW, dp->i_mount,
-			bp->b_addr, __FILE__, __LINE__, fa);
+			bp->b_addr, BBTOB(bp->b_length), __FILE__, __LINE__,
+			fa);
 	ASSERT(0);
 }
 #endif
@@ -381,6 +379,65 @@ xfs_dir3_data_readahead(
 }
 
 /*
+ * Find the bestfree entry that exactly coincides with unused directory space
+ * or a verifier error because the bestfree data are bad.
+ */
+static xfs_failaddr_t
+xfs_dir2_data_freefind_verify(
+	struct xfs_dir2_data_hdr	*hdr,
+	struct xfs_dir2_data_free	*bf,
+	struct xfs_dir2_data_unused	*dup,
+	struct xfs_dir2_data_free	**bf_ent)
+{
+	struct xfs_dir2_data_free	*dfp;
+	xfs_dir2_data_aoff_t		off;
+	bool				matched = false;
+	bool				seenzero = false;
+
+	*bf_ent = NULL;
+	off = (xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr);
+
+	/*
+	 * Validate some consistency in the bestfree table.
+	 * Check order, non-overlapping entries, and if we find the
+	 * one we're looking for it has to be exact.
+	 */
+	for (dfp = &bf[0]; dfp < &bf[XFS_DIR2_DATA_FD_COUNT]; dfp++) {
+		if (!dfp->offset) {
+			if (dfp->length)
+				return __this_address;
+			seenzero = true;
+			continue;
+		}
+		if (seenzero)
+			return __this_address;
+		if (be16_to_cpu(dfp->offset) == off) {
+			matched = true;
+			if (dfp->length != dup->length)
+				return __this_address;
+		} else if (be16_to_cpu(dfp->offset) > off) {
+			if (off + be16_to_cpu(dup->length) >
+					be16_to_cpu(dfp->offset))
+				return __this_address;
+		} else {
+			if (be16_to_cpu(dfp->offset) +
+					be16_to_cpu(dfp->length) > off)
+				return __this_address;
+		}
+		if (!matched &&
+		    be16_to_cpu(dfp->length) < be16_to_cpu(dup->length))
+			return __this_address;
+		if (dfp > &bf[0] &&
+		    be16_to_cpu(dfp[-1].length) < be16_to_cpu(dfp[0].length))
+			return __this_address;
+	}
+
+	/* Looks ok so far; now try to match up with a bestfree entry. */
+	*bf_ent = xfs_dir2_data_freefind(hdr, bf, dup);
+	return NULL;
+}
+
+/*
  * Given a data block and an unused entry from that block,
  * return the bestfree entry if any that corresponds to it.
  */
@@ -392,44 +449,9 @@ xfs_dir2_data_freefind(
 {
 	xfs_dir2_data_free_t	*dfp;		/* bestfree entry */
 	xfs_dir2_data_aoff_t	off;		/* offset value needed */
-#ifdef DEBUG
-	int			matched;	/* matched the value */
-	int			seenzero;	/* saw a 0 bestfree entry */
-#endif
 
 	off = (xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr);
 
-#ifdef DEBUG
-	/*
-	 * Validate some consistency in the bestfree table.
-	 * Check order, non-overlapping entries, and if we find the
-	 * one we're looking for it has to be exact.
-	 */
-	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
-	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
-	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
-	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
-	for (dfp = &bf[0], seenzero = matched = 0;
-	     dfp < &bf[XFS_DIR2_DATA_FD_COUNT];
-	     dfp++) {
-		if (!dfp->offset) {
-			ASSERT(!dfp->length);
-			seenzero = 1;
-			continue;
-		}
-		ASSERT(seenzero == 0);
-		if (be16_to_cpu(dfp->offset) == off) {
-			matched = 1;
-			ASSERT(dfp->length == dup->length);
-		} else if (off < be16_to_cpu(dfp->offset))
-			ASSERT(off + be16_to_cpu(dup->length) <= be16_to_cpu(dfp->offset));
-		else
-			ASSERT(be16_to_cpu(dfp->offset) + be16_to_cpu(dfp->length) <= off);
-		ASSERT(matched || be16_to_cpu(dfp->length) >= be16_to_cpu(dup->length));
-		if (dfp > &bf[0])
-			ASSERT(be16_to_cpu(dfp[-1].length) >= be16_to_cpu(dfp[0].length));
-	}
-#endif
 	/*
 	 * If this is smaller than the smallest bestfree entry,
 	 * it can't be there since they're sorted.
@@ -1124,7 +1146,7 @@ xfs_dir2_data_use_free(
 	return 0;
 corrupt:
 	xfs_corruption_error(__func__, XFS_ERRLEVEL_LOW, args->dp->i_mount,
-			hdr, __FILE__, __LINE__, fa);
+			hdr, sizeof(*hdr), __FILE__, __LINE__, fa);
 	return -EFSCORRUPTED;
 }
 

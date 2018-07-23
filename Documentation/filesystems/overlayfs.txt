@@ -429,11 +429,12 @@ This verification may cause significant overhead in some cases.
 Testsuite
 ---------
 
-There's testsuite developed by David Howells at:
+There's a testsuite originally developed by David Howells and currently
+maintained by Amir Goldstein at:
 
-  git://git.infradead.org/users/dhowells/unionmount-testsuite.git
+  https://github.com/amir73il/unionmount-testsuite.git
 
 Run as root:
 
   # cd unionmount-testsuite
-  # ./run --ov
+  # ./run --ov --verify

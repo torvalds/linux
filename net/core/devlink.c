@@ -453,6 +453,27 @@ static void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
+static int devlink_nl_port_attrs_put(struct sk_buff *msg,
+				     struct devlink_port *devlink_port)
+{
+	struct devlink_port_attrs *attrs = &devlink_port->attrs;
+
+	if (!attrs->set)
+		return 0;
+	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_FLAVOUR, attrs->flavour))
+		return -EMSGSIZE;
+	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_NUMBER, attrs->port_number))
+		return -EMSGSIZE;
+	if (!attrs->split)
+		return 0;
+	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_SPLIT_GROUP, attrs->port_number))
+		return -EMSGSIZE;
+	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_SPLIT_SUBPORT_NUMBER,
+			attrs->split_subport_number))
+		return -EMSGSIZE;
+	return 0;
+}
+
 static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 				struct devlink_port *devlink_port,
 				enum devlink_command cmd, u32 portid,
@@ -492,9 +513,7 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 				   ibdev->name))
 			goto nla_put_failure;
 	}
-	if (devlink_port->split &&
-	    nla_put_u32(msg, DEVLINK_ATTR_PORT_SPLIT_GROUP,
-			devlink_port->split_group))
+	if (devlink_nl_port_attrs_put(msg, devlink_port))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
@@ -683,12 +702,13 @@ static int devlink_nl_cmd_port_set_doit(struct sk_buff *skb,
 	return 0;
 }
 
-static int devlink_port_split(struct devlink *devlink,
-			      u32 port_index, u32 count)
+static int devlink_port_split(struct devlink *devlink, u32 port_index,
+			      u32 count, struct netlink_ext_ack *extack)
 
 {
 	if (devlink->ops && devlink->ops->port_split)
-		return devlink->ops->port_split(devlink, port_index, count);
+		return devlink->ops->port_split(devlink, port_index, count,
+						extack);
 	return -EOPNOTSUPP;
 }
 
@@ -705,14 +725,15 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 
 	port_index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
 	count = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT]);
-	return devlink_port_split(devlink, port_index, count);
+	return devlink_port_split(devlink, port_index, count, info->extack);
 }
 
-static int devlink_port_unsplit(struct devlink *devlink, u32 port_index)
+static int devlink_port_unsplit(struct devlink *devlink, u32 port_index,
+				struct netlink_ext_ack *extack)
 
 {
 	if (devlink->ops && devlink->ops->port_unsplit)
-		return devlink->ops->port_unsplit(devlink, port_index);
+		return devlink->ops->port_unsplit(devlink, port_index, extack);
 	return -EOPNOTSUPP;
 }
 
@@ -726,7 +747,7 @@ static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 		return -EINVAL;
 
 	port_index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
-	return devlink_port_unsplit(devlink, port_index);
+	return devlink_port_unsplit(devlink, port_index, info->extack);
 }
 
 static int devlink_nl_sb_fill(struct sk_buff *msg, struct devlink *devlink,
@@ -1807,7 +1828,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 err_table_put:
-	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
 }
@@ -2013,7 +2033,6 @@ int devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(dump_ctx->skb, dump_ctx->hdr);
 	nlmsg_free(dump_ctx->skb);
 	return -EMSGSIZE;
 }
@@ -2230,7 +2249,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 err_table_put:
-	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
 }
@@ -2532,7 +2550,6 @@ nla_put_failure:
 	err = -EMSGSIZE;
 err_resource_put:
 err_skb_send_alloc:
-	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
 }
@@ -2584,7 +2601,7 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 		NL_SET_ERR_MSG_MOD(info->extack, "resources size validation failed");
 		return err;
 	}
-	return devlink->ops->reload(devlink);
+	return devlink->ops->reload(devlink, info->extack);
 }
 
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
@@ -2737,7 +2754,8 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.doit = devlink_nl_cmd_eswitch_set_doit,
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
+				  DEVLINK_NL_FLAG_NO_LOCK,
 	},
 	{
 		.cmd = DEVLINK_CMD_DPIPE_TABLE_GET,
@@ -2971,19 +2989,64 @@ void devlink_port_type_clear(struct devlink_port *devlink_port)
 EXPORT_SYMBOL_GPL(devlink_port_type_clear);
 
 /**
- *	devlink_port_split_set - Set port is split
+ *	devlink_port_attrs_set - Set port attributes
  *
  *	@devlink_port: devlink port
- *	@split_group: split group - identifies group split port is part of
+ *	@flavour: flavour of the port
+ *	@port_number: number of the port that is facing user, for example
+ *	              the front panel port number
+ *	@split: indicates if this is split port
+ *	@split_subport_number: if the port is split, this is the number
+ *	                       of subport.
  */
-void devlink_port_split_set(struct devlink_port *devlink_port,
-			    u32 split_group)
+void devlink_port_attrs_set(struct devlink_port *devlink_port,
+			    enum devlink_port_flavour flavour,
+			    u32 port_number, bool split,
+			    u32 split_subport_number)
 {
-	devlink_port->split = true;
-	devlink_port->split_group = split_group;
+	struct devlink_port_attrs *attrs = &devlink_port->attrs;
+
+	attrs->set = true;
+	attrs->flavour = flavour;
+	attrs->port_number = port_number;
+	attrs->split = split;
+	attrs->split_subport_number = split_subport_number;
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
 }
-EXPORT_SYMBOL_GPL(devlink_port_split_set);
+EXPORT_SYMBOL_GPL(devlink_port_attrs_set);
+
+int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
+				    char *name, size_t len)
+{
+	struct devlink_port_attrs *attrs = &devlink_port->attrs;
+	int n = 0;
+
+	if (!attrs->set)
+		return -EOPNOTSUPP;
+
+	switch (attrs->flavour) {
+	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
+		if (!attrs->split)
+			n = snprintf(name, len, "p%u", attrs->port_number);
+		else
+			n = snprintf(name, len, "p%us%u", attrs->port_number,
+				     attrs->split_subport_number);
+		break;
+	case DEVLINK_PORT_FLAVOUR_CPU:
+	case DEVLINK_PORT_FLAVOUR_DSA:
+		/* As CPU and DSA ports do not have a netdevice associated
+		 * case should not ever happen.
+		 */
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if (n >= len)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_port_get_phys_port_name);
 
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,

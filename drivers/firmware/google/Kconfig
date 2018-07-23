@@ -55,6 +55,14 @@ config GOOGLE_MEMCONSOLE_X86_LEGACY
 	  the EBDA on Google servers.  If found, this log is exported to
 	  userland in the file /sys/firmware/log.
 
+config GOOGLE_FRAMEBUFFER_COREBOOT
+	tristate "Coreboot Framebuffer"
+	depends on FB_SIMPLE
+	depends on GOOGLE_COREBOOT_TABLE
+	help
+	  This option enables the kernel to search for a framebuffer in
+	  the coreboot table.  If found, it is registered with simplefb.
+
 config GOOGLE_MEMCONSOLE_COREBOOT
 	tristate "Firmware Memory Console"
 	depends on GOOGLE_COREBOOT_TABLE

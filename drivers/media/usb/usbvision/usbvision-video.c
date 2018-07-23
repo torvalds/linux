@@ -1492,7 +1492,8 @@ static int usbvision_probe(struct usb_interface *intf,
 
 	usbvision->num_alt = uif->num_altsetting;
 	PDEBUG(DBG_PROBE, "Alternate settings: %i", usbvision->num_alt);
-	usbvision->alt_max_pkt_size = kmalloc(32 * usbvision->num_alt, GFP_KERNEL);
+	usbvision->alt_max_pkt_size = kmalloc_array(32, usbvision->num_alt,
+						    GFP_KERNEL);
 	if (!usbvision->alt_max_pkt_size) {
 		ret = -ENOMEM;
 		goto err_pkt;

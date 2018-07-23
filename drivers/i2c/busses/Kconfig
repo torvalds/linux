@@ -202,8 +202,7 @@ config I2C_CHT_WC
 
 	  Note this controller is hooked up to a TI bq24292i charger-IC,
 	  combined with a FUSB302 Type-C port-controller as such it is advised
-	  to also select CONFIG_CHARGER_BQ24190=m and CONFIG_TYPEC_FUSB302=m
-	  (the fusb302 driver currently is in drivers/staging).
+	  to also select CONFIG_TYPEC_FUSB302=m.
 
 config I2C_NFORCE2
 	tristate "Nvidia nForce2, nForce3 and nForce4"
@@ -944,6 +943,7 @@ config I2C_STM32F4
 config I2C_STM32F7
 	tristate "STMicroelectronics STM32F7 I2C support"
 	depends on ARCH_STM32 || COMPILE_TEST
+	select I2C_SLAVE
 	help
 	  Enable this option to add support for STM32 I2C controller embedded
 	  in STM32F7 SoCs.

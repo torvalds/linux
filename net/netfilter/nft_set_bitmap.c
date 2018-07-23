@@ -296,27 +296,23 @@ static bool nft_bitmap_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-static struct nft_set_type nft_bitmap_type;
-static struct nft_set_ops nft_bitmap_ops __read_mostly = {
-	.type		= &nft_bitmap_type,
-	.privsize	= nft_bitmap_privsize,
-	.elemsize	= offsetof(struct nft_bitmap_elem, ext),
-	.estimate	= nft_bitmap_estimate,
-	.init		= nft_bitmap_init,
-	.destroy	= nft_bitmap_destroy,
-	.insert		= nft_bitmap_insert,
-	.remove		= nft_bitmap_remove,
-	.deactivate	= nft_bitmap_deactivate,
-	.flush		= nft_bitmap_flush,
-	.activate	= nft_bitmap_activate,
-	.lookup		= nft_bitmap_lookup,
-	.walk		= nft_bitmap_walk,
-	.get		= nft_bitmap_get,
-};
-
 static struct nft_set_type nft_bitmap_type __read_mostly = {
-	.ops		= &nft_bitmap_ops,
 	.owner		= THIS_MODULE,
+	.ops		= {
+		.privsize	= nft_bitmap_privsize,
+		.elemsize	= offsetof(struct nft_bitmap_elem, ext),
+		.estimate	= nft_bitmap_estimate,
+		.init		= nft_bitmap_init,
+		.destroy	= nft_bitmap_destroy,
+		.insert		= nft_bitmap_insert,
+		.remove		= nft_bitmap_remove,
+		.deactivate	= nft_bitmap_deactivate,
+		.flush		= nft_bitmap_flush,
+		.activate	= nft_bitmap_activate,
+		.lookup		= nft_bitmap_lookup,
+		.walk		= nft_bitmap_walk,
+		.get		= nft_bitmap_get,
+	},
 };
 
 static int __init nft_bitmap_module_init(void)

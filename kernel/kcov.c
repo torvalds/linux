@@ -58,7 +58,7 @@ struct kcov {
 
 static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 {
-	enum kcov_mode mode;
+	unsigned int mode;
 
 	/*
 	 * We are interested in code coverage as a function of a syscall inputs,
@@ -241,7 +241,8 @@ static void kcov_put(struct kcov *kcov)
 
 void kcov_task_init(struct task_struct *t)
 {
-	t->kcov_mode = KCOV_MODE_DISABLED;
+	WRITE_ONCE(t->kcov_mode, KCOV_MODE_DISABLED);
+	barrier();
 	t->kcov_size = 0;
 	t->kcov_area = NULL;
 	t->kcov = NULL;
@@ -323,6 +324,21 @@ static int kcov_close(struct inode *inode, struct file *filep)
 	return 0;
 }
 
+/*
+ * Fault in a lazily-faulted vmalloc area before it can be used by
+ * __santizer_cov_trace_pc(), to avoid recursion issues if any code on the
+ * vmalloc fault handling path is instrumented.
+ */
+static void kcov_fault_in_area(struct kcov *kcov)
+{
+	unsigned long stride = PAGE_SIZE / sizeof(unsigned long);
+	unsigned long *area = kcov->area;
+	unsigned long offset;
+
+	for (offset = 0; offset < kcov->size; offset += stride)
+		READ_ONCE(area[offset]);
+}
+
 static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 			     unsigned long arg)
 {
@@ -371,6 +387,7 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 #endif
 		else
 			return -EINVAL;
+		kcov_fault_in_area(kcov);
 		/* Cache in task struct for performance. */
 		t->kcov_size = kcov->size;
 		t->kcov_area = kcov->area;

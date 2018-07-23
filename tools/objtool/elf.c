@@ -79,6 +79,19 @@ struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset)
 	return NULL;
 }
 
+struct symbol *find_symbol_by_name(struct elf *elf, const char *name)
+{
+	struct section *sec;
+	struct symbol *sym;
+
+	list_for_each_entry(sec, &elf->sections, list)
+		list_for_each_entry(sym, &sec->symbol_list, list)
+			if (!strcmp(sym->name, name))
+				return sym;
+
+	return NULL;
+}
+
 struct symbol *find_symbol_containing(struct section *sec, unsigned long offset)
 {
 	struct symbol *sym;
@@ -203,10 +216,11 @@ static int read_sections(struct elf *elf)
 
 static int read_symbols(struct elf *elf)
 {
-	struct section *symtab;
-	struct symbol *sym;
+	struct section *symtab, *sec;
+	struct symbol *sym, *pfunc;
 	struct list_head *entry, *tmp;
 	int symbols_nr, i;
+	char *coldstr;
 
 	symtab = find_section_by_name(elf, ".symtab");
 	if (!symtab) {
@@ -279,6 +293,30 @@ static int read_symbols(struct elf *elf)
 		}
 		list_add(&sym->list, entry);
 		hash_add(sym->sec->symbol_hash, &sym->hash, sym->idx);
+	}
+
+	/* Create parent/child links for any cold subfunctions */
+	list_for_each_entry(sec, &elf->sections, list) {
+		list_for_each_entry(sym, &sec->symbol_list, list) {
+			if (sym->type != STT_FUNC)
+				continue;
+			sym->pfunc = sym->cfunc = sym;
+			coldstr = strstr(sym->name, ".cold.");
+			if (coldstr) {
+				coldstr[0] = '\0';
+				pfunc = find_symbol_by_name(elf, sym->name);
+				coldstr[0] = '.';
+
+				if (!pfunc) {
+					WARN("%s(): can't find parent function",
+					     sym->name);
+					goto err;
+				}
+
+				sym->pfunc = pfunc;
+				pfunc->cfunc = sym;
+			}
+		}
 	}
 
 	return 0;

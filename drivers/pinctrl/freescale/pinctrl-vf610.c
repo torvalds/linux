@@ -1,13 +1,8 @@
-/*
- * VF610 pinctrl driver based on imx pinmux and pinconf core
- *
- * Copyright 2013 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// VF610 pinctrl driver based on imx pinmux and pinconf core
+//
+// Copyright 2013 Freescale Semiconductor, Inc.
 
 #include <linux/err.h>
 #include <linux/init.h>

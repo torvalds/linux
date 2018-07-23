@@ -26,11 +26,13 @@
 static bool initialize_cik(struct kernel_queue *kq, struct kfd_dev *dev,
 			enum kfd_queue_type type, unsigned int queue_size);
 static void uninitialize_cik(struct kernel_queue *kq);
+static void submit_packet_cik(struct kernel_queue *kq);
 
 void kernel_queue_init_cik(struct kernel_queue_ops *ops)
 {
 	ops->initialize = initialize_cik;
 	ops->uninitialize = uninitialize_cik;
+	ops->submit_packet = submit_packet_cik;
 }
 
 static bool initialize_cik(struct kernel_queue *kq, struct kfd_dev *dev,
@@ -41,4 +43,11 @@ static bool initialize_cik(struct kernel_queue *kq, struct kfd_dev *dev,
 
 static void uninitialize_cik(struct kernel_queue *kq)
 {
+}
+
+static void submit_packet_cik(struct kernel_queue *kq)
+{
+	*kq->wptr_kernel = kq->pending_wptr;
+	write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
+				kq->pending_wptr);
 }

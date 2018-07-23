@@ -36,7 +36,8 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -50,8 +51,6 @@
 #include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-
-#include "gpiolib.h"
 
 /*
  * GPIO unit register offsets.
@@ -608,19 +607,16 @@ static int mvebu_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	if (mvpwm->gpiod) {
 		ret = -EBUSY;
 	} else {
-		desc = gpio_to_desc(mvchip->chip.base + pwm->hwpwm);
-		if (!desc) {
-			ret = -ENODEV;
+		desc = gpiochip_request_own_desc(&mvchip->chip,
+						 pwm->hwpwm, "mvebu-pwm");
+		if (IS_ERR(desc)) {
+			ret = PTR_ERR(desc);
 			goto out;
 		}
 
-		ret = gpiod_request(desc, "mvebu-pwm");
-		if (ret)
-			goto out;
-
 		ret = gpiod_direction_output(desc, 0);
 		if (ret) {
-			gpiod_free(desc);
+			gpiochip_free_own_desc(desc);
 			goto out;
 		}
 
@@ -637,7 +633,7 @@ static void mvebu_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mvpwm->lock, flags);
-	gpiod_free(mvpwm->gpiod);
+	gpiochip_free_own_desc(mvpwm->gpiod);
 	mvpwm->gpiod = NULL;
 	spin_unlock_irqrestore(&mvpwm->lock, flags);
 }

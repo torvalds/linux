@@ -16,7 +16,7 @@ awk	'BEGIN { num = -1; }	# Ignore the beginning of the file
 	/^START_TABLE/ { num = 0; next; }
 	/^END_TABLE/ {
 		if (num != $2) {
-			printf "NR_syscalls (%s) is not one more than the last syscall (%s)\n",
+			printf "Error: NR_syscalls (%s) is not one more than the last syscall (%s)\n",
 				$2, num - 1;
 			exit(1);
 		}
@@ -25,7 +25,7 @@ awk	'BEGIN { num = -1; }	# Ignore the beginning of the file
 	{
 		if (num == -1) next;
 		if (($1 != -1) && ($1 != num)) {
-			printf "Syscall %s out of order (expected %s)\n",
+			printf "Error: Syscall %s out of order (expected %s)\n",
 				$1, num;
 			exit(1);
 		};

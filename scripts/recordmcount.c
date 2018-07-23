@@ -500,7 +500,7 @@ do_file(char const *const fname)
 	gpfx = 0;
 	switch (w2(ehdr->e_machine)) {
 	default:
-		fprintf(stderr, "unrecognized e_machine %d %s\n",
+		fprintf(stderr, "unrecognized e_machine %u %s\n",
 			w2(ehdr->e_machine), fname);
 		fail_file();
 		break;

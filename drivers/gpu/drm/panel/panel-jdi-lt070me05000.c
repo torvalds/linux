@@ -500,7 +500,6 @@ static int jdi_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n",
 			ret);
 
-	drm_panel_detach(&jdi->base);
 	jdi_panel_del(jdi);
 
 	return 0;

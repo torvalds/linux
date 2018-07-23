@@ -22,6 +22,7 @@
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
+#include <linux/uidgid.h>
 #include <linux/uuid.h>
 #include <linux/ctype.h>
 #include <net/sock.h>
@@ -231,30 +232,6 @@ out:
 	return r;
 }
 
-#ifdef CONFIG_NET
-static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
-{
-	struct kobject *kobj = data, *ksobj;
-	const struct kobj_ns_type_operations *ops;
-
-	ops = kobj_ns_ops(kobj);
-	if (!ops && kobj->kset) {
-		ksobj = &kobj->kset->kobj;
-		if (ksobj->parent != NULL)
-			ops = kobj_ns_ops(ksobj->parent);
-	}
-
-	if (ops && ops->netlink_ns && kobj->ktype->namespace) {
-		const void *sock_ns, *ns;
-		ns = kobj->ktype->namespace(kobj);
-		sock_ns = ops->netlink_ns(dsk);
-		return sock_ns != ns;
-	}
-
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_UEVENT_HELPER
 static int kobj_usermode_filter(struct kobject *kobj)
 {
@@ -296,15 +273,44 @@ static void cleanup_uevent_env(struct subprocess_info *info)
 }
 #endif
 
-static int kobject_uevent_net_broadcast(struct kobject *kobj,
-					struct kobj_uevent_env *env,
+#ifdef CONFIG_NET
+static struct sk_buff *alloc_uevent_skb(struct kobj_uevent_env *env,
 					const char *action_string,
 					const char *devpath)
 {
-	int retval = 0;
-#if defined(CONFIG_NET)
+	struct netlink_skb_parms *parms;
+	struct sk_buff *skb = NULL;
+	char *scratch;
+	size_t len;
+
+	/* allocate message with maximum possible size */
+	len = strlen(action_string) + strlen(devpath) + 2;
+	skb = alloc_skb(len + env->buflen, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	/* add header */
+	scratch = skb_put(skb, len);
+	sprintf(scratch, "%s@%s", action_string, devpath);
+
+	skb_put_data(skb, env->buf, env->buflen);
+
+	parms = &NETLINK_CB(skb);
+	parms->creds.uid = GLOBAL_ROOT_UID;
+	parms->creds.gid = GLOBAL_ROOT_GID;
+	parms->dst_group = 1;
+	parms->portid = 0;
+
+	return skb;
+}
+
+static int uevent_net_broadcast_untagged(struct kobj_uevent_env *env,
+					 const char *action_string,
+					 const char *devpath)
+{
 	struct sk_buff *skb = NULL;
 	struct uevent_sock *ue_sk;
+	int retval = 0;
 
 	/* send netlink message */
 	list_for_each_entry(ue_sk, &uevent_sock_list, list) {
@@ -314,35 +320,97 @@ static int kobject_uevent_net_broadcast(struct kobject *kobj,
 			continue;
 
 		if (!skb) {
-			/* allocate message with the maximum possible size */
-			size_t len = strlen(action_string) + strlen(devpath) + 2;
-			char *scratch;
-
 			retval = -ENOMEM;
-			skb = alloc_skb(len + env->buflen, GFP_KERNEL);
+			skb = alloc_uevent_skb(env, action_string, devpath);
 			if (!skb)
 				continue;
-
-			/* add header */
-			scratch = skb_put(skb, len);
-			sprintf(scratch, "%s@%s", action_string, devpath);
-
-			skb_put_data(skb, env->buf, env->buflen);
-
-			NETLINK_CB(skb).dst_group = 1;
 		}
 
-		retval = netlink_broadcast_filtered(uevent_sock, skb_get(skb),
-						    0, 1, GFP_KERNEL,
-						    kobj_bcast_filter,
-						    kobj);
+		retval = netlink_broadcast(uevent_sock, skb_get(skb), 0, 1,
+					   GFP_KERNEL);
 		/* ENOBUFS should be handled in userspace */
 		if (retval == -ENOBUFS || retval == -ESRCH)
 			retval = 0;
 	}
 	consume_skb(skb);
-#endif
+
 	return retval;
+}
+
+static int uevent_net_broadcast_tagged(struct sock *usk,
+				       struct kobj_uevent_env *env,
+				       const char *action_string,
+				       const char *devpath)
+{
+	struct user_namespace *owning_user_ns = sock_net(usk)->user_ns;
+	struct sk_buff *skb = NULL;
+	int ret = 0;
+
+	skb = alloc_uevent_skb(env, action_string, devpath);
+	if (!skb)
+		return -ENOMEM;
+
+	/* fix credentials */
+	if (owning_user_ns != &init_user_ns) {
+		struct netlink_skb_parms *parms = &NETLINK_CB(skb);
+		kuid_t root_uid;
+		kgid_t root_gid;
+
+		/* fix uid */
+		root_uid = make_kuid(owning_user_ns, 0);
+		if (uid_valid(root_uid))
+			parms->creds.uid = root_uid;
+
+		/* fix gid */
+		root_gid = make_kgid(owning_user_ns, 0);
+		if (gid_valid(root_gid))
+			parms->creds.gid = root_gid;
+	}
+
+	ret = netlink_broadcast(usk, skb, 0, 1, GFP_KERNEL);
+	/* ENOBUFS should be handled in userspace */
+	if (ret == -ENOBUFS || ret == -ESRCH)
+		ret = 0;
+
+	return ret;
+}
+#endif
+
+static int kobject_uevent_net_broadcast(struct kobject *kobj,
+					struct kobj_uevent_env *env,
+					const char *action_string,
+					const char *devpath)
+{
+	int ret = 0;
+
+#ifdef CONFIG_NET
+	const struct kobj_ns_type_operations *ops;
+	const struct net *net = NULL;
+
+	ops = kobj_ns_ops(kobj);
+	if (!ops && kobj->kset) {
+		struct kobject *ksobj = &kobj->kset->kobj;
+		if (ksobj->parent != NULL)
+			ops = kobj_ns_ops(ksobj->parent);
+	}
+
+	/* kobjects currently only carry network namespace tags and they
+	 * are the only tag relevant here since we want to decide which
+	 * network namespaces to broadcast the uevent into.
+	 */
+	if (ops && ops->netlink_ns && kobj->ktype->namespace)
+		if (ops->type == KOBJ_NS_TYPE_NET)
+			net = kobj->ktype->namespace(kobj);
+
+	if (!net)
+		ret = uevent_net_broadcast_untagged(env, action_string,
+						    devpath);
+	else
+		ret = uevent_net_broadcast_tagged(net->uevent_sock->sk, env,
+						  action_string, devpath);
+#endif
+
+	return ret;
 }
 
 static void zap_modalias_env(struct kobj_uevent_env *env)
@@ -703,9 +771,13 @@ static int uevent_net_init(struct net *net)
 
 	net->uevent_sock = ue_sk;
 
-	mutex_lock(&uevent_sock_mutex);
-	list_add_tail(&ue_sk->list, &uevent_sock_list);
-	mutex_unlock(&uevent_sock_mutex);
+	/* Restrict uevents to initial user namespace. */
+	if (sock_net(ue_sk->sk)->user_ns == &init_user_ns) {
+		mutex_lock(&uevent_sock_mutex);
+		list_add_tail(&ue_sk->list, &uevent_sock_list);
+		mutex_unlock(&uevent_sock_mutex);
+	}
+
 	return 0;
 }
 
@@ -713,9 +785,11 @@ static void uevent_net_exit(struct net *net)
 {
 	struct uevent_sock *ue_sk = net->uevent_sock;
 
-	mutex_lock(&uevent_sock_mutex);
-	list_del(&ue_sk->list);
-	mutex_unlock(&uevent_sock_mutex);
+	if (sock_net(ue_sk->sk)->user_ns == &init_user_ns) {
+		mutex_lock(&uevent_sock_mutex);
+		list_del(&ue_sk->list);
+		mutex_unlock(&uevent_sock_mutex);
+	}
 
 	netlink_kernel_release(ue_sk->sk);
 	kfree(ue_sk);

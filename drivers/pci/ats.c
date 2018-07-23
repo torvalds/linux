@@ -20,6 +20,9 @@ void pci_ats_init(struct pci_dev *dev)
 {
 	int pos;
 
+	if (pci_ats_disabled())
+		return;
+
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ATS);
 	if (!pos)
 		return;

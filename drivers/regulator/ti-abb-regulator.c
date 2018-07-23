@@ -532,13 +532,13 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 	}
 	num_entries /= num_values;
 
-	info = devm_kzalloc(dev, sizeof(*info) * num_entries, GFP_KERNEL);
+	info = devm_kcalloc(dev, num_entries, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	abb->info = info;
 
-	volt_table = devm_kzalloc(dev, sizeof(unsigned int) * num_entries,
+	volt_table = devm_kcalloc(dev, num_entries, sizeof(unsigned int),
 				  GFP_KERNEL);
 	if (!volt_table)
 		return -ENOMEM;

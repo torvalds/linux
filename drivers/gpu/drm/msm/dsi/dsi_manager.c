@@ -393,7 +393,7 @@ static int dsi_mgr_connector_get_modes(struct drm_connector *connector)
 		ret = dsi_dual_connector_tile_init(connector, id);
 		if (ret)
 			return ret;
-		ret = drm_mode_connector_set_tile_property(connector);
+		ret = drm_connector_set_tile_property(connector);
 		if (ret) {
 			pr_err("%s: set tile property failed, %d\n",
 					__func__, ret);
@@ -684,7 +684,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	drm_mode_connector_attach_encoder(connector, msm_dsi->encoder);
+	drm_connector_attach_encoder(connector, msm_dsi->encoder);
 
 	return connector;
 }
@@ -751,12 +751,8 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 	connector_list = &dev->mode_config.connector_list;
 
 	list_for_each_entry(connector, connector_list, head) {
-		int i;
-
-		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-			if (connector->encoder_ids[i] == encoder->base.id)
-				return connector;
-		}
+		if (drm_connector_has_possible_encoder(connector, encoder))
+			return connector;
 	}
 
 	return ERR_PTR(-ENODEV);

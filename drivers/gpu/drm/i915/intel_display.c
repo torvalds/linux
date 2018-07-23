@@ -1022,7 +1022,7 @@ bool intel_crtc_active(struct intel_crtc *crtc)
 	 * We can ditch the adjusted_mode.crtc_clock check as soon
 	 * as Haswell has gained clock readout/fastboot support.
 	 *
-	 * We can ditch the crtc->primary->fb check as soon as we can
+	 * We can ditch the crtc->primary->state->fb check as soon as we can
 	 * properly reconstruct framebuffers.
 	 *
 	 * FIXME: The intel_crtc->active here should be switched to
@@ -2756,10 +2756,10 @@ intel_set_plane_visible(struct intel_crtc_state *crtc_state,
 
 	/* FIXME pre-g4x don't work like this */
 	if (visible) {
-		crtc_state->base.plane_mask |= BIT(drm_plane_index(&plane->base));
+		crtc_state->base.plane_mask |= drm_plane_mask(&plane->base);
 		crtc_state->active_planes |= BIT(plane->id);
 	} else {
-		crtc_state->base.plane_mask &= ~BIT(drm_plane_index(&plane->base));
+		crtc_state->base.plane_mask &= ~drm_plane_mask(&plane->base);
 		crtc_state->active_planes &= ~BIT(plane->id);
 	}
 
@@ -2882,9 +2882,8 @@ valid_fb:
 	if (i915_gem_object_is_tiled(obj))
 		dev_priv->preserve_bios_swizzle = true;
 
-	drm_framebuffer_get(fb);
-	primary->fb = primary->state->fb = fb;
-	primary->crtc = primary->state->crtc = &intel_crtc->base;
+	plane_state->fb = fb;
+	plane_state->crtc = &intel_crtc->base;
 
 	intel_set_plane_visible(to_intel_crtc_state(crtc_state),
 				to_intel_plane_state(plane_state),
@@ -3658,7 +3657,7 @@ u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 	plane_color_ctl |= PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	plane_color_ctl |= glk_plane_color_ctl_alpha(fb->format->format);
 
-	if (intel_format_is_yuv(fb->format->format)) {
+	if (fb->format->is_yuv) {
 		if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
 			plane_color_ctl |= PLANE_COLOR_CSC_MODE_YUV709_TO_RGB709;
 		else
@@ -11899,7 +11898,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 			 struct drm_crtc_state *new_state)
 {
 	struct intel_dpll_hw_state dpll_hw_state;
-	unsigned crtc_mask;
+	unsigned int crtc_mask;
 	bool active;
 
 	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
@@ -11926,7 +11925,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	crtc_mask = 1 << drm_crtc_index(crtc);
+	crtc_mask = drm_crtc_mask(crtc);
 
 	if (new_state->active)
 		I915_STATE_WARN(!(pll->active_mask & crtc_mask),
@@ -11961,7 +11960,7 @@ verify_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
 
 	if (old_state->shared_dpll &&
 	    old_state->shared_dpll != new_state->shared_dpll) {
-		unsigned crtc_mask = 1 << drm_crtc_index(crtc);
+		unsigned int crtc_mask = drm_crtc_mask(crtc);
 		struct intel_shared_dpll *pll = old_state->shared_dpll;
 
 		I915_STATE_WARN(pll->active_mask & crtc_mask,
@@ -13305,8 +13304,17 @@ void intel_plane_destroy(struct drm_plane *plane)
 	kfree(to_intel_plane(plane));
 }
 
-static bool i8xx_mod_supported(uint32_t format, uint64_t modifier)
+static bool i8xx_plane_format_mod_supported(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_C8:
 	case DRM_FORMAT_RGB565:
@@ -13319,8 +13327,17 @@ static bool i8xx_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool i965_mod_supported(uint32_t format, uint64_t modifier)
+static bool i965_plane_format_mod_supported(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_C8:
 	case DRM_FORMAT_RGB565:
@@ -13335,8 +13352,26 @@ static bool i965_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool skl_mod_supported(uint32_t format, uint64_t modifier)
+static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
+					   u32 format, u64 modifier)
 {
+	struct intel_plane *plane = to_intel_plane(_plane);
+
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		break;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		if (!plane->has_ccs)
+			return false;
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -13368,38 +13403,14 @@ static bool skl_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool intel_primary_plane_format_mod_supported(struct drm_plane *plane,
-						     uint32_t format,
-						     uint64_t modifier)
+static bool intel_cursor_format_mod_supported(struct drm_plane *_plane,
+					      u32 format, u64 modifier)
 {
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
-
-	if (WARN_ON(modifier == DRM_FORMAT_MOD_INVALID))
-		return false;
-
-	if ((modifier >> 56) != DRM_FORMAT_MOD_VENDOR_INTEL &&
-	    modifier != DRM_FORMAT_MOD_LINEAR)
-		return false;
-
-	if (INTEL_GEN(dev_priv) >= 9)
-		return skl_mod_supported(format, modifier);
-	else if (INTEL_GEN(dev_priv) >= 4)
-		return i965_mod_supported(format, modifier);
-	else
-		return i8xx_mod_supported(format, modifier);
+	return modifier == DRM_FORMAT_MOD_LINEAR &&
+		format == DRM_FORMAT_ARGB8888;
 }
 
-static bool intel_cursor_plane_format_mod_supported(struct drm_plane *plane,
-						    uint32_t format,
-						    uint64_t modifier)
-{
-	if (WARN_ON(modifier == DRM_FORMAT_MOD_INVALID))
-		return false;
-
-	return modifier == DRM_FORMAT_MOD_LINEAR && format == DRM_FORMAT_ARGB8888;
-}
-
-static struct drm_plane_funcs intel_plane_funcs = {
+static struct drm_plane_funcs skl_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = intel_plane_destroy,
@@ -13407,7 +13418,29 @@ static struct drm_plane_funcs intel_plane_funcs = {
 	.atomic_set_property = intel_plane_atomic_set_property,
 	.atomic_duplicate_state = intel_plane_duplicate_state,
 	.atomic_destroy_state = intel_plane_destroy_state,
-	.format_mod_supported = intel_primary_plane_format_mod_supported,
+	.format_mod_supported = skl_plane_format_mod_supported,
+};
+
+static struct drm_plane_funcs i965_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = i965_plane_format_mod_supported,
+};
+
+static struct drm_plane_funcs i8xx_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = i8xx_plane_format_mod_supported,
 };
 
 static int
@@ -13532,7 +13565,7 @@ static const struct drm_plane_funcs intel_cursor_plane_funcs = {
 	.atomic_set_property = intel_plane_atomic_set_property,
 	.atomic_duplicate_state = intel_plane_duplicate_state,
 	.atomic_destroy_state = intel_plane_destroy_state,
-	.format_mod_supported = intel_cursor_plane_format_mod_supported,
+	.format_mod_supported = intel_cursor_format_mod_supported,
 };
 
 static bool i9xx_plane_has_fbc(struct drm_i915_private *dev_priv,
@@ -13590,6 +13623,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	struct intel_plane *primary = NULL;
 	struct intel_plane_state *state = NULL;
+	const struct drm_plane_funcs *plane_funcs;
 	const uint32_t *intel_primary_formats;
 	unsigned int supported_rotations;
 	unsigned int num_formats;
@@ -13645,6 +13679,9 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	primary->check_plane = intel_check_primary_plane;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
+		primary->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
+						     PLANE_PRIMARY);
+
 		if (skl_plane_has_planar(dev_priv, pipe, PLANE_PRIMARY)) {
 			intel_primary_formats = skl_pri_planar_formats;
 			num_formats = ARRAY_SIZE(skl_pri_planar_formats);
@@ -13653,7 +13690,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 			num_formats = ARRAY_SIZE(skl_primary_formats);
 		}
 
-		if (skl_plane_has_ccs(dev_priv, pipe, PLANE_PRIMARY))
+		if (primary->has_ccs)
 			modifiers = skl_format_modifiers_ccs;
 		else
 			modifiers = skl_format_modifiers_noccs;
@@ -13661,6 +13698,8 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		primary->update_plane = skl_update_plane;
 		primary->disable_plane = skl_disable_plane;
 		primary->get_hw_state = skl_plane_get_hw_state;
+
+		plane_funcs = &skl_plane_funcs;
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
@@ -13669,6 +13708,8 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		primary->update_plane = i9xx_update_plane;
 		primary->disable_plane = i9xx_disable_plane;
 		primary->get_hw_state = i9xx_plane_get_hw_state;
+
+		plane_funcs = &i965_plane_funcs;
 	} else {
 		intel_primary_formats = i8xx_primary_formats;
 		num_formats = ARRAY_SIZE(i8xx_primary_formats);
@@ -13677,25 +13718,27 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		primary->update_plane = i9xx_update_plane;
 		primary->disable_plane = i9xx_disable_plane;
 		primary->get_hw_state = i9xx_plane_get_hw_state;
+
+		plane_funcs = &i8xx_plane_funcs;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
-					       0, &intel_plane_funcs,
+					       0, plane_funcs,
 					       intel_primary_formats, num_formats,
 					       modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane 1%c", pipe_name(pipe));
 	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
-					       0, &intel_plane_funcs,
+					       0, plane_funcs,
 					       intel_primary_formats, num_formats,
 					       modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "primary %c", pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
-					       0, &intel_plane_funcs,
+					       0, plane_funcs,
 					       intel_primary_formats, num_formats,
 					       modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
@@ -15666,9 +15709,9 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 				 * rely on the connector_mask being accurate.
 				 */
 				encoder->base.crtc->state->connector_mask |=
-					1 << drm_connector_index(&connector->base);
+					drm_connector_mask(&connector->base);
 				encoder->base.crtc->state->encoder_mask |=
-					1 << drm_encoder_index(&encoder->base);
+					drm_encoder_mask(&encoder->base);
 			}
 
 		} else {
@@ -15968,8 +16011,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 				    struct intel_encoder *encoder)
 {
 	connector->encoder = encoder;
-	drm_mode_connector_attach_encoder(&connector->base,
-					  &encoder->base);
+	drm_connector_attach_encoder(&connector->base, &encoder->base);
 }
 
 /*

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright (c) 2007-2008 Tungsten Graphics, Inc., Cedar Park, TX., USA,
- * All Rights Reserved.
  * Copyright (c) 2009 VMware, Inc., Palo Alto, CA., USA,
- * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -63,7 +62,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 
@@ -103,7 +102,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 
@@ -131,7 +130,7 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      struct ttm_mem_reg *reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # Select 32 or 64 bit
 config 64BIT
-	bool "64-bit kernel" if ARCH = "x86"
-	default ARCH != "i386"
+	bool "64-bit kernel" if "$(ARCH)" = "x86"
+	default "$(ARCH)" != "i386"
 	---help---
 	  Say yes to build a 64-bit kernel - formerly known as x86_64
 	  Say no to build a 32-bit kernel - formerly known as i386
@@ -28,6 +28,8 @@ config X86_64
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_ARCH_SOFT_DIRTY
 	select MODULES_USE_ELF_RELA
+	select NEED_DMA_MAP_STATE
+	select SWIOTLB
 	select X86_DEV_DMA_OPS
 	select ARCH_HAS_SYSCALL_WRAPPER
 
@@ -58,8 +60,10 @@ config X86
 	select ARCH_HAS_KCOV			if X86_64
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
 	select ARCH_HAS_PMEM_API		if X86_64
+	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_REFCOUNT
 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
+	select ARCH_HAS_UACCESS_MCSAFE		if X86_64
 	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
@@ -126,7 +130,6 @@ config X86
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD if X86_64
 	select HAVE_ARCH_VMAP_STACK		if X86_64
 	select HAVE_ARCH_WITHIN_STACK_FRAMES
-	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_CONTEXT_TRACKING		if X86_64
@@ -134,11 +137,10 @@ config X86
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
-	select HAVE_EBPF_JIT			if X86_64
+	select HAVE_EBPF_JIT
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_EXIT_THREAD
 	select HAVE_FENTRY			if X86_64 || DYNAMIC_FTRACE
@@ -179,11 +181,14 @@ config X86
 	select HAVE_RCU_TABLE_FREE
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RELIABLE_STACKTRACE		if X86_64 && UNWINDER_FRAME_POINTER && STACK_VALIDATION
+	select HAVE_STACKPROTECTOR		if CC_HAS_SANE_STACKPROTECTOR
 	select HAVE_STACK_VALIDATION		if X86_64
+	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
 	select IRQ_FORCED_THREADING
+	select NEED_SG_DMA_LENGTH
 	select PCI_LOCKLESS_CONFIG
 	select PERF_EVENTS
 	select RTC_LIB
@@ -235,13 +240,6 @@ config ARCH_MMAP_RND_COMPAT_BITS_MAX
 
 config SBUS
 	bool
-
-config NEED_DMA_MAP_STATE
-	def_bool y
-	depends on X86_64 || INTEL_IOMMU || DMA_API_DEBUG || SWIOTLB
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
 
 config GENERIC_ISA_DMA
 	def_bool y
@@ -329,13 +327,16 @@ config X86_64_SMP
 
 config X86_32_LAZY_GS
 	def_bool y
-	depends on X86_32 && CC_STACKPROTECTOR_NONE
+	depends on X86_32 && !STACKPROTECTOR
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
 config FIX_EARLYCON_MEM
 	def_bool y
+
+config DYNAMIC_PHYSICAL_MASK
+	bool
 
 config PGTABLE_LEVELS
 	int
@@ -345,6 +346,15 @@ config PGTABLE_LEVELS
 	default 2
 
 source "init/Kconfig"
+
+config CC_HAS_SANE_STACKPROTECTOR
+	bool
+	default $(success,$(srctree)/scripts/gcc-x86_64-has-stack-protector.sh $(CC)) if 64BIT
+	default $(success,$(srctree)/scripts/gcc-x86_32-has-stack-protector.sh $(CC))
+	help
+	   We have to make sure stack protector is unconditionally disabled if
+	   the compiler produces broken code.
+
 source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
@@ -875,6 +885,7 @@ config DMI
 
 config GART_IOMMU
 	bool "Old AMD GART IOMMU support"
+	select IOMMU_HELPER
 	select SWIOTLB
 	depends on X86_64 && PCI && AMD_NB
 	---help---
@@ -896,6 +907,7 @@ config GART_IOMMU
 
 config CALGARY_IOMMU
 	bool "IBM Calgary IOMMU support"
+	select IOMMU_HELPER
 	select SWIOTLB
 	depends on X86_64 && PCI
 	---help---
@@ -922,20 +934,6 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 	  used even if it exists. If you choose 'n' and would like to use
 	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
 	  If unsure, say Y.
-
-# need this always selected by IOMMU for the VIA workaround
-config SWIOTLB
-	def_bool y if X86_64
-	---help---
-	  Support for software bounce buffers used on x86-64 systems
-	  which don't have a hardware IOMMU. Using this PCI devices
-	  which can only access 32-bits of memory can be used on systems
-	  with more than 3 GB of memory.
-	  If unsure, say Y.
-
-config IOMMU_HELPER
-	def_bool y
-	depends on CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU
 
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
@@ -1458,6 +1456,7 @@ config HIGHMEM
 config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
 	depends on X86_32 && !HIGHMEM4G
+	select PHYS_ADDR_T_64BIT
 	select SWIOTLB
 	---help---
 	  PAE is required for NX support, and furthermore enables
@@ -1485,14 +1484,6 @@ config X86_5LEVEL
 
 	  Say N if unsure.
 
-config ARCH_PHYS_ADDR_T_64BIT
-	def_bool y
-	depends on X86_64 || X86_PAE
-
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-	depends on X86_64 || HIGHMEM64G
-
 config X86_DIRECT_GBPAGES
 	def_bool y
 	depends on X86_64 && !DEBUG_PAGEALLOC
@@ -1508,6 +1499,7 @@ config ARCH_HAS_MEM_ENCRYPT
 config AMD_MEM_ENCRYPT
 	bool "AMD Secure Memory Encryption (SME) support"
 	depends on X86_64 && CPU_SUP_AMD
+	select DYNAMIC_PHYSICAL_MASK
 	---help---
 	  Say yes to enable support for the encryption of system memory.
 	  This requires an AMD processor that supports Secure Memory

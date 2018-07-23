@@ -977,7 +977,7 @@ static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 	cec_notifier_set_phys_addr_from_edid(hdmi->notifier, edid);
 
 	count = drm_add_edid_modes(connector, edid);
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 
 	kfree(edid);
 	return count;
@@ -1290,7 +1290,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	hdmi->drm_connector = drm_connector;
 
-	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
+	err = drm_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
 		goto err_sysfs;

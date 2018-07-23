@@ -30,6 +30,7 @@
 
 static int zero;
 static int one = 1;
+static int two = 2;
 static int four = 4;
 static int thousand = 1000;
 static int gso_max_segs = GSO_MAX_SEGS;
@@ -46,6 +47,7 @@ static int tcp_syn_retries_min = 1;
 static int tcp_syn_retries_max = MAX_TCP_SYNCNT;
 static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
+static int comp_sack_nr_max = 255;
 
 /* obsolete */
 static int sysctl_tcp_low_latency __read_mostly;
@@ -844,7 +846,9 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_tw_reuse,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &two,
 	},
 	{
 		.procname	= "tcp_max_tw_buckets",
@@ -1150,6 +1154,22 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &one,
+	},
+	{
+		.procname	= "tcp_comp_sack_delay_ns",
+		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_delay_ns,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "tcp_comp_sack_nr",
+		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_nr,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &comp_sack_nr_max,
 	},
 	{
 		.procname	= "udp_rmem_min",

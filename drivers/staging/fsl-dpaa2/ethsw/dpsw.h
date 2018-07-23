@@ -306,6 +306,12 @@ int dpsw_if_set_tci(struct fsl_mc_io *mc_io,
 		    u16 if_id,
 		    const struct dpsw_tci_cfg *cfg);
 
+int dpsw_if_get_tci(struct fsl_mc_io *mc_io,
+		    u32 cmd_flags,
+		    u16 token,
+		    u16 if_id,
+		    struct dpsw_tci_cfg *cfg);
+
 /**
  * enum dpsw_stp_state - Spanning Tree Protocol (STP) states
  * @DPSW_STP_STATE_BLOCKING: Blocking state

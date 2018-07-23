@@ -320,7 +320,8 @@ static int __net_init phonet_init_net(struct net *net)
 {
 	struct phonet_net *pnn = phonet_pernet(net);
 
-	if (!proc_create("phonet", 0, net->proc_net, &pn_sock_seq_fops))
+	if (!proc_create_net("phonet", 0, net->proc_net, &pn_sock_seq_ops,
+			sizeof(struct seq_net_private)))
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pnn->pndevs.list);
@@ -351,7 +352,8 @@ int __init phonet_device_init(void)
 	if (err)
 		return err;
 
-	proc_create("pnresource", 0, init_net.proc_net, &pn_res_seq_fops);
+	proc_create_net("pnresource", 0, init_net.proc_net, &pn_res_seq_ops,
+			sizeof(struct seq_net_private));
 	register_netdevice_notifier(&phonet_device_notifier);
 	err = phonet_netlink_register();
 	if (err)

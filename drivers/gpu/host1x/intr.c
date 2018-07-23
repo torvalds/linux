@@ -144,7 +144,7 @@ static const action_handler action_handlers[HOST1X_INTR_ACTION_COUNT] = {
 static void run_handlers(struct list_head completed[HOST1X_INTR_ACTION_COUNT])
 {
 	struct list_head *head = completed;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < HOST1X_INTR_ACTION_COUNT; ++i, ++head) {
 		action_handler handler = action_handlers[i];
@@ -211,11 +211,11 @@ static void syncpt_thresh_work(struct work_struct *work)
 				host1x_syncpt_load(host->syncpt + id));
 }
 
-int host1x_intr_add_action(struct host1x *host, unsigned int id, u32 thresh,
-			   enum host1x_intr_action action, void *data,
-			   struct host1x_waitlist *waiter, void **ref)
+int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
+			   u32 thresh, enum host1x_intr_action action,
+			   void *data, struct host1x_waitlist *waiter,
+			   void **ref)
 {
-	struct host1x_syncpt *syncpt;
 	int queue_was_empty;
 
 	if (waiter == NULL) {
@@ -234,19 +234,17 @@ int host1x_intr_add_action(struct host1x *host, unsigned int id, u32 thresh,
 	waiter->data = data;
 	waiter->count = 1;
 
-	syncpt = host->syncpt + id;
-
 	spin_lock(&syncpt->intr.lock);
 
 	queue_was_empty = list_empty(&syncpt->intr.wait_head);
 
 	if (add_waiter_to_queue(waiter, &syncpt->intr.wait_head)) {
 		/* added at head of list - new threshold value */
-		host1x_hw_intr_set_syncpt_threshold(host, id, thresh);
+		host1x_hw_intr_set_syncpt_threshold(host, syncpt->id, thresh);
 
 		/* added as first waiter - enable interrupt */
 		if (queue_was_empty)
-			host1x_hw_intr_enable_syncpt_intr(host, id);
+			host1x_hw_intr_enable_syncpt_intr(host, syncpt->id);
 	}
 
 	spin_unlock(&syncpt->intr.lock);

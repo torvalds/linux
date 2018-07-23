@@ -721,7 +721,7 @@ vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
 	return dmabuf;
 }
 
-int vc4_fault(struct vm_fault *vmf)
+vm_fault_t vc4_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;

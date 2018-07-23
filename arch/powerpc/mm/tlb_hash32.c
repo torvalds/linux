@@ -41,7 +41,7 @@ void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned long addr)
 {
 	unsigned long ptephys;
 
-	if (Hash != 0) {
+	if (Hash) {
 		ptephys = __pa(ptep) & PAGE_MASK;
 		flush_hash_pages(mm->context.id, addr, ptephys, 1);
 	}
@@ -54,7 +54,7 @@ EXPORT_SYMBOL(flush_hash_entry);
  */
 void tlb_flush(struct mmu_gather *tlb)
 {
-	if (Hash == 0) {
+	if (!Hash) {
 		/*
 		 * 603 needs to flush the whole TLB here since
 		 * it doesn't use a hash table.
@@ -84,7 +84,7 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 	int count;
 	unsigned int ctx = mm->context.id;
 
-	if (Hash == 0) {
+	if (!Hash) {
 		_tlbia();
 		return;
 	}
@@ -124,7 +124,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *mp;
 
-	if (Hash == 0) {
+	if (!Hash) {
 		_tlbia();
 		return;
 	}
@@ -145,7 +145,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	struct mm_struct *mm;
 	pmd_t *pmd;
 
-	if (Hash == 0) {
+	if (!Hash) {
 		_tlbie(vmaddr);
 		return;
 	}

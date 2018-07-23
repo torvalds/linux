@@ -217,7 +217,7 @@ static void sq905_dostream(struct work_struct *work)
 	u8 *data;
 	u8 *buffer;
 
-	buffer = kmalloc(SQ905_MAX_TRANSFER, GFP_KERNEL | GFP_DMA);
+	buffer = kmalloc(SQ905_MAX_TRANSFER, GFP_KERNEL);
 	if (!buffer) {
 		pr_err("Couldn't allocate USB buffer\n");
 		goto quit_stream;

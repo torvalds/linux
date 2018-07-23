@@ -20,7 +20,7 @@
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/bitops.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/slab.h>

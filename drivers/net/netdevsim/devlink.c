@@ -147,7 +147,8 @@ out:
 	return err;
 }
 
-static int nsim_devlink_reload(struct devlink *devlink)
+static int nsim_devlink_reload(struct devlink *devlink,
+			       struct netlink_ext_ack *extack)
 {
 	enum nsim_resource_id res_ids[] = {
 		NSIM_RESOURCE_IPV4_FIB, NSIM_RESOURCE_IPV4_FIB_RULES,
@@ -162,7 +163,7 @@ static int nsim_devlink_reload(struct devlink *devlink)
 
 		err = devlink_resource_size_get(devlink, res_ids[i], &val);
 		if (!err) {
-			err = nsim_fib_set_max(net, res_ids[i], val);
+			err = nsim_fib_set_max(net, res_ids[i], val, extack);
 			if (err)
 				return err;
 		}
@@ -180,7 +181,7 @@ static void nsim_devlink_net_reset(struct net *net)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(res_ids); ++i) {
-		if (nsim_fib_set_max(net, res_ids[i], (u64)-1)) {
+		if (nsim_fib_set_max(net, res_ids[i], (u64)-1, NULL)) {
 			pr_err("Failed to reset limit for resource %u\n",
 			       res_ids[i]);
 		}

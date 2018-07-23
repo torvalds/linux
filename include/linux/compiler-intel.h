@@ -44,3 +44,7 @@
 #define __builtin_bswap16 _bswap16
 #endif
 
+/*
+ * icc defines __GNUC__, but does not implement the builtin overflow checkers.
+ */
+#undef COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW

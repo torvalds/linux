@@ -11,6 +11,7 @@
 #include <linux/perf_event.h>
 #include <linux/elf.h>
 #include <linux/pagemap.h>
+#include <linux/irq_work.h>
 #include "percpu_freelist.h"
 
 #define STACK_CREATE_FLAG_MASK					\
@@ -31,6 +32,23 @@ struct bpf_stack_map {
 	u32 n_buckets;
 	struct stack_map_bucket *buckets[];
 };
+
+/* irq_work to run up_read() for build_id lookup in nmi context */
+struct stack_map_irq_work {
+	struct irq_work irq_work;
+	struct rw_semaphore *sem;
+};
+
+static void do_up_read(struct irq_work *entry)
+{
+	struct stack_map_irq_work *work;
+
+	work = container_of(entry, struct stack_map_irq_work, irq_work);
+	up_read(work->sem);
+	work->sem = NULL;
+}
+
+static DEFINE_PER_CPU(struct stack_map_irq_work, up_read_work);
 
 static inline bool stack_map_use_build_id(struct bpf_map *map)
 {
@@ -262,27 +280,31 @@ out:
 	return ret;
 }
 
-static void stack_map_get_build_id_offset(struct bpf_map *map,
-					  struct stack_map_bucket *bucket,
+static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 					  u64 *ips, u32 trace_nr, bool user)
 {
 	int i;
 	struct vm_area_struct *vma;
-	struct bpf_stack_build_id *id_offs;
+	bool irq_work_busy = false;
+	struct stack_map_irq_work *work = NULL;
 
-	bucket->nr = trace_nr;
-	id_offs = (struct bpf_stack_build_id *)bucket->data;
+	if (in_nmi()) {
+		work = this_cpu_ptr(&up_read_work);
+		if (work->irq_work.flags & IRQ_WORK_BUSY)
+			/* cannot queue more up_read, fallback */
+			irq_work_busy = true;
+	}
 
 	/*
-	 * We cannot do up_read() in nmi context, so build_id lookup is
-	 * only supported for non-nmi events. If at some point, it is
-	 * possible to run find_vma() without taking the semaphore, we
-	 * would like to allow build_id lookup in nmi context.
+	 * We cannot do up_read() in nmi context. To do build_id lookup
+	 * in nmi context, we need to run up_read() in irq_work. We use
+	 * a percpu variable to do the irq_work. If the irq_work is
+	 * already used by another lookup, we fall back to report ips.
 	 *
 	 * Same fallback is used for kernel stack (!user) on a stackmap
 	 * with build_id.
 	 */
-	if (!user || !current || !current->mm || in_nmi() ||
+	if (!user || !current || !current->mm || irq_work_busy ||
 	    down_read_trylock(&current->mm->mmap_sem) == 0) {
 		/* cannot access current->mm, fall back to ips */
 		for (i = 0; i < trace_nr; i++) {
@@ -304,7 +326,13 @@ static void stack_map_get_build_id_offset(struct bpf_map *map,
 			- vma->vm_start;
 		id_offs[i].status = BPF_STACK_BUILD_ID_VALID;
 	}
-	up_read(&current->mm->mmap_sem);
+
+	if (!work) {
+		up_read(&current->mm->mmap_sem);
+	} else {
+		work->sem = &current->mm->mmap_sem;
+		irq_work_queue(&work->irq_work);
+	}
 }
 
 BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
@@ -361,8 +389,10 @@ BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
 			pcpu_freelist_pop(&smap->freelist);
 		if (unlikely(!new_bucket))
 			return -ENOMEM;
-		stack_map_get_build_id_offset(map, new_bucket, ips,
-					      trace_nr, user);
+		new_bucket->nr = trace_nr;
+		stack_map_get_build_id_offset(
+			(struct bpf_stack_build_id *)new_bucket->data,
+			ips, trace_nr, user);
 		trace_len = trace_nr * sizeof(struct bpf_stack_build_id);
 		if (hash_matches && bucket->nr == trace_nr &&
 		    memcmp(bucket->data, new_bucket->data, trace_len) == 0) {
@@ -403,6 +433,73 @@ const struct bpf_func_proto bpf_get_stackid_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_CONST_MAP_PTR,
 	.arg3_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_get_stack, struct pt_regs *, regs, void *, buf, u32, size,
+	   u64, flags)
+{
+	u32 init_nr, trace_nr, copy_len, elem_size, num_elem;
+	bool user_build_id = flags & BPF_F_USER_BUILD_ID;
+	u32 skip = flags & BPF_F_SKIP_FIELD_MASK;
+	bool user = flags & BPF_F_USER_STACK;
+	struct perf_callchain_entry *trace;
+	bool kernel = !user;
+	int err = -EINVAL;
+	u64 *ips;
+
+	if (unlikely(flags & ~(BPF_F_SKIP_FIELD_MASK | BPF_F_USER_STACK |
+			       BPF_F_USER_BUILD_ID)))
+		goto clear;
+	if (kernel && user_build_id)
+		goto clear;
+
+	elem_size = (user && user_build_id) ? sizeof(struct bpf_stack_build_id)
+					    : sizeof(u64);
+	if (unlikely(size % elem_size))
+		goto clear;
+
+	num_elem = size / elem_size;
+	if (sysctl_perf_event_max_stack < num_elem)
+		init_nr = 0;
+	else
+		init_nr = sysctl_perf_event_max_stack - num_elem;
+	trace = get_perf_callchain(regs, init_nr, kernel, user,
+				   sysctl_perf_event_max_stack, false, false);
+	if (unlikely(!trace))
+		goto err_fault;
+
+	trace_nr = trace->nr - init_nr;
+	if (trace_nr < skip)
+		goto err_fault;
+
+	trace_nr -= skip;
+	trace_nr = (trace_nr <= num_elem) ? trace_nr : num_elem;
+	copy_len = trace_nr * elem_size;
+	ips = trace->ip + skip + init_nr;
+	if (user && user_build_id)
+		stack_map_get_build_id_offset(buf, ips, trace_nr, user);
+	else
+		memcpy(buf, ips, copy_len);
+
+	if (size > copy_len)
+		memset(buf + copy_len, 0, size - copy_len);
+	return copy_len;
+
+err_fault:
+	err = -EFAULT;
+clear:
+	memset(buf, 0, size);
+	return err;
+}
+
+const struct bpf_func_proto bpf_get_stack_proto = {
+	.func		= bpf_get_stack,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_ANYTHING,
 };
 
 /* Called from eBPF program */
@@ -511,3 +608,16 @@ const struct bpf_map_ops stack_map_ops = {
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
 };
+
+static int __init stack_map_init(void)
+{
+	int cpu;
+	struct stack_map_irq_work *work;
+
+	for_each_possible_cpu(cpu) {
+		work = per_cpu_ptr(&up_read_work, cpu);
+		init_irq_work(&work->irq_work, do_up_read);
+	}
+	return 0;
+}
+subsys_initcall(stack_map_init);

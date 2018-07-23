@@ -20,7 +20,7 @@
 //
 // VBI support (2004) and cleanups (2005) by Hans Verkuil <hverkuil@xs4all.nl>
 //
-// Copyright (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+// Copyright (c) 2005-2006 Mauro Carvalho Chehab <mchehab@kernel.org>
 //	SAA7111, SAA7113 and SAA7118 support
 
 #include "saa711x_regs.h"

@@ -717,58 +717,10 @@ static int mdio_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mdio_bus_suspend(struct device *dev)
-{
-	struct mdio_device *mdio = to_mdio_device(dev);
-
-	if (mdio->pm_ops && mdio->pm_ops->suspend)
-		return mdio->pm_ops->suspend(dev);
-
-	return 0;
-}
-
-static int mdio_bus_resume(struct device *dev)
-{
-	struct mdio_device *mdio = to_mdio_device(dev);
-
-	if (mdio->pm_ops && mdio->pm_ops->resume)
-		return mdio->pm_ops->resume(dev);
-
-	return 0;
-}
-
-static int mdio_bus_restore(struct device *dev)
-{
-	struct mdio_device *mdio = to_mdio_device(dev);
-
-	if (mdio->pm_ops && mdio->pm_ops->restore)
-		return mdio->pm_ops->restore(dev);
-
-	return 0;
-}
-
-static const struct dev_pm_ops mdio_bus_pm_ops = {
-	.suspend = mdio_bus_suspend,
-	.resume = mdio_bus_resume,
-	.freeze = mdio_bus_suspend,
-	.thaw = mdio_bus_resume,
-	.restore = mdio_bus_restore,
-};
-
-#define MDIO_BUS_PM_OPS (&mdio_bus_pm_ops)
-
-#else
-
-#define MDIO_BUS_PM_OPS NULL
-
-#endif /* CONFIG_PM */
-
 struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
 	.match		= mdio_bus_match,
 	.uevent		= mdio_uevent,
-	.pm		= MDIO_BUS_PM_OPS,
 };
 EXPORT_SYMBOL(mdio_bus_type);
 

@@ -85,7 +85,8 @@ static int amd_create_gatt_pages(int nr_tables)
 	int retval = 0;
 	int i;
 
-	tables = kzalloc((nr_tables + 1) * sizeof(struct amd_page_map *),GFP_KERNEL);
+	tables = kcalloc(nr_tables + 1, sizeof(struct amd_page_map *),
+			 GFP_KERNEL);
 	if (tables == NULL)
 		return -ENOMEM;
 

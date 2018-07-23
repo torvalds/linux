@@ -258,7 +258,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	/* cut off if it is too long */
 	if (count > KSYM_NAME_LEN)
 		count = KSYM_NAME_LEN;
-	buf = kmalloc(sizeof(char) * (count + 1), GFP_KERNEL);
+	buf = kmalloc(count + 1, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

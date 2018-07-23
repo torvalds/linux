@@ -569,7 +569,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	}
 
 	/* Allocate and setup the channels. */
-	tmu->channels = kzalloc(sizeof(*tmu->channels) * tmu->num_channels,
+	tmu->channels = kcalloc(tmu->num_channels, sizeof(*tmu->channels),
 				GFP_KERNEL);
 	if (tmu->channels == NULL) {
 		ret = -ENOMEM;

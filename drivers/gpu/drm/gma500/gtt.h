@@ -53,6 +53,8 @@ struct gtt_range {
 	int roll;			/* Roll applied to the GTT entries */
 };
 
+#define to_gtt_range(x) container_of(x, struct gtt_range, gem)
+
 extern struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 					     const char *name, int backed,
 					     u32 align);
