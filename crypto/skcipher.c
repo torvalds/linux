@@ -399,7 +399,7 @@ static int skcipher_copy_iv(struct skcipher_walk *walk)
 	unsigned size;
 	u8 *iv;
 
-	aligned_bs = ALIGN(bs, alignmask);
+	aligned_bs = ALIGN(bs, alignmask + 1);
 
 	/* Minimum size to align buffer by alignmask. */
 	size = alignmask & ~a;
