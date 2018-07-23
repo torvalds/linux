@@ -33,7 +33,6 @@ Required Port sub-node properties:
 - reg-names:		Contains the values "tx" and "rx" (in this order).
 - reg:			Contains a matching register specifier for each entry
 			in reg-names.
-- interrupt-parent	Should be a phandle for the interrupt controller
 - interrupts:		Should contain interrupt specifiers for mpu interrupts
 			0 and 1 (in this order).
 - ti,ssi-cawake-gpio:	Defines which GPIO pin is used to signify CAWAKE

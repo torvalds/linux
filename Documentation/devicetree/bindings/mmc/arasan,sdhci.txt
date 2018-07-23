@@ -19,8 +19,6 @@ Required Properties:
   - clocks: From clock bindings: Handles to clock inputs.
   - clock-names: From clock bindings: Tuple including "clk_xin" and "clk_ahb"
   - interrupts: Interrupt specifier
-  - interrupt-parent: Phandle for the interrupt controller that services
-		      interrupts for this device.
 
 Required Properties for "arasan,sdhci-5.1":
   - phys: From PHY bindings: Phandle for the Generic PHY for arasan.

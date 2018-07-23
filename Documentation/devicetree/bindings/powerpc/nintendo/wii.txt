@@ -148,7 +148,6 @@ Nintendo Wii device tree
   - reg : should contain the controller registers location and length
   - interrupt-controller
   - interrupts : should contain the cascade interrupt of the "flipper" pic
-  - interrupt-parent: should contain the phandle of the "flipper" pic
 
 1.l) The General Purpose I/O (GPIO) controller node
 

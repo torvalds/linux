@@ -18,8 +18,6 @@ Required properties :
  - interrupts : <a b> where a is the interrupt number of the
    PSC FIFO Controller and b is a field that represents an
    encoding of the sense and level information for the interrupt.
- - interrupt-parent : the phandle for the interrupt controller that
-   services interrupts for this device.
 
 Recommended properties :
  - fsl,rx-fifo-size : the size of the RX fifo slice (a multiple of 4)
@@ -45,8 +43,6 @@ Required properties :
  - interrupts : <a b> where a is the interrupt number of the
    PSC FIFO Controller and b is a field that represents an
    encoding of the sense and level information for the interrupt.
- - interrupt-parent : the phandle for the interrupt controller that
-   services interrupts for this device.
 
 Recommended properties :
  - clocks : specifies the clock needed to operate the fifo controller

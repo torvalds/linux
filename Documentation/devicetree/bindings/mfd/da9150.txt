@@ -13,8 +13,6 @@ da9150-fg		: Battery Fuel-Gauge
 Required properties:
 - compatible : Should be "dlg,da9150"
 - reg: Specifies the I2C slave address
-- interrupt-parent: Specifies the phandle of the interrupt controller to which
-  the IRQs from da9150 are delivered to.
 - interrupts: IRQ line info for da9150 chip.
 - interrupt-controller: da9150 has internal IRQs (own IRQ domain).
   (See ../interrupt-controller/interrupts.txt for

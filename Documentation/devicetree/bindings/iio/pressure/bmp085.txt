@@ -12,7 +12,6 @@ Optional properties:
 - temp-measurement-period: temperature measurement period (milliseconds)
 - default-oversampling: default oversampling value to be used at startup,
   value range is 0-3 with rising sensitivity.
-- interrupt-parent: should be the phandle for the interrupt controller
 - interrupts: interrupt mapping for IRQ
 - reset-gpios: a GPIO line handling reset of the sensor: as the line is
   active low, it should be marked GPIO_ACTIVE_LOW (see gpio/gpio.txt)

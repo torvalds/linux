@@ -5,7 +5,6 @@ Required properties:
 - compatible: Should be "ingenic,jz4780-dma"
 - reg: Should contain the DMA controller registers location and length.
 - interrupts: Should contain the interrupt specifier of the DMA controller.
-- interrupt-parent: Should be the phandle of the interrupt controller that
 - clocks: Should contain a clock specifier for the JZ4780 PDMA clock.
 - #dma-cells: Must be <2>. Number of integer cells in the dmas property of
   DMA clients (see below).

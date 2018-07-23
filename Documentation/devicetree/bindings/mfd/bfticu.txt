@@ -10,7 +10,6 @@ Required properties:
 - interrupts: the main IRQ line to signal the collected IRQs
 - #interrupt-cells : is 2 and their usage is compliant to the 2 cells variant
   of Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
-- interrupt-parent: the parent IRQ ctrl the main IRQ is connected to
 - reg: access on the parent local bus (chip select, offset in chip select, size)
 
 Example:

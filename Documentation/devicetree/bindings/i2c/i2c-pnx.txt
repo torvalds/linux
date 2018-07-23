@@ -7,8 +7,6 @@ Required properties:
  - interrupts: configure one interrupt line
  - #address-cells: always 1 (for i2c addresses)
  - #size-cells: always 0
- - interrupt-parent: the phandle for the interrupt controller that
-   services interrupts for this device.
 
 Optional properties:
 

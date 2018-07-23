@@ -11,8 +11,6 @@ Required properties for SPI bus usage:
  - spi-cpol and spi-cpha : must be defined for adxl345 to enable SPI mode 3
 
 Optional properties:
- - interrupt-parent : phandle to the parent interrupt controller as documented
-   in Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
  - interrupts: interrupt mapping for IRQ as documented in
    Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 

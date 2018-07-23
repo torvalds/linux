@@ -15,9 +15,6 @@ Optional properties:
   - reset-gpios : a GPIO spec for the reset pin. If specified, it will be
   deasserted before communication to the codec starts.
 
-  - interrupt-parent : Specifies the phandle of the interrupt controller to
-  which the IRQs from CS42L42 are delivered to.
-
   - interrupts : IRQ line info CS42L42.
   (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
   for further information relating to interrupt properties)

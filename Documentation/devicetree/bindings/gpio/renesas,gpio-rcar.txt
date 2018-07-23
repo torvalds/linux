@@ -31,7 +31,6 @@ Required Properties:
   - reg: Base address and length of each memory resource used by the GPIO
     controller hardware module.
 
-  - interrupt-parent: phandle of the parent interrupt controller.
   - interrupts: Interrupt specifier for the controllers interrupt.
 
   - gpio-controller: Marks the device node as a gpio controller.

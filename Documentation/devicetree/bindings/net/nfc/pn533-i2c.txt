@@ -4,7 +4,6 @@ Required properties:
 - compatible: Should be "nxp,pn532-i2c" or "nxp,pn533-i2c".
 - clock-frequency: I²C work frequency.
 - reg: address on the bus
-- interrupt-parent: phandle for the interrupt gpio controller
 - interrupts: GPIO interrupt to which the chip is connected
 
 Optional SoC Specific Properties:

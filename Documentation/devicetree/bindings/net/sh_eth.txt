@@ -35,8 +35,6 @@ Required properties:
 - pinctrl-0: phandle, referring to a default pin configuration node.
 
 Optional properties:
-- interrupt-parent: the phandle for the interrupt controller that services
-		    interrupts for this device.
 - pinctrl-names: pin configuration state name ("default").
 - renesas,no-ether-link: boolean, specify when a board does not provide a proper
 			 Ether LINK signal.

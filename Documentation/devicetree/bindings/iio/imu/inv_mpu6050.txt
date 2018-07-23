@@ -11,7 +11,6 @@ Required properties:
 		"invensense,mpu9255"
 		"invensense,icm20608"
  - reg : the I2C address of the sensor
- - interrupt-parent : should be the phandle for the interrupt controller
  - interrupts: interrupt mapping for IRQ. It should be configured with flags
    IRQ_TYPE_LEVEL_HIGH, IRQ_TYPE_EDGE_RISING, IRQ_TYPE_LEVEL_LOW or
    IRQ_TYPE_EDGE_FALLING.

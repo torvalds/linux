@@ -47,8 +47,6 @@ Required properties:
 - pinctrl-0: phandle, referring to a default pin configuration node.
 
 Optional properties:
-- interrupt-parent: the phandle for the interrupt controller that services
-		    interrupts for this device.
 - interrupt-names: A list of interrupt names.
 		   For the R-Car Gen 3 SoCs this property is mandatory;
 		   it should include one entry per channel, named "ch%u",

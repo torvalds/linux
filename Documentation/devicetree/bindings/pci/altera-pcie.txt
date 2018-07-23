@@ -6,7 +6,6 @@ Required properties:
 - reg-names:	must include the following entries:
 		"Txs": TX slave port region
 		"Cra": Control register access region
-- interrupt-parent:	interrupt source phandle.
 - interrupts:	specifies the interrupt source of the parent interrupt
 		controller.  The format of the interrupt specifier depends
 		on the parent interrupt controller.

@@ -11,7 +11,6 @@ Required properties:
 			  registers map
 - interrupts		: property with a value describing the interrupt
 			  number
-- interrupt-parent	: The parent interrupt controller
 - cpdma_channels 	: Specifies number of channels in CPDMA
 - ale_entries		: Specifies No of entries ALE can hold
 - bd_ram_size		: Specifies internal descriptor RAM size

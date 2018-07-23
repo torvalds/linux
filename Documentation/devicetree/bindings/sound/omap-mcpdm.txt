@@ -6,7 +6,6 @@ Required properties:
        <MPU access base address, size>,
        <L3 interconnect address, size>;
 - interrupts: Interrupt number for McPDM
-- interrupt-parent: The parent interrupt controller
 - ti,hwmods: Name of the hwmod associated to the McPDM
 
 Example:

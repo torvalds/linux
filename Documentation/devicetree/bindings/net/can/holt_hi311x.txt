@@ -5,7 +5,6 @@ Required properties:
    - "holt,hi3110" for HI-3110
  - reg: SPI chip select.
  - clocks: The clock feeding the CAN controller.
- - interrupt-parent: The parent interrupt controller.
  - interrupts: Should contain IRQ line for the CAN controller.
 
 Optional properties:

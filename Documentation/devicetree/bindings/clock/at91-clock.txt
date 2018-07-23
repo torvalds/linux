@@ -180,7 +180,6 @@ For example:
 	};
 
 Required properties for main clock internal RC oscillator:
-- interrupt-parent : must reference the PMC node.
 - interrupts : shall be set to "<0>".
 - clock-frequency : define the internal RC oscillator frequency.
 
@@ -197,7 +196,6 @@ For example:
 	};
 
 Required properties for main clock oscillator:
-- interrupt-parent : must reference the PMC node.
 - interrupts : shall be set to "<0>".
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : shall encode the main osc source clk sources (see atmel datasheet).
@@ -218,7 +216,6 @@ For example:
 	};
 
 Required properties for main clock:
-- interrupt-parent : must reference the PMC node.
 - interrupts : shall be set to "<0>".
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : shall encode the main clk sources (see atmel datasheet).
@@ -233,7 +230,6 @@ For example:
 	};
 
 Required properties for master clock:
-- interrupt-parent : must reference the PMC node.
 - interrupts : shall be set to "<3>".
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : shall be the master clock sources (see atmel datasheet) phandles.
@@ -292,7 +288,6 @@ For example:
 
 
 Required properties for pll clocks:
-- interrupt-parent : must reference the PMC node.
 - interrupts : shall be set to "<1>".
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : shall be the main clock phandle.
@@ -348,7 +343,6 @@ For example:
 	};
 
 Required properties for programmable clocks:
-- interrupt-parent : must reference the PMC node.
 - #size-cells : shall be 0 (reg is used to encode clk id).
 - #address-cells : shall be 1 (reg is used to encode clk id).
 - clocks : shall be the programmable clock source phandles.
@@ -451,7 +445,6 @@ For example:
 
 
 Required properties for utmi clock:
-- interrupt-parent : must reference the PMC node.
 - interrupts : shall be set to "<AT91_PMC_LOCKU IRQ_TYPE_LEVEL_HIGH>".
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : shall be the main clock source phandle.

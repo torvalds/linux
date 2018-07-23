@@ -26,7 +26,6 @@ Optional properties:
   - interrupt-controller : These devices contain interrupt controllers
     and may provide interrupt services to other devices if they have an
     interrupt line connected.
-  - interrupt-parent : The parent interrupt controller.
   - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
     The first cell is the IRQ number.
     The second cell is the flags, encoded as the trigger masks from

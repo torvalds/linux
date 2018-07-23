@@ -19,7 +19,6 @@ Required Properties:
 
   - reg: the memory-mapped I/O registers base address and length
 
-  - interrupt-parent: phandle of the parent interrupt controller.
   - interrupts: Interrupt specifiers for the DU interrupts.
 
   - clocks: A list of phandles + clock-specifier pairs, one for each entry in

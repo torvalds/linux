@@ -4,8 +4,6 @@ Required properties:
 - compatible:				it should contain one of the following:
 					"richtek,rt9455".
 - reg:					integer, i2c address of the device.
-- interrupt-parent:			the phandle for the interrupt controller that
-					services interrupts for this device.
 - interrupts:				interrupt mapping for GPIO IRQ, it should be
 					configured with IRQ_TYPE_LEVEL_LOW flag.
 - richtek,output-charge-current:	integer, output current from the charger to the

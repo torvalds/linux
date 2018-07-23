@@ -9,7 +9,6 @@ Required properties:
  - spi-max-frequency : set maximum clock frequency (only for SPI)
 
 Optional properties:
- - interrupt-parent : should be the phandle of the interrupt controller
  - interrupts : interrupt mapping for IRQ, must be IRQ_TYPE_LEVEL_LOW
  - interrupt-names : set to "INT1" if INT1 pin should be used as interrupt
    input, set to "INT2" if INT2 pin should be used instead

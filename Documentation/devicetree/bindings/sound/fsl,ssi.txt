@@ -18,8 +18,6 @@ Required properties:
                     encoded based on the information in section 2)
                     depending on the type of interrupt controller you
                     have.
-- interrupt-parent: The phandle for the interrupt controller that
-                    services interrupts for this device.
 - fsl,fifo-depth:   The number of elements in the transmit and receive FIFOs.
                     This number is the maximum allowed value for SFCSR[TFWM0].
  - clocks:          "ipg" - Required clock for the SSI unit
