@@ -360,7 +360,7 @@ smb2_plain_req_init(__le16 smb2_command, struct cifs_tcon *tcon,
 		       total_len);
 
 	if (tcon != NULL) {
-#ifdef CONFIG_CIFS_STATS2
+#ifdef CONFIG_CIFS_STATS
 		uint16_t com_code = le16_to_cpu(smb2_command);
 		cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_sent[com_code]);
 #endif
