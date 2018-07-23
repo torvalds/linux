@@ -1296,29 +1296,9 @@ static int fl_dump_key_flags(struct sk_buff *skb, u32 flags_key, u32 flags_mask)
 	return nla_put(skb, TCA_FLOWER_KEY_FLAGS_MASK, 4, &_mask);
 }
 
-static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
-		   struct sk_buff *skb, struct tcmsg *t)
+static int fl_dump_key(struct sk_buff *skb, struct net *net,
+		       struct fl_flow_key *key, struct fl_flow_key *mask)
 {
-	struct cls_fl_filter *f = fh;
-	struct nlattr *nest;
-	struct fl_flow_key *key, *mask;
-
-	if (!f)
-		return skb->len;
-
-	t->tcm_handle = f->handle;
-
-	nest = nla_nest_start(skb, TCA_OPTIONS);
-	if (!nest)
-		goto nla_put_failure;
-
-	if (f->res.classid &&
-	    nla_put_u32(skb, TCA_FLOWER_CLASSID, f->res.classid))
-		goto nla_put_failure;
-
-	key = &f->key;
-	mask = &f->mask->key;
-
 	if (mask->indev_ifindex) {
 		struct net_device *dev;
 
@@ -1326,9 +1306,6 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		if (dev && nla_put_string(skb, TCA_FLOWER_INDEV, dev->name))
 			goto nla_put_failure;
 	}
-
-	if (!tc_skip_hw(f->flags))
-		fl_hw_update_stats(tp, f);
 
 	if (fl_dump_key_val(skb, key->eth.dst, TCA_FLOWER_KEY_ETH_DST,
 			    mask->eth.dst, TCA_FLOWER_KEY_ETH_DST_MASK,
@@ -1504,6 +1481,41 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	if (fl_dump_key_flags(skb, key->control.flags, mask->control.flags))
 		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
+		   struct sk_buff *skb, struct tcmsg *t)
+{
+	struct cls_fl_filter *f = fh;
+	struct nlattr *nest;
+	struct fl_flow_key *key, *mask;
+
+	if (!f)
+		return skb->len;
+
+	t->tcm_handle = f->handle;
+
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (!nest)
+		goto nla_put_failure;
+
+	if (f->res.classid &&
+	    nla_put_u32(skb, TCA_FLOWER_CLASSID, f->res.classid))
+		goto nla_put_failure;
+
+	key = &f->key;
+	mask = &f->mask->key;
+
+	if (fl_dump_key(skb, net, key, mask))
+		goto nla_put_failure;
+
+	if (!tc_skip_hw(f->flags))
+		fl_hw_update_stats(tp, f);
 
 	if (f->flags && nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags))
 		goto nla_put_failure;
