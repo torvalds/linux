@@ -112,17 +112,6 @@ typedef union _TSPEC_BODY {
 	} f;	// Field
 } TSPEC_BODY, *PTSPEC_BODY;
 
-//
-// ACM implementation method.
-// Annie, 2005-12-13.
-//
-typedef	enum _ACM_METHOD {
-	eAcmWay0_SwAndHw		= 0,		// By SW and HW.
-	eAcmWay1_HW			= 1,		// By HW.
-	eAcmWay2_SW			= 2,		// By SW.
-} ACM_METHOD, *PACM_METHOD;
-
-
 typedef struct _ACM {
 //	u8		RegEnableACM;
 	u64		UsedTime;
