@@ -637,11 +637,9 @@ static int parse_nla_srh(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	if (!seg6_validate_srh(srh, len))
 		return -EINVAL;
 
-	slwt->srh = kmalloc(len, GFP_KERNEL);
+	slwt->srh = kmemdup(srh, len, GFP_KERNEL);
 	if (!slwt->srh)
 		return -ENOMEM;
-
-	memcpy(slwt->srh, srh, len);
 
 	slwt->headroom += len;
 
