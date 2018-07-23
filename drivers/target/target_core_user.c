@@ -2581,6 +2581,11 @@ static void find_free_blocks(void)
 	list_for_each_entry(udev, &root_udev, node) {
 		mutex_lock(&udev->cmdr_lock);
 
+		if (!target_dev_configured(&udev->se_dev)) {
+			mutex_unlock(&udev->cmdr_lock);
+			continue;
+		}
+
 		/* Try to complete the finished commands first */
 		tcmu_handle_completions(udev);
 
