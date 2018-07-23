@@ -22,8 +22,8 @@ static inline int smc_tx_prepared_sends(struct smc_connection *conn)
 {
 	union smc_host_cursor sent, prep;
 
-	smc_curs_write(&sent, smc_curs_read(&conn->tx_curs_sent, conn), conn);
-	smc_curs_write(&prep, smc_curs_read(&conn->tx_curs_prep, conn), conn);
+	smc_curs_copy(&sent, &conn->tx_curs_sent, conn);
+	smc_curs_copy(&prep, &conn->tx_curs_prep, conn);
 	return smc_curs_diff(conn->sndbuf_desc->len, &sent, &prep);
 }
 

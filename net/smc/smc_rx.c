@@ -82,8 +82,7 @@ static int smc_rx_update_consumer(struct smc_sock *smc,
 		}
 	}
 
-	smc_curs_write(&conn->local_tx_ctrl.cons, smc_curs_read(&cons, conn),
-		       conn);
+	smc_curs_copy(&conn->local_tx_ctrl.cons, &cons, conn);
 
 	/* send consumer cursor update if required */
 	/* similar to advertising new TCP rcv_wnd if required */
@@ -97,8 +96,7 @@ static void smc_rx_update_cons(struct smc_sock *smc, size_t len)
 	struct smc_connection *conn = &smc->conn;
 	union smc_host_cursor cons;
 
-	smc_curs_write(&cons, smc_curs_read(&conn->local_tx_ctrl.cons, conn),
-		       conn);
+	smc_curs_copy(&cons, &conn->local_tx_ctrl.cons, conn);
 	smc_rx_update_consumer(smc, cons, len);
 }
 
@@ -245,10 +243,7 @@ static int smc_rx_recv_urg(struct smc_sock *smc, struct msghdr *msg, int len,
 			if (!(flags & MSG_TRUNC))
 				rc = memcpy_to_msg(msg, &conn->urg_rx_byte, 1);
 			len = 1;
-			smc_curs_write(&cons,
-				       smc_curs_read(&conn->local_tx_ctrl.cons,
-						     conn),
-				       conn);
+			smc_curs_copy(&cons, &conn->local_tx_ctrl.cons, conn);
 			if (smc_curs_diff(conn->rmb_desc->len, &cons,
 					  &conn->urg_curs) > 1)
 				conn->urg_rx_skip_pend = true;
@@ -370,9 +365,7 @@ copy:
 			continue;
 		}
 
-		smc_curs_write(&cons,
-			       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
-			       conn);
+		smc_curs_copy(&cons, &conn->local_tx_ctrl.cons, conn);
 		/* subsequent splice() calls pick up where previous left */
 		if (splbytes)
 			smc_curs_add(conn->rmb_desc->len, &cons, splbytes);
