@@ -131,6 +131,26 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
 #define kern_hyp_va(v) 	((typeof(v))(__kern_hyp_va((unsigned long)(v))))
 
 /*
+ * Obtain the PC-relative address of a kernel symbol
+ * s: symbol
+ *
+ * The goal of this macro is to return a symbol's address based on a
+ * PC-relative computation, as opposed to a loading the VA from a
+ * constant pool or something similar. This works well for HYP, as an
+ * absolute VA is guaranteed to be wrong. Only use this if trying to
+ * obtain the address of a symbol (i.e. not something you obtained by
+ * following a pointer).
+ */
+#define hyp_symbol_addr(s)						\
+	({								\
+		typeof(s) *addr;					\
+		asm("adrp	%0, %1\n"				\
+		    "add	%0, %0, :lo12:%1\n"			\
+		    : "=r" (addr) : "S" (&s));				\
+		addr;							\
+	})
+
+/*
  * We currently only support a 40bit IPA.
  */
 #define KVM_PHYS_SHIFT	(40)
@@ -358,6 +378,30 @@ static inline void *kvm_get_hyp_vector(void)
 }
 
 static inline int kvm_map_vectors(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_ARM64_SSBD
+DECLARE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
+
+static inline int hyp_map_aux_data(void)
+{
+	int cpu, err;
+
+	for_each_possible_cpu(cpu) {
+		u64 *ptr;
+
+		ptr = per_cpu_ptr(&arm64_ssbd_callback_required, cpu);
+		err = create_hyp_mappings(ptr, ptr + 1, PAGE_HYP);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+#else
+static inline int hyp_map_aux_data(void)
 {
 	return 0;
 }

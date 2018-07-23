@@ -912,8 +912,8 @@ static int mlx5_devlink_eswitch_check(struct devlink *devlink)
 	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
 		return -EOPNOTSUPP;
 
-	if (!MLX5_CAP_GEN(dev, vport_group_manager))
-		return -EOPNOTSUPP;
+	if(!MLX5_ESWITCH_MANAGER(dev))
+		return -EPERM;
 
 	if (dev->priv.eswitch->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;

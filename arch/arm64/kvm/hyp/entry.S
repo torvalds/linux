@@ -62,9 +62,6 @@ ENTRY(__guest_enter)
 	// Store the host regs
 	save_callee_saved_regs x1
 
-	// Store the host_ctxt for use at exit time
-	str	x1, [sp, #-16]!
-
 	add	x18, x0, #VCPU_CONTEXT
 
 	// Restore guest regs x0-x17
@@ -118,8 +115,7 @@ ENTRY(__guest_exit)
 	// Store the guest regs x19-x29, lr
 	save_callee_saved_regs x1
 
-	// Restore the host_ctxt from the stack
-	ldr	x2, [sp], #16
+	get_host_ctxt	x2, x3
 
 	// Now restore the host regs
 	restore_callee_saved_regs x2
@@ -159,6 +155,10 @@ abort_guest_exit_end:
 ENDPROC(__guest_exit)
 
 ENTRY(__fpsimd_guest_restore)
+	// x0: esr
+	// x1: vcpu
+	// x2-x29,lr: vcpu regs
+	// vcpu x0-x1 on the stack
 	stp	x2, x3, [sp, #-16]!
 	stp	x4, lr, [sp, #-16]!
 
@@ -173,7 +173,7 @@ alternative_else
 alternative_endif
 	isb
 
-	mrs	x3, tpidr_el2
+	mov	x3, x1
 
 	ldr	x0, [x3, #VCPU_HOST_CONTEXT]
 	kern_hyp_va x0

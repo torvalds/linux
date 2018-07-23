@@ -57,13 +57,8 @@ ENDPROC(__vhe_hyp_call)
 el1_sync:				// Guest trapped into EL2
 	stp	x0, x1, [sp, #-16]!
 
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	x1, esr_el2
-alternative_else
-	mrs	x1, esr_el1
-alternative_endif
-	lsr	x0, x1, #ESR_ELx_EC_SHIFT
-
+	mrs	x0, esr_el2
+	lsr	x0, x0, #ESR_ELx_EC_SHIFT
 	cmp	x0, #ESR_ELx_EC_HVC64
 	ccmp	x0, #ESR_ELx_EC_HVC32, #4, ne
 	b.ne	el1_trap
@@ -111,14 +106,55 @@ el1_hvc_guest:
 	 */
 	ldr	x1, [sp]				// Guest's x0
 	eor	w1, w1, #ARM_SMCCC_ARCH_WORKAROUND_1
+	cbz	w1, wa_epilogue
+
+	/* ARM_SMCCC_ARCH_WORKAROUND_2 handling */
+	eor	w1, w1, #(ARM_SMCCC_ARCH_WORKAROUND_1 ^ \
+			  ARM_SMCCC_ARCH_WORKAROUND_2)
 	cbnz	w1, el1_trap
-	mov	x0, x1
+
+#ifdef CONFIG_ARM64_SSBD
+alternative_cb	arm64_enable_wa2_handling
+	b	wa2_end
+alternative_cb_end
+	get_vcpu_ptr	x2, x0
+	ldr	x0, [x2, #VCPU_WORKAROUND_FLAGS]
+
+	// Sanitize the argument and update the guest flags
+	ldr	x1, [sp, #8]			// Guest's x1
+	clz	w1, w1				// Murphy's device:
+	lsr	w1, w1, #5			// w1 = !!w1 without using
+	eor	w1, w1, #1			// the flags...
+	bfi	x0, x1, #VCPU_WORKAROUND_2_FLAG_SHIFT, #1
+	str	x0, [x2, #VCPU_WORKAROUND_FLAGS]
+
+	/* Check that we actually need to perform the call */
+	hyp_ldr_this_cpu x0, arm64_ssbd_callback_required, x2
+	cbz	x0, wa2_end
+
+	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_2
+	smc	#0
+
+	/* Don't leak data from the SMC call */
+	mov	x3, xzr
+wa2_end:
+	mov	x2, xzr
+	mov	x1, xzr
+#endif
+
+wa_epilogue:
+	mov	x0, xzr
 	add	sp, sp, #16
 	eret
 
 el1_trap:
+	get_vcpu_ptr	x1, x0
+
+	mrs		x0, esr_el2
+	lsr		x0, x0, #ESR_ELx_EC_SHIFT
 	/*
 	 * x0: ESR_EC
+	 * x1: vcpu pointer
 	 */
 
 	/*
@@ -132,19 +168,18 @@ alternative_if_not ARM64_HAS_NO_FPSIMD
 	b.eq	__fpsimd_guest_restore
 alternative_else_nop_endif
 
-	mrs	x1, tpidr_el2
 	mov	x0, #ARM_EXCEPTION_TRAP
 	b	__guest_exit
 
 el1_irq:
 	stp     x0, x1, [sp, #-16]!
-	mrs	x1, tpidr_el2
+	get_vcpu_ptr	x1, x0
 	mov	x0, #ARM_EXCEPTION_IRQ
 	b	__guest_exit
 
 el1_error:
 	stp     x0, x1, [sp, #-16]!
-	mrs	x1, tpidr_el2
+	get_vcpu_ptr	x1, x0
 	mov	x0, #ARM_EXCEPTION_EL1_SERROR
 	b	__guest_exit
 
@@ -178,6 +213,11 @@ ENTRY(__hyp_do_panic)
 	msr	elr_el2, lr
 	eret
 ENDPROC(__hyp_do_panic)
+
+ENTRY(__hyp_panic)
+	get_host_ctxt x0, x1
+	b	hyp_panic
+ENDPROC(__hyp_panic)
 
 .macro invalid_vector	label, target = __hyp_panic
 	.align	2

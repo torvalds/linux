@@ -695,7 +695,8 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	if (ep->ops && ep->ops->get_clk_resources) {
+	if (ep->ops && ep->ops->get_clk_resources &&
+			ep->ops->init_clk_resources) {
 		ret = ep->ops->get_clk_resources(ep);
 		if (ret)
 			return ret;

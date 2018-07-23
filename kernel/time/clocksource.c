@@ -322,6 +322,8 @@ static void clocksource_enqueue_watchdog(struct clocksource *cs)
 {
 	unsigned long flags;
 
+	INIT_LIST_HEAD(&cs->wd_list);
+
 	spin_lock_irqsave(&watchdog_lock, flags);
 	if (cs->flags & CLOCK_SOURCE_MUST_VERIFY) {
 		/* cs is a clocksource to be watched. */

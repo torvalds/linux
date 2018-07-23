@@ -1535,7 +1535,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	if (!ESW_ALLOWED(esw))
 		return 0;
 
-	if (!MLX5_CAP_GEN(esw->dev, eswitch_flow_table) ||
+	if (!MLX5_ESWITCH_MANAGER(esw->dev) ||
 	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ft_support)) {
 		esw_warn(esw->dev, "E-Switch FDB is not supported, aborting ...\n");
 		return -EOPNOTSUPP;
