@@ -756,6 +756,59 @@ static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
 	rcrtc->vblank_enable = false;
 }
 
+static int rcar_du_crtc_parse_crc_source(struct rcar_du_crtc *rcrtc,
+					 const char *source_name,
+					 enum vsp1_du_crc_source *source)
+{
+	unsigned int index;
+	int ret;
+
+	/*
+	 * Parse the source name. Supported values are "plane%u" to compute the
+	 * CRC on an input plane (%u is the plane ID), and "auto" to compute the
+	 * CRC on the composer (VSP) output.
+	 */
+
+	if (!source_name) {
+		*source = VSP1_DU_CRC_NONE;
+		return 0;
+	} else if (!strcmp(source_name, "auto")) {
+		*source = VSP1_DU_CRC_OUTPUT;
+		return 0;
+	} else if (strstarts(source_name, "plane")) {
+		unsigned int i;
+
+		*source = VSP1_DU_CRC_PLANE;
+
+		ret = kstrtouint(source_name + strlen("plane"), 10, &index);
+		if (ret < 0)
+			return ret;
+
+		for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
+			if (index == rcrtc->vsp->planes[i].plane.base.id)
+				return i;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int rcar_du_crtc_verify_crc_source(struct drm_crtc *crtc,
+					  const char *source_name,
+					  size_t *values_cnt)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	enum vsp1_du_crc_source source;
+
+	if (rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source) < 0) {
+		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		return -EINVAL;
+	}
+
+	*values_cnt = 1;
+	return 0;
+}
+
 static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
 				       const char *source_name,
 				       size_t *values_cnt)
@@ -765,39 +818,14 @@ static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state;
 	struct drm_atomic_state *state;
 	enum vsp1_du_crc_source source;
-	unsigned int index = 0;
-	unsigned int i;
+	unsigned int index;
 	int ret;
 
-	/*
-	 * Parse the source name. Supported values are "plane%u" to compute the
-	 * CRC on an input plane (%u is the plane ID), and "auto" to compute the
-	 * CRC on the composer (VSP) output.
-	 */
-	if (!source_name) {
-		source = VSP1_DU_CRC_NONE;
-	} else if (!strcmp(source_name, "auto")) {
-		source = VSP1_DU_CRC_OUTPUT;
-	} else if (strstarts(source_name, "plane")) {
-		source = VSP1_DU_CRC_PLANE;
+	ret = rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source);
+	if (ret < 0)
+		return ret;
 
-		ret = kstrtouint(source_name + strlen("plane"), 10, &index);
-		if (ret < 0)
-			return ret;
-
-		for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
-			if (index == rcrtc->vsp->planes[i].plane.base.id) {
-				index = i;
-				break;
-			}
-		}
-
-		if (i >= rcrtc->vsp->num_planes)
-			return -EINVAL;
-	} else {
-		return -EINVAL;
-	}
-
+	index = ret;
 	*values_cnt = 1;
 
 	/* Perform an atomic commit to set the CRC source. */
@@ -861,6 +889,7 @@ static const struct drm_crtc_funcs crtc_funcs_gen3 = {
 	.enable_vblank = rcar_du_crtc_enable_vblank,
 	.disable_vblank = rcar_du_crtc_disable_vblank,
 	.set_crc_source = rcar_du_crtc_set_crc_source,
+	.verify_crc_source = rcar_du_crtc_verify_crc_source,
 };
 
 /* -----------------------------------------------------------------------------
