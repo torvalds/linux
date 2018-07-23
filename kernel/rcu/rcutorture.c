@@ -1400,6 +1400,8 @@ static int
 rcu_torture_reader(void *arg)
 {
 	unsigned long lastsleep = jiffies;
+	long myid = (long)arg;
+	int mynumonline = myid;
 	DEFINE_TORTURE_RANDOM(rand);
 	struct timer_list t;
 
@@ -1419,6 +1421,8 @@ rcu_torture_reader(void *arg)
 			schedule_timeout_interruptible(1);
 			lastsleep = jiffies + 10;
 		}
+		while (num_online_cpus() < mynumonline && !torture_must_stop())
+			schedule_timeout_interruptible(HZ / 5);
 		stutter_wait("rcu_torture_reader");
 	} while (!torture_must_stop());
 	if (irqreader && cur_ops->irq_capable) {
@@ -2063,7 +2067,7 @@ static void rcu_test_debug_objects(void)
 static int __init
 rcu_torture_init(void)
 {
-	int i;
+	long i;
 	int cpu;
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
@@ -2169,7 +2173,7 @@ rcu_torture_init(void)
 		goto unwind;
 	}
 	for (i = 0; i < nrealreaders; i++) {
-		firsterr = torture_create_kthread(rcu_torture_reader, NULL,
+		firsterr = torture_create_kthread(rcu_torture_reader, (void *)i,
 						  reader_tasks[i]);
 		if (firsterr)
 			goto unwind;
