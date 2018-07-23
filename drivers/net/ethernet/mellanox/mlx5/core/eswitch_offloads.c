@@ -70,9 +70,9 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		flow_act.action &= ~(MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH |
 				     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
 	else if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
-		flow_act.vlan.ethtype = ntohs(attr->vlan_proto);
-		flow_act.vlan.vid = attr->vlan_vid;
-		flow_act.vlan.prio = attr->vlan_prio;
+		flow_act.vlan[0].ethtype = ntohs(attr->vlan_proto);
+		flow_act.vlan[0].vid = attr->vlan_vid;
+		flow_act.vlan[0].prio = attr->vlan_prio;
 	}
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
