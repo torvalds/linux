@@ -87,6 +87,7 @@ struct virtnet_sq_stats {
 struct virtnet_rq_stat_items {
 	u64 packets;
 	u64 bytes;
+	u64 drops;
 };
 
 struct virtnet_rq_stats {
@@ -109,6 +110,7 @@ static const struct virtnet_stat_desc virtnet_sq_stats_desc[] = {
 static const struct virtnet_stat_desc virtnet_rq_stats_desc[] = {
 	{ "packets",	VIRTNET_RQ_STAT(packets) },
 	{ "bytes",	VIRTNET_RQ_STAT(bytes) },
+	{ "drops",	VIRTNET_RQ_STAT(drops) },
 };
 
 #define VIRTNET_SQ_STATS_LEN	ARRAY_SIZE(virtnet_sq_stats_desc)
@@ -705,7 +707,7 @@ err:
 
 err_xdp:
 	rcu_read_unlock();
-	dev->stats.rx_dropped++;
+	stats->rx.drops++;
 	put_page(page);
 xdp_xmit:
 	return NULL;
@@ -728,7 +730,7 @@ static struct sk_buff *receive_big(struct net_device *dev,
 	return skb;
 
 err:
-	dev->stats.rx_dropped++;
+	stats->rx.drops++;
 	give_pages(rq, page);
 	return NULL;
 }
@@ -952,7 +954,7 @@ err_skb:
 		put_page(page);
 	}
 err_buf:
-	dev->stats.rx_dropped++;
+	stats->rx.drops++;
 	dev_kfree_skb(head_skb);
 xdp_xmit:
 	return NULL;
@@ -1632,7 +1634,7 @@ static void virtnet_stats(struct net_device *dev,
 	int i;
 
 	for (i = 0; i < vi->max_queue_pairs; i++) {
-		u64 tpackets, tbytes, rpackets, rbytes;
+		u64 tpackets, tbytes, rpackets, rbytes, rdrops;
 		struct receive_queue *rq = &vi->rq[i];
 		struct send_queue *sq = &vi->sq[i];
 
@@ -1646,17 +1648,18 @@ static void virtnet_stats(struct net_device *dev,
 			start = u64_stats_fetch_begin_irq(&rq->stats.syncp);
 			rpackets = rq->stats.items.packets;
 			rbytes   = rq->stats.items.bytes;
+			rdrops   = rq->stats.items.drops;
 		} while (u64_stats_fetch_retry_irq(&rq->stats.syncp, start));
 
 		tot->rx_packets += rpackets;
 		tot->tx_packets += tpackets;
 		tot->rx_bytes   += rbytes;
 		tot->tx_bytes   += tbytes;
+		tot->rx_dropped += rdrops;
 	}
 
 	tot->tx_dropped = dev->stats.tx_dropped;
 	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
-	tot->rx_dropped = dev->stats.rx_dropped;
 	tot->rx_length_errors = dev->stats.rx_length_errors;
 	tot->rx_frame_errors = dev->stats.rx_frame_errors;
 }
