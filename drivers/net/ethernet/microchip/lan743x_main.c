@@ -12,6 +12,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/iopoll.h>
 #include "lan743x_main.h"
+#include "lan743x_ethtool.h"
 
 static void lan743x_pci_cleanup(struct lan743x_adapter *adapter)
 {
@@ -2689,6 +2690,7 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 		goto cleanup_hardware;
 
 	adapter->netdev->netdev_ops = &lan743x_netdev_ops;
+	adapter->netdev->ethtool_ops = &lan743x_ethtool_ops;
 	adapter->netdev->features = NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
 	adapter->netdev->hw_features = adapter->netdev->features;
 
