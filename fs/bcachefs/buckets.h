@@ -29,21 +29,32 @@
 	_old;							\
 })
 
-static inline struct bucket_array *bucket_array(struct bch_dev *ca)
+static inline struct bucket_array *__bucket_array(struct bch_dev *ca,
+						  bool gc)
 {
-	return rcu_dereference_check(ca->buckets,
+	return rcu_dereference_check(ca->buckets[gc],
 				     !ca->fs ||
 				     percpu_rwsem_is_held(&ca->fs->usage_lock) ||
 				     lockdep_is_held(&ca->fs->gc_lock) ||
 				     lockdep_is_held(&ca->bucket_lock));
 }
 
-static inline struct bucket *bucket(struct bch_dev *ca, size_t b)
+static inline struct bucket_array *bucket_array(struct bch_dev *ca)
 {
-	struct bucket_array *buckets = bucket_array(ca);
+	return __bucket_array(ca, false);
+}
+
+static inline struct bucket *__bucket(struct bch_dev *ca, size_t b, bool gc)
+{
+	struct bucket_array *buckets = __bucket_array(ca, gc);
 
 	BUG_ON(b < buckets->first_bucket || b >= buckets->nbuckets);
 	return buckets->b + b;
+}
+
+static inline struct bucket *bucket(struct bch_dev *ca, size_t b)
+{
+	return __bucket(ca, b, false);
 }
 
 static inline void bucket_io_clock_reset(struct bch_fs *c, struct bch_dev *ca,
@@ -129,7 +140,7 @@ static inline bool bucket_unused(struct bucket_mark mark)
 
 /* Device usage: */
 
-struct bch_dev_usage __bch2_dev_usage_read(struct bch_dev *);
+struct bch_dev_usage __bch2_dev_usage_read(struct bch_dev *, bool);
 struct bch_dev_usage bch2_dev_usage_read(struct bch_fs *, struct bch_dev *);
 
 static inline u64 __dev_buckets_available(struct bch_dev *ca,
@@ -168,7 +179,7 @@ static inline u64 dev_buckets_free(struct bch_fs *c, struct bch_dev *ca)
 
 /* Filesystem usage: */
 
-struct bch_fs_usage __bch2_fs_usage_read(struct bch_fs *);
+struct bch_fs_usage __bch2_fs_usage_read(struct bch_fs *, bool);
 struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *);
 void bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
 			 struct disk_reservation *, struct gc_pos);
@@ -207,16 +218,12 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			       struct gc_pos, unsigned);
 
 #define BCH_BUCKET_MARK_NOATOMIC		(1 << 0)
-#define BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE	(1 << 1)
-#define BCH_BUCKET_MARK_GC_WILL_VISIT		(1 << 2)
-#define BCH_BUCKET_MARK_GC_LOCK_HELD		(1 << 3)
+#define BCH_BUCKET_MARK_GC			(1 << 1)
 
 void bch2_mark_key(struct bch_fs *, enum bkey_type, struct bkey_s_c,
 		   bool, s64, struct gc_pos,
 		   struct bch_fs_usage *, u64, unsigned);
 void bch2_mark_update(struct btree_insert *, struct btree_insert_entry *);
-
-void bch2_recalc_sectors_available(struct bch_fs *);
 
 void __bch2_disk_reservation_put(struct bch_fs *, struct disk_reservation *);
 

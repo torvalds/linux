@@ -347,7 +347,6 @@ enum gc_phase {
 
 	GC_PHASE_PENDING_DELETE,
 	GC_PHASE_ALLOC,
-	GC_PHASE_DONE
 };
 
 struct gc_pos {
@@ -392,15 +391,14 @@ struct bch_dev {
 	 * gc_lock, for device resize - holding any is sufficient for access:
 	 * Or rcu_read_lock(), but only for ptr_stale():
 	 */
-	struct bucket_array __rcu *buckets;
+	struct bucket_array __rcu *buckets[2];
 	unsigned long		*buckets_dirty;
 	unsigned long		*buckets_written;
 	/* most out of date gen in the btree */
 	u8			*oldest_gens;
 	struct rw_semaphore	bucket_lock;
 
-	struct bch_dev_usage __percpu *usage_percpu;
-	struct bch_dev_usage	usage_cached;
+	struct bch_dev_usage __percpu *usage[2];
 
 	/* Allocator: */
 	struct task_struct __rcu *alloc_thread;
@@ -478,7 +476,6 @@ enum {
 
 	/* errors: */
 	BCH_FS_ERROR,
-	BCH_FS_GC_FAILURE,
 
 	/* misc: */
 	BCH_FS_BDEV_MOUNTED,
@@ -614,8 +611,8 @@ struct bch_fs {
 
 	atomic64_t		sectors_available;
 
-	struct bch_fs_usage __percpu *usage_percpu;
-	struct bch_fs_usage	usage_cached;
+	struct bch_fs_usage __percpu *usage[2];
+
 	struct percpu_rw_semaphore usage_lock;
 
 	struct closure_waitlist	freelist_wait;
@@ -655,9 +652,6 @@ struct bch_fs {
 	 * has been marked by GC.
 	 *
 	 * gc_cur_phase is a superset of btree_ids (BTREE_ID_EXTENTS etc.)
-	 *
-	 * gc_cur_phase == GC_PHASE_DONE indicates that gc is finished/not
-	 * currently running, and gc marks are currently valid
 	 *
 	 * Protected by gc_pos_lock. Only written to by GC thread, so GC thread
 	 * can read without a lock.

@@ -64,8 +64,6 @@ struct bch_dev_usage {
 
 struct bch_fs_usage {
 	/* all fields are in units of 512 byte sectors: */
-	u64			online_reserved;
-	u64			available_cache;
 
 	struct {
 		u64		data[BCH_DATA_NR];
@@ -74,6 +72,10 @@ struct bch_fs_usage {
 	}			replicas[BCH_REPLICAS_MAX];
 
 	u64			buckets[BCH_DATA_NR];
+
+	/* fields starting here aren't touched by gc: */
+	u64			online_reserved;
+	u64			available_cache;
 };
 
 /*

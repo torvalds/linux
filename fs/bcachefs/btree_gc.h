@@ -7,7 +7,7 @@
 enum bkey_type;
 
 void bch2_coalesce(struct bch_fs *);
-void bch2_gc(struct bch_fs *);
+int bch2_gc(struct bch_fs *, struct list_head *, bool);
 void bch2_gc_thread_stop(struct bch_fs *);
 int bch2_gc_thread_start(struct bch_fs *);
 int bch2_initial_gc(struct bch_fs *, struct list_head *);
@@ -105,14 +105,14 @@ static inline struct gc_pos gc_pos_alloc(struct bch_fs *c, struct open_bucket *o
 	};
 }
 
-static inline bool gc_will_visit(struct bch_fs *c, struct gc_pos pos)
+static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)
 {
 	unsigned seq;
 	bool ret;
 
 	do {
 		seq = read_seqcount_begin(&c->gc_pos_lock);
-		ret = gc_pos_cmp(c->gc_pos, pos) < 0;
+		ret = gc_pos_cmp(pos, c->gc_pos) <= 0;
 	} while (read_seqcount_retry(&c->gc_pos_lock, seq));
 
 	return ret;

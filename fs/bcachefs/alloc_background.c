@@ -930,12 +930,6 @@ static int bch2_allocator_thread(void *arg)
 		pr_debug("free_inc now empty");
 
 		do {
-			if (test_bit(BCH_FS_GC_FAILURE, &c->flags)) {
-				up_read(&c->gc_lock);
-				bch_err(ca, "gc failure");
-				goto stop;
-			}
-
 			/*
 			 * Find some buckets that we can invalidate, either
 			 * they're completely unused, or only contain clean data
@@ -1293,9 +1287,6 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 	bool invalidating_data = false;
 	int ret = 0;
 
-	if (test_bit(BCH_FS_GC_FAILURE, &c->flags))
-		return -1;
-
 	if (test_alloc_startup(c)) {
 		invalidating_data = true;
 		goto not_enough;
@@ -1321,9 +1312,7 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 				continue;
 
 			bch2_mark_alloc_bucket(c, ca, bu, true,
-					gc_pos_alloc(c, NULL),
-					BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-					BCH_BUCKET_MARK_GC_LOCK_HELD);
+					gc_pos_alloc(c, NULL), 0);
 
 			fifo_push(&ca->free_inc, bu);
 

@@ -478,7 +478,7 @@ STORE(__bch2_fs)
 		bch2_coalesce(c);
 
 	if (attr == &sysfs_trigger_gc)
-		bch2_gc(c);
+		bch2_gc(c, NULL, false);
 
 	if (attr == &sysfs_prune_cache) {
 		struct shrink_control sc;

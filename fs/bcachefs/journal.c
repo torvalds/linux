@@ -782,9 +782,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		bch2_mark_metadata_bucket(c, ca, bucket, BCH_DATA_JOURNAL,
 				ca->mi.bucket_size,
 				gc_phase(GC_PHASE_SB),
-				new_fs
-				? BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE
-				: 0);
+				0);
 
 		if (c) {
 			spin_unlock(&c->journal.lock);

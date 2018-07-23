@@ -260,8 +260,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum bkey_type type,
 {
 	struct gc_pos pos = { 0 };
 	unsigned flags =
-		BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-		BCH_BUCKET_MARK_GC_LOCK_HELD|
+		BCH_BUCKET_MARK_GC|
 		(initial ? BCH_BUCKET_MARK_NOATOMIC : 0);
 	int ret = 0;
 
@@ -484,9 +483,6 @@ void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
 				      BCH_DATA_SB, flags);
 	}
 
-	if (c)
-		spin_lock(&c->journal.lock);
-
 	for (i = 0; i < ca->journal.nr; i++) {
 		b = ca->journal.buckets[i];
 		bch2_mark_metadata_bucket(c, ca, b, BCH_DATA_JOURNAL,
@@ -495,7 +491,6 @@ void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
 	}
 
 	if (c) {
-		spin_unlock(&c->journal.lock);
 		percpu_up_read(&c->usage_lock);
 	} else {
 		preempt_enable();
@@ -511,9 +506,7 @@ static void bch2_mark_superblocks(struct bch_fs *c)
 	gc_pos_set(c, gc_phase(GC_PHASE_SB));
 
 	for_each_online_member(ca, c, i)
-		bch2_mark_dev_superblock(c, ca,
-					 BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-					 BCH_BUCKET_MARK_GC_LOCK_HELD);
+		bch2_mark_dev_superblock(c, ca, BCH_BUCKET_MARK_GC);
 	mutex_unlock(&c->sb_lock);
 }
 
@@ -521,7 +514,6 @@ static void bch2_mark_superblocks(struct bch_fs *c)
 static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 {
 	struct gc_pos pos = { 0 };
-	struct bch_fs_usage stats = { 0 };
 	struct btree_update *as;
 	struct pending_btree_node_free *d;
 
@@ -533,13 +525,8 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 			bch2_mark_key(c, BKEY_TYPE_BTREE,
 				      bkey_i_to_s_c(&d->key),
 				      true, 0,
-				      pos, &stats, 0,
-				      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-				      BCH_BUCKET_MARK_GC_LOCK_HELD);
-	/*
-	 * Don't apply stats - pending deletes aren't tracked in
-	 * bch_alloc_stats:
-	 */
+				      pos, NULL, 0,
+				      BCH_BUCKET_MARK_GC);
 
 	mutex_unlock(&c->btree_interior_update_lock);
 }
@@ -560,8 +547,7 @@ static void bch2_mark_allocator_buckets(struct bch_fs *c)
 		fifo_for_each_entry(i, &ca->free_inc, iter)
 			bch2_mark_alloc_bucket(c, ca, i, true,
 					       gc_pos_alloc(c, NULL),
-					       BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-					       BCH_BUCKET_MARK_GC_LOCK_HELD);
+					       BCH_BUCKET_MARK_GC);
 
 
 
@@ -569,8 +555,7 @@ static void bch2_mark_allocator_buckets(struct bch_fs *c)
 			fifo_for_each_entry(i, &ca->free[j], iter)
 				bch2_mark_alloc_bucket(c, ca, i, true,
 						       gc_pos_alloc(c, NULL),
-						       BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-						       BCH_BUCKET_MARK_GC_LOCK_HELD);
+						       BCH_BUCKET_MARK_GC);
 	}
 
 	spin_unlock(&c->freelist_lock);
@@ -584,8 +569,7 @@ static void bch2_mark_allocator_buckets(struct bch_fs *c)
 			ca = bch_dev_bkey_exists(c, ob->ptr.dev);
 			bch2_mark_alloc_bucket(c, ca, PTR_BUCKET_NR(ca, &ob->ptr), true,
 					       gc_pos_alloc(c, ob),
-					       BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-					       BCH_BUCKET_MARK_GC_LOCK_HELD);
+					       BCH_BUCKET_MARK_GC);
 		}
 		spin_unlock(&ob->lock);
 	}
@@ -593,122 +577,310 @@ static void bch2_mark_allocator_buckets(struct bch_fs *c)
 	percpu_up_read(&c->usage_lock);
 }
 
-static void bch2_gc_start(struct bch_fs *c)
+static void bch2_gc_free(struct bch_fs *c)
 {
 	struct bch_dev *ca;
-	struct bucket_array *buckets;
-	struct bucket_mark new;
 	unsigned i;
-	size_t b;
+
+	for_each_member_device(ca, c, i) {
+		kvpfree(rcu_dereference_protected(ca->buckets[1], 1),
+			sizeof(struct bucket_array) +
+			ca->mi.nbuckets * sizeof(struct bucket));
+		ca->buckets[1] = NULL;
+
+		free_percpu(ca->usage[1]);
+		ca->usage[1] = NULL;
+	}
+
+	free_percpu(c->usage[1]);
+	c->usage[1] = NULL;
+}
+
+static void bch2_gc_done_nocheck(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i;
 	int cpu;
+
+	for_each_member_device(ca, c, i) {
+		struct bucket_array *src = __bucket_array(ca, 1);
+
+		memcpy(__bucket_array(ca, 0), src,
+		       sizeof(struct bucket_array) +
+		       sizeof(struct bucket) * src->nbuckets);
+	};
+
+	for_each_member_device(ca, c, i) {
+		struct bch_dev_usage *p;
+
+		for_each_possible_cpu(cpu) {
+			p = per_cpu_ptr(ca->usage[0], cpu);
+			memset(p, 0, sizeof(*p));
+		}
+
+		preempt_disable();
+		*this_cpu_ptr(ca->usage[0]) = __bch2_dev_usage_read(ca, 1);
+		preempt_enable();
+	}
+
+	{
+		struct bch_fs_usage src = __bch2_fs_usage_read(c, 1);
+		struct bch_fs_usage *p;
+
+		for_each_possible_cpu(cpu) {
+			p = per_cpu_ptr(c->usage[0], cpu);
+			memset(p, 0, offsetof(typeof(*p), online_reserved));
+		}
+
+		preempt_disable();
+		memcpy(this_cpu_ptr(c->usage[0]),
+		       &src,
+		       offsetof(typeof(*p), online_reserved));
+		preempt_enable();
+	}
+
+}
+
+static void bch2_gc_done(struct bch_fs *c, bool initial)
+{
+	struct bch_dev *ca;
+	unsigned i;
+	int cpu;
+
+#define copy_field(_f, _msg, ...)					\
+	if (dst._f != src._f) {						\
+		pr_info(_msg ": got %llu, should be %llu, fixing"	\
+			, ##__VA_ARGS__, dst._f, src._f);		\
+		dst._f = src._f;					\
+	}
+#define copy_bucket_field(_f)						\
+	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
+		pr_info("dev %u bucket %zu has wrong " #_f		\
+			": got %u, should be %u, fixing",		\
+			i, b, dst->b[b].mark._f, src->b[b].mark._f);	\
+		dst->b[b]._mark._f = src->b[b].mark._f;			\
+	}
+#define copy_dev_field(_f, _msg, ...)					\
+	copy_field(_f, "dev %u has wrong " _msg, i, ##__VA_ARGS__)
+#define copy_fs_field(_f, _msg, ...)					\
+	copy_field(_f, "fs has wrong " _msg, ##__VA_ARGS__)
 
 	percpu_down_write(&c->usage_lock);
 
-	/*
-	 * Indicates to buckets code that gc is now in progress - done under
-	 * usage_lock to avoid racing with bch2_mark_key():
-	 */
-	__gc_pos_set(c, gc_phase(GC_PHASE_START));
+	if (initial) {
+		bch2_gc_done_nocheck(c);
+		goto out;
+	}
 
-	/* Save a copy of the existing bucket stats while we recompute them: */
 	for_each_member_device(ca, c, i) {
-		ca->usage_cached = __bch2_dev_usage_read(ca);
+		struct bucket_array *dst = __bucket_array(ca, 0);
+		struct bucket_array *src = __bucket_array(ca, 1);
+		size_t b;
+
+		if (initial) {
+			memcpy(dst, src,
+			       sizeof(struct bucket_array) +
+			       sizeof(struct bucket) * dst->nbuckets);
+		}
+
+		for (b = 0; b < src->nbuckets; b++) {
+			copy_bucket_field(gen);
+			copy_bucket_field(data_type);
+			copy_bucket_field(owned_by_allocator);
+			copy_bucket_field(stripe);
+			copy_bucket_field(dirty_sectors);
+			copy_bucket_field(cached_sectors);
+		}
+	};
+
+	for_each_member_device(ca, c, i) {
+		struct bch_dev_usage dst = __bch2_dev_usage_read(ca, 0);
+		struct bch_dev_usage src = __bch2_dev_usage_read(ca, 1);
+		struct bch_dev_usage *p;
+		unsigned b;
+
+		for (b = 0; b < BCH_DATA_NR; b++)
+			copy_dev_field(buckets[b],
+				       "buckets[%s]", bch2_data_types[b]);
+		copy_dev_field(buckets_alloc, "buckets_alloc");
+		copy_dev_field(buckets_ec, "buckets_ec");
+
+		for (b = 0; b < BCH_DATA_NR; b++)
+			copy_dev_field(sectors[b],
+				       "sectors[%s]", bch2_data_types[b]);
+		copy_dev_field(sectors_fragmented,
+			       "sectors_fragmented");
+
 		for_each_possible_cpu(cpu) {
-			struct bch_dev_usage *p =
-				per_cpu_ptr(ca->usage_percpu, cpu);
+			p = per_cpu_ptr(ca->usage[0], cpu);
 			memset(p, 0, sizeof(*p));
+		}
+
+		preempt_disable();
+		p = this_cpu_ptr(ca->usage[0]);
+		*p = dst;
+		preempt_enable();
+	}
+
+	{
+		struct bch_fs_usage dst = __bch2_fs_usage_read(c, 0);
+		struct bch_fs_usage src = __bch2_fs_usage_read(c, 1);
+		struct bch_fs_usage *p;
+		unsigned r, b;
+
+		for (r = 0; r < BCH_REPLICAS_MAX; r++) {
+			for (b = 0; b < BCH_DATA_NR; b++)
+				copy_fs_field(replicas[r].data[b],
+					      "replicas[%i].data[%s]",
+					      r, bch2_data_types[b]);
+			copy_fs_field(replicas[r].ec_data,
+				      "replicas[%i].ec_data", r);
+			copy_fs_field(replicas[r].persistent_reserved,
+				      "replicas[%i].persistent_reserved", r);
+		}
+
+		for (b = 0; b < BCH_DATA_NR; b++)
+			copy_fs_field(buckets[b],
+				      "buckets[%s]", bch2_data_types[b]);
+
+		for_each_possible_cpu(cpu) {
+			p = per_cpu_ptr(c->usage[0], cpu);
+			memset(p, 0, offsetof(typeof(*p), online_reserved));
+		}
+
+		preempt_disable();
+		p = this_cpu_ptr(c->usage[0]);
+		memcpy(p, &dst, offsetof(typeof(*p), online_reserved));
+		preempt_enable();
+	}
+out:
+	percpu_up_write(&c->usage_lock);
+
+#undef copy_field
+#undef copy_fs_field
+#undef copy_dev_field
+#undef copy_bucket_field
+}
+
+static int bch2_gc_start(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i;
+
+	BUG_ON(c->usage[1]);
+
+	c->usage[1] = alloc_percpu(struct bch_fs_usage);
+	if (!c->usage[1])
+		return -ENOMEM;
+
+	for_each_member_device(ca, c, i) {
+		BUG_ON(ca->buckets[1]);
+		BUG_ON(ca->usage[1]);
+
+		ca->buckets[1] = kvpmalloc(sizeof(struct bucket_array) +
+				ca->mi.nbuckets * sizeof(struct bucket),
+				GFP_KERNEL|__GFP_ZERO);
+		if (!ca->buckets[1]) {
+			percpu_ref_put(&ca->ref);
+			return -ENOMEM;
+		}
+
+		ca->usage[1] = alloc_percpu(struct bch_dev_usage);
+		if (!ca->usage[1]) {
+			percpu_ref_put(&ca->ref);
+			return -ENOMEM;
 		}
 	}
 
-	c->usage_cached = __bch2_fs_usage_read(c);
-	for_each_possible_cpu(cpu) {
-		struct bch_fs_usage *p =
-			per_cpu_ptr(c->usage_percpu, cpu);
+	percpu_down_write(&c->usage_lock);
 
-		memset(p->replicas, 0, sizeof(p->replicas));
-		memset(p->buckets, 0, sizeof(p->buckets));
-	}
+	for_each_member_device(ca, c, i) {
+		struct bucket_array *dst = __bucket_array(ca, 1);
+		struct bucket_array *src = __bucket_array(ca, 0);
+		size_t b;
+
+		dst->first_bucket	= src->first_bucket;
+		dst->nbuckets		= src->nbuckets;
+
+		for (b = 0; b < src->nbuckets; b++)
+			dst->b[b]._mark.gen = src->b[b].mark.gen;
+	};
 
 	percpu_up_write(&c->usage_lock);
 
-	/* Clear bucket marks: */
-	for_each_member_device(ca, c, i) {
-		down_read(&ca->bucket_lock);
-		buckets = bucket_array(ca);
-
-		for (b = buckets->first_bucket; b < buckets->nbuckets; b++) {
-			bucket_cmpxchg(buckets->b + b, new, ({
-				new.owned_by_allocator	= 0;
-				new.data_type		= 0;
-				new.cached_sectors	= 0;
-				new.dirty_sectors	= 0;
-				new.stripe		= 0;
-			}));
-			ca->oldest_gens[b] = new.gen;
-		}
-		up_read(&ca->bucket_lock);
-	}
+	return 0;
 }
 
 /**
- * bch_gc - recompute bucket marks and oldest_gen, rewrite btree nodes
+ * bch2_gc - walk _all_ references to buckets, and recompute them:
+ *
+ * Order matters here:
+ *  - Concurrent GC relies on the fact that we have a total ordering for
+ *    everything that GC walks - see  gc_will_visit_node(),
+ *    gc_will_visit_root()
+ *
+ *  - also, references move around in the course of index updates and
+ *    various other crap: everything needs to agree on the ordering
+ *    references are allowed to move around in - e.g., we're allowed to
+ *    start with a reference owned by an open_bucket (the allocator) and
+ *    move it to the btree, but not the reverse.
+ *
+ *    This is necessary to ensure that gc doesn't miss references that
+ *    move around - if references move backwards in the ordering GC
+ *    uses, GC could skip past them
  */
-void bch2_gc(struct bch_fs *c)
+int bch2_gc(struct bch_fs *c, struct list_head *journal, bool initial)
 {
 	struct bch_dev *ca;
 	u64 start_time = local_clock();
-	unsigned i;
+	unsigned i, iter = 0;
 	int ret;
 
-	/*
-	 * Walk _all_ references to buckets, and recompute them:
-	 *
-	 * Order matters here:
-	 *  - Concurrent GC relies on the fact that we have a total ordering for
-	 *    everything that GC walks - see  gc_will_visit_node(),
-	 *    gc_will_visit_root()
-	 *
-	 *  - also, references move around in the course of index updates and
-	 *    various other crap: everything needs to agree on the ordering
-	 *    references are allowed to move around in - e.g., we're allowed to
-	 *    start with a reference owned by an open_bucket (the allocator) and
-	 *    move it to the btree, but not the reverse.
-	 *
-	 *    This is necessary to ensure that gc doesn't miss references that
-	 *    move around - if references move backwards in the ordering GC
-	 *    uses, GC could skip past them
-	 */
 	trace_gc_start(c);
 
-	/*
-	 * Do this before taking gc_lock - bch2_disk_reservation_get() blocks on
-	 * gc_lock if sectors_available goes to 0:
-	 */
-	bch2_recalc_sectors_available(c);
-
 	down_write(&c->gc_lock);
-	if (test_bit(BCH_FS_GC_FAILURE, &c->flags))
+again:
+	ret = bch2_gc_start(c);
+	if (ret)
 		goto out;
-
-	bch2_gc_start(c);
 
 	bch2_mark_superblocks(c);
 
-	ret = bch2_gc_btrees(c, NULL, false);
-	if (ret) {
-		bch_err(c, "btree gc failed: %d", ret);
-		set_bit(BCH_FS_GC_FAILURE, &c->flags);
+	ret = bch2_gc_btrees(c, journal, initial);
+	if (ret)
 		goto out;
-	}
 
 	bch2_mark_pending_btree_node_frees(c);
 	bch2_mark_allocator_buckets(c);
 
-	/* Indicates that gc is no longer in progress: */
-	gc_pos_set(c, gc_phase(GC_PHASE_DONE));
 	c->gc_count++;
 out:
+	if (!ret && test_bit(BCH_FS_FIXED_GENS, &c->flags)) {
+		/*
+		 * XXX: make sure gens we fixed got saved
+		 */
+		if (iter++ <= 2) {
+			bch_info(c, "Fixed gens, restarting mark and sweep:");
+			clear_bit(BCH_FS_FIXED_GENS, &c->flags);
+			goto again;
+		}
+
+		bch_info(c, "Unable to fix bucket gens, looping");
+		ret = -EINVAL;
+	}
+
+	if (!ret)
+		bch2_gc_done(c, initial);
+
+	/* Indicates that gc is no longer in progress: */
+	__gc_pos_set(c, gc_phase(GC_PHASE_START));
+
+	bch2_gc_free(c);
 	up_write(&c->gc_lock);
+
+	if (!ret && initial)
+		set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
+
 	trace_gc_end(c);
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_gc], start_time);
 
@@ -724,6 +896,7 @@ out:
 	 * allocator thread - issue wakeup in case they blocked on gc_lock:
 	 */
 	closure_wake_up(&c->freelist_wait);
+	return ret;
 }
 
 /* Btree coalescing */
@@ -1039,9 +1212,6 @@ void bch2_coalesce(struct bch_fs *c)
 {
 	enum btree_id id;
 
-	if (test_bit(BCH_FS_GC_FAILURE, &c->flags))
-		return;
-
 	down_read(&c->gc_lock);
 	trace_gc_coalesce_start(c);
 
@@ -1053,7 +1223,6 @@ void bch2_coalesce(struct bch_fs *c)
 		if (ret) {
 			if (ret != -ESHUTDOWN)
 				bch_err(c, "btree coalescing failed: %d", ret);
-			set_bit(BCH_FS_GC_FAILURE, &c->flags);
 			return;
 		}
 	}
@@ -1068,6 +1237,7 @@ static int bch2_gc_thread(void *arg)
 	struct io_clock *clock = &c->io_clock[WRITE];
 	unsigned long last = atomic_long_read(&clock->now);
 	unsigned last_kick = atomic_read(&c->kick_gc);
+	int ret;
 
 	set_freezable();
 
@@ -1101,7 +1271,9 @@ static int bch2_gc_thread(void *arg)
 		last = atomic_long_read(&clock->now);
 		last_kick = atomic_read(&c->kick_gc);
 
-		bch2_gc(c);
+		ret = bch2_gc(c, NULL, false);
+		if (ret)
+			bch_err(c, "btree gc failed: %i", ret);
 
 		debug_check_no_locks_held();
 	}
@@ -1142,30 +1314,7 @@ int bch2_gc_thread_start(struct bch_fs *c)
 
 int bch2_initial_gc(struct bch_fs *c, struct list_head *journal)
 {
-	unsigned iter = 0;
-	int ret = 0;
-
-	down_write(&c->gc_lock);
-again:
-	bch2_gc_start(c);
-
-	bch2_mark_superblocks(c);
-
-	ret = bch2_gc_btrees(c, journal, true);
-	if (ret)
-		goto err;
-
-	if (test_bit(BCH_FS_FIXED_GENS, &c->flags)) {
-		if (iter++ > 2) {
-			bch_info(c, "Unable to fix bucket gens, looping");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		bch_info(c, "Fixed gens, restarting initial mark and sweep:");
-		clear_bit(BCH_FS_FIXED_GENS, &c->flags);
-		goto again;
-	}
+	int ret = bch2_gc(c, journal, true);
 
 	/*
 	 * Skip past versions that might have possibly been used (as nonces),
@@ -1174,9 +1323,5 @@ again:
 	if (c->sb.encryption_type)
 		atomic64_add(1 << 16, &c->key_version);
 
-	gc_pos_set(c, gc_phase(GC_PHASE_DONE));
-	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
-err:
-	up_write(&c->gc_lock);
 	return ret;
 }
