@@ -330,7 +330,7 @@ int gasket_page_table_init(
 	pg_tbl = *ppg_tbl;
 	bytes = total_entries * sizeof(struct gasket_page_table_entry);
 	if (bytes != 0) {
-		pg_tbl->entries = vmalloc(bytes);
+		pg_tbl->entries = vzalloc(bytes);
 		if (!pg_tbl->entries) {
 			gasket_nodev_debug(
 				"No memory for address translation metadata.");
@@ -338,7 +338,6 @@ int gasket_page_table_init(
 			*ppg_tbl = NULL;
 			return -ENOMEM;
 		}
-		memset(pg_tbl->entries, 0, bytes);
 	}
 
 	mutex_init(&pg_tbl->mutex);
@@ -1054,13 +1053,12 @@ static int gasket_alloc_extended_subtable(
 
 	subtable_bytes = sizeof(struct gasket_page_table_entry) *
 		GASKET_PAGES_PER_SUBTABLE;
-	pte->sublevel = vmalloc(subtable_bytes);
+	pte->sublevel = vzalloc(subtable_bytes);
 	if (!pte->sublevel) {
 		free_page(page_addr);
 		memset(pte, 0, sizeof(struct gasket_page_table_entry));
 		return -ENOMEM;
 	}
-	memset(pte->sublevel, 0, subtable_bytes);
 
 	/* Map the page into DMA space. */
 	if (pg_tbl->dma_ops) {
