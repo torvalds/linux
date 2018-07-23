@@ -112,13 +112,6 @@ typedef union _TSPEC_BODY {
 	} f;	// Field
 } TSPEC_BODY, *PTSPEC_BODY;
 
-typedef struct _ACM {
-//	u8		RegEnableACM;
-	u64		UsedTime;
-	u64		MediumTime;
-	u8		HwAcmCtl;	// TRUE: UsedTime exceed => Do NOT USE this AC. It wll be written to ACM_CONTROL(0xBF BIT 0/1/2 in 8185B).
-} ACM, *PACM;
-
 typedef	u8		AC_UAPSD, *PAC_UAPSD;
 
 #define	GET_VO_UAPSD(_apsd) ((_apsd) & BIT(0))
