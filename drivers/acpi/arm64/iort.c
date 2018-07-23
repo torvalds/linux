@@ -947,6 +947,24 @@ static int nc_dma_get_range(struct device *dev, u64 *size)
 	return 0;
 }
 
+static int rc_dma_get_range(struct device *dev, u64 *size)
+{
+	struct acpi_iort_node *node;
+	struct acpi_iort_root_complex *rc;
+
+	node = iort_scan_node(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
+			      iort_match_node_callback, dev);
+	if (!node || node->revision < 1)
+		return -ENODEV;
+
+	rc = (struct acpi_iort_root_complex *)node->node_data;
+
+	*size = rc->memory_address_limit >= 64 ? U64_MAX :
+			1ULL<<rc->memory_address_limit;
+
+	return 0;
+}
+
 /**
  * iort_dma_setup() - Set-up device DMA parameters.
  *
@@ -975,10 +993,13 @@ void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size)
 
 	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
 
-	if (dev_is_pci(dev))
+	if (dev_is_pci(dev)) {
 		ret = acpi_dma_get_range(dev, &dmaaddr, &offset, &size);
-	else
+		if (ret == -ENODEV)
+			ret = rc_dma_get_range(dev, &size);
+	} else {
 		ret = nc_dma_get_range(dev, &size);
+	}
 
 	if (!ret) {
 		msb = fls64(dmaaddr + size - 1);
