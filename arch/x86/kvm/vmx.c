@@ -2717,16 +2717,20 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	gs_base = segment_base(gs_sel);
 #endif
 
-	host_state->fs_sel = fs_sel;
-	if (!(fs_sel & 7))
-		vmcs_write16(HOST_FS_SELECTOR, fs_sel);
-	else
-		vmcs_write16(HOST_FS_SELECTOR, 0);
-	host_state->gs_sel = gs_sel;
-	if (!(gs_sel & 7))
-		vmcs_write16(HOST_GS_SELECTOR, gs_sel);
-	else
-		vmcs_write16(HOST_GS_SELECTOR, 0);
+	if (unlikely(fs_sel != host_state->fs_sel)) {
+		if (!(fs_sel & 7))
+			vmcs_write16(HOST_FS_SELECTOR, fs_sel);
+		else
+			vmcs_write16(HOST_FS_SELECTOR, 0);
+		host_state->fs_sel = fs_sel;
+	}
+	if (unlikely(gs_sel != host_state->gs_sel)) {
+		if (!(gs_sel & 7))
+			vmcs_write16(HOST_GS_SELECTOR, gs_sel);
+		else
+			vmcs_write16(HOST_GS_SELECTOR, 0);
+		host_state->gs_sel = gs_sel;
+	}
 
 	vmcs_writel(HOST_FS_BASE, fs_base);
 	vmcs_writel(HOST_GS_BASE, gs_base);
