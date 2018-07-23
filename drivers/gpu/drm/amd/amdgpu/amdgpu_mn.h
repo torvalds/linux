@@ -34,7 +34,7 @@ enum amdgpu_mn_type {
 	AMDGPU_MN_TYPE_HSA,
 };
 
-#if defined(CONFIG_MMU_NOTIFIER)
+#if defined(CONFIG_HMM_MIRROR)
 void amdgpu_mn_lock(struct amdgpu_mn *mn);
 void amdgpu_mn_unlock(struct amdgpu_mn *mn);
 struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev,
