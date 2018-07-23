@@ -145,7 +145,8 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 	u32 v;
 	int rval;
 
-	if (bus_type == V4L2_MBUS_CSI2_DPHY) {
+	if (bus_type == V4L2_MBUS_CSI2_DPHY ||
+	    bus_type == V4L2_MBUS_CSI2_CPHY) {
 		use_default_lane_mapping = true;
 
 		num_data_lanes = min_t(u32, bus->num_data_lanes,
@@ -221,10 +222,12 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		flags |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	}
 
-	if (bus_type == V4L2_MBUS_CSI2_DPHY || lanes_used ||
+	if (bus_type == V4L2_MBUS_CSI2_DPHY ||
+	    bus_type == V4L2_MBUS_CSI2_CPHY || lanes_used ||
 	    have_clk_lane || (flags & ~V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)) {
 		bus->flags = flags;
-		vep->bus_type = V4L2_MBUS_CSI2_DPHY;
+		if (bus_type == V4L2_MBUS_UNKNOWN)
+			vep->bus_type = V4L2_MBUS_CSI2_DPHY;
 		bus->num_data_lanes = num_data_lanes;
 
 		if (use_default_lane_mapping) {
@@ -463,6 +466,7 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 
 		break;
 	case V4L2_MBUS_CSI2_DPHY:
+	case V4L2_MBUS_CSI2_CPHY:
 		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep,
 							   vep->bus_type);
 		if (rval)
