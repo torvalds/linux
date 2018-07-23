@@ -278,7 +278,8 @@ static int i_sectors_dirty_finish(struct bch_fs *c, struct i_sectors_hook *h)
 	mutex_lock(&h->inode->ei_update_lock);
 	i_sectors_acct(c, h->inode, &h->quota_res, h->sectors);
 
-	ret = bch2_write_inode(c, h->inode, i_sectors_dirty_finish_fn, h, 0);
+	ret = bch2_write_inode(c, h->inode, i_sectors_dirty_finish_fn,
+			       h, ATTR_MTIME|ATTR_CTIME);
 
 	if (!ret && h->new_i_size != U64_MAX)
 		i_size_write(&h->inode->v, h->new_i_size);
