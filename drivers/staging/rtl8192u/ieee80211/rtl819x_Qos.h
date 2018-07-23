@@ -16,7 +16,6 @@
 //	QOS_HCCA			= 4,
 //}QOS_MODE,*PQOS_MODE;
 //
-typedef u32 QOS_MODE, *PQOS_MODE;
 #define QOS_DISABLE		0
 #define QOS_WMM			1
 #define QOS_WMMSA		2
@@ -454,8 +453,8 @@ typedef struct _STA_QOS {
 	u8				*WMMIE;
 
 	// Part 1. Self QoS Mode.
-	QOS_MODE			QosCapability; //QoS Capability, 2006-06-14 Isaiah
-	QOS_MODE			CurrentQosMode;
+	u32			        QosCapability;  // QOS_MODE QoS Capability, 2006-06-14 Isaiah
+	u32			        CurrentQosMode; // QOS_MODE
 
 	// For WMM Power Save Mode :
 	// ACs are trigger/delivery enabled or legacy power save enabled. 2006-06-13 Isaiah
@@ -502,7 +501,7 @@ typedef struct _STA_QOS {
 // Ref: BssDscr in 8185 code. [def. in BssDscr.h]
 //
 typedef struct _BSS_QOS {
-	QOS_MODE		bdQoSMode;
+	u32		        bdQoSMode;    // QOS_MODE
 
 	u8			bdWMMIEBuf[MAX_WMMELE_LENGTH];
 	u8		*bdWMMIE;
