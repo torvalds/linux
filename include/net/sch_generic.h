@@ -304,6 +304,7 @@ struct tcf_chain {
 	struct tcf_block *block;
 	u32 index; /* chain index */
 	unsigned int refcnt;
+	bool explicitly_created;
 };
 
 struct tcf_block {

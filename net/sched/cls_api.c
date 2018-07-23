@@ -262,28 +262,56 @@ static void tcf_chain_hold(struct tcf_chain *chain)
 	++chain->refcnt;
 }
 
-struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
-				bool create)
+static struct tcf_chain *tcf_chain_lookup(struct tcf_block *block,
+					  u32 chain_index)
 {
 	struct tcf_chain *chain;
 
 	list_for_each_entry(chain, &block->chain_list, list) {
-		if (chain->index == chain_index) {
-			tcf_chain_hold(chain);
+		if (chain->index == chain_index)
 			return chain;
-		}
+	}
+	return NULL;
+}
+
+static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
+			   u32 seq, u16 flags, int event, bool unicast);
+
+struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
+				bool create)
+{
+	struct tcf_chain *chain = tcf_chain_lookup(block, chain_index);
+
+	if (chain) {
+		tcf_chain_hold(chain);
+		return chain;
 	}
 
-	return create ? tcf_chain_create(block, chain_index) : NULL;
+	if (!create)
+		return NULL;
+	chain = tcf_chain_create(block, chain_index);
+	if (!chain)
+		return NULL;
+	tc_chain_notify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
+			RTM_NEWCHAIN, false);
+	return chain;
 }
 EXPORT_SYMBOL(tcf_chain_get);
 
 void tcf_chain_put(struct tcf_chain *chain)
 {
-	if (--chain->refcnt == 0)
+	if (--chain->refcnt == 0) {
+		tc_chain_notify(chain, NULL, 0, 0, RTM_DELCHAIN, false);
 		tcf_chain_destroy(chain);
+	}
 }
 EXPORT_SYMBOL(tcf_chain_put);
+
+static void tcf_chain_put_explicitly_created(struct tcf_chain *chain)
+{
+	if (chain->explicitly_created)
+		tcf_chain_put(chain);
+}
 
 static bool tcf_block_offload_in_use(struct tcf_block *block)
 {
@@ -694,8 +722,10 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 
 	if (block->refcnt == 1) {
 		/* At this point, all the chains should have refcnt >= 1. */
-		list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+		list_for_each_entry_safe(chain, tmp, &block->chain_list, list) {
+			tcf_chain_put_explicitly_created(chain);
 			tcf_chain_put(chain);
+		}
 
 		block->refcnt--;
 		if (list_empty(&block->chain_list))
@@ -1609,6 +1639,264 @@ out:
 	return skb->len;
 }
 
+static int tc_chain_fill_node(struct tcf_chain *chain, struct net *net,
+			      struct sk_buff *skb, struct tcf_block *block,
+			      u32 portid, u32 seq, u16 flags, int event)
+{
+	unsigned char *b = skb_tail_pointer(skb);
+	struct nlmsghdr *nlh;
+	struct tcmsg *tcm;
+
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
+	if (!nlh)
+		goto out_nlmsg_trim;
+	tcm = nlmsg_data(nlh);
+	tcm->tcm_family = AF_UNSPEC;
+	tcm->tcm__pad1 = 0;
+	tcm->tcm__pad2 = 0;
+	tcm->tcm_handle = 0;
+	if (block->q) {
+		tcm->tcm_ifindex = qdisc_dev(block->q)->ifindex;
+		tcm->tcm_parent = block->q->handle;
+	} else {
+		tcm->tcm_ifindex = TCM_IFINDEX_MAGIC_BLOCK;
+		tcm->tcm_block_index = block->index;
+	}
+
+	if (nla_put_u32(skb, TCA_CHAIN, chain->index))
+		goto nla_put_failure;
+
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
+	return skb->len;
+
+out_nlmsg_trim:
+nla_put_failure:
+	nlmsg_trim(skb, b);
+	return -EMSGSIZE;
+}
+
+static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
+			   u32 seq, u16 flags, int event, bool unicast)
+{
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+	struct tcf_block *block = chain->block;
+	struct net *net = block->net;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (tc_chain_fill_node(chain, net, skb, block, portid,
+			       seq, flags, event) <= 0) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	if (unicast)
+		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+
+	return rtnetlink_send(skb, net, portid, RTNLGRP_TC, flags & NLM_F_ECHO);
+}
+
+/* Add/delete/get a chain */
+
+static int tc_ctl_chain(struct sk_buff *skb, struct nlmsghdr *n,
+			struct netlink_ext_ack *extack)
+{
+	struct net *net = sock_net(skb->sk);
+	struct nlattr *tca[TCA_MAX + 1];
+	struct tcmsg *t;
+	u32 parent;
+	u32 chain_index;
+	struct Qdisc *q = NULL;
+	struct tcf_chain *chain = NULL;
+	struct tcf_block *block;
+	unsigned long cl;
+	int err;
+
+	if (n->nlmsg_type != RTM_GETCHAIN &&
+	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+replay:
+	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL, extack);
+	if (err < 0)
+		return err;
+
+	t = nlmsg_data(n);
+	parent = t->tcm_parent;
+	cl = 0;
+
+	block = tcf_block_find(net, &q, &parent, &cl,
+			       t->tcm_ifindex, t->tcm_block_index, extack);
+	if (IS_ERR(block))
+		return PTR_ERR(block);
+
+	chain_index = tca[TCA_CHAIN] ? nla_get_u32(tca[TCA_CHAIN]) : 0;
+	if (chain_index > TC_ACT_EXT_VAL_MASK) {
+		NL_SET_ERR_MSG(extack, "Specified chain index exceeds upper limit");
+		return -EINVAL;
+	}
+	chain = tcf_chain_lookup(block, chain_index);
+	if (n->nlmsg_type == RTM_NEWCHAIN) {
+		if (chain) {
+			NL_SET_ERR_MSG(extack, "Filter chain already exists");
+			return -EEXIST;
+		}
+		if (!(n->nlmsg_flags & NLM_F_CREATE)) {
+			NL_SET_ERR_MSG(extack, "Need both RTM_NEWCHAIN and NLM_F_CREATE to create a new chain");
+			return -ENOENT;
+		}
+		chain = tcf_chain_create(block, chain_index);
+		if (!chain) {
+			NL_SET_ERR_MSG(extack, "Failed to create filter chain");
+			return -ENOMEM;
+		}
+	} else {
+		if (!chain) {
+			NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
+			return -EINVAL;
+		}
+		tcf_chain_hold(chain);
+	}
+
+	switch (n->nlmsg_type) {
+	case RTM_NEWCHAIN:
+		/* In case the chain was successfully added, take a reference
+		 * to the chain. This ensures that an empty chain
+		 * does not disappear at the end of this function.
+		 */
+		tcf_chain_hold(chain);
+		chain->explicitly_created = true;
+		tc_chain_notify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
+				RTM_NEWCHAIN, false);
+		break;
+	case RTM_DELCHAIN:
+		/* Flush the chain first as the user requested chain removal. */
+		tcf_chain_flush(chain);
+		/* In case the chain was successfully deleted, put a reference
+		 * to the chain previously taken during addition.
+		 */
+		tcf_chain_put_explicitly_created(chain);
+		break;
+	case RTM_GETCHAIN:
+		break;
+		err = tc_chain_notify(chain, skb, n->nlmsg_seq,
+				      n->nlmsg_seq, n->nlmsg_type, true);
+		if (err < 0)
+			NL_SET_ERR_MSG(extack, "Failed to send chain notify message");
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Unsupported message type");
+		goto errout;
+	}
+
+errout:
+	tcf_chain_put(chain);
+	if (err == -EAGAIN)
+		/* Replay the request. */
+		goto replay;
+	return err;
+}
+
+/* called with RTNL */
+static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct nlattr *tca[TCA_MAX + 1];
+	struct Qdisc *q = NULL;
+	struct tcf_block *block;
+	struct tcf_chain *chain;
+	struct tcmsg *tcm = nlmsg_data(cb->nlh);
+	long index_start;
+	long index;
+	u32 parent;
+	int err;
+
+	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
+		return skb->len;
+
+	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, NULL, NULL);
+	if (err)
+		return err;
+
+	if (tcm->tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
+		block = tcf_block_lookup(net, tcm->tcm_block_index);
+		if (!block)
+			goto out;
+		/* If we work with block index, q is NULL and parent value
+		 * will never be used in the following code. The check
+		 * in tcf_fill_node prevents it. However, compiler does not
+		 * see that far, so set parent to zero to silence the warning
+		 * about parent being uninitialized.
+		 */
+		parent = 0;
+	} else {
+		const struct Qdisc_class_ops *cops;
+		struct net_device *dev;
+		unsigned long cl = 0;
+
+		dev = __dev_get_by_index(net, tcm->tcm_ifindex);
+		if (!dev)
+			return skb->len;
+
+		parent = tcm->tcm_parent;
+		if (!parent) {
+			q = dev->qdisc;
+			parent = q->handle;
+		} else {
+			q = qdisc_lookup(dev, TC_H_MAJ(tcm->tcm_parent));
+		}
+		if (!q)
+			goto out;
+		cops = q->ops->cl_ops;
+		if (!cops)
+			goto out;
+		if (!cops->tcf_block)
+			goto out;
+		if (TC_H_MIN(tcm->tcm_parent)) {
+			cl = cops->find(q, tcm->tcm_parent);
+			if (cl == 0)
+				goto out;
+		}
+		block = cops->tcf_block(q, cl, NULL);
+		if (!block)
+			goto out;
+		if (tcf_block_shared(block))
+			q = NULL;
+	}
+
+	index_start = cb->args[0];
+	index = 0;
+
+	list_for_each_entry(chain, &block->chain_list, list) {
+		if ((tca[TCA_CHAIN] &&
+		     nla_get_u32(tca[TCA_CHAIN]) != chain->index))
+			continue;
+		if (index < index_start) {
+			index++;
+			continue;
+		}
+		err = tc_chain_fill_node(chain, net, skb, block,
+					 NETLINK_CB(cb->skb).portid,
+					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
+					 RTM_NEWCHAIN);
+		if (err <= 0)
+			break;
+		index++;
+	}
+
+	cb->args[0] = index;
+
+out:
+	/* If we did no progress, the error (EMSGSIZE) is real */
+	if (skb->len == 0 && err)
+		return err;
+	return skb->len;
+}
+
 void tcf_exts_destroy(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
@@ -1825,6 +2113,10 @@ static int __init tc_filter_init(void)
 	rtnl_register(PF_UNSPEC, RTM_DELTFILTER, tc_del_tfilter, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_GETTFILTER, tc_get_tfilter,
 		      tc_dump_tfilter, 0);
+	rtnl_register(PF_UNSPEC, RTM_NEWCHAIN, tc_ctl_chain, NULL, 0);
+	rtnl_register(PF_UNSPEC, RTM_DELCHAIN, tc_ctl_chain, NULL, 0);
+	rtnl_register(PF_UNSPEC, RTM_GETCHAIN, tc_ctl_chain,
+		      tc_dump_chain, 0);
 
 	return 0;
 
