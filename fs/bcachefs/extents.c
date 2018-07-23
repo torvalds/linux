@@ -733,8 +733,8 @@ err:
 		      mark.gen, (unsigned) mark.v.counter);
 }
 
-void bch2_btree_ptr_to_text(struct bch_fs *c, char *buf,
-			    size_t size, struct bkey_s_c k)
+int bch2_btree_ptr_to_text(struct bch_fs *c, char *buf,
+			   size_t size, struct bkey_s_c k)
 {
 	char *out = buf, *end = buf + size;
 	const char *invalid;
@@ -748,6 +748,7 @@ void bch2_btree_ptr_to_text(struct bch_fs *c, char *buf,
 	if (invalid)
 		p(" invalid: %s", invalid);
 #undef p
+	return out - buf;
 }
 
 int bch2_btree_pick_ptr(struct bch_fs *c, const struct btree *b,
@@ -1877,8 +1878,8 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k
 	}
 }
 
-void bch2_extent_to_text(struct bch_fs *c, char *buf,
-			 size_t size, struct bkey_s_c k)
+int bch2_extent_to_text(struct bch_fs *c, char *buf,
+			size_t size, struct bkey_s_c k)
 {
 	char *out = buf, *end = buf + size;
 	const char *invalid;
@@ -1892,6 +1893,7 @@ void bch2_extent_to_text(struct bch_fs *c, char *buf,
 	if (invalid)
 		p(" invalid: %s", invalid);
 #undef p
+	return out - buf;
 }
 
 static void bch2_extent_crc_init(union bch_extent_crc *crc,

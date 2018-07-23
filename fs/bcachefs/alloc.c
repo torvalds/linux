@@ -154,8 +154,8 @@ const char *bch2_alloc_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return NULL;
 }
 
-void bch2_alloc_to_text(struct bch_fs *c, char *buf,
-			size_t size, struct bkey_s_c k)
+int bch2_alloc_to_text(struct bch_fs *c, char *buf,
+		       size_t size, struct bkey_s_c k)
 {
 	buf[0] = '\0';
 
@@ -163,6 +163,8 @@ void bch2_alloc_to_text(struct bch_fs *c, char *buf,
 	case BCH_ALLOC:
 		break;
 	}
+
+	return 0;
 }
 
 static inline unsigned get_alloc_field(const u8 **p, unsigned bytes)
@@ -2067,6 +2069,8 @@ not_enough:
 	 * invalidated on disk:
 	 */
 	if (invalidating_data) {
+		BUG();
+		pr_info("holding writes");
 		pr_debug("invalidating existing data");
 		set_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags);
 	} else {

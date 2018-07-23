@@ -8,7 +8,7 @@
 extern const struct bch_sb_field_ops bch_sb_field_ops_quota;
 
 const char *bch2_quota_invalid(const struct bch_fs *, struct bkey_s_c);
-void bch2_quota_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
+int bch2_quota_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
 
 #define bch2_bkey_quota_ops (struct bkey_ops) {		\
 	.key_invalid	= bch2_quota_invalid,		\

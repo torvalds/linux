@@ -19,7 +19,7 @@ union bch_extent_crc;
 const char *bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_debugcheck(struct bch_fs *, struct btree *,
 			       struct bkey_s_c);
-void bch2_btree_ptr_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
+int bch2_btree_ptr_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
 void bch2_ptr_swab(const struct bkey_format *, struct bkey_packed *);
 
 #define bch2_bkey_btree_ops (struct bkey_ops) {			\
@@ -31,7 +31,7 @@ void bch2_ptr_swab(const struct bkey_format *, struct bkey_packed *);
 
 const char *bch2_extent_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_extent_debugcheck(struct bch_fs *, struct btree *, struct bkey_s_c);
-void bch2_extent_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
+int bch2_extent_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
 bool bch2_ptr_normalize(struct bch_fs *, struct btree *, struct bkey_s);
 enum merge_result bch2_extent_merge(struct bch_fs *, struct btree *,
 				    struct bkey_i *, struct bkey_i *);

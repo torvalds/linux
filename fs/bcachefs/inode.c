@@ -228,8 +228,8 @@ const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	}
 }
 
-void bch2_inode_to_text(struct bch_fs *c, char *buf,
-			size_t size, struct bkey_s_c k)
+int bch2_inode_to_text(struct bch_fs *c, char *buf,
+		       size_t size, struct bkey_s_c k)
 {
 	char *out = buf, *end = out + size;
 	struct bkey_s_c_inode inode;
@@ -249,6 +249,8 @@ void bch2_inode_to_text(struct bch_fs *c, char *buf,
 #undef  BCH_INODE_FIELD
 		break;
 	}
+
+	return out - buf;
 }
 
 void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,

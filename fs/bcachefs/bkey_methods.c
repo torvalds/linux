@@ -123,16 +123,27 @@ void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
 
 #define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
 
+int bch2_bpos_to_text(char *buf, size_t size, struct bpos pos)
+{
+	char *out = buf, *end = buf + size;
+
+	if (!bkey_cmp(pos, POS_MIN))
+		p("POS_MIN");
+	else if (!bkey_cmp(pos, POS_MAX))
+		p("POS_MAX");
+	else
+		p("%llu:%llu", pos.inode, pos.offset);
+
+	return out - buf;
+}
+
 int bch2_bkey_to_text(char *buf, size_t size, const struct bkey *k)
 {
 	char *out = buf, *end = buf + size;
 
 	p("u64s %u type %u ", k->u64s, k->type);
 
-	if (bkey_cmp(k->p, POS_MAX))
-		p("%llu:%llu", k->p.inode, k->p.offset);
-	else
-		p("POS_MAX");
+	out += bch2_bpos_to_text(out, end - out, k->p);
 
 	p(" snap %u len %u ver %llu", k->p.snapshot, k->size, k->version.lo);
 
@@ -160,7 +171,7 @@ int bch2_val_to_text(struct bch_fs *c, enum bkey_type type,
 		break;
 	default:
 		if (k.k->type >= KEY_TYPE_GENERIC_NR && ops->val_to_text)
-			ops->val_to_text(c, buf, size, k);
+			out += ops->val_to_text(c, out, end - out, k);
 		break;
 	}
 

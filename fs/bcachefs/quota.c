@@ -46,10 +46,10 @@ static const char * const bch2_quota_counters[] = {
 	"inodes",
 };
 
-void bch2_quota_to_text(struct bch_fs *c, char *buf,
-			size_t size, struct bkey_s_c k)
+int bch2_quota_to_text(struct bch_fs *c, char *buf,
+		       size_t size, struct bkey_s_c k)
 {
-	char *out = buf, *end= buf + size;
+	char *out = buf, *end = buf + size;
 	struct bkey_s_c_quota dq;
 	unsigned i;
 
@@ -64,6 +64,8 @@ void bch2_quota_to_text(struct bch_fs *c, char *buf,
 					 le64_to_cpu(dq.v->c[i].softlimit));
 		break;
 	}
+
+	return out - buf;
 }
 
 #ifdef CONFIG_BCACHEFS_QUOTA
