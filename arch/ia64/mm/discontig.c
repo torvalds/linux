@@ -38,9 +38,6 @@ struct early_node_data {
 	struct ia64_node_data *node_data;
 	unsigned long pernode_addr;
 	unsigned long pernode_size;
-#ifdef CONFIG_ZONE_DMA32
-	unsigned long num_dma_physpages;
-#endif
 	unsigned long min_pfn;
 	unsigned long max_pfn;
 };
@@ -669,11 +666,6 @@ static __init int count_node_pages(unsigned long start, unsigned long len, int n
 {
 	unsigned long end = start + len;
 
-#ifdef CONFIG_ZONE_DMA32
-	if (start <= __pa(MAX_DMA_ADDRESS))
-		mem_data[node].num_dma_physpages +=
-			(min(end, __pa(MAX_DMA_ADDRESS)) - start) >>PAGE_SHIFT;
-#endif
 	start = GRANULEROUNDDOWN(start);
 	end = GRANULEROUNDUP(end);
 	mem_data[node].max_pfn = max(mem_data[node].max_pfn,
