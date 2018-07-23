@@ -346,6 +346,22 @@ static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 /*
  * irq_chip for wakeup interrupts
  */
+static const struct exynos_irq_chip s5pv210_wkup_irq_chip __initconst = {
+	.chip = {
+		.name = "s5pv210_wkup_irq_chip",
+		.irq_unmask = exynos_irq_unmask,
+		.irq_mask = exynos_irq_mask,
+		.irq_ack = exynos_irq_ack,
+		.irq_set_type = exynos_irq_set_type,
+		.irq_set_wake = exynos_wkup_irq_set_wake,
+		.irq_request_resources = exynos_irq_request_resources,
+		.irq_release_resources = exynos_irq_release_resources,
+	},
+	.eint_con = EXYNOS_WKUP_ECON_OFFSET,
+	.eint_mask = EXYNOS_WKUP_EMASK_OFFSET,
+	.eint_pend = EXYNOS_WKUP_EPEND_OFFSET,
+};
+
 static const struct exynos_irq_chip exynos4210_wkup_irq_chip __initconst = {
 	.chip = {
 		.name = "exynos4210_wkup_irq_chip",
@@ -380,6 +396,8 @@ static const struct exynos_irq_chip exynos7_wkup_irq_chip __initconst = {
 
 /* list of external wakeup controllers supported */
 static const struct of_device_id exynos_wkup_irq_ids[] = {
+	{ .compatible = "samsung,s5pv210-wakeup-eint",
+			.data = &s5pv210_wkup_irq_chip },
 	{ .compatible = "samsung,exynos4210-wakeup-eint",
 			.data = &exynos4210_wkup_irq_chip },
 	{ .compatible = "samsung,exynos7-wakeup-eint",

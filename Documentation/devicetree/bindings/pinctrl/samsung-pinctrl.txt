@@ -161,6 +161,8 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
        found on Samsung S3C2412 and S3C2413 SoCs,
      - samsung,s3c64xx-wakeup-eint: represents wakeup interrupt controller
        found on Samsung S3C64xx SoCs,
+     - samsung,s5pv210-wakeup-eint: represents wakeup interrupt controller
+       found on Samsung S5Pv210 SoCs,
      - samsung,exynos4210-wakeup-eint: represents wakeup interrupt controller
        found on Samsung Exynos4210 and S5PC110/S5PV210 SoCs.
      - samsung,exynos7-wakeup-eint: represents wakeup interrupt controller
