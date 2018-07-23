@@ -2676,18 +2676,19 @@ static int sh_eth_tsu_busy(struct net_device *ndev)
 	return 0;
 }
 
-static int sh_eth_tsu_write_entry(struct net_device *ndev, void *reg,
+static int sh_eth_tsu_write_entry(struct net_device *ndev, u16 offset,
 				  const u8 *addr)
 {
+	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 val;
 
 	val = addr[0] << 24 | addr[1] << 16 | addr[2] << 8 | addr[3];
-	iowrite32(val, reg);
+	iowrite32(val, mdp->tsu_addr + offset);
 	if (sh_eth_tsu_busy(ndev) < 0)
 		return -EBUSY;
 
 	val = addr[4] << 8 | addr[5];
-	iowrite32(val, reg + 4);
+	iowrite32(val, mdp->tsu_addr + offset + 4);
 	if (sh_eth_tsu_busy(ndev) < 0)
 		return -EBUSY;
 
@@ -2747,9 +2748,7 @@ static int sh_eth_tsu_disable_cam_entry_table(struct net_device *ndev,
 			 ~(1 << (31 - entry)), TSU_TEN);
 
 	memset(blank, 0, sizeof(blank));
-	ret = sh_eth_tsu_write_entry(ndev,
-				     mdp->tsu_addr + reg_offset + entry * 8,
-				     blank);
+	ret = sh_eth_tsu_write_entry(ndev, reg_offset + entry * 8, blank);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -2770,9 +2769,7 @@ static int sh_eth_tsu_add_entry(struct net_device *ndev, const u8 *addr)
 		i = sh_eth_tsu_find_empty(ndev);
 		if (i < 0)
 			return -ENOMEM;
-		ret = sh_eth_tsu_write_entry(ndev,
-					     mdp->tsu_addr + reg_offset + i * 8,
-					     addr);
+		ret = sh_eth_tsu_write_entry(ndev, reg_offset + i * 8, addr);
 		if (ret < 0)
 			return ret;
 
