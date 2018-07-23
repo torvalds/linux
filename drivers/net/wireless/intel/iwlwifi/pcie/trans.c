@@ -2990,7 +2990,7 @@ static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, int *len)
 
 static struct iwl_trans_dump_data
 *iwl_trans_pcie_dump_data(struct iwl_trans *trans,
-			  const struct iwl_fw_dbg_trigger_tlv *trigger)
+			  bool monitor_only)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_fw_error_dump_data *data;
@@ -3014,7 +3014,7 @@ static struct iwl_trans_dump_data
 	/* FW monitor */
 	monitor_len = iwl_trans_get_fw_monitor_len(trans, &len);
 
-	if (trigger && (trigger->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)) {
+	if (monitor_only) {
 		if (!(trans->dbg_dump_mask &
 		      BIT(IWL_FW_ERROR_DUMP_FW_MONITOR)))
 			return NULL;

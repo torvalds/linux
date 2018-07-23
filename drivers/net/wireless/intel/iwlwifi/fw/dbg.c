@@ -655,12 +655,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	u32 smem_len = fwrt->fw->dbg.n_mem_tlv ? 0 : fwrt->trans->cfg->smem_len;
 	u32 sram2_len = fwrt->fw->dbg.n_mem_tlv ?
 				0 : fwrt->trans->cfg->dccm2_len;
-	bool monitor_dump_only = false;
 	int i;
-
-	if (fwrt->dump.trig &&
-	    fwrt->dump.trig->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)
-		monitor_dump_only = true;
 
 	/* SRAM - include stack CCM if driver knows the values for it */
 	if (!fwrt->trans->cfg->dccm_offset || !fwrt->trans->cfg->dccm_len) {
@@ -727,7 +722,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* If we only want a monitor dump, reset the file length */
-	if (monitor_dump_only) {
+	if (fwrt->dump.monitor_only) {
 		file_len = sizeof(*dump_file) + sizeof(*dump_data) * 2 +
 			   sizeof(*dump_info) + sizeof(*dump_smem_cfg);
 	}
@@ -817,7 +812,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* In case we only want monitor dump, skip to dump trasport data */
-	if (monitor_dump_only)
+	if (fwrt->dump.monitor_only)
 		goto out;
 
 	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
@@ -932,7 +927,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	}
 
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(fwrt->trans,
-						       fwrt->dump.trig);
+						       fwrt->dump.monitor_only);
 	file_len = le32_to_cpu(dump_file->file_len);
 	fw_error_dump->fwrt_len = file_len;
 	if (fw_error_dump->trans_ptr) {
@@ -998,7 +993,8 @@ void iwl_fw_alive_error_dump(struct iwl_fw_runtime *fwrt)
 IWL_EXPORT_SYMBOL(iwl_fw_alive_error_dump);
 
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
-			    const struct iwl_fw_dump_desc *desc, void *trigger,
+			    const struct iwl_fw_dump_desc *desc,
+			    bool monitor_only,
 			    unsigned int delay)
 {
 	/*
@@ -1028,7 +1024,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 		 le32_to_cpu(desc->trig_desc.type));
 
 	fwrt->dump.desc = desc;
-	fwrt->dump.trig = trigger;
+	fwrt->dump.monitor_only = monitor_only;
 
 	schedule_delayed_work(&fwrt->dump.wk, delay);
 
@@ -1043,6 +1039,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dump_desc *desc;
 	unsigned int delay = 0;
+	bool monitor_only = false;
 
 	if (trigger) {
 		u16 occurrences = le16_to_cpu(trigger->occurrences) - 1;
@@ -1059,6 +1056,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 
 		trigger->occurrences = cpu_to_le16(occurrences);
 		delay = le16_to_cpu(trigger->trig_dis_ms);
+		monitor_only = trigger->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY;
 	}
 
 	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
@@ -1070,7 +1068,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	desc->trig_desc.type = cpu_to_le32(trig);
 	memcpy(desc->trig_desc.data, str, len);
 
-	return iwl_fw_dbg_collect_desc(fwrt, desc, trigger, delay);
+	return iwl_fw_dbg_collect_desc(fwrt, desc, monitor_only, delay);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
 

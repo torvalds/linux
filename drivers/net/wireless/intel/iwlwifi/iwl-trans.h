@@ -602,8 +602,7 @@ struct iwl_trans_ops {
 	void (*resume)(struct iwl_trans *trans);
 
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
-						 const struct iwl_fw_dbg_trigger_tlv
-						 *trigger);
+						 bool monitor_only);
 };
 
 /**
@@ -897,12 +896,11 @@ static inline void iwl_trans_resume(struct iwl_trans *trans)
 }
 
 static inline struct iwl_trans_dump_data *
-iwl_trans_dump_data(struct iwl_trans *trans,
-		    const struct iwl_fw_dbg_trigger_tlv *trigger)
+iwl_trans_dump_data(struct iwl_trans *trans, bool monitor_only)
 {
 	if (!trans->ops->dump_data)
 		return NULL;
-	return trans->ops->dump_data(trans, trigger);
+	return trans->ops->dump_data(trans, monitor_only);
 }
 
 static inline struct iwl_device_cmd *
