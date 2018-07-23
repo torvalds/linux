@@ -2695,16 +2695,17 @@ static int sh_eth_tsu_write_entry(struct net_device *ndev, u16 offset,
 	return 0;
 }
 
-static void sh_eth_tsu_read_entry(void *reg, u8 *addr)
+static void sh_eth_tsu_read_entry(struct net_device *ndev, u16 offset, u8 *addr)
 {
+	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 val;
 
-	val = ioread32(reg);
+	val = ioread32(mdp->tsu_addr + offset);
 	addr[0] = (val >> 24) & 0xff;
 	addr[1] = (val >> 16) & 0xff;
 	addr[2] = (val >> 8) & 0xff;
 	addr[3] = val & 0xff;
-	val = ioread32(reg + 4);
+	val = ioread32(mdp->tsu_addr + offset + 4);
 	addr[4] = (val >> 8) & 0xff;
 	addr[5] = val & 0xff;
 }
@@ -2718,7 +2719,7 @@ static int sh_eth_tsu_find_entry(struct net_device *ndev, const u8 *addr)
 	u8 c_addr[ETH_ALEN];
 
 	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
-		sh_eth_tsu_read_entry(mdp->tsu_addr + reg_offset, c_addr);
+		sh_eth_tsu_read_entry(ndev, reg_offset, c_addr);
 		if (ether_addr_equal(addr, c_addr))
 			return i;
 	}
@@ -2839,7 +2840,7 @@ static void sh_eth_tsu_purge_mcast(struct net_device *ndev)
 		return;
 
 	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
-		sh_eth_tsu_read_entry(mdp->tsu_addr + reg_offset, addr);
+		sh_eth_tsu_read_entry(ndev, reg_offset, addr);
 		if (is_multicast_ether_addr(addr))
 			sh_eth_tsu_del_entry(ndev, addr);
 	}
