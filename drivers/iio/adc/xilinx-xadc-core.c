@@ -340,6 +340,8 @@ static int xadc_zynq_setup(struct platform_device *pdev,
 	xadc->zynq_intmask = ~0;
 
 	pcap_rate = clk_get_rate(xadc->clk);
+	if (!pcap_rate)
+		return -EINVAL;
 
 	if (tck_rate > pcap_rate / 2) {
 		div = 2;
@@ -887,6 +889,9 @@ static int xadc_write_raw(struct iio_dev *indio_dev,
 	unsigned long clk_rate = xadc_get_dclk_rate(xadc);
 	unsigned int div;
 
+	if (!clk_rate)
+		return -EINVAL;
+
 	if (info != IIO_CHAN_INFO_SAMP_FREQ)
 		return -EINVAL;
 
@@ -1237,8 +1242,10 @@ static int xadc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 
 	/* Disable all alarms */
-	xadc_update_adc_reg(xadc, XADC_REG_CONF1, XADC_CONF1_ALARM_MASK,
-		XADC_CONF1_ALARM_MASK);
+	ret = xadc_update_adc_reg(xadc, XADC_REG_CONF1, XADC_CONF1_ALARM_MASK,
+				  XADC_CONF1_ALARM_MASK);
+	if (ret)
+		goto err_free_irq;
 
 	/* Set thresholds to min/max */
 	for (i = 0; i < 16; i++) {
