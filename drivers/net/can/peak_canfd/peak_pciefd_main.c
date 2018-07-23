@@ -58,6 +58,10 @@ MODULE_LICENSE("GPL v2");
 #define PCIEFD_REG_SYS_VER1		0x0040	/* version reg #1 */
 #define PCIEFD_REG_SYS_VER2		0x0044	/* version reg #2 */
 
+#define PCIEFD_FW_VERSION(x, y, z)	(((u32)(x) << 24) | \
+					 ((u32)(y) << 16) | \
+					 ((u32)(z) << 8))
+
 /* System Control Registers Bits */
 #define PCIEFD_SYS_CTL_TS_RST		0x00000001	/* timestamp clock */
 #define PCIEFD_SYS_CTL_CLK_EN		0x00000002	/* system clock */
@@ -781,6 +785,21 @@ static int peak_pciefd_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev,
 		 "%ux CAN-FD PCAN-PCIe FPGA v%u.%u.%u:\n", can_count,
 		 hw_ver_major, hw_ver_minor, hw_ver_sub);
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	/* FW < v3.3.0 DMA logic doesn't handle correctly the mix of 32-bit and
+	 * 64-bit logical addresses: this workaround forces usage of 32-bit
+	 * DMA addresses only when such a fw is detected.
+	 */
+	if (PCIEFD_FW_VERSION(hw_ver_major, hw_ver_minor, hw_ver_sub) <
+	    PCIEFD_FW_VERSION(3, 3, 0)) {
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (err)
+			dev_warn(&pdev->dev,
+				 "warning: can't set DMA mask %llxh (err %d)\n",
+				 DMA_BIT_MASK(32), err);
+	}
+#endif
 
 	/* stop system clock */
 	pciefd_sys_writereg(pciefd, PCIEFD_SYS_CTL_CLK_EN,
