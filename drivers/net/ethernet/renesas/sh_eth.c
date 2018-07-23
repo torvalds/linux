@@ -439,9 +439,9 @@ static void sh_eth_modify(struct net_device *ndev, int enum_index, u32 clear,
 		     enum_index);
 }
 
-static void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp, int enum_index)
+static u16 sh_eth_tsu_get_offset(struct sh_eth_private *mdp, int enum_index)
 {
-	return mdp->tsu_addr + mdp->reg_offset[enum_index];
+	return mdp->reg_offset[enum_index];
 }
 
 static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
@@ -2712,12 +2712,12 @@ static void sh_eth_tsu_read_entry(void *reg, u8 *addr)
 static int sh_eth_tsu_find_entry(struct net_device *ndev, const u8 *addr)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	u16 reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int i;
 	u8 c_addr[ETH_ALEN];
 
 	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
-		sh_eth_tsu_read_entry(reg_offset, c_addr);
+		sh_eth_tsu_read_entry(mdp->tsu_addr + reg_offset, c_addr);
 		if (ether_addr_equal(addr, c_addr))
 			return i;
 	}
@@ -2739,7 +2739,7 @@ static int sh_eth_tsu_disable_cam_entry_table(struct net_device *ndev,
 					      int entry)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	u16 reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int ret;
 	u8 blank[ETH_ALEN];
 
@@ -2747,7 +2747,9 @@ static int sh_eth_tsu_disable_cam_entry_table(struct net_device *ndev,
 			 ~(1 << (31 - entry)), TSU_TEN);
 
 	memset(blank, 0, sizeof(blank));
-	ret = sh_eth_tsu_write_entry(ndev, reg_offset + entry * 8, blank);
+	ret = sh_eth_tsu_write_entry(ndev,
+				     mdp->tsu_addr + reg_offset + entry * 8,
+				     blank);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -2756,7 +2758,7 @@ static int sh_eth_tsu_disable_cam_entry_table(struct net_device *ndev,
 static int sh_eth_tsu_add_entry(struct net_device *ndev, const u8 *addr)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	u16 reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int i, ret;
 
 	if (!mdp->cd->tsu)
@@ -2768,7 +2770,9 @@ static int sh_eth_tsu_add_entry(struct net_device *ndev, const u8 *addr)
 		i = sh_eth_tsu_find_empty(ndev);
 		if (i < 0)
 			return -ENOMEM;
-		ret = sh_eth_tsu_write_entry(ndev, reg_offset + i * 8, addr);
+		ret = sh_eth_tsu_write_entry(ndev,
+					     mdp->tsu_addr + reg_offset + i * 8,
+					     addr);
 		if (ret < 0)
 			return ret;
 
@@ -2830,15 +2834,15 @@ static int sh_eth_tsu_purge_all(struct net_device *ndev)
 static void sh_eth_tsu_purge_mcast(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u16 reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	u8 addr[ETH_ALEN];
-	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int i;
 
 	if (!mdp->cd->tsu)
 		return;
 
 	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
-		sh_eth_tsu_read_entry(reg_offset, addr);
+		sh_eth_tsu_read_entry(mdp->tsu_addr + reg_offset, addr);
 		if (is_multicast_ether_addr(addr))
 			sh_eth_tsu_del_entry(ndev, addr);
 	}
