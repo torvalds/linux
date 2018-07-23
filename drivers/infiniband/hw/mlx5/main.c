@@ -3789,9 +3789,6 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 	if (fs_matcher->priority > MLX5_IB_FLOW_LAST_PRIO)
 		return ERR_PTR(-ENOMEM);
 
-	if (dest_type != MLX5_FLOW_DESTINATION_TYPE_TIR)
-		return ERR_PTR(-ENOTSUPP);
-
 	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 	if (!dst)
 		return ERR_PTR(-ENOMEM);
@@ -3805,8 +3802,14 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 		goto unlock;
 	}
 
-	dst->type = dest_type;
-	dst->tir_num = dest_id;
+	if (dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR) {
+		dst->type = dest_type;
+		dst->tir_num = dest_id;
+	} else {
+		dst->type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM;
+		dst->ft_num = dest_id;
+	}
+
 	handler = _create_raw_flow_rule(dev, ft_prio, dst, fs_matcher, cmd_in,
 					inlen);
 
