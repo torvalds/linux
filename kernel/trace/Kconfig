@@ -12,22 +12,22 @@ config NOP_TRACER
 config HAVE_FTRACE_NMI_ENTER
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_FUNCTION_TRACER
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_FUNCTION_GRAPH_TRACER
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_DYNAMIC_FTRACE
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_DYNAMIC_FTRACE_WITH_REGS
 	bool
@@ -35,12 +35,12 @@ config HAVE_DYNAMIC_FTRACE_WITH_REGS
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_SYSCALL_TRACEPOINTS
 	bool
 	help
-	  See Documentation/trace/ftrace-design.txt
+	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_FENTRY
 	bool
@@ -448,7 +448,7 @@ config KPROBE_EVENTS
 	help
 	  This allows the user to add tracing events (similar to tracepoints)
 	  on the fly via the ftrace interface. See
-	  Documentation/trace/kprobetrace.txt for more details.
+	  Documentation/trace/kprobetrace.rst for more details.
 
 	  Those events can be inserted wherever kprobes can probe, and record
 	  various register and memory values.
@@ -575,7 +575,7 @@ config MMIOTRACE
 	  implementation and works via page faults. Tracing is disabled by
 	  default and can be enabled at run-time.
 
-	  See Documentation/trace/mmiotrace.txt.
+	  See Documentation/trace/mmiotrace.rst.
 	  If you are not helping to develop drivers, say N.
 
 config TRACING_MAP

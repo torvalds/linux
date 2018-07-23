@@ -156,11 +156,11 @@ static __poll_t eventfd_poll_mask(struct file *file, __poll_t eventmask)
 	count = READ_ONCE(ctx->count);
 
 	if (count > 0)
-		events |= EPOLLIN;
+		events |= (EPOLLIN & eventmask);
 	if (count == ULLONG_MAX)
 		events |= EPOLLERR;
 	if (ULLONG_MAX - 1 > count)
-		events |= EPOLLOUT;
+		events |= (EPOLLOUT & eventmask);
 
 	return events;
 }

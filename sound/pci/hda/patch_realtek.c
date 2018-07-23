@@ -793,6 +793,9 @@ static inline void alc_shutup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
+	if (!snd_hda_get_bool_hint(codec, "shutup"))
+		return; /* disabled explicitly by hints */
+
 	if (spec && spec->shutup)
 		spec->shutup(codec);
 	else

@@ -129,6 +129,7 @@ struct stmmac_priv {
 	struct net_device *dev;
 	struct device *device;
 	struct mac_device_info *hw;
+	int (*hwif_quirks)(struct stmmac_priv *priv);
 	struct mutex lock;
 
 	/* RX Queue */

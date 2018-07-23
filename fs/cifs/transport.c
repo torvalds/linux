@@ -844,8 +844,8 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	int rc;
 
 	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
-		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
-				  GFP_KERNEL);
+		new_iov = kmalloc_array(n_vec + 1, sizeof(struct kvec),
+					GFP_KERNEL);
 		if (!new_iov) {
 			/* otherwise cifs_send_recv below sets resp_buf_type */
 			*resp_buf_type = CIFS_NO_BUFFER;
@@ -886,8 +886,8 @@ smb2_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	__be32 rfc1002_marker;
 
 	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
-		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
-				  GFP_KERNEL);
+		new_iov = kmalloc_array(n_vec + 1, sizeof(struct kvec),
+					GFP_KERNEL);
 		if (!new_iov)
 			return -ENOMEM;
 	} else

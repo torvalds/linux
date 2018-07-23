@@ -267,7 +267,7 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 
-	vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
+	vgpu->mmio.vreg = vzalloc(array_size(info->mmio_size, 2));
 	if (!vgpu->mmio.vreg)
 		return -ENOMEM;
 

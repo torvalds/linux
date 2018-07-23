@@ -86,7 +86,7 @@ static void dlm_free_pagevec(void **vec, int pages)
 
 static void **dlm_alloc_pagevec(int pages)
 {
-	void **vec = kmalloc(pages * sizeof(void *), GFP_KERNEL);
+	void **vec = kmalloc_array(pages, sizeof(void *), GFP_KERNEL);
 	int i;
 
 	if (!vec)

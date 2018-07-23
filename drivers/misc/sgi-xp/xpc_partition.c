@@ -425,7 +425,7 @@ xpc_discovery(void)
 	if (remote_rp == NULL)
 		return;
 
-	discovered_nasids = kzalloc(sizeof(long) * xpc_nasid_mask_nlongs,
+	discovered_nasids = kcalloc(xpc_nasid_mask_nlongs, sizeof(long),
 				    GFP_KERNEL);
 	if (discovered_nasids == NULL) {
 		kfree(remote_rp_base);

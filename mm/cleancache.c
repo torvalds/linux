@@ -307,12 +307,10 @@ static int __init init_cleancache(void)
 	struct dentry *root = debugfs_create_dir("cleancache", NULL);
 	if (root == NULL)
 		return -ENXIO;
-	debugfs_create_u64("succ_gets", S_IRUGO, root, &cleancache_succ_gets);
-	debugfs_create_u64("failed_gets", S_IRUGO,
-				root, &cleancache_failed_gets);
-	debugfs_create_u64("puts", S_IRUGO, root, &cleancache_puts);
-	debugfs_create_u64("invalidates", S_IRUGO,
-				root, &cleancache_invalidates);
+	debugfs_create_u64("succ_gets", 0444, root, &cleancache_succ_gets);
+	debugfs_create_u64("failed_gets", 0444, root, &cleancache_failed_gets);
+	debugfs_create_u64("puts", 0444, root, &cleancache_puts);
+	debugfs_create_u64("invalidates", 0444, root, &cleancache_invalidates);
 #endif
 	return 0;
 }

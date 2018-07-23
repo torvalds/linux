@@ -662,7 +662,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 
 	pr_debug("%s\n",__func__);
 
-	info->pseudo_palette = kmalloc(sizeof(u32) * 16, GFP_KERNEL);
+	info->pseudo_palette = kmalloc_array(16, sizeof(u32), GFP_KERNEL);
 	if (!info->pseudo_palette)
 		return -ENOMEM;
 

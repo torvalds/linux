@@ -4292,7 +4292,8 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_host_put;
 	}
 
-	adapter->scb_list = kmalloc(sizeof(scb_t) * MAX_COMMANDS, GFP_KERNEL);
+	adapter->scb_list = kmalloc_array(MAX_COMMANDS, sizeof(scb_t),
+					  GFP_KERNEL);
 	if (!adapter->scb_list) {
 		dev_warn(&pdev->dev, "out of RAM\n");
 		goto out_free_cmd_buffer;

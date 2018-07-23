@@ -28,14 +28,10 @@ obj-$(CONFIG_PCI_PF_STUB)	+= pci-pf-stub.o
 obj-$(CONFIG_PCI_ECAM)		+= ecam.o
 obj-$(CONFIG_XEN_PCIDEV_FRONTEND) += xen-pcifront.o
 
-obj-y				+= host/
+obj-y				+= controller/
 obj-y				+= switch/
 
 # Endpoint library must be initialized before its users
 obj-$(CONFIG_PCI_ENDPOINT)	+= endpoint/
-
-obj-$(CONFIG_PCIE_CADENCE)	+= cadence/
-# pcie-hisi.o quirks are needed even without CONFIG_PCIE_DW
-obj-y				+= dwc/
 
 ccflags-$(CONFIG_PCI_DEBUG) := -DDEBUG

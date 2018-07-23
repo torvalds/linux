@@ -429,7 +429,7 @@ replay:
 			 */
 			if (err == -EAGAIN) {
 				status |= NFNL_BATCH_REPLAY;
-				goto next;
+				goto done;
 			}
 		}
 ack:
@@ -456,7 +456,7 @@ ack:
 			if (err)
 				status |= NFNL_BATCH_FAILURE;
 		}
-next:
+
 		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
 		if (msglen > skb->len)
 			msglen = skb->len;
@@ -464,7 +464,11 @@ next:
 	}
 done:
 	if (status & NFNL_BATCH_REPLAY) {
-		ss->abort(net, oskb);
+		const struct nfnetlink_subsystem *ss2;
+
+		ss2 = nfnl_dereference_protected(subsys_id);
+		if (ss2 == ss)
+			ss->abort(net, oskb);
 		nfnl_err_reset(&err_list);
 		nfnl_unlock(subsys_id);
 		kfree_skb(skb);

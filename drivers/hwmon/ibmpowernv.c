@@ -326,9 +326,9 @@ static int populate_attr_groups(struct platform_device *pdev)
 	of_node_put(opal);
 
 	for (type = 0; type < MAX_SENSOR_TYPE; type++) {
-		sensor_groups[type].group.attrs = devm_kzalloc(&pdev->dev,
-					sizeof(struct attribute *) *
-					(sensor_groups[type].attr_count + 1),
+		sensor_groups[type].group.attrs = devm_kcalloc(&pdev->dev,
+					sensor_groups[type].attr_count + 1,
+					sizeof(struct attribute *),
 					GFP_KERNEL);
 		if (!sensor_groups[type].group.attrs)
 			return -ENOMEM;
@@ -409,7 +409,8 @@ static int create_device_attrs(struct platform_device *pdev)
 	int err = 0;
 
 	opal = of_find_node_by_path("/ibm,opal/sensors");
-	sdata = devm_kzalloc(&pdev->dev, pdata->sensors_count * sizeof(*sdata),
+	sdata = devm_kcalloc(&pdev->dev,
+			     pdata->sensors_count, sizeof(*sdata),
 			     GFP_KERNEL);
 	if (!sdata) {
 		err = -ENOMEM;

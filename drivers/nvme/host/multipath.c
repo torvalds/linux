@@ -12,6 +12,7 @@
  */
 
 #include <linux/moduleparam.h>
+#include <trace/events/block.h>
 #include "nvme.h"
 
 static bool multipath = true;
@@ -111,6 +112,9 @@ static blk_qc_t nvme_ns_head_make_request(struct request_queue *q,
 	if (likely(ns)) {
 		bio->bi_disk = ns->disk;
 		bio->bi_opf |= REQ_NVME_MPATH;
+		trace_block_bio_remap(bio->bi_disk->queue, bio,
+				      disk_devt(ns->head->disk),
+				      bio->bi_iter.bi_sector);
 		ret = direct_make_request(bio);
 	} else if (!list_empty_careful(&head->list)) {
 		dev_warn_ratelimited(dev, "no path available - requeuing I/O\n");

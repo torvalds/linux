@@ -874,7 +874,7 @@ static void __init st_of_create_quadfs_fsynths(
 		return;
 
 	clk_data->clk_num = QUADFS_MAX_CHAN;
-	clk_data->clks = kzalloc(QUADFS_MAX_CHAN * sizeof(struct clk *),
+	clk_data->clks = kcalloc(QUADFS_MAX_CHAN, sizeof(struct clk *),
 				 GFP_KERNEL);
 
 	if (!clk_data->clks) {

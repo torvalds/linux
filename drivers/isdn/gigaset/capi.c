@@ -252,7 +252,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 		return;
 	if (l > 64)
 		l = 64; /* arbitrary limit */
-	dbgline = kmalloc(3 * l, GFP_ATOMIC);
+	dbgline = kmalloc_array(3, l, GFP_ATOMIC);
 	if (!dbgline)
 		return;
 	for (i = 0; i < l; i++) {
@@ -272,7 +272,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 			return;
 		if (l > 64)
 			l = 64; /* arbitrary limit */
-		dbgline = kmalloc(3 * l, GFP_ATOMIC);
+		dbgline = kmalloc_array(3, l, GFP_ATOMIC);
 		if (!dbgline)
 			return;
 		data += CAPIMSG_LEN(data);
@@ -1370,7 +1370,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	cmsg->adr.adrPLCI |= (bcs->channel + 1) << 8;
 
 	/* build command table */
-	commands = kzalloc(AT_NUM * (sizeof *commands), GFP_KERNEL);
+	commands = kcalloc(AT_NUM, sizeof(*commands), GFP_KERNEL);
 	if (!commands)
 		goto oom;
 

@@ -54,6 +54,7 @@
 #include <linux/ntb.h>
 #include <linux/pci.h>
 
+/* PCI device IDs */
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_JSF	0x3725
 #define PCI_DEVICE_ID_INTEL_NTB_PS_JSF	0x3726
 #define PCI_DEVICE_ID_INTEL_NTB_SS_JSF	0x3727
@@ -71,132 +72,7 @@
 #define PCI_DEVICE_ID_INTEL_NTB_SS_BDX	0x6F0F
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_SKX	0x201C
 
-/* Intel Xeon hardware */
-
-#define XEON_PBAR23LMT_OFFSET		0x0000
-#define XEON_PBAR45LMT_OFFSET		0x0008
-#define XEON_PBAR4LMT_OFFSET		0x0008
-#define XEON_PBAR5LMT_OFFSET		0x000c
-#define XEON_PBAR23XLAT_OFFSET		0x0010
-#define XEON_PBAR45XLAT_OFFSET		0x0018
-#define XEON_PBAR4XLAT_OFFSET		0x0018
-#define XEON_PBAR5XLAT_OFFSET		0x001c
-#define XEON_SBAR23LMT_OFFSET		0x0020
-#define XEON_SBAR45LMT_OFFSET		0x0028
-#define XEON_SBAR4LMT_OFFSET		0x0028
-#define XEON_SBAR5LMT_OFFSET		0x002c
-#define XEON_SBAR23XLAT_OFFSET		0x0030
-#define XEON_SBAR45XLAT_OFFSET		0x0038
-#define XEON_SBAR4XLAT_OFFSET		0x0038
-#define XEON_SBAR5XLAT_OFFSET		0x003c
-#define XEON_SBAR0BASE_OFFSET		0x0040
-#define XEON_SBAR23BASE_OFFSET		0x0048
-#define XEON_SBAR45BASE_OFFSET		0x0050
-#define XEON_SBAR4BASE_OFFSET		0x0050
-#define XEON_SBAR5BASE_OFFSET		0x0054
-#define XEON_SBDF_OFFSET		0x005c
-#define XEON_NTBCNTL_OFFSET		0x0058
-#define XEON_PDOORBELL_OFFSET		0x0060
-#define XEON_PDBMSK_OFFSET		0x0062
-#define XEON_SDOORBELL_OFFSET		0x0064
-#define XEON_SDBMSK_OFFSET		0x0066
-#define XEON_USMEMMISS_OFFSET		0x0070
-#define XEON_SPAD_OFFSET		0x0080
-#define XEON_PBAR23SZ_OFFSET		0x00d0
-#define XEON_PBAR45SZ_OFFSET		0x00d1
-#define XEON_PBAR4SZ_OFFSET		0x00d1
-#define XEON_SBAR23SZ_OFFSET		0x00d2
-#define XEON_SBAR45SZ_OFFSET		0x00d3
-#define XEON_SBAR4SZ_OFFSET		0x00d3
-#define XEON_PPD_OFFSET			0x00d4
-#define XEON_PBAR5SZ_OFFSET		0x00d5
-#define XEON_SBAR5SZ_OFFSET		0x00d6
-#define XEON_WCCNTRL_OFFSET		0x00e0
-#define XEON_UNCERRSTS_OFFSET		0x014c
-#define XEON_CORERRSTS_OFFSET		0x0158
-#define XEON_LINK_STATUS_OFFSET		0x01a2
-#define XEON_SPCICMD_OFFSET		0x0504
-#define XEON_DEVCTRL_OFFSET		0x0598
-#define XEON_DEVSTS_OFFSET		0x059a
-#define XEON_SLINK_STATUS_OFFSET	0x05a2
-#define XEON_B2B_SPAD_OFFSET		0x0100
-#define XEON_B2B_DOORBELL_OFFSET	0x0140
-#define XEON_B2B_XLAT_OFFSETL		0x0144
-#define XEON_B2B_XLAT_OFFSETU		0x0148
-#define XEON_PPD_CONN_MASK		0x03
-#define XEON_PPD_CONN_TRANSPARENT	0x00
-#define XEON_PPD_CONN_B2B		0x01
-#define XEON_PPD_CONN_RP		0x02
-#define XEON_PPD_DEV_MASK		0x10
-#define XEON_PPD_DEV_USD		0x00
-#define XEON_PPD_DEV_DSD		0x10
-#define XEON_PPD_SPLIT_BAR_MASK		0x40
-
-#define XEON_PPD_TOPO_MASK	(XEON_PPD_CONN_MASK | XEON_PPD_DEV_MASK)
-#define XEON_PPD_TOPO_PRI_USD	(XEON_PPD_CONN_RP | XEON_PPD_DEV_USD)
-#define XEON_PPD_TOPO_PRI_DSD	(XEON_PPD_CONN_RP | XEON_PPD_DEV_DSD)
-#define XEON_PPD_TOPO_SEC_USD	(XEON_PPD_CONN_TRANSPARENT | XEON_PPD_DEV_USD)
-#define XEON_PPD_TOPO_SEC_DSD	(XEON_PPD_CONN_TRANSPARENT | XEON_PPD_DEV_DSD)
-#define XEON_PPD_TOPO_B2B_USD	(XEON_PPD_CONN_B2B | XEON_PPD_DEV_USD)
-#define XEON_PPD_TOPO_B2B_DSD	(XEON_PPD_CONN_B2B | XEON_PPD_DEV_DSD)
-
-#define XEON_MW_COUNT			2
-#define HSX_SPLIT_BAR_MW_COUNT		3
-#define XEON_DB_COUNT			15
-#define XEON_DB_LINK			15
-#define XEON_DB_LINK_BIT			BIT_ULL(XEON_DB_LINK)
-#define XEON_DB_MSIX_VECTOR_COUNT	4
-#define XEON_DB_MSIX_VECTOR_SHIFT	5
-#define XEON_DB_TOTAL_SHIFT		16
-#define XEON_SPAD_COUNT			16
-
-/* Intel Skylake Xeon hardware */
-#define SKX_IMBAR1SZ_OFFSET		0x00d0
-#define SKX_IMBAR2SZ_OFFSET		0x00d1
-#define SKX_EMBAR1SZ_OFFSET		0x00d2
-#define SKX_EMBAR2SZ_OFFSET		0x00d3
-#define SKX_DEVCTRL_OFFSET		0x0098
-#define SKX_DEVSTS_OFFSET		0x009a
-#define SKX_UNCERRSTS_OFFSET		0x014c
-#define SKX_CORERRSTS_OFFSET		0x0158
-#define SKX_LINK_STATUS_OFFSET		0x01a2
-
-#define SKX_NTBCNTL_OFFSET		0x0000
-#define SKX_IMBAR1XBASE_OFFSET		0x0010		/* SBAR2XLAT */
-#define SKX_IMBAR1XLMT_OFFSET		0x0018		/* SBAR2LMT */
-#define SKX_IMBAR2XBASE_OFFSET		0x0020		/* SBAR4XLAT */
-#define SKX_IMBAR2XLMT_OFFSET		0x0028		/* SBAR4LMT */
-#define SKX_IM_INT_STATUS_OFFSET	0x0040
-#define SKX_IM_INT_DISABLE_OFFSET	0x0048
-#define SKX_IM_SPAD_OFFSET		0x0080		/* SPAD */
-#define SKX_USMEMMISS_OFFSET		0x0070
-#define SKX_INTVEC_OFFSET		0x00d0
-#define SKX_IM_DOORBELL_OFFSET		0x0100		/* SDOORBELL0 */
-#define SKX_B2B_SPAD_OFFSET		0x0180		/* B2B SPAD */
-#define SKX_EMBAR0XBASE_OFFSET		0x4008		/* B2B_XLAT */
-#define SKX_EMBAR1XBASE_OFFSET		0x4010		/* PBAR2XLAT */
-#define SKX_EMBAR1XLMT_OFFSET		0x4018		/* PBAR2LMT */
-#define SKX_EMBAR2XBASE_OFFSET		0x4020		/* PBAR4XLAT */
-#define SKX_EMBAR2XLMT_OFFSET		0x4028		/* PBAR4LMT */
-#define SKX_EM_INT_STATUS_OFFSET	0x4040
-#define SKX_EM_INT_DISABLE_OFFSET	0x4048
-#define SKX_EM_SPAD_OFFSET		0x4080		/* remote SPAD */
-#define SKX_EM_DOORBELL_OFFSET		0x4100		/* PDOORBELL0 */
-#define SKX_SPCICMD_OFFSET		0x4504		/* SPCICMD */
-#define SKX_EMBAR0_OFFSET		0x4510		/* SBAR0BASE */
-#define SKX_EMBAR1_OFFSET		0x4518		/* SBAR23BASE */
-#define SKX_EMBAR2_OFFSET		0x4520		/* SBAR45BASE */
-
-#define SKX_DB_COUNT			32
-#define SKX_DB_LINK			32
-#define SKX_DB_LINK_BIT			BIT_ULL(SKX_DB_LINK)
-#define SKX_DB_MSIX_VECTOR_COUNT	33
-#define SKX_DB_MSIX_VECTOR_SHIFT	1
-#define SKX_DB_TOTAL_SHIFT		33
-#define SKX_SPAD_COUNT			16
-
 /* Ntb control and link status */
-
 #define NTB_CTL_CFG_LOCK		BIT(0)
 #define NTB_CTL_DISABLE			BIT(1)
 #define NTB_CTL_S2P_BAR2_SNOOP		BIT(2)
@@ -212,23 +88,6 @@
 #define NTB_LNK_STA_ACTIVE(x)		(!!((x) & NTB_LNK_STA_ACTIVE_BIT))
 #define NTB_LNK_STA_SPEED(x)		((x) & NTB_LNK_STA_SPEED_MASK)
 #define NTB_LNK_STA_WIDTH(x)		(((x) & NTB_LNK_STA_WIDTH_MASK) >> 4)
-
-/* Use the following addresses for translation between b2b ntb devices in case
- * the hardware default values are not reliable. */
-#define XEON_B2B_BAR0_ADDR	0x1000000000000000ull
-#define XEON_B2B_BAR2_ADDR64	0x2000000000000000ull
-#define XEON_B2B_BAR4_ADDR64	0x4000000000000000ull
-#define XEON_B2B_BAR4_ADDR32	0x20000000u
-#define XEON_B2B_BAR5_ADDR32	0x40000000u
-
-/* The peer ntb secondary config space is 32KB fixed size */
-#define XEON_B2B_MIN_SIZE		0x8000
-
-/* flags to indicate hardware errata */
-#define NTB_HWERR_SDOORBELL_LOCKUP	BIT_ULL(0)
-#define NTB_HWERR_SB01BASE_LOCKUP	BIT_ULL(1)
-#define NTB_HWERR_B2BDOORBELL_BIT14	BIT_ULL(2)
-#define NTB_HWERR_MSIX_VECTOR32_BAD	BIT_ULL(3)
 
 /* flags to indicate unsafe api */
 #define NTB_UNSAFE_DB			BIT_ULL(0)
@@ -327,5 +186,65 @@ struct intel_ntb_dev {
 #define ntb_ndev(__ntb) container_of(__ntb, struct intel_ntb_dev, ntb)
 #define hb_ndev(__work) container_of(__work, struct intel_ntb_dev, \
 				     hb_timer.work)
+
+static inline int pdev_is_gen1(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_BDX:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_BDX:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_BDX:
+		return 1;
+	}
+	return 0;
+}
+
+static inline int pdev_is_gen3(struct pci_dev *pdev)
+{
+	if (pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_SKX)
+		return 1;
+
+	return 0;
+}
+
+#ifndef ioread64
+#ifdef readq
+#define ioread64 readq
+#else
+#define ioread64 _ioread64
+static inline u64 _ioread64(void __iomem *mmio)
+{
+	u64 low, high;
+
+	low = ioread32(mmio);
+	high = ioread32(mmio + sizeof(u32));
+	return low | (high << 32);
+}
+#endif
+#endif
+
+#ifndef iowrite64
+#ifdef writeq
+#define iowrite64 writeq
+#else
+#define iowrite64 _iowrite64
+static inline void _iowrite64(u64 val, void __iomem *mmio)
+{
+	iowrite32(val, mmio);
+	iowrite32(val >> 32, mmio + sizeof(u32));
+}
+#endif
+#endif
 
 #endif

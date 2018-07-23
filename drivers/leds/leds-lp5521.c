@@ -533,8 +533,8 @@ static int lp5521_probe(struct i2c_client *client,
 	if (!chip)
 		return -ENOMEM;
 
-	led = devm_kzalloc(&client->dev,
-			sizeof(*led) * pdata->num_channels, GFP_KERNEL);
+	led = devm_kcalloc(&client->dev,
+			pdata->num_channels, sizeof(*led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 

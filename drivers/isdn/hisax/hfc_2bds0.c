@@ -1024,7 +1024,7 @@ static unsigned int
 	int i;
 	unsigned *send;
 
-	if (!(send = kmalloc(cnt * sizeof(unsigned int), GFP_ATOMIC))) {
+	if (!(send = kmalloc_array(cnt, sizeof(unsigned int), GFP_ATOMIC))) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for hfcd.send\n");
 		return (NULL);

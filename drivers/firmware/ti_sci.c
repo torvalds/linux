@@ -1854,9 +1854,9 @@ static int ti_sci_probe(struct platform_device *pdev)
 	if (!minfo->xfer_block)
 		return -ENOMEM;
 
-	minfo->xfer_alloc_table = devm_kzalloc(dev,
-					       BITS_TO_LONGS(desc->max_msgs)
-					       * sizeof(unsigned long),
+	minfo->xfer_alloc_table = devm_kcalloc(dev,
+					       BITS_TO_LONGS(desc->max_msgs),
+					       sizeof(unsigned long),
 					       GFP_KERNEL);
 	if (!minfo->xfer_alloc_table)
 		return -ENOMEM;

@@ -1640,8 +1640,8 @@ static short rtl8192_usb_initendpoints(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	priv->rx_urb = kmalloc(sizeof(struct urb *) * (MAX_RX_URB + 1),
-			       GFP_KERNEL);
+	priv->rx_urb = kmalloc_array(MAX_RX_URB + 1, sizeof(struct urb *),
+				     GFP_KERNEL);
 	if (!priv->rx_urb)
 		return -ENOMEM;
 

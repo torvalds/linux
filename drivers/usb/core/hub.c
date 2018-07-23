@@ -1376,7 +1376,7 @@ static int hub_configure(struct usb_hub *hub,
 	dev_info(hub_dev, "%d port%s detected\n", maxchild,
 			(maxchild == 1) ? "" : "s");
 
-	hub->ports = kzalloc(maxchild * sizeof(struct usb_port *), GFP_KERNEL);
+	hub->ports = kcalloc(maxchild, sizeof(struct usb_port *), GFP_KERNEL);
 	if (!hub->ports) {
 		ret = -ENOMEM;
 		goto fail;

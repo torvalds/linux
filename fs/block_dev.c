@@ -205,7 +205,8 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	if (nr_pages <= DIO_INLINE_BIO_VECS)
 		vecs = inline_vecs;
 	else {
-		vecs = kmalloc(nr_pages * sizeof(struct bio_vec), GFP_KERNEL);
+		vecs = kmalloc_array(nr_pages, sizeof(struct bio_vec),
+				     GFP_KERNEL);
 		if (!vecs)
 			return -ENOMEM;
 	}

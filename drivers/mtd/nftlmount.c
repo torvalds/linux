@@ -199,13 +199,16 @@ device is already correct.
 		nftl->lastEUN = nftl->nb_blocks - 1;
 
 		/* memory alloc */
-		nftl->EUNtable = kmalloc(nftl->nb_blocks * sizeof(u16), GFP_KERNEL);
+		nftl->EUNtable = kmalloc_array(nftl->nb_blocks, sizeof(u16),
+					       GFP_KERNEL);
 		if (!nftl->EUNtable) {
 			printk(KERN_NOTICE "NFTL: allocation of EUNtable failed\n");
 			return -ENOMEM;
 		}
 
-		nftl->ReplUnitTable = kmalloc(nftl->nb_blocks * sizeof(u16), GFP_KERNEL);
+		nftl->ReplUnitTable = kmalloc_array(nftl->nb_blocks,
+						    sizeof(u16),
+						    GFP_KERNEL);
 		if (!nftl->ReplUnitTable) {
 			kfree(nftl->EUNtable);
 			printk(KERN_NOTICE "NFTL: allocation of ReplUnitTable failed\n");

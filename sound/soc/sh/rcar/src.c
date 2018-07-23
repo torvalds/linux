@@ -575,7 +575,7 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 		goto rsnd_src_probe_done;
 	}
 
-	src	= devm_kzalloc(dev, sizeof(*src) * nr, GFP_KERNEL);
+	src	= devm_kcalloc(dev, nr, sizeof(*src), GFP_KERNEL);
 	if (!src) {
 		ret = -ENOMEM;
 		goto rsnd_src_probe_done;

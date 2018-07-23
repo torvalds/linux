@@ -540,7 +540,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
 	ctrl->tx.sl_sz = SLIM_MSGQ_BUF_LEN;
 	ctrl->rx.n = QCOM_RX_MSGS;
 	ctrl->rx.sl_sz = SLIM_MSGQ_BUF_LEN;
-	ctrl->wr_comp = kzalloc(sizeof(struct completion *) * QCOM_TX_MSGS,
+	ctrl->wr_comp = kcalloc(QCOM_TX_MSGS, sizeof(struct completion *),
 				GFP_KERNEL);
 	if (!ctrl->wr_comp)
 		return -ENOMEM;

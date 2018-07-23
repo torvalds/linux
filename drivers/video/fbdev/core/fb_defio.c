@@ -37,7 +37,7 @@ static struct page *fb_deferred_io_page(struct fb_info *info, unsigned long offs
 }
 
 /* this is to find and return the vmalloc-ed fb pages */
-static int fb_deferred_io_fault(struct vm_fault *vmf)
+static vm_fault_t fb_deferred_io_fault(struct vm_fault *vmf)
 {
 	unsigned long offset;
 	struct page *page;
@@ -90,7 +90,7 @@ int fb_deferred_io_fsync(struct file *file, loff_t start, loff_t end, int datasy
 EXPORT_SYMBOL_GPL(fb_deferred_io_fsync);
 
 /* vm_ops->page_mkwrite handler */
-static int fb_deferred_io_mkwrite(struct vm_fault *vmf)
+static vm_fault_t fb_deferred_io_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 	struct fb_info *info = vmf->vma->vm_private_data;

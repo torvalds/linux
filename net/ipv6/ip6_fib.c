@@ -934,6 +934,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 {
 	struct fib6_info *leaf = rcu_dereference_protected(fn->leaf,
 				    lockdep_is_held(&rt->fib6_table->tb6_lock));
+	enum fib_event_type event = FIB_EVENT_ENTRY_ADD;
 	struct fib6_info *iter = NULL, *match = NULL;
 	struct fib6_info __rcu **ins;
 	int replace = (info->nlh &&
@@ -1013,6 +1014,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 				       "Can not append to a REJECT route");
 			return -EINVAL;
 		}
+		event = FIB_EVENT_ENTRY_APPEND;
 		rt->fib6_nsiblings = match->fib6_nsiblings;
 		list_add_tail(&rt->fib6_siblings, &match->fib6_siblings);
 		match->fib6_nsiblings++;
@@ -1034,15 +1036,12 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 	 *	insert node
 	 */
 	if (!replace) {
-		enum fib_event_type event;
-
 		if (!add)
 			pr_warn("NLM_F_CREATE should be set when creating new route\n");
 
 add:
 		nlflags |= NLM_F_CREATE;
 
-		event = append ? FIB_EVENT_ENTRY_APPEND : FIB_EVENT_ENTRY_ADD;
 		err = call_fib6_entry_notifiers(info->nl_net, event, rt,
 						extack);
 		if (err)

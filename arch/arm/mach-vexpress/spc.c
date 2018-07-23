@@ -403,7 +403,7 @@ static int ve_spc_populate_opps(uint32_t cluster)
 	uint32_t data = 0, off, ret, idx;
 	struct ve_spc_opp *opps;
 
-	opps = kzalloc(sizeof(*opps) * MAX_OPPS, GFP_KERNEL);
+	opps = kcalloc(MAX_OPPS, sizeof(*opps), GFP_KERNEL);
 	if (!opps)
 		return -ENOMEM;
 

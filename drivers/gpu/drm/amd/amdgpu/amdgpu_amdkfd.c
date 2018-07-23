@@ -342,15 +342,12 @@ void get_local_mem_info(struct kgd_dev *kgd,
 			mem_info->local_mem_size_public,
 			mem_info->local_mem_size_private);
 
-	if (amdgpu_emu_mode == 1) {
-		mem_info->mem_clk_max = 100;
-		return;
-	}
-
 	if (amdgpu_sriov_vf(adev))
 		mem_info->mem_clk_max = adev->clock.default_mclk / 100;
-	else
+	else if (adev->powerplay.pp_funcs)
 		mem_info->mem_clk_max = amdgpu_dpm_get_mclk(adev, false) / 100;
+	else
+		mem_info->mem_clk_max = 100;
 }
 
 uint64_t get_gpu_clock_counter(struct kgd_dev *kgd)
@@ -367,13 +364,12 @@ uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
 	/* the sclk is in quantas of 10kHz */
-	if (amdgpu_emu_mode == 1)
-		return 100;
-
 	if (amdgpu_sriov_vf(adev))
 		return adev->clock.default_sclk / 100;
-
-	return amdgpu_dpm_get_sclk(adev, false) / 100;
+	else if (adev->powerplay.pp_funcs)
+		return amdgpu_dpm_get_sclk(adev, false) / 100;
+	else
+		return 100;
 }
 
 void get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info)

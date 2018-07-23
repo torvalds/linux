@@ -30,6 +30,7 @@
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
+#include "amdgpu_display.h"
 
 void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 {
@@ -235,6 +236,13 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	/* create a gem object to contain this object in */
 	if (args->in.domains & (AMDGPU_GEM_DOMAIN_GDS |
 	    AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA)) {
+		if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
+			/* if gds bo is created from user space, it must be
+			 * passed to bo list
+			 */
+			DRM_ERROR("GDS bo cannot be per-vm-bo\n");
+			return -EINVAL;
+		}
 		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
 		if (args->in.domains == AMDGPU_GEM_DOMAIN_GDS)
 			size = size << AMDGPU_GDS_SHIFT;
@@ -749,15 +757,16 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_gem_object *gobj;
 	uint32_t handle;
+	u32 domain;
 	int r;
 
 	args->pitch = amdgpu_align_pitch(adev, args->width,
 					 DIV_ROUND_UP(args->bpp, 8), 0);
 	args->size = (u64)args->pitch * args->height;
 	args->size = ALIGN(args->size, PAGE_SIZE);
-
-	r = amdgpu_gem_object_create(adev, args->size, 0,
-				     AMDGPU_GEM_DOMAIN_VRAM,
+	domain = amdgpu_bo_get_preferred_pin_domain(adev,
+				amdgpu_display_supported_domains(adev));
+	r = amdgpu_gem_object_create(adev, args->size, 0, domain,
 				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
 				     false, NULL, &gobj);
 	if (r)

@@ -42,7 +42,8 @@ static int alloc_ila_locks(struct ila_net *ilan)
 	size = roundup_pow_of_two(nr_pcpus * LOCKS_PER_CPU);
 
 	if (sizeof(spinlock_t) != 0) {
-		ilan->locks = kvmalloc(size * sizeof(spinlock_t), GFP_KERNEL);
+		ilan->locks = kvmalloc_array(size, sizeof(spinlock_t),
+					     GFP_KERNEL);
 		if (!ilan->locks)
 			return -ENOMEM;
 		for (i = 0; i < size; i++)

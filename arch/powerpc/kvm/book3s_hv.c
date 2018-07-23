@@ -123,6 +123,32 @@ static bool no_mixing_hpt_and_radix;
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
+/*
+ * RWMR values for POWER8.  These control the rate at which PURR
+ * and SPURR count and should be set according to the number of
+ * online threads in the vcore being run.
+ */
+#define RWMR_RPA_P8_1THREAD	0x164520C62609AECA
+#define RWMR_RPA_P8_2THREAD	0x7FFF2908450D8DA9
+#define RWMR_RPA_P8_3THREAD	0x164520C62609AECA
+#define RWMR_RPA_P8_4THREAD	0x199A421245058DA9
+#define RWMR_RPA_P8_5THREAD	0x164520C62609AECA
+#define RWMR_RPA_P8_6THREAD	0x164520C62609AECA
+#define RWMR_RPA_P8_7THREAD	0x164520C62609AECA
+#define RWMR_RPA_P8_8THREAD	0x164520C62609AECA
+
+static unsigned long p8_rwmr_values[MAX_SMT_THREADS + 1] = {
+	RWMR_RPA_P8_1THREAD,
+	RWMR_RPA_P8_1THREAD,
+	RWMR_RPA_P8_2THREAD,
+	RWMR_RPA_P8_3THREAD,
+	RWMR_RPA_P8_4THREAD,
+	RWMR_RPA_P8_5THREAD,
+	RWMR_RPA_P8_6THREAD,
+	RWMR_RPA_P8_7THREAD,
+	RWMR_RPA_P8_8THREAD,
+};
+
 static inline struct kvm_vcpu *next_runnable_thread(struct kvmppc_vcore *vc,
 		int *ip)
 {
@@ -371,13 +397,13 @@ static void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 
 	pr_err("vcpu %p (%d):\n", vcpu, vcpu->vcpu_id);
 	pr_err("pc  = %.16lx  msr = %.16llx  trap = %x\n",
-	       vcpu->arch.pc, vcpu->arch.shregs.msr, vcpu->arch.trap);
+	       vcpu->arch.regs.nip, vcpu->arch.shregs.msr, vcpu->arch.trap);
 	for (r = 0; r < 16; ++r)
 		pr_err("r%2d = %.16lx  r%d = %.16lx\n",
 		       r, kvmppc_get_gpr(vcpu, r),
 		       r+16, kvmppc_get_gpr(vcpu, r+16));
 	pr_err("ctr = %.16lx  lr  = %.16lx\n",
-	       vcpu->arch.ctr, vcpu->arch.lr);
+	       vcpu->arch.regs.ctr, vcpu->arch.regs.link);
 	pr_err("srr0 = %.16llx srr1 = %.16llx\n",
 	       vcpu->arch.shregs.srr0, vcpu->arch.shregs.srr1);
 	pr_err("sprg0 = %.16llx sprg1 = %.16llx\n",
@@ -385,7 +411,7 @@ static void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 	pr_err("sprg2 = %.16llx sprg3 = %.16llx\n",
 	       vcpu->arch.shregs.sprg2, vcpu->arch.shregs.sprg3);
 	pr_err("cr = %.8x  xer = %.16lx  dsisr = %.8x\n",
-	       vcpu->arch.cr, vcpu->arch.xer, vcpu->arch.shregs.dsisr);
+	       vcpu->arch.cr, vcpu->arch.regs.xer, vcpu->arch.shregs.dsisr);
 	pr_err("dar = %.16llx\n", vcpu->arch.shregs.dar);
 	pr_err("fault dar = %.16lx dsisr = %.8x\n",
 	       vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
@@ -1526,6 +1552,9 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		*val = get_reg_val(id, vcpu->arch.dec_expires +
 				   vcpu->arch.vcore->tb_offset);
 		break;
+	case KVM_REG_PPC_ONLINE:
+		*val = get_reg_val(id, vcpu->arch.online);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -1756,6 +1785,14 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_DEC_EXPIRY:
 		vcpu->arch.dec_expires = set_reg_val(id, *val) -
 			vcpu->arch.vcore->tb_offset;
+		break;
+	case KVM_REG_PPC_ONLINE:
+		i = set_reg_val(id, *val);
+		if (i && !vcpu->arch.online)
+			atomic_inc(&vcpu->arch.vcore->online_count);
+		else if (!i && vcpu->arch.online)
+			atomic_dec(&vcpu->arch.vcore->online_count);
+		vcpu->arch.online = i;
 		break;
 	default:
 		r = -EINVAL;
@@ -2850,6 +2887,25 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		}
 	}
 
+	/*
+	 * On POWER8, set RWMR register.
+	 * Since it only affects PURR and SPURR, it doesn't affect
+	 * the host, so we don't save/restore the host value.
+	 */
+	if (is_power8) {
+		unsigned long rwmr_val = RWMR_RPA_P8_8THREAD;
+		int n_online = atomic_read(&vc->online_count);
+
+		/*
+		 * Use the 8-thread value if we're doing split-core
+		 * or if the vcore's online count looks bogus.
+		 */
+		if (split == 1 && threads_per_subcore == MAX_SMT_THREADS &&
+		    n_online >= 1 && n_online <= MAX_SMT_THREADS)
+			rwmr_val = p8_rwmr_values[n_online];
+		mtspr(SPRN_RWMR, rwmr_val);
+	}
+
 	/* Start all the threads */
 	active = 0;
 	for (sub = 0; sub < core_info.n_subcores; ++sub) {
@@ -2901,6 +2957,32 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	for (sub = 0; sub < core_info.n_subcores; ++sub)
 		spin_unlock(&core_info.vc[sub]->lock);
+
+	if (kvm_is_radix(vc->kvm)) {
+		int tmp = pcpu;
+
+		/*
+		 * Do we need to flush the process scoped TLB for the LPAR?
+		 *
+		 * On POWER9, individual threads can come in here, but the
+		 * TLB is shared between the 4 threads in a core, hence
+		 * invalidating on one thread invalidates for all.
+		 * Thus we make all 4 threads use the same bit here.
+		 *
+		 * Hash must be flushed in realmode in order to use tlbiel.
+		 */
+		mtspr(SPRN_LPID, vc->kvm->arch.lpid);
+		isync();
+
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			tmp &= ~0x3UL;
+
+		if (cpumask_test_cpu(tmp, &vc->kvm->arch.need_tlb_flush)) {
+			radix__local_flush_tlb_lpid_guest(vc->kvm->arch.lpid);
+			/* Clear the bit after the TLB flush */
+			cpumask_clear_cpu(tmp, &vc->kvm->arch.need_tlb_flush);
+		}
+	}
 
 	/*
 	 * Interrupts will be enabled once we get into the guest,
@@ -3356,6 +3438,15 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 #endif
 
+	/*
+	 * Force online to 1 for the sake of old userspace which doesn't
+	 * set it.
+	 */
+	if (!vcpu->arch.online) {
+		atomic_inc(&vcpu->arch.vcore->online_count);
+		vcpu->arch.online = 1;
+	}
+
 	kvmppc_core_prepare_to_enter(vcpu);
 
 	/* No need to go into the guest when all we'll do is come back out */
@@ -3548,7 +3639,7 @@ static void kvmppc_core_free_memslot_hv(struct kvm_memory_slot *free,
 static int kvmppc_core_create_memslot_hv(struct kvm_memory_slot *slot,
 					 unsigned long npages)
 {
-	slot->arch.rmap = vzalloc(npages * sizeof(*slot->arch.rmap));
+	slot->arch.rmap = vzalloc(array_size(npages, sizeof(*slot->arch.rmap)));
 	if (!slot->arch.rmap)
 		return -ENOMEM;
 
@@ -3955,8 +4046,7 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	 */
 	snprintf(buf, sizeof(buf), "vm%d", current->pid);
 	kvm->arch.debugfs_dir = debugfs_create_dir(buf, kvm_debugfs_dir);
-	if (!IS_ERR_OR_NULL(kvm->arch.debugfs_dir))
-		kvmppc_mmu_debugfs_init(kvm);
+	kvmppc_mmu_debugfs_init(kvm);
 
 	return 0;
 }

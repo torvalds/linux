@@ -149,18 +149,17 @@ u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset)
 	return ((ic_clk * (tLOW + tf) + 500000) / 1000000) - 1 + offset;
 }
 
-void __i2c_dw_enable(struct dw_i2c_dev *dev, bool enable)
-{
-	dw_writel(dev, enable, DW_IC_ENABLE);
-}
-
-void __i2c_dw_enable_and_wait(struct dw_i2c_dev *dev, bool enable)
+void __i2c_dw_disable(struct dw_i2c_dev *dev)
 {
 	int timeout = 100;
 
 	do {
-		__i2c_dw_enable(dev, enable);
-		if ((dw_readl(dev, DW_IC_ENABLE_STATUS) & 1) == enable)
+		__i2c_dw_disable_nowait(dev);
+		/*
+		 * The enable status register may be unimplemented, but
+		 * in that case this test reads zero and exits the loop.
+		 */
+		if ((dw_readl(dev, DW_IC_ENABLE_STATUS) & 1) == 0)
 			return;
 
 		/*
@@ -171,8 +170,7 @@ void __i2c_dw_enable_and_wait(struct dw_i2c_dev *dev, bool enable)
 		usleep_range(25, 250);
 	} while (timeout--);
 
-	dev_warn(dev->dev, "timeout in %sabling adapter\n",
-		 enable ? "en" : "dis");
+	dev_warn(dev->dev, "timeout in disabling adapter\n");
 }
 
 unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
@@ -277,7 +275,7 @@ u32 i2c_dw_func(struct i2c_adapter *adap)
 void i2c_dw_disable(struct dw_i2c_dev *dev)
 {
 	/* Disable controller */
-	__i2c_dw_enable_and_wait(dev, false);
+	__i2c_dw_disable(dev);
 
 	/* Disable all interupts */
 	dw_writel(dev, 0, DW_IC_INTR_MASK);

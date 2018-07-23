@@ -345,7 +345,7 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 
 	rcu_read_lock();
 	nat_hook = rcu_dereference(nf_nat_hook);
-	if (nat_hook->decode_session)
+	if (nat_hook && nat_hook->decode_session)
 		nat_hook->decode_session(skb, fl);
 	rcu_read_unlock();
 #endif

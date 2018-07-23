@@ -1079,13 +1079,15 @@ static void get_ss_info_from_atombios(
 	if (*ss_entries_num == 0)
 		return;
 
-	ss_info = kzalloc(sizeof(struct spread_spectrum_info) * (*ss_entries_num),
+	ss_info = kcalloc(*ss_entries_num,
+			  sizeof(struct spread_spectrum_info),
 			  GFP_KERNEL);
 	ss_info_cur = ss_info;
 	if (ss_info == NULL)
 		return;
 
-	ss_data = kzalloc(sizeof(struct spread_spectrum_data) * (*ss_entries_num),
+	ss_data = kcalloc(*ss_entries_num,
+			  sizeof(struct spread_spectrum_data),
 			  GFP_KERNEL);
 	if (ss_data == NULL)
 		goto out_free_info;

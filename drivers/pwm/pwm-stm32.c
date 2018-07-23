@@ -484,9 +484,7 @@ static int stm32_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops stm32pwm_ops = {
 	.owner = THIS_MODULE,
 	.apply = stm32_pwm_apply_locked,
-#if IS_ENABLED(CONFIG_DMA_ENGINE)
-	.capture = stm32_pwm_capture,
-#endif
+	.capture = IS_ENABLED(CONFIG_DMA_ENGINE) ? stm32_pwm_capture : NULL,
 };
 
 static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,

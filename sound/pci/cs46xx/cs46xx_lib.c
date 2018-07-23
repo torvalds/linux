@@ -460,7 +460,7 @@ static int load_firmware(struct snd_cs46xx *chip,
 		entry->size = le32_to_cpu(fwdat[fwlen++]);
 		if (fwlen + entry->size > fwsize)
 			goto error_inval;
-		entry->data = kmalloc(entry->size * 4, GFP_KERNEL);
+		entry->data = kmalloc_array(entry->size, 4, GFP_KERNEL);
 		if (!entry->data)
 			goto error;
 		memcpy_le32(entry->data, &fwdat[fwlen], entry->size * 4);
@@ -4036,8 +4036,9 @@ int snd_cs46xx_create(struct snd_card *card,
 	snd_cs46xx_proc_init(card, chip);
 
 #ifdef CONFIG_PM_SLEEP
-	chip->saved_regs = kmalloc(sizeof(*chip->saved_regs) *
-				   ARRAY_SIZE(saved_regs), GFP_KERNEL);
+	chip->saved_regs = kmalloc_array(ARRAY_SIZE(saved_regs),
+					 sizeof(*chip->saved_regs),
+					 GFP_KERNEL);
 	if (!chip->saved_regs) {
 		snd_cs46xx_free(chip);
 		return -ENOMEM;

@@ -155,7 +155,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	if (!nr)
 		return 0;
 
-	cmd = devm_kzalloc(dev, sizeof(*cmd) * nr, GFP_KERNEL);
+	cmd = devm_kcalloc(dev, nr, sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
 

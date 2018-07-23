@@ -187,7 +187,7 @@ static int pblk_rwb_init(struct pblk *pblk)
 
 	nr_entries = pblk_rb_calculate_size(buffer_size);
 
-	entries = vzalloc(nr_entries * sizeof(struct pblk_rb_entry));
+	entries = vzalloc(array_size(nr_entries, sizeof(struct pblk_rb_entry)));
 	if (!entries)
 		return -ENOMEM;
 
@@ -379,7 +379,7 @@ static int pblk_core_init(struct pblk *pblk)
 		return -EINVAL;
 	}
 
-	pblk->pad_dist = kzalloc((pblk->min_write_pgs - 1) * sizeof(atomic64_t),
+	pblk->pad_dist = kcalloc(pblk->min_write_pgs - 1, sizeof(atomic64_t),
 								GFP_KERNEL);
 	if (!pblk->pad_dist)
 		return -ENOMEM;
@@ -833,8 +833,8 @@ static int pblk_alloc_line_meta(struct pblk *pblk, struct pblk_line *line)
 		goto free_blk_bitmap;
 
 
-	line->chks = kmalloc(lm->blk_per_line * sizeof(struct nvm_chk_meta),
-								GFP_KERNEL);
+	line->chks = kmalloc_array(lm->blk_per_line,
+				   sizeof(struct nvm_chk_meta), GFP_KERNEL);
 	if (!line->chks)
 		goto free_erase_bitmap;
 

@@ -7482,7 +7482,9 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	spec->chip_init_verbs = ca0132_init_verbs0;
 	if (spec->quirk == QUIRK_SBZ)
 		spec->sbz_init_verbs = sbz_init_verbs;
-	spec->spec_init_verbs = kzalloc(sizeof(struct hda_verb) * NUM_SPEC_VERBS, GFP_KERNEL);
+	spec->spec_init_verbs = kcalloc(NUM_SPEC_VERBS,
+					sizeof(struct hda_verb),
+					GFP_KERNEL);
 	if (!spec->spec_init_verbs)
 		return -ENOMEM;
 

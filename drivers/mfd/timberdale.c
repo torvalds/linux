@@ -30,8 +30,8 @@
 #include <linux/timb_gpio.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-ocores.h>
-#include <linux/i2c-xiic.h>
+#include <linux/platform_data/i2c-ocores.h>
+#include <linux/platform_data/i2c-xiic.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/xilinx_spi.h>
@@ -707,8 +707,8 @@ static int timb_probe(struct pci_dev *dev,
 		goto err_config;
 	}
 
-	msix_entries = kzalloc(TIMBERDALE_NR_IRQS * sizeof(*msix_entries),
-		GFP_KERNEL);
+	msix_entries = kcalloc(TIMBERDALE_NR_IRQS, sizeof(*msix_entries),
+			       GFP_KERNEL);
 	if (!msix_entries)
 		goto err_config;
 

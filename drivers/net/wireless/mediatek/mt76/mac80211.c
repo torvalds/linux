@@ -181,7 +181,7 @@ mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
 	if (!chanlist)
 		return -ENOMEM;
 
-	msband->chan = devm_kzalloc(dev->dev, n_chan * sizeof(*msband->chan),
+	msband->chan = devm_kcalloc(dev->dev, n_chan, sizeof(*msband->chan),
 				    GFP_KERNEL);
 	if (!msband->chan)
 		return -ENOMEM;

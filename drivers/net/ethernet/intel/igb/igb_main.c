@@ -3763,8 +3763,9 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
 	adapter->flags |= IGB_FLAG_HAS_MSIX;
 
-	adapter->mac_table = kzalloc(sizeof(struct igb_mac_addr) *
-				     hw->mac.rar_entry_count, GFP_ATOMIC);
+	adapter->mac_table = kcalloc(hw->mac.rar_entry_count,
+				     sizeof(struct igb_mac_addr),
+				     GFP_ATOMIC);
 	if (!adapter->mac_table)
 		return -ENOMEM;
 
@@ -4752,7 +4753,7 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 		return 0;
 	}
 
-	mta_list = kzalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
+	mta_list = kcalloc(netdev_mc_count(netdev), 6, GFP_ATOMIC);
 	if (!mta_list)
 		return -ENOMEM;
 

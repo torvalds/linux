@@ -472,7 +472,7 @@ static const uint8_t *copy_macs(struct mpoa_client *mpc,
 		if (mpc->number_of_mps_macs != 0)
 			kfree(mpc->mps_macs);
 		mpc->number_of_mps_macs = 0;
-		mpc->mps_macs = kmalloc(num_macs * ETH_ALEN, GFP_KERNEL);
+		mpc->mps_macs = kmalloc_array(ETH_ALEN, num_macs, GFP_KERNEL);
 		if (mpc->mps_macs == NULL) {
 			pr_info("(%s) out of mem\n", mpc->dev->name);
 			return NULL;

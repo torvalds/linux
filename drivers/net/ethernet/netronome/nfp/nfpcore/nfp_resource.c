@@ -98,21 +98,18 @@ struct nfp_resource {
 
 static int nfp_cpp_resource_find(struct nfp_cpp *cpp, struct nfp_resource *res)
 {
-	char name_pad[NFP_RESOURCE_ENTRY_NAME_SZ] = {};
 	struct nfp_resource_entry entry;
 	u32 cpp_id, key;
 	int ret, i;
 
 	cpp_id = NFP_CPP_ID(NFP_RESOURCE_TBL_TARGET, 3, 0);  /* Atomic read */
 
-	strncpy(name_pad, res->name, sizeof(name_pad));
-
 	/* Search for a matching entry */
-	if (!memcmp(name_pad, NFP_RESOURCE_TBL_NAME "\0\0\0\0\0\0\0\0", 8)) {
+	if (!strcmp(res->name, NFP_RESOURCE_TBL_NAME)) {
 		nfp_err(cpp, "Grabbing device lock not supported\n");
 		return -EOPNOTSUPP;
 	}
-	key = crc32_posix(name_pad, sizeof(name_pad));
+	key = crc32_posix(res->name, NFP_RESOURCE_ENTRY_NAME_SZ);
 
 	for (i = 0; i < NFP_RESOURCE_TBL_ENTRIES; i++) {
 		u64 addr = NFP_RESOURCE_TBL_BASE +

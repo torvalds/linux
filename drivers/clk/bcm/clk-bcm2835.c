@@ -734,7 +734,7 @@ static void bcm2835_pll_debug_init(struct clk_hw *hw,
 	const struct bcm2835_pll_data *data = pll->data;
 	struct debugfs_reg32 *regs;
 
-	regs = devm_kzalloc(cprman->dev, 7 * sizeof(*regs), GFP_KERNEL);
+	regs = devm_kcalloc(cprman->dev, 7, sizeof(*regs), GFP_KERNEL);
 	if (!regs)
 		return;
 
@@ -865,7 +865,7 @@ static void bcm2835_pll_divider_debug_init(struct clk_hw *hw,
 	const struct bcm2835_pll_divider_data *data = divider->data;
 	struct debugfs_reg32 *regs;
 
-	regs = devm_kzalloc(cprman->dev, 7 * sizeof(*regs), GFP_KERNEL);
+	regs = devm_kcalloc(cprman->dev, 7, sizeof(*regs), GFP_KERNEL);
 	if (!regs)
 		return;
 

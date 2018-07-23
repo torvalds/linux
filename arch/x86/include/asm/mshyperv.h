@@ -269,7 +269,7 @@ static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 		return 0;
 
 	/*
-	 * Clear all banks up to the maximum possible bank as hv_flush_pcpu_ex
+	 * Clear all banks up to the maximum possible bank as hv_tlb_flush_ex
 	 * structs are not cleared between calls, we risk flushing unneeded
 	 * vCPUs otherwise.
 	 */

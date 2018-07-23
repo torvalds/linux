@@ -436,7 +436,7 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 	}
 
 	/* NULL terminated array to save passing size */
-	chans = kzalloc(sizeof(*chans)*(nummaps + 1), GFP_KERNEL);
+	chans = kcalloc(nummaps + 1, sizeof(*chans), GFP_KERNEL);
 	if (chans == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;

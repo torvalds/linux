@@ -158,7 +158,16 @@ static void ixgbe_ipsec_stop_data(struct ixgbe_adapter *adapter)
 	reg |= IXGBE_SECRXCTRL_RX_DIS;
 	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, reg);
 
-	IXGBE_WRITE_FLUSH(hw);
+	/* If both Tx and Rx are ready there are no packets
+	 * that we need to flush so the loopback configuration
+	 * below is not necessary.
+	 */
+	t_rdy = IXGBE_READ_REG(hw, IXGBE_SECTXSTAT) &
+		IXGBE_SECTXSTAT_SECTX_RDY;
+	r_rdy = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT) &
+		IXGBE_SECRXSTAT_SECRX_RDY;
+	if (t_rdy && r_rdy)
+		return;
 
 	/* If the tx fifo doesn't have link, but still has data,
 	 * we can't clear the tx sec block.  Set the MAC loopback
@@ -185,7 +194,7 @@ static void ixgbe_ipsec_stop_data(struct ixgbe_adapter *adapter)
 			IXGBE_SECTXSTAT_SECTX_RDY;
 		r_rdy = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT) &
 			IXGBE_SECRXSTAT_SECRX_RDY;
-	} while (!t_rdy && !r_rdy && limit--);
+	} while (!(t_rdy && r_rdy) && limit--);
 
 	/* undo loopback if we played with it earlier */
 	if (!link) {
@@ -966,10 +975,22 @@ void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
  **/
 void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_ipsec *ipsec;
+	u32 t_dis, r_dis;
 	size_t size;
 
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return;
+
+	/* If there is no support for either Tx or Rx offload
+	 * we should not be advertising support for IPsec.
+	 */
+	t_dis = IXGBE_READ_REG(hw, IXGBE_SECTXSTAT) &
+		IXGBE_SECTXSTAT_SECTX_OFF_DIS;
+	r_dis = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT) &
+		IXGBE_SECRXSTAT_SECRX_OFF_DIS;
+	if (t_dis || r_dis)
 		return;
 
 	ipsec = kzalloc(sizeof(*ipsec), GFP_KERNEL);
@@ -1000,13 +1021,6 @@ void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter)
 	ixgbe_ipsec_clear_hw_tables(adapter);
 
 	adapter->netdev->xfrmdev_ops = &ixgbe_xfrmdev_ops;
-
-#define IXGBE_ESP_FEATURES	(NETIF_F_HW_ESP | \
-				 NETIF_F_HW_ESP_TX_CSUM | \
-				 NETIF_F_GSO_ESP)
-
-	adapter->netdev->features |= IXGBE_ESP_FEATURES;
-	adapter->netdev->hw_enc_features |= IXGBE_ESP_FEATURES;
 
 	return;
 

@@ -288,8 +288,8 @@ static void untag_chunk(struct node *p)
 	if (!new)
 		goto Fallback;
 
-	if (fsnotify_add_mark_locked(&new->mark, entry->connector->inode,
-				     NULL, 1)) {
+	if (fsnotify_add_inode_mark_locked(&new->mark, entry->connector->inode,
+					   1)) {
 		fsnotify_put_mark(&new->mark);
 		goto Fallback;
 	}
@@ -354,7 +354,7 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 		return -ENOMEM;
 
 	entry = &chunk->mark;
-	if (fsnotify_add_mark(entry, inode, NULL, 0)) {
+	if (fsnotify_add_inode_mark(entry, inode, 0)) {
 		fsnotify_put_mark(entry);
 		return -ENOSPC;
 	}
@@ -434,8 +434,8 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 		return -ENOENT;
 	}
 
-	if (fsnotify_add_mark_locked(chunk_entry,
-			     old_entry->connector->inode, NULL, 1)) {
+	if (fsnotify_add_inode_mark_locked(chunk_entry,
+			     old_entry->connector->inode, 1)) {
 		spin_unlock(&old_entry->lock);
 		mutex_unlock(&old_entry->group->mark_mutex);
 		fsnotify_put_mark(chunk_entry);
@@ -989,8 +989,6 @@ static void evict_chunk(struct audit_chunk *chunk)
 
 static int audit_tree_handle_event(struct fsnotify_group *group,
 				   struct inode *to_tell,
-				   struct fsnotify_mark *inode_mark,
-				   struct fsnotify_mark *vfsmount_mark,
 				   u32 mask, const void *data, int data_type,
 				   const unsigned char *file_name, u32 cookie,
 				   struct fsnotify_iter_info *iter_info)

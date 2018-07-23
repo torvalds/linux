@@ -461,7 +461,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		fh_count = be32_to_cpup(p);
 
 		fls->mirror_array[i]->fh_versions =
-			kzalloc(fh_count * sizeof(struct nfs_fh),
+			kcalloc(fh_count, sizeof(struct nfs_fh),
 				gfp_flags);
 		if (fls->mirror_array[i]->fh_versions == NULL) {
 			rc = -ENOMEM;
@@ -2347,6 +2347,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.id			= LAYOUT_FLEX_FILES,
 	.name			= "LAYOUT_FLEX_FILES",
 	.owner			= THIS_MODULE,
+	.flags			= PNFS_LAYOUTGET_ON_OPEN,
 	.set_layoutdriver	= ff_layout_set_layoutdriver,
 	.alloc_layout_hdr	= ff_layout_alloc_layout_hdr,
 	.free_layout_hdr	= ff_layout_free_layout_hdr,

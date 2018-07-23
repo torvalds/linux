@@ -277,7 +277,7 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
 	if (!configlen)
 		return NULL;
 
-	pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);
+	pinconfig = kcalloc(configlen, sizeof(*pinconfig), GFP_KERNEL);
 	if (!pinconfig)
 		return ERR_PTR(-ENOMEM);
 
@@ -352,7 +352,7 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	 * any configuration.
 	 */
 	nmaps = npins * 2;
-	*map = kmalloc(nmaps * sizeof(struct pinctrl_map), GFP_KERNEL);
+	*map = kmalloc_array(nmaps, sizeof(struct pinctrl_map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 
@@ -1055,8 +1055,8 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * this means that the number of pins is the maximum group
 	 * number we will ever see.
 	 */
-	pctl->groups = devm_kzalloc(&pdev->dev,
-				    pctl->desc->npins * sizeof(*pctl->groups),
+	pctl->groups = devm_kcalloc(&pdev->dev,
+				    pctl->desc->npins, sizeof(*pctl->groups),
 				    GFP_KERNEL);
 	if (!pctl->groups)
 		return -ENOMEM;
@@ -1079,8 +1079,9 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * We suppose that we won't have any more functions than pins,
 	 * we'll reallocate that later anyway
 	 */
-	pctl->functions = devm_kzalloc(&pdev->dev,
-				       pctl->ngroups * sizeof(*pctl->functions),
+	pctl->functions = devm_kcalloc(&pdev->dev,
+				       pctl->ngroups,
+				       sizeof(*pctl->functions),
 				       GFP_KERNEL);
 	if (!pctl->functions)
 		return -ENOMEM;
@@ -1137,8 +1138,9 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 
 			if (!func_item->groups) {
 				func_item->groups =
-					devm_kzalloc(&pdev->dev,
-						     func_item->ngroups * sizeof(*func_item->groups),
+					devm_kcalloc(&pdev->dev,
+						     func_item->ngroups,
+						     sizeof(*func_item->groups),
 						     GFP_KERNEL);
 				if (!func_item->groups)
 					return -ENOMEM;
@@ -1281,8 +1283,8 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 		return ret;
 	}
 
-	pins = devm_kzalloc(&pdev->dev,
-			    pctl->desc->npins * sizeof(*pins),
+	pins = devm_kcalloc(&pdev->dev,
+			    pctl->desc->npins, sizeof(*pins),
 			    GFP_KERNEL);
 	if (!pins)
 		return -ENOMEM;

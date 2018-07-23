@@ -363,7 +363,7 @@ static void reg_w_ixbuf(struct gspca_dev *gspca_dev,
 	if (len * 2 <= USB_BUF_SZ) {
 		p = tmpbuf = gspca_dev->usb_buf;
 	} else {
-		p = tmpbuf = kmalloc(len * 2, GFP_KERNEL);
+		p = tmpbuf = kmalloc_array(len, 2, GFP_KERNEL);
 		if (!tmpbuf) {
 			pr_err("Out of memory\n");
 			return;

@@ -139,25 +139,13 @@ struct crypt_config {
 	struct dm_dev *dev;
 	sector_t start;
 
-	/*
-	 * pool for per bio private data, crypto requests,
-	 * encryption requeusts/buffer pages and integrity tags
-	 */
-	mempool_t req_pool;
-	mempool_t page_pool;
-	mempool_t tag_pool;
-	unsigned tag_pool_max_sectors;
-
 	struct percpu_counter n_allocated_pages;
-
-	struct bio_set bs;
-	struct mutex bio_alloc_lock;
 
 	struct workqueue_struct *io_queue;
 	struct workqueue_struct *crypt_queue;
 
-	struct task_struct *write_thread;
 	wait_queue_head_t write_thread_wait;
+	struct task_struct *write_thread;
 	struct rb_root write_tree;
 
 	char *cipher;
@@ -212,6 +200,18 @@ struct crypt_config {
 	unsigned int integrity_tag_size;
 	unsigned int integrity_iv_size;
 	unsigned int on_disk_tag_size;
+
+	/*
+	 * pool for per bio private data, crypto requests,
+	 * encryption requeusts/buffer pages and integrity tags
+	 */
+	unsigned tag_pool_max_sectors;
+	mempool_t tag_pool;
+	mempool_t req_pool;
+	mempool_t page_pool;
+
+	struct bio_set bs;
+	struct mutex bio_alloc_lock;
 
 	u8 *authenc_key; /* space for keys in authenc() format (if used) */
 	u8 key[0];
@@ -1878,8 +1878,9 @@ static int crypt_alloc_tfms_skcipher(struct crypt_config *cc, char *ciphermode)
 	unsigned i;
 	int err;
 
-	cc->cipher_tfm.tfms = kzalloc(cc->tfms_count *
-				      sizeof(struct crypto_skcipher *), GFP_KERNEL);
+	cc->cipher_tfm.tfms = kcalloc(cc->tfms_count,
+				      sizeof(struct crypto_skcipher *),
+				      GFP_KERNEL);
 	if (!cc->cipher_tfm.tfms)
 		return -ENOMEM;
 

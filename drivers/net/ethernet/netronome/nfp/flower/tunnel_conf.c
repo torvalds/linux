@@ -381,6 +381,8 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	err = PTR_ERR_OR_ZERO(rt);
 	if (err)
 		return NOTIFY_DONE;
+
+	ip_rt_put(rt);
 #else
 	return NOTIFY_DONE;
 #endif

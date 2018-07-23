@@ -2753,8 +2753,10 @@ static int init_free_nid_cache(struct f2fs_sb_info *sbi)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	int i;
 
-	nm_i->free_nid_bitmap = f2fs_kzalloc(sbi, nm_i->nat_blocks *
-				sizeof(unsigned char *), GFP_KERNEL);
+	nm_i->free_nid_bitmap =
+		f2fs_kzalloc(sbi, array_size(sizeof(unsigned char *),
+					     nm_i->nat_blocks),
+			     GFP_KERNEL);
 	if (!nm_i->free_nid_bitmap)
 		return -ENOMEM;
 
@@ -2770,8 +2772,10 @@ static int init_free_nid_cache(struct f2fs_sb_info *sbi)
 	if (!nm_i->nat_block_bitmap)
 		return -ENOMEM;
 
-	nm_i->free_nid_count = f2fs_kvzalloc(sbi, nm_i->nat_blocks *
-					sizeof(unsigned short), GFP_KERNEL);
+	nm_i->free_nid_count =
+		f2fs_kvzalloc(sbi, array_size(sizeof(unsigned short),
+					      nm_i->nat_blocks),
+			      GFP_KERNEL);
 	if (!nm_i->free_nid_count)
 		return -ENOMEM;
 	return 0;

@@ -299,13 +299,14 @@ static void cros_ec_sensors_register(struct cros_ec_dev *ec)
 	resp = (struct ec_response_motion_sense *)msg->data;
 	sensor_num = resp->dump.sensor_count;
 	/* Allocate 1 extra sensors in FIFO are needed */
-	sensor_cells = kzalloc(sizeof(struct mfd_cell) * (sensor_num + 1),
+	sensor_cells = kcalloc(sensor_num + 1, sizeof(struct mfd_cell),
 			       GFP_KERNEL);
 	if (sensor_cells == NULL)
 		goto error;
 
-	sensor_platforms = kzalloc(sizeof(struct cros_ec_sensor_platform) *
-		  (sensor_num + 1), GFP_KERNEL);
+	sensor_platforms = kcalloc(sensor_num + 1,
+				   sizeof(struct cros_ec_sensor_platform),
+				   GFP_KERNEL);
 	if (sensor_platforms == NULL)
 		goto error_platforms;
 

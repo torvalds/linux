@@ -129,7 +129,7 @@ static int pruss_probe(struct platform_device *pdev)
 	if (!gdev)
 		return -ENOMEM;
 
-	gdev->info = kzalloc(sizeof(*p) * MAX_PRUSS_EVT, GFP_KERNEL);
+	gdev->info = kcalloc(MAX_PRUSS_EVT, sizeof(*p), GFP_KERNEL);
 	if (!gdev->info) {
 		kfree(gdev);
 		return -ENOMEM;

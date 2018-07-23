@@ -35,7 +35,7 @@ out:
 	return len;
 }
 
-static ssize_t write_text(const char *path, char *buf, size_t len)
+static ssize_t write_text(const char *path, char *buf, ssize_t len)
 {
 	int fd;
 
@@ -140,7 +140,7 @@ long cg_read_key_long(const char *cgroup, const char *control, const char *key)
 int cg_write(const char *cgroup, const char *control, char *buf)
 {
 	char path[PATH_MAX];
-	size_t len = strlen(buf);
+	ssize_t len = strlen(buf);
 
 	snprintf(path, sizeof(path), "%s/%s", cgroup, control);
 

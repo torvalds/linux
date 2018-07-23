@@ -53,8 +53,37 @@ static const unsigned long SMU10_Magic = (unsigned long) PHM_Rv_Magic;
 
 
 static int smu10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
-		struct pp_display_clock_request *clock_req);
+		struct pp_display_clock_request *clock_req)
+{
+	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	enum amd_pp_clock_type clk_type = clock_req->clock_type;
+	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
+	PPSMC_Msg        msg;
 
+	switch (clk_type) {
+	case amd_pp_dcf_clock:
+		if (clk_freq == smu10_data->dcf_actual_hard_min_freq)
+			return 0;
+		msg =  PPSMC_MSG_SetHardMinDcefclkByFreq;
+		smu10_data->dcf_actual_hard_min_freq = clk_freq;
+		break;
+	case amd_pp_soc_clock:
+		 msg = PPSMC_MSG_SetHardMinSocclkByFreq;
+		break;
+	case amd_pp_f_clock:
+		if (clk_freq == smu10_data->f_actual_hard_min_freq)
+			return 0;
+		smu10_data->f_actual_hard_min_freq = clk_freq;
+		msg = PPSMC_MSG_SetHardMinFclkByFreq;
+		break;
+	default:
+		pr_info("[DisplayClockVoltageRequest]Invalid Clock Type!");
+		return -EINVAL;
+	}
+	smum_send_msg_to_smc_with_parameter(hwmgr, msg, clk_freq);
+
+	return 0;
+}
 
 static struct smu10_power_state *cast_smu10_ps(struct pp_hw_power_state *hw_ps)
 {
@@ -284,7 +313,7 @@ static int smu10_disable_gfx_off(struct pp_hwmgr *hwmgr)
 
 static int smu10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	return smu10_disable_gfx_off(hwmgr);
+	return 0;
 }
 
 static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
@@ -299,7 +328,7 @@ static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 
 static int smu10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	return smu10_enable_gfx_off(hwmgr);
+	return 0;
 }
 
 static int smu10_gfx_off_control(struct pp_hwmgr *hwmgr, bool enable)
@@ -1000,6 +1029,12 @@ static int smu10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 	case amd_pp_soc_clock:
 		pclk_vol_table = pinfo->vdd_dep_on_socclk;
 		break;
+	case amd_pp_disp_clock:
+		pclk_vol_table = pinfo->vdd_dep_on_dispclk;
+		break;
+	case amd_pp_phy_clock:
+		pclk_vol_table = pinfo->vdd_dep_on_phyclk;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1017,39 +1052,7 @@ static int smu10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
-		struct pp_display_clock_request *clock_req)
-{
-	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
-	enum amd_pp_clock_type clk_type = clock_req->clock_type;
-	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
-	PPSMC_Msg        msg;
 
-	switch (clk_type) {
-	case amd_pp_dcf_clock:
-		if (clk_freq == smu10_data->dcf_actual_hard_min_freq)
-			return 0;
-		msg =  PPSMC_MSG_SetHardMinDcefclkByFreq;
-		smu10_data->dcf_actual_hard_min_freq = clk_freq;
-		break;
-	case amd_pp_soc_clock:
-		 msg = PPSMC_MSG_SetHardMinSocclkByFreq;
-		break;
-	case amd_pp_f_clock:
-		if (clk_freq == smu10_data->f_actual_hard_min_freq)
-			return 0;
-		smu10_data->f_actual_hard_min_freq = clk_freq;
-		msg = PPSMC_MSG_SetHardMinFclkByFreq;
-		break;
-	default:
-		pr_info("[DisplayClockVoltageRequest]Invalid Clock Type!");
-		return -EINVAL;
-	}
-
-	smum_send_msg_to_smc_with_parameter(hwmgr, msg, clk_freq);
-
-	return 0;
-}
 
 static int smu10_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks)
 {
@@ -1182,6 +1185,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.set_mmhub_powergating_by_smu = smu10_set_mmhub_powergating_by_smu,
 	.smus_notify_pwe = smu10_smus_notify_pwe,
 	.gfx_off_control = smu10_gfx_off_control,
+	.display_clock_voltage_request = smu10_display_clock_voltage_request,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

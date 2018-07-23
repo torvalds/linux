@@ -38,6 +38,7 @@
 struct quirk_entry {
 	bool touchpad_led;
 	bool kbd_led_levels_off_1;
+	bool kbd_missing_ac_tag;
 
 	bool needs_kbd_timeouts;
 	/*
@@ -66,6 +67,10 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 static struct quirk_entry quirk_dell_xps13_9333 = {
 	.needs_kbd_timeouts = true,
 	.kbd_timeouts = { 0, 5, 15, 60, 5 * 60, 15 * 60, -1 },
+};
+
+static struct quirk_entry quirk_dell_xps13_9370 = {
+	.kbd_missing_ac_tag = true,
 };
 
 static struct quirk_entry quirk_dell_latitude_e6410 = {
@@ -290,6 +295,15 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "XPS13 9333"),
 		},
 		.driver_data = &quirk_dell_xps13_9333,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell XPS 13 9370",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9370"),
+		},
+		.driver_data = &quirk_dell_xps13_9370,
 	},
 	{
 		.callback = dmi_matched,
@@ -1401,7 +1415,8 @@ static inline int kbd_init_info(void)
 	 *       timeout value which is shared for both battery and AC power
 	 *       settings. So do not try to set AC values on old models.
 	 */
-	if (dell_smbios_find_token(KBD_LED_AC_TOKEN))
+	if ((quirks && quirks->kbd_missing_ac_tag) ||
+	    dell_smbios_find_token(KBD_LED_AC_TOKEN))
 		kbd_timeout_ac_supported = true;
 
 	kbd_get_state(&state);

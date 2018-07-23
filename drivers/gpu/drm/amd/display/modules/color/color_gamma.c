@@ -1274,19 +1274,22 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
 
-	rgb_user = kvzalloc(sizeof(*rgb_user) * (ramp->num_entries + _EXTRA_POINTS),
+	rgb_user = kvcalloc(ramp->num_entries + _EXTRA_POINTS,
+			    sizeof(*rgb_user),
 			    GFP_KERNEL);
 	if (!rgb_user)
 		goto rgb_user_alloc_fail;
-	rgb_regamma = kvzalloc(sizeof(*rgb_regamma) * (MAX_HW_POINTS + _EXTRA_POINTS),
+	rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+			       sizeof(*rgb_regamma),
 			       GFP_KERNEL);
 	if (!rgb_regamma)
 		goto rgb_regamma_alloc_fail;
-	axix_x = kvzalloc(sizeof(*axix_x) * (ramp->num_entries + 3),
+	axix_x = kvcalloc(ramp->num_entries + 3, sizeof(*axix_x),
 			  GFP_KERNEL);
 	if (!axix_x)
 		goto axix_x_alloc_fail;
-	coeff = kvzalloc(sizeof(*coeff) * (MAX_HW_POINTS + _EXTRA_POINTS), GFP_KERNEL);
+	coeff = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS, sizeof(*coeff),
+			 GFP_KERNEL);
 	if (!coeff)
 		goto coeff_alloc_fail;
 
@@ -1413,13 +1416,15 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
 
-	rgb_user = kzalloc(sizeof(*rgb_user) * (GAMMA_RGB_256_ENTRIES + _EXTRA_POINTS),
-			GFP_KERNEL);
+	rgb_user = kcalloc(GAMMA_RGB_256_ENTRIES + _EXTRA_POINTS,
+			   sizeof(*rgb_user),
+			   GFP_KERNEL);
 	if (!rgb_user)
 		goto rgb_user_alloc_fail;
 
-	rgb_regamma = kzalloc(sizeof(*rgb_regamma) * (MAX_HW_POINTS + _EXTRA_POINTS),
-			GFP_KERNEL);
+	rgb_regamma = kcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+			      sizeof(*rgb_regamma),
+			      GFP_KERNEL);
 	if (!rgb_regamma)
 		goto rgb_regamma_alloc_fail;
 
@@ -1480,19 +1485,21 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 
 	input_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
 
-	rgb_user = kvzalloc(sizeof(*rgb_user) * (ramp->num_entries + _EXTRA_POINTS),
+	rgb_user = kvcalloc(ramp->num_entries + _EXTRA_POINTS,
+			    sizeof(*rgb_user),
 			    GFP_KERNEL);
 	if (!rgb_user)
 		goto rgb_user_alloc_fail;
-	curve = kvzalloc(sizeof(*curve) * (MAX_HW_POINTS + _EXTRA_POINTS),
+	curve = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS, sizeof(*curve),
 			 GFP_KERNEL);
 	if (!curve)
 		goto curve_alloc_fail;
-	axix_x = kvzalloc(sizeof(*axix_x) * (ramp->num_entries + _EXTRA_POINTS),
+	axix_x = kvcalloc(ramp->num_entries + _EXTRA_POINTS, sizeof(*axix_x),
 			  GFP_KERNEL);
 	if (!axix_x)
 		goto axix_x_alloc_fail;
-	coeff = kvzalloc(sizeof(*coeff) * (MAX_HW_POINTS + _EXTRA_POINTS), GFP_KERNEL);
+	coeff = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS, sizeof(*coeff),
+			 GFP_KERNEL);
 	if (!coeff)
 		goto coeff_alloc_fail;
 
@@ -1569,8 +1576,8 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		}
 		ret = true;
 	} else if (trans == TRANSFER_FUNCTION_PQ) {
-		rgb_regamma = kvzalloc(sizeof(*rgb_regamma) *
-				       (MAX_HW_POINTS + _EXTRA_POINTS),
+		rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+				       sizeof(*rgb_regamma),
 				       GFP_KERNEL);
 		if (!rgb_regamma)
 			goto rgb_regamma_alloc_fail;
@@ -1594,8 +1601,8 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		kvfree(rgb_regamma);
 	} else if (trans == TRANSFER_FUNCTION_SRGB ||
 			  trans == TRANSFER_FUNCTION_BT709) {
-		rgb_regamma = kvzalloc(sizeof(*rgb_regamma) *
-				       (MAX_HW_POINTS + _EXTRA_POINTS),
+		rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+				       sizeof(*rgb_regamma),
 				       GFP_KERNEL);
 		if (!rgb_regamma)
 			goto rgb_regamma_alloc_fail;
@@ -1638,8 +1645,8 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 		}
 		ret = true;
 	} else if (trans == TRANSFER_FUNCTION_PQ) {
-		rgb_degamma = kvzalloc(sizeof(*rgb_degamma) *
-				       (MAX_HW_POINTS +	_EXTRA_POINTS),
+		rgb_degamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+				       sizeof(*rgb_degamma),
 				       GFP_KERNEL);
 		if (!rgb_degamma)
 			goto rgb_degamma_alloc_fail;
@@ -1658,8 +1665,8 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 		kvfree(rgb_degamma);
 	} else if (trans == TRANSFER_FUNCTION_SRGB ||
 			  trans == TRANSFER_FUNCTION_BT709) {
-		rgb_degamma = kvzalloc(sizeof(*rgb_degamma) *
-				       (MAX_HW_POINTS + _EXTRA_POINTS),
+		rgb_degamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+				       sizeof(*rgb_degamma),
 				       GFP_KERNEL);
 		if (!rgb_degamma)
 			goto rgb_degamma_alloc_fail;

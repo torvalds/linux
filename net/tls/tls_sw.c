@@ -191,17 +191,11 @@ static void tls_free_both_sg(struct sock *sk)
 }
 
 static int tls_do_encryption(struct tls_context *tls_ctx,
-			     struct tls_sw_context_tx *ctx, size_t data_len,
-			     gfp_t flags)
+			     struct tls_sw_context_tx *ctx,
+			     struct aead_request *aead_req,
+			     size_t data_len)
 {
-	unsigned int req_size = sizeof(struct aead_request) +
-		crypto_aead_reqsize(ctx->aead_send);
-	struct aead_request *aead_req;
 	int rc;
-
-	aead_req = kzalloc(req_size, flags);
-	if (!aead_req)
-		return -ENOMEM;
 
 	ctx->sg_encrypted_data[0].offset += tls_ctx->tx.prepend_size;
 	ctx->sg_encrypted_data[0].length -= tls_ctx->tx.prepend_size;
@@ -219,7 +213,6 @@ static int tls_do_encryption(struct tls_context *tls_ctx,
 	ctx->sg_encrypted_data[0].offset -= tls_ctx->tx.prepend_size;
 	ctx->sg_encrypted_data[0].length += tls_ctx->tx.prepend_size;
 
-	kfree(aead_req);
 	return rc;
 }
 
@@ -228,7 +221,13 @@ static int tls_push_record(struct sock *sk, int flags,
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
+	struct aead_request *req;
 	int rc;
+
+	req = kzalloc(sizeof(struct aead_request) +
+		      crypto_aead_reqsize(ctx->aead_send), sk->sk_allocation);
+	if (!req)
+		return -ENOMEM;
 
 	sg_mark_end(ctx->sg_plaintext_data + ctx->sg_plaintext_num_elem - 1);
 	sg_mark_end(ctx->sg_encrypted_data + ctx->sg_encrypted_num_elem - 1);
@@ -245,15 +244,14 @@ static int tls_push_record(struct sock *sk, int flags,
 	tls_ctx->pending_open_record_frags = 0;
 	set_bit(TLS_PENDING_CLOSED_RECORD, &tls_ctx->flags);
 
-	rc = tls_do_encryption(tls_ctx, ctx, ctx->sg_plaintext_size,
-			       sk->sk_allocation);
+	rc = tls_do_encryption(tls_ctx, ctx, req, ctx->sg_plaintext_size);
 	if (rc < 0) {
 		/* If we are called from write_space and
 		 * we fail, we need to set this SOCK_NOSPACE
 		 * to trigger another write_space in the future.
 		 */
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-		return rc;
+		goto out_req;
 	}
 
 	free_sg(sk, ctx->sg_plaintext_data, &ctx->sg_plaintext_num_elem,
@@ -268,6 +266,8 @@ static int tls_push_record(struct sock *sk, int flags,
 		tls_err_abort(sk, EBADMSG);
 
 	tls_advance_record_sn(sk, &tls_ctx->tx);
+out_req:
+	kfree(req);
 	return rc;
 }
 
@@ -754,7 +754,7 @@ int tls_sw_recvmsg(struct sock *sk,
 	struct sk_buff *skb;
 	ssize_t copied = 0;
 	bool cmsg = false;
-	int err = 0;
+	int target, err = 0;
 	long timeo;
 
 	flags |= nonblock;
@@ -764,6 +764,7 @@ int tls_sw_recvmsg(struct sock *sk,
 
 	lock_sock(sk);
 
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 	do {
 		bool zc = false;
@@ -856,6 +857,9 @@ fallback_to_reg_recv:
 					goto recv_end;
 			}
 		}
+		/* If we have a new message from strparser, continue now. */
+		if (copied >= target && !ctx->recv_pkt)
+			break;
 	} while (len);
 
 recv_end:
@@ -915,23 +919,22 @@ splice_read_end:
 	return copied ? : err;
 }
 
-unsigned int tls_sw_poll(struct file *file, struct socket *sock,
-			 struct poll_table_struct *wait)
+__poll_t tls_sw_poll_mask(struct socket *sock, __poll_t events)
 {
-	unsigned int ret;
 	struct sock *sk = sock->sk;
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
+	__poll_t mask;
 
-	/* Grab POLLOUT and POLLHUP from the underlying socket */
-	ret = ctx->sk_poll(file, sock, wait);
+	/* Grab EPOLLOUT and EPOLLHUP from the underlying socket */
+	mask = ctx->sk_poll_mask(sock, events);
 
-	/* Clear POLLIN bits, and set based on recv_pkt */
-	ret &= ~(POLLIN | POLLRDNORM);
+	/* Clear EPOLLIN bits, and set based on recv_pkt */
+	mask &= ~(EPOLLIN | EPOLLRDNORM);
 	if (ctx->recv_pkt)
-		ret |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
-	return ret;
+	return mask;
 }
 
 static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
@@ -1188,7 +1191,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		sk->sk_data_ready = tls_data_ready;
 		write_unlock_bh(&sk->sk_callback_lock);
 
-		sw_ctx_rx->sk_poll = sk->sk_socket->ops->poll;
+		sw_ctx_rx->sk_poll_mask = sk->sk_socket->ops->poll_mask;
 
 		strp_check_rcv(&sw_ctx_rx->strp);
 	}

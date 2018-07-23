@@ -567,8 +567,9 @@ static int stk_prepare_sio_buffers(struct stk_camera *dev, unsigned n_sbufs)
 	if (dev->sio_bufs != NULL)
 		pr_err("sio_bufs already allocated\n");
 	else {
-		dev->sio_bufs = kzalloc(n_sbufs * sizeof(struct stk_sio_buffer),
-				GFP_KERNEL);
+		dev->sio_bufs = kcalloc(n_sbufs,
+					sizeof(struct stk_sio_buffer),
+					GFP_KERNEL);
 		if (dev->sio_bufs == NULL)
 			return -ENOMEM;
 		for (i = 0; i < n_sbufs; i++) {

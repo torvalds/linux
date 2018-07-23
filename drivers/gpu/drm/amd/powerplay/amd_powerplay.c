@@ -180,7 +180,6 @@ static int pp_late_init(void *handle)
 {
 	struct amdgpu_device *adev = handle;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
-	int ret;
 
 	if (hwmgr && hwmgr->pm_en) {
 		mutex_lock(&hwmgr->smu_lock);
@@ -190,13 +189,6 @@ static int pp_late_init(void *handle)
 	}
 	if (adev->pm.smu_prv_buffer_size != 0)
 		pp_reserve_vram_for_smu(adev);
-
-	if (hwmgr->hwmgr_func->gfx_off_control &&
-	    (hwmgr->feature_mask & PP_GFXOFF_MASK)) {
-		ret = hwmgr->hwmgr_func->gfx_off_control(hwmgr, true);
-		if (ret)
-			pr_err("gfx off enabling failed!\n");
-	}
 
 	return 0;
 }
@@ -245,7 +237,7 @@ static int pp_set_powergating_state(void *handle,
 	}
 
 	if (hwmgr->hwmgr_func->enable_per_cu_power_gating == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
+		pr_debug("%s was not implemented.\n", __func__);
 		return 0;
 	}
 

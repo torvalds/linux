@@ -568,7 +568,7 @@
         "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*use tcindex 65535.*index 1",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {

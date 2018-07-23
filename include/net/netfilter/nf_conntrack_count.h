@@ -20,7 +20,8 @@ unsigned int nf_conncount_lookup(struct net *net, struct hlist_head *head,
 				 bool *addit);
 
 bool nf_conncount_add(struct hlist_head *head,
-		      const struct nf_conntrack_tuple *tuple);
+		      const struct nf_conntrack_tuple *tuple,
+		      const struct nf_conntrack_zone *zone);
 
 void nf_conncount_cache_free(struct hlist_head *hhead);
 

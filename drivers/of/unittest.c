@@ -156,7 +156,7 @@ static void __init of_unittest_dynamic(void)
 	}
 
 	/* Array of 4 properties for the purpose of testing */
-	prop = kzalloc(sizeof(*prop) * 4, GFP_KERNEL);
+	prop = kcalloc(4, sizeof(*prop), GFP_KERNEL);
 	if (!prop) {
 		unittest(0, "kzalloc() failed\n");
 		return;

@@ -354,8 +354,8 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
 	if (error < 0)
 		return error;
 
-	irq_resources = devm_kzalloc(&mc_bus_dev->dev,
-				     sizeof(*irq_resources) * irq_count,
+	irq_resources = devm_kcalloc(&mc_bus_dev->dev,
+				     irq_count, sizeof(*irq_resources),
 				     GFP_KERNEL);
 	if (!irq_resources) {
 		error = -ENOMEM;
@@ -455,7 +455,7 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
 		return -ENOSPC;
 	}
 
-	irqs = devm_kzalloc(&mc_dev->dev, irq_count * sizeof(irqs[0]),
+	irqs = devm_kcalloc(&mc_dev->dev, irq_count, sizeof(irqs[0]),
 			    GFP_KERNEL);
 	if (!irqs)
 		return -ENOMEM;

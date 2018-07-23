@@ -295,6 +295,15 @@ static const struct file_operations bpffs_map_fops = {
 	.release	= bpffs_map_release,
 };
 
+static int bpffs_obj_open(struct inode *inode, struct file *file)
+{
+	return -EIO;
+}
+
+static const struct file_operations bpffs_obj_fops = {
+	.open		= bpffs_obj_open,
+};
+
 static int bpf_mkobj_ops(struct dentry *dentry, umode_t mode, void *raw,
 			 const struct inode_operations *iops,
 			 const struct file_operations *fops)
@@ -314,7 +323,8 @@ static int bpf_mkobj_ops(struct dentry *dentry, umode_t mode, void *raw,
 
 static int bpf_mkprog(struct dentry *dentry, umode_t mode, void *arg)
 {
-	return bpf_mkobj_ops(dentry, mode, arg, &bpf_prog_iops, NULL);
+	return bpf_mkobj_ops(dentry, mode, arg, &bpf_prog_iops,
+			     &bpffs_obj_fops);
 }
 
 static int bpf_mkmap(struct dentry *dentry, umode_t mode, void *arg)
@@ -322,7 +332,7 @@ static int bpf_mkmap(struct dentry *dentry, umode_t mode, void *arg)
 	struct bpf_map *map = arg;
 
 	return bpf_mkobj_ops(dentry, mode, arg, &bpf_map_iops,
-			     map->btf ? &bpffs_map_fops : NULL);
+			     map->btf ? &bpffs_map_fops : &bpffs_obj_fops);
 }
 
 static struct dentry *

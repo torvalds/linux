@@ -901,6 +901,8 @@ struct net_device_context {
 	struct hv_device *device_ctx;
 	/* netvsc_device */
 	struct netvsc_device __rcu *nvdev;
+	/* list of netvsc net_devices */
+	struct list_head list;
 	/* reconfigure work */
 	struct delayed_work dwork;
 	/* last reconfig time */
@@ -931,8 +933,6 @@ struct net_device_context {
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
-
-	struct failover *failover;
 };
 
 /* Per channel data */
@@ -1277,17 +1277,17 @@ struct ndis_lsov2_offload {
 
 struct ndis_ipsecv2_offload {
 	u32	encap;
-	u16	ip6;
-	u16	ip4opt;
-	u16	ip6ext;
-	u16	ah;
-	u16	esp;
-	u16	ah_esp;
-	u16	xport;
-	u16	tun;
-	u16	xport_tun;
-	u16	lso;
-	u16	extseq;
+	u8	ip6;
+	u8	ip4opt;
+	u8	ip6ext;
+	u8	ah;
+	u8	esp;
+	u8	ah_esp;
+	u8	xport;
+	u8	tun;
+	u8	xport_tun;
+	u8	lso;
+	u8	extseq;
 	u32	udp_esp;
 	u32	auth;
 	u32	crypto;
@@ -1295,8 +1295,8 @@ struct ndis_ipsecv2_offload {
 };
 
 struct ndis_rsc_offload {
-	u16	ip4;
-	u16	ip6;
+	u8	ip4;
+	u8	ip6;
 };
 
 struct ndis_encap_offload {

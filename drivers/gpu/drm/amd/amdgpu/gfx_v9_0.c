@@ -111,6 +111,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_0_vg10[] =
 
 static const struct soc15_reg_golden golden_settings_gc_9_0_vg20[] =
 {
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_DCC_CONFIG, 0x0f000080, 0x04000080),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_2, 0x0f000000, 0x0a000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_3, 0x30000000, 0x10000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0xf3e777ff, 0x22014042),
@@ -1837,13 +1838,15 @@ static void gfx_v9_1_parse_ind_reg_list(int *register_list_format,
 				int indirect_offset,
 				int list_size,
 				int *unique_indirect_regs,
-				int *unique_indirect_reg_count,
+				int unique_indirect_reg_count,
 				int *indirect_start_offsets,
-				int *indirect_start_offsets_count)
+				int *indirect_start_offsets_count,
+				int max_start_offsets_count)
 {
 	int idx;
 
 	for (; indirect_offset < list_size; indirect_offset++) {
+		WARN_ON(*indirect_start_offsets_count >= max_start_offsets_count);
 		indirect_start_offsets[*indirect_start_offsets_count] = indirect_offset;
 		*indirect_start_offsets_count = *indirect_start_offsets_count + 1;
 
@@ -1851,14 +1854,14 @@ static void gfx_v9_1_parse_ind_reg_list(int *register_list_format,
 			indirect_offset += 2;
 
 			/* look for the matching indice */
-			for (idx = 0; idx < *unique_indirect_reg_count; idx++) {
+			for (idx = 0; idx < unique_indirect_reg_count; idx++) {
 				if (unique_indirect_regs[idx] ==
 					register_list_format[indirect_offset] ||
 					!unique_indirect_regs[idx])
 					break;
 			}
 
-			BUG_ON(idx >= *unique_indirect_reg_count);
+			BUG_ON(idx >= unique_indirect_reg_count);
 
 			if (!unique_indirect_regs[idx])
 				unique_indirect_regs[idx] = register_list_format[indirect_offset];
@@ -1893,9 +1896,10 @@ static int gfx_v9_1_init_rlc_save_restore_list(struct amdgpu_device *adev)
 				    adev->gfx.rlc.reg_list_format_direct_reg_list_length,
 				    adev->gfx.rlc.reg_list_format_size_bytes >> 2,
 				    unique_indirect_regs,
-				    &unique_indirect_reg_count,
+				    unique_indirect_reg_count,
 				    indirect_start_offsets,
-				    &indirect_start_offsets_count);
+				    &indirect_start_offsets_count,
+				    ARRAY_SIZE(indirect_start_offsets));
 
 	/* enable auto inc in case it is disabled */
 	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL));
@@ -3401,11 +3405,6 @@ static int gfx_v9_0_late_init(void *handle)
 		return r;
 
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_inst_irq, 0);
-	if (r)
-		return r;
-
-	r = amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_GFX,
-						   AMD_PG_STATE_GATE);
 	if (r)
 		return r;
 

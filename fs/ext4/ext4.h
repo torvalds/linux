@@ -817,12 +817,14 @@ static inline void ext4_decode_extra_time(struct timespec *time, __le32 extra)
 	time->tv_nsec = (le32_to_cpu(extra) & EXT4_NSEC_MASK) >> EXT4_EPOCH_BITS;
 }
 
-#define EXT4_INODE_SET_XTIME(xtime, inode, raw_inode)			       \
-do {									       \
-	(raw_inode)->xtime = cpu_to_le32((inode)->xtime.tv_sec);	       \
-	if (EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra))     \
-		(raw_inode)->xtime ## _extra =				       \
-				ext4_encode_extra_time(&(inode)->xtime);       \
+#define EXT4_INODE_SET_XTIME(xtime, inode, raw_inode)				\
+do {										\
+	(raw_inode)->xtime = cpu_to_le32((inode)->xtime.tv_sec);		\
+	if (EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra))     {\
+		struct timespec ts = timespec64_to_timespec((inode)->xtime);	\
+		(raw_inode)->xtime ## _extra =					\
+				ext4_encode_extra_time(&ts);			\
+		}								\
 } while (0)
 
 #define EXT4_EINODE_SET_XTIME(xtime, einode, raw_inode)			       \
@@ -834,15 +836,19 @@ do {									       \
 				ext4_encode_extra_time(&(einode)->xtime);      \
 } while (0)
 
-#define EXT4_INODE_GET_XTIME(xtime, inode, raw_inode)			       \
-do {									       \
-	(inode)->xtime.tv_sec = (signed)le32_to_cpu((raw_inode)->xtime);       \
-	if (EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra))     \
-		ext4_decode_extra_time(&(inode)->xtime,			       \
-				       raw_inode->xtime ## _extra);	       \
-	else								       \
-		(inode)->xtime.tv_nsec = 0;				       \
+#define EXT4_INODE_GET_XTIME(xtime, inode, raw_inode)				\
+do {										\
+	(inode)->xtime.tv_sec = (signed)le32_to_cpu((raw_inode)->xtime);	\
+	if (EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra)) {	\
+		struct timespec ts = timespec64_to_timespec((inode)->xtime);	\
+		ext4_decode_extra_time(&ts,					\
+				       raw_inode->xtime ## _extra);		\
+		(inode)->xtime = timespec_to_timespec64(ts);			\
+		}								\
+	else									\
+		(inode)->xtime.tv_nsec = 0;					\
 } while (0)
+
 
 #define EXT4_EINODE_GET_XTIME(xtime, einode, raw_inode)			       \
 do {									       \

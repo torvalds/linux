@@ -182,20 +182,20 @@ acpi_ut_prefixed_namespace_error(const char *module_name,
 	switch (lookup_status) {
 	case AE_ALREADY_EXISTS:
 
-		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
+		acpi_os_printf("\n" ACPI_MSG_BIOS_ERROR);
 		message = "Failure creating";
 		break;
 
 	case AE_NOT_FOUND:
 
-		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
-		message = "Failure looking up";
+		acpi_os_printf("\n" ACPI_MSG_BIOS_ERROR);
+		message = "Could not resolve";
 		break;
 
 	default:
 
-		acpi_os_printf(ACPI_MSG_ERROR);
-		message = "Failure looking up";
+		acpi_os_printf("\n" ACPI_MSG_ERROR);
+		message = "Failure resolving";
 		break;
 	}
 

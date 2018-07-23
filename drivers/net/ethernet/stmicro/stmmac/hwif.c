@@ -252,13 +252,8 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 				return ret;
 		}
 
-		/* Run quirks, if needed */
-		if (entry->quirks) {
-			ret = entry->quirks(priv);
-			if (ret)
-				return ret;
-		}
-
+		/* Save quirks, if needed for posterior use */
+		priv->hwif_quirks = entry->quirks;
 		return 0;
 	}
 

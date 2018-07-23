@@ -349,8 +349,13 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 	struct dma_fence * fence = entity->dependency;
 	struct drm_sched_fence *s_fence;
 
-	if (fence->context == entity->fence_context) {
-		/* We can ignore fences from ourself */
+	if (fence->context == entity->fence_context ||
+            fence->context == entity->fence_context + 1) {
+                /*
+                 * Fence is a scheduled/finished fence from a job
+                 * which belongs to the same entity, we can ignore
+                 * fences from ourself
+                 */
 		dma_fence_put(entity->dependency);
 		return false;
 	}

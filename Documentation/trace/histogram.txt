@@ -7,7 +7,7 @@
 
   Histogram triggers are special event triggers that can be used to
   aggregate trace event data into histograms.  For information on
-  trace events and event triggers, see Documentation/trace/events.txt.
+  trace events and event triggers, see Documentation/trace/events.rst.
 
 
 2. Histogram Trigger Command

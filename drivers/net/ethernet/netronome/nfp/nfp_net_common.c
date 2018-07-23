@@ -3121,7 +3121,7 @@ static void nfp_net_stat64(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 	int r;
 
-	for (r = 0; r < nn->dp.num_r_vecs; r++) {
+	for (r = 0; r < nn->max_r_vecs; r++) {
 		struct nfp_net_r_vector *r_vec = &nn->r_vecs[r];
 		u64 data[3];
 		unsigned int start;
@@ -3286,7 +3286,7 @@ nfp_net_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	if (nn->port)
 		return nfp_port_get_phys_port_name(netdev, name, len);
 
-	if (nn->dp.is_vf)
+	if (nn->dp.is_vf || nn->vnic_no_name)
 		return -EOPNOTSUPP;
 
 	n = snprintf(name, len, "n%d", nn->id);

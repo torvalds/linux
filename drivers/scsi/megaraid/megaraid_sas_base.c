@@ -5419,9 +5419,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	/* stream detection initialization */
 	if (instance->adapter_type == VENTURA_SERIES) {
 		fusion->stream_detect_by_ld =
-			kzalloc(sizeof(struct LD_STREAM_DETECT *)
-			* MAX_LOGICAL_DRIVES_EXT,
-			GFP_KERNEL);
+			kcalloc(MAX_LOGICAL_DRIVES_EXT,
+				sizeof(struct LD_STREAM_DETECT *),
+				GFP_KERNEL);
 		if (!fusion->stream_detect_by_ld) {
 			dev_err(&instance->pdev->dev,
 				"unable to allocate stream detection for pool of LDs\n");
@@ -6139,7 +6139,7 @@ static inline int megasas_alloc_mfi_ctrl_mem(struct megasas_instance *instance)
  */
 static int megasas_alloc_ctrl_mem(struct megasas_instance *instance)
 {
-	instance->reply_map = kzalloc(sizeof(unsigned int) * nr_cpu_ids,
+	instance->reply_map = kcalloc(nr_cpu_ids, sizeof(unsigned int),
 				      GFP_KERNEL);
 	if (!instance->reply_map)
 		return -ENOMEM;

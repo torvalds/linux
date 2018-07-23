@@ -171,7 +171,7 @@ gt215_link_train(struct gt215_ram *ram)
 		return -ENOSYS;
 
 	/* XXX: Multiple partitions? */
-	result = kmalloc(64 * sizeof(u32), GFP_KERNEL);
+	result = kmalloc_array(64, sizeof(u32), GFP_KERNEL);
 	if (!result)
 		return -ENOMEM;
 

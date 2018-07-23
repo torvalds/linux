@@ -20,7 +20,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/power/smartreflex.h>
-#include <linux/i2c-omap.h>
+#include <linux/platform_data/i2c-omap.h>
 
 #include <linux/omap-dma.h>
 

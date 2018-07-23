@@ -138,7 +138,8 @@ nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, u64 addr, u64 size,
 	vmm->limit = args->size;
 
 	vmm->page_nr = args->page_nr;
-	vmm->page = kmalloc(sizeof(*vmm->page) * vmm->page_nr, GFP_KERNEL);
+	vmm->page = kmalloc_array(vmm->page_nr, sizeof(*vmm->page),
+				  GFP_KERNEL);
 	if (!vmm->page) {
 		ret = -ENOMEM;
 		goto done;

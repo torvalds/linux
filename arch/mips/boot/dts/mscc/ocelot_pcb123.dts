@@ -25,3 +25,23 @@
 &uart2 {
 	status = "okay";
 };
+
+&mdio0 {
+	status = "okay";
+};
+
+&port0 {
+	phy-handle = <&phy0>;
+};
+
+&port1 {
+	phy-handle = <&phy1>;
+};
+
+&port2 {
+	phy-handle = <&phy2>;
+};
+
+&port3 {
+	phy-handle = <&phy3>;
+};

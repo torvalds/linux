@@ -52,9 +52,9 @@ struct dmz_target {
 	struct dmz_reclaim	*reclaim;
 
 	/* For chunk work */
-	struct mutex		chunk_lock;
 	struct radix_tree_root	chunk_rxtree;
 	struct workqueue_struct *chunk_wq;
+	struct mutex		chunk_lock;
 
 	/* For cloned BIOs to zones */
 	struct bio_set		bio_set;

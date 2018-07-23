@@ -1730,6 +1730,18 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 			}
 		}
 	}
+
+	if (adev->powerplay.pp_feature & PP_GFXOFF_MASK) {
+		/* enable gfx powergating */
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_GFX,
+						       AMD_PG_STATE_GATE);
+		/* enable gfxoff */
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_SMC,
+						       AMD_PG_STATE_GATE);
+	}
+
 	return 0;
 }
 

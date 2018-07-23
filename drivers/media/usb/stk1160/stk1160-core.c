@@ -290,8 +290,9 @@ static int stk1160_probe(struct usb_interface *interface,
 		return -ENODEV;
 
 	/* Alloc an array for all possible max_pkt_size */
-	alt_max_pkt_size = kmalloc(sizeof(alt_max_pkt_size[0]) *
-			interface->num_altsetting, GFP_KERNEL);
+	alt_max_pkt_size = kmalloc_array(interface->num_altsetting,
+					 sizeof(alt_max_pkt_size[0]),
+					 GFP_KERNEL);
 	if (alt_max_pkt_size == NULL)
 		return -ENOMEM;
 

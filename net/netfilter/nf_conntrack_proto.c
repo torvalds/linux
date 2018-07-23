@@ -402,7 +402,8 @@ int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *l4proto)
 		struct nf_conntrack_l4proto __rcu **proto_array;
 		int i;
 
-		proto_array = kmalloc(MAX_NF_CT_PROTO *
+		proto_array =
+			kmalloc_array(MAX_NF_CT_PROTO,
 				      sizeof(struct nf_conntrack_l4proto *),
 				      GFP_KERNEL);
 		if (proto_array == NULL) {

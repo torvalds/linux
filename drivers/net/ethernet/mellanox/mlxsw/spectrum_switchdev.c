@@ -1018,8 +1018,10 @@ mlxsw_sp_port_vlan_bridge_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	int err;
 
 	/* No need to continue if only VLAN flags were changed */
-	if (mlxsw_sp_port_vlan->bridge_port)
+	if (mlxsw_sp_port_vlan->bridge_port) {
+		mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
 		return 0;
+	}
 
 	err = mlxsw_sp_port_vlan_fid_join(mlxsw_sp_port_vlan, bridge_port);
 	if (err)

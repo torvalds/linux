@@ -4,7 +4,7 @@ config AUTOFS4_FS
 	help
 	   This name exists for people to just automatically pick up the
 	   new name of the autofs Kconfig option. All it does is select
-	   thenew new option name.
+	   the new option name.
 
 	   It will go away in a release or two as people have
 	   transitioned to just plain AUTOFS_FS.

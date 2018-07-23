@@ -66,7 +66,7 @@ static bool __nft_rbtree_lookup(const struct net *net, const struct nft_set *set
 			parent = rcu_dereference_raw(parent->rb_left);
 			if (interval &&
 			    nft_rbtree_equal(set, this, interval) &&
-			    nft_rbtree_interval_end(this) &&
+			    nft_rbtree_interval_end(rbe) &&
 			    !nft_rbtree_interval_end(interval))
 				continue;
 			interval = rbe;

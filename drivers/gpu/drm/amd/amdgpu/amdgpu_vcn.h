@@ -67,8 +67,6 @@ struct amdgpu_vcn {
 	struct amdgpu_ring	ring_dec;
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
 	struct amdgpu_irq_src	irq;
-	struct drm_sched_entity entity_dec;
-	struct drm_sched_entity entity_enc;
 	unsigned		num_enc_rings;
 };
 

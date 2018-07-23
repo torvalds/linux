@@ -27,7 +27,12 @@
 #include <linux/via-core.h>
 #include <linux/via-gpio.h>
 #include <linux/via_i2c.h>
+
+#ifdef CONFIG_X86
 #include <asm/olpc.h>
+#else
+#define machine_is_olpc(x) 0
+#endif
 
 #include "via-camera.h"
 

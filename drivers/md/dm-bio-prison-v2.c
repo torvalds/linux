@@ -21,8 +21,8 @@ struct dm_bio_prison_v2 {
 	struct workqueue_struct *wq;
 
 	spinlock_t lock;
-	mempool_t cell_pool;
 	struct rb_root cells;
+	mempool_t cell_pool;
 };
 
 static struct kmem_cache *_cell_cache;

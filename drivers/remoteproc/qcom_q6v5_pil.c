@@ -686,7 +686,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	struct elf32_hdr *ehdr;
 	phys_addr_t mpss_reloc;
 	phys_addr_t boot_addr;
-	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
+	phys_addr_t min_addr = PHYS_ADDR_MAX;
 	phys_addr_t max_addr = 0;
 	bool relocate = false;
 	char seg_name[10];

@@ -18,7 +18,7 @@ Optional properties:
 Data cells:
 
 Data cells are child nodes of eerpom node, bindings for which are
-documented in Documentation/bindings/nvmem/nvmem.txt
+documented in Documentation/devicetree/bindings/nvmem/nvmem.txt
 
 Example:
 

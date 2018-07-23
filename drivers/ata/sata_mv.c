@@ -4114,13 +4114,13 @@ static int mv_platform_probe(struct platform_device *pdev)
 
 	if (!host || !hpriv)
 		return -ENOMEM;
-	hpriv->port_clks = devm_kzalloc(&pdev->dev,
-					sizeof(struct clk *) * n_ports,
+	hpriv->port_clks = devm_kcalloc(&pdev->dev,
+					n_ports, sizeof(struct clk *),
 					GFP_KERNEL);
 	if (!hpriv->port_clks)
 		return -ENOMEM;
-	hpriv->port_phys = devm_kzalloc(&pdev->dev,
-					sizeof(struct phy *) * n_ports,
+	hpriv->port_phys = devm_kcalloc(&pdev->dev,
+					n_ports, sizeof(struct phy *),
 					GFP_KERNEL);
 	if (!hpriv->port_phys)
 		return -ENOMEM;

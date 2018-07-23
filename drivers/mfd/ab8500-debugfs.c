@@ -2659,18 +2659,18 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	ab8500 = dev_get_drvdata(plf->dev.parent);
 	num_irqs = ab8500->mask_size;
 
-	irq_count = devm_kzalloc(&plf->dev,
-				 sizeof(*irq_count)*num_irqs, GFP_KERNEL);
+	irq_count = devm_kcalloc(&plf->dev,
+				 num_irqs, sizeof(*irq_count), GFP_KERNEL);
 	if (!irq_count)
 		return -ENOMEM;
 
-	dev_attr = devm_kzalloc(&plf->dev,
-				sizeof(*dev_attr)*num_irqs, GFP_KERNEL);
+	dev_attr = devm_kcalloc(&plf->dev,
+				num_irqs, sizeof(*dev_attr), GFP_KERNEL);
 	if (!dev_attr)
 		return -ENOMEM;
 
-	event_name = devm_kzalloc(&plf->dev,
-				  sizeof(*event_name)*num_irqs, GFP_KERNEL);
+	event_name = devm_kcalloc(&plf->dev,
+				  num_irqs, sizeof(*event_name), GFP_KERNEL);
 	if (!event_name)
 		return -ENOMEM;
 

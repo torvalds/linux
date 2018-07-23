@@ -1855,8 +1855,8 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 
 	rt = &id->route;
 	rt->num_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
-	rt->path_rec = kmalloc(sizeof *rt->path_rec * rt->num_paths,
-			       GFP_KERNEL);
+	rt->path_rec = kmalloc_array(rt->num_paths, sizeof(*rt->path_rec),
+				     GFP_KERNEL);
 	if (!rt->path_rec)
 		goto err;
 

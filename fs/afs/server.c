@@ -228,7 +228,7 @@ static struct afs_server *afs_alloc_server(struct afs_net *net,
 	server->flags = (1UL << AFS_SERVER_FL_NEW);
 	server->update_at = ktime_get_real_seconds() + afs_server_update_delay;
 	rwlock_init(&server->fs_lock);
-	INIT_LIST_HEAD(&server->cb_interests);
+	INIT_HLIST_HEAD(&server->cb_volumes);
 	rwlock_init(&server->cb_break_lock);
 
 	afs_inc_servers_outstanding(net);

@@ -496,7 +496,9 @@ int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr, BIOS_CLKI
 	uint32_t ix;
 
 	parameters.clk_id = id;
+	parameters.syspll_id = 0;
 	parameters.command = GET_SMU_CLOCK_INFO_V3_1_GET_CLOCK_FREQ;
+	parameters.dfsdid = 0;
 
 	ix = GetIndexIntoMasterCmdTable(getsmuclockinfo);
 
@@ -505,7 +507,7 @@ int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr, BIOS_CLKI
 		return -EINVAL;
 
 	output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&parameters;
-	*frequency = output->atom_smu_outputclkfreq.smu_clock_freq_hz / 10000;
+	*frequency = le32_to_cpu(output->atom_smu_outputclkfreq.smu_clock_freq_hz) / 10000;
 
 	return 0;
 }

@@ -557,7 +557,8 @@ init_send(struct BCState *bcs)
 {
 	int i;
 
-	if (!(bcs->hw.hfc.send = kmalloc(32 * sizeof(unsigned int), GFP_ATOMIC))) {
+	bcs->hw.hfc.send = kmalloc_array(32, sizeof(unsigned int), GFP_ATOMIC);
+	if (!bcs->hw.hfc.send) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for hfc.send\n");
 		return;
