@@ -57,6 +57,11 @@
 			#interrupt-cells = <2>;
 		};
 
+		vibrator@ec8 {
+			compatible = "sprd,sc27xx-vibrator", "sprd,sc2731-vibrator";
+			reg = <0xec8>;
+		};
+
 		regulators {
 			compatible = "sprd,sc27xx-regulator";
 
