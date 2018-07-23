@@ -175,7 +175,6 @@ struct mei_cl;
  * @status: io status of the cb
  * @internal: communication between driver and FW flag
  * @blocking: transmission blocking mode
- * @completed: the transfer or reception has completed
  */
 struct mei_cl_cb {
 	struct list_head list;
@@ -187,7 +186,6 @@ struct mei_cl_cb {
 	int status;
 	u32 internal:1;
 	u32 blocking:1;
-	u32 completed:1;
 };
 
 /**

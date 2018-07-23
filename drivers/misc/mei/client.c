@@ -1540,6 +1540,22 @@ nortpm:
 }
 
 /**
+ * mei_msg_hdr_init - initialize mei message header
+ *
+ * @mei_hdr: mei message header
+ * @cb: message callback structure
+ */
+static void mei_msg_hdr_init(struct mei_msg_hdr *mei_hdr, struct mei_cl_cb *cb)
+{
+	mei_hdr->host_addr = mei_cl_host_addr(cb->cl);
+	mei_hdr->me_addr = mei_cl_me_id(cb->cl);
+	mei_hdr->length = 0;
+	mei_hdr->reserved = 0;
+	mei_hdr->msg_complete = 0;
+	mei_hdr->internal = cb->internal;
+}
+
+/**
  * mei_cl_irq_write - write a message to device
  *	from the interrupt thread context
  *
@@ -1579,12 +1595,6 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return 0;
 	}
 
-	mei_hdr.host_addr = mei_cl_host_addr(cl);
-	mei_hdr.me_addr = mei_cl_me_id(cl);
-	mei_hdr.reserved = 0;
-	mei_hdr.msg_complete = 0;
-	mei_hdr.internal = cb->internal;
-
 	len = buf->size - cb->buf_idx;
 	hbuf_slots = mei_hbuf_empty_slots(dev);
 	if (hbuf_slots < 0) {
@@ -1592,6 +1602,8 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		goto err;
 	}
 	hbuf_len = mei_slots2data(hbuf_slots) - sizeof(struct mei_msg_hdr);
+
+	mei_msg_hdr_init(&mei_hdr, cb);
 
 	/**
 	 * Split the message only if we can write the whole host buffer
@@ -1616,7 +1628,6 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	cl->status = 0;
 	cl->writing_state = MEI_WRITING;
 	cb->buf_idx += mei_hdr.length;
-	cb->completed = mei_hdr.msg_complete == 1;
 
 	if (first_chunk) {
 		if (mei_cl_tx_flow_ctrl_creds_reduce(cl)) {
@@ -1680,15 +1691,12 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	cb->buf_idx = 0;
 	cl->writing_state = MEI_IDLE;
 
-	mei_hdr.host_addr = mei_cl_host_addr(cl);
-	mei_hdr.me_addr = mei_cl_me_id(cl);
-	mei_hdr.reserved = 0;
-	mei_hdr.msg_complete = 0;
-	mei_hdr.internal = cb->internal;
 
 	rets = mei_cl_tx_flow_ctrl_creds(cl);
 	if (rets < 0)
 		goto err;
+
+	mei_msg_hdr_init(&mei_hdr, cb);
 
 	if (rets == 0) {
 		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
@@ -1726,7 +1734,6 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	cl->writing_state = MEI_WRITING;
 	cb->buf_idx = mei_hdr.length;
-	cb->completed = mei_hdr.msg_complete == 1;
 
 out:
 	if (mei_hdr.msg_complete)
