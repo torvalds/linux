@@ -4,6 +4,15 @@ Required properties:
 - compatible: "fsl,pfuze100", "fsl,pfuze200", "fsl,pfuze3000", "fsl,pfuze3001"
 - reg: I2C slave address
 
+Optional properties:
+- fsl,pfuze-support-disable-sw: Boolean, if present disable all unused switch
+  regulators to save power consumption. Attention, ensure that all important
+  regulators (e.g. DDR ref, DDR supply) has set the "regulator-always-on"
+  property. If not present, the switched regualtors are always on and can't be
+  disabled. This binding is a workaround to keep backward compatibility with
+  old dtb's which rely on the fact that the switched regulators are always on
+  and don't mark them explicit as "regulator-always-on".
+
 Required child node:
 - regulators: This is the list of child nodes that specify the regulator
   initialization data for defined regulators. Please refer to below doc
