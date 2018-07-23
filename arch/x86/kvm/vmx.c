@@ -2661,7 +2661,7 @@ static unsigned long segment_base(u16 selector)
 }
 #endif
 
-static void vmx_save_host_state(struct kvm_vcpu *vcpu)
+static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 #ifdef CONFIG_X86_64
@@ -2735,7 +2735,7 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 				   vmx->guest_msrs[i].mask);
 }
 
-static void __vmx_load_host_state(struct vcpu_vmx *vmx)
+static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 {
 	if (!vmx->loaded_cpu_state)
 		return;
@@ -2938,7 +2938,7 @@ static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	vmx_vcpu_pi_put(vcpu);
 
-	__vmx_load_host_state(to_vmx(vcpu));
+	vmx_prepare_switch_to_host(to_vmx(vcpu));
 }
 
 static bool emulation_required(struct kvm_vcpu *vcpu)
@@ -6099,8 +6099,8 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 #ifdef CONFIG_X86_64
 	/*
 	 * Load null selectors, so we can avoid reloading them in
-	 * __vmx_load_host_state(), in case userspace uses the null selectors
-	 * too (the expected case).
+	 * vmx_prepare_switch_to_host(), in case userspace uses
+	 * the null selectors too (the expected case).
 	 */
 	vmcs_write16(HOST_DS_SELECTOR, 0);
 	vmcs_write16(HOST_ES_SELECTOR, 0);
@@ -10565,9 +10565,9 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	 * The sysexit path does not restore ds/es, so we must set them to
 	 * a reasonable value ourselves.
 	 *
-	 * We can't defer this to vmx_load_host_state() since that function
-	 * may be executed in interrupt context, which saves and restore segments
-	 * around it, nullifying its effect.
+	 * We can't defer this to vmx_prepare_switch_to_host() since that
+	 * function may be executed in interrupt context, which saves and
+	 * restore segments around it, nullifying its effect.
 	 */
 	loadsegment(ds, __USER_DS);
 	loadsegment(es, __USER_DS);
@@ -11668,7 +11668,8 @@ static void prepare_vmcs02_full(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	 * Set host-state according to L0's settings (vmcs12 is irrelevant here)
 	 * Some constant fields are set here by vmx_set_constant_host_state().
 	 * Other fields are different per CPU, and will be set later when
-	 * vmx_vcpu_load() is called, and when vmx_save_host_state() is called.
+	 * vmx_vcpu_load() is called, and when vmx_prepare_switch_to_guest()
+	 * is called.
 	 */
 	vmx_set_constant_host_state(vmx);
 
@@ -13707,7 +13708,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.vcpu_free = vmx_free_vcpu,
 	.vcpu_reset = vmx_vcpu_reset,
 
-	.prepare_guest_switch = vmx_save_host_state,
+	.prepare_guest_switch = vmx_prepare_switch_to_guest,
 	.vcpu_load = vmx_vcpu_load,
 	.vcpu_put = vmx_vcpu_put,
 
