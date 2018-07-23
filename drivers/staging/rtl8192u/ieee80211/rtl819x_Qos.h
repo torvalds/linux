@@ -26,15 +26,6 @@
 #define AC_PARAM_SIZE	4
 #define WMM_PARAM_ELE_BODY_LEN	18
 
-//
-// QoS ACK Policy Field Values
-// Ref: WMM spec 2.1.6: QoS Control Field, p.10.
-//
-typedef	enum _ACK_POLICY {
-	eAckPlc0_ACK		= 0x00,
-	eAckPlc1_NoACK		= 0x01,
-} ACK_POLICY, *PACK_POLICY;
-
 #define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
 
 //
