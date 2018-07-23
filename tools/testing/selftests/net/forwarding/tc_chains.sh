@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="unreachable_chain_test gact_goto_chain_test"
+ALL_TESTS="unreachable_chain_test gact_goto_chain_test create_destroy_chain"
 NUM_NETIFS=2
 source tc_common.sh
 source lib.sh
@@ -80,6 +80,25 @@ gact_goto_chain_test()
 	log_test "gact goto chain ($tcflags)"
 }
 
+create_destroy_chain()
+{
+	RET=0
+
+	tc chain add dev $h2 ingress
+	check_err $? "Failed to create default chain"
+
+	tc chain add dev $h2 ingress chain 1
+	check_err $? "Failed to create chain 1"
+
+	tc chain del dev $h2 ingress
+	check_err $? "Failed to destroy default chain"
+
+	tc chain del dev $h2 ingress chain 1
+	check_err $? "Failed to destroy chain 1"
+
+	log_test "create destroy chain"
+}
+
 setup_prepare()
 {
 	h1=${NETIFS[p1]}
@@ -102,6 +121,8 @@ cleanup()
 
 	vrf_cleanup
 }
+
+check_tc_chain_support
 
 trap cleanup EXIT
 

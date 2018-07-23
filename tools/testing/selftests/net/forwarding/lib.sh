@@ -44,6 +44,15 @@ check_tc_shblock_support()
 	fi
 }
 
+check_tc_chain_support()
+{
+	tc help 2>&1|grep chain &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing chain support"
+		exit 1
+	fi
+}
+
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
 	exit 0
