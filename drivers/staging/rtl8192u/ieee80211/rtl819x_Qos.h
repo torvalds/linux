@@ -51,17 +51,6 @@ typedef	union _AC_PARAM {
 	} f;	// Field
 } AC_PARAM, *PAC_PARAM;
 
-
-
-//
-// QoS element subtype
-//
-typedef	enum _QOS_ELE_SUBTYPE {
-	QOSELE_TYPE_INFO	= 0x00,		// 0x00: Information element
-	QOSELE_TYPE_PARAM	= 0x01,		// 0x01: parameter element
-} QOS_ELE_SUBTYPE, *PQOS_ELE_SUBTYPE;
-
-
 //
 // Direction Field Values.
 // Ref: WMM spec 2.2.11: WME TSPEC Element, p.18.
