@@ -799,6 +799,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 
 free_buffer:
 	etnaviv_cmdbuf_free(&gpu->buffer);
+	gpu->buffer.suballoc = NULL;
 destroy_iommu:
 	etnaviv_iommu_destroy(gpu->mmu);
 	gpu->mmu = NULL;
