@@ -34,6 +34,7 @@
 #include <linux/configfs.h>
 
 #include <target/target_core_base.h>
+#include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
 
 #include "target_core_internal.h"
@@ -642,7 +643,7 @@ static int target_fabric_port_link(
 	}
 	dev = container_of(to_config_group(se_dev_ci), struct se_device, dev_group);
 
-	if (!(dev->dev_flags & DF_CONFIGURED)) {
+	if (!target_dev_configured(dev)) {
 		pr_err("se_device not configured yet, cannot port link\n");
 		return -ENODEV;
 	}

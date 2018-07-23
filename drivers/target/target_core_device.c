@@ -900,7 +900,7 @@ static int target_devices_idr_iter(int id, void *p, void *data)
 	 * to allow other callers to access partially setup devices,
 	 * so we skip them here.
 	 */
-	if (!(dev->dev_flags & DF_CONFIGURED))
+	if (!target_dev_configured(dev))
 		return 0;
 
 	iter->prev_item = config_item_get_unless_zero(&dev->dev_group.cg_item);
@@ -940,7 +940,7 @@ int target_configure_device(struct se_device *dev)
 	struct se_hba *hba = dev->se_hba;
 	int ret, id;
 
-	if (dev->dev_flags & DF_CONFIGURED) {
+	if (target_dev_configured(dev)) {
 		pr_err("se_dev->se_dev_ptr already set for storage"
 				" object\n");
 		return -EEXIST;
@@ -1045,7 +1045,7 @@ void target_free_device(struct se_device *dev)
 
 	WARN_ON(!list_empty(&dev->dev_sep_list));
 
-	if (dev->dev_flags & DF_CONFIGURED) {
+	if (target_dev_configured(dev)) {
 		destroy_workqueue(dev->tmr_wq);
 
 		dev->transport->destroy_device(dev);

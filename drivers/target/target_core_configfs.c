@@ -810,7 +810,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		       dev->transport->name);
 		return -ENOSYS;
 	}
-	if (!(dev->dev_flags & DF_CONFIGURED)) {
+	if (!target_dev_configured(dev)) {
 		pr_err("DIF protection requires device to be configured\n");
 		return -ENODEV;
 	}
@@ -859,7 +859,7 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 		       dev->transport->name);
 		return -ENOSYS;
 	}
-	if (!(dev->dev_flags & DF_CONFIGURED)) {
+	if (!target_dev_configured(dev)) {
 		pr_err("DIF protection format requires device to be configured\n");
 		return -ENODEV;
 	}
@@ -1948,7 +1948,7 @@ static ssize_t target_dev_enable_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = to_device(item);
 
-	return snprintf(page, PAGE_SIZE, "%d\n", !!(dev->dev_flags & DF_CONFIGURED));
+	return snprintf(page, PAGE_SIZE, "%d\n", target_dev_configured(dev));
 }
 
 static ssize_t target_dev_enable_store(struct config_item *item,
@@ -2473,7 +2473,7 @@ static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
 			" tg_pt_gp ID: %hu\n", tg_pt_gp->tg_pt_gp_valid_id);
 		return -EINVAL;
 	}
-	if (!(dev->dev_flags & DF_CONFIGURED)) {
+	if (!target_dev_configured(dev)) {
 		pr_err("Unable to set alua_access_state while device is"
 		       " not configured\n");
 		return -ENODEV;
