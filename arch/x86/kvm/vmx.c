@@ -226,6 +226,8 @@ struct vmcs {
 struct vmcs_host_state {
 	unsigned long cr3;	/* May not match real cr3 */
 	unsigned long cr4;	/* May not match real cr4 */
+	unsigned long gs_base;
+	unsigned long fs_base;
 
 	u16           fs_sel, gs_sel, ldt_sel;
 #ifdef CONFIG_X86_64
@@ -2731,9 +2733,14 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 			vmcs_write16(HOST_GS_SELECTOR, 0);
 		host_state->gs_sel = gs_sel;
 	}
-
-	vmcs_writel(HOST_FS_BASE, fs_base);
-	vmcs_writel(HOST_GS_BASE, gs_base);
+	if (unlikely(fs_base != host_state->fs_base)) {
+		vmcs_writel(HOST_FS_BASE, fs_base);
+		host_state->fs_base = fs_base;
+	}
+	if (unlikely(gs_base != host_state->gs_base)) {
+		vmcs_writel(HOST_GS_BASE, gs_base);
+		host_state->gs_base = gs_base;
+	}
 
 	for (i = 0; i < vmx->save_nmsrs; ++i)
 		kvm_set_shared_msr(vmx->guest_msrs[i].index,
