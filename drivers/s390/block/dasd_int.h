@@ -376,6 +376,7 @@ struct dasd_discipline {
 	int (*space_allocated)(struct dasd_device *);
 	int (*space_configured)(struct dasd_device *);
 	int (*logical_capacity)(struct dasd_device *);
+	int (*release_space)(struct dasd_device *, struct format_data_t *);
 	/* Extent Pool */
 	int (*ext_pool_id)(struct dasd_device *);
 	int (*ext_size)(struct dasd_device *);

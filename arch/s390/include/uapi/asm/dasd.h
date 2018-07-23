@@ -194,6 +194,7 @@ typedef struct format_data_t {
 #define DASD_FMT_INT_INVAL	4	/* invalidate tracks */
 #define DASD_FMT_INT_COMPAT	8	/* use OS/390 compatible disk layout */
 #define DASD_FMT_INT_FMT_NOR0	16	/* remove permission to write record zero */
+#define DASD_FMT_INT_ESE_FULL	32	/* release space for entire volume */
 
 /*
  * struct format_check_t
@@ -323,6 +324,8 @@ struct dasd_snid_ioctl_data {
 #define BIODASDFMT     _IOW(DASD_IOCTL_LETTER,1,format_data_t)
 /* Set Attributes (cache operations) */
 #define BIODASDSATTR   _IOW(DASD_IOCTL_LETTER,2,attrib_data_t)
+/* Release Allocated Space */
+#define BIODASDRAS     _IOW(DASD_IOCTL_LETTER, 3, format_data_t)
 
 /* Get Sense Path Group ID (SNID) data */
 #define BIODASDSNID    _IOWR(DASD_IOCTL_LETTER, 1, struct dasd_snid_ioctl_data)

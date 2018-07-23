@@ -50,6 +50,10 @@
 #define DASD_ECKD_CCW_PFX_READ		 0xEA
 #define DASD_ECKD_CCW_RSCK		 0xF9
 #define DASD_ECKD_CCW_RCD		 0xFA
+#define DASD_ECKD_CCW_DSO		 0xF7
+
+/* Define Subssystem Function / Orders */
+#define DSO_ORDER_RAS			 0x81
 
 /*
  * Perform Subsystem Function / Orders
@@ -512,6 +516,42 @@ struct dasd_psf_ssc_data {
 	unsigned char suborder;
 	unsigned char reserved[59];
 } __attribute__((packed));
+
+/* Maximum number of extents for a single Release Allocated Space command */
+#define DASD_ECKD_RAS_EXTS_MAX		110U
+
+struct dasd_dso_ras_ext_range {
+	struct ch_t beg_ext;
+	struct ch_t end_ext;
+} __packed;
+
+/*
+ * Define Subsytem Operation - Release Allocated Space
+ */
+struct dasd_dso_ras_data {
+	__u8 order;
+	struct {
+		__u8 message:1;		/* Must be zero */
+		__u8 reserved1:2;
+		__u8 vol_type:1;	/* 0 - CKD/FBA, 1 - FB */
+		__u8 reserved2:4;
+	} __packed flags;
+	/* Operation Flags to specify scope */
+	struct {
+		__u8 reserved1:2;
+		/* Release Space by Extent */
+		__u8 by_extent:1;	/* 0 - entire volume, 1 - specified extents */
+		__u8 guarantee_init:1;
+		__u8 force_release:1;	/* Internal - will be ignored */
+		__u16 reserved2:11;
+	} __packed op_flags;
+	__u8 lss;
+	__u8 dev_addr;
+	__u32 reserved1;
+	__u8 reserved2[10];
+	__u16 nr_exts;			/* Defines number of ext_scope - max 110 */
+	__u16 reserved3;
+} __packed;
 
 
 /*

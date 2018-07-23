@@ -3354,6 +3354,269 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 	}
 }
 
+static int dasd_eckd_ras_sanity_checks(struct dasd_device *device,
+				       unsigned int first_trk,
+				       unsigned int last_trk)
+{
+	struct dasd_eckd_private *private = device->private;
+	unsigned int trks_per_vol;
+	int rc = 0;
+
+	trks_per_vol = private->real_cyl * private->rdc_data.trk_per_cyl;
+
+	if (first_trk >= trks_per_vol) {
+		dev_warn(&device->cdev->dev,
+			 "Start track number %u used in the space release command is too big\n",
+			 first_trk);
+		rc = -EINVAL;
+	} else if (last_trk >= trks_per_vol) {
+		dev_warn(&device->cdev->dev,
+			 "Stop track number %u used in the space release command is too big\n",
+			 last_trk);
+		rc = -EINVAL;
+	} else if (first_trk > last_trk) {
+		dev_warn(&device->cdev->dev,
+			 "Start track %u used in the space release command exceeds the end track\n",
+			 first_trk);
+		rc = -EINVAL;
+	}
+	return rc;
+}
+
+/*
+ * Helper function to count the amount of involved extents within a given range
+ * with extent alignment in mind.
+ */
+static int count_exts(unsigned int from, unsigned int to, int trks_per_ext)
+{
+	int cur_pos = 0;
+	int count = 0;
+	int tmp;
+
+	if (from == to)
+		return 1;
+
+	/* Count first partial extent */
+	if (from % trks_per_ext != 0) {
+		tmp = from + trks_per_ext - (from % trks_per_ext) - 1;
+		if (tmp > to)
+			tmp = to;
+		cur_pos = tmp - from + 1;
+		count++;
+	}
+	/* Count full extents */
+	if (to - (from + cur_pos) + 1 >= trks_per_ext) {
+		tmp = to - ((to - trks_per_ext + 1) % trks_per_ext);
+		count += (tmp - (from + cur_pos) + 1) / trks_per_ext;
+		cur_pos = tmp;
+	}
+	/* Count last partial extent */
+	if (cur_pos < to)
+		count++;
+
+	return count;
+}
+
+/*
+ * Release allocated space for a given range or an entire volume.
+ */
+static struct dasd_ccw_req *
+dasd_eckd_dso_ras(struct dasd_device *device, struct dasd_block *block,
+		  struct request *req, unsigned int first_trk,
+		  unsigned int last_trk, int by_extent)
+{
+	struct dasd_eckd_private *private = device->private;
+	struct dasd_dso_ras_ext_range *ras_range;
+	struct dasd_rssd_features *features;
+	struct dasd_dso_ras_data *ras_data;
+	u16 heads, beg_head, end_head;
+	int cur_to_trk, cur_from_trk;
+	struct dasd_ccw_req *cqr;
+	u32 beg_cyl, end_cyl;
+	struct ccw1 *ccw;
+	int trks_per_ext;
+	size_t ras_size;
+	size_t size;
+	int nr_exts;
+	void *rq;
+	int i;
+
+	if (dasd_eckd_ras_sanity_checks(device, first_trk, last_trk))
+		return ERR_PTR(-EINVAL);
+
+	rq = req ? blk_mq_rq_to_pdu(req) : NULL;
+
+	features = &private->features;
+
+	trks_per_ext = dasd_eckd_ext_size(device) * private->rdc_data.trk_per_cyl;
+	nr_exts = 0;
+	if (by_extent)
+		nr_exts = count_exts(first_trk, last_trk, trks_per_ext);
+	ras_size = sizeof(*ras_data);
+	size = ras_size + (nr_exts * sizeof(*ras_range));
+
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1, size, device, rq);
+	if (IS_ERR(cqr)) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate RAS request");
+		return cqr;
+	}
+
+	ras_data = cqr->data;
+	memset(ras_data, 0, size);
+
+	ras_data->order = DSO_ORDER_RAS;
+	ras_data->flags.vol_type = 0; /* CKD volume */
+	/* Release specified extents or entire volume */
+	ras_data->op_flags.by_extent = by_extent;
+	/*
+	 * This bit guarantees initialisation of tracks within an extent that is
+	 * not fully specified, but is only supported with a certain feature
+	 * subset.
+	 */
+	ras_data->op_flags.guarantee_init = !!(features->feature[56] & 0x01);
+	ras_data->lss = private->ned->ID;
+	ras_data->dev_addr = private->ned->unit_addr;
+	ras_data->nr_exts = nr_exts;
+
+	if (by_extent) {
+		heads = private->rdc_data.trk_per_cyl;
+		cur_from_trk = first_trk;
+		cur_to_trk = first_trk + trks_per_ext -
+			(first_trk % trks_per_ext) - 1;
+		if (cur_to_trk > last_trk)
+			cur_to_trk = last_trk;
+		ras_range = (struct dasd_dso_ras_ext_range *)(cqr->data + ras_size);
+
+		for (i = 0; i < nr_exts; i++) {
+			beg_cyl = cur_from_trk / heads;
+			beg_head = cur_from_trk % heads;
+			end_cyl = cur_to_trk / heads;
+			end_head = cur_to_trk % heads;
+
+			set_ch_t(&ras_range->beg_ext, beg_cyl, beg_head);
+			set_ch_t(&ras_range->end_ext, end_cyl, end_head);
+
+			cur_from_trk = cur_to_trk + 1;
+			cur_to_trk = cur_from_trk + trks_per_ext - 1;
+			if (cur_to_trk > last_trk)
+				cur_to_trk = last_trk;
+			ras_range++;
+		}
+	}
+
+	ccw = cqr->cpaddr;
+	ccw->cda = (__u32)(addr_t)cqr->data;
+	ccw->cmd_code = DASD_ECKD_CCW_DSO;
+	ccw->count = size;
+
+	cqr->startdev = device;
+	cqr->memdev = device;
+	cqr->block = block;
+	cqr->retries = 256;
+	cqr->expires = device->default_expires * HZ;
+	cqr->buildclk = get_tod_clock();
+	cqr->status = DASD_CQR_FILLED;
+
+	return cqr;
+}
+
+static int dasd_eckd_release_space_full(struct dasd_device *device)
+{
+	struct dasd_ccw_req *cqr;
+	int rc;
+
+	cqr = dasd_eckd_dso_ras(device, NULL, NULL, 0, 0, 0);
+	if (IS_ERR(cqr))
+		return PTR_ERR(cqr);
+
+	rc = dasd_sleep_on_interruptible(cqr);
+
+	dasd_sfree_request(cqr, cqr->memdev);
+
+	return rc;
+}
+
+static int dasd_eckd_release_space_trks(struct dasd_device *device,
+					unsigned int from, unsigned int to)
+{
+	struct dasd_eckd_private *private = device->private;
+	struct dasd_block *block = device->block;
+	struct dasd_ccw_req *cqr, *n;
+	struct list_head ras_queue;
+	unsigned int device_exts;
+	int trks_per_ext;
+	int stop, step;
+	int cur_pos;
+	int rc = 0;
+	int retry;
+
+	INIT_LIST_HEAD(&ras_queue);
+
+	device_exts = private->real_cyl / dasd_eckd_ext_size(device);
+	trks_per_ext = dasd_eckd_ext_size(device) * private->rdc_data.trk_per_cyl;
+
+	/* Make sure device limits are not exceeded */
+	step = trks_per_ext * min(device_exts, DASD_ECKD_RAS_EXTS_MAX);
+	cur_pos = from;
+
+	do {
+		retry = 0;
+		while (cur_pos < to) {
+			stop = cur_pos + step -
+				((cur_pos + step) % trks_per_ext) - 1;
+			if (stop > to)
+				stop = to;
+
+			cqr = dasd_eckd_dso_ras(device, NULL, NULL, cur_pos, stop, 1);
+			if (IS_ERR(cqr)) {
+				rc = PTR_ERR(cqr);
+				if (rc == -ENOMEM) {
+					if (list_empty(&ras_queue))
+						goto out;
+					retry = 1;
+					break;
+				}
+				goto err_out;
+			}
+
+			spin_lock_irq(&block->queue_lock);
+			list_add_tail(&cqr->blocklist, &ras_queue);
+			spin_unlock_irq(&block->queue_lock);
+			cur_pos = stop + 1;
+		}
+
+		rc = dasd_sleep_on_queue_interruptible(&ras_queue);
+
+err_out:
+		list_for_each_entry_safe(cqr, n, &ras_queue, blocklist) {
+			device = cqr->startdev;
+			private = device->private;
+
+			spin_lock_irq(&block->queue_lock);
+			list_del_init(&cqr->blocklist);
+			spin_unlock_irq(&block->queue_lock);
+			dasd_sfree_request(cqr, device);
+			private->count--;
+		}
+	} while (retry);
+
+out:
+	return rc;
+}
+
+static int dasd_eckd_release_space(struct dasd_device *device,
+				   struct format_data_t *rdata)
+{
+	if (rdata->intensity & DASD_FMT_INT_ESE_FULL)
+		return dasd_eckd_release_space_full(device);
+	else if (rdata->intensity == 0)
+		return dasd_eckd_release_space_trks(device, rdata->start_unit,
+						    rdata->stop_unit);
+	else
+		return -EINVAL;
+}
+
 static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 					       struct dasd_device *startdev,
 					       struct dasd_block *block,
@@ -6162,6 +6425,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.space_allocated = dasd_eckd_space_allocated,
 	.space_configured = dasd_eckd_space_configured,
 	.logical_capacity = dasd_eckd_logical_capacity,
+	.release_space = dasd_eckd_release_space,
 	.ext_pool_id = dasd_eckd_ext_pool_id,
 	.ext_size = dasd_eckd_ext_size,
 	.ext_pool_cap_at_warnlevel = dasd_eckd_ext_pool_cap_at_warnlevel,
