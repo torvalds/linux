@@ -824,8 +824,6 @@ struct vcpu_vmx {
 #ifdef CONFIG_X86_64
 		u16           ds_sel, es_sel;
 #endif
-		int           gs_ldt_reload_needed;
-		int           fs_reload_needed;
 	} host_state;
 	struct {
 		int vm86_active;
@@ -2681,7 +2679,6 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	 * allow segment selectors with cpl > 0 or ti == 1.
 	 */
 	vmx->host_state.ldt_sel = kvm_read_ldt();
-	vmx->host_state.gs_ldt_reload_needed = vmx->host_state.ldt_sel;
 
 #ifdef CONFIG_X86_64
 	savesegment(ds, vmx->host_state.ds_sel);
@@ -2711,20 +2708,15 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 #endif
 
 	vmx->host_state.fs_sel = fs_sel;
-	if (!(fs_sel & 7)) {
+	if (!(fs_sel & 7))
 		vmcs_write16(HOST_FS_SELECTOR, fs_sel);
-		vmx->host_state.fs_reload_needed = 0;
-	} else {
+	else
 		vmcs_write16(HOST_FS_SELECTOR, 0);
-		vmx->host_state.fs_reload_needed = 1;
-	}
 	vmx->host_state.gs_sel = gs_sel;
 	if (!(gs_sel & 7))
 		vmcs_write16(HOST_GS_SELECTOR, gs_sel);
-	else {
+	else
 		vmcs_write16(HOST_GS_SELECTOR, 0);
-		vmx->host_state.gs_ldt_reload_needed = 1;
-	}
 
 	vmcs_writel(HOST_FS_BASE, fs_base);
 	vmcs_writel(HOST_GS_BASE, gs_base);
@@ -2749,7 +2741,7 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 	if (is_long_mode(&vmx->vcpu))
 		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 #endif
-	if (vmx->host_state.gs_ldt_reload_needed) {
+	if (vmx->host_state.ldt_sel || (vmx->host_state.gs_sel & 7)) {
 		kvm_load_ldt(vmx->host_state.ldt_sel);
 #ifdef CONFIG_X86_64
 		load_gs_index(vmx->host_state.gs_sel);
@@ -2757,7 +2749,7 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 		loadsegment(gs, vmx->host_state.gs_sel);
 #endif
 	}
-	if (vmx->host_state.fs_reload_needed)
+	if (vmx->host_state.fs_sel & 7)
 		loadsegment(fs, vmx->host_state.fs_sel);
 #ifdef CONFIG_X86_64
 	if (unlikely(vmx->host_state.ds_sel | vmx->host_state.es_sel)) {
