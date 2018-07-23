@@ -615,6 +615,28 @@ static int __maybe_unused iostat_info_seq_show(struct seq_file *seq,
 	return 0;
 }
 
+static int __maybe_unused victim_bits_seq_show(struct seq_file *seq,
+						void *offset)
+{
+	struct super_block *sb = seq->private;
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
+	int i;
+
+	seq_puts(seq, "format: victim_secmap bitmaps\n");
+
+	for (i = 0; i < MAIN_SECS(sbi); i++) {
+		if ((i % 10) == 0)
+			seq_printf(seq, "%-10d", i);
+		seq_printf(seq, "%d", test_bit(i, dirty_i->victim_secmap) ? 1 : 0);
+		if ((i % 10) == 9 || i == (MAIN_SECS(sbi) - 1))
+			seq_putc(seq, '\n');
+		else
+			seq_putc(seq, ' ');
+	}
+	return 0;
+}
+
 int __init f2fs_init_sysfs(void)
 {
 	int ret;
@@ -664,6 +686,8 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 				segment_bits_seq_show, sb);
 		proc_create_single_data("iostat_info", S_IRUGO, sbi->s_proc,
 				iostat_info_seq_show, sb);
+		proc_create_single_data("victim_bits", S_IRUGO, sbi->s_proc,
+				victim_bits_seq_show, sb);
 	}
 	return 0;
 }
@@ -674,6 +698,7 @@ void f2fs_unregister_sysfs(struct f2fs_sb_info *sbi)
 		remove_proc_entry("iostat_info", sbi->s_proc);
 		remove_proc_entry("segment_info", sbi->s_proc);
 		remove_proc_entry("segment_bits", sbi->s_proc);
+		remove_proc_entry("victim_bits", sbi->s_proc);
 		remove_proc_entry(sbi->sb->s_id, f2fs_proc_root);
 	}
 	kobject_del(&sbi->s_kobj);
