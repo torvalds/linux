@@ -298,10 +298,13 @@ struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 }
 EXPORT_SYMBOL(tcf_chain_get);
 
+static void tc_chain_tmplt_del(struct tcf_chain *chain);
+
 void tcf_chain_put(struct tcf_chain *chain)
 {
 	if (--chain->refcnt == 0) {
 		tc_chain_notify(chain, NULL, 0, 0, RTM_DELCHAIN, false);
+		tc_chain_tmplt_del(chain);
 		tcf_chain_destroy(chain);
 	}
 }
@@ -1258,6 +1261,12 @@ replay:
 		goto errout;
 	}
 
+	if (chain->tmplt_ops && chain->tmplt_ops != tp->ops) {
+		NL_SET_ERR_MSG(extack, "Chain template is set to a different filter kind");
+		err = -EINVAL;
+		goto errout;
+	}
+
 	err = tp->ops->change(net, skb, tp, cl, t->tcm_handle, tca, &fh,
 			      n->nlmsg_flags & NLM_F_CREATE ? TCA_ACT_NOREPLACE : TCA_ACT_REPLACE,
 			      extack);
@@ -1644,8 +1653,13 @@ static int tc_chain_fill_node(struct tcf_chain *chain, struct net *net,
 			      u32 portid, u32 seq, u16 flags, int event)
 {
 	unsigned char *b = skb_tail_pointer(skb);
+	const struct tcf_proto_ops *ops;
 	struct nlmsghdr *nlh;
 	struct tcmsg *tcm;
+	void *priv;
+
+	ops = chain->tmplt_ops;
+	priv = chain->tmplt_priv;
 
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
 	if (!nlh)
@@ -1665,6 +1679,13 @@ static int tc_chain_fill_node(struct tcf_chain *chain, struct net *net,
 
 	if (nla_put_u32(skb, TCA_CHAIN, chain->index))
 		goto nla_put_failure;
+
+	if (ops) {
+		if (nla_put_string(skb, TCA_KIND, ops->kind))
+			goto nla_put_failure;
+		if (ops->tmplt_dump(skb, net, priv) < 0)
+			goto nla_put_failure;
+	}
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
@@ -1697,6 +1718,47 @@ static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
 
 	return rtnetlink_send(skb, net, portid, RTNLGRP_TC, flags & NLM_F_ECHO);
+}
+
+static int tc_chain_tmplt_add(struct tcf_chain *chain, struct net *net,
+			      struct nlattr **tca,
+			      struct netlink_ext_ack *extack)
+{
+	const struct tcf_proto_ops *ops;
+	void *tmplt_priv;
+
+	/* If kind is not set, user did not specify template. */
+	if (!tca[TCA_KIND])
+		return 0;
+
+	ops = tcf_proto_lookup_ops(nla_data(tca[TCA_KIND]), extack);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
+	if (!ops->tmplt_create || !ops->tmplt_destroy || !ops->tmplt_dump) {
+		NL_SET_ERR_MSG(extack, "Chain templates are not supported with specified classifier");
+		return -EOPNOTSUPP;
+	}
+
+	tmplt_priv = ops->tmplt_create(net, chain, tca, extack);
+	if (IS_ERR(tmplt_priv)) {
+		module_put(ops->owner);
+		return PTR_ERR(tmplt_priv);
+	}
+	chain->tmplt_ops = ops;
+	chain->tmplt_priv = tmplt_priv;
+	return 0;
+}
+
+static void tc_chain_tmplt_del(struct tcf_chain *chain)
+{
+	const struct tcf_proto_ops *ops = chain->tmplt_ops;
+
+	/* If template ops are set, no work to do for us. */
+	if (!ops)
+		return;
+
+	ops->tmplt_destroy(chain->tmplt_priv);
+	module_put(ops->owner);
 }
 
 /* Add/delete/get a chain */
@@ -1763,6 +1825,9 @@ replay:
 
 	switch (n->nlmsg_type) {
 	case RTM_NEWCHAIN:
+		err = tc_chain_tmplt_add(chain, net, tca, extack);
+		if (err)
+			goto errout;
 		/* In case the chain was successfully added, take a reference
 		 * to the chain. This ensures that an empty chain
 		 * does not disappear at the end of this function.
