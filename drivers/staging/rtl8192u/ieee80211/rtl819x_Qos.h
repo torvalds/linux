@@ -10,26 +10,6 @@
 #define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
 
 //
-// ACI to AC coding.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
-//
-// AC_CODING is redefined for enum can't be ++, | under C++ compiler, 2006.05.17, by rcnjko.
-//typedef	enum _AC_CODING{
-//	AC0_BE	= 0,		// ACI: 0x00	// Best Effort
-//	AC1_BK	= 1,		// ACI: 0x01	// Background
-//	AC2_VI	= 2,		// ACI: 0x10	// Video
-//	AC3_VO	= 3,		// ACI: 0x11	// Voice
-//	AC_MAX = 4,		// Max: define total number; Should not to be used as a real enum.
-//}AC_CODING,*PAC_CODING;
-//
-typedef u32 AC_CODING;
-#define AC0_BE	0		// ACI: 0x00	// Best Effort
-#define AC1_BK	1		// ACI: 0x01	// Background
-#define AC2_VI	2		// ACI: 0x10	// Video
-#define AC3_VO	3		// ACI: 0x11	// Voice
-#define AC_MAX	4		// Max: define total number; Should not to be used as a real enum.
-
-//
 // ACI/AIFSN Field.
 // Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
 //
