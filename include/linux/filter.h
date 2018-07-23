@@ -19,6 +19,7 @@
 #include <linux/cryptohash.h>
 #include <linux/set_memory.h>
 #include <linux/kallsyms.h>
+#include <linux/if_vlan.h>
 
 #include <net/sch_generic.h>
 
@@ -469,8 +470,11 @@ struct sock_fprog_kern {
 };
 
 struct bpf_binary_header {
-	unsigned int pages;
-	u8 image[];
+	u16 pages;
+	u16 locked:1;
+
+	/* Some arches need word alignment for their instructions */
+	u8 image[] __aligned(4);
 };
 
 struct bpf_prog {
@@ -671,15 +675,18 @@ bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
 
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
 
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
 static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
 {
+#ifdef CONFIG_ARCH_HAS_SET_MEMORY
 	fp->locked = 1;
-	WARN_ON_ONCE(set_memory_ro((unsigned long)fp, fp->pages));
+	if (set_memory_ro((unsigned long)fp, fp->pages))
+		fp->locked = 0;
+#endif
 }
 
 static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
 {
+#ifdef CONFIG_ARCH_HAS_SET_MEMORY
 	if (fp->locked) {
 		WARN_ON_ONCE(set_memory_rw((unsigned long)fp, fp->pages));
 		/* In case set_memory_rw() fails, we want to be the first
@@ -687,34 +694,30 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
 		 */
 		fp->locked = 0;
 	}
+#endif
 }
 
 static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
 {
-	WARN_ON_ONCE(set_memory_ro((unsigned long)hdr, hdr->pages));
+#ifdef CONFIG_ARCH_HAS_SET_MEMORY
+	hdr->locked = 1;
+	if (set_memory_ro((unsigned long)hdr, hdr->pages))
+		hdr->locked = 0;
+#endif
 }
 
 static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
 {
-	WARN_ON_ONCE(set_memory_rw((unsigned long)hdr, hdr->pages));
+#ifdef CONFIG_ARCH_HAS_SET_MEMORY
+	if (hdr->locked) {
+		WARN_ON_ONCE(set_memory_rw((unsigned long)hdr, hdr->pages));
+		/* In case set_memory_rw() fails, we want to be the first
+		 * to crash here instead of some random place later on.
+		 */
+		hdr->locked = 0;
+	}
+#endif
 }
-#else
-static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
-{
-}
-
-static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
-{
-}
-
-static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
-{
-}
-
-static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
-{
-}
-#endif /* CONFIG_ARCH_HAS_SET_MEMORY */
 
 static inline struct bpf_binary_header *
 bpf_jit_binary_hdr(const struct bpf_prog *fp)
@@ -724,6 +727,22 @@ bpf_jit_binary_hdr(const struct bpf_prog *fp)
 
 	return (void *)addr;
 }
+
+#ifdef CONFIG_ARCH_HAS_SET_MEMORY
+static inline int bpf_prog_check_pages_ro_single(const struct bpf_prog *fp)
+{
+	if (!fp->locked)
+		return -ENOLCK;
+	if (fp->jited) {
+		const struct bpf_binary_header *hdr = bpf_jit_binary_hdr(fp);
+
+		if (!hdr->locked)
+			return -ENOLCK;
+	}
+
+	return 0;
+}
+#endif
 
 int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap);
 static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
@@ -785,6 +804,21 @@ static inline bool bpf_dump_raw_ok(void)
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
+
+static inline int __xdp_generic_ok_fwd_dev(struct sk_buff *skb,
+					   struct net_device *fwd)
+{
+	unsigned int len;
+
+	if (unlikely(!(fwd->flags & IFF_UP)))
+		return -ENETDOWN;
+
+	len = fwd->mtu + fwd->hard_header_len + VLAN_HLEN;
+	if (skb->len > len)
+		return -EMSGSIZE;
+
+	return 0;
+}
 
 /* The pair of xdp_do_redirect and xdp_do_flush_map MUST be called in the
  * same cpu context. Further for best results no more than a single map
@@ -960,6 +994,9 @@ static inline void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 {
 }
 #endif /* CONFIG_BPF_JIT */
+
+void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp);
+void bpf_prog_kallsyms_del_all(struct bpf_prog *fp);
 
 #define BPF_ANC		BIT(15)
 

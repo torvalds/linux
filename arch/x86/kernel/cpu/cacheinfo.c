@@ -671,7 +671,7 @@ void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
 			num_sharing_cache = ((eax >> 14) & 0xfff) + 1;
 
 		if (num_sharing_cache) {
-			int bits = get_count_order(num_sharing_cache) - 1;
+			int bits = get_count_order(num_sharing_cache);
 
 			per_cpu(cpu_llc_id, cpu) = c->apicid >> bits;
 		}

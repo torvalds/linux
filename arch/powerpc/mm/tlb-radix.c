@@ -689,21 +689,16 @@ EXPORT_SYMBOL(radix__flush_tlb_kernel_range);
 static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
 static unsigned long tlb_local_single_page_flush_ceiling __read_mostly = POWER9_TLB_SETS_RADIX * 2;
 
-void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-		     unsigned long end)
+static inline void __radix__flush_tlb_range(struct mm_struct *mm,
+					unsigned long start, unsigned long end,
+					bool flush_all_sizes)
 
 {
-	struct mm_struct *mm = vma->vm_mm;
 	unsigned long pid;
 	unsigned int page_shift = mmu_psize_defs[mmu_virtual_psize].shift;
 	unsigned long page_size = 1UL << page_shift;
 	unsigned long nr_pages = (end - start) >> page_shift;
 	bool local, full;
-
-#ifdef CONFIG_HUGETLB_PAGE
-	if (is_vm_hugetlb_page(vma))
-		return radix__flush_hugetlb_tlb_range(vma, start, end);
-#endif
 
 	pid = mm->context.id;
 	if (unlikely(pid == MMU_NO_CONTEXT))
@@ -738,36 +733,63 @@ is_local:
 				_tlbie_pid(pid, RIC_FLUSH_TLB);
 		}
 	} else {
-		bool hflush = false;
+		bool hflush = flush_all_sizes;
+		bool gflush = flush_all_sizes;
 		unsigned long hstart, hend;
+		unsigned long gstart, gend;
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		hstart = (start + HPAGE_PMD_SIZE - 1) >> HPAGE_PMD_SHIFT;
-		hend = end >> HPAGE_PMD_SHIFT;
-		if (hstart < hend) {
-			hstart <<= HPAGE_PMD_SHIFT;
-			hend <<= HPAGE_PMD_SHIFT;
+		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
 			hflush = true;
+
+		if (hflush) {
+			hstart = (start + PMD_SIZE - 1) & PMD_MASK;
+			hend = end & PMD_MASK;
+			if (hstart == hend)
+				hflush = false;
 		}
-#endif
+
+		if (gflush) {
+			gstart = (start + PUD_SIZE - 1) & PUD_MASK;
+			gend = end & PUD_MASK;
+			if (gstart == gend)
+				gflush = false;
+		}
 
 		asm volatile("ptesync": : :"memory");
 		if (local) {
 			__tlbiel_va_range(start, end, pid, page_size, mmu_virtual_psize);
 			if (hflush)
 				__tlbiel_va_range(hstart, hend, pid,
-						HPAGE_PMD_SIZE, MMU_PAGE_2M);
+						PMD_SIZE, MMU_PAGE_2M);
+			if (gflush)
+				__tlbiel_va_range(gstart, gend, pid,
+						PUD_SIZE, MMU_PAGE_1G);
 			asm volatile("ptesync": : :"memory");
 		} else {
 			__tlbie_va_range(start, end, pid, page_size, mmu_virtual_psize);
 			if (hflush)
 				__tlbie_va_range(hstart, hend, pid,
-						HPAGE_PMD_SIZE, MMU_PAGE_2M);
+						PMD_SIZE, MMU_PAGE_2M);
+			if (gflush)
+				__tlbie_va_range(gstart, gend, pid,
+						PUD_SIZE, MMU_PAGE_1G);
 			fixup_tlbie();
 			asm volatile("eieio; tlbsync; ptesync": : :"memory");
 		}
 	}
 	preempt_enable();
+}
+
+void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+		     unsigned long end)
+
+{
+#ifdef CONFIG_HUGETLB_PAGE
+	if (is_vm_hugetlb_page(vma))
+		return radix__flush_hugetlb_tlb_range(vma, start, end);
+#endif
+
+	__radix__flush_tlb_range(vma->vm_mm, start, end, false);
 }
 EXPORT_SYMBOL(radix__flush_tlb_range);
 
@@ -837,6 +859,8 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	int psize = 0;
 	struct mm_struct *mm = tlb->mm;
 	int page_size = tlb->page_size;
+	unsigned long start = tlb->start;
+	unsigned long end = tlb->end;
 
 	/*
 	 * if page size is not something we understand, do a full mm flush
@@ -847,15 +871,45 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	 */
 	if (tlb->fullmm) {
 		__flush_all_mm(mm, true);
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
+	} else if (mm_tlb_flush_nested(mm)) {
+		/*
+		 * If there is a concurrent invalidation that is clearing ptes,
+		 * then it's possible this invalidation will miss one of those
+		 * cleared ptes and miss flushing the TLB. If this invalidate
+		 * returns before the other one flushes TLBs, that can result
+		 * in it returning while there are still valid TLBs inside the
+		 * range to be invalidated.
+		 *
+		 * See mm/memory.c:tlb_finish_mmu() for more details.
+		 *
+		 * The solution to this is ensure the entire range is always
+		 * flushed here. The problem for powerpc is that the flushes
+		 * are page size specific, so this "forced flush" would not
+		 * do the right thing if there are a mix of page sizes in
+		 * the range to be invalidated. So use __flush_tlb_range
+		 * which invalidates all possible page sizes in the range.
+		 *
+		 * PWC flush probably is not be required because the core code
+		 * shouldn't free page tables in this path, but accounting
+		 * for the possibility makes us a bit more robust.
+		 *
+		 * need_flush_all is an uncommon case because page table
+		 * teardown should be done with exclusive locks held (but
+		 * after locks are dropped another invalidate could come
+		 * in), it could be optimized further if necessary.
+		 */
+		if (!tlb->need_flush_all)
+			__radix__flush_tlb_range(mm, start, end, true);
+		else
+			radix__flush_all_mm(mm);
+#endif
 	} else if ( (psize = radix_get_mmu_psize(page_size)) == -1) {
 		if (!tlb->need_flush_all)
 			radix__flush_tlb_mm(mm);
 		else
 			radix__flush_all_mm(mm);
 	} else {
-		unsigned long start = tlb->start;
-		unsigned long end = tlb->end;
-
 		if (!tlb->need_flush_all)
 			radix__flush_tlb_range_psize(mm, start, end, psize);
 		else
@@ -1042,6 +1096,8 @@ extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 
 		for (; sib <= cpu_last_thread_sibling(cpu) && !flush; sib++) {
 			if (sib == cpu)
+				continue;
+			if (!cpu_possible(sib))
 				continue;
 			if (paca_ptrs[sib]->kvm_hstate.kvm_vcpu)
 				flush = true;

@@ -118,7 +118,7 @@ __setup_efi_pci(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	void *romimage;
 
 	status = efi_call_proto(efi_pci_io_protocol, attributes, pci,
-				EfiPciIoAttributeOperationGet, 0, 0,
+				EfiPciIoAttributeOperationGet, 0ULL,
 				&attributes);
 	if (status != EFI_SUCCESS)
 		return status;

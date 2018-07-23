@@ -801,6 +801,11 @@ static inline void nfs4_lgopen_release(struct nfs4_layoutget *lgp)
 {
 }
 
+static inline bool pnfs_layout_is_valid(const struct pnfs_layout_hdr *lo)
+{
+	return false;
+}
+
 #endif /* CONFIG_NFS_V4_1 */
 
 #if IS_ENABLED(CONFIG_NFS_V4_2)

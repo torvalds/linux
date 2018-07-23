@@ -78,7 +78,8 @@ static const char * ops[] = { OPS };
 	C(TOO_MANY_PREDS,	"Too many terms in predicate expression"), \
 	C(INVALID_FILTER,	"Meaningless filter expression"),	\
 	C(IP_FIELD_ONLY,	"Only 'ip' field is supported for function trace"), \
-	C(INVALID_VALUE,	"Invalid value (did you forget quotes)?"),
+	C(INVALID_VALUE,	"Invalid value (did you forget quotes)?"), \
+	C(NO_FILTER,		"No filter found"),
 
 #undef C
 #define C(a, b)		FILT_ERR_##a
@@ -547,6 +548,13 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 	if (top != op_stack) {
 		/* Too many '(' */
 		parse_error(pe, FILT_ERR_TOO_MANY_OPEN, ptr - str);
+		goto out_free;
+	}
+
+	if (!N) {
+		/* No program? */
+		ret = -EINVAL;
+		parse_error(pe, FILT_ERR_NO_FILTER, ptr - str);
 		goto out_free;
 	}
 

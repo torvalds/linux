@@ -380,6 +380,8 @@ intel_lvds_mode_valid(struct drm_connector *connector,
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	int max_pixclk = to_i915(connector->dev)->max_dotclk_freq;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
 	if (mode->hdisplay > fixed_mode->hdisplay)
 		return MODE_PANEL;
 	if (mode->vdisplay > fixed_mode->vdisplay)
@@ -428,6 +430,9 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	 */
 	intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
 			       adjusted_mode);
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
 
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		pipe_config->has_pch_encoder = true;
