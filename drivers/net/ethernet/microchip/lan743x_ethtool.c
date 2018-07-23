@@ -5,6 +5,7 @@
 #include "lan743x_main.h"
 #include "lan743x_ethtool.h"
 #include <linux/pci.h>
+#include <linux/phy.h>
 
 static void lan743x_ethtool_get_drvinfo(struct net_device *netdev,
 					struct ethtool_drvinfo *info)
@@ -18,4 +19,8 @@ static void lan743x_ethtool_get_drvinfo(struct net_device *netdev,
 
 const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_drvinfo = lan743x_ethtool_get_drvinfo,
+	.get_link = ethtool_op_get_link,
+
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
