@@ -316,6 +316,11 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!gvt))
 		return;
 
+	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
+	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev, gvt);
+	intel_gvt_cleanup_vgpu_type_groups(gvt);
+	intel_gvt_clean_vgpu_types(gvt);
+
 	intel_gvt_debugfs_clean(gvt);
 	clean_service_thread(gvt);
 	intel_gvt_clean_cmd_parser(gvt);
@@ -323,16 +328,9 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	intel_gvt_clean_workload_scheduler(gvt);
 	intel_gvt_clean_gtt(gvt);
 	intel_gvt_clean_irq(gvt);
-	intel_gvt_clean_mmio_info(gvt);
 	intel_gvt_free_firmware(gvt);
-
-	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev, gvt);
-	intel_gvt_cleanup_vgpu_type_groups(gvt);
-	intel_gvt_clean_vgpu_types(gvt);
-
+	intel_gvt_clean_mmio_info(gvt);
 	idr_destroy(&gvt->vgpu_idr);
-
-	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
 
 	kfree(dev_priv->gvt);
 	dev_priv->gvt = NULL;
