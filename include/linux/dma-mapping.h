@@ -538,10 +538,17 @@ static inline void dma_free_attrs(struct device *dev, size_t size,
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	BUG_ON(!ops);
-	WARN_ON(irqs_disabled());
 
 	if (dma_release_from_dev_coherent(dev, get_order(size), cpu_addr))
 		return;
+	/*
+	 * On non-coherent platforms which implement DMA-coherent buffers via
+	 * non-cacheable remaps, ops->free() may call vunmap(). Thus getting
+	 * this far in IRQ context is a) at risk of a BUG_ON() or trying to
+	 * sleep on some machines, and b) an indication that the driver is
+	 * probably misusing the coherent API anyway.
+	 */
+	WARN_ON(irqs_disabled());
 
 	if (!ops->free || !cpu_addr)
 		return;
