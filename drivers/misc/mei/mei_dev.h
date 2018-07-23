@@ -26,7 +26,9 @@
 #include "hw.h"
 #include "hbm.h"
 
-#define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
+#define MEI_SLOT_SIZE             sizeof(u32)
+#define MEI_RD_MSG_BUF_SIZE       (128 * MEI_SLOT_SIZE)
+
 
 /*
  * Number of Maximum MEI Clients
@@ -540,7 +542,7 @@ static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
  */
 static inline u32 mei_data2slots(size_t length)
 {
-	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
+	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, MEI_SLOT_SIZE);
 }
 
 /**
@@ -552,7 +554,7 @@ static inline u32 mei_data2slots(size_t length)
  */
 static inline u32 mei_slots2data(int slots)
 {
-	return slots * 4;
+	return slots * MEI_SLOT_SIZE;
 }
 
 /*

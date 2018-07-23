@@ -682,7 +682,7 @@ static void mei_txe_hw_config(struct mei_device *dev)
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 
 	/* Doesn't change in runtime */
-	dev->hbuf_depth = PAYLOAD_SIZE / 4;
+	dev->hbuf_depth = PAYLOAD_SIZE / MEI_SLOT_SIZE;
 
 	hw->aliveness = mei_txe_aliveness_get(dev);
 	hw->readiness = mei_txe_readiness_get(dev);
@@ -766,7 +766,7 @@ static int mei_txe_write(struct mei_device *dev,
  *
  * @dev: the device structure
  *
- * Return: the PAYLOAD_SIZE - 4
+ * Return: the PAYLOAD_SIZE - header size
  */
 static size_t mei_txe_hbuf_max_len(const struct mei_device *dev)
 {
@@ -797,7 +797,7 @@ static int mei_txe_hbuf_empty_slots(struct mei_device *dev)
 static int mei_txe_count_full_read_slots(struct mei_device *dev)
 {
 	/* read buffers has static size */
-	return  PAYLOAD_SIZE / 4;
+	return  PAYLOAD_SIZE / MEI_SLOT_SIZE;
 }
 
 /**
@@ -839,7 +839,7 @@ static int mei_txe_read(struct mei_device *dev,
 	dev_dbg(dev->dev, "buffer-length = %lu buf[0]0x%08X\n",
 		len, mei_txe_out_data_read(dev, 0));
 
-	for (i = 0; i < len / 4; i++) {
+	for (i = 0; i < len / MEI_SLOT_SIZE; i++) {
 		/* skip header: index starts from 1 */
 		reg = mei_txe_out_data_read(dev, i + 1);
 		dev_dbg(dev->dev, "buf[%d] = 0x%08X\n", i, reg);

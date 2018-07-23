@@ -1597,7 +1597,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	/* Split the message only if we can write the whole host buffer */
 	} else if ((u32)slots == dev->hbuf_depth) {
 		msg_slots = slots;
-		len = (slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
+		len = mei_slots2data(slots) - sizeof(struct mei_msg_hdr);
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 0;
 	} else {

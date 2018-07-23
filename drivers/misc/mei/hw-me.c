@@ -511,7 +511,7 @@ static int mei_me_hbuf_empty_slots(struct mei_device *dev)
  */
 static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
 {
-	return dev->hbuf_depth * sizeof(u32) - sizeof(struct mei_msg_hdr);
+	return mei_slots2data(dev->hbuf_depth) - sizeof(struct mei_msg_hdr);
 }
 
 
@@ -549,7 +549,7 @@ static int mei_me_hbuf_write(struct mei_device *dev,
 
 	mei_me_hcbww_write(dev, *((u32 *) header));
 
-	for (i = 0; i < length / 4; i++)
+	for (i = 0; i < length / MEI_SLOT_SIZE; i++)
 		mei_me_hcbww_write(dev, reg_buf[i]);
 
 	rem = length & 0x3;
@@ -604,11 +604,11 @@ static int mei_me_count_full_read_slots(struct mei_device *dev)
  * Return: always 0
  */
 static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
-		    unsigned long buffer_length)
+			     unsigned long buffer_length)
 {
 	u32 *reg_buf = (u32 *)buffer;
 
-	for (; buffer_length >= sizeof(u32); buffer_length -= sizeof(u32))
+	for (; buffer_length >= MEI_SLOT_SIZE; buffer_length -= MEI_SLOT_SIZE)
 		*reg_buf++ = mei_me_mecbrw_read(dev);
 
 	if (buffer_length > 0) {
