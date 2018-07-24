@@ -795,14 +795,15 @@ static int wil_check_bar(struct wil6210_priv *wil, void *msg, int cid,
 	return -EAGAIN;
 }
 
-static int wil_rx_edma_check_errors(struct wil6210_priv *wil, void *msg,
-				    struct wil_net_stats *stats,
-				    struct sk_buff *skb)
+static int wil_rx_error_check_edma(struct wil6210_priv *wil,
+				   struct sk_buff *skb,
+				   struct wil_net_stats *stats)
 {
 	int error;
 	int l2_rx_status;
 	int l3_rx_status;
 	int l4_rx_status;
+	void *msg = wil_skb_rxstatus(skb);
 
 	error = wil_rx_status_get_error(msg);
 	if (!error) {
@@ -865,7 +866,6 @@ static struct sk_buff *wil_sring_reap_rx_edma(struct wil6210_priv *wil,
 	struct wil_net_stats *stats = NULL;
 	u16 dmalen;
 	int cid;
-	int rc;
 	bool eop, headstolen;
 	int delta;
 	u8 dr_bit;
@@ -933,13 +933,6 @@ again:
 	if (unlikely(skb->len < ETH_HLEN)) {
 		wil_dbg_txrx(wil, "Short frame, len = %d\n", skb->len);
 		stats->rx_short_frame++;
-		rxdata->skipping = true;
-		goto skipping;
-	}
-
-	/* Check and treat errors reported by HW */
-	rc = wil_rx_edma_check_errors(wil, msg, stats, skb);
-	if (rc) {
 		rxdata->skipping = true;
 		goto skipping;
 	}
@@ -1593,6 +1586,7 @@ void wil_init_txrx_ops_edma(struct wil6210_priv *wil)
 	wil->txrx_ops.get_reorder_params = wil_get_reorder_params_edma;
 	wil->txrx_ops.get_netif_rx_params = wil_get_netif_rx_params_edma;
 	wil->txrx_ops.rx_crypto_check = wil_rx_crypto_check_edma;
+	wil->txrx_ops.rx_error_check = wil_rx_error_check_edma;
 	wil->txrx_ops.is_rx_idle = wil_is_rx_idle_edma;
 	wil->txrx_ops.rx_fini = wil_rx_fini_edma;
 }

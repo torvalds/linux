@@ -678,6 +678,21 @@ static int wil_rx_crypto_check(struct wil6210_priv *wil, struct sk_buff *skb)
 	return 0;
 }
 
+static int wil_rx_error_check(struct wil6210_priv *wil, struct sk_buff *skb,
+			      struct wil_net_stats *stats)
+{
+	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
+
+	if ((d->dma.status & RX_DMA_STATUS_ERROR) &&
+	    (d->dma.error & RX_DMA_ERROR_MIC)) {
+		stats->rx_mic_error++;
+		wil_dbg_txrx(wil, "MIC error, dropping packet\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static void wil_get_netif_rx_params(struct sk_buff *skb, int *cid,
 				    int *security)
 {
@@ -734,6 +749,12 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		dev_kfree_skb(skb);
 		stats->rx_replay++;
 		goto stats;
+	}
+
+	/* check errors reported by HW and update statistics */
+	if (unlikely(wil->txrx_ops.rx_error_check(wil, skb, stats))) {
+		dev_kfree_skb(skb);
+		return;
 	}
 
 	if (wdev->iftype == NL80211_IFTYPE_AP && !vif->ap_isolate) {
@@ -2212,6 +2233,7 @@ void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil)
 	wil->txrx_ops.get_netif_rx_params =
 		wil_get_netif_rx_params;
 	wil->txrx_ops.rx_crypto_check = wil_rx_crypto_check;
+	wil->txrx_ops.rx_error_check = wil_rx_error_check;
 	wil->txrx_ops.is_rx_idle = wil_is_rx_idle;
 	wil->txrx_ops.rx_fini = wil_rx_fini;
 }
