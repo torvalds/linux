@@ -27,6 +27,8 @@
 #include "trace.h"
 
 #define WIL_EDMA_MAX_DATA_OFFSET (2)
+/* RX buffer size must be aligned to 4 bytes */
+#define WIL_EDMA_RX_BUF_LEN_DEFAULT (2048)
 
 static void wil_tx_desc_unmap_edma(struct device *dev,
 				   union wil_tx_desc *desc,
@@ -158,8 +160,7 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 				   struct wil_ring *ring, u32 i)
 {
 	struct device *dev = wil_to_dev(wil);
-	unsigned int sz = wil->rx_buf_len + ETH_HLEN +
-		WIL_EDMA_MAX_DATA_OFFSET;
+	unsigned int sz = ALIGN(wil->rx_buf_len, 4);
 	dma_addr_t pa;
 	u16 buff_id;
 	struct list_head *active = &wil->rx_buff_mgmt.active;
@@ -600,7 +601,7 @@ static bool wil_is_rx_idle_edma(struct wil6210_priv *wil)
 static void wil_rx_buf_len_init_edma(struct wil6210_priv *wil)
 {
 	wil->rx_buf_len = rx_large_buf ?
-		WIL_MAX_ETH_MTU : TXRX_BUF_LEN_DEFAULT - WIL_MAX_MPDU_OVERHEAD;
+		WIL_MAX_ETH_MTU : WIL_EDMA_RX_BUF_LEN_DEFAULT;
 }
 
 static int wil_rx_init_edma(struct wil6210_priv *wil, u16 desc_ring_size)
@@ -633,8 +634,7 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, u16 desc_ring_size)
 
 	wil_rx_buf_len_init_edma(wil);
 
-	max_rx_pl_per_desc = wil->rx_buf_len + ETH_HLEN +
-		WIL_EDMA_MAX_DATA_OFFSET;
+	max_rx_pl_per_desc = ALIGN(wil->rx_buf_len, 4);
 
 	/* Use debugfs dbg_num_rx_srings if set, reserve one sring for TX */
 	if (wil->num_rx_status_rings > WIL6210_MAX_STATUS_RINGS - 1)
@@ -869,8 +869,7 @@ static struct sk_buff *wil_sring_reap_rx_edma(struct wil6210_priv *wil,
 	struct sk_buff *skb;
 	dma_addr_t pa;
 	struct wil_ring_rx_data *rxdata = &sring->rx_data;
-	unsigned int sz = wil->rx_buf_len + ETH_HLEN +
-		WIL_EDMA_MAX_DATA_OFFSET;
+	unsigned int sz = ALIGN(wil->rx_buf_len, 4);
 	struct wil_net_stats *stats = NULL;
 	u16 dmalen;
 	int cid;

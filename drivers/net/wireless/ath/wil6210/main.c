@@ -1614,6 +1614,13 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 		wil->txrx_ops.configure_interrupt_moderation(wil);
 
+		/* Enable OFU rdy valid bug fix, to prevent hang in oful34_rx
+		 * while there is back-pressure from Host during RX
+		 */
+		if (wil->hw_version >= HW_VER_TALYN_MB)
+			wil_s(wil, RGF_DMA_MISC_CTL,
+			      BIT_OFUL34_RDY_VALID_BUG_FIX_EN);
+
 		rc = wil_restore_vifs(wil);
 		if (rc) {
 			wil_err(wil, "failed to restore vifs, rc %d\n", rc);
