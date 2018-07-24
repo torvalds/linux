@@ -1715,9 +1715,7 @@ enum wmi_link_stats_action {
 /* WMI_LINK_STATS_EVENT record identifiers */
 enum wmi_link_stats_record_type {
 	WMI_LINK_STATS_TYPE_BASIC	= 0x01,
-	WMI_LINK_STATS_TYPE_MAC		= 0x02,
-	WMI_LINK_STATS_TYPE_PHY		= 0x04,
-	WMI_LINK_STATS_TYPE_OTA		= 0x08,
+	WMI_LINK_STATS_TYPE_GLOBAL	= 0x02,
 };
 
 /* WMI_LINK_STATS_CMDID */
@@ -1731,7 +1729,7 @@ struct wmi_link_stats_cmd {
 	/* wmi_link_stats_action_e */
 	u8 action;
 	u8 reserved[6];
-	/* for WMI_LINK_STATS_PERIODIC */
+	/* range = 100 - 10000 */
 	__le32 interval_msec;
 } __packed;
 
@@ -3779,32 +3777,59 @@ struct wmi_link_stats_config_done_event {
 
 /* WMI_LINK_STATS_EVENTID */
 struct wmi_link_stats_event {
+	__le64 tsf;
 	__le16 payload_size;
 	u8 has_next;
 	u8 reserved[5];
-	/* a stream of records, e.g. wmi_link_stats_basic_s */
+	/* a stream of wmi_link_stats_record_s */
 	u8 payload[0];
 } __packed;
 
-/* WMI_LINK_STATS_EVENT record struct */
-struct wmi_link_stats_basic {
-	/* WMI_LINK_STATS_TYPE_BASIC */
+/* WMI_LINK_STATS_EVENT */
+struct wmi_link_stats_record {
+	/* wmi_link_stats_record_type_e */
 	u8 record_type_id;
+	u8 reserved;
+	__le16 record_size;
+	u8 record[0];
+} __packed;
+
+/* WMI_LINK_STATS_TYPE_BASIC */
+struct wmi_link_stats_basic {
 	u8 cid;
-	/* 0: fail; 1: OK; 2: retrying */
-	u8 bf_status;
 	s8 rssi;
 	u8 sqi;
+	u8 bf_mcs;
+	u8 per_average;
 	u8 selected_rfc;
-	__le16 bf_mcs;
+	u8 rx_effective_ant_num;
+	u8 my_rx_sector;
+	u8 my_tx_sector;
+	u8 other_rx_sector;
+	u8 other_tx_sector;
+	u8 reserved[7];
+	/* 1/4 Db units */
+	__le16 snr;
 	__le32 tx_tpt;
 	__le32 tx_goodput;
 	__le32 rx_goodput;
-	__le16 my_rx_sector;
-	__le16 my_tx_sector;
-	__le16 other_rx_sector;
-	__le16 other_tx_sector;
-	__le32 reserved[2];
+	__le32 bf_count;
+	__le32 rx_bcast_frames;
+} __packed;
+
+/* WMI_LINK_STATS_TYPE_GLOBAL */
+struct wmi_link_stats_global {
+	/* all ack-able frames */
+	__le32 rx_frames;
+	/* all ack-able frames */
+	__le32 tx_frames;
+	__le32 rx_ba_frames;
+	__le32 tx_ba_frames;
+	__le32 tx_beacons;
+	__le32 rx_mic_errors;
+	__le32 rx_crc_errors;
+	__le32 tx_fail_no_ack;
+	u8 reserved[8];
 } __packed;
 
 /* WMI_SET_GRANT_MCS_EVENTID */

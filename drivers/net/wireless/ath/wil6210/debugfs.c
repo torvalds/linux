@@ -1922,6 +1922,223 @@ static const struct file_operations fops_tx_latency = {
 	.llseek		= seq_lseek,
 };
 
+static void wil_link_stats_print_basic(struct wil6210_vif *vif,
+				       struct seq_file *s,
+				       struct wmi_link_stats_basic *basic)
+{
+	char per[5] = "?";
+
+	if (basic->per_average != 0xff)
+		snprintf(per, sizeof(per), "%d%%", basic->per_average);
+
+	seq_printf(s, "CID %d {\n"
+		   "\tTxMCS %d TxTpt %d\n"
+		   "\tGoodput(rx:tx) %d:%d\n"
+		   "\tRxBcastFrames %d\n"
+		   "\tRSSI %d SQI %d SNR %d PER %s\n"
+		   "\tRx RFC %d Ant num %d\n"
+		   "\tSectors(rx:tx) my %d:%d peer %d:%d\n"
+		   "}\n",
+		   basic->cid,
+		   basic->bf_mcs, le32_to_cpu(basic->tx_tpt),
+		   le32_to_cpu(basic->rx_goodput),
+		   le32_to_cpu(basic->tx_goodput),
+		   le32_to_cpu(basic->rx_bcast_frames),
+		   basic->rssi, basic->sqi, basic->snr, per,
+		   basic->selected_rfc, basic->rx_effective_ant_num,
+		   basic->my_rx_sector, basic->my_tx_sector,
+		   basic->other_rx_sector, basic->other_tx_sector);
+}
+
+static void wil_link_stats_print_global(struct wil6210_priv *wil,
+					struct seq_file *s,
+					struct wmi_link_stats_global *global)
+{
+	seq_printf(s, "Frames(rx:tx) %d:%d\n"
+		   "BA Frames(rx:tx) %d:%d\n"
+		   "Beacons %d\n"
+		   "Rx Errors (MIC:CRC) %d:%d\n"
+		   "Tx Errors (no ack) %d\n",
+		   le32_to_cpu(global->rx_frames),
+		   le32_to_cpu(global->tx_frames),
+		   le32_to_cpu(global->rx_ba_frames),
+		   le32_to_cpu(global->tx_ba_frames),
+		   le32_to_cpu(global->tx_beacons),
+		   le32_to_cpu(global->rx_mic_errors),
+		   le32_to_cpu(global->rx_crc_errors),
+		   le32_to_cpu(global->tx_fail_no_ack));
+}
+
+static void wil_link_stats_debugfs_show_vif(struct wil6210_vif *vif,
+					    struct seq_file *s)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct wmi_link_stats_basic *stats;
+	int i;
+
+	if (!vif->fw_stats_ready) {
+		seq_puts(s, "no statistics\n");
+		return;
+	}
+
+	seq_printf(s, "TSF %lld\n", vif->fw_stats_tsf);
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		if (wil->sta[i].status == wil_sta_unused)
+			continue;
+		if (wil->sta[i].mid != vif->mid)
+			continue;
+
+		stats = &wil->sta[i].fw_stats_basic;
+		wil_link_stats_print_basic(vif, s, stats);
+	}
+}
+
+static int wil_link_stats_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	struct wil6210_vif *vif;
+	int i, rc;
+
+	rc = mutex_lock_interruptible(&wil->vif_mutex);
+	if (rc)
+		return rc;
+
+	/* iterate over all MIDs and show per-cid statistics. Then show the
+	 * global statistics
+	 */
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+
+		seq_printf(s, "MID %d ", i);
+		if (!vif) {
+			seq_puts(s, "unused\n");
+			continue;
+		}
+
+		wil_link_stats_debugfs_show_vif(vif, s);
+	}
+
+	mutex_unlock(&wil->vif_mutex);
+
+	return 0;
+}
+
+static int wil_link_stats_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_link_stats_debugfs_show, inode->i_private);
+}
+
+static ssize_t wil_link_stats_write(struct file *file, const char __user *buf,
+				    size_t len, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct wil6210_priv *wil = s->private;
+	int cid, interval, rc, i;
+	struct wil6210_vif *vif;
+	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
+
+	if (!kbuf)
+		return -ENOMEM;
+
+	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
+	if (rc != len) {
+		kfree(kbuf);
+		return rc >= 0 ? -EIO : rc;
+	}
+
+	kbuf[len] = '\0';
+	/* specify cid (use -1 for all cids) and snapshot interval in ms */
+	rc = sscanf(kbuf, "%d %d", &cid, &interval);
+	kfree(kbuf);
+	if (rc < 0)
+		return rc;
+	if (rc < 2 || interval < 0)
+		return -EINVAL;
+
+	wil_info(wil, "request link statistics, cid %d interval %d\n",
+		 cid, interval);
+
+	rc = mutex_lock_interruptible(&wil->vif_mutex);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+		if (!vif)
+			continue;
+
+		rc = wmi_link_stats_cfg(vif, WMI_LINK_STATS_TYPE_BASIC,
+					(cid == -1 ? 0xff : cid), interval);
+		if (rc)
+			wil_err(wil, "link statistics failed for mid %d\n", i);
+	}
+	mutex_unlock(&wil->vif_mutex);
+
+	return len;
+}
+
+static const struct file_operations fops_link_stats = {
+	.open		= wil_link_stats_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.write		= wil_link_stats_write,
+	.llseek		= seq_lseek,
+};
+
+static int
+wil_link_stats_global_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+
+	if (!wil->fw_stats_global.ready)
+		return 0;
+
+	seq_printf(s, "TSF %lld\n", wil->fw_stats_global.tsf);
+	wil_link_stats_print_global(wil, s, &wil->fw_stats_global.stats);
+
+	return 0;
+}
+
+static int
+wil_link_stats_global_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_link_stats_global_debugfs_show,
+			   inode->i_private);
+}
+
+static ssize_t
+wil_link_stats_global_write(struct file *file, const char __user *buf,
+			    size_t len, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct wil6210_priv *wil = s->private;
+	int interval, rc;
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
+
+	/* specify snapshot interval in ms */
+	rc = kstrtoint_from_user(buf, len, 0, &interval);
+	if (rc || interval < 0) {
+		wil_err(wil, "Invalid argument\n");
+		return -EINVAL;
+	}
+
+	wil_info(wil, "request global link stats, interval %d\n", interval);
+
+	rc = wmi_link_stats_cfg(vif, WMI_LINK_STATS_TYPE_GLOBAL, 0, interval);
+	if (rc)
+		wil_err(wil, "global link stats failed %d\n", rc);
+
+	return rc ? rc : len;
+}
+
+static const struct file_operations fops_link_stats_global = {
+	.open		= wil_link_stats_global_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.write		= wil_link_stats_global_write,
+	.llseek		= seq_lseek,
+};
+
 static ssize_t wil_read_file_led_cfg(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
@@ -2256,6 +2473,8 @@ static const struct {
 	{"status_msg",	0444,		&fops_status_msg},
 	{"rx_buff_mgmt",	0444,	&fops_rx_buff_mgmt},
 	{"tx_latency",	0644,		&fops_tx_latency},
+	{"link_stats",	0644,		&fops_link_stats},
+	{"link_stats_global",	0644,	&fops_link_stats_global},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
