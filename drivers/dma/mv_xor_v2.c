@@ -642,9 +642,9 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_SIZE_OFF);
 
 	/* write the DESQ address to the DMA enngine*/
-	writel(xor_dev->hw_desq & 0xFFFFFFFF,
+	writel(lower_32_bits(xor_dev->hw_desq),
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_BALR_OFF);
-	writel((xor_dev->hw_desq & 0xFFFF00000000) >> 32,
+	writel(upper_32_bits(xor_dev->hw_desq),
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_BAHR_OFF);
 
 	/*
