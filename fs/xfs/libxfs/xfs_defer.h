@@ -49,13 +49,14 @@ enum xfs_defer_ops_type {
 #define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
 
 struct xfs_defer_ops {
-	bool			dop_low;	/* alloc in low mode */
 	struct list_head	dop_intake;	/* unlogged pending work */
 	struct list_head	dop_pending;	/* logged pending work */
 
 	/* relog these with each roll */
 	struct xfs_inode	*dop_inodes[XFS_DEFER_OPS_NR_INODES];
 	struct xfs_buf		*dop_bufs[XFS_DEFER_OPS_NR_BUFS];
+
+	bool			dop_low;	/* alloc in low mode */
 };
 
 void xfs_defer_add(struct xfs_defer_ops *dop, enum xfs_defer_ops_type type,
