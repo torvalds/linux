@@ -225,9 +225,9 @@ xfs_defer_trans_abort(
 /* Roll a transaction so we can do some deferred op processing. */
 STATIC int
 xfs_defer_trans_roll(
-	struct xfs_trans		**tp,
-	struct xfs_defer_ops		*dop)
+	struct xfs_trans		**tp)
 {
+	struct xfs_defer_ops		*dop = (*tp)->t_dfops;
 	int				i;
 	int				error;
 
@@ -243,6 +243,7 @@ xfs_defer_trans_roll(
 
 	/* Roll the transaction. */
 	error = xfs_trans_roll(tp);
+	dop = (*tp)->t_dfops;
 	if (error) {
 		trace_xfs_defer_trans_roll_error((*tp)->t_mountp, dop, error);
 		xfs_defer_trans_abort(*tp, dop, error);
@@ -338,31 +339,25 @@ xfs_defer_finish(
 	void				*state;
 	int				error = 0;
 	void				(*cleanup_fn)(struct xfs_trans *, void *, int);
-	struct xfs_defer_ops		*orig_dop;
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
+	ASSERT((*tp)->t_dfops == dop);
 
 	trace_xfs_defer_finish((*tp)->t_mountp, dop, _RET_IP_);
-
-	/*
-	 * Attach dfops to the transaction during deferred ops processing. This
-	 * explicitly causes calls into the allocator to defer AGFL block frees.
-	 * Note that this code can go away once all dfops users attach to the
-	 * associated tp.
-	 */
-	ASSERT(!(*tp)->t_dfops || ((*tp)->t_dfops == dop));
-	orig_dop = (*tp)->t_dfops;
-	(*tp)->t_dfops = dop;
 
 	/* Until we run out of pending work to finish... */
 	while (xfs_defer_has_unfinished_work(dop)) {
 		/* Log intents for work items sitting in the intake. */
 		xfs_defer_intake_work(*tp, dop);
 
-		/* Roll the transaction. */
-		error = xfs_defer_trans_roll(tp, dop);
+		/*
+		 * Roll the transaction and update dop in case dfops was
+		 * embedded in the transaction.
+		 */
+		error = xfs_defer_trans_roll(tp);
 		if (error)
 			goto out;
+		dop = (*tp)->t_dfops;
 
 		/* Log an intent-done item for the first pending item. */
 		dfp = list_first_entry(&dop->dop_pending,
@@ -428,10 +423,11 @@ xfs_defer_finish(
 	 * Roll the transaction once more to avoid returning to the caller
 	 * with a dirty transaction.
 	 */
-	if ((*tp)->t_flags & XFS_TRANS_DIRTY)
-		error = xfs_defer_trans_roll(tp, dop);
+	if ((*tp)->t_flags & XFS_TRANS_DIRTY) {
+		error = xfs_defer_trans_roll(tp);
+		dop = (*tp)->t_dfops;
+	}
 out:
-	(*tp)->t_dfops = orig_dop;
 	if (error)
 		trace_xfs_defer_finish_error((*tp)->t_mountp, dop, error);
 	else
