@@ -2223,7 +2223,7 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 static void gen_vxlan_header_ipv4(struct net_device *out_dev,
 				  char buf[], int encap_size,
 				  unsigned char h_dest[ETH_ALEN],
-				  u8 ttl,
+				  u8 tos, u8 ttl,
 				  __be32 daddr,
 				  __be32 saddr,
 				  __be16 udp_dst_port,
@@ -2243,6 +2243,7 @@ static void gen_vxlan_header_ipv4(struct net_device *out_dev,
 	ip->daddr = daddr;
 	ip->saddr = saddr;
 
+	ip->tos = tos;
 	ip->ttl = ttl;
 	ip->protocol = IPPROTO_UDP;
 	ip->version = 0x4;
@@ -2256,7 +2257,7 @@ static void gen_vxlan_header_ipv4(struct net_device *out_dev,
 static void gen_vxlan_header_ipv6(struct net_device *out_dev,
 				  char buf[], int encap_size,
 				  unsigned char h_dest[ETH_ALEN],
-				  u8 ttl,
+				  u8 tos, u8 ttl,
 				  struct in6_addr *daddr,
 				  struct in6_addr *saddr,
 				  __be16 udp_dst_port,
@@ -2273,7 +2274,7 @@ static void gen_vxlan_header_ipv6(struct net_device *out_dev,
 	ether_addr_copy(eth->h_source, out_dev->dev_addr);
 	eth->h_proto = htons(ETH_P_IPV6);
 
-	ip6_flow_hdr(ip6h, 0, 0);
+	ip6_flow_hdr(ip6h, tos, 0);
 	/* the HW fills up ipv6 payload len */
 	ip6h->nexthdr     = IPPROTO_UDP;
 	ip6h->hop_limit   = ttl;
@@ -2295,8 +2296,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	struct net_device *out_dev;
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
+	u8 nud_state, tos, ttl;
 	char *encap_header;
-	u8 nud_state, ttl;
 	int err;
 
 	if (max_encap_size < ipv4_encap_size) {
@@ -2319,7 +2320,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 		goto free_encap;
 	}
 
-	ttl = 0;
+	tos = tun_key->tos;
+	ttl = tun_key->ttl;
 
 	fl4.flowi4_tos = tun_key->tos;
 	fl4.daddr = tun_key->u.ipv4.dst;
@@ -2355,7 +2357,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	switch (e->tunnel_type) {
 	case MLX5_HEADER_TYPE_VXLAN:
 		gen_vxlan_header_ipv4(out_dev, encap_header,
-				      ipv4_encap_size, e->h_dest, ttl,
+				      ipv4_encap_size, e->h_dest, tos, ttl,
 				      fl4.daddr,
 				      fl4.saddr, tun_key->tp_dst,
 				      tunnel_id_to_key32(tun_key->tun_id));
@@ -2403,8 +2405,8 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	struct net_device *out_dev;
 	struct neighbour *n = NULL;
 	struct flowi6 fl6 = {};
+	u8 nud_state, tos, ttl;
 	char *encap_header;
-	u8 ttl, nud_state;
 	int err;
 
 	if (max_encap_size < ipv6_encap_size) {
@@ -2427,7 +2429,8 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 		goto free_encap;
 	}
 
-	ttl = 0;
+	tos = tun_key->tos;
+	ttl = tun_key->ttl;
 
 	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tun_key->tos), tun_key->label);
 	fl6.daddr = tun_key->u.ipv6.dst;
@@ -2463,7 +2466,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	switch (e->tunnel_type) {
 	case MLX5_HEADER_TYPE_VXLAN:
 		gen_vxlan_header_ipv6(out_dev, encap_header,
-				      ipv6_encap_size, e->h_dest, ttl,
+				      ipv6_encap_size, e->h_dest, tos, ttl,
 				      &fl6.daddr,
 				      &fl6.saddr, tun_key->tp_dst,
 				      tunnel_id_to_key32(tun_key->tun_id));
