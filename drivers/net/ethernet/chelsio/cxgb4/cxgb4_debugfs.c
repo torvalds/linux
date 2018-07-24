@@ -2858,7 +2858,6 @@ static int meminfo_show(struct seq_file *seq, void *v)
 {
 	static const char * const memory[] = { "EDC0:", "EDC1:", "MC:",
 					       "MC0:", "MC1:", "HMA:"};
-	unsigned int free_rx_cnt, free_tx_cnt;
 	struct adapter *adap = seq->private;
 	struct cudbg_meminfo meminfo;
 	int i, rc;
@@ -2890,18 +2889,12 @@ static int meminfo_show(struct seq_file *seq, void *v)
 	mem_region_show(seq, "uP Extmem2:", meminfo.up_extmem2_lo,
 			meminfo.up_extmem2_hi);
 
-	for (i = 0, free_rx_cnt = 0; i < 2; i++)
-		free_rx_cnt += FREERXPAGECOUNT_G
-				      (t4_read_reg(adap, TP_FLM_FREE_RX_CNT_A));
 	seq_printf(seq, "\n%u Rx pages (%u free) of size %uKiB for %u channels\n",
-		   meminfo.rx_pages_data[0], free_rx_cnt,
+		   meminfo.rx_pages_data[0], meminfo.free_rx_cnt,
 		   meminfo.rx_pages_data[1], meminfo.rx_pages_data[2]);
 
-	for (i = 0, free_tx_cnt = 0; i < 4; i++)
-		free_tx_cnt += FREETXPAGECOUNT_G
-				      (t4_read_reg(adap, TP_FLM_FREE_TX_CNT_A));
 	seq_printf(seq, "%u Tx pages (%u free) of size %u%ciB for %u channels\n",
-		   meminfo.tx_pages_data[0], free_tx_cnt,
+		   meminfo.tx_pages_data[0], meminfo.free_tx_cnt,
 		   meminfo.tx_pages_data[1], meminfo.tx_pages_data[2],
 		   meminfo.tx_pages_data[3]);
 

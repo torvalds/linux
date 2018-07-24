@@ -349,6 +349,11 @@ int cudbg_fill_meminfo(struct adapter *padap,
 	meminfo_buff->up_extmem2_hi = hi;
 
 	lo = t4_read_reg(padap, TP_PMM_RX_MAX_PAGE_A);
+	for (i = 0, meminfo_buff->free_rx_cnt = 0; i < 2; i++)
+		meminfo_buff->free_rx_cnt +=
+			FREERXPAGECOUNT_G(t4_read_reg(padap,
+						      TP_FLM_FREE_RX_CNT_A));
+
 	meminfo_buff->rx_pages_data[0] =  PMRXMAXPAGE_G(lo);
 	meminfo_buff->rx_pages_data[1] =
 		t4_read_reg(padap, TP_PMM_RX_PAGE_SIZE_A) >> 10;
@@ -356,6 +361,11 @@ int cudbg_fill_meminfo(struct adapter *padap,
 
 	lo = t4_read_reg(padap, TP_PMM_TX_MAX_PAGE_A);
 	hi = t4_read_reg(padap, TP_PMM_TX_PAGE_SIZE_A);
+	for (i = 0, meminfo_buff->free_tx_cnt = 0; i < 4; i++)
+		meminfo_buff->free_tx_cnt +=
+			FREETXPAGECOUNT_G(t4_read_reg(padap,
+						      TP_FLM_FREE_TX_CNT_A));
+
 	meminfo_buff->tx_pages_data[0] = PMTXMAXPAGE_G(lo);
 	meminfo_buff->tx_pages_data[1] =
 		hi >= (1 << 20) ? (hi >> 20) : (hi >> 10);

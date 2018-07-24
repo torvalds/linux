@@ -140,6 +140,8 @@ struct cudbg_meminfo {
 	u32 loopback_used[NCHAN];
 	u32 loopback_alloc[NCHAN];
 	u32 p_structs_free_cnt;
+	u32 free_rx_cnt;
+	u32 free_tx_cnt;
 };
 
 struct cudbg_cim_pif_la {
