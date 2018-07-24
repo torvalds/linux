@@ -558,7 +558,6 @@ xfs_attr_rmtval_set(
 	return 0;
 out_defer_cancel:
 	xfs_defer_cancel(args->trans->t_dfops);
-	args->trans = NULL;
 	return error;
 }
 
@@ -646,6 +645,5 @@ xfs_attr_rmtval_remove(
 	return 0;
 out_defer_cancel:
 	xfs_defer_cancel(args->trans->t_dfops);
-	args->trans = NULL;
 	return error;
 }
