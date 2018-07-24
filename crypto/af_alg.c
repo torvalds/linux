@@ -1060,12 +1060,19 @@ void af_alg_async_cb(struct crypto_async_request *_req, int err)
 }
 EXPORT_SYMBOL_GPL(af_alg_async_cb);
 
-__poll_t af_alg_poll_mask(struct socket *sock, __poll_t events)
+/**
+ * af_alg_poll - poll system call handler
+ */
+__poll_t af_alg_poll(struct file *file, struct socket *sock,
+			 poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
 	struct af_alg_ctx *ctx = ask->private;
-	__poll_t mask = 0;
+	__poll_t mask;
+
+	sock_poll_wait(file, sk_sleep(sk), wait);
+	mask = 0;
 
 	if (!ctx->more || ctx->used)
 		mask |= EPOLLIN | EPOLLRDNORM;
@@ -1075,7 +1082,7 @@ __poll_t af_alg_poll_mask(struct socket *sock, __poll_t events)
 
 	return mask;
 }
-EXPORT_SYMBOL_GPL(af_alg_poll_mask);
+EXPORT_SYMBOL_GPL(af_alg_poll);
 
 /**
  * af_alg_alloc_areq - allocate struct af_alg_async_req
@@ -1148,8 +1155,10 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 
 		/* make one iovec available as scatterlist */
 		err = af_alg_make_sg(&rsgl->sgl, &msg->msg_iter, seglen);
-		if (err < 0)
+		if (err < 0) {
+			rsgl->sg_num_bytes = 0;
 			return err;
+		}
 
 		/* chain the new scatterlist with previous one */
 		if (areq->last_rsgl)

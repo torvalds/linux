@@ -2794,6 +2794,7 @@ int efx_farch_filter_table_probe(struct efx_nic *efx)
 	if (!state)
 		return -ENOMEM;
 	efx->filter_state = state;
+	init_rwsem(&state->lock);
 
 	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
 	table->id = EFX_FARCH_FILTER_TABLE_RX_IP;

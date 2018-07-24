@@ -190,6 +190,7 @@ struct amdgpu_job;
 struct amdgpu_irq_src;
 struct amdgpu_fpriv;
 struct amdgpu_bo_va_mapping;
+struct amdgpu_atif;
 
 enum amdgpu_cp_irq {
 	AMDGPU_CP_IRQ_GFX_EOP = 0,
@@ -1269,43 +1270,6 @@ struct amdgpu_vram_scratch {
 /*
  * ACPI
  */
-struct amdgpu_atif_notification_cfg {
-	bool enabled;
-	int command_code;
-};
-
-struct amdgpu_atif_notifications {
-	bool display_switch;
-	bool expansion_mode_change;
-	bool thermal_state;
-	bool forced_power_state;
-	bool system_power_state;
-	bool display_conf_change;
-	bool px_gfx_switch;
-	bool brightness_change;
-	bool dgpu_display_event;
-};
-
-struct amdgpu_atif_functions {
-	bool system_params;
-	bool sbios_requests;
-	bool select_active_disp;
-	bool lid_state;
-	bool get_tv_standard;
-	bool set_tv_standard;
-	bool get_panel_expansion_mode;
-	bool set_panel_expansion_mode;
-	bool temperature_change;
-	bool graphics_device_types;
-};
-
-struct amdgpu_atif {
-	struct amdgpu_atif_notifications notifications;
-	struct amdgpu_atif_functions functions;
-	struct amdgpu_atif_notification_cfg notification_cfg;
-	struct amdgpu_encoder *encoder_for_bl;
-};
-
 struct amdgpu_atcs_functions {
 	bool get_ext_state;
 	bool pcie_perf_req;
@@ -1466,7 +1430,7 @@ struct amdgpu_device {
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_regs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
 #endif
-	struct amdgpu_atif		atif;
+	struct amdgpu_atif		*atif;
 	struct amdgpu_atcs		atcs;
 	struct mutex			srbm_mutex;
 	/* GRBM index mutex. Protects concurrent access to GRBM index */
@@ -1892,6 +1856,12 @@ static inline bool amdgpu_has_atpx_dgpu_power_cntl(void) { return false; }
 static inline bool amdgpu_is_atpx_hybrid(void) { return false; }
 static inline bool amdgpu_atpx_dgpu_req_power_for_displays(void) { return false; }
 static inline bool amdgpu_has_atpx(void) { return false; }
+#endif
+
+#if defined(CONFIG_VGA_SWITCHEROO) && defined(CONFIG_ACPI)
+void *amdgpu_atpx_get_dhandle(void);
+#else
+static inline void *amdgpu_atpx_get_dhandle(void) { return NULL; }
 #endif
 
 /*

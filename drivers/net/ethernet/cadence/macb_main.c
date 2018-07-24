@@ -1811,22 +1811,24 @@ static void macb_free_consistent(struct macb *bp)
 {
 	struct macb_queue *queue;
 	unsigned int q;
+	int size;
 
-	queue = &bp->queues[0];
 	bp->macbgem_ops.mog_free_rx_buffers(bp);
-	if (queue->rx_ring) {
-		dma_free_coherent(&bp->pdev->dev, RX_RING_BYTES(bp),
-				queue->rx_ring, queue->rx_ring_dma);
-		queue->rx_ring = NULL;
-	}
 
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
 		kfree(queue->tx_skb);
 		queue->tx_skb = NULL;
 		if (queue->tx_ring) {
-			dma_free_coherent(&bp->pdev->dev, TX_RING_BYTES(bp),
+			size = TX_RING_BYTES(bp) + bp->tx_bd_rd_prefetch;
+			dma_free_coherent(&bp->pdev->dev, size,
 					  queue->tx_ring, queue->tx_ring_dma);
 			queue->tx_ring = NULL;
+		}
+		if (queue->rx_ring) {
+			size = RX_RING_BYTES(bp) + bp->rx_bd_rd_prefetch;
+			dma_free_coherent(&bp->pdev->dev, size,
+					  queue->rx_ring, queue->rx_ring_dma);
+			queue->rx_ring = NULL;
 		}
 	}
 }
@@ -1874,7 +1876,7 @@ static int macb_alloc_consistent(struct macb *bp)
 	int size;
 
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
-		size = TX_RING_BYTES(bp);
+		size = TX_RING_BYTES(bp) + bp->tx_bd_rd_prefetch;
 		queue->tx_ring = dma_alloc_coherent(&bp->pdev->dev, size,
 						    &queue->tx_ring_dma,
 						    GFP_KERNEL);
@@ -1890,7 +1892,7 @@ static int macb_alloc_consistent(struct macb *bp)
 		if (!queue->tx_skb)
 			goto out_err;
 
-		size = RX_RING_BYTES(bp);
+		size = RX_RING_BYTES(bp) + bp->rx_bd_rd_prefetch;
 		queue->rx_ring = dma_alloc_coherent(&bp->pdev->dev, size,
 						 &queue->rx_ring_dma, GFP_KERNEL);
 		if (!queue->rx_ring)
@@ -3726,6 +3728,8 @@ static int at91ether_init(struct platform_device *pdev)
 	int err;
 	u32 reg;
 
+	bp->queues[0].bp = bp;
+
 	dev->netdev_ops = &at91ether_netdev_ops;
 	dev->ethtool_ops = &macb_ethtool_ops;
 
@@ -3795,7 +3799,7 @@ static const struct macb_config np4_config = {
 static const struct macb_config zynqmp_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE |
 			MACB_CAPS_JUMBO |
-			MACB_CAPS_GEM_HAS_PTP,
+			MACB_CAPS_GEM_HAS_PTP | MACB_CAPS_BD_RD_PREFETCH,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
@@ -3856,7 +3860,7 @@ static int macb_probe(struct platform_device *pdev)
 	void __iomem *mem;
 	const char *mac;
 	struct macb *bp;
-	int err;
+	int err, val;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mem = devm_ioremap_resource(&pdev->dev, regs);
@@ -3944,6 +3948,18 @@ static int macb_probe(struct platform_device *pdev)
 		dev->max_mtu = gem_readl(bp, JML) - ETH_HLEN - ETH_FCS_LEN;
 	else
 		dev->max_mtu = ETH_DATA_LEN;
+
+	if (bp->caps & MACB_CAPS_BD_RD_PREFETCH) {
+		val = GEM_BFEXT(RXBD_RDBUFF, gem_readl(bp, DCFG10));
+		if (val)
+			bp->rx_bd_rd_prefetch = (2 << (val - 1)) *
+						macb_dma_desc_get_size(bp);
+
+		val = GEM_BFEXT(TXBD_RDBUFF, gem_readl(bp, DCFG10));
+		if (val)
+			bp->tx_bd_rd_prefetch = (2 << (val - 1)) *
+						macb_dma_desc_get_size(bp);
+	}
 
 	mac = of_get_mac_address(np);
 	if (mac) {

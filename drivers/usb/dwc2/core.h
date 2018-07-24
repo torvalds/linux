@@ -1004,6 +1004,7 @@ struct dwc2_hregs_backup {
  * @frame_list_sz:      Frame list size
  * @desc_gen_cache:     Kmem cache for generic descriptors
  * @desc_hsisoc_cache:  Kmem cache for hs isochronous descriptors
+ * @unaligned_cache:    Kmem cache for DMA mode to handle non-aligned buf
  *
  * These are for peripheral mode:
  *
@@ -1177,6 +1178,8 @@ struct dwc2_hsotg {
 	u32 frame_list_sz;
 	struct kmem_cache *desc_gen_cache;
 	struct kmem_cache *desc_hsisoc_cache;
+	struct kmem_cache *unaligned_cache;
+#define DWC2_KMEM_UNALIGNED_BUF_SIZE 1024
 
 #endif /* CONFIG_USB_DWC2_HOST || CONFIG_USB_DWC2_DUAL_ROLE */
 

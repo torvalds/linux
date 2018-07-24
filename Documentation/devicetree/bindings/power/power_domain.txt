@@ -133,7 +133,7 @@ located inside a PM domain with index 0 of a power controller represented by a
 node with the label "power".
 In the second example the consumer device are partitioned across two PM domains,
 the first with index 0 and the second with index 1, of a power controller that
-is represented by a node with the label "power.
+is represented by a node with the label "power".
 
 Optional properties:
 - required-opps: This contains phandle to an OPP node in another device's OPP

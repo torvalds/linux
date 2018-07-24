@@ -62,14 +62,9 @@ static inline u32 xskq_nb_avail(struct xsk_queue *q, u32 dcnt)
 	return (entries > dcnt) ? dcnt : entries;
 }
 
-static inline u32 xskq_nb_free_lazy(struct xsk_queue *q, u32 producer)
-{
-	return q->nentries - (producer - q->cons_tail);
-}
-
 static inline u32 xskq_nb_free(struct xsk_queue *q, u32 producer, u32 dcnt)
 {
-	u32 free_entries = xskq_nb_free_lazy(q, producer);
+	u32 free_entries = q->nentries - (producer - q->cons_tail);
 
 	if (free_entries >= dcnt)
 		return free_entries;
@@ -129,7 +124,7 @@ static inline int xskq_produce_addr(struct xsk_queue *q, u64 addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 
-	if (xskq_nb_free(q, q->prod_tail, LAZY_UPDATE_THRESHOLD) == 0)
+	if (xskq_nb_free(q, q->prod_tail, 1) == 0)
 		return -ENOSPC;
 
 	ring->desc[q->prod_tail++ & q->ring_mask] = addr;

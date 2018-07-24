@@ -131,6 +131,9 @@ struct etnaviv_gpu {
 	struct work_struct sync_point_work;
 	int sync_point_event;
 
+	/* hang detection */
+	u32 hangcheck_dma_addr;
+
 	void __iomem *mmio;
 	int irq;
 

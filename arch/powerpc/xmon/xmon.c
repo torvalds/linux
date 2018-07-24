@@ -2734,7 +2734,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 {
 	int nr, dotted;
 	unsigned long first_adr;
-	unsigned long inst, last_inst = 0;
+	unsigned int inst, last_inst = 0;
 	unsigned char val[4];
 
 	dotted = 0;
@@ -2758,7 +2758,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 		dotted = 0;
 		last_inst = inst;
 		if (praddr)
-			printf(REG"  %.8lx", adr, inst);
+			printf(REG"  %.8x", adr, inst);
 		printf("\t");
 		dump_func(inst, adr);
 		printf("\n");

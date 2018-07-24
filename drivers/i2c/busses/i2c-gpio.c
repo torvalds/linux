@@ -279,9 +279,9 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	 * required for an I2C bus.
 	 */
 	if (pdata->scl_is_open_drain)
-		gflags = GPIOD_OUT_LOW;
+		gflags = GPIOD_OUT_HIGH;
 	else
-		gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
+		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
 	priv->scl = i2c_gpio_get_desc(dev, "scl", 1, gflags);
 	if (IS_ERR(priv->scl))
 		return PTR_ERR(priv->scl);

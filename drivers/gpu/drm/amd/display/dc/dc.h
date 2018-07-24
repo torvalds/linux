@@ -76,6 +76,7 @@ struct dc_caps {
 	bool is_apu;
 	bool dual_link_dvi;
 	bool post_blend_color_processing;
+	bool force_dp_tps4_for_cp2520;
 };
 
 struct dc_dcc_surface_param {

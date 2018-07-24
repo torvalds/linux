@@ -2606,12 +2606,6 @@ sub process {
 			     "A patch subject line should describe the change not the tool that found it\n" . $herecurr);
 		}
 
-# Check for old stable address
-		if ($line =~ /^\s*cc:\s*.*<?\bstable\@kernel\.org\b>?.*$/i) {
-			ERROR("STABLE_ADDRESS",
-			      "The 'stable' address should be 'stable\@vger.kernel.org'\n" . $herecurr);
-		}
-
 # Check for unwanted Gerrit info
 		if ($in_commit_log && $line =~ /^\s*change-id:/i) {
 			ERROR("GERRIT_CHANGE_ID",
@@ -5819,14 +5813,14 @@ sub process {
 		    defined $stat &&
 		    $stat =~ /^\+(?![^\{]*\{\s*).*\b(\w+)\s*\(.*$String\s*,/s &&
 		    $1 !~ /^_*volatile_*$/) {
-			my $specifier;
-			my $extension;
-			my $bad_specifier = "";
 			my $stat_real;
 
 			my $lc = $stat =~ tr@\n@@;
 			$lc = $lc + $linenr;
 		        for (my $count = $linenr; $count <= $lc; $count++) {
+				my $specifier;
+				my $extension;
+				my $bad_specifier = "";
 				my $fmt = get_quoted_string($lines[$count - 1], raw_line($count, 0));
 				$fmt =~ s/%%//g;
 

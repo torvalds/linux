@@ -206,7 +206,7 @@ static struct proto_ops algif_skcipher_ops = {
 	.sendmsg	=	skcipher_sendmsg,
 	.sendpage	=	af_alg_sendpage,
 	.recvmsg	=	skcipher_recvmsg,
-	.poll_mask	=	af_alg_poll_mask,
+	.poll		=	af_alg_poll,
 };
 
 static int skcipher_check_key(struct socket *sock)
@@ -302,7 +302,7 @@ static struct proto_ops algif_skcipher_ops_nokey = {
 	.sendmsg	=	skcipher_sendmsg_nokey,
 	.sendpage	=	skcipher_sendpage_nokey,
 	.recvmsg	=	skcipher_recvmsg_nokey,
-	.poll_mask	=	af_alg_poll_mask,
+	.poll		=	af_alg_poll,
 };
 
 static void *skcipher_bind(const char *name, u32 type, u32 mask)

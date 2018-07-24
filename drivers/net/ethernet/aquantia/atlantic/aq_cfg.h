@@ -63,8 +63,6 @@
 
 #define AQ_CFG_NAPI_WEIGHT     64U
 
-#define AQ_CFG_MULTICAST_ADDRESS_MAX     32U
-
 /*#define AQ_CFG_MAC_ADDR_PERMANENT {0x30, 0x0E, 0xE3, 0x12, 0x34, 0x56}*/
 
 #define AQ_NIC_FC_OFF    0U

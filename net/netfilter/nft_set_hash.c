@@ -654,7 +654,7 @@ static bool nft_hash_fast_estimate(const struct nft_set_desc *desc, u32 features
 	return true;
 }
 
-static struct nft_set_type nft_rhash_type __read_mostly = {
+struct nft_set_type nft_set_rhash_type __read_mostly = {
 	.owner		= THIS_MODULE,
 	.features	= NFT_SET_MAP | NFT_SET_OBJECT |
 			  NFT_SET_TIMEOUT | NFT_SET_EVAL,
@@ -677,7 +677,7 @@ static struct nft_set_type nft_rhash_type __read_mostly = {
 	},
 };
 
-static struct nft_set_type nft_hash_type __read_mostly = {
+struct nft_set_type nft_set_hash_type __read_mostly = {
 	.owner		= THIS_MODULE,
 	.features	= NFT_SET_MAP | NFT_SET_OBJECT,
 	.ops		= {
@@ -697,7 +697,7 @@ static struct nft_set_type nft_hash_type __read_mostly = {
 	},
 };
 
-static struct nft_set_type nft_hash_fast_type __read_mostly = {
+struct nft_set_type nft_set_hash_fast_type __read_mostly = {
 	.owner		= THIS_MODULE,
 	.features	= NFT_SET_MAP | NFT_SET_OBJECT,
 	.ops		= {
@@ -716,26 +716,3 @@ static struct nft_set_type nft_hash_fast_type __read_mostly = {
 		.get		= nft_hash_get,
 	},
 };
-
-static int __init nft_hash_module_init(void)
-{
-	if (nft_register_set(&nft_hash_fast_type) ||
-	    nft_register_set(&nft_hash_type) ||
-	    nft_register_set(&nft_rhash_type))
-		return 1;
-	return 0;
-}
-
-static void __exit nft_hash_module_exit(void)
-{
-	nft_unregister_set(&nft_rhash_type);
-	nft_unregister_set(&nft_hash_type);
-	nft_unregister_set(&nft_hash_fast_type);
-}
-
-module_init(nft_hash_module_init);
-module_exit(nft_hash_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_SET();

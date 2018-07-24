@@ -31,6 +31,7 @@ gp102_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
 	.init = gp100_fb_init,
+	.init_remapper = gp100_fb_init_remapper,
 	.init_page = gm200_fb_init_page,
 	.ram_new = gp100_ram_new,
 };
