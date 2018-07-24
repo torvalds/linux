@@ -362,4 +362,3 @@ void xprt_complete_bc_request(struct rpc_rqst *req, uint32_t copied)
 	wake_up(&bc_serv->sv_cb_waitq);
 	spin_unlock(&bc_serv->sv_cb_lock);
 }
-

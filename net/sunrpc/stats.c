@@ -334,4 +334,3 @@ void rpc_proc_exit(struct net *net)
 	dprintk("RPC:       unregistering /proc/net/rpc\n");
 	remove_proc_entry("rpc", net->proc_net);
 }
-

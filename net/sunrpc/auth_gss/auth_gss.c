@@ -1572,7 +1572,7 @@ static int gss_cred_is_negative_entry(struct rpc_cred *cred)
 	if (test_bit(RPCAUTH_CRED_NEGATIVE, &cred->cr_flags)) {
 		unsigned long now = jiffies;
 		unsigned long begin, expire;
-		struct gss_cred *gss_cred; 
+		struct gss_cred *gss_cred;
 
 		gss_cred = container_of(cred, struct gss_cred, gc_base);
 		begin = gss_cred->gc_upcall_timestamp;

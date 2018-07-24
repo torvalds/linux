@@ -623,4 +623,3 @@ gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
 		return gss_unwrap_kerberos_v2(kctx, offset, buf);
 	}
 }
-

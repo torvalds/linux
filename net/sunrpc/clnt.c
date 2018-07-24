@@ -892,7 +892,7 @@ rpc_free_client(struct rpc_clnt *clnt)
 /*
  * Free an RPC client
  */
-static struct rpc_clnt * 
+static struct rpc_clnt *
 rpc_free_auth(struct rpc_clnt *clnt)
 {
 	if (clnt->cl_auth == NULL)
