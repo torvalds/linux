@@ -69,7 +69,9 @@ struct bch_fs_usage {
 	struct {
 		u64		data[BCH_DATA_NR];
 		u64		persistent_reserved;
-	}			s[BCH_REPLICAS_MAX];
+	}			replicas[BCH_REPLICAS_MAX];
+
+	u64			buckets[BCH_DATA_NR];
 };
 
 /*

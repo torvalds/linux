@@ -173,9 +173,7 @@ struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *);
 void bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
 			 struct disk_reservation *, struct gc_pos);
 
-u64 __bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage);
 u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage);
-u64 bch2_fs_sectors_free(struct bch_fs *, struct bch_fs_usage);
 
 static inline bool is_available_bucket(struct bucket_mark mark)
 {

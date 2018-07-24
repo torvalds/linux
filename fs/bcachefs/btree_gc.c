@@ -493,7 +493,8 @@ static void bch2_gc_start(struct bch_fs *c)
 		struct bch_fs_usage *p =
 			per_cpu_ptr(c->usage_percpu, cpu);
 
-		memset(p->s, 0, sizeof(p->s));
+		memset(p->replicas, 0, sizeof(p->replicas));
+		memset(p->buckets, 0, sizeof(p->buckets));
 	}
 
 	percpu_up_write(&c->usage_lock);

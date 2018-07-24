@@ -238,7 +238,7 @@ static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 			 "capacity:\t\t%llu\n",
 			 c->capacity);
 
-	for (replicas = 0; replicas < ARRAY_SIZE(stats.s); replicas++) {
+	for (replicas = 0; replicas < ARRAY_SIZE(stats.replicas); replicas++) {
 		out += scnprintf(out, end - out,
 				 "%u replicas:\n",
 				 replicas + 1);
@@ -247,11 +247,19 @@ static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 			out += scnprintf(out, end - out,
 					 "\t%s:\t\t%llu\n",
 					 bch2_data_types[type],
-					 stats.s[replicas].data[type]);
+					 stats.replicas[replicas].data[type]);
 		out += scnprintf(out, end - out,
 				 "\treserved:\t%llu\n",
-				 stats.s[replicas].persistent_reserved);
+				 stats.replicas[replicas].persistent_reserved);
 	}
+
+	out += scnprintf(out, end - out, "bucket usage\n");
+
+	for (type = BCH_DATA_SB; type < BCH_DATA_NR; type++)
+		out += scnprintf(out, end - out,
+				 "\t%s:\t\t%llu\n",
+				 bch2_data_types[type],
+				 stats.buckets[type]);
 
 	out += scnprintf(out, end - out,
 			 "online reserved:\t%llu\n",
