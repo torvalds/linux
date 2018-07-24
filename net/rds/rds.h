@@ -24,14 +24,15 @@
 #define RDS_PROTOCOL_MINOR(v)	((v) & 255)
 #define RDS_PROTOCOL(maj, min)	(((maj) << 8) | min)
 
-/*
- * XXX randomly chosen, but at least seems to be unused:
- * #               18464-18768 Unassigned
- * We should do better.  We want a reserved port to discourage unpriv'ed
- * userspace from listening.
+/* The following ports, 16385, 18634, 18635, are registered with IANA as
+ * the ports to be used for RDS over TCP and UDP.  Currently, only RDS over
+ * TCP and RDS over IB/RDMA are implemented.  18634 is the historical value
+ * used for the RDMA_CM listener port.  RDS/TCP uses port 16385.  After
+ * IPv6 work, RDMA_CM also uses 16385 as the listener port.  18634 is kept
+ * to ensure compatibility with older RDS modules.  Those ports are defined
+ * in each transport's header file.
  */
 #define RDS_PORT	18634
-#define RDS_CM_PORT	16385
 
 #ifdef ATOMIC64_INIT
 #define KERNEL_HAS_ATOMIC64
@@ -140,7 +141,8 @@ struct rds_connection {
 	struct hlist_node	c_hash_node;
 	struct in6_addr		c_laddr;
 	struct in6_addr		c_faddr;
-	int			c_dev_if; /* c_laddrs's interface index */
+	int			c_dev_if; /* ifindex used for this conn */
+	int			c_bound_if; /* ifindex of c_laddr */
 	unsigned int		c_loopback:1,
 				c_isv6:1,
 				c_ping_triggered:1,
@@ -736,7 +738,7 @@ void rds_cong_remove_socket(struct rds_sock *);
 void rds_cong_exit(void);
 struct rds_message *rds_cong_update_alloc(struct rds_connection *conn);
 
-/* conn.c */
+/* connection.c */
 extern u32 rds_gen_num;
 int rds_conn_init(void);
 void rds_conn_exit(void);
@@ -874,6 +876,10 @@ int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msg);
 void rds_inc_info_copy(struct rds_incoming *inc,
 		       struct rds_info_iterator *iter,
 		       __be32 saddr, __be32 daddr, int flip);
+void rds6_inc_info_copy(struct rds_incoming *inc,
+			struct rds_info_iterator *iter,
+			struct in6_addr *saddr, struct in6_addr *daddr,
+			int flip);
 
 /* send.c */
 int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len);

@@ -364,7 +364,7 @@ void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
 		goto out;
 	}
 
-	rs = rds_find_bound(daddr, inc->i_hdr.h_dport, conn->c_dev_if);
+	rs = rds_find_bound(daddr, inc->i_hdr.h_dport, conn->c_bound_if);
 	if (!rs) {
 		rds_stats_inc(s_recv_drop_no_sock);
 		goto out;

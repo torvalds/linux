@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -39,6 +39,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <net/addrconf.h>
 
 #include "rds_single_path.h"
 #include "rds.h"
@@ -295,6 +296,8 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 	/* We will only ever look at IB transports */
 	if (conn->c_trans != &rds_ib_transport)
 		return 0;
+	if (conn->c_isv6)
+		return 0;
 
 	iinfo->src_addr = conn->c_laddr.s6_addr32[3];
 	iinfo->dst_addr = conn->c_faddr.s6_addr32[3];
@@ -330,7 +333,6 @@ static void rds_ib_ic_info(struct socket *sock, unsigned int len,
 				sizeof(struct rds_info_rdma_connection));
 }
 
-
 /*
  * Early RDS/IB was built to only bind to an address if there is an IPoIB
  * device with that address set.
@@ -346,8 +348,12 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 {
 	int ret;
 	struct rdma_cm_id *cm_id;
+	struct sockaddr_in6 sin6;
 	struct sockaddr_in sin;
+	struct sockaddr *sa;
+	bool isv4;
 
+	isv4 = ipv6_addr_v4mapped(addr);
 	/* Create a CMA ID and try to bind it. This catches both
 	 * IB and iWARP capable NICs.
 	 */
@@ -356,20 +362,53 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = addr->s6_addr32[3];
+	if (isv4) {
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = addr->s6_addr32[3];
+		sa = (struct sockaddr *)&sin;
+	} else {
+		memset(&sin6, 0, sizeof(sin6));
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = *addr;
+		sin6.sin6_scope_id = scope_id;
+		sa = (struct sockaddr *)&sin6;
+
+		/* XXX Do a special IPv6 link local address check here.  The
+		 * reason is that rdma_bind_addr() always succeeds with IPv6
+		 * link local address regardless it is indeed configured in a
+		 * system.
+		 */
+		if (ipv6_addr_type(addr) & IPV6_ADDR_LINKLOCAL) {
+			struct net_device *dev;
+
+			if (scope_id == 0)
+				return -EADDRNOTAVAIL;
+
+			/* Use init_net for now as RDS is not network
+			 * name space aware.
+			 */
+			dev = dev_get_by_index(&init_net, scope_id);
+			if (!dev)
+				return -EADDRNOTAVAIL;
+			if (!ipv6_chk_addr(&init_net, addr, dev, 1)) {
+				dev_put(dev);
+				return -EADDRNOTAVAIL;
+			}
+			dev_put(dev);
+		}
+	}
 
 	/* rdma_bind_addr will only succeed for IB & iWARP devices */
-	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&sin);
+	ret = rdma_bind_addr(cm_id, sa);
 	/* due to this, we will claim to support iWARP devices unless we
 	   check node_type. */
 	if (ret || !cm_id->device ||
 	    cm_id->device->node_type != RDMA_NODE_IB_CA)
 		ret = -EADDRNOTAVAIL;
 
-	rdsdebug("addr %pI6c ret %d node type %d\n",
-		 addr, ret,
+	rdsdebug("addr %pI6c%%%u ret %d node type %d\n",
+		 addr, scope_id, ret,
 		 cm_id->device ? cm_id->device->node_type : -1);
 
 	rdma_destroy_id(cm_id);

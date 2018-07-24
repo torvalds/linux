@@ -142,15 +142,32 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
 			uaddr_len = sizeof(*sin6);
 		}
 	} else {
-		/* If socket is not yet bound, set the return address family
-		 * to be AF_UNSPEC (value 0) and the address size to be that
-		 * of an IPv4 address.
+		/* If socket is not yet bound and the socket is connected,
+		 * set the return address family to be the same as the
+		 * connected address, but with 0 address value.  If it is not
+		 * connected, set the family to be AF_UNSPEC (value 0) and
+		 * the address size to be that of an IPv4 address.
 		 */
 		if (ipv6_addr_any(&rs->rs_bound_addr)) {
-			sin = (struct sockaddr_in *)uaddr;
-			memset(sin, 0, sizeof(*sin));
-			sin->sin_family = AF_UNSPEC;
-			return sizeof(*sin);
+			if (ipv6_addr_any(&rs->rs_conn_addr)) {
+				sin = (struct sockaddr_in *)uaddr;
+				memset(sin, 0, sizeof(*sin));
+				sin->sin_family = AF_UNSPEC;
+				return sizeof(*sin);
+			}
+
+			if (ipv6_addr_type(&rs->rs_conn_addr) &
+			    IPV6_ADDR_MAPPED) {
+				sin = (struct sockaddr_in *)uaddr;
+				memset(sin, 0, sizeof(*sin));
+				sin->sin_family = AF_INET;
+				return sizeof(*sin);
+			}
+
+			sin6 = (struct sockaddr_in6 *)uaddr;
+			memset(sin6, 0, sizeof(*sin6));
+			sin6->sin6_family = AF_INET6;
+			return sizeof(*sin6);
 		}
 		if (ipv6_addr_v4mapped(&rs->rs_bound_addr)) {
 			sin = (struct sockaddr_in *)uaddr;
@@ -484,16 +501,18 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_in *sin;
+	struct sockaddr_in6 *sin6;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
+	int addr_type;
 	int ret = 0;
 
 	lock_sock(sk);
 
-	switch (addr_len) {
-	case sizeof(struct sockaddr_in):
+	switch (uaddr->sa_family) {
+	case AF_INET:
 		sin = (struct sockaddr_in *)uaddr;
-		if (sin->sin_family != AF_INET) {
-			ret = -EAFNOSUPPORT;
+		if (addr_len < sizeof(struct sockaddr_in)) {
+			ret = -EINVAL;
 			break;
 		}
 		if (sin->sin_addr.s_addr == htonl(INADDR_ANY)) {
@@ -509,12 +528,56 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 		rs->rs_conn_port = sin->sin_port;
 		break;
 
-	case sizeof(struct sockaddr_in6):
-		ret = -EPROTONOSUPPORT;
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)uaddr;
+		if (addr_len < sizeof(struct sockaddr_in6)) {
+			ret = -EINVAL;
+			break;
+		}
+		addr_type = ipv6_addr_type(&sin6->sin6_addr);
+		if (!(addr_type & IPV6_ADDR_UNICAST)) {
+			__be32 addr4;
+
+			if (!(addr_type & IPV6_ADDR_MAPPED)) {
+				ret = -EPROTOTYPE;
+				break;
+			}
+
+			/* It is a mapped address.  Need to do some sanity
+			 * checks.
+			 */
+			addr4 = sin6->sin6_addr.s6_addr32[3];
+			if (addr4 == htonl(INADDR_ANY) ||
+			    addr4 == htonl(INADDR_BROADCAST) ||
+			    IN_MULTICAST(ntohl(addr4))) {
+				ret = -EPROTOTYPE;
+				break;
+			}
+		}
+
+		if (addr_type & IPV6_ADDR_LINKLOCAL) {
+			/* If socket is arleady bound to a link local address,
+			 * the peer address must be on the same link.
+			 */
+			if (sin6->sin6_scope_id == 0 ||
+			    (!ipv6_addr_any(&rs->rs_bound_addr) &&
+			     rs->rs_bound_scope_id &&
+			     sin6->sin6_scope_id != rs->rs_bound_scope_id)) {
+				ret = -EINVAL;
+				break;
+			}
+			/* Remember the connected address scope ID.  It will
+			 * be checked against the binding local address when
+			 * the socket is bound.
+			 */
+			rs->rs_bound_scope_id = sin6->sin6_scope_id;
+		}
+		rs->rs_conn_addr = sin6->sin6_addr;
+		rs->rs_conn_port = sin6->sin6_port;
 		break;
 
 	default:
-		ret = -EINVAL;
+		ret = -EAFNOSUPPORT;
 		break;
 	}
 

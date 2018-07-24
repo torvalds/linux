@@ -37,7 +37,9 @@
 #include "rdma_transport.h"
 #include "ib.h"
 
+/* Global IPv4 and IPv6 RDS RDMA listener cm_id */
 static struct rdma_cm_id *rds_rdma_listen_id;
+static struct rdma_cm_id *rds6_rdma_listen_id;
 
 static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 					 struct rdma_cm_event *event,
@@ -153,6 +155,12 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 	return rds_rdma_cm_event_handler_cmn(cm_id, event, false);
 }
 
+int rds6_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
+			       struct rdma_cm_event *event)
+{
+	return rds_rdma_cm_event_handler_cmn(cm_id, event, true);
+}
+
 static int rds_rdma_listen_init_common(rdma_cm_event_handler handler,
 				       struct sockaddr *sa,
 				       struct rdma_cm_id **ret_cm_id)
@@ -206,6 +214,7 @@ out:
 static int rds_rdma_listen_init(void)
 {
 	int ret;
+	struct sockaddr_in6 sin6;
 	struct sockaddr_in sin;
 
 	sin.sin_family = PF_INET;
@@ -214,7 +223,21 @@ static int rds_rdma_listen_init(void)
 	ret = rds_rdma_listen_init_common(rds_rdma_cm_event_handler,
 					  (struct sockaddr *)&sin,
 					  &rds_rdma_listen_id);
-	return ret;
+	if (ret != 0)
+		return ret;
+
+	sin6.sin6_family = PF_INET6;
+	sin6.sin6_addr = in6addr_any;
+	sin6.sin6_port = htons(RDS_CM_PORT);
+	sin6.sin6_scope_id = 0;
+	sin6.sin6_flowinfo = 0;
+	ret = rds_rdma_listen_init_common(rds6_rdma_cm_event_handler,
+					  (struct sockaddr *)&sin6,
+					  &rds6_rdma_listen_id);
+	/* Keep going even when IPv6 is not enabled in the system. */
+	if (ret != 0)
+		rdsdebug("Cannot set up IPv6 RDMA listener\n");
+	return 0;
 }
 
 static void rds_rdma_listen_stop(void)
@@ -223,6 +246,11 @@ static void rds_rdma_listen_stop(void)
 		rdsdebug("cm %p\n", rds_rdma_listen_id);
 		rdma_destroy_id(rds_rdma_listen_id);
 		rds_rdma_listen_id = NULL;
+	}
+	if (rds6_rdma_listen_id) {
+		rdsdebug("cm %p\n", rds6_rdma_listen_id);
+		rdma_destroy_id(rds6_rdma_listen_id);
+		rds6_rdma_listen_id = NULL;
 	}
 }
 

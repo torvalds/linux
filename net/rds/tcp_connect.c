@@ -89,9 +89,11 @@ out:
 int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 {
 	struct socket *sock = NULL;
+	struct sockaddr_in6 sin6;
 	struct sockaddr_in sin;
 	struct sockaddr *addr;
 	int addrlen;
+	bool isv6;
 	int ret;
 	struct rds_connection *conn = cp->cp_conn;
 	struct rds_tcp_connection *tc = cp->cp_transport_data;
@@ -108,18 +110,36 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 		mutex_unlock(&tc->t_conn_path_lock);
 		return 0;
 	}
-	ret = sock_create_kern(rds_conn_net(conn), PF_INET,
-			       SOCK_STREAM, IPPROTO_TCP, &sock);
+	if (ipv6_addr_v4mapped(&conn->c_laddr)) {
+		ret = sock_create_kern(rds_conn_net(conn), PF_INET,
+				       SOCK_STREAM, IPPROTO_TCP, &sock);
+		isv6 = false;
+	} else {
+		ret = sock_create_kern(rds_conn_net(conn), PF_INET6,
+				       SOCK_STREAM, IPPROTO_TCP, &sock);
+		isv6 = true;
+	}
+
 	if (ret < 0)
 		goto out;
 
 	rds_tcp_tune(sock);
 
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = conn->c_laddr.s6_addr32[3];
-	sin.sin_port = 0;
-	addr = (struct sockaddr *)&sin;
-	addrlen = sizeof(sin);
+	if (isv6) {
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = conn->c_laddr;
+		sin6.sin6_port = 0;
+		sin6.sin6_flowinfo = 0;
+		sin6.sin6_scope_id = conn->c_dev_if;
+		addr = (struct sockaddr *)&sin6;
+		addrlen = sizeof(sin6);
+	} else {
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = conn->c_laddr.s6_addr32[3];
+		sin.sin_port = 0;
+		addr = (struct sockaddr *)&sin;
+		addrlen = sizeof(sin);
+	}
 
 	ret = sock->ops->bind(sock, addr, addrlen);
 	if (ret) {
@@ -128,11 +148,21 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 		goto out;
 	}
 
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = conn->c_faddr.s6_addr32[3];
-	sin.sin_port = htons(RDS_TCP_PORT);
-	addr = (struct sockaddr *)&sin;
-	addrlen = sizeof(sin);
+	if (isv6) {
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = conn->c_faddr;
+		sin6.sin6_port = htons(RDS_TCP_PORT);
+		sin6.sin6_flowinfo = 0;
+		sin6.sin6_scope_id = conn->c_dev_if;
+		addr = (struct sockaddr *)&sin6;
+		addrlen = sizeof(sin6);
+	} else {
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = conn->c_faddr.s6_addr32[3];
+		sin.sin_port = htons(RDS_TCP_PORT);
+		addr = (struct sockaddr *)&sin;
+		addrlen = sizeof(sin);
+	}
 
 	/*
 	 * once we call connect() we can start getting callbacks and they

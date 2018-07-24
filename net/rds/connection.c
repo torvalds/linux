@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -36,6 +36,7 @@
 #include <linux/export.h>
 #include <net/ipv6.h>
 #include <net/inet6_hashtables.h>
+#include <net/addrconf.h>
 
 #include "rds.h"
 #include "loop.h"
@@ -200,6 +201,15 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	conn->c_isv6 = !ipv6_addr_v4mapped(laddr);
 	conn->c_faddr = *faddr;
 	conn->c_dev_if = dev_if;
+	/* If the local address is link local, set c_bound_if to be the
+	 * index used for this connection.  Otherwise, set it to 0 as
+	 * the socket is not bound to an interface.  c_bound_if is used
+	 * to look up a socket when a packet is received
+	 */
+	if (ipv6_addr_type(laddr) & IPV6_ADDR_LINKLOCAL)
+		conn->c_bound_if = dev_if;
+	else
+		conn->c_bound_if = 0;
 
 	rds_conn_net_set(conn, net);
 
@@ -486,10 +496,18 @@ void rds_conn_destroy(struct rds_connection *conn)
 }
 EXPORT_SYMBOL_GPL(rds_conn_destroy);
 
-static void rds_conn_message_info(struct socket *sock, unsigned int len,
-				  struct rds_info_iterator *iter,
-				  struct rds_info_lengths *lens,
-				  int want_send)
+static void __rds_inc_msg_cp(struct rds_incoming *inc,
+			     struct rds_info_iterator *iter,
+			     void *saddr, void *daddr, int flip)
+{
+	rds_inc_info_copy(inc, iter, *(__be32 *)saddr,
+			  *(__be32 *)daddr, flip);
+}
+
+static void rds_conn_message_info_cmn(struct socket *sock, unsigned int len,
+				      struct rds_info_iterator *iter,
+				      struct rds_info_lengths *lens,
+				      int want_send)
 {
 	struct hlist_head *head;
 	struct list_head *list;
@@ -524,18 +542,13 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 
 				/* XXX too lazy to maintain counts.. */
 				list_for_each_entry(rm, list, m_conn_item) {
-					__be32 laddr;
-					__be32 faddr;
-
 					total++;
-					laddr = conn->c_laddr.s6_addr32[3];
-					faddr = conn->c_faddr.s6_addr32[3];
 					if (total <= len)
-						rds_inc_info_copy(&rm->m_inc,
-								  iter,
-								  laddr,
-								  faddr,
-								  0);
+						__rds_inc_msg_cp(&rm->m_inc,
+								 iter,
+								 &conn->c_laddr,
+								 &conn->c_faddr,
+								 0);
 				}
 
 				spin_unlock_irqrestore(&cp->cp_lock, flags);
@@ -546,6 +559,14 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 
 	lens->nr = total;
 	lens->each = sizeof(struct rds_info_message);
+}
+
+static void rds_conn_message_info(struct socket *sock, unsigned int len,
+				  struct rds_info_iterator *iter,
+				  struct rds_info_lengths *lens,
+				  int want_send)
+{
+	rds_conn_message_info_cmn(sock, len, iter, lens, want_send);
 }
 
 static void rds_conn_message_info_send(struct socket *sock, unsigned int len,
@@ -654,6 +675,9 @@ static int rds_conn_info_visitor(struct rds_conn_path *cp, void *buffer)
 {
 	struct rds_info_connection *cinfo = buffer;
 	struct rds_connection *conn = cp->cp_conn;
+
+	if (conn->c_isv6)
+		return 0;
 
 	cinfo->next_tx_seq = cp->cp_next_tx_seq;
 	cinfo->next_rx_seq = cp->cp_next_rx_seq;

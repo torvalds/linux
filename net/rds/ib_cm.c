@@ -678,7 +678,7 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 	return version;
 }
 
-/* Given an IPv6 address, find the IB net_device which hosts that address and
+/* Given an IPv6 address, find the net_device which hosts that address and
  * return its index.  This is used by the rds_ib_cm_handle_connect() code to
  * find the interface index of where an incoming request comes from when
  * the request is using a link local address.
@@ -695,8 +695,7 @@ static u32 __rds_find_ifindex(struct net *net, const struct in6_addr *addr)
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
-		if (dev->type == ARPHRD_INFINIBAND &&
-		    ipv6_chk_addr(net, addr, dev, 0)) {
+		if (ipv6_chk_addr(net, addr, dev, 1)) {
 			idx = dev->ifindex;
 			break;
 		}
@@ -736,12 +735,20 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		dp_cmn = &dp->ricp_v6.dp_cmn;
 		saddr6 = &dp->ricp_v6.dp_saddr;
 		daddr6 = &dp->ricp_v6.dp_daddr;
-		/* If the local address is link local, need to find the
+		/* If either address is link local, need to find the
 		 * interface index in order to create a proper RDS
 		 * connection.
 		 */
 		if (ipv6_addr_type(daddr6) & IPV6_ADDR_LINKLOCAL) {
 			/* Using init_net for now ..  */
+			ifindex = __rds_find_ifindex(&init_net, daddr6);
+			/* No index found...  Need to bail out. */
+			if (ifindex == 0) {
+				err = -EOPNOTSUPP;
+				goto out;
+			}
+		} else if (ipv6_addr_type(saddr6) & IPV6_ADDR_LINKLOCAL) {
+			/* Use our address to find the correct index. */
 			ifindex = __rds_find_ifindex(&init_net, daddr6);
 			/* No index found...  Need to bail out. */
 			if (ifindex == 0) {
@@ -886,7 +893,10 @@ int rds_ib_conn_path_connect(struct rds_conn_path *cp)
 
 	/* XXX I wonder what affect the port space has */
 	/* delegate cm event handler to rdma_transport */
-	handler = rds_rdma_cm_event_handler;
+	if (conn->c_isv6)
+		handler = rds6_rdma_cm_event_handler;
+	else
+		handler = rds_rdma_cm_event_handler;
 	ic->i_cm_id = rdma_create_id(&init_net, handler, conn,
 				     RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ic->i_cm_id)) {

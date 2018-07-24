@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -46,7 +46,12 @@
 /* only for info exporting */
 static DEFINE_SPINLOCK(rds_tcp_tc_list_lock);
 static LIST_HEAD(rds_tcp_tc_list);
+
+/* rds_tcp_tc_count counts only IPv4 connections.
+ * rds6_tcp_tc_count counts both IPv4 and IPv6 connections.
+ */
 static unsigned int rds_tcp_tc_count;
+static unsigned int rds6_tcp_tc_count;
 
 /* Track rds_tcp_connection structs so they can be cleaned up */
 static DEFINE_SPINLOCK(rds_tcp_conn_lock);
@@ -113,7 +118,9 @@ void rds_tcp_restore_callbacks(struct socket *sock,
 	/* done under the callback_lock to serialize with write_space */
 	spin_lock(&rds_tcp_tc_list_lock);
 	list_del_init(&tc->t_list_item);
-	rds_tcp_tc_count--;
+	rds6_tcp_tc_count--;
+	if (!tc->t_cpath->cp_conn->c_isv6)
+		rds_tcp_tc_count--;
 	spin_unlock(&rds_tcp_tc_list_lock);
 
 	tc->t_sock = NULL;
@@ -200,7 +207,9 @@ void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp)
 	/* done under the callback_lock to serialize with write_space */
 	spin_lock(&rds_tcp_tc_list_lock);
 	list_add_tail(&tc->t_list_item, &rds_tcp_tc_list);
-	rds_tcp_tc_count++;
+	rds6_tcp_tc_count++;
+	if (!tc->t_cpath->cp_conn->c_isv6)
+		rds_tcp_tc_count++;
 	spin_unlock(&rds_tcp_tc_list_lock);
 
 	/* accepted sockets need our listen data ready undone */
@@ -221,6 +230,9 @@ void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp)
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 }
 
+/* Handle RDS_INFO_TCP_SOCKETS socket option.  It only returns IPv4
+ * connections for backward compatibility.
+ */
 static void rds_tcp_tc_info(struct socket *rds_sock, unsigned int len,
 			    struct rds_info_iterator *iter,
 			    struct rds_info_lengths *lens)
@@ -228,8 +240,6 @@ static void rds_tcp_tc_info(struct socket *rds_sock, unsigned int len,
 	struct rds_info_tcp_socket tsinfo;
 	struct rds_tcp_connection *tc;
 	unsigned long flags;
-	struct sockaddr_in sin;
-	struct socket *sock;
 
 	spin_lock_irqsave(&rds_tcp_tc_list_lock, flags);
 
@@ -237,16 +247,15 @@ static void rds_tcp_tc_info(struct socket *rds_sock, unsigned int len,
 		goto out;
 
 	list_for_each_entry(tc, &rds_tcp_tc_list, t_list_item) {
+		struct inet_sock *inet = inet_sk(tc->t_sock->sk);
 
-		sock = tc->t_sock;
-		if (sock) {
-			sock->ops->getname(sock, (struct sockaddr *)&sin, 0);
-			tsinfo.local_addr = sin.sin_addr.s_addr;
-			tsinfo.local_port = sin.sin_port;
-			sock->ops->getname(sock, (struct sockaddr *)&sin, 1);
-			tsinfo.peer_addr = sin.sin_addr.s_addr;
-			tsinfo.peer_port = sin.sin_port;
-		}
+		if (tc->t_cpath->cp_conn->c_isv6)
+			continue;
+
+		tsinfo.local_addr = inet->inet_saddr;
+		tsinfo.local_port = inet->inet_sport;
+		tsinfo.peer_addr = inet->inet_daddr;
+		tsinfo.peer_port = inet->inet_dport;
 
 		tsinfo.hdr_rem = tc->t_tinc_hdr_rem;
 		tsinfo.data_rem = tc->t_tinc_data_rem;
@@ -494,13 +503,18 @@ static __net_init int rds_tcp_init_net(struct net *net)
 		err = -ENOMEM;
 		goto fail;
 	}
-	rtn->rds_tcp_listen_sock = rds_tcp_listen_init(net);
+	rtn->rds_tcp_listen_sock = rds_tcp_listen_init(net, true);
 	if (!rtn->rds_tcp_listen_sock) {
-		pr_warn("could not set up listen sock\n");
-		unregister_net_sysctl_table(rtn->rds_tcp_sysctl);
-		rtn->rds_tcp_sysctl = NULL;
-		err = -EAFNOSUPPORT;
-		goto fail;
+		pr_warn("could not set up IPv6 listen sock\n");
+
+		/* Try IPv4 as some systems disable IPv6 */
+		rtn->rds_tcp_listen_sock = rds_tcp_listen_init(net, false);
+		if (!rtn->rds_tcp_listen_sock) {
+			unregister_net_sysctl_table(rtn->rds_tcp_sysctl);
+			rtn->rds_tcp_sysctl = NULL;
+			err = -EAFNOSUPPORT;
+			goto fail;
+		}
 	}
 	INIT_WORK(&rtn->rds_tcp_accept_w, rds_tcp_accept_worker);
 	return 0;

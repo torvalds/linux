@@ -127,9 +127,10 @@ static int rds_add_bound(struct rds_sock *rs, const struct in6_addr *addr,
 		if (!rhashtable_insert_fast(&bind_hash_table,
 					    &rs->rs_bound_node, ht_parms)) {
 			*port = rs->rs_bound_port;
+			rs->rs_bound_scope_id = scope_id;
 			ret = 0;
-			rdsdebug("rs %p binding to %pI4:%d\n",
-			  rs, &addr, (int)ntohs(*port));
+			rdsdebug("rs %p binding to %pI6c:%d\n",
+				 rs, addr, (int)ntohs(*port));
 			break;
 		} else {
 			rs->rs_bound_addr = in6addr_any;
@@ -164,23 +165,53 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct in6_addr v6addr, *binding_addr;
 	struct rds_transport *trans;
 	__u32 scope_id = 0;
+	int addr_type;
 	int ret = 0;
 	__be16 port;
 
-	/* We only allow an RDS socket to be bound to an IPv4 address. IPv6
-	 * address support will be added later.
+	/* We allow an RDS socket to be bound to either IPv4 or IPv6
+	 * address.
 	 */
-	if (addr_len == sizeof(struct sockaddr_in)) {
+	if (uaddr->sa_family == AF_INET) {
 		struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
 
-		if (sin->sin_family != AF_INET ||
-		    sin->sin_addr.s_addr == htonl(INADDR_ANY))
+		if (addr_len < sizeof(struct sockaddr_in) ||
+		    sin->sin_addr.s_addr == htonl(INADDR_ANY) ||
+		    sin->sin_addr.s_addr == htonl(INADDR_BROADCAST) ||
+		    IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return -EINVAL;
 		ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &v6addr);
 		binding_addr = &v6addr;
 		port = sin->sin_port;
-	} else if (addr_len == sizeof(struct sockaddr_in6)) {
-		return -EPROTONOSUPPORT;
+	} else if (uaddr->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)uaddr;
+
+		if (addr_len < sizeof(struct sockaddr_in6))
+			return -EINVAL;
+		addr_type = ipv6_addr_type(&sin6->sin6_addr);
+		if (!(addr_type & IPV6_ADDR_UNICAST)) {
+			__be32 addr4;
+
+			if (!(addr_type & IPV6_ADDR_MAPPED))
+				return -EINVAL;
+
+			/* It is a mapped address.  Need to do some sanity
+			 * checks.
+			 */
+			addr4 = sin6->sin6_addr.s6_addr32[3];
+			if (addr4 == htonl(INADDR_ANY) ||
+			    addr4 == htonl(INADDR_BROADCAST) ||
+			    IN_MULTICAST(ntohl(addr4)))
+				return -EINVAL;
+		}
+		/* The scope ID must be specified for link local address. */
+		if (addr_type & IPV6_ADDR_LINKLOCAL) {
+			if (sin6->sin6_scope_id == 0)
+				return -EINVAL;
+			scope_id = sin6->sin6_scope_id;
+		}
+		binding_addr = &sin6->sin6_addr;
+		port = sin6->sin6_port;
 	} else {
 		return -EINVAL;
 	}
@@ -188,6 +219,16 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	/* RDS socket does not allow re-binding. */
 	if (!ipv6_addr_any(&rs->rs_bound_addr)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	/* Socket is connected.  The binding address should have the same
+	 * scope ID as the connected address, except the case when one is
+	 * non-link local address (scope_id is 0).
+	 */
+	if (!ipv6_addr_any(&rs->rs_conn_addr) && scope_id &&
+	    rs->rs_bound_scope_id &&
+	    scope_id != rs->rs_bound_scope_id) {
 		ret = -EINVAL;
 		goto out;
 	}
