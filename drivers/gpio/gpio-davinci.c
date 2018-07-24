@@ -198,8 +198,8 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		ngpio = ARCH_NR_GPIOS;
 
 	nbank = DIV_ROUND_UP(ngpio, 32);
-	chips = devm_kzalloc(dev,
-			     nbank * sizeof(struct davinci_gpio_controller),
+	chips = devm_kcalloc(dev,
+			     nbank, sizeof(struct davinci_gpio_controller),
 			     GFP_KERNEL);
 	if (!chips)
 		return -ENOMEM;

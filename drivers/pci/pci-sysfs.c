@@ -1076,7 +1076,7 @@ void pci_create_legacy_files(struct pci_bus *b)
 {
 	int error;
 
-	b->legacy_io = kzalloc(sizeof(struct bin_attribute) * 2,
+	b->legacy_io = kcalloc(2, sizeof(struct bin_attribute),
 			       GFP_ATOMIC);
 	if (!b->legacy_io)
 		goto kzalloc_err;

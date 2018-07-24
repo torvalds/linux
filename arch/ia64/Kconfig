@@ -455,6 +455,7 @@ config IA64_MCA_RECOVERY
 
 config PERFMON
 	bool "Performance monitor support"
+	depends on BROKEN
 	help
 	  Selects whether support for the IA-64 performance monitor hardware
 	  is included in the kernel.  This makes some kernel data-structures a

@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -125,16 +111,53 @@ xfs_refcount_get_rec(
 	struct xfs_refcount_irec	*irec,
 	int				*stat)
 {
+	struct xfs_mount		*mp = cur->bc_mp;
+	xfs_agnumber_t			agno = cur->bc_private.a.agno;
 	union xfs_btree_rec		*rec;
 	int				error;
+	xfs_agblock_t			realstart;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
-	if (!error && *stat == 1) {
-		xfs_refcount_btrec_to_irec(rec, irec);
-		trace_xfs_refcount_get(cur->bc_mp, cur->bc_private.a.agno,
-				irec);
+	if (error || !*stat)
+		return error;
+
+	xfs_refcount_btrec_to_irec(rec, irec);
+
+	agno = cur->bc_private.a.agno;
+	if (irec->rc_blockcount == 0 || irec->rc_blockcount > MAXREFCEXTLEN)
+		goto out_bad_rec;
+
+	/* handle special COW-staging state */
+	realstart = irec->rc_startblock;
+	if (realstart & XFS_REFC_COW_START) {
+		if (irec->rc_refcount != 1)
+			goto out_bad_rec;
+		realstart &= ~XFS_REFC_COW_START;
+	} else if (irec->rc_refcount < 2) {
+		goto out_bad_rec;
 	}
-	return error;
+
+	/* check for valid extent range, including overflow */
+	if (!xfs_verify_agbno(mp, agno, realstart))
+		goto out_bad_rec;
+	if (realstart > realstart + irec->rc_blockcount)
+		goto out_bad_rec;
+	if (!xfs_verify_agbno(mp, agno, realstart + irec->rc_blockcount - 1))
+		goto out_bad_rec;
+
+	if (irec->rc_refcount == 0 || irec->rc_refcount > MAXREFCOUNT)
+		goto out_bad_rec;
+
+	trace_xfs_refcount_get(cur->bc_mp, cur->bc_private.a.agno, irec);
+	return 0;
+
+out_bad_rec:
+	xfs_warn(mp,
+		"Refcount BTree record corruption in AG %d detected!", agno);
+	xfs_warn(mp,
+		"Start block 0x%x, block count 0x%x, references 0x%x",
+		irec->rc_startblock, irec->rc_blockcount, irec->rc_refcount);
+	return -EFSCORRUPTED;
 }
 
 /*

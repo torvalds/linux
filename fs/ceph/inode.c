@@ -662,6 +662,9 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 			 struct timespec *mtime, struct timespec *atime)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct timespec64 ctime64 = timespec_to_timespec64(*ctime);
+	struct timespec64 mtime64 = timespec_to_timespec64(*mtime);
+	struct timespec64 atime64 = timespec_to_timespec64(*atime);
 	int warn = 0;
 
 	if (issued & (CEPH_CAP_FILE_EXCL|
@@ -670,39 +673,39 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 		      CEPH_CAP_AUTH_EXCL|
 		      CEPH_CAP_XATTR_EXCL)) {
 		if (ci->i_version == 0 ||
-		    timespec_compare(ctime, &inode->i_ctime) > 0) {
-			dout("ctime %ld.%09ld -> %ld.%09ld inc w/ cap\n",
-			     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
-			     ctime->tv_sec, ctime->tv_nsec);
-			inode->i_ctime = *ctime;
+		    timespec64_compare(&ctime64, &inode->i_ctime) > 0) {
+			dout("ctime %lld.%09ld -> %lld.%09ld inc w/ cap\n",
+			     (long long)inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
+			     (long long)ctime->tv_sec, ctime->tv_nsec);
+			inode->i_ctime = ctime64;
 		}
 		if (ci->i_version == 0 ||
 		    ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) > 0) {
 			/* the MDS did a utimes() */
-			dout("mtime %ld.%09ld -> %ld.%09ld "
+			dout("mtime %lld.%09ld -> %lld.%09ld "
 			     "tw %d -> %d\n",
-			     inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
-			     mtime->tv_sec, mtime->tv_nsec,
+			     (long long)inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
+			     (long long)mtime->tv_sec, mtime->tv_nsec,
 			     ci->i_time_warp_seq, (int)time_warp_seq);
 
-			inode->i_mtime = *mtime;
-			inode->i_atime = *atime;
+			inode->i_mtime = mtime64;
+			inode->i_atime = atime64;
 			ci->i_time_warp_seq = time_warp_seq;
 		} else if (time_warp_seq == ci->i_time_warp_seq) {
 			/* nobody did utimes(); take the max */
-			if (timespec_compare(mtime, &inode->i_mtime) > 0) {
-				dout("mtime %ld.%09ld -> %ld.%09ld inc\n",
-				     inode->i_mtime.tv_sec,
+			if (timespec64_compare(&mtime64, &inode->i_mtime) > 0) {
+				dout("mtime %lld.%09ld -> %lld.%09ld inc\n",
+				     (long long)inode->i_mtime.tv_sec,
 				     inode->i_mtime.tv_nsec,
-				     mtime->tv_sec, mtime->tv_nsec);
-				inode->i_mtime = *mtime;
+				     (long long)mtime->tv_sec, mtime->tv_nsec);
+				inode->i_mtime = mtime64;
 			}
-			if (timespec_compare(atime, &inode->i_atime) > 0) {
-				dout("atime %ld.%09ld -> %ld.%09ld inc\n",
-				     inode->i_atime.tv_sec,
+			if (timespec64_compare(&atime64, &inode->i_atime) > 0) {
+				dout("atime %lld.%09ld -> %lld.%09ld inc\n",
+				     (long long)inode->i_atime.tv_sec,
 				     inode->i_atime.tv_nsec,
-				     atime->tv_sec, atime->tv_nsec);
-				inode->i_atime = *atime;
+				     (long long)atime->tv_sec, atime->tv_nsec);
+				inode->i_atime = atime64;
 			}
 		} else if (issued & CEPH_CAP_FILE_EXCL) {
 			/* we did a utimes(); ignore mds values */
@@ -712,9 +715,9 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 	} else {
 		/* we have no write|excl caps; whatever the MDS says is true */
 		if (ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) >= 0) {
-			inode->i_ctime = *ctime;
-			inode->i_mtime = *mtime;
-			inode->i_atime = *atime;
+			inode->i_ctime = ctime64;
+			inode->i_mtime = mtime64;
+			inode->i_atime = atime64;
 			ci->i_time_warp_seq = time_warp_seq;
 		} else {
 			warn = 1;
@@ -739,7 +742,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	struct ceph_mds_reply_inode *info = iinfo->in;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int issued = 0, implemented, new_issued;
+	int issued, new_issued, info_caps;
 	struct timespec mtime, atime, ctime;
 	struct ceph_buffer *xattr_blob = NULL;
 	struct ceph_string *pool_ns = NULL;
@@ -754,8 +757,10 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	     inode, ceph_vinop(inode), le64_to_cpu(info->version),
 	     ci->i_version);
 
+	info_caps = le32_to_cpu(info->cap.caps);
+
 	/* prealloc new cap struct */
-	if (info->cap.caps && ceph_snap(inode) == CEPH_NOSNAP)
+	if (info_caps && ceph_snap(inode) == CEPH_NOSNAP)
 		new_cap = ceph_get_cap(mdsc, caps_reservation);
 
 	/*
@@ -792,9 +797,9 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	     le64_to_cpu(info->version) > (ci->i_version & ~1)))
 		new_version = true;
 
-	issued = __ceph_caps_issued(ci, &implemented);
-	issued |= implemented | __ceph_caps_dirty(ci);
-	new_issued = ~issued & le32_to_cpu(info->cap.caps);
+	__ceph_caps_issued(ci, &issued);
+	issued |= __ceph_caps_dirty(ci);
+	new_issued = ~issued & info_caps;
 
 	/* update inode */
 	inode->i_rdev = le32_to_cpu(info->rdev);
@@ -826,6 +831,11 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 				&ctime, &mtime, &atime);
 	}
 
+	if (new_version || (info_caps & CEPH_CAP_FILE_SHARED)) {
+		ci->i_files = le64_to_cpu(info->files);
+		ci->i_subdirs = le64_to_cpu(info->subdirs);
+	}
+
 	if (new_version ||
 	    (new_issued & (CEPH_CAP_ANY_FILE_RD | CEPH_CAP_ANY_FILE_WR))) {
 		s64 old_pool = ci->i_layout.pool_id;
@@ -854,6 +864,18 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		}
 	}
 
+	/* layout and rstat are not tracked by capability, update them if
+	 * the inode info is from auth mds */
+	if (new_version || (info->cap.flags & CEPH_CAP_FLAG_AUTH)) {
+		if (S_ISDIR(inode->i_mode)) {
+			ci->i_dir_layout = iinfo->dir_layout;
+			ci->i_rbytes = le64_to_cpu(info->rbytes);
+			ci->i_rfiles = le64_to_cpu(info->rfiles);
+			ci->i_rsubdirs = le64_to_cpu(info->rsubdirs);
+			ceph_decode_timespec(&ci->i_rctime, &info->rctime);
+		}
+	}
+
 	/* xattrs */
 	/* note that if i_xattrs.len <= 4, i_xattrs.data will still be NULL. */
 	if ((ci->i_xattrs.version == 0 || !(issued & CEPH_CAP_XATTR_EXCL))  &&
@@ -870,7 +892,8 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	}
 
 	/* finally update i_version */
-	ci->i_version = le64_to_cpu(info->version);
+	if (le64_to_cpu(info->version) > ci->i_version)
+		ci->i_version = le64_to_cpu(info->version);
 
 	inode->i_mapping->a_ops = &ceph_aops;
 
@@ -918,15 +941,6 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	case S_IFDIR:
 		inode->i_op = &ceph_dir_iops;
 		inode->i_fop = &ceph_dir_fops;
-
-		ci->i_dir_layout = iinfo->dir_layout;
-
-		ci->i_files = le64_to_cpu(info->files);
-		ci->i_subdirs = le64_to_cpu(info->subdirs);
-		ci->i_rbytes = le64_to_cpu(info->rbytes);
-		ci->i_rfiles = le64_to_cpu(info->rfiles);
-		ci->i_rsubdirs = le64_to_cpu(info->rsubdirs);
-		ceph_decode_timespec(&ci->i_rctime, &info->rctime);
 		break;
 	default:
 		pr_err("fill_inode %llx.%llx BAD mode 0%o\n",
@@ -934,12 +948,11 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	}
 
 	/* were we issued a capability? */
-	if (info->cap.caps) {
+	if (info_caps) {
 		if (ceph_snap(inode) == CEPH_NOSNAP) {
-			unsigned caps = le32_to_cpu(info->cap.caps);
 			ceph_add_cap(inode, session,
 				     le64_to_cpu(info->cap.cap_id),
-				     cap_fmode, caps,
+				     cap_fmode, info_caps,
 				     le32_to_cpu(info->cap.wanted),
 				     le32_to_cpu(info->cap.seq),
 				     le32_to_cpu(info->cap.mseq),
@@ -949,7 +962,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 			/* set dir completion flag? */
 			if (S_ISDIR(inode->i_mode) &&
 			    ci->i_files == 0 && ci->i_subdirs == 0 &&
-			    (caps & CEPH_CAP_FILE_SHARED) &&
+			    (info_caps & CEPH_CAP_FILE_SHARED) &&
 			    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
 			    !__ceph_dir_is_complete(ci)) {
 				dout(" marking %p complete (empty)\n", inode);
@@ -962,8 +975,8 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 			wake = true;
 		} else {
 			dout(" %p got snap_caps %s\n", inode,
-			     ceph_cap_string(le32_to_cpu(info->cap.caps)));
-			ci->i_snap_caps |= le32_to_cpu(info->cap.caps);
+			     ceph_cap_string(info_caps));
+			ci->i_snap_caps |= info_caps;
 			if (cap_fmode >= 0)
 				__ceph_get_fmode(ci, cap_fmode);
 		}
@@ -978,8 +991,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		int cache_caps = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 		ci->i_inline_version = iinfo->inline_version;
 		if (ci->i_inline_version != CEPH_INLINE_NONE &&
-		    (locked_page ||
-		     (le32_to_cpu(info->cap.caps) & cache_caps)))
+		    (locked_page || (info_caps & cache_caps)))
 			fill_inline = true;
 	}
 
@@ -1941,6 +1953,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 	int err = 0;
 	int inode_dirty_flags = 0;
 	bool lock_snap_rwsem = false;
+	struct timespec ts;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
@@ -2015,44 +2028,44 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 	}
 
 	if (ia_valid & ATTR_ATIME) {
-		dout("setattr %p atime %ld.%ld -> %ld.%ld\n", inode,
-		     inode->i_atime.tv_sec, inode->i_atime.tv_nsec,
-		     attr->ia_atime.tv_sec, attr->ia_atime.tv_nsec);
+		dout("setattr %p atime %lld.%ld -> %lld.%ld\n", inode,
+		     (long long)inode->i_atime.tv_sec, inode->i_atime.tv_nsec,
+		     (long long)attr->ia_atime.tv_sec, attr->ia_atime.tv_nsec);
 		if (issued & CEPH_CAP_FILE_EXCL) {
 			ci->i_time_warp_seq++;
 			inode->i_atime = attr->ia_atime;
 			dirtied |= CEPH_CAP_FILE_EXCL;
 		} else if ((issued & CEPH_CAP_FILE_WR) &&
-			   timespec_compare(&inode->i_atime,
+			   timespec64_compare(&inode->i_atime,
 					    &attr->ia_atime) < 0) {
 			inode->i_atime = attr->ia_atime;
 			dirtied |= CEPH_CAP_FILE_WR;
 		} else if ((issued & CEPH_CAP_FILE_SHARED) == 0 ||
-			   !timespec_equal(&inode->i_atime, &attr->ia_atime)) {
-			ceph_encode_timespec(&req->r_args.setattr.atime,
-					     &attr->ia_atime);
+			   !timespec64_equal(&inode->i_atime, &attr->ia_atime)) {
+			ts = timespec64_to_timespec(attr->ia_atime);
+			ceph_encode_timespec(&req->r_args.setattr.atime, &ts);
 			mask |= CEPH_SETATTR_ATIME;
 			release |= CEPH_CAP_FILE_SHARED |
 				   CEPH_CAP_FILE_RD | CEPH_CAP_FILE_WR;
 		}
 	}
 	if (ia_valid & ATTR_MTIME) {
-		dout("setattr %p mtime %ld.%ld -> %ld.%ld\n", inode,
-		     inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
-		     attr->ia_mtime.tv_sec, attr->ia_mtime.tv_nsec);
+		dout("setattr %p mtime %lld.%ld -> %lld.%ld\n", inode,
+		     (long long)inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
+		     (long long)attr->ia_mtime.tv_sec, attr->ia_mtime.tv_nsec);
 		if (issued & CEPH_CAP_FILE_EXCL) {
 			ci->i_time_warp_seq++;
 			inode->i_mtime = attr->ia_mtime;
 			dirtied |= CEPH_CAP_FILE_EXCL;
 		} else if ((issued & CEPH_CAP_FILE_WR) &&
-			   timespec_compare(&inode->i_mtime,
+			   timespec64_compare(&inode->i_mtime,
 					    &attr->ia_mtime) < 0) {
 			inode->i_mtime = attr->ia_mtime;
 			dirtied |= CEPH_CAP_FILE_WR;
 		} else if ((issued & CEPH_CAP_FILE_SHARED) == 0 ||
-			   !timespec_equal(&inode->i_mtime, &attr->ia_mtime)) {
-			ceph_encode_timespec(&req->r_args.setattr.mtime,
-					     &attr->ia_mtime);
+			   !timespec64_equal(&inode->i_mtime, &attr->ia_mtime)) {
+			ts = timespec64_to_timespec(attr->ia_mtime);
+			ceph_encode_timespec(&req->r_args.setattr.mtime, &ts);
 			mask |= CEPH_SETATTR_MTIME;
 			release |= CEPH_CAP_FILE_SHARED |
 				   CEPH_CAP_FILE_RD | CEPH_CAP_FILE_WR;
@@ -2082,9 +2095,9 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 	if (ia_valid & ATTR_CTIME) {
 		bool only = (ia_valid & (ATTR_SIZE|ATTR_MTIME|ATTR_ATIME|
 					 ATTR_MODE|ATTR_UID|ATTR_GID)) == 0;
-		dout("setattr %p ctime %ld.%ld -> %ld.%ld (%s)\n", inode,
-		     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
-		     attr->ia_ctime.tv_sec, attr->ia_ctime.tv_nsec,
+		dout("setattr %p ctime %lld.%ld -> %lld.%ld (%s)\n", inode,
+		     (long long)inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
+		     (long long)attr->ia_ctime.tv_sec, attr->ia_ctime.tv_nsec,
 		     only ? "ctime only" : "ignored");
 		if (only) {
 			/*
@@ -2126,7 +2139,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		req->r_inode_drop = release;
 		req->r_args.setattr.mask = cpu_to_le32(mask);
 		req->r_num_caps = 1;
-		req->r_stamp = attr->ia_ctime;
+		req->r_stamp = timespec64_to_timespec(attr->ia_ctime);
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 	}
 	dout("setattr %p result=%d (%s locally, %d remote)\n", inode, err,
@@ -2178,6 +2191,7 @@ int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
+	int mode;
 	int err;
 
 	if (ceph_snap(inode) == CEPH_SNAPDIR) {
@@ -2190,7 +2204,8 @@ int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 	if (!force && ceph_caps_issued_mask(ceph_inode(inode), mask, 1))
 		return 0;
 
-	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
+	mode = (mask & CEPH_STAT_RSTAT) ? USE_AUTH_MDS : USE_ANY_MDS;
+	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, mode);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 	req->r_inode = inode;
@@ -2261,6 +2276,14 @@ int ceph_getattr(const struct path *path, struct kstat *stat,
 				stat->size = ci->i_files + ci->i_subdirs;
 			stat->blocks = 0;
 			stat->blksize = 65536;
+			/*
+			 * Some applications rely on the number of st_nlink
+			 * value on directories to be either 0 (if unlinked)
+			 * or 2 + number of subdirectories.
+			 */
+			if (stat->nlink == 1)
+				/* '.' + '..' + subdirs */
+				stat->nlink = 1 + 1 + ci->i_subdirs;
 		}
 	}
 	return err;

@@ -941,7 +941,7 @@ static int zoran_open(struct file *file)
 	/* used to be BUZ_MAX_WIDTH/HEIGHT, but that gives overflows
 	 * on norm-change! */
 	fh->overlay_mask =
-	    kmalloc(((768 + 31) / 32) * 576 * 4, GFP_KERNEL);
+	    kmalloc(array3_size((768 + 31) / 32, 576, 4), GFP_KERNEL);
 	if (!fh->overlay_mask) {
 		dprintk(1,
 			KERN_ERR
@@ -1220,7 +1220,8 @@ static int setup_window(struct zoran_fh *fh,
 		}
 	} else if (clipcount) {
 		/* write our own bitmap from the clips */
-		vcp = vmalloc(sizeof(struct v4l2_clip) * (clipcount + 4));
+		vcp = vmalloc(array_size(sizeof(struct v4l2_clip),
+					 clipcount + 4));
 		if (vcp == NULL) {
 			dprintk(1,
 				KERN_ERR

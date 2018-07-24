@@ -117,13 +117,50 @@ int dev_pm_domain_attach(struct device *dev, bool power_on)
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach);
 
 /**
+ * dev_pm_domain_attach_by_id - Associate a device with one of its PM domains.
+ * @dev: The device used to lookup the PM domain.
+ * @index: The index of the PM domain.
+ *
+ * As @dev may only be attached to a single PM domain, the backend PM domain
+ * provider creates a virtual device to attach instead. If attachment succeeds,
+ * the ->detach() callback in the struct dev_pm_domain are assigned by the
+ * corresponding backend attach function, as to deal with detaching of the
+ * created virtual device.
+ *
+ * This function should typically be invoked by a driver during the probe phase,
+ * in case its device requires power management through multiple PM domains. The
+ * driver may benefit from using the received device, to configure device-links
+ * towards its original device. Depending on the use-case and if needed, the
+ * links may be dynamically changed by the driver, which allows it to control
+ * the power to the PM domains independently from each other.
+ *
+ * Callers must ensure proper synchronization of this function with power
+ * management callbacks.
+ *
+ * Returns the virtual created device when successfully attached to its PM
+ * domain, NULL in case @dev don't need a PM domain, else an ERR_PTR().
+ * Note that, to detach the returned virtual device, the driver shall call
+ * dev_pm_domain_detach() on it, typically during the remove phase.
+ */
+struct device *dev_pm_domain_attach_by_id(struct device *dev,
+					  unsigned int index)
+{
+	if (dev->pm_domain)
+		return ERR_PTR(-EEXIST);
+
+	return genpd_dev_pm_attach_by_id(dev, index);
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_id);
+
+/**
  * dev_pm_domain_detach - Detach a device from its PM domain.
  * @dev: Device to detach.
  * @power_off: Used to indicate whether we should power off the device.
  *
- * This functions will reverse the actions from dev_pm_domain_attach() and thus
- * try to detach the @dev from its PM domain. Typically it should be invoked
- * from subsystem level code during the remove phase.
+ * This functions will reverse the actions from dev_pm_domain_attach() and
+ * dev_pm_domain_attach_by_id(), thus it detaches @dev from its PM domain.
+ * Typically it should be invoked during the remove phase, either from
+ * subsystem level code or from drivers.
  *
  * Callers must ensure proper synchronization of this function with power
  * management callbacks.

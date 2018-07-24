@@ -712,8 +712,8 @@ static int pcs_allocate_pin_table(struct pcs_device *pcs)
 	}
 
 	dev_dbg(pcs->dev, "allocating %i pins\n", nr_pins);
-	pcs->pins.pa = devm_kzalloc(pcs->dev,
-				sizeof(*pcs->pins.pa) * nr_pins,
+	pcs->pins.pa = devm_kcalloc(pcs->dev,
+				nr_pins, sizeof(*pcs->pins.pa),
 				GFP_KERNEL);
 	if (!pcs->pins.pa)
 		return -ENOMEM;
@@ -924,15 +924,15 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 	if (!nconfs)
 		return 0;
 
-	func->conf = devm_kzalloc(pcs->dev,
-				  sizeof(struct pcs_conf_vals) * nconfs,
+	func->conf = devm_kcalloc(pcs->dev,
+				  nconfs, sizeof(struct pcs_conf_vals),
 				  GFP_KERNEL);
 	if (!func->conf)
 		return -ENOMEM;
 	func->nconfs = nconfs;
 	conf = &(func->conf[0]);
 	m++;
-	settings = devm_kzalloc(pcs->dev, sizeof(unsigned long) * nconfs,
+	settings = devm_kcalloc(pcs->dev, nconfs, sizeof(unsigned long),
 				GFP_KERNEL);
 	if (!settings)
 		return -ENOMEM;
@@ -988,11 +988,11 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 		return -EINVAL;
 	}
 
-	vals = devm_kzalloc(pcs->dev, sizeof(*vals) * rows, GFP_KERNEL);
+	vals = devm_kcalloc(pcs->dev, rows, sizeof(*vals), GFP_KERNEL);
 	if (!vals)
 		return -ENOMEM;
 
-	pins = devm_kzalloc(pcs->dev, sizeof(*pins) * rows, GFP_KERNEL);
+	pins = devm_kcalloc(pcs->dev, rows, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		goto free_vals;
 
@@ -1089,13 +1089,15 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 
 	npins_in_row = pcs->width / pcs->bits_per_pin;
 
-	vals = devm_kzalloc(pcs->dev, sizeof(*vals) * rows * npins_in_row,
-			GFP_KERNEL);
+	vals = devm_kzalloc(pcs->dev,
+			    array3_size(rows, npins_in_row, sizeof(*vals)),
+			    GFP_KERNEL);
 	if (!vals)
 		return -ENOMEM;
 
-	pins = devm_kzalloc(pcs->dev, sizeof(*pins) * rows * npins_in_row,
-			GFP_KERNEL);
+	pins = devm_kzalloc(pcs->dev,
+			    array3_size(rows, npins_in_row, sizeof(*pins)),
+			    GFP_KERNEL);
 	if (!pins)
 		goto free_vals;
 
@@ -1217,7 +1219,7 @@ static int pcs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	pcs = pinctrl_dev_get_drvdata(pctldev);
 
 	/* create 2 maps. One is for pinmux, and the other is for pinconf. */
-	*map = devm_kzalloc(pcs->dev, sizeof(**map) * 2, GFP_KERNEL);
+	*map = devm_kcalloc(pcs->dev, 2, sizeof(**map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 

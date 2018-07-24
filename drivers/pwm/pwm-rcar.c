@@ -261,8 +261,7 @@ MODULE_DEVICE_TABLE(of, rcar_pwm_of_table);
 #ifdef CONFIG_PM_SLEEP
 static struct pwm_device *rcar_pwm_dev_to_pwm_dev(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rcar_pwm_chip *rcar_pwm = platform_get_drvdata(pdev);
+	struct rcar_pwm_chip *rcar_pwm = dev_get_drvdata(dev);
 	struct pwm_chip *chip = &rcar_pwm->chip;
 
 	return &chip->pwms[0];

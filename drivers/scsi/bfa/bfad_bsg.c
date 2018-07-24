@@ -3252,8 +3252,9 @@ bfad_fcxp_map_sg(struct bfad_s *bfad, void *payload_kbuf,
 	struct bfa_sge_s	*sg_table;
 	int sge_num = 1;
 
-	buf_base = kzalloc((sizeof(struct bfad_buf_info) +
-			   sizeof(struct bfa_sge_s)) * sge_num, GFP_KERNEL);
+	buf_base = kcalloc(sizeof(struct bfad_buf_info) +
+				sizeof(struct bfa_sge_s),
+			   sge_num, GFP_KERNEL);
 	if (!buf_base)
 		return NULL;
 

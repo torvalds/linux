@@ -608,7 +608,7 @@ static int btf_add_type(struct btf_verifier_env *env, struct btf_type *t)
 		new_size = min_t(u32, BTF_MAX_TYPE,
 				 btf->types_size + expand_by);
 
-		new_types = kvzalloc(new_size * sizeof(*new_types),
+		new_types = kvcalloc(new_size, sizeof(*new_types),
 				     GFP_KERNEL | __GFP_NOWARN);
 		if (!new_types)
 			return -ENOMEM;
@@ -698,17 +698,17 @@ static int env_resolve_init(struct btf_verifier_env *env)
 	u8 *visit_states = NULL;
 
 	/* +1 for btf_void */
-	resolved_sizes = kvzalloc((nr_types + 1) * sizeof(*resolved_sizes),
+	resolved_sizes = kvcalloc(nr_types + 1, sizeof(*resolved_sizes),
 				  GFP_KERNEL | __GFP_NOWARN);
 	if (!resolved_sizes)
 		goto nomem;
 
-	resolved_ids = kvzalloc((nr_types + 1) * sizeof(*resolved_ids),
+	resolved_ids = kvcalloc(nr_types + 1, sizeof(*resolved_ids),
 				GFP_KERNEL | __GFP_NOWARN);
 	if (!resolved_ids)
 		goto nomem;
 
-	visit_states = kvzalloc((nr_types + 1) * sizeof(*visit_states),
+	visit_states = kvcalloc(nr_types + 1, sizeof(*visit_states),
 				GFP_KERNEL | __GFP_NOWARN);
 	if (!visit_states)
 		goto nomem;

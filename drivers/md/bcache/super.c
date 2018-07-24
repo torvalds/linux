@@ -1715,7 +1715,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	iter_size = (sb->bucket_size / sb->block_size + 1) *
 		sizeof(struct btree_iter_set);
 
-	if (!(c->devices = kzalloc(c->nr_uuids * sizeof(void *), GFP_KERNEL)) ||
+	if (!(c->devices = kcalloc(c->nr_uuids, sizeof(void *), GFP_KERNEL)) ||
 	    mempool_init_slab_pool(&c->search, 32, bch_search_cache) ||
 	    mempool_init_kmalloc_pool(&c->bio_meta, 2,
 				      sizeof(struct bbio) + sizeof(struct bio_vec) *
@@ -2041,10 +2041,11 @@ static int cache_alloc(struct cache *ca)
 	    !init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL) ||
 	    !init_fifo(&ca->free_inc,	free << 2, GFP_KERNEL) ||
 	    !init_heap(&ca->heap,	free << 3, GFP_KERNEL) ||
-	    !(ca->buckets	= vzalloc(sizeof(struct bucket) *
-					  ca->sb.nbuckets)) ||
-	    !(ca->prio_buckets	= kzalloc(sizeof(uint64_t) * prio_buckets(ca) *
-					  2, GFP_KERNEL)) ||
+	    !(ca->buckets	= vzalloc(array_size(sizeof(struct bucket),
+						     ca->sb.nbuckets))) ||
+	    !(ca->prio_buckets	= kzalloc(array3_size(sizeof(uint64_t),
+						      prio_buckets(ca), 2),
+					  GFP_KERNEL)) ||
 	    !(ca->disk_buckets	= alloc_bucket_pages(GFP_KERNEL, ca)))
 		return -ENOMEM;
 

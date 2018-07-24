@@ -545,7 +545,7 @@ static struct davinci_nand_pdata
 			return ERR_PTR(-ENOMEM);
 		if (!of_property_read_u32(pdev->dev.of_node,
 			"ti,davinci-chipselect", &prop))
-			pdev->id = prop;
+			pdata->core_chipsel = prop;
 		else
 			return ERR_PTR(-EINVAL);
 
@@ -627,7 +627,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* which external chipselect will we be managing? */
-	if (pdev->id < 0 || pdev->id > 3)
+	if (pdata->core_chipsel < 0 || pdata->core_chipsel > 3)
 		return -ENODEV;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -683,7 +683,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->ioaddr		= (uint32_t __force) vaddr;
 
 	info->current_cs	= info->ioaddr;
-	info->core_chipsel	= pdev->id;
+	info->core_chipsel	= pdata->core_chipsel;
 	info->mask_chipsel	= pdata->mask_chipsel;
 
 	/* use nandboot-capable ALE/CLE masks by default */

@@ -36,7 +36,7 @@ struct nvram_header {
 
 static char nvram_buf[NVRAM_SPACE];
 static size_t nvram_len;
-static const u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
+static const u32 nvram_sizes[] = {0x6000, 0x8000, 0xF000, 0x10000};
 
 static u32 find_nvram_size(void __iomem *end)
 {

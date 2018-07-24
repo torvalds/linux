@@ -354,6 +354,7 @@ static __be32 *xdr_time_not_set(__be32 *p)
 
 static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr)
 {
+	struct timespec ts;
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, NFS_sattr_sz << 2);
@@ -375,17 +376,21 @@ static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr)
 	else
 		*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
 
-	if (attr->ia_valid & ATTR_ATIME_SET)
-		p = xdr_encode_time(p, &attr->ia_atime);
-	else if (attr->ia_valid & ATTR_ATIME)
-		p = xdr_encode_current_server_time(p, &attr->ia_atime);
-	else
+	if (attr->ia_valid & ATTR_ATIME_SET) {
+		ts = timespec64_to_timespec(attr->ia_atime);
+		p = xdr_encode_time(p, &ts);
+	} else if (attr->ia_valid & ATTR_ATIME) {
+		ts = timespec64_to_timespec(attr->ia_atime);
+		p = xdr_encode_current_server_time(p, &ts);
+	} else
 		p = xdr_time_not_set(p);
-	if (attr->ia_valid & ATTR_MTIME_SET)
-		xdr_encode_time(p, &attr->ia_mtime);
-	else if (attr->ia_valid & ATTR_MTIME)
-		xdr_encode_current_server_time(p, &attr->ia_mtime);
-	else
+	if (attr->ia_valid & ATTR_MTIME_SET) {
+		ts = timespec64_to_timespec(attr->ia_atime);
+		xdr_encode_time(p, &ts);
+	} else if (attr->ia_valid & ATTR_MTIME) {
+		ts = timespec64_to_timespec(attr->ia_mtime);
+		xdr_encode_current_server_time(p, &ts);
+	} else
 		xdr_time_not_set(p);
 }
 

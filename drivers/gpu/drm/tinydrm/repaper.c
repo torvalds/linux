@@ -548,7 +548,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 	DRM_DEBUG("Flushing [FB:%d] st=%ums\n", fb->base.id,
 		  epd->factored_stage_time);
 
-	buf = kmalloc(fb->width * fb->height, GFP_KERNEL);
+	buf = kmalloc_array(fb->width, fb->height, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

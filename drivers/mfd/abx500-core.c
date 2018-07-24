@@ -37,15 +37,12 @@ int abx500_register_ops(struct device *dev, struct abx500_ops *ops)
 {
 	struct abx500_device_entry *dev_entry;
 
-	dev_entry = devm_kzalloc(dev,
-				 sizeof(struct abx500_device_entry),
-				 GFP_KERNEL);
-	if (!dev_entry) {
-		dev_err(dev, "register_ops kzalloc failed");
+	dev_entry = devm_kzalloc(dev, sizeof(*dev_entry), GFP_KERNEL);
+	if (!dev_entry)
 		return -ENOMEM;
-	}
+
 	dev_entry->dev = dev;
-	memcpy(&dev_entry->ops, ops, sizeof(struct abx500_ops));
+	memcpy(&dev_entry->ops, ops, sizeof(*ops));
 
 	list_add_tail(&dev_entry->list, &abx500_list);
 	return 0;
@@ -68,7 +65,7 @@ int abx500_set_register_interruptible(struct device *dev, u8 bank, u8 reg,
 	struct abx500_ops *ops;
 
 	lookup_ops(dev->parent, &ops);
-	if ((ops != NULL) && (ops->set_register != NULL))
+	if (ops && ops->set_register)
 		return ops->set_register(dev, bank, reg, value);
 	else
 		return -ENOTSUPP;
@@ -81,7 +78,7 @@ int abx500_get_register_interruptible(struct device *dev, u8 bank, u8 reg,
 	struct abx500_ops *ops;
 
 	lookup_ops(dev->parent, &ops);
-	if ((ops != NULL) && (ops->get_register != NULL))
+	if (ops && ops->get_register)
 		return ops->get_register(dev, bank, reg, value);
 	else
 		return -ENOTSUPP;
@@ -94,7 +91,7 @@ int abx500_get_register_page_interruptible(struct device *dev, u8 bank,
 	struct abx500_ops *ops;
 
 	lookup_ops(dev->parent, &ops);
-	if ((ops != NULL) && (ops->get_register_page != NULL))
+	if (ops && ops->get_register_page)
 		return ops->get_register_page(dev, bank,
 			first_reg, regvals, numregs);
 	else
@@ -108,7 +105,7 @@ int abx500_mask_and_set_register_interruptible(struct device *dev, u8 bank,
 	struct abx500_ops *ops;
 
 	lookup_ops(dev->parent, &ops);
-	if ((ops != NULL) && (ops->mask_and_set_register != NULL))
+	if (ops && ops->mask_and_set_register)
 		return ops->mask_and_set_register(dev, bank,
 			reg, bitmask, bitvalues);
 	else
@@ -121,7 +118,7 @@ int abx500_get_chip_id(struct device *dev)
 	struct abx500_ops *ops;
 
 	lookup_ops(dev->parent, &ops);
-	if ((ops != NULL) && (ops->get_chip_id != NULL))
+	if (ops && ops->get_chip_id)
 		return ops->get_chip_id(dev);
 	else
 		return -ENOTSUPP;
@@ -133,7 +130,7 @@ int abx500_event_registers_startup_state_get(struct device *dev, u8 *event)
 	struct abx500_ops *ops;
 
 	lookup_ops(dev->parent, &ops);
-	if ((ops != NULL) && (ops->event_registers_startup_state_get != NULL))
+	if (ops && ops->event_registers_startup_state_get)
 		return ops->event_registers_startup_state_get(dev, event);
 	else
 		return -ENOTSUPP;
@@ -145,7 +142,7 @@ int abx500_startup_irq_enabled(struct device *dev, unsigned int irq)
 	struct abx500_ops *ops;
 
 	lookup_ops(dev->parent, &ops);
-	if ((ops != NULL) && (ops->startup_irq_enabled != NULL))
+	if (ops && ops->startup_irq_enabled)
 		return ops->startup_irq_enabled(dev, irq);
 	else
 		return -ENOTSUPP;

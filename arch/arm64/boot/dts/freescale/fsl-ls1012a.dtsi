@@ -53,11 +53,11 @@
 
 	aliases {
 		crypto = &crypto;
-		rtic_a = &rtic_a;
-		rtic_b = &rtic_b;
-		rtic_c = &rtic_c;
-		rtic_d = &rtic_d;
-		sec_mon = &sec_mon;
+		rtic-a = &rtic_a;
+		rtic-b = &rtic_b;
+		rtic-c = &rtic_c;
+		rtic-d = &rtic_d;
+		sec-mon = &sec_mon;
 	};
 
 	cpus {

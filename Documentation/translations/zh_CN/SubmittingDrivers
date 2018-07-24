@@ -107,7 +107,7 @@ Linux 2.6:
 		程序测试的指导，请参阅
 		Documentation/power/drivers-testing.txt。有关驱动程序电
 		源管理问题相对全面的概述，请参阅
-		Documentation/power/admin-guide/devices.rst。
+		Documentation/driver-api/pm/devices.rst。
 
 管理：		如果一个驱动程序的作者还在进行有效的维护，那么通常除了那
 		些明显正确且不需要任何检查的补丁以外，其他所有的补丁都会

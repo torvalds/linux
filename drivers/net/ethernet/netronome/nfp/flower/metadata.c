@@ -417,7 +417,8 @@ int nfp_flower_metadata_init(struct nfp_app *app)
 
 	/* Init ring buffer and unallocated stats_ids. */
 	priv->stats_ids.free_list.buf =
-		vmalloc(NFP_FL_STATS_ENTRY_RS * NFP_FL_STATS_ELEM_RS);
+		vmalloc(array_size(NFP_FL_STATS_ELEM_RS,
+				   NFP_FL_STATS_ENTRY_RS));
 	if (!priv->stats_ids.free_list.buf)
 		goto err_free_last_used;
 

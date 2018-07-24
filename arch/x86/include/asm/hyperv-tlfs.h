@@ -308,6 +308,9 @@ struct ms_hyperv_tsc_page {
 /* TSC emulation after migration */
 #define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
 
+/* Nested features (CPUID 0x4000000A) EAX */
+#define HV_X64_NESTED_MSR_BITMAP		BIT(19)
+
 struct hv_reenlightenment_control {
 	__u64 vector:8;
 	__u64 reserved1:8;
@@ -678,7 +681,11 @@ struct hv_enlightened_vmcs {
 	u32 hv_clean_fields;
 	u32 hv_padding_32;
 	u32 hv_synthetic_controls;
-	u32 hv_enlightenments_control;
+	struct {
+		u32 nested_flush_hypercall:1;
+		u32 msr_bitmap:1;
+		u32 reserved:30;
+	} hv_enlightenments_control;
 	u32 hv_vp_id;
 
 	u64 hv_vm_id;
@@ -732,6 +739,22 @@ struct ipi_arg_ex {
 	u32 vector;
 	u32 reserved;
 	struct hv_vpset vp_set;
+};
+
+/* HvFlushVirtualAddressSpace, HvFlushVirtualAddressList hypercalls */
+struct hv_tlb_flush {
+	u64 address_space;
+	u64 flags;
+	u64 processor_mask;
+	u64 gva_list[];
+};
+
+/* HvFlushVirtualAddressSpaceEx, HvFlushVirtualAddressListEx hypercalls */
+struct hv_tlb_flush_ex {
+	u64 address_space;
+	u64 flags;
+	struct hv_vpset hv_vp_set;
+	u64 gva_list[];
 };
 
 #endif

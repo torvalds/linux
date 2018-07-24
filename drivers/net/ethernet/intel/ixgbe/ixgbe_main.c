@@ -6034,8 +6034,8 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 	for (i = 1; i < IXGBE_MAX_LINK_HANDLE; i++)
 		adapter->jump_tables[i] = NULL;
 
-	adapter->mac_table = kzalloc(sizeof(struct ixgbe_mac_addr) *
-				     hw->mac.num_rar_entries,
+	adapter->mac_table = kcalloc(hw->mac.num_rar_entries,
+				     sizeof(struct ixgbe_mac_addr),
 				     GFP_ATOMIC);
 	if (!adapter->mac_table)
 		return -ENOMEM;
@@ -6117,6 +6117,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 #ifdef CONFIG_IXGBE_DCB
 	ixgbe_init_dcb(adapter);
 #endif
+	ixgbe_init_ipsec_offload(adapter);
 
 	/* default flow control settings */
 	hw->fc.requested_mode = ixgbe_fc_full;
@@ -8822,14 +8823,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	} else {
 		netdev_reset_tc(dev);
 
-		/* To support macvlan offload we have to use num_tc to
-		 * restrict the queues that can be used by the device.
-		 * By doing this we can avoid reporting a false number of
-		 * queues.
-		 */
-		if (!tc && adapter->num_rx_pools > 1)
-			netdev_set_num_tc(dev, 1);
-
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
 			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 
@@ -9904,7 +9897,7 @@ ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
 	 * the TSO, so it's the exception.
 	 */
 	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID)) {
-#ifdef CONFIG_XFRM
+#ifdef CONFIG_XFRM_OFFLOAD
 		if (!skb->sp)
 #endif
 			features &= ~NETIF_F_TSO;
@@ -10437,6 +10430,14 @@ skip_sriov:
 	if (hw->mac.type >= ixgbe_mac_82599EB)
 		netdev->features |= NETIF_F_SCTP_CRC;
 
+#ifdef CONFIG_XFRM_OFFLOAD
+#define IXGBE_ESP_FEATURES	(NETIF_F_HW_ESP | \
+				 NETIF_F_HW_ESP_TX_CSUM | \
+				 NETIF_F_GSO_ESP)
+
+	if (adapter->ipsec)
+		netdev->features |= IXGBE_ESP_FEATURES;
+#endif
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features |
 			       NETIF_F_HW_VLAN_CTAG_FILTER |
@@ -10499,8 +10500,6 @@ skip_sriov:
 					 NETIF_F_FCOE_MTU;
 	}
 #endif /* IXGBE_FCOE */
-	ixgbe_init_ipsec_offload(adapter);
-
 	if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)
 		netdev->hw_features |= NETIF_F_LRO;
 	if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)

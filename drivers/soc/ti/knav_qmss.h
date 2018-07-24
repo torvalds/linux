@@ -19,6 +19,8 @@
 #ifndef __KNAV_QMSS_H__
 #define __KNAV_QMSS_H__
 
+#include <linux/percpu.h>
+
 #define THRESH_GTE	BIT(7)
 #define THRESH_LT	0
 
@@ -162,11 +164,11 @@ struct knav_qmgr_info {
  * notifies:			notifier counts
  */
 struct knav_queue_stats {
-	atomic_t	 pushes;
-	atomic_t	 pops;
-	atomic_t	 push_errors;
-	atomic_t	 pop_errors;
-	atomic_t	 notifies;
+	unsigned int pushes;
+	unsigned int pops;
+	unsigned int push_errors;
+	unsigned int pop_errors;
+	unsigned int notifies;
 };
 
 /**
@@ -283,7 +285,7 @@ struct knav_queue_inst {
 struct knav_queue {
 	struct knav_reg_queue __iomem	*reg_push, *reg_pop, *reg_peek;
 	struct knav_queue_inst		*inst;
-	struct knav_queue_stats	stats;
+	struct knav_queue_stats __percpu	*stats;
 	knav_queue_notify_fn		notifier_fn;
 	void				*notifier_fn_arg;
 	atomic_t			notifier_enabled;

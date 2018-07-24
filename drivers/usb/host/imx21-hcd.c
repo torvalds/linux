@@ -741,8 +741,8 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 	if (urb_priv == NULL)
 		return -ENOMEM;
 
-	urb_priv->isoc_td = kzalloc(
-		sizeof(struct td) * urb->number_of_packets, mem_flags);
+	urb_priv->isoc_td = kcalloc(urb->number_of_packets, sizeof(struct td),
+				    mem_flags);
 	if (urb_priv->isoc_td == NULL) {
 		ret = -ENOMEM;
 		goto alloc_td_failed;

@@ -2755,7 +2755,8 @@ int ef4_farch_filter_table_probe(struct ef4_nic *efx)
 					     GFP_KERNEL);
 		if (!table->used_bitmap)
 			goto fail;
-		table->spec = vzalloc(table->size * sizeof(*table->spec));
+		table->spec = vzalloc(array_size(sizeof(*table->spec),
+						 table->size));
 		if (!table->spec)
 			goto fail;
 	}

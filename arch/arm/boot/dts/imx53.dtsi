@@ -88,9 +88,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		ckil {
 			compatible = "fsl,imx-ckil", "fixed-clock";
 			#clock-cells = <0>;
@@ -488,6 +485,10 @@
 							remote-endpoint = <&ipu_di0_lvds0>;
 						};
 					};
+
+					port@2 {
+						reg = <2>;
+					};
 				};
 
 				lvds-channel@1 {
@@ -502,6 +503,10 @@
 						lvds1_in: endpoint {
 							remote-endpoint = <&ipu_di1_lvds1>;
 						};
+					};
+
+					port@2 {
+						reg = <2>;
 					};
 				};
 			};

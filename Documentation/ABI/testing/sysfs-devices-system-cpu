@@ -238,9 +238,6 @@ Description:	Discover and change clock speed of CPUs
 
 		See files in Documentation/cpu-freq/ for more information.
 
-		In particular, read Documentation/cpu-freq/user-guide.txt
-		to learn how to control the knobs.
-
 
 What:		/sys/devices/system/cpu/cpu#/cpufreq/freqdomain_cpus
 Date:		June 2013

@@ -24,5 +24,4 @@ echo -e "#include <linux/compiler.h>\nnotrace int func() { return 0; }" | \
     2> /dev/null | grep -q "_mcount" && \
     exit 1
 
-echo "OK"
 exit 0

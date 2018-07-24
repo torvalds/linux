@@ -212,7 +212,7 @@ static void alps_set_abs_params_v7(struct alps_data *priv,
 static void alps_set_abs_params_ss4_v2(struct alps_data *priv,
 				       struct input_dev *dev1);
 
-/* Packet formats are described in Documentation/input/alps.txt */
+/* Packet formats are described in Documentation/input/devices/alps.rst */
 
 static bool alps_is_valid_first_byte(struct alps_data *priv,
 				     unsigned char data)

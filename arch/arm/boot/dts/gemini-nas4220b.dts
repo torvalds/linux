@@ -14,7 +14,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory { /* 128 MB */
+	memory@0 { /* 128 MB */
 		device_type = "memory";
 		reg = <0x00000000 0x8000000>;
 	};
@@ -26,19 +26,17 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@29 {
-			debounce_interval = <50>;
+		button-setup {
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Backup button";
 			/* Conflict with TVC */
 			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 		};
-		button@31 {
-			debounce_interval = <50>;
+		button-restart {
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_RESTART>;
 			label = "Softreset button";
@@ -49,13 +47,13 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@28 {
+		led-orange-hdd {
 			label = "nas4220b:orange:hdd";
 			/* Conflict with TVC */
 			gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
-		led@30 {
+		led-green-os {
 			label = "nas4220b:green:os";
 			/* Conflict with TVC */
 			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
@@ -200,6 +198,10 @@
 		};
 
 		ata@63000000 {
+			status = "okay";
+		};
+
+		ata@63400000 {
 			status = "okay";
 		};
 	};

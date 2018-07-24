@@ -56,14 +56,16 @@ int iwpm_init(u8 nl_client)
 	int ret = 0;
 	mutex_lock(&iwpm_admin_lock);
 	if (atomic_read(&iwpm_admin.refcount) == 0) {
-		iwpm_hash_bucket = kzalloc(IWPM_MAPINFO_HASH_SIZE *
-					sizeof(struct hlist_head), GFP_KERNEL);
+		iwpm_hash_bucket = kcalloc(IWPM_MAPINFO_HASH_SIZE,
+					   sizeof(struct hlist_head),
+					   GFP_KERNEL);
 		if (!iwpm_hash_bucket) {
 			ret = -ENOMEM;
 			goto init_exit;
 		}
-		iwpm_reminfo_bucket = kzalloc(IWPM_REMINFO_HASH_SIZE *
-					sizeof(struct hlist_head), GFP_KERNEL);
+		iwpm_reminfo_bucket = kcalloc(IWPM_REMINFO_HASH_SIZE,
+					      sizeof(struct hlist_head),
+					      GFP_KERNEL);
 		if (!iwpm_reminfo_bucket) {
 			kfree(iwpm_hash_bucket);
 			ret = -ENOMEM;

@@ -109,7 +109,7 @@ struct iocb {
 #undef IFLITTLE
 
 struct __aio_sigset {
-	sigset_t __user	*sigmask;
+	const sigset_t __user	*sigmask;
 	size_t		sigsetsize;
 };
 

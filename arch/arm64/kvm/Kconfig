@@ -39,6 +39,7 @@ config KVM
 	select HAVE_KVM_IRQ_ROUTING
 	select IRQ_BYPASS_MANAGER
 	select HAVE_KVM_IRQ_BYPASS
+	select HAVE_KVM_VCPU_RUN_PID_CHANGE
 	---help---
 	  Support hosting virtualized guest machines.
 	  We don't support KVM with 16K page tables yet, due to the multiple

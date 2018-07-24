@@ -318,6 +318,10 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 	    event != NETDEV_CHANGENAME)
 		return NOTIFY_DONE;
 
+	ctx.net = maybe_get_net(ctx.net);
+	if (!ctx.net)
+		return NOTIFY_DONE;
+
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
 	list_for_each_entry(table, &ctx.net->nft.tables, list) {
 		if (table->family != NFPROTO_NETDEV)
@@ -334,6 +338,7 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 		}
 	}
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
+	put_net(ctx.net);
 
 	return NOTIFY_DONE;
 }

@@ -1406,8 +1406,8 @@ static int hns_dsaf_init(struct dsaf_device *dsaf_dev)
 		return ret;
 
 	/* malloc mem for tcam mac key(vlan+mac) */
-	priv->soft_mac_tbl = vzalloc(sizeof(*priv->soft_mac_tbl)
-		  * DSAF_TCAM_SUM);
+	priv->soft_mac_tbl = vzalloc(array_size(DSAF_TCAM_SUM,
+						sizeof(*priv->soft_mac_tbl)));
 	if (!priv->soft_mac_tbl) {
 		ret = -ENOMEM;
 		goto remove_hw;

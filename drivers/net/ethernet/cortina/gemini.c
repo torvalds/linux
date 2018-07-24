@@ -910,8 +910,8 @@ static int geth_setup_freeq(struct gemini_ethernet *geth)
 	}
 
 	/* Allocate a mapping to page look-up index */
-	geth->freeq_pages = kzalloc(pages * sizeof(*geth->freeq_pages),
-				   GFP_KERNEL);
+	geth->freeq_pages = kcalloc(pages, sizeof(*geth->freeq_pages),
+				    GFP_KERNEL);
 	if (!geth->freeq_pages)
 		goto err_freeq;
 	geth->num_freeq_pages = pages;

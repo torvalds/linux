@@ -462,7 +462,7 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 	num_routes = 0;
 	for (i = 0; i < ARRAY_SIZE(rockchip_routes); i++)
 		num_routes += rockchip_routes[i].num_routes;
-	routes = devm_kzalloc(dev, num_routes * sizeof(*routes),
+	routes = devm_kcalloc(dev, num_routes, sizeof(*routes),
 			      GFP_KERNEL);
 	if (!routes)
 		return -ENOMEM;

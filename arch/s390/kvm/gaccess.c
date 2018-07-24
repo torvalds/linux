@@ -847,7 +847,7 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 	nr_pages = (((ga & ~PAGE_MASK) + len - 1) >> PAGE_SHIFT) + 1;
 	pages = pages_array;
 	if (nr_pages > ARRAY_SIZE(pages_array))
-		pages = vmalloc(nr_pages * sizeof(unsigned long));
+		pages = vmalloc(array_size(nr_pages, sizeof(unsigned long)));
 	if (!pages)
 		return -ENOMEM;
 	need_ipte_lock = psw_bits(*psw).dat && !asce.r;

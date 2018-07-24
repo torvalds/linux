@@ -207,8 +207,6 @@
 
 		switch@0 {
 			compatible = "marvell,mv88e6085";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0>;
 			dsa,member = <0 0>;
 
@@ -462,7 +460,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
+	no-1-8-v;
 	non-removable;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
@@ -591,6 +592,7 @@
 	phy_type = "ulpi";
 	fsl,usbphy = <&usbh1phy>;
 	disable-over-current;
+	maximum-speed = "full-speed";
 	vbus-supply = <&reg_5p0v_main>;
 	status = "okay";
 };

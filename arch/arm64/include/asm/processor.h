@@ -158,7 +158,9 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
 /* Sync TPIDR_EL0 back to thread_struct for current */
 void tls_preserve_current_state(void);
 
-#define INIT_THREAD  {	}
+#define INIT_THREAD {				\
+	.fpsimd_cpu = NR_CPUS,			\
+}
 
 static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 {
@@ -248,6 +250,17 @@ void cpu_clear_disr(const struct arm64_cpu_capabilities *__unused);
 
 extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */
 extern void __init minsigstksz_setup(void);
+
+/*
+ * Not at the top of the file due to a direct #include cycle between
+ * <asm/fpsimd.h> and <asm/processor.h>.  Deferring this #include
+ * ensures that contents of processor.h are visible to fpsimd.h even if
+ * processor.h is included first.
+ *
+ * These prctl helpers are the only things in this file that require
+ * fpsimd.h.  The core code expects them to be in this header.
+ */
+#include <asm/fpsimd.h>
 
 /* Userspace interface for PR_SVE_{SET,GET}_VL prctl()s: */
 #define SVE_SET_VL(arg)	sve_set_current_vl(arg)

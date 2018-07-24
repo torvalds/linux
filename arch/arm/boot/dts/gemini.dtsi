@@ -3,8 +3,6 @@
  * Device Tree file for Cortina systems Gemini SoC
  */
 
-/include/ "skeleton.dtsi"
-
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/cortina,gemini-clock.h>
 #include <dt-bindings/reset/cortina,gemini-reset.h>

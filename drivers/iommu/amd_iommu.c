@@ -2596,32 +2596,51 @@ static void *alloc_coherent(struct device *dev, size_t size,
 			    unsigned long attrs)
 {
 	u64 dma_mask = dev->coherent_dma_mask;
-	struct protection_domain *domain = get_domain(dev);
-	bool is_direct = false;
-	void *virt_addr;
+	struct protection_domain *domain;
+	struct dma_ops_domain *dma_dom;
+	struct page *page;
 
-	if (IS_ERR(domain)) {
-		if (PTR_ERR(domain) != -EINVAL)
+	domain = get_domain(dev);
+	if (PTR_ERR(domain) == -EINVAL) {
+		page = alloc_pages(flag, get_order(size));
+		*dma_addr = page_to_phys(page);
+		return page_address(page);
+	} else if (IS_ERR(domain))
+		return NULL;
+
+	dma_dom   = to_dma_ops_domain(domain);
+	size	  = PAGE_ALIGN(size);
+	dma_mask  = dev->coherent_dma_mask;
+	flag     &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+	flag     |= __GFP_ZERO;
+
+	page = alloc_pages(flag | __GFP_NOWARN,  get_order(size));
+	if (!page) {
+		if (!gfpflags_allow_blocking(flag))
 			return NULL;
-		is_direct = true;
-	}
 
-	virt_addr = dma_direct_alloc(dev, size, dma_addr, flag, attrs);
-	if (!virt_addr || is_direct)
-		return virt_addr;
+		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
+						 get_order(size), flag);
+		if (!page)
+			return NULL;
+	}
 
 	if (!dma_mask)
 		dma_mask = *dev->dma_mask;
 
-	*dma_addr = __map_single(dev, to_dma_ops_domain(domain),
-			virt_to_phys(virt_addr), PAGE_ALIGN(size),
-			DMA_BIDIRECTIONAL, dma_mask);
+	*dma_addr = __map_single(dev, dma_dom, page_to_phys(page),
+				 size, DMA_BIDIRECTIONAL, dma_mask);
+
 	if (*dma_addr == AMD_IOMMU_MAPPING_ERROR)
 		goto out_free;
-	return virt_addr;
+
+	return page_address(page);
 
 out_free:
-	dma_direct_free(dev, size, virt_addr, *dma_addr, attrs);
+
+	if (!dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT))
+		__free_pages(page, get_order(size));
+
 	return NULL;
 }
 
@@ -2632,17 +2651,24 @@ static void free_coherent(struct device *dev, size_t size,
 			  void *virt_addr, dma_addr_t dma_addr,
 			  unsigned long attrs)
 {
-	struct protection_domain *domain = get_domain(dev);
+	struct protection_domain *domain;
+	struct dma_ops_domain *dma_dom;
+	struct page *page;
 
+	page = virt_to_page(virt_addr);
 	size = PAGE_ALIGN(size);
 
-	if (!IS_ERR(domain)) {
-		struct dma_ops_domain *dma_dom = to_dma_ops_domain(domain);
+	domain = get_domain(dev);
+	if (IS_ERR(domain))
+		goto free_mem;
 
-		__unmap_single(dma_dom, dma_addr, size, DMA_BIDIRECTIONAL);
-	}
+	dma_dom = to_dma_ops_domain(domain);
 
-	dma_direct_free(dev, size, virt_addr, dma_addr, attrs);
+	__unmap_single(dma_dom, dma_addr, size, DMA_BIDIRECTIONAL);
+
+free_mem:
+	if (!dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT))
+		__free_pages(page, get_order(size));
 }
 
 /*

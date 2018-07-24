@@ -119,9 +119,11 @@ static void nvmet_execute_get_log_page_smart(struct nvmet_req *req)
 	else
 		status = nvmet_get_smart_log_nsid(req, log);
 	if (status)
-		goto out;
+		goto out_free_log;
 
 	status = nvmet_copy_to_sgl(req, 0, log, sizeof(*log));
+out_free_log:
+	kfree(log);
 out:
 	nvmet_req_complete(req, status);
 }

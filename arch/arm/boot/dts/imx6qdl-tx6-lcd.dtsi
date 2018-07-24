@@ -77,7 +77,6 @@
 		enable-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
 		power-supply = <&reg_3v3>;
 		backlight = <&backlight>;
-		bus-format-override = "rgb24";
 
 		port {
 			lcd_panel_in: endpoint {

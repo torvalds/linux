@@ -4873,8 +4873,9 @@ static int pmcraid_allocate_config_buffers(struct pmcraid_instance *pinstance)
 	int i;
 
 	pinstance->res_entries =
-			kzalloc(sizeof(struct pmcraid_resource_entry) *
-				PMCRAID_MAX_RESOURCES, GFP_KERNEL);
+			kcalloc(PMCRAID_MAX_RESOURCES,
+				sizeof(struct pmcraid_resource_entry),
+				GFP_KERNEL);
 
 	if (NULL == pinstance->res_entries) {
 		pmcraid_err("failed to allocate memory for resource table\n");

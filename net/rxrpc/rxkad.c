@@ -432,7 +432,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 
 	sg = _sg;
 	if (unlikely(nsg > 4)) {
-		sg = kmalloc(sizeof(*sg) * nsg, GFP_NOIO);
+		sg = kmalloc_array(nsg, sizeof(*sg), GFP_NOIO);
 		if (!sg)
 			goto nomem;
 	}

@@ -403,7 +403,16 @@ config SECCOMP_FILTER
 	  in terms of Berkeley Packet Filter programs which implement
 	  task-defined system call filtering polices.
 
-	  See Documentation/prctl/seccomp_filter.txt for details.
+	  See Documentation/userspace-api/seccomp_filter.rst for details.
+
+preferred-plugin-hostcc := $(if-success,[ $(gcc-version) -ge 40800 ],$(HOSTCXX),$(HOSTCC))
+
+config PLUGIN_HOSTCC
+	string
+	default "$(shell,$(srctree)/scripts/gcc-plugin.sh "$(preferred-plugin-hostcc)" "$(HOSTCXX)" "$(CC)")"
+	help
+	  Host compiler used to build GCC plugins.  This can be $(HOSTCXX),
+	  $(HOSTCC), or a null string if GCC plugin is unsupported.
 
 config HAVE_GCC_PLUGINS
 	bool
@@ -414,7 +423,7 @@ config HAVE_GCC_PLUGINS
 menuconfig GCC_PLUGINS
 	bool "GCC plugins"
 	depends on HAVE_GCC_PLUGINS
-	depends on !COMPILE_TEST
+	depends on PLUGIN_HOSTCC != ""
 	help
 	  GCC plugins are loadable modules that provide extra features to the
 	  compiler. They are useful for runtime instrumentation and static analysis.
@@ -424,7 +433,7 @@ menuconfig GCC_PLUGINS
 config GCC_PLUGIN_CYC_COMPLEXITY
 	bool "Compute the cyclomatic complexity of a function" if EXPERT
 	depends on GCC_PLUGINS
-	depends on !COMPILE_TEST
+	depends on !COMPILE_TEST	# too noisy
 	help
 	  The complexity M of a function's control flow graph is defined as:
 	   M = E - N + 2P
@@ -484,6 +493,7 @@ config GCC_PLUGIN_STRUCTLEAK
 config GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
 	bool "Force initialize all struct type variables passed by reference"
 	depends on GCC_PLUGIN_STRUCTLEAK
+	depends on !COMPILE_TEST
 	help
 	  Zero initialize any struct type local variable that may be passed by
 	  reference without having been initialized.
@@ -491,7 +501,7 @@ config GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
 config GCC_PLUGIN_STRUCTLEAK_VERBOSE
 	bool "Report forcefully initialized variables"
 	depends on GCC_PLUGIN_STRUCTLEAK
-	depends on !COMPILE_TEST
+	depends on !COMPILE_TEST	# too noisy
 	help
 	  This option will cause a warning to be printed each time the
 	  structleak plugin finds a variable it thinks needs to be
@@ -531,7 +541,7 @@ config GCC_PLUGIN_RANDSTRUCT
 config GCC_PLUGIN_RANDSTRUCT_PERFORMANCE
 	bool "Use cacheline-aware structure randomization"
 	depends on GCC_PLUGIN_RANDSTRUCT
-	depends on !COMPILE_TEST
+	depends on !COMPILE_TEST	# do not reduce test coverage
 	help
 	  If you say Y here, the RANDSTRUCT randomization will make a
 	  best effort at restricting randomization to cacheline-sized
@@ -539,17 +549,20 @@ config GCC_PLUGIN_RANDSTRUCT_PERFORMANCE
 	  in structures.  This reduces the performance hit of RANDSTRUCT
 	  at the cost of weakened randomization.
 
-config HAVE_CC_STACKPROTECTOR
+config HAVE_STACKPROTECTOR
 	bool
 	help
 	  An arch should select this symbol if:
-	  - its compiler supports the -fstack-protector option
 	  - it has implemented a stack canary (e.g. __stack_chk_guard)
 
-choice
-	prompt "Stack Protector buffer overflow detection"
-	depends on HAVE_CC_STACKPROTECTOR
-	default CC_STACKPROTECTOR_AUTO
+config CC_HAS_STACKPROTECTOR_NONE
+	def_bool $(cc-option,-fno-stack-protector)
+
+config STACKPROTECTOR
+	bool "Stack Protector buffer overflow detection"
+	depends on HAVE_STACKPROTECTOR
+	depends on $(cc-option,-fstack-protector)
+	default y
 	help
 	  This option turns on the "stack-protector" GCC feature. This
 	  feature puts, at the beginning of functions, a canary value on
@@ -559,14 +572,6 @@ choice
 	  overwrite the canary, which gets detected and the attack is then
 	  neutralized via a kernel panic.
 
-config CC_STACKPROTECTOR_NONE
-	bool "None"
-	help
-	  Disable "stack-protector" GCC feature.
-
-config CC_STACKPROTECTOR_REGULAR
-	bool "Regular"
-	help
 	  Functions will have the stack-protector canary logic added if they
 	  have an 8-byte or larger character array on the stack.
 
@@ -577,8 +582,11 @@ config CC_STACKPROTECTOR_REGULAR
 	  about 3% of all kernel functions, which increases kernel code size
 	  by about 0.3%.
 
-config CC_STACKPROTECTOR_STRONG
-	bool "Strong"
+config STACKPROTECTOR_STRONG
+	bool "Strong Stack Protector"
+	depends on STACKPROTECTOR
+	depends on $(cc-option,-fstack-protector-strong)
+	default y
 	help
 	  Functions will have the stack-protector canary logic added in any
 	  of the following conditions:
@@ -595,14 +603,6 @@ config CC_STACKPROTECTOR_STRONG
 	  On an x86 "defconfig" build, this feature adds canary checks to
 	  about 20% of all kernel functions, which increases the kernel code
 	  size by about 2%.
-
-config CC_STACKPROTECTOR_AUTO
-	bool "Automatic"
-	help
-	  If the compiler supports it, the best available stack-protector
-	  option will be chosen.
-
-endchoice
 
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool

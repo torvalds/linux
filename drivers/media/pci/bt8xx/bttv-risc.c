@@ -256,7 +256,8 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 	u32 addr;
 
 	/* skip list for window clipping */
-	if (NULL == (skips = kmalloc(sizeof(*skips) * ov->nclips,GFP_KERNEL)))
+	skips = kmalloc_array(ov->nclips, sizeof(*skips),GFP_KERNEL);
+	if (NULL == skips)
 		return -ENOMEM;
 
 	/* estimate risc mem: worst case is (1.5*clip+1) * lines instructions

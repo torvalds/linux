@@ -342,7 +342,7 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 
 int orangefs_permission(struct inode *inode, int mask);
 
-int orangefs_update_time(struct inode *, struct timespec *, int);
+int orangefs_update_time(struct inode *, struct timespec64 *, int);
 
 /*
  * defined in xattr.c

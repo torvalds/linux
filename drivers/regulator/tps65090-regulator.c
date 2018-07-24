@@ -331,8 +331,9 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 	if (!tps65090_pdata)
 		return ERR_PTR(-ENOMEM);
 
-	reg_pdata = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX *
-				sizeof(*reg_pdata), GFP_KERNEL);
+	reg_pdata = devm_kcalloc(&pdev->dev,
+				 TPS65090_REGULATOR_MAX, sizeof(*reg_pdata),
+				 GFP_KERNEL);
 	if (!reg_pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -429,8 +430,9 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 		return tps65090_pdata ? PTR_ERR(tps65090_pdata) : -EINVAL;
 	}
 
-	pmic = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX * sizeof(*pmic),
-			GFP_KERNEL);
+	pmic = devm_kcalloc(&pdev->dev,
+			    TPS65090_REGULATOR_MAX, sizeof(*pmic),
+			    GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 

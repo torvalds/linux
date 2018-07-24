@@ -321,8 +321,12 @@ static int vega10_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 		odn_table->min_vddc = dep_table[0]->entries[0].vddc;
 
 	i = od_table[2]->count - 1;
-	od_table[2]->entries[i].clk = hwmgr->platform_descriptor.overdriveLimit.memoryClock;
-	od_table[2]->entries[i].vddc = odn_table->max_vddc;
+	od_table[2]->entries[i].clk = hwmgr->platform_descriptor.overdriveLimit.memoryClock > od_table[2]->entries[i].clk ?
+					hwmgr->platform_descriptor.overdriveLimit.memoryClock :
+					od_table[2]->entries[i].clk;
+	od_table[2]->entries[i].vddc = odn_table->max_vddc > od_table[2]->entries[i].vddc ?
+					odn_table->max_vddc :
+					od_table[2]->entries[i].vddc;
 
 	return 0;
 }
@@ -1311,6 +1315,9 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	vega10_setup_default_single_dpm_table(hwmgr,
 			dpm_table,
 			dep_gfx_table);
+	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0)
+		hwmgr->platform_descriptor.overdriveLimit.engineClock =
+					dpm_table->dpm_levels[dpm_table->count-1].value;
 	vega10_init_dpm_state(&(dpm_table->dpm_state));
 
 	/* Initialize Mclk DPM table based on allow Mclk values */
@@ -1319,6 +1326,10 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	vega10_setup_default_single_dpm_table(hwmgr,
 			dpm_table,
 			dep_mclk_table);
+	if (hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0)
+		hwmgr->platform_descriptor.overdriveLimit.memoryClock =
+					dpm_table->dpm_levels[dpm_table->count-1].value;
+
 	vega10_init_dpm_state(&(dpm_table->dpm_state));
 
 	data->dpm_table.eclk_table.count = 0;

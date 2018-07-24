@@ -549,27 +549,26 @@ static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
 static int __alloc_dev_table(struct exofs_sb_info *sbi, unsigned numdevs,
 		      struct exofs_dev **peds)
 {
-	struct __alloc_ore_devs_and_exofs_devs {
-		/* Twice bigger table: See exofs_init_comps() and comment at
-		 * exofs_read_lookup_dev_table()
-		 */
-		struct ore_dev *oreds[numdevs * 2 - 1];
-		struct exofs_dev eds[numdevs];
-	} *aoded;
+	/* Twice bigger table: See exofs_init_comps() and comment at
+	 * exofs_read_lookup_dev_table()
+	 */
+	const size_t numores = numdevs * 2 - 1;
 	struct exofs_dev *eds;
 	unsigned i;
 
-	aoded = kzalloc(sizeof(*aoded), GFP_KERNEL);
-	if (unlikely(!aoded)) {
+	sbi->oc.ods = kzalloc(numores * sizeof(struct ore_dev *) +
+			      numdevs * sizeof(struct exofs_dev), GFP_KERNEL);
+	if (unlikely(!sbi->oc.ods)) {
 		EXOFS_ERR("ERROR: failed allocating Device array[%d]\n",
 			  numdevs);
 		return -ENOMEM;
 	}
 
-	sbi->oc.ods = aoded->oreds;
-	*peds = eds = aoded->eds;
+	/* Start of allocated struct exofs_dev entries */
+	*peds = eds = (void *)sbi->oc.ods[numores];
+	/* Initialize pointers into struct exofs_dev */
 	for (i = 0; i < numdevs; ++i)
-		aoded->oreds[i] = &eds[i].ored;
+		sbi->oc.ods[i] = &eds[i].ored;
 	return 0;
 }
 

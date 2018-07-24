@@ -904,7 +904,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 		int i;
 		struct netdev_hw_addr *ha;
 
-		addrs = kmalloc(ETH_ALEN * mc_count, GFP_ATOMIC);
+		addrs = kmalloc_array(mc_count, ETH_ALEN, GFP_ATOMIC);
 		if (!addrs) {
 			set_allmulti(nesdev, nic_active_bit);
 			goto unlock;

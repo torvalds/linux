@@ -125,7 +125,7 @@ config ARM_OMAP2PLUS_CPUFREQ
 	default ARCH_OMAP2PLUS
 
 config ARM_QCOM_CPUFREQ_KRYO
-	bool "Qualcomm Kryo based CPUFreq"
+	tristate "Qualcomm Kryo based CPUFreq"
 	depends on ARM64
 	depends on QCOM_QFPROM
 	depends on QCOM_SMEM

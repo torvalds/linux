@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * Copyright (c) 2016 Christoph Hellwig.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/iomap.h>
 #include "xfs.h"
@@ -200,7 +188,7 @@ xfs_iomap_write_direct(
 			goto out_unlock;
 	} else {
 		if (nmaps && (imap->br_startblock == HOLESTARTBLOCK))
-			last_fsb = MIN(last_fsb, (xfs_fileoff_t)
+			last_fsb = min(last_fsb, (xfs_fileoff_t)
 					imap->br_blockcount +
 					imap->br_startoff);
 	}
@@ -488,8 +476,8 @@ xfs_iomap_prealloc_size(
 	 * The shift throttle value is set to the maximum value as determined by
 	 * the global low free space values and per-quota low free space values.
 	 */
-	alloc_blocks = MIN(alloc_blocks, qblocks);
-	shift = MAX(shift, qshift);
+	alloc_blocks = min(alloc_blocks, qblocks);
+	shift = max(shift, qshift);
 
 	if (shift)
 		alloc_blocks >>= shift;

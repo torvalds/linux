@@ -409,6 +409,21 @@ static void sctp_packet_set_owner_w(struct sk_buff *skb, struct sock *sk)
 	refcount_inc(&sk->sk_wmem_alloc);
 }
 
+static void sctp_packet_gso_append(struct sk_buff *head, struct sk_buff *skb)
+{
+	if (SCTP_OUTPUT_CB(head)->last == head)
+		skb_shinfo(head)->frag_list = skb;
+	else
+		SCTP_OUTPUT_CB(head)->last->next = skb;
+	SCTP_OUTPUT_CB(head)->last = skb;
+
+	head->truesize += skb->truesize;
+	head->data_len += skb->len;
+	head->len += skb->len;
+
+	__skb_header_release(skb);
+}
+
 static int sctp_packet_pack(struct sctp_packet *packet,
 			    struct sk_buff *head, int gso, gfp_t gfp)
 {
@@ -422,7 +437,7 @@ static int sctp_packet_pack(struct sctp_packet *packet,
 
 	if (gso) {
 		skb_shinfo(head)->gso_type = sk->sk_gso_type;
-		NAPI_GRO_CB(head)->last = head;
+		SCTP_OUTPUT_CB(head)->last = head;
 	} else {
 		nskb = head;
 		pkt_size = packet->size;
@@ -503,15 +518,8 @@ merge:
 					 &packet->chunk_list);
 		}
 
-		if (gso) {
-			if (skb_gro_receive(&head, nskb)) {
-				kfree_skb(nskb);
-				return 0;
-			}
-			if (WARN_ON_ONCE(skb_shinfo(head)->gso_segs >=
-					 sk->sk_gso_max_segs))
-				return 0;
-		}
+		if (gso)
+			sctp_packet_gso_append(head, nskb);
 
 		pkt_count++;
 	} while (!list_empty(&packet->chunk_list));

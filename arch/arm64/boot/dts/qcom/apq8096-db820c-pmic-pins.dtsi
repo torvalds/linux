@@ -4,7 +4,7 @@
 &pm8994_gpios {
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&ls_exp_gpio_f>;
+	pinctrl-0 = <&ls_exp_gpio_f &bt_en_gpios>;
 
 	ls_exp_gpio_f: pm8994_gpio5 {
 		pinconf {

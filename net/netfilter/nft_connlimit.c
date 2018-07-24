@@ -52,7 +52,7 @@ static inline void nft_connlimit_do_eval(struct nft_connlimit *priv,
 	if (!addit)
 		goto out;
 
-	if (!nf_conncount_add(&priv->hhead, tuple_ptr)) {
+	if (!nf_conncount_add(&priv->hhead, tuple_ptr, zone)) {
 		regs->verdict.code = NF_DROP;
 		spin_unlock_bh(&priv->lock);
 		return;

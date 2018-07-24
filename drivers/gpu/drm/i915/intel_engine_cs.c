@@ -1114,7 +1114,7 @@ static void print_request(struct drm_printer *m,
 			  const char *prefix)
 {
 	const char *name = rq->fence.ops->get_timeline_name(&rq->fence);
-	char buf[80];
+	char buf[80] = "";
 	int x = 0;
 
 	x = print_sched_attr(rq->i915, &rq->sched.attr, buf, x, sizeof(buf));

@@ -3993,9 +3993,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			goto failed_mount;
 		}
 	}
-	sbi->s_group_desc = kvmalloc(db_count *
-					  sizeof(struct buffer_head *),
-					  GFP_KERNEL);
+	sbi->s_group_desc = kvmalloc_array(db_count,
+					   sizeof(struct buffer_head *),
+					   GFP_KERNEL);
 	if (sbi->s_group_desc == NULL) {
 		ext4_msg(sb, KERN_ERR, "not enough memory");
 		ret = -ENOMEM;

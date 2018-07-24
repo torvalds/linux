@@ -624,15 +624,17 @@ int uniphier_aio_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->rst);
 
 	chip->num_aios = chip->chip_spec->num_dais;
-	chip->aios = devm_kzalloc(dev,
-				  sizeof(struct uniphier_aio) * chip->num_aios,
+	chip->aios = devm_kcalloc(dev,
+				  chip->num_aios, sizeof(struct uniphier_aio),
 				  GFP_KERNEL);
 	if (!chip->aios)
 		return -ENOMEM;
 
 	chip->num_plls = chip->chip_spec->num_plls;
-	chip->plls = devm_kzalloc(dev, sizeof(struct uniphier_aio_pll) *
-				  chip->num_plls, GFP_KERNEL);
+	chip->plls = devm_kcalloc(dev,
+				  chip->num_plls,
+				  sizeof(struct uniphier_aio_pll),
+				  GFP_KERNEL);
 	if (!chip->plls)
 		return -ENOMEM;
 	memcpy(chip->plls, chip->chip_spec->plls,

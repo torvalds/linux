@@ -38,7 +38,7 @@ void pblk_rb_data_free(struct pblk_rb *rb)
 /*
  * Initialize ring buffer. The data and metadata buffers must be previously
  * allocated and their size must be a power of two
- * (Documentation/circular-buffers.txt)
+ * (Documentation/core-api/circular-buffers.rst)
  */
 int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 		 unsigned int power_size, unsigned int power_seg_sz)

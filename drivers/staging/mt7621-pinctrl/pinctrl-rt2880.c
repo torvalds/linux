@@ -143,7 +143,7 @@ static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
 	if (!max_maps)
 		return max_maps;
 
-	*map = kzalloc(max_maps * sizeof(struct pinctrl_map), GFP_KERNEL);
+	*map = kcalloc(max_maps, sizeof(struct pinctrl_map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 
@@ -287,7 +287,8 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 	}
 
 	/* allocate the group names array needed by the gpio function */
-	p->group_names = devm_kzalloc(p->dev, sizeof(char *) * p->group_count, GFP_KERNEL);
+	p->group_names = devm_kcalloc(p->dev, p->group_count, sizeof(char *),
+				      GFP_KERNEL);
 	if (!p->group_names)
 		return -1;
 
@@ -300,8 +301,12 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 	p->func_count++;
 
 	/* allocate our function and group mapping index buffers */
-	f = p->func = devm_kzalloc(p->dev, sizeof(struct rt2880_pmx_func) * p->func_count, GFP_KERNEL);
-	gpio_func.groups = devm_kzalloc(p->dev, sizeof(int) * p->group_count, GFP_KERNEL);
+	f = p->func = devm_kcalloc(p->dev,
+				   p->func_count,
+				   sizeof(struct rt2880_pmx_func),
+				   GFP_KERNEL);
+	gpio_func.groups = devm_kcalloc(p->dev, p->group_count, sizeof(int),
+					GFP_KERNEL);
 	if (!f || !gpio_func.groups)
 		return -1;
 
@@ -337,7 +342,10 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 		if (!p->func[i]->pin_count)
 			continue;
 
-		p->func[i]->pins = devm_kzalloc(p->dev, sizeof(int) * p->func[i]->pin_count, GFP_KERNEL);
+		p->func[i]->pins = devm_kcalloc(p->dev,
+						p->func[i]->pin_count,
+						sizeof(int),
+						GFP_KERNEL);
 		for (j = 0; j < p->func[i]->pin_count; j++)
 			p->func[i]->pins[j] = p->func[i]->pin_first + j;
 
@@ -347,11 +355,11 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 	}
 
 	/* the buffer that tells us which pins are gpio */
-	p->gpio = devm_kzalloc(p->dev,sizeof(uint8_t) * p->max_pins,
-		GFP_KERNEL);
+	p->gpio = devm_kcalloc(p->dev,p->max_pins, sizeof(uint8_t),
+			       GFP_KERNEL);
 	/* the pads needed to tell pinctrl about our pins */
-	p->pads = devm_kzalloc(p->dev,
-		sizeof(struct pinctrl_pin_desc) * p->max_pins,
+	p->pads = devm_kcalloc(p->dev,
+		p->max_pins, sizeof(struct pinctrl_pin_desc),
 		GFP_KERNEL);
 	if (!p->pads || !p->gpio ) {
 		dev_err(p->dev, "Failed to allocate gpio data\n");

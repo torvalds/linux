@@ -255,7 +255,7 @@ ap_i2c_dig: &i2c2 {
 
 &ap_i2c_tp {
 	trackpad@4a {
-		compatible = "atmel,atmel_mxt_tp";
+		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&trackpad_int_l>;
@@ -271,7 +271,7 @@ ap_i2c_dig: &i2c2 {
 
 &ap_i2c_ts {
 	touchscreen@4b {
-		compatible = "atmel,atmel_mxt_ts";
+		compatible = "atmel,maxtouch";
 		reg = <0x4b>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_int_l>;

@@ -9,12 +9,6 @@
 
 #include "../mount.h"
 
-struct fsnotify_iter_info {
-	struct fsnotify_mark *inode_mark;
-	struct fsnotify_mark *vfsmount_mark;
-	int srcu_idx;
-};
-
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
 

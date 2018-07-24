@@ -144,7 +144,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 
-#ifdef CC_USING_MPROFILE_KERNEL
+#ifdef CONFIG_MPROFILE_KERNEL
 	/* When using -mkernel_profile there is no load to jump over */
 	pop = PPC_INST_NOP;
 
@@ -188,7 +188,7 @@ __ftrace_make_nop(struct module *mod,
 		pr_err("Expected %08x found %08x\n", PPC_INST_LD_TOC, op);
 		return -EINVAL;
 	}
-#endif /* CC_USING_MPROFILE_KERNEL */
+#endif /* CONFIG_MPROFILE_KERNEL */
 
 	if (patch_instruction((unsigned int *)ip, pop)) {
 		pr_err("Patching NOP failed.\n");
@@ -324,7 +324,7 @@ int ftrace_make_nop(struct module *mod,
  * They should effectively be a NOP, and follow formal constraints,
  * depending on the ABI. Return false if they don't.
  */
-#ifndef CC_USING_MPROFILE_KERNEL
+#ifndef CONFIG_MPROFILE_KERNEL
 static int
 expected_nop_sequence(void *ip, unsigned int op0, unsigned int op1)
 {

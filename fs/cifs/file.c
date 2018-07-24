@@ -2900,7 +2900,7 @@ static struct cifs_readdata *
 cifs_readdata_alloc(unsigned int nr_pages, work_func_t complete)
 {
 	struct page **pages =
-		kzalloc(sizeof(struct page *) * nr_pages, GFP_KERNEL);
+		kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	struct cifs_readdata *ret = NULL;
 
 	if (pages) {

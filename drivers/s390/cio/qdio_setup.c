@@ -536,7 +536,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 
 int qdio_enable_async_operation(struct qdio_output_q *outq)
 {
-	outq->aobs = kzalloc(sizeof(struct qaob *) * QDIO_MAX_BUFFERS_PER_Q,
+	outq->aobs = kcalloc(QDIO_MAX_BUFFERS_PER_Q, sizeof(struct qaob *),
 			     GFP_ATOMIC);
 	if (!outq->aobs) {
 		outq->use_cq = 0;

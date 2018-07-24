@@ -38,7 +38,7 @@ description is at Documentation/ABI/testing/sysfs-bus-intel_th-devices-gth.
 
 STH registers an stm class device, through which it provides interface
 to userspace and kernelspace software trace sources. See
-Documentation/trace/stm.txt for more information on that.
+Documentation/trace/stm.rst for more information on that.
 
 MSU can be configured to collect trace data into a system memory
 buffer, which can later on be read from its device nodes via read() or

@@ -158,7 +158,7 @@ static inline pgste_t pgste_update_all(pte_t pte, pgste_t pgste,
 #ifdef CONFIG_PGSTE
 	unsigned long address, bits, skey;
 
-	if (!mm_use_skey(mm) || pte_val(pte) & _PAGE_INVALID)
+	if (!mm_uses_skeys(mm) || pte_val(pte) & _PAGE_INVALID)
 		return pgste;
 	address = pte_val(pte) & PAGE_MASK;
 	skey = (unsigned long) page_get_storage_key(address);
@@ -180,7 +180,7 @@ static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry,
 	unsigned long address;
 	unsigned long nkey;
 
-	if (!mm_use_skey(mm) || pte_val(entry) & _PAGE_INVALID)
+	if (!mm_uses_skeys(mm) || pte_val(entry) & _PAGE_INVALID)
 		return;
 	VM_BUG_ON(!(pte_val(*ptep) & _PAGE_INVALID));
 	address = pte_val(entry) & PAGE_MASK;

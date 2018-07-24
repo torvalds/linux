@@ -561,8 +561,8 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 		return -EINVAL;
 	}
 	eerb->buffersize = eerb->buffer_page_count * PAGE_SIZE;
-	eerb->buffer = kmalloc(eerb->buffer_page_count * sizeof(char *),
-			       GFP_KERNEL);
+	eerb->buffer = kmalloc_array(eerb->buffer_page_count, sizeof(char *),
+				     GFP_KERNEL);
         if (!eerb->buffer) {
 		kfree(eerb);
                 return -ENOMEM;

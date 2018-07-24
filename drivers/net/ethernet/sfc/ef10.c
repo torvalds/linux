@@ -4984,7 +4984,8 @@ static int efx_ef10_filter_table_probe(struct efx_nic *efx)
 		net_dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
-	table->entry = vzalloc(HUNT_FILTER_TBL_ROWS * sizeof(*table->entry));
+	table->entry = vzalloc(array_size(HUNT_FILTER_TBL_ROWS,
+					  sizeof(*table->entry)));
 	if (!table->entry) {
 		rc = -ENOMEM;
 		goto fail;

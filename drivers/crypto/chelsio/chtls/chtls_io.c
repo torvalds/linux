@@ -240,7 +240,7 @@ static int tls_copy_ivs(struct sock *sk, struct sk_buff *skb)
 	}
 
 	/* generate the  IVs */
-	ivs = kmalloc(number_of_ivs * CIPHER_BLOCK_SIZE, GFP_ATOMIC);
+	ivs = kmalloc_array(CIPHER_BLOCK_SIZE, number_of_ivs, GFP_ATOMIC);
 	if (!ivs)
 		return -ENOMEM;
 	get_random_bytes(ivs, number_of_ivs * CIPHER_BLOCK_SIZE);

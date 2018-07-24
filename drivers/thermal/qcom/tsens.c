@@ -115,6 +115,7 @@ static int tsens_probe(struct platform_device *pdev)
 	struct tsens_device *tmdev;
 	const struct tsens_data *data;
 	const struct of_device_id *id;
+	u32 num_sensors;
 
 	if (pdev->dev.of_node)
 		dev = &pdev->dev;
@@ -129,19 +130,24 @@ static int tsens_probe(struct platform_device *pdev)
 	else
 		data = &data_8960;
 
-	if (data->num_sensors <= 0) {
+	num_sensors = data->num_sensors;
+
+	if (np)
+		of_property_read_u32(np, "#qcom,sensors", &num_sensors);
+
+	if (num_sensors <= 0) {
 		dev_err(dev, "invalid number of sensors\n");
 		return -EINVAL;
 	}
 
 	tmdev = devm_kzalloc(dev,
-			     struct_size(tmdev, sensor, data->num_sensors),
+			     struct_size(tmdev, sensor, num_sensors),
 			     GFP_KERNEL);
 	if (!tmdev)
 		return -ENOMEM;
 
 	tmdev->dev = dev;
-	tmdev->num_sensors = data->num_sensors;
+	tmdev->num_sensors = num_sensors;
 	tmdev->ops = data->ops;
 	for (i = 0;  i < tmdev->num_sensors; i++) {
 		if (data->hw_ids)

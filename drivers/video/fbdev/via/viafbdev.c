@@ -25,7 +25,6 @@
 #include <linux/stat.h>
 #include <linux/via-core.h>
 #include <linux/via_i2c.h>
-#include <asm/olpc.h>
 
 #define _MASTER_FILE
 #include "global.h"
@@ -596,7 +595,8 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		break;
 
 	case VIAFB_GET_GAMMA_LUT:
-		viafb_gamma_table = kmalloc(256 * sizeof(u32), GFP_KERNEL);
+		viafb_gamma_table = kmalloc_array(256, sizeof(u32),
+						  GFP_KERNEL);
 		if (!viafb_gamma_table)
 			return -ENOMEM;
 		viafb_get_gamma_table(viafb_gamma_table);

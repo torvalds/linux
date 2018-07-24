@@ -660,7 +660,7 @@ static int cnic_init_id_tbl(struct cnic_id_tbl *id_tbl, u32 size, u32 start_id,
 	id_tbl->max = size;
 	id_tbl->next = next;
 	spin_lock_init(&id_tbl->lock);
-	id_tbl->table = kzalloc(DIV_ROUND_UP(size, 32) * 4, GFP_KERNEL);
+	id_tbl->table = kcalloc(DIV_ROUND_UP(size, 32), 4, GFP_KERNEL);
 	if (!id_tbl->table)
 		return -ENOMEM;
 
@@ -1255,13 +1255,13 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 			cp->fcoe_init_cid = 0x10;
 	}
 
-	cp->iscsi_tbl = kzalloc(sizeof(struct cnic_iscsi) * MAX_ISCSI_TBL_SZ,
+	cp->iscsi_tbl = kcalloc(MAX_ISCSI_TBL_SZ, sizeof(struct cnic_iscsi),
 				GFP_KERNEL);
 	if (!cp->iscsi_tbl)
 		goto error;
 
-	cp->ctx_tbl = kzalloc(sizeof(struct cnic_context) *
-				cp->max_cid_space, GFP_KERNEL);
+	cp->ctx_tbl = kcalloc(cp->max_cid_space, sizeof(struct cnic_context),
+			      GFP_KERNEL);
 	if (!cp->ctx_tbl)
 		goto error;
 
@@ -4100,7 +4100,7 @@ static int cnic_cm_alloc_mem(struct cnic_dev *dev)
 	struct cnic_local *cp = dev->cnic_priv;
 	u32 port_id;
 
-	cp->csk_tbl = kzalloc(sizeof(struct cnic_sock) * MAX_CM_SK_TBL_SZ,
+	cp->csk_tbl = kcalloc(MAX_CM_SK_TBL_SZ, sizeof(struct cnic_sock),
 			      GFP_KERNEL);
 	if (!cp->csk_tbl)
 		return -ENOMEM;

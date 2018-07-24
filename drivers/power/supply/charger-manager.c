@@ -1380,7 +1380,7 @@ static int charger_manager_register_sysfs(struct charger_manager *cm)
 
 		snprintf(buf, 10, "charger.%d", i);
 		str = devm_kzalloc(cm->dev,
-				sizeof(char) * (strlen(buf) + 1), GFP_KERNEL);
+				strlen(buf) + 1, GFP_KERNEL);
 		if (!str)
 			return -ENOMEM;
 
@@ -1522,8 +1522,10 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 	of_property_read_u32(np, "cm-num-chargers", &num_chgs);
 	if (num_chgs) {
 		/* Allocate empty bin at the tail of array */
-		desc->psy_charger_stat = devm_kzalloc(dev, sizeof(char *)
-						* (num_chgs + 1), GFP_KERNEL);
+		desc->psy_charger_stat = devm_kcalloc(dev,
+						      num_chgs + 1,
+						      sizeof(char *),
+						      GFP_KERNEL);
 		if (desc->psy_charger_stat) {
 			int i;
 			for (i = 0; i < num_chgs; i++)
@@ -1555,8 +1557,9 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 		struct charger_regulator *chg_regs;
 		struct device_node *child;
 
-		chg_regs = devm_kzalloc(dev, sizeof(*chg_regs)
-					* desc->num_charger_regulators,
+		chg_regs = devm_kcalloc(dev,
+					desc->num_charger_regulators,
+					sizeof(*chg_regs),
 					GFP_KERNEL);
 		if (!chg_regs)
 			return ERR_PTR(-ENOMEM);
@@ -1573,9 +1576,10 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 			/* charger cables */
 			chg_regs->num_cables = of_get_child_count(child);
 			if (chg_regs->num_cables) {
-				cables = devm_kzalloc(dev, sizeof(*cables)
-						* chg_regs->num_cables,
-						GFP_KERNEL);
+				cables = devm_kcalloc(dev,
+						      chg_regs->num_cables,
+						      sizeof(*cables),
+						      GFP_KERNEL);
 				if (!cables) {
 					of_node_put(child);
 					return ERR_PTR(-ENOMEM);
@@ -1725,10 +1729,11 @@ static int charger_manager_probe(struct platform_device *pdev)
 	cm->charger_psy_desc.name = cm->psy_name_buf;
 
 	/* Allocate for psy properties because they may vary */
-	cm->charger_psy_desc.properties = devm_kzalloc(&pdev->dev,
-				sizeof(enum power_supply_property)
-				* (ARRAY_SIZE(default_charger_props) +
-				NUM_CHARGER_PSY_OPTIONAL), GFP_KERNEL);
+	cm->charger_psy_desc.properties =
+		devm_kcalloc(&pdev->dev,
+			     ARRAY_SIZE(default_charger_props) +
+				NUM_CHARGER_PSY_OPTIONAL,
+			     sizeof(enum power_supply_property), GFP_KERNEL);
 	if (!cm->charger_psy_desc.properties)
 		return -ENOMEM;
 

@@ -10,7 +10,7 @@
 static int uptime_proc_show(struct seq_file *m, void *v)
 {
 	struct timespec uptime;
-	struct timespec idle;
+	struct timespec64 idle;
 	u64 nsec;
 	u32 rem;
 	int i;

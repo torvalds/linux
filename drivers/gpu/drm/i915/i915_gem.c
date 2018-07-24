@@ -2972,22 +2972,21 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	struct i915_request *request, *active = NULL;
 	unsigned long flags;
 
-	/* We are called by the error capture and reset at a random
-	 * point in time. In particular, note that neither is crucially
-	 * ordered with an interrupt. After a hang, the GPU is dead and we
-	 * assume that no more writes can happen (we waited long enough for
-	 * all writes that were in transaction to be flushed) - adding an
+	/*
+	 * We are called by the error capture, reset and to dump engine
+	 * state at random points in time. In particular, note that neither is
+	 * crucially ordered with an interrupt. After a hang, the GPU is dead
+	 * and we assume that no more writes can happen (we waited long enough
+	 * for all writes that were in transaction to be flushed) - adding an
 	 * extra delay for a recent interrupt is pointless. Hence, we do
 	 * not need an engine->irq_seqno_barrier() before the seqno reads.
+	 * At all other times, we must assume the GPU is still running, but
+	 * we only care about the snapshot of this moment.
 	 */
 	spin_lock_irqsave(&engine->timeline.lock, flags);
 	list_for_each_entry(request, &engine->timeline.requests, link) {
 		if (__i915_request_completed(request, request->global_seqno))
 			continue;
-
-		GEM_BUG_ON(request->engine != engine);
-		GEM_BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-				    &request->fence.flags));
 
 		active = request;
 		break;

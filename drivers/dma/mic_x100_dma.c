@@ -385,7 +385,8 @@ static int mic_dma_alloc_desc_ring(struct mic_dma_chan *ch)
 	if (dma_mapping_error(dev, ch->desc_ring_micpa))
 		goto map_error;
 
-	ch->tx_array = vzalloc(MIC_DMA_DESC_RX_SIZE * sizeof(*ch->tx_array));
+	ch->tx_array = vzalloc(array_size(MIC_DMA_DESC_RX_SIZE,
+					  sizeof(*ch->tx_array)));
 	if (!ch->tx_array)
 		goto tx_error;
 	return 0;

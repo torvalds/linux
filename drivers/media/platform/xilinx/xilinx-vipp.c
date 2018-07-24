@@ -532,7 +532,7 @@ static int xvip_graph_init(struct xvip_composite_device *xdev)
 
 	/* Register the subdevices notifier. */
 	num_subdevs = xdev->num_subdevs;
-	subdevs = devm_kzalloc(xdev->dev, sizeof(*subdevs) * num_subdevs,
+	subdevs = devm_kcalloc(xdev->dev, num_subdevs, sizeof(*subdevs),
 			       GFP_KERNEL);
 	if (subdevs == NULL) {
 		ret = -ENOMEM;

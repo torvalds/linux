@@ -426,5 +426,5 @@ root@genericarmv8:~#
 Details on how to use the generic STM API can be found here [2].
 
 [1]. Documentation/ABI/testing/sysfs-bus-coresight-devices-stm
-[2]. Documentation/trace/stm.txt
+[2]. Documentation/trace/stm.rst
 [3]. https://github.com/Linaro/perf-opencsd

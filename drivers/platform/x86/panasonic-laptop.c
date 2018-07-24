@@ -571,7 +571,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 		return -ENOMEM;
 	}
 
-	pcc->sinf = kzalloc(sizeof(u32) * (num_sifr + 1), GFP_KERNEL);
+	pcc->sinf = kcalloc(num_sifr + 1, sizeof(u32), GFP_KERNEL);
 	if (!pcc->sinf) {
 		result = -ENOMEM;
 		goto out_hotkey;

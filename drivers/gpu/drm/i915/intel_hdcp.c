@@ -429,7 +429,7 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 	if (num_downstream == 0)
 		return -EINVAL;
 
-	ksv_fifo = kzalloc(num_downstream * DRM_HDCP_KSV_LEN, GFP_KERNEL);
+	ksv_fifo = kcalloc(DRM_HDCP_KSV_LEN, num_downstream, GFP_KERNEL);
 	if (!ksv_fifo)
 		return -ENOMEM;
 

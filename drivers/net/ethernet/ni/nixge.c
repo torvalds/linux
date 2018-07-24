@@ -247,9 +247,8 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 	if (!priv->tx_bd_v)
 		goto out;
 
-	priv->tx_skb = devm_kzalloc(ndev->dev.parent,
-				    sizeof(*priv->tx_skb) *
-				    TX_BD_NUM,
+	priv->tx_skb = devm_kcalloc(ndev->dev.parent,
+				    TX_BD_NUM, sizeof(*priv->tx_skb),
 				    GFP_KERNEL);
 	if (!priv->tx_skb)
 		goto out;

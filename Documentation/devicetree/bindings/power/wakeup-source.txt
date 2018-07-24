@@ -22,7 +22,7 @@ List of legacy properties and respective binding document
 3. "has-tpo"			Documentation/devicetree/bindings/rtc/rtc-opal.txt
 4. "linux,wakeup"		Documentation/devicetree/bindings/input/gpio-matrix-keypad.txt
 				Documentation/devicetree/bindings/mfd/tc3589x.txt
-				Documentation/devicetree/bindings/input/ads7846.txt
+				Documentation/devicetree/bindings/input/touchscreen/ads7846.txt
 5. "linux,keypad-wakeup"	Documentation/devicetree/bindings/input/qcom,pm8xxx-keypad.txt
 6. "linux,input-wakeup"		Documentation/devicetree/bindings/input/samsung-keypad.txt
 7. "nvidia,wakeup-source"	Documentation/devicetree/bindings/input/nvidia,tegra20-kbc.txt

@@ -100,7 +100,7 @@ static int build_path_from_dentry(struct v9fs_session_info *v9ses,
 	for (ds = dentry; !IS_ROOT(ds); ds = ds->d_parent)
 		n++;
 
-	wnames = kmalloc(sizeof(char *) * n, GFP_KERNEL);
+	wnames = kmalloc_array(n, sizeof(char *), GFP_KERNEL);
 	if (!wnames)
 		goto err_out;
 

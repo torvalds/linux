@@ -65,12 +65,15 @@ nvif_mmu_init(struct nvif_object *parent, s32 oclass, struct nvif_mmu *mmu)
 		goto done;
 	mmu->mem = mems[ret].oclass;
 
-	mmu->heap = kmalloc(sizeof(*mmu->heap) * mmu->heap_nr, GFP_KERNEL);
-	mmu->type = kmalloc(sizeof(*mmu->type) * mmu->type_nr, GFP_KERNEL);
+	mmu->heap = kmalloc_array(mmu->heap_nr, sizeof(*mmu->heap),
+				  GFP_KERNEL);
+	mmu->type = kmalloc_array(mmu->type_nr, sizeof(*mmu->type),
+				  GFP_KERNEL);
 	if (ret = -ENOMEM, !mmu->heap || !mmu->type)
 		goto done;
 
-	mmu->kind = kmalloc(sizeof(*mmu->kind) * mmu->kind_nr, GFP_KERNEL);
+	mmu->kind = kmalloc_array(mmu->kind_nr, sizeof(*mmu->kind),
+				  GFP_KERNEL);
 	if (!mmu->kind && mmu->kind_nr)
 		goto done;
 

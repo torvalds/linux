@@ -610,7 +610,7 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 	if (!hpet_domain)
 		return;
 
-	hpet_devs = kzalloc(sizeof(struct hpet_dev) * num_timers, GFP_KERNEL);
+	hpet_devs = kcalloc(num_timers, sizeof(struct hpet_dev), GFP_KERNEL);
 	if (!hpet_devs)
 		return;
 
@@ -966,8 +966,8 @@ int __init hpet_enable(void)
 #endif
 
 	cfg = hpet_readl(HPET_CFG);
-	hpet_boot_cfg = kmalloc((last + 2) * sizeof(*hpet_boot_cfg),
-				GFP_KERNEL);
+	hpet_boot_cfg = kmalloc_array(last + 2, sizeof(*hpet_boot_cfg),
+				      GFP_KERNEL);
 	if (hpet_boot_cfg)
 		*hpet_boot_cfg = cfg;
 	else

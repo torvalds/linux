@@ -856,9 +856,10 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 		struct armada_37xx_pin_group *grp = &info->groups[n];
 		int i, j, f;
 
-		grp->pins = devm_kzalloc(info->dev,
-					 (grp->npins + grp->extra_npins) *
-					 sizeof(*grp->pins), GFP_KERNEL);
+		grp->pins = devm_kcalloc(info->dev,
+					 grp->npins + grp->extra_npins,
+					 sizeof(*grp->pins),
+					 GFP_KERNEL);
 		if (!grp->pins)
 			return -ENOMEM;
 
@@ -908,7 +909,8 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 		const char **groups;
 		int g;
 
-		funcs[n].groups = devm_kzalloc(info->dev, funcs[n].ngroups *
+		funcs[n].groups = devm_kcalloc(info->dev,
+					       funcs[n].ngroups,
 					       sizeof(*(funcs[n].groups)),
 					       GFP_KERNEL);
 		if (!funcs[n].groups)
@@ -948,8 +950,9 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	ctrldesc->pmxops = &armada_37xx_pmx_ops;
 	ctrldesc->confops = &armada_37xx_pinconf_ops;
 
-	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
-			       pin_data->nr_pins, GFP_KERNEL);
+	pindesc = devm_kcalloc(&pdev->dev,
+			       pin_data->nr_pins, sizeof(*pindesc),
+			       GFP_KERNEL);
 	if (!pindesc)
 		return -ENOMEM;
 
@@ -968,8 +971,10 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	 * we allocate functions for number of pins and hope there are
 	 * fewer unique functions than pins available
 	 */
-	info->funcs = devm_kzalloc(&pdev->dev, pin_data->nr_pins *
-			   sizeof(struct armada_37xx_pmx_func), GFP_KERNEL);
+	info->funcs = devm_kcalloc(&pdev->dev,
+				   pin_data->nr_pins,
+				   sizeof(struct armada_37xx_pmx_func),
+				   GFP_KERNEL);
 	if (!info->funcs)
 		return -ENOMEM;
 

@@ -45,7 +45,6 @@ struct dm_kcopyd_client {
 	struct dm_io_client *io_client;
 
 	wait_queue_head_t destroyq;
-	atomic_t nr_jobs;
 
 	mempool_t job_pool;
 
@@ -53,6 +52,8 @@ struct dm_kcopyd_client {
 	struct work_struct kcopyd_work;
 
 	struct dm_kcopyd_throttle *throttle;
+
+	atomic_t nr_jobs;
 
 /*
  * We maintain three lists of jobs:

@@ -685,7 +685,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
 	rx = f54->num_rx_electrodes;
 	tx = f54->num_tx_electrodes;
 	f54->report_data = devm_kzalloc(&fn->dev,
-					sizeof(u16) * tx * rx,
+					array3_size(tx, rx, sizeof(u16)),
 					GFP_KERNEL);
 	if (f54->report_data == NULL)
 		return -ENOMEM;

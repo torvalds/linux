@@ -1424,12 +1424,8 @@ void dpp1_set_degamma(
 		enum ipp_degamma_mode mode);
 
 void dpp1_set_degamma_pwl(struct dpp *dpp_base,
-								 const struct pwl_params *params);
+		const struct pwl_params *params);
 
-bool dpp_get_optimal_number_of_taps(
-		struct dpp *dpp,
-		struct scaler_data *scl_data,
-		const struct scaling_taps *in_taps);
 
 void dpp_read_state(struct dpp *dpp_base,
 		struct dcn_dpp_state *s);

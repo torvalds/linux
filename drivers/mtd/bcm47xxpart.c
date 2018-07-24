@@ -110,7 +110,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		blocksize = 0x1000;
 
 	/* Alloc */
-	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
+	parts = kcalloc(BCM47XXPART_MAX_PARTS, sizeof(struct mtd_partition),
 			GFP_KERNEL);
 	if (!parts)
 		return -ENOMEM;

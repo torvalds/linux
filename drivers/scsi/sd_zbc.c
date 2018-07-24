@@ -442,7 +442,7 @@ static s64 sd_zbc_check_zone_size(struct scsi_disk *sdkp)
 			} else if (this_zone_blocks != zone_blocks &&
 				   (block + this_zone_blocks < sdkp->capacity
 				    || this_zone_blocks > zone_blocks)) {
-				this_zone_blocks = 0;
+				zone_blocks = 0;
 				goto out;
 			}
 			block += this_zone_blocks;
@@ -494,7 +494,7 @@ out_free:
 static inline unsigned long *
 sd_zbc_alloc_zone_bitmap(u32 nr_zones, int numa_node)
 {
-	return kzalloc_node(BITS_TO_LONGS(nr_zones) * sizeof(unsigned long),
+	return kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
 			    GFP_KERNEL, numa_node);
 }
 

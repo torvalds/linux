@@ -279,7 +279,7 @@ static int saa7134_alsa_dma_init(struct saa7134_dev *dev, int nr_pages)
 	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
 	dma->nr_pages = nr_pages;
 
-	dma->sglist = vzalloc(dma->nr_pages * sizeof(*dma->sglist));
+	dma->sglist = vzalloc(array_size(sizeof(*dma->sglist), dma->nr_pages));
 	if (NULL == dma->sglist)
 		goto vzalloc_err;
 

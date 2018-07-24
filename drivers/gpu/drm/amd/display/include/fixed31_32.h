@@ -496,6 +496,8 @@ static inline int dc_fixpt_ceil(struct fixed31_32 arg)
  * fractional
  */
 
+unsigned int dc_fixpt_u3d19(struct fixed31_32 arg);
+
 unsigned int dc_fixpt_u2d19(struct fixed31_32 arg);
 
 unsigned int dc_fixpt_u0d19(struct fixed31_32 arg);

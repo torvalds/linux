@@ -216,8 +216,9 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 	}
 
 	/* we will reallocate later */
-	pctrl->functions = devm_kzalloc(&pdev->dev,
-					max_functions * sizeof(*pctrl->functions),
+	pctrl->functions = devm_kcalloc(&pdev->dev,
+					max_functions,
+					sizeof(*pctrl->functions),
 					GFP_KERNEL);
 	if (!pctrl->functions)
 		return -ENOMEM;
@@ -261,8 +262,9 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 
 			if (!function->groups) {
 				function->groups =
-					devm_kzalloc(&pdev->dev,
-						     function->ngroups * sizeof(char *),
+					devm_kcalloc(&pdev->dev,
+						     function->ngroups,
+						     sizeof(char *),
 						     GFP_KERNEL);
 
 				if (!function->groups)

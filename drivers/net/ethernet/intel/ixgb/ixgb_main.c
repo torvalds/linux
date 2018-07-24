@@ -1093,8 +1093,9 @@ ixgb_set_multi(struct net_device *netdev)
 		rctl |= IXGB_RCTL_MPE;
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 	} else {
-		u8 *mta = kmalloc(IXGB_MAX_NUM_MULTICAST_ADDRESSES *
-			      ETH_ALEN, GFP_ATOMIC);
+		u8 *mta = kmalloc_array(ETH_ALEN,
+				        IXGB_MAX_NUM_MULTICAST_ADDRESSES,
+				        GFP_ATOMIC);
 		u8 *addr;
 		if (!mta)
 			goto alloc_failed;

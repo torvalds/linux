@@ -1202,8 +1202,9 @@ static int gsc_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	formats = devm_kzalloc(dev, sizeof(*formats) *
-			       (ARRAY_SIZE(gsc_formats)), GFP_KERNEL);
+	formats = devm_kcalloc(dev,
+			       ARRAY_SIZE(gsc_formats), sizeof(*formats),
+			       GFP_KERNEL);
 	if (!formats)
 		return -ENOMEM;
 

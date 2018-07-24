@@ -59,7 +59,7 @@ nvkm_vmm_pt_new(const struct nvkm_vmm_desc *desc, bool sparse,
 	pgt->sparse = sparse;
 
 	if (desc->type == PGD) {
-		pgt->pde = kvzalloc(sizeof(*pgt->pde) * pten, GFP_KERNEL);
+		pgt->pde = kvcalloc(pten, sizeof(*pgt->pde), GFP_KERNEL);
 		if (!pgt->pde) {
 			kfree(pgt);
 			return NULL;

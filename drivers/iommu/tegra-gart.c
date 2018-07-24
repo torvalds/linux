@@ -465,7 +465,7 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	gart->iovmm_base = (dma_addr_t)res_remap->start;
 	gart->page_count = (resource_size(res_remap) >> GART_PAGE_SHIFT);
 
-	gart->savedata = vmalloc(sizeof(u32) * gart->page_count);
+	gart->savedata = vmalloc(array_size(sizeof(u32), gart->page_count));
 	if (!gart->savedata) {
 		dev_err(dev, "failed to allocate context save area\n");
 		return -ENOMEM;

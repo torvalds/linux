@@ -1941,8 +1941,8 @@ static int atl2_get_eeprom(struct net_device *netdev,
 	first_dword = eeprom->offset >> 2;
 	last_dword = (eeprom->offset + eeprom->len - 1) >> 2;
 
-	eeprom_buff = kmalloc(sizeof(u32) * (last_dword - first_dword + 1),
-		GFP_KERNEL);
+	eeprom_buff = kmalloc_array(last_dword - first_dword + 1, sizeof(u32),
+				    GFP_KERNEL);
 	if (!eeprom_buff)
 		return -ENOMEM;
 

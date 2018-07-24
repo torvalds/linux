@@ -778,8 +778,9 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 		concat->mtd.erasesize = max_erasesize;
 		concat->mtd.numeraseregions = num_erase_region;
 		concat->mtd.eraseregions = erase_region_p =
-		    kmalloc(num_erase_region *
-			    sizeof (struct mtd_erase_region_info), GFP_KERNEL);
+		    kmalloc_array(num_erase_region,
+				  sizeof(struct mtd_erase_region_info),
+				  GFP_KERNEL);
 		if (!erase_region_p) {
 			kfree(concat);
 			printk

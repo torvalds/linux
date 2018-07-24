@@ -201,7 +201,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 
 	/*
 	 * Handle seccomp.  regs->ip must be the original value.
-	 * See seccomp_send_sigsys and Documentation/prctl/seccomp_filter.txt.
+	 * See seccomp_send_sigsys and Documentation/userspace-api/seccomp_filter.rst.
 	 *
 	 * We could optimize the seccomp disabled case, but performance
 	 * here doesn't matter.

@@ -473,6 +473,24 @@ config option to 'y' no matter the dependencies.
 The dependencies are moved to the symbol GENERIC_IOMAP and we avoid the
 situation where select forces a symbol equals to 'y'.
 
+Adding features that need compiler support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are several features that need compiler support. The recommended way
+to describe the dependency on the compiler feature is to use "depends on"
+followed by a test macro.
+
+config STACKPROTECTOR
+	bool "Stack Protector buffer overflow detection"
+	depends on $(cc-option,-fstack-protector)
+	...
+
+If you need to expose a compiler capability to makefiles and/or C source files,
+CC_HAS_ is the recommended prefix for the config option.
+
+config CC_HAS_STACKPROTECTOR_NONE
+	def_bool $(cc-option,-fno-stack-protector)
+
 Build as module only
 ~~~~~~~~~~~~~~~~~~~~
 To restrict a component build to module-only, qualify its config symbol

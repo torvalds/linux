@@ -300,7 +300,7 @@ static int sclp_sd_store_data(struct sclp_sd_data *result, u8 di)
 		goto out_result;
 
 	/* Allocate memory */
-	data = vzalloc((size_t) dsize * PAGE_SIZE);
+	data = vzalloc(array_size((size_t)dsize, PAGE_SIZE));
 	if (!data) {
 		rc = -ENOMEM;
 		goto out;

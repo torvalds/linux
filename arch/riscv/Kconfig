@@ -32,6 +32,7 @@ config RISCV
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_PERF_EVENTS
 	select IRQ_DOMAIN
 	select NO_BOOTMEM
 	select RISCV_ISA_A if SMP
@@ -103,9 +104,9 @@ choice
 config ARCH_RV32I
 	bool "RV32I"
 	select 32BIT
-	select GENERIC_ASHLDI3
-	select GENERIC_ASHRDI3
-	select GENERIC_LSHRDI3
+	select GENERIC_LIB_ASHLDI3
+	select GENERIC_LIB_ASHRDI3
+	select GENERIC_LIB_LSHRDI3
 
 config ARCH_RV64I
 	bool "RV64I"
@@ -192,6 +193,19 @@ config RISCV_ISA_C
 
 config RISCV_ISA_A
 	def_bool y
+
+menu "supported PMU type"
+	depends on PERF_EVENTS
+
+config RISCV_BASE_PMU
+	bool "Base Performance Monitoring Unit"
+	def_bool y
+	help
+	  A base PMU that serves as a reference implementation and has limited
+	  feature of perf.  It can run on any RISC-V machines so serves as the
+	  fallback, but this option can also be disable to reduce kernel size.
+
+endmenu
 
 endmenu
 

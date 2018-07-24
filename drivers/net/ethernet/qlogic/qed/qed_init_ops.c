@@ -149,12 +149,12 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
 	if (IS_VF(p_hwfn->cdev))
 		return 0;
 
-	rt_data->b_valid = kzalloc(sizeof(bool) * RUNTIME_ARRAY_SIZE,
+	rt_data->b_valid = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(bool),
 				   GFP_KERNEL);
 	if (!rt_data->b_valid)
 		return -ENOMEM;
 
-	rt_data->init_val = kzalloc(sizeof(u32) * RUNTIME_ARRAY_SIZE,
+	rt_data->init_val = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(u32),
 				    GFP_KERNEL);
 	if (!rt_data->init_val) {
 		kfree(rt_data->b_valid);

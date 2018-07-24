@@ -144,7 +144,7 @@ static int hns_roce_buddy_init(struct hns_roce_buddy *buddy, int max_order)
 		buddy->bits[i] = kcalloc(s, sizeof(long), GFP_KERNEL |
 					 __GFP_NOWARN);
 		if (!buddy->bits[i]) {
-			buddy->bits[i] = vzalloc(s * sizeof(long));
+			buddy->bits[i] = vzalloc(array_size(s, sizeof(long)));
 			if (!buddy->bits[i])
 				goto err_out_free;
 		}

@@ -728,22 +728,9 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			sock_valbool_flag(sk, SOCK_DBG, valbool);
 		break;
 	case SO_REUSEADDR:
-		val = (valbool ? SK_CAN_REUSE : SK_NO_REUSE);
-		if ((sk->sk_family == PF_INET || sk->sk_family == PF_INET6) &&
-		    inet_sk(sk)->inet_num &&
-		    (sk->sk_reuse != val)) {
-			ret = (sk->sk_state == TCP_ESTABLISHED) ? -EISCONN : -EUCLEAN;
-			break;
-		}
-		sk->sk_reuse = val;
+		sk->sk_reuse = (valbool ? SK_CAN_REUSE : SK_NO_REUSE);
 		break;
 	case SO_REUSEPORT:
-		if ((sk->sk_family == PF_INET || sk->sk_family == PF_INET6) &&
-		    inet_sk(sk)->inet_num &&
-		    (sk->sk_reuseport != valbool)) {
-			ret = (sk->sk_state == TCP_ESTABLISHED) ? -EISCONN : -EUCLEAN;
-			break;
-		}
 		sk->sk_reuseport = valbool;
 		break;
 	case SO_TYPE:

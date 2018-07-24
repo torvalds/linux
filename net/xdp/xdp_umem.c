@@ -204,7 +204,8 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
 	long npgs;
 	int err;
 
-	umem->pgs = kcalloc(umem->npgs, sizeof(*umem->pgs), GFP_KERNEL);
+	umem->pgs = kcalloc(umem->npgs, sizeof(*umem->pgs),
+			    GFP_KERNEL | __GFP_NOWARN);
 	if (!umem->pgs)
 		return -ENOMEM;
 

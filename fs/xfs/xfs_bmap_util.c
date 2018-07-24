@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * Copyright (c) 2012 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -92,6 +80,7 @@ xfs_bmap_rtalloc(
 	int		error;		/* error return value */
 	xfs_mount_t	*mp;		/* mount point structure */
 	xfs_extlen_t	prod = 0;	/* product factor for allocators */
+	xfs_extlen_t	mod = 0;	/* product factor for allocators */
 	xfs_extlen_t	ralen = 0;	/* realtime allocation length */
 	xfs_extlen_t	align;		/* minimum allocation alignment */
 	xfs_rtblock_t	rtb;
@@ -111,7 +100,8 @@ xfs_bmap_rtalloc(
 	 * If the offset & length are not perfectly aligned
 	 * then kill prod, it will just get us in trouble.
 	 */
-	if (do_mod(ap->offset, align) || ap->length % align)
+	div_u64_rem(ap->offset, align, &mod);
+	if (mod || ap->length % align)
 		prod = 1;
 	/*
 	 * Set ralen to be the actual requested length in rtextents.
@@ -948,9 +938,11 @@ xfs_alloc_file_space(
 			do_div(s, extsz);
 			s *= extsz;
 			e = startoffset_fsb + allocatesize_fsb;
-			if ((temp = do_mod(startoffset_fsb, extsz)))
+			div_u64_rem(startoffset_fsb, extsz, &temp);
+			if (temp)
 				e += temp;
-			if ((temp = do_mod(e, extsz)))
+			div_u64_rem(e, extsz, &temp);
+			if (temp)
 				e += extsz - temp;
 		} else {
 			s = 0;
@@ -1111,7 +1103,7 @@ xfs_adjust_extent_unmap_boundaries(
 
 	if (nimap && imap.br_startblock != HOLESTARTBLOCK) {
 		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-		mod = do_mod(imap.br_startblock, mp->m_sb.sb_rextsize);
+		div_u64_rem(imap.br_startblock, mp->m_sb.sb_rextsize, &mod);
 		if (mod)
 			*startoffset_fsb += mp->m_sb.sb_rextsize - mod;
 	}

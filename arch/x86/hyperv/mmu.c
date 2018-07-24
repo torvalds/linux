@@ -13,22 +13,6 @@
 #define CREATE_TRACE_POINTS
 #include <asm/trace/hyperv.h>
 
-/* HvFlushVirtualAddressSpace, HvFlushVirtualAddressList hypercalls */
-struct hv_flush_pcpu {
-	u64 address_space;
-	u64 flags;
-	u64 processor_mask;
-	u64 gva_list[];
-};
-
-/* HvFlushVirtualAddressSpaceEx, HvFlushVirtualAddressListEx hypercalls */
-struct hv_flush_pcpu_ex {
-	u64 address_space;
-	u64 flags;
-	struct hv_vpset hv_vp_set;
-	u64 gva_list[];
-};
-
 /* Each gva in gva_list encodes up to 4096 pages to flush */
 #define HV_TLB_FLUSH_UNIT (4096 * PAGE_SIZE)
 
@@ -67,8 +51,8 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 				    const struct flush_tlb_info *info)
 {
 	int cpu, vcpu, gva_n, max_gvas;
-	struct hv_flush_pcpu **flush_pcpu;
-	struct hv_flush_pcpu *flush;
+	struct hv_tlb_flush **flush_pcpu;
+	struct hv_tlb_flush *flush;
 	u64 status = U64_MAX;
 	unsigned long flags;
 
@@ -82,7 +66,7 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 
 	local_irq_save(flags);
 
-	flush_pcpu = (struct hv_flush_pcpu **)
+	flush_pcpu = (struct hv_tlb_flush **)
 		     this_cpu_ptr(hyperv_pcpu_input_arg);
 
 	flush = *flush_pcpu;
@@ -152,8 +136,8 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 				       const struct flush_tlb_info *info)
 {
 	int nr_bank = 0, max_gvas, gva_n;
-	struct hv_flush_pcpu_ex **flush_pcpu;
-	struct hv_flush_pcpu_ex *flush;
+	struct hv_tlb_flush_ex **flush_pcpu;
+	struct hv_tlb_flush_ex *flush;
 	u64 status = U64_MAX;
 	unsigned long flags;
 
@@ -167,7 +151,7 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 
 	local_irq_save(flags);
 
-	flush_pcpu = (struct hv_flush_pcpu_ex **)
+	flush_pcpu = (struct hv_tlb_flush_ex **)
 		     this_cpu_ptr(hyperv_pcpu_input_arg);
 
 	flush = *flush_pcpu;

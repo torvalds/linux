@@ -263,8 +263,8 @@ static int power_supply_check_supplies(struct power_supply *psy)
 	if (!psy->supplied_from)
 		return -ENOMEM;
 
-	*psy->supplied_from = devm_kzalloc(&psy->dev,
-					   sizeof(char *) * (cnt - 1),
+	*psy->supplied_from = devm_kcalloc(&psy->dev,
+					   cnt - 1, sizeof(char *),
 					   GFP_KERNEL);
 	if (!*psy->supplied_from)
 		return -ENOMEM;

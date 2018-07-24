@@ -52,7 +52,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		return 0;
 	}
 
-	sb->map = kzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
+	sb->map = kcalloc_node(sb->map_nr, sizeof(*sb->map), flags, node);
 	if (!sb->map)
 		return -ENOMEM;
 

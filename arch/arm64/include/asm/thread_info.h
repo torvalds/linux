@@ -45,12 +45,6 @@ struct thread_info {
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
 };
 
-#define INIT_THREAD_INFO(tsk)						\
-{									\
-	.preempt_count	= INIT_PREEMPT_COUNT,				\
-	.addr_limit	= KERNEL_DS,					\
-}
-
 #define thread_saved_pc(tsk)	\
 	((unsigned long)(tsk->thread.cpu_context.pc))
 #define thread_saved_sp(tsk)	\
@@ -117,6 +111,13 @@ void arch_release_task_struct(struct task_struct *tsk);
 #define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | \
 				 _TIF_SYSCALL_TRACEPOINT | _TIF_SECCOMP | \
 				 _TIF_NOHZ)
+
+#define INIT_THREAD_INFO(tsk)						\
+{									\
+	.flags		= _TIF_FOREIGN_FPSTATE,				\
+	.preempt_count	= INIT_PREEMPT_COUNT,				\
+	.addr_limit	= KERNEL_DS,					\
+}
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_THREAD_INFO_H */

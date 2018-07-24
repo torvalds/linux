@@ -461,7 +461,7 @@ static struct i7core_dev *alloc_i7core_dev(u8 socket,
 	if (!i7core_dev)
 		return NULL;
 
-	i7core_dev->pdev = kzalloc(sizeof(*i7core_dev->pdev) * table->n_devs,
+	i7core_dev->pdev = kcalloc(table->n_devs, sizeof(*i7core_dev->pdev),
 				   GFP_KERNEL);
 	if (!i7core_dev->pdev) {
 		kfree(i7core_dev);

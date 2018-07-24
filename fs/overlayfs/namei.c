@@ -612,7 +612,7 @@ static int ovl_get_index_name_fh(struct ovl_fh *fh, struct qstr *name)
 {
 	char *n, *s;
 
-	n = kzalloc(fh->len * 2, GFP_KERNEL);
+	n = kcalloc(fh->len, 2, GFP_KERNEL);
 	if (!n)
 		return -ENOMEM;
 

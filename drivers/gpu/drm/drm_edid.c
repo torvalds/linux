@@ -1633,7 +1633,8 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 		edid[EDID_LENGTH-1] += edid[0x7e] - valid_extensions;
 		edid[0x7e] = valid_extensions;
 
-		new = kmalloc((valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+		new = kmalloc_array(valid_extensions + 1, EDID_LENGTH,
+				    GFP_KERNEL);
 		if (!new)
 			goto out;
 

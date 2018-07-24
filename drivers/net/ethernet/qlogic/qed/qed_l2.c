@@ -98,7 +98,7 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
 		p_l2_info->queues = max_t(u8, rx, tx);
 	}
 
-	pp_qids = kzalloc(sizeof(unsigned long *) * p_l2_info->queues,
+	pp_qids = kcalloc(p_l2_info->queues, sizeof(unsigned long *),
 			  GFP_KERNEL);
 	if (!pp_qids)
 		return -ENOMEM;
@@ -2435,7 +2435,7 @@ static int qed_update_vport(struct qed_dev *cdev,
 	if (!cdev)
 		return -ENODEV;
 
-	rss = vzalloc(sizeof(*rss) * cdev->num_hwfns);
+	rss = vzalloc(array_size(sizeof(*rss), cdev->num_hwfns));
 	if (!rss)
 		return -ENOMEM;
 

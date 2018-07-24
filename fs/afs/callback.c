@@ -21,6 +21,66 @@
 #include "internal.h"
 
 /*
+ * Create volume and callback interests on a server.
+ */
+static struct afs_cb_interest *afs_create_interest(struct afs_server *server,
+						   struct afs_vnode *vnode)
+{
+	struct afs_vol_interest *new_vi, *vi;
+	struct afs_cb_interest *new;
+	struct hlist_node **pp;
+
+	new_vi = kzalloc(sizeof(struct afs_vol_interest), GFP_KERNEL);
+	if (!new_vi)
+		return NULL;
+
+	new = kzalloc(sizeof(struct afs_cb_interest), GFP_KERNEL);
+	if (!new) {
+		kfree(new_vi);
+		return NULL;
+	}
+
+	new_vi->usage = 1;
+	new_vi->vid = vnode->volume->vid;
+	INIT_HLIST_NODE(&new_vi->srv_link);
+	INIT_HLIST_HEAD(&new_vi->cb_interests);
+
+	refcount_set(&new->usage, 1);
+	new->sb = vnode->vfs_inode.i_sb;
+	new->vid = vnode->volume->vid;
+	new->server = afs_get_server(server);
+	INIT_HLIST_NODE(&new->cb_vlink);
+
+	write_lock(&server->cb_break_lock);
+
+	for (pp = &server->cb_volumes.first; *pp; pp = &(*pp)->next) {
+		vi = hlist_entry(*pp, struct afs_vol_interest, srv_link);
+		if (vi->vid < new_vi->vid)
+			continue;
+		if (vi->vid > new_vi->vid)
+			break;
+		vi->usage++;
+		goto found_vi;
+	}
+
+	new_vi->srv_link.pprev = pp;
+	new_vi->srv_link.next = *pp;
+	if (*pp)
+		(*pp)->pprev = &new_vi->srv_link.next;
+	*pp = &new_vi->srv_link;
+	vi = new_vi;
+	new_vi = NULL;
+found_vi:
+
+	new->vol_interest = vi;
+	hlist_add_head(&new->cb_vlink, &vi->cb_interests);
+
+	write_unlock(&server->cb_break_lock);
+	kfree(new_vi);
+	return new;
+}
+
+/*
  * Set up an interest-in-callbacks record for a volume on a server and
  * register it with the server.
  * - Called with vnode->io_lock held.
@@ -77,19 +137,9 @@ again:
 	}
 
 	if (!cbi) {
-		new = kzalloc(sizeof(struct afs_cb_interest), GFP_KERNEL);
+		new = afs_create_interest(server, vnode);
 		if (!new)
 			return -ENOMEM;
-
-		refcount_set(&new->usage, 1);
-		new->sb = vnode->vfs_inode.i_sb;
-		new->vid = vnode->volume->vid;
-		new->server = afs_get_server(server);
-		INIT_LIST_HEAD(&new->cb_link);
-
-		write_lock(&server->cb_break_lock);
-		list_add_tail(&new->cb_link, &server->cb_interests);
-		write_unlock(&server->cb_break_lock);
 
 		write_lock(&slist->lock);
 		if (!entry->cb_interest) {
@@ -126,11 +176,22 @@ again:
  */
 void afs_put_cb_interest(struct afs_net *net, struct afs_cb_interest *cbi)
 {
+	struct afs_vol_interest *vi;
+
 	if (cbi && refcount_dec_and_test(&cbi->usage)) {
-		if (!list_empty(&cbi->cb_link)) {
+		if (!hlist_unhashed(&cbi->cb_vlink)) {
 			write_lock(&cbi->server->cb_break_lock);
-			list_del_init(&cbi->cb_link);
+
+			hlist_del_init(&cbi->cb_vlink);
+			vi = cbi->vol_interest;
+			cbi->vol_interest = NULL;
+			if (--vi->usage == 0)
+				hlist_del(&vi->srv_link);
+			else
+				vi = NULL;
+
 			write_unlock(&cbi->server->cb_break_lock);
+			kfree(vi);
 			afs_put_server(net, cbi->server);
 		}
 		kfree(cbi);
@@ -182,20 +243,34 @@ void afs_break_callback(struct afs_vnode *vnode)
 static void afs_break_one_callback(struct afs_server *server,
 				   struct afs_fid *fid)
 {
+	struct afs_vol_interest *vi;
 	struct afs_cb_interest *cbi;
 	struct afs_iget_data data;
 	struct afs_vnode *vnode;
 	struct inode *inode;
 
 	read_lock(&server->cb_break_lock);
+	hlist_for_each_entry(vi, &server->cb_volumes, srv_link) {
+		if (vi->vid < fid->vid)
+			continue;
+		if (vi->vid > fid->vid) {
+			vi = NULL;
+			break;
+		}
+		//atomic_inc(&vi->usage);
+		break;
+	}
+
+	/* TODO: Find all matching volumes if we couldn't match the server and
+	 * break them anyway.
+	 */
+	if (!vi)
+		goto out;
 
 	/* Step through all interested superblocks.  There may be more than one
 	 * because of cell aliasing.
 	 */
-	list_for_each_entry(cbi, &server->cb_interests, cb_link) {
-		if (cbi->vid != fid->vid)
-			continue;
-
+	hlist_for_each_entry(cbi, &vi->cb_interests, cb_vlink) {
 		if (fid->vnode == 0 && fid->unique == 0) {
 			/* The callback break applies to an entire volume. */
 			struct afs_super_info *as = AFS_FS_S(cbi->sb);
@@ -217,6 +292,7 @@ static void afs_break_one_callback(struct afs_server *server,
 		}
 	}
 
+out:
 	read_unlock(&server->cb_break_lock);
 }
 

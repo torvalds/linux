@@ -40,8 +40,6 @@ struct msm_kms_funcs {
 	irqreturn_t (*irq)(struct msm_kms *kms);
 	int (*enable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
 	void (*disable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
-	/* swap global atomic state: */
-	void (*swap_state)(struct msm_kms *kms, struct drm_atomic_state *state);
 	/* modeset, bracketing atomic_commit(): */
 	void (*prepare_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
 	void (*complete_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
@@ -79,18 +77,6 @@ struct msm_kms {
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	struct msm_gem_address_space *aspace;
 };
-
-/**
- * Subclass of drm_atomic_state, to allow kms backend to have driver
- * private global state.  The kms backend can do whatever it wants
- * with the ->state ptr.  On ->atomic_state_clear() the ->state ptr
- * is kfree'd and set back to NULL.
- */
-struct msm_kms_state {
-	struct drm_atomic_state base;
-	void *state;
-};
-#define to_kms_state(x) container_of(x, struct msm_kms_state, base)
 
 static inline void msm_kms_init(struct msm_kms *kms,
 		const struct msm_kms_funcs *funcs)

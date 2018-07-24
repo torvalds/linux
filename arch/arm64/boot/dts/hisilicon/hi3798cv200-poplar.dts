@@ -11,6 +11,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include "hi3798cv200.dtsi"
+#include "poplar-pinctrl.dtsi"
 
 / {
 	model = "HiSilicon Poplar Development Board";
@@ -61,6 +62,33 @@
 			default-state = "off";
 		};
 	};
+
+	reg_pcie: regulator-pcie {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3_PCIE0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio6 7 0>;
+		enable-active-high;
+	};
+};
+
+&ehci {
+	status = "okay";
+};
+
+&emmc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_pins_1 &emmc_pins_2
+		     &emmc_pins_3 &emmc_pins_4>;
+	fifo-depth = <256>;
+	clock-frequency = <200000000>;
+	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	non-removable;
+	bus-width = <8>;
+	status = "okay";
 };
 
 &gmac1 {
@@ -143,6 +171,16 @@
 };
 
 &ir {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&pcie {
+	reset-gpios = <&gpio4 4 GPIO_ACTIVE_HIGH>;
+	vpcie-supply = <&reg_pcie>;
 	status = "okay";
 };
 

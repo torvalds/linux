@@ -910,7 +910,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
 
 	/* Read PBDMA->runlist(s) mapping from HW. */
-	if (!(map = kzalloc(sizeof(*map) * fifo->pbdma_nr, GFP_KERNEL)))
+	if (!(map = kcalloc(fifo->pbdma_nr, sizeof(*map), GFP_KERNEL)))
 		return -ENOMEM;
 
 	for (i = 0; i < fifo->pbdma_nr; i++)

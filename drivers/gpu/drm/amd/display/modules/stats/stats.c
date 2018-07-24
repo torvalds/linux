@@ -141,19 +141,17 @@ struct mod_stats *mod_stats_create(struct dc *dc)
 			else
 				core_stats->entries = reg_data;
 		}
-		core_stats->time = kzalloc(
-			sizeof(struct stats_time_cache) *
-				core_stats->entries,
+		core_stats->time = kcalloc(core_stats->entries,
+						sizeof(struct stats_time_cache),
 						GFP_KERNEL);
 
 		if (core_stats->time == NULL)
 			goto fail_construct_time;
 
 		core_stats->event_entries = DAL_STATS_EVENT_ENTRIES_DEFAULT;
-		core_stats->events = kzalloc(
-			sizeof(struct stats_event_cache) *
-				core_stats->event_entries,
-						GFP_KERNEL);
+		core_stats->events = kcalloc(core_stats->event_entries,
+					     sizeof(struct stats_event_cache),
+					     GFP_KERNEL);
 
 		if (core_stats->events == NULL)
 			goto fail_construct_events;

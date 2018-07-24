@@ -760,9 +760,9 @@ struct ixgbe_adapter {
 #define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
 
-#ifdef CONFIG_XFRM
+#ifdef CONFIG_XFRM_OFFLOAD
 	struct ixgbe_ipsec *ipsec;
-#endif /* CONFIG_XFRM */
+#endif /* CONFIG_XFRM_OFFLOAD */
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)

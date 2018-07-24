@@ -593,6 +593,14 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	}
 
 #endif
+	/* To support macvlan offload we have to use num_tc to
+	 * restrict the queues that can be used by the device.
+	 * By doing this we can avoid reporting a false number of
+	 * queues.
+	 */
+	if (vmdq_i > 1)
+		netdev_set_num_tc(adapter->netdev, 1);
+
 	/* populate TC0 for use by pool 0 */
 	netdev_set_tc_queue(adapter->netdev, 0,
 			    adapter->num_rx_queues_per_pool, 0);

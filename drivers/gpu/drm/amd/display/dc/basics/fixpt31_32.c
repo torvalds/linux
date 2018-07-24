@@ -449,6 +449,11 @@ static inline unsigned int clamp_ux_dy(
 		return min_clamp;
 }
 
+unsigned int dc_fixpt_u3d19(struct fixed31_32 arg)
+{
+	return ux_dy(arg.value, 3, 19);
+}
+
 unsigned int dc_fixpt_u2d19(struct fixed31_32 arg)
 {
 	return ux_dy(arg.value, 2, 19);

@@ -4542,7 +4542,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			offset_in_extent = em_start - em->start;
 		em_end = extent_map_end(em);
 		em_len = em_end - em_start;
-		disko = 0;
+		disko = em->block_start + offset_in_extent;
 		flags = 0;
 
 		/*
@@ -4564,8 +4564,6 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		} else if (fieinfo->fi_extents_max) {
 			u64 bytenr = em->block_start -
 				(em->start - em->orig_start);
-
-			disko = em->block_start + offset_in_extent;
 
 			/*
 			 * As btrfs supports shared space, this information

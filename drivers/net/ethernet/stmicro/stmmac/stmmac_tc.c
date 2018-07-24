@@ -277,8 +277,8 @@ static int tc_init(struct stmmac_priv *priv)
 
 	/* Reserve one last filter which lets all pass */
 	priv->tc_entries_max = count;
-	priv->tc_entries = devm_kzalloc(priv->device,
-			sizeof(*priv->tc_entries) * count, GFP_KERNEL);
+	priv->tc_entries = devm_kcalloc(priv->device,
+			count, sizeof(*priv->tc_entries), GFP_KERNEL);
 	if (!priv->tc_entries)
 		return -ENOMEM;
 

@@ -45,11 +45,17 @@ static mempool_t *fscrypt_bounce_page_pool = NULL;
 static LIST_HEAD(fscrypt_free_ctxs);
 static DEFINE_SPINLOCK(fscrypt_ctx_lock);
 
-struct workqueue_struct *fscrypt_read_workqueue;
+static struct workqueue_struct *fscrypt_read_workqueue;
 static DEFINE_MUTEX(fscrypt_init_mutex);
 
 static struct kmem_cache *fscrypt_ctx_cachep;
 struct kmem_cache *fscrypt_info_cachep;
+
+void fscrypt_enqueue_decrypt_work(struct work_struct *work)
+{
+	queue_work(fscrypt_read_workqueue, work);
+}
+EXPORT_SYMBOL(fscrypt_enqueue_decrypt_work);
 
 /**
  * fscrypt_release_ctx() - Releases an encryption context

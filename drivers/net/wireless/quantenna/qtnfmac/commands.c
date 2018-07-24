@@ -1216,7 +1216,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 				return -EINVAL;
 			}
 
-			limits = kzalloc(sizeof(*limits) * rec->n_limits,
+			limits = kcalloc(rec->n_limits, sizeof(*limits),
 					 GFP_KERNEL);
 			if (!limits)
 				return -ENOMEM;
