@@ -191,6 +191,8 @@ struct msm_gpu_state {
 		u32 seqno;
 		u32 rptr;
 		u32 wptr;
+		void *data;
+		int data_size;
 	} ring[MSM_GPU_MAX_RINGS];
 
 	int nr_registers;

@@ -59,6 +59,13 @@ ringbuffer
 	wptr
 		The current write pointer (wptr) for the ringbuffer.
 
+	size
+		Maximum size of the ringbuffer programmed in the hardware.
+
+	data
+		The contents of the ring encoded as ascii85.  Only the used
+		portions of the ring will be printed.
+
 registers
 	Set of registers values. Each entry is on its own line enclosed
 	by brackets { }.
