@@ -1347,6 +1347,7 @@ static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 	case FBIOGET_CON2FBMAP:
 	case FBIOPUT_CON2FBMAP:
 		arg = (unsigned long) compat_ptr(arg);
+		/* fall through */
 	case FBIOBLANK:
 		ret = do_fb_ioctl(info, cmd, arg);
 		break;
