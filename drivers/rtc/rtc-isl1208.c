@@ -15,6 +15,7 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include "rtc-core.h"
+#include <linux/of_irq.h>
 
 /* Register map */
 /* rtc section */
@@ -725,11 +726,30 @@ static const struct attribute_group isl1219_rtc_sysfs_files = {
 	.attrs	= isl1219_rtc_attrs,
 };
 
+static int isl1208_setup_irq(struct i2c_client *client, int irq)
+{
+	int rc = devm_request_threaded_irq(&client->dev, irq, NULL,
+					isl1208_rtc_interrupt,
+					IRQF_SHARED | IRQF_ONESHOT,
+					isl1208_driver.driver.name,
+					client);
+	if (!rc) {
+		device_init_wakeup(&client->dev, 1);
+		enable_irq_wake(irq);
+	} else {
+		dev_err(&client->dev,
+			"Unable to request irq %d, no alarm support\n",
+			irq);
+	}
+	return rc;
+}
+
 static int
 isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int rc = 0;
 	struct rtc_device *rtc;
+	int evdet_irq = -1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
@@ -766,28 +786,22 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		rc = rtc_add_group(rtc, &isl1219_rtc_sysfs_files);
 		if (rc)
 			return rc;
+		evdet_irq = of_irq_get_byname(client->dev.of_node, "evdet");
 	}
 
 	rc = sysfs_create_group(&client->dev.kobj, &isl1208_rtc_sysfs_files);
 	if (rc)
 		return rc;
 
-	if (client->irq > 0) {
-		rc = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					       isl1208_rtc_interrupt,
-					       IRQF_SHARED | IRQF_ONESHOT,
-					       isl1208_driver.driver.name,
-					       client);
-		if (!rc) {
-			device_init_wakeup(&client->dev, 1);
-			enable_irq_wake(client->irq);
-		} else {
-			dev_err(&client->dev,
-				"Unable to request irq %d, no alarm support\n",
-				client->irq);
-			client->irq = 0;
-		}
-	}
+	if (client->irq > 0)
+		rc = isl1208_setup_irq(client, client->irq);
+	if (rc)
+		return rc;
+
+	if (evdet_irq > 0 && evdet_irq != client->irq)
+		rc = isl1208_setup_irq(client, evdet_irq);
+	if (rc)
+		return rc;
 
 	return rtc_register_device(rtc);
 }
