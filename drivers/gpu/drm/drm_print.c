@@ -104,6 +104,12 @@ void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
 }
 EXPORT_SYMBOL(__drm_printfn_coredump);
 
+void __drm_puts_seq_file(struct drm_printer *p, const char *str)
+{
+	seq_puts(p->arg, str);
+}
+EXPORT_SYMBOL(__drm_puts_seq_file);
+
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf)
 {
 	seq_printf(p->arg, "%pV", vaf);

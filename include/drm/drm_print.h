@@ -76,6 +76,7 @@ struct drm_printer {
 
 void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
+void __drm_puts_seq_file(struct drm_printer *p, const char *str);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
 
@@ -182,6 +183,7 @@ static inline struct drm_printer drm_seq_file_printer(struct seq_file *f)
 {
 	struct drm_printer p = {
 		.printfn = __drm_printfn_seq_file,
+		.puts = __drm_puts_seq_file,
 		.arg = f,
 	};
 	return p;
