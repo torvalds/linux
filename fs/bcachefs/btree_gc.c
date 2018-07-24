@@ -123,13 +123,14 @@ static u8 bch2_gc_mark_key(struct bch_fs *c, enum bkey_type type,
 
 	switch (type) {
 	case BKEY_TYPE_BTREE:
-		bch2_mark_key(c, k, c->opts.btree_node_size, true, pos, NULL,
+		bch2_mark_key(c, k, c->opts.btree_node_size,
+			      BCH_DATA_BTREE, pos, NULL,
 			      0, flags|
 			      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
 			      BCH_BUCKET_MARK_GC_LOCK_HELD);
 		break;
 	case BKEY_TYPE_EXTENTS:
-		bch2_mark_key(c, k, k.k->size, false, pos, NULL,
+		bch2_mark_key(c, k, k.k->size, BCH_DATA_USER, pos, NULL,
 			      0, flags|
 			      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
 			      BCH_BUCKET_MARK_GC_LOCK_HELD);
@@ -398,7 +399,8 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 	for_each_pending_btree_node_free(c, as, d)
 		if (d->index_update_done)
 			bch2_mark_key(c, bkey_i_to_s_c(&d->key),
-				      c->opts.btree_node_size, true, pos,
+				      c->opts.btree_node_size,
+				      BCH_DATA_BTREE, pos,
 				      &stats, 0,
 				      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
 				      BCH_BUCKET_MARK_GC_LOCK_HELD);

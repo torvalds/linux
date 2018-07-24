@@ -218,8 +218,8 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 #define BCH_BUCKET_MARK_GC_WILL_VISIT		(1 << 2)
 #define BCH_BUCKET_MARK_GC_LOCK_HELD		(1 << 3)
 
-void bch2_mark_key(struct bch_fs *, struct bkey_s_c, s64, bool, struct gc_pos,
-		   struct bch_fs_usage *, u64, unsigned);
+void bch2_mark_key(struct bch_fs *, struct bkey_s_c, s64, enum bch_data_type,
+		   struct gc_pos, struct bch_fs_usage *, u64, unsigned);
 
 void bch2_recalc_sectors_available(struct bch_fs *);
 

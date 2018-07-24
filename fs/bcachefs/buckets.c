@@ -512,15 +512,13 @@ static void bch2_mark_pointer(struct bch_fs *c,
 			      struct bkey_s_c_extent e,
 			      const struct bch_extent_ptr *ptr,
 			      struct bch_extent_crc_unpacked crc,
-			      s64 sectors, enum s_alloc type,
+			      s64 sectors, enum bch_data_type data_type,
 			      struct bch_fs_usage *stats,
 			      u64 journal_seq, unsigned flags)
 {
 	struct bucket_mark old, new;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 	struct bucket *g = PTR_BUCKET(ca, ptr);
-	enum bch_data_type data_type = type == S_META
-		? BCH_DATA_BTREE : BCH_DATA_USER;
 	u64 v;
 
 	if (crc.compression_type) {
@@ -596,7 +594,7 @@ static void bch2_mark_pointer(struct bch_fs *c,
 }
 
 void bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
-		   s64 sectors, bool metadata,
+		   s64 sectors, enum bch_data_type data_type,
 		   struct gc_pos pos,
 		   struct bch_fs_usage *stats,
 		   u64 journal_seq, unsigned flags)
@@ -643,14 +641,14 @@ void bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 		const struct bch_extent_ptr *ptr;
 		struct bch_extent_crc_unpacked crc;
-		enum s_alloc type = metadata ? S_META : S_DIRTY;
+		enum s_alloc type = data_type == BCH_DATA_USER
+			? S_DIRTY : S_META;
 		unsigned replicas = 0;
 
-		BUG_ON(metadata && bkey_extent_is_cached(e.k));
 		BUG_ON(!sectors);
 
 		extent_for_each_ptr_crc(e, ptr, crc) {
-			bch2_mark_pointer(c, e, ptr, crc, sectors, type,
+			bch2_mark_pointer(c, e, ptr, crc, sectors, data_type,
 					  stats, journal_seq, flags);
 			replicas += !ptr->cached;
 		}
