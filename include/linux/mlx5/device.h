@@ -332,6 +332,13 @@ enum mlx5_event {
 
 	MLX5_EVENT_TYPE_FPGA_ERROR         = 0x20,
 	MLX5_EVENT_TYPE_FPGA_QP_ERROR      = 0x21,
+
+	MLX5_EVENT_TYPE_DEVICE_TRACER      = 0x26,
+};
+
+enum {
+	MLX5_TRACER_SUBTYPE_OWNERSHIP_CHANGE = 0x0,
+	MLX5_TRACER_SUBTYPE_TRACES_AVAILABLE = 0x1,
 };
 
 enum {
@@ -750,7 +757,7 @@ enum {
 
 #define MLX5_MINI_CQE_ARRAY_SIZE 8
 
-static inline int mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
+static inline u8 mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
 {
 	return (cqe->op_own >> 2) & 0x3;
 }
@@ -770,14 +777,14 @@ static inline u8 get_cqe_l3_hdr_type(struct mlx5_cqe64 *cqe)
 	return (cqe->l4_l3_hdr_type >> 2) & 0x3;
 }
 
-static inline u8 cqe_is_tunneled(struct mlx5_cqe64 *cqe)
+static inline bool cqe_is_tunneled(struct mlx5_cqe64 *cqe)
 {
 	return cqe->outer_l3_tunneled & 0x1;
 }
 
-static inline int cqe_has_vlan(struct mlx5_cqe64 *cqe)
+static inline bool cqe_has_vlan(struct mlx5_cqe64 *cqe)
 {
-	return !!(cqe->l4_l3_hdr_type & 0x1);
+	return cqe->l4_l3_hdr_type & 0x1;
 }
 
 static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
@@ -1070,6 +1077,9 @@ enum mlx5_qcam_feature_groups {
 /* GET Dev Caps macros */
 #define MLX5_CAP_GEN(mdev, cap) \
 	MLX5_GET(cmd_hca_cap, mdev->caps.hca_cur[MLX5_CAP_GENERAL], cap)
+
+#define MLX5_CAP_GEN_64(mdev, cap) \
+	MLX5_GET64(cmd_hca_cap, mdev->caps.hca_cur[MLX5_CAP_GENERAL], cap)
 
 #define MLX5_CAP_GEN_MAX(mdev, cap) \
 	MLX5_GET(cmd_hca_cap, mdev->caps.hca_max[MLX5_CAP_GENERAL], cap)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -28,53 +28,51 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
  */
 
-#ifndef __MLX5E_EN_ACCEL_H__
-#define __MLX5E_EN_ACCEL_H__
+#if !defined(__LIB_TRACER_TRACEPOINT_H__) || defined(TRACE_HEADER_MULTI_READ)
+#define __LIB_TRACER_TRACEPOINT_H__
 
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include "en_accel/ipsec_rxtx.h"
-#include "en_accel/tls_rxtx.h"
-#include "en.h"
+#include <linux/tracepoint.h>
+#include "fw_tracer.h"
 
-static inline void
-mlx5e_udp_gso_handle_tx_skb(struct sk_buff *skb)
-{
-	int payload_len = skb_shinfo(skb)->gso_size + sizeof(struct udphdr);
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM mlx5
 
-	udp_hdr(skb)->len = htons(payload_len);
-}
+/* Tracepoint for FWTracer messages: */
+TRACE_EVENT(mlx5_fw,
+	TP_PROTO(const struct mlx5_fw_tracer *tracer, u64 trace_timestamp,
+		 bool lost, u8 event_id, const char *msg),
 
-static inline struct sk_buff *
-mlx5e_accel_handle_tx(struct sk_buff *skb,
-		      struct mlx5e_txqsq *sq,
-		      struct net_device *dev,
-		      struct mlx5e_tx_wqe **wqe,
-		      u16 *pi)
-{
-#ifdef CONFIG_MLX5_EN_TLS
-	if (test_bit(MLX5E_SQ_STATE_TLS, &sq->state)) {
-		skb = mlx5e_tls_handle_tx_skb(dev, sq, skb, wqe, pi);
-		if (unlikely(!skb))
-			return NULL;
-	}
+	TP_ARGS(tracer, trace_timestamp, lost, event_id, msg),
+
+	TP_STRUCT__entry(
+		__string(dev_name, dev_name(&tracer->dev->pdev->dev))
+		__field(u64, trace_timestamp)
+		__field(bool, lost)
+		__field(u8, event_id)
+		__string(msg, msg)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev_name, dev_name(&tracer->dev->pdev->dev));
+		__entry->trace_timestamp = trace_timestamp;
+		__entry->lost = lost;
+		__entry->event_id = event_id;
+		__assign_str(msg, msg);
+	),
+
+	TP_printk("%s [0x%llx] %d [0x%x] %s",
+		  __get_str(dev_name),
+		  __entry->trace_timestamp,
+		  __entry->lost, __entry->event_id,
+		  __get_str(msg))
+);
+
 #endif
 
-#ifdef CONFIG_MLX5_EN_IPSEC
-	if (test_bit(MLX5E_SQ_STATE_IPSEC, &sq->state)) {
-		skb = mlx5e_ipsec_handle_tx_skb(dev, *wqe, skb);
-		if (unlikely(!skb))
-			return NULL;
-	}
-#endif
-
-	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
-		mlx5e_udp_gso_handle_tx_skb(skb);
-
-	return skb;
-}
-
-#endif /* __MLX5E_EN_ACCEL_H__ */
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH ./diag
+#define TRACE_INCLUDE_FILE fw_tracer_tracepoint
+#include <trace/define_trace.h>

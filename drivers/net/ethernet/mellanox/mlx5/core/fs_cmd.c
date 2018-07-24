@@ -349,9 +349,15 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 
 	vlan = MLX5_ADDR_OF(flow_context, in_flow_context, push_vlan);
 
-	MLX5_SET(vlan, vlan, ethtype, fte->action.vlan.ethtype);
-	MLX5_SET(vlan, vlan, vid, fte->action.vlan.vid);
-	MLX5_SET(vlan, vlan, prio, fte->action.vlan.prio);
+	MLX5_SET(vlan, vlan, ethtype, fte->action.vlan[0].ethtype);
+	MLX5_SET(vlan, vlan, vid, fte->action.vlan[0].vid);
+	MLX5_SET(vlan, vlan, prio, fte->action.vlan[0].prio);
+
+	vlan = MLX5_ADDR_OF(flow_context, in_flow_context, push_vlan_2);
+
+	MLX5_SET(vlan, vlan, ethtype, fte->action.vlan[1].ethtype);
+	MLX5_SET(vlan, vlan, vid, fte->action.vlan[1].vid);
+	MLX5_SET(vlan, vlan, prio, fte->action.vlan[1].prio);
 
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
 				      match_value);

@@ -1032,10 +1032,8 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		 * dst ip pair
 		 */
 		n = neigh_lookup(tbl, &m_neigh->dst_ip, m_neigh->dev);
-		if (!n) {
-			WARN(1, "The neighbour already freed\n");
+		if (!n)
 			return;
-		}
 
 		neigh_event_send(n, NULL);
 		neigh_release(n);
@@ -1237,6 +1235,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 				       outer_headers);
 	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				       outer_headers);
+	void *misc_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    misc_parameters);
+	void *misc_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    misc_parameters);
 	u16 addr_type = 0;
 	u8 ip_proto = 0;
 
@@ -1247,6 +1249,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
@@ -1327,15 +1330,59 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_VLAN,
 						  f->mask);
-		if (mask->vlan_id || mask->vlan_priority) {
-			MLX5_SET(fte_match_set_lyr_2_4, headers_c, cvlan_tag, 1);
-			MLX5_SET(fte_match_set_lyr_2_4, headers_v, cvlan_tag, 1);
+		if (mask->vlan_id || mask->vlan_priority || mask->vlan_tpid) {
+			if (key->vlan_tpid == htons(ETH_P_8021AD)) {
+				MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+					 svlan_tag, 1);
+				MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+					 svlan_tag, 1);
+			} else {
+				MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+					 cvlan_tag, 1);
+				MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+					 cvlan_tag, 1);
+			}
 
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_vid, mask->vlan_id);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_vid, key->vlan_id);
 
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_prio, mask->vlan_priority);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_prio, key->vlan_priority);
+
+			*match_level = MLX5_MATCH_L2;
+		}
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CVLAN)) {
+		struct flow_dissector_key_vlan *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_CVLAN,
+						  f->key);
+		struct flow_dissector_key_vlan *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_CVLAN,
+						  f->mask);
+		if (mask->vlan_id || mask->vlan_priority || mask->vlan_tpid) {
+			if (key->vlan_tpid == htons(ETH_P_8021AD)) {
+				MLX5_SET(fte_match_set_misc, misc_c,
+					 outer_second_svlan_tag, 1);
+				MLX5_SET(fte_match_set_misc, misc_v,
+					 outer_second_svlan_tag, 1);
+			} else {
+				MLX5_SET(fte_match_set_misc, misc_c,
+					 outer_second_cvlan_tag, 1);
+				MLX5_SET(fte_match_set_misc, misc_v,
+					 outer_second_cvlan_tag, 1);
+			}
+
+			MLX5_SET(fte_match_set_misc, misc_c, outer_second_vid,
+				 mask->vlan_id);
+			MLX5_SET(fte_match_set_misc, misc_v, outer_second_vid,
+				 key->vlan_id);
+			MLX5_SET(fte_match_set_misc, misc_c, outer_second_prio,
+				 mask->vlan_priority);
+			MLX5_SET(fte_match_set_misc, misc_v, outer_second_prio,
+				 key->vlan_priority);
 
 			*match_level = MLX5_MATCH_L2;
 		}
@@ -2531,6 +2578,56 @@ out_err:
 	return err;
 }
 
+static int parse_tc_vlan_action(struct mlx5e_priv *priv,
+				const struct tc_action *a,
+				struct mlx5_esw_flow_attr *attr,
+				u32 *action)
+{
+	u8 vlan_idx = attr->total_vlan;
+
+	if (vlan_idx >= MLX5_FS_VLAN_DEPTH)
+		return -EOPNOTSUPP;
+
+	if (tcf_vlan_action(a) == TCA_VLAN_ACT_POP) {
+		if (vlan_idx) {
+			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev,
+								 MLX5_FS_VLAN_DEPTH))
+				return -EOPNOTSUPP;
+
+			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2;
+		} else {
+			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+		}
+	} else if (tcf_vlan_action(a) == TCA_VLAN_ACT_PUSH) {
+		attr->vlan_vid[vlan_idx] = tcf_vlan_push_vid(a);
+		attr->vlan_prio[vlan_idx] = tcf_vlan_push_prio(a);
+		attr->vlan_proto[vlan_idx] = tcf_vlan_push_proto(a);
+		if (!attr->vlan_proto[vlan_idx])
+			attr->vlan_proto[vlan_idx] = htons(ETH_P_8021Q);
+
+		if (vlan_idx) {
+			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev,
+								 MLX5_FS_VLAN_DEPTH))
+				return -EOPNOTSUPP;
+
+			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2;
+		} else {
+			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev, 1) &&
+			    (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
+			     tcf_vlan_push_prio(a)))
+				return -EOPNOTSUPP;
+
+			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
+		}
+	} else { /* action is TCA_VLAN_ACT_MODIFY */
+		return -EOPNOTSUPP;
+	}
+
+	attr->total_vlan = vlan_idx + 1;
+
+	return 0;
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
 				struct mlx5e_tc_flow *flow)
@@ -2542,6 +2639,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	LIST_HEAD(actions);
 	bool encap = false;
 	u32 action = 0;
+	int err;
 
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
@@ -2558,8 +2656,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		}
 
 		if (is_tcf_pedit(a)) {
-			int err;
-
 			err = parse_tc_pedit_action(priv, a, MLX5_FLOW_NAMESPACE_FDB,
 						    parse_attr);
 			if (err)
@@ -2626,23 +2722,11 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		}
 
 		if (is_tcf_vlan(a)) {
-			if (tcf_vlan_action(a) == TCA_VLAN_ACT_POP) {
-				action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
-			} else if (tcf_vlan_action(a) == TCA_VLAN_ACT_PUSH) {
-				action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
-				attr->vlan_vid = tcf_vlan_push_vid(a);
-				if (mlx5_eswitch_vlan_actions_supported(priv->mdev)) {
-					attr->vlan_prio = tcf_vlan_push_prio(a);
-					attr->vlan_proto = tcf_vlan_push_proto(a);
-					if (!attr->vlan_proto)
-						attr->vlan_proto = htons(ETH_P_8021Q);
-				} else if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
-					   tcf_vlan_push_prio(a)) {
-					return -EOPNOTSUPP;
-				}
-			} else { /* action is TCA_VLAN_ACT_MODIFY */
-				return -EOPNOTSUPP;
-			}
+			err = parse_tc_vlan_action(priv, a, attr, &action);
+
+			if (err)
+				return err;
+
 			attr->mirror_count = attr->out_count;
 			continue;
 		}

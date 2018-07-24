@@ -32,6 +32,21 @@
 
 #include "cmd.h"
 
+int mlx5_cmd_dump_fill_mkey(struct mlx5_core_dev *dev, u32 *mkey)
+{
+	u32 out[MLX5_ST_SZ_DW(query_special_contexts_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_special_contexts_in)]   = {0};
+	int err;
+
+	MLX5_SET(query_special_contexts_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (!err)
+		*mkey = MLX5_GET(query_special_contexts_out, out,
+				 dump_fill_mkey);
+	return err;
+}
+
 int mlx5_cmd_null_mkey(struct mlx5_core_dev *dev, u32 *null_mkey)
 {
 	u32 out[MLX5_ST_SZ_DW(query_special_contexts_out)] = {};

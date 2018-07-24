@@ -4538,7 +4538,6 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_STAG_TX;
 
 	if (mlx5e_vxlan_allowed(mdev) || MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
-		netdev->hw_features     |= NETIF_F_GSO_PARTIAL;
 		netdev->hw_enc_features |= NETIF_F_IP_CSUM;
 		netdev->hw_enc_features |= NETIF_F_IPV6_CSUM;
 		netdev->hw_enc_features |= NETIF_F_TSO;
@@ -4562,6 +4561,11 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 		netdev->gso_partial_features |= NETIF_F_GSO_GRE |
 						NETIF_F_GSO_GRE_CSUM;
 	}
+
+	netdev->hw_features	                 |= NETIF_F_GSO_PARTIAL;
+	netdev->gso_partial_features             |= NETIF_F_GSO_UDP_L4;
+	netdev->hw_features                      |= NETIF_F_GSO_UDP_L4;
+	netdev->features                         |= NETIF_F_GSO_UDP_L4;
 
 	mlx5_query_port_fcs(mdev, &fcs_supported, &fcs_enabled);
 
@@ -4594,9 +4598,6 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 
 	netdev->features         |= NETIF_F_HIGHDMA;
 	netdev->features         |= NETIF_F_HW_VLAN_STAG_FILTER;
-
-	netdev->features         |= NETIF_F_GSO_UDP_L4;
-	netdev->hw_features      |= NETIF_F_GSO_UDP_L4;
 
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
 
