@@ -2125,6 +2125,15 @@ static const struct attribute_group cpuhp_smt_attr_group = {
 
 static int __init cpu_smt_state_init(void)
 {
+	/*
+	 * If SMT was disabled by BIOS, detect it here, after the CPUs have
+	 * been brought online.  This ensures the smt/l1tf sysfs entries are
+	 * consistent with reality.  Note this may overwrite cpu_smt_control's
+	 * previous setting.
+	 */
+	if (topology_max_smt_threads() == 1)
+		cpu_smt_control = CPU_SMT_NOT_SUPPORTED;
+
 	return sysfs_create_group(&cpu_subsys.dev_root->kobj,
 				  &cpuhp_smt_attr_group);
 }
