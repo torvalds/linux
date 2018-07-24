@@ -196,6 +196,17 @@
 				#reset-cells = <1>;
 				clocks = <&clkc_audio AUD_CLKID_DDR_ARB>;
 			};
+
+			spdifout: audio-controller@480 {
+				compatible = "amlogic,axg-spdifout";
+				reg = <0x0 0x480 0x0 0x50>;
+				#sound-dai-cells = <0>;
+				sound-name-prefix = "SPDIFOUT";
+				clocks = <&clkc_audio AUD_CLKID_SPDIFOUT>,
+					 <&clkc_audio AUD_CLKID_SPDIFOUT_CLK>;
+				clock-names = "pclk", "mclk";
+				status = "disabled";
+			};
 		};
 
 		cbus: bus@ffd00000 {
