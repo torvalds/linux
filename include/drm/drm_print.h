@@ -73,6 +73,7 @@ struct drm_printer {
 	const char *prefix;
 };
 
+void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
@@ -103,6 +104,70 @@ drm_vprintf(struct drm_printer *p, const char *fmt, va_list *va)
  */
 #define drm_printf_indent(printer, indent, fmt, ...) \
 	drm_printf((printer), "%.*s" fmt, (indent), "\t\t\t\t\tX", ##__VA_ARGS__)
+
+/**
+ * struct drm_print_iterator - local struct used with drm_printer_coredump
+ * @data: Pointer to the devcoredump output buffer
+ * @start: The offset within the buffer to start writing
+ * @remain: The number of bytes to write for this iteration
+ */
+struct drm_print_iterator {
+	void *data;
+	ssize_t start;
+	ssize_t remain;
+	/* private: */
+	ssize_t offset;
+};
+
+/**
+ * drm_coredump_printer - construct a &drm_printer that can output to a buffer
+ * from the read function for devcoredump
+ * @iter: A pointer to a struct drm_print_iterator for the read instance
+ *
+ * This wrapper extends drm_printf() to work with a dev_coredumpm() callback
+ * function. The passed in drm_print_iterator struct contains the buffer
+ * pointer, size and offset as passed in from devcoredump.
+ *
+ * For example::
+ *
+ *	void coredump_read(char *buffer, loff_t offset, size_t count,
+ *		void *data, size_t datalen)
+ *	{
+ *		struct drm_print_iterator iter;
+ *		struct drm_printer p;
+ *
+ *		iter.data = buffer;
+ *		iter.start = offset;
+ *		iter.remain = count;
+ *
+ *		p = drm_coredump_printer(&iter);
+ *
+ *		drm_printf(p, "foo=%d\n", foo);
+ *	}
+ *
+ *	void makecoredump(...)
+ *	{
+ *		...
+ *		dev_coredumpm(dev, THIS_MODULE, data, 0, GFP_KERNEL,
+ *			coredump_read, ...)
+ *	}
+ *
+ * RETURNS:
+ * The &drm_printer object
+ */
+static inline struct drm_printer
+drm_coredump_printer(struct drm_print_iterator *iter)
+{
+	struct drm_printer p = {
+		.printfn = __drm_printfn_coredump,
+		.arg = iter,
+	};
+
+	/* Set the internal offset of the iterator to zero */
+	iter->offset = 0;
+
+	return p;
+}
 
 /**
  * drm_seq_file_printer - construct a &drm_printer that outputs to &seq_file

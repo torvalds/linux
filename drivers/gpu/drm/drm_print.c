@@ -30,6 +30,80 @@
 #include <drm/drmP.h>
 #include <drm/drm_print.h>
 
+void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
+{
+	struct drm_print_iterator *iterator = p->arg;
+	ssize_t len;
+
+	if (!iterator->remain)
+		return;
+
+	/* Figure out how big the string will be */
+	len = snprintf(NULL, 0, "%pV", vaf);
+
+	if (iterator->offset < iterator->start) {
+		char *buf;
+		ssize_t copy;
+
+		if (iterator->offset + len <= iterator->start) {
+			iterator->offset += len;
+			return;
+		}
+
+		/* Print the string into a temporary buffer */
+		buf = kmalloc(len + 1,
+			GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+		if (!buf)
+			return;
+
+		snprintf(buf, len + 1, "%pV", vaf);
+
+		copy = len - (iterator->start - iterator->offset);
+
+		if (copy > iterator->remain)
+			copy = iterator->remain;
+
+		/* Copy out the bit of the string that we need */
+		memcpy(iterator->data,
+			buf + (iterator->start - iterator->offset), copy);
+
+		iterator->offset = iterator->start + copy;
+		iterator->remain -= copy;
+
+		kfree(buf);
+	} else {
+		char *buf;
+		ssize_t pos = iterator->offset - iterator->start;
+
+		if (len < iterator->remain) {
+			snprintf(((char *) iterator->data) + pos,
+				iterator->remain, "%pV", vaf);
+
+			iterator->offset += len;
+			iterator->remain -= len;
+
+			return;
+		}
+
+		/* Print the string into a temporary buffer */
+		buf = kmalloc(len + 1,
+			GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+		if (!buf)
+			return;
+
+		snprintf(buf, len + 1, "%pV", vaf);
+
+		/* Copy out the remaining bits */
+		memcpy(iterator->data + pos, buf, iterator->remain);
+
+		iterator->offset += iterator->remain;
+		iterator->remain = 0;
+
+		kfree(buf);
+	}
+}
+EXPORT_SYMBOL(__drm_printfn_coredump);
+
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf)
 {
 	seq_printf(p->arg, "%pV", vaf);
