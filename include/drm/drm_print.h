@@ -69,6 +69,7 @@
 struct drm_printer {
 	/* private: */
 	void (*printfn)(struct drm_printer *p, struct va_format *vaf);
+	void (*puts)(struct drm_printer *p, const char *str);
 	void *arg;
 	const char *prefix;
 };
@@ -80,6 +81,7 @@ void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
 
 __printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
+void drm_puts(struct drm_printer *p, const char *str);
 
 __printf(2, 0)
 /**
