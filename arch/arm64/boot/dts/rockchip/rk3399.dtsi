@@ -1774,10 +1774,10 @@
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru ACLK_VOP1>, <&cru DCLK_VOP1>, <&cru HCLK_VOP1>, <&cru DCLK_VOP1_DIV>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop", "dclk_source";
+		iommus = <&vopl_mmu>;
+		power-domains = <&power RK3399_PD_VOPL>;
 		resets = <&cru SRST_A_VOP1>, <&cru SRST_H_VOP1>, <&cru SRST_D_VOP1>;
 		reset-names = "axi", "ahb", "dclk";
-		power-domains = <&power RK3399_PD_VOPL>;
-		iommus = <&vopl_mmu>;
 		status = "disabled";
 
 		vopl_out: port {
@@ -1966,16 +1966,18 @@
 	hdmi: hdmi@ff940000 {
 		compatible = "rockchip,rk3399-dw-hdmi";
 		reg = <0x0 0xff940000 0x0 0x20000>;
-		reg-io-width = <4>;
-		rockchip,grf = <&grf>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_i2c_xfer>, <&hdmi_cec>;
-		power-domains = <&power RK3399_PD_HDCP>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH 0>;
-		clocks = <&cru PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_SFR>,
-			 <&cru PLL_VPLL>, <&cru PCLK_VIO_GRF>,
+		clocks = <&cru PCLK_HDMI_CTRL>,
+			 <&cru SCLK_HDMI_SFR>,
+			 <&cru PLL_VPLL>,
+			 <&cru PCLK_VIO_GRF>,
 			 <&cru SCLK_HDMI_CEC>;
 		clock-names = "iahb", "isfr", "vpll", "grf", "cec";
+		power-domains = <&power RK3399_PD_HDCP>;
+		reg-io-width = <4>;
+		rockchip,grf = <&grf>;
 		status = "disabled";
 
 		ports {
@@ -2001,13 +2003,13 @@
 		clocks = <&cru SCLK_DPHY_PLL>, <&cru PCLK_MIPI_DSI0>,
 			 <&cru SCLK_DPHY_TX0_CFG>;
 		clock-names = "ref", "pclk", "phy_cfg";
+		power-domains = <&power RK3399_PD_VIO>;
 		resets = <&cru SRST_P_MIPI_DSI0>;
 		reset-names = "apb";
-		power-domains = <&power RK3399_PD_VIO>;
 		rockchip,grf = <&grf>;
+		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
 
 		ports {
 			port {
@@ -2034,13 +2036,13 @@
 		clocks = <&cru SCLK_DPHY_PLL>, <&cru PCLK_MIPI_DSI1>,
 			 <&cru SCLK_DPHY_TX1RX1_CFG>;
 		clock-names = "ref", "pclk", "phy_cfg";
+		power-domains = <&power RK3399_PD_VIO>;
 		resets = <&cru SRST_P_MIPI_DSI1>;
 		reset-names = "apb";
-		power-domains = <&power RK3399_PD_VIO>;
 		rockchip,grf = <&grf>;
+		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
 
 		ports {
 			port {
