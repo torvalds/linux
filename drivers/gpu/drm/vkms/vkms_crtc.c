@@ -64,13 +64,60 @@ bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 	return true;
 }
 
+static void vkms_atomic_crtc_reset(struct drm_crtc *crtc)
+{
+	struct vkms_crtc_state *vkms_state = NULL;
+
+	if (crtc->state) {
+		vkms_state = to_vkms_crtc_state(crtc->state);
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+		kfree(vkms_state);
+		crtc->state = NULL;
+	}
+
+	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
+	if (!vkms_state)
+		return;
+
+	crtc->state = &vkms_state->base;
+	crtc->state->crtc = crtc;
+}
+
+static struct drm_crtc_state *
+vkms_atomic_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct vkms_crtc_state *vkms_state;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
+	if (!vkms_state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &vkms_state->base);
+
+	return &vkms_state->base;
+}
+
+static void vkms_atomic_crtc_destroy_state(struct drm_crtc *crtc,
+					   struct drm_crtc_state *state)
+{
+	struct vkms_crtc_state *vkms_state;
+
+	vkms_state = to_vkms_crtc_state(state);
+
+	__drm_atomic_helper_crtc_destroy_state(state);
+	kfree(vkms_state);
+}
+
 static const struct drm_crtc_funcs vkms_crtc_funcs = {
 	.set_config             = drm_atomic_helper_set_config,
 	.destroy                = drm_crtc_cleanup,
 	.page_flip              = drm_atomic_helper_page_flip,
-	.reset                  = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state   = drm_atomic_helper_crtc_destroy_state,
+	.reset                  = vkms_atomic_crtc_reset,
+	.atomic_duplicate_state = vkms_atomic_crtc_duplicate_state,
+	.atomic_destroy_state   = vkms_atomic_crtc_destroy_state,
 	.enable_vblank		= vkms_enable_vblank,
 	.disable_vblank		= vkms_disable_vblank,
 };
