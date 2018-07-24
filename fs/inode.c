@@ -1050,6 +1050,7 @@ struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
 {
 	struct hlist_head *head = inode_hashtable + hash(inode->i_sb, hashval);
 	struct inode *old;
+	bool creating = inode->i_state & I_CREATING;
 
 again:
 	spin_lock(&inode_hash_lock);
@@ -1083,6 +1084,8 @@ again:
 	inode->i_state |= I_NEW;
 	hlist_add_head(&inode->i_hash, head);
 	spin_unlock(&inode->i_lock);
+	if (!creating)
+		inode_sb_list_add(inode);
 unlock:
 	spin_unlock(&inode_hash_lock);
 
@@ -1117,12 +1120,13 @@ struct inode *iget5_locked(struct super_block *sb, unsigned long hashval,
 	struct inode *inode = ilookup5(sb, hashval, test, data);
 
 	if (!inode) {
-		struct inode *new = new_inode(sb);
+		struct inode *new = alloc_inode(sb);
 
 		if (new) {
+			new->i_state = 0;
 			inode = inode_insert5(new, hashval, test, set, data);
 			if (unlikely(inode != new))
-				iput(new);
+				destroy_inode(new);
 		}
 	}
 	return inode;
