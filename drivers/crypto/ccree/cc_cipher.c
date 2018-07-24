@@ -743,14 +743,6 @@ static int cc_cipher_process(struct skcipher_request *req,
 	cc_setup_cipher_data(tfm, req_ctx, dst, src, nbytes, req, desc,
 			     &seq_len);
 
-	/* do we need to generate IV? */
-	if (req_ctx->is_giv) {
-		cc_req.ivgen_dma_addr[0] = req_ctx->gen_ctx.iv_dma_addr;
-		cc_req.ivgen_dma_addr_len = 1;
-		/* set the IV size (8/16 B long)*/
-		cc_req.ivgen_size = ivsize;
-	}
-
 	/* STAT_PHASE_3: Lock HW and push sequence */
 
 	rc = cc_send_request(ctx_p->drvdata, &cc_req, desc, seq_len,
@@ -775,7 +767,6 @@ static int cc_cipher_encrypt(struct skcipher_request *req)
 {
 	struct cipher_req_ctx *req_ctx = skcipher_request_ctx(req);
 
-	req_ctx->is_giv = false;
 	req_ctx->backup_info = NULL;
 
 	return cc_cipher_process(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
@@ -806,8 +797,6 @@ static int cc_cipher_decrypt(struct skcipher_request *req)
 	} else {
 		req_ctx->backup_info = NULL;
 	}
-
-	req_ctx->is_giv = false;
 
 	return cc_cipher_process(req, DRV_CRYPTO_DIRECTION_DECRYPT);
 }
