@@ -30,7 +30,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_print.h>
 
-void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
+void __drm_puts_coredump(struct drm_printer *p, const char *str)
 {
 	struct drm_print_iterator *iterator = p->arg;
 	ssize_t len;
@@ -38,25 +38,15 @@ void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
 	if (!iterator->remain)
 		return;
 
-	/* Figure out how big the string will be */
-	len = snprintf(NULL, 0, "%pV", vaf);
-
 	if (iterator->offset < iterator->start) {
-		char *buf;
 		ssize_t copy;
+
+		len = strlen(str);
 
 		if (iterator->offset + len <= iterator->start) {
 			iterator->offset += len;
 			return;
 		}
-
-		/* Print the string into a temporary buffer */
-		buf = kmalloc(len + 1,
-			GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
-		if (!buf)
-			return;
-
-		snprintf(buf, len + 1, "%pV", vaf);
 
 		copy = len - (iterator->start - iterator->offset);
 
@@ -65,42 +55,66 @@ void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
 
 		/* Copy out the bit of the string that we need */
 		memcpy(iterator->data,
-			buf + (iterator->start - iterator->offset), copy);
+			str + (iterator->start - iterator->offset), copy);
 
 		iterator->offset = iterator->start + copy;
 		iterator->remain -= copy;
-
-		kfree(buf);
 	} else {
-		char *buf;
 		ssize_t pos = iterator->offset - iterator->start;
 
-		if (len < iterator->remain) {
-			snprintf(((char *) iterator->data) + pos,
-				iterator->remain, "%pV", vaf);
+		len = min_t(ssize_t, strlen(str), iterator->remain);
 
-			iterator->offset += len;
-			iterator->remain -= len;
+		memcpy(iterator->data + pos, str, len);
 
-			return;
-		}
-
-		/* Print the string into a temporary buffer */
-		buf = kmalloc(len + 1,
-			GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
-		if (!buf)
-			return;
-
-		snprintf(buf, len + 1, "%pV", vaf);
-
-		/* Copy out the remaining bits */
-		memcpy(iterator->data + pos, buf, iterator->remain);
-
-		iterator->offset += iterator->remain;
-		iterator->remain = 0;
-
-		kfree(buf);
+		iterator->offset += len;
+		iterator->remain -= len;
 	}
+}
+EXPORT_SYMBOL(__drm_puts_coredump);
+
+void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
+{
+	struct drm_print_iterator *iterator = p->arg;
+	size_t len;
+	char *buf;
+
+	if (!iterator->remain)
+		return;
+
+	/* Figure out how big the string will be */
+	len = snprintf(NULL, 0, "%pV", vaf);
+
+	/* This is the easiest path, we've already advanced beyond the offset */
+	if (iterator->offset + len <= iterator->start) {
+		iterator->offset += len;
+		return;
+	}
+
+	/* Then check if we can directly copy into the target buffer */
+	if ((iterator->offset >= iterator->start) && (len < iterator->remain)) {
+		ssize_t pos = iterator->offset - iterator->start;
+
+		snprintf(((char *) iterator->data) + pos,
+			iterator->remain, "%pV", vaf);
+
+		iterator->offset += len;
+		iterator->remain -= len;
+
+		return;
+	}
+
+	/*
+	 * Finally, hit the slow path and make a temporary string to copy over
+	 * using _drm_puts_coredump
+	 */
+	buf = kmalloc(len + 1, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	if (!buf)
+		return;
+
+	snprintf(buf, len + 1, "%pV", vaf);
+	__drm_puts_coredump(p, (const char *) buf);
+
+	kfree(buf);
 }
 EXPORT_SYMBOL(__drm_printfn_coredump);
 
