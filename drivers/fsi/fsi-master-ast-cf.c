@@ -606,7 +606,7 @@ static int fsi_master_acf_read(struct fsi_master *_master, int link,
 		return -ENODEV;
 
 	mutex_lock(&master->lock);
-	dev_dbg(master->dev, "read id %d addr %x size %ud\n", id, addr, size);
+	dev_dbg(master->dev, "read id %d addr %x size %zd\n", id, addr, size);
 	build_ar_command(master, &cmd, id, addr, size, NULL);
 	rc = fsi_master_acf_xfer(master, id, &cmd, size, val);
 	last_address_update(master, id, rc == 0, addr);
@@ -631,7 +631,7 @@ static int fsi_master_acf_write(struct fsi_master *_master, int link,
 
 	mutex_lock(&master->lock);
 	build_ar_command(master, &cmd, id, addr, size, val);
-	dev_dbg(master->dev, "write id %d addr %x size %ud raw_data: %08x\n",
+	dev_dbg(master->dev, "write id %d addr %x size %zd raw_data: %08x\n",
 		id, addr, size, *(uint32_t *)val);
 	rc = fsi_master_acf_xfer(master, id, &cmd, 0, NULL);
 	last_address_update(master, id, rc == 0, addr);
