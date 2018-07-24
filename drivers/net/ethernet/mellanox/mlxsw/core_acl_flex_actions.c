@@ -753,14 +753,17 @@ mlxsw_afa_vlan_pack(char *payload,
 }
 
 int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
-				       u16 vid, u8 pcp, u8 et)
+				       u16 vid, u8 pcp, u8 et,
+				       struct netlink_ext_ack *extack)
 {
 	char *act = mlxsw_afa_block_append_action(block,
 						  MLXSW_AFA_VLAN_CODE,
 						  MLXSW_AFA_VLAN_SIZE);
 
-	if (!act)
+	if (!act) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append vlan_modify action");
 		return -ENOBUFS;
+	}
 	mlxsw_afa_vlan_pack(act, MLXSW_AFA_VLAN_VLAN_TAG_CMD_NOP,
 			    MLXSW_AFA_VLAN_CMD_SET_OUTER, vid,
 			    MLXSW_AFA_VLAN_CMD_SET_OUTER, pcp,
@@ -953,19 +956,23 @@ mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
 
 int
 mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u8 local_in_port,
-			      const struct net_device *out_dev, bool ingress)
+			      const struct net_device *out_dev, bool ingress,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlxsw_afa_mirror *mirror;
 	int err;
 
 	mirror = mlxsw_afa_mirror_create(block, local_in_port, out_dev,
 					 ingress);
-	if (IS_ERR(mirror))
+	if (IS_ERR(mirror)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot create mirror action");
 		return PTR_ERR(mirror);
-
+	}
 	err = mlxsw_afa_block_append_allocated_mirror(block, mirror->span_id);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append mirror action");
 		goto err_append_allocated_mirror;
+	}
 
 	return 0;
 
@@ -1015,24 +1022,30 @@ mlxsw_afa_forward_pack(char *payload, enum mlxsw_afa_forward_type type,
 }
 
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
-			       u8 local_port, bool in_port)
+			       u8 local_port, bool in_port,
+			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
 	u32 kvdl_index;
 	char *act;
 	int err;
 
-	if (in_port)
+	if (in_port) {
+		NL_SET_ERR_MSG_MOD(extack, "Forwarding to ingress port is not supported");
 		return -EOPNOTSUPP;
+	}
 	fwd_entry_ref = mlxsw_afa_fwd_entry_ref_create(block, local_port);
-	if (IS_ERR(fwd_entry_ref))
+	if (IS_ERR(fwd_entry_ref)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot create forward action");
 		return PTR_ERR(fwd_entry_ref);
+	}
 	kvdl_index = fwd_entry_ref->fwd_entry->kvdl_index;
 
 	act = mlxsw_afa_block_append_action(block, MLXSW_AFA_FORWARD_CODE,
 					    MLXSW_AFA_FORWARD_SIZE);
 	if (!act) {
 		err = -ENOBUFS;
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append forward action");
 		goto err_append_action;
 	}
 	mlxsw_afa_forward_pack(act, MLXSW_AFA_FORWARD_TYPE_PBS,
@@ -1096,21 +1109,25 @@ int mlxsw_afa_block_append_allocated_counter(struct mlxsw_afa_block *block,
 EXPORT_SYMBOL(mlxsw_afa_block_append_allocated_counter);
 
 int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
-				   u32 *p_counter_index)
+				   u32 *p_counter_index,
+				   struct netlink_ext_ack *extack)
 {
 	struct mlxsw_afa_counter *counter;
 	u32 counter_index;
 	int err;
 
 	counter = mlxsw_afa_counter_create(block);
-	if (IS_ERR(counter))
+	if (IS_ERR(counter)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot create count action");
 		return PTR_ERR(counter);
+	}
 	counter_index = counter->counter_index;
 
 	err = mlxsw_afa_block_append_allocated_counter(block, counter_index);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append count action");
 		goto err_append_allocated_counter;
-
+	}
 	if (p_counter_index)
 		*p_counter_index = counter_index;
 	return 0;
@@ -1153,13 +1170,16 @@ static inline void mlxsw_afa_virfwd_pack(char *payload,
 	mlxsw_afa_virfwd_fid_set(payload, fid);
 }
 
-int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid)
+int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
+				   struct netlink_ext_ack *extack)
 {
 	char *act = mlxsw_afa_block_append_action(block,
 						  MLXSW_AFA_VIRFWD_CODE,
 						  MLXSW_AFA_VIRFWD_SIZE);
-	if (!act)
+	if (!act) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append fid_set action");
 		return -ENOBUFS;
+	}
 	mlxsw_afa_virfwd_pack(act, MLXSW_AFA_VIRFWD_FID_CMD_SET, fid);
 	return 0;
 }

@@ -538,18 +538,23 @@ int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei)
 
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_rule_info *rulei,
-			       struct net_device *out_dev)
+			       struct net_device *out_dev,
+			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	u8 local_port;
 	bool in_port;
 
 	if (out_dev) {
-		if (!mlxsw_sp_port_dev_check(out_dev))
+		if (!mlxsw_sp_port_dev_check(out_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid output device");
 			return -EINVAL;
+		}
 		mlxsw_sp_port = netdev_priv(out_dev);
-		if (mlxsw_sp_port->mlxsw_sp != mlxsw_sp)
+		if (mlxsw_sp_port->mlxsw_sp != mlxsw_sp) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid output device");
 			return -EINVAL;
+		}
 		local_port = mlxsw_sp_port->local_port;
 		in_port = false;
 	} else {
@@ -560,20 +565,22 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 		in_port = true;
 	}
 	return mlxsw_afa_block_append_fwd(rulei->act_block,
-					  local_port, in_port);
+					  local_port, in_port, extack);
 }
 
 int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
 				  struct mlxsw_sp_acl_block *block,
-				  struct net_device *out_dev)
+				  struct net_device *out_dev,
+				  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_acl_block_binding *binding;
 	struct mlxsw_sp_port *in_port;
 
-	if (!list_is_singular(&block->binding_list))
+	if (!list_is_singular(&block->binding_list)) {
+		NL_SET_ERR_MSG_MOD(extack, "Only a single mirror source is allowed");
 		return -EOPNOTSUPP;
-
+	}
 	binding = list_first_entry(&block->binding_list,
 				   struct mlxsw_sp_acl_block_binding, list);
 	in_port = binding->mlxsw_sp_port;
@@ -581,12 +588,14 @@ int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_afa_block_append_mirror(rulei->act_block,
 					     in_port->local_port,
 					     out_dev,
-					     binding->ingress);
+					     binding->ingress,
+					     extack);
 }
 
 int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule_info *rulei,
-				u32 action, u16 vid, u16 proto, u8 prio)
+				u32 action, u16 vid, u16 proto, u8 prio,
+				struct netlink_ext_ack *extack)
 {
 	u8 ethertype;
 
@@ -599,37 +608,42 @@ int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 			ethertype = 1;
 			break;
 		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported VLAN protocol");
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported VLAN protocol %#04x\n",
 				proto);
 			return -EINVAL;
 		}
 
 		return mlxsw_afa_block_append_vlan_modify(rulei->act_block,
-							  vid, prio, ethertype);
+							  vid, prio, ethertype,
+							  extack);
 	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported VLAN action");
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported VLAN action\n");
 		return -EINVAL;
 	}
 }
 
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_rule_info *rulei)
+				 struct mlxsw_sp_acl_rule_info *rulei,
+				 struct netlink_ext_ack *extack)
 {
 	return mlxsw_afa_block_append_counter(rulei->act_block,
-					      &rulei->counter_index);
+					      &rulei->counter_index, extack);
 }
 
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_rule_info *rulei,
-				   u16 fid)
+				   u16 fid, struct netlink_ext_ack *extack)
 {
-	return mlxsw_afa_block_append_fid_set(rulei->act_block, fid);
+	return mlxsw_afa_block_append_fid_set(rulei->act_block, fid, extack);
 }
 
 struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,
-			 unsigned long cookie)
+			 unsigned long cookie,
+			 struct netlink_ext_ack *extack)
 {
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 	struct mlxsw_sp_acl_rule *rule;

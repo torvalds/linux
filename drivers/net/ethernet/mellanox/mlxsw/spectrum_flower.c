@@ -48,7 +48,8 @@
 static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_block *block,
 					 struct mlxsw_sp_acl_rule_info *rulei,
-					 struct tcf_exts *exts)
+					 struct tcf_exts *exts,
+					 struct netlink_ext_ack *extack)
 {
 	const struct tc_action *a;
 	LIST_HEAD(actions);
@@ -58,7 +59,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	/* Count action is inserted first */
-	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei);
+	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei, extack);
 	if (err)
 		return err;
 
@@ -66,16 +67,22 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	list_for_each_entry(a, &actions, list) {
 		if (is_tcf_gact_ok(a)) {
 			err = mlxsw_sp_acl_rulei_act_terminate(rulei);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append terminate action");
 				return err;
+			}
 		} else if (is_tcf_gact_shot(a)) {
 			err = mlxsw_sp_acl_rulei_act_drop(rulei);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append drop action");
 				return err;
+			}
 		} else if (is_tcf_gact_trap(a)) {
 			err = mlxsw_sp_acl_rulei_act_trap(rulei);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append trap action");
 				return err;
+			}
 		} else if (is_tcf_gact_goto_chain(a)) {
 			u32 chain_index = tcf_gact_goto_chain_index(a);
 			struct mlxsw_sp_acl_ruleset *ruleset;
@@ -89,8 +96,10 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 			group_id = mlxsw_sp_acl_ruleset_group_id(ruleset);
 			err = mlxsw_sp_acl_rulei_act_jump(rulei, group_id);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append jump action");
 				return err;
+			}
 		} else if (is_tcf_mirred_egress_redirect(a)) {
 			struct net_device *out_dev;
 			struct mlxsw_sp_fid *fid;
@@ -99,20 +108,21 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			fid = mlxsw_sp_acl_dummy_fid(mlxsw_sp);
 			fid_index = mlxsw_sp_fid_index(fid);
 			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
-							     fid_index);
+							     fid_index, extack);
 			if (err)
 				return err;
 
 			out_dev = tcf_mirred_dev(a);
 			err = mlxsw_sp_acl_rulei_act_fwd(mlxsw_sp, rulei,
-							 out_dev);
+							 out_dev, extack);
 			if (err)
 				return err;
 		} else if (is_tcf_mirred_egress_mirror(a)) {
 			struct net_device *out_dev = tcf_mirred_dev(a);
 
 			err = mlxsw_sp_acl_rulei_act_mirror(mlxsw_sp, rulei,
-							    block, out_dev);
+							    block, out_dev,
+							    extack);
 			if (err)
 				return err;
 		} else if (is_tcf_vlan(a)) {
@@ -123,8 +133,9 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 			return mlxsw_sp_acl_rulei_act_vlan(mlxsw_sp, rulei,
 							   action, vid,
-							   proto, prio);
+							   proto, prio, extack);
 		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported action\n");
 			return -EOPNOTSUPP;
 		}
@@ -201,6 +212,7 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	if (ip_proto != IPPROTO_TCP && ip_proto != IPPROTO_UDP) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "Only UDP and TCP keys are supported");
 		dev_err(mlxsw_sp->bus_info->dev, "Only UDP and TCP keys are supported\n");
 		return -EINVAL;
 	}
@@ -229,6 +241,7 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	if (ip_proto != IPPROTO_TCP) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "TCP keys supported only for TCP");
 		dev_err(mlxsw_sp->bus_info->dev, "TCP keys supported only for TCP\n");
 		return -EINVAL;
 	}
@@ -255,6 +268,7 @@ static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	if (n_proto != ETH_P_IP && n_proto != ETH_P_IPV6) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "IP keys supported only for IPv4/6");
 		dev_err(mlxsw_sp->bus_info->dev, "IP keys supported only for IPv4/6\n");
 		return -EINVAL;
 	}
@@ -299,6 +313,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	      BIT(FLOW_DISSECTOR_KEY_IP) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported key\n");
+		NL_SET_ERR_MSG_MOD(f->common.extack, "Unsupported key");
 		return -EOPNOTSUPP;
 	}
 
@@ -400,7 +415,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	return mlxsw_sp_flower_parse_actions(mlxsw_sp, block, rulei, f->exts);
+	return mlxsw_sp_flower_parse_actions(mlxsw_sp, block, rulei, f->exts,
+					     f->common.extack);
 }
 
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
@@ -418,7 +434,8 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
-	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie);
+	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie,
+					f->common.extack);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		goto err_rule_create;

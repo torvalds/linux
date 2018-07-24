@@ -80,16 +80,21 @@ int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 int mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
 				  u8 local_in_port,
 				  const struct net_device *out_dev,
-				  bool ingress);
+				  bool ingress,
+				  struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
-			       u8 local_port, bool in_port);
+			       u8 local_port, bool in_port,
+			       struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
-				       u16 vid, u8 pcp, u8 et);
+				       u16 vid, u8 pcp, u8 et,
+				       struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_allocated_counter(struct mlxsw_afa_block *block,
 					     u32 counter_index);
 int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
-				   u32 *p_counter_index);
-int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid);
+				   u32 *p_counter_index,
+				   struct netlink_ext_ack *extack);
+int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
+				   struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 				    u16 expected_irif, u16 min_mtu,
 				    bool rmid_valid, u32 kvdl_index);
