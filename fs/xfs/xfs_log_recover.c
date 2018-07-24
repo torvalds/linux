@@ -4854,10 +4854,10 @@ xlog_finish_defer_ops(
 			0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
-	/* dfops is already populated so assign it manually */
-	tp->t_dfops = dfops;
+	/* transfer all collected dfops to this transaction */
+	xfs_defer_move(tp->t_dfops, dfops);
 
-	error = xfs_defer_finish(&tp, dfops);
+	error = xfs_defer_finish(&tp, tp->t_dfops);
 	if (error)
 		goto out_cancel;
 
