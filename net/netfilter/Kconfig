@@ -627,6 +627,13 @@ config NFT_SOCKET
 	  This option allows matching for the presence or absence of a
 	  corresponding socket and its attributes.
 
+config NFT_OSF
+	tristate "Netfilter nf_tables passive OS fingerprint support"
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK_OSF
+	help
+	  This option allows matching packets from an specific OS.
+
 if NF_TABLES_NETDEV
 
 config NF_DUP_NETDEV
