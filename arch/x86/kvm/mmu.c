@@ -2901,6 +2901,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep, unsigned pte_access,
 	int rmap_count;
 	int set_spte_ret;
 	int ret = RET_PF_RETRY;
+	bool flush = false;
 
 	pgprintk("%s: spte %llx write_fault %d gfn %llx\n", __func__,
 		 *sptep, write_fault, gfn);
@@ -2917,12 +2918,12 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep, unsigned pte_access,
 
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
 			drop_parent_pte(child, sptep);
-			kvm_flush_remote_tlbs(vcpu->kvm);
+			flush = true;
 		} else if (pfn != spte_to_pfn(*sptep)) {
 			pgprintk("hfn old %llx new %llx\n",
 				 spte_to_pfn(*sptep), pfn);
 			drop_spte(vcpu->kvm, sptep);
-			kvm_flush_remote_tlbs(vcpu->kvm);
+			flush = true;
 		} else
 			was_rmapped = 1;
 	}
@@ -2934,7 +2935,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep, unsigned pte_access,
 			ret = RET_PF_EMULATE;
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	}
-	if (set_spte_ret & SET_SPTE_NEED_REMOTE_TLB_FLUSH)
+	if (set_spte_ret & SET_SPTE_NEED_REMOTE_TLB_FLUSH || flush)
 		kvm_flush_remote_tlbs(vcpu->kvm);
 
 	if (unlikely(is_mmio_spte(*sptep)))
