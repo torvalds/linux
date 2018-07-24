@@ -781,7 +781,7 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 		"    meta:               %llu\n"
 		"    user:               %llu\n"
 		"    cached:             %llu\n"
-		"    available:          %llu\n"
+		"    available:          %lli\n"
 		"sectors:\n"
 		"    sb:                 %llu\n"
 		"    journal:            %llu\n"
@@ -802,7 +802,7 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 		stats.buckets[BCH_DATA_BTREE],
 		stats.buckets[BCH_DATA_USER],
 		stats.buckets[BCH_DATA_CACHED],
-		__dev_buckets_available(ca, stats),
+		ca->mi.nbuckets - ca->mi.first_bucket - stats.buckets_unavailable,
 		stats.sectors[BCH_DATA_SB],
 		stats.sectors[BCH_DATA_JOURNAL],
 		stats.sectors[BCH_DATA_BTREE],

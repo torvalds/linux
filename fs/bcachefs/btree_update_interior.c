@@ -185,7 +185,7 @@ found:
 	replicas = bch2_extent_nr_dirty_ptrs(k);
 	if (replicas)
 		stats->replicas[replicas - 1].data[BCH_DATA_BTREE] -=
-			c->opts.btree_node_size;
+			c->opts.btree_node_size * replicas;
 
 	/*
 	 * We're dropping @k from the btree, but it's still live until the

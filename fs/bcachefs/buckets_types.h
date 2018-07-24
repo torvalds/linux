@@ -62,7 +62,6 @@ struct bch_dev_usage {
 
 struct bch_fs_usage {
 	/* all fields are in units of 512 byte sectors: */
-	/* _uncompressed_ sectors: */
 	u64			online_reserved;
 	u64			available_cache;
 

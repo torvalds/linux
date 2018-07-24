@@ -985,14 +985,6 @@ static int __bch2_dev_attach_bdev(struct bch_dev *ca, struct bch_sb_handle *sb)
 	ca->disk_sb = *sb;
 	memset(sb, 0, sizeof(*sb));
 
-	if (ca->fs)
-		mutex_lock(&ca->fs->sb_lock);
-
-	bch2_mark_dev_superblock(ca->fs, ca, BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE);
-
-	if (ca->fs)
-		mutex_unlock(&ca->fs->sb_lock);
-
 	percpu_ref_reinit(&ca->io_ref);
 
 	return 0;
@@ -1017,6 +1009,11 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 	ret = __bch2_dev_attach_bdev(ca, sb);
 	if (ret)
 		return ret;
+
+	mutex_lock(&c->sb_lock);
+	bch2_mark_dev_superblock(ca->fs, ca,
+			BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE);
+	mutex_unlock(&c->sb_lock);
 
 	bch2_dev_sysfs_online(c, ca);
 
@@ -1295,6 +1292,24 @@ err:
 	return ret;
 }
 
+static void dev_usage_clear(struct bch_dev *ca)
+{
+	struct bucket_array *buckets;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct bch_dev_usage *p =
+			per_cpu_ptr(ca->usage_percpu, cpu);
+		memset(p, 0, sizeof(*p));
+	}
+
+	down_read(&ca->bucket_lock);
+	buckets = bucket_array(ca);
+
+	memset(buckets->b, 0, sizeof(buckets->b[0]) * buckets->nbuckets);
+	up_read(&ca->bucket_lock);
+}
+
 /* Add new device to running filesystem: */
 int bch2_dev_add(struct bch_fs *c, const char *path)
 {
@@ -1333,10 +1348,27 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		return ret;
 	}
 
+	/*
+	 * We want to allocate journal on the new device before adding the new
+	 * device to the filesystem because allocating after we attach requires
+	 * spinning up the allocator thread, and the allocator thread requires
+	 * doing btree writes, which if the existing devices are RO isn't going
+	 * to work
+	 *
+	 * So we have to mark where the superblocks are, but marking allocated
+	 * data normally updates the filesystem usage too, so we have to mark,
+	 * allocate the journal, reset all the marks, then remark after we
+	 * attach...
+	 */
+	bch2_mark_dev_superblock(ca->fs, ca,
+			BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE);
+
 	err = "journal alloc failed";
 	ret = bch2_dev_journal_alloc(ca);
 	if (ret)
 		goto err;
+
+	dev_usage_clear(ca);
 
 	mutex_lock(&c->state_lock);
 	mutex_lock(&c->sb_lock);
@@ -1387,6 +1419,9 @@ have_slot:
 
 	ca->disk_sb.sb->dev_idx	= dev_idx;
 	bch2_dev_attach(c, ca, dev_idx);
+
+	bch2_mark_dev_superblock(c, ca,
+			BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE);
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
