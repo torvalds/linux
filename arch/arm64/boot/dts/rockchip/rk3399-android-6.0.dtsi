@@ -57,7 +57,7 @@
 
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
-		nvmem-cells = <&efuse_id>;
+		nvmem-cells = <&cpu_id>;
 		nvmem-cell-names = "id";
 	};
 

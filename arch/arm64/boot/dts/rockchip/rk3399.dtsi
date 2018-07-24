@@ -1439,10 +1439,10 @@
 		clock-names = "pclk_efuse";
 
 		/* Data cells */
-		efuse_id: id@7 {
+		cpu_id: cpu-id@7 {
 			reg = <0x07 0x10>;
 		};
-		cpub_leakage: cpub-leakage@17 {
+		cpub_leakage: cpu-leakage@17 {
 			reg = <0x17 0x1>;
 		};
 		gpu_leakage: gpu-leakage@18 {
@@ -1451,7 +1451,7 @@
 		center_leakage: center-leakage@19 {
 			reg = <0x19 0x1>;
 		};
-		cpul_leakage: cpul-leakage@1a {
+		cpul_leakage: cpu-leakage@1a {
 			reg = <0x1a 0x1>;
 		};
 		logic_leakage: logic-leakage@1b {
