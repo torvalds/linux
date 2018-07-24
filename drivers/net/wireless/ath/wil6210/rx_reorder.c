@@ -297,7 +297,7 @@ void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 /* ADDBA processing */
 static u16 wil_agg_size(struct wil6210_priv *wil, u16 req_agg_wsize)
 {
-	u16 max_agg_size = min_t(u16, WIL_MAX_AGG_WSIZE, WIL_MAX_AMPDU_SIZE /
+	u16 max_agg_size = min_t(u16, wil->max_agg_wsize, wil->max_ampdu_size /
 				 (mtu_max + WIL_MAX_MPDU_OVERHEAD));
 
 	if (!req_agg_wsize)
@@ -364,11 +364,11 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	if (status == WLAN_STATUS_SUCCESS) {
 		if (req_agg_wsize == 0) {
 			wil_dbg_misc(wil, "Suggest BACK wsize %d\n",
-				     WIL_MAX_AGG_WSIZE);
-			agg_wsize = WIL_MAX_AGG_WSIZE;
+				     wil->max_agg_wsize);
+			agg_wsize = wil->max_agg_wsize;
 		} else {
 			agg_wsize = min_t(u16,
-					  WIL_MAX_AGG_WSIZE, req_agg_wsize);
+					  wil->max_agg_wsize, req_agg_wsize);
 		}
 	}
 

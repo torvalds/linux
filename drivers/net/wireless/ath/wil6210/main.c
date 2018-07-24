@@ -1141,6 +1141,15 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 
 		wil->platform_ops.set_features(wil->platform_handle, features);
 	}
+
+	if (test_bit(WMI_FW_CAPABILITY_BACK_WIN_SIZE_64,
+		     wil->fw_capabilities)) {
+		wil->max_agg_wsize = WIL_MAX_AGG_WSIZE_64;
+		wil->max_ampdu_size = WIL_MAX_AMPDU_SIZE_128;
+	} else {
+		wil->max_agg_wsize = WIL_MAX_AGG_WSIZE;
+		wil->max_ampdu_size = WIL_MAX_AMPDU_SIZE;
+	}
 }
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)

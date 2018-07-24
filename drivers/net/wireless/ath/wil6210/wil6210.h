@@ -90,6 +90,8 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 #define WIL_MAX_AMPDU_SIZE	(64 * 1024) /* FW/HW limit */
 #define WIL_MAX_AGG_WSIZE	(32) /* FW/HW limit */
+#define WIL_MAX_AMPDU_SIZE_128	(128 * 1024) /* FW/HW limit */
+#define WIL_MAX_AGG_WSIZE_64	(64) /* FW/HW limit */
 #define WIL6210_MAX_STATUS_RINGS	(8)
 
 /* Hardware offload block adds the following:
@@ -1013,6 +1015,9 @@ struct wil6210_priv {
 	u8 boot_config;
 
 	struct wil_fw_stats_global fw_stats_global;
+
+	u32 max_agg_wsize;
+	u32 max_ampdu_size;
 };
 
 #define wil_to_wiphy(i) (i->wiphy)
