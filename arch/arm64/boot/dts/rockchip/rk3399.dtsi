@@ -116,8 +116,8 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
-			dynamic-power-coefficient = <100>;
 			clocks = <&cru ARMCLKL>;
+			dynamic-power-coefficient = <100>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 		};
 
@@ -154,8 +154,8 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
-			dynamic-power-coefficient = <436>;
 			clocks = <&cru ARMCLKB>;
+			dynamic-power-coefficient = <436>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 		};
 
@@ -267,7 +267,6 @@
 	gmac: ethernet@fe300000 {
 		compatible = "rockchip,rk3399-gmac";
 		reg = <0x0 0xfe300000 0x0 0x10000>;
-		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "macirq";
 		clocks = <&cru SCLK_MAC>, <&cru SCLK_MAC_RX>,
@@ -278,9 +277,10 @@
 			      "mac_clk_tx", "clk_mac_ref",
 			      "clk_mac_refout", "aclk_mac",
 			      "pclk_mac";
+		power-domains = <&power RK3399_PD_GMAC>;
 		resets = <&cru SRST_A_GMAC>;
 		reset-names = "stmmaceth";
-		power-domains = <&power RK3399_PD_GMAC>;
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
@@ -807,19 +807,19 @@
 		compatible = "rockchip,rk3399-tsadc";
 		reg = <0x0 0xff260000 0x0 0x100>;
 		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH 0>;
-		rockchip,grf = <&grf>;
-		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
-		clock-names = "tsadc", "apb_pclk";
 		assigned-clocks = <&cru SCLK_TSADC>;
 		assigned-clock-rates = <750000>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "tsadc", "apb_pclk";
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
+		rockchip,grf = <&grf>;
+		rockchip,hw-tshut-temp = <120000>;
 		pinctrl-names = "init", "default", "sleep";
 		pinctrl-0 = <&otp_gpio>;
 		pinctrl-1 = <&otp_out>;
 		pinctrl-2 = <&otp_gpio>;
 		#thermal-sensor-cells = <1>;
-		rockchip,hw-tshut-temp = <120000>;
 		status = "disabled";
 	};
 
@@ -1599,7 +1599,6 @@
 	tcphy0: phy@ff7c0000 {
 		compatible = "rockchip,rk3399-typec-phy";
 		reg = <0x0 0xff7c0000 0x0 0x40000>;
-		rockchip,grf = <&grf>;
 		#phy-cells = <1>;
 		clocks = <&cru SCLK_UPHY0_TCPDCORE>,
 			 <&cru SCLK_UPHY0_TCPDPHY_REF>;
@@ -1611,6 +1610,7 @@
 			 <&cru SRST_UPHY0_PIPE_L00>,
 			 <&cru SRST_P_UPHY0_TCPHY>;
 		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
+		rockchip,grf = <&grf>;
 		rockchip,typec-conn-dir = <0xe580 0 16>;
 		rockchip,usb3tousb2-en = <0xe580 3 19>;
 		rockchip,usb3-host-disable = <0x2434 0 16>;
@@ -1632,7 +1632,6 @@
 	tcphy1: phy@ff800000 {
 		compatible = "rockchip,rk3399-typec-phy";
 		reg = <0x0 0xff800000 0x0 0x40000>;
-		rockchip,grf = <&grf>;
 		#phy-cells = <1>;
 		clocks = <&cru SCLK_UPHY1_TCPDCORE>,
 			 <&cru SCLK_UPHY1_TCPDPHY_REF>;
@@ -1644,6 +1643,7 @@
 			 <&cru SRST_UPHY1_PIPE_L00>,
 			 <&cru SRST_P_UPHY1_TCPHY>;
 		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
+		rockchip,grf = <&grf>;
 		rockchip,typec-conn-dir = <0xe58c 0 16>;
 		rockchip,usb3tousb2-en = <0xe58c 3 19>;
 		rockchip,usb3-host-disable = <0x2444 0 16>;
