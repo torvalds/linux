@@ -767,7 +767,7 @@ static int cc_cipher_encrypt(struct skcipher_request *req)
 {
 	struct cipher_req_ctx *req_ctx = skcipher_request_ctx(req);
 
-	req_ctx->backup_info = NULL;
+	memset(req_ctx, 0, sizeof(*req_ctx));
 
 	return cc_cipher_process(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
 }
@@ -782,6 +782,8 @@ static int cc_cipher_decrypt(struct skcipher_request *req)
 	gfp_t flags = cc_gfp_flags(&req->base);
 	unsigned int len;
 
+	memset(req_ctx, 0, sizeof(*req_ctx));
+
 	if (ctx_p->cipher_mode == DRV_CIPHER_CBC) {
 
 		/* Allocate and save the last IV sized bytes of the source,
@@ -794,8 +796,6 @@ static int cc_cipher_decrypt(struct skcipher_request *req)
 		len = req->cryptlen - ivsize;
 		scatterwalk_map_and_copy(req_ctx->backup_info, req->src, len,
 					 ivsize, 0);
-	} else {
-		req_ctx->backup_info = NULL;
 	}
 
 	return cc_cipher_process(req, DRV_CRYPTO_DIRECTION_DECRYPT);
