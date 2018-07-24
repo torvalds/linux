@@ -324,4 +324,3 @@ static void __exit exit_basic(void)
 module_init(init_basic)
 module_exit(exit_basic)
 MODULE_LICENSE("GPL");
-

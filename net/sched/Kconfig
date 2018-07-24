@@ -1,6 +1,6 @@
 #
 # Traffic control configuration.
-# 
+#
 
 menuconfig NET_SCHED
 	bool "QoS and/or fair queueing"
@@ -706,7 +706,7 @@ config NET_CLS_ACT
 
 config NET_ACT_POLICE
 	tristate "Traffic Policing"
-        depends on NET_CLS_ACT 
+        depends on NET_CLS_ACT
         ---help---
 	  Say Y here if you want to do traffic policing, i.e. strict
 	  bandwidth limiting. This action replaces the existing policing
