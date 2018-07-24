@@ -46,6 +46,14 @@ config NETFILTER_NETLINK_LOG
 	  and is also scheduled to replace the old syslog-based ipt_LOG
 	  and ip6t_LOG modules.
 
+config NETFILTER_NETLINK_OSF
+	tristate "Netfilter OSF over NFNETLINK interface"
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK
+	help
+	  If this option is enabled, the kernel will include support
+	  for passive OS fingerprint via NFNETLINK.
+
 config NF_CONNTRACK
 	tristate "Netfilter connection tracking support"
 	default m if NETFILTER_ADVANCED=n
@@ -441,9 +449,6 @@ config NETFILTER_SYNPROXY
 	tristate
 
 endif # NF_CONNTRACK
-
-config NF_OSF
-	tristate
 
 config NF_TABLES
 	select NETFILTER_NETLINK
@@ -1368,8 +1373,8 @@ config NETFILTER_XT_MATCH_NFACCT
 
 config NETFILTER_XT_MATCH_OSF
 	tristate '"osf" Passive OS fingerprint match'
-	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK
-	select NF_OSF
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK_OSF
 	help
 	  This option selects the Passive OS Fingerprinting match module
 	  that allows to passively match the remote operating system by
