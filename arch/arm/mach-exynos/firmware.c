@@ -185,7 +185,7 @@ static void exynos_l2_configure(const struct l2x0_regs *regs)
 	exynos_smc(SMC_CMD_L2X0SETUP2, regs->pwr_ctrl, regs->aux_ctrl, 0);
 }
 
-void __init exynos_firmware_init(void)
+bool __init exynos_secure_firmware_available(void)
 {
 	struct device_node *nd;
 	const __be32 *addr;
@@ -193,13 +193,21 @@ void __init exynos_firmware_init(void)
 	nd = of_find_compatible_node(NULL, NULL,
 					"samsung,secure-firmware");
 	if (!nd)
-		return;
+		return false;
 
 	addr = of_get_address(nd, 0, NULL, NULL);
 	if (!addr) {
 		pr_err("%s: No address specified.\n", __func__);
-		return;
+		return false;
 	}
+
+	return true;
+}
+
+void __init exynos_firmware_init(void)
+{
+	if (!exynos_secure_firmware_available())
+		return;
 
 	pr_info("Running under secure firmware.\n");
 

@@ -63,6 +63,7 @@ struct exynos_pm_data {
 struct exynos_pm_state {
 	int cpu_state;
 	unsigned int pmu_spare3;
+	void __iomem *sysram_base;
 };
 
 static const struct exynos_pm_data *pm_data __ro_after_init;
@@ -261,7 +262,7 @@ static int exynos5420_cpu_suspend(unsigned long arg)
 	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 
-	writel_relaxed(0x0, sysram_base_addr + EXYNOS5420_CPU_STATE);
+	writel_relaxed(0x0, pm_state.sysram_base + EXYNOS5420_CPU_STATE);
 
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM)) {
 		mcpm_set_entry_vector(cpu, cluster, exynos_cpu_resume);
@@ -333,7 +334,7 @@ static void exynos5420_pm_prepare(void)
 	 * needs to restore it back in case, the primary cpu fails to
 	 * suspend for any reason.
 	 */
-	pm_state.cpu_state = readl_relaxed(sysram_base_addr +
+	pm_state.cpu_state = readl_relaxed(pm_state.sysram_base +
 					   EXYNOS5420_CPU_STATE);
 
 	exynos_pm_enter_sleep_mode();
@@ -453,7 +454,7 @@ static void exynos5420_pm_resume(void)
 
 	/* Restore the sysram cpu state register */
 	writel_relaxed(pm_state.cpu_state,
-		       sysram_base_addr + EXYNOS5420_CPU_STATE);
+		       pm_state.sysram_base + EXYNOS5420_CPU_STATE);
 
 	pmu_raw_writel(EXYNOS5420_USE_STANDBY_WFI_ALL,
 			S5P_CENTRAL_SEQ_OPTION);
@@ -658,4 +659,13 @@ void __init exynos_pm_init(void)
 
 	register_syscore_ops(&exynos_pm_syscore_ops);
 	suspend_set_ops(&exynos_suspend_ops);
+
+	/*
+	 * Applicable as of now only to Exynos542x. If booted under secure
+	 * firmware, the non-secure region of sysram should be used.
+	 */
+	if (exynos_secure_firmware_available())
+		pm_state.sysram_base = sysram_ns_base_addr;
+	else
+		pm_state.sysram_base = sysram_base_addr;
 }
