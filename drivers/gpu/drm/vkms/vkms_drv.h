@@ -39,6 +39,8 @@ struct vkms_gem_object {
 	struct drm_gem_object gem;
 	struct mutex pages_lock; /* Page lock used in page fault handler */
 	struct page **pages;
+	unsigned int vmap_count;
+	void *vaddr;
 };
 
 #define drm_crtc_to_vkms_output(target) \
@@ -46,6 +48,9 @@ struct vkms_gem_object {
 
 #define drm_device_to_vkms_device(target) \
 	container_of(target, struct vkms_device, drm)
+
+#define drm_gem_to_vkms_gem(target)\
+	container_of(target, struct vkms_gem_object, gem)
 
 /* CRTC */
 int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
@@ -74,5 +79,9 @@ int vkms_dumb_map(struct drm_file *file, struct drm_device *dev,
 		  u32 handle, u64 *offset);
 
 void vkms_gem_free_object(struct drm_gem_object *obj);
+
+int vkms_gem_vmap(struct drm_gem_object *obj);
+
+void vkms_gem_vunmap(struct drm_gem_object *obj);
 
 #endif /* _VKMS_DRV_H_ */
