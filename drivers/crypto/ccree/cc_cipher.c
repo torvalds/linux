@@ -19,8 +19,6 @@
 
 #define template_skcipher	template_u.skcipher
 
-#define CC_MIN_AES_XTS_SIZE 0x10
-#define CC_MAX_AES_XTS_SIZE 0x2000
 struct cc_cipher_handle {
 	struct list_head alg_list;
 };
@@ -98,8 +96,7 @@ static int validate_data_size(struct cc_cipher_ctx *ctx_p,
 	case S_DIN_to_AES:
 		switch (ctx_p->cipher_mode) {
 		case DRV_CIPHER_XTS:
-			if (size >= CC_MIN_AES_XTS_SIZE &&
-			    size <= CC_MAX_AES_XTS_SIZE &&
+			if (size >= AES_BLOCK_SIZE &&
 			    IS_ALIGNED(size, AES_BLOCK_SIZE))
 				return 0;
 			break;
