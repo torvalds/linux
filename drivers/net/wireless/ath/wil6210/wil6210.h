@@ -37,6 +37,7 @@ extern bool rx_align_2;
 extern bool rx_large_buf;
 extern bool debug_fw;
 extern bool disable_ap_sme;
+extern bool ftm_mode;
 
 struct wil6210_priv;
 struct wil6210_vif;
@@ -52,6 +53,7 @@ union wil_tx_desc;
 
 #define WIL_FW_NAME_TALYN "wil6436.fw"
 #define WIL_FW_NAME_FTM_TALYN "wil6436_ftm.fw"
+#define WIL_BRD_NAME_TALYN "wil6436.brd"
 
 #define WIL_BOARD_FILE_NAME "wil6210.brd" /* board & radio parameters */
 
@@ -1100,6 +1102,8 @@ static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 {
 	wil_w(wil, reg, wil_r(wil, reg) & ~val);
 }
+
+void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len);
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
