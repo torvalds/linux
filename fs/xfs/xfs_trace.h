@@ -2229,14 +2229,12 @@ DECLARE_EVENT_CLASS(xfs_defer_class,
 	TP_fast_assign(
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
 		__entry->dop = dop;
-		__entry->committed = dop->dop_committed;
 		__entry->low = dop->dop_low;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ops %p committed %d low %d, caller %pS",
+	TP_printk("dev %d:%d ops %p low %d, caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->dop,
-		  __entry->committed,
 		  __entry->low,
 		  (char *)__entry->caller_ip)
 )
@@ -2259,14 +2257,12 @@ DECLARE_EVENT_CLASS(xfs_defer_error_class,
 	TP_fast_assign(
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
 		__entry->dop = dop;
-		__entry->committed = dop->dop_committed;
 		__entry->low = dop->dop_low;
 		__entry->error = error;
 	),
-	TP_printk("dev %d:%d ops %p committed %d low %d err %d",
+	TP_printk("dev %d:%d ops %p low %d err %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->dop,
-		  __entry->committed,
 		  __entry->low,
 		  __entry->error)
 )

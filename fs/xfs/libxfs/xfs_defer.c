@@ -249,7 +249,6 @@ xfs_defer_trans_roll(
 		xfs_defer_trans_abort(*tp, dop, error);
 		return error;
 	}
-	dop->dop_committed = true;
 
 	/* Rejoin the joined inodes. */
 	for (i = 0; i < XFS_DEFER_OPS_NR_INODES && dop->dop_inodes[i]; i++)
