@@ -197,6 +197,13 @@
 		status = "okay";
 		sound-name-prefix = "Lineout";
 	};
+
+	spdif_dit: audio-codec@2 {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+		status = "okay";
+		sound-name-prefix = "DIT";
+	};
 };
 
 &ethmac {
