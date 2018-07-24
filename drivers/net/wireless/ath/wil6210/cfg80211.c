@@ -689,11 +689,12 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "scan: wdev=0x%p iftype=%d\n", wdev, wdev->iftype);
 
-	/* check we are client side */
+	/* scan is supported on client interfaces and on AP interface */
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_AP:
 		break;
 	default:
 		return -EOPNOTSUPP;
