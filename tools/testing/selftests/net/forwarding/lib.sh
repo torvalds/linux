@@ -33,10 +33,22 @@ check_tc_version()
 		echo "SKIP: iproute2 too old; tc is missing JSON support"
 		exit 1
 	fi
+}
 
+check_tc_shblock_support()
+{
 	tc filter help 2>&1 | grep block &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing shared block support"
+		exit 1
+	fi
+}
+
+check_tc_chain_support()
+{
+	tc help 2>&1|grep chain &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing chain support"
 		exit 1
 	fi
 }
