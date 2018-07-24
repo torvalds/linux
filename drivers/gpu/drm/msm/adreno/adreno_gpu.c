@@ -445,23 +445,28 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 	if (IS_ERR_OR_NULL(state))
 		return;
 
-	drm_printf(p, "status:   %08x\n", state->rbbm_status);
 	drm_printf(p, "revision: %d (%d.%d.%d.%d)\n",
 			adreno_gpu->info->revn, adreno_gpu->rev.core,
 			adreno_gpu->rev.major, adreno_gpu->rev.minor,
 			adreno_gpu->rev.patchid);
 
-	for (i = 0; i < gpu->nr_rings; i++) {
-		drm_printf(p, "rb %d: fence:    %d/%d\n", i,
-			state->ring[i].fence, state->ring[i].seqno);
+	drm_printf(p, "rbbm-status: 0x%08x\n", state->rbbm_status);
 
-		drm_printf(p, "      rptr:     %d\n", state->ring[i].rptr);
-		drm_printf(p, "rb wptr:  %d\n", state->ring[i].wptr);
+	drm_puts(p, "ringbuffer:\n");
+
+	for (i = 0; i < gpu->nr_rings; i++) {
+		drm_printf(p, "  - id: %d\n", i);
+		drm_printf(p, "    iova: 0x%016llx\n", state->ring[i].iova);
+		drm_printf(p, "    last-fence: %d\n", state->ring[i].seqno);
+		drm_printf(p, "    retired-fence: %d\n", state->ring[i].fence);
+		drm_printf(p, "    rptr: %d\n", state->ring[i].rptr);
+		drm_printf(p, "    wptr: %d\n", state->ring[i].wptr);
 	}
 
-	drm_printf(p, "IO:region %s 00000000 00020000\n", gpu->name);
+	drm_puts(p, "registers:\n");
+
 	for (i = 0; i < state->nr_registers; i++) {
-		drm_printf(p, "IO:R %08x %08x\n",
+		drm_printf(p, "  - { offset: 0x%04x, value: 0x%08x }\n",
 			state->registers[i * 2] << 2,
 			state->registers[(i * 2) + 1]);
 	}
