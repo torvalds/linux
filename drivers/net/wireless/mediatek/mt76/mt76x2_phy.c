@@ -485,12 +485,14 @@ static void
 mt76x2_phy_adjust_vga_gain(struct mt76x2_dev *dev)
 {
 	u32 false_cca;
-	u8 limit = dev->cal.low_gain > 1 ? 4 : 16;
+	u8 limit = dev->cal.low_gain > 0 ? 16 : 4;
 
 	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS, mt76_rr(dev, MT_RX_STAT_1));
+	dev->cal.false_cca = false_cca;
 	if (false_cca > 800 && dev->cal.agc_gain_adjust < limit)
 		dev->cal.agc_gain_adjust += 2;
-	else if (false_cca < 10 && dev->cal.agc_gain_adjust > 0)
+	else if ((false_cca < 10 && dev->cal.agc_gain_adjust > 0) ||
+		 (dev->cal.agc_gain_adjust >= limit && false_cca < 500))
 		dev->cal.agc_gain_adjust -= 2;
 	else
 		return;
@@ -498,60 +500,115 @@ mt76x2_phy_adjust_vga_gain(struct mt76x2_dev *dev)
 	mt76x2_phy_set_gain_val(dev);
 }
 
+static int
+mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
+{
+	struct mt76x2_sta *sta;
+	struct mt76_wcid *wcid;
+	int i, j, min_rssi = 0;
+	s8 cur_rssi;
+
+	local_bh_disable();
+	rcu_read_lock();
+
+	for (i = 0; i < ARRAY_SIZE(dev->wcid_mask); i++) {
+		unsigned long mask = dev->wcid_mask[i];
+
+		if (!mask)
+			continue;
+
+		for (j = i * BITS_PER_LONG; mask; j++, mask >>= 1) {
+			if (!(mask & 1))
+				continue;
+
+			wcid = rcu_dereference(dev->wcid[j]);
+			if (!wcid)
+				continue;
+
+			sta = container_of(wcid, struct mt76x2_sta, wcid);
+			spin_lock(&dev->mt76.rx_lock);
+			if (sta->inactive_count++ < 5)
+				cur_rssi = ewma_signal_read(&sta->rssi);
+			else
+				cur_rssi = 0;
+			spin_unlock(&dev->mt76.rx_lock);
+
+			if (cur_rssi < min_rssi)
+				min_rssi = cur_rssi;
+		}
+	}
+
+	rcu_read_unlock();
+	local_bh_enable();
+
+	if (!min_rssi)
+		return -75;
+
+	return min_rssi;
+}
+
 static void
 mt76x2_phy_update_channel_gain(struct mt76x2_dev *dev)
 {
-	u32 val = mt76_rr(dev, MT_BBP(AGC, 20));
-	int rssi0 = (s8) FIELD_GET(MT_BBP_AGC20_RSSI0, val);
-	int rssi1 = (s8) FIELD_GET(MT_BBP_AGC20_RSSI1, val);
 	u8 *gain = dev->cal.agc_gain_init;
-	u8 gain_delta;
+	u8 low_gain_delta, gain_delta;
+	bool gain_change;
 	int low_gain;
+	u32 val;
 
-	dev->cal.avg_rssi[0] = (dev->cal.avg_rssi[0] * 15) / 16 +
-			       (rssi0 << 8) / 16;
-	dev->cal.avg_rssi[1] = (dev->cal.avg_rssi[1] * 15) / 16 +
-			       (rssi1 << 8) / 16;
-	dev->cal.avg_rssi_all = (dev->cal.avg_rssi[0] +
-				 dev->cal.avg_rssi[1]) / 512;
+	dev->cal.avg_rssi_all = mt76x2_phy_get_min_avg_rssi(dev);
 
 	low_gain = (dev->cal.avg_rssi_all > mt76x2_get_rssi_gain_thresh(dev)) +
 		   (dev->cal.avg_rssi_all > mt76x2_get_low_rssi_gain_thresh(dev));
 
-	if (dev->cal.low_gain == low_gain) {
+	gain_change = (dev->cal.low_gain & 2) ^ (low_gain & 2);
+	dev->cal.low_gain = low_gain;
+
+	if (!gain_change) {
 		mt76x2_phy_adjust_vga_gain(dev);
 		return;
 	}
 
-	dev->cal.low_gain = low_gain;
-
-	if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80)
+	if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80) {
 		mt76_wr(dev, MT_BBP(RXO, 14), 0x00560211);
-	else
+		val = mt76_rr(dev, MT_BBP(AGC, 26)) & ~0xf;
+		if (low_gain == 2)
+			val |= 0x3;
+		else
+			val |= 0x5;
+		mt76_wr(dev, MT_BBP(AGC, 26), val);
+	} else {
 		mt76_wr(dev, MT_BBP(RXO, 14), 0x00560423);
+	}
 
-	if (low_gain) {
-		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a991);
+	if (mt76x2_has_ext_lna(dev))
+		low_gain_delta = 10;
+	else
+		low_gain_delta = 14;
+
+	if (low_gain == 2) {
+		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a990);
 		mt76_wr(dev, MT_BBP(AGC, 35), 0x08080808);
 		mt76_wr(dev, MT_BBP(AGC, 37), 0x08080808);
-		if (mt76x2_has_ext_lna(dev))
-			gain_delta = 10;
-		else
-			gain_delta = 14;
+		gain_delta = low_gain_delta;
+		dev->cal.agc_gain_adjust = 0;
 	} else {
-		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a990);
+		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a991);
 		if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80)
 			mt76_wr(dev, MT_BBP(AGC, 35), 0x10101014);
 		else
 			mt76_wr(dev, MT_BBP(AGC, 35), 0x11111116);
 		mt76_wr(dev, MT_BBP(AGC, 37), 0x2121262C);
 		gain_delta = 0;
+		dev->cal.agc_gain_adjust = low_gain_delta;
 	}
 
 	dev->cal.agc_gain_cur[0] = gain[0] - gain_delta;
 	dev->cal.agc_gain_cur[1] = gain[1] - gain_delta;
-	dev->cal.agc_gain_adjust = 0;
 	mt76x2_phy_set_gain_val(dev);
+
+	/* clear false CCA counters */
+	mt76_rr(dev, MT_RX_STAT_1);
 }
 
 int mt76x2_phy_set_channel(struct mt76x2_dev *dev,

@@ -69,11 +69,14 @@ struct qlink_msg_header {
  *	associated STAs due to inactivity. Inactivity timeout period is taken
  *	from QLINK_CMD_START_AP parameters.
  * @QLINK_HW_CAPAB_DFS_OFFLOAD: device implements DFS offload functionality
+ * @QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR: device supports MAC Address
+ *	Randomization in probe requests.
  */
 enum qlink_hw_capab {
 	QLINK_HW_CAPAB_REG_UPDATE		= BIT(0),
 	QLINK_HW_CAPAB_STA_INACT_TIMEOUT	= BIT(1),
 	QLINK_HW_CAPAB_DFS_OFFLOAD		= BIT(2),
+	QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR	= BIT(3),
 };
 
 enum qlink_iface_type {
@@ -1089,6 +1092,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_HW_ID		= 0x0405,
 	QTN_TLV_ID_CALIBRATION_VER	= 0x0406,
 	QTN_TLV_ID_UBOOT_VER		= 0x0407,
+	QTN_TLV_ID_RANDOM_MAC_ADDR	= 0x0408,
 };
 
 struct qlink_tlv_hdr {
@@ -1359,5 +1363,21 @@ struct qlink_sta_stats {
 	u8 signal_avg;
 	u8 rsvd[1];
 };
+
+/**
+ * struct qlink_random_mac_addr - data for QTN_TLV_ID_RANDOM_MAC_ADDR TLV
+ *
+ * Specifies MAC address mask/value for generation random MAC address
+ * during scan.
+ *
+ * @mac_addr: MAC address used with randomisation
+ * @mac_addr_mask: MAC address mask used with randomisation, bits that
+ *	are 0 in the mask should be randomised, bits that are 1 should
+ *	be taken from the @mac_addr
+ */
+struct qlink_random_mac_addr {
+	u8 mac_addr[ETH_ALEN];
+	u8 mac_addr_mask[ETH_ALEN];
+} __packed;
 
 #endif /* _QTN_QLINK_H_ */

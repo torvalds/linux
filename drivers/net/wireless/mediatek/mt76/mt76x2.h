@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/bitops.h>
 #include <linux/kfifo.h>
+#include <linux/average.h>
 
 #define MT7662_FIRMWARE		"mt7662.bin"
 #define MT7662_ROM_PATCH	"mt7662_rom_patch.bin"
@@ -46,6 +47,8 @@
 #include "mt76x2_regs.h"
 #include "mt76x2_mac.h"
 #include "mt76x2_dfs.h"
+
+DECLARE_EWMA(signal, 10, 8)
 
 struct mt76x2_mcu {
 	struct mutex mutex;
@@ -69,9 +72,8 @@ struct mt76x2_calibration {
 	u8 agc_gain_init[MT_MAX_CHAINS];
 	u8 agc_gain_cur[MT_MAX_CHAINS];
 
-	int avg_rssi[MT_MAX_CHAINS];
-	int avg_rssi_all;
-
+	u16 false_cca;
+	s8 avg_rssi_all;
 	s8 agc_gain_adjust;
 	s8 low_gain;
 
@@ -120,9 +122,12 @@ struct mt76x2_dev {
 	u8 beacon_mask;
 	u8 beacon_data_mask;
 
-	u32 rxfilter;
+	u8 tbtt_count;
+	u16 beacon_int;
 
 	u16 chainmask;
+
+	u32 rxfilter;
 
 	struct mt76x2_calibration cal;
 
@@ -149,6 +154,9 @@ struct mt76x2_sta {
 	struct mt76x2_vif *vif;
 	struct mt76x2_tx_status status;
 	int n_frames;
+
+	struct ewma_signal rssi;
+	int inactive_count;
 };
 
 static inline bool is_mt7612(struct mt76x2_dev *dev)

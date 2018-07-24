@@ -640,83 +640,83 @@ qtnf_cmd_sta_info_parse(struct station_info *sinfo,
 		return;
 
 	if (qtnf_sta_stat_avail(inactive_time, QLINK_STA_INFO_INACTIVE_TIME)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_INACTIVE_TIME);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_INACTIVE_TIME);
 		sinfo->inactive_time = le32_to_cpu(stats->inactive_time);
 	}
 
 	if (qtnf_sta_stat_avail(connected_time,
 				QLINK_STA_INFO_CONNECTED_TIME)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_CONNECTED_TIME);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_CONNECTED_TIME);
 		sinfo->connected_time = le32_to_cpu(stats->connected_time);
 	}
 
 	if (qtnf_sta_stat_avail(signal, QLINK_STA_INFO_SIGNAL)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 		sinfo->signal = stats->signal - QLINK_RSSI_OFFSET;
 	}
 
 	if (qtnf_sta_stat_avail(signal_avg, QLINK_STA_INFO_SIGNAL_AVG)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL_AVG);
 		sinfo->signal_avg = stats->signal_avg - QLINK_RSSI_OFFSET;
 	}
 
 	if (qtnf_sta_stat_avail(rxrate, QLINK_STA_INFO_RX_BITRATE)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
 		qtnf_sta_info_parse_rate(&sinfo->rxrate, &stats->rxrate);
 	}
 
 	if (qtnf_sta_stat_avail(txrate, QLINK_STA_INFO_TX_BITRATE)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 		qtnf_sta_info_parse_rate(&sinfo->txrate, &stats->txrate);
 	}
 
 	if (qtnf_sta_stat_avail(sta_flags, QLINK_STA_INFO_STA_FLAGS)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_STA_FLAGS);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_STA_FLAGS);
 		qtnf_sta_info_parse_flags(&sinfo->sta_flags, &stats->sta_flags);
 	}
 
 	if (qtnf_sta_stat_avail(rx_bytes, QLINK_STA_INFO_RX_BYTES)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BYTES);
 		sinfo->rx_bytes = le64_to_cpu(stats->rx_bytes);
 	}
 
 	if (qtnf_sta_stat_avail(tx_bytes, QLINK_STA_INFO_TX_BYTES)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES);
 		sinfo->tx_bytes = le64_to_cpu(stats->tx_bytes);
 	}
 
 	if (qtnf_sta_stat_avail(rx_bytes, QLINK_STA_INFO_RX_BYTES64)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BYTES64);
 		sinfo->rx_bytes = le64_to_cpu(stats->rx_bytes);
 	}
 
 	if (qtnf_sta_stat_avail(tx_bytes, QLINK_STA_INFO_TX_BYTES64)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
 		sinfo->tx_bytes = le64_to_cpu(stats->tx_bytes);
 	}
 
 	if (qtnf_sta_stat_avail(rx_packets, QLINK_STA_INFO_RX_PACKETS)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_PACKETS);
 		sinfo->rx_packets = le32_to_cpu(stats->rx_packets);
 	}
 
 	if (qtnf_sta_stat_avail(tx_packets, QLINK_STA_INFO_TX_PACKETS)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_PACKETS);
 		sinfo->tx_packets = le32_to_cpu(stats->tx_packets);
 	}
 
 	if (qtnf_sta_stat_avail(rx_beacon, QLINK_STA_INFO_BEACON_RX)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_RX);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_BEACON_RX);
 		sinfo->rx_beacon = le64_to_cpu(stats->rx_beacon);
 	}
 
 	if (qtnf_sta_stat_avail(rx_dropped_misc, QLINK_STA_INFO_RX_DROP_MISC)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_DROP_MISC);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC);
 		sinfo->rx_dropped_misc = le32_to_cpu(stats->rx_dropped_misc);
 	}
 
 	if (qtnf_sta_stat_avail(tx_failed, QLINK_STA_INFO_TX_FAILED)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_FAILED);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 		sinfo->tx_failed = le32_to_cpu(stats->tx_failed);
 	}
 
@@ -2234,6 +2234,22 @@ static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
 	qchan->chan.flags = cpu_to_le32(flags);
 }
 
+static void qtnf_cmd_randmac_tlv_add(struct sk_buff *cmd_skb,
+				     const u8 *mac_addr,
+				     const u8 *mac_addr_mask)
+{
+	struct qlink_random_mac_addr *randmac;
+	struct qlink_tlv_hdr *hdr =
+		skb_put(cmd_skb, sizeof(*hdr) + sizeof(*randmac));
+
+	hdr->type = cpu_to_le16(QTN_TLV_ID_RANDOM_MAC_ADDR);
+	hdr->len = cpu_to_le16(sizeof(*randmac));
+	randmac = (struct qlink_random_mac_addr *)hdr->val;
+
+	memcpy(randmac->mac_addr, mac_addr, ETH_ALEN);
+	memcpy(randmac->mac_addr_mask, mac_addr_mask, ETH_ALEN);
+}
+
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb;
@@ -2289,6 +2305,15 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 			n_channels--;
 			count++;
 		}
+	}
+
+	if (scan_req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		pr_debug("MAC%u: scan with random addr=%pM, mask=%pM\n",
+			 mac->macid,
+			 scan_req->mac_addr, scan_req->mac_addr_mask);
+
+		qtnf_cmd_randmac_tlv_add(cmd_skb, scan_req->mac_addr,
+					 scan_req->mac_addr_mask);
 	}
 
 	ret = qtnf_cmd_send(mac->bus, cmd_skb, &res_code);

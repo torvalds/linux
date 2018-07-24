@@ -1,15 +1,15 @@
 config ATH10K
-        tristate "Atheros 802.11ac wireless cards support"
-        depends on MAC80211 && HAS_DMA
+	tristate "Atheros 802.11ac wireless cards support"
+	depends on MAC80211 && HAS_DMA
 	select ATH_COMMON
 	select CRC32
 	select WANT_DEV_COREDUMP
 	select ATH10K_CE
-        ---help---
-          This module adds support for wireless adapters based on
-          Atheros IEEE 802.11ac family of chipsets.
+	---help---
+	  This module adds support for wireless adapters based on
+	  Atheros IEEE 802.11ac family of chipsets.
 
-          If you choose to build a module, it'll be called ath10k.
+	  If you choose to build a module, it'll be called ath10k.
 
 config ATH10K_CE
 	bool
@@ -41,12 +41,12 @@ config ATH10K_USB
 	  work in progress and will not fully work.
 
 config ATH10K_SNOC
-        tristate "Qualcomm ath10k SNOC support (EXPERIMENTAL)"
-        depends on ATH10K && ARCH_QCOM
-        ---help---
-          This module adds support for integrated WCN3990 chip connected
-          to system NOC(SNOC). Currently work in progress and will not
-          fully work.
+	tristate "Qualcomm ath10k SNOC support (EXPERIMENTAL)"
+	depends on ATH10K && ARCH_QCOM
+	---help---
+	  This module adds support for integrated WCN3990 chip connected
+	  to system NOC(SNOC). Currently work in progress and will not
+	  fully work.
 
 config ATH10K_DEBUG
 	bool "Atheros ath10k debugging"

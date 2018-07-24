@@ -179,6 +179,30 @@ static void qtnf_netdev_tx_timeout(struct net_device *ndev)
 	}
 }
 
+static int qtnf_netdev_set_mac_address(struct net_device *ndev, void *addr)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	struct sockaddr *sa = addr;
+	int ret;
+	unsigned char old_addr[ETH_ALEN];
+
+	memcpy(old_addr, sa->sa_data, sizeof(old_addr));
+
+	ret = eth_mac_addr(ndev, sa);
+	if (ret)
+		return ret;
+
+	qtnf_scan_done(vif->mac, true);
+
+	ret = qtnf_cmd_send_change_intf_type(vif, vif->wdev.iftype,
+					     sa->sa_data);
+
+	if (ret)
+		memcpy(ndev->dev_addr, old_addr, ETH_ALEN);
+
+	return ret;
+}
+
 /* Network device ops handlers */
 const struct net_device_ops qtnf_netdev_ops = {
 	.ndo_open = qtnf_netdev_open,
@@ -186,6 +210,7 @@ const struct net_device_ops qtnf_netdev_ops = {
 	.ndo_start_xmit = qtnf_netdev_hard_start_xmit,
 	.ndo_tx_timeout = qtnf_netdev_tx_timeout,
 	.ndo_get_stats64 = qtnf_netdev_get_stats64,
+	.ndo_set_mac_address = qtnf_netdev_set_mac_address,
 };
 
 static int qtnf_mac_init_single_band(struct wiphy *wiphy,

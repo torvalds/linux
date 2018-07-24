@@ -218,6 +218,37 @@ mt76x2_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	data->tail[mvif->idx] = skb;
 }
 
+static void
+mt76x2_resync_beacon_timer(struct mt76x2_dev *dev)
+{
+	u32 timer_val = dev->beacon_int << 4;
+
+	dev->tbtt_count++;
+
+	/*
+	 * Beacon timer drifts by 1us every tick, the timer is configured
+	 * in 1/16 TU (64us) units.
+	 */
+	if (dev->tbtt_count < 62)
+		return;
+
+	if (dev->tbtt_count >= 64) {
+		dev->tbtt_count = 0;
+		return;
+	}
+
+	/*
+	 * The updated beacon interval takes effect after two TBTT, because
+	 * at this point the original interval has already been loaded into
+	 * the next TBTT_TIMER value
+	 */
+	if (dev->tbtt_count == 62)
+		timer_val -= 1;
+
+	mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
+		       MT_BEACON_TIME_CFG_INTVAL, timer_val);
+}
+
 void mt76x2_pre_tbtt_tasklet(unsigned long arg)
 {
 	struct mt76x2_dev *dev = (struct mt76x2_dev *) arg;
@@ -225,6 +256,8 @@ void mt76x2_pre_tbtt_tasklet(unsigned long arg)
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
 	int i, nframes;
+
+	mt76x2_resync_beacon_timer(dev);
 
 	data.dev = dev;
 	__skb_queue_head_init(&data.q);
