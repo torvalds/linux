@@ -18,6 +18,7 @@
 #include <linux/export.h>
 #include <linux/syscalls.h>
 #include <linux/backing-dev.h>
+#include <linux/refcount.h>
 #include <linux/uio.h>
 
 #include <linux/sched/signal.h>
@@ -178,6 +179,7 @@ struct aio_kiocb {
 
 	struct list_head	ki_list;	/* the aio core uses this
 						 * for cancellation */
+	refcount_t		ki_refcnt;
 
 	/*
 	 * If the aio_resfd field of the userspace iocb is not zero,
@@ -1015,6 +1017,7 @@ static inline struct aio_kiocb *aio_get_req(struct kioctx *ctx)
 
 	percpu_ref_get(&ctx->reqs);
 	INIT_LIST_HEAD(&req->ki_list);
+	refcount_set(&req->ki_refcnt, 0);
 	req->ki_ctx = ctx;
 	return req;
 out_put:
@@ -1047,6 +1050,15 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 out:
 	rcu_read_unlock();
 	return ret;
+}
+
+static inline void iocb_put(struct aio_kiocb *iocb)
+{
+	if (refcount_read(&iocb->ki_refcnt) == 0 ||
+	    refcount_dec_and_test(&iocb->ki_refcnt)) {
+		percpu_ref_put(&iocb->ki_ctx->reqs);
+		kmem_cache_free(kiocb_cachep, iocb);
+	}
 }
 
 /* aio_complete
@@ -1118,8 +1130,6 @@ static void aio_complete(struct aio_kiocb *iocb, long res, long res2)
 		eventfd_ctx_put(iocb->ki_eventfd);
 	}
 
-	kmem_cache_free(kiocb_cachep, iocb);
-
 	/*
 	 * We have to order our ring_info tail store above and test
 	 * of the wait list below outside the wait lock.  This is
@@ -1130,8 +1140,7 @@ static void aio_complete(struct aio_kiocb *iocb, long res, long res2)
 
 	if (waitqueue_active(&ctx->wait))
 		wake_up(&ctx->wait);
-
-	percpu_ref_put(&ctx->reqs);
+	iocb_put(iocb);
 }
 
 /* aio_read_events_ring
