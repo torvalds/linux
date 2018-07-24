@@ -23,17 +23,18 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/async.h>
+#include <linux/delay.h>
+#include <linux/dmi.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/types.h>
-#include <linux/jiffies.h>
-#include <linux/async.h>
-#include <linux/dmi.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
+#include <linux/types.h>
+
 #include <asm/unaligned.h>
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
