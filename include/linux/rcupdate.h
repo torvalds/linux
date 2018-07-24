@@ -857,6 +857,46 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #endif /* #else #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
 
 
+/* Has the specified rcu_head structure been handed to call_rcu()? */
+
+/*
+ * rcu_head_init - Initialize rcu_head for rcu_head_after_call_rcu()
+ * @rhp: The rcu_head structure to initialize.
+ *
+ * If you intend to invoke rcu_head_after_call_rcu() to test whether a
+ * given rcu_head structure has already been passed to call_rcu(), then
+ * you must also invoke this rcu_head_init() function on it just after
+ * allocating that structure.  Calls to this function must not race with
+ * calls to call_rcu(), rcu_head_after_call_rcu(), or callback invocation.
+ */
+static inline void rcu_head_init(struct rcu_head *rhp)
+{
+	rhp->func = (rcu_callback_t)~0L;
+}
+
+/*
+ * rcu_head_after_call_rcu - Has this rcu_head been passed to call_rcu()?
+ * @rhp: The rcu_head structure to test.
+ * @func: The function passed to call_rcu() along with @rhp.
+ *
+ * Returns @true if the @rhp has been passed to call_rcu() with @func,
+ * and @false otherwise.  Emits a warning in any other case, including
+ * the case where @rhp has already been invoked after a grace period.
+ * Calls to this function must not race with callback invocation.  One way
+ * to avoid such races is to enclose the call to rcu_head_after_call_rcu()
+ * in an RCU read-side critical section that includes a read-side fetch
+ * of the pointer to the structure containing @rhp.
+ */
+static inline bool
+rcu_head_after_call_rcu(struct rcu_head *rhp, rcu_callback_t f)
+{
+	if (READ_ONCE(rhp->func) == f)
+		return true;
+	WARN_ON_ONCE(READ_ONCE(rhp->func) != (rcu_callback_t)~0L);
+	return false;
+}
+
+
 /* Transitional pre-consolidation compatibility definitions. */
 
 static inline void synchronize_rcu_bh(void)
