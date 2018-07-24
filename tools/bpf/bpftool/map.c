@@ -230,7 +230,7 @@ static int get_btf(struct bpf_map_info *map_info, struct btf **btf)
 
 	*btf = btf__new((__u8 *)btf_info.btf, btf_info.btf_size, NULL);
 	if (IS_ERR(*btf)) {
-		err = PTR_ERR(btf);
+		err = PTR_ERR(*btf);
 		*btf = NULL;
 	}
 
