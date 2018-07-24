@@ -546,11 +546,15 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 	bool in_port;
 
 	if (out_dev) {
-		if (!mlxsw_sp_port_dev_check(out_dev))
+		if (!mlxsw_sp_port_dev_check(out_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid output device");
 			return -EINVAL;
+		}
 		mlxsw_sp_port = netdev_priv(out_dev);
-		if (mlxsw_sp_port->mlxsw_sp != mlxsw_sp)
+		if (mlxsw_sp_port->mlxsw_sp != mlxsw_sp) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid output device");
 			return -EINVAL;
+		}
 		local_port = mlxsw_sp_port->local_port;
 		in_port = false;
 	} else {
@@ -573,9 +577,10 @@ int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_block_binding *binding;
 	struct mlxsw_sp_port *in_port;
 
-	if (!list_is_singular(&block->binding_list))
+	if (!list_is_singular(&block->binding_list)) {
+		NL_SET_ERR_MSG_MOD(extack, "Only a single mirror source is allowed");
 		return -EOPNOTSUPP;
-
+	}
 	binding = list_first_entry(&block->binding_list,
 				   struct mlxsw_sp_acl_block_binding, list);
 	in_port = binding->mlxsw_sp_port;
@@ -603,6 +608,7 @@ int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 			ethertype = 1;
 			break;
 		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported VLAN protocol");
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported VLAN protocol %#04x\n",
 				proto);
 			return -EINVAL;
@@ -612,6 +618,7 @@ int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 							  vid, prio, ethertype,
 							  extack);
 	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported VLAN action");
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported VLAN action\n");
 		return -EINVAL;
 	}
