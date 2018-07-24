@@ -1020,7 +1020,7 @@ static int acpi_battery_info_proc_show(struct seq_file *seq, void *offset)
 			   acpi_battery_units(battery));
 
 	seq_printf(seq, "battery technology:      %srechargeable\n",
-		   (!battery->technology)?"non-":"");
+		   battery->technology ? "" : "non-");
 
 	if (battery->design_voltage == ACPI_BATTERY_VALUE_UNKNOWN)
 		seq_printf(seq, "design voltage:          unknown\n");
@@ -1111,11 +1111,12 @@ static int acpi_battery_alarm_proc_show(struct seq_file *seq, void *offset)
 		goto end;
 	}
 	seq_printf(seq, "alarm:                   ");
-	if (!battery->alarm)
-		seq_printf(seq, "unsupported\n");
-	else
+	if (battery->alarm) {
 		seq_printf(seq, "%u %sh\n", battery->alarm,
 				acpi_battery_units(battery));
+	} else {
+		seq_printf(seq, "unsupported\n");
+	}
       end:
 	if (result)
 		seq_printf(seq, "ERROR: Unable to read battery alarm\n");
@@ -1148,9 +1149,9 @@ static ssize_t acpi_battery_write_alarm(struct file *file,
 	}
 	result = acpi_battery_set_alarm(battery);
       end:
-	if (!result)
-		return count;
-	return result;
+	if (result)
+		return result;
+	return count;
 }
 
 static int acpi_battery_alarm_proc_open(struct inode *inode, struct file *file)
@@ -1245,7 +1246,9 @@ static int battery_notify(struct notifier_block *nb,
 		if (!acpi_battery_present(battery))
 			return 0;
 
-		if (!battery->bat) {
+		if (battery->bat) {
+			acpi_battery_refresh(battery);
+		} else {
 			result = acpi_battery_get_info(battery);
 			if (result)
 				return result;
@@ -1253,8 +1256,7 @@ static int battery_notify(struct notifier_block *nb,
 			result = sysfs_add_battery(battery);
 			if (result)
 				return result;
-		} else
-			acpi_battery_refresh(battery);
+		}
 
 		acpi_battery_init_alarm(battery);
 		acpi_battery_get_state(battery);
