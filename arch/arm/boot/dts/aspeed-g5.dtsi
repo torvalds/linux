@@ -127,6 +127,13 @@
 			reg = <0x1e6c0080 0x80>;
 		};
 
+		cvic: copro-interrupt-controller@1e6c2000 {
+			compatible = "aspeed,ast2500-cvic", "aspeed-cvic";
+			valid-sources = <0xffffffff>;
+			copro-sw-interrupts = <1>;
+			reg = <0x1e6c2000 0x80>;
+		};
+
 		mac0: ethernet@1e660000 {
 			compatible = "aspeed,ast2500-mac", "faraday,ftgmac100";
 			reg = <0x1e660000 0x180>;
@@ -229,7 +236,7 @@
 				status = "disabled";
 			};
 
-			sram@1e720000 {
+			sram: sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x9000>;	// 36K
 			};
