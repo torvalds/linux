@@ -189,8 +189,7 @@ static int btf_parse_type_sec(struct btf *btf, btf_print_fn_t err_log)
 	return 0;
 }
 
-static const struct btf_type *btf_type_by_id(const struct btf *btf,
-					     __u32 type_id)
+const struct btf_type *btf__type_by_id(const struct btf *btf, __u32 type_id)
 {
 	if (type_id > btf->nr_types)
 		return NULL;
@@ -233,7 +232,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 	__s64 size = -1;
 	int i;
 
-	t = btf_type_by_id(btf, type_id);
+	t = btf__type_by_id(btf, type_id);
 	for (i = 0; i < MAX_RESOLVE_DEPTH && !btf_type_is_void_or_null(t);
 	     i++) {
 		size = btf_type_size(t);
@@ -258,7 +257,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 			return -EINVAL;
 		}
 
-		t = btf_type_by_id(btf, type_id);
+		t = btf__type_by_id(btf, type_id);
 	}
 
 	if (size < 0)
