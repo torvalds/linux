@@ -583,6 +583,8 @@ struct mlx5_irq_info {
 };
 
 struct mlx5_fc_stats {
+	spinlock_t counters_idr_lock; /* protects counters_idr */
+	struct idr counters_idr;
 	struct list_head counters;
 	struct llist_head addlist;
 	struct llist_head dellist;

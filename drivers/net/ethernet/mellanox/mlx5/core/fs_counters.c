@@ -77,13 +77,18 @@ static struct list_head *mlx5_fc_counters_lookup_next(struct mlx5_core_dev *dev,
 						      u32 id)
 {
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+	unsigned long next_id = (unsigned long)id + 1;
 	struct mlx5_fc *counter;
 
-	list_for_each_entry(counter, &fc_stats->counters, list)
-		if (counter->id > id)
-			return &counter->list;
+	rcu_read_lock();
+	/* skip counters that are in idr, but not yet in counters list */
+	while ((counter = idr_get_next_ul(&fc_stats->counters_idr,
+					  &next_id)) != NULL &&
+	       list_empty(&counter->list))
+		next_id++;
+	rcu_read_unlock();
 
-	return &fc_stats->counters;
+	return counter ? &counter->list : &fc_stats->counters;
 }
 
 static void mlx5_fc_stats_insert(struct mlx5_core_dev *dev,
@@ -214,14 +219,28 @@ struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
 	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
 	if (!counter)
 		return ERR_PTR(-ENOMEM);
+	INIT_LIST_HEAD(&counter->list);
 
 	err = mlx5_cmd_fc_alloc(dev, &counter->id);
 	if (err)
 		goto err_out;
 
 	if (aging) {
+		u32 id = counter->id;
+
 		counter->cache.lastuse = jiffies;
 		counter->aging = true;
+
+		idr_preload(GFP_KERNEL);
+		spin_lock(&fc_stats->counters_idr_lock);
+
+		err = idr_alloc_u32(&fc_stats->counters_idr, counter, &id, id,
+				    GFP_NOWAIT);
+
+		spin_unlock(&fc_stats->counters_idr_lock);
+		idr_preload_end();
+		if (err)
+			goto err_out_alloc;
 
 		llist_add(&counter->addlist, &fc_stats->addlist);
 
@@ -230,6 +249,8 @@ struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
 
 	return counter;
 
+err_out_alloc:
+	mlx5_cmd_fc_free(dev, counter->id);
 err_out:
 	kfree(counter);
 
@@ -245,6 +266,10 @@ void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 		return;
 
 	if (counter->aging) {
+		spin_lock(&fc_stats->counters_idr_lock);
+		WARN_ON(!idr_remove(&fc_stats->counters_idr, counter->id));
+		spin_unlock(&fc_stats->counters_idr_lock);
+
 		llist_add(&counter->dellist, &fc_stats->dellist);
 		mod_delayed_work(fc_stats->wq, &fc_stats->work, 0);
 		return;
@@ -258,6 +283,8 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 {
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
 
+	spin_lock_init(&fc_stats->counters_idr_lock);
+	idr_init(&fc_stats->counters_idr);
 	INIT_LIST_HEAD(&fc_stats->counters);
 	init_llist_head(&fc_stats->addlist);
 	init_llist_head(&fc_stats->dellist);
@@ -282,6 +309,8 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 	cancel_delayed_work_sync(&dev->priv.fc_stats.work);
 	destroy_workqueue(dev->priv.fc_stats.wq);
 	dev->priv.fc_stats.wq = NULL;
+
+	idr_destroy(&fc_stats->counters_idr);
 
 	tmplist = llist_del_all(&fc_stats->addlist);
 	llist_for_each_entry_safe(counter, tmp, tmplist, addlist)
