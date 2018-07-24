@@ -406,9 +406,8 @@ static long bch2_ioctl_usage(struct bch_fs *c,
 			dst.persistent_reserved[i] =
 				src.s[i].persistent_reserved;
 
-			for (j = 0; j < S_ALLOC_NR; j++)
-				dst.sectors[s_alloc_to_data_type(j)][i] =
-					src.s[i].data[j];
+			for (j = 0; j < BCH_DATA_NR; j++)
+				dst.sectors[j][i] = src.s[i].data[j];
 		}
 
 		ret = copy_to_user(&user_arg->fs, &dst, sizeof(dst));

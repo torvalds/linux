@@ -168,18 +168,6 @@ static inline u64 dev_buckets_free(struct bch_fs *c, struct bch_dev *ca)
 
 /* Filesystem usage: */
 
-static inline enum bch_data_type s_alloc_to_data_type(enum s_alloc s)
-{
-	switch (s) {
-	case S_META:
-		return BCH_DATA_BTREE;
-	case S_DIRTY:
-		return BCH_DATA_USER;
-	default:
-		BUG();
-	}
-}
-
 struct bch_fs_usage __bch2_fs_usage_read(struct bch_fs *);
 struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *);
 void bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,

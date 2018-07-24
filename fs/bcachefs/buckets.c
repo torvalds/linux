@@ -82,16 +82,14 @@ static void bch2_fs_stats_verify(struct bch_fs *c)
 {
 	struct bch_fs_usage stats =
 		__bch2_fs_usage_read(c);
-	unsigned i;
+	unsigned i, j;
 
 	for (i = 0; i < ARRAY_SIZE(stats.s); i++) {
-		if ((s64) stats.s[i].data[S_META] < 0)
-			panic("replicas %u meta underflow: %lli\n",
-			      i + 1, stats.s[i].data[S_META]);
-
-		if ((s64) stats.s[i].data[S_DIRTY] < 0)
-			panic("replicas %u dirty underflow: %lli\n",
-			      i + 1, stats.s[i].data[S_DIRTY]);
+		for (j = 0; j < ARRAY_SIZE(stats.s[i].data); j++)
+			if ((s64) stats.s[i].data[j] < 0)
+				panic("replicas %u %s underflow: %lli\n",
+				      i + 1, bch_data_types[j],
+				      stats.s[i].data[j]);
 
 		if ((s64) stats.s[i].persistent_reserved < 0)
 			panic("replicas %u reserved underflow: %lli\n",
@@ -247,12 +245,16 @@ struct fs_usage_sum {
 static inline struct fs_usage_sum __fs_usage_sum(struct bch_fs_usage stats)
 {
 	struct fs_usage_sum sum = { 0 };
-	unsigned i;
+	unsigned i, j;
 
 	for (i = 0; i < ARRAY_SIZE(stats.s); i++) {
-		sum.data += (stats.s[i].data[S_META] +
-			     stats.s[i].data[S_DIRTY]) * (i + 1);
-		sum.reserved += stats.s[i].persistent_reserved * (i + 1);
+		u64 a = 0;
+
+		for (j = 0; j < ARRAY_SIZE(stats.s[i].data); j++)
+			a += stats.s[i].data[j];
+
+		sum.data	+= a * (i + 1);
+		sum.reserved	+= stats.s[i].persistent_reserved * (i + 1);
 	}
 
 	sum.reserved += stats.online_reserved;
@@ -641,8 +643,6 @@ void bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 		const struct bch_extent_ptr *ptr;
 		struct bch_extent_crc_unpacked crc;
-		enum s_alloc type = data_type == BCH_DATA_USER
-			? S_DIRTY : S_META;
 		unsigned replicas = 0;
 
 		BUG_ON(!sectors);
@@ -655,7 +655,7 @@ void bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 
 		if (replicas) {
 			BUG_ON(replicas - 1 > ARRAY_SIZE(stats->s));
-			stats->s[replicas - 1].data[type] += sectors;
+			stats->s[replicas - 1].data[data_type] += sectors;
 		}
 		break;
 	}

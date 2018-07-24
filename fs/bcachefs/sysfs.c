@@ -230,41 +230,34 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 
 static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 {
+	char *out = buf, *end = buf + PAGE_SIZE;
 	struct bch_fs_usage stats = bch2_fs_usage_read(c);
+	unsigned replicas, type;
 
-	return scnprintf(buf, PAGE_SIZE,
-			 "capacity:\t\t%llu\n"
-			 "1 replicas:\n"
-			 "\tmeta:\t\t%llu\n"
-			 "\tdirty:\t\t%llu\n"
-			 "\treserved:\t%llu\n"
-			 "2 replicas:\n"
-			 "\tmeta:\t\t%llu\n"
-			 "\tdirty:\t\t%llu\n"
-			 "\treserved:\t%llu\n"
-			 "3 replicas:\n"
-			 "\tmeta:\t\t%llu\n"
-			 "\tdirty:\t\t%llu\n"
-			 "\treserved:\t%llu\n"
-			 "4 replicas:\n"
-			 "\tmeta:\t\t%llu\n"
-			 "\tdirty:\t\t%llu\n"
-			 "\treserved:\t%llu\n"
+	out += scnprintf(out, end - out,
+			 "capacity:\t\t%llu\n",
+			 c->capacity);
+
+	for (replicas = 0; replicas < ARRAY_SIZE(stats.s); replicas++) {
+		out += scnprintf(out, end - out,
+				 "%u replicas:\n",
+				 replicas + 1);
+
+		for (type = BCH_DATA_SB; type < BCH_DATA_NR; type++)
+			out += scnprintf(out, end - out,
+					 "\t%s:\t\t%llu\n",
+					 bch2_data_types[type],
+					 stats.s[replicas].data[type]);
+		out += scnprintf(out, end - out,
+				 "\treserved:\t%llu\n",
+				 stats.s[replicas].persistent_reserved);
+	}
+
+	out += scnprintf(out, end - out,
 			 "online reserved:\t%llu\n",
-			 c->capacity,
-			 stats.s[0].data[S_META],
-			 stats.s[0].data[S_DIRTY],
-			 stats.s[0].persistent_reserved,
-			 stats.s[1].data[S_META],
-			 stats.s[1].data[S_DIRTY],
-			 stats.s[1].persistent_reserved,
-			 stats.s[2].data[S_META],
-			 stats.s[2].data[S_DIRTY],
-			 stats.s[2].persistent_reserved,
-			 stats.s[3].data[S_META],
-			 stats.s[3].data[S_DIRTY],
-			 stats.s[3].persistent_reserved,
 			 stats.online_reserved);
+
+	return out - buf;
 }
 
 static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
