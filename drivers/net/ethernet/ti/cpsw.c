@@ -39,11 +39,14 @@
 #include <linux/sys_soc.h>
 
 #include <linux/pinctrl/consumer.h>
+#include <net/pkt_cls.h>
 
 #include "cpsw.h"
 #include "cpsw_ale.h"
 #include "cpts.h"
 #include "davinci_cpdma.h"
+
+#include <net/pkt_sched.h>
 
 #define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
 			 NETIF_MSG_DRV		| NETIF_MSG_LINK	| \
@@ -153,6 +156,12 @@ do {								\
 #define IRQ_NUM			2
 #define CPSW_MAX_QUEUES		8
 #define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
+#define CPSW_FIFO_QUEUE_TYPE_SHIFT	16
+#define CPSW_FIFO_SHAPE_EN_SHIFT	16
+#define CPSW_FIFO_RATE_EN_SHIFT		20
+#define CPSW_TC_NUM			4
+#define CPSW_FIFO_SHAPERS_NUM		(CPSW_TC_NUM - 1)
+#define CPSW_PCT_MASK			0x7f
 
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_SHIFT	29
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_MSK		GENMASK(2, 0)
@@ -454,6 +463,9 @@ struct cpsw_priv {
 	u8				mac_addr[ETH_ALEN];
 	bool				rx_pause;
 	bool				tx_pause;
+	bool				mqprio_hw;
+	int				fifo_bw[CPSW_TC_NUM];
+	int				shp_cfg_speed;
 	u32 emac_port;
 	struct cpsw_common *cpsw;
 };
@@ -968,8 +980,8 @@ static int cpsw_tx_mq_poll(struct napi_struct *napi_tx, int budget)
 
 	/* process every unprocessed channel */
 	ch_map = cpdma_ctrl_txchs_state(cpsw->dma);
-	for (ch = 0, num_tx = 0; ch_map; ch_map >>= 1, ch++) {
-		if (!(ch_map & 0x01))
+	for (ch = 0, num_tx = 0; ch_map & 0xff; ch_map <<= 1, ch++) {
+		if (!(ch_map & 0x80))
 			continue;
 
 		txv = &cpsw->txv[ch];
@@ -1078,6 +1090,38 @@ static void cpsw_set_slave_mac(struct cpsw_slave *slave,
 	slave_write(slave, mac_lo(priv->mac_addr), SA_LO);
 }
 
+static bool cpsw_shp_is_off(struct cpsw_priv *priv)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 shift, mask, val;
+
+	val = readl_relaxed(&cpsw->regs->ptype);
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	shift = CPSW_FIFO_SHAPE_EN_SHIFT + 3 * slave->slave_num;
+	mask = 7 << shift;
+	val = val & mask;
+
+	return !val;
+}
+
+static void cpsw_fifo_shp_on(struct cpsw_priv *priv, int fifo, int on)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 shift, mask, val;
+
+	val = readl_relaxed(&cpsw->regs->ptype);
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	shift = CPSW_FIFO_SHAPE_EN_SHIFT + 3 * slave->slave_num;
+	mask = (1 << --fifo) << shift;
+	val = on ? val | mask : val & ~mask;
+
+	writel_relaxed(val, &cpsw->regs->ptype);
+}
+
 static void _cpsw_adjust_link(struct cpsw_slave *slave,
 			      struct cpsw_priv *priv, bool *link)
 {
@@ -1117,6 +1161,12 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 			mac_control |= BIT(4);
 
 		*link = true;
+
+		if (priv->shp_cfg_speed &&
+		    priv->shp_cfg_speed != slave->phy->speed &&
+		    !cpsw_shp_is_off(priv))
+			dev_warn(priv->dev,
+				 "Speed was changed, CBS shaper speeds are changed!");
 	} else {
 		mac_control = 0;
 		/* disable forwarding */
@@ -1578,6 +1628,231 @@ static void cpsw_slave_stop(struct cpsw_slave *slave, struct cpsw_common *cpsw)
 	soft_reset_slave(slave);
 }
 
+static int cpsw_tc_to_fifo(int tc, int num_tc)
+{
+	if (tc == num_tc - 1)
+		return 0;
+
+	return CPSW_FIFO_SHAPERS_NUM - tc;
+}
+
+static int cpsw_set_fifo_bw(struct cpsw_priv *priv, int fifo, int bw)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	u32 val = 0, send_pct, shift;
+	struct cpsw_slave *slave;
+	int pct = 0, i;
+
+	if (bw > priv->shp_cfg_speed * 1000)
+		goto err;
+
+	/* shaping has to stay enabled for highest fifos linearly
+	 * and fifo bw no more then interface can allow
+	 */
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	send_pct = slave_read(slave, SEND_PERCENT);
+	for (i = CPSW_FIFO_SHAPERS_NUM; i > 0; i--) {
+		if (!bw) {
+			if (i >= fifo || !priv->fifo_bw[i])
+				continue;
+
+			dev_warn(priv->dev, "Prev FIFO%d is shaped", i);
+			continue;
+		}
+
+		if (!priv->fifo_bw[i] && i > fifo) {
+			dev_err(priv->dev, "Upper FIFO%d is not shaped", i);
+			return -EINVAL;
+		}
+
+		shift = (i - 1) * 8;
+		if (i == fifo) {
+			send_pct &= ~(CPSW_PCT_MASK << shift);
+			val = DIV_ROUND_UP(bw, priv->shp_cfg_speed * 10);
+			if (!val)
+				val = 1;
+
+			send_pct |= val << shift;
+			pct += val;
+			continue;
+		}
+
+		if (priv->fifo_bw[i])
+			pct += (send_pct >> shift) & CPSW_PCT_MASK;
+	}
+
+	if (pct >= 100)
+		goto err;
+
+	slave_write(slave, send_pct, SEND_PERCENT);
+	priv->fifo_bw[fifo] = bw;
+
+	dev_warn(priv->dev, "set FIFO%d bw = %d\n", fifo,
+		 DIV_ROUND_CLOSEST(val * priv->shp_cfg_speed, 100));
+
+	return 0;
+err:
+	dev_err(priv->dev, "Bandwidth doesn't fit in tc configuration");
+	return -EINVAL;
+}
+
+static int cpsw_set_fifo_rlimit(struct cpsw_priv *priv, int fifo, int bw)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	u32 tx_in_ctl_rg, val;
+	int ret;
+
+	ret = cpsw_set_fifo_bw(priv, fifo, bw);
+	if (ret)
+		return ret;
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	tx_in_ctl_rg = cpsw->version == CPSW_VERSION_1 ?
+		       CPSW1_TX_IN_CTL : CPSW2_TX_IN_CTL;
+
+	if (!bw)
+		cpsw_fifo_shp_on(priv, fifo, bw);
+
+	val = slave_read(slave, tx_in_ctl_rg);
+	if (cpsw_shp_is_off(priv)) {
+		/* disable FIFOs rate limited queues */
+		val &= ~(0xf << CPSW_FIFO_RATE_EN_SHIFT);
+
+		/* set type of FIFO queues to normal priority mode */
+		val &= ~(3 << CPSW_FIFO_QUEUE_TYPE_SHIFT);
+
+		/* set type of FIFO queues to be rate limited */
+		if (bw)
+			val |= 2 << CPSW_FIFO_QUEUE_TYPE_SHIFT;
+		else
+			priv->shp_cfg_speed = 0;
+	}
+
+	/* toggle a FIFO rate limited queue */
+	if (bw)
+		val |= BIT(fifo + CPSW_FIFO_RATE_EN_SHIFT);
+	else
+		val &= ~BIT(fifo + CPSW_FIFO_RATE_EN_SHIFT);
+	slave_write(slave, val, tx_in_ctl_rg);
+
+	/* FIFO transmit shape enable */
+	cpsw_fifo_shp_on(priv, fifo, bw);
+	return 0;
+}
+
+/* Defaults:
+ * class A - prio 3
+ * class B - prio 2
+ * shaping for class A should be set first
+ */
+static int cpsw_set_cbs(struct net_device *ndev,
+			struct tc_cbs_qopt_offload *qopt)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	int prev_speed = 0;
+	int tc, ret, fifo;
+	u32 bw = 0;
+
+	tc = netdev_txq_to_tc(priv->ndev, qopt->queue);
+
+	/* enable channels in backward order, as highest FIFOs must be rate
+	 * limited first and for compliance with CPDMA rate limited channels
+	 * that also used in bacward order. FIFO0 cannot be rate limited.
+	 */
+	fifo = cpsw_tc_to_fifo(tc, ndev->num_tc);
+	if (!fifo) {
+		dev_err(priv->dev, "Last tc%d can't be rate limited", tc);
+		return -EINVAL;
+	}
+
+	/* do nothing, it's disabled anyway */
+	if (!qopt->enable && !priv->fifo_bw[fifo])
+		return 0;
+
+	/* shapers can be set if link speed is known */
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	if (slave->phy && slave->phy->link) {
+		if (priv->shp_cfg_speed &&
+		    priv->shp_cfg_speed != slave->phy->speed)
+			prev_speed = priv->shp_cfg_speed;
+
+		priv->shp_cfg_speed = slave->phy->speed;
+	}
+
+	if (!priv->shp_cfg_speed) {
+		dev_err(priv->dev, "Link speed is not known");
+		return -1;
+	}
+
+	ret = pm_runtime_get_sync(cpsw->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(cpsw->dev);
+		return ret;
+	}
+
+	bw = qopt->enable ? qopt->idleslope : 0;
+	ret = cpsw_set_fifo_rlimit(priv, fifo, bw);
+	if (ret) {
+		priv->shp_cfg_speed = prev_speed;
+		prev_speed = 0;
+	}
+
+	if (bw && prev_speed)
+		dev_warn(priv->dev,
+			 "Speed was changed, CBS shaper speeds are changed!");
+
+	pm_runtime_put_sync(cpsw->dev);
+	return ret;
+}
+
+static void cpsw_cbs_resume(struct cpsw_slave *slave, struct cpsw_priv *priv)
+{
+	int fifo, bw;
+
+	for (fifo = CPSW_FIFO_SHAPERS_NUM; fifo > 0; fifo--) {
+		bw = priv->fifo_bw[fifo];
+		if (!bw)
+			continue;
+
+		cpsw_set_fifo_rlimit(priv, fifo, bw);
+	}
+}
+
+static void cpsw_mqprio_resume(struct cpsw_slave *slave, struct cpsw_priv *priv)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	u32 tx_prio_map = 0;
+	int i, tc, fifo;
+	u32 tx_prio_rg;
+
+	if (!priv->mqprio_hw)
+		return;
+
+	for (i = 0; i < 8; i++) {
+		tc = netdev_get_prio_tc_map(priv->ndev, i);
+		fifo = CPSW_FIFO_SHAPERS_NUM - tc;
+		tx_prio_map |= fifo << (4 * i);
+	}
+
+	tx_prio_rg = cpsw->version == CPSW_VERSION_1 ?
+		     CPSW1_TX_PRI_MAP : CPSW2_TX_PRI_MAP;
+
+	slave_write(slave, tx_prio_map, tx_prio_rg);
+}
+
+/* restore resources after port reset */
+static void cpsw_restore(struct cpsw_priv *priv)
+{
+	/* restore MQPRIO offload */
+	for_each_slave(priv, cpsw_mqprio_resume, priv);
+
+	/* restore CBS offload */
+	for_each_slave(priv, cpsw_cbs_resume, priv);
+}
+
 static int cpsw_ndo_open(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -1656,6 +1931,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 			dev_err(priv->dev, "error registering cpts device\n");
 
 	}
+
+	cpsw_restore(priv);
 
 	/* Enable Interrupt pacing if configured */
 	if (cpsw->coal_intvl != 0) {
@@ -2191,6 +2468,78 @@ static int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 	return ret;
 }
 
+static int cpsw_set_mqprio(struct net_device *ndev, void *type_data)
+{
+	struct tc_mqprio_qopt_offload *mqprio = type_data;
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	int fifo, num_tc, count, offset;
+	struct cpsw_slave *slave;
+	u32 tx_prio_map = 0;
+	int i, tc, ret;
+
+	num_tc = mqprio->qopt.num_tc;
+	if (num_tc > CPSW_TC_NUM)
+		return -EINVAL;
+
+	if (mqprio->mode != TC_MQPRIO_MODE_DCB)
+		return -EINVAL;
+
+	ret = pm_runtime_get_sync(cpsw->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(cpsw->dev);
+		return ret;
+	}
+
+	if (num_tc) {
+		for (i = 0; i < 8; i++) {
+			tc = mqprio->qopt.prio_tc_map[i];
+			fifo = cpsw_tc_to_fifo(tc, num_tc);
+			tx_prio_map |= fifo << (4 * i);
+		}
+
+		netdev_set_num_tc(ndev, num_tc);
+		for (i = 0; i < num_tc; i++) {
+			count = mqprio->qopt.count[i];
+			offset = mqprio->qopt.offset[i];
+			netdev_set_tc_queue(ndev, i, count, offset);
+		}
+	}
+
+	if (!mqprio->qopt.hw) {
+		/* restore default configuration */
+		netdev_reset_tc(ndev);
+		tx_prio_map = TX_PRIORITY_MAPPING;
+	}
+
+	priv->mqprio_hw = mqprio->qopt.hw;
+
+	offset = cpsw->version == CPSW_VERSION_1 ?
+		 CPSW1_TX_PRI_MAP : CPSW2_TX_PRI_MAP;
+
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
+	slave_write(slave, tx_prio_map, offset);
+
+	pm_runtime_put_sync(cpsw->dev);
+
+	return 0;
+}
+
+static int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+			     void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_CBS:
+		return cpsw_set_cbs(ndev, type_data);
+
+	case TC_SETUP_QDISC_MQPRIO:
+		return cpsw_set_mqprio(ndev, type_data);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
 	.ndo_stop		= cpsw_ndo_stop,
@@ -2206,6 +2555,7 @@ static const struct net_device_ops cpsw_netdev_ops = {
 #endif
 	.ndo_vlan_rx_add_vid	= cpsw_ndo_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= cpsw_ndo_vlan_rx_kill_vid,
+	.ndo_setup_tc           = cpsw_ndo_setup_tc,
 };
 
 static int cpsw_get_regs_len(struct net_device *ndev)
@@ -2432,7 +2782,7 @@ static int cpsw_update_channels_res(struct cpsw_priv *priv, int ch_num, int rx)
 	void (*handler)(void *, int, int);
 	struct netdev_queue *queue;
 	struct cpsw_vector *vec;
-	int ret, *ch;
+	int ret, *ch, vch;
 
 	if (rx) {
 		ch = &cpsw->rx_ch_num;
@@ -2445,7 +2795,8 @@ static int cpsw_update_channels_res(struct cpsw_priv *priv, int ch_num, int rx)
 	}
 
 	while (*ch < ch_num) {
-		vec[*ch].ch = cpdma_chan_create(cpsw->dma, *ch, handler, rx);
+		vch = rx ? *ch : 7 - *ch;
+		vec[*ch].ch = cpdma_chan_create(cpsw->dma, vch, handler, rx);
 		queue = netdev_get_tx_queue(priv->ndev, *ch);
 		queue->tx_maxrate = 0;
 
@@ -2982,7 +3333,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	u32 slave_offset, sliver_offset, slave_size;
 	const struct soc_device_attribute *soc;
 	struct cpsw_common		*cpsw;
-	int ret = 0, i;
+	int ret = 0, i, ch;
 	int irq;
 
 	cpsw = devm_kzalloc(&pdev->dev, sizeof(struct cpsw_common), GFP_KERNEL);
@@ -3157,7 +3508,8 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (soc)
 		cpsw->quirk_irq = 1;
 
-	cpsw->txv[0].ch = cpdma_chan_create(cpsw->dma, 0, cpsw_tx_handler, 0);
+	ch = cpsw->quirk_irq ? 0 : 7;
+	cpsw->txv[0].ch = cpdma_chan_create(cpsw->dma, ch, cpsw_tx_handler, 0);
 	if (IS_ERR(cpsw->txv[0].ch)) {
 		dev_err(priv->dev, "error initializing tx dma channel\n");
 		ret = PTR_ERR(cpsw->txv[0].ch);
