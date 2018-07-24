@@ -22,6 +22,7 @@
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_defer.h"
 
 STATIC int	xfs_qm_log_quotaoff(xfs_mount_t *, xfs_qoff_logitem_t **, uint);
 STATIC int	xfs_qm_log_quotaoff_end(xfs_mount_t *, xfs_qoff_logitem_t *,
@@ -213,6 +214,7 @@ xfs_qm_scall_trunc_qfile(
 {
 	struct xfs_inode	*ip;
 	struct xfs_trans	*tp;
+	struct xfs_defer_ops	dfops;
 	int			error;
 
 	if (ino == NULLFSINO)
@@ -229,6 +231,7 @@ xfs_qm_scall_trunc_qfile(
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 		goto out_put;
 	}
+	xfs_defer_init(tp, &dfops);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);

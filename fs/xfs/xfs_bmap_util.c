@@ -792,6 +792,7 @@ xfs_free_eofblocks(
 	int			nimaps;
 	struct xfs_bmbt_irec	imap;
 	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_defer_ops	dfops;
 
 	/*
 	 * Figure out if there are any blocks beyond the end
@@ -831,6 +832,7 @@ xfs_free_eofblocks(
 			ASSERT(XFS_FORCED_SHUTDOWN(mp));
 			return error;
 		}
+		xfs_defer_init(tp, &dfops);
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, 0);

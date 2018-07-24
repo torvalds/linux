@@ -1541,8 +1541,6 @@ xfs_itruncate_extents_flags(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp = *tpp;
-	struct xfs_defer_ops	*odfops = tp->t_dfops;
-	struct xfs_defer_ops	dfops;
 	xfs_fileoff_t		first_unmap_block;
 	xfs_fileoff_t		last_block;
 	xfs_filblks_t		unmap_len;
@@ -1579,7 +1577,7 @@ xfs_itruncate_extents_flags(
 	ASSERT(first_unmap_block < last_block);
 	unmap_len = last_block - first_unmap_block + 1;
 	while (!done) {
-		xfs_defer_init(tp, &dfops);
+		ASSERT(tp->t_firstblock == NULLFSBLOCK);
 		error = xfs_bunmapi(tp, ip, first_unmap_block, unmap_len, flags,
 				    XFS_ITRUNC_MAX_EXTENTS, &done);
 		if (error)
@@ -1618,8 +1616,6 @@ xfs_itruncate_extents_flags(
 	trace_xfs_itruncate_extents_end(ip, new_size);
 
 out:
-	/* ->t_dfops points to local stack, don't leak it! */
-	tp->t_dfops = odfops;
 	*tpp = tp;
 	return error;
 out_bmap_cancel:
@@ -1723,6 +1719,7 @@ xfs_inactive_truncate(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
+	struct xfs_defer_ops	dfops;
 	int			error;
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
@@ -1730,6 +1727,7 @@ xfs_inactive_truncate(
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		return error;
 	}
+	xfs_defer_init(tp, &dfops);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
