@@ -189,6 +189,13 @@
 
 				resets = <&reset RESET_AUDIO>;
 			};
+
+			arb: reset-controller@280 {
+				compatible = "amlogic,meson-axg-audio-arb";
+				reg = <0x0 0x280 0x0 0x4>;
+				#reset-cells = <1>;
+				clocks = <&clkc_audio AUD_CLKID_DDR_ARB>;
+			};
 		};
 
 		cbus: bus@ffd00000 {
