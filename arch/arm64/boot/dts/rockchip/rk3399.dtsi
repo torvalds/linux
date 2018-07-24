@@ -1512,15 +1512,6 @@
 			status = "disabled";
 		};
 
-		emmc_phy: phy@f780 {
-			compatible = "rockchip,rk3399-emmc-phy";
-			reg = <0xf780 0x24>;
-			clocks = <&sdhci>;
-			clock-names = "emmcclk";
-			#phy-cells = <0>;
-			status = "disabled";
-		};
-
 		u2phy0: usb2-phy@e450 {
 			compatible = "rockchip,rk3399-usb2phy";
 			reg = <0xe450 0x10>;
@@ -1530,6 +1521,13 @@
 			clock-output-names = "clk_usbphy0_480m";
 			status = "disabled";
 
+			u2phy0_host: host-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH 0>;
+				interrupt-names = "linestate";
+				status = "disabled";
+			};
+
 			u2phy0_otg: otg-port {
 				#phy-cells = <0>;
 				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH 0>,
@@ -1537,13 +1535,6 @@
 					     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH 0>;
 				interrupt-names = "otg-bvalid", "otg-id",
 						  "linestate";
-				status = "disabled";
-			};
-
-			u2phy0_host: host-port {
-				#phy-cells = <0>;
-				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH 0>;
-				interrupt-names = "linestate";
 				status = "disabled";
 			};
 		};
@@ -1557,6 +1548,13 @@
 			clock-output-names = "clk_usbphy1_480m";
 			status = "disabled";
 
+			u2phy1_host: host-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH 0>;
+				interrupt-names = "linestate";
+				status = "disabled";
+			};
+
 			u2phy1_otg: otg-port {
 				#phy-cells = <0>;
 				interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH 0>,
@@ -1566,13 +1564,15 @@
 						  "linestate";
 				status = "disabled";
 			};
+		};
 
-			u2phy1_host: host-port {
-				#phy-cells = <0>;
-				interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH 0>;
-				interrupt-names = "linestate";
-				status = "disabled";
-			};
+		emmc_phy: phy@f780 {
+			compatible = "rockchip,rk3399-emmc-phy";
+			reg = <0xf780 0x24>;
+			clocks = <&sdhci>;
+			clock-names = "emmcclk";
+			#phy-cells = <0>;
+			status = "disabled";
 		};
 
 		mipi_dphy_rx0: mipi-dphy-rx0 {
@@ -2206,8 +2206,8 @@
 		compatible = "rockchip,rk3399-pinctrl";
 		rockchip,grf = <&grf>;
 		rockchip,pmu = <&pmugrf>;
-		#address-cells = <0x2>;
-		#size-cells = <0x2>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 
 		gpio0: gpio0@ff720000 {
