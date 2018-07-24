@@ -555,3 +555,25 @@ xfs_defer_init(
 	}
 	trace_xfs_defer_init(mp, dop, _RET_IP_);
 }
+
+/*
+ * Move state from one xfs_defer_ops to another and reset the source to initial
+ * state. This is primarily used to carry state forward across transaction rolls
+ * with internal dfops.
+ */
+void
+xfs_defer_move(
+	struct xfs_defer_ops	*dst,
+	struct xfs_defer_ops	*src)
+{
+	ASSERT(dst != src);
+
+	list_splice_init(&src->dop_intake, &dst->dop_intake);
+	list_splice_init(&src->dop_pending, &dst->dop_pending);
+
+	memcpy(dst->dop_inodes, src->dop_inodes, sizeof(dst->dop_inodes));
+	memcpy(dst->dop_bufs, src->dop_bufs, sizeof(dst->dop_bufs));
+	dst->dop_low = src->dop_low;
+
+	xfs_defer_reset(src);
+}

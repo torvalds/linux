@@ -119,7 +119,13 @@ xfs_trans_dup(
 	ntp->t_rtx_res = tp->t_rtx_res - tp->t_rtx_res_used;
 	tp->t_rtx_res = tp->t_rtx_res_used;
 	ntp->t_pflags = tp->t_pflags;
-	ntp->t_dfops = tp->t_dfops;
+
+	/* copy the dfops pointer if it's external, otherwise move it */
+	xfs_defer_init(ntp, &ntp->t_dfops_internal);
+	if (tp->t_dfops != &tp->t_dfops_internal)
+		ntp->t_dfops = tp->t_dfops;
+	else
+		xfs_defer_move(ntp->t_dfops, tp->t_dfops);
 
 	xfs_trans_dup_dqinfo(tp, ntp);
 
@@ -275,6 +281,13 @@ xfs_trans_alloc(
 	INIT_LIST_HEAD(&tp->t_items);
 	INIT_LIST_HEAD(&tp->t_busy);
 	tp->t_firstblock = NULLFSBLOCK;
+	/*
+	 * We only roll transactions with permanent log reservation. Don't init
+	 * ->t_dfops to skip attempts to finish or cancel an empty dfops with a
+	 * non-permanent res.
+	 */
+	if (resp->tr_logflags & XFS_TRANS_PERM_LOG_RES)
+		xfs_defer_init(tp, &tp->t_dfops_internal);
 
 	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
 	if (error) {
@@ -916,10 +929,16 @@ __xfs_trans_commit(
 	int			error = 0;
 	int			sync = tp->t_flags & XFS_TRANS_SYNC;
 
-	ASSERT(!tp->t_dfops ||
-	       !xfs_defer_has_unfinished_work(tp->t_dfops) || regrant);
-
 	trace_xfs_trans_commit(tp, _RET_IP_);
+
+	/* finish deferred items on final commit */
+	if (!regrant && tp->t_dfops) {
+		error = xfs_defer_finish(&tp, tp->t_dfops);
+		if (error) {
+			xfs_defer_cancel(tp->t_dfops);
+			goto out_unreserve;
+		}
+	}
 
 	/*
 	 * If there is nothing to be logged by the transaction,
@@ -1009,6 +1028,9 @@ xfs_trans_cancel(
 	bool			dirty = (tp->t_flags & XFS_TRANS_DIRTY);
 
 	trace_xfs_trans_cancel(tp, _RET_IP_);
+
+	if (tp->t_dfops)
+		xfs_defer_cancel(tp->t_dfops);
 
 	/*
 	 * See if the caller is relying on us to shut down the

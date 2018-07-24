@@ -24,7 +24,6 @@ struct xfs_rui_log_item;
 struct xfs_btree_cur;
 struct xfs_cui_log_item;
 struct xfs_cud_log_item;
-struct xfs_defer_ops;
 struct xfs_bui_log_item;
 struct xfs_bud_log_item;
 
@@ -90,6 +89,21 @@ void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 #define XFS_ITEM_LOCKED		2
 #define XFS_ITEM_FLUSHING	3
 
+/*
+ * Deferred operations tracking structure.
+ */
+#define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
+#define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
+struct xfs_defer_ops {
+	struct list_head	dop_intake;	/* unlogged pending work */
+	struct list_head	dop_pending;	/* logged pending work */
+
+	/* relog these with each roll */
+	struct xfs_inode	*dop_inodes[XFS_DEFER_OPS_NR_INODES];
+	struct xfs_buf		*dop_bufs[XFS_DEFER_OPS_NR_BUFS];
+
+	bool			dop_low;	/* alloc in low mode */
+};
 
 /*
  * This is the structure maintained for every active transaction.
@@ -130,6 +144,7 @@ typedef struct xfs_trans {
 	struct list_head	t_items;	/* log item descriptors */
 	struct list_head	t_busy;		/* list of busy extents */
 	unsigned long		t_pflags;	/* saved process flags state */
+	struct xfs_defer_ops	t_dfops_internal;
 } xfs_trans_t;
 
 /*
