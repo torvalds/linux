@@ -589,7 +589,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			for (subi = 0; subi < subn; subi++) {
 				pr_info("%2d.%1d: %-*s:", i, subi + 1, subw,
 					t->subtest.get_desc(subi));
-				err = test_and_print(t, skip, subi);
+				err = test_and_print(t, skip, subi + 1);
 				if (err != TEST_OK && t->subtest.skip_if_fail)
 					skip = true;
 			}
