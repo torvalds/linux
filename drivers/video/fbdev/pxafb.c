@@ -1802,14 +1802,14 @@ static struct pxafb_info *pxafb_init_fbinfo(struct device *dev,
 	fbi = devm_kzalloc(dev, sizeof(struct pxafb_info) + sizeof(u32) * 16,
 			   GFP_KERNEL);
 	if (!fbi)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	fbi->dev = dev;
 	fbi->inf = inf;
 
 	fbi->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(fbi->clk))
-		return NULL;
+		return ERR_CAST(fbi->clk);
 
 	strcpy(fbi->fb.fix.id, PXA_NAME);
 
@@ -2287,10 +2287,9 @@ static int pxafb_probe(struct platform_device *dev)
 	}
 
 	fbi = pxafb_init_fbinfo(&dev->dev, inf);
-	if (!fbi) {
-		/* only reason for pxafb_init_fbinfo to fail is kmalloc */
+	if (IS_ERR(fbi)) {
 		dev_err(&dev->dev, "Failed to initialize framebuffer device\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(fbi);
 		goto failed;
 	}
 
