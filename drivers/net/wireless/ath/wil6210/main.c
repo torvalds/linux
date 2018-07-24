@@ -1136,6 +1136,9 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 				     wil->platform_capa)) ?
 			BIT(WIL_PLATFORM_FEATURE_FW_EXT_CLK_CONTROL) : 0;
 
+		if (wil->n_msi == 3)
+			features |= BIT(WIL_PLATFORM_FEATURE_TRIPLE_MSI);
+
 		wil->platform_ops.set_features(wil->platform_handle, features);
 	}
 }
