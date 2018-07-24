@@ -139,7 +139,7 @@ struct mlx5_fc_cache {
 };
 
 struct mlx5_fc {
-	struct rb_node node;
+	struct list_head list;
 	struct llist_node addlist;
 	struct llist_node dellist;
 

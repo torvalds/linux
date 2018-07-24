@@ -73,36 +73,38 @@
  *   elapsed, the thread will actually query the hardware.
  */
 
-static void mlx5_fc_stats_insert(struct rb_root *root, struct mlx5_fc *counter)
+static struct list_head *mlx5_fc_counters_lookup_next(struct mlx5_core_dev *dev,
+						      u32 id)
 {
-	struct rb_node **new = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+	struct mlx5_fc *counter;
 
-	while (*new) {
-		struct mlx5_fc *this = rb_entry(*new, struct mlx5_fc, node);
-		int result = counter->id - this->id;
+	list_for_each_entry(counter, &fc_stats->counters, list)
+		if (counter->id > id)
+			return &counter->list;
 
-		parent = *new;
-		if (result < 0)
-			new = &((*new)->rb_left);
-		else
-			new = &((*new)->rb_right);
-	}
-
-	/* Add new node and rebalance tree. */
-	rb_link_node(&counter->node, parent, new);
-	rb_insert_color(&counter->node, root);
+	return &fc_stats->counters;
 }
 
-/* The function returns the last node that was queried so the caller
+static void mlx5_fc_stats_insert(struct mlx5_core_dev *dev,
+				 struct mlx5_fc *counter)
+{
+	struct list_head *next = mlx5_fc_counters_lookup_next(dev, counter->id);
+
+	list_add_tail(&counter->list, next);
+}
+
+/* The function returns the last counter that was queried so the caller
  * function can continue calling it till all counters are queried.
  */
-static struct rb_node *mlx5_fc_stats_query(struct mlx5_core_dev *dev,
+static struct mlx5_fc *mlx5_fc_stats_query(struct mlx5_core_dev *dev,
 					   struct mlx5_fc *first,
 					   u32 last_id)
 {
+	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+	struct mlx5_fc *counter = NULL;
 	struct mlx5_cmd_fc_bulk *b;
-	struct rb_node *node = NULL;
+	bool more = false;
 	u32 afirst_id;
 	int num;
 	int err;
@@ -132,14 +134,16 @@ static struct rb_node *mlx5_fc_stats_query(struct mlx5_core_dev *dev,
 		goto out;
 	}
 
-	for (node = &first->node; node; node = rb_next(node)) {
-		struct mlx5_fc *counter = rb_entry(node, struct mlx5_fc, node);
+	counter = first;
+	list_for_each_entry_from(counter, &fc_stats->counters, list) {
 		struct mlx5_fc_cache *c = &counter->cache;
 		u64 packets;
 		u64 bytes;
 
-		if (counter->id > last_id)
+		if (counter->id > last_id) {
+			more = true;
 			break;
+		}
 
 		mlx5_cmd_fc_bulk_get(dev, b,
 				     counter->id, &packets, &bytes);
@@ -155,7 +159,7 @@ static struct rb_node *mlx5_fc_stats_query(struct mlx5_core_dev *dev,
 out:
 	mlx5_cmd_fc_bulk_free(b);
 
-	return node;
+	return more ? counter : NULL;
 }
 
 static void mlx5_free_fc(struct mlx5_core_dev *dev,
@@ -173,33 +177,30 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 	struct llist_node *tmplist = llist_del_all(&fc_stats->addlist);
 	struct mlx5_fc *counter = NULL, *last = NULL, *tmp;
 	unsigned long now = jiffies;
-	struct rb_node *node;
 
-	if (tmplist || !RB_EMPTY_ROOT(&fc_stats->counters))
+	if (tmplist || !list_empty(&fc_stats->counters))
 		queue_delayed_work(fc_stats->wq, &fc_stats->work,
 				   fc_stats->sampling_interval);
 
 	llist_for_each_entry(counter, tmplist, addlist)
-		mlx5_fc_stats_insert(&fc_stats->counters, counter);
+		mlx5_fc_stats_insert(dev, counter);
 
 	tmplist = llist_del_all(&fc_stats->dellist);
 	llist_for_each_entry_safe(counter, tmp, tmplist, dellist) {
-		rb_erase(&counter->node, &fc_stats->counters);
+		list_del(&counter->list);
 
 		mlx5_free_fc(dev, counter);
 	}
 
-	node = rb_last(&fc_stats->counters);
-	if (time_before(now, fc_stats->next_query) || !node)
+	if (time_before(now, fc_stats->next_query) ||
+	    list_empty(&fc_stats->counters))
 		return;
-	last = rb_entry(node, struct mlx5_fc, node);
+	last = list_last_entry(&fc_stats->counters, struct mlx5_fc, list);
 
-	node = rb_first(&fc_stats->counters);
-	while (node) {
-		counter = rb_entry(node, struct mlx5_fc, node);
-
-		node = mlx5_fc_stats_query(dev, counter, last->id);
-	}
+	counter = list_first_entry(&fc_stats->counters, struct mlx5_fc,
+				   list);
+	while (counter)
+		counter = mlx5_fc_stats_query(dev, counter, last->id);
 
 	fc_stats->next_query = now + fc_stats->sampling_interval;
 }
@@ -257,7 +258,7 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 {
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
 
-	fc_stats->counters = RB_ROOT;
+	INIT_LIST_HEAD(&fc_stats->counters);
 	init_llist_head(&fc_stats->addlist);
 	init_llist_head(&fc_stats->dellist);
 
@@ -277,7 +278,6 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 	struct llist_node *tmplist;
 	struct mlx5_fc *counter;
 	struct mlx5_fc *tmp;
-	struct rb_node *node;
 
 	cancel_delayed_work_sync(&dev->priv.fc_stats.work);
 	destroy_workqueue(dev->priv.fc_stats.wq);
@@ -287,16 +287,8 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 	llist_for_each_entry_safe(counter, tmp, tmplist, addlist)
 		mlx5_free_fc(dev, counter);
 
-	node = rb_first(&fc_stats->counters);
-	while (node) {
-		counter = rb_entry(node, struct mlx5_fc, node);
-
-		node = rb_next(node);
-
-		rb_erase(&counter->node, &fc_stats->counters);
-
+	list_for_each_entry_safe(counter, tmp, &fc_stats->counters, list)
 		mlx5_free_fc(dev, counter);
-	}
 }
 
 int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,

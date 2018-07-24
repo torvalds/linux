@@ -583,7 +583,7 @@ struct mlx5_irq_info {
 };
 
 struct mlx5_fc_stats {
-	struct rb_root counters;
+	struct list_head counters;
 	struct llist_head addlist;
 	struct llist_head dellist;
 
