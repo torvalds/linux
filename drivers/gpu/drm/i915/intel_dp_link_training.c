@@ -172,10 +172,12 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 	}
 
 	/*
-	 * DP 1.4 spec clock recovery retries defined but
-	 * for devices pre-DP 1.4 we set the retry limit
-	 * to 4 (voltage levels) x 4 (preemphasis levels) x
-	 * x 5 (same voltage retries) = 80 (max iterations)
+	 * The DP 1.4 spec defines the max clock recovery retries value
+	 * as 10 but for pre-DP 1.4 devices we set a very tolerant
+	 * retry limit of 80 (4 voltage levels x 4 preemphasis levels x
+	 * x 5 identical voltage retries). Since the previous specs didn't
+	 * define a limit and created the possibility of an infinite loop
+	 * we want to prevent any sync from triggering that corner case.
 	 */
 	if (intel_dp->dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
 		max_cr_tries = 10;
