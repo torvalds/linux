@@ -799,7 +799,7 @@ static int merge_dpa(struct nd_region *nd_region,
 	return 0;
 }
 
-static int __reserve_free_pmem(struct device *dev, void *data)
+int __reserve_free_pmem(struct device *dev, void *data)
 {
 	struct nvdimm *nvdimm = data;
 	struct nd_region *nd_region;
@@ -836,7 +836,7 @@ static int __reserve_free_pmem(struct device *dev, void *data)
 	return 0;
 }
 
-static void release_free_pmem(struct nvdimm_bus *nvdimm_bus,
+void release_free_pmem(struct nvdimm_bus *nvdimm_bus,
 		struct nd_mapping *nd_mapping)
 {
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
@@ -1032,7 +1032,7 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 
 		allocated += nvdimm_allocated_dpa(ndd, &label_id);
 	}
-	available = nd_region_available_dpa(nd_region);
+	available = nd_region_allocatable_dpa(nd_region);
 
 	if (val > available + allocated)
 		return -ENOSPC;

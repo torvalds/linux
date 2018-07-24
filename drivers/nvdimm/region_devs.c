@@ -389,6 +389,30 @@ resource_size_t nd_region_available_dpa(struct nd_region *nd_region)
 	return available;
 }
 
+resource_size_t nd_region_allocatable_dpa(struct nd_region *nd_region)
+{
+	resource_size_t available = 0;
+	int i;
+
+	if (is_memory(&nd_region->dev))
+		available = PHYS_ADDR_MAX;
+
+	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+
+		if (is_memory(&nd_region->dev))
+			available = min(available,
+					nd_pmem_max_contiguous_dpa(nd_region,
+								   nd_mapping));
+		else if (is_nd_blk(&nd_region->dev))
+			available += nd_blk_available_dpa(nd_region);
+	}
+	if (is_memory(&nd_region->dev))
+		return available * nd_region->ndr_mappings;
+	return available;
+}
+
 static ssize_t available_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
