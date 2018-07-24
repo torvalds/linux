@@ -105,7 +105,7 @@ struct dpu_rm_hw_iter {
  */
 int dpu_rm_init(struct dpu_rm *rm,
 		struct dpu_mdss_cfg *cat,
-		void *mmio,
+		void __iomem *mmio,
 		struct drm_device *dev);
 
 /**
