@@ -52,7 +52,7 @@ static int make_magnitude_modifier(struct iforce* iforce,
 
 	iforce_send_packet(iforce, FF_CMD_MAGNITUDE, data);
 
-	iforce_dump_packet("magnitude: ", FF_CMD_MAGNITUDE, data);
+	iforce_dump_packet(iforce, "magnitude", FF_CMD_MAGNITUDE, data);
 	return 0;
 }
 
@@ -174,7 +174,7 @@ static int make_condition_modifier(struct iforce* iforce,
 	data[9] = (100 * lsat) >> 16;
 
 	iforce_send_packet(iforce, FF_CMD_CONDITION, data);
-	iforce_dump_packet("condition", FF_CMD_CONDITION, data);
+	iforce_dump_packet(iforce, "condition", FF_CMD_CONDITION, data);
 
 	return 0;
 }

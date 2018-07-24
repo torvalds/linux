@@ -356,7 +356,7 @@ int iforce_init_device(struct iforce *iforce)
 
 	for (i = 0; c[i]; i++)
 		if (!iforce_get_id_packet(iforce, c + i))
-			iforce_dump_packet("info", iforce->ecmd, iforce->edata);
+			iforce_dump_packet(iforce, "info", iforce->ecmd, iforce->edata);
 
 /*
  * Disable spring, enable force feedback.

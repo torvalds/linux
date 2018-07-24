@@ -29,14 +29,10 @@ static struct {
 } iforce_hat_to_axis[16] = {{ 0,-1}, { 1,-1}, { 1, 0}, { 1, 1}, { 0, 1}, {-1, 1}, {-1, 0}, {-1,-1}};
 
 
-void iforce_dump_packet(char *msg, u16 cmd, unsigned char *data)
+void iforce_dump_packet(struct iforce *iforce, char *msg, u16 cmd, unsigned char *data)
 {
-	int i;
-
-	printk(KERN_DEBUG __FILE__ ": %s cmd = %04x, data = ", msg, cmd);
-	for (i = 0; i < LO(cmd); i++)
-		printk("%02x ", data[i]);
-	printk("\n");
+	dev_dbg(iforce->dev->dev.parent, "%s %s cmd = %04x, data = %*ph\n",
+		__func__, msg, cmd, LO(cmd), data);
 }
 
 /*
