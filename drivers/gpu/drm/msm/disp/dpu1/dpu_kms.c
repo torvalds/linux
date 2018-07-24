@@ -1258,7 +1258,7 @@ static int dpu_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int dpu_runtime_suspend(struct device *dev)
+static int __maybe_unused dpu_runtime_suspend(struct device *dev)
 {
 	int rc = -1;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1285,7 +1285,7 @@ exit:
 	return rc;
 }
 
-static int dpu_runtime_resume(struct device *dev)
+static int __maybe_unused dpu_runtime_resume(struct device *dev)
 {
 	int rc = -1;
 	struct platform_device *pdev = to_platform_device(dev);
