@@ -8,6 +8,7 @@
 
 #include "vkms_drv.h"
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
@@ -23,6 +24,33 @@ static const struct drm_plane_funcs vkms_plane_funcs = {
 static void vkms_primary_plane_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+}
+
+static int vkms_plane_atomic_check(struct drm_plane *plane,
+				   struct drm_plane_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	int ret;
+
+	if (!state->fb | !state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  false, true);
+	if (ret != 0)
+		return ret;
+
+	/* for now primary plane must be visible and full screen */
+	if (!state->visible)
+		return -EINVAL;
+
+	return 0;
 }
 
 static int vkms_prepare_fb(struct drm_plane *plane,
@@ -58,6 +86,7 @@ static void vkms_cleanup_fb(struct drm_plane *plane,
 
 static const struct drm_plane_helper_funcs vkms_primary_helper_funcs = {
 	.atomic_update		= vkms_primary_plane_update,
+	.atomic_check		= vkms_plane_atomic_check,
 	.prepare_fb		= vkms_prepare_fb,
 	.cleanup_fb		= vkms_cleanup_fb,
 };
