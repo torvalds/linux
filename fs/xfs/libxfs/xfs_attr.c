@@ -202,7 +202,6 @@ xfs_attr_set(
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*leaf_bp = NULL;
 	struct xfs_da_args	args;
-	struct xfs_defer_ops	dfops;
 	struct xfs_trans_res	tres;
 	int			rsvd = (flags & ATTR_ROOT) != 0;
 	int			error, err2, local;
@@ -251,7 +250,6 @@ xfs_attr_set(
 			rsvd ? XFS_TRANS_RESERVE : 0, &args.trans);
 	if (error)
 		return error;
-	xfs_defer_init(args.trans, &dfops);
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	error = xfs_trans_reserve_quota_nblks(args.trans, dp, args.total, 0,
@@ -315,18 +313,18 @@ xfs_attr_set(
 		 */
 		error = xfs_attr_shortform_to_leaf(&args, &leaf_bp);
 		if (error)
-			goto out_defer_cancel;
+			goto out;
 		/*
 		 * Prevent the leaf buffer from being unlocked so that a
 		 * concurrent AIL push cannot grab the half-baked leaf
 		 * buffer and run into problems with the write verifier.
 		 */
 		xfs_trans_bhold(args.trans, leaf_bp);
-		xfs_defer_bjoin(&dfops, leaf_bp);
-		xfs_defer_ijoin(&dfops, dp);
-		error = xfs_defer_finish(&args.trans, &dfops);
+		xfs_defer_bjoin(args.trans->t_dfops, leaf_bp);
+		xfs_defer_ijoin(args.trans->t_dfops, dp);
+		error = xfs_defer_finish(&args.trans, args.trans->t_dfops);
 		if (error)
-			goto out_defer_cancel;
+			goto out;
 
 		/*
 		 * Commit the leaf transformation.  We'll need another (linked)
@@ -366,8 +364,6 @@ xfs_attr_set(
 
 	return error;
 
-out_defer_cancel:
-	xfs_defer_cancel(&dfops);
 out:
 	if (leaf_bp)
 		xfs_trans_brelse(args.trans, leaf_bp);
@@ -389,7 +385,6 @@ xfs_attr_remove(
 {
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_da_args	args;
-	struct xfs_defer_ops	dfops;
 	int			error;
 
 	XFS_STATS_INC(mp, xs_attr_remove);
@@ -422,7 +417,6 @@ xfs_attr_remove(
 			&args.trans);
 	if (error)
 		return error;
-	xfs_defer_init(args.trans, &dfops);
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	/*
