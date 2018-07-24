@@ -89,6 +89,7 @@ struct mlx5_flow_destination {
 	enum mlx5_flow_destination_type	type;
 	union {
 		u32			tir_num;
+		u32			ft_num;
 		struct mlx5_flow_table	*ft;
 		struct mlx5_fc		*counter;
 		struct {
@@ -152,6 +153,8 @@ struct mlx5_fs_vlan {
         u8  prio;
 };
 
+#define MLX5_FS_VLAN_DEPTH	2
+
 struct mlx5_flow_act {
 	u32 action;
 	bool has_flow_tag;
@@ -159,7 +162,7 @@ struct mlx5_flow_act {
 	u32 encap_id;
 	u32 modify_id;
 	uintptr_t esp_id;
-	struct mlx5_fs_vlan vlan;
+	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
 	struct ib_counters *counters;
 };
 
