@@ -1221,6 +1221,7 @@ LE64_BITMASK(BCH_SB_BACKGROUND_TARGET,	struct bch_sb, flags[1], 52, 64);
 
 LE64_BITMASK(BCH_SB_BACKGROUND_COMPRESSION_TYPE,
 					struct bch_sb, flags[2],  0,  4);
+LE64_BITMASK(BCH_SB_GC_RESERVE_BYTES,	struct bch_sb, flags[2],  4, 64);
 
 /* Features: */
 enum bch_sb_features {

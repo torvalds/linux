@@ -114,9 +114,12 @@ enum opt_type {
 	BCH_OPT(inodes_32bit,		u8,	OPT_RUNTIME,		\
 		OPT_BOOL(),						\
 		BCH_SB_INODE_32BIT,		false)			\
-	BCH_OPT(gc_reserve_percent,	u8,	OPT_MOUNT,		\
+	BCH_OPT(gc_reserve_percent,	u8,	OPT_RUNTIME,		\
 		OPT_UINT(5, 21),					\
 		BCH_SB_GC_RESERVE,		8)			\
+	BCH_OPT(gc_reserve_bytes,	u64,	OPT_RUNTIME,		\
+		OPT_UINT(0, U64_MAX),					\
+		BCH_SB_GC_RESERVE_BYTES,	0)			\
 	BCH_OPT(root_reserve_percent,	u8,	OPT_MOUNT,		\
 		OPT_UINT(0, 100),					\
 		BCH_SB_ROOT_RESERVE,		0)			\

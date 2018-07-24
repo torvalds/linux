@@ -1711,7 +1711,7 @@ void bch2_alloc_sectors_done(struct bch_fs *c, struct write_point *wp)
 void bch2_recalc_capacity(struct bch_fs *c)
 {
 	struct bch_dev *ca;
-	u64 capacity = 0, reserved_sectors = 0;
+	u64 capacity = 0, reserved_sectors = 0, gc_reserve;
 	unsigned long ra_pages = 0;
 	unsigned i, j;
 
@@ -1726,7 +1726,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 	bch2_set_ra_pages(c, ra_pages);
 
 	for_each_rw_member(ca, c, i) {
-		u64 dev_capacity, dev_reserve = 0;
+		u64 dev_reserve = 0;
 
 		/*
 		 * We need to reserve buckets (from the number
@@ -1758,25 +1758,21 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 		dev_reserve *= ca->mi.bucket_size;
 
-		dev_reserve *= 2;
+		ca->copygc_threshold = dev_reserve;
 
-		dev_capacity = bucket_to_sector(ca, ca->mi.nbuckets -
-						ca->mi.first_bucket);
+		capacity += bucket_to_sector(ca, ca->mi.nbuckets -
+					     ca->mi.first_bucket);
 
-		ca->copygc_threshold =
-			max(div64_u64(dev_capacity *
-				      c->opts.gc_reserve_percent, 100),
-			    dev_reserve) / 2;
-
-		capacity += dev_capacity;
-		reserved_sectors += dev_reserve;
+		reserved_sectors += dev_reserve * 2;
 	}
 
-	reserved_sectors = max(div64_u64(capacity *
-					 c->opts.gc_reserve_percent, 100),
-			       reserved_sectors);
+	gc_reserve = c->opts.gc_reserve_bytes
+		? c->opts.gc_reserve_bytes >> 9
+		: div64_u64(capacity * c->opts.gc_reserve_percent, 100);
 
-	BUG_ON(reserved_sectors > capacity);
+	reserved_sectors = max(gc_reserve, reserved_sectors);
+
+	reserved_sectors = min(reserved_sectors, capacity);
 
 	c->capacity = capacity - reserved_sectors;
 
