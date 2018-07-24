@@ -964,16 +964,21 @@ static int bch2_allocator_thread(void *arg)
 		if (ret)
 			goto stop;
 
-		ret = bch2_invalidate_buckets(c, ca);
-		if (ret)
-			goto stop;
+		down_read(&c->gc_lock);
 
-		if (!fifo_empty(&ca->free_inc))
+		ret = bch2_invalidate_buckets(c, ca);
+		if (ret) {
+			up_read(&c->gc_lock);
+			goto stop;
+		}
+
+		if (!fifo_empty(&ca->free_inc)) {
+			up_read(&c->gc_lock);
 			continue;
+		}
 
 		pr_debug("free_inc now empty");
 
-		down_read(&c->gc_lock);
 		do {
 			if (test_bit(BCH_FS_GC_FAILURE, &c->flags)) {
 				up_read(&c->gc_lock);
