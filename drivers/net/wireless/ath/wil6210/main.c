@@ -1560,6 +1560,11 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	if (load_fw) {
 		char board_file[WIL_BOARD_FILE_MAX_NAMELEN];
 
+		if  (wil->secured_boot) {
+			wil_err(wil, "secured boot is not supported\n");
+			return -ENOTSUPP;
+		}
+
 		board_file[0] = '\0';
 		wil_get_board_file(wil, board_file, sizeof(board_file));
 		wil_info(wil, "Use firmware <%s> + board <%s>\n",
