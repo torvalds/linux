@@ -224,7 +224,8 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
 		break;
 	case CUDBG_MEMINFO:
-		len = sizeof(struct cudbg_meminfo);
+		len = sizeof(struct cudbg_ver_hdr) +
+		      sizeof(struct cudbg_meminfo);
 		break;
 	case CUDBG_CIM_PIF_LA:
 		len = sizeof(struct cudbg_cim_pif_la);
