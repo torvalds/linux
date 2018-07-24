@@ -216,8 +216,8 @@ struct bpf_map {
 	size_t offset;
 	int map_ifindex;
 	struct bpf_map_def def;
-	uint32_t btf_key_type_id;
-	uint32_t btf_value_type_id;
+	__u32 btf_key_type_id;
+	__u32 btf_value_type_id;
 	void *priv;
 	bpf_map_clear_priv_t clear_priv;
 };
@@ -1016,8 +1016,8 @@ static int bpf_map_find_btf_info(struct bpf_map *map, const struct btf *btf)
 {
 	struct bpf_map_def *def = &map->def;
 	const size_t max_name = 256;
-	int64_t key_size, value_size;
-	int32_t key_id, value_id;
+	__s64 key_size, value_size;
+	__s32 key_id, value_id;
 	char name[max_name];
 
 	/* Find key type by name from BTF */
@@ -2089,12 +2089,12 @@ const char *bpf_map__name(struct bpf_map *map)
 	return map ? map->name : NULL;
 }
 
-uint32_t bpf_map__btf_key_type_id(const struct bpf_map *map)
+__u32 bpf_map__btf_key_type_id(const struct bpf_map *map)
 {
 	return map ? map->btf_key_type_id : 0;
 }
 
-uint32_t bpf_map__btf_value_type_id(const struct bpf_map *map)
+__u32 bpf_map__btf_value_type_id(const struct bpf_map *map)
 {
 	return map ? map->btf_value_type_id : 0;
 }
