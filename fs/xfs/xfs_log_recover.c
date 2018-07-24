@@ -4854,6 +4854,8 @@ xlog_finish_defer_ops(
 			0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
+	/* dfops is already populated so assign it manually */
+	tp->t_dfops = dfops;
 
 	error = xfs_defer_finish(&tp, dfops);
 	if (error)
