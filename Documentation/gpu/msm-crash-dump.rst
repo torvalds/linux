@@ -76,3 +76,7 @@ registers
 
 	value
 		Hexadecimal value of the register.
+
+registers-hlsq
+		(5xx only) Register values from the HLSQ aperture.
+		Same format as the register section.

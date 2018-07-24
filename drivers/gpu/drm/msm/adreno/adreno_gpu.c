@@ -369,15 +369,10 @@ bool adreno_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	return false;
 }
 
-struct msm_gpu_state *adreno_gpu_state_get(struct msm_gpu *gpu)
+int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct msm_gpu_state *state;
 	int i, count = 0;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return ERR_PTR(-ENOMEM);
 
 	kref_init(&state->ref);
 
@@ -432,14 +427,12 @@ struct msm_gpu_state *adreno_gpu_state_get(struct msm_gpu *gpu)
 		state->nr_registers = count;
 	}
 
-	return state;
+	return 0;
 }
 
-static void adreno_gpu_state_destroy(struct kref *kref)
+void adreno_gpu_state_destroy(struct msm_gpu_state *state)
 {
 	int i;
-	struct msm_gpu_state *state = container_of(kref,
-		struct msm_gpu_state, ref);
 
 	for (i = 0; i < ARRAY_SIZE(state->ring); i++)
 		kfree(state->ring[i].data);
@@ -447,6 +440,14 @@ static void adreno_gpu_state_destroy(struct kref *kref)
 	kfree(state->comm);
 	kfree(state->cmd);
 	kfree(state->registers);
+}
+
+static void adreno_gpu_state_kref_destroy(struct kref *kref)
+{
+	struct msm_gpu_state *state = container_of(kref,
+		struct msm_gpu_state, ref);
+
+	adreno_gpu_state_destroy(state);
 	kfree(state);
 }
 
@@ -455,7 +456,7 @@ int adreno_gpu_state_put(struct msm_gpu_state *state)
 	if (IS_ERR_OR_NULL(state))
 		return 1;
 
-	return kref_put(&state->ref, adreno_gpu_state_destroy);
+	return kref_put(&state->ref, adreno_gpu_state_kref_destroy);
 }
 
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)

@@ -457,10 +457,12 @@ static const unsigned int a4xx_registers[] = {
 
 static struct msm_gpu_state *a4xx_gpu_state_get(struct msm_gpu *gpu)
 {
-	struct msm_gpu_state *state = adreno_gpu_state_get(gpu);
+	struct msm_gpu_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 
-	if (IS_ERR(state))
-		return state;
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	adreno_gpu_state_get(gpu, state);
 
 	state->rbbm_status = gpu_read(gpu, REG_A4XX_RBBM_STATUS);
 
