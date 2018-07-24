@@ -66,6 +66,20 @@ ringbuffer
 		The contents of the ring encoded as ascii85.  Only the used
 		portions of the ring will be printed.
 
+bo
+	List of buffers from the hanging submission if available.
+	Each buffer object will have a uinque iova.
+
+	iova
+		GPU address of the buffer object.
+
+	size
+		Allocated size of the buffer object.
+
+	data
+		The contents of the buffer object encoded with ascii85.  Only
+		Trailing zeros at the end of the buffer will be skipped.
+
 registers
 	Set of registers values. Each entry is on its own line enclosed
 	by brackets { }.

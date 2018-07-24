@@ -318,8 +318,39 @@ static void msm_gpu_devcoredump_free(void *data)
 	msm_gpu_crashstate_put(gpu);
 }
 
-static void msm_gpu_crashstate_capture(struct msm_gpu *gpu, char *comm,
-		char *cmd)
+static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
+		struct msm_gem_object *obj, u64 iova, u32 flags)
+{
+	struct msm_gpu_state_bo *state_bo = &state->bos[state->nr_bos];
+
+	/* Don't record write only objects */
+
+	state_bo->size = obj->base.size;
+	state_bo->iova = iova;
+
+	/* Only store the data for buffer objects marked for read */
+	if ((flags & MSM_SUBMIT_BO_READ)) {
+		void *ptr;
+
+		state_bo->data = kvmalloc(obj->base.size, GFP_KERNEL);
+		if (!state_bo->data)
+			return;
+
+		ptr = msm_gem_get_vaddr_active(&obj->base);
+		if (IS_ERR(ptr)) {
+			kvfree(state_bo->data);
+			return;
+		}
+
+		memcpy(state_bo->data, ptr, obj->base.size);
+		msm_gem_put_vaddr(&obj->base);
+	}
+
+	state->nr_bos++;
+}
+
+static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
+		struct msm_gem_submit *submit, char *comm, char *cmd)
 {
 	struct msm_gpu_state *state;
 
@@ -334,6 +365,17 @@ static void msm_gpu_crashstate_capture(struct msm_gpu *gpu, char *comm,
 	/* Fill in the additional crash state information */
 	state->comm = kstrdup(comm, GFP_KERNEL);
 	state->cmd = kstrdup(cmd, GFP_KERNEL);
+
+	if (submit) {
+		int i;
+
+		state->bos = kcalloc(submit->nr_bos,
+			sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
+
+		for (i = 0; state->bos && i < submit->nr_bos; i++)
+			msm_gpu_crashstate_get_bo(state, submit->bos[i].obj,
+				submit->bos[i].iova, submit->bos[i].flags);
+	}
 
 	/* Set the active crash state to be dumped on failure */
 	gpu->crashstate = state;
@@ -434,7 +476,7 @@ static void recover_worker(struct work_struct *work)
 
 	/* Record the crash state */
 	pm_runtime_get_sync(&gpu->pdev->dev);
-	msm_gpu_crashstate_capture(gpu, comm, cmd);
+	msm_gpu_crashstate_capture(gpu, submit, comm, cmd);
 	pm_runtime_put_sync(&gpu->pdev->dev);
 
 	kfree(cmd);

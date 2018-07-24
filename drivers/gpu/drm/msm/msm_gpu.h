@@ -181,6 +181,12 @@ struct msm_gpu_submitqueue {
 	struct kref ref;
 };
 
+struct msm_gpu_state_bo {
+	u64 iova;
+	size_t size;
+	void *data;
+};
+
 struct msm_gpu_state {
 	struct kref ref;
 	struct timeval time;
@@ -202,6 +208,9 @@ struct msm_gpu_state {
 
 	char *comm;
 	char *cmd;
+
+	int nr_bos;
+	struct msm_gpu_state_bo *bos;
 };
 
 static inline void gpu_write(struct msm_gpu *gpu, u32 reg, u32 data)
