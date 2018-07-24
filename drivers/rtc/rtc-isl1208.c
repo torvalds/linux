@@ -44,6 +44,7 @@
 #define ISL1208_REG_INT_IM     (1<<7)   /* interrupt/alarm mode */
 #define ISL1219_REG_EV  0x09
 #define ISL1219_REG_EV_EVEN    (1<<4)   /* event detection enable */
+#define ISL1219_REG_EV_EVIENB  (1<<7)   /* event in pull-up disable */
 #define ISL1208_REG_ATR 0x0a
 #define ISL1208_REG_DTR 0x0b
 
@@ -777,8 +778,22 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			 "please set clock.\n");
 
 	if (id->driver_data == TYPE_ISL1219) {
-		rc = i2c_smbus_write_byte_data(client, ISL1219_REG_EV,
-					       ISL1219_REG_EV_EVEN);
+		struct device_node *np = client->dev.of_node;
+		u32 evienb;
+
+		rc = i2c_smbus_read_byte_data(client, ISL1219_REG_EV);
+		if (rc < 0) {
+			dev_err(&client->dev, "failed to read EV reg\n");
+			return rc;
+		}
+		rc |= ISL1219_REG_EV_EVEN;
+		if (!of_property_read_u32(np, "isil,ev-evienb", &evienb)) {
+			if (evienb)
+				rc |= ISL1219_REG_EV_EVIENB;
+			else
+				rc &= ~ISL1219_REG_EV_EVIENB;
+		}
+		rc = i2c_smbus_write_byte_data(client, ISL1219_REG_EV, rc);
 		if (rc < 0) {
 			dev_err(&client->dev, "could not enable tamper detection\n");
 			return rc;
@@ -786,7 +801,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		rc = rtc_add_group(rtc, &isl1219_rtc_sysfs_files);
 		if (rc)
 			return rc;
-		evdet_irq = of_irq_get_byname(client->dev.of_node, "evdet");
+		evdet_irq = of_irq_get_byname(np, "evdet");
 	}
 
 	rc = sysfs_create_group(&client->dev.kobj, &isl1208_rtc_sysfs_files);
