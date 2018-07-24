@@ -40,4 +40,3 @@ config DECNET_ROUTER
 	  to work.
 
 	  See <file:Documentation/networking/decnet.txt> for more information.
-
