@@ -24,9 +24,9 @@
 #include <linux/rtnetlink.h>
 #include <linux/pm_runtime.h>
 
-static int n_msi = 1;
+static int n_msi = 3;
 module_param(n_msi, int, 0444);
-MODULE_PARM_DESC(n_msi, " Use MSI interrupt: 0 - use INTx, 1 - (default) - single, or 3");
+MODULE_PARM_DESC(n_msi, " Use MSI interrupt: 0 - use INTx, 1 - single, or 3 - (default) ");
 
 bool ftm_mode;
 module_param(ftm_mode, bool, 0444);
