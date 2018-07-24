@@ -342,9 +342,9 @@ xfs_defer_reset(
  */
 int
 xfs_defer_finish(
-	struct xfs_trans		**tp,
-	struct xfs_defer_ops		*dop)
+	struct xfs_trans		**tp)
 {
+	struct xfs_defer_ops		*dop = (*tp)->t_dfops;
 	struct xfs_defer_pending	*dfp;
 	struct list_head		*li;
 	struct list_head		*n;
@@ -353,7 +353,6 @@ xfs_defer_finish(
 	void				(*cleanup_fn)(struct xfs_trans *, void *, int);
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
-	ASSERT((*tp)->t_dfops == dop);
 
 	trace_xfs_defer_finish((*tp)->t_mountp, dop, _RET_IP_);
 
@@ -454,7 +453,7 @@ out:
  * Free up any items left in the list.
  */
 void
-xfs_defer_cancel(
+__xfs_defer_cancel(
 	struct xfs_defer_ops		*dop)
 {
 	struct xfs_defer_pending	*dfp;

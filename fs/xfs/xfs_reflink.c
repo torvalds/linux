@@ -518,9 +518,9 @@ xfs_reflink_cancel_cow_blocks(
 
 			/* Roll the transaction */
 			xfs_defer_ijoin((*tpp)->t_dfops, ip);
-			error = xfs_defer_finish(tpp, (*tpp)->t_dfops);
+			error = xfs_defer_finish(tpp);
 			if (error) {
-				xfs_defer_cancel((*tpp)->t_dfops);
+				xfs_defer_cancel(*tpp);
 				break;
 			}
 
@@ -716,7 +716,7 @@ xfs_reflink_end_cow(
 		xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
 
 		xfs_defer_ijoin(tp->t_dfops, ip);
-		error = xfs_defer_finish(&tp, tp->t_dfops);
+		error = xfs_defer_finish(&tp);
 		if (error)
 			goto out_cancel;
 		if (!xfs_iext_get_extent(ifp, &icur, &got))
@@ -1077,7 +1077,7 @@ xfs_reflink_remap_extent(
 next_extent:
 		/* Process all the deferred stuff. */
 		xfs_defer_ijoin(tp->t_dfops, ip);
-		error = xfs_defer_finish(&tp, tp->t_dfops);
+		error = xfs_defer_finish(&tp);
 		if (error)
 			goto out_cancel;
 	}

@@ -1570,7 +1570,7 @@ xfs_itruncate_extents_flags(
 		 * reservation and commit the old transaction.
 		 */
 		xfs_defer_ijoin(tp->t_dfops, ip);
-		error = xfs_defer_finish(&tp, tp->t_dfops);
+		error = xfs_defer_finish(&tp);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1606,7 +1606,7 @@ out_bmap_cancel:
 	 * the transaction can be properly aborted.  We just need to make sure
 	 * we're not holding any resources that we were not when we came in.
 	 */
-	xfs_defer_cancel(tp->t_dfops);
+	xfs_defer_cancel(tp);
 	goto out;
 }
 

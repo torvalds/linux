@@ -368,7 +368,7 @@ xfs_dquot_disk_alloc(
 		xfs_trans_brelse(tp, bp);
 		goto error1;
 	}
-	error = xfs_defer_finish(tpp, tp->t_dfops);
+	error = xfs_defer_finish(tpp);
 	tp = *tpp;
 	if (error) {
 		xfs_buf_relse(bp);
@@ -378,7 +378,7 @@ xfs_dquot_disk_alloc(
 	return 0;
 
 error1:
-	xfs_defer_cancel(tp->t_dfops);
+	xfs_defer_cancel(tp);
 error0:
 	return error;
 }

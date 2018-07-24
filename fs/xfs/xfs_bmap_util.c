@@ -1624,7 +1624,7 @@ xfs_swap_extent_rmap(
 				goto out_defer;
 
 			xfs_defer_ijoin(tp->t_dfops, ip);
-			error = xfs_defer_finish(tpp, tp->t_dfops);
+			error = xfs_defer_finish(tpp);
 			tp = *tpp;
 			if (error)
 				goto out_defer;
@@ -1645,7 +1645,7 @@ xfs_swap_extent_rmap(
 	return 0;
 
 out_defer:
-	xfs_defer_cancel(tp->t_dfops);
+	xfs_defer_cancel(tp);
 out:
 	trace_xfs_swap_extent_rmap_error(ip, error, _RET_IP_);
 	tip->i_d.di_flags2 = tip_flags2;

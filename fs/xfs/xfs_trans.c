@@ -933,9 +933,9 @@ __xfs_trans_commit(
 
 	/* finish deferred items on final commit */
 	if (!regrant && tp->t_dfops) {
-		error = xfs_defer_finish(&tp, tp->t_dfops);
+		error = xfs_defer_finish(&tp);
 		if (error) {
-			xfs_defer_cancel(tp->t_dfops);
+			xfs_defer_cancel(tp);
 			goto out_unreserve;
 		}
 	}
@@ -1030,7 +1030,7 @@ xfs_trans_cancel(
 	trace_xfs_trans_cancel(tp, _RET_IP_);
 
 	if (tp->t_dfops)
-		xfs_defer_cancel(tp->t_dfops);
+		xfs_defer_cancel(tp);
 
 	/*
 	 * See if the caller is relying on us to shut down the
@@ -1110,4 +1110,11 @@ xfs_trans_roll(
 	 */
 	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
 	return xfs_trans_reserve(*tpp, &tres, 0, 0);
+}
+
+void
+xfs_defer_cancel(
+	struct xfs_trans	*tp)
+{
+	__xfs_defer_cancel(tp->t_dfops);
 }

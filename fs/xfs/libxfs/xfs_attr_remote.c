@@ -487,7 +487,7 @@ xfs_attr_rmtval_set(
 		if (error)
 			goto out_defer_cancel;
 		xfs_defer_ijoin(args->trans->t_dfops, dp);
-		error = xfs_defer_finish(&args->trans, args->trans->t_dfops);
+		error = xfs_defer_finish(&args->trans);
 		if (error)
 			goto out_defer_cancel;
 
@@ -555,7 +555,7 @@ xfs_attr_rmtval_set(
 	ASSERT(valuelen == 0);
 	return 0;
 out_defer_cancel:
-	xfs_defer_cancel(args->trans->t_dfops);
+	xfs_defer_cancel(args->trans);
 	return error;
 }
 
@@ -628,7 +628,7 @@ xfs_attr_rmtval_remove(
 		if (error)
 			goto out_defer_cancel;
 		xfs_defer_ijoin(args->trans->t_dfops, args->dp);
-		error = xfs_defer_finish(&args->trans, args->trans->t_dfops);
+		error = xfs_defer_finish(&args->trans);
 		if (error)
 			goto out_defer_cancel;
 
@@ -641,6 +641,6 @@ xfs_attr_rmtval_remove(
 	}
 	return 0;
 out_defer_cancel:
-	xfs_defer_cancel(args->trans->t_dfops);
+	xfs_defer_cancel(args->trans);
 	return error;
 }

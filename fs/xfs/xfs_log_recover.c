@@ -4946,7 +4946,7 @@ out:
 	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->ail_lock);
 	if (error)
-		xfs_defer_cancel(&dfops);
+		__xfs_defer_cancel(&dfops);
 	else
 		error = xlog_finish_defer_ops(log->l_mp, &dfops);
 
