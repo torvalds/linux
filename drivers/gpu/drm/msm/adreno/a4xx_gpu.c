@@ -455,16 +455,6 @@ static const unsigned int a4xx_registers[] = {
 	~0 /* sentinel */
 };
 
-#ifdef CONFIG_DEBUG_FS
-static void a4xx_show(struct msm_gpu *gpu, struct seq_file *m)
-{
-	seq_printf(m, "status:   %08x\n",
-			gpu_read(gpu, REG_A4XX_RBBM_STATUS));
-	adreno_show(gpu, m);
-
-}
-#endif
-
 static struct msm_gpu_state *a4xx_gpu_state_get(struct msm_gpu *gpu)
 {
 	struct msm_gpu_state *state = adreno_gpu_state_get(gpu);
@@ -551,7 +541,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.irq = a4xx_irq,
 		.destroy = a4xx_destroy,
 #ifdef CONFIG_DEBUG_FS
-		.show = a4xx_show,
+		.show = adreno_show,
 #endif
 		.gpu_state_get = a4xx_gpu_state_get,
 		.gpu_state_put = adreno_gpu_state_put,

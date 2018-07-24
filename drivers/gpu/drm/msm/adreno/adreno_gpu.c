@@ -424,38 +424,34 @@ void adreno_gpu_state_put(struct msm_gpu_state *state)
 }
 
 #ifdef CONFIG_DEBUG_FS
-void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
+void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
+		struct seq_file *m)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int i;
 
+	if (IS_ERR_OR_NULL(state))
+		return;
+
+	seq_printf(m, "status:   %08x\n", state->rbbm_status);
 	seq_printf(m, "revision: %d (%d.%d.%d.%d)\n",
 			adreno_gpu->info->revn, adreno_gpu->rev.core,
 			adreno_gpu->rev.major, adreno_gpu->rev.minor,
 			adreno_gpu->rev.patchid);
 
 	for (i = 0; i < gpu->nr_rings; i++) {
-		struct msm_ringbuffer *ring = gpu->rb[i];
-
 		seq_printf(m, "rb %d: fence:    %d/%d\n", i,
-			ring->memptrs->fence, ring->seqno);
+			state->ring[i].fence, state->ring[i].seqno);
 
-		seq_printf(m, "      rptr:     %d\n",
-			get_rptr(adreno_gpu, ring));
-		seq_printf(m, "rb wptr:  %d\n", get_wptr(ring));
+		seq_printf(m, "      rptr:     %d\n", state->ring[i].rptr);
+		seq_printf(m, "rb wptr:  %d\n", state->ring[i].wptr);
 	}
 
-	/* dump these out in a form that can be parsed by demsm: */
 	seq_printf(m, "IO:region %s 00000000 00020000\n", gpu->name);
-	for (i = 0; adreno_gpu->registers[i] != ~0; i += 2) {
-		uint32_t start = adreno_gpu->registers[i];
-		uint32_t end   = adreno_gpu->registers[i+1];
-		uint32_t addr;
-
-		for (addr = start; addr <= end; addr++) {
-			uint32_t val = gpu_read(gpu, addr);
-			seq_printf(m, "IO:R %08x %08x\n", addr<<2, val);
-		}
+	for (i = 0; i < state->nr_registers; i++) {
+		seq_printf(m, "IO:R %08x %08x\n",
+			state->registers[i * 2] << 2,
+			state->registers[(i * 2) + 1]);
 	}
 }
 #endif

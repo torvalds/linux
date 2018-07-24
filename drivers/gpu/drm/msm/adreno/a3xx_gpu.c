@@ -411,15 +411,6 @@ static const unsigned int a3xx_registers[] = {
 	~0   /* sentinel */
 };
 
-#ifdef CONFIG_DEBUG_FS
-static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
-{
-	seq_printf(m, "status:   %08x\n",
-			gpu_read(gpu, REG_A3XX_RBBM_STATUS));
-	adreno_show(gpu, m);
-}
-#endif
-
 /* would be nice to not have to duplicate the _show() stuff with printk(): */
 static void a3xx_dump(struct msm_gpu *gpu)
 {
@@ -464,7 +455,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.irq = a3xx_irq,
 		.destroy = a3xx_destroy,
 #ifdef CONFIG_DEBUG_FS
-		.show = a3xx_show,
+		.show = adreno_show,
 #endif
 		.gpu_state_get = a3xx_gpu_state_get,
 		.gpu_state_put = adreno_gpu_state_put,

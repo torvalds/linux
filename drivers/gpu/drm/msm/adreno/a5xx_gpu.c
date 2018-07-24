@@ -1215,22 +1215,6 @@ static struct msm_gpu_state *a5xx_gpu_state_get(struct msm_gpu *gpu)
 	return state;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void a5xx_show(struct msm_gpu *gpu, struct seq_file *m)
-{
-	seq_printf(m, "status:   %08x\n",
-			gpu_read(gpu, REG_A5XX_RBBM_STATUS));
-
-	/*
-	 * Temporarily disable hardware clock gating before going into
-	 * adreno_show to avoid issues while reading the registers
-	 */
-	a5xx_set_hwcg(gpu, false);
-	adreno_show(gpu, m);
-	a5xx_set_hwcg(gpu, true);
-}
-#endif
-
 static struct msm_ringbuffer *a5xx_active_ring(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -1260,7 +1244,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
 #ifdef CONFIG_DEBUG_FS
-		.show = a5xx_show,
+		.show = adreno_show,
 		.debugfs_init = a5xx_debugfs_init,
 #endif
 		.gpu_busy = a5xx_gpu_busy,
