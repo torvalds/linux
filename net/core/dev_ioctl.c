@@ -284,12 +284,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 	case SIOCSIFTXQLEN:
 		if (ifr->ifr_qlen < 0)
 			return -EINVAL;
-		if (dev->tx_queue_len ^ ifr->ifr_qlen) {
-			err = dev_change_tx_queue_len(dev, ifr->ifr_qlen);
-			if (err)
-				return err;
-		}
-		return 0;
+		return dev_change_tx_queue_len(dev, ifr->ifr_qlen);
 
 	case SIOCSIFNAME:
 		ifr->ifr_newname[IFNAMSIZ-1] = '\0';
