@@ -224,7 +224,7 @@ static int mpls_fill_encap_info(struct sk_buff *skb,
 				struct lwtunnel_state *lwtstate)
 {
 	struct mpls_iptunnel_encap *tun_encap_info;
-	
+
 	tun_encap_info = mpls_lwtunnel_encap(lwtstate);
 
 	if (nla_put_labels(skb, MPLS_IPTUNNEL_DST, tun_encap_info->labels,

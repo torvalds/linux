@@ -153,4 +153,3 @@ void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
 	/* Now change destination address */
 	iaddr->loc = p->locator;
 }
-

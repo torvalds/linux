@@ -516,4 +516,3 @@ static void __exit pedit_cleanup_module(void)
 
 module_init(pedit_init_module);
 module_exit(pedit_cleanup_module);
-

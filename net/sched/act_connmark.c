@@ -252,4 +252,3 @@ module_exit(connmark_cleanup_module);
 MODULE_AUTHOR("Felix Fietkau <nbd@openwrt.org>");
 MODULE_DESCRIPTION("Connection tracking mark restoring");
 MODULE_LICENSE("GPL");
-
