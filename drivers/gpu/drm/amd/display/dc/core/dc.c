@@ -706,8 +706,6 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	DC_LOG_DC("Display Core initialized\n");
 
 
-	/* TODO: missing feature to be enabled */
-	dc->debug.disable_dfs_bypass = true;
 
 	return dc;
 
