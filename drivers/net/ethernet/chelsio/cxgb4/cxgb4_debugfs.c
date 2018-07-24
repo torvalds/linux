@@ -2905,7 +2905,8 @@ static int meminfo_show(struct seq_file *seq, void *v)
 		   meminfo.tx_pages_data[1], meminfo.tx_pages_data[2],
 		   meminfo.tx_pages_data[3]);
 
-	seq_printf(seq, "%u p-structs\n\n", meminfo.p_structs);
+	seq_printf(seq, "%u p-structs (%u free)\n\n",
+		   meminfo.p_structs, meminfo.p_structs_free_cnt);
 
 	for (i = 0; i < 4; i++)
 		/* For T6 these are MAC buffer groups */
