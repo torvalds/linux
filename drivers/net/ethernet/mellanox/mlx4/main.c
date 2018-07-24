@@ -159,9 +159,10 @@ static bool use_prio;
 module_param_named(use_prio, use_prio, bool, 0444);
 MODULE_PARM_DESC(use_prio, "Enable steering by VLAN priority on ETH ports (deprecated)");
 
-int log_mtts_per_seg = ilog2(MLX4_MTT_ENTRY_PER_SEG);
+int log_mtts_per_seg = ilog2(1);
 module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
-MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-7)");
+MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment "
+		 "(0-7) (default: 0)");
 
 static int port_type_array[2] = {MLX4_PORT_TYPE_NONE, MLX4_PORT_TYPE_NONE};
 static int arr_argc = 2;
@@ -4410,7 +4411,7 @@ static int __init mlx4_verify_params(void)
 	if (use_prio != 0)
 		pr_warn("mlx4_core: use_prio - obsolete module param, ignored\n");
 
-	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 7)) {
+	if ((log_mtts_per_seg < 0) || (log_mtts_per_seg > 7)) {
 		pr_warn("mlx4_core: bad log_mtts_per_seg: %d\n",
 			log_mtts_per_seg);
 		return -1;
