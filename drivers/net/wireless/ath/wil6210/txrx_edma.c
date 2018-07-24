@@ -182,6 +182,12 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 
 	skb_put(skb, sz);
 
+	/**
+	 * Make sure that the network stack calculates checksum for packets
+	 * which failed the HW checksum calculation
+	 */
+	skb->ip_summed = CHECKSUM_NONE;
+
 	pa = dma_map_single(dev, skb->data, skb->len, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(dev, pa))) {
 		kfree_skb(skb);
@@ -847,6 +853,8 @@ static int wil_rx_error_check_edma(struct wil6210_priv *wil,
 	 * mis-calculates TCP checksum - if it should be 0x0,
 	 * it writes 0xffff in violation of RFC 1624
 	 */
+	else
+		stats->rx_csum_err++;
 
 	return 0;
 }

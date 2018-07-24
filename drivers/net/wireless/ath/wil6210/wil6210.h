@@ -565,6 +565,7 @@ struct wil_net_stats {
 	unsigned long	rx_mic_error;
 	unsigned long	rx_key_error; /* eDMA specific */
 	unsigned long	rx_amsdu_error; /* eDMA specific */
+	unsigned long	rx_csum_err;
 	u16 last_mcs_rx;
 	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };

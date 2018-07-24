@@ -1736,10 +1736,11 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 				   p->stats.rx_large_frame,
 				   p->stats.rx_replay);
 			seq_printf(s,
-				   "mic error %lu, key error %lu, amsdu error %lu\n",
+				   "mic error %lu, key error %lu, amsdu error %lu, csum error %lu\n",
 				   p->stats.rx_mic_error,
 				   p->stats.rx_key_error,
-				   p->stats.rx_amsdu_error);
+				   p->stats.rx_amsdu_error,
+				   p->stats.rx_csum_err);
 
 			seq_puts(s, "Rx/MCS:");
 			for (mcs = 0; mcs < ARRAY_SIZE(p->stats.rx_per_mcs);
