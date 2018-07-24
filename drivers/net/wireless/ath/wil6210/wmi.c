@@ -466,6 +466,8 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_CFG_DEF_RX_OFFLOAD_CMD";
 	case WMI_LINK_STATS_CMDID:
 		return "WMI_LINK_STATS_CMD";
+	case WMI_SW_TX_REQ_EXT_CMDID:
+		return "WMI_SW_TX_REQ_EXT_CMDID";
 	default:
 		return "Untracked CMD";
 	}
@@ -3106,6 +3108,60 @@ int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len)
 		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
 	if (!rc && evt.evt.status != WMI_FW_STATUS_SUCCESS) {
 		wil_err(wil, "mgmt_tx failed with status %d\n", evt.evt.status);
+		rc = -EINVAL;
+	}
+
+	kfree(cmd);
+
+	return rc;
+}
+
+int wmi_mgmt_tx_ext(struct wil6210_vif *vif, const u8 *buf, size_t len,
+		    u8 channel, u16 duration_ms)
+{
+	size_t total;
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct ieee80211_mgmt *mgmt_frame = (void *)buf;
+	struct wmi_sw_tx_req_ext_cmd *cmd;
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_sw_tx_complete_event evt;
+	} __packed evt = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+	int rc;
+
+	wil_dbg_wmi(wil, "mgmt_tx_ext mid %d channel %d duration %d\n",
+		    vif->mid, channel, duration_ms);
+	wil_hex_dump_wmi("mgmt_tx_ext frame ", DUMP_PREFIX_OFFSET, 16, 1, buf,
+			 len, true);
+
+	if (len < sizeof(struct ieee80211_hdr_3addr)) {
+		wil_err(wil, "short frame. len %zu\n", len);
+		return -EINVAL;
+	}
+
+	total = sizeof(*cmd) + len;
+	if (total < len) {
+		wil_err(wil, "mgmt_tx_ext invalid len %zu\n", len);
+		return -EINVAL;
+	}
+
+	cmd = kzalloc(total, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memcpy(cmd->dst_mac, mgmt_frame->da, WMI_MAC_LEN);
+	cmd->len = cpu_to_le16(len);
+	memcpy(cmd->payload, buf, len);
+	cmd->channel = channel - 1;
+	cmd->duration_ms = cpu_to_le16(duration_ms);
+
+	rc = wmi_call(wil, WMI_SW_TX_REQ_EXT_CMDID, vif->mid, cmd, total,
+		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
+	if (!rc && evt.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "mgmt_tx_ext failed with status %d\n",
+			evt.evt.status);
 		rc = -EINVAL;
 	}
 
