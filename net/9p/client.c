@@ -333,7 +333,7 @@ struct p9_req_t *p9_tag_lookup(struct p9_client *c, u16 tag)
 	 * buffer to read the data into */
 	tag++;
 
-	if(tag >= c->max_tag) 
+	if (tag >= c->max_tag)
 		return NULL;
 
 	row = tag / P9_ROW_MAXTAG;
@@ -1558,7 +1558,7 @@ p9_client_read(struct p9_fid *fid, u64 offset, struct iov_iter *to, int *err)
 		int count = iov_iter_count(to);
 		int rsize, non_zc = 0;
 		char *dataptr;
-			
+
 		rsize = fid->iounit;
 		if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
 			rsize = clnt->msize - P9_IOHDRSZ;
