@@ -314,6 +314,7 @@ static void recover_worker(struct work_struct *work)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_submit *submit;
 	struct msm_ringbuffer *cur_ring = gpu->funcs->active_ring(gpu);
+	char *comm = NULL, *cmd = NULL;
 	int i;
 
 	mutex_lock(&dev->struct_mutex);
@@ -327,7 +328,7 @@ static void recover_worker(struct work_struct *work)
 		rcu_read_lock();
 		task = pid_task(submit->pid, PIDTYPE_PID);
 		if (task) {
-			char *cmd;
+			comm = kstrdup(task->comm, GFP_ATOMIC);
 
 			/*
 			 * So slightly annoying, in other paths like
@@ -340,22 +341,23 @@ static void recover_worker(struct work_struct *work)
 			 * about the submit going away.
 			 */
 			mutex_unlock(&dev->struct_mutex);
-			cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
+			cmd = kstrdup_quotable_cmdline(task, GFP_ATOMIC);
 			mutex_lock(&dev->struct_mutex);
-
-			dev_err(dev->dev, "%s: offending task: %s (%s)\n",
-				gpu->name, task->comm, cmd);
-
-			msm_rd_dump_submit(priv->hangrd, submit,
-				"offending task: %s (%s)", task->comm, cmd);
-
-			kfree(cmd);
-		} else {
-			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 		}
 		rcu_read_unlock();
+
+		if (comm && cmd) {
+			dev_err(dev->dev, "%s: offending task: %s (%s)\n",
+				gpu->name, comm, cmd);
+
+			msm_rd_dump_submit(priv->hangrd, submit,
+				"offending task: %s (%s)", comm, cmd);
+		} else
+			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 	}
 
+	kfree(cmd);
+	kfree(comm);
 
 	/*
 	 * Update all the rings with the latest and greatest fence.. this
