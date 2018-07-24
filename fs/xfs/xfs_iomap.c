@@ -626,7 +626,7 @@ retry:
 	 * Flag newly allocated delalloc blocks with IOMAP_F_NEW so we punch
 	 * them out if the write happens to fail.
 	 */
-	iomap->flags = IOMAP_F_NEW;
+	iomap->flags |= IOMAP_F_NEW;
 	trace_xfs_iomap_alloc(ip, offset, count, 0, &got);
 done:
 	if (isnullstartblock(got.br_startblock))
@@ -1019,6 +1019,8 @@ xfs_file_iomap_begin(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
+	iomap->flags |= IOMAP_F_BUFFER_HEAD;
+
 	if (((flags & (IOMAP_WRITE | IOMAP_DIRECT)) == IOMAP_WRITE) &&
 			!IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
 		/* Reserve delalloc blocks for regular writeback. */
@@ -1119,7 +1121,7 @@ xfs_file_iomap_begin(
 	if (error)
 		return error;
 
-	iomap->flags = IOMAP_F_NEW;
+	iomap->flags |= IOMAP_F_NEW;
 	trace_xfs_iomap_alloc(ip, offset, length, 0, &imap);
 
 out_finish:
