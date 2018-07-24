@@ -10,7 +10,6 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/sensor-dev.h>
 #include "rk3326.dtsi"
-#include "rk3326-863-cif-sensor.dtsi"
 #include "rk3326-linux.dtsi"
 
 / {
@@ -227,6 +226,18 @@
 &bus_apll {
 	bus-supply = <&vdd_logic>;
 	status = "okay";
+};
+
+&cif_new {
+	status = "okay";
+
+	port {
+		cif_in: endpoint {
+			remote-endpoint = <&gc2155_out>;
+			vsync-active = <0>;
+			hsync-active = <1>;
+		};
+	};
 };
 
 &cpu0 {
@@ -715,15 +726,39 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
+	/* 24M mclk is shared for multiple cameras */
+	pinctrl-0 = <&i2c2_xfer &cif_clkout_m0>;
+
 	/* These are relatively safe rise/fall times; TODO: measure */
 	i2c-scl-falling-time-ns = <50>;
 	i2c-scl-rising-time-ns = <300>;
 
+	gc2155: gc2155@3c {
+		compatible = "gc,gc2155";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_pin_m0>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		avdd-supply = <&vcc2v8_dvp>;
+		dovdd-supply = <&vcc1v8_dvp>;
+		dvdd-supply = <&vcc1v8_dvp>;
+
+		/* hw changed the pwdn to gpio2_b5 */
+		pwdn-gpios = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+
+		port {
+			gc2155_out: endpoint {
+				remote-endpoint = <&cif_in>;
+			};
+		};
+	};
+
 	ov5695: ov5695@36 {
 		compatible = "ovti,ov5695";
 		reg = <0x36>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&cif_clkout_m0>;
 
 		clocks = <&cru SCLK_CIF_OUT>;
 		clock-names = "xvclk";
@@ -926,6 +961,10 @@
 	status = "okay";
 };
 
+&vip_mmu {
+	status = "okay";
+};
+
 &vopb {
 	status = "okay";
 };
@@ -947,6 +986,23 @@
 };
 
 &pinctrl {
+	cif-pin-m0 {
+		cif_pin_m0: cif-pin-m0 {
+			rockchip,pins =
+				<2 RK_PA0 RK_FUNC_1 &pcfg_pull_none>,/* cif_data2 */
+				<2 RK_PA1 RK_FUNC_1 &pcfg_pull_none>,/* cif_data3 */
+				<2 RK_PA2 RK_FUNC_1 &pcfg_pull_none>,/* cif_data4 */
+				<2 RK_PA3 RK_FUNC_1 &pcfg_pull_none>,/* cif_data5 */
+				<2 RK_PA4 RK_FUNC_1 &pcfg_pull_none>,/* cif_data6 */
+				<2 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,/* cif_data7 */
+				<2 RK_PA6 RK_FUNC_1 &pcfg_pull_none>,/* cif_data8 */
+				<2 RK_PA7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data9 */
+				<2 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,/* cif_sync */
+				<2 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,/* cif_href */
+				<2 RK_PB2 RK_FUNC_1 &pcfg_pull_none>;/* cif_clkin */
+		};
+	};
+
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins = <2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_down>;
