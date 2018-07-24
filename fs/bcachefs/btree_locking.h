@@ -147,6 +147,26 @@ static inline void btree_node_lock_type(struct bch_fs *c, struct btree *b,
 		__btree_node_lock_type(c, b, type);
 }
 
+/*
+ * Lock a btree node if we already have it locked on one of our linked
+ * iterators:
+ */
+static inline bool btree_node_lock_increment(struct btree_iter *iter,
+					     struct btree *b, unsigned level,
+					     enum btree_node_locked_type want)
+{
+	struct btree_iter *linked;
+
+	for_each_linked_btree_iter(iter, linked)
+		if (linked->l[level].b == b &&
+		    btree_node_locked_type(linked, level) >= want) {
+			six_lock_increment(&b->lock, want);
+			return true;
+		}
+
+	return false;
+}
+
 bool __bch2_btree_node_lock(struct btree *, struct bpos, unsigned,
 			    struct btree_iter *, enum six_lock_type, bool);
 
@@ -159,6 +179,7 @@ static inline bool btree_node_lock(struct btree *b, struct bpos pos,
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 
 	return likely(six_trylock_type(&b->lock, type)) ||
+		btree_node_lock_increment(iter, b, level, type) ||
 		__bch2_btree_node_lock(b, pos, level, iter,
 				       type, may_drop_locks);
 }

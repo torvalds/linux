@@ -69,26 +69,6 @@ void __bch2_btree_node_lock_write(struct btree *b, struct btree_iter *iter)
 		     &b->lock.state.counter);
 }
 
-/*
- * Lock a btree node if we already have it locked on one of our linked
- * iterators:
- */
-static inline bool btree_node_lock_increment(struct btree_iter *iter,
-					     struct btree *b, unsigned level,
-					     enum btree_node_locked_type want)
-{
-	struct btree_iter *linked;
-
-	for_each_linked_btree_iter(iter, linked)
-		if (linked->l[level].b == b &&
-		    btree_node_locked_type(linked, level) >= want) {
-			six_lock_increment(&b->lock, (enum six_lock_type) want);
-			return true;
-		}
-
-	return false;
-}
-
 bool __bch2_btree_node_relock(struct btree_iter *iter, unsigned level)
 {
 	struct btree *b = btree_iter_node(iter, level);
@@ -190,34 +170,12 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 	struct btree_iter *linked;
 	bool ret = true;
 
-	/* Can't have children locked before ancestors: */
-	EBUG_ON(iter->nodes_locked && level > __ffs(iter->nodes_locked));
-
-	/*
-	 * Can't hold any read locks while we block taking an intent lock - see
-	 * below for reasoning, and we should have already dropped any read
-	 * locks in the current iterator
-	 */
-	EBUG_ON(type == SIX_LOCK_intent &&
-		iter->nodes_locked != iter->nodes_intent_locked);
-
-	if (btree_node_lock_increment(iter, b, level, (enum btree_node_locked_type) type))
-		return true;
-
-	/*
-	 * Must lock btree nodes in key order - this case happens when locking
-	 * the prev sibling in btree node merging:
-	 */
-	if (iter->nodes_locked &&
-	    __ffs(iter->nodes_locked) <= level &&
-	    __btree_iter_cmp(iter->btree_id, pos, iter))
-		return false;
-
-	for_each_linked_btree_iter(iter, linked) {
+	/* Check if it's safe to block: */
+	for_each_btree_iter(iter, linked) {
 		if (!linked->nodes_locked)
 			continue;
 
-		/* We have to lock btree nodes in key order: */
+		/* * Must lock btree nodes in key order: */
 		if (__btree_iter_cmp(iter->btree_id, pos, linked) < 0)
 			ret = false;
 
@@ -252,9 +210,10 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		if (linked->btree_id == iter->btree_id &&
 		    level > __fls(linked->nodes_locked)) {
 			if (may_drop_locks) {
-				linked->locks_want = max_t(unsigned,
-							   linked->locks_want,
-							   iter->locks_want);
+				linked->locks_want =
+					max(level + 1, max_t(unsigned,
+					    linked->locks_want,
+					    iter->locks_want));
 				btree_iter_get_locks(linked, true);
 			}
 			ret = false;
