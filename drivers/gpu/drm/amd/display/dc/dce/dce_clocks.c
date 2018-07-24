@@ -255,6 +255,9 @@ static int dce_set_clock(
 	pxl_clk_params.target_pixel_clock = requested_clk_khz;
 	pxl_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
 
+	if (clk_dce->dfs_bypass_enabled)
+		pxl_clk_params.flags.SET_DISPCLK_DFS_BYPASS = true;
+
 	bp->funcs->program_display_engine_pll(bp, &pxl_clk_params);
 
 	if (clk_dce->dfs_bypass_enabled) {
