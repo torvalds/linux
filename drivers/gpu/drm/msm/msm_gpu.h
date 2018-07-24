@@ -27,6 +27,7 @@
 
 struct msm_gem_submit;
 struct msm_gpu_perfcntr;
+struct msm_gpu_state;
 
 struct msm_gpu_config {
 	const char *ioname;
@@ -69,6 +70,8 @@ struct msm_gpu_funcs {
 	int (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
 	int (*gpu_busy)(struct msm_gpu *gpu, uint64_t *value);
+	struct msm_gpu_state *(*gpu_state_get)(struct msm_gpu *gpu);
+	void (*gpu_state_put)(struct msm_gpu_state *state);
 };
 
 struct msm_gpu {
@@ -173,6 +176,23 @@ struct msm_gpu_submitqueue {
 	int faults;
 	struct list_head node;
 	struct kref ref;
+};
+
+struct msm_gpu_state {
+	struct timeval time;
+
+	struct {
+		u64 iova;
+		u32 fence;
+		u32 seqno;
+		u32 rptr;
+		u32 wptr;
+	} ring[MSM_GPU_MAX_RINGS];
+
+	int nr_registers;
+	u32 *registers;
+
+	u32 rbbm_status;
 };
 
 static inline void gpu_write(struct msm_gpu *gpu, u32 reg, u32 data)

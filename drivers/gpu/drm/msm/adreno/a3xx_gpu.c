@@ -427,6 +427,19 @@ static void a3xx_dump(struct msm_gpu *gpu)
 			gpu_read(gpu, REG_A3XX_RBBM_STATUS));
 	adreno_dump(gpu);
 }
+
+static struct msm_gpu_state *a3xx_gpu_state_get(struct msm_gpu *gpu)
+{
+	struct msm_gpu_state *state = adreno_gpu_state_get(gpu);
+
+	if (IS_ERR(state))
+		return state;
+
+	state->rbbm_status = gpu_read(gpu, REG_A3XX_RBBM_STATUS);
+
+	return state;
+}
+
 /* Register offset defines for A3XX */
 static const unsigned int a3xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
 	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE, REG_AXXX_CP_RB_BASE),
@@ -453,6 +466,8 @@ static const struct adreno_gpu_funcs funcs = {
 #ifdef CONFIG_DEBUG_FS
 		.show = a3xx_show,
 #endif
+		.gpu_state_get = a3xx_gpu_state_get,
+		.gpu_state_put = adreno_gpu_state_put,
 	},
 };
 

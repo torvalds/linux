@@ -1195,6 +1195,26 @@ static int a5xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 	return 0;
 }
 
+static struct msm_gpu_state *a5xx_gpu_state_get(struct msm_gpu *gpu)
+{
+	struct msm_gpu_state *state;
+
+	/*
+	 * Temporarily disable hardware clock gating before going into
+	 * adreno_show to avoid issues while reading the registers
+	 */
+	a5xx_set_hwcg(gpu, false);
+
+	state = adreno_gpu_state_get(gpu);
+
+	if (!IS_ERR(state))
+		state->rbbm_status = gpu_read(gpu, REG_A5XX_RBBM_STATUS);
+
+	a5xx_set_hwcg(gpu, true);
+
+	return state;
+}
+
 #ifdef CONFIG_DEBUG_FS
 static void a5xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
@@ -1244,6 +1264,8 @@ static const struct adreno_gpu_funcs funcs = {
 		.debugfs_init = a5xx_debugfs_init,
 #endif
 		.gpu_busy = a5xx_gpu_busy,
+		.gpu_state_get = a5xx_gpu_state_get,
+		.gpu_state_put = adreno_gpu_state_put,
 	},
 	.get_timestamp = a5xx_get_timestamp,
 };
