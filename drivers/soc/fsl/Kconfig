@@ -1,6 +1,8 @@
 #
-# Freescale SOC drivers
+# NXP/Freescale QorIQ series SOC drivers
 #
+
+menu "NXP/Freescale QorIQ SoC drivers"
 
 source "drivers/soc/fsl/qbman/Kconfig"
 source "drivers/soc/fsl/qe/Kconfig"
@@ -26,3 +28,4 @@ config FSL_MC_DPIO
 	  other DPAA2 objects. This driver does not expose the DPIO
 	  objects individually, but groups them under a service layer
 	  API.
+endmenu
