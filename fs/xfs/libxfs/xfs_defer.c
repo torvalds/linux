@@ -320,6 +320,19 @@ xfs_defer_bjoin(
 }
 
 /*
+ * Reset an already used dfops after finish.
+ */
+static void
+xfs_defer_reset(
+	struct xfs_defer_ops	*dop)
+{
+	ASSERT(!xfs_defer_has_unfinished_work(dop));
+	dop->dop_low = false;
+	memset(dop->dop_inodes, 0, sizeof(dop->dop_inodes));
+	memset(dop->dop_bufs, 0, sizeof(dop->dop_bufs));
+}
+
+/*
  * Finish all the pending work.  This involves logging intent items for
  * any work items that wandered in since the last transaction roll (if
  * one has even happened), rolling the transaction, and finishing the
@@ -427,10 +440,13 @@ xfs_defer_finish(
 		dop = (*tp)->t_dfops;
 	}
 out:
-	if (error)
+	if (error) {
 		trace_xfs_defer_finish_error((*tp)->t_mountp, dop, error);
-	else
+	} else {
 		trace_xfs_defer_finish_done((*tp)->t_mountp, dop, _RET_IP_);
+		xfs_defer_reset(dop);
+	}
+
 	return error;
 }
 
