@@ -48,6 +48,7 @@ enum xfs_defer_ops_type {
 
 void xfs_defer_add(struct xfs_defer_ops *dop, enum xfs_defer_ops_type type,
 		struct list_head *h);
+int xfs_defer_finish_noroll(struct xfs_trans **tp);
 int xfs_defer_finish(struct xfs_trans **tp);
 void __xfs_defer_cancel(struct xfs_defer_ops *dop);
 void xfs_defer_init(struct xfs_trans *tp, struct xfs_defer_ops *dop);

@@ -341,7 +341,7 @@ xfs_defer_reset(
  * If an inode is provided, relog it to the new transaction.
  */
 int
-xfs_defer_finish(
+xfs_defer_finish_noroll(
 	struct xfs_trans		**tp)
 {
 	struct xfs_defer_ops		*dop = (*tp)->t_dfops;
@@ -430,23 +430,35 @@ xfs_defer_finish(
 			cleanup_fn(*tp, state, error);
 	}
 
-	/*
-	 * Roll the transaction once more to avoid returning to the caller
-	 * with a dirty transaction.
-	 */
-	if ((*tp)->t_flags & XFS_TRANS_DIRTY) {
-		error = xfs_defer_trans_roll(tp);
-		dop = (*tp)->t_dfops;
-	}
 out:
-	if (error) {
+	if (error)
 		trace_xfs_defer_finish_error((*tp)->t_mountp, dop, error);
-	} else {
+	 else
 		trace_xfs_defer_finish_done((*tp)->t_mountp, dop, _RET_IP_);
-		xfs_defer_reset(dop);
-	}
 
 	return error;
+}
+
+int
+xfs_defer_finish(
+	struct xfs_trans	**tp)
+{
+	int			error;
+
+	/*
+	 * Finish and roll the transaction once more to avoid returning to the
+	 * caller with a dirty transaction.
+	 */
+	error = xfs_defer_finish_noroll(tp);
+	if (error)
+		return error;
+	if ((*tp)->t_flags & XFS_TRANS_DIRTY) {
+		error = xfs_defer_trans_roll(tp);
+		if (error)
+			return error;
+	}
+	xfs_defer_reset((*tp)->t_dfops);
+	return 0;
 }
 
 /*

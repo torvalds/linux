@@ -933,7 +933,7 @@ __xfs_trans_commit(
 
 	/* finish deferred items on final commit */
 	if (!regrant && tp->t_dfops) {
-		error = xfs_defer_finish(&tp);
+		error = xfs_defer_finish_noroll(&tp);
 		if (error) {
 			xfs_defer_cancel(tp);
 			goto out_unreserve;
