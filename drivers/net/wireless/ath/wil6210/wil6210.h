@@ -50,6 +50,9 @@ union wil_tx_desc;
 #define WIL_FW_NAME_SPARROW_PLUS "wil6210_sparrow_plus.fw"
 #define WIL_FW_NAME_FTM_SPARROW_PLUS "wil6210_sparrow_plus_ftm.fw"
 
+#define WIL_FW_NAME_TALYN "wil6436.fw"
+#define WIL_FW_NAME_FTM_TALYN "wil6436_ftm.fw"
+
 #define WIL_BOARD_FILE_NAME "wil6210.brd" /* board & radio parameters */
 
 #define WIL_DEFAULT_BUS_REQUEST_KBPS 128000 /* ~1Gbps */
