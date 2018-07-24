@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -178,6 +178,15 @@ void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_co
 
 	iinfo->rdma_mr_max = pool_1m->max_items;
 	iinfo->rdma_mr_size = pool_1m->fmr_attr.max_pages;
+}
+
+void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
+			 struct rds6_info_rdma_connection *iinfo6)
+{
+	struct rds_ib_mr_pool *pool_1m = rds_ibdev->mr_1m_pool;
+
+	iinfo6->rdma_mr_max = pool_1m->max_items;
+	iinfo6->rdma_mr_size = pool_1m->fmr_attr.max_pages;
 }
 
 struct rds_ib_mr *rds_ib_reuse_mr(struct rds_ib_mr_pool *pool)

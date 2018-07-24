@@ -321,6 +321,43 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 	return 1;
 }
 
+/* IPv6 version of rds_ib_conn_info_visitor(). */
+static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
+				     void *buffer)
+{
+	struct rds6_info_rdma_connection *iinfo6 = buffer;
+	struct rds_ib_connection *ic;
+
+	/* We will only ever look at IB transports */
+	if (conn->c_trans != &rds_ib_transport)
+		return 0;
+
+	iinfo6->src_addr = conn->c_laddr;
+	iinfo6->dst_addr = conn->c_faddr;
+
+	memset(&iinfo6->src_gid, 0, sizeof(iinfo6->src_gid));
+	memset(&iinfo6->dst_gid, 0, sizeof(iinfo6->dst_gid));
+
+	if (rds_conn_state(conn) == RDS_CONN_UP) {
+		struct rds_ib_device *rds_ibdev;
+		struct rdma_dev_addr *dev_addr;
+
+		ic = conn->c_transport_data;
+		dev_addr = &ic->i_cm_id->route.addr.dev_addr;
+		rdma_addr_get_sgid(dev_addr,
+				   (union ib_gid *)&iinfo6->src_gid);
+		rdma_addr_get_dgid(dev_addr,
+				   (union ib_gid *)&iinfo6->dst_gid);
+
+		rds_ibdev = ic->rds_ibdev;
+		iinfo6->max_send_wr = ic->i_send_ring.w_nr;
+		iinfo6->max_recv_wr = ic->i_recv_ring.w_nr;
+		iinfo6->max_send_sge = rds_ibdev->max_sge;
+		rds6_ib_get_mr_info(rds_ibdev, iinfo6);
+	}
+	return 1;
+}
+
 static void rds_ib_ic_info(struct socket *sock, unsigned int len,
 			   struct rds_info_iterator *iter,
 			   struct rds_info_lengths *lens)
@@ -331,6 +368,19 @@ static void rds_ib_ic_info(struct socket *sock, unsigned int len,
 				rds_ib_conn_info_visitor,
 				buffer,
 				sizeof(struct rds_info_rdma_connection));
+}
+
+/* IPv6 version of rds_ib_ic_info(). */
+static void rds6_ib_ic_info(struct socket *sock, unsigned int len,
+			    struct rds_info_iterator *iter,
+			    struct rds_info_lengths *lens)
+{
+	u64 buffer[(sizeof(struct rds6_info_rdma_connection) + 7) / 8];
+
+	rds_for_each_conn_info(sock, len, iter, lens,
+			       rds6_ib_conn_info_visitor,
+			       buffer,
+			       sizeof(struct rds6_info_rdma_connection));
 }
 
 /*
@@ -441,6 +491,7 @@ void rds_ib_exit(void)
 	rds_ib_set_unloading();
 	synchronize_rcu();
 	rds_info_deregister_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
+	rds_info_deregister_func(RDS6_INFO_IB_CONNECTIONS, rds6_ib_ic_info);
 	rds_ib_unregister_client();
 	rds_ib_destroy_nodev_conns();
 	rds_ib_sysctl_exit();
@@ -502,6 +553,7 @@ int rds_ib_init(void)
 	rds_trans_register(&rds_ib_transport);
 
 	rds_info_register_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
+	rds_info_register_func(RDS6_INFO_IB_CONNECTIONS, rds6_ib_ic_info);
 
 	goto out;
 
