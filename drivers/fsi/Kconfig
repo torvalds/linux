@@ -27,6 +27,15 @@ config FSI_MASTER_HUB
 	allow chaining of FSI links to an arbitrary depth.  This allows for
 	a high target device fanout.
 
+config FSI_MASTER_AST_CF
+	tristate "FSI master based on Aspeed ColdFire coprocessor"
+	depends on GPIOLIB
+	depends on GPIO_ASPEED
+	---help---
+	This option enables a FSI master using the AST2400 and AST2500 GPIO
+	lines driven by the internal ColdFire coprocessor. This requires
+	the corresponding machine specific ColdFire firmware to be available.
+
 config FSI_SCOM
 	tristate "SCOM FSI client device driver"
 	---help---

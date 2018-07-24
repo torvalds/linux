@@ -136,16 +136,14 @@ struct sbefifo_user {
 static DEFINE_IDA(sbefifo_ida);
 static DEFINE_MUTEX(sbefifo_ffdc_mutex);
 
-
-static void sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
-			      size_t ffdc_sz, bool internal)
+static void __sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
+				size_t ffdc_sz, bool internal)
 {
 	int pack = 0;
 #define FFDC_LSIZE	60
 	static char ffdc_line[FFDC_LSIZE];
 	char *p = ffdc_line;
 
-	mutex_lock(&sbefifo_ffdc_mutex);
 	while (ffdc_sz) {
 		u32 w0, w1, w2, i;
 		if (ffdc_sz < 3) {
@@ -194,6 +192,13 @@ static void sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
 		}
 		dev_warn(dev, "+-------------------------------------------+\n");
 	}
+}
+
+static void sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
+			      size_t ffdc_sz, bool internal)
+{
+	mutex_lock(&sbefifo_ffdc_mutex);
+	__sbefifo_dump_ffdc(dev, ffdc, ffdc_sz, internal);
 	mutex_unlock(&sbefifo_ffdc_mutex);
 }
 
