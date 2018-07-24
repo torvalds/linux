@@ -55,6 +55,8 @@ union wil_tx_desc;
 #define WIL_DEFAULT_BUS_REQUEST_KBPS 128000 /* ~1Gbps */
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
+#define WIL_NUM_LATENCY_BINS 200
+
 /* maximum number of virtual interfaces the driver supports
  * (including the main interface)
  */
@@ -552,6 +554,9 @@ struct wil_net_stats {
 	unsigned long	rx_bytes;
 	unsigned long	tx_bytes;
 	unsigned long	tx_errors;
+	u32 tx_latency_min_us;
+	u32 tx_latency_max_us;
+	u64 tx_latency_total_us;
 	unsigned long	rx_dropped;
 	unsigned long	rx_non_data_frame;
 	unsigned long	rx_short_frame;
@@ -712,6 +717,13 @@ struct wil_sta_info {
 	u8 mid;
 	enum wil_sta_status status;
 	struct wil_net_stats stats;
+	/**
+	 * 20 latency bins. 1st bin counts packets with latency
+	 * of 0..tx_latency_res, last bin counts packets with latency
+	 * of 19*tx_latency_res and above.
+	 * tx_latency_res is configured from "tx_latency" debug-fs.
+	 */
+	u64 *tx_latency_bins;
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
 	spinlock_t tid_rx_lock; /* guarding tid_rx array */
@@ -943,6 +955,8 @@ struct wil6210_priv {
 	u8 wakeup_trigger;
 	struct wil_suspend_stats suspend_stats;
 	struct wil_debugfs_data dbg_data;
+	bool tx_latency; /* collect TX latency measurements */
+	size_t tx_latency_res; /* bin resolution in usec */
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;

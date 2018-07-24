@@ -278,6 +278,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	}
 	/* statistics */
 	memset(&sta->stats, 0, sizeof(sta->stats));
+	sta->stats.tx_latency_min_us = U32_MAX;
 }
 
 static bool wil_vif_is_connected(struct wil6210_priv *wil, u8 mid)

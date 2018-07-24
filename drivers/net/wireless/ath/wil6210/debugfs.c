@@ -1800,6 +1800,126 @@ static const struct file_operations fops_mids = {
 	.llseek		= seq_lseek,
 };
 
+static int wil_tx_latency_debugfs_show(struct seq_file *s, void *data)
+__acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
+{
+	struct wil6210_priv *wil = s->private;
+	int i, bin;
+
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+		struct wil_sta_info *p = &wil->sta[i];
+		char *status = "unknown";
+		u8 aid = 0;
+		u8 mid;
+
+		if (!p->tx_latency_bins)
+			continue;
+
+		switch (p->status) {
+		case wil_sta_unused:
+			status = "unused   ";
+			break;
+		case wil_sta_conn_pending:
+			status = "pending  ";
+			break;
+		case wil_sta_connected:
+			status = "connected";
+			aid = p->aid;
+			break;
+		}
+		mid = (p->status != wil_sta_unused) ? p->mid : U8_MAX;
+		seq_printf(s, "[%d] %pM %s MID %d AID %d\n", i, p->addr, status,
+			   mid, aid);
+
+		if (p->status == wil_sta_connected) {
+			u64 num_packets = 0;
+			u64 tx_latency_avg = p->stats.tx_latency_total_us;
+
+			seq_puts(s, "Tx/Latency bin:");
+			for (bin = 0; bin < WIL_NUM_LATENCY_BINS; bin++) {
+				seq_printf(s, " %lld",
+					   p->tx_latency_bins[bin]);
+				num_packets += p->tx_latency_bins[bin];
+			}
+			seq_puts(s, "\n");
+			if (!num_packets)
+				continue;
+			do_div(tx_latency_avg, num_packets);
+			seq_printf(s, "Tx/Latency min/avg/max (us): %d/%lld/%d",
+				   p->stats.tx_latency_min_us,
+				   tx_latency_avg,
+				   p->stats.tx_latency_max_us);
+
+			seq_puts(s, "\n");
+		}
+	}
+
+	return 0;
+}
+
+static int wil_tx_latency_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_tx_latency_debugfs_show,
+			   inode->i_private);
+}
+
+static ssize_t wil_tx_latency_write(struct file *file, const char __user *buf,
+				    size_t len, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct wil6210_priv *wil = s->private;
+	int val, rc, i;
+	bool enable;
+
+	rc = kstrtoint_from_user(buf, len, 0, &val);
+	if (rc) {
+		wil_err(wil, "Invalid argument\n");
+		return rc;
+	}
+	if (val == 1)
+		/* default resolution */
+		val = 500;
+	if (val && (val < 50 || val > 1000)) {
+		wil_err(wil, "Invalid resolution %d\n", val);
+		return -EINVAL;
+	}
+
+	enable = !!val;
+	if (wil->tx_latency == enable)
+		return len;
+
+	wil_info(wil, "%s TX latency measurements (resolution %dusec)\n",
+		 enable ? "Enabling" : "Disabling", val);
+
+	if (enable) {
+		size_t sz = sizeof(u64) * WIL_NUM_LATENCY_BINS;
+
+		wil->tx_latency_res = val;
+		for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+			struct wil_sta_info *sta = &wil->sta[i];
+
+			kfree(sta->tx_latency_bins);
+			sta->tx_latency_bins = kzalloc(sz, GFP_KERNEL);
+			if (!sta->tx_latency_bins)
+				return -ENOMEM;
+			sta->stats.tx_latency_min_us = U32_MAX;
+			sta->stats.tx_latency_max_us = 0;
+			sta->stats.tx_latency_total_us = 0;
+		}
+	}
+	wil->tx_latency = enable;
+
+	return len;
+}
+
+static const struct file_operations fops_tx_latency = {
+	.open		= wil_tx_latency_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.write		= wil_tx_latency_write,
+	.llseek		= seq_lseek,
+};
+
 static ssize_t wil_read_file_led_cfg(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
@@ -2133,6 +2253,7 @@ static const struct {
 	{"srings",	0444,		&fops_srings},
 	{"status_msg",	0444,		&fops_status_msg},
 	{"rx_buff_mgmt",	0444,	&fops_rx_buff_mgmt},
+	{"tx_latency",	0644,		&fops_tx_latency},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
@@ -2249,10 +2370,14 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 
 void wil6210_debugfs_remove(struct wil6210_priv *wil)
 {
+	int i;
+
 	debugfs_remove_recursive(wil->debug);
 	wil->debug = NULL;
 
 	kfree(wil->dbg_data.data_arr);
+	for (i = 0; i < ARRAY_SIZE(wil->sta); i++)
+		kfree(wil->sta[i].tx_latency_bins);
 
 	/* free pmc memory without sending command to fw, as it will
 	 * be reset on the way down anyway

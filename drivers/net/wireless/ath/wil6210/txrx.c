@@ -1693,6 +1693,11 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	 */
 	wmb();
 
+	if (wil->tx_latency)
+		*(ktime_t *)&skb->cb = ktime_get();
+	else
+		memset(skb->cb, 0, sizeof(ktime_t));
+
 	wil_w(wil, vring->hwtail, vring->swhead);
 	return 0;
 
@@ -1843,6 +1848,11 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	 * committing them to HW
 	 */
 	wmb();
+
+	if (wil->tx_latency)
+		*(ktime_t *)&skb->cb = ktime_get();
+	else
+		memset(skb->cb, 0, sizeof(ktime_t));
 
 	wil_w(wil, ring->hwtail, ring->swhead);
 
@@ -2065,6 +2075,31 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NET_XMIT_DROP;
 }
 
+void wil_tx_latency_calc(struct wil6210_priv *wil, struct sk_buff *skb,
+			 struct wil_sta_info *sta)
+{
+	int skb_time_us;
+	int bin;
+
+	if (!wil->tx_latency)
+		return;
+
+	if (ktime_to_ms(*(ktime_t *)&skb->cb) == 0)
+		return;
+
+	skb_time_us = ktime_us_delta(ktime_get(), *(ktime_t *)&skb->cb);
+	bin = skb_time_us / wil->tx_latency_res;
+	bin = min_t(int, bin, WIL_NUM_LATENCY_BINS - 1);
+
+	wil_dbg_txrx(wil, "skb time %dus => bin %d\n", skb_time_us, bin);
+	sta->tx_latency_bins[bin]++;
+	sta->stats.tx_latency_total_us += skb_time_us;
+	if (skb_time_us < sta->stats.tx_latency_min_us)
+		sta->stats.tx_latency_min_us = skb_time_us;
+	if (skb_time_us > sta->stats.tx_latency_max_us)
+		sta->stats.tx_latency_max_us = skb_time_us;
+}
+
 /**
  * Clean up transmitted skb's from the Tx VRING
  *
@@ -2151,6 +2186,9 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 					if (stats) {
 						stats->tx_packets++;
 						stats->tx_bytes += skb->len;
+
+						wil_tx_latency_calc(wil, skb,
+							&wil->sta[cid]);
 					}
 				} else {
 					ndev->stats.tx_errors++;
