@@ -29,6 +29,7 @@ struct msm_gpu_show_priv {
 
 static int msm_gpu_show(struct seq_file *m, void *arg)
 {
+	struct drm_printer p = drm_seq_file_printer(m);
 	struct msm_gpu_show_priv *show_priv = m->private;
 	struct msm_drm_private *priv = show_priv->dev->dev_private;
 	struct msm_gpu *gpu = priv->gpu;
@@ -38,8 +39,8 @@ static int msm_gpu_show(struct seq_file *m, void *arg)
 	if (ret)
 		return ret;
 
-	seq_printf(m, "%s Status:\n", gpu->name);
-	gpu->funcs->show(gpu, show_priv->state, m);
+	drm_printf(&p, "%s Status:\n", gpu->name);
+	gpu->funcs->show(gpu, show_priv->state, &p);
 
 	mutex_unlock(&show_priv->dev->struct_mutex);
 

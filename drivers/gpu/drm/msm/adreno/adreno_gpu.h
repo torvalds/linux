@@ -215,9 +215,9 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx);
 void adreno_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 bool adreno_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
 void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
-		struct seq_file *m);
+		struct drm_printer *p);
 #endif
 void adreno_dump_info(struct msm_gpu *gpu);
 void adreno_dump(struct msm_gpu *gpu);
@@ -231,7 +231,7 @@ void adreno_gpu_cleanup(struct adreno_gpu *gpu);
 
 
 struct msm_gpu_state *adreno_gpu_state_get(struct msm_gpu *gpu);
-void adreno_gpu_state_put(struct msm_gpu_state *state);
+int adreno_gpu_state_put(struct msm_gpu_state *state);
 
 /* ringbuffer helpers (the parts that are adreno specific) */
 

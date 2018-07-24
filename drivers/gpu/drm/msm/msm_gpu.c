@@ -20,10 +20,11 @@
 #include "msm_mmu.h"
 #include "msm_fence.h"
 
+#include <generated/utsrelease.h>
 #include <linux/string_helpers.h>
 #include <linux/pm_opp.h>
 #include <linux/devfreq.h>
-
+#include <linux/devcoredump.h>
 
 /*
  * Power Management:
@@ -273,6 +274,81 @@ int msm_gpu_hw_init(struct msm_gpu *gpu)
 	return ret;
 }
 
+#ifdef CONFIG_DEV_COREDUMP
+static ssize_t msm_gpu_devcoredump_read(char *buffer, loff_t offset,
+		size_t count, void *data, size_t datalen)
+{
+	struct msm_gpu *gpu = data;
+	struct drm_print_iterator iter;
+	struct drm_printer p;
+	struct msm_gpu_state *state;
+
+	state = msm_gpu_crashstate_get(gpu);
+	if (!state)
+		return 0;
+
+	iter.data = buffer;
+	iter.offset = 0;
+	iter.start = offset;
+	iter.remain = count;
+
+	p = drm_coredump_printer(&iter);
+
+	drm_printf(&p, "---\n");
+	drm_printf(&p, "kernel: " UTS_RELEASE "\n");
+	drm_printf(&p, "module: " KBUILD_MODNAME "\n");
+	drm_printf(&p, "time: %ld.%ld\n",
+		state->time.tv_sec, state->time.tv_usec);
+	if (state->comm)
+		drm_printf(&p, "comm: %s\n", state->comm);
+	if (state->cmd)
+		drm_printf(&p, "cmdline: %s\n", state->cmd);
+
+	gpu->funcs->show(gpu, state, &p);
+
+	msm_gpu_crashstate_put(gpu);
+
+	return count - iter.remain;
+}
+
+static void msm_gpu_devcoredump_free(void *data)
+{
+	struct msm_gpu *gpu = data;
+
+	msm_gpu_crashstate_put(gpu);
+}
+
+static void msm_gpu_crashstate_capture(struct msm_gpu *gpu, char *comm,
+		char *cmd)
+{
+	struct msm_gpu_state *state;
+
+	/* Only save one crash state at a time */
+	if (gpu->crashstate)
+		return;
+
+	state = gpu->funcs->gpu_state_get(gpu);
+	if (IS_ERR_OR_NULL(state))
+		return;
+
+	/* Fill in the additional crash state information */
+	state->comm = kstrdup(comm, GFP_KERNEL);
+	state->cmd = kstrdup(cmd, GFP_KERNEL);
+
+	/* Set the active crash state to be dumped on failure */
+	gpu->crashstate = state;
+
+	/* FIXME: Release the crashstate if this errors out? */
+	dev_coredumpm(gpu->dev->dev, THIS_MODULE, gpu, 0, GFP_KERNEL,
+		msm_gpu_devcoredump_read, msm_gpu_devcoredump_free);
+}
+#else
+static void msm_gpu_crashstate_capture(struct msm_gpu *gpu, char *comm,
+		char *cmd)
+{
+}
+#endif
+
 /*
  * Hangcheck detection for locked gpu:
  */
@@ -355,6 +431,11 @@ static void recover_worker(struct work_struct *work)
 		} else
 			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 	}
+
+	/* Record the crash state */
+	pm_runtime_get_sync(&gpu->pdev->dev);
+	msm_gpu_crashstate_capture(gpu, comm, cmd);
+	pm_runtime_put_sync(&gpu->pdev->dev);
 
 	kfree(cmd);
 	kfree(comm);

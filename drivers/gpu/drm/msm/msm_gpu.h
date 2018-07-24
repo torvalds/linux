@@ -66,13 +66,13 @@ struct msm_gpu_funcs {
 #ifdef CONFIG_DEBUG_FS
 	/* show GPU status in debugfs: */
 	void (*show)(struct msm_gpu *gpu, struct msm_gpu_state *state,
-			struct seq_file *m);
+			struct drm_printer *p);
 	/* for generation specific debugfs: */
 	int (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
 	int (*gpu_busy)(struct msm_gpu *gpu, uint64_t *value);
 	struct msm_gpu_state *(*gpu_state_get)(struct msm_gpu *gpu);
-	void (*gpu_state_put)(struct msm_gpu_state *state);
+	int (*gpu_state_put)(struct msm_gpu_state *state);
 };
 
 struct msm_gpu {
@@ -133,6 +133,8 @@ struct msm_gpu {
 		u64 busy_cycles;
 		ktime_t time;
 	} devfreq;
+
+	struct msm_gpu_state *crashstate;
 };
 
 /* It turns out that all targets use the same ringbuffer size */
@@ -180,6 +182,7 @@ struct msm_gpu_submitqueue {
 };
 
 struct msm_gpu_state {
+	struct kref ref;
 	struct timeval time;
 
 	struct {
@@ -194,6 +197,9 @@ struct msm_gpu_state {
 	u32 *registers;
 
 	u32 rbbm_status;
+
+	char *comm;
+	char *cmd;
 };
 
 static inline void gpu_write(struct msm_gpu *gpu, u32 reg, u32 data)
@@ -273,6 +279,34 @@ static inline void msm_submitqueue_put(struct msm_gpu_submitqueue *queue)
 {
 	if (queue)
 		kref_put(&queue->ref, msm_submitqueue_destroy);
+}
+
+static inline struct msm_gpu_state *msm_gpu_crashstate_get(struct msm_gpu *gpu)
+{
+	struct msm_gpu_state *state = NULL;
+
+	mutex_lock(&gpu->dev->struct_mutex);
+
+	if (gpu->crashstate) {
+		kref_get(&gpu->crashstate->ref);
+		state = gpu->crashstate;
+	}
+
+	mutex_unlock(&gpu->dev->struct_mutex);
+
+	return state;
+}
+
+static inline void msm_gpu_crashstate_put(struct msm_gpu *gpu)
+{
+	mutex_lock(&gpu->dev->struct_mutex);
+
+	if (gpu->crashstate) {
+		if (gpu->funcs->gpu_state_put(gpu->crashstate))
+			gpu->crashstate = NULL;
+	}
+
+	mutex_unlock(&gpu->dev->struct_mutex);
 }
 
 #endif /* __MSM_GPU_H__ */
