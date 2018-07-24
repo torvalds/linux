@@ -217,7 +217,7 @@ static ssize_t backup_mode_store(struct device *dev,
 	return count;
 }
 
-DEVICE_ATTR_RW(backup_mode);
+static DEVICE_ATTR_RW(backup_mode);
 
 static int bd9571mwv_suspend(struct device *dev)
 {
