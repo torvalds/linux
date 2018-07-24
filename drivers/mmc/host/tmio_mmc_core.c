@@ -818,8 +818,6 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			host->prepare_tuning(host, i % host->tap_num);
 
 		ret = mmc_send_tuning(mmc, opcode, NULL);
-		if (ret && ret != -EILSEQ)
-			goto out;
 		if (ret == 0)
 			set_bit(i, host->taps);
 
