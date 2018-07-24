@@ -571,25 +571,30 @@ int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
 				  struct mlxsw_sp_acl_block *block,
-				  struct net_device *out_dev);
+				  struct net_device *out_dev,
+				  struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_rule_info *rulei,
-			       struct net_device *out_dev);
+			       struct net_device *out_dev,
+			       struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule_info *rulei,
-				u32 action, u16 vid, u16 proto, u8 prio);
+				u32 action, u16 vid, u16 proto, u8 prio,
+				struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_rule_info *rulei);
+				 struct mlxsw_sp_acl_rule_info *rulei,
+				 struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_rule_info *rulei,
-				   u16 fid);
+				   u16 fid, struct netlink_ext_ack *extack);
 
 struct mlxsw_sp_acl_rule;
 
 struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,
-			 unsigned long cookie);
+			 unsigned long cookie,
+			 struct netlink_ext_ack *extack);
 void mlxsw_sp_acl_rule_destroy(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_rule *rule);
 int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,

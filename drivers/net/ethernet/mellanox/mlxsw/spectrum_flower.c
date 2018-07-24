@@ -48,7 +48,8 @@
 static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_block *block,
 					 struct mlxsw_sp_acl_rule_info *rulei,
-					 struct tcf_exts *exts)
+					 struct tcf_exts *exts,
+					 struct netlink_ext_ack *extack)
 {
 	const struct tc_action *a;
 	LIST_HEAD(actions);
@@ -58,7 +59,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	/* Count action is inserted first */
-	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei);
+	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei, extack);
 	if (err)
 		return err;
 
@@ -99,20 +100,21 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			fid = mlxsw_sp_acl_dummy_fid(mlxsw_sp);
 			fid_index = mlxsw_sp_fid_index(fid);
 			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
-							     fid_index);
+							     fid_index, extack);
 			if (err)
 				return err;
 
 			out_dev = tcf_mirred_dev(a);
 			err = mlxsw_sp_acl_rulei_act_fwd(mlxsw_sp, rulei,
-							 out_dev);
+							 out_dev, extack);
 			if (err)
 				return err;
 		} else if (is_tcf_mirred_egress_mirror(a)) {
 			struct net_device *out_dev = tcf_mirred_dev(a);
 
 			err = mlxsw_sp_acl_rulei_act_mirror(mlxsw_sp, rulei,
-							    block, out_dev);
+							    block, out_dev,
+							    extack);
 			if (err)
 				return err;
 		} else if (is_tcf_vlan(a)) {
@@ -123,7 +125,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 			return mlxsw_sp_acl_rulei_act_vlan(mlxsw_sp, rulei,
 							   action, vid,
-							   proto, prio);
+							   proto, prio, extack);
 		} else {
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported action\n");
 			return -EOPNOTSUPP;
@@ -400,7 +402,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	return mlxsw_sp_flower_parse_actions(mlxsw_sp, block, rulei, f->exts);
+	return mlxsw_sp_flower_parse_actions(mlxsw_sp, block, rulei, f->exts,
+					     f->common.extack);
 }
 
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
@@ -418,7 +421,8 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
-	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie);
+	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie,
+					f->common.extack);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		goto err_rule_create;
