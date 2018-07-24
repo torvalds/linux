@@ -4857,15 +4857,7 @@ xlog_finish_defer_ops(
 	/* transfer all collected dfops to this transaction */
 	xfs_defer_move(tp->t_dfops, dfops);
 
-	error = xfs_defer_finish(&tp, tp->t_dfops);
-	if (error)
-		goto out_cancel;
-
 	return xfs_trans_commit(tp);
-
-out_cancel:
-	xfs_trans_cancel(tp);
-	return error;
 }
 
 /*

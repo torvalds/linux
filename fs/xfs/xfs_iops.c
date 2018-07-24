@@ -813,7 +813,6 @@ xfs_setattr_size(
 	struct inode		*inode = VFS_I(ip);
 	xfs_off_t		oldsize, newsize;
 	struct xfs_trans	*tp;
-	struct xfs_defer_ops	dfops;
 	int			error;
 	uint			lock_flags = 0;
 	bool			did_zeroing = false;
@@ -917,7 +916,6 @@ xfs_setattr_size(
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
 	if (error)
 		return error;
-	xfs_defer_init(tp, &dfops);
 
 	lock_flags |= XFS_ILOCK_EXCL;
 	xfs_ilock(ip, XFS_ILOCK_EXCL);

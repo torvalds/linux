@@ -382,7 +382,6 @@ xfs_attr_inactive(
 {
 	struct xfs_trans	*trans;
 	struct xfs_mount	*mp;
-	struct xfs_defer_ops	dfops;
 	int			lock_mode = XFS_ILOCK_SHARED;
 	int			error = 0;
 
@@ -399,7 +398,6 @@ xfs_attr_inactive(
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_attrinval, 0, 0, 0, &trans);
 	if (error)
 		goto out_destroy_fork;
-	xfs_defer_init(trans, &dfops);
 
 	lock_mode = XFS_ILOCK_EXCL;
 	xfs_ilock(dp, lock_mode);

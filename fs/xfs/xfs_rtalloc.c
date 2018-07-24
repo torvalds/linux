@@ -761,7 +761,6 @@ xfs_growfs_rt_alloc(
 	struct xfs_buf		*bp;	/* temporary buffer for zeroing */
 	xfs_daddr_t		d;		/* disk block address */
 	int			error;		/* error return value */
-	struct xfs_defer_ops	dfops;		/* list of freed blocks */
 	xfs_fsblock_t		fsbno;		/* filesystem block for bno */
 	struct xfs_bmbt_irec	map;		/* block map output */
 	int			nmap;		/* number of block maps */
@@ -786,7 +785,6 @@ xfs_growfs_rt_alloc(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		xfs_defer_init(tp, &dfops);
 		/*
 		 * Allocate blocks to the bitmap file.
 		 */
@@ -797,13 +795,10 @@ xfs_growfs_rt_alloc(
 		if (!error && nmap < 1)
 			error = -ENOSPC;
 		if (error)
-			goto out_bmap_cancel;
+			goto out_trans_cancel;
 		/*
 		 * Free any blocks freed up in the transaction, then commit.
 		 */
-		error = xfs_defer_finish(&tp, tp->t_dfops);
-		if (error)
-			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
 		if (error)
 			return error;
@@ -853,8 +848,6 @@ xfs_growfs_rt_alloc(
 
 	return 0;
 
-out_bmap_cancel:
-	xfs_defer_cancel(tp->t_dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	return error;

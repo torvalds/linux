@@ -1635,7 +1635,6 @@ xfs_refcount_recover_cow_leftovers(
 	struct list_head		debris;
 	union xfs_btree_irec		low;
 	union xfs_btree_irec		high;
-	struct xfs_defer_ops		dfops;
 	xfs_fsblock_t			fsb;
 	xfs_agblock_t			agbno;
 	int				error;
@@ -1691,21 +1690,16 @@ xfs_refcount_recover_cow_leftovers(
 		trace_xfs_refcount_recover_extent(mp, agno, &rr->rr_rrec);
 
 		/* Free the orphan record */
-		xfs_defer_init(tp, &dfops);
 		agbno = rr->rr_rrec.rc_startblock - XFS_REFC_COW_START;
 		fsb = XFS_AGB_TO_FSB(mp, agno, agbno);
 		error = xfs_refcount_free_cow_extent(mp, tp->t_dfops, fsb,
 				rr->rr_rrec.rc_blockcount);
 		if (error)
-			goto out_defer;
+			goto out_trans;
 
 		/* Free the block. */
 		xfs_bmap_add_free(mp, tp->t_dfops, fsb,
 				rr->rr_rrec.rc_blockcount, NULL);
-
-		error = xfs_defer_finish(&tp, tp->t_dfops);
-		if (error)
-			goto out_defer;
 
 		error = xfs_trans_commit(tp);
 		if (error)
@@ -1716,8 +1710,6 @@ xfs_refcount_recover_cow_leftovers(
 	}
 
 	return error;
-out_defer:
-	xfs_defer_cancel(tp->t_dfops);
 out_trans:
 	xfs_trans_cancel(tp);
 out_free:
