@@ -3104,10 +3104,13 @@ config ZONE_DMA32
 
 source "drivers/pcmcia/Kconfig"
 
+config HAS_RAPIDIO
+	bool
+	default n
+
 config RAPIDIO
 	tristate "RapidIO support"
-	depends on PCI
-	default n
+	depends on HAS_RAPIDIO || PCI
 	help
 	  If you say Y here, the kernel will include drivers and
 	  infrastructure code to support RapidIO interconnect devices.
