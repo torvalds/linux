@@ -500,6 +500,11 @@ static inline int wil_rxdesc_ext_subtype(struct vring_rx_desc *d)
 	return WIL_GET_BITS(d->mac.d0, 28, 31);
 }
 
+static inline int wil_rxdesc_retry(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d0, 31, 31);
+}
+
 static inline int wil_rxdesc_key_id(struct vring_rx_desc *d)
 {
 	return WIL_GET_BITS(d->mac.d1, 4, 5);

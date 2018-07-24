@@ -2180,7 +2180,7 @@ static inline void wil_tx_fini(struct wil6210_priv *wil) {}
 
 static void wil_get_reorder_params(struct wil6210_priv *wil,
 				   struct sk_buff *skb, int *tid, int *cid,
-				   int *mid, u16 *seq, int *mcast)
+				   int *mid, u16 *seq, int *mcast, int *retry)
 {
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
 
@@ -2189,6 +2189,7 @@ static void wil_get_reorder_params(struct wil6210_priv *wil,
 	*mid = wil_rxdesc_mid(d);
 	*seq = wil_rxdesc_seq(d);
 	*mcast = wil_rxdesc_mcast(d);
+	*retry = wil_rxdesc_retry(d);
 }
 
 void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil)

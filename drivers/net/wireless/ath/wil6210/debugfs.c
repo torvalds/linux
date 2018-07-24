@@ -1640,6 +1640,7 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 	int i;
 	u16 index = ((r->head_seq_num - r->ssn) & 0xfff) % r->buf_size;
 	unsigned long long drop_dup = r->drop_dup, drop_old = r->drop_old;
+	unsigned long long drop_dup_mcast = r->drop_dup_mcast;
 
 	seq_printf(s, "([%2d]) 0x%03x [", r->buf_size, r->head_seq_num);
 	for (i = 0; i < r->buf_size; i++) {
@@ -1649,9 +1650,9 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 			seq_printf(s, "%c", r->reorder_buf[i] ? '*' : '_');
 	}
 	seq_printf(s,
-		   "] total %llu drop %llu (dup %llu + old %llu) last 0x%03x\n",
-		   r->total, drop_dup + drop_old, drop_dup, drop_old,
-		   r->ssn_last_drop);
+		   "] total %llu drop %llu (dup %llu + old %llu + dup mcast %llu) last 0x%03x\n",
+		   r->total, drop_dup + drop_old + drop_dup_mcast, drop_dup,
+		   drop_old, drop_dup_mcast, r->ssn_last_drop);
 }
 
 static void wil_print_rxtid_crypto(struct seq_file *s, int tid,

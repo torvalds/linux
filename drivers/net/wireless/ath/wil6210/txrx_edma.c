@@ -503,7 +503,7 @@ out_free:
 static void wil_get_reorder_params_edma(struct wil6210_priv *wil,
 					struct sk_buff *skb, int *tid,
 					int *cid, int *mid, u16 *seq,
-					int *mcast)
+					int *mcast, int *retry)
 {
 	struct wil_rx_status_extended *s = wil_skb_rxstatus(skb);
 
@@ -512,6 +512,7 @@ static void wil_get_reorder_params_edma(struct wil6210_priv *wil,
 	*mid = wil_rx_status_get_mid(s);
 	*seq = le16_to_cpu(wil_rx_status_get_seq(wil, s));
 	*mcast = wil_rx_status_get_mcast(s);
+	*retry = wil_rx_status_get_retry(s);
 }
 
 static void wil_get_netif_rx_params_edma(struct sk_buff *skb, int *cid,

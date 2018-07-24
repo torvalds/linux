@@ -471,6 +471,12 @@ static inline __le16 wil_rx_status_get_seq(struct wil6210_priv *wil, void *msg)
 	return ((struct wil_rx_status_extended *)msg)->ext.seq_num;
 }
 
+static inline u8 wil_rx_status_get_retry(void *msg)
+{
+	/* retry bit is missing in EDMA HW. return 1 to be on the safe side */
+	return 1;
+}
+
 static inline int wil_rx_status_get_mid(void *msg)
 {
 	if (!(((struct wil_rx_status_compressed *)msg)->d0 &

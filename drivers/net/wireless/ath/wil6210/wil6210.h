@@ -572,7 +572,7 @@ struct wil_txrx_ops {
 				 u16 agg_wsize, u16 timeout);
 	void (*get_reorder_params)(struct wil6210_priv *wil,
 				   struct sk_buff *skb, int *tid, int *cid,
-				   int *mid, u16 *seq, int *mcast);
+				   int *mid, u16 *seq, int *mcast, int *retry);
 	void (*get_netif_rx_params)(struct sk_buff *skb,
 				    int *cid, int *security);
 	int (*rx_crypto_check)(struct wil6210_priv *wil, struct sk_buff *skb);
@@ -625,6 +625,8 @@ struct pci_dev;
  * @drop_dup: duplicate frames dropped for this reorder buffer
  * @drop_old: old frames dropped for this reorder buffer
  * @first_time: true when this buffer used 1-st time
+ * @mcast_last_seq: sequence number (SN) of last received multicast packet
+ * @drop_dup_mcast: duplicate multicast frames dropped for this reorder buffer
  */
 struct wil_tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
@@ -638,6 +640,8 @@ struct wil_tid_ampdu_rx {
 	unsigned long long drop_dup;
 	unsigned long long drop_old;
 	bool first_time; /* is it 1-st time this buffer used? */
+	u16 mcast_last_seq; /* multicast dup detection */
+	unsigned long long drop_dup_mcast;
 };
 
 /**
