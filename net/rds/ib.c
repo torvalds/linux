@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -296,8 +296,8 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 	if (conn->c_trans != &rds_ib_transport)
 		return 0;
 
-	iinfo->src_addr = conn->c_laddr;
-	iinfo->dst_addr = conn->c_faddr;
+	iinfo->src_addr = conn->c_laddr.s6_addr32[3];
+	iinfo->dst_addr = conn->c_faddr.s6_addr32[3];
 
 	memset(&iinfo->src_gid, 0, sizeof(iinfo->src_gid));
 	memset(&iinfo->dst_gid, 0, sizeof(iinfo->dst_gid));
@@ -341,7 +341,8 @@ static void rds_ib_ic_info(struct socket *sock, unsigned int len,
  * allowed to influence which paths have priority.  We could call userspace
  * asserting this policy "routing".
  */
-static int rds_ib_laddr_check(struct net *net, __be32 addr)
+static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
+			      __u32 scope_id)
 {
 	int ret;
 	struct rdma_cm_id *cm_id;
@@ -357,7 +358,7 @@ static int rds_ib_laddr_check(struct net *net, __be32 addr)
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = addr;
+	sin.sin_addr.s_addr = addr->s6_addr32[3];
 
 	/* rdma_bind_addr will only succeed for IB & iWARP devices */
 	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&sin);
@@ -367,9 +368,9 @@ static int rds_ib_laddr_check(struct net *net, __be32 addr)
 	    cm_id->device->node_type != RDMA_NODE_IB_CA)
 		ret = -EADDRNOTAVAIL;
 
-	rdsdebug("addr %pI4 ret %d node type %d\n",
-		&addr, ret,
-		cm_id->device ? cm_id->device->node_type : -1);
+	rdsdebug("addr %pI6c ret %d node type %d\n",
+		 addr, ret,
+		 cm_id->device ? cm_id->device->node_type : -1);
 
 	rdma_destroy_id(cm_id);
 

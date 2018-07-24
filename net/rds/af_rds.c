@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/in.h>
+#include <linux/ipv6.h>
 #include <linux/poll.h>
 #include <net/sock.h>
 
@@ -113,26 +114,63 @@ void rds_wake_sk_sleep(struct rds_sock *rs)
 static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
 		       int peer)
 {
-	struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
-
-	memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin;
+	int uaddr_len;
 
 	/* racey, don't care */
 	if (peer) {
-		if (!rs->rs_conn_addr)
+		if (ipv6_addr_any(&rs->rs_conn_addr))
 			return -ENOTCONN;
 
-		sin->sin_port = rs->rs_conn_port;
-		sin->sin_addr.s_addr = rs->rs_conn_addr;
+		if (ipv6_addr_v4mapped(&rs->rs_conn_addr)) {
+			sin = (struct sockaddr_in *)uaddr;
+			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+			sin->sin_family = AF_INET;
+			sin->sin_port = rs->rs_conn_port;
+			sin->sin_addr.s_addr = rs->rs_conn_addr_v4;
+			uaddr_len = sizeof(*sin);
+		} else {
+			sin6 = (struct sockaddr_in6 *)uaddr;
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = rs->rs_conn_port;
+			sin6->sin6_addr = rs->rs_conn_addr;
+			sin6->sin6_flowinfo = 0;
+			/* scope_id is the same as in the bound address. */
+			sin6->sin6_scope_id = rs->rs_bound_scope_id;
+			uaddr_len = sizeof(*sin6);
+		}
 	} else {
-		sin->sin_port = rs->rs_bound_port;
-		sin->sin_addr.s_addr = rs->rs_bound_addr;
+		/* If socket is not yet bound, set the return address family
+		 * to be AF_UNSPEC (value 0) and the address size to be that
+		 * of an IPv4 address.
+		 */
+		if (ipv6_addr_any(&rs->rs_bound_addr)) {
+			sin = (struct sockaddr_in *)uaddr;
+			memset(sin, 0, sizeof(*sin));
+			sin->sin_family = AF_UNSPEC;
+			return sizeof(*sin);
+		}
+		if (ipv6_addr_v4mapped(&rs->rs_bound_addr)) {
+			sin = (struct sockaddr_in *)uaddr;
+			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+			sin->sin_family = AF_INET;
+			sin->sin_port = rs->rs_bound_port;
+			sin->sin_addr.s_addr = rs->rs_bound_addr_v4;
+			uaddr_len = sizeof(*sin);
+		} else {
+			sin6 = (struct sockaddr_in6 *)uaddr;
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = rs->rs_bound_port;
+			sin6->sin6_addr = rs->rs_bound_addr;
+			sin6->sin6_flowinfo = 0;
+			sin6->sin6_scope_id = rs->rs_bound_scope_id;
+			uaddr_len = sizeof(*sin6);
+		}
 	}
 
-	sin->sin_family = AF_INET;
-
-	return sizeof(*sin);
+	return uaddr_len;
 }
 
 /*
@@ -203,11 +241,12 @@ static int rds_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 static int rds_cancel_sent_to(struct rds_sock *rs, char __user *optval,
 			      int len)
 {
+	struct sockaddr_in6 sin6;
 	struct sockaddr_in sin;
 	int ret = 0;
 
 	/* racing with another thread binding seems ok here */
-	if (rs->rs_bound_addr == 0) {
+	if (ipv6_addr_any(&rs->rs_bound_addr)) {
 		ret = -ENOTCONN; /* XXX not a great errno */
 		goto out;
 	}
@@ -215,14 +254,23 @@ static int rds_cancel_sent_to(struct rds_sock *rs, char __user *optval,
 	if (len < sizeof(struct sockaddr_in)) {
 		ret = -EINVAL;
 		goto out;
+	} else if (len < sizeof(struct sockaddr_in6)) {
+		/* Assume IPv4 */
+		if (copy_from_user(&sin, optval, sizeof(struct sockaddr_in))) {
+			ret = -EFAULT;
+			goto out;
+		}
+		ipv6_addr_set_v4mapped(sin.sin_addr.s_addr, &sin6.sin6_addr);
+		sin6.sin6_port = sin.sin_port;
+	} else {
+		if (copy_from_user(&sin6, optval,
+				   sizeof(struct sockaddr_in6))) {
+			ret = -EFAULT;
+			goto out;
+		}
 	}
 
-	if (copy_from_user(&sin, optval, sizeof(sin))) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	rds_send_drop_to(rs, &sin);
+	rds_send_drop_to(rs, &sin6);
 out:
 	return ret;
 }
@@ -435,31 +483,41 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 		       int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;
-	struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
+	struct sockaddr_in *sin;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
 	int ret = 0;
 
 	lock_sock(sk);
 
-	if (addr_len != sizeof(struct sockaddr_in)) {
+	switch (addr_len) {
+	case sizeof(struct sockaddr_in):
+		sin = (struct sockaddr_in *)uaddr;
+		if (sin->sin_family != AF_INET) {
+			ret = -EAFNOSUPPORT;
+			break;
+		}
+		if (sin->sin_addr.s_addr == htonl(INADDR_ANY)) {
+			ret = -EDESTADDRREQ;
+			break;
+		}
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) ||
+		    sin->sin_addr.s_addr == htonl(INADDR_BROADCAST)) {
+			ret = -EINVAL;
+			break;
+		}
+		ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &rs->rs_conn_addr);
+		rs->rs_conn_port = sin->sin_port;
+		break;
+
+	case sizeof(struct sockaddr_in6):
+		ret = -EPROTONOSUPPORT;
+		break;
+
+	default:
 		ret = -EINVAL;
-		goto out;
+		break;
 	}
 
-	if (sin->sin_family != AF_INET) {
-		ret = -EAFNOSUPPORT;
-		goto out;
-	}
-
-	if (sin->sin_addr.s_addr == htonl(INADDR_ANY)) {
-		ret = -EDESTADDRREQ;
-		goto out;
-	}
-
-	rs->rs_conn_addr = sin->sin_addr.s_addr;
-	rs->rs_conn_port = sin->sin_port;
-
-out:
 	release_sock(sk);
 	return ret;
 }
@@ -578,8 +636,10 @@ static void rds_sock_inc_info(struct socket *sock, unsigned int len,
 		list_for_each_entry(inc, &rs->rs_recv_queue, i_item) {
 			total++;
 			if (total <= len)
-				rds_inc_info_copy(inc, iter, inc->i_saddr,
-						  rs->rs_bound_addr, 1);
+				rds_inc_info_copy(inc, iter,
+						  inc->i_saddr.s6_addr32[3],
+						  rs->rs_bound_addr_v4,
+						  1);
 		}
 
 		read_unlock(&rs->rs_recv_lock);
@@ -608,8 +668,8 @@ static void rds_sock_info(struct socket *sock, unsigned int len,
 	list_for_each_entry(rs, &rds_sock_list, rs_item) {
 		sinfo.sndbuf = rds_sk_sndbuf(rs);
 		sinfo.rcvbuf = rds_sk_rcvbuf(rs);
-		sinfo.bound_addr = rs->rs_bound_addr;
-		sinfo.connected_addr = rs->rs_conn_addr;
+		sinfo.bound_addr = rs->rs_bound_addr_v4;
+		sinfo.connected_addr = rs->rs_conn_addr_v4;
 		sinfo.bound_port = rs->rs_bound_port;
 		sinfo.connected_port = rs->rs_conn_port;
 		sinfo.inum = sock_i_ino(rds_rs_to_sk(rs));

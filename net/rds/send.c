@@ -709,7 +709,7 @@ void rds_send_drop_acked(struct rds_connection *conn, u64 ack,
 }
 EXPORT_SYMBOL_GPL(rds_send_drop_acked);
 
-void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
+void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in6 *dest)
 {
 	struct rds_message *rm, *tmp;
 	struct rds_connection *conn;
@@ -721,8 +721,9 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 	spin_lock_irqsave(&rs->rs_lock, flags);
 
 	list_for_each_entry_safe(rm, tmp, &rs->rs_send_queue, m_sock_item) {
-		if (dest && (dest->sin_addr.s_addr != rm->m_daddr ||
-			     dest->sin_port != rm->m_inc.i_hdr.h_dport))
+		if (dest &&
+		    (!ipv6_addr_equal(&dest->sin6_addr, &rm->m_daddr) ||
+		     dest->sin6_port != rm->m_inc.i_hdr.h_dport))
 			continue;
 
 		list_move(&rm->m_sock_item, &list);
@@ -1059,8 +1060,8 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 {
 	struct sock *sk = sock->sk;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
+	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
 	DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
-	__be32 daddr;
 	__be16 dport;
 	struct rds_message *rm = NULL;
 	struct rds_connection *conn;
@@ -1069,10 +1070,13 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	int nonblock = msg->msg_flags & MSG_DONTWAIT;
 	long timeo = sock_sndtimeo(sk, nonblock);
 	struct rds_conn_path *cpath;
+	struct in6_addr daddr;
+	__u32 scope_id = 0;
 	size_t total_payload_len = payload_len, rdma_payload_len = 0;
 	bool zcopy = ((msg->msg_flags & MSG_ZEROCOPY) &&
 		      sock_flag(rds_rs_to_sk(rs), SOCK_ZEROCOPY));
 	int num_sgs = ceil(payload_len, PAGE_SIZE);
+	int namelen;
 
 	/* Mirror Linux UDP mirror of BSD error message compatibility */
 	/* XXX: Perhaps MSG_MORE someday */
@@ -1081,27 +1085,59 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		goto out;
 	}
 
-	if (msg->msg_namelen) {
-		/* XXX fail non-unicast destination IPs? */
-		if (msg->msg_namelen < sizeof(*usin) || usin->sin_family != AF_INET) {
+	namelen = msg->msg_namelen;
+	if (namelen != 0) {
+		if (namelen < sizeof(*usin)) {
 			ret = -EINVAL;
 			goto out;
 		}
-		daddr = usin->sin_addr.s_addr;
-		dport = usin->sin_port;
+		switch (namelen) {
+		case sizeof(*usin):
+			if (usin->sin_family != AF_INET ||
+			    usin->sin_addr.s_addr == htonl(INADDR_ANY) ||
+			    usin->sin_addr.s_addr == htonl(INADDR_BROADCAST) ||
+			    IN_MULTICAST(ntohl(usin->sin_addr.s_addr))) {
+				ret = -EINVAL;
+				goto out;
+			}
+			ipv6_addr_set_v4mapped(usin->sin_addr.s_addr, &daddr);
+			dport = usin->sin_port;
+			break;
+
+		case sizeof(*sin6): {
+			ret = -EPROTONOSUPPORT;
+			goto out;
+		}
+
+		default:
+			ret = -EINVAL;
+			goto out;
+		}
 	} else {
 		/* We only care about consistency with ->connect() */
 		lock_sock(sk);
 		daddr = rs->rs_conn_addr;
 		dport = rs->rs_conn_port;
+		scope_id = rs->rs_bound_scope_id;
 		release_sock(sk);
 	}
 
 	lock_sock(sk);
-	if (daddr == 0 || rs->rs_bound_addr == 0) {
+	if (ipv6_addr_any(&rs->rs_bound_addr) || ipv6_addr_any(&daddr)) {
 		release_sock(sk);
-		ret = -ENOTCONN; /* XXX not a great errno */
+		ret = -ENOTCONN;
 		goto out;
+	} else if (namelen != 0) {
+		/* Cannot send to an IPv4 address using an IPv6 source
+		 * address and cannot send to an IPv6 address using an
+		 * IPv4 source address.
+		 */
+		if (ipv6_addr_v4mapped(&daddr) ^
+		    ipv6_addr_v4mapped(&rs->rs_bound_addr)) {
+			release_sock(sk);
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
 	}
 	release_sock(sk);
 
@@ -1155,13 +1191,14 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 
 	/* rds_conn_create has a spinlock that runs with IRQ off.
 	 * Caching the conn in the socket helps a lot. */
-	if (rs->rs_conn && rs->rs_conn->c_faddr == daddr)
+	if (rs->rs_conn && ipv6_addr_equal(&rs->rs_conn->c_faddr, &daddr))
 		conn = rs->rs_conn;
 	else {
 		conn = rds_conn_create_outgoing(sock_net(sock->sk),
-						rs->rs_bound_addr, daddr,
-					rs->rs_transport,
-					sock->sk->sk_allocation);
+						&rs->rs_bound_addr, &daddr,
+						rs->rs_transport,
+						sock->sk->sk_allocation,
+						scope_id);
 		if (IS_ERR(conn)) {
 			ret = PTR_ERR(conn);
 			goto out;

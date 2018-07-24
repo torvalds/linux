@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -266,7 +266,7 @@ static struct rds_ib_incoming *rds_ib_refill_one_inc(struct rds_ib_connection *i
 		rds_ib_stats_inc(s_ib_rx_total_incs);
 	}
 	INIT_LIST_HEAD(&ibinc->ii_frags);
-	rds_inc_init(&ibinc->ii_inc, ic->conn, ic->conn->c_faddr);
+	rds_inc_init(&ibinc->ii_inc, ic->conn, &ic->conn->c_faddr);
 
 	return ibinc;
 }
@@ -418,7 +418,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 		ret = ib_post_recv(ic->i_cm_id->qp, &recv->r_wr, &failed_wr);
 		if (ret) {
 			rds_ib_conn_error(conn, "recv post on "
-			       "%pI4 returned %d, disconnecting and "
+			       "%pI6c returned %d, disconnecting and "
 			       "reconnecting\n", &conn->c_faddr,
 			       ret);
 			break;
@@ -848,7 +848,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 
 	if (data_len < sizeof(struct rds_header)) {
 		rds_ib_conn_error(conn, "incoming message "
-		       "from %pI4 didn't include a "
+		       "from %pI6c didn't include a "
 		       "header, disconnecting and "
 		       "reconnecting\n",
 		       &conn->c_faddr);
@@ -861,7 +861,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	/* Validate the checksum. */
 	if (!rds_message_verify_checksum(ihdr)) {
 		rds_ib_conn_error(conn, "incoming message "
-		       "from %pI4 has corrupted header - "
+		       "from %pI6c has corrupted header - "
 		       "forcing a reconnect\n",
 		       &conn->c_faddr);
 		rds_stats_inc(s_recv_drop_bad_checksum);
@@ -941,10 +941,10 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		ic->i_recv_data_rem = 0;
 		ic->i_ibinc = NULL;
 
-		if (ibinc->ii_inc.i_hdr.h_flags == RDS_FLAG_CONG_BITMAP)
+		if (ibinc->ii_inc.i_hdr.h_flags == RDS_FLAG_CONG_BITMAP) {
 			rds_ib_cong_recv(conn, ibinc);
-		else {
-			rds_recv_incoming(conn, conn->c_faddr, conn->c_laddr,
+		} else {
+			rds_recv_incoming(conn, &conn->c_faddr, &conn->c_laddr,
 					  &ibinc->ii_inc, GFP_ATOMIC);
 			state->ack_next = be64_to_cpu(hdr->h_sequence);
 			state->ack_next_valid = 1;
@@ -988,7 +988,7 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	} else {
 		/* We expect errors as the qp is drained during shutdown */
 		if (rds_conn_up(conn) || rds_conn_connecting(conn))
-			rds_ib_conn_error(conn, "recv completion on <%pI4,%pI4> had status %u (%s), disconnecting and reconnecting\n",
+			rds_ib_conn_error(conn, "recv completion on <%pI6c,%pI6c> had status %u (%s), disconnecting and reconnecting\n",
 					  &conn->c_laddr, &conn->c_faddr,
 					  wc->status,
 					  ib_wc_status_msg(wc->status));

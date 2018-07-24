@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -83,13 +83,12 @@ static
 struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 {
 	int i;
-	bool peer_is_smaller = IS_CANONICAL(conn->c_faddr, conn->c_laddr);
 	int npaths = max_t(int, 1, conn->c_npaths);
 
 	/* for mprds, all paths MUST be initiated by the peer
 	 * with the smaller address.
 	 */
-	if (!peer_is_smaller) {
+	if (rds_addr_cmp(&conn->c_faddr, &conn->c_laddr) >= 0) {
 		/* Make sure we initiate at least one path if this
 		 * has not already been done; rds_start_mprds() will
 		 * take care of additional paths, if necessary.
@@ -164,13 +163,16 @@ int rds_tcp_accept_one(struct socket *sock)
 
 	inet = inet_sk(new_sock->sk);
 
-	rdsdebug("accepted tcp %pI4:%u -> %pI4:%u\n",
-		 &inet->inet_saddr, ntohs(inet->inet_sport),
-		 &inet->inet_daddr, ntohs(inet->inet_dport));
+	rdsdebug("accepted tcp %pI6c:%u -> %pI6c:%u\n",
+		 &new_sock->sk->sk_v6_rcv_saddr, ntohs(inet->inet_sport),
+		 &new_sock->sk->sk_v6_daddr, ntohs(inet->inet_dport));
 
 	conn = rds_conn_create(sock_net(sock->sk),
-			       inet->inet_saddr, inet->inet_daddr,
-			       &rds_tcp_transport, GFP_KERNEL);
+			       &new_sock->sk->sk_v6_rcv_saddr,
+			       &new_sock->sk->sk_v6_daddr,
+			       &rds_tcp_transport, GFP_KERNEL,
+			       new_sock->sk->sk_bound_dev_if);
+
 	if (IS_ERR(conn)) {
 		ret = PTR_ERR(conn);
 		goto out;
