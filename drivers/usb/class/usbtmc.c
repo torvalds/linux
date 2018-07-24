@@ -18,6 +18,7 @@
 #include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/usb.h>
+#include <linux/compat.h>
 #include <linux/usb/tmc.h>
 
 
@@ -1459,6 +1460,9 @@ static const struct file_operations fops = {
 	.open		= usbtmc_open,
 	.release	= usbtmc_release,
 	.unlocked_ioctl	= usbtmc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= usbtmc_ioctl,
+#endif
 	.fasync         = usbtmc_fasync,
 	.poll           = usbtmc_poll,
 	.llseek		= default_llseek,
