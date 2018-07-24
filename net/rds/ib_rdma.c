@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -100,18 +100,19 @@ static void rds_ib_remove_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 		kfree_rcu(to_free, rcu);
 }
 
-int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
+int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev,
+			 struct in6_addr *ipaddr)
 {
 	struct rds_ib_device *rds_ibdev_old;
 
-	rds_ibdev_old = rds_ib_get_device(ipaddr);
+	rds_ibdev_old = rds_ib_get_device(ipaddr->s6_addr32[3]);
 	if (!rds_ibdev_old)
-		return rds_ib_add_ipaddr(rds_ibdev, ipaddr);
+		return rds_ib_add_ipaddr(rds_ibdev, ipaddr->s6_addr32[3]);
 
 	if (rds_ibdev_old != rds_ibdev) {
-		rds_ib_remove_ipaddr(rds_ibdev_old, ipaddr);
+		rds_ib_remove_ipaddr(rds_ibdev_old, ipaddr->s6_addr32[3]);
 		rds_ib_dev_put(rds_ibdev_old);
-		return rds_ib_add_ipaddr(rds_ibdev, ipaddr);
+		return rds_ib_add_ipaddr(rds_ibdev, ipaddr->s6_addr32[3]);
 	}
 	rds_ib_dev_put(rds_ibdev_old);
 
@@ -177,6 +178,15 @@ void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_co
 
 	iinfo->rdma_mr_max = pool_1m->max_items;
 	iinfo->rdma_mr_size = pool_1m->fmr_attr.max_pages;
+}
+
+void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
+			 struct rds6_info_rdma_connection *iinfo6)
+{
+	struct rds_ib_mr_pool *pool_1m = rds_ibdev->mr_1m_pool;
+
+	iinfo6->rdma_mr_max = pool_1m->max_items;
+	iinfo6->rdma_mr_size = pool_1m->fmr_attr.max_pages;
 }
 
 struct rds_ib_mr *rds_ib_reuse_mr(struct rds_ib_mr_pool *pool)
@@ -544,7 +554,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 	struct rds_ib_connection *ic = rs->rs_conn->c_transport_data;
 	int ret;
 
-	rds_ibdev = rds_ib_get_device(rs->rs_bound_addr);
+	rds_ibdev = rds_ib_get_device(rs->rs_bound_addr.s6_addr32[3]);
 	if (!rds_ibdev) {
 		ret = -ENODEV;
 		goto out;

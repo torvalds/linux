@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Oracle.  All rights reserved.
+ * Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -183,7 +183,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	long i;
 	int ret;
 
-	if (rs->rs_bound_addr == 0 || !rs->rs_transport) {
+	if (ipv6_addr_any(&rs->rs_bound_addr) || !rs->rs_transport) {
 		ret = -ENOTCONN; /* XXX not a great errno */
 		goto out;
 	}
@@ -574,7 +574,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	args = CMSG_DATA(cmsg);
 
-	if (rs->rs_bound_addr == 0) {
+	if (ipv6_addr_any(&rs->rs_bound_addr)) {
 		ret = -ENOTCONN; /* XXX not a great errno */
 		goto out_ret;
 	}

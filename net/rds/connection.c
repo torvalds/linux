@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,7 +34,9 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <net/inet_hashtables.h>
+#include <net/ipv6.h>
+#include <net/inet6_hashtables.h>
+#include <net/addrconf.h>
 
 #include "rds.h"
 #include "loop.h"
@@ -49,18 +51,21 @@ static unsigned long rds_conn_count;
 static struct hlist_head rds_conn_hash[RDS_CONNECTION_HASH_ENTRIES];
 static struct kmem_cache *rds_conn_slab;
 
-static struct hlist_head *rds_conn_bucket(__be32 laddr, __be32 faddr)
+static struct hlist_head *rds_conn_bucket(const struct in6_addr *laddr,
+					  const struct in6_addr *faddr)
 {
+	static u32 rds6_hash_secret __read_mostly;
 	static u32 rds_hash_secret __read_mostly;
 
-	unsigned long hash;
+	u32 lhash, fhash, hash;
 
 	net_get_random_once(&rds_hash_secret, sizeof(rds_hash_secret));
+	net_get_random_once(&rds6_hash_secret, sizeof(rds6_hash_secret));
 
-	/* Pass NULL, don't need struct net for hash */
-	hash = __inet_ehashfn(be32_to_cpu(laddr), 0,
-			      be32_to_cpu(faddr), 0,
-			      rds_hash_secret);
+	lhash = (__force u32)laddr->s6_addr32[3];
+	fhash = __ipv6_addr_jhash(faddr, rds6_hash_secret);
+	hash = __inet6_ehashfn(lhash, 0, fhash, 0, rds_hash_secret);
+
 	return &rds_conn_hash[hash & RDS_CONNECTION_HASH_MASK];
 }
 
@@ -72,20 +77,25 @@ static struct hlist_head *rds_conn_bucket(__be32 laddr, __be32 faddr)
 /* rcu read lock must be held or the connection spinlock */
 static struct rds_connection *rds_conn_lookup(struct net *net,
 					      struct hlist_head *head,
-					      __be32 laddr, __be32 faddr,
-					      struct rds_transport *trans)
+					      const struct in6_addr *laddr,
+					      const struct in6_addr *faddr,
+					      struct rds_transport *trans,
+					      int dev_if)
 {
 	struct rds_connection *conn, *ret = NULL;
 
 	hlist_for_each_entry_rcu(conn, head, c_hash_node) {
-		if (conn->c_faddr == faddr && conn->c_laddr == laddr &&
-		    conn->c_trans == trans && net == rds_conn_net(conn)) {
+		if (ipv6_addr_equal(&conn->c_faddr, faddr) &&
+		    ipv6_addr_equal(&conn->c_laddr, laddr) &&
+		    conn->c_trans == trans &&
+		    net == rds_conn_net(conn) &&
+		    conn->c_dev_if == dev_if) {
 			ret = conn;
 			break;
 		}
 	}
-	rdsdebug("returning conn %p for %pI4 -> %pI4\n", ret,
-		 &laddr, &faddr);
+	rdsdebug("returning conn %p for %pI6c -> %pI6c\n", ret,
+		 laddr, faddr);
 	return ret;
 }
 
@@ -99,8 +109,8 @@ static void rds_conn_path_reset(struct rds_conn_path *cp)
 {
 	struct rds_connection *conn = cp->cp_conn;
 
-	rdsdebug("connection %pI4 to %pI4 reset\n",
-	  &conn->c_laddr, &conn->c_faddr);
+	rdsdebug("connection %pI6c to %pI6c reset\n",
+		 &conn->c_laddr, &conn->c_faddr);
 
 	rds_stats_inc(s_conn_reset);
 	rds_send_path_reset(cp);
@@ -142,9 +152,12 @@ static void __rds_conn_path_init(struct rds_connection *conn,
  * are torn down as the module is removed, if ever.
  */
 static struct rds_connection *__rds_conn_create(struct net *net,
-						__be32 laddr, __be32 faddr,
-				       struct rds_transport *trans, gfp_t gfp,
-				       int is_outgoing)
+						const struct in6_addr *laddr,
+						const struct in6_addr *faddr,
+						struct rds_transport *trans,
+						gfp_t gfp,
+						int is_outgoing,
+						int dev_if)
 {
 	struct rds_connection *conn, *parent = NULL;
 	struct hlist_head *head = rds_conn_bucket(laddr, faddr);
@@ -154,9 +167,12 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	int npaths = (trans->t_mp_capable ? RDS_MPATH_WORKERS : 1);
 
 	rcu_read_lock();
-	conn = rds_conn_lookup(net, head, laddr, faddr, trans);
-	if (conn && conn->c_loopback && conn->c_trans != &rds_loop_transport &&
-	    laddr == faddr && !is_outgoing) {
+	conn = rds_conn_lookup(net, head, laddr, faddr, trans, dev_if);
+	if (conn &&
+	    conn->c_loopback &&
+	    conn->c_trans != &rds_loop_transport &&
+	    ipv6_addr_equal(laddr, faddr) &&
+	    !is_outgoing) {
 		/* This is a looped back IB connection, and we're
 		 * called by the code handling the incoming connect.
 		 * We need a second connection object into which we
@@ -181,8 +197,19 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	}
 
 	INIT_HLIST_NODE(&conn->c_hash_node);
-	conn->c_laddr = laddr;
-	conn->c_faddr = faddr;
+	conn->c_laddr = *laddr;
+	conn->c_isv6 = !ipv6_addr_v4mapped(laddr);
+	conn->c_faddr = *faddr;
+	conn->c_dev_if = dev_if;
+	/* If the local address is link local, set c_bound_if to be the
+	 * index used for this connection.  Otherwise, set it to 0 as
+	 * the socket is not bound to an interface.  c_bound_if is used
+	 * to look up a socket when a packet is received
+	 */
+	if (ipv6_addr_type(laddr) & IPV6_ADDR_LINKLOCAL)
+		conn->c_bound_if = dev_if;
+	else
+		conn->c_bound_if = 0;
 
 	rds_conn_net_set(conn, net);
 
@@ -199,7 +226,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	 * can bind to the destination address then we'd rather the messages
 	 * flow through loopback rather than either transport.
 	 */
-	loop_trans = rds_trans_get_preferred(net, faddr);
+	loop_trans = rds_trans_get_preferred(net, faddr, conn->c_dev_if);
 	if (loop_trans) {
 		rds_trans_put(loop_trans);
 		conn->c_loopback = 1;
@@ -233,10 +260,10 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 		goto out;
 	}
 
-	rdsdebug("allocated conn %p for %pI4 -> %pI4 over %s %s\n",
-	  conn, &laddr, &faddr,
-	  strnlen(trans->t_name, sizeof(trans->t_name)) ? trans->t_name :
-	  "[unknown]", is_outgoing ? "(outgoing)" : "");
+	rdsdebug("allocated conn %p for %pI6c -> %pI6c over %s %s\n",
+		 conn, laddr, faddr,
+		 strnlen(trans->t_name, sizeof(trans->t_name)) ?
+		 trans->t_name : "[unknown]", is_outgoing ? "(outgoing)" : "");
 
 	/*
 	 * Since we ran without holding the conn lock, someone could
@@ -262,7 +289,8 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 		/* Creating normal conn */
 		struct rds_connection *found;
 
-		found = rds_conn_lookup(net, head, laddr, faddr, trans);
+		found = rds_conn_lookup(net, head, laddr, faddr, trans,
+					dev_if);
 		if (found) {
 			struct rds_conn_path *cp;
 			int i;
@@ -295,18 +323,22 @@ out:
 }
 
 struct rds_connection *rds_conn_create(struct net *net,
-				       __be32 laddr, __be32 faddr,
-				       struct rds_transport *trans, gfp_t gfp)
+				       const struct in6_addr *laddr,
+				       const struct in6_addr *faddr,
+				       struct rds_transport *trans, gfp_t gfp,
+				       int dev_if)
 {
-	return __rds_conn_create(net, laddr, faddr, trans, gfp, 0);
+	return __rds_conn_create(net, laddr, faddr, trans, gfp, 0, dev_if);
 }
 EXPORT_SYMBOL_GPL(rds_conn_create);
 
 struct rds_connection *rds_conn_create_outgoing(struct net *net,
-						__be32 laddr, __be32 faddr,
-				       struct rds_transport *trans, gfp_t gfp)
+						const struct in6_addr *laddr,
+						const struct in6_addr *faddr,
+						struct rds_transport *trans,
+						gfp_t gfp, int dev_if)
 {
-	return __rds_conn_create(net, laddr, faddr, trans, gfp, 1);
+	return __rds_conn_create(net, laddr, faddr, trans, gfp, 1, dev_if);
 }
 EXPORT_SYMBOL_GPL(rds_conn_create_outgoing);
 
@@ -464,10 +496,21 @@ void rds_conn_destroy(struct rds_connection *conn)
 }
 EXPORT_SYMBOL_GPL(rds_conn_destroy);
 
-static void rds_conn_message_info(struct socket *sock, unsigned int len,
-				  struct rds_info_iterator *iter,
-				  struct rds_info_lengths *lens,
-				  int want_send)
+static void __rds_inc_msg_cp(struct rds_incoming *inc,
+			     struct rds_info_iterator *iter,
+			     void *saddr, void *daddr, int flip, bool isv6)
+{
+	if (isv6)
+		rds6_inc_info_copy(inc, iter, saddr, daddr, flip);
+	else
+		rds_inc_info_copy(inc, iter, *(__be32 *)saddr,
+				  *(__be32 *)daddr, flip);
+}
+
+static void rds_conn_message_info_cmn(struct socket *sock, unsigned int len,
+				      struct rds_info_iterator *iter,
+				      struct rds_info_lengths *lens,
+				      int want_send, bool isv6)
 {
 	struct hlist_head *head;
 	struct list_head *list;
@@ -478,7 +521,10 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 	size_t i;
 	int j;
 
-	len /= sizeof(struct rds_info_message);
+	if (isv6)
+		len /= sizeof(struct rds6_info_message);
+	else
+		len /= sizeof(struct rds_info_message);
 
 	rcu_read_lock();
 
@@ -487,6 +533,9 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 		hlist_for_each_entry_rcu(conn, head, c_hash_node) {
 			struct rds_conn_path *cp;
 			int npaths;
+
+			if (!isv6 && conn->c_isv6)
+				continue;
 
 			npaths = (conn->c_trans->t_mp_capable ?
 				 RDS_MPATH_WORKERS : 1);
@@ -504,11 +553,11 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 				list_for_each_entry(rm, list, m_conn_item) {
 					total++;
 					if (total <= len)
-						rds_inc_info_copy(&rm->m_inc,
-								  iter,
-								  conn->c_laddr,
-								  conn->c_faddr,
-								  0);
+						__rds_inc_msg_cp(&rm->m_inc,
+								 iter,
+								 &conn->c_laddr,
+								 &conn->c_faddr,
+								 0, isv6);
 				}
 
 				spin_unlock_irqrestore(&cp->cp_lock, flags);
@@ -518,7 +567,26 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 	rcu_read_unlock();
 
 	lens->nr = total;
-	lens->each = sizeof(struct rds_info_message);
+	if (isv6)
+		lens->each = sizeof(struct rds6_info_message);
+	else
+		lens->each = sizeof(struct rds_info_message);
+}
+
+static void rds_conn_message_info(struct socket *sock, unsigned int len,
+				  struct rds_info_iterator *iter,
+				  struct rds_info_lengths *lens,
+				  int want_send)
+{
+	rds_conn_message_info_cmn(sock, len, iter, lens, want_send, false);
+}
+
+static void rds6_conn_message_info(struct socket *sock, unsigned int len,
+				   struct rds_info_iterator *iter,
+				   struct rds_info_lengths *lens,
+				   int want_send)
+{
+	rds_conn_message_info_cmn(sock, len, iter, lens, want_send, true);
 }
 
 static void rds_conn_message_info_send(struct socket *sock, unsigned int len,
@@ -528,12 +596,27 @@ static void rds_conn_message_info_send(struct socket *sock, unsigned int len,
 	rds_conn_message_info(sock, len, iter, lens, 1);
 }
 
+static void rds6_conn_message_info_send(struct socket *sock, unsigned int len,
+					struct rds_info_iterator *iter,
+					struct rds_info_lengths *lens)
+{
+	rds6_conn_message_info(sock, len, iter, lens, 1);
+}
+
 static void rds_conn_message_info_retrans(struct socket *sock,
 					  unsigned int len,
 					  struct rds_info_iterator *iter,
 					  struct rds_info_lengths *lens)
 {
 	rds_conn_message_info(sock, len, iter, lens, 0);
+}
+
+static void rds6_conn_message_info_retrans(struct socket *sock,
+					   unsigned int len,
+					   struct rds_info_iterator *iter,
+					   struct rds_info_lengths *lens)
+{
+	rds6_conn_message_info(sock, len, iter, lens, 0);
 }
 
 void rds_for_each_conn_info(struct socket *sock, unsigned int len,
@@ -584,7 +667,6 @@ static void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
 	struct hlist_head *head;
 	struct rds_connection *conn;
 	size_t i;
-	int j;
 
 	rcu_read_lock();
 
@@ -595,17 +677,20 @@ static void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
 	     i++, head++) {
 		hlist_for_each_entry_rcu(conn, head, c_hash_node) {
 			struct rds_conn_path *cp;
-			int npaths;
 
-			npaths = (conn->c_trans->t_mp_capable ?
-				 RDS_MPATH_WORKERS : 1);
-			for (j = 0; j < npaths; j++) {
-				cp = &conn->c_path[j];
+			/* XXX We only copy the information from the first
+			 * path for now.  The problem is that if there are
+			 * more than one underlying paths, we cannot report
+			 * information of all of them using the existing
+			 * API.  For example, there is only one next_tx_seq,
+			 * which path's next_tx_seq should we report?  It is
+			 * a bug in the design of MPRDS.
+			 */
+			cp = conn->c_path;
 
-				/* XXX no cp_lock usage.. */
-				if (!visitor(cp, buffer))
-					continue;
-			}
+			/* XXX no cp_lock usage.. */
+			if (!visitor(cp, buffer))
+				continue;
 
 			/* We copy as much as we can fit in the buffer,
 			 * but we count all items so that the caller
@@ -624,12 +709,16 @@ static void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
 static int rds_conn_info_visitor(struct rds_conn_path *cp, void *buffer)
 {
 	struct rds_info_connection *cinfo = buffer;
+	struct rds_connection *conn = cp->cp_conn;
+
+	if (conn->c_isv6)
+		return 0;
 
 	cinfo->next_tx_seq = cp->cp_next_tx_seq;
 	cinfo->next_rx_seq = cp->cp_next_rx_seq;
-	cinfo->laddr = cp->cp_conn->c_laddr;
-	cinfo->faddr = cp->cp_conn->c_faddr;
-	strncpy(cinfo->transport, cp->cp_conn->c_trans->t_name,
+	cinfo->laddr = conn->c_laddr.s6_addr32[3];
+	cinfo->faddr = conn->c_faddr.s6_addr32[3];
+	strncpy(cinfo->transport, conn->c_trans->t_name,
 		sizeof(cinfo->transport));
 	cinfo->flags = 0;
 
@@ -645,6 +734,34 @@ static int rds_conn_info_visitor(struct rds_conn_path *cp, void *buffer)
 	return 1;
 }
 
+static int rds6_conn_info_visitor(struct rds_conn_path *cp, void *buffer)
+{
+	struct rds6_info_connection *cinfo6 = buffer;
+	struct rds_connection *conn = cp->cp_conn;
+
+	cinfo6->next_tx_seq = cp->cp_next_tx_seq;
+	cinfo6->next_rx_seq = cp->cp_next_rx_seq;
+	cinfo6->laddr = conn->c_laddr;
+	cinfo6->faddr = conn->c_faddr;
+	strncpy(cinfo6->transport, conn->c_trans->t_name,
+		sizeof(cinfo6->transport));
+	cinfo6->flags = 0;
+
+	rds_conn_info_set(cinfo6->flags, test_bit(RDS_IN_XMIT, &cp->cp_flags),
+			  SENDING);
+	/* XXX Future: return the state rather than these funky bits */
+	rds_conn_info_set(cinfo6->flags,
+			  atomic_read(&cp->cp_state) == RDS_CONN_CONNECTING,
+			  CONNECTING);
+	rds_conn_info_set(cinfo6->flags,
+			  atomic_read(&cp->cp_state) == RDS_CONN_UP,
+			  CONNECTED);
+	/* Just return 1 as there is no error case. This is a helper function
+	 * for rds_walk_conn_path_info() and it wants a return value.
+	 */
+	return 1;
+}
+
 static void rds_conn_info(struct socket *sock, unsigned int len,
 			  struct rds_info_iterator *iter,
 			  struct rds_info_lengths *lens)
@@ -655,6 +772,18 @@ static void rds_conn_info(struct socket *sock, unsigned int len,
 				rds_conn_info_visitor,
 				buffer,
 				sizeof(struct rds_info_connection));
+}
+
+static void rds6_conn_info(struct socket *sock, unsigned int len,
+			   struct rds_info_iterator *iter,
+			   struct rds_info_lengths *lens)
+{
+	u64 buffer[(sizeof(struct rds6_info_connection) + 7) / 8];
+
+	rds_walk_conn_path_info(sock, len, iter, lens,
+				rds6_conn_info_visitor,
+				buffer,
+				sizeof(struct rds6_info_connection));
 }
 
 int rds_conn_init(void)
@@ -678,6 +807,11 @@ int rds_conn_init(void)
 			       rds_conn_message_info_send);
 	rds_info_register_func(RDS_INFO_RETRANS_MESSAGES,
 			       rds_conn_message_info_retrans);
+	rds_info_register_func(RDS6_INFO_CONNECTIONS, rds6_conn_info);
+	rds_info_register_func(RDS6_INFO_SEND_MESSAGES,
+			       rds6_conn_message_info_send);
+	rds_info_register_func(RDS6_INFO_RETRANS_MESSAGES,
+			       rds6_conn_message_info_retrans);
 
 	return 0;
 }
@@ -696,6 +830,11 @@ void rds_conn_exit(void)
 				 rds_conn_message_info_send);
 	rds_info_deregister_func(RDS_INFO_RETRANS_MESSAGES,
 				 rds_conn_message_info_retrans);
+	rds_info_deregister_func(RDS6_INFO_CONNECTIONS, rds6_conn_info);
+	rds_info_deregister_func(RDS6_INFO_SEND_MESSAGES,
+				 rds6_conn_message_info_send);
+	rds_info_deregister_func(RDS6_INFO_RETRANS_MESSAGES,
+				 rds6_conn_message_info_retrans);
 }
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -41,14 +41,14 @@
 #include "rds.h"
 
 void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
-		  __be32 saddr)
+		 struct in6_addr *saddr)
 {
 	int i;
 
 	refcount_set(&inc->i_refcount, 1);
 	INIT_LIST_HEAD(&inc->i_item);
 	inc->i_conn = conn;
-	inc->i_saddr = saddr;
+	inc->i_saddr = *saddr;
 	inc->i_rdma_cookie = 0;
 	inc->i_rx_tstamp.tv_sec = 0;
 	inc->i_rx_tstamp.tv_usec = 0;
@@ -59,13 +59,13 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 EXPORT_SYMBOL_GPL(rds_inc_init);
 
 void rds_inc_path_init(struct rds_incoming *inc, struct rds_conn_path *cp,
-		       __be32 saddr)
+		       struct in6_addr  *saddr)
 {
 	refcount_set(&inc->i_refcount, 1);
 	INIT_LIST_HEAD(&inc->i_item);
 	inc->i_conn = cp->cp_conn;
 	inc->i_conn_path = cp;
-	inc->i_saddr = saddr;
+	inc->i_saddr = *saddr;
 	inc->i_rdma_cookie = 0;
 	inc->i_rx_tstamp.tv_sec = 0;
 	inc->i_rx_tstamp.tv_usec = 0;
@@ -110,7 +110,7 @@ static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 
 	now_congested = rs->rs_rcv_bytes > rds_sk_rcvbuf(rs);
 
-	rdsdebug("rs %p (%pI4:%u) recv bytes %d buf %d "
+	rdsdebug("rs %p (%pI6c:%u) recv bytes %d buf %d "
 	  "now_cong %d delta %d\n",
 	  rs, &rs->rs_bound_addr,
 	  ntohs(rs->rs_bound_port), rs->rs_rcv_bytes,
@@ -260,7 +260,7 @@ static void rds_start_mprds(struct rds_connection *conn)
 	struct rds_conn_path *cp;
 
 	if (conn->c_npaths > 1 &&
-	    IS_CANONICAL(conn->c_laddr, conn->c_faddr)) {
+	    rds_addr_cmp(&conn->c_laddr, &conn->c_faddr) < 0) {
 		for (i = 0; i < conn->c_npaths; i++) {
 			cp = &conn->c_path[i];
 			rds_conn_path_connect_if_down(cp);
@@ -284,7 +284,8 @@ static void rds_start_mprds(struct rds_connection *conn)
  * conn.  This lets loopback, who only has one conn for both directions,
  * tell us which roles the addrs in the conn are playing for this message.
  */
-void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
+void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
+		       struct in6_addr *daddr,
 		       struct rds_incoming *inc, gfp_t gfp)
 {
 	struct rds_sock *rs = NULL;
@@ -339,7 +340,8 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 
 	if (rds_sysctl_ping_enable && inc->i_hdr.h_dport == 0) {
 		if (inc->i_hdr.h_sport == 0) {
-			rdsdebug("ignore ping with 0 sport from 0x%x\n", saddr);
+			rdsdebug("ignore ping with 0 sport from %pI6c\n",
+				 saddr);
 			goto out;
 		}
 		rds_stats_inc(s_recv_ping);
@@ -362,7 +364,7 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 		goto out;
 	}
 
-	rs = rds_find_bound(daddr, inc->i_hdr.h_dport);
+	rs = rds_find_bound(daddr, inc->i_hdr.h_dport, conn->c_bound_if);
 	if (!rs) {
 		rds_stats_inc(s_recv_drop_no_sock);
 		goto out;
@@ -625,6 +627,7 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	struct rds_sock *rs = rds_sk_to_rs(sk);
 	long timeo;
 	int ret = 0, nonblock = msg_flags & MSG_DONTWAIT;
+	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
 	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
 	struct rds_incoming *inc = NULL;
 
@@ -673,7 +676,7 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			break;
 		}
 
-		rdsdebug("copying inc %p from %pI4:%u to user\n", inc,
+		rdsdebug("copying inc %p from %pI6c:%u to user\n", inc,
 			 &inc->i_conn->c_faddr,
 			 ntohs(inc->i_hdr.h_sport));
 		ret = inc->i_conn->c_trans->inc_copy_to_user(inc, &msg->msg_iter);
@@ -707,12 +710,26 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 
 		rds_stats_inc(s_recv_delivered);
 
-		if (sin) {
-			sin->sin_family = AF_INET;
-			sin->sin_port = inc->i_hdr.h_sport;
-			sin->sin_addr.s_addr = inc->i_saddr;
-			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-			msg->msg_namelen = sizeof(*sin);
+		if (msg->msg_name) {
+			if (ipv6_addr_v4mapped(&inc->i_saddr)) {
+				sin = (struct sockaddr_in *)msg->msg_name;
+
+				sin->sin_family = AF_INET;
+				sin->sin_port = inc->i_hdr.h_sport;
+				sin->sin_addr.s_addr =
+				    inc->i_saddr.s6_addr32[3];
+				memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+				msg->msg_namelen = sizeof(*sin);
+			} else {
+				sin6 = (struct sockaddr_in6 *)msg->msg_name;
+
+				sin6->sin6_family = AF_INET6;
+				sin6->sin6_port = inc->i_hdr.h_sport;
+				sin6->sin6_addr = inc->i_saddr;
+				sin6->sin6_flowinfo = 0;
+				sin6->sin6_scope_id = rs->rs_bound_scope_id;
+				msg->msg_namelen = sizeof(*sin6);
+			}
 		}
 		break;
 	}
@@ -774,4 +791,29 @@ void rds_inc_info_copy(struct rds_incoming *inc,
 	minfo.flags = 0;
 
 	rds_info_copy(iter, &minfo, sizeof(minfo));
+}
+
+void rds6_inc_info_copy(struct rds_incoming *inc,
+			struct rds_info_iterator *iter,
+			struct in6_addr *saddr, struct in6_addr *daddr,
+			int flip)
+{
+	struct rds6_info_message minfo6;
+
+	minfo6.seq = be64_to_cpu(inc->i_hdr.h_sequence);
+	minfo6.len = be32_to_cpu(inc->i_hdr.h_len);
+
+	if (flip) {
+		minfo6.laddr = *daddr;
+		minfo6.faddr = *saddr;
+		minfo6.lport = inc->i_hdr.h_dport;
+		minfo6.fport = inc->i_hdr.h_sport;
+	} else {
+		minfo6.laddr = *saddr;
+		minfo6.faddr = *daddr;
+		minfo6.lport = inc->i_hdr.h_sport;
+		minfo6.fport = inc->i_hdr.h_dport;
+	}
+
+	rds_info_copy(iter, &minfo6, sizeof(minfo6));
 }
