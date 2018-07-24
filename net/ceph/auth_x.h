@@ -52,4 +52,3 @@ struct ceph_x_info {
 int ceph_x_init(struct ceph_auth_client *ac);
 
 #endif
-
