@@ -101,6 +101,8 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_FT_ROAMING			= 21,
 	WMI_FW_CAPABILITY_BACK_WIN_SIZE_64		= 22,
 	WMI_FW_CAPABILITY_AMSDU				= 23,
+	WMI_FW_CAPABILITY_RAW_MODE			= 24,
+	WMI_FW_CAPABILITY_TX_REQ_EXT			= 25,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -135,6 +137,12 @@ enum wmi_command_id {
 	WMI_SET_WSC_STATUS_CMDID			= 0x41,
 	WMI_PXMT_RANGE_CFG_CMDID			= 0x42,
 	WMI_PXMT_SNR2_RANGE_CFG_CMDID			= 0x43,
+	WMI_RADAR_GENERAL_CONFIG_CMDID			= 0x100,
+	WMI_RADAR_CONFIG_SELECT_CMDID			= 0x101,
+	WMI_RADAR_PARAMS_CONFIG_CMDID			= 0x102,
+	WMI_RADAR_SET_MODE_CMDID			= 0x103,
+	WMI_RADAR_CONTROL_CMDID				= 0x104,
+	WMI_RADAR_PCI_CONTROL_CMDID			= 0x105,
 	WMI_MEM_READ_CMDID				= 0x800,
 	WMI_MEM_WR_CMDID				= 0x801,
 	WMI_ECHO_CMDID					= 0x803,
@@ -175,6 +183,10 @@ enum wmi_command_id {
 	WMI_SET_PCP_CHANNEL_CMDID			= 0x829,
 	WMI_GET_PCP_CHANNEL_CMDID			= 0x82A,
 	WMI_SW_TX_REQ_CMDID				= 0x82B,
+	/* Event is shared between WMI_SW_TX_REQ_CMDID and
+	 * WMI_SW_TX_REQ_EXT_CMDID
+	 */
+	WMI_SW_TX_REQ_EXT_CMDID				= 0x82C,
 	WMI_MLME_PUSH_CMDID				= 0x835,
 	WMI_BEAMFORMING_MGMT_CMDID			= 0x836,
 	WMI_BF_TXSS_MGMT_CMDID				= 0x837,
@@ -559,6 +571,109 @@ struct wmi_pxmt_snr2_range_cfg_cmd {
 	s8 snr2range_arr[2];
 } __packed;
 
+/* WMI_RADAR_GENERAL_CONFIG_CMDID */
+struct wmi_radar_general_config_cmd {
+	/* Number of pulses (CIRs) in FW FIFO to initiate pulses transfer
+	 * from FW to Host
+	 */
+	__le32 fifo_watermark;
+	/* In unit of us, in the range [100, 1000000] */
+	__le32 t_burst;
+	/* Valid in the range [1, 32768], 0xFFFF means infinite */
+	__le32 n_bursts;
+	/* In unit of 330Mhz clk, in the range [4, 2000]*330 */
+	__le32 t_pulse;
+	/* In the range of [1,4096] */
+	__le16 n_pulses;
+	/* Number of taps after cTap per CIR */
+	__le16 n_samples;
+	/* Offset from the main tap (0 = zero-distance). In the range of [0,
+	 * 255]
+	 */
+	u8 first_sample_offset;
+	/* Number of Pulses to average, 1, 2, 4, 8 */
+	u8 pulses_to_avg;
+	/* Number of adjacent taps to average, 1, 2, 4, 8 */
+	u8 samples_to_avg;
+	/* The index to config general params */
+	u8 general_index;
+	u8 reserved[4];
+} __packed;
+
+/* WMI_RADAR_CONFIG_SELECT_CMDID */
+struct wmi_radar_config_select_cmd {
+	/* Select the general params index to use */
+	u8 general_index;
+	u8 reserved[3];
+	/* 0 means don't update burst_active_vector */
+	__le32 burst_active_vector;
+	/* 0 means don't update pulse_active_vector */
+	__le32 pulse_active_vector;
+} __packed;
+
+/* WMI_RADAR_PARAMS_CONFIG_CMDID */
+struct wmi_radar_params_config_cmd {
+	/* The burst index selected to config */
+	u8 burst_index;
+	/* 0-not active, 1-active */
+	u8 burst_en;
+	/* The pulse index selected to config */
+	u8 pulse_index;
+	/* 0-not active, 1-active */
+	u8 pulse_en;
+	/* TX RF to use on current pulse */
+	u8 tx_rfc_idx;
+	u8 tx_sector;
+	/* Offset from calibrated value.(expected to be 0)(value is row in
+	 * Gain-LUT, not dB)
+	 */
+	s8 tx_rf_gain_comp;
+	/* expected to be 0 */
+	s8 tx_bb_gain_comp;
+	/* RX RF to use on current pulse */
+	u8 rx_rfc_idx;
+	u8 rx_sector;
+	/* Offset from calibrated value.(expected to be 0)(value is row in
+	 * Gain-LUT, not dB)
+	 */
+	s8 rx_rf_gain_comp;
+	/* Value in dB.(expected to be 0) */
+	s8 rx_bb_gain_comp;
+	/* Offset from calibrated value.(expected to be 0) */
+	s8 rx_timing_offset;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_RADAR_SET_MODE_CMDID */
+struct wmi_radar_set_mode_cmd {
+	/* 0-disable/1-enable */
+	u8 enable;
+	/* enum wmi_channel */
+	u8 channel;
+	/* In the range of [0,7], 0xff means use default */
+	u8 tx_rfc_idx;
+	/* In the range of [0,7], 0xff means use default */
+	u8 rx_rfc_idx;
+} __packed;
+
+/* WMI_RADAR_CONTROL_CMDID */
+struct wmi_radar_control_cmd {
+	/* 0-stop/1-start */
+	u8 start;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_RADAR_PCI_CONTROL_CMDID */
+struct wmi_radar_pci_control_cmd {
+	/* pcie host buffer start address */
+	__le64 base_addr;
+	/* pcie host control block address */
+	__le64 control_block_addr;
+	/* pcie host buffer size */
+	__le32 buffer_size;
+	__le32 reserved;
+} __packed;
+
 /* WMI_RF_MGMT_CMDID */
 enum wmi_rf_mgmt_type {
 	WMI_RF_MGMT_W_DISABLE	= 0x00,
@@ -696,12 +811,18 @@ struct wmi_pcp_start_cmd {
 	u8 pcp_max_assoc_sta;
 	u8 hidden_ssid;
 	u8 is_go;
-	u8 reserved0[5];
+	/* enum wmi_channel WMI_CHANNEL_9..WMI_CHANNEL_12 */
+	u8 edmg_channel;
+	u8 raw_mode;
+	u8 reserved[3];
 	/* A-BFT length override if non-0 */
 	u8 abft_len;
 	/* enum wmi_ap_sme_offload_mode_e */
 	u8 ap_sme_offload_mode;
 	u8 network_type;
+	/* enum wmi_channel WMI_CHANNEL_1..WMI_CHANNEL_6; for EDMG this is
+	 * the primary channel number
+	 */
 	u8 channel;
 	u8 disable_sec_offload;
 	u8 disable_sec;
@@ -711,6 +832,17 @@ struct wmi_pcp_start_cmd {
 struct wmi_sw_tx_req_cmd {
 	u8 dst_mac[WMI_MAC_LEN];
 	__le16 len;
+	u8 payload[0];
+} __packed;
+
+/* WMI_SW_TX_REQ_EXT_CMDID */
+struct wmi_sw_tx_req_ext_cmd {
+	u8 dst_mac[WMI_MAC_LEN];
+	__le16 len;
+	__le16 duration_ms;
+	/* Channel to use, 0xFF for currently active channel */
+	u8 channel;
+	u8 reserved[5];
 	u8 payload[0];
 } __packed;
 
@@ -740,6 +872,7 @@ struct wmi_vring_cfg_schd {
 enum wmi_vring_cfg_encap_trans_type {
 	WMI_VRING_ENC_TYPE_802_3	= 0x00,
 	WMI_VRING_ENC_TYPE_NATIVE_WIFI	= 0x01,
+	WMI_VRING_ENC_TYPE_NONE		= 0x02,
 };
 
 enum wmi_vring_cfg_ds_cfg {
@@ -1151,8 +1284,8 @@ struct wmi_echo_cmd {
 } __packed;
 
 /* WMI_DEEP_ECHO_CMDID
- * Check FW and ucode are alive
- * Returned event: WMI_ECHO_RSP_EVENTID
+ * Check FW and uCode is alive
+ * Returned event: WMI_DEEP_ECHO_RSP_EVENTID
  */
 struct wmi_deep_echo_cmd {
 	__le32 value;
@@ -1527,6 +1660,52 @@ struct wmi_set_multi_directed_omnis_config_event {
 	u8 reserved[3];
 } __packed;
 
+/* WMI_RADAR_GENERAL_CONFIG_EVENTID */
+struct wmi_radar_general_config_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_RADAR_CONFIG_SELECT_EVENTID */
+struct wmi_radar_config_select_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+	/* In unit of bytes */
+	__le32 fifo_size;
+	/* In unit of bytes */
+	__le32 pulse_size;
+} __packed;
+
+/* WMI_RADAR_PARAMS_CONFIG_EVENTID */
+struct wmi_radar_params_config_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_RADAR_SET_MODE_EVENTID */
+struct wmi_radar_set_mode_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_RADAR_CONTROL_EVENTID */
+struct wmi_radar_control_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_RADAR_PCI_CONTROL_EVENTID */
+struct wmi_radar_pci_control_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
 /* WMI_SET_LONG_RANGE_CONFIG_CMDID */
 struct wmi_set_long_range_config_cmd {
 	__le32 reserved;
@@ -1759,10 +1938,17 @@ enum wmi_event_id {
 	WMI_REPORT_STATISTICS_EVENTID			= 0x100B,
 	WMI_FT_AUTH_STATUS_EVENTID			= 0x100C,
 	WMI_FT_REASSOC_STATUS_EVENTID			= 0x100D,
+	WMI_RADAR_GENERAL_CONFIG_EVENTID		= 0x1100,
+	WMI_RADAR_CONFIG_SELECT_EVENTID			= 0x1101,
+	WMI_RADAR_PARAMS_CONFIG_EVENTID			= 0x1102,
+	WMI_RADAR_SET_MODE_EVENTID			= 0x1103,
+	WMI_RADAR_CONTROL_EVENTID			= 0x1104,
+	WMI_RADAR_PCI_CONTROL_EVENTID			= 0x1105,
 	WMI_RD_MEM_RSP_EVENTID				= 0x1800,
 	WMI_FW_READY_EVENTID				= 0x1801,
 	WMI_EXIT_FAST_MEM_ACC_MODE_EVENTID		= 0x200,
 	WMI_ECHO_RSP_EVENTID				= 0x1803,
+	WMI_DEEP_ECHO_RSP_EVENTID			= 0x1804,
 	/* deprecated */
 	WMI_FS_TUNE_DONE_EVENTID			= 0x180A,
 	/* deprecated */
@@ -1788,6 +1974,9 @@ enum wmi_event_id {
 	WMI_DELBA_EVENTID				= 0x1826,
 	WMI_GET_SSID_EVENTID				= 0x1828,
 	WMI_GET_PCP_CHANNEL_EVENTID			= 0x182A,
+	/* Event is shared between WMI_SW_TX_REQ_CMDID and
+	 * WMI_SW_TX_REQ_EXT_CMDID
+	 */
 	WMI_SW_TX_COMPLETE_EVENTID			= 0x182B,
 	WMI_BEAMFORMING_MGMT_DONE_EVENTID		= 0x1836,
 	WMI_BF_TXSS_MGMT_DONE_EVENTID			= 0x1837,
@@ -2536,6 +2725,11 @@ struct wmi_rx_mgmt_packet_event {
 
 /* WMI_ECHO_RSP_EVENTID */
 struct wmi_echo_rsp_event {
+	__le32 echoed_value;
+} __packed;
+
+/* WMI_DEEP_ECHO_RSP_EVENTID */
+struct wmi_deep_echo_rsp_event {
 	__le32 echoed_value;
 } __packed;
 
