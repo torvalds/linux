@@ -1047,8 +1047,7 @@ void tls_sw_free_resources_tx(struct sock *sk)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
 
-	if (ctx->aead_send)
-		crypto_free_aead(ctx->aead_send);
+	crypto_free_aead(ctx->aead_send);
 	tls_free_both_sg(sk);
 
 	kfree(ctx);
@@ -1060,10 +1059,8 @@ void tls_sw_release_resources_rx(struct sock *sk)
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 
 	if (ctx->aead_recv) {
-		if (ctx->recv_pkt) {
-			kfree_skb(ctx->recv_pkt);
-			ctx->recv_pkt = NULL;
-		}
+		kfree_skb(ctx->recv_pkt);
+		ctx->recv_pkt = NULL;
 		crypto_free_aead(ctx->aead_recv);
 		strp_stop(&ctx->strp);
 		write_lock_bh(&sk->sk_callback_lock);
