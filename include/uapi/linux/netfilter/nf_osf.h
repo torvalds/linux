@@ -70,6 +70,8 @@ struct nf_osf_nlmsg {
 	struct tcphdr			tcp;
 };
 
+extern struct list_head nf_osf_fingers[2];
+
 /* Defines for IANA option kinds */
 enum iana_options {
 	OSFOPT_EOL = 0,		/* End of options */
@@ -92,6 +94,15 @@ enum nf_osf_attr_type {
 	OSF_ATTR_UNSPEC,
 	OSF_ATTR_FINGER,
 	OSF_ATTR_MAX,
+};
+
+/*
+ * Add/remove fingerprint from the kernel.
+ */
+enum nf_osf_msg_types {
+	OSF_MSG_ADD,
+	OSF_MSG_REMOVE,
+	OSF_MSG_MAX,
 };
 
 #endif /* _NF_OSF_H */
