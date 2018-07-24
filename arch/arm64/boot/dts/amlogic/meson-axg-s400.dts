@@ -188,6 +188,15 @@
 		status = "okay";
 		sound-name-prefix = "Linein";
 	};
+
+	lineout: audio-codec@1 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es7154";
+		VDD-supply = <&vcc_3v3>;
+		PVDD-supply = <&vcc_5v>;
+		status = "okay";
+		sound-name-prefix = "Lineout";
+	};
 };
 
 &ethmac {
