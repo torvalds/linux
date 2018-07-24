@@ -436,7 +436,11 @@ static irqreturn_t exar_misc_handler(int irq, void *data)
 	struct exar8250 *priv = data;
 
 	/* Clear all PCI interrupts by reading INT0. No effect on IIR */
-	ioread8(priv->virt + UART_EXAR_INT0);
+	readb(priv->virt + UART_EXAR_INT0);
+
+	/* Clear INT0 for Expansion Interface slave ports, too */
+	if (priv->board->num_ports > 8)
+		readb(priv->virt + 0x2000 + UART_EXAR_INT0);
 
 	return IRQ_HANDLED;
 }
