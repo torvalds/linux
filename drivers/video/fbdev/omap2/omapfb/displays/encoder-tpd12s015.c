@@ -218,7 +218,7 @@ static int tpd_probe_of(struct platform_device *pdev)
 
 static int tpd_probe(struct platform_device *pdev)
 {
-	struct omap_dss_device *in, *dssdev;
+	struct omap_dss_device *dssdev;
 	struct panel_drv_data *ddata;
 	int r;
 	struct gpio_desc *gpio;
@@ -236,7 +236,6 @@ static int tpd_probe(struct platform_device *pdev)
 	} else {
 		return -ENODEV;
 	}
-
 
 	gpio = devm_gpiod_get_index_optional(&pdev->dev, NULL, 0,
 		GPIOD_OUT_LOW);
@@ -272,8 +271,6 @@ static int tpd_probe(struct platform_device *pdev)
 	dssdev->output_type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->port_num = 1;
-
-	in = ddata->in;
 
 	r = omapdss_register_output(dssdev);
 	if (r) {
