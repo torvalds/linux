@@ -33,6 +33,7 @@
 
 #define DRV_NAME "rk-multicodecs"
 #define MAX_CODECS	2
+#define WAIT_CARDS	(SNDRV_CARDS - 1)
 #define DEFAULT_MCLK_FS	256
 
 struct multicodecs_data {
@@ -142,6 +143,60 @@ static int rk_multicodecs_parse_daifmt(struct device_node *node,
 	return 0;
 }
 
+static int wait_locked_card(struct device_node *np, struct device *dev)
+{
+	char *propname = "rockchip,wait-card-locked";
+	u32 cards[WAIT_CARDS];
+	int num, i;
+	int ret;
+
+	ret = of_property_count_u32_elems(np, propname);
+	if (ret < 0) {
+		if (ret == -EINVAL) {
+			/*
+			 * -EINVAL means the property does not exist, this is
+			 * fine.
+			 */
+			return 0;
+		}
+
+		dev_err(dev, "Property '%s' elems could not be read: %d\n",
+			propname, ret);
+		return ret;
+	}
+
+	num = ret;
+	if (num > WAIT_CARDS)
+		num = WAIT_CARDS;
+
+	ret = of_property_read_u32_array(np, propname, cards, num);
+	if (ret < 0) {
+		if (ret == -EINVAL) {
+			/*
+			 * -EINVAL means the property does not exist, this is
+			 * fine.
+			 */
+			return 0;
+		}
+
+		dev_err(dev, "Property '%s' could not be read: %d\n",
+			propname, ret);
+		return ret;
+	}
+
+	ret = 0;
+	for (i = 0; i < num; i++) {
+		if (!snd_card_locked(cards[i])) {
+			dev_warn(dev, "card: %d has not been locked, re-probe again\n",
+				 cards[i]);
+			ret = -EPROBE_DEFER;
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static struct snd_soc_ops rk_ops = {
 	.hw_params = rk_multicodecs_hw_params,
 };
@@ -159,6 +214,12 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	int count;
 	int ret = 0, i = 0, idx = 0;
 	const char *prefix = "rockchip,";
+
+	ret = wait_locked_card(np, &pdev->dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "check_lock_card failed: %d\n", ret);
+		return ret;
+	}
 
 	mc_data = devm_kzalloc(&pdev->dev, sizeof(*mc_data), GFP_KERNEL);
 	if (!mc_data)
