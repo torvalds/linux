@@ -1651,13 +1651,13 @@ static int rk3308_codec_power_on(struct rk3308_codec_priv *rk3308)
 	/*
 	 * 6. Change the register ACODEC_ADC_ANA_CON10[6:0] from the 0x1 to
 	 *    0x7f step by step or configure the ACODEC_ADC_ANA_CON10[6:0] to
-	 *    0x7f directly. The suggestion slot time of the step is 20ms.
+	 *    0x7f directly. Here the slot time of the step is 200us.
 	 */
 	for (v = 0x1; v <= 0x7f; v++) {
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
 				   RK3308_ADC_CURRENT_CHARGE_MSK,
 				   v);
-		udelay(50);
+		udelay(200);
 	}
 
 	/* 7. Wait until the voltage of VCM keeps stable at the AVDD/2 */
@@ -1697,13 +1697,13 @@ static int rk3308_codec_power_off(struct rk3308_codec_priv *rk3308)
 	/*
 	 * 4.Change the register ACODEC_ADC_ANA_CON10[6:0] from the 0x1 to 0x7f
 	 *   step by step or configure the ACODEC_ADC_ANA_CON10[6:0] to 0x7f
-	 *   directly. The suggestion slot time of the step is 20ms
+	 *   directly. Here the slot time of the step is 200us.
 	 */
 	for (v = 0x1; v <= 0x7f; v++) {
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
 				   RK3308_ADC_CURRENT_CHARGE_MSK,
 				   v);
-		udelay(50);
+		udelay(200);
 	}
 
 	/* 5. Wait until the voltage of VCM keeps stable at the AGND */
