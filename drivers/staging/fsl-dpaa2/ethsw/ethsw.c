@@ -179,7 +179,7 @@ static int ethsw_port_set_flood(struct ethsw_port_priv *port_priv, u8 flag)
 				   port_priv->idx, flag);
 	if (err) {
 		netdev_err(port_priv->netdev,
-			   "dpsw_fdb_set_learning_mode err %d\n", err);
+			   "dpsw_if_set_flooding err %d\n", err);
 		return err;
 	}
 	port_priv->flood = !!flag;
