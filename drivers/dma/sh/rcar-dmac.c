@@ -770,20 +770,6 @@ static void rcar_dmac_clear_chcr_de(struct rcar_dmac_chan *chan)
 	rcar_dmac_chcr_de_barrier(chan);
 }
 
-static void rcar_dmac_sync_tcr(struct rcar_dmac_chan *chan)
-{
-	u32 chcr = rcar_dmac_chan_read(chan, RCAR_DMACHCR);
-
-	if (!(chcr & RCAR_DMACHCR_DE))
-		return;
-
-	rcar_dmac_clear_chcr_de(chan);
-
-	/* back DE if remain data exists */
-	if (rcar_dmac_chan_read(chan, RCAR_DMATCR))
-		rcar_dmac_chan_write(chan, RCAR_DMACHCR, chcr);
-}
-
 static void rcar_dmac_chan_halt(struct rcar_dmac_chan *chan)
 {
 	u32 chcr = rcar_dmac_chan_read(chan, RCAR_DMACHCR);
@@ -1366,9 +1352,6 @@ static unsigned int rcar_dmac_chan_get_residue(struct rcar_dmac_chan *chan,
 
 		residue += chunk->size;
 	}
-
-	if (desc->direction == DMA_DEV_TO_MEM)
-		rcar_dmac_sync_tcr(chan);
 
 	/* Add the residue for the current chunk. */
 	residue += rcar_dmac_chan_read(chan, RCAR_DMATCRB) << desc->xfer_shift;
