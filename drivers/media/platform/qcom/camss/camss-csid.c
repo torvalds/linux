@@ -219,7 +219,7 @@ static irqreturn_t csid_isr(int irq, void *dev)
  */
 static int csid_set_clock_rates(struct csid_device *csid)
 {
-	struct device *dev = to_device_index(csid, csid->id);
+	struct device *dev = csid->camss->dev;
 	u32 pixel_clock;
 	int i, j;
 	int ret;
@@ -232,7 +232,9 @@ static int csid_set_clock_rates(struct csid_device *csid)
 		struct camss_clock *clock = &csid->clock[i];
 
 		if (!strcmp(clock->name, "csi0") ||
-			!strcmp(clock->name, "csi1")) {
+		    !strcmp(clock->name, "csi1") ||
+		    !strcmp(clock->name, "csi2") ||
+		    !strcmp(clock->name, "csi3")) {
 			u8 bpp = csid_get_fmt_entry(
 				csid->fmt[MSM_CSIPHY_PAD_SINK].code)->bpp;
 			u8 num_lanes = csid->phy.lane_cnt;
@@ -291,8 +293,7 @@ static int csid_reset(struct csid_device *csid)
 	time = wait_for_completion_timeout(&csid->reset_complete,
 		msecs_to_jiffies(CSID_RESET_TIMEOUT_MS));
 	if (!time) {
-		dev_err(to_device_index(csid, csid->id),
-			"CSID reset timeout\n");
+		dev_err(csid->camss->dev, "CSID reset timeout\n");
 		return -EIO;
 	}
 
@@ -309,7 +310,7 @@ static int csid_reset(struct csid_device *csid)
 static int csid_set_power(struct v4l2_subdev *sd, int on)
 {
 	struct csid_device *csid = v4l2_get_subdevdata(sd);
-	struct device *dev = to_device_index(csid, csid->id);
+	struct device *dev = csid->camss->dev;
 	int ret;
 
 	if (on) {
@@ -375,7 +376,7 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 
 		ret = v4l2_ctrl_handler_setup(&csid->ctrls);
 		if (ret < 0) {
-			dev_err(to_device_index(csid, csid->id),
+			dev_err(csid->camss->dev,
 				"could not sync v4l2 controls: %d\n", ret);
 			return ret;
 		}
@@ -796,15 +797,16 @@ static const struct v4l2_ctrl_ops csid_ctrl_ops = {
  *
  * Return 0 on success or a negative error code otherwise
  */
-int msm_csid_subdev_init(struct csid_device *csid,
+int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 			 const struct resources *res, u8 id)
 {
-	struct device *dev = to_device_index(csid, id);
+	struct device *dev = camss->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *r;
 	int i, j;
 	int ret;
 
+	csid->camss = camss;
 	csid->id = id;
 
 	/* Memory */
@@ -1018,7 +1020,7 @@ int msm_csid_register_entity(struct csid_device *csid,
 {
 	struct v4l2_subdev *sd = &csid->subdev;
 	struct media_pad *pads = csid->pads;
-	struct device *dev = to_device_index(csid, csid->id);
+	struct device *dev = csid->camss->dev;
 	int ret;
 
 	v4l2_subdev_init(sd, &csid_v4l2_ops);

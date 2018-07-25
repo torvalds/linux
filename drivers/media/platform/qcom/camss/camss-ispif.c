@@ -23,12 +23,6 @@
 
 #define MSM_ISPIF_NAME "msm_ispif"
 
-#define ispif_line_array(ptr_line)	\
-	((const struct ispif_line (*)[]) &(ptr_line[-(ptr_line->id)]))
-
-#define to_ispif(ptr_line)	\
-	container_of(ispif_line_array(ptr_line), struct ispif_device, ptr_line)
-
 #define ISPIF_RST_CMD_0			0x008
 #define ISPIF_RST_CMD_0_STROBED_RST_EN		(1 << 0)
 #define ISPIF_RST_CMD_0_MISC_LOGIC_RST		(1 << 1)
@@ -225,7 +219,7 @@ static int ispif_reset(struct ispif_device *ispif)
 static int ispif_set_power(struct v4l2_subdev *sd, int on)
 {
 	struct ispif_line *line = v4l2_get_subdevdata(sd);
-	struct ispif_device *ispif = to_ispif(line);
+	struct ispif_device *ispif = line->ispif;
 	struct device *dev = to_device(ispif);
 	int ret = 0;
 
@@ -611,7 +605,7 @@ static void ispif_set_intf_cmd(struct ispif_device *ispif, u8 cmd,
 static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ispif_line *line = v4l2_get_subdevdata(sd);
-	struct ispif_device *ispif = to_ispif(line);
+	struct ispif_device *ispif = line->ispif;
 	enum ispif_intf intf = line->interface;
 	u8 csid = line->csid_id;
 	u8 vfe = line->vfe_id;
@@ -899,6 +893,24 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	int i;
 	int ret;
 
+	/* Number of ISPIF lines - same as number of CSID hardware modules */
+	if (to_camss(ispif)->version == CAMSS_8x16)
+		ispif->line_num = 2;
+	else if (to_camss(ispif)->version == CAMSS_8x96)
+		ispif->line_num = 4;
+	else
+		return -EINVAL;
+
+	ispif->line = kcalloc(ispif->line_num, sizeof(*ispif->line),
+			      GFP_KERNEL);
+	if (!ispif->line)
+		return -ENOMEM;
+
+	for (i = 0; i < ispif->line_num; i++) {
+		ispif->line[i].ispif = ispif;
+		ispif->line[i].id = i;
+	}
+
 	/* Memory */
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
@@ -978,9 +990,6 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 		clock->freq = NULL;
 		clock->nfreqs = 0;
 	}
-
-	for (i = 0; i < ARRAY_SIZE(ispif->line); i++)
-		ispif->line[i].id = i;
 
 	mutex_init(&ispif->power_lock);
 	ispif->power_count = 0;
@@ -1100,7 +1109,7 @@ int msm_ispif_register_entities(struct ispif_device *ispif,
 	int ret;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ispif->line); i++) {
+	for (i = 0; i < ispif->line_num; i++) {
 		struct v4l2_subdev *sd = &ispif->line[i].subdev;
 		struct media_pad *pads = ispif->line[i].pads;
 
@@ -1161,7 +1170,7 @@ void msm_ispif_unregister_entities(struct ispif_device *ispif)
 	mutex_destroy(&ispif->power_lock);
 	mutex_destroy(&ispif->config_lock);
 
-	for (i = 0; i < ARRAY_SIZE(ispif->line); i++) {
+	for (i = 0; i < ispif->line_num; i++) {
 		struct v4l2_subdev *sd = &ispif->line[i].subdev;
 
 		v4l2_device_unregister_subdev(sd);

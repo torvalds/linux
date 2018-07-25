@@ -15,14 +15,11 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 
-/* Number of ISPIF lines - same as number of CSID hardware modules */
-#define MSM_ISPIF_LINE_NUM 2
-
 #define MSM_ISPIF_PAD_SINK 0
 #define MSM_ISPIF_PAD_SRC 1
 #define MSM_ISPIF_PADS_NUM 2
 
-#define MSM_ISPIF_VFE_NUM 1
+#define MSM_ISPIF_VFE_NUM 2
 
 enum ispif_intf {
 	PIX0,
@@ -38,6 +35,7 @@ struct ispif_intf_cmd_reg {
 };
 
 struct ispif_line {
+	struct ispif_device *ispif;
 	u8 id;
 	u8 csid_id;
 	u8 vfe_id;
@@ -61,7 +59,8 @@ struct ispif_device {
 	struct mutex power_lock;
 	struct ispif_intf_cmd_reg intf_cmd[MSM_ISPIF_VFE_NUM];
 	struct mutex config_lock;
-	struct ispif_line line[MSM_ISPIF_LINE_NUM];
+	unsigned int line_num;
+	struct ispif_line *line;
 };
 
 struct resources_ispif;

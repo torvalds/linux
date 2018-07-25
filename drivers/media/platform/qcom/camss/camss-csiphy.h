@@ -42,6 +42,7 @@ struct csiphy_config {
 };
 
 struct csiphy_device {
+	struct camss *camss;
 	u8 id;
 	struct v4l2_subdev subdev;
 	struct media_pad pads[MSM_CSIPHY_PADS_NUM];
@@ -58,7 +59,8 @@ struct csiphy_device {
 
 struct resources;
 
-int msm_csiphy_subdev_init(struct csiphy_device *csiphy,
+int msm_csiphy_subdev_init(struct camss *camss,
+			   struct csiphy_device *csiphy,
 			   const struct resources *res, u8 id);
 
 int msm_csiphy_register_entity(struct csiphy_device *csiphy,

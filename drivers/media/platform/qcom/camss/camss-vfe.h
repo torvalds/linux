@@ -79,6 +79,7 @@ struct vfe_line {
 };
 
 struct vfe_device {
+	struct camss *camss;
 	u8 id;
 	void __iomem *base;
 	u32 irq;
@@ -100,7 +101,8 @@ struct vfe_device {
 
 struct resources;
 
-int msm_vfe_subdev_init(struct vfe_device *vfe, const struct resources *res);
+int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
+			const struct resources *res, u8 id);
 
 int msm_vfe_register_entities(struct vfe_device *vfe,
 			      struct v4l2_device *v4l2_dev);
