@@ -43,6 +43,7 @@ enum {
 	SMC_DIAG_LGRINFO,
 	SMC_DIAG_SHUTDOWN,
 	SMC_DIAG_DMBINFO,
+	SMC_DIAG_FALLBACK,
 	__SMC_DIAG_MAX,
 };
 
@@ -90,6 +91,11 @@ struct smc_diag_linkinfo {
 struct smc_diag_lgrinfo {
 	struct smc_diag_linkinfo	lnk[1];
 	__u8				role;
+};
+
+struct smc_diag_fallback {
+	__u32 reason;
+	__u32 peer_diagnosis;
 };
 
 struct smcd_diag_dmbinfo {		/* SMC-D Socket internals */
