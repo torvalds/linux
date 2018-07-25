@@ -59,14 +59,8 @@
 			reg = <0x0>;
 			clocks = <&gcc GCC_APPS_CLK_SRC>;
 			clock-frequency = <0>;
-			operating-points = <
-				/* kHz	uV (fixed) */
-				48000	1100000
-				200000	1100000
-				500000	1100000
-				716000  1100000
-			>;
 			clock-latency = <256000>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu@1 {
@@ -79,14 +73,8 @@
 			reg = <0x1>;
 			clocks = <&gcc GCC_APPS_CLK_SRC>;
 			clock-frequency = <0>;
-			operating-points = <
-				/* kHz	uV (fixed) */
-				48000	1100000
-				200000	1100000
-				500000	1100000
-				666000	1100000
-			>;
 			clock-latency = <256000>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu@2 {
@@ -99,14 +87,8 @@
 			reg = <0x2>;
 			clocks = <&gcc GCC_APPS_CLK_SRC>;
 			clock-frequency = <0>;
-			operating-points = <
-				/* kHz	uV (fixed) */
-				48000	1100000
-				200000	1100000
-				500000	1100000
-				666000	1100000
-			>;
 			clock-latency = <256000>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu@3 {
@@ -119,20 +101,36 @@
 			reg = <0x3>;
 			clocks = <&gcc GCC_APPS_CLK_SRC>;
 			clock-frequency = <0>;
-			operating-points = <
-				/* kHz	uV (fixed) */
-				48000	1100000
-				200000	1100000
-				500000	1100000
-				666000	1100000
-			>;
 			clock-latency = <256000>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		L2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-48000000 {
+			opp-hz = /bits/ 64 <48000000>;
+			clock-latency-ns = <256000>;
+		};
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			clock-latency-ns = <256000>;
+		};
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			clock-latency-ns = <256000>;
+		};
+		opp-716000000 {
+			opp-hz = /bits/ 64 <716000000>;
+			clock-latency-ns = <256000>;
+ 		};
 	};
 
 	pmu {
