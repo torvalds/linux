@@ -149,12 +149,6 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 {
 	struct input_dev *dev = iforce->dev;
 	int i;
-	static int being_used = 0;
-
-	if (being_used)
-		dev_warn(&iforce->dev->dev,
-			 "re-entrant call to iforce_process %d\n", being_used);
-	being_used++;
 
 #ifdef CONFIG_JOYSTICK_IFORCE_232
 	if (HI(iforce->expect_packet) == HI(cmd)) {
@@ -165,10 +159,8 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 #endif
 	wake_up(&iforce->wait);
 
-	if (!iforce->type) {
-		being_used--;
+	if (!iforce->type)
 		return;
-	}
 
 	switch (HI(cmd)) {
 
@@ -233,7 +225,6 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 			}
 			break;
 	}
-	being_used--;
 }
 
 int iforce_get_id_packet(struct iforce *iforce, char *packet)
