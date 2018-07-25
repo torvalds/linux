@@ -163,6 +163,7 @@ struct mlxsw_sp_acl_atcam {
 };
 
 struct mlxsw_sp_acl_atcam_region {
+	struct mlxsw_sp_acl_ctcam_region cregion;
 	struct mlxsw_sp_acl_tcam_region *region;
 	struct mlxsw_sp_acl_atcam *atcam;
 	enum mlxsw_sp_acl_atcam_region_type type;
@@ -172,7 +173,9 @@ struct mlxsw_sp_acl_atcam_region {
 int mlxsw_sp_acl_atcam_region_associate(struct mlxsw_sp *mlxsw_sp,
 					u16 region_id);
 int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_atcam_region *aregion,
 				   struct mlxsw_sp_acl_tcam_region *region);
+void mlxsw_sp_acl_atcam_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
 int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_atcam *atcam);
 void mlxsw_sp_acl_atcam_fini(struct mlxsw_sp *mlxsw_sp,

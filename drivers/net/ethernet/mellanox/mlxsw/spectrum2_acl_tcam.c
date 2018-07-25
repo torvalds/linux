@@ -45,7 +45,7 @@ struct mlxsw_sp2_acl_tcam {
 };
 
 struct mlxsw_sp2_acl_tcam_region {
-	struct mlxsw_sp_acl_ctcam_region cregion;
+	struct mlxsw_sp_acl_atcam_region aregion;
 	struct mlxsw_sp_acl_tcam_region *region;
 };
 
@@ -133,14 +133,10 @@ mlxsw_sp2_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 			       struct mlxsw_sp_acl_tcam_region *_region)
 {
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
-	int err;
 
 	region->region = _region;
 
-	err = mlxsw_sp_acl_atcam_region_init(mlxsw_sp, _region);
-	if (err)
-		return err;
-	return mlxsw_sp_acl_ctcam_region_init(mlxsw_sp, &region->cregion,
+	return mlxsw_sp_acl_atcam_region_init(mlxsw_sp, &region->aregion,
 					      _region);
 }
 
@@ -149,7 +145,7 @@ mlxsw_sp2_acl_tcam_region_fini(struct mlxsw_sp *mlxsw_sp, void *region_priv)
 {
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
 
-	mlxsw_sp_acl_ctcam_region_fini(&region->cregion);
+	mlxsw_sp_acl_atcam_region_fini(&region->aregion);
 }
 
 static int
@@ -165,7 +161,7 @@ static void mlxsw_sp2_acl_tcam_chunk_init(void *region_priv, void *chunk_priv,
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
 	struct mlxsw_sp2_acl_tcam_chunk *chunk = chunk_priv;
 
-	mlxsw_sp_acl_ctcam_chunk_init(&region->cregion, &chunk->cchunk,
+	mlxsw_sp_acl_ctcam_chunk_init(&region->aregion.cregion, &chunk->cchunk,
 				      priority);
 }
 
@@ -186,7 +182,7 @@ static int mlxsw_sp2_acl_tcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp2_acl_tcam_entry *entry = entry_priv;
 
 	entry->act_block = rulei->act_block;
-	return mlxsw_sp_acl_ctcam_entry_add(mlxsw_sp, &region->cregion,
+	return mlxsw_sp_acl_ctcam_entry_add(mlxsw_sp, &region->aregion.cregion,
 					    &chunk->cchunk, &entry->centry,
 					    rulei, true);
 }
@@ -199,7 +195,7 @@ static void mlxsw_sp2_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp2_acl_tcam_chunk *chunk = chunk_priv;
 	struct mlxsw_sp2_acl_tcam_entry *entry = entry_priv;
 
-	mlxsw_sp_acl_ctcam_entry_del(mlxsw_sp, &region->cregion,
+	mlxsw_sp_acl_ctcam_entry_del(mlxsw_sp, &region->aregion.cregion,
 				     &chunk->cchunk, &entry->centry);
 }
 

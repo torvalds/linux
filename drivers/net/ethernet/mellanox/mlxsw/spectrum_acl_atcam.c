@@ -77,6 +77,7 @@ mlxsw_sp_acl_atcam_region_erp_init(struct mlxsw_sp *mlxsw_sp,
 }
 
 int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_atcam_region *aregion,
 				   struct mlxsw_sp_acl_tcam_region *region)
 {
 	int err;
@@ -90,8 +91,13 @@ int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_acl_atcam_region_erp_init(mlxsw_sp, region->id);
 	if (err)
 		return err;
+	return mlxsw_sp_acl_ctcam_region_init(mlxsw_sp, &aregion->cregion,
+					      region);
+}
 
-	return 0;
+void mlxsw_sp_acl_atcam_region_fini(struct mlxsw_sp_acl_atcam_region *aregion)
+{
+	mlxsw_sp_acl_ctcam_region_fini(&aregion->cregion);
 }
 
 int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,
