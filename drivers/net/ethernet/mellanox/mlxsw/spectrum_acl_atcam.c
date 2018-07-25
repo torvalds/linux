@@ -57,23 +57,27 @@ int mlxsw_sp_acl_atcam_region_associate(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(perar), perar_pl);
 }
 
-static int mlxsw_sp_acl_atcam_region_param_init(struct mlxsw_sp *mlxsw_sp,
-						u16 region_id)
+static void
+mlxsw_sp_acl_atcam_region_type_init(struct mlxsw_sp_acl_atcam_region *aregion)
 {
-	char percr_pl[MLXSW_REG_PERCR_LEN];
+	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
+	enum mlxsw_sp_acl_atcam_region_type region_type;
+	unsigned int blocks_count;
 
-	mlxsw_reg_percr_pack(percr_pl, region_id);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(percr), percr_pl);
-}
+	/* We already know the blocks count can not exceed the maximum
+	 * blocks count.
+	 */
+	blocks_count = mlxsw_afk_key_info_blocks_count_get(region->key_info);
+	if (blocks_count <= 2)
+		region_type = MLXSW_SP_ACL_ATCAM_REGION_TYPE_2KB;
+	else if (blocks_count <= 4)
+		region_type = MLXSW_SP_ACL_ATCAM_REGION_TYPE_4KB;
+	else if (blocks_count <= 8)
+		region_type = MLXSW_SP_ACL_ATCAM_REGION_TYPE_8KB;
+	else
+		region_type = MLXSW_SP_ACL_ATCAM_REGION_TYPE_12KB;
 
-static int
-mlxsw_sp_acl_atcam_region_erp_init(struct mlxsw_sp *mlxsw_sp,
-				   u16 region_id)
-{
-	char pererp_pl[MLXSW_REG_PERERP_LEN];
-
-	mlxsw_reg_pererp_pack(pererp_pl, region_id, true, true, 0, 0, 0);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pererp), pererp_pl);
+	aregion->type = region_type;
 }
 
 int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
@@ -83,22 +87,29 @@ int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 {
 	int err;
 
-	err = mlxsw_sp_acl_atcam_region_associate(mlxsw_sp, region->id);
+	aregion->region = region;
+	aregion->atcam = atcam;
+	mlxsw_sp_acl_atcam_region_type_init(aregion);
+
+	err = mlxsw_sp_acl_erp_region_init(aregion);
 	if (err)
 		return err;
-	err = mlxsw_sp_acl_atcam_region_param_init(mlxsw_sp, region->id);
+	err = mlxsw_sp_acl_ctcam_region_init(mlxsw_sp, &aregion->cregion,
+					     region);
 	if (err)
-		return err;
-	err = mlxsw_sp_acl_atcam_region_erp_init(mlxsw_sp, region->id);
-	if (err)
-		return err;
-	return mlxsw_sp_acl_ctcam_region_init(mlxsw_sp, &aregion->cregion,
-					      region);
+		goto err_ctcam_region_init;
+
+	return 0;
+
+err_ctcam_region_init:
+	mlxsw_sp_acl_erp_region_fini(aregion);
+	return err;
 }
 
 void mlxsw_sp_acl_atcam_region_fini(struct mlxsw_sp_acl_atcam_region *aregion)
 {
 	mlxsw_sp_acl_ctcam_region_fini(&aregion->cregion);
+	mlxsw_sp_acl_erp_region_fini(aregion);
 }
 
 int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,
