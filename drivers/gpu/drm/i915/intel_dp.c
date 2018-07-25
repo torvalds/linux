@@ -4586,6 +4586,57 @@ static bool bxt_digital_port_connected(struct intel_encoder *encoder)
 	return I915_READ(GEN8_DE_PORT_ISR) & bit;
 }
 
+static bool icl_combo_port_connected(struct drm_i915_private *dev_priv,
+				     struct intel_digital_port *intel_dig_port)
+{
+	enum port port = intel_dig_port->base.port;
+
+	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(port);
+}
+
+static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
+				  struct intel_digital_port *intel_dig_port)
+{
+	enum port port = intel_dig_port->base.port;
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+	bool is_legacy, is_typec, is_tbt;
+	u32 dpsp;
+
+	is_legacy = I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port);
+
+	/*
+	 * The spec says we shouldn't be using the ISR bits for detecting
+	 * between TC and TBT. We should use DFLEXDPSP.
+	 */
+	dpsp = I915_READ(PORT_TX_DFLEXDPSP);
+	is_typec = dpsp & TC_LIVE_STATE_TC(tc_port);
+	is_tbt = dpsp & TC_LIVE_STATE_TBT(tc_port);
+
+	WARN_ON(is_legacy + is_typec + is_tbt > 1);
+
+	return is_legacy || is_typec || is_tbt;
+}
+
+static bool icl_digital_port_connected(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+
+	switch (encoder->hpd_pin) {
+	case HPD_PORT_A:
+	case HPD_PORT_B:
+		return icl_combo_port_connected(dev_priv, dig_port);
+	case HPD_PORT_C:
+	case HPD_PORT_D:
+	case HPD_PORT_E:
+	case HPD_PORT_F:
+		return icl_tc_port_connected(dev_priv, dig_port);
+	default:
+		MISSING_CASE(encoder->hpd_pin);
+		return false;
+	}
+}
+
 /*
  * intel_digital_port_connected - is the specified port connected?
  * @encoder: intel_encoder
@@ -4613,8 +4664,10 @@ bool intel_digital_port_connected(struct intel_encoder *encoder)
 		return bdw_digital_port_connected(encoder);
 	else if (IS_GEN9_LP(dev_priv))
 		return bxt_digital_port_connected(encoder);
-	else
+	else if (IS_GEN9_BC(dev_priv) || IS_GEN10(dev_priv))
 		return spt_digital_port_connected(encoder);
+	else
+		return icl_digital_port_connected(encoder);
 }
 
 static struct edid *
