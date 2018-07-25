@@ -2038,26 +2038,6 @@ exit:
 }
 
 /*
- * vfe_video_pad_to_line - Get pointer to VFE line by media pad
- * @pad: Media pad
- *
- * Return pointer to vfe line structure
- */
-static struct vfe_line *vfe_video_pad_to_line(struct media_pad *pad)
-{
-	struct media_pad *vfe_pad;
-	struct v4l2_subdev *subdev;
-
-	vfe_pad = media_entity_remote_pad(pad);
-	if (vfe_pad == NULL)
-		return NULL;
-
-	subdev = media_entity_to_v4l2_subdev(vfe_pad->entity);
-
-	return container_of(subdev, struct vfe_line, subdev);
-}
-
-/*
  * vfe_queue_buffer - Add empty buffer
  * @vid: Video device structure
  * @buf: Buffer to be enqueued
@@ -2070,16 +2050,11 @@ static struct vfe_line *vfe_video_pad_to_line(struct media_pad *pad)
 static int vfe_queue_buffer(struct camss_video *vid,
 			    struct camss_buffer *buf)
 {
-	struct vfe_device *vfe = &vid->camss->vfe;
-	struct vfe_line *line;
+	struct vfe_line *line = container_of(vid, struct vfe_line, video_out);
+	struct vfe_device *vfe = to_vfe(line);
 	struct vfe_output *output;
 	unsigned long flags;
 
-	line = vfe_video_pad_to_line(&vid->pad);
-	if (!line) {
-		dev_err(to_device(vfe), "Can not queue buffer\n");
-		return -1;
-	}
 	output = &line->output;
 
 	spin_lock_irqsave(&vfe->output_lock, flags);
@@ -2104,16 +2079,11 @@ static int vfe_queue_buffer(struct camss_video *vid,
 static int vfe_flush_buffers(struct camss_video *vid,
 			     enum vb2_buffer_state state)
 {
-	struct vfe_device *vfe = &vid->camss->vfe;
-	struct vfe_line *line;
+	struct vfe_line *line = container_of(vid, struct vfe_line, video_out);
+	struct vfe_device *vfe = to_vfe(line);
 	struct vfe_output *output;
 	unsigned long flags;
 
-	line = vfe_video_pad_to_line(&vid->pad);
-	if (!line) {
-		dev_err(to_device(vfe),	"Can not flush buffers\n");
-		return -1;
-	}
 	output = &line->output;
 
 	spin_lock_irqsave(&vfe->output_lock, flags);
