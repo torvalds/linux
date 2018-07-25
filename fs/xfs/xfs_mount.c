@@ -1039,7 +1039,7 @@ xfs_mountfs(
  out_rtunmount:
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
-	IRELE(rip);
+	xfs_irele(rip);
 	/* Clean out dquots that might be in memory after quotacheck. */
 	xfs_qm_unmount(mp);
 	/*
@@ -1095,7 +1095,7 @@ xfs_unmountfs(
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
 	xfs_rtunmount_inodes(mp);
-	IRELE(mp->m_rootip);
+	xfs_irele(mp->m_rootip);
 
 	/*
 	 * We can potentially deadlock here if we have an inode cluster

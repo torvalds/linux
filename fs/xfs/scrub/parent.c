@@ -230,11 +230,11 @@ xchk_parent_validate(
 
 	/* Drat, parent changed.  Try again! */
 	if (dnum != dp->i_ino) {
-		iput(VFS_I(dp));
+		xfs_irele(dp);
 		*try_again = true;
 		return 0;
 	}
-	iput(VFS_I(dp));
+	xfs_irele(dp);
 
 	/*
 	 * '..' didn't change, so check that there was only one entry
@@ -247,7 +247,7 @@ xchk_parent_validate(
 out_unlock:
 	xfs_iunlock(dp, XFS_IOLOCK_SHARED);
 out_rele:
-	iput(VFS_I(dp));
+	xfs_irele(dp);
 out:
 	return error;
 }

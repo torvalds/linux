@@ -364,7 +364,7 @@ out_release_inode:
 	 */
 	if (ip) {
 		xfs_finish_inode_setup(ip);
-		IRELE(ip);
+		xfs_irele(ip);
 	}
 
 	xfs_qm_dqrele(udqp);

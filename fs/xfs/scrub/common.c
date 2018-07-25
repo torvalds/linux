@@ -711,7 +711,7 @@ xchk_get_inode(
 		return error;
 	}
 	if (VFS_I(ip)->i_generation != sc->sm->sm_gen) {
-		iput(VFS_I(ip));
+		xfs_irele(ip);
 		return -ENOENT;
 	}
 

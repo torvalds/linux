@@ -209,7 +209,7 @@ xfs_generic_create(
 	xfs_finish_inode_setup(ip);
 	if (!tmpfile)
 		xfs_cleanup_inode(dir, inode, dentry);
-	iput(inode);
+	xfs_irele(ip);
 	goto out_free_acl;
 }
 
@@ -391,7 +391,7 @@ xfs_vn_symlink(
  out_cleanup_inode:
 	xfs_finish_inode_setup(cip);
 	xfs_cleanup_inode(dir, inode, dentry);
-	iput(inode);
+	xfs_irele(cip);
  out:
 	return error;
 }

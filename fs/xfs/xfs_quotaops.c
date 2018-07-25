@@ -45,7 +45,7 @@ xfs_qm_fill_state(
 	tstate->ino_warnlimit = q->qi_iwarnlimit;
 	tstate->rt_spc_warnlimit = q->qi_rtbwarnlimit;
 	if (tempqip)
-		IRELE(ip);
+		xfs_irele(ip);
 }
 
 /*

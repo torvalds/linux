@@ -114,7 +114,7 @@ xfs_bulkstat_one_int(
 		break;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	IRELE(ip);
+	xfs_irele(ip);
 
 	error = formatter(buffer, ubsize, ubused, buf);
 	if (!error)

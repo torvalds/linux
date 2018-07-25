@@ -87,7 +87,7 @@ xchk_dir_check_ftype(
 			xfs_mode_to_ftype(VFS_I(ip)->i_mode));
 	if (ino_dtype != dtype)
 		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
-	iput(VFS_I(ip));
+	xfs_irele(ip);
 out:
 	return error;
 }

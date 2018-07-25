@@ -483,11 +483,7 @@ static inline void xfs_setup_existing_inode(struct xfs_inode *ip)
 	xfs_finish_inode_setup(ip);
 }
 
-#define IRELE(ip) \
-do { \
-	trace_xfs_irele(ip, _THIS_IP_); \
-	iput(VFS_I(ip)); \
-} while (0)
+void xfs_irele(struct xfs_inode *ip);
 
 extern struct kmem_zone	*xfs_inode_zone;
 

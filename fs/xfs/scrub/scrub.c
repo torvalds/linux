@@ -183,7 +183,7 @@ xchk_teardown(
 			xfs_iunlock(sc->ip, sc->ilock_flags);
 		if (sc->ip != ip_in &&
 		    !xfs_internal_inum(sc->mp, sc->ip->i_ino))
-			iput(VFS_I(sc->ip));
+			xfs_irele(sc->ip);
 		sc->ip = NULL;
 	}
 	if (sc->has_quotaofflock)

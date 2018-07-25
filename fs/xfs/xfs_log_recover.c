@@ -5087,11 +5087,11 @@ xlog_recover_process_one_iunlink(
 	 */
 	ip->i_d.di_dmevmask = 0;
 
-	IRELE(ip);
+	xfs_irele(ip);
 	return agino;
 
  fail_iput:
-	IRELE(ip);
+	xfs_irele(ip);
  fail:
 	/*
 	 * We can't read in the inode this bucket points to, or this inode

@@ -716,7 +716,7 @@ xfs_icache_inode_is_allocated(
 		return error;
 
 	*inuse = !!(VFS_I(ip)->i_mode);
-	IRELE(ip);
+	xfs_irele(ip);
 	return 0;
 }
 
@@ -856,7 +856,7 @@ restart:
 			    xfs_iflags_test(batch[i], XFS_INEW))
 				xfs_inew_wait(batch[i]);
 			error = execute(batch[i], flags, args);
-			IRELE(batch[i]);
+			xfs_irele(batch[i]);
 			if (error == -EAGAIN) {
 				skipped++;
 				continue;

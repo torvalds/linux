@@ -497,7 +497,7 @@ xfs_bui_recover(
 	xfs_defer_move(dfops, tp->t_dfops);
 	error = xfs_trans_commit(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	IRELE(ip);
+	xfs_irele(ip);
 
 	return error;
 
@@ -506,7 +506,7 @@ err_inode:
 	xfs_trans_cancel(tp);
 	if (ip) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		IRELE(ip);
+		xfs_irele(ip);
 	}
 	return error;
 }

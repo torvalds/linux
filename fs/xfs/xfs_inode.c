@@ -1276,7 +1276,7 @@ xfs_create(
 	 */
 	if (ip) {
 		xfs_finish_inode_setup(ip);
-		IRELE(ip);
+		xfs_irele(ip);
 	}
 
 	xfs_qm_dqrele(udqp);
@@ -1371,7 +1371,7 @@ xfs_create_tmpfile(
 	 */
 	if (ip) {
 		xfs_finish_inode_setup(ip);
-		IRELE(ip);
+		xfs_irele(ip);
 	}
 
 	xfs_qm_dqrele(udqp);
@@ -3134,14 +3134,14 @@ xfs_rename(
 
 	error = xfs_finish_rename(tp);
 	if (wip)
-		IRELE(wip);
+		xfs_irele(wip);
 	return error;
 
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 out_release_wip:
 	if (wip)
-		IRELE(wip);
+		xfs_irele(wip);
 	return error;
 }
 
@@ -3596,4 +3596,13 @@ xfs_iflush_int(
 
 corrupt_out:
 	return -EFSCORRUPTED;
+}
+
+/* Release an inode. */
+void
+xfs_irele(
+	struct xfs_inode	*ip)
+{
+	trace_xfs_irele(ip, _RET_IP_);
+	iput(VFS_I(ip));
 }

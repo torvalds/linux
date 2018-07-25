@@ -1207,7 +1207,7 @@ xfs_rtmount_inodes(
 	ASSERT(sbp->sb_rsumino != NULLFSINO);
 	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip);
 	if (error) {
-		IRELE(mp->m_rbmip);
+		xfs_irele(mp->m_rbmip);
 		return error;
 	}
 	ASSERT(mp->m_rsumip != NULL);
@@ -1219,9 +1219,9 @@ xfs_rtunmount_inodes(
 	struct xfs_mount	*mp)
 {
 	if (mp->m_rbmip)
-		IRELE(mp->m_rbmip);
+		xfs_irele(mp->m_rbmip);
 	if (mp->m_rsumip)
-		IRELE(mp->m_rsumip);
+		xfs_irele(mp->m_rsumip);
 }
 
 /*

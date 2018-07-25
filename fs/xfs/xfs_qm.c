@@ -231,15 +231,15 @@ xfs_qm_unmount_quotas(
 	 */
 	if (mp->m_quotainfo) {
 		if (mp->m_quotainfo->qi_uquotaip) {
-			IRELE(mp->m_quotainfo->qi_uquotaip);
+			xfs_irele(mp->m_quotainfo->qi_uquotaip);
 			mp->m_quotainfo->qi_uquotaip = NULL;
 		}
 		if (mp->m_quotainfo->qi_gquotaip) {
-			IRELE(mp->m_quotainfo->qi_gquotaip);
+			xfs_irele(mp->m_quotainfo->qi_gquotaip);
 			mp->m_quotainfo->qi_gquotaip = NULL;
 		}
 		if (mp->m_quotainfo->qi_pquotaip) {
-			IRELE(mp->m_quotainfo->qi_pquotaip);
+			xfs_irele(mp->m_quotainfo->qi_pquotaip);
 			mp->m_quotainfo->qi_pquotaip = NULL;
 		}
 	}
@@ -1200,12 +1200,12 @@ xfs_qm_dqusage_adjust(
 			goto error0;
 	}
 
-	IRELE(ip);
+	xfs_irele(ip);
 	*res = BULKSTAT_RV_DIDONE;
 	return 0;
 
 error0:
-	IRELE(ip);
+	xfs_irele(ip);
 	*res = BULKSTAT_RV_GIVEUP;
 	return error;
 }
@@ -1575,11 +1575,11 @@ xfs_qm_init_quotainos(
 
 error_rele:
 	if (uip)
-		IRELE(uip);
+		xfs_irele(uip);
 	if (gip)
-		IRELE(gip);
+		xfs_irele(gip);
 	if (pip)
-		IRELE(pip);
+		xfs_irele(pip);
 	return error;
 }
 
@@ -1588,15 +1588,15 @@ xfs_qm_destroy_quotainos(
 	xfs_quotainfo_t	*qi)
 {
 	if (qi->qi_uquotaip) {
-		IRELE(qi->qi_uquotaip);
+		xfs_irele(qi->qi_uquotaip);
 		qi->qi_uquotaip = NULL; /* paranoia */
 	}
 	if (qi->qi_gquotaip) {
-		IRELE(qi->qi_gquotaip);
+		xfs_irele(qi->qi_gquotaip);
 		qi->qi_gquotaip = NULL;
 	}
 	if (qi->qi_pquotaip) {
-		IRELE(qi->qi_pquotaip);
+		xfs_irele(qi->qi_pquotaip);
 		qi->qi_pquotaip = NULL;
 	}
 }
