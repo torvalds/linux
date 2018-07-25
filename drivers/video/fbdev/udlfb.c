@@ -1041,10 +1041,24 @@ static int dlfb_ops_set_par(struct fb_info *info)
 	int result;
 	u16 *pix_framebuffer;
 	int i;
+	struct fb_var_screeninfo fvs;
+
+	/* clear the activate field because it causes spurious miscompares */
+	fvs = info->var;
+	fvs.activate = 0;
+	fvs.vmode &= ~FB_VMODE_SMOOTH_XPAN;
+
+	if (!memcmp(&dlfb->current_mode, &fvs, sizeof(struct fb_var_screeninfo)))
+		return 0;
 
 	result = dlfb_set_video_mode(dlfb, &info->var);
 
-	if ((result == 0) && (dlfb->fb_count == 0)) {
+	if (result)
+		return result;
+
+	dlfb->current_mode = fvs;
+
+	if (dlfb->fb_count == 0) {
 
 		/* paint greenscreen */
 
@@ -1056,7 +1070,7 @@ static int dlfb_ops_set_par(struct fb_info *info)
 				   info->screen_base);
 	}
 
-	return result;
+	return 0;
 }
 
 /* To fonzi the jukebox (e.g. make blanking changes take effect) */
