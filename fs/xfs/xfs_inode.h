@@ -483,13 +483,6 @@ static inline void xfs_setup_existing_inode(struct xfs_inode *ip)
 	xfs_finish_inode_setup(ip);
 }
 
-#define IHOLD(ip) \
-do { \
-	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \
-	ihold(VFS_I(ip)); \
-	trace_xfs_ihold(ip, _THIS_IP_); \
-} while (0)
-
 #define IRELE(ip) \
 do { \
 	trace_xfs_irele(ip, _THIS_IP_); \
