@@ -112,6 +112,14 @@ config DRM_THINE_THC63LVD1024
 	---help---
 	  Thine THC63LVD1024 LVDS/parallel converter driver.
 
+config DRM_TOSHIBA_TC358764
+	tristate "TC358764 DSI/LVDS bridge"
+	depends on DRM && DRM_PANEL
+	depends on OF
+	select DRM_MIPI_DSI
+	help
+	  Toshiba TC358764 DSI/LVDS bridge driver.
+
 config DRM_TOSHIBA_TC358767
 	tristate "Toshiba TC358767 eDP bridge"
 	depends on OF
