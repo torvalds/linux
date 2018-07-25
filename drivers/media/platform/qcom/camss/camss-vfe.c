@@ -156,6 +156,7 @@
 #define VFE_0_CAMIF_CMD				0x2f4
 #define VFE_0_CAMIF_CMD_DISABLE_FRAME_BOUNDARY	0
 #define VFE_0_CAMIF_CMD_ENABLE_FRAME_BOUNDARY	1
+#define VFE_0_CAMIF_CMD_NO_CHANGE		3
 #define VFE_0_CAMIF_CMD_CLEAR_CAMIF_STATUS	(1 << 2)
 #define VFE_0_CAMIF_CFG				0x2f8
 #define VFE_0_CAMIF_CFG_VFE_OUTPUT_EN		(1 << 6)
@@ -1021,8 +1022,10 @@ static void vfe_set_camif_cfg(struct vfe_device *vfe, struct vfe_line *line)
 
 static void vfe_set_camif_cmd(struct vfe_device *vfe, u32 cmd)
 {
-	writel_relaxed(VFE_0_CAMIF_CMD_CLEAR_CAMIF_STATUS,
+	writel_relaxed(VFE_0_CAMIF_CMD_CLEAR_CAMIF_STATUS |
+		       VFE_0_CAMIF_CMD_NO_CHANGE,
 		       vfe->base + VFE_0_CAMIF_CMD);
+	wmb();
 
 	writel_relaxed(cmd, vfe->base + VFE_0_CAMIF_CMD);
 }
