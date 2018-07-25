@@ -221,7 +221,7 @@ static void pmd_frag_destroy(void *pmd_frag)
 	}
 }
 
-static void destroy_pagetable_page(struct mm_struct *mm)
+static void destroy_pagetable_cache(struct mm_struct *mm)
 {
 	void *frag;
 
@@ -244,13 +244,14 @@ void destroy_context(struct mm_struct *mm)
 		WARN_ON(process_tb[mm->context.id].prtb0 != 0);
 	else
 		subpage_prot_free(mm);
-	destroy_pagetable_page(mm);
 	destroy_contexts(&mm->context);
 	mm->context.id = MMU_NO_CONTEXT;
 }
 
 void arch_exit_mmap(struct mm_struct *mm)
 {
+	destroy_pagetable_cache(mm);
+
 	if (radix_enabled()) {
 		/*
 		 * Radix doesn't have a valid bit in the process table
