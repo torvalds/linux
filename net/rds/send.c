@@ -1126,7 +1126,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 				if (addr4 == htonl(INADDR_ANY) ||
 				    addr4 == htonl(INADDR_BROADCAST) ||
 				    IN_MULTICAST(ntohl(addr4))) {
-					return -EINVAL;
+					ret = -EINVAL;
 					goto out;
 				}
 			}
