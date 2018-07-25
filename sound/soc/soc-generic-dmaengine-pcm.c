@@ -188,7 +188,7 @@ static int dmaengine_pcm_set_runtime_hwparams(struct snd_pcm_substream *substrea
 			case 32:
 			case 64:
 				if (addr_widths & (1 << (bits / 8)))
-					hw.formats |= (1LL << i);
+					hw.formats |= pcm_format_to_bits(i);
 				break;
 			default:
 				/* Unsupported types */
