@@ -4838,7 +4838,7 @@ void topology_probe()
 		siblings = get_thread_siblings(&cpus[i]);
 		if (siblings > max_siblings)
 			max_siblings = siblings;
-		if (cpus[i].thread_id != -1)
+		if (cpus[i].thread_id == 0)
 			topo.num_cores++;
 
 		if (debug > 1)
