@@ -106,8 +106,16 @@
  *v0.1.0xf
  *1. merge modification from rv1108 project.
  *
+ *v0.2.0x0
+ *1. fix compile warning.
+ *2. add check of iommu status.
+ *3. support stream on/off/on/off...
+ *4. get correct isp out width/height.
+ *5. fix the issue that setting of isp0 mipi affect txrx dphy.
+ *6. fix the issue cannot set exposure by mp path device.
+ *
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xf)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 2, 0x0)
 
 #endif
