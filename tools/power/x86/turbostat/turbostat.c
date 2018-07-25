@@ -1690,7 +1690,7 @@ void get_apic_id(struct thread_data *t)
 	t->x2apic_id = edx;
 
 	if (debug && (t->apic_id != t->x2apic_id))
-		fprintf(stderr, "cpu%d: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
+		fprintf(outf, "cpu%d: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
 }
 
 /*
