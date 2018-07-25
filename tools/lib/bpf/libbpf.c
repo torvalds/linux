@@ -36,6 +36,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/list.h>
 #include <linux/limits.h>
 #include <sys/stat.h>
@@ -216,8 +217,8 @@ struct bpf_map {
 	size_t offset;
 	int map_ifindex;
 	struct bpf_map_def def;
-	uint32_t btf_key_type_id;
-	uint32_t btf_value_type_id;
+	__u32 btf_key_type_id;
+	__u32 btf_value_type_id;
 	void *priv;
 	bpf_map_clear_priv_t clear_priv;
 };
@@ -1014,68 +1015,72 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 
 static int bpf_map_find_btf_info(struct bpf_map *map, const struct btf *btf)
 {
+	const struct btf_type *container_type;
+	const struct btf_member *key, *value;
 	struct bpf_map_def *def = &map->def;
 	const size_t max_name = 256;
-	int64_t key_size, value_size;
-	int32_t key_id, value_id;
-	char name[max_name];
+	char container_name[max_name];
+	__s64 key_size, value_size;
+	__s32 container_id;
 
-	/* Find key type by name from BTF */
-	if (snprintf(name, max_name, "%s_key", map->name) == max_name) {
-		pr_warning("map:%s length of BTF key_type:%s_key is too long\n",
+	if (snprintf(container_name, max_name, "____btf_map_%s", map->name) ==
+	    max_name) {
+		pr_warning("map:%s length of '____btf_map_%s' is too long\n",
 			   map->name, map->name);
 		return -EINVAL;
 	}
 
-	key_id = btf__find_by_name(btf, name);
-	if (key_id < 0) {
-		pr_debug("map:%s key_type:%s cannot be found in BTF\n",
-			 map->name, name);
-		return key_id;
+	container_id = btf__find_by_name(btf, container_name);
+	if (container_id < 0) {
+		pr_debug("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
+			 map->name, container_name);
+		return container_id;
 	}
 
-	key_size = btf__resolve_size(btf, key_id);
+	container_type = btf__type_by_id(btf, container_id);
+	if (!container_type) {
+		pr_warning("map:%s cannot find BTF type for container_id:%u\n",
+			   map->name, container_id);
+		return -EINVAL;
+	}
+
+	if (BTF_INFO_KIND(container_type->info) != BTF_KIND_STRUCT ||
+	    BTF_INFO_VLEN(container_type->info) < 2) {
+		pr_warning("map:%s container_name:%s is an invalid container struct\n",
+			   map->name, container_name);
+		return -EINVAL;
+	}
+
+	key = (struct btf_member *)(container_type + 1);
+	value = key + 1;
+
+	key_size = btf__resolve_size(btf, key->type);
 	if (key_size < 0) {
-		pr_warning("map:%s key_type:%s cannot get the BTF type_size\n",
-			   map->name, name);
+		pr_warning("map:%s invalid BTF key_type_size\n",
+			   map->name);
 		return key_size;
 	}
 
 	if (def->key_size != key_size) {
-		pr_warning("map:%s key_type:%s has BTF type_size:%u != key_size:%u\n",
-			   map->name, name, (unsigned int)key_size, def->key_size);
+		pr_warning("map:%s btf_key_type_size:%u != map_def_key_size:%u\n",
+			   map->name, (__u32)key_size, def->key_size);
 		return -EINVAL;
 	}
 
-	/* Find value type from BTF */
-	if (snprintf(name, max_name, "%s_value", map->name) == max_name) {
-		pr_warning("map:%s length of BTF value_type:%s_value is too long\n",
-			  map->name, map->name);
-		return -EINVAL;
-	}
-
-	value_id = btf__find_by_name(btf, name);
-	if (value_id < 0) {
-		pr_debug("map:%s value_type:%s cannot be found in BTF\n",
-			 map->name, name);
-		return value_id;
-	}
-
-	value_size = btf__resolve_size(btf, value_id);
+	value_size = btf__resolve_size(btf, value->type);
 	if (value_size < 0) {
-		pr_warning("map:%s value_type:%s cannot get the BTF type_size\n",
-			   map->name, name);
+		pr_warning("map:%s invalid BTF value_type_size\n", map->name);
 		return value_size;
 	}
 
 	if (def->value_size != value_size) {
-		pr_warning("map:%s value_type:%s has BTF type_size:%u != value_size:%u\n",
-			   map->name, name, (unsigned int)value_size, def->value_size);
+		pr_warning("map:%s btf_value_type_size:%u != map_def_value_size:%u\n",
+			   map->name, (__u32)value_size, def->value_size);
 		return -EINVAL;
 	}
 
-	map->btf_key_type_id = key_id;
-	map->btf_value_type_id = value_id;
+	map->btf_key_type_id = key->type;
+	map->btf_value_type_id = value->type;
 
 	return 0;
 }
@@ -2089,12 +2094,12 @@ const char *bpf_map__name(struct bpf_map *map)
 	return map ? map->name : NULL;
 }
 
-uint32_t bpf_map__btf_key_type_id(const struct bpf_map *map)
+__u32 bpf_map__btf_key_type_id(const struct bpf_map *map)
 {
 	return map ? map->btf_key_type_id : 0;
 }
 
-uint32_t bpf_map__btf_value_type_id(const struct bpf_map *map)
+__u32 bpf_map__btf_value_type_id(const struct bpf_map *map)
 {
 	return map ? map->btf_value_type_id : 0;
 }
