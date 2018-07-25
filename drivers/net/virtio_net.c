@@ -82,25 +82,55 @@ struct virtnet_sq_stats {
 	struct u64_stats_sync syncp;
 	u64 packets;
 	u64 bytes;
+	u64 xdp_tx;
+	u64 xdp_tx_drops;
+	u64 kicks;
+};
+
+struct virtnet_rq_stat_items {
+	u64 packets;
+	u64 bytes;
+	u64 drops;
+	u64 xdp_packets;
+	u64 xdp_tx;
+	u64 xdp_redirects;
+	u64 xdp_drops;
+	u64 kicks;
 };
 
 struct virtnet_rq_stats {
 	struct u64_stats_sync syncp;
-	u64 packets;
-	u64 bytes;
+	struct virtnet_rq_stat_items items;
+};
+
+struct virtnet_rx_stats {
+	struct virtnet_rq_stat_items rx;
+	struct {
+		unsigned int xdp_tx;
+		unsigned int xdp_tx_drops;
+	} tx;
 };
 
 #define VIRTNET_SQ_STAT(m)	offsetof(struct virtnet_sq_stats, m)
-#define VIRTNET_RQ_STAT(m)	offsetof(struct virtnet_rq_stats, m)
+#define VIRTNET_RQ_STAT(m)	offsetof(struct virtnet_rq_stat_items, m)
 
 static const struct virtnet_stat_desc virtnet_sq_stats_desc[] = {
-	{ "packets",	VIRTNET_SQ_STAT(packets) },
-	{ "bytes",	VIRTNET_SQ_STAT(bytes) },
+	{ "packets",		VIRTNET_SQ_STAT(packets) },
+	{ "bytes",		VIRTNET_SQ_STAT(bytes) },
+	{ "xdp_tx",		VIRTNET_SQ_STAT(xdp_tx) },
+	{ "xdp_tx_drops",	VIRTNET_SQ_STAT(xdp_tx_drops) },
+	{ "kicks",		VIRTNET_SQ_STAT(kicks) },
 };
 
 static const struct virtnet_stat_desc virtnet_rq_stats_desc[] = {
-	{ "packets",	VIRTNET_RQ_STAT(packets) },
-	{ "bytes",	VIRTNET_RQ_STAT(bytes) },
+	{ "packets",		VIRTNET_RQ_STAT(packets) },
+	{ "bytes",		VIRTNET_RQ_STAT(bytes) },
+	{ "drops",		VIRTNET_RQ_STAT(drops) },
+	{ "xdp_packets",	VIRTNET_RQ_STAT(xdp_packets) },
+	{ "xdp_tx",		VIRTNET_RQ_STAT(xdp_tx) },
+	{ "xdp_redirects",	VIRTNET_RQ_STAT(xdp_redirects) },
+	{ "xdp_drops",		VIRTNET_RQ_STAT(xdp_drops) },
+	{ "kicks",		VIRTNET_RQ_STAT(kicks) },
 };
 
 #define VIRTNET_SQ_STATS_LEN	ARRAY_SIZE(virtnet_sq_stats_desc)
@@ -447,16 +477,22 @@ static int __virtnet_xdp_xmit_one(struct virtnet_info *vi,
 	return 0;
 }
 
+static struct send_queue *virtnet_xdp_sq(struct virtnet_info *vi)
+{
+	unsigned int qp;
+
+	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
+	return &vi->sq[qp];
+}
+
 static int __virtnet_xdp_tx_xmit(struct virtnet_info *vi,
 				   struct xdp_frame *xdpf)
 {
 	struct xdp_frame *xdpf_sent;
 	struct send_queue *sq;
 	unsigned int len;
-	unsigned int qp;
 
-	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
-	sq = &vi->sq[qp];
+	sq = virtnet_xdp_sq(vi);
 
 	/* Free up any pending old buffers before queueing new ones. */
 	while ((xdpf_sent = virtqueue_get_buf(sq->vq, &len)) != NULL)
@@ -474,23 +510,28 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	struct bpf_prog *xdp_prog;
 	struct send_queue *sq;
 	unsigned int len;
-	unsigned int qp;
 	int drops = 0;
-	int err;
+	int kicks = 0;
+	int ret, err;
 	int i;
 
-	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
-		return -EINVAL;
+	sq = virtnet_xdp_sq(vi);
 
-	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
-	sq = &vi->sq[qp];
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK)) {
+		ret = -EINVAL;
+		drops = n;
+		goto out;
+	}
 
 	/* Only allow ndo_xdp_xmit if XDP is loaded on dev, as this
 	 * indicate XDP resources have been successfully allocated.
 	 */
 	xdp_prog = rcu_dereference(rq->xdp_prog);
-	if (!xdp_prog)
-		return -ENXIO;
+	if (!xdp_prog) {
+		ret = -ENXIO;
+		drops = n;
+		goto out;
+	}
 
 	/* Free up any pending old buffers before queueing new ones. */
 	while ((xdpf_sent = virtqueue_get_buf(sq->vq, &len)) != NULL)
@@ -505,11 +546,20 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 			drops++;
 		}
 	}
+	ret = n - drops;
 
-	if (flags & XDP_XMIT_FLUSH)
-		virtqueue_kick(sq->vq);
+	if (flags & XDP_XMIT_FLUSH) {
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq))
+			kicks = 1;
+	}
+out:
+	u64_stats_update_begin(&sq->stats.syncp);
+	sq->stats.xdp_tx += n;
+	sq->stats.xdp_tx_drops += drops;
+	sq->stats.kicks += kicks;
+	u64_stats_update_end(&sq->stats.syncp);
 
-	return n - drops;
+	return ret;
 }
 
 static unsigned int virtnet_get_headroom(struct virtnet_info *vi)
@@ -586,7 +636,8 @@ static struct sk_buff *receive_small(struct net_device *dev,
 				     struct receive_queue *rq,
 				     void *buf, void *ctx,
 				     unsigned int len,
-				     unsigned int *xdp_xmit)
+				     unsigned int *xdp_xmit,
+				     struct virtnet_rx_stats *stats)
 {
 	struct sk_buff *skb;
 	struct bpf_prog *xdp_prog;
@@ -601,6 +652,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	int err;
 
 	len -= vi->hdr_len;
+	stats->rx.bytes += len;
 
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(rq->xdp_prog);
@@ -642,6 +694,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		xdp.rxq = &rq->xdp_rxq;
 		orig_data = xdp.data;
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+		stats->rx.xdp_packets++;
 
 		switch (act) {
 		case XDP_PASS:
@@ -650,11 +703,14 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			len = xdp.data_end - xdp.data;
 			break;
 		case XDP_TX:
+			stats->rx.xdp_tx++;
 			xdpf = convert_to_xdp_frame(&xdp);
 			if (unlikely(!xdpf))
 				goto err_xdp;
+			stats->tx.xdp_tx++;
 			err = __virtnet_xdp_tx_xmit(vi, xdpf);
 			if (unlikely(err)) {
+				stats->tx.xdp_tx_drops++;
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				goto err_xdp;
 			}
@@ -662,6 +718,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			rcu_read_unlock();
 			goto xdp_xmit;
 		case XDP_REDIRECT:
+			stats->rx.xdp_redirects++;
 			err = xdp_do_redirect(dev, &xdp, xdp_prog);
 			if (err)
 				goto err_xdp;
@@ -695,7 +752,8 @@ err:
 
 err_xdp:
 	rcu_read_unlock();
-	dev->stats.rx_dropped++;
+	stats->rx.xdp_drops++;
+	stats->rx.drops++;
 	put_page(page);
 xdp_xmit:
 	return NULL;
@@ -705,18 +763,20 @@ static struct sk_buff *receive_big(struct net_device *dev,
 				   struct virtnet_info *vi,
 				   struct receive_queue *rq,
 				   void *buf,
-				   unsigned int len)
+				   unsigned int len,
+				   struct virtnet_rx_stats *stats)
 {
 	struct page *page = buf;
 	struct sk_buff *skb = page_to_skb(vi, rq, page, 0, len, PAGE_SIZE);
 
+	stats->rx.bytes += len - vi->hdr_len;
 	if (unlikely(!skb))
 		goto err;
 
 	return skb;
 
 err:
-	dev->stats.rx_dropped++;
+	stats->rx.drops++;
 	give_pages(rq, page);
 	return NULL;
 }
@@ -727,7 +787,8 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 					 void *buf,
 					 void *ctx,
 					 unsigned int len,
-					 unsigned int *xdp_xmit)
+					 unsigned int *xdp_xmit,
+					 struct virtnet_rx_stats *stats)
 {
 	struct virtio_net_hdr_mrg_rxbuf *hdr = buf;
 	u16 num_buf = virtio16_to_cpu(vi->vdev, hdr->num_buffers);
@@ -740,6 +801,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	int err;
 
 	head_skb = NULL;
+	stats->rx.bytes += len - vi->hdr_len;
 
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(rq->xdp_prog);
@@ -788,6 +850,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		xdp.rxq = &rq->xdp_rxq;
 
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+		stats->rx.xdp_packets++;
 
 		switch (act) {
 		case XDP_PASS:
@@ -812,11 +875,14 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			}
 			break;
 		case XDP_TX:
+			stats->rx.xdp_tx++;
 			xdpf = convert_to_xdp_frame(&xdp);
 			if (unlikely(!xdpf))
 				goto err_xdp;
+			stats->tx.xdp_tx++;
 			err = __virtnet_xdp_tx_xmit(vi, xdpf);
 			if (unlikely(err)) {
+				stats->tx.xdp_tx_drops++;
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				if (unlikely(xdp_page != page))
 					put_page(xdp_page);
@@ -828,6 +894,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			rcu_read_unlock();
 			goto xdp_xmit;
 		case XDP_REDIRECT:
+			stats->rx.xdp_redirects++;
 			err = xdp_do_redirect(dev, &xdp, xdp_prog);
 			if (err) {
 				if (unlikely(xdp_page != page))
@@ -877,6 +944,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			goto err_buf;
 		}
 
+		stats->rx.bytes += len;
 		page = virt_to_head_page(buf);
 
 		truesize = mergeable_ctx_to_truesize(ctx);
@@ -922,6 +990,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 
 err_xdp:
 	rcu_read_unlock();
+	stats->rx.xdp_drops++;
 err_skb:
 	put_page(page);
 	while (num_buf-- > 1) {
@@ -932,24 +1001,25 @@ err_skb:
 			dev->stats.rx_length_errors++;
 			break;
 		}
+		stats->rx.bytes += len;
 		page = virt_to_head_page(buf);
 		put_page(page);
 	}
 err_buf:
-	dev->stats.rx_dropped++;
+	stats->rx.drops++;
 	dev_kfree_skb(head_skb);
 xdp_xmit:
 	return NULL;
 }
 
-static int receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
-		       void *buf, unsigned int len, void **ctx,
-		       unsigned int *xdp_xmit)
+static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
+			void *buf, unsigned int len, void **ctx,
+			unsigned int *xdp_xmit,
+			struct virtnet_rx_stats *stats)
 {
 	struct net_device *dev = vi->dev;
 	struct sk_buff *skb;
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
-	int ret;
 
 	if (unlikely(len < vi->hdr_len + ETH_HLEN)) {
 		pr_debug("%s: short packet %i\n", dev->name, len);
@@ -961,22 +1031,21 @@ static int receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 		} else {
 			put_page(virt_to_head_page(buf));
 		}
-		return 0;
+		return;
 	}
 
 	if (vi->mergeable_rx_bufs)
-		skb = receive_mergeable(dev, vi, rq, buf, ctx, len, xdp_xmit);
+		skb = receive_mergeable(dev, vi, rq, buf, ctx, len, xdp_xmit,
+					stats);
 	else if (vi->big_packets)
-		skb = receive_big(dev, vi, rq, buf, len);
+		skb = receive_big(dev, vi, rq, buf, len, stats);
 	else
-		skb = receive_small(dev, vi, rq, buf, ctx, len, xdp_xmit);
+		skb = receive_small(dev, vi, rq, buf, ctx, len, xdp_xmit, stats);
 
 	if (unlikely(!skb))
-		return 0;
+		return;
 
 	hdr = skb_vnet_hdr(skb);
-
-	ret = skb->len;
 
 	if (hdr->hdr.flags & VIRTIO_NET_HDR_F_DATA_VALID)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -994,12 +1063,11 @@ static int receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 		 ntohs(skb->protocol), skb->len, skb->pkt_type);
 
 	napi_gro_receive(&rq->napi, skb);
-	return ret;
+	return;
 
 frame_err:
 	dev->stats.rx_frame_errors++;
 	dev_kfree_skb(skb);
-	return 0;
 }
 
 /* Unlike mergeable buffers, all buffers are allocated to the
@@ -1166,7 +1234,12 @@ static bool try_fill_recv(struct virtnet_info *vi, struct receive_queue *rq,
 		if (err)
 			break;
 	} while (rq->vq->num_free);
-	virtqueue_kick(rq->vq);
+	if (virtqueue_kick_prepare(rq->vq) && virtqueue_notify(rq->vq)) {
+		u64_stats_update_begin(&rq->stats.syncp);
+		rq->stats.items.kicks++;
+		u64_stats_update_end(&rq->stats.syncp);
+	}
+
 	return !oom;
 }
 
@@ -1241,22 +1314,25 @@ static int virtnet_receive(struct receive_queue *rq, int budget,
 			   unsigned int *xdp_xmit)
 {
 	struct virtnet_info *vi = rq->vq->vdev->priv;
-	unsigned int len, received = 0, bytes = 0;
+	struct virtnet_rx_stats stats = {};
+	struct send_queue *sq;
+	unsigned int len;
 	void *buf;
+	int i;
 
 	if (!vi->big_packets || vi->mergeable_rx_bufs) {
 		void *ctx;
 
-		while (received < budget &&
+		while (stats.rx.packets < budget &&
 		       (buf = virtqueue_get_buf_ctx(rq->vq, &len, &ctx))) {
-			bytes += receive_buf(vi, rq, buf, len, ctx, xdp_xmit);
-			received++;
+			receive_buf(vi, rq, buf, len, ctx, xdp_xmit, &stats);
+			stats.rx.packets++;
 		}
 	} else {
-		while (received < budget &&
+		while (stats.rx.packets < budget &&
 		       (buf = virtqueue_get_buf(rq->vq, &len)) != NULL) {
-			bytes += receive_buf(vi, rq, buf, len, NULL, xdp_xmit);
-			received++;
+			receive_buf(vi, rq, buf, len, NULL, xdp_xmit, &stats);
+			stats.rx.packets++;
 		}
 	}
 
@@ -1266,11 +1342,22 @@ static int virtnet_receive(struct receive_queue *rq, int budget,
 	}
 
 	u64_stats_update_begin(&rq->stats.syncp);
-	rq->stats.bytes += bytes;
-	rq->stats.packets += received;
+	for (i = 0; i < VIRTNET_RQ_STATS_LEN; i++) {
+		size_t offset = virtnet_rq_stats_desc[i].offset;
+		u64 *item;
+
+		item = (u64 *)((u8 *)&rq->stats.items + offset);
+		*item += *(u64 *)((u8 *)&stats.rx + offset);
+	}
 	u64_stats_update_end(&rq->stats.syncp);
 
-	return received;
+	sq = virtnet_xdp_sq(vi);
+	u64_stats_update_begin(&sq->stats.syncp);
+	sq->stats.xdp_tx += stats.tx.xdp_tx;
+	sq->stats.xdp_tx_drops += stats.tx.xdp_tx_drops;
+	u64_stats_update_end(&sq->stats.syncp);
+
+	return stats.rx.packets;
 }
 
 static void free_old_xmit_skbs(struct send_queue *sq)
@@ -1326,7 +1413,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct receive_queue, napi);
 	struct virtnet_info *vi = rq->vq->vdev->priv;
 	struct send_queue *sq;
-	unsigned int received, qp;
+	unsigned int received;
 	unsigned int xdp_xmit = 0;
 
 	virtnet_poll_cleantx(rq);
@@ -1341,10 +1428,12 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 		xdp_do_flush_map();
 
 	if (xdp_xmit & VIRTIO_XDP_TX) {
-		qp = vi->curr_queue_pairs - vi->xdp_queue_pairs +
-		     smp_processor_id();
-		sq = &vi->sq[qp];
-		virtqueue_kick(sq->vq);
+		sq = virtnet_xdp_sq(vi);
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq)) {
+			u64_stats_update_begin(&sq->stats.syncp);
+			sq->stats.kicks++;
+			u64_stats_update_end(&sq->stats.syncp);
+		}
 	}
 
 	return received;
@@ -1506,8 +1595,13 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (kick || netif_xmit_stopped(txq))
-		virtqueue_kick(sq->vq);
+	if (kick || netif_xmit_stopped(txq)) {
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq)) {
+			u64_stats_update_begin(&sq->stats.syncp);
+			sq->stats.kicks++;
+			u64_stats_update_end(&sq->stats.syncp);
+		}
+	}
 
 	return NETDEV_TX_OK;
 }
@@ -1611,7 +1705,7 @@ static void virtnet_stats(struct net_device *dev,
 	int i;
 
 	for (i = 0; i < vi->max_queue_pairs; i++) {
-		u64 tpackets, tbytes, rpackets, rbytes;
+		u64 tpackets, tbytes, rpackets, rbytes, rdrops;
 		struct receive_queue *rq = &vi->rq[i];
 		struct send_queue *sq = &vi->sq[i];
 
@@ -1623,19 +1717,20 @@ static void virtnet_stats(struct net_device *dev,
 
 		do {
 			start = u64_stats_fetch_begin_irq(&rq->stats.syncp);
-			rpackets = rq->stats.packets;
-			rbytes   = rq->stats.bytes;
+			rpackets = rq->stats.items.packets;
+			rbytes   = rq->stats.items.bytes;
+			rdrops   = rq->stats.items.drops;
 		} while (u64_stats_fetch_retry_irq(&rq->stats.syncp, start));
 
 		tot->rx_packets += rpackets;
 		tot->tx_packets += tpackets;
 		tot->rx_bytes   += rbytes;
 		tot->tx_bytes   += tbytes;
+		tot->rx_dropped += rdrops;
 	}
 
 	tot->tx_dropped = dev->stats.tx_dropped;
 	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
-	tot->rx_dropped = dev->stats.rx_dropped;
 	tot->rx_length_errors = dev->stats.rx_length_errors;
 	tot->rx_frame_errors = dev->stats.rx_frame_errors;
 }
@@ -2014,7 +2109,7 @@ static void virtnet_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < vi->curr_queue_pairs; i++) {
 		struct receive_queue *rq = &vi->rq[i];
 
-		stats_base = (u8 *)&rq->stats;
+		stats_base = (u8 *)&rq->stats.items;
 		do {
 			start = u64_stats_fetch_begin_irq(&rq->stats.syncp);
 			for (j = 0; j < VIRTNET_RQ_STATS_LEN; j++) {
