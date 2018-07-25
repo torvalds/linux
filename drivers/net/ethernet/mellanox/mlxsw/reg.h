@@ -2504,6 +2504,118 @@ static inline void mlxsw_reg_ptce2_pack(char *payload, bool valid,
 	mlxsw_reg_ptce2_tcam_region_info_memcpy_to(payload, tcam_region_info);
 }
 
+/* PERPT - Policy-Engine ERP Table Register
+ * ----------------------------------------
+ * This register adds and removes eRPs from the eRP table.
+ */
+#define MLXSW_REG_PERPT_ID 0x3021
+#define MLXSW_REG_PERPT_LEN 0x80
+
+MLXSW_REG_DEFINE(perpt, MLXSW_REG_PERPT_ID, MLXSW_REG_PERPT_LEN);
+
+/* reg_perpt_erpt_bank
+ * eRP table bank.
+ * Range 0 .. cap_max_erp_table_banks - 1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, perpt, erpt_bank, 0x00, 16, 4);
+
+/* reg_perpt_erpt_index
+ * Index to eRP table within the eRP bank.
+ * Range is 0 .. cap_max_erp_table_bank_size - 1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, perpt, erpt_index, 0x00, 0, 8);
+
+enum mlxsw_reg_perpt_key_size {
+	MLXSW_REG_PERPT_KEY_SIZE_2KB,
+	MLXSW_REG_PERPT_KEY_SIZE_4KB,
+	MLXSW_REG_PERPT_KEY_SIZE_8KB,
+	MLXSW_REG_PERPT_KEY_SIZE_12KB,
+};
+
+/* reg_perpt_key_size
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, perpt, key_size, 0x04, 0, 4);
+
+/* reg_perpt_bf_bypass
+ * 0 - The eRP is used only if bloom filter state is set for the given
+ * rule.
+ * 1 - The eRP is used regardless of bloom filter state.
+ * The bypass is an OR condition of region_id or eRP. See PERCR.bf_bypass
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, perpt, bf_bypass, 0x08, 8, 1);
+
+/* reg_perpt_erp_id
+ * eRP ID for use by the rules.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, perpt, erp_id, 0x08, 0, 4);
+
+/* reg_perpt_erpt_base_bank
+ * Base eRP table bank, points to head of erp_vector
+ * Range is 0 .. cap_max_erp_table_banks - 1
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, perpt, erpt_base_bank, 0x0C, 16, 4);
+
+/* reg_perpt_erpt_base_index
+ * Base index to eRP table within the eRP bank
+ * Range is 0 .. cap_max_erp_table_bank_size - 1
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, perpt, erpt_base_index, 0x0C, 0, 8);
+
+/* reg_perpt_erp_index_in_vector
+ * eRP index in the vector.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, perpt, erp_index_in_vector, 0x10, 0, 4);
+
+/* reg_perpt_erp_vector
+ * eRP vector.
+ * Access: OP
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, perpt, erp_vector, 0x14, 4, 1);
+
+/* reg_perpt_mask
+ * Mask
+ * 0 - A-TCAM will ignore the bit in key
+ * 1 - A-TCAM will compare the bit in key
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, perpt, mask, 0x20, MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN);
+
+static inline void mlxsw_reg_perpt_erp_vector_pack(char *payload,
+						   unsigned long *erp_vector,
+						   unsigned long size)
+{
+	unsigned long bit;
+
+	for_each_set_bit(bit, erp_vector, size)
+		mlxsw_reg_perpt_erp_vector_set(payload, bit, true);
+}
+
+static inline void
+mlxsw_reg_perpt_pack(char *payload, u8 erpt_bank, u8 erpt_index,
+		     enum mlxsw_reg_perpt_key_size key_size, u8 erp_id,
+		     u8 erpt_base_bank, u8 erpt_base_index, u8 erp_index,
+		     char *mask)
+{
+	MLXSW_REG_ZERO(perpt, payload);
+	mlxsw_reg_perpt_erpt_bank_set(payload, erpt_bank);
+	mlxsw_reg_perpt_erpt_index_set(payload, erpt_index);
+	mlxsw_reg_perpt_key_size_set(payload, key_size);
+	mlxsw_reg_perpt_bf_bypass_set(payload, true);
+	mlxsw_reg_perpt_erp_id_set(payload, erp_id);
+	mlxsw_reg_perpt_erpt_base_bank_set(payload, erpt_base_bank);
+	mlxsw_reg_perpt_erpt_base_index_set(payload, erpt_base_index);
+	mlxsw_reg_perpt_erp_index_in_vector_set(payload, erp_index);
+	mlxsw_reg_perpt_mask_memcpy_to(payload, mask);
+}
+
 /* PERAR - Policy-Engine Region Association Register
  * -------------------------------------------------
  * This register associates a hw region for region_id's. Changing on the fly
@@ -8422,6 +8534,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(prcr),
 	MLXSW_REG(pefa),
 	MLXSW_REG(ptce2),
+	MLXSW_REG(perpt),
 	MLXSW_REG(perar),
 	MLXSW_REG(ptce3),
 	MLXSW_REG(percr),
