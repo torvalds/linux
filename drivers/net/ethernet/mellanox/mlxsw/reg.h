@@ -2663,12 +2663,28 @@ MLXSW_ITEM_BIT_ARRAY(reg, pererp, erpt_vector, 0x14, 4, 1);
  */
 MLXSW_ITEM32(reg, pererp, master_rp_id, 0x18, 0, 4);
 
-static inline void mlxsw_reg_pererp_pack(char *payload, u16 region_id)
+static inline void mlxsw_reg_pererp_erp_vector_pack(char *payload,
+						    unsigned long *erp_vector,
+						    unsigned long size)
+{
+	unsigned long bit;
+
+	for_each_set_bit(bit, erp_vector, size)
+		mlxsw_reg_pererp_erpt_vector_set(payload, bit, true);
+}
+
+static inline void mlxsw_reg_pererp_pack(char *payload, u16 region_id,
+					 bool ctcam_le, bool erpt_pointer_valid,
+					 u8 erpt_bank_pointer, u8 erpt_pointer,
+					 u8 master_rp_id)
 {
 	MLXSW_REG_ZERO(pererp, payload);
 	mlxsw_reg_pererp_region_id_set(payload, region_id);
-	mlxsw_reg_pererp_ctcam_le_set(payload, true);
-	mlxsw_reg_pererp_erpt_pointer_valid_set(payload, true);
+	mlxsw_reg_pererp_ctcam_le_set(payload, ctcam_le);
+	mlxsw_reg_pererp_erpt_pointer_valid_set(payload, erpt_pointer_valid);
+	mlxsw_reg_pererp_erpt_bank_pointer_set(payload, erpt_bank_pointer);
+	mlxsw_reg_pererp_erpt_pointer_set(payload, erpt_pointer);
+	mlxsw_reg_pererp_master_rp_id_set(payload, master_rp_id);
 }
 
 /* IEDR - Infrastructure Entry Delete Register

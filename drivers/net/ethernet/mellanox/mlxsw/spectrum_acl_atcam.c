@@ -72,7 +72,7 @@ mlxsw_sp_acl_atcam_region_erp_init(struct mlxsw_sp *mlxsw_sp,
 {
 	char pererp_pl[MLXSW_REG_PERERP_LEN];
 
-	mlxsw_reg_pererp_pack(pererp_pl, region_id);
+	mlxsw_reg_pererp_pack(pererp_pl, region_id, true, true, 0, 0, 0);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pererp), pererp_pl);
 }
 
