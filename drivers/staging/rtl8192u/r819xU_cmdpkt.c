@@ -252,7 +252,7 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 		if (rx_intr_status.interrupt_status & ISR_TX_BCN_OK) {
 			priv->ieee80211->bibsscoordinator = true;
 			priv->stats.txbeaconokint++;
-		} else if (rx_intr_status.interrupt_status & ISR_TxBcnErr) {
+		} else if (rx_intr_status.interrupt_status & ISR_TX_BCN_ERR) {
 			priv->ieee80211->bibsscoordinator = false;
 			priv->stats.txbeaconerr++;
 		}
