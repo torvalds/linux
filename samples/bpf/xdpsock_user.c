@@ -145,8 +145,13 @@ static void dump_stats(void);
 	} while (0)
 
 #define barrier() __asm__ __volatile__("": : :"memory")
+#ifdef __aarch64__
+#define u_smp_rmb() __asm__ __volatile__("dmb ishld": : :"memory")
+#define u_smp_wmb() __asm__ __volatile__("dmb ishst": : :"memory")
+#else
 #define u_smp_rmb() barrier()
 #define u_smp_wmb() barrier()
+#endif
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
