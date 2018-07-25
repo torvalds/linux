@@ -147,8 +147,7 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 		return -EINVAL;
 
 	mp->num_clk = 0;
-	num_clk = of_property_count_strings(pdev->dev.of_node,
-					    "assigned-clock-names");
+	num_clk = of_property_count_strings(pdev->dev.of_node, "clock-names");
 	if (num_clk <= 0) {
 		pr_debug("clocks are not defined\n");
 		return 0;
@@ -162,7 +161,7 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 
 	for (i = 0; i < num_clk; i++) {
 		rc = of_property_read_string_index(pdev->dev.of_node,
-						   "assigned-clock-names", i,
+						   "clock-names", i,
 						   &clock_name);
 		if (rc) {
 			dev_err(&pdev->dev, "Failed to get clock name for %d\n",
