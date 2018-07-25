@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -57,6 +58,7 @@
  *	     (only set when @upstream_port is not %NULL)
  * @safe_mode: ICM is in safe mode
  * @max_boot_acl: Maximum number of preboot ACL entries (%0 if not supported)
+ * @rpm: Does the controller support runtime PM (RTD3)
  * @is_supported: Checks if we can support ICM on this controller
  * @get_mode: Read and return the ICM firmware mode (optional)
  * @get_route: Find a route string for given switch
@@ -74,13 +76,14 @@ struct icm {
 	size_t max_boot_acl;
 	int vnd_cap;
 	bool safe_mode;
+	bool rpm;
 	bool (*is_supported)(struct tb *tb);
 	int (*get_mode)(struct tb *tb);
 	int (*get_route)(struct tb *tb, u8 link, u8 depth, u64 *route);
 	void (*save_devices)(struct tb *tb);
 	int (*driver_ready)(struct tb *tb,
 			    enum tb_security_level *security_level,
-			    size_t *nboot_acl);
+			    size_t *nboot_acl, bool *rpm);
 	void (*device_connected)(struct tb *tb,
 				 const struct icm_pkg_header *hdr);
 	void (*device_disconnected)(struct tb *tb,
@@ -96,6 +99,47 @@ struct icm_notification {
 	struct icm_pkg_header *pkg;
 	struct tb *tb;
 };
+
+struct ep_name_entry {
+	u8 len;
+	u8 type;
+	u8 data[0];
+};
+
+#define EP_NAME_INTEL_VSS	0x10
+
+/* Intel Vendor specific structure */
+struct intel_vss {
+	u16 vendor;
+	u16 model;
+	u8 mc;
+	u8 flags;
+	u16 pci_devid;
+	u32 nvm_version;
+};
+
+#define INTEL_VSS_FLAGS_RTD3	BIT(0)
+
+static const struct intel_vss *parse_intel_vss(const void *ep_name, size_t size)
+{
+	const void *end = ep_name + size;
+
+	while (ep_name < end) {
+		const struct ep_name_entry *ep = ep_name;
+
+		if (!ep->len)
+			break;
+		if (ep_name + ep->len > end)
+			break;
+
+		if (ep->type == EP_NAME_INTEL_VSS)
+			return (const struct intel_vss *)ep->data;
+
+		ep_name += ep->len;
+	}
+
+	return NULL;
+}
 
 static inline struct tb *icm_to_tb(struct icm *icm)
 {
@@ -267,7 +311,7 @@ static void icm_fr_save_devices(struct tb *tb)
 
 static int
 icm_fr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl)
+		    size_t *nboot_acl, bool *rpm)
 {
 	struct icm_fr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -417,15 +461,19 @@ static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 }
 
 static void add_switch(struct tb_switch *parent_sw, u64 route,
-		       const uuid_t *uuid, u8 connection_id, u8 connection_key,
+		       const uuid_t *uuid, const u8 *ep_name,
+		       size_t ep_name_size, u8 connection_id, u8 connection_key,
 		       u8 link, u8 depth, enum tb_security_level security_level,
 		       bool authorized, bool boot)
 {
+	const struct intel_vss *vss;
 	struct tb_switch *sw;
+
+	pm_runtime_get_sync(&parent_sw->dev);
 
 	sw = tb_switch_alloc(parent_sw->tb, &parent_sw->dev, route);
 	if (!sw)
-		return;
+		goto out;
 
 	sw->uuid = kmemdup(uuid, sizeof(*uuid), GFP_KERNEL);
 	sw->connection_id = connection_id;
@@ -436,6 +484,10 @@ static void add_switch(struct tb_switch *parent_sw, u64 route,
 	sw->security_level = security_level;
 	sw->boot = boot;
 
+	vss = parse_intel_vss(ep_name, ep_name_size);
+	if (vss)
+		sw->rpm = !!(vss->flags & INTEL_VSS_FLAGS_RTD3);
+
 	/* Link the two switches now */
 	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
 	tb_upstream_port(sw)->remote = tb_port_at(route, parent_sw);
@@ -443,8 +495,11 @@ static void add_switch(struct tb_switch *parent_sw, u64 route,
 	if (tb_switch_add(sw)) {
 		tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
 		tb_switch_put(sw);
-		return;
 	}
+
+out:
+	pm_runtime_mark_last_busy(&parent_sw->dev);
+	pm_runtime_put_autosuspend(&parent_sw->dev);
 }
 
 static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
@@ -484,9 +539,11 @@ static void add_xdomain(struct tb_switch *sw, u64 route,
 {
 	struct tb_xdomain *xd;
 
+	pm_runtime_get_sync(&sw->dev);
+
 	xd = tb_xdomain_alloc(sw->tb, &sw->dev, route, local_uuid, remote_uuid);
 	if (!xd)
-		return;
+		goto out;
 
 	xd->link = link;
 	xd->depth = depth;
@@ -494,6 +551,10 @@ static void add_xdomain(struct tb_switch *sw, u64 route,
 	tb_port_at(route, sw)->xdomain = xd;
 
 	tb_xdomain_add(xd);
+
+out:
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 }
 
 static void update_xdomain(struct tb_xdomain *xd, u64 route, u8 link)
@@ -631,7 +692,8 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
-	add_switch(parent_sw, route, &pkg->ep_uuid, pkg->connection_id,
+	add_switch(parent_sw, route, &pkg->ep_uuid, (const u8 *)pkg->ep_name,
+		   sizeof(pkg->ep_name), pkg->connection_id,
 		   pkg->connection_key, link, depth, security_level,
 		   authorized, boot);
 
@@ -779,7 +841,7 @@ icm_fr_xdomain_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 static int
 icm_tr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl)
+		    size_t *nboot_acl, bool *rpm)
 {
 	struct icm_tr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -798,6 +860,9 @@ icm_tr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 	if (nboot_acl)
 		*nboot_acl = (reply.info & ICM_TR_INFO_BOOT_ACL_MASK) >>
 				ICM_TR_INFO_BOOT_ACL_SHIFT;
+	if (rpm)
+		*rpm = !!(reply.hdr.flags & ICM_TR_FLAGS_RTD3);
+
 	return 0;
 }
 
@@ -1027,7 +1092,8 @@ icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
-	add_switch(parent_sw, route, &pkg->ep_uuid, pkg->connection_id,
+	add_switch(parent_sw, route, &pkg->ep_uuid, (const u8 *)pkg->ep_name,
+		   sizeof(pkg->ep_name), pkg->connection_id,
 		   0, 0, 0, security_level, authorized, boot);
 
 	tb_switch_put(parent_sw);
@@ -1206,7 +1272,7 @@ static int icm_ar_get_mode(struct tb *tb)
 
 static int
 icm_ar_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl)
+		    size_t *nboot_acl, bool *rpm)
 {
 	struct icm_ar_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -1225,6 +1291,9 @@ icm_ar_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 	if (nboot_acl && (reply.info & ICM_AR_INFO_BOOT_ACL_SUPPORTED))
 		*nboot_acl = (reply.info & ICM_AR_INFO_BOOT_ACL_MASK) >>
 				ICM_AR_INFO_BOOT_ACL_SHIFT;
+	if (rpm)
+		*rpm = !!(reply.hdr.flags & ICM_AR_FLAGS_RTD3);
+
 	return 0;
 }
 
@@ -1378,13 +1447,13 @@ static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 
 static int
 __icm_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		   size_t *nboot_acl)
+		   size_t *nboot_acl, bool *rpm)
 {
 	struct icm *icm = tb_priv(tb);
 	unsigned int retries = 50;
 	int ret;
 
-	ret = icm->driver_ready(tb, security_level, nboot_acl);
+	ret = icm->driver_ready(tb, security_level, nboot_acl, rpm);
 	if (ret) {
 		tb_err(tb, "failed to send driver ready to ICM\n");
 		return ret;
@@ -1654,7 +1723,8 @@ static int icm_driver_ready(struct tb *tb)
 		return 0;
 	}
 
-	ret = __icm_driver_ready(tb, &tb->security_level, &tb->nboot_acl);
+	ret = __icm_driver_ready(tb, &tb->security_level, &tb->nboot_acl,
+				 &icm->rpm);
 	if (ret)
 		return ret;
 
@@ -1760,7 +1830,7 @@ static void icm_complete(struct tb *tb)
 	 * Now all existing children should be resumed, start events
 	 * from ICM to get updated status.
 	 */
-	__icm_driver_ready(tb, NULL, NULL);
+	__icm_driver_ready(tb, NULL, NULL, NULL);
 
 	/*
 	 * We do not get notifications of devices that have been
@@ -1768,6 +1838,22 @@ static void icm_complete(struct tb *tb)
 	 * if any.
 	 */
 	queue_delayed_work(tb->wq, &icm->rescan_work, msecs_to_jiffies(500));
+}
+
+static int icm_runtime_suspend(struct tb *tb)
+{
+	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
+	return 0;
+}
+
+static int icm_runtime_resume(struct tb *tb)
+{
+	/*
+	 * We can reuse the same resume functionality than with system
+	 * suspend.
+	 */
+	icm_complete(tb);
+	return 0;
 }
 
 static int icm_start(struct tb *tb)
@@ -1788,6 +1874,7 @@ static int icm_start(struct tb *tb)
 	 * prevent root switch NVM upgrade on Macs for now.
 	 */
 	tb->root_switch->no_nvm_upgrade = x86_apple_machine;
+	tb->root_switch->rpm = icm->rpm;
 
 	ret = tb_switch_add(tb->root_switch);
 	if (ret) {
@@ -1836,6 +1923,8 @@ static const struct tb_cm_ops icm_ar_ops = {
 	.stop = icm_stop,
 	.suspend = icm_suspend,
 	.complete = icm_complete,
+	.runtime_suspend = icm_runtime_suspend,
+	.runtime_resume = icm_runtime_resume,
 	.handle_event = icm_handle_event,
 	.get_boot_acl = icm_ar_get_boot_acl,
 	.set_boot_acl = icm_ar_set_boot_acl,
@@ -1854,6 +1943,8 @@ static const struct tb_cm_ops icm_tr_ops = {
 	.stop = icm_stop,
 	.suspend = icm_suspend,
 	.complete = icm_complete,
+	.runtime_suspend = icm_runtime_suspend,
+	.runtime_resume = icm_runtime_resume,
 	.handle_event = icm_handle_event,
 	.get_boot_acl = icm_ar_get_boot_acl,
 	.set_boot_acl = icm_ar_set_boot_acl,
