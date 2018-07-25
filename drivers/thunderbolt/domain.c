@@ -509,26 +509,13 @@ int tb_domain_resume_noirq(struct tb *tb)
 
 int tb_domain_suspend(struct tb *tb)
 {
-	int ret;
-
-	mutex_lock(&tb->lock);
-	if (tb->cm_ops->suspend) {
-		ret = tb->cm_ops->suspend(tb);
-		if (ret) {
-			mutex_unlock(&tb->lock);
-			return ret;
-		}
-	}
-	mutex_unlock(&tb->lock);
-	return 0;
+	return tb->cm_ops->suspend ? tb->cm_ops->suspend(tb) : 0;
 }
 
 void tb_domain_complete(struct tb *tb)
 {
-	mutex_lock(&tb->lock);
 	if (tb->cm_ops->complete)
 		tb->cm_ops->complete(tb);
-	mutex_unlock(&tb->lock);
 }
 
 /**
