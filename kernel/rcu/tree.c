@@ -61,6 +61,7 @@
 #include <linux/trace_events.h>
 #include <linux/suspend.h>
 #include <linux/ftrace.h>
+#include <linux/tick.h>
 
 #include "tree.h"
 #include "rcu.h"
@@ -1088,19 +1089,38 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 		WRITE_ONCE(*rnhqp, true);
 		/* Store rcu_need_heavy_qs before rcu_urgent_qs. */
 		smp_store_release(ruqp, true);
-		rcu_state.jiffies_resched += jtsq; /* Re-enable beating. */
 	} else if (time_after(jiffies, rcu_state.gp_start + jtsq)) {
 		WRITE_ONCE(*ruqp, true);
 	}
 
 	/*
-	 * If more than halfway to RCU CPU stall-warning time, do a
-	 * resched_cpu() to try to loosen things up a bit.  Also check to
-	 * see if the CPU is getting hammered with interrupts, but only
-	 * once per grace period, just to keep the IPIs down to a dull roar.
+	 * NO_HZ_FULL CPUs can run in-kernel without rcu_check_callbacks!
+	 * The above code handles this, but only for straight cond_resched().
+	 * And some in-kernel loops check need_resched() before calling
+	 * cond_resched(), which defeats the above code for CPUs that are
+	 * running in-kernel with scheduling-clock interrupts disabled.
+	 * So hit them over the head with the resched_cpu() hammer!
+	 */
+	if (tick_nohz_full_cpu(rdp->cpu) &&
+		   time_after(jiffies,
+			      READ_ONCE(rdp->last_fqs_resched) + jtsq * 3)) {
+		resched_cpu(rdp->cpu);
+		WRITE_ONCE(rdp->last_fqs_resched, jiffies);
+	}
+
+	/*
+	 * If more than halfway to RCU CPU stall-warning time, invoke
+	 * resched_cpu() more frequently to try to loosen things up a bit.
+	 * Also check to see if the CPU is getting hammered with interrupts,
+	 * but only once per grace period, just to keep the IPIs down to
+	 * a dull roar.
 	 */
 	if (time_after(jiffies, rcu_state.jiffies_resched)) {
-		resched_cpu(rdp->cpu);
+		if (time_after(jiffies,
+			       READ_ONCE(rdp->last_fqs_resched) + jtsq)) {
+			resched_cpu(rdp->cpu);
+			WRITE_ONCE(rdp->last_fqs_resched, jiffies);
+		}
 		if (IS_ENABLED(CONFIG_IRQ_WORK) &&
 		    !rdp->rcu_iw_pending && rdp->rcu_iw_gp_seq != rnp->gp_seq &&
 		    (rnp->ffmask & rdp->grpmask)) {

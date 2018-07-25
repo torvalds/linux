@@ -260,6 +260,7 @@ struct rcu_data {
 	short rcu_ofl_gp_flags;		/* ->gp_flags at last offline. */
 	unsigned long rcu_onl_gp_seq;	/* ->gp_seq at last online. */
 	short rcu_onl_gp_flags;		/* ->gp_flags at last online. */
+	unsigned long last_fqs_resched;	/* Time of last rcu_resched(). */
 
 	int cpu;
 };
