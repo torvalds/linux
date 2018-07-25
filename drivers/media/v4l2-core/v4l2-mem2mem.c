@@ -249,15 +249,24 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 	m2m_dev->curr_ctx->job_flags |= TRANS_RUNNING;
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 
+	dprintk("Running job on m2m_ctx: %p\n", m2m_dev->curr_ctx);
 	m2m_dev->m2m_ops->device_run(m2m_dev->curr_ctx->priv);
 }
 
-void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
+/*
+ * __v4l2_m2m_try_queue() - queue a job
+ * @m2m_dev: m2m device
+ * @m2m_ctx: m2m context
+ *
+ * Check if this context is ready to queue a job.
+ *
+ * This function can run in interrupt context.
+ */
+static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
+				 struct v4l2_m2m_ctx *m2m_ctx)
 {
-	struct v4l2_m2m_dev *m2m_dev;
 	unsigned long flags_job, flags_out, flags_cap;
 
-	m2m_dev = m2m_ctx->m2m_dev;
 	dprintk("Trying to schedule a job for m2m_ctx: %p\n", m2m_ctx);
 
 	if (!m2m_ctx->out_q_ctx.q.streaming
@@ -315,7 +324,25 @@ void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 	m2m_ctx->job_flags |= TRANS_QUEUED;
 
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
+}
 
+/**
+ * v4l2_m2m_try_schedule() - schedule and possibly run a job for any context
+ * @m2m_ctx: m2m context
+ *
+ * Check if this context is ready to queue a job. If suitable,
+ * run the next queued job on the mem2mem device.
+ *
+ * This function shouldn't run in interrupt context.
+ *
+ * Note that v4l2_m2m_try_schedule() can schedule one job for this context,
+ * and then run another job for another context.
+ */
+void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	struct v4l2_m2m_dev *m2m_dev = m2m_ctx->m2m_dev;
+
+	__v4l2_m2m_try_queue(m2m_dev, m2m_ctx);
 	v4l2_m2m_try_run(m2m_dev);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_try_schedule);
