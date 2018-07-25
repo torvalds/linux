@@ -329,7 +329,7 @@ static u8 csiphy_settle_cnt_calc(struct csiphy_device *csiphy)
 	t_hs_settle = (t_hs_prepare_max + t_hs_prepare_zero_min) / 2;
 
 	timer_period = div_u64(1000000000000LL, csiphy->timer_clk_rate);
-	settle_cnt = t_hs_settle / timer_period;
+	settle_cnt = t_hs_settle / timer_period - 1;
 
 	return settle_cnt;
 }
