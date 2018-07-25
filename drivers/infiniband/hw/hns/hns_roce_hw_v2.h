@@ -772,7 +772,7 @@ struct hns_roce_v2_cqe {
 	__le32	byte_4;
 	union {
 		__le32 rkey;
-		__be32 immtdata;
+		__le32 immtdata;
 	};
 	__le32	byte_12;
 	__le32	byte_16;
@@ -930,7 +930,7 @@ struct hns_roce_v2_cq_db {
 struct hns_roce_v2_ud_send_wqe {
 	__le32	byte_4;
 	__le32	msg_len;
-	__be32	immtdata;
+	__le32	immtdata;
 	__le32	byte_16;
 	__le32	byte_20;
 	__le32	byte_24;
@@ -1016,7 +1016,7 @@ struct hns_roce_v2_rc_send_wqe {
 	__le32		msg_len;
 	union {
 		__le32  inv_key;
-		__be32  immtdata;
+		__le32  immtdata;
 	};
 	__le32		byte_16;
 	__le32		byte_20;
