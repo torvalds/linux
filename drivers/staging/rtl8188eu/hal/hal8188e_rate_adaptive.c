@@ -542,16 +542,6 @@ odm_RATxRPTTimerSetting(
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE, (" <===== odm_RATxRPTTimerSetting()\n"));
 }
 
-void
-ODM_RASupport_Init(
-		struct odm_dm_struct *dm_odm
-	)
-{
-	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD, ("=====>ODM_RASupport_Init()\n"));
-
-	dm_odm->RaSupport88E = true;
-}
-
 int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	struct odm_ra_info *pRaInfo = &dm_odm->RAInfo[macid];

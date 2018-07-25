@@ -49,8 +49,6 @@
 
 /*  End rate adaptive define */
 
-void ODM_RASupport_Init(struct odm_dm_struct *dm_odm);
-
 int ODM_RAInfo_Init_all(struct odm_dm_struct *dm_odm);
 
 int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 MacID);
