@@ -62,6 +62,6 @@ OBJCOPYFLAGS_piggy.o := -I binary -O elf64-s390 -B s390:64-bit --rename-section 
 $(obj)/piggy.o: $(obj)/vmlinux.bin$(suffix-y) FORCE
 	$(call if_changed,objcopy)
 
-chkbss := $(filter-out $(obj)/misc.o $(obj)/piggy.o $(obj)/info.o,$(OBJECTS))
+chkbss := $(filter-out $(obj)/piggy.o $(obj)/info.o,$(OBJECTS))
 chkbss-target := $(obj)/vmlinux.bin
 include $(srctree)/arch/s390/scripts/Makefile.chkbss

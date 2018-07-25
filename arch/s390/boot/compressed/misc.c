@@ -11,12 +11,14 @@
 #include <asm/page.h>
 #include <asm/sclp.h>
 #include <asm/ipl.h>
+#include <asm/sections.h>
 #include "decompressor.h"
 
 /*
  * gzip declarations
  */
 #define STATIC static
+#define STATIC_RW_DATA static __section(.data)
 
 #undef memset
 #undef memcpy
@@ -26,20 +28,19 @@
 
 /* Symbols defined by linker scripts */
 extern char _end[];
-extern char _bss[], _ebss[];
 extern unsigned char _compressed_start[];
 extern unsigned char _compressed_end[];
 
 static void error(char *m);
-
-static unsigned long free_mem_ptr;
-static unsigned long free_mem_end_ptr;
 
 #ifdef CONFIG_HAVE_KERNEL_BZIP2
 #define HEAP_SIZE	0x400000
 #else
 #define HEAP_SIZE	0x10000
 #endif
+
+static unsigned long free_mem_ptr = (unsigned long) _end;
+static unsigned long free_mem_end_ptr = (unsigned long) _end + HEAP_SIZE;
 
 #ifdef CONFIG_KERNEL_GZIP
 #include "../../../../lib/decompress_inflate.c"
@@ -101,14 +102,6 @@ void *decompress_kernel(void)
 		INITRD_START = (unsigned long) kernel_end;
 	}
 #endif
-
-	/*
-	 * Clear bss section. free_mem_ptr and free_mem_end_ptr need to be
-	 * initialized afterwards since they reside in bss.
-	 */
-	memset(_bss, 0, _ebss - _bss);
-	free_mem_ptr = (unsigned long) _end;
-	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 
 	__decompress(_compressed_start, _compressed_end - _compressed_start,
 		     NULL, NULL, output, 0, NULL, error);
