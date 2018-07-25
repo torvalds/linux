@@ -1573,7 +1573,7 @@ static int atmel_nand_detect(struct atmel_nand *nand)
 	return ret;
 }
 
-static int atmel_nand_unregister(struct atmel_nand *nand)
+static int atmel_nand_controller_remove_nand(struct atmel_nand *nand)
 {
 	struct nand_chip *chip = &nand->base;
 	struct mtd_info *mtd = nand_to_mtd(chip);
@@ -1585,60 +1585,6 @@ static int atmel_nand_unregister(struct atmel_nand *nand)
 
 	nand_cleanup(chip);
 	list_del(&nand->node);
-
-	return 0;
-}
-
-static int atmel_nand_register(struct atmel_nand *nand)
-{
-	struct nand_chip *chip = &nand->base;
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct atmel_nand_controller *nc;
-	int ret;
-
-	nc = to_nand_controller(chip->controller);
-
-	if (nc->caps->legacy_of_bindings || !nc->dev->of_node) {
-		/*
-		 * We keep the MTD name unchanged to avoid breaking platforms
-		 * where the MTD cmdline parser is used and the bootloader
-		 * has not been updated to use the new naming scheme.
-		 */
-		mtd->name = "atmel_nand";
-	} else if (!mtd->name) {
-		/*
-		 * If the new bindings are used and the bootloader has not been
-		 * updated to pass a new mtdparts parameter on the cmdline, you
-		 * should define the following property in your nand node:
-		 *
-		 *	label = "atmel_nand";
-		 *
-		 * This way, mtd->name will be set by the core when
-		 * nand_set_flash_node() is called.
-		 */
-		mtd->name = devm_kasprintf(nc->dev, GFP_KERNEL,
-					   "%s:nand.%d", dev_name(nc->dev),
-					   nand->cs[0].id);
-		if (!mtd->name) {
-			dev_err(nc->dev, "Failed to allocate mtd->name\n");
-			return -ENOMEM;
-		}
-	}
-
-	ret = nand_scan_tail(mtd);
-	if (ret) {
-		dev_err(nc->dev, "nand_scan_tail() failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = mtd_device_register(mtd, NULL, 0);
-	if (ret) {
-		dev_err(nc->dev, "Failed to register mtd device: %d\n", ret);
-		nand_cleanup(chip);
-		return ret;
-	}
-
-	list_add_tail(&nand->node, &nc->chips);
 
 	return 0;
 }
@@ -1772,7 +1718,49 @@ atmel_nand_controller_add_nand(struct atmel_nand_controller *nc,
 	if (ret)
 		return ret;
 
-	return atmel_nand_register(nand);
+	if (nc->caps->legacy_of_bindings || !nc->dev->of_node) {
+		/*
+		 * We keep the MTD name unchanged to avoid breaking platforms
+		 * where the MTD cmdline parser is used and the bootloader
+		 * has not been updated to use the new naming scheme.
+		 */
+		mtd->name = "atmel_nand";
+	} else if (!mtd->name) {
+		/*
+		 * If the new bindings are used and the bootloader has not been
+		 * updated to pass a new mtdparts parameter on the cmdline, you
+		 * should define the following property in your nand node:
+		 *
+		 *	label = "atmel_nand";
+		 *
+		 * This way, mtd->name will be set by the core when
+		 * nand_set_flash_node() is called.
+		 */
+		mtd->name = devm_kasprintf(nc->dev, GFP_KERNEL,
+					   "%s:nand.%d", dev_name(nc->dev),
+					   nand->cs[0].id);
+		if (!mtd->name) {
+			dev_err(nc->dev, "Failed to allocate mtd->name\n");
+			return -ENOMEM;
+		}
+	}
+
+	ret = nand_scan_tail(mtd);
+	if (ret) {
+		dev_err(nc->dev, "nand_scan_tail() failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = mtd_device_register(mtd, NULL, 0);
+	if (ret) {
+		dev_err(nc->dev, "Failed to register mtd device: %d\n", ret);
+		nand_cleanup(chip);
+		return ret;
+	}
+
+	list_add_tail(&nand->node, &nc->chips);
+
+	return 0;
 }
 
 static int
@@ -1782,7 +1770,7 @@ atmel_nand_controller_remove_nands(struct atmel_nand_controller *nc)
 	int ret;
 
 	list_for_each_entry_safe(nand, tmp, &nc->chips, node) {
-		ret = atmel_nand_unregister(nand);
+		ret = atmel_nand_controller_remove_nand(nand);
 		if (ret)
 			return ret;
 	}
