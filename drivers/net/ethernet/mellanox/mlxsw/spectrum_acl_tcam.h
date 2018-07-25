@@ -179,7 +179,7 @@ struct mlxsw_sp_acl_erp;
 u8 mlxsw_sp_acl_erp_id(const struct mlxsw_sp_acl_erp *erp);
 struct mlxsw_sp_acl_erp *
 mlxsw_sp_acl_erp_get(struct mlxsw_sp_acl_atcam_region *aregion,
-		     const char *mask);
+		     const char *mask, bool ctcam);
 void mlxsw_sp_acl_erp_put(struct mlxsw_sp_acl_atcam_region *aregion,
 			  struct mlxsw_sp_acl_erp *erp);
 int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion);
