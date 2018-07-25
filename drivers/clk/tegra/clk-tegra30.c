@@ -333,11 +333,11 @@ static struct pdiv_map pllu_p[] = {
 };
 
 static struct tegra_clk_pll_freq_table pll_u_freq_table[] = {
-	{ 12000000, 480000000, 960, 12, 0, 12},
-	{ 13000000, 480000000, 960, 13, 0, 12},
-	{ 16800000, 480000000, 400, 7,  0, 5},
-	{ 19200000, 480000000, 200, 4,  0, 3},
-	{ 26000000, 480000000, 960, 26, 0, 12},
+	{ 12000000, 480000000, 960, 12, 2, 12 },
+	{ 13000000, 480000000, 960, 13, 2, 12 },
+	{ 16800000, 480000000, 400,  7, 2,  5 },
+	{ 19200000, 480000000, 200,  4, 2,  3 },
+	{ 26000000, 480000000, 960, 26, 2, 12 },
 	{ 0, 0, 0, 0, 0, 0 },
 };
 
@@ -1372,6 +1372,7 @@ static struct tegra_clk_init_table init_table[] __initdata = {
 	{TEGRA30_CLK_GR2D, TEGRA30_CLK_PLL_C, 300000000, 0},
 	{TEGRA30_CLK_GR3D, TEGRA30_CLK_PLL_C, 300000000, 0},
 	{TEGRA30_CLK_GR3D2, TEGRA30_CLK_PLL_C, 300000000, 0},
+	{ TEGRA30_CLK_PLL_U, TEGRA30_CLK_CLK_MAX, 480000000, 0 },
 	{TEGRA30_CLK_CLK_MAX, TEGRA30_CLK_CLK_MAX, 0, 0}, /* This MUST be the last entry. */
 };
 
