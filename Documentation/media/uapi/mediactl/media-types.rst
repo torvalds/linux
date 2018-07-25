@@ -192,12 +192,13 @@ Types and flags used to represent the media graph elements
 
     *  -  ``MEDIA_ENT_F_PROC_VIDEO_ENCODER``
        -  Video (MPEG, HEVC, VPx, etc.) encoder. An entity capable of
-          compressing video frames. Must have one sink pad and one source pad.
+          compressing video frames. Must have one sink pad and at least
+	  one source pad.
 
     *  -  ``MEDIA_ENT_F_PROC_VIDEO_DECODER``
        -  Video (MPEG, HEVC, VPx, etc.) decoder. An entity capable of
           decompressing a compressed video stream into uncompressed video
-	  frames. Must have one sink pad and one source pad.
+	  frames. Must have one sink pad and at least one source pad.
 
     *  -  ``MEDIA_ENT_F_VID_MUX``
        - Video multiplexer. An entity capable of multiplexing must have at
