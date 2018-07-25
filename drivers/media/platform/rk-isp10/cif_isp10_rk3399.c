@@ -292,11 +292,22 @@ static int mipi_dphy_cfg(struct cif_isp10_rk3399 *isp_cfg, struct pltfrm_cam_mip
 		datalane_en |= (1 << i);
 
 	if (input_sel == 0) {
+		/*
+		 * According to the sequence of RK3399_TXRX_DPHY, the setting of isp0 mipi
+		 * will affect txrx dphy in default state of grf_soc_con24.
+		 */
+		write_grf_reg(GRF_SOC_CON24_OFFSET,
+			DPHY_TX1RX1_MASTERSLAVEZ_MASK |
+			(0x0 << DPHY_TX1RX1_MASTERSLAVEZ_BIT) |
+			DPHY_TX1RX1_BASEDIR_MASK |
+			(0x1 << DPHY_TX1RX1_BASEDIR_BIT) |
+			DPHY_RX1_MASK | 0x0 << DPHY_RX1_SEL_BIT);
+
 		write_grf_reg(GRF_SOC_CON21_OFFSET,
-					DPHY_RX0_FORCERXMODE_MASK |
-					(0x0 << DPHY_RX0_FORCERXMODE_BIT) |
-					DPHY_RX0_FORCETXSTOPMODE_MASK |
-					(0x0 << DPHY_RX0_FORCETXSTOPMODE_BIT));
+			DPHY_RX0_FORCERXMODE_MASK |
+			(0x0 << DPHY_RX0_FORCERXMODE_BIT) |
+			DPHY_RX0_FORCETXSTOPMODE_MASK |
+			(0x0 << DPHY_RX0_FORCETXSTOPMODE_BIT));
 
 		/* set lane num */
 		write_grf_reg(GRF_SOC_CON21_OFFSET,
