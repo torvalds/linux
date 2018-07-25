@@ -255,7 +255,8 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
-
+		if (adev->uvd.harvest_config & (1 << j))
+			continue;
 		r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
 					    AMDGPU_GEM_DOMAIN_VRAM, &adev->uvd.inst[j].vcpu_bo,
 					    &adev->uvd.inst[j].gpu_addr, &adev->uvd.inst[j].cpu_addr);
@@ -308,6 +309,8 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 	drm_sched_entity_destroy(&adev->uvd.entity);
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
+		if (adev->uvd.harvest_config & (1 << j))
+			continue;
 		kfree(adev->uvd.inst[j].saved_bo);
 
 		amdgpu_bo_free_kernel(&adev->uvd.inst[j].vcpu_bo,
@@ -343,6 +346,8 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	}
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
+		if (adev->uvd.harvest_config & (1 << j))
+			continue;
 		if (adev->uvd.inst[j].vcpu_bo == NULL)
 			continue;
 
@@ -365,6 +370,8 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+		if (adev->uvd.harvest_config & (1 << i))
+			continue;
 		if (adev->uvd.inst[i].vcpu_bo == NULL)
 			return -EINVAL;
 
@@ -1159,6 +1166,8 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 	unsigned fences = 0, i, j;
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
+		if (adev->uvd.harvest_config & (1 << i))
+			continue;
 		fences += amdgpu_fence_count_emitted(&adev->uvd.inst[i].ring);
 		for (j = 0; j < adev->uvd.num_enc_rings; ++j) {
 			fences += amdgpu_fence_count_emitted(&adev->uvd.inst[i].ring_enc[j]);

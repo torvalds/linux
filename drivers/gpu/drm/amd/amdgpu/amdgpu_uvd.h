@@ -48,6 +48,9 @@ struct amdgpu_uvd_inst {
 	uint32_t                srbm_soft_reset;
 };
 
+#define AMDGPU_UVD_HARVEST_UVD0 (1 << 0)
+#define AMDGPU_UVD_HARVEST_UVD1 (1 << 1)
+
 struct amdgpu_uvd {
 	const struct firmware	*fw;	/* UVD firmware */
 	unsigned		fw_version;
@@ -61,6 +64,7 @@ struct amdgpu_uvd {
 	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
 	struct drm_sched_entity entity;
 	struct delayed_work	idle_work;
+	unsigned		harvest_config;
 };
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev);

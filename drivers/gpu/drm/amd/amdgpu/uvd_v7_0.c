@@ -41,6 +41,12 @@
 #include "mmhub/mmhub_1_0_sh_mask.h"
 #include "ivsrcid/uvd/irqsrcs_uvd_7_0.h"
 
+#define mmUVD_PG0_CC_UVD_HARVESTING                                                                    0x00c7
+#define mmUVD_PG0_CC_UVD_HARVESTING_BASE_IDX                                                           1
+//UVD_PG0_CC_UVD_HARVESTING
+#define UVD_PG0_CC_UVD_HARVESTING__UVD_DISABLE__SHIFT                                                         0x1
+#define UVD_PG0_CC_UVD_HARVESTING__UVD_DISABLE_MASK                                                           0x00000002L
+
 #define UVD7_MAX_HW_INSTANCES_VEGA20			2
 
 static void uvd_v7_0_set_ring_funcs(struct amdgpu_device *adev);
@@ -370,10 +376,25 @@ error:
 static int uvd_v7_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	if (adev->asic_type == CHIP_VEGA20)
+
+	if (adev->asic_type == CHIP_VEGA20) {
+		u32 harvest;
+		int i;
+
 		adev->uvd.num_uvd_inst = UVD7_MAX_HW_INSTANCES_VEGA20;
-	else
+		for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+			harvest = RREG32_SOC15(UVD, i, mmUVD_PG0_CC_UVD_HARVESTING);
+			if (harvest & UVD_PG0_CC_UVD_HARVESTING__UVD_DISABLE_MASK) {
+				adev->uvd.harvest_config |= 1 << i;
+			}
+		}
+		if (adev->uvd.harvest_config == (AMDGPU_UVD_HARVEST_UVD0 |
+						 AMDGPU_UVD_HARVEST_UVD1))
+			/* both instances are harvested, disable the block */
+			return -ENOENT;
+	} else {
 		adev->uvd.num_uvd_inst = 1;
+	}
 
 	if (amdgpu_sriov_vf(adev))
 		adev->uvd.num_enc_rings = 1;
@@ -393,6 +414,8 @@ static int uvd_v7_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
+		if (adev->uvd.harvest_config & (1 << j))
+			continue;
 		/* UVD TRAP */
 		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], UVD_7_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT, &adev->uvd.inst[j].irq);
 		if (r)
@@ -425,6 +448,8 @@ static int uvd_v7_0_sw_init(void *handle)
 		return r;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
+		if (adev->uvd.harvest_config & (1 << j))
+			continue;
 		if (!amdgpu_sriov_vf(adev)) {
 			ring = &adev->uvd.inst[j].ring;
 			sprintf(ring->name, "uvd<%d>", j);
@@ -472,6 +497,8 @@ static int uvd_v7_0_sw_fini(void *handle)
 		return r;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
+		if (adev->uvd.harvest_config & (1 << j))
+			continue;
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->uvd.inst[j].ring_enc[i]);
 	}
@@ -500,6 +527,8 @@ static int uvd_v7_0_hw_init(void *handle)
 		goto done;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
+		if (adev->uvd.harvest_config & (1 << j))
+			continue;
 		ring = &adev->uvd.inst[j].ring;
 
 		if (!amdgpu_sriov_vf(adev)) {
@@ -579,8 +608,11 @@ static int uvd_v7_0_hw_fini(void *handle)
 		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
 	}
 
-	for (i = 0; i < adev->uvd.num_uvd_inst; ++i)
+	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
+		if (adev->uvd.harvest_config & (1 << i))
+			continue;
 		adev->uvd.inst[i].ring.ready = false;
+	}
 
 	return 0;
 }
@@ -623,6 +655,8 @@ static void uvd_v7_0_mc_resume(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
+		if (adev->uvd.harvest_config & (1 << i))
+			continue;
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 			WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW,
 				lower_32_bits(adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].mc_addr));
@@ -695,6 +729,8 @@ static int uvd_v7_0_mmsch_start(struct amdgpu_device *adev,
 	WREG32_SOC15(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_RESP, 0);
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
+		if (adev->uvd.harvest_config & (1 << i))
+			continue;
 		WDOORBELL32(adev->uvd.inst[i].ring_enc[0].doorbell_index, 0);
 		adev->wb.wb[adev->uvd.inst[i].ring_enc[0].wptr_offs] = 0;
 		adev->uvd.inst[i].ring_enc[0].wptr = 0;
@@ -751,6 +787,8 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 		init_table += header->uvd_table_offset;
 
 		for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
 			ring = &adev->uvd.inst[i].ring;
 			ring->wptr = 0;
 			size = AMDGPU_GPU_PAGE_ALIGN(adev->uvd.fw->size + 4);
@@ -890,6 +928,8 @@ static int uvd_v7_0_start(struct amdgpu_device *adev)
 	int i, j, k, r;
 
 	for (k = 0; k < adev->uvd.num_uvd_inst; ++k) {
+		if (adev->uvd.harvest_config & (1 << k))
+			continue;
 		/* disable DPG */
 		WREG32_P(SOC15_REG_OFFSET(UVD, k, mmUVD_POWER_STATUS), 0,
 				~UVD_POWER_STATUS__UVD_PG_MODE_MASK);
@@ -902,6 +942,8 @@ static int uvd_v7_0_start(struct amdgpu_device *adev)
 	uvd_v7_0_mc_resume(adev);
 
 	for (k = 0; k < adev->uvd.num_uvd_inst; ++k) {
+		if (adev->uvd.harvest_config & (1 << k))
+			continue;
 		ring = &adev->uvd.inst[k].ring;
 		/* disable clock gating */
 		WREG32_P(SOC15_REG_OFFSET(UVD, k, mmUVD_CGC_CTRL), 0,
@@ -1069,6 +1111,8 @@ static void uvd_v7_0_stop(struct amdgpu_device *adev)
 	uint8_t i = 0;
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
+		if (adev->uvd.harvest_config & (1 << i))
+			continue;
 		/* force RBC into idle state */
 		WREG32_SOC15(UVD, i, mmUVD_RBC_RB_CNTL, 0x11010101);
 
@@ -1785,6 +1829,8 @@ static void uvd_v7_0_set_ring_funcs(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+		if (adev->uvd.harvest_config & (1 << i))
+			continue;
 		adev->uvd.inst[i].ring.funcs = &uvd_v7_0_ring_vm_funcs;
 		adev->uvd.inst[i].ring.me = i;
 		DRM_INFO("UVD(%d) is enabled in VM mode\n", i);
@@ -1796,6 +1842,8 @@ static void uvd_v7_0_set_enc_ring_funcs(struct amdgpu_device *adev)
 	int i, j;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
+		if (adev->uvd.harvest_config & (1 << j))
+			continue;
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
 			adev->uvd.inst[j].ring_enc[i].funcs = &uvd_v7_0_enc_ring_vm_funcs;
 			adev->uvd.inst[j].ring_enc[i].me = j;
@@ -1815,6 +1863,8 @@ static void uvd_v7_0_set_irq_funcs(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+		if (adev->uvd.harvest_config & (1 << i))
+			continue;
 		adev->uvd.inst[i].irq.num_types = adev->uvd.num_enc_rings + 1;
 		adev->uvd.inst[i].irq.funcs = &uvd_v7_0_irq_funcs;
 	}
