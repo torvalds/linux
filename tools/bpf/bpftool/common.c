@@ -215,6 +215,14 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 	int err;
 	int fd;
 
+	if (argc < 3) {
+		p_err("too few arguments, id ID and FILE path is required");
+		return -1;
+	} else if (argc > 3) {
+		p_err("too many arguments");
+		return -1;
+	}
+
 	if (!is_prefix(*argv, "id")) {
 		p_err("expected 'id' got %s", *argv);
 		return -1;
@@ -227,9 +235,6 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 		return -1;
 	}
 	NEXT_ARG();
-
-	if (argc != 1)
-		usage();
 
 	fd = get_fd_by_id(id);
 	if (fd < 0) {

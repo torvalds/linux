@@ -7396,8 +7396,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	}
 
-	/* override BIOS settings, use userspace tools to enable WOL */
-	__rtl8169_set_wol(tp, 0);
+	tp->saved_wolopts = __rtl8169_get_wol(tp);
 
 	mutex_init(&tp->wk.mutex);
 	u64_stats_init(&tp->rx_stats.syncp);

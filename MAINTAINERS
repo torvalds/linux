@@ -9074,7 +9074,7 @@ S:	Maintained
 F:	drivers/usb/mtu3/
 
 MEGACHIPS STDPXXXX-GE-B850V3-FW LVDS/DP++ BRIDGES
-M:	Peter Senna Tschudin <peter.senna@collabora.com>
+M:	Peter Senna Tschudin <peter.senna@gmail.com>
 M:	Martin Donnelly <martin.donnelly@ge.com>
 M:	Martyn Welch <martyn.welch@collabora.co.uk>
 S:	Maintained

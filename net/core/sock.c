@@ -2316,9 +2316,9 @@ int sk_alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
 		pfrag->offset += use;
 
 		sge = sg + sg_curr - 1;
-		if (sg_curr > first_coalesce && sg_page(sg) == pfrag->page &&
-		    sg->offset + sg->length == orig_offset) {
-			sg->length += use;
+		if (sg_curr > first_coalesce && sg_page(sge) == pfrag->page &&
+		    sge->offset + sge->length == orig_offset) {
+			sge->length += use;
 		} else {
 			sge = sg + sg_curr;
 			sg_unmark_end(sge);
