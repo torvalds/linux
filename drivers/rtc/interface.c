@@ -719,39 +719,6 @@ void rtc_class_close(struct rtc_device *rtc)
 }
 EXPORT_SYMBOL_GPL(rtc_class_close);
 
-int rtc_irq_register(struct rtc_device *rtc, struct rtc_task *task)
-{
-	int retval = -EBUSY;
-
-	if (task == NULL || task->func == NULL)
-		return -EINVAL;
-
-	/* Cannot register while the char dev is in use */
-	if (test_and_set_bit_lock(RTC_DEV_BUSY, &rtc->flags))
-		return -EBUSY;
-
-	spin_lock_irq(&rtc->irq_task_lock);
-	if (rtc->irq_task == NULL) {
-		rtc->irq_task = task;
-		retval = 0;
-	}
-	spin_unlock_irq(&rtc->irq_task_lock);
-
-	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
-
-	return retval;
-}
-EXPORT_SYMBOL_GPL(rtc_irq_register);
-
-void rtc_irq_unregister(struct rtc_device *rtc, struct rtc_task *task)
-{
-	spin_lock_irq(&rtc->irq_task_lock);
-	if (rtc->irq_task == task)
-		rtc->irq_task = NULL;
-	spin_unlock_irq(&rtc->irq_task_lock);
-}
-EXPORT_SYMBOL_GPL(rtc_irq_unregister);
-
 static int rtc_update_hrtimer(struct rtc_device *rtc, int enabled)
 {
 	/*

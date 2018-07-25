@@ -204,10 +204,6 @@ extern void rtc_update_irq(struct rtc_device *rtc,
 extern struct rtc_device *rtc_class_open(const char *name);
 extern void rtc_class_close(struct rtc_device *rtc);
 
-extern int rtc_irq_register(struct rtc_device *rtc,
-				struct rtc_task *task);
-extern void rtc_irq_unregister(struct rtc_device *rtc,
-				struct rtc_task *task);
 extern int rtc_irq_set_state(struct rtc_device *rtc,
 				struct rtc_task *task, int enabled);
 extern int rtc_irq_set_freq(struct rtc_device *rtc,
