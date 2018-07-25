@@ -564,6 +564,7 @@ struct i2c_lock_operations {
  * @scl_fall_ns: time SCL signal takes to fall in ns; t(f) in the I2C specification
  * @scl_int_delay_ns: time IP core additionally needs to setup SCL in ns
  * @sda_fall_ns: time SDA signal takes to fall in ns; t(f) in the I2C specification
+ * @sda_hold_ns: time IP core additionally needs to hold SDA in ns
  */
 struct i2c_timings {
 	u32 bus_freq_hz;
@@ -571,6 +572,7 @@ struct i2c_timings {
 	u32 scl_fall_ns;
 	u32 scl_int_delay_ns;
 	u32 sda_fall_ns;
+	u32 sda_hold_ns;
 };
 
 /**

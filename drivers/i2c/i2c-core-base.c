@@ -1576,6 +1576,8 @@ void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_de
 	ret = device_property_read_u32(dev, "i2c-sda-falling-time-ns", &t->sda_fall_ns);
 	if (ret && use_defaults)
 		t->sda_fall_ns = t->scl_fall_ns;
+
+	device_property_read_u32(dev, "i2c-sda-hold-time-ns", &t->sda_hold_ns);
 }
 EXPORT_SYMBOL_GPL(i2c_parse_fw_timings);
 
