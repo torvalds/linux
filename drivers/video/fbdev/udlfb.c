@@ -922,14 +922,6 @@ static void dlfb_free(struct kref *kref)
 	kfree(dlfb);
 }
 
-static void dlfb_release_urb_work(struct work_struct *work)
-{
-	struct urb_node *unode = container_of(work, struct urb_node,
-					      release_urb_work.work);
-
-	up(&unode->dlfb->urbs.limit_sem);
-}
-
 static void dlfb_free_framebuffer(struct dlfb_data *dlfb)
 {
 	struct fb_info *info = dlfb->info;
@@ -1789,14 +1781,7 @@ static void dlfb_urb_completion(struct urb *urb)
 	dlfb->urbs.available++;
 	spin_unlock_irqrestore(&dlfb->urbs.lock, flags);
 
-	/*
-	 * When using fb_defio, we deadlock if up() is called
-	 * while another is waiting. So queue to another process.
-	 */
-	if (fb_defio)
-		schedule_delayed_work(&unode->release_urb_work, 0);
-	else
-		up(&dlfb->urbs.limit_sem);
+	up(&dlfb->urbs.limit_sem);
 }
 
 static void dlfb_free_urb_list(struct dlfb_data *dlfb)
@@ -1805,16 +1790,11 @@ static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 	struct list_head *node;
 	struct urb_node *unode;
 	struct urb *urb;
-	int ret;
 	unsigned long flags;
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
-
-		/* Getting interrupted means a leak, but ok at disconnect */
-		ret = down_interruptible(&dlfb->urbs.limit_sem);
-		if (ret)
-			break;
+		down(&dlfb->urbs.limit_sem);
 
 		spin_lock_irqsave(&dlfb->urbs.lock, flags);
 
@@ -1853,9 +1833,6 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dlfb, int count, size_t size)
 		if (!unode)
 			break;
 		unode->dlfb = dlfb;
-
-		INIT_DELAYED_WORK(&unode->release_urb_work,
-			  dlfb_release_urb_work);
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {

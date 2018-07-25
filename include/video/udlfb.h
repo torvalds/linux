@@ -20,7 +20,6 @@ struct dloarea {
 struct urb_node {
 	struct list_head entry;
 	struct dlfb_data *dlfb;
-	struct delayed_work release_urb_work;
 	struct urb *urb;
 };
 
