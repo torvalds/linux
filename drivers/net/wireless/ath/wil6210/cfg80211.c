@@ -1726,7 +1726,7 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int authorize;
 	int cid, i;
-	struct vring_tx_data *txdata = NULL;
+	struct wil_ring_tx_data *txdata = NULL;
 
 	wil_dbg_misc(wil, "change station %pM mask 0x%x set 0x%x mid %d\n",
 		     mac, params->sta_flags_mask, params->sta_flags_set,
@@ -1746,20 +1746,20 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 		return -ENOLINK;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++)
-		if (wil->vring2cid_tid[i][0] == cid) {
-			txdata = &wil->vring_tx_data[i];
+	for (i = 0; i < ARRAY_SIZE(wil->ring2cid_tid); i++)
+		if (wil->ring2cid_tid[i][0] == cid) {
+			txdata = &wil->ring_tx_data[i];
 			break;
 		}
 
 	if (!txdata) {
-		wil_err(wil, "vring data not found\n");
+		wil_err(wil, "ring data not found\n");
 		return -ENOLINK;
 	}
 
 	authorize = params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED);
 	txdata->dot1x_open = authorize ? 1 : 0;
-	wil_dbg_misc(wil, "cid %d vring %d authorize %d\n", cid, i,
+	wil_dbg_misc(wil, "cid %d ring %d authorize %d\n", cid, i,
 		     txdata->dot1x_open);
 
 	return 0;

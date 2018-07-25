@@ -1835,13 +1835,13 @@ fail:
 	return -EINVAL;
 }
 
-u32 ath9k_hw_get_tsf_offset(struct timespec *last, struct timespec *cur)
+u32 ath9k_hw_get_tsf_offset(struct timespec64 *last, struct timespec64 *cur)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 	s64 usec;
 
 	if (!cur) {
-		getrawmonotonic(&ts);
+		ktime_get_raw_ts64(&ts);
 		cur = &ts;
 	}
 
@@ -1859,7 +1859,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u32 saveLedState;
 	u32 saveDefAntenna;
 	u32 macStaId1;
-	struct timespec tsf_ts;
+	struct timespec64 tsf_ts;
 	u32 tsf_offset;
 	u64 tsf = 0;
 	int r;
@@ -1905,7 +1905,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	macStaId1 = REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_BASE_RATE_11B;
 
 	/* Save TSF before chip reset, a cold reset clears it */
-	getrawmonotonic(&tsf_ts);
+	ktime_get_raw_ts64(&tsf_ts);
 	tsf = ath9k_hw_gettsf64(ah);
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &

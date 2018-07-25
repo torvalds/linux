@@ -86,6 +86,7 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_PNO				= 15,
 	WMI_FW_CAPABILITY_REF_CLOCK_CONTROL		= 18,
 	WMI_FW_CAPABILITY_AP_SME_OFFLOAD_NONE		= 19,
+	WMI_FW_CAPABILITY_AMSDU				= 23,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -148,8 +149,8 @@ enum wmi_command_id {
 	WMI_CFG_RX_CHAIN_CMDID				= 0x820,
 	WMI_VRING_CFG_CMDID				= 0x821,
 	WMI_BCAST_VRING_CFG_CMDID			= 0x822,
-	WMI_VRING_BA_EN_CMDID				= 0x823,
-	WMI_VRING_BA_DIS_CMDID				= 0x824,
+	WMI_RING_BA_EN_CMDID				= 0x823,
+	WMI_RING_BA_DIS_CMDID				= 0x824,
 	WMI_RCP_ADDBA_RESP_CMDID			= 0x825,
 	WMI_RCP_DELBA_CMDID				= 0x826,
 	WMI_SET_SSID_CMDID				= 0x827,
@@ -163,6 +164,7 @@ enum wmi_command_id {
 	WMI_BF_SM_MGMT_CMDID				= 0x838,
 	WMI_BF_RXSS_MGMT_CMDID				= 0x839,
 	WMI_BF_TRIG_CMDID				= 0x83A,
+	WMI_RCP_ADDBA_RESP_EDMA_CMDID			= 0x83B,
 	WMI_LINK_MAINTAIN_CFG_WRITE_CMDID		= 0x842,
 	WMI_LINK_MAINTAIN_CFG_READ_CMDID		= 0x843,
 	WMI_SET_SECTORS_CMDID				= 0x849,
@@ -235,6 +237,12 @@ enum wmi_command_id {
 	WMI_PRIO_TX_SECTORS_NUMBER_CMDID		= 0x9A6,
 	WMI_PRIO_TX_SECTORS_SET_DEFAULT_CFG_CMDID	= 0x9A7,
 	WMI_BF_CONTROL_CMDID				= 0x9AA,
+	WMI_TX_STATUS_RING_ADD_CMDID			= 0x9C0,
+	WMI_RX_STATUS_RING_ADD_CMDID			= 0x9C1,
+	WMI_TX_DESC_RING_ADD_CMDID			= 0x9C2,
+	WMI_RX_DESC_RING_ADD_CMDID			= 0x9C3,
+	WMI_BCAST_DESC_RING_ADD_CMDID			= 0x9C4,
+	WMI_CFG_DEF_RX_OFFLOAD_CMDID			= 0x9C5,
 	WMI_SCHEDULING_SCHEME_CMDID			= 0xA01,
 	WMI_FIXED_SCHEDULING_CONFIG_CMDID		= 0xA02,
 	WMI_ENABLE_FIXED_SCHEDULING_CMDID		= 0xA03,
@@ -781,18 +789,90 @@ struct wmi_lo_power_calib_from_otp_event {
 	u8 reserved[3];
 } __packed;
 
-/* WMI_VRING_BA_EN_CMDID */
-struct wmi_vring_ba_en_cmd {
-	u8 ringid;
+struct wmi_edma_ring_cfg {
+	__le64 ring_mem_base;
+	/* size in number of items */
+	__le16 ring_size;
+	u8 ring_id;
+	u8 reserved;
+} __packed;
+
+enum wmi_rx_msg_type {
+	WMI_RX_MSG_TYPE_COMPRESSED	= 0x00,
+	WMI_RX_MSG_TYPE_EXTENDED	= 0x01,
+};
+
+struct wmi_tx_status_ring_add_cmd {
+	struct wmi_edma_ring_cfg ring_cfg;
+	u8 irq_index;
+	u8 reserved[3];
+} __packed;
+
+struct wmi_rx_status_ring_add_cmd {
+	struct wmi_edma_ring_cfg ring_cfg;
+	u8 irq_index;
+	/* wmi_rx_msg_type */
+	u8 rx_msg_type;
+	u8 reserved[2];
+} __packed;
+
+struct wmi_cfg_def_rx_offload_cmd {
+	__le16 max_msdu_size;
+	__le16 max_rx_pl_per_desc;
+	u8 decap_trans_type;
+	u8 l2_802_3_offload_ctrl;
+	u8 l2_nwifi_offload_ctrl;
+	u8 vlan_id;
+	u8 nwifi_ds_trans_type;
+	u8 l3_l4_ctrl;
+	u8 reserved[6];
+} __packed;
+
+struct wmi_tx_desc_ring_add_cmd {
+	struct wmi_edma_ring_cfg ring_cfg;
+	__le16 max_msdu_size;
+	/* Correlated status ring (0-63) */
+	u8 status_ring_id;
+	u8 cid;
+	u8 tid;
+	u8 encap_trans_type;
+	u8 mac_ctrl;
+	u8 to_resolution;
+	u8 agg_max_wsize;
+	u8 reserved[3];
+	struct wmi_vring_cfg_schd schd_params;
+} __packed;
+
+struct wmi_rx_desc_ring_add_cmd {
+	struct wmi_edma_ring_cfg ring_cfg;
+	u8 irq_index;
+	/* 0-63 status rings */
+	u8 status_ring_id;
+	u8 reserved[2];
+	__le64 sw_tail_host_addr;
+} __packed;
+
+struct wmi_bcast_desc_ring_add_cmd {
+	struct wmi_edma_ring_cfg ring_cfg;
+	__le16 max_msdu_size;
+	/* Correlated status ring (0-63) */
+	u8 status_ring_id;
+	u8 encap_trans_type;
+	u8 reserved[4];
+} __packed;
+
+/* WMI_RING_BA_EN_CMDID */
+struct wmi_ring_ba_en_cmd {
+	u8 ring_id;
 	u8 agg_max_wsize;
 	__le16 ba_timeout;
 	u8 amsdu;
 	u8 reserved[3];
 } __packed;
 
-/* WMI_VRING_BA_DIS_CMDID */
-struct wmi_vring_ba_dis_cmd {
-	u8 ringid;
+/* WMI_RING_BA_DIS_CMDID */
+struct wmi_ring_ba_dis_cmd {
+	u8 ring_id;
 	u8 reserved;
 	__le16 reason;
 } __packed;
@@ -948,6 +1028,21 @@ struct wmi_rcp_addba_resp_cmd {
 	/* Used when cidxtid = CIDXTID_EXTENDED_CID_TID */
 	u8 tid;
 	u8 reserved[2];
+} __packed;
+
+/* WMI_RCP_ADDBA_RESP_EDMA_CMDID */
+struct wmi_rcp_addba_resp_edma_cmd {
+	u8 cid;
+	u8 tid;
+	u8 dialog_token;
+	u8 reserved;
+	__le16 status_code;
+	/* ieee80211_ba_parameterset field to send */
+	__le16 ba_param_set;
+	__le16 ba_timeout;
+	u8 status_ring_id;
+	/* wmi_cfg_rx_chain_cmd_reorder_type */
+	u8 reorder_type;
 } __packed;
 
 /* WMI_RCP_DELBA_CMDID */
@@ -1535,7 +1630,7 @@ enum wmi_event_id {
 	WMI_BF_CTRL_DONE_EVENTID			= 0x1862,
 	WMI_NOTIFY_REQ_DONE_EVENTID			= 0x1863,
 	WMI_GET_STATUS_DONE_EVENTID			= 0x1864,
-	WMI_VRING_EN_EVENTID				= 0x1865,
+	WMI_RING_EN_EVENTID				= 0x1865,
 	WMI_GET_RF_STATUS_EVENTID			= 0x1866,
 	WMI_GET_BASEBAND_TYPE_EVENTID			= 0x1867,
 	WMI_VRING_SWITCH_TIMING_CONFIG_EVENTID		= 0x1868,
@@ -1587,6 +1682,11 @@ enum wmi_event_id {
 	WMI_PRIO_TX_SECTORS_NUMBER_EVENTID		= 0x19A6,
 	WMI_PRIO_TX_SECTORS_SET_DEFAULT_CFG_EVENTID	= 0x19A7,
 	WMI_BF_CONTROL_EVENTID				= 0x19AA,
+	WMI_TX_STATUS_RING_CFG_DONE_EVENTID		= 0x19C0,
+	WMI_RX_STATUS_RING_CFG_DONE_EVENTID		= 0x19C1,
+	WMI_TX_DESC_RING_CFG_DONE_EVENTID		= 0x19C2,
+	WMI_RX_DESC_RING_CFG_DONE_EVENTID		= 0x19C3,
+	WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENTID		= 0x19C5,
 	WMI_SCHEDULING_SCHEME_EVENTID			= 0x1A01,
 	WMI_FIXED_SCHEDULING_CONFIG_COMPLETE_EVENTID	= 0x1A02,
 	WMI_ENABLE_FIXED_SCHEDULING_COMPLETE_EVENTID	= 0x1A03,
@@ -1997,6 +2097,49 @@ struct wmi_rcp_addba_resp_sent_event {
 	u8 reserved2[2];
 } __packed;
 
+/* WMI_TX_STATUS_RING_CFG_DONE_EVENTID */
+struct wmi_tx_status_ring_cfg_done_event {
+	u8 ring_id;
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[2];
+	__le32 ring_tail_ptr;
+} __packed;
+
+/* WMI_RX_STATUS_RING_CFG_DONE_EVENTID */
+struct wmi_rx_status_ring_cfg_done_event {
+	u8 ring_id;
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[2];
+	__le32 ring_tail_ptr;
+} __packed;
+
+/* WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENTID */
+struct wmi_cfg_def_rx_offload_done_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_TX_DESC_RING_CFG_DONE_EVENTID */
+struct wmi_tx_desc_ring_cfg_done_event {
+	u8 ring_id;
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[2];
+	__le32 ring_tail_ptr;
+} __packed;
+
+/* WMI_RX_DESC_RING_CFG_DONE_EVENTID */
+struct wmi_rx_desc_ring_cfg_done_event {
+	u8 ring_id;
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[2];
+	__le32 ring_tail_ptr;
+} __packed;
+
 /* WMI_RCP_ADDBA_REQ_EVENTID */
 struct wmi_rcp_addba_req_event {
 	/* Used for cid less than 8. For higher cid set
@@ -2047,9 +2190,9 @@ struct wmi_data_port_open_event {
 	u8 reserved[3];
 } __packed;
 
-/* WMI_VRING_EN_EVENTID */
-struct wmi_vring_en_event {
-	u8 vring_index;
+/* WMI_RING_EN_EVENTID */
+struct wmi_ring_en_event {
+	u8 ring_index;
 	u8 reserved[3];
 } __packed;
 

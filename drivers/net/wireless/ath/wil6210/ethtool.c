@@ -101,7 +101,7 @@ static int wil_ethtoolops_set_coalesce(struct net_device *ndev,
 	if (ret < 0)
 		return ret;
 
-	wil_configure_interrupt_moderation(wil);
+	wil->txrx_ops.configure_interrupt_moderation(wil);
 
 	wil_pm_runtime_put(wil);
 
