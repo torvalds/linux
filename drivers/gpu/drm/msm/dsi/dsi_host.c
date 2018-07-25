@@ -664,11 +664,9 @@ void dsi_link_clk_disable_v2(struct msm_dsi_host *msm_host)
 	clk_disable_unprepare(msm_host->byte_clk);
 }
 
-int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+static u32 dsi_get_pclk_rate(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 {
 	struct drm_display_mode *mode = msm_host->mode;
-	u8 lanes = msm_host->lanes;
-	u32 bpp = dsi_get_bpp(msm_host->format);
 	u32 pclk_rate;
 
 	pclk_rate = mode->clock * 1000;
@@ -676,61 +674,61 @@ int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 	/*
 	 * For dual DSI mode, the current DRM mode has the complete width of the
 	 * panel. Since, the complete panel is driven by two DSI controllers,
-	 * theclock rates have to be split between the two dsi controllers.
+	 * the clock rates have to be split between the two dsi controllers.
 	 * Adjust the byte and pixel clock rates for each dsi host accordingly.
 	 */
 	if (is_dual_dsi)
 		pclk_rate /= 2;
 
-	if (lanes > 0) {
-		msm_host->byte_clk_rate = (pclk_rate * bpp) / (8 * lanes);
-	} else {
-		pr_err("%s: forcing mdss_dsi lanes to 1\n", __func__);
-		msm_host->byte_clk_rate = (pclk_rate * bpp) / 8;
-	}
-
-	DBG("pclk=%d, bclk=%d", pclk_rate, msm_host->byte_clk_rate);
-
-	msm_host->esc_clk_rate = clk_get_rate(msm_host->esc_clk);
-
-	return 0;
+	return pclk_rate;
 }
 
-int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 {
-	struct drm_display_mode *mode = msm_host->mode;
 	u8 lanes = msm_host->lanes;
 	u32 bpp = dsi_get_bpp(msm_host->format);
-	u32 pclk_rate;
-	u64 pclk_bpp;
-	unsigned int esc_mhz, esc_div;
-	unsigned long byte_mhz;
+	u32 pclk_rate = dsi_get_pclk_rate(msm_host, is_dual_dsi);
+	u64 pclk_bpp = (u64)pclk_rate * bpp;
 
-	pclk_rate = mode->clock * 1000;
-
-	/*
-	 * For dual DSI mode, the current DRM mode has the complete width of the
-	 * panel. Since, the complete panel is driven by two DSI controllers,
-	 * theclock rates have to be split between the two dsi controllers.
-	 * Adjust the byte and pixel clock rates for each dsi host accordingly.
-	 */
-	if (is_dual_dsi)
-		pclk_rate /= 2;
-
-	pclk_bpp = pclk_rate * bpp;
-	if (lanes > 0) {
-		do_div(pclk_bpp, (8 * lanes));
-	} else {
+	if (lanes == 0) {
 		pr_err("%s: forcing mdss_dsi lanes to 1\n", __func__);
-		do_div(pclk_bpp, 8);
+		lanes = 1;
 	}
+
+	do_div(pclk_bpp, (8 * lanes));
+
 	msm_host->pixel_clk_rate = pclk_rate;
 	msm_host->byte_clk_rate = pclk_bpp;
 
 	DBG("pclk=%d, bclk=%d", msm_host->pixel_clk_rate,
 				msm_host->byte_clk_rate);
 
-	msm_host->src_clk_rate = (pclk_rate * bpp) / 8;
+}
+
+int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+{
+	if (!msm_host->mode) {
+		pr_err("%s: mode not set\n", __func__);
+		return -EINVAL;
+	}
+
+	dsi_calc_pclk(msm_host, is_dual_dsi);
+	msm_host->esc_clk_rate = clk_get_rate(msm_host->esc_clk);
+	return 0;
+}
+
+int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+{
+	u32 bpp = dsi_get_bpp(msm_host->format);
+	u64 pclk_bpp;
+	unsigned int esc_mhz, esc_div;
+	unsigned long byte_mhz;
+
+	dsi_calc_pclk(msm_host, is_dual_dsi);
+
+	pclk_bpp = (u64)dsi_get_pclk_rate(msm_host, is_dual_dsi) * bpp;
+	do_div(pclk_bpp, 8);
+	msm_host->src_clk_rate = pclk_bpp;
 
 	/*
 	 * esc clock is byte clock followed by a 4 bit divider,
