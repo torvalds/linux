@@ -1855,18 +1855,17 @@ static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 	struct list_head *node;
 	struct urb_node *unode;
 	struct urb *urb;
-	unsigned long flags;
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
 		down(&dlfb->urbs.limit_sem);
 
-		spin_lock_irqsave(&dlfb->urbs.lock, flags);
+		spin_lock_irq(&dlfb->urbs.lock);
 
 		node = dlfb->urbs.list.next; /* have reserved one with sem */
 		list_del_init(node);
 
-		spin_unlock_irqrestore(&dlfb->urbs.lock, flags);
+		spin_unlock_irq(&dlfb->urbs.lock);
 
 		unode = list_entry(node, struct urb_node, entry);
 		urb = unode->urb;
@@ -1944,7 +1943,6 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dlfb)
 	int ret;
 	struct list_head *entry;
 	struct urb_node *unode;
-	unsigned long flags;
 
 	/* Wait for an in-flight buffer to complete and get re-queued */
 	ret = down_timeout(&dlfb->urbs.limit_sem, GET_URB_TIMEOUT);
@@ -1956,14 +1954,14 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dlfb)
 		return NULL;
 	}
 
-	spin_lock_irqsave(&dlfb->urbs.lock, flags);
+	spin_lock_irq(&dlfb->urbs.lock);
 
 	BUG_ON(list_empty(&dlfb->urbs.list)); /* reserved one with limit_sem */
 	entry = dlfb->urbs.list.next;
 	list_del_init(entry);
 	dlfb->urbs.available--;
 
-	spin_unlock_irqrestore(&dlfb->urbs.lock, flags);
+	spin_unlock_irq(&dlfb->urbs.lock);
 
 	unode = list_entry(entry, struct urb_node, entry);
 	return unode->urb;
