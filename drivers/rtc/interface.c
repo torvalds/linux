@@ -746,7 +746,7 @@ static int rtc_update_hrtimer(struct rtc_device *rtc, int enabled)
  * Note that rtc_irq_set_freq() should previously have been used to
  * specify the desired frequency of periodic IRQ.
  */
-int rtc_irq_set_state(struct rtc_device *rtc, struct rtc_task *task, int enabled)
+int rtc_irq_set_state(struct rtc_device *rtc, int enabled)
 {
 	int err = 0;
 
@@ -770,7 +770,7 @@ EXPORT_SYMBOL_GPL(rtc_irq_set_state);
  * Note that rtc_irq_set_state() is used to enable or disable the
  * periodic IRQs.
  */
-int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
+int rtc_irq_set_freq(struct rtc_device *rtc, int freq)
 {
 	int err = 0;
 
