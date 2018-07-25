@@ -32,7 +32,7 @@ i2c@00000000 {
 		reg = <0x6c>;
 		interrupt-parent = <&gpx1>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
-		vdd-supply = <&ldo15_reg>";
+		vdd-supply = <&ldo15_reg>;
 		vid-supply = <&ldo18_reg>;
 		reset-gpios = <&gpx1 5 0>;
 		touchscreen-size-x = <1080>;

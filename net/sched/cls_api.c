@@ -1053,7 +1053,7 @@ static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 	for (tp = rtnl_dereference(chain->filter_chain);
 	     tp; tp = rtnl_dereference(tp->next))
 		tfilter_notify(net, oskb, n, tp, block,
-			       q, parent, 0, event, false);
+			       q, parent, NULL, event, false);
 }
 
 static int tc_new_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
@@ -1444,7 +1444,7 @@ static bool tcf_chain_dump(struct tcf_chain *chain, struct Qdisc *q, u32 parent,
 			memset(&cb->args[1], 0,
 			       sizeof(cb->args) - sizeof(cb->args[0]));
 		if (cb->args[1] == 0) {
-			if (tcf_fill_node(net, skb, tp, block, q, parent, 0,
+			if (tcf_fill_node(net, skb, tp, block, q, parent, NULL,
 					  NETLINK_CB(cb->skb).portid,
 					  cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					  RTM_NEWTFILTER) <= 0)

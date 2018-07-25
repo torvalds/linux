@@ -78,7 +78,11 @@ nf_tables-objs := nf_tables_core.o nf_tables_api.o nft_chain_filter.o \
 		  nft_bitwise.o nft_byteorder.o nft_payload.o nft_lookup.o \
 		  nft_dynset.o nft_meta.o nft_rt.o nft_exthdr.o
 
+nf_tables_set-objs := nf_tables_set_core.o \
+		      nft_set_hash.o nft_set_bitmap.o nft_set_rbtree.o
+
 obj-$(CONFIG_NF_TABLES)		+= nf_tables.o
+obj-$(CONFIG_NF_TABLES_SET)	+= nf_tables_set.o
 obj-$(CONFIG_NFT_COMPAT)	+= nft_compat.o
 obj-$(CONFIG_NFT_CONNLIMIT)	+= nft_connlimit.o
 obj-$(CONFIG_NFT_NUMGEN)	+= nft_numgen.o
@@ -91,9 +95,6 @@ obj-$(CONFIG_NFT_QUEUE)		+= nft_queue.o
 obj-$(CONFIG_NFT_QUOTA)		+= nft_quota.o
 obj-$(CONFIG_NFT_REJECT) 	+= nft_reject.o
 obj-$(CONFIG_NFT_REJECT_INET)	+= nft_reject_inet.o
-obj-$(CONFIG_NFT_SET_RBTREE)	+= nft_set_rbtree.o
-obj-$(CONFIG_NFT_SET_HASH)	+= nft_set_hash.o
-obj-$(CONFIG_NFT_SET_BITMAP)	+= nft_set_bitmap.o
 obj-$(CONFIG_NFT_COUNTER)	+= nft_counter.o
 obj-$(CONFIG_NFT_LOG)		+= nft_log.o
 obj-$(CONFIG_NFT_MASQ)		+= nft_masq.o

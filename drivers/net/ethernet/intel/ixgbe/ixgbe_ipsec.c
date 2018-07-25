@@ -839,7 +839,7 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 	}
 
 	itd->sa_idx = xs->xso.offload_handle - IXGBE_IPSEC_BASE_TX_INDEX;
-	if (unlikely(itd->sa_idx > IXGBE_IPSEC_MAX_SA_COUNT)) {
+	if (unlikely(itd->sa_idx >= IXGBE_IPSEC_MAX_SA_COUNT)) {
 		netdev_err(tx_ring->netdev, "%s: bad sa_idx=%d handle=%lu\n",
 			   __func__, itd->sa_idx, xs->xso.offload_handle);
 		return 0;

@@ -1,7 +1,7 @@
 Nintendo Wii (Hollywood) GPIO controller
 
 Required properties:
-- compatible: "nintendo,hollywood-gpio
+- compatible: "nintendo,hollywood-gpio"
 - reg: Physical base address and length of the controller's registers.
 - gpio-controller: Marks the device node as a GPIO controller.
 - #gpio-cells: Should be <2>. The first cell is the pin number and the

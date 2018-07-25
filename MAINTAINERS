@@ -2523,7 +2523,7 @@ S:	Supported
 F:	drivers/scsi/esas2r
 
 ATUSB IEEE 802.15.4 RADIO DRIVER
-M:	Stefan Schmidt <stefan@osg.samsung.com>
+M:	Stefan Schmidt <stefan@datenfreihafen.org>
 L:	linux-wpan@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ieee802154/atusb.c
@@ -5790,7 +5790,6 @@ F:	include/linux/fsl/
 
 FREESCALE SOC FS_ENET DRIVER
 M:	Pantelis Antoniou <pantelis.antoniou@gmail.com>
-M:	Vitaly Bordug <vbordug@ru.mvista.com>
 L:	linuxppc-dev@lists.ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -6909,7 +6908,7 @@ F:	drivers/clk/clk-versaclock5.c
 
 IEEE 802.15.4 SUBSYSTEM
 M:	Alexander Aring <alex.aring@gmail.com>
-M:	Stefan Schmidt <stefan@osg.samsung.com>
+M:	Stefan Schmidt <stefan@datenfreihafen.org>
 L:	linux-wpan@vger.kernel.org
 W:	http://wpan.cakelab.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan.git
@@ -8629,7 +8628,7 @@ MARVELL MWIFIEX WIRELESS DRIVER
 M:	Amitkumar Karwar <amitkarwar@gmail.com>
 M:	Nishant Sarmukadam <nishants@marvell.com>
 M:	Ganapathi Bhat <gbhat@marvell.com>
-M:	Xinming Hu <huxm@marvell.com>
+M:	Xinming Hu <huxinming820@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/marvell/mwifiex/
@@ -9075,7 +9074,7 @@ S:	Maintained
 F:	drivers/usb/mtu3/
 
 MEGACHIPS STDPXXXX-GE-B850V3-FW LVDS/DP++ BRIDGES
-M:	Peter Senna Tschudin <peter.senna@collabora.com>
+M:	Peter Senna Tschudin <peter.senna@gmail.com>
 M:	Martin Donnelly <martin.donnelly@ge.com>
 M:	Martyn Welch <martyn.welch@collabora.co.uk>
 S:	Maintained

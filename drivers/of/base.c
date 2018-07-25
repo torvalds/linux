@@ -102,7 +102,7 @@ static u32 phandle_cache_mask;
  *   - the phandle lookup overhead reduction provided by the cache
  *     will likely be less
  */
-static void of_populate_phandle_cache(void)
+void of_populate_phandle_cache(void)
 {
 	unsigned long flags;
 	u32 cache_entries;
@@ -134,8 +134,7 @@ out:
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 }
 
-#ifndef CONFIG_MODULES
-static int __init of_free_phandle_cache(void)
+int of_free_phandle_cache(void)
 {
 	unsigned long flags;
 
@@ -148,6 +147,7 @@ static int __init of_free_phandle_cache(void)
 
 	return 0;
 }
+#if !defined(CONFIG_MODULES)
 late_initcall_sync(of_free_phandle_cache);
 #endif
 

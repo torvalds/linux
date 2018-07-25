@@ -4975,6 +4975,24 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_LWT_XMIT,
 	},
 	{
+		"make headroom for LWT_XMIT",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_2, 34),
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			BPF_EMIT_CALL(BPF_FUNC_skb_change_head),
+			/* split for s390 to succeed */
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
+			BPF_MOV64_IMM(BPF_REG_2, 42),
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			BPF_EMIT_CALL(BPF_FUNC_skb_change_head),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_LWT_XMIT,
+	},
+	{
 		"invalid access of tc_classid for LWT_IN",
 		.insns = {
 			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
@@ -12554,8 +12572,11 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	}
 
 	if (fd_prog >= 0) {
+		__u8 tmp[TEST_DATA_LEN << 2];
+		__u32 size_tmp = sizeof(tmp);
+
 		err = bpf_prog_test_run(fd_prog, 1, test->data,
-					sizeof(test->data), NULL, NULL,
+					sizeof(test->data), tmp, &size_tmp,
 					&retval, NULL);
 		if (err && errno != 524/*ENOTSUPP*/ && errno != EPERM) {
 			printf("Unexpected bpf_prog_test_run error\n");
