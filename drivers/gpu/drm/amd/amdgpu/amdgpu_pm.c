@@ -1185,7 +1185,7 @@ static ssize_t amdgpu_hwmon_show_vddnb(struct device *dev,
 	int r, size = sizeof(vddnb);
 
 	/* only APUs have vddnb */
-	if  (adev->flags & AMD_IS_APU)
+	if  (!(adev->flags & AMD_IS_APU))
 		return -EINVAL;
 
 	/* Can't get voltage when the card is off */
