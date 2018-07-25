@@ -52,6 +52,11 @@ static inline void *kmalloc(size_t s, gfp_t gfp)
 		return __kmalloc_fake;
 	return malloc(s);
 }
+static inline void *kmalloc_array(unsigned n, size_t s, gfp_t gfp)
+{
+	return kmalloc(n * s, gfp);
+}
+
 static inline void *kzalloc(size_t s, gfp_t gfp)
 {
 	void *p = kmalloc(s, gfp);
