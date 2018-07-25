@@ -32,6 +32,8 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/driver.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/acpi.h>
@@ -320,11 +322,52 @@ static struct snd_soc_card cz_card = {
 	.num_controls = ARRAY_SIZE(cz_mc_controls),
 };
 
+static struct regulator_consumer_supply acp_da7219_supplies[] = {
+	REGULATOR_SUPPLY("VDD", "i2c-DLGS7219:00"),
+	REGULATOR_SUPPLY("VDDMIC", "i2c-DLGS7219:00"),
+	REGULATOR_SUPPLY("VDDIO", "i2c-DLGS7219:00"),
+	REGULATOR_SUPPLY("IOVDD", "ADAU7002:00"),
+};
+
+static struct regulator_init_data acp_da7219_data = {
+	.constraints = {
+		.always_on = 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(acp_da7219_supplies),
+	.consumer_supplies = acp_da7219_supplies,
+};
+
+static struct regulator_config acp_da7219_cfg = {
+	.init_data = &acp_da7219_data,
+};
+
+static struct regulator_ops acp_da7219_ops = {
+};
+
+static struct regulator_desc acp_da7219_desc = {
+	.name = "reg-fixed-1.8V",
+	.type = REGULATOR_VOLTAGE,
+	.owner = THIS_MODULE,
+	.ops = &acp_da7219_ops,
+	.fixed_uV = 1800000, /* 1.8V */
+	.n_voltages = 1,
+};
+
 static int cz_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct snd_soc_card *card;
 	struct acp_platform_info *machine;
+	struct regulator_dev *rdev;
+
+	acp_da7219_cfg.dev = &pdev->dev;
+	rdev = devm_regulator_register(&pdev->dev, &acp_da7219_desc,
+				       &acp_da7219_cfg);
+	if (IS_ERR(rdev)) {
+		dev_err(&pdev->dev, "Failed to register regulator: %d\n",
+			ret);
+		return -EINVAL;
+	}
 
 	machine = devm_kzalloc(&pdev->dev, sizeof(struct acp_platform_info),
 			       GFP_KERNEL);
