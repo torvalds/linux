@@ -1843,17 +1843,22 @@ static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 
 static int dlfb_alloc_urb_list(struct dlfb_data *dlfb, int count, size_t size)
 {
-	int i = 0;
 	struct urb *urb;
 	struct urb_node *unode;
 	char *buf;
+	size_t wanted_size = count * size;
 
 	spin_lock_init(&dlfb->urbs.lock);
 
+retry:
 	dlfb->urbs.size = size;
 	INIT_LIST_HEAD(&dlfb->urbs.list);
 
-	while (i < count) {
+	sema_init(&dlfb->urbs.limit_sem, 0);
+	dlfb->urbs.count = 0;
+	dlfb->urbs.available = 0;
+
+	while (dlfb->urbs.count * size < wanted_size) {
 		unode = kzalloc(sizeof(*unode), GFP_KERNEL);
 		if (!unode)
 			break;
@@ -1866,11 +1871,16 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dlfb, int count, size_t size)
 		}
 		unode->urb = urb;
 
-		buf = usb_alloc_coherent(dlfb->udev, MAX_TRANSFER, GFP_KERNEL,
+		buf = usb_alloc_coherent(dlfb->udev, size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
 			kfree(unode);
 			usb_free_urb(urb);
+			if (size > PAGE_SIZE) {
+				size /= 2;
+				dlfb_free_urb_list(dlfb);
+				goto retry;
+			}
 			break;
 		}
 
@@ -1881,14 +1891,12 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dlfb, int count, size_t size)
 
 		list_add_tail(&unode->entry, &dlfb->urbs.list);
 
-		i++;
+		up(&dlfb->urbs.limit_sem);
+		dlfb->urbs.count++;
+		dlfb->urbs.available++;
 	}
 
-	sema_init(&dlfb->urbs.limit_sem, i);
-	dlfb->urbs.count = i;
-	dlfb->urbs.available = i;
-
-	return i;
+	return dlfb->urbs.count;
 }
 
 static struct urb *dlfb_get_urb(struct dlfb_data *dlfb)
