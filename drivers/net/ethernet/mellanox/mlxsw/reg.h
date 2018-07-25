@@ -2466,14 +2466,14 @@ MLXSW_ITEM32(reg, ptce2, priority, 0x04, 0, 24);
 MLXSW_ITEM_BUF(reg, ptce2, tcam_region_info, 0x10,
 	       MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN);
 
-#define MLXSW_REG_PTCE2_FLEX_KEY_BLOCKS_LEN 96
+#define MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN 96
 
 /* reg_ptce2_flex_key_blocks
  * ACL Key.
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, ptce2, flex_key_blocks, 0x20,
-	       MLXSW_REG_PTCE2_FLEX_KEY_BLOCKS_LEN);
+	       MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN);
 
 /* reg_ptce2_mask
  * mask- in the same size as key. A bit that is set directs the TCAM
@@ -2482,7 +2482,7 @@ MLXSW_ITEM_BUF(reg, ptce2, flex_key_blocks, 0x20,
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, ptce2, mask, 0x80,
-	       MLXSW_REG_PTCE2_FLEX_KEY_BLOCKS_LEN);
+	       MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN);
 
 /* reg_ptce2_flex_action_set
  * ACL action set.
@@ -2543,6 +2543,164 @@ static inline void mlxsw_reg_perar_pack(char *payload, u16 region_id,
 	MLXSW_REG_ZERO(perar, payload);
 	mlxsw_reg_perar_region_id_set(payload, region_id);
 	mlxsw_reg_perar_hw_region_set(payload, hw_region);
+}
+
+/* PTCE-V3 - Policy-Engine TCAM Entry Register Version 3
+ * -----------------------------------------------------
+ * This register is a new version of PTCE-V2 in order to support the
+ * A-TCAM. This register is not supported by SwitchX/-2 and Spectrum.
+ */
+#define MLXSW_REG_PTCE3_ID 0x3027
+#define MLXSW_REG_PTCE3_LEN 0xF0
+
+MLXSW_REG_DEFINE(ptce3, MLXSW_REG_PTCE3_ID, MLXSW_REG_PTCE3_LEN);
+
+/* reg_ptce3_v
+ * Valid.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptce3, v, 0x00, 31, 1);
+
+enum mlxsw_reg_ptce3_op {
+	/* Write operation. Used to write a new entry to the table.
+	 * All R/W fields are relevant for new entry. Activity bit is set
+	 * for new entries. Write with v = 0 will delete the entry. Must
+	 * not be used if an entry exists.
+	 */
+	 MLXSW_REG_PTCE3_OP_WRITE_WRITE = 0,
+	 /* Update operation */
+	 MLXSW_REG_PTCE3_OP_WRITE_UPDATE = 1,
+	 /* Read operation */
+	 MLXSW_REG_PTCE3_OP_QUERY_READ = 0,
+};
+
+/* reg_ptce3_op
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, ptce3, op, 0x00, 20, 3);
+
+/* reg_ptce3_priority
+ * Priority of the rule. Higher values win.
+ * For Spectrum-2 range is 1..cap_kvd_size - 1
+ * Note: Priority does not have to be unique per rule.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptce3, priority, 0x04, 0, 24);
+
+/* reg_ptce3_tcam_region_info
+ * Opaque object that represents the TCAM region.
+ * Access: Index
+ */
+MLXSW_ITEM_BUF(reg, ptce3, tcam_region_info, 0x10,
+	       MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN);
+
+/* reg_ptce3_flex2_key_blocks
+ * ACL key. The key must be masked according to eRP (if exists) or
+ * according to master mask.
+ * Access: Index
+ */
+MLXSW_ITEM_BUF(reg, ptce3, flex2_key_blocks, 0x20,
+	       MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN);
+
+/* reg_ptce3_erp_id
+ * eRP ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ptce3, erp_id, 0x80, 0, 4);
+
+/* reg_ptce3_delta_start
+ * Start point of delta_value and delta_mask, in bits. Must not exceed
+ * num_key_blocks * 36 - 8. Reserved when delta_mask = 0.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ptce3, delta_start, 0x84, 0, 10);
+
+/* reg_ptce3_delta_mask
+ * Delta mask.
+ * 0 - Ignore relevant bit in delta_value
+ * 1 - Compare relevant bit in delta_value
+ * Delta mask must not be set for reserved fields in the key blocks.
+ * Note: No delta when no eRPs. Thus, for regions with
+ * PERERP.erpt_pointer_valid = 0 the delta mask must be 0.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ptce3, delta_mask, 0x88, 16, 8);
+
+/* reg_ptce3_delta_value
+ * Delta value.
+ * Bits which are masked by delta_mask must be 0.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ptce3, delta_value, 0x88, 0, 8);
+
+/* reg_ptce3_prune_vector
+ * Pruning vector relative to the PERPT.erp_id.
+ * Used for reducing lookups.
+ * 0 - NEED: Do a lookup using the eRP.
+ * 1 - PRUNE: Do not perform a lookup using the eRP.
+ * Maybe be modified by PEAPBL and PEAPBM.
+ * Note: In Spectrum-2, a region of 8 key blocks must be set to either
+ * all 1's or all 0's.
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, ptce3, prune_vector, 0x90, 4, 1);
+
+/* reg_ptce3_prune_ctcam
+ * Pruning on C-TCAM. Used for reducing lookups.
+ * 0 - NEED: Do a lookup in the C-TCAM.
+ * 1 - PRUNE: Do not perform a lookup in the C-TCAM.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptce3, prune_ctcam, 0x94, 31, 1);
+
+/* reg_ptce3_large_exists
+ * Large entry key ID exists.
+ * Within the region:
+ * 0 - SINGLE: The large_entry_key_id is not currently in use.
+ * For rule insert: The MSB of the key (blocks 6..11) will be added.
+ * For rule delete: The MSB of the key will be removed.
+ * 1 - NON_SINGLE: The large_entry_key_id is currently in use.
+ * For rule insert: The MSB of the key (blocks 6..11) will not be added.
+ * For rule delete: The MSB of the key will not be removed.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, ptce3, large_exists, 0x98, 31, 1);
+
+/* reg_ptce3_large_entry_key_id
+ * Large entry key ID.
+ * A key for 12 key blocks rules. Reserved when region has less than 12 key
+ * blocks. Must be different for different keys which have the same common
+ * 6 key blocks (MSB, blocks 6..11) key within a region.
+ * Range is 0..cap_max_pe_large_key_id - 1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptce3, large_entry_key_id, 0x98, 0, 24);
+
+/* reg_ptce3_action_pointer
+ * Pointer to action.
+ * Range is 0..cap_max_kvd_action_sets - 1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptce3, action_pointer, 0xA0, 0, 24);
+
+static inline void mlxsw_reg_ptce3_pack(char *payload, bool valid,
+					enum mlxsw_reg_ptce3_op op,
+					u32 priority,
+					const char *tcam_region_info,
+					const char *key, u8 erp_id,
+					bool large_exists, u32 lkey_id,
+					u32 action_pointer)
+{
+	MLXSW_REG_ZERO(ptce3, payload);
+	mlxsw_reg_ptce3_v_set(payload, valid);
+	mlxsw_reg_ptce3_op_set(payload, op);
+	mlxsw_reg_ptce3_priority_set(payload, priority);
+	mlxsw_reg_ptce3_tcam_region_info_memcpy_to(payload, tcam_region_info);
+	mlxsw_reg_ptce3_flex2_key_blocks_memcpy_to(payload, key);
+	mlxsw_reg_ptce3_erp_id_set(payload, erp_id);
+	mlxsw_reg_ptce3_large_exists_set(payload, large_exists);
+	mlxsw_reg_ptce3_large_entry_key_id_set(payload, lkey_id);
+	mlxsw_reg_ptce3_action_pointer_set(payload, action_pointer);
 }
 
 /* PERCR - Policy-Engine Region Configuration Register
@@ -8265,6 +8423,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pefa),
 	MLXSW_REG(ptce2),
 	MLXSW_REG(perar),
+	MLXSW_REG(ptce3),
 	MLXSW_REG(percr),
 	MLXSW_REG(pererp),
 	MLXSW_REG(iedr),
