@@ -396,13 +396,47 @@ static ulong jiffies_till_first_fqs = ULONG_MAX;
 static ulong jiffies_till_next_fqs = ULONG_MAX;
 static bool rcu_kick_kthreads;
 
+/*
+ * How long the grace period must be before we start recruiting
+ * quiescent-state help from rcu_note_context_switch().
+ */
+static ulong jiffies_till_sched_qs = ULONG_MAX;
+module_param(jiffies_till_sched_qs, ulong, 0444);
+static ulong jiffies_to_sched_qs; /* Adjusted version of above if not default */
+module_param(jiffies_to_sched_qs, ulong, 0444); /* Display only! */
+
+/*
+ * Make sure that we give the grace-period kthread time to detect any
+ * idle CPUs before taking active measures to force quiescent states.
+ * However, don't go below 100 milliseconds, adjusted upwards for really
+ * large systems.
+ */
+static void adjust_jiffies_till_sched_qs(void)
+{
+	unsigned long j;
+
+	/* If jiffies_till_sched_qs was specified, respect the request. */
+	if (jiffies_till_sched_qs != ULONG_MAX) {
+		WRITE_ONCE(jiffies_to_sched_qs, jiffies_till_sched_qs);
+		return;
+	}
+	j = READ_ONCE(jiffies_till_first_fqs) +
+		      2 * READ_ONCE(jiffies_till_next_fqs);
+	if (j < HZ / 10 + nr_cpu_ids / RCU_JIFFIES_FQS_DIV)
+		j = HZ / 10 + nr_cpu_ids / RCU_JIFFIES_FQS_DIV;
+	pr_info("RCU calculated value of scheduler-enlistment delay is %ld jiffies.\n", j);
+	WRITE_ONCE(jiffies_to_sched_qs, j);
+}
+
 static int param_set_first_fqs_jiffies(const char *val, const struct kernel_param *kp)
 {
 	ulong j;
 	int ret = kstrtoul(val, 0, &j);
 
-	if (!ret)
+	if (!ret) {
 		WRITE_ONCE(*(ulong *)kp->arg, (j > HZ) ? HZ : j);
+		adjust_jiffies_till_sched_qs();
+	}
 	return ret;
 }
 
@@ -411,8 +445,10 @@ static int param_set_next_fqs_jiffies(const char *val, const struct kernel_param
 	ulong j;
 	int ret = kstrtoul(val, 0, &j);
 
-	if (!ret)
+	if (!ret) {
 		WRITE_ONCE(*(ulong *)kp->arg, (j > HZ) ? HZ : (j ?: 1));
+		adjust_jiffies_till_sched_qs();
+	}
 	return ret;
 }
 
@@ -429,13 +465,6 @@ static struct kernel_param_ops next_fqs_jiffies_ops = {
 module_param_cb(jiffies_till_first_fqs, &first_fqs_jiffies_ops, &jiffies_till_first_fqs, 0644);
 module_param_cb(jiffies_till_next_fqs, &next_fqs_jiffies_ops, &jiffies_till_next_fqs, 0644);
 module_param(rcu_kick_kthreads, bool, 0644);
-
-/*
- * How long the grace period must be before we start recruiting
- * quiescent-state help from rcu_note_context_switch().
- */
-static ulong jiffies_till_sched_qs = HZ / 10;
-module_param(jiffies_till_sched_qs, ulong, 0444);
 
 static void force_qs_rnp(int (*f)(struct rcu_data *rdp));
 static void force_quiescent_state(void);
@@ -1041,16 +1070,16 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 
 	/*
 	 * A CPU running for an extended time within the kernel can
-	 * delay RCU grace periods: (1) At age jiffies_till_sched_qs,
-	 * set .rcu_urgent_qs, (2) At age 2*jiffies_till_sched_qs, set
+	 * delay RCU grace periods: (1) At age jiffies_to_sched_qs,
+	 * set .rcu_urgent_qs, (2) At age 2*jiffies_to_sched_qs, set
 	 * both .rcu_need_heavy_qs and .rcu_urgent_qs.  Note that the
 	 * unsynchronized assignments to the per-CPU rcu_need_heavy_qs
 	 * variable are safe because the assignments are repeated if this
 	 * CPU failed to pass through a quiescent state.  This code
-	 * also checks .jiffies_resched in case jiffies_till_sched_qs
+	 * also checks .jiffies_resched in case jiffies_to_sched_qs
 	 * is set way high.
 	 */
-	jtsq = jiffies_till_sched_qs;
+	jtsq = READ_ONCE(jiffies_to_sched_qs);
 	ruqp = per_cpu_ptr(&rcu_dynticks.rcu_urgent_qs, rdp->cpu);
 	rnhqp = &per_cpu(rcu_dynticks.rcu_need_heavy_qs, rdp->cpu);
 	if (!READ_ONCE(*rnhqp) &&
@@ -1236,7 +1265,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 			gpa = READ_ONCE(rcu_state.gp_activity);
 			pr_err("All QSes seen, last %s kthread activity %ld (%ld-%ld), jiffies_till_next_fqs=%ld, root ->qsmask %#lx\n",
 			       rcu_state.name, j - gpa, j, gpa,
-			       jiffies_till_next_fqs,
+			       READ_ONCE(jiffies_till_next_fqs),
 			       rcu_get_root()->qsmask);
 			/* In this case, the current CPU might be at fault. */
 			sched_show_task(current);
@@ -1874,7 +1903,7 @@ static void rcu_gp_fqs_loop(void)
 	struct rcu_node *rnp = rcu_get_root();
 
 	first_gp_fqs = true;
-	j = jiffies_till_first_fqs;
+	j = READ_ONCE(jiffies_till_first_fqs);
 	ret = 0;
 	for (;;) {
 		if (!ret) {
@@ -1908,7 +1937,7 @@ static void rcu_gp_fqs_loop(void)
 			cond_resched_tasks_rcu_qs();
 			WRITE_ONCE(rcu_state.gp_activity, jiffies);
 			ret = 0; /* Force full wait till next FQS. */
-			j = jiffies_till_next_fqs;
+			j = READ_ONCE(jiffies_till_next_fqs);
 		} else {
 			/* Deal with stray signal. */
 			cond_resched_tasks_rcu_qs();
@@ -3579,6 +3608,8 @@ static void __init rcu_init_geometry(void)
 		jiffies_till_first_fqs = d;
 	if (jiffies_till_next_fqs == ULONG_MAX)
 		jiffies_till_next_fqs = d;
+	if (jiffies_till_sched_qs == ULONG_MAX)
+		adjust_jiffies_till_sched_qs();
 
 	/* If the compile-time values are accurate, just leave. */
 	if (rcu_fanout_leaf == RCU_FANOUT_LEAF &&

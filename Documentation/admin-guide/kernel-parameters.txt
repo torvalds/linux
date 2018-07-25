@@ -3595,7 +3595,14 @@
 			Set required age in jiffies for a
 			given grace period before RCU starts
 			soliciting quiescent-state help from
-			rcu_note_context_switch().
+			rcu_note_context_switch().  If not specified, the
+			kernel will calculate a value based on the most
+			recent settings of rcutree.jiffies_till_first_fqs
+			and rcutree.jiffies_till_next_fqs.
+			This calculated value may be viewed in
+			rcutree.jiffies_to_sched_qs.  Any attempt to
+			set rcutree.jiffies_to_sched_qs will be
+			cheerfully overwritten.
 
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
