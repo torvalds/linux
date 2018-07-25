@@ -176,14 +176,45 @@ static int intel_dp_max_common_rate(struct intel_dp *intel_dp)
 	return intel_dp->common_rates[intel_dp->num_common_rates - 1];
 }
 
+static int intel_dp_get_fia_supported_lane_count(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	u32 lane_info;
+
+	if (tc_port == PORT_TC_NONE || dig_port->tc_type != TC_PORT_TYPEC)
+		return 4;
+
+	lane_info = (I915_READ(PORT_TX_DFLEXDPSP) &
+		     DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
+		    DP_LANE_ASSIGNMENT_SHIFT(tc_port);
+
+	switch (lane_info) {
+	default:
+		MISSING_CASE(lane_info);
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		return 1;
+	case 3:
+	case 12:
+		return 2;
+	case 15:
+		return 4;
+	}
+}
+
 /* Theoretical max between source and sink */
 static int intel_dp_max_common_lane_count(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	int source_max = intel_dig_port->max_lanes;
 	int sink_max = drm_dp_max_lane_count(intel_dp->dpcd);
+	int fia_max = intel_dp_get_fia_supported_lane_count(intel_dp);
 
-	return min(source_max, sink_max);
+	return min3(source_max, sink_max, fia_max);
 }
 
 int intel_dp_max_lane_count(struct intel_dp *intel_dp)
