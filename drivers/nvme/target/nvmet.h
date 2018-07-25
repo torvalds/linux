@@ -65,6 +65,7 @@ struct nvmet_ns {
 	u8			nguid[16];
 	uuid_t			uuid;
 
+	bool			buffered_io;
 	bool			enabled;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
@@ -116,6 +117,7 @@ struct nvmet_port {
 	struct list_head		referrals;
 	void				*priv;
 	bool				enabled;
+	int				inline_data_size;
 };
 
 static inline struct nvmet_port *to_nvmet_port(struct config_item *item)
@@ -225,7 +227,6 @@ struct nvmet_req;
 struct nvmet_fabrics_ops {
 	struct module *owner;
 	unsigned int type;
-	unsigned int sqe_inline_size;
 	unsigned int msdbd;
 	bool has_keyed_sgls : 1;
 	void (*queue_response)(struct nvmet_req *req);
@@ -268,6 +269,8 @@ struct nvmet_req {
 	void (*execute)(struct nvmet_req *req);
 	const struct nvmet_fabrics_ops *ops;
 };
+
+extern struct workqueue_struct *buffered_io_wq;
 
 static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
 {

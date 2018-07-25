@@ -128,6 +128,36 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
+{
+	u16 status = NVME_SC_INTERNAL;
+	struct nvme_effects_log *log;
+
+	log = kzalloc(sizeof(*log), GFP_KERNEL);
+	if (!log)
+		goto out;
+
+	log->acs[nvme_admin_get_log_page]	= cpu_to_le32(1 << 0);
+	log->acs[nvme_admin_identify]		= cpu_to_le32(1 << 0);
+	log->acs[nvme_admin_abort_cmd]		= cpu_to_le32(1 << 0);
+	log->acs[nvme_admin_set_features]	= cpu_to_le32(1 << 0);
+	log->acs[nvme_admin_get_features]	= cpu_to_le32(1 << 0);
+	log->acs[nvme_admin_async_event]	= cpu_to_le32(1 << 0);
+	log->acs[nvme_admin_keep_alive]		= cpu_to_le32(1 << 0);
+
+	log->iocs[nvme_cmd_read]		= cpu_to_le32(1 << 0);
+	log->iocs[nvme_cmd_write]		= cpu_to_le32(1 << 0);
+	log->iocs[nvme_cmd_flush]		= cpu_to_le32(1 << 0);
+	log->iocs[nvme_cmd_dsm]			= cpu_to_le32(1 << 0);
+	log->iocs[nvme_cmd_write_zeroes]	= cpu_to_le32(1 << 0);
+
+	status = nvmet_copy_to_sgl(req, 0, log, sizeof(*log));
+
+	kfree(log);
+out:
+	nvmet_req_complete(req, status);
+}
+
 static void nvmet_execute_get_log_changed_ns(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
@@ -208,7 +238,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 
 	/* first slot is read-only, only one slot supported */
 	id->frmw = (1 << 0) | (1 << 1);
-	id->lpa = (1 << 0) | (1 << 2);
+	id->lpa = (1 << 0) | (1 << 1) | (1 << 2);
 	id->elpe = NVMET_ERROR_LOG_SLOTS - 1;
 	id->npss = 0;
 
@@ -238,14 +268,14 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->sgls = cpu_to_le32(1 << 0);	/* we always support SGLs */
 	if (ctrl->ops->has_keyed_sgls)
 		id->sgls |= cpu_to_le32(1 << 2);
-	if (ctrl->ops->sqe_inline_size)
+	if (req->port->inline_data_size)
 		id->sgls |= cpu_to_le32(1 << 20);
 
 	strcpy(id->subnqn, ctrl->subsys->subsysnqn);
 
 	/* Max command capsule size is sqe + single page of in-capsule data */
 	id->ioccsz = cpu_to_le32((sizeof(struct nvme_command) +
-				  ctrl->ops->sqe_inline_size) / 16);
+				  req->port->inline_data_size) / 16);
 	/* Max response capsule size is cqe */
 	id->iorcsz = cpu_to_le32(sizeof(struct nvme_completion) / 16);
 
@@ -308,7 +338,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	 */
 	id->nmic = (1 << 0);
 
-	memcpy(&id->nguid, &ns->nguid, sizeof(uuid_le));
+	memcpy(&id->nguid, &ns->nguid, sizeof(id->nguid));
 
 	id->lbaf[0].ds = ns->blksize_shift;
 
@@ -585,6 +615,9 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 			return 0;
 		case NVME_LOG_CHANGED_NS:
 			req->execute = nvmet_execute_get_log_changed_ns;
+			return 0;
+		case NVME_LOG_CMD_EFFECTS:
+			req->execute = nvmet_execute_get_log_cmd_effects_ns;
 			return 0;
 		}
 		break;

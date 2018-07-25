@@ -102,6 +102,7 @@ struct nvme_request {
 	u8			retries;
 	u8			flags;
 	u16			status;
+	struct nvme_ctrl	*ctrl;
 };
 
 /*
@@ -117,6 +118,13 @@ enum {
 static inline struct nvme_request *nvme_req(struct request *req)
 {
 	return blk_mq_rq_to_pdu(req);
+}
+
+static inline u16 nvme_req_qid(struct request *req)
+{
+	if (!req->rq_disk)
+		return 0;
+	return blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(req)) + 1;
 }
 
 /* The below value is the specific amount of delay needed before checking
