@@ -296,6 +296,7 @@ static int camss_of_parse_ports(struct device *dev,
 		if (of_device_is_available(node))
 			notifier->num_subdevs++;
 
+	of_node_put(node);
 	size = sizeof(*notifier->subdevs) * notifier->num_subdevs;
 	notifier->subdevs = devm_kzalloc(dev, size, GFP_KERNEL);
 	if (!notifier->subdevs) {
@@ -326,16 +327,16 @@ static int camss_of_parse_ports(struct device *dev,
 		}
 
 		remote = of_graph_get_remote_port_parent(node);
-		of_node_put(node);
-
 		if (!remote) {
 			dev_err(dev, "Cannot get remote parent\n");
+			of_node_put(node);
 			return -EINVAL;
 		}
 
 		csd->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 		csd->asd.match.fwnode = of_fwnode_handle(remote);
 	}
+	of_node_put(node);
 
 	return notifier->num_subdevs;
 }
