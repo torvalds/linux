@@ -23,93 +23,69 @@
 
 #define MSM_CSIPHY_NAME "msm_csiphy"
 
-static const struct {
+struct csiphy_format {
 	u32 code;
 	u8 bpp;
-} csiphy_formats[] = {
-	{
-		MEDIA_BUS_FMT_UYVY8_2X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_VYUY8_2X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_YUYV8_2X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_YVYU8_2X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SBGGR8_1X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SGBRG8_1X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SGRBG8_1X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SRGGB8_1X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SBGGR10_1X10,
-		10,
-	},
-	{
-		MEDIA_BUS_FMT_SGBRG10_1X10,
-		10,
-	},
-	{
-		MEDIA_BUS_FMT_SGRBG10_1X10,
-		10,
-	},
-	{
-		MEDIA_BUS_FMT_SRGGB10_1X10,
-		10,
-	},
-	{
-		MEDIA_BUS_FMT_SBGGR12_1X12,
-		12,
-	},
-	{
-		MEDIA_BUS_FMT_SGBRG12_1X12,
-		12,
-	},
-	{
-		MEDIA_BUS_FMT_SGRBG12_1X12,
-		12,
-	},
-	{
-		MEDIA_BUS_FMT_SRGGB12_1X12,
-		12,
-	}
+};
+
+static const struct csiphy_format csiphy_formats_8x16[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
+};
+
+static const struct csiphy_format csiphy_formats_8x96[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
 };
 
 /*
  * csiphy_get_bpp - map media bus format to bits per pixel
+ * @formats: supported media bus formats array
+ * @nformats: size of @formats array
  * @code: media bus format code
  *
  * Return number of bits per pixel
  */
-static u8 csiphy_get_bpp(u32 code)
+static u8 csiphy_get_bpp(const struct csiphy_format *formats,
+			 unsigned int nformats, u32 code)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(csiphy_formats); i++)
-		if (code == csiphy_formats[i].code)
-			return csiphy_formats[i].bpp;
+	for (i = 0; i < nformats; i++)
+		if (code == formats[i].code)
+			return formats[i].bpp;
 
 	WARN(1, "Unknown format\n");
 
-	return csiphy_formats[0].bpp;
+	return formats[0].bpp;
 }
 
 /*
@@ -133,7 +109,8 @@ static int csiphy_set_clock_rates(struct csiphy_device *csiphy)
 		if (!strcmp(clock->name, "csiphy0_timer") ||
 		    !strcmp(clock->name, "csiphy1_timer") ||
 		    !strcmp(clock->name, "csiphy2_timer")) {
-			u8 bpp = csiphy_get_bpp(
+			u8 bpp = csiphy_get_bpp(csiphy->formats,
+					csiphy->nformats,
 					csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
 			u8 num_lanes = csiphy->cfg.csi2->lane_cfg.num_data;
 			u64 min_rate = pixel_clock * bpp / (2 * num_lanes * 4);
@@ -256,7 +233,8 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
 	struct csiphy_config *cfg = &csiphy->cfg;
 	u32 pixel_clock;
 	u8 lane_mask = csiphy_get_lane_mask(&cfg->csi2->lane_cfg);
-	u8 bpp = csiphy_get_bpp(csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
+	u8 bpp = csiphy_get_bpp(csiphy->formats, csiphy->nformats,
+				csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
 	u8 val;
 	int ret;
 
@@ -361,12 +339,12 @@ static void csiphy_try_format(struct csiphy_device *csiphy,
 	case MSM_CSIPHY_PAD_SINK:
 		/* Set format on sink pad */
 
-		for (i = 0; i < ARRAY_SIZE(csiphy_formats); i++)
-			if (fmt->code == csiphy_formats[i].code)
+		for (i = 0; i < csiphy->nformats; i++)
+			if (fmt->code == csiphy->formats[i].code)
 				break;
 
 		/* If not found, use UYVY as default */
-		if (i >= ARRAY_SIZE(csiphy_formats))
+		if (i >= csiphy->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
@@ -402,10 +380,10 @@ static int csiphy_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == MSM_CSIPHY_PAD_SINK) {
-		if (code->index >= ARRAY_SIZE(csiphy_formats))
+		if (code->index >= csiphy->nformats)
 			return -EINVAL;
 
-		code->code = csiphy_formats[code->index].code;
+		code->code = csiphy->formats[code->index].code;
 	} else {
 		if (code->index > 0)
 			return -EINVAL;
@@ -563,12 +541,17 @@ int msm_csiphy_subdev_init(struct camss *camss,
 	csiphy->id = id;
 	csiphy->cfg.combo_mode = 0;
 
-	if (camss->version == CAMSS_8x16)
+	if (camss->version == CAMSS_8x16) {
 		csiphy->ops = &csiphy_ops_2ph_1_0;
-	else if (camss->version == CAMSS_8x96)
+		csiphy->formats = csiphy_formats_8x16;
+		csiphy->nformats = ARRAY_SIZE(csiphy_formats_8x16);
+	} else if (camss->version == CAMSS_8x96) {
 		csiphy->ops = &csiphy_ops_3ph_1_0;
-	else
+		csiphy->formats = csiphy_formats_8x96;
+		csiphy->nformats = ARRAY_SIZE(csiphy_formats_8x96);
+	} else {
 		return -EINVAL;
+	}
 
 	/* Memory */
 

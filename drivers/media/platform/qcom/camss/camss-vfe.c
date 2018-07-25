@@ -45,93 +45,83 @@
 
 #define SCALER_RATIO_MAX 16
 
-static const struct {
+struct vfe_format {
 	u32 code;
 	u8 bpp;
-} vfe_formats[] = {
-	{
-		MEDIA_BUS_FMT_UYVY8_2X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_VYUY8_2X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_YUYV8_2X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_YVYU8_2X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SBGGR8_1X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SGBRG8_1X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SGRBG8_1X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SRGGB8_1X8,
-		8,
-	},
-	{
-		MEDIA_BUS_FMT_SBGGR10_1X10,
-		10,
-	},
-	{
-		MEDIA_BUS_FMT_SGBRG10_1X10,
-		10,
-	},
-	{
-		MEDIA_BUS_FMT_SGRBG10_1X10,
-		10,
-	},
-	{
-		MEDIA_BUS_FMT_SRGGB10_1X10,
-		10,
-	},
-	{
-		MEDIA_BUS_FMT_SBGGR12_1X12,
-		12,
-	},
-	{
-		MEDIA_BUS_FMT_SGBRG12_1X12,
-		12,
-	},
-	{
-		MEDIA_BUS_FMT_SGRBG12_1X12,
-		12,
-	},
-	{
-		MEDIA_BUS_FMT_SRGGB12_1X12,
-		12,
-	}
+};
+
+static const struct vfe_format formats_rdi_8x16[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
+};
+
+static const struct vfe_format formats_pix_8x16[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+};
+
+static const struct vfe_format formats_rdi_8x96[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
+};
+
+static const struct vfe_format formats_pix_8x96[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
 };
 
 /*
  * vfe_get_bpp - map media bus format to bits per pixel
+ * @formats: supported media bus formats array
+ * @nformats: size of @formats array
  * @code: media bus format code
  *
  * Return number of bits per pixel
  */
-static u8 vfe_get_bpp(u32 code)
+static u8 vfe_get_bpp(const struct vfe_format *formats,
+		      unsigned int nformats, u32 code)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(vfe_formats); i++)
-		if (code == vfe_formats[i].code)
-			return vfe_formats[i].bpp;
+	for (i = 0; i < nformats; i++)
+		if (code == formats[i].code)
+			return formats[i].bpp;
 
 	WARN(1, "Unknown format\n");
 
-	return vfe_formats[0].bpp;
+	return formats[0].bpp;
 }
 
 /*
@@ -978,8 +968,11 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 				if (j == VFE_LINE_PIX) {
 					tmp = pixel_clock[j];
 				} else {
-					bpp = vfe_get_bpp(vfe->line[j].
-						fmt[MSM_VFE_PAD_SINK].code);
+					struct vfe_line *l = &vfe->line[j];
+
+					bpp = vfe_get_bpp(l->formats,
+						l->nformats,
+						l->fmt[MSM_VFE_PAD_SINK].code);
 					tmp = pixel_clock[j] * bpp / 64;
 				}
 
@@ -1057,8 +1050,11 @@ static int vfe_check_clock_rates(struct vfe_device *vfe)
 				if (j == VFE_LINE_PIX) {
 					tmp = pixel_clock[j];
 				} else {
-					bpp = vfe_get_bpp(vfe->line[j].
-						fmt[MSM_VFE_PAD_SINK].code);
+					struct vfe_line *l = &vfe->line[j];
+
+					bpp = vfe_get_bpp(l->formats,
+						l->nformats,
+						l->fmt[MSM_VFE_PAD_SINK].code);
 					tmp = pixel_clock[j] * bpp / 64;
 				}
 
@@ -1374,12 +1370,12 @@ static void vfe_try_format(struct vfe_line *line,
 	case MSM_VFE_PAD_SINK:
 		/* Set format on sink pad */
 
-		for (i = 0; i < ARRAY_SIZE(vfe_formats); i++)
-			if (fmt->code == vfe_formats[i].code)
+		for (i = 0; i < line->nformats; i++)
+			if (fmt->code == line->formats[i].code)
 				break;
 
 		/* If not found, use UYVY as default */
-		if (i >= ARRAY_SIZE(vfe_formats))
+		if (i >= line->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
@@ -1539,10 +1535,10 @@ static int vfe_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == MSM_VFE_PAD_SINK) {
-		if (code->index >= ARRAY_SIZE(vfe_formats))
+		if (code->index >= line->nformats)
 			return -EINVAL;
 
-		code->code = vfe_formats[code->index].code;
+		code->code = line->formats[code->index].code;
 	} else {
 		if (code->index > 0)
 			return -EINVAL;
@@ -1943,12 +1939,33 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	vfe->reg_update = 0;
 
 	for (i = VFE_LINE_RDI0; i <= VFE_LINE_PIX; i++) {
-		vfe->line[i].video_out.type =
-					V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-		vfe->line[i].video_out.camss = camss;
-		vfe->line[i].id = i;
-		init_completion(&vfe->line[i].output.sof);
-		init_completion(&vfe->line[i].output.reg_update);
+		struct vfe_line *l = &vfe->line[i];
+
+		l->video_out.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+		l->video_out.camss = camss;
+		l->id = i;
+		init_completion(&l->output.sof);
+		init_completion(&l->output.reg_update);
+
+		if (camss->version == CAMSS_8x16) {
+			if (i == VFE_LINE_PIX) {
+				l->formats = formats_pix_8x16;
+				l->nformats = ARRAY_SIZE(formats_pix_8x16);
+			} else {
+				l->formats = formats_rdi_8x16;
+				l->nformats = ARRAY_SIZE(formats_rdi_8x16);
+			}
+		} else if (camss->version == CAMSS_8x96) {
+			if (i == VFE_LINE_PIX) {
+				l->formats = formats_pix_8x96;
+				l->nformats = ARRAY_SIZE(formats_pix_8x96);
+			} else {
+				l->formats = formats_rdi_8x96;
+				l->nformats = ARRAY_SIZE(formats_rdi_8x96);
+			}
+		} else {
+			return -EINVAL;
+		}
 	}
 
 	init_completion(&vfe->reset_complete);

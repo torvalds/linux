@@ -58,6 +58,8 @@ struct csid_device {
 	struct v4l2_mbus_framefmt fmt[MSM_CSID_PADS_NUM];
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *testgen_mode;
+	const struct csid_format *formats;
+	unsigned int nformats;
 };
 
 struct resources;

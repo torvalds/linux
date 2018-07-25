@@ -71,6 +71,8 @@ struct vfe_line {
 	struct v4l2_rect crop;
 	struct camss_video video_out;
 	struct vfe_output output;
+	const struct vfe_format *formats;
+	unsigned int nformats;
 };
 
 struct vfe_device;

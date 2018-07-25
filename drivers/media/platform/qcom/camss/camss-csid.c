@@ -62,7 +62,7 @@
 
 #define CSID_RESET_TIMEOUT_MS 500
 
-struct csid_fmts {
+struct csid_format {
 	u32 code;
 	u8 data_type;
 	u8 decode_format;
@@ -70,7 +70,7 @@ struct csid_fmts {
 	u8 spp; /* bus samples per pixel */
 };
 
-static const struct csid_fmts csid_input_fmts[] = {
+static const struct csid_format csid_formats_8x16[] = {
 	{
 		MEDIA_BUS_FMT_UYVY8_2X8,
 		DATA_TYPE_YUV422_8BIT,
@@ -185,17 +185,135 @@ static const struct csid_fmts csid_input_fmts[] = {
 	}
 };
 
-static const struct csid_fmts *csid_get_fmt_entry(u32 code)
+static const struct csid_format csid_formats_8x96[] = {
+	{
+		MEDIA_BUS_FMT_UYVY8_2X8,
+		DATA_TYPE_YUV422_8BIT,
+		DECODE_FORMAT_UNCOMPRESSED_8_BIT,
+		8,
+		2,
+	},
+	{
+		MEDIA_BUS_FMT_VYUY8_2X8,
+		DATA_TYPE_YUV422_8BIT,
+		DECODE_FORMAT_UNCOMPRESSED_8_BIT,
+		8,
+		2,
+	},
+	{
+		MEDIA_BUS_FMT_YUYV8_2X8,
+		DATA_TYPE_YUV422_8BIT,
+		DECODE_FORMAT_UNCOMPRESSED_8_BIT,
+		8,
+		2,
+	},
+	{
+		MEDIA_BUS_FMT_YVYU8_2X8,
+		DATA_TYPE_YUV422_8BIT,
+		DECODE_FORMAT_UNCOMPRESSED_8_BIT,
+		8,
+		2,
+	},
+	{
+		MEDIA_BUS_FMT_SBGGR8_1X8,
+		DATA_TYPE_RAW_8BIT,
+		DECODE_FORMAT_UNCOMPRESSED_8_BIT,
+		8,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SGBRG8_1X8,
+		DATA_TYPE_RAW_8BIT,
+		DECODE_FORMAT_UNCOMPRESSED_8_BIT,
+		8,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SGRBG8_1X8,
+		DATA_TYPE_RAW_8BIT,
+		DECODE_FORMAT_UNCOMPRESSED_8_BIT,
+		8,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SRGGB8_1X8,
+		DATA_TYPE_RAW_8BIT,
+		DECODE_FORMAT_UNCOMPRESSED_8_BIT,
+		8,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SBGGR10_1X10,
+		DATA_TYPE_RAW_10BIT,
+		DECODE_FORMAT_UNCOMPRESSED_10_BIT,
+		10,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SGBRG10_1X10,
+		DATA_TYPE_RAW_10BIT,
+		DECODE_FORMAT_UNCOMPRESSED_10_BIT,
+		10,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SGRBG10_1X10,
+		DATA_TYPE_RAW_10BIT,
+		DECODE_FORMAT_UNCOMPRESSED_10_BIT,
+		10,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SRGGB10_1X10,
+		DATA_TYPE_RAW_10BIT,
+		DECODE_FORMAT_UNCOMPRESSED_10_BIT,
+		10,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SBGGR12_1X12,
+		DATA_TYPE_RAW_12BIT,
+		DECODE_FORMAT_UNCOMPRESSED_12_BIT,
+		12,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SGBRG12_1X12,
+		DATA_TYPE_RAW_12BIT,
+		DECODE_FORMAT_UNCOMPRESSED_12_BIT,
+		12,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SGRBG12_1X12,
+		DATA_TYPE_RAW_12BIT,
+		DECODE_FORMAT_UNCOMPRESSED_12_BIT,
+		12,
+		1,
+	},
+	{
+		MEDIA_BUS_FMT_SRGGB12_1X12,
+		DATA_TYPE_RAW_12BIT,
+		DECODE_FORMAT_UNCOMPRESSED_12_BIT,
+		12,
+		1,
+	}
+};
+
+static const struct csid_format *csid_get_fmt_entry(
+					const struct csid_format *formats,
+					unsigned int nformat,
+					u32 code)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(csid_input_fmts); i++)
-		if (code == csid_input_fmts[i].code)
-			return &csid_input_fmts[i];
+	for (i = 0; i < nformat; i++)
+		if (code == formats[i].code)
+			return &formats[i];
 
 	WARN(1, "Unknown format\n");
 
-	return &csid_input_fmts[0];
+	return &formats[0];
 }
 
 /*
@@ -242,10 +360,13 @@ static int csid_set_clock_rates(struct csid_device *csid)
 		    !strcmp(clock->name, "csi1") ||
 		    !strcmp(clock->name, "csi2") ||
 		    !strcmp(clock->name, "csi3")) {
-			u8 bpp = csid_get_fmt_entry(
-				csid->fmt[MSM_CSIPHY_PAD_SINK].code)->bpp;
+			const struct csid_format *f = csid_get_fmt_entry(
+				csid->formats,
+				csid->nformats,
+				csid->fmt[MSM_CSIPHY_PAD_SINK].code);
 			u8 num_lanes = csid->phy.lane_cnt;
-			u64 min_rate = pixel_clock * bpp / (2 * num_lanes * 4);
+			u64 min_rate = pixel_clock * f->bpp /
+							(2 * num_lanes * 4);
 			long rate;
 
 			camss_add_clock_margin(&min_rate);
@@ -408,9 +529,10 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 			/* Config Test Generator */
 			struct v4l2_mbus_framefmt *f =
 					&csid->fmt[MSM_CSID_PAD_SRC];
-			u8 bpp = csid_get_fmt_entry(f->code)->bpp;
-			u8 spp = csid_get_fmt_entry(f->code)->spp;
-			u32 num_bytes_per_line = f->width * bpp * spp / 8;
+			const struct csid_format *format = csid_get_fmt_entry(
+					csid->formats, csid->nformats, f->code);
+			u32 num_bytes_per_line =
+				f->width * format->bpp * format->spp / 8;
 			u32 num_lines = f->height;
 
 			/* 31:24 V blank, 23:13 H blank, 3:2 num of active DT */
@@ -426,8 +548,7 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 			writel_relaxed(val, csid->base +
 				       CAMSS_CSID_TG_DT_n_CGG_0(ver, 0));
 
-			dt = csid_get_fmt_entry(
-				csid->fmt[MSM_CSID_PAD_SRC].code)->data_type;
+			dt = format->data_type;
 
 			/* 5:0 data type */
 			val = dt;
@@ -439,9 +560,12 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 			writel_relaxed(val, csid->base +
 				       CAMSS_CSID_TG_DT_n_CGG_2(ver, 0));
 
-			df = csid_get_fmt_entry(
-				csid->fmt[MSM_CSID_PAD_SRC].code)->decode_format;
+			df = format->decode_format;
 		} else {
+			struct v4l2_mbus_framefmt *f =
+					&csid->fmt[MSM_CSID_PAD_SINK];
+			const struct csid_format *format = csid_get_fmt_entry(
+					csid->formats, csid->nformats, f->code);
 			struct csid_phy_config *phy = &csid->phy;
 
 			val = phy->lane_cnt - 1;
@@ -456,10 +580,8 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 			writel_relaxed(val,
 				       csid->base + CAMSS_CSID_CORE_CTRL_1);
 
-			dt = csid_get_fmt_entry(
-				csid->fmt[MSM_CSID_PAD_SINK].code)->data_type;
-			df = csid_get_fmt_entry(
-				csid->fmt[MSM_CSID_PAD_SINK].code)->decode_format;
+			dt = format->data_type;
+			df = format->decode_format;
 		}
 
 		/* Config LUT */
@@ -534,12 +656,12 @@ static void csid_try_format(struct csid_device *csid,
 	case MSM_CSID_PAD_SINK:
 		/* Set format on sink pad */
 
-		for (i = 0; i < ARRAY_SIZE(csid_input_fmts); i++)
-			if (fmt->code == csid_input_fmts[i].code)
+		for (i = 0; i < csid->nformats; i++)
+			if (fmt->code == csid->formats[i].code)
 				break;
 
 		/* If not found, use UYVY as default */
-		if (i >= ARRAY_SIZE(csid_input_fmts))
+		if (i >= csid->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
@@ -563,12 +685,12 @@ static void csid_try_format(struct csid_device *csid,
 			/* Test generator is enabled, set format on source*/
 			/* pad to allow test generator usage */
 
-			for (i = 0; i < ARRAY_SIZE(csid_input_fmts); i++)
-				if (csid_input_fmts[i].code == fmt->code)
+			for (i = 0; i < csid->nformats; i++)
+				if (csid->formats[i].code == fmt->code)
 					break;
 
 			/* If not found, use UYVY as default */
-			if (i >= ARRAY_SIZE(csid_input_fmts))
+			if (i >= csid->nformats)
 				fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 			fmt->width = clamp_t(u32, fmt->width, 1, 8191);
@@ -597,10 +719,10 @@ static int csid_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == MSM_CSID_PAD_SINK) {
-		if (code->index >= ARRAY_SIZE(csid_input_fmts))
+		if (code->index >= csid->nformats)
 			return -EINVAL;
 
-		code->code = csid_input_fmts[code->index].code;
+		code->code = csid->formats[code->index].code;
 	} else {
 		if (csid->testgen_mode->cur.val == 0) {
 			if (code->index > 0)
@@ -611,10 +733,10 @@ static int csid_enum_mbus_code(struct v4l2_subdev *sd,
 
 			code->code = format->code;
 		} else {
-			if (code->index >= ARRAY_SIZE(csid_input_fmts))
+			if (code->index >= csid->nformats)
 				return -EINVAL;
 
-			code->code = csid_input_fmts[code->index].code;
+			code->code = csid->formats[code->index].code;
 		}
 	}
 
@@ -833,6 +955,18 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 
 	csid->camss = camss;
 	csid->id = id;
+
+	if (camss->version == CAMSS_8x16) {
+		csid->formats = csid_formats_8x16;
+		csid->nformats =
+				ARRAY_SIZE(csid_formats_8x16);
+	} else if (camss->version == CAMSS_8x96) {
+		csid->formats = csid_formats_8x96;
+		csid->nformats =
+				ARRAY_SIZE(csid_formats_8x96);
+	} else {
+		return -EINVAL;
+	}
 
 	/* Memory */
 

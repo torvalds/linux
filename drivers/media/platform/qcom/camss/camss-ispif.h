@@ -43,6 +43,8 @@ struct ispif_line {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[MSM_ISPIF_PADS_NUM];
 	struct v4l2_mbus_framefmt fmt[MSM_ISPIF_PADS_NUM];
+	const u32 *formats;
+	unsigned int nformats;
 };
 
 struct ispif_device {

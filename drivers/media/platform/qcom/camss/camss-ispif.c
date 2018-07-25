@@ -96,7 +96,26 @@ enum ispif_intf_cmd {
 	CMD_ALL_NO_CHANGE = 0xffffffff,
 };
 
-static const u32 ispif_formats[] = {
+static const u32 ispif_formats_8x16[] = {
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_VYUY8_2X8,
+	MEDIA_BUS_FMT_YUYV8_2X8,
+	MEDIA_BUS_FMT_YVYU8_2X8,
+	MEDIA_BUS_FMT_SBGGR8_1X8,
+	MEDIA_BUS_FMT_SGBRG8_1X8,
+	MEDIA_BUS_FMT_SGRBG8_1X8,
+	MEDIA_BUS_FMT_SRGGB8_1X8,
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SGBRG10_1X10,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+	MEDIA_BUS_FMT_SBGGR12_1X12,
+	MEDIA_BUS_FMT_SGBRG12_1X12,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_SRGGB12_1X12,
+};
+
+static const u32 ispif_formats_8x96[] = {
 	MEDIA_BUS_FMT_UYVY8_2X8,
 	MEDIA_BUS_FMT_VYUY8_2X8,
 	MEDIA_BUS_FMT_YUYV8_2X8,
@@ -780,12 +799,12 @@ static void ispif_try_format(struct ispif_line *line,
 	case MSM_ISPIF_PAD_SINK:
 		/* Set format on sink pad */
 
-		for (i = 0; i < ARRAY_SIZE(ispif_formats); i++)
-			if (fmt->code == ispif_formats[i])
+		for (i = 0; i < line->nformats; i++)
+			if (fmt->code == line->formats[i])
 				break;
 
 		/* If not found, use UYVY as default */
-		if (i >= ARRAY_SIZE(ispif_formats))
+		if (i >= line->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
@@ -823,10 +842,10 @@ static int ispif_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == MSM_ISPIF_PAD_SINK) {
-		if (code->index >= ARRAY_SIZE(ispif_formats))
+		if (code->index >= line->nformats)
 			return -EINVAL;
 
-		code->code = ispif_formats[code->index];
+		code->code = line->formats[code->index];
 	} else {
 		if (code->index > 0)
 			return -EINVAL;
@@ -993,6 +1012,18 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	for (i = 0; i < ispif->line_num; i++) {
 		ispif->line[i].ispif = ispif;
 		ispif->line[i].id = i;
+
+		if (to_camss(ispif)->version == CAMSS_8x16) {
+			ispif->line[i].formats = ispif_formats_8x16;
+			ispif->line[i].nformats =
+					ARRAY_SIZE(ispif_formats_8x16);
+		} else if (to_camss(ispif)->version == CAMSS_8x96) {
+			ispif->line[i].formats = ispif_formats_8x96;
+			ispif->line[i].nformats =
+					ARRAY_SIZE(ispif_formats_8x96);
+		} else {
+			return -EINVAL;
+		}
 	}
 
 	/* Memory */
