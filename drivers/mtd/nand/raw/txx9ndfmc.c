@@ -254,25 +254,24 @@ static void txx9ndfmc_initialize(struct platform_device *dev)
 #define TXX9NDFMC_NS_TO_CYC(gbusclk, ns) \
 	DIV_ROUND_UP((ns) * DIV_ROUND_UP(gbusclk, 1000), 1000000)
 
-static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
+static int txx9ndfmc_attach_chip(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	int ret;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 
-	ret = nand_scan_ident(mtd, 1, NULL);
-	if (!ret) {
-		if (mtd->writesize >= 512) {
-			chip->ecc.size = 512;
-			chip->ecc.bytes = 6;
-		} else {
-			chip->ecc.size = 256;
-			chip->ecc.bytes = 3;
-		}
-
-		ret = nand_scan_tail(mtd);
+	if (mtd->writesize >= 512) {
+		chip->ecc.size = 512;
+		chip->ecc.bytes = 6;
+	} else {
+		chip->ecc.size = 256;
+		chip->ecc.bytes = 3;
 	}
-	return ret;
+
+	return 0;
 }
+
+static const struct nand_controller_ops txx9ndfmc_controller_ops = {
+	.attach_chip = txx9ndfmc_attach_chip,
+};
 
 static int __init txx9ndfmc_probe(struct platform_device *dev)
 {
@@ -307,6 +306,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		 (gbusclk + 500000) / 1000000, hold, spw);
 
 	nand_controller_init(&drvdata->controller);
+	drvdata->controller.ops = &txx9ndfmc_controller_ops;
 
 	platform_set_drvdata(dev, drvdata);
 	txx9ndfmc_initialize(dev);
@@ -359,7 +359,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		if (plat->wide_mask & (1 << i))
 			chip->options |= NAND_BUSWIDTH_16;
 
-		if (txx9ndfmc_nand_scan(mtd)) {
+		if (nand_scan(mtd, 1)) {
 			kfree(txx9_priv->mtdname);
 			kfree(txx9_priv);
 			continue;
