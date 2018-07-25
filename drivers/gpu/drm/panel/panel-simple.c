@@ -773,15 +773,15 @@ static const struct panel_desc avic_tm070ddh03 = {
 };
 
 static const struct drm_display_mode boe_hv070wsa_mode = {
-	.clock = 40800,
+	.clock = 42105,
 	.hdisplay = 1024,
-	.hsync_start = 1024 + 90,
-	.hsync_end = 1024 + 90 + 90,
-	.htotal = 1024 + 90 + 90 + 90,
+	.hsync_start = 1024 + 30,
+	.hsync_end = 1024 + 30 + 30,
+	.htotal = 1024 + 30 + 30 + 30,
 	.vdisplay = 600,
-	.vsync_start = 600 + 3,
-	.vsync_end = 600 + 3 + 4,
-	.vtotal = 600 + 3 + 4 + 3,
+	.vsync_start = 600 + 10,
+	.vsync_end = 600 + 10 + 10,
+	.vtotal = 600 + 10 + 10 + 10,
 	.vrefresh = 60,
 };
 
