@@ -298,49 +298,49 @@
 			status = "disabled";
 		};
 
-                acc0: clock-controller@b088000 {
-                        compatible = "qcom,kpss-acc-v2";
-                        reg = <0x0b088000 0x1000>, <0xb008000 0x1000>;
-                };
+		acc0: clock-controller@b088000 {
+			compatible = "qcom,kpss-acc-v2";
+			reg = <0x0b088000 0x1000>, <0xb008000 0x1000>;
+		};
 
-                acc1: clock-controller@b098000 {
-                        compatible = "qcom,kpss-acc-v2";
-                        reg = <0x0b098000 0x1000>, <0xb008000 0x1000>;
-                };
+		acc1: clock-controller@b098000 {
+			compatible = "qcom,kpss-acc-v2";
+			reg = <0x0b098000 0x1000>, <0xb008000 0x1000>;
+		};
 
-                acc2: clock-controller@b0a8000 {
-                        compatible = "qcom,kpss-acc-v2";
-                        reg = <0x0b0a8000 0x1000>, <0xb008000 0x1000>;
-                };
+		acc2: clock-controller@b0a8000 {
+			compatible = "qcom,kpss-acc-v2";
+			reg = <0x0b0a8000 0x1000>, <0xb008000 0x1000>;
+		};
 
-                acc3: clock-controller@b0b8000 {
-                        compatible = "qcom,kpss-acc-v2";
-                        reg = <0x0b0b8000 0x1000>, <0xb008000 0x1000>;
-                };
+		acc3: clock-controller@b0b8000 {
+			compatible = "qcom,kpss-acc-v2";
+			reg = <0x0b0b8000 0x1000>, <0xb008000 0x1000>;
+		};
 
-                saw0: regulator@b089000 {
-                        compatible = "qcom,saw2";
+		saw0: regulator@b089000 {
+			compatible = "qcom,saw2";
 			reg = <0x0b089000 0x1000>, <0x0b009000 0x1000>;
                         regulator;
-                };
+		};
 
-                saw1: regulator@b099000 {
-                        compatible = "qcom,saw2";
-                        reg = <0x0b099000 0x1000>, <0x0b009000 0x1000>;
-                        regulator;
-                };
+		saw1: regulator@b099000 {
+			compatible = "qcom,saw2";
+			reg = <0x0b099000 0x1000>, <0x0b009000 0x1000>;
+			regulator;
+		};
 
-                saw2: regulator@b0a9000 {
-                        compatible = "qcom,saw2";
-                        reg = <0x0b0a9000 0x1000>, <0x0b009000 0x1000>;
-                        regulator;
-                };
+		saw2: regulator@b0a9000 {
+			compatible = "qcom,saw2";
+			reg = <0x0b0a9000 0x1000>, <0x0b009000 0x1000>;
+			regulator;
+		};
 
-                saw3: regulator@b0b9000 {
-                        compatible = "qcom,saw2";
-                        reg = <0x0b0b9000 0x1000>, <0x0b009000 0x1000>;
-                        regulator;
-                };
+		saw3: regulator@b0b9000 {
+			compatible = "qcom,saw2";
+			reg = <0x0b0b9000 0x1000>, <0x0b009000 0x1000>;
+			regulator;
+		};
 
 		blsp1_uart1: serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
