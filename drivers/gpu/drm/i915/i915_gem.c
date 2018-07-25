@@ -1911,7 +1911,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
+static unsigned int tile_row_pages(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_object_get_tile_row_size(obj) >> PAGE_SHIFT;
 }
@@ -1970,7 +1970,7 @@ int i915_gem_mmap_gtt_version(void)
 }
 
 static inline struct i915_ggtt_view
-compute_partial_view(struct drm_i915_gem_object *obj,
+compute_partial_view(const struct drm_i915_gem_object *obj,
 		     pgoff_t page_offset,
 		     unsigned int chunk)
 {
