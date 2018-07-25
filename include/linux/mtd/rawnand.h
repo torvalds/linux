@@ -482,7 +482,7 @@ struct nand_parameters {
 	DECLARE_BITMAP(get_feature_list, ONFI_FEATURE_NUMBER);
 
 	/* ONFI parameters */
-	struct onfi_params onfi;
+	struct onfi_params *onfi;
 };
 
 /* The maximum expected count of bytes in the NAND ID sequence */
@@ -1618,10 +1618,10 @@ struct platform_nand_data {
 /* return the supported asynchronous timing mode. */
 static inline int onfi_get_async_timing_mode(struct nand_chip *chip)
 {
-	if (!chip->parameters.onfi.version)
+	if (!chip->parameters.onfi)
 		return ONFI_TIMING_MODE_UNKNOWN;
 
-	return chip->parameters.onfi.async_timing_mode;
+	return chip->parameters.onfi->async_timing_mode;
 }
 
 int onfi_fill_data_interface(struct nand_chip *chip,
