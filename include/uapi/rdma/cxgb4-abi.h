@@ -84,6 +84,23 @@ struct c4iw_create_qp_resp {
 	__u32 flags;
 };
 
+struct c4iw_create_srq_resp {
+	__aligned_u64 srq_key;
+	__aligned_u64 srq_db_gts_key;
+	__aligned_u64 srq_memsize;
+	__u32 srqid;
+	__u32 srq_size;
+	__u32 rqt_abs_idx;
+	__u32 qid_mask;
+	__u32 flags;
+	__u32 reserved; /* explicit padding */
+};
+
+enum {
+	/* HW supports SRQ_LIMIT_REACHED event */
+	T4_SRQ_LIMIT_SUPPORT = 1 << 0,
+};
+
 struct c4iw_alloc_ucontext_resp {
 	__aligned_u64 status_page_key;
 	__u32 status_page_size;

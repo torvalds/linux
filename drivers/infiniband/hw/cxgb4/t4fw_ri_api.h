@@ -263,6 +263,7 @@ enum fw_ri_res_type {
 	FW_RI_RES_TYPE_SQ,
 	FW_RI_RES_TYPE_RQ,
 	FW_RI_RES_TYPE_CQ,
+	FW_RI_RES_TYPE_SRQ,
 };
 
 enum fw_ri_res_op {
@@ -296,6 +297,20 @@ struct fw_ri_res {
 			__be32 r6_lo;
 			__be64 r7;
 		} cq;
+		struct fw_ri_res_srq {
+			__u8   restype;
+			__u8   op;
+			__be16 r3;
+			__be32 eqid;
+			__be32 r4[2];
+			__be32 fetchszm_to_iqid;
+			__be32 dcaen_to_eqsize;
+			__be64 eqaddr;
+			__be32 srqid;
+			__be32 pdid;
+			__be32 hwsrqsize;
+			__be32 hwsrqaddr;
+		} srq;
 	} u;
 };
 
@@ -705,6 +720,10 @@ enum fw_ri_init_p2ptype {
 	FW_RI_INIT_P2PTYPE_SEND_WITH_SE		= FW_RI_SEND_WITH_SE,
 	FW_RI_INIT_P2PTYPE_SEND_WITH_SE_INV	= FW_RI_SEND_WITH_SE_INV,
 	FW_RI_INIT_P2PTYPE_DISABLED		= 0xf,
+};
+
+enum fw_ri_init_rqeqid_srq {
+	FW_RI_INIT_RQEQID_SRQ			= 1 << 31,
 };
 
 struct fw_ri_wr {
