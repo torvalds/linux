@@ -52,7 +52,8 @@
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
-			enable-method = "qcom,kpss-acc-v1";
+			enable-method = "qcom,kpss-acc-v2";
+			next-level-cache = <&L2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
 			reg = <0x0>;
@@ -71,7 +72,8 @@
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
-			enable-method = "qcom,kpss-acc-v1";
+			enable-method = "qcom,kpss-acc-v2";
+			next-level-cache = <&L2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
 			reg = <0x1>;
@@ -90,7 +92,8 @@
 		cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
-			enable-method = "qcom,kpss-acc-v1";
+			enable-method = "qcom,kpss-acc-v2";
+			next-level-cache = <&L2>;
 			qcom,acc = <&acc2>;
 			qcom,saw = <&saw2>;
 			reg = <0x2>;
@@ -109,7 +112,8 @@
 		cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
-			enable-method = "qcom,kpss-acc-v1";
+			enable-method = "qcom,kpss-acc-v2";
+			next-level-cache = <&L2>;
 			qcom,acc = <&acc3>;
 			qcom,saw = <&saw3>;
 			reg = <0x3>;
@@ -123,6 +127,11 @@
 				666000	1100000
 			>;
 			clock-latency = <256000>;
+		};
+
+		L2: l2-cache {
+			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -292,22 +301,22 @@
 		};
 
                 acc0: clock-controller@b088000 {
-                        compatible = "qcom,kpss-acc-v1";
+                        compatible = "qcom,kpss-acc-v2";
                         reg = <0x0b088000 0x1000>, <0xb008000 0x1000>;
                 };
 
                 acc1: clock-controller@b098000 {
-                        compatible = "qcom,kpss-acc-v1";
+                        compatible = "qcom,kpss-acc-v2";
                         reg = <0x0b098000 0x1000>, <0xb008000 0x1000>;
                 };
 
                 acc2: clock-controller@b0a8000 {
-                        compatible = "qcom,kpss-acc-v1";
+                        compatible = "qcom,kpss-acc-v2";
                         reg = <0x0b0a8000 0x1000>, <0xb008000 0x1000>;
                 };
 
                 acc3: clock-controller@b0b8000 {
-                        compatible = "qcom,kpss-acc-v1";
+                        compatible = "qcom,kpss-acc-v2";
                         reg = <0x0b0b8000 0x1000>, <0xb008000 0x1000>;
                 };
 
