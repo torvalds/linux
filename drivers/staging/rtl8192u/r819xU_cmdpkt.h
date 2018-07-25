@@ -12,7 +12,7 @@
 /* 2008/05/08 amy For USB constant. */
 #define ISR_TX_BCN_OK		BIT(27)		/* Transmit Beacon OK */
 #define ISR_TX_BCN_ERR		BIT(26)		/* Transmit Beacon Error */
-#define ISR_BcnTimerIntr	BIT(13)		/* Beacon Timer Interrupt */
+#define ISR_BCN_TIMER_INTR	BIT(13)		/* Beacon Timer Interrupt */
 
 
 /* Define element ID of command packet. */

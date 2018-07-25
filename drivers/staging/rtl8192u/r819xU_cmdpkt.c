@@ -257,7 +257,7 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 			priv->stats.txbeaconerr++;
 		}
 
-		if (rx_intr_status.interrupt_status & ISR_BcnTimerIntr)
+		if (rx_intr_status.interrupt_status & ISR_BCN_TIMER_INTR)
 			cmdpkt_beacontimerinterrupt_819xusb(dev);
 	}
 
