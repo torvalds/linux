@@ -18,6 +18,10 @@ various perf commands with the -e option.
 
 OPTIONS
 -------
+-d::
+--desc::
+Print extra event descriptions. (default)
+
 --no-desc::
 Don't print descriptions.
 
@@ -25,10 +29,12 @@ Don't print descriptions.
 --long-desc::
 Print longer event descriptions.
 
+--debug::
+Enable debugging output.
+
 --details::
 Print how named events are resolved internally into perf events, and also
 any extra expressions computed by perf stat.
-
 
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
