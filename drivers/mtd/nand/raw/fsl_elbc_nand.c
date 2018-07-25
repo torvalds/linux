@@ -700,7 +700,7 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 		dev_err(priv->dev,
 		        "fsl_elbc_init: page size %d is not supported\n",
 		        mtd->writesize);
-		return -1;
+		return -ENOTSUPP;
 	}
 
 	return 0;
