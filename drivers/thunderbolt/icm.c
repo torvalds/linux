@@ -534,20 +534,13 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
-	ret = icm->get_route(tb, link, depth, &route);
-	if (ret) {
-		tb_err(tb, "failed to find route string for switch at %u.%u\n",
-		       link, depth);
-		return;
-	}
-
 	sw = tb_switch_find_by_uuid(tb, &pkg->ep_uuid);
 	if (sw) {
 		u8 phy_port, sw_phy_port;
 
 		parent_sw = tb_to_switch(sw->dev.parent);
-		sw_phy_port = phy_port_from_route(tb_route(sw), sw->depth);
-		phy_port = phy_port_from_route(route, depth);
+		sw_phy_port = tb_phy_port_from_link(sw->link);
+		phy_port = tb_phy_port_from_link(link);
 
 		/*
 		 * On resume ICM will send us connected events for the
@@ -559,6 +552,22 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		 */
 		if (sw->depth == depth && sw_phy_port == phy_port &&
 		    !!sw->authorized == authorized) {
+			/*
+			 * It was enumerated through another link so update
+			 * route string accordingly.
+			 */
+			if (sw->link != link) {
+				ret = icm->get_route(tb, link, depth, &route);
+				if (ret) {
+					tb_err(tb, "failed to update route string for switch at %u.%u\n",
+					       link, depth);
+					tb_switch_put(sw);
+					return;
+				}
+			} else {
+				route = tb_route(sw);
+			}
+
 			update_switch(parent_sw, sw, route, pkg->connection_id,
 				      pkg->connection_key, link, depth, boot);
 			tb_switch_put(sw);
@@ -604,6 +613,14 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	if (!parent_sw) {
 		tb_err(tb, "failed to find parent switch for %u.%u\n",
 		       link, depth);
+		return;
+	}
+
+	ret = icm->get_route(tb, link, depth, &route);
+	if (ret) {
+		tb_err(tb, "failed to find route string for switch at %u.%u\n",
+		       link, depth);
+		tb_switch_put(parent_sw);
 		return;
 	}
 
