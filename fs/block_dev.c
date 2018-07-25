@@ -231,7 +231,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 
 	ret = bio_iov_iter_get_pages(&bio, iter);
 	if (unlikely(ret))
-		return ret;
+		goto out;
 	ret = bio.bi_iter.bi_size;
 
 	if (iov_iter_rw(iter) == READ) {
@@ -260,11 +260,12 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		put_page(bvec->bv_page);
 	}
 
-	if (vecs != inline_vecs)
-		kfree(vecs);
-
 	if (unlikely(bio.bi_status))
 		ret = blk_status_to_errno(bio.bi_status);
+
+out:
+	if (vecs != inline_vecs)
+		kfree(vecs);
 
 	bio_uninit(&bio);
 
