@@ -199,8 +199,8 @@ static struct mssr_mod_clk r8a7795_mod_clks[] __initdata = {
 	DEF_MOD("ehci2",		 701,	R8A7795_CLK_S3D2),
 	DEF_MOD("ehci1",		 702,	R8A7795_CLK_S3D2),
 	DEF_MOD("ehci0",		 703,	R8A7795_CLK_S3D2),
-	DEF_MOD("hsusb",		 704,	R8A7795_CLK_S3D4),
-	DEF_MOD("hsusb3",		 705,	R8A7795_CLK_S3D4),
+	DEF_MOD("hsusb",		 704,	R8A7795_CLK_S3D2),
+	DEF_MOD("hsusb3",		 705,	R8A7795_CLK_S3D2),
 	DEF_MOD("csi21",		 713,	R8A7795_CLK_CSI0), /* ES1.x */
 	DEF_MOD("csi20",		 714,	R8A7795_CLK_CSI0),
 	DEF_MOD("csi41",		 715,	R8A7795_CLK_CSI0),
