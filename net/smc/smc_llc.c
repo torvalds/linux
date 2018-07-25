@@ -182,8 +182,7 @@ static int smc_llc_add_pending_send(struct smc_link *link,
 }
 
 /* high-level API to send LLC confirm link */
-int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
-			      union ib_gid *gid,
+int smc_llc_send_confirm_link(struct smc_link *link,
 			      enum smc_llc_reqresp reqresp)
 {
 	struct smc_link_group *lgr = smc_get_lgr(link);
@@ -202,8 +201,10 @@ int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
 	confllc->hd.flags |= SMC_LLC_FLAG_NO_RMBE_EYEC;
 	if (reqresp == SMC_LLC_RESP)
 		confllc->hd.flags |= SMC_LLC_FLAG_RESP;
-	memcpy(confllc->sender_mac, mac, ETH_ALEN);
-	memcpy(confllc->sender_gid, gid, SMC_GID_SIZE);
+	memcpy(confllc->sender_mac, link->smcibdev->mac[link->ibport - 1],
+	       ETH_ALEN);
+	memcpy(confllc->sender_gid, &link->smcibdev->gid[link->ibport - 1],
+	       SMC_GID_SIZE);
 	hton24(confllc->sender_qp_num, link->roce_qp->qp_num);
 	confllc->link_num = link->link_id;
 	memcpy(confllc->link_uid, lgr->id, SMC_LGR_ID_SIZE);

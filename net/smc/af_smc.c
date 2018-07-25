@@ -352,10 +352,7 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 		return SMC_CLC_DECL_INTERR;
 
 	/* send CONFIRM LINK response over RoCE fabric */
-	rc = smc_llc_send_confirm_link(link,
-				       link->smcibdev->mac[link->ibport - 1],
-				       &link->smcibdev->gid[link->ibport - 1],
-				       SMC_LLC_RESP);
+	rc = smc_llc_send_confirm_link(link, SMC_LLC_RESP);
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
@@ -951,10 +948,7 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 		return SMC_CLC_DECL_INTERR;
 
 	/* send CONFIRM LINK request to client over the RoCE fabric */
-	rc = smc_llc_send_confirm_link(link,
-				       link->smcibdev->mac[link->ibport - 1],
-				       &link->smcibdev->gid[link->ibport - 1],
-				       SMC_LLC_REQ);
+	rc = smc_llc_send_confirm_link(link, SMC_LLC_REQ);
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
