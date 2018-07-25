@@ -85,5 +85,6 @@ int msm_csiphy_register_entity(struct csiphy_device *csiphy,
 void msm_csiphy_unregister_entity(struct csiphy_device *csiphy);
 
 extern const struct csiphy_hw_ops csiphy_ops_2ph_1_0;
+extern const struct csiphy_hw_ops csiphy_ops_3ph_1_0;
 
 #endif /* QC_MSM_CAMSS_CSIPHY_H */

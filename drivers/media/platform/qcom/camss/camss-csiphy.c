@@ -565,6 +565,8 @@ int msm_csiphy_subdev_init(struct camss *camss,
 
 	if (camss->version == CAMSS_8x16)
 		csiphy->ops = &csiphy_ops_2ph_1_0;
+	else if (camss->version == CAMSS_8x96)
+		csiphy->ops = &csiphy_ops_3ph_1_0;
 	else
 		return -EINVAL;
 
