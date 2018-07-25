@@ -674,7 +674,6 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	struct tb_xdomain *xd;
 	struct tb_switch *sw;
 	u8 link, depth;
-	bool approved;
 	u64 route;
 
 	/*
@@ -688,7 +687,6 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	link = pkg->link_info & ICM_LINK_INFO_LINK_MASK;
 	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
 		ICM_LINK_INFO_DEPTH_SHIFT;
-	approved = pkg->link_info & ICM_LINK_INFO_APPROVED;
 
 	if (link > ICM_MAX_LINK || depth > ICM_MAX_DEPTH) {
 		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
