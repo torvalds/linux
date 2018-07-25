@@ -150,6 +150,11 @@ static const struct mlxsw_sp_acl_erp_table_ops erp_no_mask_ops = {
 	.erp_destroy = mlxsw_sp_acl_erp_no_mask_destroy,
 };
 
+bool mlxsw_sp_acl_erp_is_ctcam_erp(const struct mlxsw_sp_acl_erp *erp)
+{
+	return erp->key.ctcam;
+}
+
 u8 mlxsw_sp_acl_erp_id(const struct mlxsw_sp_acl_erp *erp)
 {
 	return erp->id;

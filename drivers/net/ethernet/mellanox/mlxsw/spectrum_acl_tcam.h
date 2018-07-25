@@ -163,11 +163,31 @@ struct mlxsw_sp_acl_atcam {
 };
 
 struct mlxsw_sp_acl_atcam_region {
+	struct rhashtable entries_ht; /* A-TCAM only */
 	struct mlxsw_sp_acl_ctcam_region cregion;
+	const struct mlxsw_sp_acl_atcam_region_ops *ops;
 	struct mlxsw_sp_acl_tcam_region *region;
 	struct mlxsw_sp_acl_atcam *atcam;
 	enum mlxsw_sp_acl_atcam_region_type type;
 	struct mlxsw_sp_acl_erp_table *erp_table;
+	void *priv;
+};
+
+struct mlxsw_sp_acl_atcam_entry_ht_key {
+	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key */
+	u8 erp_id;
+};
+
+struct mlxsw_sp_acl_atcam_chunk {
+	struct mlxsw_sp_acl_ctcam_chunk cchunk;
+};
+
+struct mlxsw_sp_acl_atcam_entry {
+	struct rhash_head ht_node;
+	struct mlxsw_sp_acl_atcam_entry_ht_key ht_key;
+	struct mlxsw_sp_acl_ctcam_entry centry;
+	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id;
+	struct mlxsw_sp_acl_erp *erp;
 };
 
 int mlxsw_sp_acl_atcam_region_associate(struct mlxsw_sp *mlxsw_sp,
@@ -177,6 +197,19 @@ int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_atcam_region *aregion,
 				   struct mlxsw_sp_acl_tcam_region *region);
 void mlxsw_sp_acl_atcam_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
+void mlxsw_sp_acl_atcam_chunk_init(struct mlxsw_sp_acl_atcam_region *aregion,
+				   struct mlxsw_sp_acl_atcam_chunk *achunk,
+				   unsigned int priority);
+void mlxsw_sp_acl_atcam_chunk_fini(struct mlxsw_sp_acl_atcam_chunk *achunk);
+int mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_atcam_region *aregion,
+				 struct mlxsw_sp_acl_atcam_chunk *achunk,
+				 struct mlxsw_sp_acl_atcam_entry *aentry,
+				 struct mlxsw_sp_acl_rule_info *rulei);
+void mlxsw_sp_acl_atcam_entry_del(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_atcam_region *aregion,
+				  struct mlxsw_sp_acl_atcam_chunk *achunk,
+				  struct mlxsw_sp_acl_atcam_entry *aentry);
 int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_atcam *atcam);
 void mlxsw_sp_acl_atcam_fini(struct mlxsw_sp *mlxsw_sp,
@@ -184,6 +217,7 @@ void mlxsw_sp_acl_atcam_fini(struct mlxsw_sp *mlxsw_sp,
 
 struct mlxsw_sp_acl_erp;
 
+bool mlxsw_sp_acl_erp_is_ctcam_erp(const struct mlxsw_sp_acl_erp *erp);
 u8 mlxsw_sp_acl_erp_id(const struct mlxsw_sp_acl_erp *erp);
 struct mlxsw_sp_acl_erp *
 mlxsw_sp_acl_erp_get(struct mlxsw_sp_acl_atcam_region *aregion,

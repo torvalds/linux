@@ -54,7 +54,7 @@ struct mlxsw_sp2_acl_tcam_chunk {
 };
 
 struct mlxsw_sp2_acl_tcam_entry {
-	struct mlxsw_sp_acl_ctcam_entry centry;
+	struct mlxsw_sp_acl_atcam_entry aentry;
 	struct mlxsw_afa_block *act_block;
 };
 
@@ -185,8 +185,8 @@ static int mlxsw_sp2_acl_tcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 
 	entry->act_block = rulei->act_block;
 	return mlxsw_sp_acl_ctcam_entry_add(mlxsw_sp, &region->aregion.cregion,
-					    &chunk->cchunk, &entry->centry,
-					    rulei, true);
+					    &chunk->cchunk,
+					    &entry->aentry.centry, rulei, true);
 }
 
 static void mlxsw_sp2_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
@@ -198,7 +198,7 @@ static void mlxsw_sp2_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp2_acl_tcam_entry *entry = entry_priv;
 
 	mlxsw_sp_acl_ctcam_entry_del(mlxsw_sp, &region->aregion.cregion,
-				     &chunk->cchunk, &entry->centry);
+				     &chunk->cchunk, &entry->aentry.centry);
 }
 
 static int
