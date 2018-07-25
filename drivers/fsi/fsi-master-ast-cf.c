@@ -377,8 +377,8 @@ static int send_request(struct fsi_master_acf *master, struct fsi_msg *cmd,
 static int read_copro_response(struct fsi_master_acf *master, uint8_t size,
 			       uint32_t *response, u8 *tag)
 {
-	uint8_t rtag = ioread8(master->sram + STAT_RTAG);
-	uint8_t rcrc = ioread8(master->sram + STAT_RCRC);
+	uint8_t rtag = ioread8(master->sram + STAT_RTAG) & 0xf;
+	uint8_t rcrc = ioread8(master->sram + STAT_RCRC) & 0xf;
 	uint32_t rdata = 0;
 	uint32_t crc;
 	uint8_t ack;
