@@ -534,6 +534,9 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		(1ULL << IB_USER_VERBS_CMD_QUERY_QP) |
 		(1ULL << IB_USER_VERBS_CMD_DESTROY_QP);
 
+	ib_dev->uverbs_ex_cmd_mask |=
+		(1ULL << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
+
 	/* HCA||device||port */
 	ib_dev->modify_device		= hns_roce_modify_device;
 	ib_dev->query_device		= hns_roce_query_device;
