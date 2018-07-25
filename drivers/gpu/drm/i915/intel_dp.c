@@ -229,6 +229,72 @@ intel_dp_link_required(int pixel_clock, int bpp)
 	return DIV_ROUND_UP(pixel_clock * bpp, 8);
 }
 
+void icl_program_mg_dp_mode(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	enum port port = intel_dig_port->base.port;
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+	u32 ln0, ln1, lane_info;
+
+	if (tc_port == PORT_TC_NONE || intel_dig_port->tc_type == TC_PORT_TBT)
+		return;
+
+	ln0 = I915_READ(MG_DP_MODE(port, 0));
+	ln1 = I915_READ(MG_DP_MODE(port, 1));
+
+	switch (intel_dig_port->tc_type) {
+	case TC_PORT_TYPEC:
+		ln0 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
+		ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
+
+		lane_info = (I915_READ(PORT_TX_DFLEXDPSP) &
+			     DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
+			    DP_LANE_ASSIGNMENT_SHIFT(tc_port);
+
+		switch (lane_info) {
+		case 0x1:
+		case 0x4:
+			break;
+		case 0x2:
+			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE;
+			break;
+		case 0x3:
+			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE |
+			       MG_DP_MODE_CFG_DP_X2_MODE;
+			break;
+		case 0x8:
+			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE;
+			break;
+		case 0xC:
+			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE |
+			       MG_DP_MODE_CFG_DP_X2_MODE;
+			break;
+		case 0xF:
+			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE |
+			       MG_DP_MODE_CFG_DP_X2_MODE;
+			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE |
+			       MG_DP_MODE_CFG_DP_X2_MODE;
+			break;
+		default:
+			MISSING_CASE(lane_info);
+		}
+		break;
+
+	case TC_PORT_LEGACY:
+		ln0 |= MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE;
+		ln1 |= MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE;
+		break;
+
+	default:
+		MISSING_CASE(intel_dig_port->tc_type);
+		return;
+	}
+
+	I915_WRITE(MG_DP_MODE(port, 0), ln0);
+	I915_WRITE(MG_DP_MODE(port, 1), ln1);
+}
+
 int
 intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 {

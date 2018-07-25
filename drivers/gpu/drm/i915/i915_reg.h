@@ -2092,6 +2092,21 @@ enum i915_power_well_id {
 #define   CFG_AMI_CK_DIV_OVERRIDE_VAL_MASK	(0x3 << 25)
 #define   CFG_AMI_CK_DIV_OVERRIDE_EN		(1 << 24)
 
+#define MG_DP_MODE_LN0_ACU_PORT1			0x1683A0
+#define MG_DP_MODE_LN1_ACU_PORT1			0x1687A0
+#define MG_DP_MODE_LN0_ACU_PORT2			0x1693A0
+#define MG_DP_MODE_LN1_ACU_PORT2			0x1697A0
+#define MG_DP_MODE_LN0_ACU_PORT3			0x16A3A0
+#define MG_DP_MODE_LN1_ACU_PORT3			0x16A7A0
+#define MG_DP_MODE_LN0_ACU_PORT4			0x16B3A0
+#define MG_DP_MODE_LN1_ACU_PORT4			0x16B7A0
+#define MG_DP_MODE(port, ln)	\
+	MG_PHY_PORT_LN(port, ln, MG_DP_MODE_LN0_ACU_PORT1, \
+				 MG_DP_MODE_LN0_ACU_PORT2, \
+				 MG_DP_MODE_LN1_ACU_PORT1)
+#define   MG_DP_MODE_CFG_DP_X2_MODE			(1 << 7)
+#define   MG_DP_MODE_CFG_DP_X1_MODE			(1 << 6)
+
 /* The spec defines this only for BXT PHY0, but lets assume that this
  * would exist for PHY1 too if it had a second channel.
  */

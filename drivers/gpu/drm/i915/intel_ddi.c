@@ -2809,6 +2809,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
+	icl_program_mg_dp_mode(intel_dp);
+
 	if (IS_ICELAKE(dev_priv))
 		icl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
 					level, encoder->type);

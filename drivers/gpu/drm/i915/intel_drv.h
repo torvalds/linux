@@ -1714,6 +1714,7 @@ void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
 			       unsigned int frontbuffer_bits);
 void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
 			  unsigned int frontbuffer_bits);
+void icl_program_mg_dp_mode(struct intel_dp *intel_dp);
 
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
