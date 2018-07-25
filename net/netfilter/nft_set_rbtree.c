@@ -411,8 +411,8 @@ static void nft_rbtree_gc(struct work_struct *work)
 			   nft_set_gc_interval(set));
 }
 
-static unsigned int nft_rbtree_privsize(const struct nlattr * const nla[],
-					const struct nft_set_desc *desc)
+static u64 nft_rbtree_privsize(const struct nlattr * const nla[],
+			       const struct nft_set_desc *desc)
 {
 	return sizeof(struct nft_rbtree);
 }
