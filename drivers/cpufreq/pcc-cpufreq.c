@@ -580,6 +580,10 @@ static int __init pcc_cpufreq_init(void)
 {
 	int ret;
 
+	/* Skip initialization if another cpufreq driver is there. */
+	if (cpufreq_get_current_driver())
+		return 0;
+
 	if (acpi_disabled)
 		return 0;
 

@@ -405,6 +405,7 @@ nouveau_display_init(struct drm_device *dev)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	int ret;
 
 	ret = disp->init(dev);
@@ -412,10 +413,12 @@ nouveau_display_init(struct drm_device *dev)
 		return ret;
 
 	/* enable hotplug interrupts */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 		nvif_notify_get(&conn->hpd);
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* enable flip completion events */
 	nvif_notify_get(&drm->flip);
@@ -428,6 +431,7 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
 	if (!suspend) {
 		if (drm_drv_uses_atomic_modeset(dev))
@@ -440,10 +444,12 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	nvif_notify_put(&drm->flip);
 
 	/* disable hotplug interrupts */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 		nvif_notify_put(&conn->hpd);
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	drm_kms_helper_poll_disable(dev);
 	disp->fini(dev);

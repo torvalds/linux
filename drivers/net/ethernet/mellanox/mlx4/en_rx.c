@@ -472,10 +472,10 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 {
 	const struct mlx4_en_frag_info *frag_info = priv->frag_info;
 	unsigned int truesize = 0;
+	bool release = true;
 	int nr, frag_size;
 	struct page *page;
 	dma_addr_t dma;
-	bool release;
 
 	/* Collect used fragments while replacing them in the HW descriptors */
 	for (nr = 0;; frags++) {
@@ -498,7 +498,11 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 			release = page_count(page) != 1 ||
 				  page_is_pfmemalloc(page) ||
 				  page_to_nid(page) != numa_mem_id();
-		} else {
+		} else if (!priv->rx_headroom) {
+			/* rx_headroom for non XDP setup is always 0.
+			 * When XDP is set, the above condition will
+			 * guarantee page is always released.
+			 */
 			u32 sz_align = ALIGN(frag_size, SMP_CACHE_BYTES);
 
 			frags->page_offset += sz_align;

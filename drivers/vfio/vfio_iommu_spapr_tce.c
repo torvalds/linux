@@ -457,13 +457,13 @@ static void tce_iommu_unuse_page(struct tce_container *container,
 }
 
 static int tce_iommu_prereg_ua_to_hpa(struct tce_container *container,
-		unsigned long tce, unsigned long size,
+		unsigned long tce, unsigned long shift,
 		unsigned long *phpa, struct mm_iommu_table_group_mem_t **pmem)
 {
 	long ret = 0;
 	struct mm_iommu_table_group_mem_t *mem;
 
-	mem = mm_iommu_lookup(container->mm, tce, size);
+	mem = mm_iommu_lookup(container->mm, tce, 1ULL << shift);
 	if (!mem)
 		return -EINVAL;
 
@@ -487,7 +487,7 @@ static void tce_iommu_unuse_page_v2(struct tce_container *container,
 	if (!pua)
 		return;
 
-	ret = tce_iommu_prereg_ua_to_hpa(container, *pua, IOMMU_PAGE_SIZE(tbl),
+	ret = tce_iommu_prereg_ua_to_hpa(container, *pua, tbl->it_page_shift,
 			&hpa, &mem);
 	if (ret)
 		pr_debug("%s: tce %lx at #%lx was not cached, ret=%d\n",
@@ -609,7 +609,7 @@ static long tce_iommu_build_v2(struct tce_container *container,
 				entry + i);
 
 		ret = tce_iommu_prereg_ua_to_hpa(container,
-				tce, IOMMU_PAGE_SIZE(tbl), &hpa, &mem);
+				tce, tbl->it_page_shift, &hpa, &mem);
 		if (ret)
 			break;
 
