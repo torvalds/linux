@@ -172,7 +172,6 @@ static struct rtc_device *rtc_allocate_device(void)
 
 	mutex_init(&rtc->ops_lock);
 	spin_lock_init(&rtc->irq_lock);
-	spin_lock_init(&rtc->irq_task_lock);
 	init_waitqueue_head(&rtc->irq_queue);
 
 	/* Init timerqueue */

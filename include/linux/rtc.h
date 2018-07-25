@@ -121,8 +121,6 @@ struct rtc_device {
 	wait_queue_head_t irq_queue;
 	struct fasync_struct *async_queue;
 
-	struct rtc_task *irq_task;
-	spinlock_t irq_task_lock;
 	int irq_freq;
 	int max_user_freq;
 

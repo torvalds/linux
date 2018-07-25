@@ -605,12 +605,6 @@ void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode)
 	rtc->irq_data = (rtc->irq_data + (num << 8)) | (RTC_IRQF|mode);
 	spin_unlock_irqrestore(&rtc->irq_lock, flags);
 
-	/* call the task func */
-	spin_lock_irqsave(&rtc->irq_task_lock, flags);
-	if (rtc->irq_task)
-		rtc->irq_task->func(rtc->irq_task->private_data);
-	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
-
 	wake_up_interruptible(&rtc->irq_queue);
 	kill_fasync(&rtc->async_queue, SIGIO, POLL_IN);
 }
@@ -750,28 +744,16 @@ static int rtc_update_hrtimer(struct rtc_device *rtc, int enabled)
  * Context: any
  *
  * Note that rtc_irq_set_freq() should previously have been used to
- * specify the desired frequency of periodic IRQ task->func() callbacks.
+ * specify the desired frequency of periodic IRQ.
  */
 int rtc_irq_set_state(struct rtc_device *rtc, struct rtc_task *task, int enabled)
 {
 	int err = 0;
-	unsigned long flags;
 
-retry:
-	spin_lock_irqsave(&rtc->irq_task_lock, flags);
-	if (rtc->irq_task != NULL && task == NULL)
-		err = -EBUSY;
-	else if (rtc->irq_task != task)
-		err = -EACCES;
-	else {
-		if (rtc_update_hrtimer(rtc, enabled) < 0) {
-			spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
-			cpu_relax();
-			goto retry;
-		}
-		rtc->pie_enabled = enabled;
-	}
-	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
+	while (rtc_update_hrtimer(rtc, enabled) < 0)
+		cpu_relax();
+
+	rtc->pie_enabled = enabled;
 
 	trace_rtc_irq_set_state(enabled, err);
 	return err;
@@ -782,7 +764,7 @@ EXPORT_SYMBOL_GPL(rtc_irq_set_state);
  * rtc_irq_set_freq - set 2^N Hz periodic IRQ frequency for IRQ
  * @rtc: the rtc device
  * @task: currently registered with rtc_irq_register()
- * @freq: positive frequency with which task->func() will be called
+ * @freq: positive frequency
  * Context: any
  *
  * Note that rtc_irq_set_state() is used to enable or disable the
@@ -791,25 +773,13 @@ EXPORT_SYMBOL_GPL(rtc_irq_set_state);
 int rtc_irq_set_freq(struct rtc_device *rtc, struct rtc_task *task, int freq)
 {
 	int err = 0;
-	unsigned long flags;
 
 	if (freq <= 0 || freq > RTC_MAX_FREQ)
 		return -EINVAL;
-retry:
-	spin_lock_irqsave(&rtc->irq_task_lock, flags);
-	if (rtc->irq_task != NULL && task == NULL)
-		err = -EBUSY;
-	else if (rtc->irq_task != task)
-		err = -EACCES;
-	else {
-		rtc->irq_freq = freq;
-		if (rtc->pie_enabled && rtc_update_hrtimer(rtc, 1) < 0) {
-			spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
-			cpu_relax();
-			goto retry;
-		}
-	}
-	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
+
+	rtc->irq_freq = freq;
+	while (rtc->pie_enabled && rtc_update_hrtimer(rtc, 1) < 0)
+		cpu_relax();
 
 	trace_rtc_irq_set_freq(freq, err);
 	return err;
