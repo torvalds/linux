@@ -35,17 +35,6 @@ static inline int nand_scan(struct mtd_info *mtd, int max_chips)
 	return nand_scan_with_ids(mtd, max_chips, NULL);
 }
 
-/*
- * Separate phases of nand_scan(), allowing board driver to intervene
- * and override command or ECC setup according to flash type.
- */
-int nand_scan_ident(struct mtd_info *mtd, int max_chips,
-			   struct nand_flash_dev *table);
-int nand_scan_tail(struct mtd_info *mtd);
-
-/* Unregister the MTD device and free resources held by the NAND device */
-void nand_release(struct mtd_info *mtd);
-
 /* Internal helper for board drivers which need to override command function */
 void nand_wait_ready(struct mtd_info *mtd);
 
@@ -1745,8 +1734,13 @@ int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
 int nand_write_data_op(struct nand_chip *chip, const void *buf,
 		       unsigned int len, bool force_8bit);
 
-/* Free resources held by the NAND device */
+/*
+ * Free resources held by the NAND device, must be called on error after a
+ * sucessful nand_scan().
+ */
 void nand_cleanup(struct nand_chip *chip);
+/* Unregister the MTD device and calls nand_cleanup() */
+void nand_release(struct mtd_info *mtd);
 
 /* Default extended ID decoding function */
 void nand_decode_ext_id(struct nand_chip *chip);
