@@ -810,7 +810,7 @@ module_param(calibrate_signal, int, 0444);
 #ifndef MSND_CLASSIC
 module_param_array(digital, int, NULL, 0444);
 module_param_hw_array(cfg, long, ioport, NULL, 0444);
-module_param_array(reset, int, 0, 0444);
+module_param_array(reset, int, NULL, 0444);
 module_param_hw_array(mpu_io, long, ioport, NULL, 0444);
 module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 module_param_hw_array(ide_io0, long, ioport, NULL, 0444);
