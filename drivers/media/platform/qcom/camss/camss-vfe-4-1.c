@@ -542,6 +542,11 @@ static void vfe_set_xbar_cfg(struct vfe_device *vfe, struct vfe_output *output,
 	}
 }
 
+static void vfe_set_realign_cfg(struct vfe_device *vfe, struct vfe_line *line,
+				u8 enable)
+{
+	/* empty */
+}
 static void vfe_set_rdi_cid(struct vfe_device *vfe, enum vfe_line_id id, u8 cid)
 {
 	vfe_reg_clr(vfe, VFE_0_RDI_CFG_x(id),
@@ -989,6 +994,7 @@ const struct vfe_hw_ops vfe_ops_4_1 = {
 	.wm_set_subsample = vfe_wm_set_subsample,
 	.bus_disconnect_wm_from_rdi = vfe_bus_disconnect_wm_from_rdi,
 	.set_xbar_cfg = vfe_set_xbar_cfg,
+	.set_realign_cfg = vfe_set_realign_cfg,
 	.set_rdi_cid = vfe_set_rdi_cid,
 	.reg_update = vfe_reg_update,
 	.reg_update_clear = vfe_reg_update_clear,

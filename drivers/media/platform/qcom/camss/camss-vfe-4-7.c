@@ -34,6 +34,7 @@
 #define VFE_0_MODULE_ZOOM_EN		0x04c
 #define VFE_0_MODULE_ZOOM_EN_SCALE_ENC		BIT(1)
 #define VFE_0_MODULE_ZOOM_EN_CROP_ENC		BIT(2)
+#define VFE_0_MODULE_ZOOM_EN_REALIGN_BUF	BIT(9)
 
 #define VFE_0_CORE_CFG			0x050
 #define VFE_0_CORE_CFG_PIXEL_PATTERN_YCBYCR	0x4
@@ -87,6 +88,9 @@
 
 #define VFE_0_BUS_XBAR_CFG_x(x)		(0x90 + 0x4 * ((x) / 2))
 #define VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_EN			BIT(2)
+#define VFE_0_BUS_XBAR_CFG_x_M_REALIGN_BUF_EN			BIT(3)
+#define VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_SWAP_INTRA		(0x1 << 4)
+#define VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_SWAP_INTER		(0x2 << 4)
 #define VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_SWAP_INTER_INTRA	(0x3 << 4)
 #define VFE_0_BUS_XBAR_CFG_x_M_SINGLE_STREAM_SEL_SHIFT		8
 #define VFE_0_BUS_XBAR_CFG_x_M_SINGLE_STREAM_SEL_LUMA		0x0
@@ -221,6 +225,11 @@
 #define VFE_0_CLAMP_ENC_MIN_CFG_CH1		(0x0 << 8)
 #define VFE_0_CLAMP_ENC_MIN_CFG_CH2		(0x0 << 16)
 
+#define VFE_0_REALIGN_BUF_CFG			0xaac
+#define VFE_0_REALIGN_BUF_CFG_CB_ODD_PIXEL     BIT(2)
+#define VFE_0_REALIGN_BUF_CFG_CR_ODD_PIXEL     BIT(3)
+#define VFE_0_REALIGN_BUF_CFG_HSUB_ENABLE      BIT(4)
+
 #define CAMIF_TIMEOUT_SLEEP_US 1000
 #define CAMIF_TIMEOUT_ALL_US 1000000
 
@@ -311,7 +320,7 @@ static void vfe_wm_frame_based(struct vfe_device *vfe, u8 wm, u8 enable)
 
 #define CALC_WORD(width, M, N) (((width) * (M) + (N) - 1) / (N))
 
-static int vfe_word_per_line(u32 format, u32 pixel_per_line)
+static int vfe_word_per_line_by_pixel(u32 format, u32 pixel_per_line)
 {
 	int val = 0;
 
@@ -333,6 +342,11 @@ static int vfe_word_per_line(u32 format, u32 pixel_per_line)
 	return val;
 }
 
+static int vfe_word_per_line_by_bytes(u32 bytes_per_line)
+{
+	return CALC_WORD(bytes_per_line, 1, 8);
+}
+
 static void vfe_get_wm_sizes(struct v4l2_pix_format_mplane *pix, u8 plane,
 			     u16 *width, u16 *height, u16 *bytesperline)
 {
@@ -351,6 +365,15 @@ static void vfe_get_wm_sizes(struct v4l2_pix_format_mplane *pix, u8 plane,
 		*height = pix->height;
 		*bytesperline = pix->plane_fmt[0].bytesperline;
 		break;
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_YVYU:
+	case V4L2_PIX_FMT_VYUY:
+	case V4L2_PIX_FMT_UYVY:
+		*width = pix->width;
+		*height = pix->height;
+		*bytesperline = pix->plane_fmt[plane].bytesperline;
+		break;
+
 	}
 }
 
@@ -365,7 +388,7 @@ static void vfe_wm_line_based(struct vfe_device *vfe, u32 wm,
 
 		vfe_get_wm_sizes(pix, plane, &width, &height, &bytesperline);
 
-		wpl = vfe_word_per_line(pix->pixelformat, width);
+		wpl = vfe_word_per_line_by_pixel(pix->pixelformat, width);
 
 		reg = height - 1;
 		reg |= ((wpl + 3) / 4 - 1) << 16;
@@ -373,7 +396,7 @@ static void vfe_wm_line_based(struct vfe_device *vfe, u32 wm,
 		writel_relaxed(reg, vfe->base +
 			       VFE_0_BUS_IMAGE_MASTER_n_WR_IMAGE_SIZE(wm));
 
-		wpl = vfe_word_per_line(pix->pixelformat, bytesperline);
+		wpl = vfe_word_per_line_by_bytes(bytesperline);
 
 		reg = 0x3;
 		reg |= (height - 1) << 2;
@@ -536,30 +559,95 @@ static void vfe_set_xbar_cfg(struct vfe_device *vfe, struct vfe_output *output,
 	struct vfe_line *line = container_of(output, struct vfe_line, output);
 	u32 p = line->video_out.active_fmt.fmt.pix_mp.pixelformat;
 	u32 reg;
-	unsigned int i;
 
-	for (i = 0; i < output->wm_num; i++) {
-		if (i == 0) {
-			reg = VFE_0_BUS_XBAR_CFG_x_M_SINGLE_STREAM_SEL_LUMA <<
-				VFE_0_BUS_XBAR_CFG_x_M_SINGLE_STREAM_SEL_SHIFT;
-		} else if (i == 1) {
-			reg = VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_EN;
-			if (p == V4L2_PIX_FMT_NV12 || p == V4L2_PIX_FMT_NV16)
-				reg |= VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_SWAP_INTER_INTRA;
-		}
+	switch (p) {
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		reg = VFE_0_BUS_XBAR_CFG_x_M_SINGLE_STREAM_SEL_LUMA <<
+			VFE_0_BUS_XBAR_CFG_x_M_SINGLE_STREAM_SEL_SHIFT;
 
-		if (output->wm_idx[i] % 2 == 1)
+		if (output->wm_idx[0] % 2 == 1)
 			reg <<= 16;
 
 		if (enable)
 			vfe_reg_set(vfe,
-				    VFE_0_BUS_XBAR_CFG_x(output->wm_idx[i]),
+				    VFE_0_BUS_XBAR_CFG_x(output->wm_idx[0]),
 				    reg);
 		else
 			vfe_reg_clr(vfe,
-				    VFE_0_BUS_XBAR_CFG_x(output->wm_idx[i]),
+				    VFE_0_BUS_XBAR_CFG_x(output->wm_idx[0]),
 				    reg);
+
+		reg = VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_EN;
+		if (p == V4L2_PIX_FMT_NV12 || p == V4L2_PIX_FMT_NV16)
+			reg |= VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_SWAP_INTER_INTRA;
+
+		if (output->wm_idx[1] % 2 == 1)
+			reg <<= 16;
+
+		if (enable)
+			vfe_reg_set(vfe,
+				    VFE_0_BUS_XBAR_CFG_x(output->wm_idx[1]),
+				    reg);
+		else
+			vfe_reg_clr(vfe,
+				    VFE_0_BUS_XBAR_CFG_x(output->wm_idx[1]),
+				    reg);
+		break;
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_YVYU:
+	case V4L2_PIX_FMT_VYUY:
+	case V4L2_PIX_FMT_UYVY:
+		reg = VFE_0_BUS_XBAR_CFG_x_M_REALIGN_BUF_EN;
+		reg |= VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_EN;
+
+		if (p == V4L2_PIX_FMT_YUYV || p == V4L2_PIX_FMT_YVYU)
+			reg |= VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_SWAP_INTER_INTRA;
+
+		if (output->wm_idx[0] % 2 == 1)
+			reg <<= 16;
+
+		if (enable)
+			vfe_reg_set(vfe,
+				    VFE_0_BUS_XBAR_CFG_x(output->wm_idx[0]),
+				    reg);
+		else
+			vfe_reg_clr(vfe,
+				    VFE_0_BUS_XBAR_CFG_x(output->wm_idx[0]),
+				    reg);
+		break;
+	default:
+		break;
 	}
+}
+
+static void vfe_set_realign_cfg(struct vfe_device *vfe, struct vfe_line *line,
+				u8 enable)
+{
+	u32 p = line->video_out.active_fmt.fmt.pix_mp.pixelformat;
+	u32 val = VFE_0_MODULE_ZOOM_EN_REALIGN_BUF;
+
+	if (p != V4L2_PIX_FMT_YUYV && p != V4L2_PIX_FMT_YVYU &&
+			p != V4L2_PIX_FMT_VYUY && p != V4L2_PIX_FMT_UYVY)
+		return;
+
+	if (enable) {
+		vfe_reg_set(vfe, VFE_0_MODULE_ZOOM_EN, val);
+	} else {
+		vfe_reg_clr(vfe, VFE_0_MODULE_ZOOM_EN, val);
+		return;
+	}
+
+	val = VFE_0_REALIGN_BUF_CFG_HSUB_ENABLE;
+
+	if (p == V4L2_PIX_FMT_UYVY || p == V4L2_PIX_FMT_YUYV)
+		val |= VFE_0_REALIGN_BUF_CFG_CR_ODD_PIXEL;
+	else
+		val |= VFE_0_REALIGN_BUF_CFG_CB_ODD_PIXEL;
+
+	writel_relaxed(val, vfe->base + VFE_0_REALIGN_BUF_CFG);
 }
 
 static void vfe_set_rdi_cid(struct vfe_device *vfe, enum vfe_line_id id, u8 cid)
@@ -911,11 +999,11 @@ static void vfe_set_module_cfg(struct vfe_device *vfe, u8 enable)
 		       VFE_0_MODULE_ZOOM_EN_CROP_ENC;
 
 	if (enable) {
-		writel_relaxed(val_lens, vfe->base + VFE_0_MODULE_LENS_EN);
-		writel_relaxed(val_zoom, vfe->base + VFE_0_MODULE_ZOOM_EN);
+		vfe_reg_set(vfe, VFE_0_MODULE_LENS_EN, val_lens);
+		vfe_reg_set(vfe, VFE_0_MODULE_ZOOM_EN, val_zoom);
 	} else {
-		writel_relaxed(0x0, vfe->base + VFE_0_MODULE_LENS_EN);
-		writel_relaxed(0x0, vfe->base + VFE_0_MODULE_ZOOM_EN);
+		vfe_reg_clr(vfe, VFE_0_MODULE_LENS_EN, val_lens);
+		vfe_reg_clr(vfe, VFE_0_MODULE_ZOOM_EN, val_zoom);
 	}
 }
 
@@ -1028,6 +1116,7 @@ const struct vfe_hw_ops vfe_ops_4_7 = {
 	.wm_set_subsample = vfe_wm_set_subsample,
 	.bus_disconnect_wm_from_rdi = vfe_bus_disconnect_wm_from_rdi,
 	.set_xbar_cfg = vfe_set_xbar_cfg,
+	.set_realign_cfg = vfe_set_realign_cfg,
 	.set_rdi_cid = vfe_set_rdi_cid,
 	.reg_update = vfe_reg_update,
 	.reg_update_clear = vfe_reg_update_clear,

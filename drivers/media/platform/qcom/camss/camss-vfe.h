@@ -107,6 +107,8 @@ struct vfe_hw_ops {
 			     u8 enable);
 	void (*set_rdi_cid)(struct vfe_device *vfe, enum vfe_line_id id,
 			    u8 cid);
+	void (*set_realign_cfg)(struct vfe_device *vfe, struct vfe_line *line,
+				u8 enable);
 	void (*reg_update)(struct vfe_device *vfe, enum vfe_line_id line_id);
 	void (*reg_update_clear)(struct vfe_device *vfe,
 				 enum vfe_line_id line_id);
