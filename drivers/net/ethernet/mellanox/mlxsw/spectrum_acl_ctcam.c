@@ -76,6 +76,7 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
 	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
+	unsigned int blocks_count;
 	char *act_set;
 	u32 priority;
 	char *mask;
@@ -91,7 +92,9 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 			     region->tcam_region_info, offset, priority);
 	key = mlxsw_reg_ptce2_flex_key_blocks_data(ptce2_pl);
 	mask = mlxsw_reg_ptce2_mask_data(ptce2_pl);
-	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask);
+	blocks_count = mlxsw_afk_key_info_blocks_count_get(region->key_info);
+	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask, 0,
+			 blocks_count - 1);
 
 	/* Only the first action set belongs here, the rest is in KVD */
 	act_set = mlxsw_afa_block_first_set(rulei->act_block);

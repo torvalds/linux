@@ -259,6 +259,6 @@ void mlxsw_afk_values_add_buf(struct mlxsw_afk_element_values *values,
 void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
 		      struct mlxsw_afk_key_info *key_info,
 		      struct mlxsw_afk_element_values *values,
-		      char *key, char *mask);
+		      char *key, char *mask, int block_start, int block_end);
 
 #endif
