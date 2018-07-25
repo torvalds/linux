@@ -758,7 +758,6 @@ int rtc_irq_set_state(struct rtc_device *rtc, int enabled)
 	trace_rtc_irq_set_state(enabled, err);
 	return err;
 }
-EXPORT_SYMBOL_GPL(rtc_irq_set_state);
 
 /**
  * rtc_irq_set_freq - set 2^N Hz periodic IRQ frequency for IRQ
@@ -784,7 +783,6 @@ int rtc_irq_set_freq(struct rtc_device *rtc, int freq)
 	trace_rtc_irq_set_freq(freq, err);
 	return err;
 }
-EXPORT_SYMBOL_GPL(rtc_irq_set_freq);
 
 /**
  * rtc_timer_enqueue - Adds a rtc_timer to the rtc_device timerqueue
