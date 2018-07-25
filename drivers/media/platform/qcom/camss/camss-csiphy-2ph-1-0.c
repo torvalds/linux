@@ -86,7 +86,7 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 {
 	struct csiphy_lanes_cfg *c = &cfg->csi2->lane_cfg;
 	u8 settle_cnt;
-	u8 val;
+	u8 val, l = 0;
 	int i = 0;
 
 	settle_cnt = csiphy_settle_cnt_calc(pixel_clock, bpp, c->num_data,
@@ -104,34 +104,38 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 	val = cfg->combo_mode << 4;
 	writel_relaxed(val, csiphy->base + CAMSS_CSI_PHY_GLBL_RESET);
 
-	while (lane_mask) {
-		if (lane_mask & 0x1) {
-			writel_relaxed(0x10, csiphy->base +
-				       CAMSS_CSI_PHY_LNn_CFG2(i));
-			writel_relaxed(settle_cnt, csiphy->base +
-				       CAMSS_CSI_PHY_LNn_CFG3(i));
-			writel_relaxed(0x3f, csiphy->base +
-				       CAMSS_CSI_PHY_INTERRUPT_MASKn(i));
-			writel_relaxed(0x3f, csiphy->base +
-				       CAMSS_CSI_PHY_INTERRUPT_CLEARn(i));
-		}
+	for (i = 0; i <= c->num_data; i++) {
+		if (i == c->num_data)
+			l = c->clk.pos;
+		else
+			l = c->data[i].pos;
 
-		lane_mask >>= 1;
-		i++;
+		writel_relaxed(0x10, csiphy->base +
+			       CAMSS_CSI_PHY_LNn_CFG2(l));
+		writel_relaxed(settle_cnt, csiphy->base +
+			       CAMSS_CSI_PHY_LNn_CFG3(l));
+		writel_relaxed(0x3f, csiphy->base +
+			       CAMSS_CSI_PHY_INTERRUPT_MASKn(l));
+		writel_relaxed(0x3f, csiphy->base +
+			       CAMSS_CSI_PHY_INTERRUPT_CLEARn(l));
 	}
 }
 
-static void csiphy_lanes_disable(struct csiphy_device *csiphy, u8 lane_mask)
+static void csiphy_lanes_disable(struct csiphy_device *csiphy,
+				 struct csiphy_config *cfg)
 {
+	struct csiphy_lanes_cfg *c = &cfg->csi2->lane_cfg;
+	u8 l = 0;
 	int i = 0;
 
-	while (lane_mask) {
-		if (lane_mask & 0x1)
-			writel_relaxed(0x0, csiphy->base +
-				       CAMSS_CSI_PHY_LNn_CFG2(i));
+	for (i = 0; i <= c->num_data; i++) {
+		if (i == c->num_data)
+			l = c->clk.pos;
+		else
+			l = c->data[i].pos;
 
-		lane_mask >>= 1;
-		i++;
+		writel_relaxed(0x0, csiphy->base +
+			       CAMSS_CSI_PHY_LNn_CFG2(l));
 	}
 
 	writel_relaxed(0x0, csiphy->base + CAMSS_CSI_PHY_GLBL_PWR_CFG);

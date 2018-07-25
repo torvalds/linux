@@ -296,9 +296,7 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
  */
 static void csiphy_stream_off(struct csiphy_device *csiphy)
 {
-	u8 lane_mask = csiphy_get_lane_mask(&csiphy->cfg.csi2->lane_cfg);
-
-	csiphy->ops->lanes_disable(csiphy, lane_mask);
+	csiphy->ops->lanes_disable(csiphy, &csiphy->cfg);
 }
 
 
