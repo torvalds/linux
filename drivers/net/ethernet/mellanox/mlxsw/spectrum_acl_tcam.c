@@ -577,7 +577,7 @@ mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_tcam_region_enable;
 
-	err = ops->region_init(mlxsw_sp, region->priv, region);
+	err = ops->region_init(mlxsw_sp, region->priv, tcam->priv, region);
 	if (err)
 		goto err_tcam_region_init;
 

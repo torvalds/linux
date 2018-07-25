@@ -77,6 +77,7 @@ mlxsw_sp_acl_atcam_region_erp_init(struct mlxsw_sp *mlxsw_sp,
 }
 
 int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_atcam *atcam,
 				   struct mlxsw_sp_acl_atcam_region *aregion,
 				   struct mlxsw_sp_acl_tcam_region *region)
 {

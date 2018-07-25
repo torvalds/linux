@@ -130,14 +130,16 @@ static void mlxsw_sp2_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
 
 static int
 mlxsw_sp2_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
+			       void *tcam_priv,
 			       struct mlxsw_sp_acl_tcam_region *_region)
 {
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
+	struct mlxsw_sp2_acl_tcam *tcam = tcam_priv;
 
 	region->region = _region;
 
-	return mlxsw_sp_acl_atcam_region_init(mlxsw_sp, &region->aregion,
-					      _region);
+	return mlxsw_sp_acl_atcam_region_init(mlxsw_sp, &tcam->atcam,
+					      &region->aregion, _region);
 }
 
 static void
