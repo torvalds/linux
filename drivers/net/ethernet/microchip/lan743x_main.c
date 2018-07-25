@@ -2941,7 +2941,7 @@ static int lan743x_pm_resume(struct device *dev)
 	return 0;
 }
 
-const struct dev_pm_ops lan743x_pm_ops = {
+static const struct dev_pm_ops lan743x_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(lan743x_pm_suspend, lan743x_pm_resume)
 };
 #endif /*CONFIG_PM */
