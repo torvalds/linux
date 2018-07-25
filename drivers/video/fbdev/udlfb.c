@@ -25,7 +25,6 @@
 #include <linux/fb.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#include <linux/prefetch.h>
 #include <linux/delay.h>
 #include <asm/unaligned.h>
 #include <video/udlfb.h>
@@ -375,9 +374,6 @@ static int dlfb_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
 	int start = width;
 	int end = width;
 
-	prefetch((void *) front);
-	prefetch((void *) back);
-
 	for (j = 0; j < width; j++) {
 		if (back[j] != front[j]) {
 			start = j;
@@ -454,8 +450,6 @@ static void dlfb_compress_hline(
 			continue;
 		}
 
-		prefetchw((void *) cmd); /* pull in one cache line at least */
-
 		*cmd++ = 0xAF;
 		*cmd++ = 0x6B;
 		*cmd++ = dev_addr >> 16;
@@ -478,8 +472,6 @@ static void dlfb_compress_hline(
 			       *(cmd_pixel_end - 1) == *(u16 *)((u8 *)(cmd_pixel_end - 1) + back_buffer_offset))
 				cmd_pixel_end--;
 		}
-
-		prefetch_range((void *) pixel, (u8 *)cmd_pixel_end - (u8 *)pixel);
 
 		while (pixel < cmd_pixel_end) {
 			const uint16_t * const repeating_pixel = pixel;
