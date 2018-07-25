@@ -168,6 +168,9 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&gpio 0 0 22>;
+			interrupt-controller;
+			interrupts = <13>;
+			#interrupt-cells = <2>;
 
 			uart_pins: uart-pins {
 				pins = "GPIO_6", "GPIO_7";
