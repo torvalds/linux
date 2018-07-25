@@ -112,6 +112,7 @@ struct mlxsw_sp_acl_tcam_region {
 
 struct mlxsw_sp_acl_ctcam_region {
 	struct parman *parman;
+	const struct mlxsw_sp_acl_ctcam_region_ops *ops;
 	struct mlxsw_sp_acl_tcam_region *region;
 };
 
@@ -123,9 +124,19 @@ struct mlxsw_sp_acl_ctcam_entry {
 	struct parman_item parman_item;
 };
 
-int mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_ctcam_region *cregion,
-				   struct mlxsw_sp_acl_tcam_region *region);
+struct mlxsw_sp_acl_ctcam_region_ops {
+	int (*entry_insert)(struct mlxsw_sp_acl_ctcam_region *cregion,
+			    struct mlxsw_sp_acl_ctcam_entry *centry,
+			    const char *mask);
+	void (*entry_remove)(struct mlxsw_sp_acl_ctcam_region *cregion,
+			     struct mlxsw_sp_acl_ctcam_entry *centry);
+};
+
+int
+mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_ctcam_region *cregion,
+			       struct mlxsw_sp_acl_tcam_region *region,
+			       const struct mlxsw_sp_acl_ctcam_region_ops *ops);
 void mlxsw_sp_acl_ctcam_region_fini(struct mlxsw_sp_acl_ctcam_region *cregion);
 void mlxsw_sp_acl_ctcam_chunk_init(struct mlxsw_sp_acl_ctcam_region *cregion,
 				   struct mlxsw_sp_acl_ctcam_chunk *cchunk,
@@ -190,12 +201,26 @@ struct mlxsw_sp_acl_atcam_entry {
 	struct mlxsw_sp_acl_erp *erp;
 };
 
+static inline struct mlxsw_sp_acl_atcam_region *
+mlxsw_sp_acl_tcam_cregion_aregion(struct mlxsw_sp_acl_ctcam_region *cregion)
+{
+	return container_of(cregion, struct mlxsw_sp_acl_atcam_region, cregion);
+}
+
+static inline struct mlxsw_sp_acl_atcam_entry *
+mlxsw_sp_acl_tcam_centry_aentry(struct mlxsw_sp_acl_ctcam_entry *centry)
+{
+	return container_of(centry, struct mlxsw_sp_acl_atcam_entry, centry);
+}
+
 int mlxsw_sp_acl_atcam_region_associate(struct mlxsw_sp *mlxsw_sp,
 					u16 region_id);
-int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_atcam *atcam,
-				   struct mlxsw_sp_acl_atcam_region *aregion,
-				   struct mlxsw_sp_acl_tcam_region *region);
+int
+mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_atcam *atcam,
+			       struct mlxsw_sp_acl_atcam_region *aregion,
+			       struct mlxsw_sp_acl_tcam_region *region,
+			       const struct mlxsw_sp_acl_ctcam_region_ops *ops);
 void mlxsw_sp_acl_atcam_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
 void mlxsw_sp_acl_atcam_chunk_init(struct mlxsw_sp_acl_atcam_region *aregion,
 				   struct mlxsw_sp_acl_atcam_chunk *achunk,

@@ -1048,11 +1048,8 @@ mlxsw_sp_acl_erp_master_mask_init(struct mlxsw_sp_acl_atcam_region *aregion)
 {
 	struct mlxsw_sp *mlxsw_sp = aregion->region->mlxsw_sp;
 	char percr_pl[MLXSW_REG_PERCR_LEN];
-	char *master_mask;
 
 	mlxsw_reg_percr_pack(percr_pl, aregion->region->id);
-	master_mask = mlxsw_reg_percr_master_mask_data(percr_pl);
-	memset(master_mask, 0, MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(percr), percr_pl);
 }
 
@@ -1062,7 +1059,7 @@ mlxsw_sp_acl_erp_region_param_init(struct mlxsw_sp_acl_atcam_region *aregion)
 	struct mlxsw_sp *mlxsw_sp = aregion->region->mlxsw_sp;
 	char pererp_pl[MLXSW_REG_PERERP_LEN];
 
-	mlxsw_reg_pererp_pack(pererp_pl, aregion->region->id, true, true, 0,
+	mlxsw_reg_pererp_pack(pererp_pl, aregion->region->id, false, false, 0,
 			      0, 0);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pererp), pererp_pl);
 }
@@ -1077,16 +1074,12 @@ int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion)
 		return PTR_ERR(erp_table);
 	aregion->erp_table = erp_table;
 
-	/* Initialize the region's master mask to all ones for C-TCAM
-	 * only mode
-	 */
+	/* Initialize the region's master mask to all zeroes */
 	err = mlxsw_sp_acl_erp_master_mask_init(aregion);
 	if (err)
 		goto err_erp_master_mask_init;
 
-	/* Initialize the region to use the eRP table and enable C-TCAM
-	 * lookup
-	 */
+	/* Initialize the region to not use the eRP table */
 	err = mlxsw_sp_acl_erp_region_param_init(aregion);
 	if (err)
 		goto err_erp_region_param_init;

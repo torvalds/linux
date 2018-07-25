@@ -58,6 +58,26 @@ struct mlxsw_sp1_acl_tcam_entry {
 	struct mlxsw_sp_acl_ctcam_entry centry;
 };
 
+static int
+mlxsw_sp1_acl_ctcam_region_entry_insert(struct mlxsw_sp_acl_ctcam_region *cregion,
+					struct mlxsw_sp_acl_ctcam_entry *centry,
+					const char *mask)
+{
+	return 0;
+}
+
+static void
+mlxsw_sp1_acl_ctcam_region_entry_remove(struct mlxsw_sp_acl_ctcam_region *cregion,
+					struct mlxsw_sp_acl_ctcam_entry *centry)
+{
+}
+
+static const struct mlxsw_sp_acl_ctcam_region_ops
+mlxsw_sp1_acl_ctcam_region_ops = {
+	.entry_insert = mlxsw_sp1_acl_ctcam_region_entry_insert,
+	.entry_remove = mlxsw_sp1_acl_ctcam_region_entry_remove,
+};
+
 static int mlxsw_sp1_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 				   struct mlxsw_sp_acl_tcam *tcam)
 {
@@ -129,7 +149,8 @@ mlxsw_sp1_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 	int err;
 
 	err = mlxsw_sp_acl_ctcam_region_init(mlxsw_sp, &region->cregion,
-					     _region);
+					     _region,
+					     &mlxsw_sp1_acl_ctcam_region_ops);
 	if (err)
 		return err;
 	err = mlxsw_sp1_acl_ctcam_region_catchall_add(mlxsw_sp, region);

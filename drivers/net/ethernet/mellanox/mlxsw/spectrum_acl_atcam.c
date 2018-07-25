@@ -344,10 +344,12 @@ mlxsw_sp_acl_atcam_region_type_init(struct mlxsw_sp_acl_atcam_region *aregion)
 	aregion->ops = mlxsw_sp_acl_atcam_region_ops_arr[region_type];
 }
 
-int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_atcam *atcam,
-				   struct mlxsw_sp_acl_atcam_region *aregion,
-				   struct mlxsw_sp_acl_tcam_region *region)
+int
+mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_atcam *atcam,
+			       struct mlxsw_sp_acl_atcam_region *aregion,
+			       struct mlxsw_sp_acl_tcam_region *region,
+			       const struct mlxsw_sp_acl_ctcam_region_ops *ops)
 {
 	int err;
 
@@ -366,7 +368,7 @@ int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_erp_region_init;
 	err = mlxsw_sp_acl_ctcam_region_init(mlxsw_sp, &aregion->cregion,
-					     region);
+					     region, ops);
 	if (err)
 		goto err_ctcam_region_init;
 

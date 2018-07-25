@@ -2868,7 +2868,6 @@ static inline void mlxsw_reg_percr_pack(char *payload, u16 region_id)
 	mlxsw_reg_percr_atcam_ignore_prune_set(payload, false);
 	mlxsw_reg_percr_ctcam_ignore_prune_set(payload, false);
 	mlxsw_reg_percr_bf_bypass_set(payload, true);
-	memset(payload + 0x20, 0xff, 96);
 }
 
 /* PERERP - Policy-Engine Region eRP Register

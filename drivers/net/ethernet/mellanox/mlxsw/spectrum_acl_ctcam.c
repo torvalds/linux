@@ -98,6 +98,10 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask, 0,
 			 blocks_count - 1);
 
+	err = cregion->ops->entry_insert(cregion, centry, mask);
+	if (err)
+		return err;
+
 	/* Only the first action set belongs here, the rest is in KVD */
 	act_set = mlxsw_afa_block_first_set(rulei->act_block);
 	mlxsw_reg_ptce2_flex_action_set_memcpy_to(ptce2_pl, act_set);
@@ -116,6 +120,7 @@ mlxsw_sp_acl_ctcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
 			     cregion->region->tcam_region_info,
 			     centry->parman_item.index, 0);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
+	cregion->ops->entry_remove(cregion, centry);
 }
 
 static int mlxsw_sp_acl_ctcam_region_parman_resize(void *priv,
@@ -153,11 +158,14 @@ static const struct parman_ops mlxsw_sp_acl_ctcam_region_parman_ops = {
 	.algo		= PARMAN_ALGO_TYPE_LSORT,
 };
 
-int mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_ctcam_region *cregion,
-				   struct mlxsw_sp_acl_tcam_region *region)
+int
+mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_ctcam_region *cregion,
+			       struct mlxsw_sp_acl_tcam_region *region,
+			       const struct mlxsw_sp_acl_ctcam_region_ops *ops)
 {
 	cregion->region = region;
+	cregion->ops = ops;
 	cregion->parman = parman_create(&mlxsw_sp_acl_ctcam_region_parman_ops,
 					cregion);
 	if (!cregion->parman)
