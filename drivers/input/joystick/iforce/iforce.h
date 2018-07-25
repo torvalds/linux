@@ -26,8 +26,6 @@
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/usb.h>
-#include <linux/serio.h>
 #include <linux/circ_buf.h>
 #include <linux/mutex.h>
 

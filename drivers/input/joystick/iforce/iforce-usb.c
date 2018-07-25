@@ -21,6 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/usb.h>
 #include "iforce.h"
 
 struct iforce_usb {
@@ -316,3 +317,9 @@ struct usb_driver iforce_usb_driver = {
 	.disconnect =	iforce_usb_disconnect,
 	.id_table =	iforce_usb_ids,
 };
+
+module_usb_driver(iforce_usb_driver);
+
+MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>, Johann Deneux <johann.deneux@gmail.com>");
+MODULE_DESCRIPTION("USB I-Force joysticks and wheels driver");
+MODULE_LICENSE("GPL");

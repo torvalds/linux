@@ -96,6 +96,7 @@ int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data)
 
 	return 0;
 }
+EXPORT_SYMBOL(iforce_send_packet);
 
 /* Start or stop an effect */
 int iforce_control_playback(struct iforce* iforce, u16 id, unsigned int value)
@@ -203,3 +204,4 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 			break;
 	}
 }
+EXPORT_SYMBOL(iforce_process_packet);

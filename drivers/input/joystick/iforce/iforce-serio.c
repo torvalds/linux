@@ -21,6 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/serio.h>
 #include "iforce.h"
 
 struct iforce_serio {
@@ -250,3 +251,9 @@ struct serio_driver iforce_serio_drv = {
 	.connect	= iforce_serio_connect,
 	.disconnect	= iforce_serio_disconnect,
 };
+
+module_serio_driver(iforce_serio_drv);
+
+MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>, Johann Deneux <johann.deneux@gmail.com>");
+MODULE_DESCRIPTION("RS232 I-Force joysticks and wheels driver");
+MODULE_LICENSE("GPL");

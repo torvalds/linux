@@ -24,7 +24,7 @@
 #include "iforce.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>, Johann Deneux <johann.deneux@gmail.com>");
-MODULE_DESCRIPTION("USB/RS232 I-Force joysticks and wheels driver");
+MODULE_DESCRIPTION("Core I-Force joysticks and wheels driver");
 MODULE_LICENSE("GPL");
 
 static signed short btn_joystick[] =
@@ -411,35 +411,4 @@ int iforce_init_device(struct device *parent, u16 bustype,
  fail:	input_free_device(input_dev);
 	return error;
 }
-
-static int __init iforce_init(void)
-{
-	int err = 0;
-
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	err = usb_register(&iforce_usb_driver);
-	if (err)
-		return err;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	err = serio_register_driver(&iforce_serio_drv);
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	if (err)
-		usb_deregister(&iforce_usb_driver);
-#endif
-#endif
-	return err;
-}
-
-static void __exit iforce_exit(void)
-{
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	usb_deregister(&iforce_usb_driver);
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	serio_unregister_driver(&iforce_serio_drv);
-#endif
-}
-
-module_init(iforce_init);
-module_exit(iforce_exit);
+EXPORT_SYMBOL(iforce_init_device);
