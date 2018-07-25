@@ -84,8 +84,20 @@ static int vcnl4000_init(struct vcnl4000_data *data)
 		return ret;
 
 	prod_id = ret >> 4;
-	if (prod_id != VCNL4010_PROD_ID && prod_id != VCNL4000_PROD_ID)
+	switch (prod_id) {
+	case VCNL4000_PROD_ID:
+		if (data->id != VCNL4000)
+			dev_warn(&data->client->dev,
+					"wrong device id, use vcnl4000");
+		break;
+	case VCNL4010_PROD_ID:
+		if (data->id != VCNL4010)
+			dev_warn(&data->client->dev,
+					"wrong device id, use vcnl4010/4020");
+		break;
+	default:
 		return -ENODEV;
+	}
 
 	data->rev = ret & 0xf;
 	data->al_scale = 250000;
