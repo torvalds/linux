@@ -323,7 +323,7 @@ static int univ8250_setup_irq(struct uart_8250_port *up)
 	 * the port is opened so this value needs to be preserved.
 	 */
 	if (up->bugs & UART_BUG_THRE) {
-		pr_debug("ttyS%d - using backup timer\n", serial_index(port));
+		pr_debug("%s - using backup timer\n", port->name);
 
 		up->timer.function = serial8250_backup_timeout;
 		mod_timer(&up->timer, jiffies +
