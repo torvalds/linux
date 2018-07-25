@@ -281,6 +281,11 @@ static inline void fib6_info_hold(struct fib6_info *f6i)
 	atomic_inc(&f6i->fib6_ref);
 }
 
+static inline bool fib6_info_hold_safe(struct fib6_info *f6i)
+{
+	return atomic_inc_not_zero(&f6i->fib6_ref);
+}
+
 static inline void fib6_info_release(struct fib6_info *f6i)
 {
 	if (f6i && atomic_dec_and_test(&f6i->fib6_ref))
