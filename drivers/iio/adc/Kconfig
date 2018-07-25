@@ -620,6 +620,16 @@ config ROCKCHIP_SARADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip_saradc.
 
+config SC27XX_ADC
+	tristate "Spreadtrum SC27xx series PMICs ADC"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	  Say yes here to build support for the integrated ADC inside the
+	  Spreadtrum SC27xx series PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sc27xx_adc.
+
 config SPEAR_ADC
 	tristate "ST SPEAr ADC"
 	depends on PLAT_SPEAR || COMPILE_TEST

@@ -1296,6 +1296,7 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
 	u32 cor = 0;
+	u16 tmp_val;
 	int ret;
 
 	/*
@@ -1309,7 +1310,8 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 		mutex_lock(&st->lock);
 
 		ret = at91_adc_read_position(st, chan->channel,
-					     (u16 *)val);
+					     &tmp_val);
+		*val = tmp_val;
 		mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
 
@@ -1322,7 +1324,8 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 		mutex_lock(&st->lock);
 
 		ret = at91_adc_read_pressure(st, chan->channel,
-					     (u16 *)val);
+					     &tmp_val);
+		*val = tmp_val;
 		mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
 

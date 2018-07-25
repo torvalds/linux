@@ -341,8 +341,6 @@ static int xadc_zynq_setup(struct platform_device *pdev,
 
 	pcap_rate = clk_get_rate(xadc->clk);
 
-	if (tck_rate > XADC_ZYNQ_TCK_RATE_MAX)
-		tck_rate = XADC_ZYNQ_TCK_RATE_MAX;
 	if (tck_rate > pcap_rate / 2) {
 		div = 2;
 	} else {
@@ -1045,7 +1043,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 	unsigned int num_channels;
 	const char *external_mux;
 	u32 ext_mux_chan;
-	int reg;
+	u32 reg;
 	int ret;
 
 	*conf = 0;

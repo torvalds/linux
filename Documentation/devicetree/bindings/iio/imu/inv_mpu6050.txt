@@ -6,6 +6,7 @@ Required properties:
  - compatible : should be one of
 		"invensense,mpu6050"
  		"invensense,mpu6500"
+		"invensense,mpu6515"
 		"invensense,mpu9150"
 		"invensense,mpu9250"
 		"invensense,mpu9255"

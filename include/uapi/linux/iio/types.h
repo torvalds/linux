@@ -45,6 +45,7 @@ enum iio_chan_type {
 	IIO_INDEX,
 	IIO_GRAVITY,
 	IIO_POSITIONRELATIVE,
+	IIO_PHASE,
 };
 
 enum iio_modifier {
@@ -85,6 +86,7 @@ enum iio_modifier {
 	IIO_MOD_CO2,
 	IIO_MOD_VOC,
 	IIO_MOD_LIGHT_UV,
+	IIO_MOD_LIGHT_DUV,
 };
 
 enum iio_event_type {
