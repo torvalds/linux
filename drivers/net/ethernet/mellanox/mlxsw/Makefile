@@ -18,7 +18,7 @@ mlxsw_spectrum-objs		:= spectrum.o spectrum_buffers.o \
 				   spectrum1_kvdl.o spectrum2_kvdl.o \
 				   spectrum_kvdl.o \
 				   spectrum_acl_tcam.o spectrum_acl_ctcam.o \
-				   spectrum_acl_atcam.o \
+				   spectrum_acl_atcam.o spectrum_acl_erp.o \
 				   spectrum1_acl_tcam.o spectrum2_acl_tcam.o \
 				   spectrum_acl.o \
 				   spectrum_flower.o spectrum_cnt.o \

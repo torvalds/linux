@@ -628,6 +628,7 @@ struct mlxsw_sp_acl_tcam_ops {
 	void (*fini)(struct mlxsw_sp *mlxsw_sp, void *priv);
 	size_t region_priv_size;
 	int (*region_init)(struct mlxsw_sp *mlxsw_sp, void *region_priv,
+			   void *tcam_priv,
 			   struct mlxsw_sp_acl_tcam_region *region);
 	void (*region_fini)(struct mlxsw_sp *mlxsw_sp, void *region_priv);
 	int (*region_associate)(struct mlxsw_sp *mlxsw_sp,
