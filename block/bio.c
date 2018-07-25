@@ -903,14 +903,16 @@ int bio_add_page(struct bio *bio, struct page *page,
 EXPORT_SYMBOL(bio_add_page);
 
 /**
- * bio_iov_iter_get_pages - pin user or kernel pages and add them to a bio
+ * __bio_iov_iter_get_pages - pin user or kernel pages and add them to a bio
  * @bio: bio to add pages to
  * @iter: iov iterator describing the region to be mapped
  *
- * Pins as many pages from *iter and appends them to @bio's bvec array. The
+ * Pins pages from *iter and appends them to @bio's bvec array. The
  * pages will have to be released using put_page() when done.
+ * For multi-segment *iter, this function only adds pages from the
+ * the next non-empty segment of the iov iterator.
  */
-int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
 	unsigned short nr_pages = bio->bi_max_vecs - bio->bi_vcnt, idx;
 	struct bio_vec *bv = bio->bi_io_vec + bio->bi_vcnt;
@@ -945,6 +947,33 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	bv[nr_pages - 1].bv_len -= nr_pages * PAGE_SIZE - offset - size;
 
 	iov_iter_advance(iter, size);
+	return 0;
+}
+
+/**
+ * bio_iov_iter_get_pages - pin user or kernel pages and add them to a bio
+ * @bio: bio to add pages to
+ * @iter: iov iterator describing the region to be mapped
+ *
+ * Pins pages from *iter and appends them to @bio's bvec array. The
+ * pages will have to be released using put_page() when done.
+ * The function tries, but does not guarantee, to pin as many pages as
+ * fit into the bio, or are requested in *iter, whatever is smaller.
+ * If MM encounters an error pinning the requested pages, it stops.
+ * Error is returned only if 0 pages could be pinned.
+ */
+int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+{
+	unsigned short orig_vcnt = bio->bi_vcnt;
+
+	do {
+		int ret = __bio_iov_iter_get_pages(bio, iter);
+
+		if (unlikely(ret))
+			return bio->bi_vcnt > orig_vcnt ? 0 : ret;
+
+	} while (iov_iter_count(iter) && !bio_full(bio));
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bio_iov_iter_get_pages);
