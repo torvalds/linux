@@ -26,6 +26,12 @@ static bool rpfilter_addr_unicast(const struct in6_addr *addr)
 	return addr_type & IPV6_ADDR_UNICAST;
 }
 
+static bool rpfilter_addr_linklocal(const struct in6_addr *addr)
+{
+	int addr_type = ipv6_addr_type(addr);
+	return addr_type & IPV6_ADDR_LINKLOCAL;
+}
+
 static bool rpfilter_lookup_reverse6(struct net *net, const struct sk_buff *skb,
 				     const struct net_device *dev, u8 flags)
 {
@@ -48,7 +54,11 @@ static bool rpfilter_lookup_reverse6(struct net *net, const struct sk_buff *skb,
 	}
 
 	fl6.flowi6_mark = flags & XT_RPFILTER_VALID_MARK ? skb->mark : 0;
-	if ((flags & XT_RPFILTER_LOOSE) == 0)
+
+	if (rpfilter_addr_linklocal(&iph->saddr)) {
+		lookup_flags |= RT6_LOOKUP_F_IFACE;
+		fl6.flowi6_oif = dev->ifindex;
+	} else if ((flags & XT_RPFILTER_LOOSE) == 0)
 		fl6.flowi6_oif = dev->ifindex;
 
 	rt = (void *) ip6_route_lookup(net, &fl6, lookup_flags);
