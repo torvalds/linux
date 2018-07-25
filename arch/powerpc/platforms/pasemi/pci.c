@@ -216,6 +216,7 @@ static int __init pas_add_bridge(struct device_node *dev)
 void __init pas_pci_init(void)
 {
 	struct device_node *np, *root;
+	int res;
 
 	root = of_find_node_by_path("/");
 	if (!root) {
@@ -226,11 +227,11 @@ void __init pas_pci_init(void)
 
 	pci_set_flags(PCI_SCAN_ALL_PCIE_DEVS);
 
-	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;)
-		if (np->name && !strcmp(np->name, "pxp") && !pas_add_bridge(np))
-			of_node_get(np);
-
-	of_node_put(root);
+	np = of_find_compatible_node(root, NULL, "pasemi,rootbus");
+	if (np) {
+		res = pas_add_bridge(np);
+		of_node_put(np);
+	}
 }
 
 void __iomem *pasemi_pci_getcfgaddr(struct pci_dev *dev, int offset)
