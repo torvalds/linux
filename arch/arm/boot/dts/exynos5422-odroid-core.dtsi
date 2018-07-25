@@ -141,6 +141,7 @@
 		pinctrl-0 = <&s2mps11_irq>;
 
 		s2mps11_osc: clocks {
+			compatible = "samsung,s2mps11-clk";
 			#clock-cells = <1>;
 			clock-output-names = "s2mps11_ap",
 					"s2mps11_cp", "s2mps11_bt";
