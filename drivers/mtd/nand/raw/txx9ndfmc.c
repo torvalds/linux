@@ -262,10 +262,13 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 	ret = nand_scan_ident(mtd, 1, NULL);
 	if (!ret) {
 		if (mtd->writesize >= 512) {
-			/* Hardware ECC 6 byte ECC per 512 Byte data */
 			chip->ecc.size = 512;
 			chip->ecc.bytes = 6;
+		} else {
+			chip->ecc.size = 256;
+			chip->ecc.bytes = 3;
 		}
+
 		ret = nand_scan_tail(mtd);
 	}
 	return ret;
@@ -332,9 +335,6 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		chip->ecc.correct = txx9ndfmc_correct_data;
 		chip->ecc.hwctl = txx9ndfmc_enable_hwecc;
 		chip->ecc.mode = NAND_ECC_HW;
-		/* txx9ndfmc_nand_scan will overwrite ecc.size and ecc.bytes */
-		chip->ecc.size = 256;
-		chip->ecc.bytes = 3;
 		chip->ecc.strength = 1;
 		chip->chip_delay = 100;
 		chip->controller = &drvdata->controller;
