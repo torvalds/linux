@@ -92,6 +92,9 @@ mlxsw_sp_acl_tcam_profile_ops(struct mlxsw_sp *mlxsw_sp,
 
 #define MLXSW_SP_ACL_TCAM_CATCHALL_PRIO (~0U)
 
+#define MLXSW_SP_ACL_TCAM_MASK_LEN \
+	(MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN * BITS_PER_BYTE)
+
 struct mlxsw_sp_acl_tcam_group;
 
 struct mlxsw_sp_acl_tcam_region {
@@ -144,9 +147,46 @@ mlxsw_sp_acl_ctcam_entry_offset(struct mlxsw_sp_acl_ctcam_entry *centry)
 	return centry->parman_item.index;
 }
 
+enum mlxsw_sp_acl_atcam_region_type {
+	MLXSW_SP_ACL_ATCAM_REGION_TYPE_2KB,
+	MLXSW_SP_ACL_ATCAM_REGION_TYPE_4KB,
+	MLXSW_SP_ACL_ATCAM_REGION_TYPE_8KB,
+	MLXSW_SP_ACL_ATCAM_REGION_TYPE_12KB,
+	__MLXSW_SP_ACL_ATCAM_REGION_TYPE_MAX,
+};
+
+#define MLXSW_SP_ACL_ATCAM_REGION_TYPE_MAX \
+	(__MLXSW_SP_ACL_ATCAM_REGION_TYPE_MAX - 1)
+
+struct mlxsw_sp_acl_atcam {
+	struct mlxsw_sp_acl_erp_core *erp_core;
+};
+
+struct mlxsw_sp_acl_atcam_region {
+	struct mlxsw_sp_acl_tcam_region *region;
+	struct mlxsw_sp_acl_atcam *atcam;
+	enum mlxsw_sp_acl_atcam_region_type type;
+	struct mlxsw_sp_acl_erp_table *erp_table;
+};
+
 int mlxsw_sp_acl_atcam_region_associate(struct mlxsw_sp *mlxsw_sp,
 					u16 region_id);
 int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_tcam_region *region);
+
+struct mlxsw_sp_acl_erp;
+
+u8 mlxsw_sp_acl_erp_id(const struct mlxsw_sp_acl_erp *erp);
+struct mlxsw_sp_acl_erp *
+mlxsw_sp_acl_erp_get(struct mlxsw_sp_acl_atcam_region *aregion,
+		     const char *mask);
+void mlxsw_sp_acl_erp_put(struct mlxsw_sp_acl_atcam_region *aregion,
+			  struct mlxsw_sp_acl_erp *erp);
+int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion);
+void mlxsw_sp_acl_erp_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
+int mlxsw_sp_acl_erps_init(struct mlxsw_sp *mlxsw_sp,
+			   struct mlxsw_sp_acl_atcam *atcam);
+void mlxsw_sp_acl_erps_fini(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_atcam *atcam);
 
 #endif
