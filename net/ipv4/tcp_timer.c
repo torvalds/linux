@@ -22,7 +22,7 @@
 #include <linux/gfp.h>
 #include <net/tcp.h>
 
-u32 tcp_retransmit_stamp(const struct sock *sk)
+static u32 tcp_retransmit_stamp(const struct sock *sk)
 {
 	u32 start_ts = tcp_sk(sk)->retrans_stamp;
 
