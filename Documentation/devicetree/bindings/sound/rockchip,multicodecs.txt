@@ -5,12 +5,26 @@ Required properties:
 - rockchip,cpu: The phandle of the Rockchip I2S/PDM controller that's
   connected to the CODEC
 - rockchip,codec: The phandle of audio codecs
-- rockchip,mclk-fs: Multiplication factor between stream rate and codec mclk,
-  applied only for the dai-link.
 
 Optional properties:
 - rockchip,card-name: User specified audio sound card name, one string property.
 - rockchip,codec-hp-det : Detect the headphone via internal codec.
+
+Optional dai-link subnode properties:
+- rockchip,format			: CPU/CODEC common audio format.
+					  "i2s", "right_j", "left_j" , "dsp_a"
+					  "dsp_b", "ac97", "pdm", "msb", "lsb".
+- rockchip,frame-master			: Indicates dai-link frame master.
+					  phandle to a cpu or codec subnode.
+- rockchip,bitclock-master		: Indicates dai-link bit clock master.
+					  phandle to a cpu or codec subnode.
+- rockchip,bitclock-inversion		: bool property. Add this if the
+					  dai-link uses bit clock inversion.
+- rockchip,frame-inversion		: bool property. Add this if the
+					  dai-link uses frame clock inversion.
+- rockchip,mclk-fs     			: Multiplication factor between stream
+					  rate and codec mclk, applied only for
+					  the dai-link.
 
 Example:
 
