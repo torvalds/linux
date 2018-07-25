@@ -165,6 +165,11 @@ static void hci_uart_write_work(struct work_struct *work)
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
 
+	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags)) {
+		clear_bit(HCI_UART_SENDING, &hu->tx_state);
+		return;
+	}
+
 	/* REVISIT: should we cope with bad skbs or ->write() returning
 	 * and error value ?
 	 */
@@ -290,6 +295,9 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		percpu_up_read(&hu->proto_lock);
 		return -EUNATCH;
 	}
+
+	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
+		return -EUNATCH;
 
 	hu->proto->enqueue(hu, skb);
 	percpu_up_read(&hu->proto_lock);
@@ -688,14 +696,14 @@ static int hci_uart_set_proto(struct hci_uart *hu, int id)
 		return err;
 
 	hu->proto = p;
-	set_bit(HCI_UART_PROTO_READY, &hu->flags);
 
 	err = hci_uart_register_dev(hu);
 	if (err) {
-		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
 		p->close(hu);
 		return err;
 	}
+
+	set_bit(HCI_UART_PROTO_READY, &hu->flags);
 
 	return 0;
 }
