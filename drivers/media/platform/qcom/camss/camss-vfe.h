@@ -118,6 +118,7 @@ struct vfe_hw_ops {
 	void (*set_crop_cfg)(struct vfe_device *vfe, struct vfe_line *line);
 	void (*set_clamp_cfg)(struct vfe_device *vfe);
 	void (*set_qos)(struct vfe_device *vfe);
+	void (*set_ds)(struct vfe_device *vfe);
 	void (*set_cgc_override)(struct vfe_device *vfe, u8 wm, u8 enable);
 	void (*set_camif_cfg)(struct vfe_device *vfe, struct vfe_line *line);
 	void (*set_camif_cmd)(struct vfe_device *vfe, u8 enable);
@@ -176,5 +177,6 @@ void msm_vfe_get_vfe_line_id(struct media_entity *entity, enum vfe_line_id *id);
 void msm_vfe_stop_streaming(struct vfe_device *vfe);
 
 extern const struct vfe_hw_ops vfe_ops_4_1;
+extern const struct vfe_hw_ops vfe_ops_4_7;
 
 #endif /* QC_MSM_CAMSS_VFE_H */

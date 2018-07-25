@@ -8,6 +8,7 @@ qcom-camss-objs += \
 		camss-csiphy.o \
 		camss-ispif.o \
 		camss-vfe-4-1.o \
+		camss-vfe-4-7.o \
 		camss-vfe.o \
 		camss-video.o \
 
