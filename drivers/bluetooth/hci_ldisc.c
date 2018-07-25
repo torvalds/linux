@@ -149,6 +149,11 @@ static void hci_uart_write_work(struct work_struct *work)
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
 
+	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags)) {
+		clear_bit(HCI_UART_SENDING, &hu->tx_state);
+		return;
+	}
+
 	/* REVISIT: should we cope with bad skbs or ->write() returning
 	 * and error value ?
 	 */
