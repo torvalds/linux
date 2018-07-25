@@ -370,8 +370,7 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 	/* send add link reject message, only one link supported for now */
 	rc = smc_llc_send_add_link(link,
 				   link->smcibdev->mac[link->ibport - 1],
-				   &link->smcibdev->gid[link->ibport - 1],
-				   SMC_LLC_RESP);
+				   link->gid, SMC_LLC_RESP);
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
@@ -469,7 +468,7 @@ static int smc_connect_abort(struct smc_sock *smc, int reason_code,
 /* check if there is a rdma device available for this connection. */
 /* called for connect and listen */
 static int smc_check_rdma(struct smc_sock *smc, struct smc_ib_device **ibdev,
-			  u8 *ibport)
+			  u8 *ibport, unsigned short vlan_id, u8 gid[])
 {
 	int reason_code = 0;
 
@@ -477,7 +476,8 @@ static int smc_check_rdma(struct smc_sock *smc, struct smc_ib_device **ibdev,
 	 * within same PNETID that also contains the ethernet device
 	 * used for the internal TCP socket
 	 */
-	smc_pnet_find_roce_resource(smc->clcsock->sk, ibdev, ibport);
+	smc_pnet_find_roce_resource(smc->clcsock->sk, ibdev, ibport, vlan_id,
+				    gid);
 	if (!(*ibdev))
 		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
 
@@ -523,12 +523,12 @@ static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc, bool is_smcd,
 static int smc_connect_clc(struct smc_sock *smc, int smc_type,
 			   struct smc_clc_msg_accept_confirm *aclc,
 			   struct smc_ib_device *ibdev, u8 ibport,
-			   struct smcd_dev *ismdev)
+			   u8 gid[], struct smcd_dev *ismdev)
 {
 	int rc = 0;
 
 	/* do inband token exchange */
-	rc = smc_clc_send_proposal(smc, smc_type, ibdev, ibport, ismdev);
+	rc = smc_clc_send_proposal(smc, smc_type, ibdev, ibport, gid, ismdev);
 	if (rc)
 		return rc;
 	/* receive SMC Accept CLC message */
@@ -650,6 +650,7 @@ static int __smc_connect(struct smc_sock *smc)
 	struct smc_clc_msg_accept_confirm aclc;
 	struct smc_ib_device *ibdev;
 	struct smcd_dev *ismdev;
+	u8 gid[SMC_GID_SIZE];
 	unsigned short vlan;
 	int smc_type;
 	int rc = 0;
@@ -681,7 +682,7 @@ static int __smc_connect(struct smc_sock *smc)
 	}
 
 	/* check if there is a rdma device available */
-	if (!smc_check_rdma(smc, &ibdev, &ibport)) {
+	if (!smc_check_rdma(smc, &ibdev, &ibport, vlan, gid)) {
 		/* RDMA is supported for this connection */
 		rdma_supported = true;
 		if (ism_supported)
@@ -695,7 +696,7 @@ static int __smc_connect(struct smc_sock *smc)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_CNFERR);
 
 	/* perform CLC handshake */
-	rc = smc_connect_clc(smc, smc_type, &aclc, ibdev, ibport, ismdev);
+	rc = smc_connect_clc(smc, smc_type, &aclc, ibdev, ibport, gid, ismdev);
 	if (rc) {
 		smc_connect_ism_vlan_cleanup(smc, ism_supported, ismdev, vlan);
 		return smc_connect_decline_fallback(smc, rc);
@@ -970,8 +971,7 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 	/* send ADD LINK request to client over the RoCE fabric */
 	rc = smc_llc_send_add_link(link,
 				   link->smcibdev->mac[link->ibport - 1],
-				   &link->smcibdev->gid[link->ibport - 1],
-				   SMC_LLC_REQ);
+				   link->gid, SMC_LLC_REQ);
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
@@ -1193,6 +1193,7 @@ static void smc_listen_work(struct work_struct *work)
 	struct smcd_dev *ismdev;
 	u8 buf[SMC_CLC_MAX_LEN];
 	int local_contact = 0;
+	unsigned short vlan;
 	int reason_code = 0;
 	int rc = 0;
 	u8 ibport;
@@ -1241,7 +1242,8 @@ static void smc_listen_work(struct work_struct *work)
 	/* check if RDMA is available */
 	if (!ism_supported &&
 	    ((pclc->hdr.path != SMC_TYPE_R && pclc->hdr.path != SMC_TYPE_B) ||
-	     smc_check_rdma(new_smc, &ibdev, &ibport) ||
+	     smc_vlan_by_tcpsk(new_smc->clcsock, &vlan) ||
+	     smc_check_rdma(new_smc, &ibdev, &ibport, vlan, NULL) ||
 	     smc_listen_rdma_check(new_smc, pclc) ||
 	     smc_listen_rdma_init(new_smc, pclc, ibdev, ibport,
 				  &local_contact) ||

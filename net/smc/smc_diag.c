@@ -154,7 +154,7 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 		       smc->conn.lgr->lnk[0].smcibdev->ibdev->name,
 		       sizeof(smc->conn.lgr->lnk[0].smcibdev->ibdev->name));
 		smc_gid_be16_convert(linfo.lnk[0].gid,
-				     smc->conn.lgr->lnk[0].gid.raw);
+				     smc->conn.lgr->lnk[0].gid);
 		smc_gid_be16_convert(linfo.lnk[0].peer_gid,
 				     smc->conn.lgr->lnk[0].peer_gid);
 

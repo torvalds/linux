@@ -535,11 +535,13 @@ static struct net_device *pnet_find_base_ndev(struct net_device *ndev)
 }
 
 /* Determine the corresponding IB device port based on the hardware PNETID.
- * Searching stops at the first matching active IB device port.
+ * Searching stops at the first matching active IB device port with vlan_id
+ * configured.
  */
 static void smc_pnet_find_roce_by_pnetid(struct net_device *ndev,
 					 struct smc_ib_device **smcibdev,
-					 u8 *ibport)
+					 u8 *ibport, unsigned short vlan_id,
+					 u8 gid[])
 {
 	u8 ndev_pnetid[SMC_MAX_PNETID_LEN];
 	struct smc_ib_device *ibdev;
@@ -553,15 +555,20 @@ static void smc_pnet_find_roce_by_pnetid(struct net_device *ndev,
 	spin_lock(&smc_ib_devices.lock);
 	list_for_each_entry(ibdev, &smc_ib_devices.list, list) {
 		for (i = 1; i <= SMC_MAX_PORTS; i++) {
+			if (!rdma_is_port_valid(ibdev->ibdev, i))
+				continue;
 			if (!memcmp(ibdev->pnetid[i - 1], ndev_pnetid,
 				    SMC_MAX_PNETID_LEN) &&
-			    smc_ib_port_active(ibdev, i)) {
+			    smc_ib_port_active(ibdev, i) &&
+			    !smc_ib_determine_gid(ibdev, i, vlan_id, gid,
+						  NULL))  {
 				*smcibdev = ibdev;
 				*ibport = i;
-				break;
+				goto out;
 			}
 		}
 	}
+out:
 	spin_unlock(&smc_ib_devices.lock);
 }
 
@@ -589,7 +596,8 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
 /* Lookup of coupled ib_device via SMC pnet table */
 static void smc_pnet_find_roce_by_table(struct net_device *netdev,
 					struct smc_ib_device **smcibdev,
-					u8 *ibport)
+					u8 *ibport, unsigned short vlan_id,
+					u8 gid[])
 {
 	struct smc_pnetentry *pnetelem;
 
@@ -597,7 +605,10 @@ static void smc_pnet_find_roce_by_table(struct net_device *netdev,
 	list_for_each_entry(pnetelem, &smc_pnettable.pnetlist, list) {
 		if (netdev == pnetelem->ndev) {
 			if (smc_ib_port_active(pnetelem->smcibdev,
-					       pnetelem->ib_port)) {
+					       pnetelem->ib_port) &&
+			    !smc_ib_determine_gid(pnetelem->smcibdev,
+						  pnetelem->ib_port, vlan_id,
+						  gid, NULL)) {
 				*smcibdev = pnetelem->smcibdev;
 				*ibport = pnetelem->ib_port;
 			}
@@ -612,7 +623,8 @@ static void smc_pnet_find_roce_by_table(struct net_device *netdev,
  * ethernet interface.
  */
 void smc_pnet_find_roce_resource(struct sock *sk,
-				 struct smc_ib_device **smcibdev, u8 *ibport)
+				 struct smc_ib_device **smcibdev, u8 *ibport,
+				 unsigned short vlan_id, u8 gid[])
 {
 	struct dst_entry *dst = sk_dst_get(sk);
 
@@ -625,12 +637,12 @@ void smc_pnet_find_roce_resource(struct sock *sk,
 		goto out_rel;
 
 	/* if possible, lookup via hardware-defined pnetid */
-	smc_pnet_find_roce_by_pnetid(dst->dev, smcibdev, ibport);
+	smc_pnet_find_roce_by_pnetid(dst->dev, smcibdev, ibport, vlan_id, gid);
 	if (*smcibdev)
 		goto out_rel;
 
 	/* lookup via SMC PNET table */
-	smc_pnet_find_roce_by_table(dst->dev, smcibdev, ibport);
+	smc_pnet_find_roce_by_table(dst->dev, smcibdev, ibport, vlan_id, gid);
 
 out_rel:
 	dst_release(dst);

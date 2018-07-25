@@ -84,14 +84,15 @@ struct smc_link {
 	wait_queue_head_t	wr_reg_wait;	/* wait for wr_reg result */
 	enum smc_wr_reg_state	wr_reg_state;	/* state of wr_reg request */
 
-	union ib_gid		gid;		/* gid matching used vlan id */
+	u8			gid[SMC_GID_SIZE];/* gid matching used vlan id*/
+	u8			sgid_index;	/* gid index for vlan id      */
 	u32			peer_qpn;	/* QP number of peer */
 	enum ib_mtu		path_mtu;	/* used mtu */
 	enum ib_mtu		peer_mtu;	/* mtu size of peer */
 	u32			psn_initial;	/* QP tx initial packet seqno */
 	u32			peer_psn;	/* QP rx initial packet seqno */
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
-	u8			peer_gid[sizeof(union ib_gid)];	/* gid of peer*/
+	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
 
 	enum smc_link_state	state;		/* state of link */

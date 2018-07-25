@@ -203,8 +203,7 @@ int smc_llc_send_confirm_link(struct smc_link *link,
 		confllc->hd.flags |= SMC_LLC_FLAG_RESP;
 	memcpy(confllc->sender_mac, link->smcibdev->mac[link->ibport - 1],
 	       ETH_ALEN);
-	memcpy(confllc->sender_gid, &link->smcibdev->gid[link->ibport - 1],
-	       SMC_GID_SIZE);
+	memcpy(confllc->sender_gid, link->gid, SMC_GID_SIZE);
 	hton24(confllc->sender_qp_num, link->roce_qp->qp_num);
 	confllc->link_num = link->link_id;
 	memcpy(confllc->link_uid, lgr->id, SMC_LGR_ID_SIZE);
@@ -241,8 +240,7 @@ static int smc_llc_send_confirm_rkey(struct smc_link *link,
 
 /* prepare an add link message */
 static void smc_llc_prep_add_link(struct smc_llc_msg_add_link *addllc,
-				  struct smc_link *link, u8 mac[],
-				  union ib_gid *gid,
+				  struct smc_link *link, u8 mac[], u8 gid[],
 				  enum smc_llc_reqresp reqresp)
 {
 	memset(addllc, 0, sizeof(*addllc));
@@ -259,8 +257,7 @@ static void smc_llc_prep_add_link(struct smc_llc_msg_add_link *addllc,
 }
 
 /* send ADD LINK request or response */
-int smc_llc_send_add_link(struct smc_link *link, u8 mac[],
-			  union ib_gid *gid,
+int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
 			  enum smc_llc_reqresp reqresp)
 {
 	struct smc_llc_msg_add_link *addllc;
@@ -423,14 +420,12 @@ static void smc_llc_rx_add_link(struct smc_link *link,
 		if (lgr->role == SMC_SERV) {
 			smc_llc_prep_add_link(llc, link,
 					link->smcibdev->mac[link->ibport - 1],
-					&link->smcibdev->gid[link->ibport - 1],
-					SMC_LLC_REQ);
+					link->gid, SMC_LLC_REQ);
 
 		} else {
 			smc_llc_prep_add_link(llc, link,
 					link->smcibdev->mac[link->ibport - 1],
-					&link->smcibdev->gid[link->ibport - 1],
-					SMC_LLC_RESP);
+					link->gid, SMC_LLC_RESP);
 		}
 		smc_llc_send_message(link, llc, sizeof(*llc));
 	}

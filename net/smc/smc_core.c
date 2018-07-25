@@ -219,6 +219,10 @@ static int smc_lgr_create(struct smc_sock *smc, bool is_smcd,
 		get_random_bytes(rndvec, sizeof(rndvec));
 		lnk->psn_initial = rndvec[0] + (rndvec[1] << 8) +
 			(rndvec[2] << 16);
+		rc = smc_ib_determine_gid(lnk->smcibdev, lnk->ibport,
+					  vlan_id, lnk->gid, &lnk->sgid_index);
+		if (rc)
+			goto free_lgr;
 		rc = smc_llc_link_init(lnk);
 		if (rc)
 			goto free_lgr;
@@ -522,37 +526,6 @@ out:
 	return rc;
 }
 
-/* determine the link gid matching the vlan id of the link group */
-static int smc_link_determine_gid(struct smc_link_group *lgr)
-{
-	struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
-	struct ib_gid_attr gattr;
-	union ib_gid gid;
-	int i;
-
-	if (!lgr->vlan_id) {
-		lnk->gid = lnk->smcibdev->gid[lnk->ibport - 1];
-		return 0;
-	}
-
-	for (i = 0; i < lnk->smcibdev->pattr[lnk->ibport - 1].gid_tbl_len;
-	     i++) {
-		if (ib_query_gid(lnk->smcibdev->ibdev, lnk->ibport, i, &gid,
-				 &gattr))
-			continue;
-		if (gattr.ndev) {
-			if (is_vlan_dev(gattr.ndev) &&
-			    vlan_dev_vlan_id(gattr.ndev) == lgr->vlan_id) {
-				lnk->gid = gid;
-				dev_put(gattr.ndev);
-				return 0;
-			}
-			dev_put(gattr.ndev);
-		}
-	}
-	return -ENODEV;
-}
-
 static bool smcr_lgr_match(struct smc_link_group *lgr,
 			   struct smc_clc_msg_local *lcl,
 			   enum smc_lgr_role role)
@@ -631,8 +604,6 @@ create:
 		if (rc)
 			goto out;
 		smc_lgr_register_conn(conn); /* add smc conn to lgr */
-		if (!is_smcd)
-			rc = smc_link_determine_gid(conn->lgr);
 	}
 	conn->local_tx_ctrl.common.type = SMC_CDC_MSG_TYPE;
 	conn->local_tx_ctrl.len = SMC_WR_TX_SIZE;

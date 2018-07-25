@@ -38,7 +38,7 @@ enum smc_llc_msg_type {
 /* transmit */
 int smc_llc_send_confirm_link(struct smc_link *lnk,
 			      enum smc_llc_reqresp reqresp);
-int smc_llc_send_add_link(struct smc_link *link, u8 mac[], union ib_gid *gid,
+int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
 			  enum smc_llc_reqresp reqresp);
 int smc_llc_send_delete_link(struct smc_link *link,
 			     enum smc_llc_reqresp reqresp);

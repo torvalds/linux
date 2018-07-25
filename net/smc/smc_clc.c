@@ -378,7 +378,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 
 /* send CLC PROPOSAL message across internal TCP socket */
 int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
-			  struct smc_ib_device *ibdev, u8 ibport,
+			  struct smc_ib_device *ibdev, u8 ibport, u8 gid[],
 			  struct smcd_dev *ismdev)
 {
 	struct smc_clc_ipv6_prefix ipv6_prfx[SMC_CLC_MAX_V6_PREFIX];
@@ -409,7 +409,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 		/* add SMC-R specifics */
 		memcpy(pclc.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&pclc.lcl.gid, &ibdev->gid[ibport - 1], SMC_GID_SIZE);
+		memcpy(&pclc.lcl.gid, gid, SMC_GID_SIZE);
 		memcpy(&pclc.lcl.mac, &ibdev->mac[ibport - 1], ETH_ALEN);
 		pclc.iparea_offset = htons(0);
 	}
@@ -492,8 +492,7 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 		cclc.hdr.length = htons(SMCR_CLC_ACCEPT_CONFIRM_LEN);
 		memcpy(cclc.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&cclc.lcl.gid, &link->smcibdev->gid[link->ibport - 1],
-		       SMC_GID_SIZE);
+		memcpy(&cclc.lcl.gid, link->gid, SMC_GID_SIZE);
 		memcpy(&cclc.lcl.mac, &link->smcibdev->mac[link->ibport - 1],
 		       ETH_ALEN);
 		hton24(cclc.qpn, link->roce_qp->qp_num);
@@ -566,8 +565,7 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 		link = &conn->lgr->lnk[SMC_SINGLE_LINK];
 		memcpy(aclc.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&aclc.lcl.gid, &link->smcibdev->gid[link->ibport - 1],
-		       SMC_GID_SIZE);
+		memcpy(&aclc.lcl.gid, link->gid, SMC_GID_SIZE);
 		memcpy(&aclc.lcl.mac, link->smcibdev->mac[link->ibport - 1],
 		       ETH_ALEN);
 		hton24(aclc.qpn, link->roce_qp->qp_num);
