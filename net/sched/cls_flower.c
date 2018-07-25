@@ -1445,8 +1445,8 @@ static int fl_dump_key(struct sk_buff *skb, struct net *net,
 			     TCA_FLOWER_KEY_CVLAN_PRIO,
 			     &key->cvlan, &mask->cvlan) ||
 	    (mask->cvlan.vlan_tpid &&
-	     nla_put_u16(skb, TCA_FLOWER_KEY_VLAN_ETH_TYPE,
-			 key->cvlan.vlan_tpid)))
+	     nla_put_be16(skb, TCA_FLOWER_KEY_VLAN_ETH_TYPE,
+			  key->cvlan.vlan_tpid)))
 		goto nla_put_failure;
 
 	if (mask->basic.n_proto) {
