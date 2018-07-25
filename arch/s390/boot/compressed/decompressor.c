@@ -7,11 +7,9 @@
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#include <linux/uaccess.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 #include <asm/page.h>
-#include <asm/sclp.h>
-#include <asm/ipl.h>
-#include <asm/sections.h>
 #include "decompressor.h"
 
 /*
@@ -30,8 +28,6 @@
 extern char _end[];
 extern unsigned char _compressed_start[];
 extern unsigned char _compressed_end[];
-
-static void error(char *m);
 
 #ifdef CONFIG_HAVE_KERNEL_BZIP2
 #define HEAP_SIZE	0x400000
@@ -65,23 +61,6 @@ static unsigned long free_mem_end_ptr = (unsigned long) _end + HEAP_SIZE;
 #ifdef CONFIG_KERNEL_XZ
 #include "../../../../lib/decompress_unxz.c"
 #endif
-
-static int puts(const char *s)
-{
-	sclp_early_printk(s);
-	return 0;
-}
-
-static void error(char *x)
-{
-	unsigned long long psw = 0x000a0000deadbeefULL;
-
-	puts("\n\n");
-	puts(x);
-	puts("\n\n -- System halted");
-
-	asm volatile("lpsw %0" : : "Q" (psw));
-}
 
 #define decompress_offset ALIGN((unsigned long)_end + HEAP_SIZE, PAGE_SIZE)
 

@@ -8,6 +8,7 @@ static inline void *decompress_kernel(void) {}
 void *decompress_kernel(void);
 #endif
 unsigned long mem_safe_offset(void);
+void error(char *m);
 
 struct vmlinux_info {
 	unsigned long default_lma;

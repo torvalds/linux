@@ -1,8 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
 #include <asm/setup.h>
+#include <asm/sclp.h>
 #include "compressed/decompressor.h"
 #include "boot.h"
+
+void error(char *x)
+{
+	sclp_early_printk("\n\n");
+	sclp_early_printk(x);
+	sclp_early_printk("\n\n -- System halted");
+
+	disabled_wait(0xdeadbeef);
+}
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
 unsigned long mem_safe_offset(void)
