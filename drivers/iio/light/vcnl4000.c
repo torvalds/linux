@@ -48,6 +48,7 @@
 
 enum vcnl4000_device_ids {
 	VCNL4000,
+	VCNL4010,
 };
 
 struct vcnl4000_data {
@@ -68,6 +69,8 @@ struct vcnl4000_chip_spec {
 
 static const struct i2c_device_id vcnl4000_id[] = {
 	{ "vcnl4000", VCNL4000 },
+	{ "vcnl4010", VCNL4010 },
+	{ "vcnl4020", VCNL4010 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vcnl4000_id);
@@ -153,6 +156,12 @@ static int vcnl4000_measure_proximity(struct vcnl4000_data *data, int *val)
 static const struct vcnl4000_chip_spec vcnl4000_chip_spec_cfg[] = {
 	[VCNL4000] = {
 		.prod = "VCNL4000",
+		.init = vcnl4000_init,
+		.measure_light = vcnl4000_measure_light,
+		.measure_proximity = vcnl4000_measure_proximity,
+	},
+	[VCNL4010] = {
+		.prod = "VCNL4010/4020",
 		.init = vcnl4000_init,
 		.measure_light = vcnl4000_measure_light,
 		.measure_proximity = vcnl4000_measure_proximity,
