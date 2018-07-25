@@ -60,6 +60,7 @@
  * @is_supported: Checks if we can support ICM on this controller
  * @get_mode: Read and return the ICM firmware mode (optional)
  * @get_route: Find a route string for given switch
+ * @save_devices: Ask ICM to save devices to ACL when suspending (optional)
  * @driver_ready: Send driver ready message to ICM
  * @device_connected: Handle device connected ICM message
  * @device_disconnected: Handle device disconnected ICM message
@@ -76,6 +77,7 @@ struct icm {
 	bool (*is_supported)(struct tb *tb);
 	int (*get_mode)(struct tb *tb);
 	int (*get_route)(struct tb *tb, u8 link, u8 depth, u64 *route);
+	void (*save_devices)(struct tb *tb);
 	int (*driver_ready)(struct tb *tb,
 			    enum tb_security_level *security_level,
 			    size_t *nboot_acl);
@@ -256,6 +258,11 @@ static int icm_fr_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 err_free:
 	kfree(switches);
 	return ret;
+}
+
+static void icm_fr_save_devices(struct tb *tb)
+{
+	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_SAVE_DEVS, 0);
 }
 
 static int
@@ -1665,13 +1672,12 @@ static int icm_driver_ready(struct tb *tb)
 
 static int icm_suspend(struct tb *tb)
 {
-	int ret;
+	struct icm *icm = tb_priv(tb);
 
-	ret = nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_SAVE_DEVS, 0);
-	if (ret)
-		tb_info(tb, "Ignoring mailbox command error (%d) in %s\n",
-			ret, __func__);
+	if (icm->save_devices)
+		icm->save_devices(tb);
 
+	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
 	return 0;
 }
 
@@ -1879,6 +1885,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI:
 		icm->is_supported = icm_fr_is_supported;
 		icm->get_route = icm_fr_get_route;
+		icm->save_devices = icm_fr_save_devices;
 		icm->driver_ready = icm_fr_driver_ready;
 		icm->device_connected = icm_fr_device_connected;
 		icm->device_disconnected = icm_fr_device_disconnected;
@@ -1896,6 +1903,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 		icm->is_supported = icm_ar_is_supported;
 		icm->get_mode = icm_ar_get_mode;
 		icm->get_route = icm_ar_get_route;
+		icm->save_devices = icm_fr_save_devices;
 		icm->driver_ready = icm_ar_driver_ready;
 		icm->device_connected = icm_fr_device_connected;
 		icm->device_disconnected = icm_fr_device_disconnected;
