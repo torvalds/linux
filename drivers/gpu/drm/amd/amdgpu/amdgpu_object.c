@@ -1019,10 +1019,12 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
 {
 	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */
-	if (0 && (adev->flags & AMD_IS_APU)) {
+#ifndef CONFIG_HIBERNATION
+	if (adev->flags & AMD_IS_APU) {
 		/* Useless to evict on IGP chips */
 		return 0;
 	}
+#endif
 	return ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_VRAM);
 }
 
