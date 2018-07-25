@@ -334,7 +334,7 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 
 static int dmaengine_copy_user(struct snd_pcm_substream *substream,
 			       int channel, unsigned long hwoff,
-			       void *buf, unsigned long bytes)
+			       void __user *buf, unsigned long bytes)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component =
@@ -350,18 +350,17 @@ static int dmaengine_copy_user(struct snd_pcm_substream *substream,
 	int ret;
 
 	if (is_playback)
-		if (copy_from_user(dma_ptr, (void __user *)buf, bytes))
+		if (copy_from_user(dma_ptr, buf, bytes))
 			return -EFAULT;
 
 	if (process) {
-		ret = process(substream, channel, hwoff,
-			      (void __user *)buf, bytes);
+		ret = process(substream, channel, hwoff, (__force void *)buf, bytes);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (!is_playback)
-		if (copy_to_user((void __user *)buf, dma_ptr, bytes))
+		if (copy_to_user(buf, dma_ptr, bytes))
 			return -EFAULT;
 
 	return 0;
