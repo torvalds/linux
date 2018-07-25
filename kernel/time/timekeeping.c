@@ -1536,7 +1536,7 @@ void __init timekeeping_init(void)
 	if (timespec64_valid_strict(&wall_time) &&
 	    timespec64_to_ns(&wall_time) > 0) {
 		persistent_clock_exists = true;
-	} else {
+	} else if (timespec64_to_ns(&wall_time) != 0) {
 		pr_warn("Persistent clock returned invalid value");
 		wall_time = (struct timespec64){0};
 	}
