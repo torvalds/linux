@@ -906,6 +906,155 @@ static int tegra_nand_select_strength(struct nand_chip *chip, int oobsize)
 				       bits_per_step, oobsize);
 }
 
+static int tegra_nand_attach_chip(struct nand_chip *chip)
+{
+	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
+	struct tegra_nand_chip *nand = to_tegra_chip(chip);
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int bits_per_step;
+	int ret;
+
+	if (chip->bbt_options & NAND_BBT_USE_FLASH)
+		chip->bbt_options |= NAND_BBT_NO_OOB;
+
+	chip->ecc.mode = NAND_ECC_HW;
+	chip->ecc.size = 512;
+	chip->ecc.steps = mtd->writesize / chip->ecc.size;
+	if (chip->ecc_step_ds != 512) {
+		dev_err(ctrl->dev, "Unsupported step size %d\n",
+			chip->ecc_step_ds);
+		return -EINVAL;
+	}
+
+	chip->ecc.read_page = tegra_nand_read_page_hwecc;
+	chip->ecc.write_page = tegra_nand_write_page_hwecc;
+	chip->ecc.read_page_raw = tegra_nand_read_page_raw;
+	chip->ecc.write_page_raw = tegra_nand_write_page_raw;
+	chip->ecc.read_oob = tegra_nand_read_oob;
+	chip->ecc.write_oob = tegra_nand_write_oob;
+
+	if (chip->options & NAND_BUSWIDTH_16)
+		nand->config |= CONFIG_BUS_WIDTH_16;
+
+	if (chip->ecc.algo == NAND_ECC_UNKNOWN) {
+		if (mtd->writesize < 2048)
+			chip->ecc.algo = NAND_ECC_RS;
+		else
+			chip->ecc.algo = NAND_ECC_BCH;
+	}
+
+	if (chip->ecc.algo == NAND_ECC_BCH && mtd->writesize < 2048) {
+		dev_err(ctrl->dev, "BCH supports 2K or 4K page size only\n");
+		return -EINVAL;
+	}
+
+	if (!chip->ecc.strength) {
+		ret = tegra_nand_select_strength(chip, mtd->oobsize);
+		if (ret < 0) {
+			dev_err(ctrl->dev,
+				"No valid strength found, minimum %d\n",
+				chip->ecc_strength_ds);
+			return ret;
+		}
+
+		chip->ecc.strength = ret;
+	}
+
+	nand->config_ecc = CONFIG_PIPE_EN | CONFIG_SKIP_SPARE |
+			   CONFIG_SKIP_SPARE_SIZE_4;
+
+	switch (chip->ecc.algo) {
+	case NAND_ECC_RS:
+		bits_per_step = BITS_PER_STEP_RS * chip->ecc.strength;
+		mtd_set_ooblayout(mtd, &tegra_nand_oob_rs_ops);
+		nand->config_ecc |= CONFIG_HW_ECC | CONFIG_ECC_SEL |
+				    CONFIG_ERR_COR;
+		switch (chip->ecc.strength) {
+		case 4:
+			nand->config_ecc |= CONFIG_TVAL_4;
+			break;
+		case 6:
+			nand->config_ecc |= CONFIG_TVAL_6;
+			break;
+		case 8:
+			nand->config_ecc |= CONFIG_TVAL_8;
+			break;
+		default:
+			dev_err(ctrl->dev, "ECC strength %d not supported\n",
+				chip->ecc.strength);
+			return -EINVAL;
+		}
+		break;
+	case NAND_ECC_BCH:
+		bits_per_step = BITS_PER_STEP_BCH * chip->ecc.strength;
+		mtd_set_ooblayout(mtd, &tegra_nand_oob_bch_ops);
+		nand->bch_config = BCH_ENABLE;
+		switch (chip->ecc.strength) {
+		case 4:
+			nand->bch_config |= BCH_TVAL_4;
+			break;
+		case 8:
+			nand->bch_config |= BCH_TVAL_8;
+			break;
+		case 14:
+			nand->bch_config |= BCH_TVAL_14;
+			break;
+		case 16:
+			nand->bch_config |= BCH_TVAL_16;
+			break;
+		default:
+			dev_err(ctrl->dev, "ECC strength %d not supported\n",
+				chip->ecc.strength);
+			return -EINVAL;
+		}
+		break;
+	default:
+		dev_err(ctrl->dev, "ECC algorithm not supported\n");
+		return -EINVAL;
+	}
+
+	dev_info(ctrl->dev, "Using %s with strength %d per 512 byte step\n",
+		 chip->ecc.algo == NAND_ECC_BCH ? "BCH" : "RS",
+		 chip->ecc.strength);
+
+	chip->ecc.bytes = DIV_ROUND_UP(bits_per_step, BITS_PER_BYTE);
+
+	switch (mtd->writesize) {
+	case 256:
+		nand->config |= CONFIG_PS_256;
+		break;
+	case 512:
+		nand->config |= CONFIG_PS_512;
+		break;
+	case 1024:
+		nand->config |= CONFIG_PS_1024;
+		break;
+	case 2048:
+		nand->config |= CONFIG_PS_2048;
+		break;
+	case 4096:
+		nand->config |= CONFIG_PS_4096;
+		break;
+	default:
+		dev_err(ctrl->dev, "Unsupported writesize %d\n",
+			mtd->writesize);
+		return -ENODEV;
+	}
+
+	/* Store complete configuration for HW ECC in config_ecc */
+	nand->config_ecc |= nand->config;
+
+	/* Non-HW ECC read/writes complete OOB */
+	nand->config |= CONFIG_TAG_BYTE_SIZE(mtd->oobsize - 1);
+	writel_relaxed(nand->config, ctrl->regs + CONFIG);
+
+	return 0;
+}
+
+static const struct nand_controller_ops tegra_nand_controller_ops = {
+	.attach_chip = &tegra_nand_attach_chip,
+};
+
 static int tegra_nand_chips_init(struct device *dev,
 				 struct tegra_nand_controller *ctrl)
 {
@@ -915,7 +1064,6 @@ static int tegra_nand_chips_init(struct device *dev,
 	struct tegra_nand_chip *nand;
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
-	int bits_per_step;
 	int ret;
 	u32 cs;
 
@@ -971,142 +1119,7 @@ static int tegra_nand_chips_init(struct device *dev,
 	chip->select_chip = tegra_nand_select_chip;
 	chip->setup_data_interface = tegra_nand_setup_data_interface;
 
-	ret = nand_scan_ident(mtd, 1, NULL);
-	if (ret)
-		return ret;
-
-	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		chip->bbt_options |= NAND_BBT_NO_OOB;
-
-	chip->ecc.mode = NAND_ECC_HW;
-	chip->ecc.size = 512;
-	chip->ecc.steps = mtd->writesize / chip->ecc.size;
-	if (chip->ecc_step_ds != 512) {
-		dev_err(dev, "Unsupported step size %d\n", chip->ecc_step_ds);
-		return -EINVAL;
-	}
-
-	chip->ecc.read_page = tegra_nand_read_page_hwecc;
-	chip->ecc.write_page = tegra_nand_write_page_hwecc;
-	chip->ecc.read_page_raw = tegra_nand_read_page_raw;
-	chip->ecc.write_page_raw = tegra_nand_write_page_raw;
-	chip->ecc.read_oob = tegra_nand_read_oob;
-	chip->ecc.write_oob = tegra_nand_write_oob;
-
-	if (chip->options & NAND_BUSWIDTH_16)
-		nand->config |= CONFIG_BUS_WIDTH_16;
-
-	if (chip->ecc.algo == NAND_ECC_UNKNOWN) {
-		if (mtd->writesize < 2048)
-			chip->ecc.algo = NAND_ECC_RS;
-		else
-			chip->ecc.algo = NAND_ECC_BCH;
-	}
-
-	if (chip->ecc.algo == NAND_ECC_BCH && mtd->writesize < 2048) {
-		dev_err(dev, "BCH supports 2K or 4K page size only\n");
-		return -EINVAL;
-	}
-
-	if (!chip->ecc.strength) {
-		ret = tegra_nand_select_strength(chip, mtd->oobsize);
-		if (ret < 0) {
-			dev_err(dev, "No valid strength found, minimum %d\n",
-				chip->ecc_strength_ds);
-			return ret;
-		}
-
-		chip->ecc.strength = ret;
-	}
-
-	nand->config_ecc = CONFIG_PIPE_EN | CONFIG_SKIP_SPARE |
-			   CONFIG_SKIP_SPARE_SIZE_4;
-
-	switch (chip->ecc.algo) {
-	case NAND_ECC_RS:
-		bits_per_step = BITS_PER_STEP_RS * chip->ecc.strength;
-		mtd_set_ooblayout(mtd, &tegra_nand_oob_rs_ops);
-		nand->config_ecc |= CONFIG_HW_ECC | CONFIG_ECC_SEL |
-				    CONFIG_ERR_COR;
-		switch (chip->ecc.strength) {
-		case 4:
-			nand->config_ecc |= CONFIG_TVAL_4;
-			break;
-		case 6:
-			nand->config_ecc |= CONFIG_TVAL_6;
-			break;
-		case 8:
-			nand->config_ecc |= CONFIG_TVAL_8;
-			break;
-		default:
-			dev_err(dev, "ECC strength %d not supported\n",
-				chip->ecc.strength);
-			return -EINVAL;
-		}
-		break;
-	case NAND_ECC_BCH:
-		bits_per_step = BITS_PER_STEP_BCH * chip->ecc.strength;
-		mtd_set_ooblayout(mtd, &tegra_nand_oob_bch_ops);
-		nand->bch_config = BCH_ENABLE;
-		switch (chip->ecc.strength) {
-		case 4:
-			nand->bch_config |= BCH_TVAL_4;
-			break;
-		case 8:
-			nand->bch_config |= BCH_TVAL_8;
-			break;
-		case 14:
-			nand->bch_config |= BCH_TVAL_14;
-			break;
-		case 16:
-			nand->bch_config |= BCH_TVAL_16;
-			break;
-		default:
-			dev_err(dev, "ECC strength %d not supported\n",
-				chip->ecc.strength);
-			return -EINVAL;
-		}
-		break;
-	default:
-		dev_err(dev, "ECC algorithm not supported\n");
-		return -EINVAL;
-	}
-
-	dev_info(dev, "Using %s with strength %d per 512 byte step\n",
-		 chip->ecc.algo == NAND_ECC_BCH ? "BCH" : "RS",
-		 chip->ecc.strength);
-
-	chip->ecc.bytes = DIV_ROUND_UP(bits_per_step, BITS_PER_BYTE);
-
-	switch (mtd->writesize) {
-	case 256:
-		nand->config |= CONFIG_PS_256;
-		break;
-	case 512:
-		nand->config |= CONFIG_PS_512;
-		break;
-	case 1024:
-		nand->config |= CONFIG_PS_1024;
-		break;
-	case 2048:
-		nand->config |= CONFIG_PS_2048;
-		break;
-	case 4096:
-		nand->config |= CONFIG_PS_4096;
-		break;
-	default:
-		dev_err(dev, "Unsupported writesize %d\n", mtd->writesize);
-		return -ENODEV;
-	}
-
-	/* Store complete configuration for HW ECC in config_ecc */
-	nand->config_ecc |= nand->config;
-
-	/* Non-HW ECC read/writes complete OOB */
-	nand->config |= CONFIG_TAG_BYTE_SIZE(mtd->oobsize - 1);
-	writel_relaxed(nand->config, ctrl->regs + CONFIG);
-
-	ret = nand_scan_tail(mtd);
+	ret = nand_scan(mtd, 1);
 	if (ret)
 		return ret;
 
@@ -1137,6 +1150,7 @@ static int tegra_nand_probe(struct platform_device *pdev)
 
 	ctrl->dev = &pdev->dev;
 	nand_controller_init(&ctrl->controller);
+	ctrl->controller.ops = &tegra_nand_controller_ops;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ctrl->regs = devm_ioremap_resource(&pdev->dev, res);
