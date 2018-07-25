@@ -4,7 +4,7 @@
  * Qualcomm MSM Camera Subsystem - V4L2 device node
  *
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2015-2017 Linaro Ltd.
+ * Copyright (C) 2015-2018 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
