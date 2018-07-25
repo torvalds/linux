@@ -137,6 +137,13 @@ enum tc_port {
 	I915_MAX_TC_PORTS
 };
 
+enum tc_port_type {
+	TC_PORT_UNKNOWN = 0,
+	TC_PORT_TYPEC,
+	TC_PORT_TBT,
+	TC_PORT_LEGACY,
+};
+
 enum dpio_channel {
 	DPIO_CH0,
 	DPIO_CH1

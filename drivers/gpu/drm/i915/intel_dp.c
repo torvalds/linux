@@ -4594,6 +4594,38 @@ static bool icl_combo_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(port);
 }
 
+static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
+				    struct intel_digital_port *intel_dig_port,
+				    bool is_legacy, bool is_typec, bool is_tbt)
+{
+	enum port port = intel_dig_port->base.port;
+	enum tc_port_type old_type = intel_dig_port->tc_type;
+	const char *type_str;
+
+	WARN_ON(is_legacy + is_typec + is_tbt != 1);
+
+	if (is_legacy) {
+		intel_dig_port->tc_type = TC_PORT_LEGACY;
+		type_str = "legacy";
+	} else if (is_typec) {
+		intel_dig_port->tc_type = TC_PORT_TYPEC;
+		type_str = "typec";
+	} else if (is_tbt) {
+		intel_dig_port->tc_type = TC_PORT_TBT;
+		type_str = "tbt";
+	} else {
+		return;
+	}
+
+	/* Types are not supposed to be changed at runtime. */
+	WARN_ON(old_type != TC_PORT_UNKNOWN &&
+		old_type != intel_dig_port->tc_type);
+
+	if (old_type != intel_dig_port->tc_type)
+		DRM_DEBUG_KMS("Port %c has TC type %s\n", port_name(port),
+			      type_str);
+}
+
 static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 				  struct intel_digital_port *intel_dig_port)
 {
@@ -4612,9 +4644,13 @@ static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 	is_typec = dpsp & TC_LIVE_STATE_TC(tc_port);
 	is_tbt = dpsp & TC_LIVE_STATE_TBT(tc_port);
 
-	WARN_ON(is_legacy + is_typec + is_tbt > 1);
+	if (!is_legacy && !is_typec && !is_tbt)
+		return false;
 
-	return is_legacy || is_typec || is_tbt;
+	icl_update_tc_port_type(dev_priv, intel_dig_port, is_legacy, is_typec,
+				is_tbt);
+
+	return true;
 }
 
 static bool icl_digital_port_connected(struct intel_encoder *encoder)
