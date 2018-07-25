@@ -32,6 +32,15 @@
 			(((v) == CAMSS_8x16 ? 0x010 : 0x014) + 0x4 * (n))
 #define CAMSS_CSID_CID_n_CFG(v, n)	\
 			(((v) == CAMSS_8x16 ? 0x020 : 0x024) + 0x4 * (n))
+#define CAMSS_CSID_CID_n_CFG_ISPIF_EN	BIT(0)
+#define CAMSS_CSID_CID_n_CFG_RDI_EN	BIT(1)
+#define CAMSS_CSID_CID_n_CFG_DECODE_FORMAT_SHIFT	4
+#define CAMSS_CSID_CID_n_CFG_PLAIN_FORMAT_8		(0 << 8)
+#define CAMSS_CSID_CID_n_CFG_PLAIN_FORMAT_16		(1 << 8)
+#define CAMSS_CSID_CID_n_CFG_PLAIN_ALIGNMENT_LSB	(0 << 9)
+#define CAMSS_CSID_CID_n_CFG_PLAIN_ALIGNMENT_MSB	(1 << 9)
+#define CAMSS_CSID_CID_n_CFG_RDI_MODE_RAW_DUMP		(0 << 10)
+#define CAMSS_CSID_CID_n_CFG_RDI_MODE_PLAIN_PACKING	(1 << 10)
 #define CAMSS_CSID_IRQ_CLEAR_CMD(v)	((v) == CAMSS_8x16 ? 0x060 : 0x064)
 #define CAMSS_CSID_IRQ_MASK(v)		((v) == CAMSS_8x16 ? 0x064 : 0x068)
 #define CAMSS_CSID_IRQ_STATUS(v)	((v) == CAMSS_8x16 ? 0x068 : 0x06c)
@@ -330,6 +339,16 @@ static u32 csid_src_pad_code(struct csid_device *csid, u32 sink_code,
 		return sink_code;
 	} else if (csid->camss->version == CAMSS_8x96) {
 		switch (sink_code) {
+		case MEDIA_BUS_FMT_SBGGR10_1X10:
+		{
+			u32 src_code[] = {
+				MEDIA_BUS_FMT_SBGGR10_1X10,
+				MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE,
+			};
+
+			return csid_find_code(src_code, ARRAY_SIZE(src_code),
+					      index, src_req_code);
+		}
 		default:
 			if (index > 0)
 				return 0;
@@ -636,7 +655,19 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 		writel_relaxed(val, csid->base +
 			       CAMSS_CSID_CID_LUT_VC_n(ver, vc));
 
-		val = (df << 4) | 0x3;
+		val = CAMSS_CSID_CID_n_CFG_ISPIF_EN;
+		val |= CAMSS_CSID_CID_n_CFG_RDI_EN;
+		val |= df << CAMSS_CSID_CID_n_CFG_DECODE_FORMAT_SHIFT;
+		val |= CAMSS_CSID_CID_n_CFG_RDI_MODE_RAW_DUMP;
+		if (csid->camss->version == CAMSS_8x96 &&
+			csid->fmt[MSM_CSID_PAD_SINK].code ==
+					MEDIA_BUS_FMT_SBGGR10_1X10 &&
+			csid->fmt[MSM_CSID_PAD_SRC].code ==
+					MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE) {
+			val |= CAMSS_CSID_CID_n_CFG_RDI_MODE_PLAIN_PACKING;
+			val |= CAMSS_CSID_CID_n_CFG_PLAIN_FORMAT_16;
+			val |= CAMSS_CSID_CID_n_CFG_PLAIN_ALIGNMENT_LSB;
+		}
 		writel_relaxed(val, csid->base +
 			       CAMSS_CSID_CID_n_CFG(ver, cid));
 

@@ -76,6 +76,13 @@
 					(0x254 + 0x200 * (m) + 0x4 * (n))
 #define ISPIF_VFE_m_RDI_INTF_n_CID_MASK(m, n)	\
 					(0x264 + 0x200 * (m) + 0x4 * (n))
+/* PACK_CFG registers are 8x96 only */
+#define ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0(m, n)	\
+					(0x270 + 0x200 * (m) + 0x4 * (n))
+#define ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_1(m, n)	\
+					(0x27c + 0x200 * (m) + 0x4 * (n))
+#define ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0_CID_c_PLAIN(c)	\
+					(1 << ((cid % 8) * 4))
 #define ISPIF_VFE_m_PIX_INTF_n_STATUS(m, n)	\
 					(0x2c0 + 0x200 * (m) + 0x4 * (n))
 #define ISPIF_VFE_m_RDI_INTF_n_STATUS(m, n)	\
@@ -128,6 +135,7 @@ static const u32 ispif_formats_8x96[] = {
 	MEDIA_BUS_FMT_SGBRG10_1X10,
 	MEDIA_BUS_FMT_SGRBG10_1X10,
 	MEDIA_BUS_FMT_SRGGB10_1X10,
+	MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE,
 	MEDIA_BUS_FMT_SBGGR12_1X12,
 	MEDIA_BUS_FMT_SGBRG12_1X12,
 	MEDIA_BUS_FMT_SGRBG12_1X12,
@@ -667,6 +675,54 @@ static void ispif_config_irq(struct ispif_device *ispif, enum ispif_intf intf,
 }
 
 /*
+ * ispif_config_pack - Config packing for PRDI mode
+ * @ispif: ISPIF device
+ * @code: media bus format code
+ * @intf: VFE interface
+ * @cid: desired CID to handle
+ * @vfe: VFE HW module id
+ * @enable: enable or disable
+ */
+static void ispif_config_pack(struct ispif_device *ispif, u32 code,
+			      enum ispif_intf intf, u8 cid, u8 vfe, u8 enable)
+{
+	u32 addr, val;
+
+	if (code != MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE)
+		return;
+
+	switch (intf) {
+	case RDI0:
+		if (cid < 8)
+			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0(vfe, 0);
+		else
+			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_1(vfe, 0);
+		break;
+	case RDI1:
+		if (cid < 8)
+			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0(vfe, 1);
+		else
+			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_1(vfe, 1);
+		break;
+	case RDI2:
+		if (cid < 8)
+			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0(vfe, 2);
+		else
+			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_1(vfe, 2);
+		break;
+	default:
+		return;
+	}
+
+	if (enable)
+		val = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0_CID_c_PLAIN(cid);
+	else
+		val = 0;
+
+	writel_relaxed(val, ispif->base + addr);
+}
+
+/*
  * ispif_set_intf_cmd - Set command to enable/disable interface
  * @ispif: ISPIF device
  * @cmd: interface command
@@ -734,6 +790,10 @@ static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 		ispif_select_csid(ispif, intf, csid, vfe, 1);
 		ispif_select_cid(ispif, intf, cid, vfe, 1);
 		ispif_config_irq(ispif, intf, vfe, 1);
+		if (to_camss(ispif)->version == CAMSS_8x96)
+			ispif_config_pack(ispif,
+					  line->fmt[MSM_ISPIF_PAD_SINK].code,
+					  intf, cid, vfe, 1);
 		ispif_set_intf_cmd(ispif, CMD_ENABLE_FRAME_BOUNDARY,
 				   intf, vfe, vc);
 	} else {
@@ -747,6 +807,10 @@ static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 			return ret;
 
 		mutex_lock(&ispif->config_lock);
+		if (to_camss(ispif)->version == CAMSS_8x96)
+			ispif_config_pack(ispif,
+					  line->fmt[MSM_ISPIF_PAD_SINK].code,
+					  intf, cid, vfe, 0);
 		ispif_config_irq(ispif, intf, vfe, 0);
 		ispif_select_cid(ispif, intf, cid, vfe, 0);
 		ispif_select_csid(ispif, intf, csid, vfe, 0);
