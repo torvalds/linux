@@ -424,7 +424,7 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	 * vsync_count is ratio of MDP VSYNC clock frequency to LCD panel
 	 * frequency divided by the no. of rows (lines) in the LCDpanel.
 	 */
-	vsync_hz = dpu_kms_get_clk_rate(dpu_kms, "vsync_clk");
+	vsync_hz = dpu_kms_get_clk_rate(dpu_kms, "vsync");
 	if (vsync_hz <= 0) {
 		DPU_DEBUG_CMDENC(cmd_enc, "invalid - vsync_hz %u\n",
 				 vsync_hz);
