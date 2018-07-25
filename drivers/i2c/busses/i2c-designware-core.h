@@ -212,7 +212,8 @@
  * @tx_fifo_depth: depth of the hardware tx fifo
  * @rx_fifo_depth: depth of the hardware rx fifo
  * @rx_outstanding: current master-rx elements in tx fifo
- * @clk_freq: bus clock frequency
+ * @timings: bus clock frequency, SDA hold and other timings
+ * @sda_hold_time: SDA hold value
  * @ss_hcnt: standard speed HCNT value
  * @ss_lcnt: standard speed LCNT value
  * @fs_hcnt: fast speed HCNT value
@@ -264,10 +265,8 @@ struct dw_i2c_dev {
 	unsigned int		tx_fifo_depth;
 	unsigned int		rx_fifo_depth;
 	int			rx_outstanding;
-	u32			clk_freq;
+	struct i2c_timings	timings;
 	u32			sda_hold_time;
-	u32			sda_falling_time;
-	u32			scl_falling_time;
 	u16			ss_hcnt;
 	u16			ss_lcnt;
 	u16			fs_hcnt;

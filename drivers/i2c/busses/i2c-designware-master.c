@@ -51,6 +51,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	const char *mode_str, *fp_str = "";
 	u32 comp_param1;
 	u32 sda_falling_time, scl_falling_time;
+	struct i2c_timings *t = &dev->timings;
 	int ret;
 
 	ret = i2c_dw_acquire_lock(dev);
@@ -60,8 +61,8 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	i2c_dw_release_lock(dev);
 
 	/* Set standard and fast speed dividers for high/low periods */
-	sda_falling_time = dev->sda_falling_time ?: 300; /* ns */
-	scl_falling_time = dev->scl_falling_time ?: 300; /* ns */
+	sda_falling_time = t->sda_fall_ns ?: 300; /* ns */
+	scl_falling_time = t->scl_fall_ns ?: 300; /* ns */
 
 	/* Calculate SCL timing parameters for standard mode if not set */
 	if (!dev->ss_hcnt || !dev->ss_lcnt) {
@@ -85,7 +86,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	 * difference is the timing parameter values since the registers are
 	 * the same.
 	 */
-	if (dev->clk_freq == 1000000) {
+	if (t->bus_freq_hz == 1000000) {
 		/*
 		 * Check are fast mode plus parameters available and use
 		 * fast mode if not.
