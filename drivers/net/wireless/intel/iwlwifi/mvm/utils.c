@@ -285,6 +285,7 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	return last_idx;
 }
 
+#define FW_SYSASSERT_CPU_MASK 0xf0000000
 static const struct {
 	const char *name;
 	u8 num;
@@ -301,6 +302,9 @@ static const struct {
 	{ "NMI_INTERRUPT_WDG_RXF_FULL", 0x5C },
 	{ "NMI_INTERRUPT_WDG_NO_RBD_RXF_FULL", 0x64 },
 	{ "NMI_INTERRUPT_HOST", 0x66 },
+	{ "NMI_INTERRUPT_LMAC_FATAL", 0x70 },
+	{ "NMI_INTERRUPT_UMAC_FATAL", 0x71 },
+	{ "NMI_INTERRUPT_OTHER_LMAC_FATAL", 0x73 },
 	{ "NMI_INTERRUPT_ACTION_PT", 0x7C },
 	{ "NMI_INTERRUPT_UNKNOWN", 0x84 },
 	{ "NMI_INTERRUPT_INST_ACTION_PT", 0x86 },
@@ -312,7 +316,7 @@ static const char *desc_lookup(u32 num)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(advanced_lookup) - 1; i++)
-		if (advanced_lookup[i].num == num)
+		if (advanced_lookup[i].num == (num & ~FW_SYSASSERT_CPU_MASK))
 			return advanced_lookup[i].name;
 
 	/* No entry matches 'num', so it is the last: ADVANCED_SYSASSERT */
