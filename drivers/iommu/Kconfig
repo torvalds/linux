@@ -285,8 +285,8 @@ config IPMMU_VMSA
 	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU
 	help
-	  Support for the Renesas VMSA-compatible IPMMU Renesas found in the
-	  R-Mobile APE6 and R-Car H2/M2 SoCs.
+	  Support for the Renesas VMSA-compatible IPMMU found in the R-Mobile
+	  APE6, R-Car Gen2, and R-Car Gen3 SoCs.
 
 	  If unsure, say N.
 
