@@ -322,7 +322,6 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 {
 	struct mmc_data *data = host->data;
 	int c = cmd->opcode;
-	u32 irq_mask = TMIO_MASK_CMD;
 
 	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_NONE: c |= RESP_NONE; break;
@@ -362,7 +361,7 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 			c |= TRANSFER_READ;
 	}
 
-	tmio_mmc_enable_mmc_irqs(host, irq_mask);
+	tmio_mmc_enable_mmc_irqs(host, TMIO_MASK_CMD);
 
 	/* Fire off the command */
 	sd_ctrl_write32_as_16_and_16(host, CTL_ARG_REG, cmd->arg);
