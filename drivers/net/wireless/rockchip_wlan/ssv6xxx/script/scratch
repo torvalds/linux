@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ "`whoami`" != "root" ]; then
+    echo Need to be root to execute.;
+    exit 1;
+fi
+
+cd ..
+make clean
+make -j 4
+make install

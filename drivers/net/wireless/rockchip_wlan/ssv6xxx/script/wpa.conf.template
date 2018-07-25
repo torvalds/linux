@@ -1,0 +1,13 @@
+ctrl_interface=/var/run/wpa_supplicant
+ap_scan=1
+fast_reauth=1
+uuid=12345678-9abc-def0-1234-56789abcde11
+device_name=X86-Platform
+manufacturer=iComm Corporation
+model_name=Wi-Fi reference chip
+model_number=123
+serial_number=MAC_ADDR
+device_type=1-0050F204-1
+os_version=01020300
+config_methods=display push_button virtual_display virtual_push_button
+

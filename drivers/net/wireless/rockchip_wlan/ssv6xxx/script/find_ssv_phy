@@ -1,0 +1,10 @@
+#!/bin/sh
+phy_dirs="/sys/class/ieee80211/*"
+ssv_drv_name="ssv6200"
+
+for phy_dir in $phy_dirs; do
+    if [ -e "$phy_dir/device/driver/$ssv_drv_name" ]; then
+    	echo `basename $phy_dir`;
+    	break;
+    fi
+done

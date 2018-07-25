@@ -1,0 +1,26 @@
+#!/bin/sh
+ssv_phy=`./find_ssv_phy`
+if [ -z "$ssv_phy" ]; then
+    echo SSV PHY device not found.;
+    exit 1;
+fi
+
+ssv_debugfs_dir=/sys/kernel/debug/ieee80211/$ssv_phy/ssv6200
+
+if [ ! -d $ssv_debugfs_dir ]; then
+    echo SSV debugfs not found.;
+    exit 1;
+fi
+
+cd $ssv_debugfs_dir
+
+cat queue_status
+cat hci/hw_txq_len
+
+find . -name ampdu_tx_summary -exec cat {} \;
+
+SSV_DFS_FILE=/sys/kernel/debug/ssv/ssv_cmd
+if [ -f $SSV_DFS_FILE ]; then
+    echo "hwq" > $SSV_DFS_FILE
+    cat $SSV_DFS_FILE
+fi

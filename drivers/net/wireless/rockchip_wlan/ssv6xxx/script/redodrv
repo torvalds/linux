@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ "`whoami`" != "root" ]; then
+    echo Need to be root to execute.;
+    exit 1;
+fi
+
+
+./unload.sh
+./scratch
+./clean_log.sh
+# ./sta.sh

@@ -1,0 +1,21 @@
+ctrl_interface=/var/run/wpa_supplicant
+update_config=0
+uuid=12345678-9abc-def0-1234-56789abcde22
+max_num_sta=1
+device_name=X86-Platform-P2P
+manufacturer=iComm Corporation
+model_name=Wi-Fi reference chip
+model_number=123
+serial_number=MAC_ADDR
+device_type=1-0050F204-1
+os_version=01020300
+config_methods=display push_button virtual_display virtual_push_button
+p2p_listen_reg_class=81
+p2p_listen_channel=11
+p2p_oper_reg_class=81
+p2p_oper_channel=11
+p2p_go_intent=7
+p2p_no_group_iface=1
+p2p_intra_bss=1
+persistent_reconnect=1
+

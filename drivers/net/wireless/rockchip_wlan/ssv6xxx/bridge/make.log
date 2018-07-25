@@ -1,0 +1,7 @@
+make[1]: Entering directory `/usr/src/linux-headers-3.2.0-48-generic'
+  CC [M]  /root/felix/1015-Release/final/host_drivers/Linux/ssv/bridge/sdiobridge.o
+/root/felix/1015-Release/final/host_drivers/Linux/ssv/bridge/sdiobridge.c:44:33: fatal error: ../include/sdio_def.h: No such file or directory
+compilation terminated.
+make[2]: *** [/root/felix/1015-Release/final/host_drivers/Linux/ssv/bridge/sdiobridge.o] Error 1
+make[1]: *** [_module_/root/felix/1015-Release/final/host_drivers/Linux/ssv/bridge] Error 2
+make[1]: Leaving directory `/usr/src/linux-headers-3.2.0-48-generic'

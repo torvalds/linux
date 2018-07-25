@@ -1,0 +1,13 @@
+#!/bin/sh
+pid_list="`pgrep -d , ssv `,`pgrep -d , sdio`"
+cpu_list=/sys/devices/system/cpu/cpu?
+while [ true ] 
+    do 
+        #clear
+        echo "============================================================================"
+        top -b -n 1 -p $pid_list
+        for cpu in $cpu_list; do 
+	    echo "`basename $cpu` `cat $cpu/cpufreq/cpuinfo_cur_freq`"; 
+        done
+        #sleep 0.1
+    done

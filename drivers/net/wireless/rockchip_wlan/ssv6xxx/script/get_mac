@@ -1,0 +1,10 @@
+#!/bin/sh
+if [ $# != 1 ]; then
+    interface=eth0
+else
+    interface=$1
+fi
+
+mac=`ifconfig $interface | grep HWaddr | sed -e 's/.*HWaddr //g' | sed -e 's/ //g'`
+
+echo $mac

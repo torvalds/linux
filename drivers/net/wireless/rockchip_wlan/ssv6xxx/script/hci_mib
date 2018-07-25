@@ -1,0 +1,28 @@
+#!/bin/sh
+if [ $# -lt 1 ]; then
+	echo "Usage: hci_mib PHY_IF $#";
+	exit;
+fi
+
+phy_if=/sys/kernel/debug/ieee80211/$1/ssv6200/hci
+if [ ! -d $phy_if ]; then 
+    echo "$phy_if does not exist.";
+    exit;
+fi
+
+cd $phy_if
+
+echo 0 > hci_isr_mib_enable
+echo 1 > hci_isr_mib_reset
+echo 1 > hci_isr_mib_enable
+
+sleep 10
+
+echo 0 > hci_isr_mib_enable
+
+echo "ISR total time: `cat isr_total_time`"
+echo "RX IO time: `cat rx_io_time`"
+echo "RX IO count: `cat rx_io_count`"
+echo "RX process time: `cat rx_proc_time`"
+echo "TX IO time: `cat tx_io_time`"
+echo "TX IO count: `cat tx_io_count`"

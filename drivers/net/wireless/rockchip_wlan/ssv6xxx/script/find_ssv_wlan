@@ -1,0 +1,10 @@
+#!/bin/sh
+net_dirs="/sys/class/net/*"
+ssv_drv_name="ssv6200"
+
+for net_dir in $net_dirs; do
+    if [ -e "$net_dir/phy80211/device/driver/$ssv_drv_name" ]; then
+    	echo `basename $net_dir`;
+    	#break;
+    fi
+done

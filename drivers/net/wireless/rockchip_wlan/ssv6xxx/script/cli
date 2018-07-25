@@ -1,0 +1,7 @@
+#!/bin/sh
+
+SSV_DFS_FILE=/sys/kernel/debug/ssv/ssv_cmd
+if [ -f $SSV_DFS_FILE ]; then
+    echo "$*" > $SSV_DFS_FILE
+    cat $SSV_DFS_FILE
+fi

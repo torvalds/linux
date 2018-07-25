@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cd ../smac/firmware
+./firmware-build.sh

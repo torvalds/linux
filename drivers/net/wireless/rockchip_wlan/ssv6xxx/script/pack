@@ -1,0 +1,45 @@
+#!/bin/bash
+
+TARGET_DIR=pack
+
+rm -rf $TARGET_DIR
+
+src_c=`find . -name "*.c"`
+src_h=`find . -name "*.h"`
+src_mk=`find . \( -name Makefile -o -name "*.mak" \)`
+
+mkdir -p /tmp/pack > /dev/null
+
+# Process each source code in .c and .h.
+for src in $src_c $src_h; do
+        mkdir -p "/tmp/pack/`dirname $src`" > /dev/null
+	echo "Processing $src..."        
+	dir="$TARGET_DIR/`dirname $src`"
+	src_name="`basename $src`"
+	if [ ! -d $dir ]; then
+		mkdir -p $dir
+	fi
+	# Remove comment using preprocessor.
+	# And use indent to make the result comfort to Linux coding style
+	cat script/license.txt > "$dir/$src_name"
+	gcc -fpreprocessed -dD -E -P -std=gnu99 $src > /tmp/pack/$src
+	#cat /tmp/pack/$src | \
+	#indent -bad -bap -bbb -nbc -bbo -hnl -br -brs -c33 -cd33 -ncdb -ce -ci4 \
+	#-cli0 -d0 -di1 -nfc1 -i8 -ip0 -l80 -lp -npcs -nprs -npsl -sai \
+	#-saf -saw -ncs -nsc -sob -nfca -cp33 -ss -ts8 -il1 /tmp/pack/$src -o "$dir/$src_name"
+	clang-format-3.4 -style='{BasedOnStyle: LLVM, UseTab: Always, IndentWidth: 8, BreakBeforeBraces: Linux, AllowShortIfStatementsOnASingleLine: false, IndentCaseLabels: false}' \
+	    /tmp/pack/$src > "$dir/$src_name"
+	#$src | script/stripcmt > "$dir/$src_name"
+done
+
+# Copy every Makefile
+for src in $src_mk; do
+	cp $src "$TARGET_DIR/$src"
+done
+
+# No firmware code
+rm -rf "$TARGET_DIR/smac/firmware"
+rm -rf "$TARGET_DIR/ssv6200fmac"
+
+# Copy scripts and FW image
+cp -r image script *.sh $TARGET_DIR
