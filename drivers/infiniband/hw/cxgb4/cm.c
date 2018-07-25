@@ -1853,10 +1853,34 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
+static void complete_cached_srq_buffers(struct c4iw_ep *ep, u32 srqidx_status)
+{
+	enum chip_type adapter_type;
+	u32 srqidx;
+	u8 status;
+
+	adapter_type = ep->com.dev->rdev.lldi.adapter_type;
+	status = ABORT_RSS_STATUS_G(be32_to_cpu(srqidx_status));
+	srqidx = ABORT_RSS_SRQIDX_G(be32_to_cpu(srqidx_status));
+
+	/*
+	 * If this TCB had a srq buffer cached, then we must complete
+	 * it. For user mode, that means saving the srqidx in the
+	 * user/kernel status page for this qp.  For kernel mode, just
+	 * synthesize the CQE now.
+	 */
+	if (CHELSIO_CHIP_VERSION(adapter_type) > CHELSIO_T5 && srqidx) {
+		if (ep->com.qp->ibqp.uobject)
+			t4_set_wq_in_error(&ep->com.qp->wq, srqidx);
+		else
+			c4iw_flush_srqidx(ep->com.qp, srqidx);
+	}
+}
+
 static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 {
 	struct c4iw_ep *ep;
-	struct cpl_abort_rpl_rss *rpl = cplhdr(skb);
+	struct cpl_abort_rpl_rss6 *rpl = cplhdr(skb);
 	int release = 0;
 	unsigned int tid = GET_TID(rpl);
 
@@ -1865,6 +1889,9 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		pr_warn("Abort rpl to freed endpoint\n");
 		return 0;
 	}
+
+	complete_cached_srq_buffers(ep, rpl->srqidx_status);
+
 	pr_debug("ep %p tid %u\n", ep, ep->hwtid);
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
@@ -2719,28 +2746,35 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 
 static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 {
-	struct cpl_abort_req_rss *req = cplhdr(skb);
+	struct cpl_abort_req_rss6 *req = cplhdr(skb);
 	struct c4iw_ep *ep;
 	struct sk_buff *rpl_skb;
 	struct c4iw_qp_attributes attrs;
 	int ret;
 	int release = 0;
 	unsigned int tid = GET_TID(req);
+	u8 status;
+
 	u32 len = roundup(sizeof(struct cpl_abort_rpl), 16);
 
 	ep = get_ep_from_tid(dev, tid);
 	if (!ep)
 		return 0;
 
-	if (cxgb_is_neg_adv(req->status)) {
+	status = ABORT_RSS_STATUS_G(be32_to_cpu(req->srqidx_status));
+
+	if (cxgb_is_neg_adv(status)) {
 		pr_debug("Negative advice on abort- tid %u status %d (%s)\n",
-			 ep->hwtid, req->status, neg_adv_str(req->status));
+			 ep->hwtid, status, neg_adv_str(status));
 		ep->stats.abort_neg_adv++;
 		mutex_lock(&dev->rdev.stats.lock);
 		dev->rdev.stats.neg_adv++;
 		mutex_unlock(&dev->rdev.stats.lock);
 		goto deref_ep;
 	}
+
+	complete_cached_srq_buffers(ep, req->srqidx_status);
+
 	pr_debug("ep %p tid %u state %u\n", ep, ep->hwtid,
 		 ep->com.state);
 	set_bit(PEER_ABORT, &ep->com.history);

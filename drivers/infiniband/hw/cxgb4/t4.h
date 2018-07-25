@@ -491,7 +491,6 @@ static inline void t4_rq_produce(struct t4_wq *wq, u8 len16)
 static inline void t4_rq_consume(struct t4_wq *wq)
 {
 	wq->rq.in_use--;
-	wq->rq.msn++;
 	if (++wq->rq.cidx == wq->rq.size)
 		wq->rq.cidx = 0;
 }
@@ -641,12 +640,14 @@ static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc,
 
 static inline int t4_wq_in_error(struct t4_wq *wq)
 {
-	return wq->rq.queue[wq->rq.size].status.qp_err;
+	return *wq->qp_errp;
 }
 
-static inline void t4_set_wq_in_error(struct t4_wq *wq)
+static inline void t4_set_wq_in_error(struct t4_wq *wq, u32 srqidx)
 {
-	wq->rq.queue[wq->rq.size].status.qp_err = 1;
+	if (srqidx)
+		*wq->srqidxp = srqidx;
+	*wq->qp_errp = 1;
 }
 
 static inline void t4_disable_wq_db(struct t4_wq *wq)

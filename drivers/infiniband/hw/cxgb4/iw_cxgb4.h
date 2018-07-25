@@ -1013,7 +1013,8 @@ void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qpid,
 		   struct c4iw_dev_ucontext *uctx);
 u32 c4iw_get_resource(struct c4iw_id_table *id_table);
 void c4iw_put_resource(struct c4iw_id_table *id_table, u32 entry);
-int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid);
+int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt,
+		       u32 nr_pdid, u32 nr_srqt);
 int c4iw_init_ctrl_qp(struct c4iw_rdev *rdev);
 int c4iw_pblpool_create(struct c4iw_rdev *rdev);
 int c4iw_rqtpool_create(struct c4iw_rdev *rdev);

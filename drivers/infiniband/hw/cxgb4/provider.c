@@ -342,9 +342,12 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 	props->vendor_part_id = (u32)dev->rdev.lldi.pdev->device;
 	props->max_mr_size = T4_MAX_MR_SIZE;
 	props->max_qp = dev->rdev.lldi.vr->qp.size / 2;
+	props->max_srq = dev->rdev.lldi.vr->srq.size;
 	props->max_qp_wr = dev->rdev.hw_queue.t4_max_qp_depth;
+	props->max_srq_wr = dev->rdev.hw_queue.t4_max_qp_depth;
 	props->max_send_sge = min(T4_MAX_SEND_SGE, T4_MAX_WRITE_SGE);
 	props->max_recv_sge = T4_MAX_RECV_SGE;
+	props->max_srq_sge = T4_MAX_RECV_SGE;
 	props->max_sge_rd = 1;
 	props->max_res_rd_atom = dev->rdev.lldi.max_ird_adapter;
 	props->max_qp_rd_atom = min(dev->rdev.lldi.max_ordird_qp,
@@ -593,7 +596,10 @@ void c4iw_register_device(struct work_struct *work)
 	    (1ull << IB_USER_VERBS_CMD_POLL_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND) |
-	    (1ull << IB_USER_VERBS_CMD_POST_RECV);
+	    (1ull << IB_USER_VERBS_CMD_POST_RECV) |
+	    (1ull << IB_USER_VERBS_CMD_CREATE_SRQ) |
+	    (1ull << IB_USER_VERBS_CMD_MODIFY_SRQ) |
+	    (1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	BUILD_BUG_ON(sizeof(C4IW_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));
@@ -615,6 +621,9 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.modify_qp = c4iw_ib_modify_qp;
 	dev->ibdev.query_qp = c4iw_ib_query_qp;
 	dev->ibdev.destroy_qp = c4iw_destroy_qp;
+	dev->ibdev.create_srq = c4iw_create_srq;
+	dev->ibdev.modify_srq = c4iw_modify_srq;
+	dev->ibdev.destroy_srq = c4iw_destroy_srq;
 	dev->ibdev.create_cq = c4iw_create_cq;
 	dev->ibdev.destroy_cq = c4iw_destroy_cq;
 	dev->ibdev.resize_cq = c4iw_resize_cq;
@@ -632,6 +641,7 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.req_notify_cq = c4iw_arm_cq;
 	dev->ibdev.post_send = c4iw_post_send;
 	dev->ibdev.post_recv = c4iw_post_receive;
+	dev->ibdev.post_srq_recv = c4iw_post_srq_recv;
 	dev->ibdev.alloc_hw_stats = c4iw_alloc_stats;
 	dev->ibdev.get_hw_stats = c4iw_get_mib;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
