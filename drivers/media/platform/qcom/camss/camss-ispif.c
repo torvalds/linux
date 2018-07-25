@@ -120,6 +120,7 @@ static const u32 ispif_formats_8x16[] = {
 	MEDIA_BUS_FMT_SGBRG12_1X12,
 	MEDIA_BUS_FMT_SGRBG12_1X12,
 	MEDIA_BUS_FMT_SRGGB12_1X12,
+	MEDIA_BUS_FMT_Y10_1X10,
 };
 
 static const u32 ispif_formats_8x96[] = {
@@ -144,6 +145,8 @@ static const u32 ispif_formats_8x96[] = {
 	MEDIA_BUS_FMT_SGBRG14_1X14,
 	MEDIA_BUS_FMT_SGRBG14_1X14,
 	MEDIA_BUS_FMT_SRGGB14_1X14,
+	MEDIA_BUS_FMT_Y10_1X10,
+	MEDIA_BUS_FMT_Y10_2X8_PADHI_LE,
 };
 
 /*
@@ -692,7 +695,8 @@ static void ispif_config_pack(struct ispif_device *ispif, u32 code,
 {
 	u32 addr, val;
 
-	if (code != MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE)
+	if (code != MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE &&
+	    code != MEDIA_BUS_FMT_Y10_2X8_PADHI_LE)
 		return;
 
 	switch (intf) {

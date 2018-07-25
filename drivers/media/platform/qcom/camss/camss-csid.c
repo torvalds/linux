@@ -193,7 +193,14 @@ static const struct csid_format csid_formats_8x16[] = {
 		DECODE_FORMAT_UNCOMPRESSED_12_BIT,
 		12,
 		1,
-	}
+	},
+	{
+		MEDIA_BUS_FMT_Y10_1X10,
+		DATA_TYPE_RAW_10BIT,
+		DECODE_FORMAT_UNCOMPRESSED_10_BIT,
+		10,
+		1,
+	},
 };
 
 static const struct csid_format csid_formats_8x96[] = {
@@ -336,7 +343,14 @@ static const struct csid_format csid_formats_8x96[] = {
 		DECODE_FORMAT_UNCOMPRESSED_14_BIT,
 		14,
 		1,
-	}
+	},
+	{
+		MEDIA_BUS_FMT_Y10_1X10,
+		DATA_TYPE_RAW_10BIT,
+		DECODE_FORMAT_UNCOMPRESSED_10_BIT,
+		10,
+		1,
+	},
 };
 
 static u32 csid_find_code(u32 *code, unsigned int n_code,
@@ -374,6 +388,16 @@ static u32 csid_src_pad_code(struct csid_device *csid, u32 sink_code,
 			u32 src_code[] = {
 				MEDIA_BUS_FMT_SBGGR10_1X10,
 				MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE,
+			};
+
+			return csid_find_code(src_code, ARRAY_SIZE(src_code),
+					      index, src_req_code);
+		}
+		case MEDIA_BUS_FMT_Y10_1X10:
+		{
+			u32 src_code[] = {
+				MEDIA_BUS_FMT_Y10_1X10,
+				MEDIA_BUS_FMT_Y10_2X8_PADHI_LE,
 			};
 
 			return csid_find_code(src_code, ARRAY_SIZE(src_code),
@@ -689,15 +713,21 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 		val |= CAMSS_CSID_CID_n_CFG_RDI_EN;
 		val |= df << CAMSS_CSID_CID_n_CFG_DECODE_FORMAT_SHIFT;
 		val |= CAMSS_CSID_CID_n_CFG_RDI_MODE_RAW_DUMP;
-		if (csid->camss->version == CAMSS_8x96 &&
-			csid->fmt[MSM_CSID_PAD_SINK].code ==
-					MEDIA_BUS_FMT_SBGGR10_1X10 &&
-			csid->fmt[MSM_CSID_PAD_SRC].code ==
-					MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE) {
-			val |= CAMSS_CSID_CID_n_CFG_RDI_MODE_PLAIN_PACKING;
-			val |= CAMSS_CSID_CID_n_CFG_PLAIN_FORMAT_16;
-			val |= CAMSS_CSID_CID_n_CFG_PLAIN_ALIGNMENT_LSB;
+
+		if (csid->camss->version == CAMSS_8x96) {
+			u32 sink_code = csid->fmt[MSM_CSID_PAD_SINK].code;
+			u32 src_code = csid->fmt[MSM_CSID_PAD_SRC].code;
+
+			if ((sink_code == MEDIA_BUS_FMT_SBGGR10_1X10 &&
+			     src_code == MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE) ||
+			    (sink_code == MEDIA_BUS_FMT_Y10_1X10 &&
+			     src_code == MEDIA_BUS_FMT_Y10_2X8_PADHI_LE)) {
+				val |= CAMSS_CSID_CID_n_CFG_RDI_MODE_PLAIN_PACKING;
+				val |= CAMSS_CSID_CID_n_CFG_PLAIN_FORMAT_16;
+				val |= CAMSS_CSID_CID_n_CFG_PLAIN_ALIGNMENT_LSB;
+			}
 		}
+
 		writel_relaxed(val, csid->base +
 			       CAMSS_CSID_CID_n_CFG(ver, cid));
 
