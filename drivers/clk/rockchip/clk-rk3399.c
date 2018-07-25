@@ -191,8 +191,8 @@ PNAME(mux_pll_src_cpll_gpll_npll_ppll_upll_24m_p) = { "dummy_cpll", "gpll", "npl
  */
 PNAME(mux_pll_src_dmyvpll_cpll_gpll_npll_p)	= { "dummy_vpll", "dummy_cpll", "gpll",
 						    "npll" };
-PNAME(mux_pll_src_dmyvpll_cpll_gpll_24m_p)	= { "dummy_vpll", "dummy_cpll", "gpll",
-						    "xin24m" };
+PNAME(mux_pll_src_dmyvpll_cpll_gpll_gpll_p)	= { "dummy_vpll", "dummy_cpll", "gpll",
+						    "gpll" };
 PNAME(mux_pll_src_24m_32k_cpll_gpll_p)	= { "xin24m", "xin32k",
 					    "dummy_cpll", "gpll" };
 
@@ -245,8 +245,8 @@ PNAME(mux_pll_src_cpll_gpll_npll_ppll_upll_24m_p) = { "cpll", "gpll", "npll",
  */
 PNAME(mux_pll_src_dmyvpll_cpll_gpll_npll_p)	= { "dummy_vpll", "cpll", "gpll",
 						    "npll" };
-PNAME(mux_pll_src_dmyvpll_cpll_gpll_24m_p)	= { "dummy_vpll", "cpll", "gpll",
-						    "xin24m" };
+PNAME(mux_pll_src_dmyvpll_cpll_gpll_gpll_p)	= { "dummy_vpll", "cpll", "gpll",
+						    "gpll" };
 PNAME(mux_pll_src_24m_32k_cpll_gpll_p)	= { "xin24m", "xin32k",
 					    "cpll", "gpll" };
 
@@ -323,7 +323,7 @@ static struct rockchip_pll_clock rk3399_pll_clks[] __initdata = {
 		     RK3399_PLL_CON(27), 8, 31, ROCKCHIP_PLL_SYNC_RATE, rk3399_pll_rates),
 #endif
 	[gpll] = PLL(pll_rk3399, PLL_GPLL, "gpll", mux_pll_p, 0, RK3399_PLL_CON(32),
-		     RK3399_PLL_CON(35), 8, 31, ROCKCHIP_PLL_SYNC_RATE, rk3399_pll_rates),
+		     RK3399_PLL_CON(35), 8, 31, 0, rk3399_pll_rates),
 	[npll] = PLL(pll_rk3399, PLL_NPLL, "npll",  mux_pll_p, 0, RK3399_PLL_CON(40),
 		     RK3399_PLL_CON(43), 8, 31, ROCKCHIP_PLL_SYNC_RATE, rk3399_pll_rates),
 	[vpll] = PLL(pll_rk3399, PLL_VPLL, "vpll",  mux_pll_p, 0, RK3399_PLL_CON(48),
@@ -815,7 +815,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(0, "gpll_cci_trace", "gpll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(2), 6, GFLAGS),
 	COMPOSITE(SCLK_CCI_TRACE, "clk_cci_trace", mux_cci_trace_p, CLK_IGNORE_UNUSED,
-			RK3399_CLKSEL_CON(5), 15, 2, MFLAGS, 8, 5, DFLAGS,
+			RK3399_CLKSEL_CON(5), 15, 1, MFLAGS, 8, 5, DFLAGS,
 			RK3399_CLKGATE_CON(2), 7, GFLAGS),
 
 	GATE(0, "cpll_cs", "cpll", CLK_IGNORE_UNUSED,
@@ -944,7 +944,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(14), 8, 2, DFLAGS,
 			RK3399_CLKGATE_CON(5), 3, GFLAGS),
 	COMPOSITE_NOMUX(PCLK_PERIHP, "pclk_perihp", "aclk_perihp", CLK_IGNORE_UNUSED,
-			RK3399_CLKSEL_CON(14), 12, 2, DFLAGS,
+			RK3399_CLKSEL_CON(14), 12, 3, DFLAGS,
 			RK3399_CLKGATE_CON(5), 4, GFLAGS),
 
 	GATE(ACLK_PERF_PCIE, "aclk_perf_pcie", "aclk_perihp", 0,
@@ -1188,9 +1188,8 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(29), 12, GFLAGS),
 
 	/* hdcp */
-	COMPOSITE(ACLK_HDCP, "aclk_hdcp", mux_pll_src_cpll_gpll_ppll_p, 0,
-			RK3399_CLKSEL_CON(42), 14, 2, MFLAGS, 8, 5, DFLAGS,
-			RK3399_CLKGATE_CON(11), 12, GFLAGS),
+	COMPOSITE_NOGATE(ACLK_HDCP, "aclk_hdcp", mux_pll_src_cpll_gpll_ppll_p, 0,
+			RK3399_CLKSEL_CON(42), 14, 2, MFLAGS, 8, 5, DFLAGS),
 	COMPOSITE_NOMUX(HCLK_HDCP, "hclk_hdcp", "aclk_hdcp", 0,
 			RK3399_CLKSEL_CON(43), 5, 5, DFLAGS,
 			RK3399_CLKGATE_CON(11), 3, GFLAGS),
@@ -1273,7 +1272,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(106), 0,
 			&rk3399_dclk_vop0_fracmux, RK3399_VOP_FRAC_MAX_PRATE),
 
-	COMPOSITE(SCLK_VOP0_PWM, "clk_vop0_pwm", mux_pll_src_dmyvpll_cpll_gpll_24m_p, 0,
+	COMPOSITE(SCLK_VOP0_PWM, "clk_vop0_pwm", mux_pll_src_dmyvpll_cpll_gpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(51), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(10), 14, GFLAGS),
 
@@ -1310,7 +1309,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(107), 0,
 			&rk3399_dclk_vop1_fracmux, RK3399_VOP_FRAC_MAX_PRATE),
 
-	COMPOSITE(SCLK_VOP1_PWM, "clk_vop1_pwm", mux_pll_src_dmyvpll_cpll_gpll_24m_p, 0,
+	COMPOSITE(SCLK_VOP1_PWM, "clk_vop1_pwm", mux_pll_src_dmyvpll_cpll_gpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(52), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(10), 15, GFLAGS),
 

@@ -442,7 +442,7 @@
 #define SRST_A_ADB400_GIC2COREB		40
 #define SRST_A_ADB400_COREB2GIC		41
 #define SRST_P_DBG_B			42
-#define SRST_L2_B_T			43
+#define SRST_L2_B_T			44
 #define SRST_ADB_B_T			45
 #define SRST_A_RKPERF_B			46
 #define SRST_PVTM_CORE_B		47
