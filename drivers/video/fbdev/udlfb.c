@@ -431,7 +431,9 @@ static void dlfb_compress_hline(
 	const uint16_t *const pixel_end,
 	uint32_t *device_address_ptr,
 	uint8_t **command_buffer_ptr,
-	const uint8_t *const cmd_buffer_end)
+	const uint8_t *const cmd_buffer_end,
+	unsigned long back_buffer_offset,
+	int *ident_ptr)
 {
 	const uint16_t *pixel = *pixel_start_ptr;
 	uint32_t dev_addr  = *device_address_ptr;
@@ -443,6 +445,14 @@ static void dlfb_compress_hline(
 		uint8_t *cmd_pixels_count_byte = NULL;
 		const uint16_t *raw_pixel_start = NULL;
 		const uint16_t *cmd_pixel_start, *cmd_pixel_end = NULL;
+
+		if (back_buffer_offset &&
+		    *pixel == *(u16 *)((u8 *)pixel + back_buffer_offset)) {
+			pixel++;
+			dev_addr += BPP;
+			(*ident_ptr)++;
+			continue;
+		}
 
 		prefetchw((void *) cmd); /* pull in one cache line at least */
 
@@ -462,25 +472,37 @@ static void dlfb_compress_hline(
 					(unsigned long)(pixel_end - pixel),
 					(unsigned long)(cmd_buffer_end - 1 - cmd) / BPP);
 
+		if (back_buffer_offset) {
+			/* note: the framebuffer may change under us, so we must test for underflow */
+			while (cmd_pixel_end - 1 > pixel &&
+			       *(cmd_pixel_end - 1) == *(u16 *)((u8 *)(cmd_pixel_end - 1) + back_buffer_offset))
+				cmd_pixel_end--;
+		}
+
 		prefetch_range((void *) pixel, (u8 *)cmd_pixel_end - (u8 *)pixel);
 
 		while (pixel < cmd_pixel_end) {
 			const uint16_t * const repeating_pixel = pixel;
+			u16 pixel_value = *pixel;
 
-			put_unaligned_be16(*pixel, cmd);
+			put_unaligned_be16(pixel_value, cmd);
+			if (back_buffer_offset)
+				*(u16 *)((u8 *)pixel + back_buffer_offset) = pixel_value;
 			cmd += 2;
 			pixel++;
 
 			if (unlikely((pixel < cmd_pixel_end) &&
-				     (*pixel == *repeating_pixel))) {
+				     (*pixel == pixel_value))) {
 				/* go back and fill in raw pixel count */
 				*raw_pixels_count_byte = ((repeating_pixel -
 						raw_pixel_start) + 1) & 0xFF;
 
-				while ((pixel < cmd_pixel_end)
-				       && (*pixel == *repeating_pixel)) {
+				do {
+					if (back_buffer_offset)
+						*(u16 *)((u8 *)pixel + back_buffer_offset) = pixel_value;
 					pixel++;
-				}
+				} while ((pixel < cmd_pixel_end) &&
+					 (*pixel == pixel_value));
 
 				/* immediately after raw data is repeat byte */
 				*cmd++ = ((pixel - repeating_pixel) - 1) & 0xFF;
@@ -531,6 +553,7 @@ static int dlfb_render_hline(struct dlfb_data *dlfb, struct urb **urb_ptr,
 	struct urb *urb = *urb_ptr;
 	u8 *cmd = *urb_buf_ptr;
 	u8 *cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
+	unsigned long back_buffer_offset = 0;
 
 	line_start = (u8 *) (front + byte_offset);
 	next_pixel = line_start;
@@ -541,6 +564,8 @@ static int dlfb_render_hline(struct dlfb_data *dlfb, struct urb **urb_ptr,
 		const u8 *back_start = (u8 *) (dlfb->backing_buffer
 						+ byte_offset);
 
+		back_buffer_offset = (unsigned long)back_start - (unsigned long)line_start;
+
 		*ident_ptr += dlfb_trim_hline(back_start, &next_pixel,
 			&byte_width);
 
@@ -549,16 +574,14 @@ static int dlfb_render_hline(struct dlfb_data *dlfb, struct urb **urb_ptr,
 		dev_addr += offset;
 		back_start += offset;
 		line_start += offset;
-
-		memcpy((char *)back_start, (char *) line_start,
-		       byte_width);
 	}
 
 	while (next_pixel < line_end) {
 
 		dlfb_compress_hline((const uint16_t **) &next_pixel,
 			     (const uint16_t *) line_end, &dev_addr,
-			(u8 **) &cmd, (u8 *) cmd_end);
+			(u8 **) &cmd, (u8 *) cmd_end, back_buffer_offset,
+			ident_ptr);
 
 		if (cmd >= cmd_end) {
 			int len = cmd - (u8 *) urb->transfer_buffer;
