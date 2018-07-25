@@ -9,6 +9,9 @@ Required properties:
 Optional properties:
 - rockchip,card-name: User specified audio sound card name, one string property.
 - rockchip,codec-hp-det : Detect the headphone via internal codec.
+- rockchip,wait-card-locked : This is a variable length array, user specified
+			      these sound cards need to be prepared and locked,
+			      otherwise the local slave card can be probed.
 
 Optional dai-link subnode properties:
 - rockchip,format			: CPU/CODEC common audio format.
