@@ -53,25 +53,25 @@ Qualcomm Camera Subsystem
 	Usage: required
 	Value type: <stringlist>
 	Definition: Should contain the following entries:
-                - "top_ahb"
-                - "ispif_ahb"
-                - "csiphy0_timer"
-                - "csiphy1_timer"
-                - "csi0_ahb"
-                - "csi0"
-                - "csi0_phy"
-                - "csi0_pix"
-                - "csi0_rdi"
-                - "csi1_ahb"
-                - "csi1"
-                - "csi1_phy"
-                - "csi1_pix"
-                - "csi1_rdi"
-                - "ahb"
-                - "vfe0"
-                - "csi_vfe0"
-                - "vfe_ahb"
-                - "vfe_axi"
+		- "top_ahb"
+		- "ispif_ahb"
+		- "csiphy0_timer"
+		- "csiphy1_timer"
+		- "csi0_ahb"
+		- "csi0"
+		- "csi0_phy"
+		- "csi0_pix"
+		- "csi0_rdi"
+		- "csi1_ahb"
+		- "csi1"
+		- "csi1_phy"
+		- "csi1_pix"
+		- "csi1_rdi"
+		- "ahb"
+		- "vfe0"
+		- "csi_vfe0"
+		- "vfe_ahb"
+		- "vfe_axi"
 - vdda-supply:
 	Usage: required
 	Value type: <phandle>
@@ -95,17 +95,17 @@ Qualcomm Camera Subsystem
 		- clock-lanes:
 			Usage: required
 			Value type: <u32>
-                        Definition: The physical clock lane index. The value
-                                    must always be <1> as the physical clock
-                                    lane is lane 1.
+			Definition: The physical clock lane index. The value
+				    must always be <1> as the physical clock
+				    lane is lane 1.
 		- data-lanes:
 			Usage: required
 			Value type: <prop-encoded-array>
-                        Definition: An array of physical data lanes indexes.
-                                    Position of an entry determines the logical
-                                    lane number, while the value of an entry
-                                    indicates physical lane index. Lane swapping
-                                    is supported.
+			Definition: An array of physical data lanes indexes.
+				    Position of an entry determines the logical
+				    lane number, while the value of an entry
+				    indicates physical lane index. Lane swapping
+				    is supported.
 
 * An Example
 
@@ -161,25 +161,25 @@ Qualcomm Camera Subsystem
 			<&gcc GCC_CAMSS_CSI_VFE0_CLK>,
 			<&gcc GCC_CAMSS_VFE_AHB_CLK>,
 			<&gcc GCC_CAMSS_VFE_AXI_CLK>;
-                clock-names = "top_ahb",
-                        "ispif_ahb",
-                        "csiphy0_timer",
-                        "csiphy1_timer",
-                        "csi0_ahb",
-                        "csi0",
-                        "csi0_phy",
-                        "csi0_pix",
-                        "csi0_rdi",
-                        "csi1_ahb",
-                        "csi1",
-                        "csi1_phy",
-                        "csi1_pix",
-                        "csi1_rdi",
-                        "ahb",
-                        "vfe0",
-                        "csi_vfe0",
-                        "vfe_ahb",
-                        "vfe_axi";
+		clock-names = "top_ahb",
+			"ispif_ahb",
+			"csiphy0_timer",
+			"csiphy1_timer",
+			"csi0_ahb",
+			"csi0",
+			"csi0_phy",
+			"csi0_pix",
+			"csi0_rdi",
+			"csi1_ahb",
+			"csi1",
+			"csi1_phy",
+			"csi1_pix",
+			"csi1_rdi",
+			"ahb",
+			"vfe0",
+			"csi_vfe0",
+			"vfe_ahb",
+			"vfe_axi";
 		vdda-supply = <&pm8916_l2>;
 		iommus = <&apps_iommu 3>;
 		ports {
