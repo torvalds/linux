@@ -34,7 +34,8 @@ enum smc_lgr_role {		/* possible roles of a link group */
 enum smc_link_state {			/* possible states of a link */
 	SMC_LNK_INACTIVE,	/* link is inactive */
 	SMC_LNK_ACTIVATING,	/* link is being activated */
-	SMC_LNK_ACTIVE		/* link is active */
+	SMC_LNK_ACTIVE,		/* link is active */
+	SMC_LNK_DELETING,	/* link is being deleted */
 };
 
 #define SMC_WR_BUF_SIZE		48	/* size of work request buffer */
@@ -265,6 +266,7 @@ int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
 		    u64 peer_gid);
 void smcd_conn_free(struct smc_connection *conn);
+void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr);
 void smc_core_exit(void);
 
 static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)

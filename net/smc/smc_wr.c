@@ -182,17 +182,14 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 		if (rc)
 			return rc;
 	} else {
-		struct smc_link_group *lgr;
-
-		lgr = smc_get_lgr(link);
 		rc = wait_event_timeout(
 			link->wr_tx_wait,
-			list_empty(&lgr->list) || /* lgr terminated */
+			link->state == SMC_LNK_INACTIVE ||
 			(smc_wr_tx_get_free_slot_index(link, &idx) != -EBUSY),
 			SMC_WR_TX_WAIT_FREE_SLOT_TIME);
 		if (!rc) {
 			/* timeout - terminate connections */
-			smc_lgr_terminate(lgr);
+			smc_lgr_terminate(smc_get_lgr(link));
 			return -EPIPE;
 		}
 		if (idx == link->wr_tx_cnt)
