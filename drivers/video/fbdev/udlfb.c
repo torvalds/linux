@@ -1665,7 +1665,8 @@ static void dlfb_init_framebuffer_work(struct work_struct *work)
 	dlfb->info = info;
 	info->par = dlfb;
 	info->pseudo_palette = dlfb->pseudo_palette;
-	info->fbops = &dlfb_ops;
+	dlfb->ops = dlfb_ops;
+	info->fbops = &dlfb->ops;
 
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (retval < 0) {
