@@ -1017,7 +1017,7 @@ getsamplerate(struct cmdif *cif, unsigned char *intdec, unsigned int *rate)
 static int
 setsampleformat(struct cmdif *cif,
 		unsigned char mixer, unsigned char id,
-		unsigned char channels, unsigned char format)
+		unsigned char channels, snd_pcm_format_t format)
 {
 	unsigned char w, ch, sig, order;
 
