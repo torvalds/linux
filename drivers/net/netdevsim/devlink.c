@@ -207,6 +207,7 @@ void nsim_devlink_teardown(struct netdevsim *ns)
 		struct net *net = nsim_to_net(ns);
 		bool *reg_devlink = net_generic(net, nsim_devlink_id);
 
+		devlink_resources_unregister(ns->devlink, NULL);
 		devlink_unregister(ns->devlink);
 		devlink_free(ns->devlink);
 		ns->devlink = NULL;
