@@ -494,6 +494,9 @@ static int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
 			step_idx = 1;
 		} else if (hop_num == HNS_ROCE_HOP_NUM_0) {
 			step_idx = 0;
+		} else {
+			ret = -EINVAL;
+			goto err_dma_alloc_l1;
 		}
 
 		/* set HEM base address to hardware */
