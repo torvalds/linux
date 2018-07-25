@@ -494,20 +494,31 @@ static inline bool tcp_stream_is_readable(const struct tcp_sock *tp,
 }
 
 /*
- * Socket is not locked. We are protected from async events by poll logic and
- * correct handling of state changes made by other threads is impossible in
- * any case.
+ *	Wait for a TCP event.
+ *
+ *	Note that we don't need to lock the socket, as the upper poll layers
+ *	take care of normal races (between the test and the event) and we don't
+ *	go look at any of the socket buffers directly.
  */
-__poll_t tcp_poll_mask(struct socket *sock, __poll_t events)
+__poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
+	__poll_t mask;
 	struct sock *sk = sock->sk;
 	const struct tcp_sock *tp = tcp_sk(sk);
-	__poll_t mask = 0;
 	int state;
+
+	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	state = inet_sk_state_load(sk);
 	if (state == TCP_LISTEN)
 		return inet_csk_listen_poll(sk);
+
+	/* Socket is not locked. We are protected from async events
+	 * by poll logic and correct handling of state changes
+	 * made by other threads is impossible in any case.
+	 */
+
+	mask = 0;
 
 	/*
 	 * EPOLLHUP is certainly not done right. But poll() doesn't
@@ -589,7 +600,7 @@ __poll_t tcp_poll_mask(struct socket *sock, __poll_t events)
 
 	return mask;
 }
-EXPORT_SYMBOL(tcp_poll_mask);
+EXPORT_SYMBOL(tcp_poll);
 
 int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
@@ -1987,7 +1998,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 			 * shouldn't happen.
 			 */
 			if (WARN(before(*seq, TCP_SKB_CB(skb)->seq),
-				 "recvmsg bug: copied %X seq %X rcvnxt %X fl %X\n",
+				 "TCP recvmsg seq # bug: copied %X, seq %X, rcvnxt %X, fl %X\n",
 				 *seq, TCP_SKB_CB(skb)->seq, tp->rcv_nxt,
 				 flags))
 				break;
@@ -2002,7 +2013,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 				goto found_fin_ok;
 			WARN(!(flags & MSG_PEEK),
-			     "recvmsg bug 2: copied %X seq %X rcvnxt %X fl %X\n",
+			     "TCP recvmsg seq # bug 2: copied %X, seq %X, rcvnxt %X, fl %X\n",
 			     *seq, TCP_SKB_CB(skb)->seq, tp->rcv_nxt, flags);
 		}
 
@@ -2551,6 +2562,8 @@ int tcp_disconnect(struct sock *sk, int flags)
 
 	tcp_clear_xmit_timers(sk);
 	__skb_queue_purge(&sk->sk_receive_queue);
+	tp->copied_seq = tp->rcv_nxt;
+	tp->urg_data = 0;
 	tcp_write_queue_purge(sk);
 	tcp_fastopen_active_disable_ofo_check(sk);
 	skb_rbtree_purge(&tp->out_of_order_queue);
@@ -2810,14 +2823,17 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_REPAIR:
 		if (!tcp_can_repair_sock(sk))
 			err = -EPERM;
-		else if (val == 1) {
+		else if (val == TCP_REPAIR_ON) {
 			tp->repair = 1;
 			sk->sk_reuse = SK_FORCE_REUSE;
 			tp->repair_queue = TCP_NO_QUEUE;
-		} else if (val == 0) {
+		} else if (val == TCP_REPAIR_OFF) {
 			tp->repair = 0;
 			sk->sk_reuse = SK_NO_REUSE;
 			tcp_send_window_probe(sk);
+		} else if (val == TCP_REPAIR_OFF_NO_WP) {
+			tp->repair = 0;
+			sk->sk_reuse = SK_NO_REUSE;
 		} else
 			err = -EINVAL;
 
@@ -3709,8 +3725,7 @@ int tcp_abort(struct sock *sk, int err)
 			struct request_sock *req = inet_reqsk(sk);
 
 			local_bh_disable();
-			inet_csk_reqsk_queue_drop_and_put(req->rsk_listener,
-							  req);
+			inet_csk_reqsk_queue_drop(req->rsk_listener, req);
 			local_bh_enable();
 			return 0;
 		}

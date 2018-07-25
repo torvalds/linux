@@ -2680,8 +2680,10 @@ out:
 		free_extent_buffer(scratch_leaf);
 	}
 
-	if (done && !ret)
+	if (done && !ret) {
 		ret = 1;
+		fs_info->qgroup_rescan_progress.objectid = (u64)-1;
+	}
 	return ret;
 }
 
@@ -2784,13 +2786,20 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 
 	if (!init_flags) {
 		/* we're resuming qgroup rescan at mount time */
-		if (!(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN))
+		if (!(fs_info->qgroup_flags &
+		      BTRFS_QGROUP_STATUS_FLAG_RESCAN)) {
 			btrfs_warn(fs_info,
 			"qgroup rescan init failed, qgroup is not enabled");
-		else if (!(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_ON))
+			ret = -EINVAL;
+		} else if (!(fs_info->qgroup_flags &
+			     BTRFS_QGROUP_STATUS_FLAG_ON)) {
 			btrfs_warn(fs_info,
 			"qgroup rescan init failed, qgroup rescan is not queued");
-		return -EINVAL;
+			ret = -EINVAL;
+		}
+
+		if (ret)
+			return ret;
 	}
 
 	mutex_lock(&fs_info->qgroup_rescan_lock);

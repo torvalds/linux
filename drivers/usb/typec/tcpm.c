@@ -418,16 +418,17 @@ static void _tcpm_log(struct tcpm_port *port, const char *fmt, va_list args)
 	u64 ts_nsec = local_clock();
 	unsigned long rem_nsec;
 
+	mutex_lock(&port->logbuffer_lock);
 	if (!port->logbuffer[port->logbuffer_head]) {
 		port->logbuffer[port->logbuffer_head] =
 				kzalloc(LOG_BUFFER_ENTRY_SIZE, GFP_KERNEL);
-		if (!port->logbuffer[port->logbuffer_head])
+		if (!port->logbuffer[port->logbuffer_head]) {
+			mutex_unlock(&port->logbuffer_lock);
 			return;
+		}
 	}
 
 	vsnprintf(tmpbuffer, sizeof(tmpbuffer), fmt, args);
-
-	mutex_lock(&port->logbuffer_lock);
 
 	if (tcpm_log_full(port)) {
 		port->logbuffer_head = max(port->logbuffer_head - 1, 0);
@@ -723,6 +724,9 @@ static int tcpm_set_current_limit(struct tcpm_port *port, u32 max_ma, u32 mv)
 	int ret = -EOPNOTSUPP;
 
 	tcpm_log(port, "Setting voltage/current limit %u mV %u mA", mv, max_ma);
+
+	port->supply_voltage = mv;
+	port->current_limit = max_ma;
 
 	if (port->tcpc->set_current_limit)
 		ret = port->tcpc->set_current_limit(port->tcpc, max_ma, mv);
@@ -2594,8 +2598,6 @@ static void tcpm_reset_port(struct tcpm_port *port)
 	tcpm_set_attached_state(port, false);
 	port->try_src_count = 0;
 	port->try_snk_count = 0;
-	port->supply_voltage = 0;
-	port->current_limit = 0;
 	port->usb_type = POWER_SUPPLY_USB_TYPE_C;
 
 	power_supply_changed(port->psy);
@@ -3043,7 +3045,8 @@ static void run_state_machine(struct tcpm_port *port)
 		    tcpm_port_is_sink(port) &&
 		    time_is_after_jiffies(port->delayed_runtime)) {
 			tcpm_set_state(port, SNK_DISCOVERY,
-				       port->delayed_runtime - jiffies);
+				       jiffies_to_msecs(port->delayed_runtime -
+							jiffies));
 			break;
 		}
 		tcpm_set_state(port, unattached_state(port), 0);

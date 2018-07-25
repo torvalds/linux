@@ -962,6 +962,9 @@ typedef enum xfs_dinode_fmt {
 		XFS_DFORK_DSIZE(dip, mp) : \
 		XFS_DFORK_ASIZE(dip, mp))
 
+#define XFS_DFORK_MAXEXT(dip, mp, w) \
+	(XFS_DFORK_SIZE(dip, mp, w) / sizeof(struct xfs_bmbt_rec))
+
 /*
  * Return pointers to the data or attribute forks.
  */
@@ -1525,6 +1528,8 @@ typedef struct xfs_bmdr_block {
 #define BMBT_STARTOFF_BITLEN	54
 #define BMBT_STARTBLOCK_BITLEN	52
 #define BMBT_BLOCKCOUNT_BITLEN	21
+
+#define BMBT_STARTOFF_MASK	((1ULL << BMBT_STARTOFF_BITLEN) - 1)
 
 typedef struct xfs_bmbt_rec {
 	__be64			l0, l1;

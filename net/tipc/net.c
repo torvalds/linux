@@ -121,12 +121,17 @@ int tipc_net_init(struct net *net, u8 *node_id, u32 addr)
 
 void tipc_net_finalize(struct net *net, u32 addr)
 {
-	tipc_set_node_addr(net, addr);
-	smp_mb();
-	tipc_named_reinit(net);
-	tipc_sk_reinit(net);
-	tipc_nametbl_publish(net, TIPC_CFG_SRV, addr, addr,
-			     TIPC_CLUSTER_SCOPE, 0, addr);
+	struct tipc_net *tn = tipc_net(net);
+
+	spin_lock_bh(&tn->node_list_lock);
+	if (!tipc_own_addr(net)) {
+		tipc_set_node_addr(net, addr);
+		tipc_named_reinit(net);
+		tipc_sk_reinit(net);
+		tipc_nametbl_publish(net, TIPC_CFG_SRV, addr, addr,
+				     TIPC_CLUSTER_SCOPE, 0, addr);
+	}
+	spin_unlock_bh(&tn->node_list_lock);
 }
 
 void tipc_net_stop(struct net *net)

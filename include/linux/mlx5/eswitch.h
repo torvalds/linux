@@ -8,6 +8,8 @@
 
 #include <linux/mlx5/driver.h>
 
+#define MLX5_ESWITCH_MANAGER(mdev) MLX5_CAP_GEN(mdev, eswitch_manager)
+
 enum {
 	SRIOV_NONE,
 	SRIOV_LEGACY,

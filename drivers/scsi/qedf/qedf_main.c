@@ -3295,6 +3295,11 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 
 	init_completion(&qedf->flogi_compl);
 
+	status = qed_ops->common->update_drv_state(qedf->cdev, true);
+	if (status)
+		QEDF_ERR(&(qedf->dbg_ctx),
+			"Failed to send drv state to MFW.\n");
+
 	memset(&link_params, 0, sizeof(struct qed_link_params));
 	link_params.link_up = true;
 	status = qed_ops->common->set_link(qedf->cdev, &link_params);
@@ -3343,6 +3348,7 @@ static int qedf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 static void __qedf_remove(struct pci_dev *pdev, int mode)
 {
 	struct qedf_ctx *qedf;
+	int rc;
 
 	if (!pdev) {
 		QEDF_ERR(NULL, "pdev is NULL.\n");
@@ -3437,6 +3443,12 @@ static void __qedf_remove(struct pci_dev *pdev, int mode)
 		qed_ops->common->set_power_state(qedf->cdev, PCI_D0);
 		pci_set_drvdata(pdev, NULL);
 	}
+
+	rc = qed_ops->common->update_drv_state(qedf->cdev, false);
+	if (rc)
+		QEDF_ERR(&(qedf->dbg_ctx),
+			"Failed to send drv state to MFW.\n");
+
 	qed_ops->common->slowpath_stop(qedf->cdev);
 	qed_ops->common->remove(qedf->cdev);
 
