@@ -45,6 +45,7 @@ struct mlxsw_sp2_acl_tcam {
 
 struct mlxsw_sp2_acl_tcam_region {
 	struct mlxsw_sp_acl_ctcam_region cregion;
+	struct mlxsw_sp_acl_tcam_region *region;
 };
 
 struct mlxsw_sp2_acl_tcam_chunk {
@@ -126,6 +127,8 @@ mlxsw_sp2_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 {
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
 	int err;
+
+	region->region = _region;
 
 	err = mlxsw_sp_acl_atcam_region_init(mlxsw_sp, _region);
 	if (err)
