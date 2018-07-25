@@ -1101,7 +1101,7 @@ static __poll_t snd_seq_poll(struct file *file, poll_table * wait)
 
 	/* check client structures are in place */
 	if (snd_BUG_ON(!client))
-		return -ENXIO;
+		return EPOLLERR;
 
 	if ((snd_seq_file_flags(file) & SNDRV_SEQ_LFLG_INPUT) &&
 	    client->data.user.fifo) {
