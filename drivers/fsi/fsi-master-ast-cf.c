@@ -861,7 +861,8 @@ static int load_copro_firmware(struct fsi_master_acf *master)
 	if (sig != wanted_sig) {
 		dev_err(master->dev, "Failed to locate image sig %04x in FW blob\n",
 			wanted_sig);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto release_fw;
 	}
 	if (size > master->cf_mem_size) {
 		dev_err(master->dev, "FW size (%zd) bigger than memory reserve (%zd)\n",
@@ -870,8 +871,9 @@ static int load_copro_firmware(struct fsi_master_acf *master)
 	} else {
 		memcpy_toio(master->cf_mem, data, size);
 	}
-	release_firmware(fw);
 
+release_fw:
+	release_firmware(fw);
 	return rc;
 }
 
