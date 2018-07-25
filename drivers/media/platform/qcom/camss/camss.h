@@ -10,6 +10,7 @@
 #ifndef QC_MSM_CAMSS_H
 #define QC_MSM_CAMSS_H
 
+#include <linux/device.h>
 #include <linux/types.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
@@ -56,6 +57,12 @@ struct resources_ispif {
 	char *interrupt;
 };
 
+enum pm_domain {
+	PM_DOMAIN_VFE0,
+	PM_DOMAIN_VFE1,
+	PM_DOMAIN_COUNT
+};
+
 enum camss_version {
 	CAMSS_8x16,
 	CAMSS_8x96,
@@ -75,6 +82,8 @@ struct camss {
 	int vfe_num;
 	struct vfe_device *vfe;
 	atomic_t ref_count;
+	struct device *genpd[PM_DOMAIN_COUNT];
+	struct device_link *genpd_link[PM_DOMAIN_COUNT];
 };
 
 struct camss_camera_interface {
@@ -99,6 +108,8 @@ int camss_enable_clocks(int nclocks, struct camss_clock *clock,
 			struct device *dev);
 void camss_disable_clocks(int nclocks, struct camss_clock *clock);
 int camss_get_pixel_clock(struct media_entity *entity, u32 *pixel_clock);
+int camss_pm_domain_on(struct camss *camss, int id);
+void camss_pm_domain_off(struct camss *camss, int id);
 void camss_delete(struct camss *camss);
 
 #endif /* QC_MSM_CAMSS_H */

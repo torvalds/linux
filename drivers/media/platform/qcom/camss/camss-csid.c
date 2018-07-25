@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
@@ -316,19 +317,27 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 	if (on) {
 		u32 hw_version;
 
-		ret = regulator_enable(csid->vdda);
+		ret = pm_runtime_get_sync(dev);
 		if (ret < 0)
 			return ret;
+
+		ret = regulator_enable(csid->vdda);
+		if (ret < 0) {
+			pm_runtime_put_sync(dev);
+			return ret;
+		}
 
 		ret = csid_set_clock_rates(csid);
 		if (ret < 0) {
 			regulator_disable(csid->vdda);
+			pm_runtime_put_sync(dev);
 			return ret;
 		}
 
 		ret = camss_enable_clocks(csid->nclocks, csid->clock, dev);
 		if (ret < 0) {
 			regulator_disable(csid->vdda);
+			pm_runtime_put_sync(dev);
 			return ret;
 		}
 
@@ -339,6 +348,7 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 			disable_irq(csid->irq);
 			camss_disable_clocks(csid->nclocks, csid->clock);
 			regulator_disable(csid->vdda);
+			pm_runtime_put_sync(dev);
 			return ret;
 		}
 
@@ -348,6 +358,7 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 		disable_irq(csid->irq);
 		camss_disable_clocks(csid->nclocks, csid->clock);
 		ret = regulator_disable(csid->vdda);
+		pm_runtime_put_sync(dev);
 	}
 
 	return ret;

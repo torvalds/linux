@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/spinlock_types.h>
 #include <linux/spinlock.h>
 #include <media/media-entity.h>
@@ -1981,6 +1982,14 @@ static int vfe_get(struct vfe_device *vfe)
 	mutex_lock(&vfe->power_lock);
 
 	if (vfe->power_count == 0) {
+		ret = camss_pm_domain_on(vfe->camss, vfe->id);
+		if (ret < 0)
+			goto error_pm_domain;
+
+		ret = pm_runtime_get_sync(vfe->camss->dev);
+		if (ret < 0)
+			goto error_pm_runtime_get;
+
 		ret = vfe_set_clock_rates(vfe);
 		if (ret < 0)
 			goto error_clocks;
@@ -2012,6 +2021,12 @@ error_reset:
 	camss_disable_clocks(vfe->nclocks, vfe->clock);
 
 error_clocks:
+	pm_runtime_put_sync(vfe->camss->dev);
+
+error_pm_runtime_get:
+	camss_pm_domain_off(vfe->camss, vfe->id);
+
+error_pm_domain:
 	mutex_unlock(&vfe->power_lock);
 
 	return ret;
@@ -2034,6 +2049,8 @@ static void vfe_put(struct vfe_device *vfe)
 			vfe_halt(vfe);
 		}
 		camss_disable_clocks(vfe->nclocks, vfe->clock);
+		pm_runtime_put_sync(vfe->camss->dev);
+		camss_pm_domain_off(vfe->camss, vfe->id);
 	}
 
 	vfe->power_count--;

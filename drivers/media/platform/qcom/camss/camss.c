@@ -14,6 +14,8 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
@@ -391,6 +393,26 @@ int camss_get_pixel_clock(struct media_entity *entity, u32 *pixel_clock)
 	*pixel_clock = v4l2_ctrl_g_ctrl_int64(ctrl);
 
 	return 0;
+}
+
+int camss_pm_domain_on(struct camss *camss, int id)
+{
+	if (camss->version == CAMSS_8x96) {
+		camss->genpd_link[id] = device_link_add(camss->dev,
+				camss->genpd[id], DL_FLAG_STATELESS |
+				DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE);
+
+		if (!camss->genpd_link[id])
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+void camss_pm_domain_off(struct camss *camss, int id)
+{
+	if (camss->version == CAMSS_8x96)
+		device_link_del(camss->genpd_link[id]);
 }
 
 /*
@@ -896,6 +918,23 @@ static int camss_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (camss->version == CAMSS_8x96) {
+		camss->genpd[PM_DOMAIN_VFE0] = dev_pm_domain_attach_by_id(
+						camss->dev, PM_DOMAIN_VFE0);
+		if (IS_ERR(camss->genpd[PM_DOMAIN_VFE0]))
+			return PTR_ERR(camss->genpd[PM_DOMAIN_VFE0]);
+
+		camss->genpd[PM_DOMAIN_VFE1] = dev_pm_domain_attach_by_id(
+						camss->dev, PM_DOMAIN_VFE1);
+		if (IS_ERR(camss->genpd[PM_DOMAIN_VFE1])) {
+			dev_pm_domain_detach(camss->genpd[PM_DOMAIN_VFE0],
+					     true);
+			return PTR_ERR(camss->genpd[PM_DOMAIN_VFE1]);
+		}
+	}
+
+	pm_runtime_enable(dev);
+
 	return 0;
 
 err_register_subdevs:
@@ -911,6 +950,13 @@ void camss_delete(struct camss *camss)
 	v4l2_device_unregister(&camss->v4l2_dev);
 	media_device_unregister(&camss->media_dev);
 	media_device_cleanup(&camss->media_dev);
+
+	pm_runtime_disable(camss->dev);
+
+	if (camss->version == CAMSS_8x96) {
+		dev_pm_domain_detach(camss->genpd[PM_DOMAIN_VFE0], true);
+		dev_pm_domain_detach(camss->genpd[PM_DOMAIN_VFE1], true);
+	}
 
 	kfree(camss);
 }
@@ -947,12 +993,29 @@ static const struct of_device_id camss_dt_match[] = {
 
 MODULE_DEVICE_TABLE(of, camss_dt_match);
 
+static int camss_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int camss_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+
+static const struct dev_pm_ops camss_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(camss_runtime_suspend, camss_runtime_resume, NULL)
+};
+
 static struct platform_driver qcom_camss_driver = {
 	.probe = camss_probe,
 	.remove = camss_remove,
 	.driver = {
 		.name = "qcom-camss",
 		.of_match_table = camss_dt_match,
+		.pm = &camss_pm_ops,
 	},
 };
 

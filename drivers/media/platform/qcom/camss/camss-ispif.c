@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -169,6 +170,14 @@ static int ispif_reset(struct ispif_device *ispif)
 	u32 val;
 	int ret;
 
+	ret = camss_pm_domain_on(to_camss(ispif), PM_DOMAIN_VFE0);
+	if (ret < 0)
+		return ret;
+
+	ret = camss_pm_domain_on(to_camss(ispif), PM_DOMAIN_VFE1);
+	if (ret < 0)
+		return ret;
+
 	ret = camss_enable_clocks(ispif->nclocks_for_reset,
 				  ispif->clock_for_reset,
 				  to_device(ispif));
@@ -201,12 +210,15 @@ static int ispif_reset(struct ispif_device *ispif)
 		msecs_to_jiffies(ISPIF_RESET_TIMEOUT_MS));
 	if (!time) {
 		dev_err(to_device(ispif), "ISPIF reset timeout\n");
-		return -EIO;
+		ret = -EIO;
 	}
 
 	camss_disable_clocks(ispif->nclocks_for_reset, ispif->clock_for_reset);
 
-	return 0;
+	camss_pm_domain_off(to_camss(ispif), PM_DOMAIN_VFE0);
+	camss_pm_domain_off(to_camss(ispif), PM_DOMAIN_VFE1);
+
+	return ret;
 }
 
 /*
@@ -232,12 +244,19 @@ static int ispif_set_power(struct v4l2_subdev *sd, int on)
 			goto exit;
 		}
 
-		ret = camss_enable_clocks(ispif->nclocks, ispif->clock, dev);
+		ret = pm_runtime_get_sync(dev);
 		if (ret < 0)
 			goto exit;
 
+		ret = camss_enable_clocks(ispif->nclocks, ispif->clock, dev);
+		if (ret < 0) {
+			pm_runtime_put_sync(dev);
+			goto exit;
+		}
+
 		ret = ispif_reset(ispif);
 		if (ret < 0) {
+			pm_runtime_put_sync(dev);
 			camss_disable_clocks(ispif->nclocks, ispif->clock);
 			goto exit;
 		}
@@ -252,6 +271,7 @@ static int ispif_set_power(struct v4l2_subdev *sd, int on)
 			goto exit;
 		} else if (ispif->power_count == 1) {
 			camss_disable_clocks(ispif->nclocks, ispif->clock);
+			pm_runtime_put_sync(dev);
 		}
 
 		ispif->power_count--;
