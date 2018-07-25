@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/usb.h>
+#include <linux/version.h>
 
 #include <media/media-device.h>
 #include <media/media-devnode.h>
