@@ -113,23 +113,16 @@
 
 	bluetooth_sound: bluetooth-sound {
 		status = "disabled";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "dsp_b";
-		simple-audio-card,name = "rockchip,rk3308-pcm";
-		simple-audio-card,mclk-fs = <128>;
-		simple-audio-card,bitclock-inversion = <0>;
-		simple-audio-card,bitclock-master = <&bt_codec>;
-		simple-audio-card,frame-master = <&bt_codec>;
-		simple-audio-card,cpu {
-			sound-dai = <&i2s_2ch_0>;
-		};
-		bt_codec: simple-audio-card,codec {
-			/*
-			 * Using dummy_codec to supports CVSD(8K) and mSBC(16K)
-			 * for HFP.
-			 */
-			sound-dai = <&dummy_codec>;
-		};
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-pcm";
+		rockchip,mclk-fs = <128>;
+		rockchip,cpu = <&i2s_2ch_0>;
+		rockchip,codec = <&dummy_codec>;
+		rockchip,format = "dsp_b";
+		rockchip,bitclock-inversion = <0>;
+		rockchip,bitclock-master = <&dummy_codec>;
+		rockchip,frame-master = <&dummy_codec>;
+		rockchip,wait-card-locked = <0>;
 	};
 
 	spdif_tx_sound: spdif-tx-sound {
