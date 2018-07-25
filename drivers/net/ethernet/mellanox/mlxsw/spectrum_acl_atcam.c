@@ -93,3 +93,15 @@ int mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 
 	return 0;
 }
+
+int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_atcam *atcam)
+{
+	return mlxsw_sp_acl_erps_init(mlxsw_sp, atcam);
+}
+
+void mlxsw_sp_acl_atcam_fini(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_acl_atcam *atcam)
+{
+	mlxsw_sp_acl_erps_fini(mlxsw_sp, atcam);
+}

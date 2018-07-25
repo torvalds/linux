@@ -39,6 +39,7 @@
 #include "core_acl_flex_actions.h"
 
 struct mlxsw_sp2_acl_tcam {
+	struct mlxsw_sp_acl_atcam atcam;
 	u32 kvdl_index;
 	unsigned int kvdl_count;
 };
@@ -100,9 +101,14 @@ static int mlxsw_sp2_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 	if (err)
 		goto err_pgcr_write;
 
+	err = mlxsw_sp_acl_atcam_init(mlxsw_sp, &tcam->atcam);
+	if (err)
+		goto err_atcam_init;
+
 	mlxsw_afa_block_destroy(afa_block);
 	return 0;
 
+err_atcam_init:
 err_pgcr_write:
 err_pefa_write:
 err_afa_block_continue:
@@ -117,6 +123,7 @@ static void mlxsw_sp2_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
 {
 	struct mlxsw_sp2_acl_tcam *tcam = priv;
 
+	mlxsw_sp_acl_atcam_fini(mlxsw_sp, &tcam->atcam);
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
 			   tcam->kvdl_count, tcam->kvdl_index);
 }
