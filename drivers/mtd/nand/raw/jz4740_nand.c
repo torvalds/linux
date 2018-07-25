@@ -309,6 +309,7 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 			       size_t chipnr, uint8_t *nand_maf_id,
 			       uint8_t *nand_dev_id)
 {
+	struct jz_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int ret;
 	char res_name[6];
 	uint32_t ctrl;
@@ -334,6 +335,16 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 		ret = nand_scan_ident(mtd, 1, NULL);
 		if (ret)
 			goto notfound_id;
+
+		if (pdata && pdata->ident_callback)
+			pdata->ident_callback(pdev, mtd, &pdata->partitions,
+					      &pdata->num_partitions);
+
+		ret = nand_scan_tail(mtd);
+		if (ret) {
+			dev_err(&pdev->dev,  "Failed to scan NAND\n");
+			goto notfound_id;
+		}
 
 		/* Retrieve the IDs from the first chip. */
 		chip->select_chip(mtd, 0);
@@ -456,17 +467,6 @@ static int jz_nand_probe(struct platform_device *pdev)
 		goto err_iounmap_mmio;
 	}
 
-	if (pdata && pdata->ident_callback) {
-		pdata->ident_callback(pdev, mtd, &pdata->partitions,
-					&pdata->num_partitions);
-	}
-
-	ret = nand_scan_tail(mtd);
-	if (ret) {
-		dev_err(&pdev->dev,  "Failed to scan NAND\n");
-		goto err_unclaim_banks;
-	}
-
 	ret = mtd_device_register(mtd, pdata ? pdata->partitions : NULL,
 				  pdata ? pdata->num_partitions : 0);
 
@@ -481,7 +481,6 @@ static int jz_nand_probe(struct platform_device *pdev)
 
 err_cleanup_nand:
 	nand_cleanup(chip);
-err_unclaim_banks:
 	while (chipnr--) {
 		unsigned char bank = nand->banks[chipnr];
 		jz_nand_iounmap_resource(nand->bank_mem[bank - 1],
