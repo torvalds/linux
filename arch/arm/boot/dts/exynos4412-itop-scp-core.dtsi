@@ -446,6 +446,7 @@
 		};
 
 		s5m8767_osc: clocks {
+			compatible = "samsung,s5m8767-clk";
 			#clock-cells = <1>;
 			clock-output-names = "s5m8767_ap",
 					"s5m8767_cp", "s5m8767_bt";
