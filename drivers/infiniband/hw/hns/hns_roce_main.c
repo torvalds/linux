@@ -886,8 +886,7 @@ error_failed_cmd_init:
 
 error_failed_cmq_init:
 	if (hr_dev->hw->reset) {
-		ret = hr_dev->hw->reset(hr_dev, false);
-		if (ret)
+		if (hr_dev->hw->reset(hr_dev, false))
 			dev_err(dev, "Dereset RoCE engine failed!\n");
 	}
 
