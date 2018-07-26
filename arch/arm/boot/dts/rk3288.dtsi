@@ -135,9 +135,11 @@
 		rockchip,avs-scale = <17>;
 		rockchip,max-volt = <1350000>;
 		nvmem-cells = <&cpu_leakage>, <&special_function>,
-			      <&performance>, <&process_version>;
+			      <&performance>, <&process_version>,
+			      <&performance_w>;
 		nvmem-cell-names = "leakage", "special",
-				   "performance", "process";
+				   "performance", "process",
+				   "performance-w";
 		rockchip,bin-scaling-sel = <
 			0               17
 			1               25
@@ -1797,6 +1799,10 @@
 		};
 		cpu_leakage: cpu-leakage@17 {
 			reg = <0x17 0x1>;
+		};
+		performance_w: performance@1c {
+			reg = <0x1c 0x1>;
+			bits = <4 3>;
 		};
 		performance: performance@1d {
 			reg = <0x1d 0x1>;

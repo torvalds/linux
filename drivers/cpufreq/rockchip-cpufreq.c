@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/soc/rockchip/pvtm.h>
 #include <linux/thermal.h>
+#include <linux/rockchip/cpu.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 
 #include "../clk/rockchip/clk.h"
@@ -57,6 +58,7 @@ static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
 			       int *bin, int *process)
 {
 	int ret = 0, value = -EINVAL;
+	char *name;
 
 	if (!bin)
 		goto next;
@@ -71,9 +73,14 @@ static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
 		else
 			*bin = 1;
 	}
-	if (of_property_match_string(np, "nvmem-cell-names",
-				     "performance") >= 0) {
-		ret = rockchip_get_efuse_value(np, "performance", &value);
+
+	if (soc_is_rk3288w())
+		name = "performance-w";
+	else
+		name = "performance";
+
+	if (of_property_match_string(np, "nvmem-cell-names", name) >= 0) {
+		ret = rockchip_get_efuse_value(np, name, &value);
 		if (ret) {
 			dev_err(dev, "Failed to get soc performance value\n");
 			goto out;
