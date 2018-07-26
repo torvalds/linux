@@ -338,9 +338,6 @@ static int __init atomic_pool_init(void)
 	struct page *page;
 	void *ptr;
 
-	if (!atomic_pool_size)
-		return 0;
-
 	atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
 	if (!atomic_pool)
 		goto out;
