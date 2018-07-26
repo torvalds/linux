@@ -63,7 +63,15 @@ set_debarch() {
 		;;
 	openrisc)
 		debarch=or1k ;;
-	*)
+	sh)
+		if is_enabled CPU_SH3; then
+			debarch=sh3$(if_enabled_echo CPU_BIG_ENDIAN eb)
+		elif is_enabled CPU_SH4; then
+			debarch=sh4$(if_enabled_echo CPU_BIG_ENDIAN eb)
+		fi
+		;;
+	esac
+	if [ -z "$debarch" ]; then
 		debarch=$(dpkg-architecture -qDEB_HOST_ARCH)
 		echo "" >&2
 		echo "** ** **  WARNING  ** ** **" >&2
@@ -73,8 +81,7 @@ set_debarch() {
 		echo "Falling back to the current host architecture ($debarch)." >&2
 		echo "Please add support for $UTS_MACHINE to ${0} ..." >&2
 		echo "" >&2
-		;;
-	esac
+	fi
 }
 
 # Some variables and settings used throughout the script
