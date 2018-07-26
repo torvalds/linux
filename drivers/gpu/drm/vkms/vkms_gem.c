@@ -45,14 +45,14 @@ void vkms_gem_free_object(struct drm_gem_object *obj)
 	kfree(gem);
 }
 
-int vkms_gem_fault(struct vm_fault *vmf)
+vm_fault_t vkms_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct vkms_gem_object *obj = vma->vm_private_data;
 	unsigned long vaddr = vmf->address;
 	pgoff_t page_offset;
 	loff_t num_pages;
-	int ret;
+	vm_fault_t ret = VM_FAULT_SIGBUS;
 
 	page_offset = (vaddr - vma->vm_start) >> PAGE_SHIFT;
 	num_pages = DIV_ROUND_UP(obj->gem.size, PAGE_SIZE);
@@ -60,7 +60,6 @@ int vkms_gem_fault(struct vm_fault *vmf)
 	if (page_offset > num_pages)
 		return VM_FAULT_SIGBUS;
 
-	ret = -ENOENT;
 	mutex_lock(&obj->pages_lock);
 	if (obj->pages) {
 		get_page(obj->pages[page_offset]);
