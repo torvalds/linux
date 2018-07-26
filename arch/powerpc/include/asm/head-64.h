@@ -270,12 +270,12 @@ name:
 
 #define EXC_REAL_MASKABLE(name, start, size, bitmask)			\
 	EXC_REAL_BEGIN(name, start, size);				\
-	MASKABLE_EXCEPTION(start, start, name##_common, bitmask);	\
+	MASKABLE_EXCEPTION(start, name##_common, bitmask);		\
 	EXC_REAL_END(name, start, size);
 
 #define EXC_VIRT_MASKABLE(name, start, size, realvec, bitmask)		\
 	EXC_VIRT_BEGIN(name, start, size);				\
-	MASKABLE_RELON_EXCEPTION(start, realvec, name##_common, bitmask);\
+	MASKABLE_RELON_EXCEPTION(realvec, name##_common, bitmask);	\
 	EXC_VIRT_END(name, start, size);
 
 #define EXC_REAL_HV(name, start, size)					\
