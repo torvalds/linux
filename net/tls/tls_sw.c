@@ -423,12 +423,10 @@ alloc_encrypted:
 
 			copied += try_to_copy;
 			ret = tls_push_record(sk, msg->msg_flags, record_type);
-			if (!ret)
-				continue;
-			if (ret < 0)
+			if (ret)
 				goto send_end;
+			continue;
 
-			copied -= try_to_copy;
 fallback_to_reg_send:
 			iov_iter_revert(&msg->msg_iter,
 					ctx->sg_plaintext_size - orig_size);
