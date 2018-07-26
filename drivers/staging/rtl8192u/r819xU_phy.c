@@ -1245,7 +1245,7 @@ static u8 rtl8192_phy_SetSwChnlCmdArray(struct sw_chnl_cmd *CmdTable, u32 CmdTab
 
 	pCmd = CmdTable + CmdTableIdx;
 	pCmd->cmd_id = CmdID;
-	pCmd->Para1 = Para1;
+	pCmd->para_1 = Para1;
 	pCmd->Para2 = Para2;
 	pCmd->msDelay = msDelay;
 
@@ -1380,22 +1380,22 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 				rtl8192_SetTxPowerLevel(dev, channel);
 			break;
 		case CMD_ID_WRITE_PORT_ULONG:
-			write_nic_dword(dev, CurrentCmd->Para1,
+			write_nic_dword(dev, CurrentCmd->para_1,
 					CurrentCmd->Para2);
 			break;
 		case CMD_ID_WRITE_PORT_USHORT:
-			write_nic_word(dev, CurrentCmd->Para1,
+			write_nic_word(dev, CurrentCmd->para_1,
 				       (u16)CurrentCmd->Para2);
 			break;
 		case CMD_ID_WRITE_PORT_UCHAR:
-			write_nic_byte(dev, CurrentCmd->Para1,
+			write_nic_byte(dev, CurrentCmd->para_1,
 				       (u8)CurrentCmd->Para2);
 			break;
 		case CMD_ID_RF_WRITE_REG:
 			for (eRFPath = 0; eRFPath < RF90_PATH_MAX; eRFPath++) {
 				rtl8192_phy_SetRFReg(dev,
 						     (enum RF90_RADIO_PATH_E)eRFPath,
-						     CurrentCmd->Para1,
+						     CurrentCmd->para_1,
 						     bZebra1_ChannelNum,
 						     CurrentCmd->Para2);
 			}

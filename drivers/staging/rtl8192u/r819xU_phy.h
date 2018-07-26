@@ -20,7 +20,7 @@ enum switch_chan_cmd_id {
 /* 1. Switch channel related */
 struct sw_chnl_cmd {
 	enum switch_chan_cmd_id	cmd_id;
-	u32		        Para1;
+	u32		        para_1;
 	u32		        Para2;
 	u32		        msDelay;
 } __packed;
