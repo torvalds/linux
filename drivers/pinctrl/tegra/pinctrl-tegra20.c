@@ -2221,6 +2221,7 @@ static const struct tegra_pingroup tegra20_groups[] = {
 
 static const struct tegra_pinctrl_soc_data tegra20_pinctrl = {
 	.ngpios = NUM_GPIOS,
+	.gpio_compatible = "nvidia,tegra20-gpio",
 	.pins = tegra20_pins,
 	.npins = ARRAY_SIZE(tegra20_pins),
 	.functions = tegra20_functions,

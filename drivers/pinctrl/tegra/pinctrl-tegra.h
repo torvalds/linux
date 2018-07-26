@@ -189,6 +189,7 @@ struct tegra_pingroup {
  */
 struct tegra_pinctrl_soc_data {
 	unsigned ngpios;
+	const char *gpio_compatible;
 	const struct pinctrl_pin_desc *pins;
 	unsigned npins;
 	struct tegra_function *functions;
