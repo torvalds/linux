@@ -223,8 +223,6 @@ Deprecated Mount Options
 
   Name				Removal Schedule
   ----				----------------
-  barrier			no earlier than v4.15
-  nobarrier			no earlier than v4.15
 
 
 Removed Mount Options
@@ -236,6 +234,8 @@ Removed Mount Options
   ihashsize			v4.0
   irixsgid			v4.0
   osyncisdsync/osyncisosync	v4.0
+  barrier			v4.19
+  nobarrier			v4.19
 
 
 sysctls
