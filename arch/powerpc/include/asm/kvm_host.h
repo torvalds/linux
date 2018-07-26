@@ -42,7 +42,14 @@
 #define KVM_USER_MEM_SLOTS	512
 
 #include <asm/cputhreads.h>
-#define KVM_MAX_VCPU_ID                (threads_per_subcore * KVM_MAX_VCORES)
+
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+#include <asm/kvm_book3s_asm.h>		/* for MAX_SMT_THREADS */
+#define KVM_MAX_VCPU_ID		(MAX_SMT_THREADS * KVM_MAX_VCORES)
+
+#else
+#define KVM_MAX_VCPU_ID		KVM_MAX_VCPUS
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
