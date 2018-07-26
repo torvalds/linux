@@ -2165,8 +2165,12 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
 
-	if (!(path = kstrndup(buffer, size, GFP_KERNEL)) ||
-	    !(sb = kmalloc(sizeof(struct cache_sb), GFP_KERNEL)))
+	path = kstrndup(buffer, size, GFP_KERNEL);
+	if (!path)
+		goto err;
+
+	sb = kmalloc(sizeof(struct cache_sb), GFP_KERNEL);
+	if (!sb)
 		goto err;
 
 	err = "failed to open device";
