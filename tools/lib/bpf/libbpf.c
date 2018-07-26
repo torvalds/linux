@@ -1991,6 +1991,9 @@ int bpf_program__nth_fd(struct bpf_program *prog, int n)
 {
 	int fd;
 
+	if (!prog)
+		return -EINVAL;
+
 	if (n >= prog->instances.nr || n < 0) {
 		pr_warning("Can't get the %dth fd from program %s: only %d instances\n",
 			   n, prog->section_name, prog->instances.nr);
