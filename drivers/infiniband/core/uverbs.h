@@ -299,7 +299,6 @@ extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COUNTERS);
 
 #define IB_UVERBS_DECLARE_CMD(name)					\
 	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\
-				 struct ib_device *ib_dev,              \
 				 const char __user *buf, int in_len,	\
 				 int out_len)
 
@@ -341,7 +340,6 @@ IB_UVERBS_DECLARE_CMD(close_xrcd);
 
 #define IB_UVERBS_DECLARE_EX_CMD(name)				\
 	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,	\
-				struct ib_device *ib_dev,		\
 				struct ib_udata *ucore,		\
 				struct ib_udata *uhw)
 

@@ -125,12 +125,18 @@ static inline void uobj_alloc_abort(struct ib_uobject *uobj)
 }
 
 static inline struct ib_uobject *__uobj_alloc(const struct uverbs_obj_type *type,
-					      struct ib_uverbs_file *ufile)
+					      struct ib_uverbs_file *ufile,
+					      struct ib_device **ib_dev)
 {
-	return rdma_alloc_begin_uobject(type, ufile);
+	struct ib_uobject *uobj = rdma_alloc_begin_uobject(type, ufile);
+
+	if (!IS_ERR(uobj))
+		*ib_dev = uobj->context->device;
+	return uobj;
 }
 
-#define uobj_alloc(_type, _ufile) __uobj_alloc(uobj_get_type(_type), _ufile)
+#define uobj_alloc(_type, _ufile, _ib_dev)                                     \
+	__uobj_alloc(uobj_get_type(_type), _ufile, _ib_dev)
 
 #endif
 
