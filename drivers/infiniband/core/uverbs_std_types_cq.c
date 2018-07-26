@@ -57,11 +57,13 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 	return ret;
 }
 
-static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
-						   struct ib_uverbs_file *file,
-						   struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
-	struct ib_ucq_object           *obj;
+	struct ib_ucq_object *obj = container_of(
+		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_CREATE_CQ_HANDLE),
+		typeof(*obj), uobject);
+	struct ib_device *ib_dev = obj->uobject.context->device;
 	struct ib_udata uhw;
 	int ret;
 	u64 user_handle;
@@ -104,9 +106,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 		goto err_event_file;
 	}
 
-	obj = container_of(uverbs_attr_get_uobject(attrs,
-						   UVERBS_ATTR_CREATE_CQ_HANDLE),
-			   typeof(*obj), uobject);
 	obj->comp_events_reported  = 0;
 	obj->async_events_reported = 0;
 	INIT_LIST_HEAD(&obj->comp_list);
@@ -173,9 +172,8 @@ DECLARE_UVERBS_NAMED_METHOD(
 			    UA_MANDATORY),
 	UVERBS_ATTR_UHW());
 
-static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(struct ib_device *ib_dev,
-						    struct ib_uverbs_file *file,
-						    struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj =
 		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_DESTROY_CQ_HANDLE);

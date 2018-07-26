@@ -354,7 +354,7 @@ static int uverbs_handle_method(struct ib_uverbs_attr __user *uattr_ptr,
 			goto cleanup;
 	}
 
-	ret = method_spec->handler(ibdev, ufile, attr_bundle);
+	ret = method_spec->handler(ufile, attr_bundle);
 
 	if (destroy_attr) {
 		uobj_put_destroy(destroy_attr->uobject);

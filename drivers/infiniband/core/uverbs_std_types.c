@@ -210,8 +210,7 @@ static int uverbs_hot_unplug_completion_event_file(struct ib_uobject *uobj,
 	return 0;
 };
 
-int uverbs_destroy_def_handler(struct ib_device *ib_dev,
-			       struct ib_uverbs_file *file,
+int uverbs_destroy_def_handler(struct ib_uverbs_file *file,
 			       struct uverbs_attr_bundle *attrs)
 {
 	return 0;

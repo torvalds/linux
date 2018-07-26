@@ -39,14 +39,18 @@ static int uverbs_free_mr(struct ib_uobject *uobject,
 	return ib_dereg_mr((struct ib_mr *)uobject->object);
 }
 
-static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(struct ib_device *ib_dev,
-						   struct ib_uverbs_file *file,
-						   struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	struct ib_dm_mr_attr attr = {};
-	struct ib_uobject *uobj;
-	struct ib_dm *dm;
-	struct ib_pd *pd;
+	struct ib_uobject *uobj =
+		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_REG_DM_MR_HANDLE);
+	struct ib_dm *dm =
+		uverbs_attr_get_obj(attrs, UVERBS_ATTR_REG_DM_MR_DM_HANDLE);
+	struct ib_pd *pd =
+		uverbs_attr_get_obj(attrs, UVERBS_ATTR_REG_DM_MR_PD_HANDLE);
+	struct ib_device *ib_dev = pd->device;
+
 	struct ib_mr *mr;
 	int ret;
 
@@ -74,12 +78,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(struct ib_device *ib_dev,
 	ret = ib_check_mr_access(attr.access_flags);
 	if (ret)
 		return ret;
-
-	pd = uverbs_attr_get_obj(attrs, UVERBS_ATTR_REG_DM_MR_PD_HANDLE);
-
-	dm = uverbs_attr_get_obj(attrs, UVERBS_ATTR_REG_DM_MR_DM_HANDLE);
-
-	uobj = uverbs_attr_get(attrs, UVERBS_ATTR_REG_DM_MR_HANDLE)->obj_attr.uobject;
 
 	if (attr.offset > dm->length || attr.length > dm->length ||
 	    attr.length > dm->length - attr.offset)

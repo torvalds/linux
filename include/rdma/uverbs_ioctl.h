@@ -128,7 +128,7 @@ struct uverbs_method_spec {
 	u32						flags;
 	size_t						num_buckets;
 	size_t						num_child_attrs;
-	int (*handler)(struct ib_device *ib_dev, struct ib_uverbs_file *ufile,
+	int (*handler)(struct ib_uverbs_file *ufile,
 		       struct uverbs_attr_bundle *ctx);
 	struct uverbs_attr_spec_hash		*attr_buckets[0];
 };
@@ -171,7 +171,7 @@ struct uverbs_method_def {
 	u32				     flags;
 	size_t				     num_attrs;
 	const struct uverbs_attr_def * const (*attrs)[];
-	int (*handler)(struct ib_device *ib_dev, struct ib_uverbs_file *ufile,
+	int (*handler)(struct ib_uverbs_file *ufile,
 		       struct uverbs_attr_bundle *ctx);
 };
 

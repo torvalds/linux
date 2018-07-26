@@ -409,11 +409,11 @@ static bool devx_is_general_cmd(void *in)
 	}
 }
 
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(struct ib_device *ib_dev,
-				  struct ib_uverbs_file *file,
-				  struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
-	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
+	struct mlx5_ib_ucontext *c;
+	struct mlx5_ib_dev *dev;
 	int user_vector;
 	int dev_eqn;
 	unsigned int irqn;
@@ -422,6 +422,11 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(struct ib_device *ib_de
 	if (uverbs_copy_from(&user_vector, attrs,
 			     MLX5_IB_ATTR_DEVX_QUERY_EQN_USER_VEC))
 		return -EFAULT;
+
+	c = devx_ufile2uctx(file);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	dev = to_mdev(c->ibucontext.device);
 
 	err = mlx5_vector2eqn(dev->mdev, user_vector, &dev_eqn, &irqn);
 	if (err < 0)
@@ -454,9 +459,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(struct ib_device *ib_de
  * of the buggy user for execution (just insert it to the hardware schedule
  * queue or arm its CQ for event generation), no further harm is expected.
  */
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(struct ib_device *ib_dev,
-				  struct ib_uverbs_file *file,
-				  struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_ucontext *c;
 	struct mlx5_ib_dev *dev;
@@ -483,9 +487,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(struct ib_device *ib_de
 	return 0;
 }
 
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OTHER)(struct ib_device *ib_dev,
-				  struct ib_uverbs_file *file,
-				  struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OTHER)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_ucontext *c;
 	struct mlx5_ib_dev *dev;
@@ -712,9 +715,8 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	return ret;
 }
 
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(struct ib_device *ib_dev,
-				   struct ib_uverbs_file *file,
-				   struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_IN);
 	int cmd_out_len =  uverbs_attr_get_len(attrs,
@@ -769,9 +771,8 @@ obj_free:
 	return err;
 }
 
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(struct ib_device *ib_dev,
-				   struct ib_uverbs_file *file,
-				   struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN);
 	int cmd_out_len = uverbs_attr_get_len(attrs,
@@ -811,9 +812,8 @@ other_cmd_free:
 	return err;
 }
 
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(struct ib_device *ib_dev,
-				   struct ib_uverbs_file *file,
-				   struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN);
 	int cmd_out_len = uverbs_attr_get_len(attrs,
@@ -931,9 +931,8 @@ static void devx_umem_reg_cmd_build(struct mlx5_ib_dev *dev,
 			     MLX5_IB_MTT_READ);
 }
 
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(struct ib_device *ib_dev,
-				 struct ib_uverbs_file *file,
-				 struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	struct devx_umem_reg_cmd cmd;
 	struct devx_umem *obj;

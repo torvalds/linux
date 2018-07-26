@@ -39,8 +39,7 @@ static const struct uverbs_attr_spec mlx5_ib_flow_type[] = {
 };
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
-	struct ib_device *ib_dev, struct ib_uverbs_file *file,
-	struct uverbs_attr_bundle *attrs)
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_flow_handler *flow_handler;
 	struct mlx5_ib_flow_matcher *fs_matcher;
@@ -109,7 +108,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	if (IS_ERR(flow_handler))
 		return PTR_ERR(flow_handler);
 
-	ib_set_flow(uobj, &flow_handler->ibflow, qp, ib_dev);
+	ib_set_flow(uobj, &flow_handler->ibflow, qp, &dev->ib_dev);
 
 	return 0;
 }
@@ -129,8 +128,7 @@ static int flow_matcher_cleanup(struct ib_uobject *uobject,
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
-	struct ib_device *ib_dev, struct ib_uverbs_file *file,
-	struct uverbs_attr_bundle *attrs)
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, MLX5_IB_ATTR_FLOW_MATCHER_CREATE_HANDLE);
