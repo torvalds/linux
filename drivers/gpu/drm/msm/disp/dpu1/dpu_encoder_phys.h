@@ -356,20 +356,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 void dpu_encoder_helper_trigger_start(struct dpu_encoder_phys *phys_enc);
 
 /**
- * dpu_encoder_helper_wait_event_timeout - wait for event with timeout
- *	taking into account that jiffies may jump between reads leading to
- *	incorrectly detected timeouts. Prevent failure in this scenario by
- *	making sure that elapsed time during wait is valid.
- * @drm_id: drm object id for logging
- * @hw_id: hw instance id for logging
- * @info: wait info structure
- */
-int dpu_encoder_helper_wait_event_timeout(
-		int32_t drm_id,
-		int32_t hw_id,
-		struct dpu_encoder_wait_info *info);
-
-/**
  * dpu_encoder_helper_hw_reset - issue ctl hw reset
  *	This helper function may be optionally specified by physical
  *	encoders if they require ctl hw reset. If state is currently

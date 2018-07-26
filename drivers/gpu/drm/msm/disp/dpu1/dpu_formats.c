@@ -846,7 +846,7 @@ static int _dpu_format_get_plane_sizes_linear(
 	return 0;
 }
 
-int dpu_format_get_plane_sizes(
+static int dpu_format_get_plane_sizes(
 		const struct dpu_format *fmt,
 		const uint32_t w,
 		const uint32_t h,

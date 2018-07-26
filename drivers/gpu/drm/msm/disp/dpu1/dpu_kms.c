@@ -819,7 +819,7 @@ static int dpu_kms_pm_resume(struct device *dev)
 	return 0;
 }
 
-void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
+static void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
 				 struct drm_encoder *encoder,
 				 bool cmd_mode)
 {

@@ -159,12 +159,6 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 		struct msm_display_info *disp_info);
 
 /**
- * dpu_encoder_destroy - destroy previously initialized virtual encoder
- * @drm_enc:    Pointer to previously created drm encoder structure
- */
-void dpu_encoder_destroy(struct drm_encoder *drm_enc);
-
-/**
  * dpu_encoder_prepare_commit - prepare encoder at the very beginning of an
  *	atomic commit, before any registers are written
  * @drm_enc:    Pointer to previously created drm encoder structure

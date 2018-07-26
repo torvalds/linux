@@ -115,7 +115,7 @@ static int _dpu_mdss_irq_domain_add(struct dpu_mdss *dpu_mdss)
 	return 0;
 }
 
-int _dpu_mdss_irq_domain_fini(struct dpu_mdss *dpu_mdss)
+static int _dpu_mdss_irq_domain_fini(struct dpu_mdss *dpu_mdss)
 {
 	if (dpu_mdss->irq_controller.domain) {
 		irq_domain_remove(dpu_mdss->irq_controller.domain);

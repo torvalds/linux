@@ -55,23 +55,6 @@ uint32_t dpu_populate_formats(
 		uint32_t pixel_formats_max);
 
 /**
- * dpu_format_get_plane_sizes - calculate size and layout of given buffer format
- * @fmt:             pointer to dpu_format
- * @w:               width of the buffer
- * @h:               height of the buffer
- * @layout:          layout of the buffer
- * @pitches:         array of size [DPU_MAX_PLANES] to populate
- *		     pitch for each plane
- *
- * Return: size of the buffer
- */
-int dpu_format_get_plane_sizes(
-		const struct dpu_format *fmt,
-		const uint32_t w,
-		const uint32_t h,
-		struct dpu_hw_fmt_layout *layout,
-		const uint32_t *pitches);
-
  * dpu_format_check_modified_format - validate format and buffers for
  *                   dpu non-standard, i.e. modified format
  * @kms:             kms driver

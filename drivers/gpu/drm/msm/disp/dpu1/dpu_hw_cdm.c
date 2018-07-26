@@ -217,7 +217,7 @@ static int dpu_hw_cdm_setup_cdwn(struct dpu_hw_cdm *ctx,
 	return 0;
 }
 
-int dpu_hw_cdm_enable(struct dpu_hw_cdm *ctx,
+static int dpu_hw_cdm_enable(struct dpu_hw_cdm *ctx,
 		struct dpu_hw_cdm_cfg *cdm)
 {
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
@@ -249,7 +249,7 @@ int dpu_hw_cdm_enable(struct dpu_hw_cdm *ctx,
 	return 0;
 }
 
-void dpu_hw_cdm_disable(struct dpu_hw_cdm *ctx)
+static void dpu_hw_cdm_disable(struct dpu_hw_cdm *ctx)
 {
 	struct cdm_output_cfg cdm_cfg = { 0 };
 

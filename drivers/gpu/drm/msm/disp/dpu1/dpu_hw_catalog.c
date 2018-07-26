@@ -449,7 +449,7 @@ static struct dpu_perf_cfg sdm845_perf_data = {
  * sdm845_cfg_init(): populate sdm845 dpu sub-blocks reg offsets
  * and instance counts.
  */
-void sdm845_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
+static void sdm845_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 {
 	*dpu_cfg = (struct dpu_mdss_cfg){
 		.caps = &sdm845_dpu_caps,

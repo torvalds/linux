@@ -264,6 +264,9 @@ void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 				DPU_ENCODER_FRAME_EVENT_ERROR);
 }
 
+static int dpu_encoder_helper_wait_event_timeout(int32_t drm_id,
+		int32_t hw_id, struct dpu_encoder_wait_info *info);
+
 int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 		enum dpu_intr_idx intr_idx,
 		struct dpu_encoder_wait_info *wait_info)
@@ -467,7 +470,7 @@ void dpu_encoder_get_hw_resources(struct drm_encoder *drm_enc,
 	}
 }
 
-void dpu_encoder_destroy(struct drm_encoder *drm_enc)
+static void dpu_encoder_destroy(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	int i = 0;
@@ -1516,7 +1519,7 @@ void dpu_encoder_helper_trigger_start(struct dpu_encoder_phys *phys_enc)
 	}
 }
 
-int dpu_encoder_helper_wait_event_timeout(
+static int dpu_encoder_helper_wait_event_timeout(
 		int32_t drm_id,
 		int32_t hw_id,
 		struct dpu_encoder_wait_info *info)
