@@ -179,21 +179,12 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(struct ib_device *ib_dev,
 {
 	struct ib_uobject *uobj =
 		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_DESTROY_CQ_HANDLE);
-	struct ib_uverbs_destroy_cq_resp resp;
-	struct ib_ucq_object *obj;
-	int ret;
-
-	if (IS_ERR(uobj))
-		return PTR_ERR(uobj);
-
-	obj = container_of(uobj, struct ib_ucq_object, uobject);
-
-	ret = rdma_explicit_destroy(uobj);
-	if (ret)
-		return ret;
-
-	resp.comp_events_reported  = obj->comp_events_reported;
-	resp.async_events_reported = obj->async_events_reported;
+	struct ib_ucq_object *obj =
+		container_of(uobj, struct ib_ucq_object, uobject);
+	struct ib_uverbs_destroy_cq_resp resp = {
+		.comp_events_reported = obj->comp_events_reported,
+		.async_events_reported = obj->async_events_reported
+	};
 
 	return uverbs_copy_to(attrs, UVERBS_ATTR_DESTROY_CQ_RESP, &resp,
 			      sizeof(resp));

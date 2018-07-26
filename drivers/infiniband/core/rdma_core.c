@@ -924,10 +924,7 @@ int uverbs_finalize_object(struct ib_uobject *uobj,
 		rdma_lookup_put_uobject(uobj, true);
 		break;
 	case UVERBS_ACCESS_DESTROY:
-		if (commit)
-			ret = rdma_remove_commit_uobject(uobj);
-		else
-			rdma_lookup_put_uobject(uobj, true);
+		rdma_lookup_put_uobject(uobj, true);
 		break;
 	case UVERBS_ACCESS_NEW:
 		if (commit)
