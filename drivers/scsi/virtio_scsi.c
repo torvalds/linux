@@ -513,12 +513,12 @@ static void virtio_scsi_init_hdr_pi(struct virtio_device *vdev,
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE)
 		cmd_pi->pi_bytesout = cpu_to_virtio32(vdev,
-							blk_rq_sectors(rq) *
-							bi->tuple_size);
+						      bio_integrity_bytes(bi,
+							blk_rq_sectors(rq)));
 	else if (sc->sc_data_direction == DMA_FROM_DEVICE)
 		cmd_pi->pi_bytesin = cpu_to_virtio32(vdev,
-						       blk_rq_sectors(rq) *
-						       bi->tuple_size);
+						     bio_integrity_bytes(bi,
+							blk_rq_sectors(rq)));
 }
 #endif
 
