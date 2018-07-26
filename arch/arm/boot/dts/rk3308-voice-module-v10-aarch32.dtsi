@@ -182,6 +182,7 @@
 	status = "disabled";
 
 	rockchip,no-hp-det;
+	rockchip,delay-start-play-ms = <200>;
 	rockchip,loopback-grp = <1>;
 	spk-ctl-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 };
