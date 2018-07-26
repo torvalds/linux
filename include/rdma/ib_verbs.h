@@ -1467,8 +1467,8 @@ enum rdma_remove_reason {
 	RDMA_REMOVE_CLOSE,
 	/* Driver is being hot-unplugged. This call should delete the actual object itself */
 	RDMA_REMOVE_DRIVER_REMOVE,
-	/* Context is being cleaned-up, but commit was just completed */
-	RDMA_REMOVE_DURING_CLEANUP,
+	/* uobj is being cleaned-up before being committed */
+	RDMA_REMOVE_ABORT,
 };
 
 struct ib_rdmacg_object {

@@ -38,53 +38,49 @@
 
 struct uverbs_obj_type;
 
+/*
+ * The following sequences are valid:
+ * Success flow:
+ *   alloc_begin
+ *   alloc_commit
+ *    [..]
+ * Access flow:
+ *   lookup_get(exclusive=false) & uverbs_try_lock_object
+ *   lookup_put(exclusive=false) via rdma_lookup_put_uobject
+ * Destruction flow:
+ *   lookup_get(exclusive=true) & uverbs_try_lock_object
+ *   remove_commit
+ *   lookup_put(exclusive=true) via rdma_lookup_put_uobject
+ *
+ * Allocate Error flow #1
+ *   alloc_begin
+ *   alloc_abort
+ * Allocate Error flow #2
+ *   alloc_begin
+ *   remove_commit
+ *   alloc_abort
+ * Allocate Error flow #3
+ *   alloc_begin
+ *   alloc_commit (fails)
+ *   remove_commit
+ *   alloc_abort
+ *
+ * In all cases the caller must hold the ufile kref until alloc_commit or
+ * alloc_abort returns.
+ */
 struct uverbs_obj_type_class {
-	/*
-	 * Get an ib_uobject that corresponds to the given id from ucontext,
-	 * These functions could create or destroy objects if required.
-	 * The action will be finalized only when commit, abort or put fops are
-	 * called.
-	 * The flow of the different actions is:
-	 * [alloc]:	 Starts with alloc_begin. The handlers logic is than
-	 *		 executed. If the handler is successful, alloc_commit
-	 *		 is called and the object is inserted to the repository.
-	 *		 Once alloc_commit completes the object is visible to
-	 *		 other threads and userspace.
-	 e		 Otherwise, alloc_abort is called and the object is
-	 *		 destroyed.
-	 * [lookup]:	 Starts with lookup_get which fetches and locks the
-	 *		 object. After the handler finished using the object, it
-	 *		 needs to call lookup_put to unlock it. The exclusive
-	 *		 flag indicates if the object is locked for exclusive
-	 *		 access.
-	 * [remove]:	 Starts with lookup_get with exclusive flag set. This
-	 *		 locks the object for exclusive access. If the handler
-	 *		 code completed successfully, remove_commit is called
-	 *		 and the ib_uobject is removed from the context's
-	 *		 uobjects repository and put. The object itself is
-	 *		 destroyed as well. Once remove succeeds new krefs to
-	 *		 the object cannot be acquired by other threads or
-	 *		 userspace and the hardware driver is removed from the
-	 *		 object. Other krefs on the object may still exist.
-	 *		 If the handler code failed, lookup_put should be
-	 *		 called. This callback is used when the context
-	 *		 is destroyed as well (process termination,
-	 *		 reset flow).
-	 */
 	struct ib_uobject *(*alloc_begin)(const struct uverbs_obj_type *type,
 					  struct ib_uverbs_file *ufile);
+	/* This consumes the kref on uobj */
 	int (*alloc_commit)(struct ib_uobject *uobj);
+	/* This does not consume the kref on uobj */
 	void (*alloc_abort)(struct ib_uobject *uobj);
 
 	struct ib_uobject *(*lookup_get)(const struct uverbs_obj_type *type,
 					 struct ib_uverbs_file *ufile, s64 id,
 					 bool exclusive);
 	void (*lookup_put)(struct ib_uobject *uobj, bool exclusive);
-	/*
-	 * Must be called with the exclusive lock held. If successful uobj is
-	 * invalid on return. On failure uobject is left completely
-	 * unchanged
-	 */
+	/* This does not consume the kref on uobj */
 	int __must_check (*remove_commit)(struct ib_uobject *uobj,
 					  enum rdma_remove_reason why);
 	u8    needs_kfree_rcu;
