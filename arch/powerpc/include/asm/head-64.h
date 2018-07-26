@@ -346,7 +346,7 @@ name:
 
 #define __TRAMP_VIRT_OOL(name, realvec)					\
 	TRAMP_VIRT_BEGIN(tramp_virt_##name);				\
-	STD_RELON_EXCEPTION_PSERIES_OOL(realvec, name##_common);	\
+	STD_RELON_EXCEPTION_OOL(realvec, name##_common);
 
 #define EXC_VIRT_OOL(name, start, size, realvec)			\
 	__EXC_VIRT_OOL(name, start, size);				\

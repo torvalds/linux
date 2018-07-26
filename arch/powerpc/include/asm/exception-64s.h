@@ -579,7 +579,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	/* No guest interrupts come through here */	\
 	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label, EXC_STD, NOTEST, vec);
 
-#define STD_RELON_EXCEPTION_PSERIES_OOL(vec, label)		\
+#define STD_RELON_EXCEPTION_OOL(vec, label)			\
 	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, vec);		\
 	EXCEPTION_RELON_PROLOG_PSERIES_1(label, EXC_STD)
 
