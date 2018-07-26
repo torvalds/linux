@@ -234,10 +234,6 @@ extern void ftrace_stub(unsigned long a0, unsigned long a1,
  */
 #define register_ftrace_function(ops) ({ 0; })
 #define unregister_ftrace_function(ops) ({ 0; })
-static inline int ftrace_nr_registered_ops(void)
-{
-	return 0;
-}
 static inline void ftrace_kill(void) { }
 static inline void ftrace_free_init_mem(void) { }
 static inline void ftrace_free_mem(struct module *mod, void *start, void *end) { }
@@ -327,8 +323,6 @@ void ftrace_bug(int err, struct dyn_ftrace *rec);
 struct seq_file;
 
 extern int ftrace_text_reserved(const void *start, const void *end);
-
-extern int ftrace_nr_registered_ops(void);
 
 struct ftrace_ops *ftrace_ops_trampoline(unsigned long addr);
 
