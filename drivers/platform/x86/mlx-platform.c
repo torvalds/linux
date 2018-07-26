@@ -65,6 +65,8 @@
 #define MLXPLAT_CPLD_LPC_REG_AGGRLO_OFFSET	0x40
 #define MLXPLAT_CPLD_LPC_REG_AGGRLO_MASK_OFFSET	0x41
 #define MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET 0x50
+#define MLXPLAT_CPLD_LPC_REG_ASIC_EVENT_OFFSET	0x51
+#define MLXPLAT_CPLD_LPC_REG_ASIC_MASK_OFFSET	0x52
 #define MLXPLAT_CPLD_LPC_REG_PSU_OFFSET		0x58
 #define MLXPLAT_CPLD_LPC_REG_PSU_EVENT_OFFSET	0x59
 #define MLXPLAT_CPLD_LPC_REG_PSU_MASK_OFFSET	0x5a
@@ -100,17 +102,21 @@
 				  MLXPLAT_CPLD_LPC_PIO_OFFSET)
 
 /* Masks for aggregation, psu, pwr and fan event in CPLD related registers. */
+#define MLXPLAT_CPLD_AGGR_ASIC_MASK_DEF	0x04
 #define MLXPLAT_CPLD_AGGR_PSU_MASK_DEF	0x08
 #define MLXPLAT_CPLD_AGGR_PWR_MASK_DEF	0x08
 #define MLXPLAT_CPLD_AGGR_FAN_MASK_DEF	0x40
-#define MLXPLAT_CPLD_AGGR_MASK_DEF	(MLXPLAT_CPLD_AGGR_PSU_MASK_DEF | \
+#define MLXPLAT_CPLD_AGGR_MASK_DEF	(MLXPLAT_CPLD_AGGR_ASIC_MASK_DEF | \
+					 MLXPLAT_CPLD_AGGR_PSU_MASK_DEF | \
 					 MLXPLAT_CPLD_AGGR_FAN_MASK_DEF)
+#define MLXPLAT_CPLD_AGGR_ASIC_MASK_NG	0x01
 #define MLXPLAT_CPLD_AGGR_MASK_NG_DEF	0x04
-#define MLXPLAT_CPLD_LOW_AGGR_MASK_LOW	0xc0
+#define MLXPLAT_CPLD_LOW_AGGR_MASK_LOW	0xc1
 #define MLXPLAT_CPLD_AGGR_MASK_MSN21XX	0x04
 #define MLXPLAT_CPLD_PSU_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_PWR_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_FAN_MASK		GENMASK(3, 0)
+#define MLXPLAT_CPLD_ASIC_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_FAN_NG_MASK	GENMASK(5, 0)
 #define MLXPLAT_CPLD_LED_LO_NIBBLE_MASK	GENMASK(7, 4)
 #define MLXPLAT_CPLD_LED_HI_NIBBLE_MASK	GENMASK(3, 0)
@@ -315,6 +321,15 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_fan_items_data[] = {
 	},
 };
 
+static struct mlxreg_core_data mlxplat_mlxcpld_default_asic_items_data[] = {
+	{
+		.label = "asic1",
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+	},
+};
+
 static struct mlxreg_core_item mlxplat_mlxcpld_default_items[] = {
 	{
 		.data = mlxplat_mlxcpld_default_psu_items_data,
@@ -343,6 +358,15 @@ static struct mlxreg_core_item mlxplat_mlxcpld_default_items[] = {
 		.inversed = 1,
 		.health = false,
 	},
+	{
+		.data = mlxplat_mlxcpld_default_asic_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_ASIC_MASK_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_asic_items_data),
+		.inversed = 0,
+		.health = true,
+	},
 };
 
 static
@@ -351,6 +375,8 @@ struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_default_data = {
 	.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_items),
 	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFFSET,
 	.mask = MLXPLAT_CPLD_AGGR_MASK_DEF,
+	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGRLO_OFFSET,
+	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
 };
 
 static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_pwr_items_data[] = {
@@ -378,6 +404,15 @@ static struct mlxreg_core_item mlxplat_mlxcpld_msn21xx_items[] = {
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_msn21xx_pwr_items_data),
 		.inversed = 0,
 		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_default_asic_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_ASIC_MASK_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_asic_items_data),
+		.inversed = 0,
+		.health = true,
 	},
 };
 
@@ -481,6 +516,15 @@ static struct mlxreg_core_item mlxplat_mlxcpld_msn274x_items[] = {
 		.inversed = 1,
 		.health = false,
 	},
+	{
+		.data = mlxplat_mlxcpld_default_asic_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_asic_items_data),
+		.inversed = 0,
+		.health = true,
+	},
 };
 
 static
@@ -518,6 +562,15 @@ static struct mlxreg_core_item mlxplat_mlxcpld_msn201x_items[] = {
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_msn201x_pwr_items_data),
 		.inversed = 0,
 		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_default_asic_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_ASIC_MASK_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_asic_items_data),
+		.inversed = 0,
+		.health = true,
 	},
 };
 
@@ -615,6 +668,15 @@ static struct mlxreg_core_item mlxplat_mlxcpld_default_ng_items[] = {
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_ng_fan_items_data),
 		.inversed = 1,
 		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_default_asic_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_asic_items_data),
+		.inversed = 0,
+		.health = true,
 	},
 };
 
@@ -935,7 +997,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_regs_io_data[] = {
 	{
 		.label = "asic_health",
 		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
-		.mask = GENMASK(1, 0),
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
 		.bit = 1,
 		.mode = 0444,
 	},
@@ -1033,6 +1095,8 @@ static bool mlxplat_mlxcpld_writeable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_WP2_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGR_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRLO_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PWR_EVENT_OFFSET:
@@ -1066,6 +1130,8 @@ static bool mlxplat_mlxcpld_readable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_AGGRLO_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRLO_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_MASK_OFFSET:
@@ -1112,6 +1178,8 @@ static bool mlxplat_mlxcpld_volatile_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_AGGRLO_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRLO_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_MASK_OFFSET:
