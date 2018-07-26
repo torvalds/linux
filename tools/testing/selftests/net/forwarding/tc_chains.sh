@@ -88,8 +88,29 @@ create_destroy_chain()
 	tc chain add dev $h2 ingress
 	check_err $? "Failed to create default chain"
 
+	output="$(tc -j chain get dev $h2 ingress)"
+	check_err $? "Failed to get default chain"
+
+	echo $output | jq -e ".[] | select(.chain == 0)" &> /dev/null
+	check_err $? "Unexpected output for default chain"
+
 	tc chain add dev $h2 ingress chain 1
 	check_err $? "Failed to create chain 1"
+
+	output="$(tc -j chain get dev $h2 ingress chain 1)"
+	check_err $? "Failed to get chain 1"
+
+	echo $output | jq -e ".[] | select(.chain == 1)" &> /dev/null
+	check_err $? "Unexpected output for chain 1"
+
+	output="$(tc -j chain show dev $h2 ingress)"
+	check_err $? "Failed to dump chains"
+
+	echo $output | jq -e ".[] | select(.chain == 0)" &> /dev/null
+	check_err $? "Can't find default chain in dump"
+
+	echo $output | jq -e ".[] | select(.chain == 1)" &> /dev/null
+	check_err $? "Can't find chain 1 in dump"
 
 	tc chain del dev $h2 ingress
 	check_err $? "Failed to destroy default chain"
