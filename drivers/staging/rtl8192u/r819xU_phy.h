@@ -25,7 +25,7 @@ struct sw_chnl_cmd {
 	u32		        ms_delay;
 } __packed;
 
-enum HW90_BLOCK_E {
+enum hw90_block_e {
 	HW90_BLOCK_MAC = 0,
 	HW90_BLOCK_PHY0 = 1,
 	HW90_BLOCK_PHY1 = 2,
@@ -62,7 +62,7 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev,
 void rtl8192_phy_configmac(struct net_device *dev);
 void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType);
 u8 rtl8192_phy_checkBBAndRF(struct net_device *dev,
-			    enum HW90_BLOCK_E CheckBlock,
+			    enum hw90_block_e CheckBlock,
 			    enum RF90_RADIO_PATH_E eRFPath);
 void rtl8192_BBConfig(struct net_device *dev);
 void rtl8192_phy_getTxPower(struct net_device *dev);

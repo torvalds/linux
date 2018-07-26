@@ -687,14 +687,14 @@ static void rtl8192_InitBBRFRegDef(struct net_device *dev)
  * function:  This function is to write register and then readback to make
  *            sure whether BB and RF is OK
  * input:     net_device        *dev
- *            HW90_BLOCK_E      CheckBlock
+ *            hw90_block_e      CheckBlock
  *            RF90_RADIO_PATH_E eRFPath  //only used when checkblock is
  *                                       //HW90_BLOCK_RF
  * output:    none
  * return:    return whether BB and RF is ok (0:OK, 1:Fail)
  * notice:    This function may be removed in the ASIC
  ******************************************************************************/
-u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, enum HW90_BLOCK_E CheckBlock,
+u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, enum hw90_block_e CheckBlock,
 			    enum RF90_RADIO_PATH_E eRFPath)
 {
 	u8 ret = 0;
@@ -786,10 +786,10 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 
 	/* ----Ckeck FPGAPHY0 and PHY1 board is OK---- */
 	/* TODO: this function should be removed on ASIC */
-	for (eCheckItem = (enum HW90_BLOCK_E)HW90_BLOCK_PHY0;
+	for (eCheckItem = (enum hw90_block_e)HW90_BLOCK_PHY0;
 	     eCheckItem <= HW90_BLOCK_PHY1; eCheckItem++) {
 		/* don't care RF path */
-		status = rtl8192_phy_checkBBAndRF(dev, (enum HW90_BLOCK_E)eCheckItem,
+		status = rtl8192_phy_checkBBAndRF(dev, (enum hw90_block_e)eCheckItem,
 						  (enum RF90_RADIO_PATH_E)0);
 		if (status != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY),
