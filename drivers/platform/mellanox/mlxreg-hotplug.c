@@ -50,9 +50,8 @@
 #define MLXREG_HOTPLUG_MASK_OFF		2
 #define MLXREG_HOTPLUG_AGGR_MASK_OFF	1
 
-/* ASIC health parameters. */
-#define MLXREG_HOTPLUG_HEALTH_MASK	0x02
-#define MLXREG_HOTPLUG_RST_CNTR		3
+/* ASIC good health mask. */
+#define MLXREG_HOTPLUG_GOOD_HEALTH_MASK	0x02
 
 #define MLXREG_HOTPLUG_ATTRS_MAX	24
 #define MLXREG_HOTPLUG_NOT_ASSERT	3
@@ -325,21 +324,40 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 			goto out;
 
 		regval &= data->mask;
-		item->cache = regval;
-		if (regval == MLXREG_HOTPLUG_HEALTH_MASK) {
-			if ((data->health_cntr++ == MLXREG_HOTPLUG_RST_CNTR) ||
-			    !priv->after_probe) {
+
+		if (item->cache == regval)
+			goto ack_event;
+
+		/*
+		 * ASIC health indication is provided through two bits. Bits
+		 * value 0x2 indicates that ASIC reached the good health, value
+		 * 0x0 indicates ASIC the bad health or dormant state and value
+		 * 0x3 indicates the booting state. During ASIC reset it should
+		 * pass the following states: dormant -> booting -> good.
+		 */
+		if (regval == MLXREG_HOTPLUG_GOOD_HEALTH_MASK) {
+			if (!data->attached) {
+				/*
+				 * ASIC is in steady state. Connect associated
+				 * device, if configured.
+				 */
 				mlxreg_hotplug_device_create(priv, data);
 				data->attached = true;
 			}
 		} else {
 			if (data->attached) {
+				/*
+				 * ASIC health is failed after ASIC has been
+				 * in steady state. Disconnect associated
+				 * device, if it has been connected.
+				 */
 				mlxreg_hotplug_device_destroy(data);
 				data->attached = false;
 				data->health_cntr = 0;
 			}
 		}
-
+		item->cache = regval;
+ack_event:
 		/* Acknowledge event. */
 		ret = regmap_write(priv->regmap, data->reg +
 				   MLXREG_HOTPLUG_EVENT_OFF, 0);
