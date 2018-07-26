@@ -553,7 +553,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 /*
  * Exception vectors.
  */
-#define STD_EXCEPTION_PSERIES(vec, label)			\
+#define STD_EXCEPTION(vec, label)				\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label,		\
 				 EXC_STD, KVMTEST_PR, vec);	\
 

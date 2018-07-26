@@ -260,7 +260,7 @@ name:
 
 #define EXC_REAL(name, start, size)					\
 	EXC_REAL_BEGIN(name, start, size);				\
-	STD_EXCEPTION_PSERIES(start, name##_common);			\
+	STD_EXCEPTION(start, name##_common);				\
 	EXC_REAL_END(name, start, size);
 
 #define EXC_VIRT(name, start, size, realvec)				\
