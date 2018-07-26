@@ -555,7 +555,7 @@ static int var_inter(const s16 *old, const s16 *new)
 	return ret;
 }
 
-static int decide_blocktype(const u8 *current, const u8 *reference,
+static int decide_blocktype(const u8 *cur, const u8 *reference,
 			    s16 *deltablock, unsigned int stride,
 			    unsigned int input_step)
 {
@@ -566,7 +566,7 @@ static int decide_blocktype(const u8 *current, const u8 *reference,
 	int vari;
 	int vard;
 
-	fill_encoder_block(current, tmp, stride, input_step);
+	fill_encoder_block(cur, tmp, stride, input_step);
 	fill_encoder_block(reference, old, 8, 1);
 	vari = var_intra(tmp);
 
