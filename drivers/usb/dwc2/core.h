@@ -1172,9 +1172,9 @@ struct dwc2_hsotg {
  * writes. This set of operations was added specifically for MIPS and
  * should only be used there.
  */
-static inline u32 dwc2_readl(const void __iomem *addr)
+static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
 {
-	u32 value = __raw_readl(addr);
+	u32 value = __raw_readl(hsotg->regs + offset);
 
 	/* In order to preserve endianness __raw_* operation is used. Therefore
 	 * a barrier is needed to ensure IO access is not re-ordered across
@@ -1184,9 +1184,9 @@ static inline u32 dwc2_readl(const void __iomem *addr)
 	return value;
 }
 
-static inline void dwc2_writel(u32 value, void __iomem *addr)
+static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
 {
-	__raw_writel(value, addr);
+	__raw_writel(value, hsotg->regs + offset);
 
 	/*
 	 * In order to preserve endianness __raw_* operation is used. Therefore
@@ -1195,22 +1195,23 @@ static inline void dwc2_writel(u32 value, void __iomem *addr)
 	 */
 	mb();
 #ifdef DWC2_LOG_WRITES
-	pr_info("INFO:: wrote %08x to %p\n", value, addr);
+	pr_info("INFO:: wrote %08x to %p\n", value, hsotg->regs + offset);
 #endif
 }
 #else
+
 /* Normal architectures just use readl/write */
-static inline u32 dwc2_readl(const void __iomem *addr)
+static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
 {
-	return readl(addr);
+	return readl(hsotg->regs + offset);
 }
 
-static inline void dwc2_writel(u32 value, void __iomem *addr)
+static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
 {
-	writel(value, addr);
+	writel(value, hsotg->regs + offset);
 
 #ifdef DWC2_LOG_WRITES
-	pr_info("info:: wrote %08x to %p\n", value, addr);
+	pr_info("info:: wrote %08x to %p\n", value, hsotg->regs + offset);
 #endif
 }
 #endif
@@ -1320,12 +1321,12 @@ bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg);
  */
 static inline int dwc2_is_host_mode(struct dwc2_hsotg *hsotg)
 {
-	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
+	return (dwc2_readl(hsotg, GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
 }
 
 static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
 {
-	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
+	return (dwc2_readl(hsotg, GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
 }
 
 /*

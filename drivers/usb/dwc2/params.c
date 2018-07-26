@@ -654,8 +654,8 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 
 	dwc2_force_mode(hsotg, true);
 
-	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
-	hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
+	gnptxfsiz = dwc2_readl(hsotg, GNPTXFSIZ);
+	hptxfsiz = dwc2_readl(hsotg, HPTXFSIZ);
 
 	hw->host_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
 				       FIFOSIZE_DEPTH_SHIFT;
@@ -679,13 +679,13 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 
 	dwc2_force_mode(hsotg, false);
 
-	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
+	gnptxfsiz = dwc2_readl(hsotg, GNPTXFSIZ);
 
 	fifo_count = dwc2_hsotg_tx_fifo_count(hsotg);
 
 	for (fifo = 1; fifo <= fifo_count; fifo++) {
 		hw->g_tx_fifo_size[fifo] =
-			(dwc2_readl(hsotg->regs + DPTXFSIZN(fifo)) &
+			(dwc2_readl(hsotg, DPTXFSIZN(fifo)) &
 			 FIFOSIZE_DEPTH_MASK) >> FIFOSIZE_DEPTH_SHIFT;
 	}
 
@@ -713,7 +713,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	 * 0x45f4xxxx, 0x5531xxxx or 0x5532xxxx
 	 */
 
-	hw->snpsid = dwc2_readl(hsotg->regs + GSNPSID);
+	hw->snpsid = dwc2_readl(hsotg, GSNPSID);
 	if ((hw->snpsid & GSNPSID_ID_MASK) != DWC2_OTG_ID &&
 	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_FS_IOT_ID &&
 	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_HS_IOT_ID) {
@@ -726,11 +726,11 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 		hw->snpsid >> 12 & 0xf, hw->snpsid >> 8 & 0xf,
 		hw->snpsid >> 4 & 0xf, hw->snpsid & 0xf, hw->snpsid);
 
-	hwcfg1 = dwc2_readl(hsotg->regs + GHWCFG1);
-	hwcfg2 = dwc2_readl(hsotg->regs + GHWCFG2);
-	hwcfg3 = dwc2_readl(hsotg->regs + GHWCFG3);
-	hwcfg4 = dwc2_readl(hsotg->regs + GHWCFG4);
-	grxfsiz = dwc2_readl(hsotg->regs + GRXFSIZ);
+	hwcfg1 = dwc2_readl(hsotg, GHWCFG1);
+	hwcfg2 = dwc2_readl(hsotg, GHWCFG2);
+	hwcfg3 = dwc2_readl(hsotg, GHWCFG3);
+	hwcfg4 = dwc2_readl(hsotg, GHWCFG4);
+	grxfsiz = dwc2_readl(hsotg, GRXFSIZ);
 
 	/* hwcfg1 */
 	hw->dev_ep_dirs = hwcfg1;
