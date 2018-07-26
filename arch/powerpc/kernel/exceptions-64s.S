@@ -127,8 +127,8 @@ EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
 	 * MSR_RI is not enabled, because PACA_EXNMI and nmi stack is
 	 * being used, so a nested NMI exception would corrupt it.
 	 */
-	EXCEPTION_PROLOG_PSERIES_NORI(PACA_EXNMI, system_reset_common, EXC_STD,
-				 IDLETEST, 0x100)
+	EXCEPTION_PROLOG_NORI(PACA_EXNMI, system_reset_common, EXC_STD,
+			      IDLETEST, 0x100)
 
 EXC_REAL_END(system_reset, 0x100, 0x100)
 EXC_VIRT_NONE(0x4100, 0x100)
@@ -231,8 +231,8 @@ EXC_COMMON_BEGIN(system_reset_common)
 TRAMP_REAL_BEGIN(system_reset_fwnmi)
 	SET_SCRATCH0(r13)		/* save r13 */
 	/* See comment at system_reset exception */
-	EXCEPTION_PROLOG_PSERIES_NORI(PACA_EXNMI, system_reset_common,
-						EXC_STD, NOTEST, 0x100)
+	EXCEPTION_PROLOG_NORI(PACA_EXNMI, system_reset_common, EXC_STD,
+			      NOTEST, 0x100)
 #endif /* CONFIG_PPC_PSERIES */
 
 
@@ -338,7 +338,7 @@ machine_check_pSeries_0:
 	 * nested machine check corrupts it. machine_check_common enables
 	 * MSR_RI.
 	 */
-	EXCEPTION_PROLOG_PSERIES_1_NORI(machine_check_common, EXC_STD)
+	EXCEPTION_PROLOG_2_NORI(machine_check_common, EXC_STD)
 
 TRAMP_KVM_SKIP(PACA_EXMC, 0x200)
 

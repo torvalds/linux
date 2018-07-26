@@ -330,7 +330,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	__EXCEPTION_PROLOG_2(label, h)
 
 /* _NORI variant keeps MSR_RI clear */
-#define __EXCEPTION_PROLOG_PSERIES_1_NORI(label, h)			\
+#define __EXCEPTION_PROLOG_2_NORI(label, h)				\
 	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
 	xori	r10,r10,MSR_RI;		/* Clear MSR_RI */		\
 	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
@@ -341,8 +341,8 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	h##RFI_TO_KERNEL;						\
 	b	.	/* prevent speculative execution */
 
-#define EXCEPTION_PROLOG_PSERIES_1_NORI(label, h)			\
-	__EXCEPTION_PROLOG_PSERIES_1_NORI(label, h)
+#define EXCEPTION_PROLOG_2_NORI(label, h)				\
+	__EXCEPTION_PROLOG_2_NORI(label, h)
 
 #define EXCEPTION_PROLOG_PSERIES(area, label, h, extra, vec)		\
 	SET_SCRATCH0(r13);		/* save r13 */			\
@@ -419,10 +419,10 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #endif
 
 /* Do not enable RI */
-#define EXCEPTION_PROLOG_PSERIES_NORI(area, label, h, extra, vec)	\
+#define EXCEPTION_PROLOG_NORI(area, label, h, extra, vec)		\
 	EXCEPTION_PROLOG_0(area);					\
 	EXCEPTION_PROLOG_1(area, extra, vec);				\
-	EXCEPTION_PROLOG_PSERIES_1_NORI(label, h);
+	EXCEPTION_PROLOG_2_NORI(label, h);
 
 
 #define __KVM_HANDLER(area, h, n)					\
