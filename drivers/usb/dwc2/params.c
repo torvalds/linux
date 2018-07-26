@@ -110,7 +110,6 @@ static void dwc2_set_amlogic_params(struct dwc2_hsotg *hsotg)
 	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR8 <<
 		GAHBCFG_HBSTLEN_SHIFT;
-	p->uframe_sched = false;
 }
 
 static void dwc2_set_amcc_params(struct dwc2_hsotg *hsotg)
