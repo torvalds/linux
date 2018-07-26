@@ -14,6 +14,7 @@
 #include <linux/buffer_head.h>
 #include <linux/statfs.h>
 #include <linux/parser.h>
+#include <linux/seq_file.h>
 #include "internal.h"
 
 static struct kmem_cache *erofs_inode_cachep __read_mostly;
@@ -107,6 +108,9 @@ static int superblock_read(struct super_block *sb)
 
 	sbi->blocks = le32_to_cpu(layout->blocks);
 	sbi->meta_blkaddr = le32_to_cpu(layout->meta_blkaddr);
+#ifdef CONFIG_EROFS_FS_XATTR
+	sbi->xattr_blkaddr = le32_to_cpu(layout->xattr_blkaddr);
+#endif
 	sbi->islotbits = ffs(sizeof(struct erofs_inode_v1)) - 1;
 
 	sbi->root_nid = le16_to_cpu(layout->root_nid);
@@ -127,13 +131,28 @@ out:
 
 static void default_options(struct erofs_sb_info *sbi)
 {
+#ifdef CONFIG_EROFS_FS_XATTR
+	set_opt(sbi, XATTR_USER);
+#endif
+
+#ifdef CONFIG_EROFS_FS_POSIX_ACL
+	set_opt(sbi, POSIX_ACL);
+#endif
 }
 
 enum {
+	Opt_user_xattr,
+	Opt_nouser_xattr,
+	Opt_acl,
+	Opt_noacl,
 	Opt_err
 };
 
 static match_table_t erofs_tokens = {
+	{Opt_user_xattr, "user_xattr"},
+	{Opt_nouser_xattr, "nouser_xattr"},
+	{Opt_acl, "acl"},
+	{Opt_noacl, "noacl"},
 	{Opt_err, NULL}
 };
 
@@ -155,6 +174,36 @@ static int parse_options(struct super_block *sb, char *options)
 		token = match_token(p, erofs_tokens, args);
 
 		switch (token) {
+#ifdef CONFIG_EROFS_FS_XATTR
+		case Opt_user_xattr:
+			set_opt(EROFS_SB(sb), XATTR_USER);
+			break;
+		case Opt_nouser_xattr:
+			clear_opt(EROFS_SB(sb), XATTR_USER);
+			break;
+#else
+		case Opt_user_xattr:
+			infoln("user_xattr options not supported");
+			break;
+		case Opt_nouser_xattr:
+			infoln("nouser_xattr options not supported");
+			break;
+#endif
+#ifdef CONFIG_EROFS_FS_POSIX_ACL
+		case Opt_acl:
+			set_opt(EROFS_SB(sb), POSIX_ACL);
+			break;
+		case Opt_noacl:
+			clear_opt(EROFS_SB(sb), POSIX_ACL);
+			break;
+#else
+		case Opt_acl:
+			infoln("acl options not supported");
+			break;
+		case Opt_noacl:
+			infoln("noacl options not supported");
+			break;
+#endif
 		default:
 			errln("Unrecognized mount option \"%s\" "
 					"or missing value", p);
@@ -196,6 +245,10 @@ static int erofs_read_super(struct super_block *sb,
 	sb->s_time_gran = 1;
 
 	sb->s_op = &erofs_sops;
+
+#ifdef CONFIG_EROFS_FS_XATTR
+	sb->s_xattr = erofs_xattr_handlers;
+#endif
 
 	/* set erofs default mount options */
 	default_options(sbi);
@@ -386,6 +439,20 @@ static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 {
+	struct erofs_sb_info *sbi __maybe_unused = EROFS_SB(root->d_sb);
+
+#ifdef CONFIG_EROFS_FS_XATTR
+	if (test_opt(sbi, XATTR_USER))
+		seq_puts(seq, ",user_xattr");
+	else
+		seq_puts(seq, ",nouser_xattr");
+#endif
+#ifdef CONFIG_EROFS_FS_POSIX_ACL
+	if (test_opt(sbi, POSIX_ACL))
+		seq_puts(seq, ",acl");
+	else
+		seq_puts(seq, ",noacl");
+#endif
 	return 0;
 }
 

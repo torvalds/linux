@@ -10,7 +10,7 @@
  * License.  See the file COPYING in the main directory of the Linux
  * distribution for more details.
  */
-#include "internal.h"
+#include "xattr.h"
 
 /* no locking */
 static int read_inode(struct inode *inode, void *data)
@@ -152,15 +152,26 @@ static int fill_inode(struct inode *inode, int isdir)
 	if (!err) {
 		/* setup the new inode */
 		if (S_ISREG(inode->i_mode)) {
+#ifdef CONFIG_EROFS_FS_XATTR
+			if (vi->xattr_isize)
+				inode->i_op = &erofs_generic_xattr_iops;
+#endif
 			inode->i_fop = &generic_ro_fops;
 		} else if (S_ISDIR(inode->i_mode)) {
 			inode->i_op =
+#ifdef CONFIG_EROFS_FS_XATTR
+				vi->xattr_isize ? &erofs_dir_xattr_iops :
+#endif
 				&erofs_dir_iops;
 			inode->i_fop = &erofs_dir_fops;
 		} else if (S_ISLNK(inode->i_mode)) {
 			/* by default, page_get_link is used for symlink */
 			inode->i_op =
+#ifdef CONFIG_EROFS_FS_XATTR
+				&erofs_symlink_xattr_iops,
+#else
 				&page_symlink_inode_operations;
+#endif
 			inode_nohighmem(inode);
 		} else {
 			err = -EIO;
@@ -207,4 +218,24 @@ struct inode *erofs_iget(struct super_block *sb,
 	}
 	return inode;
 }
+
+#ifdef CONFIG_EROFS_FS_XATTR
+const struct inode_operations erofs_generic_xattr_iops = {
+	.listxattr = erofs_listxattr,
+};
+#endif
+
+#ifdef CONFIG_EROFS_FS_XATTR
+const struct inode_operations erofs_symlink_xattr_iops = {
+	.get_link = page_get_link,
+	.listxattr = erofs_listxattr,
+};
+#endif
+
+#ifdef CONFIG_EROFS_FS_XATTR
+const struct inode_operations erofs_fast_symlink_xattr_iops = {
+	.get_link = simple_get_link,
+	.listxattr = erofs_listxattr,
+};
+#endif
 

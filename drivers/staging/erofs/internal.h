@@ -50,6 +50,9 @@ typedef u64 erofs_nid_t;
 struct erofs_sb_info {
 	u32 blocks;
 	u32 meta_blkaddr;
+#ifdef CONFIG_EROFS_FS_XATTR
+	u32 xattr_blkaddr;
+#endif
 
 	/* inode slot unit size in bit shift */
 	unsigned char islotbits;
@@ -71,6 +74,10 @@ struct erofs_sb_info {
 
 #define EROFS_SB(sb) ((struct erofs_sb_info *)(sb)->s_fs_info)
 #define EROFS_I_SB(inode) ((struct erofs_sb_info *)(inode)->i_sb->s_fs_info)
+
+/* Mount flags set via mount options or defaults */
+#define EROFS_MOUNT_XATTR_USER		0x00000010
+#define EROFS_MOUNT_POSIX_ACL		0x00000020
 
 #define clear_opt(sbi, option)	((sbi)->mount_opt &= ~EROFS_MOUNT_##option)
 #define set_opt(sbi, option)	((sbi)->mount_opt |= EROFS_MOUNT_##option)
@@ -237,17 +244,32 @@ int erofs_namei(struct inode *dir, struct qstr *name,
 	erofs_nid_t *nid, unsigned *d_type);
 
 /* xattr.c */
+#ifdef CONFIG_EROFS_FS_XATTR
 extern const struct xattr_handler *erofs_xattr_handlers[];
+#endif
 
 /* symlink */
+#ifdef CONFIG_EROFS_FS_XATTR
+extern const struct inode_operations erofs_symlink_xattr_iops;
+extern const struct inode_operations erofs_fast_symlink_xattr_iops;
+#endif
+
 static inline void set_inode_fast_symlink(struct inode *inode)
 {
+#ifdef CONFIG_EROFS_FS_XATTR
+	inode->i_op = &erofs_fast_symlink_xattr_iops;
+#else
 	inode->i_op = &simple_symlink_inode_operations;
+#endif
 }
 
 static inline bool is_inode_fast_symlink(struct inode *inode)
 {
+#ifdef CONFIG_EROFS_FS_XATTR
+	return inode->i_op == &erofs_fast_symlink_xattr_iops;
+#else
 	return inode->i_op == &simple_symlink_inode_operations;
+#endif
 }
 
 static inline void *erofs_vmap(struct page **pages, unsigned int count)

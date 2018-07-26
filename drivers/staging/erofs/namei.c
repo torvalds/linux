@@ -11,6 +11,7 @@
  * distribution for more details.
  */
 #include "internal.h"
+#include "xattr.h"
 
 /* based on the value of qn->len is accurate */
 static inline int dirnamecmp(struct qstr *qn,
@@ -239,5 +240,8 @@ const struct inode_operations erofs_dir_iops = {
 
 const struct inode_operations erofs_dir_xattr_iops = {
 	.lookup = erofs_lookup,
+#ifdef CONFIG_EROFS_FS_XATTR
+	.listxattr = erofs_listxattr,
+#endif
 };
 
