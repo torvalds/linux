@@ -437,7 +437,7 @@ static int send_term(struct fsi_master_acf *master, uint8_t slave)
 	return 0;
 }
 
-static void dump_trace(struct fsi_master_acf *master)
+static void dump_ucode_trace(struct fsi_master_acf *master)
 {
 	char trbuf[52];
 	char *p;
@@ -488,7 +488,7 @@ retry:
 		}
 		trace_fsi_master_acf_crc_rsp_error(master, crc_err_retries);
 		if (master->trace_enabled)
-			dump_trace(master);
+			dump_ucode_trace(master);
 		rc = clock_zeros(master, FSI_MASTER_EPOLL_CLOCKS);
 		if (rc) {
 			dev_warn(master->dev,
@@ -525,7 +525,7 @@ retry:
 		 */
 		dev_dbg(master->dev, "Busy, retrying...\n");
 		if (master->trace_enabled)
-			dump_trace(master);
+			dump_ucode_trace(master);
 		rc = clock_zeros(master, FSI_MASTER_DPOLL_CLOCKS);
 		if (rc) {
 			dev_warn(master->dev,
@@ -550,13 +550,13 @@ retry:
 	case FSI_RESP_ERRA:
 		dev_dbg(master->dev, "ERRA received\n");
 		if (master->trace_enabled)
-			dump_trace(master);
+			dump_ucode_trace(master);
 		rc = -EIO;
 		break;
 	case FSI_RESP_ERRC:
 		dev_dbg(master->dev, "ERRC received\n");
 		if (master->trace_enabled)
-			dump_trace(master);
+			dump_ucode_trace(master);
 		rc = -EAGAIN;
 		break;
 	}
