@@ -1244,7 +1244,7 @@ static u8 rtl8192_phy_SetSwChnlCmdArray(struct sw_chnl_cmd *CmdTable, u32 CmdTab
 	}
 
 	pCmd = CmdTable + CmdTableIdx;
-	pCmd->CmdID = CmdID;
+	pCmd->cmd_id = CmdID;
 	pCmd->Para1 = Para1;
 	pCmd->Para2 = Para2;
 	pCmd->msDelay = msDelay;
@@ -1363,7 +1363,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 			break;
 		}
 
-		if (CurrentCmd->CmdID == CMD_ID_END) {
+		if (CurrentCmd->cmd_id == CMD_ID_END) {
 			if ((*stage) == 2) {
 				(*delay) = CurrentCmd->msDelay;
 				return true;
@@ -1373,7 +1373,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 			continue;
 		}
 
-		switch (CurrentCmd->CmdID) {
+		switch (CurrentCmd->cmd_id) {
 		case CMD_ID_SET_TX_PWR_LEVEL:
 			if (priv->card_8192_version == (u8)VERSION_819xU_A)
 				/* consider it later! */
