@@ -130,24 +130,44 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj, bool exclusive)
 }
 
 /*
- * Does both rdma_lookup_get_uobject() and rdma_remove_commit_uobject(), then
- * returns success_res on success (negative errno on failure). For use by
- * callers that do not need the uobj.
+ * uobj_get_destroy destroys the HW object and returns a handle to the uobj
+ * with a NULL object pointer. The caller must pair this with
+ * uverbs_put_destroy.
  */
-int __uobj_perform_destroy(const struct uverbs_obj_type *type, u32 id,
-			   struct ib_uverbs_file *ufile, int success_res)
+struct ib_uobject *__uobj_get_destroy(const struct uverbs_obj_type *type,
+				      u32 id, struct ib_uverbs_file *ufile)
 {
 	struct ib_uobject *uobj;
 	int ret;
 
 	uobj = rdma_lookup_get_uobject(type, ufile, id, true);
 	if (IS_ERR(uobj))
+		return uobj;
+
+	ret = rdma_explicit_destroy(uobj);
+	if (ret) {
+		rdma_lookup_put_uobject(uobj, true);
+		return ERR_PTR(ret);
+	}
+
+	return uobj;
+}
+
+/*
+ * Does both uobj_get_destroy() and uobj_put_destroy().  Returns success_res
+ * on success (negative errno on failure). For use by callers that do not need
+ * the uobj.
+ */
+int __uobj_perform_destroy(const struct uverbs_obj_type *type, u32 id,
+			   struct ib_uverbs_file *ufile, int success_res)
+{
+	struct ib_uobject *uobj;
+
+	uobj = __uobj_get_destroy(type, id, ufile);
+	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	ret = rdma_remove_commit_uobject(uobj);
-	if (ret)
-		return ret;
-
+	rdma_lookup_put_uobject(uobj, true);
 	return success_res;
 }
 
@@ -446,21 +466,6 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 	/* Pairs with the get in rdma_alloc_commit_uobject() */
 	uverbs_uobject_put(uobj);
 
-	return ret;
-}
-
-/* This is called only for user requested DESTROY reasons
- * rdma_lookup_get_uobject(exclusive=true) must have been called to get uobj,
- * and after this returns the corresponding put has been done, and the kref
- * for uobj has been consumed.
- */
-int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj)
-{
-	int ret;
-
-	ret = rdma_explicit_destroy(uobj);
-	/* Pairs with the lookup_get done by the caller */
-	rdma_lookup_put_uobject(uobj, true);
 	return ret;
 }
 

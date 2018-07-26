@@ -1304,37 +1304,22 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_cq      cmd;
 	struct ib_uverbs_destroy_cq_resp resp;
 	struct ib_uobject		*uobj;
-	struct ib_cq               	*cq;
 	struct ib_ucq_object        	*obj;
-	int                        	 ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	uobj = uobj_get_write(UVERBS_OBJECT_CQ, cmd.cq_handle, file);
+	uobj = uobj_get_destroy(UVERBS_OBJECT_CQ, cmd.cq_handle, file);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	/*
-	 * Make sure we don't free the memory in remove_commit as we still
-	 * needs the uobject memory to create the response.
-	 */
-	uverbs_uobject_get(uobj);
-	cq      = uobj->object;
-	obj     = container_of(cq->uobject, struct ib_ucq_object, uobject);
-
+	obj = container_of(uobj, struct ib_ucq_object, uobject);
 	memset(&resp, 0, sizeof(resp));
-
-	ret = uobj_remove_commit(uobj);
-	if (ret) {
-		uverbs_uobject_put(uobj);
-		return ret;
-	}
-
 	resp.comp_events_reported  = obj->comp_events_reported;
 	resp.async_events_reported = obj->async_events_reported;
 
-	uverbs_uobject_put(uobj);
+	uobj_put_destroy(uobj);
+
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
 		return -EFAULT;
 
@@ -2104,32 +2089,19 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_qp_resp resp;
 	struct ib_uobject		*uobj;
 	struct ib_uqp_object        	*obj;
-	int                        	 ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	memset(&resp, 0, sizeof resp);
-
-	uobj = uobj_get_write(UVERBS_OBJECT_QP, cmd.qp_handle, file);
+	uobj = uobj_get_destroy(UVERBS_OBJECT_QP, cmd.qp_handle, file);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
 	obj = container_of(uobj, struct ib_uqp_object, uevent.uobject);
-	/*
-	 * Make sure we don't free the memory in remove_commit as we still
-	 * needs the uobject memory to create the response.
-	 */
-	uverbs_uobject_get(uobj);
-
-	ret = uobj_remove_commit(uobj);
-	if (ret) {
-		uverbs_uobject_put(uobj);
-		return ret;
-	}
-
+	memset(&resp, 0, sizeof(resp));
 	resp.events_reported = obj->uevent.events_reported;
-	uverbs_uobject_put(uobj);
+
+	uobj_put_destroy(uobj);
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
 		return -EFAULT;
@@ -3198,22 +3170,14 @@ int ib_uverbs_ex_destroy_wq(struct ib_uverbs_file *file,
 		return -EOPNOTSUPP;
 
 	resp.response_length = required_resp_len;
-	uobj = uobj_get_write(UVERBS_OBJECT_WQ, cmd.wq_handle, file);
+	uobj = uobj_get_destroy(UVERBS_OBJECT_WQ, cmd.wq_handle, file);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
 	obj = container_of(uobj, struct ib_uwq_object, uevent.uobject);
-	/*
-	 * Make sure we don't free the memory in remove_commit as we still
-	 * needs the uobject memory to create the response.
-	 */
-	uverbs_uobject_get(uobj);
-
-	ret = uobj_remove_commit(uobj);
 	resp.events_reported = obj->uevent.events_reported;
-	uverbs_uobject_put(uobj);
-	if (ret)
-		return ret;
+
+	uobj_put_destroy(uobj);
 
 	return ib_copy_to_udata(ucore, &resp, resp.response_length);
 }
@@ -3920,31 +3884,20 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_srq_resp resp;
 	struct ib_uobject		 *uobj;
 	struct ib_uevent_object        	 *obj;
-	int                         	  ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	uobj = uobj_get_write(UVERBS_OBJECT_SRQ, cmd.srq_handle, file);
+	uobj = uobj_get_destroy(UVERBS_OBJECT_SRQ, cmd.srq_handle, file);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
 	obj = container_of(uobj, struct ib_uevent_object, uobject);
-	/*
-	 * Make sure we don't free the memory in remove_commit as we still
-	 * needs the uobject memory to create the response.
-	 */
-	uverbs_uobject_get(uobj);
-
 	memset(&resp, 0, sizeof(resp));
-
-	ret = uobj_remove_commit(uobj);
-	if (ret) {
-		uverbs_uobject_put(uobj);
-		return ret;
-	}
 	resp.events_reported = obj->events_reported;
-	uverbs_uobject_put(uobj);
+
+	uobj_put_destroy(uobj);
+
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof(resp)))
 		return -EFAULT;
 
