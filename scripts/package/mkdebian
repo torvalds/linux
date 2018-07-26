@@ -61,6 +61,8 @@ set_debarch() {
 			debarch=arm
 		fi
 		;;
+	openrisc)
+		debarch=or1k ;;
 	*)
 		debarch=$(dpkg-architecture -qDEB_HOST_ARCH)
 		echo "" >&2
