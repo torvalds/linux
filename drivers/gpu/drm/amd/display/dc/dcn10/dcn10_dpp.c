@@ -444,10 +444,12 @@ void dpp1_set_cursor_position(
 		struct dpp *dpp_base,
 		const struct dc_cursor_position *pos,
 		const struct dc_cursor_mi_param *param,
-		uint32_t width)
+		uint32_t width,
+		uint32_t height)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
+	int src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
 	if (src_x_offset >= (int)param->viewport.width)
@@ -455,6 +457,12 @@ void dpp1_set_cursor_position(
 
 	if (src_x_offset + (int)width <= 0)
 		cur_en = 0;  /* not visible beyond left edge*/
+
+	if (src_y_offset >= (int)param->viewport.height)
+		cur_en = 0;  /* not visible beyond bottom edge*/
+
+	if (src_y_offset < 0)
+		cur_en = 0;  /* not visible beyond top edge*/
 
 	REG_UPDATE(CURSOR0_CONTROL,
 			CUR0_ENABLE, cur_en);

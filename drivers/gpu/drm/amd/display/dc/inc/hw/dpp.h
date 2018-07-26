@@ -147,7 +147,8 @@ struct dpp_funcs {
 			struct dpp *dpp_base,
 			const struct dc_cursor_position *pos,
 			const struct dc_cursor_mi_param *param,
-			uint32_t width
+			uint32_t width,
+			uint32_t height
 			);
 	void (*dpp_set_hdr_multiplier)(
 			struct dpp *dpp_base,

@@ -589,8 +589,10 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 		data->viewport.width = (data->viewport.width + 1) / 2;
 		data->viewport_c.width = (data->viewport_c.width + 1) / 2;
 	} else if (pri_split) {
-		data->viewport.width /= 2;
-		data->viewport_c.width /= 2;
+		if (data->viewport.width > 1)
+			data->viewport.width /= 2;
+		if (data->viewport_c.width > 1)
+			data->viewport_c.width /= 2;
 	}
 
 	if (plane_state->rotation == ROTATION_ANGLE_90 ||
@@ -670,7 +672,8 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct rect *recout_full
 			pipe_ctx->plane_res.scl_data.recout.width =
 					(pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
 		} else {
-			pipe_ctx->plane_res.scl_data.recout.width /= 2;
+			if (pipe_ctx->plane_res.scl_data.recout.width > 1)
+				pipe_ctx->plane_res.scl_data.recout.width /= 2;
 		}
 	}
 	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)

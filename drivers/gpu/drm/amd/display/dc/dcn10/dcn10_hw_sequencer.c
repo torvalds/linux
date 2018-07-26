@@ -1932,8 +1932,12 @@ static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
 
 	blnd_cfg.overlap_only = false;
-	blnd_cfg.global_alpha = 0xff;
 	blnd_cfg.global_gain = 0xff;
+
+	if (pipe_ctx->plane_state->global_alpha)
+		blnd_cfg.global_alpha = pipe_ctx->plane_state->global_alpha_value;
+	else
+		blnd_cfg.global_alpha = 0xff;
 
 	/* DCN1.0 has output CM before MPC which seems to screw with
 	 * pre-multiplied alpha.
@@ -2049,11 +2053,13 @@ static void update_dchubp_dpp(
 		update_dpp(dpp, plane_state);
 
 	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.per_pixel_alpha_change)
+		plane_state->update_flags.bits.per_pixel_alpha_change ||
+		plane_state->update_flags.bits.global_alpha_change)
 		dc->hwss.update_mpcc(dc, pipe_ctx);
 
 	if (plane_state->update_flags.bits.full_update ||
 		plane_state->update_flags.bits.per_pixel_alpha_change ||
+		plane_state->update_flags.bits.global_alpha_change ||
 		plane_state->update_flags.bits.scaling_change ||
 		plane_state->update_flags.bits.position_change) {
 		update_scaler(pipe_ctx);
@@ -2597,15 +2603,15 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
 
+	pos_cpy.x -= pipe_ctx->plane_state->dst_rect.x;
+	pos_cpy.y -= pipe_ctx->plane_state->dst_rect.y;
+
 	if (pipe_ctx->plane_state->address.type
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
 		pos_cpy.enable = false;
 
-	if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
-		pos_cpy.enable = false;
-
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
-	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width);
+	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width, hubp->curs_attr.height);
 }
 
 static void dcn10_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
