@@ -132,6 +132,11 @@ struct dc_stream_update {
 	struct dc_info_packet *vsc_infopacket;
 
 	bool *dpms_off;
+
+	struct colorspace_transform *gamut_remap;
+	enum dc_color_space *output_color_space;
+
+
 };
 
 bool dc_is_stream_unchanged(
@@ -297,6 +302,9 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 
 void dc_stream_set_dither_option(struct dc_stream_state *stream,
 				 enum dc_dither_option option);
+
+bool dc_stream_set_gamut_remap(struct dc *dc,
+			       const struct dc_stream_state *stream);
 
 bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
