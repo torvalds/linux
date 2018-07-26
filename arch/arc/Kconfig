@@ -50,6 +50,9 @@ config ARC
 	select HAVE_KERNEL_LZMA
 	select ARCH_HAS_PTE_SPECIAL
 
+config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
 config MIGHT_HAVE_PCI
 	bool
 
