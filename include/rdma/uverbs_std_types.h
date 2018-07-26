@@ -58,11 +58,12 @@ static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(vo
 
 #define uobj_get_read(_type, _id, _ufile)                                      \
 	rdma_lookup_get_uobject(uobj_get_type(_type), _ufile,                  \
-				_uobj_check_id(_id), false)
+				_uobj_check_id(_id), UVERBS_LOOKUP_READ)
 
 #define ufd_get_read(_type, _fdnum, _ufile)                                    \
 	rdma_lookup_get_uobject(uobj_get_type(_type), _ufile,                  \
-				(_fdnum)*typecheck(s32, _fdnum), false)
+				(_fdnum)*typecheck(s32, _fdnum),               \
+				UVERBS_LOOKUP_READ)
 
 static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 {
@@ -76,7 +77,7 @@ static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 
 #define uobj_get_write(_type, _id, _ufile)                                     \
 	rdma_lookup_get_uobject(uobj_get_type(_type), _ufile,                  \
-				_uobj_check_id(_id), true)
+				_uobj_check_id(_id), UVERBS_LOOKUP_WRITE)
 
 int __uobj_perform_destroy(const struct uverbs_obj_type *type, u32 id,
 			   struct ib_uverbs_file *ufile, int success_res);
@@ -92,12 +93,12 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_obj_type *type,
 
 static inline void uobj_put_destroy(struct ib_uobject *uobj)
 {
-	rdma_lookup_put_uobject(uobj, true);
+	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 }
 
 static inline void uobj_put_read(struct ib_uobject *uobj)
 {
-	rdma_lookup_put_uobject(uobj, false);
+	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_READ);
 }
 
 #define uobj_put_obj_read(_obj)					\
@@ -105,7 +106,7 @@ static inline void uobj_put_read(struct ib_uobject *uobj)
 
 static inline void uobj_put_write(struct ib_uobject *uobj)
 {
-	rdma_lookup_put_uobject(uobj, true);
+	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 }
 
 static inline int __must_check uobj_alloc_commit(struct ib_uobject *uobj,

@@ -38,6 +38,11 @@
 
 struct uverbs_obj_type;
 
+enum rdma_lookup_mode {
+	UVERBS_LOOKUP_READ,
+	UVERBS_LOOKUP_WRITE,
+};
+
 /*
  * The following sequences are valid:
  * Success flow:
@@ -78,8 +83,8 @@ struct uverbs_obj_type_class {
 
 	struct ib_uobject *(*lookup_get)(const struct uverbs_obj_type *type,
 					 struct ib_uverbs_file *ufile, s64 id,
-					 bool exclusive);
-	void (*lookup_put)(struct ib_uobject *uobj, bool exclusive);
+					 enum rdma_lookup_mode mode);
+	void (*lookup_put)(struct ib_uobject *uobj, enum rdma_lookup_mode mode);
 	/* This does not consume the kref on uobj */
 	int __must_check (*remove_commit)(struct ib_uobject *uobj,
 					  enum rdma_remove_reason why);
@@ -116,9 +121,10 @@ struct uverbs_obj_idr_type {
 };
 
 struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
-					   struct ib_uverbs_file *ufile,
-					   s64 id, bool exclusive);
-void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool exclusive);
+					   struct ib_uverbs_file *ufile, s64 id,
+					   enum rdma_lookup_mode mode);
+void rdma_lookup_put_uobject(struct ib_uobject *uobj,
+			     enum rdma_lookup_mode mode);
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
 					    struct ib_uverbs_file *ufile);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj);

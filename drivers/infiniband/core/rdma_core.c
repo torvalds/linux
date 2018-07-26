@@ -108,7 +108,8 @@ void uverbs_uobject_put(struct ib_uobject *uobject)
 	kref_put(&uobject->ref, uverbs_uobject_free);
 }
 
-static int uverbs_try_lock_object(struct ib_uobject *uobj, bool exclusive)
+static int uverbs_try_lock_object(struct ib_uobject *uobj,
+				  enum rdma_lookup_mode mode)
 {
 	/*
 	 * When a shared access is required, we use a positive counter. Each
@@ -121,21 +122,29 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj, bool exclusive)
 	 * concurrently, setting the counter to zero is enough for releasing
 	 * this lock.
 	 */
-	if (!exclusive)
+	switch (mode) {
+	case UVERBS_LOOKUP_READ:
 		return __atomic_add_unless(&uobj->usecnt, 1, -1) == -1 ?
 			-EBUSY : 0;
-
-	/* lock is either WRITE or DESTROY - should be exclusive */
-	return atomic_cmpxchg(&uobj->usecnt, 0, -1) == 0 ? 0 : -EBUSY;
+	case UVERBS_LOOKUP_WRITE:
+		/* lock is either WRITE or DESTROY - should be exclusive */
+		return atomic_cmpxchg(&uobj->usecnt, 0, -1) == 0 ? 0 : -EBUSY;
+	}
+	return 0;
 }
 
-static void assert_uverbs_usecnt(struct ib_uobject *uobj, bool exclusive)
+static void assert_uverbs_usecnt(struct ib_uobject *uobj,
+				 enum rdma_lookup_mode mode)
 {
 #ifdef CONFIG_LOCKDEP
-	if (exclusive)
-		WARN_ON(atomic_read(&uobj->usecnt) != -1);
-	else
+	switch (mode) {
+	case UVERBS_LOOKUP_READ:
 		WARN_ON(atomic_read(&uobj->usecnt) <= 0);
+		break;
+	case UVERBS_LOOKUP_WRITE:
+		WARN_ON(atomic_read(&uobj->usecnt) != -1);
+		break;
+	}
 #endif
 }
 
@@ -164,7 +173,7 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	unsigned long flags;
 	int ret;
 
-	assert_uverbs_usecnt(uobj, true);
+	assert_uverbs_usecnt(uobj, UVERBS_LOOKUP_WRITE);
 
 	if (uobj->object) {
 		ret = uobj->type->type_class->remove_commit(uobj, reason);
@@ -229,13 +238,13 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_obj_type *type,
 	struct ib_uobject *uobj;
 	int ret;
 
-	uobj = rdma_lookup_get_uobject(type, ufile, id, true);
+	uobj = rdma_lookup_get_uobject(type, ufile, id, UVERBS_LOOKUP_WRITE);
 	if (IS_ERR(uobj))
 		return uobj;
 
 	ret = rdma_explicit_destroy(uobj);
 	if (ret) {
-		rdma_lookup_put_uobject(uobj, true);
+		rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 		return ERR_PTR(ret);
 	}
 
@@ -256,7 +265,7 @@ int __uobj_perform_destroy(const struct uverbs_obj_type *type, u32 id,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	rdma_lookup_put_uobject(uobj, true);
+	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 	return success_res;
 }
 
@@ -319,7 +328,8 @@ static int idr_add_uobj(struct ib_uobject *uobj)
 /* Returns the ib_uobject or an error. The caller should check for IS_ERR. */
 static struct ib_uobject *
 lookup_get_idr_uobject(const struct uverbs_obj_type *type,
-		       struct ib_uverbs_file *ufile, s64 id, bool exclusive)
+		       struct ib_uverbs_file *ufile, s64 id,
+		       enum rdma_lookup_mode mode)
 {
 	struct ib_uobject *uobj;
 	unsigned long idrno = id;
@@ -349,9 +359,10 @@ free:
 	return uobj;
 }
 
-static struct ib_uobject *lookup_get_fd_uobject(const struct uverbs_obj_type *type,
-						struct ib_uverbs_file *ufile,
-						s64 id, bool exclusive)
+static struct ib_uobject *
+lookup_get_fd_uobject(const struct uverbs_obj_type *type,
+		      struct ib_uverbs_file *ufile, s64 id,
+		      enum rdma_lookup_mode mode)
 {
 	struct file *f;
 	struct ib_uobject *uobject;
@@ -362,7 +373,7 @@ static struct ib_uobject *lookup_get_fd_uobject(const struct uverbs_obj_type *ty
 	if (fdno != id)
 		return ERR_PTR(-EINVAL);
 
-	if (exclusive)
+	if (mode != UVERBS_LOOKUP_READ)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	f = fget(fdno);
@@ -386,12 +397,12 @@ static struct ib_uobject *lookup_get_fd_uobject(const struct uverbs_obj_type *ty
 
 struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 					   struct ib_uverbs_file *ufile, s64 id,
-					   bool exclusive)
+					   enum rdma_lookup_mode mode)
 {
 	struct ib_uobject *uobj;
 	int ret;
 
-	uobj = type->type_class->lookup_get(type, ufile, id, exclusive);
+	uobj = type->type_class->lookup_get(type, ufile, id, mode);
 	if (IS_ERR(uobj))
 		return uobj;
 
@@ -400,13 +411,13 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 		goto free;
 	}
 
-	ret = uverbs_try_lock_object(uobj, exclusive);
+	ret = uverbs_try_lock_object(uobj, mode);
 	if (ret)
 		goto free;
 
 	return uobj;
 free:
-	uobj->type->type_class->lookup_put(uobj, exclusive);
+	uobj->type->type_class->lookup_put(uobj, mode);
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
 }
@@ -643,32 +654,39 @@ void rdma_alloc_abort_uobject(struct ib_uobject *uobj)
 	uverbs_destroy_uobject(uobj, RDMA_REMOVE_ABORT);
 }
 
-static void lookup_put_idr_uobject(struct ib_uobject *uobj, bool exclusive)
+static void lookup_put_idr_uobject(struct ib_uobject *uobj,
+				   enum rdma_lookup_mode mode)
 {
 }
 
-static void lookup_put_fd_uobject(struct ib_uobject *uobj, bool exclusive)
+static void lookup_put_fd_uobject(struct ib_uobject *uobj,
+				  enum rdma_lookup_mode mode)
 {
 	struct file *filp = uobj->object;
 
-	WARN_ON(exclusive);
+	WARN_ON(mode != UVERBS_LOOKUP_READ);
 	/* This indirectly calls uverbs_close_fd and free the object */
 	fput(filp);
 }
 
-void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool exclusive)
+void rdma_lookup_put_uobject(struct ib_uobject *uobj,
+			     enum rdma_lookup_mode mode)
 {
-	assert_uverbs_usecnt(uobj, exclusive);
-	uobj->type->type_class->lookup_put(uobj, exclusive);
+	assert_uverbs_usecnt(uobj, mode);
+	uobj->type->type_class->lookup_put(uobj, mode);
 	/*
 	 * In order to unlock an object, either decrease its usecnt for
 	 * read access or zero it in case of exclusive access. See
 	 * uverbs_try_lock_object for locking schema information.
 	 */
-	if (!exclusive)
+	switch (mode) {
+	case UVERBS_LOOKUP_READ:
 		atomic_dec(&uobj->usecnt);
-	else
+		break;
+	case UVERBS_LOOKUP_WRITE:
 		atomic_set(&uobj->usecnt, 0);
+		break;
+	}
 
 	/* Pairs with the kref obtained by type->lookup_get */
 	uverbs_uobject_put(uobj);
@@ -710,7 +728,7 @@ void uverbs_close_fd(struct file *f)
 		 * method from being invoked. Meaning we can always get the
 		 * write lock here, or we have a kernel bug.
 		 */
-		WARN_ON(uverbs_try_lock_object(uobj, true));
+		WARN_ON(uverbs_try_lock_object(uobj, UVERBS_LOOKUP_WRITE));
 		uverbs_destroy_uobject(uobj, RDMA_REMOVE_CLOSE);
 		up_read(&ufile->hw_destroy_rwsem);
 	}
@@ -807,7 +825,7 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 		 * if we hit this WARN_ON, that means we are
 		 * racing with a lookup_get.
 		 */
-		WARN_ON(uverbs_try_lock_object(obj, true));
+		WARN_ON(uverbs_try_lock_object(obj, UVERBS_LOOKUP_WRITE));
 		if (!uverbs_destroy_uobject(obj, reason))
 			ret = 0;
 	}
@@ -890,10 +908,12 @@ uverbs_get_uobject_from_file(const struct uverbs_obj_type *type_attrs,
 {
 	switch (access) {
 	case UVERBS_ACCESS_READ:
-		return rdma_lookup_get_uobject(type_attrs, ufile, id, false);
+		return rdma_lookup_get_uobject(type_attrs, ufile, id,
+					       UVERBS_LOOKUP_READ);
 	case UVERBS_ACCESS_DESTROY:
 	case UVERBS_ACCESS_WRITE:
-		return rdma_lookup_get_uobject(type_attrs, ufile, id, true);
+		return rdma_lookup_get_uobject(type_attrs, ufile, id,
+					       UVERBS_LOOKUP_WRITE);
 	case UVERBS_ACCESS_NEW:
 		return rdma_alloc_begin_uobject(type_attrs, ufile);
 	default:
@@ -916,13 +936,13 @@ int uverbs_finalize_object(struct ib_uobject *uobj,
 
 	switch (access) {
 	case UVERBS_ACCESS_READ:
-		rdma_lookup_put_uobject(uobj, false);
+		rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_READ);
 		break;
 	case UVERBS_ACCESS_WRITE:
-		rdma_lookup_put_uobject(uobj, true);
+		rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 		break;
 	case UVERBS_ACCESS_DESTROY:
-		rdma_lookup_put_uobject(uobj, true);
+		rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 		break;
 	case UVERBS_ACCESS_NEW:
 		if (commit)
