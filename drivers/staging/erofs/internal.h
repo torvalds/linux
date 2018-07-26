@@ -369,5 +369,12 @@ static inline void erofs_vunmap(const void *mem, unsigned int count)
 #endif
 }
 
+/* utils.c */
+extern struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp);
+
+#ifndef lru_to_page
+#define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
+#endif
+
 #endif
 
