@@ -183,6 +183,7 @@ static struct platform_driver qcom_cpufreq_kryo_driver = {
 static const struct of_device_id qcom_cpufreq_kryo_match_list[] __initconst = {
 	{ .compatible = "qcom,apq8096", },
 	{ .compatible = "qcom,msm8996", },
+	{}
 };
 
 /*
