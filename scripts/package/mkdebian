@@ -31,7 +31,7 @@ set_debarch() {
 	x86_64)
 		debarch=amd64 ;;
 	sparc*)
-		debarch=sparc ;;
+		debarch=sparc$(if_enabled_echo 64BIT 64) ;;
 	s390*)
 		debarch=s390x ;;
 	ppc*)
