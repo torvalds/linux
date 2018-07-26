@@ -70,25 +70,40 @@ static int ceph_x_encrypt(struct ceph_crypto_key *secret, void *buf,
 	return sizeof(u32) + ciphertext_len;
 }
 
+static int __ceph_x_decrypt(struct ceph_crypto_key *secret, void *p,
+			    int ciphertext_len)
+{
+	struct ceph_x_encrypt_header *hdr = p;
+	int plaintext_len;
+	int ret;
+
+	ret = ceph_crypt(secret, false, p, ciphertext_len, ciphertext_len,
+			 &plaintext_len);
+	if (ret)
+		return ret;
+
+	if (le64_to_cpu(hdr->magic) != CEPHX_ENC_MAGIC) {
+		pr_err("%s bad magic\n", __func__);
+		return -EINVAL;
+	}
+
+	return plaintext_len - sizeof(*hdr);
+}
+
 static int ceph_x_decrypt(struct ceph_crypto_key *secret, void **p, void *end)
 {
-	struct ceph_x_encrypt_header *hdr = *p + sizeof(u32);
-	int ciphertext_len, plaintext_len;
+	int ciphertext_len;
 	int ret;
 
 	ceph_decode_32_safe(p, end, ciphertext_len, e_inval);
 	ceph_decode_need(p, end, ciphertext_len, e_inval);
 
-	ret = ceph_crypt(secret, false, *p, end - *p, ciphertext_len,
-			 &plaintext_len);
-	if (ret)
+	ret = __ceph_x_decrypt(secret, *p, ciphertext_len);
+	if (ret < 0)
 		return ret;
 
-	if (hdr->struct_v != 1 || le64_to_cpu(hdr->magic) != CEPHX_ENC_MAGIC)
-		return -EPERM;
-
 	*p += ciphertext_len;
-	return plaintext_len - sizeof(struct ceph_x_encrypt_header);
+	return ret;
 
 e_inval:
 	return -EINVAL;
