@@ -19,6 +19,19 @@
 #include <asm/unaligned.h>
 #include "nvmet.h"
 
+/*
+ * This helper allows us to clear the AEN based on the RAE bit,
+ * Please use this helper when processing the log pages which are
+ * associated with the AEN.
+ */
+static inline void nvmet_clear_aen(struct nvmet_req *req, u32 aen_bit)
+{
+	int rae = le32_to_cpu(req->cmd->common.cdw10[0]) & 1 << 15;
+
+	if (!rae)
+		clear_bit(aen_bit, &req->sq->ctrl->aen_masked);
+}
+
 u32 nvmet_get_log_page_len(struct nvme_command *cmd)
 {
 	u32 len = le16_to_cpu(cmd->get_log_page.numdu);
@@ -176,7 +189,7 @@ static void nvmet_execute_get_log_changed_ns(struct nvmet_req *req)
 	if (!status)
 		status = nvmet_zero_sgl(req, len, req->data_len - len);
 	ctrl->nr_changed_ns = 0;
-	clear_bit(NVME_AEN_CFG_NS_ATTR, &ctrl->aen_masked);
+	nvmet_clear_aen(req, NVME_AEN_CFG_NS_ATTR);
 	mutex_unlock(&ctrl->lock);
 out:
 	nvmet_req_complete(req, status);
@@ -235,7 +248,7 @@ static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
 
 	hdr.chgcnt = cpu_to_le64(nvmet_ana_chgcnt);
 	hdr.ngrps = cpu_to_le16(ngrps);
-	clear_bit(NVME_AEN_CFG_ANA_CHANGE, &req->sq->ctrl->aen_masked);
+	nvmet_clear_aen(req, NVME_AEN_CFG_ANA_CHANGE);
 	up_read(&nvmet_ana_sem);
 
 	kfree(desc);
