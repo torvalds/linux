@@ -131,6 +131,16 @@ static bool fuse_block_alloc(struct fuse_conn *fc, bool for_background)
 	return !fc->initialized || (for_background && fc->blocked);
 }
 
+static void fuse_drop_waiting(struct fuse_conn *fc)
+{
+	if (fc->connected) {
+		atomic_dec(&fc->num_waiting);
+	} else if (atomic_dec_and_test(&fc->num_waiting)) {
+		/* wake up aborters */
+		wake_up_all(&fc->blocked_waitq);
+	}
+}
+
 static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 				       bool for_background)
 {
@@ -171,7 +181,7 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 	return req;
 
  out:
-	atomic_dec(&fc->num_waiting);
+	fuse_drop_waiting(fc);
 	return ERR_PTR(err);
 }
 
@@ -278,7 +288,7 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 
 		if (test_bit(FR_WAITING, &req->flags)) {
 			__clear_bit(FR_WAITING, &req->flags);
-			atomic_dec(&fc->num_waiting);
+			fuse_drop_waiting(fc);
 		}
 
 		if (req->stolen_file)
@@ -364,7 +374,7 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 	struct fuse_iqueue *fiq = &fc->iq;
 
 	if (test_and_set_bit(FR_FINISHED, &req->flags))
-		goto out_put_req;
+		goto put_request;
 
 	spin_lock(&fiq->waitq.lock);
 	list_del_init(&req->intr_entry);
@@ -393,7 +403,7 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 	wake_up(&req->waitq);
 	if (req->end)
 		req->end(fc, req);
-out_put_req:
+put_request:
 	fuse_put_request(fc, req);
 }
 
@@ -2140,6 +2150,11 @@ void fuse_abort_conn(struct fuse_conn *fc)
 	}
 }
 EXPORT_SYMBOL_GPL(fuse_abort_conn);
+
+void fuse_wait_aborted(struct fuse_conn *fc)
+{
+	wait_event(fc->blocked_waitq, atomic_read(&fc->num_waiting) == 0);
+}
 
 int fuse_dev_release(struct inode *inode, struct file *file)
 {
