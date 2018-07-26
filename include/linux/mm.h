@@ -452,6 +452,12 @@ struct vm_operations_struct {
 					  unsigned long addr);
 };
 
+static inline void vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
+{
+	vma->vm_mm = mm;
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
+}
+
 struct mmu_gather;
 struct inode;
 
