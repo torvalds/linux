@@ -5816,7 +5816,8 @@ static void igb_tx_csum(struct igb_ring *tx_ring, struct igb_tx_buffer *first)
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 csum_failed:
-		if (!(first->tx_flags & IGB_TX_FLAGS_VLAN))
+		if (!(first->tx_flags & IGB_TX_FLAGS_VLAN) &&
+		    !tx_ring->launchtime_enable)
 			return;
 		goto no_csum;
 	}
