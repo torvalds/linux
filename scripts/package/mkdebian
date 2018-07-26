@@ -6,6 +6,18 @@
 
 set -e
 
+is_enabled() {
+	grep -q "^CONFIG_$1=y" $KCONFIG_CONFIG
+}
+
+if_enabled_echo() {
+	if is_enabled "$1"; then
+		echo -n "$2"
+	elif [ $# -ge 3 ]; then
+		echo -n "$3"
+	fi
+}
+
 set_debarch() {
 	if [ -n "$KBUILD_DEBARCH" ] ; then
 		debarch="$KBUILD_DEBARCH"
@@ -23,22 +35,18 @@ set_debarch() {
 	s390*)
 		debarch=s390x ;;
 	ppc*)
-		debarch=$(grep -q CPU_LITTLE_ENDIAN=y $KCONFIG_CONFIG && echo ppc64el || echo powerpc) ;;
+		debarch=$(if_enabled_echo CPU_LITTLE_ENDIAN ppc64el powerpc) ;;
 	parisc*)
 		debarch=hppa ;;
 	mips*)
-		debarch=mips$(grep -q CPU_LITTLE_ENDIAN=y $KCONFIG_CONFIG && echo el || true) ;;
+		debarch=mips$(if_enabled_echo CPU_LITTLE_ENDIAN el) ;;
 	aarch64|arm64)
 		debarch=arm64 ;;
 	arm*)
-		if grep -q CONFIG_AEABI=y $KCONFIG_CONFIG; then
-		    if grep -q CONFIG_VFP=y $KCONFIG_CONFIG; then
-			debarch=armhf
-		    else
-			debarch=armel
-		    fi
+		if is_enabled AEABI; then
+			debarch=arm$(if_enabled_echo VFP hf el)
 		else
-		    debarch=arm
+			debarch=arm
 		fi
 		;;
 	*)
