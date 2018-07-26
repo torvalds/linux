@@ -474,6 +474,7 @@ struct cache {
 
 struct gc_stat {
 	size_t			nodes;
+	size_t			nodes_pre;
 	size_t			key_bytes;
 
 	size_t			nkeys;
@@ -603,6 +604,10 @@ struct cache_set {
 	 * rescale; when it hits 0 we rescale all the bucket priorities.
 	 */
 	atomic_t		rescale;
+	/*
+	 * used for GC, identify if any front side I/Os is inflight
+	 */
+	atomic_t		search_inflight;
 	/*
 	 * When we invalidate buckets, we use both the priority and the amount
 	 * of good data to determine which buckets to reuse first - to weight

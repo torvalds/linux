@@ -701,6 +701,8 @@ static void search_free(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, cl);
 
+	atomic_dec(&s->d->c->search_inflight);
+
 	if (s->iop.bio)
 		bio_put(s->iop.bio);
 
@@ -718,6 +720,7 @@ static inline struct search *search_alloc(struct bio *bio,
 
 	closure_init(&s->cl, NULL);
 	do_bio_hook(s, bio, request_endio);
+	atomic_inc(&d->c->search_inflight);
 
 	s->orig_bio		= bio;
 	s->cache_miss		= NULL;

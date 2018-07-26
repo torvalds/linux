@@ -90,6 +90,8 @@
 
 #define MAX_NEED_GC		64
 #define MAX_SAVE_PRIO		72
+#define MIN_GC_NODES		100
+#define GC_SLEEP_MS		100
 
 #define PTR_DIRTY_BIT		(((uint64_t) 1 << 36))
 
@@ -1585,6 +1587,13 @@ static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 		memmove(r + 1, r, sizeof(r[0]) * (GC_MERGE_NODES - 1));
 		r->b = NULL;
 
+		if (atomic_read(&b->c->search_inflight) &&
+		    gc->nodes >= gc->nodes_pre + MIN_GC_NODES) {
+			gc->nodes_pre =  gc->nodes;
+			ret = -EAGAIN;
+			break;
+		}
+
 		if (need_resched()) {
 			ret = -EAGAIN;
 			break;
@@ -1753,7 +1762,10 @@ static void bch_btree_gc(struct cache_set *c)
 		closure_sync(&writes);
 		cond_resched();
 
-		if (ret && ret != -EAGAIN)
+		if (ret == -EAGAIN)
+			schedule_timeout_interruptible(msecs_to_jiffies
+						       (GC_SLEEP_MS));
+		else if (ret)
 			pr_warn("gc failed!");
 	} while (ret && !test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
