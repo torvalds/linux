@@ -29,7 +29,6 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 };
 
 #define rtl819XMACPHY_Array Rtl8192UsbMACPHY_Array
-#define rtl819XRadioB_Array Rtl8192UsbRadioB_Array
 #define rtl819XRadioC_Array Rtl8192UsbRadioC_Array
 #define rtl819XRadioD_Array Rtl8192UsbRadioD_Array
 
@@ -995,14 +994,14 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 	case RF90_PATH_B:
 		for (i = 0; i < RadioB_ArrayLength; i = i+2) {
 
-			if (rtl819XRadioB_Array[i] == 0xfe) {
+			if (Rtl8192UsbRadioB_Array[i] == 0xfe) {
 				mdelay(100);
 				continue;
 			}
 			rtl8192_phy_SetRFReg(dev, eRFPath,
-					     rtl819XRadioB_Array[i],
+					     Rtl8192UsbRadioB_Array[i],
 					     bMask12Bits,
-					     rtl819XRadioB_Array[i+1]);
+					     Rtl8192UsbRadioB_Array[i+1]);
 			mdelay(1);
 
 		}
