@@ -143,13 +143,28 @@ repeat:
 		if (cleanup)
 			BUG_ON(cnt != 1);
 
+#ifndef EROFS_FS_HAS_MANAGED_CACHE
 		else if (cnt > 1)
+#else
+		if (!erofs_workgroup_try_to_freeze(grp, 1))
+#endif
 			continue;
 
 		if (radix_tree_delete(&sbi->workstn_tree,
-			grp->index) != grp)
+			grp->index) != grp) {
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+skip:
+			erofs_workgroup_unfreeze(grp, 1);
+#endif
 			continue;
+		}
 
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+		if (try_to_free_all_cached_pages(sbi, grp))
+			goto skip;
+
+		erofs_workgroup_unfreeze(grp, 1);
+#endif
 		/* (rarely) grabbed again when freeing */
 		erofs_workgroup_put(grp);
 

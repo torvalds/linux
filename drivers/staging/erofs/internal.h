@@ -58,6 +58,18 @@ struct erofs_fault_info {
 };
 #endif
 
+#ifdef CONFIG_EROFS_FS_ZIP_CACHE_BIPOLAR
+#define EROFS_FS_ZIP_CACHE_LVL	(2)
+#elif defined(EROFS_FS_ZIP_CACHE_UNIPOLAR)
+#define EROFS_FS_ZIP_CACHE_LVL	(1)
+#else
+#define EROFS_FS_ZIP_CACHE_LVL	(0)
+#endif
+
+#if (!defined(EROFS_FS_HAS_MANAGED_CACHE) && (EROFS_FS_ZIP_CACHE_LVL > 0))
+#define EROFS_FS_HAS_MANAGED_CACHE
+#endif
+
 /* EROFS_SUPER_MAGIC_V1 to represent the whole file system */
 #define EROFS_SUPER_MAGIC   EROFS_SUPER_MAGIC_V1
 
@@ -82,6 +94,11 @@ struct erofs_sb_info {
 
 	/* the dedicated workstation for compression */
 	struct radix_tree_root workstn_tree;
+
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+	struct inode *managed_cache;
+#endif
+
 #endif
 
 	u32 build_time_nsec;
@@ -239,6 +256,15 @@ static inline void erofs_workstation_cleanup_all(struct super_block *sb)
 {
 	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
 }
+
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+#define EROFS_UNALLOCATED_CACHED_PAGE	((void *)0x5F0EF00D)
+
+extern int try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
+	struct erofs_workgroup *egrp);
+extern int try_to_free_cached_page(struct address_space *mapping,
+	struct page *page);
+#endif
 
 #endif
 

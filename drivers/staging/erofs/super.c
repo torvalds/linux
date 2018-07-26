@@ -256,6 +256,63 @@ static int parse_options(struct super_block *sb, char *options)
 	return 0;
 }
 
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+
+static const struct address_space_operations managed_cache_aops;
+
+static int managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
+{
+	int ret = 1;	/* 0 - busy */
+	struct address_space *const mapping = page->mapping;
+
+	BUG_ON(!PageLocked(page));
+	BUG_ON(mapping->a_ops != &managed_cache_aops);
+
+	if (PagePrivate(page))
+		ret = try_to_free_cached_page(mapping, page);
+
+	return ret;
+}
+
+static void managed_cache_invalidatepage(struct page *page,
+	unsigned int offset, unsigned int length)
+{
+	const unsigned int stop = length + offset;
+
+	BUG_ON(!PageLocked(page));
+
+	/* Check for overflow */
+	BUG_ON(stop > PAGE_SIZE || stop < length);
+
+	if (offset == 0 && stop == PAGE_SIZE)
+		while (!managed_cache_releasepage(page, GFP_NOFS))
+			cond_resched();
+}
+
+static const struct address_space_operations managed_cache_aops = {
+	.releasepage = managed_cache_releasepage,
+	.invalidatepage = managed_cache_invalidatepage,
+};
+
+static struct inode *erofs_init_managed_cache(struct super_block *sb)
+{
+	struct inode *inode = new_inode(sb);
+
+	if (unlikely(inode == NULL))
+		return ERR_PTR(-ENOMEM);
+
+	set_nlink(inode, 1);
+	inode->i_size = OFFSET_MAX;
+
+	inode->i_mapping->a_ops = &managed_cache_aops;
+	mapping_set_gfp_mask(inode->i_mapping,
+			     GFP_NOFS | __GFP_HIGHMEM |
+			     __GFP_MOVABLE |  __GFP_NOFAIL);
+	return inode;
+}
+
+#endif
+
 static int erofs_read_super(struct super_block *sb,
 	const char *dev_name, void *data, int silent)
 {
@@ -305,6 +362,14 @@ static int erofs_read_super(struct super_block *sb,
 
 #ifdef CONFIG_EROFS_FS_ZIP
 	INIT_RADIX_TREE(&sbi->workstn_tree, GFP_ATOMIC);
+#endif
+
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+	sbi->managed_cache = erofs_init_managed_cache(sb);
+	if (IS_ERR(sbi->managed_cache)) {
+		err = PTR_ERR(sbi->managed_cache);
+		goto err_init_managed_cache;
+	}
 #endif
 
 	/* get the root inode */
@@ -361,6 +426,10 @@ err_isdir:
 	if (sb->s_root == NULL)
 		iput(inode);
 err_iget:
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+	iput(sbi->managed_cache);
+err_init_managed_cache:
+#endif
 err_parseopt:
 err_sbread:
 	sb->s_fs_info = NULL;
@@ -385,6 +454,10 @@ static void erofs_put_super(struct super_block *sb)
 
 	infoln("unmounted for %s", sbi->dev_name);
 	__putname(sbi->dev_name);
+
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+	iput(sbi->managed_cache);
+#endif
 
 	mutex_lock(&sbi->umount_mutex);
 

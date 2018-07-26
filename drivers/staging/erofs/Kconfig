@@ -101,3 +101,41 @@ config EROFS_FS_CLUSTER_PAGE_LIMIT
 	  than 2. Otherwise, the image cannot be mounted
 	  correctly on this kernel.
 
+choice
+	prompt "EROFS VLE Data Decompression mode"
+	depends on EROFS_FS_ZIP
+	default EROFS_FS_ZIP_CACHE_BIPOLAR
+	help
+	  EROFS supports three options for VLE decompression.
+	  "In-place Decompression Only" consumes the minimum memory
+	  with lowest random read.
+
+	  "Bipolar Cached Decompression" consumes the maximum memory
+	  with highest random read.
+
+	  If unsure, select "Bipolar Cached Decompression"
+
+config EROFS_FS_ZIP_NO_CACHE
+	bool "In-place Decompression Only"
+	help
+	  Read compressed data into page cache and do in-place
+	  decompression directly.
+
+config EROFS_FS_ZIP_CACHE_UNIPOLAR
+	bool "Unipolar Cached Decompression"
+	help
+	  For each request, it caches the last compressed page
+	  for further reading.
+	  It still decompresses in place for the rest compressed pages.
+
+config EROFS_FS_ZIP_CACHE_BIPOLAR
+	bool "Bipolar Cached Decompression"
+	help
+	  For each request, it caches the both end compressed pages
+	  for further reading.
+	  It still decompresses in place for the rest compressed pages.
+
+	  Recommended for performance priority.
+
+endchoice
+
