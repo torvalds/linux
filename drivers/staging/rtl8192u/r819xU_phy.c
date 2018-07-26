@@ -1247,7 +1247,7 @@ static u8 rtl8192_phy_SetSwChnlCmdArray(struct sw_chnl_cmd *CmdTable, u32 CmdTab
 	pCmd->cmd_id = CmdID;
 	pCmd->para_1 = Para1;
 	pCmd->para_2 = Para2;
-	pCmd->msDelay = msDelay;
+	pCmd->ms_delay = msDelay;
 
 	return true;
 }
@@ -1365,7 +1365,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 
 		if (CurrentCmd->cmd_id == CMD_ID_END) {
 			if ((*stage) == 2) {
-				(*delay) = CurrentCmd->msDelay;
+				(*delay) = CurrentCmd->ms_delay;
 				return true;
 			}
 			(*stage)++;
@@ -1407,7 +1407,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 		break;
 	} while (true);
 
-	(*delay) = CurrentCmd->msDelay;
+	(*delay) = CurrentCmd->ms_delay;
 	(*step)++;
 	return false;
 }

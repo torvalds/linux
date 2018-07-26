@@ -22,7 +22,7 @@ struct sw_chnl_cmd {
 	enum switch_chan_cmd_id	cmd_id;
 	u32		        para_1;
 	u32		        para_2;
-	u32		        msDelay;
+	u32		        ms_delay;
 } __packed;
 
 extern u32 rtl819XMACPHY_Array_PG[];
