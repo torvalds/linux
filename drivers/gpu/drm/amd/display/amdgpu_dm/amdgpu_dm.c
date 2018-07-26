@@ -3468,7 +3468,8 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 	encoder = helper->best_encoder(connector);
 
 	if (!edid || !drm_edid_is_valid(edid)) {
-		drm_add_modes_noedid(connector, 640, 480);
+		amdgpu_dm_connector->num_modes =
+				drm_add_modes_noedid(connector, 640, 480);
 	} else {
 		amdgpu_dm_connector_ddc_get_modes(connector, edid);
 		amdgpu_dm_connector_add_common_modes(encoder, connector);
