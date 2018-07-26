@@ -68,7 +68,6 @@ msm-y := \
 	disp/dpu1/dpu_io_util.o \
 	disp/dpu1/dpu_irq.o \
 	disp/dpu1/dpu_kms.o \
-	disp/dpu1/dpu_kms_utils.o \
 	disp/dpu1/dpu_mdss.o \
 	disp/dpu1/dpu_plane.o \
 	disp/dpu1/dpu_power_handle.o \
