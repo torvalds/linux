@@ -505,4 +505,7 @@ int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
 			 unsigned int len);
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
+void
+nfp_bpf_ctrl_msg_rx_raw(struct nfp_app *app, const void *data,
+			unsigned int len);
 #endif

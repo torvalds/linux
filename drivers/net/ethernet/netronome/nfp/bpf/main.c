@@ -490,6 +490,7 @@ const struct nfp_app_type app_bpf = {
 	.vnic_free	= nfp_bpf_vnic_free,
 
 	.ctrl_msg_rx	= nfp_bpf_ctrl_msg_rx,
+	.ctrl_msg_rx_raw	= nfp_bpf_ctrl_msg_rx_raw,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.bpf		= nfp_ndo_bpf,
