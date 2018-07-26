@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config EROFS_FS
+	tristate "EROFS filesystem support"
+	depends on BLOCK
+	help
+	  EROFS(Enhanced Read-Only File System) is a lightweight
+	  read-only file system with modern designs (eg. page-sized
+	  blocks, inline xattrs/data, etc.) for scenarios which need
+	  high-performance read-only requirements, eg. firmwares in
+	  mobile phone or LIVECDs.
+
+	  It also provides VLE compression support, focusing on
+	  random read improvements, keeping relatively lower
+	  compression ratios, which is useful for high-performance
+	  devices with limited memory and ROM space.
+
+	  If unsure, say N.
+
+config EROFS_FS_DEBUG
+	bool "EROFS debugging feature"
+	depends on EROFS_FS
+	help
+	  Print EROFS debugging messages and enable more BUG_ONs
+	  which check the filesystem consistency aggressively.
+
+	  For daily use, say N.
+
+config EROFS_FS_USE_VM_MAP_RAM
+	bool "EROFS VM_MAP_RAM Support"
+	depends on EROFS_FS
+	help
+	  use vm_map_ram/vm_unmap_ram instead of vmap/vunmap.
+
+	  If you don't know what these are, say N.
+
