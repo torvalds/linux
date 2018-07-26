@@ -295,7 +295,7 @@ name:
 
 #define __TRAMP_REAL_OOL(name, vec)					\
 	TRAMP_REAL_BEGIN(tramp_real_##name);				\
-	STD_EXCEPTION_PSERIES_OOL(vec, name##_common);			\
+	STD_EXCEPTION_OOL(vec, name##_common);
 
 #define EXC_REAL_OOL(name, start, size)					\
 	__EXC_REAL_OOL(name, start, size);				\
