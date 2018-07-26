@@ -1161,45 +1161,6 @@ struct dwc2_hsotg {
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 
-#ifdef CONFIG_MIPS
-/*
- * There are some MIPS machines that can run in either big-endian
- * or little-endian mode and that use the dwc2 register without
- * a byteswap in both ways.
- * Unlike other architectures, MIPS apparently does not require a
- * barrier before the __raw_writel() to synchronize with DMA but does
- * require the barrier after the __raw_writel() to serialize a set of
- * writes. This set of operations was added specifically for MIPS and
- * should only be used there.
- */
-static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
-{
-	u32 value = __raw_readl(hsotg->regs + offset);
-
-	/* In order to preserve endianness __raw_* operation is used. Therefore
-	 * a barrier is needed to ensure IO access is not re-ordered across
-	 * reads or writes
-	 */
-	mb();
-	return value;
-}
-
-static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
-{
-	__raw_writel(value, hsotg->regs + offset);
-
-	/*
-	 * In order to preserve endianness __raw_* operation is used. Therefore
-	 * a barrier is needed to ensure IO access is not re-ordered across
-	 * reads or writes
-	 */
-	mb();
-#ifdef DWC2_LOG_WRITES
-	pr_info("INFO:: wrote %08x to %p\n", value, hsotg->regs + offset);
-#endif
-}
-#else
-
 /* Normal architectures just use readl/write */
 static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
 {
@@ -1214,7 +1175,31 @@ static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
 	pr_info("info:: wrote %08x to %p\n", value, hsotg->regs + offset);
 #endif
 }
-#endif
+
+static inline void dwc2_readl_rep(struct dwc2_hsotg *hsotg, u32 offset,
+				  void *buffer, unsigned int count)
+{
+	if (count) {
+		u32 *buf = buffer;
+
+		do {
+			u32 x = dwc2_readl(hsotg, offset);
+			*buf++ = x;
+		} while (--count);
+	}
+}
+
+static inline void dwc2_writel_rep(struct dwc2_hsotg *hsotg, u32 offset,
+				   const void *buffer, unsigned int count)
+{
+	if (count) {
+		const u32 *buf = buffer;
+
+		do {
+			dwc2_writel(hsotg, *buf++, offset);
+		} while (--count);
+	}
+}
 
 /* Reasons for halting a host channel */
 enum dwc2_halt_status {

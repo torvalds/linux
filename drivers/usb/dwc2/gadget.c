@@ -599,7 +599,7 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 	to_write = DIV_ROUND_UP(to_write, 4);
 	data = hs_req->req.buf + buf_pos;
 
-	iowrite32_rep(hsotg->regs + EPFIFO(hs_ep->index), data, to_write);
+	dwc2_writel_rep(hsotg, EPFIFO(hs_ep->index), data, to_write);
 
 	return (to_write >= can_write) ? -ENOSPC : 0;
 }
@@ -2169,8 +2169,8 @@ static void dwc2_hsotg_rx_data(struct dwc2_hsotg *hsotg, int ep_idx, int size)
 	 * note, we might over-write the buffer end by 3 bytes depending on
 	 * alignment of the data.
 	 */
-	ioread32_rep(hsotg->regs + EPFIFO(ep_idx),
-		     hs_req->req.buf + read_ptr, to_read);
+	dwc2_readl_rep(hsotg, EPFIFO(ep_idx),
+		       hs_req->req.buf + read_ptr, to_read);
 }
 
 /**
