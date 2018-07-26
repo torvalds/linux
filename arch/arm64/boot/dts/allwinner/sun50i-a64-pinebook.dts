@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) Harald Geyer <harald@ccbib.org>
- * based on sun50i-a64-olinuxino.dts by Jagan Teki <jteki@openedev.com>
+ * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (C) 2018 Vasily Khoruzhick <anarsoul@gmail.com>
  *
- * SPDX-License-Identifier: (GPL-2.0 OR MIT)
  */
 
 /dts-v1/;
@@ -14,56 +14,50 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
-	model = "Olimex A64 Teres-I";
-	compatible = "olimex,a64-teres-i", "allwinner,sun50i-a64";
+	model = "Pinebook";
+	compatible = "pine64,pinebook", "allwinner,sun50i-a64";
 
 	aliases {
 		serial0 = &uart0;
+		ethernet0 = &rtl8723cs;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 50000 0>;
+		brightness-levels = <0 5 10 15 20 30 40 55 70 85 100>;
+		default-brightness-level = <2>;
+		enable-gpios = <&pio 3 23 GPIO_ACTIVE_HIGH>; /* PD23 */
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 
 		framebuffer-lcd {
-			eDP25-supply = <&reg_dldo2>;
-			eDP12-supply = <&reg_dldo3>;
+			panel-supply = <&reg_dc1sw>;
+			dvdd25-supply = <&reg_dldo2>;
+			dvdd12-supply = <&reg_fldo1>;
 		};
 	};
 
-	gpio-keys {
+	gpio_keys {
 		compatible = "gpio-keys";
 
-		lid-switch {
+		lid_switch {
 			label = "Lid Switch";
-			gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 */
+			gpios = <&r_pio 0 12 GPIO_ACTIVE_LOW>; /* PL12 */
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
+			linux,can-disable;
 			wakeup-source;
 		};
 	};
 
-	leds {
-		compatible = "gpio-leds";
-
-		capslock {
-			label = "teres-i:green:capslock";
-			gpios = <&pio 2 7 GPIO_ACTIVE_HIGH>; /* PC7 */
-		};
-
-		numlock {
-			label = "teres-i:green:numlock";
-			gpios = <&pio 2 4 GPIO_ACTIVE_HIGH>; /* PC4 */
-		};
-	};
-
-	reg_usb1_vbus: usb1-vbus {
+	reg_vcc3v3: vcc3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "usb1-vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
-		status = "okay";
+		regulator-name = "vcc3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	wifi_pwrseq: wifi_pwrseq {
@@ -72,19 +66,13 @@
 	};
 };
 
-&ehci1 {
+&ehci0 {
+	phys = <&usbphy 0>;
+	phy-names = "usb";
 	status = "okay";
 };
 
-
-/* The ANX6345 eDP-bridge is on i2c0. There is no linux (mainline)
- * driver for this chip at the moment, the bootloader initializes it.
- * However it can be accessed with the i2c-dev driver from user space.
- */
-&i2c0 {
-	clock-frequency = <100000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins>;
+&ehci1 {
 	status = "okay";
 };
 
@@ -92,7 +80,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_dcdc1>;
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_HIGH>;
+	cd-inverted;
 	disable-wp;
 	bus-width = <4>;
 	status = "okay";
@@ -101,18 +90,15 @@
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
-	vmmc-supply = <&reg_aldo2>;
-	vqmmc-supply = <&reg_dldo4>;
+	vmmc-supply = <&reg_dldo4>;
+	vqmmc-supply = <&reg_eldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
 
-	rtl8723bs: wifi@1 {
+	rtl8723cs: wifi@1 {
 		reg = <1>;
-		interrupt-parent = <&r_pio>;
-		interrupts = <0 3 IRQ_TYPE_LEVEL_LOW>; /* PL3 */
-		interrupt-names = "host-wake";
 	};
 };
 
@@ -120,14 +106,25 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&reg_dcdc1>;
-	vqmmc-supply = <&reg_dcdc1>;
+	vqmmc-supply = <&reg_eldo1>;
 	bus-width = <8>;
 	non-removable;
 	cap-mmc-hw-reset;
+	mmc-hs200-1_8v;
+	status = "okay";
+};
+
+&ohci0 {
+	phys = <&usbphy 0>;
+	phy-names = "usb";
 	status = "okay";
 };
 
 &ohci1 {
+	status = "okay";
+};
+
+&pwm {
 	status = "okay";
 };
 
@@ -139,31 +136,41 @@
 		reg = <0x3a3>;
 		interrupt-parent = <&r_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-		wakeup-source;
 	};
+};
+
+/* The ANX6345 eDP-bridge is on r_i2c */
+&r_i2c {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&r_i2c_pins_a>;
+	status = "okay";
 };
 
 #include "axp803.dtsi"
 
 &reg_aldo1 {
-	regulator-always-on;
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
-	regulator-name = "vcc-pe";
+	regulator-name = "vcc-csi";
 };
 
 &reg_aldo2 {
 	regulator-always-on;
-	regulator-min-microvolt = <3300000>;
+	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <3300000>;
 	regulator-name = "vcc-pl";
 };
 
 &reg_aldo3 {
 	regulator-always-on;
-	regulator-min-microvolt = <3000000>;
-	regulator-max-microvolt = <3000000>;
+	regulator-min-microvolt = <2700000>;
+	regulator-max-microvolt = <3300000>;
 	regulator-name = "vcc-pll-avcc";
+};
+
+&reg_dc1sw {
+	regulator-name = "vcc-lcd";
 };
 
 &reg_dcdc1 {
@@ -175,7 +182,7 @@
 
 &reg_dcdc2 {
 	regulator-always-on;
-	regulator-min-microvolt = <1040000>;
+	regulator-min-microvolt = <1000000>;
 	regulator-max-microvolt = <1300000>;
 	regulator-name = "vdd-cpux";
 };
@@ -184,9 +191,9 @@
 
 &reg_dcdc5 {
 	regulator-always-on;
-	regulator-min-microvolt = <1500000>;
-	regulator-max-microvolt = <1500000>;
-	regulator-name = "vcc-ddr3";
+	regulator-min-microvolt = <1200000>;
+	regulator-max-microvolt = <1200000>;
+	regulator-name = "vcc-dram";
 };
 
 &reg_dcdc6 {
@@ -205,31 +212,32 @@
 &reg_dldo2 {
 	regulator-min-microvolt = <2500000>;
 	regulator-max-microvolt = <2500000>;
-	regulator-name = "vcc-pd";
+	regulator-name = "vcc-edp";
 };
 
 &reg_dldo3 {
-	regulator-min-microvolt = <1200000>;
-	regulator-max-microvolt = <1200000>;
-	regulator-name = "vdd-edp";
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "avdd-csi";
 };
 
 &reg_dldo4 {
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-wifi-io";
+	regulator-name = "vcc-wifi";
 };
 
 &reg_eldo1 {
+	regulator-always-on;
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
 	regulator-name = "cpvdd";
 };
 
-&reg_eldo2 {
+&reg_eldo3 {
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
-	regulator-name = "vcc-dvdd-csi";
+	regulator-name = "vdd-1v8-csi";
 };
 
 &reg_fldo1 {
@@ -238,16 +246,18 @@
 	regulator-name = "vcc-1v2-hsic";
 };
 
-/*
- * The A64 chip cannot work without this regulator off, although
- * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
- */
 &reg_fldo2 {
 	regulator-always-on;
 	regulator-min-microvolt = <1100000>;
 	regulator-max-microvolt = <1100000>;
 	regulator-name = "vdd-cpus";
+};
+
+&reg_ldo_io0 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-usb";
+	status = "okay";
 };
 
 &reg_rtc_ldo {
@@ -264,7 +274,12 @@
 	status = "okay";
 };
 
+&usb_otg {
+	dr_mode = "host";
+};
+
 &usbphy {
-	usb1_vbus-supply = <&reg_usb1_vbus>;
+	usb0_vbus-supply = <&reg_ldo_io0>;
+	usb1_vbus-supply = <&reg_ldo_io0>;
 	status = "okay";
 };
