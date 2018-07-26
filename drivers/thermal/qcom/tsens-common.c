@@ -127,12 +127,10 @@ static const struct regmap_config tsens_config = {
 int __init init_common(struct tsens_device *tmdev)
 {
 	void __iomem *base;
+	struct resource *res;
 	struct platform_device *op = of_find_device_by_node(tmdev->dev->of_node);
 
 	if (!op)
-		return -EINVAL;
-	base = of_iomap(tmdev->dev->of_node, 0);
-	if (!base)
 		return -EINVAL;
 
 	/* The driver only uses the TM register address space for now */
@@ -143,11 +141,14 @@ int __init init_common(struct tsens_device *tmdev)
 		tmdev->tm_offset = 0x1000;
 	}
 
+	res = platform_get_resource(op, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&op->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
 	tmdev->map = devm_regmap_init_mmio(tmdev->dev, base, &tsens_config);
-	if (IS_ERR(tmdev->map)) {
-		iounmap(base);
+	if (IS_ERR(tmdev->map))
 		return PTR_ERR(tmdev->map);
-	}
 
 	return 0;
 }
