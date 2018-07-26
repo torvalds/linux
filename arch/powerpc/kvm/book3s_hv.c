@@ -1989,15 +1989,9 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 						   unsigned int id)
 {
 	struct kvm_vcpu *vcpu;
-	int err = -EINVAL;
+	int err;
 	int core;
 	struct kvmppc_vcore *vcore;
-
-	if (id >= (KVM_MAX_VCPUS * kvm->arch.emul_smt_mode) &&
-	    cpu_has_feature(CPU_FTR_ARCH_300)) {
-		pr_devel("DNCI: VCPU ID too high\n");
-		goto out;
-	}
 
 	err = -ENOMEM;
 	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
@@ -2055,8 +2049,13 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	vcore = NULL;
 	err = -EINVAL;
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		BUG_ON(kvm->arch.smt_mode != 1);
-		core = kvmppc_pack_vcpu_id(kvm, id);
+		if (id >= (KVM_MAX_VCPUS * kvm->arch.emul_smt_mode)) {
+			pr_devel("KVM: VCPU ID too high\n");
+			core = KVM_MAX_VCORES;
+		} else {
+			BUG_ON(kvm->arch.smt_mode != 1);
+			core = kvmppc_pack_vcpu_id(kvm, id);
+		}
 	} else {
 		core = id / kvm->arch.smt_mode;
 	}
