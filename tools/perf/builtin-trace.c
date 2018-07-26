@@ -291,7 +291,7 @@ size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const cha
 {
 	int idx = val - sa->offset;
 
-	if (idx < 0 || idx >= sa->nr_entries)
+	if (idx < 0 || idx >= sa->nr_entries || sa->entries[idx] == NULL)
 		return scnprintf(bf, size, intfmt, val);
 
 	return scnprintf(bf, size, "%s", sa->entries[idx]);
