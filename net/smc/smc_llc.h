@@ -36,14 +36,15 @@ enum smc_llc_msg_type {
 };
 
 /* transmit */
-int smc_llc_send_confirm_link(struct smc_link *lnk, u8 mac[], union ib_gid *gid,
+int smc_llc_send_confirm_link(struct smc_link *lnk,
 			      enum smc_llc_reqresp reqresp);
-int smc_llc_send_add_link(struct smc_link *link, u8 mac[], union ib_gid *gid,
+int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
 			  enum smc_llc_reqresp reqresp);
 int smc_llc_send_delete_link(struct smc_link *link,
-			     enum smc_llc_reqresp reqresp);
+			     enum smc_llc_reqresp reqresp, bool orderly);
 int smc_llc_link_init(struct smc_link *link);
 void smc_llc_link_active(struct smc_link *link, int testlink_time);
+void smc_llc_link_deleting(struct smc_link *link);
 void smc_llc_link_inactive(struct smc_link *link);
 void smc_llc_link_clear(struct smc_link *link);
 int smc_llc_do_confirm_rkey(struct smc_link *link,

@@ -28,15 +28,21 @@
 #define SMC_TYPE_B		3		/* SMC-R and SMC-D	      */
 #define CLC_WAIT_TIME		(6 * HZ)	/* max. wait time on clcsock  */
 #define SMC_CLC_DECL_MEM	0x01010000  /* insufficient memory resources  */
-#define SMC_CLC_DECL_TIMEOUT	0x02000000  /* timeout                        */
+#define SMC_CLC_DECL_TIMEOUT_CL	0x02010000  /* timeout w4 QP confirm link     */
+#define SMC_CLC_DECL_TIMEOUT_AL	0x02020000  /* timeout w4 QP add link	      */
 #define SMC_CLC_DECL_CNFERR	0x03000000  /* configuration error            */
-#define SMC_CLC_DECL_IPSEC	0x03030000  /* IPsec usage                    */
+#define SMC_CLC_DECL_PEERNOSMC	0x03010000  /* peer did not indicate SMC      */
+#define SMC_CLC_DECL_IPSEC	0x03020000  /* IPsec usage		      */
+#define SMC_CLC_DECL_NOSMCDEV	0x03030000  /* no SMC device found	      */
+#define SMC_CLC_DECL_MODEUNSUPP	0x03040000  /* smc modes do not match (R or D)*/
+#define SMC_CLC_DECL_RMBE_EC	0x03050000  /* peer has eyecatcher in RMBE    */
+#define SMC_CLC_DECL_OPTUNSUPP	0x03060000  /* fastopen sockopt not supported */
 #define SMC_CLC_DECL_SYNCERR	0x04000000  /* synchronization error          */
-#define SMC_CLC_DECL_REPLY	0x06000000  /* reply to a received decline    */
+#define SMC_CLC_DECL_PEERDECL	0x05000000  /* peer declined during handshake */
 #define SMC_CLC_DECL_INTERR	0x99990000  /* internal error                 */
-#define SMC_CLC_DECL_TCL	0x02040000  /* timeout w4 QP confirm          */
-#define SMC_CLC_DECL_SEND	0x07000000  /* sending problem                */
-#define SMC_CLC_DECL_RMBE_EC	0x08000000  /* peer has eyecatcher in RMBE    */
+#define SMC_CLC_DECL_ERR_RTOK	0x99990001  /*	 rtoken handling failed       */
+#define SMC_CLC_DECL_ERR_RDYLNK	0x99990002  /*	 ib ready link failed	      */
+#define SMC_CLC_DECL_ERR_REGRMB	0x99990003  /*	 reg rmb failed		      */
 
 struct smc_clc_msg_hdr {	/* header1 of clc messages */
 	u8 eyecatcher[4];	/* eye catcher */
@@ -179,7 +185,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type);
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
 int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
-			  struct smc_ib_device *smcibdev, u8 ibport,
+			  struct smc_ib_device *smcibdev, u8 ibport, u8 gid[],
 			  struct smcd_dev *ismdev);
 int smc_clc_send_confirm(struct smc_sock *smc);
 int smc_clc_send_accept(struct smc_sock *smc, int srv_first_contact);

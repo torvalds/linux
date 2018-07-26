@@ -79,6 +79,7 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 			   struct nlattr *bc)
 {
 	struct smc_sock *smc = smc_sk(sk);
+	struct smc_diag_fallback fallback;
 	struct user_namespace *user_ns;
 	struct smc_diag_msg *r;
 	struct nlmsghdr *nlh;
@@ -99,6 +100,11 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 		r->diag_mode = SMC_DIAG_MODE_SMCR;
 	user_ns = sk_user_ns(NETLINK_CB(cb->skb).sk);
 	if (smc_diag_msg_attrs_fill(sk, skb, r, user_ns))
+		goto errout;
+
+	fallback.reason = smc->fallback_rsn;
+	fallback.peer_diagnosis = smc->peer_diagnosis;
+	if (nla_put(skb, SMC_DIAG_FALLBACK, sizeof(fallback), &fallback) < 0)
 		goto errout;
 
 	if ((req->diag_ext & (1 << (SMC_DIAG_CONNINFO - 1))) &&
@@ -154,7 +160,7 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 		       smc->conn.lgr->lnk[0].smcibdev->ibdev->name,
 		       sizeof(smc->conn.lgr->lnk[0].smcibdev->ibdev->name));
 		smc_gid_be16_convert(linfo.lnk[0].gid,
-				     smc->conn.lgr->lnk[0].gid.raw);
+				     smc->conn.lgr->lnk[0].gid);
 		smc_gid_be16_convert(linfo.lnk[0].peer_gid,
 				     smc->conn.lgr->lnk[0].peer_gid);
 
