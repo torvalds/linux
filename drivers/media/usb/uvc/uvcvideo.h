@@ -12,6 +12,7 @@
 #include <linux/usb/video.h>
 #include <linux/uvcvideo.h>
 #include <linux/videodev2.h>
+#include <linux/workqueue.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -259,6 +260,8 @@ struct uvc_control {
 	   initialized:1;
 
 	u8 *uvc_data;
+
+	struct uvc_fh *handle;	/* File handle that last changed the control. */
 };
 
 struct uvc_format_desc {
@@ -603,6 +606,14 @@ struct uvc_device {
 	u8 *status;
 	struct input_dev *input;
 	char input_phys[64];
+
+	struct uvc_ctrl_work {
+		struct work_struct work;
+		struct urb *urb;
+		struct uvc_video_chain *chain;
+		struct uvc_control *ctrl;
+		const void *data;
+	} async_ctrl;
 };
 
 enum uvc_handle_state {
@@ -756,6 +767,8 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 int uvc_ctrl_init_device(struct uvc_device *dev);
 void uvc_ctrl_cleanup_device(struct uvc_device *dev);
 int uvc_ctrl_restore_values(struct uvc_device *dev);
+bool uvc_ctrl_status_event(struct urb *urb, struct uvc_video_chain *chain,
+			   struct uvc_control *ctrl, const u8 *data);
 
 int uvc_ctrl_begin(struct uvc_video_chain *chain);
 int __uvc_ctrl_commit(struct uvc_fh *handle, int rollback,
@@ -773,7 +786,7 @@ static inline int uvc_ctrl_rollback(struct uvc_fh *handle)
 }
 
 int uvc_ctrl_get(struct uvc_video_chain *chain, struct v4l2_ext_control *xctrl);
-int uvc_ctrl_set(struct uvc_video_chain *chain, struct v4l2_ext_control *xctrl);
+int uvc_ctrl_set(struct uvc_fh *handle, struct v4l2_ext_control *xctrl);
 
 int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 		      struct uvc_xu_control_query *xqry);

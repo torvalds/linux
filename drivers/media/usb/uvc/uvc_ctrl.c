@@ -20,6 +20,7 @@
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 #include <linux/atomic.h>
 #include <media/v4l2-ctrls.h>
 
@@ -971,12 +972,30 @@ static int uvc_ctrl_populate_cache(struct uvc_video_chain *chain,
 	return 0;
 }
 
+static s32 __uvc_ctrl_get_value(struct uvc_control_mapping *mapping,
+				const u8 *data)
+{
+	s32 value = mapping->get(mapping, UVC_GET_CUR, data);
+
+	if (mapping->v4l2_type == V4L2_CTRL_TYPE_MENU) {
+		struct uvc_menu_info *menu = mapping->menu_info;
+		unsigned int i;
+
+		for (i = 0; i < mapping->menu_count; ++i, ++menu) {
+			if (menu->value == value) {
+				value = i;
+				break;
+			}
+		}
+	}
+
+	return value;
+}
+
 static int __uvc_ctrl_get(struct uvc_video_chain *chain,
 	struct uvc_control *ctrl, struct uvc_control_mapping *mapping,
 	s32 *value)
 {
-	struct uvc_menu_info *menu;
-	unsigned int i;
 	int ret;
 
 	if ((ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR) == 0)
@@ -993,18 +1012,8 @@ static int __uvc_ctrl_get(struct uvc_video_chain *chain,
 		ctrl->loaded = 1;
 	}
 
-	*value = mapping->get(mapping, UVC_GET_CUR,
-		uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
-
-	if (mapping->v4l2_type == V4L2_CTRL_TYPE_MENU) {
-		menu = mapping->menu_info;
-		for (i = 0; i < mapping->menu_count; ++i, ++menu) {
-			if (menu->value == *value) {
-				*value = i;
-				break;
-			}
-		}
-	}
+	*value = __uvc_ctrl_get_value(mapping,
+				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
 
 	return 0;
 }
@@ -1216,53 +1225,135 @@ static void uvc_ctrl_fill_event(struct uvc_video_chain *chain,
 	ev->u.ctrl.default_value = v4l2_ctrl.default_value;
 }
 
-static void uvc_ctrl_send_event(struct uvc_fh *handle,
-	struct uvc_control *ctrl, struct uvc_control_mapping *mapping,
-	s32 value, u32 changes)
+/*
+ * Send control change events to all subscribers for the @ctrl control. By
+ * default the subscriber that generated the event, as identified by @handle,
+ * is not notified unless it has set the V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK flag.
+ * @handle can be NULL for asynchronous events related to auto-update controls,
+ * in which case all subscribers are notified.
+ */
+static void uvc_ctrl_send_event(struct uvc_video_chain *chain,
+	struct uvc_fh *handle, struct uvc_control *ctrl,
+	struct uvc_control_mapping *mapping, s32 value, u32 changes)
 {
+	struct v4l2_fh *originator = handle ? &handle->vfh : NULL;
 	struct v4l2_subscribed_event *sev;
 	struct v4l2_event ev;
 
 	if (list_empty(&mapping->ev_subs))
 		return;
 
-	uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, value, changes);
+	uvc_ctrl_fill_event(chain, &ev, ctrl, mapping, value, changes);
 
 	list_for_each_entry(sev, &mapping->ev_subs, node) {
-		if (sev->fh != &handle->vfh ||
+		if (sev->fh != originator ||
 		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK) ||
 		    (changes & V4L2_EVENT_CTRL_CH_FLAGS))
 			v4l2_event_queue_fh(sev->fh, &ev);
 	}
 }
 
-static void uvc_ctrl_send_slave_event(struct uvc_fh *handle,
-	struct uvc_control *master, u32 slave_id,
-	const struct v4l2_ext_control *xctrls, unsigned int xctrls_count)
+/*
+ * Send control change events for the slave of the @master control identified
+ * by the V4L2 ID @slave_id. The @handle identifies the event subscriber that
+ * generated the event and may be NULL for auto-update events.
+ */
+static void uvc_ctrl_send_slave_event(struct uvc_video_chain *chain,
+	struct uvc_fh *handle, struct uvc_control *master, u32 slave_id)
 {
 	struct uvc_control_mapping *mapping = NULL;
 	struct uvc_control *ctrl = NULL;
 	u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
-	unsigned int i;
 	s32 val = 0;
-
-	/*
-	 * We can skip sending an event for the slave if the slave
-	 * is being modified in the same transaction.
-	 */
-	for (i = 0; i < xctrls_count; i++) {
-		if (xctrls[i].id == slave_id)
-			return;
-	}
 
 	__uvc_find_control(master->entity, slave_id, &mapping, &ctrl, 0);
 	if (ctrl == NULL)
 		return;
 
-	if (__uvc_ctrl_get(handle->chain, ctrl, mapping, &val) == 0)
+	if (__uvc_ctrl_get(chain, ctrl, mapping, &val) == 0)
 		changes |= V4L2_EVENT_CTRL_CH_VALUE;
 
-	uvc_ctrl_send_event(handle, ctrl, mapping, val, changes);
+	uvc_ctrl_send_event(chain, handle, ctrl, mapping, val, changes);
+}
+
+static void uvc_ctrl_status_event_work(struct work_struct *work)
+{
+	struct uvc_device *dev = container_of(work, struct uvc_device,
+					      async_ctrl.work);
+	struct uvc_ctrl_work *w = &dev->async_ctrl;
+	struct uvc_video_chain *chain = w->chain;
+	struct uvc_control_mapping *mapping;
+	struct uvc_control *ctrl = w->ctrl;
+	struct uvc_fh *handle;
+	unsigned int i;
+	int ret;
+
+	mutex_lock(&chain->ctrl_mutex);
+
+	handle = ctrl->handle;
+	ctrl->handle = NULL;
+
+	list_for_each_entry(mapping, &ctrl->info.mappings, list) {
+		s32 value = __uvc_ctrl_get_value(mapping, w->data);
+
+		/*
+		 * handle may be NULL here if the device sends auto-update
+		 * events without a prior related control set from userspace.
+		 */
+		for (i = 0; i < ARRAY_SIZE(mapping->slave_ids); ++i) {
+			if (!mapping->slave_ids[i])
+				break;
+
+			uvc_ctrl_send_slave_event(chain, handle, ctrl,
+						  mapping->slave_ids[i]);
+		}
+
+		uvc_ctrl_send_event(chain, handle, ctrl, mapping, value,
+				    V4L2_EVENT_CTRL_CH_VALUE);
+	}
+
+	mutex_unlock(&chain->ctrl_mutex);
+
+	/* Resubmit the URB. */
+	w->urb->interval = dev->int_ep->desc.bInterval;
+	ret = usb_submit_urb(w->urb, GFP_KERNEL);
+	if (ret < 0)
+		uvc_printk(KERN_ERR, "Failed to resubmit status URB (%d).\n",
+			   ret);
+}
+
+bool uvc_ctrl_status_event(struct urb *urb, struct uvc_video_chain *chain,
+			   struct uvc_control *ctrl, const u8 *data)
+{
+	struct uvc_device *dev = chain->dev;
+	struct uvc_ctrl_work *w = &dev->async_ctrl;
+
+	if (list_empty(&ctrl->info.mappings)) {
+		ctrl->handle = NULL;
+		return false;
+	}
+
+	w->data = data;
+	w->urb = urb;
+	w->chain = chain;
+	w->ctrl = ctrl;
+
+	schedule_work(&w->work);
+
+	return true;
+}
+
+static bool uvc_ctrl_xctrls_has_control(const struct v4l2_ext_control *xctrls,
+					unsigned int xctrls_count, u32 id)
+{
+	unsigned int i;
+
+	for (i = 0; i < xctrls_count; ++i) {
+		if (xctrls[i].id == id)
+			return true;
+	}
+
+	return false;
 }
 
 static void uvc_ctrl_send_events(struct uvc_fh *handle,
@@ -1277,29 +1368,39 @@ static void uvc_ctrl_send_events(struct uvc_fh *handle,
 	for (i = 0; i < xctrls_count; ++i) {
 		ctrl = uvc_find_control(handle->chain, xctrls[i].id, &mapping);
 
+		if (ctrl->info.flags & UVC_CTRL_FLAG_ASYNCHRONOUS)
+			/* Notification will be sent from an Interrupt event. */
+			continue;
+
 		for (j = 0; j < ARRAY_SIZE(mapping->slave_ids); ++j) {
-			if (!mapping->slave_ids[j])
+			u32 slave_id = mapping->slave_ids[j];
+
+			if (!slave_id)
 				break;
-			uvc_ctrl_send_slave_event(handle, ctrl,
-						  mapping->slave_ids[j],
-						  xctrls, xctrls_count);
+
+			/*
+			 * We can skip sending an event for the slave if the
+			 * slave is being modified in the same transaction.
+			 */
+			if (uvc_ctrl_xctrls_has_control(xctrls, xctrls_count,
+							slave_id))
+				continue;
+
+			uvc_ctrl_send_slave_event(handle->chain, handle, ctrl,
+						  slave_id);
 		}
 
 		/*
 		 * If the master is being modified in the same transaction
 		 * flags may change too.
 		 */
-		if (mapping->master_id) {
-			for (j = 0; j < xctrls_count; j++) {
-				if (xctrls[j].id == mapping->master_id) {
-					changes |= V4L2_EVENT_CTRL_CH_FLAGS;
-					break;
-				}
-			}
-		}
+		if (mapping->master_id &&
+		    uvc_ctrl_xctrls_has_control(xctrls, xctrls_count,
+						mapping->master_id))
+			changes |= V4L2_EVENT_CTRL_CH_FLAGS;
 
-		uvc_ctrl_send_event(handle, ctrl, mapping, xctrls[i].value,
-				    changes);
+		uvc_ctrl_send_event(handle->chain, handle, ctrl, mapping,
+				    xctrls[i].value, changes);
 	}
 }
 
@@ -1472,9 +1573,10 @@ int uvc_ctrl_get(struct uvc_video_chain *chain,
 	return __uvc_ctrl_get(chain, ctrl, mapping, &xctrl->value);
 }
 
-int uvc_ctrl_set(struct uvc_video_chain *chain,
+int uvc_ctrl_set(struct uvc_fh *handle,
 	struct v4l2_ext_control *xctrl)
 {
+	struct uvc_video_chain *chain = handle->chain;
 	struct uvc_control *ctrl;
 	struct uvc_control_mapping *mapping;
 	s32 value;
@@ -1581,6 +1683,9 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 	mapping->set(mapping, value,
 		uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
 
+	if (ctrl->info.flags & UVC_CTRL_FLAG_ASYNCHRONOUS)
+		ctrl->handle = handle;
+
 	ctrl->dirty = 1;
 	ctrl->modified = 1;
 	return 0;
@@ -1612,7 +1717,9 @@ static int uvc_ctrl_get_flags(struct uvc_device *dev,
 			    |  (data[0] & UVC_CONTROL_CAP_SET ?
 				UVC_CTRL_FLAG_SET_CUR : 0)
 			    |  (data[0] & UVC_CONTROL_CAP_AUTOUPDATE ?
-				UVC_CTRL_FLAG_AUTO_UPDATE : 0);
+				UVC_CTRL_FLAG_AUTO_UPDATE : 0)
+			    |  (data[0] & UVC_CONTROL_CAP_ASYNCHRONOUS ?
+				UVC_CTRL_FLAG_ASYNCHRONOUS : 0);
 
 	kfree(data);
 	return ret;
@@ -2173,6 +2280,8 @@ int uvc_ctrl_init_device(struct uvc_device *dev)
 	struct uvc_entity *entity;
 	unsigned int i;
 
+	INIT_WORK(&dev->async_ctrl.work, uvc_ctrl_status_event_work);
+
 	/* Walk the entities list and instantiate controls */
 	list_for_each_entry(entity, &dev->entities, list) {
 		struct uvc_control *ctrl;
@@ -2240,6 +2349,8 @@ void uvc_ctrl_cleanup_device(struct uvc_device *dev)
 {
 	struct uvc_entity *entity;
 	unsigned int i;
+
+	cancel_work_sync(&dev->async_ctrl.work);
 
 	/* Free controls and control mappings for all entities. */
 	list_for_each_entry(entity, &dev->entities, list) {
