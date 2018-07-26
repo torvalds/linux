@@ -1008,7 +1008,7 @@ static struct mlxreg_core_platform_data mlxplat_default_regs_io_data = {
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_regs_io_data),
 };
 
-/* Platform register access MSN21xx, MSN201x systems families data */
+/* Platform register access MSN21xx, MSN201x, MSN274x systems families data */
 static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_regs_io_data[] = {
 	{
 		.label = "cpld1_version",
@@ -1405,7 +1405,7 @@ static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
 	mlxplat_hotplug->deferred_nr =
 		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_default_led_data;
-	mlxplat_regs_io = &mlxplat_default_regs_io_data;
+	mlxplat_regs_io = &mlxplat_msn21xx_regs_io_data;
 
 	return 1;
 };
