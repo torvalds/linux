@@ -791,8 +791,10 @@ static void rcu_flavor_check_callbacks(int user)
 	if (t->rcu_read_lock_nesting > 0 ||
 	    (preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK))) {
 		/* No QS, force context switch if deferred. */
-		if (rcu_preempt_need_deferred_qs(t))
-			resched_cpu(smp_processor_id());
+		if (rcu_preempt_need_deferred_qs(t)) {
+			set_tsk_need_resched(t);
+			set_preempt_need_resched();
+		}
 	} else if (rcu_preempt_need_deferred_qs(t)) {
 		rcu_preempt_deferred_qs(t); /* Report deferred QS. */
 		return;

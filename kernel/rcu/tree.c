@@ -1354,7 +1354,8 @@ static void print_cpu_stall(void)
 	 * progress and it could be we're stuck in kernel space without context
 	 * switches for an entirely unreasonable amount of time.
 	 */
-	resched_cpu(smp_processor_id());
+	set_tsk_need_resched(current);
+	set_preempt_need_resched();
 }
 
 static void check_cpu_stall(struct rcu_data *rdp)
@@ -2675,10 +2676,12 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 	WARN_ON_ONCE(!rdp->beenonline);
 
 	/* Report any deferred quiescent states if preemption enabled. */
-	if (!(preempt_count() & PREEMPT_MASK))
+	if (!(preempt_count() & PREEMPT_MASK)) {
 		rcu_preempt_deferred_qs(current);
-	else if (rcu_preempt_need_deferred_qs(current))
-		resched_cpu(rdp->cpu); /* Provoke future context switch. */
+	} else if (rcu_preempt_need_deferred_qs(current)) {
+		set_tsk_need_resched(current);
+		set_preempt_need_resched();
+	}
 
 	/* Update RCU state based on any recent quiescent states. */
 	rcu_check_quiescent_state(rdp);

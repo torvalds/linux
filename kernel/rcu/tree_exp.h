@@ -672,7 +672,8 @@ static void sync_rcu_exp_handler(void *unused)
 			rcu_report_exp_rdp(rdp);
 		} else {
 			rdp->deferred_qs = true;
-			resched_cpu(rdp->cpu);
+			set_tsk_need_resched(t);
+			set_preempt_need_resched();
 		}
 		return;
 	}
@@ -710,15 +711,16 @@ static void sync_rcu_exp_handler(void *unused)
 	 * because we are in an interrupt handler, which will cause that
 	 * function to take an early exit without doing anything.
 	 *
-	 * Otherwise, use resched_cpu() to force a context switch after
-	 * the CPU enables everything.
+	 * Otherwise, force a context switch after the CPU enables everything.
 	 */
 	rdp->deferred_qs = true;
 	if (!(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK)) ||
-	    WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs()))
+	    WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs())) {
 		rcu_preempt_deferred_qs(t);
-	else
-		resched_cpu(rdp->cpu);
+	} else {
+		set_tsk_need_resched(t);
+		set_preempt_need_resched();
+	}
 }
 
 /* PREEMPT=y, so no PREEMPT=n expedited grace period to clean up after. */
@@ -779,7 +781,8 @@ static void sync_sched_exp_handler(void *unused)
 	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
 	/* Store .exp before .rcu_urgent_qs. */
 	smp_store_release(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs), true);
-	resched_cpu(smp_processor_id());
+	set_tsk_need_resched(current);
+	set_preempt_need_resched();
 }
 
 /* Send IPI for expedited cleanup if needed at end of CPU-hotplug operation. */
