@@ -47,7 +47,6 @@ static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
 	p->max_transfer_size = 65535;
 	p->max_packet_count = 511;
 	p->ahbcfg = 0x10;
-	p->uframe_sched = false;
 }
 
 static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
