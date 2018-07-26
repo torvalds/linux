@@ -3372,10 +3372,6 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 
 	/* 7. Setup MBUS. */
 	icl_mbus_init(dev_priv);
-
-	/* 8. CHICKEN_DCPR_1 */
-	I915_WRITE(GEN8_CHICKEN_DCPR_1, I915_READ(GEN8_CHICKEN_DCPR_1) |
-					CNL_DDI_CLOCK_REG_ACCESS_ON);
 }
 
 static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
