@@ -211,7 +211,7 @@
 
 &hdmi {
 	status = "okay";
-	ddc = <&i2c_2>;
+	ddc = <&i2c_ddc>;
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_LOW>;
 	vdd_osc-supply = <&ldo10_reg>;
 	vdd_pll-supply = <&ldo8_reg>;
@@ -513,13 +513,6 @@
 	};
 };
 
-&i2c_2 {
-	status = "okay";
-	/* used by HDMI DDC */
-	samsung,i2c-sda-delay = <100>;
-	samsung,i2c-max-bus-freq = <66000>;
-};
-
 &i2c_3 {
 	status = "okay";
 
@@ -607,4 +600,23 @@
 &sata_phy {
 	status = "okay";
 	samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+};
+
+&soc {
+	/*
+	 * For unknown reasons HDMI-DDC does not work with Exynos I2C
+	 * controllers. Lets use software I2C over GPIO pins as a workaround.
+	 */
+	i2c_ddc: i2c-gpio {
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_gpio_bus>;
+		status = "okay";
+		compatible = "i2c-gpio";
+		gpios = <&gpa0 6 0 /* sda */
+			 &gpa0 7 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 };
