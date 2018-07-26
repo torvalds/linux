@@ -888,7 +888,7 @@ static void qedi_get_boot_tgt_info(struct nvm_iscsi_block *block,
 	ipv6_en = !!(block->generic.ctrl_flags &
 		     NVM_ISCSI_CFG_GEN_IPV6_ENABLED);
 
-	snprintf(tgt->iscsi_name, NVM_ISCSI_CFG_ISCSI_NAME_MAX_LEN, "%s\n",
+	snprintf(tgt->iscsi_name, sizeof(tgt->iscsi_name), "%s\n",
 		 block->target[index].target_name.byte);
 
 	tgt->ipv6_en = ipv6_en;
