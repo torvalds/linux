@@ -113,6 +113,7 @@ static int read_inode(struct inode *inode, void *data)
 static int fill_inline_data(struct inode *inode, void *data, unsigned m_pofs)
 {
 	struct erofs_vnode *vi = EROFS_V(inode);
+	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
 	int mode = vi->data_mapping_mode;
 
 	DBG_BUGON(mode >= EROFS_INODE_LAYOUT_MAX);
@@ -123,7 +124,7 @@ static int fill_inline_data(struct inode *inode, void *data, unsigned m_pofs)
 
 	/* fast symlink (following ext4) */
 	if (S_ISLNK(inode->i_mode) && inode->i_size < PAGE_SIZE) {
-		char *lnk = kmalloc(inode->i_size + 1, GFP_KERNEL);
+		char *lnk = erofs_kmalloc(sbi, inode->i_size + 1, GFP_KERNEL);
 
 		if (unlikely(lnk == NULL))
 			return -ENOMEM;

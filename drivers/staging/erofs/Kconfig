@@ -71,3 +71,9 @@ config EROFS_FS_USE_VM_MAP_RAM
 
 	  If you don't know what these are, say N.
 
+config EROFS_FAULT_INJECTION
+	bool "EROFS fault injection facility"
+	depends on EROFS_FS
+	help
+	  Test EROFS to inject faults such as ENOMEM, EIO, and so on.
+	  If unsure, say N.
