@@ -3329,7 +3329,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	i915->caps.scheduler = 0;
 
 	/* Even if the GPU reset fails, it should still stop the engines */
-	intel_gpu_reset(i915, ALL_ENGINES);
+	if (INTEL_GEN(i915) >= 5)
+		intel_gpu_reset(i915, ALL_ENGINES);
 
 	/*
 	 * Make sure no one is running the old callback before we proceed with
