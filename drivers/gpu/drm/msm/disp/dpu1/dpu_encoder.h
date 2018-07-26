@@ -140,14 +140,6 @@ enum dpu_intf_mode dpu_encoder_get_intf_mode(struct drm_encoder *encoder);
 void dpu_encoder_virt_restore(struct drm_encoder *encoder);
 
 /**
- * dpu_encoder_check_mode - check if given mode is supported or not
- * @drm_enc: Pointer to drm encoder object
- * @mode: Mode to be checked
- * @Return: true if it is cmd mode
- */
-bool dpu_encoder_check_mode(struct drm_encoder *drm_enc, u32 mode);
-
-/**
  * dpu_encoder_init - initialize virtual encoder object
  * @dev:        Pointer to drm device structure
  * @disp_info:  Pointer to display information structure

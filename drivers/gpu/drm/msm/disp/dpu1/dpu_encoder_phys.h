@@ -403,15 +403,6 @@ void dpu_encoder_helper_split_config(
 		enum dpu_intf interface);
 
 /**
- * dpu_encoder_helper_hw_release - prepare for h/w reset during disable
- * @phys_enc: Pointer to physical encoder structure
- * @fb: Optional fb for specifying new mixer output resolution, may be NULL
- * Return: Zero on success
- */
-int dpu_encoder_helper_hw_release(struct dpu_encoder_phys *phys_enc,
-		struct drm_framebuffer *fb);
-
-/**
  * dpu_encoder_helper_report_irq_timeout - utility to report error that irq has
  *	timed out, including reporting frame error event to crtc and debug dump
  * @phys_enc: Pointer to physical encoder structure

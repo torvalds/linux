@@ -1627,22 +1627,6 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc)
 	spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
 }
 
-bool dpu_encoder_check_mode(struct drm_encoder *drm_enc, u32 mode)
-{
-	struct dpu_encoder_virt *dpu_enc;
-	struct msm_display_info *disp_info;
-
-	if (!drm_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return false;
-	}
-
-	dpu_enc = to_dpu_encoder_virt(drm_enc);
-	disp_info = &dpu_enc->disp_info;
-
-	return (disp_info->capabilities & mode);
-}
-
 void dpu_encoder_trigger_kickoff_pending(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -1901,70 +1885,6 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
 	}
 
 	DPU_ATRACE_END("encoder_kickoff");
-}
-
-int dpu_encoder_helper_hw_release(struct dpu_encoder_phys *phys_enc,
-		struct drm_framebuffer *fb)
-{
-	struct drm_encoder *drm_enc;
-	struct dpu_hw_mixer_cfg mixer;
-	struct dpu_rm_hw_iter lm_iter;
-	bool lm_valid = false;
-
-	if (!phys_enc || !phys_enc->parent) {
-		DPU_ERROR("invalid encoder\n");
-		return -EINVAL;
-	}
-
-	drm_enc = phys_enc->parent;
-	memset(&mixer, 0, sizeof(mixer));
-
-	/* reset associated CTL/LMs */
-	if (phys_enc->hw_ctl->ops.clear_pending_flush)
-		phys_enc->hw_ctl->ops.clear_pending_flush(phys_enc->hw_ctl);
-	if (phys_enc->hw_ctl->ops.clear_all_blendstages)
-		phys_enc->hw_ctl->ops.clear_all_blendstages(phys_enc->hw_ctl);
-
-	dpu_rm_init_hw_iter(&lm_iter, drm_enc->base.id, DPU_HW_BLK_LM);
-	while (dpu_rm_get_hw(&phys_enc->dpu_kms->rm, &lm_iter)) {
-		struct dpu_hw_mixer *hw_lm = (struct dpu_hw_mixer *)lm_iter.hw;
-
-		if (!hw_lm)
-			continue;
-
-		/* need to flush LM to remove it */
-		if (phys_enc->hw_ctl->ops.get_bitmask_mixer &&
-				phys_enc->hw_ctl->ops.update_pending_flush)
-			phys_enc->hw_ctl->ops.update_pending_flush(
-					phys_enc->hw_ctl,
-					phys_enc->hw_ctl->ops.get_bitmask_mixer(
-					phys_enc->hw_ctl, hw_lm->idx));
-
-		if (fb) {
-			/* assume a single LM if targeting a frame buffer */
-			if (lm_valid)
-				continue;
-
-			mixer.out_height = fb->height;
-			mixer.out_width = fb->width;
-
-			if (hw_lm->ops.setup_mixer_out)
-				hw_lm->ops.setup_mixer_out(hw_lm, &mixer);
-		}
-
-		lm_valid = true;
-
-		/* only enable border color on LM */
-		if (phys_enc->hw_ctl->ops.setup_blendstage)
-			phys_enc->hw_ctl->ops.setup_blendstage(
-					phys_enc->hw_ctl, hw_lm->idx, NULL);
-	}
-
-	if (!lm_valid) {
-		DPU_DEBUG_ENC(to_dpu_encoder_virt(drm_enc), "lm not found\n");
-		return -EFAULT;
-	}
-	return 0;
 }
 
 void dpu_encoder_prepare_commit(struct drm_encoder *drm_enc)
