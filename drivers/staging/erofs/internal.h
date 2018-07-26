@@ -262,6 +262,9 @@ static inline void erofs_workstation_cleanup_all(struct super_block *sb)
 #ifdef CONFIG_EROFS_FS_ZIP
 /* hard limit of pages per compressed cluster */
 #define Z_EROFS_CLUSTER_MAX_PAGES       (CONFIG_EROFS_FS_CLUSTER_PAGE_LIMIT)
+
+/* page count of a compressed cluster */
+#define erofs_clusterpages(sbi)         ((1 << (sbi)->clusterbits) / PAGE_SIZE)
 #endif
 
 typedef u64 erofs_off_t;
@@ -340,6 +343,9 @@ extern const struct inode_operations erofs_dir_iops;
 extern const struct file_operations erofs_dir_fops;
 
 extern const struct address_space_operations erofs_raw_access_aops;
+#ifdef CONFIG_EROFS_FS_ZIP
+extern const struct address_space_operations z_erofs_vle_normalaccess_aops;
+#endif
 
 /*
  * Logical to physical block mapping, used by erofs_map_blocks()

@@ -12,6 +12,7 @@
  */
 
 #include "internal.h"
+#include <linux/pagevec.h>
 
 struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp)
 {
@@ -98,11 +99,69 @@ int erofs_register_workgroup(struct super_block *sb,
 	return err;
 }
 
+extern void erofs_workgroup_free_rcu(struct erofs_workgroup *grp);
+
+int erofs_workgroup_put(struct erofs_workgroup *grp)
+{
+	int count = atomic_dec_return(&grp->refcount);
+
+	if (count == 1)
+		atomic_long_inc(&erofs_global_shrink_cnt);
+	else if (!count) {
+		atomic_long_dec(&erofs_global_shrink_cnt);
+		erofs_workgroup_free_rcu(grp);
+	}
+	return count;
+}
+
 unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 				       unsigned long nr_shrink,
 				       bool cleanup)
 {
-	return 0;
+	pgoff_t first_index = 0;
+	void *batch[PAGEVEC_SIZE];
+	unsigned freed = 0;
+
+	int i, found;
+repeat:
+	erofs_workstn_lock(sbi);
+
+	found = radix_tree_gang_lookup(&sbi->workstn_tree,
+		batch, first_index, PAGEVEC_SIZE);
+
+	for (i = 0; i < found; ++i) {
+		int cnt;
+		struct erofs_workgroup *grp = (void *)
+			((unsigned long)batch[i] &
+				~RADIX_TREE_EXCEPTIONAL_ENTRY);
+
+		first_index = grp->index + 1;
+
+		cnt = atomic_read(&grp->refcount);
+		BUG_ON(cnt <= 0);
+
+		if (cleanup)
+			BUG_ON(cnt != 1);
+
+		else if (cnt > 1)
+			continue;
+
+		if (radix_tree_delete(&sbi->workstn_tree,
+			grp->index) != grp)
+			continue;
+
+		/* (rarely) grabbed again when freeing */
+		erofs_workgroup_put(grp);
+
+		++freed;
+		if (unlikely(!--nr_shrink))
+			break;
+	}
+	erofs_workstn_unlock(sbi);
+
+	if (i && nr_shrink)
+		goto repeat;
+	return freed;
 }
 
 #endif
