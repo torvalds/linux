@@ -338,6 +338,7 @@ static struct vm_area_struct gate_vma = {
 
 static int __init gate_vma_init(void)
 {
+	vma_init(&gate_vma, NULL);
 	gate_vma.vm_page_prot = PAGE_READONLY_EXEC;
 	return 0;
 }
