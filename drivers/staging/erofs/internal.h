@@ -72,6 +72,10 @@ struct erofs_sb_info {
 
 	/* inode slot unit size in bit shift */
 	unsigned char islotbits;
+#ifdef CONFIG_EROFS_FS_ZIP
+	/* cluster size in bit shift */
+	unsigned char clusterbits;
+#endif
 
 	u32 build_time_nsec;
 	u64 build_time;
@@ -284,6 +288,14 @@ struct erofs_map_blocks {
 extern struct page *erofs_get_meta_page(struct super_block *sb,
 	erofs_blk_t blkaddr, bool prio);
 extern int erofs_map_blocks(struct inode *, struct erofs_map_blocks *, int);
+extern int erofs_map_blocks_iter(struct inode *, struct erofs_map_blocks *,
+	struct page **, int);
+
+struct erofs_map_blocks_iter {
+	struct erofs_map_blocks map;
+	struct page *mpage;
+};
+
 
 static inline struct page *erofs_get_inline_page(struct inode *inode,
 	erofs_blk_t blkaddr)

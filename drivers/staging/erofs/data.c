@@ -157,12 +157,44 @@ out:
 	return 0;
 }
 
+#ifdef CONFIG_EROFS_FS_ZIP
+extern int z_erofs_map_blocks_iter(struct inode *,
+	struct erofs_map_blocks *, struct page **, int);
+#endif
+
+int erofs_map_blocks_iter(struct inode *inode,
+	struct erofs_map_blocks *map,
+	struct page **mpage_ret, int flags)
+{
+	/* by default, reading raw data never use erofs_map_blocks_iter */
+	if (unlikely(!is_inode_layout_compression(inode))) {
+		if (*mpage_ret != NULL)
+			put_page(*mpage_ret);
+		*mpage_ret = NULL;
+
+		return erofs_map_blocks(inode, map, flags);
+	}
+
+#ifdef CONFIG_EROFS_FS_ZIP
+	return z_erofs_map_blocks_iter(inode, map, mpage_ret, flags);
+#else
+	/* data compression is not available */
+	return -ENOTSUPP;
+#endif
+}
+
 int erofs_map_blocks(struct inode *inode,
 	struct erofs_map_blocks *map, int flags)
 {
-	if (unlikely(is_inode_layout_compression(inode)))
-		return -ENOTSUPP;
+	if (unlikely(is_inode_layout_compression(inode))) {
+		struct page *mpage = NULL;
+		int err;
 
+		err = erofs_map_blocks_iter(inode, map, &mpage, flags);
+		if (mpage != NULL)
+			put_page(mpage);
+		return err;
+	}
 	return erofs_map_blocks_flatmode(inode, map, flags);
 }
 

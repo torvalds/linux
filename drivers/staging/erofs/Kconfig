@@ -77,3 +77,13 @@ config EROFS_FAULT_INJECTION
 	help
 	  Test EROFS to inject faults such as ENOMEM, EIO, and so on.
 	  If unsure, say N.
+
+config EROFS_FS_ZIP
+	bool "EROFS Data Compresssion Support"
+	depends on EROFS_FS
+	help
+	  Currently we support VLE Compression only.
+	  Play at your own risk.
+
+	  If you don't want to use compression feature, say N.
+
