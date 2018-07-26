@@ -380,11 +380,23 @@ nfp_bpf_map_alloc(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 			bpf->maps.max_elems - bpf->map_elems_in_use);
 		return -ENOMEM;
 	}
-	if (offmap->map.key_size > bpf->maps.max_key_sz ||
-	    offmap->map.value_size > bpf->maps.max_val_sz ||
-	    round_up(offmap->map.key_size, 8) +
+
+	if (round_up(offmap->map.key_size, 8) +
 	    round_up(offmap->map.value_size, 8) > bpf->maps.max_elem_sz) {
-		pr_info("elements don't fit in device constraints\n");
+		pr_info("map elements too large: %u, FW max element size (key+value): %u\n",
+			round_up(offmap->map.key_size, 8) +
+			round_up(offmap->map.value_size, 8),
+			bpf->maps.max_elem_sz);
+		return -ENOMEM;
+	}
+	if (offmap->map.key_size > bpf->maps.max_key_sz) {
+		pr_info("map key size %u, FW max is %u\n",
+			offmap->map.key_size, bpf->maps.max_key_sz);
+		return -ENOMEM;
+	}
+	if (offmap->map.value_size > bpf->maps.max_val_sz) {
+		pr_info("map value size %u, FW max is %u\n",
+			offmap->map.value_size, bpf->maps.max_val_sz);
 		return -ENOMEM;
 	}
 
