@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author: Mikhail Ulyanov
  * Copyright (C) 2014-2015 Cogent Embedded, Inc.  <source@cogentembedded.com>
@@ -11,10 +12,6 @@
  *      1) Rotation
  *      2) Cropping
  *      3) V4L2_CID_JPEG_ACTIVE_MARKER
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <asm/unaligned.h>
