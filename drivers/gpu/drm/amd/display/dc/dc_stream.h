@@ -136,6 +136,7 @@ struct dc_stream_update {
 	struct colorspace_transform *gamut_remap;
 	enum dc_color_space *output_color_space;
 
+	struct dc_csc_transform *output_csc_transform;
 
 };
 
@@ -305,6 +306,9 @@ void dc_stream_set_dither_option(struct dc_stream_state *stream,
 
 bool dc_stream_set_gamut_remap(struct dc *dc,
 			       const struct dc_stream_state *stream);
+
+bool dc_stream_program_csc_matrix(struct dc *dc,
+				  struct dc_stream_state *stream);
 
 bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
