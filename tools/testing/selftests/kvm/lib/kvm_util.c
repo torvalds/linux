@@ -238,8 +238,12 @@ struct vcpu *vcpu_find(struct kvm_vm *vm,
 static void vm_vcpu_rm(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int ret;
 
-	int ret = close(vcpu->fd);
+	ret = munmap(vcpu->state, sizeof(*vcpu->state));
+	TEST_ASSERT(ret == 0, "munmap of VCPU fd failed, rc: %i "
+		"errno: %i", ret, errno);
+	close(vcpu->fd);
 	TEST_ASSERT(ret == 0, "Close of VCPU fd failed, rc: %i "
 		"errno: %i", ret, errno);
 
@@ -294,6 +298,10 @@ void kvm_vm_free(struct kvm_vm *vmp)
 	ret = close(vmp->fd);
 	TEST_ASSERT(ret == 0, "Close of vm fd failed,\n"
 		"  vmp->fd: %i rc: %i errno: %i", vmp->fd, ret, errno);
+
+	close(vmp->kvm_fd);
+	TEST_ASSERT(ret == 0, "Close of /dev/kvm fd failed,\n"
+		"  vmp->kvm_fd: %i rc: %i errno: %i", vmp->kvm_fd, ret, errno);
 
 	/* Free the structure describing the VM. */
 	free(vmp);
