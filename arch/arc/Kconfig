@@ -45,6 +45,9 @@ config ARC
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZMA
 
+config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
 config MIGHT_HAVE_PCI
 	bool
 
