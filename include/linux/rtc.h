@@ -87,16 +87,11 @@ struct rtc_class_ops {
 	int (*set_offset)(struct device *, long offset);
 };
 
-typedef struct rtc_task {
-	void (*func)(void *private_data);
-	void *private_data;
-} rtc_task_t;
-
-
 struct rtc_timer {
-	struct rtc_task	task;
 	struct timerqueue_node node;
 	ktime_t period;
+	void (*func)(void *private_data);
+	void *private_data;
 	int enabled;
 };
 

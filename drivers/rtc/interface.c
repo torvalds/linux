@@ -912,8 +912,8 @@ again:
 		timerqueue_del(&rtc->timerqueue, &timer->node);
 		trace_rtc_timer_dequeue(timer);
 		timer->enabled = 0;
-		if (timer->task.func)
-			timer->task.func(timer->task.private_data);
+		if (timer->func)
+			timer->func(timer->private_data);
 
 		trace_rtc_timer_fired(timer);
 		/* Re-add/fwd periodic timers */
@@ -968,8 +968,8 @@ void rtc_timer_init(struct rtc_timer *timer, void (*f)(void *p), void *data)
 {
 	timerqueue_init(&timer->node);
 	timer->enabled = 0;
-	timer->task.func = f;
-	timer->task.private_data = data;
+	timer->func = f;
+	timer->private_data = data;
 }
 
 /* rtc_timer_start - Sets an rtc_timer to fire in the future
