@@ -1434,24 +1434,26 @@ static void prepare_write_keepalive(struct ceph_connection *con)
  * Connection negotiation.
  */
 
-static struct ceph_auth_handshake *get_connect_authorizer(struct ceph_connection *con,
-						int *auth_proto)
+static int get_connect_authorizer(struct ceph_connection *con)
 {
 	struct ceph_auth_handshake *auth;
+	int auth_proto;
 
 	if (!con->ops->get_authorizer) {
+		con->auth = NULL;
 		con->out_connect.authorizer_protocol = CEPH_AUTH_UNKNOWN;
 		con->out_connect.authorizer_len = 0;
-		return NULL;
+		return 0;
 	}
 
-	auth = con->ops->get_authorizer(con, auth_proto, con->auth_retry);
+	auth = con->ops->get_authorizer(con, &auth_proto, con->auth_retry);
 	if (IS_ERR(auth))
-		return auth;
+		return PTR_ERR(auth);
 
-	con->auth_reply_buf = auth->authorizer_reply_buf;
-	con->auth_reply_buf_len = auth->authorizer_reply_buf_len;
-	return auth;
+	con->auth = auth;
+	con->out_connect.authorizer_protocol = cpu_to_le32(auth_proto);
+	con->out_connect.authorizer_len = cpu_to_le32(auth->authorizer_buf_len);
+	return 0;
 }
 
 /*
@@ -1471,8 +1473,7 @@ static int prepare_write_connect(struct ceph_connection *con)
 {
 	unsigned int global_seq = get_global_seq(con->msgr, 0);
 	int proto;
-	int auth_proto;
-	struct ceph_auth_handshake *auth;
+	int ret;
 
 	switch (con->peer_name.type) {
 	case CEPH_ENTITY_TYPE_MON:
@@ -1499,20 +1500,15 @@ static int prepare_write_connect(struct ceph_connection *con)
 	con->out_connect.protocol_version = cpu_to_le32(proto);
 	con->out_connect.flags = 0;
 
-	auth_proto = CEPH_AUTH_UNKNOWN;
-	auth = get_connect_authorizer(con, &auth_proto);
-	if (IS_ERR(auth))
-		return PTR_ERR(auth);
-
-	con->out_connect.authorizer_protocol = cpu_to_le32(auth_proto);
-	con->out_connect.authorizer_len = auth ?
-		cpu_to_le32(auth->authorizer_buf_len) : 0;
+	ret = get_connect_authorizer(con);
+	if (ret)
+		return ret;
 
 	con_out_kvec_add(con, sizeof (con->out_connect),
 					&con->out_connect);
-	if (auth && auth->authorizer_buf_len)
-		con_out_kvec_add(con, auth->authorizer_buf_len,
-					auth->authorizer_buf);
+	if (con->auth)
+		con_out_kvec_add(con, con->auth->authorizer_buf_len,
+				 con->auth->authorizer_buf);
 
 	con->out_more = 0;
 	con_flag_set(con, CON_FLAG_WRITE_PENDING);
@@ -1781,11 +1777,14 @@ static int read_partial_connect(struct ceph_connection *con)
 	if (ret <= 0)
 		goto out;
 
-	size = le32_to_cpu(con->in_reply.authorizer_len);
-	end += size;
-	ret = read_partial(con, end, size, con->auth_reply_buf);
-	if (ret <= 0)
-		goto out;
+	if (con->auth) {
+		size = le32_to_cpu(con->in_reply.authorizer_len);
+		end += size;
+		ret = read_partial(con, end, size,
+				   con->auth->authorizer_reply_buf);
+		if (ret <= 0)
+			goto out;
+	}
 
 	dout("read_partial_connect %p tag %d, con_seq = %u, g_seq = %u\n",
 	     con, (int)con->in_reply.tag,
@@ -1793,7 +1792,6 @@ static int read_partial_connect(struct ceph_connection *con)
 	     le32_to_cpu(con->in_reply.global_seq));
 out:
 	return ret;
-
 }
 
 /*
@@ -2076,7 +2074,7 @@ static int process_connect(struct ceph_connection *con)
 
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
 
-	if (con->auth_reply_buf) {
+	if (con->auth) {
 		/*
 		 * Any connection that defines ->get_authorizer()
 		 * should also define ->verify_authorizer_reply().

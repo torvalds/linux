@@ -286,9 +286,8 @@ struct ceph_connection {
 				 attempt for this connection, client */
 	u32 peer_global_seq;  /* peer's global seq for this connection */
 
+	struct ceph_auth_handshake *auth;
 	int auth_retry;       /* true if we need a newer authorizer */
-	void *auth_reply_buf;   /* where to put the authorizer reply */
-	int auth_reply_buf_len;
 
 	struct mutex mutex;
 
