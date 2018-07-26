@@ -873,6 +873,18 @@ bpf_object__find_prog_by_idx(struct bpf_object *obj, int idx)
 	return NULL;
 }
 
+struct bpf_program *
+bpf_object__find_program_by_title(struct bpf_object *obj, const char *title)
+{
+	struct bpf_program *pos;
+
+	bpf_object__for_each_program(pos, obj) {
+		if (pos->section_name && !strcmp(pos->section_name, title))
+			return pos;
+	}
+	return NULL;
+}
+
 static int
 bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			   Elf_Data *data, struct bpf_object *obj)
