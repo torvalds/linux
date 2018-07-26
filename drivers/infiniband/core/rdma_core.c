@@ -153,9 +153,8 @@ static void assert_uverbs_usecnt(struct ib_uobject *uobj,
 }
 
 /*
- * This must be called with the hw_destroy_rwsem locked (except for
- * RDMA_REMOVE_ABORT) for read or write, also The uobject itself must be
- * locked for write.
+ * This must be called with the hw_destroy_rwsem locked for read or write,
+ * also the uobject itself must be locked for write.
  *
  * Upon return the HW object is guaranteed to be destroyed.
  *
@@ -177,6 +176,7 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	unsigned long flags;
 	int ret;
 
+	lockdep_assert_held(&ufile->hw_destroy_rwsem);
 	assert_uverbs_usecnt(uobj, UVERBS_LOOKUP_WRITE);
 
 	if (uobj->object) {
@@ -515,7 +515,22 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
 					    struct ib_uverbs_file *ufile)
 {
-	return type->type_class->alloc_begin(type, ufile);
+	struct ib_uobject *ret;
+
+	/*
+	 * The hw_destroy_rwsem is held across the entire object creation and
+	 * released during rdma_alloc_commit_uobject or
+	 * rdma_alloc_abort_uobject
+	 */
+	if (!down_read_trylock(&ufile->hw_destroy_rwsem))
+		return ERR_PTR(-EIO);
+
+	ret = type->type_class->alloc_begin(type, ufile);
+	if (IS_ERR(ret)) {
+		up_read(&ufile->hw_destroy_rwsem);
+		return ret;
+	}
+	return ret;
 }
 
 static void alloc_abort_idr_uobject(struct ib_uobject *uobj)
@@ -637,17 +652,11 @@ int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	struct ib_uverbs_file *ufile = uobj->ufile;
 	int ret;
 
-	/* Cleanup is running. Calling this should have been impossible */
-	if (!down_read_trylock(&ufile->hw_destroy_rwsem)) {
-		WARN(true, "ib_uverbs: Cleanup is running while allocating an uobject\n");
-		uverbs_destroy_uobject(uobj, RDMA_REMOVE_ABORT);
-		return -EINVAL;
-	}
-
 	/* alloc_commit consumes the uobj kref */
 	ret = uobj->type->type_class->alloc_commit(uobj);
 	if (ret) {
 		uverbs_destroy_uobject(uobj, RDMA_REMOVE_ABORT);
+		up_read(&ufile->hw_destroy_rwsem);
 		return ret;
 	}
 
@@ -660,6 +669,7 @@ int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	/* matches atomic_set(-1) in alloc_uobj */
 	atomic_set(&uobj->usecnt, 0);
 
+	/* Matches the down_read in rdma_alloc_begin_uobject */
 	up_read(&ufile->hw_destroy_rwsem);
 
 	return 0;
@@ -671,8 +681,13 @@ int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj)
  */
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj)
 {
+	struct ib_uverbs_file *ufile = uobj->ufile;
+
 	uobj->object = NULL;
 	uverbs_destroy_uobject(uobj, RDMA_REMOVE_ABORT);
+
+	/* Matches the down_read in rdma_alloc_begin_uobject */
+	up_read(&ufile->hw_destroy_rwsem);
 }
 
 static void lookup_put_idr_uobject(struct ib_uobject *uobj,
