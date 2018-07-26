@@ -40,6 +40,8 @@ Optional properties:
 
 - rockchip,delay-loopback-handle-ms: This property points out that the delay for
   handling ADC after enable PAs during loopback.
+- rockchip,delay-start-play-ms: This property points out the delay ms of start
+  playback according to different amplifier performance.
 - rockchip,en-always-grps: This property will keep the needed ADCs enabled
   always after enabling once.
 - rockchip,loopback-grp: It points out the ADC group which is the loopback used.
