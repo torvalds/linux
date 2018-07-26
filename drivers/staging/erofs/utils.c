@@ -29,6 +29,83 @@ struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp)
 	return page;
 }
 
+/* global shrink count (for all mounted EROFS instances) */
+static atomic_long_t erofs_global_shrink_cnt;
+
+#ifdef CONFIG_EROFS_FS_ZIP
+
+/* radix_tree and the future XArray both don't use tagptr_t yet */
+struct erofs_workgroup *erofs_find_workgroup(
+	struct super_block *sb, pgoff_t index, bool *tag)
+{
+	struct erofs_sb_info *sbi = EROFS_SB(sb);
+	struct erofs_workgroup *grp;
+	int oldcount;
+
+repeat:
+	rcu_read_lock();
+	grp = radix_tree_lookup(&sbi->workstn_tree, index);
+	if (grp != NULL) {
+		*tag = radix_tree_exceptional_entry(grp);
+		grp = (void *)((unsigned long)grp &
+			~RADIX_TREE_EXCEPTIONAL_ENTRY);
+
+		if (erofs_workgroup_get(grp, &oldcount)) {
+			/* prefer to relax rcu read side */
+			rcu_read_unlock();
+			goto repeat;
+		}
+
+		/* decrease refcount added by erofs_workgroup_put */
+		if (unlikely(oldcount == 1))
+			atomic_long_dec(&erofs_global_shrink_cnt);
+		BUG_ON(index != grp->index);
+	}
+	rcu_read_unlock();
+	return grp;
+}
+
+int erofs_register_workgroup(struct super_block *sb,
+			     struct erofs_workgroup *grp,
+			     bool tag)
+{
+	struct erofs_sb_info *sbi;
+	int err;
+
+	/* grp->refcount should not < 1 */
+	BUG_ON(!atomic_read(&grp->refcount));
+
+	err = radix_tree_preload(GFP_NOFS);
+	if (err)
+		return err;
+
+	sbi = EROFS_SB(sb);
+	erofs_workstn_lock(sbi);
+
+	if (tag)
+		grp = (void *)((unsigned long)grp |
+			1UL << RADIX_TREE_EXCEPTIONAL_SHIFT);
+
+	err = radix_tree_insert(&sbi->workstn_tree,
+		grp->index, grp);
+
+	if (!err) {
+		__erofs_workgroup_get(grp);
+	}
+
+	erofs_workstn_unlock(sbi);
+	radix_tree_preload_end();
+	return err;
+}
+
+unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
+				       unsigned long nr_shrink,
+				       bool cleanup)
+{
+	return 0;
+}
+
+#endif
 
 /* protected by 'erofs_sb_list_lock' */
 static unsigned int shrinker_run_no;
@@ -36,9 +113,6 @@ static unsigned int shrinker_run_no;
 /* protects the mounted 'erofs_sb_list' */
 static DEFINE_SPINLOCK(erofs_sb_list_lock);
 static LIST_HEAD(erofs_sb_list);
-
-/* global shrink count (for all mounted EROFS instances) */
-static atomic_long_t erofs_global_shrink_cnt;
 
 void erofs_register_super(struct super_block *sb)
 {
@@ -112,6 +186,7 @@ unsigned long erofs_shrink_scan(struct shrinker *shrink,
 		list_move_tail(&sbi->list, &erofs_sb_list);
 		mutex_unlock(&sbi->umount_mutex);
 
+		freed += erofs_shrink_workstation(sbi, nr, false);
 		if (freed >= nr)
 			break;
 	}

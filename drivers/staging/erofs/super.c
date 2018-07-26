@@ -296,6 +296,10 @@ static int erofs_read_super(struct super_block *sb,
 	if (!silent)
 		infoln("root inode @ nid %llu", ROOT_NID(sbi));
 
+#ifdef CONFIG_EROFS_FS_ZIP
+	INIT_RADIX_TREE(&sbi->workstn_tree, GFP_ATOMIC);
+#endif
+
 	/* get the root inode */
 	inode = erofs_iget(sb, ROOT_NID(sbi), true);
 	if (IS_ERR(inode)) {
@@ -376,6 +380,11 @@ static void erofs_put_super(struct super_block *sb)
 	__putname(sbi->dev_name);
 
 	mutex_lock(&sbi->umount_mutex);
+
+#ifdef CONFIG_EROFS_FS_ZIP
+	erofs_workstation_cleanup_all(sb);
+#endif
+
 	erofs_unregister_super(sb);
 	mutex_unlock(&sbi->umount_mutex);
 

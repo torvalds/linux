@@ -79,6 +79,9 @@ struct erofs_sb_info {
 #ifdef CONFIG_EROFS_FS_ZIP
 	/* cluster size in bit shift */
 	unsigned char clusterbits;
+
+	/* the dedicated workstation for compression */
+	struct radix_tree_root workstn_tree;
 #endif
 
 	u32 build_time_nsec;
@@ -148,6 +151,96 @@ static inline void *erofs_kmalloc(struct erofs_sb_info *sbi,
 #define clear_opt(sbi, option)	((sbi)->mount_opt &= ~EROFS_MOUNT_##option)
 #define set_opt(sbi, option)	((sbi)->mount_opt |= EROFS_MOUNT_##option)
 #define test_opt(sbi, option)	((sbi)->mount_opt & EROFS_MOUNT_##option)
+
+#ifdef CONFIG_EROFS_FS_ZIP
+#define erofs_workstn_lock(sbi)         xa_lock(&(sbi)->workstn_tree)
+#define erofs_workstn_unlock(sbi)       xa_unlock(&(sbi)->workstn_tree)
+
+/* basic unit of the workstation of a super_block */
+struct erofs_workgroup {
+	/* the workgroup index in the workstation */
+	pgoff_t index;
+
+	/* overall workgroup reference count */
+	atomic_t refcount;
+};
+
+#define EROFS_LOCKED_MAGIC     (INT_MIN | 0xE0F510CCL)
+
+static inline bool erofs_workgroup_try_to_freeze(
+	struct erofs_workgroup *grp, int v)
+{
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+	if (v != atomic_cmpxchg(&grp->refcount,
+		v, EROFS_LOCKED_MAGIC))
+		return false;
+	preempt_disable();
+#else
+	preempt_disable();
+	if (atomic_read(&grp->refcount) != v) {
+		preempt_enable();
+		return false;
+	}
+#endif
+	return true;
+}
+
+static inline void erofs_workgroup_unfreeze(
+	struct erofs_workgroup *grp, int v)
+{
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+	atomic_set(&grp->refcount, v);
+#endif
+	preempt_enable();
+}
+
+static inline bool erofs_workgroup_get(struct erofs_workgroup *grp, int *ocnt)
+{
+	const int locked = (int)EROFS_LOCKED_MAGIC;
+	int o;
+
+repeat:
+	o = atomic_read(&grp->refcount);
+
+	/* spin if it is temporarily locked at the reclaim path */
+	if (unlikely(o == locked)) {
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+		do
+			cpu_relax();
+		while (atomic_read(&grp->refcount) == locked);
+#endif
+		goto repeat;
+	}
+
+	if (unlikely(o <= 0))
+		return -1;
+
+	if (unlikely(atomic_cmpxchg(&grp->refcount, o, o + 1) != o))
+		goto repeat;
+
+	*ocnt = o;
+	return 0;
+}
+
+#define __erofs_workgroup_get(grp)	atomic_inc(&(grp)->refcount)
+
+extern int erofs_workgroup_put(struct erofs_workgroup *grp);
+
+extern struct erofs_workgroup *erofs_find_workgroup(
+	struct super_block *sb, pgoff_t index, bool *tag);
+
+extern int erofs_register_workgroup(struct super_block *sb,
+	struct erofs_workgroup *grp, bool tag);
+
+extern unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
+	unsigned long nr_shrink, bool cleanup);
+
+static inline void erofs_workstation_cleanup_all(struct super_block *sb)
+{
+	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
+}
+
+#endif
 
 /* we strictly follow PAGE_SIZE and no buffer head yet */
 #define LOG_BLOCK_SIZE		PAGE_SHIFT
