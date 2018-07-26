@@ -3859,12 +3859,11 @@ mlx5_ib_create_flow_action_esp(struct ib_device *device,
 	u64 flags;
 	int err = 0;
 
-	if (IS_UVERBS_COPY_ERR(uverbs_copy_from(&action_flags, attrs,
-						MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS)))
-		return ERR_PTR(-EFAULT);
-
-	if (action_flags >= (MLX5_FLOW_ACTION_ESP_CREATE_LAST_SUPPORTED << 1))
-		return ERR_PTR(-EOPNOTSUPP);
+	err = uverbs_get_flags64(
+		&action_flags, attrs, MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS,
+		((MLX5_FLOW_ACTION_ESP_CREATE_LAST_SUPPORTED << 1) - 1));
+	if (err)
+		return ERR_PTR(err);
 
 	flags = mlx5_ib_flow_action_flags_to_accel_xfrm_flags(action_flags);
 
@@ -5531,9 +5530,8 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(
 	mlx5_ib_flow_action,
 	UVERBS_OBJECT_FLOW_ACTION,
 	UVERBS_METHOD_FLOW_ACTION_ESP_CREATE,
-	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS,
-			   UVERBS_ATTR_TYPE(u64),
-			   UA_MANDATORY));
+	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS,
+			     enum mlx5_ib_uapi_flow_action_flags));
 
 #define NUM_TREES	5
 static int populate_specs_root(struct mlx5_ib_dev *dev)

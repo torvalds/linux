@@ -486,3 +486,54 @@ out:
 
 	return err;
 }
+
+int uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
+		       size_t idx, u64 allowed_bits)
+{
+	const struct uverbs_attr *attr;
+	u64 flags;
+
+	attr = uverbs_attr_get(attrs_bundle, idx);
+	/* Missing attribute means 0 flags */
+	if (IS_ERR(attr)) {
+		*to = 0;
+		return 0;
+	}
+
+	/*
+	 * New userspace code should use 8 bytes to pass flags, but we
+	 * transparently support old userspaces that were using 4 bytes as
+	 * well.
+	 */
+	if (attr->ptr_attr.len == 8)
+		flags = attr->ptr_attr.data;
+	else if (attr->ptr_attr.len == 4)
+		memcpy(&flags, &attr->ptr_attr.data, 4);
+	else
+		return -EINVAL;
+
+	if (flags & ~allowed_bits)
+		return -EINVAL;
+
+	*to = flags;
+	return 0;
+}
+EXPORT_SYMBOL(uverbs_get_flags64);
+
+int uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
+		       size_t idx, u64 allowed_bits)
+{
+	u64 flags;
+	int ret;
+
+	ret = uverbs_get_flags64(&flags, attrs_bundle, idx, allowed_bits);
+	if (ret)
+		return ret;
+
+	if (flags > U32_MAX)
+		return -EINVAL;
+	*to = flags;
+
+	return 0;
+}
+EXPORT_SYMBOL(uverbs_get_flags32);

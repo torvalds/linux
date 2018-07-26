@@ -97,8 +97,9 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(struct ib_device *ib_dev,
 	if (!atomic_read(&counters->usecnt))
 		return -EINVAL;
 
-	ret = uverbs_copy_from(&read_attr.flags, attrs,
-			       UVERBS_ATTR_READ_COUNTERS_FLAGS);
+	ret = uverbs_get_flags32(&read_attr.flags, attrs,
+				 UVERBS_ATTR_READ_COUNTERS_FLAGS,
+				 IB_UVERBS_READ_COUNTERS_PREFER_CACHED);
 	if (ret)
 		return ret;
 
@@ -147,9 +148,8 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_READ_COUNTERS_BUFF,
 			    UVERBS_ATTR_MIN_SIZE(0),
 			    UA_MANDATORY),
-	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_READ_COUNTERS_FLAGS,
-			   UVERBS_ATTR_TYPE(__u32),
-			   UA_MANDATORY));
+	UVERBS_ATTR_FLAGS_IN(UVERBS_ATTR_READ_COUNTERS_FLAGS,
+			     enum ib_uverbs_read_counters_flags));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_COUNTERS,
 			    UVERBS_TYPE_ALLOC_IDR(uverbs_free_counters),

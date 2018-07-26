@@ -62,8 +62,9 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(struct ib_device *ib_dev,
 	if (ret)
 		return ret;
 
-	ret = uverbs_copy_from(&attr.access_flags, attrs,
-			       UVERBS_ATTR_REG_DM_MR_ACCESS_FLAGS);
+	ret = uverbs_get_flags32(&attr.access_flags, attrs,
+				 UVERBS_ATTR_REG_DM_MR_ACCESS_FLAGS,
+				 IB_ACCESS_SUPPORTED);
 	if (ret)
 		return ret;
 
@@ -131,9 +132,8 @@ DECLARE_UVERBS_NAMED_METHOD(
 			UVERBS_OBJECT_PD,
 			UVERBS_ACCESS_READ,
 			UA_MANDATORY),
-	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_REG_DM_MR_ACCESS_FLAGS,
-			   UVERBS_ATTR_TYPE(u32),
-			   UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(UVERBS_ATTR_REG_DM_MR_ACCESS_FLAGS,
+			     enum ib_access_flags),
 	UVERBS_ATTR_IDR(UVERBS_ATTR_REG_DM_MR_DM_HANDLE,
 			UVERBS_OBJECT_DM,
 			UVERBS_ACCESS_READ,

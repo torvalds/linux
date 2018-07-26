@@ -84,10 +84,12 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	if (ret)
 		return ret;
 
-	/* Optional param, if it doesn't exist, we get -ENOENT and skip it */
-	if (IS_UVERBS_COPY_ERR(uverbs_copy_from(&attr.flags, attrs,
-						UVERBS_ATTR_CREATE_CQ_FLAGS)))
-		return -EFAULT;
+	ret = uverbs_get_flags32(&attr.flags, attrs,
+				 UVERBS_ATTR_CREATE_CQ_FLAGS,
+				 IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION |
+					 IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN);
+	if (ret)
+		return ret;
 
 	ev_file_uobj = uverbs_attr_get_uobject(attrs, UVERBS_ATTR_CREATE_CQ_COMP_CHANNEL);
 	if (!IS_ERR(ev_file_uobj)) {
@@ -164,7 +166,8 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_CREATE_CQ_COMP_VECTOR,
 			   UVERBS_ATTR_TYPE(u32),
 			   UA_MANDATORY),
-	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_CREATE_CQ_FLAGS, UVERBS_ATTR_TYPE(u32)),
+	UVERBS_ATTR_FLAGS_IN(UVERBS_ATTR_CREATE_CQ_FLAGS,
+			     enum ib_uverbs_ex_create_cq_flags),
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_CREATE_CQ_RESP_CQE,
 			    UVERBS_ATTR_TYPE(u32),
 			    UA_MANDATORY),
