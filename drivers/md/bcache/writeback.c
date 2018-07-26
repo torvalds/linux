@@ -676,10 +676,14 @@ static int bch_writeback_thread(void *arg)
 }
 
 /* Init */
+#define INIT_KEYS_EACH_TIME	500000
+#define INIT_KEYS_SLEEP_MS	100
 
 struct sectors_dirty_init {
 	struct btree_op	op;
 	unsigned	inode;
+	size_t		count;
+	struct bkey	start;
 };
 
 static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
@@ -694,18 +698,37 @@ static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
 		bcache_dev_sectors_dirty_add(b->c, KEY_INODE(k),
 					     KEY_START(k), KEY_SIZE(k));
 
+	op->count++;
+	if (atomic_read(&b->c->search_inflight) &&
+	    !(op->count % INIT_KEYS_EACH_TIME)) {
+		bkey_copy_key(&op->start, k);
+		return -EAGAIN;
+	}
+
 	return MAP_CONTINUE;
 }
 
 void bch_sectors_dirty_init(struct bcache_device *d)
 {
 	struct sectors_dirty_init op;
+	int ret;
 
 	bch_btree_op_init(&op.op, -1);
 	op.inode = d->id;
+	op.count = 0;
+	op.start = KEY(op.inode, 0, 0);
 
-	bch_btree_map_keys(&op.op, d->c, &KEY(op.inode, 0, 0),
-			   sectors_dirty_init_fn, 0);
+	do {
+		ret = bch_btree_map_keys(&op.op, d->c, &op.start,
+					 sectors_dirty_init_fn, 0);
+		if (ret == -EAGAIN)
+			schedule_timeout_interruptible(
+				msecs_to_jiffies(INIT_KEYS_SLEEP_MS));
+		else if (ret < 0) {
+			pr_warn("sectors dirty init failed, ret=%d!", ret);
+			break;
+		}
+	} while (ret == -EAGAIN);
 }
 
 void bch_cached_dev_writeback_init(struct cached_dev *dc)
