@@ -5,19 +5,20 @@
  */
 
 #include <linux/regmap.h>
+#include <linux/bitops.h>
 #include "tsens.h"
 
 #define STATUS_OFFSET		0xa0
 #define LAST_TEMP_MASK		0xfff
 #define STATUS_VALID_BIT	BIT(21)
-#define CODE_SIGN_BIT		BIT(11)
 
 static int get_temp_tsens_v2(struct tsens_device *tmdev, int id, int *temp)
 {
 	struct tsens_sensor *s = &tmdev->sensor[id];
 	u32 code;
 	unsigned int status_reg;
-	int last_temp = 0, last_temp2 = 0, last_temp3 = 0, ret;
+	u32 last_temp = 0, last_temp2 = 0, last_temp3 = 0;
+	int ret;
 
 	status_reg = tmdev->tm_offset + STATUS_OFFSET + s->hw_id * 4;
 	ret = regmap_read(tmdev->map, status_reg, &code);
@@ -54,12 +55,8 @@ static int get_temp_tsens_v2(struct tsens_device *tmdev, int id, int *temp)
 	else if (last_temp2 == last_temp3)
 		last_temp = last_temp3;
 done:
-	/* Code sign bit is the sign extension for a negative value */
-	if (last_temp & CODE_SIGN_BIT)
-		last_temp |= ~CODE_SIGN_BIT;
-
-	/* Temperatures are in deciCelicius */
-	*temp = last_temp * 100;
+	/* Convert temperature from deciCelsius to milliCelsius */
+	*temp = sign_extend32(last_temp, fls(LAST_TEMP_MASK) - 1) * 100;
 
 	return 0;
 }
