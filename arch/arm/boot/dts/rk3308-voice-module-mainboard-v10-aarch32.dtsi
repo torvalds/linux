@@ -26,6 +26,9 @@
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
+		clocks = <&cru SCLK_WIFI>;
+		clock-names = "clk_wifi";
+		ref-clock-frequency = <24000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_wake_host>;
 		wifi_chip_type = "rtl8723ds";
