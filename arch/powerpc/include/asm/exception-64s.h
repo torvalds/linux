@@ -317,7 +317,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #define EXCEPTION_PROLOG_1(area, extra, vec)				\
 	_EXCEPTION_PROLOG_1(area, extra, vec)
 
-#define __EXCEPTION_PROLOG_PSERIES_1(label, h)				\
+#define __EXCEPTION_PROLOG_2(label, h)					\
 	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
 	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
 	LOAD_HANDLER(r12,label)						\
@@ -326,8 +326,8 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mtspr	SPRN_##h##SRR1,r10;					\
 	h##RFI_TO_KERNEL;						\
 	b	.	/* prevent speculative execution */
-#define EXCEPTION_PROLOG_PSERIES_1(label, h)				\
-	__EXCEPTION_PROLOG_PSERIES_1(label, h)
+#define EXCEPTION_PROLOG_2(label, h)					\
+	__EXCEPTION_PROLOG_2(label, h)
 
 /* _NORI variant keeps MSR_RI clear */
 #define __EXCEPTION_PROLOG_PSERIES_1_NORI(label, h)			\
@@ -348,7 +348,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	SET_SCRATCH0(r13);		/* save r13 */			\
 	EXCEPTION_PROLOG_0(area);					\
 	EXCEPTION_PROLOG_1(area, extra, vec);				\
-	EXCEPTION_PROLOG_PSERIES_1(label, h);
+	EXCEPTION_PROLOG_2(label, h);
 
 #define __KVMTEST(h, n)							\
 	lbz	r10,HSTATE_IN_GUEST(r13);				\
@@ -565,7 +565,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #define STD_EXCEPTION_OOL(vec, label)				\
 	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, vec);	\
-	EXCEPTION_PROLOG_PSERIES_1(label, EXC_STD)
+	EXCEPTION_PROLOG_2(label, EXC_STD)
 
 #define STD_EXCEPTION_HV(loc, vec, label)			\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label,		\
@@ -573,7 +573,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #define STD_EXCEPTION_HV_OOL(vec, label)			\
 	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_HV, vec);	\
-	EXCEPTION_PROLOG_PSERIES_1(label, EXC_HV)
+	EXCEPTION_PROLOG_2(label, EXC_HV)
 
 #define STD_RELON_EXCEPTION(loc, vec, label)		\
 	/* No guest interrupts come through here */	\
@@ -630,7 +630,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	SET_SCRATCH0(r13);    /* save r13 */				\
 	EXCEPTION_PROLOG_0(PACA_EXGEN);					\
 	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec, bitmask);	\
-	EXCEPTION_PROLOG_PSERIES_1(label, h);
+	EXCEPTION_PROLOG_2(label, h);
 
 #define _MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra, bitmask)	\
 	__MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra, bitmask)
@@ -641,7 +641,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #define MASKABLE_EXCEPTION_PSERIES_OOL(vec, label, bitmask)		\
 	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_TEST_PR, vec, bitmask);\
-	EXCEPTION_PROLOG_PSERIES_1(label, EXC_STD)
+	EXCEPTION_PROLOG_2(label, EXC_STD)
 
 #define MASKABLE_EXCEPTION_HV(loc, vec, label, bitmask)			\
 	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
@@ -649,7 +649,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #define MASKABLE_EXCEPTION_HV_OOL(vec, label, bitmask)			\
 	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_TEST_HV, vec, bitmask);\
-	EXCEPTION_PROLOG_PSERIES_1(label, EXC_HV)
+	EXCEPTION_PROLOG_2(label, EXC_HV)
 
 #define __MASKABLE_RELON_EXCEPTION_PSERIES(vec, label, h, extra, bitmask) \
 	SET_SCRATCH0(r13);    /* save r13 */				\
@@ -666,7 +666,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #define MASKABLE_RELON_EXCEPTION_PSERIES_OOL(vec, label, bitmask)	\
 	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_NOTEST_PR, vec, bitmask);\
-	EXCEPTION_PROLOG_PSERIES_1(label, EXC_STD);
+	EXCEPTION_PROLOG_2(label, EXC_STD);
 
 #define MASKABLE_RELON_EXCEPTION_HV(loc, vec, label, bitmask)		\
 	_MASKABLE_RELON_EXCEPTION_PSERIES(vec, label,			\

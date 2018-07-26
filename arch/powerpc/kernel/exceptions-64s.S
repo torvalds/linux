@@ -1327,7 +1327,7 @@ EXC_REAL_BEGIN(denorm_exception_hv, 0x1500, 0x100)
 #endif
 
 	KVMTEST_HV(0x1500)
-	EXCEPTION_PROLOG_PSERIES_1(denorm_common, EXC_HV)
+	EXCEPTION_PROLOG_2(denorm_common, EXC_HV)
 EXC_REAL_END(denorm_exception_hv, 0x1500, 0x100)
 
 #ifdef CONFIG_PPC_DENORMALISATION
@@ -1447,7 +1447,7 @@ EXC_VIRT_NONE(0x5800, 0x100)
 	std	r12,PACA_EXGEN+EX_R12(r13);		\
 	GET_SCRATCH0(r10);				\
 	std	r10,PACA_EXGEN+EX_R13(r13);		\
-	EXCEPTION_PROLOG_PSERIES_1(soft_nmi_common, _H)
+	EXCEPTION_PROLOG_2(soft_nmi_common, _H)
 
 /*
  * Branch to soft_nmi_interrupt using the emergency stack. The emergency
