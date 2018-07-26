@@ -265,7 +265,7 @@ name:
 
 #define EXC_VIRT(name, start, size, realvec)				\
 	EXC_VIRT_BEGIN(name, start, size);				\
-	STD_RELON_EXCEPTION_PSERIES(start, realvec, name##_common);	\
+	STD_RELON_EXCEPTION(start, realvec, name##_common);		\
 	EXC_VIRT_END(name, start, size);
 
 #define EXC_REAL_MASKABLE(name, start, size, bitmask)			\
