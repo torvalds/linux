@@ -238,13 +238,13 @@
 		pinctrl-1 = <&uart11_rts_gpio>;
 		BT,power_gpio = <&gpio2 29 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio3 26 GPIO_ACTIVE_HIGH>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
-		wifi_chip_type = "ap6335";
+		wifi_chip_type = "ssv6051";
 		sdio_vref = <1800>;
 		WIFI,host_wake_irq = <&gpio0 28 GPIO_ACTIVE_HIGH>;
 		status = "okay";
@@ -539,7 +539,7 @@
 	non-removable;
 	ignore-pm-notify;
 	keep-power-in-suspend;
-	max-frequency = <150000000>;
+	max-frequency = <37500000>;
 	supports-sdio;
 };
 
