@@ -178,9 +178,9 @@
 	__EXCEPTION_PROLOG_2_RELON(label, h)
 
 /*
- * As EXCEPTION_PROLOG_PSERIES(), except we've already got relocation on
- * so no need to rfid.  Save lr in case we're CONFIG_RELOCATABLE, in which
- * case EXCEPTION_PROLOG_2_RELON will be using LR.
+ * As EXCEPTION_PROLOG(), except we've already got relocation on so no need to
+ * rfid. Save LR in case we're CONFIG_RELOCATABLE, in which case
+ * EXCEPTION_PROLOG_2_RELON will be using LR.
  */
 #define EXCEPTION_RELON_PROLOG(area, label, h, extra, vec)		\
 	SET_SCRATCH0(r13);		/* save r13 */			\
@@ -344,7 +344,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #define EXCEPTION_PROLOG_2_NORI(label, h)				\
 	__EXCEPTION_PROLOG_2_NORI(label, h)
 
-#define EXCEPTION_PROLOG_PSERIES(area, label, h, extra, vec)		\
+#define EXCEPTION_PROLOG(area, label, h, extra, vec)			\
 	SET_SCRATCH0(r13);		/* save r13 */			\
 	EXCEPTION_PROLOG_0(area);					\
 	EXCEPTION_PROLOG_1(area, extra, vec);				\
@@ -554,8 +554,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
  * Exception vectors.
  */
 #define STD_EXCEPTION(vec, label)				\
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label,		\
-				 EXC_STD, KVMTEST_PR, vec);	\
+	EXCEPTION_PROLOG(PACA_EXGEN, label, EXC_STD, KVMTEST_PR, vec);
 
 /* Version of above for when we have to branch out-of-line */
 #define __OOL_EXCEPTION(vec, label, hdlr)			\
@@ -568,8 +567,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	EXCEPTION_PROLOG_2(label, EXC_STD)
 
 #define STD_EXCEPTION_HV(loc, vec, label)			\
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label,		\
-				 EXC_HV, KVMTEST_HV, vec);
+	EXCEPTION_PROLOG(PACA_EXGEN, label, EXC_HV, KVMTEST_HV, vec);
 
 #define STD_EXCEPTION_HV_OOL(vec, label)			\
 	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_HV, vec);	\
