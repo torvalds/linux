@@ -92,59 +92,6 @@ u32 *dpu_hw_util_get_log_mask_ptr(void)
 	return &dpu_hw_util_log_mask;
 }
 
-void dpu_set_scaler_v2(struct dpu_hw_scaler3_cfg *cfg,
-		const struct dpu_drm_scaler_v2 *scale_v2)
-{
-	int i;
-
-	cfg->enable = scale_v2->enable;
-	cfg->dir_en = scale_v2->dir_en;
-
-	for (i = 0; i < DPU_MAX_PLANES; i++) {
-		cfg->init_phase_x[i] = scale_v2->init_phase_x[i];
-		cfg->phase_step_x[i] = scale_v2->phase_step_x[i];
-		cfg->init_phase_y[i] = scale_v2->init_phase_y[i];
-		cfg->phase_step_y[i] = scale_v2->phase_step_y[i];
-
-		cfg->preload_x[i] = scale_v2->preload_x[i];
-		cfg->preload_y[i] = scale_v2->preload_y[i];
-		cfg->src_width[i] = scale_v2->src_width[i];
-		cfg->src_height[i] = scale_v2->src_height[i];
-	}
-
-	cfg->dst_width = scale_v2->dst_width;
-	cfg->dst_height = scale_v2->dst_height;
-
-	cfg->y_rgb_filter_cfg = scale_v2->y_rgb_filter_cfg;
-	cfg->uv_filter_cfg = scale_v2->uv_filter_cfg;
-	cfg->alpha_filter_cfg = scale_v2->alpha_filter_cfg;
-	cfg->blend_cfg = scale_v2->blend_cfg;
-
-	cfg->lut_flag = scale_v2->lut_flag;
-	cfg->dir_lut_idx = scale_v2->dir_lut_idx;
-	cfg->y_rgb_cir_lut_idx = scale_v2->y_rgb_cir_lut_idx;
-	cfg->uv_cir_lut_idx = scale_v2->uv_cir_lut_idx;
-	cfg->y_rgb_sep_lut_idx = scale_v2->y_rgb_sep_lut_idx;
-	cfg->uv_sep_lut_idx = scale_v2->uv_sep_lut_idx;
-
-	cfg->de.enable = scale_v2->de.enable;
-	cfg->de.sharpen_level1 = scale_v2->de.sharpen_level1;
-	cfg->de.sharpen_level2 = scale_v2->de.sharpen_level2;
-	cfg->de.clip = scale_v2->de.clip;
-	cfg->de.limit = scale_v2->de.limit;
-	cfg->de.thr_quiet = scale_v2->de.thr_quiet;
-	cfg->de.thr_dieout = scale_v2->de.thr_dieout;
-	cfg->de.thr_low = scale_v2->de.thr_low;
-	cfg->de.thr_high = scale_v2->de.thr_high;
-	cfg->de.prec_shift = scale_v2->de.prec_shift;
-
-	for (i = 0; i < DPU_MAX_DE_CURVES; i++) {
-		cfg->de.adjust_a[i] = scale_v2->de.adjust_a[i];
-		cfg->de.adjust_b[i] = scale_v2->de.adjust_b[i];
-		cfg->de.adjust_c[i] = scale_v2->de.adjust_c[i];
-	}
-}
-
 static void _dpu_hw_setup_scaler3_lut(struct dpu_hw_blk_reg_map *c,
 		struct dpu_hw_scaler3_cfg *scaler3_cfg, u32 offset)
 {
@@ -418,35 +365,4 @@ void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map *c,
 	DPU_REG_WRITE(c, csc_reg_off + 0x38, data->csc_post_bv[0]);
 	DPU_REG_WRITE(c, csc_reg_off + 0x3c, data->csc_post_bv[1]);
 	DPU_REG_WRITE(c, csc_reg_off + 0x40, data->csc_post_bv[2]);
-}
-
-/**
- * _dpu_copy_formats   - copy formats from src_list to dst_list
- * @dst_list:          pointer to destination list where to copy formats
- * @dst_list_size:     size of destination list
- * @dst_list_pos:      starting position on the list where to copy formats
- * @src_list:          pointer to source list where to copy formats from
- * @src_list_size:     size of source list
- * Return: number of elements populated
- */
-uint32_t dpu_copy_formats(
-		struct dpu_format_extended *dst_list,
-		uint32_t dst_list_size,
-		uint32_t dst_list_pos,
-		const struct dpu_format_extended *src_list,
-		uint32_t src_list_size)
-{
-	uint32_t cur_pos, i;
-
-	if (!dst_list || !src_list || (dst_list_pos >= (dst_list_size - 1)))
-		return 0;
-
-	for (i = 0, cur_pos = dst_list_pos;
-		(cur_pos < (dst_list_size - 1)) && (i < src_list_size)
-		&& src_list[i].fourcc_format; ++i, ++cur_pos)
-		dst_list[cur_pos] = src_list[i];
-
-	dst_list[cur_pos].fourcc_format = 0;
-
-	return i;
 }

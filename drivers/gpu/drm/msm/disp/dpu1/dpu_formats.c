@@ -869,47 +869,6 @@ int dpu_format_get_plane_sizes(
 	return _dpu_format_get_plane_sizes_linear(fmt, w, h, layout, pitches);
 }
 
-int dpu_format_get_block_size(const struct dpu_format *fmt,
-		uint32_t *w, uint32_t *h)
-{
-	if (!fmt || !w || !h) {
-		DRM_ERROR("invalid pointer\n");
-		return -EINVAL;
-	}
-
-	/* TP10 is 96x96 and all others are 128x128 */
-	if (DPU_FORMAT_IS_YUV(fmt) && DPU_FORMAT_IS_DX(fmt) &&
-			(fmt->num_planes == 2) && fmt->unpack_tight)
-		*w = *h = 96;
-	else
-		*w = *h = 128;
-
-	return 0;
-}
-
-uint32_t dpu_format_get_framebuffer_size(
-		const uint32_t format,
-		const uint32_t width,
-		const uint32_t height,
-		const uint32_t *pitches,
-		const uint64_t modifiers)
-{
-	const struct dpu_format *fmt;
-	struct dpu_hw_fmt_layout layout;
-
-	fmt = dpu_get_dpu_format_ext(format, modifiers);
-	if (!fmt)
-		return 0;
-
-	if (!pitches)
-		return -EINVAL;
-
-	if (dpu_format_get_plane_sizes(fmt, width, height, &layout, pitches))
-		layout.total_size = 0;
-
-	return layout.total_size;
-}
-
 static int _dpu_format_populate_addrs_ubwc(
 		struct msm_gem_address_space *aspace,
 		struct drm_framebuffer *fb,

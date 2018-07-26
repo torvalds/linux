@@ -333,9 +333,6 @@ int dpu_reg_read(struct dpu_hw_blk_reg_map *c, u32 reg_off);
 
 void *dpu_hw_util_get_dir(void);
 
-void dpu_set_scaler_v2(struct dpu_hw_scaler3_cfg *cfg,
-		const struct dpu_drm_scaler_v2 *scale_v2);
-
 void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 		struct dpu_hw_scaler3_cfg *scaler3_cfg,
 		u32 scaler_offset, u32 scaler_version,
@@ -347,12 +344,5 @@ u32 dpu_hw_get_scaler3_ver(struct dpu_hw_blk_reg_map *c,
 void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map  *c,
 		u32 csc_reg_off,
 		struct dpu_csc_cfg *data, bool csc10);
-
-uint32_t dpu_copy_formats(
-		struct dpu_format_extended *dst_list,
-		uint32_t dst_list_size,
-		uint32_t dst_list_pos,
-		const struct dpu_format_extended *src_list,
-		uint32_t src_list_size);
 
 #endif /* _DPU_HW_UTIL_H */

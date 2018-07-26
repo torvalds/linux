@@ -72,19 +72,6 @@ int dpu_format_get_plane_sizes(
 		struct dpu_hw_fmt_layout *layout,
 		const uint32_t *pitches);
 
-/**
- * dpu_format_get_block_size - get block size of given format when
- *	operating in block mode
- * @fmt:             pointer to dpu_format
- * @w:               pointer to width of the block
- * @h:               pointer to height of the block
- *
- * Return: 0 if success; error oode otherwise
- */
-int dpu_format_get_block_size(const struct dpu_format *fmt,
-		uint32_t *w, uint32_t *h);
-
-/**
  * dpu_format_check_modified_format - validate format and buffers for
  *                   dpu non-standard, i.e. modified format
  * @kms:             kms driver
@@ -114,23 +101,5 @@ int dpu_format_populate_layout(
 		struct msm_gem_address_space *aspace,
 		struct drm_framebuffer *fb,
 		struct dpu_hw_fmt_layout *fmtl);
-
-/**
- * dpu_format_get_framebuffer_size - get framebuffer memory size
- * @format:            DRM pixel format
- * @width:             pixel width
- * @height:            pixel height
- * @pitches:           array of size [DPU_MAX_PLANES] to populate
- *		       pitch for each plane
- * @modifiers:         drm modifier
- *
- * Return: memory size required for frame buffer
- */
-uint32_t dpu_format_get_framebuffer_size(
-		const uint32_t format,
-		const uint32_t width,
-		const uint32_t height,
-		const uint32_t *pitches,
-		const uint64_t modifiers);
 
 #endif /*_DPU_FORMATS_H */
