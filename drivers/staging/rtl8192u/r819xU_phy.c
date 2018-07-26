@@ -28,8 +28,6 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 	0x0f72, /* 2484    */
 };
 
-
-#define rtl819XPHY_REG_1T2RArray Rtl8192UsbPHY_REG_1T2RArray
 #define rtl819XMACPHY_Array Rtl8192UsbMACPHY_Array
 #define rtl819XRadioA_Array  Rtl8192UsbRadioA_Array
 #define rtl819XRadioB_Array Rtl8192UsbRadioB_Array
@@ -534,13 +532,13 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 #endif
 	if (ConfigType == BaseBand_Config_PHY_REG) {
 		for (i = 0; i < PHY_REG_1T2RArrayLength; i += 2) {
-			rtl8192_setBBreg(dev, rtl819XPHY_REG_1T2RArray[i],
+			rtl8192_setBBreg(dev, Rtl8192UsbPHY_REG_1T2RArray[i],
 					 bMaskDWord,
-					 rtl819XPHY_REG_1T2RArray[i+1]);
+					 Rtl8192UsbPHY_REG_1T2RArray[i+1]);
 			RT_TRACE(COMP_DBG,
 				 "i: %x, Rtl819xUsbPHY_REGArray[0]=%x Rtl819xUsbPHY_REGArray[1]=%x\n",
-				 i, rtl819XPHY_REG_1T2RArray[i],
-				 rtl819XPHY_REG_1T2RArray[i+1]);
+				 i, Rtl8192UsbPHY_REG_1T2RArray[i],
+				 Rtl8192UsbPHY_REG_1T2RArray[i+1]);
 		}
 	} else if (ConfigType == BaseBand_Config_AGC_TAB) {
 		for (i = 0; i < AGCTAB_ArrayLength; i += 2) {
