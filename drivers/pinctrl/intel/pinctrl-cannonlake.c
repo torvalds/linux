@@ -444,12 +444,8 @@ static const struct intel_function cnlh_functions[] = {
 static const struct intel_community cnlh_communities[] = {
 	CNL_COMMUNITY(0, 0, 50, cnlh_community0_gpps),
 	CNL_COMMUNITY(1, 51, 154, cnlh_community1_gpps),
-	/*
-	 * ACPI MMIO resources are returned in reverse order for
-	 * communities 3 and 4.
-	 */
-	CNL_COMMUNITY(3, 155, 248, cnlh_community3_gpps),
-	CNL_COMMUNITY(2, 249, 298, cnlh_community4_gpps),
+	CNL_COMMUNITY(2, 155, 248, cnlh_community3_gpps),
+	CNL_COMMUNITY(3, 249, 298, cnlh_community4_gpps),
 };
 
 static const struct intel_pinctrl_soc_data cnlh_soc_data = {
