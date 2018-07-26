@@ -128,13 +128,15 @@ static int guc_init_wq(struct intel_guc *guc)
 
 static void guc_fini_wq(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct workqueue_struct *wq;
 
-	if (HAS_LOGICAL_RING_PREEMPTION(dev_priv) &&
-	    USES_GUC_SUBMISSION(dev_priv))
-		destroy_workqueue(guc->preempt_wq);
+	wq = fetch_and_zero(&guc->preempt_wq);
+	if (wq)
+		destroy_workqueue(wq);
 
-	destroy_workqueue(guc->log.relay.flush_wq);
+	wq = fetch_and_zero(&guc->log.relay.flush_wq);
+	if (wq)
+		destroy_workqueue(wq);
 }
 
 int intel_guc_init_misc(struct intel_guc *guc)
