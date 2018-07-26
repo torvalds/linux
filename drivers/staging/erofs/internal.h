@@ -252,6 +252,7 @@ extern const struct xattr_handler *erofs_xattr_handlers[];
 #ifdef CONFIG_EROFS_FS_XATTR
 extern const struct inode_operations erofs_symlink_xattr_iops;
 extern const struct inode_operations erofs_fast_symlink_xattr_iops;
+extern const struct inode_operations erofs_special_inode_operations;
 #endif
 
 static inline void set_inode_fast_symlink(struct inode *inode)
