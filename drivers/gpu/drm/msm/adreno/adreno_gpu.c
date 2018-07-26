@@ -376,7 +376,7 @@ int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state)
 
 	kref_init(&state->ref);
 
-	do_gettimeofday(&state->time);
+	ktime_get_real_ts64(&state->time);
 
 	for (i = 0; i < gpu->nr_rings; i++) {
 		int size = 0, j;

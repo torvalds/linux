@@ -189,7 +189,7 @@ struct msm_gpu_state_bo {
 
 struct msm_gpu_state {
 	struct kref ref;
-	struct timeval time;
+	struct timespec64 time;
 
 	struct {
 		u64 iova;
