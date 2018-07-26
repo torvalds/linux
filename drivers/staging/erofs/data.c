@@ -13,6 +13,8 @@
 #include "internal.h"
 #include <linux/prefetch.h>
 
+#include <trace/events/erofs.h>
+
 static inline void read_endio(struct bio *bio)
 {
 	int i;
@@ -113,6 +115,7 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 	u64 offset = map->m_la;
 	struct erofs_vnode *vi = EROFS_V(inode);
 
+	trace_erofs_map_blocks_flatmode_enter(inode, map, flags);
 	BUG_ON(is_inode_layout_compression(inode));
 
 	nblocks = DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
@@ -150,8 +153,7 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 
 out:
 	map->m_llen = map->m_plen;
-	debugln("%s, m_la 0x%llx m_pa %llx m_len %llu",
-		__func__, map->m_la, map->m_pa, map->m_plen);
+	trace_erofs_map_blocks_flatmode_exit(inode, map, flags, 0);
 	return 0;
 }
 
@@ -305,6 +307,8 @@ static int erofs_raw_access_readpage(struct file *file, struct page *page)
 	erofs_off_t last_block;
 	struct bio *bio;
 
+	trace_erofs_readpage(page, true);
+
 	bio = erofs_read_raw_page(NULL, page->mapping,
 		page, &last_block, 1, false);
 
@@ -322,9 +326,12 @@ static int erofs_raw_access_readpages(struct file *filp,
 	erofs_off_t last_block;
 	struct bio *bio = NULL;
 	gfp_t gfp = readahead_gfp_mask(mapping);
+	struct page *page = list_last_entry(pages, struct page, lru);
+
+	trace_erofs_readpages(mapping->host, page, nr_pages, true);
 
 	for (; nr_pages; --nr_pages) {
-		struct page *page = list_entry(pages->prev, struct page, lru);
+		page = list_entry(pages->prev, struct page, lru);
 
 		prefetchw(&page->flags);
 		list_del(&page->lru);

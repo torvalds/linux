@@ -17,6 +17,9 @@
 #include <linux/seq_file.h>
 #include "internal.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/erofs.h>
+
 static struct kmem_cache *erofs_inode_cachep __read_mostly;
 
 static void init_once(void *ptr)

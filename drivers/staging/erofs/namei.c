@@ -13,6 +13,8 @@
 #include "internal.h"
 #include "xattr.h"
 
+#include <trace/events/erofs.h>
+
 /* based on the value of qn->len is accurate */
 static inline int dirnamecmp(struct qstr *qn,
 	struct qstr *qd, unsigned *matched)
@@ -208,6 +210,8 @@ static struct dentry *erofs_lookup(struct inode *dir,
 	DBG_BUGON(!d_really_is_negative(dentry));
 	/* dentry must be unhashed in lookup, no need to worry about */
 	DBG_BUGON(!d_unhashed(dentry));
+
+	trace_erofs_lookup(dir, dentry, flags);
 
 	/* file name exceeds fs limit */
 	if (unlikely(dentry->d_name.len > EROFS_NAME_LEN))
