@@ -263,7 +263,7 @@ static int zerocopy_from_iter(struct sock *sk, struct iov_iter *from,
 			      int length, int *pages_used,
 			      unsigned int *size_used,
 			      struct scatterlist *to, int to_max_pages,
-			      bool charge, bool revert)
+			      bool charge)
 {
 	struct page *pages[MAX_SKB_FRAGS];
 
@@ -312,10 +312,10 @@ static int zerocopy_from_iter(struct sock *sk, struct iov_iter *from,
 	}
 
 out:
+	if (rc)
+		iov_iter_revert(from, size - *size_used);
 	*size_used = size;
 	*pages_used = num_elem;
-	if (revert)
-		iov_iter_revert(from, size);
 
 	return rc;
 }
@@ -417,7 +417,7 @@ alloc_encrypted:
 				&ctx->sg_plaintext_size,
 				ctx->sg_plaintext_data,
 				ARRAY_SIZE(ctx->sg_plaintext_data),
-				true, false);
+				true);
 			if (ret)
 				goto fallback_to_reg_send;
 
@@ -428,8 +428,6 @@ alloc_encrypted:
 			continue;
 
 fallback_to_reg_send:
-			iov_iter_revert(&msg->msg_iter,
-					ctx->sg_plaintext_size - orig_size);
 			trim_sg(sk, ctx->sg_plaintext_data,
 				&ctx->sg_plaintext_num_elem,
 				&ctx->sg_plaintext_size,
@@ -834,7 +832,7 @@ int tls_sw_recvmsg(struct sock *sk,
 				err = zerocopy_from_iter(sk, &msg->msg_iter,
 							 to_copy, &pages,
 							 &chunk, &sgin[1],
-							 MAX_SKB_FRAGS,	false, true);
+							 MAX_SKB_FRAGS,	false);
 				if (err < 0)
 					goto fallback_to_reg_recv;
 
