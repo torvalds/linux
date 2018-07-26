@@ -102,6 +102,9 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 {
 	struct mlxreg_core_hotplug_platform_data *pdata;
 
+	/* Notify user by sending hwmon uevent. */
+	kobject_uevent(&priv->hwmon->kobj, KOBJ_CHANGE);
+
 	/*
 	 * Return if adapter number is negative. It could be in case hotplug
 	 * event is not associated with hotplug device.
@@ -133,8 +136,13 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 	return 0;
 }
 
-static void mlxreg_hotplug_device_destroy(struct mlxreg_core_data *data)
+static void
+mlxreg_hotplug_device_destroy(struct mlxreg_hotplug_priv_data *priv,
+			      struct mlxreg_core_data *data)
 {
+	/* Notify user by sending hwmon uevent. */
+	kobject_uevent(&priv->hwmon->kobj, KOBJ_CHANGE);
+
 	if (data->hpdev.client) {
 		i2c_unregister_device(data->hpdev.client);
 		data->hpdev.client = NULL;
@@ -277,14 +285,14 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 		data = item->data + bit;
 		if (regval & BIT(bit)) {
 			if (item->inversed)
-				mlxreg_hotplug_device_destroy(data);
+				mlxreg_hotplug_device_destroy(priv, data);
 			else
 				mlxreg_hotplug_device_create(priv, data);
 		} else {
 			if (item->inversed)
 				mlxreg_hotplug_device_create(priv, data);
 			else
-				mlxreg_hotplug_device_destroy(data);
+				mlxreg_hotplug_device_destroy(priv, data);
 		}
 	}
 
@@ -351,7 +359,7 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 				 * in steady state. Disconnect associated
 				 * device, if it has been connected.
 				 */
-				mlxreg_hotplug_device_destroy(data);
+				mlxreg_hotplug_device_destroy(priv, data);
 				data->attached = false;
 				data->health_cntr = 0;
 			}
@@ -569,7 +577,7 @@ static void mlxreg_hotplug_unset_irq(struct mlxreg_hotplug_priv_data *priv)
 		/* Remove all the attached devices in group. */
 		count = item->count;
 		for (j = 0; j < count; j++, data++)
-			mlxreg_hotplug_device_destroy(data);
+			mlxreg_hotplug_device_destroy(priv, data);
 	}
 }
 
@@ -634,10 +642,6 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 	disable_irq(priv->irq);
 	spin_lock_init(&priv->lock);
 	INIT_DELAYED_WORK(&priv->dwork_irq, mlxreg_hotplug_work_handler);
-	/* Perform initial interrupts setup. */
-	mlxreg_hotplug_set_irq(priv);
-
-	priv->after_probe = true;
 	dev_set_drvdata(&pdev->dev, priv);
 
 	err = mlxreg_hotplug_attr_init(priv);
@@ -654,6 +658,10 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 			PTR_ERR(priv->hwmon));
 		return PTR_ERR(priv->hwmon);
 	}
+
+	/* Perform initial interrupts setup. */
+	mlxreg_hotplug_set_irq(priv);
+	priv->after_probe = true;
 
 	return 0;
 }
