@@ -625,7 +625,9 @@ static void dcn1_update_clocks(struct dccg *dccg,
 	}
 
 	/* dcn1 dppclk is tied to dispclk */
-	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
+	/* program dispclk on = as a w/a for sleep resume clock ramping issues */
+	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)
+			|| new_clocks->dispclk_khz == dccg->clks.dispclk_khz) {
 		dcn1_ramp_up_dispclk_with_dpp(dccg, new_clocks);
 		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
 

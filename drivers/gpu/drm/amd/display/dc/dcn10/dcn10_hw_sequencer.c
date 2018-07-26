@@ -1089,6 +1089,8 @@ static void dcn10_init_hw(struct dc *dc)
 	}
 
 	enable_power_gating_plane(dc->hwseq, true);
+
+	memset(&dc->res_pool->dccg->clks, 0, sizeof(dc->res_pool->dccg->clks));
 }
 
 static void reset_hw_ctx_wrap(
