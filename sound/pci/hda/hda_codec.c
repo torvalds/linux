@@ -3277,8 +3277,8 @@ int snd_hda_add_new_ctls(struct hda_codec *codec,
 	for (; knew->name; knew++) {
 		struct snd_kcontrol *kctl;
 		int addr = 0, idx = 0;
-		if (knew->iface == -1)	/* skip this codec private value */
-			continue;
+		if (knew->iface == (__force snd_ctl_elem_iface_t)-1)
+			continue; /* skip this codec private value */
 		for (;;) {
 			kctl = snd_ctl_new1(knew, codec);
 			if (!kctl)

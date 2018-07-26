@@ -5516,8 +5516,7 @@ static int ca0132_alt_add_effect_slider(struct hda_codec *codec, hda_nid_t nid,
 
 	sprintf(namestr, "FX: %s %s Volume", pfx, dirstr[dir]);
 
-	knew.tlv.c = 0;
-	knew.tlv.p = 0;
+	knew.tlv.c = NULL;
 
 	switch (nid) {
 	case XBASS_XOVER:

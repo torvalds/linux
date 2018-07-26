@@ -25,10 +25,6 @@
 #include "opl3_voice.h"
 #include <sound/asoundef.h>
 
-extern char snd_opl3_regmap[MAX_OPL2_VOICES][4];
-
-extern bool use_internal_drums;
-
 static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
 				     struct snd_midi_channel *chan);
 /*
