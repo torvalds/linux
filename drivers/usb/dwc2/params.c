@@ -131,7 +131,6 @@ static void dwc2_set_stm32f4x9_fsotg_params(struct dwc2_hsotg *hsotg)
 	p->max_packet_count = 256;
 	p->phy_type = DWC2_PHY_TYPE_PARAM_FS;
 	p->i2c_enable = false;
-	p->uframe_sched = false;
 	p->activate_stm_fs_transceiver = true;
 }
 
