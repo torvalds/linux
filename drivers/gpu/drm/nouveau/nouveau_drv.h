@@ -212,6 +212,8 @@ struct nouveau_drm {
 	struct dev_pm_domain vga_pm_domain;
 
 	struct nouveau_svm *svm;
+
+	struct nouveau_dmem *dmem;
 };
 
 static inline struct nouveau_drm *

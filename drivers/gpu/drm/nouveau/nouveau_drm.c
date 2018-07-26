@@ -63,6 +63,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_platform.h"
 #include "nouveau_svm.h"
+#include "nouveau_dmem.h"
 
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
@@ -551,6 +552,7 @@ nouveau_drm_device_init(struct drm_device *dev)
 	nouveau_debugfs_init(drm);
 	nouveau_hwmon_init(dev);
 	nouveau_svm_init(drm);
+	nouveau_dmem_init(drm);
 	nouveau_fbcon_init(dev);
 	nouveau_led_init(dev);
 
@@ -594,6 +596,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 
 	nouveau_led_fini(dev);
 	nouveau_fbcon_fini(dev);
+	nouveau_dmem_fini(drm);
 	nouveau_svm_fini(drm);
 	nouveau_hwmon_fini(dev);
 	nouveau_debugfs_fini(drm);
@@ -741,6 +744,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	int ret;
 
 	nouveau_svm_suspend(drm);
+	nouveau_dmem_suspend(drm);
 	nouveau_led_suspend(dev);
 
 	if (dev->mode_config.num_crtc) {
@@ -817,6 +821,7 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	}
 
 	nouveau_led_resume(dev);
+	nouveau_dmem_resume(drm);
 	nouveau_svm_resume(drm);
 	return 0;
 }

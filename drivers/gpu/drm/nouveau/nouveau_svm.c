@@ -561,6 +561,8 @@ again:
 				goto again;
 			}
 
+			nouveau_dmem_convert_pfn(svm->drm, &range);
+
 			svmm->vmm->vmm.object.client->super = true;
 			ret = nvif_object_ioctl(&svmm->vmm->vmm.object,
 						&args, sizeof(args.i) +
