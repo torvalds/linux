@@ -25,7 +25,6 @@ struct sw_chnl_cmd {
 	u32		        ms_delay;
 } __packed;
 
-extern u32 rtl819XAGCTAB_Array[];
 extern u32 rtl819XRadioA_Array[];
 extern u32 rtl819XRadioB_Array[];
 extern u32 rtl819XRadioC_Array[];

@@ -33,7 +33,6 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 #define rtl819XRadioB_Array Rtl8192UsbRadioB_Array
 #define rtl819XRadioC_Array Rtl8192UsbRadioC_Array
 #define rtl819XRadioD_Array Rtl8192UsbRadioD_Array
-#define rtl819XAGCTAB_Array Rtl8192UsbAGCTAB_Array
 
 /******************************************************************************
  * function:  This function checks different RF type to execute legal judgement.
@@ -542,12 +541,12 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 		}
 	} else if (ConfigType == BaseBand_Config_AGC_TAB) {
 		for (i = 0; i < AGCTAB_ArrayLength; i += 2) {
-			rtl8192_setBBreg(dev, rtl819XAGCTAB_Array[i],
-					 bMaskDWord, rtl819XAGCTAB_Array[i+1]);
+			rtl8192_setBBreg(dev, Rtl8192UsbAGCTAB_Array[i],
+					 bMaskDWord, Rtl8192UsbAGCTAB_Array[i+1]);
 			RT_TRACE(COMP_DBG,
-				 "i: %x, rtl819XAGCTAB_Array[0]=%x rtl819XAGCTAB_Array[1]=%x\n",
-				 i, rtl819XAGCTAB_Array[i],
-				 rtl819XAGCTAB_Array[i+1]);
+				 "i: %x, Rtl8192UsbAGCTAB_Array[0]=%x Rtl8192UsbAGCTAB_Array[1]=%x\n",
+				 i, Rtl8192UsbAGCTAB_Array[i],
+				 Rtl8192UsbAGCTAB_Array[i+1]);
 		}
 	}
 }
