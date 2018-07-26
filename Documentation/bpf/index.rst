@@ -1,5 +1,5 @@
 =================
-BPF documentation
+BPF Documentation
 =================
 
 This directory contains documentation for the BPF (Berkeley Packet
