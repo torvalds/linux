@@ -25,8 +25,6 @@ struct sw_chnl_cmd {
 	u32		        ms_delay;
 } __packed;
 
-extern u32 rtl819XRadioD_Array[];
-
 enum HW90_BLOCK_E {
 	HW90_BLOCK_MAC = 0,
 	HW90_BLOCK_PHY0 = 1,
