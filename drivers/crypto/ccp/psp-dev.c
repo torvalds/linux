@@ -858,6 +858,9 @@ void psp_dev_destroy(struct sp_device *sp)
 {
 	struct psp_device *psp = sp->psp_data;
 
+	if (!psp)
+		return;
+
 	if (psp->sev_misc)
 		kref_put(&misc_dev->refcount, sev_exit);
 
