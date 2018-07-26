@@ -35,7 +35,12 @@ set_debarch() {
 	s390*)
 		debarch=s390x ;;
 	ppc*)
-		debarch=$(if_enabled_echo CPU_LITTLE_ENDIAN ppc64el powerpc) ;;
+		if is_enabled 64BIT; then
+			debarch=ppc64$(if_enabled_echo CPU_LITTLE_ENDIAN el)
+		else
+			debarch=powerpc$(if_enabled_echo SPE spe)
+		fi
+		;;
 	parisc*)
 		debarch=hppa ;;
 	mips*)
