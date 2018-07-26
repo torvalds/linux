@@ -30,7 +30,6 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 
 
 #define rtl819XPHY_REG_1T2RArray Rtl8192UsbPHY_REG_1T2RArray
-#define rtl819XMACPHY_Array_PG Rtl8192UsbMACPHY_Array_PG
 #define rtl819XMACPHY_Array Rtl8192UsbMACPHY_Array
 #define rtl819XRadioA_Array  Rtl8192UsbRadioA_Array
 #define rtl819XRadioB_Array Rtl8192UsbRadioB_Array
@@ -491,7 +490,7 @@ void rtl8192_phy_configmac(struct net_device *dev)
 	if (priv->btxpowerdata_readfromEEPORM) {
 		RT_TRACE(COMP_PHY, "Rtl819XMACPHY_Array_PG\n");
 		dwArrayLen = MACPHY_Array_PGLength;
-		pdwArray = rtl819XMACPHY_Array_PG;
+		pdwArray = Rtl8192UsbMACPHY_Array_PG;
 
 	} else {
 		RT_TRACE(COMP_PHY, "Rtl819XMACPHY_Array\n");
