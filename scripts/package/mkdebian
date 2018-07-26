@@ -44,7 +44,12 @@ set_debarch() {
 	parisc*)
 		debarch=hppa ;;
 	mips*)
-		debarch=mips$(if_enabled_echo CPU_LITTLE_ENDIAN el) ;;
+		if is_enabled CPU_LITTLE_ENDIAN; then
+			debarch=mips$(if_enabled_echo 64BIT 64)el
+		else
+			debarch=mips
+		fi
+		;;
 	aarch64|arm64)
 		debarch=arm64 ;;
 	arm*)
