@@ -45,7 +45,9 @@ set_debarch() {
 		debarch=hppa ;;
 	mips*)
 		if is_enabled CPU_LITTLE_ENDIAN; then
-			debarch=mips$(if_enabled_echo 64BIT 64)el
+			debarch=mips$(if_enabled_echo 64BIT 64)$(if_enabled_echo CPU_MIPSR6 r6)el
+		elif is_enabled CPU_MIPSR6; then
+			debarch=mips$(if_enabled_echo 64BIT 64)r6
 		else
 			debarch=mips
 		fi
