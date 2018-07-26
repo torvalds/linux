@@ -727,3 +727,119 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, void *guest_code)
 
 	return vm;
 }
+
+struct kvm_x86_state {
+	struct kvm_vcpu_events events;
+	struct kvm_mp_state mp_state;
+	struct kvm_regs regs;
+	struct kvm_xsave xsave;
+	struct kvm_xcrs xcrs;
+	struct kvm_sregs sregs;
+	struct kvm_debugregs debugregs;
+	struct kvm_msrs msrs;
+};
+
+static int kvm_get_num_msrs(struct kvm_vm *vm)
+{
+	struct kvm_msr_list nmsrs;
+	int r;
+
+	nmsrs.nmsrs = 0;
+	r = ioctl(vm->kvm_fd, KVM_GET_MSR_INDEX_LIST, &nmsrs);
+	TEST_ASSERT(r == -1 && errno == E2BIG, "Unexpected result from KVM_GET_MSR_INDEX_LIST probe, r: %i",
+		r);
+
+	return nmsrs.nmsrs;
+}
+
+struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	struct kvm_msr_list *list;
+	struct kvm_x86_state *state;
+	int nmsrs, r, i;
+
+	nmsrs = kvm_get_num_msrs(vm);
+	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
+	list->nmsrs = nmsrs;
+	r = ioctl(vm->kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MSR_INDEX_LIST, r: %i",
+                r);
+
+	state = malloc(sizeof(*state) + nmsrs * sizeof(state->msrs.entries[0]));
+	r = ioctl(vcpu->fd, KVM_GET_VCPU_EVENTS, &state->events);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_VCPU_EVENTS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_MP_STATE, &state->mp_state);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MP_STATE, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_REGS, &state->regs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_REGS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_XSAVE, &state->xsave);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_XSAVE, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_XCRS, &state->xcrs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_XCRS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_SREGS, &state->sregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_SREGS, r: %i",
+                r);
+
+	state->msrs.nmsrs = nmsrs;
+	for (i = 0; i < nmsrs; i++)
+		state->msrs.entries[i].index = list->indices[i];
+	r = ioctl(vcpu->fd, KVM_GET_MSRS, &state->msrs);
+        TEST_ASSERT(r == nmsrs, "Unexpected result from KVM_GET_MSRS, r: %i (failed at %x)",
+                r, r == nmsrs ? -1 : list->indices[r]);
+
+	r = ioctl(vcpu->fd, KVM_GET_DEBUGREGS, &state->debugregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_DEBUGREGS, r: %i",
+                r);
+
+	free(list);
+	return state;
+}
+
+void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *state)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int r;
+
+	r = ioctl(vcpu->fd, KVM_SET_XSAVE, &state->xsave);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XSAVE, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_XCRS, &state->xcrs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XCRS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_SREGS, &state->sregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_SREGS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_MSRS, &state->msrs);
+        TEST_ASSERT(r == state->msrs.nmsrs, "Unexpected result from KVM_SET_MSRS, r: %i (failed at %x)",
+                r, r == state->msrs.nmsrs ? -1 : state->msrs.entries[r].index);
+
+	r = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, &state->events);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_VCPU_EVENTS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_MP_STATE, &state->mp_state);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_MP_STATE, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_DEBUGREGS, &state->debugregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_DEBUGREGS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_REGS, &state->regs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_REGS, r: %i",
+                r);
+}

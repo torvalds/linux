@@ -43,6 +43,7 @@ struct vcpu {
 
 struct kvm_vm {
 	int mode;
+	int kvm_fd;
 	int fd;
 	unsigned int page_size;
 	unsigned int page_shift;
@@ -52,6 +53,7 @@ struct kvm_vm {
 	struct sparsebit *vpages_valid;
 	struct sparsebit *vpages_mapped;
 
+	bool has_irqchip;
 	bool pgd_created;
 	vm_paddr_t pgd;
 	vm_vaddr_t gdt;

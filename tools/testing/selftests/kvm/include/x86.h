@@ -303,6 +303,10 @@ static inline unsigned long get_xmm(int n)
 	return 0;
 }
 
+struct kvm_x86_state;
+struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
+void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *state);
+
 /*
  * Basic CPU control in CR0
  */
