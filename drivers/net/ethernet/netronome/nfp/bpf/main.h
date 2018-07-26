@@ -501,7 +501,8 @@ int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
 int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 			       void *key, void *next_key);
 
-int nfp_bpf_event_output(struct nfp_app_bpf *bpf, struct sk_buff *skb);
+int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
+			 unsigned int len);
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
 #endif

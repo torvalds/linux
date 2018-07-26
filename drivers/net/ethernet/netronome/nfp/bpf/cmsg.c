@@ -441,7 +441,10 @@ void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb)
 	}
 
 	if (nfp_bpf_cmsg_get_type(skb) == CMSG_TYPE_BPF_EVENT) {
-		nfp_bpf_event_output(bpf, skb);
+		if (!nfp_bpf_event_output(bpf, skb->data, skb->len))
+			dev_consume_skb_any(skb);
+		else
+			dev_kfree_skb_any(skb);
 		return;
 	}
 
