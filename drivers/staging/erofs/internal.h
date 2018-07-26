@@ -66,6 +66,7 @@ typedef u64 erofs_nid_t;
 struct erofs_sb_info {
 	/* list for all registered superblocks, mainly for shrinker */
 	struct list_head list;
+	struct mutex umount_mutex;
 
 	u32 blocks;
 	u32 meta_blkaddr;
@@ -93,6 +94,7 @@ struct erofs_sb_info {
 	char *dev_name;
 
 	unsigned int mount_opt;
+	unsigned int shrinker_run_no;
 
 #ifdef CONFIG_EROFS_FAULT_INJECTION
 	struct erofs_fault_info fault_info;	/* For fault injection */
@@ -415,6 +417,11 @@ extern struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp);
 
 extern void erofs_register_super(struct super_block *sb);
 extern void erofs_unregister_super(struct super_block *sb);
+
+extern unsigned long erofs_shrink_count(struct shrinker *shrink,
+	struct shrink_control *sc);
+extern unsigned long erofs_shrink_scan(struct shrinker *shrink,
+	struct shrink_control *sc);
 
 #ifndef lru_to_page
 #define lru_to_page(head) (list_entry((head)->prev, struct page, lru))

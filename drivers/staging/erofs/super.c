@@ -375,7 +375,9 @@ static void erofs_put_super(struct super_block *sb)
 	infoln("unmounted for %s", sbi->dev_name);
 	__putname(sbi->dev_name);
 
+	mutex_lock(&sbi->umount_mutex);
 	erofs_unregister_super(sb);
+	mutex_unlock(&sbi->umount_mutex);
 
 	kfree(sbi);
 	sb->s_fs_info = NULL;
@@ -415,6 +417,12 @@ static void erofs_kill_sb(struct super_block *sb)
 	kill_block_super(sb);
 }
 
+static struct shrinker erofs_shrinker_info = {
+	.scan_objects = erofs_shrink_scan,
+	.count_objects = erofs_shrink_count,
+	.seeks = DEFAULT_SEEKS,
+};
+
 static struct file_system_type erofs_fs_type = {
 	.owner          = THIS_MODULE,
 	.name           = "erofs",
@@ -435,6 +443,10 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto icache_err;
 
+	err = register_shrinker(&erofs_shrinker_info);
+	if (err)
+		goto shrinker_err;
+
 	err = register_filesystem(&erofs_fs_type);
 	if (err)
 		goto fs_err;
@@ -443,6 +455,8 @@ static int __init erofs_module_init(void)
 	return 0;
 
 fs_err:
+	unregister_shrinker(&erofs_shrinker_info);
+shrinker_err:
 	erofs_exit_inode_cache();
 icache_err:
 	return err;
@@ -451,6 +465,7 @@ icache_err:
 static void __exit erofs_module_exit(void)
 {
 	unregister_filesystem(&erofs_fs_type);
+	unregister_shrinker(&erofs_shrinker_info);
 	erofs_exit_inode_cache();
 	infoln("successfully finalize erofs");
 }
