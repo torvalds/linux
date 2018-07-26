@@ -6,6 +6,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   netdev-FAQ
    af_xdp
    batman-adv
    can
