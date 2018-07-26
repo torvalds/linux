@@ -123,7 +123,7 @@ static int axg_card_add_aux_devices(struct snd_soc_card *card)
 	struct snd_soc_aux_dev *aux;
 	int num, i;
 
-	num = of_count_phandle_with_args(node, PREFIX "aux-devs", NULL);
+	num = of_count_phandle_with_args(node, "audio-aux-devs", NULL);
 	if (num == -ENOENT) {
 		/*
 		 * It is ok to have no auxiliary devices but for this card it
@@ -144,8 +144,8 @@ static int axg_card_add_aux_devices(struct snd_soc_card *card)
 	card->num_aux_devs = num;
 
 	for (i = 0; i < card->num_aux_devs; i++, aux++) {
-		aux->codec_of_node = of_parse_phandle(node,
-						      PREFIX "aux-devs", i);
+		aux->codec_of_node =
+			of_parse_phandle(node, "audio-aux-devs", i);
 		if (!aux->codec_of_node)
 			return -EINVAL;
 	}
@@ -610,18 +610,18 @@ static int axg_card_probe(struct platform_device *pdev)
 	priv->card.owner = THIS_MODULE;
 	priv->card.dev = dev;
 
-	ret = snd_soc_of_parse_card_name(&priv->card, PREFIX "name");
+	ret = snd_soc_of_parse_card_name(&priv->card, "model");
 	if (ret < 0)
 		return ret;
 
-	ret = axg_card_parse_of_optional(&priv->card, PREFIX "routing",
+	ret = axg_card_parse_of_optional(&priv->card, "audio-routing",
 					 snd_soc_of_parse_audio_routing);
 	if (ret) {
 		dev_err(dev, "error while parsing routing\n");
 		return ret;
 	}
 
-	ret = axg_card_parse_of_optional(&priv->card, PREFIX "widgets",
+	ret = axg_card_parse_of_optional(&priv->card, "audio-widgets",
 					 snd_soc_of_parse_audio_simple_widgets);
 	if (ret) {
 		dev_err(dev, "error while parsing widgets\n");
