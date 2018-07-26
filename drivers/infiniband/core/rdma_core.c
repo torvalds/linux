@@ -127,8 +127,10 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj,
 		return __atomic_add_unless(&uobj->usecnt, 1, -1) == -1 ?
 			-EBUSY : 0;
 	case UVERBS_LOOKUP_WRITE:
-		/* lock is either WRITE or DESTROY - should be exclusive */
+		/* lock is exclusive */
 		return atomic_cmpxchg(&uobj->usecnt, 0, -1) == 0 ? 0 : -EBUSY;
+	case UVERBS_LOOKUP_DESTROY:
+		return 0;
 	}
 	return 0;
 }
@@ -143,6 +145,8 @@ static void assert_uverbs_usecnt(struct ib_uobject *uobj,
 		break;
 	case UVERBS_LOOKUP_WRITE:
 		WARN_ON(atomic_read(&uobj->usecnt) != -1);
+		break;
+	case UVERBS_LOOKUP_DESTROY:
 		break;
 	}
 #endif
@@ -228,6 +232,35 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 }
 
 /*
+ * This calls uverbs_destroy_uobject() using the RDMA_REMOVE_DESTROY
+ * sequence. It should only be used from command callbacks. On success the
+ * caller must pair this with rdma_lookup_put_uobject(LOOKUP_WRITE). This
+ * version requires the caller to have already obtained an
+ * LOOKUP_DESTROY uobject kref.
+ */
+int uobj_destroy(struct ib_uobject *uobj)
+{
+	struct ib_uverbs_file *ufile = uobj->ufile;
+	int ret;
+
+	down_read(&ufile->hw_destroy_rwsem);
+
+	ret = uverbs_try_lock_object(uobj, UVERBS_LOOKUP_WRITE);
+	if (ret)
+		goto out_unlock;
+
+	ret = uverbs_destroy_uobject(uobj, RDMA_REMOVE_DESTROY);
+	if (ret) {
+		atomic_set(&uobj->usecnt, 0);
+		goto out_unlock;
+	}
+
+out_unlock:
+	up_read(&ufile->hw_destroy_rwsem);
+	return ret;
+}
+
+/*
  * uobj_get_destroy destroys the HW object and returns a handle to the uobj
  * with a NULL object pointer. The caller must pair this with
  * uverbs_put_destroy.
@@ -238,13 +271,13 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_obj_type *type,
 	struct ib_uobject *uobj;
 	int ret;
 
-	uobj = rdma_lookup_get_uobject(type, ufile, id, UVERBS_LOOKUP_WRITE);
+	uobj = rdma_lookup_get_uobject(type, ufile, id, UVERBS_LOOKUP_DESTROY);
 	if (IS_ERR(uobj))
 		return uobj;
 
-	ret = rdma_explicit_destroy(uobj);
+	ret = uobj_destroy(uobj);
 	if (ret) {
-		rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
+		rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_DESTROY);
 		return ERR_PTR(ret);
 	}
 
@@ -265,6 +298,11 @@ int __uobj_perform_destroy(const struct uverbs_obj_type *type, u32 id,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
+	/*
+	 * FIXME: After destroy this is not safe. We no longer hold the rwsem
+	 * so disassociation could have completed and unloaded the module that
+	 * backs the uobj->type pointer.
+	 */
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 	return success_res;
 }
@@ -534,23 +572,6 @@ static int __must_check remove_commit_fd_uobject(struct ib_uobject *uobj,
 	return 0;
 }
 
-int rdma_explicit_destroy(struct ib_uobject *uobject)
-{
-	int ret;
-	struct ib_uverbs_file *ufile = uobject->ufile;
-
-	/* Cleanup is running. Calling this should have been impossible */
-	if (!down_read_trylock(&ufile->hw_destroy_rwsem)) {
-		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
-		return 0;
-	}
-
-	ret = uverbs_destroy_uobject(uobject, RDMA_REMOVE_DESTROY);
-
-	up_read(&ufile->hw_destroy_rwsem);
-	return ret;
-}
-
 static int alloc_commit_idr_uobject(struct ib_uobject *uobj)
 {
 	struct ib_uverbs_file *ufile = uobj->ufile;
@@ -685,6 +706,8 @@ void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 		break;
 	case UVERBS_LOOKUP_WRITE:
 		atomic_set(&uobj->usecnt, 0);
+		break;
+	case UVERBS_LOOKUP_DESTROY:
 		break;
 	}
 
@@ -911,6 +934,9 @@ uverbs_get_uobject_from_file(const struct uverbs_obj_type *type_attrs,
 		return rdma_lookup_get_uobject(type_attrs, ufile, id,
 					       UVERBS_LOOKUP_READ);
 	case UVERBS_ACCESS_DESTROY:
+		/* Actual destruction is done inside uverbs_handle_method */
+		return rdma_lookup_get_uobject(type_attrs, ufile, id,
+					       UVERBS_LOOKUP_DESTROY);
 	case UVERBS_ACCESS_WRITE:
 		return rdma_lookup_get_uobject(type_attrs, ufile, id,
 					       UVERBS_LOOKUP_WRITE);
@@ -942,7 +968,8 @@ int uverbs_finalize_object(struct ib_uobject *uobj,
 		rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 		break;
 	case UVERBS_ACCESS_DESTROY:
-		rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
+		if (uobj)
+			rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_DESTROY);
 		break;
 	case UVERBS_ACCESS_NEW:
 		if (commit)

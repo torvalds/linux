@@ -41,6 +41,12 @@ struct uverbs_obj_type;
 enum rdma_lookup_mode {
 	UVERBS_LOOKUP_READ,
 	UVERBS_LOOKUP_WRITE,
+	/*
+	 * Destroy is like LOOKUP_WRITE, except that the uobject is not
+	 * locked.  uobj_destroy is used to convert a LOOKUP_DESTROY lock into
+	 * a LOOKUP_WRITE lock.
+	 */
+	UVERBS_LOOKUP_DESTROY,
 };
 
 /*
@@ -129,7 +135,6 @@ struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
 					    struct ib_uverbs_file *ufile);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
 int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj);
-int rdma_explicit_destroy(struct ib_uobject *uobject);
 
 struct uverbs_obj_fd_type {
 	/*

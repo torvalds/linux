@@ -349,12 +349,17 @@ static int uverbs_handle_method(struct ib_uverbs_attr __user *uattr_ptr,
 	 * not get to manipulate the HW objects.
 	 */
 	if (destroy_attr) {
-		ret = rdma_explicit_destroy(destroy_attr->uobject);
+		ret = uobj_destroy(destroy_attr->uobject);
 		if (ret)
 			goto cleanup;
 	}
 
 	ret = method_spec->handler(ibdev, ufile, attr_bundle);
+
+	if (destroy_attr) {
+		uobj_put_destroy(destroy_attr->uobject);
+		destroy_attr->uobject = NULL;
+	}
 
 cleanup:
 	finalize_ret = uverbs_finalize_attrs(attr_bundle,

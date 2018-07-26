@@ -52,6 +52,8 @@ const struct uverbs_method_spec *uverbs_get_method(const struct uverbs_object_sp
 void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 			     enum rdma_remove_reason reason);
 
+int uobj_destroy(struct ib_uobject *uobj);
+
 /*
  * uverbs_uobject_get is called in order to increase the reference count on
  * an uobject. This is useful when a handler wants to keep the uobject's memory
