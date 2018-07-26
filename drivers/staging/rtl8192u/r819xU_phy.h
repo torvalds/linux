@@ -18,7 +18,7 @@ enum switch_chan_cmd_id {
 
 /* -----------------------Define structure---------------------- */
 /* 1. Switch channel related */
-struct SwChnlCmd {
+struct sw_chnl_cmd {
 	enum switch_chan_cmd_id	CmdID;
 	u32		        Para1;
 	u32		        Para2;

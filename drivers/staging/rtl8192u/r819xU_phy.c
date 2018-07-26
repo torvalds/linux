@@ -1215,8 +1215,8 @@ bool rtl8192_SetRFPowerState(struct net_device *dev,
 }
 
 /******************************************************************************
- * function:  This function sets command table variable (struct SwChnlCmd).
- * input:     SwChnlCmd      *CmdTable    //table to be set
+ * function:  This function sets command table variable (struct sw_chnl_cmd).
+ * input:     sw_chnl_cmd      *CmdTable    //table to be set
  *            u32            CmdTableIdx  //variable index in table to be set
  *            u32            CmdTableSz   //table size
  *            switch_chan_cmd_id    CmdID        //command ID to set
@@ -1227,11 +1227,11 @@ bool rtl8192_SetRFPowerState(struct net_device *dev,
  * return:    true if finished, false otherwise
  * notice:
  ******************************************************************************/
-static u8 rtl8192_phy_SetSwChnlCmdArray(struct SwChnlCmd *CmdTable, u32 CmdTableIdx,
+static u8 rtl8192_phy_SetSwChnlCmdArray(struct sw_chnl_cmd *CmdTable, u32 CmdTableIdx,
 					u32 CmdTableSz, enum switch_chan_cmd_id CmdID,
 					u32 Para1, u32 Para2, u32 msDelay)
 {
-	struct SwChnlCmd *pCmd;
+	struct sw_chnl_cmd *pCmd;
 
 	if (CmdTable == NULL) {
 		RT_TRACE(COMP_ERR, "%s(): CmdTable cannot be NULL\n", __func__);
@@ -1268,13 +1268,13 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 				       u8 *stage, u8 *step, u32 *delay)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct SwChnlCmd   PreCommonCmd[MAX_PRECMD_CNT];
+	struct sw_chnl_cmd   PreCommonCmd[MAX_PRECMD_CNT];
 	u32		   PreCommonCmdCnt;
-	struct SwChnlCmd   PostCommonCmd[MAX_POSTCMD_CNT];
+	struct sw_chnl_cmd   PostCommonCmd[MAX_POSTCMD_CNT];
 	u32		   PostCommonCmdCnt;
-	struct SwChnlCmd   RfDependCmd[MAX_RFDEPENDCMD_CNT];
+	struct sw_chnl_cmd   RfDependCmd[MAX_RFDEPENDCMD_CNT];
 	u32		   RfDependCmdCnt;
-	struct SwChnlCmd  *CurrentCmd = NULL;
+	struct sw_chnl_cmd  *CurrentCmd = NULL;
 	u8		   eRFPath;
 
 	RT_TRACE(COMP_CH, "%s() stage: %d, step: %d, channel: %d\n",
