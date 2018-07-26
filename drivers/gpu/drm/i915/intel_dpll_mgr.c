@@ -2866,6 +2866,8 @@ static struct intel_shared_dpll *
 icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	     struct intel_encoder *encoder)
 {
+	struct intel_digital_port *intel_dig_port =
+			enc_to_dig_port(&encoder->base);
 	struct intel_shared_dpll *pll;
 	struct intel_dpll_hw_state pll_state = {};
 	enum port port = encoder->port;
@@ -2885,7 +2887,7 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	case PORT_D:
 	case PORT_E:
 	case PORT_F:
-		if (0 /* TODO: TBT PLLs */) {
+		if (intel_dig_port->tc_type == TC_PORT_TBT) {
 			min = DPLL_ID_ICL_TBTPLL;
 			max = min;
 			ret = icl_calc_dpll_state(crtc_state, encoder, clock,
