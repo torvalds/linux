@@ -1246,6 +1246,16 @@ void __init arc_cache_init_master(void)
 		}
 	}
 
+	/*
+	 * Check that SMP_CACHE_BYTES (and hence ARCH_DMA_MINALIGN) is larger
+	 * or equal to any cache line length.
+	 */
+	BUILD_BUG_ON_MSG(L1_CACHE_BYTES > SMP_CACHE_BYTES,
+			 "SMP_CACHE_BYTES must be >= any cache line length");
+	if (is_isa_arcv2() && (l2_line_sz > SMP_CACHE_BYTES))
+		panic("L2 Cache line [%d] > kernel Config [%d]\n",
+		      l2_line_sz, SMP_CACHE_BYTES);
+
 	/* Note that SLC disable not formally supported till HS 3.0 */
 	if (is_isa_arcv2() && l2_line_sz && !slc_enable)
 		arc_slc_disable();
