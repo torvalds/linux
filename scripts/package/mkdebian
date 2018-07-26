@@ -7,6 +7,11 @@
 set -e
 
 set_debarch() {
+	if [ -n "$KBUILD_DEBARCH" ] ; then
+		debarch="$KBUILD_DEBARCH"
+		return
+	fi
+
 	# Attempt to find the correct Debian architecture
 	case "$UTS_MACHINE" in
 	i386|ia64|alpha)
@@ -46,10 +51,8 @@ set_debarch() {
 		echo "Falling back to using your current userspace instead!" >&2
 		echo "Please add support for $UTS_MACHINE to ${0} ..." >&2
 		echo "" >&2
+		;;
 	esac
-	if [ -n "$KBUILD_DEBARCH" ] ; then
-		debarch="$KBUILD_DEBARCH"
-	fi
 }
 
 # Some variables and settings used throughout the script
