@@ -195,7 +195,7 @@ struct cache_sb {
 	};
 	};
 
-	__u32			last_mount;	/* time_t */
+	__u32			last_mount;	/* time overflow in y2106 */
 
 	__u16			first_bucket;
 	union {
@@ -318,7 +318,7 @@ struct uuid_entry {
 		struct {
 			__u8	uuid[16];
 			__u8	label[32];
-			__u32	first_reg;
+			__u32	first_reg; /* time overflow in y2106 */
 			__u32	last_reg;
 			__u32	invalidated;
 
