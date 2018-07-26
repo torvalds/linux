@@ -449,6 +449,17 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 		goto free;
 	}
 
+	/*
+	 * If we have been disassociated block every command except for
+	 * DESTROY based commands.
+	 */
+	if (mode != UVERBS_LOOKUP_DESTROY &&
+	    !srcu_dereference(ufile->device->ib_dev,
+			      &ufile->device->disassociate_srcu)) {
+		ret = -EIO;
+		goto free;
+	}
+
 	ret = uverbs_try_lock_object(uobj, mode);
 	if (ret)
 		goto free;
