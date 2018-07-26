@@ -3883,6 +3883,7 @@ static int nfp_bpf_replace_map_ptrs(struct nfp_prog *nfp_prog)
 	struct nfp_insn_meta *meta1, *meta2;
 	struct nfp_bpf_map *nfp_map;
 	struct bpf_map *map;
+	u32 id;
 
 	nfp_for_each_insn_walk2(nfp_prog, meta1, meta2) {
 		if (meta1->skip || meta2->skip)
@@ -3894,11 +3895,14 @@ static int nfp_bpf_replace_map_ptrs(struct nfp_prog *nfp_prog)
 
 		map = (void *)(unsigned long)((u32)meta1->insn.imm |
 					      (u64)meta2->insn.imm << 32);
-		if (bpf_map_offload_neutral(map))
-			continue;
-		nfp_map = map_to_offmap(map)->dev_priv;
+		if (bpf_map_offload_neutral(map)) {
+			id = map->id;
+		} else {
+			nfp_map = map_to_offmap(map)->dev_priv;
+			id = nfp_map->tid;
+		}
 
-		meta1->insn.imm = nfp_map->tid;
+		meta1->insn.imm = id;
 		meta2->insn.imm = 0;
 	}
 

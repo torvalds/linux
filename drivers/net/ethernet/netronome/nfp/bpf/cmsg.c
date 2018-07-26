@@ -43,8 +43,6 @@
 #include "fw.h"
 #include "main.h"
 
-#define cmsg_warn(bpf, msg...)	nn_dp_warn(&(bpf)->app->ctrl->dp, msg)
-
 #define NFP_BPF_TAG_ALLOC_SPAN	(U16_MAX / 4)
 
 static bool nfp_bpf_all_tags_busy(struct nfp_app_bpf *bpf)

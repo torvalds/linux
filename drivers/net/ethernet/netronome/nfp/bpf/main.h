@@ -47,6 +47,8 @@
 #include "../nfp_asm.h"
 #include "fw.h"
 
+#define cmsg_warn(bpf, msg...)	nn_dp_warn(&(bpf)->app->ctrl->dp, msg)
+
 /* For relocation logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
  */
@@ -221,6 +223,7 @@ struct nfp_bpf_map {
 struct nfp_bpf_neutral_map {
 	struct rhash_head l;
 	struct bpf_map *ptr;
+	u32 map_id;
 	u32 count;
 };
 
