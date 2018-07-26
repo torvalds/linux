@@ -309,6 +309,52 @@ struct rk3128_ddr_dts_config_timing {
 	u32 available;
 };
 
+static const char * const rk3228_dts_timing[] = {
+	"dram_spd_bin",
+	"sr_idle",
+	"pd_idle",
+	"dram_dll_disb_freq",
+	"phy_dll_disb_freq",
+	"dram_odt_disb_freq",
+	"phy_odt_disb_freq",
+	"ddr3_drv",
+	"ddr3_odt",
+	"lpddr3_drv",
+	"lpddr3_odt",
+	"lpddr2_drv",
+	"phy_ddr3_clk_drv",
+	"phy_ddr3_cmd_drv",
+	"phy_ddr3_dqs_drv",
+	"phy_ddr3_odt",
+	"phy_lp23_clk_drv",
+	"phy_lp23_cmd_drv",
+	"phy_lp23_dqs_drv",
+	"phy_lp3_odt"
+};
+
+struct rk3228_ddr_dts_config_timing {
+	u32 dram_spd_bin;
+	u32 sr_idle;
+	u32 pd_idle;
+	u32 dram_dll_dis_freq;
+	u32 phy_dll_dis_freq;
+	u32 dram_odt_dis_freq;
+	u32 phy_odt_dis_freq;
+	u32 ddr3_drv;
+	u32 ddr3_odt;
+	u32 lpddr3_drv;
+	u32 lpddr3_odt;
+	u32 lpddr2_drv;
+	u32 phy_ddr3_clk_drv;
+	u32 phy_ddr3_cmd_drv;
+	u32 phy_ddr3_dqs_drv;
+	u32 phy_ddr3_odt;
+	u32 phy_lp23_clk_drv;
+	u32 phy_lp23_cmd_drv;
+	u32 phy_lp23_dqs_drv;
+	u32 phy_lp3_odt;
+};
+
 static const char * const rk3288_dts_timing[] = {
 	"ddr3_speed_bin",
 	"pd_idle",
@@ -1325,6 +1371,32 @@ end:
 	of_node_put(np_tim);
 }
 
+static uint32_t of_get_rk3228_timings(struct device *dev,
+				      struct device_node *np, uint32_t *timing)
+{
+	struct device_node *np_tim;
+	u32 *p;
+	int ret = 0;
+	u32 i;
+
+	p = timing + DTS_PAR_OFFSET / 4;
+	np_tim = of_parse_phandle(np, "rockchip,dram_timing", 0);
+	if (!np_tim) {
+		ret = -EINVAL;
+		goto end;
+	}
+	for (i = 0; i < ARRAY_SIZE(rk3228_dts_timing); i++) {
+		ret |= of_property_read_u32(np_tim, rk3228_dts_timing[i],
+					p + i);
+	}
+end:
+	if (ret)
+		dev_err(dev, "of_get_ddr_timings: fail\n");
+
+	of_node_put(np_tim);
+	return ret;
+}
+
 static void of_get_rk3288_timings(struct device *dev,
 				  struct device_node *np, uint32_t *timing)
 {
@@ -1781,9 +1853,31 @@ static __maybe_unused int rk3128_dmc_init(struct platform_device *pdev,
 static __maybe_unused int rk3228_dmc_init(struct platform_device *pdev,
 					  struct rockchip_dmcfreq *dmcfreq)
 {
-	/*
-	 * dmc_init have been done in uboot.
-	 */
+	struct arm_smccc_res res;
+
+	res = sip_smc_request_share_mem(DIV_ROUND_UP(sizeof(
+					struct rk3228_ddr_dts_config_timing),
+					4096) + 1, SHARE_PAGE_TYPE_DDR);
+	if (res.a0) {
+		dev_err(&pdev->dev, "no ATF memory for init\n");
+		return -ENOMEM;
+	}
+
+	ddr_psci_param = (struct share_params *)res.a1;
+	if (of_get_rk3228_timings(&pdev->dev, pdev->dev.of_node,
+				  (uint32_t *)ddr_psci_param))
+		return -ENOMEM;
+
+	ddr_psci_param->hz = 0;
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
+
+	if (res.a0) {
+		dev_err(&pdev->dev, "rockchip_sip_config_dram_init error:%lx\n",
+			res.a0);
+		return -ENOMEM;
+	}
+
 	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
 
 	return 0;
