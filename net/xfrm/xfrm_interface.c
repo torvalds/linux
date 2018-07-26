@@ -689,10 +689,7 @@ static int xfrmi_newlink(struct net *src_net, struct net_device *dev,
 	nla_strlcpy(p->name, tb[IFLA_IFNAME], IFNAMSIZ);
 
 	xi = xfrmi_locate(net, p, 1);
-	if (IS_ERR(xi))
-		return PTR_ERR(xi);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(xi);
 }
 
 static void xfrmi_dellink(struct net_device *dev, struct list_head *head)
