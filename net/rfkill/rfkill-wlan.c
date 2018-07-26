@@ -597,6 +597,7 @@ static int wlan_platdata_parse_dt(struct device *dev,
     u32 value;
     int gpio,ret;
     enum of_gpio_flags flags;
+	u32 ext_clk_value = 0;
 
     if (!node)
         return -ENODEV;
@@ -675,6 +676,28 @@ static int wlan_platdata_parse_dt(struct device *dev,
 			data->wifi_int_b.enable = !flags;
 			LOG("%s: get property: WIFI,host_wake_irq = %d, flags = %d.\n", __func__, gpio, flags);
         } else data->wifi_int_b.io = -1;
+	}
+
+	data->ext_clk = devm_clk_get(dev, "clk_wifi");
+	if (IS_ERR(data->ext_clk)) {
+		LOG("%s: The ref_wifi_clk not found !\n", __func__);
+	} else {
+		of_property_read_u32(node, "ref-clock-frequency",
+				     &ext_clk_value);
+		if (ext_clk_value > 0) {
+			ret = clk_set_rate(data->ext_clk, ext_clk_value);
+			if (ret)
+				LOG("%s: set ref clk error!\n", __func__);
+			ret = clk_prepare_enable(data->ext_clk);
+			if (ret)
+				LOG("%s: enable ref clk error!\n", __func__);
+			/* WIFI clock (REF_CLKOUT) output enable.
+			 * 1'b0: drive disable
+			 * 1'b1: output enable
+			 */
+			if (of_machine_is_compatible("rockchip,rk3308"))
+				regmap_write(data->grf, 0x0314, 0x00020002);
+		}
 	}
 
     return 0;
