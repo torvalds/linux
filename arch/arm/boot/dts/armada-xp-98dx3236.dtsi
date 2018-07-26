@@ -189,7 +189,7 @@
 				};
 			};
 
-			nand: nand@d0000 {
+			nand_controller: nand-controller@d0000 {
 				clocks = <&dfx_coredivclk 0>;
 			};
 
