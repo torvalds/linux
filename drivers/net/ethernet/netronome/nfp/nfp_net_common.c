@@ -1759,6 +1759,14 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		if (likely(!meta.portid)) {
 			netdev = dp->netdev;
+		} else if (meta.portid == NFP_META_PORT_ID_CTRL) {
+			struct nfp_net *nn = netdev_priv(dp->netdev);
+
+			nfp_app_ctrl_rx_raw(nn->app, rxbuf->frag + pkt_off,
+					    pkt_len);
+			nfp_net_rx_give_one(dp, rx_ring, rxbuf->frag,
+					    rxbuf->dma_addr);
+			continue;
 		} else {
 			struct nfp_net *nn;
 
@@ -3856,6 +3864,9 @@ int nfp_net_init(struct nfp_net *nn)
 	else
 		nn->dp.mtu = NFP_NET_DEFAULT_MTU;
 	nn->dp.fl_bufsz = nfp_net_calc_fl_bufsz(&nn->dp);
+
+	if (nfp_app_ctrl_uses_data_vnics(nn->app))
+		nn->dp.ctrl |= nn->cap & NFP_NET_CFG_CTRL_CMSG_DATA;
 
 	if (nn->cap & NFP_NET_CFG_CTRL_RSS_ANY) {
 		nfp_net_rss_init(nn);
