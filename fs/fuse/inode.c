@@ -382,6 +382,8 @@ static void fuse_put_super(struct super_block *sb)
 	fuse_send_destroy(fc);
 
 	fuse_abort_conn(fc);
+	fuse_wait_aborted(fc);
+
 	mutex_lock(&fuse_mutex);
 	list_del(&fc->entry);
 	fuse_ctl_remove_conn(fc);
