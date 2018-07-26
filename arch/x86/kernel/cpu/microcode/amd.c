@@ -221,7 +221,10 @@ __verify_patch_size(u8 family, u32 sh_psize, unsigned int buf_size)
 static unsigned int
 verify_patch(u8 family, const u8 *buf, unsigned int buf_size, bool early)
 {
+	struct microcode_header_amd *mc_hdr;
 	u32 sh_psize;
+	u16 proc_id;
+	u8 patch_fam;
 
 	if (!__verify_patch_section(buf, buf_size, &sh_psize, early))
 		return 0;
@@ -242,6 +245,13 @@ verify_patch(u8 family, const u8 *buf, unsigned int buf_size, bool early)
 
 		return 0;
 	}
+
+	mc_hdr	= (struct microcode_header_amd *)(buf + SECTION_HDR_SIZE);
+	proc_id	= mc_hdr->processor_rev_id;
+
+	patch_fam = 0xf + (proc_id >> 12);
+	if (patch_fam != family)
+		return 0;
 
 	return __verify_patch_size(family, sh_psize, buf_size);
 }
@@ -718,7 +728,6 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	struct microcode_header_amd *mc_hdr;
 	unsigned int patch_size, crnt_size;
 	struct ucode_patch *patch;
-	u8 patch_fam;
 	u16 proc_id;
 
 	patch_size = verify_patch(family, fw, leftover, false);
@@ -731,10 +740,6 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	crnt_size   = patch_size + SECTION_HDR_SIZE;
 	mc_hdr	    = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
 	proc_id	    = mc_hdr->processor_rev_id;
-
-	patch_fam = 0xf + (proc_id >> 12);
-	if (patch_fam != family)
-		return crnt_size;
 
 	if (mc_hdr->nb_dev_id || mc_hdr->sb_dev_id) {
 		pr_err("Patch-ID 0x%08x: chipset-specific code unsupported.\n",
