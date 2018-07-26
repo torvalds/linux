@@ -350,9 +350,9 @@ struct nfp_net_rx_buf {
  * @qcp_fl:     Pointer to base of the QCP freelist queue
  * @rxbufs:     Array of transmitted FL/RX buffers
  * @rxds:       Virtual address of FL/RX ring in host memory
+ * @xdp_rxq:    RX-ring info avail for XDP
  * @dma:        DMA address of the FL/RX ring
  * @size:       Size, in bytes, of the FL/RX ring (needed to free)
- * @xdp_rxq:    RX-ring info avail for XDP
  */
 struct nfp_net_rx_ring {
 	struct nfp_net_r_vector *r_vec;
@@ -364,14 +364,15 @@ struct nfp_net_rx_ring {
 	u32 idx;
 
 	int fl_qcidx;
-	unsigned int size;
 	u8 __iomem *qcp_fl;
 
 	struct nfp_net_rx_buf *rxbufs;
 	struct nfp_net_rx_desc *rxds;
 
-	dma_addr_t dma;
 	struct xdp_rxq_info xdp_rxq;
+
+	dma_addr_t dma;
+	unsigned int size;
 } ____cacheline_aligned;
 
 /**
