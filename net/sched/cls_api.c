@@ -1844,6 +1844,7 @@ replay:
 		 * to the chain previously taken during addition.
 		 */
 		tcf_chain_put_explicitly_created(chain);
+		chain->explicitly_created = false;
 		break;
 	case RTM_GETCHAIN:
 		err = tc_chain_notify(chain, skb, n->nlmsg_seq,
