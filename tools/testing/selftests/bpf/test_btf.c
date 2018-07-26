@@ -507,7 +507,7 @@ static struct btf_raw_test raw_tests[] = {
 	.key_size = sizeof(int),
 	.value_size = sizeof(void *) * 4,
 	.key_type_id = 1,
-	.value_type_id = 4,
+	.value_type_id = 5,
 	.max_entries = 4,
 },
 
@@ -1292,6 +1292,88 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "type != 0",
 },
 
+{
+	.descr = "arraymap invalid btf key (a bit field)",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* 32 bit int with 32 bit offset */	/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 32, 32, 8),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_map_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 2,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.map_create_err = true,
+},
+
+{
+	.descr = "arraymap invalid btf key (!= 32 bits)",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* 16 bit int with 0 bit offset */	/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 16, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_map_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 2,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.map_create_err = true,
+},
+
+{
+	.descr = "arraymap invalid btf value (too small)",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_map_check_btf",
+	.key_size = sizeof(int),
+	/* btf_value_size < map->value_size */
+	.value_size = sizeof(__u64),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.map_create_err = true,
+},
+
+{
+	.descr = "arraymap invalid btf value (too big)",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_map_check_btf",
+	.key_size = sizeof(int),
+	/* btf_value_size > map->value_size */
+	.value_size = sizeof(__u16),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.map_create_err = true,
+},
+
 }; /* struct btf_raw_test raw_tests[] */
 
 static const char *get_next_str(const char *start, const char *end)
@@ -2051,7 +2133,7 @@ static struct btf_raw_test pprint_test = {
 		BTF_ENUM_ENC(NAME_TBD, 2),
 		BTF_ENUM_ENC(NAME_TBD, 3),
 		/* struct pprint_mapv */		/* [16] */
-		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 8), 28),
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 8), 32),
 		BTF_MEMBER_ENC(NAME_TBD, 11, 0),	/* uint32_t ui32 */
 		BTF_MEMBER_ENC(NAME_TBD, 10, 32),	/* uint16_t ui16 */
 		BTF_MEMBER_ENC(NAME_TBD, 12, 64),	/* int32_t si32 */
