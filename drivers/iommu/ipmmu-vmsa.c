@@ -1108,11 +1108,18 @@ static struct platform_driver ipmmu_driver = {
 
 static int __init ipmmu_init(void)
 {
+	struct device_node *np;
 	static bool setup_done;
 	int ret;
 
 	if (setup_done)
 		return 0;
+
+	np = of_find_matching_node(NULL, ipmmu_of_ids);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
 
 	ret = platform_driver_register(&ipmmu_driver);
 	if (ret < 0)
