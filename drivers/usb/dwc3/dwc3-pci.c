@@ -101,52 +101,37 @@ unmap:
 	return 0;
 }
 
+static const struct property_entry dwc3_pci_intel_properties[] = {
+	PROPERTY_ENTRY_STRING("dr_mode", "peripheral"),
+	PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
+	{}
+};
+
+static const struct property_entry dwc3_pci_amd_properties[] = {
+	PROPERTY_ENTRY_BOOL("snps,has-lpm-erratum"),
+	PROPERTY_ENTRY_U8("snps,lpm-nyet-threshold", 0xf),
+	PROPERTY_ENTRY_BOOL("snps,u2exit_lfps_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,u2ss_inp3_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,req_p1p2p3_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,del_p1p2p3_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,del_phy_power_chg_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,lfps_filter_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,rx_detect_poll_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,tx_de_emphasis_quirk"),
+	PROPERTY_ENTRY_U8("snps,tx_de_emphasis", 1),
+	/* FIXME these quirks should be removed when AMD NL tapes out */
+	PROPERTY_ENTRY_BOOL("snps,disable_scramble_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,dis_u3_susphy_quirk"),
+	PROPERTY_ENTRY_BOOL("snps,dis_u2_susphy_quirk"),
+	PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
+	{}
+};
+
 static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 {
-	struct platform_device		*dwc3 = dwc->dwc3;
 	struct pci_dev			*pdev = dwc->pci;
 
-	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
-	    pdev->device == PCI_DEVICE_ID_AMD_NL_USB) {
-		struct property_entry properties[] = {
-			PROPERTY_ENTRY_BOOL("snps,has-lpm-erratum"),
-			PROPERTY_ENTRY_U8("snps,lpm-nyet-threshold", 0xf),
-			PROPERTY_ENTRY_BOOL("snps,u2exit_lfps_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,u2ss_inp3_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,req_p1p2p3_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,del_p1p2p3_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,del_phy_power_chg_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,lfps_filter_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,rx_detect_poll_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,tx_de_emphasis_quirk"),
-			PROPERTY_ENTRY_U8("snps,tx_de_emphasis", 1),
-			/*
-			 * FIXME these quirks should be removed when AMD NL
-			 * tapes out
-			 */
-			PROPERTY_ENTRY_BOOL("snps,disable_scramble_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,dis_u3_susphy_quirk"),
-			PROPERTY_ENTRY_BOOL("snps,dis_u2_susphy_quirk"),
-			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
-			{ },
-		};
-
-		return platform_device_add_properties(dwc3, properties);
-	}
-
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
-		int ret;
-
-		struct property_entry properties[] = {
-			PROPERTY_ENTRY_STRING("dr_mode", "peripheral"),
-			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
-			{ }
-		};
-
-		ret = platform_device_add_properties(dwc3, properties);
-		if (ret < 0)
-			return ret;
-
 		if (pdev->device == PCI_DEVICE_ID_INTEL_BXT ||
 				pdev->device == PCI_DEVICE_ID_INTEL_BXT_M) {
 			guid_parse(PCI_INTEL_BXT_DSM_GUID, &dwc->guid);
@@ -155,6 +140,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 
 		if (pdev->device == PCI_DEVICE_ID_INTEL_BYT) {
 			struct gpio_desc *gpio;
+			int ret;
 
 			/* On BYT the FW does not always enable the refclock */
 			ret = dwc3_byt_enable_ulpi_refclock(pdev);
@@ -216,9 +202,9 @@ static void dwc3_pci_resume_work(struct work_struct *work)
 }
 #endif
 
-static int dwc3_pci_probe(struct pci_dev *pci,
-		const struct pci_device_id *id)
+static int dwc3_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 {
+	struct property_entry *p = (struct property_entry *)id->driver_data;
 	struct dwc3_pci		*dwc;
 	struct resource		res[2];
 	int			ret;
@@ -261,6 +247,10 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	dwc->dwc3->dev.parent = dev;
 	ACPI_COMPANION_SET(&dwc->dwc3->dev, ACPI_COMPANION(dev));
 
+	ret = platform_device_add_properties(dwc->dwc3, p);
+	if (ret < 0)
+		return ret;
+
 	ret = dwc3_pci_quirks(dwc);
 	if (ret)
 		goto err;
@@ -298,20 +288,47 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 }
 
 static const struct pci_device_id dwc3_pci_id_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BYT), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_MRFLD), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SPTLP), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SPTH), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BXT), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BXT_M), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_APL), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KBP), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_GLK), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CNPLP), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CNPH), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICLLP), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB), },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_BSW),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_BYT),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_MRFLD),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_SPTLP),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_SPTH),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_BXT),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_BXT_M),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_APL),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_KBP),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_GLK),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_CNPLP),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_CNPH),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICLLP),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
+
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_NL_USB),
+	  (kernel_ulong_t) &dwc3_pci_amd_properties, },
 	{  }	/* Terminating Entry */
 };
 MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
