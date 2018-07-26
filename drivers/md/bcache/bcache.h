@@ -525,6 +525,7 @@ struct cache_set {
 	unsigned		devices_max_used;
 	struct list_head	cached_devs;
 	uint64_t		cached_dev_sectors;
+	atomic_long_t		flash_dev_dirty_sectors;
 	struct closure		caching;
 
 	struct closure		sb_write;

@@ -1311,6 +1311,8 @@ static void flash_dev_free(struct closure *cl)
 {
 	struct bcache_device *d = container_of(cl, struct bcache_device, cl);
 	mutex_lock(&bch_register_lock);
+	atomic_long_sub(bcache_dev_sectors_dirty(d),
+			&d->c->flash_dev_dirty_sectors);
 	bcache_device_free(d);
 	mutex_unlock(&bch_register_lock);
 	kobject_put(&d->kobj);

@@ -27,7 +27,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
 	 * flash-only devices
 	 */
 	uint64_t cache_sectors = c->nbuckets * c->sb.bucket_size -
-				bcache_flash_devs_sectors_dirty(c);
+				atomic_long_read(&c->flash_dev_dirty_sectors);
 
 	/*
 	 * Unfortunately there is no control of global dirty data.  If the
@@ -475,6 +475,9 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
 
 	if (!d)
 		return;
+
+	if (UUID_FLASH_ONLY(&c->uuids[inode]))
+		atomic_long_add(nr_sectors, &c->flash_dev_dirty_sectors);
 
 	stripe = offset_to_stripe(d, offset);
 	stripe_offset = offset & (d->stripe_size - 1);
