@@ -61,6 +61,7 @@ enum rdma_lookup_mode {
  * Destruction flow:
  *   lookup_get(exclusive=true) & uverbs_try_lock_object
  *   remove_commit
+ *   remove_handle (optional)
  *   lookup_put(exclusive=true) via rdma_lookup_put_uobject
  *
  * Allocate Error flow #1
@@ -92,8 +93,9 @@ struct uverbs_obj_type_class {
 					 enum rdma_lookup_mode mode);
 	void (*lookup_put)(struct ib_uobject *uobj, enum rdma_lookup_mode mode);
 	/* This does not consume the kref on uobj */
-	int __must_check (*remove_commit)(struct ib_uobject *uobj,
-					  enum rdma_remove_reason why);
+	int __must_check (*destroy_hw)(struct ib_uobject *uobj,
+				       enum rdma_remove_reason why);
+	void (*remove_handle)(struct ib_uobject *uobj);
 	u8    needs_kfree_rcu;
 };
 

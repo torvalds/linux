@@ -253,6 +253,8 @@ void ib_uverbs_release_file(struct kref *ref)
 	struct ib_device *ib_dev;
 	int srcu_key;
 
+	release_ufile_idr_uobject(file);
+
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
 	ib_dev = srcu_dereference(file->device->ib_dev,
 				  &file->device->disassociate_srcu);
@@ -867,8 +869,6 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	}
 
 	file->device	 = dev;
-	spin_lock_init(&file->idr_lock);
-	idr_init(&file->idr);
 	kref_init(&file->ref);
 	mutex_init(&file->ucontext_lock);
 
@@ -884,6 +884,8 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 
 	file->uverbs_cmd_mask = ib_dev->uverbs_cmd_mask;
 	file->uverbs_ex_cmd_mask = ib_dev->uverbs_ex_cmd_mask;
+
+	setup_ufile_idr_uobject(file);
 
 	return nonseekable_open(inode, filp);
 
@@ -904,7 +906,6 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 	struct ib_uverbs_file *file = filp->private_data;
 
 	uverbs_destroy_ufile_hw(file, RDMA_REMOVE_CLOSE);
-	idr_destroy(&file->idr);
 
 	mutex_lock(&file->device->lists_mutex);
 	if (!file->is_closed) {

@@ -180,7 +180,7 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	assert_uverbs_usecnt(uobj, UVERBS_LOOKUP_WRITE);
 
 	if (uobj->object) {
-		ret = uobj->type->type_class->remove_commit(uobj, reason);
+		ret = uobj->type->type_class->destroy_hw(uobj, reason);
 		if (ret) {
 			if (ib_is_destroy_retryable(ret, reason, uobj))
 				return ret;
@@ -204,10 +204,13 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 
 	/*
 	 * For DESTROY the usecnt is held write locked, the caller is expected
-	 * to put it unlock and put the object when done with it.
+	 * to put it unlock and put the object when done with it. Only DESTROY
+	 * can remove the IDR handle.
 	 */
 	if (reason != RDMA_REMOVE_DESTROY)
 		atomic_set(&uobj->usecnt, 0);
+	else
+		uobj->type->type_class->remove_handle(uobj);
 
 	if (!list_empty(&uobj->list)) {
 		spin_lock_irqsave(&ufile->uobjects_lock, flags);
@@ -554,8 +557,8 @@ static void alloc_abort_idr_uobject(struct ib_uobject *uobj)
 	spin_unlock(&uobj->ufile->idr_lock);
 }
 
-static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
-						  enum rdma_remove_reason why)
+static int __must_check destroy_hw_idr_uobject(struct ib_uobject *uobj,
+					       enum rdma_remove_reason why)
 {
 	const struct uverbs_obj_idr_type *idr_type =
 		container_of(uobj->type, struct uverbs_obj_idr_type,
@@ -573,11 +576,19 @@ static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 	if (why == RDMA_REMOVE_ABORT)
 		return 0;
 
-	alloc_abort_idr_uobject(uobj);
-	/* Matches the kref in alloc_commit_idr_uobject */
-	uverbs_uobject_put(uobj);
+	ib_rdmacg_uncharge(&uobj->cg_obj, uobj->context->device,
+			   RDMACG_RESOURCE_HCA_OBJECT);
 
 	return 0;
+}
+
+static void remove_handle_idr_uobject(struct ib_uobject *uobj)
+{
+	spin_lock(&uobj->ufile->idr_lock);
+	idr_remove(&uobj->ufile->idr, uobj->id);
+	spin_unlock(&uobj->ufile->idr_lock);
+	/* Matches the kref in alloc_commit_idr_uobject */
+	uverbs_uobject_put(uobj);
 }
 
 static void alloc_abort_fd_uobject(struct ib_uobject *uobj)
@@ -585,8 +596,8 @@ static void alloc_abort_fd_uobject(struct ib_uobject *uobj)
 	put_unused_fd(uobj->id);
 }
 
-static int __must_check remove_commit_fd_uobject(struct ib_uobject *uobj,
-						 enum rdma_remove_reason why)
+static int __must_check destroy_hw_fd_uobject(struct ib_uobject *uobj,
+					      enum rdma_remove_reason why)
 {
 	const struct uverbs_obj_fd_type *fd_type =
 		container_of(uobj->type, struct uverbs_obj_fd_type, type);
@@ -596,6 +607,10 @@ static int __must_check remove_commit_fd_uobject(struct ib_uobject *uobj,
 		return ret;
 
 	return 0;
+}
+
+static void remove_handle_fd_uobject(struct ib_uobject *uobj)
+{
 }
 
 static int alloc_commit_idr_uobject(struct ib_uobject *uobj)
@@ -741,13 +756,41 @@ void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 	uverbs_uobject_put(uobj);
 }
 
+void setup_ufile_idr_uobject(struct ib_uverbs_file *ufile)
+{
+	spin_lock_init(&ufile->idr_lock);
+	idr_init(&ufile->idr);
+}
+
+void release_ufile_idr_uobject(struct ib_uverbs_file *ufile)
+{
+	struct ib_uobject *entry;
+	int id;
+
+	/*
+	 * At this point uverbs_cleanup_ufile() is guaranteed to have run, and
+	 * there are no HW objects left, however the IDR is still populated
+	 * with anything that has not been cleaned up by userspace. Since the
+	 * kref on ufile is 0, nothing is allowed to call lookup_get.
+	 *
+	 * This is an optimized equivalent to remove_handle_idr_uobject
+	 */
+	idr_for_each_entry(&ufile->idr, entry, id) {
+		WARN_ON(entry->object);
+		uverbs_uobject_put(entry);
+	}
+
+	idr_destroy(&ufile->idr);
+}
+
 const struct uverbs_obj_type_class uverbs_idr_class = {
 	.alloc_begin = alloc_begin_idr_uobject,
 	.lookup_get = lookup_get_idr_uobject,
 	.alloc_commit = alloc_commit_idr_uobject,
 	.alloc_abort = alloc_abort_idr_uobject,
 	.lookup_put = lookup_put_idr_uobject,
-	.remove_commit = remove_commit_idr_uobject,
+	.destroy_hw = destroy_hw_idr_uobject,
+	.remove_handle = remove_handle_idr_uobject,
 	/*
 	 * When we destroy an object, we first just lock it for WRITE and
 	 * actually DESTROY it in the finalize stage. So, the problematic
@@ -945,7 +988,8 @@ const struct uverbs_obj_type_class uverbs_fd_class = {
 	.alloc_commit = alloc_commit_fd_uobject,
 	.alloc_abort = alloc_abort_fd_uobject,
 	.lookup_put = lookup_put_fd_uobject,
-	.remove_commit = remove_commit_fd_uobject,
+	.destroy_hw = destroy_hw_fd_uobject,
+	.remove_handle = remove_handle_fd_uobject,
 	.needs_kfree_rcu = false,
 };
 EXPORT_SYMBOL(uverbs_fd_class);

@@ -110,4 +110,7 @@ int uverbs_finalize_object(struct ib_uobject *uobj,
 			   enum uverbs_obj_access access,
 			   bool commit);
 
+void setup_ufile_idr_uobject(struct ib_uverbs_file *ufile);
+void release_ufile_idr_uobject(struct ib_uverbs_file *ufile);
+
 #endif /* RDMA_CORE_H */
