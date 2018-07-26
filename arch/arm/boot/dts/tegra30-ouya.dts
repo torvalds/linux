@@ -68,10 +68,6 @@
 		};
 	};
 
-	gpio: gpio@6000d000 {
-		gpio-ranges = <&pinmux 0 0 248>;
-	};
-
 	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;

@@ -328,9 +328,7 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
-		/*
 		gpio-ranges = <&pinmux 0 0 224>;
-		*/
 	};
 
 	vde@6001a000 {
