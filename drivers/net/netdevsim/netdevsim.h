@@ -103,9 +103,6 @@ struct netdevsim {
 	struct nsim_ipsec ipsec;
 };
 
-extern struct dentry *nsim_ddir;
-extern struct dentry *nsim_sdev_ddir;
-
 #ifdef CONFIG_BPF_SYSCALL
 int nsim_bpf_init(struct netdevsim *ns);
 void nsim_bpf_uninit(struct netdevsim *ns);

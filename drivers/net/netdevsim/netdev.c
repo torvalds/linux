@@ -41,6 +41,9 @@ struct nsim_vf_config {
 
 static u32 nsim_dev_id;
 
+static struct dentry *nsim_ddir;
+static struct dentry *nsim_sdev_ddir;
+
 static int nsim_num_vf(struct device *dev)
 {
 	struct netdevsim *ns = to_nsim(dev);
@@ -565,9 +568,6 @@ static struct rtnl_link_ops nsim_link_ops __read_mostly = {
 	.newlink	= nsim_newlink,
 	.dellink	= nsim_dellink,
 };
-
-struct dentry *nsim_ddir;
-struct dentry *nsim_sdev_ddir;
 
 static int __init nsim_module_init(void)
 {
