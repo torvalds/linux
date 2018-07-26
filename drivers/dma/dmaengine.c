@@ -1141,6 +1141,41 @@ void dma_async_device_unregister(struct dma_device *device)
 }
 EXPORT_SYMBOL(dma_async_device_unregister);
 
+static void dmam_device_release(struct device *dev, void *res)
+{
+	struct dma_device *device;
+
+	device = *(struct dma_device **)res;
+	dma_async_device_unregister(device);
+}
+
+/**
+ * dmaenginem_async_device_register - registers DMA devices found
+ * @device: &dma_device
+ *
+ * The operation is managed and will be undone on driver detach.
+ */
+int dmaenginem_async_device_register(struct dma_device *device)
+{
+	void *p;
+	int ret;
+
+	p = devres_alloc(dmam_device_release, sizeof(void *), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	ret = dma_async_device_register(device);
+	if (!ret) {
+		*(struct dma_device **)p = device;
+		devres_add(device->dev, p);
+	} else {
+		devres_free(p);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(dmaenginem_async_device_register);
+
 struct dmaengine_unmap_pool {
 	struct kmem_cache *cache;
 	const char *name;
