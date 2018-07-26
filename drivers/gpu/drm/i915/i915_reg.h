@@ -5558,6 +5558,7 @@ enum {
 #define   DP_AUX_CH_CTL_PSR_DATA_AUX_REG_SKL	(1 << 14)
 #define   DP_AUX_CH_CTL_FS_DATA_AUX_REG_SKL	(1 << 13)
 #define   DP_AUX_CH_CTL_GTC_DATA_AUX_REG_SKL	(1 << 12)
+#define   DP_AUX_CH_CTL_TBT_IO			(1 << 11)
 #define   DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL_MASK (0x1f << 5)
 #define   DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(c) (((c) - 1) << 5)
 #define   DP_AUX_CH_CTL_SYNC_PULSE_SKL(c)   ((c) - 1)
