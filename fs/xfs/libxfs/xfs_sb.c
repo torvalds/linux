@@ -154,9 +154,10 @@ xfs_validate_sb_write(
 	 * Carry out additional sb summary counter sanity checks when we write
 	 * the superblock.  We skip this in the read validator because there
 	 * could be newer superblocks in the log and if the values are garbage
-	 * we'll recalculate them at the end of log mount.
+	 * even after replay we'll recalculate them at the end of log mount.
 	 */
 	if (sbp->sb_fdblocks > sbp->sb_dblocks ||
+	    !xfs_verify_icount(mp, sbp->sb_icount) ||
 	    sbp->sb_ifree > sbp->sb_icount) {
 		xfs_warn(mp, "SB summary counter sanity check failed");
 		return -EFSCORRUPTED;
