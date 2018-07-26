@@ -158,6 +158,9 @@ struct ib_uverbs_file {
 	spinlock_t		uobjects_lock;
 	struct list_head	uobjects;
 
+	u64 uverbs_cmd_mask;
+	u64 uverbs_ex_cmd_mask;
+
 	struct idr		idr;
 	/* spinlock protects write access to idr */
 	spinlock_t		idr_lock;

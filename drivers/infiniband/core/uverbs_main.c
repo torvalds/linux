@@ -646,13 +646,13 @@ err_put_refs:
 	return filp;
 }
 
-static bool verify_command_mask(struct ib_device *ib_dev,
-				u32 command, bool extended)
+static bool verify_command_mask(struct ib_uverbs_file *ufile, u32 command,
+				bool extended)
 {
 	if (!extended)
-		return ib_dev->uverbs_cmd_mask & BIT_ULL(command);
+		return ufile->uverbs_cmd_mask & BIT_ULL(command);
 
-	return ib_dev->uverbs_ex_cmd_mask & BIT_ULL(command);
+	return ufile->uverbs_ex_cmd_mask & BIT_ULL(command);
 }
 
 static bool verify_command_idx(u32 command, bool extended)
@@ -722,7 +722,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 {
 	struct ib_uverbs_file *file = filp->private_data;
 	struct ib_uverbs_ex_cmd_hdr ex_hdr;
-	struct ib_device *ib_dev;
 	struct ib_uverbs_cmd_hdr hdr;
 	bool extended;
 	int srcu_key;
@@ -757,14 +756,8 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		return ret;
 
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
-	ib_dev = srcu_dereference(file->device->ib_dev,
-				  &file->device->disassociate_srcu);
-	if (!ib_dev) {
-		ret = -EIO;
-		goto out;
-	}
 
-	if (!verify_command_mask(ib_dev, command, extended)) {
+	if (!verify_command_mask(file, command, extended)) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -888,6 +881,9 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	list_add_tail(&file->list, &dev->uverbs_file_list);
 	mutex_unlock(&dev->lists_mutex);
 	srcu_read_unlock(&dev->disassociate_srcu, srcu_key);
+
+	file->uverbs_cmd_mask = ib_dev->uverbs_cmd_mask;
+	file->uverbs_ex_cmd_mask = ib_dev->uverbs_ex_cmd_mask;
 
 	return nonseekable_open(inode, filp);
 
