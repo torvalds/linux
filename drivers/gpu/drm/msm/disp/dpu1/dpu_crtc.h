@@ -112,23 +112,6 @@ struct dpu_crtc_frame_event {
 	u32 event;
 };
 
-/**
- * struct dpu_crtc_event - event callback tracking structure
- * @list:     Linked list tracking node
- * @kt_work:  Kthread worker structure
- * @dpu_crtc: Pointer to associated dpu_crtc structure
- * @cb_func:  Pointer to callback function
- * @usr:      Pointer to user data to be provided to the callback
- */
-struct dpu_crtc_event {
-	struct list_head list;
-	struct kthread_work kt_work;
-	void *dpu_crtc;
-
-	void (*cb_func)(struct drm_crtc *crtc, void *usr);
-	void *usr;
-};
-
 /*
  * Maximum number of free event structures to cache
  */
@@ -172,8 +155,6 @@ struct dpu_crtc_event {
  * @frame_done_comp    : for frame_event_done synchronization
  * @event_thread  : Pointer to event handler thread
  * @event_worker  : Event worker queue
- * @event_cache   : Local cache of event worker structures
- * @event_free_list : List of available event structures
  * @event_lock    : Spinlock around event handling code
  * @misr_enable   : boolean entry indicates misr enable/disable status.
  * @misr_frame_count  : misr frame count provided by client
@@ -224,8 +205,6 @@ struct dpu_crtc {
 	struct completion frame_done_comp;
 
 	/* for handling internal event thread */
-	struct dpu_crtc_event event_cache[DPU_CRTC_MAX_EVENT_COUNT];
-	struct list_head event_free_list;
 	spinlock_t event_lock;
 	bool misr_enable;
 	u32 misr_frame_count;
@@ -440,45 +419,5 @@ static inline bool dpu_crtc_is_enabled(struct drm_crtc *crtc)
 {
 	return crtc ? crtc->enabled : false;
 }
-
-/**
- * dpu_crtc_event_queue - request event callback
- * @crtc: Pointer to drm crtc structure
- * @func: Pointer to callback function
- * @usr: Pointer to user data to be passed to callback
- * Returns: Zero on success
- */
-int dpu_crtc_event_queue(struct drm_crtc *crtc,
-		void (*func)(struct drm_crtc *crtc, void *usr), void *usr);
-
-/**
- * dpu_crtc_res_add - add given resource to resource pool in crtc state
- * @state: Pointer to drm crtc state
- * @type: Resource type
- * @tag: Search tag for given resource
- * @val: Resource handle
- * @ops: Resource callback operations
- * return: 0 if success; error code otherwise
- */
-int dpu_crtc_res_add(struct drm_crtc_state *state, u32 type, u64 tag,
-		void *val, struct dpu_crtc_res_ops *ops);
-
-/**
- * dpu_crtc_res_get - get given resource from resource pool in crtc state
- * @state: Pointer to drm crtc state
- * @type: Resource type
- * @tag: Search tag for given resource
- * return: Resource handle if success; pointer error or null otherwise
- */
-void *dpu_crtc_res_get(struct drm_crtc_state *state, u32 type, u64 tag);
-
-/**
- * dpu_crtc_res_put - return given resource to resource pool in crtc state
- * @state: Pointer to drm crtc state
- * @type: Resource type
- * @tag: Search tag for given resource
- * return: None
- */
-void dpu_crtc_res_put(struct drm_crtc_state *state, u32 type, u64 tag);
 
 #endif /* _DPU_CRTC_H_ */
