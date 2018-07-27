@@ -55,7 +55,7 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 	__skb_pull(skb, hdr_len);
 	memmove(ipv6_hdr(skb), iph, hdr_len);
 
-	x->lastused = get_seconds();
+	x->lastused = ktime_get_real_seconds();
 
 	return 0;
 }
