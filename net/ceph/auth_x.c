@@ -290,6 +290,38 @@ bad:
 	return -EINVAL;
 }
 
+/*
+ * Encode and encrypt the second part (ceph_x_authorize_b) of the
+ * authorizer.  The first part (ceph_x_authorize_a) should already be
+ * encoded.
+ */
+static int encrypt_authorizer(struct ceph_x_authorizer *au)
+{
+	struct ceph_x_authorize_a *msg_a;
+	struct ceph_x_authorize_b *msg_b;
+	void *p, *end;
+	int ret;
+
+	msg_a = au->buf->vec.iov_base;
+	WARN_ON(msg_a->ticket_blob.secret_id != cpu_to_le64(au->secret_id));
+	p = (void *)(msg_a + 1) + le32_to_cpu(msg_a->ticket_blob.blob_len);
+	end = au->buf->vec.iov_base + au->buf->vec.iov_len;
+
+	msg_b = p + ceph_x_encrypt_offset();
+	msg_b->struct_v = 1;
+	msg_b->nonce = cpu_to_le64(au->nonce);
+
+	ret = ceph_x_encrypt(&au->session_key, p, end - p, sizeof(*msg_b));
+	if (ret < 0)
+		return ret;
+
+	p += ret;
+	WARN_ON(p > end);
+	au->buf->vec.iov_len = p - au->buf->vec.iov_base;
+
+	return 0;
+}
+
 static void ceph_x_authorizer_cleanup(struct ceph_x_authorizer *au)
 {
 	ceph_crypto_key_destroy(&au->session_key);
@@ -306,7 +338,6 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 	int maxlen;
 	struct ceph_x_authorize_a *msg_a;
 	struct ceph_x_authorize_b *msg_b;
-	void *p, *end;
 	int ret;
 	int ticket_blob_len =
 		(th->ticket_blob ? th->ticket_blob->vec.iov_len : 0);
@@ -350,21 +381,13 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 	dout(" th %p secret_id %lld %lld\n", th, th->secret_id,
 	     le64_to_cpu(msg_a->ticket_blob.secret_id));
 
-	p = msg_a + 1;
-	p += ticket_blob_len;
-	end = au->buf->vec.iov_base + au->buf->vec.iov_len;
-
-	msg_b = p + ceph_x_encrypt_offset();
-	msg_b->struct_v = 1;
 	get_random_bytes(&au->nonce, sizeof(au->nonce));
-	msg_b->nonce = cpu_to_le64(au->nonce);
-	ret = ceph_x_encrypt(&au->session_key, p, end - p, sizeof(*msg_b));
-	if (ret < 0)
+	ret = encrypt_authorizer(au);
+	if (ret) {
+		pr_err("failed to encrypt authorizer: %d", ret);
 		goto out_au;
+	}
 
-	p += ret;
-	WARN_ON(p > end);
-	au->buf->vec.iov_len = p - au->buf->vec.iov_base;
 	dout(" built authorizer nonce %llx len %d\n", au->nonce,
 	     (int)au->buf->vec.iov_len);
 	return 0;
