@@ -39,7 +39,7 @@ struct tx_ts_record {
 	u8				num;
 };
 
-typedef struct _RX_TS_RECORD {
+struct rx_ts_record {
 	struct ts_common_info		ts_common_info;
 	u16				RxIndicateSeq;
 	u16				RxTimeoutIndicateSeq;
@@ -50,7 +50,7 @@ typedef struct _RX_TS_RECORD {
 	u8				RxLastFragNum;
 	u8				num;
 /* 	QOS_DL_RECORD		DLRecord; */
-} RX_TS_RECORD, *PRX_TS_RECORD;
+};
 
 
 #endif

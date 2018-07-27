@@ -508,7 +508,7 @@ drop:
 	return 1;
 }
 
-static bool AddReorderEntry(PRX_TS_RECORD pTS, PRX_REORDER_ENTRY pReorderEntry)
+static bool AddReorderEntry(struct rx_ts_record *pTS, PRX_REORDER_ENTRY pReorderEntry)
 {
 	struct list_head *pList = &pTS->RxPendingPktList;
 	while(pList->next != &pTS->RxPendingPktList)
@@ -586,7 +586,7 @@ void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_
 
 static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 				    struct ieee80211_rxb *prxb,
-				    PRX_TS_RECORD pTS, u16 SeqNum)
+				    struct rx_ts_record *pTS, u16 SeqNum)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
@@ -898,7 +898,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	//added by amy for reorder
 	u8	TID = 0;
 	u16	SeqNum = 0;
-	PRX_TS_RECORD pTS = NULL;
+	struct rx_ts_record *pTS = NULL;
 	//bool bIsAggregateFrame = false;
 	//added by amy for reorder
 #ifdef NOT_YET
@@ -1017,7 +1017,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 	else
 	{
-		PRX_TS_RECORD pRxTS = NULL;
+		struct rx_ts_record *pRxTS = NULL;
 			//IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): QOS ENABLE AND RECEIVE QOS DATA , we will get Ts, tid:%d\n",__func__, tid);
 		if(GetTs(
 				ieee,

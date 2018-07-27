@@ -64,11 +64,11 @@ static u8 TxTsDeleteBA(struct ieee80211_device *ieee, struct tx_ts_record *pTxTs
 /********************************************************************************************************************
  *function: deactivete BA entry in Tx Ts, and send DELBA.
  *   input:
- *	     PRX_TS_RECORD		pRxTs //Rx Ts which is to deactivate BA entry.
+ *	     struct rx_ts_record  *pRxTs //Rx Ts which is to deactivate BA entry.
  *  output:  none
- *  notice:  As PRX_TS_RECORD structure will be defined in QOS, so wait to be merged. //FIXME, same with above
+ *  notice:  As struct rx_ts_record * structure will be defined in QOS, so wait to be merged. //FIXME, same with above
  ********************************************************************************************************************/
-static u8 RxTsDeleteBA(struct ieee80211_device *ieee, PRX_TS_RECORD pRxTs)
+static u8 RxTsDeleteBA(struct ieee80211_device *ieee, struct rx_ts_record *pRxTs)
 {
 	PBA_RECORD		pBa = &pRxTs->RxAdmittedBARecord;
 	u8			bSendDELBA = false;
@@ -325,7 +325,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	PBA_PARAM_SET	pBaParamSet = NULL;
 	u16 *pBaTimeoutVal = NULL;
 	PSEQUENCE_CONTROL pBaStartSeqCtrl = NULL;
-	PRX_TS_RECORD	pTS = NULL;
+	struct rx_ts_record  *pTS = NULL;
 
 	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 9) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,
@@ -566,7 +566,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	pDelBaParamSet = (PDELBA_PARAM_SET)&delba->payload[2];
 
 	if (pDelBaParamSet->field.Initiator == 1) {
-		PRX_TS_RECORD	pRxTs;
+		struct rx_ts_record *pRxTs;
 
 		if (!GetTs(
 				ieee,
@@ -651,7 +651,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 				TxRxSelect,
 				DELBA_REASON_END_BA);
 	} else if (TxRxSelect == RX_DIR) {
-		PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)pTsCommonInfo;
+		struct rx_ts_record *pRxTs = (struct rx_ts_record *)pTsCommonInfo;
 		if (RxTsDeleteBA(ieee, pRxTs))
 			ieee80211_send_DELBA(
 				ieee,
@@ -663,7 +663,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 }
 /********************************************************************************************************************
  *function:  BA setup timer
- *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or RX_TS_RECORD to these timer
+ *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or struct rx_ts_record to these timer
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
@@ -691,7 +691,7 @@ void TxBaInactTimeout(struct timer_list *t)
 
 void RxBaInactTimeout(struct timer_list *t)
 {
-	PRX_TS_RECORD	pRxTs = from_timer(pRxTs, t, RxAdmittedBARecord.Timer);
+	struct rx_ts_record *pRxTs = from_timer(pRxTs, t, RxAdmittedBARecord.Timer);
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
 
 	RxTsDeleteBA(ieee, pRxTs);

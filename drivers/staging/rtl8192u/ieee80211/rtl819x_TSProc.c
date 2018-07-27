@@ -19,13 +19,13 @@ static void TsInactTimeout(struct timer_list *unused)
 
 /********************************************************************************************************************
  *function:  I still not understand this function, so wait for further implementation
- *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or RX_TS_RECORD to these timer
+ *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or struct rx_ts_record to these timer
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
 static void RxPktPendingTimeout(struct timer_list *t)
 {
-	PRX_TS_RECORD	pRxTs = from_timer(pRxTs, t, RxPktPendingTimer);
+	struct rx_ts_record     *pRxTs = from_timer(pRxTs, t, RxPktPendingTimer);
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
 
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
@@ -86,7 +86,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 
 /********************************************************************************************************************
  *function:  Add BA timer function
- *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or RX_TS_RECORD to these timer
+ *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or struct rx_ts_record to these timer
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
@@ -121,7 +121,7 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 	ResetBaEntry(&pTS->tx_pending_ba_record);
 }
 
-static void ResetRxTsEntry(PRX_TS_RECORD pTS)
+static void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->RxIndicateSeq = 0xffff; // This indicate the RxIndicateSeq is not used now!!
@@ -132,7 +132,7 @@ static void ResetRxTsEntry(PRX_TS_RECORD pTS)
 void TSInitialize(struct ieee80211_device *ieee)
 {
 	struct tx_ts_record     *pTxTS  = ieee->TxTsRecord;
-	PRX_TS_RECORD		pRxTS  = ieee->RxTsRecord;
+	struct rx_ts_record     *pRxTS  = ieee->RxTsRecord;
 	PRX_REORDER_ENTRY	pRxReorderEntry = ieee->RxReorderEntry;
 	u8				count = 0;
 	IEEE80211_DEBUG(IEEE80211_DL_TS, "==========>%s()\n", __func__);
@@ -377,7 +377,7 @@ bool GetTs(
 					struct tx_ts_record *tmp = container_of(*ppTS, struct tx_ts_record, ts_common_info);
 					ResetTxTsEntry(tmp);
 				} else {
-					PRX_TS_RECORD tmp = container_of(*ppTS, RX_TS_RECORD, ts_common_info);
+					struct rx_ts_record *tmp = container_of(*ppTS, struct rx_ts_record, ts_common_info);
 					ResetRxTsEntry(tmp);
 				}
 
@@ -419,7 +419,7 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, struct ts_common_info *
 	if(TxRxSelect == RX_DIR) {
 //#ifdef TO_DO_LIST
 		PRX_REORDER_ENTRY	pRxReorderEntry;
-		PRX_TS_RECORD		pRxTS = (PRX_TS_RECORD)pTs;
+		struct rx_ts_record     *pRxTS = (struct rx_ts_record *)pTs;
 		if(timer_pending(&pRxTS->RxPktPendingTimer))
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
 
