@@ -204,78 +204,90 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	const struct drm_display_mode *mode = &rcrtc->crtc.state->adjusted_mode;
 	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	unsigned long mode_clock = mode->clock * 1000;
-	unsigned long clk;
-	u32 value;
+	u32 dsmr;
 	u32 escr;
-	u32 div;
 
-	/*
-	 * Compute the clock divisor and select the internal or external dot
-	 * clock based on the requested frequency.
-	 */
-	clk = clk_get_rate(rcrtc->clock);
-	div = DIV_ROUND_CLOSEST(clk, mode_clock);
-	div = clamp(div, 1U, 64U) - 1;
-	escr = div | ESCR_DCLKSEL_CLKS;
-
-	if (rcrtc->extclock) {
+	if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
+		unsigned long target = mode_clock;
 		struct dpll_info dpll = { 0 };
 		unsigned long extclk;
-		unsigned long extrate;
-		unsigned long rate;
-		u32 extdiv;
+		u32 dpllcr;
+		u32 div = 0;
+
+		/*
+		 * DU channels that have a display PLL can't use the internal
+		 * system clock, and have no internal clock divider.
+		 */
+
+		if (WARN_ON(!rcrtc->extclock))
+			return;
+
+		/*
+		 * The H3 ES1.x exhibits dot clock duty cycle stability issues.
+		 * We can work around them by configuring the DPLL to twice the
+		 * desired frequency, coupled with a /2 post-divider. Restrict
+		 * the workaround to H3 ES1.x as ES2.0 and all other SoCs have
+		 * no post-divider when a display PLL is present (as shown by
+		 * the workaround breaking HDMI output on M3-W during testing).
+		 */
+		if (soc_device_match(rcar_du_r8a7795_es1)) {
+			target *= 2;
+			div = 1;
+		}
 
 		extclk = clk_get_rate(rcrtc->extclock);
-		if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
-			unsigned long target = mode_clock;
+		rcar_du_dpll_divider(rcrtc, &dpll, extclk, target);
 
-			/*
-			 * The H3 ES1.x exhibits dot clock duty cycle stability
-			 * issues. We can work around them by configuring the
-			 * DPLL to twice the desired frequency, coupled with a
-			 * /2 post-divider. This isn't needed on other SoCs and
-			 * breaks HDMI output on M3-W for a currently unknown
-			 * reason, so restrict the workaround to H3 ES1.x.
-			 */
-			if (soc_device_match(rcar_du_r8a7795_es1))
-				target *= 2;
+		dpllcr = DPLLCR_CODE | DPLLCR_CLKE
+		       | DPLLCR_FDPLL(dpll.fdpll)
+		       | DPLLCR_N(dpll.n) | DPLLCR_M(dpll.m)
+		       | DPLLCR_STBY;
 
-			rcar_du_dpll_divider(rcrtc, &dpll, extclk, target);
-			extclk = dpll.output;
+		if (rcrtc->index == 1)
+			dpllcr |= DPLLCR_PLCS1
+			       |  DPLLCR_INCS_DOTCLKIN1;
+		else
+			dpllcr |= DPLLCR_PLCS0
+			       |  DPLLCR_INCS_DOTCLKIN0;
+
+		rcar_du_group_write(rcrtc->group, DPLLCR, dpllcr);
+
+		escr = ESCR_DCLKSEL_DCLKIN | div;
+	} else {
+		unsigned long clk;
+		u32 div;
+
+		/*
+		 * Compute the clock divisor and select the internal or external
+		 * dot clock based on the requested frequency.
+		 */
+		clk = clk_get_rate(rcrtc->clock);
+		div = DIV_ROUND_CLOSEST(clk, mode_clock);
+		div = clamp(div, 1U, 64U) - 1;
+
+		escr = ESCR_DCLKSEL_CLKS | div;
+
+		if (rcrtc->extclock) {
+			unsigned long extclk;
+			unsigned long extrate;
+			unsigned long rate;
+			u32 extdiv;
+
+			extclk = clk_get_rate(rcrtc->extclock);
+			extdiv = DIV_ROUND_CLOSEST(extclk, mode_clock);
+			extdiv = clamp(extdiv, 1U, 64U) - 1;
+
+			extrate = extclk / (extdiv + 1);
+			rate = clk / (div + 1);
+
+			if (abs((long)extrate - (long)mode_clock) <
+			    abs((long)rate - (long)mode_clock))
+				escr = ESCR_DCLKSEL_DCLKIN | extdiv;
+
+			dev_dbg(rcrtc->group->dev->dev,
+				"mode clock %lu extrate %lu rate %lu ESCR 0x%08x\n",
+				mode_clock, extrate, rate, escr);
 		}
-
-		extdiv = DIV_ROUND_CLOSEST(extclk, mode_clock);
-		extdiv = clamp(extdiv, 1U, 64U) - 1;
-
-		rate = clk / (div + 1);
-		extrate = extclk / (extdiv + 1);
-
-		if (abs((long)extrate - (long)mode_clock) <
-		    abs((long)rate - (long)mode_clock)) {
-
-			if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
-				u32 dpllcr = DPLLCR_CODE | DPLLCR_CLKE
-					   | DPLLCR_FDPLL(dpll.fdpll)
-					   | DPLLCR_N(dpll.n) | DPLLCR_M(dpll.m)
-					   | DPLLCR_STBY;
-
-				if (rcrtc->index == 1)
-					dpllcr |= DPLLCR_PLCS1
-					       |  DPLLCR_INCS_DOTCLKIN1;
-				else
-					dpllcr |= DPLLCR_PLCS0
-					       |  DPLLCR_INCS_DOTCLKIN0;
-
-				rcar_du_group_write(rcrtc->group, DPLLCR,
-						    dpllcr);
-			}
-
-			escr = ESCR_DCLKSEL_DCLKIN | extdiv;
-		}
-
-		dev_dbg(rcrtc->group->dev->dev,
-			"mode clock %lu extrate %lu rate %lu ESCR 0x%08x\n",
-			mode_clock, extrate, rate, escr);
 	}
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? ESCR2 : ESCR,
@@ -283,11 +295,11 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? OTAR2 : OTAR, 0);
 
 	/* Signal polarities */
-	value = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? DSMR_VSL : 0)
-	      | ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? DSMR_HSL : 0)
-	      | ((mode->flags & DRM_MODE_FLAG_INTERLACE) ? DSMR_ODEV : 0)
-	      | DSMR_DIPM_DISP | DSMR_CSPM;
-	rcar_du_crtc_write(rcrtc, DSMR, value);
+	dsmr = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? DSMR_VSL : 0)
+	     | ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? DSMR_HSL : 0)
+	     | ((mode->flags & DRM_MODE_FLAG_INTERLACE) ? DSMR_ODEV : 0)
+	     | DSMR_DIPM_DISP | DSMR_CSPM;
+	rcar_du_crtc_write(rcrtc, DSMR, dsmr);
 
 	/* Display timings */
 	rcar_du_crtc_write(rcrtc, HDSR, mode->htotal - mode->hsync_start - 19);
