@@ -2,15 +2,16 @@
 #ifndef _ASM_DMA_MAPPING_H
 #define _ASM_DMA_MAPPING_H
 
+#include <linux/swiotlb.h>
+
 extern const struct dma_map_ops jazz_dma_ops;
-extern const struct dma_map_ops mips_swiotlb_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 #if defined(CONFIG_MACH_JAZZ)
 	return &jazz_dma_ops;
 #elif defined(CONFIG_SWIOTLB)
-	return &mips_swiotlb_ops;
+	return &swiotlb_dma_ops;
 #elif defined(CONFIG_DMA_NONCOHERENT_OPS)
 	return &dma_noncoherent_ops;
 #else
