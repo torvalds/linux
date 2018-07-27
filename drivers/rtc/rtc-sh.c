@@ -142,7 +142,6 @@ static int __sh_rtc_alarm(struct sh_rtc *rtc)
 
 static int __sh_rtc_periodic(struct sh_rtc *rtc)
 {
-	struct rtc_device *rtc_dev = rtc->rtc_dev;
 	unsigned int tmp, pending;
 
 	tmp = readb(rtc->regbase + RCR2);
