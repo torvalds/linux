@@ -281,7 +281,7 @@ ii) Status
     <transaction id> <used metadata blocks>/<total metadata blocks>
     <used data blocks>/<total data blocks> <held metadata root>
     ro|rw|out_of_data_space [no_]discard_passdown [error|queue]_if_no_space
-    needs_check|-
+    needs_check|- metadata_low_watermark
 
     transaction id:
 	A 64-bit number used by userspace to help synchronise with metadata
@@ -327,6 +327,11 @@ ii) Status
 	device must be deactivated and checked/repaired before the
 	thin-pool can be made fully operational again.  '-' indicates
 	needs_check is not set.
+
+    metadata_low_watermark:
+	Value of metadata low watermark in blocks.  The kernel sets this
+	value internally but userspace needs to know this value to
+	determine if an event was caused by crossing this threshold.
 
 iii) Messages
 
