@@ -14,7 +14,7 @@
 #include <crypto/dh.h>
 #include <crypto/kpp.h>
 
-#define DH_KPP_SECRET_MIN_SIZE (sizeof(struct kpp_secret) + 3 * sizeof(int))
+#define DH_KPP_SECRET_MIN_SIZE (sizeof(struct kpp_secret) + 4 * sizeof(int))
 
 static inline u8 *dh_pack_data(void *dst, const void *src, size_t size)
 {
