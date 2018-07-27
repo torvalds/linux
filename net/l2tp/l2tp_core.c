@@ -1675,7 +1675,6 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 			session->pwtype = cfg->pw_type;
 			session->debug = cfg->debug;
 			session->mtu = cfg->mtu;
-			session->mru = cfg->mru;
 			session->send_seq = cfg->send_seq;
 			session->recv_seq = cfg->recv_seq;
 			session->lns_mode = cfg->lns_mode;

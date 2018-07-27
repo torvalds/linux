@@ -45,10 +45,6 @@ struct l2tp_tunnel;
  */
 struct l2tp_session_cfg {
 	enum l2tp_pwtype	pw_type;
-	unsigned int		data_seq:2;	/* data sequencing level
-						 * 0 => none, 1 => IP only,
-						 * 2 => all
-						 */
 	unsigned int		recv_seq:1;	/* expect receive packets with
 						 * sequence numbers? */
 	unsigned int		send_seq:1;	/* send packets with sequence
@@ -58,7 +54,6 @@ struct l2tp_session_cfg {
 						 * control of LNS. */
 	int			debug;		/* bitmask of debug message
 						 * categories */
-	u16			vlan_id;	/* VLAN pseudowire only */
 	u16			l2specific_type; /* Layer 2 specific type */
 	u8			cookie[8];	/* optional cookie */
 	int			cookie_len;	/* 0, 4 or 8 bytes */
@@ -67,7 +62,6 @@ struct l2tp_session_cfg {
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
 	int			mtu;
-	int			mru;
 	char			*ifname;
 };
 
@@ -99,10 +93,6 @@ struct l2tp_session {
 
 	char			name[32];	/* for logging */
 	char			ifname[IFNAMSIZ];
-	unsigned int		data_seq:2;	/* data sequencing level
-						 * 0 => none, 1 => IP only,
-						 * 2 => all
-						 */
 	unsigned int		recv_seq:1;	/* expect receive packets with
 						 * sequence numbers? */
 	unsigned int		send_seq:1;	/* send packets with sequence
@@ -116,7 +106,6 @@ struct l2tp_session {
 						  * (in jiffies) */
 	int			reorder_skip;	/* set if skip to next nr */
 	int			mtu;
-	int			mru;
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
 	struct hlist_node	global_hlist;	/* Global hash list node */
