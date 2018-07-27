@@ -208,6 +208,11 @@ static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 	return lower_32_bits(vma->node.start);
 }
 
+static inline u32 i915_ggtt_pin_bias(struct i915_vma *vma)
+{
+	return i915_vm_to_ggtt(vma->vm)->pin_bias;
+}
+
 static inline struct i915_vma *i915_vma_get(struct i915_vma *vma)
 {
 	i915_gem_object_get(vma->obj);
