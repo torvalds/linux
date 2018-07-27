@@ -106,9 +106,9 @@ into the bpf-next tree will make their way into net-next tree. net and
 net-next are both run by David S. Miller. From there, they will go
 into the kernel mainline tree run by Linus Torvalds. To read up on the
 process of net and net-next being merged into the mainline tree, see
-the `netdev FAQ`_ under:
+the :ref:`netdev-FAQ`
 
- `Documentation/networking/netdev-FAQ.txt`_
+
 
 Occasionally, to prevent merge conflicts, we might send pull requests
 to other trees (e.g. tracing) with a small subset of the patches, but
@@ -125,8 +125,8 @@ request)::
 Q: How do I indicate which tree (bpf vs. bpf-next) my patch should be applied to?
 ---------------------------------------------------------------------------------
 
-A: The process is the very same as described in the `netdev FAQ`_, so
-please read up on it. The subject line must indicate whether the
+A: The process is the very same as described in the :ref:`netdev-FAQ`,
+so please read up on it. The subject line must indicate whether the
 patch is a fix or rather "next-like" content in order to let the
 maintainers know whether it is targeted at bpf or bpf-next.
 
@@ -184,7 +184,7 @@ ii) run extensive BPF test suite and
 Once the BPF pull request was accepted by David S. Miller, then
 the patches end up in net or net-next tree, respectively, and
 make their way from there further into mainline. Again, see the
-`netdev FAQ`_ for additional information e.g. on how often they are
+:ref:`netdev-FAQ` for additional information e.g. on how often they are
 merged to mainline.
 
 Q: How long do I need to wait for feedback on my BPF patches?
@@ -208,7 +208,7 @@ Q: Are patches applied to bpf-next when the merge window is open?
 -----------------------------------------------------------------
 A: For the time when the merge window is open, bpf-next will not be
 processed. This is roughly analogous to net-next patch processing,
-so feel free to read up on the `netdev FAQ`_ about further details.
+so feel free to read up on the :ref:`netdev-FAQ` about further details.
 
 During those two weeks of merge window, we might ask you to resend
 your patch series once bpf-next is open again. Once Linus released
@@ -372,7 +372,7 @@ netdev kernel mailing list in Cc and ask for the fix to be queued up:
   netdev@vger.kernel.org
 
 The process in general is the same as on netdev itself, see also the
-`netdev FAQ`_ document.
+:ref:`netdev-FAQ`.
 
 Q: Do you also backport to kernels not currently maintained as stable?
 ----------------------------------------------------------------------
@@ -388,9 +388,7 @@ Q: The BPF patch I am about to submit needs to go to stable as well
 What should I do?
 
 A: The same rules apply as with netdev patch submissions in general, see
-`netdev FAQ`_ under:
-
-  `Documentation/networking/netdev-FAQ.txt`_
+the :ref:`netdev-FAQ`.
 
 Never add "``Cc: stable@vger.kernel.org``" to the patch description, but
 ask the BPF maintainers to queue the patches instead. This can be done
@@ -630,8 +628,7 @@ when:
 .. Links
 .. _Documentation/process/: https://www.kernel.org/doc/html/latest/process/
 .. _MAINTAINERS: ../../MAINTAINERS
-.. _Documentation/networking/netdev-FAQ.txt: ../networking/netdev-FAQ.txt
-.. _netdev FAQ: ../networking/netdev-FAQ.txt
+.. _netdev-FAQ: ../networking/netdev-FAQ.rst
 .. _samples/bpf/: ../../samples/bpf/
 .. _selftests: ../../tools/testing/selftests/bpf/
 .. _Documentation/dev-tools/kselftest.rst:
