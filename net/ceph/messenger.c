@@ -1782,6 +1782,13 @@ static int read_partial_connect(struct ceph_connection *con)
 
 	if (con->auth) {
 		size = le32_to_cpu(con->in_reply.authorizer_len);
+		if (size > con->auth->authorizer_reply_buf_len) {
+			pr_err("authorizer reply too big: %d > %zu\n", size,
+			       con->auth->authorizer_reply_buf_len);
+			ret = -EINVAL;
+			goto out;
+		}
+
 		end += size;
 		ret = read_partial(con, end, size,
 				   con->auth->authorizer_reply_buf);
