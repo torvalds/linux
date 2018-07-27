@@ -1343,17 +1343,15 @@ static inline int check_user_page_hwpoison(unsigned long addr)
 }
 
 /*
- * The atomic path to get the writable pfn which will be stored in @pfn,
- * true indicates success, otherwise false is returned.
+ * The fast path to get the writable pfn which will be stored in @pfn,
+ * true indicates success, otherwise false is returned.  It's also the
+ * only part that runs if we can are in atomic context.
  */
-static bool hva_to_pfn_fast(unsigned long addr, bool atomic, bool *async,
-			    bool write_fault, bool *writable, kvm_pfn_t *pfn)
+static bool hva_to_pfn_fast(unsigned long addr, bool write_fault,
+			    bool *writable, kvm_pfn_t *pfn)
 {
 	struct page *page[1];
 	int npages;
-
-	if (!(async || atomic))
-		return false;
 
 	/*
 	 * Fast pin a writable pfn only if it is a write fault request
@@ -1498,7 +1496,7 @@ static kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 	/* we can do it either atomically or asynchronously, not both */
 	BUG_ON(atomic && async);
 
-	if (hva_to_pfn_fast(addr, atomic, async, write_fault, writable, &pfn))
+	if (hva_to_pfn_fast(addr, write_fault, writable, &pfn))
 		return pfn;
 
 	if (atomic)
