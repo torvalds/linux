@@ -126,7 +126,7 @@ static void ResetRxTsEntry(struct rx_ts_record *pTS)
 	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->rx_indicate_seq = 0xffff; // This indicate the rx_indicate_seq is not used now!!
 	pTS->rx_timeout_indicate_seq = 0xffff; // This indicate the rx_timeout_indicate_seq is not used now!!
-	ResetBaEntry(&pTS->RxAdmittedBARecord);	  // For BA Recipient
+	ResetBaEntry(&pTS->rx_admitted_ba_record);	  // For BA Recipient
 }
 
 void TSInitialize(struct ieee80211_device *ieee)
@@ -171,7 +171,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 			    0);
 		timer_setup(&pRxTS->ts_common_info.inact_timer, TsInactTimeout,
 			    0);
-		timer_setup(&pRxTS->RxAdmittedBARecord.Timer,
+		timer_setup(&pRxTS->rx_admitted_ba_record.Timer,
 			    RxBaInactTimeout, 0);
 		timer_setup(&pRxTS->rx_pkt_pending_timer, RxPktPendingTimeout, 0);
 		ResetRxTsEntry(pRxTS);

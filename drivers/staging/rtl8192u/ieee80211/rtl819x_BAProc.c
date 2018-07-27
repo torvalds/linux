@@ -70,7 +70,7 @@ static u8 TxTsDeleteBA(struct ieee80211_device *ieee, struct tx_ts_record *pTxTs
  ********************************************************************************************************************/
 static u8 RxTsDeleteBA(struct ieee80211_device *ieee, struct rx_ts_record *pRxTs)
 {
-	PBA_RECORD		pBa = &pRxTs->RxAdmittedBARecord;
+	PBA_RECORD		pBa = &pRxTs->rx_admitted_ba_record;
 	u8			bSendDELBA = false;
 
 	if (pBa->bValid) {
@@ -369,7 +369,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't get TS in %s()\n", __func__);
 		goto OnADDBAReq_Fail;
 	}
-	pBA = &pTS->RxAdmittedBARecord;
+	pBA = &pTS->rx_admitted_ba_record;
 	// To Determine the ADDBA Req content
 	// We can do much more check here, including BufferSize, AMSDU_Support, Policy, StartSeqCtrl...
 	// I want to check StartSeqCtrl to make sure when we start aggregation!!!
@@ -656,7 +656,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 			ieee80211_send_DELBA(
 				ieee,
 				pTsCommonInfo->addr,
-				&pRxTs->RxAdmittedBARecord,
+				&pRxTs->rx_admitted_ba_record,
 				TxRxSelect,
 				DELBA_REASON_END_BA);
 	}
@@ -691,14 +691,14 @@ void TxBaInactTimeout(struct timer_list *t)
 
 void RxBaInactTimeout(struct timer_list *t)
 {
-	struct rx_ts_record *pRxTs = from_timer(pRxTs, t, RxAdmittedBARecord.Timer);
+	struct rx_ts_record *pRxTs = from_timer(pRxTs, t, rx_admitted_ba_record.Timer);
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
 
 	RxTsDeleteBA(ieee, pRxTs);
 	ieee80211_send_DELBA(
 		ieee,
 		pRxTs->ts_common_info.addr,
-		&pRxTs->RxAdmittedBARecord,
+		&pRxTs->rx_admitted_ba_record,
 		RX_DIR,
 		DELBA_REASON_TIMEOUT);
 }
