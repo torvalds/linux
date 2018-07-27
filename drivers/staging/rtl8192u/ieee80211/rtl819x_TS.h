@@ -26,7 +26,7 @@ struct ts_common_info {
 	u8				t_clas_num;
 };
 
-typedef struct _TX_TS_RECORD {
+struct tx_ts_record {
 	struct ts_common_info		TsCommonInfo;
 	u16				TxCurSeq;
 	BA_RECORD			TxPendingBARecord;	/*  For BA Originator */
@@ -37,7 +37,7 @@ typedef struct _TX_TS_RECORD {
 	u8				bUsingBa;
 	struct timer_list		TsAddBaTimer;
 	u8				num;
-} TX_TS_RECORD, *PTX_TS_RECORD;
+};
 
 typedef struct _RX_TS_RECORD {
 	struct ts_common_info		TsCommonInfo;

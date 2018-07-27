@@ -36,11 +36,11 @@ static void DeActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA)
 /********************************************************************************************************************
  *function: deactivete BA entry in Tx Ts, and send DELBA.
  *   input:
- *	     PTX_TS_RECORD		pTxTs //Tx Ts which is to deactivate BA entry.
+ *	     struct tx_ts_record *pTxTs //Tx Ts which is to deactivate BA entry.
  *  output:  none
- *  notice:  As PTX_TS_RECORD structure will be defined in QOS, so wait to be merged. //FIXME
+ *  notice:  As struct tx_ts_record * structure will be defined in QOS, so wait to be merged. //FIXME
  ********************************************************************************************************************/
-static u8 TxTsDeleteBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTxTs)
+static u8 TxTsDeleteBA(struct ieee80211_device *ieee, struct tx_ts_record *pTxTs)
 {
 	PBA_RECORD		pAdmittedBa = &pTxTs->TxAdmittedBARecord;  //These two BA entries must exist in TS structure
 	PBA_RECORD		pPendingBa = &pTxTs->TxPendingBARecord;
@@ -420,7 +420,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
 	 struct rtl_80211_hdr_3addr *rsp = NULL;
 	PBA_RECORD		pPendingBA, pAdmittedBA;
-	PTX_TS_RECORD		pTS = NULL;
+	struct tx_ts_record     *pTS = NULL;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	u16 *pStatusCode = NULL, *pBaTimeoutVal = NULL;
 	PBA_PARAM_SET		pBaParamSet = NULL;
@@ -581,7 +581,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 		RxTsDeleteBA(ieee, pRxTs);
 	} else {
-		PTX_TS_RECORD	pTxTs;
+		struct tx_ts_record *pTxTs;
 
 		if (!GetTs(
 			ieee,
@@ -610,7 +610,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 void
 TsInitAddBA(
 	struct ieee80211_device *ieee,
-	PTX_TS_RECORD	pTS,
+	struct tx_ts_record     *pTS,
 	u8		Policy,
 	u8		bOverwritePending
 	)
@@ -641,7 +641,7 @@ void
 TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo, enum tr_select TxRxSelect)
 {
 	if (TxRxSelect == TX_DIR) {
-		PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)pTsCommonInfo;
+		struct tx_ts_record *pTxTs = (struct tx_ts_record *)pTsCommonInfo;
 
 		if (TxTsDeleteBA(ieee, pTxTs))
 			ieee80211_send_DELBA(
@@ -663,13 +663,13 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 }
 /********************************************************************************************************************
  *function:  BA setup timer
- *   input:  unsigned long	 data		//acturally we send TX_TS_RECORD or RX_TS_RECORD to these timer
+ *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or RX_TS_RECORD to these timer
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
 void BaSetupTimeOut(struct timer_list *t)
 {
-	PTX_TS_RECORD	pTxTs = from_timer(pTxTs, t, TxPendingBARecord.Timer);
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, TxPendingBARecord.Timer);
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
@@ -678,7 +678,7 @@ void BaSetupTimeOut(struct timer_list *t)
 
 void TxBaInactTimeout(struct timer_list *t)
 {
-	PTX_TS_RECORD	pTxTs = from_timer(pTxTs, t, TxAdmittedBARecord.Timer);
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, TxAdmittedBARecord.Timer);
 	struct ieee80211_device *ieee = container_of(pTxTs, struct ieee80211_device, TxTsRecord[pTxTs->num]);
 	TxTsDeleteBA(ieee, pTxTs);
 	ieee80211_send_DELBA(

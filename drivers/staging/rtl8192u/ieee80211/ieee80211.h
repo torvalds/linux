@@ -1646,7 +1646,7 @@ struct ieee80211_device {
 	struct list_head		Tx_TS_Admit_List;
 	struct list_head		Tx_TS_Pending_List;
 	struct list_head		Tx_TS_Unused_List;
-	TX_TS_RECORD		TxTsRecord[TOTAL_TS_NUM];
+	struct tx_ts_record		TxTsRecord[TOTAL_TS_NUM];
 	// 802.11e and WMM Traffic Stream Info (RX)
 	struct list_head		Rx_TS_Admit_List;
 	struct list_head		Rx_TS_Pending_List;
@@ -2388,7 +2388,7 @@ u16 TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate);
 int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb);
 int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb);
 int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb);
-void TsInitAddBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTS,
+void TsInitAddBA(struct ieee80211_device *ieee, struct tx_ts_record *pTS,
 		 u8 Policy, u8 bOverwritePending);
 void TsInitDelBA(struct ieee80211_device *ieee,
 		 struct ts_common_info *pTsCommonInfo, enum tr_select TxRxSelect);
@@ -2406,7 +2406,7 @@ bool GetTs(
 	bool                            bAddNewTs
 	);
 void TSInitialize(struct ieee80211_device *ieee);
-void TsStartAddBaProcess(struct ieee80211_device *ieee, PTX_TS_RECORD   pTxTS);
+void TsStartAddBaProcess(struct ieee80211_device *ieee, struct tx_ts_record   *pTxTS);
 void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr);
 void RemoveAllTS(struct ieee80211_device *ieee);
 void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee);

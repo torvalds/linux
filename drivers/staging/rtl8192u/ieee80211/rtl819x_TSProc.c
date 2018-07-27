@@ -19,7 +19,7 @@ static void TsInactTimeout(struct timer_list *unused)
 
 /********************************************************************************************************************
  *function:  I still not understand this function, so wait for further implementation
- *   input:  unsigned long	 data		//acturally we send TX_TS_RECORD or RX_TS_RECORD to these timer
+ *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or RX_TS_RECORD to these timer
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
@@ -86,13 +86,13 @@ static void RxPktPendingTimeout(struct timer_list *t)
 
 /********************************************************************************************************************
  *function:  Add BA timer function
- *   input:  unsigned long	 data		//acturally we send TX_TS_RECORD or RX_TS_RECORD to these timer
+ *   input:  unsigned long	 data		//acturally we send struct tx_ts_record or RX_TS_RECORD to these timer
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
 static void TsAddBaProcess(struct timer_list *t)
 {
-	PTX_TS_RECORD	pTxTs = from_timer(pTxTs, t, TsAddBaTimer);
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, TsAddBaTimer);
 	u8 num = pTxTs->num;
 	struct ieee80211_device *ieee = container_of(pTxTs, struct ieee80211_device, TxTsRecord[num]);
 
@@ -110,7 +110,7 @@ static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 	pTsCommonInfo->t_clas_num = 0;
 }
 
-static void ResetTxTsEntry(PTX_TS_RECORD pTS)
+static void ResetTxTsEntry(struct tx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->TsCommonInfo);
 	pTS->TxCurSeq = 0;
@@ -131,7 +131,7 @@ static void ResetRxTsEntry(PRX_TS_RECORD pTS)
 
 void TSInitialize(struct ieee80211_device *ieee)
 {
-	PTX_TS_RECORD		pTxTS  = ieee->TxTsRecord;
+	struct tx_ts_record     *pTxTS  = ieee->TxTsRecord;
 	PRX_TS_RECORD		pRxTS  = ieee->RxTsRecord;
 	PRX_REORDER_ENTRY	pRxReorderEntry = ieee->RxReorderEntry;
 	u8				count = 0;
@@ -374,7 +374,7 @@ bool GetTs(
 				(*ppTS) = list_entry(pUnusedList->next, struct ts_common_info, list);
 				list_del_init(&(*ppTS)->list);
 				if(TxRxSelect==TX_DIR) {
-					PTX_TS_RECORD tmp = container_of(*ppTS, TX_TS_RECORD, TsCommonInfo);
+					struct tx_ts_record *tmp = container_of(*ppTS, struct tx_ts_record, TsCommonInfo);
 					ResetTxTsEntry(tmp);
 				} else {
 					PRX_TS_RECORD tmp = container_of(*ppTS, RX_TS_RECORD, TsCommonInfo);
@@ -447,7 +447,7 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, struct ts_common_info *
 
 //#endif
 	} else {
-		PTX_TS_RECORD pTxTS = (PTX_TS_RECORD)pTs;
+		struct tx_ts_record *pTxTS = (struct tx_ts_record *)pTs;
 		del_timer_sync(&pTxTS->TsAddBaTimer);
 	}
 }
@@ -520,7 +520,7 @@ void RemoveAllTS(struct ieee80211_device *ieee)
 	}
 }
 
-void TsStartAddBaProcess(struct ieee80211_device *ieee, PTX_TS_RECORD	pTxTS)
+void TsStartAddBaProcess(struct ieee80211_device *ieee, struct tx_ts_record *pTxTS)
 {
 	if(!pTxTS->bAddBaReqInProgress) {
 		pTxTS->bAddBaReqInProgress = true;
