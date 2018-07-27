@@ -857,6 +857,7 @@ struct dwc2_hregs_backup {
  * @gr_backup: Backup of global registers during suspend
  * @dr_backup: Backup of device registers during suspend
  * @hr_backup: Backup of host registers during suspend
+ * @needs_byte_swap:		Specifies whether the opposite endianness.
  *
  * These are for host mode:
  *
@@ -1046,6 +1047,7 @@ struct dwc2_hsotg {
 
 	struct dentry *debug_root;
 	struct debugfs_regset32 *regset;
+	bool needs_byte_swap;
 
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
@@ -1164,12 +1166,21 @@ struct dwc2_hsotg {
 /* Normal architectures just use readl/write */
 static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
 {
-	return readl(hsotg->regs + offset);
+	u32 val;
+
+	val = readl(hsotg->regs + offset);
+	if (hsotg->needs_byte_swap)
+		return swab32(val);
+	else
+		return val;
 }
 
 static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
 {
-	writel(value, hsotg->regs + offset);
+	if (hsotg->needs_byte_swap)
+		writel(swab32(value), hsotg->regs + offset);
+	else
+		writel(value, hsotg->regs + offset);
 
 #ifdef DWC2_LOG_WRITES
 	pr_info("info:: wrote %08x to %p\n", value, hsotg->regs + offset);
