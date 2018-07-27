@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/log2.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/msi.h>
 #include <linux/of.h>
@@ -1629,6 +1630,33 @@ static void its_free_prop_table(struct page *prop_page)
 		   get_order(LPI_PROPBASE_SZ));
 }
 
+static bool gic_check_reserved_range(phys_addr_t addr, unsigned long size)
+{
+	phys_addr_t start, end, addr_end;
+	u64 i;
+
+	/*
+	 * We don't bother checking for a kdump kernel as by
+	 * construction, the LPI tables are out of this kernel's
+	 * memory map.
+	 */
+	if (is_kdump_kernel())
+		return true;
+
+	addr_end = addr + size - 1;
+
+	for_each_reserved_mem_region(i, &start, &end) {
+		if (addr >= start && addr_end <= end)
+			return true;
+	}
+
+	/* Not found, not a good sign... */
+	pr_warn("GICv3: Expected reserved range [%pa:%pa], not found\n",
+		&addr, &addr_end);
+	add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
+	return false;
+}
+
 static int gic_reserve_range(phys_addr_t addr, unsigned long size)
 {
 	if (efi_enabled(EFI_CONFIG_TABLES))
@@ -1976,15 +2004,19 @@ static void its_free_pending_table(struct page *pt)
 }
 
 /*
- * Booting with kdump and LPIs enabled is generally fine.
+ * Booting with kdump and LPIs enabled is generally fine. Any other
+ * case is wrong in the absence of firmware/EFI support.
  */
 static bool enabled_lpis_allowed(void)
 {
-	/* Allow a kdump kernel */
-	if (is_kdump_kernel())
-		return true;
+	phys_addr_t addr;
+	u64 val;
 
-	return false;
+	/* Check whether the property table is in a reserved region */
+	val = gicr_read_propbaser(gic_data_rdist_rd_base() + GICR_PROPBASER);
+	addr = val & GENMASK_ULL(51, 12);
+
+	return gic_check_reserved_range(addr, LPI_PROPBASE_SZ);
 }
 
 static int __init allocate_lpi_tables(void)
@@ -2052,6 +2084,7 @@ static void its_cpu_init_lpis(void)
 		paddr = gicr_read_pendbaser(rbase + GICR_PENDBASER);
 		paddr &= GENMASK_ULL(51, 16);
 
+		WARN_ON(!gic_check_reserved_range(paddr, LPI_PENDBASE_SZ));
 		its_free_pending_table(gic_data_rdist()->pend_page);
 		gic_data_rdist()->pend_page = NULL;
 
