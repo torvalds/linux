@@ -810,7 +810,7 @@ static int atp_open(struct input_dev *input)
 {
 	struct atp *dev = input_get_drvdata(input);
 
-	if (usb_submit_urb(dev->urb, GFP_ATOMIC))
+	if (usb_submit_urb(dev->urb, GFP_KERNEL))
 		return -EIO;
 
 	dev->open = true;
@@ -976,7 +976,7 @@ static int atp_recover(struct atp *dev)
 	if (error)
 		return error;
 
-	if (dev->open && usb_submit_urb(dev->urb, GFP_ATOMIC))
+	if (dev->open && usb_submit_urb(dev->urb, GFP_KERNEL))
 		return -EIO;
 
 	return 0;
@@ -994,7 +994,7 @@ static int atp_resume(struct usb_interface *iface)
 {
 	struct atp *dev = usb_get_intfdata(iface);
 
-	if (dev->open && usb_submit_urb(dev->urb, GFP_ATOMIC))
+	if (dev->open && usb_submit_urb(dev->urb, GFP_KERNEL))
 		return -EIO;
 
 	return 0;
