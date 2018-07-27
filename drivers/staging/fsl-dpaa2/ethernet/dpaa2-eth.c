@@ -2195,10 +2195,10 @@ static int bind_dpni(struct dpaa2_eth_priv *priv)
 		return err;
 	}
 
-	/* have the interface implicitly distribute traffic based on supported
-	 * header fields
+	/* have the interface implicitly distribute traffic based on
+	 * the default hash key
 	 */
-	err = dpaa2_eth_set_hash(net_dev, DPAA2_RXH_SUPPORTED);
+	err = dpaa2_eth_set_hash(net_dev, DPAA2_RXH_DEFAULT);
 	if (err)
 		dev_err(dev, "Failed to configure hashing\n");
 
