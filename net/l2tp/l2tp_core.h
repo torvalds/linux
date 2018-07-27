@@ -62,7 +62,6 @@ struct l2tp_session_cfg {
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
 	int			mtu;
-	int			mru;
 	char			*ifname;
 };
 
@@ -107,7 +106,6 @@ struct l2tp_session {
 						  * (in jiffies) */
 	int			reorder_skip;	/* set if skip to next nr */
 	int			mtu;
-	int			mru;
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
 	struct hlist_node	global_hlist;	/* Global hash list node */

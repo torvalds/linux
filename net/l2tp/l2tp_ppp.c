@@ -570,10 +570,9 @@ static void pppol2tp_session_init(struct l2tp_session *session)
 	if (dst) {
 		u32 pmtu = dst_mtu(dst);
 
-		if (pmtu) {
+		if (pmtu)
 			session->mtu = pmtu - PPPOL2TP_HEADER_OVERHEAD;
-			session->mru = pmtu - PPPOL2TP_HEADER_OVERHEAD;
-		}
+
 		dst_release(dst);
 	}
 }
@@ -781,7 +780,6 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	} else {
 		/* Default MTU must allow space for UDP/L2TP/PPP headers */
 		cfg.mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
-		cfg.mru = cfg.mtu;
 		cfg.pw_type = L2TP_PWTYPE_PPP;
 
 		session = l2tp_session_create(sizeof(struct pppol2tp_session),
@@ -885,8 +883,6 @@ static int pppol2tp_session_create(struct net *net, struct l2tp_tunnel *tunnel,
 	/* Default MTU values. */
 	if (cfg->mtu == 0)
 		cfg->mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
-	if (cfg->mru == 0)
-		cfg->mru = cfg->mtu;
 
 	/* Allocate and initialize a new session context. */
 	session = l2tp_session_create(sizeof(struct pppol2tp_session),
@@ -1101,34 +1097,6 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 		break;
 
 	case PPPIOCGMRU:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		err = -EFAULT;
-		if (put_user(session->mru, (int __user *) arg))
-			break;
-
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get mru=%d\n",
-			  session->name, session->mru);
-		err = 0;
-		break;
-
-	case PPPIOCSMRU:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		err = -EFAULT;
-		if (get_user(val, (int __user *) arg))
-			break;
-
-		session->mru = val;
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: set mru=%d\n",
-			  session->name, session->mru);
-		err = 0;
-		break;
-
 	case PPPIOCGFLAGS:
 		err = -EFAULT;
 		if (put_user(0, (int __user *)arg))
@@ -1136,6 +1104,7 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 		err = 0;
 		break;
 
+	case PPPIOCSMRU:
 	case PPPIOCSFLAGS:
 		err = -EFAULT;
 		if (get_user(val, (int __user *)arg))
@@ -1723,8 +1692,8 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   tunnel->peer_tunnel_id,
 		   session->peer_session_id,
 		   state, user_data_ok);
-	seq_printf(m, "   %d/%d/%c/%c/%s %08x %u\n",
-		   session->mtu, session->mru,
+	seq_printf(m, "   %d/0/%c/%c/%s %08x %u\n",
+		   session->mtu,
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
 		   session->lns_mode ? "LNS" : "LAC",
