@@ -1333,8 +1333,8 @@ static bool gasket_is_extended_dev_addr_bad(
 	/* check if the device address is out of bound */
 	addr = dev_addr & ~((pg_tbl)->extended_flag);
 	if (addr >> (GASKET_EXTENDED_LVL0_WIDTH + GASKET_EXTENDED_LVL0_SHIFT)) {
-		dev_err(pg_tbl->device, "device address out of bound, 0x%p\n",
-			(void *)dev_addr);
+		dev_err(pg_tbl->device, "device address out of bounds: 0x%lx\n",
+			dev_addr);
 		return true;
 	}
 
@@ -1351,8 +1351,8 @@ static bool gasket_is_extended_dev_addr_bad(
 
 	if (gasket_components_to_dev_address(
 		pg_tbl, 0, page_global_idx, page_offset) != dev_addr) {
-		dev_err(pg_tbl->device, "address is invalid, 0x%p\n",
-			(void *)dev_addr);
+		dev_err(pg_tbl->device, "address is invalid: 0x%lx\n",
+			dev_addr);
 		return true;
 	}
 
