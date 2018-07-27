@@ -954,6 +954,8 @@ struct amdgpu_gfx {
 	bool                            gfx_off_state; /* true: enabled, false: disabled */
 	struct mutex                    gfx_off_mutex;
 	uint32_t                        gfx_off_req_count; /* default 1, enable gfx off: dec 1, disable gfx off: add 1 */
+	struct delayed_work             gfx_off_delay_work;
+
 	/* pipe reservation */
 	struct mutex			pipe_reserve_mutex;
 	DECLARE_BITMAP			(pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
