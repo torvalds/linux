@@ -96,6 +96,8 @@ struct glink_core_rx_intent {
 struct qcom_glink {
 	struct device *dev;
 
+	const char *name;
+
 	struct mbox_client mbox_client;
 	struct mbox_chan *mbox_chan;
 
@@ -1574,6 +1576,10 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	spin_lock_init(&glink->idr_lock);
 	idr_init(&glink->lcids);
 	idr_init(&glink->rcids);
+
+	ret = of_property_read_string(dev->of_node, "label", &glink->name);
+	if (ret < 0)
+		glink->name = dev->of_node->name;
 
 	glink->mbox_client.dev = dev;
 	glink->mbox_client.knows_txdone = true;
