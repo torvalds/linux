@@ -597,8 +597,8 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 		pTxTs->using_ba = false;
 		pTxTs->add_ba_req_in_progress = false;
 		pTxTs->add_ba_req_delayed = false;
-		del_timer_sync(&pTxTs->TsAddBaTimer);
-		//PlatformCancelTimer(Adapter, &pTxTs->TsAddBaTimer);
+		del_timer_sync(&pTxTs->ts_add_ba_timer);
+		//PlatformCancelTimer(Adapter, &pTxTs->ts_add_ba_timer);
 		TxTsDeleteBA(ieee, pTxTs);
 	}
 	return 0;
