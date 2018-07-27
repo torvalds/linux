@@ -3524,6 +3524,18 @@ static int nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
 	return chip->setup_read_retry(mtd, retry_mode);
 }
 
+static void nand_wait_readrdy(struct nand_chip *chip)
+{
+	if (!(chip->options & NAND_NEED_READRDY))
+		return;
+
+	/* Apply delay or wait for ready/busy pin */
+	if (!chip->dev_ready)
+		udelay(chip->chip_delay);
+	else
+		nand_wait_ready(nand_to_mtd(chip));
+}
+
 /**
  * nand_do_read_ops - [INTERN] Read data with ECC
  * @mtd: MTD device structure
@@ -3631,13 +3643,7 @@ read_retry:
 				}
 			}
 
-			if (chip->options & NAND_NEED_READRDY) {
-				/* Apply delay or wait for ready/busy pin */
-				if (!chip->dev_ready)
-					udelay(chip->chip_delay);
-				else
-					nand_wait_ready(mtd);
-			}
+			nand_wait_readrdy(chip);
 
 			if (mtd->ecc_stats.failed - ecc_failures) {
 				if (retry_mode + 1 < chip->read_retries) {
@@ -3908,13 +3914,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 		len = min(len, readlen);
 		buf = nand_transfer_oob(mtd, buf, ops, len);
 
-		if (chip->options & NAND_NEED_READRDY) {
-			/* Apply delay or wait for ready/busy pin */
-			if (!chip->dev_ready)
-				udelay(chip->chip_delay);
-			else
-				nand_wait_ready(mtd);
-		}
+		nand_wait_readrdy(chip);
 
 		max_bitflips = max_t(unsigned int, max_bitflips, ret);
 
