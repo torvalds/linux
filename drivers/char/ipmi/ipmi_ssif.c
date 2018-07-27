@@ -61,6 +61,7 @@
 #define	SSIF_IPMI_REQUEST			2
 #define	SSIF_IPMI_MULTI_PART_REQUEST_START	6
 #define	SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE	7
+#define	SSIF_IPMI_MULTI_PART_REQUEST_END	8
 #define	SSIF_IPMI_RESPONSE			3
 #define	SSIF_IPMI_MULTI_PART_RESPONSE_MIDDLE	9
 
@@ -272,6 +273,7 @@ struct ssif_info {
 	/* Info from SSIF cmd */
 	unsigned char max_xmit_msg_size;
 	unsigned char max_recv_msg_size;
+	bool cmd8_works; /* See test_multipart_messages() for details. */
 	unsigned int  multi_support;
 	int           supports_pec;
 
@@ -885,32 +887,33 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 		 * in the SSIF_MULTI_n_PART case in the probe function
 		 * for details on the intricacies of this.
 		 */
-		int left;
+		int left, to_write;
 		unsigned char *data_to_send;
+		unsigned char cmd;
 
 		ssif_inc_stat(ssif_info, sent_messages_parts);
 
 		left = ssif_info->multi_len - ssif_info->multi_pos;
-		if (left > 32)
-			left = 32;
+		to_write = left;
+		if (to_write > 32)
+			to_write = 32;
 		/* Length byte. */
-		ssif_info->multi_data[ssif_info->multi_pos] = left;
+		ssif_info->multi_data[ssif_info->multi_pos] = to_write;
 		data_to_send = ssif_info->multi_data + ssif_info->multi_pos;
-		ssif_info->multi_pos += left;
-		if (left < 32)
-			/*
-			 * Write is finished.  Note that we must end
-			 * with a write of less than 32 bytes to
-			 * complete the transaction, even if it is
-			 * zero bytes.
-			 */
+		ssif_info->multi_pos += to_write;
+		cmd = SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE;
+		if (ssif_info->cmd8_works) {
+			if (left == to_write) {
+				cmd = SSIF_IPMI_MULTI_PART_REQUEST_END;
+				ssif_info->multi_data = NULL;
+			}
+		} else if (to_write < 32) {
 			ssif_info->multi_data = NULL;
+		}
 
 		rv = ssif_i2c_send(ssif_info, msg_written_handler,
-				  I2C_SMBUS_WRITE,
-				  SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE,
-				  data_to_send,
-				  I2C_SMBUS_BLOCK_DATA);
+				   I2C_SMBUS_WRITE, cmd,
+				   data_to_send, I2C_SMBUS_BLOCK_DATA);
 		if (rv < 0) {
 			/* request failed, just return the error. */
 			ssif_inc_stat(ssif_info, send_errors);
@@ -1242,6 +1245,24 @@ static int ssif_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int read_response(struct i2c_client *client, unsigned char *resp)
+{
+	int ret = -ENODEV, retry_cnt = SSIF_RECV_RETRIES;
+
+	while (retry_cnt > 0) {
+		ret = i2c_smbus_read_block_data(client, SSIF_IPMI_RESPONSE,
+						resp);
+		if (ret > 0)
+			break;
+		msleep(SSIF_MSG_MSEC);
+		retry_cnt--;
+		if (retry_cnt <= 0)
+			break;
+	}
+
+	return ret;
+}
+
 static int do_cmd(struct i2c_client *client, int len, unsigned char *msg,
 		  int *resp_len, unsigned char *resp)
 {
@@ -1258,26 +1279,16 @@ static int do_cmd(struct i2c_client *client, int len, unsigned char *msg,
 		return -ENODEV;
 	}
 
-	ret = -ENODEV;
-	retry_cnt = SSIF_RECV_RETRIES;
-	while (retry_cnt > 0) {
-		ret = i2c_smbus_read_block_data(client, SSIF_IPMI_RESPONSE,
-						resp);
-		if (ret > 0)
-			break;
-		msleep(SSIF_MSG_MSEC);
-		retry_cnt--;
-		if (retry_cnt <= 0)
-			break;
-	}
-
+	ret = read_response(client, resp);
 	if (ret > 0) {
 		/* Validate that the response is correct. */
 		if (ret < 3 ||
 		    (resp[0] != (msg[0] | (1 << 2))) ||
 		    (resp[1] != msg[1]))
 			ret = -EINVAL;
-		else {
+		else if (ret > IPMI_MAX_MSG_LENGTH) {
+			ret = -E2BIG;
+		} else {
 			*resp_len = ret;
 			ret = 0;
 		}
@@ -1389,6 +1400,121 @@ static int find_slave_address(struct i2c_client *client, int slave_addr)
 	return slave_addr;
 }
 
+static int start_multipart_test(struct i2c_client *client,
+				unsigned char *msg, bool do_middle)
+{
+	int retry_cnt = SSIF_SEND_RETRIES, ret;
+
+retry_write:
+	ret = i2c_smbus_write_block_data(client,
+					 SSIF_IPMI_MULTI_PART_REQUEST_START,
+					 32, msg);
+	if (ret) {
+		retry_cnt--;
+		if (retry_cnt > 0)
+			goto retry_write;
+		dev_err(&client->dev, "Could not write multi-part start, though the BMC said it could handle it.  Just limit sends to one part.\n");
+		return ret;
+	}
+
+	if (!do_middle)
+		return 0;
+
+	ret = i2c_smbus_write_block_data(client,
+					 SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE,
+					 32, msg + 32);
+	if (ret) {
+		dev_err(&client->dev, "Could not write multi-part middle, though the BMC said it could handle it.  Just limit sends to one part.\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static void test_multipart_messages(struct i2c_client *client,
+				    struct ssif_info *ssif_info,
+				    unsigned char *resp)
+{
+	unsigned char msg[65];
+	int ret;
+	bool do_middle;
+
+	if (ssif_info->max_xmit_msg_size <= 32)
+		return;
+
+	do_middle = ssif_info->max_xmit_msg_size > 63;
+
+	memset(msg, 0, sizeof(msg));
+	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+	msg[1] = IPMI_GET_DEVICE_ID_CMD;
+
+	/*
+	 * The specification is all messed up dealing with sending
+	 * multi-part messages.  Per what the specification says, it
+	 * is impossible to send a message that is a multiple of 32
+	 * bytes, except for 32 itself.  It talks about a "start"
+	 * transaction (cmd=6) that must be 32 bytes, "middle"
+	 * transaction (cmd=7) that must be 32 bytes, and an "end"
+	 * transaction.  The "end" transaction is shown as cmd=7 in
+	 * the text, but if that's the case there is no way to
+	 * differentiate between a middle and end part except the
+	 * length being less than 32.  But there is a table at the far
+	 * end of the section (that I had never noticed until someone
+	 * pointed it out to me) that mentions it as cmd=8.
+	 *
+	 * After some thought, I think the example is wrong and the
+	 * end transaction should be cmd=8.  But some systems don't
+	 * implement cmd=8, they use a zero-length end transaction,
+	 * even though that violates the SMBus specification.
+	 *
+	 * So, to work around this, this code tests if cmd=8 works.
+	 * If it does, then we use that.  If not, it tests zero-
+	 * byte end transactions.  If that works, good.  If not,
+	 * we only allow 63-byte transactions max.
+	 */
+
+	ret = start_multipart_test(client, msg, do_middle);
+	if (ret)
+		goto out_no_multi_part;
+
+	ret = i2c_smbus_write_block_data(client,
+					 SSIF_IPMI_MULTI_PART_REQUEST_END,
+					 1, msg + 64);
+
+	if (!ret)
+		ret = read_response(client, resp);
+
+	if (ret > 0) {
+		/* End transactions work, we are good. */
+		ssif_info->cmd8_works = true;
+		return;
+	}
+
+	ret = start_multipart_test(client, msg, do_middle);
+	if (ret) {
+		dev_err(&client->dev, "Second multipart test failed.\n");
+		goto out_no_multi_part;
+	}
+
+	ret = i2c_smbus_write_block_data(client,
+					 SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE,
+					 0, msg + 64);
+	if (!ret)
+		ret = read_response(client, resp);
+	if (ret > 0)
+		/* Zero-size end parts work, use those. */
+		return;
+
+	/* Limit to 63 bytes and use a short middle command to mark the end. */
+	if (ssif_info->max_xmit_msg_size > 63)
+		ssif_info->max_xmit_msg_size = 63;
+	return;
+
+out_no_multi_part:
+	ssif_info->max_xmit_msg_size = 32;
+	return;
+}
+
 /*
  * Global enables we care about.
  */
@@ -1475,26 +1601,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			break;
 
 		case SSIF_MULTI_n_PART:
-			/*
-			 * The specification is rather confusing at
-			 * this point, but I think I understand what
-			 * is meant.  At least I have a workable
-			 * solution.  With multi-part messages, you
-			 * cannot send a message that is a multiple of
-			 * 32-bytes in length, because the start and
-			 * middle messages are 32-bytes and the end
-			 * message must be at least one byte.  You
-			 * can't fudge on an extra byte, that would
-			 * screw up things like fru data writes.  So
-			 * we limit the length to 63 bytes.  That way
-			 * a 32-byte message gets sent as a single
-			 * part.  A larger message will be a 32-byte
-			 * start and the next message is always going
-			 * to be 1-31 bytes in length.  Not ideal, but
-			 * it should work.
-			 */
-			if (ssif_info->max_xmit_msg_size > 63)
-				ssif_info->max_xmit_msg_size = 63;
+			/* We take whatever size given, but do some testing. */
 			break;
 
 		default:
@@ -1512,6 +1619,8 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ssif_info->multi_support = SSIF_NO_MULTI;
 		ssif_info->supports_pec = 0;
 	}
+
+	test_multipart_messages(client, ssif_info, resp);
 
 	/* Make sure the NMI timeout is cleared. */
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
