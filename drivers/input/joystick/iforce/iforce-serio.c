@@ -67,8 +67,25 @@ again:
 	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 }
 
+static int iforce_serio_get_id(struct iforce *iforce, u8 *packet)
+{
+	iforce->expect_packet = FF_CMD_QUERY;
+	iforce_send_packet(iforce, FF_CMD_QUERY, packet);
+
+	wait_event_interruptible_timeout(iforce->wait,
+					 !iforce->expect_packet, HZ);
+
+	if (iforce->expect_packet) {
+		iforce->expect_packet = 0;
+		return -EIO;
+	}
+
+	return -(iforce->edata[0] != packet[0]);
+}
+
 static const struct iforce_xport_ops iforce_serio_xport_ops = {
 	.xmit		= iforce_serio_xmit,
+	.get_id		= iforce_serio_get_id,
 };
 
 static void iforce_serio_write_wakeup(struct serio *serio)

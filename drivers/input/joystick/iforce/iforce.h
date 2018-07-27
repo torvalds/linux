@@ -97,6 +97,7 @@ struct iforce;
 
 struct iforce_xport_ops {
 	void (*xmit)(struct iforce *iforce);
+	int (*get_id)(struct iforce *iforce, u8* id);
 };
 
 struct iforce {
@@ -146,6 +147,10 @@ struct iforce {
 /* Encode a time value */
 #define TIME_SCALE(a)	(a)
 
+static inline int iforce_get_id_packet(struct iforce *iforce, u8* id)
+{
+	return iforce->xport_ops->get_id(iforce, id);
+}
 
 /* Public functions */
 /* iforce-main.c */
@@ -156,7 +161,6 @@ int iforce_control_playback(struct iforce*, u16 id, unsigned int);
 void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data);
 int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data);
 void iforce_dump_packet(struct iforce *iforce, char *msg, u16 cmd, unsigned char *data);
-int iforce_get_id_packet(struct iforce *iforce, char *packet);
 
 /* iforce-ff.c */
 int iforce_upload_periodic(struct iforce *, struct ff_effect *, struct ff_effect *);

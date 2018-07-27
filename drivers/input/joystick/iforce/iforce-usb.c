@@ -75,8 +75,37 @@ static void iforce_usb_xmit(struct iforce *iforce)
 		__iforce_usb_xmit(iforce);
 }
 
+static int iforce_usb_get_id(struct iforce *iforce, u8 *packet)
+{
+	int status;
+
+	iforce->cr.bRequest = packet[0];
+	iforce->ctrl->dev = iforce->usbdev;
+
+	status = usb_submit_urb(iforce->ctrl, GFP_KERNEL);
+	if (status) {
+		dev_err(&iforce->intf->dev,
+			"usb_submit_urb failed %d\n", status);
+		return -EIO;
+	}
+
+	wait_event_interruptible_timeout(iforce->wait,
+		iforce->ctrl->status != -EINPROGRESS, HZ);
+
+	if (iforce->ctrl->status) {
+		dev_dbg(&iforce->intf->dev,
+			"iforce->ctrl->status = %d\n",
+			iforce->ctrl->status);
+		usb_unlink_urb(iforce->ctrl);
+		return -EIO;
+	}
+
+	return -(iforce->edata[0] != packet[0]);
+}
+
 static const struct iforce_xport_ops iforce_usb_xport_ops = {
 	.xmit		= iforce_usb_xmit,
+	.get_id		= iforce_usb_get_id,
 };
 
 static void iforce_usb_irq(struct urb *urb)
