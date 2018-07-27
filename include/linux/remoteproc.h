@@ -317,6 +317,9 @@ struct rproc;
  * @priv: associated data
  * @name: associated memory region name (optional)
  * @node: list node
+ * @rsc_offset: offset in resource table
+ * @flags: iommu protection flags
+ * @alloc: specific memory allocator function
  */
 struct rproc_mem_entry {
 	void *va;
@@ -326,6 +329,9 @@ struct rproc_mem_entry {
 	void *priv;
 	char name[32];
 	struct list_head node;
+	u32 rsc_offset;
+	u32 flags;
+	int (*alloc)(struct rproc *rproc, struct rproc_mem_entry *mem);
 	int (*release)(struct rproc *rproc, struct rproc_mem_entry *mem);
 };
 
@@ -564,6 +570,7 @@ void rproc_add_carveout(struct rproc *rproc, struct rproc_mem_entry *mem);
 struct rproc_mem_entry *
 rproc_mem_entry_init(struct device *dev,
 		     void *va, dma_addr_t dma, int len, u32 da,
+		     int (*alloc)(struct rproc *, struct rproc_mem_entry *),
 		     int (*release)(struct rproc *, struct rproc_mem_entry *),
 		     const char *name, ...);
 

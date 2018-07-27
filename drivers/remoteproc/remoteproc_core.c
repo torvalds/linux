@@ -642,12 +642,107 @@ out:
 }
 
 /**
+ * rproc_alloc_carveout() - allocated specified carveout
+ * @rproc: rproc handle
+ * @mem: the memory entry to allocate
+ *
+ * This function allocate specified memory entry @mem using
+ * dma_alloc_coherent() as default allocator
+ */
+static int rproc_alloc_carveout(struct rproc *rproc,
+				struct rproc_mem_entry *mem)
+{
+	struct rproc_mem_entry *mapping = NULL;
+	struct device *dev = &rproc->dev;
+	dma_addr_t dma;
+	void *va;
+	int ret;
+
+	va = dma_alloc_coherent(dev->parent, mem->len, &dma, GFP_KERNEL);
+	if (!va) {
+		dev_err(dev->parent,
+			"failed to allocate dma memory: len 0x%x\n", mem->len);
+		return -ENOMEM;
+	}
+
+	dev_dbg(dev, "carveout va %pK, dma %pad, len 0x%x\n",
+		va, &dma, mem->len);
+
+	/*
+	 * Ok, this is non-standard.
+	 *
+	 * Sometimes we can't rely on the generic iommu-based DMA API
+	 * to dynamically allocate the device address and then set the IOMMU
+	 * tables accordingly, because some remote processors might
+	 * _require_ us to use hard coded device addresses that their
+	 * firmware was compiled with.
+	 *
+	 * In this case, we must use the IOMMU API directly and map
+	 * the memory to the device address as expected by the remote
+	 * processor.
+	 *
+	 * Obviously such remote processor devices should not be configured
+	 * to use the iommu-based DMA API: we expect 'dma' to contain the
+	 * physical address in this case.
+	 */
+
+	if (mem->da != FW_RSC_ADDR_ANY) {
+		if (!rproc->domain) {
+			dev_err(dev->parent,
+				"Bad carveout rsc configuration\n");
+			ret = -ENOMEM;
+			goto dma_free;
+		}
+
+		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+		if (!mapping) {
+			ret = -ENOMEM;
+			goto dma_free;
+		}
+
+		ret = iommu_map(rproc->domain, mem->da, dma, mem->len,
+				mem->flags);
+		if (ret) {
+			dev_err(dev, "iommu_map failed: %d\n", ret);
+			goto free_mapping;
+		}
+
+		/*
+		 * We'll need this info later when we'll want to unmap
+		 * everything (e.g. on shutdown).
+		 *
+		 * We can't trust the remote processor not to change the
+		 * resource table, so we must maintain this info independently.
+		 */
+		mapping->da = mem->da;
+		mapping->len = mem->len;
+		list_add_tail(&mapping->node, &rproc->mappings);
+
+		dev_dbg(dev, "carveout mapped 0x%x to %pad\n",
+			mem->da, &dma);
+	} else {
+		mem->da = (u32)dma;
+	}
+
+	mem->dma = (u32)dma;
+	mem->va = va;
+
+	return 0;
+
+free_mapping:
+	kfree(mapping);
+dma_free:
+	dma_free_coherent(dev->parent, mem->len, va, dma);
+	return ret;
+}
+
+/**
  * rproc_release_carveout() - release acquired carveout
  * @rproc: rproc handle
  * @mem: the memory entry to release
  *
  * This function releases specified memory entry @mem allocated via
- * dma_alloc_coherent() function by @rproc.
+ * rproc_alloc_carveout() function by @rproc.
  */
 static int rproc_release_carveout(struct rproc *rproc,
 				  struct rproc_mem_entry *mem)
@@ -681,11 +776,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 				 struct fw_rsc_carveout *rsc,
 				 int offset, int avail)
 {
-	struct rproc_mem_entry *carveout, *mapping = NULL;
+	struct rproc_mem_entry *carveout;
 	struct device *dev = &rproc->dev;
-	dma_addr_t dma;
-	void *va;
-	int ret;
 
 	if (sizeof(*rsc) > avail) {
 		dev_err(dev, "carveout rsc is truncated\n");
@@ -701,105 +793,20 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	dev_dbg(dev, "carveout rsc: name: %s, da 0x%x, pa 0x%x, len 0x%x, flags 0x%x\n",
 		rsc->name, rsc->da, rsc->pa, rsc->len, rsc->flags);
 
-	va = dma_alloc_coherent(dev->parent, rsc->len, &dma, GFP_KERNEL);
-	if (!va) {
-		dev_err(dev->parent,
-			"failed to allocate dma memory: len 0x%x\n", rsc->len);
+	/* Register carveout in in list */
+	carveout = rproc_mem_entry_init(dev, 0, 0, rsc->len, rsc->da,
+					rproc_alloc_carveout,
+					rproc_release_carveout, rsc->name);
+	if (!carveout) {
+		dev_err(dev, "Can't allocate memory entry structure\n");
 		return -ENOMEM;
 	}
 
-	dev_dbg(dev, "carveout va %pK, dma %pad, len 0x%x\n",
-		va, &dma, rsc->len);
-
-	/*
-	 * Ok, this is non-standard.
-	 *
-	 * Sometimes we can't rely on the generic iommu-based DMA API
-	 * to dynamically allocate the device address and then set the IOMMU
-	 * tables accordingly, because some remote processors might
-	 * _require_ us to use hard coded device addresses that their
-	 * firmware was compiled with.
-	 *
-	 * In this case, we must use the IOMMU API directly and map
-	 * the memory to the device address as expected by the remote
-	 * processor.
-	 *
-	 * Obviously such remote processor devices should not be configured
-	 * to use the iommu-based DMA API: we expect 'dma' to contain the
-	 * physical address in this case.
-	 */
-
-	if (rsc->da != FW_RSC_ADDR_ANY && !rproc->domain) {
-		dev_err(dev->parent,
-			"Bad carveout rsc configuration\n");
-		ret = -ENOMEM;
-		goto dma_free;
-	}
-
-	if (rsc->da != FW_RSC_ADDR_ANY && rproc->domain) {
-		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
-		if (!mapping) {
-			ret = -ENOMEM;
-			goto dma_free;
-		}
-
-		ret = iommu_map(rproc->domain, rsc->da, dma, rsc->len,
-				rsc->flags);
-		if (ret) {
-			dev_err(dev, "iommu_map failed: %d\n", ret);
-			goto free_mapping;
-		}
-
-		/*
-		 * We'll need this info later when we'll want to unmap
-		 * everything (e.g. on shutdown).
-		 *
-		 * We can't trust the remote processor not to change the
-		 * resource table, so we must maintain this info independently.
-		 */
-		mapping->da = rsc->da;
-		mapping->len = rsc->len;
-		list_add_tail(&mapping->node, &rproc->mappings);
-
-		dev_dbg(dev, "carveout mapped 0x%x to %pad\n",
-			rsc->da, &dma);
-	}
-
-	/*
-	 * Some remote processors might need to know the pa
-	 * even though they are behind an IOMMU. E.g., OMAP4's
-	 * remote M3 processor needs this so it can control
-	 * on-chip hardware accelerators that are not behind
-	 * the IOMMU, and therefor must know the pa.
-	 *
-	 * Generally we don't want to expose physical addresses
-	 * if we don't have to (remote processors are generally
-	 * _not_ trusted), so we might want to do this only for
-	 * remote processor that _must_ have this (e.g. OMAP4's
-	 * dual M3 subsystem).
-	 *
-	 * Non-IOMMU processors might also want to have this info.
-	 * In this case, the device address and the physical address
-	 * are the same.
-	 */
-	rsc->pa = (u32)rproc_va_to_pa(va);
-
-	carveout = rproc_mem_entry_init(dev, va, dma, rsc->len, rsc->da,
-					rproc_release_carveout, rsc->name);
-	if (!carveout)
-		goto free_carv;
-
+	carveout->flags = rsc->flags;
+	carveout->rsc_offset = offset;
 	rproc_add_carveout(rproc, carveout);
 
 	return 0;
-
-free_carv:
-	kfree(carveout);
-free_mapping:
-	kfree(mapping);
-dma_free:
-	dma_free_coherent(dev->parent, rsc->len, va, dma);
-	return ret;
 }
 
 /**
@@ -832,6 +839,7 @@ EXPORT_SYMBOL(rproc_add_carveout);
 struct rproc_mem_entry *
 rproc_mem_entry_init(struct device *dev,
 		     void *va, dma_addr_t dma, int len, u32 da,
+		     int (*alloc)(struct rproc *, struct rproc_mem_entry *),
 		     int (*release)(struct rproc *, struct rproc_mem_entry *),
 		     const char *name, ...)
 {
@@ -846,7 +854,9 @@ rproc_mem_entry_init(struct device *dev,
 	mem->dma = dma;
 	mem->da = da;
 	mem->len = len;
+	mem->alloc = alloc;
 	mem->release = release;
+	mem->rsc_offset = FW_RSC_ADDR_ANY;
 
 	va_start(args, name);
 	vsnprintf(mem->name, sizeof(mem->name), name, args);
@@ -975,6 +985,63 @@ static void rproc_unprepare_subdevices(struct rproc *rproc)
 		if (subdev->unprepare)
 			subdev->unprepare(subdev);
 	}
+}
+
+/**
+ * rproc_alloc_registered_carveouts() - allocate all carveouts registered
+ * in the list
+ * @rproc: the remote processor handle
+ *
+ * This function parses registered carveout list, performs allocation
+ * if alloc() ops registered and updates resource table information
+ * if rsc_offset set.
+ *
+ * Return: 0 on success
+ */
+static int rproc_alloc_registered_carveouts(struct rproc *rproc)
+{
+	struct rproc_mem_entry *entry, *tmp;
+	struct fw_rsc_carveout *rsc;
+	struct device *dev = &rproc->dev;
+	int ret;
+
+	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
+		if (entry->alloc) {
+			ret = entry->alloc(rproc, entry);
+			if (ret) {
+				dev_err(dev, "Unable to allocate carveout %s: %d\n",
+					entry->name, ret);
+				return -ENOMEM;
+			}
+		}
+
+		if (entry->rsc_offset != FW_RSC_ADDR_ANY) {
+			/* update resource table */
+			rsc = (void *)rproc->table_ptr + entry->rsc_offset;
+
+			/*
+			 * Some remote processors might need to know the pa
+			 * even though they are behind an IOMMU. E.g., OMAP4's
+			 * remote M3 processor needs this so it can control
+			 * on-chip hardware accelerators that are not behind
+			 * the IOMMU, and therefor must know the pa.
+			 *
+			 * Generally we don't want to expose physical addresses
+			 * if we don't have to (remote processors are generally
+			 * _not_ trusted), so we might want to do this only for
+			 * remote processor that _must_ have this (e.g. OMAP4's
+			 * dual M3 subsystem).
+			 *
+			 * Non-IOMMU processors might also want to have this info.
+			 * In this case, the device address and the physical address
+			 * are the same.
+			 */
+			if (entry->va)
+				rsc->pa = (u32)rproc_va_to_pa(entry->va);
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -1146,6 +1213,14 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	ret = rproc_handle_resources(rproc, rproc_loading_handlers);
 	if (ret) {
 		dev_err(dev, "Failed to process resources: %d\n", ret);
+		goto clean_up_resources;
+	}
+
+	/* Allocate carveout resources associated to rproc */
+	ret = rproc_alloc_registered_carveouts(rproc);
+	if (ret) {
+		dev_err(dev, "Failed to allocate associated carveouts: %d\n",
+			ret);
 		goto clean_up_resources;
 	}
 
