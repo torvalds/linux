@@ -204,9 +204,9 @@ static int hns_ppe_common_init_hw(struct ppe_common_cb *ppe_common)
 	enum dsaf_mode dsaf_mode = dsaf_dev->dsaf_mode;
 
 	dsaf_dev->misc_op->ppe_comm_srst(dsaf_dev, 0);
-	mdelay(100);
+	msleep(100);
 	dsaf_dev->misc_op->ppe_comm_srst(dsaf_dev, 1);
-	mdelay(100);
+	msleep(100);
 
 	if (ppe_common->ppe_mode == PPE_COMMON_MODE_SERVICE) {
 		switch (dsaf_mode) {
