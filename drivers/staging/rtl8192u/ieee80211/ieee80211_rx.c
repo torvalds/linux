@@ -741,7 +741,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	if (index>0) {
 		// Cancel previous pending timer.
 	//	del_timer_sync(&pTS->RxPktPendingTimer);
-		pTS->RxTimeoutIndicateSeq = 0xffff;
+		pTS->rx_timeout_indicate_seq = 0xffff;
 
 		// Indicate packets
 		if(index>REORDER_WIN_SIZE){
@@ -752,10 +752,10 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 		ieee80211_indicate_packets(ieee, prxbIndicateArray, index);
 	}
 
-	if (bPktInBuf && pTS->RxTimeoutIndicateSeq==0xffff) {
+	if (bPktInBuf && pTS->rx_timeout_indicate_seq == 0xffff) {
 		// Set new pending timer.
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): SET rx timeout timer\n", __func__);
-		pTS->RxTimeoutIndicateSeq = pTS->rx_indicate_seq;
+		pTS->rx_timeout_indicate_seq = pTS->rx_indicate_seq;
 		if(timer_pending(&pTS->RxPktPendingTimer))
 			del_timer_sync(&pTS->RxPktPendingTimer);
 		pTS->RxPktPendingTimer.expires = jiffies +

@@ -37,7 +37,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"==================>%s()\n",__func__);
-	if(pRxTs->RxTimeoutIndicateSeq != 0xffff) {
+	if(pRxTs->rx_timeout_indicate_seq != 0xffff) {
 		// Indicate the pending packets sequentially according to SeqNum until meet the gap.
 		while(!list_empty(&pRxTs->RxPendingPktList)) {
 			pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTs->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
@@ -64,8 +64,8 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	}
 
 	if(index>0) {
-		// Set RxTimeoutIndicateSeq to 0xffff to indicate no pending packets in buffer now.
-		pRxTs->RxTimeoutIndicateSeq = 0xffff;
+		// Set rx_timeout_indicate_seq to 0xffff to indicate no pending packets in buffer now.
+		pRxTs->rx_timeout_indicate_seq = 0xffff;
 
 		// Indicate packets
 		if(index > REORDER_WIN_SIZE) {
@@ -76,8 +76,8 @@ static void RxPktPendingTimeout(struct timer_list *t)
 		ieee80211_indicate_packets(ieee, ieee->stats_IndicateArray, index);
 	}
 
-	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff)) {
-		pRxTs->RxTimeoutIndicateSeq = pRxTs->rx_indicate_seq;
+	if(bPktInBuf && (pRxTs->rx_timeout_indicate_seq == 0xffff)) {
+		pRxTs->rx_timeout_indicate_seq = pRxTs->rx_indicate_seq;
 		mod_timer(&pRxTs->RxPktPendingTimer,
 			  jiffies + msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime));
 	}
@@ -125,7 +125,7 @@ static void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->rx_indicate_seq = 0xffff; // This indicate the rx_indicate_seq is not used now!!
-	pTS->RxTimeoutIndicateSeq = 0xffff; // This indicate the RxTimeoutIndicateSeq is not used now!!
+	pTS->rx_timeout_indicate_seq = 0xffff; // This indicate the rx_timeout_indicate_seq is not used now!!
 	ResetBaEntry(&pTS->RxAdmittedBARecord);	  // For BA Recipient
 }
 
