@@ -2273,8 +2273,8 @@ bpf_perf_event_read_simple(void *mem, unsigned long size,
 	volatile struct perf_event_mmap_page *header = mem;
 	__u64 data_tail = header->data_tail;
 	__u64 data_head = header->data_head;
+	int ret = LIBBPF_PERF_EVENT_ERROR;
 	void *base, *begin, *end;
-	int ret;
 
 	asm volatile("" ::: "memory"); /* in real code it should be smp_rmb() */
 	if (data_head == data_tail)
