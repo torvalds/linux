@@ -36,7 +36,7 @@ static int tcf_action_goto_chain_init(struct tc_action *a, struct tcf_proto *tp)
 
 	if (!tp)
 		return -EINVAL;
-	a->goto_chain = tcf_chain_get(tp->chain->block, chain_index, true);
+	a->goto_chain = tcf_chain_get_by_act(tp->chain->block, chain_index);
 	if (!a->goto_chain)
 		return -ENOMEM;
 	return 0;
@@ -44,7 +44,7 @@ static int tcf_action_goto_chain_init(struct tc_action *a, struct tcf_proto *tp)
 
 static void tcf_action_goto_chain_fini(struct tc_action *a)
 {
-	tcf_chain_put(a->goto_chain);
+	tcf_chain_put_by_act(a->goto_chain);
 }
 
 static void tcf_action_goto_chain_exec(const struct tc_action *a,

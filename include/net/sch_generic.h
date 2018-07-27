@@ -314,6 +314,7 @@ struct tcf_chain {
 	struct tcf_block *block;
 	u32 index; /* chain index */
 	unsigned int refcnt;
+	unsigned int action_refcnt;
 	bool explicitly_created;
 	const struct tcf_proto_ops *tmplt_ops;
 	void *tmplt_priv;

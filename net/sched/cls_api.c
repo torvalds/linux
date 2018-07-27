@@ -262,6 +262,25 @@ static void tcf_chain_hold(struct tcf_chain *chain)
 	++chain->refcnt;
 }
 
+static void tcf_chain_hold_by_act(struct tcf_chain *chain)
+{
+	++chain->action_refcnt;
+}
+
+static void tcf_chain_release_by_act(struct tcf_chain *chain)
+{
+	--chain->action_refcnt;
+}
+
+static bool tcf_chain_is_zombie(struct tcf_chain *chain)
+{
+	/* In case all the references are action references, this
+	 * chain is a zombie and should not be listed in the chain
+	 * dump list.
+	 */
+	return chain->refcnt == chain->action_refcnt;
+}
+
 static struct tcf_chain *tcf_chain_lookup(struct tcf_block *block,
 					  u32 chain_index)
 {
@@ -298,6 +317,15 @@ struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 }
 EXPORT_SYMBOL(tcf_chain_get);
 
+struct tcf_chain *tcf_chain_get_by_act(struct tcf_block *block, u32 chain_index)
+{
+	struct tcf_chain *chain = tcf_chain_get(block, chain_index, true);
+
+	tcf_chain_hold_by_act(chain);
+	return chain;
+}
+EXPORT_SYMBOL(tcf_chain_get_by_act);
+
 static void tc_chain_tmplt_del(struct tcf_chain *chain);
 
 void tcf_chain_put(struct tcf_chain *chain)
@@ -309,6 +337,13 @@ void tcf_chain_put(struct tcf_chain *chain)
 	}
 }
 EXPORT_SYMBOL(tcf_chain_put);
+
+void tcf_chain_put_by_act(struct tcf_chain *chain)
+{
+	tcf_chain_release_by_act(chain);
+	tcf_chain_put(chain);
+}
+EXPORT_SYMBOL(tcf_chain_put_by_act);
 
 static void tcf_chain_put_explicitly_created(struct tcf_chain *chain)
 {
@@ -1803,20 +1838,29 @@ replay:
 	chain = tcf_chain_lookup(block, chain_index);
 	if (n->nlmsg_type == RTM_NEWCHAIN) {
 		if (chain) {
-			NL_SET_ERR_MSG(extack, "Filter chain already exists");
-			return -EEXIST;
-		}
-		if (!(n->nlmsg_flags & NLM_F_CREATE)) {
-			NL_SET_ERR_MSG(extack, "Need both RTM_NEWCHAIN and NLM_F_CREATE to create a new chain");
-			return -ENOENT;
-		}
-		chain = tcf_chain_create(block, chain_index);
-		if (!chain) {
-			NL_SET_ERR_MSG(extack, "Failed to create filter chain");
-			return -ENOMEM;
+			if (tcf_chain_is_zombie(chain)) {
+				/* The chain exists only because there is
+				 * some action referencing it, meaning it
+				 * is a zombie.
+				 */
+				tcf_chain_hold(chain);
+			} else {
+				NL_SET_ERR_MSG(extack, "Filter chain already exists");
+				return -EEXIST;
+			}
+		} else {
+			if (!(n->nlmsg_flags & NLM_F_CREATE)) {
+				NL_SET_ERR_MSG(extack, "Need both RTM_NEWCHAIN and NLM_F_CREATE to create a new chain");
+				return -ENOENT;
+			}
+			chain = tcf_chain_create(block, chain_index);
+			if (!chain) {
+				NL_SET_ERR_MSG(extack, "Failed to create filter chain");
+				return -ENOMEM;
+			}
 		}
 	} else {
-		if (!chain) {
+		if (!chain || tcf_chain_is_zombie(chain)) {
 			NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
 			return -EINVAL;
 		}
@@ -1944,6 +1988,8 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 			index++;
 			continue;
 		}
+		if (tcf_chain_is_zombie(chain))
+			continue;
 		err = tc_chain_fill_node(chain, net, skb, block,
 					 NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
