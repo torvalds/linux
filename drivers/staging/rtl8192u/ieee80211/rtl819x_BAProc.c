@@ -469,7 +469,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		goto OnADDBARsp_Reject;
 	}
 
-	pTS->bAddBaReqInProgress = false;
+	pTS->add_ba_req_in_progress = false;
 	pPendingBA = &pTS->tx_pending_ba_record;
 	pAdmittedBA = &pTS->tx_admitted_ba_record;
 
@@ -595,7 +595,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 		}
 
 		pTxTs->bUsingBa = false;
-		pTxTs->bAddBaReqInProgress = false;
+		pTxTs->add_ba_req_in_progress = false;
 		pTxTs->bAddBaReqDelayed = false;
 		del_timer_sync(&pTxTs->TsAddBaTimer);
 		//PlatformCancelTimer(Adapter, &pTxTs->TsAddBaTimer);
@@ -671,7 +671,7 @@ void BaSetupTimeOut(struct timer_list *t)
 {
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, tx_pending_ba_record.Timer);
 
-	pTxTs->bAddBaReqInProgress = false;
+	pTxTs->add_ba_req_in_progress = false;
 	pTxTs->bAddBaReqDelayed = true;
 	pTxTs->tx_pending_ba_record.bValid = false;
 }
