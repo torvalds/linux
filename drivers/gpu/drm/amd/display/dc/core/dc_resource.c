@@ -487,6 +487,18 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
+	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
+
+	/*
+	 * Need to calculate the scan direction for viewport to properly determine offset
+	 */
+	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
+		flip_vert_scan_dir = true;
+		flip_horz_scan_dir = true;
+	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
+		flip_vert_scan_dir = true;
+	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
+		flip_horz_scan_dir = true;
 
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE ||
 		stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
@@ -529,6 +541,34 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			surf_src.height / plane_state->dst_rect.height;
 	data->viewport.height = clip.height *
 			surf_src.height / plane_state->dst_rect.height;
+
+	/* To transfer the x, y to correct coordinate on mirror image (camera).
+	 * deg  0 : transfer x,
+	 * deg 90 : don't need to transfer,
+	 * deg180 : transfer y,
+	 * deg270 : transfer x and y.
+	 * To transfer the x, y to correct coordinate on non-mirror image (video).
+	 * deg  0 : don't need to transfer,
+	 * deg 90 : transfer y,
+	 * deg180 : transfer x and y,
+	 * deg270 : transfer x.
+	 */
+	if (pipe_ctx->plane_state->horizontal_mirror) {
+		if (flip_horz_scan_dir && !flip_vert_scan_dir) {
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		} else if (flip_horz_scan_dir && flip_vert_scan_dir)
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+		else {
+			if (!flip_horz_scan_dir && !flip_vert_scan_dir)
+				data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		}
+	} else {
+		if (flip_horz_scan_dir)
+			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		if (flip_vert_scan_dir)
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+	}
 
 	/* Round down, compensate in init */
 	data->viewport_c.x = data->viewport.x / vpc_div;
@@ -725,6 +765,15 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct rect *r
 		rect_swap_helper(&src);
 		rect_swap_helper(&data->viewport_c);
 		rect_swap_helper(&data->viewport);
+
+		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270 &&
+			pipe_ctx->plane_state->horizontal_mirror) {
+			flip_vert_scan_dir = true;
+		}
+		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 &&
+			pipe_ctx->plane_state->horizontal_mirror) {
+			flip_vert_scan_dir = false;
+		}
 	} else if (pipe_ctx->plane_state->horizontal_mirror)
 			flip_horz_scan_dir = !flip_horz_scan_dir;
 
