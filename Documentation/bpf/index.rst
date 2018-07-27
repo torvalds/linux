@@ -1,5 +1,5 @@
 =================
-BPF documentation
+BPF Documentation
 =================
 
 This directory contains documentation for the BPF (Berkeley Packet
@@ -22,14 +22,14 @@ Frequently asked questions (FAQ)
 
 Two sets of Questions and Answers (Q&A) are maintained.
 
-* QA for common questions about BPF see: bpf_design_QA_
+.. toctree::
+   :maxdepth: 1
 
-* QA for developers interacting with BPF subsystem: bpf_devel_QA_
+   bpf_design_QA
+   bpf_devel_QA
 
 
 .. Links:
-.. _bpf_design_QA: bpf_design_QA.rst
-.. _bpf_devel_QA:  bpf_devel_QA.rst
 .. _Documentation/networking/filter.txt: ../networking/filter.txt
 .. _man-pages: https://www.kernel.org/doc/man-pages/
 .. _bpf(2): http://man7.org/linux/man-pages/man2/bpf.2.html

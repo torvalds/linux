@@ -90,6 +90,7 @@ needed).
    crypto/index
    filesystems/index
    vm/index
+   bpf/index
 
 Architecture-specific documentation
 -----------------------------------
