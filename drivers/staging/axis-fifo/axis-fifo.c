@@ -1006,10 +1006,10 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	/* create driver file */
 	fifo->device = device_create(axis_fifo_driver_class, NULL, fifo->devt,
 				     NULL, device_name);
-	if (!fifo->device) {
+	if (IS_ERR(fifo->device)) {
 		dev_err(fifo->dt_device,
 			"couldn't create driver file\n");
-		rc = -ENOMEM;
+		rc = PTR_ERR(fifo->device);
 		goto err_chrdev_region;
 	}
 	dev_set_drvdata(fifo->device, fifo);
