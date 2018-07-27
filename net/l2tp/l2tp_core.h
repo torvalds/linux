@@ -54,7 +54,6 @@ struct l2tp_session_cfg {
 						 * control of LNS. */
 	int			debug;		/* bitmask of debug message
 						 * categories */
-	u16			vlan_id;	/* VLAN pseudowire only */
 	u16			l2specific_type; /* Layer 2 specific type */
 	u8			cookie[8];	/* optional cookie */
 	int			cookie_len;	/* 0, 4 or 8 bytes */

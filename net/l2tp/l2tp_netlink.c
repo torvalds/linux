@@ -591,9 +591,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 		}
 		if (info->attrs[L2TP_ATTR_IFNAME])
 			cfg.ifname = nla_data(info->attrs[L2TP_ATTR_IFNAME]);
-
-		if (info->attrs[L2TP_ATTR_VLAN_ID])
-			cfg.vlan_id = nla_get_u16(info->attrs[L2TP_ATTR_VLAN_ID]);
 	}
 
 	if (info->attrs[L2TP_ATTR_DEBUG])

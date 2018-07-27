@@ -60,7 +60,7 @@ struct sockaddr_l2tpip6 {
 /*
  * Commands.
  * Valid TLVs of each command are:-
- * TUNNEL_CREATE	- CONN_ID, pw_type, netns, ifname, ipinfo, udpinfo, udpcsum, vlanid
+ * TUNNEL_CREATE	- CONN_ID, pw_type, netns, ifname, ipinfo, udpinfo, udpcsum
  * TUNNEL_DELETE	- CONN_ID
  * TUNNEL_MODIFY	- CONN_ID, udpcsum
  * TUNNEL_GETSTATS	- CONN_ID, (stats)
@@ -105,7 +105,7 @@ enum {
 	L2TP_ATTR_SESSION_ID,		/* u32 */
 	L2TP_ATTR_PEER_SESSION_ID,	/* u32 */
 	L2TP_ATTR_UDP_CSUM,		/* u8 */
-	L2TP_ATTR_VLAN_ID,		/* u16 */
+	L2TP_ATTR_VLAN_ID,		/* u16 (not used) */
 	L2TP_ATTR_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_PEER_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_DEBUG,		/* u32, enum l2tp_debug_flags */
