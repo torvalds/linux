@@ -3873,7 +3873,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 
 	adapter->mac_table = kcalloc(hw->mac.rar_entry_count,
 				     sizeof(struct igb_mac_addr),
-				     GFP_ATOMIC);
+				     GFP_KERNEL);
 	if (!adapter->mac_table)
 		return -ENOMEM;
 
@@ -3883,7 +3883,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 
 	/* Setup and initialize a copy of the hw vlan table array */
 	adapter->shadow_vfta = kcalloc(E1000_VLAN_FILTER_TBL_SIZE, sizeof(u32),
-				       GFP_ATOMIC);
+				       GFP_KERNEL);
 	if (!adapter->shadow_vfta)
 		return -ENOMEM;
 
