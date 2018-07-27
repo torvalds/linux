@@ -735,7 +735,7 @@ int tipc_nametbl_init(struct net *net)
 	struct name_table *nt;
 	int i;
 
-	nt = kzalloc(sizeof(*nt), GFP_ATOMIC);
+	nt = kzalloc(sizeof(*nt), GFP_KERNEL);
 	if (!nt)
 		return -ENOMEM;
 
