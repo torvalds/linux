@@ -147,9 +147,6 @@ struct i915_gem_context {
 
 	struct i915_sched_attr sched;
 
-	/** ggtt_offset_bias: placement restriction for context objects */
-	u32 ggtt_offset_bias;
-
 	/** engine: per-engine logical HW state */
 	struct intel_context {
 		struct i915_gem_context *gem_context;

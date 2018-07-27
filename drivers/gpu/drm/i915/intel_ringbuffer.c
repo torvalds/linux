@@ -1003,11 +1003,7 @@ i915_emit_bb_start(struct i915_request *rq,
 	return 0;
 }
 
-
-
-int intel_ring_pin(struct intel_ring *ring,
-		   struct drm_i915_private *i915,
-		   unsigned int offset_bias)
+int intel_ring_pin(struct intel_ring *ring, struct drm_i915_private *i915)
 {
 	enum i915_map_type map = HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
 	struct i915_vma *vma = ring->vma;
@@ -1017,10 +1013,11 @@ int intel_ring_pin(struct intel_ring *ring,
 
 	GEM_BUG_ON(ring->vaddr);
 
-
 	flags = PIN_GLOBAL;
-	if (offset_bias)
-		flags |= PIN_OFFSET_BIAS | offset_bias;
+
+	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
+	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
+
 	if (vma->obj->stolen)
 		flags |= PIN_MAPPABLE;
 	else
@@ -1408,8 +1405,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 		goto err;
 	}
 
-	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
-	err = intel_ring_pin(ring, engine->i915, I915_GTT_PAGE_SIZE);
+	err = intel_ring_pin(ring, engine->i915);
 	if (err)
 		goto err_ring;
 

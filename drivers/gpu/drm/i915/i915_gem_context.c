@@ -329,8 +329,6 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	ctx->desc_template =
 		default_desc_template(dev_priv, dev_priv->mm.aliasing_ppgtt);
 
-	ctx->ggtt_offset_bias = dev_priv->ggtt.pin_bias;
-
 	return ctx;
 
 err_pid:

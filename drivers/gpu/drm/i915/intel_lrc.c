@@ -1303,8 +1303,7 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 	}
 
 	flags = PIN_GLOBAL | PIN_HIGH;
-	if (ctx->ggtt_offset_bias)
-		flags |= PIN_OFFSET_BIAS | ctx->ggtt_offset_bias;
+	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
 
 	return i915_vma_pin(vma, 0, 0, flags);
 }
@@ -1332,7 +1331,7 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 		goto unpin_vma;
 	}
 
-	ret = intel_ring_pin(ce->ring, ctx->i915, ctx->ggtt_offset_bias);
+	ret = intel_ring_pin(ce->ring, ctx->i915);
 	if (ret)
 		goto unpin_map;
 
