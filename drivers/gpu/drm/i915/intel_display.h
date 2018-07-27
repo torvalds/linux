@@ -25,6 +25,22 @@
 #ifndef _INTEL_DISPLAY_H_
 #define _INTEL_DISPLAY_H_
 
+enum i915_gpio {
+	GPIOA,
+	GPIOB,
+	GPIOC,
+	GPIOD,
+	GPIOE,
+	GPIOF,
+	GPIOG,
+	GPIOH,
+	__GPIOI_UNUSED,
+	GPIOJ,
+	GPIOK,
+	GPIOL,
+	GPIOM,
+};
+
 enum pipe {
 	INVALID_PIPE = -1,
 

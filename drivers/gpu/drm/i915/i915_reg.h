@@ -3082,18 +3082,9 @@ enum i915_power_well_id {
 /*
  * GPIO regs
  */
-#define GPIOA			_MMIO(0x5010)
-#define GPIOB			_MMIO(0x5014)
-#define GPIOC			_MMIO(0x5018)
-#define GPIOD			_MMIO(0x501c)
-#define GPIOE			_MMIO(0x5020)
-#define GPIOF			_MMIO(0x5024)
-#define GPIOG			_MMIO(0x5028)
-#define GPIOH			_MMIO(0x502c)
-#define GPIOJ			_MMIO(0x5034)
-#define GPIOK			_MMIO(0x5038)
-#define GPIOL			_MMIO(0x503C)
-#define GPIOM			_MMIO(0x5040)
+#define GPIO(gpio)		_MMIO(dev_priv->gpio_mmio_base + 0x5010 + \
+				      4 * (gpio))
+
 # define GPIO_CLOCK_DIR_MASK		(1 << 0)
 # define GPIO_CLOCK_DIR_IN		(0 << 1)
 # define GPIO_CLOCK_DIR_OUT		(1 << 1)
@@ -7489,6 +7480,8 @@ enum {
 
 /* PCH */
 
+#define PCH_DISPLAY_BASE	0xc0000u
+
 /* south display engine interrupt: IBX */
 #define SDE_AUDIO_POWER_D	(1 << 27)
 #define SDE_AUDIO_POWER_C	(1 << 26)
@@ -7782,13 +7775,6 @@ enum {
 
 #define   ICP_TC_HPD_LONG_DETECT(tc_port)	(2 << (tc_port) * 4)
 #define   ICP_TC_HPD_SHORT_DETECT(tc_port)	(1 << (tc_port) * 4)
-
-#define PCH_GPIOA               _MMIO(0xc5010)
-#define PCH_GPIOB               _MMIO(0xc5014)
-#define PCH_GPIOC               _MMIO(0xc5018)
-#define PCH_GPIOD               _MMIO(0xc501c)
-#define PCH_GPIOE               _MMIO(0xc5020)
-#define PCH_GPIOF               _MMIO(0xc5024)
 
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018
