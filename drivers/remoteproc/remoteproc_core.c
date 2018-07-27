@@ -747,7 +747,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	if (!carveout)
 		goto free_carv;
 
-	list_add_tail(&carveout->node, &rproc->carveouts);
+	rproc_add_carveout(rproc, carveout);
 
 	return 0;
 
@@ -759,6 +759,20 @@ dma_free:
 	dma_free_coherent(dev->parent, rsc->len, va, dma);
 	return ret;
 }
+
+/**
+ * rproc_add_carveout() - register an allocated carveout region
+ * @rproc: rproc handle
+ * @mem: memory entry to register
+ *
+ * This function registers specified memory entry in @rproc carveouts list.
+ * Specified carveout should have been allocated before registering.
+ */
+void rproc_add_carveout(struct rproc *rproc, struct rproc_mem_entry *mem)
+{
+	list_add_tail(&mem->node, &rproc->carveouts);
+}
+EXPORT_SYMBOL(rproc_add_carveout);
 
 /**
  * rproc_mem_entry_init() - allocate and initialize rproc_mem_entry struct

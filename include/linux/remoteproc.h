@@ -559,6 +559,8 @@ int rproc_add(struct rproc *rproc);
 int rproc_del(struct rproc *rproc);
 void rproc_free(struct rproc *rproc);
 
+void rproc_add_carveout(struct rproc *rproc, struct rproc_mem_entry *mem);
+
 struct rproc_mem_entry *
 rproc_mem_entry_init(struct device *dev,
 		     void *va, dma_addr_t dma, int len, u32 da,
