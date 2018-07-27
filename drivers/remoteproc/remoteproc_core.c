@@ -140,6 +140,22 @@ static void rproc_disable_iommu(struct rproc *rproc)
 	iommu_domain_free(domain);
 }
 
+static phys_addr_t rproc_va_to_pa(void *cpu_addr)
+{
+	/*
+	 * Return physical address according to virtual address location
+	 * - in vmalloc: if region ioremapped or defined as dma_alloc_coherent
+	 * - in kernel: if region allocated in generic dma memory pool
+	 */
+	if (is_vmalloc_addr(cpu_addr)) {
+		return page_to_phys(vmalloc_to_page(cpu_addr)) +
+				    offset_in_page(cpu_addr);
+	}
+
+	WARN_ON(!virt_addr_valid(cpu_addr));
+	return virt_to_phys(cpu_addr);
+}
+
 /**
  * rproc_da_to_va() - lookup the kernel virtual address for a remoteproc address
  * @rproc: handle of a remote processor
@@ -711,7 +727,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	 * In this case, the device address and the physical address
 	 * are the same.
 	 */
-	rsc->pa = dma;
+	rsc->pa = (u32)rproc_va_to_pa(va);
 
 	carveout->va = va;
 	carveout->len = rsc->len;
