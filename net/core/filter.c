@@ -1712,24 +1712,26 @@ static const struct bpf_func_proto bpf_skb_load_bytes_proto = {
 BPF_CALL_5(bpf_skb_load_bytes_relative, const struct sk_buff *, skb,
 	   u32, offset, void *, to, u32, len, u32, start_header)
 {
+	u8 *end = skb_tail_pointer(skb);
+	u8 *net = skb_network_header(skb);
+	u8 *mac = skb_mac_header(skb);
 	u8 *ptr;
 
-	if (unlikely(offset > 0xffff || len > skb_headlen(skb)))
+	if (unlikely(offset > 0xffff || len > (end - mac)))
 		goto err_clear;
 
 	switch (start_header) {
 	case BPF_HDR_START_MAC:
-		ptr = skb_mac_header(skb) + offset;
+		ptr = mac + offset;
 		break;
 	case BPF_HDR_START_NET:
-		ptr = skb_network_header(skb) + offset;
+		ptr = net + offset;
 		break;
 	default:
 		goto err_clear;
 	}
 
-	if (likely(ptr >= skb_mac_header(skb) &&
-		   ptr + len <= skb_tail_pointer(skb))) {
+	if (likely(ptr >= mac && ptr + len <= end)) {
 		memcpy(to, ptr, len);
 		return 0;
 	}
