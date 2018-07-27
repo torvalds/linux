@@ -41,7 +41,8 @@ Types and flags used to represent the media graph elements
 .. _MEDIA-ENT-F-PROC-VIDEO-DECODER:
 .. _MEDIA-ENT-F-VID-MUX:
 .. _MEDIA-ENT-F-VID-IF-BRIDGE:
-.. _MEDIA-ENT-F-DTV-DECODER:
+.. _MEDIA-ENT-F-DV-DECODER:
+.. _MEDIA-ENT-F-DV-ENCODER:
 
 .. cssclass:: longtable
 
