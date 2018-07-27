@@ -2321,7 +2321,8 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	struct super_block *sb = fs_info->sb;
 	struct rcu_string *name;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
-	u64 tmp;
+	u64 orig_super_total_bytes;
+	u64 orig_super_num_devices;
 	int seeding_dev = 0;
 	int ret = 0;
 	bool unlocked = false;
@@ -2417,12 +2418,14 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (!blk_queue_nonrot(q))
 		fs_devices->rotating = 1;
 
-	tmp = btrfs_super_total_bytes(fs_info->super_copy);
+	orig_super_total_bytes = btrfs_super_total_bytes(fs_info->super_copy);
 	btrfs_set_super_total_bytes(fs_info->super_copy,
-		round_down(tmp + device->total_bytes, fs_info->sectorsize));
+		round_down(orig_super_total_bytes + device->total_bytes,
+			   fs_info->sectorsize));
 
-	tmp = btrfs_super_num_devices(fs_info->super_copy);
-	btrfs_set_super_num_devices(fs_info->super_copy, tmp + 1);
+	orig_super_num_devices = btrfs_super_num_devices(fs_info->super_copy);
+	btrfs_set_super_num_devices(fs_info->super_copy,
+				    orig_super_num_devices + 1);
 
 	/* add sysfs device entry */
 	btrfs_sysfs_add_device_link(fs_devices, device);
@@ -2502,6 +2505,22 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 error_sysfs:
 	btrfs_sysfs_rm_device_link(fs_devices, device);
+	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	mutex_lock(&fs_info->chunk_mutex);
+	list_del_rcu(&device->dev_list);
+	list_del(&device->dev_alloc_list);
+	fs_info->fs_devices->num_devices--;
+	fs_info->fs_devices->open_devices--;
+	fs_info->fs_devices->rw_devices--;
+	fs_info->fs_devices->total_devices--;
+	fs_info->fs_devices->total_rw_bytes -= device->total_bytes;
+	atomic64_sub(device->total_bytes, &fs_info->free_chunk_space);
+	btrfs_set_super_total_bytes(fs_info->super_copy,
+				    orig_super_total_bytes);
+	btrfs_set_super_num_devices(fs_info->super_copy,
+				    orig_super_num_devices);
+	mutex_unlock(&fs_info->chunk_mutex);
+	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 error_trans:
 	if (seeding_dev)
 		sb->s_flags |= SB_RDONLY;
