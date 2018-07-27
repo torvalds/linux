@@ -1185,7 +1185,6 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.dynamic_state_management_disable = smu10_disable_dpm_tasks,
 	.powergate_mmhub = smu10_powergate_mmhub,
 	.smus_notify_pwe = smu10_smus_notify_pwe,
-	.gfx_off_control = smu10_gfx_off_control,
 	.display_clock_voltage_request = smu10_display_clock_voltage_request,
 	.powergate_gfx = smu10_gfx_off_control,
 };

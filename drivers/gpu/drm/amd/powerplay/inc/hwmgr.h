@@ -298,7 +298,6 @@ struct pp_hwmgr_func {
 	int (*display_clock_voltage_request)(struct pp_hwmgr *hwmgr,
 			struct pp_display_clock_request *clock);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
-	int (*gfx_off_control)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
