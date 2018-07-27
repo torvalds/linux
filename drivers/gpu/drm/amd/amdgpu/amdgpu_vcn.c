@@ -217,6 +217,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 	fences += amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg);
 
 	if (fences == 0) {
+		amdgpu_gfx_off_ctrl(adev, true);
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
 		else
@@ -233,6 +234,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
 	if (set_clocks) {
+		amdgpu_gfx_off_ctrl(adev, false);
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, true);
 		else
