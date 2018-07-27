@@ -657,7 +657,15 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	 * to use the iommu-based DMA API: we expect 'dma' to contain the
 	 * physical address in this case.
 	 */
-	if (rproc->domain) {
+
+	if (rsc->da != FW_RSC_ADDR_ANY && !rproc->domain) {
+		dev_err(dev->parent,
+			"Bad carveout rsc configuration\n");
+		ret = -ENOMEM;
+		goto dma_free;
+	}
+
+	if (rsc->da != FW_RSC_ADDR_ANY && rproc->domain) {
 		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 		if (!mapping) {
 			ret = -ENOMEM;
