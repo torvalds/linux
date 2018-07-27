@@ -167,7 +167,7 @@ static int amg88xx_hwmon_init(struct video_i2c_data *data)
 	void *hwmon = devm_hwmon_device_register_with_info(&data->client->dev,
 				"amg88xx", data, &amg88xx_chip_info, NULL);
 
-	return PTR_ERR(hwmon);
+	return PTR_ERR_OR_ZERO(hwmon);
 }
 #else
 #define	amg88xx_hwmon_init	NULL
