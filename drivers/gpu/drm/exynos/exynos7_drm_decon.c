@@ -832,6 +832,8 @@ static int exynos7_decon_resume(struct device *dev)
 static const struct dev_pm_ops exynos7_decon_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos7_decon_suspend, exynos7_decon_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 struct platform_driver decon_driver = {
