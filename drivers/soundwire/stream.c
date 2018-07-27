@@ -747,6 +747,7 @@ struct sdw_stream_runtime *sdw_alloc_stream(char *stream_name)
 		return NULL;
 
 	stream->name = stream_name;
+	INIT_LIST_HEAD(&stream->master_list);
 	stream->state = SDW_STREAM_ALLOCATED;
 
 	return stream;
@@ -1243,6 +1244,48 @@ struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,
 	}
 
 	return NULL;
+}
+
+/**
+ * sdw_acquire_bus_lock: Acquire bus lock for all Master runtime(s)
+ *
+ * @stream: SoundWire stream
+ *
+ * Acquire bus_lock for each of the master runtime(m_rt) part of this
+ * stream to reconfigure the bus.
+ * NOTE: This function is called from SoundWire stream ops and is
+ * expected that a global lock is held before acquiring bus_lock.
+ */
+static void sdw_acquire_bus_lock(struct sdw_stream_runtime *stream)
+{
+	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_bus *bus = NULL;
+
+	/* Iterate for all Master(s) in Master list */
+	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+		bus = m_rt->bus;
+
+		mutex_lock(&bus->bus_lock);
+	}
+}
+
+/**
+ * sdw_release_bus_lock: Release bus lock for all Master runtime(s)
+ *
+ * @stream: SoundWire stream
+ *
+ * Release the previously held bus_lock after reconfiguring the bus.
+ */
+static void sdw_release_bus_lock(struct sdw_stream_runtime *stream)
+{
+	struct sdw_master_runtime *m_rt = NULL;
+	struct sdw_bus *bus = NULL;
+
+	/* Iterate for all Master(s) in Master list */
+	list_for_each_entry_reverse(m_rt, &stream->master_list, stream_node) {
+		bus = m_rt->bus;
+		mutex_unlock(&bus->bus_lock);
+	}
 }
 
 static int _sdw_prepare_stream(struct sdw_stream_runtime *stream)
