@@ -608,28 +608,26 @@ setup_xfrm_tunnel()
 test_xfrm_tunnel()
 {
 	config_device
-        #tcpdump -nei veth1 ip &
-	output=$(mktemp)
-	cat /sys/kernel/debug/tracing/trace_pipe | tee $output &
-        setup_xfrm_tunnel
+	> /sys/kernel/debug/tracing/trace
+	setup_xfrm_tunnel
 	tc qdisc add dev veth1 clsact
 	tc filter add dev veth1 proto ip ingress bpf da obj test_tunnel_kern.o \
 		sec xfrm_get_state
 	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
 	sleep 1
-	grep "reqid 1" $output
+	grep "reqid 1" /sys/kernel/debug/tracing/trace
 	check_err $?
-	grep "spi 0x1" $output
+	grep "spi 0x1" /sys/kernel/debug/tracing/trace
 	check_err $?
-	grep "remote ip 0xac100164" $output
+	grep "remote ip 0xac100164" /sys/kernel/debug/tracing/trace
 	check_err $?
 	cleanup
 
 	if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: xfrm tunnel"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: xfrm tunnel"${NC}
+		echo -e ${RED}"FAIL: xfrm tunnel"${NC}
+		return 1
+	fi
+	echo -e ${GREEN}"PASS: xfrm tunnel"${NC}
 }
 
 attach_bpf()
@@ -657,6 +655,10 @@ cleanup()
 	ip link del ip6geneve11 2> /dev/null
 	ip link del erspan11 2> /dev/null
 	ip link del ip6erspan11 2> /dev/null
+	ip xfrm policy delete dir out src 10.1.1.200/32 dst 10.1.1.100/32 2> /dev/null
+	ip xfrm policy delete dir in src 10.1.1.100/32 dst 10.1.1.200/32 2> /dev/null
+	ip xfrm state delete src 172.16.1.100 dst 172.16.1.200 proto esp spi 0x1 2> /dev/null
+	ip xfrm state delete src 172.16.1.200 dst 172.16.1.100 proto esp spi 0x2 2> /dev/null
 }
 
 cleanup_exit()
@@ -668,7 +670,7 @@ cleanup_exit()
 
 check()
 {
-	ip link help $1 2>&1 | grep -q "^Usage:"
+	ip link help 2>&1 | grep -q "\s$1\s"
 	if [ $? -ne 0 ];then
 		echo "SKIP $1: iproute2 not support"
 	cleanup

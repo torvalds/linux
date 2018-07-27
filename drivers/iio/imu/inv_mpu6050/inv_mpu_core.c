@@ -959,6 +959,8 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	}
 
 	irq_type = irqd_get_trigger_type(desc);
+	if (!irq_type)
+		irq_type = IRQF_TRIGGER_RISING;
 	if (irq_type == IRQF_TRIGGER_RISING)
 		st->irq_mask = INV_MPU6050_ACTIVE_HIGH;
 	else if (irq_type == IRQF_TRIGGER_FALLING)

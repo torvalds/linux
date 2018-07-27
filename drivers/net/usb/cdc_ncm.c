@@ -967,8 +967,7 @@ void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf)
 
 	atomic_set(&ctx->stop, 1);
 
-	if (hrtimer_active(&ctx->tx_timer))
-		hrtimer_cancel(&ctx->tx_timer);
+	hrtimer_cancel(&ctx->tx_timer);
 
 	tasklet_kill(&ctx->bh);
 

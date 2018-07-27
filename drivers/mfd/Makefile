@@ -14,8 +14,6 @@ obj-$(CONFIG_MFD_BCM590XX)	+= bcm590xx.o
 obj-$(CONFIG_MFD_BD9571MWV)	+= bd9571mwv.o
 cros_ec_core-objs		:= cros_ec.o
 obj-$(CONFIG_MFD_CROS_EC)	+= cros_ec_core.o
-obj-$(CONFIG_MFD_CROS_EC_I2C)	+= cros_ec_i2c.o
-obj-$(CONFIG_MFD_CROS_EC_SPI)	+= cros_ec_spi.o
 obj-$(CONFIG_MFD_CROS_EC_CHARDEV) += cros_ec_dev.o
 obj-$(CONFIG_MFD_EXYNOS_LPASS)	+= exynos-lpass.o
 
@@ -71,6 +69,20 @@ obj-$(CONFIG_MFD_WM8350_I2C)	+= wm8350-i2c.o
 wm8994-objs			:= wm8994-core.o wm8994-irq.o wm8994-regmap.o
 obj-$(CONFIG_MFD_WM8994)	+= wm8994.o
 obj-$(CONFIG_MFD_WM97xx)	+= wm97xx-core.o
+
+madera-objs			:= madera-core.o
+ifeq ($(CONFIG_MFD_CS47L35),y)
+madera-objs			+= cs47l35-tables.o
+endif
+ifeq ($(CONFIG_MFD_CS47L85),y)
+madera-objs			+= cs47l85-tables.o
+endif
+ifeq ($(CONFIG_MFD_CS47L90),y)
+madera-objs			+= cs47l90-tables.o
+endif
+obj-$(CONFIG_MFD_MADERA)	+= madera.o
+obj-$(CONFIG_MFD_MADERA_I2C)	+= madera-i2c.o
+obj-$(CONFIG_MFD_MADERA_SPI)	+= madera-spi.o
 
 obj-$(CONFIG_TPS6105X)		+= tps6105x.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o

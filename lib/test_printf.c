@@ -260,13 +260,6 @@ plain(void)
 {
 	int err;
 
-	/*
-	 * Make sure crng is ready. Otherwise we get "(ptrval)" instead
-	 * of a hashed address when printing '%p' in plain_hash() and
-	 * plain_format().
-	 */
-	wait_for_random_bytes();
-
 	err = plain_hash();
 	if (err) {
 		pr_warn("plain 'p' does not appear to be hashed\n");

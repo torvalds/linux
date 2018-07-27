@@ -3294,6 +3294,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	struct nfs4_closedata *calldata = data;
 	struct nfs4_state *state = calldata->state;
 	struct inode *inode = calldata->inode;
+	struct pnfs_layout_hdr *lo;
 	bool is_rdonly, is_wronly, is_rdwr;
 	int call_close = 0;
 
@@ -3335,6 +3336,12 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	if (!calldata->lr.roc && nfs4_wait_on_layoutreturn(inode, task)) {
 		nfs_release_seqid(calldata->arg.seqid);
 		goto out_wait;
+	}
+
+	lo = calldata->arg.lr_args ? calldata->arg.lr_args->layout : NULL;
+	if (lo && !pnfs_layout_is_valid(lo)) {
+		calldata->arg.lr_args = NULL;
+		calldata->res.lr_res = NULL;
 	}
 
 	if (calldata->arg.fmode == 0)
@@ -5972,11 +5979,18 @@ static void nfs4_delegreturn_release(void *calldata)
 static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_delegreturndata *d_data;
+	struct pnfs_layout_hdr *lo;
 
 	d_data = (struct nfs4_delegreturndata *)data;
 
 	if (!d_data->lr.roc && nfs4_wait_on_layoutreturn(d_data->inode, task))
 		return;
+
+	lo = d_data->args.lr_args ? d_data->args.lr_args->layout : NULL;
+	if (lo && !pnfs_layout_is_valid(lo)) {
+		d_data->args.lr_args = NULL;
+		d_data->res.lr_res = NULL;
+	}
 
 	nfs4_setup_sequence(d_data->res.server->nfs_client,
 			&d_data->args.seq_args,
@@ -8650,6 +8664,8 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 
 	dprintk("--> %s tk_status => %d\n", __func__, -task->tk_status);
 
+	nfs4_sequence_free_slot(&lgp->res.seq_res);
+
 	switch (nfs4err) {
 	case 0:
 		goto out;
@@ -8714,7 +8730,6 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 		goto out;
 	}
 
-	nfs4_sequence_free_slot(&lgp->res.seq_res);
 	err = nfs4_handle_exception(server, nfs4err, exception);
 	if (!status) {
 		if (exception->retry)
@@ -8786,20 +8801,22 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout)
 	if (IS_ERR(task))
 		return ERR_CAST(task);
 	status = rpc_wait_for_completion_task(task);
-	if (status == 0) {
+	if (status != 0)
+		goto out;
+
+	/* if layoutp->len is 0, nfs4_layoutget_prepare called rpc_exit */
+	if (task->tk_status < 0 || lgp->res.layoutp->len == 0) {
 		status = nfs4_layoutget_handle_exception(task, lgp, &exception);
 		*timeout = exception.timeout;
-	}
-
+	} else
+		lseg = pnfs_layout_process(lgp);
+out:
 	trace_nfs4_layoutget(lgp->args.ctx,
 			&lgp->args.range,
 			&lgp->res.range,
 			&lgp->res.stateid,
 			status);
 
-	/* if layoutp->len is 0, nfs4_layoutget_prepare called rpc_exit */
-	if (status == 0 && lgp->res.layoutp->len)
-		lseg = pnfs_layout_process(lgp);
 	rpc_put_task(task);
 	dprintk("<-- %s status=%d\n", __func__, status);
 	if (status)
@@ -8817,6 +8834,8 @@ nfs4_layoutreturn_prepare(struct rpc_task *task, void *calldata)
 			&lrp->args.seq_args,
 			&lrp->res.seq_res,
 			task);
+	if (!pnfs_layout_is_valid(lrp->args.layout))
+		rpc_exit(task, 0);
 }
 
 static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)

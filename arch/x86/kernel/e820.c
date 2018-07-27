@@ -1248,6 +1248,7 @@ void __init e820__memblock_setup(void)
 {
 	int i;
 	u64 end;
+	u64 addr = 0;
 
 	/*
 	 * The bootstrap memblock region count maximum is 128 entries
@@ -1264,13 +1265,21 @@ void __init e820__memblock_setup(void)
 		struct e820_entry *entry = &e820_table->entries[i];
 
 		end = entry->addr + entry->size;
+		if (addr < entry->addr)
+			memblock_reserve(addr, entry->addr - addr);
+		addr = end;
 		if (end != (resource_size_t)end)
 			continue;
 
+		/*
+		 * all !E820_TYPE_RAM ranges (including gap ranges) are put
+		 * into memblock.reserved to make sure that struct pages in
+		 * such regions are not left uninitialized after bootup.
+		 */
 		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
-			continue;
-
-		memblock_add(entry->addr, entry->size);
+			memblock_reserve(entry->addr, entry->size);
+		else
+			memblock_add(entry->addr, entry->size);
 	}
 
 	/* Throw away partial pages: */

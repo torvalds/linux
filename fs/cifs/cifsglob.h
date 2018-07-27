@@ -33,6 +33,9 @@
 
 #define CIFS_MAGIC_NUMBER 0xFF534D42      /* the first four bytes of SMB PDUs */
 
+#define CIFS_PORT 445
+#define RFC1001_PORT 139
+
 /*
  * The sizes of various internal tables and strings
  */
@@ -312,6 +315,10 @@ struct smb_version_operations {
 	/* send echo request */
 	int (*echo)(struct TCP_Server_Info *);
 	/* create directory */
+	int (*posix_mkdir)(const unsigned int xid, struct inode *inode,
+			umode_t mode, struct cifs_tcon *tcon,
+			const char *full_path,
+			struct cifs_sb_info *cifs_sb);
 	int (*mkdir)(const unsigned int, struct cifs_tcon *, const char *,
 		     struct cifs_sb_info *);
 	/* set info on created directory */
@@ -838,6 +845,13 @@ static inline void cifs_set_net_ns(struct TCP_Server_Info *srv, struct net *net)
 
 #endif
 
+struct cifs_server_iface {
+	size_t speed;
+	unsigned int rdma_capable : 1;
+	unsigned int rss_capable : 1;
+	struct sockaddr_storage sockaddr;
+};
+
 /*
  * Session structure.  One of these for each uid session with a particular host
  */
@@ -875,6 +889,20 @@ struct cifs_ses {
 #ifdef CONFIG_CIFS_SMB311
 	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 #endif /* 3.1.1 */
+
+	/*
+	 * Network interfaces available on the server this session is
+	 * connected to.
+	 *
+	 * Other channels can be opened by connecting and binding this
+	 * session to interfaces from this list.
+	 *
+	 * iface_lock should be taken when accessing any of these fields
+	 */
+	spinlock_t iface_lock;
+	struct cifs_server_iface *iface_list;
+	size_t iface_count;
+	unsigned long iface_last_update; /* jiffies */
 };
 
 static inline bool
@@ -882,6 +910,14 @@ cap_unix(struct cifs_ses *ses)
 {
 	return ses->server->vals->cap_unix & ses->capabilities;
 }
+
+struct cached_fid {
+	bool is_valid:1;	/* Do we have a useable root fid */
+	struct cifs_fid *fid;
+	struct mutex fid_mutex;
+	struct cifs_tcon *tcon;
+	struct work_struct lease_break;
+};
 
 /*
  * there is one of these for each connection to a resource on a particular
@@ -987,9 +1023,7 @@ struct cifs_tcon {
 	struct fscache_cookie *fscache;	/* cookie for share */
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
-	bool valid_root_fid:1;	/* Do we have a useable root fid */
-	struct mutex prfid_mutex; /* prevents reopen race after dead ses*/
-	struct cifs_fid *prfid;	/* handle to the directory at top of share */
+	struct cached_fid crfid; /* Cached root fid */
 	/* BB add field for back pointer to sb struct(s)? */
 };
 

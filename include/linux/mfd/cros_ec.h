@@ -147,7 +147,7 @@ struct cros_ec_device {
 	bool mkbp_event_supported;
 	struct blocking_notifier_head event_notifier;
 
-	struct ec_response_get_next_event event_data;
+	struct ec_response_get_next_event_v1 event_data;
 	int event_size;
 	u32 host_event_wake_mask;
 };

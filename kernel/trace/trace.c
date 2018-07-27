@@ -1360,8 +1360,6 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 void
 update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
-	struct ring_buffer *buf;
-
 	if (tr->stop_count)
 		return;
 
@@ -1375,9 +1373,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	arch_spin_lock(&tr->max_lock);
 
-	buf = tr->trace_buffer.buffer;
-	tr->trace_buffer.buffer = tr->max_buffer.buffer;
-	tr->max_buffer.buffer = buf;
+	swap(tr->trace_buffer.buffer, tr->max_buffer.buffer);
 
 	__update_max_tr(tr, tsk, cpu);
 	arch_spin_unlock(&tr->max_lock);

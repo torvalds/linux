@@ -509,22 +509,19 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static struct wait_queue_head *
-pipe_get_poll_head(struct file *filp, __poll_t events)
-{
-	struct pipe_inode_info *pipe = filp->private_data;
-
-	return &pipe->wait;
-}
-
 /* No kernel lock held - fine */
-static __poll_t pipe_poll_mask(struct file *filp, __poll_t events)
+static __poll_t
+pipe_poll(struct file *filp, poll_table *wait)
 {
+	__poll_t mask;
 	struct pipe_inode_info *pipe = filp->private_data;
-	int nrbufs = pipe->nrbufs;
-	__poll_t mask = 0;
+	int nrbufs;
+
+	poll_wait(filp, &pipe->wait, wait);
 
 	/* Reading only -- no need for acquiring the semaphore.  */
+	nrbufs = pipe->nrbufs;
+	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
 		mask = (nrbufs > 0) ? EPOLLIN | EPOLLRDNORM : 0;
 		if (!pipe->writers && filp->f_version != pipe->w_counter)
@@ -1023,8 +1020,7 @@ const struct file_operations pipefifo_fops = {
 	.llseek		= no_llseek,
 	.read_iter	= pipe_read,
 	.write_iter	= pipe_write,
-	.get_poll_head	= pipe_get_poll_head,
-	.poll_mask	= pipe_poll_mask,
+	.poll		= pipe_poll,
 	.unlocked_ioctl	= pipe_ioctl,
 	.release	= pipe_release,
 	.fasync		= pipe_fasync,

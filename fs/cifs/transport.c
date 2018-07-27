@@ -201,15 +201,24 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 	return 0;
 }
 
-static unsigned long
-rqst_len(struct smb_rqst *rqst)
+unsigned long
+smb2_rqst_len(struct smb_rqst *rqst, bool skip_rfc1002_marker)
 {
 	unsigned int i;
-	struct kvec *iov = rqst->rq_iov;
+	struct kvec *iov;
+	int nvec;
 	unsigned long buflen = 0;
 
+	if (skip_rfc1002_marker && rqst->rq_iov[0].iov_len == 4) {
+		iov = &rqst->rq_iov[1];
+		nvec = rqst->rq_nvec - 1;
+	} else {
+		iov = rqst->rq_iov;
+		nvec = rqst->rq_nvec;
+	}
+
 	/* total up iov array first */
-	for (i = 0; i < rqst->rq_nvec; i++)
+	for (i = 0; i < nvec; i++)
 		buflen += iov[i].iov_len;
 
 	/*
@@ -236,18 +245,20 @@ rqst_len(struct smb_rqst *rqst)
 }
 
 static int
-__smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
+__smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
+		struct smb_rqst *rqst)
 {
-	int rc;
-	struct kvec *iov = rqst->rq_iov;
-	int n_vec = rqst->rq_nvec;
-	unsigned int smb_buf_length = get_rfc1002_length(iov[0].iov_base);
-	unsigned long send_length;
-	unsigned int i;
+	int rc = 0;
+	struct kvec *iov;
+	int n_vec;
+	unsigned int send_length = 0;
+	unsigned int i, j;
 	size_t total_len = 0, sent, size;
 	struct socket *ssocket = server->ssocket;
 	struct msghdr smb_msg;
 	int val = 1;
+	__be32 rfc1002_marker;
+
 	if (cifs_rdma_enabled(server) && server->smbd_conn) {
 		rc = smbd_send(server->smbd_conn, rqst);
 		goto smbd_done;
@@ -255,51 +266,67 @@ __smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	if (ssocket == NULL)
 		return -ENOTSOCK;
 
-	/* sanity check send length */
-	send_length = rqst_len(rqst);
-	if (send_length != smb_buf_length + 4) {
-		WARN(1, "Send length mismatch(send_length=%lu smb_buf_length=%u)\n",
-			send_length, smb_buf_length);
-		return -EIO;
-	}
-
-	if (n_vec < 2)
-		return -EIO;
-
-	cifs_dbg(FYI, "Sending smb: smb_len=%u\n", smb_buf_length);
-	dump_smb(iov[0].iov_base, iov[0].iov_len);
-	dump_smb(iov[1].iov_base, iov[1].iov_len);
-
 	/* cork the socket */
 	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
 				(char *)&val, sizeof(val));
 
-	size = 0;
-	for (i = 0; i < n_vec; i++)
-		size += iov[i].iov_len;
+	for (j = 0; j < num_rqst; j++)
+		send_length += smb2_rqst_len(&rqst[j], true);
+	rfc1002_marker = cpu_to_be32(send_length);
 
-	iov_iter_kvec(&smb_msg.msg_iter, WRITE | ITER_KVEC, iov, n_vec, size);
-
-	rc = smb_send_kvec(server, &smb_msg, &sent);
-	if (rc < 0)
-		goto uncork;
-
-	total_len += sent;
-
-	/* now walk the page array and send each page in it */
-	for (i = 0; i < rqst->rq_npages; i++) {
-		struct bio_vec bvec;
-
-		bvec.bv_page = rqst->rq_pages[i];
-		rqst_page_get_length(rqst, i, &bvec.bv_len, &bvec.bv_offset);
-
-		iov_iter_bvec(&smb_msg.msg_iter, WRITE | ITER_BVEC,
-			      &bvec, 1, bvec.bv_len);
+	/* Generate a rfc1002 marker for SMB2+ */
+	if (server->vals->header_preamble_size == 0) {
+		struct kvec hiov = {
+			.iov_base = &rfc1002_marker,
+			.iov_len  = 4
+		};
+		iov_iter_kvec(&smb_msg.msg_iter, WRITE | ITER_KVEC, &hiov,
+			      1, 4);
 		rc = smb_send_kvec(server, &smb_msg, &sent);
 		if (rc < 0)
-			break;
+			goto uncork;
 
 		total_len += sent;
+		send_length += 4;
+	}
+
+	cifs_dbg(FYI, "Sending smb: smb_len=%u\n", send_length);
+
+	for (j = 0; j < num_rqst; j++) {
+		iov = rqst[j].rq_iov;
+		n_vec = rqst[j].rq_nvec;
+
+		size = 0;
+		for (i = 0; i < n_vec; i++) {
+			dump_smb(iov[i].iov_base, iov[i].iov_len);
+			size += iov[i].iov_len;
+		}
+
+		iov_iter_kvec(&smb_msg.msg_iter, WRITE | ITER_KVEC,
+			      iov, n_vec, size);
+
+		rc = smb_send_kvec(server, &smb_msg, &sent);
+		if (rc < 0)
+			goto uncork;
+
+		total_len += sent;
+
+		/* now walk the page array and send each page in it */
+		for (i = 0; i < rqst[j].rq_npages; i++) {
+			struct bio_vec bvec;
+
+			bvec.bv_page = rqst[j].rq_pages[i];
+			rqst_page_get_length(&rqst[j], i, &bvec.bv_len,
+					     &bvec.bv_offset);
+
+			iov_iter_bvec(&smb_msg.msg_iter, WRITE | ITER_BVEC,
+				      &bvec, 1, bvec.bv_len);
+			rc = smb_send_kvec(server, &smb_msg, &sent);
+			if (rc < 0)
+				break;
+
+			total_len += sent;
+		}
 	}
 
 uncork:
@@ -308,9 +335,9 @@ uncork:
 	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
 				(char *)&val, sizeof(val));
 
-	if ((total_len > 0) && (total_len != smb_buf_length + 4)) {
+	if ((total_len > 0) && (total_len != send_length)) {
 		cifs_dbg(FYI, "partial send (wanted=%u sent=%zu): terminating session\n",
-			 smb_buf_length + 4, total_len);
+			 send_length, total_len);
 		/*
 		 * If we have only sent part of an SMB then the next SMB could
 		 * be taken as the remainder of this one. We need to kill the
@@ -335,7 +362,7 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst, int flags)
 	int rc;
 
 	if (!(flags & CIFS_TRANSFORM_REQ))
-		return __smb_send_rqst(server, rqst);
+		return __smb_send_rqst(server, 1, rqst);
 
 	if (!server->ops->init_transform_rq ||
 	    !server->ops->free_transform_rq) {
@@ -347,7 +374,7 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst, int flags)
 	if (rc)
 		return rc;
 
-	rc = __smb_send_rqst(server, &cur_rqst);
+	rc = __smb_send_rqst(server, 1, &cur_rqst);
 	server->ops->free_transform_rq(&cur_rqst);
 	return rc;
 }
@@ -365,7 +392,7 @@ smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 	iov[1].iov_base = (char *)smb_buffer + 4;
 	iov[1].iov_len = smb_buf_length;
 
-	return __smb_send_rqst(server, &rqst);
+	return __smb_send_rqst(server, 1, &rqst);
 }
 
 static int
@@ -730,7 +757,6 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * to the same server. We may make this configurable later or
 	 * use ses->maxReq.
 	 */
-
 	rc = wait_for_free_request(ses->server, timeout, optype);
 	if (rc)
 		return rc;
@@ -766,8 +792,8 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 #ifdef CONFIG_CIFS_SMB311
 	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
-		smb311_update_preauth_hash(ses, rqst->rq_iov+1,
-					   rqst->rq_nvec-1);
+		smb311_update_preauth_hash(ses, rqst->rq_iov,
+					   rqst->rq_nvec);
 #endif
 
 	if (timeout == CIFS_ASYNC_OP)
@@ -812,8 +838,8 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 #ifdef CONFIG_CIFS_SMB311
 	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
 		struct kvec iov = {
-			.iov_base = buf,
-			.iov_len = midQ->resp_buf_size
+			.iov_base = resp_iov->iov_base,
+			.iov_len = resp_iov->iov_len
 		};
 		smb311_update_preauth_hash(ses, &iov, 1);
 	}
@@ -861,49 +887,6 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	new_iov[0].iov_len = 4;
 	new_iov[1].iov_base += 4;
 	new_iov[1].iov_len -= 4;
-
-	memset(&rqst, 0, sizeof(struct smb_rqst));
-	rqst.rq_iov = new_iov;
-	rqst.rq_nvec = n_vec + 1;
-
-	rc = cifs_send_recv(xid, ses, &rqst, resp_buf_type, flags, resp_iov);
-	if (n_vec + 1 > CIFS_MAX_IOV_SIZE)
-		kfree(new_iov);
-	return rc;
-}
-
-/* Like SendReceive2 but iov[0] does not contain an rfc1002 header */
-int
-smb2_send_recv(const unsigned int xid, struct cifs_ses *ses,
-	       struct kvec *iov, int n_vec, int *resp_buf_type /* ret */,
-	       const int flags, struct kvec *resp_iov)
-{
-	struct smb_rqst rqst;
-	struct kvec s_iov[CIFS_MAX_IOV_SIZE], *new_iov;
-	int rc;
-	int i;
-	__u32 count;
-	__be32 rfc1002_marker;
-
-	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
-		new_iov = kmalloc_array(n_vec + 1, sizeof(struct kvec),
-					GFP_KERNEL);
-		if (!new_iov)
-			return -ENOMEM;
-	} else
-		new_iov = s_iov;
-
-	/* 1st iov is an RFC1002 Session Message length */
-	memcpy(new_iov + 1, iov, (sizeof(struct kvec) * n_vec));
-
-	count = 0;
-	for (i = 1; i < n_vec + 1; i++)
-		count += new_iov[i].iov_len;
-
-	rfc1002_marker = cpu_to_be32(count);
-
-	new_iov[0].iov_base = &rfc1002_marker;
-	new_iov[0].iov_len = 4;
 
 	memset(&rqst, 0, sizeof(struct smb_rqst));
 	rqst.rq_iov = new_iov;

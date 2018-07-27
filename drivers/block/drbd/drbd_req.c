@@ -1244,8 +1244,8 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 	_drbd_start_io_acct(device, req);
 
 	/* process discards always from our submitter thread */
-	if ((bio_op(bio) & REQ_OP_WRITE_ZEROES) ||
-	    (bio_op(bio) & REQ_OP_DISCARD))
+	if (bio_op(bio) == REQ_OP_WRITE_ZEROES ||
+	    bio_op(bio) == REQ_OP_DISCARD)
 		goto queue_for_submitter_thread;
 
 	if (rw == WRITE && req->private_bio && req->i.size

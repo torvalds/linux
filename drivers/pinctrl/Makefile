@@ -64,3 +64,4 @@ obj-$(CONFIG_PINCTRL_UNIPHIER)	+= uniphier/
 obj-$(CONFIG_ARCH_VT8500)	+= vt8500/
 obj-y				+= mediatek/
 obj-$(CONFIG_PINCTRL_ZX)	+= zte/
+obj-y				+= cirrus/

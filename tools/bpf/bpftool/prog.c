@@ -90,7 +90,9 @@ static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 	}
 
 	wallclock_secs = (real_time_ts.tv_sec - boot_time_ts.tv_sec) +
-		nsecs / 1000000000;
+		(real_time_ts.tv_nsec - boot_time_ts.tv_nsec + nsecs) /
+		1000000000;
+
 
 	if (!localtime_r(&wallclock_secs, &load_tm)) {
 		snprintf(buf, size, "%llu", nsecs / 1000000000);
