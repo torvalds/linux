@@ -361,7 +361,7 @@ static int tc358764_attach(struct drm_bridge *bridge)
 
 	drm_connector_helper_add(&ctx->connector,
 				 &tc358764_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(&ctx->connector, bridge->encoder);
+	drm_connector_attach_encoder(&ctx->connector, bridge->encoder);
 	drm_panel_attach(ctx->panel, &ctx->connector);
 	ctx->connector.funcs->reset(&ctx->connector);
 	drm_fb_helper_add_one_connector(drm->fb_helper, &ctx->connector);
