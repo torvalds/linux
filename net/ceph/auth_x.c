@@ -737,8 +737,10 @@ static int ceph_x_verify_authorizer_reply(struct ceph_auth_client *ac,
 	ret = ceph_x_decrypt(&au->session_key, &p, p + CEPHX_AU_ENC_BUF_LEN);
 	if (ret < 0)
 		return ret;
-	if (ret != sizeof(*reply))
-		return -EPERM;
+	if (ret < sizeof(*reply)) {
+		pr_err("bad size %d for ceph_x_authorize_reply\n", ret);
+		return -EINVAL;
+	}
 
 	if (au->nonce + 1 != le64_to_cpu(reply->nonce_plus_one))
 		ret = -EPERM;
