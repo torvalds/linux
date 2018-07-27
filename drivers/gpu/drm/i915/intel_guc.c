@@ -659,7 +659,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	if (IS_ERR(vma))
 		goto err;
 
-	ret = i915_vma_pin(vma, 0, PAGE_SIZE,
+	ret = i915_vma_pin(vma, 0, 0,
 			   PIN_GLOBAL | PIN_OFFSET_BIAS | guc->ggtt_pin_bias);
 	if (ret) {
 		vma = ERR_PTR(ret);

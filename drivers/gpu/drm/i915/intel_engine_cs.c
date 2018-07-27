@@ -513,7 +513,7 @@ int intel_engine_create_scratch(struct intel_engine_cs *engine,
 		goto err_unref;
 	}
 
-	ret = i915_vma_pin(vma, 0, 4096, PIN_GLOBAL | PIN_HIGH);
+	ret = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (ret)
 		goto err_unref;
 
@@ -586,7 +586,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 		flags |= PIN_MAPPABLE;
 	else
 		flags |= PIN_HIGH;
-	ret = i915_vma_pin(vma, 0, 4096, flags);
+	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (ret)
 		goto err;
 

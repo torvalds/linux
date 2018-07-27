@@ -1035,7 +1035,7 @@ int intel_ring_pin(struct intel_ring *ring,
 			return ret;
 	}
 
-	ret = i915_vma_pin(vma, 0, PAGE_SIZE, flags);
+	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (unlikely(ret))
 		return ret;
 
@@ -1220,8 +1220,7 @@ static int __context_pin(struct intel_context *ce)
 			return err;
 	}
 
-	err = i915_vma_pin(vma, 0, I915_GTT_MIN_ALIGNMENT,
-			   PIN_GLOBAL | PIN_HIGH);
+	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
 		return err;
 
