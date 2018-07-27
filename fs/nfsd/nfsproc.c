@@ -454,6 +454,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 		return nfserr_nametoolong;
 
 	argp->tname = svc_fill_symlink_pathname(rqstp, &argp->first,
+						page_address(rqstp->rq_arg.pages[0]),
 						argp->tlen);
 	if (IS_ERR(argp->tname))
 		return nfserrno(PTR_ERR(argp->tname));
@@ -466,6 +467,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 	nfserr = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
 						 argp->tname, &newfh);
 
+	kfree(argp->tname);
 	fh_put(&argp->ffh);
 	fh_put(&newfh);
 	return nfserr;

@@ -290,6 +290,7 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp)
 		RETURN_STATUS(nfserr_nametoolong);
 
 	argp->tname = svc_fill_symlink_pathname(rqstp, &argp->first,
+						page_address(rqstp->rq_arg.pages[0]),
 						argp->tlen);
 	if (IS_ERR(argp->tname))
 		RETURN_STATUS(nfserrno(PTR_ERR(argp->tname)));
@@ -303,6 +304,7 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp)
 	fh_init(&resp->fh, NFS3_FHSIZE);
 	nfserr = nfsd_symlink(rqstp, &resp->dirfh, argp->fname, argp->flen,
 						   argp->tname, &resp->fh);
+	kfree(argp->tname);
 	RETURN_STATUS(nfserr);
 }
 

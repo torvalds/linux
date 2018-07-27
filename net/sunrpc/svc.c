@@ -1577,65 +1577,48 @@ EXPORT_SYMBOL_GPL(svc_fill_write_vector);
  * svc_fill_symlink_pathname - Construct pathname argument for VFS symlink call
  * @rqstp: svc_rqst to operate on
  * @first: buffer containing first section of pathname
+ * @p: buffer containing remaining section of pathname
  * @total: total length of the pathname argument
  *
- * Returns pointer to a NUL-terminated string, or an ERR_PTR. The buffer is
- * released automatically when @rqstp is recycled.
+ * The VFS symlink API demands a NUL-terminated pathname in mapped memory.
+ * Returns pointer to a NUL-terminated string, or an ERR_PTR. Caller must free
+ * the returned string.
  */
 char *svc_fill_symlink_pathname(struct svc_rqst *rqstp, struct kvec *first,
-				size_t total)
+				void *p, size_t total)
 {
-	struct xdr_buf *arg = &rqstp->rq_arg;
-	struct page **pages;
-	char *result;
+	size_t len, remaining;
+	char *result, *dst;
 
-	/* VFS API demands a NUL-terminated pathname. This function
-	 * uses a page from @rqstp as the pathname buffer, to enable
-	 * direct placement. Thus the total buffer size is PAGE_SIZE.
-	 * Space in this buffer for NUL-termination requires that we
-	 * cap the size of the returned symlink pathname just a
-	 * little early.
-	 */
-	if (total > PAGE_SIZE - 1)
-		return ERR_PTR(-ENAMETOOLONG);
+	result = kmalloc(total + 1, GFP_KERNEL);
+	if (!result)
+		return ERR_PTR(-ESERVERFAULT);
 
-	/* Some types of transport can present the pathname entirely
-	 * in rq_arg.pages. If not, then copy the pathname into one
-	 * page.
-	 */
-	pages = arg->pages;
-	WARN_ON_ONCE(arg->page_base != 0);
-	if (first->iov_base == 0) {
-		result = page_address(*pages);
-		result[total] = '\0';
-	} else {
-		size_t len, remaining;
-		char *dst;
+	dst = result;
+	remaining = total;
 
-		result = page_address(*(rqstp->rq_next_page++));
-		dst = result;
-		remaining = total;
-
-		len = min_t(size_t, total, first->iov_len);
+	len = min_t(size_t, total, first->iov_len);
+	if (len) {
 		memcpy(dst, first->iov_base, len);
 		dst += len;
 		remaining -= len;
-
-		/* No more than one page left */
-		if (remaining) {
-			len = min_t(size_t, remaining, PAGE_SIZE);
-			memcpy(dst, page_address(*pages), len);
-			dst += len;
-		}
-
-		*dst = '\0';
 	}
 
-	/* Sanity check: we don't allow the pathname argument to
+	if (remaining) {
+		len = min_t(size_t, remaining, PAGE_SIZE);
+		memcpy(dst, p, len);
+		dst += len;
+	}
+
+	*dst = '\0';
+
+	/* Sanity check: Linux doesn't allow the pathname argument to
 	 * contain a NUL byte.
 	 */
-	if (strlen(result) != total)
+	if (strlen(result) != total) {
+		kfree(result);
 		return ERR_PTR(-EINVAL);
+	}
 	return result;
 }
 EXPORT_SYMBOL_GPL(svc_fill_symlink_pathname);
