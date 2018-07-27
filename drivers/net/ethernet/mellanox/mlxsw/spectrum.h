@@ -1,6 +1,6 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum.h
- * Copyright (c) 2015-2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2015-2017 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2015 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
@@ -54,6 +54,7 @@
 #include "core.h"
 #include "core_acl_flex_keys.h"
 #include "core_acl_flex_actions.h"
+#include "reg.h"
 
 #define MLXSW_SP_FID_8021D_MAX 1024
 
@@ -243,6 +244,7 @@ struct mlxsw_sp_port {
 		struct ieee_ets *ets;
 		struct ieee_maxrate *maxrate;
 		struct ieee_pfc *pfc;
+		enum mlxsw_reg_qpts_trust_state trust_state;
 	} dcb;
 	struct {
 		u8 module;
