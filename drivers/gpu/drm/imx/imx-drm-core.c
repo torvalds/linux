@@ -37,7 +37,6 @@
 
 struct imx_drm_device {
 	struct drm_device			*drm;
-	unsigned int				pipes;
 	struct drm_atomic_state			*state;
 };
 
@@ -229,7 +228,7 @@ static int imx_drm_bind(struct device *dev)
 	imxdrm = devm_kzalloc(dev, sizeof(*imxdrm), GFP_KERNEL);
 	if (!imxdrm) {
 		ret = -ENOMEM;
-		goto err_unref;
+		goto err_put;
 	}
 
 	imxdrm->drm = drm;
@@ -306,8 +305,8 @@ err_unbind:
 	component_unbind_all(drm->dev, drm);
 err_kms:
 	drm_mode_config_cleanup(drm);
-err_unref:
-	drm_dev_unref(drm);
+err_put:
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -327,7 +326,7 @@ static void imx_drm_unbind(struct device *dev)
 	component_unbind_all(drm->dev, drm);
 	dev_set_drvdata(dev, NULL);
 
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops imx_drm_ops = {

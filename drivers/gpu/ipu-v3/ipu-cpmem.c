@@ -269,9 +269,20 @@ EXPORT_SYMBOL_GPL(ipu_cpmem_set_uv_offset);
 
 void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride)
 {
+	u32 ilo, sly;
+
+	if (stride < 0) {
+		stride = -stride;
+		ilo = 0x100000 - (stride / 8);
+	} else {
+		ilo = stride / 8;
+	}
+
+	sly = (stride * 2) - 1;
+
 	ipu_ch_param_write_field(ch, IPU_FIELD_SO, 1);
-	ipu_ch_param_write_field(ch, IPU_FIELD_ILO, stride / 8);
-	ipu_ch_param_write_field(ch, IPU_FIELD_SLY, (stride * 2) - 1);
+	ipu_ch_param_write_field(ch, IPU_FIELD_ILO, ilo);
+	ipu_ch_param_write_field(ch, IPU_FIELD_SLY, sly);
 };
 EXPORT_SYMBOL_GPL(ipu_cpmem_interlaced_scan);
 
