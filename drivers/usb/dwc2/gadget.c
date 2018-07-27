@@ -2750,21 +2750,14 @@ static void dwc2_gadget_handle_out_token_ep_disabled(struct dwc2_hsotg_ep *ep)
 	struct dwc2_hsotg *hsotg = ep->parent;
 	int dir_in = ep->dir_in;
 	u32 doepmsk;
-	u32 tmp;
 
 	if (dir_in || !ep->isochronous)
 		return;
 
-	/*
-	 * Store frame in which irq was asserted here, as
-	 * it can change while completing request below.
-	 */
-	tmp = dwc2_hsotg_read_frameno(hsotg);
-
 	if (using_desc_dma(hsotg)) {
 		if (ep->target_frame == TARGET_FRAME_INITIAL) {
 			/* Start first ISO Out */
-			ep->target_frame = tmp;
+			ep->target_frame = hsotg->frame_number;
 			dwc2_gadget_start_isoc_ddma(ep);
 		}
 		return;
@@ -2772,11 +2765,9 @@ static void dwc2_gadget_handle_out_token_ep_disabled(struct dwc2_hsotg_ep *ep)
 
 	if (ep->interval > 1 &&
 	    ep->target_frame == TARGET_FRAME_INITIAL) {
-		u32 dsts;
 		u32 ctrl;
 
-		dsts = dwc2_readl(hsotg, DSTS);
-		ep->target_frame = dwc2_hsotg_read_frameno(hsotg);
+		ep->target_frame = hsotg->frame_number;
 		dwc2_gadget_incr_frame_num(ep);
 
 		ctrl = dwc2_readl(hsotg, DOEPCTL(ep->index));
@@ -2812,22 +2803,20 @@ static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
 {
 	struct dwc2_hsotg *hsotg = hs_ep->parent;
 	int dir_in = hs_ep->dir_in;
-	u32 tmp;
 
 	if (!dir_in || !hs_ep->isochronous)
 		return;
 
 	if (hs_ep->target_frame == TARGET_FRAME_INITIAL) {
 
-		tmp = dwc2_hsotg_read_frameno(hsotg);
 		if (using_desc_dma(hsotg)) {
-			hs_ep->target_frame = tmp;
+			hs_ep->target_frame = hsotg->frame_number;
 			dwc2_gadget_incr_frame_num(hs_ep);
 			dwc2_gadget_start_isoc_ddma(hs_ep);
 			return;
 		}
 
-		hs_ep->target_frame = tmp;
+		hs_ep->target_frame = hsotg->frame_number;
 		if (hs_ep->interval > 1) {
 			u32 ctrl = dwc2_readl(hsotg,
 					      DIEPCTL(hs_ep->index));
