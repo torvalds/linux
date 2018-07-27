@@ -127,8 +127,6 @@ struct pppol2tp_session {
 						 * PPPoX socket */
 	struct sock		*__sk;		/* Copy of .sk, for cleanup */
 	struct rcu_head		rcu;		/* For asynchronous release */
-	int			flags;		/* accessed by PPPIOCGFLAGS.
-						 * Unused. */
 };
 
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
@@ -1057,7 +1055,6 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 	int err = 0;
 	struct sock *sk;
 	int val = (int) arg;
-	struct pppol2tp_session *ps = l2tp_session_priv(session);
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	struct pppol2tp_ioc_stats stats;
 
@@ -1134,21 +1131,15 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 
 	case PPPIOCGFLAGS:
 		err = -EFAULT;
-		if (put_user(ps->flags, (int __user *) arg))
+		if (put_user(0, (int __user *)arg))
 			break;
-
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get flags=%d\n",
-			  session->name, ps->flags);
 		err = 0;
 		break;
 
 	case PPPIOCSFLAGS:
 		err = -EFAULT;
-		if (get_user(val, (int __user *) arg))
+		if (get_user(val, (int __user *)arg))
 			break;
-		ps->flags = val;
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: set flags=%d\n",
-			  session->name, ps->flags);
 		err = 0;
 		break;
 
