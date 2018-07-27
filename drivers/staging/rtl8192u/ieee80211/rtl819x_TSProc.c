@@ -112,7 +112,7 @@ static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 
 static void ResetTxTsEntry(struct tx_ts_record *pTS)
 {
-	ResetTsCommonInfo(&pTS->TsCommonInfo);
+	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->TxCurSeq = 0;
 	pTS->bAddBaReqInProgress = false;
 	pTS->bAddBaReqDelayed = false;
@@ -123,7 +123,7 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 
 static void ResetRxTsEntry(PRX_TS_RECORD pTS)
 {
-	ResetTsCommonInfo(&pTS->TsCommonInfo);
+	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->RxIndicateSeq = 0xffff; // This indicate the RxIndicateSeq is not used now!!
 	pTS->RxTimeoutIndicateSeq = 0xffff; // This indicate the RxTimeoutIndicateSeq is not used now!!
 	ResetBaEntry(&pTS->RxAdmittedBARecord);	  // For BA Recipient
@@ -146,9 +146,9 @@ void TSInitialize(struct ieee80211_device *ieee)
 		pTxTS->num = count;
 		// The timers for the operation of Traffic Stream and Block Ack.
 		// DLS related timer will be add here in the future!!
-		timer_setup(&pTxTS->TsCommonInfo.setup_timer, TsSetupTimeOut,
+		timer_setup(&pTxTS->ts_common_info.setup_timer, TsSetupTimeOut,
 			    0);
-		timer_setup(&pTxTS->TsCommonInfo.inact_timer, TsInactTimeout,
+		timer_setup(&pTxTS->ts_common_info.inact_timer, TsInactTimeout,
 			    0);
 		timer_setup(&pTxTS->TsAddBaTimer, TsAddBaProcess, 0);
 		timer_setup(&pTxTS->TxPendingBARecord.Timer, BaSetupTimeOut,
@@ -156,7 +156,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 		timer_setup(&pTxTS->TxAdmittedBARecord.Timer,
 			    TxBaInactTimeout, 0);
 		ResetTxTsEntry(pTxTS);
-		list_add_tail(&pTxTS->TsCommonInfo.list, &ieee->Tx_TS_Unused_List);
+		list_add_tail(&pTxTS->ts_common_info.list, &ieee->Tx_TS_Unused_List);
 		pTxTS++;
 	}
 
@@ -167,15 +167,15 @@ void TSInitialize(struct ieee80211_device *ieee)
 	for(count = 0; count < TOTAL_TS_NUM; count++) {
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
-		timer_setup(&pRxTS->TsCommonInfo.setup_timer, TsSetupTimeOut,
+		timer_setup(&pRxTS->ts_common_info.setup_timer, TsSetupTimeOut,
 			    0);
-		timer_setup(&pRxTS->TsCommonInfo.inact_timer, TsInactTimeout,
+		timer_setup(&pRxTS->ts_common_info.inact_timer, TsInactTimeout,
 			    0);
 		timer_setup(&pRxTS->RxAdmittedBARecord.Timer,
 			    RxBaInactTimeout, 0);
 		timer_setup(&pRxTS->RxPktPendingTimer, RxPktPendingTimeout, 0);
 		ResetRxTsEntry(pRxTS);
-		list_add_tail(&pRxTS->TsCommonInfo.list, &ieee->Rx_TS_Unused_List);
+		list_add_tail(&pRxTS->ts_common_info.list, &ieee->Rx_TS_Unused_List);
 		pRxTS++;
 	}
 	// Initialize unused Rx Reorder List.
@@ -374,10 +374,10 @@ bool GetTs(
 				(*ppTS) = list_entry(pUnusedList->next, struct ts_common_info, list);
 				list_del_init(&(*ppTS)->list);
 				if(TxRxSelect==TX_DIR) {
-					struct tx_ts_record *tmp = container_of(*ppTS, struct tx_ts_record, TsCommonInfo);
+					struct tx_ts_record *tmp = container_of(*ppTS, struct tx_ts_record, ts_common_info);
 					ResetTxTsEntry(tmp);
 				} else {
-					PRX_TS_RECORD tmp = container_of(*ppTS, RX_TS_RECORD, TsCommonInfo);
+					PRX_TS_RECORD tmp = container_of(*ppTS, RX_TS_RECORD, ts_common_info);
 					ResetRxTsEntry(tmp);
 				}
 

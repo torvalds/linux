@@ -27,7 +27,7 @@ struct ts_common_info {
 };
 
 struct tx_ts_record {
-	struct ts_common_info		TsCommonInfo;
+	struct ts_common_info		ts_common_info;
 	u16				TxCurSeq;
 	BA_RECORD			TxPendingBARecord;	/*  For BA Originator */
 	BA_RECORD			TxAdmittedBARecord;	/*  For BA Originator */
@@ -40,7 +40,7 @@ struct tx_ts_record {
 };
 
 typedef struct _RX_TS_RECORD {
-	struct ts_common_info		TsCommonInfo;
+	struct ts_common_info		ts_common_info;
 	u16				RxIndicateSeq;
 	u16				RxTimeoutIndicateSeq;
 	struct list_head		RxPendingPktList;
