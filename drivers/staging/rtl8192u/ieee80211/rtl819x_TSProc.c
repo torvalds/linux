@@ -115,7 +115,7 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->tx_cur_seq = 0;
 	pTS->add_ba_req_in_progress = false;
-	pTS->bAddBaReqDelayed = false;
+	pTS->add_ba_req_delayed = false;
 	pTS->bUsingBa = false;
 	ResetBaEntry(&pTS->tx_admitted_ba_record); //For BA Originator
 	ResetBaEntry(&pTS->tx_pending_ba_record);
@@ -524,7 +524,7 @@ void TsStartAddBaProcess(struct ieee80211_device *ieee, struct tx_ts_record *pTx
 {
 	if(!pTxTS->add_ba_req_in_progress) {
 		pTxTS->add_ba_req_in_progress = true;
-		if(pTxTS->bAddBaReqDelayed)	{
+		if(pTxTS->add_ba_req_delayed)	{
 			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer,
 				  jiffies + msecs_to_jiffies(TS_ADDBA_DELAY));

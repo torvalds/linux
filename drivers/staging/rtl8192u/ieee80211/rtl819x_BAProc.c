@@ -500,7 +500,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		//
 		if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED) {
 			// Since this is a kind of ADDBA failed, we delay next ADDBA process.
-			pTS->bAddBaReqDelayed = true;
+			pTS->add_ba_req_delayed = true;
 			DeActivateBAEntry(ieee, pAdmittedBA);
 			ReasonCode = DELBA_REASON_END_BA;
 			goto OnADDBARsp_Reject;
@@ -518,7 +518,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		ActivateBAEntry(ieee, pAdmittedBA, *pBaTimeoutVal);
 	} else {
 		// Delay next ADDBA process.
-		pTS->bAddBaReqDelayed = true;
+		pTS->add_ba_req_delayed = true;
 	}
 
 	// End of procedure
@@ -596,7 +596,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 		pTxTs->bUsingBa = false;
 		pTxTs->add_ba_req_in_progress = false;
-		pTxTs->bAddBaReqDelayed = false;
+		pTxTs->add_ba_req_delayed = false;
 		del_timer_sync(&pTxTs->TsAddBaTimer);
 		//PlatformCancelTimer(Adapter, &pTxTs->TsAddBaTimer);
 		TxTsDeleteBA(ieee, pTxTs);
@@ -672,7 +672,7 @@ void BaSetupTimeOut(struct timer_list *t)
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, tx_pending_ba_record.Timer);
 
 	pTxTs->add_ba_req_in_progress = false;
-	pTxTs->bAddBaReqDelayed = true;
+	pTxTs->add_ba_req_delayed = true;
 	pTxTs->tx_pending_ba_record.bValid = false;
 }
 

@@ -33,7 +33,7 @@ struct tx_ts_record {
 	BA_RECORD			tx_admitted_ba_record;	/*  For BA Originator */
 /* 	QOS_DL_RECORD		DLRecord; */
 	u8				add_ba_req_in_progress;
-	u8				bAddBaReqDelayed;
+	u8				add_ba_req_delayed;
 	u8				bUsingBa;
 	struct timer_list		TsAddBaTimer;
 	u8				num;
