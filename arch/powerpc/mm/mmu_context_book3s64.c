@@ -200,9 +200,9 @@ static void pte_frag_destroy(void *pte_frag)
 	/* drop all the pending references */
 	count = ((unsigned long)pte_frag & ~PAGE_MASK) >> PTE_FRAG_SIZE_SHIFT;
 	/* We allow PTE_FRAG_NR fragments from a PTE page */
-	if (page_ref_sub_and_test(page, PTE_FRAG_NR - count)) {
+	if (atomic_sub_and_test(PTE_FRAG_NR - count, &page->pt_frag_refcount)) {
 		pgtable_page_dtor(page);
-		free_unref_page(page);
+		__free_page(page);
 	}
 }
 
@@ -215,9 +215,9 @@ static void pmd_frag_destroy(void *pmd_frag)
 	/* drop all the pending references */
 	count = ((unsigned long)pmd_frag & ~PAGE_MASK) >> PMD_FRAG_SIZE_SHIFT;
 	/* We allow PTE_FRAG_NR fragments from a PTE page */
-	if (page_ref_sub_and_test(page, PMD_FRAG_NR - count)) {
+	if (atomic_sub_and_test(PMD_FRAG_NR - count, &page->pt_frag_refcount)) {
 		pgtable_pmd_page_dtor(page);
-		free_unref_page(page);
+		__free_page(page);
 	}
 }
 
