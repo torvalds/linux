@@ -305,12 +305,15 @@ struct fw_rsc_vdev {
 	struct fw_rsc_vdev_vring vring[0];
 } __packed;
 
+struct rproc;
+
 /**
  * struct rproc_mem_entry - memory entry descriptor
  * @va:	virtual address
  * @dma: dma address
  * @len: length, in bytes
  * @da: device address
+ * @release: release associated memory
  * @priv: associated data
  * @node: list node
  */
@@ -321,9 +324,9 @@ struct rproc_mem_entry {
 	u32 da;
 	void *priv;
 	struct list_head node;
+	int (*release)(struct rproc *rproc, struct rproc_mem_entry *mem);
 };
 
-struct rproc;
 struct firmware;
 
 /**
