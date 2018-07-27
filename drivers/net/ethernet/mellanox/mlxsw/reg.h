@@ -3405,6 +3405,94 @@ static inline void mlxsw_reg_qrwe_pack(char *payload, u8 local_port,
 	mlxsw_reg_qrwe_dscp_set(payload, rewrite_dscp);
 }
 
+/* QPDSM - QoS Priority to DSCP Mapping
+ * ------------------------------------
+ * QoS Priority to DSCP Mapping Register
+ */
+#define MLXSW_REG_QPDSM_ID 0x4011
+#define MLXSW_REG_QPDSM_BASE_LEN 0x04 /* base length, without records */
+#define MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN 0x4 /* record length */
+#define MLXSW_REG_QPDSM_PRIO_ENTRY_REC_MAX_COUNT 16
+#define MLXSW_REG_QPDSM_LEN (MLXSW_REG_QPDSM_BASE_LEN +			\
+			     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN *	\
+			     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(qpdsm, MLXSW_REG_QPDSM_ID, MLXSW_REG_QPDSM_LEN);
+
+/* reg_qpdsm_local_port
+ * Local Port. Supported for data packets from CPU port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, qpdsm, local_port, 0x00, 16, 8);
+
+/* reg_qpdsm_prio_entry_color0_e
+ * Enable update of the entry for color 0 and a given port.
+ * Access: WO
+ */
+MLXSW_ITEM32_INDEXED(reg, qpdsm, prio_entry_color0_e,
+		     MLXSW_REG_QPDSM_BASE_LEN, 31, 1,
+		     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN, 0x00, false);
+
+/* reg_qpdsm_prio_entry_color0_dscp
+ * DSCP field in the outer label of the packet for color 0 and a given port.
+ * Reserved when e=0.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, qpdsm, prio_entry_color0_dscp,
+		     MLXSW_REG_QPDSM_BASE_LEN, 24, 6,
+		     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN, 0x00, false);
+
+/* reg_qpdsm_prio_entry_color1_e
+ * Enable update of the entry for color 1 and a given port.
+ * Access: WO
+ */
+MLXSW_ITEM32_INDEXED(reg, qpdsm, prio_entry_color1_e,
+		     MLXSW_REG_QPDSM_BASE_LEN, 23, 1,
+		     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN, 0x00, false);
+
+/* reg_qpdsm_prio_entry_color1_dscp
+ * DSCP field in the outer label of the packet for color 1 and a given port.
+ * Reserved when e=0.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, qpdsm, prio_entry_color1_dscp,
+		     MLXSW_REG_QPDSM_BASE_LEN, 16, 6,
+		     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN, 0x00, false);
+
+/* reg_qpdsm_prio_entry_color2_e
+ * Enable update of the entry for color 2 and a given port.
+ * Access: WO
+ */
+MLXSW_ITEM32_INDEXED(reg, qpdsm, prio_entry_color2_e,
+		     MLXSW_REG_QPDSM_BASE_LEN, 15, 1,
+		     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN, 0x00, false);
+
+/* reg_qpdsm_prio_entry_color2_dscp
+ * DSCP field in the outer label of the packet for color 2 and a given port.
+ * Reserved when e=0.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, qpdsm, prio_entry_color2_dscp,
+		     MLXSW_REG_QPDSM_BASE_LEN, 8, 6,
+		     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_qpdsm_pack(char *payload, u8 local_port)
+{
+	MLXSW_REG_ZERO(qpdsm, payload);
+	mlxsw_reg_qpdsm_local_port_set(payload, local_port);
+}
+
+static inline void
+mlxsw_reg_qpdsm_prio_pack(char *payload, unsigned short prio, u8 dscp)
+{
+	mlxsw_reg_qpdsm_prio_entry_color0_e_set(payload, prio, 1);
+	mlxsw_reg_qpdsm_prio_entry_color0_dscp_set(payload, prio, dscp);
+	mlxsw_reg_qpdsm_prio_entry_color1_e_set(payload, prio, 1);
+	mlxsw_reg_qpdsm_prio_entry_color1_dscp_set(payload, prio, dscp);
+	mlxsw_reg_qpdsm_prio_entry_color2_e_set(payload, prio, 1);
+	mlxsw_reg_qpdsm_prio_entry_color2_dscp_set(payload, prio, dscp);
+}
+
 /* QPDPM - QoS Port DSCP to Priority Mapping Register
  * --------------------------------------------------
  * This register controls the mapping from DSCP field to
@@ -8671,6 +8759,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
 	MLXSW_REG(qrwe),
+	MLXSW_REG(qpdsm),
 	MLXSW_REG(qpdpm),
 	MLXSW_REG(pmlp),
 	MLXSW_REG(pmtu),
