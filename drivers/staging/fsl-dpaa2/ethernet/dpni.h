@@ -117,15 +117,12 @@ int dpni_close(struct fsl_mc_io	*mc_io,
  * @num_dpbp: Number of DPBPs
  * @pools: Array of buffer pools parameters; The number of valid entries
  *	must match 'num_dpbp' value
+ * @pools.dpbp_id: DPBP object ID
+ * @pools.buffer_size: Buffer size
+ * @pools.backup_pool: Backup pool
  */
 struct dpni_pools_cfg {
 	u8		num_dpbp;
-	/**
-	 * struct pools - Buffer pools parameters
-	 * @dpbp_id: DPBP object ID
-	 * @buffer_size: Buffer size
-	 * @backup_pool: Backup pool
-	 */
 	struct {
 		int	dpbp_id;
 		u16	buffer_size;
@@ -424,16 +421,32 @@ int dpni_get_tx_data_offset(struct fsl_mc_io	*mc_io,
 
 #define DPNI_STATISTICS_CNT		7
 
+/**
+ * union dpni_statistics - Union describing the DPNI statistics
+ * @page_0: Page_0 statistics structure
+ * @page_0.ingress_all_frames: Ingress frame count
+ * @page_0.ingress_all_bytes: Ingress byte count
+ * @page_0.ingress_multicast_frames: Ingress multicast frame count
+ * @page_0.ingress_multicast_bytes: Ingress multicast byte count
+ * @page_0.ingress_broadcast_frames: Ingress broadcast frame count
+ * @page_0.ingress_broadcast_bytes: Ingress broadcast byte count
+ * @page_1: Page_1 statistics structure
+ * @page_1.egress_all_frames: Egress frame count
+ * @page_1.egress_all_bytes: Egress byte count
+ * @page_1.egress_multicast_frames: Egress multicast frame count
+ * @page_1.egress_multicast_bytes: Egress multicast byte count
+ * @page_1.egress_broadcast_frames: Egress broadcast frame count
+ * @page_1.egress_broadcast_bytes: Egress broadcast byte count
+ * @page_2: Page_2 statistics structure
+ * @page_2.ingress_filtered_frames: Ingress filtered frame count
+ * @page_2.ingress_discarded_frames: Ingress discarded frame count
+ * @page_2.ingress_nobuffer_discards: Ingress discarded frame count due to
+ *	lack of buffers
+ * @page_2.egress_discarded_frames: Egress discarded frame count
+ * @page_2.egress_confirmed_frames: Egress confirmed frame count
+ * @raw: raw statistics structure, used to index counters
+ */
 union dpni_statistics {
-	/**
-	 * struct page_0 - Page_0 statistics structure
-	 * @ingress_all_frames: Ingress frame count
-	 * @ingress_all_bytes: Ingress byte count
-	 * @ingress_multicast_frames: Ingress multicast frame count
-	 * @ingress_multicast_bytes: Ingress multicast byte count
-	 * @ingress_broadcast_frames: Ingress broadcast frame count
-	 * @ingress_broadcast_bytes: Ingress broadcast byte count
-	 */
 	struct {
 		u64 ingress_all_frames;
 		u64 ingress_all_bytes;
@@ -442,15 +455,6 @@ union dpni_statistics {
 		u64 ingress_broadcast_frames;
 		u64 ingress_broadcast_bytes;
 	} page_0;
-	/**
-	 * struct page_1 - Page_1 statistics structure
-	 * @egress_all_frames: Egress frame count
-	 * @egress_all_bytes: Egress byte count
-	 * @egress_multicast_frames: Egress multicast frame count
-	 * @egress_multicast_bytes: Egress multicast byte count
-	 * @egress_broadcast_frames: Egress broadcast frame count
-	 * @egress_broadcast_bytes: Egress broadcast byte count
-	 */
 	struct {
 		u64 egress_all_frames;
 		u64 egress_all_bytes;
@@ -459,15 +463,6 @@ union dpni_statistics {
 		u64 egress_broadcast_frames;
 		u64 egress_broadcast_bytes;
 	} page_1;
-	/**
-	 * struct page_2 - Page_2 statistics structure
-	 * @ingress_filtered_frames: Ingress filtered frame count
-	 * @ingress_discarded_frames: Ingress discarded frame count
-	 * @ingress_nobuffer_discards: Ingress discarded frame count
-	 *				due to lack of buffers
-	 * @egress_discarded_frames: Egress discarded frame count
-	 * @egress_confirmed_frames: Egress confirmed frame count
-	 */
 	struct {
 		u64 ingress_filtered_frames;
 		u64 ingress_discarded_frames;
@@ -475,9 +470,6 @@ union dpni_statistics {
 		u64 egress_discarded_frames;
 		u64 egress_confirmed_frames;
 	} page_2;
-	/**
-	 * struct raw - raw statistics structure
-	 */
 	struct {
 		u64 counter[DPNI_STATISTICS_CNT];
 	} raw;
@@ -685,29 +677,52 @@ enum dpni_dest {
 
 /**
  * struct dpni_queue - Queue structure
- * @user_context: User data, presented to the user along with any frames from
- *		this queue. Not relevant for Tx queues.
+ * @destination - Destination structure
+ * @destination.id: ID of the destination, only relevant if DEST_TYPE is > 0.
+ *	Identifies either a DPIO or a DPCON object.
+ *	Not relevant for Tx queues.
+ * @destination.type:	May be one of the following:
+ *	0 - No destination, queue can be manually
+ *		queried, but will not push traffic or
+ *		notifications to a DPIO;
+ *	1 - The destination is a DPIO. When traffic
+ *		becomes available in the queue a FQDAN
+ *		(FQ data available notification) will be
+ *		generated to selected DPIO;
+ *	2 - The destination is a DPCON. The queue is
+ *		associated with a DPCON object for the
+ *		purpose of scheduling between multiple
+ *		queues. The DPCON may be independently
+ *		configured to generate notifications.
+ *		Not relevant for Tx queues.
+ * @destination.hold_active: Hold active, maintains a queue scheduled for longer
+ *	in a DPIO during dequeue to reduce spread of traffic.
+ *	Only relevant if queues are
+ *	not affined to a single DPIO.
+ * @user_context: User data, presented to the user along with any frames
+ *	from this queue. Not relevant for Tx queues.
+ * @flc: FD FLow Context structure
+ * @flc.value: Default FLC value for traffic dequeued from
+ *      this queue.  Please check description of FD
+ *      structure for more information.
+ *      Note that FLC values set using dpni_add_fs_entry,
+ *      if any, take precedence over values per queue.
+ * @flc.stash_control: Boolean, indicates whether the 6 lowest
+ *      - significant bits are used for stash control.
+ *      significant bits are used for stash control.  If set, the 6
+ *      least significant bits in value are interpreted as follows:
+ *      - bits 0-1: indicates the number of 64 byte units of context
+ *      that are stashed.  FLC value is interpreted as a memory address
+ *      in this case, excluding the 6 LS bits.
+ *      - bits 2-3: indicates the number of 64 byte units of frame
+ *      annotation to be stashed.  Annotation is placed at FD[ADDR].
+ *      - bits 4-5: indicates the number of 64 byte units of frame
+ *      data to be stashed.  Frame data is placed at FD[ADDR] +
+ *      FD[OFFSET].
+ *      For more details check the Frame Descriptor section in the
+ *      hardware documentation.
  */
 struct dpni_queue {
-/**
- * struct destination - Destination structure
- * @id: ID of the destination, only relevant if DEST_TYPE is > 0.
- *		Identifies either a DPIO or a DPCON object. Not relevant for
- *		Tx queues.
- * @type: May be one of the following:
- *	0 - No destination, queue can be manually queried, but will not
- *		push traffic or notifications to a DPIO;
- *	1 - The destination is a DPIO. When traffic becomes available in
- *		the queue a FQDAN (FQ data available notification) will be
- *		generated to selected DPIO;
- *	2 - The destination is a DPCON. The queue is associated with a
- *		DPCON object for the purpose of scheduling between multiple
- *		queues. The DPCON may be independently configured to
- *		generate notifications. Not relevant for Tx queues.
- * @hold_active: Hold active, maintains a queue scheduled for longer
- *		in a DPIO during dequeue to reduce spread of traffic.
- *		Only relevant if queues are not affined to a single DPIO.
- */
 	struct {
 		u16 id;
 		enum dpni_dest type;
