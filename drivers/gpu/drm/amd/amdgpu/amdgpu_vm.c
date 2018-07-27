@@ -2344,6 +2344,35 @@ struct amdgpu_bo_va_mapping *amdgpu_vm_bo_lookup_mapping(struct amdgpu_vm *vm,
 }
 
 /**
+ * amdgpu_vm_bo_trace_cs - trace all reserved mappings
+ *
+ * @vm: the requested vm
+ * @ticket: CS ticket
+ *
+ * Trace all mappings of BOs reserved during a command submission.
+ */
+void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket)
+{
+	struct amdgpu_bo_va_mapping *mapping;
+
+	if (!trace_amdgpu_vm_bo_cs_enabled())
+		return;
+
+	for (mapping = amdgpu_vm_it_iter_first(&vm->va, 0, U64_MAX); mapping;
+	     mapping = amdgpu_vm_it_iter_next(mapping, 0, U64_MAX)) {
+		if (mapping->bo_va && mapping->bo_va->base.bo) {
+			struct amdgpu_bo *bo;
+
+			bo = mapping->bo_va->base.bo;
+			if (READ_ONCE(bo->tbo.resv->lock.ctx) != ticket)
+				continue;
+		}
+
+		trace_amdgpu_vm_bo_cs(mapping);
+	}
+}
+
+/**
  * amdgpu_vm_bo_rmv - remove a bo to a specific vm
  *
  * @adev: amdgpu_device pointer

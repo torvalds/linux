@@ -1223,6 +1223,7 @@ static void amdgpu_cs_post_dependencies(struct amdgpu_cs_parser *p)
 static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			    union drm_amdgpu_cs *cs)
 {
+	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_ring *ring = p->ring;
 	struct drm_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
 	enum drm_sched_priority priority;
@@ -1275,6 +1276,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	amdgpu_job_free_resources(job);
 
 	trace_amdgpu_cs_ioctl(job);
+	amdgpu_vm_bo_trace_cs(&fpriv->vm, &p->ticket);
 	priority = job->base.s_priority;
 	drm_sched_entity_push_job(&job->base, entity);
 
