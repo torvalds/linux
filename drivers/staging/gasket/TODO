@@ -4,7 +4,6 @@ staging directory.
 - Document sysfs files with Documentation/ABI/ entries.
 - Use misc interface instead of major number for driver version description.
 - Add descriptions of module_param's
-- Remove gasket-specific logging functions.
 - apex_get_status() should actually check status.
 - Static functions don't need kernel doc formatting, can be simplified.
 - Fix multi-line alignment formatting to look like:
