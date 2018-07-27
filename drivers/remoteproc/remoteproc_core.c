@@ -940,7 +940,7 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 	if (ret) {
 		dev_err(dev, "failed to prepare subdevices for %s: %d\n",
 			rproc->name, ret);
-		return ret;
+		goto reset_table_ptr;
 	}
 
 	/* power up the remote processor */
@@ -966,9 +966,10 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 
 stop_rproc:
 	rproc->ops->stop(rproc);
-
 unprepare_subdevices:
 	rproc_unprepare_subdevices(rproc);
+reset_table_ptr:
+	rproc->table_ptr = rproc->cached_table;
 
 	return ret;
 }
