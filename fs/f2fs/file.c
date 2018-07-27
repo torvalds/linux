@@ -1708,8 +1708,11 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 
 	down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 
-	if (f2fs_is_atomic_file(inode))
+	if (f2fs_is_atomic_file(inode)) {
+		if (is_inode_flag_set(inode, FI_ATOMIC_REVOKE_REQUEST))
+			ret = -EINVAL;
 		goto out;
+	}
 
 	ret = f2fs_convert_inline_inode(inode);
 	if (ret)
@@ -1870,6 +1873,8 @@ static int f2fs_ioc_abort_volatile_write(struct file *filp)
 		stat_dec_volatile_write(inode);
 		ret = f2fs_do_sync_file(filp, 0, LLONG_MAX, 0, true);
 	}
+
+	clear_inode_flag(inode, FI_ATOMIC_REVOKE_REQUEST);
 
 	inode_unlock(inode);
 
