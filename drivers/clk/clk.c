@@ -2170,28 +2170,26 @@ static int clock_debug_rate_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(clock_rate_fops, clock_debug_rate_get,
 			clock_debug_rate_set, "%llu\n");
 
-static int clock_available_parent_show(struct seq_file *s, void *data)
+static int possible_parents_show(struct seq_file *s, void *data)
 {
-	struct clk_core *core = (struct clk_core *)s->private;
+	struct clk_core *core = s->private;
 	int i;
 
-	for (i = 0; i < core->num_parents; i++) {
-		if (!core->parents[i])
-			continue;
-		seq_printf(s, "%s ", core->parents[i]->name);
-	}
-	seq_puts(s, "\n");
+	for (i = 0; i < core->num_parents - 1; i++)
+		seq_printf(s, "%s ", core->parent_names[i]);
+
+	seq_printf(s, "%s\n", core->parent_names[i]);
 
 	return 0;
 }
 
-static int clock_available_parent_open(struct inode *inode, struct file *file)
+static int possible_parents_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, clock_available_parent_show, inode->i_private);
+	return single_open(file, possible_parents_show, inode->i_private);
 }
 
-static const struct file_operations clock_available_parent_fops = {
-	.open		= clock_available_parent_open,
+static const struct file_operations possible_parents_fops = {
+	.open		= possible_parents_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -2223,6 +2221,9 @@ static ssize_t clock_parent_write(struct file *filp, const char __user *buf,
 	ret = sscanf(temp, "%s", name);
 	if (ret != 1)
 		return -EINVAL;
+
+	if (core->num_parents <= 1)
+		return cnt;
 
 	for (i = 0; i < core->num_parents; i++) {
 		if (!core->parents[i])
@@ -2400,10 +2401,13 @@ static int clk_debug_create_one(struct clk_core *core, struct dentry *pdentry)
 	if (!d)
 		goto err_out;
 
-	d = debugfs_create_file("clk_available_parent", S_IRUGO, core->dentry,
-				core, &clock_available_parent_fops);
-	if (!d)
-		goto err_out;
+	if (core->num_parents > 1) {
+		d = debugfs_create_file("clk_possible_parents", S_IRUGO,
+					core->dentry, core,
+					&possible_parents_fops);
+		if (!d)
+			goto err_out;
+	}
 
 	d = debugfs_create_file("clk_parent", S_IRUGO  | S_IWUSR, core->dentry,
 				core, &clock_parent_fops);
