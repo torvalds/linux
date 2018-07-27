@@ -626,9 +626,10 @@ static int sdw_program_params(struct sdw_bus *bus)
 	return ret;
 }
 
-static int sdw_bank_switch(struct sdw_bus *bus)
+static int sdw_bank_switch(struct sdw_bus *bus, int m_rt_count)
 {
 	int col_index, row_index;
+	bool multi_link;
 	struct sdw_msg *wr_msg;
 	u8 *wbuf = NULL;
 	int ret = 0;
@@ -637,6 +638,8 @@ static int sdw_bank_switch(struct sdw_bus *bus)
 	wr_msg = kzalloc(sizeof(*wr_msg), GFP_KERNEL);
 	if (!wr_msg)
 		return -ENOMEM;
+
+	bus->defer_msg.msg = wr_msg;
 
 	wbuf = kzalloc(sizeof(*wbuf), GFP_KERNEL);
 	if (!wbuf) {
@@ -658,17 +661,29 @@ static int sdw_bank_switch(struct sdw_bus *bus)
 					SDW_MSG_FLAG_WRITE, wbuf);
 	wr_msg->ssp_sync = true;
 
-	ret = sdw_transfer(bus, wr_msg);
+	/*
+	 * Set the multi_link flag only when both the hardware supports
+	 * and there is a stream handled by multiple masters
+	 */
+	multi_link = bus->multi_link && (m_rt_count > 1);
+
+	if (multi_link)
+		ret = sdw_transfer_defer(bus, wr_msg, &bus->defer_msg);
+	else
+		ret = sdw_transfer(bus, wr_msg);
+
 	if (ret < 0) {
 		dev_err(bus->dev, "Slave frame_ctrl reg write failed");
 		goto error;
 	}
 
-	kfree(wr_msg);
-	kfree(wbuf);
-	bus->defer_msg.msg = NULL;
-	bus->params.curr_bank = !bus->params.curr_bank;
-	bus->params.next_bank = !bus->params.next_bank;
+	if (!multi_link) {
+		kfree(wr_msg);
+		kfree(wbuf);
+		bus->defer_msg.msg = NULL;
+		bus->params.curr_bank = !bus->params.curr_bank;
+		bus->params.next_bank = !bus->params.next_bank;
+	}
 
 	return 0;
 
@@ -679,17 +694,56 @@ error_1:
 	return ret;
 }
 
+/**
+ * sdw_ml_sync_bank_switch: Multilink register bank switch
+ *
+ * @bus: SDW bus instance
+ *
+ * Caller function should free the buffers on error
+ */
+static int sdw_ml_sync_bank_switch(struct sdw_bus *bus)
+{
+	unsigned long time_left;
+
+	if (!bus->multi_link)
+		return 0;
+
+	/* Wait for completion of transfer */
+	time_left = wait_for_completion_timeout(&bus->defer_msg.complete,
+						bus->bank_switch_timeout);
+
+	if (!time_left) {
+		dev_err(bus->dev, "Controller Timed out on bank switch");
+		return -ETIMEDOUT;
+	}
+
+	bus->params.curr_bank = !bus->params.curr_bank;
+	bus->params.next_bank = !bus->params.next_bank;
+
+	if (bus->defer_msg.msg) {
+		kfree(bus->defer_msg.msg->buf);
+		kfree(bus->defer_msg.msg);
+	}
+
+	return 0;
+}
+
 static int do_bank_switch(struct sdw_stream_runtime *stream)
 {
 	struct sdw_master_runtime *m_rt = NULL;
 	const struct sdw_master_ops *ops;
 	struct sdw_bus *bus = NULL;
+	bool multi_link = false;
 	int ret = 0;
-
 
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
 		bus = m_rt->bus;
 		ops = bus->ops;
+
+		if (bus->multi_link) {
+			multi_link = true;
+			mutex_lock(&bus->msg_lock);
+		}
 
 		/* Pre-bank switch */
 		if (ops->pre_bank_switch) {
@@ -697,18 +751,30 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 			if (ret < 0) {
 				dev_err(bus->dev,
 					"Pre bank switch op failed: %d", ret);
-				return ret;
+				goto msg_unlock;
 			}
 		}
 
-		/* Bank switch */
-		ret = sdw_bank_switch(bus);
+		/*
+		 * Perform Bank switch operation.
+		 * For multi link cases, the actual bank switch is
+		 * synchronized across all Masters and happens later as a
+		 * part of post_bank_switch ops.
+		 */
+		ret = sdw_bank_switch(bus, stream->m_rt_count);
 		if (ret < 0) {
 			dev_err(bus->dev, "Bank switch failed: %d", ret);
-			return ret;
+			goto error;
+
 		}
 	}
 
+	/*
+	 * For multi link cases, it is expected that the bank switch is
+	 * triggered by the post_bank_switch for the first Master in the list
+	 * and for the other Masters the post_bank_switch() should return doing
+	 * nothing.
+	 */
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
 		bus = m_rt->bus;
 		ops = bus->ops;
@@ -719,7 +785,47 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 			if (ret < 0) {
 				dev_err(bus->dev,
 					"Post bank switch op failed: %d", ret);
+				goto error;
 			}
+		} else if (bus->multi_link && stream->m_rt_count > 1) {
+			dev_err(bus->dev,
+				"Post bank switch ops not implemented");
+			goto error;
+		}
+
+		/* Set the bank switch timeout to default, if not set */
+		if (!bus->bank_switch_timeout)
+			bus->bank_switch_timeout = DEFAULT_BANK_SWITCH_TIMEOUT;
+
+		/* Check if bank switch was successful */
+		ret = sdw_ml_sync_bank_switch(bus);
+		if (ret < 0) {
+			dev_err(bus->dev,
+				"multi link bank switch failed: %d", ret);
+			goto error;
+		}
+
+		mutex_unlock(&bus->msg_lock);
+	}
+
+	return ret;
+
+error:
+	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+
+		bus = m_rt->bus;
+
+		kfree(bus->defer_msg.msg->buf);
+		kfree(bus->defer_msg.msg);
+	}
+
+msg_unlock:
+
+	if (multi_link) {
+		list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+			bus = m_rt->bus;
+			if (mutex_is_locked(&bus->msg_lock))
+				mutex_unlock(&bus->msg_lock);
 		}
 	}
 
@@ -964,6 +1070,7 @@ int sdw_stream_remove_master(struct sdw_bus *bus,
 
 		sdw_master_port_release(bus, m_rt);
 		sdw_release_master_stream(m_rt, stream);
+		stream->m_rt_count--;
 	}
 
 	if (list_empty(&stream->master_list))
@@ -1150,6 +1257,18 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 
 	mutex_lock(&bus->bus_lock);
 
+	/*
+	 * For multi link streams, add the second master only if
+	 * the bus supports it.
+	 * Check if bus->multi_link is set
+	 */
+	if (!bus->multi_link && stream->m_rt_count > 0) {
+		dev_err(bus->dev,
+			"Multilink not supported, link %d", bus->link_id);
+		ret = -EINVAL;
+		goto unlock;
+	}
+
 	m_rt = sdw_alloc_master_rt(bus, stream_config, stream);
 	if (!m_rt) {
 		dev_err(bus->dev,
@@ -1166,6 +1285,8 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 	ret = sdw_master_port_config(bus, m_rt, port_config, num_ports);
 	if (ret)
 		goto stream_error;
+
+	stream->m_rt_count++;
 
 	goto unlock;
 

@@ -678,6 +678,9 @@ struct sdw_master_ops {
  * @defer_msg: Defer message
  * @clk_stop_timeout: Clock stop timeout computed
  * @bank_switch_timeout: Bank switch timeout computed
+ * @multi_link: Store bus property that indicates if multi links
+ * are supported. This flag is populated by drivers after reading
+ * appropriate firmware (ACPI/DT).
  */
 struct sdw_bus {
 	struct device *dev;
@@ -694,6 +697,7 @@ struct sdw_bus {
 	struct sdw_defer defer_msg;
 	unsigned int clk_stop_timeout;
 	u32 bank_switch_timeout;
+	bool multi_link;
 };
 
 int sdw_add_bus_master(struct sdw_bus *bus);

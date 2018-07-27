@@ -35,6 +35,11 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	INIT_LIST_HEAD(&bus->slaves);
 	INIT_LIST_HEAD(&bus->m_rt_list);
 
+	/*
+	 * Initialize multi_link flag
+	 * TODO: populate this flag by reading property from FW node
+	 */
+	bus->multi_link = false;
 	if (bus->ops->read_prop) {
 		ret = bus->ops->read_prop(bus);
 		if (ret < 0) {
