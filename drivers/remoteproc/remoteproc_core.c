@@ -259,6 +259,53 @@ rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...)
 	return mem;
 }
 
+/**
+ * rproc_check_carveout_da() - Check specified carveout da configuration
+ * @rproc: handle of a remote processor
+ * @mem: pointer on carveout to check
+ * @da: area device address
+ * @len: associated area size
+ *
+ * This function is a helper function to verify requested device area (couple
+ * da, len) is part of specified carevout.
+ *
+ * Return: 0 if carveout match request else -ENOMEM
+ */
+int rproc_check_carveout_da(struct rproc *rproc, struct rproc_mem_entry *mem,
+			    u32 da, u32 len)
+{
+	struct device *dev = &rproc->dev;
+	int delta = 0;
+
+	/* Check requested resource length */
+	if (len > mem->len) {
+		dev_err(dev, "Registered carveout doesn't fit len request\n");
+		return -ENOMEM;
+	}
+
+	if (da != FW_RSC_ADDR_ANY && mem->da == FW_RSC_ADDR_ANY) {
+		/* Update existing carveout da */
+		mem->da = da;
+	} else if (da != FW_RSC_ADDR_ANY && mem->da != FW_RSC_ADDR_ANY) {
+		delta = da - mem->da;
+
+		/* Check requested resource belongs to registered carveout */
+		if (delta < 0) {
+			dev_err(dev,
+				"Registered carveout doesn't fit da request\n");
+			return -ENOMEM;
+		}
+
+		if (delta + len > mem->len) {
+			dev_err(dev,
+				"Registered carveout doesn't fit len request\n");
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
 int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 {
 	struct rproc *rproc = rvdev->rproc;
