@@ -2504,7 +2504,8 @@ ssize_t ib_uverbs_post_srq_recv(struct ib_uverbs_file *file,
 		goto out;
 
 	resp.bad_wr = 0;
-	ret = srq->device->post_srq_recv(srq, wr, &bad_wr);
+	ret = srq->device->post_srq_recv ?
+		srq->device->post_srq_recv(srq, wr, &bad_wr) : -EOPNOTSUPP;
 
 	uobj_put_obj_read(srq);
 

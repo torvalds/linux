@@ -479,6 +479,9 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 {
 	struct ib_ah *ah;
 
+	if (!pd->device->create_ah)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	ah = pd->device->create_ah(pd, ah_attr, udata);
 
 	if (!IS_ERR(ah)) {
