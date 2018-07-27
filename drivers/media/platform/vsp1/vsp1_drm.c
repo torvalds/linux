@@ -728,9 +728,6 @@ EXPORT_SYMBOL_GPL(vsp1_du_setup_lif);
  */
 void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index)
 {
-	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
-
-	mutex_lock(&vsp1->drm->lock);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -846,6 +843,7 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
 
 	drm_pipe->crc = cfg->crc;
 
+	mutex_lock(&vsp1->drm->lock);
 	vsp1_du_pipeline_setup_inputs(vsp1, pipe);
 	vsp1_du_pipeline_configure(pipe);
 	mutex_unlock(&vsp1->drm->lock);
