@@ -883,6 +883,7 @@ static bool construct(
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;
 	dc->caps.dual_link_dvi = true;
+	dc->caps.psp_setup_panel_mode = true;
 
 	dc->debug = debug_defaults;
 

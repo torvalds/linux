@@ -79,6 +79,7 @@ struct dc_caps {
 	bool post_blend_color_processing;
 	bool force_dp_tps4_for_cp2520;
 	bool disable_dp_clk_share;
+	bool psp_setup_panel_mode;
 };
 
 struct dc_dcc_surface_param {
