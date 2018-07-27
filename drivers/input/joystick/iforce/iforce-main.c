@@ -29,19 +29,21 @@ MODULE_LICENSE("GPL");
 
 static signed short btn_joystick[] =
 { BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A, BTN_B, BTN_C, -1 };
+  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A,
+  BTN_B, BTN_C, BTN_DEAD, -1 };
 
 static signed short btn_avb_pegasus[] =
 { BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, -1 };
+  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_DEAD, -1 };
 
 static signed short btn_wheel[] =
 { BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A, BTN_B, BTN_C, -1 };
+  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A,
+  BTN_B, BTN_C, BTN_DEAD, -1 };
 
 static signed short btn_avb_tw[] =
 { BTN_TRIGGER, BTN_THUMB, BTN_TOP, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, -1 };
+  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_DEAD, -1 };
 
 static signed short btn_avb_wheel[] =
 { BTN_GEAR_DOWN, BTN_GEAR_UP, BTN_BASE, BTN_BASE2, BTN_BASE3,
@@ -384,7 +386,6 @@ int iforce_init_device(struct iforce *iforce)
 
 	for (i = 0; iforce->type->btn[i] >= 0; i++)
 		set_bit(iforce->type->btn[i], input_dev->keybit);
-	set_bit(BTN_DEAD, input_dev->keybit);
 
 	for (i = 0; iforce->type->abs[i] >= 0; i++) {
 
