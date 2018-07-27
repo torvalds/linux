@@ -219,6 +219,7 @@ static void cx_auto_reboot_notify(struct hda_codec *codec)
 	snd_hda_codec_set_power_to_all(codec, codec->core.afg, AC_PWRST_D3);
 	snd_hda_codec_write(codec, codec->core.afg, 0,
 			    AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
+	msleep(10);
 }
 
 static void cx_auto_free(struct hda_codec *codec)
