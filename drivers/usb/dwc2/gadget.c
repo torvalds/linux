@@ -106,6 +106,23 @@ static inline bool using_desc_dma(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * dwc2_hsotg_read_frameno - read current frame number
+ * @hsotg: The device instance
+ *
+ * Return the current frame number
+ */
+static u32 dwc2_hsotg_read_frameno(struct dwc2_hsotg *hsotg)
+{
+	u32 dsts;
+
+	dsts = dwc2_readl(hsotg, DSTS);
+	dsts &= DSTS_SOFFN_MASK;
+	dsts >>= DSTS_SOFFN_SHIFT;
+
+	return dsts;
+}
+
+/**
  * dwc2_gadget_incr_frame_num - Increments the targeted frame number.
  * @hs_ep: The endpoint
  *
@@ -114,11 +131,14 @@ static inline bool using_desc_dma(struct dwc2_hsotg *hsotg)
  */
 static inline void dwc2_gadget_incr_frame_num(struct dwc2_hsotg_ep *hs_ep)
 {
+	struct dwc2_hsotg *hsotg = hs_ep->parent;
+	u32 current_frame = dwc2_hsotg_read_frameno(hsotg);
+
 	hs_ep->target_frame += hs_ep->interval;
 	if (hs_ep->target_frame > DSTS_SOFFN_LIMIT) {
 		hs_ep->frame_overrun = true;
 		hs_ep->target_frame &= DSTS_SOFFN_LIMIT;
-	} else {
+	} else if (current_frame <= hs_ep->target_frame) {
 		hs_ep->frame_overrun = false;
 	}
 }
@@ -642,23 +662,6 @@ static unsigned int get_ep_limit(struct dwc2_hsotg_ep *hs_ep)
 		maxsize = maxpkt * hs_ep->ep.maxpacket;
 
 	return maxsize;
-}
-
-/**
- * dwc2_hsotg_read_frameno - read current frame number
- * @hsotg: The device instance
- *
- * Return the current frame number
- */
-static u32 dwc2_hsotg_read_frameno(struct dwc2_hsotg *hsotg)
-{
-	u32 dsts;
-
-	dsts = dwc2_readl(hsotg, DSTS);
-	dsts &= DSTS_SOFFN_MASK;
-	dsts >>= DSTS_SOFFN_SHIFT;
-
-	return dsts;
 }
 
 /**
