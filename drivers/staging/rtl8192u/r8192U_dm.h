@@ -32,9 +32,6 @@
 #define		BW_AUTO_SWITCH_HIGH_LOW			25
 #define		BW_AUTO_SWITCH_LOW_HIGH			30
 
-#define		DM_check_fsync_time_interval				500
-
-
 #define		DM_DIG_BACKOFF				12
 #define		DM_DIG_MAX					0x36
 #define		DM_DIG_MIN					0x1c
