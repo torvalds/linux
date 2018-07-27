@@ -2246,6 +2246,28 @@ static int nand_get_features_op(struct nand_chip *chip, u8 feature,
 	return 0;
 }
 
+static int nand_wait_rdy_op(struct nand_chip *chip, unsigned int timeout_ms,
+			    unsigned int delay_ns)
+{
+	if (chip->exec_op) {
+		struct nand_op_instr instrs[] = {
+			NAND_OP_WAIT_RDY(PSEC_TO_MSEC(timeout_ms),
+					 PSEC_TO_NSEC(delay_ns)),
+		};
+		struct nand_operation op = NAND_OPERATION(instrs);
+
+		return nand_exec_op(chip, &op);
+	}
+
+	/* Apply delay or wait for ready/busy pin */
+	if (!chip->dev_ready)
+		udelay(chip->chip_delay);
+	else
+		nand_wait_ready(nand_to_mtd(chip));
+
+	return 0;
+}
+
 /**
  * nand_reset_op - Do a reset operation
  * @chip: The NAND chip
@@ -3526,14 +3548,13 @@ static int nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
 
 static void nand_wait_readrdy(struct nand_chip *chip)
 {
+	const struct nand_sdr_timings *sdr;
+
 	if (!(chip->options & NAND_NEED_READRDY))
 		return;
 
-	/* Apply delay or wait for ready/busy pin */
-	if (!chip->dev_ready)
-		udelay(chip->chip_delay);
-	else
-		nand_wait_ready(nand_to_mtd(chip));
+	sdr = nand_get_sdr_timings(&chip->data_interface);
+	WARN_ON(nand_wait_rdy_op(chip, PSEC_TO_MSEC(sdr->tR_max), 0));
 }
 
 /**
