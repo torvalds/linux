@@ -163,6 +163,9 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 	u32 guc_wopcm_rsvd;
 	int err;
 
+	if (!USES_GUC(dev_priv))
+		return 0;
+
 	GEM_BUG_ON(!wopcm->size);
 
 	if (guc_fw_size >= wopcm->size) {
