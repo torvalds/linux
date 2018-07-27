@@ -319,6 +319,7 @@ struct rproc;
  * @node: list node
  * @rsc_offset: offset in resource table
  * @flags: iommu protection flags
+ * @of_resm_idx: reserved memory phandle index
  * @alloc: specific memory allocator function
  */
 struct rproc_mem_entry {
@@ -331,6 +332,7 @@ struct rproc_mem_entry {
 	struct list_head node;
 	u32 rsc_offset;
 	u32 flags;
+	u32 of_resm_idx;
 	int (*alloc)(struct rproc *rproc, struct rproc_mem_entry *mem);
 	int (*release)(struct rproc *rproc, struct rproc_mem_entry *mem);
 };
@@ -573,6 +575,10 @@ rproc_mem_entry_init(struct device *dev,
 		     int (*alloc)(struct rproc *, struct rproc_mem_entry *),
 		     int (*release)(struct rproc *, struct rproc_mem_entry *),
 		     const char *name, ...);
+
+struct rproc_mem_entry *
+rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, int len,
+			     u32 da, const char *name, ...);
 
 int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);

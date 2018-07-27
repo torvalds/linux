@@ -857,6 +857,7 @@ rproc_mem_entry_init(struct device *dev,
 	mem->alloc = alloc;
 	mem->release = release;
 	mem->rsc_offset = FW_RSC_ADDR_ANY;
+	mem->of_resm_idx = -1;
 
 	va_start(args, name);
 	vsnprintf(mem->name, sizeof(mem->name), name, args);
@@ -865,6 +866,42 @@ rproc_mem_entry_init(struct device *dev,
 	return mem;
 }
 EXPORT_SYMBOL(rproc_mem_entry_init);
+
+/**
+ * rproc_of_resm_mem_entry_init() - allocate and initialize rproc_mem_entry struct
+ * from a reserved memory phandle
+ * @dev: pointer on device struct
+ * @of_resm_idx: reserved memory phandle index in "memory-region"
+ * @len: memory carveout length
+ * @da: device address
+ * @name: carveout name
+ *
+ * This function allocates a rproc_mem_entry struct and fill it with parameters
+ * provided by client.
+ */
+struct rproc_mem_entry *
+rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, int len,
+			     u32 da, const char *name, ...)
+{
+	struct rproc_mem_entry *mem;
+	va_list args;
+
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem)
+		return mem;
+
+	mem->da = da;
+	mem->len = len;
+	mem->rsc_offset = FW_RSC_ADDR_ANY;
+	mem->of_resm_idx = of_resm_idx;
+
+	va_start(args, name);
+	vsnprintf(mem->name, sizeof(mem->name), name, args);
+	va_end(args);
+
+	return mem;
+}
+EXPORT_SYMBOL(rproc_of_resm_mem_entry_init);
 
 /**
  * A lookup table for resource handlers. The indices are defined in
