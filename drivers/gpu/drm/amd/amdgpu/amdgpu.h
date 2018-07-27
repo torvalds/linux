@@ -713,8 +713,8 @@ struct amdgpu_bo_list {
 	struct amdgpu_bo_list_entry *array;
 };
 
-struct amdgpu_bo_list *
-amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id);
+int amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id,
+		       struct amdgpu_bo_list **result);
 void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
 			     struct list_head *validated);
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list);

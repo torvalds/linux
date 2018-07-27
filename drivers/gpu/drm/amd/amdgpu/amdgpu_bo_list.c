@@ -180,27 +180,20 @@ error_free:
 	return r;
 }
 
-struct amdgpu_bo_list *
-amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id)
+int amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id,
+		       struct amdgpu_bo_list **result)
 {
-	struct amdgpu_bo_list *result;
-
 	rcu_read_lock();
-	result = idr_find(&fpriv->bo_list_handles, id);
+	*result = idr_find(&fpriv->bo_list_handles, id);
 
-	if (result) {
-		if (kref_get_unless_zero(&result->refcount)) {
-			rcu_read_unlock();
-			mutex_lock(&result->lock);
-		} else {
-			rcu_read_unlock();
-			result = NULL;
-		}
-	} else {
+	if (*result && kref_get_unless_zero(&(*result)->refcount)) {
 		rcu_read_unlock();
+		mutex_lock(&(*result)->lock);
+		return 0;
 	}
 
-	return result;
+	rcu_read_unlock();
+	return -ENOENT;
 }
 
 void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
@@ -335,9 +328,8 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 		break;
 
 	case AMDGPU_BO_LIST_OP_UPDATE:
-		r = -ENOENT;
-		list = amdgpu_bo_list_get(fpriv, handle);
-		if (!list)
+		r = amdgpu_bo_list_get(fpriv, handle, &list);
+		if (r)
 			goto error_free;
 
 		r = amdgpu_bo_list_set(adev, filp, list, info,

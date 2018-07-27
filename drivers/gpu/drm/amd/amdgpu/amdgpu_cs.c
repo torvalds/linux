@@ -572,10 +572,15 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	INIT_LIST_HEAD(&p->validated);
 
 	/* p->bo_list could already be assigned if AMDGPU_CHUNK_ID_BO_HANDLES is present */
-	if (!p->bo_list)
-		p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
-	else
+	if (p->bo_list) {
 		mutex_lock(&p->bo_list->lock);
+
+	} else if (cs->in.bo_list_handle) {
+		r = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle,
+				       &p->bo_list);
+		if (r)
+			return r;
+	}
 
 	if (p->bo_list) {
 		amdgpu_bo_list_get_list(p->bo_list, &p->validated);
