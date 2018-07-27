@@ -752,6 +752,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	carveout->dma = dma;
 	carveout->da = rsc->da;
 	carveout->release = rproc_release_carveout;
+	strlcpy(carveout->name, rsc->name, sizeof(carveout->name));
 
 	list_add_tail(&carveout->node, &rproc->carveouts);
 

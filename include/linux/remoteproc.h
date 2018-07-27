@@ -315,6 +315,7 @@ struct rproc;
  * @da: device address
  * @release: release associated memory
  * @priv: associated data
+ * @name: associated memory region name (optional)
  * @node: list node
  */
 struct rproc_mem_entry {
@@ -323,6 +324,7 @@ struct rproc_mem_entry {
 	int len;
 	u32 da;
 	void *priv;
+	char name[32];
 	struct list_head node;
 	int (*release)(struct rproc *rproc, struct rproc_mem_entry *mem);
 };
