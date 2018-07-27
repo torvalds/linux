@@ -518,7 +518,7 @@ static ssize_t ad9523_store(struct device *dev,
 		return ret;
 
 	if (!state)
-		return 0;
+		return len;
 
 	mutex_lock(&st->lock);
 	switch ((u32)this_attr->address) {
