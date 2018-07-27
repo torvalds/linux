@@ -116,7 +116,7 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 	pTS->tx_cur_seq = 0;
 	pTS->add_ba_req_in_progress = false;
 	pTS->add_ba_req_delayed = false;
-	pTS->bUsingBa = false;
+	pTS->using_ba = false;
 	ResetBaEntry(&pTS->tx_admitted_ba_record); //For BA Originator
 	ResetBaEntry(&pTS->tx_pending_ba_record);
 }

@@ -34,7 +34,7 @@ struct tx_ts_record {
 /* 	QOS_DL_RECORD		DLRecord; */
 	u8				add_ba_req_in_progress;
 	u8				add_ba_req_delayed;
-	u8				bUsingBa;
+	u8				using_ba;
 	struct timer_list		TsAddBaTimer;
 	u8				num;
 };

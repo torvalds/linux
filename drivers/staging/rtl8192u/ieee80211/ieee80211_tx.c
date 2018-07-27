@@ -340,10 +340,10 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 			TsStartAddBaProcess(ieee, pTxTs);
 			goto FORCED_AGG_SETTING;
 		}
-		else if (!pTxTs->bUsingBa)
+		else if (!pTxTs->using_ba)
 		{
 			if (SN_LESS(pTxTs->tx_admitted_ba_record.BaStartSeqCtrl.field.SeqNum, (pTxTs->tx_cur_seq + 1) % 4096))
-				pTxTs->bUsingBa = true;
+				pTxTs->using_ba = true;
 			else
 				goto FORCED_AGG_SETTING;
 		}
