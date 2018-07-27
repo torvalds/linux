@@ -113,7 +113,7 @@ static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 static void ResetTxTsEntry(struct tx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->ts_common_info);
-	pTS->TxCurSeq = 0;
+	pTS->tx_cur_seq = 0;
 	pTS->bAddBaReqInProgress = false;
 	pTS->bAddBaReqDelayed = false;
 	pTS->bUsingBa = false;

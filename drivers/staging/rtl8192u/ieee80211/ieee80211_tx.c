@@ -342,7 +342,7 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 		}
 		else if (!pTxTs->bUsingBa)
 		{
-			if (SN_LESS(pTxTs->TxAdmittedBARecord.BaStartSeqCtrl.field.SeqNum, (pTxTs->TxCurSeq+1)%4096))
+			if (SN_LESS(pTxTs->TxAdmittedBARecord.BaStartSeqCtrl.field.SeqNum, (pTxTs->tx_cur_seq + 1) % 4096))
 				pTxTs->bUsingBa = true;
 			else
 				goto FORCED_AGG_SETTING;
@@ -589,7 +589,7 @@ static void ieee80211_query_seqnum(struct ieee80211_device *ieee,
 		{
 			return;
 		}
-		pTS->TxCurSeq = (pTS->TxCurSeq+1)%4096;
+		pTS->tx_cur_seq = (pTS->tx_cur_seq + 1) % 4096;
 	}
 }
 

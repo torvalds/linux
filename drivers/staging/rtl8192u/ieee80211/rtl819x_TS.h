@@ -28,7 +28,7 @@ struct ts_common_info {
 
 struct tx_ts_record {
 	struct ts_common_info		ts_common_info;
-	u16				TxCurSeq;
+	u16				tx_cur_seq;
 	BA_RECORD			TxPendingBARecord;	/*  For BA Originator */
 	BA_RECORD			TxAdmittedBARecord;	/*  For BA Originator */
 /* 	QOS_DL_RECORD		DLRecord; */
