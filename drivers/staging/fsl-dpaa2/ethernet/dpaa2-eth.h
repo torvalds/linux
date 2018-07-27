@@ -392,7 +392,6 @@ struct dpaa2_eth_priv {
 #define DPAA2_CLASSIFIER_DMA_SIZE 256
 
 extern const struct ethtool_ops dpaa2_ethtool_ops;
-extern const char dpaa2_eth_drv_version[];
 extern int dpaa2_phc_index;
 
 static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
