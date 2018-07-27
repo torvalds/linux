@@ -16,8 +16,10 @@
 
 #define DH_KPP_SECRET_MIN_SIZE (sizeof(struct kpp_secret) + 4 * sizeof(int))
 
-static inline u8 *dh_pack_data(void *dst, const void *src, size_t size)
+static inline u8 *dh_pack_data(u8 *dst, u8 *end, const void *src, size_t size)
 {
+	if (!dst || size > end - dst)
+		return NULL;
 	memcpy(dst, src, size);
 	return dst + size;
 }
@@ -42,27 +44,27 @@ EXPORT_SYMBOL_GPL(crypto_dh_key_len);
 int crypto_dh_encode_key(char *buf, unsigned int len, const struct dh *params)
 {
 	u8 *ptr = buf;
+	u8 * const end = ptr + len;
 	struct kpp_secret secret = {
 		.type = CRYPTO_KPP_SECRET_TYPE_DH,
 		.len = len
 	};
 
-	if (unlikely(!buf))
+	if (unlikely(!len))
 		return -EINVAL;
 
-	if (len != crypto_dh_key_len(params))
+	ptr = dh_pack_data(ptr, end, &secret, sizeof(secret));
+	ptr = dh_pack_data(ptr, end, &params->key_size,
+			   sizeof(params->key_size));
+	ptr = dh_pack_data(ptr, end, &params->p_size, sizeof(params->p_size));
+	ptr = dh_pack_data(ptr, end, &params->q_size, sizeof(params->q_size));
+	ptr = dh_pack_data(ptr, end, &params->g_size, sizeof(params->g_size));
+	ptr = dh_pack_data(ptr, end, params->key, params->key_size);
+	ptr = dh_pack_data(ptr, end, params->p, params->p_size);
+	ptr = dh_pack_data(ptr, end, params->q, params->q_size);
+	ptr = dh_pack_data(ptr, end, params->g, params->g_size);
+	if (ptr != end)
 		return -EINVAL;
-
-	ptr = dh_pack_data(ptr, &secret, sizeof(secret));
-	ptr = dh_pack_data(ptr, &params->key_size, sizeof(params->key_size));
-	ptr = dh_pack_data(ptr, &params->p_size, sizeof(params->p_size));
-	ptr = dh_pack_data(ptr, &params->q_size, sizeof(params->q_size));
-	ptr = dh_pack_data(ptr, &params->g_size, sizeof(params->g_size));
-	ptr = dh_pack_data(ptr, params->key, params->key_size);
-	ptr = dh_pack_data(ptr, params->p, params->p_size);
-	ptr = dh_pack_data(ptr, params->q, params->q_size);
-	dh_pack_data(ptr, params->g, params->g_size);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_dh_encode_key);
