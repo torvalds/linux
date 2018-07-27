@@ -840,6 +840,29 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	dev_dbg(dev, "carveout rsc: name: %s, da 0x%x, pa 0x%x, len 0x%x, flags 0x%x\n",
 		rsc->name, rsc->da, rsc->pa, rsc->len, rsc->flags);
 
+	/*
+	 * Check carveout rsc already part of a registered carveout,
+	 * Search by name, then check the da and length
+	 */
+	carveout = rproc_find_carveout_by_name(rproc, rsc->name);
+
+	if (carveout) {
+		if (carveout->rsc_offset != FW_RSC_ADDR_ANY) {
+			dev_err(dev,
+				"Carveout already associated to resource table\n");
+			return -ENOMEM;
+		}
+
+		if (rproc_check_carveout_da(rproc, carveout, rsc->da, rsc->len))
+			return -ENOMEM;
+
+		/* Update memory carveout with resource table info */
+		carveout->rsc_offset = offset;
+		carveout->flags = rsc->flags;
+
+		return 0;
+	}
+
 	/* Register carveout in in list */
 	carveout = rproc_mem_entry_init(dev, 0, 0, rsc->len, rsc->da,
 					rproc_alloc_carveout,
@@ -1120,8 +1143,15 @@ static int rproc_alloc_registered_carveouts(struct rproc *rproc)
 			 * In this case, the device address and the physical address
 			 * are the same.
 			 */
+
+			/* Use va if defined else dma to generate pa */
 			if (entry->va)
 				rsc->pa = (u32)rproc_va_to_pa(entry->va);
+			else
+				rsc->pa = (u32)entry->dma;
+
+			rsc->da = entry->da;
+			rsc->len = entry->len;
 		}
 	}
 
