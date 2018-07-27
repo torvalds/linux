@@ -214,8 +214,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	dev->ib_dev.post_send = pvrdma_post_send;
 	dev->ib_dev.post_recv = pvrdma_post_recv;
 	dev->ib_dev.create_cq = pvrdma_create_cq;
-	dev->ib_dev.modify_cq = pvrdma_modify_cq;
-	dev->ib_dev.resize_cq = pvrdma_resize_cq;
 	dev->ib_dev.destroy_cq = pvrdma_destroy_cq;
 	dev->ib_dev.poll_cq = pvrdma_poll_cq;
 	dev->ib_dev.req_notify_cq = pvrdma_req_notify_cq;
@@ -259,7 +257,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 		dev->ib_dev.modify_srq = pvrdma_modify_srq;
 		dev->ib_dev.query_srq = pvrdma_query_srq;
 		dev->ib_dev.destroy_srq = pvrdma_destroy_srq;
-		dev->ib_dev.post_srq_recv = pvrdma_post_srq_recv;
 
 		dev->srq_tbl = kcalloc(dev->dsr->caps.max_srq,
 				       sizeof(struct pvrdma_srq *),

@@ -254,12 +254,6 @@ int ocrdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	return 0;
 }
 
-int ocrdma_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
-{
-	/* modify_ah is unsupported */
-	return -ENOSYS;
-}
-
 int ocrdma_process_mad(struct ib_device *ibdev,
 		       int process_mad_flags,
 		       u8 port_num,

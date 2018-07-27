@@ -2703,21 +2703,6 @@ static int i40iw_query_gid(struct ib_device *ibdev,
 }
 
 /**
- * i40iw_modify_port  Modify port properties
- * @ibdev: device pointer from stack
- * @port: port number
- * @port_modify_mask: mask for port modifications
- * @props: port properties
- */
-static int i40iw_modify_port(struct ib_device *ibdev,
-			     u8 port,
-			     int port_modify_mask,
-			     struct ib_port_modify *props)
-{
-	return -ENOSYS;
-}
-
-/**
  * i40iw_query_pkey - Query partition key
  * @ibdev: device pointer from stack
  * @port: port number
@@ -2731,28 +2716,6 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
 {
 	*pkey = 0;
 	return 0;
-}
-
-/**
- * i40iw_create_ah - create address handle
- * @ibpd: ptr of pd
- * @ah_attr: address handle attributes
- */
-static struct ib_ah *i40iw_create_ah(struct ib_pd *ibpd,
-				     struct rdma_ah_attr *attr,
-				     struct ib_udata *udata)
-
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-/**
- * i40iw_destroy_ah - Destroy address handle
- * @ah: pointer to address handle
- */
-static int i40iw_destroy_ah(struct ib_ah *ah)
-{
-	return -ENOSYS;
 }
 
 /**
@@ -2822,7 +2785,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
 	iwibdev->ibdev.query_port = i40iw_query_port;
-	iwibdev->ibdev.modify_port = i40iw_modify_port;
 	iwibdev->ibdev.query_pkey = i40iw_query_pkey;
 	iwibdev->ibdev.query_gid = i40iw_query_gid;
 	iwibdev->ibdev.alloc_ucontext = i40iw_alloc_ucontext;
@@ -2842,8 +2804,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.alloc_hw_stats = i40iw_alloc_hw_stats;
 	iwibdev->ibdev.get_hw_stats = i40iw_get_hw_stats;
 	iwibdev->ibdev.query_device = i40iw_query_device;
-	iwibdev->ibdev.create_ah = i40iw_create_ah;
-	iwibdev->ibdev.destroy_ah = i40iw_destroy_ah;
 	iwibdev->ibdev.drain_sq = i40iw_drain_sq;
 	iwibdev->ibdev.drain_rq = i40iw_drain_rq;
 	iwibdev->ibdev.alloc_mr = i40iw_alloc_mr;

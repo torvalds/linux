@@ -58,41 +58,6 @@ static int fastreg_support = 1;
 module_param(fastreg_support, int, 0644);
 MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=1)");
 
-static struct ib_ah *c4iw_ah_create(struct ib_pd *pd,
-				    struct rdma_ah_attr *ah_attr,
-				    struct ib_udata *udata)
-
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-static int c4iw_ah_destroy(struct ib_ah *ah)
-{
-	return -ENOSYS;
-}
-
-static int c4iw_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	return -ENOSYS;
-}
-
-static int c4iw_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	return -ENOSYS;
-}
-
-static int c4iw_process_mad(struct ib_device *ibdev, int mad_flags,
-			    u8 port_num, const struct ib_wc *in_wc,
-			    const struct ib_grh *in_grh,
-			    const struct ib_mad_hdr *in_mad,
-			    size_t in_mad_size,
-			    struct ib_mad_hdr *out_mad,
-			    size_t *out_mad_size,
-			    u16 *out_mad_pkey_index)
-{
-	return -ENOSYS;
-}
-
 void _c4iw_free_ucontext(struct kref *kref)
 {
 	struct c4iw_ucontext *ucontext;
@@ -615,8 +580,6 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.mmap = c4iw_mmap;
 	dev->ibdev.alloc_pd = c4iw_allocate_pd;
 	dev->ibdev.dealloc_pd = c4iw_deallocate_pd;
-	dev->ibdev.create_ah = c4iw_ah_create;
-	dev->ibdev.destroy_ah = c4iw_ah_destroy;
 	dev->ibdev.create_qp = c4iw_create_qp;
 	dev->ibdev.modify_qp = c4iw_ib_modify_qp;
 	dev->ibdev.query_qp = c4iw_ib_query_qp;
@@ -626,7 +589,6 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.destroy_srq = c4iw_destroy_srq;
 	dev->ibdev.create_cq = c4iw_create_cq;
 	dev->ibdev.destroy_cq = c4iw_destroy_cq;
-	dev->ibdev.resize_cq = c4iw_resize_cq;
 	dev->ibdev.poll_cq = c4iw_poll_cq;
 	dev->ibdev.get_dma_mr = c4iw_get_dma_mr;
 	dev->ibdev.reg_user_mr = c4iw_reg_user_mr;
@@ -635,9 +597,6 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.dealloc_mw = c4iw_dealloc_mw;
 	dev->ibdev.alloc_mr = c4iw_alloc_mr;
 	dev->ibdev.map_mr_sg = c4iw_map_mr_sg;
-	dev->ibdev.attach_mcast = c4iw_multicast_attach;
-	dev->ibdev.detach_mcast = c4iw_multicast_detach;
-	dev->ibdev.process_mad = c4iw_process_mad;
 	dev->ibdev.req_notify_cq = c4iw_arm_cq;
 	dev->ibdev.post_send = c4iw_post_send;
 	dev->ibdev.post_recv = c4iw_post_receive;

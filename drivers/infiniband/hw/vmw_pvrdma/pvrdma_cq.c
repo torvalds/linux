@@ -278,19 +278,6 @@ int pvrdma_destroy_cq(struct ib_cq *cq)
 	return ret;
 }
 
-/**
- * pvrdma_modify_cq - modify the CQ moderation parameters
- * @ibcq: the CQ to modify
- * @cq_count: number of CQEs that will trigger an event
- * @cq_period: max period of time in usec before triggering an event
- *
- * @return: -EOPNOTSUPP as CQ resize is not supported.
- */
-int pvrdma_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
-{
-	return -EOPNOTSUPP;
-}
-
 static inline struct pvrdma_cqe *get_cqe(struct pvrdma_cq *cq, int i)
 {
 	return (struct pvrdma_cqe *)pvrdma_page_dir_get_ptr(
@@ -427,17 +414,4 @@ int pvrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	/* Ensure we do not return errors from poll_cq */
 	return npolled;
-}
-
-/**
- * pvrdma_resize_cq - resize CQ
- * @ibcq: the completion queue
- * @entries: CQ entries
- * @udata: user data
- *
- * @return: -EOPNOTSUPP as CQ resize is not supported.
- */
-int pvrdma_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
-{
-	return -EOPNOTSUPP;
 }

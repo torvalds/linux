@@ -176,7 +176,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.create_ah = ocrdma_create_ah;
 	dev->ibdev.destroy_ah = ocrdma_destroy_ah;
 	dev->ibdev.query_ah = ocrdma_query_ah;
-	dev->ibdev.modify_ah = ocrdma_modify_ah;
 
 	dev->ibdev.poll_cq = ocrdma_poll_cq;
 	dev->ibdev.post_send = ocrdma_post_send;

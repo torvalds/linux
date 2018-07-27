@@ -1140,11 +1140,6 @@ err_free_chp:
 	return ERR_PTR(ret);
 }
 
-int c4iw_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)
-{
-	return -ENOSYS;
-}
-
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct c4iw_cq *chp;

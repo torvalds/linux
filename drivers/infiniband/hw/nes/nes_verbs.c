@@ -755,26 +755,6 @@ static int nes_dealloc_pd(struct ib_pd *ibpd)
 
 
 /**
- * nes_create_ah
- */
-static struct ib_ah *nes_create_ah(struct ib_pd *pd,
-				   struct rdma_ah_attr *ah_attr,
-				   struct ib_udata *udata)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-
-/**
- * nes_destroy_ah
- */
-static int nes_destroy_ah(struct ib_ah *ah)
-{
-	return -ENOSYS;
-}
-
-
-/**
  * nes_get_encoded_size
  */
 static inline u8 nes_get_encoded_size(int *size)
@@ -3005,40 +2985,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return err;
 }
 
-
-/**
- * nes_muticast_attach
- */
-static int nes_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
-
-/**
- * nes_multicast_detach
- */
-static int nes_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
-
-/**
- * nes_process_mad
- */
-static int nes_process_mad(struct ib_device *ibdev, int mad_flags,
-		u8 port_num, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		const struct ib_mad_hdr *in, size_t in_mad_size,
-		struct ib_mad_hdr *out, size_t *out_mad_size,
-		u16 *out_mad_pkey_index)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
 static inline void
 fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, const struct ib_send_wr *ib_wr,
 		 u32 uselkey)
@@ -3737,8 +3683,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.mmap = nes_mmap;
 	nesibdev->ibdev.alloc_pd = nes_alloc_pd;
 	nesibdev->ibdev.dealloc_pd = nes_dealloc_pd;
-	nesibdev->ibdev.create_ah = nes_create_ah;
-	nesibdev->ibdev.destroy_ah = nes_destroy_ah;
 	nesibdev->ibdev.create_qp = nes_create_qp;
 	nesibdev->ibdev.modify_qp = nes_modify_qp;
 	nesibdev->ibdev.query_qp = nes_query_qp;
@@ -3754,10 +3698,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 
 	nesibdev->ibdev.alloc_mr = nes_alloc_mr;
 	nesibdev->ibdev.map_mr_sg = nes_map_mr_sg;
-
-	nesibdev->ibdev.attach_mcast = nes_multicast_attach;
-	nesibdev->ibdev.detach_mcast = nes_multicast_detach;
-	nesibdev->ibdev.process_mad = nes_process_mad;
 
 	nesibdev->ibdev.req_notify_cq = nes_req_notify_cq;
 	nesibdev->ibdev.post_send = nes_post_send;
