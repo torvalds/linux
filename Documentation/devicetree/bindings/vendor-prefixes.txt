@@ -414,6 +414,7 @@ xes	Extreme Engineering Solutions (X-ES)
 xillybus	Xillybus Ltd.
 xlnx	Xilinx
 xunlong	Shenzhen Xunlong Software CO.,Limited
+ysoft	Y Soft Corporation a.s.
 zarlink	Zarlink Semiconductor
 zeitec	ZEITEC Semiconductor Co., LTD.
 zidoo	Shenzhen Zidoo Technology Co., Ltd.
