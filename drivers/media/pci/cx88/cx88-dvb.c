@@ -1226,9 +1226,9 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 1);
-		mdelay(200);
+		msleep(200);
 
 		/* Select RF connector callback */
 		fusionhdtv_3_gold.pll_rf_set = lgdt330x_pll_rf_set;
@@ -1248,9 +1248,9 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 9);
-		mdelay(200);
+		msleep(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
 					       0x0e,
@@ -1267,9 +1267,9 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 1);
-		mdelay(200);
+		msleep(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_5_gold,
 					       0x0e,
@@ -1289,9 +1289,9 @@ static int dvb_register(struct cx8802_dev *dev)
 
 		/* Do a hardware reset of chip before using it. */
 		cx_clear(MO_GP0_IO, 1);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 1);
-		mdelay(200);
+		msleep(200);
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &pchdtv_hd5500,
 					       0x59,
@@ -1583,9 +1583,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		cx_set(MO_GP0_IO, 0x0101);
 
 		cx_clear(MO_GP0_IO, 0x01);
-		mdelay(100);
+		msleep(100);
 		cx_set(MO_GP0_IO, 0x01);
-		mdelay(200);
+		msleep(200);
 
 		fe0->dvb.frontend = dvb_attach(stv0299_attach,
 					       &samsung_stv0299_config,
