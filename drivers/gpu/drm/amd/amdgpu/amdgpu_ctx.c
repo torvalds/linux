@@ -104,8 +104,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 
 failed:
 	for (j = 0; j < i; j++)
-		drm_sched_entity_destroy(&adev->rings[j]->sched,
-				      &ctx->rings[j].entity);
+		drm_sched_entity_destroy(&ctx->rings[j].entity);
 	kfree(ctx->fences);
 	ctx->fences = NULL;
 	return r;
@@ -178,8 +177,7 @@ static void amdgpu_ctx_do_release(struct kref *ref)
 		if (ctx->adev->rings[i] == &ctx->adev->gfx.kiq.ring)
 			continue;
 
-		drm_sched_entity_destroy(&ctx->adev->rings[i]->sched,
-			&ctx->rings[i].entity);
+		drm_sched_entity_destroy(&ctx->rings[i].entity);
 	}
 
 	amdgpu_ctx_fini(ref);
@@ -466,8 +464,8 @@ void amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr)
 			if (ctx->adev->rings[i] == &ctx->adev->gfx.kiq.ring)
 				continue;
 
-			max_wait = drm_sched_entity_flush(&ctx->adev->rings[i]->sched,
-					  &ctx->rings[i].entity, max_wait);
+			max_wait = drm_sched_entity_flush(&ctx->rings[i].entity,
+							  max_wait);
 		}
 	}
 	mutex_unlock(&mgr->lock);
@@ -492,8 +490,7 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 				continue;
 
 			if (kref_read(&ctx->refcount) == 1)
-				drm_sched_entity_fini(&ctx->adev->rings[i]->sched,
-					&ctx->rings[i].entity);
+				drm_sched_entity_fini(&ctx->rings[i].entity);
 			else
 				DRM_ERROR("ctx %p is still alive\n", ctx);
 		}

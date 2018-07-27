@@ -83,7 +83,7 @@ struct engine;
 struct engine_funcs {
 	enum i2caux_engine_type (*get_engine_type)(
 		const struct engine *engine);
-	bool (*acquire)(
+	struct aux_engine* (*acquire)(
 		struct engine *engine,
 		struct ddc *ddc);
 	bool (*submit_request)(
@@ -92,6 +92,8 @@ struct engine_funcs {
 		bool middle_of_transaction);
 	void (*release_engine)(
 		struct engine *engine);
+	void (*destroy_engine)(
+		struct engine **engine);
 };
 
 struct engine {
@@ -100,12 +102,5 @@ struct engine {
 	struct ddc *ddc;
 	struct dc_context *ctx;
 };
-
-void dal_i2caux_construct_engine(
-	struct engine *engine,
-	struct dc_context *ctx);
-
-void dal_i2caux_destruct_engine(
-	struct engine *engine);
 
 #endif

@@ -337,7 +337,7 @@ static int dce112_set_clock(
 
 static void dce_clock_read_integrated_info(struct dce_dccg *clk_dce)
 {
-	struct dc_debug *debug = &clk_dce->base.ctx->dc->debug;
+	struct dc_debug_options *debug = &clk_dce->base.ctx->dc->debug;
 	struct dc_bios *bp = clk_dce->base.ctx->dc_bios;
 	struct integrated_info info = { { { 0 } } };
 	struct dc_firmware_info fw_info = { { 0 } };
@@ -824,7 +824,7 @@ struct dccg *dce120_dccg_create(struct dc_context *ctx)
 #ifdef CONFIG_X86
 struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 {
-	struct dc_debug *debug = &ctx->dc->debug;
+	struct dc_debug_options *debug = &ctx->dc->debug;
 	struct dc_bios *bp = ctx->dc_bios;
 	struct dc_firmware_info fw_info = { { 0 } };
 	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);

@@ -387,7 +387,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		ats_entries = 0;
 	}
 
-	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
+	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
 
 	r = reservation_object_reserve_shared(bo->tbo.resv);
 	if (r)
@@ -1113,7 +1113,7 @@ restart:
 		struct amdgpu_ring *ring;
 		struct dma_fence *fence;
 
-		ring = container_of(vm->entity.sched, struct amdgpu_ring,
+		ring = container_of(vm->entity.rq->sched, struct amdgpu_ring,
 				    sched);
 
 		amdgpu_ring_pad_ib(ring, params.ib);
@@ -1403,7 +1403,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 					   addr, flags);
 	}
 
-	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
+	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
 
 	nptes = last - start + 1;
 
@@ -2642,7 +2642,7 @@ error_free_root:
 	vm->root.base.bo = NULL;
 
 error_free_sched_entity:
-	drm_sched_entity_destroy(&ring->sched, &vm->entity);
+	drm_sched_entity_destroy(&vm->entity);
 
 	return r;
 }
@@ -2779,7 +2779,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
 	}
 
-	drm_sched_entity_destroy(vm->entity.sched, &vm->entity);
+	drm_sched_entity_destroy(&vm->entity);
 
 	if (!RB_EMPTY_ROOT(&vm->va.rb_root)) {
 		dev_err(adev->dev, "still active bo inside vm\n");

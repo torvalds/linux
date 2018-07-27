@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.56"
+#define DC_VER "3.1.58"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -207,7 +207,7 @@ struct dc_clocks {
 	int phyclk_khz;
 };
 
-struct dc_debug {
+struct dc_debug_options {
 	enum visual_confirm visual_confirm;
 	bool sanity_checks;
 	bool max_disp_clk;
@@ -258,13 +258,16 @@ struct dc_debug {
 	bool avoid_vbios_exec_table;
 	bool scl_reset_length10;
 	bool hdmi20_disable;
-
-	struct {
-		uint32_t ltFailCount;
-		uint32_t i2cErrorCount;
-		uint32_t auxErrorCount;
-	} debug_data;
+	bool skip_detection_link_training;
 };
+
+struct dc_debug_data {
+	uint32_t ltFailCount;
+	uint32_t i2cErrorCount;
+	uint32_t auxErrorCount;
+};
+
+
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
@@ -273,8 +276,7 @@ struct dc {
 	struct dc_caps caps;
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;
-	struct dc_debug debug;
-
+	struct dc_debug_options debug;
 	struct dc_context *ctx;
 
 	uint8_t link_count;
@@ -310,6 +312,8 @@ struct dc {
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
+
+	struct dc_debug_data debug_data;
 };
 
 enum frame_buffer_mode {

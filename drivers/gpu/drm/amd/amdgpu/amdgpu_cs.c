@@ -419,7 +419,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	}
 
 retry:
-	amdgpu_ttm_placement_from_domain(bo, domain);
+	amdgpu_bo_placement_from_domain(bo, domain);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 
 	p->bytes_moved += ctx.bytes_moved;
@@ -478,7 +478,7 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 		update_bytes_moved_vis =
 				!amdgpu_gmc_vram_full_visible(&adev->gmc) &&
 				amdgpu_bo_in_cpu_visible_vram(bo);
-		amdgpu_ttm_placement_from_domain(bo, other);
+		amdgpu_bo_placement_from_domain(bo, other);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		p->bytes_moved += ctx.bytes_moved;
 		if (update_bytes_moved_vis)
@@ -532,8 +532,8 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 		/* Check if we have user pages and nobody bound the BO already */
 		if (amdgpu_ttm_tt_userptr_needs_pages(bo->tbo.ttm) &&
 		    lobj->user_pages) {
-			amdgpu_ttm_placement_from_domain(bo,
-							 AMDGPU_GEM_DOMAIN_CPU);
+			amdgpu_bo_placement_from_domain(bo,
+							AMDGPU_GEM_DOMAIN_CPU);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 			if (r)
 				return r;
@@ -1232,7 +1232,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job = p->job;
 	p->job = NULL;
 
-	r = drm_sched_job_init(&job->base, &ring->sched, entity, p->filp);
+	r = drm_sched_job_init(&job->base, entity, p->filp);
 	if (r) {
 		amdgpu_job_free(job);
 		amdgpu_mn_unlock(p->mn);
@@ -1262,7 +1262,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	priority = job->base.s_priority;
 	drm_sched_entity_push_job(&job->base, entity);
 
-	ring = to_amdgpu_ring(entity->sched);
+	ring = to_amdgpu_ring(entity->rq->sched);
 	amdgpu_ring_priority_get(ring, priority);
 
 	ttm_eu_fence_buffer_objects(&p->ticket, &p->validated, p->fence);
@@ -1655,7 +1655,7 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 
 	if (!((*bo)->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)) {
 		(*bo)->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
-		amdgpu_ttm_placement_from_domain(*bo, (*bo)->allowed_domains);
+		amdgpu_bo_placement_from_domain(*bo, (*bo)->allowed_domains);
 		r = ttm_bo_validate(&(*bo)->tbo, &(*bo)->placement, &ctx);
 		if (r)
 			return r;

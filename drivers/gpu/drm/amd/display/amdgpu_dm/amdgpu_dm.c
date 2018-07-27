@@ -1532,16 +1532,15 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
 		}
-		/*
-		 * Temporary disable until pplib/smu interaction is implemented
-		 */
-		dm->dc->debug.disable_stutter = amdgpu_pp_feature_mask & PP_STUTTER_MODE ? false : true;
 		break;
 #endif
 	default:
 		DRM_ERROR("Unsupported ASIC type: 0x%X\n", adev->asic_type);
 		goto fail;
 	}
+
+	if (adev->asic_type != CHIP_CARRIZO && adev->asic_type != CHIP_STONEY)
+		dm->dc->debug.disable_stutter = amdgpu_pp_feature_mask & PP_STUTTER_MODE ? false : true;
 
 	return 0;
 fail:
@@ -1574,18 +1573,6 @@ static void dm_bandwidth_update(struct amdgpu_device *adev)
 	/* TODO: implement later */
 }
 
-static void dm_set_backlight_level(struct amdgpu_encoder *amdgpu_encoder,
-				     u8 level)
-{
-	/* TODO: translate amdgpu_encoder to display_index and call DAL */
-}
-
-static u8 dm_get_backlight_level(struct amdgpu_encoder *amdgpu_encoder)
-{
-	/* TODO: translate amdgpu_encoder to display_index and call DAL */
-	return 0;
-}
-
 static int amdgpu_notify_freesync(struct drm_device *dev, void *data,
 				struct drm_file *filp)
 {
@@ -1614,10 +1601,8 @@ static int amdgpu_notify_freesync(struct drm_device *dev, void *data,
 static const struct amdgpu_display_funcs dm_display_funcs = {
 	.bandwidth_update = dm_bandwidth_update, /* called unconditionally */
 	.vblank_get_counter = dm_vblank_get_counter,/* called unconditionally */
-	.backlight_set_level =
-		dm_set_backlight_level,/* called unconditionally */
-	.backlight_get_level =
-		dm_get_backlight_level,/* called unconditionally */
+	.backlight_set_level = NULL, /* never called for DC */
+	.backlight_get_level = NULL, /* never called for DC */
 	.hpd_sense = NULL,/* called unconditionally */
 	.hpd_set_polarity = NULL, /* called unconditionally */
 	.hpd_get_gpio_reg = NULL, /* VBIOS parsing. DAL does it. */

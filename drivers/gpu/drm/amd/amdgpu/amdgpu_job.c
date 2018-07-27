@@ -133,7 +133,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 	if (!f)
 		return -EINVAL;
 
-	r = drm_sched_job_init(&job->base, entity->sched, entity, owner);
+	r = drm_sched_job_init(&job->base, entity, owner);
 	if (r)
 		return r;
 
@@ -143,7 +143,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 	priority = job->base.s_priority;
 	drm_sched_entity_push_job(&job->base, entity);
 
-	ring = to_amdgpu_ring(entity->sched);
+	ring = to_amdgpu_ring(entity->rq->sched);
 	amdgpu_ring_priority_get(ring, priority);
 
 	return 0;
@@ -167,7 +167,7 @@ int amdgpu_job_submit_direct(struct amdgpu_job *job, struct amdgpu_ring *ring,
 static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 					       struct drm_sched_entity *s_entity)
 {
-	struct amdgpu_ring *ring = to_amdgpu_ring(s_entity->sched);
+	struct amdgpu_ring *ring = to_amdgpu_ring(s_entity->rq->sched);
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_vm *vm = job->vm;
 	struct dma_fence *fence;

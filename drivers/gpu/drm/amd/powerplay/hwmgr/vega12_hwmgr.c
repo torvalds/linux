@@ -1334,7 +1334,7 @@ static int vega12_notify_smc_display_change(struct pp_hwmgr *hwmgr,
 	if (data->smu_features[GNLD_DPM_UCLK].enabled)
 		return smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetUclkFastSwitch,
-			has_disp ? 0 : 1);
+			has_disp ? 1 : 0);
 
 	return 0;
 }
@@ -1389,7 +1389,8 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 	struct pp_display_clock_request clock_req;
 
 	if ((hwmgr->display_config->num_display > 1) &&
-		!hwmgr->display_config->multi_monitor_in_sync)
+	     !hwmgr->display_config->multi_monitor_in_sync &&
+	     !hwmgr->display_config->nb_pstate_switch_disable)
 		vega12_notify_smc_display_change(hwmgr, false);
 	else
 		vega12_notify_smc_display_change(hwmgr, true);

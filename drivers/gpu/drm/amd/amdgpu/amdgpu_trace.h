@@ -436,7 +436,7 @@ TRACE_EVENT(amdgpu_cs_bo_status,
 			__entry->total_bo, __entry->total_size)
 );
 
-TRACE_EVENT(amdgpu_ttm_bo_move,
+TRACE_EVENT(amdgpu_bo_move,
 	    TP_PROTO(struct amdgpu_bo* bo, uint32_t new_placement, uint32_t old_placement),
 	    TP_ARGS(bo, new_placement, old_placement),
 	    TP_STRUCT__entry(
