@@ -23,7 +23,7 @@
 
 #include "iforce.h"
 
-void iforce_usb_xmit(struct iforce *iforce)
+static void __iforce_usb_xmit(struct iforce *iforce)
 {
 	int n, c;
 	unsigned long flags;
@@ -69,6 +69,16 @@ void iforce_usb_xmit(struct iforce *iforce)
 	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 }
 
+static void iforce_usb_xmit(struct iforce *iforce)
+{
+	if (!test_and_set_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags))
+		__iforce_usb_xmit(iforce);
+}
+
+static const struct iforce_xport_ops iforce_usb_xport_ops = {
+	.xmit		= iforce_usb_xmit,
+};
+
 static void iforce_usb_irq(struct urb *urb)
 {
 	struct iforce *iforce = urb->context;
@@ -113,7 +123,7 @@ static void iforce_usb_out(struct urb *urb)
 		return;
 	}
 
-	iforce_usb_xmit(iforce);
+	__iforce_usb_xmit(iforce);
 
 	wake_up(&iforce->wait);
 }
@@ -155,6 +165,7 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	if (!(iforce->ctrl = usb_alloc_urb(0, GFP_KERNEL)))
 		goto fail;
 
+	iforce->xport_ops = &iforce_usb_xport_ops;
 	iforce->bus = IFORCE_USB;
 	iforce->usbdev = dev;
 	iforce->intf = intf;

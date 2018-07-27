@@ -23,7 +23,7 @@
 
 #include "iforce.h"
 
-void iforce_serial_xmit(struct iforce *iforce)
+static void iforce_serio_xmit(struct iforce *iforce)
 {
 	unsigned char cs;
 	int i;
@@ -67,11 +67,15 @@ again:
 	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 }
 
+static const struct iforce_xport_ops iforce_serio_xport_ops = {
+	.xmit		= iforce_serio_xmit,
+};
+
 static void iforce_serio_write_wakeup(struct serio *serio)
 {
 	struct iforce *iforce = serio_get_drvdata(serio);
 
-	iforce_serial_xmit(iforce);
+	iforce_serio_xmit(iforce);
 }
 
 static irqreturn_t iforce_serio_irq(struct serio *serio,
@@ -129,6 +133,7 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 	if (!iforce)
 		return -ENOMEM;
 
+	iforce->xport_ops = &iforce_serio_xport_ops;
 	iforce->bus = IFORCE_232;
 	iforce->serio = serio;
 
