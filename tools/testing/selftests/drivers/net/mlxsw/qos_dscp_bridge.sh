@@ -217,13 +217,13 @@ dscp_ping_test()
 
 	for key in ${!t0s[@]}; do
 		local expect
-		if ((key == dscp_10 || key == dscp_20)); then
+		if ((key == prio+10 || key == prio+20)); then
 			expect=10
 		else
 			expect=0
 		fi
 
-		local delta=$((t1s[key] - t0s[key]))
+		local delta=$((t1s[$key] - t0s[$key]))
 		((expect == delta))
 		check_err $? "DSCP $key: Expected to capture $expect packets, got $delta."
 	done
