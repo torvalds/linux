@@ -261,26 +261,32 @@ static int cougar_raw_event(struct hid_device *hdev, struct hid_report *report,
 			    u8 *data, int size)
 {
 	struct cougar *cougar;
+	struct cougar_shared *shared;
 	unsigned char code, action;
 	int i;
 
 	cougar = hid_get_drvdata(hdev);
-	if (!cougar->special_intf || !cougar->shared ||
-	    !cougar->shared->input || !cougar->shared->enabled)
+	shared = cougar->shared;
+	if (!cougar->special_intf || !shared)
 		return 0;
+
+	if (!shared->enabled || !shared->input)
+		return -EPERM;
 
 	code = data[COUGAR_FIELD_CODE];
 	action = data[COUGAR_FIELD_ACTION];
 	for (i = 0; cougar_mapping[i][0]; i++) {
 		if (code == cougar_mapping[i][0]) {
-			input_event(cougar->shared->input, EV_KEY,
+			input_event(shared->input, EV_KEY,
 				    cougar_mapping[i][1], action);
-			input_sync(cougar->shared->input);
-			return 0;
+			input_sync(shared->input);
+			return -EPERM;
 		}
 	}
-	hid_warn(hdev, "unmapped special key code %x: ignoring\n", code);
-	return 0;
+	/* Avoid warnings on the same unmapped key twice */
+	if (action != 0)
+		hid_warn(hdev, "unmapped special key code %0x: ignoring\n", code);
+	return -EPERM;
 }
 
 static void cougar_remove(struct hid_device *hdev)
