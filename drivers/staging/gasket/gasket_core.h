@@ -263,6 +263,9 @@ struct gasket_dev {
 	/* Pointer to the internal driver description for this device. */
 	struct gasket_internal_desc *internal_desc;
 
+	/* Device info */
+	struct device *dev;
+
 	/* PCI subsystem metadata. */
 	struct pci_dev *pci_dev;
 
