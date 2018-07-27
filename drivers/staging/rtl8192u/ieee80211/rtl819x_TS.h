@@ -42,7 +42,7 @@ struct rx_ts_record {
 	u16				rx_indicate_seq;
 	u16				rx_timeout_indicate_seq;
 	struct list_head		rx_pending_pkt_list;
-	struct timer_list		RxPktPendingTimer;
+	struct timer_list		rx_pkt_pending_timer;
 	BA_RECORD			RxAdmittedBARecord;	 /*  For BA Recipient */
 	u16				RxLastSeqNum;
 	u8				RxLastFragNum;

@@ -740,7 +740,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	/* Handling pending timer. Set this timer to prevent from long time Rx buffering.*/
 	if (index>0) {
 		// Cancel previous pending timer.
-	//	del_timer_sync(&pTS->RxPktPendingTimer);
+	//	del_timer_sync(&pTS->rx_pkt_pending_timer);
 		pTS->rx_timeout_indicate_seq = 0xffff;
 
 		// Indicate packets
@@ -756,11 +756,11 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 		// Set new pending timer.
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): SET rx timeout timer\n", __func__);
 		pTS->rx_timeout_indicate_seq = pTS->rx_indicate_seq;
-		if(timer_pending(&pTS->RxPktPendingTimer))
-			del_timer_sync(&pTS->RxPktPendingTimer);
-		pTS->RxPktPendingTimer.expires = jiffies +
+		if(timer_pending(&pTS->rx_pkt_pending_timer))
+			del_timer_sync(&pTS->rx_pkt_pending_timer);
+		pTS->rx_pkt_pending_timer.expires = jiffies +
 				msecs_to_jiffies(pHTInfo->RxReorderPendingTime);
-		add_timer(&pTS->RxPktPendingTimer);
+		add_timer(&pTS->rx_pkt_pending_timer);
 	}
 
 	kfree(prxbIndicateArray);
