@@ -12,6 +12,21 @@ menuconfig FSI
 
 if FSI
 
+config FSI_NEW_DEV_NODE
+	bool "Create '/dev/fsi' directory for char devices"
+	default n
+	---help---
+	This option causes char devices created for FSI devices to be
+	located under a common /dev/fsi/ directory. Set to N unless your
+	userspace has been updated to handle the new location.
+
+	Additionally, it also causes the char device names to be offset
+	by one so that chip 0 will have /dev/scom1 and chip1 /dev/scom2
+	to match old userspace expectations.
+
+	New userspace will use udev rules to generate predictable access
+	symlinks in /dev/fsi/by-path when this option is enabled.
+
 config FSI_MASTER_GPIO
 	tristate "GPIO-based FSI master"
 	depends on GPIOLIB

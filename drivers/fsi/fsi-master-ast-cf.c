@@ -377,8 +377,8 @@ static int send_request(struct fsi_master_acf *master, struct fsi_msg *cmd,
 static int read_copro_response(struct fsi_master_acf *master, uint8_t size,
 			       uint32_t *response, u8 *tag)
 {
-	uint8_t rtag = ioread8(master->sram + STAT_RTAG);
-	uint8_t rcrc = ioread8(master->sram + STAT_RCRC);
+	uint8_t rtag = ioread8(master->sram + STAT_RTAG) & 0xf;
+	uint8_t rcrc = ioread8(master->sram + STAT_RCRC) & 0xf;
 	uint32_t rdata = 0;
 	uint32_t crc;
 	uint8_t ack;
@@ -437,7 +437,7 @@ static int send_term(struct fsi_master_acf *master, uint8_t slave)
 	return 0;
 }
 
-static void dump_trace(struct fsi_master_acf *master)
+static void dump_ucode_trace(struct fsi_master_acf *master)
 {
 	char trbuf[52];
 	char *p;
@@ -488,7 +488,7 @@ retry:
 		}
 		trace_fsi_master_acf_crc_rsp_error(master, crc_err_retries);
 		if (master->trace_enabled)
-			dump_trace(master);
+			dump_ucode_trace(master);
 		rc = clock_zeros(master, FSI_MASTER_EPOLL_CLOCKS);
 		if (rc) {
 			dev_warn(master->dev,
@@ -525,7 +525,7 @@ retry:
 		 */
 		dev_dbg(master->dev, "Busy, retrying...\n");
 		if (master->trace_enabled)
-			dump_trace(master);
+			dump_ucode_trace(master);
 		rc = clock_zeros(master, FSI_MASTER_DPOLL_CLOCKS);
 		if (rc) {
 			dev_warn(master->dev,
@@ -550,13 +550,13 @@ retry:
 	case FSI_RESP_ERRA:
 		dev_dbg(master->dev, "ERRA received\n");
 		if (master->trace_enabled)
-			dump_trace(master);
+			dump_ucode_trace(master);
 		rc = -EIO;
 		break;
 	case FSI_RESP_ERRC:
 		dev_dbg(master->dev, "ERRC received\n");
 		if (master->trace_enabled)
-			dump_trace(master);
+			dump_ucode_trace(master);
 		rc = -EAGAIN;
 		break;
 	}
@@ -606,7 +606,7 @@ static int fsi_master_acf_read(struct fsi_master *_master, int link,
 		return -ENODEV;
 
 	mutex_lock(&master->lock);
-	dev_dbg(master->dev, "read id %d addr %x size %ud\n", id, addr, size);
+	dev_dbg(master->dev, "read id %d addr %x size %zd\n", id, addr, size);
 	build_ar_command(master, &cmd, id, addr, size, NULL);
 	rc = fsi_master_acf_xfer(master, id, &cmd, size, val);
 	last_address_update(master, id, rc == 0, addr);
@@ -631,7 +631,7 @@ static int fsi_master_acf_write(struct fsi_master *_master, int link,
 
 	mutex_lock(&master->lock);
 	build_ar_command(master, &cmd, id, addr, size, val);
-	dev_dbg(master->dev, "write id %d addr %x size %ud raw_data: %08x\n",
+	dev_dbg(master->dev, "write id %d addr %x size %zd raw_data: %08x\n",
 		id, addr, size, *(uint32_t *)val);
 	rc = fsi_master_acf_xfer(master, id, &cmd, 0, NULL);
 	last_address_update(master, id, rc == 0, addr);
@@ -861,7 +861,8 @@ static int load_copro_firmware(struct fsi_master_acf *master)
 	if (sig != wanted_sig) {
 		dev_err(master->dev, "Failed to locate image sig %04x in FW blob\n",
 			wanted_sig);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto release_fw;
 	}
 	if (size > master->cf_mem_size) {
 		dev_err(master->dev, "FW size (%zd) bigger than memory reserve (%zd)\n",
@@ -870,8 +871,9 @@ static int load_copro_firmware(struct fsi_master_acf *master)
 	} else {
 		memcpy_toio(master->cf_mem, data, size);
 	}
-	release_firmware(fw);
 
+release_fw:
+	release_firmware(fw);
 	return rc;
 }
 
