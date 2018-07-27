@@ -1331,7 +1331,7 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 		goto unpin_vma;
 	}
 
-	ret = intel_ring_pin(ce->ring, ctx->i915);
+	ret = intel_ring_pin(ce->ring);
 	if (ret)
 		goto unpin_map;
 

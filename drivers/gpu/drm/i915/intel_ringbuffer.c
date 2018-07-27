@@ -1003,10 +1003,11 @@ i915_emit_bb_start(struct i915_request *rq,
 	return 0;
 }
 
-int intel_ring_pin(struct intel_ring *ring, struct drm_i915_private *i915)
+int intel_ring_pin(struct intel_ring *ring)
 {
-	enum i915_map_type map = HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
 	struct i915_vma *vma = ring->vma;
+	enum i915_map_type map =
+		HAS_LLC(vma->vm->i915) ? I915_MAP_WB : I915_MAP_WC;
 	unsigned int flags;
 	void *addr;
 	int ret;
@@ -1405,7 +1406,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 		goto err;
 	}
 
-	err = intel_ring_pin(ring, engine->i915);
+	err = intel_ring_pin(ring);
 	if (err)
 		goto err_ring;
 
