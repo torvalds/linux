@@ -1029,7 +1029,7 @@ static inline u32 its_get_event_id(struct irq_data *d)
 static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 {
 	irq_hw_number_t hwirq;
-	struct page *prop_page;
+	void *va;
 	u8 *cfg;
 
 	if (irqd_is_forwarded_to_vcpu(d)) {
@@ -1037,7 +1037,7 @@ static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 		u32 event = its_get_event_id(d);
 		struct its_vlpi_map *map;
 
-		prop_page = its_dev->event_map.vm->vprop_page;
+		va = page_address(its_dev->event_map.vm->vprop_page);
 		map = &its_dev->event_map.vlpi_maps[event];
 		hwirq = map->vintid;
 
@@ -1045,11 +1045,11 @@ static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 		map->properties &= ~clr;
 		map->properties |= set | LPI_PROP_GROUP1;
 	} else {
-		prop_page = gic_rdists->prop_page;
+		va = gic_rdists->prop_table_va;
 		hwirq = d->hwirq;
 	}
 
-	cfg = page_address(prop_page) + hwirq - 8192;
+	cfg = va + hwirq - 8192;
 	*cfg &= ~clr;
 	*cfg |= set | LPI_PROP_GROUP1;
 
@@ -1628,18 +1628,21 @@ static void its_free_prop_table(struct page *prop_page)
 
 static int __init its_setup_lpi_prop_table(void)
 {
-	phys_addr_t paddr;
+	struct page *page;
 
 	lpi_id_bits = min_t(u32, GICD_TYPER_ID_BITS(gic_rdists->gicd_typer),
 				ITS_MAX_LPI_NRBITS);
-	gic_rdists->prop_page = its_allocate_prop_table(GFP_NOWAIT);
-	if (!gic_rdists->prop_page) {
+	page = its_allocate_prop_table(GFP_NOWAIT);
+	if (!page) {
 		pr_err("Failed to allocate PROPBASE\n");
 		return -ENOMEM;
 	}
 
-	paddr = page_to_phys(gic_rdists->prop_page);
-	pr_info("GIC: using LPI property table @%pa\n", &paddr);
+	gic_rdists->prop_table_pa = page_to_phys(page);
+	gic_rdists->prop_table_va = page_address(page);
+
+	pr_info("GICv3: using LPI property table @%pa\n",
+		&gic_rdists->prop_table_pa);
 
 	return its_lpi_init(lpi_id_bits);
 }
@@ -1987,7 +1990,7 @@ static void its_cpu_init_lpis(void)
 	paddr = page_to_phys(pend_page);
 
 	/* set PROPBASE */
-	val = (page_to_phys(gic_rdists->prop_page) |
+	val = (gic_rdists->prop_table_pa |
 	       GICR_PROPBASER_InnerShareable |
 	       GICR_PROPBASER_RaWaWb |
 	       ((LPI_NRBITS - 1) & GICR_PROPBASER_IDBITS_MASK));
