@@ -77,4 +77,11 @@
 #define _RING_CTL_BUF_SIZE(ctl) (((ctl) & RB_TAIL_SIZE_MASK) + \
 		I915_GTT_PAGE_SIZE)
 
+#define PCH_GMBUS0	_MMIO(0xc5100)
+#define PCH_GMBUS1	_MMIO(0xc5104)
+#define PCH_GMBUS2	_MMIO(0xc5108)
+#define PCH_GMBUS3	_MMIO(0xc510c)
+#define PCH_GMBUS4	_MMIO(0xc5110)
+#define PCH_GMBUS5	_MMIO(0xc5120)
+
 #endif

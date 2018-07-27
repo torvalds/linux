@@ -7790,13 +7790,6 @@ enum {
 #define PCH_GPIOE               _MMIO(0xc5020)
 #define PCH_GPIOF               _MMIO(0xc5024)
 
-#define PCH_GMBUS0		_MMIO(0xc5100)
-#define PCH_GMBUS1		_MMIO(0xc5104)
-#define PCH_GMBUS2		_MMIO(0xc5108)
-#define PCH_GMBUS3		_MMIO(0xc510c)
-#define PCH_GMBUS4		_MMIO(0xc5110)
-#define PCH_GMBUS5		_MMIO(0xc5120)
-
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018
 #define PCH_DPLL(pll) _MMIO((pll) == 0 ? _PCH_DPLL_A : _PCH_DPLL_B)
