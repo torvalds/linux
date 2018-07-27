@@ -53,6 +53,11 @@ typedef int (*rproc_handle_resources_t)(struct rproc *rproc,
 typedef int (*rproc_handle_resource_t)(struct rproc *rproc,
 				 void *, int offset, int avail);
 
+static int rproc_alloc_carveout(struct rproc *rproc,
+				struct rproc_mem_entry *mem);
+static int rproc_release_carveout(struct rproc *rproc,
+				  struct rproc_mem_entry *mem);
+
 /* Unique indices for remoteproc devices */
 static DEFINE_IDA(rproc_dev_index);
 
@@ -312,21 +317,33 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	struct device *dev = &rproc->dev;
 	struct rproc_vring *rvring = &rvdev->vring[i];
 	struct fw_rsc_vdev *rsc;
-	dma_addr_t dma;
-	void *va;
 	int ret, size, notifyid;
+	struct rproc_mem_entry *mem;
 
 	/* actual size of vring (in bytes) */
 	size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
 
-	/*
-	 * Allocate non-cacheable memory for the vring. In the future
-	 * this call will also configure the IOMMU for us
-	 */
-	va = dma_alloc_coherent(dev->parent, size, &dma, GFP_KERNEL);
-	if (!va) {
-		dev_err(dev->parent, "dma_alloc_coherent failed\n");
-		return -EINVAL;
+	rsc = (void *)rproc->table_ptr + rvdev->rsc_offset;
+
+	/* Search for pre-registered carveout */
+	mem = rproc_find_carveout_by_name(rproc, "vdev%dvring%d", rvdev->index,
+					  i);
+	if (mem) {
+		if (rproc_check_carveout_da(rproc, mem, rsc->vring[i].da, size))
+			return -ENOMEM;
+	} else {
+		/* Register carveout in in list */
+		mem = rproc_mem_entry_init(dev, 0, 0, size, rsc->vring[i].da,
+					   rproc_alloc_carveout,
+					   rproc_release_carveout,
+					   "vdev%dvring%d",
+					   rvdev->index, i);
+		if (!mem) {
+			dev_err(dev, "Can't allocate memory entry structure\n");
+			return -ENOMEM;
+		}
+
+		rproc_add_carveout(rproc, mem);
 	}
 
 	/*
@@ -337,7 +354,6 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	ret = idr_alloc(&rproc->notifyids, rvring, 0, 0, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(dev, "idr_alloc failed: %d\n", ret);
-		dma_free_coherent(dev->parent, size, va, dma);
 		return ret;
 	}
 	notifyid = ret;
@@ -346,21 +362,9 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	if (notifyid > rproc->max_notifyid)
 		rproc->max_notifyid = notifyid;
 
-	dev_dbg(dev, "vring%d: va %pK dma %pad size 0x%x idr %d\n",
-		i, va, &dma, size, notifyid);
-
-	rvring->va = va;
-	rvring->dma = dma;
 	rvring->notifyid = notifyid;
 
-	/*
-	 * Let the rproc know the notifyid and da of this vring.
-	 * Not all platforms use dma_alloc_coherent to automatically
-	 * set up the iommu. In this case the device address (da) will
-	 * hold the physical address and not the device address.
-	 */
-	rsc = (void *)rproc->table_ptr + rvdev->rsc_offset;
-	rsc->vring[i].da = dma;
+	/* Let the rproc know the notifyid of this vring.*/
 	rsc->vring[i].notifyid = notifyid;
 	return 0;
 }
@@ -392,12 +396,10 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 
 void rproc_free_vring(struct rproc_vring *rvring)
 {
-	int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
 	struct rproc *rproc = rvring->rvdev->rproc;
 	int idx = rvring->rvdev->vring - rvring;
 	struct fw_rsc_vdev *rsc;
 
-	dma_free_coherent(rproc->dev.parent, size, rvring->va, rvring->dma);
 	idr_remove(&rproc->notifyids, rvring->notifyid);
 
 	/* reset resource entry info */
@@ -484,6 +486,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 
 	rvdev->id = rsc->id;
 	rvdev->rproc = rproc;
+	rvdev->index = rproc->nb_vdev++;
 
 	/* parse the vrings */
 	for (i = 0; i < rsc->num_of_vrings; i++) {
@@ -528,9 +531,6 @@ void rproc_vdev_release(struct kref *ref)
 
 	for (id = 0; id < ARRAY_SIZE(rvdev->vring); id++) {
 		rvring = &rvdev->vring[id];
-		if (!rvring->va)
-			continue;
-
 		rproc_free_vring(rvring);
 	}
 
@@ -1322,6 +1322,9 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	/* reset max_notifyid */
 	rproc->max_notifyid = -1;
+
+	/* reset handled vdev */
+	rproc->nb_vdev = 0;
 
 	/* handle fw resources which are required to boot rproc */
 	ret = rproc_handle_resources(rproc, rproc_loading_handlers);

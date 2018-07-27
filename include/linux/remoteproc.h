@@ -454,6 +454,7 @@ struct rproc_dump_segment {
  * @has_iommu: flag to indicate if remote processor is behind an MMU
  * @auto_boot: flag to indicate if remote processor should be auto-started
  * @dump_segments: list of segments in the firmware
+ * @nb_vdev: number of vdev currently handled by rproc
  */
 struct rproc {
 	struct list_head node;
@@ -486,6 +487,7 @@ struct rproc {
 	bool has_iommu;
 	bool auto_boot;
 	struct list_head dump_segments;
+	int nb_vdev;
 };
 
 /**
@@ -513,7 +515,6 @@ struct rproc_subdev {
 /**
  * struct rproc_vring - remoteproc vring state
  * @va:	virtual address
- * @dma: dma address
  * @len: length, in bytes
  * @da: device address
  * @align: vring alignment
@@ -523,7 +524,6 @@ struct rproc_subdev {
  */
 struct rproc_vring {
 	void *va;
-	dma_addr_t dma;
 	int len;
 	u32 da;
 	u32 align;
@@ -542,6 +542,7 @@ struct rproc_vring {
  * @vdev: the virio device
  * @vring: the vrings for this vdev
  * @rsc_offset: offset of the vdev's resource entry
+ * @index: vdev position versus other vdev declared in resource table
  */
 struct rproc_vdev {
 	struct kref refcount;
@@ -554,6 +555,7 @@ struct rproc_vdev {
 	struct virtio_device vdev;
 	struct rproc_vring vring[RVDEV_NUM_VRINGS];
 	u32 rsc_offset;
+	u32 index;
 };
 
 struct rproc *rproc_get_by_phandle(phandle phandle);
