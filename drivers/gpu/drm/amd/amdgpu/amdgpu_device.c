@@ -1828,8 +1828,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 					  adev->ip_blocks[i].version->funcs->name, r);
 				return r;
 			}
-			if (adev->powerplay.pp_funcs->set_powergating_by_smu)
-				amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false);
+			amdgpu_gfx_off_ctrl(adev, false);
 			r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 			/* XXX handle errors */
 			if (r) {
@@ -2012,8 +2011,7 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 	}
 
 	/* call smu to disable gfx off feature first when suspend */
-	if (adev->powerplay.pp_funcs->set_powergating_by_smu)
-		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false);
+	amdgpu_gfx_off_ctrl(adev, false);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)

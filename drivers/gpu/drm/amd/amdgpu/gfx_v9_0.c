@@ -3783,13 +3783,11 @@ static int gfx_v9_0_set_powergating_state(void *handle,
 		gfx_v9_0_update_gfx_mg_power_gating(adev, enable);
 
 		/* set gfx off through smu */
-		if (enable && adev->powerplay.pp_funcs->set_powergating_by_smu)
-			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, true);
+		amdgpu_gfx_off_ctrl(adev, true);
 		break;
 	case CHIP_VEGA12:
 		/* set gfx off through smu */
-		if (enable && adev->powerplay.pp_funcs->set_powergating_by_smu)
-			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, true);
+		amdgpu_gfx_off_ctrl(adev, true);
 		break;
 	default:
 		break;
