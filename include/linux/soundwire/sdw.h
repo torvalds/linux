@@ -768,7 +768,6 @@ struct sdw_stream_params {
  * @params: Stream parameters
  * @state: Current state of the stream
  * @type: Stream type PCM or PDM
- * @m_rt: Master runtime
  * @master_list: List of Master runtime(s) in this stream.
  * master_list can contain only one m_rt per Master instance
  * for a stream
@@ -778,7 +777,6 @@ struct sdw_stream_runtime {
 	struct sdw_stream_params params;
 	enum sdw_stream_state state;
 	enum sdw_stream_type type;
-	struct sdw_master_runtime *m_rt;
 	struct list_head master_list;
 };
 
