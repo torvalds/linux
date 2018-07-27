@@ -232,6 +232,8 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	tps->strobes = devm_kcalloc(&pdev->dev,
 				    TPS65217_NUM_REGULATOR, sizeof(u8),
 				    GFP_KERNEL);
+	if (!tps->strobes)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, tps);
 
