@@ -3329,6 +3329,57 @@ static inline void mlxsw_reg_qeec_pack(char *payload, u8 local_port,
 	mlxsw_reg_qeec_next_element_index_set(payload, next_index);
 }
 
+/* QPDPM - QoS Port DSCP to Priority Mapping Register
+ * --------------------------------------------------
+ * This register controls the mapping from DSCP field to
+ * Switch Priority for IP packets.
+ */
+#define MLXSW_REG_QPDPM_ID 0x4013
+#define MLXSW_REG_QPDPM_BASE_LEN 0x4 /* base length, without records */
+#define MLXSW_REG_QPDPM_DSCP_ENTRY_REC_LEN 0x2 /* record length */
+#define MLXSW_REG_QPDPM_DSCP_ENTRY_REC_MAX_COUNT 64
+#define MLXSW_REG_QPDPM_LEN (MLXSW_REG_QPDPM_BASE_LEN +			\
+			     MLXSW_REG_QPDPM_DSCP_ENTRY_REC_LEN *	\
+			     MLXSW_REG_QPDPM_DSCP_ENTRY_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(qpdpm, MLXSW_REG_QPDPM_ID, MLXSW_REG_QPDPM_LEN);
+
+/* reg_qpdpm_local_port
+ * Local Port. Supported for data packets from CPU port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, qpdpm, local_port, 0x00, 16, 8);
+
+/* reg_qpdpm_dscp_e
+ * Enable update of the specific entry. When cleared, the switch_prio and color
+ * fields are ignored and the previous switch_prio and color values are
+ * preserved.
+ * Access: WO
+ */
+MLXSW_ITEM16_INDEXED(reg, qpdpm, dscp_entry_e, MLXSW_REG_QPDPM_BASE_LEN, 15, 1,
+		     MLXSW_REG_QPDPM_DSCP_ENTRY_REC_LEN, 0x00, false);
+
+/* reg_qpdpm_dscp_prio
+ * The new Switch Priority value for the relevant DSCP value.
+ * Access: RW
+ */
+MLXSW_ITEM16_INDEXED(reg, qpdpm, dscp_entry_prio,
+		     MLXSW_REG_QPDPM_BASE_LEN, 0, 4,
+		     MLXSW_REG_QPDPM_DSCP_ENTRY_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_qpdpm_pack(char *payload, u8 local_port)
+{
+	MLXSW_REG_ZERO(qpdpm, payload);
+	mlxsw_reg_qpdpm_local_port_set(payload, local_port);
+}
+
+static inline void
+mlxsw_reg_qpdpm_dscp_pack(char *payload, unsigned short dscp, u8 prio)
+{
+	mlxsw_reg_qpdpm_dscp_entry_e_set(payload, dscp, 1);
+	mlxsw_reg_qpdpm_dscp_entry_prio_set(payload, dscp, prio);
+}
+
 /* PMLP - Ports Module to Local Port Register
  * ------------------------------------------
  * Configures the assignment of modules to local ports.
@@ -8542,6 +8593,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
+	MLXSW_REG(qpdpm),
 	MLXSW_REG(pmlp),
 	MLXSW_REG(pmtu),
 	MLXSW_REG(ptys),
