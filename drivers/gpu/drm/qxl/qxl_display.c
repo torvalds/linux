@@ -37,7 +37,8 @@ static bool qxl_head_enabled(struct qxl_head *head)
 	return head->width && head->height;
 }
 
-static void qxl_alloc_client_monitors_config(struct qxl_device *qdev, unsigned count)
+static int qxl_alloc_client_monitors_config(struct qxl_device *qdev,
+		unsigned int count)
 {
 	if (qdev->client_monitors_config &&
 	    count > qdev->client_monitors_config->count) {
@@ -49,15 +50,17 @@ static void qxl_alloc_client_monitors_config(struct qxl_device *qdev, unsigned c
 				sizeof(struct qxl_monitors_config) +
 				sizeof(struct qxl_head) * count, GFP_KERNEL);
 		if (!qdev->client_monitors_config)
-			return;
+			return -ENOMEM;
 	}
 	qdev->client_monitors_config->count = count;
+	return 0;
 }
 
 enum {
 	MONITORS_CONFIG_MODIFIED,
 	MONITORS_CONFIG_UNCHANGED,
 	MONITORS_CONFIG_BAD_CRC,
+	MONITORS_CONFIG_ERROR,
 };
 
 static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
@@ -87,7 +90,10 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 	      && (num_monitors != qdev->client_monitors_config->count)) {
 		status = MONITORS_CONFIG_MODIFIED;
 	}
-	qxl_alloc_client_monitors_config(qdev, num_monitors);
+	if (qxl_alloc_client_monitors_config(qdev, num_monitors)) {
+		status = MONITORS_CONFIG_ERROR;
+		return status;
+	}
 	/* we copy max from the client but it isn't used */
 	qdev->client_monitors_config->max_allowed =
 				qdev->monitors_config->max_allowed;
@@ -160,6 +166,10 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 		if (status != MONITORS_CONFIG_BAD_CRC)
 			break;
 		udelay(5);
+	}
+	if (status == MONITORS_CONFIG_ERROR) {
+		DRM_DEBUG_KMS("ignoring client monitors config: error");
+		return;
 	}
 	if (status == MONITORS_CONFIG_BAD_CRC) {
 		DRM_DEBUG_KMS("ignoring client monitors config: bad crc");
