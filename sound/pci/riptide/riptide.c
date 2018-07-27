@@ -470,10 +470,10 @@ struct snd_riptide {
 };
 
 struct sgd {			/* scatter gather desriptor */
-	u32 dwNextLink;
-	u32 dwSegPtrPhys;
-	u32 dwSegLen;
-	u32 dwStat_Ctl;
+	__le32 dwNextLink;
+	__le32 dwSegPtrPhys;
+	__le32 dwSegLen;
+	__le32 dwStat_Ctl;
 };
 
 struct pcmhw {			/* pcm descriptor */
@@ -1017,7 +1017,7 @@ getsamplerate(struct cmdif *cif, unsigned char *intdec, unsigned int *rate)
 static int
 setsampleformat(struct cmdif *cif,
 		unsigned char mixer, unsigned char id,
-		unsigned char channels, unsigned char format)
+		unsigned char channels, snd_pcm_format_t format)
 {
 	unsigned char w, ch, sig, order;
 

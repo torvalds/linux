@@ -541,7 +541,7 @@ static unsigned char snd_wss_get_rate(unsigned int rate)
 }
 
 static unsigned char snd_wss_get_format(struct snd_wss *chip,
-					int format,
+					snd_pcm_format_t format,
 					int channels)
 {
 	unsigned char rformat;

@@ -294,7 +294,7 @@
 
 
 struct audiopipe {
-	volatile u32 *dma_counter;	/* Commpage register that contains
+	volatile __le32 *dma_counter;	/* Commpage register that contains
 					 * the current dma position
 					 * (lower 32 bits only)
 					 */

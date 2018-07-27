@@ -107,7 +107,7 @@ static int get_msg(struct mixart_mgr *mgr, struct mixart_msg *resp,
 #ifndef __BIG_ENDIAN
 	size /= 4; /* u32 size */
 	for(i=0; i < size; i++) {
-		((u32*)resp->data)[i] = be32_to_cpu(((u32*)resp->data)[i]);
+		((u32*)resp->data)[i] = be32_to_cpu(((__be32*)resp->data)[i]);
 	}
 #endif
 
@@ -519,7 +519,7 @@ irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id)
 					/* Traces are text: the swapped msg_data has to be swapped back ! */
 					int i;
 					for(i=0; i<(resp.size/4); i++) {
-						(mixart_msg_data)[i] = cpu_to_be32((mixart_msg_data)[i]);
+						((__be32*)mixart_msg_data)[i] = cpu_to_be32((mixart_msg_data)[i]);
 					}
 #endif
 					((char*)mixart_msg_data)[resp.size - 1] = 0;
