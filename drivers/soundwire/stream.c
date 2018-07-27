@@ -1112,7 +1112,7 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 				"Master runtime config failed for stream:%s",
 				stream->name);
 		ret = -ENOMEM;
-		goto error;
+		goto unlock;
 	}
 
 	ret = sdw_config_stream(bus->dev, stream, stream_config, false);
@@ -1123,9 +1123,11 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 	if (ret)
 		goto stream_error;
 
+	goto unlock;
+
 stream_error:
 	sdw_release_master_stream(stream);
-error:
+unlock:
 	mutex_unlock(&bus->bus_lock);
 	return ret;
 }
