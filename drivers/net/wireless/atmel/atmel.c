@@ -3677,7 +3677,7 @@ static int probe_atmel_card(struct net_device *dev)
 		atmel_write16(dev, GCR, 0x0060);
 
 	atmel_write16(dev, GCR, 0x0040);
-	mdelay(500);
+	msleep(500);
 
 	if (atmel_read16(dev, MR2) == 0) {
 		/* No stored firmware so load a small stub which just
