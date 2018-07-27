@@ -7,11 +7,13 @@
 
 #include <linux/compiler.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/printk.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
@@ -19,7 +21,6 @@
 
 #include "gasket_core.h"
 #include "gasket_interrupt.h"
-#include "gasket_logging.h"
 #include "gasket_page_table.h"
 #include "gasket_sysfs.h"
 
@@ -362,11 +363,9 @@ static int apex_add_dev_cb(struct gasket_dev *gasket_dev)
 
 	if (retries == APEX_RESET_RETRY) {
 		if (!page_table_ready)
-			gasket_log_error(
-				gasket_dev, "Page table init timed out.");
+			dev_err(gasket_dev->dev, "Page table init timed out\n");
 		if (!msix_table_ready)
-			gasket_log_error(
-				gasket_dev, "MSI-X table init timed out.");
+			dev_err(gasket_dev->dev, "MSI-X table init timed out\n");
 		return -ETIMEDOUT;
 	}
 
@@ -420,12 +419,9 @@ static int apex_device_cleanup(struct gasket_dev *gasket_dev)
 		gasket_dev, APEX_BAR_INDEX,
 		APEX_BAR2_REG_SCALAR_CORE_ERROR_STATUS);
 
-	gasket_log_debug(
-		gasket_dev,
-		"%s 0x%p hib_error 0x%llx scalar_error "
-		"0x%llx.",
-		__func__,
-		gasket_dev, hib_error, scalar_error);
+	dev_dbg(gasket_dev->dev,
+		"%s 0x%p hib_error 0x%llx scalar_error 0x%llx\n",
+		__func__, gasket_dev, hib_error, scalar_error);
 
 	if (allow_power_save)
 		ret = apex_enter_reset(gasket_dev, APEX_CHIP_REINIT_RESET);
@@ -452,7 +448,7 @@ static int apex_reset(struct gasket_dev *gasket_dev, uint type)
 		/* We are not in reset - toggle the reset bit so as to force
 		 * re-init of custom block
 		 */
-		gasket_log_debug(gasket_dev, "%s: toggle reset.", __func__);
+		dev_dbg(gasket_dev->dev, "%s: toggle reset\n", __func__);
 
 		ret = apex_enter_reset(gasket_dev, type);
 		if (ret)
@@ -489,9 +485,9 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 	if (gasket_wait_with_reschedule(gasket_dev, APEX_BAR_INDEX,
 					APEX_BAR2_REG_USER_HIB_DMA_PAUSED, 1, 1,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
-		gasket_log_error(gasket_dev,
-				 "DMAs did not quiesce within timeout (%d ms)",
-				 APEX_RESET_RETRY * APEX_RESET_DELAY);
+		dev_err(gasket_dev->dev,
+			"DMAs did not quiesce within timeout (%d ms)\n",
+			APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -ETIMEDOUT;
 	}
 
@@ -511,9 +507,8 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 	if (gasket_wait_with_reschedule(gasket_dev, APEX_BAR_INDEX,
 					APEX_BAR2_REG_SCU_3, 1 << 6, 1 << 6,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
-		gasket_log_error(
-			gasket_dev,
-			"RAM did not shut down within timeout (%d ms)",
+		dev_err(gasket_dev->dev,
+			"RAM did not shut down within timeout (%d ms)\n",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -ETIMEDOUT;
 	}
@@ -560,9 +555,8 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 	if (gasket_wait_with_reschedule(gasket_dev, APEX_BAR_INDEX,
 					APEX_BAR2_REG_SCU_3, 1 << 6, 0,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
-		gasket_log_error(
-			gasket_dev,
-			"RAM did not enable within timeout (%d ms)",
+		dev_err(gasket_dev->dev,
+			"RAM did not enable within timeout (%d ms)\n",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -ETIMEDOUT;
 	}
@@ -572,9 +566,8 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 					APEX_BAR2_REG_SCU_3,
 					SCU3_CUR_RST_GCB_BIT_MASK, 0,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
-		gasket_log_error(
-			gasket_dev,
-			"GCB did not leave reset within timeout (%d ms)",
+		dev_err(gasket_dev->dev,
+			"GCB did not leave reset within timeout (%d ms)\n",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -ETIMEDOUT;
 	}
@@ -589,9 +582,8 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 			SCU3_RG_PWR_STATE_OVR_BIT_OFFSET);
 		val1 = gasket_dev_read_32(
 			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3);
-		gasket_log_debug(
-			gasket_dev, "Disallow HW clock gating 0x%x -> 0x%x",
-			val0, val1);
+		dev_dbg(gasket_dev->dev,
+			"Disallow HW clock gating 0x%x -> 0x%x\n", val0, val1);
 	} else {
 		val0 = gasket_dev_read_32(
 			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3);
@@ -602,9 +594,8 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 			SCU3_RG_PWR_STATE_OVR_BIT_OFFSET);
 		val1 = gasket_dev_read_32(
 			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3);
-		gasket_log_debug(
-			gasket_dev, "Allow HW clock gating 0x%x -> 0x%x", val0,
-			val1);
+		dev_dbg(gasket_dev->dev, "Allow HW clock gating 0x%x -> 0x%x\n",
+			val0, val1);
 	}
 
 	return 0;
@@ -668,7 +659,7 @@ static long apex_clock_gating(struct gasket_dev *gasket_dev,
 	if (copy_from_user(&ibuf, argp, sizeof(ibuf)))
 		return -EFAULT;
 
-	gasket_log_debug(gasket_dev, "%s %llu", __func__, ibuf.enable);
+	dev_dbg(gasket_dev->dev, "%s %llu\n", __func__, ibuf.enable);
 
 	if (ibuf.enable) {
 		/* Quiesce AXI, gate GCB clock. */
@@ -709,13 +700,13 @@ static ssize_t sysfs_show(
 
 	gasket_dev = gasket_sysfs_get_device_data(device);
 	if (!gasket_dev) {
-		gasket_nodev_error("No Apex device sysfs mapping found");
+		dev_err(device, "No Apex device sysfs mapping found\n");
 		return -ENODEV;
 	}
 
 	gasket_attr = gasket_sysfs_get_attr(device, attr);
 	if (!gasket_attr) {
-		gasket_nodev_error("No Apex device sysfs attr data found");
+		dev_err(device, "No Apex device sysfs attr data found\n");
 		gasket_sysfs_put_device_data(device, gasket_dev);
 		return -ENODEV;
 	}
@@ -738,8 +729,8 @@ static ssize_t sysfs_show(
 					gasket_dev->page_table[0]));
 		break;
 	default:
-		gasket_log_debug(
-			gasket_dev, "Unknown attribute: %s", attr->attr.name);
+		dev_dbg(gasket_dev->dev, "Unknown attribute: %s\n",
+			attr->attr.name);
 		ret = 0;
 		break;
 	}
