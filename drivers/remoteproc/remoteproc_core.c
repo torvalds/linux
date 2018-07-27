@@ -639,7 +639,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 				 struct fw_rsc_carveout *rsc,
 				 int offset, int avail)
 {
-	struct rproc_mem_entry *carveout, *mapping;
+	struct rproc_mem_entry *carveout, *mapping = NULL;
 	struct device *dev = &rproc->dev;
 	dma_addr_t dma;
 	void *va;
@@ -659,16 +659,11 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	dev_dbg(dev, "carveout rsc: name: %s, da 0x%x, pa 0x%x, len 0x%x, flags 0x%x\n",
 		rsc->name, rsc->da, rsc->pa, rsc->len, rsc->flags);
 
-	carveout = kzalloc(sizeof(*carveout), GFP_KERNEL);
-	if (!carveout)
-		return -ENOMEM;
-
 	va = dma_alloc_coherent(dev->parent, rsc->len, &dma, GFP_KERNEL);
 	if (!va) {
 		dev_err(dev->parent,
 			"failed to allocate dma memory: len 0x%x\n", rsc->len);
-		ret = -ENOMEM;
-		goto free_carv;
+		return -ENOMEM;
 	}
 
 	dev_dbg(dev, "carveout va %pK, dma %pad, len 0x%x\n",
@@ -747,27 +742,65 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	 */
 	rsc->pa = (u32)rproc_va_to_pa(va);
 
-	carveout->va = va;
-	carveout->len = rsc->len;
-	carveout->dma = dma;
-	carveout->da = rsc->da;
-	carveout->release = rproc_release_carveout;
-	strlcpy(carveout->name, rsc->name, sizeof(carveout->name));
+	carveout = rproc_mem_entry_init(dev, va, dma, rsc->len, rsc->da,
+					rproc_release_carveout, rsc->name);
+	if (!carveout)
+		goto free_carv;
 
 	list_add_tail(&carveout->node, &rproc->carveouts);
 
 	return 0;
 
+free_carv:
+	kfree(carveout);
 free_mapping:
 	kfree(mapping);
 dma_free:
 	dma_free_coherent(dev->parent, rsc->len, va, dma);
-free_carv:
-	kfree(carveout);
 	return ret;
 }
 
-/*
+/**
+ * rproc_mem_entry_init() - allocate and initialize rproc_mem_entry struct
+ * @dev: pointer on device struct
+ * @va: virtual address
+ * @dma: dma address
+ * @len: memory carveout length
+ * @da: device address
+ * @release: memory carveout function
+ * @name: carveout name
+ *
+ * This function allocates a rproc_mem_entry struct and fill it with parameters
+ * provided by client.
+ */
+struct rproc_mem_entry *
+rproc_mem_entry_init(struct device *dev,
+		     void *va, dma_addr_t dma, int len, u32 da,
+		     int (*release)(struct rproc *, struct rproc_mem_entry *),
+		     const char *name, ...)
+{
+	struct rproc_mem_entry *mem;
+	va_list args;
+
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem)
+		return mem;
+
+	mem->va = va;
+	mem->dma = dma;
+	mem->da = da;
+	mem->len = len;
+	mem->release = release;
+
+	va_start(args, name);
+	vsnprintf(mem->name, sizeof(mem->name), name, args);
+	va_end(args);
+
+	return mem;
+}
+EXPORT_SYMBOL(rproc_mem_entry_init);
+
+/**
  * A lookup table for resource handlers. The indices are defined in
  * enum fw_resource_type.
  */
