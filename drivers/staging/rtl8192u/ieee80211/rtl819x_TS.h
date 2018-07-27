@@ -45,7 +45,7 @@ struct rx_ts_record {
 	struct timer_list		rx_pkt_pending_timer;
 	BA_RECORD			rx_admitted_ba_record;	 /*  For BA Recipient */
 	u16				rx_last_seq_num;
-	u8				RxLastFragNum;
+	u8				rx_last_frag_num;
 	u8				num;
 };
 
