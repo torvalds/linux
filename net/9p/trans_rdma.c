@@ -644,6 +644,9 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	struct ib_qp_init_attr qp_attr;
 	struct ib_cq_init_attr cq_attr = {};
 
+	if (addr == NULL)
+		return -EINVAL;
+
 	/* Parse the transport specific mount options */
 	err = parse_opts(args, &opts);
 	if (err < 0)
