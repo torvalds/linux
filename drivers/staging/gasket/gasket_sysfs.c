@@ -3,7 +3,9 @@
 #include "gasket_sysfs.h"
 
 #include "gasket_core.h"
-#include "gasket_logging.h"
+
+#include <linux/device.h>
+#include <linux/printk.h>
 
 /*
  * Pair of kernel device and user-specified pointer. Used in lookups in sysfs
@@ -66,7 +68,7 @@ static struct gasket_sysfs_mapping *get_mapping(struct device *device)
 	int i;
 
 	if (!device) {
-		gasket_nodev_error("Received NULL device!");
+		pr_debug("%s: Received NULL device\n", __func__);
 		return NULL;
 	}
 
@@ -80,7 +82,8 @@ static struct gasket_sysfs_mapping *get_mapping(struct device *device)
 		mutex_unlock(&dev_mappings[i].mutex);
 	}
 
-	gasket_nodev_info("Mapping to device %s not found.", device->kobj.name);
+	dev_dbg(device, "%s: Mapping to device %s not found\n",
+		__func__, device->kobj.name);
 	return NULL;
 }
 
@@ -103,16 +106,15 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 	struct device *device;
 
 	if (!mapping) {
-		gasket_nodev_info("Mapping should not be NULL.");
+		pr_debug("%s: Mapping should not be NULL\n", __func__);
 		return;
 	}
 
 	mutex_lock(&mapping->mutex);
 	if (refcount_read(&mapping->refcount.refcount) == 0)
-		gasket_nodev_error("Refcount is already 0!");
+		dev_err(mapping->device, "Refcount is already 0\n");
 	if (kref_put(&mapping->refcount, release_entry)) {
-		gasket_nodev_info("Removing Gasket sysfs mapping, device %s",
-				  mapping->device->kobj.name);
+		dev_dbg(mapping->device, "Removing Gasket sysfs mapping\n");
 		/*
 		 * We can't remove the sysfs nodes in the kref callback, since
 		 * device_remove_file() blocks until the node is free.
@@ -182,16 +184,13 @@ int gasket_sysfs_create_mapping(
 	static DEFINE_MUTEX(function_mutex);
 
 	mutex_lock(&function_mutex);
-
-	gasket_nodev_info(
-		"Creating sysfs entries for device pointer 0x%p.", device);
+	dev_dbg(device, "Creating sysfs entries for device\n");
 
 	/* Check that the device we're adding hasn't already been added. */
 	mapping = get_mapping(device);
 	if (mapping) {
-		gasket_nodev_error(
-			"Attempting to re-initialize sysfs mapping for device "
-			"0x%p.", device);
+		dev_err(device,
+			"Attempting to re-initialize sysfs mapping for device\n");
 		put_mapping(mapping);
 		mutex_unlock(&function_mutex);
 		return -EBUSY;
@@ -207,13 +206,13 @@ int gasket_sysfs_create_mapping(
 	}
 
 	if (map_idx == GASKET_SYSFS_NUM_MAPPINGS) {
-		gasket_nodev_error("All mappings have been exhausted!");
+		dev_err(device, "All mappings have been exhausted\n");
 		mutex_unlock(&function_mutex);
 		return -ENOMEM;
 	}
 
-	gasket_nodev_info(
-		"Creating sysfs mapping for device %s.", device->kobj.name);
+	dev_dbg(device, "Creating sysfs mapping for device %s\n",
+		device->kobj.name);
 
 	mapping = &dev_mappings[map_idx];
 	kref_init(&mapping->refcount);
@@ -224,7 +223,7 @@ int gasket_sysfs_create_mapping(
 				      GFP_KERNEL);
 	mapping->attribute_count = 0;
 	if (!mapping->attributes) {
-		gasket_nodev_error("Unable to allocate sysfs attribute array.");
+		dev_dbg(device, "Unable to allocate sysfs attribute array\n");
 		mapping->device = NULL;
 		mapping->gasket_dev = NULL;
 		mutex_unlock(&mapping->mutex);
@@ -247,10 +246,9 @@ int gasket_sysfs_create_entries(
 	struct gasket_sysfs_mapping *mapping = get_mapping(device);
 
 	if (!mapping) {
-		gasket_nodev_error(
-			"Creating entries for device 0x%p without first "
-			"initializing mapping.",
-			device);
+		dev_dbg(device,
+			"Creating entries for device without first "
+			"initializing mapping\n");
 		return -EINVAL;
 	}
 
@@ -258,9 +256,9 @@ int gasket_sysfs_create_entries(
 	for (i = 0; strcmp(attrs[i].attr.attr.name, GASKET_ARRAY_END_MARKER);
 		i++) {
 		if (mapping->attribute_count == GASKET_SYSFS_MAX_NODES) {
-			gasket_nodev_error(
+			dev_err(device,
 				"Maximum number of sysfs nodes reached for "
-				"device.");
+				"device\n");
 			mutex_unlock(&mapping->mutex);
 			put_mapping(mapping);
 			return -ENOMEM;
@@ -268,7 +266,7 @@ int gasket_sysfs_create_entries(
 
 		ret = device_create_file(device, &attrs[i].attr);
 		if (ret) {
-			gasket_nodev_error("Unable to create device entries");
+			dev_dbg(device, "Unable to create device entries\n");
 			mutex_unlock(&mapping->mutex);
 			put_mapping(mapping);
 			return ret;
@@ -289,10 +287,9 @@ void gasket_sysfs_remove_mapping(struct device *device)
 	struct gasket_sysfs_mapping *mapping = get_mapping(device);
 
 	if (!mapping) {
-		gasket_nodev_error(
+		dev_err(device,
 			"Attempted to remove non-existent sysfs mapping to "
-			"device 0x%p",
-			device);
+			"device\n");
 		return;
 	}
 
@@ -304,7 +301,7 @@ struct gasket_dev *gasket_sysfs_get_device_data(struct device *device)
 	struct gasket_sysfs_mapping *mapping = get_mapping(device);
 
 	if (!mapping) {
-		gasket_nodev_error("device %p not registered.", device);
+		dev_err(device, "device not registered\n");
 		return NULL;
 	}
 
@@ -342,8 +339,8 @@ struct gasket_sysfs_attribute *gasket_sysfs_get_attr(
 			return &attrs[i];
 	}
 
-	gasket_nodev_error("Unable to find match for device_attribute %s",
-			   attr->attr.name);
+	dev_err(device, "Unable to find match for device_attribute %s\n",
+		attr->attr.name);
 	return NULL;
 }
 EXPORT_SYMBOL(gasket_sysfs_get_attr);
@@ -368,8 +365,8 @@ void gasket_sysfs_put_attr(
 		}
 	}
 
-	gasket_nodev_error(
-		"Unable to put unknown attribute: %s", attr->attr.attr.name);
+	dev_err(device, "Unable to put unknown attribute: %s\n",
+		attr->attr.attr.name);
 }
 EXPORT_SYMBOL(gasket_sysfs_put_attr);
 
@@ -383,26 +380,26 @@ ssize_t gasket_sysfs_register_store(
 	struct gasket_sysfs_attribute *gasket_attr;
 
 	if (count < 3 || buf[0] != '0' || buf[1] != 'x') {
-		gasket_nodev_error(
-			"sysfs register write format: \"0x<hex value>\".");
+		dev_err(device,
+			"sysfs register write format: \"0x<hex value>\"\n");
 		return -EINVAL;
 	}
 
 	if (kstrtoul(buf, 16, &parsed_value) != 0) {
-		gasket_nodev_error(
-			"Unable to parse input as 64-bit hex value: %s.", buf);
+		dev_err(device,
+			"Unable to parse input as 64-bit hex value: %s\n", buf);
 		return -EINVAL;
 	}
 
 	mapping = get_mapping(device);
 	if (!mapping) {
-		gasket_nodev_info("Device driver may have been removed.");
+		dev_err(device, "Device driver may have been removed\n");
 		return 0;
 	}
 
 	gasket_dev = mapping->gasket_dev;
 	if (!gasket_dev) {
-		gasket_nodev_info("Device driver may have been removed.");
+		dev_err(device, "Device driver may have been removed\n");
 		return 0;
 	}
 
