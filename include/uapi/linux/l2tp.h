@@ -65,9 +65,9 @@ struct sockaddr_l2tpip6 {
  * TUNNEL_MODIFY	- CONN_ID, udpcsum
  * TUNNEL_GETSTATS	- CONN_ID, (stats)
  * TUNNEL_GET		- CONN_ID, (...)
- * SESSION_CREATE	- SESSION_ID, PW_TYPE, data_seq, cookie, peer_cookie, l2spec
+ * SESSION_CREATE	- SESSION_ID, PW_TYPE, cookie, peer_cookie, l2spec
  * SESSION_DELETE	- SESSION_ID
- * SESSION_MODIFY	- SESSION_ID, data_seq
+ * SESSION_MODIFY	- SESSION_ID
  * SESSION_GET		- SESSION_ID, (...)
  * SESSION_GETSTATS	- SESSION_ID, (stats)
  *
@@ -95,7 +95,7 @@ enum {
 	L2TP_ATTR_PW_TYPE,		/* u16, enum l2tp_pwtype */
 	L2TP_ATTR_ENCAP_TYPE,		/* u16, enum l2tp_encap_type */
 	L2TP_ATTR_OFFSET,		/* u16 (not used) */
-	L2TP_ATTR_DATA_SEQ,		/* u16 */
+	L2TP_ATTR_DATA_SEQ,		/* u16 (not used) */
 	L2TP_ATTR_L2SPEC_TYPE,		/* u8, enum l2tp_l2spec_type */
 	L2TP_ATTR_L2SPEC_LEN,		/* u8 (not used) */
 	L2TP_ATTR_PROTO_VERSION,	/* u8 */
@@ -169,6 +169,7 @@ enum l2tp_encap_type {
 	L2TP_ENCAPTYPE_IP,
 };
 
+/* For L2TP_ATTR_DATA_SEQ. Unused. */
 enum l2tp_seqmode {
 	L2TP_SEQ_NONE = 0,
 	L2TP_SEQ_IP = 1,

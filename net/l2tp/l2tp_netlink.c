@@ -560,9 +560,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	}
 
 	if (tunnel->version > 2) {
-		if (info->attrs[L2TP_ATTR_DATA_SEQ])
-			cfg.data_seq = nla_get_u8(info->attrs[L2TP_ATTR_DATA_SEQ]);
-
 		if (info->attrs[L2TP_ATTR_L2SPEC_TYPE]) {
 			cfg.l2specific_type = nla_get_u8(info->attrs[L2TP_ATTR_L2SPEC_TYPE]);
 			if (cfg.l2specific_type != L2TP_L2SPECTYPE_DEFAULT &&
@@ -692,9 +689,6 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 
 	if (info->attrs[L2TP_ATTR_DEBUG])
 		session->debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
-
-	if (info->attrs[L2TP_ATTR_DATA_SEQ])
-		session->data_seq = nla_get_u8(info->attrs[L2TP_ATTR_DATA_SEQ]);
 
 	if (info->attrs[L2TP_ATTR_RECV_SEQ])
 		session->recv_seq = nla_get_u8(info->attrs[L2TP_ATTR_RECV_SEQ]);
