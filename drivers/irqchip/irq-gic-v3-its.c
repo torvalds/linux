@@ -2029,6 +2029,15 @@ static void its_cpu_init_lpis(void)
 	val = readl_relaxed(rbase + GICR_CTLR);
 	if ((gic_rdists->flags & RDIST_FLAGS_RD_TABLES_PREALLOCATED) &&
 	    (val & GICR_CTLR_ENABLE_LPIS)) {
+		/*
+		 * Check that we get the same property table on all
+		 * RDs. If we don't, this is hopeless.
+		 */
+		paddr = gicr_read_propbaser(rbase + GICR_PROPBASER);
+		paddr &= GENMASK_ULL(51, 12);
+		if (WARN_ON(gic_rdists->prop_table_pa != paddr))
+			add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
+
 		paddr = gicr_read_pendbaser(rbase + GICR_PENDBASER);
 		paddr &= GENMASK_ULL(51, 16);
 
