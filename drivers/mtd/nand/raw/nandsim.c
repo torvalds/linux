@@ -2108,15 +2108,6 @@ static int ns_device_ready(struct mtd_info *mtd)
 	return 1;
 }
 
-static uint16_t ns_nand_read_word(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
-	NS_DBG("read_word\n");
-
-	return chip->read_byte(mtd) | (chip->read_byte(mtd) << 8);
-}
-
 static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
@@ -2267,7 +2258,6 @@ static int __init ns_init_module(void)
 	chip->dev_ready  = ns_device_ready;
 	chip->write_buf  = ns_nand_write_buf;
 	chip->read_buf   = ns_nand_read_buf;
-	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
 	chip->ecc.algo   = NAND_ECC_HAMMING;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */

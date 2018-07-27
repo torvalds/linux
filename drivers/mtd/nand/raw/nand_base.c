@@ -278,18 +278,6 @@ static uint8_t nand_read_byte16(struct mtd_info *mtd)
 }
 
 /**
- * nand_read_word - [DEFAULT] read one word from the chip
- * @mtd: MTD device structure
- *
- * Default read function for 16bit buswidth without endianness conversion.
- */
-static u16 nand_read_word(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	return readw(chip->IO_ADDR_R);
-}
-
-/**
  * nand_select_chip - [DEFAULT] control CE line
  * @mtd: MTD device structure
  * @chipnr: chipnumber to select, -1 for deselect
@@ -5007,8 +4995,6 @@ static void nand_set_defaults(struct nand_chip *chip)
 	/* If called twice, pointers that depend on busw may need to be reset */
 	if (!chip->read_byte || chip->read_byte == nand_read_byte)
 		chip->read_byte = busw ? nand_read_byte16 : nand_read_byte;
-	if (!chip->read_word)
-		chip->read_word = nand_read_word;
 	if (!chip->block_bad)
 		chip->block_bad = nand_block_bad;
 	if (!chip->block_markbad)

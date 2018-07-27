@@ -515,16 +515,6 @@ static u8 mpc5121_nfc_read_byte(struct mtd_info *mtd)
 	return tmp;
 }
 
-/* Read word from NFC buffers */
-static u16 mpc5121_nfc_read_word(struct mtd_info *mtd)
-{
-	u16 tmp;
-
-	mpc5121_nfc_read_buf(mtd, (u_char *)&tmp, sizeof(tmp));
-
-	return tmp;
-}
-
 /*
  * Read NFC configuration from Reset Config Word
  *
@@ -703,7 +693,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip->dev_ready = mpc5121_nfc_dev_ready;
 	chip->cmdfunc = mpc5121_nfc_command;
 	chip->read_byte = mpc5121_nfc_read_byte;
-	chip->read_word = mpc5121_nfc_read_word;
 	chip->read_buf = mpc5121_nfc_read_buf;
 	chip->write_buf = mpc5121_nfc_write_buf;
 	chip->select_chip = mpc5121_nfc_select_chip;

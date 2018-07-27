@@ -921,18 +921,6 @@ static u_char mxc_nand_read_byte(struct mtd_info *mtd)
 	return ret;
 }
 
-static uint16_t mxc_nand_read_word(struct mtd_info *mtd)
-{
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
-	uint16_t ret;
-
-	ret = *(uint16_t *)(host->data_buf + host->buf_start);
-	host->buf_start += 2;
-
-	return ret;
-}
-
 /* Write data of length len to buffer buf. The data to be
  * written on NAND Flash is first copied to RAMbuffer. After the Data Input
  * Operation by the NFC, the data is written to NAND Flash */
@@ -1793,7 +1781,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 	this->dev_ready = mxc_nand_dev_ready;
 	this->cmdfunc = mxc_nand_command;
 	this->read_byte = mxc_nand_read_byte;
-	this->read_word = mxc_nand_read_word;
 	this->write_buf = mxc_nand_write_buf;
 	this->read_buf = mxc_nand_read_buf;
 	this->set_features = mxc_nand_set_features;

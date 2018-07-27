@@ -279,15 +279,6 @@ static void denali_write_byte(struct mtd_info *mtd, uint8_t byte)
 	denali_write_buf(mtd, &byte, 1);
 }
 
-static uint16_t denali_read_word(struct mtd_info *mtd)
-{
-	uint16_t word;
-
-	denali_read_buf16(mtd, (uint8_t *)&word, 2);
-
-	return word;
-}
-
 static void denali_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
@@ -1354,7 +1345,6 @@ int denali_init(struct denali_nand_info *denali)
 	chip->select_chip = denali_select_chip;
 	chip->read_byte = denali_read_byte;
 	chip->write_byte = denali_write_byte;
-	chip->read_word = denali_read_word;
 	chip->cmd_ctrl = denali_cmd_ctrl;
 	chip->dev_ready = denali_dev_ready;
 	chip->waitfunc = denali_waitfunc;

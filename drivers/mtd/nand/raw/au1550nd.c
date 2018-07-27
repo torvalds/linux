@@ -84,20 +84,6 @@ static void au_write_byte16(struct mtd_info *mtd, u_char byte)
 }
 
 /**
- * au_read_word -  read one word from the chip
- * @mtd:	MTD device structure
- *
- * read function for 16bit buswidth without endianness conversion
- */
-static u16 au_read_word(struct mtd_info *mtd)
-{
-	struct nand_chip *this = mtd_to_nand(mtd);
-	u16 ret = readw(this->IO_ADDR_R);
-	wmb(); /* drain writebuffer */
-	return ret;
-}
-
-/**
  * au_write_buf -  write buffer to chip
  * @mtd:	MTD device structure
  * @buf:	data buffer
@@ -462,7 +448,6 @@ static int au1550nd_probe(struct platform_device *pdev)
 
 	this->read_byte = (pd->devwidth) ? au_read_byte16 : au_read_byte;
 	ctx->write_byte = (pd->devwidth) ? au_write_byte16 : au_write_byte;
-	this->read_word = au_read_word;
 	this->write_buf = (pd->devwidth) ? au_write_buf16 : au_write_buf;
 	this->read_buf = (pd->devwidth) ? au_read_buf16 : au_read_buf;
 

@@ -380,15 +380,6 @@ static uint8_t hisi_nfc_read_byte(struct mtd_info *mtd)
 	return *(uint8_t *)(host->buffer + host->offset - 1);
 }
 
-static u16 hisi_nfc_read_word(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct hinfc_host *host = nand_get_controller_data(chip);
-
-	host->offset += 2;
-	return *(u16 *)(host->buffer + host->offset - 2);
-}
-
 static void
 hisi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
@@ -795,7 +786,6 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	chip->cmdfunc		= hisi_nfc_cmdfunc;
 	chip->select_chip	= hisi_nfc_select_chip;
 	chip->read_byte		= hisi_nfc_read_byte;
-	chip->read_word		= hisi_nfc_read_word;
 	chip->write_buf		= hisi_nfc_write_buf;
 	chip->read_buf		= hisi_nfc_read_buf;
 	chip->chip_delay	= HINFC504_CHIP_DELAY;

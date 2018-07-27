@@ -1182,7 +1182,6 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the
  *			flash device.
  * @read_byte:		[REPLACEABLE] read one byte from the chip
- * @read_word:		[REPLACEABLE] read one word from the chip
  * @write_byte:		[REPLACEABLE] write a single byte to the chip on the
  *			low 8 I/O lines
  * @write_buf:		[REPLACEABLE] write data from the buffer to the chip
@@ -1287,7 +1286,6 @@ struct nand_chip {
 	void __iomem *IO_ADDR_W;
 
 	uint8_t (*read_byte)(struct mtd_info *mtd);
-	u16 (*read_word)(struct mtd_info *mtd);
 	void (*write_byte)(struct mtd_info *mtd, uint8_t byte);
 	void (*write_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
 	void (*read_buf)(struct mtd_info *mtd, uint8_t *buf, int len);

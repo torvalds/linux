@@ -85,17 +85,6 @@ static uint8_t socrates_nand_read_byte(struct mtd_info *mtd)
 	return byte;
 }
 
-/**
- * socrates_nand_read_word -  read one word from the chip
- * @mtd:	MTD device structure
- */
-static uint16_t socrates_nand_read_word(struct mtd_info *mtd)
-{
-	uint16_t word;
-	socrates_nand_read_buf(mtd, (uint8_t *)&word, sizeof(word));
-	return word;
-}
-
 /*
  * Hardware specific access to control-lines
  */
@@ -172,7 +161,6 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 
 	nand_chip->cmd_ctrl = socrates_nand_cmd_ctrl;
 	nand_chip->read_byte = socrates_nand_read_byte;
-	nand_chip->read_word = socrates_nand_read_word;
 	nand_chip->write_buf = socrates_nand_write_buf;
 	nand_chip->read_buf = socrates_nand_read_buf;
 	nand_chip->dev_ready = socrates_nand_device_ready;

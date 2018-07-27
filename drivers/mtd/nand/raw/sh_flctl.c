@@ -985,15 +985,6 @@ static uint8_t flctl_read_byte(struct mtd_info *mtd)
 	return data;
 }
 
-static uint16_t flctl_read_word(struct mtd_info *mtd)
-{
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	uint16_t *buf = (uint16_t *)&flctl->done_buff[flctl->index];
-
-	flctl->index += 2;
-	return *buf;
-}
-
 static void flctl_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
@@ -1186,7 +1177,6 @@ static int flctl_probe(struct platform_device *pdev)
 	nand->chip_delay = 20;
 
 	nand->read_byte = flctl_read_byte;
-	nand->read_word = flctl_read_word;
 	nand->write_buf = flctl_write_buf;
 	nand->read_buf = flctl_read_buf;
 	nand->select_chip = flctl_select_chip;

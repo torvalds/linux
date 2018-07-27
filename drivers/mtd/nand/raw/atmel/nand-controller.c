@@ -418,14 +418,6 @@ static u8 atmel_nand_read_byte(struct mtd_info *mtd)
 	return ioread8(nand->activecs->io.virt);
 }
 
-static u16 atmel_nand_read_word(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct atmel_nand *nand = to_atmel_nand(chip);
-
-	return ioread16(nand->activecs->io.virt);
-}
-
 static void atmel_nand_write_byte(struct mtd_info *mtd, u8 byte)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
@@ -1500,7 +1492,6 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 
 	chip->cmd_ctrl = atmel_nand_cmd_ctrl;
 	chip->read_byte = atmel_nand_read_byte;
-	chip->read_word = atmel_nand_read_word;
 	chip->write_byte = atmel_nand_write_byte;
 	chip->read_buf = atmel_nand_read_buf;
 	chip->write_buf = atmel_nand_write_buf;
