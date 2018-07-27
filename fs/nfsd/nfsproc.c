@@ -218,7 +218,8 @@ nfsd_proc_write(struct svc_rqst *rqstp)
 		SVCFH_fmt(&argp->fh),
 		argp->len, argp->offset);
 
-	nvecs = svc_fill_write_vector(rqstp, &argp->first, cnt);
+	nvecs = svc_fill_write_vector(rqstp, rqstp->rq_arg.pages,
+				      &argp->first, cnt);
 	if (!nvecs)
 		return nfserr_io;
 	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh),
