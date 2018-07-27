@@ -585,50 +585,41 @@ int intel_guc_resume(struct intel_guc *guc)
  *
  * ::
  *
- *     +==============> +====================+ <== GUC_GGTT_TOP
- *     ^                |                    |
- *     |                |                    |
- *     |                |        DRAM        |
- *     |                |       Memory       |
- *     |                |                    |
- *    GuC               |                    |
- *  Address  +========> +====================+ <== WOPCM Top
- *   Space   ^          |   HW contexts RSVD |
- *     |     |          |        WOPCM       |
- *     |     |     +==> +--------------------+ <== GuC WOPCM Top
- *     |    GuC    ^    |                    |
- *     |    GGTT   |    |                    |
- *     |    Pin   GuC   |        GuC         |
- *     |    Bias WOPCM  |       WOPCM        |
- *     |     |    Size  |                    |
- *     |     |     |    |                    |
- *     v     v     v    |                    |
- *     +=====+=====+==> +====================+ <== GuC WOPCM Base
- *                      |   Non-GuC WOPCM    |
- *                      |   (HuC/Reserved)   |
- *                      +====================+ <== WOPCM Base
+ *     +===========> +====================+ <== FFFF_FFFF
+ *     ^             |      Reserved      |
+ *     |             +====================+ <== GUC_GGTT_TOP
+ *     |             |                    |
+ *     |             |        DRAM        |
+ *    GuC            |                    |
+ *  Address    +===> +====================+ <== GuC ggtt_pin_bias
+ *   Space     ^     |                    |
+ *     |       |     |                    |
+ *     |      GuC    |        GuC         |
+ *     |     WOPCM   |       WOPCM        |
+ *     |      Size   |                    |
+ *     |       |     |                    |
+ *     v       v     |                    |
+ *     +=======+===> +====================+ <== 0000_0000
  *
- * The lower part of GuC Address Space [0, ggtt_pin_bias) is mapped to WOPCM
+ * The lower part of GuC Address Space [0, ggtt_pin_bias) is mapped to GuC WOPCM
  * while upper part of GuC Address Space [ggtt_pin_bias, GUC_GGTT_TOP) is mapped
- * to DRAM. The value of the GuC ggtt_pin_bias is determined by WOPCM size and
- * actual GuC WOPCM size.
+ * to DRAM. The value of the GuC ggtt_pin_bias is the GuC WOPCM size.
  */
 
 /**
  * guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
  * @guc: intel_guc structure.
  *
- * This function will calculate and initialize the ggtt_pin_bias value based on
- * overall WOPCM size and GuC WOPCM size.
+ * This function will calculate and initialize the ggtt_pin_bias value
+ * based on the GuC WOPCM size.
  */
 static void guc_init_ggtt_pin_bias(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 
 	GEM_BUG_ON(!i915->wopcm.size);
-	GEM_BUG_ON(i915->wopcm.size < i915->wopcm.guc.base);
 
-	guc->ggtt_pin_bias = i915->wopcm.size - i915->wopcm.guc.base;
+	guc->ggtt_pin_bias = i915->wopcm.guc.size;
 }
 
 /**
