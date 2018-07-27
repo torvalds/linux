@@ -3367,6 +3367,44 @@ static inline void mlxsw_reg_qeec_pack(char *payload, u8 local_port,
 	mlxsw_reg_qeec_next_element_index_set(payload, next_index);
 }
 
+/* QRWE - QoS ReWrite Enable
+ * -------------------------
+ * This register configures the rewrite enable per receive port.
+ */
+#define MLXSW_REG_QRWE_ID 0x400F
+#define MLXSW_REG_QRWE_LEN 0x08
+
+MLXSW_REG_DEFINE(qrwe, MLXSW_REG_QRWE_ID, MLXSW_REG_QRWE_LEN);
+
+/* reg_qrwe_local_port
+ * Local port number.
+ * Access: Index
+ *
+ * Note: CPU port is supported. No support for router port.
+ */
+MLXSW_ITEM32(reg, qrwe, local_port, 0x00, 16, 8);
+
+/* reg_qrwe_dscp
+ * Whether to enable DSCP rewrite (default is 0, don't rewrite).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qrwe, dscp, 0x04, 1, 1);
+
+/* reg_qrwe_pcp
+ * Whether to enable PCP and DEI rewrite (default is 0, don't rewrite).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qrwe, pcp, 0x04, 0, 1);
+
+static inline void mlxsw_reg_qrwe_pack(char *payload, u8 local_port,
+				       bool rewrite_pcp, bool rewrite_dscp)
+{
+	MLXSW_REG_ZERO(qrwe, payload);
+	mlxsw_reg_qrwe_local_port_set(payload, local_port);
+	mlxsw_reg_qrwe_pcp_set(payload, rewrite_pcp);
+	mlxsw_reg_qrwe_dscp_set(payload, rewrite_dscp);
+}
+
 /* QPDPM - QoS Port DSCP to Priority Mapping Register
  * --------------------------------------------------
  * This register controls the mapping from DSCP field to
@@ -8632,6 +8670,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
+	MLXSW_REG(qrwe),
 	MLXSW_REG(qpdpm),
 	MLXSW_REG(pmlp),
 	MLXSW_REG(pmtu),
