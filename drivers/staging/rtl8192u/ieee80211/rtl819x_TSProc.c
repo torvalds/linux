@@ -42,14 +42,14 @@ static void RxPktPendingTimeout(struct timer_list *t)
 		while(!list_empty(&pRxTs->RxPendingPktList)) {
 			pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTs->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
 			if(index == 0)
-				pRxTs->RxIndicateSeq = pReorderEntry->SeqNum;
+				pRxTs->rx_indicate_seq = pReorderEntry->SeqNum;
 
-			if( SN_LESS(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq) ||
-				SN_EQUAL(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq)	) {
+			if( SN_LESS(pReorderEntry->SeqNum, pRxTs->rx_indicate_seq) ||
+				SN_EQUAL(pReorderEntry->SeqNum, pRxTs->rx_indicate_seq)	) {
 				list_del_init(&pReorderEntry->List);
 
-				if(SN_EQUAL(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq))
-					pRxTs->RxIndicateSeq = (pRxTs->RxIndicateSeq + 1) % 4096;
+				if(SN_EQUAL(pReorderEntry->SeqNum, pRxTs->rx_indicate_seq))
+					pRxTs->rx_indicate_seq = (pRxTs->rx_indicate_seq + 1) % 4096;
 
 				IEEE80211_DEBUG(IEEE80211_DL_REORDER,"RxPktPendingTimeout(): IndicateSeq: %d\n", pReorderEntry->SeqNum);
 				ieee->stats_IndicateArray[index] = pReorderEntry->prxb;
@@ -77,7 +77,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	}
 
 	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff)) {
-		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
+		pRxTs->RxTimeoutIndicateSeq = pRxTs->rx_indicate_seq;
 		mod_timer(&pRxTs->RxPktPendingTimer,
 			  jiffies + msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime));
 	}
@@ -124,7 +124,7 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 static void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->ts_common_info);
-	pTS->RxIndicateSeq = 0xffff; // This indicate the RxIndicateSeq is not used now!!
+	pTS->rx_indicate_seq = 0xffff; // This indicate the rx_indicate_seq is not used now!!
 	pTS->RxTimeoutIndicateSeq = 0xffff; // This indicate the RxTimeoutIndicateSeq is not used now!!
 	ResetBaEntry(&pTS->RxAdmittedBARecord);	  // For BA Recipient
 }

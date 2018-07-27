@@ -39,7 +39,7 @@ struct tx_ts_record {
 
 struct rx_ts_record {
 	struct ts_common_info		ts_common_info;
-	u16				RxIndicateSeq;
+	u16				rx_indicate_seq;
 	u16				RxTimeoutIndicateSeq;
 	struct list_head		RxPendingPktList;
 	struct timer_list		RxPktPendingTimer;

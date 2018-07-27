@@ -592,10 +592,10 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
 	struct ieee80211_rxb **prxbIndicateArray;
 	u8			WinSize = pHTInfo->RxReorderWinSize;
-	u16			WinEnd = (pTS->RxIndicateSeq + WinSize -1)%4096;
+	u16			WinEnd = (pTS->rx_indicate_seq + WinSize - 1) % 4096;
 	u8			index = 0;
 	bool			bMatchWinStart = false, bPktInBuf = false;
-	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): Seq is %d,pTS->RxIndicateSeq is %d, WinSize is %d\n",__func__,SeqNum,pTS->RxIndicateSeq,WinSize);
+	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): Seq is %d,pTS->rx_indicate_seq is %d, WinSize is %d\n",__func__,SeqNum,pTS->rx_indicate_seq,WinSize);
 
 	prxbIndicateArray = kmalloc_array(REORDER_WIN_SIZE,
 					  sizeof(struct ieee80211_rxb *),
@@ -604,14 +604,14 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 		return;
 
 	/* Rx Reorder initialize condition.*/
-	if (pTS->RxIndicateSeq == 0xffff) {
-		pTS->RxIndicateSeq = SeqNum;
+	if (pTS->rx_indicate_seq == 0xffff) {
+		pTS->rx_indicate_seq = SeqNum;
 	}
 
 	/* Drop out the packet which SeqNum is smaller than WinStart */
-	if (SN_LESS(SeqNum, pTS->RxIndicateSeq)) {
+	if (SN_LESS(SeqNum, pTS->rx_indicate_seq)) {
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"Packet Drop! IndicateSeq: %d, NewSeq: %d\n",
-				 pTS->RxIndicateSeq, SeqNum);
+				 pTS->rx_indicate_seq, SeqNum);
 		pHTInfo->RxReorderDropCounter++;
 		{
 			int i;
@@ -631,16 +631,16 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	 * 1. Incoming SeqNum is equal to WinStart =>Window shift 1
 	 * 2. Incoming SeqNum is larger than the WinEnd => Window shift N
 	 */
-	if(SN_EQUAL(SeqNum, pTS->RxIndicateSeq)) {
-		pTS->RxIndicateSeq = (pTS->RxIndicateSeq + 1) % 4096;
+	if(SN_EQUAL(SeqNum, pTS->rx_indicate_seq)) {
+		pTS->rx_indicate_seq = (pTS->rx_indicate_seq + 1) % 4096;
 		bMatchWinStart = true;
 	} else if(SN_LESS(WinEnd, SeqNum)) {
 		if(SeqNum >= (WinSize - 1)) {
-			pTS->RxIndicateSeq = SeqNum + 1 -WinSize;
+			pTS->rx_indicate_seq = SeqNum + 1 -WinSize;
 		} else {
-			pTS->RxIndicateSeq = 4095 - (WinSize - (SeqNum +1)) + 1;
+			pTS->rx_indicate_seq = 4095 - (WinSize - (SeqNum + 1)) + 1;
 		}
-		IEEE80211_DEBUG(IEEE80211_DL_REORDER, "Window Shift! IndicateSeq: %d, NewSeq: %d\n",pTS->RxIndicateSeq, SeqNum);
+		IEEE80211_DEBUG(IEEE80211_DL_REORDER, "Window Shift! IndicateSeq: %d, NewSeq: %d\n",pTS->rx_indicate_seq, SeqNum);
 	}
 
 	/*
@@ -655,7 +655,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	if(bMatchWinStart) {
 		/* Current packet is going to be indicated.*/
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER, "Packets indication!! IndicateSeq: %d, NewSeq: %d\n",\
-				pTS->RxIndicateSeq, SeqNum);
+				pTS->rx_indicate_seq, SeqNum);
 		prxbIndicateArray[0] = prxb;
 //		printk("========================>%s(): SeqNum is %d\n",__func__,SeqNum);
 		index = 1;
@@ -673,7 +673,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 
 			if(!AddReorderEntry(pTS, pReorderEntry)) {
 				IEEE80211_DEBUG(IEEE80211_DL_REORDER, "%s(): Duplicate packet is dropped!! IndicateSeq: %d, NewSeq: %d\n",
-					__func__, pTS->RxIndicateSeq, SeqNum);
+					__func__, pTS->rx_indicate_seq, SeqNum);
 				list_add_tail(&pReorderEntry->List,&ieee->RxReorder_Unused_List);
 				{
 					int i;
@@ -685,7 +685,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 				}
 			} else {
 				IEEE80211_DEBUG(IEEE80211_DL_REORDER,
-					 "Pkt insert into buffer!! IndicateSeq: %d, NewSeq: %d\n",pTS->RxIndicateSeq, SeqNum);
+					 "Pkt insert into buffer!! IndicateSeq: %d, NewSeq: %d\n",pTS->rx_indicate_seq, SeqNum);
 			}
 		}
 		else {
@@ -710,8 +710,8 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	while(!list_empty(&pTS->RxPendingPktList)) {
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): start RREORDER indicate\n",__func__);
 		pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
-		if (SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
-		    SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
+		if (SN_LESS(pReorderEntry->SeqNum, pTS->rx_indicate_seq) ||
+		    SN_EQUAL(pReorderEntry->SeqNum, pTS->rx_indicate_seq))
 		{
 			/* This protect buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
@@ -722,10 +722,10 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 
 			list_del_init(&pReorderEntry->List);
 
-			if(SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
-				pTS->RxIndicateSeq = (pTS->RxIndicateSeq + 1) % 4096;
+			if(SN_EQUAL(pReorderEntry->SeqNum, pTS->rx_indicate_seq))
+				pTS->rx_indicate_seq = (pTS->rx_indicate_seq + 1) % 4096;
 
-			IEEE80211_DEBUG(IEEE80211_DL_REORDER,"Packets indication!! IndicateSeq: %d, NewSeq: %d\n",pTS->RxIndicateSeq, SeqNum);
+			IEEE80211_DEBUG(IEEE80211_DL_REORDER,"Packets indication!! IndicateSeq: %d, NewSeq: %d\n",pTS->rx_indicate_seq, SeqNum);
 			prxbIndicateArray[index] = pReorderEntry->prxb;
 		//	printk("========================>%s(): pReorderEntry->SeqNum is %d\n",__func__,pReorderEntry->SeqNum);
 			index++;
@@ -755,7 +755,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	if (bPktInBuf && pTS->RxTimeoutIndicateSeq==0xffff) {
 		// Set new pending timer.
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): SET rx timeout timer\n", __func__);
-		pTS->RxTimeoutIndicateSeq = pTS->RxIndicateSeq;
+		pTS->RxTimeoutIndicateSeq = pTS->rx_indicate_seq;
 		if(timer_pending(&pTS->RxPktPendingTimer))
 			del_timer_sync(&pTS->RxPktPendingTimer);
 		pTS->RxPktPendingTimer.expires = jiffies +
