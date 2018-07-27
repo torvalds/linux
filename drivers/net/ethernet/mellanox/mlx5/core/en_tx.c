@@ -66,22 +66,21 @@ static inline void mlx5e_tx_dma_unmap(struct device *pdev,
 	}
 }
 
+static inline struct mlx5e_sq_dma *mlx5e_dma_get(struct mlx5e_txqsq *sq, u32 i)
+{
+	return &sq->db.dma_fifo[i & sq->dma_fifo_mask];
+}
+
 static inline void mlx5e_dma_push(struct mlx5e_txqsq *sq,
 				  dma_addr_t addr,
 				  u32 size,
 				  enum mlx5e_dma_map_type map_type)
 {
-	u32 i = sq->dma_fifo_pc & sq->dma_fifo_mask;
+	struct mlx5e_sq_dma *dma = mlx5e_dma_get(sq, sq->dma_fifo_pc++);
 
-	sq->db.dma_fifo[i].addr = addr;
-	sq->db.dma_fifo[i].size = size;
-	sq->db.dma_fifo[i].type = map_type;
-	sq->dma_fifo_pc++;
-}
-
-static inline struct mlx5e_sq_dma *mlx5e_dma_get(struct mlx5e_txqsq *sq, u32 i)
-{
-	return &sq->db.dma_fifo[i & sq->dma_fifo_mask];
+	dma->addr = addr;
+	dma->size = size;
+	dma->type = map_type;
 }
 
 static void mlx5e_dma_unmap_wqe_err(struct mlx5e_txqsq *sq, u8 num_dma)
