@@ -1306,7 +1306,7 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 	if (ctx->ggtt_offset_bias)
 		flags |= PIN_OFFSET_BIAS | ctx->ggtt_offset_bias;
 
-	return i915_vma_pin(vma, 0, GEN8_LR_CONTEXT_ALIGN, flags);
+	return i915_vma_pin(vma, 0, 0, flags);
 }
 
 static struct intel_context *
