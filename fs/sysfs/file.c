@@ -373,7 +373,7 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 		return -ENOENT;
 
 	kobject_get_ownership(kobj, &uid, &gid);
-	error = sysfs_add_file_mode_ns(kobj->sd, attr, false,
+	error = sysfs_add_file_mode_ns(parent, attr, false,
 				       attr->mode, uid, gid, NULL);
 	kernfs_put(parent);
 
