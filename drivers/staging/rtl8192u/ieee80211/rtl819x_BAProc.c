@@ -43,7 +43,7 @@ static void DeActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA)
 static u8 TxTsDeleteBA(struct ieee80211_device *ieee, struct tx_ts_record *pTxTs)
 {
 	PBA_RECORD		pAdmittedBa = &pTxTs->TxAdmittedBARecord;  //These two BA entries must exist in TS structure
-	PBA_RECORD		pPendingBa = &pTxTs->TxPendingBARecord;
+	PBA_RECORD		pPendingBa = &pTxTs->tx_pending_ba_record;
 	u8			bSendDELBA = false;
 
 	// Delete pending BA
@@ -470,7 +470,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	}
 
 	pTS->bAddBaReqInProgress = false;
-	pPendingBA = &pTS->TxPendingBARecord;
+	pPendingBA = &pTS->tx_pending_ba_record;
 	pAdmittedBA = &pTS->TxAdmittedBARecord;
 
 
@@ -615,7 +615,7 @@ TsInitAddBA(
 	u8		bOverwritePending
 	)
 {
-	PBA_RECORD			pBA = &pTS->TxPendingBARecord;
+	PBA_RECORD			pBA = &pTS->tx_pending_ba_record;
 
 	if (pBA->bValid && !bOverwritePending)
 		return;
@@ -647,7 +647,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 			ieee80211_send_DELBA(
 				ieee,
 				pTsCommonInfo->addr,
-				(pTxTs->TxAdmittedBARecord.bValid)?(&pTxTs->TxAdmittedBARecord):(&pTxTs->TxPendingBARecord),
+				(pTxTs->TxAdmittedBARecord.bValid)?(&pTxTs->TxAdmittedBARecord):(&pTxTs->tx_pending_ba_record),
 				TxRxSelect,
 				DELBA_REASON_END_BA);
 	} else if (TxRxSelect == RX_DIR) {
@@ -669,11 +669,11 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
  ********************************************************************************************************************/
 void BaSetupTimeOut(struct timer_list *t)
 {
-	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, TxPendingBARecord.Timer);
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, tx_pending_ba_record.Timer);
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
-	pTxTs->TxPendingBARecord.bValid = false;
+	pTxTs->tx_pending_ba_record.bValid = false;
 }
 
 void TxBaInactTimeout(struct timer_list *t)

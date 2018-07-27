@@ -118,7 +118,7 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 	pTS->bAddBaReqDelayed = false;
 	pTS->bUsingBa = false;
 	ResetBaEntry(&pTS->TxAdmittedBARecord); //For BA Originator
-	ResetBaEntry(&pTS->TxPendingBARecord);
+	ResetBaEntry(&pTS->tx_pending_ba_record);
 }
 
 static void ResetRxTsEntry(PRX_TS_RECORD pTS)
@@ -151,7 +151,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 		timer_setup(&pTxTS->ts_common_info.inact_timer, TsInactTimeout,
 			    0);
 		timer_setup(&pTxTS->TsAddBaTimer, TsAddBaProcess, 0);
-		timer_setup(&pTxTS->TxPendingBARecord.Timer, BaSetupTimeOut,
+		timer_setup(&pTxTS->tx_pending_ba_record.Timer, BaSetupTimeOut,
 			    0);
 		timer_setup(&pTxTS->TxAdmittedBARecord.Timer,
 			    TxBaInactTimeout, 0);
