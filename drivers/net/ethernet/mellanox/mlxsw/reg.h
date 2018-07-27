@@ -3017,6 +3017,44 @@ static inline void mlxsw_reg_iedr_rec_pack(char *payload, int rec_index,
 	mlxsw_reg_iedr_rec_index_start_set(payload, rec_index, rec_index_start);
 }
 
+/* QPTS - QoS Priority Trust State Register
+ * ----------------------------------------
+ * This register controls the port policy to calculate the switch priority and
+ * packet color based on incoming packet fields.
+ */
+#define MLXSW_REG_QPTS_ID 0x4002
+#define MLXSW_REG_QPTS_LEN 0x8
+
+MLXSW_REG_DEFINE(qpts, MLXSW_REG_QPTS_ID, MLXSW_REG_QPTS_LEN);
+
+/* reg_qpts_local_port
+ * Local port number.
+ * Access: Index
+ *
+ * Note: CPU port is supported.
+ */
+MLXSW_ITEM32(reg, qpts, local_port, 0x00, 16, 8);
+
+enum mlxsw_reg_qpts_trust_state {
+	MLXSW_REG_QPTS_TRUST_STATE_PCP = 1,
+	MLXSW_REG_QPTS_TRUST_STATE_DSCP = 2, /* For MPLS, trust EXP. */
+};
+
+/* reg_qpts_trust_state
+ * Trust state for a given port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qpts, trust_state, 0x04, 0, 3);
+
+static inline void mlxsw_reg_qpts_pack(char *payload, u8 local_port,
+				       enum mlxsw_reg_qpts_trust_state ts)
+{
+	MLXSW_REG_ZERO(qpts, payload);
+
+	mlxsw_reg_qpts_local_port_set(payload, local_port);
+	mlxsw_reg_qpts_trust_state_set(payload, ts);
+}
+
 /* QPCR - QoS Policer Configuration Register
  * -----------------------------------------
  * The QPCR register is used to create policers - that limit
@@ -8590,6 +8628,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(percr),
 	MLXSW_REG(pererp),
 	MLXSW_REG(iedr),
+	MLXSW_REG(qpts),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
