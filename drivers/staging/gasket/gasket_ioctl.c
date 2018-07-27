@@ -5,9 +5,9 @@
 #include "gasket_constants.h"
 #include "gasket_core.h"
 #include "gasket_interrupt.h"
-#include "gasket_logging.h"
 #include "gasket_page_table.h"
 #include <linux/compiler.h>
+#include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 
@@ -73,7 +73,7 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 		}
 	} else if (!gasket_ioctl_check_permissions(filp, cmd)) {
 		trace_gasket_ioctl_exit(-EPERM);
-		gasket_log_debug(gasket_dev, "ioctl cmd=%x noperm.", cmd);
+		dev_dbg(gasket_dev->dev, "ioctl cmd=%x noperm\n", cmd);
 		return -EPERM;
 	}
 
@@ -132,10 +132,9 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 		 * the arg.
 		 */
 		trace_gasket_ioctl_integer_data(arg);
-		gasket_log_debug(
-			gasket_dev,
+		dev_dbg(gasket_dev->dev,
 			"Unknown ioctl cmd=0x%x not caught by "
-			"gasket_is_supported_ioctl",
+			"gasket_is_supported_ioctl\n",
 			cmd);
 		retval = -EINVAL;
 		break;
@@ -186,12 +185,9 @@ static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd)
 	struct gasket_dev *gasket_dev = (struct gasket_dev *)filp->private_data;
 
 	alive = (gasket_dev->status == GASKET_STATUS_ALIVE);
-	if (!alive) {
-		gasket_nodev_error(
-			"%s alive %d status %d.",
-			__func__,
-			alive, gasket_dev->status);
-	}
+	if (!alive)
+		dev_dbg(gasket_dev->dev, "%s alive %d status %d\n",
+			__func__, alive, gasket_dev->status);
 
 	read = !!(filp->f_mode & FMODE_READ);
 	write = !!(filp->f_mode & FMODE_WRITE);
@@ -329,9 +325,8 @@ static int gasket_partition_page_table(
 		gasket_dev->page_table[ibuf.page_table_index]);
 
 	if (ibuf.size > max_page_table_size) {
-		gasket_log_debug(
-			gasket_dev,
-			"Partition request 0x%llx too large, max is 0x%x.",
+		dev_dbg(gasket_dev->dev,
+			"Partition request 0x%llx too large, max is 0x%x\n",
 			ibuf.size, max_page_table_size);
 		return -EINVAL;
 	}
