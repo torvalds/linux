@@ -865,6 +865,7 @@ struct sdw_stream_runtime *sdw_alloc_stream(char *stream_name)
 	stream->name = stream_name;
 	INIT_LIST_HEAD(&stream->master_list);
 	stream->state = SDW_STREAM_ALLOCATED;
+	stream->m_rt_count = 0;
 
 	return stream;
 }

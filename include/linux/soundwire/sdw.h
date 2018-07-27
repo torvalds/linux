@@ -775,6 +775,7 @@ struct sdw_stream_params {
  * @master_list: List of Master runtime(s) in this stream.
  * master_list can contain only one m_rt per Master instance
  * for a stream
+ * @m_rt_count: Count of Master runtime(s) in this stream
  */
 struct sdw_stream_runtime {
 	char *name;
@@ -782,6 +783,7 @@ struct sdw_stream_runtime {
 	enum sdw_stream_state state;
 	enum sdw_stream_type type;
 	struct list_head master_list;
+	int m_rt_count;
 };
 
 struct sdw_stream_runtime *sdw_alloc_stream(char *stream_name);
