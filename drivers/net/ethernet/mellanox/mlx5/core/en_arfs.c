@@ -381,14 +381,14 @@ static void arfs_may_expire_flow(struct mlx5e_priv *priv)
 	HLIST_HEAD(del_list);
 	spin_lock_bh(&priv->fs.arfs.arfs_lock);
 	mlx5e_for_each_arfs_rule(arfs_rule, htmp, priv->fs.arfs.arfs_tables, i, j) {
-		if (quota++ > MLX5E_ARFS_EXPIRY_QUOTA)
-			break;
 		if (!work_pending(&arfs_rule->arfs_work) &&
 		    rps_may_expire_flow(priv->netdev,
 					arfs_rule->rxq, arfs_rule->flow_id,
 					arfs_rule->filter_id)) {
 			hlist_del_init(&arfs_rule->hlist);
 			hlist_add_head(&arfs_rule->hlist, &del_list);
+			if (quota++ > MLX5E_ARFS_EXPIRY_QUOTA)
+				break;
 		}
 	}
 	spin_unlock_bh(&priv->fs.arfs.arfs_lock);
@@ -709,6 +709,9 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 
 	if (skb->protocol != htons(ETH_P_IP) &&
 	    skb->protocol != htons(ETH_P_IPV6))
+		return -EPROTONOSUPPORT;
+
+	if (skb->encapsulation)
 		return -EPROTONOSUPPORT;
 
 	arfs_t = arfs_get_table(arfs, arfs_get_ip_proto(skb), skb->protocol);

@@ -131,23 +131,14 @@ static void dctcp_ce_state_0_to_1(struct sock *sk)
 	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	/* State has changed from CE=0 to CE=1 and delayed
-	 * ACK has not sent yet.
-	 */
-	if (!ca->ce_state && ca->delayed_ack_reserved) {
-		u32 tmp_rcv_nxt;
-
-		/* Save current rcv_nxt. */
-		tmp_rcv_nxt = tp->rcv_nxt;
-
-		/* Generate previous ack with CE=0. */
-		tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
-		tp->rcv_nxt = ca->prior_rcv_nxt;
-
-		tcp_send_ack(sk);
-
-		/* Recover current rcv_nxt. */
-		tp->rcv_nxt = tmp_rcv_nxt;
+	if (!ca->ce_state) {
+		/* State has changed from CE=0 to CE=1, force an immediate
+		 * ACK to reflect the new CE state. If an ACK was delayed,
+		 * send that first to reflect the prior CE state.
+		 */
+		if (inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER)
+			__tcp_send_ack(sk, ca->prior_rcv_nxt);
+		tcp_enter_quickack_mode(sk);
 	}
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;
@@ -161,23 +152,14 @@ static void dctcp_ce_state_1_to_0(struct sock *sk)
 	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	/* State has changed from CE=1 to CE=0 and delayed
-	 * ACK has not sent yet.
-	 */
-	if (ca->ce_state && ca->delayed_ack_reserved) {
-		u32 tmp_rcv_nxt;
-
-		/* Save current rcv_nxt. */
-		tmp_rcv_nxt = tp->rcv_nxt;
-
-		/* Generate previous ack with CE=1. */
-		tp->ecn_flags |= TCP_ECN_DEMAND_CWR;
-		tp->rcv_nxt = ca->prior_rcv_nxt;
-
-		tcp_send_ack(sk);
-
-		/* Recover current rcv_nxt. */
-		tp->rcv_nxt = tmp_rcv_nxt;
+	if (ca->ce_state) {
+		/* State has changed from CE=1 to CE=0, force an immediate
+		 * ACK to reflect the new CE state. If an ACK was delayed,
+		 * send that first to reflect the prior CE state.
+		 */
+		if (inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER)
+			__tcp_send_ack(sk, ca->prior_rcv_nxt);
+		tcp_enter_quickack_mode(sk);
 	}
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;

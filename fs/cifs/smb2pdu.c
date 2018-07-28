@@ -338,10 +338,7 @@ smb2_plain_req_init(__le16 smb2_command, struct cifs_tcon *tcon,
 		return rc;
 
 	/* BB eventually switch this to SMB2 specific small buf size */
-	if (smb2_command == SMB2_SET_INFO)
-		*request_buf = cifs_buf_get();
-	else
-		*request_buf = cifs_small_buf_get();
+	*request_buf = cifs_small_buf_get();
 	if (*request_buf == NULL) {
 		/* BB should we add a retry in here if not a writepage? */
 		return -ENOMEM;
@@ -3171,7 +3168,7 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	rc = SendReceive2(xid, ses, iov, num, &resp_buftype, flags, &rsp_iov);
-	cifs_buf_release(req);
+	cifs_small_buf_release(req);
 	rsp = (struct smb2_set_info_rsp *)rsp_iov.iov_base;
 
 	if (rc != 0)

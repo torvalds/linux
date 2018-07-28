@@ -467,7 +467,7 @@ static int tce_iommu_prereg_ua_to_hpa(struct tce_container *container,
 	if (!mem)
 		return -EINVAL;
 
-	ret = mm_iommu_ua_to_hpa(mem, tce, phpa);
+	ret = mm_iommu_ua_to_hpa(mem, tce, shift, phpa);
 	if (ret)
 		return -EINVAL;
 

@@ -207,10 +207,14 @@ static ssize_t softsynthx_read(struct file *fp, char __user *buf, size_t count,
 	int chars_sent = 0;
 	char __user *cp;
 	char *init;
+	size_t bytes_per_ch = unicode ? 3 : 1;
 	u16 ch;
 	int empty;
 	unsigned long flags;
 	DEFINE_WAIT(wait);
+
+	if (count < bytes_per_ch)
+		return -EINVAL;
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (1) {
@@ -237,7 +241,7 @@ static ssize_t softsynthx_read(struct file *fp, char __user *buf, size_t count,
 	init = get_initstring();
 
 	/* Keep 3 bytes available for a 16bit UTF-8-encoded character */
-	while (chars_sent <= count - 3) {
+	while (chars_sent <= count - bytes_per_ch) {
 		if (speakup_info.flushing) {
 			speakup_info.flushing = 0;
 			ch = '\x18';

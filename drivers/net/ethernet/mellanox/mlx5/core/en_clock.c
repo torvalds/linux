@@ -545,6 +545,7 @@ void mlx5e_pps_event_handler(struct mlx5e_priv *priv,
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tstamp *tstamp = &priv->tstamp;
+	u64 overflow_cycles;
 	u64 ns;
 	u64 frac = 0;
 	u32 dev_freq;
@@ -569,10 +570,17 @@ void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 
 	/* Calculate period in seconds to call the overflow watchdog - to make
 	 * sure counter is checked at least once every wrap around.
+	 * The period is calculated as the minimum between max HW cycles count
+	 * (The clock source mask) and max amount of cycles that can be
+	 * multiplied by clock multiplier where the result doesn't exceed
+	 * 64bits.
 	 */
-	ns = cyclecounter_cyc2ns(&tstamp->cycles, tstamp->cycles.mask,
+	overflow_cycles = div64_u64(~0ULL >> 1, tstamp->cycles.mult);
+	overflow_cycles = min(overflow_cycles, tstamp->cycles.mask >> 1);
+
+	ns = cyclecounter_cyc2ns(&tstamp->cycles, overflow_cycles,
 				 frac, &frac);
-	do_div(ns, NSEC_PER_SEC / 2 / HZ);
+	do_div(ns, NSEC_PER_SEC / HZ);
 	tstamp->overflow_period = ns;
 
 	INIT_WORK(&tstamp->pps_info.out_work, mlx5e_pps_out);
