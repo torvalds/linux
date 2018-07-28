@@ -286,7 +286,7 @@ static int pedit_skb_hdr_offset(struct sk_buff *skb,
 	default:
 		ret = -EINVAL;
 		break;
-	};
+	}
 
 	return ret;
 }
