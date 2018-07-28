@@ -856,6 +856,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 {
 	struct controller *ctrl;
 	u32 slot_cap, link_cap;
+	u8 occupied, poweron;
 	struct pci_dev *pdev = dev->port;
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
@@ -909,6 +910,19 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	if (pcie_init_slot(ctrl))
 		goto abort_ctrl;
+
+	/*
+	 * If empty slot's power status is on, turn power off.  The IRQ isn't
+	 * requested yet, so avoid triggering a notification with this command.
+	 */
+	if (POWER_CTRL(ctrl)) {
+		pciehp_get_adapter_status(ctrl->slot, &occupied);
+		pciehp_get_power_status(ctrl->slot, &poweron);
+		if (!occupied && poweron) {
+			pcie_disable_notification(ctrl);
+			pciehp_power_off_slot(ctrl->slot);
+		}
+	}
 
 	return ctrl;
 

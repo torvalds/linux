@@ -200,12 +200,40 @@ static int reset_slot(struct hotplug_slot *hotplug_slot, int probe)
 	return pciehp_reset_slot(slot, probe);
 }
 
+/**
+ * pciehp_check_presence() - synthesize event if presence has changed
+ *
+ * On probe and resume, an explicit presence check is necessary to bring up an
+ * occupied slot or bring down an unoccupied slot.  This can't be triggered by
+ * events in the Slot Status register, they may be stale and are therefore
+ * cleared.  Secondly, sending an interrupt for "events that occur while
+ * interrupt generation is disabled [when] interrupt generation is subsequently
+ * enabled" is optional per PCIe r4.0, sec 6.7.3.4.
+ */
+static void pciehp_check_presence(struct controller *ctrl)
+{
+	struct slot *slot = ctrl->slot;
+	u8 occupied;
+
+	down_read(&ctrl->reset_lock);
+	mutex_lock(&slot->lock);
+
+	pciehp_get_adapter_status(slot, &occupied);
+	if ((occupied && (slot->state == OFF_STATE ||
+			  slot->state == BLINKINGON_STATE)) ||
+	    (!occupied && (slot->state == ON_STATE ||
+			   slot->state == BLINKINGOFF_STATE)))
+		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
+
+	mutex_unlock(&slot->lock);
+	up_read(&ctrl->reset_lock);
+}
+
 static int pciehp_probe(struct pcie_device *dev)
 {
 	int rc;
 	struct controller *ctrl;
 	struct slot *slot;
-	u8 occupied, poweron;
 
 	/* If this is not a "hotplug" service, we have no business here. */
 	if (dev->service != PCIE_PORT_SERVICE_HP)
@@ -250,21 +278,7 @@ static int pciehp_probe(struct pcie_device *dev)
 		goto err_out_shutdown_notification;
 	}
 
-	/* Check if slot is occupied */
-	down_read(&ctrl->reset_lock);
-	mutex_lock(&slot->lock);
-	pciehp_get_adapter_status(slot, &occupied);
-	pciehp_get_power_status(slot, &poweron);
-	if ((occupied && (slot->state == OFF_STATE ||
-			  slot->state == BLINKINGON_STATE)) ||
-	    (!occupied && (slot->state == ON_STATE ||
-			   slot->state == BLINKINGOFF_STATE)))
-		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
-	/* If empty slot's power status is on, turn power off */
-	if (!occupied && poweron && POWER_CTRL(ctrl))
-		pciehp_power_off_slot(slot);
-	mutex_unlock(&slot->lock);
-	up_read(&ctrl->reset_lock);
+	pciehp_check_presence(ctrl);
 
 	return 0;
 
@@ -311,22 +325,9 @@ static int pciehp_resume_noirq(struct pcie_device *dev)
 
 static int pciehp_resume(struct pcie_device *dev)
 {
-	struct controller *ctrl;
-	struct slot *slot;
-	u8 status;
+	struct controller *ctrl = get_service_data(dev);
 
-	ctrl = get_service_data(dev);
-	slot = ctrl->slot;
-
-	/* Check if slot is occupied */
-	pciehp_get_adapter_status(slot, &status);
-	mutex_lock(&slot->lock);
-	if ((status && (slot->state == OFF_STATE ||
-			slot->state == BLINKINGON_STATE)) ||
-	    (!status && (slot->state == ON_STATE ||
-			 slot->state == BLINKINGOFF_STATE)))
-		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
-	mutex_unlock(&slot->lock);
+	pciehp_check_presence(ctrl);
 
 	return 0;
 }
