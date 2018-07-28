@@ -13,7 +13,7 @@
 // ACI/AIFSN Field.
 // Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
 //
-typedef	union _ACI_AIFSN {
+union aci_aifsn {
 	u8	charData;
 
 	struct {
@@ -22,7 +22,7 @@ typedef	union _ACI_AIFSN {
 		u8	ACI:2;
 		u8	Reserved:1;
 	} f;	// Field
-} ACI_AIFSN, *PACI_AIFSN;
+};
 
 //
 // ECWmin/ECWmax field.
@@ -45,7 +45,7 @@ typedef	union _AC_PARAM {
 	u8	charData[4];
 
 	struct {
-		ACI_AIFSN	AciAifsn;
+		union aci_aifsn	AciAifsn;
 		ECW		Ecw;
 		u16		TXOPLimit;
 	} f;	// Field
