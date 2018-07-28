@@ -701,7 +701,7 @@ static int vcpu_mmap_sz(void)
  * Creates and adds to the VM specified by vm and virtual CPU with
  * the ID given by vcpuid.
  */
-void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
+void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, int pgd_memslot, int gdt_memslot)
 {
 	struct vcpu *vcpu;
 
@@ -736,7 +736,7 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
 	vcpu->next = vm->vcpu_head;
 	vm->vcpu_head = vcpu;
 
-	vcpu_setup(vm, vcpuid);
+	vcpu_setup(vm, vcpuid, pgd_memslot, gdt_memslot);
 }
 
 /* VM Virtual Address Unused Gap

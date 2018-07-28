@@ -51,13 +51,16 @@ struct kvm_vm {
 	struct userspace_mem_region *userspace_mem_region_head;
 	struct sparsebit *vpages_valid;
 	struct sparsebit *vpages_mapped;
+
 	bool pgd_created;
 	vm_paddr_t pgd;
+	vm_vaddr_t gdt;
+	vm_vaddr_t tss;
 };
 
 struct vcpu *vcpu_find(struct kvm_vm *vm,
 	uint32_t vcpuid);
-void vcpu_setup(struct kvm_vm *vm, int vcpuid);
+void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot);
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
 void regs_dump(FILE *stream, struct kvm_regs *regs,
 	uint8_t indent);
