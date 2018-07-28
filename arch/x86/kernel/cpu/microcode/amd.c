@@ -183,27 +183,22 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size, unsigned int si
 {
 	u32 max_size;
 
+	if (family >= 0x15)
+		return min_t(u32, patch_size, size);
+
 #define F1XH_MPB_MAX_SIZE 2048
 #define F14H_MPB_MAX_SIZE 1824
-#define F15H_MPB_MAX_SIZE 4096
-#define F16H_MPB_MAX_SIZE 3458
-#define F17H_MPB_MAX_SIZE 3200
 
 	switch (family) {
+	case 0x10 ... 0x12:
+		max_size = F1XH_MPB_MAX_SIZE;
+		break;
 	case 0x14:
 		max_size = F14H_MPB_MAX_SIZE;
 		break;
-	case 0x15:
-		max_size = F15H_MPB_MAX_SIZE;
-		break;
-	case 0x16:
-		max_size = F16H_MPB_MAX_SIZE;
-		break;
-	case 0x17:
-		max_size = F17H_MPB_MAX_SIZE;
-		break;
 	default:
-		max_size = F1XH_MPB_MAX_SIZE;
+		WARN(1, "%s: WTF family: 0x%x\n", __func__, family);
+		return 0;
 		break;
 	}
 
