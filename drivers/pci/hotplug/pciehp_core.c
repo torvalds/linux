@@ -237,6 +237,7 @@ static int pciehp_probe(struct pcie_device *dev)
 	}
 
 	/* Check if slot is occupied */
+	down_read(&ctrl->reset_lock);
 	mutex_lock(&slot->lock);
 	pciehp_get_adapter_status(slot, &occupied);
 	pciehp_get_power_status(slot, &poweron);
@@ -249,6 +250,7 @@ static int pciehp_probe(struct pcie_device *dev)
 	if (!occupied && poweron && POWER_CTRL(ctrl))
 		pciehp_power_off_slot(slot);
 	mutex_unlock(&slot->lock);
+	up_read(&ctrl->reset_lock);
 
 	return 0;
 

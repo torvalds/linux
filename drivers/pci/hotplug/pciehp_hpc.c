@@ -603,10 +603,12 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	 * Disable requests have higher priority than Presence Detect Changed
 	 * or Data Link Layer State Changed events.
 	 */
+	down_read(&ctrl->reset_lock);
 	if (events & DISABLE_SLOT)
 		pciehp_handle_disable_request(slot);
 	else if (events & (PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC))
 		pciehp_handle_presence_or_link_change(slot, events);
+	up_read(&ctrl->reset_lock);
 
 	/* Check Power Fault Detected */
 	if ((events & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {
@@ -627,9 +629,6 @@ static int pciehp_poll(void *data)
 	schedule_timeout_idle(10 * HZ); /* start with 10 sec delay */
 
 	while (!kthread_should_stop()) {
-		if (kthread_should_park())
-			kthread_parkme();
-
 		/* poll for interrupt events or user requests */
 		while (pciehp_isr(IRQ_NOTCONNECTED, ctrl) == IRQ_WAKE_THREAD ||
 		       atomic_read(&ctrl->pending_events))
@@ -723,6 +722,8 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	if (probe)
 		return 0;
 
+	down_write(&ctrl->reset_lock);
+
 	if (!ATTN_BUTTN(ctrl)) {
 		ctrl_mask |= PCI_EXP_SLTCTL_PDCE;
 		stat_mask |= PCI_EXP_SLTSTA_PDC;
@@ -733,8 +734,6 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	pcie_write_cmd(ctrl, 0, ctrl_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, 0);
-	if (pciehp_poll_mode)
-		kthread_park(ctrl->poll_thread);
 
 	pci_reset_bridge_secondary_bus(ctrl->pcie->port);
 
@@ -742,8 +741,8 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	pcie_write_cmd_nowait(ctrl, ctrl_mask, ctrl_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
-	if (pciehp_poll_mode)
-		kthread_unpark(ctrl->poll_thread);
+
+	up_write(&ctrl->reset_lock);
 	return 0;
 }
 
@@ -835,6 +834,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	ctrl->slot_cap = slot_cap;
 	mutex_init(&ctrl->ctrl_lock);
+	init_rwsem(&ctrl->reset_lock);
 	init_waitqueue_head(&ctrl->requester);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
