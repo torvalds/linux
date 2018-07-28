@@ -14,13 +14,13 @@
 // Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
 //
 union aci_aifsn {
-	u8	charData;
+	u8	char_data;
 
 	struct {
-		u8	AIFSN:4;
-		u8	ACM:1;
-		u8	ACI:2;
-		u8	Reserved:1;
+		u8	aifsn:4;
+		u8	acm:1;
+		u8	aci:2;
+		u8	reserved:1;
 	} f;	// Field
 };
 

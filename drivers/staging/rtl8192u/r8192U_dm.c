@@ -2338,7 +2338,7 @@ static void dm_check_edca_turbo(
 
 				read_nic_byte(dev, AcmHwCtrl, &AcmCtrl);
 
-				if (pAciAifsn->f.ACM) { /*  ACM bit is 1. */
+				if (pAciAifsn->f.acm) { /*  acm bit is 1. */
 					AcmCtrl |= AcmHw_BeqEn;
 				} else {	/* ACM bit is 0. */
 					AcmCtrl &= (~AcmHw_BeqEn);
