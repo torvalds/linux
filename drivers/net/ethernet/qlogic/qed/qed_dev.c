@@ -507,16 +507,6 @@ u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf)
 	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_VFS) + vf;
 }
 
-u16 qed_get_cm_pq_idx_rl(struct qed_hwfn *p_hwfn, u8 rl)
-{
-	u16 max_rl = qed_init_qm_get_num_pf_rls(p_hwfn);
-
-	if (rl > max_rl)
-		DP_ERR(p_hwfn, "rl %d must be smaller than %d\n", rl, max_rl);
-
-	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_RLS) + rl;
-}
-
 /* Functions for creating specific types of pqs */
 static void qed_init_qm_lb_pq(struct qed_hwfn *p_hwfn)
 {
