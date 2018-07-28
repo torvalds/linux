@@ -2,13 +2,6 @@
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 
-#define	MAX_WMMELE_LENGTH	64
-
-#define AC_PARAM_SIZE	4
-#define WMM_PARAM_ELE_BODY_LEN	18
-
-#define WMM_PARAM_ELEMENT_SIZE	(8 + (4 * AC_PARAM_SIZE))
-
 //
 // ACI/AIFSN Field.
 // Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
