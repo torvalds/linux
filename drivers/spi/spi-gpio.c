@@ -121,7 +121,10 @@ static inline int getmiso(const struct spi_device *spi)
 {
 	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
 
-	return !!gpiod_get_value_cansleep(spi_gpio->miso);
+	if (spi->mode & SPI_3WIRE)
+		return !!gpiod_get_value_cansleep(spi_gpio->mosi);
+	else
+		return !!gpiod_get_value_cansleep(spi_gpio->miso);
 }
 
 /*
@@ -248,6 +251,16 @@ static int spi_gpio_setup(struct spi_device *spi)
 		status = spi_bitbang_setup(spi);
 
 	return status;
+}
+
+static int spi_gpio_set_direction(struct spi_device *spi, bool output)
+{
+	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
+
+	if (output)
+		return gpiod_direction_output(spi_gpio->mosi, 1);
+	else
+		return gpiod_direction_input(spi_gpio->mosi);
 }
 
 static void spi_gpio_cleanup(struct spi_device *spi)
@@ -395,6 +408,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 		return status;
 
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
+	master->mode_bits = SPI_3WIRE | SPI_CPHA | SPI_CPOL;
 	master->flags = master_flags;
 	master->bus_num = pdev->id;
 	/* The master needs to think there is a chipselect even if not connected */
@@ -407,6 +421,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	spi_gpio->bitbang.master = master;
 	spi_gpio->bitbang.chipselect = spi_gpio_chipselect;
+	spi_gpio->bitbang.set_line_direction = spi_gpio_set_direction;
 
 	if ((master_flags & (SPI_MASTER_NO_TX | SPI_MASTER_NO_RX)) == 0) {
 		spi_gpio->bitbang.txrx_word[SPI_MODE_0] = spi_gpio_txrx_word_mode0;
