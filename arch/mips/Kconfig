@@ -2985,6 +2985,9 @@ config PGTABLE_LEVELS
 	default 3 if 64BIT && !PAGE_SIZE_64KB
 	default 2
 
+config MIPS_AUTO_PFN_OFFSET
+	bool
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"

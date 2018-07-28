@@ -85,6 +85,11 @@ static struct resource bss_resource = { .name = "Kernel bss", };
 
 static void *detect_magic __initdata = detect_memory_region;
 
+#ifdef CONFIG_MIPS_AUTO_PFN_OFFSET
+unsigned long ARCH_PFN_OFFSET;
+EXPORT_SYMBOL(ARCH_PFN_OFFSET);
+#endif
+
 void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
 {
 	int x = boot_mem_map.nr_map;
@@ -442,6 +447,12 @@ static void __init bootmem_init(void)
 		mapstart = max(reserved_end, start);
 	}
 
+	if (min_low_pfn >= max_low_pfn)
+		panic("Incorrect memory mapping !!!");
+
+#ifdef CONFIG_MIPS_AUTO_PFN_OFFSET
+	ARCH_PFN_OFFSET = PFN_UP(ramstart);
+#else
 	/*
 	 * Reserve any memory between the start of RAM and PHYS_OFFSET
 	 */
@@ -449,8 +460,6 @@ static void __init bootmem_init(void)
 		add_memory_region(PHYS_OFFSET, ramstart - PHYS_OFFSET,
 				  BOOT_MEM_RESERVED);
 
-	if (min_low_pfn >= max_low_pfn)
-		panic("Incorrect memory mapping !!!");
 	if (min_low_pfn > ARCH_PFN_OFFSET) {
 		pr_info("Wasting %lu bytes for tracking %lu unused pages\n",
 			(min_low_pfn - ARCH_PFN_OFFSET) * sizeof(struct page),
@@ -460,6 +469,7 @@ static void __init bootmem_init(void)
 			ARCH_PFN_OFFSET - min_low_pfn);
 	}
 	min_low_pfn = ARCH_PFN_OFFSET;
+#endif
 
 	/*
 	 * Determine low and high memory ranges
