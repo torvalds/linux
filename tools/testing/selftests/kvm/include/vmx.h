@@ -531,6 +531,18 @@ struct vmx_pages {
 	void *msr_hva;
 	uint64_t msr_gpa;
 	void *msr;
+
+	void *shadow_vmcs_hva;
+	uint64_t shadow_vmcs_gpa;
+	void *shadow_vmcs;
+
+	void *vmread_hva;
+	uint64_t vmread_gpa;
+	void *vmread;
+
+	void *vmwrite_hva;
+	uint64_t vmwrite_gpa;
+	void *vmwrite;
 };
 
 struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva);

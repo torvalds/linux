@@ -44,6 +44,23 @@ vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva)
 	vmx->msr = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
 	vmx->msr_hva = addr_gva2hva(vm, (uintptr_t)vmx->msr);
 	vmx->msr_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->msr);
+	memset(vmx->msr_hva, 0, getpagesize());
+
+	/* Setup of a region of guest memory for the shadow VMCS. */
+	vmx->shadow_vmcs = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->shadow_vmcs_hva = addr_gva2hva(vm, (uintptr_t)vmx->shadow_vmcs);
+	vmx->shadow_vmcs_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->shadow_vmcs);
+
+	/* Setup of a region of guest memory for the VMREAD and VMWRITE bitmaps. */
+	vmx->vmread = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->vmread_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmread);
+	vmx->vmread_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmread);
+	memset(vmx->vmread_hva, 0, getpagesize());
+
+	vmx->vmwrite = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->vmwrite_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmwrite);
+	vmx->vmwrite_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmwrite);
+	memset(vmx->vmwrite_hva, 0, getpagesize());
 
 	*p_vmx_gva = vmx_gva;
 	return vmx;
@@ -98,6 +115,11 @@ bool prepare_for_vmx_operation(struct vmx_pages *vmx)
 	if (vmptrld(vmx->vmcs_gpa))
 		return false;
 
+	/* Setup shadow VMCS, do not load it yet. */
+	*(uint32_t *)(vmx->shadow_vmcs) = vmcs_revision() | 0x80000000ul;
+	if (vmclear(vmx->shadow_vmcs_gpa))
+		return false;
+
 	return true;
 }
 
@@ -109,8 +131,12 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 	vmwrite(VIRTUAL_PROCESSOR_ID, 0);
 	vmwrite(POSTED_INTR_NV, 0);
 
-	vmwrite(PIN_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_PINBASED_CTLS));
-	vmwrite(CPU_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_PROCBASED_CTLS));
+	vmwrite(PIN_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_TRUE_PINBASED_CTLS));
+	if (!vmwrite(SECONDARY_VM_EXEC_CONTROL, 0))
+		vmwrite(CPU_BASED_VM_EXEC_CONTROL,
+			rdmsr(MSR_IA32_VMX_TRUE_PROCBASED_CTLS) | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS);
+	else
+		vmwrite(CPU_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_TRUE_PROCBASED_CTLS));
 	vmwrite(EXCEPTION_BITMAP, 0);
 	vmwrite(PAGE_FAULT_ERROR_CODE_MASK, 0);
 	vmwrite(PAGE_FAULT_ERROR_CODE_MATCH, -1); /* Never match */
@@ -124,7 +150,6 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 	vmwrite(VM_ENTRY_MSR_LOAD_COUNT, 0);
 	vmwrite(VM_ENTRY_INTR_INFO_FIELD, 0);
 	vmwrite(TPR_THRESHOLD, 0);
-	vmwrite(SECONDARY_VM_EXEC_CONTROL, 0);
 
 	vmwrite(CR0_GUEST_HOST_MASK, 0);
 	vmwrite(CR4_GUEST_HOST_MASK, 0);
@@ -132,6 +157,8 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 	vmwrite(CR4_READ_SHADOW, get_cr4());
 
 	vmwrite(MSR_BITMAP, vmx->msr_gpa);
+	vmwrite(VMREAD_BITMAP, vmx->vmread_gpa);
+	vmwrite(VMWRITE_BITMAP, vmx->vmwrite_gpa);
 }
 
 /*
