@@ -1047,13 +1047,10 @@ static void hv_kmsg_dump(struct kmsg_dumper *dumper,
 	 * Write dump contents to the page. No need to synchronize; panic should
 	 * be single-threaded.
 	 */
-	if (!kmsg_dump_get_buffer(dumper, true, hv_panic_page,
-				  PAGE_SIZE, &bytes_written)) {
-		pr_err("Hyper-V: Unable to get kmsg data for panic\n");
-		return;
-	}
-
-	hyperv_report_panic_msg(panic_pa, bytes_written);
+	kmsg_dump_get_buffer(dumper, true, hv_panic_page, PAGE_SIZE,
+			     &bytes_written);
+	if (bytes_written)
+		hyperv_report_panic_msg(panic_pa, bytes_written);
 }
 
 static struct kmsg_dumper hv_kmsg_dumper = {
