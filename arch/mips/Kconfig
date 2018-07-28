@@ -98,6 +98,7 @@ config MIPS_GENERIC
 	select HW_HAS_PCI
 	select IRQ_MIPS_CPU
 	select LIBFDT
+	select MIPS_AUTO_PFN_OFFSET
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
 	select MIPS_L1_CACHE_SHIFT_7
