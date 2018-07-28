@@ -37,21 +37,6 @@ typedef	union _ECW {
 } ECW, *PECW;
 
 //
-// AC Parameters Record Format.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _AC_PARAM {
-	u32	longData;
-	u8	charData[4];
-
-	struct {
-		union aci_aifsn	AciAifsn;
-		ECW		Ecw;
-		u16		TXOPLimit;
-	} f;	// Field
-} AC_PARAM, *PAC_PARAM;
-
-//
 // Direction Field Values.
 // Ref: WMM spec 2.2.11: WME TSPEC Element, p.18.
 //
