@@ -1146,7 +1146,7 @@ static int vmbus_bus_init(void)
 		 * Register for panic kmsg callback only if the right
 		 * capability is supported by the hypervisor.
 		 */
-		rdmsrl(HV_X64_MSR_CRASH_CTL, hyperv_crash_ctl);
+		hv_get_crash_ctl(hyperv_crash_ctl);
 		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_NOTIFY_MSG) {
 			hv_panic_page = (void *)get_zeroed_page(GFP_KERNEL);
 			if (hv_panic_page) {

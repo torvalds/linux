@@ -97,6 +97,9 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 #define hv_set_synint_state(int_num, val) \
 	wrmsrl(HV_X64_MSR_SINT0 + int_num, val)
 
+#define hv_get_crash_ctl(val) \
+	rdmsrl(HV_X64_MSR_CRASH_CTL, val)
+
 void hyperv_callback_vector(void);
 void hyperv_reenlightenment_vector(void);
 #ifdef CONFIG_TRACING
