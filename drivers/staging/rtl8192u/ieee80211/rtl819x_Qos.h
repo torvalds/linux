@@ -42,7 +42,7 @@ enum direction_value {
 //	1. WMM spec 2.2.11: WME TSPEC Element, p.18.
 //	2. 8185 QoS code: QOS_TSINFO [def. in QoS_mp.h]
 //
-typedef union _QOS_TSINFO {
+union qos_tsinfo {
 	u8		charData[3];
 	struct {
 		u8		ucTrafficType:1;			//WMM is reserved
@@ -56,7 +56,7 @@ typedef union _QOS_TSINFO {
 		u8		ucSchedule:1;			//WMM is reserved
 		u8		ucReserved:7;
 	} field;
-} QOS_TSINFO, *PQOS_TSINFO;
+};
 
 //
 // WMM TSPEC Body.
@@ -66,7 +66,7 @@ typedef union _TSPEC_BODY {
 	u8		charData[55];
 
 	struct {
-		QOS_TSINFO	TSInfo;	//u8	TSInfo[3];
+		union qos_tsinfo	TSInfo;	//u8	TSInfo[3];
 		u16	NominalMSDUsize;
 		u16	MaxMSDUsize;
 		u32	MinServiceItv;
