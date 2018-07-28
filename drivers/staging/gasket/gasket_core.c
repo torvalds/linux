@@ -448,7 +448,7 @@ static int gasket_alloc_dev(
 	gasket_dev->internal_desc = internal_desc;
 	gasket_dev->dev_idx = dev_idx;
 	snprintf(gasket_dev->kobj_name, GASKET_NAME_MAX, "%s", kobj_name);
-	gasket_dev->dev = parent;
+	gasket_dev->dev = get_device(parent);
 	/* gasket_bar_data is uninitialized. */
 	gasket_dev->num_page_tables = driver_desc->num_page_tables;
 	/* max_page_table_size and *page table are uninit'ed */
@@ -487,7 +487,7 @@ static void gasket_free_dev(struct gasket_dev *gasket_dev)
 	mutex_lock(&internal_desc->mutex);
 	internal_desc->devs[gasket_dev->dev_idx] = NULL;
 	mutex_unlock(&internal_desc->mutex);
-
+	put_device(gasket_dev->dev);
 	kfree(gasket_dev);
 }
 
