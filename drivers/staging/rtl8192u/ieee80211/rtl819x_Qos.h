@@ -25,18 +25,6 @@ union aci_aifsn {
 };
 
 //
-// ECWmin/ECWmax field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
-//
-typedef	union _ECW {
-	u8	charData;
-	struct {
-		u8	ECWmin:4;
-		u8	ECWmax:4;
-	} f;	// Field
-} ECW, *PECW;
-
-//
 // Direction Field Values.
 // Ref: WMM spec 2.2.11: WME TSPEC Element, p.18.
 //
