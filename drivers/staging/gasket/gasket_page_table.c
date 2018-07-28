@@ -212,12 +212,6 @@ struct gasket_page_table {
 	 * gasket_mmap function, so user_virt belongs in the driver anyhow.
 	 */
 	struct gasket_coherent_page_entry *coherent_pages;
-
-	/*
-	 * Whether the page table uses arch specific dma_ops or
-	 * whether the driver is supplying its own.
-	 */
-	bool dma_ops;
 };
 
 /* Mapping declarations */
@@ -290,7 +284,7 @@ int gasket_page_table_init(
 	struct gasket_page_table **ppg_tbl,
 	const struct gasket_bar_data *bar_data,
 	const struct gasket_page_table_config *page_table_config,
-	struct device *device, struct pci_dev *pci_dev, bool has_dma_ops)
+	struct device *device, struct pci_dev *pci_dev)
 {
 	ulong bytes;
 	struct gasket_page_table *pg_tbl;
@@ -353,7 +347,6 @@ int gasket_page_table_init(
 		bar_data->virt_base[page_table_config->extended_reg]);
 	pg_tbl->device = device;
 	pg_tbl->pci_dev = pci_dev;
-	pg_tbl->dma_ops = has_dma_ops;
 
 	dev_dbg(device, "Page table initialized successfully\n");
 
@@ -760,33 +753,6 @@ static int gasket_map_extended_pages(
 }
 
 /*
- * TODO: dma_map_page() is not plugged properly when running under qemu. i.e.
- * dma_ops are not set properly, which causes the kernel to assert.
- *
- * This temporary hack allows the driver to work on qemu, but need to be fixed:
- * - either manually set the dma_ops for the architecture (which incidentally
- * can't be done in an out-of-tree module) - or get qemu to fill the device tree
- * properly so as linux plug the proper dma_ops or so as the driver can detect
- * that it is runnig on qemu
- */
-static inline dma_addr_t _no_op_dma_map_page(
-	struct device *dev, struct page *page, size_t offset, size_t size,
-	enum dma_data_direction dir)
-{
-	/*
-	 * struct dma_map_ops *ops = get_dma_ops(dev);
-	 * dma_addr_t addr;
-	 *
-	 * kmemcheck_mark_initialized(page_address(page) + offset, size);
-	 * BUG_ON(!valid_dma_direction(dir));
-	 * addr = ops->map_page(dev, page, offset, size, dir, NULL);
-	 * debug_dma_map_page(dev, page, offset, size, dir, addr, false);
-	 */
-
-	return page_to_phys(page);
-}
-
-/*
  * Get and map last level page table buffers.
  * @pg_tbl: Gasket page table pointer.
  * @ptes: Array of page table entries to describe this mapping, one per
@@ -856,16 +822,9 @@ static int gasket_perform_mapping(
 			ptes[i].offset = offset;
 
 			/* Map the page into DMA space. */
-			if (pg_tbl->dma_ops) {
-				/* hook in to kernel map functions */
-				ptes[i].dma_addr = dma_map_page(pg_tbl->device,
-					page, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
-			} else {
-				ptes[i].dma_addr = _no_op_dma_map_page(
-					pg_tbl->device, page, 0, PAGE_SIZE,
-					DMA_BIDIRECTIONAL);
-			}
-
+			ptes[i].dma_addr =
+				dma_map_page(pg_tbl->device, page, 0, PAGE_SIZE,
+					     DMA_BIDIRECTIONAL);
 			dev_dbg(pg_tbl->device,
 				"%s i %d pte %p pfn %p -> mapped %llx\n",
 				__func__, i, &ptes[i],
@@ -1042,13 +1001,8 @@ static int gasket_alloc_extended_subtable(
 	}
 
 	/* Map the page into DMA space. */
-	if (pg_tbl->dma_ops) {
-		pte->dma_addr = dma_map_page(pg_tbl->device, pte->page, 0,
-			PAGE_SIZE, DMA_BIDIRECTIONAL);
-	} else {
-		pte->dma_addr = _no_op_dma_map_page(pg_tbl->device, pte->page,
-			0, PAGE_SIZE, DMA_BIDIRECTIONAL);
-	}
+	pte->dma_addr = dma_map_page(pg_tbl->device, pte->page, 0, PAGE_SIZE,
+				     DMA_BIDIRECTIONAL);
 	/* Wait until the page is mapped. */
 	mb();
 

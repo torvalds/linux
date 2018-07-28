@@ -916,7 +916,7 @@ static int gasket_enable_dev(
 			&gasket_dev->bar_data[
 				driver_desc->page_table_bar_index],
 			&driver_desc->page_table_configs[tbl_idx],
-			gasket_dev->dev, gasket_dev->pci_dev, true);
+			gasket_dev->dev, gasket_dev->pci_dev);
 		if (ret) {
 			dev_err(gasket_dev->dev,
 				"Couldn't init page table %d: %d\n",

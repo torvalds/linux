@@ -37,7 +37,6 @@ struct gasket_page_table;
  *                 translation table.
  * @device: Device structure for the underlying device. Only used for logging.
  * @pci_dev: PCI system descriptor for the underlying device.
- * @bool has_dma_ops: Whether the page table uses arch specific dma_ops or
  * whether the driver will supply its own.
  *
  * Description: Allocates and initializes data to track address translation -
@@ -51,7 +50,7 @@ int gasket_page_table_init(
 	struct gasket_page_table **ppg_tbl,
 	const struct gasket_bar_data *bar_data,
 	const struct gasket_page_table_config *page_table_config,
-	struct device *device, struct pci_dev *pci_dev, bool dma_ops);
+	struct device *device, struct pci_dev *pci_dev);
 
 /*
  * Deallocate and cleanup page table data.
