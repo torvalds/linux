@@ -157,13 +157,23 @@ function deb {
     #cp cryptodev-linux/cryptodev.ko debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
 	cat > debian/bananapi-r2-image/DEBIAN/postinst << EOF
 #!/bin/sh
-echo "kernel=${uimagename}">>/boot/bananapi/bpi-r2/linux/uEnv.txt
+case "\$1" in
+	#configure)
+	install|upgrade)
+		echo "kernel=${uimagename}">>/boot/bananapi/bpi-r2/linux/uEnv.txt
+	;;
+esac
 EOF
+	chmod +x debian/bananapi-r2-image/DEBIAN/postinst
 	cat > debian/bananapi-r2-image/DEBIAN/postrm << EOF
 #!/bin/sh
-cp /boot/bananapi/bpi-r2/linux/uEnv.txt /boot/bananapi/bpi-r2/linux/uEnv.txt.bak
-grep -v  ${uimagename} /boot/bananapi/bpi-r2/linux/uEnv.txt.bak > /boot/bananapi/bpi-r2/linux/uEnv.txt
+case "\$1" in
+	remove|purge)
+		cp /boot/bananapi/bpi-r2/linux/uEnv.txt /boot/bananapi/bpi-r2/linux/uEnv.txt.bak
+		grep -v  ${uimagename} /boot/bananapi/bpi-r2/linux/uEnv.txt.bak > /boot/bananapi/bpi-r2/linux/uEnv.txt
+	;;
 EOF
+	chmod +x debian/bananapi-r2-image/DEBIAN/postrm
     cat > debian/bananapi-r2-image/DEBIAN/control << EOF
 Package: bananapi-r2-image-${kernbranch}
 Version: ${kernver}-1
@@ -179,7 +189,10 @@ EOF
     fakeroot dpkg-deb --build bananapi-r2-image ../debian
     cd ..
     ls -lh debian/*.deb
-    dpkg -c debian/bananapi-r2-image-${kernbranch,,}_${kernver}-1_armhf.deb
+    debfile=debian/bananapi-r2-image-${kernbranch,,}_${kernver}-1_armhf.deb
+    dpkg -c $debfile
+
+	dpkg -I $debfile
   else
     echo "First build kernel ${ver}"
     echo "eg: ./build"
