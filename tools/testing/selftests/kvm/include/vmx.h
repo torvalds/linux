@@ -486,9 +486,22 @@ static inline uint32_t vmcs_revision(void)
 	return rdmsr(MSR_IA32_VMX_BASIC);
 }
 
-void prepare_for_vmx_operation(void);
-void prepare_vmcs(void *guest_rip, void *guest_rsp);
-struct kvm_vm *vm_create_default_vmx(uint32_t vcpuid,
-				     vmx_guest_code_t guest_code);
+struct vmx_pages {
+	void *vmxon_hva;
+	uint64_t vmxon_gpa;
+	void *vmxon;
+
+	void *vmcs_hva;
+	uint64_t vmcs_gpa;
+	void *vmcs;
+
+	void *msr_hva;
+	uint64_t msr_gpa;
+	void *msr;
+};
+
+struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva);
+bool prepare_for_vmx_operation(struct vmx_pages *vmx);
+void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp);
 
 #endif /* !SELFTEST_KVM_VMX_H */
