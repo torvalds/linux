@@ -396,12 +396,15 @@ if [ -n "$kernver" ]; then
 				else
 					echo "2) install to SD-Card"
 				fi;
-				read -n1 -p "choice [12]:" choice
+				echo "3) deb-package"
+				read -n1 -p "choice [123]:" choice
 				echo
 				if [[ "$choice" == "1" ]]; then
 					$0 pack
 				elif [[ "$choice" == "2" ]];then
 					$0 install
+				elif [[ "$choice" == "3" ]];then
+					$0 deb
 				else
 					echo "wrong option: $choice"
 				fi
