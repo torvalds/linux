@@ -67,11 +67,6 @@ static struct gasket_sysfs_mapping *get_mapping(struct device *device)
 {
 	int i;
 
-	if (!device) {
-		pr_debug("%s: Received NULL device\n", __func__);
-		return NULL;
-	}
-
 	for (i = 0; i < GASKET_SYSFS_NUM_MAPPINGS; i++) {
 		mutex_lock(&dev_mappings[i].mutex);
 		if (dev_mappings[i].device == device) {
