@@ -576,7 +576,7 @@ static void *jazz_dma_alloc(struct device *dev, size_t size,
 
 	if (!(attrs & DMA_ATTR_NON_CONSISTENT)) {
 		dma_cache_wback_inv((unsigned long)ret, size);
-		ret = UNCAC_ADDR(ret);
+		ret = (void *)UNCAC_ADDR(ret);
 	}
 	return ret;
 }
