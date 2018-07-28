@@ -2227,7 +2227,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 /*
  * send request, or put it on the appropriate wait list.
  */
-static int __do_request(struct ceph_mds_client *mdsc,
+static void __do_request(struct ceph_mds_client *mdsc,
 			struct ceph_mds_request *req)
 {
 	struct ceph_mds_session *session = NULL;
@@ -2237,7 +2237,7 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	if (req->r_err || test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags)) {
 		if (test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags))
 			__unregister_request(mdsc, req);
-		goto out;
+		return;
 	}
 
 	if (req->r_timeout &&
@@ -2260,7 +2260,7 @@ static int __do_request(struct ceph_mds_client *mdsc,
 		if (mdsc->mdsmap->m_epoch == 0) {
 			dout("do_request no mdsmap, waiting for map\n");
 			list_add(&req->r_wait, &mdsc->waiting_for_map);
-			goto finish;
+			return;
 		}
 		if (!(mdsc->fsc->mount_options->flags &
 		      CEPH_MOUNT_OPT_MOUNTWAIT) &&
@@ -2278,7 +2278,7 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	    ceph_mdsmap_get_state(mdsc->mdsmap, mds) < CEPH_MDS_STATE_ACTIVE) {
 		dout("do_request no mds or not active, waiting for map\n");
 		list_add(&req->r_wait, &mdsc->waiting_for_map);
-		goto out;
+		return;
 	}
 
 	/* get, open session */
@@ -2328,8 +2328,7 @@ finish:
 		complete_request(mdsc, req);
 		__unregister_request(mdsc, req);
 	}
-out:
-	return err;
+	return;
 }
 
 /*
