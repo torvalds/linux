@@ -210,6 +210,20 @@ static ssize_t modalias_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(modalias);
 
+#ifdef CONFIG_NUMA
+static ssize_t numa_node_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+
+	return sprintf(buf, "%d\n", hv_dev->channel->numa_node);
+}
+static DEVICE_ATTR_RO(numa_node);
+#endif
+
 static ssize_t server_monitor_pending_show(struct device *dev,
 					   struct device_attribute *dev_attr,
 					   char *buf)
@@ -492,6 +506,9 @@ static struct attribute *vmbus_dev_attrs[] = {
 	&dev_attr_class_id.attr,
 	&dev_attr_device_id.attr,
 	&dev_attr_modalias.attr,
+#ifdef CONFIG_NUMA
+	&dev_attr_numa_node.attr,
+#endif
 	&dev_attr_server_monitor_pending.attr,
 	&dev_attr_client_monitor_pending.attr,
 	&dev_attr_server_monitor_latency.attr,
