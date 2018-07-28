@@ -366,7 +366,7 @@ bool GetTs(
 								(&ieee->Tx_TS_Admit_List):
 								(&ieee->Rx_TS_Admit_List);
 
-			DIRECTION_VALUE		Dir =		(ieee->iw_mode == IW_MODE_MASTER)?
+			enum direction_value	Dir =		(ieee->iw_mode == IW_MODE_MASTER)?
 								((TxRxSelect==TX_DIR)?DIR_DOWN:DIR_UP):
 								((TxRxSelect==TX_DIR)?DIR_UP:DIR_DOWN);
 			IEEE80211_DEBUG(IEEE80211_DL_TS, "to add Ts\n");

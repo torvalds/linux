@@ -28,12 +28,12 @@ union aci_aifsn {
 // Direction Field Values.
 // Ref: WMM spec 2.2.11: WME TSPEC Element, p.18.
 //
-typedef	enum _DIRECTION_VALUE {
+enum direction_value {
 	DIR_UP			= 0,		// 0x00	// UpLink
 	DIR_DOWN		= 1,		// 0x01	// DownLink
 	DIR_DIRECT		= 2,		// 0x10	// DirectLink
 	DIR_BI_DIR		= 3,		// 0x11	// Bi-Direction
-} DIRECTION_VALUE, *PDIRECTION_VALUE;
+};
 
 
 //
