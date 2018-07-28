@@ -679,6 +679,14 @@ static void ir_timer_repeat(struct timer_list *t)
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
 
+static unsigned int repeat_period(int protocol)
+{
+	if (protocol >= ARRAY_SIZE(protocols))
+		return 100;
+
+	return protocols[protocol].repeat_period;
+}
+
 /**
  * rc_repeat() - signals that a key is still pressed
  * @dev:	the struct rc_dev descriptor of the device
@@ -691,7 +699,7 @@ void rc_repeat(struct rc_dev *dev)
 {
 	unsigned long flags;
 	unsigned int timeout = nsecs_to_jiffies(dev->timeout) +
-		msecs_to_jiffies(protocols[dev->last_protocol].repeat_period);
+		msecs_to_jiffies(repeat_period(dev->last_protocol));
 	struct lirc_scancode sc = {
 		.scancode = dev->last_scancode, .rc_proto = dev->last_protocol,
 		.keycode = dev->keypressed ? dev->last_keycode : KEY_RESERVED,
@@ -803,7 +811,7 @@ void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
 
 	if (dev->keypressed) {
 		dev->keyup_jiffies = jiffies + nsecs_to_jiffies(dev->timeout) +
-			msecs_to_jiffies(protocols[protocol].repeat_period);
+			msecs_to_jiffies(repeat_period(protocol));
 		mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
 	}
 	spin_unlock_irqrestore(&dev->keylock, flags);
