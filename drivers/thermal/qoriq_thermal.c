@@ -197,7 +197,7 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 	int ret;
 	struct qoriq_tmu_data *data;
 	struct device_node *np = pdev->dev.of_node;
-	u32 site = 0;
+	u32 site;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Device OF-Node is NULL");
@@ -244,7 +244,7 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 	}
 
 	/* Enable monitoring */
-	site |= 0x1 << (15 - data->sensor_id);
+	site = 0x1 << (15 - data->sensor_id);
 	tmu_write(data, site | TMR_ME | TMR_ALPF, &data->regs->tmr);
 
 	return 0;
