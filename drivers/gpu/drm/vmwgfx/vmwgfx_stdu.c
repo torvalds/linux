@@ -1847,6 +1847,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	}
 
 	drm_plane_helper_add(primary, &vmw_stdu_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary);
 
 	/* Initialize cursor plane */
 	vmw_du_plane_reset(cursor);
