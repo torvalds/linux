@@ -380,6 +380,30 @@ static inline int vmptrld(uint64_t vmcs_pa)
 	return ret;
 }
 
+static inline int vmptrst(uint64_t *value)
+{
+	uint64_t tmp;
+	uint8_t ret;
+
+	__asm__ __volatile__("vmptrst %[value]; setna %[ret]"
+		: [value]"=m"(tmp), [ret]"=rm"(ret)
+		: : "cc", "memory");
+
+	*value = tmp;
+	return ret;
+}
+
+/*
+ * A wrapper around vmptrst that ignores errors and returns zero if the
+ * vmptrst instruction fails.
+ */
+static inline uint64_t vmptrstz(void)
+{
+	uint64_t value = 0;
+	vmptrst(&value);
+	return value;
+}
+
 /*
  * No guest state (e.g. GPRs) is established by this vmlaunch.
  */
@@ -442,6 +466,15 @@ static inline int vmresume(void)
 			     : "memory", "cc", "rbx", "r8", "r9", "r10",
 			       "r11", "r12", "r13", "r14", "r15");
 	return ret;
+}
+
+static inline void vmcall(void)
+{
+	/* Currently, L1 destroys our GPRs during vmexits.  */
+	__asm__ __volatile__("push %%rbp; vmcall; pop %%rbp" : : :
+			     "rax", "rbx", "rcx", "rdx",
+			     "rsi", "rdi", "r8", "r9", "r10", "r11", "r12",
+			     "r13", "r14", "r15");
 }
 
 static inline int vmread(uint64_t encoding, uint64_t *value)

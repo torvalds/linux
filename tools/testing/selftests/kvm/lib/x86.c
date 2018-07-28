@@ -736,6 +736,10 @@ struct kvm_x86_state {
 	struct kvm_xcrs xcrs;
 	struct kvm_sregs sregs;
 	struct kvm_debugregs debugregs;
+	union {
+		struct kvm_nested_state nested;
+		char nested_[16384];
+	};
 	struct kvm_msrs msrs;
 };
 
@@ -758,6 +762,14 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	struct kvm_msr_list *list;
 	struct kvm_x86_state *state;
 	int nmsrs, r, i;
+	static int nested_size = -1;
+
+	if (nested_size == -1) {
+		nested_size = kvm_check_cap(KVM_CAP_NESTED_STATE);
+		TEST_ASSERT(nested_size <= sizeof(state->nested_),
+			    "Nested state size too big, %i > %zi",
+			    nested_size, sizeof(state->nested_));
+	}
 
 	nmsrs = kvm_get_num_msrs(vm);
 	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
@@ -791,6 +803,17 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
         TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_SREGS, r: %i",
                 r);
 
+	if (nested_size) {
+		state->nested.size = sizeof(state->nested_);
+		r = ioctl(vcpu->fd, KVM_GET_NESTED_STATE, &state->nested);
+		TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_NESTED_STATE, r: %i",
+			r);
+		TEST_ASSERT(state->nested.size <= nested_size,
+			"Nested state size too big, %i (KVM_CHECK_CAP gave %i)",
+			state->nested.size, nested_size);
+	} else
+		state->nested.size = 0;
+
 	state->msrs.nmsrs = nmsrs;
 	for (i = 0; i < nmsrs; i++)
 		state->msrs.entries[i].index = list->indices[i];
@@ -810,6 +833,12 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int r;
+
+	if (state->nested.size) {
+		r = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, &state->nested);
+		TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_NESTED_STATE, r: %i",
+			r);
+	}
 
 	r = ioctl(vcpu->fd, KVM_SET_XSAVE, &state->xsave);
         TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XSAVE, r: %i",

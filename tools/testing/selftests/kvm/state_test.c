@@ -18,6 +18,7 @@
 
 #include "kvm_util.h"
 #include "x86.h"
+#include "vmx.h"
 
 #define VCPU_ID		5
 #define PORT_SYNC	0x1000
@@ -45,16 +46,75 @@ static inline void __exit_to_l0(uint16_t port, uint64_t arg0, uint64_t arg1)
 
 static bool have_nested_state;
 
-void guest_code(void)
+void l2_guest_code(void)
+{
+	GUEST_SYNC(5);
+
+        /* Exit to L1 */
+	vmcall();
+
+	GUEST_SYNC(7);
+
+	/* Done, exit to L1 and never come back.  */
+	vmcall();
+}
+
+void l1_guest_code(struct vmx_pages *vmx_pages)
+{
+#define L2_GUEST_STACK_SIZE 64
+        unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
+
+	GUEST_ASSERT(vmx_pages->vmcs_gpa);
+	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
+	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
+
+	GUEST_SYNC(3);
+	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
+
+	prepare_vmcs(vmx_pages, l2_guest_code,
+		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+
+	GUEST_SYNC(4);
+	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
+	GUEST_ASSERT(!vmlaunch());
+	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+
+	/* Check that the launched state is preserved.  */
+	GUEST_ASSERT(vmlaunch());
+
+	GUEST_ASSERT(!vmresume());
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+
+	GUEST_SYNC(6);
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+
+	GUEST_ASSERT(!vmresume());
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+
+	vmwrite(GUEST_RIP, vmreadz(GUEST_RIP) + 3);
+
+	GUEST_ASSERT(!vmresume());
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+	GUEST_SYNC(8);
+}
+
+void guest_code(struct vmx_pages *vmx_pages)
 {
 	GUEST_SYNC(1);
 	GUEST_SYNC(2);
+
+	if (vmx_pages)
+		l1_guest_code(vmx_pages);
 
 	exit_to_l0(PORT_DONE, 0, 0);
 }
 
 int main(int argc, char *argv[])
 {
+	struct vmx_pages *vmx_pages = NULL;
+	vm_vaddr_t vmx_pages_gva = 0;
+
 	struct kvm_regs regs1, regs2;
 	struct kvm_vm *vm;
 	struct kvm_run *run;
@@ -69,6 +129,15 @@ int main(int argc, char *argv[])
 	run = vcpu_state(vm, VCPU_ID);
 
 	vcpu_regs_get(vm, VCPU_ID, &regs1);
+
+	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
+		vmx_pages = vcpu_alloc_vmx(vm, &vmx_pages_gva);
+		vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
+	} else {
+		printf("will skip nested state checks\n");
+		vcpu_args_set(vm, VCPU_ID, 1, 0);
+	}
+
 	for (stage = 1;; stage++) {
 		_vcpu_run(vm, VCPU_ID);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
