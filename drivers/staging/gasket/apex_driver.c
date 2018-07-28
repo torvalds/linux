@@ -739,3 +739,10 @@ static ssize_t sysfs_show(
 	gasket_sysfs_put_device_data(device, gasket_dev);
 	return ret;
 }
+
+static void apex_pci_fixup_class(struct pci_dev *pdev)
+{
+	pdev->class = (PCI_CLASS_SYSTEM_OTHER << 8) | pdev->class;
+}
+DECLARE_PCI_FIXUP_CLASS_HEADER(APEX_PCI_VENDOR_ID, APEX_PCI_DEVICE_ID,
+			       PCI_CLASS_NOT_DEFINED, 8, apex_pci_fixup_class);
