@@ -1176,11 +1176,8 @@ err_alloc:
 
 	bus_unregister(&hv_bus);
 	free_page((unsigned long)hv_panic_page);
-	if (!hv_ctl_table_hdr) {
-		unregister_sysctl_table(hv_ctl_table_hdr);
-		hv_ctl_table_hdr = NULL;
-	}
-
+	unregister_sysctl_table(hv_ctl_table_hdr);
+	hv_ctl_table_hdr = NULL;
 	return ret;
 }
 
@@ -1891,11 +1888,8 @@ static void __exit vmbus_exit(void)
 	}
 
 	free_page((unsigned long)hv_panic_page);
-	if (!hv_ctl_table_hdr) {
-		unregister_sysctl_table(hv_ctl_table_hdr);
-		hv_ctl_table_hdr = NULL;
-	}
-
+	unregister_sysctl_table(hv_ctl_table_hdr);
+	hv_ctl_table_hdr = NULL;
 	bus_unregister(&hv_bus);
 
 	cpuhp_remove_state(hyperv_cpuhp_online);
