@@ -218,7 +218,7 @@ static inline void z_erofs_onlinepage_endio(struct page *page)
 }
 
 #define Z_EROFS_VLE_VMAP_ONSTACK_PAGES	\
-	min(THREAD_SIZE / 8 / sizeof(struct page *), 96UL)
+	min_t(unsigned int, THREAD_SIZE / 8 / sizeof(struct page *), 96U)
 #define Z_EROFS_VLE_VMAP_GLOBAL_PAGES	2048
 
 /* unzip_vle_lz4.c */
