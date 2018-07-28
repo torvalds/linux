@@ -233,8 +233,9 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_tmu;
 
-	data->tz = thermal_zone_of_sensor_register(&pdev->dev, data->sensor_id,
-				data, &tmu_tz_ops);
+	data->tz = devm_thermal_zone_of_sensor_register(&pdev->dev,
+							data->sensor_id,
+							data, &tmu_tz_ops);
 	if (IS_ERR(data->tz)) {
 		ret = PTR_ERR(data->tz);
 		dev_err(&pdev->dev,
@@ -260,8 +261,6 @@ err_iomap:
 static int qoriq_tmu_remove(struct platform_device *pdev)
 {
 	struct qoriq_tmu_data *data = platform_get_drvdata(pdev);
-
-	thermal_zone_of_sensor_unregister(&pdev->dev, data->tz);
 
 	/* Disable monitoring */
 	tmu_write(data, TMR_DISABLE, &data->regs->tmr);
