@@ -884,7 +884,7 @@ static int mt9v111_set_format(struct v4l2_subdev *subdev,
 	struct v4l2_mbus_framefmt new_fmt;
 	struct v4l2_mbus_framefmt *__fmt;
 	unsigned int best_fit = ~0L;
-	unsigned int idx;
+	unsigned int idx = 0;
 	unsigned int i;
 
 	mutex_lock(&mt9v111->stream_mutex);
