@@ -28,7 +28,6 @@ static struct dentry *wilc_dir;
 
 #define DBG_LEVEL_ALL	(DEBUG | INFO | WRN | ERR)
 static atomic_t WILC_DEBUG_LEVEL = ATOMIC_INIT(ERR);
-EXPORT_SYMBOL_GPL(WILC_DEBUG_LEVEL);
 
 /*
  * ----------------------------------------------------------------------------
@@ -105,7 +104,7 @@ static struct wilc_debugfs_info_t debugfs_info[] = {
 	},
 };
 
-static int __init wilc_debugfs_init(void)
+int wilc_debugfs_init(void)
 {
 	int i;
 	struct wilc_debugfs_info_t *info;
@@ -121,12 +120,10 @@ static int __init wilc_debugfs_init(void)
 	}
 	return 0;
 }
-module_init(wilc_debugfs_init);
 
-static void __exit wilc_debugfs_remove(void)
+void wilc_debugfs_remove(void)
 {
 	debugfs_remove_recursive(wilc_dir);
 }
-module_exit(wilc_debugfs_remove);
 
 #endif

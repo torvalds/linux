@@ -1,5 +1,4 @@
 TODO:
 - rework comments and function headers(also coding style)
-- make spi and sdio components coexist in one build
 - support soft-ap and p2p mode
 - support resume/suspend function

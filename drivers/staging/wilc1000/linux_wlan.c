@@ -1033,8 +1033,8 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	}
 
 	kfree(wilc);
+	wilc_debugfs_remove();
 }
-EXPORT_SYMBOL_GPL(wilc_netdev_cleanup);
 
 static const struct net_device_ops wilc_netdev_ops = {
 	.ndo_init = mac_init_fn,
@@ -1057,6 +1057,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	if (!wl)
 		return -ENOMEM;
 
+	wilc_debugfs_init();
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
@@ -1118,6 +1119,3 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(wilc_netdev_init);
-
-MODULE_LICENSE("GPL");
