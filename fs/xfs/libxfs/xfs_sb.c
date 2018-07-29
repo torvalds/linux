@@ -96,80 +96,94 @@ xfs_perag_put(
 	trace_xfs_perag_put(pag->pag_mount, pag->pag_agno, ref, _RET_IP_);
 }
 
-/*
- * Check the validity of the SB found.
- */
+/* Check all the superblock fields we care about when reading one in. */
 STATIC int
-xfs_mount_validate_sb(
-	xfs_mount_t	*mp,
-	xfs_sb_t	*sbp,
-	bool		check_inprogress,
-	bool		check_version)
+xfs_validate_sb_read(
+	struct xfs_mount	*mp,
+	struct xfs_sb		*sbp)
 {
-	uint32_t	agcount = 0;
-	uint32_t	rem;
+	if (XFS_SB_VERSION_NUM(sbp) != XFS_SB_VERSION_5)
+		return 0;
+
+	/*
+	 * Version 5 superblock feature mask validation. Reject combinations
+	 * the kernel cannot support up front before checking anything else.
+	 */
+	if (xfs_sb_has_compat_feature(sbp, XFS_SB_FEAT_COMPAT_UNKNOWN)) {
+		xfs_warn(mp,
+"Superblock has unknown compatible features (0x%x) enabled.",
+			(sbp->sb_features_compat & XFS_SB_FEAT_COMPAT_UNKNOWN));
+		xfs_warn(mp,
+"Using a more recent kernel is recommended.");
+	}
+
+	if (xfs_sb_has_ro_compat_feature(sbp, XFS_SB_FEAT_RO_COMPAT_UNKNOWN)) {
+		xfs_alert(mp,
+"Superblock has unknown read-only compatible features (0x%x) enabled.",
+			(sbp->sb_features_ro_compat &
+					XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
+		if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+			xfs_warn(mp,
+"Attempted to mount read-only compatible filesystem read-write.");
+			xfs_warn(mp,
+"Filesystem can only be safely mounted read only.");
+
+			return -EINVAL;
+		}
+	}
+	if (xfs_sb_has_incompat_feature(sbp, XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
+		xfs_warn(mp,
+"Superblock has unknown incompatible features (0x%x) enabled.",
+			(sbp->sb_features_incompat &
+					XFS_SB_FEAT_INCOMPAT_UNKNOWN));
+		xfs_warn(mp,
+"Filesystem cannot be safely mounted by this kernel.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* Check all the superblock fields we care about when writing one out. */
+STATIC int
+xfs_validate_sb_write(
+	struct xfs_mount	*mp,
+	struct xfs_sb		*sbp)
+{
+	if (XFS_SB_VERSION_NUM(sbp) != XFS_SB_VERSION_5)
+		return 0;
+
+	/* XXX: For write validation, we don't need to check feature masks?? */
+
+	/*
+	 * We can't read verify the sb LSN because the read verifier is called
+	 * before the log is allocated and processed. We know the log is set up
+	 * before write verifier calls, so check it here.
+	 */
+	if (!xfs_log_check_lsn(mp, sbp->sb_lsn))
+		return -EFSCORRUPTED;
+
+	return 0;
+}
+
+/* Check the validity of the SB. */
+STATIC int
+xfs_validate_sb_common(
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp,
+	struct xfs_sb		*sbp)
+{
+	uint32_t		agcount = 0;
+	uint32_t		rem;
 
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
 		xfs_warn(mp, "bad magic number");
 		return -EWRONGFS;
 	}
 
-
 	if (!xfs_sb_good_version(sbp)) {
 		xfs_warn(mp, "bad version");
 		return -EWRONGFS;
-	}
-
-	/*
-	 * Version 5 superblock feature mask validation. Reject combinations the
-	 * kernel cannot support up front before checking anything else. For
-	 * write validation, we don't need to check feature masks.
-	 */
-	if (check_version && XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) {
-		if (xfs_sb_has_compat_feature(sbp,
-					XFS_SB_FEAT_COMPAT_UNKNOWN)) {
-			xfs_warn(mp,
-"Superblock has unknown compatible features (0x%x) enabled.",
-				(sbp->sb_features_compat &
-						XFS_SB_FEAT_COMPAT_UNKNOWN));
-			xfs_warn(mp,
-"Using a more recent kernel is recommended.");
-		}
-
-		if (xfs_sb_has_ro_compat_feature(sbp,
-					XFS_SB_FEAT_RO_COMPAT_UNKNOWN)) {
-			xfs_alert(mp,
-"Superblock has unknown read-only compatible features (0x%x) enabled.",
-				(sbp->sb_features_ro_compat &
-						XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
-			if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
-				xfs_warn(mp,
-"Attempted to mount read-only compatible filesystem read-write.");
-				xfs_warn(mp,
-"Filesystem can only be safely mounted read only.");
-
-				return -EINVAL;
-			}
-		}
-		if (xfs_sb_has_incompat_feature(sbp,
-					XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
-			xfs_warn(mp,
-"Superblock has unknown incompatible features (0x%x) enabled.",
-				(sbp->sb_features_incompat &
-						XFS_SB_FEAT_INCOMPAT_UNKNOWN));
-			xfs_warn(mp,
-"Filesystem can not be safely mounted by this kernel.");
-			return -EINVAL;
-		}
-	} else if (xfs_sb_version_hascrc(sbp)) {
-		/*
-		 * We can't read verify the sb LSN because the read verifier is
-		 * called before the log is allocated and processed. We know the
-		 * log is set up before write verifier (!check_version) calls,
-		 * so just check it here.
-		 */
-		if (!xfs_log_check_lsn(mp, sbp->sb_lsn))
-			return -EFSCORRUPTED;
 	}
 
 	if (xfs_sb_version_has_pquotino(sbp)) {
@@ -321,7 +335,12 @@ xfs_mount_validate_sb(
 		return -EFBIG;
 	}
 
-	if (check_inprogress && sbp->sb_inprogress) {
+	/*
+	 * Don't touch the filesystem if a user tool thinks it owns the primary
+	 * superblock.  mkfs doesn't clear the flag from secondary supers, so
+	 * we don't check them at all.
+	 */
+	if (XFS_BUF_ADDR(bp) == XFS_SB_DADDR && sbp->sb_inprogress) {
 		xfs_warn(mp, "Offline file system operation in progress!");
 		return -EFSCORRUPTED;
 	}
@@ -596,29 +615,6 @@ xfs_sb_to_disk(
 	}
 }
 
-static int
-xfs_sb_verify(
-	struct xfs_buf	*bp,
-	bool		check_version)
-{
-	struct xfs_mount *mp = bp->b_target->bt_mount;
-	struct xfs_sb	sb;
-
-	/*
-	 * Use call variant which doesn't convert quota flags from disk 
-	 * format, because xfs_mount_validate_sb checks the on-disk flags.
-	 */
-	__xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp), false);
-
-	/*
-	 * Only check the in progress field for the primary superblock as
-	 * mkfs.xfs doesn't clear it from secondary superblocks.
-	 */
-	return xfs_mount_validate_sb(mp, &sb,
-				     bp->b_maps[0].bm_bn == XFS_SB_DADDR,
-				     check_version);
-}
-
 /*
  * If the superblock has the CRC feature bit set or the CRC field is non-null,
  * check that the CRC is valid.  We check the CRC field is non-null because a
@@ -633,11 +629,12 @@ xfs_sb_verify(
  */
 static void
 xfs_sb_read_verify(
-	struct xfs_buf	*bp)
+	struct xfs_buf		*bp)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
-	struct xfs_dsb	*dsb = XFS_BUF_TO_SBP(bp);
-	int		error;
+	struct xfs_sb		sb;
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_dsb		*dsb = XFS_BUF_TO_SBP(bp);
+	int			error;
 
 	/*
 	 * open code the version check to avoid needing to convert the entire
@@ -657,7 +654,16 @@ xfs_sb_read_verify(
 			}
 		}
 	}
-	error = xfs_sb_verify(bp, true);
+
+	/*
+	 * Check all the superblock fields.  Don't byteswap the xquota flags
+	 * because _verify_common checks the on-disk values.
+	 */
+	__xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp), false);
+	error = xfs_validate_sb_common(mp, bp, &sb);
+	if (error)
+		goto out_error;
+	error = xfs_validate_sb_read(mp, &sb);
 
 out_error:
 	if (error == -EFSCORRUPTED || error == -EFSBADCRC)
@@ -691,15 +697,22 @@ static void
 xfs_sb_write_verify(
 	struct xfs_buf		*bp)
 {
+	struct xfs_sb		sb;
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	int			error;
 
-	error = xfs_sb_verify(bp, false);
-	if (error) {
-		xfs_verifier_error(bp, error, __this_address);
-		return;
-	}
+	/*
+	 * Check all the superblock fields.  Don't byteswap the xquota flags
+	 * because _verify_common checks the on-disk values.
+	 */
+	__xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp), false);
+	error = xfs_validate_sb_common(mp, bp, &sb);
+	if (error)
+		goto out_error;
+	error = xfs_validate_sb_write(mp, &sb);
+	if (error)
+		goto out_error;
 
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return;
@@ -708,6 +721,10 @@ xfs_sb_write_verify(
 		XFS_BUF_TO_SBP(bp)->sb_lsn = cpu_to_be64(bip->bli_item.li_lsn);
 
 	xfs_buf_update_cksum(bp, XFS_SB_CRC_OFF);
+	return;
+
+out_error:
+	xfs_verifier_error(bp, error, __this_address);
 }
 
 const struct xfs_buf_ops xfs_sb_buf_ops = {
