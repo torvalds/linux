@@ -64,6 +64,13 @@
 
 
 /*------------------------------Define structure----------------------------*/
+
+enum dynamic_init_gain_state {
+	DM_STA_DIG_OFF = 0,
+	DM_STA_DIG_ON,
+	DM_STA_DIG_MAX
+};
+
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
 struct dig {
 	u8		dig_enable_flag;
@@ -77,8 +84,8 @@ struct dig {
 	long		rssi_high_power_lowthresh;
 	long		rssi_high_power_highthresh;
 
-	u8		dig_state;
-	u8		dig_highpwr_state;
+	enum dynamic_init_gain_state		dig_state;
+	enum dynamic_init_gain_state		dig_highpwr_state;
 	u8		cur_connect_state;
 	u8		pre_connect_state;
 
@@ -97,13 +104,6 @@ struct dig {
 
 	long		rssi_val;
 };
-
-typedef enum tag_dynamic_init_gain_state_definition {
-	DM_STA_DIG_OFF = 0,
-	DM_STA_DIG_ON,
-	DM_STA_DIG_MAX
-} dm_dig_sta_e;
-
 
 /* 2007/10/08 MH Define RATR state. */
 typedef enum tag_dynamic_ratr_state_definition {
