@@ -411,11 +411,11 @@ struct cma_req_info {
 	struct sockaddr_storage listen_addr_storage;
 	struct sockaddr_storage src_addr_storage;
 	struct ib_device *device;
-	int port;
 	union ib_gid local_gid;
 	__be64 service_id;
+	int port;
+	bool has_gid;
 	u16 pkey;
-	bool has_gid:1;
 };
 
 static int cma_comp(struct rdma_id_private *id_priv, enum rdma_cm_state comp)
