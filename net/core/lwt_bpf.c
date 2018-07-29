@@ -217,7 +217,7 @@ static int bpf_parse_prog(struct nlattr *attr, struct bpf_lwt_prog *prog,
 	if (!tb[LWT_BPF_PROG_FD] || !tb[LWT_BPF_PROG_NAME])
 		return -EINVAL;
 
-	prog->name = nla_memdup(tb[LWT_BPF_PROG_NAME], GFP_KERNEL);
+	prog->name = nla_memdup(tb[LWT_BPF_PROG_NAME], GFP_ATOMIC);
 	if (!prog->name)
 		return -ENOMEM;
 

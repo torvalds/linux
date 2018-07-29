@@ -244,8 +244,8 @@ bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
 int bpf_map__fd(struct bpf_map *map);
 const struct bpf_map_def *bpf_map__def(struct bpf_map *map);
 const char *bpf_map__name(struct bpf_map *map);
-uint32_t bpf_map__btf_key_type_id(const struct bpf_map *map);
-uint32_t bpf_map__btf_value_type_id(const struct bpf_map *map);
+__u32 bpf_map__btf_key_type_id(const struct bpf_map *map);
+__u32 bpf_map__btf_value_type_id(const struct bpf_map *map);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 int bpf_map__set_priv(struct bpf_map *map, void *priv,

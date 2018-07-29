@@ -1441,8 +1441,8 @@ static void emit_prologue(u8 **pprog, u32 stack_depth)
 
 	/* sub esp,STACK_SIZE */
 	EMIT2_off32(0x81, 0xEC, STACK_SIZE);
-	/* sub ebp,SCRATCH_SIZE+4+12*/
-	EMIT3(0x83, add_1reg(0xE8, IA32_EBP), SCRATCH_SIZE + 16);
+	/* sub ebp,SCRATCH_SIZE+12*/
+	EMIT3(0x83, add_1reg(0xE8, IA32_EBP), SCRATCH_SIZE + 12);
 	/* xor ebx,ebx */
 	EMIT2(0x31, add_2reg(0xC0, IA32_EBX, IA32_EBX));
 
@@ -1475,8 +1475,8 @@ static void emit_epilogue(u8 **pprog, u32 stack_depth)
 	/* mov edx,dword ptr [ebp+off]*/
 	EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EDX), STACK_VAR(r0[1]));
 
-	/* add ebp,SCRATCH_SIZE+4+12*/
-	EMIT3(0x83, add_1reg(0xC0, IA32_EBP), SCRATCH_SIZE + 16);
+	/* add ebp,SCRATCH_SIZE+12*/
+	EMIT3(0x83, add_1reg(0xC0, IA32_EBP), SCRATCH_SIZE + 12);
 
 	/* mov ebx,dword ptr [ebp-12]*/
 	EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EBX), -12);
