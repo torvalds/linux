@@ -56,6 +56,7 @@
 #include <asm/hypervisor.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/irq_regs.h>
 
 unsigned int num_processors;
 

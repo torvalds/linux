@@ -17,6 +17,7 @@
 #include <linux/tracepoint.h>
 #include <linux/cpumask.h>
 #include <linux/irq_work.h>
+#include <linux/irq.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
