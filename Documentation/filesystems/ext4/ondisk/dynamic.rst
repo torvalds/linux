@@ -8,3 +8,4 @@ allocated to files.
 
 .. include:: inodes.rst
 .. include:: ifork.rst
+.. include:: directory.rst
