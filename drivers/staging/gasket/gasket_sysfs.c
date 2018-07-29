@@ -126,6 +126,7 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 		kfree(mapping->attributes);
 		mapping->attributes = NULL;
 		mapping->attribute_count = 0;
+		put_device(mapping->device);
 		mapping->device = NULL;
 		mapping->gasket_dev = NULL;
 	}
@@ -208,22 +209,20 @@ int gasket_sysfs_create_mapping(
 		device->kobj.name);
 
 	mapping = &dev_mappings[map_idx];
-	kref_init(&mapping->refcount);
-	mapping->device = device;
-	mapping->gasket_dev = gasket_dev;
 	mapping->attributes = kcalloc(GASKET_SYSFS_MAX_NODES,
 				      sizeof(*mapping->attributes),
 				      GFP_KERNEL);
-	mapping->attribute_count = 0;
 	if (!mapping->attributes) {
 		dev_dbg(device, "Unable to allocate sysfs attribute array\n");
-		mapping->device = NULL;
-		mapping->gasket_dev = NULL;
 		mutex_unlock(&mapping->mutex);
 		mutex_unlock(&function_mutex);
 		return -ENOMEM;
 	}
 
+	kref_init(&mapping->refcount);
+	mapping->device = get_device(device);
+	mapping->gasket_dev = gasket_dev;
+	mapping->attribute_count = 0;
 	mutex_unlock(&mapping->mutex);
 	mutex_unlock(&function_mutex);
 
