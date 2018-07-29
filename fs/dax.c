@@ -566,7 +566,8 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
 			if (index >= end)
 				break;
 
-			if (!radix_tree_exceptional_entry(pvec_ent))
+			if (WARN_ON_ONCE(
+			     !radix_tree_exceptional_entry(pvec_ent)))
 				continue;
 
 			xa_lock_irq(&mapping->i_pages);
@@ -578,6 +579,13 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
 			if (page)
 				break;
 		}
+
+		/*
+		 * We don't expect normal struct page entries to exist in our
+		 * tree, but we keep these pagevec calls so that this code is
+		 * consistent with the common pattern for handling pagevecs
+		 * throughout the kernel.
+		 */
 		pagevec_remove_exceptionals(&pvec);
 		pagevec_release(&pvec);
 		index++;
