@@ -47,22 +47,13 @@ struct gasket_sysfs_mapping {
  */
 static struct gasket_sysfs_mapping dev_mappings[GASKET_SYSFS_NUM_MAPPINGS];
 
-/*
- * Callback when a mapping's refcount goes to zero.
- * @ref: The reference count of the containing sysfs mapping.
- */
+/* Callback when a mapping's refcount goes to zero. */
 static void release_entry(struct kref *ref)
 {
 	/* All work is done after the return from kref_put. */
 }
 
-/*
- * Looks up mapping information for the given device.
- * @device: The device whose mapping to look for.
- *
- * Looks up the requested device and takes a reference and returns it if found,
- * and returns NULL otherwise.
- */
+/* Look up mapping information for the given device. */
 static struct gasket_sysfs_mapping *get_mapping(struct device *device)
 {
 	int i;
@@ -82,17 +73,7 @@ static struct gasket_sysfs_mapping *get_mapping(struct device *device)
 	return NULL;
 }
 
-/*
- * Returns a reference to a mapping.
- * @mapping: The mapping we're returning.
- *
- * Decrements the refcount for the given mapping (if valid). If the refcount is
- * zero, then it cleans up the mapping - in this function as opposed to the
- * kref_put callback, due to a potential deadlock.
- *
- * Although put_mapping_n exists, this function is left here (as an implicit
- * put_mapping_n(..., 1) for convenience.
- */
+/* Put a reference to a mapping. */
 static void put_mapping(struct gasket_sysfs_mapping *mapping)
 {
 	int i;
@@ -140,8 +121,7 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 }
 
 /*
- * Returns a reference N times.
- * @mapping: The mapping to return.
+ * Put a reference to a mapping N times.
  *
  * In higher-level resource acquire/release function pairs, the release function
  * will need to release a mapping 2x - once for the refcount taken in the
