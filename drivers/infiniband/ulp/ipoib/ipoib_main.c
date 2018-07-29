@@ -1939,18 +1939,15 @@ static int ipoib_ndo_init(struct net_device *ndev)
 
 static void ipoib_ndo_uninit(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = ipoib_priv(dev), *cpriv, *tcpriv;
-	LIST_HEAD(head);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ASSERT_RTNL();
 
-	/* Delete any child interfaces first */
-	list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
-		/* Stop GC on child */
-		cancel_delayed_work_sync(&cpriv->neigh_reap_task);
-		unregister_netdevice_queue(cpriv->dev, &head);
-	}
-	unregister_netdevice_many(&head);
+	/*
+	 * ipoib_remove_one guarantees the children are removed before the
+	 * parent, and that is the only place where a parent can be removed.
+	 */
+	WARN_ON(!list_empty(&priv->child_intfs));
 
 	ipoib_neigh_hash_uninit(dev);
 
@@ -2466,16 +2463,25 @@ static void ipoib_add_one(struct ib_device *device)
 
 static void ipoib_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ipoib_dev_priv *priv, *tmp;
+	struct ipoib_dev_priv *priv, *tmp, *cpriv, *tcpriv;
 	struct list_head *dev_list = client_data;
 
 	if (!dev_list)
 		return;
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
+		LIST_HEAD(head);
 		ipoib_parent_unregister_pre(priv->dev);
 
-		unregister_netdev(priv->dev);
+		rtnl_lock();
+
+		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs,
+					 list)
+			unregister_netdevice_queue(cpriv->dev, &head);
+		unregister_netdevice_queue(priv->dev, &head);
+		unregister_netdevice_many(&head);
+
+		rtnl_unlock();
 	}
 
 	kfree(dev_list);

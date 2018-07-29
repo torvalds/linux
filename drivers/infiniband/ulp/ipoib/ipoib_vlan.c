@@ -67,6 +67,12 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 
 	ASSERT_RTNL();
 
+	/*
+	 * Racing with unregister of the parent must be prevented by the
+	 * caller.
+	 */
+	WARN_ON(ppriv->dev->reg_state != NETREG_REGISTERED);
+
 	priv->parent = ppriv->dev;
 	priv->pkey = pkey;
 	priv->child_type = type;
