@@ -83,7 +83,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 	result = register_netdevice(priv->dev);
 	if (result) {
 		ipoib_warn(priv, "failed to initialize; error %i", result);
-		goto register_failed;
+		goto err;
 	}
 
 	/* RTNL childs don't need proprietary sysfs entries */
@@ -107,9 +107,6 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 sysfs_failed:
 	result = -ENOMEM;
 	unregister_netdevice(priv->dev);
-
-register_failed:
-	ipoib_dev_cleanup(priv->dev);
 
 err:
 	return result;

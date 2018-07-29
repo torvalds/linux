@@ -215,11 +215,6 @@ static int ipoib_stop(struct net_device *dev)
 	return 0;
 }
 
-static void ipoib_uninit(struct net_device *dev)
-{
-	ipoib_dev_cleanup(dev);
-}
-
 static netdev_features_t ipoib_fix_features(struct net_device *dev, netdev_features_t features)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
@@ -1816,7 +1811,33 @@ out:
 	return ret;
 }
 
-void ipoib_dev_cleanup(struct net_device *dev)
+/*
+ * This must be called before doing an unregister_netdev on a parent device to
+ * shutdown the IB event handler.
+ */
+static void ipoib_parent_unregister_pre(struct net_device *ndev)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(ndev);
+
+	/*
+	 * ipoib_set_mac checks netif_running before pushing work, clearing
+	 * running ensures the it will not add more work.
+	 */
+	rtnl_lock();
+	dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP);
+	rtnl_unlock();
+
+	/* ipoib_event() cannot be running once this returns */
+	ib_unregister_event_handler(&priv->event_handler);
+
+	/*
+	 * Work on the queue grabs the rtnl lock, so this cannot be done while
+	 * also holding it.
+	 */
+	flush_workqueue(ipoib_workqueue);
+}
+
+static void ipoib_ndo_uninit(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev), *cpriv, *tcpriv;
 	LIST_HEAD(head);
@@ -1888,7 +1909,7 @@ static const struct header_ops ipoib_header_ops = {
 };
 
 static const struct net_device_ops ipoib_netdev_ops_pf = {
-	.ndo_uninit		 = ipoib_uninit,
+	.ndo_uninit		 = ipoib_ndo_uninit,
 	.ndo_open		 = ipoib_open,
 	.ndo_stop		 = ipoib_stop,
 	.ndo_change_mtu		 = ipoib_change_mtu,
@@ -1907,7 +1928,7 @@ static const struct net_device_ops ipoib_netdev_ops_pf = {
 };
 
 static const struct net_device_ops ipoib_netdev_ops_vf = {
-	.ndo_uninit		 = ipoib_uninit,
+	.ndo_uninit		 = ipoib_ndo_uninit,
 	.ndo_open		 = ipoib_open,
 	.ndo_stop		 = ipoib_stop,
 	.ndo_change_mtu		 = ipoib_change_mtu,
@@ -2310,7 +2331,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	if (result) {
 		pr_warn("%s: couldn't register ipoib port %d; error %d\n",
 			hca->name, port, result);
-		goto register_failed;
+		ipoib_parent_unregister_pre(priv->dev);
+		goto device_init_failed;
 	}
 
 	result = -ENOMEM;
@@ -2328,15 +2350,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	return priv->dev;
 
 sysfs_failed:
+	ipoib_parent_unregister_pre(priv->dev);
 	unregister_netdev(priv->dev);
-
-register_failed:
-	ib_unregister_event_handler(&priv->event_handler);
-	flush_workqueue(ipoib_workqueue);
-	/* Stop GC if started before flush */
-	cancel_delayed_work_sync(&priv->neigh_reap_task);
-	flush_workqueue(priv->wq);
-	ipoib_dev_cleanup(priv->dev);
 
 device_init_failed:
 	rn = netdev_priv(priv->dev);
@@ -2391,16 +2406,7 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		struct rdma_netdev *parent_rn = netdev_priv(priv->dev);
 
-		ib_unregister_event_handler(&priv->event_handler);
-		flush_workqueue(ipoib_workqueue);
-
-		rtnl_lock();
-		dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP);
-		rtnl_unlock();
-
-		/* Stop GC */
-		cancel_delayed_work_sync(&priv->neigh_reap_task);
-		flush_workqueue(priv->wq);
+		ipoib_parent_unregister_pre(priv->dev);
 
 		/* Wrap rtnl_lock/unlock with mutex to protect sysfs calls */
 		mutex_lock(&priv->sysfs_mutex);
