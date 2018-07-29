@@ -130,6 +130,7 @@ struct wilc {
 	spinlock_t txq_spinlock;
 	/*protect rxq_entry_t receiver queue*/
 	struct mutex rxq_cs;
+	/* lock to protect hif access */
 	struct mutex hif_cs;
 
 	struct completion cfg_event;
