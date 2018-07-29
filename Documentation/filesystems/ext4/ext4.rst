@@ -20,43 +20,32 @@ Note: More extensive information for getting started with ext4 can be
 found at the ext4 wiki site at the URL:
 http://ext4.wiki.kernel.org/index.php/Ext4_Howto
 
-  - Compile and install the latest version of e2fsprogs (as of this
-    writing version 1.41.3) from:
-
-    http://sourceforge.net/project/showfiles.php?group_id=2406
-
-	or
+  - The latest version of e2fsprogs can be found at:
 
     https://www.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/
 
+	or
+
+    http://sourceforge.net/project/showfiles.php?group_id=2406
+
 	or grab the latest git repository from:
 
-    git://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git
+   https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git
 
-  - Note that it is highly important to install the mke2fs.conf file
-    that comes with the e2fsprogs 1.41.x sources in /etc/mke2fs.conf. If
-    you have edited the /etc/mke2fs.conf file installed on your system,
-    you will need to merge your changes with the version from e2fsprogs
-    1.41.x.
-
-  - Create a new filesystem using the ext4 filesystem type:::
+  - Create a new filesystem using the ext4 filesystem type:
 
         # mke2fs -t ext4 /dev/hda1
 
-    Or to configure an existing ext3 filesystem to support extents:::
+    Or to configure an existing ext3 filesystem to support extents:
 
 	# tune2fs -O extents /dev/hda1
 
     If the filesystem was created with 128 byte inodes, it can be
-    converted to use 256 byte for greater efficiency via:::
+    converted to use 256 byte for greater efficiency via:
 
         # tune2fs -I 256 /dev/hda1
 
-    (Note: we currently do not have tools to convert an ext4
-    filesystem back to ext3; so please do not do try this on production
-    filesystems.)
-
-  - Mounting:::
+  - Mounting:
 
 	# mount -t ext4 /dev/hda1 /wherever
 
@@ -105,26 +94,6 @@ Currently Available
 
 [1] Filesystems with a block size of 1k may see a limit imposed by the
 directory hash tree having a maximum depth of two.
-
-Candidate Features for Future Inclusion
----------------------------------------
-
-* online defrag (patches available but not well tested)
-* reduced mke2fs time via lazy itable initialization in conjunction with
-  the uninit_bg feature (capability to do this is available in e2fsprogs
-  but a kernel thread to do lazy zeroing of unused inode table blocks
-  after filesystem is first mounted is required for safety)
-
-There are several others under discussion, whether they all make it in is
-partly a function of how much time everyone has to work on them. Features like
-metadata checksumming have been discussed and planned for a bit but no patches
-exist yet so I'm not sure they're in the near-term roadmap.
-
-The big performance win will come with mballoc, delalloc and flex_bg
-grouping of bitmaps and inode tables.  Some test results available here:
-
- - http://www.bullopensource.org/ext4/20080818-ffsb/ffsb-write-2.6.27-rc1.html
- - http://www.bullopensource.org/ext4/20080818-ffsb/ffsb-readwrite-2.6.27-rc1.html
 
 Options
 =======
