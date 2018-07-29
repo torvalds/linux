@@ -654,11 +654,6 @@ enum {
 	MLX5E_STATE_DESTROYING,
 };
 
-struct mlx5e_vxlan_db {
-	spinlock_t			lock; /* protect vxlan table */
-	struct radix_tree_root		tree;
-};
-
 struct mlx5e_l2_rule {
 	u8  addr[ETH_ALEN + 2];
 	struct mlx5_flow_handle *rule;
@@ -816,7 +811,6 @@ struct mlx5e_priv {
 	u32                        tx_rates[MLX5E_MAX_NUM_SQS];
 
 	struct mlx5e_flow_steering fs;
-	struct mlx5e_vxlan_db      vxlan;
 
 	struct workqueue_struct    *wq;
 	struct work_struct         update_carrier_work;
