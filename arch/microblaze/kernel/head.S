@@ -341,11 +341,6 @@ start_here:
 	/* Initialize r31 with current task address */
 	addik	r31, r0, init_task
 
-	/*
-	 * Call platform dependent initialize function.
-	 * Please see $(ARCH)/mach-$(SUBARCH)/setup.c for
-	 * the function.
-	 */
 	addik	r11, r0, machine_early_init
 	brald	r15, r11
 	nop
