@@ -741,7 +741,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 				security = ENCRYPT_ENABLED | WPA | AES;
 		} else {
 			ret = -ENOTSUPP;
-			netdev_err(dev, "Not supported cipher\n");
+			netdev_err(dev, "%s: Unsupported cipher\n",
+				   __func__);
 			wilc_connecting = 0;
 			return ret;
 		}
@@ -995,7 +996,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 		break;
 
 	default:
-		netdev_err(netdev, "Not supported cipher\n");
+		netdev_err(netdev, "%s: Unsupported cipher\n", __func__);
 		ret = -ENOTSUPP;
 	}
 
@@ -1413,8 +1414,8 @@ void wilc_wfi_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 
 		default:
 			netdev_dbg(dev,
-				   "NOT HANDLED PUBLIC ACTION FRAME TYPE:%x\n",
-				   buff[ACTION_SUBTYPE_ID]);
+				   "%s: Not handled action frame type:%x\n",
+				   __func__, buff[ACTION_SUBTYPE_ID]);
 			break;
 		}
 	}
@@ -1620,8 +1621,8 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 		default:
 			netdev_dbg(vif->ndev,
-				   "NOT HANDLED PUBLIC ACTION FRAME TYPE:%x\n",
-				   buf[ACTION_SUBTYPE_ID]);
+				   "%s: Not handled action frame type:%x\n",
+				   __func__, buf[ACTION_SUBTYPE_ID]);
 			break;
 		}
 	}
