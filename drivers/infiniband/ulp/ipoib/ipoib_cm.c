@@ -1517,19 +1517,13 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 {
 	struct net_device *dev = to_net_dev(d);
 	int ret;
-	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-
-	if (!mutex_trylock(&priv->sysfs_mutex))
-		return restart_syscall();
 
 	if (!rtnl_trylock()) {
-		mutex_unlock(&priv->sysfs_mutex);
 		return restart_syscall();
 	}
 
 	if (dev->reg_state != NETREG_REGISTERED) {
 		rtnl_unlock();
-		mutex_unlock(&priv->sysfs_mutex);
 		return -EPERM;
 	}
 
@@ -1541,7 +1535,6 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 	 */
 	if (ret != -EBUSY)
 		rtnl_unlock();
-	mutex_unlock(&priv->sysfs_mutex);
 
 	return (!ret || ret == -EBUSY) ? count : ret;
 }

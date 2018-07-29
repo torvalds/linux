@@ -125,23 +125,16 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	snprintf(intf_name, sizeof(intf_name), "%s.%04x",
 		 ppriv->dev->name, pkey);
 
-	if (!mutex_trylock(&ppriv->sysfs_mutex))
+	if (!rtnl_trylock())
 		return restart_syscall();
-
-	if (!rtnl_trylock()) {
-		mutex_unlock(&ppriv->sysfs_mutex);
-		return restart_syscall();
-	}
 
 	if (pdev->reg_state != NETREG_REGISTERED) {
 		rtnl_unlock();
-		mutex_unlock(&ppriv->sysfs_mutex);
 		return -EPERM;
 	}
 
 	if (!down_write_trylock(&ppriv->vlan_rwsem)) {
 		rtnl_unlock();
-		mutex_unlock(&ppriv->sysfs_mutex);
 		return restart_syscall();
 	}
 
@@ -178,58 +171,95 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 out:
 	up_write(&ppriv->vlan_rwsem);
 	rtnl_unlock();
-	mutex_unlock(&ppriv->sysfs_mutex);
 
 	return result;
 }
 
-int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
+struct ipoib_vlan_delete_work {
+	struct work_struct work;
+	struct net_device *dev;
+};
+
+/*
+ * sysfs callbacks of a netdevice cannot obtain the rtnl lock as
+ * unregister_netdev ultimately deletes the sysfs files while holding the rtnl
+ * lock. This deadlocks the system.
+ *
+ * A callback can use rtnl_trylock to avoid the deadlock but it cannot call
+ * unregister_netdev as that internally takes and releases the rtnl_lock.  So
+ * instead we find the netdev to unregister and then do the actual unregister
+ * from the global work queue where we can obtain the rtnl_lock safely.
+ */
+static void ipoib_vlan_delete_task(struct work_struct *work)
 {
-	struct ipoib_dev_priv *ppriv, *priv, *tpriv;
-	struct net_device *dev = NULL;
+	struct ipoib_vlan_delete_work *pwork =
+		container_of(work, struct ipoib_vlan_delete_work, work);
+	struct net_device *dev = pwork->dev;
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
+	rtnl_lock();
 
-	ppriv = ipoib_priv(pdev);
+	/* Unregistering tasks can race with another task or parent removal */
+	if (dev->reg_state == NETREG_REGISTERED) {
+		struct ipoib_dev_priv *priv = ipoib_priv(dev);
+		struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
 
-	if (!mutex_trylock(&ppriv->sysfs_mutex))
-		return restart_syscall();
+		down_write(&ppriv->vlan_rwsem);
+		list_del(&priv->list);
+		up_write(&ppriv->vlan_rwsem);
 
-	if (!rtnl_trylock()) {
-		mutex_unlock(&ppriv->sysfs_mutex);
-		return restart_syscall();
-	}
-
-	if (pdev->reg_state != NETREG_REGISTERED) {
-		rtnl_unlock();
-		mutex_unlock(&ppriv->sysfs_mutex);
-		return -EPERM;
-	}
-
-	if (!down_write_trylock(&ppriv->vlan_rwsem)) {
-		rtnl_unlock();
-		mutex_unlock(&ppriv->sysfs_mutex);
-		return restart_syscall();
-	}
-
-	list_for_each_entry_safe(priv, tpriv, &ppriv->child_intfs, list) {
-		if (priv->pkey == pkey &&
-		    priv->child_type == IPOIB_LEGACY_CHILD) {
-			list_del(&priv->list);
-			dev = priv->dev;
-			break;
-		}
-	}
-	up_write(&ppriv->vlan_rwsem);
-
-	if (dev) {
 		ipoib_dbg(ppriv, "delete child vlan %s\n", dev->name);
 		unregister_netdevice(dev);
 	}
 
 	rtnl_unlock();
-	mutex_unlock(&ppriv->sysfs_mutex);
 
-	return (dev) ? 0 : -ENODEV;
+	kfree(pwork);
+}
+
+int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
+{
+	struct ipoib_dev_priv *ppriv, *priv, *tpriv;
+	int rc;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (pdev->reg_state != NETREG_REGISTERED) {
+		rtnl_unlock();
+		return -EPERM;
+	}
+
+	ppriv = ipoib_priv(pdev);
+
+	rc = -ENODEV;
+	list_for_each_entry_safe(priv, tpriv, &ppriv->child_intfs, list) {
+		if (priv->pkey == pkey &&
+		    priv->child_type == IPOIB_LEGACY_CHILD) {
+			struct ipoib_vlan_delete_work *work;
+
+			work = kmalloc(sizeof(*work), GFP_KERNEL);
+			if (!work) {
+				rc = -ENOMEM;
+				goto out;
+			}
+
+			down_write(&ppriv->vlan_rwsem);
+			list_del_init(&priv->list);
+			up_write(&ppriv->vlan_rwsem);
+			work->dev = priv->dev;
+			INIT_WORK(&work->work, ipoib_vlan_delete_task);
+			queue_work(ipoib_workqueue, &work->work);
+
+			rc = 0;
+			break;
+		}
+	}
+
+out:
+	rtnl_unlock();
+
+	return rc;
 }
