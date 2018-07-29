@@ -2,10 +2,12 @@ Kernel 4.14 for BPI-R2
 
 ## Requirements
 
-Need cross compile tools for the armhf architecture and additional bison and flex-package:
+On x86/x64-host you need cross compile tools for the armhf architecture (bison and flex-package are needed for kernels >=4.16):
 ```sh
 sudo apt-get install gcc-arm-linux-gnueabihf libc6-armhf-cross u-boot-tools bc make gcc libc6-dev libncurses5-dev libssl-dev bison flex
 ```
+if you build directly on r2 (not recommended) you do not need the crosscompile-packages gcc-arm-linux-gnueabihf and libc6-armhf-cross
+
 ## Issues
 currently gcc7 is not supported (https://bugs.linaro.org/show_bug.cgi?id=3823)
 ```sh
@@ -31,7 +33,7 @@ sudo update-alternatives --config arm-linux-gnueabihf-gcc
 Kernel upstream + BPI-R2
 * 4.14-main
 * 4.9-main
-* 4.16-main
+* 4.16-main (EOL)
 * 4.17-main
 * 4.18-rc
 
