@@ -87,6 +87,11 @@ enum dig_pkt_detection_threshold {
 	DIG_PD_AT_HIGH_POWER = 2,
 };
 
+enum dig_cck_cs_ratio_state {
+	DIG_CS_RATIO_LOWER = 0,
+	DIG_CS_RATIO_HIGHER = 1,
+};
+
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
 struct dig {
 	u8		dig_enable_flag;
@@ -107,8 +112,8 @@ struct dig {
 
 	enum dig_pkt_detection_threshold		curpd_thstate;
 	enum dig_pkt_detection_threshold		prepd_thstate;
-	u8		curcs_ratio_state;
-	u8		precs_ratio_state;
+	enum dig_cck_cs_ratio_state		curcs_ratio_state;
+	enum dig_cck_cs_ratio_state		precs_ratio_state;
 
 	u32		pre_ig_value;
 	u32		cur_ig_value;
@@ -121,11 +126,6 @@ struct dig {
 	long		rssi_val;
 };
 
-typedef enum tag_dig_cck_cs_ratio_state_definition {
-	DIG_CS_RATIO_LOWER = 0,
-	DIG_CS_RATIO_HIGHER = 1,
-	DIG_CS_MAX
-} dm_dig_cs_ratio_e;
 struct dynamic_rx_path_sel {
 	u8		Enable;
 	u8		DbgMode;
