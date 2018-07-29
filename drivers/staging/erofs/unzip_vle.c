@@ -131,8 +131,8 @@ static bool grab_managed_cache_pages(struct address_space *mapping,
 }
 
 /* called by erofs_shrinker to get rid of all compressed_pages */
-int try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
-				 struct erofs_workgroup *egrp)
+int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
+				       struct erofs_workgroup *egrp)
 {
 	struct z_erofs_vle_workgroup *const grp =
 		container_of(egrp, struct z_erofs_vle_workgroup, obj);
@@ -166,7 +166,8 @@ int try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 	return 0;
 }
 
-int try_to_free_cached_page(struct address_space *mapping, struct page *page)
+int erofs_try_to_free_cached_page(struct address_space *mapping,
+				  struct page *page)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(mapping->host->i_sb);
 	const unsigned int clusterpages = erofs_clusterpages(sbi);

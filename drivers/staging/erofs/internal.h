@@ -260,9 +260,9 @@ static inline void erofs_workstation_cleanup_all(struct super_block *sb)
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 #define EROFS_UNALLOCATED_CACHED_PAGE	((void *)0x5F0EF00D)
 
-extern int try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
+extern int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 	struct erofs_workgroup *egrp);
-extern int try_to_free_cached_page(struct address_space *mapping,
+extern int erofs_try_to_free_cached_page(struct address_space *mapping,
 	struct page *page);
 #endif
 
