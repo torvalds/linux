@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-====
-ext4
-====
+===============
+ext4 Filesystem
+===============
 
 General usage and on-disk artifacts writen by ext4.  More documentation may
 be ported from the wiki as time permits.  This should be considered the
