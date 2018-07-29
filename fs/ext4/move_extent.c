@@ -134,9 +134,7 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 		mapping[0] = inode1->i_mapping;
 		mapping[1] = inode2->i_mapping;
 	} else {
-		pgoff_t tmp = index1;
-		index1 = index2;
-		index2 = tmp;
+		swap(index1, index2);
 		mapping[0] = inode2->i_mapping;
 		mapping[1] = inode1->i_mapping;
 	}
