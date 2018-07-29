@@ -110,12 +110,6 @@ struct dig {
 	long		rssi_val;
 };
 
-typedef enum tag_dig_dbgmode_definition {
-	DIG_DBG_OFF = 0,
-	DIG_DBG_ON = 1,
-	DIG_DBG_MAX
-} dm_dig_dbg_e;
-
 typedef enum tag_dig_connect_definition {
 	DIG_DISCONNECT = 0,
 	DIG_CONNECT = 1,
