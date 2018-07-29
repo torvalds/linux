@@ -2401,7 +2401,7 @@ out:
 }
 
 static int srpt_ib_cm_req_recv(struct ib_cm_id *cm_id,
-			       struct ib_cm_req_event_param *param,
+			       const struct ib_cm_req_event_param *param,
 			       void *private_data)
 {
 	char sguid[40];
@@ -2513,7 +2513,8 @@ static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
  * a non-zero value in any other case will trigger a race with the
  * ib_destroy_cm_id() call in srpt_release_channel().
  */
-static int srpt_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
+static int srpt_cm_handler(struct ib_cm_id *cm_id,
+			   const struct ib_cm_event *event)
 {
 	struct srpt_rdma_ch *ch = cm_id->context;
 	int ret;

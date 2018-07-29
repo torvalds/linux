@@ -311,7 +311,7 @@ struct ib_cm_event {
  * destroy the @cm_id after the callback completes.
  */
 typedef int (*ib_cm_handler)(struct ib_cm_id *cm_id,
-			     struct ib_cm_event *event);
+			     const struct ib_cm_event *event);
 
 struct ib_cm_id {
 	ib_cm_handler		cm_handler;

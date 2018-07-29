@@ -142,7 +142,8 @@ static void srp_remove_one(struct ib_device *device, void *client_data);
 static void srp_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void srp_handle_qp_err(struct ib_cq *cq, struct ib_wc *wc,
 		const char *opname);
-static int srp_ib_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event);
+static int srp_ib_cm_handler(struct ib_cm_id *cm_id,
+			     const struct ib_cm_event *event);
 static int srp_rdma_cm_handler(struct rdma_cm_id *cm_id,
 			       struct rdma_cm_event *event);
 
@@ -2553,7 +2554,7 @@ error:
 }
 
 static void srp_ib_cm_rej_handler(struct ib_cm_id *cm_id,
-				  struct ib_cm_event *event,
+				  const struct ib_cm_event *event,
 				  struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
@@ -2638,7 +2639,8 @@ static void srp_ib_cm_rej_handler(struct ib_cm_id *cm_id,
 	}
 }
 
-static int srp_ib_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
+static int srp_ib_cm_handler(struct ib_cm_id *cm_id,
+			     const struct ib_cm_event *event)
 {
 	struct srp_rdma_ch *ch = cm_id->context;
 	struct srp_target_port *target = ch->target;
