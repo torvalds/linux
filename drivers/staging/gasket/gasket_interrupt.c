@@ -87,13 +87,6 @@ static struct gasket_sysfs_attribute interrupt_sysfs_attrs[] = {
 	GASKET_END_OF_ATTR_ARRAY,
 };
 
-/*
- * Set up device registers for interrupt handling.
- * @gasket_dev: The Gasket information structure for this device.
- *
- * Sets up the device registers with the correct indices for the relevant
- * interrupts.
- */
 static void gasket_interrupt_setup(struct gasket_dev *gasket_dev);
 
 /* MSIX init and cleanup. */
@@ -334,13 +327,7 @@ int gasket_interrupt_reset_counts(struct gasket_dev *gasket_dev)
 	return 0;
 }
 
-/*
- * Set up device registers for interrupt handling.
- * @gasket_dev: The Gasket information structure for this device.
- *
- * Sets up the device registers with the correct indices for the relevant
- * interrupts.
- */
+/* Set up device registers for interrupt handling. */
 static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 {
 	int i;
@@ -553,9 +540,6 @@ static ssize_t interrupt_sysfs_show(
 	return ret;
 }
 
-/*
- * MSIX interrupt handler, used with PCI driver.
- */
 static irqreturn_t gasket_msix_interrupt_handler(int irq, void *dev_id)
 {
 	struct eventfd_ctx *ctx;
