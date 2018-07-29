@@ -412,16 +412,6 @@ static struct sk_buff *netem_segment(struct sk_buff *skb, struct Qdisc *sch,
 	return segs;
 }
 
-static void netem_enqueue_skb_head(struct qdisc_skb_head *qh, struct sk_buff *skb)
-{
-	skb->next = qh->head;
-
-	if (!qh->head)
-		qh->tail = skb;
-	qh->head = skb;
-	qh->qlen++;
-}
-
 /*
  * Insert one skb into qdisc.
  * Note: parent depends on return value to account for queue length.
@@ -570,7 +560,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		cb->time_to_send = ktime_get_ns();
 		q->counter = 0;
 
-		netem_enqueue_skb_head(&sch->q, skb);
+		__qdisc_enqueue_head(skb, &sch->q);
 		sch->qstats.requeues++;
 	}
 
