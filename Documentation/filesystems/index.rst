@@ -2,6 +2,14 @@
 Linux Filesystems API
 =====================
 
+The documentation in this section are provided by specific filesystem
+subprojects.
+
+.. toctree::
+   :maxdepth: 2
+
+   ext4/index
+
 The Linux VFS
 =============
 
