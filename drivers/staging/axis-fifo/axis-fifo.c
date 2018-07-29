@@ -1078,7 +1078,6 @@ MODULE_DEVICE_TABLE(of, axis_fifo_of_match);
 static struct platform_driver axis_fifo_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table	= axis_fifo_of_match,
 	},
 	.probe		= axis_fifo_probe,
