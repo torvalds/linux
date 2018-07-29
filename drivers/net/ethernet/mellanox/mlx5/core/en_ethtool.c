@@ -32,6 +32,7 @@
 
 #include "en.h"
 #include "en/port.h"
+#include "lib/clock.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)
@@ -1106,10 +1107,10 @@ int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
 	if (ret)
 		return ret;
 
-	info->phc_index = mdev->clock.ptp ?
-			  ptp_clock_index(mdev->clock.ptp) : -1;
+	info->phc_index = mlx5_clock_get_ptp_index(mdev);
 
-	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
+	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz) ||
+	    info->phc_index == -1)
 		return 0;
 
 	info->so_timestamping |= SOF_TIMESTAMPING_TX_HARDWARE |
