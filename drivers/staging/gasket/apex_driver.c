@@ -240,9 +240,9 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 	 *  - Software force GCB idle
 	 *    - Enable GCB idle
 	 */
-	gasket_read_modify_write_64(
-		gasket_dev, APEX_BAR_INDEX,
-		APEX_BAR2_REG_IDLEGENERATOR_IDLEGEN_IDLEREGISTER, 0x0, 1, 32);
+	gasket_read_modify_write_64(gasket_dev, APEX_BAR_INDEX,
+				    APEX_BAR2_REG_IDLEGENERATOR_IDLEGEN_IDLEREGISTER,
+				    0x0, 1, 32);
 
 	/*    - Initiate DMA pause */
 	gasket_dev_write_64(gasket_dev, 1, APEX_BAR_INDEX,
@@ -259,16 +259,16 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 	}
 
 	/*  - Enable GCB reset (0x1 to rg_rst_gcb) */
-	gasket_read_modify_write_32(
-		gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_2, 0x1, 2, 2);
+	gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+				    APEX_BAR2_REG_SCU_2, 0x1, 2, 2);
 
 	/*  - Enable GCB clock Gate (0x1 to rg_gated_gcb) */
-	gasket_read_modify_write_32(
-		gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_2, 0x1, 2, 18);
+	gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+				    APEX_BAR2_REG_SCU_2, 0x1, 2, 18);
 
 	/*  - Enable GCB memory shut down (0x3 to rg_force_ram_sd) */
-	gasket_read_modify_write_32(
-		gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3, 0x3, 2, 14);
+	gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+				    APEX_BAR2_REG_SCU_3, 0x3, 2, 14);
 
 	/*    - Wait for RAM shutdown. */
 	if (gasket_wait_with_reschedule(gasket_dev, APEX_BAR_INDEX,
@@ -297,24 +297,24 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 	 *    - b00: Not forced (HW controlled)
 	 *    - b1x: Force disable
 	 */
-	gasket_read_modify_write_32(
-		gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3, 0x0, 2, 14);
+	gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+				    APEX_BAR2_REG_SCU_3, 0x0, 2, 14);
 
 	/*
 	 *  - Disable software clock gate:
 	 *    - b00: Not forced (HW controlled)
 	 *    - b1x: Force disable
 	 */
-	gasket_read_modify_write_32(
-		gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_2, 0x0, 2, 18);
+	gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+				    APEX_BAR2_REG_SCU_2, 0x0, 2, 18);
 
 	/*
 	 *  - Disable GCB reset (rg_rst_gcb):
 	 *    - b00: Not forced (HW controlled)
 	 *    - b1x: Force disable = Force not Reset
 	 */
-	gasket_read_modify_write_32(
-		gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_2, 0x2, 2, 2);
+	gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+				    APEX_BAR2_REG_SCU_2, 0x2, 2, 2);
 
 	/*    - Wait for RAM enable. */
 	if (gasket_wait_with_reschedule(gasket_dev, APEX_BAR_INDEX,
@@ -338,27 +338,28 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 	}
 
 	if (!allow_hw_clock_gating) {
-		val0 = gasket_dev_read_32(
-			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3);
+		val0 = gasket_dev_read_32(gasket_dev, APEX_BAR_INDEX,
+					  APEX_BAR2_REG_SCU_3);
 		/* Inactive and Sleep mode are disabled. */
-		gasket_read_modify_write_32(
-			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3, 0x3,
-			SCU3_RG_PWR_STATE_OVR_MASK_WIDTH,
-			SCU3_RG_PWR_STATE_OVR_BIT_OFFSET);
-		val1 = gasket_dev_read_32(
-			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3);
+		gasket_read_modify_write_32(gasket_dev,
+					    APEX_BAR_INDEX,
+					    APEX_BAR2_REG_SCU_3, 0x3,
+					    SCU3_RG_PWR_STATE_OVR_MASK_WIDTH,
+					    SCU3_RG_PWR_STATE_OVR_BIT_OFFSET);
+		val1 = gasket_dev_read_32(gasket_dev, APEX_BAR_INDEX,
+					  APEX_BAR2_REG_SCU_3);
 		dev_dbg(gasket_dev->dev,
 			"Disallow HW clock gating 0x%x -> 0x%x\n", val0, val1);
 	} else {
-		val0 = gasket_dev_read_32(
-			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3);
+		val0 = gasket_dev_read_32(gasket_dev, APEX_BAR_INDEX,
+					  APEX_BAR2_REG_SCU_3);
 		/* Inactive mode enabled - Sleep mode disabled. */
-		gasket_read_modify_write_32(
-			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3, 2,
-			SCU3_RG_PWR_STATE_OVR_MASK_WIDTH,
-			SCU3_RG_PWR_STATE_OVR_BIT_OFFSET);
-		val1 = gasket_dev_read_32(
-			gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3);
+		gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+					    APEX_BAR2_REG_SCU_3, 2,
+					    SCU3_RG_PWR_STATE_OVR_MASK_WIDTH,
+					    SCU3_RG_PWR_STATE_OVR_BIT_OFFSET);
+		val1 = gasket_dev_read_32(gasket_dev, APEX_BAR_INDEX,
+					  APEX_BAR2_REG_SCU_3);
 		dev_dbg(gasket_dev->dev, "Allow HW clock gating 0x%x -> 0x%x\n",
 			val0, val1);
 	}
@@ -373,12 +374,10 @@ static int apex_device_cleanup(struct gasket_dev *gasket_dev)
 	u64 hib_error;
 	int ret = 0;
 
-	hib_error = gasket_dev_read_64(
-		gasket_dev, APEX_BAR_INDEX,
-		APEX_BAR2_REG_USER_HIB_ERROR_STATUS);
-	scalar_error = gasket_dev_read_64(
-		gasket_dev, APEX_BAR_INDEX,
-		APEX_BAR2_REG_SCALAR_CORE_ERROR_STATUS);
+	hib_error = gasket_dev_read_64(gasket_dev, APEX_BAR_INDEX,
+				       APEX_BAR2_REG_USER_HIB_ERROR_STATUS);
+	scalar_error = gasket_dev_read_64(gasket_dev, APEX_BAR_INDEX,
+					  APEX_BAR2_REG_SCALAR_CORE_ERROR_STATUS);
 
 	dev_dbg(gasket_dev->dev,
 		"%s 0x%p hib_error 0x%llx scalar_error 0x%llx\n",
@@ -393,8 +392,8 @@ static int apex_device_cleanup(struct gasket_dev *gasket_dev)
 /* Determine if GCB is in reset state. */
 static bool is_gcb_in_reset(struct gasket_dev *gasket_dev)
 {
-	u32 val = gasket_dev_read_32(
-		gasket_dev, APEX_BAR_INDEX, APEX_BAR2_REG_SCU_3);
+	u32 val = gasket_dev_read_32(gasket_dev, APEX_BAR_INDEX,
+				     APEX_BAR2_REG_SCU_3);
 
 	/* Masks rg_rst_gcb bit of SCU_CTRL_2 */
 	return (val & SCU3_CUR_RST_GCB_BIT_MASK);
@@ -432,13 +431,11 @@ static int apex_add_dev_cb(struct gasket_dev *gasket_dev)
 
 	while (retries < APEX_RESET_RETRY) {
 		page_table_ready =
-			gasket_dev_read_64(
-				gasket_dev, APEX_BAR_INDEX,
-				APEX_BAR2_REG_KERNEL_HIB_PAGE_TABLE_INIT);
+			gasket_dev_read_64(gasket_dev, APEX_BAR_INDEX,
+					   APEX_BAR2_REG_KERNEL_HIB_PAGE_TABLE_INIT);
 		msix_table_ready =
-			gasket_dev_read_64(
-				gasket_dev, APEX_BAR_INDEX,
-				APEX_BAR2_REG_KERNEL_HIB_MSIX_TABLE_INIT);
+			gasket_dev_read_64(gasket_dev, APEX_BAR_INDEX,
+					   APEX_BAR2_REG_KERNEL_HIB_MSIX_TABLE_INIT);
 		if (page_table_ready && msix_table_ready)
 			break;
 		schedule_timeout(msecs_to_jiffies(APEX_RESET_DELAY));
@@ -481,20 +478,20 @@ static long apex_clock_gating(struct gasket_dev *gasket_dev,
 
 	if (ibuf.enable) {
 		/* Quiesce AXI, gate GCB clock. */
-		gasket_read_modify_write_32(
-		    gasket_dev, APEX_BAR_INDEX,
-		    APEX_BAR2_REG_AXI_QUIESCE, 0x1, 1, 16);
-		gasket_read_modify_write_32(
-		    gasket_dev, APEX_BAR_INDEX,
-		    APEX_BAR2_REG_GCB_CLOCK_GATE, 0x1, 2, 18);
+		gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+					    APEX_BAR2_REG_AXI_QUIESCE, 0x1, 1,
+					    16);
+		gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+					    APEX_BAR2_REG_GCB_CLOCK_GATE, 0x1,
+					    2, 18);
 	} else {
 		/* Un-gate GCB clock, un-quiesce AXI. */
-		gasket_read_modify_write_32(
-		    gasket_dev, APEX_BAR_INDEX,
-		    APEX_BAR2_REG_GCB_CLOCK_GATE, 0x0, 2, 18);
-		gasket_read_modify_write_32(
-		    gasket_dev, APEX_BAR_INDEX,
-		    APEX_BAR2_REG_AXI_QUIESCE, 0x0, 1, 16);
+		gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+					    APEX_BAR2_REG_GCB_CLOCK_GATE, 0x0,
+					    2, 18);
+		gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
+					    APEX_BAR2_REG_AXI_QUIESCE, 0x0, 1,
+					    16);
 	}
 	return 0;
 }
@@ -516,8 +513,8 @@ static long apex_ioctl(struct file *filp, uint cmd, void __user *argp)
 }
 
 /* Display driver sysfs entries. */
-static ssize_t sysfs_show(
-	struct device *device, struct device_attribute *attr, char *buf)
+static ssize_t sysfs_show(struct device *device, struct device_attribute *attr,
+			  char *buf)
 {
 	int ret;
 	struct gasket_dev *gasket_dev;
@@ -578,8 +575,8 @@ static struct gasket_sysfs_attribute apex_sysfs_attrs[] = {
 
 static int apex_sysfs_setup_cb(struct gasket_dev *gasket_dev)
 {
-	return gasket_sysfs_create_entries(
-		gasket_dev->dev_info.device, apex_sysfs_attrs);
+	return gasket_sysfs_create_entries(gasket_dev->dev_info.device,
+					   apex_sysfs_attrs);
 }
 
 /* On device open, perform a core reinit reset. */
