@@ -76,6 +76,11 @@ enum dynamic_init_gain_state {
 	DM_STA_DIG_MAX
 };
 
+enum dig_connect {
+	DIG_DISCONNECT = 0,
+	DIG_CONNECT = 1,
+};
+
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
 struct dig {
 	u8		dig_enable_flag;
@@ -91,8 +96,8 @@ struct dig {
 
 	enum dynamic_init_gain_state		dig_state;
 	enum dynamic_init_gain_state		dig_highpwr_state;
-	u8		cur_connect_state;
-	u8		pre_connect_state;
+	enum dig_connect		cur_connect_state;
+	enum dig_connect		pre_connect_state;
 
 	u8		curpd_thstate;
 	u8		prepd_thstate;
@@ -109,12 +114,6 @@ struct dig {
 
 	long		rssi_val;
 };
-
-typedef enum tag_dig_connect_definition {
-	DIG_DISCONNECT = 0,
-	DIG_CONNECT = 1,
-	DIG_CONNECT_MAX
-} dm_dig_connect_e;
 
 typedef enum tag_dig_packetdetection_threshold_definition {
 	DIG_PD_AT_LOW_POWER = 0,
