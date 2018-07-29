@@ -37,11 +37,6 @@ struct wilc_wfi_stats {
 
 };
 
-/*
- * This structure is private to each device. It is used to pass
- * packets in and out, so there is place for a packet
- */
-
 struct wilc_wfi_key {
 	u8 *key;
 	u8 *seq;

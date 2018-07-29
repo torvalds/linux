@@ -767,7 +767,6 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 	u8 clockless = 0;
 
 	if (addr < 0x30) {
-		/* dev_err(&spi->dev, "***** read addr %d\n\n", addr); */
 		/* Clockless register */
 		cmd = CMD_INTERNAL_READ;
 		clockless = 1;

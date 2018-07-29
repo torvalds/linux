@@ -230,7 +230,7 @@ static int wilc_enqueue_work(struct host_if_msg *msg)
 	return 0;
 }
 
-/* The u8IfIdx starts from 0 to NUM_CONCURRENT_IFC -1, but 0 index used as
+/* The idx starts from 0 to (NUM_CONCURRENT_IFC - 1), but 0 index used as
  * special purpose in wilc device, so we add 1 to the index to starts from 1.
  * As a result, the returned index will be 1 to NUM_CONCURRENT_IFC.
  */
@@ -242,7 +242,7 @@ int wilc_get_vif_idx(struct wilc_vif *vif)
 /* We need to minus 1 from idx which is from wilc device to get real index
  * of wilc->vif[], because we add 1 when pass to wilc device in the function
  * wilc_get_vif_idx.
- * As a result, the index should be between 0 and NUM_CONCURRENT_IFC -1.
+ * As a result, the index should be between 0 and (NUM_CONCURRENT_IFC - 1).
  */
 static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 {

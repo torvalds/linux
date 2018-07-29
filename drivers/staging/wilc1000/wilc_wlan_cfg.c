@@ -13,11 +13,6 @@
 #include "wilc_wlan_cfg.h"
 #include "coreconfigurator.h"
 
-/********************************************
- *
- *      Global Data
- *
- ********************************************/
 enum cfg_cmd_type {
 	CFG_BYTE_CMD	= 0,
 	CFG_HWORD_CMD	= 1,

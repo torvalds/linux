@@ -63,7 +63,7 @@ void wilc_wfi_monitor_rx(u8 *buff, u32 size)
 
 		cb_hdr->hdr.it_present = cpu_to_le32(TX_RADIOTAP_PRESENT);
 
-		cb_hdr->rate = 5; /* txrate->bitrate / 5; */
+		cb_hdr->rate = 5;
 
 		if (pkt_offset & IS_MGMT_STATUS_SUCCES)	{
 			/* success */
@@ -84,8 +84,8 @@ void wilc_wfi_monitor_rx(u8 *buff, u32 size)
 		hdr->hdr.it_version = 0; /* PKTHDR_RADIOTAP_VERSION; */
 		hdr->hdr.it_len = cpu_to_le16(sizeof(*hdr));
 		hdr->hdr.it_present = cpu_to_le32
-				(1 << IEEE80211_RADIOTAP_RATE); /* | */
-		hdr->rate = 5; /* txrate->bitrate / 5; */
+				(1 << IEEE80211_RADIOTAP_RATE);
+		hdr->rate = 5;
 	}
 
 	skb->dev = wilc_wfi_mon;
@@ -178,7 +178,7 @@ static netdev_tx_t wilc_wfi_mon_xmit(struct sk_buff *skb,
 
 		cb_hdr->hdr.it_present = cpu_to_le32(TX_RADIOTAP_PRESENT);
 
-		cb_hdr->rate = 5; /* txrate->bitrate / 5; */
+		cb_hdr->rate = 5;
 		cb_hdr->tx_flags = 0x0004;
 
 		skb2->dev = wilc_wfi_mon;
@@ -194,11 +194,12 @@ static netdev_tx_t wilc_wfi_mon_xmit(struct sk_buff *skb,
 	}
 	skb->dev = mon_priv->real_ndev;
 
-	/* Identify if Ethernet or MAC header (data or mgmt) */
 	memcpy(srcadd, &skb->data[10], 6);
 	memcpy(bssid, &skb->data[16], 6);
-	/* if source address and bssid fields are equal>>Mac header */
-	/*send it to mgmt frames handler */
+	/*
+	 * Identify if data or mgmt packet, if source address and bssid
+	 * fields are equal send it to mgmt frames handler
+	 */
 	if (!(memcmp(srcadd, bssid, 6))) {
 		ret = mon_mgmt_tx(mon_priv->real_ndev, skb->data, skb->len);
 		if (ret)
