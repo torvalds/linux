@@ -3046,6 +3046,30 @@ int intel_vgpu_default_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 /**
+ * intel_vgpu_mask_mmio_write - write mask register
+ * @vgpu: a vGPU
+ * @offset: access offset
+ * @p_data: write data buffer
+ * @bytes: access data length
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+int intel_vgpu_mask_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 mask, old_vreg;
+
+	old_vreg = vgpu_vreg(vgpu, offset);
+	write_vreg(vgpu, offset, p_data, bytes);
+	mask = vgpu_vreg(vgpu, offset) >> 16;
+	vgpu_vreg(vgpu, offset) = (old_vreg & ~mask) |
+				(vgpu_vreg(vgpu, offset) & mask);
+
+	return 0;
+}
+
+/**
  * intel_gvt_in_force_nonpriv_whitelist - if a mmio is in whitelist to be
  * force-nopriv register
  *

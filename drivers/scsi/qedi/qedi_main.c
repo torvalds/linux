@@ -2273,6 +2273,7 @@ kset_free:
 static void __qedi_remove(struct pci_dev *pdev, int mode)
 {
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
+	int rval;
 
 	if (qedi->tmf_thread) {
 		flush_workqueue(qedi->tmf_thread);
@@ -2301,6 +2302,10 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 
 	if (mode == QEDI_MODE_NORMAL)
 		qedi_free_iscsi_pf_param(qedi);
+
+	rval = qedi_ops->common->update_drv_state(qedi->cdev, false);
+	if (rval)
+		QEDI_ERR(&qedi->dbg_ctx, "Failed to send drv state to MFW\n");
 
 	if (!test_bit(QEDI_IN_OFFLINE, &qedi->flags)) {
 		qedi_ops->common->slowpath_stop(qedi->cdev);
@@ -2576,6 +2581,12 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		if (qedi_setup_boot_info(qedi))
 			QEDI_ERR(&qedi->dbg_ctx,
 				 "No iSCSI boot target configured\n");
+
+		rc = qedi_ops->common->update_drv_state(qedi->cdev, true);
+		if (rc)
+			QEDI_ERR(&qedi->dbg_ctx,
+				 "Failed to send drv state to MFW\n");
+
 	}
 
 	return 0;

@@ -1338,6 +1338,7 @@ out:
 	/* setting up multiple channels failed */
 	net_device->max_chn = 1;
 	net_device->num_chn = 1;
+	return 0;
 
 err_dev_remv:
 	rndis_filter_device_remove(dev, net_device);
