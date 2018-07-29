@@ -1046,7 +1046,7 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 }
 EXPORT_SYMBOL(rdma_init_qp_attr);
 
-static inline int cma_zero_addr(struct sockaddr *addr)
+static inline int cma_zero_addr(const struct sockaddr *addr)
 {
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -1060,7 +1060,7 @@ static inline int cma_zero_addr(struct sockaddr *addr)
 	}
 }
 
-static inline int cma_loopback_addr(struct sockaddr *addr)
+static inline int cma_loopback_addr(const struct sockaddr *addr)
 {
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -1074,7 +1074,7 @@ static inline int cma_loopback_addr(struct sockaddr *addr)
 	}
 }
 
-static inline int cma_any_addr(struct sockaddr *addr)
+static inline int cma_any_addr(const struct sockaddr *addr)
 {
 	return cma_zero_addr(addr) || cma_loopback_addr(addr);
 }
@@ -1097,7 +1097,7 @@ static int cma_addr_cmp(struct sockaddr *src, struct sockaddr *dst)
 	}
 }
 
-static __be16 cma_port(struct sockaddr *addr)
+static __be16 cma_port(const struct sockaddr *addr)
 {
 	struct sockaddr_ib *sib;
 
@@ -1115,7 +1115,7 @@ static __be16 cma_port(struct sockaddr *addr)
 	}
 }
 
-static inline int cma_any_port(struct sockaddr *addr)
+static inline int cma_any_port(const struct sockaddr *addr)
 {
 	return !cma_port(addr);
 }
@@ -2944,7 +2944,7 @@ err:
 }
 
 static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-			 struct sockaddr *dst_addr)
+			 const struct sockaddr *dst_addr)
 {
 	if (!src_addr || !src_addr->sa_family) {
 		src_addr = (struct sockaddr *) &id->route.addr.src_addr;
@@ -2965,7 +2965,7 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 }
 
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-		      struct sockaddr *dst_addr, int timeout_ms)
+		      const struct sockaddr *dst_addr, int timeout_ms)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
