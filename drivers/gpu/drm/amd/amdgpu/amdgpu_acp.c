@@ -116,136 +116,47 @@ static int acp_sw_fini(void *handle)
 	return 0;
 }
 
-/* power off a tile/block within ACP */
-static int acp_suspend_tile(void *cgs_dev, int tile)
-{
-	u32 val = 0;
-	u32 count = 0;
-
-	if ((tile  < ACP_TILE_P1) || (tile > ACP_TILE_DSP2)) {
-		pr_err("Invalid ACP tile : %d to suspend\n", tile);
-		return -1;
-	}
-
-	val = cgs_read_register(cgs_dev, mmACP_PGFSM_READ_REG_0 + tile);
-	val &= ACP_TILE_ON_MASK;
-
-	if (val == 0x0) {
-		val = cgs_read_register(cgs_dev, mmACP_PGFSM_RETAIN_REG);
-		val = val | (1 << tile);
-		cgs_write_register(cgs_dev, mmACP_PGFSM_RETAIN_REG, val);
-		cgs_write_register(cgs_dev, mmACP_PGFSM_CONFIG_REG,
-					0x500 + tile);
-
-		count = ACP_TIMEOUT_LOOP;
-		while (true) {
-			val = cgs_read_register(cgs_dev, mmACP_PGFSM_READ_REG_0
-								+ tile);
-			val = val & ACP_TILE_ON_MASK;
-			if (val == ACP_TILE_OFF_MASK)
-				break;
-			if (--count == 0) {
-				pr_err("Timeout reading ACP PGFSM status\n");
-				return -ETIMEDOUT;
-			}
-			udelay(100);
-		}
-
-		val = cgs_read_register(cgs_dev, mmACP_PGFSM_RETAIN_REG);
-
-		val |= ACP_TILE_OFF_RETAIN_REG_MASK;
-		cgs_write_register(cgs_dev, mmACP_PGFSM_RETAIN_REG, val);
-	}
-	return 0;
-}
-
-/* power on a tile/block within ACP */
-static int acp_resume_tile(void *cgs_dev, int tile)
-{
-	u32 val = 0;
-	u32 count = 0;
-
-	if ((tile  < ACP_TILE_P1) || (tile > ACP_TILE_DSP2)) {
-		pr_err("Invalid ACP tile to resume\n");
-		return -1;
-	}
-
-	val = cgs_read_register(cgs_dev, mmACP_PGFSM_READ_REG_0 + tile);
-	val = val & ACP_TILE_ON_MASK;
-
-	if (val != 0x0) {
-		cgs_write_register(cgs_dev, mmACP_PGFSM_CONFIG_REG,
-					0x600 + tile);
-		count = ACP_TIMEOUT_LOOP;
-		while (true) {
-			val = cgs_read_register(cgs_dev, mmACP_PGFSM_READ_REG_0
-							+ tile);
-			val = val & ACP_TILE_ON_MASK;
-			if (val == 0x0)
-				break;
-			if (--count == 0) {
-				pr_err("Timeout reading ACP PGFSM status\n");
-				return -ETIMEDOUT;
-			}
-			udelay(100);
-		}
-		val = cgs_read_register(cgs_dev, mmACP_PGFSM_RETAIN_REG);
-		if (tile == ACP_TILE_P1)
-			val = val & (ACP_TILE_P1_MASK);
-		else if (tile == ACP_TILE_P2)
-			val = val & (ACP_TILE_P2_MASK);
-
-		cgs_write_register(cgs_dev, mmACP_PGFSM_RETAIN_REG, val);
-	}
-	return 0;
-}
-
 struct acp_pm_domain {
-	void *cgs_dev;
+	void *adev;
 	struct generic_pm_domain gpd;
 };
 
 static int acp_poweroff(struct generic_pm_domain *genpd)
 {
-	int i, ret;
 	struct acp_pm_domain *apd;
+	struct amdgpu_device *adev;
 
 	apd = container_of(genpd, struct acp_pm_domain, gpd);
 	if (apd != NULL) {
-		/* Donot return abruptly if any of power tile fails to suspend.
-		 * Log it and continue powering off other tile
-		 */
-		for (i = 4; i >= 0 ; i--) {
-			ret = acp_suspend_tile(apd->cgs_dev, ACP_TILE_P1 + i);
-			if (ret)
-				pr_err("ACP tile %d tile suspend failed\n", i);
-		}
+		adev = apd->adev;
+	/* call smu to POWER GATE ACP block
+	 * smu will
+	 * 1. turn off the acp clock
+	 * 2. power off the acp tiles
+	 * 3. check and enter ulv state
+	 */
+		if (adev->powerplay.pp_funcs->set_powergating_by_smu)
+			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, true);
 	}
 	return 0;
 }
 
 static int acp_poweron(struct generic_pm_domain *genpd)
 {
-	int i, ret;
 	struct acp_pm_domain *apd;
+	struct amdgpu_device *adev;
 
 	apd = container_of(genpd, struct acp_pm_domain, gpd);
 	if (apd != NULL) {
-		for (i = 0; i < 2; i++) {
-			ret = acp_resume_tile(apd->cgs_dev, ACP_TILE_P1 + i);
-			if (ret) {
-				pr_err("ACP tile %d resume failed\n", i);
-				break;
-			}
-		}
-
-		/* Disable DSPs which are not going to be used */
-		for (i = 0; i < 3; i++) {
-			ret = acp_suspend_tile(apd->cgs_dev, ACP_TILE_DSP0 + i);
-			/* Continue suspending other DSP, even if one fails */
-			if (ret)
-				pr_err("ACP DSP %d suspend failed\n", i);
-		}
+		adev = apd->adev;
+	/* call smu to UNGATE ACP block
+	 * smu will
+	 * 1. exit ulv
+	 * 2. turn on acp clock
+	 * 3. power on acp tiles
+	 */
+		if (adev->powerplay.pp_funcs->set_powergating_by_smu)
+			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, false);
 	}
 	return 0;
 }
@@ -311,7 +222,7 @@ static int acp_hw_init(void *handle)
 	adev->acp.acp_genpd->gpd.power_on = acp_poweron;
 
 
-	adev->acp.acp_genpd->cgs_dev = adev->acp.cgs_device;
+	adev->acp.acp_genpd->adev = adev;
 
 	pm_genpd_init(&adev->acp.acp_genpd->gpd, NULL, false);
 
@@ -429,7 +340,6 @@ static int acp_hw_init(void *handle)
 								ACP_DEVS);
 	if (r)
 		return r;
-
 
 	for (i = 0; i < ACP_DEVS ; i++) {
 		dev = get_mfd_cell_dev(adev->acp.acp_cell[i].name, i);
