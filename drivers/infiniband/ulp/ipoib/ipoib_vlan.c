@@ -55,35 +55,14 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 {
 	int result;
 
-	priv->max_ib_mtu = ppriv->max_ib_mtu;
-	/* MTU will be reset when mcast join happens */
-	priv->dev->mtu   = IPOIB_UD_MTU(priv->max_ib_mtu);
-	priv->mcast_mtu  = priv->admin_mtu = priv->dev->mtu;
 	priv->parent = ppriv->dev;
-	set_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags);
-
-	ipoib_set_dev_features(priv, ppriv->ca);
-
 	priv->pkey = pkey;
-
-	memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr, INFINIBAND_ALEN);
-	memcpy(&priv->local_gid, &ppriv->local_gid, sizeof(priv->local_gid));
-	set_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
-	priv->dev->broadcast[8] = pkey >> 8;
-	priv->dev->broadcast[9] = pkey & 0xff;
-
-	result = ipoib_dev_init(priv->dev, ppriv->ca, ppriv->port);
-	if (result < 0) {
-		ipoib_warn(ppriv, "failed to initialize subinterface: "
-			   "device %s, port %d",
-			   ppriv->ca->name, ppriv->port);
-		goto err;
-	}
+	priv->child_type = type;
 
 	result = register_netdevice(priv->dev);
 	if (result) {
 		ipoib_warn(priv, "failed to initialize; error %i", result);
-		goto err;
+		return result;
 	}
 
 	/* RTNL childs don't need proprietary sysfs entries */
@@ -99,17 +78,13 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 			goto sysfs_failed;
 	}
 
-	priv->child_type  = type;
 	list_add_tail(&priv->list, &ppriv->child_intfs);
 
 	return 0;
 
 sysfs_failed:
-	result = -ENOMEM;
 	unregister_netdevice(priv->dev);
-
-err:
-	return result;
+	return -ENOMEM;
 }
 
 int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)

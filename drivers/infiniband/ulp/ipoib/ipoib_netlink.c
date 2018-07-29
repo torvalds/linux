@@ -125,12 +125,6 @@ static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
 	if (child_pkey == 0 || child_pkey == 0x8000)
 		return -EINVAL;
 
-	/*
-	 * Set the full membership bit, so that we join the right
-	 * broadcast group, etc.
-	 */
-	child_pkey |= 0x8000;
-
 	err = __ipoib_vlan_add(ppriv, ipoib_priv(dev),
 			       child_pkey, IPOIB_RTNL_CHILD);
 
