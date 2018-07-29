@@ -378,34 +378,20 @@ static int apex_sysfs_setup_cb(struct gasket_dev *gasket_dev)
 		gasket_dev->dev_info.device, apex_sysfs_attrs);
 }
 
-/* On device open, we want to perform a core reinit reset. */
+/* On device open, perform a core reinit reset. */
 static int apex_device_open_cb(struct gasket_dev *gasket_dev)
 {
 	return gasket_reset_nolock(gasket_dev, APEX_CHIP_REINIT_RESET);
 }
 
-/**
- * apex_get_status - Set device status.
- * @dev: Apex device struct.
- *
- * Description: Check the device status registers and set the driver status
- *		to ALIVE or DEAD.
- *
- *		Returns 0 if status is ALIVE, a negative error number otherwise.
- */
+/* Check the device status registers and return device status ALIVE or DEAD. */
 static int apex_get_status(struct gasket_dev *gasket_dev)
 {
 	/* TODO: Check device status. */
 	return GASKET_STATUS_ALIVE;
 }
 
-/**
- * apex_device_cleanup - Clean up Apex HW after close.
- * @gasket_dev: Gasket device pointer.
- *
- * Description: Resets the Apex hardware. Called on final close via
- * device_close_cb.
- */
+/* Reset the Apex hardware. Called on final close via device_close_cb. */
 static int apex_device_cleanup(struct gasket_dev *gasket_dev)
 {
 	u64 scalar_error;
@@ -429,14 +415,7 @@ static int apex_device_cleanup(struct gasket_dev *gasket_dev)
 	return ret;
 }
 
-/**
- * apex_reset - Quits reset.
- * @gasket_dev: Gasket device pointer.
- *
- * Description: Resets the hardware, then quits reset.
- * Called on device open.
- *
- */
+/* Reset the hardware, then quit reset.  Called on device open. */
 static int apex_reset(struct gasket_dev *gasket_dev, uint type)
 {
 	int ret;
@@ -459,9 +438,7 @@ static int apex_reset(struct gasket_dev *gasket_dev, uint type)
 	return ret;
 }
 
-/*
- * Enters GCB reset state.
- */
+/* Enter GCB reset state. */
 static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 {
 	if (bypass_top_level)
@@ -516,9 +493,7 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 	return 0;
 }
 
-/*
- * Quits GCB reset state.
- */
+/* Quit GCB reset state. */
 static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 {
 	u32 val0, val1;
@@ -601,9 +576,7 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 	return 0;
 }
 
-/*
- * Determines if GCB is in reset state.
- */
+/* Determine if GCB is in reset state. */
 static bool is_gcb_in_reset(struct gasket_dev *gasket_dev)
 {
 	u32 val = gasket_dev_read_32(
@@ -615,9 +588,6 @@ static bool is_gcb_in_reset(struct gasket_dev *gasket_dev)
 
 /*
  * Check permissions for Apex ioctls.
- * @file: File pointer from ioctl.
- * @cmd: ioctl command.
- *
  * Returns true if the current user may execute this ioctl, and false otherwise.
  */
 static bool apex_ioctl_check_permissions(struct file *filp, uint cmd)
@@ -625,9 +595,7 @@ static bool apex_ioctl_check_permissions(struct file *filp, uint cmd)
 	return !!(filp->f_mode & FMODE_WRITE);
 }
 
-/*
- * Apex-specific ioctl handler.
- */
+/* Apex-specific ioctl handler. */
 static long apex_ioctl(struct file *filp, uint cmd, void __user *argp)
 {
 	struct gasket_dev *gasket_dev = filp->private_data;
@@ -643,11 +611,7 @@ static long apex_ioctl(struct file *filp, uint cmd, void __user *argp)
 	}
 }
 
-/*
- * Gates or un-gates Apex clock.
- * @gasket_dev: Gasket device pointer.
- * @argp: User ioctl arg, pointer to a apex_gate_clock_ioctl struct.
- */
+/* Gates or un-gates Apex clock. */
 static long apex_clock_gating(struct gasket_dev *gasket_dev,
 			      struct apex_gate_clock_ioctl __user *argp)
 {
@@ -681,15 +645,7 @@ static long apex_clock_gating(struct gasket_dev *gasket_dev,
 	return 0;
 }
 
-/*
- * Display driver sysfs entries.
- * @device: Kernel device structure.
- * @attr: Attribute to display.
- * @buf: Buffer to which to write output.
- *
- * Description: Looks up the driver data and file-specific attribute data (the
- * type of the attribute), then fills "buf" accordingly.
- */
+/* Display driver sysfs entries. */
 static ssize_t sysfs_show(
 	struct device *device, struct device_attribute *attr, char *buf)
 {
