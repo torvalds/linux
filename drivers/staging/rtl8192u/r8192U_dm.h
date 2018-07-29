@@ -65,6 +65,11 @@
 
 /*------------------------------Define structure----------------------------*/
 
+enum dig_algorithm {
+	DIG_ALGO_BY_FALSE_ALARM = 0,
+	DIG_ALGO_BY_RSSI	= 1,
+};
+
 enum dynamic_init_gain_state {
 	DM_STA_DIG_OFF = 0,
 	DM_STA_DIG_ON,
@@ -74,7 +79,7 @@ enum dynamic_init_gain_state {
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
 struct dig {
 	u8		dig_enable_flag;
-	u8		dig_algorithm;
+	enum dig_algorithm		dig_algorithm;
 	u8		dbg_mode;
 	u8		dig_algorithm_switch;
 
@@ -104,12 +109,6 @@ struct dig {
 
 	long		rssi_val;
 };
-
-typedef enum tag_dig_algorithm_definition {
-	DIG_ALGO_BY_FALSE_ALARM = 0,
-	DIG_ALGO_BY_RSSI	= 1,
-	DIG_ALGO_MAX
-} dm_dig_alg_e;
 
 typedef enum tag_dig_dbgmode_definition {
 	DIG_DBG_OFF = 0,
