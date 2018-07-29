@@ -81,6 +81,12 @@ enum dig_connect {
 	DIG_CONNECT = 1,
 };
 
+enum dig_pkt_detection_threshold {
+	DIG_PD_AT_LOW_POWER = 0,
+	DIG_PD_AT_NORMAL_POWER = 1,
+	DIG_PD_AT_HIGH_POWER = 2,
+};
+
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
 struct dig {
 	u8		dig_enable_flag;
@@ -99,8 +105,8 @@ struct dig {
 	enum dig_connect		cur_connect_state;
 	enum dig_connect		pre_connect_state;
 
-	u8		curpd_thstate;
-	u8		prepd_thstate;
+	enum dig_pkt_detection_threshold		curpd_thstate;
+	enum dig_pkt_detection_threshold		prepd_thstate;
 	u8		curcs_ratio_state;
 	u8		precs_ratio_state;
 
@@ -114,13 +120,6 @@ struct dig {
 
 	long		rssi_val;
 };
-
-typedef enum tag_dig_packetdetection_threshold_definition {
-	DIG_PD_AT_LOW_POWER = 0,
-	DIG_PD_AT_NORMAL_POWER = 1,
-	DIG_PD_AT_HIGH_POWER = 2,
-	DIG_PD_MAX
-} dm_dig_pd_th_e;
 
 typedef enum tag_dig_cck_cs_ratio_state_definition {
 	DIG_CS_RATIO_LOWER = 0,
