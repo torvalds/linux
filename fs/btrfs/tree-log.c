@@ -545,12 +545,8 @@ static noinline struct inode *read_one_inode(struct btrfs_root *root,
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 	inode = btrfs_iget(root->fs_info->sb, &key, root, NULL);
-	if (IS_ERR(inode)) {
+	if (IS_ERR(inode))
 		inode = NULL;
-	} else if (is_bad_inode(inode)) {
-		iput(inode);
-		inode = NULL;
-	}
 	return inode;
 }
 

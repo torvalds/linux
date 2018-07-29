@@ -3470,11 +3470,8 @@ static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
 	key.offset = 0;
 
 	inode = btrfs_iget(fs_info->sb, &key, root, NULL);
-	if (IS_ERR(inode) || is_bad_inode(inode)) {
-		if (!IS_ERR(inode))
-			iput(inode);
+	if (IS_ERR(inode))
 		return -ENOENT;
-	}
 
 truncate:
 	ret = btrfs_check_trunc_cache_free_space(fs_info,
@@ -4155,7 +4152,7 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 	inode = btrfs_iget(fs_info->sb, &key, root, NULL);
-	BUG_ON(IS_ERR(inode) || is_bad_inode(inode));
+	BUG_ON(IS_ERR(inode));
 	BTRFS_I(inode)->index_cnt = group->key.objectid;
 
 	err = btrfs_orphan_add(trans, BTRFS_I(inode));

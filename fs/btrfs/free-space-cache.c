@@ -71,10 +71,6 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	inode = btrfs_iget(fs_info->sb, &location, root, NULL);
 	if (IS_ERR(inode))
 		return inode;
-	if (is_bad_inode(inode)) {
-		iput(inode);
-		return ERR_PTR(-ENOENT);
-	}
 
 	mapping_set_gfp_mask(inode->i_mapping,
 			mapping_gfp_constraint(inode->i_mapping,
