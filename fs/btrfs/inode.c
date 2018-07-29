@@ -3604,18 +3604,15 @@ static int btrfs_read_locked_inode(struct inode *inode)
 		filled = true;
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto make_bad;
-	}
+	if (!path)
+		return -ENOMEM;
 
 	memcpy(&location, &BTRFS_I(inode)->location, sizeof(location));
 
 	ret = btrfs_lookup_inode(NULL, root, path, &location, 0);
 	if (ret) {
-		if (ret > 0)
-			ret = -ENOENT;
-		goto make_bad;
+		btrfs_free_path(path);
+		return ret;
 	}
 
 	leaf = path->nodes[0];
@@ -3768,10 +3765,6 @@ cache_acl:
 
 	btrfs_sync_inode_flags_to_i_flags(inode);
 	return 0;
-
-make_bad:
-	btrfs_free_path(path);
-	return ret;
 }
 
 /*
@@ -5702,11 +5695,15 @@ struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
 			if (new)
 				*new = 1;
 		} else {
-			make_bad_inode(inode);
-			unlock_new_inode(inode);
-			iput(inode);
-			ASSERT(ret < 0);
-			inode = ERR_PTR(ret < 0 ? ret : -ESTALE);
+			iget_failed(inode);
+			/*
+			 * ret > 0 can come from btrfs_search_slot called by
+			 * btrfs_read_locked_inode, this means the inode item
+			 * was not found.
+			 */
+			if (ret > 0)
+				ret = -ENOENT;
+			inode = ERR_PTR(ret);
 		}
 	}
 
