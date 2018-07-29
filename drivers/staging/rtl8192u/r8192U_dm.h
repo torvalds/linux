@@ -126,10 +126,15 @@ struct dig {
 	long		rssi_val;
 };
 
+enum cck_rx_path_method {
+	CCK_Rx_Version_1 = 0,
+	CCK_Rx_Version_2 = 1,
+};
+
 struct dynamic_rx_path_sel {
 	u8		Enable;
 	u8		DbgMode;
-	u8		cck_method;
+	enum cck_rx_path_method		cck_method;
 	u8		cck_Rx_path;
 
 	u8		SS_TH_low;
@@ -141,12 +146,6 @@ struct dynamic_rx_path_sel {
 	u8		rf_enable_rssi_th[4];
 	long		cck_pwdb_sta[4];
 };
-
-typedef enum tag_CCK_Rx_Path_Method_Definition {
-	CCK_Rx_Version_1 = 0,
-	CCK_Rx_Version_2 = 1,
-	CCK_Rx_Version_MAX
-} DM_CCK_Rx_Path_Method;
 
 typedef enum tag_DM_DbgMode_Definition {
 	DM_DBG_OFF = 0,
