@@ -154,68 +154,56 @@ static void snd_virmidi_input_trigger(struct snd_rawmidi_substream *substream, i
 	}
 }
 
+/* process rawmidi bytes and send events;
+ * we need no lock here for vmidi->event since it's handled only in this work
+ */
+static void snd_vmidi_output_work(struct work_struct *work)
+{
+	struct snd_virmidi *vmidi;
+	struct snd_rawmidi_substream *substream;
+	unsigned char input;
+	int ret;
+
+	vmidi = container_of(work, struct snd_virmidi, output_work);
+	substream = vmidi->substream;
+
+	/* discard the outputs in dispatch mode unless subscribed */
+	if (vmidi->seq_mode == SNDRV_VIRMIDI_SEQ_DISPATCH &&
+	    !(vmidi->rdev->flags & SNDRV_VIRMIDI_SUBSCRIBE)) {
+		while (!snd_rawmidi_transmit_empty(substream))
+			snd_rawmidi_transmit_ack(substream, 1);
+		return;
+	}
+
+	while (vmidi->trigger) {
+		if (snd_rawmidi_transmit(substream, &input, 1) != 1)
+			break;
+		if (snd_midi_event_encode_byte(vmidi->parser, input,
+					       &vmidi->event) <= 0)
+			continue;
+		if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
+			ret = snd_seq_kernel_client_dispatch(vmidi->client,
+							     &vmidi->event,
+							     false, 0);
+			vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
+			if (ret < 0)
+				break;
+		}
+		/* rawmidi input might be huge, allow to have a break */
+		cond_resched();
+	}
+}
+
 /*
  * trigger rawmidi stream for output
  */
 static void snd_virmidi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	struct snd_virmidi *vmidi = substream->runtime->private_data;
-	int count, res;
-	unsigned char buf[32], *pbuf;
-	unsigned long flags;
-	bool check_resched = !in_atomic();
 
-	if (up) {
-		vmidi->trigger = 1;
-		if (vmidi->seq_mode == SNDRV_VIRMIDI_SEQ_DISPATCH &&
-		    !(vmidi->rdev->flags & SNDRV_VIRMIDI_SUBSCRIBE)) {
-			while (snd_rawmidi_transmit(substream, buf,
-						    sizeof(buf)) > 0) {
-				/* ignored */
-			}
-			return;
-		}
-		spin_lock_irqsave(&substream->runtime->lock, flags);
-		if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
-			if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, in_atomic(), 0) < 0)
-				goto out;
-			vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
-		}
-		while (1) {
-			count = __snd_rawmidi_transmit_peek(substream, buf, sizeof(buf));
-			if (count <= 0)
-				break;
-			pbuf = buf;
-			while (count > 0) {
-				res = snd_midi_event_encode(vmidi->parser, pbuf, count, &vmidi->event);
-				if (res < 0) {
-					snd_midi_event_reset_encode(vmidi->parser);
-					continue;
-				}
-				__snd_rawmidi_transmit_ack(substream, res);
-				pbuf += res;
-				count -= res;
-				if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
-					if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, in_atomic(), 0) < 0)
-						goto out;
-					vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
-				}
-			}
-			if (!check_resched)
-				continue;
-			/* do temporary unlock & cond_resched() for avoiding
-			 * CPU soft lockup, which may happen via a write from
-			 * a huge rawmidi buffer
-			 */
-			spin_unlock_irqrestore(&substream->runtime->lock, flags);
-			cond_resched();
-			spin_lock_irqsave(&substream->runtime->lock, flags);
-		}
-	out:
-		spin_unlock_irqrestore(&substream->runtime->lock, flags);
-	} else {
-		vmidi->trigger = 0;
-	}
+	vmidi->trigger = !!up;
+	if (up)
+		queue_work(system_highpri_wq, &vmidi->output_work);
 }
 
 /*
@@ -270,6 +258,7 @@ static int snd_virmidi_output_open(struct snd_rawmidi_substream *substream)
 	vmidi->port = rdev->port;
 	snd_virmidi_init_event(vmidi, &vmidi->event);
 	vmidi->rdev = rdev;
+	INIT_WORK(&vmidi->output_work, snd_vmidi_output_work);
 	runtime->private_data = vmidi;
 	return 0;
 }
@@ -299,6 +288,9 @@ static int snd_virmidi_input_close(struct snd_rawmidi_substream *substream)
 static int snd_virmidi_output_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_virmidi *vmidi = substream->runtime->private_data;
+
+	vmidi->trigger = 0; /* to be sure */
+	cancel_work_sync(&vmidi->output_work);
 	snd_midi_event_free(vmidi->parser);
 	substream->runtime->private_data = NULL;
 	kfree(vmidi);

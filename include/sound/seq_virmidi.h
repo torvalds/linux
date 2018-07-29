@@ -41,6 +41,7 @@ struct snd_virmidi {
 	struct snd_seq_event event;
 	struct snd_virmidi_dev *rdev;
 	struct snd_rawmidi_substream *substream;
+	struct work_struct output_work;
 };
 
 #define SNDRV_VIRMIDI_SUBSCRIBE		(1<<0)
