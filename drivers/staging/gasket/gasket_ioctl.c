@@ -170,14 +170,7 @@ long gasket_is_supported_ioctl(uint cmd)
 	}
 }
 
-/*
- * Permission checker for Gasket ioctls.
- * @filp: File structure pointer describing this node usage session.
- * @cmd: ioctl number to handle.
- *
- * Check permissions for Gasket ioctls.
- * Returns true if the file opener may execute this ioctl, or false otherwise.
- */
+/* Check permissions for Gasket ioctls. */
 static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd)
 {
 	bool alive;
@@ -218,11 +211,7 @@ static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd)
 	return false; /* unknown permissions */
 }
 
-/*
- * Associate an eventfd with an interrupt.
- * @gasket_dev: Pointer to the current gasket_dev we're using.
- * @argp: Pointer to gasket_interrupt_eventfd struct in userspace.
- */
+/* Associate an eventfd with an interrupt. */
 static int gasket_set_event_fd(struct gasket_dev *gasket_dev,
 			       struct gasket_interrupt_eventfd __user *argp)
 {
@@ -237,11 +226,7 @@ static int gasket_set_event_fd(struct gasket_dev *gasket_dev,
 		gasket_dev->interrupt_data, die.interrupt, die.event_fd);
 }
 
-/*
- * Reads the size of the page table.
- * @gasket_dev: Pointer to the current gasket_dev we're using.
- * @argp: Pointer to gasket_page_table_ioctl struct in userspace.
- */
+/* Read the size of the page table. */
 static int gasket_read_page_table_size(
 	struct gasket_dev *gasket_dev,
 	struct gasket_page_table_ioctl __user *argp)
@@ -268,11 +253,7 @@ static int gasket_read_page_table_size(
 	return ret;
 }
 
-/*
- * Reads the size of the simple page table.
- * @gasket_dev: Pointer to the current gasket_dev we're using.
- * @argp: Pointer to gasket_page_table_ioctl struct in userspace.
- */
+/* Read the size of the simple page table. */
 static int gasket_read_simple_page_table_size(
 	struct gasket_dev *gasket_dev,
 	struct gasket_page_table_ioctl __user *argp)
@@ -299,11 +280,7 @@ static int gasket_read_simple_page_table_size(
 	return ret;
 }
 
-/*
- * Sets the boundary between the simple and extended page tables.
- * @gasket_dev: Pointer to the current gasket_dev we're using.
- * @argp: Pointer to gasket_page_table_ioctl struct in userspace.
- */
+/* Set the boundary between the simple and extended page tables. */
 static int gasket_partition_page_table(
 	struct gasket_dev *gasket_dev,
 	struct gasket_page_table_ioctl __user *argp)
@@ -340,11 +317,7 @@ static int gasket_partition_page_table(
 	return ret;
 }
 
-/*
- * Maps a userspace buffer to a device virtual address.
- * @gasket_dev: Pointer to the current gasket_dev we're using.
- * @argp: Pointer to a gasket_page_table_ioctl struct in userspace.
- */
+/* Map a userspace buffer to a device virtual address. */
 static int gasket_map_buffers(struct gasket_dev *gasket_dev,
 			      struct gasket_page_table_ioctl __user *argp)
 {
@@ -370,11 +343,7 @@ static int gasket_map_buffers(struct gasket_dev *gasket_dev,
 		ibuf.host_address, ibuf.device_address, ibuf.size / PAGE_SIZE);
 }
 
-/*
- * Unmaps a userspace buffer from a device virtual address.
- * @gasket_dev: Pointer to the current gasket_dev we're using.
- * @argp: Pointer to a gasket_page_table_ioctl struct in userspace.
- */
+/* Unmap a userspace buffer from a device virtual address. */
 static int gasket_unmap_buffers(struct gasket_dev *gasket_dev,
 				struct gasket_page_table_ioctl __user *argp)
 {
@@ -402,10 +371,8 @@ static int gasket_unmap_buffers(struct gasket_dev *gasket_dev,
 }
 
 /*
- * Tell the driver to reserve structures for coherent allocation, and allocate
- * or free the corresponding memory.
- * @dev: Pointer to the current gasket_dev we're using.
- * @argp: Pointer to a gasket_coherent_alloc_config_ioctl struct in userspace.
+ * Reserve structures for coherent allocation, and allocate or free the
+ * corresponding memory.
  */
 static int gasket_config_coherent_allocator(
 	struct gasket_dev *gasket_dev,
