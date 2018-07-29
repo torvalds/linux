@@ -288,7 +288,7 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
  */
 static void cmpk_handle_query_config_rx(struct net_device *dev, u8 *pmsg)
 {
-	cmpk_query_cfg_t	rx_query_cfg;
+	struct cmpk_query_cfg	rx_query_cfg;
 
 	/* 1. Extract TX feedback info from RFD to temp structure buffer. */
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in

@@ -3,7 +3,7 @@
 #define R819XUSB_CMDPKT_H
 /* Different command packet have dedicated message length and definition. */
 #define		CMPK_RX_TX_FB_SIZE		sizeof(struct cmd_pkt_tx_feedback)	/* 20 */
-#define		CMPK_BOTH_QUERY_CONFIG_SIZE	sizeof(cmpk_set_cfg_t)	/* 16 */
+#define		CMPK_BOTH_QUERY_CONFIG_SIZE	sizeof(struct cmd_pkt_set_configuration)	/* 16 */
 #define		CMPK_RX_TX_STS_SIZE		sizeof(cmpk_tx_status_t)
 #define		CMPK_TX_RAHIS_SIZE		sizeof(cmpk_tx_rahis_t)
 
@@ -63,7 +63,7 @@ struct cmd_pkt_interrupt_status {
 };
 
 /* 3. TX side: Set configuration packet. */
-typedef struct tag_cmd_pkt_set_configuration {
+struct cmd_pkt_set_configuration {
 	u8	element_id;			/* Command packet type. */
 	u8	length;				/* Command packet length. */
 	u16	reserve1;
@@ -78,12 +78,12 @@ typedef struct tag_cmd_pkt_set_configuration {
 	u8	cfg_offset;
 	u32	value;
 	u32	mask;
-} cmpk_set_cfg_t;
+};
 
 /* 4. Both side : TX/RX query configuration packet. The query structure is the
  *    same as set configuration.
  */
-#define		cmpk_query_cfg_t	cmpk_set_cfg_t
+#define		cmpk_query_cfg	cmd_pkt_set_configuration
 
 /* 5. Multi packet feedback status. */
 typedef struct tag_tx_stats_feedback {
