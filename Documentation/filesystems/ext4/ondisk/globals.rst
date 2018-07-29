@@ -8,3 +8,4 @@ have static metadata at fixed locations.
 
 .. include:: super.rst
 .. include:: group_descr.rst
+.. include:: bitmaps.rst
