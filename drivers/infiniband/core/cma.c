@@ -495,7 +495,6 @@ static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 	id_priv->id.route.addr.dev_addr.transport =
 		rdma_node_get_transport(cma_dev->device->node_type);
 	list_add_tail(&id_priv->list, &cma_dev->id_list);
-	id_priv->res.type = RDMA_RESTRACK_CM_ID;
 	rdma_restrack_add(&id_priv->res);
 }
 
@@ -795,6 +794,7 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
 		id_priv->res.kern_name = caller;
 	else
 		rdma_restrack_set_task(&id_priv->res, current);
+	id_priv->res.type = RDMA_RESTRACK_CM_ID;
 	id_priv->state = RDMA_CM_IDLE;
 	id_priv->id.context = context;
 	id_priv->id.event_handler = event_handler;
