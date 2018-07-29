@@ -50,31 +50,53 @@ static ssize_t show_parent(struct device *d, struct device_attribute *attr,
 }
 static DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
 
+/*
+ * NOTE: If this function fails then the priv->dev will remain valid, however
+ * priv can have been freed and must not be touched by caller in the error
+ * case.
+ *
+ * If (ndev->reg_state == NETREG_UNINITIALIZED) then it is up to the caller to
+ * free the net_device (just as rtnl_newlink does) otherwise the net_device
+ * will be freed when the rtnl is unlocked.
+ */
 int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 		     u16 pkey, int type)
 {
+	struct net_device *ndev = priv->dev;
 	int result;
+
+	ASSERT_RTNL();
 
 	priv->parent = ppriv->dev;
 	priv->pkey = pkey;
 	priv->child_type = type;
 
-	result = register_netdevice(priv->dev);
+	/* We do not need to touch priv if register_netdevice fails */
+	ndev->priv_destructor = ipoib_intf_free;
+
+	result = register_netdevice(ndev);
 	if (result) {
 		ipoib_warn(priv, "failed to initialize; error %i", result);
+
+		/*
+		 * register_netdevice sometimes calls priv_destructor,
+		 * sometimes not. Make sure it was done.
+		 */
+		if (ndev->priv_destructor)
+			ndev->priv_destructor(ndev);
 		return result;
 	}
 
 	/* RTNL childs don't need proprietary sysfs entries */
 	if (type == IPOIB_LEGACY_CHILD) {
-		if (ipoib_cm_add_mode_attr(priv->dev))
+		if (ipoib_cm_add_mode_attr(ndev))
 			goto sysfs_failed;
-		if (ipoib_add_pkey_attr(priv->dev))
+		if (ipoib_add_pkey_attr(ndev))
 			goto sysfs_failed;
-		if (ipoib_add_umcast_attr(priv->dev))
+		if (ipoib_add_umcast_attr(ndev))
 			goto sysfs_failed;
 
-		if (device_create_file(&priv->dev->dev, &dev_attr_parent))
+		if (device_create_file(&ndev->dev, &dev_attr_parent))
 			goto sysfs_failed;
 	}
 
@@ -91,6 +113,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 {
 	struct ipoib_dev_priv *ppriv, *priv;
 	char intf_name[IFNAMSIZ];
+	struct net_device *ndev;
 	struct ipoib_dev_priv *tpriv;
 	int result;
 
@@ -122,12 +145,6 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		return restart_syscall();
 	}
 
-	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
-	if (!priv) {
-		result = -ENOMEM;
-		goto out;
-	}
-
 	/*
 	 * First ensure this isn't a duplicate. We check the parent device and
 	 * then all of the legacy child interfaces to make sure the Pkey
@@ -146,20 +163,22 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		}
 	}
 
+	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
+	if (!priv) {
+		result = -ENOMEM;
+		goto out;
+	}
+	ndev = priv->dev;
+
 	result = __ipoib_vlan_add(ppriv, priv, pkey, IPOIB_LEGACY_CHILD);
+
+	if (result && ndev->reg_state == NETREG_UNINITIALIZED)
+		free_netdev(ndev);
 
 out:
 	up_write(&ppriv->vlan_rwsem);
 	rtnl_unlock();
 	mutex_unlock(&ppriv->sysfs_mutex);
-
-	if (result && priv) {
-		struct rdma_netdev *rn;
-
-		rn = netdev_priv(priv->dev);
-		rn->free_rdma_netdev(priv->dev);
-		kfree(priv);
-	}
 
 	return result;
 }
@@ -212,14 +231,5 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 	rtnl_unlock();
 	mutex_unlock(&ppriv->sysfs_mutex);
 
-	if (dev) {
-		struct rdma_netdev *rn;
-
-		rn = netdev_priv(dev);
-		rn->free_rdma_netdev(priv->dev);
-		kfree(priv);
-		return 0;
-	}
-
-	return -ENODEV;
+	return (dev) ? 0 : -ENODEV;
 }

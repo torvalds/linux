@@ -323,6 +323,7 @@ struct ipoib_dev_priv {
 	spinlock_t lock;
 
 	struct net_device *dev;
+	void (*next_priv_destructor)(struct net_device *dev);
 
 	struct napi_struct send_napi;
 	struct napi_struct recv_napi;
@@ -481,6 +482,7 @@ static inline void ipoib_put_ah(struct ipoib_ah *ah)
 	kref_put(&ah->ref, ipoib_free_ah);
 }
 int ipoib_open(struct net_device *dev);
+void ipoib_intf_free(struct net_device *dev);
 int ipoib_add_pkey_attr(struct net_device *dev);
 int ipoib_add_umcast_attr(struct net_device *dev);
 

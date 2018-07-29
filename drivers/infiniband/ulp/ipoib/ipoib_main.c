@@ -2062,6 +2062,13 @@ void ipoib_setup_common(struct net_device *dev)
 	netif_keep_dst(dev);
 
 	memcpy(dev->broadcast, ipv4_bcast_addr, INFINIBAND_ALEN);
+
+	/*
+	 * unregister_netdev always frees the netdev, we use this mode
+	 * consistently to unify all the various unregister paths, including
+	 * those connected to rtnl_link_ops which require it.
+	 */
+	dev->needs_free_netdev = true;
 }
 
 static void ipoib_build_priv(struct net_device *dev)
@@ -2116,9 +2123,7 @@ static struct net_device
 	rn->send = ipoib_send;
 	rn->attach_mcast = ipoib_mcast_attach;
 	rn->detach_mcast = ipoib_mcast_detach;
-	rn->free_rdma_netdev = free_netdev;
 	rn->hca = hca;
-
 	dev->netdev_ops = &ipoib_netdev_default_pf;
 
 	return dev;
@@ -2173,12 +2178,42 @@ struct ipoib_dev_priv *ipoib_intf_alloc(struct ib_device *hca, u8 port,
 
 	rn = netdev_priv(dev);
 	rn->clnt_priv = priv;
+
+	/*
+	 * Only the child register_netdev flows can handle priv_destructor
+	 * being set, so we force it to NULL here and handle manually until it
+	 * is safe to turn on.
+	 */
+	priv->next_priv_destructor = dev->priv_destructor;
+	dev->priv_destructor = NULL;
+
 	ipoib_build_priv(dev);
 
 	return priv;
 free_priv:
 	kfree(priv);
 	return NULL;
+}
+
+void ipoib_intf_free(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	struct rdma_netdev *rn = netdev_priv(dev);
+
+	dev->priv_destructor = priv->next_priv_destructor;
+	if (dev->priv_destructor)
+		dev->priv_destructor(dev);
+
+	/*
+	 * There are some error flows around register_netdev failing that may
+	 * attempt to call priv_destructor twice, prevent that from happening.
+	 */
+	dev->priv_destructor = NULL;
+
+	/* unregister/destroy is very complicated. Make bugs more obvious. */
+	rn->clnt_priv = NULL;
+
+	kfree(priv);
 }
 
 static ssize_t show_pkey(struct device *dev,
@@ -2341,7 +2376,7 @@ static struct net_device *ipoib_add_port(const char *format,
 					 struct ib_device *hca, u8 port)
 {
 	struct ipoib_dev_priv *priv;
-	struct rdma_netdev *rn;
+	struct net_device *ndev;
 	int result;
 
 	priv = ipoib_intf_alloc(hca, port, format);
@@ -2349,6 +2384,7 @@ static struct net_device *ipoib_add_port(const char *format,
 		pr_warn("%s, %d: ipoib_intf_alloc failed\n", hca->name, port);
 		return ERR_PTR(-ENOMEM);
 	}
+	ndev = priv->dev;
 
 	INIT_IB_EVENT_HANDLER(&priv->event_handler,
 			      priv->ca, ipoib_event);
@@ -2357,38 +2393,43 @@ static struct net_device *ipoib_add_port(const char *format,
 	/* call event handler to ensure pkey in sync */
 	queue_work(ipoib_workqueue, &priv->flush_heavy);
 
-	result = register_netdev(priv->dev);
+	result = register_netdev(ndev);
 	if (result) {
 		pr_warn("%s: couldn't register ipoib port %d; error %d\n",
 			hca->name, port, result);
-		ipoib_parent_unregister_pre(priv->dev);
-		goto device_init_failed;
+
+		ipoib_parent_unregister_pre(ndev);
+		ipoib_intf_free(ndev);
+		free_netdev(ndev);
+
+		return ERR_PTR(result);
 	}
 
-	result = -ENOMEM;
-	if (ipoib_cm_add_mode_attr(priv->dev))
+	/*
+	 * We cannot set priv_destructor before register_netdev because we
+	 * need priv to be always valid during the error flow to execute
+	 * ipoib_parent_unregister_pre(). Instead handle it manually and only
+	 * enter priv_destructor mode once we are completely registered.
+	 */
+	ndev->priv_destructor = ipoib_intf_free;
+
+	if (ipoib_cm_add_mode_attr(ndev))
 		goto sysfs_failed;
-	if (ipoib_add_pkey_attr(priv->dev))
+	if (ipoib_add_pkey_attr(ndev))
 		goto sysfs_failed;
-	if (ipoib_add_umcast_attr(priv->dev))
+	if (ipoib_add_umcast_attr(ndev))
 		goto sysfs_failed;
-	if (device_create_file(&priv->dev->dev, &dev_attr_create_child))
+	if (device_create_file(&ndev->dev, &dev_attr_create_child))
 		goto sysfs_failed;
-	if (device_create_file(&priv->dev->dev, &dev_attr_delete_child))
+	if (device_create_file(&ndev->dev, &dev_attr_delete_child))
 		goto sysfs_failed;
 
-	return priv->dev;
+	return ndev;
 
 sysfs_failed:
-	ipoib_parent_unregister_pre(priv->dev);
-	unregister_netdev(priv->dev);
-
-device_init_failed:
-	rn = netdev_priv(priv->dev);
-	rn->free_rdma_netdev(priv->dev);
-	kfree(priv);
-
-	return ERR_PTR(result);
+	ipoib_parent_unregister_pre(ndev);
+	unregister_netdev(ndev);
+	return ERR_PTR(-ENOMEM);
 }
 
 static void ipoib_add_one(struct ib_device *device)
@@ -2426,33 +2467,19 @@ static void ipoib_add_one(struct ib_device *device)
 
 static void ipoib_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ipoib_dev_priv *priv, *tmp, *cpriv, *tcpriv;
+	struct ipoib_dev_priv *priv, *tmp;
 	struct list_head *dev_list = client_data;
 
 	if (!dev_list)
 		return;
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
-		struct rdma_netdev *parent_rn = netdev_priv(priv->dev);
-
 		ipoib_parent_unregister_pre(priv->dev);
 
 		/* Wrap rtnl_lock/unlock with mutex to protect sysfs calls */
 		mutex_lock(&priv->sysfs_mutex);
 		unregister_netdev(priv->dev);
 		mutex_unlock(&priv->sysfs_mutex);
-
-		parent_rn->free_rdma_netdev(priv->dev);
-
-		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
-			struct rdma_netdev *child_rn;
-
-			child_rn = netdev_priv(cpriv->dev);
-			child_rn->free_rdma_netdev(cpriv->dev);
-			kfree(cpriv);
-		}
-
-		kfree(priv);
 	}
 
 	kfree(dev_list);

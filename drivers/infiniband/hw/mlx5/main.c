@@ -5157,11 +5157,6 @@ done:
 	return num_counters;
 }
 
-static void mlx5_ib_free_rdma_netdev(struct net_device *netdev)
-{
-	return mlx5_rdma_netdev_free(netdev);
-}
-
 static struct net_device*
 mlx5_ib_alloc_rdma_netdev(struct ib_device *hca,
 			  u8 port_num,
@@ -5171,17 +5166,12 @@ mlx5_ib_alloc_rdma_netdev(struct ib_device *hca,
 			  void (*setup)(struct net_device *))
 {
 	struct net_device *netdev;
-	struct rdma_netdev *rn;
 
 	if (type != RDMA_NETDEV_IPOIB)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	netdev = mlx5_rdma_netdev_alloc(to_mdev(hca)->mdev, hca,
 					name, setup);
-	if (likely(!IS_ERR_OR_NULL(netdev))) {
-		rn = netdev_priv(netdev);
-		rn->free_rdma_netdev = mlx5_ib_free_rdma_netdev;
-	}
 	return netdev;
 }
 
