@@ -199,7 +199,7 @@ struct hidden_network {
 struct user_scan_req {
 	wilc_scan_result scan_result;
 	void *arg;
-	u32 rcvd_ch_cnt;
+	u32 ch_cnt;
 	struct found_net_info net_info[MAX_NUM_SCANNED_NETWORKS];
 };
 

@@ -792,7 +792,7 @@ static void handle_scan(struct work_struct *work)
 		goto error;
 	}
 
-	hif_drv->usr_scan_req.rcvd_ch_cnt = 0;
+	hif_drv->usr_scan_req.ch_cnt = 0;
 
 	wid_list[index].id = WID_SSID_PROBE_REQ;
 	wid_list[index].type = WID_STR;
@@ -1406,7 +1406,7 @@ static void handle_rcvd_ntwrk_info(struct work_struct *work)
 		goto done;
 	}
 
-	for (i = 0; i < scan_req->rcvd_ch_cnt; i++) {
+	for (i = 0; i < scan_req->ch_cnt; i++) {
 		if (memcmp(scan_req->net_info[i].bssid, info->bssid, 6) == 0) {
 			if (info->rssi <= scan_req->net_info[i].rssi) {
 				goto done;
@@ -1419,13 +1419,13 @@ static void handle_rcvd_ntwrk_info(struct work_struct *work)
 	}
 
 	if (found) {
-		if (scan_req->rcvd_ch_cnt < MAX_NUM_SCANNED_NETWORKS) {
-			scan_req->net_info[scan_req->rcvd_ch_cnt].rssi = info->rssi;
+		if (scan_req->ch_cnt < MAX_NUM_SCANNED_NETWORKS) {
+			scan_req->net_info[scan_req->ch_cnt].rssi = info->rssi;
 
-			memcpy(scan_req->net_info[scan_req->rcvd_ch_cnt].bssid,
+			memcpy(scan_req->net_info[scan_req->ch_cnt].bssid,
 			       info->bssid, 6);
 
-			scan_req->rcvd_ch_cnt++;
+			scan_req->ch_cnt++;
 
 			info->new_network = true;
 			params = host_int_parse_join_bss_param(info);
