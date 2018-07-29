@@ -127,9 +127,6 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = ipoib_priv(pdev);
 
-	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
-		return -EPERM;
-
 	snprintf(intf_name, sizeof(intf_name), "%s.%04x",
 		 ppriv->dev->name, pkey);
 
@@ -139,6 +136,12 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	if (!rtnl_trylock()) {
 		mutex_unlock(&ppriv->sysfs_mutex);
 		return restart_syscall();
+	}
+
+	if (pdev->reg_state != NETREG_REGISTERED) {
+		rtnl_unlock();
+		mutex_unlock(&ppriv->sysfs_mutex);
+		return -EPERM;
 	}
 
 	if (!down_write_trylock(&ppriv->vlan_rwsem)) {
@@ -199,15 +202,18 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = ipoib_priv(pdev);
 
-	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
-		return -EPERM;
-
 	if (!mutex_trylock(&ppriv->sysfs_mutex))
 		return restart_syscall();
 
 	if (!rtnl_trylock()) {
 		mutex_unlock(&ppriv->sysfs_mutex);
 		return restart_syscall();
+	}
+
+	if (pdev->reg_state != NETREG_REGISTERED) {
+		rtnl_unlock();
+		mutex_unlock(&ppriv->sysfs_mutex);
+		return -EPERM;
 	}
 
 	if (!down_write_trylock(&ppriv->vlan_rwsem)) {

@@ -1519,15 +1519,18 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 	int ret;
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	if (test_bit(IPOIB_FLAG_GOING_DOWN, &priv->flags))
-		return -EPERM;
-
 	if (!mutex_trylock(&priv->sysfs_mutex))
 		return restart_syscall();
 
 	if (!rtnl_trylock()) {
 		mutex_unlock(&priv->sysfs_mutex);
 		return restart_syscall();
+	}
+
+	if (dev->reg_state != NETREG_REGISTERED) {
+		rtnl_unlock();
+		mutex_unlock(&priv->sysfs_mutex);
+		return -EPERM;
 	}
 
 	ret = ipoib_set_mode(dev, buf);

@@ -2406,9 +2406,6 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		ib_unregister_event_handler(&priv->event_handler);
 		flush_workqueue(ipoib_workqueue);
 
-		/* mark interface in the middle of destruction */
-		set_bit(IPOIB_FLAG_GOING_DOWN, &priv->flags);
-
 		rtnl_lock();
 		dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP);
 		rtnl_unlock();
