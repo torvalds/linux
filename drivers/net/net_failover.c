@@ -220,14 +220,14 @@ static int net_failover_change_mtu(struct net_device *dev, int new_mtu)
 	struct net_device *primary_dev, *standby_dev;
 	int ret = 0;
 
-	primary_dev = rcu_dereference(nfo_info->primary_dev);
+	primary_dev = rtnl_dereference(nfo_info->primary_dev);
 	if (primary_dev) {
 		ret = dev_set_mtu(primary_dev, new_mtu);
 		if (ret)
 			return ret;
 	}
 
-	standby_dev = rcu_dereference(nfo_info->standby_dev);
+	standby_dev = rtnl_dereference(nfo_info->standby_dev);
 	if (standby_dev) {
 		ret = dev_set_mtu(standby_dev, new_mtu);
 		if (ret) {

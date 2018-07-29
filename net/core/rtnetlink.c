@@ -1015,6 +1015,8 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4)  /* IFLA_IF_NETNSID */
 	       + nla_total_size(4)  /* IFLA_CARRIER_UP_COUNT */
 	       + nla_total_size(4)  /* IFLA_CARRIER_DOWN_COUNT */
+	       + nla_total_size(4)  /* IFLA_MIN_MTU */
+	       + nla_total_size(4)  /* IFLA_MAX_MTU */
 	       + 0;
 }
 
@@ -1601,6 +1603,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 		       netif_running(dev) ? dev->operstate : IF_OPER_DOWN) ||
 	    nla_put_u8(skb, IFLA_LINKMODE, dev->link_mode) ||
 	    nla_put_u32(skb, IFLA_MTU, dev->mtu) ||
+	    nla_put_u32(skb, IFLA_MIN_MTU, dev->min_mtu) ||
+	    nla_put_u32(skb, IFLA_MAX_MTU, dev->max_mtu) ||
 	    nla_put_u32(skb, IFLA_GROUP, dev->group) ||
 	    nla_put_u32(skb, IFLA_PROMISCUITY, dev->promiscuity) ||
 	    nla_put_u32(skb, IFLA_NUM_TX_QUEUES, dev->num_tx_queues) ||
@@ -1732,6 +1736,8 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_IF_NETNSID]	= { .type = NLA_S32 },
 	[IFLA_CARRIER_UP_COUNT]	= { .type = NLA_U32 },
 	[IFLA_CARRIER_DOWN_COUNT] = { .type = NLA_U32 },
+	[IFLA_MIN_MTU]		= { .type = NLA_U32 },
+	[IFLA_MAX_MTU]		= { .type = NLA_U32 },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -2376,7 +2382,7 @@ static int do_setlink(const struct sk_buff *skb,
 	}
 
 	if (tb[IFLA_MTU]) {
-		err = dev_set_mtu(dev, nla_get_u32(tb[IFLA_MTU]));
+		err = dev_set_mtu_ext(dev, nla_get_u32(tb[IFLA_MTU]), extack);
 		if (err < 0)
 			goto errout;
 		status |= DO_SETLINK_MODIFIED;
