@@ -5,7 +5,6 @@ staging directory.
 - Use misc interface instead of major number for driver version description.
 - Add descriptions of module_param's
 - apex_get_status() should actually check status.
-- Static functions don't need kernel doc formatting, can be simplified.
 - Fix multi-line alignment formatting to look like:
       int ret = long_function_name(device, VARIABLE1, VARIABLE2,
                                    VARIABLE3, VARIABLE4);
