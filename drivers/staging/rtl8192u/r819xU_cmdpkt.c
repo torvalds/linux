@@ -225,7 +225,7 @@ static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
  */
 static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 {
-	cmpk_intr_sta_t		rx_intr_status;	/* */
+	struct cmd_pkt_interrupt_status	 rx_intr_status;	/* */
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	DMESG("---> cmpk_Handle_Interrupt_Status()\n");
@@ -236,7 +236,7 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 	 * endian type before copy the message copy.
 	 */
 	rx_intr_status.length = pmsg[1];
-	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2)) {
+	if (rx_intr_status.length != (sizeof(struct cmd_pkt_interrupt_status) - 2)) {
 		DMESG("cmpk_Handle_Interrupt_Status: wrong length!\n");
 		return;
 	}
@@ -528,7 +528,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 
 		case RX_INTERRUPT_STATUS:
 			cmpk_handle_interrupt_status(dev, pcmd_buff);
-			cmd_length = sizeof(cmpk_intr_sta_t);
+			cmd_length = sizeof(struct cmd_pkt_interrupt_status);
 			break;
 
 		case BOTH_QUERY_CONFIG:

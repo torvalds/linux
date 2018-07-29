@@ -55,12 +55,12 @@ struct cmd_pkt_tx_feedback {
 /* 2. RX side: Interrupt status packet. It includes Beacon State,
  * Beacon Timer Interrupt and other useful information in MAC ISR Reg.
  */
-typedef struct tag_cmd_pkt_interrupt_status {
+struct cmd_pkt_interrupt_status {
 	u8	element_id;			/* Command packet type. */
 	u8	length;				/* Command packet length. */
 	u16	reserve;
 	u32	interrupt_status;		/* Interrupt Status. */
-} cmpk_intr_sta_t;
+};
 
 /* 3. TX side: Set configuration packet. */
 typedef struct tag_cmd_pkt_set_configuration {
