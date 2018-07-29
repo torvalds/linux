@@ -105,24 +105,6 @@ struct dig {
 	long		rssi_val;
 };
 
-/* 2007/10/11 MH Define DIG operation type. */
-typedef enum tag_dynamic_init_gain_operation_type_definition {
-	DIG_TYPE_THRESH_HIGH	= 0,
-	DIG_TYPE_THRESH_LOW	= 1,
-	DIG_TYPE_THRESH_HIGHPWR_HIGH	= 2,
-	DIG_TYPE_THRESH_HIGHPWR_LOW	= 3,
-	DIG_TYPE_DBG_MODE				= 4,
-	DIG_TYPE_RSSI						= 5,
-	DIG_TYPE_ALGORITHM				= 6,
-	DIG_TYPE_BACKOFF					= 7,
-	DIG_TYPE_PWDB_FACTOR			= 8,
-	DIG_TYPE_RX_GAIN_MIN				= 9,
-	DIG_TYPE_RX_GAIN_MAX				= 10,
-	DIG_TYPE_ENABLE			= 20,
-	DIG_TYPE_DISABLE		= 30,
-	DIG_OP_TYPE_MAX
-} dm_dig_op_e;
-
 typedef enum tag_dig_algorithm_definition {
 	DIG_ALGO_BY_FALSE_ALARM = 0,
 	DIG_ALGO_BY_RSSI	= 1,
@@ -209,8 +191,6 @@ void init_rate_adaptive(struct net_device *dev);
 void dm_txpower_trackingcallback(struct work_struct *work);
 void dm_restore_dynamic_mechanism_state(struct net_device *dev);
 void dm_backup_dynamic_mechanism_state(struct net_device *dev);
-void dm_change_dynamic_initgain_thresh(struct net_device *dev,
-				       u32 dm_type, u32 dm_value);
 void dm_force_tx_fw_info(struct net_device *dev,
 			 u32 force_type, u32 force_value);
 void dm_init_edca_turbo(struct net_device *dev);
