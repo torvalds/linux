@@ -61,9 +61,7 @@ int squashfs_frag_lookup(struct super_block *sb, unsigned int fragment,
 		return size;
 
 	*fragment_block = le64_to_cpu(fragment_entry.start_block);
-	size = le32_to_cpu(fragment_entry.size);
-
-	return size;
+	return squashfs_block_size(fragment_entry.size);
 }
 
 
