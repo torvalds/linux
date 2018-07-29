@@ -50,6 +50,39 @@ static ssize_t show_parent(struct device *d, struct device_attribute *attr,
 }
 static DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
 
+static bool is_child_unique(struct ipoib_dev_priv *ppriv,
+			    struct ipoib_dev_priv *priv)
+{
+	struct ipoib_dev_priv *tpriv;
+
+	ASSERT_RTNL();
+
+	/*
+	 * Since the legacy sysfs interface uses pkey for deletion it cannot
+	 * support more than one interface with the same pkey, it creates
+	 * ambiguity.  The RTNL interface deletes using the netdev so it does
+	 * not have a problem to support duplicated pkeys.
+	 */
+	if (priv->child_type != IPOIB_LEGACY_CHILD)
+		return true;
+
+	/*
+	 * First ensure this isn't a duplicate. We check the parent device and
+	 * then all of the legacy child interfaces to make sure the Pkey
+	 * doesn't match.
+	 */
+	if (ppriv->pkey == priv->pkey)
+		return false;
+
+	list_for_each_entry(tpriv, &ppriv->child_intfs, list) {
+		if (tpriv->pkey == priv->pkey &&
+		    tpriv->child_type == IPOIB_LEGACY_CHILD)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * NOTE: If this function fails then the priv->dev will remain valid, however
  * priv can have been freed and must not be touched by caller in the error
@@ -73,9 +106,19 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 	 */
 	WARN_ON(ppriv->dev->reg_state != NETREG_REGISTERED);
 
+	if (pkey == 0 || pkey == 0x8000) {
+		result = -EINVAL;
+		goto out_early;
+	}
+
 	priv->parent = ppriv->dev;
 	priv->pkey = pkey;
 	priv->child_type = type;
+
+	if (!is_child_unique(ppriv, priv)) {
+		result = -ENOTUNIQ;
+		goto out_early;
+	}
 
 	/* We do not need to touch priv if register_netdevice fails */
 	ndev->priv_destructor = ipoib_intf_free;
@@ -88,9 +131,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 		 * register_netdevice sometimes calls priv_destructor,
 		 * sometimes not. Make sure it was done.
 		 */
-		if (ndev->priv_destructor)
-			ndev->priv_destructor(ndev);
-		return result;
+		goto out_early;
 	}
 
 	/* RTNL childs don't need proprietary sysfs entries */
@@ -111,6 +152,11 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 sysfs_failed:
 	unregister_netdevice(priv->dev);
 	return -ENOMEM;
+
+out_early:
+	if (ndev->priv_destructor)
+		ndev->priv_destructor(ndev);
+	return result;
 }
 
 int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
@@ -118,16 +164,10 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	struct ipoib_dev_priv *ppriv, *priv;
 	char intf_name[IFNAMSIZ];
 	struct net_device *ndev;
-	struct ipoib_dev_priv *tpriv;
 	int result;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
-
-	ppriv = ipoib_priv(pdev);
-
-	snprintf(intf_name, sizeof(intf_name), "%s.%04x",
-		 ppriv->dev->name, pkey);
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -137,23 +177,10 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		return -EPERM;
 	}
 
-	/*
-	 * First ensure this isn't a duplicate. We check the parent device and
-	 * then all of the legacy child interfaces to make sure the Pkey
-	 * doesn't match.
-	 */
-	if (ppriv->pkey == pkey) {
-		result = -ENOTUNIQ;
-		goto out;
-	}
+	ppriv = ipoib_priv(pdev);
 
-	list_for_each_entry(tpriv, &ppriv->child_intfs, list) {
-		if (tpriv->pkey == pkey &&
-		    tpriv->child_type == IPOIB_LEGACY_CHILD) {
-			result = -ENOTUNIQ;
-			goto out;
-		}
-	}
+	snprintf(intf_name, sizeof(intf_name), "%s.%04x",
+		 ppriv->dev->name, pkey);
 
 	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
 	if (!priv) {
