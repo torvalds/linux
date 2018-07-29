@@ -662,9 +662,17 @@ typedef enum _RT_RF_TYPE_819xU {
 	RF_PSEUDO_11N = 4,
 } RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
 
+/* 2007/10/08 MH Define RATR state. */
+enum dynamic_ratr_state {
+	DM_RATR_STA_HIGH = 0,
+	DM_RATR_STA_MIDDLE = 1,
+	DM_RATR_STA_LOW = 2,
+	DM_RATR_STA_MAX
+};
+
 typedef struct _rate_adaptive {
 	u8				rate_adaptive_disabled;
-	u8				ratr_state;
+	enum dynamic_ratr_state		ratr_state;
 	u16				reserve;
 
 	u32				high_rssi_thresh_for_ra;

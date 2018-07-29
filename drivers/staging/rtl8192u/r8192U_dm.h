@@ -105,14 +105,6 @@ struct dig {
 	long		rssi_val;
 };
 
-/* 2007/10/08 MH Define RATR state. */
-typedef enum tag_dynamic_ratr_state_definition {
-	DM_RATR_STA_HIGH = 0,
-	DM_RATR_STA_MIDDLE = 1,
-	DM_RATR_STA_LOW = 2,
-	DM_RATR_STA_MAX
-} dm_ratr_sta_e;
-
 /* 2007/10/11 MH Define DIG operation type. */
 typedef enum tag_dynamic_init_gain_operation_type_definition {
 	DIG_TYPE_THRESH_HIGH	= 0,
