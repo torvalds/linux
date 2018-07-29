@@ -133,19 +133,6 @@ static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
 	return err;
 }
 
-static void ipoib_unregister_child_dev(struct net_device *dev, struct list_head *head)
-{
-	struct ipoib_dev_priv *priv, *ppriv;
-
-	priv = ipoib_priv(dev);
-	ppriv = ipoib_priv(priv->parent);
-
-	down_write(&ppriv->vlan_rwsem);
-	unregister_netdevice_queue(dev, head);
-	list_del(&priv->list);
-	up_write(&ppriv->vlan_rwsem);
-}
-
 static size_t ipoib_get_size(const struct net_device *dev)
 {
 	return nla_total_size(2) +	/* IFLA_IPOIB_PKEY   */
@@ -161,7 +148,6 @@ static struct rtnl_link_ops ipoib_link_ops __read_mostly = {
 	.setup		= ipoib_setup_common,
 	.newlink	= ipoib_new_child_link,
 	.changelink	= ipoib_changelink,
-	.dellink	= ipoib_unregister_child_dev,
 	.get_size	= ipoib_get_size,
 	.fill_info	= ipoib_fill_info,
 };

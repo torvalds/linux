@@ -106,8 +106,6 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 			goto sysfs_failed;
 	}
 
-	list_add_tail(&priv->list, &ppriv->child_intfs);
-
 	return 0;
 
 sysfs_failed:
@@ -137,11 +135,6 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	if (pdev->reg_state != NETREG_REGISTERED) {
 		rtnl_unlock();
 		return -EPERM;
-	}
-
-	if (!down_write_trylock(&ppriv->vlan_rwsem)) {
-		rtnl_unlock();
-		return restart_syscall();
 	}
 
 	/*
@@ -175,7 +168,6 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		free_netdev(ndev);
 
 out:
-	up_write(&ppriv->vlan_rwsem);
 	rtnl_unlock();
 
 	return result;
@@ -208,10 +200,6 @@ static void ipoib_vlan_delete_task(struct work_struct *work)
 	if (dev->reg_state == NETREG_REGISTERED) {
 		struct ipoib_dev_priv *priv = ipoib_priv(dev);
 		struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
-
-		down_write(&ppriv->vlan_rwsem);
-		list_del(&priv->list);
-		up_write(&ppriv->vlan_rwsem);
 
 		ipoib_dbg(ppriv, "delete child vlan %s\n", dev->name);
 		unregister_netdevice(dev);
