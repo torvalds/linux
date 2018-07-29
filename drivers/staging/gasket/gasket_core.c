@@ -13,13 +13,16 @@
 #include "gasket_page_table.h"
 #include "gasket_sysfs.h"
 
+#include <linux/capability.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/of.h>
+#include <linux/pid_namespace.h>
 #include <linux/printk.h>
+#include <linux/sched.h>
 
 #ifdef GASKET_KERNEL_TRACE_SUPPORT
 #define CREATE_TRACE_POINTS
@@ -1064,7 +1067,8 @@ static int gasket_open(struct inode *inode, struct file *filp)
 	char task_name[TASK_COMM_LEN];
 	struct gasket_cdev_info *dev_info =
 	    container_of(inode->i_cdev, struct gasket_cdev_info, cdev);
-	int is_root = capable(CAP_SYS_ADMIN);
+	struct pid_namespace *pid_ns = task_active_pid_ns(current);
+	int is_root = ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN);
 
 	gasket_dev = dev_info->gasket_dev_ptr;
 	driver_desc = gasket_dev->internal_desc->driver_desc;
@@ -1147,6 +1151,8 @@ static int gasket_release(struct inode *inode, struct file *file)
 	char task_name[TASK_COMM_LEN];
 	struct gasket_cdev_info *dev_info =
 		container_of(inode->i_cdev, struct gasket_cdev_info, cdev);
+	struct pid_namespace *pid_ns = task_active_pid_ns(current);
+	int is_root = ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN);
 
 	gasket_dev = dev_info->gasket_dev_ptr;
 	driver_desc = gasket_dev->internal_desc->driver_desc;
@@ -1158,7 +1164,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 		"Releasing device node. Call origin: tgid %u (%s) "
 		"(f_mode: 0%03o, fmode_write: %d, is_root: %u)\n",
 		current->tgid, task_name, file->f_mode,
-		(file->f_mode & FMODE_WRITE), capable(CAP_SYS_ADMIN));
+		(file->f_mode & FMODE_WRITE), is_root);
 	dev_dbg(gasket_dev->dev, "Current open count (owning tgid %u): %d\n",
 		ownership->owner, ownership->write_open_count);
 
