@@ -199,11 +199,7 @@ MODULE_AUTHOR("Rob Springer <rspringer@google.com>");
 module_init(gasket_init);
 module_exit(gasket_exit);
 
-/*
- * Perform a standard Gasket callback.
- * @gasket_dev: Device specific pointer to forward.
- * @cb_function: Standard callback to perform.
- */
+/* Perform a standard Gasket callback. */
 static inline int check_and_invoke_callback(
 	struct gasket_dev *gasket_dev, int (*cb_function)(struct gasket_dev *))
 {
@@ -219,13 +215,7 @@ static inline int check_and_invoke_callback(
 	return ret;
 }
 
-/*
- * Perform a standard Gasket callback
- * without grabbing gasket_dev->mutex.
- * @gasket_dev: Device specific pointer to forward.
- * @cb_function: Standard callback to perform.
- *
- */
+/* Perform a standard Gasket callback without grabbing gasket_dev->mutex. */
 static inline int gasket_check_and_invoke_callback_nolock(
 	struct gasket_dev *gasket_dev, int (*cb_function)(struct gasket_dev *))
 {
@@ -240,9 +230,8 @@ static inline int gasket_check_and_invoke_callback_nolock(
 }
 
 /*
- * Returns nonzero if the gasket_cdev_info is owned by the current thread group
+ * Return nonzero if the gasket_cdev_info is owned by the current thread group
  * ID.
- * @info: Device node info.
  */
 static int gasket_owned_by_current_tgid(struct gasket_cdev_info *info)
 {
@@ -410,14 +399,9 @@ void gasket_unregister_device(const struct gasket_driver_desc *driver_desc)
 }
 EXPORT_SYMBOL(gasket_unregister_device);
 
-/**
- * Allocate a Gasket device.
- * @internal_desc: Pointer to the internal data for the device driver.
- * @pdev: Pointer to the Gasket device pointer, the allocated device.
- * @kobj_name: PCIe name for the device
- *
- * Description: Allocates and initializes a Gasket device structure.
- *              Adds the device to the device list.
+/*
+ * Allocate and initialize a Gasket device structure, add the device to the
+ * device list.
  *
  * Returns 0 if successful, a negative error code otherwise.
  */
@@ -476,13 +460,7 @@ static int gasket_alloc_dev(
 	return 0;
 }
 
-/*
- * Free a Gasket device.
- * @internal_dev: Gasket device pointer; the device to unregister and free.
- *
- * Description: Removes the device from the device list and frees
- *              the Gasket device structure.
- */
+/* Free a Gasket device. */
 static void gasket_free_dev(struct gasket_dev *gasket_dev)
 {
 	struct gasket_internal_desc *internal_desc = gasket_dev->internal_desc;
@@ -496,7 +474,7 @@ static void gasket_free_dev(struct gasket_dev *gasket_dev)
 }
 
 /*
- * Finds the next free gasket_internal_dev slot.
+ * Find the next free gasket_internal_dev slot.
  *
  * Returns the located slot number on success or a negative number on failure.
  */
@@ -533,10 +511,8 @@ static int gasket_find_dev_slot(
 	return i;
 }
 
-/**
+/*
  * PCI subsystem probe function.
- * @pci_dev: PCI device pointer to the new device.
- * @id: PCI device id structure pointer, the vendor and device ids.
  *
  * Called when a Gasket device is found. Allocates device metadata, maps device
  * memory, and calls gasket_enable_dev to prepare the device for active use.
@@ -641,7 +617,6 @@ fail1:
 
 /*
  * PCI subsystem remove function.
- * @pci_dev: PCI device pointer; the device to remove.
  *
  * Called to remove a Gasket device. Finds the device in the device list and
  * cleans up metadata.
@@ -694,8 +669,6 @@ static void gasket_pci_remove(struct pci_dev *pci_dev)
 
 /*
  * Setup PCI & set up memory mapping for the specified device.
- * @pci_dev: pointer to the particular PCI device.
- * @internal_dev: Corresponding Gasket device pointer.
  *
  * Enables the PCI device, reads the BAR registers and sets up pointers to the
  * device's memory mapped IO space.
@@ -746,8 +719,6 @@ static void gasket_cleanup_pci(struct gasket_dev *gasket_dev)
 
 /*
  * Maps the specified bar into kernel space.
- * @internal_dev: Device possessing the BAR to map.
- * @bar_num: The BAR to map.
  *
  * Returns 0 on success, a negative error code otherwise.
  * A zero-sized BAR will not be mapped, but is not an error.
@@ -824,7 +795,6 @@ fail:
 
 /*
  * Releases PCI BAR mapping.
- * @internal_dev: Device possessing the BAR to unmap.
  *
  * A zero-sized or not-mapped BAR will not be unmapped, but is not an error.
  */
@@ -856,12 +826,7 @@ static void gasket_unmap_pci_bar(struct gasket_dev *dev, int bar_num)
 	release_mem_region(base, bytes);
 }
 
-/*
- * Handle adding a char device and related info.
- * @dev_info: Pointer to the dev_info struct for this device.
- * @file_ops: The file operations for this device.
- * @owner: The owning module for this device.
- */
+/* Add a char device and related info. */
 static int gasket_add_cdev(
 	struct gasket_cdev_info *dev_info,
 	const struct file_operations *file_ops, struct module *owner)
@@ -881,14 +846,7 @@ static int gasket_add_cdev(
 	return 0;
 }
 
-/*
- * Performs final init and marks the device as active.
- * @internal_desc: Pointer to Gasket [internal] driver descriptor structure.
- * @internal_dev: Pointer to Gasket [internal] device structure.
- *
- * Currently forwards all work to device-specific callback; a future phase will
- * extract elements of character device registration here.
- */
+/* Perform final init and marks the device as active. */
 static int gasket_enable_dev(
 	struct gasket_internal_desc *internal_desc,
 	struct gasket_dev *gasket_dev)
@@ -966,13 +924,7 @@ static int gasket_enable_dev(
 	return 0;
 }
 
-/*
- * Disable device operations.
- * @gasket_dev: Pointer to Gasket device structure.
- *
- * Currently forwards all work to device-specific callback; a future phase will
- * extract elements of character device unregistration here.
- */
+/* Disable device operations. */
 static void gasket_disable_dev(struct gasket_dev *gasket_dev)
 {
 	const struct gasket_driver_desc *driver_desc =
@@ -997,7 +949,7 @@ static void gasket_disable_dev(struct gasket_dev *gasket_dev)
 	check_and_invoke_callback(gasket_dev, driver_desc->disable_dev_cb);
 }
 
-/**
+/*
  * Registered descriptor lookup.
  *
  * Precondition: Called with g_mutex held (to avoid a race on return).
@@ -1045,18 +997,15 @@ const char *gasket_num_name_lookup(
 }
 EXPORT_SYMBOL(gasket_num_name_lookup);
 
-/**
- * Opens the char device file.
- * @inode: Inode structure pointer of the device file.
- * @file: File structure pointer.
+/*
+ * Open the char device file.
  *
- * Description: Called on an open of the device file.  If the open is for
- *              writing, and the device is not owned, this process becomes
- *              the owner.  If the open is for writing and the device is
- *              already owned by some other process, it is an error.  If
- *              this process is the owner, increment the open count.
+ * If the open is for writing, and the device is not owned, this process becomes
+ * the owner.  If the open is for writing and the device is already owned by
+ * some other process, it is an error.  If this process is the owner, increment
+ * the open count.
  *
- *              Returns 0 if successful, a negative error number otherwise.
+ * Returns 0 if successful, a negative error number otherwise.
  */
 static int gasket_open(struct inode *inode, struct file *filp)
 {
@@ -1130,17 +1079,12 @@ static int gasket_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-/**
- * gasket_release - Close of the char device file.
- * @inode: Inode structure pointer of the device file.
- * @file: File structure pointer.
+/*
+ * Called on a close of the device file.  If this process is the owner,
+ * decrement the open count.  On last close by the owner, free up buffers and
+ * eventfd contexts, and release ownership.
  *
- * Description: Called on a close of the device file.  If this process
- *              is the owner, decrement the open count.  On last close
- *              by the owner, free up buffers and eventfd contexts, and
- *              release ownership.
- *
- *              Returns 0 if successful, a negative error number otherwise.
+ * Returns 0 if successful, a negative error number otherwise.
  */
 static int gasket_release(struct inode *inode, struct file *file)
 {
@@ -1199,10 +1143,6 @@ static int gasket_release(struct inode *inode, struct file *file)
 }
 
 /*
- * Permission and validity checking for mmap ops.
- * @gasket_dev: Gasket device information structure.
- * @vma: Standard virtual memory area descriptor.
- *
  * Verifies that the user has permissions to perform the requested mapping and
  * that the provided descriptor/range is of adequate size to hold the range to
  * be mapped.
@@ -1246,11 +1186,6 @@ static bool gasket_mmap_has_permissions(
 }
 
 /*
- * Checks if an address is within the region
- * allocated for coherent buffer.
- * @driver_desc: driver description.
- * @address: offset of address to check.
- *
  * Verifies that the input address is within the region allocated to coherent
  * buffer.
  */
@@ -1502,11 +1437,7 @@ static int gasket_mm_vma_bar_offset(
 	return 0;
 }
 
-/*
- * Map a region of coherent memory.
- * @gasket_dev: Gasket device handle.
- * @vma: Virtual memory area descriptor with region to map.
- */
+/* Map a region of coherent memory. */
 static int gasket_mmap_coherent(
 	struct gasket_dev *gasket_dev, struct vm_area_struct *vma)
 {
@@ -1551,16 +1482,7 @@ static int gasket_mmap_coherent(
 	return 0;
 }
 
-/*
- * Maps a device's BARs into user space.
- * @filp: File structure pointer describing this node usage session.
- * @vma: Standard virtual memory area descriptor.
- *
- * Maps the entirety of each of the device's BAR ranges into the user memory
- * range specified by vma.
- *
- * Returns 0 on success, a negative errno on error.
- */
+/* Map a device's BARs into user space. */
 static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	int i, ret;
@@ -1704,14 +1626,7 @@ fail:
 	return ret;
 }
 
-/*
- * Determine the health of the Gasket device.
- * @gasket_dev: Gasket device structure.
- *
- * Checks the underlying device health (via the device_status_cb)
- * and the status of initialized Gasket code systems (currently
- * only interrupts), then returns a gasket_status appropriately.
- */
+/* Determine the health of the Gasket device. */
 static int gasket_get_hw_status(struct gasket_dev *gasket_dev)
 {
 	int status;
@@ -1750,14 +1665,10 @@ static int gasket_get_hw_status(struct gasket_dev *gasket_dev)
 
 /*
  * Gasket ioctl dispatch function.
- * @filp: File structure pointer describing this node usage session.
- * @cmd: ioctl number to handle.
- * @arg: ioctl-specific data pointer.
  *
- * First, checks if the ioctl is a generic ioctl. If not, it passes
- * the ioctl to the ioctl_handler_cb registered in the driver description.
- * If the ioctl is a generic ioctl, the function passes it to the
- * gasket_ioctl_handler in gasket_ioctl.c.
+ * Check if the ioctl is a generic ioctl. If not, pass the ioctl to the
+ * ioctl_handler_cb registered in the driver description.
+ * If the ioctl is a generic ioctl, pass it to gasket_ioctl_handler.
  */
 static long gasket_ioctl(struct file *filp, uint cmd, ulong arg)
 {
