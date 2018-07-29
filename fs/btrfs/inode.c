@@ -3771,7 +3771,6 @@ cache_acl:
 
 make_bad:
 	btrfs_free_path(path);
-	make_bad_inode(inode);
 	return ret;
 }
 
@@ -5697,12 +5696,13 @@ struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
 		int ret;
 
 		ret = btrfs_read_locked_inode(inode);
-		if (!is_bad_inode(inode)) {
+		if (!ret) {
 			inode_tree_add(inode);
 			unlock_new_inode(inode);
 			if (new)
 				*new = 1;
 		} else {
+			make_bad_inode(inode);
 			unlock_new_inode(inode);
 			iput(inode);
 			ASSERT(ret < 0);
