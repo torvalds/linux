@@ -124,7 +124,7 @@ void sd_dif_prepare(struct scsi_cmnd *scmd)
 	if (sdkp->protection_type == T10_PI_TYPE3_PROTECTION)
 		return;
 
-	phys = scsi_prot_ref_tag(scmd);
+	phys = t10_pi_ref_tag(scmd->request);
 
 	__rq_for_each_bio(bio, scmd->request) {
 		struct bio_integrity_payload *bip = bio_integrity(bio);
@@ -176,7 +176,7 @@ void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 		return;
 
 	intervals = good_bytes / scsi_prot_interval(scmd);
-	phys = scsi_prot_ref_tag(scmd);
+	phys = t10_pi_ref_tag(scmd->request);
 
 	__rq_for_each_bio(bio, scmd->request) {
 		struct bio_integrity_payload *bip = bio_integrity(bio);

@@ -4,6 +4,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
+#include <linux/t10-pi.h>
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/timer.h>
@@ -311,12 +312,6 @@ static inline sector_t scsi_get_lba(struct scsi_cmnd *scmd)
 static inline unsigned int scsi_prot_interval(struct scsi_cmnd *scmd)
 {
 	return scmd->device->sector_size;
-}
-
-static inline u32 scsi_prot_ref_tag(struct scsi_cmnd *scmd)
-{
-	return blk_rq_pos(scmd->request) >>
-		(ilog2(scsi_prot_interval(scmd)) - 9) & 0xffffffff;
 }
 
 static inline unsigned scsi_prot_sg_count(struct scsi_cmnd *cmd)

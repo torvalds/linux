@@ -4568,7 +4568,7 @@ _scsih_setup_eedp(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 		    MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
 		    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
 		mpi_request->CDB.EEDP32.PrimaryReferenceTag =
-		    cpu_to_be32(scsi_prot_ref_tag(scmd));
+		    cpu_to_be32(t10_pi_ref_tag(scmd->request));
 		break;
 
 	case SCSI_PROT_DIF_TYPE3:
