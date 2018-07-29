@@ -577,22 +577,6 @@ static inline void htb_deactivate(struct htb_sched *q, struct htb_class *cl)
 	cl->prio_activity = 0;
 }
 
-static void htb_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
-			     struct qdisc_skb_head *qh)
-{
-	struct sk_buff *last = qh->tail;
-
-	if (last) {
-		skb->next = NULL;
-		last->next = skb;
-		qh->tail = skb;
-	} else {
-		qh->tail = skb;
-		qh->head = skb;
-	}
-	qh->qlen++;
-}
-
 static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		       struct sk_buff **to_free)
 {
@@ -603,7 +587,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (cl == HTB_DIRECT) {
 		/* enqueue to helper queue */
 		if (q->direct_queue.qlen < q->direct_qlen) {
-			htb_enqueue_tail(skb, sch, &q->direct_queue);
+			__qdisc_enqueue_tail(skb, &q->direct_queue);
 			q->direct_pkts++;
 		} else {
 			return qdisc_drop(skb, sch, to_free);
