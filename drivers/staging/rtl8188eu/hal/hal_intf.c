@@ -8,9 +8,9 @@
 #define _HAL_INTF_C_
 #include <hal_intf.h>
 
-uint	 rtw_hal_init(struct adapter *adapt)
+uint rtw_hal_init(struct adapter *adapt)
 {
-	uint	status = _SUCCESS;
+	uint status = _SUCCESS;
 
 	adapt->hw_init_completed = false;
 
@@ -34,7 +34,7 @@ uint	 rtw_hal_init(struct adapter *adapt)
 
 uint rtw_hal_deinit(struct adapter *adapt)
 {
-	uint	status = _SUCCESS;
+	uint status = _SUCCESS;
 
 	status = rtl8188eu_hal_deinit(adapt);
 
