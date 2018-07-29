@@ -961,20 +961,6 @@ struct cifs_tcon {
 			atomic_t smb2_com_failed[NUMBER_OF_SMB2_COMMANDS];
 		} smb2_stats;
 	} stats;
-#ifdef CONFIG_CIFS_STATS2
-	unsigned long long time_writes;
-	unsigned long long time_reads;
-	unsigned long long time_opens;
-	unsigned long long time_deletes;
-	unsigned long long time_closes;
-	unsigned long long time_mkdirs;
-	unsigned long long time_rmdirs;
-	unsigned long long time_renames;
-	unsigned long long time_t2renames;
-	unsigned long long time_ffirst;
-	unsigned long long time_fnext;
-	unsigned long long time_fclose;
-#endif /* CONFIG_CIFS_STATS2 */
 	__u64    bytes_read;
 	__u64    bytes_written;
 	spinlock_t stat_lock;  /* protects the two fields above */
