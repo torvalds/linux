@@ -7,3 +7,4 @@ The filesystem is sharded into a number of block groups, each of which
 have static metadata at fixed locations.
 
 .. include:: super.rst
+.. include:: group_descr.rst
