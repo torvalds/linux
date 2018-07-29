@@ -157,16 +157,22 @@ function deb {
     #cp cryptodev-linux/cryptodev.ko debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
 	cat > debian/bananapi-r2-image/DEBIAN/preinst << EOF
 #!/bin/bash
-if [[ -z "\$(mount | grep '/boot[^/]')"]];then echo "/boot needs to be mountpoint for /dev/mmcblk0p1";exit 1;fi
+m=\$(mount | grep '/boot[^/]')
+if [[ -z "\$m" ]];
+then
+	echo "/boot needs to be mountpoint for /dev/mmcblk0p1";
+	exit 1;
+fi
 EOF
 	chmod +x debian/bananapi-r2-image/DEBIAN/preinst
 	cat > debian/bananapi-r2-image/DEBIAN/postinst << EOF
 #!/bin/sh
 case "\$1" in
-	#configure)
-	install|upgrade)
+	configure)
+	#install|upgrade)
 		echo "kernel=${uimagename}">>/boot/bananapi/bpi-r2/linux/uEnv.txt
 	;;
+	*) echo "unhandled \$1 in postinst-script"
 esac
 EOF
 	chmod +x debian/bananapi-r2-image/DEBIAN/postinst
@@ -180,6 +186,7 @@ case "\$1" in
 		cp /boot/bananapi/bpi-r2/linux/uEnv.txt /boot/bananapi/bpi-r2/linux/uEnv.txt.bak
 		grep -v  ${uimagename} /boot/bananapi/bpi-r2/linux/uEnv.txt.bak > /boot/bananapi/bpi-r2/linux/uEnv.txt
 	;;
+esac
 EOF
 	chmod +x debian/bananapi-r2-image/DEBIAN/postrm
     cat > debian/bananapi-r2-image/DEBIAN/control << EOF
