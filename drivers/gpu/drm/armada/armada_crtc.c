@@ -1039,10 +1039,6 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned i;
 	int ret;
 
-	/* We don't support changing the pixel format */
-	if (fb->format != crtc->primary->fb->format)
-		return -EINVAL;
-
 	work = armada_drm_crtc_alloc_plane_work(dcrtc->crtc.primary);
 	if (!work)
 		return -ENOMEM;
@@ -1067,14 +1063,6 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 		kfree(work);
 		return ret;
 	}
-
-	/*
-	 * Don't take a reference on the new framebuffer;
-	 * drm_mode_page_flip_ioctl() has already grabbed a reference and
-	 * will _not_ drop that reference on successful return from this
-	 * function.  Simply mark this new framebuffer as the current one.
-	 */
-	dcrtc->crtc.primary->fb = fb;
 
 	/*
 	 * Finally, if the display is blanked, we won't receive an
