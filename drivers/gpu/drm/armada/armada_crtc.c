@@ -278,13 +278,12 @@ static void armada_drm_crtc_prepare(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 
 	/*
-	 * If we have an overlay plane associated with this CRTC, disable
-	 * it before the modeset to avoid its coordinates being outside
-	 * the new mode parameters.
+	 * If we have an overlay plane associated with this CRTC, disable it
+	 * before the modeset to avoid its coordinates being outside the new
+	 * mode parameters.  For transitional atomic modeset, we only wait.
 	 */
 	plane = dcrtc->plane;
 	if (plane) {
-		drm_plane_force_disable(plane);
 		WARN_ON(!armada_drm_plane_work_wait(drm_to_armada_plane(plane),
 						    HZ));
 	}
