@@ -264,13 +264,7 @@ static const struct drm_plane_funcs armada_primary_plane_funcs = {
 
 int armada_drm_plane_init(struct armada_plane *plane)
 {
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(plane->works); i++)
-		plane->works[i].plane = &plane->base;
-
 	init_waitqueue_head(&plane->frame_wait);
-
 	return 0;
 }
 

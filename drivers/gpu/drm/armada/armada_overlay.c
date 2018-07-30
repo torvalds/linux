@@ -36,6 +36,8 @@ struct armada_ovl_plane_properties {
 
 struct armada_ovl_plane {
 	struct armada_plane base;
+	struct armada_plane_work works[2];
+	bool next_work;
 	bool wait_vblank;
 	struct armada_ovl_plane_properties prop;
 };
@@ -245,7 +247,7 @@ static int armada_overlay_commit(struct drm_plane *plane,
 	if (ret)
 		goto put_state;
 
-	work = &dplane->base.works[dplane->base.next_work];
+	work = &dplane->works[dplane->next_work];
 
 	if (plane->state->fb != state->fb) {
 		/*
@@ -295,7 +297,7 @@ static int armada_overlay_commit(struct drm_plane *plane,
 		ret = 0;
 	}
 
-	dplane->base.next_work = !dplane->base.next_work;
+	dplane->next_work = !dplane->next_work;
 
 put_state:
 	drm_atomic_helper_plane_destroy_state(plane, state);
@@ -515,8 +517,10 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 		return ret;
 	}
 
-	dplane->base.works[0].fn = armada_ovl_plane_work;
-	dplane->base.works[1].fn = armada_ovl_plane_work;
+	dplane->works[0].plane = &dplane->base.base;
+	dplane->works[0].fn = armada_ovl_plane_work;
+	dplane->works[1].plane = &dplane->base.base;
+	dplane->works[1].fn = armada_ovl_plane_work;
 
 	drm_plane_helper_add(&dplane->base.base,
 			     &armada_overlay_plane_helper_funcs);

@@ -48,8 +48,6 @@ struct armada_plane_work {
 struct armada_plane {
 	struct drm_plane	base;
 	wait_queue_head_t	frame_wait;
-	bool			next_work;
-	struct armada_plane_work works[2];
 	struct armada_plane_work *work;
 };
 #define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
