@@ -88,7 +88,6 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 	bool dax_enabled = false;
 	pgoff_t pgoff;
 	int err, id;
-	void *kaddr;
 	pfn_t pfn;
 	long len;
 	char buf[BDEVNAME_SIZE];
@@ -114,7 +113,7 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 	}
 
 	id = dax_read_lock();
-	len = dax_direct_access(dax_dev, pgoff, 1, &kaddr, &pfn);
+	len = dax_direct_access(dax_dev, pgoff, 1, NULL, &pfn);
 	dax_read_unlock(id);
 
 	put_dax(dax_dev);
