@@ -65,60 +65,6 @@
 	DWC2_TRACE_SCHEDULER_VB(pr_fmt("%s: SCH: " fmt),		\
 				dev_name(hsotg->dev), ##__VA_ARGS__)
 
-#ifdef CONFIG_MIPS
-/*
- * There are some MIPS machines that can run in either big-endian
- * or little-endian mode and that use the dwc2 register without
- * a byteswap in both ways.
- * Unlike other architectures, MIPS apparently does not require a
- * barrier before the __raw_writel() to synchronize with DMA but does
- * require the barrier after the __raw_writel() to serialize a set of
- * writes. This set of operations was added specifically for MIPS and
- * should only be used there.
- */
-static inline u32 dwc2_readl(const void __iomem *addr)
-{
-	u32 value = __raw_readl(addr);
-
-	/* In order to preserve endianness __raw_* operation is used. Therefore
-	 * a barrier is needed to ensure IO access is not re-ordered across
-	 * reads or writes
-	 */
-	mb();
-	return value;
-}
-
-static inline void dwc2_writel(u32 value, void __iomem *addr)
-{
-	__raw_writel(value, addr);
-
-	/*
-	 * In order to preserve endianness __raw_* operation is used. Therefore
-	 * a barrier is needed to ensure IO access is not re-ordered across
-	 * reads or writes
-	 */
-	mb();
-#ifdef DWC2_LOG_WRITES
-	pr_info("INFO:: wrote %08x to %p\n", value, addr);
-#endif
-}
-#else
-/* Normal architectures just use readl/write */
-static inline u32 dwc2_readl(const void __iomem *addr)
-{
-	return readl(addr);
-}
-
-static inline void dwc2_writel(u32 value, void __iomem *addr)
-{
-	writel(value, addr);
-
-#ifdef DWC2_LOG_WRITES
-	pr_info("info:: wrote %08x to %p\n", value, addr);
-#endif
-}
-#endif
-
 /* Maximum number of Endpoints/HostChannels */
 #define MAX_EPS_CHANNELS	16
 
@@ -911,6 +857,7 @@ struct dwc2_hregs_backup {
  * @gr_backup: Backup of global registers during suspend
  * @dr_backup: Backup of device registers during suspend
  * @hr_backup: Backup of host registers during suspend
+ * @needs_byte_swap:		Specifies whether the opposite endianness.
  *
  * These are for host mode:
  *
@@ -1100,6 +1047,7 @@ struct dwc2_hsotg {
 
 	struct dentry *debug_root;
 	struct debugfs_regset32 *regset;
+	bool needs_byte_swap;
 
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
@@ -1215,6 +1163,55 @@ struct dwc2_hsotg {
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 
+/* Normal architectures just use readl/write */
+static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
+{
+	u32 val;
+
+	val = readl(hsotg->regs + offset);
+	if (hsotg->needs_byte_swap)
+		return swab32(val);
+	else
+		return val;
+}
+
+static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
+{
+	if (hsotg->needs_byte_swap)
+		writel(swab32(value), hsotg->regs + offset);
+	else
+		writel(value, hsotg->regs + offset);
+
+#ifdef DWC2_LOG_WRITES
+	pr_info("info:: wrote %08x to %p\n", value, hsotg->regs + offset);
+#endif
+}
+
+static inline void dwc2_readl_rep(struct dwc2_hsotg *hsotg, u32 offset,
+				  void *buffer, unsigned int count)
+{
+	if (count) {
+		u32 *buf = buffer;
+
+		do {
+			u32 x = dwc2_readl(hsotg, offset);
+			*buf++ = x;
+		} while (--count);
+	}
+}
+
+static inline void dwc2_writel_rep(struct dwc2_hsotg *hsotg, u32 offset,
+				   const void *buffer, unsigned int count)
+{
+	if (count) {
+		const u32 *buf = buffer;
+
+		do {
+			dwc2_writel(hsotg, *buf++, offset);
+		} while (--count);
+	}
+}
+
 /* Reasons for halting a host channel */
 enum dwc2_halt_status {
 	DWC2_HC_XFER_NO_HALT_STATUS,
@@ -1320,12 +1317,12 @@ bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg);
  */
 static inline int dwc2_is_host_mode(struct dwc2_hsotg *hsotg)
 {
-	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
+	return (dwc2_readl(hsotg, GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
 }
 
 static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
 {
-	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
+	return (dwc2_readl(hsotg, GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
 }
 
 /*
