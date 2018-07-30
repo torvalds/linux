@@ -1,7 +1,7 @@
 /*
  * Accelerated GHASH implementation with ARMv8 PMULL instructions.
  *
- * Copyright (C) 2014 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2014 - 2018 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -373,36 +373,38 @@ static int gcm_encrypt(struct aead_request *req)
 	memcpy(iv, req->iv, GCM_IV_SIZE);
 	put_unaligned_be32(1, iv + GCM_IV_SIZE);
 
-	if (likely(may_use_simd())) {
-		kernel_neon_begin();
+	err = skcipher_walk_aead_encrypt(&walk, req, false);
 
+	if (likely(may_use_simd() && walk.total >= 2 * AES_BLOCK_SIZE)) {
+		u32 const *rk = NULL;
+
+		kernel_neon_begin();
 		pmull_gcm_encrypt_block(tag, iv, ctx->aes_key.key_enc, nrounds);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
 		pmull_gcm_encrypt_block(ks, iv, NULL, nrounds);
 		put_unaligned_be32(3, iv + GCM_IV_SIZE);
 		pmull_gcm_encrypt_block(ks + AES_BLOCK_SIZE, iv, NULL, nrounds);
 		put_unaligned_be32(4, iv + GCM_IV_SIZE);
-		kernel_neon_end();
 
-		err = skcipher_walk_aead_encrypt(&walk, req, false);
-
-		while (walk.nbytes >= 2 * AES_BLOCK_SIZE) {
+		do {
 			int blocks = walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
 
-			kernel_neon_begin();
+			if (rk)
+				kernel_neon_begin();
+
 			pmull_gcm_encrypt(blocks, dg, walk.dst.virt.addr,
 					  walk.src.virt.addr, ctx->h2, iv,
-					  ctx->aes_key.key_enc, nrounds, ks);
+					  rk, nrounds, ks);
 			kernel_neon_end();
 
 			err = skcipher_walk_done(&walk,
 					walk.nbytes % (2 * AES_BLOCK_SIZE));
-		}
+
+			rk = ctx->aes_key.key_enc;
+		} while (walk.nbytes >= 2 * AES_BLOCK_SIZE);
 	} else {
 		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv, nrounds);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
-
-		err = skcipher_walk_aead_encrypt(&walk, req, false);
 
 		while (walk.nbytes >= AES_BLOCK_SIZE) {
 			int blocks = walk.nbytes / AES_BLOCK_SIZE;
@@ -485,49 +487,52 @@ static int gcm_decrypt(struct aead_request *req)
 	memcpy(iv, req->iv, GCM_IV_SIZE);
 	put_unaligned_be32(1, iv + GCM_IV_SIZE);
 
-	if (likely(may_use_simd())) {
+	err = skcipher_walk_aead_decrypt(&walk, req, false);
+
+	if (likely(may_use_simd() && walk.total >= 2 * AES_BLOCK_SIZE)) {
+		u32 const *rk = NULL;
+
 		kernel_neon_begin();
 		pmull_gcm_encrypt_block(tag, iv, ctx->aes_key.key_enc, nrounds);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
-		kernel_neon_end();
 
-		err = skcipher_walk_aead_decrypt(&walk, req, false);
-
-		while (walk.nbytes >= 2 * AES_BLOCK_SIZE) {
+		do {
 			int blocks = walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
+			int rem = walk.total - blocks * AES_BLOCK_SIZE;
 
-			kernel_neon_begin();
+			if (rk)
+				kernel_neon_begin();
+
 			pmull_gcm_decrypt(blocks, dg, walk.dst.virt.addr,
 					  walk.src.virt.addr, ctx->h2, iv,
-					  ctx->aes_key.key_enc, nrounds);
+					  rk, nrounds);
+
+			/* check if this is the final iteration of the loop */
+			if (rem < (2 * AES_BLOCK_SIZE)) {
+				u8 *iv2 = iv + AES_BLOCK_SIZE;
+
+				if (rem > AES_BLOCK_SIZE) {
+					memcpy(iv2, iv, AES_BLOCK_SIZE);
+					crypto_inc(iv2, AES_BLOCK_SIZE);
+				}
+
+				pmull_gcm_encrypt_block(iv, iv, NULL, nrounds);
+
+				if (rem > AES_BLOCK_SIZE)
+					pmull_gcm_encrypt_block(iv2, iv2, NULL,
+								nrounds);
+			}
+
 			kernel_neon_end();
 
 			err = skcipher_walk_done(&walk,
 					walk.nbytes % (2 * AES_BLOCK_SIZE));
-		}
 
-		if (walk.nbytes) {
-			u8 *iv2 = iv + AES_BLOCK_SIZE;
-
-			if (walk.nbytes > AES_BLOCK_SIZE) {
-				memcpy(iv2, iv, AES_BLOCK_SIZE);
-				crypto_inc(iv2, AES_BLOCK_SIZE);
-			}
-
-			kernel_neon_begin();
-			pmull_gcm_encrypt_block(iv, iv, ctx->aes_key.key_enc,
-						nrounds);
-
-			if (walk.nbytes > AES_BLOCK_SIZE)
-				pmull_gcm_encrypt_block(iv2, iv2, NULL,
-							nrounds);
-			kernel_neon_end();
-		}
+			rk = ctx->aes_key.key_enc;
+		} while (walk.nbytes >= 2 * AES_BLOCK_SIZE);
 	} else {
 		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv, nrounds);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
-
-		err = skcipher_walk_aead_decrypt(&walk, req, false);
 
 		while (walk.nbytes >= AES_BLOCK_SIZE) {
 			int blocks = walk.nbytes / AES_BLOCK_SIZE;

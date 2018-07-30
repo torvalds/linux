@@ -1,7 +1,7 @@
 /*
  * Accelerated GHASH implementation with ARMv8 PMULL instructions.
  *
- * Copyright (C) 2014 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2014 - 2018 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -332,8 +332,6 @@ ENDPROC(pmull_ghash_update_p8)
 	ld1		{XL.2d}, [x1]
 	ldr		x8, [x5, #8]			// load lower counter
 
-	load_round_keys	w7, x6
-
 	movi		MASK.16b, #0xe1
 	trn1		SHASH2.2d, SHASH.2d, HH.2d
 	trn2		T1.2d, SHASH.2d, HH.2d
@@ -345,6 +343,8 @@ CPU_LE(	rev		x8, x8		)
 	ldr		x10, [sp]
 	ld1		{KS0.16b-KS1.16b}, [x10]
 	.endif
+
+	cbnz		x6, 4f
 
 0:	ld1		{INP0.16b-INP1.16b}, [x3], #32
 
@@ -471,6 +471,9 @@ CPU_LE(	rev		x8, x8		)
 	enc_round	KS0, v20
 	enc_round	KS1, v20
 	b		1b
+
+4:	load_round_keys	w7, x6
+	b		0b
 	.endm
 
 	/*
