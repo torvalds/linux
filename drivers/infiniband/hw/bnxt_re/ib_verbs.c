@@ -1397,7 +1397,7 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 	}
 
 	if (srq_init_attr->srq_type != IB_SRQT_BASIC) {
-		rc = -ENOTSUPP;
+		rc = -EOPNOTSUPP;
 		goto exit;
 	}
 

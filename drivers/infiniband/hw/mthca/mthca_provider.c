@@ -449,7 +449,7 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	int err;
 
 	if (init_attr->srq_type != IB_SRQT_BASIC)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	srq = kmalloc(sizeof *srq, GFP_KERNEL);
 	if (!srq)
