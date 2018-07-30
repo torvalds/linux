@@ -7,7 +7,9 @@
  * published by the Free Software Foundation.
  */
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_fb.h"
@@ -78,7 +80,7 @@ static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 }
 
-static void armada_ovl_plane_update_state(struct drm_plane_state *state,
+static unsigned int armada_ovl_plane_update_state(struct drm_plane_state *state,
 	struct armada_regs *regs)
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(state->plane);
@@ -180,67 +182,116 @@ static void armada_ovl_plane_update_state(struct drm_plane_state *state,
 
 	dplane->base.state.changed = idx != 0;
 
-	armada_reg_queue_end(regs, idx);
+	return idx;
 }
 
-static int
-armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
-	struct drm_framebuffer *fb,
-	int crtc_x, int crtc_y, unsigned crtc_w, unsigned crtc_h,
-	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h,
-	struct drm_modeset_acquire_ctx *ctx)
+static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
+	struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = plane->state;
+	struct armada_crtc *dcrtc;
+	struct armada_regs *regs;
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
+
+	if (!state->fb || WARN_ON(!state->crtc))
+		return;
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s] is on [CRTC:%d:%s] with [FB:%d] visible %u->%u\n",
+		plane->base.id, plane->name,
+		state->crtc->base.id, state->crtc->name,
+		state->fb->base.id,
+		old_state->visible, state->visible);
+
+	dcrtc = drm_to_armada_crtc(state->crtc);
+	regs = dcrtc->regs + dcrtc->regs_idx;
+
+	dcrtc->regs_idx += armada_ovl_plane_update_state(state, regs);
+}
+
+static void armada_drm_overlay_plane_atomic_disable(struct drm_plane *plane,
+	struct drm_plane_state *old_state)
+{
+	struct armada_plane *dplane = drm_to_armada_plane(plane);
+	struct armada_crtc *dcrtc;
+	struct armada_regs *regs;
+	unsigned int idx = 0;
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
+
+	if (!old_state->crtc)
+		return;
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s] was on [CRTC:%d:%s] with [FB:%d]\n",
+		plane->base.id, plane->name,
+		old_state->crtc->base.id, old_state->crtc->name,
+		old_state->fb->base.id);
+
+	dplane->state.ctrl0 &= ~CFG_DMA_ENA;
+
+	dcrtc = drm_to_armada_crtc(old_state->crtc);
+	regs = dcrtc->regs + dcrtc->regs_idx;
+
+	/* Disable plane and power down the YUV FIFOs */
+	armada_reg_queue_mod(regs, idx, 0, CFG_DMA_ENA, LCD_SPU_DMA_CTRL0);
+	armada_reg_queue_mod(regs, idx, CFG_PDWN16x66 | CFG_PDWN32x66, 0,
+			     LCD_SPU_SRAM_PARA1);
+
+	dcrtc->regs_idx += idx;
+
+	if (dcrtc->plane == plane)
+		dcrtc->plane = NULL;
+}
+
+static const struct drm_plane_helper_funcs armada_overlay_plane_helper_funcs = {
+	.prepare_fb	= armada_drm_plane_prepare_fb,
+	.cleanup_fb	= armada_drm_plane_cleanup_fb,
+	.atomic_check	= armada_drm_plane_atomic_check,
+	.atomic_update	= armada_drm_overlay_plane_atomic_update,
+	.atomic_disable	= armada_drm_overlay_plane_atomic_disable,
+};
+
+static int armada_overlay_commit(struct drm_plane *plane,
+	struct drm_plane_state *state)
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	const struct drm_plane_helper_funcs *plane_funcs;
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(state->crtc);
 	struct armada_plane_work *work;
-	struct drm_plane_state state = {
-		.plane = plane,
-		.crtc = crtc,
-		.fb = fb,
-		.src_x = src_x,
-		.src_y = src_y,
-		.src_w = src_w,
-		.src_h = src_h,
-		.crtc_x = crtc_x,
-		.crtc_y = crtc_y,
-		.crtc_w = crtc_w,
-		.crtc_h = crtc_h,
-		.rotation = DRM_MODE_ROTATE_0,
-	};
-	struct drm_crtc_state crtc_state = {
-		.crtc = crtc,
-		.enable = crtc->enabled,
-		.mode = crtc->mode,
-	};
 	int ret;
 
-	trace_armada_ovl_plane_update(plane, crtc, fb,
-				 crtc_x, crtc_y, crtc_w, crtc_h,
-				 src_x, src_y, src_w, src_h);
-
-	ret = drm_atomic_helper_check_plane_state(&state, &crtc_state, 0,
-						  INT_MAX, true, false);
+	plane_funcs = plane->helper_private;
+	ret = plane_funcs->atomic_check(plane, state);
 	if (ret)
-		return ret;
+		goto put_state;
 
 	work = &dplane->base.works[dplane->base.next_work];
 
-	if (plane->fb != fb) {
+	if (plane->state->fb != state->fb) {
 		/*
 		 * Take a reference on the new framebuffer - we want to
 		 * hold on to it while the hardware is displaying it.
 		 */
-		drm_framebuffer_reference(fb);
+		drm_framebuffer_reference(state->fb);
 
-		work->old_fb = plane->fb;
+		work->old_fb = plane->state->fb;
 	} else {
 		work->old_fb = NULL;
 	}
 
-	armada_ovl_plane_update_state(&state, work->regs);
+	/* Point of no return */
+	swap(plane->state, state);
 
+	dcrtc->regs_idx = 0;
+	dcrtc->regs = work->regs;
+
+	plane_funcs->atomic_update(plane, state);
+
+	/* If nothing was updated, short-circuit */
 	if (!dplane->base.state.changed)
-		return 0;
+		goto put_state;
+
+	armada_reg_queue_end(dcrtc->regs, dcrtc->regs_idx);
 
 	/* Wait for pending work to complete */
 	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
@@ -249,7 +300,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	/* Just updating the position/size? */
 	if (!dplane->base.state.vsync_update) {
 		armada_ovl_plane_work(dcrtc, work);
-		return 0;
+		goto put_state;
 	}
 
 	if (!dcrtc->plane) {
@@ -259,12 +310,48 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	/* Queue it for update on the next interrupt if we are enabled */
 	ret = armada_drm_plane_work_queue(dcrtc, work);
-	if (ret)
+	if (ret) {
 		DRM_ERROR("failed to queue plane work: %d\n", ret);
+		ret = 0;
+	}
 
 	dplane->base.next_work = !dplane->base.next_work;
 
-	return 0;
+put_state:
+	drm_atomic_helper_plane_destroy_state(plane, state);
+	return ret;
+}
+
+static int
+armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
+	struct drm_framebuffer *fb,
+	int crtc_x, int crtc_y, unsigned crtc_w, unsigned crtc_h,
+	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h,
+	struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_plane_state *state;
+
+	trace_armada_ovl_plane_update(plane, crtc, fb,
+				 crtc_x, crtc_y, crtc_w, crtc_h,
+				 src_x, src_y, src_w, src_h);
+
+	/* Construct new state for the overlay plane */
+	state = drm_atomic_helper_plane_duplicate_state(plane);
+	if (!state)
+		return -ENOMEM;
+
+	state->crtc = crtc;
+	drm_atomic_set_fb_for_plane(state, fb);
+	state->crtc_x = crtc_x;
+	state->crtc_y = crtc_y;
+	state->crtc_h = crtc_h;
+	state->crtc_w = crtc_w;
+	state->src_x = src_x;
+	state->src_y = src_y;
+	state->src_h = src_h;
+	state->src_w = src_w;
+
+	return armada_overlay_commit(plane, state);
 }
 
 static void armada_ovl_plane_destroy(struct drm_plane *plane)
@@ -355,9 +442,10 @@ static int armada_ovl_plane_set_property(struct drm_plane *plane,
 
 static const struct drm_plane_funcs armada_ovl_plane_funcs = {
 	.update_plane	= armada_ovl_plane_update,
-	.disable_plane	= armada_drm_plane_disable,
+	.disable_plane	= drm_plane_helper_disable,
 	.destroy	= armada_ovl_plane_destroy,
 	.set_property	= armada_ovl_plane_set_property,
+	.reset		= drm_atomic_helper_plane_reset,
 };
 
 static const uint32_t armada_ovl_formats[] = {
@@ -449,6 +537,9 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 
 	dplane->base.works[0].fn = armada_ovl_plane_work;
 	dplane->base.works[1].fn = armada_ovl_plane_work;
+
+	drm_plane_helper_add(&dplane->base.base,
+			     &armada_overlay_plane_helper_funcs);
 
 	ret = drm_universal_plane_init(dev, &dplane->base.base, crtcs,
 				       &armada_ovl_plane_funcs,

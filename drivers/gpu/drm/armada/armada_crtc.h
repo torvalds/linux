@@ -75,6 +75,13 @@ void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
 	int x, int y);
 
+int armada_drm_plane_prepare_fb(struct drm_plane *plane,
+	struct drm_plane_state *state);
+void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
+	struct drm_plane_state *old_state);
+int armada_drm_plane_atomic_check(struct drm_plane *plane,
+	struct drm_plane_state *state);
+
 struct armada_crtc {
 	struct drm_crtc		crtc;
 	const struct armada_variant *variant;
