@@ -950,6 +950,10 @@ struct amdgpu_gfx {
 	/* NGG */
 	struct amdgpu_ngg		ngg;
 
+	/* gfx off */
+	bool                            gfx_off_state; /* true: enabled, false: disabled */
+	struct mutex                    gfx_off_mutex;
+	uint32_t                        gfx_off_req_count; /* default 1, enable gfx off: dec 1, disable gfx off: add 1 */
 	/* pipe reservation */
 	struct mutex			pipe_reserve_mutex;
 	DECLARE_BITMAP			(pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
@@ -1774,6 +1778,7 @@ void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 array_size);
 
 bool amdgpu_device_is_px(struct drm_device *dev);
+void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
 void amdgpu_register_atpx_handler(void);

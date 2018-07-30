@@ -340,3 +340,39 @@ void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev)
 			      &ring->mqd_gpu_addr,
 			      &ring->mqd_ptr);
 }
+
+/* amdgpu_gfx_off_ctrl - Handle gfx off feature enable/disable
+ *
+ * @adev: amdgpu_device pointer
+ * @bool enable true: enable gfx off feature, false: disable gfx off feature
+ *
+ * 1. gfx off feature will be enabled by gfx ip after gfx cg gp enabled.
+ * 2. other client can send request to disable gfx off feature, the request should be honored.
+ * 3. other client can cancel their request of disable gfx off feature
+ * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
+ */
+
+void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
+{
+	if (!(adev->powerplay.pp_feature & PP_GFXOFF_MASK))
+		return;
+
+	if (!adev->powerplay.pp_funcs->set_powergating_by_smu)
+		return;
+
+	mutex_lock(&adev->gfx.gfx_off_mutex);
+
+	if (!enable)
+		adev->gfx.gfx_off_req_count++;
+	else if (adev->gfx.gfx_off_req_count > 0)
+		adev->gfx.gfx_off_req_count--;
+
+	if (enable && !adev->gfx.gfx_off_state && !adev->gfx.gfx_off_req_count) {
+		if (!amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, true))
+			adev->gfx.gfx_off_state = true;
+	} else if (!enable && adev->gfx.gfx_off_state) {
+		if (!amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false))
+			adev->gfx.gfx_off_state = false;
+	}
+	mutex_unlock(&adev->gfx.gfx_off_mutex);
+}
