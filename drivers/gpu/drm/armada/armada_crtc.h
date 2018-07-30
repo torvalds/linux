@@ -32,14 +32,7 @@ struct armada_regs {
 	armada_reg_queue_mod(_r, _i, 0, 0, ~0)
 
 struct armada_crtc;
-struct armada_plane;
 struct armada_variant;
-
-struct armada_plane {
-	struct drm_plane	base;
-	wait_queue_head_t	frame_wait;
-};
-#define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
 
 struct armada_crtc {
 	struct drm_crtc		crtc;

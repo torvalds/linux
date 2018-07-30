@@ -271,25 +271,14 @@ static const struct drm_plane_funcs armada_primary_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
-int armada_drm_plane_init(struct armada_plane *plane)
-{
-	init_waitqueue_head(&plane->frame_wait);
-	return 0;
-}
-
 int armada_drm_primary_plane_init(struct drm_device *drm,
-	struct armada_plane *primary)
+	struct drm_plane *primary)
 {
 	int ret;
 
-	ret = armada_drm_plane_init(primary);
-	if (ret)
-		return ret;
+	drm_plane_helper_add(primary, &armada_primary_plane_helper_funcs);
 
-	drm_plane_helper_add(&primary->base,
-			     &armada_primary_plane_helper_funcs);
-
-	ret = drm_universal_plane_init(drm, &primary->base, 0,
+	ret = drm_universal_plane_init(drm, primary, 0,
 				       &armada_primary_plane_funcs,
 				       armada_primary_formats,
 				       ARRAY_SIZE(armada_primary_formats),

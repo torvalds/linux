@@ -723,7 +723,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 {
 	struct armada_private *priv = drm->dev_private;
 	struct armada_crtc *dcrtc;
-	struct armada_plane *primary;
+	struct drm_plane *primary;
 	void __iomem *base;
 	int ret;
 
@@ -793,7 +793,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 		goto err_crtc;
 	}
 
-	ret = drm_crtc_init_with_planes(drm, &dcrtc->crtc, &primary->base, NULL,
+	ret = drm_crtc_init_with_planes(drm, &dcrtc->crtc, primary, NULL,
 					&armada_crtc_funcs, NULL);
 	if (ret)
 		goto err_crtc_init;
@@ -803,7 +803,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	return armada_overlay_plane_create(drm, 1 << dcrtc->num);
 
 err_crtc_init:
-	primary->base.funcs->destroy(&primary->base);
+	primary->funcs->destroy(primary);
 err_crtc:
 	kfree(dcrtc);
 
