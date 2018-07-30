@@ -115,25 +115,9 @@ static void armada_drm_crtc_update(struct armada_crtc *dcrtc)
 		dumb_ctrl |= DUMB_BLANK;
 	}
 
-	/*
-	 * The documentation doesn't indicate what the normal state of
-	 * the sync signals are.  Sebastian Hesselbart kindly probed
-	 * these signals on his board to determine their state.
-	 *
-	 * The non-inverted state of the sync signals is active high.
-	 * Setting these bits makes the appropriate signal active low.
-	 */
-	if (dcrtc->crtc.mode.flags & DRM_MODE_FLAG_NCSYNC)
-		dumb_ctrl |= CFG_INV_CSYNC;
-	if (dcrtc->crtc.mode.flags & DRM_MODE_FLAG_NHSYNC)
-		dumb_ctrl |= CFG_INV_HSYNC;
-	if (dcrtc->crtc.mode.flags & DRM_MODE_FLAG_NVSYNC)
-		dumb_ctrl |= CFG_INV_VSYNC;
-
-	if (dcrtc->dumb_ctrl != dumb_ctrl) {
-		dcrtc->dumb_ctrl = dumb_ctrl;
-		writel_relaxed(dumb_ctrl, dcrtc->base + LCD_SPU_DUMB_CTRL);
-	}
+	armada_updatel(dumb_ctrl,
+		       ~(CFG_INV_CSYNC | CFG_INV_HSYNC | CFG_INV_VSYNC),
+		       dcrtc->base + LCD_SPU_DUMB_CTRL);
 }
 
 static void armada_drm_plane_work_call(struct armada_crtc *dcrtc,
@@ -280,7 +264,6 @@ static void armada_drm_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct drm_plane *plane;
-	u32 val;
 
 	/*
 	 * If we have an overlay plane associated with this CRTC, disable
@@ -300,11 +283,7 @@ static void armada_drm_crtc_prepare(struct drm_crtc *crtc)
 
 	drm_crtc_vblank_off(crtc);
 
-	val = dcrtc->dumb_ctrl & ~CFG_DUMB_ENA;
-	if (val != dcrtc->dumb_ctrl) {
-		dcrtc->dumb_ctrl = val;
-		writel_relaxed(val, dcrtc->base + LCD_SPU_DUMB_CTRL);
-	}
+	armada_updatel(0, CFG_DUMB_ENA, dcrtc->base + LCD_SPU_DUMB_CTRL);
 }
 
 /* The mode_config.mutex will be held for this call */
@@ -516,6 +495,24 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	val = adj->flags & DRM_MODE_FLAG_NVSYNC ? CFG_VSYNC_INV : 0;
 	armada_reg_queue_mod(regs, i, val, CFG_VSYNC_INV, LCD_SPU_DMA_CTRL1);
+
+	/*
+	 * The documentation doesn't indicate what the normal state of
+	 * the sync signals are.  Sebastian Hesselbart kindly probed
+	 * these signals on his board to determine their state.
+	 *
+	 * The non-inverted state of the sync signals is active high.
+	 * Setting these bits makes the appropriate signal active low.
+	 */
+	val = 0;
+	if (adj->flags & DRM_MODE_FLAG_NCSYNC)
+		val |= CFG_INV_CSYNC;
+	if (adj->flags & DRM_MODE_FLAG_NHSYNC)
+		val |= CFG_INV_HSYNC;
+	if (adj->flags & DRM_MODE_FLAG_NVSYNC)
+		val |= CFG_INV_VSYNC;
+	armada_reg_queue_mod(regs, i, val, CFG_INV_CSYNC | CFG_INV_HSYNC |
+			     CFG_INV_VSYNC, LCD_SPU_DUMB_CTRL);
 	armada_reg_queue_end(regs, i);
 
 	armada_drm_crtc_update_regs(dcrtc, regs);
