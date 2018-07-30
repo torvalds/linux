@@ -229,6 +229,18 @@
 	cpu-supply = <&vdd_cpu_b>;
 };
 
+&cpu_alert0 {
+	temperature = <80000>;
+};
+
+&cpu_alert1 {
+	temperature = <95000>;
+};
+
+&cpu_crit {
+	temperature = <100000>;
+};
+
 &emmc_phy {
 	status = "okay";
 };
