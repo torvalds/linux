@@ -285,6 +285,8 @@ struct tcf_proto {
 	/* Fast access part */
 	struct tcf_proto __rcu	*next;
 	void __rcu		*root;
+
+	/* called under RCU BH lock*/
 	int			(*classify)(struct sk_buff *,
 					    const struct tcf_proto *,
 					    struct tcf_result *);

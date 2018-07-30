@@ -40,11 +40,9 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 	if (skb_at_tc_ingress(skb))
 		skb_push_rcsum(skb, skb->mac_len);
 
-	rcu_read_lock();
-
 	action = READ_ONCE(v->tcf_action);
 
-	p = rcu_dereference(v->vlan_p);
+	p = rcu_dereference_bh(v->vlan_p);
 
 	switch (p->tcfv_action) {
 	case TCA_VLAN_ACT_POP:
@@ -61,7 +59,7 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 	case TCA_VLAN_ACT_MODIFY:
 		/* No-op if no vlan tag (either hw-accel or in-payload) */
 		if (!skb_vlan_tagged(skb))
-			goto unlock;
+			goto out;
 		/* extract existing tag (and guarantee no hw-accel tag) */
 		if (skb_vlan_tag_present(skb)) {
 			tci = skb_vlan_tag_get(skb);
@@ -86,18 +84,15 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 		BUG();
 	}
 
-	goto unlock;
-
-drop:
-	action = TC_ACT_SHOT;
-	qstats_drop_inc(this_cpu_ptr(v->common.cpu_qstats));
-
-unlock:
-	rcu_read_unlock();
+out:
 	if (skb_at_tc_ingress(skb))
 		skb_pull_rcsum(skb, skb->mac_len);
 
 	return action;
+
+drop:
+	qstats_drop_inc(this_cpu_ptr(v->common.cpu_qstats));
+	return TC_ACT_SHOT;
 }
 
 static const struct nla_policy vlan_policy[TCA_VLAN_MAX + 1] = {

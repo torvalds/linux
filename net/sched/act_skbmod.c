@@ -41,20 +41,14 @@ static int tcf_skbmod_run(struct sk_buff *skb, const struct tc_action *a,
 	 * then MAX_EDIT_LEN needs to change appropriately
 	*/
 	err = skb_ensure_writable(skb, MAX_EDIT_LEN);
-	if (unlikely(err)) { /* best policy is to drop on the floor */
-		qstats_overlimit_inc(this_cpu_ptr(d->common.cpu_qstats));
-		return TC_ACT_SHOT;
-	}
+	if (unlikely(err)) /* best policy is to drop on the floor */
+		goto drop;
 
-	rcu_read_lock();
 	action = READ_ONCE(d->tcf_action);
-	if (unlikely(action == TC_ACT_SHOT)) {
-		qstats_overlimit_inc(this_cpu_ptr(d->common.cpu_qstats));
-		rcu_read_unlock();
-		return action;
-	}
+	if (unlikely(action == TC_ACT_SHOT))
+		goto drop;
 
-	p = rcu_dereference(d->skbmod_p);
+	p = rcu_dereference_bh(d->skbmod_p);
 	flags = p->flags;
 	if (flags & SKBMOD_F_DMAC)
 		ether_addr_copy(eth_hdr(skb)->h_dest, p->eth_dst);
@@ -62,7 +56,6 @@ static int tcf_skbmod_run(struct sk_buff *skb, const struct tc_action *a,
 		ether_addr_copy(eth_hdr(skb)->h_source, p->eth_src);
 	if (flags & SKBMOD_F_ETYPE)
 		eth_hdr(skb)->h_proto = p->eth_type;
-	rcu_read_unlock();
 
 	if (flags & SKBMOD_F_SWAPMAC) {
 		u16 tmpaddr[ETH_ALEN / 2]; /* ether_addr_copy() requirement */
@@ -73,6 +66,10 @@ static int tcf_skbmod_run(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	return action;
+
+drop:
+	qstats_overlimit_inc(this_cpu_ptr(d->common.cpu_qstats));
+	return TC_ACT_SHOT;
 }
 
 static const struct nla_policy skbmod_policy[TCA_SKBMOD_MAX + 1] = {

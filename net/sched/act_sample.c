@@ -140,8 +140,7 @@ static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
 	bstats_cpu_update(this_cpu_ptr(s->common.cpu_bstats), skb);
 	retval = READ_ONCE(s->tcf_action);
 
-	rcu_read_lock();
-	psample_group = rcu_dereference(s->psample_group);
+	psample_group = rcu_dereference_bh(s->psample_group);
 
 	/* randomly sample packets according to rate */
 	if (psample_group && (prandom_u32() % s->rate == 0)) {
@@ -165,7 +164,6 @@ static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
 			skb_pull(skb, skb->mac_len);
 	}
 
-	rcu_read_unlock();
 	return retval;
 }
 

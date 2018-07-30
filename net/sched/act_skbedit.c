@@ -43,8 +43,7 @@ static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 	tcf_lastuse_update(&d->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(d->common.cpu_bstats), skb);
 
-	rcu_read_lock();
-	params = rcu_dereference(d->params);
+	params = rcu_dereference_bh(d->params);
 	action = READ_ONCE(d->tcf_action);
 
 	if (params->flags & SKBEDIT_F_PRIORITY)
@@ -77,14 +76,11 @@ static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 	}
 	if (params->flags & SKBEDIT_F_PTYPE)
 		skb->pkt_type = params->ptype;
-
-unlock:
-	rcu_read_unlock();
 	return action;
+
 err:
 	qstats_drop_inc(this_cpu_ptr(d->common.cpu_qstats));
-	action = TC_ACT_SHOT;
-	goto unlock;
+	return TC_ACT_SHOT;
 }
 
 static const struct nla_policy skbedit_policy[TCA_SKBEDIT_MAX + 1] = {
