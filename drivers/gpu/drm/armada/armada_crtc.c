@@ -1099,13 +1099,13 @@ int armada_drm_plane_atomic_check(struct drm_plane *plane,
 {
 	if (state->fb && !WARN_ON(!state->crtc)) {
 		struct drm_crtc *crtc = state->crtc;
-		struct drm_crtc_state crtc_state = {
-			.crtc = crtc,
-			.enable = crtc->enabled,
-			.mode = crtc->mode,
-		};
+		struct drm_crtc_state *crtc_state;
 
-		return drm_atomic_helper_check_plane_state(state, &crtc_state,
+		if (state->state)
+			crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+		else
+			crtc_state = crtc->state;
+		return drm_atomic_helper_check_plane_state(state, crtc_state,
 							   0, INT_MAX,
 							   true, false);
 	} else {
