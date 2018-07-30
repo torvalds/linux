@@ -388,7 +388,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	}
 	sub_frag_mem_limit(fq->q.net, sum_truesize);
 
-	head->next = NULL;
+	skb_mark_not_on_list(head);
 	head->dev = dev;
 	head->tstamp = fq->q.stamp;
 	ipv6_hdr(head)->payload_len = htons(payload_len);

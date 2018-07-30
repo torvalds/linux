@@ -1339,6 +1339,11 @@ static inline void skb_zcopy_abort(struct sk_buff *skb)
 	}
 }
 
+static inline void skb_mark_not_on_list(struct sk_buff *skb)
+{
+	skb->next = NULL;
+}
+
 /**
  *	skb_queue_empty - check if a queue is empty
  *	@list: queue head

@@ -260,7 +260,7 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *prev,
 	}
 	sub_frag_mem_limit(fq->q.net, sum_truesize);
 
-	head->next = NULL;
+	skb_mark_not_on_list(head);
 	head->dev = ldev;
 	head->tstamp = fq->q.stamp;
 

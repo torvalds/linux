@@ -535,7 +535,7 @@ static void ip_sublist_rcv_finish(struct list_head *head)
 		/* Handle ip{6}_forward case, as sch_direct_xmit have
 		 * another kind of SKB-list usage (see validate_xmit_skb_list)
 		 */
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 		dst_input(skb);
 	}
 }

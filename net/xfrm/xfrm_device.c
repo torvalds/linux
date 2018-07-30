@@ -99,7 +99,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 
 	do {
 		struct sk_buff *nskb = skb2->next;
-		skb2->next = NULL;
+		skb_mark_not_on_list(skb2);
 
 		xo = xfrm_offload(skb2);
 		xo->flags |= XFRM_DEV_RESUME;
