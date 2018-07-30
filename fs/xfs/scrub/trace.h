@@ -511,7 +511,6 @@ DEFINE_EVENT(xrep_extent_class, name, \
 		 xfs_agblock_t agbno, xfs_extlen_t len), \
 	TP_ARGS(mp, agno, agbno, len))
 DEFINE_REPAIR_EXTENT_EVENT(xrep_dispose_btree_extent);
-DEFINE_REPAIR_EXTENT_EVENT(xrep_collect_btree_extent);
 DEFINE_REPAIR_EXTENT_EVENT(xrep_agfl_insert);
 
 DECLARE_EVENT_CLASS(xrep_rmap_class,

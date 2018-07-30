@@ -16,183 +16,186 @@
 #include "scrub/repair.h"
 #include "scrub/bitmap.h"
 
-/* Collect a dead btree extent for later disposal. */
+/*
+ * Set a range of this bitmap.  Caller must ensure the range is not set.
+ *
+ * This is the logical equivalent of bitmap |= mask(start, len).
+ */
 int
-xrep_collect_btree_extent(
-	struct xfs_scrub	*sc,
-	struct xrep_extent_list	*exlist,
-	xfs_fsblock_t		fsbno,
-	xfs_extlen_t		len)
+xfs_bitmap_set(
+	struct xfs_bitmap	*bitmap,
+	uint64_t		start,
+	uint64_t		len)
 {
-	struct xrep_extent	*rex;
+	struct xfs_bitmap_range	*bmr;
 
-	trace_xrep_collect_btree_extent(sc->mp,
-			XFS_FSB_TO_AGNO(sc->mp, fsbno),
-			XFS_FSB_TO_AGBNO(sc->mp, fsbno), len);
-
-	rex = kmem_alloc(sizeof(struct xrep_extent), KM_MAYFAIL);
-	if (!rex)
+	bmr = kmem_alloc(sizeof(struct xfs_bitmap_range), KM_MAYFAIL);
+	if (!bmr)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&rex->list);
-	rex->fsbno = fsbno;
-	rex->len = len;
-	list_add_tail(&rex->list, &exlist->list);
+	INIT_LIST_HEAD(&bmr->list);
+	bmr->start = start;
+	bmr->len = len;
+	list_add_tail(&bmr->list, &bitmap->list);
 
 	return 0;
 }
 
-/*
- * An error happened during the rebuild so the transaction will be cancelled.
- * The fs will shut down, and the administrator has to unmount and run repair.
- * Therefore, free all the memory associated with the list so we can die.
- */
+/* Free everything related to this bitmap. */
 void
-xrep_cancel_btree_extents(
-	struct xfs_scrub	*sc,
-	struct xrep_extent_list	*exlist)
+xfs_bitmap_destroy(
+	struct xfs_bitmap	*bitmap)
 {
-	struct xrep_extent	*rex;
-	struct xrep_extent	*n;
+	struct xfs_bitmap_range	*bmr;
+	struct xfs_bitmap_range	*n;
 
-	for_each_xrep_extent_safe(rex, n, exlist) {
-		list_del(&rex->list);
-		kmem_free(rex);
+	for_each_xfs_bitmap_extent(bmr, n, bitmap) {
+		list_del(&bmr->list);
+		kmem_free(bmr);
 	}
+}
+
+/* Set up a per-AG block bitmap. */
+void
+xfs_bitmap_init(
+	struct xfs_bitmap	*bitmap)
+{
+	INIT_LIST_HEAD(&bitmap->list);
 }
 
 /* Compare two btree extents. */
 static int
-xrep_btree_extent_cmp(
+xfs_bitmap_range_cmp(
 	void			*priv,
 	struct list_head	*a,
 	struct list_head	*b)
 {
-	struct xrep_extent	*ap;
-	struct xrep_extent	*bp;
+	struct xfs_bitmap_range	*ap;
+	struct xfs_bitmap_range	*bp;
 
-	ap = container_of(a, struct xrep_extent, list);
-	bp = container_of(b, struct xrep_extent, list);
+	ap = container_of(a, struct xfs_bitmap_range, list);
+	bp = container_of(b, struct xfs_bitmap_range, list);
 
-	if (ap->fsbno > bp->fsbno)
+	if (ap->start > bp->start)
 		return 1;
-	if (ap->fsbno < bp->fsbno)
+	if (ap->start < bp->start)
 		return -1;
 	return 0;
 }
 
 /*
- * Remove all the blocks mentioned in @sublist from the extents in @exlist.
+ * Remove all the blocks mentioned in @sub from the extents in @bitmap.
  *
  * The intent is that callers will iterate the rmapbt for all of its records
- * for a given owner to generate @exlist; and iterate all the blocks of the
+ * for a given owner to generate @bitmap; and iterate all the blocks of the
  * metadata structures that are not being rebuilt and have the same rmapbt
- * owner to generate @sublist.  This routine subtracts all the extents
- * mentioned in sublist from all the extents linked in @exlist, which leaves
- * @exlist as the list of blocks that are not accounted for, which we assume
+ * owner to generate @sub.  This routine subtracts all the extents
+ * mentioned in sub from all the extents linked in @bitmap, which leaves
+ * @bitmap as the list of blocks that are not accounted for, which we assume
  * are the dead blocks of the old metadata structure.  The blocks mentioned in
- * @exlist can be reaped.
+ * @bitmap can be reaped.
+ *
+ * This is the logical equivalent of bitmap &= ~sub.
  */
 #define LEFT_ALIGNED	(1 << 0)
 #define RIGHT_ALIGNED	(1 << 1)
 int
-xrep_subtract_extents(
-	struct xfs_scrub	*sc,
-	struct xrep_extent_list	*exlist,
-	struct xrep_extent_list	*sublist)
+xfs_bitmap_disunion(
+	struct xfs_bitmap	*bitmap,
+	struct xfs_bitmap	*sub)
 {
 	struct list_head	*lp;
-	struct xrep_extent	*ex;
-	struct xrep_extent	*newex;
-	struct xrep_extent	*subex;
-	xfs_fsblock_t		sub_fsb;
-	xfs_extlen_t		sub_len;
+	struct xfs_bitmap_range	*br;
+	struct xfs_bitmap_range	*new_br;
+	struct xfs_bitmap_range	*sub_br;
+	uint64_t		sub_start;
+	uint64_t		sub_len;
 	int			state;
 	int			error = 0;
 
-	if (list_empty(&exlist->list) || list_empty(&sublist->list))
+	if (list_empty(&bitmap->list) || list_empty(&sub->list))
 		return 0;
-	ASSERT(!list_empty(&sublist->list));
+	ASSERT(!list_empty(&sub->list));
 
-	list_sort(NULL, &exlist->list, xrep_btree_extent_cmp);
-	list_sort(NULL, &sublist->list, xrep_btree_extent_cmp);
+	list_sort(NULL, &bitmap->list, xfs_bitmap_range_cmp);
+	list_sort(NULL, &sub->list, xfs_bitmap_range_cmp);
 
 	/*
-	 * Now that we've sorted both lists, we iterate exlist once, rolling
-	 * forward through sublist and/or exlist as necessary until we find an
+	 * Now that we've sorted both lists, we iterate bitmap once, rolling
+	 * forward through sub and/or bitmap as necessary until we find an
 	 * overlap or reach the end of either list.  We do not reset lp to the
-	 * head of exlist nor do we reset subex to the head of sublist.  The
+	 * head of bitmap nor do we reset sub_br to the head of sub.  The
 	 * list traversal is similar to merge sort, but we're deleting
 	 * instead.  In this manner we avoid O(n^2) operations.
 	 */
-	subex = list_first_entry(&sublist->list, struct xrep_extent,
+	sub_br = list_first_entry(&sub->list, struct xfs_bitmap_range,
 			list);
-	lp = exlist->list.next;
-	while (lp != &exlist->list) {
-		ex = list_entry(lp, struct xrep_extent, list);
+	lp = bitmap->list.next;
+	while (lp != &bitmap->list) {
+		br = list_entry(lp, struct xfs_bitmap_range, list);
 
 		/*
-		 * Advance subex and/or ex until we find a pair that
+		 * Advance sub_br and/or br until we find a pair that
 		 * intersect or we run out of extents.
 		 */
-		while (subex->fsbno + subex->len <= ex->fsbno) {
-			if (list_is_last(&subex->list, &sublist->list))
+		while (sub_br->start + sub_br->len <= br->start) {
+			if (list_is_last(&sub_br->list, &sub->list))
 				goto out;
-			subex = list_next_entry(subex, list);
+			sub_br = list_next_entry(sub_br, list);
 		}
-		if (subex->fsbno >= ex->fsbno + ex->len) {
+		if (sub_br->start >= br->start + br->len) {
 			lp = lp->next;
 			continue;
 		}
 
-		/* trim subex to fit the extent we have */
-		sub_fsb = subex->fsbno;
-		sub_len = subex->len;
-		if (subex->fsbno < ex->fsbno) {
-			sub_len -= ex->fsbno - subex->fsbno;
-			sub_fsb = ex->fsbno;
+		/* trim sub_br to fit the extent we have */
+		sub_start = sub_br->start;
+		sub_len = sub_br->len;
+		if (sub_br->start < br->start) {
+			sub_len -= br->start - sub_br->start;
+			sub_start = br->start;
 		}
-		if (sub_len > ex->len)
-			sub_len = ex->len;
+		if (sub_len > br->len)
+			sub_len = br->len;
 
 		state = 0;
-		if (sub_fsb == ex->fsbno)
+		if (sub_start == br->start)
 			state |= LEFT_ALIGNED;
-		if (sub_fsb + sub_len == ex->fsbno + ex->len)
+		if (sub_start + sub_len == br->start + br->len)
 			state |= RIGHT_ALIGNED;
 		switch (state) {
 		case LEFT_ALIGNED:
 			/* Coincides with only the left. */
-			ex->fsbno += sub_len;
-			ex->len -= sub_len;
+			br->start += sub_len;
+			br->len -= sub_len;
 			break;
 		case RIGHT_ALIGNED:
 			/* Coincides with only the right. */
-			ex->len -= sub_len;
+			br->len -= sub_len;
 			lp = lp->next;
 			break;
 		case LEFT_ALIGNED | RIGHT_ALIGNED:
 			/* Total overlap, just delete ex. */
 			lp = lp->next;
-			list_del(&ex->list);
-			kmem_free(ex);
+			list_del(&br->list);
+			kmem_free(br);
 			break;
 		case 0:
 			/*
 			 * Deleting from the middle: add the new right extent
 			 * and then shrink the left extent.
 			 */
-			newex = kmem_alloc(sizeof(struct xrep_extent),
+			new_br = kmem_alloc(sizeof(struct xfs_bitmap_range),
 					KM_MAYFAIL);
-			if (!newex) {
+			if (!new_br) {
 				error = -ENOMEM;
 				goto out;
 			}
-			INIT_LIST_HEAD(&newex->list);
-			newex->fsbno = sub_fsb + sub_len;
-			newex->len = ex->fsbno + ex->len - newex->fsbno;
-			list_add(&newex->list, &ex->list);
-			ex->len = sub_fsb - ex->fsbno;
+			INIT_LIST_HEAD(&new_br->list);
+			new_br->start = sub_start + sub_len;
+			new_br->len = br->start + br->len - new_br->start;
+			list_add(&new_br->list, &br->list);
+			br->len = sub_start - br->start;
 			lp = lp->next;
 			break;
 		default:

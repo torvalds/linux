@@ -368,17 +368,17 @@ xrep_init_btblock(
  *
  * However, that leaves the matter of removing all the metadata describing the
  * old broken structure.  For primary metadata we use the rmap data to collect
- * every extent with a matching rmap owner (exlist); we then iterate all other
+ * every extent with a matching rmap owner (bitmap); we then iterate all other
  * metadata structures with the same rmap owner to collect the extents that
- * cannot be removed (sublist).  We then subtract sublist from exlist to
+ * cannot be removed (sublist).  We then subtract sublist from bitmap to
  * derive the blocks that were used by the old btree.  These blocks can be
  * reaped.
  *
  * For rmapbt reconstructions we must use different tactics for extent
  * collection.  First we iterate all primary metadata (this excludes the old
  * rmapbt, obviously) to generate new rmap records.  The gaps in the rmap
- * records are collected as exlist.  The bnobt records are collected as
- * sublist.  As with the other btrees we subtract sublist from exlist, and the
+ * records are collected as bitmap.  The bnobt records are collected as
+ * sublist.  As with the other btrees we subtract sublist from bitmap, and the
  * result (since the rmapbt lives in the free space) are the blocks from the
  * old rmapbt.
  *
@@ -386,11 +386,11 @@ xrep_init_btblock(
  *
  * Now that we've constructed a new btree to replace the damaged one, we want
  * to dispose of the blocks that (we think) the old btree was using.
- * Previously, we used the rmapbt to collect the extents (exlist) with the
+ * Previously, we used the rmapbt to collect the extents (bitmap) with the
  * rmap owner corresponding to the tree we rebuilt, collected extents for any
  * blocks with the same rmap owner that are owned by another data structure
- * (sublist), and subtracted sublist from exlist.  In theory the extents
- * remaining in exlist are the old btree's blocks.
+ * (sublist), and subtracted sublist from bitmap.  In theory the extents
+ * remaining in bitmap are the old btree's blocks.
  *
  * Unfortunately, it's possible that the btree was crosslinked with other
  * blocks on disk.  The rmap data can tell us if there are multiple owners, so
@@ -406,7 +406,7 @@ xrep_init_btblock(
  * If there are no rmap records at all, we also free the block.  If the btree
  * being rebuilt lives in the free space (bnobt/cntbt/rmapbt) then there isn't
  * supposed to be a rmap record and everything is ok.  For other btrees there
- * had to have been an rmap entry for the block to have ended up on @exlist,
+ * had to have been an rmap entry for the block to have ended up on @bitmap,
  * so if it's gone now there's something wrong and the fs will shut down.
  *
  * Note: If there are multiple rmap records with only the same rmap owner as
@@ -419,7 +419,7 @@ xrep_init_btblock(
  * The caller is responsible for locking the AG headers for the entire rebuild
  * operation so that nothing else can sneak in and change the AG state while
  * we're not looking.  We also assume that the caller already invalidated any
- * buffers associated with @exlist.
+ * buffers associated with @bitmap.
  */
 
 /*
@@ -429,13 +429,12 @@ xrep_init_btblock(
 int
 xrep_invalidate_blocks(
 	struct xfs_scrub	*sc,
-	struct xrep_extent_list	*exlist)
+	struct xfs_bitmap	*bitmap)
 {
-	struct xrep_extent	*rex;
-	struct xrep_extent	*n;
+	struct xfs_bitmap_range	*bmr;
+	struct xfs_bitmap_range	*n;
 	struct xfs_buf		*bp;
 	xfs_fsblock_t		fsbno;
-	xfs_agblock_t		i;
 
 	/*
 	 * For each block in each extent, see if there's an incore buffer for
@@ -445,18 +444,16 @@ xrep_invalidate_blocks(
 	 * because we never own those; and if we can't TRYLOCK the buffer we
 	 * assume it's owned by someone else.
 	 */
-	for_each_xrep_extent_safe(rex, n, exlist) {
-		for (fsbno = rex->fsbno, i = rex->len; i > 0; fsbno++, i--) {
-			/* Skip AG headers and post-EOFS blocks */
-			if (!xfs_verify_fsbno(sc->mp, fsbno))
-				continue;
-			bp = xfs_buf_incore(sc->mp->m_ddev_targp,
-					XFS_FSB_TO_DADDR(sc->mp, fsbno),
-					XFS_FSB_TO_BB(sc->mp, 1), XBF_TRYLOCK);
-			if (bp) {
-				xfs_trans_bjoin(sc->tp, bp);
-				xfs_trans_binval(sc->tp, bp);
-			}
+	for_each_xfs_bitmap_block(fsbno, bmr, n, bitmap) {
+		/* Skip AG headers and post-EOFS blocks */
+		if (!xfs_verify_fsbno(sc->mp, fsbno))
+			continue;
+		bp = xfs_buf_incore(sc->mp->m_ddev_targp,
+				XFS_FSB_TO_DADDR(sc->mp, fsbno),
+				XFS_FSB_TO_BB(sc->mp, 1), XBF_TRYLOCK);
+		if (bp) {
+			xfs_trans_bjoin(sc->tp, bp);
+			xfs_trans_binval(sc->tp, bp);
 		}
 	}
 
@@ -519,9 +516,9 @@ xrep_put_freelist(
 	return 0;
 }
 
-/* Dispose of a single metadata block. */
+/* Dispose of a single block. */
 STATIC int
-xrep_dispose_btree_block(
+xrep_reap_block(
 	struct xfs_scrub	*sc,
 	xfs_fsblock_t		fsbno,
 	struct xfs_owner_info	*oinfo,
@@ -593,41 +590,35 @@ out_free:
 	return error;
 }
 
-/* Dispose of btree blocks from an old per-AG btree. */
+/* Dispose of every block of every extent in the bitmap. */
 int
-xrep_reap_btree_extents(
+xrep_reap_extents(
 	struct xfs_scrub	*sc,
-	struct xrep_extent_list	*exlist,
+	struct xfs_bitmap	*bitmap,
 	struct xfs_owner_info	*oinfo,
 	enum xfs_ag_resv_type	type)
 {
-	struct xrep_extent	*rex;
-	struct xrep_extent	*n;
+	struct xfs_bitmap_range	*bmr;
+	struct xfs_bitmap_range	*n;
+	xfs_fsblock_t		fsbno;
 	int			error = 0;
 
 	ASSERT(xfs_sb_version_hasrmapbt(&sc->mp->m_sb));
 
-	/* Dispose of every block from the old btree. */
-	for_each_xrep_extent_safe(rex, n, exlist) {
+	for_each_xfs_bitmap_block(fsbno, bmr, n, bitmap) {
 		ASSERT(sc->ip != NULL ||
-		       XFS_FSB_TO_AGNO(sc->mp, rex->fsbno) == sc->sa.agno);
-
+		       XFS_FSB_TO_AGNO(sc->mp, fsbno) == sc->sa.agno);
 		trace_xrep_dispose_btree_extent(sc->mp,
-				XFS_FSB_TO_AGNO(sc->mp, rex->fsbno),
-				XFS_FSB_TO_AGBNO(sc->mp, rex->fsbno), rex->len);
+				XFS_FSB_TO_AGNO(sc->mp, fsbno),
+				XFS_FSB_TO_AGBNO(sc->mp, fsbno), 1);
 
-		for (; rex->len > 0; rex->len--, rex->fsbno++) {
-			error = xrep_dispose_btree_block(sc, rex->fsbno,
-					oinfo, type);
-			if (error)
-				goto out;
-		}
-		list_del(&rex->list);
-		kmem_free(rex);
+		error = xrep_reap_block(sc, fsbno, oinfo, type);
+		if (error)
+			goto out;
 	}
 
 out:
-	xrep_cancel_btree_extents(sc, exlist);
+	xfs_bitmap_destroy(bitmap);
 	return error;
 }
 
