@@ -176,6 +176,9 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.invalidate_tlbs = invalidate_tlbs,
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
 	.submit_ib = amdgpu_amdkfd_submit_ib,
+	.get_vm_fault_info = amdgpu_amdkfd_gpuvm_get_vm_fault_info,
+	.gpu_recover = amdgpu_amdkfd_gpu_reset,
+	.set_compute_idle = amdgpu_amdkfd_set_compute_idle
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
@@ -568,6 +571,9 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 	int retry;
 	struct vi_mqd *m = get_mqd(mqd);
 
+	if (adev->in_gpu_reset)
+		return -EIO;
+
 	acquire_queue(kgd, pipe_id, queue_id);
 
 	if (m->cp_hqd_vmid == 0)
@@ -843,6 +849,9 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 	int vmid;
 	unsigned int tmp;
+
+	if (adev->in_gpu_reset)
+		return -EIO;
 
 	for (vmid = 0; vmid < 16; vmid++) {
 		if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid))

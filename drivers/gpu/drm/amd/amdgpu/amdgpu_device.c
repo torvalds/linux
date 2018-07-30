@@ -3307,6 +3307,9 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	atomic_inc(&adev->gpu_reset_counter);
 	adev->in_gpu_reset = 1;
 
+	/* Block kfd */
+	amdgpu_amdkfd_pre_reset(adev);
+
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
 
@@ -3322,7 +3325,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		if (job && job->base.sched == &ring->sched)
 			continue;
 
-		drm_sched_hw_job_reset(&ring->sched, &job->base);
+		drm_sched_hw_job_reset(&ring->sched, job ? &job->base : NULL);
 
 		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
 		amdgpu_fence_driver_force_completion(ring);
@@ -3363,6 +3366,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		dev_info(adev->dev, "GPU reset(%d) succeeded!\n",atomic_read(&adev->gpu_reset_counter));
 	}
 
+	/*unlock kfd */
+	amdgpu_amdkfd_post_reset(adev);
 	amdgpu_vf_error_trans_all(adev);
 	adev->in_gpu_reset = 0;
 	mutex_unlock(&adev->lock_reset);

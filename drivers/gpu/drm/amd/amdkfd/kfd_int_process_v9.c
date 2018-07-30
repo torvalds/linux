@@ -26,7 +26,9 @@
 
 
 static bool event_interrupt_isr_v9(struct kfd_dev *dev,
-					const uint32_t *ih_ring_entry)
+					const uint32_t *ih_ring_entry,
+					uint32_t *patched_ihre,
+					bool *patched_flag)
 {
 	uint16_t source_id, client_id, pasid, vmid;
 	const uint32_t *data = ih_ring_entry;
@@ -57,7 +59,9 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 	return source_id == SOC15_INTSRC_CP_END_OF_PIPE ||
 		source_id == SOC15_INTSRC_SDMA_TRAP ||
 		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
-		source_id == SOC15_INTSRC_CP_BAD_OPCODE;
+		source_id == SOC15_INTSRC_CP_BAD_OPCODE ||
+		client_id == SOC15_IH_CLIENTID_VMC ||
+		client_id == SOC15_IH_CLIENTID_UTCL2;
 }
 
 static void event_interrupt_wq_v9(struct kfd_dev *dev,
@@ -82,7 +86,19 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 		kfd_signal_hw_exception_event(pasid);
 	else if (client_id == SOC15_IH_CLIENTID_VMC ||
 		 client_id == SOC15_IH_CLIENTID_UTCL2) {
-		/* TODO */
+		struct kfd_vm_fault_info info = {0};
+		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
+
+		info.vmid = vmid;
+		info.mc_id = client_id;
+		info.page_addr = ih_ring_entry[4] |
+			(uint64_t)(ih_ring_entry[5] & 0xf) << 32;
+		info.prot_valid = ring_id & 0x08;
+		info.prot_read  = ring_id & 0x10;
+		info.prot_write = ring_id & 0x20;
+
+		kfd_process_vm_fault(dev->dqm, pasid);
+		kfd_signal_vm_fault_event(dev, pasid, &info);
 	}
 }
 

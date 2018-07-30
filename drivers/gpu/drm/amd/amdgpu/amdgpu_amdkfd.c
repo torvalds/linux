@@ -243,6 +243,33 @@ int amdgpu_amdkfd_resume(struct amdgpu_device *adev)
 	return r;
 }
 
+int amdgpu_amdkfd_pre_reset(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->kfd)
+		r = kgd2kfd->pre_reset(adev->kfd);
+
+	return r;
+}
+
+int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->kfd)
+		r = kgd2kfd->post_reset(adev->kfd);
+
+	return r;
+}
+
+void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	amdgpu_device_gpu_recover(adev, NULL, false);
+}
+
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **mem_obj, uint64_t *gpu_addr,
 			void **cpu_ptr)
@@ -459,6 +486,14 @@ err_ib_sched:
 	amdgpu_job_free(job);
 err:
 	return ret;
+}
+
+void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	amdgpu_dpm_switch_power_profile(adev,
+					PP_SMC_POWER_PROFILE_COMPUTE, !idle);
 }
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
