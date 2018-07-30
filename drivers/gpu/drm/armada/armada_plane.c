@@ -184,11 +184,13 @@ static void armada_drm_primary_plane_atomic_update(struct drm_plane *plane,
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_GZM_HPXL_VLN);
 	if (old_state->src.x1 != state->src.x1 ||
 	    old_state->src.y1 != state->src.y1 ||
-	    old_state->fb != state->fb) {
+	    old_state->fb != state->fb ||
+	    state->crtc->state->mode_changed) {
 		idx += armada_drm_crtc_calc_fb(state, regs + idx,
 					       dcrtc->interlaced);
 	}
-	if (old_state->fb != state->fb) {
+	if (old_state->fb != state->fb ||
+	    state->crtc->state->mode_changed) {
 		cfg = CFG_GRA_FMT(drm_fb_to_armada_fb(state->fb)->fmt) |
 		      CFG_GRA_MOD(drm_fb_to_armada_fb(state->fb)->mod);
 		if (drm_fb_to_armada_fb(state->fb)->fmt > CFG_420)
