@@ -95,8 +95,8 @@ struct p9_req_t {
 	int status;
 	int t_err;
 	wait_queue_head_t wq;
-	struct p9_fcall *tc;
-	struct p9_fcall *rc;
+	struct p9_fcall tc;
+	struct p9_fcall rc;
 	void *aux;
 	struct list_head req_list;
 };
@@ -230,6 +230,7 @@ int p9_client_mkdir_dotl(struct p9_fid *fid, const char *name, int mode,
 				kgid_t gid, struct p9_qid *);
 int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status);
 int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *fl);
+void p9_fcall_fini(struct p9_fcall *fc);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 
