@@ -1659,6 +1659,22 @@ void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
 	}
 }
 
+
+static void
+ath9k_set_moredata(struct ath_softc *sc, struct ath_buf *bf, bool val)
+{
+	struct ieee80211_hdr *hdr;
+	u16 mask = cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+	u16 mask_val = mask * val;
+
+	hdr = (struct ieee80211_hdr *) bf->bf_mpdu->data;
+	if ((hdr->frame_control & mask) != mask_val) {
+		hdr->frame_control = (hdr->frame_control & ~mask) | mask_val;
+		dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
+			sizeof(*hdr), DMA_TO_DEVICE);
+	}
+}
+
 void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 				   struct ieee80211_sta *sta,
 				   u16 tids, int nframes,
@@ -1689,6 +1705,7 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 			if (!bf)
 				break;
 
+			ath9k_set_moredata(sc, bf, true);
 			list_add_tail(&bf->list, &bf_q);
 			ath_set_rates(tid->an->vif, tid->an->sta, bf);
 			if (bf_isampdu(bf)) {
@@ -1711,6 +1728,9 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 
 	if (list_empty(&bf_q))
 		return;
+
+	if (!more_data)
+		ath9k_set_moredata(sc, bf_tail, false);
 
 	info = IEEE80211_SKB_CB(bf_tail->bf_mpdu);
 	info->flags |= IEEE80211_TX_STATUS_EOSP;
