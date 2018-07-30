@@ -1,8 +1,7 @@
 #ifndef ARMADA_PLANE_H
 #define ARMADA_PLANE_H
 
-void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
-	int x, int y);
+void armada_drm_plane_calc_addrs(struct drm_plane_state *state, u32 addrs[3]);
 int armada_drm_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_plane_state *state);
 void armada_drm_plane_cleanup_fb(struct drm_plane *plane,

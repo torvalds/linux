@@ -35,13 +35,18 @@ static const uint32_t armada_primary_formats[] = {
 	DRM_FORMAT_BGR565,
 };
 
-void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
-	int x, int y)
+void armada_drm_plane_calc_addrs(struct drm_plane_state *state, u32 addrs[3])
 {
+	struct drm_framebuffer *fb = state->fb;
 	const struct drm_format_info *format = fb->format;
 	unsigned int num_planes = format->num_planes;
+	unsigned int x = state->src.x1 >> 16;
+	unsigned int y = state->src.y1 >> 16;
 	u32 addr = drm_fb_obj(fb)->dev_addr;
 	int i;
+
+	DRM_DEBUG_KMS("pitch %u x %d y %d bpp %d\n",
+		      fb->pitches[0], x, y, format->cpp[0] * 8);
 
 	if (num_planes > 3)
 		num_planes = 3;
@@ -59,17 +64,14 @@ void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
 		addrs[i] = 0;
 }
 
-static unsigned armada_drm_crtc_calc_fb(struct drm_framebuffer *fb,
-	int x, int y, struct armada_regs *regs, bool interlaced)
+static unsigned armada_drm_crtc_calc_fb(struct drm_plane_state *state,
+	struct armada_regs *regs, bool interlaced)
 {
-	unsigned pitch = fb->pitches[0];
+	unsigned pitch = state->fb->pitches[0];
 	u32 addrs[3], addr_odd, addr_even;
 	unsigned i = 0;
 
-	DRM_DEBUG_DRIVER("pitch %u x %d y %d bpp %d\n",
-		pitch, x, y, fb->format->cpp[0] * 8);
-
-	armada_drm_plane_calc_addrs(addrs, fb, x, y);
+	armada_drm_plane_calc_addrs(state, addrs);
 
 	addr_odd = addr_even = addrs[0];
 
@@ -175,10 +177,7 @@ static void armada_drm_primary_plane_atomic_update(struct drm_plane *plane,
 	if (old_state->src.x1 != state->src.x1 ||
 	    old_state->src.y1 != state->src.y1 ||
 	    old_state->fb != state->fb) {
-		idx += armada_drm_crtc_calc_fb(state->fb,
-					       state->src.x1 >> 16,
-					       state->src.y1 >> 16,
-					       regs + idx,
+		idx += armada_drm_crtc_calc_fb(state, regs + idx,
 					       dcrtc->interlaced);
 	}
 	if (old_state->fb != state->fb) {
