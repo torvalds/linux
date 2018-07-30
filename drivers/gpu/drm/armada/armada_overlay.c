@@ -23,6 +23,7 @@
 #define DEFAULT_BRIGHTNESS	0
 #define DEFAULT_CONTRAST	0x4000
 #define DEFAULT_SATURATION	0x4000
+#define DEFAULT_ENCODING	DRM_COLOR_YCBCR_BT601
 
 struct armada_ovl_plane {
 	struct armada_plane base;
@@ -57,6 +58,19 @@ static inline u32 armada_spu_saturation(struct drm_plane_state *state)
 {
 	/* Docs say 15:0, but it seems to actually be 31:16 on Armada 510 */
 	return drm_to_overlay_state(state)->saturation << 16;
+}
+
+static inline u32 armada_csc(struct drm_plane_state *state)
+{
+	/*
+	 * The CFG_CSC_RGB_* settings control the output of the colour space
+	 * converter, setting the range of output values it produces.  Since
+	 * we will be blending with the full-range graphics, we need to
+	 * produce full-range RGB output from the conversion.
+	 */
+	return CFG_CSC_RGB_COMPUTER |
+	       (state->color_encoding == DRM_COLOR_YCBCR_BT709 ?
+			CFG_CSC_YUV_CCIR709 : CFG_CSC_YUV_CCIR601);
 }
 
 /* === Plane support === */
@@ -189,6 +203,11 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_SATURATION);
 	if (!old_state->visible && state->visible)
 		armada_reg_queue_set(regs, idx, 0x00002000, LCD_SPU_CBSH_HUE);
+	val = armada_csc(state);
+	if ((!old_state->visible && state->visible) ||
+	    armada_csc(old_state) != val)
+		armada_reg_queue_mod(regs, idx, val, CFG_CSC_MASK,
+				     LCD_SPU_IOPAD_CONTROL);
 	val = drm_to_overlay_state(state)->colorkey_yr;
 	if ((!old_state->visible && state->visible) ||
 	    drm_to_overlay_state(old_state)->colorkey_yr != val)
@@ -399,6 +418,8 @@ static void armada_overlay_reset(struct drm_plane *plane)
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state) {
 		state->base.plane = plane;
+		state->base.color_encoding = DEFAULT_ENCODING;
+		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 		state->base.rotation = DRM_MODE_ROTATE_0;
 		state->colorkey_yr = 0xfefefe00;
 		state->colorkey_ug = 0x01010100;
@@ -489,6 +510,9 @@ static int armada_overlay_set_property(struct drm_plane *plane,
 		drm_to_overlay_state(state)->contrast = val;
 	} else if (property == priv->saturation_prop) {
 		drm_to_overlay_state(state)->saturation = val;
+	} else if (property == plane->color_encoding_property) {
+		/* transitional only */
+		state->color_encoding = val;
 	} else {
 		return -EINVAL;
 	}
@@ -685,5 +709,12 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	drm_object_attach_property(mobj, priv->saturation_prop,
 				   DEFAULT_SATURATION);
 
-	return 0;
+	ret = drm_plane_create_color_properties(&dplane->base.base,
+						BIT(DRM_COLOR_YCBCR_BT601) |
+						BIT(DRM_COLOR_YCBCR_BT709),
+						BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
+						DEFAULT_ENCODING,
+						DRM_COLOR_YCBCR_LIMITED_RANGE);
+
+	return ret;
 }
