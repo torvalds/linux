@@ -52,6 +52,8 @@
 #include "dm_helpers.h"
 #include "mem_input.h"
 #include "hubp.h"
+
+#include "dc_link_dp.h"
 #define DC_LOGGER \
 	dc->ctx->logger
 
@@ -419,8 +421,17 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 					 struct dc_link_settings *link_setting,
 					 struct dc_link *link)
 {
-	link->preferred_link_setting = *link_setting;
-	dp_retrain_link_dp_test(link, link_setting, false);
+	struct dc_link_settings store_settings = *link_setting;
+	struct dc_stream_state *link_stream =
+		link->dc->current_state->res_ctx.pipe_ctx[0].stream;
+
+	link->preferred_link_setting = store_settings;
+	if (link_stream)
+		decide_link_settings(link_stream, &store_settings);
+
+	if ((store_settings.lane_count != LANE_COUNT_UNKNOWN) &&
+		(store_settings.link_rate != LINK_RATE_UNKNOWN))
+		dp_retrain_link_dp_test(link, &store_settings, false);
 }
 
 void dc_link_enable_hpd(const struct dc_link *link)
