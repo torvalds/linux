@@ -232,6 +232,19 @@ static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 	armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
 }
 
+static void armada_drm_crtc_queue_state_event(struct drm_crtc *crtc)
+{
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	struct drm_pending_vblank_event *event;
+
+	/* If we have an event, we need vblank events enabled */
+	event = xchg(&crtc->state->event, NULL);
+	if (event) {
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+		dcrtc->event = event;
+	}
+}
+
 /* The mode_config.mutex will be held for this call */
 static void armada_drm_crtc_dpms(struct drm_crtc *crtc, int dpms)
 {
@@ -294,6 +307,8 @@ static void armada_drm_crtc_commit(struct drm_crtc *crtc)
 	dcrtc->dpms = DRM_MODE_DPMS_ON;
 	armada_drm_crtc_update(dcrtc);
 	drm_crtc_vblank_on(crtc);
+
+	armada_drm_crtc_queue_state_event(crtc);
 }
 
 /* The mode_config.mutex will be held for this call */
@@ -337,6 +352,7 @@ static void armada_drm_crtc_enable_irq(struct armada_crtc *dcrtc, u32 mask)
 
 static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 {
+	struct drm_pending_vblank_event *event;
 	void __iomem *base = dcrtc->base;
 	struct drm_plane *ovl_plane;
 
@@ -383,6 +399,16 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 
 	if (stat & GRA_FRAME_IRQ)
 		armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
+
+	if (stat & VSYNC_IRQ) {
+		event = xchg(&dcrtc->event, NULL);
+		if (event) {
+			spin_lock(&dcrtc->crtc.dev->event_lock);
+			drm_crtc_send_vblank_event(&dcrtc->crtc, event);
+			spin_unlock(&dcrtc->crtc.dev->event_lock);
+			drm_crtc_vblank_put(&dcrtc->crtc);
+		}
+	}
 }
 
 static irqreturn_t armada_drm_irq(int irq, void *arg)
@@ -554,6 +580,13 @@ static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_lock_irqsave(&dcrtc->irq_lock, flags);
 	armada_drm_crtc_update_regs(dcrtc, dcrtc->regs);
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
+
+	/*
+	 * If we aren't doing a full modeset, then we need to queue
+	 * the event here.
+	 */
+	if (!drm_atomic_crtc_needs_modeset(crtc->state))
+		armada_drm_crtc_queue_state_event(crtc);
 }
 
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
