@@ -25,12 +25,6 @@
 #define DEFAULT_SATURATION	0x4000
 #define DEFAULT_ENCODING	DRM_COLOR_YCBCR_BT601
 
-struct armada_ovl_plane {
-	struct armada_plane base;
-};
-#define drm_to_armada_ovl_plane(p) \
-	container_of(p, struct armada_ovl_plane, base.base)
-
 struct armada_overlay_state {
 	struct drm_plane_state base;
 	u32 colorkey_yr;
@@ -301,11 +295,8 @@ fail:
 
 static void armada_ovl_plane_destroy(struct drm_plane *plane)
 {
-	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
-
 	drm_plane_cleanup(plane);
-
-	kfree(dplane);
+	kfree(plane);
 }
 
 static void armada_overlay_reset(struct drm_plane *plane)
@@ -550,38 +541,31 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 {
 	struct armada_private *priv = dev->dev_private;
 	struct drm_mode_object *mobj;
-	struct armada_ovl_plane *dplane;
+	struct drm_plane *overlay;
 	int ret;
 
 	ret = armada_overlay_create_properties(dev);
 	if (ret)
 		return ret;
 
-	dplane = kzalloc(sizeof(*dplane), GFP_KERNEL);
-	if (!dplane)
+	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
+	if (!overlay)
 		return -ENOMEM;
 
-	ret = armada_drm_plane_init(&dplane->base);
-	if (ret) {
-		kfree(dplane);
-		return ret;
-	}
+	drm_plane_helper_add(overlay, &armada_overlay_plane_helper_funcs);
 
-	drm_plane_helper_add(&dplane->base.base,
-			     &armada_overlay_plane_helper_funcs);
-
-	ret = drm_universal_plane_init(dev, &dplane->base.base, crtcs,
+	ret = drm_universal_plane_init(dev, overlay, crtcs,
 				       &armada_ovl_plane_funcs,
 				       armada_ovl_formats,
 				       ARRAY_SIZE(armada_ovl_formats),
 				       NULL,
 				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (ret) {
-		kfree(dplane);
+		kfree(overlay);
 		return ret;
 	}
 
-	mobj = &dplane->base.base.base;
+	mobj = &overlay->base;
 	drm_object_attach_property(mobj, priv->colorkey_prop,
 				   0x0101fe);
 	drm_object_attach_property(mobj, priv->colorkey_min_prop,
@@ -601,7 +585,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	drm_object_attach_property(mobj, priv->saturation_prop,
 				   DEFAULT_SATURATION);
 
-	ret = drm_plane_create_color_properties(&dplane->base.base,
+	ret = drm_plane_create_color_properties(overlay,
 						BIT(DRM_COLOR_YCBCR_BT601) |
 						BIT(DRM_COLOR_YCBCR_BT709),
 						BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
