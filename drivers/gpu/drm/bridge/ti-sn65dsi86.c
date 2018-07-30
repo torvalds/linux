@@ -233,7 +233,7 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge)
 
 	drm_connector_helper_add(&pdata->connector,
 				 &ti_sn_bridge_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(&pdata->connector, bridge->encoder);
+	drm_connector_attach_encoder(&pdata->connector, bridge->encoder);
 
 	/*
 	 * TODO: ideally finding host resource and dsi dev registration needs
