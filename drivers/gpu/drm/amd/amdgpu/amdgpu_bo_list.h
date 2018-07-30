@@ -48,7 +48,6 @@ struct amdgpu_bo_list {
 	struct amdgpu_bo *oa_obj;
 	unsigned first_userptr;
 	unsigned num_entries;
-	struct amdgpu_bo_list_entry *array;
 };
 
 int amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id,
@@ -65,14 +64,22 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev,
 				 unsigned num_entries,
 				 struct amdgpu_bo_list **list);
 
+static inline struct amdgpu_bo_list_entry *
+amdgpu_bo_list_array_entry(struct amdgpu_bo_list *list, unsigned index)
+{
+	struct amdgpu_bo_list_entry *array = (void *)&list[1];
+
+	return &array[index];
+}
+
 #define amdgpu_bo_list_for_each_entry(e, list) \
-	for (e = &(list)->array[0]; \
-	     e != &(list)->array[(list)->num_entries]; \
+	for (e = amdgpu_bo_list_array_entry(list, 0); \
+	     e != amdgpu_bo_list_array_entry(list, (list)->num_entries); \
 	     ++e)
 
 #define amdgpu_bo_list_for_each_userptr_entry(e, list) \
-	for (e = &(list)->array[(list)->first_userptr]; \
-	     e != &(list)->array[(list)->num_entries]; \
+	for (e = amdgpu_bo_list_array_entry(list, (list)->first_userptr); \
+	     e != amdgpu_bo_list_array_entry(list, (list)->num_entries); \
 	     ++e)
 
 #endif
