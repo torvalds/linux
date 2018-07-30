@@ -990,6 +990,7 @@ out:
 	if (new_fl)
 		locks_free_lock(new_fl);
 	locks_dispose_list(&dispose);
+	trace_flock_lock_inode(inode, request, error);
 	return error;
 }
 
