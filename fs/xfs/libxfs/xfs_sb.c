@@ -166,7 +166,40 @@ xfs_validate_sb_write(
 	if (XFS_SB_VERSION_NUM(sbp) != XFS_SB_VERSION_5)
 		return 0;
 
-	/* XXX: For write validation, we don't need to check feature masks?? */
+	/*
+	 * Version 5 superblock feature mask validation. Reject combinations
+	 * the kernel cannot support since we checked for unsupported bits in
+	 * the read verifier, which means that memory is corrupt.
+	 */
+	if (xfs_sb_has_compat_feature(sbp, XFS_SB_FEAT_COMPAT_UNKNOWN)) {
+		xfs_warn(mp,
+"Corruption detected in superblock compatible features (0x%x)!",
+			(sbp->sb_features_compat & XFS_SB_FEAT_COMPAT_UNKNOWN));
+		return -EFSCORRUPTED;
+	}
+
+	if (xfs_sb_has_ro_compat_feature(sbp, XFS_SB_FEAT_RO_COMPAT_UNKNOWN)) {
+		xfs_alert(mp,
+"Corruption detected in superblock read-only compatible features (0x%x)!",
+			(sbp->sb_features_ro_compat &
+					XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
+		return -EFSCORRUPTED;
+	}
+	if (xfs_sb_has_incompat_feature(sbp, XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
+		xfs_warn(mp,
+"Corruption detected in superblock incompatible features (0x%x)!",
+			(sbp->sb_features_incompat &
+					XFS_SB_FEAT_INCOMPAT_UNKNOWN));
+		return -EFSCORRUPTED;
+	}
+	if (xfs_sb_has_incompat_log_feature(sbp,
+			XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN)) {
+		xfs_warn(mp,
+"Corruption detected in superblock incompatible log features (0x%x)!",
+			(sbp->sb_features_log_incompat &
+					XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN));
+		return -EFSCORRUPTED;
+	}
 
 	/*
 	 * We can't read verify the sb LSN because the read verifier is called
