@@ -1158,11 +1158,9 @@ static void armada_drm_primary_update_state(struct drm_plane_state *state,
 				     0, CFG_PDWN64x66, LCD_SPU_SRAM_PARA1);
 
 	dplane->state.ctrl0 = val;
-	dplane->state.src_hw = (drm_rect_height(&state->src) & 0xffff0000) |
-				drm_rect_width(&state->src) >> 16;
-	dplane->state.dst_hw = drm_rect_height(&state->dst) << 16 |
-			       drm_rect_width(&state->dst);
-	dplane->state.dst_yx = state->dst.y1 << 16 | state->dst.x1;
+	dplane->state.src_hw = armada_rect_hw_fp(&state->src);
+	dplane->state.dst_hw = armada_rect_hw(&state->dst);
+	dplane->state.dst_yx = armada_rect_yx(&state->dst);
 
 	armada_drm_gra_plane_regs(regs + idx, &dfb->fb, &dplane->state,
 				  state->src.x1 >> 16, state->src.y1 >> 16,

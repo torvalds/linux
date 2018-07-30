@@ -146,22 +146,21 @@ static void armada_ovl_plane_update_state(struct drm_plane_state *state,
 				     LCD_SPU_DMA_PITCH_UV);
 	}
 
-	val = (drm_rect_height(&state->src) & 0xffff0000) |
-	       drm_rect_width(&state->src) >> 16;
+	val = armada_rect_hw_fp(&state->src);
 	if (dplane->base.state.src_hw != val) {
 		dplane->base.state.src_hw = val;
 		armada_reg_queue_set(regs, idx, val,
 				     LCD_SPU_DMA_HPXL_VLN);
 	}
 
-	val = drm_rect_height(&state->dst) << 16 | drm_rect_width(&state->dst);
+	val = armada_rect_hw(&state->dst);
 	if (dplane->base.state.dst_hw != val) {
 		dplane->base.state.dst_hw = val;
 		armada_reg_queue_set(regs, idx, val,
 				     LCD_SPU_DZM_HPXL_VLN);
 	}
 
-	val = state->dst.y1 << 16 | state->dst.x1;
+	val = armada_rect_yx(&state->dst);
 	if (dplane->base.state.dst_yx != val) {
 		dplane->base.state.dst_yx = val;
 		armada_reg_queue_set(regs, idx, val,
