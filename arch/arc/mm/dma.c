@@ -6,20 +6,17 @@
  * published by the Free Software Foundation.
  */
 
-/*
- * DMA Coherent API Notes
- *
- * I/O is inherently non-coherent on ARC. So a coherent DMA buffer is
- * implemented by accessing it using a kernel virtual address, with
- * Cache bit off in the TLB entry.
- *
- * The default DMA address == Phy address which is 0x8000_0000 based.
- */
-
 #include <linux/dma-noncoherent.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 
+/*
+ * ARCH specific callbacks for generic noncoherent DMA ops (dma/noncoherent.c)
+ *  - hardware IOC not available (or "dma-coherent" not set for device in DT)
+ *  - But still handle both coherent and non-coherent requests from caller
+ *
+ * For DMA coherent hardware (IOC) generic code suffices
+ */
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs)
 {
@@ -33,19 +30,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (!page)
 		return NULL;
 
-	/*
-	 * IOC relies on all data (even coherent DMA data) being in cache
-	 * Thus allocate normal cached memory
-	 *
-	 * The gains with IOC are two pronged:
-	 *   -For streaming data, elides need for cache maintenance, saving
-	 *    cycles in flush code, and bus bandwidth as all the lines of a
-	 *    buffer need to be flushed out to memory
-	 *   -For coherent data, Read/Write to buffers terminate early in cache
-	 *   (vs. always going to memory - thus are faster)
-	 */
-	if ((is_isa_arcv2() && ioc_enable) ||
-	    (attrs & DMA_ATTR_NON_CONSISTENT))
+	if (attrs & DMA_ATTR_NON_CONSISTENT)
 		need_coh = 0;
 
 	/*
@@ -95,8 +80,7 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 	struct page *page = virt_to_page(paddr);
 	int is_non_coh = 1;
 
-	is_non_coh = (attrs & DMA_ATTR_NON_CONSISTENT) ||
-			(is_isa_arcv2() && ioc_enable);
+	is_non_coh = (attrs & DMA_ATTR_NON_CONSISTENT);
 
 	if (PageHighMem(page) || !is_non_coh)
 		iounmap((void __force __iomem *)vaddr);
@@ -183,5 +167,25 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 
 	default:
 		break;
+	}
+}
+
+/*
+ * Plug in coherent or noncoherent dma ops
+ */
+void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
+			const struct iommu_ops *iommu, bool coherent)
+{
+	/*
+	 * IOC hardware snoops all DMA traffic keeping the caches consistent
+	 * with memory - eliding need for any explicit cache maintenance of
+	 * DMA buffers - so we can use dma_direct cache ops.
+	 */
+	if (is_isa_arcv2() && ioc_enable && coherent) {
+		set_dma_ops(dev, &dma_direct_ops);
+		dev_info(dev, "use dma_direct_ops cache ops\n");
+	} else {
+		set_dma_ops(dev, &dma_noncoherent_ops);
+		dev_info(dev, "use dma_noncoherent_ops cache ops\n");
 	}
 }
