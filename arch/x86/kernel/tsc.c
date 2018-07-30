@@ -182,7 +182,7 @@ static void __init cyc2ns_init_boot_cpu(void)
 }
 
 /*
- * Secondary CPUs do not run through cyc2ns_init(), so set up
+ * Secondary CPUs do not run through tsc_init(), so set up
  * all the scale factors for all CPUs, assuming the same
  * speed as the bootup CPU. (cpufreq notifiers will fix this
  * up if their speed diverges)
@@ -1389,7 +1389,7 @@ static bool __init determine_cpu_tsc_frequencies(bool early)
 	}
 
 	/*
-	 * Trust non-zero tsc_khz as authorative,
+	 * Trust non-zero tsc_khz as authoritative,
 	 * and use it to sanity check cpu_khz,
 	 * which will be off if system timer is off.
 	 */
@@ -1421,6 +1421,14 @@ static unsigned long __init get_loops_per_jiffy(void)
 	return lpj;
 }
 
+static void __init tsc_enable_sched_clock(void)
+{
+	/* Sanitize TSC ADJUST before cyc2ns gets initialized */
+	tsc_store_and_check_tsc_adjust(true);
+	cyc2ns_init_boot_cpu();
+	static_branch_enable(&__use_tsc);
+}
+
 void __init tsc_early_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_TSC))
@@ -1429,10 +1437,7 @@ void __init tsc_early_init(void)
 		return;
 	loops_per_jiffy = get_loops_per_jiffy();
 
-	/* Sanitize TSC ADJUST before cyc2ns gets initialized */
-	tsc_store_and_check_tsc_adjust(true);
-	cyc2ns_init_boot_cpu();
-	static_branch_enable(&__use_tsc);
+	tsc_enable_sched_clock();
 }
 
 void __init tsc_init(void)
@@ -1456,13 +1461,10 @@ void __init tsc_init(void)
 			setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
 			return;
 		}
-		/* Sanitize TSC ADJUST before cyc2ns gets initialized */
-		tsc_store_and_check_tsc_adjust(true);
-		cyc2ns_init_boot_cpu();
+		tsc_enable_sched_clock();
 	}
 
 	cyc2ns_init_secondary_cpus();
-	static_branch_enable(&__use_tsc);
 
 	if (!no_sched_irq_time)
 		enable_sched_clock_irqtime();
