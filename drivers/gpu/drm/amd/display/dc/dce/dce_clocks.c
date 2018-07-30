@@ -202,7 +202,7 @@ static int dce12_get_dp_ref_freq_khz(struct dccg *clk)
 {
 	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 
-	return dccg_adjust_dp_ref_freq_for_ss(clk_dce, 600000);
+	return dccg_adjust_dp_ref_freq_for_ss(clk_dce, clk_dce->dprefclk_khz);
 }
 
 static enum dm_pp_clocks_state dce_get_required_clocks_state(
@@ -882,6 +882,7 @@ struct dccg *dce120_dccg_create(struct dc_context *ctx)
 	dce_dccg_construct(
 		clk_dce, ctx, NULL, NULL, NULL);
 
+	clk_dce->dprefclk_khz = 600000;
 	clk_dce->base.funcs = &dce120_funcs;
 
 	return &clk_dce->base;
@@ -909,6 +910,7 @@ struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 	clk_dce->dprefclk_ss_divider = 1000;
 	clk_dce->ss_on_dprefclk = false;
 
+	clk_dce->dprefclk_khz = 600000;
 	if (bp->integrated_info)
 		clk_dce->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
 	if (clk_dce->dentist_vco_freq_khz == 0) {

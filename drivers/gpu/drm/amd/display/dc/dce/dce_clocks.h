@@ -90,6 +90,7 @@ struct dce_dccg {
 	int dprefclk_ss_percentage;
 	/* DPREFCLK SS percentage Divider (100 or 1000) */
 	int dprefclk_ss_divider;
+	int dprefclk_khz;
 };
 
 
