@@ -1356,9 +1356,6 @@ static int vega20_init_max_sustainable_clocks(struct pp_hwmgr *hwmgr)
 	if (max_sustainable_clocks->soc_clock < max_sustainable_clocks->uclock)
 		max_sustainable_clocks->uclock = max_sustainable_clocks->soc_clock;
 
-	if (max_sustainable_clocks->uclock < max_sustainable_clocks->dcef_clock)
-		max_sustainable_clocks->dcef_clock = max_sustainable_clocks->uclock;
-
 	return 0;
 }
 
