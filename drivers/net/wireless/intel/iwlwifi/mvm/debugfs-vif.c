@@ -1441,15 +1441,6 @@ static ssize_t iwl_dbgfs_quota_min_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static const char * const chanwidths[] = {
-	[NL80211_CHAN_WIDTH_20_NOHT] = "noht",
-	[NL80211_CHAN_WIDTH_20] = "ht20",
-	[NL80211_CHAN_WIDTH_40] = "ht40",
-	[NL80211_CHAN_WIDTH_80] = "vht80",
-	[NL80211_CHAN_WIDTH_80P80] = "vht80p80",
-	[NL80211_CHAN_WIDTH_160] = "vht160",
-};
-
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
