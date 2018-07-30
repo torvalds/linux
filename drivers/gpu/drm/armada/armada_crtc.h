@@ -54,21 +54,11 @@ struct armada_plane {
 };
 #define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
 
-int armada_drm_plane_init(struct armada_plane *plane);
 int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
 	struct armada_plane_work *work);
 int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout);
 void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 	struct armada_plane *plane);
-void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
-	int x, int y);
-
-int armada_drm_plane_prepare_fb(struct drm_plane *plane,
-	struct drm_plane_state *state);
-void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
-	struct drm_plane_state *old_state);
-int armada_drm_plane_atomic_check(struct drm_plane *plane,
-	struct drm_plane_state *state);
 
 struct armada_crtc {
 	struct drm_crtc		crtc;

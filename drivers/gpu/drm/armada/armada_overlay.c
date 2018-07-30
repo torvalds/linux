@@ -10,13 +10,14 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/armada_drm.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_fb.h"
 #include "armada_gem.h"
 #include "armada_hw.h"
-#include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
+#include "armada_plane.h"
 #include "armada_trace.h"
 
 struct armada_ovl_plane_properties {
