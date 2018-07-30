@@ -197,8 +197,8 @@ struct ath9k_htc_target_rx_stats {
 	__be32 host_done;
 } __packed;
 
-#define ATH9K_HTC_MAX_VIF 2
-#define ATH9K_HTC_MAX_BCN_VIF 2
+#define ATH9K_HTC_MAX_VIF 8
+#define ATH9K_HTC_MAX_BCN_VIF 8
 
 #define INC_VIF(_priv, _type) do {		\
 		switch (_type) {		\

@@ -697,9 +697,9 @@ err_hw:
 }
 
 static const struct ieee80211_iface_limit if_limits[] = {
-	{ .max = 2,	.types = BIT(NL80211_IFTYPE_STATION) |
+	{ .max = 8,	.types = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_P2P_CLIENT) },
-	{ .max = 2,	.types = BIT(NL80211_IFTYPE_AP) |
+	{ .max = 8,	.types = BIT(NL80211_IFTYPE_AP) |
 #ifdef CONFIG_MAC80211_MESH
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
@@ -709,7 +709,7 @@ static const struct ieee80211_iface_limit if_limits[] = {
 static const struct ieee80211_iface_combination if_comb = {
 	.limits = if_limits,
 	.n_limits = ARRAY_SIZE(if_limits),
-	.max_interfaces = 2,
+	.max_interfaces = 8,
 	.num_different_channels = 1,
 };
 
