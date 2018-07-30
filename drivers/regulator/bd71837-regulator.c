@@ -7,7 +7,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/mfd/bd71837.h>
+#include <linux/mfd/rohm-bd718x7.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
@@ -490,7 +490,6 @@ struct reg_init {
 static int bd71837_probe(struct platform_device *pdev)
 {
 	struct bd71837_pmic *pmic;
-	struct bd71837_board *pdata;
 	struct regulator_config config = { 0 };
 	struct reg_init pmic_regulator_inits[] = {
 		{
@@ -558,7 +557,6 @@ static int bd71837_probe(struct platform_device *pdev)
 		goto err;
 	}
 	platform_set_drvdata(pdev, pmic);
-	pdata = dev_get_platdata(pmic->mfd->dev);
 
 	/* Register LOCK release */
 	err = regmap_update_bits(pmic->mfd->regmap, BD71837_REG_REGLOCK,
@@ -577,9 +575,6 @@ static int bd71837_probe(struct platform_device *pdev)
 		struct regulator_dev *rdev;
 
 		desc = &pmic->descs[i];
-
-		if (pdata)
-			config.init_data = pdata->init_data[i];
 
 		config.dev = pdev->dev.parent;
 		config.driver_data = pmic;
