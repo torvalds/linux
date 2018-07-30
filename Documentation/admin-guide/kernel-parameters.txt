@@ -3000,7 +3000,7 @@
 				or a set of devices (<pci_dev>). These are
 				specified in one of the following formats:
 
-				[<domain>:]<bus>:<device>.<func>
+				[<domain>:]<bus>:<dev>.<func>[/<dev>.<func>]*
 				pci:<vendor>:<device>[:<subvendor>:<subdevice>]
 
 				Note: the first format specifies a PCI
@@ -3009,7 +3009,11 @@
 				firmware changes, or due to changes caused
 				by other kernel parameters. If the
 				domain is left unspecified, it is
-				taken to be zero. The second format
+				taken to be zero. Optionally, a path
+				to a device through multiple device/function
+				addresses can be specified after the base
+				address (this is more robust against
+				renumbering issues).  The second format
 				selects devices using IDs from the
 				configuration space which may match multiple
 				devices in the system.
