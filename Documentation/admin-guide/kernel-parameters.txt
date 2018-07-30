@@ -2994,7 +2994,26 @@
 			See header of drivers/block/paride/pcd.c.
 			See also Documentation/blockdev/paride.txt.
 
-	pci=option[,option...]	[PCI] various PCI subsystem options:
+	pci=option[,option...]	[PCI] various PCI subsystem options.
+
+				Some options herein operate on a specific device
+				or a set of devices (<pci_dev>). These are
+				specified in one of the following formats:
+
+				[<domain>:]<bus>:<device>.<func>
+				pci:<vendor>:<device>[:<subvendor>:<subdevice>]
+
+				Note: the first format specifies a PCI
+				bus/device/function address which may change
+				if new hardware is inserted, if motherboard
+				firmware changes, or due to changes caused
+				by other kernel parameters. If the
+				domain is left unspecified, it is
+				taken to be zero. The second format
+				selects devices using IDs from the
+				configuration space which may match multiple
+				devices in the system.
+
 		earlydump	[X86] dump PCI config space before the kernel
 				changes anything
 		off		[X86] don't probe for the PCI bus
@@ -3123,11 +3142,10 @@
 				window. The default value is 64 megabytes.
 		resource_alignment=
 				Format:
-				[<order of align>@][<domain>:]<bus>:<slot>.<func>[; ...]
-				[<order of align>@]pci:<vendor>:<device>\
-						[:<subvendor>:<subdevice>][; ...]
+				[<order of align>@]<pci_dev>[; ...]
 				Specifies alignment and device to reassign
-				aligned memory resources.
+				aligned memory resources. How to
+				specify the device is described above.
 				If <order of align> is not specified,
 				PAGE_SIZE is used as alignment.
 				PCI-PCI bridge can be specified, if resource

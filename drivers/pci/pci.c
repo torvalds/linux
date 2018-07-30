@@ -191,6 +191,92 @@ void __iomem *pci_ioremap_wc_bar(struct pci_dev *pdev, int bar)
 EXPORT_SYMBOL_GPL(pci_ioremap_wc_bar);
 #endif
 
+/**
+ * pci_dev_str_match - test if a string matches a device
+ * @dev:    the PCI device to test
+ * @p:      string to match the device against
+ * @endptr: pointer to the string after the match
+ *
+ * Test if a string (typically from a kernel parameter) matches a specified
+ * PCI device. The string may be of one of the following formats:
+ *
+ *   [<domain>:]<bus>:<device>.<func>
+ *   pci:<vendor>:<device>[:<subvendor>:<subdevice>]
+ *
+ * The first format specifies a PCI bus/device/function address which
+ * may change if new hardware is inserted, if motherboard firmware changes,
+ * or due to changes caused in kernel parameters. If the domain is
+ * left unspecified, it is taken to be 0.
+ *
+ * The second format matches devices using IDs in the configuration
+ * space which may match multiple devices in the system. A value of 0
+ * for any field will match all devices. (Note: this differs from
+ * in-kernel code that uses PCI_ANY_ID which is ~0; this is for
+ * legacy reasons and convenience so users don't have to specify
+ * FFFFFFFFs on the command line.)
+ *
+ * Returns 1 if the string matches the device, 0 if it does not and
+ * a negative error code if the string cannot be parsed.
+ */
+static int pci_dev_str_match(struct pci_dev *dev, const char *p,
+			     const char **endptr)
+{
+	int ret;
+	int seg, bus, slot, func, count;
+	unsigned short vendor, device, subsystem_vendor, subsystem_device;
+
+	if (strncmp(p, "pci:", 4) == 0) {
+		/* PCI vendor/device (subvendor/subdevice) IDs are specified */
+		p += 4;
+		ret = sscanf(p, "%hx:%hx:%hx:%hx%n", &vendor, &device,
+			     &subsystem_vendor, &subsystem_device, &count);
+		if (ret != 4) {
+			ret = sscanf(p, "%hx:%hx%n", &vendor, &device, &count);
+			if (ret != 2)
+				return -EINVAL;
+
+			subsystem_vendor = 0;
+			subsystem_device = 0;
+		}
+
+		p += count;
+
+		if ((!vendor || vendor == dev->vendor) &&
+		    (!device || device == dev->device) &&
+		    (!subsystem_vendor ||
+			    subsystem_vendor == dev->subsystem_vendor) &&
+		    (!subsystem_device ||
+			    subsystem_device == dev->subsystem_device))
+			goto found;
+
+	} else {
+		/* PCI Bus, Device, Function IDs are specified */
+		ret = sscanf(p, "%x:%x:%x.%x%n", &seg, &bus, &slot,
+			     &func, &count);
+		if (ret != 4) {
+			seg = 0;
+			ret = sscanf(p, "%x:%x.%x%n", &bus, &slot,
+				     &func, &count);
+			if (ret != 3)
+				return -EINVAL;
+		}
+
+		p += count;
+
+		if (seg == pci_domain_nr(dev->bus) &&
+		    bus == dev->bus->number &&
+		    slot == PCI_SLOT(dev->devfn) &&
+		    func == PCI_FUNC(dev->devfn))
+			goto found;
+	}
+
+	*endptr = p;
+	return 0;
+
+found:
+	*endptr = p;
+	return 1;
+}
 
 static int __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
 				   u8 pos, int cap, int *ttl)
@@ -5454,10 +5540,10 @@ static DEFINE_SPINLOCK(resource_alignment_lock);
 static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
 							bool *resize)
 {
-	int seg, bus, slot, func, align_order, count;
-	unsigned short vendor, device, subsystem_vendor, subsystem_device;
+	int align_order, count;
 	resource_size_t align = pcibios_default_alignment();
-	char *p;
+	const char *p;
+	int ret;
 
 	spin_lock(&resource_alignment_lock);
 	p = resource_alignment_param;
@@ -5477,58 +5563,21 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
 		} else {
 			align_order = -1;
 		}
-		if (strncmp(p, "pci:", 4) == 0) {
-			/* PCI vendor/device (subvendor/subdevice) ids are specified */
-			p += 4;
-			if (sscanf(p, "%hx:%hx:%hx:%hx%n",
-				&vendor, &device, &subsystem_vendor, &subsystem_device, &count) != 4) {
-				if (sscanf(p, "%hx:%hx%n", &vendor, &device, &count) != 2) {
-					printk(KERN_ERR "PCI: Can't parse resource_alignment parameter: pci:%s\n",
-						p);
-					break;
-				}
-				subsystem_vendor = subsystem_device = 0;
-			}
-			p += count;
-			if ((!vendor || (vendor == dev->vendor)) &&
-				(!device || (device == dev->device)) &&
-				(!subsystem_vendor || (subsystem_vendor == dev->subsystem_vendor)) &&
-				(!subsystem_device || (subsystem_device == dev->subsystem_device))) {
-				*resize = true;
-				if (align_order == -1)
-					align = PAGE_SIZE;
-				else
-					align = 1 << align_order;
-				/* Found */
-				break;
-			}
+
+		ret = pci_dev_str_match(dev, p, &p);
+		if (ret == 1) {
+			*resize = true;
+			if (align_order == -1)
+				align = PAGE_SIZE;
+			else
+				align = 1 << align_order;
+			break;
+		} else if (ret < 0) {
+			pr_err("PCI: Can't parse resource_alignment parameter: %s\n",
+			       p);
+			break;
 		}
-		else {
-			if (sscanf(p, "%x:%x:%x.%x%n",
-				&seg, &bus, &slot, &func, &count) != 4) {
-				seg = 0;
-				if (sscanf(p, "%x:%x.%x%n",
-						&bus, &slot, &func, &count) != 3) {
-					/* Invalid format */
-					printk(KERN_ERR "PCI: Can't parse resource_alignment parameter: %s\n",
-						p);
-					break;
-				}
-			}
-			p += count;
-			if (seg == pci_domain_nr(dev->bus) &&
-				bus == dev->bus->number &&
-				slot == PCI_SLOT(dev->devfn) &&
-				func == PCI_FUNC(dev->devfn)) {
-				*resize = true;
-				if (align_order == -1)
-					align = PAGE_SIZE;
-				else
-					align = 1 << align_order;
-				/* Found */
-				break;
-			}
-		}
+
 		if (*p != ';' && *p != ',') {
 			/* End of param or invalid format */
 			break;
