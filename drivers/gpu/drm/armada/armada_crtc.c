@@ -92,8 +92,6 @@ armada_drm_crtc_update_regs(struct armada_crtc *dcrtc, struct armada_regs *regs)
 	}
 }
 
-#define dpms_blanked(dpms)	((dpms) != DRM_MODE_DPMS_ON)
-
 static void armada_drm_crtc_update(struct armada_crtc *dcrtc, bool enable)
 {
 	uint32_t dumb_ctrl;
@@ -221,16 +219,6 @@ armada_drm_crtc_alloc_plane_work(struct drm_plane *plane)
 	return work;
 }
 
-static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
-{
-	/*
-	 * Tell the DRM core that vblank IRQs aren't going to happen for
-	 * a while.  This cleans up any pending vblank events for us.
-	 */
-	drm_crtc_vblank_off(&dcrtc->crtc);
-	armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
-}
-
 static void armada_drm_crtc_queue_state_event(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
@@ -242,71 +230,6 @@ static void armada_drm_crtc_queue_state_event(struct drm_crtc *crtc)
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 		dcrtc->event = event;
 	}
-}
-
-/* The mode_config.mutex will be held for this call */
-static void armada_drm_crtc_dpms(struct drm_crtc *crtc, int dpms)
-{
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-
-	if (dpms_blanked(dcrtc->dpms) != dpms_blanked(dpms)) {
-		if (dpms_blanked(dpms))
-			armada_drm_vblank_off(dcrtc);
-		else if (dcrtc->variant->enable)
-			dcrtc->variant->enable(dcrtc, &crtc->hwmode);
-		dcrtc->dpms = dpms;
-		armada_drm_crtc_update(dcrtc, !dpms_blanked(dcrtc->dpms));
-		if (!dpms_blanked(dpms))
-			drm_crtc_vblank_on(&dcrtc->crtc);
-		else if (dcrtc->variant->disable)
-			dcrtc->variant->disable(dcrtc);
-	} else if (dcrtc->dpms != dpms) {
-		dcrtc->dpms = dpms;
-	}
-}
-
-/*
- * Prepare for a mode set.  Turn off overlay to ensure that we don't end
- * up with the overlay size being bigger than the active screen size.
- * We rely upon X refreshing this state after the mode set has completed.
- *
- * The mode_config.mutex will be held for this call
- */
-static void armada_drm_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct drm_plane *plane;
-
-	/*
-	 * If we have an overlay plane associated with this CRTC, disable it
-	 * before the modeset to avoid its coordinates being outside the new
-	 * mode parameters.  For transitional atomic modeset, we only wait.
-	 */
-	plane = dcrtc->plane;
-	if (plane) {
-		WARN_ON(!armada_drm_plane_work_wait(drm_to_armada_plane(plane),
-						    HZ));
-	}
-
-	/* Wait for pending flips to complete */
-	armada_drm_plane_work_wait(drm_to_armada_plane(dcrtc->crtc.primary),
-				   MAX_SCHEDULE_TIMEOUT);
-
-	drm_crtc_vblank_off(crtc);
-
-	armada_updatel(0, CFG_DUMB_ENA, dcrtc->base + LCD_SPU_DUMB_CTRL);
-}
-
-/* The mode_config.mutex will be held for this call */
-static void armada_drm_crtc_commit(struct drm_crtc *crtc)
-{
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-
-	dcrtc->dpms = DRM_MODE_DPMS_ON;
-	armada_drm_crtc_update(dcrtc, true);
-	drm_crtc_vblank_on(crtc);
-
-	armada_drm_crtc_queue_state_event(crtc);
 }
 
 /* The mode_config.mutex will be held for this call */
@@ -532,15 +455,6 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 }
 
-/* The mode_config.mutex will be held for this call */
-static void armada_drm_crtc_disable(struct drm_crtc *crtc)
-{
-	armada_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-
-	/* Disable our primary plane when we disable the CRTC. */
-	crtc->primary->funcs->disable_plane(crtc->primary, NULL);
-}
-
 static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_crtc_state)
 {
@@ -600,7 +514,6 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 	armada_drm_plane_work_wait(drm_to_armada_plane(dcrtc->crtc.primary),
 				   MAX_SCHEDULE_TIMEOUT);
 
-	dcrtc->dpms = DRM_MODE_DPMS_OFF;
 	drm_crtc_vblank_off(crtc);
 	armada_drm_crtc_update(dcrtc, false);
 
@@ -633,7 +546,6 @@ static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
-	dcrtc->dpms = DRM_MODE_DPMS_ON;
 	if (!old_state->active) {
 		/*
 		 * This modeset is enabling the CRTC after it having
@@ -650,14 +562,8 @@ static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
-	.dpms		= armada_drm_crtc_dpms,
-	.prepare	= armada_drm_crtc_prepare,
-	.commit		= armada_drm_crtc_commit,
 	.mode_fixup	= armada_drm_crtc_mode_fixup,
-	.mode_set	= drm_helper_crtc_mode_set,
 	.mode_set_nofb	= armada_drm_crtc_mode_set_nofb,
-	.mode_set_base	= drm_helper_crtc_mode_set_base,
-	.disable	= armada_drm_crtc_disable,
 	.atomic_begin	= armada_drm_crtc_atomic_begin,
 	.atomic_flush	= armada_drm_crtc_atomic_flush,
 	.atomic_disable	= armada_drm_crtc_atomic_disable,
@@ -962,13 +868,6 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	WARN_ON(armada_drm_plane_work_queue(dcrtc, work));
 	work = NULL;
 
-	/*
-	 * Finally, if the display is blanked, we won't receive an
-	 * interrupt, so complete it now.
-	 */
-	if (dpms_blanked(dcrtc->dpms))
-		armada_drm_plane_work_run(dcrtc, plane);
-
 put_vblank:
 	drm_crtc_vblank_put(crtc);
 put_work:
@@ -1005,7 +904,7 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.cursor_set	= armada_drm_crtc_cursor_set,
 	.cursor_move	= armada_drm_crtc_cursor_move,
 	.destroy	= armada_drm_crtc_destroy,
-	.set_config	= drm_crtc_helper_set_config,
+	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= armada_drm_crtc_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,

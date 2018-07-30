@@ -83,7 +83,6 @@ struct armada_crtc {
 	uint32_t		cursor_w;
 	uint32_t		cursor_h;
 
-	int			dpms;
 	uint32_t		cfg_dumb_ctrl;
 	uint32_t		spu_iopad_ctrl;
 
