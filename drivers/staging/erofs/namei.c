@@ -195,7 +195,7 @@ int erofs_namei(struct inode *dir,
 	kunmap_atomic(data);
 	put_page(page);
 
-	return IS_ERR(de) ? PTR_ERR(de) : 0;
+	return PTR_ERR_OR_ZERO(de);
 }
 
 /* NOTE: i_mutex is already held by vfs */
