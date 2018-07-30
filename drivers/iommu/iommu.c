@@ -1673,8 +1673,8 @@ size_t iommu_unmap_fast(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_unmap_fast);
 
-size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
-			 struct scatterlist *sg, unsigned int nents, int prot)
+size_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+		    struct scatterlist *sg, unsigned int nents, int prot)
 {
 	struct scatterlist *s;
 	size_t mapped = 0;
@@ -1714,7 +1714,7 @@ out_err:
 	return 0;
 
 }
-EXPORT_SYMBOL_GPL(default_iommu_map_sg);
+EXPORT_SYMBOL_GPL(iommu_map_sg);
 
 int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 			       phys_addr_t paddr, u64 size, int prot)

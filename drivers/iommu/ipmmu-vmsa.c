@@ -889,7 +889,6 @@ static const struct iommu_ops ipmmu_ops = {
 	.unmap = ipmmu_unmap,
 	.flush_iotlb_all = ipmmu_iotlb_sync,
 	.iotlb_sync = ipmmu_iotlb_sync,
-	.map_sg = default_iommu_map_sg,
 	.iova_to_phys = ipmmu_iova_to_phys,
 	.add_device = ipmmu_add_device,
 	.remove_device = ipmmu_remove_device,
