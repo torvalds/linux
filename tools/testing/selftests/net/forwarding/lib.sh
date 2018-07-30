@@ -8,6 +8,8 @@
 PING=${PING:=ping}
 PING6=${PING6:=ping6}
 MZ=${MZ:=mausezahn}
+ARPING=${ARPING:=arping}
+TEAMD=${TEAMD:=teamd}
 WAIT_TIME=${WAIT_TIME:=5}
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
@@ -62,15 +64,18 @@ if [[ "$CHECK_TC" = "yes" ]]; then
 	check_tc_version
 fi
 
-if [[ ! -x "$(command -v jq)" ]]; then
-	echo "SKIP: jq not installed"
-	exit 1
-fi
+require_command()
+{
+	local cmd=$1; shift
 
-if [[ ! -x "$(command -v $MZ)" ]]; then
-	echo "SKIP: $MZ not installed"
-	exit 1
-fi
+	if [[ ! -x "$(command -v "$cmd")" ]]; then
+		echo "SKIP: $cmd not installed"
+		exit 1
+	fi
+}
+
+require_command jq
+require_command $MZ
 
 if [[ ! -v NUM_NETIFS ]]; then
 	echo "SKIP: importer does not define \"NUM_NETIFS\""
@@ -420,6 +425,28 @@ vlan_destroy()
 	local name=$if_name.$vid
 
 	ip link del dev $name
+}
+
+team_create()
+{
+	local if_name=$1; shift
+	local mode=$1; shift
+
+	require_command $TEAMD
+	$TEAMD -t $if_name -d -c '{"runner": {"name": "'$mode'"}}'
+	for slave in "$@"; do
+		ip link set dev $slave down
+		ip link set dev $slave master $if_name
+		ip link set dev $slave up
+	done
+	ip link set dev $if_name up
+}
+
+team_destroy()
+{
+	local if_name=$1; shift
+
+	$TEAMD -t $if_name -k
 }
 
 master_name_get()
