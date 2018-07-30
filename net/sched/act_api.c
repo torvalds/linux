@@ -786,6 +786,15 @@ static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
 	return c;
 }
 
+static bool tcf_action_valid(int action)
+{
+	int opcode = TC_ACT_EXT_OPCODE(action);
+
+	if (!opcode)
+		return action <= TC_ACT_VALUE_MAX;
+	return opcode <= TC_ACT_EXT_OPCODE_MAX || action == TC_ACT_UNSPEC;
+}
+
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct nlattr *nla, struct nlattr *est,
 				    char *name, int ovr, int bind,
@@ -893,6 +902,11 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 			NL_SET_ERR_MSG(extack, "Failed to init TC action chain");
 			return ERR_PTR(err);
 		}
+	}
+
+	if (!tcf_action_valid(a->tcfa_action)) {
+		NL_SET_ERR_MSG(extack, "invalid action value, using TC_ACT_UNSPEC instead");
+		a->tcfa_action = TC_ACT_UNSPEC;
 	}
 
 	return a;

@@ -45,6 +45,7 @@ enum {
 				   * the skb and act like everything
 				   * is alright.
 				   */
+#define TC_ACT_VALUE_MAX	TC_ACT_TRAP
 
 /* There is a special kind of actions called "extended actions",
  * which need a value parameter. These have a local opcode located in
@@ -55,11 +56,12 @@ enum {
 #define __TC_ACT_EXT_SHIFT 28
 #define __TC_ACT_EXT(local) ((local) << __TC_ACT_EXT_SHIFT)
 #define TC_ACT_EXT_VAL_MASK ((1 << __TC_ACT_EXT_SHIFT) - 1)
-#define TC_ACT_EXT_CMP(combined, opcode) \
-	(((combined) & (~TC_ACT_EXT_VAL_MASK)) == opcode)
+#define TC_ACT_EXT_OPCODE(combined) ((combined) & (~TC_ACT_EXT_VAL_MASK))
+#define TC_ACT_EXT_CMP(combined, opcode) (TC_ACT_EXT_OPCODE(combined) == opcode)
 
 #define TC_ACT_JUMP __TC_ACT_EXT(1)
 #define TC_ACT_GOTO_CHAIN __TC_ACT_EXT(2)
+#define TC_ACT_EXT_OPCODE_MAX	TC_ACT_GOTO_CHAIN
 
 /* Action type identifiers*/
 enum {
