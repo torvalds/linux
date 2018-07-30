@@ -1130,15 +1130,21 @@ EXPORT_SYMBOL(sock_create_lite);
 static __poll_t sock_poll(struct file *file, poll_table *wait)
 {
 	struct socket *sock = file->private_data;
-	__poll_t events = poll_requested_events(wait);
+	__poll_t events = poll_requested_events(wait), flag = 0;
 
 	if (!sock->ops->poll)
 		return 0;
 
-	/* poll once if requested by the syscall */
-	if (sk_can_busy_loop(sock->sk) && (events & POLL_BUSY_LOOP))
-		sk_busy_loop(sock->sk, 1);
-	return sock->ops->poll(file, sock, wait) | sock_poll_busy_flag(sock);
+	if (sk_can_busy_loop(sock->sk)) {
+		/* poll once if requested by the syscall */
+		if (events & POLL_BUSY_LOOP)
+			sk_busy_loop(sock->sk, 1);
+
+		/* if this socket can poll_ll, tell the system call */
+		flag = POLL_BUSY_LOOP;
+	}
+
+	return sock->ops->poll(file, sock, wait) | flag;
 }
 
 static int sock_mmap(struct file *file, struct vm_area_struct *vma)
