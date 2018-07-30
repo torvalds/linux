@@ -283,6 +283,7 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		xdpi.dma_addr = dma_map_single(sq->pdev, xdpf->data, xdpf->len,
 					       DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(sq->pdev, xdpi.dma_addr))) {
+			xdp_return_frame_rx_napi(xdpf);
 			drops++;
 			continue;
 		}
@@ -290,6 +291,8 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		xdpi.xdpf = xdpf;
 
 		if (unlikely(!mlx5e_xmit_xdp_frame(sq, &xdpi))) {
+			dma_unmap_single(sq->pdev, xdpi.dma_addr,
+					 xdpf->len, DMA_TO_DEVICE);
 			xdp_return_frame_rx_napi(xdpf);
 			drops++;
 		}
