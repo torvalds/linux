@@ -783,7 +783,7 @@
 				};
 			};
 
-			cooling-maps {
+			cooling_maps: cooling-maps {
 				map0 {
 					trip = <&cpu_alert0>;
 					cooling-device =
