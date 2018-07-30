@@ -611,7 +611,7 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
-	if (!priv)
+	if (!drvdata)
 		return -ENOMEM;
 
 	priv->dev = &pdev->dev;
