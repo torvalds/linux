@@ -2057,16 +2057,16 @@ static inline bool skwq_has_sleeper(struct socket_wq *wq)
 /**
  * sock_poll_wait - place memory barrier behind the poll_wait call.
  * @filp:           file
- * @wait_address:   socket wait queue
  * @p:              poll_table
  *
  * See the comments in the wq_has_sleeper function.
  */
-static inline void sock_poll_wait(struct file *filp,
-		wait_queue_head_t *wait_address, poll_table *p)
+static inline void sock_poll_wait(struct file *filp, poll_table *p)
 {
-	if (!poll_does_not_wait(p) && wait_address) {
-		poll_wait(filp, wait_address, p);
+	struct socket *sock = filp->private_data;
+
+	if (!poll_does_not_wait(p)) {
+		poll_wait(filp, &sock->wq->wait, p);
 		/* We need to be sure we are in sync with the
 		 * socket flags modification.
 		 *

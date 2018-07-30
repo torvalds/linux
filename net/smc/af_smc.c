@@ -1535,7 +1535,7 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 			mask |= EPOLLERR;
 	} else {
 		if (sk->sk_state != SMC_CLOSED)
-			sock_poll_wait(file, sk_sleep(sk), wait);
+			sock_poll_wait(file, wait);
 		if (sk->sk_err)
 			mask |= EPOLLERR;
 		if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
