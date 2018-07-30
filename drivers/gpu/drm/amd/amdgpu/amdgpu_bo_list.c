@@ -43,12 +43,12 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 
 static void amdgpu_bo_list_release_rcu(struct kref *ref)
 {
-	unsigned i;
 	struct amdgpu_bo_list *list = container_of(ref, struct amdgpu_bo_list,
 						   refcount);
+	struct amdgpu_bo_list_entry *e;
 
-	for (i = 0; i < list->num_entries; ++i)
-		amdgpu_bo_unref(&list->array[i].robj);
+	amdgpu_bo_list_for_each_entry(e, list)
+		amdgpu_bo_unref(&e->robj);
 
 	kvfree(list->array);
 	kfree_rcu(list, rhead);
@@ -103,6 +103,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	struct amdgpu_bo *oa_obj = adev->gds.oa_gfx_bo;
 
 	unsigned last_entry = 0, first_userptr = num_entries;
+	struct amdgpu_bo_list_entry *e;
 	uint64_t total_size = 0;
 	unsigned i;
 	int r;
@@ -156,7 +157,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 		trace_amdgpu_bo_list_set(list, entry->robj);
 	}
 
-	for (i = 0; i < list->num_entries; ++i)
+	amdgpu_bo_list_for_each_entry(e, list)
 		amdgpu_bo_unref(&list->array[i].robj);
 
 	kvfree(list->array);
@@ -201,6 +202,7 @@ void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
 	 * concatenated in descending order.
 	 */
 	struct list_head bucket[AMDGPU_BO_LIST_NUM_BUCKETS];
+	struct amdgpu_bo_list_entry *e;
 	unsigned i;
 
 	for (i = 0; i < AMDGPU_BO_LIST_NUM_BUCKETS; i++)
@@ -211,14 +213,13 @@ void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
 	 * in the list, the sort mustn't change the ordering of buffers
 	 * with the same priority, i.e. it must be stable.
 	 */
-	for (i = 0; i < list->num_entries; i++) {
-		unsigned priority = list->array[i].priority;
+	amdgpu_bo_list_for_each_entry(e, list) {
+		unsigned priority = e->priority;
 
-		if (!list->array[i].robj->parent)
-			list_add_tail(&list->array[i].tv.head,
-				      &bucket[priority]);
+		if (!e->robj->parent)
+			list_add_tail(&e->tv.head, &bucket[priority]);
 
-		list->array[i].user_pages = NULL;
+		e->user_pages = NULL;
 	}
 
 	/* Connect the sorted buckets in the output list. */

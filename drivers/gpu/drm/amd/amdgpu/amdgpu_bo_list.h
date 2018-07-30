@@ -65,4 +65,14 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev,
 				 unsigned num_entries,
 				 struct amdgpu_bo_list **list);
 
+#define amdgpu_bo_list_for_each_entry(e, list) \
+	for (e = &(list)->array[0]; \
+	     e != &(list)->array[(list)->num_entries]; \
+	     ++e)
+
+#define amdgpu_bo_list_for_each_userptr_entry(e, list) \
+	for (e = &(list)->array[(list)->first_userptr]; \
+	     e != &(list)->array[(list)->num_entries]; \
+	     ++e)
+
 #endif
