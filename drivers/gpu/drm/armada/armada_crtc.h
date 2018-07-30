@@ -35,28 +35,11 @@ struct armada_crtc;
 struct armada_plane;
 struct armada_variant;
 
-struct armada_plane_work {
-	void (*fn)(struct armada_crtc *, struct armada_plane_work *);
-	void (*cancel)(struct armada_crtc *, struct armada_plane_work *);
-	bool need_kfree;
-	struct drm_plane *plane;
-	struct drm_framebuffer *old_fb;
-	struct drm_pending_vblank_event *event;
-	struct armada_regs regs[24];
-};
-
 struct armada_plane {
 	struct drm_plane	base;
 	wait_queue_head_t	frame_wait;
-	struct armada_plane_work *work;
 };
 #define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
-
-int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
-	struct armada_plane_work *work);
-int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout);
-void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
-	struct armada_plane *plane);
 
 struct armada_crtc {
 	struct drm_crtc		crtc;
@@ -72,8 +55,6 @@ struct armada_crtc {
 	} v[2];
 	bool			interlaced;
 	bool			cursor_update;
-
-	struct drm_plane	*plane;
 
 	struct armada_gem_object	*cursor_obj;
 	int			cursor_x;

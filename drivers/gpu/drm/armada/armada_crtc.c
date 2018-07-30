@@ -117,80 +117,6 @@ static void armada_drm_crtc_update(struct armada_crtc *dcrtc, bool enable)
 		       dcrtc->base + LCD_SPU_DUMB_CTRL);
 }
 
-static void armada_drm_plane_work_call(struct armada_crtc *dcrtc,
-	struct armada_plane_work *work,
-	void (*fn)(struct armada_crtc *, struct armada_plane_work *))
-{
-	struct armada_plane *dplane = drm_to_armada_plane(work->plane);
-	struct drm_pending_vblank_event *event;
-	struct drm_framebuffer *fb;
-
-	if (fn)
-		fn(dcrtc, work);
-	drm_crtc_vblank_put(&dcrtc->crtc);
-
-	event = work->event;
-	fb = work->old_fb;
-	if (event || fb) {
-		struct drm_device *dev = dcrtc->crtc.dev;
-		unsigned long flags;
-
-		spin_lock_irqsave(&dev->event_lock, flags);
-		if (event)
-			drm_crtc_send_vblank_event(&dcrtc->crtc, event);
-		if (fb)
-			__armada_drm_queue_unref_work(dev, fb);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	}
-
-	if (work->need_kfree)
-		kfree(work);
-
-	wake_up(&dplane->frame_wait);
-}
-
-static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
-	struct drm_plane *plane)
-{
-	struct armada_plane *dplane = drm_to_armada_plane(plane);
-	struct armada_plane_work *work = xchg(&dplane->work, NULL);
-
-	/* Handle any pending frame work. */
-	if (work)
-		armada_drm_plane_work_call(dcrtc, work, work->fn);
-}
-
-int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
-	struct armada_plane_work *work)
-{
-	struct armada_plane *plane = drm_to_armada_plane(work->plane);
-	int ret;
-
-	ret = drm_crtc_vblank_get(&dcrtc->crtc);
-	if (ret)
-		return ret;
-
-	ret = cmpxchg(&plane->work, NULL, work) ? -EBUSY : 0;
-	if (ret)
-		drm_crtc_vblank_put(&dcrtc->crtc);
-
-	return ret;
-}
-
-int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout)
-{
-	return wait_event_timeout(plane->frame_wait, !plane->work, timeout);
-}
-
-void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
-	struct armada_plane *dplane)
-{
-	struct armada_plane_work *work = xchg(&dplane->work, NULL);
-
-	if (work)
-		armada_drm_plane_work_call(dcrtc, work, work->cancel);
-}
-
 static void armada_drm_crtc_queue_state_event(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
@@ -247,7 +173,6 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 {
 	struct drm_pending_vblank_event *event;
 	void __iomem *base = dcrtc->base;
-	struct drm_plane *ovl_plane;
 
 	if (stat & DMA_FF_UNDERFLOW)
 		DRM_ERROR("video underflow on crtc %u\n", dcrtc->num);
@@ -256,10 +181,6 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 
 	if (stat & VSYNC_IRQ)
 		drm_crtc_handle_vblank(&dcrtc->crtc);
-
-	ovl_plane = dcrtc->plane;
-	if (ovl_plane)
-		armada_drm_plane_work_run(dcrtc, ovl_plane);
 
 	spin_lock(&dcrtc->irq_lock);
 	if (stat & GRA_FRAME_IRQ && dcrtc->interlaced) {
@@ -462,18 +383,8 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct drm_pending_vblank_event *event;
-	struct drm_plane *plane;
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
-
-	/*
-	 * For transition only - we must wait for completion of our
-	 * untransitioned paths before changing anything.
-	 */
-	plane = dcrtc->plane;
-	if (plane)
-		WARN_ON(!armada_drm_plane_work_wait(drm_to_armada_plane(plane),
-						    HZ));
 
 	drm_crtc_vblank_off(crtc);
 	armada_drm_crtc_update(dcrtc, false);
