@@ -46,6 +46,7 @@ struct ghash_desc_ctx {
 
 struct gcm_aes_ctx {
 	struct crypto_aes_ctx	aes_key;
+	u64			h2[2];
 	struct ghash_key	ghash_key;
 };
 
@@ -62,12 +63,11 @@ static void (*pmull_ghash_update)(int blocks, u64 dg[], const char *src,
 				  const char *head);
 
 asmlinkage void pmull_gcm_encrypt(int blocks, u64 dg[], u8 dst[],
-				  const u8 src[], struct ghash_key const *k,
-				  u8 ctr[], u32 const rk[], int rounds,
-				  u8 ks[]);
+				  const u8 src[], u64 const *k, u8 ctr[],
+				  u32 const rk[], int rounds, u8 ks[]);
 
 asmlinkage void pmull_gcm_decrypt(int blocks, u64 dg[], u8 dst[],
-				  const u8 src[], struct ghash_key const *k,
+				  const u8 src[], u64 const *k,
 				  u8 ctr[], u32 const rk[], int rounds);
 
 asmlinkage void pmull_gcm_encrypt_block(u8 dst[], u8 const src[],
@@ -232,7 +232,8 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 		      unsigned int keylen)
 {
 	struct gcm_aes_ctx *ctx = crypto_aead_ctx(tfm);
-	u8 key[GHASH_BLOCK_SIZE];
+	be128 h1, h2;
+	u8 *key = (u8 *)&h1;
 	int ret;
 
 	ret = crypto_aes_expand_key(&ctx->aes_key, inkey, keylen);
@@ -244,7 +245,19 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 	__aes_arm64_encrypt(ctx->aes_key.key_enc, key, (u8[AES_BLOCK_SIZE]){},
 			    num_rounds(&ctx->aes_key));
 
-	return __ghash_setkey(&ctx->ghash_key, key, sizeof(key));
+	__ghash_setkey(&ctx->ghash_key, key, sizeof(be128));
+
+	/* calculate H^2 (used for 2-way aggregation) */
+	h2 = h1;
+	gf128mul_lle(&h2, &h1);
+
+	ctx->h2[0] = (be64_to_cpu(h2.b) << 1) | (be64_to_cpu(h2.a) >> 63);
+	ctx->h2[1] = (be64_to_cpu(h2.a) << 1) | (be64_to_cpu(h2.b) >> 63);
+
+	if (be64_to_cpu(h2.a) >> 63)
+		ctx->h2[1] ^= 0xc200000000000000UL;
+
+	return 0;
 }
 
 static int gcm_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
@@ -378,9 +391,8 @@ static int gcm_encrypt(struct aead_request *req)
 
 			kernel_neon_begin();
 			pmull_gcm_encrypt(blocks, dg, walk.dst.virt.addr,
-					  walk.src.virt.addr, &ctx->ghash_key,
-					  iv, ctx->aes_key.key_enc, nrounds,
-					  ks);
+					  walk.src.virt.addr, ctx->h2, iv,
+					  ctx->aes_key.key_enc, nrounds, ks);
 			kernel_neon_end();
 
 			err = skcipher_walk_done(&walk,
@@ -486,8 +498,8 @@ static int gcm_decrypt(struct aead_request *req)
 
 			kernel_neon_begin();
 			pmull_gcm_decrypt(blocks, dg, walk.dst.virt.addr,
-					  walk.src.virt.addr, &ctx->ghash_key,
-					  iv, ctx->aes_key.key_enc, nrounds);
+					  walk.src.virt.addr, ctx->h2, iv,
+					  ctx->aes_key.key_enc, nrounds);
 			kernel_neon_end();
 
 			err = skcipher_walk_done(&walk,

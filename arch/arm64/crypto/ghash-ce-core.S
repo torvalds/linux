@@ -290,6 +290,10 @@ ENDPROC(pmull_ghash_update_p8)
 	KS1		.req	v9
 	INP0		.req	v10
 	INP1		.req	v11
+	HH		.req	v12
+	XL2		.req	v13
+	XM2		.req	v14
+	XH2		.req	v15
 
 	.macro		load_round_keys, rounds, rk
 	cmp		\rounds, #12
@@ -323,6 +327,7 @@ ENDPROC(pmull_ghash_update_p8)
 	.endm
 
 	.macro		pmull_gcm_do_crypt, enc
+	ld1		{HH.2d}, [x4], #16
 	ld1		{SHASH.2d}, [x4]
 	ld1		{XL.2d}, [x1]
 	ldr		x8, [x5, #8]			// load lower counter
@@ -330,10 +335,11 @@ ENDPROC(pmull_ghash_update_p8)
 	load_round_keys	w7, x6
 
 	movi		MASK.16b, #0xe1
-	ext		SHASH2.16b, SHASH.16b, SHASH.16b, #8
+	trn1		SHASH2.2d, SHASH.2d, HH.2d
+	trn2		T1.2d, SHASH.2d, HH.2d
 CPU_LE(	rev		x8, x8		)
 	shl		MASK.2d, MASK.2d, #57
-	eor		SHASH2.16b, SHASH2.16b, SHASH.16b
+	eor		SHASH2.16b, SHASH2.16b, T1.16b
 
 	.if		\enc == 1
 	ldr		x10, [sp]
@@ -358,116 +364,82 @@ CPU_LE(	rev		x8, x8		)
 	ins		KS0.d[1], x9			// set lower counter
 	ins		KS1.d[1], x11
 
-	rev64		T1.16b, INP0.16b
+	rev64		T1.16b, INP1.16b
 
 	cmp		w7, #12
 	b.ge		2f				// AES-192/256?
 
 1:	enc_round	KS0, v21
-
-	ext		T2.16b, XL.16b, XL.16b, #8
 	ext		IN1.16b, T1.16b, T1.16b, #8
 
 	enc_round	KS1, v21
-
-	eor		T1.16b, T1.16b, T2.16b
-	eor		XL.16b, XL.16b, IN1.16b
+	pmull2		XH2.1q, SHASH.2d, IN1.2d	// a1 * b1
 
 	enc_round	KS0, v22
-
-	pmull2		XH.1q, SHASH.2d, XL.2d		// a1 * b1
-	eor		T1.16b, T1.16b, XL.16b
+	eor		T1.16b, T1.16b, IN1.16b
 
 	enc_round	KS1, v22
-
-	pmull		XL.1q, SHASH.1d, XL.1d		// a0 * b0
-	pmull		XM.1q, SHASH2.1d, T1.1d		// (a1 + a0)(b1 + b0)
+	pmull		XL2.1q, SHASH.1d, IN1.1d	// a0 * b0
 
 	enc_round	KS0, v23
-
-	ext		T1.16b, XL.16b, XH.16b, #8
-	eor		T2.16b, XL.16b, XH.16b
-	eor		XM.16b, XM.16b, T1.16b
+	pmull		XM2.1q, SHASH2.1d, T1.1d	// (a1 + a0)(b1 + b0)
 
 	enc_round	KS1, v23
-
-	eor		XM.16b, XM.16b, T2.16b
-	pmull		T2.1q, XL.1d, MASK.1d
+	rev64		T1.16b, INP0.16b
+	ext		T2.16b, XL.16b, XL.16b, #8
 
 	enc_round	KS0, v24
-
-	mov		XH.d[0], XM.d[1]
-	mov		XM.d[1], XL.d[0]
+	ext		IN1.16b, T1.16b, T1.16b, #8
+	eor		T1.16b, T1.16b, T2.16b
 
 	enc_round	KS1, v24
-
-	eor		XL.16b, XM.16b, T2.16b
-
-	enc_round	KS0, v25
-
-	ext		T2.16b, XL.16b, XL.16b, #8
-
-	enc_round	KS1, v25
-
-	pmull		XL.1q, XL.1d, MASK.1d
-	eor		T2.16b, T2.16b, XH.16b
-
-	enc_round	KS0, v26
-
-	eor		XL.16b, XL.16b, T2.16b
-	rev64		T1.16b, INP1.16b
-
-	enc_round	KS1, v26
-
-	ext		T2.16b, XL.16b, XL.16b, #8
-	ext		IN1.16b, T1.16b, T1.16b, #8
-
-	enc_round	KS0, v27
-
-	eor		T1.16b, T1.16b, T2.16b
 	eor		XL.16b, XL.16b, IN1.16b
 
-	enc_round	KS1, v27
-
-	pmull2		XH.1q, SHASH.2d, XL.2d		// a1 * b1
+	enc_round	KS0, v25
 	eor		T1.16b, T1.16b, XL.16b
 
-	enc_round	KS0, v28
+	enc_round	KS1, v25
+	pmull2		XH.1q, HH.2d, XL.2d		// a1 * b1
 
-	pmull		XL.1q, SHASH.1d, XL.1d		// a0 * b0
-	pmull		XM.1q, SHASH2.1d, T1.1d		// (a1 + a0)(b1 + b0)
+	enc_round	KS0, v26
+	pmull		XL.1q, HH.1d, XL.1d		// a0 * b0
 
-	enc_round	KS1, v28
+	enc_round	KS1, v26
+	pmull2		XM.1q, SHASH2.2d, T1.2d		// (a1 + a0)(b1 + b0)
 
+	enc_round	KS0, v27
+	eor		XL.16b, XL.16b, XL2.16b
+	eor		XH.16b, XH.16b, XH2.16b
+
+	enc_round	KS1, v27
+	eor		XM.16b, XM.16b, XM2.16b
 	ext		T1.16b, XL.16b, XH.16b, #8
+
+	enc_round	KS0, v28
 	eor		T2.16b, XL.16b, XH.16b
 	eor		XM.16b, XM.16b, T1.16b
 
-	enc_round	KS0, v29
-
+	enc_round	KS1, v28
 	eor		XM.16b, XM.16b, T2.16b
+
+	enc_round	KS0, v29
 	pmull		T2.1q, XL.1d, MASK.1d
 
 	enc_round	KS1, v29
-
 	mov		XH.d[0], XM.d[1]
 	mov		XM.d[1], XL.d[0]
 
 	aese		KS0.16b, v30.16b
-
 	eor		XL.16b, XM.16b, T2.16b
 
 	aese		KS1.16b, v30.16b
-
 	ext		T2.16b, XL.16b, XL.16b, #8
 
 	eor		KS0.16b, KS0.16b, v31.16b
-
 	pmull		XL.1q, XL.1d, MASK.1d
 	eor		T2.16b, T2.16b, XH.16b
 
 	eor		KS1.16b, KS1.16b, v31.16b
-
 	eor		XL.16b, XL.16b, T2.16b
 
 	.if		\enc == 0
