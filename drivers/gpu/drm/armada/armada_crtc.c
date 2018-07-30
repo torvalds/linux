@@ -426,16 +426,15 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	bm = adj->crtc_vsync_start - adj->crtc_vdisplay;
 	tm = adj->crtc_vtotal - adj->crtc_vsync_end;
 
-	DRM_DEBUG_DRIVER("H: %d %d %d %d lm %d rm %d\n",
-		adj->crtc_hdisplay,
-		adj->crtc_hsync_start,
-		adj->crtc_hsync_end,
-		adj->crtc_htotal, lm, rm);
-	DRM_DEBUG_DRIVER("V: %d %d %d %d tm %d bm %d\n",
-		adj->crtc_vdisplay,
-		adj->crtc_vsync_start,
-		adj->crtc_vsync_end,
-		adj->crtc_vtotal, tm, bm);
+	DRM_DEBUG_KMS("[CRTC:%d:%s] mode " DRM_MODE_FMT "\n",
+		      crtc->base.id, crtc->name,
+		      adj->base.id, adj->name, adj->vrefresh, adj->clock,
+		      adj->crtc_hdisplay, adj->crtc_hsync_start,
+		      adj->crtc_hsync_end, adj->crtc_htotal,
+		      adj->crtc_vdisplay, adj->crtc_vsync_start,
+		      adj->crtc_vsync_end, adj->crtc_vtotal,
+		      adj->type, adj->flags);
+	DRM_DEBUG_KMS("lm %d rm %d tm %d bm %d\n", lm, rm, tm, bm);
 
 	/*
 	 * If we are blanked, we would have disabled the clock.  Re-enable
