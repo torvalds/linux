@@ -50,7 +50,6 @@ static void amdgpu_bo_list_release_rcu(struct kref *ref)
 	for (i = 0; i < list->num_entries; ++i)
 		amdgpu_bo_unref(&list->array[i].robj);
 
-	mutex_destroy(&list->lock);
 	kvfree(list->array);
 	kfree_rcu(list, rhead);
 }
@@ -70,7 +69,6 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev,
 		return -ENOMEM;
 
 	/* initialize bo list*/
-	mutex_init(&list->lock);
 	kref_init(&list->refcount);
 	r = amdgpu_bo_list_set(adev, filp, list, info, num_entries);
 	if (r) {
@@ -188,7 +186,6 @@ int amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id,
 
 	if (*result && kref_get_unless_zero(&(*result)->refcount)) {
 		rcu_read_unlock();
-		mutex_lock(&(*result)->lock);
 		return 0;
 	}
 
@@ -231,7 +228,6 @@ void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
 
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list)
 {
-	mutex_unlock(&list->lock);
 	kref_put(&list->refcount, amdgpu_bo_list_release_rcu);
 }
 
@@ -242,7 +238,6 @@ void amdgpu_bo_list_free(struct amdgpu_bo_list *list)
 	for (i = 0; i < list->num_entries; ++i)
 		amdgpu_bo_unref(&list->array[i].robj);
 
-	mutex_destroy(&list->lock);
 	kvfree(list->array);
 	kfree(list);
 }
@@ -297,7 +292,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 	union drm_amdgpu_bo_list *args = data;
 	uint32_t handle = args->in.list_handle;
 	struct drm_amdgpu_bo_list_entry *info = NULL;
-	struct amdgpu_bo_list *list;
+	struct amdgpu_bo_list *list, *old;
 	int r;
 
 	r = amdgpu_bo_create_list_entry_array(&args->in, &info);
@@ -328,16 +323,22 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 		break;
 
 	case AMDGPU_BO_LIST_OP_UPDATE:
-		r = amdgpu_bo_list_get(fpriv, handle, &list);
+		r = amdgpu_bo_list_create(adev, filp, info, args->in.bo_number,
+					  &list);
 		if (r)
 			goto error_free;
 
-		r = amdgpu_bo_list_set(adev, filp, list, info,
-					      args->in.bo_number);
-		amdgpu_bo_list_put(list);
-		if (r)
-			goto error_free;
+		mutex_lock(&fpriv->bo_list_lock);
+		old = idr_replace(&fpriv->bo_list_handles, list, handle);
+		mutex_unlock(&fpriv->bo_list_lock);
 
+		if (IS_ERR(old)) {
+			amdgpu_bo_list_put(list);
+			r = PTR_ERR(old);
+			goto error_free;
+		}
+
+		amdgpu_bo_list_put(old);
 		break;
 
 	default:

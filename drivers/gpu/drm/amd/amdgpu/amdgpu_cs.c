@@ -580,9 +580,6 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 				       &p->bo_list);
 		if (r)
 			return r;
-
-	} else if (p->bo_list) {
-		mutex_lock(&p->bo_list->lock);
 	}
 
 	if (p->bo_list) {

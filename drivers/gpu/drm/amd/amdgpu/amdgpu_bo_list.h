@@ -41,7 +41,6 @@ struct amdgpu_bo_list_entry {
 };
 
 struct amdgpu_bo_list {
-	struct mutex lock;
 	struct rcu_head rhead;
 	struct kref refcount;
 	struct amdgpu_bo *gds_obj;
