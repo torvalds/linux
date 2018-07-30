@@ -94,6 +94,11 @@
 		gpio = <&pio 3 7 GPIO_ACTIVE_HIGH>; /* PD7 */
 		status = "okay";
 	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 */
+	};
 };
 
 &ehci0 {
@@ -127,6 +132,17 @@
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>; /* PF6 */
 	disable-wp;
 	bus-width = <4>;
+	status = "okay";
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&reg_dldo2>;
+	vqmmc-supply = <&reg_dldo4>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
 	status = "okay";
 };
 
