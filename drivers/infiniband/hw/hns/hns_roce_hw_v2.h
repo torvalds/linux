@@ -451,8 +451,8 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_24_TC_S 8
 #define V2_QPC_BYTE_24_TC_M GENMASK(15, 8)
 
-#define	V2_QPC_BYTE_24_VLAN_IDX_S 16
-#define V2_QPC_BYTE_24_VLAN_IDX_M GENMASK(27, 16)
+#define	V2_QPC_BYTE_24_VLAN_ID_S 16
+#define V2_QPC_BYTE_24_VLAN_ID_M GENMASK(27, 16)
 
 #define	V2_QPC_BYTE_24_MTU_S 28
 #define V2_QPC_BYTE_24_MTU_M GENMASK(31, 28)
