@@ -90,7 +90,7 @@ static int mrst_read_time(struct device *dev, struct rtc_time *time)
 	unsigned long flags;
 
 	if (vrtc_is_updating())
-		mdelay(20);
+		msleep(20);
 
 	spin_lock_irqsave(&rtc_lock, flags);
 	time->tm_sec = vrtc_cmos_read(RTC_SECONDS);
