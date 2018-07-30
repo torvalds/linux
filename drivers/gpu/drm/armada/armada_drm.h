@@ -55,8 +55,6 @@ extern const struct armada_variant armada510_ops;
 
 struct armada_private {
 	struct drm_device	drm;
-	struct work_struct	fb_unref_work;
-	DECLARE_KFIFO(fb_unref, struct drm_framebuffer *, 8);
 	struct drm_fb_helper	*fbdev;
 	struct armada_crtc	*dcrtc[2];
 	struct drm_mm		linear; /* protected by linear_lock */
@@ -74,11 +72,6 @@ struct armada_private {
 	struct dentry		*de;
 #endif
 };
-
-void __armada_drm_queue_unref_work(struct drm_device *,
-	struct drm_framebuffer *);
-void armada_drm_queue_unref_work(struct drm_device *,
-	struct drm_framebuffer *);
 
 int armada_fbdev_init(struct drm_device *);
 void armada_fbdev_fini(struct drm_device *);

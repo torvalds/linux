@@ -21,36 +21,6 @@
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
 
-static void armada_drm_unref_work(struct work_struct *work)
-{
-	struct armada_private *priv =
-		container_of(work, struct armada_private, fb_unref_work);
-	struct drm_framebuffer *fb;
-
-	while (kfifo_get(&priv->fb_unref, &fb))
-		drm_framebuffer_put(fb);
-}
-
-/* Must be called with dev->event_lock held */
-void __armada_drm_queue_unref_work(struct drm_device *dev,
-	struct drm_framebuffer *fb)
-{
-	struct armada_private *priv = dev->dev_private;
-
-	WARN_ON(!kfifo_put(&priv->fb_unref, fb));
-	schedule_work(&priv->fb_unref_work);
-}
-
-void armada_drm_queue_unref_work(struct drm_device *dev,
-	struct drm_framebuffer *fb)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	__armada_drm_queue_unref_work(dev, fb);
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
 static struct drm_ioctl_desc armada_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_CREATE, armada_gem_create_ioctl,0),
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_MMAP, armada_gem_mmap_ioctl, 0),
@@ -134,9 +104,6 @@ static int armada_drm_bind(struct device *dev)
 
 	dev_set_drvdata(dev, &priv->drm);
 
-	INIT_WORK(&priv->fb_unref_work, armada_drm_unref_work);
-	INIT_KFIFO(priv->fb_unref);
-
 	/* Mode setting support */
 	drm_mode_config_init(&priv->drm);
 	priv->drm.mode_config.min_width = 320;
@@ -190,7 +157,6 @@ static int armada_drm_bind(struct device *dev)
  err_kms:
 	drm_mode_config_cleanup(&priv->drm);
 	drm_mm_takedown(&priv->linear);
-	flush_work(&priv->fb_unref_work);
 	drm_dev_put(&priv->drm);
 	return ret;
 }
@@ -209,7 +175,6 @@ static void armada_drm_unbind(struct device *dev)
 
 	drm_mode_config_cleanup(&priv->drm);
 	drm_mm_takedown(&priv->linear);
-	flush_work(&priv->fb_unref_work);
 
 	drm_dev_put(&priv->drm);
 }
