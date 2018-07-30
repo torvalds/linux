@@ -1615,7 +1615,6 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 	kvmgt_protect_table_init(info);
 	gvt_cache_init(vgpu);
 
-	mutex_init(&vgpu->dmabuf_lock);
 	init_completion(&vgpu->vblank_done);
 
 	info->track_node.track_write = kvmgt_page_track_write;
