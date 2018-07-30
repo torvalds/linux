@@ -68,6 +68,10 @@
 #include <sdiovar.h>
 #include <dhd_config.h>
 
+#include <linux/mmc/sdio_func.h>
+#include <linux/mmc/host.h>
+#include "bcmsdh_sdmmc.h"
+
 #ifdef PROP_TXSTATUS
 #include <dhd_wlfc.h>
 #endif
@@ -1044,8 +1048,18 @@ dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
 
 	wr_val |= (on << SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT);
 
-	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, wr_val, &err);
+	{
+		struct mmc_host *host;
+		struct sdioh_info *sd = (struct sdioh_info *)(bus->sdh->sdioh);
+		struct sdio_func *func = sd->func[SDIO_FUNC_0];
 
+		host = func->card->host;
+
+		mmc_retune_disable(host);
+		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR,
+				 wr_val, &err);
+		mmc_retune_enable(host);
+	}
 
 	/* In case of 43012 chip, the chip could go down immediately after KSO bit is cleared.
 	 * So the further reads of KSO register could fail. Thereby just bailing out immediately
