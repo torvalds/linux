@@ -6107,13 +6107,13 @@ static void ath10k_sta_rc_update_wk(struct work_struct *wk)
 
 		mode = chan_to_phymode(&def);
 		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac update sta %pM peer bw %d phymode %d\n",
-				sta->addr, bw, mode);
+			   sta->addr, bw, mode);
 
 		err = ath10k_wmi_peer_set_param(ar, arvif->vdev_id, sta->addr,
-				WMI_PEER_PHYMODE, mode);
+						WMI_PEER_PHYMODE, mode);
 		if (err) {
 			ath10k_warn(ar, "failed to update STA %pM peer phymode %d: %d\n",
-					sta->addr, mode, err);
+				    sta->addr, mode, err);
 			goto exit;
 		}
 
