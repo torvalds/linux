@@ -118,8 +118,13 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	DBG("");
 	msm_dsi = dsi_init(pdev);
-	if (IS_ERR(msm_dsi))
-		return PTR_ERR(msm_dsi);
+	if (IS_ERR(msm_dsi)) {
+		/* Don't fail the bind if the dsi port is not connected */
+		if (PTR_ERR(msm_dsi) == -ENODEV)
+			return 0;
+		else
+			return PTR_ERR(msm_dsi);
+	}
 
 	priv->dsi[msm_dsi->id] = msm_dsi;
 
