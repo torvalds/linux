@@ -11,6 +11,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_helper.h>
@@ -939,53 +940,81 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
  * and a mode_set.
  */
 static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
-	struct drm_framebuffer *fb, struct drm_pending_vblank_event *event, uint32_t page_flip_flags,
-	struct drm_modeset_acquire_ctx *ctx)
+	struct drm_framebuffer *fb, struct drm_pending_vblank_event *event,
+	uint32_t page_flip_flags, struct drm_modeset_acquire_ctx *ctx)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	struct drm_plane *plane = crtc->primary;
+	const struct drm_plane_helper_funcs *plane_funcs;
+	struct drm_plane_state *state;
 	struct armada_plane_work *work;
-	unsigned i;
 	int ret;
 
-	work = armada_drm_crtc_alloc_plane_work(dcrtc->crtc.primary);
-	if (!work)
+	/* Construct new state for the primary plane */
+	state = drm_atomic_helper_plane_duplicate_state(plane);
+	if (!state)
 		return -ENOMEM;
 
-	work->event = event;
-	work->old_fb = dcrtc->crtc.primary->fb;
+	drm_atomic_set_fb_for_plane(state, fb);
 
-	i = armada_drm_crtc_calc_fb(fb, crtc->x, crtc->y, work->regs,
-				    dcrtc->interlaced);
-	armada_reg_queue_end(work->regs, i);
-
-	/*
-	 * Ensure that we hold a reference on the new framebuffer.
-	 * This has to match the behaviour in mode_set.
-	 */
-	drm_framebuffer_get(fb);
-
-	ret = armada_drm_plane_work_queue(dcrtc, work);
-	if (ret) {
-		/* Undo our reference above */
-		drm_framebuffer_put(fb);
-		kfree(work);
-		return ret;
+	work = armada_drm_crtc_alloc_plane_work(plane);
+	if (!work) {
+		ret = -ENOMEM;
+		goto put_state;
 	}
 
+	/* Make sure we can get vblank interrupts */
+	ret = drm_crtc_vblank_get(crtc);
+	if (ret)
+		goto put_work;
+
 	/*
-	 * We are in transition to atomic modeset: update the atomic modeset
-	 * state with the new framebuffer to keep the state consistent.
+	 * If we have another work pending, we can't process this flip.
+	 * The modeset locks protect us from another user queuing a work
+	 * while we're setting up.
 	 */
-	drm_framebuffer_assign(&dcrtc->crtc.primary->state->fb, fb);
+	if (drm_to_armada_plane(plane)->work) {
+		ret = -EBUSY;
+		goto put_vblank;
+	}
+
+	work->event = event;
+	work->old_fb = plane->state->fb;
+
+	/*
+	 * Hold a ref on the new fb while it's being displayed by the
+	 * hardware. The old fb refcount will be released in the worker.
+	 */
+	drm_framebuffer_get(state->fb);
+
+	/* Point of no return */
+	swap(plane->state, state);
+
+	dcrtc->regs_idx = 0;
+	dcrtc->regs = work->regs;
+
+	plane_funcs = plane->helper_private;
+	plane_funcs->atomic_update(plane, state);
+	armada_reg_queue_end(dcrtc->regs, dcrtc->regs_idx);
+
+	/* Queue the work - this should never fail */
+	WARN_ON(armada_drm_plane_work_queue(dcrtc, work));
+	work = NULL;
 
 	/*
 	 * Finally, if the display is blanked, we won't receive an
 	 * interrupt, so complete it now.
 	 */
 	if (dpms_blanked(dcrtc->dpms))
-		armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
+		armada_drm_plane_work_run(dcrtc, plane);
 
-	return 0;
+put_vblank:
+	drm_crtc_vblank_put(crtc);
+put_work:
+	kfree(work);
+put_state:
+	drm_atomic_helper_plane_destroy_state(plane, state);
+	return ret;
 }
 
 static int
