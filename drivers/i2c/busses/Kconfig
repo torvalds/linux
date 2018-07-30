@@ -825,6 +825,19 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config I2C_QCOM_GENI
+	tristate "Qualcomm Technologies Inc.'s GENI based I2C controller"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on QCOM_GENI_SE
+	help
+	  This driver supports GENI serial engine based I2C controller in
+	  master mode on the Qualcomm Technologies Inc.'s SoCs. If you say
+	  yes to this option, support will be included for the built-in I2C
+	  interface on the Qualcomm Technologies Inc.'s SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-qcom-geni.
+
 config I2C_QUP
 	tristate "Qualcomm QUP based I2C controller"
 	depends on ARCH_QCOM
