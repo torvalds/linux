@@ -463,17 +463,15 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 				    adj->crtc_htotal;
 	dcrtc->v[1].spu_v_porch = tm << 16 | bm;
 	val = adj->crtc_hsync_start;
-	dcrtc->v[1].spu_adv_reg = val << 20 | val | ADV_VSYNCOFFEN |
-		dcrtc->variant->spu_adv_reg;
+	dcrtc->v[1].spu_adv_reg = val << 20 | val | ADV_VSYNCOFFEN;
 
 	if (interlaced) {
 		/* Odd interlaced frame */
+		val -= adj->crtc_htotal / 2;
+		dcrtc->v[0].spu_adv_reg = val << 20 | val | ADV_VSYNCOFFEN;
 		dcrtc->v[0].spu_v_h_total = dcrtc->v[1].spu_v_h_total +
 						(1 << 16);
 		dcrtc->v[0].spu_v_porch = dcrtc->v[1].spu_v_porch + 1;
-		val = adj->crtc_hsync_start - adj->crtc_htotal / 2;
-		dcrtc->v[0].spu_adv_reg = val << 20 | val | ADV_VSYNCOFFEN |
-			dcrtc->variant->spu_adv_reg;
 	} else {
 		dcrtc->v[0] = dcrtc->v[1];
 	}
@@ -486,11 +484,10 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	armada_reg_queue_set(regs, i, dcrtc->v[0].spu_v_h_total,
 			   LCD_SPUT_V_H_TOTAL);
 
-	if (dcrtc->variant->has_spu_adv_reg) {
+	if (dcrtc->variant->has_spu_adv_reg)
 		armada_reg_queue_mod(regs, i, dcrtc->v[0].spu_adv_reg,
 				     ADV_VSYNC_L_OFF | ADV_VSYNC_H_OFF |
 				     ADV_VSYNCOFFEN, LCD_SPU_ADV_REG);
-	}
 
 	val = adj->flags & DRM_MODE_FLAG_NVSYNC ? CFG_VSYNC_INV : 0;
 	armada_reg_queue_mod(regs, i, val, CFG_VSYNC_INV, LCD_SPU_DMA_CTRL1);

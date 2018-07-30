@@ -42,7 +42,6 @@ struct armada_private;
 
 struct armada_variant {
 	bool has_spu_adv_reg;
-	uint32_t spu_adv_reg;
 	int (*init)(struct armada_crtc *, struct device *);
 	int (*compute_clock)(struct armada_crtc *,
 			     const struct drm_display_mode *,
