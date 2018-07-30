@@ -1560,7 +1560,7 @@ static void ipoib_cm_create_srq(struct net_device *dev, int max_sge)
 
 	priv->cm.srq = ib_create_srq(priv->pd, &srq_init_attr);
 	if (IS_ERR(priv->cm.srq)) {
-		if (PTR_ERR(priv->cm.srq) != -ENOSYS)
+		if (PTR_ERR(priv->cm.srq) != -EOPNOTSUPP)
 			pr_warn("%s: failed to allocate SRQ, error %ld\n",
 			       priv->ca->name, PTR_ERR(priv->cm.srq));
 		priv->cm.srq = NULL;
