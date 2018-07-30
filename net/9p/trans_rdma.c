@@ -122,7 +122,7 @@ struct p9_rdma_context {
 	dma_addr_t busa;
 	union {
 		struct p9_req_t *req;
-		struct p9_fcall *rc;
+		struct p9_fcall rc;
 	};
 };
 
@@ -320,8 +320,8 @@ recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (wc->status != IB_WC_SUCCESS)
 		goto err_out;
 
-	c->rc->size = wc->byte_len;
-	err = p9_parse_header(c->rc, NULL, NULL, &tag, 1);
+	c->rc.size = wc->byte_len;
+	err = p9_parse_header(&c->rc, NULL, NULL, &tag, 1);
 	if (err)
 		goto err_out;
 
@@ -331,12 +331,13 @@ recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* Check that we have not yet received a reply for this request.
 	 */
-	if (unlikely(req->rc)) {
+	if (unlikely(req->rc.sdata)) {
 		pr_err("Duplicate reply for request %d", tag);
 		goto err_out;
 	}
 
-	req->rc = c->rc;
+	req->rc.size = c->rc.size;
+	req->rc.sdata = c->rc.sdata;
 	p9_client_cb(client, req, REQ_STATUS_RCVD);
 
  out:
@@ -361,7 +362,7 @@ send_done(struct ib_cq *cq, struct ib_wc *wc)
 		container_of(wc->wr_cqe, struct p9_rdma_context, cqe);
 
 	ib_dma_unmap_single(rdma->cm_id->device,
-			    c->busa, c->req->tc->size,
+			    c->busa, c->req->tc.size,
 			    DMA_TO_DEVICE);
 	up(&rdma->sq_sem);
 	kfree(c);
@@ -401,7 +402,7 @@ post_recv(struct p9_client *client, struct p9_rdma_context *c)
 	struct ib_sge sge;
 
 	c->busa = ib_dma_map_single(rdma->cm_id->device,
-				    c->rc->sdata, client->msize,
+				    c->rc.sdata, client->msize,
 				    DMA_FROM_DEVICE);
 	if (ib_dma_mapping_error(rdma->cm_id->device, c->busa))
 		goto error;
@@ -443,9 +444,9 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	 **/
 	if (unlikely(atomic_read(&rdma->excess_rc) > 0)) {
 		if ((atomic_sub_return(1, &rdma->excess_rc) >= 0)) {
-			/* Got one ! */
-			kfree(req->rc);
-			req->rc = NULL;
+			/* Got one! */
+			p9_fcall_fini(&req->rc);
+			req->rc.sdata = NULL;
 			goto dont_need_post_recv;
 		} else {
 			/* We raced and lost. */
@@ -459,7 +460,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 		err = -ENOMEM;
 		goto recv_error;
 	}
-	rpl_context->rc = req->rc;
+	rpl_context->rc.sdata = req->rc.sdata;
 
 	/*
 	 * Post a receive buffer for this request. We need to ensure
@@ -479,7 +480,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 		goto recv_error;
 	}
 	/* remove posted receive buffer from request structure */
-	req->rc = NULL;
+	req->rc.sdata = NULL;
 
 dont_need_post_recv:
 	/* Post the request */
@@ -491,7 +492,7 @@ dont_need_post_recv:
 	c->req = req;
 
 	c->busa = ib_dma_map_single(rdma->cm_id->device,
-				    c->req->tc->sdata, c->req->tc->size,
+				    c->req->tc.sdata, c->req->tc.size,
 				    DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(rdma->cm_id->device, c->busa)) {
 		err = -EIO;
@@ -501,7 +502,7 @@ dont_need_post_recv:
 	c->cqe.done = send_done;
 
 	sge.addr = c->busa;
-	sge.length = c->req->tc->size;
+	sge.length = c->req->tc.size;
 	sge.lkey = rdma->pd->local_dma_lkey;
 
 	wr.next = NULL;
