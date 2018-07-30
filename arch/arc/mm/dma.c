@@ -24,30 +24,29 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	struct page *page;
 	phys_addr_t paddr;
 	void *kvaddr;
-	int need_coh = 1, need_kvaddr = 0;
+	bool need_coh = !(attrs & DMA_ATTR_NON_CONSISTENT);
+
+	/*
+	 * __GFP_HIGHMEM flag is cleared by upper layer functions
+	 * (in include/linux/dma-mapping.h) so we should never get a
+	 * __GFP_HIGHMEM here.
+	 */
+	BUG_ON(gfp & __GFP_HIGHMEM);
 
 	page = alloc_pages(gfp, order);
 	if (!page)
 		return NULL;
-
-	if (attrs & DMA_ATTR_NON_CONSISTENT)
-		need_coh = 0;
-
-	/*
-	 * - A coherent buffer needs MMU mapping to enforce non-cachability
-	 * - A highmem page needs a virtual handle (hence MMU mapping)
-	 *   independent of cachability
-	 */
-	if (PageHighMem(page) || need_coh)
-		need_kvaddr = 1;
 
 	/* This is linear addr (0x8000_0000 based) */
 	paddr = page_to_phys(page);
 
 	*dma_handle = paddr;
 
-	/* This is kernel Virtual address (0x7000_0000 based) */
-	if (need_kvaddr) {
+	/*
+	 * A coherent buffer needs MMU mapping to enforce non-cachability.
+	 * kvaddr is kernel Virtual address (0x7000_0000 based).
+	 */
+	if (need_coh) {
 		kvaddr = ioremap_nocache(paddr, size);
 		if (kvaddr == NULL) {
 			__free_pages(page, order);
@@ -78,11 +77,8 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 {
 	phys_addr_t paddr = dma_handle;
 	struct page *page = virt_to_page(paddr);
-	int is_non_coh = 1;
 
-	is_non_coh = (attrs & DMA_ATTR_NON_CONSISTENT);
-
-	if (PageHighMem(page) || !is_non_coh)
+	if (!(attrs & DMA_ATTR_NON_CONSISTENT))
 		iounmap((void __force __iomem *)vaddr);
 
 	__free_pages(page, get_order(size));
