@@ -55,6 +55,7 @@ extern xfs_extlen_t xfs_refcountbt_max_size(struct xfs_mount *mp,
 		xfs_agblock_t agblocks);
 
 extern int xfs_refcountbt_calc_reserves(struct xfs_mount *mp,
-		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
+		struct xfs_trans *tp, xfs_agnumber_t agno, xfs_extlen_t *ask,
+		xfs_extlen_t *used);
 
 #endif	/* __XFS_REFCOUNT_BTREE_H__ */

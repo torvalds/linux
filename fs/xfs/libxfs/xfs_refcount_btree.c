@@ -404,6 +404,7 @@ xfs_refcountbt_max_size(
 int
 xfs_refcountbt_calc_reserves(
 	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_extlen_t		*ask,
 	xfs_extlen_t		*used)
@@ -418,14 +419,14 @@ xfs_refcountbt_calc_reserves(
 		return 0;
 
 
-	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
+	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
 	if (error)
 		return error;
 
 	agf = XFS_BUF_TO_AGF(agbp);
 	agblocks = be32_to_cpu(agf->agf_length);
 	tree_len = be32_to_cpu(agf->agf_refcount_blocks);
-	xfs_buf_relse(agbp);
+	xfs_trans_brelse(tp, agbp);
 
 	*ask += xfs_refcountbt_max_size(mp, agblocks);
 	*used += tree_len;

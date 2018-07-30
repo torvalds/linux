@@ -536,7 +536,7 @@ xfs_fs_reserve_ag_blocks(
 
 	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
 		pag = xfs_perag_get(mp, agno);
-		err2 = xfs_ag_resv_init(pag);
+		err2 = xfs_ag_resv_init(pag, NULL);
 		xfs_perag_put(pag);
 		if (err2 && !error)
 			error = err2;
