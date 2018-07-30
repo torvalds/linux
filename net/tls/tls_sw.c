@@ -1028,7 +1028,7 @@ static void tls_queue(struct strparser *strp, struct sk_buff *skb)
 	ctx->recv_pkt = skb;
 	strp_pause(strp);
 
-	strp->sk->sk_state_change(strp->sk);
+	ctx->saved_data_ready(strp->sk);
 }
 
 static void tls_data_ready(struct sock *sk)
