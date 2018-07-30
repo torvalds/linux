@@ -2064,10 +2064,9 @@ static inline bool skwq_has_sleeper(struct socket_wq *wq)
 static inline void sock_poll_wait(struct file *filp, poll_table *p)
 {
 	struct socket *sock = filp->private_data;
-	wait_queue_head_t *wq = sk_sleep(sock->sk);
 
-	if (!poll_does_not_wait(p) && wq) {
-		poll_wait(filp, wq, p);
+	if (!poll_does_not_wait(p)) {
+		poll_wait(filp, &sock->wq->wait, p);
 		/* We need to be sure we are in sync with the
 		 * socket flags modification.
 		 *
