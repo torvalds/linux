@@ -94,7 +94,6 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
 /**
  * stmmac_axi_setup - parse DT parameters for programming the AXI register
  * @pdev: platform device
- * @priv: driver private struct.
  * Description:
  * if required, from device-tree the AXI internal register can be tuned
  * by using platform parameters.

@@ -286,6 +286,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		u64 imm64;
 		u8 *func;
 		u32 true_cond;
+		u32 tmp_idx;
 
 		/*
 		 * addrs[] maps a BPF bytecode address into a real offset from
@@ -637,11 +638,7 @@ emit_clear:
 		case BPF_STX | BPF_XADD | BPF_W:
 			/* Get EA into TMP_REG_1 */
 			PPC_ADDI(b2p[TMP_REG_1], dst_reg, off);
-			/* error if EA is not word-aligned */
-			PPC_ANDI(b2p[TMP_REG_2], b2p[TMP_REG_1], 0x03);
-			PPC_BCC_SHORT(COND_EQ, (ctx->idx * 4) + 12);
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_JMP(exit_addr);
+			tmp_idx = ctx->idx * 4;
 			/* load value from memory into TMP_REG_2 */
 			PPC_BPF_LWARX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1], 0);
 			/* add value from src_reg into this */
@@ -649,32 +646,16 @@ emit_clear:
 			/* store result back */
 			PPC_BPF_STWCX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1]);
 			/* we're done if this succeeded */
-			PPC_BCC_SHORT(COND_EQ, (ctx->idx * 4) + (7*4));
-			/* otherwise, let's try once more */
-			PPC_BPF_LWARX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1], 0);
-			PPC_ADD(b2p[TMP_REG_2], b2p[TMP_REG_2], src_reg);
-			PPC_BPF_STWCX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1]);
-			/* exit if the store was not successful */
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_BCC(COND_NE, exit_addr);
+			PPC_BCC_SHORT(COND_NE, tmp_idx);
 			break;
 		/* *(u64 *)(dst + off) += src */
 		case BPF_STX | BPF_XADD | BPF_DW:
 			PPC_ADDI(b2p[TMP_REG_1], dst_reg, off);
-			/* error if EA is not doubleword-aligned */
-			PPC_ANDI(b2p[TMP_REG_2], b2p[TMP_REG_1], 0x07);
-			PPC_BCC_SHORT(COND_EQ, (ctx->idx * 4) + (3*4));
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_JMP(exit_addr);
+			tmp_idx = ctx->idx * 4;
 			PPC_BPF_LDARX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1], 0);
 			PPC_ADD(b2p[TMP_REG_2], b2p[TMP_REG_2], src_reg);
 			PPC_BPF_STDCX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1]);
-			PPC_BCC_SHORT(COND_EQ, (ctx->idx * 4) + (7*4));
-			PPC_BPF_LDARX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1], 0);
-			PPC_ADD(b2p[TMP_REG_2], b2p[TMP_REG_2], src_reg);
-			PPC_BPF_STDCX(b2p[TMP_REG_2], 0, b2p[TMP_REG_1]);
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_BCC(COND_NE, exit_addr);
+			PPC_BCC_SHORT(COND_NE, tmp_idx);
 			break;
 
 		/*

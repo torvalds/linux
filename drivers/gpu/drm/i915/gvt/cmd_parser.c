@@ -862,6 +862,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 {
 	struct intel_vgpu *vgpu = s->vgpu;
 	struct intel_gvt *gvt = vgpu->gvt;
+	u32 ctx_sr_ctl;
 
 	if (offset + 4 > gvt->device_info.mmio_size) {
 		gvt_vgpu_err("%s access to (%x) outside of MMIO range\n",
@@ -892,6 +893,28 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		offset == i915_mmio_reg_offset(FORCEWAKE_MT)) {
 		/* Writing to HW VGT_PVINFO_PAGE offset will be discarded */
 		patch_value(s, cmd_ptr(s, index), VGT_PVINFO_PAGE);
+	}
+
+	/* TODO
+	 * Right now only scan LRI command on KBL and in inhibit context.
+	 * It's good enough to support initializing mmio by lri command in
+	 * vgpu inhibit context on KBL.
+	 */
+	if (IS_KABYLAKE(s->vgpu->gvt->dev_priv) &&
+			intel_gvt_mmio_is_in_ctx(gvt, offset) &&
+			!strncmp(cmd, "lri", 3)) {
+		intel_gvt_hypervisor_read_gpa(s->vgpu,
+			s->workload->ring_context_gpa + 12, &ctx_sr_ctl, 4);
+		/* check inhibit context */
+		if (ctx_sr_ctl & 1) {
+			u32 data = cmd_val(s, index + 1);
+
+			if (intel_gvt_mmio_has_mode_mask(s->vgpu->gvt, offset))
+				intel_vgpu_mask_mmio_write(vgpu,
+							offset, &data, 4);
+			else
+				vgpu_vreg(vgpu, offset) = data;
+		}
 	}
 
 	/* TODO: Update the global mask if this MMIO is a masked-MMIO */

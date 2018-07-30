@@ -2374,7 +2374,8 @@ static struct fib6_info *addrconf_get_prefix_route(const struct in6_addr *pfx,
 			continue;
 		if ((rt->fib6_flags & noflags) != 0)
 			continue;
-		fib6_info_hold(rt);
+		if (!fib6_info_hold_safe(rt))
+			continue;
 		break;
 	}
 out:

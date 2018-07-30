@@ -223,11 +223,12 @@ xfs_alloc_get_rec(
 	error = xfs_btree_get_rec(cur, &rec, stat);
 	if (error || !(*stat))
 		return error;
-	if (rec->alloc.ar_blockcount == 0)
-		goto out_bad_rec;
 
 	*bno = be32_to_cpu(rec->alloc.ar_startblock);
 	*len = be32_to_cpu(rec->alloc.ar_blockcount);
+
+	if (*len == 0)
+		goto out_bad_rec;
 
 	/* check for valid extent range, including overflow */
 	if (!xfs_verify_agbno(mp, agno, *bno))

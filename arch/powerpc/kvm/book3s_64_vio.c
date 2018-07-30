@@ -449,7 +449,7 @@ long kvmppc_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
 		/* This only handles v2 IOMMU type, v1 is handled via ioctl() */
 		return H_TOO_HARD;
 
-	if (WARN_ON_ONCE(mm_iommu_ua_to_hpa(mem, ua, &hpa)))
+	if (WARN_ON_ONCE(mm_iommu_ua_to_hpa(mem, ua, tbl->it_page_shift, &hpa)))
 		return H_HARDWARE;
 
 	if (mm_iommu_mapped_inc(mem))

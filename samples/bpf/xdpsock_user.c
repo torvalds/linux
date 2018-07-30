@@ -729,7 +729,7 @@ static void kick_tx(int fd)
 	int ret;
 
 	ret = sendto(fd, NULL, 0, MSG_DONTWAIT, NULL, 0);
-	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN)
+	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN || errno == EBUSY)
 		return;
 	lassert(0);
 }
