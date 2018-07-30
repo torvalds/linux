@@ -15,6 +15,7 @@
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_gem.h"
+#include "armada_fb.h"
 #include "armada_hw.h"
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
@@ -75,6 +76,11 @@ static struct drm_driver armada_drm_driver = {
 				  DRIVER_PRIME,
 	.ioctls			= armada_ioctls,
 	.fops			= &armada_drm_fops,
+};
+
+static const struct drm_mode_config_funcs armada_drm_mode_config_funcs = {
+	.fb_create		= armada_fb_create,
+	.output_poll_changed	= drm_fb_helper_output_poll_changed,
 };
 
 static int armada_drm_bind(struct device *dev)
