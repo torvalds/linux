@@ -42,7 +42,7 @@ struct armada_plane_work {
 	struct drm_plane *plane;
 	struct drm_framebuffer *old_fb;
 	struct drm_pending_vblank_event *event;
-	struct armada_regs regs[14];
+	struct armada_regs regs[24];
 };
 
 struct armada_plane {

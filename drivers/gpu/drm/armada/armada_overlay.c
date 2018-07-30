@@ -20,6 +20,10 @@
 #include "armada_plane.h"
 #include "armada_trace.h"
 
+#define DEFAULT_BRIGHTNESS	0
+#define DEFAULT_CONTRAST	0x4000
+#define DEFAULT_SATURATION	0x4000
+
 struct armada_ovl_plane_properties {
 	uint32_t colorkey_yr;
 	uint32_t colorkey_ug;
@@ -27,9 +31,6 @@ struct armada_ovl_plane_properties {
 #define K2R(val) (((val) >> 0) & 0xff)
 #define K2G(val) (((val) >> 8) & 0xff)
 #define K2B(val) (((val) >> 16) & 0xff)
-	int16_t  brightness;
-	uint16_t contrast;
-	uint16_t saturation;
 	uint32_t colorkey_mode;
 	uint32_t colorkey_enable;
 };
@@ -44,6 +45,26 @@ struct armada_ovl_plane {
 #define drm_to_armada_ovl_plane(p) \
 	container_of(p, struct armada_ovl_plane, base.base)
 
+struct armada_overlay_state {
+	struct drm_plane_state base;
+	s16 brightness;
+	u16 contrast;
+	u16 saturation;
+};
+#define drm_to_overlay_state(s) \
+	container_of(s, struct armada_overlay_state, base)
+
+static inline u32 armada_spu_contrast(struct drm_plane_state *state)
+{
+	return drm_to_overlay_state(state)->brightness << 16 |
+	       drm_to_overlay_state(state)->contrast;
+}
+
+static inline u32 armada_spu_saturation(struct drm_plane_state *state)
+{
+	/* Docs say 15:0, but it seems to actually be 31:16 on Armada 510 */
+	return drm_to_overlay_state(state)->saturation << 16;
+}
 
 static void
 armada_ovl_update_attr(struct armada_ovl_plane_properties *prop,
@@ -52,13 +73,6 @@ armada_ovl_update_attr(struct armada_ovl_plane_properties *prop,
 	writel_relaxed(prop->colorkey_yr, dcrtc->base + LCD_SPU_COLORKEY_Y);
 	writel_relaxed(prop->colorkey_ug, dcrtc->base + LCD_SPU_COLORKEY_U);
 	writel_relaxed(prop->colorkey_vb, dcrtc->base + LCD_SPU_COLORKEY_V);
-
-	writel_relaxed(prop->brightness << 16 | prop->contrast,
-		       dcrtc->base + LCD_SPU_CONTRAST);
-	/* Docs say 15:0, but it seems to actually be 31:16 on Armada 510 */
-	writel_relaxed(prop->saturation << 16,
-		       dcrtc->base + LCD_SPU_SATURATION);
-	writel_relaxed(0x00002000, dcrtc->base + LCD_SPU_CBSH_HUE);
 
 	spin_lock_irq(&dcrtc->irq_lock);
 	armada_updatel(prop->colorkey_mode,
@@ -191,6 +205,17 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 		armada_reg_queue_mod(regs, idx, cfg, cfg_mask,
 				     LCD_SPU_DMA_CTRL0);
 
+	val = armada_spu_contrast(state);
+	if ((!old_state->visible && state->visible) ||
+	    armada_spu_contrast(old_state) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_CONTRAST);
+	val = armada_spu_saturation(state);
+	if ((!old_state->visible && state->visible) ||
+	    armada_spu_saturation(old_state) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_SATURATION);
+	if (!old_state->visible && state->visible)
+		armada_reg_queue_set(regs, idx, 0x00002000, LCD_SPU_CBSH_HUE);
+
 	dcrtc->regs_idx += idx;
 }
 
@@ -264,6 +289,10 @@ static int armada_overlay_commit(struct drm_plane *plane,
 	/* Point of no return */
 	swap(plane->state, state);
 
+	/* No CRTC, can't update */
+	if (!plane->state->crtc)
+		goto put_state;
+
 	dcrtc->regs_idx = 0;
 	dcrtc->regs = work->regs;
 
@@ -300,7 +329,7 @@ static int armada_overlay_commit(struct drm_plane *plane,
 	dplane->next_work = !dplane->next_work;
 
 put_state:
-	drm_atomic_helper_plane_destroy_state(plane, state);
+	plane->funcs->atomic_destroy_state(plane, state);
 	return ret;
 }
 
@@ -318,7 +347,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 				 src_x, src_y, src_w, src_h);
 
 	/* Construct new state for the overlay plane */
-	state = drm_atomic_helper_plane_duplicate_state(plane);
+	state = plane->funcs->atomic_duplicate_state(plane);
 	if (!state)
 		return -ENOMEM;
 
@@ -404,15 +433,22 @@ static int armada_ovl_plane_set_property(struct drm_plane *plane,
 			dplane->prop.colorkey_enable = ADV_GRACOLORKEY;
 		}
 		update_attr = true;
-	} else if (property == priv->brightness_prop) {
-		dplane->prop.brightness = val - 256;
-		update_attr = true;
-	} else if (property == priv->contrast_prop) {
-		dplane->prop.contrast = val;
-		update_attr = true;
-	} else if (property == priv->saturation_prop) {
-		dplane->prop.saturation = val;
-		update_attr = true;
+	} else {
+		struct drm_plane_state *state;
+		int ret;
+
+		state = plane->funcs->atomic_duplicate_state(plane);
+		if (!state)
+			return -ENOMEM;
+
+		ret = plane->funcs->atomic_set_property(plane, state, property,
+							val);
+		if (ret) {
+			plane->funcs->atomic_destroy_state(plane, state);
+			return ret;
+		}
+
+		return armada_overlay_commit(plane, state);
 	}
 
 	if (update_attr && dplane->base.base.crtc)
@@ -422,12 +458,85 @@ static int armada_ovl_plane_set_property(struct drm_plane *plane,
 	return 0;
 }
 
+static void armada_overlay_reset(struct drm_plane *plane)
+{
+	struct armada_overlay_state *state;
+
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+	kfree(plane->state);
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		state->base.plane = plane;
+		state->base.rotation = DRM_MODE_ROTATE_0;
+		state->brightness = DEFAULT_BRIGHTNESS;
+		state->contrast = DEFAULT_CONTRAST;
+		state->saturation = DEFAULT_SATURATION;
+	}
+	plane->state = &state->base;
+}
+
+struct drm_plane_state *
+armada_overlay_duplicate_state(struct drm_plane *plane)
+{
+	struct armada_overlay_state *state;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	state = kmemdup(plane->state, sizeof(*state), GFP_KERNEL);
+	if (state)
+		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
+	return &state->base;
+}
+
+static int armada_overlay_set_property(struct drm_plane *plane,
+	struct drm_plane_state *state, struct drm_property *property,
+	uint64_t val)
+{
+	struct armada_private *priv = plane->dev->dev_private;
+
+	if (property == priv->brightness_prop) {
+		drm_to_overlay_state(state)->brightness = val - 256;
+	} else if (property == priv->contrast_prop) {
+		drm_to_overlay_state(state)->contrast = val;
+	} else if (property == priv->saturation_prop) {
+		drm_to_overlay_state(state)->saturation = val;
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int armada_overlay_get_property(struct drm_plane *plane,
+	const struct drm_plane_state *state, struct drm_property *property,
+	uint64_t *val)
+{
+	struct armada_private *priv = plane->dev->dev_private;
+
+	if (property == priv->brightness_prop) {
+		*val = drm_to_overlay_state(state)->brightness + 256;
+	} else if (property == priv->contrast_prop) {
+		*val = drm_to_overlay_state(state)->contrast;
+	} else if (property == priv->saturation_prop) {
+		*val = drm_to_overlay_state(state)->saturation;
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static const struct drm_plane_funcs armada_ovl_plane_funcs = {
 	.update_plane	= armada_ovl_plane_update,
 	.disable_plane	= drm_plane_helper_disable,
 	.destroy	= armada_ovl_plane_destroy,
 	.set_property	= armada_ovl_plane_set_property,
-	.reset		= drm_atomic_helper_plane_reset,
+	.reset		= armada_overlay_reset,
+	.atomic_duplicate_state = armada_overlay_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.atomic_set_property = armada_overlay_set_property,
+	.atomic_get_property = armada_overlay_get_property,
 };
 
 static const uint32_t armada_ovl_formats[] = {
@@ -542,9 +651,6 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	dplane->prop.colorkey_mode = CFG_CKMODE(CKMODE_RGB) |
 				     CFG_ALPHAM_GRA | CFG_ALPHA(0);
 	dplane->prop.colorkey_enable = ADV_GRACOLORKEY;
-	dplane->prop.brightness = 0;
-	dplane->prop.contrast = 0x4000;
-	dplane->prop.saturation = 0x4000;
 
 	mobj = &dplane->base.base.base;
 	drm_object_attach_property(mobj, priv->colorkey_prop,
@@ -559,11 +665,12 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 				   0x000000);
 	drm_object_attach_property(mobj, priv->colorkey_mode_prop,
 				   CKMODE_RGB);
-	drm_object_attach_property(mobj, priv->brightness_prop, 256);
+	drm_object_attach_property(mobj, priv->brightness_prop,
+				   256 + DEFAULT_BRIGHTNESS);
 	drm_object_attach_property(mobj, priv->contrast_prop,
-				   dplane->prop.contrast);
+				   DEFAULT_CONTRAST);
 	drm_object_attach_property(mobj, priv->saturation_prop,
-				   dplane->prop.saturation);
+				   DEFAULT_SATURATION);
 
 	return 0;
 }
