@@ -1253,6 +1253,22 @@ enum nft_nat_attributes {
 #define NFTA_NAT_MAX		(__NFTA_NAT_MAX - 1)
 
 /**
+ * enum nft_tproxy_attributes - nf_tables tproxy expression netlink attributes
+ *
+ * NFTA_TPROXY_FAMILY: Target address family (NLA_U32: nft_registers)
+ * NFTA_TPROXY_REG_ADDR: Target address register (NLA_U32: nft_registers)
+ * NFTA_TPROXY_REG_PORT: Target port register (NLA_U32: nft_registers)
+ */
+enum nft_tproxy_attributes {
+	NFTA_TPROXY_UNSPEC,
+	NFTA_TPROXY_FAMILY,
+	NFTA_TPROXY_REG_ADDR,
+	NFTA_TPROXY_REG_PORT,
+	__NFTA_TPROXY_MAX
+};
+#define NFTA_TPROXY_MAX		(__NFTA_TPROXY_MAX - 1)
+
+/**
  * enum nft_masq_attributes - nf_tables masquerade expression attributes
  *
  * @NFTA_MASQ_FLAGS: NAT flags (see NF_NAT_RANGE_* in linux/netfilter/nf_nat.h) (NLA_U32)
