@@ -76,7 +76,7 @@
 /* 4G/4K = 1M */
 #define HNS_ROCE_SL_SHIFT			28
 #define HNS_ROCE_TCLASS_SHIFT			20
-#define HNS_ROCE_FLOW_LABLE_MASK		0xfffff
+#define HNS_ROCE_FLOW_LABEL_MASK		0xfffff
 
 #define HNS_ROCE_MAX_PORTS			6
 #define HNS_ROCE_MAX_GID_NUM			16

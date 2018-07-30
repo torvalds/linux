@@ -97,7 +97,7 @@ int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	rdma_ah_set_static_rate(ah_attr, ah->av.stat_rate);
 	rdma_ah_set_grh(ah_attr, NULL,
 			(le32_to_cpu(ah->av.sl_tclass_flowlabel) &
-			 HNS_ROCE_FLOW_LABLE_MASK), ah->av.gid_index,
+			 HNS_ROCE_FLOW_LABEL_MASK), ah->av.gid_index,
 			ah->av.hop_limit,
 			(le32_to_cpu(ah->av.sl_tclass_flowlabel) >>
 			 HNS_ROCE_TCLASS_SHIFT));
