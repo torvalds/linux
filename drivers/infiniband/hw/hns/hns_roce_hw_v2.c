@@ -3447,6 +3447,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		;
 	} else {
 		dev_err(dev, "Illegal state for QP!\n");
+		ret = -EINVAL;
 		goto out;
 	}
 
