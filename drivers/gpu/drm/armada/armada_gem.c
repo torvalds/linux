@@ -13,25 +13,14 @@
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
 
-static int armada_gem_vm_fault(struct vm_fault *vmf)
+static vm_fault_t armada_gem_vm_fault(struct vm_fault *vmf)
 {
 	struct drm_gem_object *gobj = vmf->vma->vm_private_data;
 	struct armada_gem_object *obj = drm_to_armada_gem(gobj);
 	unsigned long pfn = obj->phys_addr >> PAGE_SHIFT;
-	int ret;
 
 	pfn += (vmf->address - vmf->vma->vm_start) >> PAGE_SHIFT;
-	ret = vm_insert_pfn(vmf->vma, vmf->address, pfn);
-
-	switch (ret) {
-	case 0:
-	case -EBUSY:
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+	return vmf_insert_pfn(vmf->vma, vmf->address, pfn);
 }
 
 const struct vm_operations_struct armada_gem_vm_ops = {
