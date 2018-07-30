@@ -838,7 +838,7 @@ static int si1133_write_raw(struct iio_dev *iio_dev,
 		switch (chan->type) {
 		case IIO_INTENSITY:
 		case IIO_UVINDEX:
-			if (val != 0 || val != 1)
+			if (val != 0 && val != 1)
 				return -EINVAL;
 
 			return si1133_update_adcsens(data,
