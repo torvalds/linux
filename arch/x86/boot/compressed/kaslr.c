@@ -102,7 +102,7 @@ static bool memmap_too_large;
 
 
 /* Store memory limit specified by "mem=nn[KMG]" or "memmap=nn[KMG]" */
-unsigned long long mem_limit = ULLONG_MAX;
+static unsigned long long mem_limit = ULLONG_MAX;
 
 
 enum mem_avoid_index {
