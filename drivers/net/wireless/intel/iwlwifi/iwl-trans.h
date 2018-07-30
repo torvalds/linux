@@ -602,7 +602,7 @@ struct iwl_trans_ops {
 	void (*resume)(struct iwl_trans *trans);
 
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
-						 bool monitor_only);
+						 u32 dump_mask);
 };
 
 /**
@@ -776,7 +776,6 @@ struct iwl_trans {
 	const struct iwl_fw_dbg_dest_tlv_v1 *dbg_dest_tlv;
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
-	u32 dbg_dump_mask;
 	u8 dbg_n_dest_reg;
 	int num_blocks;
 	struct iwl_dram_data fw_mon[IWL_MAX_DEBUG_ALLOCATIONS];
@@ -896,11 +895,11 @@ static inline void iwl_trans_resume(struct iwl_trans *trans)
 }
 
 static inline struct iwl_trans_dump_data *
-iwl_trans_dump_data(struct iwl_trans *trans, bool monitor_only)
+iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask)
 {
 	if (!trans->ops->dump_data)
 		return NULL;
-	return trans->ops->dump_data(trans, monitor_only);
+	return trans->ops->dump_data(trans, dump_mask);
 }
 
 static inline struct iwl_device_cmd *

@@ -908,6 +908,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	struct iwl_fw_error_dump_file *dump_file;
 	struct scatterlist *sg_dump_data;
 	u32 file_len;
+	u32 dump_mask = fwrt->fw->dbg.dump_mask;
 
 	IWL_DEBUG_INFO(fwrt, "WRT dump start\n");
 
@@ -927,8 +928,10 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 		goto out;
 	}
 
-	fw_error_dump->trans_ptr = iwl_trans_dump_data(fwrt->trans,
-						       fwrt->dump.monitor_only);
+	if (fwrt->dump.monitor_only)
+		dump_mask &= IWL_FW_ERROR_DUMP_FW_MONITOR;
+
+	fw_error_dump->trans_ptr = iwl_trans_dump_data(fwrt->trans, dump_mask);
 	file_len = le32_to_cpu(dump_file->file_len);
 	fw_error_dump->fwrt_len = file_len;
 	if (fw_error_dump->trans_ptr) {
