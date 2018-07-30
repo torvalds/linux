@@ -27,33 +27,8 @@ int xrep_init_btblock(struct xfs_scrub *sc, xfs_fsblock_t fsb,
 		struct xfs_buf **bpp, xfs_btnum_t btnum,
 		const struct xfs_buf_ops *ops);
 
-struct xrep_extent {
-	struct list_head	list;
-	xfs_fsblock_t		fsbno;
-	xfs_extlen_t		len;
-};
+struct xrep_extent_list;
 
-struct xrep_extent_list {
-	struct list_head	list;
-};
-
-static inline void
-xrep_init_extent_list(
-	struct xrep_extent_list	*exlist)
-{
-	INIT_LIST_HEAD(&exlist->list);
-}
-
-#define for_each_xrep_extent_safe(rbe, n, exlist) \
-	list_for_each_entry_safe((rbe), (n), &(exlist)->list, list)
-int xrep_collect_btree_extent(struct xfs_scrub *sc,
-		struct xrep_extent_list *btlist, xfs_fsblock_t fsbno,
-		xfs_extlen_t len);
-void xrep_cancel_btree_extents(struct xfs_scrub *sc,
-		struct xrep_extent_list *btlist);
-int xrep_subtract_extents(struct xfs_scrub *sc,
-		struct xrep_extent_list *exlist,
-		struct xrep_extent_list *sublist);
 int xrep_fix_freelist(struct xfs_scrub *sc, bool can_shrink);
 int xrep_invalidate_blocks(struct xfs_scrub *sc,
 		struct xrep_extent_list *btlist);
