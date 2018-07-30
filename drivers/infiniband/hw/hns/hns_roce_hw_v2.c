@@ -705,8 +705,8 @@ static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
 	int ret;
 
 	/* Setup the queue entries for command queue */
-	priv->cmq.csq.desc_num = 1024;
-	priv->cmq.crq.desc_num = 1024;
+	priv->cmq.csq.desc_num = CMD_CSQ_DESC_NUM;
+	priv->cmq.crq.desc_num = CMD_CRQ_DESC_NUM;
 
 	/* Setup the lock for command queue */
 	spin_lock_init(&priv->cmq.csq.lock);

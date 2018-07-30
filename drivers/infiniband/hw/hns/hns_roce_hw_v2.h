@@ -112,6 +112,9 @@
 	(step_idx == 1 && hop_num == 1) || \
 	(step_idx == 2 && hop_num == 2))
 
+#define CMD_CSQ_DESC_NUM		1024
+#define CMD_CRQ_DESC_NUM		1024
+
 enum {
 	NO_ARMED = 0x0,
 	REG_NXT_CEQE = 0x2,
