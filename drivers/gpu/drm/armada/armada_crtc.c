@@ -23,14 +23,6 @@
 #include "armada_plane.h"
 #include "armada_trace.h"
 
-enum csc_mode {
-	CSC_AUTO = 0,
-	CSC_YUV_CCIR601 = 1,
-	CSC_YUV_CCIR709 = 2,
-	CSC_RGB_COMPUTER = 1,
-	CSC_RGB_STUDIO = 2,
-};
-
 /*
  * A note about interlacing.  Let's consider HDMI 1920x1080i.
  * The timing parameters we have from X are:
@@ -438,42 +430,6 @@ static irqreturn_t armada_drm_irq(int irq, void *arg)
 	return IRQ_NONE;
 }
 
-static uint32_t armada_drm_crtc_calculate_csc(struct armada_crtc *dcrtc)
-{
-	struct drm_display_mode *adj = &dcrtc->crtc.mode;
-	uint32_t val = 0;
-
-	if (dcrtc->csc_yuv_mode == CSC_YUV_CCIR709)
-		val |= CFG_CSC_YUV_CCIR709;
-	if (dcrtc->csc_rgb_mode == CSC_RGB_STUDIO)
-		val |= CFG_CSC_RGB_STUDIO;
-
-	/*
-	 * In auto mode, set the colorimetry, based upon the HDMI spec.
-	 * 1280x720p, 1920x1080p and 1920x1080i use ITU709, others use
-	 * ITU601.  It may be more appropriate to set this depending on
-	 * the source - but what if the graphic frame is YUV and the
-	 * video frame is RGB?
-	 */
-	if ((adj->hdisplay == 1280 && adj->vdisplay == 720 &&
-	     !(adj->flags & DRM_MODE_FLAG_INTERLACE)) ||
-	    (adj->hdisplay == 1920 && adj->vdisplay == 1080)) {
-		if (dcrtc->csc_yuv_mode == CSC_AUTO)
-			val |= CFG_CSC_YUV_CCIR709;
-	}
-
-	/*
-	 * We assume we're connected to a TV-like device, so the YUV->RGB
-	 * conversion should produce a limited range.  We should set this
-	 * depending on the connectors attached to this CRTC, and what
-	 * kind of device they report being connected.
-	 */
-	if (dcrtc->csc_rgb_mode == CSC_AUTO)
-		val |= CFG_CSC_RGB_STUDIO;
-
-	return val;
-}
-
 /* The mode_config.mutex will be held for this call */
 static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
@@ -560,9 +516,6 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	val = adj->flags & DRM_MODE_FLAG_NVSYNC ? CFG_VSYNC_INV : 0;
 	armada_reg_queue_mod(regs, i, val, CFG_VSYNC_INV, LCD_SPU_DMA_CTRL1);
-
-	val = dcrtc->spu_iopad_ctrl | armada_drm_crtc_calculate_csc(dcrtc);
-	armada_reg_queue_set(regs, i, val, LCD_SPU_IOPAD_CONTROL);
 	armada_reg_queue_end(regs, i);
 
 	armada_drm_crtc_update_regs(dcrtc, regs);
@@ -937,33 +890,6 @@ put_state:
 	return ret;
 }
 
-static int
-armada_drm_crtc_set_property(struct drm_crtc *crtc,
-	struct drm_property *property, uint64_t val)
-{
-	struct armada_private *priv = crtc->dev->dev_private;
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	bool update_csc = false;
-
-	if (property == priv->csc_yuv_prop) {
-		dcrtc->csc_yuv_mode = val;
-		update_csc = true;
-	} else if (property == priv->csc_rgb_prop) {
-		dcrtc->csc_rgb_mode = val;
-		update_csc = true;
-	}
-
-	if (update_csc) {
-		uint32_t val;
-
-		val = dcrtc->spu_iopad_ctrl |
-		      armada_drm_crtc_calculate_csc(dcrtc);
-		writel_relaxed(val, dcrtc->base + LCD_SPU_IOPAD_CONTROL);
-	}
-
-	return 0;
-}
-
 /* These are called under the vbl_lock. */
 static int armada_drm_crtc_enable_vblank(struct drm_crtc *crtc)
 {
@@ -993,44 +919,11 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.destroy	= armada_drm_crtc_destroy,
 	.set_config	= drm_crtc_helper_set_config,
 	.page_flip	= armada_drm_crtc_page_flip,
-	.set_property	= armada_drm_crtc_set_property,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank	= armada_drm_crtc_enable_vblank,
 	.disable_vblank	= armada_drm_crtc_disable_vblank,
 };
-
-static const struct drm_prop_enum_list armada_drm_csc_yuv_enum_list[] = {
-	{ CSC_AUTO,        "Auto" },
-	{ CSC_YUV_CCIR601, "CCIR601" },
-	{ CSC_YUV_CCIR709, "CCIR709" },
-};
-
-static const struct drm_prop_enum_list armada_drm_csc_rgb_enum_list[] = {
-	{ CSC_AUTO,         "Auto" },
-	{ CSC_RGB_COMPUTER, "Computer system" },
-	{ CSC_RGB_STUDIO,   "Studio" },
-};
-
-static int armada_drm_crtc_create_properties(struct drm_device *dev)
-{
-	struct armada_private *priv = dev->dev_private;
-
-	if (priv->csc_yuv_prop)
-		return 0;
-
-	priv->csc_yuv_prop = drm_property_create_enum(dev, 0,
-				"CSC_YUV", armada_drm_csc_yuv_enum_list,
-				ARRAY_SIZE(armada_drm_csc_yuv_enum_list));
-	priv->csc_rgb_prop = drm_property_create_enum(dev, 0,
-				"CSC_RGB", armada_drm_csc_rgb_enum_list,
-				ARRAY_SIZE(armada_drm_csc_rgb_enum_list));
-
-	if (!priv->csc_yuv_prop || !priv->csc_rgb_prop)
-		return -ENOMEM;
-
-	return 0;
-}
 
 static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	struct resource *res, int irq, const struct armada_variant *variant,
@@ -1041,10 +934,6 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	struct armada_plane *primary;
 	void __iomem *base;
 	int ret;
-
-	ret = armada_drm_crtc_create_properties(drm);
-	if (ret)
-		return ret;
 
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
@@ -1063,8 +952,6 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	dcrtc->base = base;
 	dcrtc->num = drm->mode_config.num_crtc;
 	dcrtc->clk = ERR_PTR(-EINVAL);
-	dcrtc->csc_yuv_mode = CSC_AUTO;
-	dcrtc->csc_rgb_mode = CSC_AUTO;
 	dcrtc->cfg_dumb_ctrl = DUMB24_RGB888_0;
 	dcrtc->spu_iopad_ctrl = CFG_VSCALE_LN_EN | CFG_IOPAD_DUMB24;
 	spin_lock_init(&dcrtc->irq_lock);
@@ -1120,11 +1007,6 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 		goto err_crtc_init;
 
 	drm_crtc_helper_add(&dcrtc->crtc, &armada_crtc_helper_funcs);
-
-	drm_object_attach_property(&dcrtc->crtc.base, priv->csc_yuv_prop,
-				   dcrtc->csc_yuv_mode);
-	drm_object_attach_property(&dcrtc->crtc.base, priv->csc_rgb_prop,
-				   dcrtc->csc_rgb_mode);
 
 	return armada_overlay_plane_create(drm, 1 << dcrtc->num);
 

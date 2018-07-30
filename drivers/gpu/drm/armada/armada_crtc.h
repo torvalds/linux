@@ -72,8 +72,6 @@ struct armada_crtc {
 	} v[2];
 	bool			interlaced;
 	bool			cursor_update;
-	uint8_t			csc_yuv_mode;
-	uint8_t			csc_rgb_mode;
 
 	struct drm_plane	*plane;
 

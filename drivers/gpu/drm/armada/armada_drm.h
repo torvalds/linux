@@ -60,8 +60,6 @@ struct armada_private {
 	struct armada_crtc	*dcrtc[2];
 	struct drm_mm		linear; /* protected by linear_lock */
 	struct mutex		linear_lock;
-	struct drm_property	*csc_yuv_prop;
-	struct drm_property	*csc_rgb_prop;
 	struct drm_property	*colorkey_prop;
 	struct drm_property	*colorkey_min_prop;
 	struct drm_property	*colorkey_max_prop;
