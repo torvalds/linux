@@ -969,7 +969,8 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 		bf->bf_lastbf = bf;
 
 		tx_info = IEEE80211_SKB_CB(skb);
-		tx_info->flags &= ~IEEE80211_TX_CTL_CLEAR_PS_FILT;
+		tx_info->flags &= ~(IEEE80211_TX_CTL_CLEAR_PS_FILT |
+				    IEEE80211_TX_STATUS_EOSP);
 
 		/*
 		 * No aggregation session is running, but there may be frames
