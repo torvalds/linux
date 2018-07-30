@@ -94,13 +94,13 @@ armada_drm_crtc_update_regs(struct armada_crtc *dcrtc, struct armada_regs *regs)
 
 #define dpms_blanked(dpms)	((dpms) != DRM_MODE_DPMS_ON)
 
-static void armada_drm_crtc_update(struct armada_crtc *dcrtc)
+static void armada_drm_crtc_update(struct armada_crtc *dcrtc, bool enable)
 {
 	uint32_t dumb_ctrl;
 
 	dumb_ctrl = dcrtc->cfg_dumb_ctrl;
 
-	if (!dpms_blanked(dcrtc->dpms))
+	if (enable)
 		dumb_ctrl |= CFG_DUMB_ENA;
 
 	/*
@@ -109,8 +109,7 @@ static void armada_drm_crtc_update(struct armada_crtc *dcrtc)
 	 * force LCD_D[23:0] to output blank color, overriding the GPIO or
 	 * SPI usage.  So leave it as-is unless in DUMB24_RGB888_0 mode.
 	 */
-	if (dpms_blanked(dcrtc->dpms) &&
-	    (dumb_ctrl & DUMB_MASK) == DUMB24_RGB888_0) {
+	if (!enable && (dumb_ctrl & DUMB_MASK) == DUMB24_RGB888_0) {
 		dumb_ctrl &= ~DUMB_MASK;
 		dumb_ctrl |= DUMB_BLANK;
 	}
@@ -256,7 +255,7 @@ static void armada_drm_crtc_dpms(struct drm_crtc *crtc, int dpms)
 		else if (dcrtc->variant->enable)
 			dcrtc->variant->enable(dcrtc, &crtc->hwmode);
 		dcrtc->dpms = dpms;
-		armada_drm_crtc_update(dcrtc);
+		armada_drm_crtc_update(dcrtc, !dpms_blanked(dcrtc->dpms));
 		if (!dpms_blanked(dpms))
 			drm_crtc_vblank_on(&dcrtc->crtc);
 		else if (dcrtc->variant->disable)
@@ -305,7 +304,7 @@ static void armada_drm_crtc_commit(struct drm_crtc *crtc)
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	dcrtc->dpms = DRM_MODE_DPMS_ON;
-	armada_drm_crtc_update(dcrtc);
+	armada_drm_crtc_update(dcrtc, true);
 	drm_crtc_vblank_on(crtc);
 
 	armada_drm_crtc_queue_state_event(crtc);
