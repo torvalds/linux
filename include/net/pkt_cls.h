@@ -7,6 +7,9 @@
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
+/* TC action not accessible from user space */
+#define TC_ACT_REINSERT		(TC_ACT_VALUE_MAX + 1)
+
 /* Basic packet classifier frontend definitions. */
 
 struct tcf_walker {

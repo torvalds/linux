@@ -85,7 +85,7 @@ struct tc_action_ops {
 	size_t	size;
 	struct module		*owner;
 	int     (*act)(struct sk_buff *, const struct tc_action *,
-		       struct tcf_result *);
+		       struct tcf_result *); /* called under RCU BH lock*/
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	void	(*cleanup)(struct tc_action *);
 	int     (*lookup)(struct net *net, struct tc_action **a, u32 index,

@@ -235,6 +235,12 @@ struct tcf_result {
 			u32		classid;
 		};
 		const struct tcf_proto *goto_tp;
+
+		/* used by the TC_ACT_REINSERT action */
+		struct {
+			bool		ingress;
+			struct gnet_stats_queue *qstats;
+		};
 	};
 };
 
@@ -285,6 +291,8 @@ struct tcf_proto {
 	/* Fast access part */
 	struct tcf_proto __rcu	*next;
 	void __rcu		*root;
+
+	/* called under RCU BH lock*/
 	int			(*classify)(struct sk_buff *,
 					    const struct tcf_proto *,
 					    struct tcf_result *);
@@ -564,6 +572,15 @@ static inline void skb_reset_tc(struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_redirected = 0;
+#endif
+}
+
+static inline bool skb_is_tc_redirected(const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	return skb->tc_redirected;
+#else
+	return false;
 #endif
 }
 
@@ -1105,5 +1122,18 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 			  struct tcf_proto *tp_head);
 void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
 			  struct mini_Qdisc __rcu **p_miniq);
+
+static inline void skb_tc_reinsert(struct sk_buff *skb, struct tcf_result *res)
+{
+	struct gnet_stats_queue *stats = res->qstats;
+	int ret;
+
+	if (res->ingress)
+		ret = netif_receive_skb(skb);
+	else
+		ret = dev_queue_xmit(skb);
+	if (ret && stats)
+		qstats_overlimit_inc(res->qstats);
+}
 
 #endif

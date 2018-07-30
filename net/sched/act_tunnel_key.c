@@ -31,9 +31,7 @@ static int tunnel_key_act(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_tunnel_key_params *params;
 	int action;
 
-	rcu_read_lock();
-
-	params = rcu_dereference(t->params);
+	params = rcu_dereference_bh(t->params);
 
 	tcf_lastuse_update(&t->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(t->common.cpu_bstats), skb);
@@ -52,8 +50,6 @@ static int tunnel_key_act(struct sk_buff *skb, const struct tc_action *a,
 			  params->tcft_action);
 		break;
 	}
-
-	rcu_read_unlock();
 
 	return action;
 }
