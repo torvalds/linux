@@ -581,6 +581,75 @@ static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 		armada_drm_crtc_queue_state_event(crtc);
 }
 
+static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
+					   struct drm_crtc_state *old_state)
+{
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	struct drm_pending_vblank_event *event;
+	struct drm_plane *plane;
+
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+
+	/*
+	 * For transition only - we must wait for completion of our
+	 * untransitioned paths before changing anything.
+	 */
+	plane = dcrtc->plane;
+	if (plane)
+		WARN_ON(!armada_drm_plane_work_wait(drm_to_armada_plane(plane),
+						    HZ));
+	armada_drm_plane_work_wait(drm_to_armada_plane(dcrtc->crtc.primary),
+				   MAX_SCHEDULE_TIMEOUT);
+
+	dcrtc->dpms = DRM_MODE_DPMS_OFF;
+	drm_crtc_vblank_off(crtc);
+	armada_drm_crtc_update(dcrtc, false);
+
+	if (!crtc->state->active) {
+		/*
+		 * This modeset will be leaving the CRTC disabled, so
+		 * call the backend to disable upstream clocks etc.
+		 */
+		if (dcrtc->variant->disable)
+			dcrtc->variant->disable(dcrtc);
+
+		/*
+		 * We will not receive any further vblank events.
+		 * Send the flip_done event manually.
+		 */
+		event = crtc->state->event;
+		crtc->state->event = NULL;
+		if (event) {
+			spin_lock_irq(&crtc->dev->event_lock);
+			drm_crtc_send_vblank_event(crtc, event);
+			spin_unlock_irq(&crtc->dev->event_lock);
+		}
+	}
+}
+
+static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
+					  struct drm_crtc_state *old_state)
+{
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+
+	dcrtc->dpms = DRM_MODE_DPMS_ON;
+	if (!old_state->active) {
+		/*
+		 * This modeset is enabling the CRTC after it having
+		 * been disabled.  Reverse the call to ->disable in
+		 * the atomic_disable().
+		 */
+		if (dcrtc->variant->enable)
+			dcrtc->variant->enable(dcrtc, &crtc->state->adjusted_mode);
+	}
+	armada_drm_crtc_update(dcrtc, true);
+	drm_crtc_vblank_on(crtc);
+
+	armada_drm_crtc_queue_state_event(crtc);
+}
+
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
 	.dpms		= armada_drm_crtc_dpms,
 	.prepare	= armada_drm_crtc_prepare,
@@ -592,6 +661,8 @@ static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
 	.disable	= armada_drm_crtc_disable,
 	.atomic_begin	= armada_drm_crtc_atomic_begin,
 	.atomic_flush	= armada_drm_crtc_atomic_flush,
+	.atomic_disable	= armada_drm_crtc_atomic_disable,
+	.atomic_enable	= armada_drm_crtc_atomic_enable,
 };
 
 static void armada_load_cursor_argb(void __iomem *base, uint32_t *pix,
