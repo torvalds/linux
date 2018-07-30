@@ -10,6 +10,7 @@
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_sched.h"
+#include "state.xml.h"
 
 static int etnaviv_job_hang_limit = 0;
 module_param_named(job_hang_limit, etnaviv_job_hang_limit, int , 0444);
@@ -85,6 +86,29 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
 	struct etnaviv_gpu *gpu = submit->gpu;
+	u32 dma_addr;
+	int change;
+
+	/*
+	 * If the GPU managed to complete this jobs fence, the timout is
+	 * spurious. Bail out.
+	 */
+	if (fence_completed(gpu, submit->out_fence->seqno))
+		return;
+
+	/*
+	 * If the GPU is still making forward progress on the front-end (which
+	 * should never loop) we shift out the timeout to give it a chance to
+	 * finish the job.
+	 */
+	dma_addr = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
+	change = dma_addr - gpu->hangcheck_dma_addr;
+	if (change < 0 || change > 16) {
+		gpu->hangcheck_dma_addr = dma_addr;
+		schedule_delayed_work(&sched_job->work_tdr,
+				      sched_job->sched->timeout);
+		return;
+	}
 
 	/* block scheduler */
 	kthread_park(gpu->sched.thread);

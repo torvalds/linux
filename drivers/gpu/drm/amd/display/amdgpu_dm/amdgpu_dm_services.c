@@ -74,4 +74,3 @@ bool dm_read_persistent_data(struct dc_context *ctx,
 
 /**** power component interfaces ****/
 
-

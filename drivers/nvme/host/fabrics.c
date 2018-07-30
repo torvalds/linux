@@ -539,14 +539,18 @@ static struct nvmf_transport_ops *nvmf_lookup_transport(
 /*
  * For something we're not in a state to send to the device the default action
  * is to busy it and retry it after the controller state is recovered.  However,
- * anything marked for failfast or nvme multipath is immediately failed.
+ * if the controller is deleting or if anything is marked for failfast or
+ * nvme multipath it is immediately failed.
  *
  * Note: commands used to initialize the controller will be marked for failfast.
  * Note: nvme cli/ioctl commands are marked for failfast.
  */
-blk_status_t nvmf_fail_nonready_command(struct request *rq)
+blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
+		struct request *rq)
 {
-	if (!blk_noretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
+	if (ctrl->state != NVME_CTRL_DELETING &&
+	    ctrl->state != NVME_CTRL_DEAD &&
+	    !blk_noretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
 		return BLK_STS_RESOURCE;
 	nvme_req(rq)->status = NVME_SC_ABORT_REQ;
 	return BLK_STS_IOERR;

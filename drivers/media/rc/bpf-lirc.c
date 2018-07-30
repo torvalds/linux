@@ -207,29 +207,19 @@ void lirc_bpf_free(struct rc_dev *rcdev)
 	bpf_prog_array_free(rcdev->raw->progs);
 }
 
-int lirc_prog_attach(const union bpf_attr *attr)
+int lirc_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
-	struct bpf_prog *prog;
 	struct rc_dev *rcdev;
 	int ret;
 
 	if (attr->attach_flags)
 		return -EINVAL;
 
-	prog = bpf_prog_get_type(attr->attach_bpf_fd,
-				 BPF_PROG_TYPE_LIRC_MODE2);
-	if (IS_ERR(prog))
-		return PTR_ERR(prog);
-
 	rcdev = rc_dev_get_from_fd(attr->target_fd);
-	if (IS_ERR(rcdev)) {
-		bpf_prog_put(prog);
+	if (IS_ERR(rcdev))
 		return PTR_ERR(rcdev);
-	}
 
 	ret = lirc_bpf_attach(rcdev, prog);
-	if (ret)
-		bpf_prog_put(prog);
 
 	put_device(&rcdev->dev);
 
