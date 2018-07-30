@@ -287,6 +287,20 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
 
 void blk_mq_quiesce_queue_nowait(struct request_queue *q);
 
+/**
+ * blk_mq_mark_complete() - Set request state to complete
+ * @rq: request to set to complete state
+ *
+ * Returns true if request state was successfully set to complete. If
+ * successful, the caller is responsibile for seeing this request is ended, as
+ * blk_mq_complete_request will not work again.
+ */
+static inline bool blk_mq_mark_complete(struct request *rq)
+{
+	return cmpxchg(&rq->state, MQ_RQ_IN_FLIGHT, MQ_RQ_COMPLETE) ==
+			MQ_RQ_IN_FLIGHT;
+}
+
 /*
  * Driver command data is immediately after the request. So subtract request
  * size to get back to the original request, add request size to get the PDU.

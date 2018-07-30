@@ -31,7 +31,6 @@
 #include <linux/pci.h>
 #include <linux/dmar.h>
 #include <linux/dma-mapping.h>
-#include <linux/dma-direct.h>
 #include <linux/mempool.h>
 #include <linux/memory.h>
 #include <linux/cpu.h>
@@ -485,14 +484,37 @@ static int dmar_forcedac;
 static int intel_iommu_strict;
 static int intel_iommu_superpage = 1;
 static int intel_iommu_ecs = 1;
+static int intel_iommu_pasid28;
 static int iommu_identity_mapping;
 
 #define IDENTMAP_ALL		1
 #define IDENTMAP_GFX		2
 #define IDENTMAP_AZALIA		4
 
-#define ecs_enabled(iommu)	(intel_iommu_ecs && ecap_ecs(iommu->ecap))
-#define pasid_enabled(iommu)	(ecs_enabled(iommu) && ecap_pasid(iommu->ecap))
+/* Broadwell and Skylake have broken ECS support — normal so-called "second
+ * level" translation of DMA requests-without-PASID doesn't actually happen
+ * unless you also set the NESTE bit in an extended context-entry. Which of
+ * course means that SVM doesn't work because it's trying to do nested
+ * translation of the physical addresses it finds in the process page tables,
+ * through the IOVA->phys mapping found in the "second level" page tables.
+ *
+ * The VT-d specification was retroactively changed to change the definition
+ * of the capability bits and pretend that Broadwell/Skylake never happened...
+ * but unfortunately the wrong bit was changed. It's ECS which is broken, but
+ * for some reason it was the PASID capability bit which was redefined (from
+ * bit 28 on BDW/SKL to bit 40 in future).
+ *
+ * So our test for ECS needs to eschew those implementations which set the old
+ * PASID capabiity bit 28, since those are the ones on which ECS is broken.
+ * Unless we are working around the 'pasid28' limitations, that is, by putting
+ * the device into passthrough mode for normal DMA and thus masking the bug.
+ */
+#define ecs_enabled(iommu) (intel_iommu_ecs && ecap_ecs(iommu->ecap) && \
+			    (intel_iommu_pasid28 || !ecap_broken_pasid(iommu->ecap)))
+/* PASID support is thus enabled if ECS is enabled and *either* of the old
+ * or new capability bits are set. */
+#define pasid_enabled(iommu) (ecs_enabled(iommu) &&			\
+			      (ecap_pasid(iommu->ecap) || ecap_broken_pasid(iommu->ecap)))
 
 int intel_iommu_gfx_mapped;
 EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
@@ -555,6 +577,11 @@ static int __init intel_iommu_setup(char *str)
 			printk(KERN_INFO
 				"Intel-IOMMU: disable extended context table support\n");
 			intel_iommu_ecs = 0;
+		} else if (!strncmp(str, "pasid28", 7)) {
+			printk(KERN_INFO
+				"Intel-IOMMU: enable pre-production PASID support\n");
+			intel_iommu_pasid28 = 1;
+			iommu_identity_mapping |= IDENTMAP_GFX;
 		} else if (!strncmp(str, "tboot_noforce", 13)) {
 			printk(KERN_INFO
 				"Intel-IOMMU: not forcing on after tboot. This could expose security risk for tboot\n");
@@ -3713,30 +3740,61 @@ static void *intel_alloc_coherent(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flags,
 				  unsigned long attrs)
 {
-	void *vaddr;
+	struct page *page = NULL;
+	int order;
 
-	vaddr = dma_direct_alloc(dev, size, dma_handle, flags, attrs);
-	if (iommu_no_mapping(dev) || !vaddr)
-		return vaddr;
+	size = PAGE_ALIGN(size);
+	order = get_order(size);
 
-	*dma_handle = __intel_map_single(dev, virt_to_phys(vaddr),
-			PAGE_ALIGN(size), DMA_BIDIRECTIONAL,
-			dev->coherent_dma_mask);
-	if (!*dma_handle)
-		goto out_free_pages;
-	return vaddr;
+	if (!iommu_no_mapping(dev))
+		flags &= ~(GFP_DMA | GFP_DMA32);
+	else if (dev->coherent_dma_mask < dma_get_required_mask(dev)) {
+		if (dev->coherent_dma_mask < DMA_BIT_MASK(32))
+			flags |= GFP_DMA;
+		else
+			flags |= GFP_DMA32;
+	}
 
-out_free_pages:
-	dma_direct_free(dev, size, vaddr, *dma_handle, attrs);
+	if (gfpflags_allow_blocking(flags)) {
+		unsigned int count = size >> PAGE_SHIFT;
+
+		page = dma_alloc_from_contiguous(dev, count, order, flags);
+		if (page && iommu_no_mapping(dev) &&
+		    page_to_phys(page) + size > dev->coherent_dma_mask) {
+			dma_release_from_contiguous(dev, page, count);
+			page = NULL;
+		}
+	}
+
+	if (!page)
+		page = alloc_pages(flags, order);
+	if (!page)
+		return NULL;
+	memset(page_address(page), 0, size);
+
+	*dma_handle = __intel_map_single(dev, page_to_phys(page), size,
+					 DMA_BIDIRECTIONAL,
+					 dev->coherent_dma_mask);
+	if (*dma_handle)
+		return page_address(page);
+	if (!dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT))
+		__free_pages(page, order);
+
 	return NULL;
 }
 
 static void intel_free_coherent(struct device *dev, size_t size, void *vaddr,
 				dma_addr_t dma_handle, unsigned long attrs)
 {
-	if (!iommu_no_mapping(dev))
-		intel_unmap(dev, dma_handle, PAGE_ALIGN(size));
-	dma_direct_free(dev, size, vaddr, dma_handle, attrs);
+	int order;
+	struct page *page = virt_to_page(vaddr);
+
+	size = PAGE_ALIGN(size);
+	order = get_order(size);
+
+	intel_unmap(dev, dma_handle, size);
+	if (!dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT))
+		__free_pages(page, order);
 }
 
 static void intel_unmap_sg(struct device *dev, struct scatterlist *sglist,

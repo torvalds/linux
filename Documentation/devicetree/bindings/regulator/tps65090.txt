@@ -16,7 +16,7 @@ Required properties:
 Optional properties:
 - ti,enable-ext-control: This is applicable for DCDC1, DCDC2 and DCDC3.
   If DCDCs are externally controlled then this property should be there.
-- "dcdc-ext-control-gpios: This is applicable for DCDC1, DCDC2 and DCDC3.
+- dcdc-ext-control-gpios: This is applicable for DCDC1, DCDC2 and DCDC3.
   If DCDCs are externally controlled and if it is from GPIO then GPIO
   number should be provided. If it is externally controlled and no GPIO
   entry then driver will just configure this rails as external control

@@ -66,7 +66,7 @@ struct fl_flow_mask {
 	struct rhashtable_params filter_ht_params;
 	struct flow_dissector dissector;
 	struct list_head filters;
-	struct rcu_head rcu;
+	struct rcu_work rwork;
 	struct list_head list;
 };
 
@@ -203,6 +203,20 @@ static int fl_init(struct tcf_proto *tp)
 	return rhashtable_init(&head->ht, &mask_ht_params);
 }
 
+static void fl_mask_free(struct fl_flow_mask *mask)
+{
+	rhashtable_destroy(&mask->ht);
+	kfree(mask);
+}
+
+static void fl_mask_free_work(struct work_struct *work)
+{
+	struct fl_flow_mask *mask = container_of(to_rcu_work(work),
+						 struct fl_flow_mask, rwork);
+
+	fl_mask_free(mask);
+}
+
 static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask,
 			bool async)
 {
@@ -210,12 +224,11 @@ static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask,
 		return false;
 
 	rhashtable_remove_fast(&head->ht, &mask->ht_node, mask_ht_params);
-	rhashtable_destroy(&mask->ht);
 	list_del_rcu(&mask->list);
 	if (async)
-		kfree_rcu(mask, rcu);
+		tcf_queue_work(&mask->rwork, fl_mask_free_work);
 	else
-		kfree(mask);
+		fl_mask_free(mask);
 
 	return true;
 }

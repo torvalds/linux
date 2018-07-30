@@ -32,6 +32,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 
 /* register offsets */
@@ -111,8 +112,9 @@
 #define ID_ARBLOST	(1 << 3)
 #define ID_NACK		(1 << 4)
 /* persistent flags */
+#define ID_P_NO_RXDMA	(1 << 30) /* HW forbids RXDMA sometimes */
 #define ID_P_PM_BLOCKED	(1 << 31)
-#define ID_P_MASK	ID_P_PM_BLOCKED
+#define ID_P_MASK	(ID_P_PM_BLOCKED | ID_P_NO_RXDMA)
 
 enum rcar_i2c_type {
 	I2C_RCAR_GEN1,
@@ -141,6 +143,8 @@ struct rcar_i2c_priv {
 	struct dma_chan *dma_rx;
 	struct scatterlist sg;
 	enum dma_data_direction dma_direction;
+
+	struct reset_control *rstc;
 };
 
 #define rcar_i2c_priv_to_dev(p)		((p)->adap.dev.parent)
@@ -370,6 +374,11 @@ static void rcar_i2c_dma_unmap(struct rcar_i2c_priv *priv)
 	dma_unmap_single(chan->device->dev, sg_dma_address(&priv->sg),
 			 sg_dma_len(&priv->sg), priv->dma_direction);
 
+	/* Gen3 can only do one RXDMA per transfer and we just completed it */
+	if (priv->devtype == I2C_RCAR_GEN3 &&
+	    priv->dma_direction == DMA_FROM_DEVICE)
+		priv->flags |= ID_P_NO_RXDMA;
+
 	priv->dma_direction = DMA_NONE;
 }
 
@@ -407,8 +416,9 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	unsigned char *buf;
 	int len;
 
-	/* Do not use DMA if it's not available or for messages < 8 bytes */
-	if (IS_ERR(chan) || msg->len < 8 || !(msg->flags & I2C_M_DMA_SAFE))
+	/* Do various checks to see if DMA is feasible at all */
+	if (IS_ERR(chan) || msg->len < 8 || !(msg->flags & I2C_M_DMA_SAFE) ||
+	    (read && priv->flags & ID_P_NO_RXDMA))
 		return;
 
 	if (read) {
@@ -739,6 +749,25 @@ static void rcar_i2c_release_dma(struct rcar_i2c_priv *priv)
 	}
 }
 
+/* I2C is a special case, we need to poll the status of a reset */
+static int rcar_i2c_do_reset(struct rcar_i2c_priv *priv)
+{
+	int i, ret;
+
+	ret = reset_control_reset(priv->rstc);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < LOOP_TIMEOUT; i++) {
+		ret = reset_control_status(priv->rstc);
+		if (ret == 0)
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
 static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 				struct i2c_msg *msgs,
 				int num)
@@ -749,6 +778,16 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	long time_left;
 
 	pm_runtime_get_sync(dev);
+
+	/* Gen3 needs a reset before allowing RXDMA once */
+	if (priv->devtype == I2C_RCAR_GEN3) {
+		priv->flags |= ID_P_NO_RXDMA;
+		if (!IS_ERR(priv->rstc)) {
+			ret = rcar_i2c_do_reset(priv);
+			if (ret == 0)
+				priv->flags &= ~ID_P_NO_RXDMA;
+		}
+	}
 
 	rcar_i2c_init(priv);
 
@@ -919,6 +958,15 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	ret = rcar_i2c_clock_calculate(priv, &i2c_t);
 	if (ret < 0)
 		goto out_pm_put;
+
+	if (priv->devtype == I2C_RCAR_GEN3) {
+		priv->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+		if (!IS_ERR(priv->rstc)) {
+			ret = reset_control_status(priv->rstc);
+			if (ret < 0)
+				priv->rstc = ERR_PTR(-ENOTSUPP);
+		}
+	}
 
 	/* Stay always active when multi-master to keep arbitration working */
 	if (of_property_read_bool(dev->of_node, "multi-master"))

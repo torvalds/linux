@@ -692,7 +692,7 @@
 			dsa,member = <0 0>;
 			eeprom-length = <512>;
 			interrupt-parent = <&gpio6>;
-			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 

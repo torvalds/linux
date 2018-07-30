@@ -101,7 +101,7 @@ static __be32 seg6_make_flowlabel(struct net *net, struct sk_buff *skb,
 
 	if (do_flowlabel > 0) {
 		hash = skb_get_hash(skb);
-		rol32(hash, 16);
+		hash = rol32(hash, 16);
 		flowlabel = (__force __be32)hash & IPV6_FLOWLABEL_MASK;
 	} else if (!do_flowlabel && skb->protocol == htons(ETH_P_IPV6)) {
 		flowlabel = ip6_flowlabel(inner_hdr);

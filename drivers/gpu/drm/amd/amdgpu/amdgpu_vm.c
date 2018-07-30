@@ -107,6 +107,9 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 		return;
 	list_add_tail(&base->bo_list, &bo->va);
 
+	if (bo->tbo.type == ttm_bo_type_kernel)
+		list_move(&base->vm_status, &vm->relocated);
+
 	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
 		return;
 
@@ -468,7 +471,6 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			pt->parent = amdgpu_bo_ref(parent->base.bo);
 
 			amdgpu_vm_bo_base_init(&entry->base, vm, pt);
-			list_move(&entry->base.vm_status, &vm->relocated);
 		}
 
 		if (level < AMDGPU_VM_PTB) {
@@ -1463,7 +1465,9 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 			uint64_t count;
 
 			max_entries = min(max_entries, 16ull * 1024ull);
-			for (count = 1; count < max_entries; ++count) {
+			for (count = 1;
+			     count < max_entries / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
+			     ++count) {
 				uint64_t idx = pfn + count;
 
 				if (pages_addr[idx] !=
@@ -1476,7 +1480,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				dma_addr = pages_addr;
 			} else {
 				addr = pages_addr[pfn];
-				max_entries = count;
+				max_entries = count * (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
 			}
 
 		} else if (flags & AMDGPU_PTE_VALID) {
@@ -1491,7 +1495,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
-		pfn += last - start + 1;
+		pfn += (last - start + 1) / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
 		if (nodes && nodes->size == pfn) {
 			pfn = 0;
 			++nodes;

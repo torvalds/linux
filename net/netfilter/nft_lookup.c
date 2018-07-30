@@ -155,7 +155,9 @@ static int nft_lookup_validate_setelem(const struct nft_ctx *ctx,
 				       struct nft_set_elem *elem)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+	struct nft_ctx *pctx = (struct nft_ctx *)ctx;
 	const struct nft_data *data;
+	int err;
 
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_FLAGS) &&
 	    *nft_set_ext_flags(ext) & NFT_SET_ELEM_INTERVAL_END)
@@ -165,10 +167,17 @@ static int nft_lookup_validate_setelem(const struct nft_ctx *ctx,
 	switch (data->verdict.code) {
 	case NFT_JUMP:
 	case NFT_GOTO:
-		return nft_chain_validate(ctx, data->verdict.chain);
+		pctx->level++;
+		err = nft_chain_validate(ctx, data->verdict.chain);
+		if (err < 0)
+			return err;
+		pctx->level--;
+		break;
 	default:
-		return 0;
+		break;
 	}
+
+	return 0;
 }
 
 static int nft_lookup_validate(const struct nft_ctx *ctx,

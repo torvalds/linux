@@ -6058,8 +6058,19 @@ static void ath10k_sta_rc_update_wk(struct work_struct *wk)
 			   ath10k_mac_max_vht_nss(vht_mcs_mask)));
 
 	if (changed & IEEE80211_RC_BW_CHANGED) {
-		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac update sta %pM peer bw %d\n",
-			   sta->addr, bw);
+		enum wmi_phy_mode mode;
+
+		mode = chan_to_phymode(&def);
+		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac update sta %pM peer bw %d phymode %d\n",
+				sta->addr, bw, mode);
+
+		err = ath10k_wmi_peer_set_param(ar, arvif->vdev_id, sta->addr,
+				WMI_PEER_PHYMODE, mode);
+		if (err) {
+			ath10k_warn(ar, "failed to update STA %pM peer phymode %d: %d\n",
+					sta->addr, mode, err);
+			goto exit;
+		}
 
 		err = ath10k_wmi_peer_set_param(ar, arvif->vdev_id, sta->addr,
 						WMI_PEER_CHAN_WIDTH, bw);
@@ -6100,6 +6111,7 @@ static void ath10k_sta_rc_update_wk(struct work_struct *wk)
 				    sta->addr);
 	}
 
+exit:
 	mutex_unlock(&ar->conf_mutex);
 }
 

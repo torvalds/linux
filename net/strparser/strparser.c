@@ -35,7 +35,6 @@ struct _strp_msg {
 	 */
 	struct strp_msg strp;
 	int accum_len;
-	int early_eaten;
 };
 
 static inline struct _strp_msg *_strp_msg(struct sk_buff *skb)
@@ -115,20 +114,6 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 	head = strp->skb_head;
 	if (head) {
 		/* Message already in progress */
-
-		stm = _strp_msg(head);
-		if (unlikely(stm->early_eaten)) {
-			/* Already some number of bytes on the receive sock
-			 * data saved in skb_head, just indicate they
-			 * are consumed.
-			 */
-			eaten = orig_len <= stm->early_eaten ?
-				orig_len : stm->early_eaten;
-			stm->early_eaten -= eaten;
-
-			return eaten;
-		}
-
 		if (unlikely(orig_offset)) {
 			/* Getting data with a non-zero offset when a message is
 			 * in progress is not expected. If it does happen, we
@@ -297,9 +282,9 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 				}
 
 				stm->accum_len += cand_len;
+				eaten += cand_len;
 				strp->need_bytes = stm->strp.full_len -
 						       stm->accum_len;
-				stm->early_eaten = cand_len;
 				STRP_STATS_ADD(strp->stats.bytes, cand_len);
 				desc->count = 0; /* Stop reading socket */
 				break;
@@ -392,7 +377,7 @@ static int strp_read_sock(struct strparser *strp)
 /* Lower sock lock held */
 void strp_data_ready(struct strparser *strp)
 {
-	if (unlikely(strp->stopped))
+	if (unlikely(strp->stopped) || strp->paused)
 		return;
 
 	/* This check is needed to synchronize with do_strp_work.
@@ -406,9 +391,6 @@ void strp_data_ready(struct strparser *strp)
 		queue_work(strp_wq, &strp->work);
 		return;
 	}
-
-	if (strp->paused)
-		return;
 
 	if (strp->need_bytes) {
 		if (strp_peek_len(strp) < strp->need_bytes)

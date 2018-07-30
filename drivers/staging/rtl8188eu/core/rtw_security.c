@@ -650,71 +650,71 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	return res;
 }
 
+/* The hlen isn't include the IV */
 u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
-{
-	struct rx_pkt_attrib *prxattrib = &((struct recv_frame *)precvframe)->attrib;
-	u32 res = _SUCCESS;
+{																	/*  exclude ICV */
+	u16 pnl;
+	u32 pnh;
+	u8   rc4key[16];
+	u8   ttkey[16];
+	u8	crc[4];
+	struct arc4context mycontext;
+	int			length;
+
+	u8	*pframe, *payload, *iv, *prwskey;
+	union pn48 dot11txpn;
+	struct	sta_info		*stainfo;
+	struct	rx_pkt_attrib	 *prxattrib = &((struct recv_frame *)precvframe)->attrib;
+	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
+	u32		res = _SUCCESS;
+
+
+	pframe = (unsigned char *)((struct recv_frame *)precvframe)->pkt->data;
 
 	/* 4 start to decrypt recvframe */
 	if (prxattrib->encrypt == _TKIP_) {
-		struct sta_info *stainfo = rtw_get_stainfo(&padapter->stapriv, prxattrib->ta);
-
+		stainfo = rtw_get_stainfo(&padapter->stapriv, &prxattrib->ta[0]);
 		if (stainfo) {
-			int key_idx;
-			const int iv_len = 8, icv_len = 4, key_length = 32;
-			void *crypto_private = NULL;
-			struct sk_buff *skb = ((struct recv_frame *)precvframe)->pkt;
-			u8 key[32], iv[8], icv[4], *pframe = skb->data;
-			struct lib80211_crypto_ops *crypto_ops = try_then_request_module(lib80211_get_crypto_ops("TKIP"), "lib80211_crypt_tkip");
-			struct security_priv *psecuritypriv = &padapter->securitypriv;
-
 			if (IS_MCAST(prxattrib->ra)) {
 				if (!psecuritypriv->binstallGrpkey) {
 					res = _FAIL;
 					DBG_88E("%s:rx bc/mc packets, but didn't install group key!!!!!!!!!!\n", __func__);
 					goto exit;
 				}
-				key_idx = prxattrib->key_index;
-				memcpy(key, psecuritypriv->dot118021XGrpKey[key_idx].skey, 16);
-				memcpy(key + 16, psecuritypriv->dot118021XGrprxmickey[key_idx].skey, 16);
+				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 			} else {
-				key_idx = 0;
-				memcpy(key, stainfo->dot118021x_UncstKey.skey, 16);
-				memcpy(key + 16, stainfo->dot11tkiprxmickey.skey, 16);
+				RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo!= NULL!!!\n", __func__));
+				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
 			}
 
-			if (!crypto_ops) {
+			iv = pframe+prxattrib->hdrlen;
+			payload = pframe+prxattrib->iv_len+prxattrib->hdrlen;
+			length = ((struct recv_frame *)precvframe)->pkt->len-prxattrib->hdrlen-prxattrib->iv_len;
+
+			GET_TKIP_PN(iv, dot11txpn);
+
+			pnl = (u16)(dot11txpn.val);
+			pnh = (u32)(dot11txpn.val>>16);
+
+			phase1((u16 *)&ttkey[0], prwskey, &prxattrib->ta[0], pnh);
+			phase2(&rc4key[0], prwskey, (unsigned short *)&ttkey[0], pnl);
+
+			/* 4 decrypt payload include icv */
+
+			arcfour_init(&mycontext, rc4key, 16);
+			arcfour_encrypt(&mycontext, payload, payload, length);
+
+			*((__le32 *)crc) = getcrc32(payload, length-4);
+
+			if (crc[3] != payload[length-1] ||
+			    crc[2] != payload[length-2] ||
+			    crc[1] != payload[length-3] ||
+			    crc[0] != payload[length-4]) {
+				RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
+					 ("rtw_wep_decrypt:icv error crc (%4ph)!=payload (%4ph)\n",
+					 &crc, &payload[length-4]));
 				res = _FAIL;
-				goto exit_lib80211_tkip;
 			}
-
-			memcpy(iv, pframe + prxattrib->hdrlen, iv_len);
-			memcpy(icv, pframe + skb->len - icv_len, icv_len);
-
-			crypto_private = crypto_ops->init(key_idx);
-			if (!crypto_private) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-			if (crypto_ops->set_key(key, key_length, NULL, crypto_private) < 0) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-			if (crypto_ops->decrypt_mpdu(skb, prxattrib->hdrlen, crypto_private)) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-
-			memmove(pframe, pframe + iv_len, prxattrib->hdrlen);
-			skb_push(skb, iv_len);
-			skb_put(skb, icv_len);
-
-			memcpy(pframe + prxattrib->hdrlen, iv, iv_len);
-			memcpy(pframe + skb->len - icv_len, icv, icv_len);
-
-exit_lib80211_tkip:
-			if (crypto_ops && crypto_private)
-				crypto_ops->deinit(crypto_private);
 		} else {
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_tkip_decrypt: stainfo==NULL!!!\n"));
 			res = _FAIL;

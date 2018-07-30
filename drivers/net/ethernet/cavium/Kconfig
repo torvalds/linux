@@ -15,7 +15,7 @@ if NET_VENDOR_CAVIUM
 
 config THUNDER_NIC_PF
 	tristate "Thunder Physical function driver"
-	depends on 64BIT
+	depends on 64BIT && PCI
 	select THUNDER_NIC_BGX
 	---help---
 	  This driver supports Thunder's NIC physical function.
@@ -28,13 +28,13 @@ config THUNDER_NIC_PF
 config THUNDER_NIC_VF
 	tristate "Thunder Virtual function driver"
 	imply CAVIUM_PTP
-	depends on 64BIT
+	depends on 64BIT && PCI
 	---help---
 	  This driver supports Thunder's NIC virtual function
 
 config	THUNDER_NIC_BGX
 	tristate "Thunder MAC interface driver (BGX)"
-	depends on 64BIT
+	depends on 64BIT && PCI
 	select PHYLIB
 	select MDIO_THUNDER
 	select THUNDER_NIC_RGX
@@ -44,7 +44,7 @@ config	THUNDER_NIC_BGX
 
 config	THUNDER_NIC_RGX
 	tristate "Thunder MAC interface driver (RGX)"
-	depends on 64BIT
+	depends on 64BIT && PCI
 	select PHYLIB
 	select MDIO_THUNDER
 	---help---
@@ -53,7 +53,7 @@ config	THUNDER_NIC_RGX
 
 config CAVIUM_PTP
 	tristate "Cavium PTP coprocessor as PTP clock"
-	depends on 64BIT
+	depends on 64BIT && PCI
 	imply PTP_1588_CLOCK
 	default y
 	---help---
@@ -65,7 +65,7 @@ config CAVIUM_PTP
 
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"
-	depends on 64BIT
+	depends on 64BIT && PCI
 	depends on MAY_USE_DEVLINK
 	imply PTP_1588_CLOCK
 	select FW_LOADER
