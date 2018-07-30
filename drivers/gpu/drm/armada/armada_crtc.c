@@ -399,6 +399,7 @@ static void armada_drm_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct drm_plane *plane;
+	u32 val;
 
 	/*
 	 * If we have an overlay plane associated with this CRTC, disable
@@ -411,6 +412,18 @@ static void armada_drm_crtc_prepare(struct drm_crtc *crtc)
 		WARN_ON(!armada_drm_plane_work_wait(drm_to_armada_plane(plane),
 						    HZ));
 	}
+
+	/* Wait for pending flips to complete */
+	armada_drm_plane_work_wait(drm_to_armada_plane(dcrtc->crtc.primary),
+				   MAX_SCHEDULE_TIMEOUT);
+
+	drm_crtc_vblank_off(crtc);
+
+	val = dcrtc->dumb_ctrl & ~CFG_DUMB_ENA;
+	if (val != dcrtc->dumb_ctrl) {
+		dcrtc->dumb_ctrl = val;
+		writel_relaxed(val, dcrtc->base + LCD_SPU_DUMB_CTRL);
+	}
 }
 
 /* The mode_config.mutex will be held for this call */
@@ -418,10 +431,12 @@ static void armada_drm_crtc_commit(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
-	if (dcrtc->dpms != DRM_MODE_DPMS_ON) {
-		dcrtc->dpms = DRM_MODE_DPMS_ON;
-		armada_drm_crtc_update(dcrtc);
-	}
+	dcrtc->dpms = DRM_MODE_DPMS_ON;
+	armada_drm_crtc_update(dcrtc);
+	drm_crtc_vblank_on(crtc);
+
+	if (dcrtc->old_modeset_fb)
+		armada_drm_crtc_finish_fb(dcrtc, dcrtc->old_modeset_fb, false);
 }
 
 /* The mode_config.mutex will be held for this call */
@@ -623,6 +638,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	bool interlaced;
 
 	drm_framebuffer_get(crtc->primary->fb);
+	dcrtc->old_modeset_fb = old_fb;
 
 	interlaced = !!(adj->flags & DRM_MODE_FLAG_INTERLACE);
 
@@ -655,18 +671,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 		adj->crtc_vsync_start,
 		adj->crtc_vsync_end,
 		adj->crtc_vtotal, tm, bm);
-
-	/* Wait for pending flips to complete */
-	armada_drm_plane_work_wait(drm_to_armada_plane(dcrtc->crtc.primary),
-				   MAX_SCHEDULE_TIMEOUT);
-
-	drm_crtc_vblank_off(crtc);
-
-	val = dcrtc->dumb_ctrl & ~CFG_DUMB_ENA;
-	if (val != dcrtc->dumb_ctrl) {
-		dcrtc->dumb_ctrl = val;
-		writel_relaxed(val, dcrtc->base + LCD_SPU_DUMB_CTRL);
-	}
 
 	/*
 	 * If we are blanked, we would have disabled the clock.  Re-enable
@@ -738,11 +742,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 
 	armada_drm_primary_set(crtc, crtc->primary, x, y);
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-
-	armada_drm_crtc_update(dcrtc);
-
-	drm_crtc_vblank_on(crtc);
-	armada_drm_crtc_finish_fb(dcrtc, old_fb, dpms_blanked(dcrtc->dpms));
 
 	return 0;
 }

@@ -93,6 +93,7 @@ struct armada_crtc {
 	uint8_t			csc_rgb_mode;
 
 	struct drm_plane	*plane;
+	struct drm_framebuffer	*old_modeset_fb;
 
 	struct armada_gem_object	*cursor_obj;
 	int			cursor_x;
