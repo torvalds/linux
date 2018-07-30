@@ -89,7 +89,7 @@ static int snd_virmidi_dev_receive_event(struct snd_virmidi_dev *rdev,
 	else
 		down_read(&rdev->filelist_sem);
 	list_for_each_entry(vmidi, &rdev->filelist, list) {
-		if (!vmidi->trigger)
+		if (!READ_ONCE(vmidi->trigger))
 			continue;
 		if (ev->type == SNDRV_SEQ_EVENT_SYSEX) {
 			if ((ev->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARIABLE)
@@ -147,11 +147,7 @@ static void snd_virmidi_input_trigger(struct snd_rawmidi_substream *substream, i
 {
 	struct snd_virmidi *vmidi = substream->runtime->private_data;
 
-	if (up) {
-		vmidi->trigger = 1;
-	} else {
-		vmidi->trigger = 0;
-	}
+	WRITE_ONCE(vmidi->trigger, !!up);
 }
 
 /* process rawmidi bytes and send events;
@@ -175,7 +171,7 @@ static void snd_vmidi_output_work(struct work_struct *work)
 		return;
 	}
 
-	while (vmidi->trigger) {
+	while (READ_ONCE(vmidi->trigger)) {
 		if (snd_rawmidi_transmit(substream, &input, 1) != 1)
 			break;
 		if (snd_midi_event_encode_byte(vmidi->parser, input,
@@ -201,7 +197,7 @@ static void snd_virmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 {
 	struct snd_virmidi *vmidi = substream->runtime->private_data;
 
-	vmidi->trigger = !!up;
+	WRITE_ONCE(vmidi->trigger, !!up);
 	if (up)
 		queue_work(system_highpri_wq, &vmidi->output_work);
 }
@@ -289,7 +285,7 @@ static int snd_virmidi_output_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_virmidi *vmidi = substream->runtime->private_data;
 
-	vmidi->trigger = 0; /* to be sure */
+	WRITE_ONCE(vmidi->trigger, false); /* to be sure */
 	cancel_work_sync(&vmidi->output_work);
 	snd_midi_event_free(vmidi->parser);
 	substream->runtime->private_data = NULL;
