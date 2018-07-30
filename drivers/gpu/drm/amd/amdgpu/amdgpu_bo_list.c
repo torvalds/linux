@@ -105,9 +105,9 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	struct amdgpu_bo *oa_obj = adev->gds.oa_gfx_bo;
 
 	unsigned last_entry = 0, first_userptr = num_entries;
+	uint64_t total_size = 0;
 	unsigned i;
 	int r;
-	unsigned long total_size = 0;
 
 	array = kvmalloc_array(num_entries, sizeof(struct amdgpu_bo_list_entry), GFP_KERNEL);
 	if (!array)
