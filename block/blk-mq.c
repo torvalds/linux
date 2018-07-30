@@ -558,10 +558,8 @@ static void __blk_mq_complete_request(struct request *rq)
 	bool shared = false;
 	int cpu;
 
-	if (cmpxchg(&rq->state, MQ_RQ_IN_FLIGHT, MQ_RQ_COMPLETE) !=
-			MQ_RQ_IN_FLIGHT)
+	if (!blk_mq_mark_complete(rq))
 		return;
-
 	if (rq->internal_tag != -1)
 		blk_mq_sched_completed_request(rq);
 

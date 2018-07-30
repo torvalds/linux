@@ -39,7 +39,7 @@ Required properties:
 
 Optional property:
 - clock-frequency:	Desired I2C bus clock frequency in Hz.
-			When missing default to 400000Hz.
+			When missing default to 100000Hz.
 
 Child nodes should conform to I2C bus binding as described in i2c.txt.
 

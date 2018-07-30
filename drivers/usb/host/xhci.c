@@ -3051,6 +3051,7 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 	if (!list_empty(&ep->ring->td_list)) {
 		dev_err(&udev->dev, "EP not empty, refuse reset\n");
 		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_free_command(xhci, cfg_cmd);
 		goto cleanup;
 	}
 	xhci_queue_stop_endpoint(xhci, stop_cmd, udev->slot_id, ep_index, 0);

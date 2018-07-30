@@ -1585,8 +1585,9 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
  *****************************************************************************/
 
 static void
-nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 *interlock)
+nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 {
+	struct nouveau_drm *drm = nouveau_drm(state->dev);
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_core *core = disp->core;
 	struct nv50_mstm *mstm;
@@ -1613,6 +1614,22 @@ nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 *interlock)
 			mstm = nouveau_encoder(encoder)->dp.mstm;
 			if (mstm && mstm->modified)
 				nv50_mstm_cleanup(mstm);
+		}
+	}
+}
+
+static void
+nv50_disp_atomic_commit_wndw(struct drm_atomic_state *state, u32 *interlock)
+{
+	struct drm_plane_state *new_plane_state;
+	struct drm_plane *plane;
+	int i;
+
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw *wndw = nv50_wndw(plane);
+		if (interlock[wndw->interlock.type] & wndw->interlock.data) {
+			if (wndw->func->update)
+				wndw->func->update(wndw, interlock);
 		}
 	}
 }
@@ -1684,7 +1701,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			help->disable(encoder);
 			interlock[NV50_DISP_INTERLOCK_CORE] |= 1;
 			if (outp->flush_disable) {
-				nv50_disp_atomic_commit_core(drm, interlock);
+				nv50_disp_atomic_commit_wndw(state, interlock);
+				nv50_disp_atomic_commit_core(state, interlock);
 				memset(interlock, 0x00, sizeof(interlock));
 			}
 		}
@@ -1693,15 +1711,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	/* Flush disable. */
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
 		if (atom->flush_disable) {
-			for_each_new_plane_in_state(state, plane, new_plane_state, i) {
-				struct nv50_wndw *wndw = nv50_wndw(plane);
-				if (interlock[wndw->interlock.type] & wndw->interlock.data) {
-					if (wndw->func->update)
-						wndw->func->update(wndw, interlock);
-				}
-			}
-
-			nv50_disp_atomic_commit_core(drm, interlock);
+			nv50_disp_atomic_commit_wndw(state, interlock);
+			nv50_disp_atomic_commit_core(state, interlock);
 			memset(interlock, 0x00, sizeof(interlock));
 		}
 	}
@@ -1762,18 +1773,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Flush update. */
-	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
-		struct nv50_wndw *wndw = nv50_wndw(plane);
-		if (interlock[wndw->interlock.type] & wndw->interlock.data) {
-			if (wndw->func->update)
-				wndw->func->update(wndw, interlock);
-		}
-	}
+	nv50_disp_atomic_commit_wndw(state, interlock);
 
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
 		if (interlock[NV50_DISP_INTERLOCK_BASE] ||
+		    interlock[NV50_DISP_INTERLOCK_OVLY] ||
+		    interlock[NV50_DISP_INTERLOCK_WNDW] ||
 		    !atom->state.legacy_cursor_update)
-			nv50_disp_atomic_commit_core(drm, interlock);
+			nv50_disp_atomic_commit_core(state, interlock);
 		else
 			disp->core->func->update(disp->core, interlock, false);
 	}
@@ -1871,7 +1878,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 		nv50_disp_atomic_commit_tail(state);
 
 	drm_for_each_crtc(crtc, dev) {
-		if (crtc->state->enable) {
+		if (crtc->state->active) {
 			if (!drm->have_disp_power_ref) {
 				drm->have_disp_power_ref = true;
 				return 0;
@@ -2119,10 +2126,6 @@ nv50_display_destroy(struct drm_device *dev)
 	kfree(disp);
 }
 
-MODULE_PARM_DESC(atomic, "Expose atomic ioctl (default: disabled)");
-static int nouveau_atomic = 0;
-module_param_named(atomic, nouveau_atomic, int, 0400);
-
 int
 nv50_display_create(struct drm_device *dev)
 {
@@ -2147,8 +2150,6 @@ nv50_display_create(struct drm_device *dev)
 	disp->disp = &nouveau_display(dev)->disp;
 	dev->mode_config.funcs = &nv50_disp_func;
 	dev->driver->driver_features |= DRIVER_PREFER_XBGR_30BPP;
-	if (nouveau_atomic)
-		dev->driver->driver_features |= DRIVER_ATOMIC;
 
 	/* small shared memory area we use for notifiers and semaphores */
 	ret = nouveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,

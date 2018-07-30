@@ -592,6 +592,9 @@ int qed_mcp_nvm_wr_cmd(struct qed_hwfn *p_hwfn,
 	*o_mcp_resp = mb_params.mcp_resp;
 	*o_mcp_param = mb_params.mcp_param;
 
+	/* nvm_info needs to be updated */
+	p_hwfn->nvm_info.valid = false;
+
 	return 0;
 }
 
@@ -1208,6 +1211,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		break;
 	default:
 		p_link->speed = 0;
+		p_link->link_up = 0;
 	}
 
 	if (p_link->link_up && p_link->speed)
@@ -1305,9 +1309,15 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	phy_cfg.pause |= (params->pause.forced_tx) ? ETH_PAUSE_TX : 0;
 	phy_cfg.adv_speed = params->speed.advertised_speeds;
 	phy_cfg.loopback_mode = params->loopback_mode;
-	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE) {
-		if (params->eee.enable)
-			phy_cfg.eee_cfg |= EEE_CFG_EEE_ENABLED;
+
+	/* There are MFWs that share this capability regardless of whether
+	 * this is feasible or not. And given that at the very least adv_caps
+	 * would be set internally by qed, we want to make sure LFA would
+	 * still work.
+	 */
+	if ((p_hwfn->mcp_info->capabilities &
+	     FW_MB_PARAM_FEATURE_SUPPORT_EEE) && params->eee.enable) {
+		phy_cfg.eee_cfg |= EEE_CFG_EEE_ENABLED;
 		if (params->eee.tx_lpi_enable)
 			phy_cfg.eee_cfg |= EEE_CFG_TX_LPI;
 		if (params->eee.adv_caps & QED_EEE_1G_ADV)
@@ -2555,10 +2565,13 @@ int qed_mcp_bist_nvm_get_image_att(struct qed_hwfn *p_hwfn,
 
 int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
 {
-	struct qed_nvm_image_info *nvm_info = &p_hwfn->nvm_info;
+	struct qed_nvm_image_info nvm_info;
 	struct qed_ptt *p_ptt;
 	int rc;
 	u32 i;
+
+	if (p_hwfn->nvm_info.valid)
+		return 0;
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt) {
@@ -2567,29 +2580,29 @@ int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
 	}
 
 	/* Acquire from MFW the amount of available images */
-	nvm_info->num_images = 0;
+	nvm_info.num_images = 0;
 	rc = qed_mcp_bist_nvm_get_num_images(p_hwfn,
-					     p_ptt, &nvm_info->num_images);
+					     p_ptt, &nvm_info.num_images);
 	if (rc == -EOPNOTSUPP) {
 		DP_INFO(p_hwfn, "DRV_MSG_CODE_BIST_TEST is not supported\n");
 		goto out;
-	} else if (rc || !nvm_info->num_images) {
+	} else if (rc || !nvm_info.num_images) {
 		DP_ERR(p_hwfn, "Failed getting number of images\n");
 		goto err0;
 	}
 
-	nvm_info->image_att = kmalloc_array(nvm_info->num_images,
-					    sizeof(struct bist_nvm_image_att),
-					    GFP_KERNEL);
-	if (!nvm_info->image_att) {
+	nvm_info.image_att = kmalloc_array(nvm_info.num_images,
+					   sizeof(struct bist_nvm_image_att),
+					   GFP_KERNEL);
+	if (!nvm_info.image_att) {
 		rc = -ENOMEM;
 		goto err0;
 	}
 
 	/* Iterate over images and get their attributes */
-	for (i = 0; i < nvm_info->num_images; i++) {
+	for (i = 0; i < nvm_info.num_images; i++) {
 		rc = qed_mcp_bist_nvm_get_image_att(p_hwfn, p_ptt,
-						    &nvm_info->image_att[i], i);
+						    &nvm_info.image_att[i], i);
 		if (rc) {
 			DP_ERR(p_hwfn,
 			       "Failed getting image index %d attributes\n", i);
@@ -2597,14 +2610,22 @@ int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
 		}
 
 		DP_VERBOSE(p_hwfn, QED_MSG_SP, "image index %d, size %x\n", i,
-			   nvm_info->image_att[i].len);
+			   nvm_info.image_att[i].len);
 	}
 out:
+	/* Update hwfn's nvm_info */
+	if (nvm_info.num_images) {
+		p_hwfn->nvm_info.num_images = nvm_info.num_images;
+		kfree(p_hwfn->nvm_info.image_att);
+		p_hwfn->nvm_info.image_att = nvm_info.image_att;
+		p_hwfn->nvm_info.valid = true;
+	}
+
 	qed_ptt_release(p_hwfn, p_ptt);
 	return 0;
 
 err1:
-	kfree(nvm_info->image_att);
+	kfree(nvm_info.image_att);
 err0:
 	qed_ptt_release(p_hwfn, p_ptt);
 	return rc;
@@ -2641,6 +2662,7 @@ qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
+	qed_mcp_nvm_info_populate(p_hwfn);
 	for (i = 0; i < p_hwfn->nvm_info.num_images; i++)
 		if (type == p_hwfn->nvm_info.image_att[i].image_type)
 			break;
