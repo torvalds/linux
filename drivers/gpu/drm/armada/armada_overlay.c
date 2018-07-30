@@ -130,10 +130,10 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 	    old_state->src.y1 != state->src.y1 ||
 	    old_state->fb != state->fb) {
 		const struct drm_format_info *format;
-		u16 src_x;
+		u16 src_x, pitches[3];
 		u32 addrs[3];
 
-		armada_drm_plane_calc_addrs(state, addrs);
+		armada_drm_plane_calc(state, addrs, pitches);
 
 		armada_reg_queue_set(regs, idx, addrs[0],
 				     LCD_SPU_DMA_START_ADDR_Y0);
@@ -148,9 +148,9 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 		armada_reg_queue_set(regs, idx, addrs[2],
 				     LCD_SPU_DMA_START_ADDR_V1);
 
-		val = state->fb->pitches[0] << 16 | state->fb->pitches[0];
+		val = pitches[0] << 16 | pitches[0];
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_PITCH_YC);
-		val = state->fb->pitches[1] << 16 | state->fb->pitches[2];
+		val = pitches[1] << 16 | pitches[2];
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_PITCH_UV);
 
 		cfg = CFG_DMA_FMT(drm_fb_to_armada_fb(state->fb)->fmt) |
