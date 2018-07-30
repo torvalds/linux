@@ -121,7 +121,7 @@ void dpu_power_resource_deinit(struct platform_device *pdev,
 	mutex_lock(&phandle->phandle_lock);
 	list_for_each_entry_safe(curr_client, next_client,
 			&phandle->power_client_clist, list) {
-		pr_err("cliend:%s-%d still registered with refcount:%d\n",
+		pr_err("client:%s-%d still registered with refcount:%d\n",
 				curr_client->name, curr_client->id,
 				curr_client->refcount);
 		curr_client->active = false;

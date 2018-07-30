@@ -421,7 +421,7 @@ int dpu_encoder_helper_unregister_irq(struct dpu_encoder_phys *phys_enc,
 
 	ret = dpu_core_irq_disable(phys_enc->dpu_kms, &irq->irq_idx, 1);
 	if (ret) {
-		DRM_ERROR("diable failed id=%u, intr=%d, hw=%d, irq=%d ret=%d",
+		DRM_ERROR("disable failed id=%u, intr=%d, hw=%d, irq=%d ret=%d",
 			  DRMID(phys_enc->parent), intr_idx, irq->hw_idx,
 			  irq->irq_idx, ret);
 	}
