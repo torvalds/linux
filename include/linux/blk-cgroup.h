@@ -769,8 +769,14 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 
 	if (!throtl) {
 		blkg = blkg ?: q->root_blkg;
-		blkg_rwstat_add(&blkg->stat_bytes, bio->bi_opf,
-				bio->bi_iter.bi_size);
+		/*
+		 * If the bio is flagged with BIO_QUEUE_ENTERED it means this
+		 * is a split bio and we would have already accounted for the
+		 * size of the bio.
+		 */
+		if (!bio_flagged(bio, BIO_QUEUE_ENTERED))
+			blkg_rwstat_add(&blkg->stat_bytes, bio->bi_opf,
+					bio->bi_iter.bi_size);
 		blkg_rwstat_add(&blkg->stat_ios, bio->bi_opf, 1);
 	}
 
