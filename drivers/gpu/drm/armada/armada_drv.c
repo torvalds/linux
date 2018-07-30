@@ -109,7 +109,7 @@ static int armada_drm_bind(struct device *dev)
 
 	/*
 	 * The drm_device structure must be at the start of
-	 * armada_private for drm_dev_unref() to work correctly.
+	 * armada_private for drm_dev_put() to work correctly.
 	 */
 	BUILD_BUG_ON(offsetof(struct armada_private, drm) != 0);
 
@@ -180,7 +180,7 @@ static int armada_drm_bind(struct device *dev)
 	drm_mode_config_cleanup(&priv->drm);
 	drm_mm_takedown(&priv->linear);
 	flush_work(&priv->fb_unref_work);
-	drm_dev_unref(&priv->drm);
+	drm_dev_put(&priv->drm);
 	return ret;
 }
 
@@ -200,7 +200,7 @@ static void armada_drm_unbind(struct device *dev)
 	drm_mm_takedown(&priv->linear);
 	flush_work(&priv->fb_unref_work);
 
-	drm_dev_unref(&priv->drm);
+	drm_dev_put(&priv->drm);
 }
 
 static int compare_of(struct device *dev, void *data)
