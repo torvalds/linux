@@ -67,6 +67,7 @@ capella	Capella Microsystems, Inc
 cascoda	Cascoda, Ltd.
 cavium	Cavium, Inc.
 cdns	Cadence Design Systems Inc.
+cdtech	CDTech(H.K.) Electronics Limited
 ceva	Ceva, Inc.
 chipidea	Chipidea, Inc
 chipone		ChipOne
