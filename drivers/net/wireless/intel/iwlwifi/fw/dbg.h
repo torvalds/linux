@@ -322,6 +322,14 @@ static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
 		iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
 }
 
+static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
+{
+	return iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PAGING) &&
+		!fwrt->trans->cfg->gen2 &&
+		fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
+		fwrt->fw_paging_db[0].fw_paging_block;
+}
+
 void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_fw_flush_dump(struct iwl_fw_runtime *fwrt)
