@@ -123,6 +123,7 @@ struct p9_client {
 	struct p9_trans_module *trans_mod;
 	enum p9_trans_status status;
 	void *trans;
+	struct kmem_cache *fcall_cache;
 
 	union {
 		struct {
