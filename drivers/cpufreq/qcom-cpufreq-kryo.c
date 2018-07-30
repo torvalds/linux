@@ -109,8 +109,9 @@ static int qcom_cpufreq_kryo_probe(struct platform_device *pdev)
 	speedbin_nvmem = of_nvmem_cell_get(np, NULL);
 	of_node_put(np);
 	if (IS_ERR(speedbin_nvmem)) {
-		dev_err(cpu_dev, "Could not get nvmem cell: %ld\n",
-			PTR_ERR(speedbin_nvmem));
+		if (PTR_ERR(speedbin_nvmem) != -EPROBE_DEFER)
+			dev_err(cpu_dev, "Could not get nvmem cell: %ld\n",
+				PTR_ERR(speedbin_nvmem));
 		return PTR_ERR(speedbin_nvmem);
 	}
 
