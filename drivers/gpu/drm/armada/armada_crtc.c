@@ -1114,64 +1114,14 @@ int armada_drm_plane_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-static unsigned int armada_drm_primary_update_state(
-	struct drm_plane_state *state, struct armada_regs *regs)
-{
-	struct armada_plane *dplane = drm_to_armada_plane(state->plane);
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(state->crtc);
-	struct armada_framebuffer *dfb = drm_fb_to_armada_fb(state->fb);
-	bool was_disabled;
-	unsigned int idx = 0;
-	u32 val;
-
-	val = CFG_GRA_FMT(dfb->fmt) | CFG_GRA_MOD(dfb->mod);
-	if (dfb->fmt > CFG_420)
-		val |= CFG_PALETTE_ENA;
-	if (state->visible)
-		val |= CFG_GRA_ENA;
-	if (drm_rect_width(&state->src) >> 16 != drm_rect_width(&state->dst))
-		val |= CFG_GRA_HSMOOTH;
-	if (dcrtc->interlaced)
-		val |= CFG_GRA_FTOGGLE;
-
-	was_disabled = !(dplane->state.ctrl0 & CFG_GRA_ENA);
-	if (was_disabled)
-		armada_reg_queue_mod(regs, idx,
-				     0, CFG_PDWN64x66, LCD_SPU_SRAM_PARA1);
-
-	dplane->state.ctrl0 = val;
-	dplane->state.src_hw = armada_rect_hw_fp(&state->src);
-	dplane->state.dst_hw = armada_rect_hw(&state->dst);
-	dplane->state.dst_yx = armada_rect_yx(&state->dst);
-
-	idx += armada_drm_crtc_calc_fb(&dfb->fb, state->src.x1 >> 16,
-				       state->src.y1 >> 16, regs + idx,
-				       dcrtc->interlaced);
-	armada_reg_queue_set(regs, idx, dplane->state.dst_yx,
-			     LCD_SPU_GRA_OVSA_HPXL_VLN);
-	armada_reg_queue_set(regs, idx, dplane->state.src_hw,
-			     LCD_SPU_GRA_HPXL_VLN);
-	armada_reg_queue_set(regs, idx, dplane->state.dst_hw,
-			     LCD_SPU_GZM_HPXL_VLN);
-	armada_reg_queue_mod(regs, idx, dplane->state.ctrl0, CFG_GRAFORMAT |
-			     CFG_GRA_MOD(CFG_SWAPRB | CFG_SWAPUV |
-					 CFG_SWAPYU | CFG_YUV2RGB) |
-			     CFG_PALETTE_ENA | CFG_GRA_FTOGGLE |
-			     CFG_GRA_HSMOOTH | CFG_GRA_ENA,
-			     LCD_SPU_DMA_CTRL0);
-
-	dplane->state.vsync_update = !was_disabled;
-	dplane->state.changed = true;
-
-	return idx;
-}
-
 static void armada_drm_primary_plane_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = plane->state;
 	struct armada_crtc *dcrtc;
 	struct armada_regs *regs;
+	u32 cfg, cfg_mask, val;
+	unsigned int idx;
 
 	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
 
@@ -1187,13 +1137,69 @@ static void armada_drm_primary_plane_atomic_update(struct drm_plane *plane,
 	dcrtc = drm_to_armada_crtc(state->crtc);
 	regs = dcrtc->regs + dcrtc->regs_idx;
 
-	dcrtc->regs_idx += armada_drm_primary_update_state(state, regs);
+	idx = 0;
+	if (!old_state->visible && state->visible) {
+		val = CFG_PDWN64x66;
+		if (drm_fb_to_armada_fb(state->fb)->fmt > CFG_420)
+			val |= CFG_PDWN256x24;
+		armada_reg_queue_mod(regs, idx, 0, val, LCD_SPU_SRAM_PARA1);
+	}
+	val = armada_rect_hw_fp(&state->src);
+	if (armada_rect_hw_fp(&old_state->src) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_GRA_HPXL_VLN);
+	val = armada_rect_yx(&state->dst);
+	if (armada_rect_yx(&old_state->dst) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_GRA_OVSA_HPXL_VLN);
+	val = armada_rect_hw(&state->dst);
+	if (armada_rect_hw(&old_state->dst) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_GZM_HPXL_VLN);
+	if (old_state->src.x1 != state->src.x1 ||
+	    old_state->src.y1 != state->src.y1 ||
+	    old_state->fb != state->fb) {
+		idx += armada_drm_crtc_calc_fb(state->fb,
+					       state->src.x1 >> 16,
+					       state->src.y1 >> 16,
+					       regs + idx,
+					       dcrtc->interlaced);
+	}
+	if (old_state->fb != state->fb) {
+		cfg = CFG_GRA_FMT(drm_fb_to_armada_fb(state->fb)->fmt) |
+		      CFG_GRA_MOD(drm_fb_to_armada_fb(state->fb)->mod);
+		if (drm_fb_to_armada_fb(state->fb)->fmt > CFG_420)
+			cfg |= CFG_PALETTE_ENA;
+		if (state->visible)
+			cfg |= CFG_GRA_ENA;
+		if (dcrtc->interlaced)
+			cfg |= CFG_GRA_FTOGGLE;
+		cfg_mask = CFG_GRAFORMAT |
+			   CFG_GRA_MOD(CFG_SWAPRB | CFG_SWAPUV |
+				       CFG_SWAPYU | CFG_YUV2RGB) |
+			   CFG_PALETTE_ENA | CFG_GRA_FTOGGLE |
+			   CFG_GRA_ENA;
+	} else if (old_state->visible != state->visible) {
+		cfg = state->visible ? CFG_GRA_ENA : 0;
+		cfg_mask = CFG_GRA_ENA;
+	} else {
+		cfg = cfg_mask = 0;
+	}
+	if (drm_rect_width(&old_state->src) != drm_rect_width(&state->src) ||
+	    drm_rect_width(&old_state->dst) != drm_rect_width(&state->dst)) {
+		cfg_mask |= CFG_GRA_HSMOOTH;
+		if (drm_rect_width(&state->src) >> 16 !=
+		    drm_rect_width(&state->dst))
+			cfg |= CFG_GRA_HSMOOTH;
+	}
+
+	if (cfg_mask)
+		armada_reg_queue_mod(regs, idx, cfg, cfg_mask,
+				     LCD_SPU_DMA_CTRL0);
+
+	dcrtc->regs_idx += idx;
 }
 
 static void armada_drm_primary_plane_atomic_disable(struct drm_plane *plane,
 	struct drm_plane_state *old_state)
 {
-	struct armada_plane *dplane = drm_to_armada_plane(plane);
 	struct armada_crtc *dcrtc;
 	struct armada_regs *regs;
 	unsigned int idx = 0;
@@ -1207,8 +1213,6 @@ static void armada_drm_primary_plane_atomic_disable(struct drm_plane *plane,
 		plane->base.id, plane->name,
 		old_state->crtc->base.id, old_state->crtc->name,
 		old_state->fb->base.id);
-
-	dplane->state.ctrl0 &= ~CFG_GRA_ENA;
 
 	dcrtc = drm_to_armada_crtc(old_state->crtc);
 	regs = dcrtc->regs + dcrtc->regs_idx;
