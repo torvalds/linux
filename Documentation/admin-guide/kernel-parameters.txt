@@ -3192,6 +3192,15 @@
 				Adding the window is slightly risky (it may
 				conflict with unreported devices), so this
 				taints the kernel.
+		disable_acs_redir=<pci_dev>[; ...]
+				Specify one or more PCI devices (in the format
+				specified above) separated by semicolons.
+				Each device specified will have the PCI ACS
+				redirect capabilities forced off which will
+				allow P2P traffic between devices through
+				bridges without forcing it upstream. Note:
+				this removes isolation between devices and
+				may put more devices in an IOMMU group.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
