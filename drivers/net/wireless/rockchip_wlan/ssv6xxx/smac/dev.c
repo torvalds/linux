@@ -4836,14 +4836,12 @@ static void _proc_data_rx_skb (struct ssv_softc *sc, struct sk_buff *rx_skb)
       struct ieee80211_mgmt *mgmt_tmp = NULL;
       mgmt_tmp = (struct ieee80211_mgmt *)(rx_skb->data + SSV6XXX_RX_DESC_LEN);
       mgmt_tmp->u.beacon.timestamp = cpu_to_le64(ssv6200_get_systime_us());  
-      printk("beacon timestamp = %lld\n", mgmt_tmp->u.beacon.timestamp);
    }
    if (is_probe_resp)
    {
        struct ieee80211_mgmt *mgmt_tmp = NULL;
       mgmt_tmp = (struct ieee80211_mgmt *)(rx_skb->data + SSV6XXX_RX_DESC_LEN);
       mgmt_tmp->u.probe_resp.timestamp = cpu_to_le64(ssv6200_get_systime_us());
-      printk("probe_resp timestamp = %lld\n", mgmt_tmp->u.probe_resp.timestamp);
    }
 
     if (rxdesc->rate_idx < SSV62XX_G_RATE_INDEX && rxphypad->RSVD == 0)
