@@ -191,34 +191,6 @@ void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 		armada_drm_plane_work_call(dcrtc, work, work->cancel);
 }
 
-static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
-	struct armada_plane_work *work)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	armada_drm_crtc_update_regs(dcrtc, work->regs);
-	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-}
-
-static struct armada_plane_work *
-armada_drm_crtc_alloc_plane_work(struct drm_plane *plane)
-{
-	struct armada_plane_work *work;
-	int i = 0;
-
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
-	if (!work)
-		return NULL;
-
-	work->plane = plane;
-	work->fn = armada_drm_crtc_complete_frame_work;
-	work->need_kfree = true;
-	armada_reg_queue_end(work->regs, i);
-
-	return work;
-}
-
 static void armada_drm_crtc_queue_state_event(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
@@ -317,9 +289,6 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 	}
 
 	spin_unlock(&dcrtc->irq_lock);
-
-	if (stat & GRA_FRAME_IRQ)
-		armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
 
 	if (stat & VSYNC_IRQ) {
 		event = xchg(&dcrtc->event, NULL);
@@ -459,14 +428,8 @@ static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_crtc_state)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_plane *dplane;
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
-
-	/* Wait 100ms for any plane works to complete */
-	dplane = drm_to_armada_plane(crtc->primary);
-	if (WARN_ON(armada_drm_plane_work_wait(dplane, HZ / 10) == 0))
-		armada_drm_plane_work_cancel(dcrtc, dplane);
 
 	dcrtc->regs_idx = 0;
 	dcrtc->regs = dcrtc->atomic_regs;
@@ -511,8 +474,6 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 	if (plane)
 		WARN_ON(!armada_drm_plane_work_wait(drm_to_armada_plane(plane),
 						    HZ));
-	armada_drm_plane_work_wait(drm_to_armada_plane(dcrtc->crtc.primary),
-				   MAX_SCHEDULE_TIMEOUT);
 
 	drm_crtc_vblank_off(crtc);
 	armada_drm_crtc_update(dcrtc, false);
@@ -802,81 +763,6 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
 	kfree(dcrtc);
 }
 
-/*
- * The mode_config lock is held here, to prevent races between this
- * and a mode_set.
- */
-static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
-	struct drm_framebuffer *fb, struct drm_pending_vblank_event *event,
-	uint32_t page_flip_flags, struct drm_modeset_acquire_ctx *ctx)
-{
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct drm_plane *plane = crtc->primary;
-	const struct drm_plane_helper_funcs *plane_funcs;
-	struct drm_plane_state *state;
-	struct armada_plane_work *work;
-	int ret;
-
-	/* Construct new state for the primary plane */
-	state = drm_atomic_helper_plane_duplicate_state(plane);
-	if (!state)
-		return -ENOMEM;
-
-	drm_atomic_set_fb_for_plane(state, fb);
-
-	work = armada_drm_crtc_alloc_plane_work(plane);
-	if (!work) {
-		ret = -ENOMEM;
-		goto put_state;
-	}
-
-	/* Make sure we can get vblank interrupts */
-	ret = drm_crtc_vblank_get(crtc);
-	if (ret)
-		goto put_work;
-
-	/*
-	 * If we have another work pending, we can't process this flip.
-	 * The modeset locks protect us from another user queuing a work
-	 * while we're setting up.
-	 */
-	if (drm_to_armada_plane(plane)->work) {
-		ret = -EBUSY;
-		goto put_vblank;
-	}
-
-	work->event = event;
-	work->old_fb = plane->state->fb;
-
-	/*
-	 * Hold a ref on the new fb while it's being displayed by the
-	 * hardware. The old fb refcount will be released in the worker.
-	 */
-	drm_framebuffer_get(state->fb);
-
-	/* Point of no return */
-	swap(plane->state, state);
-
-	dcrtc->regs_idx = 0;
-	dcrtc->regs = work->regs;
-
-	plane_funcs = plane->helper_private;
-	plane_funcs->atomic_update(plane, state);
-	armada_reg_queue_end(dcrtc->regs, dcrtc->regs_idx);
-
-	/* Queue the work - this should never fail */
-	WARN_ON(armada_drm_plane_work_queue(dcrtc, work));
-	work = NULL;
-
-put_vblank:
-	drm_crtc_vblank_put(crtc);
-put_work:
-	kfree(work);
-put_state:
-	drm_atomic_helper_plane_destroy_state(plane, state);
-	return ret;
-}
-
 /* These are called under the vbl_lock. */
 static int armada_drm_crtc_enable_vblank(struct drm_crtc *crtc)
 {
@@ -905,7 +791,7 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.cursor_move	= armada_drm_crtc_cursor_move,
 	.destroy	= armada_drm_crtc_destroy,
 	.set_config	= drm_atomic_helper_set_config,
-	.page_flip	= armada_drm_crtc_page_flip,
+	.page_flip	= drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank	= armada_drm_crtc_enable_vblank,
