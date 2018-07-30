@@ -203,7 +203,7 @@ static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
 	trans_pcie->fw_mon_size = 0;
 }
 
-static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
+void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct page *page = NULL;
@@ -1132,21 +1132,44 @@ static struct iwl_causes_list causes_list[] = {
 	{MSIX_HW_INT_CAUSES_REG_HAP,		CSR_MSIX_HW_INT_MASK_AD, 0x2E},
 };
 
+static struct iwl_causes_list causes_list_v2[] = {
+	{MSIX_FH_INT_CAUSES_D2S_CH0_NUM,	CSR_MSIX_FH_INT_MASK_AD, 0},
+	{MSIX_FH_INT_CAUSES_D2S_CH1_NUM,	CSR_MSIX_FH_INT_MASK_AD, 0x1},
+	{MSIX_FH_INT_CAUSES_S2D,		CSR_MSIX_FH_INT_MASK_AD, 0x3},
+	{MSIX_FH_INT_CAUSES_FH_ERR,		CSR_MSIX_FH_INT_MASK_AD, 0x5},
+	{MSIX_HW_INT_CAUSES_REG_ALIVE,		CSR_MSIX_HW_INT_MASK_AD, 0x10},
+	{MSIX_HW_INT_CAUSES_REG_IPC,		CSR_MSIX_HW_INT_MASK_AD, 0x11},
+	{MSIX_HW_INT_CAUSES_REG_SW_ERR_V2,	CSR_MSIX_HW_INT_MASK_AD, 0x15},
+	{MSIX_HW_INT_CAUSES_REG_CT_KILL,	CSR_MSIX_HW_INT_MASK_AD, 0x16},
+	{MSIX_HW_INT_CAUSES_REG_RF_KILL,	CSR_MSIX_HW_INT_MASK_AD, 0x17},
+	{MSIX_HW_INT_CAUSES_REG_PERIODIC,	CSR_MSIX_HW_INT_MASK_AD, 0x18},
+	{MSIX_HW_INT_CAUSES_REG_SCD,		CSR_MSIX_HW_INT_MASK_AD, 0x2A},
+	{MSIX_HW_INT_CAUSES_REG_FH_TX,		CSR_MSIX_HW_INT_MASK_AD, 0x2B},
+	{MSIX_HW_INT_CAUSES_REG_HW_ERR,		CSR_MSIX_HW_INT_MASK_AD, 0x2D},
+	{MSIX_HW_INT_CAUSES_REG_HAP,		CSR_MSIX_HW_INT_MASK_AD, 0x2E},
+};
+
 static void iwl_pcie_map_non_rx_causes(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
 	int val = trans_pcie->def_irq | MSIX_NON_AUTO_CLEAR_CAUSE;
-	int i;
+	int i, arr_size =
+		(trans->cfg->device_family < IWL_DEVICE_FAMILY_22560) ?
+		ARRAY_SIZE(causes_list) : ARRAY_SIZE(causes_list_v2);
 
 	/*
 	 * Access all non RX causes and map them to the default irq.
 	 * In case we are missing at least one interrupt vector,
 	 * the first interrupt vector will serve non-RX and FBQ causes.
 	 */
-	for (i = 0; i < ARRAY_SIZE(causes_list); i++) {
-		iwl_write8(trans, CSR_MSIX_IVAR(causes_list[i].addr), val);
-		iwl_clear_bit(trans, causes_list[i].mask_reg,
-			      causes_list[i].cause_num);
+	for (i = 0; i < arr_size; i++) {
+		struct iwl_causes_list *causes =
+			(trans->cfg->device_family < IWL_DEVICE_FAMILY_22560) ?
+			causes_list : causes_list_v2;
+
+		iwl_write8(trans, CSR_MSIX_IVAR(causes[i].addr), val);
+		iwl_clear_bit(trans, causes[i].mask_reg,
+			      causes[i].cause_num);
 	}
 }
 
@@ -2236,9 +2259,9 @@ void iwl_trans_pcie_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 		jiffies_to_msecs(txq->wd_timeout),
 		txq->read_ptr, txq->write_ptr,
 		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq_id)) &
-			(TFD_QUEUE_SIZE_MAX - 1),
+			(trans->cfg->base_params->max_tfd_queue_size - 1),
 		iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq_id)) &
-			(TFD_QUEUE_SIZE_MAX - 1),
+			(trans->cfg->base_params->max_tfd_queue_size - 1),
 		iwl_read_direct32(trans, FH_TX_TRB_REG(fifo)));
 }
 
@@ -2934,7 +2957,7 @@ static struct iwl_trans_dump_data
 	struct iwl_txq *cmdq = trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_fw_error_dump_txcmd *txcmd;
 	struct iwl_trans_dump_data *dump_data;
-	u32 len, num_rbs;
+	u32 len, num_rbs = 0;
 	u32 monitor_len;
 	int i, ptr;
 	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status) &&
@@ -3057,7 +3080,7 @@ static struct iwl_trans_dump_data
 			txcmd = (void *)((u8 *)txcmd->data + caplen);
 		}
 
-		ptr = iwl_queue_dec_wrap(ptr);
+		ptr = iwl_queue_dec_wrap(trans, ptr);
 	}
 	spin_unlock_bh(&cmdq->lock);
 
@@ -3349,14 +3372,26 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 #if IS_ENABLED(CONFIG_IWLMVM)
 	trans->hw_rf_id = iwl_read32(trans, CSR_HW_RF_ID);
-	if (trans->hw_rf_id == CSR_HW_RF_ID_TYPE_HR) {
+
+	if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
+	    CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR)) {
 		u32 hw_status;
 
 		hw_status = iwl_read_prph(trans, UMAG_GEN_HW_STATUS);
-		if (hw_status & UMAG_GEN_HW_IS_FPGA)
-			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_f0;
-		else
+		if (CSR_HW_RF_STEP(trans->hw_rf_id) == SILICON_B_STEP)
+			/*
+			* b step fw is the same for physical card and fpga
+			*/
+			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_b0;
+		else if ((hw_status & UMAG_GEN_HW_IS_FPGA) &&
+			 CSR_HW_RF_STEP(trans->hw_rf_id) == SILICON_A_STEP) {
+			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_a0_f0;
+		} else {
+			/*
+			* a step no FPGA
+			*/
 			trans->cfg = &iwl22000_2ac_cfg_hr;
+		}
 	}
 #endif
 

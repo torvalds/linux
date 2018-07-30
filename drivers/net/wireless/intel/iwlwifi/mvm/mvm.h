@@ -654,7 +654,7 @@ struct iwl_mvm_tcm {
 struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
 	u16 num_stored;
-	u8 buf_size;
+	u16 buf_size;
 	int queue;
 	u16 last_amsdu;
 	u8 last_sub_index;

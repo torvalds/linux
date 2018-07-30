@@ -780,6 +780,10 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	if (vif->probe_req_reg && vif->bss_conf.assoc && vif->p2p)
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
+	if (vif->bss_conf.assoc && vif->bss_conf.he_support &&
+	    !iwlwifi_mod_params.disable_11ax)
+		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_11AX);
+
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
 

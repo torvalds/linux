@@ -1787,7 +1787,8 @@ MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: disable agg TX, 4: disable agg RX, 8 enable agg TX");
 module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size, int, 0444);
 MODULE_PARM_DESC(amsdu_size,
-		 "amsdu size 0: 12K for multi Rx queue devices, 4K for other devices 1:4K 2:8K 3:12K (default 0)");
+		 "amsdu size 0: 12K for multi Rx queue devices, 2K for 22560 devices, "
+		 "4K for other devices 1:4K 2:8K 3:12K 4: 2K (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
@@ -1856,3 +1857,7 @@ module_param_named(remove_when_gone,
 		   0444);
 MODULE_PARM_DESC(remove_when_gone,
 		 "Remove dev from PCIe bus if it is deemed inaccessible (default: false)");
+
+module_param_named(disable_11ax, iwlwifi_mod_params.disable_11ax, bool,
+		   S_IRUGO);
+MODULE_PARM_DESC(disable_11ax, "Disable HE capabilities (default: false)");

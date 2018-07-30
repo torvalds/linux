@@ -448,6 +448,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(DQA_ENABLE_CMD),
 	HCMD_NAME(UPDATE_MU_GROUPS_CMD),
 	HCMD_NAME(TRIGGER_RX_QUEUES_NOTIF_CMD),
+	HCMD_NAME(STA_HE_CTXT_CMD),
 	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),
@@ -703,11 +704,15 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	}
 
 	/* the hardware splits the A-MSDU */
-	if (mvm->cfg->mq_rx_supported)
+	if (mvm->trans->cfg->device_family >=
+	    IWL_DEVICE_FAMILY_22560)
+		trans_cfg.rx_buf_size = IWL_AMSDU_2K;
+	else if (mvm->cfg->mq_rx_supported)
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
 
 	trans->wide_cmd_header = true;
-	trans_cfg.bc_table_dword = true;
+	trans_cfg.bc_table_dword =
+		mvm->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560;
 
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);

@@ -95,6 +95,7 @@
 static const struct iwl_base_params iwl9000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_9000,
 	.num_of_queues = 31,
+	.max_tfd_queue_size = 256,
 	.shadow_ram_support = true,
 	.led_compensation = 57,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
