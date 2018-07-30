@@ -1483,7 +1483,11 @@ smb2_is_session_expired(char *buf)
 	    shdr->Status != STATUS_USER_SESSION_DELETED)
 		return false;
 
+	trace_smb3_ses_expired(shdr->TreeId, shdr->SessionId,
+			       le16_to_cpu(shdr->Command),
+			       le64_to_cpu(shdr->MessageId));
 	cifs_dbg(FYI, "Session expired or deleted\n");
+
 	return true;
 }
 
