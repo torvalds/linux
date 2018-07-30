@@ -325,38 +325,6 @@ armada_drm_crtc_alloc_plane_work(struct drm_plane *plane)
 	return work;
 }
 
-static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
-	struct drm_framebuffer *fb, bool force)
-{
-	struct armada_plane_work *work;
-
-	if (!fb)
-		return;
-
-	if (force) {
-		/* Display is disabled, so just drop the old fb */
-		drm_framebuffer_put(fb);
-		return;
-	}
-
-	work = armada_drm_crtc_alloc_plane_work(dcrtc->crtc.primary);
-	if (work) {
-		work->old_fb = fb;
-
-		if (armada_drm_plane_work_queue(dcrtc, work) == 0)
-			return;
-
-		kfree(work);
-	}
-
-	/*
-	 * Oops - just drop the reference immediately and hope for
-	 * the best.  The worst that will happen is the buffer gets
-	 * reused before it has finished being displayed.
-	 */
-	drm_framebuffer_put(fb);
-}
-
 static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 {
 	/*
@@ -434,9 +402,6 @@ static void armada_drm_crtc_commit(struct drm_crtc *crtc)
 	dcrtc->dpms = DRM_MODE_DPMS_ON;
 	armada_drm_crtc_update(dcrtc);
 	drm_crtc_vblank_on(crtc);
-
-	if (dcrtc->old_modeset_fb)
-		armada_drm_crtc_finish_fb(dcrtc, dcrtc->old_modeset_fb, false);
 }
 
 /* The mode_config.mutex will be held for this call */
@@ -588,27 +553,16 @@ static uint32_t armada_drm_crtc_calculate_csc(struct armada_crtc *dcrtc)
 	return val;
 }
 
-static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-	struct drm_framebuffer *old_fb);
-
 /* The mode_config.mutex will be held for this call */
-static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
-	struct drm_display_mode *mode, struct drm_display_mode *adj,
-	int x, int y, struct drm_framebuffer *old_fb)
+static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
+	struct drm_display_mode *adj = &crtc->state->adjusted_mode;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_regs regs[17];
 	uint32_t lm, rm, tm, bm, val, sclk;
 	unsigned long flags;
 	unsigned i;
-	bool interlaced;
-
-	/* Take a reference on the old fb for armada_drm_crtc_commit() */
-	if (old_fb)
-		drm_framebuffer_get(old_fb);
-	dcrtc->old_modeset_fb = old_fb;
-
-	interlaced = !!(adj->flags & DRM_MODE_FLAG_INTERLACE);
+	bool interlaced = !!(adj->flags & DRM_MODE_FLAG_INTERLACE);
 
 	i = 0;
 	rm = adj->crtc_hsync_start - adj->crtc_hdisplay;
@@ -692,35 +646,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 
 	armada_drm_crtc_update_regs(dcrtc, regs);
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-
-	return armada_drm_crtc_mode_set_base(crtc, x, y, old_fb);
-}
-
-static int armada_drm_do_primary_update(struct drm_plane *plane,
-	struct drm_plane_state *state, struct drm_framebuffer *old_fb);
-
-/* The mode_config.mutex will be held for this call */
-static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-	struct drm_framebuffer *old_fb)
-{
-	struct drm_plane_state state = {
-		.plane = crtc->primary,
-		.crtc = crtc,
-		.fb = crtc->primary->fb,
-		.crtc_x = 0,
-		.crtc_y = 0,
-		.crtc_w = crtc->mode.hdisplay,
-		.crtc_h = crtc->mode.vdisplay,
-		.src_x = x << 16,
-		.src_y = y << 16,
-		.src_w = crtc->mode.hdisplay << 16,
-		.src_h = crtc->mode.vdisplay << 16,
-		.rotation = DRM_MODE_ROTATE_0,
-	};
-
-	armada_drm_do_primary_update(crtc->primary, &state, old_fb);
-
-	return 0;
 }
 
 /* The mode_config.mutex will be held for this call */
@@ -732,14 +657,49 @@ static void armada_drm_crtc_disable(struct drm_crtc *crtc)
 	crtc->primary->funcs->disable_plane(crtc->primary, NULL);
 }
 
+static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_crtc_state)
+{
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	struct armada_plane *dplane;
+
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+
+	/* Wait 100ms for any plane works to complete */
+	dplane = drm_to_armada_plane(crtc->primary);
+	if (WARN_ON(armada_drm_plane_work_wait(dplane, HZ / 10) == 0))
+		armada_drm_plane_work_cancel(dcrtc, dplane);
+
+	dcrtc->regs_idx = 0;
+	dcrtc->regs = dcrtc->atomic_regs;
+}
+
+static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_crtc_state)
+{
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	unsigned long flags;
+
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+
+	armada_reg_queue_end(dcrtc->regs, dcrtc->regs_idx);
+
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
+	armada_drm_crtc_update_regs(dcrtc, dcrtc->regs);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
+}
+
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
 	.dpms		= armada_drm_crtc_dpms,
 	.prepare	= armada_drm_crtc_prepare,
 	.commit		= armada_drm_crtc_commit,
 	.mode_fixup	= armada_drm_crtc_mode_fixup,
-	.mode_set	= armada_drm_crtc_mode_set,
-	.mode_set_base	= armada_drm_crtc_mode_set_base,
+	.mode_set	= drm_helper_crtc_mode_set,
+	.mode_set_nofb	= armada_drm_crtc_mode_set_nofb,
+	.mode_set_base	= drm_helper_crtc_mode_set_base,
 	.disable	= armada_drm_crtc_disable,
+	.atomic_begin	= armada_drm_crtc_atomic_begin,
+	.atomic_flush	= armada_drm_crtc_atomic_flush,
 };
 
 static void armada_load_cursor_argb(void __iomem *base, uint32_t *pix,
@@ -1013,6 +973,12 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	}
 
 	/*
+	 * We are in transition to atomic modeset: update the atomic modeset
+	 * state with the new framebuffer to keep the state consistent.
+	 */
+	drm_framebuffer_assign(&dcrtc->crtc.primary->state->fb, fb);
+
+	/*
 	 * Finally, if the display is blanked, we won't receive an
 	 * interrupt, so complete it now.
 	 */
@@ -1072,15 +1038,65 @@ static void armada_drm_crtc_disable_vblank(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs armada_crtc_funcs = {
+	.reset		= drm_atomic_helper_crtc_reset,
 	.cursor_set	= armada_drm_crtc_cursor_set,
 	.cursor_move	= armada_drm_crtc_cursor_move,
 	.destroy	= armada_drm_crtc_destroy,
 	.set_config	= drm_crtc_helper_set_config,
 	.page_flip	= armada_drm_crtc_page_flip,
 	.set_property	= armada_drm_crtc_set_property,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank	= armada_drm_crtc_enable_vblank,
 	.disable_vblank	= armada_drm_crtc_disable_vblank,
 };
+
+static int armada_drm_plane_prepare_fb(struct drm_plane *plane,
+	struct drm_plane_state *state)
+{
+	DRM_DEBUG_KMS("[PLANE:%d:%s] [FB:%d]\n",
+		plane->base.id, plane->name,
+		state->fb ? state->fb->base.id : 0);
+
+	/*
+	 * Take a reference on the new framebuffer - we want to
+	 * hold on to it while the hardware is displaying it.
+	 */
+	if (state->fb)
+		drm_framebuffer_get(state->fb);
+	return 0;
+}
+
+static void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
+	struct drm_plane_state *old_state)
+{
+	DRM_DEBUG_KMS("[PLANE:%d:%s] [FB:%d]\n",
+		plane->base.id, plane->name,
+		old_state->fb ? old_state->fb->base.id : 0);
+
+	if (old_state->fb)
+		drm_framebuffer_put(old_state->fb);
+}
+
+static int armada_drm_plane_atomic_check(struct drm_plane *plane,
+	struct drm_plane_state *state)
+{
+	if (state->fb && !WARN_ON(!state->crtc)) {
+		struct drm_crtc *crtc = state->crtc;
+		struct drm_crtc_state crtc_state = {
+			.crtc = crtc,
+			.enable = crtc->enabled,
+			.mode = crtc->mode,
+		};
+
+		return drm_atomic_helper_check_plane_state(state, &crtc_state,
+							   0, INT_MAX,
+							   true, false);
+	} else {
+		state->visible = false;
+	}
+	return 0;
+}
 
 static unsigned int armada_drm_primary_update_state(
 	struct drm_plane_state *state, struct armada_regs *regs)
@@ -1134,93 +1150,69 @@ static unsigned int armada_drm_primary_update_state(
 	return idx;
 }
 
-static int armada_drm_do_primary_update(struct drm_plane *plane,
-	struct drm_plane_state *state, struct drm_framebuffer *old_fb)
+static void armada_drm_primary_plane_atomic_update(struct drm_plane *plane,
+	struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = plane->state;
+	struct armada_crtc *dcrtc;
+	struct armada_regs *regs;
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
+
+	if (!state->fb || WARN_ON(!state->crtc))
+		return;
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s] is on [CRTC:%d:%s] with [FB:%d] visible %u->%u\n",
+		plane->base.id, plane->name,
+		state->crtc->base.id, state->crtc->name,
+		state->fb->base.id,
+		old_state->visible, state->visible);
+
+	dcrtc = drm_to_armada_crtc(state->crtc);
+	regs = dcrtc->regs + dcrtc->regs_idx;
+
+	dcrtc->regs_idx += armada_drm_primary_update_state(state, regs);
+}
+
+static void armada_drm_primary_plane_atomic_disable(struct drm_plane *plane,
+	struct drm_plane_state *old_state)
 {
 	struct armada_plane *dplane = drm_to_armada_plane(plane);
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(state->crtc);
-	struct armada_plane_work *work;
-	struct drm_crtc_state crtc_state = {
-		.crtc = state->crtc,
-		.enable = state->crtc->enabled,
-		.mode = state->crtc->mode,
-	};
-	unsigned int idx;
-	int ret;
+	struct armada_crtc *dcrtc;
+	struct armada_regs *regs;
+	unsigned int idx = 0;
 
-	ret = drm_atomic_helper_check_plane_state(state, &crtc_state, 0,
-						  INT_MAX, true, false);
-	if (ret)
-		return ret;
+	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
 
-	work = &dplane->works[dplane->next_work];
-	work->fn = armada_drm_crtc_complete_frame_work;
+	if (!old_state->crtc)
+		return;
 
-	if (old_fb != state->fb) {
-		/*
-		 * Take a reference on the new framebuffer - we want to
-		 * hold on to it while the hardware is displaying it.
-		 */
-		drm_framebuffer_reference(state->fb);
+	DRM_DEBUG_KMS("[PLANE:%d:%s] was on [CRTC:%d:%s] with [FB:%d]\n",
+		plane->base.id, plane->name,
+		old_state->crtc->base.id, old_state->crtc->name,
+		old_state->fb->base.id);
 
-		work->old_fb = old_fb;
-	} else {
-		work->old_fb = NULL;
-	}
+	dplane->state.ctrl0 &= ~CFG_GRA_ENA;
 
-	idx = armada_drm_primary_update_state(state, work->regs);
-	armada_reg_queue_end(work->regs, idx);
+	dcrtc = drm_to_armada_crtc(old_state->crtc);
+	regs = dcrtc->regs + dcrtc->regs_idx;
 
-	if (!dplane->state.changed)
-		return 0;
+	/* Disable plane and power down most RAMs and FIFOs */
+	armada_reg_queue_mod(regs, idx, 0, CFG_GRA_ENA, LCD_SPU_DMA_CTRL0);
+	armada_reg_queue_mod(regs, idx, CFG_PDWN256x32 | CFG_PDWN256x24 |
+			     CFG_PDWN256x8 | CFG_PDWN32x32 | CFG_PDWN64x66,
+			     0, LCD_SPU_SRAM_PARA1);
 
-	/* Wait for pending work to complete */
-	if (armada_drm_plane_work_wait(dplane, HZ / 10) == 0)
-		armada_drm_plane_work_cancel(dcrtc, dplane);
-
-	if (!dplane->state.vsync_update) {
-		work->fn(dcrtc, work);
-		if (work->old_fb)
-			drm_framebuffer_unreference(work->old_fb);
-		return 0;
-	}
-
-	/* Queue it for update on the next interrupt if we are enabled */
-	ret = armada_drm_plane_work_queue(dcrtc, work);
-	if (ret) {
-		work->fn(dcrtc, work);
-		if (work->old_fb)
-			drm_framebuffer_unreference(work->old_fb);
-	}
-
-	dplane->next_work = !dplane->next_work;
-
-	return 0;
+	dcrtc->regs_idx += idx;
 }
 
-static int armada_drm_primary_update(struct drm_plane *plane,
-	struct drm_crtc *crtc, struct drm_framebuffer *fb,
-	int crtc_x, int crtc_y, unsigned int crtc_w, unsigned int crtc_h,
-	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h,
-	struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_plane_state state = {
-		.plane = plane,
-		.crtc = crtc,
-		.fb = fb,
-		.src_x = src_x,
-		.src_y = src_y,
-		.src_w = src_w,
-		.src_h = src_h,
-		.crtc_x = crtc_x,
-		.crtc_y = crtc_y,
-		.crtc_w = crtc_w,
-		.crtc_h = crtc_h,
-		.rotation = DRM_MODE_ROTATE_0,
-	};
-
-	return armada_drm_do_primary_update(plane, &state, plane->fb);
-}
+static const struct drm_plane_helper_funcs armada_primary_plane_helper_funcs = {
+	.prepare_fb	= armada_drm_plane_prepare_fb,
+	.cleanup_fb	= armada_drm_plane_cleanup_fb,
+	.atomic_check	= armada_drm_plane_atomic_check,
+	.atomic_update	= armada_drm_primary_plane_atomic_update,
+	.atomic_disable	= armada_drm_primary_plane_atomic_disable,
+};
 
 int armada_drm_plane_disable(struct drm_plane *plane,
 			     struct drm_modeset_acquire_ctx *ctx)
@@ -1283,9 +1275,12 @@ int armada_drm_plane_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs armada_primary_plane_funcs = {
-	.update_plane	= armada_drm_primary_update,
-	.disable_plane	= armada_drm_plane_disable,
+	.update_plane	= drm_plane_helper_update,
+	.disable_plane	= drm_plane_helper_disable,
 	.destroy	= drm_primary_helper_destroy,
+	.reset		= drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
 int armada_drm_plane_init(struct armada_plane *plane)
@@ -1413,6 +1408,9 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 		kfree(primary);
 		goto err_crtc;
 	}
+
+	drm_plane_helper_add(&primary->base,
+			     &armada_primary_plane_helper_funcs);
 
 	ret = drm_universal_plane_init(drm, &primary->base, 0,
 				       &armada_primary_plane_funcs,

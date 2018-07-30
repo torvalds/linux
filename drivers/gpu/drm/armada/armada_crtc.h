@@ -93,7 +93,6 @@ struct armada_crtc {
 	uint8_t			csc_rgb_mode;
 
 	struct drm_plane	*plane;
-	struct drm_framebuffer	*old_modeset_fb;
 
 	struct armada_gem_object	*cursor_obj;
 	int			cursor_x;
@@ -110,13 +109,14 @@ struct armada_crtc {
 
 	spinlock_t		irq_lock;
 	uint32_t		irq_ena;
+
+	struct armada_regs	atomic_regs[32];
+	struct armada_regs	*regs;
+	unsigned int		regs_idx;
 };
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
 
 void armada_drm_crtc_update_regs(struct armada_crtc *, struct armada_regs *);
-
-int armada_drm_plane_disable(struct drm_plane *plane,
-			     struct drm_modeset_acquire_ctx *ctx);
 
 extern struct platform_driver armada_lcd_platform_driver;
 
