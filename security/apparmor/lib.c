@@ -338,7 +338,7 @@ void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
 	/* for v5 perm mapping in the policydb, the other set is used
 	 * to extend the general perm set
 	 */
-	perms->allow |= map_other(dfa_other_allow(dfa, state));
+	perms->allow |= map_other(dfa_other_allow(dfa, state)) | AA_MAY_LOCK;
 	perms->audit |= map_other(dfa_other_audit(dfa, state));
 	perms->quiet |= map_other(dfa_other_quiet(dfa, state));
 //	perms->xindex = dfa_user_xindex(dfa, state);
