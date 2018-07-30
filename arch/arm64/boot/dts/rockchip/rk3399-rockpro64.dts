@@ -108,6 +108,15 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm1 0 10000 0>;
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 102 170 230>;
+	};
+
 	/* switched by pmic_sleep */
 	vcc1v8_s3: vcca1v8_s3: vcc1v8-s3 {
 		compatible = "regulator-fixed";
@@ -239,6 +248,21 @@
 
 &cpu_crit {
 	temperature = <100000>;
+};
+
+&cooling_maps {
+	map2 {
+		trip = <&cpu_alert0>;
+		cooling-device = <&fan0 0 1>;
+	};
+	map3 {
+		trip = <&cpu_alert1>;
+		cooling-device = <&fan0 1 2>;
+	};
+	map4 {
+		trip = <&cpu_crit>;
+		cooling-device = <&fan0 2 3>;
+	};
 };
 
 &emmc_phy {
@@ -660,6 +684,10 @@
 };
 
 &pwm0 {
+	status = "okay";
+};
+
+&pwm1 {
 	status = "okay";
 };
 
