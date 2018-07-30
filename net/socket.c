@@ -251,7 +251,7 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	init_waitqueue_head(&wq->wait);
 	wq->fasync_list = NULL;
 	wq->flags = 0;
-	RCU_INIT_POINTER(ei->socket.wq, wq);
+	ei->socket.wq = wq;
 
 	ei->socket.state = SS_UNCONNECTED;
 	ei->socket.flags = 0;
@@ -265,11 +265,9 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 static void sock_destroy_inode(struct inode *inode)
 {
 	struct socket_alloc *ei;
-	struct socket_wq *wq;
 
 	ei = container_of(inode, struct socket_alloc, vfs_inode);
-	wq = rcu_dereference_protected(ei->socket.wq, 1);
-	kfree_rcu(wq, rcu);
+	kfree_rcu(ei->socket.wq, rcu);
 	kmem_cache_free(sock_inode_cachep, ei);
 }
 
@@ -603,7 +601,7 @@ static void __sock_release(struct socket *sock, struct inode *inode)
 		module_put(owner);
 	}
 
-	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
+	if (sock->wq->fasync_list)
 		pr_err("%s: fasync list not empty!\n", __func__);
 
 	if (!sock->file) {
@@ -1181,7 +1179,7 @@ static int sock_fasync(int fd, struct file *filp, int on)
 		return -EINVAL;
 
 	lock_sock(sk);
-	wq = rcu_dereference_protected(sock->wq, lockdep_sock_is_held(sk));
+	wq = sock->wq;
 	fasync_helper(fd, filp, on, &wq->fasync_list);
 
 	if (!wq->fasync_list)
