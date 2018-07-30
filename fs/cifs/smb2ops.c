@@ -470,19 +470,34 @@ out:
 	return rc;
 }
 
-void
-smb2_cached_lease_break(struct work_struct *work)
+static void
+smb2_close_cached_fid(struct kref *ref)
 {
-	struct cached_fid *cfid = container_of(work,
-				struct cached_fid, lease_break);
-	mutex_lock(&cfid->fid_mutex);
+	struct cached_fid *cfid = container_of(ref, struct cached_fid,
+					       refcount);
+
 	if (cfid->is_valid) {
 		cifs_dbg(FYI, "clear cached root file handle\n");
 		SMB2_close(0, cfid->tcon, cfid->fid->persistent_fid,
 			   cfid->fid->volatile_fid);
 		cfid->is_valid = false;
 	}
+}
+
+void close_shroot(struct cached_fid *cfid)
+{
+	mutex_lock(&cfid->fid_mutex);
+	kref_put(&cfid->refcount, smb2_close_cached_fid);
 	mutex_unlock(&cfid->fid_mutex);
+}
+
+void
+smb2_cached_lease_break(struct work_struct *work)
+{
+	struct cached_fid *cfid = container_of(work,
+				struct cached_fid, lease_break);
+
+	close_shroot(cfid);
 }
 
 /*
@@ -499,6 +514,7 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	if (tcon->crfid.is_valid) {
 		cifs_dbg(FYI, "found a cached root file handle\n");
 		memcpy(pfid, tcon->crfid.fid, sizeof(struct cifs_fid));
+		kref_get(&tcon->crfid.refcount);
 		mutex_unlock(&tcon->crfid.fid_mutex);
 		return 0;
 	}
@@ -515,6 +531,8 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 		memcpy(tcon->crfid.fid, pfid, sizeof(struct cifs_fid));
 		tcon->crfid.tcon = tcon;
 		tcon->crfid.is_valid = true;
+		kref_init(&tcon->crfid.refcount);
+		kref_get(&tcon->crfid.refcount);
 	}
 	mutex_unlock(&tcon->crfid.fid_mutex);
 	return rc;
@@ -558,6 +576,9 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 			FS_SECTOR_SIZE_INFORMATION); /* SMB3 specific */
 	if (no_cached_open)
 		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	else
+		close_shroot(&tcon->crfid);
+
 	return;
 }
 

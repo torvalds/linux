@@ -120,7 +120,9 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		break;
 	}
 
-	if (use_cached_root_handle == false)
+	if (use_cached_root_handle)
+		close_shroot(&tcon->crfid);
+	else
 		rc = SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	if (tmprc)
 		rc = tmprc;
