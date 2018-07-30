@@ -41,6 +41,7 @@
 #define IT8732_ID	0x8732
 #define IT8761_ID	0x8761
 #define IT8772_ID	0x8772
+#define IT8786_ID	0x8786
 
 /* IO Ports */
 #define REG		0x2e
@@ -317,6 +318,7 @@ static int __init it87_gpio_init(void)
 	case IT8728_ID:
 	case IT8732_ID:
 	case IT8772_ID:
+	case IT8786_ID:
 		gpio_ba_reg = 0x62;
 		it87_gpio->io_size = 8;
 		it87_gpio->output_base = 0xc8;
