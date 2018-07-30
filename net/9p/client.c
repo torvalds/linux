@@ -231,9 +231,16 @@ free_and_return:
 	return ret;
 }
 
-static int p9_fcall_init(struct p9_fcall *fc, int alloc_msize)
+static int p9_fcall_init(struct p9_client *c, struct p9_fcall *fc,
+			 int alloc_msize)
 {
-	fc->sdata = kmalloc(alloc_msize, GFP_NOFS);
+	if (likely(c->fcall_cache) && alloc_msize == c->msize) {
+		fc->sdata = kmem_cache_alloc(c->fcall_cache, GFP_NOFS);
+		fc->cache = c->fcall_cache;
+	} else {
+		fc->sdata = kmalloc(alloc_msize, GFP_NOFS);
+		fc->cache = NULL;
+	}
 	if (!fc->sdata)
 		return -ENOMEM;
 	fc->capacity = alloc_msize;
@@ -242,7 +249,16 @@ static int p9_fcall_init(struct p9_fcall *fc, int alloc_msize)
 
 void p9_fcall_fini(struct p9_fcall *fc)
 {
-	kfree(fc->sdata);
+	/* sdata can be NULL for interrupted requests in trans_rdma,
+	 * and kmem_cache_free does not do NULL-check for us
+	 */
+	if (unlikely(!fc->sdata))
+		return;
+
+	if (fc->cache)
+		kmem_cache_free(fc->cache, fc->sdata);
+	else
+		kfree(fc->sdata);
 }
 EXPORT_SYMBOL(p9_fcall_fini);
 
@@ -267,9 +283,9 @@ p9_tag_alloc(struct p9_client *c, int8_t type, unsigned int max_size)
 	if (!req)
 		return NULL;
 
-	if (p9_fcall_init(&req->tc, alloc_msize))
+	if (p9_fcall_init(c, &req->tc, alloc_msize))
 		goto free_req;
-	if (p9_fcall_init(&req->rc, alloc_msize))
+	if (p9_fcall_init(c, &req->rc, alloc_msize))
 		goto free;
 
 	p9pdu_reset(&req->tc);
@@ -951,6 +967,7 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 
 	clnt->trans_mod = NULL;
 	clnt->trans = NULL;
+	clnt->fcall_cache = NULL;
 
 	client_id = utsname()->nodename;
 	memcpy(clnt->name, client_id, strlen(client_id) + 1);
@@ -987,6 +1004,15 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	if (err)
 		goto close_trans;
 
+	/* P9_HDRSZ + 4 is the smallest packet header we can have that is
+	 * followed by data accessed from userspace by read
+	 */
+	clnt->fcall_cache =
+		kmem_cache_create_usercopy("9p-fcall-cache", clnt->msize,
+					   0, 0, P9_HDRSZ + 4,
+					   clnt->msize - (P9_HDRSZ + 4),
+					   NULL);
+
 	return clnt;
 
 close_trans:
@@ -1018,6 +1044,7 @@ void p9_client_destroy(struct p9_client *clnt)
 
 	p9_tag_cleanup(clnt);
 
+	kmem_cache_destroy(clnt->fcall_cache);
 	kfree(clnt);
 }
 EXPORT_SYMBOL(p9_client_destroy);
