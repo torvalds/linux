@@ -231,17 +231,6 @@ void amdgpu_bo_list_put(struct amdgpu_bo_list *list)
 	kref_put(&list->refcount, amdgpu_bo_list_release_rcu);
 }
 
-void amdgpu_bo_list_free(struct amdgpu_bo_list *list)
-{
-	unsigned i;
-
-	for (i = 0; i < list->num_entries; ++i)
-		amdgpu_bo_unref(&list->array[i].robj);
-
-	kvfree(list->array);
-	kfree(list);
-}
-
 int amdgpu_bo_create_list_entry_array(struct drm_amdgpu_bo_list_in *in,
 				      struct drm_amdgpu_bo_list_entry **info_param)
 {
@@ -310,7 +299,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 		r = idr_alloc(&fpriv->bo_list_handles, list, 1, 0, GFP_KERNEL);
 		mutex_unlock(&fpriv->bo_list_lock);
 		if (r < 0) {
-			amdgpu_bo_list_free(list);
+			amdgpu_bo_list_put(list);
 			return r;
 		}
 

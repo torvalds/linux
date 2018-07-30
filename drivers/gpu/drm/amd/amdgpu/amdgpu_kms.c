@@ -967,7 +967,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	amdgpu_bo_unref(&pd);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)
-		amdgpu_bo_list_free(list);
+		amdgpu_bo_list_put(list);
 
 	idr_destroy(&fpriv->bo_list_handles);
 	mutex_destroy(&fpriv->bo_list_lock);
