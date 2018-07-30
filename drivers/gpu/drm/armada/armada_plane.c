@@ -35,8 +35,8 @@ static const uint32_t armada_primary_formats[] = {
 	DRM_FORMAT_BGR565,
 };
 
-void armada_drm_plane_calc(struct drm_plane_state *state, u32 addrs[3],
-	u16 pitches[3])
+void armada_drm_plane_calc(struct drm_plane_state *state, u32 addrs[2][3],
+	u16 pitches[3], bool interlaced)
 {
 	struct drm_framebuffer *fb = state->fb;
 	const struct drm_format_info *format = fb->format;
@@ -52,21 +52,30 @@ void armada_drm_plane_calc(struct drm_plane_state *state, u32 addrs[3],
 	if (num_planes > 3)
 		num_planes = 3;
 
-	addrs[0] = addr + fb->offsets[0] + y * fb->pitches[0] +
-		   x * format->cpp[0];
+	addrs[0][0] = addr + fb->offsets[0] + y * fb->pitches[0] +
+		      x * format->cpp[0];
 	pitches[0] = fb->pitches[0];
 
 	y /= format->vsub;
 	x /= format->hsub;
 
 	for (i = 1; i < num_planes; i++) {
-		addrs[i] = addr + fb->offsets[i] + y * fb->pitches[i] +
-			     x * format->cpp[i];
+		addrs[0][i] = addr + fb->offsets[i] + y * fb->pitches[i] +
+			      x * format->cpp[i];
 		pitches[i] = fb->pitches[i];
 	}
 	for (; i < 3; i++) {
-		addrs[i] = 0;
+		addrs[0][i] = 0;
 		pitches[i] = 0;
+	}
+	if (interlaced) {
+		for (i = 0; i < 3; i++) {
+			addrs[1][i] = addrs[0][i] + pitches[i];
+			pitches[i] *= 2;
+		}
+	} else {
+		for (i = 0; i < 3; i++)
+			addrs[1][i] = addrs[0][i];
 	}
 }
 
@@ -74,21 +83,14 @@ static unsigned armada_drm_crtc_calc_fb(struct drm_plane_state *state,
 	struct armada_regs *regs, bool interlaced)
 {
 	u16 pitches[3];
-	u32 addrs[3], addr_odd, addr_even;
+	u32 addrs[2][3];
 	unsigned i = 0;
 
-	armada_drm_plane_calc(state, addrs, pitches);
-
-	addr_odd = addr_even = addrs[0];
-
-	if (interlaced) {
-		addr_even += pitches[0];
-		pitches[0] *= 2;
-	}
+	armada_drm_plane_calc(state, addrs, pitches, interlaced);
 
 	/* write offset, base, and pitch */
-	armada_reg_queue_set(regs, i, addr_odd, LCD_CFG_GRA_START_ADDR0);
-	armada_reg_queue_set(regs, i, addr_even, LCD_CFG_GRA_START_ADDR1);
+	armada_reg_queue_set(regs, i, addrs[0][0], LCD_CFG_GRA_START_ADDR0);
+	armada_reg_queue_set(regs, i, addrs[1][0], LCD_CFG_GRA_START_ADDR1);
 	armada_reg_queue_mod(regs, i, pitches[0], 0xffff, LCD_CFG_GRA_PITCH);
 
 	return i;

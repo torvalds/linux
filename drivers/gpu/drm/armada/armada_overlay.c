@@ -131,21 +131,21 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 	    old_state->fb != state->fb) {
 		const struct drm_format_info *format;
 		u16 src_x, pitches[3];
-		u32 addrs[3];
+		u32 addrs[2][3];
 
-		armada_drm_plane_calc(state, addrs, pitches);
+		armada_drm_plane_calc(state, addrs, pitches, false);
 
-		armada_reg_queue_set(regs, idx, addrs[0],
+		armada_reg_queue_set(regs, idx, addrs[0][0],
 				     LCD_SPU_DMA_START_ADDR_Y0);
-		armada_reg_queue_set(regs, idx, addrs[1],
+		armada_reg_queue_set(regs, idx, addrs[0][1],
 				     LCD_SPU_DMA_START_ADDR_U0);
-		armada_reg_queue_set(regs, idx, addrs[2],
+		armada_reg_queue_set(regs, idx, addrs[0][2],
 				     LCD_SPU_DMA_START_ADDR_V0);
-		armada_reg_queue_set(regs, idx, addrs[0],
+		armada_reg_queue_set(regs, idx, addrs[1][0],
 				     LCD_SPU_DMA_START_ADDR_Y1);
-		armada_reg_queue_set(regs, idx, addrs[1],
+		armada_reg_queue_set(regs, idx, addrs[1][1],
 				     LCD_SPU_DMA_START_ADDR_U1);
-		armada_reg_queue_set(regs, idx, addrs[2],
+		armada_reg_queue_set(regs, idx, addrs[1][2],
 				     LCD_SPU_DMA_START_ADDR_V1);
 
 		val = pitches[0] << 16 | pitches[0];
