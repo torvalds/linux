@@ -46,6 +46,8 @@ struct armada_variant {
 	int (*compute_clock)(struct armada_crtc *,
 			     const struct drm_display_mode *,
 			     uint32_t *);
+	void (*disable)(struct armada_crtc *);
+	void (*enable)(struct armada_crtc *, const struct drm_display_mode *);
 };
 
 /* Variant ops */
