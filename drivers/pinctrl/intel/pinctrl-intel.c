@@ -877,13 +877,15 @@ static int intel_gpio_irq_reqres(struct irq_data *d)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	int pin;
+	int ret;
 
 	pin = intel_gpio_to_pin(pctrl, irqd_to_hwirq(d), NULL, NULL);
 	if (pin >= 0) {
-		if (gpiochip_lock_as_irq(gc, pin)) {
+		ret = gpiochip_lock_as_irq(gc, pin);
+		if (ret) {
 			dev_err(pctrl->dev, "unable to lock HW IRQ %d for IRQ\n",
 				pin);
-			return -EINVAL;
+			return ret;
 		}
 	}
 	return 0;
