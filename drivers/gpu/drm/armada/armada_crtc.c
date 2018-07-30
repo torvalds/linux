@@ -197,21 +197,27 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 		writel_relaxed(val, base + LCD_SPU_ADV_REG);
 	}
 
-	if (stat & DUMB_FRAMEDONE && dcrtc->cursor_update) {
-		writel_relaxed(dcrtc->cursor_hw_pos,
-			       base + LCD_SPU_HWC_OVSA_HPXL_VLN);
-		writel_relaxed(dcrtc->cursor_hw_sz,
-			       base + LCD_SPU_HWC_HPXL_VLN);
-		armada_updatel(CFG_HWC_ENA,
-			       CFG_HWC_ENA | CFG_HWC_1BITMOD | CFG_HWC_1BITENA,
-			       base + LCD_SPU_DMA_CTRL0);
-		dcrtc->cursor_update = false;
+	if (stat & dcrtc->irq_ena & DUMB_FRAMEDONE) {
+		if (dcrtc->update_pending) {
+			armada_drm_crtc_update_regs(dcrtc, dcrtc->regs);
+			dcrtc->update_pending = false;
+		}
+		if (dcrtc->cursor_update) {
+			writel_relaxed(dcrtc->cursor_hw_pos,
+				       base + LCD_SPU_HWC_OVSA_HPXL_VLN);
+			writel_relaxed(dcrtc->cursor_hw_sz,
+				       base + LCD_SPU_HWC_HPXL_VLN);
+			armada_updatel(CFG_HWC_ENA,
+				       CFG_HWC_ENA | CFG_HWC_1BITMOD |
+				       CFG_HWC_1BITENA,
+				       base + LCD_SPU_DMA_CTRL0);
+			dcrtc->cursor_update = false;
+		}
 		armada_drm_crtc_disable_irq(dcrtc, DUMB_FRAMEDONE_ENA);
 	}
-
 	spin_unlock(&dcrtc->irq_lock);
 
-	if (stat & VSYNC_IRQ) {
+	if (stat & VSYNC_IRQ && !dcrtc->update_pending) {
 		event = xchg(&dcrtc->event, NULL);
 		if (event) {
 			spin_lock(&dcrtc->crtc.dev->event_lock);
@@ -360,22 +366,26 @@ static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_crtc_state)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	unsigned long flags;
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	armada_reg_queue_end(dcrtc->regs, dcrtc->regs_idx);
 
-	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	armada_drm_crtc_update_regs(dcrtc, dcrtc->regs);
-	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-
 	/*
 	 * If we aren't doing a full modeset, then we need to queue
 	 * the event here.
 	 */
-	if (!drm_atomic_crtc_needs_modeset(crtc->state))
+	if (!drm_atomic_crtc_needs_modeset(crtc->state)) {
+		dcrtc->update_pending = true;
 		armada_drm_crtc_queue_state_event(crtc);
+		spin_lock_irq(&dcrtc->irq_lock);
+		armada_drm_crtc_enable_irq(dcrtc, DUMB_FRAMEDONE_ENA);
+		spin_unlock_irq(&dcrtc->irq_lock);
+	} else {
+		spin_lock_irq(&dcrtc->irq_lock);
+		armada_drm_crtc_update_regs(dcrtc, dcrtc->regs);
+		spin_unlock_irq(&dcrtc->irq_lock);
+	}
 }
 
 static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -532,7 +542,6 @@ static int armada_drm_crtc_cursor_update(struct armada_crtc *dcrtc, bool reload)
 
 	if (!dcrtc->cursor_obj || !h || !w) {
 		spin_lock_irq(&dcrtc->irq_lock);
-		armada_drm_crtc_disable_irq(dcrtc, DUMB_FRAMEDONE_ENA);
 		dcrtc->cursor_update = false;
 		armada_updatel(0, CFG_HWC_ENA, dcrtc->base + LCD_SPU_DMA_CTRL0);
 		spin_unlock_irq(&dcrtc->irq_lock);
@@ -556,7 +565,6 @@ static int armada_drm_crtc_cursor_update(struct armada_crtc *dcrtc, bool reload)
 
 	if (dcrtc->cursor_hw_sz != (h << 16 | w)) {
 		spin_lock_irq(&dcrtc->irq_lock);
-		armada_drm_crtc_disable_irq(dcrtc, DUMB_FRAMEDONE_ENA);
 		dcrtc->cursor_update = false;
 		armada_updatel(0, CFG_HWC_ENA, dcrtc->base + LCD_SPU_DMA_CTRL0);
 		spin_unlock_irq(&dcrtc->irq_lock);

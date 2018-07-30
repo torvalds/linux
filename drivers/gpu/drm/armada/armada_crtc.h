@@ -70,6 +70,7 @@ struct armada_crtc {
 	spinlock_t		irq_lock;
 	uint32_t		irq_ena;
 
+	bool			update_pending;
 	struct drm_pending_vblank_event *event;
 	struct armada_regs	atomic_regs[32];
 	struct armada_regs	*regs;
