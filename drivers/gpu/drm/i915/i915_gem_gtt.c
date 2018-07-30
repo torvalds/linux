@@ -1251,9 +1251,6 @@ static void gen8_free_page_tables(struct i915_address_space *vm,
 {
 	int i;
 
-	if (!px_page(pd))
-		return;
-
 	for (i = 0; i < I915_PDES; i++) {
 		if (pd->page_table[i] != vm->scratch_pt)
 			free_pt(vm, pd->page_table[i]);
