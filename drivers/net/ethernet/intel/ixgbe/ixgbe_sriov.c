@@ -53,6 +53,11 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
 
+	if (adapter->xdp_prog) {
+		e_warn(probe, "SRIOV is not supported with XDP\n");
+		return -EINVAL;
+	}
+
 	/* Enable VMDq flag so device will be set in VM mode */
 	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED |
 			  IXGBE_FLAG_VMDQ_ENABLED;
