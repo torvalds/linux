@@ -452,7 +452,9 @@ EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 void __init sched_clock_init(void)
 {
 	static_branch_inc(&sched_clock_running);
+	local_irq_disable();
 	generic_sched_clock_init();
+	local_irq_enable();
 }
 
 u64 sched_clock_cpu(int cpu)
