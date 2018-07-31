@@ -194,13 +194,11 @@ source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-source "arch/um/Kconfig.char"
+source "arch/um/drivers/Kconfig"
 
 source "drivers/Kconfig"
 
 source "net/Kconfig"
-
-source "arch/um/Kconfig.net"
 
 source "fs/Kconfig"
 
