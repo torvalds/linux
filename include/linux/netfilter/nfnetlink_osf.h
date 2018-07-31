@@ -2,7 +2,7 @@
 #ifndef _NFOSF_H
 #define _NFOSF_H
 
-#include <uapi/linux/netfilter/nf_osf.h>
+#include <uapi/linux/netfilter/nfnetlink_osf.h>
 
 /* Initial window size option state machine: multiple of mss, mtu or
  * plain numeric value. Can also be made as plain numeric value which

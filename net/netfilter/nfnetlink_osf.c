@@ -18,7 +18,7 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/x_tables.h>
 #include <net/netfilter/nf_log.h>
-#include <linux/netfilter/nf_osf.h>
+#include <linux/netfilter/nfnetlink_osf.h>
 
 /*
  * Indexed by dont-fragment bit.

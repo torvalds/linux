@@ -2,7 +2,7 @@
 #include <net/tcp.h>
 
 #include <net/netfilter/nf_tables.h>
-#include <linux/netfilter/nf_osf.h>
+#include <linux/netfilter/nfnetlink_osf.h>
 
 #define OSF_GENRE_SIZE		32
 
