@@ -167,11 +167,22 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
 	return f6i;
 }
 
+static void fib6_metrics_release(struct fib6_info *f6i)
+{
+	struct dst_metrics *m;
+
+	if (!f6i)
+		return;
+
+	m = f6i->fib6_metrics;
+	if (m != &dst_default_metrics && refcount_dec_and_test(&m->refcnt))
+		kfree(m);
+}
+
 void fib6_info_destroy_rcu(struct rcu_head *head)
 {
 	struct fib6_info *f6i = container_of(head, struct fib6_info, rcu);
 	struct rt6_exception_bucket *bucket;
-	struct dst_metrics *m;
 
 	WARN_ON(f6i->fib6_node);
 
@@ -201,9 +212,7 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 	if (f6i->fib6_nh.nh_dev)
 		dev_put(f6i->fib6_nh.nh_dev);
 
-	m = f6i->fib6_metrics;
-	if (m != &dst_default_metrics && refcount_dec_and_test(&m->refcnt))
-		kfree(m);
+	fib6_metrics_release(f6i);
 
 	kfree(f6i);
 }
@@ -887,6 +896,7 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 
 			from = rcu_dereference_protected(pcpu_rt->from,
 					     lockdep_is_held(&table->tb6_lock));
+			fib6_metrics_release(from);
 			rcu_assign_pointer(pcpu_rt->from, NULL);
 			fib6_info_release(from);
 		}

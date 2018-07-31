@@ -1009,6 +1009,11 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			return err;
 	}
 
+	if (nlk->ngroups == 0)
+		groups = 0;
+	else
+		groups &= (1ULL << nlk->ngroups) - 1;
+
 	bound = nlk->bound;
 	if (bound) {
 		/* Ensure nlk->portid is up-to-date. */
