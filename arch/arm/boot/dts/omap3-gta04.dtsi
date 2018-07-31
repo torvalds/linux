@@ -284,6 +284,12 @@
 		>;
 	};
 
+	bmp085_pins: pinmux_bmp085_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2136, PIN_INPUT_PULLUP | MUX_MODE4) /* gpio113 */
+		>;
+	};
+
 	bma180_pins: pinmux_bma180_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x213a, PIN_INPUT_PULLUP | MUX_MODE4) /* gpio115 */
@@ -373,6 +379,8 @@
 	bmp085@77 {
 		compatible = "bosch,bmp085";
 		reg = <0x77>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bmp085_pins>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <17 IRQ_TYPE_EDGE_RISING>; /* GPIO_113 */
 	};
