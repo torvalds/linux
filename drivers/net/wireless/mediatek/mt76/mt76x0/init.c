@@ -62,7 +62,7 @@ mt76x0_set_wlan_state(struct mt76x0_dev *dev, u32 val, bool enable)
 		dev_err(dev->mt76.dev, "Error: PLL and XTAL check failed!\n");
 }
 
-static void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
+void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
 {
 	u32 val;
 

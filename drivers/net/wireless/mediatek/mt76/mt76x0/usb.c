@@ -283,6 +283,10 @@ static int mt76x0_probe(struct usb_interface *usb_intf,
 	ret = mt76x0_assign_pipes(usb_intf, dev);
 	if (ret)
 		goto err;
+
+	/* Disable the HW, otherwise MCU fail to initalize on hot reboot */
+	mt76x0_chip_onoff(dev, false, false);
+
 	ret = mt76x0_wait_asic_ready(dev);
 	if (ret)
 		goto err;
