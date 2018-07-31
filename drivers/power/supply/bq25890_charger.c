@@ -244,10 +244,7 @@ enum bq25890_table_ids {
 	/* range tables */
 	TBL_ICHG,
 	TBL_ITERM,
-	TBL_IPRECHG,
 	TBL_VREG,
-	TBL_BATCMP,
-	TBL_VCLAMP,
 	TBL_BOOSTV,
 	TBL_SYSVMIN,
 
@@ -287,8 +284,6 @@ static const union {
 	[TBL_ICHG] =	{ .rt = {0,	  5056000, 64000} },	 /* uA */
 	[TBL_ITERM] =	{ .rt = {64000,   1024000, 64000} },	 /* uA */
 	[TBL_VREG] =	{ .rt = {3840000, 4608000, 16000} },	 /* uV */
-	[TBL_BATCMP] =	{ .rt = {0,	  140,     20} },	 /* mOhm */
-	[TBL_VCLAMP] =	{ .rt = {0,	  224000,  32000} },	 /* uV */
 	[TBL_BOOSTV] =	{ .rt = {4550000, 5510000, 64000} },	 /* uV */
 	[TBL_SYSVMIN] = { .rt = {3000000, 3700000, 100000} },	 /* uV */
 
