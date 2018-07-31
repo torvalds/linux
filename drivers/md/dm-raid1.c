@@ -326,9 +326,8 @@ static void recovery_complete(int read_err, unsigned long write_err,
 	dm_rh_recovery_end(reg, !(read_err || write_err));
 }
 
-static int recover(struct mirror_set *ms, struct dm_region *reg)
+static void recover(struct mirror_set *ms, struct dm_region *reg)
 {
-	int r;
 	unsigned i;
 	struct dm_io_region from, to[DM_KCOPYD_MAX_REGIONS], *dest;
 	struct mirror *m;
@@ -367,10 +366,8 @@ static int recover(struct mirror_set *ms, struct dm_region *reg)
 	if (!errors_handled(ms))
 		set_bit(DM_KCOPYD_IGNORE_ERROR, &flags);
 
-	r = dm_kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to,
-			   flags, recovery_complete, reg);
-
-	return r;
+	dm_kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to,
+		       flags, recovery_complete, reg);
 }
 
 static void reset_ms_flags(struct mirror_set *ms)
@@ -388,7 +385,6 @@ static void do_recovery(struct mirror_set *ms)
 {
 	struct dm_region *reg;
 	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
-	int r;
 
 	/*
 	 * Start quiescing some regions.
@@ -398,11 +394,8 @@ static void do_recovery(struct mirror_set *ms)
 	/*
 	 * Copy any already quiesced regions.
 	 */
-	while ((reg = dm_rh_recovery_start(ms->rh))) {
-		r = recover(ms, reg);
-		if (r)
-			dm_rh_recovery_end(reg, 0);
-	}
+	while ((reg = dm_rh_recovery_start(ms->rh)))
+		recover(ms, reg);
 
 	/*
 	 * Update the in sync flag.
