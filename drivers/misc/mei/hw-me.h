@@ -31,10 +31,12 @@
  *
  * @fw_status: FW status
  * @quirk_probe: device exclusion quirk
+ * @dma_size: device DMA buffers size
  */
 struct mei_cfg {
 	const struct mei_fw_status fw_status;
 	bool (*quirk_probe)(struct pci_dev *pdev);
+	size_t dma_size[DMA_DSCR_NUM];
 };
 
 
@@ -80,6 +82,7 @@ struct mei_me_hw {
  * @MEI_ME_PCH8_SPS_CFG:   Platform Controller Hub Gen8 and newer
  *                         servers platforms with quirk for
  *                         SPS firmware exclusion.
+ * @MEI_ME_PCH12_CFG:      Platform Controller Hub Gen12 and newer
  * @MEI_ME_NUM_CFG:        Upper Sentinel.
  */
 enum mei_cfg_idx {
@@ -90,6 +93,7 @@ enum mei_cfg_idx {
 	MEI_ME_PCH_CPT_PBG_CFG,
 	MEI_ME_PCH8_CFG,
 	MEI_ME_PCH8_SPS_CFG,
+	MEI_ME_PCH12_CFG,
 	MEI_ME_NUM_CFG,
 };
 
