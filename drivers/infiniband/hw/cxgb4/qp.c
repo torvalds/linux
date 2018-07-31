@@ -2266,7 +2266,7 @@ struct ib_qp *c4iw_get_qp(struct ib_device *dev, int qpn)
 
 void c4iw_dispatch_srq_limit_reached_event(struct c4iw_srq *srq)
 {
-	struct ib_event event = {0};
+	struct ib_event event = {};
 
 	event.device = &srq->rhp->ibdev;
 	event.element.srq = &srq->ibsrq;
