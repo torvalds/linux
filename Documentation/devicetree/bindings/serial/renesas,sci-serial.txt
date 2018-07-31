@@ -73,7 +73,21 @@ Required properties:
     family-specific and/or generic versions.
 
   - reg: Base address and length of the I/O registers used by the UART.
-  - interrupts: Must contain an interrupt-specifier for the SCIx interrupt.
+  - interrupts: Must contain one or more interrupt-specifiers for the SCIx.
+                If a single interrupt is expressed, then all events are
+                multiplexed into this single interrupt.
+
+                If multiple interrupts are provided by the hardware, the order
+                in which the interrupts are listed must match order below. Note
+                that some HW interrupt events may be muxed together resulting
+                in duplicate entries.
+                The interrupt order is as follows:
+                  1. Error (ERI)
+                  2. Receive buffer full (RXI)
+                  3. Transmit buffer empty (TXI)
+                  4. Break (BRI)
+                  5. Data Ready (DRI)
+                  6. Transmit End (TEI)
 
   - clocks: Must contain a phandle and clock-specifier pair for each entry
     in clock-names.
