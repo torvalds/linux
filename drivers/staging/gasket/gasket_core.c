@@ -1191,7 +1191,7 @@ static int gasket_open(struct inode *inode, struct file *filp)
 	struct gasket_cdev_info *dev_info =
 	    container_of(inode->i_cdev, struct gasket_cdev_info, cdev);
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);
-	int is_root = ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN);
+	bool is_root = ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN);
 
 	gasket_dev = dev_info->gasket_dev_ptr;
 	driver_desc = gasket_dev->internal_desc->driver_desc;
@@ -1270,7 +1270,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 	struct gasket_cdev_info *dev_info =
 		container_of(inode->i_cdev, struct gasket_cdev_info, cdev);
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);
-	int is_root = ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN);
+	bool is_root = ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN);
 
 	gasket_dev = dev_info->gasket_dev_ptr;
 	driver_desc = gasket_dev->internal_desc->driver_desc;
