@@ -34,16 +34,16 @@ enum direction_value {
  * Note: sizeof 3 Bytes
  */
 struct qos_tsinfo {
-	u16		ucTrafficType:1;	//WMM is reserved
-	u16		ucTSID:4;
-	u16		ucDirection:2;
-	u16		ucAccessPolicy:2;	//WMM: bit8=0, bit7=1
-	u16		ucAggregation:1;	//WMM is reserved
-	u16		ucPSB:1;		//WMMSA is APSD
-	u16		ucUP:3;
-	u16		ucTSInfoAckPolicy:2;	//WMM is reserved
-	u8		ucSchedule:1;		//WMM is reserved
-	u8		ucReserved:7;
+	u16		uc_traffic_type:1;	        //WMM is reserved
+	u16		uc_tsid:4;
+	u16		uc_direction:2;
+	u16		uc_access_policy:2;	        //WMM: bit8=0, bit7=1
+	u16		uc_aggregation:1;	        //WMM is reserved
+	u16		uc_psb:1;		        //WMMSA is APSD
+	u16		uc_up:3;
+	u16		uc_ts_info_ack_policy:2;	//WMM is reserved
+	u8		uc_schedule:1;		        //WMM is reserved
+	u8:7;
 };
 
 //

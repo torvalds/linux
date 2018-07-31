@@ -248,8 +248,8 @@ static struct ts_common_info *SearchAdmitTRStream(struct ieee80211_device *ieee,
 		list_for_each_entry(pRet, psearch_list, list){
 	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.f.TSInfo.ucTSID, pRet->TSpec.f.TSInfo.ucDirection);
 			if (memcmp(pRet->addr, Addr, 6) == 0)
-				if (pRet->t_spec.f.TSInfo.ucTSID == TID)
-					if(pRet->t_spec.f.TSInfo.ucDirection == dir) {
+				if (pRet->t_spec.f.TSInfo.uc_tsid == TID)
+					if(pRet->t_spec.f.TSInfo.uc_direction == dir) {
 	//					printk("Bingo! got it\n");
 						break;
 					}
@@ -383,15 +383,15 @@ bool GetTs(
 
 				IEEE80211_DEBUG(IEEE80211_DL_TS, "to init current TS, UP:%d, Dir:%d, addr:%pM\n", UP, Dir, Addr);
 				// Prepare TS Info releated field
-				pTSInfo->ucTrafficType = 0;		// Traffic type: WMM is reserved in this field
-				pTSInfo->ucTSID = UP;			// TSID
-				pTSInfo->ucDirection = Dir;		// Direction: if there is DirectLink, this need additional consideration.
-				pTSInfo->ucAccessPolicy = 1;		// Access policy
-				pTSInfo->ucAggregation = 0;		// Aggregation
-				pTSInfo->ucPSB = 0;			// Aggregation
-				pTSInfo->ucUP = UP;			// User priority
-				pTSInfo->ucTSInfoAckPolicy = 0;		// Ack policy
-				pTSInfo->ucSchedule = 0;		// Schedule
+				pTSInfo->uc_traffic_type = 0;		// Traffic type: WMM is reserved in this field
+				pTSInfo->uc_tsid = UP;			// TSID
+				pTSInfo->uc_direction = Dir;		// Direction: if there is DirectLink, this need additional consideration.
+				pTSInfo->uc_access_policy = 1;		// Access policy
+				pTSInfo->uc_aggregation = 0;		// Aggregation
+				pTSInfo->uc_psb = 0;			// Aggregation
+				pTSInfo->uc_up = UP;			// User priority
+				pTSInfo->uc_ts_info_ack_policy = 0;	// Ack policy
+				pTSInfo->uc_schedule = 0;		// Schedule
 
 				MakeTSEntry(*ppTS, Addr, &TSpec, NULL, 0, 0);
 				AdmitTS(ieee, *ppTS, 0);
