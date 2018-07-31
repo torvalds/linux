@@ -1,0 +1,38 @@
+* Rockchip SPDIF Receiver
+
+The S/PDIF audio block is a stereo receiver that allows the
+processor to receive and digital audio via an coaxial cable or
+a fibre cable.
+
+Required properties:
+
+- compatible: should be one of the following:
+   - "rockchip,rk3308-spdifrx"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: should contain the SPDIF interrupt.
+- dmas: DMA specifiers for rx dma. See the DMA client binding,
+  Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: should be "rx"
+- clocks: a list of phandle + clock-specifier pairs, one for each entry
+  in clock-names.
+- clock-names: should contain following:
+   - "hclk": clock for SPDIF controller
+   - "mclk" : clock for SPDIF bus
+- resets: a list of phandle + reset-specifer paris, one for each entry in reset-names.
+- reset-names: reset names, should include "spdifrx-m".
+
+Example for the rk3308 SPDIF-RX controller:
+
+spdif_rx: spdif-rx@ff3b0000 {
+	compatible = "rockchip,rk3308-spdifrx";
+	reg = <0x0 0xff3b0000 0x0 0x1000>;
+	interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&cru SCLK_SPDIF_RX>, <&cru HCLK_SPDIFRX>;
+	clock-names = "mclk", "hclk";
+	dmas = <&dmac1 14>;
+	dma-names = "rx";
+	resets = <&cru SRST_SPDIFRX_M>;
+	reset-names = "spdifrx-m";
+	status = "disabled";
+};

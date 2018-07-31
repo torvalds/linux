@@ -4,6 +4,7 @@ snd-soc-rockchip-i2s-tdm-objs := rockchip_i2s_tdm.o
 snd-soc-rockchip-multi-dais-objs := rockchip_multi_dais.o rockchip_multi_dais_pcm.o
 snd-soc-rockchip-pdm-objs := rockchip_pdm.o
 snd-soc-rockchip-spdif-objs := rockchip_spdif.o
+snd-soc-rockchip-spdifrx-objs := rockchip_spdifrx.o
 snd-soc-rockchip-vad-objs := rockchip_vad.o
 ifdef CONFIG_THUMB2_KERNEL
 snd-soc-rockchip-vad-$(CONFIG_THUMB2_KERNEL) += vad_preprocess_thumb.o
@@ -17,6 +18,7 @@ obj-$(CONFIG_SND_SOC_ROCKCHIP_I2S_TDM) += snd-soc-rockchip-i2s-tdm.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_MULTI_DAIS) += snd-soc-rockchip-multi-dais.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_PDM) += snd-soc-rockchip-pdm.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_SPDIF) += snd-soc-rockchip-spdif.o
+obj-$(CONFIG_SND_SOC_ROCKCHIP_SPDIFRX) += snd-soc-rockchip-spdifrx.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_VAD) += snd-soc-rockchip-vad.o
 
 snd-soc-rockchip-da7219-objs := rockchip_da7219.o
