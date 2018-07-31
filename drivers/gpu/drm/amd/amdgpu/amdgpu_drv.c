@@ -136,6 +136,7 @@ int amdgpu_emu_mode = 0;
 uint amdgpu_smu_memory_pool_size = 0;
 /* FBC (bit 0) disabled by default*/
 uint amdgpu_dc_feature_mask = 0;
+int amdgpu_async_gfx_ring = 0;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -564,6 +565,14 @@ MODULE_PARM_DESC(smu_memory_pool_size,
 	"reserve gtt for smu debug usage, 0 = disable,"
 		"0x1 = 256Mbyte, 0x2 = 512Mbyte, 0x4 = 1 Gbyte, 0x8 = 2GByte");
 module_param_named(smu_memory_pool_size, amdgpu_smu_memory_pool_size, uint, 0444);
+
+/**
+ * DOC: async_gfx_ring (int)
+ * It is used to enable gfx rings that could be configured with different prioritites or equal priorities
+ */
+MODULE_PARM_DESC(async_gfx_ring,
+	"Asynchronous GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled (default), 1 = enabled)");
+module_param_named(async_gfx_ring, amdgpu_async_gfx_ring, int, 0444);
 
 #ifdef CONFIG_HSA_AMD
 /**
