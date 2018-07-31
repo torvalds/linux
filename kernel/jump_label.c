@@ -85,6 +85,7 @@ void static_key_slow_inc_cpuslocked(struct static_key *key)
 	int v, v1;
 
 	STATIC_KEY_CHECK_USE(key);
+	lockdep_assert_cpus_held();
 
 	/*
 	 * Careful if we get concurrent static_key_slow_inc() calls;
@@ -130,6 +131,7 @@ EXPORT_SYMBOL_GPL(static_key_slow_inc);
 void static_key_enable_cpuslocked(struct static_key *key)
 {
 	STATIC_KEY_CHECK_USE(key);
+	lockdep_assert_cpus_held();
 
 	if (atomic_read(&key->enabled) > 0) {
 		WARN_ON_ONCE(atomic_read(&key->enabled) != 1);
@@ -160,6 +162,7 @@ EXPORT_SYMBOL_GPL(static_key_enable);
 void static_key_disable_cpuslocked(struct static_key *key)
 {
 	STATIC_KEY_CHECK_USE(key);
+	lockdep_assert_cpus_held();
 
 	if (atomic_read(&key->enabled) != 1) {
 		WARN_ON_ONCE(atomic_read(&key->enabled) != 0);
@@ -185,6 +188,8 @@ static void __static_key_slow_dec_cpuslocked(struct static_key *key,
 					   unsigned long rate_limit,
 					   struct delayed_work *work)
 {
+	lockdep_assert_cpus_held();
+
 	/*
 	 * The negative count check is valid even when a negative
 	 * key->enabled is in use by static_key_slow_inc(); a
