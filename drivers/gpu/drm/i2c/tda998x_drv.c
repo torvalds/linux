@@ -67,6 +67,7 @@ struct tda998x_priv {
 	bool is_on;
 	bool supports_infoframes;
 	bool sink_has_audio;
+	enum hdmi_quantization_range rgb_quant_range;
 	u8 vip_cntrl_0;
 	u8 vip_cntrl_1;
 	u8 vip_cntrl_2;
@@ -870,6 +871,8 @@ tda998x_write_avi(struct tda998x_priv *priv, const struct drm_display_mode *mode
 	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
 						 &priv->connector, mode);
 	frame.avi.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi, &priv->connector, mode,
+					   priv->rgb_quant_range);
 
 	tda998x_write_if(priv, DIP_IF_FLAGS_IF2, REG_IF2_HB0, &frame);
 }
@@ -1427,6 +1430,16 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	u8 reg, div, rep, sel_clk;
 
 	/*
+	 * Since we are "computer" like, our source invariably produces
+	 * full-range RGB.  If the monitor supports full-range, then use
+	 * it, otherwise reduce to limited-range.
+	 */
+	priv->rgb_quant_range =
+		priv->connector.display_info.rgb_quant_range_selectable ?
+		HDMI_QUANTIZATION_RANGE_FULL :
+		drm_default_rgb_quant_range(adjusted_mode);
+
+	/*
 	 * Internally TDA998x is using ITU-R BT.656 style sync but
 	 * we get VESA style sync. TDA998x is using a reference pixel
 	 * relative to ITU to sync to the input frame and for output
@@ -1541,10 +1554,25 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	reg_write(priv, REG_PLL_SERIAL_2, PLL_SERIAL_2_SRL_NOSC(div) |
 			PLL_SERIAL_2_SRL_PR(rep));
 
-	/* set color matrix bypass flag: */
-	reg_write(priv, REG_MAT_CONTRL, MAT_CONTRL_MAT_BP |
-				MAT_CONTRL_MAT_SC(1));
-	reg_set(priv, REG_FEAT_POWERDOWN, FEAT_POWERDOWN_CSC);
+	/* set color matrix according to output rgb quant range */
+	if (priv->rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED) {
+		static u8 tda998x_full_to_limited_range[] = {
+			MAT_CONTRL_MAT_SC(2),
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x03, 0x6f, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x03, 0x6f, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x03, 0x6f,
+			0x00, 0x40, 0x00, 0x40, 0x00, 0x40
+		};
+		reg_clear(priv, REG_FEAT_POWERDOWN, FEAT_POWERDOWN_CSC);
+		reg_write_range(priv, REG_MAT_CONTRL,
+				tda998x_full_to_limited_range,
+				sizeof(tda998x_full_to_limited_range));
+	} else {
+		reg_write(priv, REG_MAT_CONTRL, MAT_CONTRL_MAT_BP |
+					MAT_CONTRL_MAT_SC(1));
+		reg_set(priv, REG_FEAT_POWERDOWN, FEAT_POWERDOWN_CSC);
+	}
 
 	/* set BIAS tmds value: */
 	reg_write(priv, REG_ANA_GENERAL, 0x09);
