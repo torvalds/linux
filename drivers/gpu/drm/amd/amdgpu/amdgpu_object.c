@@ -825,7 +825,7 @@ struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo)
 	if (bo == NULL)
 		return NULL;
 
-	ttm_bo_reference(&bo->tbo);
+	ttm_bo_get(&bo->tbo);
 	return bo;
 }
 
