@@ -771,17 +771,36 @@
 	};
 };
 
-&mcbsp2 {
-	status = "okay";
+&mcbsp1 { /* FM Transceiver PCM */
+	status = "ok";
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp1_pins>;
+};
+
+&mcbsp2 { /* TPS65950 I2S */
+	status = "ok";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
+};
+
+&mcbsp3 { /* Bluetooth PCM */
+	status = "ok";
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp3_pins>;
+};
+
+&mcbsp4 { /* GSM voice PCM */
+	status = "ok";
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp4_pins>;
 };
 
 &hdqw1w {
         pinctrl-names = "default";
         pinctrl-0 = <&hdq_pins>;
-};
-
-&mcbsp4 {
-	status = "okay";
 };
 
 /* image signal processor within OMAP3 SoC */
