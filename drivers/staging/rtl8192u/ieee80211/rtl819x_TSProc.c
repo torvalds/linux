@@ -246,10 +246,10 @@ static struct ts_common_info *SearchAdmitTRStream(struct ieee80211_device *ieee,
 		if (!search_dir[dir])
 			continue;
 		list_for_each_entry(pRet, psearch_list, list){
-	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.TSInfo.ucTSID, pRet->TSpec.TSInfo.ucDirection);
+	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.ts_info.ucTSID, pRet->TSpec.ts_info.ucDirection);
 			if (memcmp(pRet->addr, Addr, 6) == 0)
-				if (pRet->t_spec.TSInfo.uc_tsid == TID)
-					if(pRet->t_spec.TSInfo.uc_direction == dir) {
+				if (pRet->t_spec.ts_info.uc_tsid == TID)
+					if(pRet->t_spec.ts_info.uc_direction == dir) {
 	//					printk("Bingo! got it\n");
 						break;
 					}
@@ -355,7 +355,7 @@ bool GetTs(
 			// For HCCA or WMMSA, TS cannot be addmit without negotiation.
 			//
 			struct tspec_body	TSpec;
-			struct qos_tsinfo	*pTSInfo = &TSpec.TSInfo;
+			struct qos_tsinfo	*pTSInfo = &TSpec.ts_info;
 			struct list_head	*pUnusedList =
 								(TxRxSelect == TX_DIR)?
 								(&ieee->Tx_TS_Unused_List):

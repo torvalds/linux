@@ -52,7 +52,7 @@ struct qos_tsinfo {
  * Note: sizeof 55 bytes
  */
 struct tspec_body {
-	struct qos_tsinfo	TSInfo;	//u8	TSInfo[3];
+	struct qos_tsinfo	ts_info;	//u8	TSInfo[3];
 	u16	NominalMSDUsize;
 	u16	MaxMSDUsize;
 	u32	MinServiceItv;
