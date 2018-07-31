@@ -35,18 +35,13 @@ Example:
 			thermal-sensors = <&pm8941_temp>;
 
 			trips {
-				passive {
-					temperature = <1050000>;
+				stage1 {
+					temperature = <105000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				alert {
+				stage2 {
 					temperature = <125000>;
-					hysteresis = <2000>;
-					type = "hot";
-				};
-				crit {
-					temperature = <145000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
