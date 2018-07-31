@@ -63,16 +63,6 @@ mt76x2_tx_power_mask(u8 v1, u8 v2, u8 v3, u8 v4)
 	return val;
 }
 
-int mt76x2_phy_get_rssi(struct mt76x2_dev *dev, s8 rssi, int chain)
-{
-	struct mt76x2_rx_freq_cal *cal = &dev->cal.rx;
-
-	rssi += cal->rssi_offset[chain];
-	rssi -= cal->lna_gain;
-
-	return rssi;
-}
-
 static void
 mt76x2_add_rate_power_offset(struct mt76_rate_power *r, int offset)
 {

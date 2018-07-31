@@ -235,7 +235,7 @@ void mt76x2_phy_set_antenna(struct mt76x2_dev *dev);
 int mt76x2_phy_start(struct mt76x2_dev *dev);
 int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 			 struct cfg80211_chan_def *chandef);
-int mt76x2_phy_get_rssi(struct mt76x2_dev *dev, s8 rssi, int chain);
+int mt76x2_mac_get_rssi(struct mt76x2_dev *dev, s8 rssi, int chain);
 void mt76x2_phy_calibrate(struct work_struct *work);
 void mt76x2_phy_set_txpower(struct mt76x2_dev *dev);
 
@@ -281,5 +281,10 @@ s8 mt76x2_tx_get_txpwr_adj(struct mt76x2_dev *dev, s8 txpwr, s8 max_txpwr_adj);
 void mt76x2_tx_set_txpwr_auto(struct mt76x2_dev *dev, s8 txpwr);
 
 int mt76x2_insert_hdr_pad(struct sk_buff *skb);
+
+bool mt76x2_mac_load_tx_status(struct mt76x2_dev *dev,
+			       struct mt76x2_tx_status *stat);
+void mt76x2_send_tx_status(struct mt76x2_dev *dev,
+			   struct mt76x2_tx_status *stat, u8 *update);
 
 #endif
