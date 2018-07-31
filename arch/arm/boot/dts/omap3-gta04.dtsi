@@ -55,7 +55,7 @@
 		ti,mcbsp = <&mcbsp2>;
 	};
 
-	 /* GSM audio */
+	/* GSM audio */
 	sound_telephony {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "GTA04 voice";
@@ -227,7 +227,7 @@
 	};
 
 	dss_dpi_pins: pinmux_dss_dpi_pins {
-               pinctrl-single,pins = <
+		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20d4, PIN_OUTPUT | MUX_MODE0)   /* dss_pclk.dss_pclk */
 			OMAP3_CORE1_IOPAD(0x20d6, PIN_OUTPUT | MUX_MODE0)   /* dss_hsync.dss_hsync */
 			OMAP3_CORE1_IOPAD(0x20d8, PIN_OUTPUT | MUX_MODE0)   /* dss_vsync.dss_vsync */
