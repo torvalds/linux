@@ -326,6 +326,7 @@ config AUDIT_TREE
 
 source "kernel/irq/Kconfig"
 source "kernel/time/Kconfig"
+source "kernel/Kconfig.preempt"
 
 menu "CPU/Task time and stats accounting"
 

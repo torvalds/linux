@@ -752,7 +752,6 @@ config HOLES_IN_ZONE
 	def_bool y
 	depends on NUMA
 
-source kernel/Kconfig.preempt
 source kernel/Kconfig.hz
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC

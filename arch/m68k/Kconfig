@@ -4,6 +4,7 @@ config M68K
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT if ISA
 	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
+	select ARCH_NO_PREEMPT if !COLDFIRE
 	select HAVE_IDE
 	select HAVE_AOUT if MMU
 	select HAVE_DEBUG_BUGVERBOSE
@@ -128,10 +129,6 @@ source arch/m68k/Kconfig.bus
 endmenu
 
 menu "Kernel Features"
-
-if COLDFIRE
-source "kernel/Kconfig.preempt"
-endif
 
 endmenu
 

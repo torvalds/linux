@@ -49,9 +49,3 @@ config NR_CPUS
 	default 1
 
 source "arch/h8300/Kconfig.cpu"
-
-menu "Kernel Features"
-
-source "kernel/Kconfig.preempt"
-
-endmenu

@@ -87,8 +87,6 @@ source "arch/microblaze/Kconfig.platform"
 
 menu "Processor type and features"
 
-source "kernel/Kconfig.preempt"
-
 source "kernel/Kconfig.hz"
 
 config MMU

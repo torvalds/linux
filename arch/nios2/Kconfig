@@ -47,8 +47,6 @@ config TRACE_IRQFLAGS_SUPPORT
 
 menu "Kernel features"
 
-source "kernel/Kconfig.preempt"
-
 source "kernel/Kconfig.hz"
 
 config FORCE_MAX_ZONEORDER

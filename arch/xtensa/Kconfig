@@ -173,8 +173,6 @@ config XTENSA_UNALIGNED_USER
 
 	  Say Y here to enable unaligned memory access in user space.
 
-source "kernel/Kconfig.preempt"
-
 config HAVE_SMP
 	bool "System Supports SMP (MX)"
 	depends on XTENSA_VARIANT_CUSTOM

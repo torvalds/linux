@@ -511,8 +511,6 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
-source kernel/Kconfig.preempt
-
 source kernel/Kconfig.hz
 
 config KEXEC

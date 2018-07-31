@@ -1481,8 +1481,6 @@ config ARCH_NR_GPIO
 
 	  If unsure, leave the default value.
 
-source kernel/Kconfig.preempt
-
 config HZ_FIXED
 	int
 	default 200 if ARCH_EBSA110

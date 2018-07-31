@@ -364,8 +364,6 @@ config FORCE_CPEI_RETARGET
 	This option it useful to enable this feature on older BIOS's as well.
 	You can also enable this by using boot command line option force_cpei=1.
 
-source "kernel/Kconfig.preempt"
-
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 

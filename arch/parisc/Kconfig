@@ -323,7 +323,6 @@ config NODES_SHIFT
 	default "3"
 	depends on NEED_MULTIPLE_NODES
 
-source "kernel/Kconfig.preempt"
 source "kernel/Kconfig.hz"
 
 config COMPAT

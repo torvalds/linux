@@ -2818,8 +2818,6 @@ config HZ
 config SCHED_HRTICK
 	def_bool HIGH_RES_TIMERS
 
-source "kernel/Kconfig.preempt"
-
 config KEXEC
 	bool "Kexec system call"
 	select KEXEC_CORE

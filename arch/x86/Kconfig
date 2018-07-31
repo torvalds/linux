@@ -1039,8 +1039,6 @@ config SCHED_MC_PRIO
 
 	  If unsure say Y here.
 
-source "kernel/Kconfig.preempt"
-
 config UP_LATE_INIT
        def_bool y
        depends on !SMP && X86_LOCAL_APIC

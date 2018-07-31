@@ -110,8 +110,6 @@ config KERNEL_RAM_BASE_ADDRESS
 	default 0xe0000000 if SOC_TMS320C6472
 	default 0x80000000
 
-source "kernel/Kconfig.preempt"
-
 source "kernel/Kconfig.hz"
 
 endmenu

@@ -88,6 +88,5 @@ config NDS32_BUILTIN_DTB
 endmenu
 
 menu "Kernel Features"
-source "kernel/Kconfig.preempt"
 source "kernel/Kconfig.hz"
 endmenu

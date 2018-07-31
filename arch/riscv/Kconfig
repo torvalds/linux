@@ -212,8 +212,6 @@ endmenu
 
 menu "Kernel type"
 
-source "kernel/Kconfig.preempt"
-
 source "kernel/Kconfig.hz"
 
 endmenu
