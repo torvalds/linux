@@ -122,6 +122,9 @@
 #define MEI_HBM_NOTIFY_RES_CMD              0x90
 #define MEI_HBM_NOTIFICATION_CMD            0x11
 
+#define MEI_HBM_DMA_SETUP_REQ_CMD           0x12
+#define MEI_HBM_DMA_SETUP_RES_CMD           0x92
+
 /*
  * MEI Stop Reason
  * used by hbm_host_stop_request.reason
@@ -447,6 +450,52 @@ struct hbm_notification {
 	u8 me_addr;
 	u8 host_addr;
 	u8 reserved[1];
+} __packed;
+
+/**
+ * struct hbm_dma_mem_dscr - dma ring
+ *
+ * @addr_hi: the high 32bits of 64 bit address
+ * @addr_lo: the low  32bits of 64 bit address
+ * @size   : size in bytes (must be power of 2)
+ */
+struct hbm_dma_mem_dscr {
+	u32 addr_hi;
+	u32 addr_lo;
+	u32 size;
+} __packed;
+
+enum {
+	DMA_DSCR_HOST = 0,
+	DMA_DSCR_DEVICE = 1,
+	DMA_DSCR_CTRL = 2,
+	DMA_DSCR_NUM,
+};
+
+/**
+ * struct hbm_dma_setup_request - dma setup request
+ *
+ * @hbm_cmd: bus message command header
+ * @reserved: reserved for alignment
+ * @dma_dscr: dma descriptor for HOST, DEVICE, and CTRL
+ */
+struct hbm_dma_setup_request {
+	u8 hbm_cmd;
+	u8 reserved[3];
+	struct hbm_dma_mem_dscr dma_dscr[DMA_DSCR_NUM];
+} __packed;
+
+/**
+ * struct hbm_dma_setup_response - dma setup response
+ *
+ * @hbm_cmd: bus message command header
+ * @status: 0 on success; otherwise DMA setup failed.
+ * @reserved: reserved for alignment
+ */
+struct hbm_dma_setup_response {
+	u8 hbm_cmd;
+	u8 status;
+	u8 reserved[2];
 } __packed;
 
 #endif
