@@ -1173,12 +1173,11 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	memcpy(cctx->iv, gcm_128_info->salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
 	memcpy(cctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv, iv_size);
 	cctx->rec_seq_size = rec_seq_size;
-	cctx->rec_seq = kmalloc(rec_seq_size, GFP_KERNEL);
+	cctx->rec_seq = kmemdup(rec_seq, rec_seq_size, GFP_KERNEL);
 	if (!cctx->rec_seq) {
 		rc = -ENOMEM;
 		goto free_iv;
 	}
-	memcpy(cctx->rec_seq, rec_seq, rec_seq_size);
 
 	if (sw_ctx_tx) {
 		sg_init_table(sw_ctx_tx->sg_encrypted_data,

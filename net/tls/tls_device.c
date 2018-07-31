@@ -716,12 +716,11 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	memcpy(ctx->tx.iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv, iv_size);
 
 	ctx->tx.rec_seq_size = rec_seq_size;
-	ctx->tx.rec_seq = kmalloc(rec_seq_size, GFP_KERNEL);
+	ctx->tx.rec_seq = kmemdup(rec_seq, rec_seq_size, GFP_KERNEL);
 	if (!ctx->tx.rec_seq) {
 		rc = -ENOMEM;
 		goto free_iv;
 	}
-	memcpy(ctx->tx.rec_seq, rec_seq, rec_seq_size);
 
 	rc = tls_sw_fallback_init(sk, offload_ctx, crypto_info);
 	if (rc)
