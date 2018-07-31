@@ -3582,7 +3582,7 @@ static void __init rcu_init_one(void)
 				rnp->parent = NULL;
 			} else {
 				rnp->grpnum = j % levelspread[i - 1];
-				rnp->grpmask = 1UL << rnp->grpnum;
+				rnp->grpmask = BIT(rnp->grpnum);
 				rnp->parent = rcu_state.level[i - 1] +
 					      j / levelspread[i - 1];
 			}

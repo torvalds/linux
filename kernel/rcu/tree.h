@@ -168,7 +168,7 @@ struct rcu_node {
  * are indexed relative to this interval rather than the global CPU ID space.
  * This generates the bit for a CPU in node-local masks.
  */
-#define leaf_node_cpu_bit(rnp, cpu) (1UL << ((cpu) - (rnp)->grplo))
+#define leaf_node_cpu_bit(rnp, cpu) (BIT((cpu) - (rnp)->grplo))
 
 /*
  * Union to allow "aggregate OR" operation on the need for a quiescent
