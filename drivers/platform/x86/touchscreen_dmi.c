@@ -117,6 +117,22 @@ static const struct ts_dmi_data cube_iwork8_air_data = {
 	.properties	= cube_iwork8_air_props,
 };
 
+static const struct property_entry cube_knote_i1101_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 20),
+	PROPERTY_ENTRY_U32("touchscreen-min-y",  22),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1961),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1513),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3692-cube-knote-i1101.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data cube_knote_i1101_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= cube_knote_i1101_props,
+};
+
 static const struct property_entry dexp_ursus_7w_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 890),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 630),
@@ -456,6 +472,16 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "cube"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "i1-TF"),
 			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+		},
+	},
+	{
+		/* Cube KNote i1101 */
+		.driver_data = (void *)&cube_knote_i1101_data,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_BOARD_NAME, "L1W6_I1101"),
+			DMI_MATCH(DMI_SYS_VENDOR, "ALLDOCUBE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "i1101"),
 		},
 	},
 	{
