@@ -522,9 +522,13 @@ drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 
 	sched_job->sched = sched;
 	sched_job->s_fence->sched = sched;
-	while ((entity->dependency = sched->ops->dependency(sched_job, entity)))
-		if (drm_sched_entity_add_dependency_cb(entity))
+	while ((entity->dependency = sched->ops->dependency(sched_job, entity))) {
+		if (drm_sched_entity_add_dependency_cb(entity)) {
+
+			trace_drm_sched_job_wait_dep(sched_job, entity->dependency);
 			return NULL;
+		}
+	}
 
 	/* skip jobs from entity that marked guilty */
 	if (entity->guilty && atomic_read(entity->guilty))
