@@ -447,4 +447,8 @@ struct uac3_interrupt_data_msg {
 /* BADD sample rate is always fixed to 48kHz */
 #define UAC3_BADD_SAMPLING_RATE				48000
 
+/* BADD power domains recovery times in 50us increments */
+#define UAC3_BADD_PD_RECOVER_D1D0			0x0258	/* 30ms */
+#define UAC3_BADD_PD_RECOVER_D2D0			0x1770	/* 300ms */
+
 #endif /* __LINUX_USB_AUDIO_V3_H */
