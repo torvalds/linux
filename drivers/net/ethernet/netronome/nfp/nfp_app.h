@@ -392,10 +392,11 @@ static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
 static inline void
 nfp_app_ctrl_rx_raw(struct nfp_app *app, const void *data, unsigned int len)
 {
-	trace_devlink_hwmsg(priv_to_devlink(app->pf), true, 0, data, len);
+	if (!app || !app->type->ctrl_msg_rx_raw)
+		return;
 
-	if (app && app->type->ctrl_msg_rx_raw)
-		app->type->ctrl_msg_rx_raw(app, data, len);
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), true, 0, data, len);
+	app->type->ctrl_msg_rx_raw(app, data, len);
 }
 
 static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
