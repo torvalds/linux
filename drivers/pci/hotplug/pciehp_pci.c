@@ -20,6 +20,14 @@
 #include "../pci.h"
 #include "pciehp.h"
 
+/**
+ * pciehp_configure_device() - enumerate PCI devices below a hotplug bridge
+ * @p_slot: PCIe hotplug slot
+ *
+ * Enumerate PCI devices below a hotplug bridge and add them to the system.
+ * Return 0 on success, %-EEXIST if the devices are already enumerated or
+ * %-ENODEV if enumeration failed.
+ */
 int pciehp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
@@ -62,9 +70,19 @@ int pciehp_configure_device(struct slot *p_slot)
 	return ret;
 }
 
-void pciehp_unconfigure_device(struct slot *p_slot)
+/**
+ * pciehp_unconfigure_device() - remove PCI devices below a hotplug bridge
+ * @p_slot: PCIe hotplug slot
+ * @presence: whether the card is still present in the slot;
+ *	true for safe removal via sysfs or an Attention Button press,
+ *	false for surprise removal
+ *
+ * Unbind PCI devices below a hotplug bridge from their drivers and remove
+ * them from the system.  Safely removed devices are quiesced.  Surprise
+ * removed devices are marked as such to prevent further accesses.
+ */
+void pciehp_unconfigure_device(struct slot *p_slot, bool presence)
 {
-	u8 presence = 0;
 	struct pci_dev *dev, *temp;
 	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
 	u16 command;
@@ -72,7 +90,6 @@ void pciehp_unconfigure_device(struct slot *p_slot)
 
 	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:00\n",
 		 __func__, pci_domain_nr(parent), parent->number);
-	pciehp_get_adapter_status(p_slot, &presence);
 
 	if (!presence)
 		pci_walk_bus(parent, pci_dev_set_disconnected, NULL);

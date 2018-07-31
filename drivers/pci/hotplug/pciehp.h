@@ -181,7 +181,7 @@ void pciehp_handle_button_press(struct slot *slot);
 void pciehp_handle_disable_request(struct slot *slot);
 void pciehp_handle_presence_or_link_change(struct slot *slot, u32 events);
 int pciehp_configure_device(struct slot *p_slot);
-void pciehp_unconfigure_device(struct slot *p_slot);
+void pciehp_unconfigure_device(struct slot *p_slot, bool presence);
 void pciehp_queue_pushbutton_work(struct work_struct *work);
 struct controller *pcie_init(struct pcie_device *dev);
 int pcie_init_notification(struct controller *ctrl);
