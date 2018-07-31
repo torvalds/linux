@@ -83,10 +83,6 @@ config STACKTRACE_SUPPORT
 config LOCKDEP_SUPPORT
 	def_bool y
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 source "arch/microblaze/Kconfig.platform"
 
 menu "Processor type and features"
@@ -266,14 +262,6 @@ config MICROBLAZE_64K_PAGES
 
 endchoice
 
-source "mm/Kconfig"
-
-endmenu
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
 endmenu
 
 menu "Bus Options"
@@ -298,16 +286,4 @@ source "drivers/pci/Kconfig"
 
 endmenu
 
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
 source "arch/microblaze/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

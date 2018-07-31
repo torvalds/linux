@@ -75,8 +75,6 @@ config STATIC_LINK
 	  Additionally, this option enables using higher memory spaces (up to
 	  2.75G) for UML.
 
-source "mm/Kconfig"
-
 config LD_SCRIPT_STATIC
 	bool
 	default y
@@ -87,8 +85,6 @@ config LD_SCRIPT_DYN
 	default y
 	depends on !LD_SCRIPT_STATIC
         select MODULE_REL_CRCS if MODVERSIONS
-
-source "fs/Kconfig.binfmt"
 
 config HOSTFS
 	tristate "Host filesystem"
@@ -190,22 +186,6 @@ config SECCOMP
 
 endmenu
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 source "arch/um/drivers/Kconfig"
-
-source "drivers/Kconfig"
-
-source "net/Kconfig"
-
-source "fs/Kconfig"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
 
 source "arch/um/Kconfig.debug"

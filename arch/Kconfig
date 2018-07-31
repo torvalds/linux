@@ -3,6 +3,12 @@
 # General architecture dependent options
 #
 
+#
+# Note: arch/$(SRCARCH)/Kconfig needs to be included first so that it can
+# override the default values in this file.
+#
+source "arch/$(SRCARCH)/Kconfig"
+
 config CRASH_CORE
 	bool
 

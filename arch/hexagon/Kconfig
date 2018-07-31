@@ -146,25 +146,9 @@ config PAGE_SIZE_256KB
 
 endchoice
 
-source "mm/Kconfig"
-
 source "kernel/Kconfig.hz"
 
 endmenu
-
-source "init/Kconfig"
-source "kernel/Kconfig.freezer"
-source "drivers/Kconfig"
-source "fs/Kconfig"
-
-menu "Executable File Formats"
-source "fs/Kconfig.binfmt"
-endmenu
-
-source "net/Kconfig"
-source "security/Kconfig"
-source "crypto/Kconfig"
-source "lib/Kconfig"
 
 menu "Kernel hacking"
 source "lib/Kconfig.debug"

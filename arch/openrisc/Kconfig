@@ -72,10 +72,6 @@ config LOCKDEP_SUPPORT
 config MULTI_IRQ_HANDLER
 	def_bool y
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 menu "Processor type and features"
 
 choice
@@ -148,7 +144,6 @@ config SMP
 
 source kernel/Kconfig.hz
 source kernel/Kconfig.preempt
-source "mm/Kconfig"
 
 config OPENRISC_NO_SPR_SR_DSX
 	bool "use SPR_SR_DSX software emulation" if OR1K_1200
@@ -206,24 +201,6 @@ config OPENRISC_ESR_EXCEPTION_BUG_CHECK
 endmenu
 
 endmenu
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
 
 menu "Kernel hacking"
 

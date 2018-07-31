@@ -45,17 +45,11 @@ config RWSEM_GENERIC_SPINLOCK
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool n
 
-source "init/Kconfig"
-
 menu "Kernel features"
 
 source "kernel/Kconfig.preempt"
 
-source "kernel/Kconfig.freezer"
-
 source "kernel/Kconfig.hz"
-
-source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
@@ -194,22 +188,4 @@ config NIOS2_IO_REGION_BASE
 
 endmenu
 
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
 source "arch/nios2/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

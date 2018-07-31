@@ -1721,9 +1721,9 @@ config PROFILING
 config TRACEPOINTS
 	bool
 
-source "arch/Kconfig"
-
 endmenu		# General setup
+
+source "arch/Kconfig"
 
 config RT_MUTEXES
 	bool
