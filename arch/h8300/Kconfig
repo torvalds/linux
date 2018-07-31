@@ -55,9 +55,3 @@ menu "Kernel Features"
 source "kernel/Kconfig.preempt"
 
 endmenu
-
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
-
-endmenu

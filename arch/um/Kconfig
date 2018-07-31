@@ -187,5 +187,3 @@ config SECCOMP
 endmenu
 
 source "arch/um/drivers/Kconfig"
-
-source "arch/um/Kconfig.debug"

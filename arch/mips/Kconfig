@@ -3195,6 +3195,4 @@ endmenu
 
 source "drivers/firmware/Kconfig"
 
-source "arch/mips/Kconfig.debug"
-
 source "arch/mips/kvm/Kconfig"

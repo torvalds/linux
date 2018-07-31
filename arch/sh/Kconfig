@@ -885,5 +885,3 @@ source "kernel/power/Kconfig"
 source "drivers/cpuidle/Kconfig"
 
 endmenu
-
-source "arch/sh/Kconfig.debug"

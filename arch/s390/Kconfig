@@ -828,8 +828,6 @@ config HAVE_PNETID
 	tristate
 	default (SMC || CCWGROUP)
 
-source "arch/s390/Kconfig.debug"
-
 menu "Virtualization"
 
 config PFAULT

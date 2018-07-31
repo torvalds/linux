@@ -574,5 +574,4 @@ source "drivers/pci/Kconfig"
 
 endmenu
 
-source "arch/arc/Kconfig.debug"
 source "kernel/power/Kconfig"

@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
 
 config ARM_PTDUMP_CORE
 	def_bool n
@@ -1863,5 +1860,3 @@ config PID_IN_CONTEXTIDR
 	  are planning to use hardware trace tools with this kernel.
 
 source "drivers/hwtracing/coresight/Kconfig"
-
-endmenu

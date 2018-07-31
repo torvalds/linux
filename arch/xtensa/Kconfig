@@ -567,5 +567,3 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 endmenu
-
-source "arch/xtensa/Kconfig.debug"

@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
 
 config 16KSTACKS
 	bool "Use 16Kb for kernel stacks instead of 8Kb"
@@ -11,5 +8,3 @@ config 16KSTACKS
 	  This increases the resident kernel footprint and will cause less
 	  threads to run on the system and also increase the pressure
 	  on the VM subsystem for higher order allocations.
-
-endmenu

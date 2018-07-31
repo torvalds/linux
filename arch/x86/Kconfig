@@ -2931,6 +2931,4 @@ config HAVE_GENERIC_GUP
 
 source "drivers/firmware/Kconfig"
 
-source "arch/x86/Kconfig.debug"
-
 source "arch/x86/kvm/Kconfig"

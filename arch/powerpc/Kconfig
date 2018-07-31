@@ -1194,8 +1194,6 @@ endif
 config	ARCH_RANDOM
 	def_bool n
 
-source "arch/powerpc/Kconfig.debug"
-
 config PPC_LIB_RHEAP
 	bool
 

@@ -285,5 +285,3 @@ config PCI_XILINX
 source "drivers/pci/Kconfig"
 
 endmenu
-
-source "arch/microblaze/Kconfig.debug"

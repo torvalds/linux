@@ -147,5 +147,3 @@ endmenu
 endif
 
 source "arch/m68k/Kconfig.devices"
-
-source "arch/m68k/Kconfig.debug"

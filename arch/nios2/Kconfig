@@ -187,5 +187,3 @@ config NIOS2_IO_REGION_BASE
 	default "0xe0000000"
 
 endmenu
-
-source "arch/nios2/Kconfig.debug"

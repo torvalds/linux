@@ -349,8 +349,6 @@ endmenu
 
 source "drivers/parisc/Kconfig"
 
-source "arch/parisc/Kconfig.debug"
-
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"

@@ -565,5 +565,3 @@ config SYSVIPC_COMPAT
 	default y
 
 source "drivers/sbus/char/Kconfig"
-
-source "arch/sparc/Kconfig.debug"

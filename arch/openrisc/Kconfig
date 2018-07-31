@@ -201,9 +201,3 @@ config OPENRISC_ESR_EXCEPTION_BUG_CHECK
 endmenu
 
 endmenu
-
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
-
-endmenu

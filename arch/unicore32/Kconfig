@@ -222,5 +222,3 @@ endmenu
 endif
 
 endif
-
-source "arch/unicore32/Kconfig.debug"

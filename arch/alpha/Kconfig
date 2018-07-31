@@ -710,8 +710,6 @@ config SRM_ENV
 
 endmenu
 
-source "arch/alpha/Kconfig.debug"
-
 # DUMMY_CONSOLE may be defined in drivers/video/console/Kconfig
 # but we also need it if VGA_HOSE is set
 config DUMMY_CONSOLE

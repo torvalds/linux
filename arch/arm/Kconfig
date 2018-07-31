@@ -2191,8 +2191,6 @@ endmenu
 
 source "drivers/firmware/Kconfig"
 
-source "arch/arm/Kconfig.debug"
-
 if CRYPTO
 source "arch/arm/crypto/Kconfig"
 endif
