@@ -70,8 +70,6 @@ struct nf_osf_nlmsg {
 	struct tcphdr			tcp;
 };
 
-extern struct list_head nf_osf_fingers[2];
-
 /* Defines for IANA option kinds */
 enum iana_options {
 	OSFOPT_EOL = 0,		/* End of options */

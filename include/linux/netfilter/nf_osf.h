@@ -25,6 +25,8 @@ enum osf_fmatch_states {
 	FMATCH_OPT_WRONG,
 };
 
+extern struct list_head nf_osf_fingers[2];
+
 struct nf_osf_finger {
 	struct rcu_head			rcu_head;
 	struct list_head		finger_entry;
