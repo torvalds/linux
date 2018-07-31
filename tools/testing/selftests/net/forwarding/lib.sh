@@ -653,6 +653,48 @@ vlan_capture_uninstall()
 	__vlan_capture_add_del del 100 "$@"
 }
 
+__dscp_capture_add_del()
+{
+	local add_del=$1; shift
+	local dev=$1; shift
+	local base=$1; shift
+	local dscp;
+
+	for prio in {0..7}; do
+		dscp=$((base + prio))
+		__icmp_capture_add_del $add_del $((dscp + 100)) "" $dev \
+				       "skip_hw ip_tos $((dscp << 2))"
+	done
+}
+
+dscp_capture_install()
+{
+	local dev=$1; shift
+	local base=$1; shift
+
+	__dscp_capture_add_del add $dev $base
+}
+
+dscp_capture_uninstall()
+{
+	local dev=$1; shift
+	local base=$1; shift
+
+	__dscp_capture_add_del del $dev $base
+}
+
+dscp_fetch_stats()
+{
+	local dev=$1; shift
+	local base=$1; shift
+
+	for prio in {0..7}; do
+		local dscp=$((base + prio))
+		local t=$(tc_rule_stats_get $dev $((dscp + 100)))
+		echo "[$dscp]=$t "
+	done
+}
+
 matchall_sink_create()
 {
 	local dev=$1; shift
