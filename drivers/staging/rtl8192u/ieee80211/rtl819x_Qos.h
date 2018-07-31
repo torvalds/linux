@@ -46,32 +46,29 @@ struct qos_tsinfo {
 	u8:7;
 };
 
-//
-// WMM TSPEC Body.
-// Ref: WMM spec 2.2.11: WME TSPEC Element, p.16.
-//
-typedef union _TSPEC_BODY {
-	u8		charData[55];
-
-	struct {
-		struct qos_tsinfo	TSInfo;	//u8	TSInfo[3];
-		u16	NominalMSDUsize;
-		u16	MaxMSDUsize;
-		u32	MinServiceItv;
-		u32	MaxServiceItv;
-		u32	InactivityItv;
-		u32	SuspenItv;
-		u32	ServiceStartTime;
-		u32	MinDataRate;
-		u32	MeanDataRate;
-		u32	PeakDataRate;
-		u32	MaxBurstSize;
-		u32	DelayBound;
-		u32	MinPhyRate;
-		u16	SurplusBandwidthAllowance;
-		u16	MediumTime;
-	} f;	// Field
-} TSPEC_BODY, *PTSPEC_BODY;
+/*
+ * WMM TSPEC Body.
+ * Ref: WMM spec 2.2.11: WME TSPEC Element, p.16.
+ * Note: sizeof 55 bytes
+ */
+struct tspec_body {
+	struct qos_tsinfo	TSInfo;	//u8	TSInfo[3];
+	u16	NominalMSDUsize;
+	u16	MaxMSDUsize;
+	u32	MinServiceItv;
+	u32	MaxServiceItv;
+	u32	InactivityItv;
+	u32	SuspenItv;
+	u32	ServiceStartTime;
+	u32	MinDataRate;
+	u32	MeanDataRate;
+	u32	PeakDataRate;
+	u32	MaxBurstSize;
+	u32	DelayBound;
+	u32	MinPhyRate;
+	u16	SurplusBandwidthAllowance;
+	u16	MediumTime;
+};
 
 //typedef struct _TCLASS{
 // TODO

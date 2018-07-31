@@ -104,7 +104,7 @@ static void TsAddBaProcess(struct timer_list *t)
 static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	eth_zero_addr(pTsCommonInfo->addr);
-	memset(&pTsCommonInfo->t_spec, 0, sizeof(TSPEC_BODY));
+	memset(&pTsCommonInfo->t_spec, 0, sizeof(struct tspec_body));
 	memset(&pTsCommonInfo->t_class, 0, sizeof(QOS_TCLAS)*TCLAS_NUM);
 	pTsCommonInfo->t_clas_proc = 0;
 	pTsCommonInfo->t_clas_num = 0;
@@ -246,10 +246,10 @@ static struct ts_common_info *SearchAdmitTRStream(struct ieee80211_device *ieee,
 		if (!search_dir[dir])
 			continue;
 		list_for_each_entry(pRet, psearch_list, list){
-	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.f.TSInfo.ucTSID, pRet->TSpec.f.TSInfo.ucDirection);
+	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.TSInfo.ucTSID, pRet->TSpec.TSInfo.ucDirection);
 			if (memcmp(pRet->addr, Addr, 6) == 0)
-				if (pRet->t_spec.f.TSInfo.uc_tsid == TID)
-					if(pRet->t_spec.f.TSInfo.uc_direction == dir) {
+				if (pRet->t_spec.TSInfo.uc_tsid == TID)
+					if(pRet->t_spec.TSInfo.uc_direction == dir) {
 	//					printk("Bingo! got it\n");
 						break;
 					}
@@ -265,7 +265,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct ieee80211_device *ieee,
 }
 
 static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
-			PTSPEC_BODY pTSPEC, PQOS_TCLAS pTCLAS, u8 TCLAS_Num,
+			struct tspec_body *pTSPEC, PQOS_TCLAS pTCLAS, u8 TCLAS_Num,
 			u8 TCLAS_Proc)
 {
 	u8	count;
@@ -276,7 +276,7 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 	memcpy(pTsCommonInfo->addr, Addr, 6);
 
 	if(pTSPEC != NULL)
-		memcpy((u8 *)(&(pTsCommonInfo->t_spec)), (u8 *)pTSPEC, sizeof(TSPEC_BODY));
+		memcpy((u8 *)(&(pTsCommonInfo->t_spec)), (u8 *)pTSPEC, sizeof(struct tspec_body));
 
 	for(count = 0; count < TCLAS_Num; count++)
 		memcpy((u8 *)(&(pTsCommonInfo->t_class[count])), (u8 *)pTCLAS, sizeof(QOS_TCLAS));
@@ -354,8 +354,8 @@ bool GetTs(
 			// This is for EDCA and WMM to add a new TS.
 			// For HCCA or WMMSA, TS cannot be addmit without negotiation.
 			//
-			TSPEC_BODY	TSpec;
-			struct qos_tsinfo	*pTSInfo = &TSpec.f.TSInfo;
+			struct tspec_body	TSpec;
+			struct qos_tsinfo	*pTSInfo = &TSpec.TSInfo;
 			struct list_head	*pUnusedList =
 								(TxRxSelect == TX_DIR)?
 								(&ieee->Tx_TS_Unused_List):
