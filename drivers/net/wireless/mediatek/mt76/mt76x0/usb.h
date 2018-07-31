@@ -16,7 +16,7 @@
 
 #include "mt76x0.h"
 
-#define MT7610_FIRMWARE	"mt7610.bin"
+#define MT7610_FIRMWARE	"mediatek/mt7610u.bin"
 
 #define MT_VEND_REQ_MAX_RETRY	10
 #define MT_VEND_REQ_TOUT_MS	300
