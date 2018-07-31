@@ -353,12 +353,13 @@ void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
 
 static void flush_bg_queue(struct fuse_conn *fc)
 {
+	struct fuse_iqueue *fiq = &fc->iq;
+
 	while (fc->active_background < fc->max_background &&
 	       !list_empty(&fc->bg_queue)) {
 		struct fuse_req *req;
-		struct fuse_iqueue *fiq = &fc->iq;
 
-		req = list_entry(fc->bg_queue.next, struct fuse_req, list);
+		req = list_first_entry(&fc->bg_queue, struct fuse_req, list);
 		list_del(&req->list);
 		fc->active_background++;
 		spin_lock(&fiq->waitq.lock);
