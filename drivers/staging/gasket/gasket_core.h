@@ -318,11 +318,11 @@ struct gasket_dev {
 };
 
 /* Type of the ioctl handler callback. */
-typedef long (*gasket_ioctl_handler_cb_t)
-		(struct file *file, uint cmd, void __user *argp);
+typedef long (*gasket_ioctl_handler_cb_t)(struct file *file, uint cmd,
+					  void __user *argp);
 /* Type of the ioctl permissions check callback. See below. */
-typedef int (*gasket_ioctl_permissions_cb_t)(
-	struct file *filp, uint cmd, void __user *argp);
+typedef int (*gasket_ioctl_permissions_cb_t)(struct file *filp, uint cmd,
+					     void __user *argp);
 
 /*
  * Device type descriptor.
@@ -457,8 +457,8 @@ struct gasket_driver_desc {
 	 * descriptor for an open file is closed. This call is intended to
 	 * handle any per-user or per-fd cleanup.
 	 */
-	int (*device_release_cb)(
-		struct gasket_dev *gasket_dev, struct file *file);
+	int (*device_release_cb)(struct gasket_dev *gasket_dev,
+				 struct file *file);
 
 	/*
 	 * device_close_cb: Callback for when a device node is closed for the
@@ -527,10 +527,10 @@ struct gasket_driver_desc {
 	 * information is then compared to mmap request to determine which
 	 * regions to actually map.
 	 */
-	int (*get_mappable_regions_cb)(
-		struct gasket_dev *gasket_dev, int bar_index,
-		struct gasket_mappable_region **mappable_regions,
-		int *num_mappable_regions);
+	int (*get_mappable_regions_cb)(struct gasket_dev *gasket_dev,
+				       int bar_index,
+				       struct gasket_mappable_region **mappable_regions,
+				       int *num_mappable_regions);
 
 	/*
 	 * ioctl_permissions_cb: Check permissions for generic ioctls.
@@ -631,16 +631,16 @@ int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type);
  */
 
 /* Unmaps the specified mappable region from a VMA. */
-int gasket_mm_unmap_region(
-	const struct gasket_dev *gasket_dev, struct vm_area_struct *vma,
-	const struct gasket_mappable_region *map_region);
+int gasket_mm_unmap_region(const struct gasket_dev *gasket_dev,
+			   struct vm_area_struct *vma,
+			   const struct gasket_mappable_region *map_region);
 
 /*
  * Get the ioctl permissions callback.
  * @gasket_dev: Gasket device structure.
  */
-gasket_ioctl_permissions_cb_t gasket_get_ioctl_permissions_cb(
-	struct gasket_dev *gasket_dev);
+gasket_ioctl_permissions_cb_t
+gasket_get_ioctl_permissions_cb(struct gasket_dev *gasket_dev);
 
 /**
  * Lookup a name by number in a num_name table.
@@ -648,37 +648,37 @@ gasket_ioctl_permissions_cb_t gasket_get_ioctl_permissions_cb(
  * @table: Array of num_name structures, the table for the lookup.
  *
  */
-const char *gasket_num_name_lookup(
-	uint num, const struct gasket_num_name *table);
+const char *gasket_num_name_lookup(uint num,
+				   const struct gasket_num_name *table);
 
 /* Handy inlines */
-static inline ulong gasket_dev_read_64(
-	struct gasket_dev *gasket_dev, int bar, ulong location)
+static inline ulong gasket_dev_read_64(struct gasket_dev *gasket_dev, int bar,
+				       ulong location)
 {
 	return readq(&gasket_dev->bar_data[bar].virt_base[location]);
 }
 
-static inline void gasket_dev_write_64(
-	struct gasket_dev *dev, u64 value, int bar, ulong location)
+static inline void gasket_dev_write_64(struct gasket_dev *dev, u64 value,
+				       int bar, ulong location)
 {
 	writeq(value, &dev->bar_data[bar].virt_base[location]);
 }
 
-static inline void gasket_dev_write_32(
-	struct gasket_dev *dev, u32 value, int bar, ulong location)
+static inline void gasket_dev_write_32(struct gasket_dev *dev, u32 value,
+				       int bar, ulong location)
 {
 	writel(value, &dev->bar_data[bar].virt_base[location]);
 }
 
-static inline u32 gasket_dev_read_32(
-	struct gasket_dev *dev, int bar, ulong location)
+static inline u32 gasket_dev_read_32(struct gasket_dev *dev, int bar,
+				     ulong location)
 {
 	return readl(&dev->bar_data[bar].virt_base[location]);
 }
 
-static inline void gasket_read_modify_write_64(
-	struct gasket_dev *dev, int bar, ulong location, u64 value,
-	u64 mask_width, u64 mask_shift)
+static inline void gasket_read_modify_write_64(struct gasket_dev *dev, int bar,
+					       ulong location, u64 value,
+					       u64 mask_width, u64 mask_shift)
 {
 	u64 mask, tmp;
 
@@ -688,9 +688,9 @@ static inline void gasket_read_modify_write_64(
 	gasket_dev_write_64(dev, tmp, bar, location);
 }
 
-static inline void gasket_read_modify_write_32(
-	struct gasket_dev *dev, int bar, ulong location, u32 value,
-	u32 mask_width, u32 mask_shift)
+static inline void gasket_read_modify_write_32(struct gasket_dev *dev, int bar,
+					       ulong location, u32 value,
+					       u32 mask_width, u32 mask_shift)
 {
 	u32 mask, tmp;
 
@@ -707,8 +707,8 @@ const struct gasket_driver_desc *gasket_get_driver_desc(struct gasket_dev *dev);
 struct device *gasket_get_device(struct gasket_dev *dev);
 
 /* Helper function, Asynchronous waits on a given set of bits. */
-int gasket_wait_with_reschedule(
-	struct gasket_dev *gasket_dev, int bar, u64 offset, u64 mask, u64 val,
-	uint max_retries, u64 delay_ms);
+int gasket_wait_with_reschedule(struct gasket_dev *gasket_dev, int bar,
+				u64 offset, u64 mask, u64 val,
+				uint max_retries, u64 delay_ms);
 
 #endif /* __GASKET_CORE_H__ */
