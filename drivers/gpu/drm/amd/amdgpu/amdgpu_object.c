@@ -843,9 +843,8 @@ void amdgpu_bo_unref(struct amdgpu_bo **bo)
 		return;
 
 	tbo = &((*bo)->tbo);
-	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
+	ttm_bo_put(tbo);
+	*bo = NULL;
 }
 
 /**
