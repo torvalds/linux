@@ -31,6 +31,8 @@ struct i40e_stats {
 	I40E_STAT(struct i40e_vsi, _name, _stat)
 #define I40E_VEB_STAT(_name, _stat) \
 	I40E_STAT(struct i40e_veb, _name, _stat)
+#define I40E_PFC_STAT(_name, _stat) \
+	I40E_STAT(struct i40e_pfc_stats, _name, _stat)
 
 static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(rx_packets),
@@ -153,6 +155,22 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("port.rx_lpi_count", stats.rx_lpi_count),
 };
 
+struct i40e_pfc_stats {
+	u64 priority_xon_rx;
+	u64 priority_xoff_rx;
+	u64 priority_xon_tx;
+	u64 priority_xoff_tx;
+	u64 priority_xon_2_xoff;
+};
+
+static const struct i40e_stats i40e_gstrings_pfc_stats[] = {
+	I40E_PFC_STAT("port.tx_priority_%u_xon_tx", priority_xon_tx),
+	I40E_PFC_STAT("port.tx_priority_%u_xoff_tx", priority_xoff_tx),
+	I40E_PFC_STAT("port.rx_priority_%u_xon_rx", priority_xon_rx),
+	I40E_PFC_STAT("port.rx_priority_%u_xoff_rx", priority_xoff_rx),
+	I40E_PFC_STAT("port.rx_priority_%u_xon_2_xoff", priority_xon_2_xoff),
+};
+
 /* We use num_tx_queues here as a proxy for the maximum number of queues
  * available because we always allocate queues symmetrically.
  */
@@ -167,13 +185,9 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 #define I40E_VSI_STATS_LEN(n)	(I40E_NETDEV_STATS_LEN + \
 				 I40E_MISC_STATS_LEN + \
 				 I40E_QUEUE_STATS_LEN((n)))
-#define I40E_PFC_STATS_LEN ( \
-		(FIELD_SIZEOF(struct i40e_pf, stats.priority_xoff_rx) + \
-		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_rx) + \
-		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xoff_tx) + \
-		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_tx) + \
-		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_2_xoff)) \
-		 / sizeof(u64))
+
+#define I40E_PFC_STATS_LEN	(ARRAY_SIZE(i40e_gstrings_pfc_stats) * \
+				 I40E_MAX_USER_PRIORITY)
 
 #define I40E_VEB_STATS_LEN	(ARRAY_SIZE(i40e_gstrings_veb_stats) + \
 				 (ARRAY_SIZE(i40e_gstrings_veb_tc_stats) * \
@@ -1799,6 +1813,31 @@ __i40e_add_ethtool_stats(u64 **data, void *pointer,
 	__i40e_add_ethtool_stats(data, pointer, stats, ARRAY_SIZE(stats))
 
 /**
+ * i40e_get_pfc_stats - copy HW PFC statistics to formatted structure
+ * @pf: the PF device structure
+ * @i: the priority value to copy
+ *
+ * The PFC stats are found as arrays in pf->stats, which is not easy to pass
+ * into i40e_add_ethtool_stats. Produce a formatted i40e_pfc_stats structure
+ * of the PFC stats for the given priority.
+ **/
+static inline struct i40e_pfc_stats
+i40e_get_pfc_stats(struct i40e_pf *pf, unsigned int i)
+{
+#define I40E_GET_PFC_STAT(stat, priority) \
+	.stat = pf->stats.stat[priority]
+
+	struct i40e_pfc_stats pfc = {
+		I40E_GET_PFC_STAT(priority_xon_rx, i),
+		I40E_GET_PFC_STAT(priority_xoff_rx, i),
+		I40E_GET_PFC_STAT(priority_xon_tx, i),
+		I40E_GET_PFC_STAT(priority_xoff_tx, i),
+		I40E_GET_PFC_STAT(priority_xon_2_xoff, i),
+	};
+	return pfc;
+}
+
+/**
  * i40e_get_ethtool_stats - copy stat values into supplied buffer
  * @netdev: the netdev to collect stats for
  * @stats: ethtool stats command structure
@@ -1884,15 +1923,10 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	i40e_add_ethtool_stats(&data, pf, i40e_gstrings_stats);
 
 	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		*(data++) = pf->stats.priority_xon_tx[i];
-		*(data++) = pf->stats.priority_xoff_tx[i];
+		struct i40e_pfc_stats pfc = i40e_get_pfc_stats(pf, i);
+
+		i40e_add_ethtool_stats(&data, &pfc, i40e_gstrings_pfc_stats);
 	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		*(data++) = pf->stats.priority_xon_rx[i];
-		*(data++) = pf->stats.priority_xoff_rx[i];
-	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++)
-		*(data++) = pf->stats.priority_xon_2_xoff[i];
 }
 
 /**
@@ -1973,27 +2007,8 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 
 	i40e_add_stat_strings(&data, i40e_gstrings_stats);
 
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.tx_priority_%u_xon", i);
-		data += ETH_GSTRING_LEN;
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.tx_priority_%u_xoff", i);
-		data += ETH_GSTRING_LEN;
-	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.rx_priority_%u_xon", i);
-		data += ETH_GSTRING_LEN;
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.rx_priority_%u_xoff", i);
-		data += ETH_GSTRING_LEN;
-	}
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		snprintf(data, ETH_GSTRING_LEN,
-			 "port.rx_priority_%u_xon_2_xoff", i);
-		data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++)
+		i40e_add_stat_strings(&data, i40e_gstrings_pfc_stats, i);
 
 	WARN_ONCE(p - data != i40e_get_stats_count(netdev) * ETH_GSTRING_LEN,
 		  "stat strings count mismatch!");
