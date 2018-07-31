@@ -8,7 +8,7 @@ mt76-y := \
 CFLAGS_trace.o := -I$(src)
 
 mt76x2-common-y := \
-	mt76x2_eeprom.o
+	mt76x2_eeprom.o mt76x2_tx_common.o
 
 mt76x2e-y := \
 	mt76x2_pci.o mt76x2_dma.o \
