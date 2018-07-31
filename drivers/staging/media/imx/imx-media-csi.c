@@ -1053,7 +1053,7 @@ static int csi_link_validate(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_format *sink_fmt)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
-	struct v4l2_fwnode_endpoint upstream_ep;
+	struct v4l2_fwnode_endpoint upstream_ep = { .bus_type = 0 };
 	bool is_csi2;
 	int ret;
 
@@ -1167,7 +1167,7 @@ static int csi_enum_mbus_code(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
-	struct v4l2_fwnode_endpoint upstream_ep;
+	struct v4l2_fwnode_endpoint upstream_ep = { .bus_type = 0 };
 	const struct imx_media_pixfmt *incc;
 	struct v4l2_mbus_framefmt *infmt;
 	int ret = 0;
@@ -1406,7 +1406,7 @@ static int csi_set_fmt(struct v4l2_subdev *sd,
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
 	struct imx_media_video_dev *vdev = priv->vdev;
-	struct v4l2_fwnode_endpoint upstream_ep;
+	struct v4l2_fwnode_endpoint upstream_ep = { .bus_type = 0 };
 	const struct imx_media_pixfmt *cc;
 	struct v4l2_pix_format vdev_fmt;
 	struct v4l2_mbus_framefmt *fmt;
@@ -1545,7 +1545,7 @@ static int csi_set_selection(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
-	struct v4l2_fwnode_endpoint upstream_ep;
+	struct v4l2_fwnode_endpoint upstream_ep = { .bus_type = 0 };
 	struct v4l2_mbus_framefmt *infmt;
 	struct v4l2_rect *crop, *compose;
 	int pad, ret;

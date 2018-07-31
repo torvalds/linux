@@ -361,7 +361,7 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 
 static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep;
+	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
 	struct fwnode_handle *fwh;
 	struct device_node *ep;
 	int ret;

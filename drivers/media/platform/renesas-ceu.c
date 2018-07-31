@@ -1536,7 +1536,6 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 static int ceu_parse_dt(struct ceu_device *ceudev)
 {
 	struct device_node *of = ceudev->dev->of_node;
-	struct v4l2_fwnode_endpoint fw_ep;
 	struct device_node *ep, *remote;
 	struct ceu_subdev *ceu_sd;
 	unsigned int i;
@@ -1552,6 +1551,8 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 		return ret;
 
 	for (i = 0; i < num_ep; i++) {
+		struct v4l2_fwnode_endpoint fw_ep = { .bus_type = 0 };
+
 		ep = of_graph_get_endpoint_by_regs(of, 0, i);
 		if (!ep) {
 			dev_err(ceudev->dev,

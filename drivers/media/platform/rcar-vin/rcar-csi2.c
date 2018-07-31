@@ -743,7 +743,7 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 {
 	struct device_node *ep;
-	struct v4l2_fwnode_endpoint v4l2_ep;
+	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
 	int ret;
 
 	ep = of_graph_get_endpoint_by_regs(priv->dev->of_node, 0, 0);

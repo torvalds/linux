@@ -390,7 +390,7 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 {
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
 	struct device_node *rem, *ep, *np;
-	struct v4l2_fwnode_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	int ret;
 
 	/* Assume here a port node can have only one endpoint node. */

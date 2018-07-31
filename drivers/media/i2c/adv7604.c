@@ -3093,7 +3093,7 @@ MODULE_DEVICE_TABLE(of, adv76xx_of_id);
 
 static int adv76xx_parse_dt(struct adv76xx_state *state)
 {
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct device_node *endpoint;
 	struct device_node *np;
 	unsigned int flags;

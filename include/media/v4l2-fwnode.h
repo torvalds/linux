@@ -139,6 +139,8 @@ struct v4l2_fwnode_link {
  * set the V4L2_MBUS_CSI2_CONTINUOUS_CLOCK flag. The caller should hold a
  * reference to @fwnode.
  *
+ * The caller must set the bus_type field of @vep to zero.
+ *
  * NOTE: This function does not parse properties the size of which is variable
  * without a low fixed limit. Please use v4l2_fwnode_endpoint_alloc_parse() in
  * new drivers instead.

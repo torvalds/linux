@@ -1841,7 +1841,7 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 {
 	struct device_node *node = dev->of_node;
 	struct device_node *node_ep;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int ret;
 
 	if (!node) {

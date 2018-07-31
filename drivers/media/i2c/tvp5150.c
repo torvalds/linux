@@ -1593,7 +1593,7 @@ static int tvp5150_init(struct i2c_client *c)
 
 static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 {
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct device_node *ep;
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct device_node *connectors, *child;

@@ -1728,7 +1728,7 @@ static int ov7670_parse_dt(struct device *dev,
 			   struct ov7670_info *info)
 {
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct fwnode_handle *ep;
 	int ret;
 

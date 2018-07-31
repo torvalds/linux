@@ -2298,7 +2298,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 {
 	u32 mclk_rate;
 	struct device_node *remote, *np = dev->of_node;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int err = of_property_read_u32(np, "clock-frequency",
 				       &mclk_rate);
 	if (!err) {

@@ -432,7 +432,7 @@ static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 
 static int csi2tx_check_lanes(struct csi2tx_priv *csi2tx)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep;
+	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
 	struct device_node *ep;
 	int ret;
 
