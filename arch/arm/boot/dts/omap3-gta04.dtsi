@@ -50,6 +50,21 @@
 		};
 	};
 
+	antenna-detect {
+		compatible = "gpio-keys";
+
+		gps_antenna_button: gps-antenna-button {
+			label = "GPS_EXT_ANT";
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LINEIN_INSERT>;
+			gpios = <&gpio5 16 GPIO_ACTIVE_HIGH>; /* GPIO144 */
+			interrupt-parent = <&gpio5>;
+			interrupts = <16 IRQ_TYPE_EDGE_BOTH>;
+			debounce-interval = <10>;
+			wakeup-source;
+		};
+	};
+
 	sound {
 		compatible = "ti,omap-twl4030";
 		ti,model = "gta04";
