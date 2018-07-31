@@ -2039,21 +2039,19 @@ static int copy_module_elf(struct module *mod, struct load_info *info)
 
 	/* Elf section header table */
 	size = sizeof(*info->sechdrs) * info->hdr->e_shnum;
-	mod->klp_info->sechdrs = kmalloc(size, GFP_KERNEL);
+	mod->klp_info->sechdrs = kmemdup(info->sechdrs, size, GFP_KERNEL);
 	if (mod->klp_info->sechdrs == NULL) {
 		ret = -ENOMEM;
 		goto free_info;
 	}
-	memcpy(mod->klp_info->sechdrs, info->sechdrs, size);
 
 	/* Elf section name string table */
 	size = info->sechdrs[info->hdr->e_shstrndx].sh_size;
-	mod->klp_info->secstrings = kmalloc(size, GFP_KERNEL);
+	mod->klp_info->secstrings = kmemdup(info->secstrings, size, GFP_KERNEL);
 	if (mod->klp_info->secstrings == NULL) {
 		ret = -ENOMEM;
 		goto free_sechdrs;
 	}
-	memcpy(mod->klp_info->secstrings, info->secstrings, size);
 
 	/* Elf symbol section index */
 	symndx = info->index.sym;
