@@ -421,9 +421,9 @@ wcid_to_sta(struct mt76_wcid *wcid)
 	return container_of(ptr, struct ieee80211_sta, drv_priv);
 }
 
-int mt76_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
-		      struct sk_buff *skb, struct mt76_wcid *wcid,
-		      struct ieee80211_sta *sta);
+int mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+			  struct sk_buff *skb, struct mt76_wcid *wcid,
+			  struct ieee80211_sta *sta);
 
 void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb);
 void mt76_tx(struct mt76_dev *dev, struct ieee80211_sta *sta,
@@ -454,6 +454,7 @@ void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 
 /* internal */
 void mt76_tx_free(struct mt76_dev *dev);
+struct mt76_txwi_cache *mt76_get_txwi(struct mt76_dev *dev);
 void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
 void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 		      struct napi_struct *napi);
