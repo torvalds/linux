@@ -80,6 +80,12 @@
 #define HBM_MINOR_VERSION_OS               0
 #define HBM_MAJOR_VERSION_OS               2
 
+/*
+ * MEI version with dma ring support
+ */
+#define HBM_MINOR_VERSION_DR               1
+#define HBM_MAJOR_VERSION_DR               2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */

@@ -1007,6 +1007,12 @@ static void mei_hbm_config_features(struct mei_device *dev)
 	/* OS ver message Support */
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_OS)
 		dev->hbm_f_os_supported = 1;
+
+	/* DMA Ring Support */
+	if (dev->version.major_version > HBM_MAJOR_VERSION_DR ||
+	    (dev->version.major_version == HBM_MAJOR_VERSION_DR &&
+	     dev->version.minor_version >= HBM_MINOR_VERSION_DR))
+		dev->hbm_f_dr_supported = 1;
 }
 
 /**
