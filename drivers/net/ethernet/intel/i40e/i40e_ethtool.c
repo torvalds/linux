@@ -1589,7 +1589,6 @@ static int i40e_set_ringparam(struct net_device *netdev,
 		}
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			struct i40e_ring *ring;
 			u16 unused;
 
 			/* clone ring and setup updated count */
@@ -1613,9 +1612,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			/* now allocate the Rx buffers to make sure the OS
 			 * has enough memory, any failure here means abort
 			 */
-			ring = &rx_rings[i];
-			unused = I40E_DESC_UNUSED(ring);
-			err = i40e_alloc_rx_buffers(ring, unused);
+			unused = I40E_DESC_UNUSED(&rx_rings[i]);
+			err = i40e_alloc_rx_buffers(&rx_rings[i], unused);
 rx_unwind:
 			if (err) {
 				do {
