@@ -207,6 +207,9 @@ xfs_initialize_perag(
 		if (xfs_buf_hash_init(pag))
 			goto out_free_pag;
 		init_waitqueue_head(&pag->pagb_wait);
+		spin_lock_init(&pag->pagb_lock);
+		pag->pagb_count = 0;
+		pag->pagb_tree = RB_ROOT;
 
 		if (radix_tree_preload(GFP_NOFS))
 			goto out_hash_destroy;
