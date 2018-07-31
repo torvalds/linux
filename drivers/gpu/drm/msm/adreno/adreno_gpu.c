@@ -17,6 +17,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/ascii85.h>
 #include <linux/pm_opp.h>
 #include "adreno_gpu.h"
 #include "msm_gem.h"
@@ -368,39 +369,184 @@ bool adreno_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	return false;
 }
 
-#ifdef CONFIG_DEBUG_FS
-void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
+int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int i, count = 0;
+
+	kref_init(&state->ref);
+
+	ktime_get_real_ts64(&state->time);
+
+	for (i = 0; i < gpu->nr_rings; i++) {
+		int size = 0, j;
+
+		state->ring[i].fence = gpu->rb[i]->memptrs->fence;
+		state->ring[i].iova = gpu->rb[i]->iova;
+		state->ring[i].seqno = gpu->rb[i]->seqno;
+		state->ring[i].rptr = get_rptr(adreno_gpu, gpu->rb[i]);
+		state->ring[i].wptr = get_wptr(gpu->rb[i]);
+
+		/* Copy at least 'wptr' dwords of the data */
+		size = state->ring[i].wptr;
+
+		/* After wptr find the last non zero dword to save space */
+		for (j = state->ring[i].wptr; j < MSM_GPU_RINGBUFFER_SZ >> 2; j++)
+			if (gpu->rb[i]->start[j])
+				size = j + 1;
+
+		if (size) {
+			state->ring[i].data = kmalloc(size << 2, GFP_KERNEL);
+			if (state->ring[i].data) {
+				memcpy(state->ring[i].data, gpu->rb[i]->start, size << 2);
+				state->ring[i].data_size = size << 2;
+			}
+		}
+	}
+
+	/* Count the number of registers */
+	for (i = 0; adreno_gpu->registers[i] != ~0; i += 2)
+		count += adreno_gpu->registers[i + 1] -
+			adreno_gpu->registers[i] + 1;
+
+	state->registers = kcalloc(count * 2, sizeof(u32), GFP_KERNEL);
+	if (state->registers) {
+		int pos = 0;
+
+		for (i = 0; adreno_gpu->registers[i] != ~0; i += 2) {
+			u32 start = adreno_gpu->registers[i];
+			u32 end   = adreno_gpu->registers[i + 1];
+			u32 addr;
+
+			for (addr = start; addr <= end; addr++) {
+				state->registers[pos++] = addr;
+				state->registers[pos++] = gpu_read(gpu, addr);
+			}
+		}
+
+		state->nr_registers = count;
+	}
+
+	return 0;
+}
+
+void adreno_gpu_state_destroy(struct msm_gpu_state *state)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(state->ring); i++)
+		kfree(state->ring[i].data);
+
+	for (i = 0; state->bos && i < state->nr_bos; i++)
+		kvfree(state->bos[i].data);
+
+	kfree(state->bos);
+	kfree(state->comm);
+	kfree(state->cmd);
+	kfree(state->registers);
+}
+
+static void adreno_gpu_state_kref_destroy(struct kref *kref)
+{
+	struct msm_gpu_state *state = container_of(kref,
+		struct msm_gpu_state, ref);
+
+	adreno_gpu_state_destroy(state);
+	kfree(state);
+}
+
+int adreno_gpu_state_put(struct msm_gpu_state *state)
+{
+	if (IS_ERR_OR_NULL(state))
+		return 1;
+
+	return kref_put(&state->ref, adreno_gpu_state_kref_destroy);
+}
+
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+
+static void adreno_show_object(struct drm_printer *p, u32 *ptr, int len)
+{
+	char out[ASCII85_BUFSZ];
+	long l, datalen, i;
+
+	if (!ptr || !len)
+		return;
+
+	/*
+	 * Only dump the non-zero part of the buffer - rarely will any data
+	 * completely fill the entire allocated size of the buffer
+	 */
+	for (datalen = 0, i = 0; i < len >> 2; i++) {
+		if (ptr[i])
+			datalen = (i << 2) + 1;
+	}
+
+	/* Skip printing the object if it is empty */
+	if (datalen == 0)
+		return;
+
+	l = ascii85_encode_len(datalen);
+
+	drm_puts(p, "    data: !!ascii85 |\n");
+	drm_puts(p, "     ");
+
+	for (i = 0; i < l; i++)
+		drm_puts(p, ascii85_encode(ptr[i], out));
+
+	drm_puts(p, "\n");
+}
+
+void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
+		struct drm_printer *p)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int i;
 
-	seq_printf(m, "revision: %d (%d.%d.%d.%d)\n",
+	if (IS_ERR_OR_NULL(state))
+		return;
+
+	drm_printf(p, "revision: %d (%d.%d.%d.%d)\n",
 			adreno_gpu->info->revn, adreno_gpu->rev.core,
 			adreno_gpu->rev.major, adreno_gpu->rev.minor,
 			adreno_gpu->rev.patchid);
 
+	drm_printf(p, "rbbm-status: 0x%08x\n", state->rbbm_status);
+
+	drm_puts(p, "ringbuffer:\n");
+
 	for (i = 0; i < gpu->nr_rings; i++) {
-		struct msm_ringbuffer *ring = gpu->rb[i];
+		drm_printf(p, "  - id: %d\n", i);
+		drm_printf(p, "    iova: 0x%016llx\n", state->ring[i].iova);
+		drm_printf(p, "    last-fence: %d\n", state->ring[i].seqno);
+		drm_printf(p, "    retired-fence: %d\n", state->ring[i].fence);
+		drm_printf(p, "    rptr: %d\n", state->ring[i].rptr);
+		drm_printf(p, "    wptr: %d\n", state->ring[i].wptr);
+		drm_printf(p, "    size: %d\n", MSM_GPU_RINGBUFFER_SZ);
 
-		seq_printf(m, "rb %d: fence:    %d/%d\n", i,
-			ring->memptrs->fence, ring->seqno);
-
-		seq_printf(m, "      rptr:     %d\n",
-			get_rptr(adreno_gpu, ring));
-		seq_printf(m, "rb wptr:  %d\n", get_wptr(ring));
+		adreno_show_object(p, state->ring[i].data,
+			state->ring[i].data_size);
 	}
 
-	/* dump these out in a form that can be parsed by demsm: */
-	seq_printf(m, "IO:region %s 00000000 00020000\n", gpu->name);
-	for (i = 0; adreno_gpu->registers[i] != ~0; i += 2) {
-		uint32_t start = adreno_gpu->registers[i];
-		uint32_t end   = adreno_gpu->registers[i+1];
-		uint32_t addr;
+	if (state->bos) {
+		drm_puts(p, "bos:\n");
 
-		for (addr = start; addr <= end; addr++) {
-			uint32_t val = gpu_read(gpu, addr);
-			seq_printf(m, "IO:R %08x %08x\n", addr<<2, val);
+		for (i = 0; i < state->nr_bos; i++) {
+			drm_printf(p, "  - iova: 0x%016llx\n",
+				state->bos[i].iova);
+			drm_printf(p, "    size: %zd\n", state->bos[i].size);
+
+			adreno_show_object(p, state->bos[i].data,
+				state->bos[i].size);
 		}
+	}
+
+	drm_puts(p, "registers:\n");
+
+	for (i = 0; i < state->nr_registers; i++) {
+		drm_printf(p, "  - { offset: 0x%04x, value: 0x%08x }\n",
+			state->registers[i * 2] << 2,
+			state->registers[(i * 2) + 1]);
 	}
 }
 #endif
@@ -565,7 +711,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	adreno_get_pwrlevels(&pdev->dev, gpu);
 
-	pm_runtime_set_autosuspend_delay(&pdev->dev, DRM_MSM_INACTIVE_PERIOD);
+	pm_runtime_set_autosuspend_delay(&pdev->dev,
+		adreno_gpu->info->inactive_period);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
