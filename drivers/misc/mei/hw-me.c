@@ -517,28 +517,31 @@ static u32 mei_me_hbuf_depth(const struct mei_device *dev)
 	return hw->hbuf_depth;
 }
 
-
 /**
  * mei_me_hbuf_write - writes a message to host hw buffer.
  *
  * @dev: the device structure
- * @header: mei HECI header of message
- * @buf: message payload will be written
+ * @hdr: header of message
+ * @hdr_len: header length in bytes: must be multiplication of a slot (4bytes)
+ * @data: payload
+ * @data_len: payload length in bytes
  *
- * Return: -EIO if write has failed
+ * Return: 0 if success, < 0 - otherwise.
  */
 static int mei_me_hbuf_write(struct mei_device *dev,
-			     struct mei_msg_hdr *header,
-			     const unsigned char *buf)
+			     const void *hdr, size_t hdr_len,
+			     const void *data, size_t data_len)
 {
 	unsigned long rem;
-	unsigned long length = header->length;
 	unsigned long i;
-	u32 *reg_buf = (u32 *)buf;
+	const u32 *reg_buf;
 	u32 dw_cnt;
 	int empty_slots;
 
-	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
+	if (WARN_ON(!hdr || !data || hdr_len & 0x3))
+		return -EINVAL;
+
+	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM((struct mei_msg_hdr *)hdr));
 
 	empty_slots = mei_hbuf_empty_slots(dev);
 	dev_dbg(dev->dev, "empty slots = %hu.\n", empty_slots);
@@ -546,20 +549,23 @@ static int mei_me_hbuf_write(struct mei_device *dev,
 	if (empty_slots < 0)
 		return -EOVERFLOW;
 
-	dw_cnt = mei_data2slots(length);
+	dw_cnt = mei_data2slots(hdr_len + data_len);
 	if (dw_cnt > (u32)empty_slots)
 		return -EMSGSIZE;
 
-	mei_me_hcbww_write(dev, *((u32 *) header));
-
-	for (i = 0; i < length / MEI_SLOT_SIZE; i++)
+	reg_buf = hdr;
+	for (i = 0; i < hdr_len / MEI_SLOT_SIZE; i++)
 		mei_me_hcbww_write(dev, reg_buf[i]);
 
-	rem = length & 0x3;
+	reg_buf = data;
+	for (i = 0; i < data_len / MEI_SLOT_SIZE; i++)
+		mei_me_hcbww_write(dev, reg_buf[i]);
+
+	rem = data_len & 0x3;
 	if (rem > 0) {
 		u32 reg = 0;
 
-		memcpy(&reg, &buf[length - rem], rem);
+		memcpy(&reg, (const u8 *)data + data_len - rem, rem);
 		mei_me_hcbww_write(dev, reg);
 	}
 

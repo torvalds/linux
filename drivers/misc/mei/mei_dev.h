@@ -300,8 +300,8 @@ struct mei_hw_ops {
 	bool (*hbuf_is_ready)(struct mei_device *dev);
 	u32 (*hbuf_depth)(const struct mei_device *dev);
 	int (*write)(struct mei_device *dev,
-		     struct mei_msg_hdr *hdr,
-		     const unsigned char *buf);
+		     const void *hdr, size_t hdr_len,
+		     const void *data, size_t data_len);
 
 	int (*rdbuf_full_slots)(struct mei_device *dev);
 
@@ -528,14 +528,26 @@ static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
 }
 
 /**
- * mei_data2slots - get slots - number of (dwords) from a message length
- *	+ size of the mei header
+ * mei_data2slots - get slots number from a message length
  *
  * @length: size of the messages in bytes
  *
  * Return: number of slots
  */
 static inline u32 mei_data2slots(size_t length)
+{
+	return DIV_ROUND_UP(length, MEI_SLOT_SIZE);
+}
+
+/**
+ * mei_hbm2slots - get slots number from a hbm message length
+ *                 length + size of the mei message header
+ *
+ * @length: size of the messages in bytes
+ *
+ * Return: number of slots
+ */
+static inline u32 mei_hbm2slots(size_t length)
 {
 	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, MEI_SLOT_SIZE);
 }
@@ -656,9 +668,10 @@ static inline u32 mei_hbuf_depth(const struct mei_device *dev)
 }
 
 static inline int mei_write_message(struct mei_device *dev,
-				    struct mei_msg_hdr *hdr, const void *buf)
+				    const void *hdr, size_t hdr_len,
+				    const void *data, size_t data_len)
 {
-	return dev->ops->write(dev, hdr, buf);
+	return dev->ops->write(dev, hdr, hdr_len, data, data_len);
 }
 
 static inline u32 mei_read_hdr(const struct mei_device *dev)

@@ -863,7 +863,7 @@ int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int slots;
 	int ret;
 
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_connect_request));
 	slots = mei_hbuf_empty_slots(dev);
 	if (slots < 0)
 		return -EOVERFLOW;
@@ -1055,11 +1055,10 @@ int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int slots;
 	int rets;
 
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
-
 	if (mei_cl_is_other_connecting(cl))
 		return 0;
 
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_connect_request));
 	slots = mei_hbuf_empty_slots(dev);
 	if (slots < 0)
 		return -EOVERFLOW;
@@ -1299,7 +1298,7 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int ret;
 	bool request;
 
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_connect_request));
 	slots = mei_hbuf_empty_slots(dev);
 	if (slots < 0)
 		return -EOVERFLOW;
@@ -1571,6 +1570,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
+	size_t hdr_len = sizeof(mei_hdr);
 	size_t len;
 	size_t hbuf_len;
 	int hbuf_slots;
@@ -1601,7 +1601,8 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		rets = -EOVERFLOW;
 		goto err;
 	}
-	hbuf_len = mei_slots2data(hbuf_slots) - sizeof(struct mei_msg_hdr);
+
+	hbuf_len = mei_slots2data(hbuf_slots);
 
 	mei_msg_hdr_init(&mei_hdr, cb);
 
@@ -1609,11 +1610,11 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	 * Split the message only if we can write the whole host buffer
 	 * otherwise wait for next time the host buffer is empty.
 	 */
-	if (hbuf_len >= len) {
+	if (len + hdr_len <= hbuf_len) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
 	} else if ((u32)hbuf_slots == mei_hbuf_depth(dev)) {
-		mei_hdr.length = hbuf_len;
+		mei_hdr.length = hbuf_len - hdr_len;
 	} else {
 		return 0;
 	}
@@ -1621,7 +1622,8 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	cl_dbg(dev, cl, "buf: size = %zu idx = %zu\n",
 			cb->buf.size, cb->buf_idx);
 
-	rets = mei_write_message(dev, &mei_hdr, buf->data + cb->buf_idx);
+	rets = mei_write_message(dev, &mei_hdr, hdr_len,
+				 buf->data + cb->buf_idx, mei_hdr.length);
 	if (rets)
 		goto err;
 
@@ -1661,6 +1663,7 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
+	size_t hdr_len = sizeof(mei_hdr);
 	size_t len;
 	size_t hbuf_len;
 	int hbuf_slots;
@@ -1716,15 +1719,17 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 		goto out;
 	}
 
-	hbuf_len = mei_slots2data(hbuf_slots) - sizeof(struct mei_msg_hdr);
-	if (hbuf_len >= len) {
+	hbuf_len = mei_slots2data(hbuf_slots);
+
+	if (len + hdr_len <= hbuf_len) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
 	} else {
-		mei_hdr.length = hbuf_len;
+		mei_hdr.length = hbuf_len - hdr_len;
 	}
 
-	rets = mei_write_message(dev, &mei_hdr, buf->data);
+	rets = mei_write_message(dev, &mei_hdr, hdr_len,
+				 buf->data, mei_hdr.length);
 	if (rets)
 		goto err;
 
@@ -1761,7 +1766,7 @@ out:
 		}
 	}
 
-	rets = len;
+	rets = buf->size;
 err:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);

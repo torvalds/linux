@@ -689,37 +689,34 @@ static void mei_txe_hw_config(struct mei_device *dev)
 		hw->aliveness, hw->readiness);
 }
 
-
 /**
  * mei_txe_write - writes a message to device.
  *
  * @dev: the device structure
- * @header: header of message
- * @buf: message buffer will be written
+ * @hdr: header of message
+ * @hdr_len: header length in bytes - must multiplication of a slot (4bytes)
+ * @data: payload
+ * @data_len: paylead length in bytes
  *
- * Return: 0 if success, <0 - otherwise.
+ * Return: 0 if success, < 0 - otherwise.
  */
-
 static int mei_txe_write(struct mei_device *dev,
-			 struct mei_msg_hdr *header,
-			 const unsigned char *buf)
+			 const void *hdr, size_t hdr_len,
+			 const void *data, size_t data_len)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	unsigned long rem;
-	unsigned long length;
-	unsigned long i;
+	const u32 *reg_buf;
 	u32 slots = TXE_HBUF_DEPTH;
-	u32 *reg_buf = (u32 *)buf;
 	u32 dw_cnt;
+	unsigned long i, j;
 
-	if (WARN_ON(!header || !buf))
+	if (WARN_ON(!hdr || !data || hdr_len & 0x3))
 		return -EINVAL;
 
-	length = header->length;
+	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM((struct mei_msg_hdr *)hdr));
 
-	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
-
-	dw_cnt = mei_data2slots(length);
+	dw_cnt = mei_data2slots(hdr_len + data_len);
 	if (dw_cnt > slots)
 		return -EMSGSIZE;
 
@@ -737,17 +734,20 @@ static int mei_txe_write(struct mei_device *dev,
 		return -EAGAIN;
 	}
 
-	mei_txe_input_payload_write(dev, 0, *((u32 *)header));
+	reg_buf = hdr;
+	for (i = 0; i < hdr_len / MEI_SLOT_SIZE; i++)
+		mei_txe_input_payload_write(dev, i, reg_buf[i]);
 
-	for (i = 0; i < length / 4; i++)
-		mei_txe_input_payload_write(dev, i + 1, reg_buf[i]);
+	reg_buf = data;
+	for (j = 0; j < data_len / MEI_SLOT_SIZE; j++)
+		mei_txe_input_payload_write(dev, i + j, reg_buf[j]);
 
-	rem = length & 0x3;
+	rem = data_len & 0x3;
 	if (rem > 0) {
 		u32 reg = 0;
 
-		memcpy(&reg, &buf[length - rem], rem);
-		mei_txe_input_payload_write(dev, i + 1, reg);
+		memcpy(&reg, (const u8 *)data + data_len - rem, rem);
+		mei_txe_input_payload_write(dev, i + j, reg);
 	}
 
 	/* after each write the whole buffer is consumed */
