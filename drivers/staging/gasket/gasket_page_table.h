@@ -46,11 +46,10 @@ struct gasket_page_table;
  *
  * Returns 0 on success, a negative error code otherwise.
  */
-int gasket_page_table_init(
-	struct gasket_page_table **ppg_tbl,
-	const struct gasket_bar_data *bar_data,
-	const struct gasket_page_table_config *page_table_config,
-	struct device *device, struct pci_dev *pci_dev);
+int gasket_page_table_init(struct gasket_page_table **ppg_tbl,
+			   const struct gasket_bar_data *bar_data,
+			   const struct gasket_page_table_config *page_table_config,
+			   struct device *device, struct pci_dev *pci_dev);
 
 /*
  * Deallocate and cleanup page table data.
@@ -77,8 +76,8 @@ void gasket_page_table_cleanup(struct gasket_page_table *page_table);
  *              Returns 0 if successful, or non-zero if the page table entries
  *              are not free.
  */
-int gasket_page_table_partition(
-	struct gasket_page_table *page_table, uint num_simple_entries);
+int gasket_page_table_partition(struct gasket_page_table *page_table,
+				uint num_simple_entries);
 
 /*
  * Get and map [host] user space pages into device memory.
@@ -106,8 +105,8 @@ int gasket_page_table_map(struct gasket_page_table *page_table, ulong host_addr,
  *
  * Description: The inverse of gasket_map_pages. Unmaps pages from the device.
  */
-void gasket_page_table_unmap(
-	struct gasket_page_table *page_table, ulong dev_addr, uint num_pages);
+void gasket_page_table_unmap(struct gasket_page_table *page_table,
+			     ulong dev_addr, uint num_pages);
 
 /*
  * Unmap ALL host pages from device memory.
@@ -146,9 +145,9 @@ void gasket_page_table_garbage_collect(struct gasket_page_table *page_table);
  *              Returns 0 if successful, -1 for an error.  The page pointer
  *              and offset are returned through the pointers, if successful.
  */
-int gasket_page_table_lookup_page(
-	struct gasket_page_table *page_table, ulong dev_addr,
-	struct page **page, ulong *poffset);
+int gasket_page_table_lookup_page(struct gasket_page_table *page_table,
+				  ulong dev_addr, struct page **page,
+				  ulong *poffset);
 
 /*
  * Checks validity for input addrs and size.
@@ -163,9 +162,9 @@ int gasket_page_table_lookup_page(
  *
  * Returns true if the mapping is bad, false otherwise.
  */
-bool gasket_page_table_are_addrs_bad(
-	struct gasket_page_table *page_table, ulong host_addr, ulong dev_addr,
-	ulong bytes);
+bool gasket_page_table_are_addrs_bad(struct gasket_page_table *page_table,
+				     ulong host_addr, ulong dev_addr,
+				     ulong bytes);
 
 /*
  * Checks validity for input dev addr and size.
@@ -179,8 +178,8 @@ bool gasket_page_table_are_addrs_bad(
  *
  * Returns true if the address is bad, false otherwise.
  */
-bool gasket_page_table_is_dev_addr_bad(
-	struct gasket_page_table *page_table, ulong dev_addr, ulong bytes);
+bool gasket_page_table_is_dev_addr_bad(struct gasket_page_table *page_table,
+				       ulong dev_addr, ulong bytes);
 
 /*
  * Gets maximum size for the given page table.
