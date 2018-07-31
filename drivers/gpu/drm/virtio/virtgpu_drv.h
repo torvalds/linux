@@ -383,9 +383,8 @@ static inline void virtio_gpu_object_unref(struct virtio_gpu_object **bo)
 	if ((*bo) == NULL)
 		return;
 	tbo = &((*bo)->tbo);
-	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
+	ttm_bo_put(tbo);
+	*bo = NULL;
 }
 
 static inline u64 virtio_gpu_object_mmap_offset(struct virtio_gpu_object *bo)
