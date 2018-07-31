@@ -616,27 +616,27 @@
 		interrupt-parent = <&gpmc>;
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		ti,nand-ecc-opt = "ham1";
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		nand-bus-width = <16>;
-		ti,nand-ecc-opt = "bch8";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-		gpmc,sync-clk-ps = <0>;
+		gpmc,device-width = <2>;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <44>;
 		gpmc,cs-wr-off-ns = <44>;
 		gpmc,adv-on-ns = <6>;
 		gpmc,adv-rd-off-ns = <34>;
 		gpmc,adv-wr-off-ns = <44>;
-		gpmc,we-off-ns = <40>;
 		gpmc,oe-off-ns = <54>;
+		gpmc,we-off-ns = <40>;
 		gpmc,access-ns = <64>;
 		gpmc,rd-cycle-ns = <82>;
 		gpmc,wr-cycle-ns = <82>;
 		gpmc,wr-access-ns = <40>;
 		gpmc,wr-data-mux-bus-ns = <0>;
-		gpmc,device-width = <2>;
-
-		#address-cells = <1>;
-		#size-cells = <1>;
+		gpmc,sync-clk-ps = <0>;
 
 		x-loader@0 {
 			label = "X-Loader";
