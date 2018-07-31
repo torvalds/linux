@@ -436,7 +436,7 @@
 			reg = <0x4>;
 		};
 
-		wifi_reset: wifi_reset@6 {
+		wifi_reset: wifi_reset@6 { /* reference as <&tca_gpios 0 0> since it is currently the only GPIO */
 			reg = <0x6>;
 			compatible = "gpio";
 		};
