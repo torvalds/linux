@@ -79,12 +79,12 @@ static int gasket_read_simple_page_table_size(
 	if (ibuf.page_table_index >= gasket_dev->num_page_tables)
 		return -EFAULT;
 
-	ibuf.size = gasket_page_table_num_simple_entries(
-		gasket_dev->page_table[ibuf.page_table_index]);
+	ibuf.size =
+		gasket_page_table_num_simple_entries(gasket_dev->page_table[ibuf.page_table_index]);
 
-	trace_gasket_ioctl_page_table_data(
-		ibuf.page_table_index, ibuf.size, ibuf.host_address,
-		ibuf.device_address);
+	trace_gasket_ioctl_page_table_data(ibuf.page_table_index, ibuf.size,
+					   ibuf.host_address,
+					   ibuf.device_address);
 
 	if (copy_to_user(argp, &ibuf, sizeof(ibuf)))
 		return -EFAULT;
@@ -138,21 +138,21 @@ static int gasket_map_buffers(struct gasket_dev *gasket_dev,
 	if (copy_from_user(&ibuf, argp, sizeof(struct gasket_page_table_ioctl)))
 		return -EFAULT;
 
-	trace_gasket_ioctl_page_table_data(
-		ibuf.page_table_index, ibuf.size, ibuf.host_address,
-		ibuf.device_address);
+	trace_gasket_ioctl_page_table_data(ibuf.page_table_index, ibuf.size,
+					   ibuf.host_address,
+					   ibuf.device_address);
 
 	if (ibuf.page_table_index >= gasket_dev->num_page_tables)
 		return -EFAULT;
 
-	if (gasket_page_table_are_addrs_bad(
-		    gasket_dev->page_table[ibuf.page_table_index],
-		    ibuf.host_address, ibuf.device_address, ibuf.size))
+	if (gasket_page_table_are_addrs_bad(gasket_dev->page_table[ibuf.page_table_index],
+					    ibuf.host_address,
+					    ibuf.device_address, ibuf.size))
 		return -EINVAL;
 
-	return gasket_page_table_map(
-		gasket_dev->page_table[ibuf.page_table_index],
-		ibuf.host_address, ibuf.device_address, ibuf.size / PAGE_SIZE);
+	return gasket_page_table_map(gasket_dev->page_table[ibuf.page_table_index],
+				     ibuf.host_address, ibuf.device_address,
+				     ibuf.size / PAGE_SIZE);
 }
 
 /* Unmap a userspace buffer from a device virtual address. */
@@ -164,16 +164,15 @@ static int gasket_unmap_buffers(struct gasket_dev *gasket_dev,
 	if (copy_from_user(&ibuf, argp, sizeof(struct gasket_page_table_ioctl)))
 		return -EFAULT;
 
-	trace_gasket_ioctl_page_table_data(
-		ibuf.page_table_index, ibuf.size, ibuf.host_address,
-		ibuf.device_address);
+	trace_gasket_ioctl_page_table_data(ibuf.page_table_index, ibuf.size,
+					   ibuf.host_address,
+					   ibuf.device_address);
 
 	if (ibuf.page_table_index >= gasket_dev->num_page_tables)
 		return -EFAULT;
 
-	if (gasket_page_table_is_dev_addr_bad(
-		    gasket_dev->page_table[ibuf.page_table_index],
-		    ibuf.device_address, ibuf.size))
+	if (gasket_page_table_is_dev_addr_bad(gasket_dev->page_table[ibuf.page_table_index],
+					      ibuf.device_address, ibuf.size))
 		return -EINVAL;
 
 	gasket_page_table_unmap(gasket_dev->page_table[ibuf.page_table_index],
@@ -197,8 +196,8 @@ static int gasket_config_coherent_allocator(
 			   sizeof(struct gasket_coherent_alloc_config_ioctl)))
 		return -EFAULT;
 
-	trace_gasket_ioctl_config_coherent_allocator(
-		ibuf.enable, ibuf.size, ibuf.dma_address);
+	trace_gasket_ioctl_config_coherent_allocator(ibuf.enable, ibuf.size,
+						     ibuf.dma_address);
 
 	if (ibuf.page_table_index >= gasket_dev->num_page_tables)
 		return -EFAULT;
@@ -207,13 +206,13 @@ static int gasket_config_coherent_allocator(
 		return -ENOMEM;
 
 	if (ibuf.enable == 0) {
-		ret = gasket_free_coherent_memory(
-			gasket_dev, ibuf.size, ibuf.dma_address,
-			ibuf.page_table_index);
+		ret = gasket_free_coherent_memory(gasket_dev, ibuf.size,
+						  ibuf.dma_address,
+						  ibuf.page_table_index);
 	} else {
-		ret = gasket_alloc_coherent_memory(
-			gasket_dev, ibuf.size, &ibuf.dma_address,
-			ibuf.page_table_index);
+		ret = gasket_alloc_coherent_memory(gasket_dev, ibuf.size,
+						   &ibuf.dma_address,
+						   ibuf.page_table_index);
 	}
 	if (ret)
 		return ret;
@@ -313,8 +312,9 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 		break;
 	case GASKET_IOCTL_CLEAR_EVENTFD:
 		trace_gasket_ioctl_integer_data(arg);
-		retval = gasket_interrupt_clear_eventfd(
-			gasket_dev->interrupt_data, (int)arg);
+		retval =
+			gasket_interrupt_clear_eventfd(gasket_dev->interrupt_data,
+						       (int)arg);
 		break;
 	case GASKET_IOCTL_PARTITION_PAGE_TABLE:
 		trace_gasket_ioctl_integer_data(arg);
