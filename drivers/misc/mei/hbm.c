@@ -145,6 +145,7 @@ static inline void mei_hbm_hdr(struct mei_msg_hdr *hdr, size_t length)
 	hdr->me_addr = 0;
 	hdr->length = length;
 	hdr->msg_complete = 1;
+	hdr->dma_ring = 0;
 	hdr->reserved = 0;
 	hdr->internal = 0;
 }

@@ -1551,6 +1551,7 @@ static void mei_msg_hdr_init(struct mei_msg_hdr *mei_hdr, struct mei_cl_cb *cb)
 	mei_hdr->length = 0;
 	mei_hdr->reserved = 0;
 	mei_hdr->msg_complete = 0;
+	mei_hdr->dma_ring = 0;
 	mei_hdr->internal = cb->internal;
 }
 

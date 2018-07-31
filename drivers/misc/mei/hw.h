@@ -190,18 +190,26 @@ enum  mei_cl_disconnect_status {
 	MEI_CL_DISCONN_SUCCESS = MEI_HBMS_SUCCESS
 };
 
-/*
- *  MEI BUS Interface Section
+/**
+ * struct mei_msg_hdr - MEI BUS Interface Section
+ *
+ * @me_addr: device address
+ * @host_addr: host address
+ * @length: message length
+ * @reserved: reserved
+ * @dma_ring: message is on dma ring
+ * @internal: message is internal
+ * @msg_complete: last packet of the message
  */
 struct mei_msg_hdr {
 	u32 me_addr:8;
 	u32 host_addr:8;
 	u32 length:9;
-	u32 reserved:5;
+	u32 reserved:4;
+	u32 dma_ring:1;
 	u32 internal:1;
 	u32 msg_complete:1;
 } __packed;
-
 
 struct mei_bus_message {
 	u8 hbm_cmd;
