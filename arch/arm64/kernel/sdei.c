@@ -89,8 +89,7 @@ static int init_sdei_stacks(void)
 	return err;
 }
 
-bool on_sdei_normal_stack(unsigned long sp,
-			struct stack_info *info)
+static bool on_sdei_normal_stack(unsigned long sp, struct stack_info *info)
 {
 	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_normal_ptr);
 	unsigned long high = low + SDEI_STACK_SIZE;
@@ -107,8 +106,7 @@ bool on_sdei_normal_stack(unsigned long sp,
 	return true;
 }
 
-bool on_sdei_critical_stack(unsigned long sp,
-			struct stack_info *info)
+static bool on_sdei_critical_stack(unsigned long sp, struct stack_info *info)
 {
 	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_critical_ptr);
 	unsigned long high = low + SDEI_STACK_SIZE;
@@ -125,8 +123,7 @@ bool on_sdei_critical_stack(unsigned long sp,
 	return true;
 }
 
-bool _on_sdei_stack(unsigned long sp,
-		struct stack_info *info)
+bool _on_sdei_stack(unsigned long sp, struct stack_info *info)
 {
 	if (!IS_ENABLED(CONFIG_VMAP_STACK))
 		return false;
