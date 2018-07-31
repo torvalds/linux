@@ -1265,9 +1265,9 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 		c0 = max(render, media);
 		c0 *= 1000 * 100 << 8; /* to usecs and scale to threshold% */
 
-		if (c0 > time * rps->up_threshold)
+		if (c0 > time * rps->power.up_threshold)
 			events = GEN6_PM_RP_UP_THRESHOLD;
-		else if (c0 < time * rps->down_threshold)
+		else if (c0 < time * rps->power.down_threshold)
 			events = GEN6_PM_RP_DOWN_THRESHOLD;
 	}
 
