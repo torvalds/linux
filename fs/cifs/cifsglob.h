@@ -454,10 +454,8 @@ struct smb_version_operations {
 	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
 			  loff_t);
 	/* init transform request - used for encryption for now */
-	int (*init_transform_rq)(struct TCP_Server_Info *, struct smb_rqst *,
-				 struct smb_rqst *);
-	/* free transform request */
-	void (*free_transform_rq)(struct smb_rqst *);
+	int (*init_transform_rq)(struct TCP_Server_Info *, int num_rqst,
+				 struct smb_rqst *, struct smb_rqst *);
 	int (*is_transform_hdr)(void *buf);
 	int (*receive_transform)(struct TCP_Server_Info *,
 				 struct mid_q_entry **);
@@ -1023,6 +1021,7 @@ struct tcon_link {
 };
 
 extern struct tcon_link *cifs_sb_tlink(struct cifs_sb_info *cifs_sb);
+extern void smb3_free_compound_rqst(int num_rqst, struct smb_rqst *rqst);
 
 static inline struct cifs_tcon *
 tlink_tcon(struct tcon_link *tlink)

@@ -374,27 +374,40 @@ smbd_done:
 	return rc;
 }
 
+#define MAX_COMPOUND 2
+
 static int
 smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst, int flags)
 {
-	struct smb_rqst cur_rqst;
+	struct kvec iov;
+	struct smb2_transform_hdr tr_hdr;
+	struct smb_rqst cur_rqst[MAX_COMPOUND];
 	int rc;
 
 	if (!(flags & CIFS_TRANSFORM_REQ))
 		return __smb_send_rqst(server, 1, rqst);
 
-	if (!server->ops->init_transform_rq ||
-	    !server->ops->free_transform_rq) {
-		cifs_dbg(VFS, "Encryption requested but transform callbacks are missed\n");
+	memset(&cur_rqst[0], 0, sizeof(cur_rqst));
+	memset(&iov, 0, sizeof(iov));
+	memset(&tr_hdr, 0, sizeof(tr_hdr));
+
+	iov.iov_base = &tr_hdr;
+	iov.iov_len = sizeof(tr_hdr);
+	cur_rqst[0].rq_iov = &iov;
+	cur_rqst[0].rq_nvec = 1;
+
+	if (!server->ops->init_transform_rq) {
+		cifs_dbg(VFS, "Encryption requested but transform callback "
+			 "is missing\n");
 		return -EIO;
 	}
 
-	rc = server->ops->init_transform_rq(server, &cur_rqst, rqst);
+	rc = server->ops->init_transform_rq(server, 2, &cur_rqst[0], rqst);
 	if (rc)
 		return rc;
 
-	rc = __smb_send_rqst(server, 1, &cur_rqst);
-	server->ops->free_transform_rq(&cur_rqst);
+	rc = __smb_send_rqst(server, 2, &cur_rqst[0]);
+	smb3_free_compound_rqst(1, &cur_rqst[1]);
 	return rc;
 }
 
