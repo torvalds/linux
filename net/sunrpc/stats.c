@@ -235,13 +235,12 @@ static void _print_rpc_iostats(struct seq_file *seq, struct rpc_iostats *stats,
 		   ktime_to_ms(stats->om_execute));
 }
 
-void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
+void rpc_clnt_show_stats(struct seq_file *seq, struct rpc_clnt *clnt)
 {
-	struct rpc_iostats *stats = clnt->cl_metrics;
 	struct rpc_xprt *xprt;
 	unsigned int op, maxproc = clnt->cl_maxproc;
 
-	if (!stats)
+	if (!clnt->cl_metrics)
 		return;
 
 	seq_printf(seq, "\tRPC iostats version: %s  ", RPC_IOSTATS_VERS);
@@ -256,10 +255,18 @@ void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
 
 	seq_printf(seq, "\tper-op statistics\n");
 	for (op = 0; op < maxproc; op++) {
-		_print_rpc_iostats(seq, &stats[op], op, clnt->cl_procinfo);
+		struct rpc_iostats stats = {};
+		struct rpc_clnt *next = clnt;
+		do {
+			_add_rpc_iostats(&stats, &next->cl_metrics[op]);
+			if (next == next->cl_parent)
+				break;
+			next = next->cl_parent;
+		} while (next);
+		_print_rpc_iostats(seq, &stats, op, clnt->cl_procinfo);
 	}
 }
-EXPORT_SYMBOL_GPL(rpc_print_iostats);
+EXPORT_SYMBOL_GPL(rpc_clnt_show_stats);
 
 /*
  * Register/unregister RPC proc files
