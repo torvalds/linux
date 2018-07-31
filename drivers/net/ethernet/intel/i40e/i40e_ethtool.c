@@ -1816,6 +1816,37 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 }
 
 /**
+ * __i40e_add_stat_strings - copy stat strings into ethtool buffer
+ * @p: ethtool supplied buffer
+ * @stats: stat definitions array
+ * @size: size of the stats array
+ *
+ * Copy the strings described by stats into the buffer pointed at by p.
+ **/
+static void __i40e_add_stat_strings(u8 **p, const struct i40e_stats stats[],
+				    const unsigned int size)
+{
+	unsigned int i;
+
+	for (i = 0; i < size; i++) {
+		snprintf(*p, ETH_GSTRING_LEN, "%s", stats[i].stat_string);
+		*p += ETH_GSTRING_LEN;
+	}
+}
+
+/**
+ * 40e_add_stat_strings - copy stat strings into ethtool buffer
+ * @p: ethtool supplied buffer
+ * @stats: stat definitions array
+ *
+ * Format and copy the strings described by the const static stats value into
+ * the buffer pointed at by p. Assumes that stats can have ARRAY_SIZE called
+ * for it.
+ **/
+#define i40e_add_stat_strings(p, stats, ...) \
+	__i40e_add_stat_strings(p, stats, ARRAY_SIZE(stats))
+
+/**
  * i40e_get_stat_strings - copy stat strings into supplied buffer
  * @netdev: the netdev to collect strings for
  * @data: supplied buffer to copy strings into
@@ -1833,16 +1864,10 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 	unsigned int i;
 	u8 *p = data;
 
-	for (i = 0; i < I40E_NETDEV_STATS_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 i40e_gstrings_net_stats[i].stat_string);
-		data += ETH_GSTRING_LEN;
-	}
-	for (i = 0; i < I40E_MISC_STATS_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 i40e_gstrings_misc_stats[i].stat_string);
-		data += ETH_GSTRING_LEN;
-	}
+	i40e_add_stat_strings(&data, i40e_gstrings_net_stats);
+
+	i40e_add_stat_strings(&data, i40e_gstrings_misc_stats);
+
 	for (i = 0; i < I40E_MAX_NUM_QUEUES(netdev); i++) {
 		snprintf(data, ETH_GSTRING_LEN, "tx-%u.tx_packets", i);
 		data += ETH_GSTRING_LEN;
@@ -1856,11 +1881,8 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 	if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
 		return;
 
-	for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 i40e_gstrings_veb_stats[i].stat_string);
-		data += ETH_GSTRING_LEN;
-	}
+	i40e_add_stat_strings(&data, i40e_gstrings_veb_stats);
+
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
 		snprintf(data, ETH_GSTRING_LEN,
 			 "veb.tc_%u_tx_packets", i);
@@ -1876,11 +1898,8 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 		data += ETH_GSTRING_LEN;
 	}
 
-	for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 i40e_gstrings_stats[i].stat_string);
-		data += ETH_GSTRING_LEN;
-	}
+	i40e_add_stat_strings(&data, i40e_gstrings_stats);
+
 	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
 		snprintf(data, ETH_GSTRING_LEN,
 			 "port.tx_priority_%u_xon", i);
