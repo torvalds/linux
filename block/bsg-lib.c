@@ -48,9 +48,8 @@ static int bsg_transport_fill_hdr(struct request *rq, struct sg_io_v4 *hdr,
 
 	job->request_len = hdr->request_len;
 	job->request = memdup_user(uptr64(hdr->request), hdr->request_len);
-	if (IS_ERR(job->request))
-		return PTR_ERR(job->request);
-	return 0;
+
+	return PTR_ERR_OR_ZERO(job->request);
 }
 
 static int bsg_transport_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
