@@ -24,8 +24,9 @@
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
-/* 45Mhz * 4 Binning */
-#define OV13850_PIXEL_RATE		(45 * 1000 * 1000 * 4)
+#define OV13850_LINK_FREQ_300MHZ	300000000
+/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
+#define OV13850_PIXEL_RATE		(OV13850_LINK_FREQ_300MHZ * 2 * 2 / 10)
 #define OV13850_XVCLK_FREQ		24000000
 
 #define CHIP_ID				0x00d850
@@ -589,7 +590,6 @@ static const struct ov13850_mode supported_modes[] = {
 	},
 };
 
-#define OV13850_LINK_FREQ_300MHZ		300000000
 static const s64 link_freq_menu_items[] = {
 	OV13850_LINK_FREQ_300MHZ
 };
