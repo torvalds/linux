@@ -26,26 +26,24 @@ enum direction_value {
 };
 
 
-//
-// TS Info field in WMM TSPEC Element.
-// Ref:
-//	1. WMM spec 2.2.11: WME TSPEC Element, p.18.
-//	2. 8185 QoS code: QOS_TSINFO [def. in QoS_mp.h]
-//
-union qos_tsinfo {
-	u8		charData[3];
-	struct {
-		u8		ucTrafficType:1;			//WMM is reserved
-		u8		ucTSID:4;
-		u8		ucDirection:2;
-		u8		ucAccessPolicy:2;	//WMM: bit8=0, bit7=1
-		u8		ucAggregation:1;		//WMM is reserved
-		u8		ucPSB:1;				//WMMSA is APSD
-		u8		ucUP:3;
-		u8		ucTSInfoAckPolicy:2;		//WMM is reserved
-		u8		ucSchedule:1;			//WMM is reserved
-		u8		ucReserved:7;
-	} field;
+/*
+ * TS Info field in WMM TSPEC Element.
+ * Ref:
+ *	1. WMM spec 2.2.11: WME TSPEC Element, p.18.
+ *	2. 8185 QoS code: QOS_TSINFO [def. in QoS_mp.h]
+ * Note: sizeof 3 Bytes
+ */
+struct qos_tsinfo {
+	u16		ucTrafficType:1;	//WMM is reserved
+	u16		ucTSID:4;
+	u16		ucDirection:2;
+	u16		ucAccessPolicy:2;	//WMM: bit8=0, bit7=1
+	u16		ucAggregation:1;	//WMM is reserved
+	u16		ucPSB:1;		//WMMSA is APSD
+	u16		ucUP:3;
+	u16		ucTSInfoAckPolicy:2;	//WMM is reserved
+	u8		ucSchedule:1;		//WMM is reserved
+	u8		ucReserved:7;
 };
 
 //
@@ -56,7 +54,7 @@ typedef union _TSPEC_BODY {
 	u8		charData[55];
 
 	struct {
-		union qos_tsinfo	TSInfo;	//u8	TSInfo[3];
+		struct qos_tsinfo	TSInfo;	//u8	TSInfo[3];
 		u16	NominalMSDUsize;
 		u16	MaxMSDUsize;
 		u32	MinServiceItv;
