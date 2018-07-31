@@ -12332,6 +12332,32 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 		.errstr = "variable ctx access var_off=(0x0; 0x4)",
 	},
+	{
+		"mov64 src == dst",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_2, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_2),
+			// Check bounds are OK
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_1, BPF_REG_2),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.result = ACCEPT,
+	},
+	{
+		"mov64 src != dst",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_3),
+			// Check bounds are OK
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_1, BPF_REG_2),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.result = ACCEPT,
+	},
 };
 
 static int probe_filter_length(const struct bpf_insn *fp)
