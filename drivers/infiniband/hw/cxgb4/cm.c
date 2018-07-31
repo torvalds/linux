@@ -1853,7 +1853,8 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-static void complete_cached_srq_buffers(struct c4iw_ep *ep, u32 srqidx_status)
+static void complete_cached_srq_buffers(struct c4iw_ep *ep,
+					__be32 srqidx_status)
 {
 	enum chip_type adapter_type;
 	u32 srqidx;
