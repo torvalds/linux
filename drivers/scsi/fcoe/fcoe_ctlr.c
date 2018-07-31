@@ -799,9 +799,9 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	fip->send(fip, skb);
 	return -EINPROGRESS;
 drop:
-	kfree_skb(skb);
 	LIBFCOE_FIP_DBG(fip, "drop els_send op %u d_id %x\n",
 			op, ntoh24(fh->fh_d_id));
+	kfree_skb(skb);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(fcoe_ctlr_els_send);
