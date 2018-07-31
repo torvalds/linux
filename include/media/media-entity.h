@@ -671,6 +671,24 @@ static inline void media_entity_cleanup(struct media_entity *entity) {}
 #endif
 
 /**
+ * media_get_pad_index() - retrieves a pad index from an entity
+ *
+ * @entity:	entity where the pads belong
+ * @is_sink:	true if the pad is a sink, false if it is a source
+ * @sig_type:	type of signal of the pad to be search
+ *
+ * This helper function finds the first pad index inside an entity that
+ * satisfies both @is_sink and @sig_type conditions.
+ *
+ * Return:
+ *
+ * On success, return the pad number. If the pad was not found or the media
+ * entity is a NULL pointer, return -EINVAL.
+ */
+int media_get_pad_index(struct media_entity *entity, bool is_sink,
+			enum media_pad_signal_type sig_type);
+
+/**
  * media_create_pad_link() - creates a link between two entities.
  *
  * @source:	pointer to &media_entity of the source pad.
