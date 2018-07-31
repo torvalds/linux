@@ -54,6 +54,17 @@
  */
 #define APEX_PAGE_TABLE_TOTAL_ENTRIES 8192
 
+#define APEX_EXTENDED_SHIFT 63 /* Extended address bit position. */
+
+enum apex_reset_types {
+	APEX_CHIP_REINIT_RESET = 3,
+};
+
+/* Check reset 120 times */
+#define APEX_RESET_RETRY 120
+/* Wait 100 ms between checks. Total 12 sec wait maximum. */
+#define APEX_RESET_DELAY 100
+
 /* Enumeration of the supported sysfs entries. */
 enum sysfs_attribute_type {
 	ATTR_KERNEL_HIB_PAGE_TABLE_SIZE,
@@ -132,6 +143,24 @@ static const struct gasket_mappable_region mappable_regions[NUM_REGIONS] = {
 
 static const struct gasket_mappable_region cm_mappable_regions[1] = { { 0x0,
 	APEX_CH_MEM_BYTES } };
+
+/* Gasket device interrupts enums must be dense (i.e., no empty slots). */
+enum apex_interrupt {
+	APEX_INTERRUPT_INSTR_QUEUE = 0,
+	APEX_INTERRUPT_INPUT_ACTV_QUEUE = 1,
+	APEX_INTERRUPT_PARAM_QUEUE = 2,
+	APEX_INTERRUPT_OUTPUT_ACTV_QUEUE = 3,
+	APEX_INTERRUPT_SC_HOST_0 = 4,
+	APEX_INTERRUPT_SC_HOST_1 = 5,
+	APEX_INTERRUPT_SC_HOST_2 = 6,
+	APEX_INTERRUPT_SC_HOST_3 = 7,
+	APEX_INTERRUPT_TOP_LEVEL_0 = 8,
+	APEX_INTERRUPT_TOP_LEVEL_1 = 9,
+	APEX_INTERRUPT_TOP_LEVEL_2 = 10,
+	APEX_INTERRUPT_TOP_LEVEL_3 = 11,
+	APEX_INTERRUPT_FATAL_ERR = 12,
+	APEX_INTERRUPT_COUNT = 13,
+};
 
 /* Interrupt descriptors for Apex */
 static struct gasket_interrupt_desc apex_interrupts[] = {
