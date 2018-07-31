@@ -34,8 +34,8 @@
  * GPU GFX IP block helpers function.
  */
 
-int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev, int mec,
-			    int pipe, int queue)
+int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
+				int pipe, int queue)
 {
 	int bit = 0;
 
@@ -47,8 +47,8 @@ int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev, int mec,
 	return bit;
 }
 
-void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
-			     int *mec, int *pipe, int *queue)
+void amdgpu_gfx_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
+				 int *mec, int *pipe, int *queue)
 {
 	*queue = bit % adev->gfx.mec.num_queue_per_pipe;
 	*pipe = (bit / adev->gfx.mec.num_queue_per_pipe)
@@ -61,8 +61,38 @@ void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
 bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev,
 				     int mec, int pipe, int queue)
 {
-	return test_bit(amdgpu_gfx_queue_to_bit(adev, mec, pipe, queue),
+	return test_bit(amdgpu_gfx_mec_queue_to_bit(adev, mec, pipe, queue),
 			adev->gfx.mec.queue_bitmap);
+}
+
+int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
+			       int me, int pipe, int queue)
+{
+	int bit = 0;
+
+	bit += me * adev->gfx.me.num_pipe_per_me
+		* adev->gfx.me.num_queue_per_pipe;
+	bit += pipe * adev->gfx.me.num_queue_per_pipe;
+	bit += queue;
+
+	return bit;
+}
+
+void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
+				int *me, int *pipe, int *queue)
+{
+	*queue = bit % adev->gfx.me.num_queue_per_pipe;
+	*pipe = (bit / adev->gfx.me.num_queue_per_pipe)
+		% adev->gfx.me.num_pipe_per_me;
+	*me = (bit / adev->gfx.me.num_queue_per_pipe)
+		/ adev->gfx.me.num_pipe_per_me;
+}
+
+bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
+				    int me, int pipe, int queue)
+{
+	return test_bit(amdgpu_gfx_me_queue_to_bit(adev, me, pipe, queue),
+			adev->gfx.me.queue_bitmap);
 }
 
 /**
@@ -237,7 +267,7 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
 			continue;
 
-		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
+		amdgpu_gfx_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
 
 		/*
 		 * 1. Using pipes 2/3 from MEC 2 seems cause problems.

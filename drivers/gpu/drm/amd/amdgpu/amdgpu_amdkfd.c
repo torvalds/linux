@@ -159,7 +159,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 
 		/* remove the KIQ bit as well */
 		if (adev->gfx.kiq.ring.sched.ready)
-			clear_bit(amdgpu_gfx_queue_to_bit(adev,
+			clear_bit(amdgpu_gfx_mec_queue_to_bit(adev,
 							  adev->gfx.kiq.ring.me - 1,
 							  adev->gfx.kiq.ring.pipe,
 							  adev->gfx.kiq.ring.queue),

@@ -4578,7 +4578,7 @@ static void gfx_v9_0_pipe_reserve_resources(struct amdgpu_device *adev,
 	struct amdgpu_ring *iring;
 
 	mutex_lock(&adev->gfx.pipe_reserve_mutex);
-	pipe = amdgpu_gfx_queue_to_bit(adev, ring->me, ring->pipe, 0);
+	pipe = amdgpu_gfx_mec_queue_to_bit(adev, ring->me, ring->pipe, 0);
 	if (acquire)
 		set_bit(pipe, adev->gfx.pipe_reserve_bitmap);
 	else
@@ -4597,20 +4597,20 @@ static void gfx_v9_0_pipe_reserve_resources(struct amdgpu_device *adev,
 		/* Lower all pipes without a current reservation */
 		for (i = 0; i < adev->gfx.num_gfx_rings; ++i) {
 			iring = &adev->gfx.gfx_ring[i];
-			pipe = amdgpu_gfx_queue_to_bit(adev,
-						       iring->me,
-						       iring->pipe,
-						       0);
+			pipe = amdgpu_gfx_mec_queue_to_bit(adev,
+							   iring->me,
+							   iring->pipe,
+							   0);
 			reserve = test_bit(pipe, adev->gfx.pipe_reserve_bitmap);
 			gfx_v9_0_ring_set_pipe_percent(iring, reserve);
 		}
 
 		for (i = 0; i < adev->gfx.num_compute_rings; ++i) {
 			iring = &adev->gfx.compute_ring[i];
-			pipe = amdgpu_gfx_queue_to_bit(adev,
-						       iring->me,
-						       iring->pipe,
-						       0);
+			pipe = amdgpu_gfx_mec_queue_to_bit(adev,
+							   iring->me,
+							   iring->pipe,
+							   0);
 			reserve = test_bit(pipe, adev->gfx.pipe_reserve_bitmap);
 			gfx_v9_0_ring_set_pipe_percent(iring, reserve);
 		}

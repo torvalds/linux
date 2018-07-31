@@ -337,12 +337,18 @@ void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev);
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev);
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev);
 
-int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev, int mec,
-			    int pipe, int queue);
-void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
-			     int *mec, int *pipe, int *queue);
+int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
+				int pipe, int queue);
+void amdgpu_gfx_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
+				 int *mec, int *pipe, int *queue);
 bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int mec,
 				     int pipe, int queue);
+int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev, int me,
+			       int pipe, int queue);
+void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
+				int *me, int *pipe, int *queue);
+bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
+				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
 
 #endif
