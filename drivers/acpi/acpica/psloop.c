@@ -497,6 +497,18 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			status =
 			    acpi_ps_create_op(walk_state, aml_op_start, &op);
 			if (ACPI_FAILURE(status)) {
+				/*
+				 * ACPI_PARSE_MODULE_LEVEL means that we are loading a table by
+				 * executing it as a control method. However, if we encounter
+				 * an error while loading the table, we need to keep trying to
+				 * load the table rather than aborting the table load. Set the
+				 * status to AE_OK to proceed with the table load.
+				 */
+				if ((walk_state->
+				     parse_flags & ACPI_PARSE_MODULE_LEVEL)
+				    && status == AE_ALREADY_EXISTS) {
+					status = AE_OK;
+				}
 				if (status == AE_CTRL_PARSE_CONTINUE) {
 					continue;
 				}
@@ -693,6 +705,20 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			status =
 			    acpi_ps_next_parse_state(walk_state, op, status);
 			if (status == AE_CTRL_PENDING) {
+				status = AE_OK;
+			} else
+			    if ((walk_state->
+				 parse_flags & ACPI_PARSE_MODULE_LEVEL)
+				&& ACPI_FAILURE(status)) {
+				/*
+				 * ACPI_PARSE_MODULE_LEVEL means that we are loading a table by
+				 * executing it as a control method. However, if we encounter
+				 * an error while loading the table, we need to keep trying to
+				 * load the table rather than aborting the table load. Set the
+				 * status to AE_OK to proceed with the table load. If we get a
+				 * failure at this point, it means that the dispatcher got an
+				 * error while processing Op (most likely an AML operand error.
+				 */
 				status = AE_OK;
 			}
 		}

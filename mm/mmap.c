@@ -1778,6 +1778,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		error = shmem_zero_setup(vma);
 		if (error)
 			goto free_vma;
+	} else {
+		vma_set_anonymous(vma);
 	}
 
 	vma_link(mm, vma, prev, rb_link, rb_parent);
@@ -2983,6 +2985,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len, unsigned long fla
 		return -ENOMEM;
 	}
 
+	vma_set_anonymous(vma);
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
 	vma->vm_pgoff = pgoff;
