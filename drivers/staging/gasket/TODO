@@ -1,6 +1,5 @@
 This is a list of things that need to be done to get this driver out of the
 staging directory.
-- Remove static function declarations.
 - Document sysfs files with Documentation/ABI/ entries.
 - Use misc interface instead of major number for driver version description.
 - Add descriptions of module_param's
