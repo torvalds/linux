@@ -94,6 +94,10 @@ extern int cifs_call_async(struct TCP_Server_Info *server,
 extern int cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			  struct smb_rqst *rqst, int *resp_buf_type,
 			  const int flags, struct kvec *resp_iov);
+extern int compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
+			      const int flags, const int num_rqst,
+			      struct smb_rqst *rqst, int *resp_buf_type,
+			      struct kvec *resp_iov);
 extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
