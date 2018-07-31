@@ -169,6 +169,24 @@
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&tca6507 0 GPIO_ACTIVE_LOW>;	/* W2CBW003 reset through tca6507 */
 	};
+
+	/* devconf1 setup for tvout pins */
+	pinmux_tv_out@480022d8 {
+		compatible = "pinctrl-single";
+		reg = <0x480022d8 4>;	/* CONTROL_DEVCONF1 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-single,bit-per-mux;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0x81>;	/* TV out pin control */
+		#pinctrl-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tv_acbias_devconf1_pins>;
+		tv_acbias_devconf1_pins: pinmux_tv_acbias_devconf1_pins {
+			/*			offset	bits	mask */
+			pinctrl-single,bits = <0x00 0x40800 0x40800>;	/* set TVOUTBYPASS and TVOUTACEN */
+		};
+	};
 };
 
 &omap3_pmx_core {
