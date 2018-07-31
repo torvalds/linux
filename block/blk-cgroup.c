@@ -1759,10 +1759,10 @@ void blkcg_maybe_throttle_current(void)
 	if (!blkg)
 		goto out;
 	rcu_read_unlock();
-	blk_put_queue(q);
 
 	blkcg_maybe_throttle_blkg(blkg, use_memdelay);
 	blkg_put(blkg);
+	blk_put_queue(q);
 	return;
 out:
 	rcu_read_unlock();
