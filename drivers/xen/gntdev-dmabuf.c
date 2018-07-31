@@ -569,7 +569,7 @@ static struct gntdev_dmabuf *dmabuf_imp_alloc_storage(int count)
 
 	gntdev_dmabuf = kzalloc(sizeof(*gntdev_dmabuf), GFP_KERNEL);
 	if (!gntdev_dmabuf)
-		goto fail;
+		goto fail_no_free;
 
 	gntdev_dmabuf->u.imp.refs = kcalloc(count,
 					    sizeof(gntdev_dmabuf->u.imp.refs[0]),
@@ -592,6 +592,7 @@ static struct gntdev_dmabuf *dmabuf_imp_alloc_storage(int count)
 
 fail:
 	dmabuf_imp_free_storage(gntdev_dmabuf);
+fail_no_free:
 	return ERR_PTR(-ENOMEM);
 }
 
