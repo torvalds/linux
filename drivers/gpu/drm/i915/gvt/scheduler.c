@@ -1135,6 +1135,7 @@ out_shadow_ctx:
 /**
  * intel_vgpu_select_submission_ops - select virtual submission interface
  * @vgpu: a vGPU
+ * @engine_mask: either ALL_ENGINES or target engine mask
  * @interface: expected vGPU virtual submission interface
  *
  * This function is called when guest configures submission interface.
@@ -1187,7 +1188,7 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 
 /**
  * intel_vgpu_destroy_workload - destroy a vGPU workload
- * @vgpu: a vGPU
+ * @workload: workload to destroy
  *
  * This function is called when destroy a vGPU workload.
  *
@@ -1279,6 +1280,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 /**
  * intel_vgpu_create_workload - create a vGPU workload
  * @vgpu: a vGPU
+ * @ring_id: ring index
  * @desc: a guest context descriptor
  *
  * This function is called when creating a vGPU workload.
