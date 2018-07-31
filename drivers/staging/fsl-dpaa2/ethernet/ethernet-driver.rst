@@ -1,16 +1,13 @@
-Freescale DPAA2 Ethernet driver
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+===============================
+DPAA2 Ethernet driver
 ===============================
 
+:Copyright: |copy| 2017-2018 NXP
+
 This file provides documentation for the Freescale DPAA2 Ethernet driver.
-
-
-Contents
-========
-	Supported Platforms
-	Architecture Overview
-	Creating a Network Interface
-	Features & Offloads
-
 
 Supported Platforms
 ===================
@@ -23,10 +20,11 @@ Architecture Overview
 Unlike regular NICs, in the DPAA2 architecture there is no single hardware block
 representing network interfaces; instead, several separate hardware resources
 concur to provide the networking functionality:
-        - network interfaces
-        - queues, channels
-        - buffer pools
-        - MAC/PHY
+
+- network interfaces
+- queues, channels
+- buffer pools
+- MAC/PHY
 
 All hardware resources are allocated and configured through the Management
 Complex (MC) portals. MC abstracts most of these resources as DPAA2 objects
@@ -35,14 +33,13 @@ hardware resources, like queues, do not have a corresponding MC object and
 are treated as internal resources of other objects.
 
 For a more detailed description of the DPAA2 architecture and its object
-abstractions see:
-	Documentation/networking/dpaa2/overview.rst
+abstractions see *Documentation/networking/dpaa2/overview.rst*.
 
 Each Linux net device is built on top of a Datapath Network Interface (DPNI)
 object and uses Buffer Pools (DPBPs), I/O Portals (DPIOs) and Concentrators
 (DPCONs).
 
-Configuration interface:
+Configuration interface::
 
                  -----------------------
                 | DPAA2 Ethernet Driver |
@@ -56,7 +53,7 @@ Configuration interface:
         | DPBP API |   | DPNI API |    | DPCON API |
          ----------     ----------      -----------
              .              .                .             software
-===========  .  ==========  .  ============  .  ===================
+    =======  .  ==========  .  ============  .  ===================
              .              .                .             hardware
          ------------------------------------------
         |            MC hardware portals           |
@@ -72,11 +69,11 @@ DPBPs represent hardware buffer pools. Packet I/O is performed in the context
 of DPCON objects, using DPIO portals for managing and communicating with the
 hardware resources.
 
-Datapath (I/O) interface:
+Datapath (I/O) interface::
 
          -----------------------------------------------
         |           DPAA2 Ethernet Driver               |
-          -----------------------------------------------
+         -----------------------------------------------
           |          ^        ^         |            |
           |          |        |         |            |
    enqueue|   dequeue|   data |  dequeue|       seed |
@@ -131,6 +128,8 @@ buffers.
 DPNIs are decoupled from PHYs; a DPNI can be connected to a PHY through a DPMAC
 object or to another DPNI through an internal link, but the connection is
 managed by MC and completely transparent to the Ethernet driver.
+
+::
 
      ---------     ---------     ---------
     | eth if1 |   | eth if2 |   | eth ifn |
