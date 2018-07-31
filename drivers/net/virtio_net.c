@@ -105,10 +105,6 @@ struct virtnet_rq_stats {
 
 struct virtnet_rx_stats {
 	struct virtnet_rq_stat_items rx;
-	struct {
-		unsigned int xdp_tx;
-		unsigned int xdp_tx_drops;
-	} tx;
 };
 
 #define VIRTNET_SQ_STAT(m)	offsetof(struct virtnet_sq_stats, m)
@@ -485,22 +481,6 @@ static struct send_queue *virtnet_xdp_sq(struct virtnet_info *vi)
 	return &vi->sq[qp];
 }
 
-static int __virtnet_xdp_tx_xmit(struct virtnet_info *vi,
-				   struct xdp_frame *xdpf)
-{
-	struct xdp_frame *xdpf_sent;
-	struct send_queue *sq;
-	unsigned int len;
-
-	sq = virtnet_xdp_sq(vi);
-
-	/* Free up any pending old buffers before queueing new ones. */
-	while ((xdpf_sent = virtqueue_get_buf(sq->vq, &len)) != NULL)
-		xdp_return_frame(xdpf_sent);
-
-	return __virtnet_xdp_xmit_one(vi, sq, xdpf);
-}
-
 static int virtnet_xdp_xmit(struct net_device *dev,
 			    int n, struct xdp_frame **frames, u32 flags)
 {
@@ -707,10 +687,8 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			xdpf = convert_to_xdp_frame(&xdp);
 			if (unlikely(!xdpf))
 				goto err_xdp;
-			stats->tx.xdp_tx++;
-			err = __virtnet_xdp_tx_xmit(vi, xdpf);
-			if (unlikely(err)) {
-				stats->tx.xdp_tx_drops++;
+			err = virtnet_xdp_xmit(dev, 1, &xdpf, 0);
+			if (unlikely(err < 0)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				goto err_xdp;
 			}
@@ -879,10 +857,8 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			xdpf = convert_to_xdp_frame(&xdp);
 			if (unlikely(!xdpf))
 				goto err_xdp;
-			stats->tx.xdp_tx++;
-			err = __virtnet_xdp_tx_xmit(vi, xdpf);
-			if (unlikely(err)) {
-				stats->tx.xdp_tx_drops++;
+			err = virtnet_xdp_xmit(dev, 1, &xdpf, 0);
+			if (unlikely(err < 0)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				if (unlikely(xdp_page != page))
 					put_page(xdp_page);
@@ -1315,7 +1291,6 @@ static int virtnet_receive(struct receive_queue *rq, int budget,
 {
 	struct virtnet_info *vi = rq->vq->vdev->priv;
 	struct virtnet_rx_stats stats = {};
-	struct send_queue *sq;
 	unsigned int len;
 	void *buf;
 	int i;
@@ -1350,12 +1325,6 @@ static int virtnet_receive(struct receive_queue *rq, int budget,
 		*item += *(u64 *)((u8 *)&stats.rx + offset);
 	}
 	u64_stats_update_end(&rq->stats.syncp);
-
-	sq = virtnet_xdp_sq(vi);
-	u64_stats_update_begin(&sq->stats.syncp);
-	sq->stats.xdp_tx += stats.tx.xdp_tx;
-	sq->stats.xdp_tx_drops += stats.tx.xdp_tx_drops;
-	u64_stats_update_end(&sq->stats.syncp);
 
 	return stats.rx.packets;
 }
