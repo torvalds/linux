@@ -73,8 +73,8 @@ struct tspec_body {
 //      802.11 Management frame Status Code field
 //----------------------------------------------------------------------------
 struct octet_string {
-	u8		*Octet;
-	u16             Length;
+	u8		*octet;
+	u16             length;
 };
 
 //Added by joseph

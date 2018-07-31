@@ -1066,49 +1066,49 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		struct octet_string	osCcxAironetIE;
 
 		memset(CcxAironetBuf, 0, 30);
-		osCcxAironetIE.Octet = CcxAironetBuf;
-		osCcxAironetIE.Length = sizeof(CcxAironetBuf);
+		osCcxAironetIE.octet = CcxAironetBuf;
+		osCcxAironetIE.length = sizeof(CcxAironetBuf);
 		//
 		// Ref. CCX test plan v3.61, 3.2.3.1 step 13.
 		// We want to make the device type as "4500-client". 060926, by CCW.
 		//
-		memcpy(osCcxAironetIE.Octet, AironetIeOui, sizeof(AironetIeOui));
+		memcpy(osCcxAironetIE.octet, AironetIeOui, sizeof(AironetIeOui));
 
 		// CCX1 spec V1.13, A01.1 CKIP Negotiation (page23):
 		// "The CKIP negotiation is started with the associate request from the client to the access point,
 		//  containing an Aironet element with both the MIC and KP bits set."
-		osCcxAironetIE.Octet[IE_CISCO_FLAG_POSITION] |= (SUPPORT_CKIP_PK | SUPPORT_CKIP_MIC);
+		osCcxAironetIE.octet[IE_CISCO_FLAG_POSITION] |= (SUPPORT_CKIP_PK | SUPPORT_CKIP_MIC);
 		tag = skb_put(skb, ckip_ie_len);
 		*tag++ = MFIE_TYPE_AIRONET;
-		*tag++ = osCcxAironetIE.Length;
-		memcpy(tag, osCcxAironetIE.Octet, osCcxAironetIE.Length);
-		tag += osCcxAironetIE.Length;
+		*tag++ = osCcxAironetIE.length;
+		memcpy(tag, osCcxAironetIE.octet, osCcxAironetIE.length);
+		tag += osCcxAironetIE.length;
 	}
 
 	if (beacon->bCcxRmEnable) {
 		static u8 CcxRmCapBuf[] = {0x00, 0x40, 0x96, 0x01, 0x01, 0x00};
 		struct octet_string osCcxRmCap;
 
-		osCcxRmCap.Octet = CcxRmCapBuf;
-		osCcxRmCap.Length = sizeof(CcxRmCapBuf);
+		osCcxRmCap.octet = CcxRmCapBuf;
+		osCcxRmCap.length = sizeof(CcxRmCapBuf);
 		tag = skb_put(skb, ccxrm_ie_len);
 		*tag++ = MFIE_TYPE_GENERIC;
-		*tag++ = osCcxRmCap.Length;
-		memcpy(tag, osCcxRmCap.Octet, osCcxRmCap.Length);
-		tag += osCcxRmCap.Length;
+		*tag++ = osCcxRmCap.length;
+		memcpy(tag, osCcxRmCap.octet, osCcxRmCap.length);
+		tag += osCcxRmCap.length;
 	}
 
 	if (beacon->BssCcxVerNumber >= 2) {
 		u8			CcxVerNumBuf[] = {0x00, 0x40, 0x96, 0x03, 0x00};
 		struct octet_string	osCcxVerNum;
 		CcxVerNumBuf[4] = beacon->BssCcxVerNumber;
-		osCcxVerNum.Octet = CcxVerNumBuf;
-		osCcxVerNum.Length = sizeof(CcxVerNumBuf);
+		osCcxVerNum.octet = CcxVerNumBuf;
+		osCcxVerNum.length = sizeof(CcxVerNumBuf);
 		tag = skb_put(skb, cxvernum_ie_len);
 		*tag++ = MFIE_TYPE_GENERIC;
-		*tag++ = osCcxVerNum.Length;
-		memcpy(tag, osCcxVerNum.Octet, osCcxVerNum.Length);
-		tag += osCcxVerNum.Length;
+		*tag++ = osCcxVerNum.length;
+		memcpy(tag, osCcxVerNum.octet, osCcxVerNum.length);
+		tag += osCcxVerNum.length;
 	}
 	//HT cap element
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT) {
