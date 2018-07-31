@@ -1690,17 +1690,22 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	event.info = fb_info;
 	if (!lockless_register_fb)
 		console_lock();
+	else
+		atomic_inc(&ignore_console_lock_warning);
 	if (!lock_fb_info(fb_info)) {
-		if (!lockless_register_fb)
-			console_unlock();
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unlock_console;
 	}
+	ret = 0;
 
 	fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
 	unlock_fb_info(fb_info);
+unlock_console:
 	if (!lockless_register_fb)
 		console_unlock();
-	return 0;
+	else
+		atomic_dec(&ignore_console_lock_warning);
+	return ret;
 }
 
 static int unbind_console(struct fb_info *fb_info)
