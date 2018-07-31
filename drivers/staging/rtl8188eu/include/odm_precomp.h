@@ -31,7 +31,7 @@
 
 #include "odm_reg.h"
 
-#include "odm_RTL8188E.h"
+#include "odm_rtl8188e.h"
 
 void odm_CmnInfoHook_Debug(struct odm_dm_struct *pDM_Odm);
 void odm_CmnInfoInit_Debug(struct odm_dm_struct *pDM_Odm);
