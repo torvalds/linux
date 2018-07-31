@@ -5940,13 +5940,13 @@ static int nf_tables_flowtable_event(struct notifier_block *this,
 	if (!net)
 		return 0;
 
-	nfnl_lock(NFNL_SUBSYS_NFTABLES);
+	mutex_lock(&net->nft.commit_mutex);
 	list_for_each_entry(table, &net->nft.tables, list) {
 		list_for_each_entry(flowtable, &table->flowtables, list) {
 			nft_flowtable_event(event, dev, flowtable);
 		}
 	}
-	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
+	mutex_unlock(&net->nft.commit_mutex);
 	put_net(net);
 	return NOTIFY_DONE;
 }
