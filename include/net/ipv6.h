@@ -766,6 +766,13 @@ static inline int ip6_sk_dst_hoplimit(struct ipv6_pinfo *np, struct flowi6 *fl6,
 	return hlimit;
 }
 
+static inline bool ipv6_can_nonlocal_bind(struct net *net,
+					  struct inet_sock *inet)
+{
+	return net->ipv6.sysctl.ip_nonlocal_bind ||
+		inet->freebind || inet->transparent;
+}
+
 /* copy IPv6 saddr & daddr to flow_keys, possibly using 64bit load/store
  * Equivalent to :	flow->v6addrs.src = iph->saddr;
  *			flow->v6addrs.dst = iph->daddr;

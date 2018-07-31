@@ -359,4 +359,12 @@ static inline bool inet_get_convert_csum(struct sock *sk)
 	return !!inet_sk(sk)->convert_csum;
 }
 
+
+static inline bool inet_can_nonlocal_bind(struct net *net,
+					  struct inet_sock *inet)
+{
+	return net->ipv4.sysctl_ip_nonlocal_bind ||
+		inet->freebind || inet->transparent;
+}
+
 #endif	/* _INET_SOCK_H */

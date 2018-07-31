@@ -803,8 +803,7 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 
 			if (addr_type != IPV6_ADDR_ANY) {
 				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
-				if (!(net->ipv6.sysctl.ip_nonlocal_bind ||
-				      inet_sk(sk)->freebind || inet_sk(sk)->transparent) &&
+				if (!ipv6_can_nonlocal_bind(net, inet_sk(sk)) &&
 				    !ipv6_chk_addr_and_flags(net, &src_info->ipi6_addr,
 							     dev, !strict, 0,
 							     IFA_F_TENTATIVE) &&
