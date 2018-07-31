@@ -105,3 +105,30 @@
 		ref-clock-frequency = <26000000>;
 	};
 };
+
+&i2c2 {
+	/delete-node/ bmp085@77;
+	/delete-node/ bma180@41;
+	/delete-node/ itg3200@68;
+	/delete-node/ hmc5843@1e;
+
+	bmg160@69 {
+		compatible = "bosch,bmg160";
+		reg = <0x69>;
+	};
+
+	bmc150@10 {
+		compatible = "bosch,bmc150_accel";
+		reg = <0x10>;
+	};
+
+	bmc150@12 {
+		compatible = "bosch,bmc150_magn";
+		reg = <0x12>;
+	};
+
+	bme280@76 {
+		compatible = "bosch,bme280";
+		reg = <0x76>;
+	};
+};
