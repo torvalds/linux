@@ -72,10 +72,10 @@ struct tspec_body {
 //----------------------------------------------------------------------------
 //      802.11 Management frame Status Code field
 //----------------------------------------------------------------------------
-typedef struct _OCTET_STRING {
+struct octet_string {
 	u8		*Octet;
 	u16             Length;
-} OCTET_STRING, *POCTET_STRING;
+};
 
 //Added by joseph
 //UP Mapping to AC, using in MgntQuery_SequenceNumber() and maybe for DSCP
