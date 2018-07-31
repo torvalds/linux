@@ -374,10 +374,11 @@ smbd_done:
 	return rc;
 }
 
-#define MAX_COMPOUND 2
+#define MAX_COMPOUND 5
 
 static int
-smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst, int flags)
+smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
+	      struct smb_rqst *rqst, int flags)
 {
 	struct kvec iov;
 	struct smb2_transform_hdr tr_hdr;
@@ -385,7 +386,10 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst, int flags)
 	int rc;
 
 	if (!(flags & CIFS_TRANSFORM_REQ))
-		return __smb_send_rqst(server, 1, rqst);
+		return __smb_send_rqst(server, num_rqst, rqst);
+
+	if (num_rqst > MAX_COMPOUND - 1)
+		return -ENOMEM;
 
 	memset(&cur_rqst[0], 0, sizeof(cur_rqst));
 	memset(&iov, 0, sizeof(iov));
@@ -402,12 +406,13 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst, int flags)
 		return -EIO;
 	}
 
-	rc = server->ops->init_transform_rq(server, 2, &cur_rqst[0], rqst);
+	rc = server->ops->init_transform_rq(server, num_rqst + 1,
+					    &cur_rqst[0], rqst);
 	if (rc)
 		return rc;
 
-	rc = __smb_send_rqst(server, 2, &cur_rqst[0]);
-	smb3_free_compound_rqst(1, &cur_rqst[1]);
+	rc = __smb_send_rqst(server, num_rqst + 1, &cur_rqst[0]);
+	smb3_free_compound_rqst(num_rqst, &cur_rqst[1]);
 	return rc;
 }
 
@@ -621,7 +626,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	 */
 	cifs_save_when_sent(mid);
 	cifs_in_send_inc(server);
-	rc = smb_send_rqst(server, rqst, flags);
+	rc = smb_send_rqst(server, 1, rqst, flags);
 	cifs_in_send_dec(server);
 
 	if (rc < 0) {
@@ -811,7 +816,7 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	midQ->mid_state = MID_REQUEST_SUBMITTED;
 	cifs_in_send_inc(ses->server);
-	rc = smb_send_rqst(ses->server, rqst, flags);
+	rc = smb_send_rqst(ses->server, 1, rqst, flags);
 	cifs_in_send_dec(ses->server);
 	cifs_save_when_sent(midQ);
 
