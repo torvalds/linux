@@ -84,7 +84,7 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 	return dfb;
 }
 
-static struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
+struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 	struct drm_file *dfile, const struct drm_mode_fb_cmd2 *mode)
 {
 	struct armada_gem_object *obj;
@@ -138,8 +138,3 @@ static struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 	DRM_ERROR("failed to initialize framebuffer: %d\n", ret);
 	return ERR_PTR(ret);
 }
-
-const struct drm_mode_config_funcs armada_drm_mode_config_funcs = {
-	.fb_create		= armada_fb_create,
-	.output_poll_changed	= drm_fb_helper_output_poll_changed,
-};
