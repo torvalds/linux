@@ -372,7 +372,7 @@ int virtgpu_gem_prime_mmap(struct drm_gem_object *obj,
 static inline struct virtio_gpu_object*
 virtio_gpu_object_ref(struct virtio_gpu_object *bo)
 {
-	ttm_bo_reference(&bo->tbo);
+	ttm_bo_get(&bo->tbo);
 	return bo;
 }
 
