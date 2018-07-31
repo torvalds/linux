@@ -110,6 +110,18 @@
 		rockchip,wait-card-locked = <0>;
 	};
 
+	spdif_rx_sound: spdif-rx-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,spdif-rx-sound";
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_rx>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
+
 	spdif_tx_sound: spdif-tx-sound {
 		status = "disabled";
 		compatible = "simple-audio-card";
