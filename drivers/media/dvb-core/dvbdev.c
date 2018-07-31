@@ -621,7 +621,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	unsigned demux_pad = 0;
 	unsigned dvr_pad = 0;
 	unsigned ntuner = 0, ndemod = 0;
-	int ret;
+	int ret, pad_source, pad_sink;
 	static const char *connector_name = "Television";
 
 	if (!mdev)
@@ -681,7 +681,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 		if (ret)
 			return ret;
 
-		if (!ntuner)
+		if (!ntuner) {
 			ret = media_create_pad_links(mdev,
 						     MEDIA_ENT_F_CONN_RF,
 						     conn, 0,
@@ -689,22 +689,31 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 						     demod, 0,
 						     MEDIA_LNK_FL_ENABLED,
 						     false);
-		else
+		} else {
+			pad_sink = media_get_pad_index(tuner, true,
+						       PAD_SIGNAL_ANALOG);
+			if (pad_sink < 0)
+				return -EINVAL;
 			ret = media_create_pad_links(mdev,
 						     MEDIA_ENT_F_CONN_RF,
 						     conn, 0,
 						     MEDIA_ENT_F_TUNER,
-						     tuner, TUNER_PAD_RF_INPUT,
+						     tuner, pad_sink,
 						     MEDIA_LNK_FL_ENABLED,
 						     false);
+		}
 		if (ret)
 			return ret;
 	}
 
 	if (ntuner && ndemod) {
+		pad_source = media_get_pad_index(tuner, true,
+						 PAD_SIGNAL_ANALOG);
+		if (pad_source)
+			return -EINVAL;
 		ret = media_create_pad_links(mdev,
 					     MEDIA_ENT_F_TUNER,
-					     tuner, TUNER_PAD_OUTPUT,
+					     tuner, pad_source,
 					     MEDIA_ENT_F_DTV_DEMOD,
 					     demod, 0, MEDIA_LNK_FL_ENABLED,
 					     false);
