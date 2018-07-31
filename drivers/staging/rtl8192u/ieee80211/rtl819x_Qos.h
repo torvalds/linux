@@ -25,7 +25,6 @@ enum direction_value {
 	DIR_BI_DIR		= 3,		// 0x11	// Bi-Direction
 };
 
-
 /*
  * TS Info field in WMM TSPEC Element.
  * Ref:
@@ -70,9 +69,6 @@ struct tspec_body {
 	u16	medium_time;
 };
 
-//typedef struct _TCLASS{
-// TODO
-//} TCLASS, *PTCLASS;
 typedef union _QOS_TCLAS {
 
 	struct _TYPE_GENERAL {
@@ -123,21 +119,6 @@ typedef union _QOS_TCLAS {
 		u16		TagType;
 	} TYPE2_8021Q;
 } QOS_TCLAS, *PQOS_TCLAS;
-
-//typedef struct _U_APSD{
-//- TriggerEnable [4]
-//- MaxSPLength
-//- HighestAcBuffered
-//} U_APSD, *PU_APSD;
-
-//joseph TODO:
-//	UAPSD function should be implemented by 2 data structure
-//	"Qos control field" and "Qos info field"
-//typedef struct _QOS_UAPSD{
-//	u8			bTriggerEnable[4];
-//	u8			MaxSPLength;
-//	u8			HighestBufAC;
-//} QOS_UAPSD, *PQOS_APSD;
 
 //----------------------------------------------------------------------------
 //      802.11 Management frame Status Code field
