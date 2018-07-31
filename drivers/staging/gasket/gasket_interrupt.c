@@ -144,11 +144,10 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 			}
 
 			mask = ~(0xFFFF << pack_shift);
-			value = gasket_dev_read_64(
-					gasket_dev,
-					interrupt_data->interrupt_bar_index,
-					interrupt_data->interrupts[i].reg) &
-				mask;
+			value = gasket_dev_read_64(gasket_dev,
+						   interrupt_data->interrupt_bar_index,
+						   interrupt_data->interrupts[i].reg);
+			value &= mask;
 			value |= interrupt_data->interrupts[i].index
 				 << pack_shift;
 		}
@@ -187,8 +186,8 @@ static irqreturn_t gasket_msix_interrupt_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int gasket_interrupt_msix_init(
-	struct gasket_interrupt_data *interrupt_data)
+static int
+gasket_interrupt_msix_init(struct gasket_interrupt_data *interrupt_data)
 {
 	int ret = 1;
 	int i;
@@ -210,10 +209,9 @@ static int gasket_interrupt_msix_init(
 	interrupt_data->msix_configured = 1;
 
 	for (i = 0; i < interrupt_data->num_interrupts; i++) {
-		ret = request_irq(
-			interrupt_data->msix_entries[i].vector,
-			gasket_msix_interrupt_handler, 0, interrupt_data->name,
-			interrupt_data);
+		ret = request_irq(interrupt_data->msix_entries[i].vector,
+				  gasket_msix_interrupt_handler, 0,
+				  interrupt_data->name, interrupt_data);
 
 		if (ret) {
 			dev_err(&interrupt_data->pci_dev->dev,
@@ -250,25 +248,23 @@ static void force_msix_interrupt_unmasking(struct gasket_dev *gasket_dev)
 		ulong location = APEX_BAR2_REG_KERNEL_HIB_MSIX_TABLE +
 				 MSIX_MASK_BIT_OFFSET + i * MSIX_VECTOR_SIZE;
 		u32 mask =
-			gasket_dev_read_32(
-				gasket_dev,
-				gasket_dev->interrupt_data->interrupt_bar_index,
-				location);
+			gasket_dev_read_32(gasket_dev,
+					   gasket_dev->interrupt_data->interrupt_bar_index,
+					   location);
 		if (!(mask & 1))
 			continue;
 		/* Unmask the msix vector (clear 32 bits) */
-		gasket_dev_write_32(
-			gasket_dev, 0,
-			gasket_dev->interrupt_data->interrupt_bar_index,
-			location);
+		gasket_dev_write_32(gasket_dev, 0,
+				    gasket_dev->interrupt_data->interrupt_bar_index,
+				    location);
 	}
 #undef MSIX_VECTOR_SIZE
 #undef MSIX_MASK_BIT_OFFSET
 #undef APEX_BAR2_REG_KERNEL_HIB_MSIX_TABLE
 }
 
-static ssize_t interrupt_sysfs_show(
-	struct device *device, struct device_attribute *attr, char *buf)
+static ssize_t interrupt_sysfs_show(struct device *device,
+				    struct device_attribute *attr, char *buf)
 {
 	int i, ret;
 	ssize_t written = 0, total_written = 0;
@@ -318,22 +314,22 @@ static ssize_t interrupt_sysfs_show(
 }
 
 static struct gasket_sysfs_attribute interrupt_sysfs_attrs[] = {
-	GASKET_SYSFS_RO(
-		interrupt_counts, interrupt_sysfs_show, ATTR_INTERRUPT_COUNTS),
+	GASKET_SYSFS_RO(interrupt_counts, interrupt_sysfs_show,
+			ATTR_INTERRUPT_COUNTS),
 	GASKET_END_OF_ATTR_ARRAY,
 };
 
-int gasket_interrupt_init(
-	struct gasket_dev *gasket_dev, const char *name, int type,
-	const struct gasket_interrupt_desc *interrupts,
-	int num_interrupts, int pack_width, int bar_index,
-	const struct gasket_wire_interrupt_offsets *wire_int_offsets)
+int gasket_interrupt_init(struct gasket_dev *gasket_dev, const char *name,
+			  int type,
+			  const struct gasket_interrupt_desc *interrupts,
+			  int num_interrupts, int pack_width, int bar_index,
+			  const struct gasket_wire_interrupt_offsets *wire_int_offsets)
 {
 	int ret;
 	struct gasket_interrupt_data *interrupt_data;
 
-	interrupt_data = kzalloc(
-		sizeof(struct gasket_interrupt_data), GFP_KERNEL);
+	interrupt_data = kzalloc(sizeof(struct gasket_interrupt_data),
+				 GFP_KERNEL);
 	if (!interrupt_data)
 		return -ENOMEM;
 	gasket_dev->interrupt_data = interrupt_data;
@@ -402,14 +398,14 @@ int gasket_interrupt_init(
 	}
 
 	gasket_interrupt_setup(gasket_dev);
-	gasket_sysfs_create_entries(
-		gasket_dev->dev_info.device, interrupt_sysfs_attrs);
+	gasket_sysfs_create_entries(gasket_dev->dev_info.device,
+				    interrupt_sysfs_attrs);
 
 	return 0;
 }
 
-static void gasket_interrupt_msix_cleanup(
-	struct gasket_interrupt_data *interrupt_data)
+static void
+gasket_interrupt_msix_cleanup(struct gasket_interrupt_data *interrupt_data)
 {
 	int i;
 
@@ -528,9 +524,8 @@ int gasket_interrupt_system_status(struct gasket_dev *gasket_dev)
 	return GASKET_STATUS_ALIVE;
 }
 
-int gasket_interrupt_set_eventfd(
-	struct gasket_interrupt_data *interrupt_data, int interrupt,
-	int event_fd)
+int gasket_interrupt_set_eventfd(struct gasket_interrupt_data *interrupt_data,
+				 int interrupt, int event_fd)
 {
 	struct eventfd_ctx *ctx = eventfd_ctx_fdget(event_fd);
 
@@ -544,8 +539,8 @@ int gasket_interrupt_set_eventfd(
 	return 0;
 }
 
-int gasket_interrupt_clear_eventfd(
-	struct gasket_interrupt_data *interrupt_data, int interrupt)
+int gasket_interrupt_clear_eventfd(struct gasket_interrupt_data *interrupt_data,
+				   int interrupt)
 {
 	if (interrupt < 0 || interrupt >= interrupt_data->num_interrupts)
 		return -EINVAL;

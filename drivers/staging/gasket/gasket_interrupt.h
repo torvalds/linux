@@ -43,11 +43,11 @@ struct gasket_interrupt_data;
  * are not possible to set up, but is otherwise OK; that device will report
  * status LAMED.)
  */
-int gasket_interrupt_init(
-	struct gasket_dev *gasket_dev, const char *name, int type,
-	const struct gasket_interrupt_desc *interrupts,
-	int num_interrupts, int pack_width, int bar_index,
-	const struct gasket_wire_interrupt_offsets *wire_int_offsets);
+int gasket_interrupt_init(struct gasket_dev *gasket_dev, const char *name,
+			  int type,
+			  const struct gasket_interrupt_desc *interrupts,
+			  int num_interrupts, int pack_width, int bar_index,
+			  const struct gasket_wire_interrupt_offsets *wire_int_offsets);
 
 /*
  * Clean up a device's interrupt structure.
@@ -87,9 +87,8 @@ int gasket_interrupt_reset_counts(struct gasket_dev *gasket_dev);
  *
  * Returns 0 on success, a negative error code otherwise.
  */
-int gasket_interrupt_set_eventfd(
-	struct gasket_interrupt_data *interrupt_data, int interrupt,
-	int event_fd);
+int gasket_interrupt_set_eventfd(struct gasket_interrupt_data *interrupt_data,
+				 int interrupt, int event_fd);
 
 /*
  * Removes an interrupt-eventfd association.
@@ -98,8 +97,8 @@ int gasket_interrupt_set_eventfd(
  *
  * Removes any eventfd associated with the specified interrupt, if any.
  */
-int gasket_interrupt_clear_eventfd(
-	struct gasket_interrupt_data *interrupt_data, int interrupt);
+int gasket_interrupt_clear_eventfd(struct gasket_interrupt_data *interrupt_data,
+				   int interrupt);
 
 /*
  * The below functions exist for backwards compatibility.
