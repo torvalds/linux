@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config NIOS2
 	def_bool y
+	select ARCH_NO_SWAP
 	select TIMER_OF
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
@@ -36,9 +37,6 @@ config HAS_DMA
 	def_bool y
 
 config FPU
-	def_bool n
-
-config SWAP
 	def_bool n
 
 config RWSEM_GENERIC_SPINLOCK

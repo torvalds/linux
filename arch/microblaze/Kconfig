@@ -1,5 +1,6 @@
 config MICROBLAZE
 	def_bool y
+	select ARCH_NO_SWAP
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
@@ -51,9 +52,6 @@ config CPU_LITTLE_ENDIAN
 	bool "Little endian"
 
 endchoice
-
-config SWAP
-	def_bool n
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
