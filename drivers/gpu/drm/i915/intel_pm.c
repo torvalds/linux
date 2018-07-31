@@ -3771,11 +3771,11 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	return true;
 }
 
-static unsigned int intel_get_ddb_size(struct drm_i915_private *dev_priv,
-				       const struct intel_crtc_state *cstate,
-				       const unsigned int total_data_rate,
-				       const int num_active,
-				       struct skl_ddb_allocation *ddb)
+static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
+			      const struct intel_crtc_state *cstate,
+			      const unsigned int total_data_rate,
+			      const int num_active,
+			      struct skl_ddb_allocation *ddb)
 {
 	const struct drm_display_mode *adjusted_mode;
 	u64 total_data_bw;
@@ -3814,7 +3814,7 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *for_crtc = cstate->base.crtc;
-	unsigned int pipe_size, ddb_size;
+	u16 pipe_size, ddb_size;
 	int nth_active_pipe;
 
 	if (WARN_ON(!state) || !cstate->base.active) {
