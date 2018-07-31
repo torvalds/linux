@@ -627,7 +627,7 @@ static void blkiolatency_timer_fn(struct timer_list *t)
 
 		iolat = blkg_to_lat(blkg);
 		if (!iolat)
-			continue;
+			goto next;
 
 		lat_info = &iolat->child_lat;
 		cookie = atomic_read(&lat_info->scale_cookie);
