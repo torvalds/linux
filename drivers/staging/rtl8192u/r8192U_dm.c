@@ -2242,12 +2242,12 @@ static void dm_check_edca_turbo(
 			{
 				/*  TODO:  Modified this part and try to set acm control in only 1 IO processing!! */
 
-				union aci_aifsn *pAciAifsn = (union aci_aifsn *)&(qos_parameters->aifs[0]);
+				struct aci_aifsn *pAciAifsn = (struct aci_aifsn *)&(qos_parameters->aifs[0]);
 				u8		AcmCtrl;
 
 				read_nic_byte(dev, AcmHwCtrl, &AcmCtrl);
 
-				if (pAciAifsn->f.acm) { /*  acm bit is 1. */
+				if (pAciAifsn->acm) { /*  acm bit is 1. */
 					AcmCtrl |= AcmHw_BeqEn;
 				} else {	/* ACM bit is 0. */
 					AcmCtrl &= (~AcmHw_BeqEn);

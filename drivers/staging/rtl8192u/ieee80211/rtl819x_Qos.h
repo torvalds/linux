@@ -2,19 +2,16 @@
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 
-//
-// ACI/AIFSN Field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-union aci_aifsn {
-	u8	char_data;
-
-	struct {
-		u8	aifsn:4;
-		u8	acm:1;
-		u8	aci:2;
-		u8	reserved:1;
-	} f;	// Field
+/*
+ * ACI/AIFSN Field.
+ * Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
+ * Note: 1 Byte Length
+ */
+struct aci_aifsn {
+	u8	aifsn:4;
+	u8	acm:1;
+	u8	aci:2;
+	u8:1;
 };
 
 //
