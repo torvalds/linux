@@ -53,6 +53,11 @@
 #define MT_MCU_MSG_TYPE			GENMASK(31, 30)
 #define MT_MCU_MSG_TYPE_CMD		BIT(30)
 
+#define MT_DMA_HDR_LEN			4
+#define MT_RX_INFO_LEN			4
+#define MT_FCE_INFO_LEN			4
+#define MT_RX_RXWI_LEN			32
+
 struct mt76_desc {
 	__le32 buf0;
 	__le32 ctrl;
