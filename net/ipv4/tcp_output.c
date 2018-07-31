@@ -177,8 +177,13 @@ static void tcp_event_data_sent(struct tcp_sock *tp,
 }
 
 /* Account for an ACK we sent. */
-static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
+static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts,
+				      u32 rcv_nxt)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (unlikely(rcv_nxt != tp->rcv_nxt))
+		return;  /* Special ACK sent by DCTCP to reflect ECN */
 	tcp_dec_quickack_mode(sk, pkts);
 	inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 }
@@ -901,8 +906,8 @@ out:
  * We are working here with either a clone of the original
  * SKB, or a fresh unique copy made by the retransmit engine.
  */
-static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
-			    gfp_t gfp_mask)
+static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
+			      int clone_it, gfp_t gfp_mask, u32 rcv_nxt)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_sock *inet;
@@ -962,7 +967,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	th->source		= inet->inet_sport;
 	th->dest		= inet->inet_dport;
 	th->seq			= htonl(tcb->seq);
-	th->ack_seq		= htonl(tp->rcv_nxt);
+	th->ack_seq		= htonl(rcv_nxt);
 	*(((__be16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) |
 					tcb->tcp_flags);
 
@@ -1005,7 +1010,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	icsk->icsk_af_ops->send_check(sk, skb);
 
 	if (likely(tcb->tcp_flags & TCPHDR_ACK))
-		tcp_event_ack_sent(sk, tcp_skb_pcount(skb));
+		tcp_event_ack_sent(sk, tcp_skb_pcount(skb), rcv_nxt);
 
 	if (skb->len != tcp_header_size)
 		tcp_event_data_sent(tp, sk);
@@ -1034,6 +1039,13 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	tcp_enter_cwr(sk);
 
 	return net_xmit_eval(err);
+}
+
+static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
+			    gfp_t gfp_mask)
+{
+	return __tcp_transmit_skb(sk, skb, clone_it, gfp_mask,
+				  tcp_sk(sk)->rcv_nxt);
 }
 
 /* This routine just queues the buffer for sending.
@@ -3354,7 +3366,7 @@ void tcp_send_delayed_ack(struct sock *sk)
 }
 
 /* This routine sends an ack and also updates the window. */
-void tcp_send_ack(struct sock *sk)
+void __tcp_send_ack(struct sock *sk, u32 rcv_nxt)
 {
 	struct sk_buff *buff;
 
@@ -3391,9 +3403,14 @@ void tcp_send_ack(struct sock *sk)
 
 	/* Send it off, this clears delayed acks for us. */
 	skb_mstamp_get(&buff->skb_mstamp);
-	tcp_transmit_skb(sk, buff, 0, sk_gfp_atomic(sk, GFP_ATOMIC));
+	__tcp_transmit_skb(sk, buff, 0, sk_gfp_atomic(sk, GFP_ATOMIC), rcv_nxt);
 }
-EXPORT_SYMBOL_GPL(tcp_send_ack);
+EXPORT_SYMBOL_GPL(__tcp_send_ack);
+
+void tcp_send_ack(struct sock *sk)
+{
+	__tcp_send_ack(sk, tcp_sk(sk)->rcv_nxt);
+}
 
 /* This routine sends a packet with an out of date sequence
  * number. It assumes the other end will try to ack it.

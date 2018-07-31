@@ -2087,9 +2087,12 @@ int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)
 			return err;
 	}
 
-	dev->rtnl_link_state = RTNL_LINK_INITIALIZED;
-
-	__dev_notify_flags(dev, old_flags, ~0U);
+	if (dev->rtnl_link_state == RTNL_LINK_INITIALIZED) {
+		__dev_notify_flags(dev, old_flags, 0U);
+	} else {
+		dev->rtnl_link_state = RTNL_LINK_INITIALIZED;
+		__dev_notify_flags(dev, old_flags, ~0U);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(rtnl_configure_link);
