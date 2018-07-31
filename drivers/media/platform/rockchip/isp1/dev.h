@@ -106,7 +106,7 @@ struct rkisp1_device {
 	int irq;
 	struct device *dev;
 	struct clk *clks[RKISP1_MAX_BUS_CLK];
-	int clk_size;
+	int num_clks;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct media_device media_dev;
@@ -123,6 +123,8 @@ struct rkisp1_device {
 	struct vb2_alloc_ctx *alloc_ctx;
 	struct iommu_domain *domain;
 	enum rkisp1_isp_ver isp_ver;
+	const unsigned int *clk_rate_tbl;
+	int num_clk_rate_tbl;
 };
 
 #endif
