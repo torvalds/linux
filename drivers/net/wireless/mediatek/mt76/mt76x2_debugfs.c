@@ -153,3 +153,4 @@ void mt76x2_init_debugfs(struct mt76x2_dev *dev)
 
 	debugfs_create_devm_seqfile(dev->mt76.dev, "agc", dir, read_agc);
 }
+EXPORT_SYMBOL_GPL(mt76x2_init_debugfs);
