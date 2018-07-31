@@ -1860,6 +1860,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	unsigned int i;
 	unsigned int start;
 	bool veb_stats;
+	u64 *p = data;
 
 	i40e_update_stats(vsi);
 
@@ -1902,7 +1903,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	}
 	rcu_read_unlock();
 	if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
-		return;
+		goto check_data_pointer;
 
 	veb_stats = ((pf->lan_veb != I40E_NO_VEB) &&
 		     (pf->flags & I40E_FLAG_VEB_STATS_ENABLED));
@@ -1925,6 +1926,10 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 
 		i40e_add_ethtool_stats(&data, &pfc, i40e_gstrings_pfc_stats);
 	}
+
+check_data_pointer:
+	WARN_ONCE(data - p != i40e_get_stats_count(netdev),
+		  "ethtool stats count mismatch!");
 }
 
 /**
