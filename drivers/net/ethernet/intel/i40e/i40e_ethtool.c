@@ -4642,7 +4642,6 @@ flags_complete:
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
 		if (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) {
 			struct i40e_dcbx_config *dcbcfg;
-			int i;
 
 			i40e_aq_stop_lldp(&pf->hw, true, NULL);
 			i40e_aq_set_dcb_parameters(&pf->hw, true, NULL);
