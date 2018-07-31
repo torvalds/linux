@@ -163,21 +163,30 @@ then
 	echo "/boot needs to be mountpoint for /dev/mmcblk0p1";
 	exit 1;
 fi
+kernelfile=/boot/bananapi/bpi-r2/linux/${uimagename}
+if [[ -e "\${kernelfile}" ]];then
+	echo "\${kernelfile} does exists, please remove/rename it/uninstall previous installed kernel-package"
+	exit 2;
+fi
 EOF
 	chmod +x debian/bananapi-r2-image/DEBIAN/preinst
 	cat > debian/bananapi-r2-image/DEBIAN/postinst << EOF
-#!/bin/sh
+#!/bin/bash
 case "\$1" in
 	configure)
 	#install|upgrade)
 		echo "kernel=${uimagename}">>/boot/bananapi/bpi-r2/linux/uEnv.txt
+
+		#check for non-dsa-kernel (4.4.x)
+		kernver=\$(uname -r)
+		if [[ "\${kernver:0:3}" == "4.4" ]]; then echo "you are upgrading from kernel 4.4. Please make sure your network-config (/etc/network/interfaces) matches dsa-driver (bring cpu-ports ethx up,ip-configuration to wan/lanx)";fi
 	;;
 	*) echo "unhandled \$1 in postinst-script"
 esac
 EOF
 	chmod +x debian/bananapi-r2-image/DEBIAN/postinst
 	cat > debian/bananapi-r2-image/DEBIAN/postrm << EOF
-#!/bin/sh
+#!/bin/bash
 case "\$1" in
 	abort-install)
 		echo "installation aborted"
