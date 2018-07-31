@@ -77,9 +77,6 @@ struct octet_string {
 	u16             length;
 };
 
-//Added by joseph
-//UP Mapping to AC, using in MgntQuery_SequenceNumber() and maybe for DSCP
-//#define UP2AC(up)			((up<3)?((up==0)?1:0):(up>>1))
 #define IsACValid(ac)			((ac <= 7) ? true : false)
 
 #endif // #ifndef __INC_QOS_TYPE_H
