@@ -779,11 +779,17 @@ struct intel_rps {
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
 	u16 gpll_ref_freq;	/* vlv/chv GPLL reference frequency */
 
-	u8 up_threshold; /* Current %busy required to uplock */
-	u8 down_threshold; /* Current %busy required to downclock */
-
 	int last_adj;
-	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
+
+	struct {
+		struct mutex mutex;
+
+		enum { LOW_POWER, BETWEEN, HIGH_POWER } mode;
+		unsigned int interactive;
+
+		u8 up_threshold; /* Current %busy required to uplock */
+		u8 down_threshold; /* Current %busy required to downclock */
+	} power;
 
 	bool enabled;
 	atomic_t num_waiters;
@@ -3422,6 +3428,8 @@ extern void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv);
 extern bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val);
 extern void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
 extern int intel_set_rps(struct drm_i915_private *dev_priv, u8 val);
+extern void intel_rps_mark_interactive(struct drm_i915_private *i915,
+				       bool interactive);
 extern bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);
 
