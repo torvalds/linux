@@ -9,8 +9,8 @@
  * Copyright (C) 2018 Google, Inc.
  */
 
-#ifndef __GASKET_ADDR_TRNSL_H__
-#define __GASKET_ADDR_TRNSL_H__
+#ifndef __GASKET_PAGE_TABLE_H__
+#define __GASKET_PAGE_TABLE_H__
 
 #include <linux/pci.h>
 #include <linux/types.h>
@@ -246,4 +246,4 @@ void gasket_free_coherent_memory_all(struct gasket_dev *gasket_dev,
 int gasket_set_user_virt(struct gasket_dev *gasket_dev, uint64_t size,
 			 dma_addr_t dma_address, ulong vma);
 
-#endif
+#endif  /* __GASKET_PAGE_TABLE_H__ */
