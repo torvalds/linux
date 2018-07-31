@@ -142,7 +142,7 @@ static char *translate_scan(struct adapter *padapter,
 		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bn");
 		else
-		snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
+			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
 	} else if ((rtw_is_cckrates_included((u8 *)&pnetwork->network.SupportedRates))) {
 		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bgn");
@@ -2299,7 +2299,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 				psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
 				if (param->u.crypt.key_len == 13)
-						psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
+					psecuritypriv->dot118021XGrpPrivacy = _WEP104_;
 			} else if (strcmp(param->u.crypt.alg, "TKIP") == 0) {
 				DBG_88E("%s, set group_key, TKIP\n", __func__);
 				psecuritypriv->dot118021XGrpPrivacy = _TKIP_;

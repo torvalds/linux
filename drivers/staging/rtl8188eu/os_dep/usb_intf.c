@@ -380,7 +380,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	/* 2012-07-11 Move here to prevent the 8723AS-VAU BT auto
 	 * suspend influence */
 	if (usb_autopm_get_interface(pusb_intf) < 0)
-			pr_debug("can't get autopm:\n");
+		pr_debug("can't get autopm:\n");
 
 	/*  alloc dev name after read efuse. */
 	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);
