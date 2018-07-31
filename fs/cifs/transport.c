@@ -361,6 +361,8 @@ uncork:
 		 * socket so the server throws away the partial SMB
 		 */
 		server->tcpStatus = CifsNeedReconnect;
+		trace_smb3_partial_send_reconnect(server->CurrentMid,
+						  server->hostname);
 	}
 smbd_done:
 	if (rc < 0 && rc != -EINTR)
