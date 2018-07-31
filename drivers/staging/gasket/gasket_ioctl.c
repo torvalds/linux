@@ -23,194 +23,6 @@
 #define trace_gasket_ioctl_config_coherent_allocator(x, ...)
 #endif
 
-static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd);
-static int gasket_set_event_fd(struct gasket_dev *dev,
-			       struct gasket_interrupt_eventfd __user *argp);
-static int gasket_read_page_table_size(
-	struct gasket_dev *gasket_dev,
-	struct gasket_page_table_ioctl __user *argp);
-static int gasket_read_simple_page_table_size(
-	struct gasket_dev *gasket_dev,
-	struct gasket_page_table_ioctl __user *argp);
-static int gasket_partition_page_table(
-	struct gasket_dev *gasket_dev,
-	struct gasket_page_table_ioctl __user *argp);
-static int gasket_map_buffers(struct gasket_dev *gasket_dev,
-			      struct gasket_page_table_ioctl __user *argp);
-static int gasket_unmap_buffers(struct gasket_dev *gasket_dev,
-				struct gasket_page_table_ioctl __user *argp);
-static int gasket_config_coherent_allocator(
-	struct gasket_dev *gasket_dev,
-	struct gasket_coherent_alloc_config_ioctl __user *argp);
-
-/*
- * standard ioctl dispatch function.
- * @filp: File structure pointer describing this node usage session.
- * @cmd: ioctl number to handle.
- * @argp: ioctl-specific data pointer.
- *
- * Standard ioctl dispatcher; forwards operations to individual handlers.
- */
-long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
-{
-	struct gasket_dev *gasket_dev;
-	unsigned long arg = (unsigned long)argp;
-	gasket_ioctl_permissions_cb_t ioctl_permissions_cb;
-	int retval;
-
-	gasket_dev = (struct gasket_dev *)filp->private_data;
-	trace_gasket_ioctl_entry(gasket_dev->dev_info.name, cmd);
-
-	ioctl_permissions_cb = gasket_get_ioctl_permissions_cb(gasket_dev);
-	if (ioctl_permissions_cb) {
-		retval = ioctl_permissions_cb(filp, cmd, argp);
-		if (retval < 0) {
-			trace_gasket_ioctl_exit(retval);
-			return retval;
-		} else if (retval == 0) {
-			trace_gasket_ioctl_exit(-EPERM);
-			return -EPERM;
-		}
-	} else if (!gasket_ioctl_check_permissions(filp, cmd)) {
-		trace_gasket_ioctl_exit(-EPERM);
-		dev_dbg(gasket_dev->dev, "ioctl cmd=%x noperm\n", cmd);
-		return -EPERM;
-	}
-
-	/* Tracing happens in this switch statement for all ioctls with
-	 * an integer argrument, but ioctls with a struct argument
-	 * that needs copying and decoding, that tracing is done within
-	 * the handler call.
-	 */
-	switch (cmd) {
-	case GASKET_IOCTL_RESET:
-		trace_gasket_ioctl_integer_data(arg);
-		retval = gasket_reset(gasket_dev, arg);
-		break;
-	case GASKET_IOCTL_SET_EVENTFD:
-		retval = gasket_set_event_fd(gasket_dev, argp);
-		break;
-	case GASKET_IOCTL_CLEAR_EVENTFD:
-		trace_gasket_ioctl_integer_data(arg);
-		retval = gasket_interrupt_clear_eventfd(
-			gasket_dev->interrupt_data, (int)arg);
-		break;
-	case GASKET_IOCTL_PARTITION_PAGE_TABLE:
-		trace_gasket_ioctl_integer_data(arg);
-		retval = gasket_partition_page_table(gasket_dev, argp);
-		break;
-	case GASKET_IOCTL_NUMBER_PAGE_TABLES:
-		trace_gasket_ioctl_integer_data(gasket_dev->num_page_tables);
-		if (copy_to_user(argp, &gasket_dev->num_page_tables,
-				 sizeof(uint64_t)))
-			retval = -EFAULT;
-		else
-			retval = 0;
-		break;
-	case GASKET_IOCTL_PAGE_TABLE_SIZE:
-		retval = gasket_read_page_table_size(gasket_dev, argp);
-		break;
-	case GASKET_IOCTL_SIMPLE_PAGE_TABLE_SIZE:
-		retval = gasket_read_simple_page_table_size(gasket_dev, argp);
-		break;
-	case GASKET_IOCTL_MAP_BUFFER:
-		retval = gasket_map_buffers(gasket_dev, argp);
-		break;
-	case GASKET_IOCTL_CONFIG_COHERENT_ALLOCATOR:
-		retval = gasket_config_coherent_allocator(gasket_dev, argp);
-		break;
-	case GASKET_IOCTL_UNMAP_BUFFER:
-		retval = gasket_unmap_buffers(gasket_dev, argp);
-		break;
-	case GASKET_IOCTL_CLEAR_INTERRUPT_COUNTS:
-		/* Clear interrupt counts doesn't take an arg, so use 0. */
-		trace_gasket_ioctl_integer_data(0);
-		retval = gasket_interrupt_reset_counts(gasket_dev);
-		break;
-	default:
-		/* If we don't understand the ioctl, the best we can do is trace
-		 * the arg.
-		 */
-		trace_gasket_ioctl_integer_data(arg);
-		dev_dbg(gasket_dev->dev,
-			"Unknown ioctl cmd=0x%x not caught by "
-			"gasket_is_supported_ioctl\n",
-			cmd);
-		retval = -EINVAL;
-		break;
-	}
-
-	trace_gasket_ioctl_exit(retval);
-	return retval;
-}
-
-/*
- * Determines if an ioctl is part of the standard Gasket framework.
- * @cmd: The ioctl number to handle.
- *
- * Returns 1 if the ioctl is supported and 0 otherwise.
- */
-long gasket_is_supported_ioctl(uint cmd)
-{
-	switch (cmd) {
-	case GASKET_IOCTL_RESET:
-	case GASKET_IOCTL_SET_EVENTFD:
-	case GASKET_IOCTL_CLEAR_EVENTFD:
-	case GASKET_IOCTL_PARTITION_PAGE_TABLE:
-	case GASKET_IOCTL_NUMBER_PAGE_TABLES:
-	case GASKET_IOCTL_PAGE_TABLE_SIZE:
-	case GASKET_IOCTL_SIMPLE_PAGE_TABLE_SIZE:
-	case GASKET_IOCTL_MAP_BUFFER:
-	case GASKET_IOCTL_UNMAP_BUFFER:
-	case GASKET_IOCTL_CLEAR_INTERRUPT_COUNTS:
-	case GASKET_IOCTL_CONFIG_COHERENT_ALLOCATOR:
-		return 1;
-	default:
-		return 0;
-	}
-}
-
-/* Check permissions for Gasket ioctls. */
-static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd)
-{
-	bool alive;
-	bool read, write;
-	struct gasket_dev *gasket_dev = (struct gasket_dev *)filp->private_data;
-
-	alive = (gasket_dev->status == GASKET_STATUS_ALIVE);
-	if (!alive)
-		dev_dbg(gasket_dev->dev, "%s alive %d status %d\n",
-			__func__, alive, gasket_dev->status);
-
-	read = !!(filp->f_mode & FMODE_READ);
-	write = !!(filp->f_mode & FMODE_WRITE);
-
-	switch (cmd) {
-	case GASKET_IOCTL_RESET:
-	case GASKET_IOCTL_CLEAR_INTERRUPT_COUNTS:
-		return write;
-
-	case GASKET_IOCTL_PAGE_TABLE_SIZE:
-	case GASKET_IOCTL_SIMPLE_PAGE_TABLE_SIZE:
-	case GASKET_IOCTL_NUMBER_PAGE_TABLES:
-		return read;
-
-	case GASKET_IOCTL_PARTITION_PAGE_TABLE:
-	case GASKET_IOCTL_CONFIG_COHERENT_ALLOCATOR:
-		return alive && write;
-
-	case GASKET_IOCTL_MAP_BUFFER:
-	case GASKET_IOCTL_UNMAP_BUFFER:
-		return alive && write;
-
-	case GASKET_IOCTL_CLEAR_EVENTFD:
-	case GASKET_IOCTL_SET_EVENTFD:
-		return alive && write;
-	}
-
-	return false; /* unknown permissions */
-}
-
 /* Associate an eventfd with an interrupt. */
 static int gasket_set_event_fd(struct gasket_dev *gasket_dev,
 			       struct gasket_interrupt_eventfd __user *argp)
@@ -409,4 +221,172 @@ static int gasket_config_coherent_allocator(
 		return -EFAULT;
 
 	return 0;
+}
+
+/* Check permissions for Gasket ioctls. */
+static bool gasket_ioctl_check_permissions(struct file *filp, uint cmd)
+{
+	bool alive;
+	bool read, write;
+	struct gasket_dev *gasket_dev = (struct gasket_dev *)filp->private_data;
+
+	alive = (gasket_dev->status == GASKET_STATUS_ALIVE);
+	if (!alive)
+		dev_dbg(gasket_dev->dev, "%s alive %d status %d\n",
+			__func__, alive, gasket_dev->status);
+
+	read = !!(filp->f_mode & FMODE_READ);
+	write = !!(filp->f_mode & FMODE_WRITE);
+
+	switch (cmd) {
+	case GASKET_IOCTL_RESET:
+	case GASKET_IOCTL_CLEAR_INTERRUPT_COUNTS:
+		return write;
+
+	case GASKET_IOCTL_PAGE_TABLE_SIZE:
+	case GASKET_IOCTL_SIMPLE_PAGE_TABLE_SIZE:
+	case GASKET_IOCTL_NUMBER_PAGE_TABLES:
+		return read;
+
+	case GASKET_IOCTL_PARTITION_PAGE_TABLE:
+	case GASKET_IOCTL_CONFIG_COHERENT_ALLOCATOR:
+		return alive && write;
+
+	case GASKET_IOCTL_MAP_BUFFER:
+	case GASKET_IOCTL_UNMAP_BUFFER:
+		return alive && write;
+
+	case GASKET_IOCTL_CLEAR_EVENTFD:
+	case GASKET_IOCTL_SET_EVENTFD:
+		return alive && write;
+	}
+
+	return false; /* unknown permissions */
+}
+
+/*
+ * standard ioctl dispatch function.
+ * @filp: File structure pointer describing this node usage session.
+ * @cmd: ioctl number to handle.
+ * @argp: ioctl-specific data pointer.
+ *
+ * Standard ioctl dispatcher; forwards operations to individual handlers.
+ */
+long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
+{
+	struct gasket_dev *gasket_dev;
+	unsigned long arg = (unsigned long)argp;
+	gasket_ioctl_permissions_cb_t ioctl_permissions_cb;
+	int retval;
+
+	gasket_dev = (struct gasket_dev *)filp->private_data;
+	trace_gasket_ioctl_entry(gasket_dev->dev_info.name, cmd);
+
+	ioctl_permissions_cb = gasket_get_ioctl_permissions_cb(gasket_dev);
+	if (ioctl_permissions_cb) {
+		retval = ioctl_permissions_cb(filp, cmd, argp);
+		if (retval < 0) {
+			trace_gasket_ioctl_exit(retval);
+			return retval;
+		} else if (retval == 0) {
+			trace_gasket_ioctl_exit(-EPERM);
+			return -EPERM;
+		}
+	} else if (!gasket_ioctl_check_permissions(filp, cmd)) {
+		trace_gasket_ioctl_exit(-EPERM);
+		dev_dbg(gasket_dev->dev, "ioctl cmd=%x noperm\n", cmd);
+		return -EPERM;
+	}
+
+	/* Tracing happens in this switch statement for all ioctls with
+	 * an integer argrument, but ioctls with a struct argument
+	 * that needs copying and decoding, that tracing is done within
+	 * the handler call.
+	 */
+	switch (cmd) {
+	case GASKET_IOCTL_RESET:
+		trace_gasket_ioctl_integer_data(arg);
+		retval = gasket_reset(gasket_dev, arg);
+		break;
+	case GASKET_IOCTL_SET_EVENTFD:
+		retval = gasket_set_event_fd(gasket_dev, argp);
+		break;
+	case GASKET_IOCTL_CLEAR_EVENTFD:
+		trace_gasket_ioctl_integer_data(arg);
+		retval = gasket_interrupt_clear_eventfd(
+			gasket_dev->interrupt_data, (int)arg);
+		break;
+	case GASKET_IOCTL_PARTITION_PAGE_TABLE:
+		trace_gasket_ioctl_integer_data(arg);
+		retval = gasket_partition_page_table(gasket_dev, argp);
+		break;
+	case GASKET_IOCTL_NUMBER_PAGE_TABLES:
+		trace_gasket_ioctl_integer_data(gasket_dev->num_page_tables);
+		if (copy_to_user(argp, &gasket_dev->num_page_tables,
+				 sizeof(uint64_t)))
+			retval = -EFAULT;
+		else
+			retval = 0;
+		break;
+	case GASKET_IOCTL_PAGE_TABLE_SIZE:
+		retval = gasket_read_page_table_size(gasket_dev, argp);
+		break;
+	case GASKET_IOCTL_SIMPLE_PAGE_TABLE_SIZE:
+		retval = gasket_read_simple_page_table_size(gasket_dev, argp);
+		break;
+	case GASKET_IOCTL_MAP_BUFFER:
+		retval = gasket_map_buffers(gasket_dev, argp);
+		break;
+	case GASKET_IOCTL_CONFIG_COHERENT_ALLOCATOR:
+		retval = gasket_config_coherent_allocator(gasket_dev, argp);
+		break;
+	case GASKET_IOCTL_UNMAP_BUFFER:
+		retval = gasket_unmap_buffers(gasket_dev, argp);
+		break;
+	case GASKET_IOCTL_CLEAR_INTERRUPT_COUNTS:
+		/* Clear interrupt counts doesn't take an arg, so use 0. */
+		trace_gasket_ioctl_integer_data(0);
+		retval = gasket_interrupt_reset_counts(gasket_dev);
+		break;
+	default:
+		/* If we don't understand the ioctl, the best we can do is trace
+		 * the arg.
+		 */
+		trace_gasket_ioctl_integer_data(arg);
+		dev_dbg(gasket_dev->dev,
+			"Unknown ioctl cmd=0x%x not caught by "
+			"gasket_is_supported_ioctl\n",
+			cmd);
+		retval = -EINVAL;
+		break;
+	}
+
+	trace_gasket_ioctl_exit(retval);
+	return retval;
+}
+
+/*
+ * Determines if an ioctl is part of the standard Gasket framework.
+ * @cmd: The ioctl number to handle.
+ *
+ * Returns 1 if the ioctl is supported and 0 otherwise.
+ */
+long gasket_is_supported_ioctl(uint cmd)
+{
+	switch (cmd) {
+	case GASKET_IOCTL_RESET:
+	case GASKET_IOCTL_SET_EVENTFD:
+	case GASKET_IOCTL_CLEAR_EVENTFD:
+	case GASKET_IOCTL_PARTITION_PAGE_TABLE:
+	case GASKET_IOCTL_NUMBER_PAGE_TABLES:
+	case GASKET_IOCTL_PAGE_TABLE_SIZE:
+	case GASKET_IOCTL_SIMPLE_PAGE_TABLE_SIZE:
+	case GASKET_IOCTL_MAP_BUFFER:
+	case GASKET_IOCTL_UNMAP_BUFFER:
+	case GASKET_IOCTL_CLEAR_INTERRUPT_COUNTS:
+	case GASKET_IOCTL_CONFIG_COHERENT_ALLOCATOR:
+		return 1;
+	default:
+		return 0;
+	}
 }
