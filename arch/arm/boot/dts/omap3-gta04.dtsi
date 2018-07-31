@@ -700,3 +700,23 @@
 &mcbsp4 {
 	status = "okay";
 };
+
+/* image signal processor within OMAP3 SoC */
+&isp {
+	ports {
+		port@0 {
+			reg = <0>;
+			parallel_ep: endpoint {
+				ti,isp-clock-divisor = <1>;
+				ti,strobe-mode;
+				bus-width = <8>;/* Used data lines */
+				data-shift = <2>; /* Lines 9:2 are used */
+				hsync-active = <0>; /* Active low */
+				vsync-active = <1>; /* Active high */
+				data-active = <1>;/* Active high */
+				pclk-sample = <1>;/* Falling */
+			};
+		};
+		/* port@1 and port@2 are not used by GTA04 */
+	};
+};
