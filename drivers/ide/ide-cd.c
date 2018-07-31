@@ -423,12 +423,16 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		    req_flags_t rq_flags)
 {
 	struct cdrom_info *info = drive->driver_data;
+	struct scsi_sense_hdr local_sshdr;
 	int retries = 10;
 	bool failed;
 
 	ide_debug_log(IDE_DBG_PC, "cmd[0]: 0x%x, write: 0x%x, timeout: %d, "
 				  "rq_flags: 0x%x",
 				  cmd[0], write, timeout, rq_flags);
+
+	if (!sshdr)
+		sshdr = &local_sshdr;
 
 	/* start of retry loop */
 	do {
@@ -456,9 +460,8 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 
 		if (buffer)
 			*bufflen = scsi_req(rq)->resid_len;
-		if (sshdr)
-			scsi_normalize_sense(scsi_req(rq)->sense,
-					     scsi_req(rq)->sense_len, sshdr);
+		scsi_normalize_sense(scsi_req(rq)->sense,
+				     scsi_req(rq)->sense_len, sshdr);
 
 		/*
 		 * FIXME: we should probably abort/retry or something in case of
@@ -470,12 +473,10 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 			 * The request failed.  Retry if it was due to a unit
 			 * attention status (usually means media was changed).
 			 */
-			struct request_sense *reqbuf = scsi_req(rq)->sense;
-
-			if (reqbuf->sense_key == UNIT_ATTENTION)
+			if (sshdr->sense_key == UNIT_ATTENTION)
 				cdrom_saw_media_change(drive);
-			else if (reqbuf->sense_key == NOT_READY &&
-				 reqbuf->asc == 4 && reqbuf->ascq != 4) {
+			else if (sshdr->sense_key == NOT_READY &&
+				 sshdr->asc == 4 && sshdr->ascq != 4) {
 				/*
 				 * The drive is in the process of loading
 				 * a disk.  Retry, but wait a little to give
