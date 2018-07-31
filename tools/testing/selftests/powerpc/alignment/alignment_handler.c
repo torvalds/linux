@@ -49,6 +49,8 @@
 #include <setjmp.h>
 #include <signal.h>
 
+#include <asm/cputable.h>
+
 #include "utils.h"
 
 int bufsize;
@@ -289,6 +291,7 @@ int test_alignment_handler_vsx_206(void)
 	int rc = 0;
 
 	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
 
 	printf("VSX: 2.06B\n");
 	LOAD_VSX_XFORM_TEST(lxvd2x);
@@ -306,6 +309,7 @@ int test_alignment_handler_vsx_207(void)
 	int rc = 0;
 
 	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
 
 	printf("VSX: 2.07B\n");
 	LOAD_VSX_XFORM_TEST(lxsspx);
@@ -380,7 +384,6 @@ int test_alignment_handler_integer(void)
 	LOAD_DFORM_TEST(ldu);
 	LOAD_XFORM_TEST(ldx);
 	LOAD_XFORM_TEST(ldux);
-	LOAD_XFORM_TEST(ldbrx);
 	LOAD_DFORM_TEST(lmw);
 	STORE_DFORM_TEST(stb);
 	STORE_XFORM_TEST(stbx);
@@ -400,8 +403,23 @@ int test_alignment_handler_integer(void)
 	STORE_XFORM_TEST(stdx);
 	STORE_DFORM_TEST(stdu);
 	STORE_XFORM_TEST(stdux);
-	STORE_XFORM_TEST(stdbrx);
 	STORE_DFORM_TEST(stmw);
+
+	return rc;
+}
+
+int test_alignment_handler_integer_206(void)
+{
+	int rc = 0;
+
+	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
+
+	printf("Integer: 2.06\n");
+
+	LOAD_XFORM_TEST(ldbrx);
+	STORE_XFORM_TEST(stdbrx);
+
 	return rc;
 }
 
@@ -410,6 +428,7 @@ int test_alignment_handler_vmx(void)
 	int rc = 0;
 
 	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!have_hwcap(PPC_FEATURE_HAS_ALTIVEC));
 
 	printf("VMX\n");
 	LOAD_VMX_XFORM_TEST(lvx);
@@ -441,20 +460,14 @@ int test_alignment_handler_fp(void)
 	printf("Floating point\n");
 	LOAD_FLOAT_DFORM_TEST(lfd);
 	LOAD_FLOAT_XFORM_TEST(lfdx);
-	LOAD_FLOAT_DFORM_TEST(lfdp);
-	LOAD_FLOAT_XFORM_TEST(lfdpx);
 	LOAD_FLOAT_DFORM_TEST(lfdu);
 	LOAD_FLOAT_XFORM_TEST(lfdux);
 	LOAD_FLOAT_DFORM_TEST(lfs);
 	LOAD_FLOAT_XFORM_TEST(lfsx);
 	LOAD_FLOAT_DFORM_TEST(lfsu);
 	LOAD_FLOAT_XFORM_TEST(lfsux);
-	LOAD_FLOAT_XFORM_TEST(lfiwzx);
-	LOAD_FLOAT_XFORM_TEST(lfiwax);
 	STORE_FLOAT_DFORM_TEST(stfd);
 	STORE_FLOAT_XFORM_TEST(stfdx);
-	STORE_FLOAT_DFORM_TEST(stfdp);
-	STORE_FLOAT_XFORM_TEST(stfdpx);
 	STORE_FLOAT_DFORM_TEST(stfdu);
 	STORE_FLOAT_XFORM_TEST(stfdux);
 	STORE_FLOAT_DFORM_TEST(stfs);
@@ -462,6 +475,38 @@ int test_alignment_handler_fp(void)
 	STORE_FLOAT_DFORM_TEST(stfsu);
 	STORE_FLOAT_XFORM_TEST(stfsux);
 	STORE_FLOAT_XFORM_TEST(stfiwx);
+
+	return rc;
+}
+
+int test_alignment_handler_fp_205(void)
+{
+	int rc = 0;
+
+	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_05));
+
+	printf("Floating point: 2.05\n");
+
+	LOAD_FLOAT_DFORM_TEST(lfdp);
+	LOAD_FLOAT_XFORM_TEST(lfdpx);
+	LOAD_FLOAT_XFORM_TEST(lfiwax);
+	STORE_FLOAT_DFORM_TEST(stfdp);
+	STORE_FLOAT_XFORM_TEST(stfdpx);
+
+	return rc;
+}
+
+int test_alignment_handler_fp_206(void)
+{
+	int rc = 0;
+
+	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
+
+	printf("Floating point: 2.06\n");
+
+	LOAD_FLOAT_XFORM_TEST(lfiwzx);
 
 	return rc;
 }
@@ -513,9 +558,15 @@ int main(int argc, char *argv[])
 			   "test_alignment_handler_vsx_300");
 	rc |= test_harness(test_alignment_handler_integer,
 			   "test_alignment_handler_integer");
+	rc |= test_harness(test_alignment_handler_integer_206,
+			   "test_alignment_handler_integer_206");
 	rc |= test_harness(test_alignment_handler_vmx,
 			   "test_alignment_handler_vmx");
 	rc |= test_harness(test_alignment_handler_fp,
 			   "test_alignment_handler_fp");
+	rc |= test_harness(test_alignment_handler_fp_205,
+			   "test_alignment_handler_fp_205");
+	rc |= test_harness(test_alignment_handler_fp_206,
+			   "test_alignment_handler_fp_206");
 	return rc;
 }
