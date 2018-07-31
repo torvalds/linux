@@ -1103,6 +1103,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 			dport = usin->sin_port;
 			break;
 
+#if IS_ENABLED(CONFIG_IPV6)
 		case AF_INET6: {
 			int addr_type;
 
@@ -1142,6 +1143,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 			dport = sin6->sin6_port;
 			break;
 		}
+#endif
 
 		default:
 			ret = -EINVAL;

@@ -321,6 +321,7 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 	return 1;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 /* IPv6 version of rds_ib_conn_info_visitor(). */
 static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 				     void *buffer)
@@ -357,6 +358,7 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 	}
 	return 1;
 }
+#endif
 
 static void rds_ib_ic_info(struct socket *sock, unsigned int len,
 			   struct rds_info_iterator *iter,
@@ -370,6 +372,7 @@ static void rds_ib_ic_info(struct socket *sock, unsigned int len,
 				sizeof(struct rds_info_rdma_connection));
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 /* IPv6 version of rds_ib_ic_info(). */
 static void rds6_ib_ic_info(struct socket *sock, unsigned int len,
 			    struct rds_info_iterator *iter,
@@ -382,6 +385,7 @@ static void rds6_ib_ic_info(struct socket *sock, unsigned int len,
 			       buffer,
 			       sizeof(struct rds6_info_rdma_connection));
 }
+#endif
 
 /*
  * Early RDS/IB was built to only bind to an address if there is an IPoIB
@@ -398,7 +402,9 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 {
 	int ret;
 	struct rdma_cm_id *cm_id;
+#if IS_ENABLED(CONFIG_IPV6)
 	struct sockaddr_in6 sin6;
+#endif
 	struct sockaddr_in sin;
 	struct sockaddr *sa;
 	bool isv4;
@@ -418,6 +424,7 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 		sin.sin_addr.s_addr = addr->s6_addr32[3];
 		sa = (struct sockaddr *)&sin;
 	} else {
+#if IS_ENABLED(CONFIG_IPV6)
 		memset(&sin6, 0, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_addr = *addr;
@@ -432,21 +439,30 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 		if (ipv6_addr_type(addr) & IPV6_ADDR_LINKLOCAL) {
 			struct net_device *dev;
 
-			if (scope_id == 0)
-				return -EADDRNOTAVAIL;
+			if (scope_id == 0) {
+				ret = -EADDRNOTAVAIL;
+				goto out;
+			}
 
 			/* Use init_net for now as RDS is not network
 			 * name space aware.
 			 */
 			dev = dev_get_by_index(&init_net, scope_id);
-			if (!dev)
-				return -EADDRNOTAVAIL;
+			if (!dev) {
+				ret = -EADDRNOTAVAIL;
+				goto out;
+			}
 			if (!ipv6_chk_addr(&init_net, addr, dev, 1)) {
 				dev_put(dev);
-				return -EADDRNOTAVAIL;
+				ret = -EADDRNOTAVAIL;
+				goto out;
 			}
 			dev_put(dev);
 		}
+#else
+		ret = -EADDRNOTAVAIL;
+		goto out;
+#endif
 	}
 
 	/* rdma_bind_addr will only succeed for IB & iWARP devices */
@@ -461,6 +477,7 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 		 addr, scope_id, ret,
 		 cm_id->device ? cm_id->device->node_type : -1);
 
+out:
 	rdma_destroy_id(cm_id);
 
 	return ret;
@@ -491,7 +508,9 @@ void rds_ib_exit(void)
 	rds_ib_set_unloading();
 	synchronize_rcu();
 	rds_info_deregister_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
+#if IS_ENABLED(CONFIG_IPV6)
 	rds_info_deregister_func(RDS6_INFO_IB_CONNECTIONS, rds6_ib_ic_info);
+#endif
 	rds_ib_unregister_client();
 	rds_ib_destroy_nodev_conns();
 	rds_ib_sysctl_exit();
@@ -553,7 +572,9 @@ int rds_ib_init(void)
 	rds_trans_register(&rds_ib_transport);
 
 	rds_info_register_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
+#if IS_ENABLED(CONFIG_IPV6)
 	rds_info_register_func(RDS6_INFO_IB_CONNECTIONS, rds6_ib_ic_info);
+#endif
 
 	goto out;
 

@@ -180,6 +180,7 @@ void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_co
 	iinfo->rdma_mr_size = pool_1m->fmr_attr.max_pages;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
 			 struct rds6_info_rdma_connection *iinfo6)
 {
@@ -188,6 +189,7 @@ void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
 	iinfo6->rdma_mr_max = pool_1m->max_items;
 	iinfo6->rdma_mr_size = pool_1m->fmr_attr.max_pages;
 }
+#endif
 
 struct rds_ib_mr *rds_ib_reuse_mr(struct rds_ib_mr_pool *pool)
 {

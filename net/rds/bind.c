@@ -165,7 +165,6 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct in6_addr v6addr, *binding_addr;
 	struct rds_transport *trans;
 	__u32 scope_id = 0;
-	int addr_type;
 	int ret = 0;
 	__be16 port;
 
@@ -183,8 +182,10 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &v6addr);
 		binding_addr = &v6addr;
 		port = sin->sin_port;
+#if IS_ENABLED(CONFIG_IPV6)
 	} else if (uaddr->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)uaddr;
+		int addr_type;
 
 		if (addr_len < sizeof(struct sockaddr_in6))
 			return -EINVAL;
@@ -212,6 +213,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		}
 		binding_addr = &sin6->sin6_addr;
 		port = sin6->sin6_port;
+#endif
 	} else {
 		return -EINVAL;
 	}

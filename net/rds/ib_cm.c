@@ -678,6 +678,7 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 	return version;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 /* Given an IPv6 address, find the net_device which hosts that address and
  * return its index.  This is used by the rds_ib_cm_handle_connect() code to
  * find the interface index of where an incoming request comes from when
@@ -704,6 +705,7 @@ static u32 __rds_find_ifindex(struct net *net, const struct in6_addr *addr)
 
 	return idx;
 }
+#endif
 
 int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 			     struct rdma_cm_event *event, bool isv6)
@@ -732,6 +734,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 
 	dp = event->param.conn.private_data;
 	if (isv6) {
+#if IS_ENABLED(CONFIG_IPV6)
 		dp_cmn = &dp->ricp_v6.dp_cmn;
 		saddr6 = &dp->ricp_v6.dp_saddr;
 		daddr6 = &dp->ricp_v6.dp_daddr;
@@ -756,6 +759,10 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 				goto out;
 			}
 		}
+#else
+		err = -EOPNOTSUPP;
+		goto out;
+#endif
 	} else {
 		dp_cmn = &dp->ricp_v4.dp_cmn;
 		ipv6_addr_set_v4mapped(dp->ricp_v4.dp_saddr, &s_mapped_addr);
@@ -893,9 +900,11 @@ int rds_ib_conn_path_connect(struct rds_conn_path *cp)
 
 	/* XXX I wonder what affect the port space has */
 	/* delegate cm event handler to rdma_transport */
+#if IS_ENABLED(CONFIG_IPV6)
 	if (conn->c_isv6)
 		handler = rds6_rdma_cm_event_handler;
 	else
+#endif
 		handler = rds_rdma_cm_event_handler;
 	ic->i_cm_id = rdma_create_id(&init_net, handler, conn,
 				     RDMA_PS_TCP, IB_QPT_RC);

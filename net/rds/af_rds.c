@@ -156,18 +156,20 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
 				return sizeof(*sin);
 			}
 
-			if (ipv6_addr_type(&rs->rs_conn_addr) &
-			    IPV6_ADDR_MAPPED) {
-				sin = (struct sockaddr_in *)uaddr;
-				memset(sin, 0, sizeof(*sin));
-				sin->sin_family = AF_INET;
-				return sizeof(*sin);
+#if IS_ENABLED(CONFIG_IPV6)
+			if (!(ipv6_addr_type(&rs->rs_conn_addr) &
+			      IPV6_ADDR_MAPPED)) {
+				sin6 = (struct sockaddr_in6 *)uaddr;
+				memset(sin6, 0, sizeof(*sin6));
+				sin6->sin6_family = AF_INET6;
+				return sizeof(*sin6);
 			}
+#endif
 
-			sin6 = (struct sockaddr_in6 *)uaddr;
-			memset(sin6, 0, sizeof(*sin6));
-			sin6->sin6_family = AF_INET6;
-			return sizeof(*sin6);
+			sin = (struct sockaddr_in *)uaddr;
+			memset(sin, 0, sizeof(*sin));
+			sin->sin_family = AF_INET;
+			return sizeof(*sin);
 		}
 		if (ipv6_addr_v4mapped(&rs->rs_bound_addr)) {
 			sin = (struct sockaddr_in *)uaddr;
@@ -501,9 +503,7 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_in *sin;
-	struct sockaddr_in6 *sin6;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
-	int addr_type;
 	int ret = 0;
 
 	lock_sock(sk);
@@ -528,7 +528,11 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 		rs->rs_conn_port = sin->sin_port;
 		break;
 
-	case AF_INET6:
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6: {
+		struct sockaddr_in6 *sin6;
+		int addr_type;
+
 		sin6 = (struct sockaddr_in6 *)uaddr;
 		if (addr_len < sizeof(struct sockaddr_in6)) {
 			ret = -EINVAL;
@@ -575,6 +579,8 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 		rs->rs_conn_addr = sin6->sin6_addr;
 		rs->rs_conn_port = sin6->sin6_port;
 		break;
+	}
+#endif
 
 	default:
 		ret = -EAFNOSUPPORT;

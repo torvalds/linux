@@ -39,7 +39,9 @@
 
 /* Global IPv4 and IPv6 RDS RDMA listener cm_id */
 static struct rdma_cm_id *rds_rdma_listen_id;
+#if IS_ENABLED(CONFIG_IPV6)
 static struct rdma_cm_id *rds6_rdma_listen_id;
+#endif
 
 static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 					 struct rdma_cm_event *event,
@@ -155,11 +157,13 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 	return rds_rdma_cm_event_handler_cmn(cm_id, event, false);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 int rds6_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 			       struct rdma_cm_event *event)
 {
 	return rds_rdma_cm_event_handler_cmn(cm_id, event, true);
 }
+#endif
 
 static int rds_rdma_listen_init_common(rdma_cm_event_handler handler,
 				       struct sockaddr *sa,
@@ -214,7 +218,9 @@ out:
 static int rds_rdma_listen_init(void)
 {
 	int ret;
+#if IS_ENABLED(CONFIG_IPV6)
 	struct sockaddr_in6 sin6;
+#endif
 	struct sockaddr_in sin;
 
 	sin.sin_family = PF_INET;
@@ -226,6 +232,7 @@ static int rds_rdma_listen_init(void)
 	if (ret != 0)
 		return ret;
 
+#if IS_ENABLED(CONFIG_IPV6)
 	sin6.sin6_family = PF_INET6;
 	sin6.sin6_addr = in6addr_any;
 	sin6.sin6_port = htons(RDS_CM_PORT);
@@ -237,6 +244,7 @@ static int rds_rdma_listen_init(void)
 	/* Keep going even when IPv6 is not enabled in the system. */
 	if (ret != 0)
 		rdsdebug("Cannot set up IPv6 RDMA listener\n");
+#endif
 	return 0;
 }
 
@@ -247,11 +255,13 @@ static void rds_rdma_listen_stop(void)
 		rdma_destroy_id(rds_rdma_listen_id);
 		rds_rdma_listen_id = NULL;
 	}
+#if IS_ENABLED(CONFIG_IPV6)
 	if (rds6_rdma_listen_id) {
 		rdsdebug("cm %p\n", rds6_rdma_listen_id);
 		rdma_destroy_id(rds6_rdma_listen_id);
 		rds6_rdma_listen_id = NULL;
 	}
+#endif
 }
 
 static int rds_rdma_init(void)

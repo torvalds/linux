@@ -132,7 +132,10 @@ int rds_tcp_accept_one(struct socket *sock)
 	int conn_state;
 	struct rds_conn_path *cp;
 	struct in6_addr *my_addr, *peer_addr;
-	int dev_if;
+#if !IS_ENABLED(CONFIG_IPV6)
+	struct in6_addr saddr, daddr;
+#endif
+	int dev_if = 0;
 
 	if (!sock) /* module unload or netns delete in progress */
 		return -ENETUNREACH;
@@ -165,12 +168,21 @@ int rds_tcp_accept_one(struct socket *sock)
 
 	inet = inet_sk(new_sock->sk);
 
+#if IS_ENABLED(CONFIG_IPV6)
 	my_addr = &new_sock->sk->sk_v6_rcv_saddr;
 	peer_addr = &new_sock->sk->sk_v6_daddr;
-	rdsdebug("accepted tcp %pI6c:%u -> %pI6c:%u\n",
+#else
+	ipv6_addr_set_v4mapped(inet->inet_saddr, &saddr);
+	ipv6_addr_set_v4mapped(inet->inet_daddr, &daddr);
+	my_addr = &saddr;
+	peer_addr = &daddr;
+#endif
+	rdsdebug("accepted family %d tcp %pI6c:%u -> %pI6c:%u\n",
+		 sock->sk->sk_family,
 		 my_addr, ntohs(inet->inet_sport),
 		 peer_addr, ntohs(inet->inet_dport));
 
+#if IS_ENABLED(CONFIG_IPV6)
 	/* sk_bound_dev_if is not set if the peer address is not link local
 	 * address.  In this case, it happens that mcast_oif is set.  So
 	 * just use it.
@@ -184,9 +196,10 @@ int rds_tcp_accept_one(struct socket *sock)
 	} else {
 		dev_if = new_sock->sk->sk_bound_dev_if;
 	}
+#endif
+
 	conn = rds_conn_create(sock_net(sock->sk),
-			       &new_sock->sk->sk_v6_rcv_saddr,
-			       &new_sock->sk->sk_v6_daddr,
+			       my_addr, peer_addr,
 			       &rds_tcp_transport, GFP_KERNEL, dev_if);
 
 	if (IS_ERR(conn)) {

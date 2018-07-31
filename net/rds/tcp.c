@@ -51,7 +51,9 @@ static LIST_HEAD(rds_tcp_tc_list);
  * rds6_tcp_tc_count counts both IPv4 and IPv6 connections.
  */
 static unsigned int rds_tcp_tc_count;
+#if IS_ENABLED(CONFIG_IPV6)
 static unsigned int rds6_tcp_tc_count;
+#endif
 
 /* Track rds_tcp_connection structs so they can be cleaned up */
 static DEFINE_SPINLOCK(rds_tcp_conn_lock);
@@ -118,7 +120,9 @@ void rds_tcp_restore_callbacks(struct socket *sock,
 	/* done under the callback_lock to serialize with write_space */
 	spin_lock(&rds_tcp_tc_list_lock);
 	list_del_init(&tc->t_list_item);
+#if IS_ENABLED(CONFIG_IPV6)
 	rds6_tcp_tc_count--;
+#endif
 	if (!tc->t_cpath->cp_conn->c_isv6)
 		rds_tcp_tc_count--;
 	spin_unlock(&rds_tcp_tc_list_lock);
@@ -207,7 +211,9 @@ void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp)
 	/* done under the callback_lock to serialize with write_space */
 	spin_lock(&rds_tcp_tc_list_lock);
 	list_add_tail(&tc->t_list_item, &rds_tcp_tc_list);
+#if IS_ENABLED(CONFIG_IPV6)
 	rds6_tcp_tc_count++;
+#endif
 	if (!tc->t_cpath->cp_conn->c_isv6)
 		rds_tcp_tc_count++;
 	spin_unlock(&rds_tcp_tc_list_lock);
@@ -273,6 +279,7 @@ out:
 	spin_unlock_irqrestore(&rds_tcp_tc_list_lock, flags);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 /* Handle RDS6_INFO_TCP_SOCKETS socket option. It returns both IPv4 and
  * IPv6 connections. IPv4 connection address is returned in an IPv4 mapped
  * address.
@@ -314,12 +321,15 @@ out:
 
 	spin_unlock_irqrestore(&rds_tcp_tc_list_lock, flags);
 }
+#endif
 
 static int rds_tcp_laddr_check(struct net *net, const struct in6_addr *addr,
 			       __u32 scope_id)
 {
 	struct net_device *dev = NULL;
+#if IS_ENABLED(CONFIG_IPV6)
 	int ret;
+#endif
 
 	if (ipv6_addr_v4mapped(addr)) {
 		if (inet_addr_type(net, addr->s6_addr32[3]) == RTN_LOCAL)
@@ -340,9 +350,11 @@ static int rds_tcp_laddr_check(struct net *net, const struct in6_addr *addr,
 		}
 		rcu_read_unlock();
 	}
+#if IS_ENABLED(CONFIG_IPV6)
 	ret = ipv6_chk_addr(net, addr, dev, 0);
 	if (ret)
 		return 0;
+#endif
 	return -EADDRNOTAVAIL;
 }
 
@@ -545,18 +557,27 @@ static __net_init int rds_tcp_init_net(struct net *net)
 		err = -ENOMEM;
 		goto fail;
 	}
+
+#if IS_ENABLED(CONFIG_IPV6)
 	rtn->rds_tcp_listen_sock = rds_tcp_listen_init(net, true);
+#else
+	rtn->rds_tcp_listen_sock = rds_tcp_listen_init(net, false);
+#endif
 	if (!rtn->rds_tcp_listen_sock) {
 		pr_warn("could not set up IPv6 listen sock\n");
 
+#if IS_ENABLED(CONFIG_IPV6)
 		/* Try IPv4 as some systems disable IPv6 */
 		rtn->rds_tcp_listen_sock = rds_tcp_listen_init(net, false);
 		if (!rtn->rds_tcp_listen_sock) {
+#endif
 			unregister_net_sysctl_table(rtn->rds_tcp_sysctl);
 			rtn->rds_tcp_sysctl = NULL;
 			err = -EAFNOSUPPORT;
 			goto fail;
+#if IS_ENABLED(CONFIG_IPV6)
 		}
+#endif
 	}
 	INIT_WORK(&rtn->rds_tcp_accept_w, rds_tcp_accept_worker);
 	return 0;
@@ -670,7 +691,9 @@ static void rds_tcp_exit(void)
 	rds_tcp_set_unloading();
 	synchronize_rcu();
 	rds_info_deregister_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
+#if IS_ENABLED(CONFIG_IPV6)
 	rds_info_deregister_func(RDS6_INFO_TCP_SOCKETS, rds6_tcp_tc_info);
+#endif
 	unregister_pernet_device(&rds_tcp_net_ops);
 	rds_tcp_destroy_conns();
 	rds_trans_unregister(&rds_tcp_transport);
@@ -702,7 +725,9 @@ static int rds_tcp_init(void)
 	rds_trans_register(&rds_tcp_transport);
 
 	rds_info_register_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
+#if IS_ENABLED(CONFIG_IPV6)
 	rds_info_register_func(RDS6_INFO_TCP_SOCKETS, rds6_tcp_tc_info);
+#endif
 
 	goto out;
 out_recv:

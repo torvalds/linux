@@ -793,6 +793,7 @@ void rds_inc_info_copy(struct rds_incoming *inc,
 	rds_info_copy(iter, &minfo, sizeof(minfo));
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 void rds6_inc_info_copy(struct rds_incoming *inc,
 			struct rds_info_iterator *iter,
 			struct in6_addr *saddr, struct in6_addr *daddr,
@@ -817,3 +818,4 @@ void rds6_inc_info_copy(struct rds_incoming *inc,
 
 	rds_info_copy(iter, &minfo6, sizeof(minfo6));
 }
+#endif

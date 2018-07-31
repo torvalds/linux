@@ -63,8 +63,12 @@ static struct hlist_head *rds_conn_bucket(const struct in6_addr *laddr,
 	net_get_random_once(&rds6_hash_secret, sizeof(rds6_hash_secret));
 
 	lhash = (__force u32)laddr->s6_addr32[3];
+#if IS_ENABLED(CONFIG_IPV6)
 	fhash = __ipv6_addr_jhash(faddr, rds6_hash_secret);
-	hash = __inet6_ehashfn(lhash, 0, fhash, 0, rds_hash_secret);
+#else
+	fhash = (__force u32)faddr->s6_addr32[3];
+#endif
+	hash = __inet_ehashfn(lhash, 0, fhash, 0, rds_hash_secret);
 
 	return &rds_conn_hash[hash & RDS_CONNECTION_HASH_MASK];
 }
@@ -201,6 +205,8 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	conn->c_isv6 = !ipv6_addr_v4mapped(laddr);
 	conn->c_faddr = *faddr;
 	conn->c_dev_if = dev_if;
+
+#if IS_ENABLED(CONFIG_IPV6)
 	/* If the local address is link local, set c_bound_if to be the
 	 * index used for this connection.  Otherwise, set it to 0 as
 	 * the socket is not bound to an interface.  c_bound_if is used
@@ -209,6 +215,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	if (ipv6_addr_type(laddr) & IPV6_ADDR_LINKLOCAL)
 		conn->c_bound_if = dev_if;
 	else
+#endif
 		conn->c_bound_if = 0;
 
 	rds_conn_net_set(conn, net);
@@ -500,9 +507,11 @@ static void __rds_inc_msg_cp(struct rds_incoming *inc,
 			     struct rds_info_iterator *iter,
 			     void *saddr, void *daddr, int flip, bool isv6)
 {
+#if IS_ENABLED(CONFIG_IPV6)
 	if (isv6)
 		rds6_inc_info_copy(inc, iter, saddr, daddr, flip);
 	else
+#endif
 		rds_inc_info_copy(inc, iter, *(__be32 *)saddr,
 				  *(__be32 *)daddr, flip);
 }
@@ -581,6 +590,7 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 	rds_conn_message_info_cmn(sock, len, iter, lens, want_send, false);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static void rds6_conn_message_info(struct socket *sock, unsigned int len,
 				   struct rds_info_iterator *iter,
 				   struct rds_info_lengths *lens,
@@ -588,6 +598,7 @@ static void rds6_conn_message_info(struct socket *sock, unsigned int len,
 {
 	rds_conn_message_info_cmn(sock, len, iter, lens, want_send, true);
 }
+#endif
 
 static void rds_conn_message_info_send(struct socket *sock, unsigned int len,
 				       struct rds_info_iterator *iter,
@@ -596,12 +607,14 @@ static void rds_conn_message_info_send(struct socket *sock, unsigned int len,
 	rds_conn_message_info(sock, len, iter, lens, 1);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static void rds6_conn_message_info_send(struct socket *sock, unsigned int len,
 					struct rds_info_iterator *iter,
 					struct rds_info_lengths *lens)
 {
 	rds6_conn_message_info(sock, len, iter, lens, 1);
 }
+#endif
 
 static void rds_conn_message_info_retrans(struct socket *sock,
 					  unsigned int len,
@@ -611,6 +624,7 @@ static void rds_conn_message_info_retrans(struct socket *sock,
 	rds_conn_message_info(sock, len, iter, lens, 0);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static void rds6_conn_message_info_retrans(struct socket *sock,
 					   unsigned int len,
 					   struct rds_info_iterator *iter,
@@ -618,6 +632,7 @@ static void rds6_conn_message_info_retrans(struct socket *sock,
 {
 	rds6_conn_message_info(sock, len, iter, lens, 0);
 }
+#endif
 
 void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 			  struct rds_info_iterator *iter,
@@ -734,6 +749,7 @@ static int rds_conn_info_visitor(struct rds_conn_path *cp, void *buffer)
 	return 1;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static int rds6_conn_info_visitor(struct rds_conn_path *cp, void *buffer)
 {
 	struct rds6_info_connection *cinfo6 = buffer;
@@ -761,6 +777,7 @@ static int rds6_conn_info_visitor(struct rds_conn_path *cp, void *buffer)
 	 */
 	return 1;
 }
+#endif
 
 static void rds_conn_info(struct socket *sock, unsigned int len,
 			  struct rds_info_iterator *iter,
@@ -774,6 +791,7 @@ static void rds_conn_info(struct socket *sock, unsigned int len,
 				sizeof(struct rds_info_connection));
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static void rds6_conn_info(struct socket *sock, unsigned int len,
 			   struct rds_info_iterator *iter,
 			   struct rds_info_lengths *lens)
@@ -785,6 +803,7 @@ static void rds6_conn_info(struct socket *sock, unsigned int len,
 				buffer,
 				sizeof(struct rds6_info_connection));
 }
+#endif
 
 int rds_conn_init(void)
 {
@@ -807,12 +826,13 @@ int rds_conn_init(void)
 			       rds_conn_message_info_send);
 	rds_info_register_func(RDS_INFO_RETRANS_MESSAGES,
 			       rds_conn_message_info_retrans);
+#if IS_ENABLED(CONFIG_IPV6)
 	rds_info_register_func(RDS6_INFO_CONNECTIONS, rds6_conn_info);
 	rds_info_register_func(RDS6_INFO_SEND_MESSAGES,
 			       rds6_conn_message_info_send);
 	rds_info_register_func(RDS6_INFO_RETRANS_MESSAGES,
 			       rds6_conn_message_info_retrans);
-
+#endif
 	return 0;
 }
 
@@ -830,11 +850,13 @@ void rds_conn_exit(void)
 				 rds_conn_message_info_send);
 	rds_info_deregister_func(RDS_INFO_RETRANS_MESSAGES,
 				 rds_conn_message_info_retrans);
+#if IS_ENABLED(CONFIG_IPV6)
 	rds_info_deregister_func(RDS6_INFO_CONNECTIONS, rds6_conn_info);
 	rds_info_deregister_func(RDS6_INFO_SEND_MESSAGES,
 				 rds6_conn_message_info_send);
 	rds_info_deregister_func(RDS6_INFO_RETRANS_MESSAGES,
 				 rds6_conn_message_info_retrans);
+#endif
 }
 
 /*
