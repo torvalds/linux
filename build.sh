@@ -5,6 +5,12 @@ then
   exit 1;
 fi
 
+clr_red=$'\e[1;31m'
+clr_green=$'\e[1;32m'
+clr_yellow=$'\e[1;33m'
+clr_blue=$'\e[1;34m'
+clr_reset=$'\e[0m'
+
 #Check Crosscompile
 crosscompile=0
 if [[ -z $(cat /proc/cpuinfo | grep -i 'model name.*ArmV7') ]]; then
@@ -157,21 +163,32 @@ function deb {
     #cp cryptodev-linux/cryptodev.ko debian/bananapi-r2-image/lib/modules/${ver}/kernel/extras
 	cat > debian/bananapi-r2-image/DEBIAN/preinst << EOF
 #!/bin/bash
+clr_red=\$'\e[1;31m'
+clr_green=\$'\e[1;32m'
+clr_yellow=\$'\e[1;33m'
+clr_blue=\$'\e[1;34m'
+clr_reset=\$'\e[0m'
 m=\$(mount | grep '/boot[^/]')
 if [[ -z "\$m" ]];
 then
-	echo "/boot needs to be mountpoint for /dev/mmcblk0p1";
+	echo "\${clr_red}/boot needs to be mountpoint for /dev/mmcblk0p1\${clr_reset}";
 	exit 1;
 fi
 kernelfile=/boot/bananapi/bpi-r2/linux/${uimagename}
 if [[ -e "\${kernelfile}" ]];then
-	echo "\${kernelfile} does exists, please remove/rename it/uninstall previous installed kernel-package"
+	echo "\${clr_red}\${kernelfile} already exists\${clr_reset}"
+	echo "\${clr_red}please remove/rename it or uninstall previous installed kernel-package\${clr_reset}"
 	exit 2;
 fi
 EOF
 	chmod +x debian/bananapi-r2-image/DEBIAN/preinst
 	cat > debian/bananapi-r2-image/DEBIAN/postinst << EOF
 #!/bin/bash
+clr_red=\$'\e[1;31m'
+clr_green=\$'\e[1;32m'
+clr_yellow=\$'\e[1;33m'
+clr_blue=\$'\e[1;34m'
+clr_reset=\$'\e[0m'
 case "\$1" in
 	configure)
 	#install|upgrade)
@@ -179,7 +196,12 @@ case "\$1" in
 
 		#check for non-dsa-kernel (4.4.x)
 		kernver=\$(uname -r)
-		if [[ "\${kernver:0:3}" == "4.4" ]]; then echo "you are upgrading from kernel 4.4. Please make sure your network-config (/etc/network/interfaces) matches dsa-driver (bring cpu-ports ethx up,ip-configuration to wan/lanx)";fi
+		if [[ "\${kernver:0:3}" == "4.4" ]];
+		then
+			echo "\${clr_yellow}you are upgrading from kernel 4.4.\${clr_reset}";
+			echo "\${clr_yellow}Please make sure your network-config (/etc/network/interfaces) matches dsa-driver\${clr_reset}";
+			echo "\${clr_yellow}(bring cpu-ports ethx up, ip-configuration to wan/lanx)\${clr_reset}";
+		fi
 	;;
 	*) echo "unhandled \$1 in postinst-script"
 esac
