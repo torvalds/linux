@@ -56,41 +56,34 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	if (force_copy)
 		return 0;
 
+	if (!dev->netdev_ops->ndo_bpf || !dev->netdev_ops->ndo_xsk_async_xmit)
+		return force_zc ? -ENOTSUPP : 0; /* fail or fallback */
+
+	bpf.command = XDP_QUERY_XSK_UMEM;
+
+	rtnl_lock();
+	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
+	rtnl_unlock();
+
+	if (err)
+		return force_zc ? -ENOTSUPP : 0;
+
+	bpf.command = XDP_SETUP_XSK_UMEM;
+	bpf.xsk.umem = umem;
+	bpf.xsk.queue_id = queue_id;
+
+	rtnl_lock();
+	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
+	rtnl_unlock();
+
+	if (err)
+		return force_zc ? err : 0; /* fail or fallback */
+
 	dev_hold(dev);
-
-	if (dev->netdev_ops->ndo_bpf && dev->netdev_ops->ndo_xsk_async_xmit) {
-		bpf.command = XDP_QUERY_XSK_UMEM;
-
-		rtnl_lock();
-		err = dev->netdev_ops->ndo_bpf(dev, &bpf);
-		rtnl_unlock();
-
-		if (err) {
-			dev_put(dev);
-			return force_zc ? -ENOTSUPP : 0;
-		}
-
-		bpf.command = XDP_SETUP_XSK_UMEM;
-		bpf.xsk.umem = umem;
-		bpf.xsk.queue_id = queue_id;
-
-		rtnl_lock();
-		err = dev->netdev_ops->ndo_bpf(dev, &bpf);
-		rtnl_unlock();
-
-		if (err) {
-			dev_put(dev);
-			return force_zc ? err : 0; /* fail or fallback */
-		}
-
-		umem->dev = dev;
-		umem->queue_id = queue_id;
-		umem->zc = true;
-		return 0;
-	}
-
-	dev_put(dev);
-	return force_zc ? -ENOTSUPP : 0; /* fail or fallback */
+	umem->dev = dev;
+	umem->queue_id = queue_id;
+	umem->zc = true;
+	return 0;
 }
 
 static void xdp_umem_clear_dev(struct xdp_umem *umem)
