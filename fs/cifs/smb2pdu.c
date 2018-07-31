@@ -2445,43 +2445,62 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 int
+SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+		u64 persistent_fid, u64 volatile_fid)
+{
+	struct smb2_close_req *req;
+	struct kvec *iov = rqst->rq_iov;
+	unsigned int total_len;
+	int rc;
+
+	rc = smb2_plain_req_init(SMB2_CLOSE, tcon, (void **) &req, &total_len);
+	if (rc)
+		return rc;
+
+	req->PersistentFileId = persistent_fid;
+	req->VolatileFileId = volatile_fid;
+	iov[0].iov_base = (char *)req;
+	iov[0].iov_len = total_len;
+
+	return 0;
+}
+
+void
+SMB2_close_free(struct smb_rqst *rqst)
+{
+	cifs_small_buf_release(rqst->rq_iov[0].iov_base); /* request */
+}
+
+int
 SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 		 u64 persistent_fid, u64 volatile_fid, int flags)
 {
 	struct smb_rqst rqst;
-	struct smb2_close_req *req;
-	struct smb2_close_rsp *rsp;
+	struct smb2_close_rsp *rsp = NULL;
 	struct cifs_ses *ses = tcon->ses;
 	struct kvec iov[1];
 	struct kvec rsp_iov;
 	int resp_buftype;
 	int rc = 0;
-	unsigned int total_len;
 
 	cifs_dbg(FYI, "Close\n");
 
 	if (!ses || !(ses->server))
 		return -EIO;
 
-	rc = smb2_plain_req_init(SMB2_CLOSE, tcon, (void **) &req, &total_len);
-	if (rc)
-		return rc;
-
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	req->PersistentFileId = persistent_fid;
-	req->VolatileFileId = volatile_fid;
-
-	iov[0].iov_base = (char *)req;
-	iov[0].iov_len = total_len;
-
 	memset(&rqst, 0, sizeof(struct smb_rqst));
+	memset(&iov, 0, sizeof(iov));
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 1;
 
+	rc = SMB2_close_init(tcon, &rqst, persistent_fid, volatile_fid);
+	if (rc)
+		goto close_exit;
+
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags, &rsp_iov);
-	cifs_small_buf_release(req);
 	rsp = (struct smb2_close_rsp *)rsp_iov.iov_base;
 
 	if (rc != 0) {
@@ -2494,6 +2513,7 @@ SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 	/* BB FIXME - decode close response, update inode for caching */
 
 close_exit:
+	SMB2_close_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }
