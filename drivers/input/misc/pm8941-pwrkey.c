@@ -29,6 +29,7 @@
 
 #define PON_RT_STS			0x10
 #define  PON_KPDPWR_N_SET		BIT(0)
+#define  PON_RESIN_N_SET		BIT(1)
 
 #define PON_PS_HOLD_RST_CTL		0x5a
 #define PON_PS_HOLD_RST_CTL2		0x5b
@@ -39,6 +40,7 @@
 
 #define PON_PULL_CTL			0x70
 #define  PON_KPDPWR_PULL_UP		BIT(1)
+#define  PON_RESIN_PULL_UP		BIT(0)
 
 #define PON_DBC_CTL			0x71
 #define  PON_DBC_DELAY_MASK		0x7
@@ -307,8 +309,14 @@ static const struct pm8941_data pwrkey_data = {
 	.status_bit = PON_KPDPWR_N_SET,
 };
 
+static const struct pm8941_data resin_data = {
+	.pull_up_bit = PON_RESIN_PULL_UP,
+	.status_bit = PON_RESIN_N_SET,
+};
+
 static const struct of_device_id pm8941_pwr_key_id_table[] = {
 	{ .compatible = "qcom,pm8941-pwrkey", .data = &pwrkey_data },
+	{ .compatible = "qcom,pm8941-resin", .data = &resin_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pm8941_pwr_key_id_table);
