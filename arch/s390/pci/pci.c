@@ -285,7 +285,7 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 	struct zpci_dev *zdev =	to_zpci(pdev);
 	int idx;
 
-	if (!pci_resource_len(pdev, bar))
+	if (!pci_resource_len(pdev, bar) || bar >= PCI_BAR_COUNT)
 		return NULL;
 
 	idx = zdev->bars[bar].map_idx;
