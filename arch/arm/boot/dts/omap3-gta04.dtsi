@@ -505,6 +505,7 @@
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
 	ti,non-removable;
+	broken-cd;	/* hardware has no CD */
 };
 
 &mmc2 {
