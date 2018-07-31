@@ -4215,7 +4215,7 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct bpf_prog *old_prog;
 	bool reset, was_opened;
-	int err;
+	int err = 0;
 	int i;
 
 	mutex_lock(&priv->state_lock);
