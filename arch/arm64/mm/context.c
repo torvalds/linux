@@ -196,6 +196,9 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 	unsigned long flags;
 	u64 asid, old_active_asid;
 
+	if (system_supports_cnp())
+		cpu_set_reserved_ttbr0();
+
 	asid = atomic64_read(&mm->context.id);
 
 	/*
