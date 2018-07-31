@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -191,7 +192,7 @@ int test_memcmp(void *s1, void *s2, int n, int offset, char *test_name)
  */
 int do_test(char *test_name, void (*test_func)(char *, char *))
 {
-	int offset, width, fd, rc = 0, r;
+	int offset, width, fd, rc, r;
 	void *mem0, *mem1, *ci0, *ci1;
 
 	printf("\tDoing %s:\t", test_name);
@@ -199,8 +200,8 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 	fd = open("/dev/fb0", O_RDWR);
 	if (fd < 0) {
 		printf("\n");
-		perror("Can't open /dev/fb0");
-		SKIP_IF(1);
+		perror("Can't open /dev/fb0 now?");
+		return 1;
 	}
 
 	ci0 = mmap(NULL, bufsize, PROT_WRITE, MAP_SHARED,
@@ -226,6 +227,7 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 		return rc;
 	}
 
+	rc = 0;
 	/* offset = 0 no alignment fault, so skip */
 	for (offset = 1; offset < 16; offset++) {
 		width = 16; /* vsx == 16 bytes */
@@ -244,31 +246,49 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 		r |= test_memcpy(mem1, mem0, width, offset, test_func);
 		if (r && !debug) {
 			printf("FAILED: Got signal");
+			rc = 1;
 			break;
 		}
 
 		r |= test_memcmp(mem1, ci1, width, offset, test_name);
-		rc |= r;
 		if (r && !debug) {
 			printf("FAILED: Wrong Data");
+			rc = 1;
 			break;
 		}
 	}
-	if (!r)
+
+	if (rc == 0)
 		printf("PASSED");
+
 	printf("\n");
 
 	munmap(ci0, bufsize);
 	munmap(ci1, bufsize);
 	free(mem0);
 	free(mem1);
+	close(fd);
 
 	return rc;
+}
+
+static bool can_open_fb0(void)
+{
+	int fd;
+
+	fd = open("/dev/fb0", O_RDWR);
+	if (fd < 0)
+		return false;
+
+	close(fd);
+	return true;
 }
 
 int test_alignment_handler_vsx_206(void)
 {
 	int rc = 0;
+
+	SKIP_IF(!can_open_fb0());
 
 	printf("VSX: 2.06B\n");
 	LOAD_VSX_XFORM_TEST(lxvd2x);
@@ -285,6 +305,8 @@ int test_alignment_handler_vsx_207(void)
 {
 	int rc = 0;
 
+	SKIP_IF(!can_open_fb0());
+
 	printf("VSX: 2.07B\n");
 	LOAD_VSX_XFORM_TEST(lxsspx);
 	LOAD_VSX_XFORM_TEST(lxsiwax);
@@ -297,6 +319,8 @@ int test_alignment_handler_vsx_207(void)
 int test_alignment_handler_vsx_300(void)
 {
 	int rc = 0;
+
+	SKIP_IF(!can_open_fb0());
 
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_3_00));
 	printf("VSX: 3.00B\n");
@@ -327,6 +351,8 @@ int test_alignment_handler_vsx_300(void)
 int test_alignment_handler_integer(void)
 {
 	int rc = 0;
+
+	SKIP_IF(!can_open_fb0());
 
 	printf("Integer\n");
 	LOAD_DFORM_TEST(lbz);
@@ -383,6 +409,8 @@ int test_alignment_handler_vmx(void)
 {
 	int rc = 0;
 
+	SKIP_IF(!can_open_fb0());
+
 	printf("VMX\n");
 	LOAD_VMX_XFORM_TEST(lvx);
 
@@ -407,6 +435,8 @@ int test_alignment_handler_vmx(void)
 int test_alignment_handler_fp(void)
 {
 	int rc = 0;
+
+	SKIP_IF(!can_open_fb0());
 
 	printf("Floating point\n");
 	LOAD_FLOAT_DFORM_TEST(lfd);
