@@ -115,7 +115,7 @@ static int ssb_extpci_read_config(struct ssb_pcicore *pc,
 	u32 addr, val;
 	void __iomem *mmio;
 
-	SSB_WARN_ON(!pc->hostmode);
+	WARN_ON(!pc->hostmode);
 	if (unlikely(len != 1 && len != 2 && len != 4))
 		goto out;
 	addr = get_cfgspace_addr(pc, bus, dev, func, off);
@@ -161,7 +161,7 @@ static int ssb_extpci_write_config(struct ssb_pcicore *pc,
 	u32 addr, val = 0;
 	void __iomem *mmio;
 
-	SSB_WARN_ON(!pc->hostmode);
+	WARN_ON(!pc->hostmode);
 	if (unlikely(len != 1 && len != 2 && len != 4))
 		goto out;
 	addr = get_cfgspace_addr(pc, bus, dev, func, off);
@@ -702,7 +702,7 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 		/* Calculate the "coremask" for the device. */
 		coremask = (1 << dev->core_index);
 
-		SSB_WARN_ON(bus->bustype != SSB_BUSTYPE_PCI);
+		WARN_ON(bus->bustype != SSB_BUSTYPE_PCI);
 		err = pci_read_config_dword(bus->host_pci, SSB_PCI_IRQMASK, &tmp);
 		if (err)
 			goto out;

@@ -128,7 +128,7 @@ static void ssb_pmu0_pllinit_r0(struct ssb_chipcommon *cc,
 			      ~(1 << SSB_PMURES_5354_BB_PLL_PU));
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 	for (i = 1500; i; i--) {
 		tmp = chipco_read32(cc, SSB_CHIPCO_CLKCTLST);
@@ -265,7 +265,7 @@ static void ssb_pmu1_pllinit_r0(struct ssb_chipcommon *cc,
 		buffer_strength = 0x222222;
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 	for (i = 1500; i; i--) {
 		tmp = chipco_read32(cc, SSB_CHIPCO_CLKCTLST);
@@ -501,7 +501,7 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 					      ~(depend_tab[i].depend));
 				break;
 			default:
-				SSB_WARN_ON(1);
+				WARN_ON(1);
 			}
 		}
 	}
@@ -568,12 +568,12 @@ void ssb_pmu_set_ldo_voltage(struct ssb_chipcommon *cc,
 			mask = 0x3F;
 			break;
 		default:
-			SSB_WARN_ON(1);
+			WARN_ON(1);
 			return;
 		}
 		break;
 	case 0x4312:
-		if (SSB_WARN_ON(id != LDO_PAREF))
+		if (WARN_ON(id != LDO_PAREF))
 			return;
 		addr = 0;
 		shift = 21;

@@ -77,7 +77,7 @@ u32 ssb_gpio_in(struct ssb_bus *bus, u32 mask)
 	else if (ssb_extif_available(&bus->extif))
 		res = ssb_extif_gpio_in(&bus->extif, mask);
 	else
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	spin_unlock_irqrestore(&bus->gpio_lock, flags);
 
 	return res;
@@ -95,7 +95,7 @@ u32 ssb_gpio_out(struct ssb_bus *bus, u32 mask, u32 value)
 	else if (ssb_extif_available(&bus->extif))
 		res = ssb_extif_gpio_out(&bus->extif, mask, value);
 	else
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	spin_unlock_irqrestore(&bus->gpio_lock, flags);
 
 	return res;
@@ -113,7 +113,7 @@ u32 ssb_gpio_outen(struct ssb_bus *bus, u32 mask, u32 value)
 	else if (ssb_extif_available(&bus->extif))
 		res = ssb_extif_gpio_outen(&bus->extif, mask, value);
 	else
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	spin_unlock_irqrestore(&bus->gpio_lock, flags);
 
 	return res;
@@ -145,7 +145,7 @@ u32 ssb_gpio_intmask(struct ssb_bus *bus, u32 mask, u32 value)
 	else if (ssb_extif_available(&bus->extif))
 		res = ssb_extif_gpio_intmask(&bus->extif, mask, value);
 	else
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	spin_unlock_irqrestore(&bus->gpio_lock, flags);
 
 	return res;
@@ -163,7 +163,7 @@ u32 ssb_gpio_polarity(struct ssb_bus *bus, u32 mask, u32 value)
 	else if (ssb_extif_available(&bus->extif))
 		res = ssb_extif_gpio_polarity(&bus->extif, mask, value);
 	else
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	spin_unlock_irqrestore(&bus->gpio_lock, flags);
 
 	return res;

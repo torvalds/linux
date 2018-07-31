@@ -461,7 +461,7 @@ int ssb_gpio_init(struct ssb_bus *bus)
 	else if (ssb_extif_available(&bus->extif))
 		return ssb_gpio_extif_init(bus);
 	else
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 
 	return -1;
 }
@@ -473,7 +473,7 @@ int ssb_gpio_unregister(struct ssb_bus *bus)
 		gpiochip_remove(&bus->gpio);
 		return 0;
 	} else {
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 
 	return -1;

@@ -89,15 +89,6 @@ config SSB_HOST_SOC
 
 	  If unsure, say N
 
-config SSB_DEBUG
-	bool "SSB debugging"
-	depends on SSB
-	help
-	  This turns on additional runtime checks and debugging
-	  messages. Turn this on for SSB troubleshooting.
-
-	  If unsure, say N
-
 config SSB_SERIAL
 	bool
 	depends on SSB

@@ -9,15 +9,6 @@
 #include <linux/types.h>
 #include <linux/bcm47xx_wdt.h>
 
-#ifdef CONFIG_SSB_DEBUG
-# define SSB_WARN_ON(x)		WARN_ON(x)
-# define SSB_BUG_ON(x)		BUG_ON(x)
-#else
-static inline int __ssb_do_nothing(int x) { return x; }
-# define SSB_WARN_ON(x)		__ssb_do_nothing(unlikely(!!(x)))
-# define SSB_BUG_ON(x)		__ssb_do_nothing(unlikely(!!(x)))
-#endif
-
 
 /* pci.c */
 #ifdef CONFIG_SSB_PCIHOST

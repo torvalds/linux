@@ -316,18 +316,18 @@ static void ssb_sdio_block_read(struct ssb_device *dev, void *buffer,
 		break;
 	}
 	case sizeof(u16): {
-		SSB_WARN_ON(count & 1);
+		WARN_ON(count & 1);
 		error = sdio_readsb(bus->host_sdio, buffer, offset, count);
 		break;
 	}
 	case sizeof(u32): {
-		SSB_WARN_ON(count & 3);
+		WARN_ON(count & 3);
 		offset |= SBSDIO_SB_ACCESS_2_4B_FLAG;	/* 32 bit data access */
 		error = sdio_readsb(bus->host_sdio, buffer, offset, count);
 		break;
 	}
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 	if (!error)
 		goto out;
@@ -423,18 +423,18 @@ static void ssb_sdio_block_write(struct ssb_device *dev, const void *buffer,
 				     (void *)buffer, count);
 		break;
 	case sizeof(u16):
-		SSB_WARN_ON(count & 1);
+		WARN_ON(count & 1);
 		error = sdio_writesb(bus->host_sdio, offset,
 				     (void *)buffer, count);
 		break;
 	case sizeof(u32):
-		SSB_WARN_ON(count & 3);
+		WARN_ON(count & 3);
 		offset |= SBSDIO_SB_ACCESS_2_4B_FLAG;	/* 32 bit data access */
 		error = sdio_writesb(bus->host_sdio, offset,
 				     (void *)buffer, count);
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 	if (!error)
 		goto out;

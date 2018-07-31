@@ -56,7 +56,7 @@ void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 
 	if (cc->capabilities & SSB_CHIPCO_CAP_PMU)
 		return; /* PMU controls clockmode, separated function needed */
-	SSB_WARN_ON(ccdev->id.revision >= 20);
+	WARN_ON(ccdev->id.revision >= 20);
 
 	/* chipcommon cores prior to rev6 don't support dynamic clock control */
 	if (ccdev->id.revision < 6)
@@ -111,7 +111,7 @@ void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 		}
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 }
 
@@ -164,7 +164,7 @@ static int chipco_pctl_clockfreqlimit(struct ssb_chipcommon *cc, int get_max)
 			divisor = 32;
 			break;
 		default:
-			SSB_WARN_ON(1);
+			WARN_ON(1);
 		}
 	} else if (cc->dev->id.revision < 10) {
 		switch (clocksrc) {
@@ -277,7 +277,7 @@ static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 	minfreq = chipco_pctl_clockfreqlimit(cc, 0);
 	pll_on_delay = chipco_read32(cc, SSB_CHIPCO_PLLONDELAY);
 	tmp = (((pll_on_delay + 2) * 1000000) + (minfreq - 1)) / minfreq;
-	SSB_WARN_ON(tmp & ~0xFFFF);
+	WARN_ON(tmp & ~0xFFFF);
 
 	cc->fast_pwrup_delay = tmp;
 }

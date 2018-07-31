@@ -169,7 +169,7 @@ int ssb_pcmcia_switch_segment(struct ssb_bus *bus, u8 seg)
 	int err;
 	u8 val;
 
-	SSB_WARN_ON((seg != 0) && (seg != 1));
+	WARN_ON((seg != 0) && (seg != 1));
 	while (1) {
 		err = ssb_pcmcia_cfg_write(bus, SSB_PCMCIA_MEMSEG, seg);
 		if (err)
@@ -299,7 +299,7 @@ static void ssb_pcmcia_block_read(struct ssb_device *dev, void *buffer,
 	case sizeof(u16): {
 		__le16 *buf = buffer;
 
-		SSB_WARN_ON(count & 1);
+		WARN_ON(count & 1);
 		while (count) {
 			*buf = (__force __le16)__raw_readw(addr);
 			buf++;
@@ -310,7 +310,7 @@ static void ssb_pcmcia_block_read(struct ssb_device *dev, void *buffer,
 	case sizeof(u32): {
 		__le16 *buf = buffer;
 
-		SSB_WARN_ON(count & 3);
+		WARN_ON(count & 3);
 		while (count) {
 			*buf = (__force __le16)__raw_readw(addr);
 			buf++;
@@ -321,7 +321,7 @@ static void ssb_pcmcia_block_read(struct ssb_device *dev, void *buffer,
 		break;
 	}
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 unlock:
 	spin_unlock_irqrestore(&bus->bar_lock, flags);
@@ -399,7 +399,7 @@ static void ssb_pcmcia_block_write(struct ssb_device *dev, const void *buffer,
 	case sizeof(u16): {
 		const __le16 *buf = buffer;
 
-		SSB_WARN_ON(count & 1);
+		WARN_ON(count & 1);
 		while (count) {
 			__raw_writew((__force u16)(*buf), addr);
 			buf++;
@@ -410,7 +410,7 @@ static void ssb_pcmcia_block_write(struct ssb_device *dev, const void *buffer,
 	case sizeof(u32): {
 		const __le16 *buf = buffer;
 
-		SSB_WARN_ON(count & 3);
+		WARN_ON(count & 3);
 		while (count) {
 			__raw_writew((__force u16)(*buf), addr);
 			buf++;
@@ -421,7 +421,7 @@ static void ssb_pcmcia_block_write(struct ssb_device *dev, const void *buffer,
 		break;
 	}
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 unlock:
 	mmiowb();

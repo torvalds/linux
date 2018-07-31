@@ -209,7 +209,7 @@ int ssb_devices_freeze(struct ssb_bus *bus, struct ssb_freeze_context *ctx)
 
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->bus = bus;
-	SSB_WARN_ON(bus->nr_devices > ARRAY_SIZE(ctx->device_frozen));
+	WARN_ON(bus->nr_devices > ARRAY_SIZE(ctx->device_frozen));
 
 	for (i = 0; i < bus->nr_devices; i++) {
 		sdev = ssb_device_get(&bus->devices[i]);
@@ -220,7 +220,7 @@ int ssb_devices_freeze(struct ssb_bus *bus, struct ssb_freeze_context *ctx)
 			continue;
 		}
 		sdrv = drv_to_ssb_drv(sdev->dev->driver);
-		if (SSB_WARN_ON(!sdrv->remove))
+		if (WARN_ON(!sdrv->remove))
 			continue;
 		sdrv->remove(sdev);
 		ctx->device_frozen[i] = 1;
@@ -248,10 +248,10 @@ int ssb_devices_thaw(struct ssb_freeze_context *ctx)
 			continue;
 		sdev = &bus->devices[i];
 
-		if (SSB_WARN_ON(!sdev->dev || !sdev->dev->driver))
+		if (WARN_ON(!sdev->dev || !sdev->dev->driver))
 			continue;
 		sdrv = drv_to_ssb_drv(sdev->dev->driver);
-		if (SSB_WARN_ON(!sdrv || !sdrv->probe))
+		if (WARN_ON(!sdrv || !sdrv->probe))
 			continue;
 
 		err = sdrv->probe(sdev, &sdev->id);
@@ -861,13 +861,13 @@ u32 ssb_calc_clock_rate(u32 plltype, u32 n, u32 m)
 	case SSB_PLLTYPE_2: /* 48Mhz, 4 dividers */
 		n1 += SSB_CHIPCO_CLK_T2_BIAS;
 		n2 += SSB_CHIPCO_CLK_T2_BIAS;
-		SSB_WARN_ON(!((n1 >= 2) && (n1 <= 7)));
-		SSB_WARN_ON(!((n2 >= 5) && (n2 <= 23)));
+		WARN_ON(!((n1 >= 2) && (n1 <= 7)));
+		WARN_ON(!((n2 >= 5) && (n2 <= 23)));
 		break;
 	case SSB_PLLTYPE_5: /* 25Mhz, 4 dividers */
 		return 100000000;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 
 	switch (plltype) {
@@ -916,9 +916,9 @@ u32 ssb_calc_clock_rate(u32 plltype, u32 n, u32 m)
 		m1 += SSB_CHIPCO_CLK_T2_BIAS;
 		m2 += SSB_CHIPCO_CLK_T2M2_BIAS;
 		m3 += SSB_CHIPCO_CLK_T2_BIAS;
-		SSB_WARN_ON(!((m1 >= 2) && (m1 <= 7)));
-		SSB_WARN_ON(!((m2 >= 3) && (m2 <= 10)));
-		SSB_WARN_ON(!((m3 >= 2) && (m3 <= 7)));
+		WARN_ON(!((m1 >= 2) && (m1 <= 7)));
+		WARN_ON(!((m2 >= 3) && (m2 <= 10)));
+		WARN_ON(!((m3 >= 2) && (m3 <= 7)));
 
 		if (!(mc & SSB_CHIPCO_CLK_T2MC_M1BYP))
 			clock /= m1;
@@ -928,7 +928,7 @@ u32 ssb_calc_clock_rate(u32 plltype, u32 n, u32 m)
 			clock /= m3;
 		return clock;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 	return 0;
 }
@@ -1169,9 +1169,7 @@ int ssb_bus_may_powerdown(struct ssb_bus *bus)
 	if (err)
 		goto error;
 out:
-#ifdef CONFIG_SSB_DEBUG
 	bus->powered_up = 0;
-#endif
 	return err;
 error:
 	pr_err("Bus powerdown failed\n");
@@ -1188,9 +1186,7 @@ int ssb_bus_powerup(struct ssb_bus *bus, bool dynamic_pctl)
 	if (err)
 		goto error;
 
-#ifdef CONFIG_SSB_DEBUG
 	bus->powered_up = 1;
-#endif
 
 	mode = dynamic_pctl ? SSB_CLKMODE_DYNAMIC : SSB_CLKMODE_FAST;
 	ssb_chipco_set_clockmode(&bus->chipco, mode);
@@ -1242,15 +1238,15 @@ u32 ssb_admatch_base(u32 adm)
 		base = (adm & SSB_ADM_BASE0);
 		break;
 	case SSB_ADM_TYPE1:
-		SSB_WARN_ON(adm & SSB_ADM_NEG); /* unsupported */
+		WARN_ON(adm & SSB_ADM_NEG); /* unsupported */
 		base = (adm & SSB_ADM_BASE1);
 		break;
 	case SSB_ADM_TYPE2:
-		SSB_WARN_ON(adm & SSB_ADM_NEG); /* unsupported */
+		WARN_ON(adm & SSB_ADM_NEG); /* unsupported */
 		base = (adm & SSB_ADM_BASE2);
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 
 	return base;
@@ -1266,15 +1262,15 @@ u32 ssb_admatch_size(u32 adm)
 		size = ((adm & SSB_ADM_SZ0) >> SSB_ADM_SZ0_SHIFT);
 		break;
 	case SSB_ADM_TYPE1:
-		SSB_WARN_ON(adm & SSB_ADM_NEG); /* unsupported */
+		WARN_ON(adm & SSB_ADM_NEG); /* unsupported */
 		size = ((adm & SSB_ADM_SZ1) >> SSB_ADM_SZ1_SHIFT);
 		break;
 	case SSB_ADM_TYPE2:
-		SSB_WARN_ON(adm & SSB_ADM_NEG); /* unsupported */
+		WARN_ON(adm & SSB_ADM_NEG); /* unsupported */
 		size = ((adm & SSB_ADM_SZ2) >> SSB_ADM_SZ2_SHIFT);
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 	size = (1 << (size + 1));
 

@@ -946,7 +946,6 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_SSB_DEBUG
 static int ssb_pci_assert_buspower(struct ssb_bus *bus)
 {
 	if (likely(bus->powered_up))
@@ -960,12 +959,6 @@ static int ssb_pci_assert_buspower(struct ssb_bus *bus)
 
 	return -ENODEV;
 }
-#else /* DEBUG */
-static inline int ssb_pci_assert_buspower(struct ssb_bus *bus)
-{
-	return 0;
-}
-#endif /* DEBUG */
 
 static u8 ssb_pci_read8(struct ssb_device *dev, u16 offset)
 {
@@ -1024,15 +1017,15 @@ static void ssb_pci_block_read(struct ssb_device *dev, void *buffer,
 		ioread8_rep(addr, buffer, count);
 		break;
 	case sizeof(u16):
-		SSB_WARN_ON(count & 1);
+		WARN_ON(count & 1);
 		ioread16_rep(addr, buffer, count >> 1);
 		break;
 	case sizeof(u32):
-		SSB_WARN_ON(count & 3);
+		WARN_ON(count & 3);
 		ioread32_rep(addr, buffer, count >> 2);
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 
 	return;
@@ -1098,15 +1091,15 @@ static void ssb_pci_block_write(struct ssb_device *dev, const void *buffer,
 		iowrite8_rep(addr, buffer, count);
 		break;
 	case sizeof(u16):
-		SSB_WARN_ON(count & 1);
+		WARN_ON(count & 1);
 		iowrite16_rep(addr, buffer, count >> 1);
 		break;
 	case sizeof(u32):
-		SSB_WARN_ON(count & 3);
+		WARN_ON(count & 3);
 		iowrite32_rep(addr, buffer, count >> 2);
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 }
 #endif /* CONFIG_SSB_BLOCKIO */

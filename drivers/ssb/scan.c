@@ -210,7 +210,7 @@ void ssb_iounmap(struct ssb_bus *bus)
 #ifdef CONFIG_SSB_PCIHOST
 		pci_iounmap(bus->host_pci, bus->mmio);
 #else
-		SSB_BUG_ON(1); /* Can't reach this code. */
+		WARN_ON(1); /* Can't reach this code. */
 #endif
 		break;
 	case SSB_BUSTYPE_SDIO:
@@ -236,7 +236,7 @@ static void __iomem *ssb_ioremap(struct ssb_bus *bus,
 #ifdef CONFIG_SSB_PCIHOST
 		mmio = pci_iomap(bus->host_pci, 0, ~0UL);
 #else
-		SSB_BUG_ON(1); /* Can't reach this code. */
+		WARN_ON(1); /* Can't reach this code. */
 #endif
 		break;
 	case SSB_BUSTYPE_SDIO:
