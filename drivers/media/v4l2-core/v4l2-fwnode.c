@@ -301,6 +301,12 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	u32 bus_type = 0;
 	int rval;
 
+	if (vep->bus_type == V4L2_MBUS_UNKNOWN) {
+		/* Zero fields from bus union to until the end */
+		memset(&vep->bus, 0,
+		       sizeof(*vep) - offsetof(typeof(*vep), bus));
+	}
+
 	pr_debug("===== begin V4L2 endpoint properties\n");
 
 	/*
@@ -308,10 +314,6 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	 * the endpoint.
 	 */
 	memset(&vep->base, 0, sizeof(vep->base));
-
-	/* Zero fields from bus_type to until the end */
-	memset(&vep->bus_type, 0, sizeof(*vep) -
-	       offsetof(typeof(*vep), bus_type));
 
 	fwnode_property_read_u32(fwnode, "bus-type", &bus_type);
 
