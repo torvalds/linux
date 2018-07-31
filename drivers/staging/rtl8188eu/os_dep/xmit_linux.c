@@ -19,7 +19,7 @@ int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitb
 	int i;
 
 	pxmitbuf->pallocated_buf = kzalloc(alloc_sz, GFP_KERNEL);
-	if (pxmitbuf->pallocated_buf == NULL)
+	if (!pxmitbuf->pallocated_buf)
 		return _FAIL;
 
 	pxmitbuf->pbuf = PTR_ALIGN(pxmitbuf->pallocated_buf, XMITBUF_ALIGN_SZ);

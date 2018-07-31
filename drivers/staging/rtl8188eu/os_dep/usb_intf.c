@@ -325,7 +325,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	int status = _FAIL;
 
 	padapter = vzalloc(sizeof(*padapter));
-	if (padapter == NULL)
+	if (!padapter)
 		goto exit;
 	padapter->dvobj = dvobj;
 	dvobj->if1 = padapter;
@@ -334,14 +334,14 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	mutex_init(&padapter->hw_init_mutex);
 
 	pnetdev = rtw_init_netdev(padapter);
-	if (pnetdev == NULL)
+	if (!pnetdev)
 		goto free_adapter;
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
 
 	if (padapter->registrypriv.monitor_enable) {
 		pmondev = rtl88eu_mon_init();
-		if (pmondev == NULL)
+		if (!pmondev)
 			netdev_warn(pnetdev, "Failed to initialize monitor interface");
 		padapter->pmondev = pmondev;
 	}
