@@ -11,6 +11,8 @@
 #include <linux/slab.h>
 #include <linux/bpf.h>
 #include <linux/mm.h>
+#include <linux/netdevice.h>
+#include <linux/rtnetlink.h>
 
 #include "xdp_umem.h"
 #include "xsk_queue.h"
@@ -40,6 +42,21 @@ void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 	}
 }
 
+int xdp_umem_query(struct net_device *dev, u16 queue_id)
+{
+	struct netdev_bpf bpf;
+
+	ASSERT_RTNL();
+
+	memset(&bpf, 0, sizeof(bpf));
+	bpf.command = XDP_QUERY_XSK_UMEM;
+	bpf.xsk.queue_id = queue_id;
+
+	if (!dev->netdev_ops->ndo_bpf)
+		return 0;
+	return dev->netdev_ops->ndo_bpf(dev, &bpf) ?: !!bpf.xsk.umem;
+}
+
 int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 			u32 queue_id, u16 flags)
 {
@@ -62,28 +79,30 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	bpf.command = XDP_QUERY_XSK_UMEM;
 
 	rtnl_lock();
-	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
-	rtnl_unlock();
-
-	if (err)
-		return force_zc ? -ENOTSUPP : 0;
+	err = xdp_umem_query(dev, queue_id);
+	if (err) {
+		err = err < 0 ? -ENOTSUPP : -EBUSY;
+		goto err_rtnl_unlock;
+	}
 
 	bpf.command = XDP_SETUP_XSK_UMEM;
 	bpf.xsk.umem = umem;
 	bpf.xsk.queue_id = queue_id;
 
-	rtnl_lock();
 	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
-	rtnl_unlock();
-
 	if (err)
-		return force_zc ? err : 0; /* fail or fallback */
+		goto err_rtnl_unlock;
+	rtnl_unlock();
 
 	dev_hold(dev);
 	umem->dev = dev;
 	umem->queue_id = queue_id;
 	umem->zc = true;
 	return 0;
+
+err_rtnl_unlock:
+	rtnl_unlock();
+	return force_zc ? err : 0; /* fail or fallback */
 }
 
 static void xdp_umem_clear_dev(struct xdp_umem *umem)
