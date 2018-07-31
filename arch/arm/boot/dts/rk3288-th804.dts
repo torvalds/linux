@@ -575,14 +575,36 @@
 	status = "okay";
 };
 
-&route_dsi0 {
+&dsi0_in_vopl {
+	status = "disabled";
+};
+
+&dsi0_in_vopb {
 	status = "okay";
+};
+
+&route_dsi0 {
+	connect = <&vopb_out_dsi0>;
+	status = "okay";
+};
+
+&hdmi_in_vopl {
+	status = "okay";
+};
+
+&hdmi_in_vopb {
+	status = "disabled";
 };
 
 &hdmi {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&route_hdmi {
+	connect = <&vopl_out_hdmi>;
 	status = "okay";
 };
 
