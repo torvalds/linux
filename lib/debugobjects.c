@@ -1188,8 +1188,7 @@ void __init debug_objects_mem_init(void)
 
 	if (!obj_cache || debug_objects_replace_static_objects()) {
 		debug_objects_enabled = 0;
-		if (obj_cache)
-			kmem_cache_destroy(obj_cache);
+		kmem_cache_destroy(obj_cache);
 		pr_warn("out of memory.\n");
 	} else
 		debug_objects_selftest();
