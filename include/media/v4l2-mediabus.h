@@ -70,6 +70,7 @@
 
 /**
  * enum v4l2_mbus_type - media bus type
+ * @V4L2_MBUS_UNKNOWN:	unknown bus type, no V4L2 mediabus configuration
  * @V4L2_MBUS_PARALLEL:	parallel interface with hsync and vsync
  * @V4L2_MBUS_BT656:	parallel interface with embedded synchronisation, can
  *			also be used for BT.1120
@@ -79,6 +80,7 @@
  * @V4L2_MBUS_CSI2_CPHY: MIPI CSI-2 serial interface, with C-PHY
  */
 enum v4l2_mbus_type {
+	V4L2_MBUS_UNKNOWN,
 	V4L2_MBUS_PARALLEL,
 	V4L2_MBUS_BT656,
 	V4L2_MBUS_CSI1,

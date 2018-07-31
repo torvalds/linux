@@ -114,8 +114,11 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		flags |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	}
 
-	bus->flags = flags;
-	vep->bus_type = V4L2_MBUS_CSI2_DPHY;
+	if (lanes_used || have_clk_lane ||
+	    (flags & ~V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)) {
+		bus->flags = flags;
+		vep->bus_type = V4L2_MBUS_CSI2_DPHY;
+	}
 
 	return 0;
 }
@@ -144,11 +147,6 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 			V4L2_MBUS_FIELD_EVEN_LOW;
 		pr_debug("field-even-active %s\n", v ? "high" : "low");
 	}
-
-	if (flags)
-		vep->bus_type = V4L2_MBUS_PARALLEL;
-	else
-		vep->bus_type = V4L2_MBUS_BT656;
 
 	if (!fwnode_property_read_u32(fwnode, "pclk-sample", &v)) {
 		flags |= v ? V4L2_MBUS_PCLK_SAMPLE_RISING :
@@ -192,13 +190,21 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 	}
 
 	bus->flags = flags;
-
+	if (flags & (V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+		     V4L2_MBUS_HSYNC_ACTIVE_LOW |
+		     V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+		     V4L2_MBUS_VSYNC_ACTIVE_LOW |
+		     V4L2_MBUS_FIELD_EVEN_HIGH |
+		     V4L2_MBUS_FIELD_EVEN_LOW))
+		vep->bus_type = V4L2_MBUS_PARALLEL;
+	else
+		vep->bus_type = V4L2_MBUS_BT656;
 }
 
 static void
 v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
 				    struct v4l2_fwnode_endpoint *vep,
-				    u32 bus_type)
+				    enum v4l2_fwnode_bus_type bus_type)
 {
 	struct v4l2_fwnode_bus_mipi_csi1 *bus = &vep->bus.mipi_csi1;
 	u32 v;
@@ -250,11 +256,8 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep);
 		if (rval)
 			return rval;
-		/*
-		 * Parse the parallel video bus properties only if none
-		 * of the MIPI CSI-2 specific properties were found.
-		 */
-		if (vep->bus.mipi_csi2.flags == 0)
+
+		if (vep->bus_type == V4L2_MBUS_UNKNOWN)
 			v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep);
 
 		break;
