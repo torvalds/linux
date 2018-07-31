@@ -53,21 +53,21 @@ struct qos_tsinfo {
  */
 struct tspec_body {
 	struct qos_tsinfo	ts_info;	//u8	TSInfo[3];
-	u16	NominalMSDUsize;
-	u16	MaxMSDUsize;
-	u32	MinServiceItv;
-	u32	MaxServiceItv;
-	u32	InactivityItv;
-	u32	SuspenItv;
-	u32	ServiceStartTime;
-	u32	MinDataRate;
-	u32	MeanDataRate;
-	u32	PeakDataRate;
-	u32	MaxBurstSize;
-	u32	DelayBound;
-	u32	MinPhyRate;
-	u16	SurplusBandwidthAllowance;
-	u16	MediumTime;
+	u16	nominal_msd_usize;
+	u16	max_msd_usize;
+	u32	min_service_itv;
+	u32	max_service_itv;
+	u32	inactivity_itv;
+	u32	suspen_itv;
+	u32	service_start_time;
+	u32	min_data_rate;
+	u32	mean_data_rate;
+	u32	peak_data_rate;
+	u32	max_burst_size;
+	u32	delay_bound;
+	u32	min_phy_rate;
+	u16	surplus_bandwidth_allowance;
+	u16	medium_time;
 };
 
 //typedef struct _TCLASS{
