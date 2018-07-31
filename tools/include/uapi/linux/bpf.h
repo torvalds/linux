@@ -1371,6 +1371,20 @@ union bpf_attr {
  * 		A 8-byte long non-decreasing number on success, or 0 if the
  * 		socket field is missing inside *skb*.
  *
+ * u64 bpf_get_socket_cookie(struct bpf_sock_addr *ctx)
+ * 	Description
+ * 		Equivalent to bpf_get_socket_cookie() helper that accepts
+ * 		*skb*, but gets socket from **struct bpf_sock_addr** contex.
+ * 	Return
+ * 		A 8-byte long non-decreasing number.
+ *
+ * u64 bpf_get_socket_cookie(struct bpf_sock_ops *ctx)
+ * 	Description
+ * 		Equivalent to bpf_get_socket_cookie() helper that accepts
+ * 		*skb*, but gets socket from **struct bpf_sock_ops** contex.
+ * 	Return
+ * 		A 8-byte long non-decreasing number.
+ *
  * u32 bpf_get_socket_uid(struct sk_buff *skb)
  * 	Return
  * 		The owner UID of the socket associated to *skb*. If the socket
