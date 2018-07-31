@@ -8,14 +8,14 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/export.h>
 #include <linux/ssb/ssb.h>
-
-#include "ssb_private.h"
 
 
 /**************************************************

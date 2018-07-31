@@ -9,6 +9,8 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/ssb/ssb.h>
@@ -16,8 +18,6 @@
 #include <linux/ssb/ssb_driver_pci.h>
 #include <linux/ssb/ssb_driver_gige.h>
 #include <linux/pci.h>
-
-#include "ssb_private.h"
 
 
 int ssb_watchdog_timer_set(struct ssb_bus *bus, u32 ticks)
@@ -57,8 +57,8 @@ int ssb_watchdog_register(struct ssb_bus *bus)
 					     bus->busnumber, &wdt,
 					     sizeof(wdt));
 	if (IS_ERR(pdev)) {
-		ssb_dbg("can not register watchdog device, err: %li\n",
-			PTR_ERR(pdev));
+		pr_debug("can not register watchdog device, err: %li\n",
+			 PTR_ERR(pdev));
 		return PTR_ERR(pdev);
 	}
 

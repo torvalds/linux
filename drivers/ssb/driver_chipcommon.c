@@ -9,13 +9,13 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_regs.h>
 #include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/bcm47xx_wdt.h>
-
-#include "ssb_private.h"
 
 
 /* Clock sources */
@@ -354,7 +354,7 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 
 	if (cc->dev->id.revision >= 11)
 		cc->status = chipco_read32(cc, SSB_CHIPCO_CHIPSTAT);
-	ssb_dbg("chipcommon status is 0x%x\n", cc->status);
+	dev_dbg(cc->dev->dev, "chipcommon status is 0x%x\n", cc->status);
 
 	if (cc->dev->id.revision >= 20) {
 		chipco_write32(cc, SSB_CHIPCO_GPIOPULLUP, 0);

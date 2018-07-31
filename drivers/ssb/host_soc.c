@@ -8,10 +8,10 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/bcm47xx_nvram.h>
 #include <linux/ssb/ssb.h>
-
-#include "ssb_private.h"
 
 static u8 ssb_host_soc_read8(struct ssb_device *dev, u16 offset)
 {
