@@ -280,7 +280,7 @@ int gasket_page_table_init(struct gasket_page_table **ppg_tbl,
 	pg_tbl->extended_offset_reg =
 		(u64 __iomem *)&bar_data->virt_base[page_table_config->extended_reg];
 	pg_tbl->device = get_device(device);
-	pg_tbl->pci_dev = pci_dev_get(pci_dev);
+	pg_tbl->pci_dev = pci_dev;
 
 	dev_dbg(device, "Page table initialized successfully\n");
 
@@ -378,7 +378,6 @@ void gasket_page_table_cleanup(struct gasket_page_table *pg_tbl)
 	pg_tbl->entries = NULL;
 
 	put_device(pg_tbl->device);
-	pci_dev_put(pg_tbl->pci_dev);
 	kfree(pg_tbl);
 }
 
