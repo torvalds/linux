@@ -1857,10 +1857,8 @@ static void complete_cached_srq_buffers(struct c4iw_ep *ep, u32 srqidx_status)
 {
 	enum chip_type adapter_type;
 	u32 srqidx;
-	u8 status;
 
 	adapter_type = ep->com.dev->rdev.lldi.adapter_type;
-	status = ABORT_RSS_STATUS_G(be32_to_cpu(srqidx_status));
 	srqidx = ABORT_RSS_SRQIDX_G(be32_to_cpu(srqidx_status));
 
 	/*
