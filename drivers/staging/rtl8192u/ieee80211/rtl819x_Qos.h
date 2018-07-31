@@ -77,6 +77,6 @@ struct octet_string {
 	u16             length;
 };
 
-#define IsACValid(ac)			((ac <= 7) ? true : false)
+#define is_ac_valid(ac)			(((ac) <= 7) ? true : false)
 
 #endif // #ifndef __INC_QOS_TYPE_H

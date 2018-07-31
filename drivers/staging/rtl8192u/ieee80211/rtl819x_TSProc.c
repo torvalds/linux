@@ -309,7 +309,7 @@ bool GetTs(
 		UP = 0;
 	} else {
 		// In WMM case: we use 4 TID only
-		if (!IsACValid(TID)) {
+		if (!is_ac_valid(TID)) {
 			IEEE80211_DEBUG(IEEE80211_DL_ERR, " in %s(), TID(%d) is not valid\n", __func__, TID);
 			return false;
 		}
