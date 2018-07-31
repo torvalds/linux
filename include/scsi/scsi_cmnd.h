@@ -15,8 +15,6 @@
 struct Scsi_Host;
 struct scsi_driver;
 
-#include <scsi/scsi_device.h>
-
 /*
  * MAX_COMMAND_SIZE is:
  * The longest fixed-length SCSI CDB as per the SCSI standard.
@@ -121,11 +119,11 @@ struct scsi_cmnd {
 	struct request *request;	/* The command we are
 				   	   working on */
 
-#define SCSI_SENSE_BUFFERSIZE 	96
 	unsigned char *sense_buffer;
 				/* obtained by REQUEST SENSE when
 				 * CHECK CONDITION is received on original
-				 * command (auto-sense) */
+				 * command (auto-sense). Length must be
+				 * SCSI_SENSE_BUFFERSIZE bytes. */
 
 	/* Low-level done function - can be used by low-level driver to point
 	 *        to completion function.  Not used by mid/upper level code. */
