@@ -931,7 +931,6 @@ struct cifs_tcon {
 	__u32 tid;		/* The 4 byte tree id */
 	__u16 Flags;		/* optional support bits */
 	enum statusEnum tidStatus;
-#ifdef CONFIG_CIFS_STATS
 	atomic_t num_smbs_sent;
 	union {
 		struct {
@@ -965,7 +964,6 @@ struct cifs_tcon {
 	__u64    bytes_read;
 	__u64    bytes_written;
 	spinlock_t stat_lock;  /* protects the two fields above */
-#endif /* CONFIG_CIFS_STATS */
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
 	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo; /* ok if fs name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
@@ -1331,7 +1329,6 @@ convert_delimiter(char *path, char delim)
 		*pos = delim;
 }
 
-#ifdef CONFIG_CIFS_STATS
 #define cifs_stats_inc atomic_inc
 
 static inline void cifs_stats_bytes_written(struct cifs_tcon *tcon,
@@ -1351,13 +1348,6 @@ static inline void cifs_stats_bytes_read(struct cifs_tcon *tcon,
 	tcon->bytes_read += bytes;
 	spin_unlock(&tcon->stat_lock);
 }
-#else
-
-#define  cifs_stats_inc(field) do {} while (0)
-#define  cifs_stats_bytes_written(tcon, bytes) do {} while (0)
-#define  cifs_stats_bytes_read(tcon, bytes) do {} while (0)
-
-#endif
 
 
 /*

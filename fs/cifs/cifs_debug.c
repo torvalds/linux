@@ -365,7 +365,6 @@ skip_rdma:
 	return 0;
 }
 
-#ifdef CONFIG_CIFS_STATS
 static ssize_t cifs_stats_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
@@ -481,7 +480,6 @@ static const struct file_operations cifs_stats_proc_fops = {
 	.release	= single_release,
 	.write		= cifs_stats_proc_write,
 };
-#endif /* STATS */
 
 #ifdef CONFIG_CIFS_SMB_DIRECT
 #define PROC_FILE_DEFINE(name) \
@@ -539,9 +537,7 @@ cifs_proc_init(void)
 	proc_create_single("DebugData", 0, proc_fs_cifs,
 			cifs_debug_data_proc_show);
 
-#ifdef CONFIG_CIFS_STATS
 	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_fops);
-#endif /* STATS */
 	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_fops);
 	proc_create("traceSMB", 0644, proc_fs_cifs, &traceSMB_proc_fops);
 	proc_create("LinuxExtensionsEnabled", 0644, proc_fs_cifs,
@@ -579,9 +575,7 @@ cifs_proc_clean(void)
 	remove_proc_entry("DebugData", proc_fs_cifs);
 	remove_proc_entry("cifsFYI", proc_fs_cifs);
 	remove_proc_entry("traceSMB", proc_fs_cifs);
-#ifdef CONFIG_CIFS_STATS
 	remove_proc_entry("Stats", proc_fs_cifs);
-#endif
 	remove_proc_entry("SecurityFlags", proc_fs_cifs);
 	remove_proc_entry("LinuxExtensionsEnabled", proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled", proc_fs_cifs);

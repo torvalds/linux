@@ -49,16 +49,9 @@ config CIFS
 
 	  If you need to mount to Samba, Azure, Macs or Windows from this machine, say Y.
 
-config CIFS_STATS
-        bool "CIFS statistics"
-        depends on CIFS
-        help
-          Enabling this option will cause statistics for each server share
-	  mounted by the cifs client to be displayed in /proc/fs/cifs/Stats
-
 config CIFS_STATS2
 	bool "Extended statistics"
-	depends on CIFS_STATS
+	depends on CIFS
 	help
 	  Enabling this option will allow more detailed statistics on SMB
 	  request timing to be displayed in /proc/fs/cifs/DebugData and also

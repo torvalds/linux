@@ -900,13 +900,11 @@ smb2_can_echo(struct TCP_Server_Info *server)
 static void
 smb2_clear_stats(struct cifs_tcon *tcon)
 {
-#ifdef CONFIG_CIFS_STATS
 	int i;
 	for (i = 0; i < NUMBER_OF_SMB2_COMMANDS; i++) {
 		atomic_set(&tcon->stats.smb2_stats.smb2_com_sent[i], 0);
 		atomic_set(&tcon->stats.smb2_stats.smb2_com_failed[i], 0);
 	}
-#endif
 }
 
 static void
@@ -945,7 +943,6 @@ smb2_dump_share_caps(struct seq_file *m, struct cifs_tcon *tcon)
 static void
 smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 {
-#ifdef CONFIG_CIFS_STATS
 	atomic_t *sent = tcon->stats.smb2_stats.smb2_com_sent;
 	atomic_t *failed = tcon->stats.smb2_stats.smb2_com_failed;
 
@@ -995,7 +992,6 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 	seq_printf(m, "\nOplockBreaks: %d sent %d failed",
 		   atomic_read(&sent[SMB2_OPLOCK_BREAK_HE]),
 		   atomic_read(&failed[SMB2_OPLOCK_BREAK_HE]));
-#endif
 }
 
 static void
