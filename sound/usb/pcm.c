@@ -711,6 +711,54 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 	return ret;
 }
 
+static int snd_usb_pcm_change_state(struct snd_usb_substream *subs, int state)
+{
+	int ret;
+
+	if (!subs->str_pd)
+		return 0;
+
+	ret = snd_usb_power_domain_set(subs->stream->chip, subs->str_pd, state);
+	if (ret < 0) {
+		dev_err(&subs->dev->dev,
+			"Cannot change Power Domain ID: %d to state: %d. Err: %d\n",
+			subs->str_pd->pd_id, state, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int snd_usb_pcm_suspend(struct snd_usb_stream *as)
+{
+	int ret;
+
+	ret = snd_usb_pcm_change_state(&as->substream[0], UAC3_PD_STATE_D2);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_usb_pcm_change_state(&as->substream[1], UAC3_PD_STATE_D2);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int snd_usb_pcm_resume(struct snd_usb_stream *as)
+{
+	int ret;
+
+	ret = snd_usb_pcm_change_state(&as->substream[0], UAC3_PD_STATE_D0);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_usb_pcm_change_state(&as->substream[1], UAC3_PD_STATE_D0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 /*
  * hw_params callback
  *
