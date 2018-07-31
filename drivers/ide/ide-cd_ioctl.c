@@ -105,8 +105,7 @@ unsigned int ide_cdrom_check_events_real(struct cdrom_device_info *cdi,
 /* Eject the disk if EJECTFLAG is 0.
    If EJECTFLAG is 1, try to reload the disk. */
 static
-int cdrom_eject(ide_drive_t *drive, int ejectflag,
-		struct request_sense *sense)
+int cdrom_eject(ide_drive_t *drive, int ejectflag)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	struct cdrom_device_info *cdi = &cd->devinfo;
@@ -129,19 +128,15 @@ int cdrom_eject(ide_drive_t *drive, int ejectflag,
 	cmd[0] = GPCMD_START_STOP_UNIT;
 	cmd[4] = loej | (ejectflag != 0);
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, sense, 0, 0);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, NULL, 0, 0);
 }
 
 /* Lock the door if LOCKFLAG is nonzero; unlock it otherwise. */
 static
-int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
-		    struct request_sense *sense)
+int ide_cd_lockdoor(ide_drive_t *drive, int lockflag)
 {
-	struct request_sense my_sense;
+	struct request_sense my_sense, *sense = &my_sense;
 	int stat;
-
-	if (sense == NULL)
-		sense = &my_sense;
 
 	/* If the drive cannot lock the door, just pretend. */
 	if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) == 0) {
@@ -186,23 +181,22 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 int ide_cdrom_tray_move(struct cdrom_device_info *cdi, int position)
 {
 	ide_drive_t *drive = cdi->handle;
-	struct request_sense sense;
 
 	if (position) {
-		int stat = ide_cd_lockdoor(drive, 0, &sense);
+		int stat = ide_cd_lockdoor(drive, 0);
 
 		if (stat)
 			return stat;
 	}
 
-	return cdrom_eject(drive, !position, &sense);
+	return cdrom_eject(drive, !position);
 }
 
 int ide_cdrom_lock_door(struct cdrom_device_info *cdi, int lock)
 {
 	ide_drive_t *drive = cdi->handle;
 
-	return ide_cd_lockdoor(drive, lock, NULL);
+	return ide_cd_lockdoor(drive, lock);
 }
 
 /*
@@ -213,7 +207,6 @@ int ide_cdrom_select_speed(struct cdrom_device_info *cdi, int speed)
 {
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *cd = drive->driver_data;
-	struct request_sense sense;
 	u8 buf[ATAPI_CAPABILITIES_PAGE_SIZE];
 	int stat;
 	unsigned char cmd[BLK_MAX_CDB];
@@ -236,7 +229,7 @@ int ide_cdrom_select_speed(struct cdrom_device_info *cdi, int speed)
 		cmd[5] = speed & 0xff;
 	}
 
-	stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, &sense, 0, 0);
+	stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, NULL, 0, 0);
 
 	if (!ide_cdrom_get_capabilities(drive, buf)) {
 		ide_cdrom_update_speed(drive, buf);
@@ -252,11 +245,10 @@ int ide_cdrom_get_last_session(struct cdrom_device_info *cdi,
 	struct atapi_toc *toc;
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *info = drive->driver_data;
-	struct request_sense sense;
 	int ret;
 
 	if ((drive->atapi_flags & IDE_AFLAG_TOC_VALID) == 0 || !info->toc) {
-		ret = ide_cd_read_toc(drive, &sense);
+		ret = ide_cd_read_toc(drive);
 		if (ret)
 			return ret;
 	}
@@ -300,7 +292,6 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
 {
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *cd = drive->driver_data;
-	struct request_sense sense;
 	struct request *rq;
 	int ret;
 
@@ -315,7 +306,7 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
 	 * lock it again.
 	 */
 	if (drive->atapi_flags & IDE_AFLAG_DOOR_LOCKED)
-		(void)ide_cd_lockdoor(drive, 1, &sense);
+		(void)ide_cd_lockdoor(drive, 1);
 
 	return ret;
 }
@@ -355,7 +346,6 @@ static int ide_cd_fake_play_trkind(ide_drive_t *drive, void *arg)
 	struct atapi_toc_entry *first_toc, *last_toc;
 	unsigned long lba_start, lba_end;
 	int stat;
-	struct request_sense sense;
 	unsigned char cmd[BLK_MAX_CDB];
 
 	stat = ide_cd_get_toc_entry(drive, ti->cdti_trk0, &first_toc);
@@ -380,7 +370,7 @@ static int ide_cd_fake_play_trkind(ide_drive_t *drive, void *arg)
 	lba_to_msf(lba_start,   &cmd[3], &cmd[4], &cmd[5]);
 	lba_to_msf(lba_end - 1, &cmd[6], &cmd[7], &cmd[8]);
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, &sense, 0, 0);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, NULL, 0, 0);
 }
 
 static int ide_cd_read_tochdr(ide_drive_t *drive, void *arg)
@@ -391,7 +381,7 @@ static int ide_cd_read_tochdr(ide_drive_t *drive, void *arg)
 	int stat;
 
 	/* Make sure our saved TOC is valid. */
-	stat = ide_cd_read_toc(drive, NULL);
+	stat = ide_cd_read_toc(drive);
 	if (stat)
 		return stat;
 
