@@ -15,6 +15,20 @@
 		ti,jack-det-gpio = <&twl_gpio 2 GPIO_ACTIVE_HIGH>;	/* GTA04A5 only */
 	};
 
+	wlan_en: wlan_en_regulator {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_pins>;
+		regulator-name = "wlan-en-regulator";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;	/* GPIO_138 */
+
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
 	pps {
 		compatible = "pps-gpio";
 		pinctrl-names = "default";
@@ -34,6 +48,18 @@
 };
 
 &omap3_pmx_core {
+	wlan_pins: pinmux_wlan_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2168, PIN_OUTPUT | MUX_MODE4)	/* mmc2_dat6 = mmc3_dat2 = gpio138 */
+		>;
+	};
+
+	wlan_irq_pin: pinmux_wlan_irq_pin {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x216a, PIN_INPUT_PULLUP | MUX_MODE4)	/* mmc2_dat7 = mmc3_dat3 = gpio139 */
+		>;
+	};
+
 	irda_pins: pinmux_irda {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d0, PIN_OUTPUT_PULLUP | MUX_MODE4)	/* mcspi1_cs1 = gpio175 */
@@ -46,4 +72,36 @@
 		>;
 	};
 
+};
+
+/*
+ * for WL183x module see
+ * http://lxr.free-electrons.com/source/Documentation/devicetree/bindings/net/wireless/ti,wlcore.txt
+ */
+
+&wifi_pwrseq {
+	/delete-property/ reset-gpios;
+};
+
+&mmc2 {
+	vmmc-supply = <&wlan_en>;
+	bus-width = <4>;
+	cap-power-off-card;
+	non-removable;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&wlan_irq_pin>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/delete-property/ mmc-pwrseq;
+
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1837";
+		reg = <2>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;	/* GPIO_139 */
+		ref-clock-frequency = <26000000>;
+	};
 };
