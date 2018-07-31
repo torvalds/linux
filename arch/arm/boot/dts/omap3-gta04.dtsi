@@ -220,7 +220,7 @@
 		>;
 	};
 
-	backlight_pins: backlight_pins_pimnux {
+	backlight_pins: backlight_pins_pinmux {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20ba, MUX_MODE3)		/* gpt11/gpio57 */
 		>;
