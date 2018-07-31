@@ -314,4 +314,13 @@ void mt76x2_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta);
 
+void mt76x2_phy_set_txpower_regs(struct mt76x2_dev *dev,
+				 enum nl80211_band band);
+void mt76x2_configure_tx_delay(struct mt76x2_dev *dev,
+			       enum nl80211_band band, u8 bw);
+void mt76x2_phy_set_bw(struct mt76x2_dev *dev, int width, u8 ctrl);
+void mt76x2_phy_set_band(struct mt76x2_dev *dev, int band, bool primary_upper);
+int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev);
+void mt76x2_apply_gain_adj(struct mt76x2_dev *dev);
+
 #endif
