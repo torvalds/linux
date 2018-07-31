@@ -37,19 +37,6 @@
 #include "gvt.h"
 #include "trace.h"
 
-/**
- * Defined in Intel Open Source PRM.
- * Ref: https://01.org/linuxgraphics/documentation/hardware-specification-prms
- */
-#define TRVATTL3PTRDW(i)	_MMIO(0x4de0 + (i)*4)
-#define TRNULLDETCT		_MMIO(0x4de8)
-#define TRINVTILEDETCT		_MMIO(0x4dec)
-#define TRVADR			_MMIO(0x4df0)
-#define TRTTE			_MMIO(0x4df4)
-#define RING_EXCC(base)		_MMIO((base) + 0x28)
-#define RING_GFX_MODE(base)	_MMIO((base) + 0x29c)
-#define VF_GUARDBAND		_MMIO(0x83a4)
-
 #define GEN9_MOCS_SIZE		64
 
 /* Raw offset is appened to each line for convenience. */
