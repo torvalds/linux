@@ -1114,6 +1114,7 @@ update_changeattr_locked(struct inode *dir, struct nfs4_change_info *cinfo,
 	inode_set_iversion_raw(dir, cinfo->after);
 	nfsi->read_cache_jiffies = timestamp;
 	nfsi->attr_gencount = nfs_inc_attr_generation_counter();
+	nfsi->cache_validity &= ~NFS_INO_INVALID_CHANGE;
 	nfs_fscache_invalidate(dir);
 }
 
