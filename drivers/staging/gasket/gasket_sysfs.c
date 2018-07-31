@@ -145,8 +145,8 @@ void gasket_sysfs_init(void)
 	}
 }
 
-int gasket_sysfs_create_mapping(
-	struct device *device, struct gasket_dev *gasket_dev)
+int gasket_sysfs_create_mapping(struct device *device,
+				struct gasket_dev *gasket_dev)
 {
 	struct gasket_sysfs_mapping *mapping;
 	int map_idx = -1;
@@ -210,8 +210,8 @@ int gasket_sysfs_create_mapping(
 	return 0;
 }
 
-int gasket_sysfs_create_entries(
-	struct device *device, const struct gasket_sysfs_attribute *attrs)
+int gasket_sysfs_create_entries(struct device *device,
+				const struct gasket_sysfs_attribute *attrs)
 {
 	int i;
 	int ret;
@@ -293,8 +293,8 @@ void gasket_sysfs_put_device_data(struct device *device, struct gasket_dev *dev)
 }
 EXPORT_SYMBOL(gasket_sysfs_put_device_data);
 
-struct gasket_sysfs_attribute *gasket_sysfs_get_attr(
-	struct device *device, struct device_attribute *attr)
+struct gasket_sysfs_attribute *
+gasket_sysfs_get_attr(struct device *device, struct device_attribute *attr)
 {
 	int i;
 	int num_attrs;
@@ -317,8 +317,8 @@ struct gasket_sysfs_attribute *gasket_sysfs_get_attr(
 }
 EXPORT_SYMBOL(gasket_sysfs_get_attr);
 
-void gasket_sysfs_put_attr(
-	struct device *device, struct gasket_sysfs_attribute *attr)
+void gasket_sysfs_put_attr(struct device *device,
+			   struct gasket_sysfs_attribute *attr)
 {
 	int i;
 	int num_attrs;
@@ -342,9 +342,9 @@ void gasket_sysfs_put_attr(
 }
 EXPORT_SYMBOL(gasket_sysfs_put_attr);
 
-ssize_t gasket_sysfs_register_store(
-	struct device *device, struct device_attribute *attr, const char *buf,
-	size_t count)
+ssize_t gasket_sysfs_register_store(struct device *device,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	ulong parsed_value = 0;
 	struct gasket_sysfs_mapping *mapping;
@@ -386,8 +386,8 @@ ssize_t gasket_sysfs_register_store(
 			    gasket_attr->data.bar_address.offset);
 
 	if (gasket_attr->write_callback)
-		gasket_attr->write_callback(
-			gasket_dev, gasket_attr, parsed_value);
+		gasket_attr->write_callback(gasket_dev, gasket_attr,
+					    parsed_value);
 
 	gasket_sysfs_put_attr(device, gasket_attr);
 	put_mapping(mapping);

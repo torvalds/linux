@@ -68,9 +68,9 @@ struct gasket_sysfs_attribute {
 	 * The callback should perform any logging necessary, as errors cannot
 	 * be returned from the callback.
 	 */
-	void (*write_callback)(
-		struct gasket_dev *dev, struct gasket_sysfs_attribute *attr,
-		ulong value);
+	void (*write_callback)(struct gasket_dev *dev,
+			       struct gasket_sysfs_attribute *attr,
+			       ulong value);
 };
 
 #define GASKET_SYSFS_RO(_name, _show_function, _attr_type)                     \
@@ -98,8 +98,8 @@ void gasket_sysfs_init(void);
  * If this function is not called before gasket_sysfs_create_entries, a warning
  * will be logged.
  */
-int gasket_sysfs_create_mapping(
-	struct device *device, struct gasket_dev *gasket_dev);
+int gasket_sysfs_create_mapping(struct device *device,
+				struct gasket_dev *gasket_dev);
 
 /*
  * Creates bulk entries in sysfs.
@@ -111,8 +111,8 @@ int gasket_sysfs_create_mapping(
  * gasket_sysfs_create_mapping had a legacy device, the entries will be created
  * for it, as well.
  */
-int gasket_sysfs_create_entries(
-	struct device *device, const struct gasket_sysfs_attribute *attrs);
+int gasket_sysfs_create_entries(struct device *device,
+				const struct gasket_sysfs_attribute *attrs);
 
 /*
  * Removes a device mapping from the global table.
@@ -141,8 +141,8 @@ struct gasket_dev *gasket_sysfs_get_device_data(struct device *device);
  * @device: Kernel device structure.
  * @dev: Gasket device descriptor (returned by gasket_sysfs_get_device_data).
  */
-void gasket_sysfs_put_device_data(
-	struct device *device, struct gasket_dev *gasket_dev);
+void gasket_sysfs_put_device_data(struct device *device,
+				  struct gasket_dev *gasket_dev);
 
 /*
  * Gasket-specific attribute lookup.
@@ -155,8 +155,8 @@ void gasket_sysfs_put_device_data(
  * gasket_sysfs_get_device_data. While this reference is held, the underlying
  * device sysfs information/structure will remain valid/will not be deleted.
  */
-struct gasket_sysfs_attribute *gasket_sysfs_get_attr(
-	struct device *device, struct device_attribute *attr);
+struct gasket_sysfs_attribute *
+gasket_sysfs_get_attr(struct device *device, struct device_attribute *attr);
 
 /*
  * Releases a references to internal data.
@@ -164,16 +164,16 @@ struct gasket_sysfs_attribute *gasket_sysfs_get_attr(
  * @attr: Gasket sysfs attribute descriptor (returned by
  *        gasket_sysfs_get_attr).
  */
-void gasket_sysfs_put_attr(
-	struct device *device, struct gasket_sysfs_attribute *attr);
+void gasket_sysfs_put_attr(struct device *device,
+			   struct gasket_sysfs_attribute *attr);
 
 /*
  * Write to a register sysfs node.
  * @buf: NULL-terminated data being written.
  * @count: number of bytes in the "buf" argument.
  */
-ssize_t gasket_sysfs_register_store(
-	struct device *device, struct device_attribute *attr, const char *buf,
-	size_t count);
+ssize_t gasket_sysfs_register_store(struct device *device,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count);
 
 #endif /* __GASKET_SYSFS_H__ */
