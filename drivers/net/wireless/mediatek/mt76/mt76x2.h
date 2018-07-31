@@ -159,12 +159,37 @@ struct mt76x2_sta {
 	int inactive_count;
 };
 
+static inline bool mt76x2_wait_for_mac(struct mt76x2_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < 500; i++) {
+		switch (mt76_rr(dev, MT_MAC_CSR0)) {
+		case 0:
+		case ~0:
+			break;
+		default:
+			return true;
+		}
+		usleep_range(5000, 10000);
+	}
+	return false;
+}
+
 static inline bool is_mt7612(struct mt76x2_dev *dev)
 {
 	return mt76_chip(&dev->mt76) == 0x7612;
 }
 
 void mt76x2_set_irq_mask(struct mt76x2_dev *dev, u32 clear, u32 set);
+
+static inline bool mt76x2_channel_silent(struct mt76x2_dev *dev)
+{
+	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+
+	return ((chan->flags & IEEE80211_CHAN_RADAR) &&
+		chan->dfs_state != NL80211_DFS_AVAILABLE);
+}
 
 static inline void mt76x2_irq_enable(struct mt76x2_dev *dev, u32 mask)
 {
@@ -174,6 +199,21 @@ static inline void mt76x2_irq_enable(struct mt76x2_dev *dev, u32 mask)
 static inline void mt76x2_irq_disable(struct mt76x2_dev *dev, u32 mask)
 {
 	mt76x2_set_irq_mask(dev, mask, 0);
+}
+
+static inline bool mt76x2_wait_for_bbp(struct mt76x2_dev *dev)
+{
+	return mt76_poll_msec(dev, MT_MAC_STATUS,
+			      MT_MAC_STATUS_TX | MT_MAC_STATUS_RX,
+			      0, 100);
+}
+
+static inline bool wait_for_wpdma(struct mt76x2_dev *dev)
+{
+	return mt76_poll(dev, MT_WPDMA_GLO_CFG,
+			 MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
+			 MT_WPDMA_GLO_CFG_RX_DMA_BUSY,
+			 0, 1000);
 }
 
 extern const struct ieee80211_ops mt76x2_ops;
