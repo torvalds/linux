@@ -14,10 +14,10 @@ struct aci_aifsn {
 	u8:1;
 };
 
-//
-// Direction Field Values.
-// Ref: WMM spec 2.2.11: WME TSPEC Element, p.18.
-//
+/*
+ * Direction Field Values.
+ * Ref: WMM spec 2.2.11: WME TSPEC Element, p.18.
+ */
 enum direction_value {
 	DIR_UP			= 0,		// 0x00	// UpLink
 	DIR_DOWN		= 1,		// 0x01	// DownLink
@@ -69,9 +69,9 @@ struct tspec_body {
 	u16	medium_time;
 };
 
-//----------------------------------------------------------------------------
-//      802.11 Management frame Status Code field
-//----------------------------------------------------------------------------
+/*
+ *      802.11 Management frame Status Code field
+ */
 struct octet_string {
 	u8		*octet;
 	u16             length;
