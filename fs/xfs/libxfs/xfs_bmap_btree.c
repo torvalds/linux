@@ -226,7 +226,7 @@ xfs_bmbt_alloc_block(
 		 * block allocation here and corrupt the filesystem.
 		 */
 		args.minleft = args.tp->t_blk_res;
-	} else if (cur->bc_tp->t_dfops->dop_low) {
+	} else if (cur->bc_tp->t_flags & XFS_TRANS_LOWMODE) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
 	} else {
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
@@ -253,7 +253,7 @@ xfs_bmbt_alloc_block(
 		error = xfs_alloc_vextent(&args);
 		if (error)
 			goto error0;
-		cur->bc_tp->t_dfops->dop_low = true;
+		cur->bc_tp->t_flags |= XFS_TRANS_LOWMODE;
 	}
 	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
 		*stat = 0;

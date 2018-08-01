@@ -330,9 +330,14 @@ xfs_defer_reset(
 
 	ASSERT(!xfs_defer_has_unfinished_work(dop));
 
-	dop->dop_low = false;
 	memset(dop->dop_inodes, 0, sizeof(dop->dop_inodes));
 	memset(dop->dop_bufs, 0, sizeof(dop->dop_bufs));
+
+	/*
+	 * Low mode state transfers across transaction rolls to mirror dfops
+	 * lifetime. Clear it now that dfops is reset.
+	 */
+	tp->t_flags &= ~XFS_TRANS_LOWMODE;
 }
 
 /*
@@ -590,7 +595,14 @@ xfs_defer_move(
 
 	memcpy(dst->dop_inodes, src->dop_inodes, sizeof(dst->dop_inodes));
 	memcpy(dst->dop_bufs, src->dop_bufs, sizeof(dst->dop_bufs));
-	dst->dop_low = src->dop_low;
+
+	/*
+	 * Low free space mode was historically controlled by a dfops field.
+	 * This meant that low mode state potentially carried across multiple
+	 * transaction rolls. Transfer low mode on a dfops move to preserve
+	 * that behavior.
+	 */
+	dtp->t_flags |= (stp->t_flags & XFS_TRANS_LOWMODE);
 
 	xfs_defer_reset(stp);
 }

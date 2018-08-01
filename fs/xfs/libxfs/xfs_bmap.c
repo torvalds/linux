@@ -700,7 +700,7 @@ xfs_bmap_extents_to_btree(
 	if (tp->t_firstblock == NULLFSBLOCK) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
 		args.fsbno = XFS_INO_TO_FSB(mp, ip->i_ino);
-	} else if (tp->t_dfops->dop_low) {
+	} else if (tp->t_flags & XFS_TRANS_LOWMODE) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
 		args.fsbno = tp->t_firstblock;
 	} else {
@@ -3449,7 +3449,7 @@ xfs_bmap_btalloc(
 			error = xfs_bmap_btalloc_nullfb(ap, &args, &blen);
 		if (error)
 			return error;
-	} else if (ap->tp->t_dfops->dop_low) {
+	} else if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
 		if (xfs_inode_is_filestream(ap->ip))
 			args.type = XFS_ALLOCTYPE_FIRST_AG;
 		else
@@ -3484,7 +3484,7 @@ xfs_bmap_btalloc(
 	 * is >= the stripe unit and the allocation offset is
 	 * at the end of file.
 	 */
-	if (!ap->tp->t_dfops->dop_low && ap->aeof) {
+	if (!(ap->tp->t_flags & XFS_TRANS_LOWMODE) && ap->aeof) {
 		if (!ap->offset) {
 			args.alignment = stripe_align;
 			atype = args.type;
@@ -3576,7 +3576,7 @@ xfs_bmap_btalloc(
 		args.total = ap->minlen;
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
-		ap->tp->t_dfops->dop_low = true;
+		ap->tp->t_flags |= XFS_TRANS_LOWMODE;
 	}
 	if (args.fsbno != NULLFSBLOCK) {
 		/*

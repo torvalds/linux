@@ -25,17 +25,6 @@ struct xfs_defer_pending {
 
 /*
  * Header for deferred operation list.
- *
- * dop_low is used by the allocator to activate the lowspace algorithm -
- * when free space is running low the extent allocator may choose to
- * allocate an extent from an AG without leaving sufficient space for
- * a btree split when inserting the new extent.  In this case the allocator
- * will enable the lowspace algorithm which is supposed to allow further
- * allocations (such as btree splits and newroots) to allocate from
- * sequential AGs.  In order to avoid locking AGs out of order the lowspace
- * algorithm will start searching for free space from AG 0.  If the correct
- * transaction reservations have been made then this algorithm will eventually
- * find all the space it needs.
  */
 enum xfs_defer_ops_type {
 	XFS_DEFER_OPS_TYPE_BMAP,
