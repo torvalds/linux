@@ -183,7 +183,6 @@ free_irq:
 	free_irq(pdev->irq, dev);
 free_device:
 	pci_iounmap(pdev, hw->mem_addr);
-	kfree(dev);
 release_regions:
 	pci_release_regions(pdev);
 disable_device:
@@ -213,7 +212,6 @@ static void ish_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);
-	kfree(ishtp_dev);
 }
 
 static struct device __maybe_unused *ish_resume_device;
