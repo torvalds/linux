@@ -1534,7 +1534,6 @@ xfs_swap_extent_rmap(
 	struct xfs_inode		*tip)
 {
 	struct xfs_trans		*tp = *tpp;
-	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_bmbt_irec		irec;
 	struct xfs_bmbt_irec		uirec;
 	struct xfs_bmbt_irec		tirec;
@@ -1598,26 +1597,22 @@ xfs_swap_extent_rmap(
 			trace_xfs_swap_extent_rmap_remap_piece(tip, &uirec);
 
 			/* Remove the mapping from the donor file. */
-			error = xfs_bmap_unmap_extent(mp, tp->t_dfops, tip,
-					&uirec);
+			error = xfs_bmap_unmap_extent(tp, tip, &uirec);
 			if (error)
 				goto out_defer;
 
 			/* Remove the mapping from the source file. */
-			error = xfs_bmap_unmap_extent(mp, tp->t_dfops, ip,
-					&irec);
+			error = xfs_bmap_unmap_extent(tp, ip, &irec);
 			if (error)
 				goto out_defer;
 
 			/* Map the donor file's blocks into the source file. */
-			error = xfs_bmap_map_extent(mp, tp->t_dfops, ip,
-					&uirec);
+			error = xfs_bmap_map_extent(tp, ip, &uirec);
 			if (error)
 				goto out_defer;
 
 			/* Map the source file's blocks into the donor file. */
-			error = xfs_bmap_map_extent(mp, tp->t_dfops, tip,
-					&irec);
+			error = xfs_bmap_map_extent(tp, tip, &irec);
 			if (error)
 				goto out_defer;
 

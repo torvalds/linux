@@ -35,7 +35,7 @@ enum xfs_defer_ops_type {
 	XFS_DEFER_OPS_TYPE_MAX,
 };
 
-void xfs_defer_add(struct xfs_defer_ops *dop, enum xfs_defer_ops_type type,
+void xfs_defer_add(struct xfs_trans *tp, enum xfs_defer_ops_type type,
 		struct list_head *h);
 int xfs_defer_finish_noroll(struct xfs_trans **tp);
 int xfs_defer_finish(struct xfs_trans **tp);

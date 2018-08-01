@@ -1838,23 +1838,24 @@ out_error:
  */
 STATIC void
 xfs_difree_inode_chunk(
-	struct xfs_mount		*mp,
+	struct xfs_trans		*tp,
 	xfs_agnumber_t			agno,
-	struct xfs_inobt_rec_incore	*rec,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_inobt_rec_incore	*rec)
 {
-	xfs_agblock_t	sagbno = XFS_AGINO_TO_AGBNO(mp, rec->ir_startino);
-	int		startidx, endidx;
-	int		nextbit;
-	xfs_agblock_t	agbno;
-	int		contigblk;
-	struct xfs_owner_info	oinfo;
+	struct xfs_mount		*mp = tp->t_mountp;
+	xfs_agblock_t			sagbno = XFS_AGINO_TO_AGBNO(mp,
+							rec->ir_startino);
+	int				startidx, endidx;
+	int				nextbit;
+	xfs_agblock_t			agbno;
+	int				contigblk;
+	struct xfs_owner_info		oinfo;
 	DECLARE_BITMAP(holemask, XFS_INOBT_HOLEMASK_BITS);
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
 
 	if (!xfs_inobt_issparse(rec->ir_holemask)) {
 		/* not sparse, calculate extent info directly */
-		xfs_bmap_add_free(mp, dfops, XFS_AGB_TO_FSB(mp, agno, sagbno),
+		xfs_bmap_add_free(tp, XFS_AGB_TO_FSB(mp, agno, sagbno),
 				  mp->m_ialloc_blks, &oinfo);
 		return;
 	}
@@ -1898,7 +1899,7 @@ xfs_difree_inode_chunk(
 
 		ASSERT(agbno % mp->m_sb.sb_spino_align == 0);
 		ASSERT(contigblk % mp->m_sb.sb_spino_align == 0);
-		xfs_bmap_add_free(mp, dfops, XFS_AGB_TO_FSB(mp, agno, agbno),
+		xfs_bmap_add_free(tp, XFS_AGB_TO_FSB(mp, agno, agbno),
 				  contigblk, &oinfo);
 
 		/* reset range to current bit and carry on... */
@@ -2002,7 +2003,7 @@ xfs_difree_inobt(
 			goto error0;
 		}
 
-		xfs_difree_inode_chunk(mp, agno, &rec, tp->t_dfops);
+		xfs_difree_inode_chunk(tp, agno, &rec);
 	} else {
 		xic->deleted = false;
 

@@ -533,8 +533,7 @@ xfs_bmap_validate_ret(
  */
 void
 __xfs_bmap_add_free(
-	struct xfs_mount		*mp,
-	struct xfs_defer_ops		*dfops,
+	struct xfs_trans		*tp,
 	xfs_fsblock_t			bno,
 	xfs_filblks_t			len,
 	struct xfs_owner_info		*oinfo,
@@ -542,8 +541,9 @@ __xfs_bmap_add_free(
 {
 	struct xfs_extent_free_item	*new;		/* new element */
 #ifdef DEBUG
-	xfs_agnumber_t		agno;
-	xfs_agblock_t		agbno;
+	struct xfs_mount		*mp = tp->t_mountp;
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
 
 	ASSERT(bno != NULLFSBLOCK);
 	ASSERT(len > 0);
@@ -566,9 +566,10 @@ __xfs_bmap_add_free(
 	else
 		xfs_rmap_skip_owner_update(&new->xefi_oinfo);
 	new->xefi_skip_discard = skip_discard;
-	trace_xfs_bmap_free_defer(mp, XFS_FSB_TO_AGNO(mp, bno), 0,
-			XFS_FSB_TO_AGBNO(mp, bno), len);
-	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_FREE, &new->xefi_list);
+	trace_xfs_bmap_free_defer(tp->t_mountp,
+			XFS_FSB_TO_AGNO(tp->t_mountp, bno), 0,
+			XFS_FSB_TO_AGBNO(tp->t_mountp, bno), len);
+	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_FREE, &new->xefi_list);
 }
 
 /*
@@ -624,7 +625,7 @@ xfs_bmap_btree_to_extents(
 	if ((error = xfs_btree_check_block(cur, cblock, 0, cbp)))
 		return error;
 	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, whichfork);
-	xfs_bmap_add_free(mp, cur->bc_tp->t_dfops, cbno, 1, &oinfo);
+	xfs_bmap_add_free(cur->bc_tp, cbno, 1, &oinfo);
 	ip->i_d.di_nblocks--;
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, -1L);
 	xfs_trans_binval(tp, cbp);
@@ -1961,8 +1962,7 @@ xfs_bmap_add_extent_delay_real(
 
 	/* add reverse mapping unless caller opted out */
 	if (!(bma->flags & XFS_BMAPI_NORMAP)) {
-		error = xfs_rmap_map_extent(mp, bma->tp->t_dfops, bma->ip,
-				whichfork, new);
+		error = xfs_rmap_map_extent(bma->tp, bma->ip, whichfork, new);
 		if (error)
 			goto done;
 	}
@@ -2026,7 +2026,6 @@ xfs_bmap_add_extent_unwritten_real(
 	int			state = xfs_bmap_fork_to_state(whichfork);
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_bmbt_irec	old;
-	struct xfs_defer_ops	*dfops = tp ? tp->t_dfops : NULL;
 
 	*logflagsp = 0;
 
@@ -2445,7 +2444,7 @@ xfs_bmap_add_extent_unwritten_real(
 	}
 
 	/* update reverse mappings */
-	error = xfs_rmap_convert_extent(mp, dfops, ip, whichfork, new);
+	error = xfs_rmap_convert_extent(mp, tp, ip, whichfork, new);
 	if (error)
 		goto done;
 
@@ -2806,8 +2805,7 @@ xfs_bmap_add_extent_hole_real(
 
 	/* add reverse mapping unless caller opted out */
 	if (!(flags & XFS_BMAPI_NORMAP)) {
-		error = xfs_rmap_map_extent(mp, tp->t_dfops, ip, whichfork,
-				new);
+		error = xfs_rmap_map_extent(tp, ip, whichfork, new);
 		if (error)
 			goto done;
 	}
@@ -4364,9 +4362,8 @@ xfs_bmapi_write(
 			 * the refcount btree for orphan recovery.
 			 */
 			if (whichfork == XFS_COW_FORK) {
-				error = xfs_refcount_alloc_cow_extent(mp,
-						tp->t_dfops, bma.blkno,
-						bma.length);
+				error = xfs_refcount_alloc_cow_extent(tp,
+						bma.blkno, bma.length);
 				if (error)
 					goto error0;
 			}
@@ -4852,7 +4849,6 @@ xfs_bmap_del_extent_real(
 	uint			qfield;	/* quota field to update */
 	int			state = xfs_bmap_fork_to_state(whichfork);
 	struct xfs_bmbt_irec	old;
-	struct xfs_defer_ops	*dfops = tp ? tp->t_dfops : NULL;
 
 	mp = ip->i_mount;
 	XFS_STATS_INC(mp, xs_del_exlist);
@@ -5036,7 +5032,7 @@ xfs_bmap_del_extent_real(
 	}
 
 	/* remove reverse mapping */
-	error = xfs_rmap_unmap_extent(mp, dfops, ip, whichfork, del);
+	error = xfs_rmap_unmap_extent(tp, ip, whichfork, del);
 	if (error)
 		goto done;
 
@@ -5045,11 +5041,11 @@ xfs_bmap_del_extent_real(
 	 */
 	if (do_fx && !(bflags & XFS_BMAPI_REMAP)) {
 		if (xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK) {
-			error = xfs_refcount_decrease_extent(mp, dfops, del);
+			error = xfs_refcount_decrease_extent(tp, del);
 			if (error)
 				goto done;
 		} else {
-			__xfs_bmap_add_free(mp, dfops, del->br_startblock,
+			__xfs_bmap_add_free(tp, del->br_startblock,
 					del->br_blockcount, NULL,
 					(bflags & XFS_BMAPI_NODISCARD) ||
 					del->br_state == XFS_EXT_UNWRITTEN);
@@ -5489,6 +5485,7 @@ xfs_bmse_can_merge(
  */
 STATIC int
 xfs_bmse_merge(
+	struct xfs_trans		*tp,
 	struct xfs_inode		*ip,
 	int				whichfork,
 	xfs_fileoff_t			shift,		/* shift fsb */
@@ -5496,8 +5493,7 @@ xfs_bmse_merge(
 	struct xfs_bmbt_irec		*got,		/* extent to shift */
 	struct xfs_bmbt_irec		*left,		/* preceding extent */
 	struct xfs_btree_cur		*cur,
-	int				*logflags,	/* output */
-	struct xfs_defer_ops		*dfops)
+	int				*logflags)	/* output */
 {
 	struct xfs_bmbt_irec		new;
 	xfs_filblks_t			blockcount;
@@ -5553,23 +5549,23 @@ done:
 			&new);
 
 	/* update reverse mapping. rmap functions merge the rmaps for us */
-	error = xfs_rmap_unmap_extent(mp, dfops, ip, whichfork, got);
+	error = xfs_rmap_unmap_extent(tp, ip, whichfork, got);
 	if (error)
 		return error;
 	memcpy(&new, got, sizeof(new));
 	new.br_startoff = left->br_startoff + left->br_blockcount;
-	return xfs_rmap_map_extent(mp, dfops, ip, whichfork, &new);
+	return xfs_rmap_map_extent(tp, ip, whichfork, &new);
 }
 
 static int
 xfs_bmap_shift_update_extent(
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	int			whichfork,
 	struct xfs_iext_cursor	*icur,
 	struct xfs_bmbt_irec	*got,
 	struct xfs_btree_cur	*cur,
 	int			*logflags,
-	struct xfs_defer_ops	*dfops,
 	xfs_fileoff_t		startoff)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -5597,10 +5593,10 @@ xfs_bmap_shift_update_extent(
 			got);
 
 	/* update reverse mapping */
-	error = xfs_rmap_unmap_extent(mp, dfops, ip, whichfork, &prev);
+	error = xfs_rmap_unmap_extent(tp, ip, whichfork, &prev);
 	if (error)
 		return error;
-	return xfs_rmap_map_extent(mp, dfops, ip, whichfork, got);
+	return xfs_rmap_map_extent(tp, ip, whichfork, got);
 }
 
 int
@@ -5660,9 +5656,9 @@ xfs_bmap_collapse_extents(
 		}
 
 		if (xfs_bmse_can_merge(&prev, &got, offset_shift_fsb)) {
-			error = xfs_bmse_merge(ip, whichfork, offset_shift_fsb,
-					&icur, &got, &prev, cur, &logflags,
-					tp->t_dfops);
+			error = xfs_bmse_merge(tp, ip, whichfork,
+					offset_shift_fsb, &icur, &got, &prev,
+					cur, &logflags);
 			if (error)
 				goto del_cursor;
 			goto done;
@@ -5674,8 +5670,8 @@ xfs_bmap_collapse_extents(
 		}
 	}
 
-	error = xfs_bmap_shift_update_extent(ip, whichfork, &icur, &got, cur,
-			&logflags, tp->t_dfops, new_startoff);
+	error = xfs_bmap_shift_update_extent(tp, ip, whichfork, &icur, &got,
+			cur, &logflags, new_startoff);
 	if (error)
 		goto del_cursor;
 
@@ -5801,8 +5797,8 @@ xfs_bmap_insert_extents(
 			WARN_ON_ONCE(1);
 	}
 
-	error = xfs_bmap_shift_update_extent(ip, whichfork, &icur, &got, cur,
-			&logflags, tp->t_dfops, new_startoff);
+	error = xfs_bmap_shift_update_extent(tp, ip, whichfork, &icur, &got,
+			cur, &logflags, new_startoff);
 	if (error)
 		goto del_cursor;
 
@@ -5979,8 +5975,7 @@ xfs_bmap_is_update_needed(
 /* Record a bmap intent. */
 static int
 __xfs_bmap_add(
-	struct xfs_mount		*mp,
-	struct xfs_defer_ops		*dfops,
+	struct xfs_trans		*tp,
 	enum xfs_bmap_intent_type	type,
 	struct xfs_inode		*ip,
 	int				whichfork,
@@ -5988,10 +5983,10 @@ __xfs_bmap_add(
 {
 	struct xfs_bmap_intent		*bi;
 
-	trace_xfs_bmap_defer(mp,
-			XFS_FSB_TO_AGNO(mp, bmap->br_startblock),
+	trace_xfs_bmap_defer(tp->t_mountp,
+			XFS_FSB_TO_AGNO(tp->t_mountp, bmap->br_startblock),
 			type,
-			XFS_FSB_TO_AGBNO(mp, bmap->br_startblock),
+			XFS_FSB_TO_AGBNO(tp->t_mountp, bmap->br_startblock),
 			ip->i_ino, whichfork,
 			bmap->br_startoff,
 			bmap->br_blockcount,
@@ -6004,38 +5999,34 @@ __xfs_bmap_add(
 	bi->bi_whichfork = whichfork;
 	bi->bi_bmap = *bmap;
 
-	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_BMAP, &bi->bi_list);
+	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_BMAP, &bi->bi_list);
 	return 0;
 }
 
 /* Map an extent into a file. */
 int
 xfs_bmap_map_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*PREV)
 {
 	if (!xfs_bmap_is_update_needed(PREV))
 		return 0;
 
-	return __xfs_bmap_add(mp, dfops, XFS_BMAP_MAP, ip,
-			XFS_DATA_FORK, PREV);
+	return __xfs_bmap_add(tp, XFS_BMAP_MAP, ip, XFS_DATA_FORK, PREV);
 }
 
 /* Unmap an extent out of a file. */
 int
 xfs_bmap_unmap_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*PREV)
 {
 	if (!xfs_bmap_is_update_needed(PREV))
 		return 0;
 
-	return __xfs_bmap_add(mp, dfops, XFS_BMAP_UNMAP, ip,
-			XFS_DATA_FORK, PREV);
+	return __xfs_bmap_add(tp, XFS_BMAP_UNMAP, ip, XFS_DATA_FORK, PREV);
 }
 
 /*

@@ -487,11 +487,14 @@ xfs_defer_cancel(
 /* Add an item for later deferred processing. */
 void
 xfs_defer_add(
-	struct xfs_defer_ops		*dop,
+	struct xfs_trans		*tp,
 	enum xfs_defer_ops_type		type,
 	struct list_head		*li)
 {
+	struct xfs_defer_ops		*dop = tp->t_dfops;
 	struct xfs_defer_pending	*dfp = NULL;
+
+	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 
 	/*
 	 * Add the item to a pending item at the end of the intake list.

@@ -506,15 +506,13 @@ xfs_reflink_cancel_cow_blocks(
 			ASSERT((*tpp)->t_firstblock == NULLFSBLOCK);
 
 			/* Free the CoW orphan record. */
-			error = xfs_refcount_free_cow_extent(ip->i_mount,
-					(*tpp)->t_dfops, del.br_startblock,
-					del.br_blockcount);
+			error = xfs_refcount_free_cow_extent(*tpp,
+					del.br_startblock, del.br_blockcount);
 			if (error)
 				break;
 
-			xfs_bmap_add_free(ip->i_mount, (*tpp)->t_dfops,
-					del.br_startblock, del.br_blockcount,
-					NULL);
+			xfs_bmap_add_free(*tpp, del.br_startblock,
+					  del.br_blockcount, NULL);
 
 			/* Roll the transaction */
 			error = xfs_defer_finish(tpp);
@@ -694,14 +692,13 @@ xfs_reflink_end_cow(
 		trace_xfs_reflink_cow_remap(ip, &del);
 
 		/* Free the CoW orphan record. */
-		error = xfs_refcount_free_cow_extent(tp->t_mountp, tp->t_dfops,
-				del.br_startblock, del.br_blockcount);
+		error = xfs_refcount_free_cow_extent(tp, del.br_startblock,
+				del.br_blockcount);
 		if (error)
 			goto out_cancel;
 
 		/* Map the new blocks into the data fork. */
-		error = xfs_bmap_map_extent(tp->t_mountp, tp->t_dfops, ip,
-					    &del);
+		error = xfs_bmap_map_extent(tp, ip, &del);
 		if (error)
 			goto out_cancel;
 
@@ -1046,12 +1043,12 @@ xfs_reflink_remap_extent(
 				uirec.br_blockcount, uirec.br_startblock);
 
 		/* Update the refcount tree */
-		error = xfs_refcount_increase_extent(mp, tp->t_dfops, &uirec);
+		error = xfs_refcount_increase_extent(tp, &uirec);
 		if (error)
 			goto out_cancel;
 
 		/* Map the new blocks into the data fork. */
-		error = xfs_bmap_map_extent(mp, tp->t_dfops, ip, &uirec);
+		error = xfs_bmap_map_extent(tp, ip, &uirec);
 		if (error)
 			goto out_cancel;
 

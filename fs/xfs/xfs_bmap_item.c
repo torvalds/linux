@@ -486,8 +486,7 @@ xfs_bui_recover(
 		irec.br_blockcount = count;
 		irec.br_startoff = bmap->me_startoff;
 		irec.br_state = state;
-		error = xfs_bmap_unmap_extent(tp->t_mountp, tp->t_dfops, ip,
-					      &irec);
+		error = xfs_bmap_unmap_extent(tp, ip, &irec);
 		if (error)
 			goto err_inode;
 	}

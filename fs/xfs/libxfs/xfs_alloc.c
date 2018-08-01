@@ -2198,12 +2198,12 @@ xfs_agfl_reset(
  */
 STATIC void
 xfs_defer_agfl_block(
-	struct xfs_mount		*mp,
-	struct xfs_defer_ops		*dfops,
+	struct xfs_trans		*tp,
 	xfs_agnumber_t			agno,
 	xfs_fsblock_t			agbno,
 	struct xfs_owner_info		*oinfo)
 {
+	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_extent_free_item	*new;		/* new element */
 
 	ASSERT(xfs_bmap_free_item_zone != NULL);
@@ -2216,7 +2216,7 @@ xfs_defer_agfl_block(
 
 	trace_xfs_agfl_free_defer(mp, agno, 0, agbno, 1);
 
-	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_AGFL_FREE, &new->xefi_list);
+	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_AGFL_FREE, &new->xefi_list);
 }
 
 /*
@@ -2325,8 +2325,7 @@ xfs_alloc_fix_freelist(
 
 		/* defer agfl frees if dfops is provided */
 		if (tp->t_dfops) {
-			xfs_defer_agfl_block(mp, tp->t_dfops, args->agno,
-					     bno, &targs.oinfo);
+			xfs_defer_agfl_block(tp, args->agno, bno, &targs.oinfo);
 		} else {
 			error = xfs_free_agfl_block(tp, args->agno, bno, agbp,
 						    &targs.oinfo);
