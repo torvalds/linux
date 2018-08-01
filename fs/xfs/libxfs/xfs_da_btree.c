@@ -1523,8 +1523,10 @@ xfs_da3_node_lookup_int(
 			break;
 		}
 
-		blk->magic = XFS_DA_NODE_MAGIC;
+		if (magic != XFS_DA_NODE_MAGIC && magic != XFS_DA3_NODE_MAGIC)
+			return -EFSCORRUPTED;
 
+		blk->magic = XFS_DA_NODE_MAGIC;
 
 		/*
 		 * Search an intermediate node for a match.
