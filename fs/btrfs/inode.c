@@ -6385,7 +6385,6 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 		   struct btrfs_inode *parent_inode, struct btrfs_inode *inode,
 		   const char *name, int name_len, int add_backref, u64 index)
 {
-	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret = 0;
 	struct btrfs_key key;
 	struct btrfs_root *root = parent_inode->root;
@@ -6401,7 +6400,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 	}
 
 	if (unlikely(ino == BTRFS_FIRST_FREE_OBJECTID)) {
-		ret = btrfs_add_root_ref(trans, fs_info, key.objectid,
+		ret = btrfs_add_root_ref(trans, key.objectid,
 					 root->root_key.objectid, parent_ino,
 					 index, name, name_len);
 	} else if (add_backref) {
