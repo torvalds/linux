@@ -132,35 +132,6 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	unsigned long context_gpa, context_page_num;
 	int i;
 
-	gvt_dbg_sched("ring id %d workload lrca %x", ring_id,
-			workload->ctx_desc.lrca);
-
-	context_page_num = gvt->dev_priv->engine[ring_id]->context_size;
-
-	context_page_num = context_page_num >> PAGE_SHIFT;
-
-	if (IS_BROADWELL(gvt->dev_priv) && ring_id == RCS)
-		context_page_num = 19;
-
-	i = 2;
-
-	while (i < context_page_num) {
-		context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
-				(u32)((workload->ctx_desc.lrca + i) <<
-				I915_GTT_PAGE_SHIFT));
-		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
-			gvt_vgpu_err("Invalid guest context descriptor\n");
-			return -EFAULT;
-		}
-
-		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
-		dst = kmap(page);
-		intel_gvt_hypervisor_read_gpa(vgpu, context_gpa, dst,
-				I915_GTT_PAGE_SIZE);
-		kunmap(page);
-		i++;
-	}
-
 	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
 	shadow_ring_context = kmap(page);
 
@@ -195,6 +166,37 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 
 	sr_oa_regs(workload, (u32 *)shadow_ring_context, false);
 	kunmap(page);
+
+	if (IS_RESTORE_INHIBIT(shadow_ring_context->ctx_ctrl.val))
+		return 0;
+
+	gvt_dbg_sched("ring id %d workload lrca %x", ring_id,
+			workload->ctx_desc.lrca);
+
+	context_page_num = gvt->dev_priv->engine[ring_id]->context_size;
+
+	context_page_num = context_page_num >> PAGE_SHIFT;
+
+	if (IS_BROADWELL(gvt->dev_priv) && ring_id == RCS)
+		context_page_num = 19;
+
+	i = 2;
+	while (i < context_page_num) {
+		context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
+				(u32)((workload->ctx_desc.lrca + i) <<
+				I915_GTT_PAGE_SHIFT));
+		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
+			gvt_vgpu_err("Invalid guest context descriptor\n");
+			return -EFAULT;
+		}
+
+		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
+		dst = kmap(page);
+		intel_gvt_hypervisor_read_gpa(vgpu, context_gpa, dst,
+				I915_GTT_PAGE_SIZE);
+		kunmap(page);
+		i++;
+	}
 	return 0;
 }
 
