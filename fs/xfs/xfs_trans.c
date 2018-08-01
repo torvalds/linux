@@ -281,13 +281,7 @@ xfs_trans_alloc(
 	INIT_LIST_HEAD(&tp->t_items);
 	INIT_LIST_HEAD(&tp->t_busy);
 	tp->t_firstblock = NULLFSBLOCK;
-	/*
-	 * We only roll transactions with permanent log reservation. Don't init
-	 * ->t_dfops to skip attempts to finish or cancel an empty dfops with a
-	 * non-permanent res.
-	 */
-	if (resp->tr_logflags & XFS_TRANS_PERM_LOG_RES)
-		xfs_defer_init(tp, &tp->t_dfops_internal);
+	xfs_defer_init(tp, &tp->t_dfops_internal);
 
 	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
 	if (error) {
@@ -931,8 +925,13 @@ __xfs_trans_commit(
 
 	trace_xfs_trans_commit(tp, _RET_IP_);
 
-	/* finish deferred items on final commit */
-	if (!regrant && tp->t_dfops) {
+	/*
+	 * Finish deferred items on final commit. Only permanent transactions
+	 * should ever have deferred ops.
+	 */
+	WARN_ON_ONCE(xfs_defer_has_unfinished_work(tp->t_dfops) &&
+		     !(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
+	if (!regrant && (tp->t_flags & XFS_TRANS_PERM_LOG_RES)) {
 		error = xfs_defer_finish_noroll(&tp);
 		if (error) {
 			xfs_defer_cancel(tp);
@@ -1029,7 +1028,7 @@ xfs_trans_cancel(
 
 	trace_xfs_trans_cancel(tp, _RET_IP_);
 
-	if (tp->t_dfops)
+	if (tp->t_flags & XFS_TRANS_PERM_LOG_RES)
 		xfs_defer_cancel(tp);
 
 	/*
