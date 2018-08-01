@@ -1135,9 +1135,6 @@ out_err:
 	else
 		lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
 
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp))
-		atomic_dec(&ndlp->cmd_pending);
-
 	/* Update stats and complete the IO.  There is
 	 * no need for dma unprep because the nvme_transport
 	 * owns the dma address.
@@ -1546,17 +1543,19 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	/* The node is shared with FCP IO, make sure the IO pending count does
 	 * not exceed the programmed depth.
 	 */
-	if ((atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) &&
-	    !expedite) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
-				 "6174 Fail IO, ndlp qdepth exceeded: "
-				 "idx %d DID %x pend %d qdepth %d\n",
-				 lpfc_queue_info->index, ndlp->nlp_DID,
-				 atomic_read(&ndlp->cmd_pending),
-				 ndlp->cmd_qdepth);
-		atomic_inc(&lport->xmt_fcp_qdepth);
-		ret = -EBUSY;
-		goto out_fail;
+	if (lpfc_ndlp_check_qdepth(phba, ndlp)) {
+		if ((atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) &&
+		    !expedite) {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
+					 "6174 Fail IO, ndlp qdepth exceeded: "
+					 "idx %d DID %x pend %d qdepth %d\n",
+					 lpfc_queue_info->index, ndlp->nlp_DID,
+					 atomic_read(&ndlp->cmd_pending),
+					 ndlp->cmd_qdepth);
+			atomic_inc(&lport->xmt_fcp_qdepth);
+			ret = -EBUSY;
+			goto out_fail;
+		}
 	}
 
 	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp, expedite);
@@ -1614,8 +1613,6 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		goto out_free_nvme_buf;
 	}
 
-	atomic_inc(&ndlp->cmd_pending);
-
 	lpfc_nvmeio_data(phba, "NVME FCP XMIT: xri x%x idx %d to %06x\n",
 			 lpfc_ncmd->cur_iocbq.sli4_xritag,
 			 lpfc_queue_info->index, ndlp->nlp_DID);
@@ -1623,7 +1620,6 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	ret = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, &lpfc_ncmd->cur_iocbq);
 	if (ret) {
 		atomic_inc(&lport->xmt_fcp_wqerr);
-		atomic_dec(&ndlp->cmd_pending);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6113 Fail IO, Could not issue WQE err %x "
 				 "sid: x%x did: x%x oxid: x%x\n",
@@ -2378,6 +2374,11 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 			lpfc_ncmd = lpfc_nvme_buf(phba);
 	}
 	spin_unlock_irqrestore(&phba->nvme_buf_list_get_lock, iflag);
+
+	if (lpfc_ndlp_check_qdepth(phba, ndlp) && lpfc_ncmd) {
+		atomic_inc(&ndlp->cmd_pending);
+		lpfc_ncmd->flags |= LPFC_BUMP_QDEPTH;
+	}
 	return  lpfc_ncmd;
 }
 
@@ -2396,7 +2397,13 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 {
 	unsigned long iflag = 0;
 
+	if ((lpfc_ncmd->flags & LPFC_BUMP_QDEPTH) && lpfc_ncmd->ndlp)
+		atomic_dec(&lpfc_ncmd->ndlp->cmd_pending);
+
 	lpfc_ncmd->nonsg_phys = 0;
+	lpfc_ncmd->ndlp = NULL;
+	lpfc_ncmd->flags &= ~LPFC_BUMP_QDEPTH;
+
 	if (lpfc_ncmd->flags & LPFC_SBUF_XBUSY) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 				"6310 XB release deferred for "

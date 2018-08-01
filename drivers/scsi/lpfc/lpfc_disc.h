@@ -150,6 +150,9 @@ struct lpfc_node_rrq {
 	unsigned long rrq_stop_time;
 };
 
+#define lpfc_ndlp_check_qdepth(phba, ndlp) \
+	(ndlp->cmd_qdepth < phba->sli4_hba.max_cfg_param.max_xri)
+
 /* Defines for nlp_flag (uint32) */
 #define NLP_IGNR_REG_CMPL  0x00000001 /* Rcvd rscn before we cmpl reg login */
 #define NLP_REG_LOGIN_SEND 0x00000002   /* sent reglogin to adapter */

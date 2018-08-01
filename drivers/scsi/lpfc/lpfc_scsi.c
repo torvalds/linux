@@ -995,6 +995,11 @@ lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		spin_unlock(&phba->scsi_buf_list_put_lock);
 	}
 	spin_unlock_irqrestore(&phba->scsi_buf_list_get_lock, iflag);
+
+	if (lpfc_ndlp_check_qdepth(phba, ndlp) && lpfc_cmd) {
+		atomic_inc(&ndlp->cmd_pending);
+		lpfc_cmd->flags |= LPFC_SBUF_BUMP_QDEPTH;
+	}
 	return  lpfc_cmd;
 }
 /**
@@ -1044,6 +1049,11 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	spin_unlock_irqrestore(&phba->scsi_buf_list_get_lock, iflag);
 	if (!found)
 		return NULL;
+
+	if (lpfc_ndlp_check_qdepth(phba, ndlp) && lpfc_cmd) {
+		atomic_inc(&ndlp->cmd_pending);
+		lpfc_cmd->flags |= LPFC_SBUF_BUMP_QDEPTH;
+	}
 	return  lpfc_cmd;
 }
 /**
@@ -1134,7 +1144,10 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 static void
 lpfc_release_scsi_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 {
+	if ((psb->flags & LPFC_SBUF_BUMP_QDEPTH) && psb->ndlp)
+		atomic_dec(&psb->ndlp->cmd_pending);
 
+	psb->flags &= ~LPFC_SBUF_BUMP_QDEPTH;
 	phba->lpfc_release_scsi_buf(phba, psb);
 }
 
@@ -4130,7 +4143,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
 		spin_lock_irqsave(shost->host_lock, flags);
 		if (pnode && NLP_CHK_NODE_ACT(pnode)) {
-			atomic_dec(&pnode->cmd_pending);
 			if (pnode->cmd_qdepth >
 				atomic_read(&pnode->cmd_pending) &&
 				(atomic_read(&pnode->cmd_pending) >
@@ -4143,8 +4155,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			pnode->last_change_time = jiffies;
 		}
 		spin_unlock_irqrestore(shost->host_lock, flags);
-	} else if (pnode && NLP_CHK_NODE_ACT(pnode)) {
-		atomic_dec(&pnode->cmd_pending);
 	}
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 
@@ -4568,33 +4578,36 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	 */
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
 		goto out_tgt_busy;
-	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP_ERROR,
-				 "3377 Target Queue Full, scsi Id:%d Qdepth:%d"
-				 " Pending command:%d"
-				 " WWNN:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x, "
-				 " WWPN:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-				 ndlp->nlp_sid, ndlp->cmd_qdepth,
-				 atomic_read(&ndlp->cmd_pending),
-				 ndlp->nlp_nodename.u.wwn[0],
-				 ndlp->nlp_nodename.u.wwn[1],
-				 ndlp->nlp_nodename.u.wwn[2],
-				 ndlp->nlp_nodename.u.wwn[3],
-				 ndlp->nlp_nodename.u.wwn[4],
-				 ndlp->nlp_nodename.u.wwn[5],
-				 ndlp->nlp_nodename.u.wwn[6],
-				 ndlp->nlp_nodename.u.wwn[7],
-				 ndlp->nlp_portname.u.wwn[0],
-				 ndlp->nlp_portname.u.wwn[1],
-				 ndlp->nlp_portname.u.wwn[2],
-				 ndlp->nlp_portname.u.wwn[3],
-				 ndlp->nlp_portname.u.wwn[4],
-				 ndlp->nlp_portname.u.wwn[5],
-				 ndlp->nlp_portname.u.wwn[6],
-				 ndlp->nlp_portname.u.wwn[7]);
-		goto out_tgt_busy;
+	if (lpfc_ndlp_check_qdepth(phba, ndlp)) {
+		if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP_ERROR,
+					 "3377 Target Queue Full, scsi Id:%d "
+					 "Qdepth:%d Pending command:%d"
+					 " WWNN:%02x:%02x:%02x:%02x:"
+					 "%02x:%02x:%02x:%02x, "
+					 " WWPN:%02x:%02x:%02x:%02x:"
+					 "%02x:%02x:%02x:%02x",
+					 ndlp->nlp_sid, ndlp->cmd_qdepth,
+					 atomic_read(&ndlp->cmd_pending),
+					 ndlp->nlp_nodename.u.wwn[0],
+					 ndlp->nlp_nodename.u.wwn[1],
+					 ndlp->nlp_nodename.u.wwn[2],
+					 ndlp->nlp_nodename.u.wwn[3],
+					 ndlp->nlp_nodename.u.wwn[4],
+					 ndlp->nlp_nodename.u.wwn[5],
+					 ndlp->nlp_nodename.u.wwn[6],
+					 ndlp->nlp_nodename.u.wwn[7],
+					 ndlp->nlp_portname.u.wwn[0],
+					 ndlp->nlp_portname.u.wwn[1],
+					 ndlp->nlp_portname.u.wwn[2],
+					 ndlp->nlp_portname.u.wwn[3],
+					 ndlp->nlp_portname.u.wwn[4],
+					 ndlp->nlp_portname.u.wwn[5],
+					 ndlp->nlp_portname.u.wwn[6],
+					 ndlp->nlp_portname.u.wwn[7]);
+			goto out_tgt_busy;
+		}
 	}
-	atomic_inc(&ndlp->cmd_pending);
 
 	lpfc_cmd = lpfc_get_scsi_buf(phba, ndlp);
 	if (lpfc_cmd == NULL) {
@@ -4612,6 +4625,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	 */
 	lpfc_cmd->pCmd  = cmnd;
 	lpfc_cmd->rdata = rdata;
+	lpfc_cmd->ndlp = ndlp;
 	lpfc_cmd->timeout = 0;
 	lpfc_cmd->start_time = jiffies;
 	cmnd->host_scribble = (unsigned char *)lpfc_cmd;
@@ -4694,7 +4708,6 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
-	atomic_dec(&ndlp->cmd_pending);
 	return SCSI_MLQUEUE_HOST_BUSY;
 
  out_tgt_busy:
@@ -5047,6 +5060,7 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct scsi_cmnd *cmnd,
 	lpfc_cmd->timeout = phba->cfg_task_mgmt_tmo;
 	lpfc_cmd->rdata = rdata;
 	lpfc_cmd->pCmd = cmnd;
+	lpfc_cmd->ndlp = pnode;
 
 	status = lpfc_scsi_prep_task_mgmt_cmd(vport, lpfc_cmd, lun_id,
 					   task_mgmt_cmd);
