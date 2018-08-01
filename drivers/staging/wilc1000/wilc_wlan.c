@@ -815,31 +815,28 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 		retries++;
 	}
 
-	if (size > 0) {
-		if (LINUX_RX_SIZE - offset < size)
-			offset = 0;
+	if (size <= 0)
+		return;
 
-		if (wilc->rx_buffer)
-			buffer = &wilc->rx_buffer[offset];
-		else
-			goto end;
+	if (LINUX_RX_SIZE - offset < size)
+		offset = 0;
 
-		wilc->hif_func->hif_clear_int_ext(wilc,
-					      DATA_INT_CLR | ENABLE_RX_VMM);
-		ret = wilc->hif_func->hif_block_rx_ext(wilc, 0, buffer, size);
+	buffer = &wilc->rx_buffer[offset];
 
-end:
-		if (ret) {
-			offset += size;
-			wilc->rx_buffer_offset = offset;
-			rqe = kmalloc(sizeof(*rqe), GFP_KERNEL);
-			if (rqe) {
-				rqe->buffer = buffer;
-				rqe->buffer_size = size;
-				wilc_wlan_rxq_add(wilc, rqe);
-			}
-		}
-	}
+	wilc->hif_func->hif_clear_int_ext(wilc, DATA_INT_CLR | ENABLE_RX_VMM);
+	ret = wilc->hif_func->hif_block_rx_ext(wilc, 0, buffer, size);
+	if (!ret)
+		return;
+
+	offset += size;
+	wilc->rx_buffer_offset = offset;
+	rqe = kmalloc(sizeof(*rqe), GFP_KERNEL);
+	if (!rqe)
+		return;
+
+	rqe->buffer = buffer;
+	rqe->buffer_size = size;
+	wilc_wlan_rxq_add(wilc, rqe);
 	wilc_wlan_handle_rxq(wilc);
 }
 
