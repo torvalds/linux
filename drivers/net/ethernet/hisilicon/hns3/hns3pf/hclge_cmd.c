@@ -147,7 +147,12 @@ static int hclge_cmd_csq_clean(struct hclge_hw *hw)
 	if (!is_valid_csq_clean_head(csq, head)) {
 		dev_warn(&hdev->pdev->dev, "wrong cmd head (%d, %d-%d)\n", head,
 			 csq->next_to_use, csq->next_to_clean);
-		return 0;
+		dev_warn(&hdev->pdev->dev,
+			 "Disabling any further commands to IMP firmware\n");
+		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		dev_warn(&hdev->pdev->dev,
+			 "IMP firmware watchdog reset soon expected!\n");
+		return -EIO;
 	}
 
 	clean = (head - csq->next_to_clean + csq->desc_num) % csq->desc_num;
@@ -267,10 +272,11 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 
 	/* Clean the command send queue */
 	handle = hclge_cmd_csq_clean(hw);
-	if (handle != num) {
+	if (handle < 0)
+		retval = handle;
+	else if (handle != num)
 		dev_warn(&hdev->pdev->dev,
 			 "cleaned %d, need to clean %d\n", handle, num);
-	}
 
 	spin_unlock_bh(&hw->cmq.csq.lock);
 
