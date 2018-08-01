@@ -129,8 +129,10 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		_proto("Tx ABORT %%%u { %d } [re]", serial, conn->local_abort);
 		break;
 	case RXRPC_PACKET_TYPE_ACK:
-		trace_rxrpc_tx_ack(NULL, serial, chan->last_seq, 0,
-				   RXRPC_ACK_DUPLICATE, 0);
+		trace_rxrpc_tx_ack(chan->call_debug_id, serial,
+				   ntohl(pkt.ack.firstPacket),
+				   ntohl(pkt.ack.serial),
+				   pkt.ack.reason, 0);
 		_proto("Tx ACK %%%u [re]", serial);
 		break;
 	}
@@ -138,8 +140,11 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, ioc, len);
 	conn->params.peer->last_tx_at = ktime_get_real();
 	if (ret < 0)
-		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
-				    rxrpc_tx_fail_call_final_resend);
+		trace_rxrpc_tx_fail(chan->call_debug_id, serial, ret,
+				    rxrpc_tx_point_call_final_resend);
+	else
+		trace_rxrpc_tx_packet(chan->call_debug_id, &pkt.whdr,
+				      rxrpc_tx_point_call_final_resend);
 
 	_leave("");
 }
@@ -240,10 +245,12 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
 		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
-				    rxrpc_tx_fail_conn_abort);
+				    rxrpc_tx_point_conn_abort);
 		_debug("sendmsg failed: %d", ret);
 		return -EAGAIN;
 	}
+
+	trace_rxrpc_tx_packet(conn->debug_id, &whdr, rxrpc_tx_point_conn_abort);
 
 	conn->params.peer->last_tx_at = ktime_get_real();
 

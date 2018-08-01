@@ -144,13 +144,11 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	trace_rxrpc_receive(call, rxrpc_receive_end, 0, call->rx_top);
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
-#if 0 // TODO: May want to transmit final ACK under some circumstances anyway
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
-		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, true, false,
+		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, false, true,
 				  rxrpc_propose_ack_terminal_ack);
-		rxrpc_send_ack_packet(call, false, NULL);
+		//rxrpc_send_ack_packet(call, false, NULL);
 	}
-#endif
 
 	write_lock_bh(&call->state_lock);
 
@@ -315,6 +313,10 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	unsigned int rx_pkt_offset, rx_pkt_len;
 	int ix, copy, ret = -EAGAIN, ret2;
 
+	if (test_and_clear_bit(RXRPC_CALL_RX_UNDERRUN, &call->flags) &&
+	    call->ackr_reason)
+		rxrpc_send_ack_packet(call, false, NULL);
+
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
 
@@ -414,6 +416,8 @@ out:
 done:
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_data_return, seq,
 			    rx_pkt_offset, rx_pkt_len, ret);
+	if (ret == -EAGAIN)
+		set_bit(RXRPC_CALL_RX_UNDERRUN, &call->flags);
 	return ret;
 }
 
@@ -686,6 +690,17 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 read_phase_complete:
 	ret = 1;
 out:
+	switch (call->ackr_reason) {
+	case RXRPC_ACK_IDLE:
+		break;
+	case RXRPC_ACK_DELAY:
+		if (ret != -EAGAIN)
+			break;
+		/* Fall through */
+	default:
+		rxrpc_send_ack_packet(call, false, NULL);
+	}
+
 	if (_service)
 		*_service = call->service_id;
 	mutex_unlock(&call->user_mutex);
