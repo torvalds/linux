@@ -218,7 +218,6 @@ static struct clk_regmap gxbb_fixed_pll = {
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -286,6 +285,10 @@ static struct clk_regmap gxbb_hdmi_pll = {
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "hdmi_pll_pre_mult" },
 		.num_parents = 1,
+		/*
+		 * Display directly handle hdmi pll registers ATM, we need
+		 * NOCACHE to keep our view of the clock as accurate as possible
+		 */
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
@@ -349,6 +352,10 @@ static struct clk_regmap gxl_hdmi_pll = {
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
+		/*
+		 * Display directly handle hdmi pll registers ATM, we need
+		 * NOCACHE to keep our view of the clock as accurate as possible
+		 */
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
@@ -391,7 +398,6 @@ static struct clk_regmap gxbb_sys_pll = {
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -442,7 +448,6 @@ static struct clk_regmap gxbb_gp0_pll = {
 		.ops = &meson_clk_pll_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -500,7 +505,6 @@ static struct clk_regmap gxl_gp0_pll = {
 		.ops = &meson_clk_pll_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
