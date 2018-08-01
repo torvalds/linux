@@ -929,7 +929,7 @@ __xfs_trans_commit(
 	 * Finish deferred items on final commit. Only permanent transactions
 	 * should ever have deferred ops.
 	 */
-	WARN_ON_ONCE(xfs_defer_has_unfinished_work(tp->t_dfops) &&
+	WARN_ON_ONCE(xfs_defer_has_unfinished_work(tp) &&
 		     !(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
 	if (!regrant && (tp->t_flags & XFS_TRANS_PERM_LOG_RES)) {
 		error = xfs_defer_finish_noroll(&tp);
