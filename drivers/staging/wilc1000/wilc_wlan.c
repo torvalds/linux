@@ -536,7 +536,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 			vmm_table[i] = vmm_sz / 4;
 			if (tqe->type == WILC_CFG_PKT)
 				vmm_table[i] |= BIT(10);
-			vmm_table[i] = cpu_to_le32(vmm_table[i]);
+			cpu_to_le32s(&vmm_table[i]);
 
 			i++;
 			sum += vmm_sz;
@@ -639,7 +639,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 		if (vmm_table[i] == 0)
 			break;
 
-		vmm_table[i] = cpu_to_le32(vmm_table[i]);
+		le32_to_cpus(&vmm_table[i]);
 		vmm_sz = (vmm_table[i] & 0x3ff);
 		vmm_sz *= 4;
 		header = (tqe->type << 31) |
@@ -650,7 +650,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 		else
 			header &= ~BIT(30);
 
-		header = cpu_to_le32(header);
+		cpu_to_le32s(&header);
 		memcpy(&txb[offset], &header, 4);
 		if (tqe->type == WILC_CFG_PKT) {
 			buffer_offset = ETH_CONFIG_PKT_HDR_OFFSET;
@@ -705,7 +705,7 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 	do {
 		buff_ptr = buffer + offset;
 		memcpy(&header, buff_ptr, 4);
-		header = cpu_to_le32(header);
+		le32_to_cpus(&header);
 
 		is_cfg_packet = (header >> 31) & 0x1;
 		pkt_offset = (header >> 22) & 0x1ff;
@@ -880,8 +880,8 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 	do {
 		memcpy(&addr, &buffer[offset], 4);
 		memcpy(&size, &buffer[offset + 4], 4);
-		addr = cpu_to_le32(addr);
-		size = cpu_to_le32(size);
+		le32_to_cpus(&addr);
+		le32_to_cpus(&size);
 		acquire_bus(wilc, ACQUIRE_ONLY);
 		offset += 8;
 		while (((int)size) && (offset < buffer_size)) {

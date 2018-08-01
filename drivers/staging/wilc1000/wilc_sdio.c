@@ -384,7 +384,7 @@ static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	int ret;
 
-	data = cpu_to_le32(data);
+	cpu_to_le32s(&data);
 
 	if (addr >= 0xf0 && addr <= 0xff) {
 		struct sdio_cmd52 cmd;
@@ -563,7 +563,7 @@ static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		}
 	}
 
-	*data = cpu_to_le32(*data);
+	le32_to_cpus(*data);
 
 	return 1;
 
