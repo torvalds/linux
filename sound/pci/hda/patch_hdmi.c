@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/asoundef.h>
@@ -176,13 +177,13 @@ struct hdmi_spec {
 
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
 	bool use_acomp_notifier; /* use i915 eld_notify callback for hotplug */
-	struct i915_audio_component_audio_ops i915_audio_ops;
+	struct drm_audio_component_audio_ops drm_audio_ops;
 
 	struct hdac_chmap chmap;
 	hda_nid_t vendor_nid;
 };
 
-#ifdef CONFIG_SND_HDA_I915
+#ifdef CONFIG_SND_HDA_COMPONENT
 static inline bool codec_has_acomp(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -764,8 +765,10 @@ static void check_presence_and_report(struct hda_codec *codec, hda_nid_t nid,
 
 	if (pin_idx < 0)
 		return;
+	mutex_lock(&spec->pcm_lock);
 	if (hdmi_present_sense(get_pin(spec, pin_idx), 1))
 		snd_hda_jack_report_sync(codec);
+	mutex_unlock(&spec->pcm_lock);
 }
 
 static void jack_callback(struct hda_codec *codec,
@@ -1628,21 +1631,23 @@ static void sync_eld_via_acomp(struct hda_codec *codec,
 static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 {
 	struct hda_codec *codec = per_pin->codec;
-	struct hdmi_spec *spec = codec->spec;
 	int ret;
 
 	/* no temporary power up/down needed for component notifier */
-	if (!codec_has_acomp(codec))
-		snd_hda_power_up_pm(codec);
+	if (!codec_has_acomp(codec)) {
+		ret = snd_hda_power_up_pm(codec);
+		if (ret < 0 && pm_runtime_suspended(hda_codec_dev(codec))) {
+			snd_hda_power_down_pm(codec);
+			return false;
+		}
+	}
 
-	mutex_lock(&spec->pcm_lock);
 	if (codec_has_acomp(codec)) {
 		sync_eld_via_acomp(codec, per_pin);
 		ret = false; /* don't call snd_hda_jack_report_sync() */
 	} else {
 		ret = hdmi_present_sense_via_verbs(per_pin, repoll);
 	}
-	mutex_unlock(&spec->pcm_lock);
 
 	if (!codec_has_acomp(codec))
 		snd_hda_power_down_pm(codec);
@@ -1654,12 +1659,16 @@ static void hdmi_repoll_eld(struct work_struct *work)
 {
 	struct hdmi_spec_per_pin *per_pin =
 	container_of(to_delayed_work(work), struct hdmi_spec_per_pin, work);
+	struct hda_codec *codec = per_pin->codec;
+	struct hdmi_spec *spec = codec->spec;
 
 	if (per_pin->repoll_count++ > 6)
 		per_pin->repoll_count = 0;
 
+	mutex_lock(&spec->pcm_lock);
 	if (hdmi_present_sense(per_pin, per_pin->repoll_count))
 		snd_hda_jack_report_sync(per_pin->codec);
+	mutex_unlock(&spec->pcm_lock);
 }
 
 static void intel_haswell_fixup_connect_list(struct hda_codec *codec,
@@ -2279,7 +2288,7 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	int pin_idx, pcm_idx;
 
 	if (codec_has_acomp(codec))
-		snd_hdac_i915_register_notifier(NULL);
+		snd_hdac_acomp_register_notifier(&codec->bus->core, NULL);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
@@ -2462,6 +2471,38 @@ static void haswell_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	snd_hda_codec_set_power_to_all(codec, fg, power_state);
 }
 
+/* There is a fixed mapping between audio pin node and display port.
+ * on SNB, IVY, HSW, BSW, SKL, BXT, KBL:
+ * Pin Widget 5 - PORT B (port = 1 in i915 driver)
+ * Pin Widget 6 - PORT C (port = 2 in i915 driver)
+ * Pin Widget 7 - PORT D (port = 3 in i915 driver)
+ *
+ * on VLV, ILK:
+ * Pin Widget 4 - PORT B (port = 1 in i915 driver)
+ * Pin Widget 5 - PORT C (port = 2 in i915 driver)
+ * Pin Widget 6 - PORT D (port = 3 in i915 driver)
+ */
+static int intel_base_nid(struct hda_codec *codec)
+{
+	switch (codec->core.vendor_id) {
+	case 0x80860054: /* ILK */
+	case 0x80862804: /* ILK */
+	case 0x80862882: /* VLV */
+		return 4;
+	default:
+		return 5;
+	}
+}
+
+static int intel_pin2port(void *audio_ptr, int pin_nid)
+{
+	int base_nid = intel_base_nid(audio_ptr);
+
+	if (WARN_ON(pin_nid < base_nid || pin_nid >= base_nid + 3))
+		return -1;
+	return pin_nid - base_nid + 1; /* intel port is 1-based */
+}
+
 static void intel_pin_eld_notify(void *audio_ptr, int port, int pipe)
 {
 	struct hda_codec *codec = audio_ptr;
@@ -2472,16 +2513,7 @@ static void intel_pin_eld_notify(void *audio_ptr, int port, int pipe)
 	if (port < 1 || port > 3)
 		return;
 
-	switch (codec->core.vendor_id) {
-	case 0x80860054: /* ILK */
-	case 0x80862804: /* ILK */
-	case 0x80862882: /* VLV */
-		pin_nid = port + 0x03;
-		break;
-	default:
-		pin_nid = port + 0x04;
-		break;
-	}
+	pin_nid = port + intel_base_nid(codec) - 1; /* intel port is 1-based */
 
 	/* skip notification during system suspend (but not in runtime PM);
 	 * the state will be updated at resume
@@ -2502,14 +2534,16 @@ static void register_i915_notifier(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 
 	spec->use_acomp_notifier = true;
-	spec->i915_audio_ops.audio_ptr = codec;
+	spec->drm_audio_ops.audio_ptr = codec;
 	/* intel_audio_codec_enable() or intel_audio_codec_disable()
 	 * will call pin_eld_notify with using audio_ptr pointer
 	 * We need make sure audio_ptr is really setup
 	 */
 	wmb();
-	spec->i915_audio_ops.pin_eld_notify = intel_pin_eld_notify;
-	snd_hdac_i915_register_notifier(&spec->i915_audio_ops);
+	spec->drm_audio_ops.pin2port = intel_pin2port;
+	spec->drm_audio_ops.pin_eld_notify = intel_pin_eld_notify;
+	snd_hdac_acomp_register_notifier(&codec->bus->core,
+					&spec->drm_audio_ops);
 }
 
 /* setup_stream ops override for HSW+ */
@@ -3740,6 +3774,11 @@ static int patch_atihdmi(struct hda_codec *codec)
 	}
 
 	spec->chmap.channels_max = max(spec->chmap.channels_max, 8u);
+
+	/* AMD GPUs have neither EPSS nor CLKSTOP bits, hence preventing
+	 * the link-down as is.  Tell the core to allow it.
+	 */
+	codec->link_down_at_suspend = 1;
 
 	return 0;
 }
