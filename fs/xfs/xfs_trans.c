@@ -1110,10 +1110,3 @@ xfs_trans_roll(
 	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
 	return xfs_trans_reserve(*tpp, &tres, 0, 0);
 }
-
-void
-xfs_defer_cancel(
-	struct xfs_trans	*tp)
-{
-	__xfs_defer_cancel(tp->t_dfops);
-}

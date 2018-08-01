@@ -214,9 +214,6 @@ xfs_trans_read_buf(
 				      flags, bpp, ops);
 }
 
-/* cancel dfops associated with a transaction */
-void xfs_defer_cancel(struct xfs_trans *);
-
 struct xfs_buf	*xfs_trans_getsb(xfs_trans_t *, struct xfs_mount *, int);
 
 void		xfs_trans_brelse(xfs_trans_t *, struct xfs_buf *);

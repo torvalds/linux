@@ -465,9 +465,10 @@ xfs_defer_finish(
  * Free up any items left in the list.
  */
 void
-__xfs_defer_cancel(
-	struct xfs_defer_ops		*dop)
+xfs_defer_cancel(
+	struct xfs_trans		*tp)
 {
+	struct xfs_defer_ops		*dop = tp->t_dfops;
 	struct xfs_defer_pending	*dfp;
 	struct xfs_defer_pending	*pli;
 	struct list_head		*pwi;
