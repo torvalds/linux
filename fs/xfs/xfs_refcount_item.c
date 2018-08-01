@@ -479,8 +479,8 @@ xfs_cui_recover(
 			new_len = refc->pe_len;
 		} else
 			error = xfs_trans_log_finish_refcount_update(tp, cudp,
-				tp->t_dfops, type, refc->pe_startblock,
-				refc->pe_len, &new_fsb, &new_len, &rcur);
+				type, refc->pe_startblock, refc->pe_len,
+				&new_fsb, &new_len, &rcur);
 		if (error)
 			goto abort_error;
 

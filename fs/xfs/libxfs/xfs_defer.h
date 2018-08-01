@@ -50,8 +50,8 @@ struct xfs_defer_op_type {
 	unsigned int		max_items;
 	void (*abort_intent)(void *);
 	void *(*create_done)(struct xfs_trans *, void *, unsigned int);
-	int (*finish_item)(struct xfs_trans *, struct xfs_defer_ops *,
-			struct list_head *, void *, void **);
+	int (*finish_item)(struct xfs_trans *, struct list_head *, void *,
+			void **);
 	void (*finish_cleanup)(struct xfs_trans *, void *, int);
 	void (*cancel_item)(struct list_head *);
 	int (*diff_items)(void *, struct list_head *, struct list_head *);

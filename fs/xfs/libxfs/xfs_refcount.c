@@ -1082,7 +1082,6 @@ xfs_refcount_finish_one_cleanup(
 int
 xfs_refcount_finish_one(
 	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dfops,
 	enum xfs_refcount_intent_type	type,
 	xfs_fsblock_t			startblock,
 	xfs_extlen_t			blockcount,
@@ -1091,6 +1090,7 @@ xfs_refcount_finish_one(
 	struct xfs_btree_cur		**pcur)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_defer_ops		*dfops = tp->t_dfops;
 	struct xfs_btree_cur		*rcur;
 	struct xfs_buf			*agbp = NULL;
 	int				error = 0;

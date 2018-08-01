@@ -475,9 +475,8 @@ xfs_bui_recover(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	count = bmap->me_len;
-	error = xfs_trans_log_finish_bmap_update(tp, budp, tp->t_dfops, type,
-			ip, whichfork, bmap->me_startoff,
-			bmap->me_startblock, &count, state);
+	error = xfs_trans_log_finish_bmap_update(tp, budp, type, ip, whichfork,
+			bmap->me_startoff, bmap->me_startblock, &count, state);
 	if (error)
 		goto err_inode;
 

@@ -6045,7 +6045,6 @@ xfs_bmap_unmap_extent(
 int
 xfs_bmap_finish_one(
 	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dfops,
 	struct xfs_inode		*ip,
 	enum xfs_bmap_intent_type	type,
 	int				whichfork,
@@ -6072,7 +6071,6 @@ xfs_bmap_finish_one(
 
 	switch (type) {
 	case XFS_BMAP_MAP:
-		ASSERT(dfops == tp->t_dfops);
 		error = xfs_bmapi_remap(tp, ip, startoff, *blockcount,
 				startblock, 0);
 		*blockcount = 0;

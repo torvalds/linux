@@ -371,7 +371,7 @@ xfs_defer_finish_noroll(
 		list_for_each_safe(li, n, &dfp->dfp_work) {
 			list_del(li);
 			dfp->dfp_count--;
-			error = dfp->dfp_type->finish_item(*tp, dop, li,
+			error = dfp->dfp_type->finish_item(*tp, li,
 					dfp->dfp_done, &state);
 			if (error == -EAGAIN) {
 				/*
