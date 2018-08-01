@@ -255,7 +255,8 @@ void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 	v4l2_set_subdevdata(sd, spi);
 	spi_set_drvdata(spi, sd);
 	/* initialize name */
-	strscpy(sd->name, spi->dev.driver->name, sizeof(sd->name));
+	snprintf(sd->name, sizeof(sd->name), "%s %s",
+		spi->dev.driver->name, dev_name(&spi->dev));
 }
 EXPORT_SYMBOL_GPL(v4l2_spi_subdev_init);
 
