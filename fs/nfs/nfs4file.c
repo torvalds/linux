@@ -149,6 +149,7 @@ static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
 		ret = nfs42_proc_llseek(filep, offset, whence);
 		if (ret != -ENOTSUPP)
 			return ret;
+		/* Fall through */
 	default:
 		return nfs_file_llseek(filep, offset, whence);
 	}

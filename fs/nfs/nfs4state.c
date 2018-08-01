@@ -1525,6 +1525,7 @@ restart:
 		default:
 			pr_err("NFS: %s: unhandled error %d\n",
 					__func__, status);
+			/* Fall through */
 		case -ENOMEM:
 		case -NFS4ERR_DENIED:
 		case -NFS4ERR_RECLAIM_BAD:
@@ -1597,6 +1598,7 @@ restart:
 			default:
 				printk(KERN_ERR "NFS: %s: unhandled error %d\n",
 					__func__, status);
+				/* Fall through */
 			case -ENOENT:
 			case -ENOMEM:
 			case -EACCES:
@@ -1608,6 +1610,7 @@ restart:
 				break;
 			case -EAGAIN:
 				ssleep(1);
+				/* Fall through */
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_OLD_STATEID:
@@ -2190,9 +2193,11 @@ again:
 	case -ETIMEDOUT:
 		if (clnt->cl_softrtry)
 			break;
+		/* Fall through */
 	case -NFS4ERR_DELAY:
 	case -EAGAIN:
 		ssleep(1);
+		/* Fall through */
 	case -NFS4ERR_STALE_CLIENTID:
 		dprintk("NFS: %s after status %d, retrying\n",
 			__func__, status);
@@ -2204,6 +2209,7 @@ again:
 		}
 		if (clnt->cl_auth->au_flavor == RPC_AUTH_UNIX)
 			break;
+		/* Fall through */
 	case -NFS4ERR_CLID_INUSE:
 	case -NFS4ERR_WRONGSEC:
 		/* No point in retrying if we already used RPC_AUTH_UNIX */
