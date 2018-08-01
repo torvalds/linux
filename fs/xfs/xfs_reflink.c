@@ -435,6 +435,7 @@ retry:
 	xfs_inode_set_cowblocks_tag(ip);
 
 	/* Finish up. */
+	xfs_defer_ijoin(tp->t_dfops, ip);
 	error = xfs_trans_commit(tp);
 	if (error)
 		return error;

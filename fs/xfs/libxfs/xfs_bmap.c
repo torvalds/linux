@@ -1119,6 +1119,7 @@ xfs_bmap_add_attrfork(
 			xfs_log_sb(tp);
 	}
 
+	xfs_defer_ijoin(tp->t_dfops, ip);
 	error = xfs_trans_commit(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;

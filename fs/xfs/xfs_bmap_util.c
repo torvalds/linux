@@ -979,6 +979,7 @@ xfs_alloc_file_space(
 		/*
 		 * Complete the transaction
 		 */
+		xfs_defer_ijoin(tp->t_dfops, ip);
 		error = xfs_trans_commit(tp);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error)
