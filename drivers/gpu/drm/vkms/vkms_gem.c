@@ -239,10 +239,9 @@ int vkms_gem_vmap(struct drm_gem_object *obj)
 		vkms_obj->vaddr = vmap(pages, n_pages, VM_MAP, PAGE_KERNEL);
 		if (!vkms_obj->vaddr)
 			goto err_vmap;
-
-		vkms_obj->vmap_count++;
 	}
 
+	vkms_obj->vmap_count++;
 	goto out;
 
 err_vmap:
