@@ -3030,6 +3030,13 @@ retry_root_backup:
 	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
 
+	ret = btrfs_verify_dev_extents(fs_info);
+	if (ret) {
+		btrfs_err(fs_info,
+			  "failed to verify dev extents against chunks: %d",
+			  ret);
+		goto fail_block_groups;
+	}
 	ret = btrfs_recover_balance(fs_info);
 	if (ret) {
 		btrfs_err(fs_info, "failed to recover balance: %d", ret);

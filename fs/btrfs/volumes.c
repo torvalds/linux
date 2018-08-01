@@ -6452,6 +6452,7 @@ static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
 	map->stripe_len = btrfs_chunk_stripe_len(leaf, chunk);
 	map->type = btrfs_chunk_type(leaf, chunk);
 	map->sub_stripes = btrfs_chunk_sub_stripes(leaf, chunk);
+	map->verified_stripes = 0;
 	for (i = 0; i < num_stripes; i++) {
 		map->stripes[i].physical =
 			btrfs_stripe_offset_nr(leaf, chunk, i);
@@ -7317,4 +7318,187 @@ int btrfs_bg_type_to_factor(u64 flags)
 		     BTRFS_BLOCK_GROUP_RAID10))
 		return 2;
 	return 1;
+}
+
+
+static u64 calc_stripe_length(u64 type, u64 chunk_len, int num_stripes)
+{
+	int index = btrfs_bg_flags_to_raid_index(type);
+	int ncopies = btrfs_raid_array[index].ncopies;
+	int data_stripes;
+
+	switch (type & BTRFS_BLOCK_GROUP_PROFILE_MASK) {
+	case BTRFS_BLOCK_GROUP_RAID5:
+		data_stripes = num_stripes - 1;
+		break;
+	case BTRFS_BLOCK_GROUP_RAID6:
+		data_stripes = num_stripes - 2;
+		break;
+	default:
+		data_stripes = num_stripes / ncopies;
+		break;
+	}
+	return div_u64(chunk_len, data_stripes);
+}
+
+static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
+				 u64 chunk_offset, u64 devid,
+				 u64 physical_offset, u64 physical_len)
+{
+	struct extent_map_tree *em_tree = &fs_info->mapping_tree.map_tree;
+	struct extent_map *em;
+	struct map_lookup *map;
+	u64 stripe_len;
+	bool found = false;
+	int ret = 0;
+	int i;
+
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, chunk_offset, 1);
+	read_unlock(&em_tree->lock);
+
+	if (!em) {
+		btrfs_err(fs_info,
+"dev extent physical offset %llu on devid %llu doesn't have corresponding chunk",
+			  physical_offset, devid);
+		ret = -EUCLEAN;
+		goto out;
+	}
+
+	map = em->map_lookup;
+	stripe_len = calc_stripe_length(map->type, em->len, map->num_stripes);
+	if (physical_len != stripe_len) {
+		btrfs_err(fs_info,
+"dev extent physical offset %llu on devid %llu length doesn't match chunk %llu, have %llu expect %llu",
+			  physical_offset, devid, em->start, physical_len,
+			  stripe_len);
+		ret = -EUCLEAN;
+		goto out;
+	}
+
+	for (i = 0; i < map->num_stripes; i++) {
+		if (map->stripes[i].dev->devid == devid &&
+		    map->stripes[i].physical == physical_offset) {
+			found = true;
+			if (map->verified_stripes >= map->num_stripes) {
+				btrfs_err(fs_info,
+				"too many dev extents for chunk %llu found",
+					  em->start);
+				ret = -EUCLEAN;
+				goto out;
+			}
+			map->verified_stripes++;
+			break;
+		}
+	}
+	if (!found) {
+		btrfs_err(fs_info,
+	"dev extent physical offset %llu devid %llu has no corresponding chunk",
+			physical_offset, devid);
+		ret = -EUCLEAN;
+	}
+out:
+	free_extent_map(em);
+	return ret;
+}
+
+static int verify_chunk_dev_extent_mapping(struct btrfs_fs_info *fs_info)
+{
+	struct extent_map_tree *em_tree = &fs_info->mapping_tree.map_tree;
+	struct extent_map *em;
+	struct rb_node *node;
+	int ret = 0;
+
+	read_lock(&em_tree->lock);
+	for (node = rb_first(&em_tree->map); node; node = rb_next(node)) {
+		em = rb_entry(node, struct extent_map, rb_node);
+		if (em->map_lookup->num_stripes !=
+		    em->map_lookup->verified_stripes) {
+			btrfs_err(fs_info,
+			"chunk %llu has missing dev extent, have %d expect %d",
+				  em->start, em->map_lookup->verified_stripes,
+				  em->map_lookup->num_stripes);
+			ret = -EUCLEAN;
+			goto out;
+		}
+	}
+out:
+	read_unlock(&em_tree->lock);
+	return ret;
+}
+
+/*
+ * Ensure that all dev extents are mapped to correct chunk, otherwise
+ * later chunk allocation/free would cause unexpected behavior.
+ *
+ * NOTE: This will iterate through the whole device tree, which should be of
+ * the same size level as the chunk tree.  This slightly increases mount time.
+ */
+int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_path *path;
+	struct btrfs_root *root = fs_info->dev_root;
+	struct btrfs_key key;
+	int ret = 0;
+
+	key.objectid = 1;
+	key.type = BTRFS_DEV_EXTENT_KEY;
+	key.offset = 0;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	path->reada = READA_FORWARD;
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+
+	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
+		ret = btrfs_next_item(root, path);
+		if (ret < 0)
+			goto out;
+		/* No dev extents at all? Not good */
+		if (ret > 0) {
+			ret = -EUCLEAN;
+			goto out;
+		}
+	}
+	while (1) {
+		struct extent_buffer *leaf = path->nodes[0];
+		struct btrfs_dev_extent *dext;
+		int slot = path->slots[0];
+		u64 chunk_offset;
+		u64 physical_offset;
+		u64 physical_len;
+		u64 devid;
+
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		if (key.type != BTRFS_DEV_EXTENT_KEY)
+			break;
+		devid = key.objectid;
+		physical_offset = key.offset;
+
+		dext = btrfs_item_ptr(leaf, slot, struct btrfs_dev_extent);
+		chunk_offset = btrfs_dev_extent_chunk_offset(leaf, dext);
+		physical_len = btrfs_dev_extent_length(leaf, dext);
+
+		ret = verify_one_dev_extent(fs_info, chunk_offset, devid,
+					    physical_offset, physical_len);
+		if (ret < 0)
+			goto out;
+		ret = btrfs_next_item(root, path);
+		if (ret < 0)
+			goto out;
+		if (ret > 0) {
+			ret = 0;
+			break;
+		}
+	}
+
+	/* Ensure all chunks have corresponding dev extents */
+	ret = verify_chunk_dev_extent_mapping(fs_info);
+out:
+	btrfs_free_path(path);
+	return ret;
 }
