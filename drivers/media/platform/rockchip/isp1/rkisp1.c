@@ -421,7 +421,8 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 		 readl(base + CIF_ISP_CTRL),
 		 readl(base + CIF_MIPI_CTRL));
 
-	writel(CIF_IRCL_MIPI_SW_RST | CIF_IRCL_ISP_SW_RST, base + CIF_IRCL);
+	writel(CIF_IRCL_MIPI_SW_RST | CIF_IRCL_ISP_SW_RST | CIF_IRCL_MI_SW_RST,
+	       base + CIF_IRCL);
 	writel(0x0, base + CIF_IRCL);
 
 	return 0;
