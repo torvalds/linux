@@ -906,8 +906,8 @@ static void tcp_check_sack_reordering(struct sock *sk, const u32 low_seq,
 				       sock_net(sk)->ipv4.sysctl_tcp_max_reordering);
 	}
 
-	tp->rack.reord = 1;
 	/* This exciting event is worth to be remembered. 8) */
+	tp->reord_seen++;
 	NET_INC_STATS(sock_net(sk),
 		      ts ? LINUX_MIB_TCPTSREORDER : LINUX_MIB_TCPSACKREORDER);
 }
@@ -1871,6 +1871,7 @@ static void tcp_check_reno_reordering(struct sock *sk, const int addend)
 
 	tp->reordering = min_t(u32, tp->packets_out + addend,
 			       sock_net(sk)->ipv4.sysctl_tcp_max_reordering);
+	tp->reord_seen++;
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRENOREORDER);
 }
 

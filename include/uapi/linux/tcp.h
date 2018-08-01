@@ -239,6 +239,7 @@ struct tcp_info {
 	__u64	tcpi_bytes_sent;     /* RFC4898 tcpEStatsPerfHCDataOctetsOut */
 	__u64	tcpi_bytes_retrans;  /* RFC4898 tcpEStatsPerfOctetsRetrans */
 	__u32	tcpi_dsack_dups;     /* RFC4898 tcpEStatsStackDSACKDups */
+	__u32	tcpi_reord_seen;     /* reordering events seen */
 };
 
 /* netlink attributes types for SCM_TIMESTAMPING_OPT_STATS */
@@ -264,6 +265,7 @@ enum {
 	TCP_NLA_BYTES_SENT,	/* Data bytes sent including retransmission */
 	TCP_NLA_BYTES_RETRANS,	/* Data bytes retransmitted */
 	TCP_NLA_DSACK_DUPS,	/* DSACK blocks received */
+	TCP_NLA_REORD_SEEN,	/* reordering events seen */
 };
 
 /* for TCP_MD5SIG socket option */

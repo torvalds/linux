@@ -220,8 +220,7 @@ struct tcp_sock {
 #define TCP_RACK_RECOVERY_THRESH 16
 		u8 reo_wnd_persist:5, /* No. of recovery since last adj */
 		   dsack_seen:1, /* Whether DSACK seen after last adj */
-		   advanced:1,	 /* mstamp advanced since last lost marking */
-		   reord:1;	 /* reordering detected */
+		   advanced:1;	 /* mstamp advanced since last lost marking */
 	} rack;
 	u16	advmss;		/* Advertised MSS			*/
 	u8	compressed_ack;
@@ -267,6 +266,7 @@ struct tcp_sock {
 	u8	ecn_flags;	/* ECN status bits.			*/
 	u8	keepalive_probes; /* num of allowed keep alive probes	*/
 	u32	reordering;	/* Packet reordering metric.		*/
+	u32	reord_seen;	/* number of data packet reordering events */
 	u32	snd_up;		/* Urgent pointer		*/
 
 /*
