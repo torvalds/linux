@@ -520,6 +520,8 @@ drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 	if (!sched_job)
 		return NULL;
 
+	sched_job->sched = sched;
+	sched_job->s_fence->sched = sched;
 	while ((entity->dependency = sched->ops->dependency(sched_job, entity)))
 		if (drm_sched_entity_add_dependency_cb(entity))
 			return NULL;
@@ -550,11 +552,23 @@ drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 			       struct drm_sched_entity *entity)
 {
-	struct drm_gpu_scheduler *sched = sched_job->sched;
-	bool first = false;
+	struct drm_sched_rq *rq = entity->rq;
+	bool first, reschedule, idle;
+
+	idle = entity->last_scheduled == NULL ||
+		dma_fence_is_signaled(entity->last_scheduled);
+	first = spsc_queue_count(&entity->job_queue) == 0;
+	reschedule = idle && first && (entity->num_rq_list > 1);
+
+	if (reschedule) {
+		rq = drm_sched_entity_get_free_sched(entity);
+		spin_lock(&entity->rq_lock);
+		drm_sched_rq_remove_entity(entity->rq, entity);
+		entity->rq = rq;
+		spin_unlock(&entity->rq_lock);
+	}
 
 	trace_drm_sched_job(sched_job, entity);
-
 	atomic_inc(&entity->rq->sched->num_jobs);
 	WRITE_ONCE(entity->last_user, current->group_leader);
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
@@ -570,7 +584,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 		}
 		drm_sched_rq_add_entity(entity->rq, entity);
 		spin_unlock(&entity->rq_lock);
-		drm_sched_wakeup(sched);
+		drm_sched_wakeup(entity->rq->sched);
 	}
 }
 EXPORT_SYMBOL(drm_sched_entity_push_job);
