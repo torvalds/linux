@@ -235,6 +235,8 @@ struct tcp_info {
 
 	__u32	tcpi_delivered;
 	__u32	tcpi_delivered_ce;
+
+	__u64	tcpi_bytes_sent;     /* RFC4898 tcpEStatsPerfHCDataOctetsOut */
 };
 
 /* netlink attributes types for SCM_TIMESTAMPING_OPT_STATS */
@@ -257,7 +259,7 @@ enum {
 	TCP_NLA_SND_SSTHRESH,	/* Slow start size threshold */
 	TCP_NLA_DELIVERED,	/* Data pkts delivered incl. out-of-order */
 	TCP_NLA_DELIVERED_CE,	/* Like above but only ones w/ CE marks */
-
+	TCP_NLA_BYTES_SENT,	/* Data bytes sent including retransmission */
 };
 
 /* for TCP_MD5SIG socket option */

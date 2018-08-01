@@ -1136,6 +1136,7 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 	if (skb->len != tcp_header_size) {
 		tcp_event_data_sent(tp, sk);
 		tp->data_segs_out += tcp_skb_pcount(skb);
+		tp->bytes_sent += skb->len - tcp_header_size;
 		tcp_internal_pacing(sk, skb);
 	}
 

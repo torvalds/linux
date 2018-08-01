@@ -2594,6 +2594,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	sk->sk_rx_dst = NULL;
 	tcp_saved_syn_free(tp);
 	tp->compressed_ack = 0;
+	tp->bytes_sent = 0;
 
 	/* Clean up fastopen related fields */
 	tcp_free_fastopen_req(tp);
@@ -3201,6 +3202,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 		info->tcpi_delivery_rate = rate64;
 	info->tcpi_delivered = tp->delivered;
 	info->tcpi_delivered_ce = tp->delivered_ce;
+	info->tcpi_bytes_sent = tp->bytes_sent;
 	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
@@ -3225,6 +3227,7 @@ static size_t tcp_opt_stats_get_size(void)
 		nla_total_size(sizeof(u32)) + /* TCP_NLA_SND_SSTHRESH */
 		nla_total_size(sizeof(u32)) + /* TCP_NLA_DELIVERED */
 		nla_total_size(sizeof(u32)) + /* TCP_NLA_DELIVERED_CE */
+		nla_total_size_64bit(sizeof(u64)) + /* TCP_NLA_BYTES_SENT */
 		0;
 }
 
@@ -3271,6 +3274,9 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 
 	nla_put_u32(stats, TCP_NLA_SNDQ_SIZE, tp->write_seq - tp->snd_una);
 	nla_put_u8(stats, TCP_NLA_CA_STATE, inet_csk(sk)->icsk_ca_state);
+
+	nla_put_u64_64bit(stats, TCP_NLA_BYTES_SENT, tp->bytes_sent,
+			  TCP_NLA_PAD);
 
 	return stats;
 }
