@@ -269,7 +269,7 @@ static int ttm_set_pages_caching(struct dma_pool *pool,
 	int r = 0;
 	/* Set page caching */
 	if (pool->type & IS_UC) {
-		r = set_pages_array_uc(pages, cpages);
+		r = ttm_set_pages_array_uc(pages, cpages);
 		if (r)
 			pr_err("%s: Failed to set %d pages to uc!\n",
 			       pool->dev_name, cpages);
