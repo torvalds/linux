@@ -2392,9 +2392,8 @@ DEFINE_DEFER_EVENT(xfs_defer_finish_done);
 DEFINE_DEFER_ERROR_EVENT(xfs_defer_trans_roll_error);
 DEFINE_DEFER_ERROR_EVENT(xfs_defer_finish_error);
 
-DEFINE_DEFER_PENDING_EVENT(xfs_defer_intake_work);
-DEFINE_DEFER_PENDING_EVENT(xfs_defer_intake_cancel);
-DEFINE_DEFER_PENDING_EVENT(xfs_defer_pending_cancel);
+DEFINE_DEFER_PENDING_EVENT(xfs_defer_create_intent);
+DEFINE_DEFER_PENDING_EVENT(xfs_defer_cancel_list);
 DEFINE_DEFER_PENDING_EVENT(xfs_defer_pending_finish);
 DEFINE_DEFER_PENDING_EVENT(xfs_defer_pending_abort);
 

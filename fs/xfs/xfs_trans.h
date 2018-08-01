@@ -96,7 +96,6 @@ void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 #define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
 struct xfs_defer_ops {
 	struct list_head	dop_intake;	/* unlogged pending work */
-	struct list_head	dop_pending;	/* logged pending work */
 };
 
 /*
