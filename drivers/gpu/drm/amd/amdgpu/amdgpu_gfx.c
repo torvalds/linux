@@ -360,9 +360,9 @@ int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-/* create MQD for each compute queue */
-int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
-				   unsigned mqd_size)
+/* create MQD for each compute/gfx queue */
+int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
+			   unsigned mqd_size)
 {
 	struct amdgpu_ring *ring = NULL;
 	int r, i;
@@ -411,7 +411,7 @@ int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev)
+void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = NULL;
 	int i;
