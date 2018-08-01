@@ -29,26 +29,26 @@ struct drm_device;
 struct drm_file;
 struct amdgpu_fpriv;
 
-struct amdgpu_ctx_ring {
+struct amdgpu_ctx_entity {
 	uint64_t		sequence;
 	struct dma_fence	**fences;
 	struct drm_sched_entity	entity;
 };
 
 struct amdgpu_ctx {
-	struct kref		refcount;
-	struct amdgpu_device    *adev;
-	unsigned		reset_counter;
-	unsigned		reset_counter_query;
-	uint32_t		vram_lost_counter;
-	spinlock_t		ring_lock;
-	struct dma_fence	**fences;
-	struct amdgpu_ctx_ring	rings[AMDGPU_MAX_RINGS];
-	bool			preamble_presented;
-	enum drm_sched_priority init_priority;
-	enum drm_sched_priority override_priority;
-	struct mutex            lock;
-	atomic_t		guilty;
+	struct kref			refcount;
+	struct amdgpu_device		*adev;
+	unsigned			reset_counter;
+	unsigned			reset_counter_query;
+	uint32_t			vram_lost_counter;
+	spinlock_t			ring_lock;
+	struct dma_fence		**fences;
+	struct amdgpu_ctx_entity	*entities[AMDGPU_HW_IP_NUM];
+	bool				preamble_presented;
+	enum drm_sched_priority		init_priority;
+	enum drm_sched_priority		override_priority;
+	struct mutex			lock;
+	atomic_t			guilty;
 };
 
 struct amdgpu_ctx_mgr {
@@ -57,6 +57,8 @@ struct amdgpu_ctx_mgr {
 	/* protected by lock */
 	struct idr		ctx_handles;
 };
+
+extern const unsigned int amdgpu_ctx_num_entities[AMDGPU_HW_IP_NUM];
 
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx);

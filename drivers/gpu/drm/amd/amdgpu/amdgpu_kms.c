@@ -270,7 +270,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	uint32_t ib_start_alignment = 0;
 	uint32_t ib_size_alignment = 0;
 	enum amd_ip_block_type type;
-	uint32_t ring_mask = 0;
+	unsigned int num_rings = 0;
 	unsigned int i, j;
 
 	if (info->query_hw_ip.ip_instance >= AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
@@ -280,21 +280,24 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_GFX:
 		type = AMD_IP_BLOCK_TYPE_GFX;
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-			ring_mask |= adev->gfx.gfx_ring[i].ready << i;
+			if (adev->gfx.gfx_ring[i].ready)
+				++num_rings;
 		ib_start_alignment = 32;
 		ib_size_alignment = 32;
 		break;
 	case AMDGPU_HW_IP_COMPUTE:
 		type = AMD_IP_BLOCK_TYPE_GFX;
 		for (i = 0; i < adev->gfx.num_compute_rings; i++)
-			ring_mask |= adev->gfx.compute_ring[i].ready << i;
+			if (adev->gfx.compute_ring[i].ready)
+				++num_rings;
 		ib_start_alignment = 32;
 		ib_size_alignment = 32;
 		break;
 	case AMDGPU_HW_IP_DMA:
 		type = AMD_IP_BLOCK_TYPE_SDMA;
 		for (i = 0; i < adev->sdma.num_instances; i++)
-			ring_mask |= adev->sdma.instance[i].ring.ready << i;
+			if (adev->sdma.instance[i].ring.ready)
+				++num_rings;
 		ib_start_alignment = 256;
 		ib_size_alignment = 4;
 		break;
@@ -303,7 +306,9 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 		for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
 			if (adev->uvd.harvest_config & (1 << i))
 				continue;
-			ring_mask |= adev->uvd.inst[i].ring.ready;
+
+			if (adev->uvd.inst[i].ring.ready)
+				++num_rings;
 		}
 		ib_start_alignment = 64;
 		ib_size_alignment = 64;
@@ -311,7 +316,8 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_VCE:
 		type = AMD_IP_BLOCK_TYPE_VCE;
 		for (i = 0; i < adev->vce.num_rings; i++)
-			ring_mask |= adev->vce.ring[i].ready << i;
+			if (adev->vce.ring[i].ready)
+				++num_rings;
 		ib_start_alignment = 4;
 		ib_size_alignment = 1;
 		break;
@@ -320,28 +326,33 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 		for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
 			if (adev->uvd.harvest_config & (1 << i))
 				continue;
+
 			for (j = 0; j < adev->uvd.num_enc_rings; j++)
-				ring_mask |= adev->uvd.inst[i].ring_enc[j].ready << j;
+				if (adev->uvd.inst[i].ring_enc[j].ready)
+					++num_rings;
 		}
 		ib_start_alignment = 64;
 		ib_size_alignment = 64;
 		break;
 	case AMDGPU_HW_IP_VCN_DEC:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		ring_mask = adev->vcn.ring_dec.ready;
+		if (adev->vcn.ring_dec.ready)
+			++num_rings;
 		ib_start_alignment = 16;
 		ib_size_alignment = 16;
 		break;
 	case AMDGPU_HW_IP_VCN_ENC:
 		type = AMD_IP_BLOCK_TYPE_VCN;
 		for (i = 0; i < adev->vcn.num_enc_rings; i++)
-			ring_mask |= adev->vcn.ring_enc[i].ready << i;
+			if (adev->vcn.ring_enc[i].ready)
+				++num_rings;
 		ib_start_alignment = 64;
 		ib_size_alignment = 1;
 		break;
 	case AMDGPU_HW_IP_VCN_JPEG:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		ring_mask = adev->vcn.ring_jpeg.ready;
+		if (adev->vcn.ring_jpeg.ready)
+			++num_rings;
 		ib_start_alignment = 16;
 		ib_size_alignment = 16;
 		break;
@@ -357,10 +368,13 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	if (i == adev->num_ip_blocks)
 		return 0;
 
+	num_rings = min(amdgpu_ctx_num_entities[info->query_hw_ip.type],
+			num_rings);
+
 	result->hw_ip_version_major = adev->ip_blocks[i].version->major;
 	result->hw_ip_version_minor = adev->ip_blocks[i].version->minor;
 	result->capabilities_flags = 0;
-	result->available_rings = ring_mask;
+	result->available_rings = (1 << num_rings) - 1;
 	result->ib_start_alignment = ib_start_alignment;
 	result->ib_size_alignment = ib_size_alignment;
 	return 0;
