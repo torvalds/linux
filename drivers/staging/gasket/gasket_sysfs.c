@@ -101,6 +101,11 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 		files_to_remove = kcalloc(num_files_to_remove,
 					  sizeof(*files_to_remove),
 					  GFP_KERNEL);
+		if (!files_to_remove) {
+			mutex_unlock(&mapping->mutex);
+			return;
+		}
+
 		for (i = 0; i < num_files_to_remove; i++)
 			files_to_remove[i] = mapping->attributes[i].attr;
 
