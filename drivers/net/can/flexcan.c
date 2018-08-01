@@ -720,8 +720,13 @@ static unsigned int flexcan_mailbox_read(struct can_rx_offload *offload,
 			priv->write(BIT(n - 32), &regs->iflag2);
 	} else {
 		priv->write(FLEXCAN_IFLAG_RX_FIFO_AVAILABLE, &regs->iflag1);
-		priv->read(&regs->timer);
 	}
+
+	/* Read the Free Running Timer. It is optional but recommended
+	 * to unlock Mailbox as soon as possible and make it available
+	 * for reception.
+	 */
+	priv->read(&regs->timer);
 
 	return 1;
 }
