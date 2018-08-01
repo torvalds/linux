@@ -115,9 +115,9 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 		while (*pp) {
 			parent = *pp;
 			xcall = rb_entry(parent, struct rxrpc_call, sock_node);
-			if (user_call_ID < call->user_call_ID)
+			if (user_call_ID < xcall->user_call_ID)
 				pp = &(*pp)->rb_left;
-			else if (user_call_ID > call->user_call_ID)
+			else if (user_call_ID > xcall->user_call_ID)
 				pp = &(*pp)->rb_right;
 			else
 				goto id_in_use;
