@@ -416,29 +416,39 @@ static void drm_sched_entity_clear_dep(struct dma_fence *f, struct dma_fence_cb 
 }
 
 /**
- * drm_sched_entity_set_rq - Sets the run queue for an entity
+ * drm_sched_entity_set_rq_priority - helper for drm_sched_entity_set_priority
+ */
+static void drm_sched_entity_set_rq_priority(struct drm_sched_rq **rq,
+					     enum drm_sched_priority priority)
+{
+	*rq = &(*rq)->sched->sched_rq[priority];
+}
+
+/**
+ * drm_sched_entity_set_priority - Sets priority of the entity
  *
  * @entity: scheduler entity
- * @rq: scheduler run queue
+ * @priority: scheduler priority
  *
- * Sets the run queue for an entity and removes the entity from the previous
- * run queue in which was present.
+ * Update the priority of runqueus used for the entity.
  */
-void drm_sched_entity_set_rq(struct drm_sched_entity *entity,
-			     struct drm_sched_rq *rq)
+void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
+				   enum drm_sched_priority priority)
 {
-	if (entity->rq == rq)
-		return;
-
-	BUG_ON(!rq);
+	unsigned int i;
 
 	spin_lock(&entity->rq_lock);
+
+	for (i = 0; i < entity->num_rq_list; ++i)
+		drm_sched_entity_set_rq_priority(&entity->rq_list[i], priority);
+
 	drm_sched_rq_remove_entity(entity->rq, entity);
-	entity->rq = rq;
-	drm_sched_rq_add_entity(rq, entity);
+	drm_sched_entity_set_rq_priority(&entity->rq, priority);
+	drm_sched_rq_add_entity(entity->rq, entity);
+
 	spin_unlock(&entity->rq_lock);
 }
-EXPORT_SYMBOL(drm_sched_entity_set_rq);
+EXPORT_SYMBOL(drm_sched_entity_set_priority);
 
 /**
  * drm_sched_dependency_optimized

@@ -298,9 +298,8 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity);
 void drm_sched_entity_destroy(struct drm_sched_entity *entity);
 void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 			       struct drm_sched_entity *entity);
-void drm_sched_entity_set_rq(struct drm_sched_entity *entity,
-			     struct drm_sched_rq *rq);
-
+void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
+				   enum drm_sched_priority priority);
 struct drm_sched_fence *drm_sched_fence_create(
 	struct drm_sched_entity *s_entity, void *owner);
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence);
