@@ -1088,7 +1088,7 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 		goto end_trans;
 	}
 
-	ret = btrfs_del_root(trans, fs_info, &quota_root->root_key);
+	ret = btrfs_del_root(trans, &quota_root->root_key);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto end_trans;
