@@ -43,31 +43,12 @@
 #include <asm/mmu_context.h>
 #include <asm/mman.h>
 
-/* Use this to get at 32-bit user passed pointers. */
-/* A() macro should be used for places where you e.g.
-   have some internal variable u32 and just want to get
-   rid of a compiler warning. AA() has to be used in
-   places where you want to convert a function argument
-   to 32bit pointer or when you e.g. access pt_regs
-   structure and want to consider 32bit registers only.
- */
-#define A(__x) ((unsigned long)(__x))
-#define AA(__x) ((unsigned long)((int)__x))
-
 #ifdef __MIPSEB__
 #define merge_64(r1, r2) ((((r1) & 0xffffffffUL) << 32) + ((r2) & 0xffffffffUL))
 #endif
 #ifdef __MIPSEL__
 #define merge_64(r1, r2) ((((r2) & 0xffffffffUL) << 32) + ((r1) & 0xffffffffUL))
 #endif
-
-#define RLIM_INFINITY32 0x7fffffff
-#define RESOURCE32(x) ((x > RLIM_INFINITY32) ? RLIM_INFINITY32 : x)
-
-struct rlimit32 {
-	int	rlim_cur;
-	int	rlim_max;
-};
 
 SYSCALL_DEFINE4(32_truncate64, const char __user *, path,
 	unsigned long, __dummy, unsigned long, a2, unsigned long, a3)
