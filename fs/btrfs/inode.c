@@ -4085,7 +4085,6 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 			struct inode *dir, u64 objectid,
 			const char *name, int name_len)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_dir_item *di;
@@ -4118,9 +4117,8 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	}
 	btrfs_release_path(path);
 
-	ret = btrfs_del_root_ref(trans, fs_info, objectid,
-				 root->root_key.objectid, dir_ino,
-				 &index, name, name_len);
+	ret = btrfs_del_root_ref(trans, objectid, root->root_key.objectid,
+				 dir_ino, &index, name, name_len);
 	if (ret < 0) {
 		if (ret != -ENOENT) {
 			btrfs_abort_transaction(trans, ret);
@@ -6439,7 +6437,7 @@ fail_dir_item:
 	if (unlikely(ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		u64 local_index;
 		int err;
-		err = btrfs_del_root_ref(trans, fs_info, key.objectid,
+		err = btrfs_del_root_ref(trans, key.objectid,
 					 root->root_key.objectid, parent_ino,
 					 &local_index, name, name_len);
 

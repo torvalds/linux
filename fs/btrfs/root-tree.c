@@ -341,13 +341,12 @@ out:
 	return ret;
 }
 
-int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info,
-		       u64 root_id, u64 ref_id, u64 dirid, u64 *sequence,
-		       const char *name, int name_len)
+int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
+		       u64 ref_id, u64 dirid, u64 *sequence, const char *name,
+		       int name_len)
 
 {
-	struct btrfs_root *tree_root = fs_info->tree_root;
+	struct btrfs_root *tree_root = trans->fs_info->tree_root;
 	struct btrfs_path *path;
 	struct btrfs_root_ref *ref;
 	struct extent_buffer *leaf;

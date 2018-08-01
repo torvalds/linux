@@ -2988,10 +2988,9 @@ int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info,
 		       u64 root_id, u64 ref_id, u64 dirid, u64 sequence,
 		       const char *name, int name_len);
-int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info,
-		       u64 root_id, u64 ref_id, u64 dirid, u64 *sequence,
-		       const char *name, int name_len);
+int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
+		       u64 ref_id, u64 dirid, u64 *sequence, const char *name,
+		       int name_len);
 int btrfs_del_root(struct btrfs_trans_handle *trans,
 		   const struct btrfs_key *key);
 int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
