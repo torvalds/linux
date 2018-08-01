@@ -810,11 +810,25 @@ static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
 	}
 }
 
+static int query_lock(struct v4l2_subdev *sd)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	int status;
+
+	if (decoder->irq)
+		return decoder->lock;
+
+	regmap_read(decoder->regmap, TVP5150_STATUS_REG_1, &status);
+
+	/* For standard detection, we need the 3 locks */
+	return (status & 0x0e) == 0x0e;
+}
+
 static int tvp5150_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
-	*std_id = decoder->lock ? tvp5150_read_std(sd) : V4L2_STD_UNKNOWN;
+	*std_id = query_lock(sd) ? tvp5150_read_std(sd) : V4L2_STD_UNKNOWN;
 
 	return 0;
 }
@@ -1208,7 +1222,10 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 		tvp5150_enable(sd);
 
 		/* Enable outputs if decoder is locked */
-		val = decoder->lock ? decoder->oe : 0;
+		if (decoder->irq)
+			val = decoder->lock ? decoder->oe : 0;
+		else
+			val = decoder->oe;
 		int_val = TVP5150_INT_A_LOCK;
 		v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
 	}
@@ -1777,8 +1794,6 @@ static int tvp5150_probe(struct i2c_client *c,
 						IRQF_ONESHOT, "tvp5150", core);
 		if (res)
 			return res;
-	} else {
-		core->lock = true;
 	}
 
 	res = v4l2_async_register_subdev(sd);
