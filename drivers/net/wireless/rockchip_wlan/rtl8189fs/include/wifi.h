@@ -25,7 +25,7 @@
 //#error	"BIT define occurred earlier elsewhere!\n"
 #undef BIT
 #endif
-#define BIT(x)	(1 << (x))
+#define BIT(x)	(1UL << (x))
 
 
 #define WLAN_ETHHDR_LEN		14

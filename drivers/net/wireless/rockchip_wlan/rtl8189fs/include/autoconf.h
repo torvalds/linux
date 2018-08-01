@@ -224,7 +224,7 @@
 /*
  * Debug Related Config
  */
-#define CONFIG_DEBUG /* DBG_871X, etc... */
+//#define CONFIG_DEBUG /* DBG_871X, etc... */
 
 #ifdef CONFIG_DEBUG
 #define DBG	1	// for ODM & BTCOEX debug

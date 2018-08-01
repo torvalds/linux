@@ -2039,7 +2039,7 @@ static void rtw_hal_release_rx_dma(_adapter *adapter)
 
 	rtw_write32(adapter, REG_RXPKT_NUM, (val32 & (~RW_RELEASE_EN)));
 
-	DBG_871X("%s, [0x%04x]: 0x%08x\n",
+	DBG_871X("%s, [0x%04x]: 0x%08lx\n",
 		 __func__, REG_RXPKT_NUM, (val32 & (~RW_RELEASE_EN)));
 }
 
