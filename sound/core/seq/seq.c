@@ -87,10 +87,6 @@ static int __init alsa_seq_init(void)
 	if ((err = client_init_data()) < 0)
 		goto error;
 
-	/* init memory, room for selected events */
-	if ((err = snd_sequencer_memory_init()) < 0)
-		goto error;
-
 	/* init event queues */
 	if ((err = snd_seq_queues_init()) < 0)
 		goto error;
@@ -125,9 +121,6 @@ static void __exit alsa_seq_exit(void)
 
 	/* unregister sequencer device */
 	snd_sequencer_device_done();
-
-	/* release event memory */
-	snd_sequencer_memory_done();
 
 	snd_seq_autoload_exit();
 }

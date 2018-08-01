@@ -110,23 +110,6 @@ static int snd_virmidi_dev_receive_event(struct snd_virmidi_dev *rdev,
 }
 
 /*
- * receive an event from the remote virmidi port
- *
- * for rawmidi inputs, you can call this function from the event
- * handler of a remote port which is attached to the virmidi via
- * SNDRV_VIRMIDI_SEQ_ATTACH.
- */
-#if 0
-int snd_virmidi_receive(struct snd_rawmidi *rmidi, struct snd_seq_event *ev)
-{
-	struct snd_virmidi_dev *rdev;
-
-	rdev = rmidi->private_data;
-	return snd_virmidi_dev_receive_event(rdev, ev, true);
-}
-#endif  /*  0  */
-
-/*
  * event handler of virmidi port
  */
 static int snd_virmidi_event_input(struct snd_seq_event *ev, int direct,
@@ -544,19 +527,3 @@ int snd_virmidi_new(struct snd_card *card, int device, struct snd_rawmidi **rrmi
 	return 0;
 }
 EXPORT_SYMBOL(snd_virmidi_new);
-
-/*
- *  ENTRY functions
- */
-
-static int __init alsa_virmidi_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_virmidi_exit(void)
-{
-}
-
-module_init(alsa_virmidi_init)
-module_exit(alsa_virmidi_exit)
