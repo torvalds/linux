@@ -748,6 +748,8 @@ static int px30_lvds_power_on(struct rockchip_lvds *lvds)
 			     PX30_LVDS_OUTPUT_FORMAT(lvds->format) |
 			     PX30_LVDS_MSBSEL(LVDS_MSB_D7) |
 			     PX30_DPHY_FORCERXMODE(1));
+		lvds_msk_reg(lvds, MIPIPHY_REG8,
+			     m_SAMPLE_CLK_DIR, v_SAMPLE_CLK_DIR_REVERSE);
 	}
 
 	return innov1_lvds_power_on(lvds);

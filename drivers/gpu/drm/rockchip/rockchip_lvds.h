@@ -155,6 +155,10 @@
 #define MIPIPHY_REG4		0x0010
 #define v_FBDIV_LSB(x)		BITS_MASK(x, 0xff, 0)
 
+#define MIPIPHY_REG8			0x0020
+#define m_SAMPLE_CLK_DIR		BIT(4)
+#define v_SAMPLE_CLK_DIR_REVERSE	BIT(4)
+
 #define MIPIPHY_REGE0		0x0380
 #define m_MSB_SEL		BIT(0)
 #define m_DIG_INTER_RST		BIT(2)
