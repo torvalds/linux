@@ -6,7 +6,7 @@ EXTRA_SOURCES := ../harness.c
 
 build_32bit = $(shell if ($(CC) $(CFLAGS) -m32 -o /dev/null memcmp.c >/dev/null 2>&1) then echo "1"; fi)
 
-TEST_GEN_PROGS := memcmp_64
+TEST_GEN_PROGS := memcmp_64 strlen
 
 $(OUTPUT)/memcmp_64: memcmp.c
 $(OUTPUT)/memcmp_64: CFLAGS += -m64 -maltivec
@@ -17,6 +17,8 @@ $(OUTPUT)/memcmp_32: CFLAGS += -m32
 
 TEST_GEN_PROGS += memcmp_32
 endif
+
+$(OUTPUT)/strlen: strlen.c string.c
 
 ASFLAGS = $(CFLAGS)
 
