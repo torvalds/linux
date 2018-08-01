@@ -62,6 +62,7 @@
 #define DC_LOG_EVENT_UNDERFLOW(...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define DC_LOG_IF_TRACE(...) pr_debug("[IF_TRACE]:"__VA_ARGS__)
 #define DC_LOG_PERF_TRACE(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_RETIMER_REDRIVER(...) DRM_DEBUG_KMS(__VA_ARGS__)
 
 struct dal_logger;
 
@@ -99,7 +100,7 @@ enum dc_log_type {
 	LOG_IF_TRACE,
 	LOG_PERF_TRACE,
 	LOG_DISPLAYSTATS,
-
+	LOG_HDMI_RETIMER_REDRIVER,
 	LOG_SECTION_TOTAL_COUNT
 };
 
