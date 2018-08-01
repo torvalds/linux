@@ -6,11 +6,9 @@
 
 #define LAST_HDR_INDEX 0xFFFFFFFF
 
-/*****************************************************************************/
-/*                Protocol fields                                            */
-/*****************************************************************************/
+/* Protocol fields */
 
-/*************************  Ethernet fields  *********************************/
+/* Ethernet fields */
 #define NH_FLD_ETH_DA                         (1)
 #define NH_FLD_ETH_SA                         (NH_FLD_ETH_DA << 1)
 #define NH_FLD_ETH_LENGTH                     (NH_FLD_ETH_DA << 2)
@@ -21,7 +19,7 @@
 
 #define NH_FLD_ETH_ADDR_SIZE                 6
 
-/***************************  VLAN fields  ***********************************/
+/* VLAN fields */
 #define NH_FLD_VLAN_VPRI                      (1)
 #define NH_FLD_VLAN_CFI                       (NH_FLD_VLAN_VPRI << 1)
 #define NH_FLD_VLAN_VID                       (NH_FLD_VLAN_VPRI << 2)
@@ -33,7 +31,7 @@
 					       NH_FLD_VLAN_CFI | \
 					       NH_FLD_VLAN_VID)
 
-/************************  IP (generic) fields  ******************************/
+/* IP (generic) fields */
 #define NH_FLD_IP_VER                         (1)
 #define NH_FLD_IP_DSCP                        (NH_FLD_IP_VER << 2)
 #define NH_FLD_IP_ECN                         (NH_FLD_IP_VER << 3)
@@ -46,7 +44,7 @@
 
 #define NH_FLD_IP_PROTO_SIZE                  1
 
-/*****************************  IPV4 fields  *********************************/
+/* IPV4 fields */
 #define NH_FLD_IPV4_VER                       (1)
 #define NH_FLD_IPV4_HDR_LEN                   (NH_FLD_IPV4_VER << 1)
 #define NH_FLD_IPV4_TOS                       (NH_FLD_IPV4_VER << 2)
@@ -67,7 +65,7 @@
 #define NH_FLD_IPV4_ADDR_SIZE                 4
 #define NH_FLD_IPV4_PROTO_SIZE                1
 
-/*****************************  IPV6 fields  *********************************/
+/* IPV6 fields */
 #define NH_FLD_IPV6_VER                       (1)
 #define NH_FLD_IPV6_TC                        (NH_FLD_IPV6_VER << 1)
 #define NH_FLD_IPV6_SRC_IP                    (NH_FLD_IPV6_VER << 2)
@@ -81,7 +79,7 @@
 #define NH_FLD_IPV6_ADDR_SIZE                 16
 #define NH_FLD_IPV6_NEXT_HDR_SIZE             1
 
-/*****************************  ICMP fields  *********************************/
+/* ICMP fields */
 #define NH_FLD_ICMP_TYPE                      (1)
 #define NH_FLD_ICMP_CODE                      (NH_FLD_ICMP_TYPE << 1)
 #define NH_FLD_ICMP_CKSUM                     (NH_FLD_ICMP_TYPE << 2)
@@ -92,14 +90,14 @@
 #define NH_FLD_ICMP_CODE_SIZE                 1
 #define NH_FLD_ICMP_TYPE_SIZE                 1
 
-/*****************************  IGMP fields  *********************************/
+/* IGMP fields */
 #define NH_FLD_IGMP_VERSION                   (1)
 #define NH_FLD_IGMP_TYPE                      (NH_FLD_IGMP_VERSION << 1)
 #define NH_FLD_IGMP_CKSUM                     (NH_FLD_IGMP_VERSION << 2)
 #define NH_FLD_IGMP_DATA                      (NH_FLD_IGMP_VERSION << 3)
 #define NH_FLD_IGMP_ALL_FIELDS                ((NH_FLD_IGMP_VERSION << 4) - 1)
 
-/*****************************  TCP fields  **********************************/
+/* TCP fields */
 #define NH_FLD_TCP_PORT_SRC                   (1)
 #define NH_FLD_TCP_PORT_DST                   (NH_FLD_TCP_PORT_SRC << 1)
 #define NH_FLD_TCP_SEQ                        (NH_FLD_TCP_PORT_SRC << 2)
@@ -115,7 +113,7 @@
 
 #define NH_FLD_TCP_PORT_SIZE                  2
 
-/*****************************  UDP fields  **********************************/
+/* UDP fields */
 #define NH_FLD_UDP_PORT_SRC                   (1)
 #define NH_FLD_UDP_PORT_DST                   (NH_FLD_UDP_PORT_SRC << 1)
 #define NH_FLD_UDP_LEN                        (NH_FLD_UDP_PORT_SRC << 2)
@@ -124,7 +122,7 @@
 
 #define NH_FLD_UDP_PORT_SIZE                  2
 
-/***************************  UDP-lite fields  *******************************/
+/* UDP-lite fields */
 #define NH_FLD_UDP_LITE_PORT_SRC              (1)
 #define NH_FLD_UDP_LITE_PORT_DST              (NH_FLD_UDP_LITE_PORT_SRC << 1)
 #define NH_FLD_UDP_LITE_ALL_FIELDS \
@@ -132,7 +130,7 @@
 
 #define NH_FLD_UDP_LITE_PORT_SIZE             2
 
-/***************************  UDP-encap-ESP fields  **************************/
+/* UDP-encap-ESP fields */
 #define NH_FLD_UDP_ENC_ESP_PORT_SRC         (1)
 #define NH_FLD_UDP_ENC_ESP_PORT_DST         (NH_FLD_UDP_ENC_ESP_PORT_SRC << 1)
 #define NH_FLD_UDP_ENC_ESP_LEN              (NH_FLD_UDP_ENC_ESP_PORT_SRC << 2)
@@ -145,7 +143,7 @@
 #define NH_FLD_UDP_ENC_ESP_PORT_SIZE        2
 #define NH_FLD_UDP_ENC_ESP_SPI_SIZE         4
 
-/*****************************  SCTP fields  *********************************/
+/* SCTP fields */
 #define NH_FLD_SCTP_PORT_SRC                  (1)
 #define NH_FLD_SCTP_PORT_DST                  (NH_FLD_SCTP_PORT_SRC << 1)
 #define NH_FLD_SCTP_VER_TAG                   (NH_FLD_SCTP_PORT_SRC << 2)
@@ -154,14 +152,14 @@
 
 #define NH_FLD_SCTP_PORT_SIZE                 2
 
-/*****************************  DCCP fields  *********************************/
+/* DCCP fields */
 #define NH_FLD_DCCP_PORT_SRC                  (1)
 #define NH_FLD_DCCP_PORT_DST                  (NH_FLD_DCCP_PORT_SRC << 1)
 #define NH_FLD_DCCP_ALL_FIELDS                ((NH_FLD_DCCP_PORT_SRC << 2) - 1)
 
 #define NH_FLD_DCCP_PORT_SIZE                 2
 
-/*****************************  IPHC fields  *********************************/
+/* IPHC fields */
 #define NH_FLD_IPHC_CID                       (1)
 #define NH_FLD_IPHC_CID_TYPE                  (NH_FLD_IPHC_CID << 1)
 #define NH_FLD_IPHC_HCINDEX                   (NH_FLD_IPHC_CID << 2)
@@ -169,7 +167,7 @@
 #define NH_FLD_IPHC_D_BIT                     (NH_FLD_IPHC_CID << 4)
 #define NH_FLD_IPHC_ALL_FIELDS                ((NH_FLD_IPHC_CID << 5) - 1)
 
-/*****************************  SCTP fields  *********************************/
+/* SCTP fields */
 #define NH_FLD_SCTP_CHUNK_DATA_TYPE           (1)
 #define NH_FLD_SCTP_CHUNK_DATA_FLAGS          (NH_FLD_SCTP_CHUNK_DATA_TYPE << 1)
 #define NH_FLD_SCTP_CHUNK_DATA_LENGTH         (NH_FLD_SCTP_CHUNK_DATA_TYPE << 2)
@@ -183,7 +181,7 @@
 #define NH_FLD_SCTP_CHUNK_DATA_ALL_FIELDS \
 	((NH_FLD_SCTP_CHUNK_DATA_TYPE << 10) - 1)
 
-/***************************  L2TPV2 fields  *********************************/
+/* L2TPV2 fields */
 #define NH_FLD_L2TPV2_TYPE_BIT                (1)
 #define NH_FLD_L2TPV2_LENGTH_BIT              (NH_FLD_L2TPV2_TYPE_BIT << 1)
 #define NH_FLD_L2TPV2_SEQUENCE_BIT            (NH_FLD_L2TPV2_TYPE_BIT << 2)
@@ -200,7 +198,7 @@
 #define NH_FLD_L2TPV2_ALL_FIELDS \
 	((NH_FLD_L2TPV2_TYPE_BIT << 13) - 1)
 
-/***************************  L2TPV3 fields  *********************************/
+/* L2TPV3 fields */
 #define NH_FLD_L2TPV3_CTRL_TYPE_BIT           (1)
 #define NH_FLD_L2TPV3_CTRL_LENGTH_BIT         (NH_FLD_L2TPV3_CTRL_TYPE_BIT << 1)
 #define NH_FLD_L2TPV3_CTRL_SEQUENCE_BIT       (NH_FLD_L2TPV3_CTRL_TYPE_BIT << 2)
@@ -220,12 +218,12 @@
 #define NH_FLD_L2TPV3_SESS_ALL_FIELDS \
 	((NH_FLD_L2TPV3_SESS_TYPE_BIT << 4) - 1)
 
-/****************************  PPP fields  ***********************************/
+/* PPP fields */
 #define NH_FLD_PPP_PID                        (1)
 #define NH_FLD_PPP_COMPRESSED                 (NH_FLD_PPP_PID << 1)
 #define NH_FLD_PPP_ALL_FIELDS                 ((NH_FLD_PPP_PID << 2) - 1)
 
-/**************************  PPPoE fields  ***********************************/
+/* PPPoE fields */
 #define NH_FLD_PPPOE_VER                      (1)
 #define NH_FLD_PPPOE_TYPE                     (NH_FLD_PPPOE_VER << 1)
 #define NH_FLD_PPPOE_CODE                     (NH_FLD_PPPOE_VER << 2)
@@ -235,13 +233,13 @@
 #define NH_FLD_PPPOE_PID                      (NH_FLD_PPPOE_VER << 6)
 #define NH_FLD_PPPOE_ALL_FIELDS               ((NH_FLD_PPPOE_VER << 7) - 1)
 
-/*************************  PPP-Mux fields  **********************************/
+/* PPP-Mux fields */
 #define NH_FLD_PPPMUX_PID                     (1)
 #define NH_FLD_PPPMUX_CKSUM                   (NH_FLD_PPPMUX_PID << 1)
 #define NH_FLD_PPPMUX_COMPRESSED              (NH_FLD_PPPMUX_PID << 2)
 #define NH_FLD_PPPMUX_ALL_FIELDS              ((NH_FLD_PPPMUX_PID << 3) - 1)
 
-/***********************  PPP-Mux sub-frame fields  **************************/
+/* PPP-Mux sub-frame fields */
 #define NH_FLD_PPPMUX_SUBFRM_PFF            (1)
 #define NH_FLD_PPPMUX_SUBFRM_LXT            (NH_FLD_PPPMUX_SUBFRM_PFF << 1)
 #define NH_FLD_PPPMUX_SUBFRM_LEN            (NH_FLD_PPPMUX_SUBFRM_PFF << 2)
@@ -250,25 +248,26 @@
 #define NH_FLD_PPPMUX_SUBFRM_ALL_FIELDS \
 	((NH_FLD_PPPMUX_SUBFRM_PFF << 5) - 1)
 
-/***************************  LLC fields  ************************************/
+/* LLC fields */
 #define NH_FLD_LLC_DSAP                       (1)
 #define NH_FLD_LLC_SSAP                       (NH_FLD_LLC_DSAP << 1)
 #define NH_FLD_LLC_CTRL                       (NH_FLD_LLC_DSAP << 2)
 #define NH_FLD_LLC_ALL_FIELDS                 ((NH_FLD_LLC_DSAP << 3) - 1)
 
-/***************************  NLPID fields  **********************************/
+/* NLPID fields */
 #define NH_FLD_NLPID_NLPID                    (1)
 #define NH_FLD_NLPID_ALL_FIELDS               ((NH_FLD_NLPID_NLPID << 1) - 1)
 
-/***************************  SNAP fields  ***********************************/
+/* SNAP fields */
 #define NH_FLD_SNAP_OUI                       (1)
 #define NH_FLD_SNAP_PID                       (NH_FLD_SNAP_OUI << 1)
 #define NH_FLD_SNAP_ALL_FIELDS                ((NH_FLD_SNAP_OUI << 2) - 1)
 
-/***************************  LLC SNAP fields  *******************************/
+/* LLC SNAP fields */
 #define NH_FLD_LLC_SNAP_TYPE                  (1)
 #define NH_FLD_LLC_SNAP_ALL_FIELDS            ((NH_FLD_LLC_SNAP_TYPE << 1) - 1)
 
+/* ARP fields */
 #define NH_FLD_ARP_HTYPE                      (1)
 #define NH_FLD_ARP_PTYPE                      (NH_FLD_ARP_HTYPE << 1)
 #define NH_FLD_ARP_HLEN                       (NH_FLD_ARP_HTYPE << 2)
@@ -280,7 +279,7 @@
 #define NH_FLD_ARP_TPA                        (NH_FLD_ARP_HTYPE << 8)
 #define NH_FLD_ARP_ALL_FIELDS                 ((NH_FLD_ARP_HTYPE << 9) - 1)
 
-/***************************  RFC2684 fields  ********************************/
+/* RFC2684 fields */
 #define NH_FLD_RFC2684_LLC                    (1)
 #define NH_FLD_RFC2684_NLPID                  (NH_FLD_RFC2684_LLC << 1)
 #define NH_FLD_RFC2684_OUI                    (NH_FLD_RFC2684_LLC << 2)
@@ -289,13 +288,13 @@
 #define NH_FLD_RFC2684_VPN_IDX                (NH_FLD_RFC2684_LLC << 5)
 #define NH_FLD_RFC2684_ALL_FIELDS             ((NH_FLD_RFC2684_LLC << 6) - 1)
 
-/***************************  User defined fields  ***************************/
+/* User defined fields */
 #define NH_FLD_USER_DEFINED_SRCPORT           (1)
 #define NH_FLD_USER_DEFINED_PCDID             (NH_FLD_USER_DEFINED_SRCPORT << 1)
 #define NH_FLD_USER_DEFINED_ALL_FIELDS \
 	((NH_FLD_USER_DEFINED_SRCPORT << 2) - 1)
 
-/***************************  Payload fields  ********************************/
+/* Payload fields */
 #define NH_FLD_PAYLOAD_BUFFER                 (1)
 #define NH_FLD_PAYLOAD_SIZE                   (NH_FLD_PAYLOAD_BUFFER << 1)
 #define NH_FLD_MAX_FRM_SIZE                   (NH_FLD_PAYLOAD_BUFFER << 2)
@@ -304,39 +303,39 @@
 #define NH_FLD_FRAME_SIZE                     (NH_FLD_PAYLOAD_BUFFER << 5)
 #define NH_FLD_PAYLOAD_ALL_FIELDS             ((NH_FLD_PAYLOAD_BUFFER << 6) - 1)
 
-/***************************  GRE fields  ************************************/
+/* GRE fields */
 #define NH_FLD_GRE_TYPE                       (1)
 #define NH_FLD_GRE_ALL_FIELDS                 ((NH_FLD_GRE_TYPE << 1) - 1)
 
-/***************************  MINENCAP fields  *******************************/
+/* MINENCAP fields */
 #define NH_FLD_MINENCAP_SRC_IP                (1)
 #define NH_FLD_MINENCAP_DST_IP                (NH_FLD_MINENCAP_SRC_IP << 1)
 #define NH_FLD_MINENCAP_TYPE                  (NH_FLD_MINENCAP_SRC_IP << 2)
 #define NH_FLD_MINENCAP_ALL_FIELDS \
 	((NH_FLD_MINENCAP_SRC_IP << 3) - 1)
 
-/***************************  IPSEC AH fields  *******************************/
+/* IPSEC AH fields */
 #define NH_FLD_IPSEC_AH_SPI                   (1)
 #define NH_FLD_IPSEC_AH_NH                    (NH_FLD_IPSEC_AH_SPI << 1)
 #define NH_FLD_IPSEC_AH_ALL_FIELDS            ((NH_FLD_IPSEC_AH_SPI << 2) - 1)
 
-/***************************  IPSEC ESP fields  ******************************/
+/* IPSEC ESP fields */
 #define NH_FLD_IPSEC_ESP_SPI                  (1)
 #define NH_FLD_IPSEC_ESP_SEQUENCE_NUM         (NH_FLD_IPSEC_ESP_SPI << 1)
 #define NH_FLD_IPSEC_ESP_ALL_FIELDS           ((NH_FLD_IPSEC_ESP_SPI << 2) - 1)
 
 #define NH_FLD_IPSEC_ESP_SPI_SIZE             4
 
-/***************************  MPLS fields  ***********************************/
+/* MPLS fields */
 #define NH_FLD_MPLS_LABEL_STACK               (1)
 #define NH_FLD_MPLS_LABEL_STACK_ALL_FIELDS \
 	((NH_FLD_MPLS_LABEL_STACK << 1) - 1)
 
-/***************************  MACSEC fields  *********************************/
+/* MACSEC fields */
 #define NH_FLD_MACSEC_SECTAG                  (1)
 #define NH_FLD_MACSEC_ALL_FIELDS              ((NH_FLD_MACSEC_SECTAG << 1) - 1)
 
-/***************************  GTP fields  ************************************/
+/* GTP fields */
 #define NH_FLD_GTP_TEID                       (1)
 
 /* Protocol options */
@@ -387,6 +386,7 @@
 /* CAPWAP options */
 #define	NH_OPT_CAPWAP_DTLS			1
 
+/* Supported protocols */
 enum net_prot {
 	NET_PROT_NONE = 0,
 	NET_PROT_PAYLOAD,
