@@ -439,8 +439,8 @@ unsigned long return_address(unsigned int level)
 	/* initialize unwind info */
 	asm volatile ("copy %%r30, %0" : "=r"(sp));
 	memset(&r, 0, sizeof(struct pt_regs));
-	r.iaoq[0] = (unsigned long) current_text_addr();
-	r.gr[2] = (unsigned long) __builtin_return_address(0);
+	r.iaoq[0] = _THIS_IP_;
+	r.gr[2] = _RET_IP_;
 	r.gr[30] = sp;
 	unwind_frame_init(&info, current, &r);
 
