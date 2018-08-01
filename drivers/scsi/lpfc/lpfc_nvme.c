@@ -2687,7 +2687,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_nvme_rport *oldrport;
 	struct nvme_fc_remote_port *remote_port;
 	struct nvme_fc_port_info rpinfo;
-	struct lpfc_nodelist *prev_ndlp;
+	struct lpfc_nodelist *prev_ndlp = NULL;
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NVME_DISC,
 			 "6006 Register NVME PORT. DID x%06x nlptype x%x\n",
@@ -2736,23 +2736,29 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		spin_unlock_irq(&vport->phba->hbalock);
 		rport = remote_port->private;
 		if (oldrport) {
+			/* New remoteport record does not guarantee valid
+			 * host private memory area.
+			 */
+			prev_ndlp = oldrport->ndlp;
 			if (oldrport == remote_port->private) {
-				/* Same remoteport.  Just reuse. */
+				/* Same remoteport - ndlp should match.
+				 * Just reuse.
+				 */
 				lpfc_printf_vlog(ndlp->vport, KERN_INFO,
 						 LOG_NVME_DISC,
 						 "6014 Rebinding lport to "
 						 "remoteport %p wwpn 0x%llx, "
-						 "Data: x%x x%x %p x%x x%06x\n",
+						 "Data: x%x x%x %p %p x%x x%06x\n",
 						 remote_port,
 						 remote_port->port_name,
 						 remote_port->port_id,
 						 remote_port->port_role,
+						 prev_ndlp,
 						 ndlp,
 						 ndlp->nlp_type,
 						 ndlp->nlp_DID);
 				return 0;
 			}
-			prev_ndlp = rport->ndlp;
 
 			/* Sever the ndlp<->rport association
 			 * before dropping the ndlp ref from
@@ -2786,13 +2792,13 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		lpfc_printf_vlog(vport, KERN_INFO,
 				 LOG_NVME_DISC | LOG_NODE,
 				 "6022 Binding new rport to "
-				 "lport %p Remoteport %p  WWNN 0x%llx, "
+				 "lport %p Remoteport %p rport %p WWNN 0x%llx, "
 				 "Rport WWPN 0x%llx DID "
-				 "x%06x Role x%x, ndlp %p\n",
-				 lport, remote_port,
+				 "x%06x Role x%x, ndlp %p prev_ndlp %p\n",
+				 lport, remote_port, rport,
 				 rpinfo.node_name, rpinfo.port_name,
 				 rpinfo.port_id, rpinfo.port_role,
-				 ndlp);
+				 ndlp, prev_ndlp);
 	} else {
 		lpfc_printf_vlog(vport, KERN_ERR,
 				 LOG_NVME_DISC | LOG_NODE,
