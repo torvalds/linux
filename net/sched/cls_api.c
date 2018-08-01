@@ -262,16 +262,6 @@ static void tcf_chain_hold(struct tcf_chain *chain)
 	++chain->refcnt;
 }
 
-static void tcf_chain_hold_by_act(struct tcf_chain *chain)
-{
-	++chain->action_refcnt;
-}
-
-static void tcf_chain_release_by_act(struct tcf_chain *chain)
-{
-	--chain->action_refcnt;
-}
-
 static bool tcf_chain_held_by_acts_only(struct tcf_chain *chain)
 {
 	/* In case all the references are action references, this
@@ -295,52 +285,77 @@ static struct tcf_chain *tcf_chain_lookup(struct tcf_block *block,
 static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 			   u32 seq, u16 flags, int event, bool unicast);
 
-struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
-				bool create)
+static struct tcf_chain *__tcf_chain_get(struct tcf_block *block,
+					 u32 chain_index, bool create,
+					 bool by_act)
 {
 	struct tcf_chain *chain = tcf_chain_lookup(block, chain_index);
 
 	if (chain) {
 		tcf_chain_hold(chain);
-		return chain;
+	} else {
+		if (!create)
+			return NULL;
+		chain = tcf_chain_create(block, chain_index);
+		if (!chain)
+			return NULL;
 	}
 
-	if (!create)
-		return NULL;
-	chain = tcf_chain_create(block, chain_index);
-	if (!chain)
-		return NULL;
-	tc_chain_notify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
-			RTM_NEWCHAIN, false);
+	if (by_act)
+		++chain->action_refcnt;
+
+	/* Send notification only in case we got the first
+	 * non-action reference. Until then, the chain acts only as
+	 * a placeholder for actions pointing to it and user ought
+	 * not know about them.
+	 */
+	if (chain->refcnt - chain->action_refcnt == 1 && !by_act)
+		tc_chain_notify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
+				RTM_NEWCHAIN, false);
+
 	return chain;
+}
+
+struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
+				bool create)
+{
+	return __tcf_chain_get(block, chain_index, create, false);
 }
 EXPORT_SYMBOL(tcf_chain_get);
 
 struct tcf_chain *tcf_chain_get_by_act(struct tcf_block *block, u32 chain_index)
 {
-	struct tcf_chain *chain = tcf_chain_get(block, chain_index, true);
-
-	tcf_chain_hold_by_act(chain);
-	return chain;
+	return __tcf_chain_get(block, chain_index, true, true);
 }
 EXPORT_SYMBOL(tcf_chain_get_by_act);
 
 static void tc_chain_tmplt_del(struct tcf_chain *chain);
 
-void tcf_chain_put(struct tcf_chain *chain)
+static void __tcf_chain_put(struct tcf_chain *chain, bool by_act)
 {
-	if (--chain->refcnt == 0) {
+	if (by_act)
+		chain->action_refcnt--;
+	chain->refcnt--;
+
+	/* The last dropped non-action reference will trigger notification. */
+	if (chain->refcnt - chain->action_refcnt == 0 && !by_act)
 		tc_chain_notify(chain, NULL, 0, 0, RTM_DELCHAIN, false);
+
+	if (chain->refcnt == 0) {
 		tc_chain_tmplt_del(chain);
 		tcf_chain_destroy(chain);
 	}
+}
+
+void tcf_chain_put(struct tcf_chain *chain)
+{
+	__tcf_chain_put(chain, false);
 }
 EXPORT_SYMBOL(tcf_chain_put);
 
 void tcf_chain_put_by_act(struct tcf_chain *chain)
 {
-	tcf_chain_release_by_act(chain);
-	tcf_chain_put(chain);
+	__tcf_chain_put(chain, true);
 }
 EXPORT_SYMBOL(tcf_chain_put_by_act);
 
