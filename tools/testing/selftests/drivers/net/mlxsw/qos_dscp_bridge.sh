@@ -34,36 +34,6 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 NUM_NETIFS=4
 source $lib_dir/lib.sh
 
-__dscp_capture_add_del()
-{
-	local add_del=$1; shift
-	local dev=$1; shift
-	local base=$1; shift
-	local dscp;
-
-	for prio in {0..7}; do
-		dscp=$((base + prio))
-		__icmp_capture_add_del $add_del $dscp "" $dev \
-				       "ip_tos $((dscp << 2))"
-	done
-}
-
-dscp_capture_install()
-{
-	local dev=$1; shift
-	local base=$1; shift
-
-	__dscp_capture_add_del add $dev $base
-}
-
-dscp_capture_uninstall()
-{
-	local dev=$1; shift
-	local base=$1; shift
-
-	__dscp_capture_add_del del $dev $base
-}
-
 h1_create()
 {
 	local dscp;
@@ -103,16 +73,6 @@ dscp_map()
 	done
 }
 
-lldpad_wait()
-{
-	local dev=$1; shift
-
-	while lldptool -t -i $dev -V APP -c app | grep -q pending; do
-	    echo "$dev: waiting for lldpad to push pending APP updates"
-	    sleep 5
-	done
-}
-
 switch_create()
 {
 	ip link add name br1 type bridge vlan_filtering 1
@@ -124,22 +84,15 @@ switch_create()
 
 	lldptool -T -i $swp1 -V APP $(dscp_map 10) >/dev/null
 	lldptool -T -i $swp2 -V APP $(dscp_map 20) >/dev/null
-	lldpad_wait $swp1
-	lldpad_wait $swp2
+	lldpad_app_wait_set $swp1
+	lldpad_app_wait_set $swp2
 }
 
 switch_destroy()
 {
 	lldptool -T -i $swp2 -V APP -d $(dscp_map 20) >/dev/null
 	lldptool -T -i $swp1 -V APP -d $(dscp_map 10) >/dev/null
-
-	# Give lldpad a chance to push down the changes. If the device is downed
-	# too soon, the updates will be left pending, but will have been struck
-	# off the lldpad's DB already, and we won't be able to tell. Then on
-	# next test iteration this would cause weirdness as newly-added APP
-	# rules conflict with the old ones, sometimes getting stuck in an
-	# "unknown" state.
-	sleep 5
+	lldpad_app_wait_del
 
 	ip link set dev $swp2 nomaster
 	ip link set dev $swp1 nomaster
@@ -170,18 +123,6 @@ cleanup()
 	h1_destroy
 
 	vrf_cleanup
-}
-
-dscp_fetch_stats()
-{
-	local dev=$1; shift
-	local base=$1; shift
-
-	for prio in {0..7}; do
-		local dscp=$((base + prio))
-		local t=$(tc_rule_stats_get $dev $dscp)
-		echo "[$dscp]=$t "
-	done
 }
 
 ping_ipv4()
