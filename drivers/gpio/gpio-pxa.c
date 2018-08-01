@@ -626,7 +626,7 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	struct pxa_gpio_platform_data *info;
 	void __iomem *gpio_reg_base;
 	int gpio, ret;
-	int irq0 = 0, irq1 = 0, irq_mux, gpio_offset = 0;
+	int irq0 = 0, irq1 = 0, irq_mux;
 
 	pchip = devm_kzalloc(&pdev->dev, sizeof(*pchip), GFP_KERNEL);
 	if (!pchip)
@@ -671,9 +671,6 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 				     resource_size(res));
 	if (!gpio_reg_base)
 		return -EINVAL;
-
-	if (irq0 > 0)
-		gpio_offset = 2;
 
 	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
