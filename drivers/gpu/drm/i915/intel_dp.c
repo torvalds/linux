@@ -4799,6 +4799,104 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 			      type_str);
 }
 
+/*
+ * This function implements the first part of the Connect Flow described by our
+ * specification, Gen11 TypeC Programming chapter. The rest of the flow (reading
+ * lanes, EDID, etc) is done as needed in the typical places.
+ *
+ * Unlike the other ports, type-C ports are not available to use as soon as we
+ * get a hotplug. The type-C PHYs can be shared between multiple controllers:
+ * display, USB, etc. As a result, handshaking through FIA is required around
+ * connect and disconnect to cleanly transfer ownership with the controller and
+ * set the type-C power state.
+ *
+ * We could opt to only do the connect flow when we actually try to use the AUX
+ * channels or do a modeset, then immediately run the disconnect flow after
+ * usage, but there are some implications on this for a dynamic environment:
+ * things may go away or change behind our backs. So for now our driver is
+ * always trying to acquire ownership of the controller as soon as it gets an
+ * interrupt (or polls state and sees a port is connected) and only gives it
+ * back when it sees a disconnect. Implementation of a more fine-grained model
+ * will require a lot of coordination with user space and thorough testing for
+ * the extra possible cases.
+ */
+static bool icl_tc_phy_connect(struct drm_i915_private *dev_priv,
+			       struct intel_digital_port *dig_port)
+{
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	u32 val;
+
+	if (dig_port->tc_type != TC_PORT_LEGACY &&
+	    dig_port->tc_type != TC_PORT_TYPEC)
+		return true;
+
+	val = I915_READ(PORT_TX_DFLEXDPPMS);
+	if (!(val & DP_PHY_MODE_STATUS_COMPLETED(tc_port))) {
+		DRM_DEBUG_KMS("DP PHY for TC port %d not ready\n", tc_port);
+		return false;
+	}
+
+	/*
+	 * This function may be called many times in a row without an HPD event
+	 * in between, so try to avoid the write when we can.
+	 */
+	val = I915_READ(PORT_TX_DFLEXDPCSSS);
+	if (!(val & DP_PHY_MODE_STATUS_NOT_SAFE(tc_port))) {
+		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
+		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
+	}
+
+	/*
+	 * Now we have to re-check the live state, in case the port recently
+	 * became disconnected. Not necessary for legacy mode.
+	 */
+	if (dig_port->tc_type == TC_PORT_TYPEC &&
+	    !(I915_READ(PORT_TX_DFLEXDPSP) & TC_LIVE_STATE_TC(tc_port))) {
+		DRM_DEBUG_KMS("TC PHY %d sudden disconnect.\n", tc_port);
+		val = I915_READ(PORT_TX_DFLEXDPCSSS);
+		val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
+		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
+		return false;
+	}
+
+	return true;
+}
+
+/*
+ * See the comment at the connect function. This implements the Disconnect
+ * Flow.
+ */
+static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
+				  struct intel_digital_port *dig_port)
+{
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	u32 val;
+
+	if (dig_port->tc_type != TC_PORT_LEGACY &&
+	    dig_port->tc_type != TC_PORT_TYPEC)
+		return;
+
+	/*
+	 * This function may be called many times in a row without an HPD event
+	 * in between, so try to avoid the write when we can.
+	 */
+	val = I915_READ(PORT_TX_DFLEXDPCSSS);
+	if (val & DP_PHY_MODE_STATUS_NOT_SAFE(tc_port)) {
+		val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
+		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
+	}
+}
+
+/*
+ * The type-C ports are different because even when they are connected, they may
+ * not be available/usable by the graphics driver: see the comment on
+ * icl_tc_phy_connect(). So in our driver instead of adding the additional
+ * concept of "usable" and make everything check for "connected and usable" we
+ * define a port as "connected" when it is not only connected, but also when it
+ * is usable by the rest of the driver. That maintains the old assumption that
+ * connected ports are usable, and avoids exposing to the users objects they
+ * can't really use.
+ */
 static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 				  struct intel_digital_port *intel_dig_port)
 {
@@ -4817,11 +4915,16 @@ static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 	is_typec = dpsp & TC_LIVE_STATE_TC(tc_port);
 	is_tbt = dpsp & TC_LIVE_STATE_TBT(tc_port);
 
-	if (!is_legacy && !is_typec && !is_tbt)
+	if (!is_legacy && !is_typec && !is_tbt) {
+		icl_tc_phy_disconnect(dev_priv, intel_dig_port);
 		return false;
+	}
 
 	icl_update_tc_port_type(dev_priv, intel_dig_port, is_legacy, is_typec,
 				is_tbt);
+
+	if (!icl_tc_phy_connect(dev_priv, intel_dig_port))
+		return false;
 
 	return true;
 }
@@ -4849,6 +4952,11 @@ static bool icl_digital_port_connected(struct intel_encoder *encoder)
 /*
  * intel_digital_port_connected - is the specified port connected?
  * @encoder: intel_encoder
+ *
+ * In cases where there's a connector physically connected but it can't be used
+ * by our hardware we also return false, since the rest of the driver should
+ * pretty much treat the port as disconnected. This is relevant for type-C
+ * (starting on ICL) where there's ownership involved.
  *
  * Return %true if port is connected, %false otherwise.
  */
