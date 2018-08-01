@@ -759,6 +759,13 @@ config I2C_OMAP
 	  Like OMAP1510/1610/1710/5912 and OMAP242x.
 	  For details see http://www.ti.com/omap.
 
+config I2C_OWL
+	tristate "Actions Semiconductor Owl I2C Controller"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	help
+	  Say Y here if you want to use the I2C bus controller on
+	  the Actions Semiconductor Owl SoC's.
+
 config I2C_PASEMI
 	tristate "PA Semi SMBus interface"
 	depends on PPC_PASEMI && PCI
