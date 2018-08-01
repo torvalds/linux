@@ -283,6 +283,43 @@ DEFINE_EVENT(smb3_cmd_done_class, smb3_##name,    \
 DEFINE_SMB3_CMD_DONE_EVENT(cmd_done);
 DEFINE_SMB3_CMD_DONE_EVENT(ses_expired);
 
+DECLARE_EVENT_CLASS(smb3_mid_class,
+	TP_PROTO(__u16	cmd,
+		__u64	mid,
+		__u32	pid,
+		unsigned long when_sent,
+		unsigned long when_received),
+	TP_ARGS(cmd, mid, pid, when_sent, when_received),
+	TP_STRUCT__entry(
+		__field(__u16, cmd)
+		__field(__u64, mid)
+		__field(__u32, pid)
+		__field(unsigned long, when_sent)
+		__field(unsigned long, when_received)
+	),
+	TP_fast_assign(
+		__entry->cmd = cmd;
+		__entry->mid = mid;
+		__entry->pid = pid;
+		__entry->when_sent = when_sent;
+		__entry->when_received = when_received;
+	),
+	TP_printk("\tcmd=%u mid=%llu pid=%u, when_sent=%lu when_rcv=%lu",
+		__entry->cmd, __entry->mid, __entry->pid, __entry->when_sent,
+		__entry->when_received)
+)
+
+#define DEFINE_SMB3_MID_EVENT(name)          \
+DEFINE_EVENT(smb3_mid_class, smb3_##name,    \
+	TP_PROTO(__u16	cmd,			\
+		__u64	mid,			\
+		__u32	pid,			\
+		unsigned long when_sent,	\
+		unsigned long when_received),	\
+	TP_ARGS(cmd, mid, pid, when_sent, when_received))
+
+DEFINE_SMB3_MID_EVENT(slow_rsp);
+
 DECLARE_EVENT_CLASS(smb3_exit_err_class,
 	TP_PROTO(unsigned int xid,
 		const char *func_name,
