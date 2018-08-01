@@ -826,8 +826,6 @@ static int query_lock(struct v4l2_subdev *sd)
 
 static int tvp5150_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 {
-	struct tvp5150 *decoder = to_tvp5150(sd);
-
 	*std_id = query_lock(sd) ? tvp5150_read_std(sd) : V4L2_STD_UNKNOWN;
 
 	return 0;
@@ -1484,7 +1482,7 @@ static const struct regmap_range tvp5150_readable_ranges[] = {
 	},
 };
 
-bool tvp5150_volatile_reg(struct device *dev, unsigned int reg)
+static bool tvp5150_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case TVP5150_VERT_LN_COUNT_MSB:
