@@ -174,8 +174,8 @@ static void snd_vmidi_output_work(struct work_struct *work)
 	while (READ_ONCE(vmidi->trigger)) {
 		if (snd_rawmidi_transmit(substream, &input, 1) != 1)
 			break;
-		if (snd_midi_event_encode_byte(vmidi->parser, input,
-					       &vmidi->event) <= 0)
+		if (!snd_midi_event_encode_byte(vmidi->parser, input,
+						&vmidi->event))
 			continue;
 		if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
 			ret = snd_seq_kernel_client_dispatch(vmidi->client,
