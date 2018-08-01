@@ -1062,6 +1062,9 @@ lpfc_rcv_logo_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
+	/* Retrieve RPI from LOGO IOCB. RPI is used for CMD_ABORT_XRI_CN */
+	if (vport->phba->sli_rev == LPFC_SLI_REV3)
+		ndlp->nlp_rpi = cmdiocb->iocb.ulpIoTag;
 				/* software abort outstanding PLOGI */
 	lpfc_els_abort(vport->phba, ndlp);
 
