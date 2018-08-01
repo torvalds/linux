@@ -290,7 +290,7 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int silent_page, tmp;
 	int voice, stereo, w_16;
-	unsigned char attn, send_amount[8];
+	unsigned char send_amount[8];
 	unsigned char send_routing[8];
 	unsigned long flags;
 	unsigned int pitch_target;
@@ -313,7 +313,6 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 
 	/* volume parameters */
 	if (extra) {
-		attn = 0;
 		memset(send_routing, 0, sizeof(send_routing));
 		send_routing[0] = 0;
 		send_routing[1] = 1;
