@@ -301,26 +301,32 @@ void user_single_step_siginfo(struct task_struct *tsk,
 	info->si_addr = (void __user *)regs->nip;
 }
 
-
-void _exception_pkey(int signr, struct pt_regs *regs, int code,
-		unsigned long addr, int key)
+static void show_signal_msg(int signr, struct pt_regs *regs, int code,
+			    unsigned long addr)
 {
-	siginfo_t info;
 	const char fmt32[] = KERN_INFO "%s[%d]: unhandled signal %d " \
-			"at %08lx nip %08lx lr %08lx code %x\n";
+		"at %08lx nip %08lx lr %08lx code %x\n";
 	const char fmt64[] = KERN_INFO "%s[%d]: unhandled signal %d " \
-			"at %016lx nip %016lx lr %016lx code %x\n";
-
-	if (!user_mode(regs)) {
-		die("Exception in kernel mode", regs, signr);
-		return;
-	}
+		"at %016lx nip %016lx lr %016lx code %x\n";
 
 	if (show_unhandled_signals && unhandled_signal(current, signr)) {
 		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 				   current->comm, current->pid, signr,
 				   addr, regs->nip, regs->link, code);
 	}
+}
+
+void _exception_pkey(int signr, struct pt_regs *regs, int code,
+		     unsigned long addr, int key)
+{
+	siginfo_t info;
+
+	if (!user_mode(regs)) {
+		die("Exception in kernel mode", regs, signr);
+		return;
+	}
+
+	show_signal_msg(signr, regs, code, addr);
 
 	if (arch_irqs_disabled() && !arch_irq_disabled_regs(regs))
 		local_irq_enable();
