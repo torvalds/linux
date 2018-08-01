@@ -74,6 +74,7 @@ enum {
 	MLX5E_TC_FLOW_OFFLOADED	= BIT(MLX5E_TC_FLOW_BASE + 2),
 	MLX5E_TC_FLOW_HAIRPIN	= BIT(MLX5E_TC_FLOW_BASE + 3),
 	MLX5E_TC_FLOW_HAIRPIN_RSS = BIT(MLX5E_TC_FLOW_BASE + 4),
+	MLX5E_TC_FLOW_SLOW	  = BIT(MLX5E_TC_FLOW_BASE + 5),
 };
 
 #define MLX5E_TC_MAX_SPLITS 1
@@ -82,7 +83,7 @@ struct mlx5e_tc_flow {
 	struct rhash_head	node;
 	struct mlx5e_priv	*priv;
 	u64			cookie;
-	u8			flags;
+	u16			flags;
 	struct mlx5_flow_handle *rule[MLX5E_TC_MAX_SPLITS + 1];
 	struct list_head	encap;   /* flows sharing the same encap ID */
 	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
@@ -860,6 +861,36 @@ mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 	mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
 }
 
+static struct mlx5_flow_handle *
+mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
+			      struct mlx5e_tc_flow *flow,
+			      struct mlx5_flow_spec *spec,
+			      struct mlx5_esw_flow_attr *slow_attr)
+{
+	struct mlx5_flow_handle *rule;
+
+	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
+	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+	slow_attr->mirror_count = 0,
+	slow_attr->dest_chain = FDB_SLOW_PATH_CHAIN,
+
+	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, slow_attr);
+	if (!IS_ERR(rule))
+		flow->flags |= MLX5E_TC_FLOW_SLOW;
+
+	return rule;
+}
+
+static void
+mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
+				  struct mlx5e_tc_flow *flow,
+				  struct mlx5_esw_flow_attr *slow_attr)
+{
+	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
+	mlx5e_tc_unoffload_fdb_rules(esw, flow, slow_attr);
+	flow->flags &= ~MLX5E_TC_FLOW_SLOW;
+}
+
 static int
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow_parse_attr *parse_attr,
@@ -917,15 +948,21 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	/* we get here if (1) there's no error or when
 	 * (2) there's an encap action and we're on -EAGAIN (no valid neigh)
 	 */
-	if (encap_err != -EAGAIN) {
+	if (encap_err == -EAGAIN) {
+		/* continue with goto slow path rule instead */
+		struct mlx5_esw_flow_attr slow_attr;
+
+		flow->rule[0] = mlx5e_tc_offload_to_slow_path(esw, flow, &parse_attr->spec, &slow_attr);
+	} else {
 		flow->rule[0] = mlx5e_tc_offload_fdb_rules(esw, flow, &parse_attr->spec, attr);
-		if (IS_ERR(flow->rule[0])) {
-			err = PTR_ERR(flow->rule[0]);
-			goto err_add_rule;
-		}
 	}
 
-	return encap_err;
+	if (IS_ERR(flow->rule[0])) {
+		err = PTR_ERR(flow->rule[0]);
+		goto err_add_rule;
+	}
+
+	return 0;
 
 err_add_rule:
 	mlx5_fc_destroy(esw->dev, counter);
@@ -946,9 +983,14 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
+	struct mlx5_esw_flow_attr slow_attr;
 
-	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED)
-		mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->esw_attr);
+	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
+		if (flow->flags & MLX5E_TC_FLOW_SLOW)
+			mlx5e_tc_unoffload_from_slow_path(esw, flow, &slow_attr);
+		else
+			mlx5e_tc_unoffload_fdb_rules(esw, flow, attr);
+	}
 
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
@@ -968,7 +1010,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 			      struct mlx5e_encap_entry *e)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5_esw_flow_attr *esw_attr;
+	struct mlx5_esw_flow_attr slow_attr, *esw_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	struct mlx5e_tc_flow *flow;
@@ -991,6 +1033,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 		esw_attr->encap_id = e->encap_id;
 		spec = &esw_attr->parse_attr->spec;
 
+		/* update from slow path rule to encap rule */
 		rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, esw_attr);
 		if (IS_ERR(rule)) {
 			err = PTR_ERR(rule);
@@ -998,6 +1041,9 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 				       err);
 			continue;
 		}
+
+		mlx5e_tc_unoffload_from_slow_path(esw, flow, &slow_attr);
+		flow->flags |= MLX5E_TC_FLOW_OFFLOADED; /* was unset when slow path rule removed */
 		flow->rule[0] = rule;
 	}
 }
@@ -1006,11 +1052,28 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 			      struct mlx5e_encap_entry *e)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_esw_flow_attr slow_attr;
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
 	struct mlx5e_tc_flow *flow;
+	int err;
 
 	list_for_each_entry(flow, &e->flows, encap) {
-		if (flow->flags & MLX5E_TC_FLOW_OFFLOADED)
-			mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->esw_attr);
+		spec = &flow->esw_attr->parse_attr->spec;
+
+		/* update from encap rule to slow path rule */
+		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec, &slow_attr);
+
+		if (IS_ERR(rule)) {
+			err = PTR_ERR(rule);
+			mlx5_core_warn(priv->mdev, "Failed to update slow path (encap) flow, %d\n",
+				       err);
+			continue;
+		}
+
+		mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->esw_attr);
+		flow->flags |= MLX5E_TC_FLOW_OFFLOADED; /* was unset when fast path rule removed */
+		flow->rule[0] = rule;
 	}
 
 	if (e->flags & MLX5_ENCAP_ENTRY_VALID) {
@@ -2888,9 +2951,9 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	return 0;
 }
 
-static void get_flags(int flags, u8 *flow_flags)
+static void get_flags(int flags, u16 *flow_flags)
 {
-	u8 __flow_flags = 0;
+	u16 __flow_flags = 0;
 
 	if (flags & MLX5E_TC_INGRESS)
 		__flow_flags |= MLX5E_TC_FLOW_INGRESS;
@@ -2921,7 +2984,7 @@ static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv)
 
 static int
 mlx5e_alloc_flow(struct mlx5e_priv *priv, int attr_size,
-		 struct tc_cls_flower_offload *f, u8 flow_flags,
+		 struct tc_cls_flower_offload *f, u16 flow_flags,
 		 struct mlx5e_tc_flow_parse_attr **__parse_attr,
 		 struct mlx5e_tc_flow **__flow)
 {
@@ -2958,7 +3021,7 @@ err_free:
 static int
 mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		   struct tc_cls_flower_offload *f,
-		   u8 flow_flags,
+		   u16 flow_flags,
 		   struct mlx5e_tc_flow **__flow)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
@@ -2978,11 +3041,8 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		goto err_free;
 
 	err = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow, extack);
-	if (err && err != -EAGAIN)
+	if (err)
 		goto err_free;
-
-	if (!err)
-		flow->flags |= MLX5E_TC_FLOW_OFFLOADED;
 
 	if (!(flow->esw_attr->action &
 	      MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT))
@@ -3002,7 +3062,7 @@ out:
 static int
 mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 		   struct tc_cls_flower_offload *f,
-		   u8 flow_flags,
+		   u16 flow_flags,
 		   struct mlx5e_tc_flow **__flow)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
@@ -3045,7 +3105,7 @@ mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 		  struct mlx5e_tc_flow **flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	u8 flow_flags;
+	u16 flow_flags;
 	int err;
 
 	get_flags(flags, &flow_flags);
