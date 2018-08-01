@@ -187,16 +187,6 @@ typedef struct MMU
     unsigned char mmu_en;
     unsigned long base_addr;
 	uint32_t mmu_flag;
-
-	unsigned long src0_base_addr;
-	unsigned long src1_base_addr;
-	unsigned long dst_base_addr;
-	unsigned long els_base_addr;
-
-	u8 src0_mmu_flag;
-	u8 src1_mmu_flag;
-	u8 dst_mmu_flag;
-	u8 els_mmu_flag;
 } MMU;
 
 
