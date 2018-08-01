@@ -374,13 +374,29 @@ static int read_blocklist(struct inode *inode, int index, u64 *block)
 	return squashfs_block_size(size);
 }
 
+void squashfs_fill_page(struct page *page, struct squashfs_cache_entry *buffer, int offset, int avail)
+{
+	int copied;
+	void *pageaddr;
+
+	pageaddr = kmap_atomic(page);
+	copied = squashfs_copy_data(pageaddr, buffer, offset, avail);
+	memset(pageaddr + copied, 0, PAGE_SIZE - copied);
+	kunmap_atomic(pageaddr);
+
+	flush_dcache_page(page);
+	if (copied == avail)
+		SetPageUptodate(page);
+	else
+		SetPageError(page);
+}
+
 /* Copy data into page cache  */
 void squashfs_copy_cache(struct page *page, struct squashfs_cache_entry *buffer,
 	int bytes, int offset)
 {
 	struct inode *inode = page->mapping->host;
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
-	void *pageaddr;
 	int i, mask = (1 << (msblk->block_log - PAGE_SHIFT)) - 1;
 	int start_index = page->index & ~mask, end_index = start_index | mask;
 
@@ -406,12 +422,7 @@ void squashfs_copy_cache(struct page *page, struct squashfs_cache_entry *buffer,
 		if (PageUptodate(push_page))
 			goto skip_page;
 
-		pageaddr = kmap_atomic(push_page);
-		squashfs_copy_data(pageaddr, buffer, offset, avail);
-		memset(pageaddr + avail, 0, PAGE_SIZE - avail);
-		kunmap_atomic(pageaddr);
-		flush_dcache_page(push_page);
-		SetPageUptodate(push_page);
+		squashfs_fill_page(push_page, buffer, offset, avail);
 skip_page:
 		unlock_page(push_page);
 		if (i != page->index)

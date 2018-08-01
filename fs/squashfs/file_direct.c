@@ -144,7 +144,6 @@ static int squashfs_read_cache(struct page *target_page, u64 block, int bsize,
 	struct squashfs_cache_entry *buffer = squashfs_get_datablock(i->i_sb,
 						 block, bsize);
 	int bytes = buffer->length, res = buffer->error, n, offset = 0;
-	void *pageaddr;
 
 	if (res) {
 		ERROR("Unable to read page, block %llx, size %x\n", block,
@@ -159,12 +158,7 @@ static int squashfs_read_cache(struct page *target_page, u64 block, int bsize,
 		if (page[n] == NULL)
 			continue;
 
-		pageaddr = kmap_atomic(page[n]);
-		squashfs_copy_data(pageaddr, buffer, offset, avail);
-		memset(pageaddr + avail, 0, PAGE_SIZE - avail);
-		kunmap_atomic(pageaddr);
-		flush_dcache_page(page[n]);
-		SetPageUptodate(page[n]);
+		squashfs_fill_page(page[n], buffer, offset, avail);
 		unlock_page(page[n]);
 		if (page[n] != target_page)
 			put_page(page[n]);
