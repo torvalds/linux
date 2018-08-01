@@ -63,9 +63,6 @@ struct snd_seq_queue {
 /* get the number of current queues */
 int snd_seq_queue_get_cur_queues(void);
 
-/* init queues structure */
-int snd_seq_queues_init(void);
-
 /* delete queues */ 
 void snd_seq_queues_delete(void);
 
