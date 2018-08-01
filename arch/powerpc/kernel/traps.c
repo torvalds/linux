@@ -96,6 +96,19 @@ EXPORT_SYMBOL(__debugger_fault_handler);
 #define TM_DEBUG(x...) do { } while(0)
 #endif
 
+static const char *signame(int signr)
+{
+	switch (signr) {
+	case SIGBUS:	return "bus error";
+	case SIGFPE:	return "floating point exception";
+	case SIGILL:	return "illegal instruction";
+	case SIGSEGV:	return "segfault";
+	case SIGTRAP:	return "unhandled trap";
+	}
+
+	return "unknown signal";
+}
+
 /*
  * Trap & Exception support
  */
@@ -317,9 +330,13 @@ static void show_signal_msg(int signr, struct pt_regs *regs, int code,
 	if (!unhandled_signal(current, signr))
 		return;
 
-	pr_info("%s[%d]: unhandled signal %d at %lx nip %lx lr %lx code %x\n",
-		current->comm, current->pid, signr,
+	pr_info("%s[%d]: %s (%d) at %lx nip %lx lr %lx code %x",
+		current->comm, current->pid, signame(signr), signr,
 		addr, regs->nip, regs->link, code);
+
+	print_vma_addr(KERN_CONT " in ", regs->nip);
+
+	pr_cont("\n");
 }
 
 void _exception_pkey(int signr, struct pt_regs *regs, int code,
