@@ -7,7 +7,6 @@
 #define	__XFS_BTREE_H__
 
 struct xfs_buf;
-struct xfs_defer_ops;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;

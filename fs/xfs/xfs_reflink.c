@@ -502,7 +502,6 @@ xfs_reflink_cancel_cow_blocks(
 			if (error)
 				break;
 		} else if (del.br_state == XFS_EXT_UNWRITTEN || cancel_real) {
-			ASSERT((*tpp)->t_dfops);
 			ASSERT((*tpp)->t_firstblock == NULLFSBLOCK);
 
 			/* Free the CoW orphan record. */
@@ -678,7 +677,7 @@ xfs_reflink_end_cow(
 			goto prev_extent;
 
 		/* Unmap the old blocks in the data fork. */
-		ASSERT(tp->t_dfops && tp->t_firstblock == NULLFSBLOCK);
+		ASSERT(tp->t_firstblock == NULLFSBLOCK);
 		rlen = del.br_blockcount;
 		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1);
 		if (error)
@@ -1021,7 +1020,7 @@ xfs_reflink_remap_extent(
 	/* Unmap the old blocks in the data fork. */
 	rlen = unmap_len;
 	while (rlen) {
-		ASSERT(tp->t_dfops && tp->t_firstblock == NULLFSBLOCK);
+		ASSERT(tp->t_firstblock == NULLFSBLOCK);
 		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1);
 		if (error)
 			goto out_cancel;

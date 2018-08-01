@@ -100,6 +100,7 @@ xfs_trans_dup(
 	ntp->t_mountp = tp->t_mountp;
 	INIT_LIST_HEAD(&ntp->t_items);
 	INIT_LIST_HEAD(&ntp->t_busy);
+	INIT_LIST_HEAD(&ntp->t_dfops);
 	ntp->t_firstblock = NULLFSBLOCK;
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
@@ -120,12 +121,8 @@ xfs_trans_dup(
 	tp->t_rtx_res = tp->t_rtx_res_used;
 	ntp->t_pflags = tp->t_pflags;
 
-	/* copy the dfops pointer if it's external, otherwise move it */
-	xfs_defer_init(ntp, &ntp->t_dfops_internal);
-	if (tp->t_dfops != &tp->t_dfops_internal)
-		ntp->t_dfops = tp->t_dfops;
-	else
-		xfs_defer_move(ntp, tp);
+	/* move deferred ops over to the new tp */
+	xfs_defer_move(ntp, tp);
 
 	xfs_trans_dup_dqinfo(tp, ntp);
 
@@ -280,8 +277,8 @@ xfs_trans_alloc(
 	tp->t_mountp = mp;
 	INIT_LIST_HEAD(&tp->t_items);
 	INIT_LIST_HEAD(&tp->t_busy);
+	INIT_LIST_HEAD(&tp->t_dfops);
 	tp->t_firstblock = NULLFSBLOCK;
-	xfs_defer_init(tp, &tp->t_dfops_internal);
 
 	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
 	if (error) {
@@ -929,7 +926,7 @@ __xfs_trans_commit(
 	 * Finish deferred items on final commit. Only permanent transactions
 	 * should ever have deferred ops.
 	 */
-	WARN_ON_ONCE(!list_empty(&tp->t_dfops->dop_intake) &&
+	WARN_ON_ONCE(!list_empty(&tp->t_dfops) &&
 		     !(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
 	if (!regrant && (tp->t_flags & XFS_TRANS_PERM_LOG_RES)) {
 		error = xfs_defer_finish_noroll(&tp);

@@ -2213,57 +2213,54 @@ DEFINE_BTREE_CUR_EVENT(xfs_btree_overlapped_query_range);
 
 /* deferred ops */
 struct xfs_defer_pending;
-struct xfs_defer_ops;
 
 DECLARE_EVENT_CLASS(xfs_defer_class,
-	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop,
-		 unsigned long caller_ip),
-	TP_ARGS(mp, dop, caller_ip),
+	TP_PROTO(struct xfs_trans *tp, unsigned long caller_ip),
+	TP_ARGS(tp, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(void *, dop)
+		__field(struct xfs_trans *, tp)
 		__field(char, committed)
 		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
-		__entry->dev = mp ? mp->m_super->s_dev : 0;
-		__entry->dop = dop;
+		__entry->dev = tp->t_mountp->m_super->s_dev;
+		__entry->tp = tp;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ops %p caller %pS",
+	TP_printk("dev %d:%d tp %p caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->dop,
+		  __entry->tp,
 		  (char *)__entry->caller_ip)
 )
 #define DEFINE_DEFER_EVENT(name) \
 DEFINE_EVENT(xfs_defer_class, name, \
-	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop, \
-		 unsigned long caller_ip), \
-	TP_ARGS(mp, dop, caller_ip))
+	TP_PROTO(struct xfs_trans *tp, unsigned long caller_ip), \
+	TP_ARGS(tp, caller_ip))
 
 DECLARE_EVENT_CLASS(xfs_defer_error_class,
-	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop, int error),
-	TP_ARGS(mp, dop, error),
+	TP_PROTO(struct xfs_trans *tp, int error),
+	TP_ARGS(tp, error),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(void *, dop)
+		__field(struct xfs_trans *, tp)
 		__field(char, committed)
 		__field(int, error)
 	),
 	TP_fast_assign(
-		__entry->dev = mp ? mp->m_super->s_dev : 0;
-		__entry->dop = dop;
+		__entry->dev = tp->t_mountp->m_super->s_dev;
+		__entry->tp = tp;
 		__entry->error = error;
 	),
-	TP_printk("dev %d:%d ops %p err %d",
+	TP_printk("dev %d:%d tp %p err %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->dop,
+		  __entry->tp,
 		  __entry->error)
 )
 #define DEFINE_DEFER_ERROR_EVENT(name) \
 DEFINE_EVENT(xfs_defer_error_class, name, \
-	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_ops *dop, int error), \
-	TP_ARGS(mp, dop, error))
+	TP_PROTO(struct xfs_trans *tp, int error), \
+	TP_ARGS(tp, error))
 
 DECLARE_EVENT_CLASS(xfs_defer_pending_class,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_defer_pending *dfp),
@@ -2382,7 +2379,6 @@ DEFINE_EVENT(xfs_map_extent_deferred_class, name, \
 		 xfs_exntst_t state), \
 	TP_ARGS(mp, agno, op, agbno, ino, whichfork, offset, len, state))
 
-DEFINE_DEFER_EVENT(xfs_defer_init);
 DEFINE_DEFER_EVENT(xfs_defer_cancel);
 DEFINE_DEFER_EVENT(xfs_defer_trans_roll);
 DEFINE_DEFER_EVENT(xfs_defer_trans_abort);

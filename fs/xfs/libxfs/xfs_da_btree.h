@@ -7,7 +7,6 @@
 #ifndef __XFS_DA_BTREE_H__
 #define	__XFS_DA_BTREE_H__
 
-struct xfs_defer_ops;
 struct xfs_inode;
 struct xfs_trans;
 struct zone;

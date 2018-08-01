@@ -90,13 +90,10 @@ void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 #define XFS_ITEM_FLUSHING	3
 
 /*
- * Deferred operations tracking structure.
+ * Deferred operation item relogging limits.
  */
 #define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
 #define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
-struct xfs_defer_ops {
-	struct list_head	dop_intake;	/* unlogged pending work */
-};
 
 /*
  * This is the structure maintained for every active transaction.
@@ -114,7 +111,6 @@ typedef struct xfs_trans {
 	struct xlog_ticket	*t_ticket;	/* log mgr ticket */
 	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
 	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
-	struct xfs_defer_ops	*t_dfops;	/* dfops reference */
 	int64_t			t_icount_delta;	/* superblock icount change */
 	int64_t			t_ifree_delta;	/* superblock ifree change */
 	int64_t			t_fdblocks_delta; /* superblock fdblocks chg */
@@ -136,8 +132,8 @@ typedef struct xfs_trans {
 	int64_t			t_rextslog_delta;/* superblocks rextslog chg */
 	struct list_head	t_items;	/* log item descriptors */
 	struct list_head	t_busy;		/* list of busy extents */
+	struct list_head	t_dfops;	/* deferred operations */
 	unsigned long		t_pflags;	/* saved process flags state */
-	struct xfs_defer_ops	t_dfops_internal;
 } xfs_trans_t;
 
 /*

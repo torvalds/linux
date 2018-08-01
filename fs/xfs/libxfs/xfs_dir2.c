@@ -424,7 +424,6 @@ xfs_dir_removename(
 	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(tp->t_dfops);
 	XFS_STATS_INC(dp->i_mount, xs_dir_remove);
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
@@ -483,7 +482,6 @@ xfs_dir_replace(
 	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(tp->t_dfops);
 
 	rval = xfs_dir_ino_validate(tp->t_mountp, inum);
 	if (rval)

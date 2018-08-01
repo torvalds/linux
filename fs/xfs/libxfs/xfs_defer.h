@@ -7,7 +7,6 @@
 #define	__XFS_DEFER_H__
 
 struct xfs_defer_op_type;
-struct xfs_defer_ops;
 
 /*
  * Save a log intent item and a list of extents, so that we can replay
@@ -40,7 +39,6 @@ void xfs_defer_add(struct xfs_trans *tp, enum xfs_defer_ops_type type,
 int xfs_defer_finish_noroll(struct xfs_trans **tp);
 int xfs_defer_finish(struct xfs_trans **tp);
 void xfs_defer_cancel(struct xfs_trans *);
-void xfs_defer_init(struct xfs_trans *tp, struct xfs_defer_ops *dop);
 void xfs_defer_move(struct xfs_trans *dtp, struct xfs_trans *stp);
 
 /* Description of a deferred type. */

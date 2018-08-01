@@ -183,11 +183,10 @@ STATIC void
 xfs_defer_create_intents(
 	struct xfs_trans		*tp)
 {
-	struct xfs_defer_ops		*dop = tp->t_dfops;
 	struct list_head		*li;
 	struct xfs_defer_pending	*dfp;
 
-	list_for_each_entry(dfp, &dop->dop_intake, dfp_list) {
+	list_for_each_entry(dfp, &tp->t_dfops, dfp_list) {
 		dfp->dfp_intent = dfp->dfp_type->create_intent(tp,
 				dfp->dfp_count);
 		trace_xfs_defer_create_intent(tp->t_mountp, dfp);
@@ -204,10 +203,9 @@ xfs_defer_trans_abort(
 	struct xfs_trans		*tp,
 	struct list_head		*dop_pending)
 {
-	struct xfs_defer_ops		*dop = tp->t_dfops;
 	struct xfs_defer_pending	*dfp;
 
-	trace_xfs_defer_trans_abort(tp->t_mountp, dop, _RET_IP_);
+	trace_xfs_defer_trans_abort(tp, _RET_IP_);
 
 	/* Abort intent items that don't have a done item. */
 	list_for_each_entry(dfp, dop_pending, dfp_list) {
@@ -266,14 +264,13 @@ xfs_defer_trans_roll(
 		}
 	}
 
-	trace_xfs_defer_trans_roll(tp->t_mountp, tp->t_dfops, _RET_IP_);
+	trace_xfs_defer_trans_roll(tp, _RET_IP_);
 
 	/* Roll the transaction. */
 	error = xfs_trans_roll(tpp);
 	tp = *tpp;
 	if (error) {
-		trace_xfs_defer_trans_roll_error(tp->t_mountp,
-						 tp->t_dfops, error);
+		trace_xfs_defer_trans_roll_error(tp, error);
 		return error;
 	}
 
@@ -297,7 +294,7 @@ static void
 xfs_defer_reset(
 	struct xfs_trans	*tp)
 {
-	ASSERT(list_empty(&tp->t_dfops->dop_intake));
+	ASSERT(list_empty(&tp->t_dfops));
 
 	/*
 	 * Low mode state transfers across transaction rolls to mirror dfops
@@ -358,15 +355,13 @@ xfs_defer_finish_noroll(
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 
-	trace_xfs_defer_finish((*tp)->t_mountp, (*tp)->t_dfops, _RET_IP_);
+	trace_xfs_defer_finish(*tp, _RET_IP_);
 
 	/* Until we run out of pending work to finish... */
-	while (!list_empty(&dop_pending) ||
-	       !list_empty(&(*tp)->t_dfops->dop_intake)) {
+	while (!list_empty(&dop_pending) || !list_empty(&(*tp)->t_dfops)) {
 		/* log intents and pull in intake items */
 		xfs_defer_create_intents(*tp);
-		list_splice_tail_init(&(*tp)->t_dfops->dop_intake,
-				      &dop_pending);
+		list_splice_tail_init(&(*tp)->t_dfops, &dop_pending);
 
 		/*
 		 * Roll the transaction.
@@ -438,14 +433,13 @@ out:
 	if (error) {
 		xfs_defer_trans_abort(*tp, &dop_pending);
 		xfs_force_shutdown((*tp)->t_mountp, SHUTDOWN_CORRUPT_INCORE);
-		trace_xfs_defer_finish_error((*tp)->t_mountp, (*tp)->t_dfops,
-					     error);
+		trace_xfs_defer_finish_error(*tp, error);
 		xfs_defer_cancel_list((*tp)->t_mountp, &dop_pending);
 		xfs_defer_cancel(*tp);
 		return error;
 	}
 
-	trace_xfs_defer_finish_done((*tp)->t_mountp, (*tp)->t_dfops, _RET_IP_);
+	trace_xfs_defer_finish_done(*tp, _RET_IP_);
 	return 0;
 }
 
@@ -480,8 +474,8 @@ xfs_defer_cancel(
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 
-	trace_xfs_defer_cancel(mp, tp->t_dfops, _RET_IP_);
-	xfs_defer_cancel_list(mp, &tp->t_dfops->dop_intake);
+	trace_xfs_defer_cancel(tp, _RET_IP_);
+	xfs_defer_cancel_list(mp, &tp->t_dfops);
 }
 
 /* Add an item for later deferred processing. */
@@ -491,7 +485,6 @@ xfs_defer_add(
 	enum xfs_defer_ops_type		type,
 	struct list_head		*li)
 {
-	struct xfs_defer_ops		*dop = tp->t_dfops;
 	struct xfs_defer_pending	*dfp = NULL;
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
@@ -501,8 +494,8 @@ xfs_defer_add(
 	 * If the last pending item has the same type, reuse it.  Else,
 	 * create a new pending item at the end of the intake list.
 	 */
-	if (!list_empty(&dop->dop_intake)) {
-		dfp = list_last_entry(&dop->dop_intake,
+	if (!list_empty(&tp->t_dfops)) {
+		dfp = list_last_entry(&tp->t_dfops,
 				struct xfs_defer_pending, dfp_list);
 		if (dfp->dfp_type->type != type ||
 		    (dfp->dfp_type->max_items &&
@@ -517,7 +510,7 @@ xfs_defer_add(
 		dfp->dfp_done = NULL;
 		dfp->dfp_count = 0;
 		INIT_LIST_HEAD(&dfp->dfp_work);
-		list_add_tail(&dfp->dfp_list, &dop->dop_intake);
+		list_add_tail(&dfp->dfp_list, &tp->t_dfops);
 	}
 
 	list_add_tail(li, &dfp->dfp_work);
@@ -532,39 +525,17 @@ xfs_defer_init_op_type(
 	defer_op_types[type->type] = type;
 }
 
-/* Initialize a deferred operation. */
-void
-xfs_defer_init(
-	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dop)
-{
-	struct xfs_mount		*mp = NULL;
-
-	memset(dop, 0, sizeof(struct xfs_defer_ops));
-	INIT_LIST_HEAD(&dop->dop_intake);
-	if (tp) {
-		ASSERT(tp->t_firstblock == NULLFSBLOCK);
-		tp->t_dfops = dop;
-		mp = tp->t_mountp;
-	}
-	trace_xfs_defer_init(mp, dop, _RET_IP_);
-}
-
 /*
- * Move state from one xfs_defer_ops to another and reset the source to initial
- * state. This is primarily used to carry state forward across transaction rolls
- * with internal dfops.
+ * Move deferred ops from one transaction to another and reset the source to
+ * initial state. This is primarily used to carry state forward across
+ * transaction rolls with pending dfops.
  */
 void
 xfs_defer_move(
 	struct xfs_trans	*dtp,
 	struct xfs_trans	*stp)
 {
-	struct xfs_defer_ops	*dst = dtp->t_dfops;
-	struct xfs_defer_ops	*src = stp->t_dfops;
-	ASSERT(dst != src);
-
-	list_splice_init(&src->dop_intake, &dst->dop_intake);
+	list_splice_init(&stp->t_dfops, &dtp->t_dfops);
 
 	/*
 	 * Low free space mode was historically controlled by a dfops field.
