@@ -57,6 +57,18 @@ static inline int ttm_set_pages_wb(struct page *page, int numpages)
 	return set_pages_wb(page, numpages);
 }
 
+static inline int ttm_set_pages_wc(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+
+	return set_memory_wc(addr, numpages);
+}
+
+static inline int ttm_set_pages_uc(struct page *page, int numpages)
+{
+	return set_pages_uc(page, numpages);
+}
+
 #else /* for CONFIG_X86 */
 
 #if IS_ENABLED(CONFIG_AGP)
@@ -122,6 +134,16 @@ static inline int ttm_set_pages_wb(struct page *page, int numpages)
 }
 
 #endif /* for CONFIG_AGP */
+
+static inline int ttm_set_pages_wc(struct page *page, int numpages)
+{
+	return 0;
+}
+
+static inline int ttm_set_pages_uc(struct page *page, int numpages)
+{
+	return 0;
+}
 
 #endif /* for CONFIG_X86 */
 
