@@ -1493,7 +1493,6 @@ static int btrfs_delete_delayed_insertion_item(struct btrfs_fs_info *fs_info,
 }
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info,
 				   struct btrfs_inode *dir, u64 index)
 {
 	struct btrfs_delayed_node *node;
@@ -1509,7 +1508,8 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	item_key.type = BTRFS_DIR_INDEX_KEY;
 	item_key.offset = index;
 
-	ret = btrfs_delete_delayed_insertion_item(fs_info, node, &item_key);
+	ret = btrfs_delete_delayed_insertion_item(trans->fs_info, node,
+						  &item_key);
 	if (!ret)
 		goto end;
 
@@ -1531,7 +1531,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&node->mutex);
 	ret = __btrfs_add_delayed_deletion_item(node, item);
 	if (unlikely(ret)) {
-		btrfs_err(fs_info,
+		btrfs_err(trans->fs_info,
 			  "err add delayed dir index item(index: %llu) into the deletion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
 			  index, node->root->objectid, node->inode_id, ret);
 		BUG();
