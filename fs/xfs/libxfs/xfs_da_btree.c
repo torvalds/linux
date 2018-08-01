@@ -1481,6 +1481,7 @@ xfs_da3_node_lookup_int(
 	int			error;
 	int			retval;
 	unsigned int		expected_level = 0;
+	uint16_t		magic;
 	struct xfs_inode	*dp = state->args->dp;
 
 	args = state->args;
@@ -1505,17 +1506,17 @@ xfs_da3_node_lookup_int(
 			return error;
 		}
 		curr = blk->bp->b_addr;
-		blk->magic = be16_to_cpu(curr->magic);
+		magic = be16_to_cpu(curr->magic);
 
-		if (blk->magic == XFS_ATTR_LEAF_MAGIC ||
-		    blk->magic == XFS_ATTR3_LEAF_MAGIC) {
+		if (magic == XFS_ATTR_LEAF_MAGIC ||
+		    magic == XFS_ATTR3_LEAF_MAGIC) {
 			blk->magic = XFS_ATTR_LEAF_MAGIC;
 			blk->hashval = xfs_attr_leaf_lasthash(blk->bp, NULL);
 			break;
 		}
 
-		if (blk->magic == XFS_DIR2_LEAFN_MAGIC ||
-		    blk->magic == XFS_DIR3_LEAFN_MAGIC) {
+		if (magic == XFS_DIR2_LEAFN_MAGIC ||
+		    magic == XFS_DIR3_LEAFN_MAGIC) {
 			blk->magic = XFS_DIR2_LEAFN_MAGIC;
 			blk->hashval = xfs_dir2_leaf_lasthash(args->dp,
 							      blk->bp, NULL);
