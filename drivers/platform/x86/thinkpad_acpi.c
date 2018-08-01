@@ -9374,7 +9374,9 @@ static int tpacpi_battery_probe(int battery)
 {
 	int ret = 0;
 
-	memset(&battery_info, 0, sizeof(struct tpacpi_battery_driver_data));
+	memset(&battery_info.batteries[battery], 0,
+		sizeof(battery_info.batteries[battery]));
+
 	/*
 	 * 1) Get the current start threshold
 	 * 2) Check for support
@@ -9620,6 +9622,8 @@ static const struct tpacpi_quirk battery_quirk_table[] __initconst = {
 
 static int __init tpacpi_battery_init(struct ibm_init_struct *ibm)
 {
+	memset(&battery_info, 0, sizeof(battery_info));
+
 	tp_features.battery_force_primary = tpacpi_check_quirks(
 					battery_quirk_table,
 					ARRAY_SIZE(battery_quirk_table));
