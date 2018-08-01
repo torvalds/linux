@@ -324,9 +324,12 @@ xfs_defer_bjoin(
  */
 static void
 xfs_defer_reset(
-	struct xfs_defer_ops	*dop)
+	struct xfs_trans	*tp)
 {
+	struct xfs_defer_ops	*dop = tp->t_dfops;
+
 	ASSERT(!xfs_defer_has_unfinished_work(dop));
+
 	dop->dop_low = false;
 	memset(dop->dop_inodes, 0, sizeof(dop->dop_inodes));
 	memset(dop->dop_bufs, 0, sizeof(dop->dop_bufs));
@@ -457,7 +460,7 @@ xfs_defer_finish(
 		if (error)
 			return error;
 	}
-	xfs_defer_reset((*tp)->t_dfops);
+	xfs_defer_reset(*tp);
 	return 0;
 }
 
@@ -575,9 +578,11 @@ xfs_defer_init(
  */
 void
 xfs_defer_move(
-	struct xfs_defer_ops	*dst,
-	struct xfs_defer_ops	*src)
+	struct xfs_trans	*dtp,
+	struct xfs_trans	*stp)
 {
+	struct xfs_defer_ops	*dst = dtp->t_dfops;
+	struct xfs_defer_ops	*src = stp->t_dfops;
 	ASSERT(dst != src);
 
 	list_splice_init(&src->dop_intake, &dst->dop_intake);
@@ -587,5 +592,5 @@ xfs_defer_move(
 	memcpy(dst->dop_bufs, src->dop_bufs, sizeof(dst->dop_bufs));
 	dst->dop_low = src->dop_low;
 
-	xfs_defer_reset(src);
+	xfs_defer_reset(stp);
 }

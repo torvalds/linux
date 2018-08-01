@@ -4853,7 +4853,7 @@ xlog_finish_defer_ops(
 	if (error)
 		return error;
 	/* transfer all collected dfops to this transaction */
-	xfs_defer_move(tp->t_dfops, parent_tp->t_dfops);
+	xfs_defer_move(tp, parent_tp);
 
 	return xfs_trans_commit(tp);
 }

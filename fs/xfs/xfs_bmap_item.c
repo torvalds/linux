@@ -446,7 +446,7 @@ xfs_bui_recover(
 	 * finishes them on completion. Transfer current dfops state to this
 	 * transaction and transfer the result back before we return.
 	 */
-	xfs_defer_move(tp->t_dfops, parent_tp->t_dfops);
+	xfs_defer_move(tp, parent_tp);
 	budp = xfs_trans_get_bud(tp, buip);
 
 	/* Grab the inode. */
@@ -494,7 +494,7 @@ xfs_bui_recover(
 	}
 
 	set_bit(XFS_BUI_RECOVERED, &buip->bui_flags);
-	xfs_defer_move(parent_tp->t_dfops, tp->t_dfops);
+	xfs_defer_move(parent_tp, tp);
 	error = xfs_trans_commit(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_irele(ip);
@@ -502,7 +502,7 @@ xfs_bui_recover(
 	return error;
 
 err_inode:
-	xfs_defer_move(parent_tp->t_dfops, tp->t_dfops);
+	xfs_defer_move(parent_tp, tp);
 	xfs_trans_cancel(tp);
 	if (ip) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);

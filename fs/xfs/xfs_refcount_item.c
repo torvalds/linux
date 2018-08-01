@@ -457,7 +457,7 @@ xfs_cui_recover(
 	 * finishes them on completion. Transfer current dfops state to this
 	 * transaction and transfer the result back before we return.
 	 */
-	xfs_defer_move(tp->t_dfops, parent_tp->t_dfops);
+	xfs_defer_move(tp, parent_tp);
 	cudp = xfs_trans_get_cud(tp, cuip);
 
 	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
@@ -522,13 +522,13 @@ xfs_cui_recover(
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
 	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
-	xfs_defer_move(parent_tp->t_dfops, tp->t_dfops);
+	xfs_defer_move(parent_tp, tp);
 	error = xfs_trans_commit(tp);
 	return error;
 
 abort_error:
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
-	xfs_defer_move(parent_tp->t_dfops, tp->t_dfops);
+	xfs_defer_move(parent_tp, tp);
 	xfs_trans_cancel(tp);
 	return error;
 }
