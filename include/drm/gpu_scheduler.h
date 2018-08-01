@@ -262,6 +262,7 @@ struct drm_sched_backend_ops {
  * @job_list_lock: lock to protect the ring_mirror_list.
  * @hang_limit: once the hangs by a job crosses this limit then it is marked
  *              guilty and it will be considered for scheduling further.
+ * @num_jobs: the number of jobs in queue in the scheduler
  *
  * One scheduler is implemented for each hardware ring.
  */
@@ -279,6 +280,7 @@ struct drm_gpu_scheduler {
 	struct list_head		ring_mirror_list;
 	spinlock_t			job_list_lock;
 	int				hang_limit;
+	atomic_t                        num_jobs;
 };
 
 int drm_sched_init(struct drm_gpu_scheduler *sched,

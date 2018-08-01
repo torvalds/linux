@@ -530,6 +530,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 
 	trace_drm_sched_job(sched_job, entity);
 
+	atomic_inc(&entity->rq->sched->num_jobs);
 	WRITE_ONCE(entity->last_user, current->group_leader);
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
 
@@ -821,6 +822,7 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
 
 	dma_fence_get(&s_fence->finished);
 	atomic_dec(&sched->hw_rq_count);
+	atomic_dec(&sched->num_jobs);
 	drm_sched_fence_finished(s_fence);
 
 	trace_drm_sched_process_job(s_fence);
@@ -938,6 +940,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	INIT_LIST_HEAD(&sched->ring_mirror_list);
 	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
+	atomic_set(&sched->num_jobs, 0);
 	atomic64_set(&sched->job_id_count, 0);
 
 	/* Each scheduler will run on a seperate kernel thread */
