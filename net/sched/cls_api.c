@@ -232,19 +232,6 @@ static void tcf_chain0_head_change(struct tcf_chain *chain,
 		tcf_chain_head_change_item(item, tp_head);
 }
 
-static void tcf_chain_flush(struct tcf_chain *chain)
-{
-	struct tcf_proto *tp = rtnl_dereference(chain->filter_chain);
-
-	tcf_chain0_head_change(chain, NULL);
-	while (tp) {
-		RCU_INIT_POINTER(chain->filter_chain, tp->next);
-		tcf_proto_destroy(tp, NULL);
-		tp = rtnl_dereference(chain->filter_chain);
-		tcf_chain_put(chain);
-	}
-}
-
 static void tcf_chain_destroy(struct tcf_chain *chain)
 {
 	struct tcf_block *block = chain->block;
@@ -316,12 +303,11 @@ static struct tcf_chain *__tcf_chain_get(struct tcf_block *block,
 	return chain;
 }
 
-struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
-				bool create)
+static struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
+				       bool create)
 {
 	return __tcf_chain_get(block, chain_index, create, false);
 }
-EXPORT_SYMBOL(tcf_chain_get);
 
 struct tcf_chain *tcf_chain_get_by_act(struct tcf_block *block, u32 chain_index)
 {
@@ -347,11 +333,10 @@ static void __tcf_chain_put(struct tcf_chain *chain, bool by_act)
 	}
 }
 
-void tcf_chain_put(struct tcf_chain *chain)
+static void tcf_chain_put(struct tcf_chain *chain)
 {
 	__tcf_chain_put(chain, false);
 }
-EXPORT_SYMBOL(tcf_chain_put);
 
 void tcf_chain_put_by_act(struct tcf_chain *chain)
 {
@@ -363,6 +348,19 @@ static void tcf_chain_put_explicitly_created(struct tcf_chain *chain)
 {
 	if (chain->explicitly_created)
 		tcf_chain_put(chain);
+}
+
+static void tcf_chain_flush(struct tcf_chain *chain)
+{
+	struct tcf_proto *tp = rtnl_dereference(chain->filter_chain);
+
+	tcf_chain0_head_change(chain, NULL);
+	while (tp) {
+		RCU_INIT_POINTER(chain->filter_chain, tp->next);
+		tcf_proto_destroy(tp, NULL);
+		tp = rtnl_dereference(chain->filter_chain);
+		tcf_chain_put(chain);
+	}
 }
 
 static bool tcf_block_offload_in_use(struct tcf_block *block)

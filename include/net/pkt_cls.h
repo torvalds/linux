@@ -40,11 +40,8 @@ struct tcf_block_cb;
 bool tcf_queue_work(struct rcu_work *rwork, work_func_t func);
 
 #ifdef CONFIG_NET_CLS
-struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
-				bool create);
 struct tcf_chain *tcf_chain_get_by_act(struct tcf_block *block,
 				       u32 chain_index);
-void tcf_chain_put(struct tcf_chain *chain);
 void tcf_chain_put_by_act(struct tcf_chain *chain);
 void tcf_block_netif_keep_dst(struct tcf_block *block);
 int tcf_block_get(struct tcf_block **p_block,
