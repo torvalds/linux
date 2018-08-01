@@ -1858,6 +1858,7 @@ static int wm8996_set_sysclk(struct snd_soc_dai *dai,
 	case 24576000:
 		ratediv = WM8996_SYSCLK_DIV;
 		wm8996->sysclk /= 2;
+		/* fall through */
 	case 11289600:
 	case 12288000:
 		snd_soc_component_update_bits(component, WM8996_AIF_RATE,
