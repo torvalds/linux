@@ -4104,3 +4104,12 @@ xfs_log_check_lsn(
 
 	return valid;
 }
+
+bool
+xfs_log_in_recovery(
+	struct xfs_mount	*mp)
+{
+	struct xlog		*log = mp->m_log;
+
+	return log->l_flags & XLOG_ACTIVE_RECOVERY;
+}

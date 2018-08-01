@@ -242,7 +242,6 @@ xfs_attr3_leaf_verify(
 	struct xfs_attr3_icleaf_hdr	ichdr;
 	struct xfs_mount		*mp = bp->b_target->bt_mount;
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
-	struct xfs_perag		*pag = bp->b_pag;
 	struct xfs_attr_leaf_entry	*entries;
 	uint16_t			end;
 	int				i;
@@ -270,7 +269,7 @@ xfs_attr3_leaf_verify(
 	 * because we may have transitioned an empty shortform attr to a leaf
 	 * if the attr didn't fit in shortform.
 	 */
-	if (pag && pag->pagf_init && ichdr.count == 0)
+	if (!xfs_log_in_recovery(mp) && ichdr.count == 0)
 		return __this_address;
 
 	/*
