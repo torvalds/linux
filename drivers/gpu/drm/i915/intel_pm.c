@@ -3909,7 +3909,12 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 				      val & PLANE_CTL_ALPHA_MASK);
 
 	val = I915_READ(PLANE_BUF_CFG(pipe, plane_id));
-	val2 = I915_READ(PLANE_NV12_BUF_CFG(pipe, plane_id));
+	/*
+	 * FIXME: add proper NV12 support for ICL. Avoid reading unclaimed
+	 * registers for now.
+	 */
+	if (INTEL_GEN(dev_priv) < 11)
+		val2 = I915_READ(PLANE_NV12_BUF_CFG(pipe, plane_id));
 
 	if (fourcc == DRM_FORMAT_NV12) {
 		skl_ddb_entry_init_from_hw(dev_priv,
@@ -4977,6 +4982,7 @@ static void skl_write_plane_wm(struct intel_crtc *intel_crtc,
 
 	skl_ddb_entry_write(dev_priv, PLANE_BUF_CFG(pipe, plane_id),
 			    &ddb->plane[pipe][plane_id]);
+	/* FIXME: add proper NV12 support for ICL. */
 	if (INTEL_GEN(dev_priv) >= 11)
 		return skl_ddb_entry_write(dev_priv,
 					   PLANE_BUF_CFG(pipe, plane_id),
