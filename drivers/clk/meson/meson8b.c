@@ -30,58 +30,21 @@ struct meson8b_clk_reset {
 };
 
 static const struct pll_rate_table sys_pll_rate_table[] = {
-	PLL_RATE(312000000, 52, 1, 2),
-	PLL_RATE(336000000, 56, 1, 2),
-	PLL_RATE(360000000, 60, 1, 2),
-	PLL_RATE(384000000, 64, 1, 2),
-	PLL_RATE(408000000, 68, 1, 2),
-	PLL_RATE(432000000, 72, 1, 2),
-	PLL_RATE(456000000, 76, 1, 2),
-	PLL_RATE(480000000, 80, 1, 2),
-	PLL_RATE(504000000, 84, 1, 2),
-	PLL_RATE(528000000, 88, 1, 2),
-	PLL_RATE(552000000, 92, 1, 2),
-	PLL_RATE(576000000, 96, 1, 2),
-	PLL_RATE(600000000, 50, 1, 1),
-	PLL_RATE(624000000, 52, 1, 1),
-	PLL_RATE(648000000, 54, 1, 1),
-	PLL_RATE(672000000, 56, 1, 1),
-	PLL_RATE(696000000, 58, 1, 1),
-	PLL_RATE(720000000, 60, 1, 1),
-	PLL_RATE(744000000, 62, 1, 1),
-	PLL_RATE(768000000, 64, 1, 1),
-	PLL_RATE(792000000, 66, 1, 1),
-	PLL_RATE(816000000, 68, 1, 1),
-	PLL_RATE(840000000, 70, 1, 1),
-	PLL_RATE(864000000, 72, 1, 1),
-	PLL_RATE(888000000, 74, 1, 1),
-	PLL_RATE(912000000, 76, 1, 1),
-	PLL_RATE(936000000, 78, 1, 1),
-	PLL_RATE(960000000, 80, 1, 1),
-	PLL_RATE(984000000, 82, 1, 1),
-	PLL_RATE(1008000000, 84, 1, 1),
-	PLL_RATE(1032000000, 86, 1, 1),
-	PLL_RATE(1056000000, 88, 1, 1),
-	PLL_RATE(1080000000, 90, 1, 1),
-	PLL_RATE(1104000000, 92, 1, 1),
-	PLL_RATE(1128000000, 94, 1, 1),
-	PLL_RATE(1152000000, 96, 1, 1),
-	PLL_RATE(1176000000, 98, 1, 1),
-	PLL_RATE(1200000000, 50, 1, 0),
-	PLL_RATE(1224000000, 51, 1, 0),
-	PLL_RATE(1248000000, 52, 1, 0),
-	PLL_RATE(1272000000, 53, 1, 0),
-	PLL_RATE(1296000000, 54, 1, 0),
-	PLL_RATE(1320000000, 55, 1, 0),
-	PLL_RATE(1344000000, 56, 1, 0),
-	PLL_RATE(1368000000, 57, 1, 0),
-	PLL_RATE(1392000000, 58, 1, 0),
-	PLL_RATE(1416000000, 59, 1, 0),
-	PLL_RATE(1440000000, 60, 1, 0),
-	PLL_RATE(1464000000, 61, 1, 0),
-	PLL_RATE(1488000000, 62, 1, 0),
-	PLL_RATE(1512000000, 63, 1, 0),
-	PLL_RATE(1536000000, 64, 1, 0),
+	PLL_RATE(1200000000, 50, 1),
+	PLL_RATE(1224000000, 51, 1),
+	PLL_RATE(1248000000, 52, 1),
+	PLL_RATE(1272000000, 53, 1),
+	PLL_RATE(1296000000, 54, 1),
+	PLL_RATE(1320000000, 55, 1),
+	PLL_RATE(1344000000, 56, 1),
+	PLL_RATE(1368000000, 57, 1),
+	PLL_RATE(1392000000, 58, 1),
+	PLL_RATE(1416000000, 59, 1),
+	PLL_RATE(1440000000, 60, 1),
+	PLL_RATE(1464000000, 61, 1),
+	PLL_RATE(1488000000, 62, 1),
+	PLL_RATE(1512000000, 63, 1),
+	PLL_RATE(1536000000, 64, 1),
 	{ /* sentinel */ },
 };
 
@@ -94,7 +57,7 @@ static struct clk_fixed_rate meson8b_xtal = {
 	},
 };
 
-static struct clk_regmap meson8b_fixed_pll = {
+static struct clk_regmap meson8b_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = HHI_MPLL_CNTL,
@@ -110,11 +73,6 @@ static struct clk_regmap meson8b_fixed_pll = {
 			.reg_off = HHI_MPLL_CNTL,
 			.shift   = 9,
 			.width   = 5,
-		},
-		.od = {
-			.reg_off = HHI_MPLL_CNTL,
-			.shift   = 16,
-			.width   = 2,
 		},
 		.frac = {
 			.reg_off = HHI_MPLL_CNTL2,
@@ -133,14 +91,33 @@ static struct clk_regmap meson8b_fixed_pll = {
 		},
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "fixed_pll",
+		.name = "fixed_pll_dco",
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap meson8b_vid_pll = {
+static struct clk_regmap meson8b_fixed_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MPLL_CNTL,
+		.shift = 16,
+		.width = 2,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fixed_pll",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "fixed_pll_dco" },
+		.num_parents = 1,
+		/*
+		 * This clock won't ever change at runtime so
+		 * CLK_SET_RATE_PARENT is not required
+		 */
+	},
+};
+
+static struct clk_regmap meson8b_vid_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = HHI_VID_PLL_CNTL,
@@ -156,11 +133,6 @@ static struct clk_regmap meson8b_vid_pll = {
 			.reg_off = HHI_VID_PLL_CNTL,
 			.shift   = 9,
 			.width   = 5,
-		},
-		.od = {
-			.reg_off = HHI_VID_PLL_CNTL,
-			.shift   = 16,
-			.width   = 2,
 		},
 		.l = {
 			.reg_off = HHI_VID_PLL_CNTL,
@@ -174,14 +146,30 @@ static struct clk_regmap meson8b_vid_pll = {
 		},
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "vid_pll",
+		.name = "vid_pll_dco",
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap meson8b_sys_pll = {
+static struct clk_regmap meson8b_vid_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VID_PLL_CNTL,
+		.shift = 16,
+		.width = 2,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vid_pll",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "vid_pll_dco" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_sys_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = HHI_SYS_PLL_CNTL,
@@ -197,11 +185,6 @@ static struct clk_regmap meson8b_sys_pll = {
 			.reg_off = HHI_SYS_PLL_CNTL,
 			.shift   = 9,
 			.width   = 5,
-		},
-		.od = {
-			.reg_off = HHI_SYS_PLL_CNTL,
-			.shift   = 16,
-			.width   = 2,
 		},
 		.l = {
 			.reg_off = HHI_SYS_PLL_CNTL,
@@ -216,10 +199,26 @@ static struct clk_regmap meson8b_sys_pll = {
 		.table = sys_pll_rate_table,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll",
+		.name = "sys_pll_dco",
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap meson8b_sys_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SYS_PLL_CNTL,
+		.shift = 16,
+		.width = 2,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "sys_pll",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "sys_pll_dco" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -891,6 +890,9 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_NAND_SEL]	    = &meson8b_nand_clk_sel.hw,
 		[CLKID_NAND_DIV]	    = &meson8b_nand_clk_div.hw,
 		[CLKID_NAND_CLK]	    = &meson8b_nand_clk_gate.hw,
+		[CLKID_PLL_FIXED_DCO]	    = &meson8b_fixed_pll_dco.hw,
+		[CLKID_PLL_VID_DCO]	    = &meson8b_vid_pll_dco.hw,
+		[CLKID_PLL_SYS_DCO]	    = &meson8b_sys_pll_dco.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -999,6 +1001,9 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_nand_clk_sel,
 	&meson8b_nand_clk_div,
 	&meson8b_nand_clk_gate,
+	&meson8b_fixed_pll_dco,
+	&meson8b_vid_pll_dco,
+	&meson8b_sys_pll_dco,
 };
 
 static const struct meson8b_clk_reset_line {

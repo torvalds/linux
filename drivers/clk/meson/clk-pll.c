@@ -11,15 +11,19 @@
  * In the most basic form, a Meson PLL is composed as follows:
  *
  *                     PLL
- *      +------------------------------+
- *      |                              |
- * in -----[ /N ]---[ *M ]---[ >>OD ]----->> out
- *      |         ^        ^           |
- *      +------------------------------+
- *                |        |
- *               FREF     VCO
+ *        +--------------------------------+
+ *        |                                |
+ *        |             +--+               |
+ *  in >>-----[ /N ]--->|  |      +-----+  |
+ *        |             |  |------| DCO |---->> out
+ *        |  +--------->|  |      +--v--+  |
+ *        |  |          +--+         |     |
+ *        |  |                       |     |
+ *        |  +--[ *(M + (F/Fmax) ]<--+     |
+ *        |                                |
+ *        +--------------------------------+
  *
- * out = in * (m + frac / frac_max) / (n << sum(ods))
+ * out = in * (m + frac / frac_max) / n
  */
 
 #include <linux/clk-provider.h>
@@ -46,7 +50,6 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 					  struct meson_clk_pll_data *pll)
 {
 	u64 rate = (u64)parent_rate * pllt->m;
-	unsigned int od = pllt->od + pllt->od2 + pllt->od3;
 
 	if (frac && MESON_PARM_APPLICABLE(&pll->frac)) {
 		u64 frac_rate = (u64)parent_rate * frac;
@@ -55,7 +58,7 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 					 (1 << pll->frac.width));
 	}
 
-	return DIV_ROUND_UP_ULL(rate, pllt->n << od);
+	return DIV_ROUND_UP_ULL(rate, pllt->n);
 }
 
 static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
@@ -68,15 +71,6 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 
 	pllt.n = meson_parm_read(clk->map, &pll->n);
 	pllt.m = meson_parm_read(clk->map, &pll->m);
-	pllt.od = meson_parm_read(clk->map, &pll->od);
-
-	pllt.od2 = MESON_PARM_APPLICABLE(&pll->od2) ?
-		meson_parm_read(clk->map, &pll->od2) :
-		0;
-
-	pllt.od3 = MESON_PARM_APPLICABLE(&pll->od3) ?
-		meson_parm_read(clk->map, &pll->od3) :
-		0;
 
 	frac = MESON_PARM_APPLICABLE(&pll->frac) ?
 		meson_parm_read(clk->map, &pll->frac) :
@@ -92,8 +86,6 @@ static u16 __pll_params_with_frac(unsigned long rate,
 {
 	u16 frac_max = (1 << pll->frac.width);
 	u64 val = (u64)rate * pllt->n;
-
-	val <<= pllt->od + pllt->od2 + pllt->od3;
 
 	if (pll->flags & CLK_MESON_PLL_ROUND_CLOSEST)
 		val = DIV_ROUND_CLOSEST_ULL(val * frac_max, parent_rate);
@@ -242,13 +234,7 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	meson_parm_write(clk->map, &pll->n, pllt->n);
 	meson_parm_write(clk->map, &pll->m, pllt->m);
-	meson_parm_write(clk->map, &pll->od, pllt->od);
 
-	if (MESON_PARM_APPLICABLE(&pll->od2))
-		meson_parm_write(clk->map, &pll->od2, pllt->od2);
-
-	if (MESON_PARM_APPLICABLE(&pll->od3))
-		meson_parm_write(clk->map, &pll->od3, pllt->od3);
 
 	if (MESON_PARM_APPLICABLE(&pll->frac)) {
 		frac = __pll_params_with_frac(rate, parent_rate, pllt, pll);
