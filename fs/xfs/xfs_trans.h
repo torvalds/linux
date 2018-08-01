@@ -97,9 +97,6 @@ void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 struct xfs_defer_ops {
 	struct list_head	dop_intake;	/* unlogged pending work */
 	struct list_head	dop_pending;	/* logged pending work */
-
-	/* relog these with each roll */
-	struct xfs_inode	*dop_inodes[XFS_DEFER_OPS_NR_INODES];
 };
 
 /*

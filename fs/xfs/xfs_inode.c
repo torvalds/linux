@@ -1569,7 +1569,6 @@ xfs_itruncate_extents_flags(
 		 * Duplicate the transaction that has the permanent
 		 * reservation and commit the old transaction.
 		 */
-		xfs_defer_ijoin(tp->t_dfops, ip);
 		error = xfs_defer_finish(&tp);
 		if (error)
 			goto out_bmap_cancel;
@@ -1810,7 +1809,6 @@ xfs_inactive_ifree(
 	 * Just ignore errors at this point.  There is nothing we can do except
 	 * to try to keep going. Make sure it's not a silent error.
 	 */
-	xfs_defer_ijoin(tp->t_dfops, ip);
 	error = xfs_trans_commit(tp);
 	if (error)
 		xfs_notice(mp, "%s: xfs_trans_commit returned error %d",

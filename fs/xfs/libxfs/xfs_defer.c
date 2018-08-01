@@ -15,6 +15,8 @@
 #include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
+#include "xfs_inode.h"
+#include "xfs_inode_item.h"
 #include "xfs_trace.h"
 
 /*
@@ -230,15 +232,13 @@ xfs_defer_trans_roll(
 {
 	struct xfs_defer_ops		*dop = (*tp)->t_dfops;
 	struct xfs_buf_log_item		*bli;
+	struct xfs_inode_log_item	*ili;
 	struct xfs_log_item		*lip;
 	struct xfs_buf			*bplist[XFS_DEFER_OPS_NR_BUFS];
-	int				bpcount = 0;
+	struct xfs_inode		*iplist[XFS_DEFER_OPS_NR_INODES];
+	int				bpcount = 0, ipcount = 0;
 	int				i;
 	int				error;
-
-	/* Log all the joined inodes. */
-	for (i = 0; i < XFS_DEFER_OPS_NR_INODES && dop->dop_inodes[i]; i++)
-		xfs_trans_log_inode(*tp, dop->dop_inodes[i], XFS_ILOG_CORE);
 
 	list_for_each_entry(lip, &(*tp)->t_items, li_trans) {
 		switch (lip->li_type) {
@@ -252,6 +252,19 @@ xfs_defer_trans_roll(
 				}
 				xfs_trans_dirty_buf(*tp, bli->bli_buf);
 				bplist[bpcount++] = bli->bli_buf;
+			}
+			break;
+		case XFS_LI_INODE:
+			ili = container_of(lip, struct xfs_inode_log_item,
+					   ili_item);
+			if (ili->ili_lock_flags == 0) {
+				if (ipcount >= XFS_DEFER_OPS_NR_INODES) {
+					ASSERT(0);
+					return -EFSCORRUPTED;
+				}
+				xfs_trans_log_inode(*tp, ili->ili_inode,
+						    XFS_ILOG_CORE);
+				iplist[ipcount++] = ili->ili_inode;
 			}
 			break;
 		default:
@@ -271,8 +284,8 @@ xfs_defer_trans_roll(
 	}
 
 	/* Rejoin the joined inodes. */
-	for (i = 0; i < XFS_DEFER_OPS_NR_INODES && dop->dop_inodes[i]; i++)
-		xfs_trans_ijoin(*tp, dop->dop_inodes[i], 0);
+	for (i = 0; i < ipcount; i++)
+		xfs_trans_ijoin(*tp, iplist[i], 0);
 
 	/* Rejoin the buffers and dirty them so the log moves forward. */
 	for (i = 0; i < bpcount; i++) {
@@ -292,41 +305,13 @@ xfs_defer_has_unfinished_work(
 }
 
 /*
- * Add this inode to the deferred op.  Each joined inode is relogged
- * each time we roll the transaction.
- */
-int
-xfs_defer_ijoin(
-	struct xfs_defer_ops		*dop,
-	struct xfs_inode		*ip)
-{
-	int				i;
-
-	for (i = 0; i < XFS_DEFER_OPS_NR_INODES; i++) {
-		if (dop->dop_inodes[i] == ip)
-			return 0;
-		else if (dop->dop_inodes[i] == NULL) {
-			dop->dop_inodes[i] = ip;
-			return 0;
-		}
-	}
-
-	ASSERT(0);
-	return -EFSCORRUPTED;
-}
-
-/*
  * Reset an already used dfops after finish.
  */
 static void
 xfs_defer_reset(
 	struct xfs_trans	*tp)
 {
-	struct xfs_defer_ops	*dop = tp->t_dfops;
-
-	ASSERT(!xfs_defer_has_unfinished_work(dop));
-
-	memset(dop->dop_inodes, 0, sizeof(dop->dop_inodes));
+	ASSERT(!xfs_defer_has_unfinished_work(tp->t_dfops));
 
 	/*
 	 * Low mode state transfers across transaction rolls to mirror dfops
@@ -587,8 +572,6 @@ xfs_defer_move(
 
 	list_splice_init(&src->dop_intake, &dst->dop_intake);
 	list_splice_init(&src->dop_pending, &dst->dop_pending);
-
-	memcpy(dst->dop_inodes, src->dop_inodes, sizeof(dst->dop_inodes));
 
 	/*
 	 * Low free space mode was historically controlled by a dfops field.

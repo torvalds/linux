@@ -435,7 +435,6 @@ retry:
 	xfs_inode_set_cowblocks_tag(ip);
 
 	/* Finish up. */
-	xfs_defer_ijoin(tp->t_dfops, ip);
 	error = xfs_trans_commit(tp);
 	if (error)
 		return error;
@@ -518,7 +517,6 @@ xfs_reflink_cancel_cow_blocks(
 					NULL);
 
 			/* Roll the transaction */
-			xfs_defer_ijoin((*tpp)->t_dfops, ip);
 			error = xfs_defer_finish(tpp);
 			if (error) {
 				xfs_defer_cancel(*tpp);
@@ -716,7 +714,6 @@ xfs_reflink_end_cow(
 		/* Remove the mapping from the CoW fork. */
 		xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
 
-		xfs_defer_ijoin(tp->t_dfops, ip);
 		error = xfs_defer_finish(&tp);
 		if (error)
 			goto out_cancel;
@@ -1077,7 +1074,6 @@ xfs_reflink_remap_extent(
 
 next_extent:
 		/* Process all the deferred stuff. */
-		xfs_defer_ijoin(tp->t_dfops, ip);
 		error = xfs_defer_finish(&tp);
 		if (error)
 			goto out_cancel;

@@ -320,7 +320,6 @@ xfs_attr_set(
 		 * buffer and run into problems with the write verifier.
 		 */
 		xfs_trans_bhold(args.trans, leaf_bp);
-		xfs_defer_ijoin(args.trans->t_dfops, dp);
 		error = xfs_defer_finish(&args.trans);
 		if (error)
 			goto out;
@@ -589,7 +588,6 @@ xfs_attr_leaf_addname(
 		error = xfs_attr3_leaf_to_node(args);
 		if (error)
 			goto out_defer_cancel;
-		xfs_defer_ijoin(args->trans->t_dfops, dp);
 		error = xfs_defer_finish(&args->trans);
 		if (error)
 			goto out_defer_cancel;
@@ -678,7 +676,6 @@ xfs_attr_leaf_addname(
 			/* bp is gone due to xfs_da_shrink_inode */
 			if (error)
 				goto out_defer_cancel;
-			xfs_defer_ijoin(args->trans->t_dfops, dp);
 			error = xfs_defer_finish(&args->trans);
 			if (error)
 				goto out_defer_cancel;
@@ -742,7 +739,6 @@ xfs_attr_leaf_removename(
 		/* bp is gone due to xfs_da_shrink_inode */
 		if (error)
 			goto out_defer_cancel;
-		xfs_defer_ijoin(args->trans->t_dfops, dp);
 		error = xfs_defer_finish(&args->trans);
 		if (error)
 			goto out_defer_cancel;
@@ -869,7 +865,6 @@ restart:
 			error = xfs_attr3_leaf_to_node(args);
 			if (error)
 				goto out_defer_cancel;
-			xfs_defer_ijoin(args->trans->t_dfops, dp);
 			error = xfs_defer_finish(&args->trans);
 			if (error)
 				goto out_defer_cancel;
@@ -894,7 +889,6 @@ restart:
 		error = xfs_da3_split(state);
 		if (error)
 			goto out_defer_cancel;
-		xfs_defer_ijoin(args->trans->t_dfops, dp);
 		error = xfs_defer_finish(&args->trans);
 		if (error)
 			goto out_defer_cancel;
@@ -991,7 +985,6 @@ restart:
 			error = xfs_da3_join(state);
 			if (error)
 				goto out_defer_cancel;
-			xfs_defer_ijoin(args->trans->t_dfops, dp);
 			error = xfs_defer_finish(&args->trans);
 			if (error)
 				goto out_defer_cancel;
@@ -1115,7 +1108,6 @@ xfs_attr_node_removename(
 		error = xfs_da3_join(state);
 		if (error)
 			goto out_defer_cancel;
-		xfs_defer_ijoin(args->trans->t_dfops, dp);
 		error = xfs_defer_finish(&args->trans);
 		if (error)
 			goto out_defer_cancel;
@@ -1147,7 +1139,6 @@ xfs_attr_node_removename(
 			/* bp is gone due to xfs_da_shrink_inode */
 			if (error)
 				goto out_defer_cancel;
-			xfs_defer_ijoin(args->trans->t_dfops, dp);
 			error = xfs_defer_finish(&args->trans);
 			if (error)
 				goto out_defer_cancel;

@@ -979,7 +979,6 @@ xfs_alloc_file_space(
 		/*
 		 * Complete the transaction
 		 */
-		xfs_defer_ijoin(tp->t_dfops, ip);
 		error = xfs_trans_commit(tp);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error)
@@ -1036,8 +1035,6 @@ xfs_unmap_extent(
 	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, done);
 	if (error)
 		goto out_trans_cancel;
-
-	xfs_defer_ijoin(tp->t_dfops, ip);
 
 	error = xfs_trans_commit(tp);
 out_unlock:
@@ -1624,7 +1621,6 @@ xfs_swap_extent_rmap(
 			if (error)
 				goto out_defer;
 
-			xfs_defer_ijoin(tp->t_dfops, ip);
 			error = xfs_defer_finish(tpp);
 			tp = *tpp;
 			if (error)

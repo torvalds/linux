@@ -261,7 +261,6 @@ xfs_iomap_write_direct(
 	/*
 	 * Complete the transaction
 	 */
-	xfs_defer_ijoin(tp->t_dfops, ip);
 	error = xfs_trans_commit(tp);
 	if (error)
 		goto out_unlock;
@@ -764,7 +763,6 @@ xfs_iomap_write_allocate(
 			if (error)
 				goto trans_cancel;
 
-			xfs_defer_ijoin(tp->t_dfops, ip);
 			error = xfs_trans_commit(tp);
 			if (error)
 				goto error0;
@@ -884,7 +882,6 @@ xfs_iomap_write_unwritten(
 			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		}
 
-		xfs_defer_ijoin(tp->t_dfops, ip);
 		error = xfs_trans_commit(tp);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error)

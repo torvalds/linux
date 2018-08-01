@@ -454,7 +454,6 @@ xfs_inactive_symlink_rmt(
 	 * Commit the transaction. This first logs the EFI and the inode, then
 	 * rolls and commits the transaction that frees the extents.
 	 */
-	xfs_defer_ijoin(tp->t_dfops, ip);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	error = xfs_trans_commit(tp);
 	if (error) {
