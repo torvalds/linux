@@ -272,11 +272,10 @@ static void tcf_chain_release_by_act(struct tcf_chain *chain)
 	--chain->action_refcnt;
 }
 
-static bool tcf_chain_is_zombie(struct tcf_chain *chain)
+static bool tcf_chain_held_by_acts_only(struct tcf_chain *chain)
 {
 	/* In case all the references are action references, this
-	 * chain is a zombie and should not be listed in the chain
-	 * dump list.
+	 * chain should not be shown to the user.
 	 */
 	return chain->refcnt == chain->action_refcnt;
 }
@@ -1838,10 +1837,9 @@ replay:
 	chain = tcf_chain_lookup(block, chain_index);
 	if (n->nlmsg_type == RTM_NEWCHAIN) {
 		if (chain) {
-			if (tcf_chain_is_zombie(chain)) {
+			if (tcf_chain_held_by_acts_only(chain)) {
 				/* The chain exists only because there is
-				 * some action referencing it, meaning it
-				 * is a zombie.
+				 * some action referencing it.
 				 */
 				tcf_chain_hold(chain);
 			} else {
@@ -1860,7 +1858,7 @@ replay:
 			}
 		}
 	} else {
-		if (!chain || tcf_chain_is_zombie(chain)) {
+		if (!chain || tcf_chain_held_by_acts_only(chain)) {
 			NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
 			return -EINVAL;
 		}
@@ -1988,7 +1986,7 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 			index++;
 			continue;
 		}
-		if (tcf_chain_is_zombie(chain))
+		if (tcf_chain_held_by_acts_only(chain))
 			continue;
 		err = tc_chain_fill_node(chain, net, skb, block,
 					 NETLINK_CB(cb->skb).portid,
