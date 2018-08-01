@@ -554,10 +554,9 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 
 			dev = q->adap->port[q->adap->chan_map[port]];
 			dcbxdis = (action == FW_PORT_ACTION_GET_PORT_INFO
-				   ? !!(pcmd->u.info.dcbxdis_pkd &
-					FW_PORT_CMD_DCBXDIS_F)
-				   : !!(pcmd->u.info32.lstatus32_to_cbllen32 &
-					FW_PORT_CMD_DCBXDIS32_F));
+			  ? !!(pcmd->u.info.dcbxdis_pkd & FW_PORT_CMD_DCBXDIS_F)
+			  : !!(be32_to_cpu(pcmd->u.info32.lstatus32_to_cbllen32)
+			       & FW_PORT_CMD_DCBXDIS32_F));
 			state_input = (dcbxdis
 				       ? CXGB4_DCB_INPUT_FW_DISABLED
 				       : CXGB4_DCB_INPUT_FW_ENABLED);
