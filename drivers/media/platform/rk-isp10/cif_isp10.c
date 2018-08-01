@@ -1215,7 +1215,7 @@ static int cif_isp10_img_src_select_strm_fmt(
 				matching_format_found = true;
 			}
 		// FIXME::GST set fomat(any@32768x32768) failed, force pass
-		} else {
+		} else if (!matching_format_found) {
 			request_strm_fmt.frm_fmt.width =
 				strm_fmt_desc.min_frmsize.width;
 			request_strm_fmt.frm_fmt.height =
