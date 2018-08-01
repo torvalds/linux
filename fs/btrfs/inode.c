@@ -4081,10 +4081,10 @@ out:
 }
 
 static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root,
-			struct inode *dir, u64 objectid,
-			const char *name, int name_len)
+			       struct inode *dir, u64 objectid,
+			       const char *name, int name_len)
 {
+	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_dir_item *di;
@@ -4335,10 +4335,8 @@ int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
 
 	btrfs_record_snapshot_destroy(trans, BTRFS_I(dir));
 
-	ret = btrfs_unlink_subvol(trans, root, dir,
-				dest->root_key.objectid,
-				dentry->d_name.name,
-				dentry->d_name.len);
+	ret = btrfs_unlink_subvol(trans, dir, dest->root_key.objectid,
+				  dentry->d_name.name, dentry->d_name.len);
 	if (ret) {
 		err = ret;
 		btrfs_abort_transaction(trans, ret);
@@ -4433,7 +4431,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 		return PTR_ERR(trans);
 
 	if (unlikely(btrfs_ino(BTRFS_I(inode)) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
-		err = btrfs_unlink_subvol(trans, root, dir,
+		err = btrfs_unlink_subvol(trans, dir,
 					  BTRFS_I(inode)->location.objectid,
 					  dentry->d_name.name,
 					  dentry->d_name.len);
@@ -9505,8 +9503,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	/* src is a subvolume */
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		root_objectid = BTRFS_I(old_inode)->root->root_key.objectid;
-		ret = btrfs_unlink_subvol(trans, root, old_dir,
-					  root_objectid,
+		ret = btrfs_unlink_subvol(trans, old_dir, root_objectid,
 					  old_dentry->d_name.name,
 					  old_dentry->d_name.len);
 	} else { /* src is an inode */
@@ -9525,8 +9522,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	/* dest is a subvolume */
 	if (new_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		root_objectid = BTRFS_I(new_inode)->root->root_key.objectid;
-		ret = btrfs_unlink_subvol(trans, dest, new_dir,
-					  root_objectid,
+		ret = btrfs_unlink_subvol(trans, new_dir, root_objectid,
 					  new_dentry->d_name.name,
 					  new_dentry->d_name.len);
 	} else { /* dest is an inode */
@@ -9786,7 +9782,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		root_objectid = BTRFS_I(old_inode)->root->root_key.objectid;
-		ret = btrfs_unlink_subvol(trans, root, old_dir, root_objectid,
+		ret = btrfs_unlink_subvol(trans, old_dir, root_objectid,
 					old_dentry->d_name.name,
 					old_dentry->d_name.len);
 	} else {
@@ -9808,8 +9804,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (unlikely(btrfs_ino(BTRFS_I(new_inode)) ==
 			     BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
 			root_objectid = BTRFS_I(new_inode)->location.objectid;
-			ret = btrfs_unlink_subvol(trans, dest, new_dir,
-						root_objectid,
+			ret = btrfs_unlink_subvol(trans, new_dir, root_objectid,
 						new_dentry->d_name.name,
 						new_dentry->d_name.len);
 			BUG_ON(new_inode->i_nlink == 0);
