@@ -320,7 +320,6 @@ xfs_attr_set(
 		 * buffer and run into problems with the write verifier.
 		 */
 		xfs_trans_bhold(args.trans, leaf_bp);
-		xfs_defer_bjoin(args.trans->t_dfops, leaf_bp);
 		xfs_defer_ijoin(args.trans->t_dfops, dp);
 		error = xfs_defer_finish(&args.trans);
 		if (error)

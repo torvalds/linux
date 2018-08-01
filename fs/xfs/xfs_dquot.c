@@ -362,7 +362,6 @@ xfs_dquot_disk_alloc(
 	 * manually or by committing the transaction.
 	 */
 	xfs_trans_bhold(tp, bp);
-	error = xfs_defer_bjoin(tp->t_dfops, bp);
 	if (error) {
 		xfs_trans_bhold_release(tp, bp);
 		xfs_trans_brelse(tp, bp);
