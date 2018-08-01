@@ -333,6 +333,9 @@ struct tcp_sock {
 				 * the first SYN. */
 	u32	undo_marker;	/* snd_una upon a new recovery episode. */
 	int	undo_retrans;	/* number of undoable retransmissions. */
+	u64	bytes_retrans;	/* RFC4898 tcpEStatsPerfOctetsRetrans
+				 * Total data bytes retransmitted
+				 */
 	u32	total_retrans;	/* Total retransmits for entire connection */
 
 	u32	urg_seq;	/* Seq of received urgent pointer */
