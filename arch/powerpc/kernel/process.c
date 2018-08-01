@@ -1299,6 +1299,38 @@ static void show_instructions(struct pt_regs *regs)
 	pr_cont("\n");
 }
 
+void show_user_instructions(struct pt_regs *regs)
+{
+	unsigned long pc;
+	int i;
+
+	pc = regs->nip - (instructions_to_print * 3 / 4 * sizeof(int));
+
+	pr_info("%s[%d]: code: ", current->comm, current->pid);
+
+	for (i = 0; i < instructions_to_print; i++) {
+		int instr;
+
+		if (!(i % 8) && (i > 0)) {
+			pr_cont("\n");
+			pr_info("%s[%d]: code: ", current->comm, current->pid);
+		}
+
+		if (probe_kernel_address((unsigned int __user *)pc, instr)) {
+			pr_cont("XXXXXXXX ");
+		} else {
+			if (regs->nip == pc)
+				pr_cont("<%08x> ", instr);
+			else
+				pr_cont("%08x ", instr);
+		}
+
+		pc += sizeof(int);
+	}
+
+	pr_cont("\n");
+}
+
 struct regbit {
 	unsigned long bit;
 	const char *name;
