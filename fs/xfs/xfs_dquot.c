@@ -371,7 +371,7 @@ xfs_dquot_disk_alloc(
 	tp = *tpp;
 	if (error) {
 		xfs_buf_relse(bp);
-		goto error1;
+		goto error0;
 	}
 	*bpp = bp;
 	return 0;

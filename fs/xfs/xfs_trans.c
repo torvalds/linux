@@ -933,10 +933,8 @@ __xfs_trans_commit(
 		     !(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
 	if (!regrant && (tp->t_flags & XFS_TRANS_PERM_LOG_RES)) {
 		error = xfs_defer_finish_noroll(&tp);
-		if (error) {
-			xfs_defer_cancel(tp);
+		if (error)
 			goto out_unreserve;
-		}
 	}
 
 	/*

@@ -518,10 +518,8 @@ xfs_reflink_cancel_cow_blocks(
 
 			/* Roll the transaction */
 			error = xfs_defer_finish(tpp);
-			if (error) {
-				xfs_defer_cancel(*tpp);
+			if (error)
 				break;
-			}
 
 			/* Remove the mapping from the CoW fork. */
 			xfs_bmap_del_extent_cow(ip, &icur, &got, &del);

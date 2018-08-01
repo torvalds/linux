@@ -488,7 +488,7 @@ xfs_attr_rmtval_set(
 			goto out_defer_cancel;
 		error = xfs_defer_finish(&args->trans);
 		if (error)
-			goto out_defer_cancel;
+			return error;
 
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
@@ -628,7 +628,7 @@ xfs_attr_rmtval_remove(
 			goto out_defer_cancel;
 		error = xfs_defer_finish(&args->trans);
 		if (error)
-			goto out_defer_cancel;
+			return error;
 
 		/*
 		 * Close out trans and start the next one in the chain.

@@ -1624,7 +1624,7 @@ xfs_swap_extent_rmap(
 			error = xfs_defer_finish(tpp);
 			tp = *tpp;
 			if (error)
-				goto out_defer;
+				goto out;
 
 			tirec.br_startoff += rlen;
 			if (tirec.br_startblock != HOLESTARTBLOCK &&

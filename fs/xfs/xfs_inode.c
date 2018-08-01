@@ -1571,7 +1571,7 @@ xfs_itruncate_extents_flags(
 		 */
 		error = xfs_defer_finish(&tp);
 		if (error)
-			goto out_bmap_cancel;
+			goto out;
 
 		error = xfs_trans_roll_inode(&tp, ip);
 		if (error)

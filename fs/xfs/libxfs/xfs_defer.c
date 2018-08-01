@@ -416,14 +416,15 @@ xfs_defer_finish_noroll(
 	}
 
 out:
-	if (error)
+	if (error) {
 		trace_xfs_defer_finish_error((*tp)->t_mountp, (*tp)->t_dfops,
 					     error);
-	 else
-		trace_xfs_defer_finish_done((*tp)->t_mountp, (*tp)->t_dfops,
-					    _RET_IP_);
+		xfs_defer_cancel(*tp);
+		return error;
+	}
 
-	return error;
+	trace_xfs_defer_finish_done((*tp)->t_mountp, (*tp)->t_dfops, _RET_IP_);
+	return 0;
 }
 
 int
