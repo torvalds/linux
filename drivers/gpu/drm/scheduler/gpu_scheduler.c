@@ -241,6 +241,31 @@ static bool drm_sched_entity_is_ready(struct drm_sched_entity *entity)
 	return true;
 }
 
+/**
+ * drm_sched_entity_get_free_sched - Get the rq from rq_list with least load
+ *
+ * @entity: scheduler entity
+ *
+ * Return the pointer to the rq with least load.
+ */
+static struct drm_sched_rq *
+drm_sched_entity_get_free_sched(struct drm_sched_entity *entity)
+{
+	struct drm_sched_rq *rq = NULL;
+	unsigned int min_jobs = UINT_MAX, num_jobs;
+	int i;
+
+	for (i = 0; i < entity->num_rq_list; ++i) {
+		num_jobs = atomic_read(&entity->rq_list[i]->sched->num_jobs);
+		if (num_jobs < min_jobs) {
+			min_jobs = num_jobs;
+			rq = entity->rq_list[i];
+		}
+	}
+
+	return rq;
+}
+
 static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 				    struct dma_fence_cb *cb)
 {
