@@ -29,22 +29,22 @@ struct meson8b_clk_reset {
 	void __iomem *base;
 };
 
-static const struct pll_rate_table sys_pll_rate_table[] = {
-	PLL_RATE(1200000000, 50, 1),
-	PLL_RATE(1224000000, 51, 1),
-	PLL_RATE(1248000000, 52, 1),
-	PLL_RATE(1272000000, 53, 1),
-	PLL_RATE(1296000000, 54, 1),
-	PLL_RATE(1320000000, 55, 1),
-	PLL_RATE(1344000000, 56, 1),
-	PLL_RATE(1368000000, 57, 1),
-	PLL_RATE(1392000000, 58, 1),
-	PLL_RATE(1416000000, 59, 1),
-	PLL_RATE(1440000000, 60, 1),
-	PLL_RATE(1464000000, 61, 1),
-	PLL_RATE(1488000000, 62, 1),
-	PLL_RATE(1512000000, 63, 1),
-	PLL_RATE(1536000000, 64, 1),
+static const struct pll_params_table sys_pll_params_table[] = {
+	PLL_PARAMS(50, 1),
+	PLL_PARAMS(51, 1),
+	PLL_PARAMS(52, 1),
+	PLL_PARAMS(53, 1),
+	PLL_PARAMS(54, 1),
+	PLL_PARAMS(55, 1),
+	PLL_PARAMS(56, 1),
+	PLL_PARAMS(57, 1),
+	PLL_PARAMS(58, 1),
+	PLL_PARAMS(59, 1),
+	PLL_PARAMS(60, 1),
+	PLL_PARAMS(61, 1),
+	PLL_PARAMS(62, 1),
+	PLL_PARAMS(63, 1),
+	PLL_PARAMS(64, 1),
 	{ /* sentinel */ },
 };
 
@@ -196,7 +196,7 @@ static struct clk_regmap meson8b_sys_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.table = sys_pll_rate_table,
+		.table = sys_pll_params_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll_dco",

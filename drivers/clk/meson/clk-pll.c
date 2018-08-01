@@ -45,7 +45,7 @@ meson_clk_pll_data(struct clk_regmap *clk)
 }
 
 static unsigned long __pll_params_to_rate(unsigned long parent_rate,
-					  const struct pll_rate_table *pllt,
+					  const struct pll_params_table *pllt,
 					  u16 frac,
 					  struct meson_clk_pll_data *pll)
 {
@@ -66,7 +66,7 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	struct pll_rate_table pllt;
+	struct pll_params_table pllt;
 	u16 frac;
 
 	pllt.n = meson_parm_read(clk->map, &pll->n);
@@ -81,7 +81,7 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 
 static u16 __pll_params_with_frac(unsigned long rate,
 				  unsigned long parent_rate,
-				  const struct pll_rate_table *pllt,
+				  const struct pll_params_table *pllt,
 				  struct meson_clk_pll_data *pll)
 {
 	u16 frac_max = (1 << pll->frac.width);
@@ -97,29 +97,50 @@ static u16 __pll_params_with_frac(unsigned long rate,
 	return min((u16)val, (u16)(frac_max - 1));
 }
 
-static const struct pll_rate_table *
+static bool meson_clk_pll_is_better(unsigned long rate,
+				    unsigned long best,
+				    unsigned long now,
+				    struct meson_clk_pll_data *pll)
+{
+	if (!(pll->flags & CLK_MESON_PLL_ROUND_CLOSEST) ||
+	    MESON_PARM_APPLICABLE(&pll->frac)) {
+		/* Round down */
+		if (now < rate && best < now)
+			return true;
+	} else {
+		/* Round Closest */
+		if (abs(now - rate) < abs(best - rate))
+			return true;
+	}
+
+	return false;
+}
+
+static const struct pll_params_table *
 meson_clk_get_pll_settings(unsigned long rate,
+			   unsigned long parent_rate,
 			   struct meson_clk_pll_data *pll)
 {
-	const struct pll_rate_table *table = pll->table;
-	unsigned int i = 0;
+	const struct pll_params_table *table = pll->table;
+	unsigned long best = 0, now = 0;
+	unsigned int i, best_i = 0;
 
 	if (!table)
 		return NULL;
 
-	/* Find the first table element exceeding rate */
-	while (table[i].rate && table[i].rate <= rate)
-		i++;
+	for (i = 0; table[i].n; i++) {
+		now = __pll_params_to_rate(parent_rate, &table[i], 0, pll);
 
-	if (i != 0) {
-		if (MESON_PARM_APPLICABLE(&pll->frac) ||
-		    !(pll->flags & CLK_MESON_PLL_ROUND_CLOSEST) ||
-		    (abs(rate - table[i - 1].rate) <
-		     abs(rate - table[i].rate)))
-			i--;
+		/* If we get an exact match, don't bother any further */
+		if (now == rate) {
+			return &table[i];
+		} else if (meson_clk_pll_is_better(rate, best, now, pll)) {
+			best = now;
+			best_i = i;
+		}
 	}
 
-	return (struct pll_rate_table *)&table[i];
+	return (struct pll_params_table *)&table[best_i];
 }
 
 static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -127,16 +148,18 @@ static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	const struct pll_rate_table *pllt =
-		meson_clk_get_pll_settings(rate, pll);
+	const struct pll_params_table *pllt =
+		meson_clk_get_pll_settings(rate, *parent_rate, pll);
+	unsigned long round;
 	u16 frac;
 
 	if (!pllt)
 		return meson_clk_pll_recalc_rate(hw, *parent_rate);
 
-	if (!MESON_PARM_APPLICABLE(&pll->frac)
-	    || rate == pllt->rate)
-		return pllt->rate;
+	round = __pll_params_to_rate(*parent_rate, pllt, 0, pll);
+
+	if (!MESON_PARM_APPLICABLE(&pll->frac) || rate == round)
+		return round;
 
 	/*
 	 * The rate provided by the setting is not an exact match, let's
@@ -214,7 +237,7 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	const struct pll_rate_table *pllt;
+	const struct pll_params_table *pllt;
 	unsigned int enabled;
 	unsigned long old_rate;
 	u16 frac = 0;
@@ -224,7 +247,7 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	old_rate = rate;
 
-	pllt = meson_clk_get_pll_settings(rate, pll);
+	pllt = meson_clk_get_pll_settings(rate, parent_rate, pll);
 	if (!pllt)
 		return -EINVAL;
 

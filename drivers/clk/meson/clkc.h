@@ -43,15 +43,13 @@ static inline void meson_parm_write(struct regmap *map, struct parm *p,
 }
 
 
-struct pll_rate_table {
-	unsigned long	rate;
+struct pll_params_table {
 	u16		m;
 	u16		n;
 };
 
-#define PLL_RATE(_r, _m, _n)						\
+#define PLL_PARAMS(_m, _n)						\
 	{								\
-		.rate		= (_r),					\
 		.m		= (_m),					\
 		.n		= (_n),					\
 	}
@@ -67,7 +65,7 @@ struct meson_clk_pll_data {
 	struct parm rst;
 	const struct reg_sequence *init_regs;
 	unsigned int init_count;
-	const struct pll_rate_table *table;
+	const struct pll_params_table *table;
 	u8 flags;
 };
 
