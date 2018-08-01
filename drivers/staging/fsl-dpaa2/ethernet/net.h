@@ -4,8 +4,6 @@
 #ifndef __FSL_NET_H
 #define __FSL_NET_H
 
-#define LAST_HDR_INDEX 0xFFFFFFFF
-
 /* Protocol fields */
 
 /* Ethernet fields */
@@ -16,8 +14,6 @@
 #define NH_FLD_ETH_FINAL_CKSUM                (NH_FLD_ETH_DA << 4)
 #define NH_FLD_ETH_PADDING                    (NH_FLD_ETH_DA << 5)
 #define NH_FLD_ETH_ALL_FIELDS                 ((NH_FLD_ETH_DA << 6) - 1)
-
-#define NH_FLD_ETH_ADDR_SIZE                 6
 
 /* VLAN fields */
 #define NH_FLD_VLAN_VPRI                      (1)
@@ -42,8 +38,6 @@
 #define NH_FLD_IP_ID                          (NH_FLD_IP_VER << 8)
 #define NH_FLD_IP_ALL_FIELDS                  ((NH_FLD_IP_VER << 9) - 1)
 
-#define NH_FLD_IP_PROTO_SIZE                  1
-
 /* IPV4 fields */
 #define NH_FLD_IPV4_VER                       (1)
 #define NH_FLD_IPV4_HDR_LEN                   (NH_FLD_IPV4_VER << 1)
@@ -62,9 +56,6 @@
 #define NH_FLD_IPV4_OPTS_COUNT                (NH_FLD_IPV4_VER << 14)
 #define NH_FLD_IPV4_ALL_FIELDS                ((NH_FLD_IPV4_VER << 15) - 1)
 
-#define NH_FLD_IPV4_ADDR_SIZE                 4
-#define NH_FLD_IPV4_PROTO_SIZE                1
-
 /* IPV6 fields */
 #define NH_FLD_IPV6_VER                       (1)
 #define NH_FLD_IPV6_TC                        (NH_FLD_IPV6_VER << 1)
@@ -76,9 +67,6 @@
 #define NH_FLD_IPV6_ID			      (NH_FLD_IPV6_VER << 7)
 #define NH_FLD_IPV6_ALL_FIELDS                ((NH_FLD_IPV6_VER << 8) - 1)
 
-#define NH_FLD_IPV6_ADDR_SIZE                 16
-#define NH_FLD_IPV6_NEXT_HDR_SIZE             1
-
 /* ICMP fields */
 #define NH_FLD_ICMP_TYPE                      (1)
 #define NH_FLD_ICMP_CODE                      (NH_FLD_ICMP_TYPE << 1)
@@ -86,9 +74,6 @@
 #define NH_FLD_ICMP_ID                        (NH_FLD_ICMP_TYPE << 3)
 #define NH_FLD_ICMP_SQ_NUM                    (NH_FLD_ICMP_TYPE << 4)
 #define NH_FLD_ICMP_ALL_FIELDS                ((NH_FLD_ICMP_TYPE << 5) - 1)
-
-#define NH_FLD_ICMP_CODE_SIZE                 1
-#define NH_FLD_ICMP_TYPE_SIZE                 1
 
 /* IGMP fields */
 #define NH_FLD_IGMP_VERSION                   (1)
@@ -111,8 +96,6 @@
 #define NH_FLD_TCP_OPTS_COUNT                 (NH_FLD_TCP_PORT_SRC << 10)
 #define NH_FLD_TCP_ALL_FIELDS                 ((NH_FLD_TCP_PORT_SRC << 11) - 1)
 
-#define NH_FLD_TCP_PORT_SIZE                  2
-
 /* UDP fields */
 #define NH_FLD_UDP_PORT_SRC                   (1)
 #define NH_FLD_UDP_PORT_DST                   (NH_FLD_UDP_PORT_SRC << 1)
@@ -120,15 +103,11 @@
 #define NH_FLD_UDP_CKSUM                      (NH_FLD_UDP_PORT_SRC << 3)
 #define NH_FLD_UDP_ALL_FIELDS                 ((NH_FLD_UDP_PORT_SRC << 4) - 1)
 
-#define NH_FLD_UDP_PORT_SIZE                  2
-
 /* UDP-lite fields */
 #define NH_FLD_UDP_LITE_PORT_SRC              (1)
 #define NH_FLD_UDP_LITE_PORT_DST              (NH_FLD_UDP_LITE_PORT_SRC << 1)
 #define NH_FLD_UDP_LITE_ALL_FIELDS \
 	((NH_FLD_UDP_LITE_PORT_SRC << 2) - 1)
-
-#define NH_FLD_UDP_LITE_PORT_SIZE             2
 
 /* UDP-encap-ESP fields */
 #define NH_FLD_UDP_ENC_ESP_PORT_SRC         (1)
@@ -140,9 +119,6 @@
 #define NH_FLD_UDP_ENC_ESP_ALL_FIELDS \
 	((NH_FLD_UDP_ENC_ESP_PORT_SRC << 6) - 1)
 
-#define NH_FLD_UDP_ENC_ESP_PORT_SIZE        2
-#define NH_FLD_UDP_ENC_ESP_SPI_SIZE         4
-
 /* SCTP fields */
 #define NH_FLD_SCTP_PORT_SRC                  (1)
 #define NH_FLD_SCTP_PORT_DST                  (NH_FLD_SCTP_PORT_SRC << 1)
@@ -150,14 +126,10 @@
 #define NH_FLD_SCTP_CKSUM                     (NH_FLD_SCTP_PORT_SRC << 3)
 #define NH_FLD_SCTP_ALL_FIELDS                ((NH_FLD_SCTP_PORT_SRC << 4) - 1)
 
-#define NH_FLD_SCTP_PORT_SIZE                 2
-
 /* DCCP fields */
 #define NH_FLD_DCCP_PORT_SRC                  (1)
 #define NH_FLD_DCCP_PORT_DST                  (NH_FLD_DCCP_PORT_SRC << 1)
 #define NH_FLD_DCCP_ALL_FIELDS                ((NH_FLD_DCCP_PORT_SRC << 2) - 1)
-
-#define NH_FLD_DCCP_PORT_SIZE                 2
 
 /* IPHC fields */
 #define NH_FLD_IPHC_CID                       (1)
@@ -324,7 +296,6 @@
 #define NH_FLD_IPSEC_ESP_SEQUENCE_NUM         (NH_FLD_IPSEC_ESP_SPI << 1)
 #define NH_FLD_IPSEC_ESP_ALL_FIELDS           ((NH_FLD_IPSEC_ESP_SPI << 2) - 1)
 
-#define NH_FLD_IPSEC_ESP_SPI_SIZE             4
 
 /* MPLS fields */
 #define NH_FLD_MPLS_LABEL_STACK               (1)
@@ -337,54 +308,6 @@
 
 /* GTP fields */
 #define NH_FLD_GTP_TEID                       (1)
-
-/* Protocol options */
-
-/* Ethernet options */
-#define	NH_OPT_ETH_BROADCAST			1
-#define	NH_OPT_ETH_MULTICAST			2
-#define	NH_OPT_ETH_UNICAST			3
-#define	NH_OPT_ETH_BPDU				4
-
-#define NH_ETH_IS_MULTICAST_ADDR(addr) (addr[0] & 0x01)
-/* also applicable for broadcast */
-
-/* VLAN options */
-#define	NH_OPT_VLAN_CFI				1
-
-/* IPV4 options */
-#define	NH_OPT_IPV4_UNICAST			1
-#define	NH_OPT_IPV4_MULTICAST			2
-#define	NH_OPT_IPV4_BROADCAST			3
-#define	NH_OPT_IPV4_OPTION			4
-#define	NH_OPT_IPV4_FRAG			5
-#define	NH_OPT_IPV4_INITIAL_FRAG		6
-
-/* IPV6 options */
-#define	NH_OPT_IPV6_UNICAST			1
-#define	NH_OPT_IPV6_MULTICAST			2
-#define	NH_OPT_IPV6_OPTION			3
-#define	NH_OPT_IPV6_FRAG			4
-#define	NH_OPT_IPV6_INITIAL_FRAG		5
-
-/* General IP options (may be used for any version) */
-#define	NH_OPT_IP_FRAG				1
-#define	NH_OPT_IP_INITIAL_FRAG			2
-#define	NH_OPT_IP_OPTION			3
-
-/* Minenc. options */
-#define	NH_OPT_MINENCAP_SRC_ADDR_PRESENT	1
-
-/* GRE. options */
-#define	NH_OPT_GRE_ROUTING_PRESENT		1
-
-/* TCP options */
-#define	NH_OPT_TCP_OPTIONS			1
-#define	NH_OPT_TCP_CONTROL_HIGH_BITS		2
-#define	NH_OPT_TCP_CONTROL_LOW_BITS		3
-
-/* CAPWAP options */
-#define	NH_OPT_CAPWAP_DTLS			1
 
 /* Supported protocols */
 enum net_prot {
@@ -440,13 +363,5 @@ enum net_prot {
 
 	NET_PROT_DUMMY_LAST
 };
-
-/*! IEEE8021.Q */
-#define NH_IEEE8021Q_ETYPE  0x8100
-#define NH_IEEE8021Q_HDR(etype, pcp, dei, vlan_id)	\
-	    ((((u32)((etype) & 0xFFFF)) << 16) |	\
-	    (((u32)((pcp) & 0x07)) << 13) |		\
-	    (((u32)((dei) & 0x01)) << 12) |		\
-	    (((u32)((vlan_id) & 0xFFF))))
 
 #endif /* __FSL_NET_H */
