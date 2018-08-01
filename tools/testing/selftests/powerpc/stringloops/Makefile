@@ -20,6 +20,13 @@ endif
 
 $(OUTPUT)/strlen: strlen.c string.c
 
+ifeq ($(build_32bit),1)
+$(OUTPUT)/strlen_32: strlen.c
+$(OUTPUT)/strlen_32: CFLAGS += -m32
+
+TEST_GEN_PROGS += strlen_32
+endif
+
 ASFLAGS = $(CFLAGS)
 
 include ../../lib.mk
