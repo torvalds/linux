@@ -50,7 +50,10 @@ enum drm_sched_priority {
  *
  * @list: used to append this struct to the list of entities in the
  *        runqueue.
- * @rq: runqueue to which this entity belongs.
+ * @rq: runqueue on which this entity is currently scheduled.
+ * @rq_list: a list of run queues on which jobs from this entity can
+ *           be scheduled
+ * @num_rq_list: number of run queues in the rq_list
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
  * @job_queue: the list of jobs of this entity.
  * @fence_seq: a linearly increasing seqno incremented with each
@@ -75,6 +78,8 @@ enum drm_sched_priority {
 struct drm_sched_entity {
 	struct list_head		list;
 	struct drm_sched_rq		*rq;
+	struct drm_sched_rq		**rq_list;
+	unsigned int                    num_rq_list;
 	spinlock_t			rq_lock;
 
 	struct spsc_queue		job_queue;

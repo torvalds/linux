@@ -179,6 +179,8 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 			  unsigned int num_rq_list,
 			  atomic_t *guilty)
 {
+	int i;
+
 	if (!(entity && rq_list && num_rq_list > 0 && rq_list[0]))
 		return -EINVAL;
 
@@ -186,6 +188,11 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 	INIT_LIST_HEAD(&entity->list);
 	entity->rq = rq_list[0];
 	entity->guilty = guilty;
+	entity->num_rq_list = num_rq_list;
+	entity->rq_list = kcalloc(num_rq_list, sizeof(struct drm_sched_rq *),
+				GFP_KERNEL);
+	for (i = 0; i < num_rq_list; ++i)
+		entity->rq_list[i] = rq_list[i];
 	entity->last_scheduled = NULL;
 
 	spin_lock_init(&entity->rq_lock);
@@ -348,6 +355,7 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 
 	dma_fence_put(entity->last_scheduled);
 	entity->last_scheduled = NULL;
+	kfree(entity->rq_list);
 }
 EXPORT_SYMBOL(drm_sched_entity_fini);
 
