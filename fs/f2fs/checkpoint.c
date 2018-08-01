@@ -86,8 +86,10 @@ repeat:
 	fio.page = page;
 
 	if (f2fs_submit_page_bio(&fio)) {
-		f2fs_put_page(page, 1);
-		goto repeat;
+		memset(page_address(page), 0, PAGE_SIZE);
+		f2fs_stop_checkpoint(sbi, false);
+		f2fs_bug_on(sbi, 1);
+		return page;
 	}
 
 	lock_page(page);
@@ -143,8 +145,14 @@ bool f2fs_is_valid_blkaddr(struct f2fs_sb_info *sbi,
 	case META_POR:
 	case DATA_GENERIC:
 		if (unlikely(blkaddr >= MAX_BLKADDR(sbi) ||
-			blkaddr < MAIN_BLKADDR(sbi)))
+			blkaddr < MAIN_BLKADDR(sbi))) {
+			if (type == DATA_GENERIC) {
+				f2fs_msg(sbi->sb, KERN_WARNING,
+					"access invalid blkaddr:%u", blkaddr);
+				WARN_ON(1);
+			}
 			return false;
+		}
 		break;
 	case META_GENERIC:
 		if (unlikely(blkaddr < SEG0_BLKADDR(sbi) ||
@@ -772,6 +780,14 @@ static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
 					&cp_page_1, version);
 	if (err)
 		goto invalid_cp1;
+
+	if (le32_to_cpu(cp_block->cp_pack_total_block_count) >
+					sbi->blocks_per_seg) {
+		f2fs_msg(sbi->sb, KERN_WARNING,
+			"invalid cp_pack_total_block_count:%u",
+			le32_to_cpu(cp_block->cp_pack_total_block_count));
+		goto invalid_cp1;
+	}
 	pre_version = *version;
 
 	cp_addr += le32_to_cpu(cp_block->cp_pack_total_block_count) - 1;
