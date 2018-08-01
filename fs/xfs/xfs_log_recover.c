@@ -4733,10 +4733,9 @@ xlog_recover_cancel_rui(
 /* Recover the CUI if necessary. */
 STATIC int
 xlog_recover_process_cui(
-	struct xfs_mount		*mp,
+	struct xfs_trans		*parent_tp,
 	struct xfs_ail			*ailp,
-	struct xfs_log_item		*lip,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_log_item		*lip)
 {
 	struct xfs_cui_log_item		*cuip;
 	int				error;
@@ -4749,7 +4748,7 @@ xlog_recover_process_cui(
 		return 0;
 
 	spin_unlock(&ailp->ail_lock);
-	error = xfs_cui_recover(mp, cuip, dfops);
+	error = xfs_cui_recover(parent_tp, cuip);
 	spin_lock(&ailp->ail_lock);
 
 	return error;
@@ -4774,10 +4773,9 @@ xlog_recover_cancel_cui(
 /* Recover the BUI if necessary. */
 STATIC int
 xlog_recover_process_bui(
-	struct xfs_mount		*mp,
+	struct xfs_trans		*parent_tp,
 	struct xfs_ail			*ailp,
-	struct xfs_log_item		*lip,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_log_item		*lip)
 {
 	struct xfs_bui_log_item		*buip;
 	int				error;
@@ -4790,7 +4788,7 @@ xlog_recover_process_bui(
 		return 0;
 
 	spin_unlock(&ailp->ail_lock);
-	error = xfs_bui_recover(mp, buip, dfops);
+	error = xfs_bui_recover(parent_tp, buip);
 	spin_lock(&ailp->ail_lock);
 
 	return error;
@@ -4829,9 +4827,9 @@ static inline bool xlog_item_is_intent(struct xfs_log_item *lip)
 /* Take all the collected deferred ops and finish them in order. */
 static int
 xlog_finish_defer_ops(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops)
+	struct xfs_trans	*parent_tp)
 {
+	struct xfs_mount	*mp = parent_tp->t_mountp;
 	struct xfs_trans	*tp;
 	int64_t			freeblks;
 	uint			resblks;
@@ -4855,7 +4853,7 @@ xlog_finish_defer_ops(
 	if (error)
 		return error;
 	/* transfer all collected dfops to this transaction */
-	xfs_defer_move(tp->t_dfops, dfops);
+	xfs_defer_move(tp->t_dfops, parent_tp->t_dfops);
 
 	return xfs_trans_commit(tp);
 }
@@ -4880,14 +4878,27 @@ STATIC int
 xlog_recover_process_intents(
 	struct xlog		*log)
 {
-	struct xfs_defer_ops	dfops;
+	struct xfs_trans	*parent_tp;
 	struct xfs_ail_cursor	cur;
 	struct xfs_log_item	*lip;
 	struct xfs_ail		*ailp;
-	int			error = 0;
+	int			error;
 #if defined(DEBUG) || defined(XFS_WARN)
 	xfs_lsn_t		last_lsn;
 #endif
+
+	/*
+	 * The intent recovery handlers commit transactions to complete recovery
+	 * for individual intents, but any new deferred operations that are
+	 * queued during that process are held off until the very end. The
+	 * purpose of this transaction is to serve as a container for deferred
+	 * operations. Each intent recovery handler must transfer dfops here
+	 * before its local transaction commits, and we'll finish the entire
+	 * list below.
+	 */
+	error = xfs_trans_alloc_empty(log->l_mp, &parent_tp);
+	if (error)
+		return error;
 
 	ailp = log->l_ailp;
 	spin_lock(&ailp->ail_lock);
@@ -4895,7 +4906,6 @@ xlog_recover_process_intents(
 #if defined(DEBUG) || defined(XFS_WARN)
 	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
 #endif
-	xfs_defer_init(NULL, &dfops);
 	while (lip != NULL) {
 		/*
 		 * We're done when we see something other than an intent.
@@ -4930,12 +4940,10 @@ xlog_recover_process_intents(
 			error = xlog_recover_process_rui(log->l_mp, ailp, lip);
 			break;
 		case XFS_LI_CUI:
-			error = xlog_recover_process_cui(log->l_mp, ailp, lip,
-					&dfops);
+			error = xlog_recover_process_cui(parent_tp, ailp, lip);
 			break;
 		case XFS_LI_BUI:
-			error = xlog_recover_process_bui(log->l_mp, ailp, lip,
-					&dfops);
+			error = xlog_recover_process_bui(parent_tp, ailp, lip);
 			break;
 		}
 		if (error)
@@ -4945,10 +4953,9 @@ xlog_recover_process_intents(
 out:
 	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->ail_lock);
-	if (error)
-		__xfs_defer_cancel(&dfops);
-	else
-		error = xlog_finish_defer_ops(log->l_mp, &dfops);
+	if (!error)
+		error = xlog_finish_defer_ops(parent_tp);
+	xfs_trans_cancel(parent_tp);
 
 	return error;
 }

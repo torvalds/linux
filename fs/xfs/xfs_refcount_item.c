@@ -380,9 +380,8 @@ xfs_cud_init(
  */
 int
 xfs_cui_recover(
-	struct xfs_mount		*mp,
-	struct xfs_cui_log_item		*cuip,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_trans		*parent_tp,
+	struct xfs_cui_log_item		*cuip)
 {
 	int				i;
 	int				error = 0;
@@ -398,6 +397,7 @@ xfs_cui_recover(
 	xfs_extlen_t			new_len;
 	struct xfs_bmbt_irec		irec;
 	bool				requeue_only = false;
+	struct xfs_mount		*mp = parent_tp->t_mountp;
 
 	ASSERT(!test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags));
 
@@ -457,7 +457,7 @@ xfs_cui_recover(
 	 * finishes them on completion. Transfer current dfops state to this
 	 * transaction and transfer the result back before we return.
 	 */
-	xfs_defer_move(tp->t_dfops, dfops);
+	xfs_defer_move(tp->t_dfops, parent_tp->t_dfops);
 	cudp = xfs_trans_get_cud(tp, cuip);
 
 	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
@@ -522,13 +522,13 @@ xfs_cui_recover(
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
 	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
-	xfs_defer_move(dfops, tp->t_dfops);
+	xfs_defer_move(parent_tp->t_dfops, tp->t_dfops);
 	error = xfs_trans_commit(tp);
 	return error;
 
 abort_error:
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
-	xfs_defer_move(dfops, tp->t_dfops);
+	xfs_defer_move(parent_tp->t_dfops, tp->t_dfops);
 	xfs_trans_cancel(tp);
 	return error;
 }
