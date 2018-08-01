@@ -1,5 +1,10 @@
 Rockchip platforms device tree bindings
 ---------------------------------------
+
+- 96boards RK3399 Ficus (ROCK960 Enterprise Edition)
+    Required root node properties:
+      - compatible = "vamrs,ficus", "rockchip,rk3399";
+
 - Amarula Vyasa RK3288 board
     Required root node properties:
       - compatible = "amarula,vyasa-rk3288", "rockchip,rk3288";
