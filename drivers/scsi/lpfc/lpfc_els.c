@@ -5662,6 +5662,7 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lcb_res = (struct fc_lcb_res_frame *)
 		(((struct lpfc_dmabuf *)elsiocb->context2)->virt);
 
+	memset(lcb_res, 0, sizeof(struct fc_lcb_res_frame));
 	icmd = &elsiocb->iocb;
 	icmd->ulpContext = lcb_context->rx_id;
 	icmd->unsli3.rcvsli3.ox_id = lcb_context->ox_id;
@@ -5670,6 +5671,7 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	*((uint32_t *)(pcmd)) = ELS_CMD_ACC;
 	lcb_res->lcb_sub_command = lcb_context->sub_command;
 	lcb_res->lcb_type = lcb_context->type;
+	lcb_res->capability = lcb_context->capability;
 	lcb_res->lcb_frequency = lcb_context->frequency;
 	lcb_res->lcb_duration = lcb_context->duration;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
