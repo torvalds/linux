@@ -22,12 +22,12 @@ struct wilc_cfg_hword {
 };
 
 struct wilc_cfg_word {
-	u32 id;
+	u16 id;
 	u32 val;
 };
 
 struct wilc_cfg_str {
-	u32 id;
+	u16 id;
 	u8 *str;
 };
 
