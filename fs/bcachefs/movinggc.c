@@ -228,16 +228,10 @@ static int bch2_copygc_thread(void *arg)
 
 		last = atomic_long_read(&clock->now);
 
-		reserve = div64_u64((ca->mi.nbuckets - ca->mi.first_bucket) *
-				 ca->mi.bucket_size *
-				 c->opts.gc_reserve_percent, 200);
+		reserve = ca->copygc_threshold;
 
 		usage = bch2_dev_usage_read(c, ca);
 
-		/*
-		 * don't start copygc until less than half the gc reserve is
-		 * available:
-		 */
 		available = __dev_buckets_available(ca, usage) *
 			ca->mi.bucket_size;
 		if (available > reserve) {

@@ -1711,7 +1711,7 @@ void bch2_alloc_sectors_done(struct bch_fs *c, struct write_point *wp)
 void bch2_recalc_capacity(struct bch_fs *c)
 {
 	struct bch_dev *ca;
-	u64 total_capacity, capacity = 0, reserved_sectors = 0;
+	u64 capacity = 0, reserved_sectors = 0;
 	unsigned long ra_pages = 0;
 	unsigned i, j;
 
@@ -1726,7 +1726,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 	bch2_set_ra_pages(c, ra_pages);
 
 	for_each_rw_member(ca, c, i) {
-		size_t reserve = 0;
+		u64 dev_capacity, dev_reserve = 0;
 
 		/*
 		 * We need to reserve buckets (from the number
@@ -1745,30 +1745,40 @@ void bch2_recalc_capacity(struct bch_fs *c)
 		 * not -ENOSPC calculations.
 		 */
 		for (j = 0; j < RESERVE_NONE; j++)
-			reserve += ca->free[j].size;
+			dev_reserve += ca->free[j].size;
 
-		reserve += ca->free_inc.size;
+		dev_reserve += ca->free_inc.size;
 
-		reserve += ARRAY_SIZE(c->write_points);
+		dev_reserve += ARRAY_SIZE(c->write_points);
 
-		reserve += 1;	/* btree write point */
+		dev_reserve += 1;	/* btree write point */
+		dev_reserve += 1;	/* copygc write point */
+		dev_reserve += 1;	/* rebalance write point */
+		dev_reserve += WRITE_POINT_COUNT;
 
-		reserved_sectors += bucket_to_sector(ca, reserve);
+		dev_reserve *= ca->mi.bucket_size;
 
-		capacity += bucket_to_sector(ca, ca->mi.nbuckets -
-					     ca->mi.first_bucket);
+		dev_reserve *= 2;
+
+		dev_capacity = bucket_to_sector(ca, ca->mi.nbuckets -
+						ca->mi.first_bucket);
+
+		ca->copygc_threshold =
+			max(div64_u64(dev_capacity *
+				      c->opts.gc_reserve_percent, 100),
+			    dev_reserve) / 2;
+
+		capacity += dev_capacity;
+		reserved_sectors += dev_reserve;
 	}
 
-	total_capacity = capacity;
+	reserved_sectors = max(div64_u64(capacity *
+					 c->opts.gc_reserve_percent, 100),
+			       reserved_sectors);
 
-	capacity *= (100 - c->opts.gc_reserve_percent);
-	capacity = div64_u64(capacity, 100);
+	BUG_ON(reserved_sectors > capacity);
 
-	BUG_ON(reserved_sectors > total_capacity);
-
-	capacity = min(capacity, total_capacity - reserved_sectors);
-
-	c->capacity = capacity;
+	c->capacity = capacity - reserved_sectors;
 
 	if (c->capacity) {
 		bch2_io_timer_add(&c->io_clock[READ],

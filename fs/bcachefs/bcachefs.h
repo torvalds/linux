@@ -427,6 +427,7 @@ struct bch_dev {
 	copygc_heap		copygc_heap;
 	struct bch_pd_controller copygc_pd;
 	struct write_point	copygc_write_point;
+	u64			copygc_threshold;
 
 	atomic64_t		rebalance_work;
 

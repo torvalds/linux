@@ -788,6 +788,8 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 		"    meta:               %llu\n"
 		"    user:               %llu\n"
 		"    cached:             %llu\n"
+		"    fragmented:         %llu\n"
+		"    copygc threshold:   %llu\n"
 		"freelist_wait:          %s\n"
 		"open buckets:           %u/%u (reserved %u)\n"
 		"open_buckets_wait:      %s\n",
@@ -808,6 +810,8 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 		stats.sectors[BCH_DATA_BTREE],
 		stats.sectors[BCH_DATA_USER],
 		stats.sectors[BCH_DATA_CACHED],
+		stats.sectors_fragmented,
+		ca->copygc_threshold,
 		c->freelist_wait.list.first		? "waiting" : "empty",
 		c->open_buckets_nr_free, OPEN_BUCKETS_COUNT, BTREE_NODE_RESERVE,
 		c->open_buckets_wait.list.first		? "waiting" : "empty");
