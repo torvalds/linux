@@ -2323,15 +2323,8 @@ xfs_alloc_fix_freelist(
 		if (error)
 			goto out_agbp_relse;
 
-		/* defer agfl frees if dfops is provided */
-		if (tp->t_dfops) {
-			xfs_defer_agfl_block(tp, args->agno, bno, &targs.oinfo);
-		} else {
-			error = xfs_free_agfl_block(tp, args->agno, bno, agbp,
-						    &targs.oinfo);
-			if (error)
-				goto out_agbp_relse;
-		}
+		/* defer agfl frees */
+		xfs_defer_agfl_block(tp, args->agno, bno, &targs.oinfo);
 	}
 
 	targs.tp = tp;
