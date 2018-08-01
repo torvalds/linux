@@ -4137,7 +4137,6 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		btrfs_release_path(path);
 		index = key.offset;
 	}
 	btrfs_release_path(path);
