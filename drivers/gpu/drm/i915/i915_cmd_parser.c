@@ -916,7 +916,7 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 		return;
 	}
 
-	engine->flags |= I915_ENGINE_NEEDS_CMD_PARSER;
+	engine->flags |= I915_ENGINE_USING_CMD_PARSER;
 }
 
 /**
@@ -928,7 +928,7 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
  */
 void intel_engine_cleanup_cmd_parser(struct intel_engine_cs *engine)
 {
-	if (!intel_engine_needs_cmd_parser(engine))
+	if (!intel_engine_using_cmd_parser(engine))
 		return;
 
 	fini_hash_table(engine);
@@ -1317,7 +1317,7 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 
 	/* If the command parser is not enabled, report 0 - unsupported */
 	for_each_engine(engine, dev_priv, id) {
-		if (intel_engine_needs_cmd_parser(engine)) {
+		if (intel_engine_using_cmd_parser(engine)) {
 			active = true;
 			break;
 		}

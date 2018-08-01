@@ -309,7 +309,8 @@ static inline u64 gen8_noncanonical_addr(u64 address)
 
 static inline bool eb_use_cmdparser(const struct i915_execbuffer *eb)
 {
-	return intel_engine_needs_cmd_parser(eb->engine) && eb->batch_len;
+	return intel_engine_requires_cmd_parser(eb->engine) ||
+		(intel_engine_using_cmd_parser(eb->engine) && eb->batch_len);
 }
 
 static int eb_create(struct i915_execbuffer *eb)
