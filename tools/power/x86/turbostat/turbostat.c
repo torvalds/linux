@@ -1163,9 +1163,7 @@ void format_all_counters(struct thread_data *t, struct core_data *c, struct pkg_
 	if (!printed || !summary_only)
 		print_header("\t");
 
-	if (topo.num_cpus > 1)
-		format_counters(&average.threads, &average.cores,
-			&average.packages);
+	format_counters(&average.threads, &average.cores, &average.packages);
 
 	printed = 1;
 
@@ -1692,7 +1690,7 @@ void get_apic_id(struct thread_data *t)
 	t->x2apic_id = edx;
 
 	if (debug && (t->apic_id != t->x2apic_id))
-		fprintf(stderr, "cpu%d: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
+		fprintf(outf, "cpu%d: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
 }
 
 /*
@@ -2473,55 +2471,43 @@ int get_core_id(int cpu)
 
 void set_node_data(void)
 {
-	char path[80];
-	FILE *filep;
-	int pkg, node, cpu;
+	int pkg, node, lnode, cpu, cpux;
+	int cpu_count;
 
-	struct pkg_node_info {
-		int count;
-		int min;
-	} *pni;
+	/* initialize logical_node_id */
+	for (cpu = 0; cpu <= topo.max_cpu_num; ++cpu)
+		cpus[cpu].logical_node_id = -1;
 
-	pni = calloc(topo.num_packages, sizeof(struct pkg_node_info));
-	if (!pni)
-		err(1, "calloc pkg_node_count");
-
-	for (pkg = 0; pkg < topo.num_packages; pkg++)
-		pni[pkg].min = topo.num_cpus;
-
-	for (node = 0; node <= topo.max_node_num; node++) {
-		/* find the "first" cpu in the node */
-		sprintf(path, "/sys/bus/node/devices/node%d/cpulist", node);
-		filep = fopen(path, "r");
-		if (!filep)
-			continue;
-		fscanf(filep, "%d", &cpu);
-		fclose(filep);
-
-		pkg = cpus[cpu].physical_package_id;
-		pni[pkg].count++;
-
-		if (node < pni[pkg].min)
-			pni[pkg].min = node;
+	cpu_count = 0;
+	for (pkg = 0; pkg < topo.num_packages; pkg++) {
+		lnode = 0;
+		for (cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
+			if (cpus[cpu].physical_package_id != pkg)
+				continue;
+			/* find a cpu with an unset logical_node_id */
+			if (cpus[cpu].logical_node_id != -1)
+				continue;
+			cpus[cpu].logical_node_id = lnode;
+			node = cpus[cpu].physical_node_id;
+			cpu_count++;
+			/*
+			 * find all matching cpus on this pkg and set
+			 * the logical_node_id
+			 */
+			for (cpux = cpu; cpux <= topo.max_cpu_num; cpux++) {
+				if ((cpus[cpux].physical_package_id == pkg) &&
+				   (cpus[cpux].physical_node_id == node)) {
+					cpus[cpux].logical_node_id = lnode;
+					cpu_count++;
+				}
+			}
+			lnode++;
+			if (lnode > topo.nodes_per_pkg)
+				topo.nodes_per_pkg = lnode;
+		}
+		if (cpu_count >= topo.max_cpu_num)
+			break;
 	}
-
-	for (pkg = 0; pkg < topo.num_packages; pkg++)
-		if (pni[pkg].count > topo.nodes_per_pkg)
-			topo.nodes_per_pkg = pni[0].count;
-
-	/* Fake 1 node per pkg for machines that don't
-	 * expose nodes and thus avoid -nan results
-	 */
-	if (topo.nodes_per_pkg == 0)
-		topo.nodes_per_pkg = 1;
-
-	for (cpu = 0; cpu < topo.num_cpus; cpu++) {
-		pkg = cpus[cpu].physical_package_id;
-		node = cpus[cpu].physical_node_id;
-		cpus[cpu].logical_node_id = node - pni[pkg].min;
-	}
-	free(pni);
-
 }
 
 int get_physical_node_id(struct cpu_topology *thiscpu)
@@ -4471,7 +4457,9 @@ void process_cpuid()
 	family = (fms >> 8) & 0xf;
 	model = (fms >> 4) & 0xf;
 	stepping = fms & 0xf;
-	if (family == 6 || family == 0xf)
+	if (family == 0xf)
+		family += (fms >> 20) & 0xff;
+	if (family >= 6)
 		model += ((fms >> 16) & 0xf) << 4;
 
 	if (!quiet) {
@@ -4840,16 +4828,8 @@ void topology_probe()
 		siblings = get_thread_siblings(&cpus[i]);
 		if (siblings > max_siblings)
 			max_siblings = siblings;
-		if (cpus[i].thread_id != -1)
+		if (cpus[i].thread_id == 0)
 			topo.num_cores++;
-
-		if (debug > 1)
-			fprintf(outf,
-				"cpu %d pkg %d node %d core %d thread %d\n",
-				i, cpus[i].physical_package_id,
-				cpus[i].physical_node_id,
-				cpus[i].physical_core_id,
-				cpus[i].thread_id);
 	}
 
 	topo.cores_per_node = max_core_id + 1;
@@ -4875,6 +4855,20 @@ void topology_probe()
 	topo.threads_per_core = max_siblings;
 	if (debug > 1)
 		fprintf(outf, "max_siblings %d\n", max_siblings);
+
+	if (debug < 1)
+		return;
+
+	for (i = 0; i <= topo.max_cpu_num; ++i) {
+		fprintf(outf,
+			"cpu %d pkg %d node %d lnode %d core %d thread %d\n",
+			i, cpus[i].physical_package_id,
+			cpus[i].physical_node_id,
+			cpus[i].logical_node_id,
+			cpus[i].physical_core_id,
+			cpus[i].thread_id);
+	}
+
 }
 
 void
@@ -5102,7 +5096,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 18.06.20"
+	fprintf(outf, "turbostat version 18.07.27"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
