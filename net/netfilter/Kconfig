@@ -559,6 +559,12 @@ config NFT_NAT
 	  This option adds the "nat" expression that you can use to perform
 	  typical Network Address Translation (NAT) packet transformations.
 
+config NFT_TUNNEL
+	tristate "Netfilter nf_tables tunnel module"
+	help
+	  This option adds the "tunnel" expression that you can use to set
+	  tunneling policies.
+
 config NFT_OBJREF
 	tristate "Netfilter nf_tables stateful object reference module"
 	help
