@@ -2568,26 +2568,6 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 }
 
 static void
-qla2x00_els_dcmd2_sp_free(void *data)
-{
-	srb_t *sp = data;
-	struct srb_iocb *elsio = &sp->u.iocb_cmd;
-
-	if (elsio->u.els_plogi.els_plogi_pyld)
-		dma_free_coherent(&sp->vha->hw->pdev->dev, DMA_POOL_SIZE,
-		    elsio->u.els_plogi.els_plogi_pyld,
-		    elsio->u.els_plogi.els_plogi_pyld_dma);
-
-	if (elsio->u.els_plogi.els_resp_pyld)
-		dma_free_coherent(&sp->vha->hw->pdev->dev, DMA_POOL_SIZE,
-		    elsio->u.els_plogi.els_resp_pyld,
-		    elsio->u.els_plogi.els_resp_pyld_dma);
-
-	del_timer(&elsio->timer);
-	qla2x00_rel_sp(sp);
-}
-
-static void
 qla2x00_els_dcmd2_iocb_timeout(void *data)
 {
 	srb_t *sp = data;
@@ -2648,10 +2628,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	}
 
 	elsio = &sp->u.iocb_cmd;
-	fcport->d_id.b.domain = remote_did.b.domain;
-	fcport->d_id.b.area = remote_did.b.area;
-	fcport->d_id.b.al_pa = remote_did.b.al_pa;
-
 	ql_dbg(ql_dbg_io, vha, 0x3073,
 	    "Enter: PLOGI portid=%06x\n", fcport->d_id.b24);
 
@@ -2664,7 +2640,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
 
 	sp->done = qla2x00_els_dcmd2_sp_done;
-	sp->free = qla2x00_els_dcmd2_sp_free;
 
 	ptr = elsio->u.els_plogi.els_plogi_pyld =
 	    dma_alloc_coherent(&ha->pdev->dev, DMA_POOL_SIZE,
