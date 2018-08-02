@@ -228,6 +228,12 @@ struct inode_entry {
 	struct inode *inode;	/* vfs inode pointer */
 };
 
+struct fsync_node_entry {
+	struct list_head list;	/* list head */
+	struct page *page;	/* warm node page pointer */
+	unsigned int seq_id;	/* sequence id */
+};
+
 /* for the bitmap indicate blocks to be discarded */
 struct discard_entry {
 	struct list_head list;	/* list head */
@@ -1155,6 +1161,11 @@ struct f2fs_sb_info {
 	long interval_time[MAX_TIME];		/* to store thresholds */
 
 	struct inode_management im[MAX_INO_ENTRY];      /* manage inode cache */
+
+	spinlock_t fsync_node_lock;		/* for node entry lock */
+	struct list_head fsync_node_list;	/* node list head */
+	unsigned int fsync_seg_id;		/* sequence id */
+	unsigned int fsync_node_num;		/* number of node entries */
 
 	/* for orphan inode, use 0'th array */
 	unsigned int max_orphans;		/* max orphan inodes */
@@ -2827,6 +2838,10 @@ struct node_info;
 
 int f2fs_check_nid_range(struct f2fs_sb_info *sbi, nid_t nid);
 bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type);
+bool f2fs_in_warm_node_list(struct f2fs_sb_info *sbi, struct page *page);
+void f2fs_init_fsync_node_info(struct f2fs_sb_info *sbi);
+void f2fs_del_fsync_node_entry(struct f2fs_sb_info *sbi, struct page *page);
+void f2fs_reset_fsync_node_info(struct f2fs_sb_info *sbi);
 int f2fs_need_dentry_mark(struct f2fs_sb_info *sbi, nid_t nid);
 bool f2fs_is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid);
 bool f2fs_need_inode_block_update(struct f2fs_sb_info *sbi, nid_t ino);
@@ -2836,7 +2851,8 @@ pgoff_t f2fs_get_next_page_offset(struct dnode_of_data *dn, pgoff_t pgofs);
 int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode);
 int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from);
 int f2fs_truncate_xattr_node(struct inode *inode);
-int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino);
+int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi,
+					unsigned int seq_id);
 int f2fs_remove_inode_page(struct inode *inode);
 struct page *f2fs_new_inode_page(struct inode *inode);
 struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs);
@@ -2845,7 +2861,8 @@ struct page *f2fs_get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid);
 struct page *f2fs_get_node_page_ra(struct page *parent, int start);
 void f2fs_move_node_page(struct page *node_page, int gc_type);
 int f2fs_fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
-			struct writeback_control *wbc, bool atomic);
+			struct writeback_control *wbc, bool atomic,
+			unsigned int *seq_id);
 int f2fs_sync_node_pages(struct f2fs_sb_info *sbi,
 			struct writeback_control *wbc,
 			bool do_balance, enum iostat_type io_type);
@@ -2962,6 +2979,7 @@ int f2fs_get_valid_checkpoint(struct f2fs_sb_info *sbi);
 void f2fs_update_dirty_page(struct inode *inode, struct page *page);
 void f2fs_remove_dirty_inode(struct inode *inode);
 int f2fs_sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type);
+void f2fs_wait_on_all_pages_writeback(struct f2fs_sb_info *sbi);
 int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc);
 void f2fs_init_ino_entry_info(struct f2fs_sb_info *sbi);
 int __init f2fs_create_checkpoint_caches(void);
