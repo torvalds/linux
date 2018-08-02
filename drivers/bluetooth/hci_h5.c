@@ -21,8 +21,10 @@
  *
  */
 
-#include <linux/kernel.h>
+#include <linux/acpi.h>
 #include <linux/errno.h>
+#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/serdev.h>
 #include <linux/skbuff.h>
 
@@ -99,6 +101,15 @@ struct h5 {
 		H5_SLEEPING,
 		H5_WAKING_UP,
 	} sleep;
+
+	const struct h5_vnd *vnd;
+	const char *id;
+};
+
+struct h5_vnd {
+	int (*setup)(struct h5 *h5);
+	void (*open)(struct h5 *h5);
+	void (*close)(struct h5 *h5);
 };
 
 static void h5_reset_rx(struct h5 *h5);
@@ -218,6 +229,9 @@ static int h5_open(struct hci_uart *hu)
 
 	h5->tx_win = H5_TX_WIN_MAX;
 
+	if (h5->vnd && h5->vnd->open)
+		h5->vnd->open(h5);
+
 	set_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags);
 
 	/* Send initial sync request */
@@ -237,8 +251,21 @@ static int h5_close(struct hci_uart *hu)
 	skb_queue_purge(&h5->rel);
 	skb_queue_purge(&h5->unrel);
 
+	if (h5->vnd && h5->vnd->close)
+		h5->vnd->close(h5);
+
 	if (!hu->serdev)
 		kfree(h5);
+
+	return 0;
+}
+
+static int h5_setup(struct hci_uart *hu)
+{
+	struct h5 *h5 = hu->priv;
+
+	if (h5->vnd && h5->vnd->setup)
+		return h5->vnd->setup(h5);
 
 	return 0;
 }
@@ -753,6 +780,7 @@ static const struct hci_uart_proto h5p = {
 	.name		= "Three-wire (H5)",
 	.open		= h5_open,
 	.close		= h5_close,
+	.setup		= h5_setup,
 	.recv		= h5_recv,
 	.enqueue	= h5_enqueue,
 	.dequeue	= h5_dequeue,
@@ -761,6 +789,7 @@ static const struct hci_uart_proto h5p = {
 
 static int h5_serdev_probe(struct serdev_device *serdev)
 {
+	const struct acpi_device_id *match;
 	struct device *dev = &serdev->dev;
 	struct h5 *h5;
 
@@ -773,6 +802,15 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 	h5->hu = &h5->serdev_hu;
 	h5->serdev_hu.serdev = serdev;
 	serdev_device_set_drvdata(serdev, h5);
+
+	if (has_acpi_companion(dev)) {
+		match = acpi_match_device(dev->driver->acpi_match_table, dev);
+		if (!match)
+			return -ENODEV;
+
+		h5->vnd = (const struct h5_vnd *)match->driver_data;
+		h5->id  = (char *)match->id;
+	}
 
 	return hci_uart_register_device(&h5->serdev_hu, &h5p);
 }
