@@ -22,6 +22,9 @@
 #include <linux/mdio-mux.h>
 #include <linux/delay.h>
 
+#define MDIO_SCAN_CTRL_OFFSET		0x008
+#define MDIO_SCAN_CTRL_OVRIDE_EXT_MSTR	28
+
 #define MDIO_PARAM_OFFSET		0x23c
 #define MDIO_PARAM_MIIM_CYCLE		29
 #define MDIO_PARAM_INTERNAL_SEL		25
@@ -52,6 +55,16 @@ struct iproc_mdiomux_desc {
 	struct device *dev;
 	struct mii_bus *mii_bus;
 };
+
+static void mdio_mux_iproc_config(struct iproc_mdiomux_desc *md)
+{
+	u32 val;
+
+	/* Disable external mdio master access */
+	val = readl(md->base + MDIO_SCAN_CTRL_OFFSET);
+	val |= BIT(MDIO_SCAN_CTRL_OVRIDE_EXT_MSTR);
+	writel(val, md->base + MDIO_SCAN_CTRL_OFFSET);
+}
 
 static int iproc_mdio_wait_for_idle(void __iomem *base, bool result)
 {
@@ -215,6 +228,8 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 		dev_info(md->dev, "mdiomux initialization failed\n");
 		goto out_register;
 	}
+
+	mdio_mux_iproc_config(md);
 
 	dev_info(md->dev, "iProc mdiomux registered\n");
 	return 0;
