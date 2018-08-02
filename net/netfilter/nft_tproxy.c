@@ -234,9 +234,11 @@ static int nft_tproxy_init(const struct nft_ctx *ctx,
 		err = nf_defrag_ipv4_enable(ctx->net);
 		if (err)
 			return err;
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
 		err = nf_defrag_ipv6_enable(ctx->net);
 		if (err)
 			return err;
+#endif
 		break;
 	default:
 		return -EOPNOTSUPP;
