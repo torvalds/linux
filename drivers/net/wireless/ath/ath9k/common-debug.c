@@ -258,3 +258,33 @@ void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
 			    &fops_phy_err);
 }
 EXPORT_SYMBOL(ath9k_cmn_debug_phy_err);
+
+#ifdef CONFIG_ATH9K_DYNACK
+static ssize_t read_file_ackto(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct ath_hw *ah = file->private_data;
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "%u %c\n", ah->dynack.ackto,
+		      (ah->dynack.enabled) ? 'A' : 'S');
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_ackto = {
+	.read = read_file_ackto,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath9k_cmn_debug_ack_to(struct dentry *debugfs_phy,
+			    struct ath_hw *ah)
+{
+	debugfs_create_file("ack_to", 0400, debugfs_phy, ah, &fops_ackto);
+}
+EXPORT_SYMBOL(ath9k_cmn_debug_ack_to);
+
+#endif

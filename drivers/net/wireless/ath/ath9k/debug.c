@@ -1038,29 +1038,6 @@ static const struct file_operations fops_btcoex = {
 };
 #endif
 
-#ifdef CONFIG_ATH9K_DYNACK
-static ssize_t read_file_ackto(struct file *file, char __user *user_buf,
-			       size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	struct ath_hw *ah = sc->sc_ah;
-	char buf[32];
-	unsigned int len;
-
-	len = sprintf(buf, "%u %c\n", ah->dynack.ackto,
-		      (ah->dynack.enabled) ? 'A' : 'S');
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-static const struct file_operations fops_ackto = {
-	.read = read_file_ackto,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-#endif
-
 #ifdef CONFIG_ATH9K_WOW
 
 static ssize_t read_file_wow(struct file *file, char __user *user_buf,
@@ -1451,9 +1428,9 @@ int ath9k_init_debug(struct ath_hw *ah)
 #endif
 
 #ifdef CONFIG_ATH9K_DYNACK
-	debugfs_create_file("ack_to", 0400, sc->debug.debugfs_phy,
-			    sc, &fops_ackto);
+	ath9k_cmn_debug_ack_to(sc->debug.debugfs_phy, sc->sc_ah);
 #endif
+	
 	debugfs_create_file("tpc", 0600, sc->debug.debugfs_phy, sc, &fops_tpc);
 
 	debugfs_create_u16("airtime_flags", 0600,

@@ -520,5 +520,9 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 	ath9k_cmn_debug_base_eeprom(priv->debug.debugfs_phy, priv->ah);
 	ath9k_cmn_debug_modal_eeprom(priv->debug.debugfs_phy, priv->ah);
 
+#ifdef CONFIG_ATH9K_DYNACK
+	ath9k_cmn_debug_ack_to(priv->debug.debugfs_phy, priv->ah);
+#endif
+
 	return 0;
 }

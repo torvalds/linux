@@ -71,6 +71,8 @@ void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
 			  struct ath_rx_stats *rxstats);
 void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
 			     struct ath_rx_stats *rxstats);
+void ath9k_cmn_debug_ack_to(struct dentry *debugfs_phy,
+			    struct ath_hw *ah);
 #else
 static inline void ath9k_cmn_debug_modal_eeprom(struct dentry *debugfs_phy,
 						struct ath_hw *ah)
@@ -94,6 +96,10 @@ static inline void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
 
 static inline void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
 					   struct ath_rx_stats *rxstats)
+{
+}
+static inline void ath9k_cmn_debug_ack_to(struct dentry *debugfs_phy,
+					  struct ath_hw *ah);
 {
 }
 #endif /* CONFIG_ATH9K_COMMON_DEBUG */
