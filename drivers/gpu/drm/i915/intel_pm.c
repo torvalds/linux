@@ -6371,7 +6371,6 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		new_power = HIGH_POWER;
 	rps_set_power(dev_priv, new_power);
 	mutex_unlock(&rps->power.mutex);
-	rps->last_adj = 0;
 }
 
 void intel_rps_mark_interactive(struct drm_i915_private *i915, bool interactive)
