@@ -304,8 +304,7 @@ long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp)
 	 */
 	switch (cmd) {
 	case GASKET_IOCTL_RESET:
-		trace_gasket_ioctl_integer_data(arg);
-		retval = gasket_reset(gasket_dev, arg);
+		retval = gasket_reset(gasket_dev);
 		break;
 	case GASKET_IOCTL_SET_EVENTFD:
 		retval = gasket_set_event_fd(gasket_dev, argp);

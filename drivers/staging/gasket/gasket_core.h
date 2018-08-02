@@ -580,17 +580,12 @@ struct gasket_driver_desc {
 	/*
 	 * device_reset_cb: Reset the hardware in question.
 	 * @dev: Pointer to the gasket_dev structure for this device.
-	 * @type: Integer representing reset type. (All
-	 * Gasket resets have an integer representing their type
-	 * defined in (device)_ioctl.h; the specific resets are
-	 * device-dependent, but are handled in the device-specific
-	 * callback anyways.)
 	 *
 	 * Called by reset ioctls. This function should not
 	 * lock the gasket_dev mutex. It should return 0 on success
 	 * and an error on failure.
 	 */
-	int (*device_reset_cb)(struct gasket_dev *dev, uint reset_type);
+	int (*device_reset_cb)(struct gasket_dev *dev);
 };
 
 /*
@@ -615,15 +610,13 @@ void gasket_unregister_device(const struct gasket_driver_desc *desc);
 /*
  * Reset the Gasket device.
  * @gasket_dev: Gasket device struct.
- * @reset_type: Uint representing requested reset type. Should be
- * valid in the underlying callback.
  *
  * Calls device_reset_cb. Returns 0 on success and an error code othewrise.
  * gasket_reset_nolock will not lock the mutex, gasket_reset will.
  *
  */
-int gasket_reset(struct gasket_dev *gasket_dev, uint reset_type);
-int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type);
+int gasket_reset(struct gasket_dev *gasket_dev);
+int gasket_reset_nolock(struct gasket_dev *gasket_dev);
 
 /*
  * Memory management functions. These will likely be spun off into their own

@@ -3,7 +3,7 @@
 #ifndef __GASKET_CONSTANTS_H__
 #define __GASKET_CONSTANTS_H__
 
-#define GASKET_FRAMEWORK_VERSION "1.1.1"
+#define GASKET_FRAMEWORK_VERSION "1.1.2"
 
 /*
  * The maximum number of simultaneous device types supported by the framework.

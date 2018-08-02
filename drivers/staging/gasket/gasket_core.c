@@ -1294,7 +1294,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 			ownership->owner = 0;
 
 			/* Forces chip reset before we unmap the page tables. */
-			driver_desc->device_reset_cb(gasket_dev, 0);
+			driver_desc->device_reset_cb(gasket_dev);
 
 			for (i = 0; i < driver_desc->num_page_tables; ++i) {
 				gasket_page_table_unmap_all(gasket_dev->page_table[i]);
@@ -1622,18 +1622,18 @@ const char *gasket_num_name_lookup(uint num,
 }
 EXPORT_SYMBOL(gasket_num_name_lookup);
 
-int gasket_reset(struct gasket_dev *gasket_dev, uint reset_type)
+int gasket_reset(struct gasket_dev *gasket_dev)
 {
 	int ret;
 
 	mutex_lock(&gasket_dev->mutex);
-	ret = gasket_reset_nolock(gasket_dev, reset_type);
+	ret = gasket_reset_nolock(gasket_dev);
 	mutex_unlock(&gasket_dev->mutex);
 	return ret;
 }
 EXPORT_SYMBOL(gasket_reset);
 
-int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type)
+int gasket_reset_nolock(struct gasket_dev *gasket_dev)
 {
 	int ret;
 	int i;
@@ -1643,8 +1643,7 @@ int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type)
 	if (!driver_desc->device_reset_cb)
 		return 0;
 
-	/* Perform a device reset of the requested type. */
-	ret = driver_desc->device_reset_cb(gasket_dev, reset_type);
+	ret = driver_desc->device_reset_cb(gasket_dev);
 	if (ret) {
 		dev_dbg(gasket_dev->dev, "Device reset cb returned %d.\n",
 			ret);

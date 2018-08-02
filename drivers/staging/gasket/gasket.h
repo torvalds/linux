@@ -52,8 +52,8 @@ struct gasket_coherent_alloc_config_ioctl {
 /* Base number for all Gasket-common IOCTLs */
 #define GASKET_IOCTL_BASE 0xDC
 
-/* Reset the device using the specified reset type. */
-#define GASKET_IOCTL_RESET _IOW(GASKET_IOCTL_BASE, 0, unsigned long)
+/* Reset the device. */
+#define GASKET_IOCTL_RESET _IO(GASKET_IOCTL_BASE, 0)
 
 /* Associate the specified [event]fd with the specified interrupt. */
 #define GASKET_IOCTL_SET_EVENTFD                                               \
