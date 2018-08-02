@@ -1871,6 +1871,7 @@ static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
 			if (ret)
 				return ret;
 		}
+		j = 0;
 	}
 
 	return ret;
@@ -2005,12 +2006,15 @@ static int __uvcg_fill_strm(void *priv1, void *priv2, void *priv3, int n,
 			sizeof(*frm->dw_frame_interval);
 		memcpy(*dest, frm->dw_frame_interval, sz);
 		*dest += sz;
-		if (frm->fmt_type == UVCG_UNCOMPRESSED)
+		if (frm->fmt_type == UVCG_UNCOMPRESSED) {
 			h->bLength = UVC_DT_FRAME_UNCOMPRESSED_SIZE(
 				frm->frame.b_frame_interval_type);
-		else if (frm->fmt_type == UVCG_MJPEG)
+			frm->frame.b_frame_index = n + 1;
+		} else if (frm->fmt_type == UVCG_MJPEG) {
 			h->bLength = UVC_DT_FRAME_MJPEG_SIZE(
 				frm->frame.b_frame_interval_type);
+			frm->frame.b_frame_index = n + 1;
+		}
 	}
 	break;
 	}
