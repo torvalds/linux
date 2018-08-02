@@ -3157,10 +3157,8 @@ static long btrfs_ioctl_dev_info(struct btrfs_fs_info *fs_info,
 	di_args->total_bytes = btrfs_device_get_total_bytes(dev);
 	memcpy(di_args->uuid, dev->uuid, sizeof(di_args->uuid));
 	if (dev->name) {
-		struct rcu_string *name;
-
-		name = rcu_dereference(dev->name);
-		strncpy(di_args->path, name->str, sizeof(di_args->path) - 1);
+		strncpy(di_args->path, rcu_str_deref(dev->name),
+				sizeof(di_args->path) - 1);
 		di_args->path[sizeof(di_args->path) - 1] = 0;
 	} else {
 		di_args->path[0] = '\0';

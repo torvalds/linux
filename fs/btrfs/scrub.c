@@ -3779,7 +3779,6 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	struct scrub_ctx *sctx;
 	int ret;
 	struct btrfs_device *dev;
-	struct rcu_string *name;
 
 	if (btrfs_fs_closing(fs_info))
 		return -EINVAL;
@@ -3833,11 +3832,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (!is_dev_replace && !readonly &&
 	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		rcu_read_lock();
-		name = rcu_dereference(dev->name);
-		btrfs_err(fs_info, "scrub: device %s is not writable",
-			  name->str);
-		rcu_read_unlock();
+		btrfs_err_in_rcu(fs_info, "scrub: device %s is not writable",
+				rcu_str_deref(dev->name));
 		return -EROFS;
 	}
 

@@ -2303,7 +2303,6 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 	struct btrfs_fs_devices *cur_devices;
 	struct btrfs_device *dev, *first_dev = NULL;
 	struct list_head *head;
-	struct rcu_string *name;
 
 	/*
 	 * Lightweight locking of the devices. We should not need
@@ -2327,12 +2326,10 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 		cur_devices = cur_devices->seed;
 	}
 
-	if (first_dev) {
-		name = rcu_dereference(first_dev->name);
-		seq_escape(m, name->str, " \t\n\\");
-	} else {
+	if (first_dev)
+		seq_escape(m, rcu_str_deref(first_dev->name), " \t\n\\");
+	else
 		WARN_ON(1);
-	}
 	rcu_read_unlock();
 	return 0;
 }
