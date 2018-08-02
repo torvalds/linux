@@ -9,6 +9,10 @@
  */
 
 / {
+	aliases {
+		ethernet = &gmac;
+	};
+
 	axs10x_mb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -68,7 +72,7 @@
 			};
 		};
 
-		ethernet@0x18000 {
+		gmac: ethernet@0x18000 {
 			#interrupt-cells = <1>;
 			compatible = "snps,dwmac";
 			reg = < 0x18000 0x2000 >;
@@ -81,6 +85,7 @@
 			max-speed = <100>;
 			resets = <&creg_rst 5>;
 			reset-names = "stmmaceth";
+			mac-address = [00 00 00 00 00 00]; /* Filled in by U-Boot */
 		};
 
 		ehci@0x40000 {
