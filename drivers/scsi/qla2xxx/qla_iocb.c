@@ -2465,6 +2465,7 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 	sp->fcport = fcport;
 	elsio->timeout = qla2x00_els_dcmd_iocb_timeout;
 	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
+	init_completion(&sp->u.iocb_cmd.u.els_logo.comp);
 	sp->done = qla2x00_els_dcmd_sp_done;
 	sp->free = qla2x00_els_dcmd_sp_free;
 
@@ -2512,7 +2513,6 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 {
 	scsi_qla_host_t *vha = sp->vha;
 	struct srb_iocb *elsio = &sp->u.iocb_cmd;
-	uint32_t	dsd_len = 24;
 
 	els_iocb->entry_type = ELS_IOCB_TYPE;
 	els_iocb->entry_count = 1;
@@ -2535,20 +2535,21 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	els_iocb->control_flags = 0;
 
 	if (elsio->u.els_logo.els_cmd == ELS_DCMD_PLOGI) {
-		els_iocb->tx_byte_count = sizeof(struct els_plogi_payload);
+		els_iocb->tx_byte_count = els_iocb->tx_len =
+			sizeof(struct els_plogi_payload);
 		els_iocb->tx_address[0] =
 			cpu_to_le32(LSD(elsio->u.els_plogi.els_plogi_pyld_dma));
 		els_iocb->tx_address[1] =
 			cpu_to_le32(MSD(elsio->u.els_plogi.els_plogi_pyld_dma));
-		els_iocb->tx_len = dsd_len;
 
 		els_iocb->rx_dsd_count = 1;
-		els_iocb->rx_byte_count = sizeof(struct els_plogi_payload);
+		els_iocb->rx_byte_count = els_iocb->rx_len =
+			sizeof(struct els_plogi_payload);
 		els_iocb->rx_address[0] =
 			cpu_to_le32(LSD(elsio->u.els_plogi.els_resp_pyld_dma));
 		els_iocb->rx_address[1] =
 			cpu_to_le32(MSD(elsio->u.els_plogi.els_resp_pyld_dma));
-		els_iocb->rx_len = dsd_len;
+
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3073,
 		    "PLOGI ELS IOCB:\n");
 		ql_dump_buffer(ql_log_info, vha, 0x0109,
@@ -2577,7 +2578,6 @@ qla2x00_els_dcmd2_iocb_timeout(void *data)
 	fc_port_t *fcport = sp->fcport;
 	struct scsi_qla_host *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
-	struct srb_iocb *lio = &sp->u.iocb_cmd;
 	unsigned long flags = 0;
 	int res;
 
@@ -2593,7 +2593,7 @@ qla2x00_els_dcmd2_iocb_timeout(void *data)
 	    (res == QLA_SUCCESS) ? "successful" : "failed");
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	complete(&lio->u.els_plogi.comp);
+	sp->done(sp, QLA_FUNCTION_TIMEOUT);
 }
 
 static void
@@ -2603,17 +2603,54 @@ qla2x00_els_dcmd2_sp_done(void *ptr, int res)
 	fc_port_t *fcport = sp->fcport;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 	struct scsi_qla_host *vha = sp->vha;
+	struct event_arg ea;
+	struct qla_work_evt *e;
 
-	ql_dbg(ql_dbg_io + ql_dbg_disc, vha, 0x3072,
-	    "%s ELS hdl=%x, portid=%06x done %8phC\n",
-	    sp->name, sp->handle, fcport->d_id.b24, fcport->port_name);
+	ql_dbg(ql_dbg_disc, vha, 0x3072,
+	    "%s ELS done rc %d hdl=%x, portid=%06x %8phC\n",
+	    sp->name, res, sp->handle, fcport->d_id.b24, fcport->port_name);
 
-	complete(&lio->u.els_plogi.comp);
+	fcport->flags &= ~(FCF_ASYNC_SENT|FCF_ASYNC_ACTIVE);
+	del_timer(&sp->u.iocb_cmd.timer);
+
+	if (sp->flags & SRB_WAKEUP_ON_COMP)
+		complete(&lio->u.els_plogi.comp);
+	else {
+		if (res) {
+			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+		} else {
+			memset(&ea, 0, sizeof(ea));
+			ea.fcport = fcport;
+			ea.rc = res;
+			ea.event = FCME_ELS_PLOGI_DONE;
+			qla2x00_fcport_event_handler(vha, &ea);
+		}
+
+		e = qla2x00_alloc_work(vha, QLA_EVT_UNMAP);
+		if (!e) {
+			struct srb_iocb *elsio = &sp->u.iocb_cmd;
+
+			if (elsio->u.els_plogi.els_plogi_pyld)
+				dma_free_coherent(&sp->vha->hw->pdev->dev,
+				    elsio->u.els_plogi.tx_size,
+				    elsio->u.els_plogi.els_plogi_pyld,
+				    elsio->u.els_plogi.els_plogi_pyld_dma);
+
+			if (elsio->u.els_plogi.els_resp_pyld)
+				dma_free_coherent(&sp->vha->hw->pdev->dev,
+				    elsio->u.els_plogi.rx_size,
+				    elsio->u.els_plogi.els_resp_pyld,
+				    elsio->u.els_plogi.els_resp_pyld_dma);
+			sp->free(sp);
+		}
+		e->u.iosb.sp = sp;
+		qla2x00_post_work(vha, e);
+	}
 }
 
 int
 qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
-		       fc_port_t *fcport, port_id_t remote_did)
+    fc_port_t *fcport, bool wait)
 {
 	srb_t *sp;
 	struct srb_iocb *elsio = NULL;
@@ -2641,9 +2678,13 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 
 	elsio->timeout = qla2x00_els_dcmd2_iocb_timeout;
 	init_completion(&elsio->u.els_plogi.comp);
-	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
+	if (wait)
+		sp->flags = SRB_WAKEUP_ON_COMP;
+
+	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT + 2);
 
 	sp->done = qla2x00_els_dcmd2_sp_done;
+	elsio->u.els_plogi.tx_size = elsio->u.els_plogi.rx_size = DMA_POOL_SIZE;
 
 	ptr = elsio->u.els_plogi.els_plogi_pyld =
 	    dma_alloc_coherent(&ha->pdev->dev, DMA_POOL_SIZE,
@@ -2668,33 +2709,52 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 
 	memset(ptr, 0, sizeof(struct els_plogi_payload));
 	memset(resp_ptr, 0, sizeof(struct els_plogi_payload));
+	memcpy(elsio->u.els_plogi.els_plogi_pyld->data,
+	    &ha->plogi_els_payld.data,
+	    sizeof(elsio->u.els_plogi.els_plogi_pyld->data));
+
 	elsio->u.els_plogi.els_cmd = els_opcode;
 	elsio->u.els_plogi.els_plogi_pyld->opcode = els_opcode;
-	qla24xx_get_port_login_templ(vha, ptr_dma + 4,
-		&elsio->u.els_plogi.els_plogi_pyld->data[0],
-		sizeof(struct els_plogi_payload));
 
-	ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3073, "PLOGI buffer:\n");
-	ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x0109,
+	ql_dbg(ql_dbg_disc + ql_dbg_buffer, vha, 0x3073, "PLOGI buffer:\n");
+	ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x0109,
 	    (uint8_t *)elsio->u.els_plogi.els_plogi_pyld, 0x70);
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		rval = QLA_FUNCTION_FAILED;
-		goto out;
+	} else {
+		ql_dbg(ql_dbg_disc, vha, 0x3074,
+		    "%s PLOGI sent, hdl=%x, loopid=%x, to port_id %06x from port_id %06x\n",
+		    sp->name, sp->handle, fcport->loop_id,
+		    fcport->d_id.b24, vha->d_id.b24);
 	}
 
-	ql_dbg(ql_dbg_io, vha, 0x3074,
-	    "%s PLOGI sent, hdl=%x, loopid=%x, portid=%06x\n",
-	    sp->name, sp->handle, fcport->loop_id, fcport->d_id.b24);
+	if (wait) {
+		wait_for_completion(&elsio->u.els_plogi.comp);
 
-	wait_for_completion(&elsio->u.els_plogi.comp);
-
-	if (elsio->u.els_plogi.comp_status != CS_COMPLETE)
-		rval = QLA_FUNCTION_FAILED;
+		if (elsio->u.els_plogi.comp_status != CS_COMPLETE)
+			rval = QLA_FUNCTION_FAILED;
+	} else {
+		goto done;
+	}
 
 out:
+	fcport->flags &= ~(FCF_ASYNC_SENT);
+	if (elsio->u.els_plogi.els_plogi_pyld)
+		dma_free_coherent(&sp->vha->hw->pdev->dev,
+		    elsio->u.els_plogi.tx_size,
+		    elsio->u.els_plogi.els_plogi_pyld,
+		    elsio->u.els_plogi.els_plogi_pyld_dma);
+
+	if (elsio->u.els_plogi.els_resp_pyld)
+		dma_free_coherent(&sp->vha->hw->pdev->dev,
+		    elsio->u.els_plogi.rx_size,
+		    elsio->u.els_plogi.els_resp_pyld,
+		    elsio->u.els_plogi.els_resp_pyld_dma);
+
 	sp->free(sp);
+done:
 	return rval;
 }
 

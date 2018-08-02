@@ -3383,19 +3383,40 @@ int qla24xx_post_gpnid_work(struct scsi_qla_host *vha, port_id_t *id)
 
 void qla24xx_sp_unmap(scsi_qla_host_t *vha, srb_t *sp)
 {
-	if (sp->u.iocb_cmd.u.ctarg.req) {
-		dma_free_coherent(&vha->hw->pdev->dev,
-			sizeof(struct ct_sns_pkt),
-			sp->u.iocb_cmd.u.ctarg.req,
-			sp->u.iocb_cmd.u.ctarg.req_dma);
-		sp->u.iocb_cmd.u.ctarg.req = NULL;
-	}
-	if (sp->u.iocb_cmd.u.ctarg.rsp) {
-		dma_free_coherent(&vha->hw->pdev->dev,
-			sizeof(struct ct_sns_pkt),
-			sp->u.iocb_cmd.u.ctarg.rsp,
-			sp->u.iocb_cmd.u.ctarg.rsp_dma);
-		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
+	struct srb_iocb *c = &sp->u.iocb_cmd;
+
+	switch (sp->type) {
+	case SRB_ELS_DCMD:
+		if (c->u.els_plogi.els_plogi_pyld)
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    c->u.els_plogi.tx_size,
+			    c->u.els_plogi.els_plogi_pyld,
+			    c->u.els_plogi.els_plogi_pyld_dma);
+
+		if (c->u.els_plogi.els_resp_pyld)
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    c->u.els_plogi.rx_size,
+			    c->u.els_plogi.els_resp_pyld,
+			    c->u.els_plogi.els_resp_pyld_dma);
+		break;
+	case SRB_CT_PTHRU_CMD:
+	default:
+		if (sp->u.iocb_cmd.u.ctarg.req) {
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    sizeof(struct ct_sns_pkt),
+			    sp->u.iocb_cmd.u.ctarg.req,
+			    sp->u.iocb_cmd.u.ctarg.req_dma);
+			sp->u.iocb_cmd.u.ctarg.req = NULL;
+		}
+
+		if (sp->u.iocb_cmd.u.ctarg.rsp) {
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    sizeof(struct ct_sns_pkt),
+			    sp->u.iocb_cmd.u.ctarg.rsp,
+			    sp->u.iocb_cmd.u.ctarg.rsp_dma);
+			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
+		}
+		break;
 	}
 
 	sp->free(sp);

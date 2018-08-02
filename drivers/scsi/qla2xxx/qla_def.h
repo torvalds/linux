@@ -398,6 +398,8 @@ struct srb_iocb {
 			struct completion comp;
 			struct els_plogi_payload *els_plogi_pyld;
 			struct els_plogi_payload *els_resp_pyld;
+			u32 tx_size;
+			u32 rx_size;
 			dma_addr_t els_plogi_pyld_dma;
 			dma_addr_t els_resp_pyld_dma;
 			uint32_t	fw_status[3];
@@ -2312,6 +2314,7 @@ enum fcport_mgt_event {
 	FCME_ADISC_DONE,
 	FCME_GNNID_DONE,
 	FCME_GFPNID_DONE,
+	FCME_ELS_PLOGI_DONE,
 };
 
 enum rscn_addr_format {
@@ -2408,6 +2411,7 @@ typedef struct fc_port {
 	struct ct_sns_desc ct_desc;
 	enum discovery_state disc_state;
 	enum login_state fw_login_state;
+	unsigned long dm_login_expire;
 	unsigned long plogi_nack_done_deadline;
 
 	u32 login_gen, last_login_gen;
@@ -2418,7 +2422,8 @@ typedef struct fc_port {
 	u8 iocb[IOCB_SIZE];
 	u8 current_login_state;
 	u8 last_login_state;
-	struct completion n2n_done;
+	u16 n2n_link_reset_cnt;
+	u16 n2n_chip_reset;
 } fc_port_t;
 
 #define QLA_FCPORT_SCAN		1
@@ -3228,6 +3233,7 @@ enum qla_work_type {
 	QLA_EVT_GFPNID,
 	QLA_EVT_SP_RETRY,
 	QLA_EVT_IIDMA,
+	QLA_EVT_ELS_PLOGI,
 };
 
 
@@ -3600,6 +3606,7 @@ struct qla_hw_data {
 		uint32_t	using_lr_setting:1;
 		uint32_t	rida_fmt2:1;
 		uint32_t	purge_mbox:1;
+		uint32_t        n2n_bigger:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -3907,6 +3914,9 @@ struct qla_hw_data {
 	dma_addr_t	exchoffld_buf_dma;
 	int		exchoffld_size;
 	int 		exchoffld_count;
+
+	/* n2n */
+	struct els_plogi_payload plogi_els_payld;
 
 	void            *swl;
 

@@ -4789,7 +4789,6 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	struct qlt_plogi_ack_t *pla =
 	    (struct qlt_plogi_ack_t *)e->u.new_sess.pla;
 	uint8_t free_fcport = 0;
-	u64 wwn;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "%s %d %8phC enter\n",
@@ -4817,10 +4816,10 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			fcport->d_id = e->u.new_sess.id;
 			fcport->flags |= FCF_FABRIC_DEVICE;
 			fcport->fw_login_state = DSC_LS_PLOGI_PEND;
-			if (e->u.new_sess.fc4_type & FS_FC4TYPE_FCP)
+			if (e->u.new_sess.fc4_type == FS_FC4TYPE_FCP)
 				fcport->fc4_type = FC4_TYPE_FCP_SCSI;
 
-			if (e->u.new_sess.fc4_type & FS_FC4TYPE_NVME) {
+			if (e->u.new_sess.fc4_type == FS_FC4TYPE_NVME) {
 				fcport->fc4_type = FC4_TYPE_OTHER;
 				fcport->fc4f_nvme = FC4_TYPE_NVME;
 			}
@@ -4862,9 +4861,6 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	if (fcport) {
-		if (N2N_TOPO(vha->hw))
-			fcport->flags &= ~FCF_FABRIC_DEVICE;
-
 		fcport->id_changed = 1;
 		fcport->scan_state = QLA_FCPORT_FOUND;
 		memcpy(fcport->node_name, e->u.new_sess.node_name, WWN_SIZE);
@@ -4925,12 +4921,22 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			if (dfcp)
 				qlt_schedule_sess_for_deletion(tfcp);
 
-			wwn = wwn_to_u64(fcport->node_name);
 
-			if (!wwn)
-				qla24xx_async_gnnid(vha, fcport);
-			else
-				qla24xx_async_gnl(vha, fcport);
+			if (N2N_TOPO(vha->hw))
+				fcport->flags &= ~FCF_FABRIC_DEVICE;
+
+			if (N2N_TOPO(vha->hw)) {
+				if (vha->flags.nvme_enabled) {
+					fcport->fc4f_nvme = 1;
+					fcport->n2n_flag = 1;
+				}
+				fcport->fw_login_state = 0;
+				/*
+				 * wait link init done before sending login
+				 */
+			} else {
+				qla24xx_fcport_handle_login(vha, fcport);
+			}
 		}
 	}
 
@@ -5064,6 +5070,10 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			break;
 		case QLA_EVT_IIDMA:
 			qla_do_iidma_work(vha, e->u.fcport.fcport);
+			break;
+		case QLA_EVT_ELS_PLOGI:
+			qla24xx_els_dcmd2_iocb(vha, ELS_DCMD_PLOGI,
+			    e->u.fcport.fcport, false);
 			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)

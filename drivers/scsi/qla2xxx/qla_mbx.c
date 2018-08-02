@@ -59,6 +59,7 @@ static struct rom_cmd {
 	{ MBC_IOCB_COMMAND_A64 },
 	{ MBC_GET_ADAPTER_LOOP_ID },
 	{ MBC_READ_SFP },
+	{ MBC_GET_RNID_PARAMS },
 };
 
 static int is_rom_cmd(uint16_t cmd)
@@ -3842,30 +3843,68 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		   "Format 1: WWPN %8phC.\n",
 		   vha->port_name);
 
-		/* N2N.  direct connect */
-		if (IS_QLA27XX(ha) &&
-		    ((rptid_entry->u.f1.flags>>1) & 0x7) == 2) {
-			/* if our portname is higher then initiate N2N login */
-			if (wwn_to_u64(vha->port_name) >
-			    wwn_to_u64(rptid_entry->u.f1.port_name)) {
-				// ??? qlt_update_host_map(vha, id);
-				vha->n2n_id = 0x1;
-				ql_dbg(ql_dbg_async, vha, 0x5075,
-				    "Format 1: Setting n2n_update_needed for id %d\n",
-				    vha->n2n_id);
+		switch (rptid_entry->u.f1.flags & TOPO_MASK) {
+		case TOPO_N2N:
+			ha->current_topology = ISP_CFG_N;
+			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
+			fcport = qla2x00_find_fcport_by_wwpn(vha,
+			    rptid_entry->u.f1.port_name, 1);
+			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+
+			if (fcport) {
+				fcport->plogi_nack_done_deadline = jiffies + HZ;
+				fcport->dm_login_expire = jiffies + 3*HZ;
+				fcport->scan_state = QLA_FCPORT_FOUND;
+				switch (fcport->disc_state) {
+				case DSC_DELETED:
+					set_bit(RELOGIN_NEEDED,
+					    &vha->dpc_flags);
+					break;
+				case DSC_DELETE_PEND:
+					break;
+				default:
+					qlt_schedule_sess_for_deletion(fcport);
+					break;
+				}
 			} else {
-				ql_dbg(ql_dbg_async, vha, 0x5075,
-				    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
-				    rptid_entry->u.f1.port_name);
+				id.b24 = 0;
+				if (wwn_to_u64(vha->port_name) >
+				    wwn_to_u64(rptid_entry->u.f1.port_name)) {
+					vha->d_id.b24 = 0;
+					vha->d_id.b.al_pa = 1;
+					ha->flags.n2n_bigger = 1;
+
+					id.b.al_pa = 2;
+					ql_dbg(ql_dbg_async, vha, 0x5075,
+					    "Format 1: assign local id %x remote id %x\n",
+					    vha->d_id.b24, id.b24);
+				} else {
+					ql_dbg(ql_dbg_async, vha, 0x5075,
+					    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
+					    rptid_entry->u.f1.port_name);
+					ha->flags.n2n_bigger = 0;
+				}
+				qla24xx_post_newsess_work(vha, &id,
+				    rptid_entry->u.f1.port_name,
+				    rptid_entry->u.f1.node_name,
+				    NULL,
+				    FC4_TYPE_UNKNOWN);
 			}
 
-			memcpy(vha->n2n_port_name, rptid_entry->u.f1.port_name,
-			    WWN_SIZE);
+			/* if our portname is higher then initiate N2N login */
+
 			set_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags);
-			set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
-			set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
 			ha->flags.n2n_ae = 1;
 			return;
+			break;
+		case TOPO_FL:
+			ha->current_topology = ISP_CFG_FL;
+			break;
+		case TOPO_F:
+			ha->current_topology = ISP_CFG_F;
+			break;
+		default:
+			break;
 		}
 
 		ha->flags.gpsc_supported = 1;
@@ -4681,7 +4720,7 @@ qla24xx_get_port_login_templ(scsi_qla_host_t *vha, dma_addr_t buf_dma,
 		    "Done %s.\n", __func__);
 		bp = (uint32_t *) buf;
 		for (i = 0; i < (bufsiz-4)/4; i++, bp++)
-			*bp = cpu_to_be32(*bp);
+			*bp = le32_to_cpu(*bp);
 	}
 
 	return rval;

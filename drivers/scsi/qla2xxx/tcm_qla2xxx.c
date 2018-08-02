@@ -1619,9 +1619,6 @@ static void tcm_qla2xxx_update_sess(struct fc_port *sess, port_id_t s_id,
 
 	sess->conf_compl_supported = conf_compl_supported;
 
-	/* Reset logout parameters to default */
-	sess->logout_on_delete = 1;
-	sess->keep_nport_handle = 0;
 }
 
 /*
