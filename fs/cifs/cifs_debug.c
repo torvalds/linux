@@ -170,7 +170,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 #endif
 #ifdef CONFIG_CIFS_STATS2
 	seq_printf(m, ",STATS2");
-#elif defined(CONFIG_CIFS_STATS)
+#else
 	seq_printf(m, ",STATS");
 #endif
 #ifdef CONFIG_CIFS_DEBUG2
