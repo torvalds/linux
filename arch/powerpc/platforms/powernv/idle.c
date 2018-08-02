@@ -651,10 +651,11 @@ static int __init pnv_power9_idle_init(void)
 					      &state->psscr_mask,
 					      state->flags);
 		if (err) {
-			state->valid = false;
 			report_invalid_psscr_val(state->psscr_val, err);
 			continue;
 		}
+
+		state->valid = true;
 
 		if (max_residency_ns < state->residency_ns) {
 			max_residency_ns = state->residency_ns;
