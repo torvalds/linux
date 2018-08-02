@@ -1037,7 +1037,7 @@ found_clock:
 		fp->rate_max = UAC3_BADD_SAMPLING_RATE;
 		fp->rates = SNDRV_PCM_RATE_CONTINUOUS;
 
-		pd = kzalloc(sizeof(pd), GFP_KERNEL);
+		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
 			kfree(fp->rate_table);
 			kfree(fp);
