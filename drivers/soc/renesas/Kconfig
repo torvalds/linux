@@ -9,6 +9,7 @@ config SOC_RENESAS
 	select SYSC_R8A7743 if ARCH_R8A7743
 	select SYSC_R8A7745 if ARCH_R8A7745
 	select SYSC_R8A77470 if ARCH_R8A77470
+	select SYSC_R8A774A1 if ARCH_R8A774A1
 	select SYSC_R8A7779 if ARCH_R8A7779
 	select SYSC_R8A7790 if ARCH_R8A7790
 	select SYSC_R8A7791 if ARCH_R8A7791 || ARCH_R8A7793
@@ -35,6 +36,10 @@ config SYSC_R8A7745
 
 config SYSC_R8A77470
 	bool "RZ/G1C System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A774A1
+	bool "RZ/G2M System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
 
 config SYSC_R8A7779
