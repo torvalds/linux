@@ -7017,7 +7017,7 @@ check_valid_image:
 			ha->active_image = QLA27XX_SECONDARY_IMAGE;
 	}
 
-	ql_dbg(ql_dbg_init, vha, 0x018f, "%s image\n",
+	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x018f, "%s image\n",
 	    ha->active_image == 0 ? "default bootld and fw" :
 	    ha->active_image == 1 ? "primary" :
 	    ha->active_image == 2 ? "secondary" :

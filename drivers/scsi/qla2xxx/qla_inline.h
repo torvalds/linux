@@ -202,6 +202,12 @@ qla2x00_reset_active(scsi_qla_host_t *vha)
 	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
 }
 
+static inline int
+qla2x00_chip_is_down(scsi_qla_host_t *vha)
+{
+	return (qla2x00_reset_active(vha) || !vha->hw->flags.fw_started);
+}
+
 static inline srb_t *
 qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
 {
