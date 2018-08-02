@@ -3048,7 +3048,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host = base_vha->host;
 	base_vha->req = req;
 	if (IS_QLA2XXX_MIDTYPE(ha))
-		base_vha->mgmt_svr_loop_id = NPH_MGMT_SERVER;
+		base_vha->mgmt_svr_loop_id =
+			qla2x00_reserve_mgmt_server_loop_id(base_vha);
 	else
 		base_vha->mgmt_svr_loop_id = MANAGEMENT_SERVER +
 						base_vha->vp_idx;

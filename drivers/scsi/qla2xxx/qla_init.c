@@ -5616,6 +5616,34 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 }
 
 
+/* FW does not set aside Loop id for MGMT Server/FFFFFAh */
+int
+qla2x00_reserve_mgmt_server_loop_id(scsi_qla_host_t *vha)
+{
+	int loop_id = FC_NO_LOOP_ID;
+	int lid = NPH_MGMT_SERVER - vha->vp_idx;
+	unsigned long flags;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (vha->vp_idx == 0) {
+		set_bit(NPH_MGMT_SERVER, ha->loop_id_map);
+		return NPH_MGMT_SERVER;
+	}
+
+	/* pick id from high and work down to low */
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	for (; lid > 0; lid--) {
+		if (!test_bit(lid, vha->hw->loop_id_map)) {
+			set_bit(lid, vha->hw->loop_id_map);
+			loop_id = lid;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+	return loop_id;
+}
+
 /*
  * qla2x00_fabric_login
  *	Issue fabric login command.
