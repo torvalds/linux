@@ -1576,8 +1576,10 @@ static const struct drm_bridge_funcs tda998x_bridge_funcs = {
 	.enable = tda998x_bridge_enable,
 };
 
-static void tda998x_destroy(struct tda998x_priv *priv)
+static void tda998x_destroy(struct device *dev)
 {
+	struct tda998x_priv *priv = dev_get_drvdata(dev);
+
 	drm_bridge_remove(&priv->bridge);
 
 	/* disable all IRQs and free the IRQ handler */
@@ -1662,12 +1664,20 @@ static void tda998x_set_config(struct tda998x_priv *priv,
 	priv->audio_params = p->audio_params;
 }
 
-static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
+static int tda998x_create(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct device_node *np = client->dev.of_node;
 	struct i2c_board_info cec_info;
+	struct tda998x_priv *priv;
 	u32 video;
 	int rev_lo, rev_hi, ret;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	dev_set_drvdata(dev, priv);
 
 	mutex_init(&priv->mutex);	/* protect the page access */
 	mutex_init(&priv->audio_mutex); /* protect access from audio thread */
@@ -1843,7 +1853,7 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	return 0;
 
 fail:
-	tda998x_destroy(priv);
+	tda998x_destroy(dev);
 err_irq:
 	return ret;
 }
@@ -1895,24 +1905,16 @@ err_encoder:
 
 static int tda998x_bind(struct device *dev, struct device *master, void *data)
 {
-	struct i2c_client *client = to_i2c_client(dev);
 	struct drm_device *drm = data;
-	struct tda998x_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	dev_set_drvdata(dev, priv);
-
-	ret = tda998x_create(client, priv);
+	ret = tda998x_create(dev);
 	if (ret)
 		return ret;
 
 	ret = tda998x_encoder_init(dev, drm);
 	if (ret) {
-		tda998x_destroy(priv);
+		tda998x_destroy(dev);
 		return ret;
 	}
 	return 0;
@@ -1924,7 +1926,7 @@ static void tda998x_unbind(struct device *dev, struct device *master,
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 
 	drm_encoder_cleanup(&priv->encoder);
-	tda998x_destroy(priv);
+	tda998x_destroy(dev);
 }
 
 static const struct component_ops tda998x_ops = {
