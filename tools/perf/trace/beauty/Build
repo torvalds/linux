@@ -7,4 +7,5 @@ endif
 libperf-y += kcmp.o
 libperf-y += pkey_alloc.o
 libperf-y += prctl.o
+libperf-y += socket.o
 libperf-y += statx.o

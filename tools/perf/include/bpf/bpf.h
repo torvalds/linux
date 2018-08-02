@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #ifndef _PERF_BPF_H
 #define _PERF_BPF_H
+
+#include <uapi/linux/bpf.h>
+
 #define SEC(NAME) __attribute__((section(NAME),  used))
 
 #define probe(function, vars) \
