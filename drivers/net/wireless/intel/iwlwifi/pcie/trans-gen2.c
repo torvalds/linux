@@ -92,7 +92,7 @@ int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 
 	iwl_pcie_apm_config(trans);
 
-	ret = iwl_finish_nic_init(trans);
+	ret = iwl_finish_nic_init(trans, &trans->cfg->trans);
 	if (ret)
 		return ret;
 
@@ -133,7 +133,7 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      BIT(trans->cfg->csr->flag_init_done));
+		      BIT(trans->cfg->trans.csr->flag_init_done));
 }
 
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
@@ -168,14 +168,14 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	}
 
 	iwl_pcie_ctxt_info_free_paging(trans);
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+	if (trans->cfg->trans.device_family >= IWL_DEVICE_FAMILY_22560)
 		iwl_pcie_ctxt_info_gen3_free(trans);
 	else
 		iwl_pcie_ctxt_info_free(trans);
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      BIT(trans->cfg->csr->flag_mac_access_req));
+		      BIT(trans->cfg->trans.csr->flag_mac_access_req));
 
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_gen2_apm_stop(trans, false);
@@ -340,7 +340,7 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 		goto out;
 	}
 
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+	if (trans->cfg->trans.device_family >= IWL_DEVICE_FAMILY_22560)
 		ret = iwl_pcie_ctxt_info_gen3_init(trans, fw);
 	else
 		ret = iwl_pcie_ctxt_info_init(trans, fw);

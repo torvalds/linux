@@ -253,7 +253,8 @@ struct iwl_dma_ptr {
  */
 static inline int iwl_queue_inc_wrap(struct iwl_trans *trans, int index)
 {
-	return ++index & (trans->cfg->base_params->max_tfd_queue_size - 1);
+	return ++index &
+		(trans->cfg->trans.base_params->max_tfd_queue_size - 1);
 }
 
 /**
@@ -263,7 +264,7 @@ static inline int iwl_queue_inc_wrap(struct iwl_trans *trans, int index)
 static inline __le16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
 					    struct iwl_rxq *rxq)
 {
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+	if (trans->cfg->trans.device_family >= IWL_DEVICE_FAMILY_22560) {
 		__le16 *rb_stts = rxq->rb_stts;
 
 		return READ_ONCE(*rb_stts);
@@ -280,7 +281,8 @@ static inline __le16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
  */
 static inline int iwl_queue_dec_wrap(struct iwl_trans *trans, int index)
 {
-	return --index & (trans->cfg->base_params->max_tfd_queue_size - 1);
+	return --index &
+		(trans->cfg->trans.base_params->max_tfd_queue_size - 1);
 }
 
 struct iwl_cmd_meta {
@@ -704,7 +706,7 @@ void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
 static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_trans *trans, void *_tfd,
 					  u8 idx)
 {
-	if (trans->cfg->use_tfh) {
+	if (trans->cfg->trans.use_tfh) {
 		struct iwl_tfh_tfd *tfd = _tfd;
 		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
 
@@ -910,7 +912,7 @@ static inline void *iwl_pcie_get_tfd(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (trans->cfg->use_tfh)
+	if (trans->cfg->trans.use_tfh)
 		idx = iwl_pcie_get_cmd_index(txq, idx);
 
 	return txq->tfds + trans_pcie->tfd_size * idx;
@@ -954,7 +956,7 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 					   MSIX_HW_INT_CAUSES_REG_RF_KILL);
 	}
 
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_9000) {
+	if (trans->cfg->trans.device_family >= IWL_DEVICE_FAMILY_9000) {
 		/*
 		 * On 9000-series devices this bit isn't enabled by default, so
 		 * when we power down the device we need set the bit to allow it

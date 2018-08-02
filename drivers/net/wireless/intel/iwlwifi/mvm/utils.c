@@ -531,7 +531,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 		/* reset the device */
 		iwl_trans_sw_reset(trans);
 
-		err = iwl_finish_nic_init(trans);
+		err = iwl_finish_nic_init(trans, &trans->cfg->trans);
 		if (err)
 			return;
 	}
@@ -939,8 +939,9 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 {
 	struct iwl_fw_dbg_trigger_tlv *trigger;
 	struct iwl_fw_dbg_trigger_txq_timer *txq_timer;
-	unsigned int default_timeout =
-		cmd_q ? IWL_DEF_WD_TIMEOUT : mvm->cfg->base_params->wd_timeout;
+	unsigned int default_timeout = cmd_q ?
+		IWL_DEF_WD_TIMEOUT :
+		mvm->cfg->trans.base_params->wd_timeout;
 
 	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
 		/*
@@ -984,7 +985,7 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 		return default_timeout;
 	default:
 		WARN_ON(1);
-		return mvm->cfg->base_params->wd_timeout;
+		return mvm->cfg->trans.base_params->wd_timeout;
 	}
 }
 
@@ -1430,7 +1431,7 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
 {
 	u32 reg_addr = DEVICE_SYSTEM_TIME_REG;
 
-	if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000 &&
+	if (mvm->trans->cfg->trans.device_family >= IWL_DEVICE_FAMILY_22000 &&
 	    mvm->trans->cfg->gp2_reg_addr)
 		reg_addr = mvm->trans->cfg->gp2_reg_addr;
 

@@ -349,7 +349,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 		    !(status & IWL_RX_MPDU_RES_STATUS_TTAK_OK))
 			return 0;
 
-		if (mvm->trans->cfg->gen2 &&
+		if (mvm->trans->cfg->trans.gen2 &&
 		    !(status & RX_MPDU_RES_STATUS_MIC_OK))
 			stats->flag |= RX_FLAG_MMIC_ERROR;
 
@@ -366,7 +366,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 
 		if (pkt_flags & FH_RSCSR_RADA_EN) {
 			stats->flag |= RX_FLAG_ICV_STRIPPED;
-			if (mvm->trans->cfg->gen2)
+			if (mvm->trans->cfg->trans.gen2)
 				stats->flag |= RX_FLAG_MMIC_STRIPPED;
 		}
 
@@ -1504,7 +1504,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
 
-	if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+	if (mvm->trans->cfg->trans.device_family >= IWL_DEVICE_FAMILY_22560) {
 		rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
 		channel = desc->v3.channel;
 		gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
@@ -1605,7 +1605,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (likely(!(phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
 		u64 tsf_on_air_rise;
 
-		if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+		if (mvm->trans->cfg->trans.device_family >=
+		    IWL_DEVICE_FAMILY_22560)
 			tsf_on_air_rise = le64_to_cpu(desc->v3.tsf_on_air_rise);
 		else
 			tsf_on_air_rise = le64_to_cpu(desc->v1.tsf_on_air_rise);
@@ -1731,7 +1732,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 			*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 
-			if (mvm->trans->cfg->device_family ==
+			if (mvm->trans->cfg->trans.device_family ==
 			    IWL_DEVICE_FAMILY_9000) {
 				iwl_mvm_flip_address(hdr->addr3);
 

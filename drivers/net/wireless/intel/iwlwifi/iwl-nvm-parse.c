@@ -434,14 +434,14 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 
 	switch (iwlwifi_mod_params.amsdu_size) {
 	case IWL_AMSDU_DEF:
-		if (cfg->mq_rx_supported)
+		if (cfg->trans.mq_rx_supported)
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
 			vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
 		break;
 	case IWL_AMSDU_2K:
-		if (cfg->mq_rx_supported)
+		if (cfg->trans.mq_rx_supported)
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
@@ -793,10 +793,10 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 {
 	__le32 mac_addr0 =
 		cpu_to_le32(iwl_read32(trans,
-				       trans->cfg->csr->mac_addr0_strap));
+				       trans->cfg->trans.csr->mac_addr0_strap));
 	__le32 mac_addr1 =
 		cpu_to_le32(iwl_read32(trans,
-				       trans->cfg->csr->mac_addr1_strap));
+				       trans->cfg->trans.csr->mac_addr1_strap));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 	/*
@@ -807,9 +807,9 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 		return;
 
 	mac_addr0 = cpu_to_le32(iwl_read32(trans,
-					   trans->cfg->csr->mac_addr0_otp));
+					trans->cfg->trans.csr->mac_addr0_otp));
 	mac_addr1 = cpu_to_le32(iwl_read32(trans,
-					   trans->cfg->csr->mac_addr1_otp));
+					trans->cfg->trans.csr->mac_addr1_otp));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 }
@@ -908,7 +908,7 @@ iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
 	 * in 5GHz otherwise the FW will throw a sysassert when we try
 	 * to use them.
 	 */
-	if (cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+	if (cfg->trans.device_family == IWL_DEVICE_FAMILY_7000) {
 		/*
 		 * Unlike the other sections in the NVM, the hw
 		 * section uses big-endian.
@@ -1301,7 +1301,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 			 le32_to_cpu(dword_buff[3]));
 
 		/* nvm file validation, dword_buff[2] holds the file version */
-		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+		if (trans->cfg->trans.device_family == IWL_DEVICE_FAMILY_8000 &&
 		    CSR_HW_REV_STEP(trans->hw_rev) == SILICON_C_STEP &&
 		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
 			ret = -EFAULT;

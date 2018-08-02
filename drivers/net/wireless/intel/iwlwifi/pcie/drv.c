@@ -995,7 +995,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct iwl_trans *iwl_trans;
 	int ret;
 
-	if (WARN_ONCE(!cfg->csr, "CSR addresses aren't configured\n"))
+	if (WARN_ONCE(!cfg->trans.csr, "CSR addresses aren't configured\n"))
 		return -EINVAL;
 
 	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, cfg);
@@ -1022,7 +1022,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		iwl_trans->cfg = cfg_7265d;
 	}
 
-	if (iwl_trans->cfg->rf_id && cfg == &iwl22000_2ac_cfg_hr_cdb &&
+	if (iwl_trans->cfg->trans.rf_id && cfg == &iwl22000_2ac_cfg_hr_cdb &&
 	    iwl_trans->hw_rev != CSR_HW_REV_TYPE_HR_CDB) {
 		u32 rf_id_chp = CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id);
 		u32 jf_chp_id = CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_JF);
