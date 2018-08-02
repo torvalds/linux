@@ -2088,6 +2088,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 				goto err_free_sq_db_key;
 			}
 		}
+		memset(&uresp, 0, sizeof(uresp));
 		if (t4_sq_onchip(&qhp->wq.sq)) {
 			ma_sync_key_mm = kmalloc(sizeof(*ma_sync_key_mm),
 						 GFP_KERNEL);
@@ -2096,8 +2097,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 				goto err_free_rq_db_key;
 			}
 			uresp.flags = C4IW_QPF_ONCHIP;
-		} else
-			uresp.flags = 0;
+		}
 		uresp.qid_mask = rhp->rdev.qpmask;
 		uresp.sqid = qhp->wq.sq.qid;
 		uresp.sq_size = qhp->wq.sq.size;
@@ -2111,8 +2111,6 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		if (ma_sync_key_mm) {
 			uresp.ma_sync_key = ucontext->key;
 			ucontext->key += PAGE_SIZE;
-		} else {
-			uresp.ma_sync_key =  0;
 		}
 		uresp.sq_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
@@ -2601,6 +2599,7 @@ struct ib_srq *c4iw_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *attrs,
 			ret = -ENOMEM;
 			goto err_free_srq_key_mm;
 		}
+		memset(&uresp, 0, sizeof(uresp));
 		uresp.flags = srq->flags;
 		uresp.qid_mask = rhp->rdev.qpmask;
 		uresp.srqid = srq->wq.qid;
