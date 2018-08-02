@@ -3838,14 +3838,6 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
 		return;
 
 	set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
-
-	if (fcport->login_retry == 0) {
-		fcport->login_retry = vha->hw->login_retry_count;
-
-		ql_dbg(ql_dbg_disc, vha, 0x20a3,
-		    "Port login retry %8phN, lid 0x%04x retry cnt=%d.\n",
-		    fcport->port_name, fcport->loop_id, fcport->login_retry);
-	}
 }
 
 /*
@@ -5098,7 +5090,7 @@ int qla24xx_post_relogin_work(struct scsi_qla_host *vha)
 void qla2x00_relogin(struct scsi_qla_host *vha)
 {
 	fc_port_t       *fcport;
-	int status;
+	int status, relogin_needed = 0;
 	struct event_arg ea;
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
@@ -5107,46 +5099,58 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 		 * to it if we haven't run out of retries.
 		 */
 		if (atomic_read(&fcport->state) != FCS_ONLINE &&
-		    fcport->login_retry &&
-		    !(fcport->flags & (FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE))) {
-			if (vha->hw->current_topology != ISP_CFG_NL) {
-				ql_dbg(ql_dbg_disc, fcport->vha, 0x2108,
-				    "%s %8phC DS %d LS %d\n", __func__,
-				    fcport->port_name, fcport->disc_state,
-				    fcport->fw_login_state);
-				memset(&ea, 0, sizeof(ea));
-				ea.event = FCME_RELOGIN;
-				ea.fcport = fcport;
-				qla2x00_fcport_event_handler(vha, &ea);
-			} else if (vha->hw->current_topology == ISP_CFG_NL) {
-				fcport->login_retry--;
-				status = qla2x00_local_device_login(vha,
-								fcport);
-				if (status == QLA_SUCCESS) {
-					fcport->old_loop_id = fcport->loop_id;
-					ql_dbg(ql_dbg_disc, vha, 0x2003,
-					    "Port login OK: logged in ID 0x%x.\n",
-					    fcport->loop_id);
-					qla2x00_update_fcport(vha, fcport);
-				} else if (status == 1) {
-					set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
-					/* retry the login again */
-					ql_dbg(ql_dbg_disc, vha, 0x2007,
-					    "Retrying %d login again loop_id 0x%x.\n",
-					    fcport->login_retry,
-					    fcport->loop_id);
-				} else {
-					fcport->login_retry = 0;
-				}
+		    fcport->login_retry) {
+			if (fcport->scan_state != QLA_FCPORT_FOUND ||
+			    fcport->disc_state == DSC_LOGIN_COMPLETE)
+				continue;
 
-				if (fcport->login_retry == 0 &&
-				    status != QLA_SUCCESS)
-					qla2x00_clear_loop_id(fcport);
+			if (fcport->flags & (FCF_ASYNC_SENT|FCF_ASYNC_ACTIVE) ||
+				fcport->disc_state == DSC_DELETE_PEND) {
+				relogin_needed = 1;
+			} else {
+				if (vha->hw->current_topology != ISP_CFG_NL) {
+					memset(&ea, 0, sizeof(ea));
+					ea.event = FCME_RELOGIN;
+					ea.fcport = fcport;
+					qla2x00_fcport_event_handler(vha, &ea);
+				} else if (vha->hw->current_topology ==
+				    ISP_CFG_NL) {
+					fcport->login_retry--;
+					status =
+					    qla2x00_local_device_login(vha,
+						fcport);
+					if (status == QLA_SUCCESS) {
+						fcport->old_loop_id =
+						    fcport->loop_id;
+						ql_dbg(ql_dbg_disc, vha, 0x2003,
+						    "Port login OK: logged in ID 0x%x.\n",
+						    fcport->loop_id);
+						qla2x00_update_fcport
+							(vha, fcport);
+					} else if (status == 1) {
+						set_bit(RELOGIN_NEEDED,
+						    &vha->dpc_flags);
+						/* retry the login again */
+						ql_dbg(ql_dbg_disc, vha, 0x2007,
+						    "Retrying %d login again loop_id 0x%x.\n",
+						    fcport->login_retry,
+						    fcport->loop_id);
+					} else {
+						fcport->login_retry = 0;
+					}
+
+					if (fcport->login_retry == 0 &&
+					    status != QLA_SUCCESS)
+						qla2x00_clear_loop_id(fcport);
+				}
 			}
 		}
 		if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
 			break;
 	}
+
+	if (relogin_needed)
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 
 	ql_dbg(ql_dbg_disc, vha, 0x400e,
 	    "Relogin end.\n");

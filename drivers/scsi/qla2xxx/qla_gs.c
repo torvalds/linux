@@ -3475,6 +3475,14 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 			fcport->rscn_gen++;
 			fcport->scan_state = QLA_FCPORT_FOUND;
 			fcport->flags |= FCF_FABRIC_DEVICE;
+			if (fcport->login_retry == 0) {
+				fcport->login_retry =
+					vha->hw->login_retry_count;
+				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				    "Port login retry %8phN, lid 0x%04x cnt=%d.\n",
+				    fcport->port_name, fcport->loop_id,
+				    fcport->login_retry);
+			}
 			switch (fcport->disc_state) {
 			case DSC_LOGIN_COMPLETE:
 				/* recheck session is still intact. */
@@ -3967,6 +3975,14 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		} else {
 			if (fcport->rscn_rcvd ||
 			    fcport->disc_state != DSC_LOGIN_COMPLETE) {
+				if (fcport->login_retry == 0) {
+					fcport->login_retry =
+						vha->hw->login_retry_count;
+					ql_dbg(ql_dbg_disc, vha, 0x20a3,
+					    "Port login retry %8phN, lid 0x%04x retry cnt=%d.\n",
+					    fcport->port_name, fcport->loop_id,
+					    fcport->login_retry);
+				}
 				fcport->rscn_rcvd = 0;
 				qla24xx_fcport_handle_login(vha, fcport);
 			}

@@ -213,8 +213,6 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 		if (fcport->fc4f_nvme)
 			lio->u.logio.flags |= SRB_LOGIN_SKIP_PRLI;
 
-		if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
-			lio->u.logio.flags |= SRB_LOGIN_RETRIED;
 	}
 
 	rval = qla2x00_start_sp(sp);
@@ -485,7 +483,6 @@ static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 
 	if (ea->rc) { /* rval */
 		if (fcport->login_retry == 0) {
-			fcport->login_retry = vha->hw->login_retry_count;
 			ql_dbg(ql_dbg_disc, vha, 0x20de,
 			    "GNL failed Port login retry %8phN, retry cnt=%d.\n",
 			    fcport->port_name, fcport->login_retry);
@@ -1256,11 +1253,10 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		return 0;
 	}
 
-	if (fcport->login_retry > 0)
-		fcport->login_retry--;
 
 	switch (fcport->disc_state) {
 	case DSC_DELETED:
+		fcport->login_retry--;
 		wwn = wwn_to_u64(fcport->node_name);
 		if (wwn == 0) {
 			ql_dbg(ql_dbg_disc, vha, 0xffff,
@@ -1273,6 +1269,7 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 			    __func__, __LINE__, fcport->port_name);
 			qla24xx_post_gnl_work(vha, fcport);
 		} else {
+			fcport->login_retry--;
 			qla_chk_n2n_b4_login(vha, fcport);
 		}
 		break;
@@ -1289,6 +1286,7 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		break;
 
 	case DSC_LOGIN_FAILED:
+		fcport->login_retry--;
 		ql_dbg(ql_dbg_disc, vha, 0x20d0,
 		    "%s %d %8phC post gidpn\n",
 		    __func__, __LINE__, fcport->port_name);
@@ -1303,6 +1301,7 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		ql_dbg(ql_dbg_disc, vha, 0x20d1,
 		    "%s %d %8phC post adisc\n",
 		    __func__, __LINE__, fcport->port_name);
+		fcport->login_retry--;
 		data[0] = data[1] = 0;
 		qla2x00_post_async_adisc_work(vha, fcport, data);
 		break;
@@ -1384,17 +1383,6 @@ void qla24xx_handle_relogin_event(scsi_qla_host_t *vha,
 			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 			return;
 		}
-	}
-
-	if (fcport->flags & FCF_ASYNC_SENT) {
-		fcport->login_retry++;
-		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
-		return;
-	}
-
-	if (fcport->disc_state == DSC_DELETE_PEND) {
-		fcport->login_retry++;
-		return;
 	}
 
 	if (fcport->last_rscn_gen != fcport->rscn_gen) {
@@ -1882,7 +1870,6 @@ void
 qla2x00_async_logout_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
-	qla2x00_mark_device_lost(vha, fcport, 1, 0);
 	qlt_logo_completion_handler(fcport, data[0]);
 	fcport->login_gen++;
 	fcport->flags &= ~FCF_ASYNC_ACTIVE;
@@ -5076,11 +5063,11 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (IS_QLAFX00(vha->hw)) {
 		qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 	} else {
-		fcport->login_retry = 0;
 		fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
 		fcport->disc_state = DSC_LOGIN_COMPLETE;
 		fcport->deleted = 0;
 		fcport->logout_on_delete = 1;
+		fcport->login_retry = vha->hw->login_retry_count;
 		qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 	}
 
