@@ -780,8 +780,30 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
  */
 void free_kernel_image_pages(void *begin, void *end)
 {
-	free_init_pages("unused kernel image",
-			(unsigned long)begin, (unsigned long)end);
+	unsigned long begin_ul = (unsigned long)begin;
+	unsigned long end_ul = (unsigned long)end;
+	unsigned long len_pages = (end_ul - begin_ul) >> PAGE_SHIFT;
+
+
+	free_init_pages("unused kernel image", begin_ul, end_ul);
+
+	/*
+	 * PTI maps some of the kernel into userspace.  For performance,
+	 * this includes some kernel areas that do not contain secrets.
+	 * Those areas might be adjacent to the parts of the kernel image
+	 * being freed, which may contain secrets.  Remove the "high kernel
+	 * image mapping" for these freed areas, ensuring they are not even
+	 * potentially vulnerable to Meltdown regardless of the specific
+	 * optimizations PTI is currently using.
+	 *
+	 * The "noalias" prevents unmapping the direct map alias which is
+	 * needed to access the freed pages.
+	 *
+	 * This is only valid for 64bit kernels. 32bit has only one mapping
+	 * which can't be treated in this way for obvious reasons.
+	 */
+	if (IS_ENABLED(CONFIG_X86_64) && cpu_feature_enabled(X86_FEATURE_PTI))
+		set_memory_np_noalias(begin_ul, len_pages);
 }
 
 void __ref free_initmem(void)
