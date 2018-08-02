@@ -972,10 +972,10 @@ static void ip6_rt_init_dst(struct rt6_info *rt, struct fib6_info *ort)
 	rt->dst.lastuse = jiffies;
 }
 
+/* Caller must already hold reference to @from */
 static void rt6_set_from(struct rt6_info *rt, struct fib6_info *from)
 {
 	rt->rt6i_flags &= ~RTF_EXPIRES;
-	fib6_info_hold(from);
 	rcu_assign_pointer(rt->from, from);
 	dst_init_metrics(&rt->dst, from->fib6_metrics->metrics, true);
 	if (from->fib6_metrics != &dst_default_metrics) {
@@ -984,6 +984,7 @@ static void rt6_set_from(struct rt6_info *rt, struct fib6_info *from)
 	}
 }
 
+/* Caller must already hold reference to @ort */
 static void ip6_rt_copy_init(struct rt6_info *rt, struct fib6_info *ort)
 {
 	struct net_device *dev = fib6_info_nh_dev(ort);
@@ -1044,9 +1045,14 @@ static struct rt6_info *ip6_create_rt_rcu(struct fib6_info *rt)
 	struct net_device *dev = rt->fib6_nh.nh_dev;
 	struct rt6_info *nrt;
 
+	if (!fib6_info_hold_safe(rt))
+		return NULL;
+
 	nrt = ip6_dst_alloc(dev_net(dev), dev, flags);
 	if (nrt)
 		ip6_rt_copy_init(nrt, rt);
+	else
+		fib6_info_release(rt);
 
 	return nrt;
 }
@@ -1178,10 +1184,15 @@ static struct rt6_info *ip6_rt_cache_alloc(struct fib6_info *ort,
 	 *	Clone the route.
 	 */
 
+	if (!fib6_info_hold_safe(ort))
+		return NULL;
+
 	dev = ip6_rt_get_dev_rcu(ort);
 	rt = ip6_dst_alloc(dev_net(dev), dev, 0);
-	if (!rt)
+	if (!rt) {
+		fib6_info_release(ort);
 		return NULL;
+	}
 
 	ip6_rt_copy_init(rt, ort);
 	rt->rt6i_flags |= RTF_CACHE;
@@ -1210,12 +1221,17 @@ static struct rt6_info *ip6_rt_pcpu_alloc(struct fib6_info *rt)
 	struct net_device *dev;
 	struct rt6_info *pcpu_rt;
 
+	if (!fib6_info_hold_safe(rt))
+		return NULL;
+
 	rcu_read_lock();
 	dev = ip6_rt_get_dev_rcu(rt);
 	pcpu_rt = ip6_dst_alloc(dev_net(dev), dev, flags);
 	rcu_read_unlock();
-	if (!pcpu_rt)
+	if (!pcpu_rt) {
+		fib6_info_release(rt);
 		return NULL;
+	}
 	ip6_rt_copy_init(pcpu_rt, rt);
 	pcpu_rt->rt6i_flags |= RTF_PCPU;
 	return pcpu_rt;
@@ -2486,7 +2502,7 @@ restart:
 
 out:
 	if (ret)
-		dst_hold(&ret->dst);
+		ip6_hold_safe(net, &ret, true);
 	else
 		ret = ip6_create_rt_rcu(rt);
 
@@ -3303,7 +3319,8 @@ static int ip6_route_del(struct fib6_config *cfg,
 				continue;
 			if (cfg->fc_protocol && cfg->fc_protocol != rt->fib6_protocol)
 				continue;
-			fib6_info_hold(rt);
+			if (!fib6_info_hold_safe(rt))
+				continue;
 			rcu_read_unlock();
 
 			/* if gateway was specified only delete the one hop */
@@ -3409,6 +3426,9 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 
 	rcu_read_lock();
 	from = rcu_dereference(rt->from);
+	/* This fib6_info_hold() is safe here because we hold reference to rt
+	 * and rt already holds reference to fib6_info.
+	 */
 	fib6_info_hold(from);
 	rcu_read_unlock();
 
@@ -3470,7 +3490,8 @@ static struct fib6_info *rt6_get_route_info(struct net *net,
 			continue;
 		if (!ipv6_addr_equal(&rt->fib6_nh.nh_gw, gwaddr))
 			continue;
-		fib6_info_hold(rt);
+		if (!fib6_info_hold_safe(rt))
+			continue;
 		break;
 	}
 out:
@@ -3530,8 +3551,8 @@ struct fib6_info *rt6_get_dflt_router(struct net *net,
 		    ipv6_addr_equal(&rt->fib6_nh.nh_gw, addr))
 			break;
 	}
-	if (rt)
-		fib6_info_hold(rt);
+	if (rt && !fib6_info_hold_safe(rt))
+		rt = NULL;
 	rcu_read_unlock();
 	return rt;
 }
@@ -3579,8 +3600,8 @@ restart:
 		struct inet6_dev *idev = dev ? __in6_dev_get(dev) : NULL;
 
 		if (rt->fib6_flags & (RTF_DEFAULT | RTF_ADDRCONF) &&
-		    (!idev || idev->cnf.accept_ra != 2)) {
-			fib6_info_hold(rt);
+		    (!idev || idev->cnf.accept_ra != 2) &&
+		    fib6_info_hold_safe(rt)) {
 			rcu_read_unlock();
 			ip6_del_rt(net, rt);
 			goto restart;

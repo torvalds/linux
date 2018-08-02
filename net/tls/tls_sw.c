@@ -646,6 +646,9 @@ static struct sk_buff *tls_wait_data(struct sock *sk, int flags,
 			return NULL;
 		}
 
+		if (sk->sk_shutdown & RCV_SHUTDOWN)
+			return NULL;
+
 		if (sock_flag(sk, SOCK_DONE))
 			return NULL;
 

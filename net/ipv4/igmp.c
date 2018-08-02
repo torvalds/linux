@@ -1200,8 +1200,7 @@ static void igmpv3_del_delrec(struct in_device *in_dev, struct ip_mc_list *im)
 	spin_lock_bh(&im->lock);
 	if (pmc) {
 		im->interface = pmc->interface;
-		im->sfmode = pmc->sfmode;
-		if (pmc->sfmode == MCAST_INCLUDE) {
+		if (im->sfmode == MCAST_INCLUDE) {
 			im->tomb = pmc->tomb;
 			im->sources = pmc->sources;
 			for (psf = im->sources; psf; psf = psf->sf_next)
