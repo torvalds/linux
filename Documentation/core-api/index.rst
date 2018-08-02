@@ -29,6 +29,7 @@ Core utilities
    circular-buffers
    gfp_mask-from-fs-io
    timekeeping
+   boot-time-mm
 
 Interfaces for kernel debugging
 ===============================
