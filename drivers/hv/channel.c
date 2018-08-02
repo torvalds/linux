@@ -29,11 +29,25 @@
 #include <linux/hyperv.h>
 #include <linux/uio.h>
 #include <linux/interrupt.h>
+#include <asm/page.h>
 
 #include "hyperv_vmbus.h"
 
 #define NUM_PAGES_SPANNED(addr, len) \
 ((PAGE_ALIGN(addr + len) >> PAGE_SHIFT) - (addr >> PAGE_SHIFT))
+
+static unsigned long virt_to_hvpfn(void *addr)
+{
+	unsigned long paddr;
+
+	if (is_vmalloc_addr(addr))
+		paddr = page_to_phys(vmalloc_to_page(addr)) +
+					 offset_in_page(addr);
+	else
+		paddr = __pa(addr);
+
+	return  paddr >> PAGE_SHIFT;
+}
 
 /*
  * vmbus_setevent- Trigger an event notification on the specified
@@ -298,8 +312,8 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 		gpadl_header->range[0].byte_offset = 0;
 		gpadl_header->range[0].byte_count = size;
 		for (i = 0; i < pfncount; i++)
-			gpadl_header->range[0].pfn_array[i] = slow_virt_to_phys(
-				kbuffer + PAGE_SIZE * i) >> PAGE_SHIFT;
+			gpadl_header->range[0].pfn_array[i] = virt_to_hvpfn(
+				kbuffer + PAGE_SIZE * i);
 		*msginfo = msgheader;
 
 		pfnsum = pfncount;
@@ -350,9 +364,8 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 			 * so the hypervisor guarantees that this is ok.
 			 */
 			for (i = 0; i < pfncurr; i++)
-				gpadl_body->pfn[i] = slow_virt_to_phys(
-					kbuffer + PAGE_SIZE * (pfnsum + i)) >>
-					PAGE_SHIFT;
+				gpadl_body->pfn[i] = virt_to_hvpfn(
+					kbuffer + PAGE_SIZE * (pfnsum + i));
 
 			/* add to msg header */
 			list_add_tail(&msgbody->msglistentry,
@@ -380,8 +393,8 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 		gpadl_header->range[0].byte_offset = 0;
 		gpadl_header->range[0].byte_count = size;
 		for (i = 0; i < pagecount; i++)
-			gpadl_header->range[0].pfn_array[i] = slow_virt_to_phys(
-				kbuffer + PAGE_SIZE * i) >> PAGE_SHIFT;
+			gpadl_header->range[0].pfn_array[i] = virt_to_hvpfn(
+				kbuffer + PAGE_SIZE * i);
 
 		*msginfo = msgheader;
 	}
