@@ -1693,19 +1693,12 @@ out_put:
 static int trace__fprintf_sys_enter(struct trace *trace, struct perf_evsel *evsel,
 				    struct perf_sample *sample)
 {
-	struct format_field *field = perf_evsel__field(evsel, "__syscall_nr");
 	struct thread_trace *ttrace;
 	struct thread *thread;
-	struct syscall *sc;
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
+	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	char msg[1024];
-	int id, err = -1;
 	void *args;
-
-	if (field == NULL)
-		return -1;
-
-	id = format_field__intval(field, sample, evsel->needs_swap);
-	sc = trace__syscall_info(trace, evsel, id);
 
 	if (sc == NULL)
 		return -1;
@@ -1719,7 +1712,7 @@ static int trace__fprintf_sys_enter(struct trace *trace, struct perf_evsel *evse
 	if (ttrace == NULL)
 		goto out_put;
 
-	args = sample->raw_data + field->offset + sizeof(u64); /* skip __syscall_nr, there is where args are */
+	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
 	syscall__scnprintf_args(sc, msg, sizeof(msg), args, trace, thread);
 	fprintf(trace->output, "%s", msg);
 	err = 0;
