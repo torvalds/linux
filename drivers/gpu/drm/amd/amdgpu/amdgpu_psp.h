@@ -63,13 +63,16 @@ struct psp_funcs
 	int (*prep_cmd_buf)(struct amdgpu_firmware_info *ucode,
 			    struct psp_gfx_cmd_resp *cmd);
 	int (*ring_init)(struct psp_context *psp, enum psp_ring_type ring_type);
-	int (*ring_create)(struct psp_context *psp, enum psp_ring_type ring_type);
+	int (*ring_create)(struct psp_context *psp,
+			   enum psp_ring_type ring_type);
 	int (*ring_stop)(struct psp_context *psp,
 			    enum psp_ring_type ring_type);
 	int (*ring_destroy)(struct psp_context *psp,
 			    enum psp_ring_type ring_type);
-	int (*cmd_submit)(struct psp_context *psp, struct amdgpu_firmware_info *ucode,
-			  uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr, int index);
+	int (*cmd_submit)(struct psp_context *psp,
+			  struct amdgpu_firmware_info *ucode,
+			  uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,
+			  int index);
 	bool (*compare_sram_data)(struct psp_context *psp,
 				  struct amdgpu_firmware_info *ucode,
 				  enum AMDGPU_UCODE_ID ucode_type);
@@ -83,11 +86,11 @@ struct psp_context
 	struct psp_ring                 km_ring;
 	struct psp_gfx_cmd_resp		*cmd;
 
-	const struct psp_funcs 		*funcs;
+	const struct psp_funcs		*funcs;
 
 	/* fence buffer */
-	struct amdgpu_bo 		*fw_pri_bo;
-	uint64_t 			fw_pri_mc_addr;
+	struct amdgpu_bo		*fw_pri_bo;
+	uint64_t			fw_pri_mc_addr;
 	void				*fw_pri_buf;
 
 	/* sos firmware */
@@ -100,8 +103,8 @@ struct psp_context
 	uint8_t				*sos_start_addr;
 
 	/* tmr buffer */
-	struct amdgpu_bo 		*tmr_bo;
-	uint64_t 			tmr_mc_addr;
+	struct amdgpu_bo		*tmr_bo;
+	uint64_t			tmr_mc_addr;
 	void				*tmr_buf;
 
 	/* asd firmware and buffer */
@@ -110,13 +113,13 @@ struct psp_context
 	uint32_t			asd_feature_version;
 	uint32_t			asd_ucode_size;
 	uint8_t				*asd_start_addr;
-	struct amdgpu_bo 		*asd_shared_bo;
-	uint64_t 			asd_shared_mc_addr;
+	struct amdgpu_bo		*asd_shared_bo;
+	uint64_t			asd_shared_mc_addr;
 	void				*asd_shared_buf;
 
 	/* fence buffer */
-	struct amdgpu_bo 		*fence_buf_bo;
-	uint64_t 			fence_buf_mc_addr;
+	struct amdgpu_bo		*fence_buf_bo;
+	uint64_t			fence_buf_mc_addr;
 	void				*fence_buf;
 
 	/* cmd buffer */
@@ -149,6 +152,8 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->smu_reload_quirk ? (psp)->funcs->smu_reload_quirk((psp)) : false)
 #define psp_mode1_reset(psp) \
 		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
+
+#define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 
