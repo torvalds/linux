@@ -2503,4 +2503,9 @@ static struct platform_driver tegra30_pinctrl_driver = {
 	},
 	.probe = tegra30_pinctrl_probe,
 };
-builtin_platform_driver(tegra30_pinctrl_driver);
+
+static int __init tegra30_pinctrl_init(void)
+{
+	return platform_driver_register(&tegra30_pinctrl_driver);
+}
+arch_initcall(tegra30_pinctrl_init);

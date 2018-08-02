@@ -1582,4 +1582,9 @@ static struct platform_driver tegra210_pinctrl_driver = {
 	},
 	.probe = tegra210_pinctrl_probe,
 };
-builtin_platform_driver(tegra210_pinctrl_driver);
+
+static int __init tegra210_pinctrl_init(void)
+{
+	return platform_driver_register(&tegra210_pinctrl_driver);
+}
+arch_initcall(tegra210_pinctrl_init);
