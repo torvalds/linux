@@ -2454,11 +2454,15 @@ static void dump_one_paca(int cpu)
 
 	DUMP(p, accounting.utime, "%#-*lx");
 	DUMP(p, accounting.stime, "%#-*lx");
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 	DUMP(p, accounting.utime_scaled, "%#-*lx");
+#endif
 	DUMP(p, accounting.starttime, "%#-*lx");
 	DUMP(p, accounting.starttime_user, "%#-*lx");
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 	DUMP(p, accounting.startspurr, "%#-*lx");
 	DUMP(p, accounting.utime_sspurr, "%#-*lx");
+#endif
 	DUMP(p, accounting.steal_time, "%#-*lx");
 #undef DUMP
 
