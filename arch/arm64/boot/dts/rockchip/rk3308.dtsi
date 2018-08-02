@@ -105,6 +105,37 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <0>;
+		rockchip,low-temp-min-volt = <1000000>;
+		rockchip,max-volt = <1325000>;
+		rockchip,low-temp-adjust-volt = <
+			/* MHz    MHz    uV */
+			   0      1296   50000
+		>;
+
+		rockchip,evb-irdrop = <25000>;
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,pvtm-voltage-sel = <
+			0        54000   0
+			54001    56000   1
+			56001    58500   2
+			58501    61000   3
+			61001    63500   4
+			63501    99999   5
+		>;
+		rockchip,pvtm-freq = <408000>;
+		rockchip,pvtm-volt = <1025000>;
+		rockchip,pvtm-ch = <0 0>;
+		rockchip,pvtm-sample-time = <1000>;
+		rockchip,pvtm-number = <10>;
+		rockchip,pvtm-error = <1000>;
+		rockchip,pvtm-ref-temp = <35>;
+		rockchip,pvtm-temp-prop = <(-15) (-37)>;
+		rockchip,thermal-zone = "soc-thermal";
+
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <950000 950000 1340000>;
@@ -119,12 +150,52 @@
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <1025000 1025000 1340000>;
+			opp-microvolt-L0 = <1025000 1025000 1340000>;
+			opp-microvolt-L1 = <1000000 1000000 1340000>;
+			opp-microvolt-L2 = <975000 975000 1340000>;
+			opp-microvolt-L3 = <975000 975000 1340000>;
+			opp-microvolt-L4 = <950000 950000 1340000>;
+			opp-microvolt-L5 = <950000 950000 1340000>;
+			opp-microvolt-L6 = <950000 950000 1340000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <1125000 1125000 1340000>;
+			opp-microvolt-L0 = <1125000 1125000 1340000>;
+			opp-microvolt-L1 = <1100000 1100000 1340000>;
+			opp-microvolt-L2 = <1075000 1075000 1340000>;
+			opp-microvolt-L3 = <1075000 1075000 1340000>;
+			opp-microvolt-L4 = <1050000 1050000 1340000>;
+			opp-microvolt-L5 = <1050000 1050000 1340000>;
+			opp-microvolt-L6 = <1025000 1025000 1340000>;
 			clock-latency-ns = <40000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1250000 1250000 1340000>;
+			opp-microvolt-L0 = <1250000 1250000 1340000>;
+			opp-microvolt-L1 = <1225000 1225000 1340000>;
+			opp-microvolt-L2 = <1200000 1200000 1340000>;
+			opp-microvolt-L3 = <1175000 1175000 1340000>;
+			opp-microvolt-L4 = <1150000 1150000 1340000>;
+			opp-microvolt-L5 = <1125000 1125000 1340000>;
+			opp-microvolt-L6 = <1100000 1100000 1340000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		opp-1296000000 {
+			opp-hz = /bits/ 64 <1296000000>;
+			opp-microvolt = <1300000 1300000 1340000>;
+			opp-microvolt-L0 = <1300000 1300000 1340000>;
+			opp-microvolt-L1 = <1275000 1275000 1340000>;
+			opp-microvolt-L2 = <1250000 1250000 1340000>;
+			opp-microvolt-L3 = <1225000 1225000 1340000>;
+			opp-microvolt-L4 = <1200000 1200000 1340000>;
+			opp-microvolt-L5 = <1175000 1175000 1340000>;
+			opp-microvolt-L6 = <1150000 1150000 1340000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
 		};
 	};
 
@@ -242,6 +313,12 @@
 			status = "disabled";
 		};
 
+		pmu_pvtm: pmu-pvtm {
+			compatible = "rockchip,rk3308-pmu-pvtm";
+			clocks = <&cru SCLK_PVTM_PMU>;
+			clock-names = "pmu";
+		};
+
 		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x500>;
@@ -302,6 +379,12 @@
 		reg = <0x0 0xff00c000 0x0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		pvtm: pvtm {
+			compatible = "rockchip,rk3308-pvtm";
+			clocks = <&cru SCLK_PVTM_CORE>;
+			clock-names = "core";
+		};
 	};
 
 	i2c0: i2c@ff040000 {
