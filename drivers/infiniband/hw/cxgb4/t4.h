@@ -190,7 +190,19 @@ struct t4_cqe {
 			__be32 abs_rqe_idx;
 		} srcqe;
 		struct {
-			__be64 imm_data;
+			__be32 mo;
+			__be32 msn;
+			/*
+			 * Use union for immediate data to be consistent with
+			 * stack's 32 bit data and iWARP spec's 64 bit data.
+			 */
+			union {
+				struct {
+					__be32 imm_data32;
+					u32 reserved;
+				} ib_imm_data;
+				__be64 imm_data64;
+			} iw_imm_data;
 		} imm_data_rcqe;
 
 		u64 drain_cookie;
@@ -253,6 +265,8 @@ struct t4_cqe {
 #define CQE_WRID_STAG(x)  (be32_to_cpu((x)->u.rcqe.stag))
 #define CQE_WRID_MSN(x)   (be32_to_cpu((x)->u.rcqe.msn))
 #define CQE_ABS_RQE_IDX(x) (be32_to_cpu((x)->u.srcqe.abs_rqe_idx))
+#define CQE_IMM_DATA(x)( \
+	(x)->u.imm_data_rcqe.iw_imm_data.ib_imm_data.imm_data32)
 
 /* used for SQ completion processing */
 #define CQE_WRID_SQ_IDX(x)	((x)->u.scqe.cidx)

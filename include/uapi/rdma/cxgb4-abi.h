@@ -65,7 +65,8 @@ struct c4iw_create_cq_resp {
 };
 
 enum {
-	C4IW_QPF_ONCHIP = (1 << 0)
+	C4IW_QPF_ONCHIP	= (1 << 0),
+	C4IW_QPF_WRITE_W_IMM = (1 << 1)
 };
 
 struct c4iw_create_qp_resp {

@@ -50,7 +50,8 @@ enum fw_ri_wr_opcode {
 	FW_RI_BYPASS			= 0xd,
 	FW_RI_RECEIVE			= 0xe,
 
-	FW_RI_SGE_EC_CR_RETURN		= 0xf
+	FW_RI_SGE_EC_CR_RETURN		= 0xf,
+	FW_RI_WRITE_IMMEDIATE           = FW_RI_RDMA_INIT
 };
 
 enum fw_ri_wr_flags {
@@ -59,7 +60,8 @@ enum fw_ri_wr_flags {
 	FW_RI_SOLICITED_EVENT_FLAG	= 0x04,
 	FW_RI_READ_FENCE_FLAG		= 0x08,
 	FW_RI_LOCAL_FENCE_FLAG		= 0x10,
-	FW_RI_RDMA_READ_INVALIDATE	= 0x20
+	FW_RI_RDMA_READ_INVALIDATE	= 0x20,
+	FW_RI_RDMA_WRITE_WITH_IMMEDIATE = 0x40
 };
 
 enum fw_ri_mpa_attrs {
@@ -546,7 +548,17 @@ struct fw_ri_rdma_write_wr {
 	__u16  wrid;
 	__u8   r1[3];
 	__u8   len16;
-	__be64 r2;
+	/*
+	 * Use union for immediate data to be consistent with stack's 32 bit
+	 * data and iWARP spec's 64 bit data.
+	 */
+	union {
+		struct {
+			__be32 imm_data32;
+			u32 reserved;
+		} ib_imm_data;
+		__be64 imm_data64;
+	} iw_imm_data;
 	__be32 plen;
 	__be32 stag_sink;
 	__be64 to_sink;

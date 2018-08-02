@@ -555,7 +555,15 @@ static int build_rdma_write(struct t4_sq *sq, union t4_wr *wqe,
 
 	if (wr->num_sge > T4_MAX_SEND_SGE)
 		return -EINVAL;
-	wqe->write.r2 = 0;
+
+	/*
+	 * iWARP protocol supports 64 bit immediate data but rdma api
+	 * limits it to 32bit.
+	 */
+	if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM)
+		wqe->write.iw_imm_data.ib_imm_data.imm_data32 = wr->ex.imm_data;
+	else
+		wqe->write.iw_imm_data.ib_imm_data.imm_data32 = 0;
 	wqe->write.stag_sink = cpu_to_be32(rdma_wr(wr)->rkey);
 	wqe->write.to_sink = cpu_to_be64(rdma_wr(wr)->remote_addr);
 	if (wr->num_sge) {
@@ -848,6 +856,9 @@ static int ib_to_fw_opcode(int ib_opcode)
 	case IB_WR_RDMA_WRITE:
 		opcode = FW_RI_RDMA_WRITE;
 		break;
+	case IB_WR_RDMA_WRITE_WITH_IMM:
+		opcode = FW_RI_WRITE_IMMEDIATE;
+		break;
 	case IB_WR_RDMA_READ:
 	case IB_WR_RDMA_READ_WITH_INV:
 		opcode = FW_RI_READ_REQ;
@@ -970,6 +981,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	enum fw_wr_opcodes fw_opcode = 0;
 	enum fw_ri_wr_flags fw_flags;
 	struct c4iw_qp *qhp;
+	struct c4iw_dev *rhp;
 	union t4_wr *wqe = NULL;
 	u32 num_wrs;
 	struct t4_swsqe *swsqe;
@@ -977,6 +989,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	u16 idx = 0;
 
 	qhp = to_c4iw_qp(ibqp);
+	rhp = qhp->rhp;
 	spin_lock_irqsave(&qhp->lock, flag);
 
 	/*
@@ -1021,6 +1034,13 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				swsqe->opcode = FW_RI_SEND_WITH_INV;
 			err = build_rdma_send(&qhp->wq.sq, wqe, wr, &len16);
 			break;
+		case IB_WR_RDMA_WRITE_WITH_IMM:
+			if (unlikely(!rhp->rdev.lldi.write_w_imm_support)) {
+				err = -EINVAL;
+				break;
+			}
+			fw_flags |= FW_RI_RDMA_WRITE_WITH_IMMEDIATE;
+			/*FALLTHROUGH*/
 		case IB_WR_RDMA_WRITE:
 			fw_opcode = FW_RI_RDMA_WRITE_WR;
 			swsqe->opcode = FW_RI_RDMA_WRITE;
@@ -1031,8 +1051,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			fw_opcode = FW_RI_RDMA_READ_WR;
 			swsqe->opcode = FW_RI_READ_REQ;
 			if (wr->opcode == IB_WR_RDMA_READ_WITH_INV) {
-				c4iw_invalidate_mr(qhp->rhp,
-						   wr->sg_list[0].lkey);
+				c4iw_invalidate_mr(rhp, wr->sg_list[0].lkey);
 				fw_flags = FW_RI_RDMA_READ_INVALIDATE;
 			} else {
 				fw_flags = 0;
@@ -1048,7 +1067,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			struct c4iw_mr *mhp = to_c4iw_mr(reg_wr(wr)->mr);
 
 			swsqe->opcode = FW_RI_FAST_REGISTER;
-			if (qhp->rhp->rdev.lldi.fr_nsmr_tpte_wr_support &&
+			if (rhp->rdev.lldi.fr_nsmr_tpte_wr_support &&
 			    !mhp->attr.state && mhp->mpl_len <= 2) {
 				fw_opcode = FW_RI_FR_NSMR_TPTE_WR;
 				build_tpte_memreg(&wqe->fr_tpte, reg_wr(wr),
@@ -1057,7 +1076,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				fw_opcode = FW_RI_FR_NSMR_WR;
 				err = build_memreg(&qhp->wq.sq, wqe, reg_wr(wr),
 				       mhp, &len16,
-				       qhp->rhp->rdev.lldi.ulptx_memwrite_dsgl);
+				       rhp->rdev.lldi.ulptx_memwrite_dsgl);
 				if (err)
 					break;
 			}
@@ -1070,7 +1089,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			fw_opcode = FW_RI_INV_LSTAG_WR;
 			swsqe->opcode = FW_RI_LOCAL_INV;
 			err = build_inv_stag(wqe, wr, &len16);
-			c4iw_invalidate_mr(qhp->rhp, wr->ex.invalidate_rkey);
+			c4iw_invalidate_mr(rhp, wr->ex.invalidate_rkey);
 			break;
 		default:
 			pr_warn("%s post of type=%d TBD!\n", __func__,
@@ -1089,7 +1108,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		swsqe->wr_id = wr->wr_id;
 		if (c4iw_wr_log) {
 			swsqe->sge_ts = cxgb4_read_sge_timestamp(
-					qhp->rhp->rdev.lldi.ports[0]);
+					rhp->rdev.lldi.ports[0]);
 			swsqe->host_time = ktime_get();
 		}
 
@@ -1103,7 +1122,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		t4_sq_produce(&qhp->wq, len16);
 		idx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
 	}
-	if (!qhp->rhp->rdev.status_page->db_off) {
+	if (!rhp->rdev.status_page->db_off) {
 		t4_ring_sq_db(&qhp->wq, idx, wqe);
 		spin_unlock_irqrestore(&qhp->lock, flag);
 	} else {
@@ -2098,6 +2117,8 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 			}
 			uresp.flags = C4IW_QPF_ONCHIP;
 		}
+		if (rhp->rdev.lldi.write_w_imm_support)
+			uresp.flags |= C4IW_QPF_WRITE_W_IMM;
 		uresp.qid_mask = rhp->rdev.qpmask;
 		uresp.sqid = qhp->wq.sq.qid;
 		uresp.sq_size = qhp->wq.sq.size;
