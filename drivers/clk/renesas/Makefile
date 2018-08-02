@@ -7,6 +7,7 @@ obj-$(CONFIG_CLK_R8A7740)		+= clk-r8a7740.o
 obj-$(CONFIG_CLK_R8A7743)		+= r8a7743-cpg-mssr.o
 obj-$(CONFIG_CLK_R8A7745)		+= r8a7745-cpg-mssr.o
 obj-$(CONFIG_CLK_R8A77470)		+= r8a77470-cpg-mssr.o
+obj-$(CONFIG_CLK_R8A774A1)		+= r8a774a1-cpg-mssr.o
 obj-$(CONFIG_CLK_R8A7778)		+= clk-r8a7778.o
 obj-$(CONFIG_CLK_R8A7779)		+= clk-r8a7779.o
 obj-$(CONFIG_CLK_R8A7790)		+= r8a7790-cpg-mssr.o
