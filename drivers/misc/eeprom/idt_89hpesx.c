@@ -1128,7 +1128,7 @@ static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 
 	device_for_each_child_node(dev, fwnode) {
 		ee_id = idt_ee_match_id(fwnode);
-		if (IS_ERR_OR_NULL(ee_id)) {
+		if (!ee_id) {
 			dev_warn(dev, "Skip unsupported EEPROM device");
 			continue;
 		} else
