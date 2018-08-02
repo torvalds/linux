@@ -56,10 +56,6 @@
 
 #define APEX_EXTENDED_SHIFT 63 /* Extended address bit position. */
 
-enum apex_reset_types {
-	APEX_CHIP_REINIT_RESET = 3,
-};
-
 /* Check reset 120 times */
 #define APEX_RESET_RETRY 120
 /* Wait 100 ms between checks. Total 12 sec wait maximum. */
@@ -258,7 +254,7 @@ static int apex_get_status(struct gasket_dev *gasket_dev)
 }
 
 /* Enter GCB reset state. */
-static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
+static int apex_enter_reset(struct gasket_dev *gasket_dev)
 {
 	if (bypass_top_level)
 		return 0;
@@ -313,7 +309,7 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 }
 
 /* Quit GCB reset state. */
-static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
+static int apex_quit_reset(struct gasket_dev *gasket_dev)
 {
 	u32 val0, val1;
 
@@ -413,7 +409,7 @@ static int apex_device_cleanup(struct gasket_dev *gasket_dev)
 		__func__, gasket_dev, hib_error, scalar_error);
 
 	if (allow_power_save)
-		ret = apex_enter_reset(gasket_dev, APEX_CHIP_REINIT_RESET);
+		ret = apex_enter_reset(gasket_dev);
 
 	return ret;
 }
@@ -429,7 +425,7 @@ static bool is_gcb_in_reset(struct gasket_dev *gasket_dev)
 }
 
 /* Reset the hardware, then quit reset.  Called on device open. */
-static int apex_reset(struct gasket_dev *gasket_dev, uint type)
+static int apex_reset(struct gasket_dev *gasket_dev)
 {
 	int ret;
 
@@ -442,11 +438,11 @@ static int apex_reset(struct gasket_dev *gasket_dev, uint type)
 		 */
 		dev_dbg(gasket_dev->dev, "%s: toggle reset\n", __func__);
 
-		ret = apex_enter_reset(gasket_dev, type);
+		ret = apex_enter_reset(gasket_dev);
 		if (ret)
 			return ret;
 	}
-	ret = apex_quit_reset(gasket_dev, type);
+	ret = apex_quit_reset(gasket_dev);
 
 	return ret;
 }
@@ -456,7 +452,7 @@ static int apex_add_dev_cb(struct gasket_dev *gasket_dev)
 	ulong page_table_ready, msix_table_ready;
 	int retries = 0;
 
-	apex_reset(gasket_dev, 0);
+	apex_reset(gasket_dev);
 
 	while (retries < APEX_RESET_RETRY) {
 		page_table_ready =
@@ -611,7 +607,7 @@ static int apex_sysfs_setup_cb(struct gasket_dev *gasket_dev)
 /* On device open, perform a core reinit reset. */
 static int apex_device_open_cb(struct gasket_dev *gasket_dev)
 {
-	return gasket_reset_nolock(gasket_dev, APEX_CHIP_REINIT_RESET);
+	return gasket_reset_nolock(gasket_dev);
 }
 
 static const struct pci_device_id apex_pci_ids[] = {
