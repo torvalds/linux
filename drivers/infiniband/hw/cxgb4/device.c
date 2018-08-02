@@ -866,6 +866,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->qp_size = rdev->lldi.vr->qp.size;
 	rdev->status_page->cq_start = rdev->lldi.vr->cq.start;
 	rdev->status_page->cq_size = rdev->lldi.vr->cq.size;
+	rdev->status_page->write_cmpl_supported = rdev->lldi.write_cmpl_support;
 
 	if (c4iw_wr_log) {
 		rdev->wr_log = kcalloc(1 << c4iw_wr_log_size_order,

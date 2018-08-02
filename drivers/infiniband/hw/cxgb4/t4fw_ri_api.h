@@ -595,6 +595,37 @@ struct fw_ri_send_wr {
 #define FW_RI_SEND_WR_SENDOP_G(x)	\
 	(((x) >> FW_RI_SEND_WR_SENDOP_S) & FW_RI_SEND_WR_SENDOP_M)
 
+struct fw_ri_rdma_write_cmpl_wr {
+	__u8   opcode;
+	__u8   flags;
+	__u16  wrid;
+	__u8   r1[3];
+	__u8   len16;
+	__u8   r2;
+	__u8   flags_send;
+	__u16  wrid_send;
+	__be32 stag_inv;
+	__be32 plen;
+	__be32 stag_sink;
+	__be64 to_sink;
+	union fw_ri_cmpl {
+		struct fw_ri_immd_cmpl {
+			__u8   op;
+			__u8   r1[6];
+			__u8   immdlen;
+			__u8   data[16];
+		} immd_src;
+		struct fw_ri_isgl isgl_src;
+	} u_cmpl;
+	__be64 r3;
+#ifndef C99_NOT_SUPPORTED
+	union fw_ri_write {
+		struct fw_ri_immd immd_src[0];
+		struct fw_ri_isgl isgl_src[0];
+	} u;
+#endif
+};
+
 struct fw_ri_rdma_read_wr {
 	__u8   opcode;
 	__u8   flags;

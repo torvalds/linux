@@ -455,7 +455,12 @@ static int build_isgl(__be64 *queue_start, __be64 *queue_end,
 {
 	int i;
 	u32 plen = 0;
-	__be64 *flitp = (__be64 *)isglp->sge;
+	__be64 *flitp;
+
+	if ((__be64 *)isglp == queue_end)
+		isglp = (struct fw_ri_isgl *)queue_start;
+
+	flitp = (__be64 *)isglp->sge;
 
 	for (i = 0; i < num_sge; i++) {
 		if ((plen + sg_list[i].length) < plen)
@@ -597,6 +602,56 @@ static int build_rdma_write(struct t4_sq *sq, union t4_wr *wqe,
 	return 0;
 }
 
+static void build_immd_cmpl(struct t4_sq *sq, struct fw_ri_immd_cmpl *immdp,
+			    struct ib_send_wr *wr)
+{
+	memcpy((u8 *)immdp->data, (u8 *)(uintptr_t)wr->sg_list->addr, 16);
+	memset(immdp->r1, 0, 6);
+	immdp->op = FW_RI_DATA_IMMD;
+	immdp->immdlen = 16;
+}
+
+static void build_rdma_write_cmpl(struct t4_sq *sq,
+				  struct fw_ri_rdma_write_cmpl_wr *wcwr,
+				  const struct ib_send_wr *wr, u8 *len16)
+{
+	u32 plen;
+	int size;
+
+	/*
+	 * This code assumes the struct fields preceding the write isgl
+	 * fit in one 64B WR slot.  This is because the WQE is built
+	 * directly in the dma queue, and wrapping is only handled
+	 * by the code buildling sgls.  IE the "fixed part" of the wr
+	 * structs must all fit in 64B.  The WQE build code should probably be
+	 * redesigned to avoid this restriction, but for now just add
+	 * the BUILD_BUG_ON() to catch if this WQE struct gets too big.
+	 */
+	BUILD_BUG_ON(offsetof(struct fw_ri_rdma_write_cmpl_wr, u) > 64);
+
+	wcwr->stag_sink = cpu_to_be32(rdma_wr(wr)->rkey);
+	wcwr->to_sink = cpu_to_be64(rdma_wr(wr)->remote_addr);
+	wcwr->stag_inv = cpu_to_be32(wr->next->ex.invalidate_rkey);
+	wcwr->r2 = 0;
+	wcwr->r3 = 0;
+
+	/* SEND_INV SGL */
+	if (wr->next->send_flags & IB_SEND_INLINE)
+		build_immd_cmpl(sq, &wcwr->u_cmpl.immd_src, wr->next);
+	else
+		build_isgl((__be64 *)sq->queue, (__be64 *)&sq->queue[sq->size],
+			   &wcwr->u_cmpl.isgl_src, wr->next->sg_list, 1, NULL);
+
+	/* WRITE SGL */
+	build_isgl((__be64 *)sq->queue, (__be64 *)&sq->queue[sq->size],
+		   wcwr->u.isgl_src, wr->sg_list, wr->num_sge, &plen);
+
+	size = sizeof(*wcwr) + sizeof(struct fw_ri_isgl) +
+		wr->num_sge * sizeof(struct fw_ri_sge);
+	wcwr->plen = cpu_to_be32(plen);
+	*len16 = DIV_ROUND_UP(size, 16);
+}
+
 static int build_rdma_read(union t4_wr *wqe, const struct ib_send_wr *wr,
 			   u8 *len16)
 {
@@ -625,6 +680,72 @@ static int build_rdma_read(union t4_wr *wqe, const struct ib_send_wr *wr,
 	wqe->read.r5 = 0;
 	*len16 = DIV_ROUND_UP(sizeof wqe->read, 16);
 	return 0;
+}
+
+static void post_write_cmpl(struct c4iw_qp *qhp, const struct ib_send_wr *wr)
+{
+	bool send_signaled = (wr->next->send_flags & IB_SEND_SIGNALED) ||
+			     qhp->sq_sig_all;
+	bool write_signaled = (wr->send_flags & IB_SEND_SIGNALED) ||
+			      qhp->sq_sig_all;
+	struct t4_swsqe *swsqe;
+	union t4_wr *wqe;
+	u16 write_wrid;
+	u8 len16;
+	u16 idx;
+
+	/*
+	 * The sw_sq entries still look like a WRITE and a SEND and consume
+	 * 2 slots. The FW WR, however, will be a single uber-WR.
+	 */
+	wqe = (union t4_wr *)((u8 *)qhp->wq.sq.queue +
+	       qhp->wq.sq.wq_pidx * T4_EQ_ENTRY_SIZE);
+	build_rdma_write_cmpl(&qhp->wq.sq, &wqe->write_cmpl, wr, &len16);
+
+	/* WRITE swsqe */
+	swsqe = &qhp->wq.sq.sw_sq[qhp->wq.sq.pidx];
+	swsqe->opcode = FW_RI_RDMA_WRITE;
+	swsqe->idx = qhp->wq.sq.pidx;
+	swsqe->complete = 0;
+	swsqe->signaled = write_signaled;
+	swsqe->flushed = 0;
+	swsqe->wr_id = wr->wr_id;
+	if (c4iw_wr_log) {
+		swsqe->sge_ts =
+			cxgb4_read_sge_timestamp(qhp->rhp->rdev.lldi.ports[0]);
+		swsqe->host_time = ktime_get();
+	}
+
+	write_wrid = qhp->wq.sq.pidx;
+
+	/* just bump the sw_sq */
+	qhp->wq.sq.in_use++;
+	if (++qhp->wq.sq.pidx == qhp->wq.sq.size)
+		qhp->wq.sq.pidx = 0;
+
+	/* SEND_WITH_INV swsqe */
+	swsqe = &qhp->wq.sq.sw_sq[qhp->wq.sq.pidx];
+	swsqe->opcode = FW_RI_SEND_WITH_INV;
+	swsqe->idx = qhp->wq.sq.pidx;
+	swsqe->complete = 0;
+	swsqe->signaled = send_signaled;
+	swsqe->flushed = 0;
+	swsqe->wr_id = wr->next->wr_id;
+	if (c4iw_wr_log) {
+		swsqe->sge_ts =
+			cxgb4_read_sge_timestamp(qhp->rhp->rdev.lldi.ports[0]);
+		swsqe->host_time = ktime_get();
+	}
+
+	wqe->write_cmpl.flags_send = send_signaled ? FW_RI_COMPLETION_FLAG : 0;
+	wqe->write_cmpl.wrid_send = qhp->wq.sq.pidx;
+
+	init_wr_hdr(wqe, write_wrid, FW_RI_RDMA_WRITE_CMPL_WR,
+		    write_signaled ? FW_RI_COMPLETION_FLAG : 0, len16);
+	t4_sq_produce(&qhp->wq, len16);
+	idx = DIV_ROUND_UP(len16 * 16, T4_EQ_ENTRY_SIZE);
+
+	t4_ring_sq_db(&qhp->wq, idx, wqe);
 }
 
 static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
@@ -1007,6 +1128,30 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		*bad_wr = wr;
 		return -ENOMEM;
 	}
+
+	/*
+	 * Fastpath for NVMe-oF target WRITE + SEND_WITH_INV wr chain which is
+	 * the response for small NVMEe-oF READ requests.  If the chain is
+	 * exactly a WRITE->SEND_WITH_INV and the sgl depths and lengths
+	 * meet the requirements of the fw_ri_write_cmpl_wr work request,
+	 * then build and post the write_cmpl WR.  If any of the tests
+	 * below are not true, then we continue on with the tradtional WRITE
+	 * and SEND WRs.
+	 */
+	if (qhp->rhp->rdev.lldi.write_cmpl_support &&
+	    CHELSIO_CHIP_VERSION(qhp->rhp->rdev.lldi.adapter_type) >=
+	    CHELSIO_T5 &&
+	    wr && wr->next && !wr->next->next &&
+	    wr->opcode == IB_WR_RDMA_WRITE &&
+	    wr->sg_list[0].length && wr->num_sge <= T4_WRITE_CMPL_MAX_SGL &&
+	    wr->next->opcode == IB_WR_SEND_WITH_INV &&
+	    wr->next->sg_list[0].length == T4_WRITE_CMPL_MAX_CQE &&
+	    wr->next->num_sge == 1 && num_wrs >= 2) {
+		post_write_cmpl(qhp, wr);
+		spin_unlock_irqrestore(&qhp->lock, flag);
+		return 0;
+	}
+
 	while (wr) {
 		if (num_wrs == 0) {
 			err = -ENOMEM;

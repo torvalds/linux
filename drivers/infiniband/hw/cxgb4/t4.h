@@ -91,6 +91,9 @@ static inline int t4_max_fr_depth(int use_dsgl)
 #define T4_RQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_RQ_NUM_SLOTS)
 #define T4_MAX_RECV_SGE 4
 
+#define T4_WRITE_CMPL_MAX_SGL 4
+#define T4_WRITE_CMPL_MAX_CQE 16
+
 union t4_wr {
 	struct fw_ri_res_wr res;
 	struct fw_ri_wr ri;
@@ -101,6 +104,7 @@ union t4_wr {
 	struct fw_ri_fr_nsmr_wr fr;
 	struct fw_ri_fr_nsmr_tpte_wr fr_tpte;
 	struct fw_ri_inv_lstag_wr inv;
+	struct fw_ri_rdma_write_cmpl_wr write_cmpl;
 	struct t4_status_page status;
 	__be64 flits[T4_EQ_ENTRY_SIZE / sizeof(__be64) * T4_SQ_NUM_SLOTS];
 };
@@ -851,7 +855,7 @@ static inline void t4_set_cq_in_error(struct t4_cq *cq)
 
 struct t4_dev_status_page {
 	u8 db_off;
-	u8 pad1;
+	u8 write_cmpl_supported;
 	u16 pad2;
 	u32 pad3;
 	u64 qp_start;
