@@ -1461,7 +1461,7 @@ static void be_tx_timeout(struct net_device *netdev)
 						 ntohs(tcphdr->source));
 					dev_info(dev, "TCP dest port %d\n",
 						 ntohs(tcphdr->dest));
-					dev_info(dev, "TCP seqence num %d\n",
+					dev_info(dev, "TCP sequence num %d\n",
 						 ntohs(tcphdr->seq));
 					dev_info(dev, "TCP ack_seq %d\n",
 						 ntohs(tcphdr->ack_seq));
