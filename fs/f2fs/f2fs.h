@@ -1334,7 +1334,7 @@ static inline bool is_idle(struct f2fs_sb_info *sbi)
 	struct request_list *rl = &q->root_rl;
 
 	if (rl->count[BLK_RW_SYNC] || rl->count[BLK_RW_ASYNC])
-		return 0;
+		return false;
 
 	return f2fs_time_over(sbi, REQ_TIME);
 }
@@ -3400,7 +3400,7 @@ static inline bool f2fs_may_encrypt(struct inode *inode)
 
 	return (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode));
 #else
-	return 0;
+	return false;
 #endif
 }
 
