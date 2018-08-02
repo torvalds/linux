@@ -140,7 +140,7 @@
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
 		rockchip,pwm_id= <2>;
-		rockchip,pwm_voltage = <1000000>;
+		rockchip,pwm_voltage = <900000>;
 		regulator-name = "vdd_log";
 		regulator-min-microvolt = <750000>;
 		regulator-max-microvolt = <1350000>;
