@@ -3237,7 +3237,7 @@ bool ring_buffer_record_is_on(struct ring_buffer *buffer)
  * ring_buffer_record_disable(), as that is a temporary disabling of
  * the ring buffer.
  */
-int ring_buffer_record_is_set_on(struct ring_buffer *buffer)
+bool ring_buffer_record_is_set_on(struct ring_buffer *buffer)
 {
 	return !(atomic_read(&buffer->record_disabled) & RB_BUFFER_OFF);
 }
