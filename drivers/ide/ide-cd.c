@@ -419,7 +419,7 @@ static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct ide_cmd *cmd)
 
 int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		    int write, void *buffer, unsigned *bufflen,
-		    struct request_sense *sense, int timeout,
+		    struct scsi_sense_hdr *sshdr, int timeout,
 		    req_flags_t rq_flags)
 {
 	struct cdrom_info *info = drive->driver_data;
@@ -456,8 +456,9 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 
 		if (buffer)
 			*bufflen = scsi_req(rq)->resid_len;
-		if (sense)
-			memcpy(sense, scsi_req(rq)->sense, sizeof(*sense));
+		if (sshdr)
+			scsi_normalize_sense(scsi_req(rq)->sense,
+					     scsi_req(rq)->sense_len, sshdr);
 
 		/*
 		 * FIXME: we should probably abort/retry or something in case of
@@ -864,7 +865,7 @@ static void msf_from_bcd(struct atapi_msf *msf)
 	msf->frame  = bcd2bin(msf->frame);
 }
 
-int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
+int cdrom_check_status(ide_drive_t *drive, struct scsi_sense_hdr *sshdr)
 {
 	struct cdrom_info *info = drive->driver_data;
 	struct cdrom_device_info *cdi;
@@ -886,7 +887,7 @@ int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
 	 */
 	cmd[7] = cdi->sanyo_slot % 3;
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, sense, 0, RQF_QUIET);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, sshdr, 0, RQF_QUIET);
 }
 
 static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,

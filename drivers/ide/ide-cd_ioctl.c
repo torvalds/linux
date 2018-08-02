@@ -43,14 +43,14 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 {
 	ide_drive_t *drive = cdi->handle;
 	struct media_event_desc med;
-	struct request_sense sense;
+	struct scsi_sense_hdr sshdr;
 	int stat;
 
 	if (slot_nr != CDSL_CURRENT)
 		return -EINVAL;
 
-	stat = cdrom_check_status(drive, &sense);
-	if (!stat || sense.sense_key == UNIT_ATTENTION)
+	stat = cdrom_check_status(drive, &sshdr);
+	if (!stat || sshdr.sense_key == UNIT_ATTENTION)
 		return CDS_DISC_OK;
 
 	if (!cdrom_get_media_event(cdi, &med)) {
@@ -62,8 +62,8 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 			return CDS_NO_DISC;
 	}
 
-	if (sense.sense_key == NOT_READY && sense.asc == 0x04
-			&& sense.ascq == 0x04)
+	if (sshdr.sense_key == NOT_READY && sshdr.asc == 0x04
+			&& sshdr.ascq == 0x04)
 		return CDS_DISC_OK;
 
 	/*
@@ -71,8 +71,8 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 	 * just return TRAY_OPEN since ATAPI doesn't provide
 	 * any other way to detect this...
 	 */
-	if (sense.sense_key == NOT_READY) {
-		if (sense.asc == 0x3a && sense.ascq == 1)
+	if (sshdr.sense_key == NOT_READY) {
+		if (sshdr.asc == 0x3a && sshdr.ascq == 1)
 			return CDS_NO_DISC;
 		else
 			return CDS_TRAY_OPEN;
@@ -135,7 +135,7 @@ int cdrom_eject(ide_drive_t *drive, int ejectflag)
 static
 int ide_cd_lockdoor(ide_drive_t *drive, int lockflag)
 {
-	struct request_sense my_sense, *sense = &my_sense;
+	struct scsi_sense_hdr sshdr;
 	int stat;
 
 	/* If the drive cannot lock the door, just pretend. */
@@ -150,14 +150,14 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag)
 		cmd[4] = lockflag ? 1 : 0;
 
 		stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL,
-				       sense, 0, 0);
+				       &sshdr, 0, 0);
 	}
 
 	/* If we got an illegal field error, the drive
 	   probably cannot lock the door. */
 	if (stat != 0 &&
-	    sense->sense_key == ILLEGAL_REQUEST &&
-	    (sense->asc == 0x24 || sense->asc == 0x20)) {
+	    sshdr.sense_key == ILLEGAL_REQUEST &&
+	    (sshdr.asc == 0x24 || sshdr.asc == 0x20)) {
 		printk(KERN_ERR "%s: door locking not supported\n",
 			drive->name);
 		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
@@ -165,7 +165,7 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag)
 	}
 
 	/* no medium, that's alright. */
-	if (stat != 0 && sense->sense_key == NOT_READY && sense->asc == 0x3a)
+	if (stat != 0 && sshdr.sense_key == NOT_READY && sshdr.asc == 0x3a)
 		stat = 0;
 
 	if (stat == 0) {
@@ -451,8 +451,8 @@ int ide_cdrom_packet(struct cdrom_device_info *cdi,
 	   layer. the packet must be complete, as we do not
 	   touch it at all. */
 
-	if (cgc->sense)
-		memset(cgc->sense, 0, sizeof(struct request_sense));
+	if (cgc->sshdr)
+		memset(cgc->sshdr, 0, sizeof(*cgc->sshdr));
 
 	if (cgc->quiet)
 		flags |= RQF_QUIET;
@@ -460,7 +460,7 @@ int ide_cdrom_packet(struct cdrom_device_info *cdi,
 	cgc->stat = ide_cd_queue_pc(drive, cgc->cmd,
 				    cgc->data_direction == CGC_DATA_WRITE,
 				    cgc->buffer, &len,
-				    cgc->sense, cgc->timeout, flags);
+				    cgc->sshdr, cgc->timeout, flags);
 	if (!cgc->stat)
 		cgc->buflen -= len;
 	return cgc->stat;

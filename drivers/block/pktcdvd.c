@@ -748,13 +748,13 @@ static const char *sense_key_string(__u8 index)
 static void pkt_dump_sense(struct pktcdvd_device *pd,
 			   struct packet_command *cgc)
 {
-	struct request_sense *sense = cgc->sense;
+	struct scsi_sense_hdr *sshdr = cgc->sshdr;
 
-	if (sense)
+	if (sshdr)
 		pkt_err(pd, "%*ph - sense %02x.%02x.%02x (%s)\n",
 			CDROM_PACKET_SIZE, cgc->cmd,
-			sense->sense_key, sense->asc, sense->ascq,
-			sense_key_string(sense->sense_key));
+			sshdr->sense_key, sshdr->asc, sshdr->ascq,
+			sense_key_string(sshdr->sense_key));
 	else
 		pkt_err(pd, "%*ph - no sense\n", CDROM_PACKET_SIZE, cgc->cmd);
 }
@@ -787,11 +787,11 @@ static noinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
 				unsigned write_speed, unsigned read_speed)
 {
 	struct packet_command cgc;
-	struct request_sense sense;
+	struct scsi_sense_hdr sshdr;
 	int ret;
 
 	init_cdrom_command(&cgc, NULL, 0, CGC_DATA_NONE);
-	cgc.sense = &sense;
+	cgc.sshdr = &sshdr;
 	cgc.cmd[0] = GPCMD_SET_SPEED;
 	cgc.cmd[2] = (read_speed >> 8) & 0xff;
 	cgc.cmd[3] = read_speed & 0xff;
@@ -1651,7 +1651,7 @@ static noinline_for_stack int pkt_get_last_written(struct pktcdvd_device *pd,
 static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 {
 	struct packet_command cgc;
-	struct request_sense sense;
+	struct scsi_sense_hdr sshdr;
 	write_param_page *wp;
 	char buffer[128];
 	int ret, size;
@@ -1662,7 +1662,7 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 
 	memset(buffer, 0, sizeof(buffer));
 	init_cdrom_command(&cgc, buffer, sizeof(*wp), CGC_DATA_READ);
-	cgc.sense = &sense;
+	cgc.sshdr = &sshdr;
 	ret = pkt_mode_sense(pd, &cgc, GPMODE_WRITE_PARMS_PAGE, 0);
 	if (ret) {
 		pkt_dump_sense(pd, &cgc);
@@ -1678,7 +1678,7 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 	 * now get it all
 	 */
 	init_cdrom_command(&cgc, buffer, size, CGC_DATA_READ);
-	cgc.sense = &sense;
+	cgc.sshdr = &sshdr;
 	ret = pkt_mode_sense(pd, &cgc, GPMODE_WRITE_PARMS_PAGE, 0);
 	if (ret) {
 		pkt_dump_sense(pd, &cgc);
@@ -1916,12 +1916,12 @@ static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
 						int set)
 {
 	struct packet_command cgc;
-	struct request_sense sense;
+	struct scsi_sense_hdr sshdr;
 	unsigned char buf[64];
 	int ret;
 
 	init_cdrom_command(&cgc, buf, sizeof(buf), CGC_DATA_READ);
-	cgc.sense = &sense;
+	cgc.sshdr = &sshdr;
 	cgc.buflen = pd->mode_offset + 12;
 
 	/*
@@ -1962,14 +1962,14 @@ static noinline_for_stack int pkt_get_max_speed(struct pktcdvd_device *pd,
 						unsigned *write_speed)
 {
 	struct packet_command cgc;
-	struct request_sense sense;
+	struct scsi_sense_hdr sshdr;
 	unsigned char buf[256+18];
 	unsigned char *cap_buf;
 	int ret, offset;
 
 	cap_buf = &buf[sizeof(struct mode_page_header) + pd->mode_offset];
 	init_cdrom_command(&cgc, buf, sizeof(buf), CGC_DATA_UNKNOWN);
-	cgc.sense = &sense;
+	cgc.sshdr = &sshdr;
 
 	ret = pkt_mode_sense(pd, &cgc, GPMODE_CAPABILITIES_PAGE, 0);
 	if (ret) {
@@ -2023,13 +2023,13 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 						unsigned *speed)
 {
 	struct packet_command cgc;
-	struct request_sense sense;
+	struct scsi_sense_hdr sshdr;
 	unsigned char buf[64];
 	unsigned int size, st, sp;
 	int ret;
 
 	init_cdrom_command(&cgc, buf, 2, CGC_DATA_READ);
-	cgc.sense = &sense;
+	cgc.sshdr = &sshdr;
 	cgc.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
 	cgc.cmd[1] = 2;
 	cgc.cmd[2] = 4; /* READ ATIP */
@@ -2044,7 +2044,7 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 		size = sizeof(buf);
 
 	init_cdrom_command(&cgc, buf, size, CGC_DATA_READ);
-	cgc.sense = &sense;
+	cgc.sshdr = &sshdr;
 	cgc.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
 	cgc.cmd[1] = 2;
 	cgc.cmd[2] = 4;
@@ -2095,13 +2095,13 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 static noinline_for_stack int pkt_perform_opc(struct pktcdvd_device *pd)
 {
 	struct packet_command cgc;
-	struct request_sense sense;
+	struct scsi_sense_hdr sshdr;
 	int ret;
 
 	pkt_dbg(2, pd, "Performing OPC\n");
 
 	init_cdrom_command(&cgc, NULL, 0, CGC_DATA_NONE);
-	cgc.sense = &sense;
+	cgc.sshdr = &sshdr;
 	cgc.timeout = 60*HZ;
 	cgc.cmd[0] = GPCMD_SEND_OPC;
 	cgc.cmd[1] = 1;
