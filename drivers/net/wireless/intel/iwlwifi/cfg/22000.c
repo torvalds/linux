@@ -59,7 +59,7 @@
 #define IWL_22000_UCODE_API_MAX	38
 
 /* Lowest firmware API version supported */
-#define IWL_22000_UCODE_API_MIN	24
+#define IWL_22000_UCODE_API_MIN	39
 
 /* NVM versions */
 #define IWL_22000_NVM_VERSION		0x0a1d

@@ -402,35 +402,6 @@ static int iwl_store_cscheme(struct iwl_fw *fw, const u8 *data, const u32 len)
 	return 0;
 }
 
-static void iwl_store_gscan_capa(struct iwl_fw *fw, const u8 *data,
-				 const u32 len)
-{
-	struct iwl_fw_gscan_capabilities *fw_capa = (void *)data;
-	struct iwl_gscan_capabilities *capa = &fw->gscan_capa;
-
-	capa->max_scan_cache_size = le32_to_cpu(fw_capa->max_scan_cache_size);
-	capa->max_scan_buckets = le32_to_cpu(fw_capa->max_scan_buckets);
-	capa->max_ap_cache_per_scan =
-		le32_to_cpu(fw_capa->max_ap_cache_per_scan);
-	capa->max_rssi_sample_size = le32_to_cpu(fw_capa->max_rssi_sample_size);
-	capa->max_scan_reporting_threshold =
-		le32_to_cpu(fw_capa->max_scan_reporting_threshold);
-	capa->max_hotlist_aps = le32_to_cpu(fw_capa->max_hotlist_aps);
-	capa->max_significant_change_aps =
-		le32_to_cpu(fw_capa->max_significant_change_aps);
-	capa->max_bssid_history_entries =
-		le32_to_cpu(fw_capa->max_bssid_history_entries);
-	capa->max_hotlist_ssids = le32_to_cpu(fw_capa->max_hotlist_ssids);
-	capa->max_number_epno_networks =
-		le32_to_cpu(fw_capa->max_number_epno_networks);
-	capa->max_number_epno_networks_by_ssid =
-		le32_to_cpu(fw_capa->max_number_epno_networks_by_ssid);
-	capa->max_number_of_white_listed_ssid =
-		le32_to_cpu(fw_capa->max_number_of_white_listed_ssid);
-	capa->max_number_of_black_listed_ssid =
-		le32_to_cpu(fw_capa->max_number_of_black_listed_ssid);
-}
-
 /*
  * Gets uCode section from tlv.
  */
@@ -644,7 +615,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	u32 build, paging_mem_size;
 	int num_of_cpus;
 	bool usniffer_req = false;
-	bool gscan_capa = false;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(drv, "uCode has invalid length: %zd\n", len);
@@ -1043,6 +1013,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			pieces->dbg_trigger_tlv_len[trigger_id] = tlv_len;
 			break;
 			}
+		case IWL_UCODE_TLV_FW_DBG_DUMP_LST: {
+			if (tlv_len != sizeof(u32)) {
+				IWL_ERR(drv,
+					"dbg lst mask size incorrect, skip\n");
+				break;
+			}
+
+			drv->fw.dbg_dump_mask =
+				le32_to_cpup((__le32 *)tlv_data);
+			break;
+			}
 		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
 			*usniffer_images = true;
 			iwl_store_ucode_sec(pieces, tlv_data,
@@ -1079,16 +1060,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				paging_mem_size;
 			break;
 		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
-			/*
-			 * Don't return an error in case of a shorter tlv_len
-			 * to enable loading of FW that has an old format
-			 * of GSCAN capabilities TLV.
-			 */
-			if (tlv_len < sizeof(struct iwl_fw_gscan_capabilities))
-				break;
-
-			iwl_store_gscan_capa(&drv->fw, tlv_data, tlv_len);
-			gscan_capa = true;
+			/* ignored */
 			break;
 		case IWL_UCODE_TLV_FW_MEM_SEG: {
 			struct iwl_fw_dbg_mem_seg_tlv *dbg_mem =
@@ -1151,19 +1123,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		IWL_ERR(drv, "invalid TLV after parsing: %zd\n", len);
 		iwl_print_hex_dump(drv, IWL_DL_FW, (u8 *)data, len);
 		return -EINVAL;
-	}
-
-	/*
-	 * If ucode advertises that it supports GSCAN but GSCAN
-	 * capabilities TLV is not present, or if it has an old format,
-	 * warn and continue without GSCAN.
-	 */
-	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT) &&
-	    !gscan_capa) {
-		IWL_DEBUG_INFO(drv,
-			       "GSCAN is supported but capabilities TLV is unavailable\n");
-		__clear_bit((__force long)IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT,
-			    capa->_capa);
 	}
 
 	return 0;
@@ -1316,6 +1275,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
+	/* dump all fw memory areas by default */
+	fw->dbg_dump_mask = 0xffffffff;
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
