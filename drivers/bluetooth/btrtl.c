@@ -47,47 +47,95 @@ struct id_table {
 	__u16 lmp_subver;
 	__u16 hci_rev;
 	bool config_needed;
+	bool has_rom_version;
 	char *fw_name;
 	char *cfg_name;
 };
 
+struct btrtl_device_info {
+	const struct id_table *ic_info;
+	u8 rom_version;
+	u8 *fw_data;
+	int fw_len;
+	u8 *cfg_data;
+	int cfg_len;
+};
+
 static const struct id_table ic_id_table[] = {
+	{ IC_MATCH_FL_LMPSUBV, RTL_ROM_LMP_8723A, 0x0,
+	  .config_needed = false,
+	  .has_rom_version = false,
+	  .fw_name = "rtl_bt/rtl8723a_fw.bin",
+	  .cfg_name = NULL },
+
+	{ IC_MATCH_FL_LMPSUBV, RTL_ROM_LMP_3499, 0x0,
+	  .config_needed = false,
+	  .has_rom_version = false,
+	  .fw_name = "rtl_bt/rtl8723a_fw.bin",
+	  .cfg_name = NULL },
+
 	/* 8723B */
 	{ IC_INFO(RTL_ROM_LMP_8723B, 0xb),
 	  .config_needed = false,
+	  .has_rom_version = true,
 	  .fw_name  = "rtl_bt/rtl8723b_fw.bin",
 	  .cfg_name = "rtl_bt/rtl8723b_config.bin" },
 
 	/* 8723D */
 	{ IC_INFO(RTL_ROM_LMP_8723B, 0xd),
 	  .config_needed = true,
+	  .has_rom_version = true,
 	  .fw_name  = "rtl_bt/rtl8723d_fw.bin",
 	  .cfg_name = "rtl_bt/rtl8723d_config.bin" },
 
 	/* 8821A */
 	{ IC_INFO(RTL_ROM_LMP_8821A, 0xa),
 	  .config_needed = false,
+	  .has_rom_version = true,
 	  .fw_name  = "rtl_bt/rtl8821a_fw.bin",
 	  .cfg_name = "rtl_bt/rtl8821a_config.bin" },
 
 	/* 8821C */
 	{ IC_INFO(RTL_ROM_LMP_8821A, 0xc),
 	  .config_needed = false,
+	  .has_rom_version = true,
 	  .fw_name  = "rtl_bt/rtl8821c_fw.bin",
 	  .cfg_name = "rtl_bt/rtl8821c_config.bin" },
 
 	/* 8761A */
 	{ IC_MATCH_FL_LMPSUBV, RTL_ROM_LMP_8761A, 0x0,
 	  .config_needed = false,
+	  .has_rom_version = true,
 	  .fw_name  = "rtl_bt/rtl8761a_fw.bin",
 	  .cfg_name = "rtl_bt/rtl8761a_config.bin" },
 
 	/* 8822B */
 	{ IC_INFO(RTL_ROM_LMP_8822B, 0xb),
 	  .config_needed = true,
+	  .has_rom_version = true,
 	  .fw_name  = "rtl_bt/rtl8822b_fw.bin",
 	  .cfg_name = "rtl_bt/rtl8822b_config.bin" },
 	};
+
+static const struct id_table *btrtl_match_ic(u16 lmp_subver, u16 hci_rev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ic_id_table); i++) {
+		if ((ic_id_table[i].match_flags & IC_MATCH_FL_LMPSUBV) &&
+		    (ic_id_table[i].lmp_subver != lmp_subver))
+			continue;
+		if ((ic_id_table[i].match_flags & IC_MATCH_FL_HCIREV) &&
+		    (ic_id_table[i].hci_rev != hci_rev))
+			continue;
+
+		break;
+	}
+	if (i >= ARRAY_SIZE(ic_id_table))
+		return NULL;
+
+	return &ic_id_table[i];
+}
 
 static int rtl_read_rom_version(struct hci_dev *hdev, u8 *version)
 {
@@ -118,16 +166,16 @@ static int rtl_read_rom_version(struct hci_dev *hdev, u8 *version)
 	return 0;
 }
 
-static int rtlbt_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
-				const struct firmware *fw,
+static int rtlbt_parse_firmware(struct hci_dev *hdev,
+				struct btrtl_device_info *btrtl_dev,
 				unsigned char **_buf)
 {
 	const u8 extension_sig[] = { 0x51, 0x04, 0xfd, 0x77 };
 	struct rtl_epatch_header *epatch_info;
 	unsigned char *buf;
-	int i, ret, len;
+	int i, len;
 	size_t min_size;
-	u8 opcode, length, data, rom_version = 0;
+	u8 opcode, length, data;
 	int project_id = -1;
 	const unsigned char *fwptr, *chip_id_base;
 	const unsigned char *patch_length_base, *patch_offset_base;
@@ -146,15 +194,11 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
 		{ RTL_ROM_LMP_8821A, 10 },	/* 8821C */
 	};
 
-	ret = rtl_read_rom_version(hdev, &rom_version);
-	if (ret)
-		return ret;
-
 	min_size = sizeof(struct rtl_epatch_header) + sizeof(extension_sig) + 3;
-	if (fw->size < min_size)
+	if (btrtl_dev->fw_len < min_size)
 		return -EINVAL;
 
-	fwptr = fw->data + fw->size - sizeof(extension_sig);
+	fwptr = btrtl_dev->fw_data + btrtl_dev->fw_len - sizeof(extension_sig);
 	if (memcmp(fwptr, extension_sig, sizeof(extension_sig)) != 0) {
 		BT_ERR("%s: extension section signature mismatch", hdev->name);
 		return -EINVAL;
@@ -166,7 +210,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
 	 * Once we have that, we double-check that that project_id is suitable
 	 * for the hardware we are working with.
 	 */
-	while (fwptr >= fw->data + (sizeof(struct rtl_epatch_header) + 3)) {
+	while (fwptr >= btrtl_dev->fw_data + (sizeof(*epatch_info) + 3)) {
 		opcode = *--fwptr;
 		length = *--fwptr;
 		data = *--fwptr;
@@ -206,13 +250,15 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
 		return -EINVAL;
 	}
 
-	if (lmp_subver != project_id_to_lmp_subver[i].lmp_subver) {
+	if (btrtl_dev->ic_info->lmp_subver !=
+				project_id_to_lmp_subver[i].lmp_subver) {
 		BT_ERR("%s: firmware is for %x but this is a %x", hdev->name,
-		       project_id_to_lmp_subver[i].lmp_subver, lmp_subver);
+		       project_id_to_lmp_subver[i].lmp_subver,
+		       btrtl_dev->ic_info->lmp_subver);
 		return -EINVAL;
 	}
 
-	epatch_info = (struct rtl_epatch_header *)fw->data;
+	epatch_info = (struct rtl_epatch_header *)btrtl_dev->fw_data;
 	if (memcmp(epatch_info->signature, RTL_EPATCH_SIGNATURE, 8) != 0) {
 		BT_ERR("%s: bad EPATCH signature", hdev->name);
 		return -EINVAL;
@@ -229,16 +275,16 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
 	 * Find the right patch for this chip.
 	 */
 	min_size += 8 * num_patches;
-	if (fw->size < min_size)
+	if (btrtl_dev->fw_len < min_size)
 		return -EINVAL;
 
-	chip_id_base = fw->data + sizeof(struct rtl_epatch_header);
+	chip_id_base = btrtl_dev->fw_data + sizeof(struct rtl_epatch_header);
 	patch_length_base = chip_id_base + (sizeof(u16) * num_patches);
 	patch_offset_base = patch_length_base + (sizeof(u16) * num_patches);
 	for (i = 0; i < num_patches; i++) {
 		u16 chip_id = get_unaligned_le16(chip_id_base +
 						 (i * sizeof(u16)));
-		if (chip_id == rom_version + 1) {
+		if (chip_id == btrtl_dev->rom_version + 1) {
 			patch_length = get_unaligned_le16(patch_length_base +
 							  (i * sizeof(u16)));
 			patch_offset = get_unaligned_le32(patch_offset_base +
@@ -249,20 +295,21 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
 
 	if (!patch_offset) {
 		BT_ERR("%s: didn't find patch for chip id %d",
-		       hdev->name, rom_version);
+		       hdev->name, btrtl_dev->rom_version);
 		return -EINVAL;
 	}
 
 	BT_DBG("length=%x offset=%x index %d", patch_length, patch_offset, i);
 	min_size = patch_offset + patch_length;
-	if (fw->size < min_size)
+	if (btrtl_dev->fw_len < min_size)
 		return -EINVAL;
 
 	/* Copy the firmware into a new buffer and write the version at
 	 * the end.
 	 */
 	len = patch_length;
-	buf = kmemdup(fw->data + patch_offset, patch_length, GFP_KERNEL);
+	buf = kmemdup(btrtl_dev->fw_data + patch_offset, patch_length,
+		      GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -324,7 +371,7 @@ out:
 	return ret;
 }
 
-static int rtl_load_config(struct hci_dev *hdev, const char *name, u8 **buff)
+static int rtl_load_file(struct hci_dev *hdev, const char *name, u8 **buff)
 {
 	const struct firmware *fw;
 	int ret;
@@ -343,96 +390,37 @@ static int rtl_load_config(struct hci_dev *hdev, const char *name, u8 **buff)
 	return ret;
 }
 
-static int btrtl_setup_rtl8723a(struct hci_dev *hdev)
+static int btrtl_setup_rtl8723a(struct hci_dev *hdev,
+				struct btrtl_device_info *btrtl_dev)
 {
-	const struct firmware *fw;
-	int ret;
-
-	bt_dev_info(hdev, "rtl: loading rtl_bt/rtl8723a_fw.bin");
-	ret = request_firmware(&fw, "rtl_bt/rtl8723a_fw.bin", &hdev->dev);
-	if (ret < 0) {
-		BT_ERR("%s: Failed to load rtl_bt/rtl8723a_fw.bin", hdev->name);
-		return ret;
-	}
-
-	if (fw->size < 8) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (btrtl_dev->fw_len < 8)
+		return -EINVAL;
 
 	/* Check that the firmware doesn't have the epatch signature
 	 * (which is only for RTL8723B and newer).
 	 */
-	if (!memcmp(fw->data, RTL_EPATCH_SIGNATURE, 8)) {
+	if (!memcmp(btrtl_dev->fw_data, RTL_EPATCH_SIGNATURE, 8)) {
 		BT_ERR("%s: unexpected EPATCH signature!", hdev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = rtl_download_firmware(hdev, fw->data, fw->size);
-
-out:
-	release_firmware(fw);
-	return ret;
-}
-
-static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 hci_rev,
-				u16 lmp_subver)
-{
-	unsigned char *fw_data = NULL;
-	const struct firmware *fw;
-	int ret;
-	int cfg_sz;
-	u8 *cfg_buff = NULL;
-	u8 *tbuff;
-	char *cfg_name = NULL;
-	char *fw_name = NULL;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ic_id_table); i++) {
-		if ((ic_id_table[i].match_flags & IC_MATCH_FL_LMPSUBV) &&
-		    (ic_id_table[i].lmp_subver != lmp_subver))
-			continue;
-		if ((ic_id_table[i].match_flags & IC_MATCH_FL_HCIREV) &&
-		    (ic_id_table[i].hci_rev != hci_rev))
-			continue;
-
-		break;
-	}
-
-	if (i >= ARRAY_SIZE(ic_id_table)) {
-		BT_ERR("%s: unknown IC info, lmp subver %04x, hci rev %04x",
-		       hdev->name, lmp_subver, hci_rev);
 		return -EINVAL;
 	}
 
-	cfg_name = ic_id_table[i].cfg_name;
+	return rtl_download_firmware(hdev, btrtl_dev->fw_data,
+				     btrtl_dev->fw_len);
+}
 
-	if (cfg_name) {
-		cfg_sz = rtl_load_config(hdev, cfg_name, &cfg_buff);
-		if (cfg_sz < 0) {
-			cfg_sz = 0;
-			if (ic_id_table[i].config_needed)
-				BT_ERR("Necessary config file %s not found\n",
-				       cfg_name);
-		}
-	} else
-		cfg_sz = 0;
+static int btrtl_setup_rtl8723b(struct hci_dev *hdev,
+				struct btrtl_device_info *btrtl_dev)
+{
+	unsigned char *fw_data = NULL;
+	int ret;
+	u8 *tbuff;
 
-	fw_name = ic_id_table[i].fw_name;
-	bt_dev_info(hdev, "rtl: loading %s", fw_name);
-	ret = request_firmware(&fw, fw_name, &hdev->dev);
-	if (ret < 0) {
-		BT_ERR("%s: Failed to load %s", hdev->name, fw_name);
-		goto err_req_fw;
-	}
-
-	ret = rtlbt_parse_firmware(hdev, lmp_subver, fw, &fw_data);
+	ret = rtlbt_parse_firmware(hdev, btrtl_dev, &fw_data);
 	if (ret < 0)
 		goto out;
 
-	if (cfg_sz) {
-		tbuff = kzalloc(ret + cfg_sz, GFP_KERNEL);
+	if (btrtl_dev->cfg_len > 0) {
+		tbuff = kzalloc(ret + btrtl_dev->cfg_len, GFP_KERNEL);
 		if (!tbuff) {
 			ret = -ENOMEM;
 			goto out;
@@ -441,22 +429,18 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 hci_rev,
 		memcpy(tbuff, fw_data, ret);
 		kfree(fw_data);
 
-		memcpy(tbuff + ret, cfg_buff, cfg_sz);
-		ret += cfg_sz;
+		memcpy(tbuff + ret, btrtl_dev->cfg_data, btrtl_dev->cfg_len);
+		ret += btrtl_dev->cfg_len;
 
 		fw_data = tbuff;
 	}
 
-	bt_dev_info(hdev, "cfg_sz %d, total size %d", cfg_sz, ret);
+	rtl_dev_info(hdev, "cfg_sz %d, total sz %d\n", btrtl_dev->cfg_len, ret);
 
 	ret = rtl_download_firmware(hdev, fw_data, ret);
 
 out:
-	release_firmware(fw);
 	kfree(fw_data);
-err_req_fw:
-	if (cfg_sz)
-		kfree(cfg_buff);
 	return ret;
 }
 
@@ -482,15 +466,33 @@ static struct sk_buff *btrtl_read_local_version(struct hci_dev *hdev)
 	return skb;
 }
 
-int btrtl_setup_realtek(struct hci_dev *hdev)
+void btrtl_free(struct btrtl_device_info *btrtl_dev)
 {
+	kfree(btrtl_dev->fw_data);
+	kfree(btrtl_dev->cfg_data);
+	kfree(btrtl_dev);
+}
+EXPORT_SYMBOL_GPL(btrtl_free);
+
+struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev)
+{
+	struct btrtl_device_info *btrtl_dev;
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *resp;
 	u16 hci_rev, lmp_subver;
+	int ret;
+
+	btrtl_dev = kzalloc(sizeof(*btrtl_dev), GFP_KERNEL);
+	if (!btrtl_dev) {
+		ret = -ENOMEM;
+		goto err_alloc;
+	}
 
 	skb = btrtl_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return -PTR_ERR(skb);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		goto err_free;
+	}
 
 	resp = (struct hci_rp_read_local_version *)skb->data;
 	bt_dev_info(hdev, "rtl: examining hci_ver=%02x hci_rev=%04x "
@@ -502,25 +504,90 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 	lmp_subver = le16_to_cpu(resp->lmp_subver);
 	kfree_skb(skb);
 
+	btrtl_dev->ic_info = btrtl_match_ic(lmp_subver, hci_rev);
+	if (!btrtl_dev->ic_info) {
+		rtl_dev_err(hdev, "unknown IC info, lmp subver %04x, hci rev %04x\n",
+			    lmp_subver, hci_rev);
+		ret = -EINVAL;
+		goto err_free;
+	}
+
+	if (btrtl_dev->ic_info->has_rom_version) {
+		ret = rtl_read_rom_version(hdev, &btrtl_dev->rom_version);
+		if (ret)
+			goto err_free;
+	}
+
+	btrtl_dev->fw_len = rtl_load_file(hdev, btrtl_dev->ic_info->fw_name,
+					  &btrtl_dev->fw_data);
+	if (btrtl_dev->fw_len < 0) {
+		rtl_dev_err(hdev, "firmware file %s not found\n",
+			    btrtl_dev->ic_info->fw_name);
+		ret = btrtl_dev->fw_len;
+		goto err_free;
+	}
+
+	if (btrtl_dev->ic_info->cfg_name) {
+		btrtl_dev->cfg_len = rtl_load_file(hdev,
+						   btrtl_dev->ic_info->cfg_name,
+						   &btrtl_dev->cfg_data);
+		if (btrtl_dev->ic_info->config_needed &&
+		    btrtl_dev->cfg_len <= 0) {
+			rtl_dev_err(hdev, "mandatory config file %s not found\n",
+				    btrtl_dev->ic_info->cfg_name);
+			ret = btrtl_dev->cfg_len;
+			goto err_free;
+		}
+	}
+
+	return btrtl_dev;
+
+err_free:
+	btrtl_free(btrtl_dev);
+err_alloc:
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(btrtl_initialize);
+
+int btrtl_download_firmware(struct hci_dev *hdev,
+			    struct btrtl_device_info *btrtl_dev)
+{
 	/* Match a set of subver values that correspond to stock firmware,
 	 * which is not compatible with standard btusb.
 	 * If matched, upload an alternative firmware that does conform to
 	 * standard btusb. Once that firmware is uploaded, the subver changes
 	 * to a different value.
 	 */
-	switch (lmp_subver) {
+	switch (btrtl_dev->ic_info->lmp_subver) {
 	case RTL_ROM_LMP_8723A:
 	case RTL_ROM_LMP_3499:
-		return btrtl_setup_rtl8723a(hdev);
+		return btrtl_setup_rtl8723a(hdev, btrtl_dev);
 	case RTL_ROM_LMP_8723B:
 	case RTL_ROM_LMP_8821A:
 	case RTL_ROM_LMP_8761A:
 	case RTL_ROM_LMP_8822B:
-		return btrtl_setup_rtl8723b(hdev, hci_rev, lmp_subver);
+		return btrtl_setup_rtl8723b(hdev, btrtl_dev);
 	default:
 		bt_dev_info(hdev, "rtl: assuming no firmware upload needed");
 		return 0;
 	}
+}
+EXPORT_SYMBOL_GPL(btrtl_download_firmware);
+
+int btrtl_setup_realtek(struct hci_dev *hdev)
+{
+	struct btrtl_device_info *btrtl_dev;
+	int ret;
+
+	btrtl_dev = btrtl_initialize(hdev);
+	if (IS_ERR(btrtl_dev))
+		return PTR_ERR(btrtl_dev);
+
+	ret = btrtl_download_firmware(hdev, btrtl_dev);
+
+	btrtl_free(btrtl_dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(btrtl_setup_realtek);
 
