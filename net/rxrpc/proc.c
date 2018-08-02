@@ -63,7 +63,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
-	unsigned long timeout = 0, nowj;
+	unsigned long timeout = 0;
 	rxrpc_seq_t tx_hard_ack, rx_hard_ack;
 	char lbuff[50], rbuff[50];
 
@@ -97,7 +97,6 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 
 	if (call->state != RXRPC_CALL_SERVER_PREALLOC) {
 		timeout = READ_ONCE(call->expect_rx_by);
-		nowj = jiffies;
 		timeout -= jiffies;
 	}
 
