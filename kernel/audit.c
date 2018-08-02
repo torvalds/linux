@@ -2177,22 +2177,21 @@ void audit_log_name(struct audit_context *context, struct audit_names *n,
 	}
 
 	/* log the audit_names record type */
-	audit_log_format(ab, " nametype=");
 	switch(n->type) {
 	case AUDIT_TYPE_NORMAL:
-		audit_log_format(ab, "NORMAL");
+		audit_log_format(ab, " nametype=NORMAL");
 		break;
 	case AUDIT_TYPE_PARENT:
-		audit_log_format(ab, "PARENT");
+		audit_log_format(ab, " nametype=PARENT");
 		break;
 	case AUDIT_TYPE_CHILD_DELETE:
-		audit_log_format(ab, "DELETE");
+		audit_log_format(ab, " nametype=DELETE");
 		break;
 	case AUDIT_TYPE_CHILD_CREATE:
-		audit_log_format(ab, "CREATE");
+		audit_log_format(ab, " nametype=CREATE");
 		break;
 	default:
-		audit_log_format(ab, "UNKNOWN");
+		audit_log_format(ab, " nametype=UNKNOWN");
 		break;
 	}
 

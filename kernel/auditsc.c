@@ -2503,10 +2503,9 @@ void audit_seccomp_actions_logged(const char *names, const char *old_names,
 	if (unlikely(!ab))
 		return;
 
-	audit_log_format(ab, "op=seccomp-logging");
-	audit_log_format(ab, " actions=%s", names);
-	audit_log_format(ab, " old-actions=%s", old_names);
-	audit_log_format(ab, " res=%d", res);
+	audit_log_format(ab,
+			 "op=seccomp-logging actions=%s old-actions=%s res=%d",
+			 names, old_names, res);
 	audit_log_end(ab);
 }
 

@@ -246,8 +246,7 @@ static void audit_watch_log_rule_change(struct audit_krule *r, struct audit_watc
 	if (!ab)
 		return;
 	audit_log_session_info(ab);
-	audit_log_format(ab, "op=%s", op);
-	audit_log_format(ab, " path=");
+	audit_log_format(ab, "op=%s path=", op);
 	audit_log_untrustedstring(ab, w->path);
 	audit_log_key(ab, r->filterkey);
 	audit_log_format(ab, " list=%d res=1", r->listnr);
