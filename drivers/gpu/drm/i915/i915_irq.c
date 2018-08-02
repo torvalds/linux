@@ -478,7 +478,7 @@ void gen11_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 {
 	spin_lock_irq(&dev_priv->irq_lock);
-	gen6_reset_pm_iir(dev_priv, dev_priv->pm_rps_events);
+	gen6_reset_pm_iir(dev_priv, GEN6_PM_RPS_EVENTS);
 	dev_priv->gt_pm.rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
@@ -516,7 +516,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0u));
 
-	gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	gen6_disable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 	synchronize_irq(dev_priv->drm.irq);
@@ -4778,7 +4778,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		/* WaGsvRC0ResidencyMethod:vlv */
 		dev_priv->pm_rps_events = GEN6_PM_RP_UP_EI_EXPIRED;
 	else
-		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
+		dev_priv->pm_rps_events = (GEN6_PM_RP_UP_THRESHOLD |
+					   GEN6_PM_RP_DOWN_THRESHOLD |
+					   GEN6_PM_RP_DOWN_TIMEOUT);
 
 	rps->pm_intrmsk_mbz = 0;
 
