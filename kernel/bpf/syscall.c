@@ -957,6 +957,9 @@ static void free_used_maps(struct bpf_prog_aux *aux)
 {
 	int i;
 
+	if (aux->cgroup_storage)
+		bpf_cgroup_storage_release(aux->prog, aux->cgroup_storage);
+
 	for (i = 0; i < aux->used_map_cnt; i++)
 		bpf_map_put(aux->used_maps[i]);
 
