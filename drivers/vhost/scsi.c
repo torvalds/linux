@@ -1797,7 +1797,7 @@ static int vhost_scsi_drop_nexus(struct vhost_scsi_tpg *tpg)
 	/*
 	 * Release the SCSI I_T Nexus to the emulated vhost Target Port
 	 */
-	transport_deregister_session(tv_nexus->tvn_se_sess);
+	target_remove_session(se_sess);
 	tpg->tpg_nexus = NULL;
 	mutex_unlock(&tpg->tv_tpg_mutex);
 

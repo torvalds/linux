@@ -1638,7 +1638,7 @@ static int tcm_usbg_drop_nexus(struct usbg_tpg *tpg)
 	/*
 	 * Release the SCSI I_T Nexus to the emulated vHost Target Port
 	 */
-	transport_deregister_session(tv_nexus->tvn_se_sess);
+	target_remove_session(se_sess);
 	tpg->tpg_nexus = NULL;
 
 	kfree(tv_nexus);

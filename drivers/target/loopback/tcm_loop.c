@@ -805,7 +805,7 @@ static int tcm_loop_drop_nexus(
 	/*
 	 * Release the SCSI I_T Nexus to the emulated Target Port
 	 */
-	transport_deregister_session(tl_nexus->se_sess);
+	target_remove_session(se_sess);
 	tpg->tl_nexus = NULL;
 	kfree(tl_nexus);
 	return 0;
