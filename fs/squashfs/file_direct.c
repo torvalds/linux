@@ -21,10 +21,11 @@
 #include "page_actor.h"
 
 static int squashfs_read_cache(struct page *target_page, u64 block, int bsize,
-	int pages, struct page **page);
+	int pages, struct page **page, int bytes);
 
 /* Read separately compressed datablock directly into page cache */
-int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
+int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
+	int expected)
 
 {
 	struct inode *inode = target_page->mapping->host;
@@ -83,7 +84,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 		 * using an intermediate buffer.
 		 */
 		res = squashfs_read_cache(target_page, block, bsize, pages,
-								page);
+							page, expected);
 		if (res < 0)
 			goto mark_errored;
 
@@ -94,6 +95,11 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 	res = squashfs_read_data(inode->i_sb, block, bsize, NULL, actor);
 	if (res < 0)
 		goto mark_errored;
+
+	if (res != expected) {
+		res = -EIO;
+		goto mark_errored;
+	}
 
 	/* Last page may have trailing bytes not filled */
 	bytes = res % PAGE_SIZE;
@@ -138,12 +144,12 @@ out:
 
 
 static int squashfs_read_cache(struct page *target_page, u64 block, int bsize,
-	int pages, struct page **page)
+	int pages, struct page **page, int bytes)
 {
 	struct inode *i = target_page->mapping->host;
 	struct squashfs_cache_entry *buffer = squashfs_get_datablock(i->i_sb,
 						 block, bsize);
-	int bytes = buffer->length, res = buffer->error, n, offset = 0;
+	int res = buffer->error, n, offset = 0;
 
 	if (res) {
 		ERROR("Unable to read page, block %llx, size %x\n", block,
