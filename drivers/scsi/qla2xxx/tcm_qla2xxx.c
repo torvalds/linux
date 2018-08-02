@@ -1539,7 +1539,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	 * Locate our struct se_node_acl either from an explict NodeACL created
 	 * via ConfigFS, or via running in TPG demo mode.
 	 */
-	se_sess = target_alloc_session(&tpg->se_tpg, num_tags,
+	se_sess = target_setup_session(&tpg->se_tpg, num_tags,
 				       sizeof(struct qla_tgt_cmd),
 				       TARGET_PROT_ALL, port_name,
 				       qlat_sess, tcm_qla2xxx_session_cb);

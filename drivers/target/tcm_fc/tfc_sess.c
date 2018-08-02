@@ -239,7 +239,7 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 	sess->tport = tport;
 	sess->port_id = port_id;
 
-	sess->se_sess = target_alloc_session(se_tpg, TCM_FC_DEFAULT_TAGS,
+	sess->se_sess = target_setup_session(se_tpg, TCM_FC_DEFAULT_TAGS,
 					     sizeof(struct ft_cmd),
 					     TARGET_PROT_NORMAL, &initiatorname[0],
 					     sess, ft_sess_alloc_cb);

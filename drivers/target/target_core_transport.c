@@ -416,7 +416,7 @@ void transport_register_session(
 EXPORT_SYMBOL(transport_register_session);
 
 struct se_session *
-target_alloc_session(struct se_portal_group *tpg,
+target_setup_session(struct se_portal_group *tpg,
 		     unsigned int tag_num, unsigned int tag_size,
 		     enum target_prot_op prot_op,
 		     const char *initiatorname, void *private,
@@ -458,7 +458,7 @@ target_alloc_session(struct se_portal_group *tpg,
 	transport_register_session(tpg, sess->se_node_acl, sess, private);
 	return sess;
 }
-EXPORT_SYMBOL(target_alloc_session);
+EXPORT_SYMBOL(target_setup_session);
 
 ssize_t target_show_dynamic_sessions(struct se_portal_group *se_tpg, char *page)
 {

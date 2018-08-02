@@ -109,7 +109,7 @@ void target_unregister_template(const struct target_core_fabric_ops *fo);
 int target_depend_item(struct config_item *item);
 void target_undepend_item(struct config_item *item);
 
-struct se_session *target_alloc_session(struct se_portal_group *,
+struct se_session *target_setup_session(struct se_portal_group *,
 		unsigned int, unsigned int, enum target_prot_op prot_op,
 		const char *, void *,
 		int (*callback)(struct se_portal_group *,

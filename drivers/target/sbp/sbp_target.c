@@ -209,7 +209,7 @@ static struct sbp_session *sbp_session_create(
 	INIT_DELAYED_WORK(&sess->maint_work, session_maintenance_work);
 	sess->guid = guid;
 
-	sess->se_sess = target_alloc_session(&tpg->se_tpg, 128,
+	sess->se_sess = target_setup_session(&tpg->se_tpg, 128,
 					     sizeof(struct sbp_target_request),
 					     TARGET_PROT_NORMAL, guid_str,
 					     sess, NULL);

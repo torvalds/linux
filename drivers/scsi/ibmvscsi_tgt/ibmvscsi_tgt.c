@@ -2233,7 +2233,7 @@ static int ibmvscsis_make_nexus(struct ibmvscsis_tport *tport)
 		return -ENOMEM;
 	}
 
-	nexus->se_sess = target_alloc_session(&tport->se_tpg, 0, 0,
+	nexus->se_sess = target_setup_session(&tport->se_tpg, 0, 0,
 					      TARGET_PROT_NORMAL, name, nexus,
 					      NULL);
 	if (IS_ERR(nexus->se_sess)) {
