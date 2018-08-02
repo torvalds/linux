@@ -149,37 +149,15 @@ static struct drm_driver exynos_drm_driver = {
 static int exynos_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct exynos_drm_private *private;
 
-	if (!drm_dev)
-		return 0;
-
-	private = drm_dev->dev_private;
-
-	drm_kms_helper_poll_disable(drm_dev);
-	exynos_drm_fbdev_suspend(drm_dev);
-	private->suspend_state = drm_atomic_helper_suspend(drm_dev);
-	if (IS_ERR(private->suspend_state)) {
-		exynos_drm_fbdev_resume(drm_dev);
-		drm_kms_helper_poll_enable(drm_dev);
-		return PTR_ERR(private->suspend_state);
-	}
-
-	return 0;
+	return  drm_mode_config_helper_suspend(drm_dev);
 }
 
 static void exynos_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct exynos_drm_private *private;
 
-	if (!drm_dev)
-		return;
-
-	private = drm_dev->dev_private;
-	drm_atomic_helper_resume(drm_dev, private->suspend_state);
-	exynos_drm_fbdev_resume(drm_dev);
-	drm_kms_helper_poll_enable(drm_dev);
+	drm_mode_config_helper_resume(drm_dev);
 }
 
 static const struct dev_pm_ops exynos_drm_pm_ops = {
