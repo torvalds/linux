@@ -753,7 +753,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			 * even if we have no EDID in order to go to
 			 * fail-safe mode
 			 */
-			if (!dc_is_dp_signal(link->connector_signal))
+			if (dc_is_hdmi_signal(link->connector_signal) ||
+			    dc_is_dvi_signal(link->connector_signal))
 				return false;
 		default:
 			break;
