@@ -1784,6 +1784,12 @@ int set_memory_nonglobal(unsigned long addr, int numpages)
 				      __pgprot(_PAGE_GLOBAL), 0);
 }
 
+int set_memory_global(unsigned long addr, int numpages)
+{
+	return change_page_attr_set(&addr, numpages,
+				    __pgprot(_PAGE_GLOBAL), 0);
+}
+
 static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 {
 	struct cpa_data cpa;
