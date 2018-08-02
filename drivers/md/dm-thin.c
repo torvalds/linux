@@ -2514,6 +2514,8 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 	case PM_WRITE:
 		if (old_mode != new_mode)
 			notify_of_pool_mode_change(pool, "write");
+		if (old_mode == PM_OUT_OF_DATA_SPACE)
+			cancel_delayed_work_sync(&pool->no_space_timeout);
 		pool->out_of_data_space = false;
 		pool->pf.error_if_no_space = pt->requested_pf.error_if_no_space;
 		dm_pool_metadata_read_write(pool->pmd);
