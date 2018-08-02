@@ -110,6 +110,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	unsigned long	wait_time;
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+	u32 chip_reset;
 
 
 	ql_dbg(ql_dbg_mbx, vha, 0x1000, "Entered %s.\n", __func__);
@@ -140,7 +141,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 	rval = QLA_SUCCESS;
 	abort_active = test_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
-
+	chip_reset = ha->chip_reset;
 
 	if (ha->flags.pci_channel_io_perm_failure) {
 		ql_log(ql_log_warn, vha, 0x1003,
@@ -167,6 +168,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
+	atomic_inc(&ha->num_pend_mbx_stage1);
 	/*
 	 * Wait for active mailbox commands to finish by waiting at most tov
 	 * seconds. This is to serialize actual issuing of mailbox cmds during
@@ -177,7 +179,13 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		ql_log(ql_log_warn, vha, 0xd035,
 		    "Cmd access timeout, cmd=0x%x, Exiting.\n",
 		    mcp->mb[0]);
+		atomic_dec(&ha->num_pend_mbx_stage1);
 		return QLA_FUNCTION_TIMEOUT;
+	}
+	atomic_dec(&ha->num_pend_mbx_stage1);
+	if (ha->flags.purge_mbox || chip_reset != ha->chip_reset) {
+		rval = QLA_ABORTED;
+		goto premature_exit;
 	}
 
 	ha->flags.mbox_busy = 1;
@@ -188,6 +196,13 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	    "Prepare to issue mbox cmd=0x%x.\n", mcp->mb[0]);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	if (ha->flags.purge_mbox || chip_reset != ha->chip_reset) {
+		rval = QLA_ABORTED;
+		ha->flags.mbox_busy = 0;
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		goto premature_exit;
+	}
 
 	/* Load mailbox registers. */
 	if (IS_P3P_TYPE(ha))
@@ -231,7 +246,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	    "jiffies=%lx.\n", jiffies);
 
 	/* Wait for mbx cmd completion until timeout */
-
+	atomic_inc(&ha->num_pend_mbx_stage2);
 	if ((!abort_active && io_lock_on) || IS_NOPOLLING_TYPE(ha)) {
 		set_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
@@ -241,6 +256,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				spin_unlock_irqrestore(&ha->hardware_lock,
 					flags);
 				ha->flags.mbox_busy = 0;
+				atomic_dec(&ha->num_pend_mbx_stage2);
 				ql_dbg(ql_dbg_mbx, vha, 0x1010,
 				    "Pending mailbox timeout, exiting.\n");
 				rval = QLA_FUNCTION_TIMEOUT;
@@ -254,6 +270,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 		wait_time = jiffies;
+		atomic_inc(&ha->num_pend_mbx_stage3);
 		if (!wait_for_completion_timeout(&ha->mbx_intr_comp,
 		    mcp->tov * HZ)) {
 			ql_dbg(ql_dbg_mbx, vha, 0x117a,
@@ -261,7 +278,17 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			spin_lock_irqsave(&ha->hardware_lock, flags);
 			clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+		} else if (ha->flags.purge_mbox ||
+		    chip_reset != ha->chip_reset) {
+			ha->flags.mbox_busy = 0;
+			atomic_dec(&ha->num_pend_mbx_stage2);
+			atomic_dec(&ha->num_pend_mbx_stage3);
+			rval = QLA_ABORTED;
+			goto premature_exit;
 		}
+		atomic_dec(&ha->num_pend_mbx_stage3);
+
 		if (time_after(jiffies, wait_time + 5 * HZ))
 			ql_log(ql_log_warn, vha, 0x1015, "cmd=0x%x, waited %d msecs\n",
 			    command, jiffies_to_msecs(jiffies - wait_time));
@@ -275,6 +302,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				spin_unlock_irqrestore(&ha->hardware_lock,
 					flags);
 				ha->flags.mbox_busy = 0;
+				atomic_dec(&ha->num_pend_mbx_stage2);
 				ql_dbg(ql_dbg_mbx, vha, 0x1012,
 				    "Pending mailbox timeout, exiting.\n");
 				rval = QLA_FUNCTION_TIMEOUT;
@@ -289,6 +317,14 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 		wait_time = jiffies + mcp->tov * HZ; /* wait at most tov secs */
 		while (!ha->flags.mbox_int) {
+			if (ha->flags.purge_mbox ||
+			    chip_reset != ha->chip_reset) {
+				ha->flags.mbox_busy = 0;
+				atomic_dec(&ha->num_pend_mbx_stage2);
+				rval = QLA_ABORTED;
+				goto premature_exit;
+			}
+
 			if (time_after(jiffies, wait_time))
 				break;
 
@@ -312,6 +348,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		    "Waited %d sec.\n",
 		    (uint)((jiffies - (wait_time - (mcp->tov * HZ)))/HZ));
 	}
+	atomic_dec(&ha->num_pend_mbx_stage2);
 
 	/* Check whether we timed out */
 	if (ha->flags.mbox_int) {
@@ -390,7 +427,8 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		/* Capture FW dump only, if PCI device active */
 		if (!pci_channel_offline(vha->hw->pdev)) {
 			pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
-			if (w == 0xffff || ictrl == 0xffffffff) {
+			if (w == 0xffff || ictrl == 0xffffffff ||
+			    (chip_reset != ha->chip_reset)) {
 				/* This is special case if there is unload
 				 * of driver happening and if PCI device go
 				 * into bad state due to PCI error condition
@@ -497,7 +535,11 @@ premature_exit:
 	complete(&ha->mbx_cmd_comp);
 
 mbx_done:
-	if (rval) {
+	if (rval == QLA_ABORTED) {
+		ql_log(ql_log_info, vha, 0xd035,
+		    "Chip Reset in progress. Purging Mbox cmd=0x%x.\n",
+		    mcp->mb[0]);
+	} else if (rval) {
 		if (ql2xextended_error_logging & (ql_dbg_disc|ql_dbg_mbx)) {
 			pr_warn("%s [%s]-%04x:%ld: **** Failed", QL_MSGHDR,
 			    dev_name(&ha->pdev->dev), 0x1020+0x800,

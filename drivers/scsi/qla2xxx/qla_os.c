@@ -2815,6 +2815,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->link_data_rate = PORT_SPEED_UNKNOWN;
 	ha->optrom_size = OPTROM_SIZE_2300;
 	ha->max_exchg = FW_MAX_EXCHANGES_CNT;
+	atomic_set(&ha->num_pend_mbx_stage1, 0);
+	atomic_set(&ha->num_pend_mbx_stage2, 0);
+	atomic_set(&ha->num_pend_mbx_stage3, 0);
 
 	/* Assign ISP specific operations. */
 	if (IS_QLA2100(ha)) {

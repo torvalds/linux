@@ -6283,6 +6283,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	ql_log(ql_log_info, vha, 0x00af,
 	    "Performing ISP error recovery - ha=%p.\n", ha);
 
+	ha->flags.purge_mbox = 1;
 	/* For ISP82XX, reset_chip is just disabling interrupts.
 	 * Driver waits for the completion of the commands.
 	 * the interrupts need to be enabled.
@@ -6297,12 +6298,30 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	ha->current_topology = 0;
 	ha->flags.fw_started = 0;
 	ha->flags.fw_init_done = 0;
-	ha->base_qpair->chip_reset++;
+	ha->chip_reset++;
+	ha->base_qpair->chip_reset = ha->chip_reset;
 	for (i = 0; i < ha->max_qpairs; i++) {
 		if (ha->queue_pair_map[i])
 			ha->queue_pair_map[i]->chip_reset =
 				ha->base_qpair->chip_reset;
 	}
+
+	/* purge MBox commands */
+	if (atomic_read(&ha->num_pend_mbx_stage3)) {
+		clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
+		complete(&ha->mbx_intr_comp);
+	}
+
+	i = 0;
+	while (atomic_read(&ha->num_pend_mbx_stage3) ||
+	    atomic_read(&ha->num_pend_mbx_stage2) ||
+	    atomic_read(&ha->num_pend_mbx_stage1)) {
+		msleep(20);
+		i++;
+		if (i > 50)
+			break;
+	}
+	ha->flags.purge_mbox = 0;
 
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
