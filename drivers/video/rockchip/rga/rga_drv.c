@@ -959,7 +959,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
 				goto err_put_dma_buf;
 			}
 
-			if (((daw >> 3) >= saw) || ((dah >> 3) >= daw)) {
+			if (((daw >> 3) >= saw) || ((dah >> 3) >= sah)) {
 				pr_err("unsupported to scaling more than 8 \n");
 				goto err_put_dma_buf;
 			}
