@@ -17,7 +17,6 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/component.h>
 #include <linux/regmap.h>
 #include <linux/log2.h>
 #include <sound/core.h>
@@ -1090,12 +1089,6 @@ struct snd_soc_card {
 	bool fully_routed;
 
 	struct work_struct deferred_resume_work;
-
-	/* component framework related */
-	bool components_added;
-	/* set in machine driver to enable/disable auto re-binding */
-	bool auto_bind;
-	struct component_match *match;
 
 	/* lists of probed devices belonging to this card */
 	struct list_head component_dev_list;
