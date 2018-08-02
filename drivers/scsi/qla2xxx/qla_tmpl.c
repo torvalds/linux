@@ -571,6 +571,15 @@ qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 		}
 		break;
 
+	case T268_BUF_TYPE_REQ_MIRROR:
+	case T268_BUF_TYPE_RSP_MIRROR:
+		/*
+		 * Mirror pointers are not implemented in the
+		 * driver, instead shadow pointers are used by
+		 * the drier. Skip these entries.
+		 */
+		qla27xx_skip_entry(ent, buf);
+		break;
 	default:
 		ql_dbg(ql_dbg_async, vha, 0xd02b,
 		    "%s: unknown buffer %x\n", __func__, ent->t268.buf_type);
