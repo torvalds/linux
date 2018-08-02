@@ -5925,10 +5925,7 @@ static int nf_tables_flowtable_event(struct notifier_block *this,
 	if (event != NETDEV_UNREGISTER)
 		return 0;
 
-	net = maybe_get_net(dev_net(dev));
-	if (!net)
-		return 0;
-
+	net = dev_net(dev);
 	mutex_lock(&net->nft.commit_mutex);
 	list_for_each_entry(table, &net->nft.tables, list) {
 		list_for_each_entry(flowtable, &table->flowtables, list) {
@@ -5936,7 +5933,7 @@ static int nf_tables_flowtable_event(struct notifier_block *this,
 		}
 	}
 	mutex_unlock(&net->nft.commit_mutex);
-	put_net(net);
+
 	return NOTIFY_DONE;
 }
 
