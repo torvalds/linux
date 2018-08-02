@@ -16,10 +16,17 @@ static struct drm_plane_state *
 vkms_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct vkms_plane_state *vkms_state;
+	struct vkms_crc_data *crc_data;
 
 	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
 	if (!vkms_state)
 		return NULL;
+
+	crc_data = kzalloc(sizeof(*crc_data), GFP_KERNEL);
+	if (WARN_ON(!crc_data))
+		DRM_INFO("Couldn't allocate crc_data");
+
+	vkms_state->crc_data = crc_data;
 
 	__drm_atomic_helper_plane_duplicate_state(plane,
 						  &vkms_state->base);
@@ -31,6 +38,18 @@ static void vkms_plane_destroy_state(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
 	struct vkms_plane_state *vkms_state = to_vkms_plane_state(old_state);
+	struct drm_crtc *crtc = vkms_state->base.crtc;
+
+	if (crtc) {
+		/* dropping the reference we acquired in
+		 * vkms_primary_plane_update()
+		 */
+		if (drm_framebuffer_read_refcount(&vkms_state->crc_data->fb))
+			drm_framebuffer_put(&vkms_state->crc_data->fb);
+	}
+
+	kfree(vkms_state->crc_data);
+	vkms_state->crc_data = NULL;
 
 	__drm_atomic_helper_plane_destroy_state(old_state);
 	kfree(vkms_state);
@@ -65,6 +84,17 @@ static const struct drm_plane_funcs vkms_plane_funcs = {
 static void vkms_primary_plane_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+	struct vkms_plane_state *vkms_plane_state;
+	struct vkms_crc_data *crc_data;
+
+	if (!plane->state->crtc || !plane->state->fb)
+		return;
+
+	vkms_plane_state = to_vkms_plane_state(plane->state);
+	crc_data = vkms_plane_state->crc_data;
+	memcpy(&crc_data->src, &plane->state->src, sizeof(struct drm_rect));
+	memcpy(&crc_data->fb, plane->state->fb, sizeof(struct drm_framebuffer));
+	drm_framebuffer_get(&crc_data->fb);
 }
 
 static int vkms_plane_atomic_check(struct drm_plane *plane,

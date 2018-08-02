@@ -10,17 +10,32 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 
+static void _vblank_handle(struct vkms_output *output)
+{
+	struct drm_crtc *crtc = &output->crtc;
+	struct vkms_crtc_state *state = to_vkms_crtc_state(crtc->state);
+	bool ret;
+
+	spin_lock(&output->lock);
+	ret = drm_crtc_handle_vblank(crtc);
+	if (!ret)
+		DRM_ERROR("vkms failure on handling vblank");
+
+	if (state && output->crc_enabled) {
+		state->n_frame = drm_crtc_accurate_vblank_count(crtc);
+		queue_work(output->crc_workq, &state->crc_work);
+	}
+
+	spin_unlock(&output->lock);
+}
+
 static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 {
 	struct vkms_output *output = container_of(timer, struct vkms_output,
 						  vblank_hrtimer);
-	struct drm_crtc *crtc = &output->crtc;
 	int ret_overrun;
-	bool ret;
 
-	ret = drm_crtc_handle_vblank(crtc);
-	if (!ret)
-		DRM_ERROR("vkms failure on handling vblank");
+	_vblank_handle(output);
 
 	ret_overrun = hrtimer_forward_now(&output->vblank_hrtimer,
 					  output->period_ns);
@@ -97,18 +112,22 @@ vkms_atomic_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vkms_state->base);
 
+	INIT_WORK(&vkms_state->crc_work, vkms_crc_work_handle);
+
 	return &vkms_state->base;
 }
 
 static void vkms_atomic_crtc_destroy_state(struct drm_crtc *crtc,
 					   struct drm_crtc_state *state)
 {
-	struct vkms_crtc_state *vkms_state;
-
-	vkms_state = to_vkms_crtc_state(state);
+	struct vkms_crtc_state *vkms_state = to_vkms_crtc_state(state);
 
 	__drm_atomic_helper_crtc_destroy_state(state);
-	kfree(vkms_state);
+
+	if (vkms_state) {
+		flush_work(&vkms_state->crc_work);
+		kfree(vkms_state);
+	}
 }
 
 static const struct drm_crtc_funcs vkms_crtc_funcs = {
@@ -120,6 +139,7 @@ static const struct drm_crtc_funcs vkms_crtc_funcs = {
 	.atomic_destroy_state   = vkms_atomic_crtc_destroy_state,
 	.enable_vblank		= vkms_enable_vblank,
 	.disable_vblank		= vkms_disable_vblank,
+	.set_crc_source		= vkms_set_crc_source,
 };
 
 static void vkms_crtc_atomic_enable(struct drm_crtc *crtc,
@@ -134,9 +154,21 @@ static void vkms_crtc_atomic_disable(struct drm_crtc *crtc,
 	drm_crtc_vblank_off(crtc);
 }
 
+static void vkms_crtc_atomic_begin(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_crtc_state)
+{
+	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);
+
+	/* This lock is held across the atomic commit to block vblank timer
+	 * from scheduling vkms_crc_work_handle until the crc_data is updated
+	 */
+	spin_lock_irq(&vkms_output->lock);
+}
+
 static void vkms_crtc_atomic_flush(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_crtc_state)
 {
+	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);
 	unsigned long flags;
 
 	if (crtc->state->event) {
@@ -151,9 +183,12 @@ static void vkms_crtc_atomic_flush(struct drm_crtc *crtc,
 
 		crtc->state->event = NULL;
 	}
+
+	spin_unlock_irq(&vkms_output->lock);
 }
 
 static const struct drm_crtc_helper_funcs vkms_crtc_helper_funcs = {
+	.atomic_begin	= vkms_crtc_atomic_begin,
 	.atomic_flush	= vkms_crtc_atomic_flush,
 	.atomic_enable	= vkms_crtc_atomic_enable,
 	.atomic_disable	= vkms_crtc_atomic_disable,
@@ -162,6 +197,7 @@ static const struct drm_crtc_helper_funcs vkms_crtc_helper_funcs = {
 int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   struct drm_plane *primary, struct drm_plane *cursor)
 {
+	struct vkms_output *vkms_out = drm_crtc_to_vkms_output(crtc);
 	int ret;
 
 	ret = drm_crtc_init_with_planes(dev, crtc, primary, cursor,
@@ -172,6 +208,10 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	}
 
 	drm_crtc_helper_add(crtc, &vkms_crtc_helper_funcs);
+
+	spin_lock_init(&vkms_out->lock);
+
+	vkms_out->crc_workq = alloc_ordered_workqueue("vkms_crc_workq", 0);
 
 	return ret;
 }

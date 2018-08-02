@@ -46,6 +46,7 @@ static void vkms_release(struct drm_device *dev)
 	platform_device_unregister(vkms->platform);
 	drm_mode_config_cleanup(&vkms->drm);
 	drm_dev_fini(&vkms->drm);
+	destroy_workqueue(vkms->output.crc_workq);
 }
 
 static struct drm_driver vkms_driver = {
