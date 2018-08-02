@@ -416,8 +416,6 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 	if (tdepth <= tags->nr_reserved_tags)
 		return -EINVAL;
 
-	tdepth -= tags->nr_reserved_tags;
-
 	/*
 	 * If we are allowed to grow beyond the original size, allocate
 	 * a new set of tags before freeing the old one.
@@ -437,7 +435,8 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 		if (tdepth > 16 * BLKDEV_MAX_RQ)
 			return -EINVAL;
 
-		new = blk_mq_alloc_rq_map(set, hctx->queue_num, tdepth, 0);
+		new = blk_mq_alloc_rq_map(set, hctx->queue_num, tdepth,
+				tags->nr_reserved_tags);
 		if (!new)
 			return -ENOMEM;
 		ret = blk_mq_alloc_rqs(set, new, hctx->queue_num, tdepth);
@@ -454,7 +453,8 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 		 * Don't need (or can't) update reserved tags here, they
 		 * remain static and should never need resizing.
 		 */
-		sbitmap_queue_resize(&tags->bitmap_tags, tdepth);
+		sbitmap_queue_resize(&tags->bitmap_tags,
+				tdepth - tags->nr_reserved_tags);
 	}
 
 	return 0;
