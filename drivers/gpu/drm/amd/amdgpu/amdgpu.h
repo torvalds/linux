@@ -715,33 +715,6 @@ int amdgpu_device_wb_get(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb);
 
 /*
- * Firmware
- */
-enum amdgpu_firmware_load_type {
-	AMDGPU_FW_LOAD_DIRECT = 0,
-	AMDGPU_FW_LOAD_SMU,
-	AMDGPU_FW_LOAD_PSP,
-};
-
-struct amdgpu_firmware {
-	struct amdgpu_firmware_info ucode[AMDGPU_UCODE_ID_MAXIMUM];
-	enum amdgpu_firmware_load_type load_type;
-	struct amdgpu_bo *fw_buf;
-	unsigned int fw_size;
-	unsigned int max_ucodes;
-	/* firmwares are loaded by psp instead of smu from vega10 */
-	const struct amdgpu_psp_funcs *funcs;
-	struct amdgpu_bo *rbuf;
-	struct mutex mutex;
-
-	/* gpu info firmware data pointer */
-	const struct firmware *gpu_info_fw;
-
-	void *fw_buf_ptr;
-	uint64_t fw_buf_mc;
-};
-
-/*
  * Benchmarking
  */
 void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);

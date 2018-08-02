@@ -205,6 +205,12 @@ enum AMDGPU_UCODE_STATUS {
 	AMDGPU_UCODE_STATUS_LOADED,
 };
 
+enum amdgpu_firmware_load_type {
+	AMDGPU_FW_LOAD_DIRECT = 0,
+	AMDGPU_FW_LOAD_SMU,
+	AMDGPU_FW_LOAD_PSP,
+};
+
 /* conform to smu_ucode_xfer_cz.h */
 #define AMDGPU_SDMA0_UCODE_LOADED	0x00000001
 #define AMDGPU_SDMA1_UCODE_LOADED	0x00000002
@@ -230,6 +236,24 @@ struct amdgpu_firmware_info {
 	/* starting tmr mc address */
 	uint32_t tmr_mc_addr_lo;
 	uint32_t tmr_mc_addr_hi;
+};
+
+struct amdgpu_firmware {
+	struct amdgpu_firmware_info ucode[AMDGPU_UCODE_ID_MAXIMUM];
+	enum amdgpu_firmware_load_type load_type;
+	struct amdgpu_bo *fw_buf;
+	unsigned int fw_size;
+	unsigned int max_ucodes;
+	/* firmwares are loaded by psp instead of smu from vega10 */
+	const struct amdgpu_psp_funcs *funcs;
+	struct amdgpu_bo *rbuf;
+	struct mutex mutex;
+
+	/* gpu info firmware data pointer */
+	const struct firmware *gpu_info_fw;
+
+	void *fw_buf_ptr;
+	uint64_t fw_buf_mc;
 };
 
 void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr);
