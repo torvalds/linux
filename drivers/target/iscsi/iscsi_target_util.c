@@ -1053,26 +1053,8 @@ void __iscsit_start_nopin_timer(struct iscsi_conn *conn)
 
 void iscsit_start_nopin_timer(struct iscsi_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
-	/*
-	 * NOPIN timeout is disabled..
-	 */
-	if (!na->nopin_timeout)
-		return;
-
 	spin_lock_bh(&conn->nopin_timer_lock);
-	if (conn->nopin_timer_flags & ISCSI_TF_RUNNING) {
-		spin_unlock_bh(&conn->nopin_timer_lock);
-		return;
-	}
-
-	conn->nopin_timer_flags &= ~ISCSI_TF_STOP;
-	conn->nopin_timer_flags |= ISCSI_TF_RUNNING;
-	mod_timer(&conn->nopin_timer, jiffies + na->nopin_timeout * HZ);
-
-	pr_debug("Started NOPIN Timer on CID: %d at %u second"
-			" interval\n", conn->cid, na->nopin_timeout);
+	__iscsit_start_nopin_timer(conn);
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
 
