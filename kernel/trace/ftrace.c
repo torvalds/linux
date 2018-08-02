@@ -2898,22 +2898,22 @@ ops_references_rec(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 {
 	/* If ops isn't enabled, ignore it */
 	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
-		return 0;
+		return false;
 
 	/* If ops traces all then it includes this function */
 	if (ops_traces_mod(ops))
-		return 1;
+		return true;
 
 	/* The function must be in the filter */
 	if (!ftrace_hash_empty(ops->func_hash->filter_hash) &&
 	    !__ftrace_lookup_ip(ops->func_hash->filter_hash, rec->ip))
-		return 0;
+		return false;
 
 	/* If in notrace hash, we ignore it too */
 	if (ftrace_lookup_ip(ops->func_hash->notrace_hash, rec->ip))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
