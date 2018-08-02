@@ -1954,7 +1954,6 @@ qla2x00_fdmiv2_rhba(scsi_qla_host_t *vha)
 	void *entries;
 	struct ct_fdmiv2_hba_attr *eiter;
 	struct qla_hw_data *ha = vha->hw;
-	struct init_cb_24xx *icb24 = (struct init_cb_24xx *)ha->init_cb;
 	struct new_utsname *p_sysid = NULL;
 
 	/* Issue RHBA */
@@ -2134,9 +2133,7 @@ qla2x00_fdmiv2_rhba(scsi_qla_host_t *vha)
 	/* MAX CT Payload Length */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_MAXIMUM_CT_PAYLOAD_LENGTH);
-	eiter->a.max_ct_len = IS_FWI2_CAPABLE(ha) ?
-	    le16_to_cpu(icb24->frame_payload_size) :
-	    le16_to_cpu(ha->init_cb->frame_payload_size);
+	eiter->a.max_ct_len = cpu_to_be32(ha->frame_payload_size);
 	eiter->a.max_ct_len = cpu_to_be32(eiter->a.max_ct_len);
 	eiter->len = cpu_to_be16(4 + 4);
 	size += 4 + 4;

@@ -4418,7 +4418,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	cnt = (uint8_t *)icb->reserved_3 - (uint8_t *)icb->add_firmware_options;
 	while (cnt--)
 		*dptr1++ = *dptr2++;
-
+	ha->frame_payload_size = le16_to_cpu(icb->frame_payload_size);
 	/* Use alternate WWN? */
 	if (nv->host_p[1] & BIT_7) {
 		memcpy(icb->node_name, nv->alternate_node_name, WWN_SIZE);
@@ -6893,7 +6893,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	    (uint8_t *)&icb->interrupt_delay_timer;
 	while (cnt--)
 		*dptr1++ = *dptr2++;
-
+	ha->frame_payload_size = le16_to_cpu(icb->frame_payload_size);
 	/*
 	 * Setup driver NVRAM options.
 	 */
@@ -7949,7 +7949,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 
 	/* Use extended-initialization control block. */
 	memcpy(ha->ex_init_cb, &nv->ex_version, sizeof(*ha->ex_init_cb));
-
+	ha->frame_payload_size = le16_to_cpu(icb->frame_payload_size);
 	/*
 	 * Setup driver NVRAM options.
 	 */

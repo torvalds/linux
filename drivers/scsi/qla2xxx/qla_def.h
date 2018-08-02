@@ -3848,6 +3848,7 @@ struct qla_hw_data {
 	atomic_t	num_pend_mbx_stage1;
 	atomic_t	num_pend_mbx_stage2;
 	atomic_t	num_pend_mbx_stage3;
+	uint16_t	frame_payload_size;
 
 	uint32_t	login_retry_count;
 	/* SNS command interfaces. */
