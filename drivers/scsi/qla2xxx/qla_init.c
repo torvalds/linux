@@ -1153,9 +1153,12 @@ void qla24xx_handle_gpdb_event(scsi_qla_host_t *vha, struct event_arg *ea)
 	case PDS_PLOGI_COMPLETE:
 	case PDS_PRLI_PENDING:
 	case PDS_PRLI2_PENDING:
-		ql_dbg(ql_dbg_disc, vha, 0x20d5, "%s %d %8phC relogin needed\n",
-		    __func__, __LINE__, fcport->port_name);
-		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+		/* Set discovery state back to GNL to Relogin attempt */
+		if (qla_dual_mode_enabled(vha) ||
+		    qla_ini_mode_enabled(vha)) {
+			fcport->disc_state = DSC_GNL;
+			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+		}
 		return;
 	case PDS_LOGO_PENDING:
 	case PDS_PORT_UNAVAILABLE:
