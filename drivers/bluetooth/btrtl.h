@@ -45,6 +45,18 @@ struct rtl_epatch_header {
 	__le16 num_patches;
 } __packed;
 
+struct rtl_vendor_config_entry {
+	__le16 offset;
+	__u8 len;
+	__u8 data[0];
+} __packed;
+
+struct rtl_vendor_config {
+	__le32 signature;
+	__le16 total_len;
+	struct rtl_vendor_config_entry entry[0];
+} __packed;
+
 #if IS_ENABLED(CONFIG_BT_RTL)
 
 struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev);
@@ -52,6 +64,10 @@ void btrtl_free(struct btrtl_device_info *btrtl_dev);
 int btrtl_download_firmware(struct hci_dev *hdev,
 			    struct btrtl_device_info *btrtl_dev);
 int btrtl_setup_realtek(struct hci_dev *hdev);
+int btrtl_get_uart_settings(struct hci_dev *hdev,
+			    struct btrtl_device_info *btrtl_dev,
+			    unsigned int *controller_baudrate,
+			    u32 *device_baudrate, bool *flow_control);
 
 #else
 
@@ -73,6 +89,15 @@ static inline int btrtl_download_firmware(struct hci_dev *hdev,
 static inline int btrtl_setup_realtek(struct hci_dev *hdev)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int btrtl_get_uart_settings(struct hci_dev *hdev,
+					  struct btrtl_device_info *btrtl_dev,
+					  unsigned int *controller_baudrate,
+					  u32 *device_baudrate,
+					  bool *flow_control)
+{
+	return -ENOENT;
 }
 
 #endif
