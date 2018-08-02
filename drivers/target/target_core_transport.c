@@ -304,9 +304,9 @@ EXPORT_SYMBOL(transport_alloc_session_tags);
  *	      each command.
  * @sup_prot_ops: bitmask that defines which T10-PI modes are supported.
  */
-struct se_session *transport_init_session_tags(unsigned int tag_num,
-					       unsigned int tag_size,
-					       enum target_prot_op sup_prot_ops)
+static struct se_session *
+transport_init_session_tags(unsigned int tag_num, unsigned int tag_size,
+			    enum target_prot_op sup_prot_ops)
 {
 	struct se_session *se_sess;
 	int rc;
@@ -334,7 +334,6 @@ struct se_session *transport_init_session_tags(unsigned int tag_num,
 
 	return se_sess;
 }
-EXPORT_SYMBOL(transport_init_session_tags);
 
 /*
  * Called with spin_lock_irqsave(&struct se_portal_group->session_lock called.
