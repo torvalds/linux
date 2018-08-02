@@ -268,23 +268,29 @@ bool resource_construct(
 
 	return true;
 }
+static int find_matching_clock_source(
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
 
+	int i;
+
+	for (i = 0; i < pool->clk_src_count; i++) {
+		if (pool->clock_sources[i] == clock_source)
+			return i;
+	}
+	return -1;
+}
 
 void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
+	int i = find_matching_clock_source(pool, clock_source);
 
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
-
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]--;
-
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count--;
@@ -295,17 +301,29 @@ void resource_reference_clock_source(
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
+	int i = find_matching_clock_source(pool, clock_source);
 
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]++;
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count++;
+}
+
+int resource_get_clock_source_reference(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
+	int i = find_matching_clock_source(pool, clock_source);
+
+	if (i > -1)
+		return res_ctx->clock_source_ref_count[i];
+
+	if (pool->dp_clock_source == clock_source)
+		return res_ctx->dp_clock_source_ref_count;
+
+	return -1;
 }
 
 bool resource_are_streams_timing_synchronizable(
