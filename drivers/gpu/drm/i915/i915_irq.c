@@ -1534,11 +1534,8 @@ static void gen8_gt_irq_ack(struct drm_i915_private *i915,
 
 	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
 		gt_iir[2] = raw_reg_read(regs, GEN8_GT_IIR(2));
-		if (likely(gt_iir[2] & (i915->pm_rps_events |
-					i915->pm_guc_events)))
-			raw_reg_write(regs, GEN8_GT_IIR(2),
-				      gt_iir[2] & (i915->pm_rps_events |
-						   i915->pm_guc_events));
+		if (likely(gt_iir[2]))
+			raw_reg_write(regs, GEN8_GT_IIR(2), gt_iir[2]);
 	}
 
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
