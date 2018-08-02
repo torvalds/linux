@@ -117,7 +117,8 @@ void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
 			 struct rds6_info_rdma_connection *iinfo6);
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *);
 void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
-		    struct rds_sock *rs, u32 *key_ret);
+		    struct rds_sock *rs, u32 *key_ret,
+		    struct rds_connection *conn);
 void rds_ib_sync_mr(void *trans_private, int dir);
 void rds_ib_free_mr(void *trans_private, int invalidate);
 void rds_ib_flush_mrs(void);

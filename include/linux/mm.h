@@ -452,6 +452,23 @@ struct vm_operations_struct {
 					  unsigned long addr);
 };
 
+static inline void vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
+{
+	static const struct vm_operations_struct dummy_vm_ops = {};
+
+	vma->vm_mm = mm;
+	vma->vm_ops = &dummy_vm_ops;
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
+}
+
+static inline void vma_set_anonymous(struct vm_area_struct *vma)
+{
+	vma->vm_ops = NULL;
+}
+
+/* flush_tlb_range() takes a vma, not a mm, and can care about flags */
+#define TLB_FLUSH_VMA(mm,flags) { .vm_mm = (mm), .vm_flags = (flags) }
+
 struct mmu_gather;
 struct inode;
 
