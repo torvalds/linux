@@ -156,13 +156,11 @@ TP_UINT_FIELD__SWAPPED(16);
 TP_UINT_FIELD__SWAPPED(32);
 TP_UINT_FIELD__SWAPPED(64);
 
-static int tp_field__init_uint(struct tp_field *field,
-			       struct format_field *format_field,
-			       bool needs_swap)
+static int __tp_field__init_uint(struct tp_field *field, int size, int offset, bool needs_swap)
 {
-	field->offset = format_field->offset;
+	field->offset = offset;
 
-	switch (format_field->size) {
+	switch (size) {
 	case 1:
 		field->integer = tp_field__u8;
 		break;
@@ -182,16 +180,26 @@ static int tp_field__init_uint(struct tp_field *field,
 	return 0;
 }
 
+static int tp_field__init_uint(struct tp_field *field, struct format_field *format_field, bool needs_swap)
+{
+	return __tp_field__init_uint(field, format_field->size, format_field->offset, needs_swap);
+}
+
 static void *tp_field__ptr(struct tp_field *field, struct perf_sample *sample)
 {
 	return sample->raw_data + field->offset;
 }
 
-static int tp_field__init_ptr(struct tp_field *field, struct format_field *format_field)
+static int __tp_field__init_ptr(struct tp_field *field, int offset)
 {
-	field->offset = format_field->offset;
+	field->offset = offset;
 	field->pointer = tp_field__ptr;
 	return 0;
+}
+
+static int tp_field__init_ptr(struct tp_field *field, struct format_field *format_field)
+{
+	return __tp_field__init_ptr(field, format_field->offset);
 }
 
 struct syscall_tp {
