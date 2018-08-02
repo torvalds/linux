@@ -198,7 +198,7 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 		return PTR_ERR(md->base);
 	}
 
-	md->mii_bus = mdiobus_alloc();
+	md->mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!md->mii_bus) {
 		dev_err(&pdev->dev, "mdiomux bus alloc failed\n");
 		return -ENOMEM;
@@ -217,7 +217,7 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 	rc = mdiobus_register(bus);
 	if (rc) {
 		dev_err(&pdev->dev, "mdiomux registration failed\n");
-		goto out;
+		return rc;
 	}
 
 	platform_set_drvdata(pdev, md);
@@ -236,8 +236,6 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 
 out_register:
 	mdiobus_unregister(bus);
-out:
-	mdiobus_free(bus);
 	return rc;
 }
 
@@ -247,7 +245,6 @@ static int mdio_mux_iproc_remove(struct platform_device *pdev)
 
 	mdio_mux_uninit(md->mux_handle);
 	mdiobus_unregister(md->mii_bus);
-	mdiobus_free(md->mii_bus);
 
 	return 0;
 }
