@@ -69,6 +69,7 @@
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/memcontrol.h>
+#include <linux/sched/loadavg.h>
 #include <linux/sched/signal.h>
 #include <trace/events/block.h>
 #include "blk-rq-qos.h"
@@ -126,13 +127,34 @@ struct iolatency_grp {
 	u64 cur_win_nsec;
 
 	/* total running average of our io latency. */
-	u64 total_lat_avg;
-	u64 total_lat_nr;
+	u64 lat_avg;
 
 	/* Our current number of IO's for the last summation. */
 	u64 nr_samples;
 
 	struct child_latency_info child_lat;
+};
+
+#define BLKIOLATENCY_MIN_WIN_SIZE (100 * NSEC_PER_MSEC)
+#define BLKIOLATENCY_MAX_WIN_SIZE NSEC_PER_SEC
+/*
+ * These are the constants used to fake the fixed-point moving average
+ * calculation just like load average.  The call to CALC_LOAD folds
+ * (FIXED_1 (2048) - exp_factor) * new_sample into lat_avg.  The sampling
+ * window size is bucketed to try to approximately calculate average
+ * latency such that 1/exp (decay rate) is [1 min, 2.5 min) when windows
+ * elapse immediately.  Note, windows only elapse with IO activity.  Idle
+ * periods extend the most recent window.
+ */
+#define BLKIOLATENCY_NR_EXP_FACTORS 5
+#define BLKIOLATENCY_EXP_BUCKET_SIZE (BLKIOLATENCY_MAX_WIN_SIZE / \
+				      (BLKIOLATENCY_NR_EXP_FACTORS - 1))
+static const u64 iolatency_exp_factors[BLKIOLATENCY_NR_EXP_FACTORS] = {
+	2045, // exp(1/600) - 600 samples
+	2039, // exp(1/240) - 240 samples
+	2031, // exp(1/120) - 120 samples
+	2023, // exp(1/80)  - 80 samples
+	2014, // exp(1/60)  - 60 samples
 };
 
 static inline struct iolatency_grp *pd_to_lat(struct blkg_policy_data *pd)
@@ -462,7 +484,7 @@ static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
 	struct child_latency_info *lat_info;
 	struct blk_rq_stat stat;
 	unsigned long flags;
-	int cpu;
+	int cpu, exp_idx;
 
 	blk_rq_stat_init(&stat);
 	preempt_disable();
@@ -480,11 +502,17 @@ static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
 
 	lat_info = &parent->child_lat;
 
-	iolat->total_lat_avg =
-		div64_u64((iolat->total_lat_avg * iolat->total_lat_nr) +
-			  stat.mean, iolat->total_lat_nr + 1);
-
-	iolat->total_lat_nr++;
+	/*
+	 * CALC_LOAD takes in a number stored in fixed point representation.
+	 * Because we are using this for IO time in ns, the values stored
+	 * are significantly larger than the FIXED_1 denominator (2048).
+	 * Therefore, rounding errors in the calculation are negligible and
+	 * can be ignored.
+	 */
+	exp_idx = min_t(int, BLKIOLATENCY_NR_EXP_FACTORS - 1,
+			div64_u64(iolat->cur_win_nsec,
+				  BLKIOLATENCY_EXP_BUCKET_SIZE));
+	CALC_LOAD(iolat->lat_avg, iolatency_exp_factors[exp_idx], stat.mean);
 
 	/* Everything is ok and we don't need to adjust the scale. */
 	if (stat.mean <= iolat->min_lat_nsec &&
@@ -700,8 +728,9 @@ static void iolatency_set_min_lat_nsec(struct blkcg_gq *blkg, u64 val)
 	u64 oldval = iolat->min_lat_nsec;
 
 	iolat->min_lat_nsec = val;
-	iolat->cur_win_nsec = max_t(u64, val << 4, 100 * NSEC_PER_MSEC);
-	iolat->cur_win_nsec = min_t(u64, iolat->cur_win_nsec, NSEC_PER_SEC);
+	iolat->cur_win_nsec = max_t(u64, val << 4, BLKIOLATENCY_MIN_WIN_SIZE);
+	iolat->cur_win_nsec = min_t(u64, iolat->cur_win_nsec,
+				    BLKIOLATENCY_MAX_WIN_SIZE);
 
 	if (!oldval && val)
 		atomic_inc(&blkiolat->enabled);
@@ -810,14 +839,15 @@ static size_t iolatency_pd_stat(struct blkg_policy_data *pd, char *buf,
 				size_t size)
 {
 	struct iolatency_grp *iolat = pd_to_lat(pd);
-	unsigned long long avg_lat = div64_u64(iolat->total_lat_avg, NSEC_PER_USEC);
+	unsigned long long avg_lat = div64_u64(iolat->lat_avg, NSEC_PER_USEC);
+	unsigned long long cur_win = div64_u64(iolat->cur_win_nsec, NSEC_PER_MSEC);
 
 	if (iolat->rq_depth.max_depth == UINT_MAX)
-		return scnprintf(buf, size, " depth=max avg_lat=%llu",
-				 avg_lat);
+		return scnprintf(buf, size, " depth=max avg_lat=%llu win=%llu",
+				 avg_lat, cur_win);
 
-	return scnprintf(buf, size, " depth=%u avg_lat=%llu",
-			 iolat->rq_depth.max_depth, avg_lat);
+	return scnprintf(buf, size, " depth=%u avg_lat=%llu win=%llu",
+			 iolat->rq_depth.max_depth, avg_lat, cur_win);
 }
 
 

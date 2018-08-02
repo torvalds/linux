@@ -1474,11 +1474,9 @@ So the ideal way to configure this is to set io.latency in groups A, B, and C.
 Generally you do not want to set a value lower than the latency your device
 supports.  Experiment to find the value that works best for your workload.
 Start at higher than the expected latency for your device and watch the
-total_lat_avg value in io.stat for your workload group to get an idea of the
-latency you see during normal operation.  Use this value as a basis for your
-real setting, setting at 10-15% higher than the value in io.stat.
-Experimentation is key here because total_lat_avg is a running total, so is the
-"statistics" portion of "lies, damned lies, and statistics."
+avg_lat value in io.stat for your workload group to get an idea of the
+latency you see during normal operation.  Use the avg_lat value as a basis for
+your real setting, setting at 10-15% higher than the value in io.stat.
 
 How IO Latency Throttling Works
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1522,10 +1520,15 @@ IO Latency Interface Files
 		This is the current queue depth for the group.
 
 	  avg_lat
-		The running average IO latency for this group in microseconds.
-		Running average is generally flawed, but will give an
-		administrator a general idea of the overall latency they can
-		expect for their workload on the given disk.
+		This is an exponential moving average with a decay rate of 1/exp
+		bound by the sampling interval.  The decay rate interval can be
+		calculated by multiplying the win value in io.stat by the
+		corresponding number of samples based on the win value.
+
+	  win
+		The sampling window size in milliseconds.  This is the minimum
+		duration of time between evaluation events.  Windows only elapse
+		with IO activity.  Idle periods extend the most recent window.
 
 PID
 ---
