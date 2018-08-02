@@ -409,6 +409,9 @@ static int si1133_command(struct si1133_data *data, u8 cmd)
 			err = -ETIMEDOUT;
 			goto out;
 		}
+		err = regmap_read(data->regmap, SI1133_REG_RESPONSE0, &resp);
+		if (err)
+			goto out;
 	} else {
 		err = regmap_read_poll_timeout(data->regmap,
 					       SI1133_REG_RESPONSE0, resp,
@@ -838,7 +841,7 @@ static int si1133_write_raw(struct iio_dev *iio_dev,
 		switch (chan->type) {
 		case IIO_INTENSITY:
 		case IIO_UVINDEX:
-			if (val != 0 || val != 1)
+			if (val != 0 && val != 1)
 				return -EINVAL;
 
 			return si1133_update_adcsens(data,
