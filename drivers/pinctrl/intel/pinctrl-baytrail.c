@@ -1685,7 +1685,8 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 		value = readl(reg);
 		if (value)
 			dev_err(&vg->pdev->dev,
-				"GPIO interrupt error, pins misconfigured\n");
+				"GPIO interrupt error, pins misconfigured. INT_STAT%u: 0x%08x\n",
+				base / 32, value);
 	}
 }
 
