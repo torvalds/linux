@@ -1904,18 +1904,8 @@ err_encoder:
 static int tda998x_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
-	int ret;
 
-	ret = tda998x_create(dev);
-	if (ret)
-		return ret;
-
-	ret = tda998x_encoder_init(dev, drm);
-	if (ret) {
-		tda998x_destroy(dev);
-		return ret;
-	}
-	return 0;
+	return tda998x_encoder_init(dev, drm);
 }
 
 static void tda998x_unbind(struct device *dev, struct device *master,
@@ -1924,7 +1914,6 @@ static void tda998x_unbind(struct device *dev, struct device *master,
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 
 	drm_encoder_cleanup(&priv->encoder);
-	tda998x_destroy(dev);
 }
 
 static const struct component_ops tda998x_ops = {
@@ -1935,16 +1924,27 @@ static const struct component_ops tda998x_ops = {
 static int
 tda998x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+	int ret;
+
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_warn(&client->dev, "adapter does not support I2C\n");
 		return -EIO;
 	}
-	return component_add(&client->dev, &tda998x_ops);
+
+	ret = tda998x_create(&client->dev);
+	if (ret)
+		return ret;
+
+	ret = component_add(&client->dev, &tda998x_ops);
+	if (ret)
+		tda998x_destroy(&client->dev);
+	return ret;
 }
 
 static int tda998x_remove(struct i2c_client *client)
 {
 	component_del(&client->dev, &tda998x_ops);
+	tda998x_destroy(&client->dev);
 	return 0;
 }
 
