@@ -1647,4 +1647,19 @@ enum nft_tunnel_key_attributes {
 };
 #define NFTA_TUNNEL_KEY_MAX	(__NFTA_TUNNEL_KEY_MAX - 1)
 
+enum nft_tunnel_keys {
+	NFT_TUNNEL_PATH,
+	NFT_TUNNEL_ID,
+	__NFT_TUNNEL_MAX
+};
+#define NFT_TUNNEL_MAX	(__NFT_TUNNEL_MAX - 1)
+
+enum nft_tunnel_attributes {
+	NFTA_TUNNEL_UNSPEC,
+	NFTA_TUNNEL_KEY,
+	NFTA_TUNNEL_DREG,
+	__NFTA_TUNNEL_MAX
+};
+#define NFTA_TUNNEL_MAX	(__NFTA_TUNNEL_MAX - 1)
+
 #endif /* _LINUX_NF_TABLES_H */
