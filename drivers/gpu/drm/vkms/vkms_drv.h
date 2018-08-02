@@ -21,6 +21,14 @@ static const u32 vkms_formats[] = {
 };
 
 /**
+ * vkms_plane_state - Driver specific plane state
+ * @base: base plane state
+ */
+struct vkms_plane_state {
+	struct drm_plane_state base;
+};
+
+/**
  * vkms_crtc_state - Driver specific CRTC state
  * @base: base CRTC state
  */
@@ -62,6 +70,9 @@ struct vkms_gem_object {
 
 #define to_vkms_crtc_state(target)\
 	container_of(target, struct vkms_crtc_state, base)
+
+#define to_vkms_plane_state(target)\
+	container_of(target, struct vkms_plane_state, base)
 
 /* CRTC */
 int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,

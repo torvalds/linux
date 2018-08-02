@@ -12,13 +12,54 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
+static struct drm_plane_state *
+vkms_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct vkms_plane_state *vkms_state;
+
+	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
+	if (!vkms_state)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane,
+						  &vkms_state->base);
+
+	return &vkms_state->base;
+}
+
+static void vkms_plane_destroy_state(struct drm_plane *plane,
+				     struct drm_plane_state *old_state)
+{
+	struct vkms_plane_state *vkms_state = to_vkms_plane_state(old_state);
+
+	__drm_atomic_helper_plane_destroy_state(old_state);
+	kfree(vkms_state);
+}
+
+static void vkms_plane_reset(struct drm_plane *plane)
+{
+	struct vkms_plane_state *vkms_state;
+
+	if (plane->state)
+		vkms_plane_destroy_state(plane, plane->state);
+
+	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
+	if (!vkms_state) {
+		DRM_ERROR("Cannot allocate vkms_plane_state\n");
+		return;
+	}
+
+	plane->state = &vkms_state->base;
+	plane->state->plane = plane;
+}
+
 static const struct drm_plane_funcs vkms_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.destroy		= drm_plane_cleanup,
-	.reset			= drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
+	.reset			= vkms_plane_reset,
+	.atomic_duplicate_state = vkms_plane_duplicate_state,
+	.atomic_destroy_state	= vkms_plane_destroy_state,
 };
 
 static void vkms_primary_plane_update(struct drm_plane *plane,
