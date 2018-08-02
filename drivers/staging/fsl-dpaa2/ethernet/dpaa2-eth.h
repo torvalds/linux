@@ -277,10 +277,10 @@ struct dpaa2_eth_fq {
 	struct dpaa2_eth_channel *channel;
 	enum dpaa2_eth_fq_type type;
 
-	void (*consume)(struct dpaa2_eth_priv *,
-			struct dpaa2_eth_channel *,
-			const struct dpaa2_fd *,
-			struct napi_struct *,
+	void (*consume)(struct dpaa2_eth_priv *priv,
+			struct dpaa2_eth_channel *ch,
+			const struct dpaa2_fd *fd,
+			struct napi_struct *napi,
 			u16 queue_id);
 	struct dpaa2_eth_fq_stats stats;
 };
