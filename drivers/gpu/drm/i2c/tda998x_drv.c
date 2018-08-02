@@ -1343,6 +1343,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 				    struct drm_display_mode *adjusted_mode)
 {
 	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
+	unsigned long tmds_clock;
 	u16 ref_pix, ref_line, n_pix, n_line;
 	u16 hs_pix_s, hs_pix_e;
 	u16 vs1_pix_s, vs1_pix_e, vs1_line_s, vs1_line_e;
@@ -1413,12 +1414,19 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 			       (mode->vsync_end - mode->vsync_start)/2;
 	}
 
-	div = 148500 / mode->clock;
-	if (div != 0) {
-		div--;
-		if (div > 3)
-			div = 3;
-	}
+	tmds_clock = mode->clock;
+
+	/*
+	 * The divisor is power-of-2. The TDA9983B datasheet gives
+	 * this as ranges of Msample/s, which is 10x the TMDS clock:
+	 *   0 - 800 to 1500 Msample/s
+	 *   1 - 400 to 800 Msample/s
+	 *   2 - 200 to 400 Msample/s
+	 *   3 - as 2 above
+	 */
+	for (div = 0; div < 3; div++)
+		if (80000 >> div <= tmds_clock)
+			break;
 
 	mutex_lock(&priv->audio_mutex);
 
