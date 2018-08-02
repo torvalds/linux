@@ -271,6 +271,63 @@ static void test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 	bch2_btree_iter_unlock(&iter);
 }
 
+/* extent unit tests */
+
+u64 test_version;
+
+static void insert_test_extent(struct bch_fs *c,
+			       u64 start, u64 end)
+{
+	struct bkey_i_cookie k;
+	int ret;
+
+	//pr_info("inserting %llu-%llu v %llu", start, end, test_version);
+
+	bkey_cookie_init(&k.k_i);
+	k.k_i.k.p.offset = end;
+	k.k_i.k.size = end - start;
+	k.k_i.k.version.lo = test_version++;
+
+	ret = bch2_btree_insert(c, BTREE_ID_EXTENTS, &k.k_i,
+				NULL, NULL, NULL, 0);
+	BUG_ON(ret);
+}
+
+static void __test_extent_overwrite(struct bch_fs *c,
+				    u64 e1_start, u64 e1_end,
+				    u64 e2_start, u64 e2_end)
+{
+	insert_test_extent(c, e1_start, e1_end);
+	insert_test_extent(c, e2_start, e2_end);
+
+	delete_test_keys(c);
+}
+
+static void test_extent_overwrite_front(struct bch_fs *c, u64 nr)
+{
+	__test_extent_overwrite(c, 0, 64, 0, 32);
+	__test_extent_overwrite(c, 8, 64, 0, 32);
+}
+
+static void test_extent_overwrite_back(struct bch_fs *c, u64 nr)
+{
+	__test_extent_overwrite(c, 0, 64, 32, 64);
+	__test_extent_overwrite(c, 0, 64, 32, 72);
+}
+
+static void test_extent_overwrite_middle(struct bch_fs *c, u64 nr)
+{
+	__test_extent_overwrite(c, 0, 64, 32, 40);
+}
+
+static void test_extent_overwrite_all(struct bch_fs *c, u64 nr)
+{
+	__test_extent_overwrite(c, 32, 64,  0,  64);
+	__test_extent_overwrite(c, 32, 64,  0, 128);
+	__test_extent_overwrite(c, 32, 64, 32,  64);
+	__test_extent_overwrite(c, 32, 64, 32, 128);
+}
+
 /* perf tests */
 
 static u64 test_rand(void)
@@ -498,6 +555,11 @@ void bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	perf_test(test_iterate_extents);
 	perf_test(test_iterate_slots);
 	perf_test(test_iterate_slots_extents);
+
+	perf_test(test_extent_overwrite_front);
+	perf_test(test_extent_overwrite_back);
+	perf_test(test_extent_overwrite_middle);
+	perf_test(test_extent_overwrite_all);
 
 	if (!j.fn) {
 		pr_err("unknown test %s", testname);
