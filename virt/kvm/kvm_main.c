@@ -1169,7 +1169,7 @@ int kvm_get_dirty_log_protect(struct kvm *kvm,
 
 	n = kvm_dirty_bitmap_bytes(memslot);
 
-	dirty_bitmap_buffer = dirty_bitmap + n / sizeof(long);
+	dirty_bitmap_buffer = kvm_second_dirty_bitmap(memslot);
 	memset(dirty_bitmap_buffer, 0, n);
 
 	spin_lock(&kvm->mmu_lock);
