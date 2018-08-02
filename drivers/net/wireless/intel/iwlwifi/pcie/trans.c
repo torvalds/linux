@@ -1578,14 +1578,16 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	return 0;
 }
 
-static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
-					struct iwl_trans *trans)
+static void
+iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
+			    struct iwl_trans *trans,
+			    const struct iwl_cfg_trans_params *cfg_trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int max_irqs, num_irqs, i, ret;
 	u16 pci_cmd;
 
-	if (!trans->cfg->trans.mq_rx_supported)
+	if (!cfg_trans->mq_rx_supported)
 		goto enable_msi;
 
 	max_irqs = min_t(u32, num_online_cpus() + 2, IWL_MAX_RX_HW_QUEUES);
@@ -3384,10 +3386,11 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	if (cfg->trans.gen2)
 		trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
-					&pdev->dev, cfg, &trans_ops_pcie_gen2);
+					&pdev->dev, &trans_ops_pcie_gen2);
 	else
 		trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
-					&pdev->dev, cfg, &trans_ops_pcie);
+					&pdev->dev, &trans_ops_pcie);
+
 	if (!trans)
 		return ERR_PTR(-ENOMEM);
 
@@ -3482,8 +3485,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	 * in the old format.
 	 */
 	if (cfg->trans.device_family >= IWL_DEVICE_FAMILY_8000) {
-		unsigned long flags;
-
 		trans->hw_rev = (trans->hw_rev & 0xfff0) |
 				(CSR_HW_REV_STEP(trans->hw_rev << 2) << 2);
 
@@ -3501,27 +3502,11 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		if (ret)
 			goto out_no_pci;
 
-		if (iwl_trans_grab_nic_access(trans, &flags)) {
-			u32 hw_step;
-
-			hw_step = iwl_read_umac_prph_no_grab(trans,
-							     WFPM_CTRL_REG);
-			hw_step |= ENABLE_WFPM;
-			iwl_write_umac_prph_no_grab(trans, WFPM_CTRL_REG,
-						    hw_step);
-			hw_step = iwl_read_prph_no_grab(trans,
-							CNVI_AUX_MISC_CHIP);
-			hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
-			if (hw_step == 0x3)
-				trans->hw_rev = (trans->hw_rev & 0xFFFFFFF3) |
-						(SILICON_C_STEP << 2);
-			iwl_trans_release_nic_access(trans, &flags);
-		}
 	}
 
 	IWL_DEBUG_INFO(trans, "HW REV: 0x%0x\n", trans->hw_rev);
 
-	iwl_pcie_set_interrupt_capa(pdev, trans);
+	iwl_pcie_set_interrupt_capa(pdev, trans, &cfg->trans);
 	trans->hw_id = (pdev->device << 16) + pdev->subsystem_device;
 	snprintf(trans->hw_id_str, sizeof(trans->hw_id_str),
 		 "PCI ID: 0x%04X:0x%04X", pdev->device, pdev->subsystem_device);

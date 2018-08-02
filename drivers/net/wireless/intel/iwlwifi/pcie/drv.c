@@ -994,6 +994,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	const struct iwl_cfg *cfg_7265d __maybe_unused = NULL;
 	struct iwl_trans *iwl_trans;
+	unsigned long flags;
 	int ret;
 
 	if (WARN_ONCE(!cfg->trans.csr, "CSR addresses aren't configured\n"))
@@ -1022,6 +1023,18 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cfg = cfg_7265d;
 
 	iwl_trans->hw_rf_id = iwl_read32(iwl_trans, CSR_HW_RF_ID);
+
+	/*
+	 * We can already set the cfg to iwl_trans here, because the
+	 * only part we use at this point is the cfg_trans
+	 * information.  Once we decide the real cfg, we set it again
+	 * (happens later in this function).  TODO: this is only
+	 * temporary, while we're sorting out this whole thing, but in
+	 * the future it won't be necessary, because we will separate
+	 * the trans configuration entirely from the rest of the
+	 * config struct.
+	 */
+	iwl_trans->cfg = cfg;
 
 	if (cfg == &iwlax210_2ax_cfg_so_hr_a0) {
 		if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_TY) {
@@ -1124,6 +1137,21 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 	/* now set the real cfg we decided to use */
 	iwl_trans->cfg = cfg;
+
+	if (cfg->trans.device_family >= IWL_DEVICE_FAMILY_8000 &&
+	    iwl_trans_grab_nic_access(iwl_trans, &flags)) {
+		u32 hw_step;
+
+		hw_step = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG);
+		hw_step |= ENABLE_WFPM;
+		iwl_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, hw_step);
+		hw_step = iwl_read_prph_no_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
+		hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
+		if (hw_step == 0x3)
+			iwl_trans->hw_rev = (iwl_trans->hw_rev & 0xFFFFFFF3) |
+				(SILICON_C_STEP << 2);
+		iwl_trans_release_nic_access(iwl_trans, &flags);
+	}
 
 	pci_set_drvdata(pdev, iwl_trans);
 	iwl_trans->drv = iwl_drv_start(iwl_trans);

@@ -66,7 +66,6 @@
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
-				  const struct iwl_cfg *cfg,
 				  const struct iwl_trans_ops *ops)
 {
 	struct iwl_trans *trans;
@@ -84,7 +83,6 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 #endif
 
 	trans->dev = dev;
-	trans->cfg = cfg;
 	trans->ops = ops;
 	trans->num_rx_queues = 1;
 
