@@ -31,6 +31,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#include "btrtl.h"
 #include "hci_uart.h"
 
 #define HCI_3WIRE_ACK_PKT	0
@@ -822,11 +823,79 @@ static void h5_serdev_remove(struct serdev_device *serdev)
 	hci_uart_unregister_device(&h5->serdev_hu);
 }
 
+static int h5_btrtl_setup(struct h5 *h5)
+{
+	struct btrtl_device_info *btrtl_dev;
+	struct sk_buff *skb;
+	__le32 baudrate_data;
+	u32 device_baudrate;
+	unsigned int controller_baudrate;
+	bool flow_control;
+	int err;
+
+	btrtl_dev = btrtl_initialize(h5->hu->hdev, h5->id);
+	if (IS_ERR(btrtl_dev))
+		return PTR_ERR(btrtl_dev);
+
+	err = btrtl_get_uart_settings(h5->hu->hdev, btrtl_dev,
+				      &controller_baudrate, &device_baudrate,
+				      &flow_control);
+	if (err)
+		goto out_free;
+
+	baudrate_data = cpu_to_le32(device_baudrate);
+	skb = __hci_cmd_sync(h5->hu->hdev, 0xfc17, sizeof(baudrate_data),
+			     &baudrate_data, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		rtl_dev_err(h5->hu->hdev, "set baud rate command failed\n");
+		err = PTR_ERR(skb);
+		goto out_free;
+	} else {
+		kfree_skb(skb);
+	}
+	/* Give the device some time to set up the new baudrate. */
+	usleep_range(10000, 20000);
+
+	serdev_device_set_baudrate(h5->hu->serdev, controller_baudrate);
+	serdev_device_set_flow_control(h5->hu->serdev, flow_control);
+
+	err = btrtl_download_firmware(h5->hu->hdev, btrtl_dev);
+	/* Give the device some time before the hci-core sends it a reset */
+	usleep_range(10000, 20000);
+
+out_free:
+	btrtl_free(btrtl_dev);
+
+	return err;
+}
+
+static void h5_btrtl_open(struct h5 *h5)
+{
+	/* Devices always start with these fixed parameters */
+	serdev_device_set_flow_control(h5->hu->serdev, false);
+	serdev_device_set_parity(h5->hu->serdev, SERDEV_PARITY_EVEN);
+	serdev_device_set_baudrate(h5->hu->serdev, 115200);
+}
+
+static struct h5_vnd rtl_vnd = {
+	.setup		= h5_btrtl_setup,
+	.open		= h5_btrtl_open,
+};
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id h5_acpi_match[] = {
+	{ "OBDA8723", (kernel_ulong_t)&rtl_vnd },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, h5_acpi_match);
+#endif
+
 static struct serdev_device_driver h5_serdev_driver = {
 	.probe = h5_serdev_probe,
 	.remove = h5_serdev_remove,
 	.driver = {
 		.name = "hci_uart_h5",
+		.acpi_match_table = ACPI_PTR(h5_acpi_match),
 	},
 };
 
