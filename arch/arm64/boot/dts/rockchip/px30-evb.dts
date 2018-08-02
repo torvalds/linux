@@ -206,6 +206,10 @@
 	status = "okay";
 };
 
+&usb20_otg {
+	status = "okay";
+};
+
 &usb_host0_ehci {
 	status = "okay";
 };
