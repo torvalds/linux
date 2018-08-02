@@ -2560,7 +2560,7 @@ repeat:
 	if (mddev->queue)
 		blk_add_trace_msg(mddev->queue, "md md_update_sb");
 rewrite:
-	bitmap_update_sb(mddev->bitmap);
+	md_bitmap_update_sb(mddev->bitmap);
 	rdev_for_each(rdev, mddev) {
 		char b[BDEVNAME_SIZE];
 
@@ -4372,10 +4372,10 @@ bitmap_store(struct mddev *mddev, const char *buf, size_t len)
 			if (buf == end) break;
 		}
 		if (*end && !isspace(*end)) break;
-		bitmap_dirty_bits(mddev->bitmap, chunk, end_chunk);
+		md_bitmap_dirty_bits(mddev->bitmap, chunk, end_chunk);
 		buf = skip_spaces(end);
 	}
-	bitmap_unplug(mddev->bitmap); /* flush the bits to disk */
+	md_bitmap_unplug(mddev->bitmap); /* flush the bits to disk */
 out:
 	mddev_unlock(mddev);
 	return len;
@@ -5588,7 +5588,7 @@ int md_run(struct mddev *mddev)
 	    (mddev->bitmap_info.file || mddev->bitmap_info.offset)) {
 		struct bitmap *bitmap;
 
-		bitmap = bitmap_create(mddev, -1);
+		bitmap = md_bitmap_create(mddev, -1);
 		if (IS_ERR(bitmap)) {
 			err = PTR_ERR(bitmap);
 			pr_warn("%s: failed to create bitmap (%d)\n",
@@ -5603,7 +5603,7 @@ int md_run(struct mddev *mddev)
 			pers->free(mddev, mddev->private);
 		mddev->private = NULL;
 		module_put(pers->owner);
-		bitmap_destroy(mddev);
+		md_bitmap_destroy(mddev);
 		goto abort;
 	}
 	if (mddev->queue) {
@@ -5688,9 +5688,9 @@ static int do_md_run(struct mddev *mddev)
 	err = md_run(mddev);
 	if (err)
 		goto out;
-	err = bitmap_load(mddev);
+	err = md_bitmap_load(mddev);
 	if (err) {
-		bitmap_destroy(mddev);
+		md_bitmap_destroy(mddev);
 		goto out;
 	}
 
@@ -5832,7 +5832,7 @@ static void __md_stop_writes(struct mddev *mddev)
 		mddev->pers->quiesce(mddev, 1);
 		mddev->pers->quiesce(mddev, 0);
 	}
-	bitmap_flush(mddev);
+	md_bitmap_flush(mddev);
 
 	if (mddev->ro == 0 &&
 	    ((!mddev->in_sync && !mddev_is_clustered(mddev)) ||
@@ -5854,7 +5854,7 @@ EXPORT_SYMBOL_GPL(md_stop_writes);
 
 static void mddev_detach(struct mddev *mddev)
 {
-	bitmap_wait_behind_writes(mddev);
+	md_bitmap_wait_behind_writes(mddev);
 	if (mddev->pers && mddev->pers->quiesce) {
 		mddev->pers->quiesce(mddev, 1);
 		mddev->pers->quiesce(mddev, 0);
@@ -5867,7 +5867,7 @@ static void mddev_detach(struct mddev *mddev)
 static void __md_stop(struct mddev *mddev)
 {
 	struct md_personality *pers = mddev->pers;
-	bitmap_destroy(mddev);
+	md_bitmap_destroy(mddev);
 	mddev_detach(mddev);
 	/* Ensure ->event_work is done */
 	flush_workqueue(md_misc_wq);
@@ -6681,21 +6681,21 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 		if (fd >= 0) {
 			struct bitmap *bitmap;
 
-			bitmap = bitmap_create(mddev, -1);
+			bitmap = md_bitmap_create(mddev, -1);
 			mddev_suspend(mddev);
 			if (!IS_ERR(bitmap)) {
 				mddev->bitmap = bitmap;
-				err = bitmap_load(mddev);
+				err = md_bitmap_load(mddev);
 			} else
 				err = PTR_ERR(bitmap);
 			if (err) {
-				bitmap_destroy(mddev);
+				md_bitmap_destroy(mddev);
 				fd = -1;
 			}
 			mddev_resume(mddev);
 		} else if (fd < 0) {
 			mddev_suspend(mddev);
-			bitmap_destroy(mddev);
+			md_bitmap_destroy(mddev);
 			mddev_resume(mddev);
 		}
 	}
@@ -6981,15 +6981,15 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 				mddev->bitmap_info.default_offset;
 			mddev->bitmap_info.space =
 				mddev->bitmap_info.default_space;
-			bitmap = bitmap_create(mddev, -1);
+			bitmap = md_bitmap_create(mddev, -1);
 			mddev_suspend(mddev);
 			if (!IS_ERR(bitmap)) {
 				mddev->bitmap = bitmap;
-				rv = bitmap_load(mddev);
+				rv = md_bitmap_load(mddev);
 			} else
 				rv = PTR_ERR(bitmap);
 			if (rv)
-				bitmap_destroy(mddev);
+				md_bitmap_destroy(mddev);
 			mddev_resume(mddev);
 		} else {
 			/* remove the bitmap */
@@ -7014,7 +7014,7 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 				md_cluster_ops->leave(mddev);
 			}
 			mddev_suspend(mddev);
-			bitmap_destroy(mddev);
+			md_bitmap_destroy(mddev);
 			mddev_resume(mddev);
 			mddev->bitmap_info.offset = 0;
 		}
@@ -7877,7 +7877,7 @@ static int md_seq_show(struct seq_file *seq, void *v)
 		} else
 			seq_printf(seq, "\n       ");
 
-		bitmap_status(seq, mddev->bitmap);
+		md_bitmap_status(seq, mddev->bitmap);
 
 		seq_printf(seq, "\n");
 	}
@@ -8748,7 +8748,7 @@ void md_check_recovery(struct mddev *mddev)
 		return;
 
 	if (mddev->bitmap)
-		bitmap_daemon_work(mddev);
+		md_bitmap_daemon_work(mddev);
 
 	if (signal_pending(current)) {
 		if (mddev->pers->sync_request && !mddev->external) {
@@ -8885,7 +8885,7 @@ void md_check_recovery(struct mddev *mddev)
 				 * which has the bitmap stored on all devices.
 				 * So make sure all bitmap pages get written
 				 */
-				bitmap_write_all(mddev->bitmap);
+				md_bitmap_write_all(mddev->bitmap);
 			}
 			INIT_WORK(&mddev->del_work, md_start_sync);
 			queue_work(md_misc_wq, &mddev->del_work);
@@ -9133,7 +9133,7 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 		if (ret)
 			pr_info("md-cluster: resize failed\n");
 		else
-			bitmap_update_sb(mddev->bitmap);
+			md_bitmap_update_sb(mddev->bitmap);
 	}
 
 	/* Check for change of roles in the active devices */
