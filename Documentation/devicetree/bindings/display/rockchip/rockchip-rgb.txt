@@ -9,8 +9,9 @@ Required properties:
 	- "rockchip,rk3308-rgb";
 
 Optional properties:
-- pinctrl-names: must contain a "lcdc" entry.
-- pinctrl-0: pin control group to be used for this interface.
+- pinctrl-names: the pin control state names; should contain "default"
+- pinctrl-0: the default pinctrl state (active)
+- pinctrl-1: the "sleep" pinctrl state
 
 The rgb has two video ports described by:
 	Documentation/devicetree/bindings/media/video-interfaces.txt
@@ -45,7 +46,7 @@ For Rockchip RV1108:
 
 	rgb: rgb {
 		compatible = "rockchip,rv1108-rgb";
-		pinctrl-names = "lcdc";
+		pinctrl-names = "default";
 		pinctrl-0 = <&lcdc_ctl>;
 
 		ports {

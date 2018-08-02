@@ -44,7 +44,6 @@ struct rockchip_rgb {
 	struct drm_bridge *bridge;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
-	struct dev_pin_info *pins;
 	int output_mode;
 	struct regmap *grf;
 };
@@ -112,6 +111,8 @@ static void rockchip_rgb_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
 
+	pinctrl_pm_select_default_state(rgb->dev);
+
 	if (rgb->grf) {
 		int pipe = drm_of_encoder_active_endpoint_id(rgb->dev->of_node,
 							     encoder);
@@ -122,10 +123,6 @@ static void rockchip_rgb_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	drm_panel_prepare(rgb->panel);
-	/* iomux to LCD data/sync mode */
-	if (rgb->pins && !IS_ERR(rgb->pins->default_state))
-		pinctrl_select_state(rgb->pins->p, rgb->pins->default_state);
-
 	drm_panel_enable(rgb->panel);
 }
 
@@ -135,6 +132,8 @@ static void rockchip_rgb_encoder_disable(struct drm_encoder *encoder)
 
 	drm_panel_disable(rgb->panel);
 	drm_panel_unprepare(rgb->panel);
+
+	pinctrl_pm_select_sleep_state(rgb->dev);
 }
 
 static int
@@ -363,24 +362,6 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 			ret = PTR_ERR(rgb->grf);
 			dev_err(dev, "Unable to get grf: %d\n", ret);
 			return ret;
-		}
-	}
-
-	rgb->pins = devm_kzalloc(rgb->dev, sizeof(*rgb->pins), GFP_KERNEL);
-	if (!rgb->pins)
-		return -ENOMEM;
-	rgb->pins->p = devm_pinctrl_get(rgb->dev);
-	if (IS_ERR(rgb->pins->p)) {
-		DRM_DEV_ERROR(dev, "no pinctrl handle\n");
-		devm_kfree(rgb->dev, rgb->pins);
-		rgb->pins = NULL;
-	} else {
-		rgb->pins->default_state =
-			pinctrl_lookup_state(rgb->pins->p, "lcdc");
-		if (IS_ERR(rgb->pins->default_state)) {
-			DRM_DEV_ERROR(dev, "no default pinctrl state\n");
-			devm_kfree(rgb->dev, rgb->pins);
-			rgb->pins = NULL;
 		}
 	}
 
