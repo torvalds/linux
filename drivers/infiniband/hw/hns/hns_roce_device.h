@@ -110,6 +110,7 @@
 
 enum {
 	HNS_ROCE_SUPPORT_RQ_RECORD_DB = 1 << 0,
+	HNS_ROCE_SUPPORT_SQ_RECORD_DB = 1 << 1,
 };
 
 enum {
@@ -190,7 +191,8 @@ enum {
 	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
 	HNS_ROCE_CAP_FLAG_ROCE_V1_V2		= BIT(1),
 	HNS_ROCE_CAP_FLAG_RQ_INLINE		= BIT(2),
-	HNS_ROCE_CAP_FLAG_RECORD_DB		= BIT(3)
+	HNS_ROCE_CAP_FLAG_RECORD_DB		= BIT(3),
+	HNS_ROCE_CAP_FLAG_SQ_RECORD_DB		= BIT(4),
 };
 
 enum hns_roce_mtt_type {
@@ -385,6 +387,7 @@ struct hns_roce_db {
 		struct hns_roce_user_db_page *user_page;
 	} u;
 	dma_addr_t	dma;
+	void		*virt_addr;
 	int		index;
 	int		order;
 };
@@ -524,7 +527,9 @@ struct hns_roce_qp {
 	struct hns_roce_buf	hr_buf;
 	struct hns_roce_wq	rq;
 	struct hns_roce_db	rdb;
+	struct hns_roce_db	sdb;
 	u8			rdb_en;
+	u8			sdb_en;
 	u32			doorbell_qpn;
 	__le32			sq_signal_bits;
 	u32			sq_next_wqe;
@@ -641,6 +646,8 @@ struct hns_roce_eq {
 	int				shift;
 	dma_addr_t			cur_eqe_ba;
 	dma_addr_t			nxt_eqe_ba;
+	int				event_type;
+	int				sub_type;
 };
 
 struct hns_roce_eq_table {
@@ -725,6 +732,14 @@ struct hns_roce_caps {
 	u32		tpq_buf_pg_sz;
 	u32		chunk_sz;	/* chunk size in non multihop mode*/
 	u64		flags;
+};
+
+struct hns_roce_work {
+	struct hns_roce_dev *hr_dev;
+	struct work_struct work;
+	u32 qpn;
+	int event_type;
+	int sub_type;
 };
 
 struct hns_roce_hw {
@@ -819,6 +834,7 @@ struct hns_roce_dev {
 	u32			tptr_size; /*only for hw v1*/
 	const struct hns_roce_hw *hw;
 	void			*priv;
+	struct workqueue_struct *irq_workq;
 };
 
 static inline struct hns_roce_dev *to_hr_dev(struct ib_device *ib_dev)
