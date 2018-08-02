@@ -699,7 +699,7 @@ static int spi_internal_read(struct wilc *wilc, u32 adr, u32 *data)
 		return 0;
 	}
 
-	le32_to_cpus(*data);
+	le32_to_cpus(data);
 
 	return 1;
 }
@@ -778,7 +778,7 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		return 0;
 	}
 
-	le32_to_cpus(*data);
+	le32_to_cpus(data);
 
 	return 1;
 }

@@ -563,7 +563,7 @@ static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		}
 	}
 
-	le32_to_cpus(*data);
+	le32_to_cpus(data);
 
 	return 1;
 
