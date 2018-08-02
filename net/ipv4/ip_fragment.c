@@ -277,6 +277,7 @@ static int ip_frag_reinit(struct ipq *qp)
 /* Add new segment to existing queue. */
 static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 {
+	struct net *net = container_of(qp->q.net, struct net, ipv4.frags);
 	struct sk_buff *prev, *next;
 	struct net_device *dev;
 	unsigned int fragsize;
@@ -357,65 +358,23 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	}
 
 found:
-	/* We found where to put this one.  Check for overlap with
-	 * preceding fragment, and, if needed, align things so that
-	 * any overlaps are eliminated.
+	/* RFC5722, Section 4, amended by Errata ID : 3089
+	 *                          When reassembling an IPv6 datagram, if
+	 *   one or more its constituent fragments is determined to be an
+	 *   overlapping fragment, the entire datagram (and any constituent
+	 *   fragments) MUST be silently discarded.
+	 *
+	 * We do the same here for IPv4.
 	 */
-	if (prev) {
-		int i = (prev->ip_defrag_offset + prev->len) - offset;
 
-		if (i > 0) {
-			offset += i;
-			err = -EINVAL;
-			if (end <= offset)
-				goto err;
-			err = -ENOMEM;
-			if (!pskb_pull(skb, i))
-				goto err;
-			if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-				skb->ip_summed = CHECKSUM_NONE;
-		}
-	}
+	/* Is there an overlap with the previous fragment? */
+	if (prev &&
+	    (prev->ip_defrag_offset + prev->len) > offset)
+		goto discard_qp;
 
-	err = -ENOMEM;
-
-	while (next && next->ip_defrag_offset < end) {
-		int i = end - next->ip_defrag_offset; /* overlap is 'i' bytes */
-
-		if (i < next->len) {
-			int delta = -next->truesize;
-
-			/* Eat head of the next overlapped fragment
-			 * and leave the loop. The next ones cannot overlap.
-			 */
-			if (!pskb_pull(next, i))
-				goto err;
-			delta += next->truesize;
-			if (delta)
-				add_frag_mem_limit(qp->q.net, delta);
-			next->ip_defrag_offset += i;
-			qp->q.meat -= i;
-			if (next->ip_summed != CHECKSUM_UNNECESSARY)
-				next->ip_summed = CHECKSUM_NONE;
-			break;
-		} else {
-			struct sk_buff *free_it = next;
-
-			/* Old fragment is completely overridden with
-			 * new one drop it.
-			 */
-			next = next->next;
-
-			if (prev)
-				prev->next = next;
-			else
-				qp->q.fragments = next;
-
-			qp->q.meat -= free_it->len;
-			sub_frag_mem_limit(qp->q.net, free_it->truesize);
-			kfree_skb(free_it);
-		}
-	}
+	/* Is there an overlap with the next fragment? */
+	if (next && next->ip_defrag_offset < end)
+		goto discard_qp;
 
 	/* Note : skb->ip_defrag_offset and skb->dev share the same location */
 	dev = skb->dev;
@@ -463,6 +422,10 @@ found:
 	skb_dst_drop(skb);
 	return -EINPROGRESS;
 
+discard_qp:
+	inet_frag_kill(&qp->q);
+	err = -EINVAL;
+	__IP_INC_STATS(net, IPSTATS_MIB_REASM_OVERLAPS);
 err:
 	kfree_skb(skb);
 	return err;
