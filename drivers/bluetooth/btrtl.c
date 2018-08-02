@@ -145,20 +145,20 @@ static int rtl_read_rom_version(struct hci_dev *hdev, u8 *version)
 	/* Read RTL ROM version command */
 	skb = __hci_cmd_sync(hdev, 0xfc6d, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Read ROM version failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		rtl_dev_err(hdev, "Read ROM version failed (%ld)\n",
+			    PTR_ERR(skb));
 		return PTR_ERR(skb);
 	}
 
 	if (skb->len != sizeof(*rom_version)) {
-		BT_ERR("%s: RTL version event length mismatch", hdev->name);
+		rtl_dev_err(hdev, "RTL version event length mismatch\n");
 		kfree_skb(skb);
 		return -EIO;
 	}
 
 	rom_version = (struct rtl_rom_version_evt *)skb->data;
-	bt_dev_info(hdev, "rom_version status=%x version=%x",
-		    rom_version->status, rom_version->version);
+	rtl_dev_info(hdev, "rom_version status=%x version=%x\n",
+		     rom_version->status, rom_version->version);
 
 	*version = rom_version->version;
 
@@ -200,7 +200,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 
 	fwptr = btrtl_dev->fw_data + btrtl_dev->fw_len - sizeof(extension_sig);
 	if (memcmp(fwptr, extension_sig, sizeof(extension_sig)) != 0) {
-		BT_ERR("%s: extension section signature mismatch", hdev->name);
+		rtl_dev_err(hdev, "extension section signature mismatch\n");
 		return -EINVAL;
 	}
 
@@ -221,8 +221,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 			break;
 
 		if (length == 0) {
-			BT_ERR("%s: found instruction with length 0",
-			       hdev->name);
+			rtl_dev_err(hdev, "found instruction with length 0\n");
 			return -EINVAL;
 		}
 
@@ -235,7 +234,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 	}
 
 	if (project_id < 0) {
-		BT_ERR("%s: failed to find version instruction", hdev->name);
+		rtl_dev_err(hdev, "failed to find version instruction\n");
 		return -EINVAL;
 	}
 
@@ -246,21 +245,21 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 	}
 
 	if (i >= ARRAY_SIZE(project_id_to_lmp_subver)) {
-		BT_ERR("%s: unknown project id %d", hdev->name, project_id);
+		rtl_dev_err(hdev, "unknown project id %d\n", project_id);
 		return -EINVAL;
 	}
 
 	if (btrtl_dev->ic_info->lmp_subver !=
 				project_id_to_lmp_subver[i].lmp_subver) {
-		BT_ERR("%s: firmware is for %x but this is a %x", hdev->name,
-		       project_id_to_lmp_subver[i].lmp_subver,
-		       btrtl_dev->ic_info->lmp_subver);
+		rtl_dev_err(hdev, "firmware is for %x but this is a %x\n",
+			    project_id_to_lmp_subver[i].lmp_subver,
+			    btrtl_dev->ic_info->lmp_subver);
 		return -EINVAL;
 	}
 
 	epatch_info = (struct rtl_epatch_header *)btrtl_dev->fw_data;
 	if (memcmp(epatch_info->signature, RTL_EPATCH_SIGNATURE, 8) != 0) {
-		BT_ERR("%s: bad EPATCH signature", hdev->name);
+		rtl_dev_err(hdev, "bad EPATCH signature\n");
 		return -EINVAL;
 	}
 
@@ -294,8 +293,8 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 	}
 
 	if (!patch_offset) {
-		BT_ERR("%s: didn't find patch for chip id %d",
-		       hdev->name, btrtl_dev->rom_version);
+		rtl_dev_err(hdev, "didn't find patch for chip id %d",
+			    btrtl_dev->rom_version);
 		return -EINVAL;
 	}
 
@@ -348,15 +347,14 @@ static int rtl_download_firmware(struct hci_dev *hdev,
 		skb = __hci_cmd_sync(hdev, 0xfc20, frag_len + 1, dl_cmd,
 				     HCI_INIT_TIMEOUT);
 		if (IS_ERR(skb)) {
-			BT_ERR("%s: download fw command failed (%ld)",
-			       hdev->name, PTR_ERR(skb));
+			rtl_dev_err(hdev, "download fw command failed (%ld)\n",
+				    PTR_ERR(skb));
 			ret = -PTR_ERR(skb);
 			goto out;
 		}
 
 		if (skb->len != sizeof(struct rtl_download_response)) {
-			BT_ERR("%s: download fw event length mismatch",
-			       hdev->name);
+			rtl_dev_err(hdev, "download fw event length mismatch\n");
 			kfree_skb(skb);
 			ret = -EIO;
 			goto out;
@@ -376,7 +374,7 @@ static int rtl_load_file(struct hci_dev *hdev, const char *name, u8 **buff)
 	const struct firmware *fw;
 	int ret;
 
-	bt_dev_info(hdev, "rtl: loading %s", name);
+	rtl_dev_info(hdev, "rtl: loading %s\n", name);
 	ret = request_firmware(&fw, name, &hdev->dev);
 	if (ret < 0)
 		return ret;
@@ -400,7 +398,7 @@ static int btrtl_setup_rtl8723a(struct hci_dev *hdev,
 	 * (which is only for RTL8723B and newer).
 	 */
 	if (!memcmp(btrtl_dev->fw_data, RTL_EPATCH_SIGNATURE, 8)) {
-		BT_ERR("%s: unexpected EPATCH signature!", hdev->name);
+		rtl_dev_err(hdev, "unexpected EPATCH signature!\n");
 		return -EINVAL;
 	}
 
@@ -451,14 +449,13 @@ static struct sk_buff *btrtl_read_local_version(struct hci_dev *hdev)
 	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
 			     HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		rtl_dev_err(hdev, "HCI_OP_READ_LOCAL_VERSION failed (%ld)\n",
+			    PTR_ERR(skb));
 		return skb;
 	}
 
 	if (skb->len != sizeof(struct hci_rp_read_local_version)) {
-		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION event length mismatch",
-		       hdev->name);
+		rtl_dev_err(hdev, "HCI_OP_READ_LOCAL_VERSION event length mismatch\n");
 		kfree_skb(skb);
 		return ERR_PTR(-EIO);
 	}
@@ -495,10 +492,9 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev)
 	}
 
 	resp = (struct hci_rp_read_local_version *)skb->data;
-	bt_dev_info(hdev, "rtl: examining hci_ver=%02x hci_rev=%04x "
-		    "lmp_ver=%02x lmp_subver=%04x",
-		    resp->hci_ver, resp->hci_rev,
-		    resp->lmp_ver, resp->lmp_subver);
+	rtl_dev_info(hdev, "rtl: examining hci_ver=%02x hci_rev=%04x lmp_ver=%02x lmp_subver=%04x\n",
+		     resp->hci_ver, resp->hci_rev,
+		     resp->lmp_ver, resp->lmp_subver);
 
 	hci_rev = le16_to_cpu(resp->hci_rev);
 	lmp_subver = le16_to_cpu(resp->lmp_subver);
@@ -568,7 +564,7 @@ int btrtl_download_firmware(struct hci_dev *hdev,
 	case RTL_ROM_LMP_8822B:
 		return btrtl_setup_rtl8723b(hdev, btrtl_dev);
 	default:
-		bt_dev_info(hdev, "rtl: assuming no firmware upload needed");
+		rtl_dev_info(hdev, "rtl: assuming no firmware upload needed\n");
 		return 0;
 	}
 }
