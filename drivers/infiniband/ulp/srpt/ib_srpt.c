@@ -2029,8 +2029,7 @@ static void srpt_release_channel_work(struct work_struct *w)
 	target_sess_cmd_list_set_waiting(se_sess);
 	target_wait_for_sess_cmds(se_sess);
 
-	transport_deregister_session_configfs(se_sess);
-	transport_deregister_session(se_sess);
+	target_remove_session(se_sess);
 	ch->sess = NULL;
 
 	if (ch->using_rdma_cm)

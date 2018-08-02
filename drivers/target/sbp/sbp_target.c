@@ -235,8 +235,7 @@ static void sbp_session_release(struct sbp_session *sess, bool cancel_work)
 	if (cancel_work)
 		cancel_delayed_work_sync(&sess->maint_work);
 
-	transport_deregister_session_configfs(sess->se_sess);
-	transport_deregister_session(sess->se_sess);
+	target_remove_session(sess->se_sess);
 
 	if (sess->card)
 		fw_card_put(sess->card);
