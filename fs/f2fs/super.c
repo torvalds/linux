@@ -1036,6 +1036,10 @@ static void f2fs_put_super(struct super_block *sb)
 	/* our cp_error case, we can wait for any writeback page */
 	f2fs_flush_merged_writes(sbi);
 
+	f2fs_wait_on_all_pages_writeback(sbi);
+
+	f2fs_bug_on(sbi, sbi->fsync_node_num);
+
 	iput(sbi->node_inode);
 	iput(sbi->meta_inode);
 
@@ -2918,6 +2922,8 @@ try_onemore:
 	f2fs_init_extent_cache_info(sbi);
 
 	f2fs_init_ino_entry_info(sbi);
+
+	f2fs_init_fsync_node_info(sbi);
 
 	/* setup f2fs internal modules */
 	err = f2fs_build_segment_manager(sbi);
