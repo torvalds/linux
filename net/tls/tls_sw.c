@@ -311,6 +311,9 @@ static int zerocopy_from_iter(struct sock *sk, struct iov_iter *from,
 		}
 	}
 
+	/* Mark the end in the last sg entry if newly added */
+	if (num_elem > *pages_used)
+		sg_mark_end(&to[num_elem - 1]);
 out:
 	if (rc)
 		iov_iter_revert(from, size - *size_used);
