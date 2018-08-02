@@ -5002,6 +5002,9 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 	struct fc_rport *rport;
 	unsigned long flags;
 
+	if (atomic_read(&fcport->state) == FCS_ONLINE)
+		return;
+
 	rport_ids.node_name = wwn_to_u64(fcport->node_name);
 	rport_ids.port_name = wwn_to_u64(fcport->port_name);
 	rport_ids.port_id = fcport->d_id.b.domain << 16 |
@@ -5057,25 +5060,18 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (IS_SW_RESV_ADDR(fcport->d_id))
 		return;
 
-	ql_dbg(ql_dbg_disc, vha, 0x20ef, "%s %8phC\n",
-	    __func__, fcport->port_name);
+	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
+	fcport->disc_state = DSC_LOGIN_COMPLETE;
+	fcport->deleted = 0;
+	fcport->logout_on_delete = 1;
+	fcport->login_retry = vha->hw->login_retry_count;
 
-	if (IS_QLAFX00(vha->hw)) {
-		qla2x00_set_fcport_state(fcport, FCS_ONLINE);
-	} else {
-		fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
-		fcport->disc_state = DSC_LOGIN_COMPLETE;
-		fcport->deleted = 0;
-		fcport->logout_on_delete = 1;
-		fcport->login_retry = vha->hw->login_retry_count;
-		qla2x00_set_fcport_state(fcport, FCS_ONLINE);
-	}
-
-	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 	qla2x00_iidma_fcport(vha, fcport);
 
 	if (fcport->fc4f_nvme) {
 		qla_nvme_register_remote(vha, fcport);
+		fcport->disc_state = DSC_LOGIN_COMPLETE;
+		qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 		return;
 	}
 
@@ -5116,6 +5112,7 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 			qla24xx_post_gpsc_work(vha, fcport);
 		}
 	}
+	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 }
 
 /*
