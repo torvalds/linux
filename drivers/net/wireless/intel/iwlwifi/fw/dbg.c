@@ -998,6 +998,14 @@ const struct iwl_fw_dump_desc iwl_dump_desc_assert = {
 };
 IWL_EXPORT_SYMBOL(iwl_dump_desc_assert);
 
+void iwl_fw_assert_error_dump(struct iwl_fw_runtime *fwrt)
+{
+	IWL_INFO(fwrt, "error dump due to fw assert\n");
+	fwrt->dump.desc = &iwl_dump_desc_assert;
+	iwl_fw_error_dump(fwrt);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_assert_error_dump);
+
 void iwl_fw_alive_error_dump(struct iwl_fw_runtime *fwrt)
 {
 	struct iwl_fw_dump_desc *iwl_dump_desc_no_alive =
