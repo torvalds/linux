@@ -805,6 +805,10 @@ qlt_plogi_ack_find_add(struct scsi_qla_host *vha, port_id_t *id,
 
 	list_for_each_entry(pla, &vha->plogi_ack_list, list) {
 		if (pla->id.b24 == id->b24) {
+			ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0x210d,
+			    "%s %d %8phC Term INOT due to new INOT",
+			    __func__, __LINE__,
+			    pla->iocb.u.isp24.port_name);
 			qlt_send_term_imm_notif(vha, &pla->iocb, 1);
 			memcpy(&pla->iocb, iocb, sizeof(pla->iocb));
 			return pla;
@@ -1073,6 +1077,7 @@ void qlt_free_session_done(struct work_struct *work)
 		struct qlt_plogi_ack_t *con =
 		    sess->plogi_link[QLT_PLOGI_LINK_CONFLICT];
 		struct imm_ntfy_from_isp *iocb;
+		own = sess->plogi_link[QLT_PLOGI_LINK_SAME_WWN];
 
 		if (con) {
 			iocb = &con->iocb;
@@ -4716,6 +4721,10 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 
 	pla = qlt_plogi_ack_find_add(vha, &port_id, iocb);
 	if (!pla) {
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+		    "%s %d %8phC Term INOT due to mem alloc fail",
+		    __func__, __LINE__,
+		    iocb->u.isp24.port_name);
 		qlt_send_term_imm_notif(vha, iocb, 1);
 		goto out;
 	}

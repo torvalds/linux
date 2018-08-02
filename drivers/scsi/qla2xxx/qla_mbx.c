@@ -2177,7 +2177,10 @@ qla2x00_lip_reset(scsi_qla_host_t *vha)
 		mcp->out_mb = MBX_2|MBX_1|MBX_0;
 	} else if (IS_FWI2_CAPABLE(vha->hw)) {
 		mcp->mb[0] = MBC_LIP_FULL_LOGIN;
-		mcp->mb[1] = BIT_6;
+		if (N2N_TOPO(vha->hw))
+			mcp->mb[1] = BIT_4; /* re-init */
+		else
+			mcp->mb[1] = BIT_6; /* LIP */
 		mcp->mb[2] = 0;
 		mcp->mb[3] = vha->hw->loop_reset_delay;
 		mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
@@ -3911,28 +3914,6 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		if (fcport) {
 			fcport->plogi_nack_done_deadline = jiffies + HZ;
 			fcport->scan_state = QLA_FCPORT_FOUND;
-			switch (fcport->disc_state) {
-			case DSC_DELETED:
-				ql_dbg(ql_dbg_disc, vha, 0x210d,
-				    "%s %d %8phC login\n",
-				    __func__, __LINE__, fcport->port_name);
-				qla24xx_fcport_handle_login(vha, fcport);
-				break;
-			case DSC_DELETE_PEND:
-				break;
-			default:
-				qlt_schedule_sess_for_deletion(fcport);
-				break;
-			}
-		} else {
-			id.b.al_pa  = rptid_entry->u.f2.remote_nport_id[0];
-			id.b.area   = rptid_entry->u.f2.remote_nport_id[1];
-			id.b.domain = rptid_entry->u.f2.remote_nport_id[2];
-			qla24xx_post_newsess_work(vha, &id,
-			    rptid_entry->u.f2.port_name,
-			    rptid_entry->u.f2.node_name,
-			    NULL,
-			    FC4_TYPE_UNKNOWN);
 		}
 	}
 }

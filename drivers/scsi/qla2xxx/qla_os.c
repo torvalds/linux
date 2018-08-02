@@ -6186,6 +6186,11 @@ intr_on_check:
 		if (!IS_QLAFX00(ha))
 			qla2x00_do_dpc_all_vps(base_vha);
 
+		if (test_and_clear_bit(N2N_LINK_RESET,
+			&base_vha->dpc_flags)) {
+			qla2x00_lip_reset(base_vha);
+		}
+
 		ha->dpc_active = 0;
 end_loop:
 		set_current_state(TASK_INTERRUPTIBLE);

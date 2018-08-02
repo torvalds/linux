@@ -2240,12 +2240,15 @@ qla24xx_login_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
-	logio->control_flags = cpu_to_le16(LCF_COMMAND_PLOGI);
-
-	if (lio->u.logio.flags & SRB_LOGIN_COND_PLOGI)
-		logio->control_flags |= cpu_to_le16(LCF_COND_PLOGI);
-	if (lio->u.logio.flags & SRB_LOGIN_SKIP_PRLI)
-		logio->control_flags |= cpu_to_le16(LCF_SKIP_PRLI);
+	if (lio->u.logio.flags & SRB_LOGIN_PRLI_ONLY) {
+		logio->control_flags = cpu_to_le16(LCF_COMMAND_PRLI);
+	} else {
+		logio->control_flags = cpu_to_le16(LCF_COMMAND_PLOGI);
+		if (lio->u.logio.flags & SRB_LOGIN_COND_PLOGI)
+			logio->control_flags |= cpu_to_le16(LCF_COND_PLOGI);
+		if (lio->u.logio.flags & SRB_LOGIN_SKIP_PRLI)
+			logio->control_flags |= cpu_to_le16(LCF_SKIP_PRLI);
+	}
 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
 	logio->port_id[1] = sp->fcport->d_id.b.area;

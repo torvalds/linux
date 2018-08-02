@@ -377,6 +377,7 @@ struct srb_iocb {
 #define SRB_LOGIN_COND_PLOGI	BIT_1
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
 #define SRB_LOGIN_NVME_PRLI	BIT_3
+#define SRB_LOGIN_PRLI_ONLY	BIT_4
 			uint16_t data[2];
 			u32 iop[2];
 		} logio;
@@ -4236,7 +4237,7 @@ typedef struct scsi_qla_host {
 #define FCOE_CTX_RESET_NEEDED	18	/* Initiate FCoE context reset */
 #define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 #define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
-#define FREE_BIT 21
+#define N2N_LINK_RESET		21
 #define PORT_UPDATE_NEEDED	22
 #define FX00_RESET_RECOVERY	23
 #define FX00_TARGET_SCAN	24
