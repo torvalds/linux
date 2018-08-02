@@ -732,16 +732,16 @@ static inline bool fast_dput(struct dentry *dentry)
 		if (dentry->d_lockref.count > 1) {
 			dentry->d_lockref.count--;
 			spin_unlock(&dentry->d_lock);
-			return 1;
+			return true;
 		}
-		return 0;
+		return false;
 	}
 
 	/*
 	 * If we weren't the last ref, we're done.
 	 */
 	if (ret)
-		return 1;
+		return true;
 
 	/*
 	 * Careful, careful. The reference count went down
@@ -770,7 +770,7 @@ static inline bool fast_dput(struct dentry *dentry)
 
 	/* Nothing to do? Dropping the reference was all we needed? */
 	if (d_flags == (DCACHE_REFERENCED | DCACHE_LRU_LIST) && !d_unhashed(dentry))
-		return 1;
+		return true;
 
 	/*
 	 * Not the fast normal case? Get the lock. We've already decremented
@@ -787,7 +787,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	 */
 	if (dentry->d_lockref.count) {
 		spin_unlock(&dentry->d_lock);
-		return 1;
+		return true;
 	}
 
 	/*
@@ -796,7 +796,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	 * set it to 1.
 	 */
 	dentry->d_lockref.count = 1;
-	return 0;
+	return false;
 }
 
 
