@@ -180,7 +180,7 @@ extern long kvm_spapr_tce_attach_iommu_group(struct kvm *kvm, int tablefd,
 		if ((tbltmp->it_page_shift <= stt->page_shift) &&
 				(tbltmp->it_offset << tbltmp->it_page_shift ==
 				 stt->offset << stt->page_shift) &&
-				(tbltmp->it_size << tbltmp->it_page_shift ==
+				(tbltmp->it_size << tbltmp->it_page_shift >=
 				 stt->size << stt->page_shift)) {
 			/*
 			 * Reference the table to avoid races with
@@ -296,7 +296,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 {
 	struct kvmppc_spapr_tce_table *stt = NULL;
 	struct kvmppc_spapr_tce_table *siter;
-	unsigned long npages, size;
+	unsigned long npages, size = args->size;
 	int ret = -ENOMEM;
 	int i;
 
@@ -304,7 +304,6 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 		(args->offset + args->size > (ULLONG_MAX >> args->page_shift)))
 		return -EINVAL;
 
-	size = _ALIGN_UP(args->size, PAGE_SIZE >> 3);
 	npages = kvmppc_tce_pages(size);
 	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
 	if (ret)

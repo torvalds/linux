@@ -106,7 +106,6 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	 * if mmio_vsx_tx_sx_enabled == 1, copy data between
 	 * VSR[32..63] and memory
 	 */
-	vcpu->arch.mmio_vsx_tx_sx_enabled = get_tx_or_sx(inst);
 	vcpu->arch.mmio_vsx_copy_nums = 0;
 	vcpu->arch.mmio_vsx_offset = 0;
 	vcpu->arch.mmio_copy_type = KVMPPC_VSX_COPY_NONE;
@@ -242,8 +241,8 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			}
 
 			emulated = kvmppc_handle_vsx_load(run, vcpu,
-					KVM_MMIO_REG_VSX | (op.reg & 0x1f),
-					io_size_each, 1, op.type & SIGNEXT);
+					KVM_MMIO_REG_VSX|op.reg, io_size_each,
+					1, op.type & SIGNEXT);
 			break;
 		}
 #endif
@@ -363,7 +362,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			}
 
 			emulated = kvmppc_handle_vsx_store(run, vcpu,
-					op.reg & 0x1f, io_size_each, 1);
+					op.reg, io_size_each, 1);
 			break;
 		}
 #endif
