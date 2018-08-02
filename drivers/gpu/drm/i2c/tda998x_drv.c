@@ -1308,6 +1308,34 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 
 /* DRM encoder functions */
 
+static void tda998x_enable(struct tda998x_priv *priv)
+{
+	if (!priv->is_on) {
+		/* enable video ports, audio will be enabled later */
+		reg_write(priv, REG_ENA_VP_0, 0xff);
+		reg_write(priv, REG_ENA_VP_1, 0xff);
+		reg_write(priv, REG_ENA_VP_2, 0xff);
+		/* set muxing after enabling ports: */
+		reg_write(priv, REG_VIP_CNTRL_0, priv->vip_cntrl_0);
+		reg_write(priv, REG_VIP_CNTRL_1, priv->vip_cntrl_1);
+		reg_write(priv, REG_VIP_CNTRL_2, priv->vip_cntrl_2);
+
+		priv->is_on = true;
+	}
+}
+
+static void tda998x_disable(struct tda998x_priv *priv)
+{
+	if (priv->is_on) {
+		/* disable video ports */
+		reg_write(priv, REG_ENA_VP_0, 0x00);
+		reg_write(priv, REG_ENA_VP_1, 0x00);
+		reg_write(priv, REG_ENA_VP_2, 0x00);
+
+		priv->is_on = false;
+	}
+}
+
 static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
@@ -1319,25 +1347,10 @@ static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 	if (on == priv->is_on)
 		return;
 
-	if (on) {
-		/* enable video ports, audio will be enabled later */
-		reg_write(priv, REG_ENA_VP_0, 0xff);
-		reg_write(priv, REG_ENA_VP_1, 0xff);
-		reg_write(priv, REG_ENA_VP_2, 0xff);
-		/* set muxing after enabling ports: */
-		reg_write(priv, REG_VIP_CNTRL_0, priv->vip_cntrl_0);
-		reg_write(priv, REG_VIP_CNTRL_1, priv->vip_cntrl_1);
-		reg_write(priv, REG_VIP_CNTRL_2, priv->vip_cntrl_2);
-
-		priv->is_on = true;
-	} else {
-		/* disable video ports */
-		reg_write(priv, REG_ENA_VP_0, 0x00);
-		reg_write(priv, REG_ENA_VP_1, 0x00);
-		reg_write(priv, REG_ENA_VP_2, 0x00);
-
-		priv->is_on = false;
-	}
+	if (on)
+		tda998x_enable(priv);
+	else
+		tda998x_disable(priv);
 }
 
 static void
