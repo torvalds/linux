@@ -110,6 +110,7 @@ struct qtnf_mac_info {
 	u8 *extended_capabilities;
 	u8 *extended_capabilities_mask;
 	u8 extended_capabilities_len;
+	struct wiphy_wowlan_support *wowlan;
 };
 
 struct qtnf_chan_stats {
