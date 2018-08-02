@@ -392,7 +392,7 @@ int __init nft_chain_filter_init(void)
 	return 0;
 }
 
-void __exit nft_chain_filter_fini(void)
+void nft_chain_filter_fini(void)
 {
 	nft_chain_filter_bridge_fini();
 	nft_chain_filter_inet_fini();
