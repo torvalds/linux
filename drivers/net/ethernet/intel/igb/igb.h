@@ -515,7 +515,7 @@ struct igb_adapter {
 	/* OS defined structs */
 	struct pci_dev *pdev;
 
-	spinlock_t stats64_lock;
+	struct mutex stats64_lock;
 	struct rtnl_link_stats64 stats64;
 
 	/* structs defined in e1000_hw.h */
