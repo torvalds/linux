@@ -365,6 +365,7 @@ config NF_CT_NETLINK_TIMEOUT
 	tristate  'Connection tracking timeout tuning via Netlink'
 	select NETFILTER_NETLINK
 	depends on NETFILTER_ADVANCED
+	depends on NF_CONNTRACK_TIMEOUT
 	help
 	  This option enables support for connection tracking timeout
 	  fine-grain tuning. This allows you to attach specific timeout

@@ -503,7 +503,6 @@ err:
 	return err;
 }
 
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 static struct ctnl_timeout *
 ctnl_timeout_find_get(struct net *net, const char *name)
 {
@@ -534,7 +533,6 @@ static void ctnl_timeout_put(struct ctnl_timeout *timeout)
 
 	module_put(THIS_MODULE);
 }
-#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 static const struct nfnl_callback cttimeout_cb[IPCTNL_MSG_TIMEOUT_MAX] = {
 	[IPCTNL_MSG_TIMEOUT_NEW]	= { .call = cttimeout_new_timeout,
@@ -605,10 +603,8 @@ static int __init cttimeout_init(void)
 			"nfnetlink.\n");
 		goto err_out;
 	}
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, ctnl_timeout_find_get);
 	RCU_INIT_POINTER(nf_ct_timeout_put_hook, ctnl_timeout_put);
-#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	return 0;
 
 err_out:
@@ -621,11 +617,9 @@ static void __exit cttimeout_exit(void)
 	nfnetlink_subsys_unregister(&cttimeout_subsys);
 
 	unregister_pernet_subsys(&cttimeout_ops);
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, NULL);
 	RCU_INIT_POINTER(nf_ct_timeout_put_hook, NULL);
 	synchronize_rcu();
-#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 }
 
 module_init(cttimeout_init);
