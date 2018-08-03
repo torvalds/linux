@@ -352,16 +352,6 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 		vc4_state->y_scaling[1] = VC4_SCALING_NONE;
 	}
 
-	/* Adjust the base pointer to the first pixel to be scanned out. */
-	for (i = 0; i < num_planes; i++) {
-		vc4_state->offsets[i] += (vc4_state->src_y /
-					  (i ? v_subsample : 1)) *
-					 fb->pitches[i];
-		vc4_state->offsets[i] += (vc4_state->src_x /
-					  (i ? h_subsample : 1)) *
-					 fb->format->cpp[i];
-	}
-
 	return 0;
 }
 
@@ -469,6 +459,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	const struct hvs_format *format = vc4_get_hvs_format(fb->format->format);
 	u64 base_format_mod = fourcc_mod_broadcom_mod(fb->modifier);
 	int num_planes = drm_format_num_planes(format->drm);
+	u32 h_subsample, v_subsample;
 	bool mix_plane_alpha;
 	bool covers_screen;
 	u32 scl0, scl1, pitch0;
@@ -514,10 +505,25 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		scl1 = vc4_get_scl_field(state, 0);
 	}
 
+	h_subsample = drm_format_horz_chroma_subsampling(format->drm);
+	v_subsample = drm_format_vert_chroma_subsampling(format->drm);
+
 	switch (base_format_mod) {
 	case DRM_FORMAT_MOD_LINEAR:
 		tiling = SCALER_CTL0_TILING_LINEAR;
 		pitch0 = VC4_SET_FIELD(fb->pitches[0], SCALER_SRC_PITCH);
+
+		/* Adjust the base pointer to the first pixel to be scanned
+		 * out.
+		 */
+		for (i = 0; i < num_planes; i++) {
+			vc4_state->offsets[i] += vc4_state->src_y /
+						 (i ? v_subsample : 1) *
+						 fb->pitches[i];
+			vc4_state->offsets[i] += vc4_state->src_x /
+						 (i ? h_subsample : 1) *
+						 fb->format->cpp[i];
+		}
 		break;
 
 	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED: {
