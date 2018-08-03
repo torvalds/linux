@@ -2875,13 +2875,13 @@ void dm_check_fsync(struct net_device *dev)
 
 		if (priv->framesyncMonitor) {
 			if (priv->ieee80211->state == IEEE80211_LINKED) {
-				if (priv->undecorated_smoothed_pwdb <= RegC38_TH) {
+				if (priv->undecorated_smoothed_pwdb <= REG_C38_TH) {
 					if (reg_c38_State != RegC38_NonFsync_Other_AP) {
 						write_nic_byte(dev, rOFDM0_RxDetector3, 0x90);
 
 						reg_c38_State = RegC38_NonFsync_Other_AP;
 					}
-				} else if (priv->undecorated_smoothed_pwdb >= (RegC38_TH+5)) {
+				} else if (priv->undecorated_smoothed_pwdb >= (REG_C38_TH + 5)) {
 					if (reg_c38_State) {
 						write_nic_byte(dev, rOFDM0_RxDetector3, priv->framesync);
 						reg_c38_State = RegC38_Default;
@@ -3046,15 +3046,15 @@ static void dm_check_txrateandretrycount(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
 	/* for 11n tx rate */
-	/*priv->stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);*/
-	read_nic_byte(dev, Current_Tx_Rate_Reg, &ieee->softmac_stats.CurrentShowTxate);
+	/*priv->stats.CurrentShowTxate = read_nic_byte(dev, CURRENT_TX_RATE_REG);*/
+	read_nic_byte(dev, CURRENT_TX_RATE_REG, &ieee->softmac_stats.CurrentShowTxate);
 	/*printk("=============>tx_rate_reg:%x\n", ieee->softmac_stats.CurrentShowTxate);*/
 	/* for initial tx rate */
-	/*priv->stats.last_packet_rate = read_nic_byte(dev, Initial_Tx_Rate_Reg);*/
-	read_nic_byte(dev, Initial_Tx_Rate_Reg, &ieee->softmac_stats.last_packet_rate);
+	/*priv->stats.last_packet_rate = read_nic_byte(dev, INITIAL_TX_RATE_REG);*/
+	read_nic_byte(dev, INITIAL_TX_RATE_REG, &ieee->softmac_stats.last_packet_rate);
 	/* for tx tx retry count */
-	/*priv->stats.txretrycount = read_nic_dword(dev, Tx_Retry_Count_Reg);*/
-	read_nic_dword(dev, Tx_Retry_Count_Reg, &ieee->softmac_stats.txretrycount);
+	/*priv->stats.txretrycount = read_nic_dword(dev, TX_RETRY_COUNT_REG);*/
+	read_nic_dword(dev, TX_RETRY_COUNT_REG, &ieee->softmac_stats.txretrycount);
 }
 
 static void dm_send_rssi_tofw(struct net_device *dev)

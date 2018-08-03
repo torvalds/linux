@@ -56,10 +56,10 @@
 #define		TX_POWER_ATHEROAP_THRESH_LOW		72
 
 /* defined by vivi, for showing on UI */
-#define			Current_Tx_Rate_Reg         0x1b8
-#define			Initial_Tx_Rate_Reg		  0x1b9
-#define			Tx_Retry_Count_Reg         0x1ac
-#define		RegC38_TH				 20
+#define			CURRENT_TX_RATE_REG         0x1b8
+#define			INITIAL_TX_RATE_REG		  0x1b9
+#define			TX_RETRY_COUNT_REG         0x1ac
+#define		REG_C38_TH				 20
 /*--------------------------Define Parameters-------------------------------*/
 
 
