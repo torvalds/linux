@@ -111,6 +111,13 @@ struct amdgpu_gmc {
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 };
 
+#define amdgpu_gmc_flush_gpu_tlb(adev, vmid) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid))
+#define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
+#define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
+#define amdgpu_gmc_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gmc.gmc_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
+#define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
+#define amdgpu_gmc_get_pte_flags(adev, flags) (adev)->gmc.gmc_funcs->get_vm_pte_flags((adev),(flags))
+
 /**
  * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
  *
