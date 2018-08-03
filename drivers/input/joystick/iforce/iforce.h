@@ -98,6 +98,8 @@ struct iforce;
 struct iforce_xport_ops {
 	void (*xmit)(struct iforce *iforce);
 	int (*get_id)(struct iforce *iforce, u8* id);
+	int (*start_io)(struct iforce *iforce);
+	void (*stop_io)(struct iforce *iforce);
 };
 
 struct iforce {

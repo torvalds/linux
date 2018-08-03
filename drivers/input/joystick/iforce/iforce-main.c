@@ -185,15 +185,7 @@ static int iforce_open(struct input_dev *dev)
 {
 	struct iforce *iforce = input_get_drvdata(dev);
 
-	switch (iforce->bus) {
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-		case IFORCE_USB:
-			iforce->irq->dev = iforce->usbdev;
-			if (usb_submit_urb(iforce->irq, GFP_KERNEL))
-				return -EIO;
-			break;
-#endif
-	}
+	iforce->xport_ops->start_io(iforce);
 
 	if (test_bit(EV_FF, dev->evbit)) {
 		/* Enable force feedback */
@@ -226,20 +218,7 @@ static void iforce_close(struct input_dev *dev)
 			!test_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags));
 	}
 
-	switch (iforce->bus) {
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	case IFORCE_USB:
-		usb_kill_urb(iforce->irq);
-		usb_kill_urb(iforce->out);
-		usb_kill_urb(iforce->ctrl);
-		break;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	case IFORCE_232:
-		//TODO: Wait for the last packets to be sent
-		break;
-#endif
-	}
+	iforce->xport_ops->stop_io(iforce);
 }
 
 int iforce_init_device(struct iforce *iforce)

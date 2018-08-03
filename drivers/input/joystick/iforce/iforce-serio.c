@@ -83,9 +83,22 @@ static int iforce_serio_get_id(struct iforce *iforce, u8 *packet)
 	return -(iforce->edata[0] != packet[0]);
 }
 
+static int iforce_serio_start_io(struct iforce *iforce)
+{
+	/* No special handling required */
+	return 0;
+}
+
+static void iforce_serio_stop_io(struct iforce *iforce)
+{
+	//TODO: Wait for the last packets to be sent
+}
+
 static const struct iforce_xport_ops iforce_serio_xport_ops = {
 	.xmit		= iforce_serio_xmit,
 	.get_id		= iforce_serio_get_id,
+	.start_io	= iforce_serio_start_io,
+	.stop_io	= iforce_serio_stop_io,
 };
 
 static void iforce_serio_write_wakeup(struct serio *serio)

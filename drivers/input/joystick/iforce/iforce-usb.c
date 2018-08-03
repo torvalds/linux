@@ -103,9 +103,26 @@ static int iforce_usb_get_id(struct iforce *iforce, u8 *packet)
 	return -(iforce->edata[0] != packet[0]);
 }
 
+static int iforce_usb_start_io(struct iforce *iforce)
+{
+	if (usb_submit_urb(iforce->irq, GFP_KERNEL))
+		return -EIO;
+
+	return 0;
+}
+
+static void iforce_usb_stop_io(struct iforce *iforce)
+{
+	usb_kill_urb(iforce->irq);
+	usb_kill_urb(iforce->out);
+	usb_kill_urb(iforce->ctrl);
+}
+
 static const struct iforce_xport_ops iforce_usb_xport_ops = {
 	.xmit		= iforce_usb_xmit,
 	.get_id		= iforce_usb_get_id,
+	.start_io	= iforce_usb_start_io,
+	.stop_io	= iforce_usb_stop_io,
 };
 
 static void iforce_usb_irq(struct urb *urb)
