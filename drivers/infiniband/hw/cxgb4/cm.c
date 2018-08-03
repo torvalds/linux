@@ -587,24 +587,29 @@ static int send_flowc(struct c4iw_ep *ep)
 {
 	struct fw_flowc_wr *flowc;
 	struct sk_buff *skb = skb_dequeue(&ep->com.ep_skb_list);
-	int i;
 	u16 vlan = ep->l2t->vlan;
 	int nparams;
+	int flowclen, flowclen16;
 
 	if (WARN_ON(!skb))
 		return -ENOMEM;
 
 	if (vlan == CPL_L2T_VLAN_NONE)
-		nparams = 8;
-	else
 		nparams = 9;
+	else
+		nparams = 10;
 
-	flowc = __skb_put(skb, FLOWC_LEN);
+	flowclen = offsetof(struct fw_flowc_wr, mnemval[nparams]);
+	flowclen16 = DIV_ROUND_UP(flowclen, 16);
+	flowclen = flowclen16 * 16;
+
+	flowc = __skb_put(skb, flowclen);
+	memset(flowc, 0, flowclen);
 
 	flowc->op_to_nparams = cpu_to_be32(FW_WR_OP_V(FW_FLOWC_WR) |
 					   FW_FLOWC_WR_NPARAMS_V(nparams));
-	flowc->flowid_len16 = cpu_to_be32(FW_WR_LEN16_V(DIV_ROUND_UP(FLOWC_LEN,
-					  16)) | FW_WR_FLOWID_V(ep->hwtid));
+	flowc->flowid_len16 = cpu_to_be32(FW_WR_LEN16_V(flowclen16) |
+					  FW_WR_FLOWID_V(ep->hwtid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
 	flowc->mnemval[0].val = cpu_to_be32(FW_PFVF_CMD_PFN_V
@@ -623,21 +628,13 @@ static int send_flowc(struct c4iw_ep *ep)
 	flowc->mnemval[6].val = cpu_to_be32(ep->snd_win);
 	flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 	flowc->mnemval[7].val = cpu_to_be32(ep->emss);
-	if (nparams == 9) {
+	flowc->mnemval[8].mnemonic = FW_FLOWC_MNEM_RCV_SCALE;
+	flowc->mnemval[8].val = cpu_to_be32(ep->snd_wscale);
+	if (nparams == 10) {
 		u16 pri;
-
 		pri = (vlan & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
-		flowc->mnemval[8].mnemonic = FW_FLOWC_MNEM_SCHEDCLASS;
-		flowc->mnemval[8].val = cpu_to_be32(pri);
-	} else {
-		/* Pad WR to 16 byte boundary */
-		flowc->mnemval[8].mnemonic = 0;
-		flowc->mnemval[8].val = 0;
-	}
-	for (i = 0; i < 9; i++) {
-		flowc->mnemval[i].r4[0] = 0;
-		flowc->mnemval[i].r4[1] = 0;
-		flowc->mnemval[i].r4[2] = 0;
+		flowc->mnemval[9].mnemonic = FW_FLOWC_MNEM_SCHEDCLASS;
+		flowc->mnemval[9].val = cpu_to_be32(pri);
 	}
 
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
@@ -1176,6 +1173,7 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 {
 	struct c4iw_ep *ep;
 	struct cpl_act_establish *req = cplhdr(skb);
+	unsigned short tcp_opt = ntohs(req->tcp_opt);
 	unsigned int tid = GET_TID(req);
 	unsigned int atid = TID_TID_G(ntohl(req->tos_atid));
 	struct tid_info *t = dev->rdev.lldi.tids;
@@ -1196,8 +1194,9 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	ep->snd_seq = be32_to_cpu(req->snd_isn);
 	ep->rcv_seq = be32_to_cpu(req->rcv_isn);
+	ep->snd_wscale = TCPOPT_SND_WSCALE_G(tcp_opt);
 
-	set_emss(ep, ntohs(req->tcp_opt));
+	set_emss(ep, tcp_opt);
 
 	/* dealloc the atid */
 	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, atid);
@@ -2629,16 +2628,17 @@ static int pass_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct cpl_pass_establish *req = cplhdr(skb);
 	unsigned int tid = GET_TID(req);
 	int ret;
+	u16 tcp_opt = ntohs(req->tcp_opt);
 
 	ep = get_ep_from_tid(dev, tid);
 	pr_debug("ep %p tid %u\n", ep, ep->hwtid);
 	ep->snd_seq = be32_to_cpu(req->snd_isn);
 	ep->rcv_seq = be32_to_cpu(req->rcv_isn);
+	ep->snd_wscale = TCPOPT_SND_WSCALE_G(tcp_opt);
 
-	pr_debug("ep %p hwtid %u tcp_opt 0x%02x\n", ep, tid,
-		 ntohs(req->tcp_opt));
+	pr_debug("ep %p hwtid %u tcp_opt 0x%02x\n", ep, tid, tcp_opt);
 
-	set_emss(ep, ntohs(req->tcp_opt));
+	set_emss(ep, tcp_opt);
 
 	dst_confirm(ep->dst);
 	mutex_lock(&ep->com.mutex);

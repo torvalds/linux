@@ -910,7 +910,10 @@ enum conn_pre_alloc_buffers {
 	CN_MAX_CON_BUF
 };
 
-#define FLOWC_LEN 80
+enum {
+	FLOWC_LEN = offsetof(struct fw_flowc_wr, mnemval[FW_FLOWC_MNEM_MAX])
+};
+
 union cpl_wr_size {
 	struct cpl_abort_req abrt_req;
 	struct cpl_abort_rpl abrt_rpl;
@@ -977,6 +980,7 @@ struct c4iw_ep {
 	unsigned int retry_count;
 	int snd_win;
 	int rcv_win;
+	u32 snd_wscale;
 	struct c4iw_ep_stats stats;
 };
 
