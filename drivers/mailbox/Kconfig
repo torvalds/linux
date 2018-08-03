@@ -15,6 +15,12 @@ config ARM_MHU
 	  The controller has 3 mailbox channels, the last of which can be
 	  used in Secure mode only.
 
+config IMX_MBOX
+	tristate "i.MX Mailbox"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  Mailbox implementation for i.MX Messaging Unit (MU).
+
 config PLATFORM_MHU
 	tristate "Platform MHU Mailbox"
 	depends on OF
