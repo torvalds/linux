@@ -608,9 +608,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	if (info->attrs[L2TP_ATTR_RECV_TIMEOUT])
 		cfg.reorder_timeout = nla_get_msecs(info->attrs[L2TP_ATTR_RECV_TIMEOUT]);
 
-	if (info->attrs[L2TP_ATTR_MTU])
-		cfg.mtu = nla_get_u16(info->attrs[L2TP_ATTR_MTU]);
-
 #ifdef CONFIG_MODULES
 	if (l2tp_nl_cmd_ops[cfg.pw_type] == NULL) {
 		genl_unlock();
@@ -698,9 +695,6 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 	if (info->attrs[L2TP_ATTR_RECV_TIMEOUT])
 		session->reorder_timeout = nla_get_msecs(info->attrs[L2TP_ATTR_RECV_TIMEOUT]);
 
-	if (info->attrs[L2TP_ATTR_MTU])
-		session->mtu = nla_get_u16(info->attrs[L2TP_ATTR_MTU]);
-
 	ret = l2tp_session_notify(&l2tp_nl_family, info,
 				  session, L2TP_CMD_SESSION_MODIFY);
 
@@ -730,8 +724,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	    nla_put_u32(skb, L2TP_ATTR_PEER_SESSION_ID,
 			session->peer_session_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_DEBUG, session->debug) ||
-	    nla_put_u16(skb, L2TP_ATTR_PW_TYPE, session->pwtype) ||
-	    nla_put_u16(skb, L2TP_ATTR_MTU, session->mtu))
+	    nla_put_u16(skb, L2TP_ATTR_PW_TYPE, session->pwtype))
 		goto nla_put_failure;
 
 	if ((session->ifname[0] &&

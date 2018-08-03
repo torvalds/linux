@@ -234,14 +234,11 @@ static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 		overhead += sizeof(struct udphdr);
 		dev->needed_headroom += sizeof(struct udphdr);
 	}
-	if (session->mtu != 0) {
-		dev->mtu = session->mtu;
-		dev->needed_headroom += session->hdr_len;
-		return;
-	}
+
 	lock_sock(tunnel->sock);
 	l3_overhead = kernel_sock_ip_overhead(tunnel->sock);
 	release_sock(tunnel->sock);
+
 	if (l3_overhead == 0) {
 		/* L3 Overhead couldn't be identified, this could be
 		 * because tunnel->sock was NULL or the socket's
@@ -255,12 +252,12 @@ static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 	 */
 	overhead += session->hdr_len + ETH_HLEN + l3_overhead;
 
-	/* If PMTU discovery was enabled, use discovered MTU on L2TP device */
-	mtu = l2tp_tunnel_dst_mtu(tunnel);
-	if (mtu)
+	mtu = l2tp_tunnel_dst_mtu(tunnel) - overhead;
+	if (mtu < dev->min_mtu || mtu > dev->max_mtu)
+		dev->mtu = ETH_DATA_LEN - overhead;
+	else
 		dev->mtu = mtu;
-	session->mtu = dev->mtu - overhead;
-	dev->mtu = session->mtu;
+
 	dev->needed_headroom += session->hdr_len;
 }
 
