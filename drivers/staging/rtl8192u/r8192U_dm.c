@@ -510,7 +510,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool						viviflag = false;
-	DCMD_TXCMD_T			tx_cmd;
+	struct tx_config_cmd			        tx_cmd;
 	u8						powerlevelOFDM24G;
 	int						i = 0, j = 0, k = 0;
 	u8						RF_Type, tmp_report[5] = {0, 0, 0, 0, 0};
@@ -532,10 +532,10 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 	RT_TRACE(COMP_POWER_TRACKING, "powerlevelOFDM24G = %x\n", powerlevelOFDM24G);
 
 	for (j = 0; j <= 30; j++) { /* fill tx_cmd */
-		tx_cmd.Op = TXCMD_SET_TX_PWR_TRACKING;
-		tx_cmd.Length = 4;
-		tx_cmd.Value = Value;
-		rtStatus = SendTxCommandPacket(dev, &tx_cmd, 12);
+		tx_cmd.cmd_op = TXCMD_SET_TX_PWR_TRACKING;
+		tx_cmd.cmd_length = sizeof(tx_cmd.cmd_op);
+		tx_cmd.cmd_value = Value;
+		rtStatus = SendTxCommandPacket(dev, &tx_cmd, sizeof(struct tx_config_cmd));
 		if (rtStatus == RT_STATUS_FAILURE)
 			RT_TRACE(COMP_POWER_TRACKING, "Set configuration with tx cmd queue fail!\n");
 		usleep_range(1000, 2000);

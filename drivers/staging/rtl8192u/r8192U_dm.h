@@ -139,11 +139,12 @@ struct dynamic_rx_path_sel {
 	long		cck_pwdb_sta[4];
 };
 
-typedef struct tag_Tx_Config_Cmd_Format {
-	u32	Op;			/* Command packet type. */
-	u32	Length;			/* Command packet length. */
-	u32	Value;
-} DCMD_TXCMD_T, *PDCMD_TXCMD_T;
+struct tx_config_cmd {
+	u32	cmd_op;			/* Command packet type. */
+	u32	cmd_length;			/* Command packet length. */
+	u32	cmd_value;
+};
+
 /*------------------------------Define structure----------------------------*/
 
 
