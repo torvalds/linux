@@ -40,26 +40,20 @@
  **************************************************************************
  */
 
-#include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/version.h>
-#include <linux/pci.h>
-#include <linux/io.h>
-#include <asm/mips-cm.h>
-#include <linux/init.h>
-#include <linux/module.h>
+#include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_pci.h>
-#include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_pci.h>
+#include <linux/of_platform.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
-
-#include <ralink_regs.h>
+#include <linux/reset.h>
 #include <mt7621.h>
+#include <ralink_regs.h>
 
 #include "../../pci/pci.h"
 
