@@ -38,6 +38,7 @@
 #define AMDGPU_GFX_CG_DISABLED_MODE		0x00000004L
 #define AMDGPU_GFX_LBPW_DISABLED_MODE		0x00000008L
 
+#define AMDGPU_MAX_GFX_QUEUES KGD_MAX_QUEUES
 #define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
 
 struct amdgpu_mec {
@@ -211,6 +212,13 @@ struct amdgpu_me {
 	struct amdgpu_bo		*me_fw_obj;
 	uint64_t			me_fw_gpu_addr;
 	uint32_t			*me_fw_ptr;
+	uint32_t			num_me;
+	uint32_t			num_pipe_per_me;
+	uint32_t			num_queue_per_pipe;
+	void				*mqd_backup[AMDGPU_MAX_GFX_RINGS + 1];
+
+	/* These are the resources for which amdgpu takes ownership */
+	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
 };
 
 struct amdgpu_gfx {
