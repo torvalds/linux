@@ -2610,8 +2610,6 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define USES_GUC_SUBMISSION(dev_priv)	intel_uc_is_using_guc_submission()
 #define USES_HUC(dev_priv)		intel_uc_is_using_huc()
 
-#define HAS_RESOURCE_STREAMER(dev_priv) ((dev_priv)->info.has_resource_streamer)
-
 #define HAS_POOLED_EU(dev_priv)	((dev_priv)->info.has_pooled_eu)
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff80
