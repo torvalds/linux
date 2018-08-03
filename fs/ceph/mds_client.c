@@ -3406,10 +3406,10 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	vino.ino = le64_to_cpu(h->ino);
 	vino.snap = CEPH_NOSNAP;
 	seq = le32_to_cpu(h->seq);
-	dname.name = (void *)h + sizeof(*h) + sizeof(u32);
-	dname.len = msg->front.iov_len - sizeof(*h) - sizeof(u32);
-	if (dname.len != get_unaligned_le32(h+1))
+	dname.len = get_unaligned_le32(h + 1);
+	if (msg->front.iov_len < sizeof(*h) + sizeof(u32) + dname.len)
 		goto bad;
+	dname.name = (void *)(h + 1) + sizeof(u32);
 
 	/* lookup inode */
 	inode = ceph_find_inode(sb, vino);
