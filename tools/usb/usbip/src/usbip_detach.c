@@ -43,7 +43,7 @@ void usbip_detach_usage(void)
 
 static int detach_port(char *port)
 {
-	int ret;
+	int ret = 0;
 	uint8_t portnum;
 	char path[PATH_MAX+1];
 
@@ -73,9 +73,12 @@ static int detach_port(char *port)
 	}
 
 	ret = usbip_vhci_detach_device(portnum);
-	if (ret < 0)
-		return -1;
+	if (ret < 0) {
+		ret = -1;
+		goto call_driver_close;
+	}
 
+call_driver_close:
 	usbip_vhci_driver_close();
 
 	return ret;

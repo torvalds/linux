@@ -8376,12 +8376,17 @@ static void igb_rar_set_index(struct igb_adapter *adapter, u32 index)
 		if (is_valid_ether_addr(addr))
 			rar_high |= E1000_RAH_AV;
 
-		if (hw->mac.type == e1000_82575)
+		switch (hw->mac.type) {
+		case e1000_82575:
+		case e1000_i210:
 			rar_high |= E1000_RAH_POOL_1 *
 				    adapter->mac_table[index].queue;
-		else
+			break;
+		default:
 			rar_high |= E1000_RAH_POOL_1 <<
 				    adapter->mac_table[index].queue;
+			break;
+		}
 	}
 
 	wr32(E1000_RAL(index), rar_low);

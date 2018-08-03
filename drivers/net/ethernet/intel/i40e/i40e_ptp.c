@@ -337,6 +337,8 @@ void i40e_ptp_rx_hang(struct i40e_pf *pf)
  **/
 void i40e_ptp_tx_hang(struct i40e_pf *pf)
 {
+	struct sk_buff *skb;
+
 	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_tx)
 		return;
 
@@ -349,9 +351,12 @@ void i40e_ptp_tx_hang(struct i40e_pf *pf)
 	 * within a second it is reasonable to assume that we never will.
 	 */
 	if (time_is_before_jiffies(pf->ptp_tx_start + HZ)) {
-		dev_kfree_skb_any(pf->ptp_tx_skb);
+		skb = pf->ptp_tx_skb;
 		pf->ptp_tx_skb = NULL;
 		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+
+		/* Free the skb after we clear the bitlock */
+		dev_kfree_skb_any(skb);
 		pf->tx_hwtstamp_timeouts++;
 	}
 }

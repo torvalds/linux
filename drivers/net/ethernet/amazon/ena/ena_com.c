@@ -331,6 +331,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 
 	memset(&io_sq->desc_addr, 0x0, sizeof(io_sq->desc_addr));
 
+	io_sq->dma_addr_bits = ena_dev->dma_addr_bits;
 	io_sq->desc_entry_size =
 		(io_sq->direction == ENA_COM_IO_QUEUE_DIRECTION_TX) ?
 		sizeof(struct ena_eth_io_tx_desc) :

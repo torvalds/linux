@@ -407,7 +407,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 			return -EINVAL;
 		break;
 	case AUDIT_EXE:
-		if (f->op != Audit_equal)
+		if (f->op != Audit_not_equal && f->op != Audit_equal)
 			return -EINVAL;
 		if (entry->rule.listnr != AUDIT_FILTER_EXIT)
 			return -EINVAL;

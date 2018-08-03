@@ -557,28 +557,32 @@ static int bl_write_header(struct rsi_hw *adapter, u8 *flash_content,
 			   u32 content_size)
 {
 	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
-	struct bl_header bl_hdr;
+	struct bl_header *bl_hdr;
 	u32 write_addr, write_len;
 	int status;
 
-	bl_hdr.flags = 0;
-	bl_hdr.image_no = cpu_to_le32(adapter->priv->coex_mode);
-	bl_hdr.check_sum = cpu_to_le32(
-				*(u32 *)&flash_content[CHECK_SUM_OFFSET]);
-	bl_hdr.flash_start_address = cpu_to_le32(
-					*(u32 *)&flash_content[ADDR_OFFSET]);
-	bl_hdr.flash_len = cpu_to_le32(*(u32 *)&flash_content[LEN_OFFSET]);
+	bl_hdr = kzalloc(sizeof(*bl_hdr), GFP_KERNEL);
+	if (!bl_hdr)
+		return -ENOMEM;
+
+	bl_hdr->flags = 0;
+	bl_hdr->image_no = cpu_to_le32(adapter->priv->coex_mode);
+	bl_hdr->check_sum =
+		cpu_to_le32(*(u32 *)&flash_content[CHECK_SUM_OFFSET]);
+	bl_hdr->flash_start_address =
+		cpu_to_le32(*(u32 *)&flash_content[ADDR_OFFSET]);
+	bl_hdr->flash_len = cpu_to_le32(*(u32 *)&flash_content[LEN_OFFSET]);
 	write_len = sizeof(struct bl_header);
 
 	if (adapter->rsi_host_intf == RSI_HOST_INTF_USB) {
 		write_addr = PING_BUFFER_ADDRESS;
 		status = hif_ops->write_reg_multiple(adapter, write_addr,
-						 (u8 *)&bl_hdr, write_len);
+						 (u8 *)bl_hdr, write_len);
 		if (status < 0) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to load Version/CRC structure\n",
 				__func__);
-			return status;
+			goto fail;
 		}
 	} else {
 		write_addr = PING_BUFFER_ADDRESS >> 16;
@@ -587,20 +591,23 @@ static int bl_write_header(struct rsi_hw *adapter, u8 *flash_content,
 			rsi_dbg(ERR_ZONE,
 				"%s: Unable to set ms word to common reg\n",
 				__func__);
-			return status;
+			goto fail;
 		}
 		write_addr = RSI_SD_REQUEST_MASTER |
 			     (PING_BUFFER_ADDRESS & 0xFFFF);
 		status = hif_ops->write_reg_multiple(adapter, write_addr,
-						 (u8 *)&bl_hdr, write_len);
+						 (u8 *)bl_hdr, write_len);
 		if (status < 0) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to load Version/CRC structure\n",
 				__func__);
-			return status;
+			goto fail;
 		}
 	}
-	return 0;
+	status = 0;
+fail:
+	kfree(bl_hdr);
+	return status;
 }
 
 static u32 read_flash_capacity(struct rsi_hw *adapter)

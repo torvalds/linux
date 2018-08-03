@@ -555,14 +555,16 @@ static int sh_msiof_spi_setup(struct spi_device *spi)
 
 	/* Configure native chip select mode/polarity early */
 	clr = MDR1_SYNCMD_MASK;
-	set = MDR1_TRMD | TMDR1_PCON | MDR1_SYNCMD_SPI;
+	set = MDR1_SYNCMD_SPI;
 	if (spi->mode & SPI_CS_HIGH)
 		clr |= BIT(MDR1_SYNCAC_SHIFT);
 	else
 		set |= BIT(MDR1_SYNCAC_SHIFT);
 	pm_runtime_get_sync(&p->pdev->dev);
 	tmp = sh_msiof_read(p, TMDR1) & ~clr;
-	sh_msiof_write(p, TMDR1, tmp | set);
+	sh_msiof_write(p, TMDR1, tmp | set | MDR1_TRMD | TMDR1_PCON);
+	tmp = sh_msiof_read(p, RMDR1) & ~clr;
+	sh_msiof_write(p, RMDR1, tmp | set);
 	pm_runtime_put(&p->pdev->dev);
 	p->native_cs_high = spi->mode & SPI_CS_HIGH;
 	p->native_cs_inited = true;
