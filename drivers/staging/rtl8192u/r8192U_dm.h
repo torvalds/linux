@@ -41,8 +41,8 @@
 #define		RX_PATH_SELECTION_DIFF_TH			18
 
 #define		RATE_ADAPTIVE_TH_HIGH			50
-#define		RateAdaptiveTH_Low_20M		30
-#define		RateAdaptiveTH_Low_40M		10
+#define		RATE_ADAPTIVE_TH_LOW_20M		30
+#define		RATE_ADAPTIVE_TH_LOW_40M		10
 #define		VeryLowRSSI					15
 #define		CTSToSelfTHVal					30
 
