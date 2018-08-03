@@ -119,7 +119,7 @@ enum {
 	L2TP_ATTR_IP_DADDR,		/* u32 */
 	L2TP_ATTR_UDP_SPORT,		/* u16 */
 	L2TP_ATTR_UDP_DPORT,		/* u16 */
-	L2TP_ATTR_MTU,			/* u16 */
+	L2TP_ATTR_MTU,			/* u16 (not used) */
 	L2TP_ATTR_MRU,			/* u16 (not used) */
 	L2TP_ATTR_STATS,		/* nested */
 	L2TP_ATTR_IP6_SADDR,		/* struct in6_addr */

@@ -12,6 +12,9 @@
 #ifndef _L2TP_CORE_H_
 #define _L2TP_CORE_H_
 
+#include <net/dst.h>
+#include <net/sock.h>
+
 /* Just some random numbers */
 #define L2TP_TUNNEL_MAGIC	0x42114DDA
 #define L2TP_SESSION_MAGIC	0x0C04EB7D
@@ -61,7 +64,6 @@ struct l2tp_session_cfg {
 	int			peer_cookie_len; /* 0, 4 or 8 bytes */
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
-	int			mtu;
 	char			*ifname;
 };
 
@@ -105,7 +107,6 @@ struct l2tp_session {
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
 	int			reorder_skip;	/* set if skip to next nr */
-	int			mtu;
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
 	struct hlist_node	global_hlist;	/* Global hash list node */
@@ -266,6 +267,21 @@ static inline int l2tp_get_l2specific_len(struct l2tp_session *session)
 	default:
 		return 0;
 	}
+}
+
+static inline u32 l2tp_tunnel_dst_mtu(const struct l2tp_tunnel *tunnel)
+{
+	struct dst_entry *dst;
+	u32 mtu;
+
+	dst = sk_dst_get(tunnel->sock);
+	if (!dst)
+		return 0;
+
+	mtu = dst_mtu(dst);
+	dst_release(dst);
+
+	return mtu;
 }
 
 #define l2tp_printk(ptr, type, func, fmt, ...)				\
