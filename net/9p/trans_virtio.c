@@ -89,10 +89,8 @@ struct virtio_chan {
 	unsigned long p9_max_pages;
 	/* Scatterlist: can be too big for stack. */
 	struct scatterlist sg[VIRTQUEUE_NUM];
-
-	int tag_len;
 	/*
-	 * tag name to identify a mount Non-null terminated
+	 * tag name to identify a mount null terminated
 	 */
 	char *tag;
 
@@ -528,14 +526,15 @@ static ssize_t p9_mount_tag_show(struct device *dev,
 {
 	struct virtio_chan *chan;
 	struct virtio_device *vdev;
+	int tag_len;
 
 	vdev = dev_to_virtio(dev);
 	chan = vdev->priv;
+	tag_len = strlen(chan->tag);
 
-	memcpy(buf, chan->tag, chan->tag_len);
-	buf[chan->tag_len] = 0;
+	memcpy(buf, chan->tag, tag_len + 1);
 
-	return chan->tag_len + 1;
+	return tag_len + 1;
 }
 
 static DEVICE_ATTR(mount_tag, 0444, p9_mount_tag_show, NULL);
@@ -588,7 +587,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 		err = -EINVAL;
 		goto out_free_vq;
 	}
-	tag = kmalloc(tag_len, GFP_KERNEL);
+	tag = kzalloc(tag_len + 1, GFP_KERNEL);
 	if (!tag) {
 		err = -ENOMEM;
 		goto out_free_vq;
@@ -597,7 +596,6 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	virtio_cread_bytes(vdev, offsetof(struct virtio_9p_config, tag),
 			   tag, tag_len);
 	chan->tag = tag;
-	chan->tag_len = tag_len;
 	err = sysfs_create_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
 	if (err) {
 		goto out_free_tag;
@@ -660,8 +658,7 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 
 	mutex_lock(&virtio_9p_lock);
 	list_for_each_entry(chan, &virtio_chan_list, chan_list) {
-		if (!strncmp(devname, chan->tag, chan->tag_len) &&
-		    strlen(devname) == chan->tag_len) {
+		if (!strcmp(devname, chan->tag)) {
 			if (!chan->inuse) {
 				chan->inuse = true;
 				found = 1;
