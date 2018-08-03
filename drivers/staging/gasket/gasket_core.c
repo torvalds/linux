@@ -1735,7 +1735,8 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 	int desc_idx = -1;
 	struct gasket_internal_desc *internal;
 
-	pr_info("Initializing Gasket framework device\n");
+	pr_debug("Loading %s driver version %s\n", driver_desc->name,
+		 driver_desc->driver_version);
 	/* Check for duplicates and find a free slot. */
 	mutex_lock(&g_mutex);
 
@@ -1764,8 +1765,6 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 		return -EBUSY;
 	}
 
-	/* Internal structure setup. */
-	pr_debug("Performing initial internal structure setup.\n");
 	internal = &g_descs[desc_idx];
 	mutex_init(&internal->mutex);
 	memset(internal->devs, 0, sizeof(struct gasket_dev *) * GASKET_DEV_MAX);
@@ -1788,7 +1787,6 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 	 * Not using pci_register_driver() (without underscores), as it
 	 * depends on KBUILD_MODNAME, and this is a shared file.
 	 */
-	pr_debug("Registering PCI driver.\n");
 	ret = __pci_register_driver(&internal->pci, driver_desc->module,
 				    driver_desc->name);
 	if (ret) {
@@ -1796,7 +1794,6 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 		goto fail1;
 	}
 
-	pr_debug("Registering char driver.\n");
 	ret = register_chrdev_region(MKDEV(driver_desc->major,
 					   driver_desc->minor), GASKET_DEV_MAX,
 				     driver_desc->name);
