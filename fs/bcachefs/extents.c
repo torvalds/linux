@@ -1113,8 +1113,6 @@ static bool bch2_extent_merge_inline(struct bch_fs *,
 				     struct bkey_packed *,
 				     bool);
 
-#define MAX_LOCK_HOLD_TIME	(5 * NSEC_PER_MSEC)
-
 static enum btree_insert_ret
 extent_insert_should_stop(struct extent_insert_state *s)
 {
@@ -1287,23 +1285,41 @@ extent_insert_advance_pos(struct extent_insert_state *s, struct bkey_s_c k)
 	return __extent_insert_advance_pos(s, next_pos, k);
 }
 
-static enum btree_insert_ret
-extent_insert_check_split_compressed(struct extent_insert_state *s,
-				     struct bkey_s_c k,
-				     enum bch_extent_overlap overlap)
+enum btree_insert_ret
+bch2_extent_can_insert(struct btree_insert *trans,
+		       struct btree_insert_entry *insert,
+		       unsigned *u64s)
 {
-	struct bch_fs *c = s->trans->c;
-	unsigned sectors;
+	struct btree_iter_level *l = &insert->iter->l[0];
+	struct btree_node_iter node_iter = l->iter;
+	enum bch_extent_overlap overlap;
+	struct bkey_packed *_k;
+	struct bkey unpacked;
+	struct bkey_s_c k;
+	int sectors;
+
+	_k = bch2_btree_node_iter_peek_filter(&node_iter, l->b,
+					      KEY_TYPE_DISCARD);
+	if (!_k)
+		return BTREE_INSERT_OK;
+
+	k = bkey_disassemble(l->b, _k, &unpacked);
+
+	overlap = bch2_extent_overlap(&insert->k->k, k.k);
+
+	/* account for having to split existing extent: */
+	if (overlap == BCH_EXTENT_OVERLAP_MIDDLE)
+		*u64s += _k->u64s;
 
 	if (overlap == BCH_EXTENT_OVERLAP_MIDDLE &&
 	    (sectors = bch2_extent_is_compressed(k))) {
 		int flags = BCH_DISK_RESERVATION_BTREE_LOCKS_HELD;
 
-		if (s->trans->flags & BTREE_INSERT_NOFAIL)
+		if (trans->flags & BTREE_INSERT_NOFAIL)
 			flags |= BCH_DISK_RESERVATION_NOFAIL;
 
-		switch (bch2_disk_reservation_add(c,
-				s->trans->disk_res,
+		switch (bch2_disk_reservation_add(trans->c,
+				trans->disk_res,
 				sectors * bch2_extent_nr_dirty_ptrs(k),
 				flags)) {
 		case 0:
@@ -1471,10 +1487,6 @@ __bch2_delete_fixup_extent(struct extent_insert_state *s)
 
 		overlap = bch2_extent_overlap(&insert->k, k.k);
 
-		ret = extent_insert_check_split_compressed(s, k.s_c, overlap);
-		if (ret)
-			break;
-
 		ret = extent_insert_advance_pos(s, k.s_c);
 		if (ret)
 			break;
@@ -1549,10 +1561,6 @@ __bch2_insert_fixup_extent(struct extent_insert_state *s)
 			break;
 
 		overlap = bch2_extent_overlap(&insert->k, k.k);
-
-		ret = extent_insert_check_split_compressed(s, k.s_c, overlap);
-		if (ret)
-			break;
 
 		if (!k.k->size)
 			goto squash;

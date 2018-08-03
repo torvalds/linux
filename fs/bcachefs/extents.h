@@ -63,8 +63,10 @@ int bch2_extent_pick_ptr(struct bch_fs *, struct bkey_s_c,
 			 struct extent_pick_ptr *);
 
 enum btree_insert_ret
-bch2_insert_fixup_extent(struct btree_insert *,
-			struct btree_insert_entry *);
+bch2_extent_can_insert(struct btree_insert *, struct btree_insert_entry *,
+		       unsigned *);
+enum btree_insert_ret
+bch2_insert_fixup_extent(struct btree_insert *, struct btree_insert_entry *);
 
 bool bch2_extent_normalize(struct bch_fs *, struct bkey_s);
 void bch2_extent_mark_replicas_cached(struct bch_fs *, struct bkey_s_extent,

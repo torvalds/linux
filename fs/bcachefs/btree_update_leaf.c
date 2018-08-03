@@ -297,6 +297,30 @@ static inline int btree_trans_cmp(struct btree_insert_entry l,
 
 /* Normal update interface: */
 
+static enum btree_insert_ret
+btree_key_can_insert(struct btree_insert *trans,
+		      struct btree_insert_entry *insert,
+		      unsigned *u64s)
+{
+	struct bch_fs *c = trans->c;
+	struct btree *b = insert->iter->l[0].b;
+	static enum btree_insert_ret ret;
+
+	if (unlikely(btree_node_fake(b)))
+		return BTREE_INSERT_BTREE_NODE_FULL;
+
+	ret = !btree_node_is_extents(b)
+		? BTREE_INSERT_OK
+		: bch2_extent_can_insert(trans, insert, u64s);
+	if (ret)
+		return ret;
+
+	if (*u64s > bch_btree_keys_u64s_remaining(c, b))
+		return BTREE_INSERT_BTREE_NODE_FULL;
+
+	return BTREE_INSERT_OK;
+}
+
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
@@ -336,24 +360,34 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 		goto out;
 	}
 
+	/*
+	 * Check if the insert will fit in the leaf node with the write lock
+	 * held, otherwise another thread could write the node changing the
+	 * amount of space available:
+	 */
 	u64s = 0;
 	trans_for_each_entry(trans, i) {
 		/* Multiple inserts might go to same leaf: */
 		if (!same_leaf_as_prev(trans, i))
 			u64s = 0;
 
-		/*
-		 * bch2_btree_node_insert_fits() must be called under write lock:
-		 * with only an intent lock, another thread can still call
-		 * bch2_btree_node_write(), converting an unwritten bset to a
-		 * written one
-		 */
 		u64s += i->k->k.u64s + i->extra_res;
-		if (!bch2_btree_node_insert_fits(c,
-				i->iter->l[0].b, u64s)) {
+		switch (btree_key_can_insert(trans, i, &u64s)) {
+		case BTREE_INSERT_OK:
+			break;
+		case BTREE_INSERT_BTREE_NODE_FULL:
 			ret = -EINTR;
 			*split = i->iter;
 			goto out;
+		case BTREE_INSERT_ENOSPC:
+			ret = -ENOSPC;
+			goto out;
+		case BTREE_INSERT_NEED_GC_LOCK:
+			ret = -EINTR;
+			*cycle_gc_lock = true;
+			goto out;
+		default:
+			BUG();
 		}
 	}
 
@@ -373,7 +407,6 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 			break;
 		case BTREE_INSERT_JOURNAL_RES_FULL:
 		case BTREE_INSERT_NEED_TRAVERSE:
-		case BTREE_INSERT_NEED_RESCHED:
 			ret = -EINTR;
 			break;
 		case BTREE_INSERT_BTREE_NODE_FULL:
@@ -382,10 +415,6 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 			break;
 		case BTREE_INSERT_ENOSPC:
 			ret = -ENOSPC;
-			break;
-		case BTREE_INSERT_NEED_GC_LOCK:
-			ret = -EINTR;
-			*cycle_gc_lock = true;
 			break;
 		default:
 			BUG();

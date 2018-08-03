@@ -448,7 +448,6 @@ enum btree_insert_ret {
 	/* extent spanned multiple leaf nodes: have to traverse to next node: */
 	BTREE_INSERT_NEED_TRAVERSE,
 	/* write lock held for too long */
-	BTREE_INSERT_NEED_RESCHED,
 	/* leaf node needs to be split */
 	BTREE_INSERT_BTREE_NODE_FULL,
 	BTREE_INSERT_JOURNAL_RES_FULL,
