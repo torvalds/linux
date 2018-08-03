@@ -345,27 +345,6 @@ static int exynos_drm_ipp_task_setup_buffer(struct exynos_drm_ipp_buffer *buf,
 	int ret = 0;
 	int i;
 
-	/* basic checks */
-	if (buf->buf.width == 0 || buf->buf.height == 0)
-		return -EINVAL;
-	buf->format = drm_format_info(buf->buf.fourcc);
-	for (i = 0; i < buf->format->num_planes; i++) {
-		unsigned int width = (i == 0) ? buf->buf.width :
-			     DIV_ROUND_UP(buf->buf.width, buf->format->hsub);
-
-		if (buf->buf.pitch[i] == 0)
-			buf->buf.pitch[i] = width * buf->format->cpp[i];
-		if (buf->buf.pitch[i] < width * buf->format->cpp[i])
-			return -EINVAL;
-		if (!buf->buf.gem_id[i])
-			return -ENOENT;
-	}
-
-	/* pitch for additional planes must match */
-	if (buf->format->num_planes > 2 &&
-	    buf->buf.pitch[1] != buf->buf.pitch[2])
-		return -EINVAL;
-
 	/* get GEM buffers and check their size */
 	for (i = 0; i < buf->format->num_planes; i++) {
 		unsigned int height = (i == 0) ? buf->buf.height :
@@ -428,7 +407,7 @@ enum drm_ipp_size_id {
 	IPP_LIMIT_BUFFER, IPP_LIMIT_AREA, IPP_LIMIT_ROTATED, IPP_LIMIT_MAX
 };
 
-static const enum drm_ipp_size_id limit_id_fallback[IPP_LIMIT_MAX][4] = {
+static const enum drm_exynos_ipp_limit_type limit_id_fallback[IPP_LIMIT_MAX][4] = {
 	[IPP_LIMIT_BUFFER]  = { DRM_EXYNOS_IPP_LIMIT_SIZE_BUFFER },
 	[IPP_LIMIT_AREA]    = { DRM_EXYNOS_IPP_LIMIT_SIZE_AREA,
 				DRM_EXYNOS_IPP_LIMIT_SIZE_BUFFER },
@@ -495,12 +474,13 @@ static int exynos_drm_ipp_check_size_limits(struct exynos_drm_ipp_buffer *buf,
 	enum drm_ipp_size_id id = rotate ? IPP_LIMIT_ROTATED : IPP_LIMIT_AREA;
 	struct drm_ipp_limit l;
 	struct drm_exynos_ipp_limit_val *lh = &l.h, *lv = &l.v;
+	int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 
 	if (!limits)
 		return 0;
 
 	__get_size_limit(limits, num_limits, IPP_LIMIT_BUFFER, &l);
-	if (!__size_limit_check(buf->buf.width, &l.h) ||
+	if (!__size_limit_check(real_width, &l.h) ||
 	    !__size_limit_check(buf->buf.height, &l.v))
 		return -EINVAL;
 
@@ -560,10 +540,62 @@ static int exynos_drm_ipp_check_scale_limits(
 	return 0;
 }
 
+static int exynos_drm_ipp_check_format(struct exynos_drm_ipp_task *task,
+				       struct exynos_drm_ipp_buffer *buf,
+				       struct exynos_drm_ipp_buffer *src,
+				       struct exynos_drm_ipp_buffer *dst,
+				       bool rotate, bool swap)
+{
+	const struct exynos_drm_ipp_formats *fmt;
+	int ret, i;
+
+	fmt = __ipp_format_get(task->ipp, buf->buf.fourcc, buf->buf.modifier,
+			       buf == src ? DRM_EXYNOS_IPP_FORMAT_SOURCE :
+					    DRM_EXYNOS_IPP_FORMAT_DESTINATION);
+	if (!fmt) {
+		DRM_DEBUG_DRIVER("Task %pK: %s format not supported\n", task,
+				 buf == src ? "src" : "dst");
+		return -EINVAL;
+	}
+
+	/* basic checks */
+	if (buf->buf.width == 0 || buf->buf.height == 0)
+		return -EINVAL;
+
+	buf->format = drm_format_info(buf->buf.fourcc);
+	for (i = 0; i < buf->format->num_planes; i++) {
+		unsigned int width = (i == 0) ? buf->buf.width :
+			     DIV_ROUND_UP(buf->buf.width, buf->format->hsub);
+
+		if (buf->buf.pitch[i] == 0)
+			buf->buf.pitch[i] = width * buf->format->cpp[i];
+		if (buf->buf.pitch[i] < width * buf->format->cpp[i])
+			return -EINVAL;
+		if (!buf->buf.gem_id[i])
+			return -ENOENT;
+	}
+
+	/* pitch for additional planes must match */
+	if (buf->format->num_planes > 2 &&
+	    buf->buf.pitch[1] != buf->buf.pitch[2])
+		return -EINVAL;
+
+	/* check driver limits */
+	ret = exynos_drm_ipp_check_size_limits(buf, fmt->limits,
+					       fmt->num_limits,
+					       rotate,
+					       buf == dst ? swap : false);
+	if (ret)
+		return ret;
+	ret = exynos_drm_ipp_check_scale_limits(&src->rect, &dst->rect,
+						fmt->limits,
+						fmt->num_limits, swap);
+	return ret;
+}
+
 static int exynos_drm_ipp_task_check(struct exynos_drm_ipp_task *task)
 {
 	struct exynos_drm_ipp *ipp = task->ipp;
-	const struct exynos_drm_ipp_formats *src_fmt, *dst_fmt;
 	struct exynos_drm_ipp_buffer *src = &task->src, *dst = &task->dst;
 	unsigned int rotation = task->transform.rotation;
 	int ret = 0;
@@ -607,37 +639,11 @@ static int exynos_drm_ipp_task_check(struct exynos_drm_ipp_task *task)
 		return -EINVAL;
 	}
 
-	src_fmt = __ipp_format_get(ipp, src->buf.fourcc, src->buf.modifier,
-				   DRM_EXYNOS_IPP_FORMAT_SOURCE);
-	if (!src_fmt) {
-		DRM_DEBUG_DRIVER("Task %pK: src format not supported\n", task);
-		return -EINVAL;
-	}
-	ret = exynos_drm_ipp_check_size_limits(src, src_fmt->limits,
-					       src_fmt->num_limits,
-					       rotate, false);
-	if (ret)
-		return ret;
-	ret = exynos_drm_ipp_check_scale_limits(&src->rect, &dst->rect,
-						src_fmt->limits,
-						src_fmt->num_limits, swap);
+	ret = exynos_drm_ipp_check_format(task, src, src, dst, rotate, swap);
 	if (ret)
 		return ret;
 
-	dst_fmt = __ipp_format_get(ipp, dst->buf.fourcc, dst->buf.modifier,
-				   DRM_EXYNOS_IPP_FORMAT_DESTINATION);
-	if (!dst_fmt) {
-		DRM_DEBUG_DRIVER("Task %pK: dst format not supported\n", task);
-		return -EINVAL;
-	}
-	ret = exynos_drm_ipp_check_size_limits(dst, dst_fmt->limits,
-					       dst_fmt->num_limits,
-					       false, swap);
-	if (ret)
-		return ret;
-	ret = exynos_drm_ipp_check_scale_limits(&src->rect, &dst->rect,
-						dst_fmt->limits,
-						dst_fmt->num_limits, swap);
+	ret = exynos_drm_ipp_check_format(task, dst, src, dst, false, swap);
 	if (ret)
 		return ret;
 

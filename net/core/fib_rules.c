@@ -416,6 +416,14 @@ static struct fib_rule *rule_find(struct fib_rules_ops *ops,
 		if (rule->mark && r->mark != rule->mark)
 			continue;
 
+		if (rule->suppress_ifgroup != -1 &&
+		    r->suppress_ifgroup != rule->suppress_ifgroup)
+			continue;
+
+		if (rule->suppress_prefixlen != -1 &&
+		    r->suppress_prefixlen != rule->suppress_prefixlen)
+			continue;
+
 		if (rule->mark_mask && r->mark_mask != rule->mark_mask)
 			continue;
 
@@ -434,6 +442,9 @@ static struct fib_rule *rule_find(struct fib_rules_ops *ops,
 			continue;
 
 		if (rule->ip_proto && r->ip_proto != rule->ip_proto)
+			continue;
+
+		if (rule->proto && r->proto != rule->proto)
 			continue;
 
 		if (fib_rule_port_range_set(&rule->sport_range) &&
@@ -645,6 +656,73 @@ errout:
 	return err;
 }
 
+static int rule_exists(struct fib_rules_ops *ops, struct fib_rule_hdr *frh,
+		       struct nlattr **tb, struct fib_rule *rule)
+{
+	struct fib_rule *r;
+
+	list_for_each_entry(r, &ops->rules_list, list) {
+		if (r->action != rule->action)
+			continue;
+
+		if (r->table != rule->table)
+			continue;
+
+		if (r->pref != rule->pref)
+			continue;
+
+		if (memcmp(r->iifname, rule->iifname, IFNAMSIZ))
+			continue;
+
+		if (memcmp(r->oifname, rule->oifname, IFNAMSIZ))
+			continue;
+
+		if (r->mark != rule->mark)
+			continue;
+
+		if (r->suppress_ifgroup != rule->suppress_ifgroup)
+			continue;
+
+		if (r->suppress_prefixlen != rule->suppress_prefixlen)
+			continue;
+
+		if (r->mark_mask != rule->mark_mask)
+			continue;
+
+		if (r->tun_id != rule->tun_id)
+			continue;
+
+		if (r->fr_net != rule->fr_net)
+			continue;
+
+		if (r->l3mdev != rule->l3mdev)
+			continue;
+
+		if (!uid_eq(r->uid_range.start, rule->uid_range.start) ||
+		    !uid_eq(r->uid_range.end, rule->uid_range.end))
+			continue;
+
+		if (r->ip_proto != rule->ip_proto)
+			continue;
+
+		if (r->proto != rule->proto)
+			continue;
+
+		if (!fib_rule_port_range_compare(&r->sport_range,
+						 &rule->sport_range))
+			continue;
+
+		if (!fib_rule_port_range_compare(&r->dport_range,
+						 &rule->dport_range))
+			continue;
+
+		if (!ops->compare(r, frh, tb))
+			continue;
+		return 1;
+	}
+	return 0;
+}
+
 int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		   struct netlink_ext_ack *extack)
 {
@@ -679,7 +757,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 
 	if ((nlh->nlmsg_flags & NLM_F_EXCL) &&
-	    rule_find(ops, frh, tb, rule, user_priority)) {
+	    rule_exists(ops, frh, tb, rule)) {
 		err = -EEXIST;
 		goto errout_free;
 	}

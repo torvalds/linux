@@ -1336,9 +1336,9 @@ static void init_kcm_sock(struct kcm_sock *kcm, struct kcm_mux *mux)
 	struct list_head *head;
 	int index = 0;
 
-	/* For SOCK_SEQPACKET sock type, datagram_poll_mask checks the sk_state,
-	 * so  we set sk_state, otherwise epoll_wait always returns right away
-	 * with EPOLLHUP
+	/* For SOCK_SEQPACKET sock type, datagram_poll checks the sk_state, so
+	 * we set sk_state, otherwise epoll_wait always returns right away with
+	 * EPOLLHUP
 	 */
 	kcm->sk.sk_state = TCP_ESTABLISHED;
 
@@ -1903,7 +1903,7 @@ static const struct proto_ops kcm_dgram_ops = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	sock_no_getname,
-	.poll_mask =	datagram_poll_mask,
+	.poll =		datagram_poll,
 	.ioctl =	kcm_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
@@ -1924,7 +1924,7 @@ static const struct proto_ops kcm_seqpacket_ops = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	sock_no_getname,
-	.poll_mask =	datagram_poll_mask,
+	.poll =		datagram_poll,
 	.ioctl =	kcm_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,

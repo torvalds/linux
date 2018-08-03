@@ -339,7 +339,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 		goto out_unlock;
 
 	ret = nvmet_bdev_ns_enable(ns);
-	if (ret)
+	if (ret == -ENOTBLK)
 		ret = nvmet_file_ns_enable(ns);
 	if (ret)
 		goto out_unlock;
@@ -686,6 +686,14 @@ static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 	}
 
 	ctrl->csts = NVME_CSTS_RDY;
+
+	/*
+	 * Controllers that are not yet enabled should not really enforce the
+	 * keep alive timeout, but we still want to track a timeout and cleanup
+	 * in case a host died before it enabled the controller.  Hence, simply
+	 * reset the keep alive timer when the controller is enabled.
+	 */
+	mod_delayed_work(system_wq, &ctrl->ka_work, ctrl->kato * HZ);
 }
 
 static void nvmet_clear_ctrl(struct nvmet_ctrl *ctrl)

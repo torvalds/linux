@@ -1705,6 +1705,17 @@ static inline bool nested_cpu_has_vmwrite_any_field(struct kvm_vcpu *vcpu)
 		MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS;
 }
 
+static inline bool nested_cpu_has_zero_length_injection(struct kvm_vcpu *vcpu)
+{
+	return to_vmx(vcpu)->nested.msrs.misc_low & VMX_MISC_ZERO_LEN_INS;
+}
+
+static inline bool nested_cpu_supports_monitor_trap_flag(struct kvm_vcpu *vcpu)
+{
+	return to_vmx(vcpu)->nested.msrs.procbased_ctls_high &
+			CPU_BASED_MONITOR_TRAP_FLAG;
+}
+
 static inline bool nested_cpu_has(struct vmcs12 *vmcs12, u32 bit)
 {
 	return vmcs12->cpu_based_vm_exec_control & bit;
@@ -2560,6 +2571,7 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 #ifdef CONFIG_X86_64
 	int cpu = raw_smp_processor_id();
+	unsigned long fs_base, kernel_gs_base;
 #endif
 	int i;
 
@@ -2575,12 +2587,20 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	vmx->host_state.gs_ldt_reload_needed = vmx->host_state.ldt_sel;
 
 #ifdef CONFIG_X86_64
-	save_fsgs_for_kvm();
-	vmx->host_state.fs_sel = current->thread.fsindex;
-	vmx->host_state.gs_sel = current->thread.gsindex;
-#else
-	savesegment(fs, vmx->host_state.fs_sel);
-	savesegment(gs, vmx->host_state.gs_sel);
+	if (likely(is_64bit_mm(current->mm))) {
+		save_fsgs_for_kvm();
+		vmx->host_state.fs_sel = current->thread.fsindex;
+		vmx->host_state.gs_sel = current->thread.gsindex;
+		fs_base = current->thread.fsbase;
+		kernel_gs_base = current->thread.gsbase;
+	} else {
+#endif
+		savesegment(fs, vmx->host_state.fs_sel);
+		savesegment(gs, vmx->host_state.gs_sel);
+#ifdef CONFIG_X86_64
+		fs_base = read_msr(MSR_FS_BASE);
+		kernel_gs_base = read_msr(MSR_KERNEL_GS_BASE);
+	}
 #endif
 	if (!(vmx->host_state.fs_sel & 7)) {
 		vmcs_write16(HOST_FS_SELECTOR, vmx->host_state.fs_sel);
@@ -2600,10 +2620,10 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	savesegment(ds, vmx->host_state.ds_sel);
 	savesegment(es, vmx->host_state.es_sel);
 
-	vmcs_writel(HOST_FS_BASE, current->thread.fsbase);
+	vmcs_writel(HOST_FS_BASE, fs_base);
 	vmcs_writel(HOST_GS_BASE, cpu_kernelmode_gs_base(cpu));
 
-	vmx->msr_host_kernel_gs_base = current->thread.gsbase;
+	vmx->msr_host_kernel_gs_base = kernel_gs_base;
 	if (is_long_mode(&vmx->vcpu))
 		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 #else
@@ -4311,11 +4331,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	vmcs_conf->order = get_order(vmcs_conf->size);
 	vmcs_conf->basic_cap = vmx_msr_high & ~0x1fff;
 
-	/* KVM supports Enlightened VMCS v1 only */
-	if (static_branch_unlikely(&enable_evmcs))
-		vmcs_conf->revision_id = KVM_EVMCS_VERSION;
-	else
-		vmcs_conf->revision_id = vmx_msr_low;
+	vmcs_conf->revision_id = vmx_msr_low;
 
 	vmcs_conf->pin_based_exec_ctrl = _pin_based_exec_control;
 	vmcs_conf->cpu_based_exec_ctrl = _cpu_based_exec_control;
@@ -4385,7 +4401,13 @@ static struct vmcs *alloc_vmcs_cpu(int cpu)
 		return NULL;
 	vmcs = page_address(pages);
 	memset(vmcs, 0, vmcs_config.size);
-	vmcs->revision_id = vmcs_config.revision_id; /* vmcs revision id */
+
+	/* KVM supports Enlightened VMCS v1 only */
+	if (static_branch_unlikely(&enable_evmcs))
+		vmcs->revision_id = KVM_EVMCS_VERSION;
+	else
+		vmcs->revision_id = vmcs_config.revision_id;
+
 	return vmcs;
 }
 
@@ -4552,6 +4574,19 @@ static __init int alloc_kvm_area(void)
 			free_kvm_area();
 			return -ENOMEM;
 		}
+
+		/*
+		 * When eVMCS is enabled, alloc_vmcs_cpu() sets
+		 * vmcs->revision_id to KVM_EVMCS_VERSION instead of
+		 * revision_id reported by MSR_IA32_VMX_BASIC.
+		 *
+		 * However, even though not explictly documented by
+		 * TLFS, VMXArea passed as VMXON argument should
+		 * still be marked with revision_id reported by
+		 * physical CPU.
+		 */
+		if (static_branch_unlikely(&enable_evmcs))
+			vmcs->revision_id = vmcs_config.revision_id;
 
 		per_cpu(vmxarea, cpu) = vmcs;
 	}
@@ -11620,6 +11655,62 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	    !nested_cr3_valid(vcpu, vmcs12->host_cr3))
 		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
 
+	/*
+	 * From the Intel SDM, volume 3:
+	 * Fields relevant to VM-entry event injection must be set properly.
+	 * These fields are the VM-entry interruption-information field, the
+	 * VM-entry exception error code, and the VM-entry instruction length.
+	 */
+	if (vmcs12->vm_entry_intr_info_field & INTR_INFO_VALID_MASK) {
+		u32 intr_info = vmcs12->vm_entry_intr_info_field;
+		u8 vector = intr_info & INTR_INFO_VECTOR_MASK;
+		u32 intr_type = intr_info & INTR_INFO_INTR_TYPE_MASK;
+		bool has_error_code = intr_info & INTR_INFO_DELIVER_CODE_MASK;
+		bool should_have_error_code;
+		bool urg = nested_cpu_has2(vmcs12,
+					   SECONDARY_EXEC_UNRESTRICTED_GUEST);
+		bool prot_mode = !urg || vmcs12->guest_cr0 & X86_CR0_PE;
+
+		/* VM-entry interruption-info field: interruption type */
+		if (intr_type == INTR_TYPE_RESERVED ||
+		    (intr_type == INTR_TYPE_OTHER_EVENT &&
+		     !nested_cpu_supports_monitor_trap_flag(vcpu)))
+			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+		/* VM-entry interruption-info field: vector */
+		if ((intr_type == INTR_TYPE_NMI_INTR && vector != NMI_VECTOR) ||
+		    (intr_type == INTR_TYPE_HARD_EXCEPTION && vector > 31) ||
+		    (intr_type == INTR_TYPE_OTHER_EVENT && vector != 0))
+			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+		/* VM-entry interruption-info field: deliver error code */
+		should_have_error_code =
+			intr_type == INTR_TYPE_HARD_EXCEPTION && prot_mode &&
+			x86_exception_has_error_code(vector);
+		if (has_error_code != should_have_error_code)
+			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+		/* VM-entry exception error code */
+		if (has_error_code &&
+		    vmcs12->vm_entry_exception_error_code & GENMASK(31, 15))
+			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+		/* VM-entry interruption-info field: reserved bits */
+		if (intr_info & INTR_INFO_RESVD_BITS_MASK)
+			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+		/* VM-entry instruction length */
+		switch (intr_type) {
+		case INTR_TYPE_SOFT_EXCEPTION:
+		case INTR_TYPE_SOFT_INTR:
+		case INTR_TYPE_PRIV_SW_EXCEPTION:
+			if ((vmcs12->vm_entry_instruction_len > 15) ||
+			    (vmcs12->vm_entry_instruction_len == 0 &&
+			     !nested_cpu_has_zero_length_injection(vcpu)))
+				return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+		}
+	}
+
 	return 0;
 }
 
@@ -11686,7 +11777,6 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-	u32 msr_entry_idx;
 	u32 exit_qual;
 	int r;
 
@@ -11708,10 +11798,10 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu)
 	nested_get_vmcs12_pages(vcpu, vmcs12);
 
 	r = EXIT_REASON_MSR_LOAD_FAIL;
-	msr_entry_idx = nested_vmx_load_msr(vcpu,
-					    vmcs12->vm_entry_msr_load_addr,
-					    vmcs12->vm_entry_msr_load_count);
-	if (msr_entry_idx)
+	exit_qual = nested_vmx_load_msr(vcpu,
+					vmcs12->vm_entry_msr_load_addr,
+					vmcs12->vm_entry_msr_load_count);
+	if (exit_qual)
 		goto fail;
 
 	/*

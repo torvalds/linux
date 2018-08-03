@@ -564,11 +564,20 @@ static int proc_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, de->seq_ops);
 }
 
+static int proc_seq_release(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *de = PDE(inode);
+
+	if (de->state_size)
+		return seq_release_private(inode, file);
+	return seq_release(inode, file);
+}
+
 static const struct file_operations proc_seq_fops = {
 	.open		= proc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= proc_seq_release,
 };
 
 struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,

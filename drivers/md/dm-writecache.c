@@ -136,6 +136,7 @@ struct dm_writecache {
 	struct dm_target *ti;
 	struct dm_dev *dev;
 	struct dm_dev *ssd_dev;
+	sector_t start_sector;
 	void *memory_map;
 	uint64_t memory_map_size;
 	size_t metadata_sectors;
@@ -259,7 +260,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 	if (da != p) {
 		long i;
 		wc->memory_map = NULL;
-		pages = kvmalloc(p * sizeof(struct page *), GFP_KERNEL);
+		pages = kvmalloc_array(p, sizeof(struct page *), GFP_KERNEL);
 		if (!pages) {
 			r = -ENOMEM;
 			goto err2;
@@ -293,6 +294,10 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 	}
 
 	dax_read_unlock(id);
+
+	wc->memory_map += (size_t)wc->start_sector << SECTOR_SHIFT;
+	wc->memory_map_size -= (size_t)wc->start_sector << SECTOR_SHIFT;
+
 	return 0;
 err3:
 	kvfree(pages);
@@ -311,7 +316,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 static void persistent_memory_release(struct dm_writecache *wc)
 {
 	if (wc->memory_vmapped)
-		vunmap(wc->memory_map);
+		vunmap(wc->memory_map - ((size_t)wc->start_sector << SECTOR_SHIFT));
 }
 
 static struct page *persistent_memory_page(void *addr)
@@ -359,7 +364,7 @@ static void *memory_data(struct dm_writecache *wc, struct wc_entry *e)
 
 static sector_t cache_sector(struct dm_writecache *wc, struct wc_entry *e)
 {
-	return wc->metadata_sectors +
+	return wc->start_sector + wc->metadata_sectors +
 		((sector_t)e->index << (wc->block_size_bits - SECTOR_SHIFT));
 }
 
@@ -471,6 +476,7 @@ static void ssd_commit_flushed(struct dm_writecache *wc)
 		if (unlikely(region.sector + region.count > wc->metadata_sectors))
 			region.count = wc->metadata_sectors - region.sector;
 
+		region.sector += wc->start_sector;
 		atomic_inc(&endio.count);
 		req.bi_op = REQ_OP_WRITE;
 		req.bi_op_flags = REQ_SYNC;
@@ -859,7 +865,7 @@ static int writecache_alloc_entries(struct dm_writecache *wc)
 
 	if (wc->entries)
 		return 0;
-	wc->entries = vmalloc(sizeof(struct wc_entry) * wc->n_blocks);
+	wc->entries = vmalloc(array_size(sizeof(struct wc_entry), wc->n_blocks));
 	if (!wc->entries)
 		return -ENOMEM;
 	for (b = 0; b < wc->n_blocks; b++) {
@@ -1481,9 +1487,9 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 		wb->bio.bi_iter.bi_sector = read_original_sector(wc, e);
 		wb->page_offset = PAGE_SIZE;
 		if (max_pages <= WB_LIST_INLINE ||
-		    unlikely(!(wb->wc_list = kmalloc(max_pages * sizeof(struct wc_entry *),
-						     GFP_NOIO | __GFP_NORETRY |
-						     __GFP_NOMEMALLOC | __GFP_NOWARN)))) {
+		    unlikely(!(wb->wc_list = kmalloc_array(max_pages, sizeof(struct wc_entry *),
+							   GFP_NOIO | __GFP_NORETRY |
+							   __GFP_NOMEMALLOC | __GFP_NOWARN)))) {
 			wb->wc_list = wb->wc_list_inline;
 			max_pages = WB_LIST_INLINE;
 		}
@@ -1946,14 +1952,6 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	wc->memory_map_size = i_size_read(wc->ssd_dev->bdev->bd_inode);
 
-	if (WC_MODE_PMEM(wc)) {
-		r = persistent_memory_claim(wc);
-		if (r) {
-			ti->error = "Unable to map persistent memory for cache";
-			goto bad;
-		}
-	}
-
 	/*
 	 * Parse the cache block size
 	 */
@@ -1982,7 +1980,16 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	while (opt_params) {
 		string = dm_shift_arg(&as), opt_params--;
-		if (!strcasecmp(string, "high_watermark") && opt_params >= 1) {
+		if (!strcasecmp(string, "start_sector") && opt_params >= 1) {
+			unsigned long long start_sector;
+			string = dm_shift_arg(&as), opt_params--;
+			if (sscanf(string, "%llu%c", &start_sector, &dummy) != 1)
+				goto invalid_optional;
+			wc->start_sector = start_sector;
+			if (wc->start_sector != start_sector ||
+			    wc->start_sector >= wc->memory_map_size >> SECTOR_SHIFT)
+				goto invalid_optional;
+		} else if (!strcasecmp(string, "high_watermark") && opt_params >= 1) {
 			string = dm_shift_arg(&as), opt_params--;
 			if (sscanf(string, "%d%c", &high_wm_percent, &dummy) != 1)
 				goto invalid_optional;
@@ -2039,11 +2046,19 @@ invalid_optional:
 		goto bad;
 	}
 
-	if (!WC_MODE_PMEM(wc)) {
+	if (WC_MODE_PMEM(wc)) {
+		r = persistent_memory_claim(wc);
+		if (r) {
+			ti->error = "Unable to map persistent memory for cache";
+			goto bad;
+		}
+	} else {
 		struct dm_io_region region;
 		struct dm_io_request req;
 		size_t n_blocks, n_metadata_blocks;
 		uint64_t n_bitmap_bits;
+
+		wc->memory_map_size -= (uint64_t)wc->start_sector << SECTOR_SHIFT;
 
 		bio_list_init(&wc->flush_list);
 		wc->flush_thread = kthread_create(writecache_flush_thread, wc, "dm_writecache_flush");
@@ -2097,7 +2112,7 @@ invalid_optional:
 		}
 
 		region.bdev = wc->ssd_dev->bdev;
-		region.sector = 0;
+		region.sector = wc->start_sector;
 		region.count = wc->metadata_sectors;
 		req.bi_op = REQ_OP_READ;
 		req.bi_op_flags = REQ_SYNC;
@@ -2265,7 +2280,7 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 
 static struct target_type writecache_target = {
 	.name			= "writecache",
-	.version		= {1, 0, 0},
+	.version		= {1, 1, 0},
 	.module			= THIS_MODULE,
 	.ctr			= writecache_ctr,
 	.dtr			= writecache_dtr,

@@ -2175,6 +2175,46 @@ get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing)
 	return color_space;
 }
 
+static void reduce_mode_colour_depth(struct dc_crtc_timing *timing_out)
+{
+	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
+		return;
+
+	timing_out->display_color_depth--;
+}
+
+static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_out,
+						const struct drm_display_info *info)
+{
+	int normalized_clk;
+	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
+		return;
+	do {
+		normalized_clk = timing_out->pix_clk_khz;
+		/* YCbCr 4:2:0 requires additional adjustment of 1/2 */
+		if (timing_out->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			normalized_clk /= 2;
+		/* Adjusting pix clock following on HDMI spec based on colour depth */
+		switch (timing_out->display_color_depth) {
+		case COLOR_DEPTH_101010:
+			normalized_clk = (normalized_clk * 30) / 24;
+			break;
+		case COLOR_DEPTH_121212:
+			normalized_clk = (normalized_clk * 36) / 24;
+			break;
+		case COLOR_DEPTH_161616:
+			normalized_clk = (normalized_clk * 48) / 24;
+			break;
+		default:
+			return;
+		}
+		if (normalized_clk <= info->max_tmds_clock)
+			return;
+		reduce_mode_colour_depth(timing_out);
+
+	} while (timing_out->display_color_depth > COLOR_DEPTH_888);
+
+}
 /*****************************************************************************/
 
 static void
@@ -2183,6 +2223,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 					     const struct drm_connector *connector)
 {
 	struct dc_crtc_timing *timing_out = &stream->timing;
+	const struct drm_display_info *info = &connector->display_info;
 
 	memset(timing_out, 0, sizeof(struct dc_crtc_timing));
 
@@ -2191,8 +2232,10 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 	timing_out->v_border_top = 0;
 	timing_out->v_border_bottom = 0;
 	/* TODO: un-hardcode */
-
-	if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
+	if (drm_mode_is_420_only(info, mode_in)
+			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
+	else if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
 			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR444;
 	else
@@ -2228,6 +2271,8 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 
 	stream->out_transfer_func->type = TF_TYPE_PREDEFINED;
 	stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
+	if (stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+		adjust_colour_depth_from_display_info(timing_out, info);
 }
 
 static void fill_audio_info(struct audio_info *audio_info,
@@ -3928,9 +3973,10 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	if (acrtc->base.state->event)
 		prepare_flip_isr(acrtc);
 
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
 	surface_updates->surface = dc_stream_get_status(acrtc_state->stream)->plane_states[0];
 	surface_updates->flip_addr = &addr;
-
 
 	dc_commit_updates_for_stream(adev->dm.dc,
 					     surface_updates,
@@ -3944,9 +3990,6 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 			 __func__,
 			 addr.address.grph.addr.high_part,
 			 addr.address.grph.addr.low_part);
-
-
-	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
 /*
@@ -4206,6 +4249,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_connector *connector;
 	struct drm_connector_state *old_con_state, *new_con_state;
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
+	int crtc_disable_count = 0;
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
 
@@ -4410,6 +4454,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 		bool modeset_needed;
 
+		if (old_crtc_state->active && !new_crtc_state->active)
+			crtc_disable_count++;
+
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 		modeset_needed = modeset_required(
@@ -4463,11 +4510,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 * so we can put the GPU into runtime suspend if we're not driving any
 	 * displays anymore
 	 */
+	for (i = 0; i < crtc_disable_count; i++)
+		pm_runtime_put_autosuspend(dev->dev);
 	pm_runtime_mark_last_busy(dev->dev);
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		if (old_crtc_state->active && !new_crtc_state->active)
-			pm_runtime_put_autosuspend(dev->dev);
-	}
 }
 
 

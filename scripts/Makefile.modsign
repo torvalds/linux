@@ -27,7 +27,4 @@ modinst_dir = $(if $(KBUILD_EXTMOD),$(ext-mod-dir),kernel/$(@D))
 $(modules):
 	$(call cmd,sign_ko,$(MODLIB)/$(modinst_dir))
 
-# Declare the contents of the .PHONY variable as phony.  We keep that
-# information in a variable se we can use it in if_changed and friends.
-
 .PHONY: $(PHONY)

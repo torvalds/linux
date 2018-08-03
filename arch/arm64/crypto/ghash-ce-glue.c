@@ -487,9 +487,13 @@ static int gcm_decrypt(struct aead_request *req)
 			err = skcipher_walk_done(&walk,
 						 walk.nbytes % AES_BLOCK_SIZE);
 		}
-		if (walk.nbytes)
-			pmull_gcm_encrypt_block(iv, iv, NULL,
+		if (walk.nbytes) {
+			kernel_neon_begin();
+			pmull_gcm_encrypt_block(iv, iv, ctx->aes_key.key_enc,
 						num_rounds(&ctx->aes_key));
+			kernel_neon_end();
+		}
+
 	} else {
 		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv,
 				    num_rounds(&ctx->aes_key));

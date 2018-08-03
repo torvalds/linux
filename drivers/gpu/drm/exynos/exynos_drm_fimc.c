@@ -470,17 +470,18 @@ static void fimc_src_set_transf(struct fimc_context *ctx, unsigned int rotation)
 static void fimc_set_window(struct fimc_context *ctx,
 			    struct exynos_drm_ipp_buffer *buf)
 {
+	unsigned int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 	u32 cfg, h1, h2, v1, v2;
 
 	/* cropped image */
 	h1 = buf->rect.x;
-	h2 = buf->buf.width - buf->rect.w - buf->rect.x;
+	h2 = real_width - buf->rect.w - buf->rect.x;
 	v1 = buf->rect.y;
 	v2 = buf->buf.height - buf->rect.h - buf->rect.y;
 
 	DRM_DEBUG_KMS("x[%d]y[%d]w[%d]h[%d]hsize[%d]vsize[%d]\n",
 		buf->rect.x, buf->rect.y, buf->rect.w, buf->rect.h,
-		buf->buf.width, buf->buf.height);
+		real_width, buf->buf.height);
 	DRM_DEBUG_KMS("h1[%d]h2[%d]v1[%d]v2[%d]\n", h1, h2, v1, v2);
 
 	/*
@@ -503,12 +504,13 @@ static void fimc_set_window(struct fimc_context *ctx,
 static void fimc_src_set_size(struct fimc_context *ctx,
 			      struct exynos_drm_ipp_buffer *buf)
 {
+	unsigned int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 	u32 cfg;
 
-	DRM_DEBUG_KMS("hsize[%d]vsize[%d]\n", buf->buf.width, buf->buf.height);
+	DRM_DEBUG_KMS("hsize[%d]vsize[%d]\n", real_width, buf->buf.height);
 
 	/* original size */
-	cfg = (EXYNOS_ORGISIZE_HORIZONTAL(buf->buf.width) |
+	cfg = (EXYNOS_ORGISIZE_HORIZONTAL(real_width) |
 		EXYNOS_ORGISIZE_VERTICAL(buf->buf.height));
 
 	fimc_write(ctx, cfg, EXYNOS_ORGISIZE);
@@ -529,7 +531,7 @@ static void fimc_src_set_size(struct fimc_context *ctx,
 	 * for now, we support only ITU601 8 bit mode
 	 */
 	cfg = (EXYNOS_CISRCFMT_ITU601_8BIT |
-		EXYNOS_CISRCFMT_SOURCEHSIZE(buf->buf.width) |
+		EXYNOS_CISRCFMT_SOURCEHSIZE(real_width) |
 		EXYNOS_CISRCFMT_SOURCEVSIZE(buf->buf.height));
 	fimc_write(ctx, cfg, EXYNOS_CISRCFMT);
 
@@ -842,12 +844,13 @@ static void fimc_set_scaler(struct fimc_context *ctx, struct fimc_scaler *sc)
 static void fimc_dst_set_size(struct fimc_context *ctx,
 			     struct exynos_drm_ipp_buffer *buf)
 {
+	unsigned int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 	u32 cfg, cfg_ext;
 
-	DRM_DEBUG_KMS("hsize[%d]vsize[%d]\n", buf->buf.width, buf->buf.height);
+	DRM_DEBUG_KMS("hsize[%d]vsize[%d]\n", real_width, buf->buf.height);
 
 	/* original size */
-	cfg = (EXYNOS_ORGOSIZE_HORIZONTAL(buf->buf.width) |
+	cfg = (EXYNOS_ORGOSIZE_HORIZONTAL(real_width) |
 		EXYNOS_ORGOSIZE_VERTICAL(buf->buf.height));
 
 	fimc_write(ctx, cfg, EXYNOS_ORGOSIZE);

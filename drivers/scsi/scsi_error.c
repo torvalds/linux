@@ -296,6 +296,20 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 		rtn = host->hostt->eh_timed_out(scmd);
 
 	if (rtn == BLK_EH_DONE) {
+		/*
+		 * For blk-mq, we must set the request state to complete now
+		 * before sending the request to the scsi error handler. This
+		 * will prevent a use-after-free in the event the LLD manages
+		 * to complete the request before the error handler finishes
+		 * processing this timed out request.
+		 *
+		 * If the request was already completed, then the LLD beat the
+		 * time out handler from transferring the request to the scsi
+		 * error handler. In that case we can return immediately as no
+		 * further action is required.
+		 */
+		if (req->q->mq_ops && !blk_mq_mark_complete(req))
+			return rtn;
 		if (scsi_abort_command(scmd) != SUCCESS) {
 			set_host_byte(scmd, DID_TIME_OUT);
 			scsi_eh_scmd_add(scmd);

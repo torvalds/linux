@@ -2004,7 +2004,8 @@ static int snd_seq_ioctl_query_next_client(struct snd_seq_client *client,
 	struct snd_seq_client *cptr = NULL;
 
 	/* search for next client */
-	info->client++;
+	if (info->client < INT_MAX)
+		info->client++;
 	if (info->client < 0)
 		info->client = 0;
 	for (; info->client < SNDRV_SEQ_MAX_CLIENTS; info->client++) {

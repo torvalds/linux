@@ -387,6 +387,14 @@ void early_setup_secondary(void)
 
 #endif /* CONFIG_SMP */
 
+void panic_smp_self_stop(void)
+{
+	hard_irq_disable();
+	spin_begin();
+	while (1)
+		spin_cpu_relax();
+}
+
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
 static bool use_spinloop(void)
 {
