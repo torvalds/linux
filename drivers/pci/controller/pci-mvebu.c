@@ -888,11 +888,6 @@ static resource_size_t mvebu_pcie_align_resource(struct pci_dev *dev,
 		return start;
 }
 
-/*
- * Looks up the list of register addresses encoded into the reg =
- * <...> property for one that matches the given port/lane. Once
- * found, maps it.
- */
 static void __iomem *mvebu_pcie_map_registers(struct platform_device *pdev,
 					      struct device_node *np,
 					      struct mvebu_pcie_port *port)
