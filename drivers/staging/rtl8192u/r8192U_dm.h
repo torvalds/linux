@@ -130,7 +130,7 @@ enum cck_rx_path_method {
 
 struct dynamic_rx_path_sel {
 	enum cck_rx_path_method		cck_method;
-	u8		cck_Rx_path;
+	u8		cck_rx_path;
 
 	u8		SS_TH_low;
 	u8		diff_TH;

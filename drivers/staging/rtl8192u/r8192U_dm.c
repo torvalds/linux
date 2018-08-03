@@ -2417,8 +2417,8 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 		return;
 
 	if (!cck_Rx_Path_initialized) {
-		read_nic_byte(dev, 0xa07, &DM_RxPathSelTable.cck_Rx_path);
-		DM_RxPathSelTable.cck_Rx_path &= 0xf;
+		read_nic_byte(dev, 0xa07, &DM_RxPathSelTable.cck_rx_path);
+		DM_RxPathSelTable.cck_rx_path &= 0xf;
 		cck_Rx_Path_initialized = 1;
 	}
 
@@ -2573,8 +2573,8 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 	}
 
 	if (update_cck_rx_path) {
-		DM_RxPathSelTable.cck_Rx_path = (cck_default_Rx<<2)|(cck_optional_Rx);
-		rtl8192_setBBreg(dev, rCCK0_AFESetting, 0x0f000000, DM_RxPathSelTable.cck_Rx_path);
+		DM_RxPathSelTable.cck_rx_path = (cck_default_Rx<<2)|(cck_optional_Rx);
+		rtl8192_setBBreg(dev, rCCK0_AFESetting, 0x0f000000, DM_RxPathSelTable.cck_rx_path);
 	}
 
 	if (DM_RxPathSelTable.disabledRF) {
