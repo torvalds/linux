@@ -16,6 +16,10 @@
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 
+#ifdef CONFIG_X86
+#include <asm/cpufeature.h>	/* for boot_cpu_has below */
+#endif
+
 #define TEST(bit, op, c_op, val)				\
 do {								\
 	atomic##bit##_set(&v, v0);				\

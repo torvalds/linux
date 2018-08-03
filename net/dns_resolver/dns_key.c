@@ -87,35 +87,39 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 		opt++;
 		kdebug("options: '%s'", opt);
 		do {
+			int opt_len, opt_nlen;
 			const char *eq;
-			int opt_len, opt_nlen, opt_vlen, tmp;
+			char optval[128];
 
 			next_opt = memchr(opt, '#', end - opt) ?: end;
 			opt_len = next_opt - opt;
-			if (opt_len <= 0 || opt_len > 128) {
+			if (opt_len <= 0 || opt_len > sizeof(optval)) {
 				pr_warn_ratelimited("Invalid option length (%d) for dns_resolver key\n",
 						    opt_len);
 				return -EINVAL;
 			}
 
-			eq = memchr(opt, '=', opt_len) ?: end;
-			opt_nlen = eq - opt;
-			eq++;
-			opt_vlen = next_opt - eq; /* will be -1 if no value */
+			eq = memchr(opt, '=', opt_len);
+			if (eq) {
+				opt_nlen = eq - opt;
+				eq++;
+				memcpy(optval, eq, next_opt - eq);
+				optval[next_opt - eq] = '\0';
+			} else {
+				opt_nlen = opt_len;
+				optval[0] = '\0';
+			}
 
-			tmp = opt_vlen >= 0 ? opt_vlen : 0;
-			kdebug("option '%*.*s' val '%*.*s'",
-			       opt_nlen, opt_nlen, opt, tmp, tmp, eq);
+			kdebug("option '%*.*s' val '%s'",
+			       opt_nlen, opt_nlen, opt, optval);
 
 			/* see if it's an error number representing a DNS error
 			 * that's to be recorded as the result in this key */
 			if (opt_nlen == sizeof(DNS_ERRORNO_OPTION) - 1 &&
 			    memcmp(opt, DNS_ERRORNO_OPTION, opt_nlen) == 0) {
 				kdebug("dns error number option");
-				if (opt_vlen <= 0)
-					goto bad_option_value;
 
-				ret = kstrtoul(eq, 10, &derrno);
+				ret = kstrtoul(optval, 10, &derrno);
 				if (ret < 0)
 					goto bad_option_value;
 

@@ -30,7 +30,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <asm/fpu/api.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/cpu_device_id.h>
 
 asmlinkage __u16 crc_t10dif_pcl(__u16 crc, const unsigned char *buf,

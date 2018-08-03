@@ -1,7 +1,7 @@
 /* Written 2003 by Andi Kleen, based on a kernel by Evandro Menezes */
 
 #include <linux/linkage.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
 
 /*

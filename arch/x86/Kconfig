@@ -369,6 +369,17 @@ config X86_FEATURE_NAMES
 
 	  If in doubt, say Y.
 
+config X86_FAST_FEATURE_TESTS
+	bool "Fast CPU feature tests" if EMBEDDED
+	default y
+	---help---
+	  Some fast-paths in the kernel depend on the capabilities of the CPU.
+	  Say Y here for the kernel to patch in the appropriate code at runtime
+	  based on the capabilities of the CPU. The infrastructure for patching
+	  code at runtime takes up some additional space; space-constrained
+	  embedded systems may wish to say N here to produce smaller, slightly
+	  slower code.
+
 config X86_X2APIC
 	bool "Support x2apic"
 	depends on X86_LOCAL_APIC && X86_64 && (IRQ_REMAP || HYPERVISOR_GUEST)
