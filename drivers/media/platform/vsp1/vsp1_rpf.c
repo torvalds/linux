@@ -20,6 +20,18 @@
 #define RPF_MAX_WIDTH				8190
 #define RPF_MAX_HEIGHT				8190
 
+/* Pre extended display list command data structure. */
+struct vsp1_extcmd_auto_fld_body {
+	u32 top_y0;
+	u32 bottom_y0;
+	u32 top_c0;
+	u32 bottom_c0;
+	u32 top_c1;
+	u32 bottom_c1;
+	u32 reserved0;
+	u32 reserved1;
+} __packed;
+
 /* -----------------------------------------------------------------------------
  * Device Access
  */
@@ -64,6 +76,14 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 		pstride |= format->plane_fmt[1].bytesperline
 			<< VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
 
+	/*
+	 * pstride has both STRIDE_Y and STRIDE_C, but multiplying the whole
+	 * of pstride by 2 is conveniently OK here as we are multiplying both
+	 * values.
+	 */
+	if (pipe->interlaced)
+		pstride *= 2;
+
 	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_PSTRIDE, pstride);
 
 	/* Format */
@@ -99,6 +119,9 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 		left = compose->left;
 		top = compose->top;
 	}
+
+	if (pipe->interlaced)
+		top /= 2;
 
 	vsp1_rpf_write(rpf, dlb, VI6_RPF_LOC,
 		       (left << VI6_RPF_LOC_HCOORD_SHIFT) |
@@ -169,6 +192,36 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 
 }
 
+static void vsp1_rpf_configure_autofld(struct vsp1_rwpf *rpf,
+				       struct vsp1_dl_list *dl)
+{
+	const struct v4l2_pix_format_mplane *format = &rpf->format;
+	struct vsp1_dl_ext_cmd *cmd;
+	struct vsp1_extcmd_auto_fld_body *auto_fld;
+	u32 offset_y, offset_c;
+
+	cmd = vsp1_dl_get_pre_cmd(dl);
+	if (WARN_ONCE(!cmd, "Failed to obtain an autofld cmd"))
+		return;
+
+	/* Re-index our auto_fld to match the current RPF. */
+	auto_fld = cmd->data;
+	auto_fld = &auto_fld[rpf->entity.index];
+
+	auto_fld->top_y0 = rpf->mem.addr[0];
+	auto_fld->top_c0 = rpf->mem.addr[1];
+	auto_fld->top_c1 = rpf->mem.addr[2];
+
+	offset_y = format->plane_fmt[0].bytesperline;
+	offset_c = format->plane_fmt[1].bytesperline;
+
+	auto_fld->bottom_y0 = rpf->mem.addr[0] + offset_y;
+	auto_fld->bottom_c0 = rpf->mem.addr[1] + offset_c;
+	auto_fld->bottom_c1 = rpf->mem.addr[2] + offset_c;
+
+	cmd->flags |= VI6_DL_EXT_AUTOFLD_INT | BIT(16 + rpf->entity.index);
+}
+
 static void rpf_configure_frame(struct vsp1_entity *entity,
 				struct vsp1_pipeline *pipe,
 				struct vsp1_dl_list *dl,
@@ -221,6 +274,11 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 		crop.left += pipe->partition->rpf.left;
 	}
 
+	if (pipe->interlaced) {
+		crop.height = round_down(crop.height / 2, fmtinfo->vsub);
+		crop.top = round_down(crop.top / 2, fmtinfo->vsub);
+	}
+
 	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRC_BSIZE,
 		       (crop.width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
 		       (crop.height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
@@ -249,9 +307,17 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	    fmtinfo->swap_uv)
 		swap(mem.addr[1], mem.addr[2]);
 
-	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_Y, mem.addr[0]);
-	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_C0, mem.addr[1]);
-	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_C1, mem.addr[2]);
+	/*
+	 * Interlaced pipelines will use the extended pre-cmd to process
+	 * SRCM_ADDR_{Y,C0,C1}
+	 */
+	if (pipe->interlaced) {
+		vsp1_rpf_configure_autofld(rpf, dl);
+	} else {
+		vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_Y, mem.addr[0]);
+		vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_C0, mem.addr[1]);
+		vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_C1, mem.addr[2]);
+	}
 }
 
 static void rpf_partition(struct vsp1_entity *entity,

@@ -947,6 +947,8 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal)
  */
 unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
+	struct vsp1_device *vsp1 = dlm->vsp1;
+	u32 status = vsp1_read(vsp1, VI6_STATUS);
 	unsigned int flags = 0;
 
 	spin_lock(&dlm->lock);
@@ -969,6 +971,14 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	 * and retry.
 	 */
 	if (vsp1_dl_list_hw_update_pending(dlm))
+		goto done;
+
+	/*
+	 * Progressive streams report only TOP fields. If we have a BOTTOM
+	 * field, we are interlaced, and expect the frame to complete on the
+	 * next frame end interrupt.
+	 */
+	if (status & VI6_STATUS_FLD_STD(dlm->index))
 		goto done;
 
 	/*
