@@ -163,7 +163,7 @@ config MENF21BMC_WATCHDOG
 
 config MENZ069_WATCHDOG
 	tristate "MEN 16Z069 Watchdog"
-	depends on MCB || COMPILE_TEST
+	depends on MCB
 	select WATCHDOG_CORE
 	help
 	  Say Y here to include support for the MEN 16Z069 Watchdog.
