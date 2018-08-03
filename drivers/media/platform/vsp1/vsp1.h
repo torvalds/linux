@@ -68,6 +68,8 @@ struct vsp1_device_info {
 	bool uapi;
 };
 
+#define vsp1_feature(vsp1, f) ((vsp1)->info->features & (f))
+
 struct vsp1_device {
 	struct device *dev;
 	const struct vsp1_device_info *info;
