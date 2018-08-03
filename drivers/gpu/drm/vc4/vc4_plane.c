@@ -266,30 +266,59 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	u32 subpixel_src_mask = (1 << 16) - 1;
 	u32 format = fb->format->format;
 	int num_planes = fb->format->num_planes;
-	u32 h_subsample = 1;
-	u32 v_subsample = 1;
-	int i;
+	int min_scale = 1, max_scale = INT_MAX;
+	struct drm_crtc_state *crtc_state;
+	u32 h_subsample, v_subsample;
+	int i, ret;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
+							state->crtc);
+	if (!crtc_state) {
+		DRM_DEBUG_KMS("Invalid crtc state\n");
+		return -EINVAL;
+	}
+
+	/* No configuring scaling on the cursor plane, since it gets
+	 * non-vblank-synced updates, and scaling requires LBM changes which
+	 * have to be vblank-synced.
+	 */
+	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+		min_scale = DRM_PLANE_HELPER_NO_SCALING;
+		max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	} else {
+		min_scale = 1;
+		max_scale = INT_MAX;
+	}
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+						  min_scale, max_scale,
+						  true, true);
+	if (ret)
+		return ret;
+
+	h_subsample = drm_format_horz_chroma_subsampling(format);
+	v_subsample = drm_format_vert_chroma_subsampling(format);
 
 	for (i = 0; i < num_planes; i++)
 		vc4_state->offsets[i] = bo->paddr + fb->offsets[i];
 
 	/* We don't support subpixel source positioning for scaling. */
-	if ((state->src_x & subpixel_src_mask) ||
-	    (state->src_y & subpixel_src_mask) ||
-	    (state->src_w & subpixel_src_mask) ||
-	    (state->src_h & subpixel_src_mask)) {
+	if ((state->src.x1 & subpixel_src_mask) ||
+	    (state->src.x2 & subpixel_src_mask) ||
+	    (state->src.y1 & subpixel_src_mask) ||
+	    (state->src.y2 & subpixel_src_mask)) {
 		return -EINVAL;
 	}
 
-	vc4_state->src_x = state->src_x >> 16;
-	vc4_state->src_y = state->src_y >> 16;
-	vc4_state->src_w[0] = state->src_w >> 16;
-	vc4_state->src_h[0] = state->src_h >> 16;
+	vc4_state->src_x = state->src.x1 >> 16;
+	vc4_state->src_y = state->src.y1 >> 16;
+	vc4_state->src_w[0] = (state->src.x2 - state->src.x1) >> 16;
+	vc4_state->src_h[0] = (state->src.y2 - state->src.y1) >> 16;
 
-	vc4_state->crtc_x = state->crtc_x;
-	vc4_state->crtc_y = state->crtc_y;
-	vc4_state->crtc_w = state->crtc_w;
-	vc4_state->crtc_h = state->crtc_h;
+	vc4_state->crtc_x = state->dst.x1;
+	vc4_state->crtc_y = state->dst.y1;
+	vc4_state->crtc_w = state->dst.x2 - state->dst.x1;
+	vc4_state->crtc_h = state->dst.y2 - state->dst.y1;
 
 	vc4_state->x_scaling[0] = vc4_get_scaling_mode(vc4_state->src_w[0],
 						       vc4_state->crtc_w);
@@ -302,8 +331,6 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	if (num_planes > 1) {
 		vc4_state->is_yuv = true;
 
-		h_subsample = drm_format_horz_chroma_subsampling(format);
-		v_subsample = drm_format_vert_chroma_subsampling(format);
 		vc4_state->src_w[1] = vc4_state->src_w[0] / h_subsample;
 		vc4_state->src_h[1] = vc4_state->src_h[0] / v_subsample;
 
@@ -325,39 +352,14 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 		vc4_state->y_scaling[1] = VC4_SCALING_NONE;
 	}
 
-	/* No configuring scaling on the cursor plane, since it gets
-	   non-vblank-synced updates, and scaling requires requires
-	   LBM changes which have to be vblank-synced.
-	 */
-	if (plane->type == DRM_PLANE_TYPE_CURSOR && !vc4_state->is_unity)
-		return -EINVAL;
-
-	/* Clamp the on-screen start x/y to 0.  The hardware doesn't
-	 * support negative y, and negative x wastes bandwidth.
-	 */
-	if (vc4_state->crtc_x < 0) {
-		for (i = 0; i < num_planes; i++) {
-			u32 cpp = fb->format->cpp[i];
-			u32 subs = ((i == 0) ? 1 : h_subsample);
-
-			vc4_state->offsets[i] += (cpp *
-						  (-vc4_state->crtc_x) / subs);
-		}
-		vc4_state->src_w[0] += vc4_state->crtc_x;
-		vc4_state->src_w[1] += vc4_state->crtc_x / h_subsample;
-		vc4_state->crtc_x = 0;
-	}
-
-	if (vc4_state->crtc_y < 0) {
-		for (i = 0; i < num_planes; i++) {
-			u32 subs = ((i == 0) ? 1 : v_subsample);
-
-			vc4_state->offsets[i] += (fb->pitches[i] *
-						  (-vc4_state->crtc_y) / subs);
-		}
-		vc4_state->src_h[0] += vc4_state->crtc_y;
-		vc4_state->src_h[1] += vc4_state->crtc_y / v_subsample;
-		vc4_state->crtc_y = 0;
+	/* Adjust the base pointer to the first pixel to be scanned out. */
+	for (i = 0; i < num_planes; i++) {
+		vc4_state->offsets[i] += (vc4_state->src_y /
+					  (i ? v_subsample : 1)) *
+					 fb->pitches[i];
+		vc4_state->offsets[i] += (vc4_state->src_x /
+					  (i ? h_subsample : 1)) *
+					 fb->format->cpp[i];
 	}
 
 	return 0;
