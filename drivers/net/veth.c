@@ -17,6 +17,7 @@
 #include <net/rtnetlink.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
+#include <net/xdp.h>
 #include <linux/veth.h>
 #include <linux/module.h>
 #include <linux/bpf.h>
@@ -123,6 +124,11 @@ static bool veth_is_xdp_frame(void *ptr)
 static void *veth_ptr_to_xdp(void *ptr)
 {
 	return (void *)((unsigned long)ptr & ~VETH_XDP_FLAG);
+}
+
+static void *veth_xdp_to_ptr(void *ptr)
+{
+	return (void *)((unsigned long)ptr | VETH_XDP_FLAG);
 }
 
 static void veth_ptr_free(void *ptr)
@@ -265,6 +271,50 @@ static struct sk_buff *veth_build_skb(void *head, int headroom, int len,
 	skb_put(skb, len);
 
 	return skb;
+}
+
+static int veth_xdp_xmit(struct net_device *dev, int n,
+			 struct xdp_frame **frames, u32 flags)
+{
+	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
+	struct net_device *rcv;
+	unsigned int max_len;
+	int i, drops = 0;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	rcv = rcu_dereference(priv->peer);
+	if (unlikely(!rcv))
+		return -ENXIO;
+
+	rcv_priv = netdev_priv(rcv);
+	/* Non-NULL xdp_prog ensures that xdp_ring is initialized on receive
+	 * side. This means an XDP program is loaded on the peer and the peer
+	 * device is up.
+	 */
+	if (!rcu_access_pointer(rcv_priv->xdp_prog))
+		return -ENXIO;
+
+	max_len = rcv->mtu + rcv->hard_header_len + VLAN_HLEN;
+
+	spin_lock(&rcv_priv->xdp_ring.producer_lock);
+	for (i = 0; i < n; i++) {
+		struct xdp_frame *frame = frames[i];
+		void *ptr = veth_xdp_to_ptr(frame);
+
+		if (unlikely(frame->len > max_len ||
+			     __ptr_ring_produce(&rcv_priv->xdp_ring, ptr))) {
+			xdp_return_frame_rx_napi(frame);
+			drops++;
+		}
+	}
+	spin_unlock(&rcv_priv->xdp_ring.producer_lock);
+
+	if (flags & XDP_XMIT_FLUSH)
+		__veth_xdp_flush(rcv_priv);
+
+	return n - drops;
 }
 
 static struct sk_buff *veth_xdp_rcv_one(struct veth_priv *priv,
@@ -769,6 +819,7 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_features_check	= passthru_features_check,
 	.ndo_set_rx_headroom	= veth_set_rx_headroom,
 	.ndo_bpf		= veth_xdp,
+	.ndo_xdp_xmit		= veth_xdp_xmit,
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HW_CSUM | \
