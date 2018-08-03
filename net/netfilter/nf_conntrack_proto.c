@@ -940,14 +940,13 @@ void nf_conntrack_proto_fini(void)
 {
 	unsigned int i;
 
-	nf_ct_l4proto_unregister(builtin_l4proto,
-				 ARRAY_SIZE(builtin_l4proto));
 	nf_unregister_sockopt(&so_getorigdst);
 #if IS_ENABLED(CONFIG_IPV6)
 	nf_unregister_sockopt(&so_getorigdst6);
 #endif
-
-	/* free l3proto protocol tables */
+	/* No need to call nf_ct_l4proto_unregister(), the register
+	 * tables are free'd here anyway.
+	 */
 	for (i = 0; i < ARRAY_SIZE(nf_ct_protos); i++)
 		kfree(nf_ct_protos[i]);
 }
