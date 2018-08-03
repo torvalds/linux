@@ -1442,7 +1442,7 @@ struct nft_chain_hook {
 static int nft_chain_parse_hook(struct net *net,
 				const struct nlattr * const nla[],
 				struct nft_chain_hook *hook, u8 family,
-				bool create)
+				bool autoload)
 {
 	struct nlattr *ha[NFTA_HOOK_MAX + 1];
 	const struct nft_chain_type *type;
@@ -1467,7 +1467,7 @@ static int nft_chain_parse_hook(struct net *net,
 	type = chain_type[family][NFT_CHAIN_T_DEFAULT];
 	if (nla[NFTA_CHAIN_TYPE]) {
 		type = nf_tables_chain_type_lookup(net, nla[NFTA_CHAIN_TYPE],
-						   family, create);
+						   family, autoload);
 		if (IS_ERR(type))
 			return PTR_ERR(type);
 	}
@@ -1534,7 +1534,7 @@ static struct nft_rule **nf_tables_chain_alloc_rules(const struct nft_chain *cha
 }
 
 static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
-			      u8 policy, bool create)
+			      u8 policy)
 {
 	const struct nlattr * const *nla = ctx->nla;
 	struct nft_table *table = ctx->table;
@@ -1552,7 +1552,7 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		struct nft_chain_hook hook;
 		struct nf_hook_ops *ops;
 
-		err = nft_chain_parse_hook(net, nla, &hook, family, create);
+		err = nft_chain_parse_hook(net, nla, &hook, family, true);
 		if (err < 0)
 			return err;
 
@@ -1643,8 +1643,7 @@ err1:
 	return err;
 }
 
-static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
-			      bool create)
+static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy)
 {
 	const struct nlattr * const *nla = ctx->nla;
 	struct nft_table *table = ctx->table;
@@ -1661,7 +1660,7 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 			return -EBUSY;
 
 		err = nft_chain_parse_hook(ctx->net, nla, &hook, ctx->family,
-					   create);
+					   false);
 		if (err < 0)
 			return err;
 
@@ -1761,9 +1760,6 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 	u8 policy = NF_ACCEPT;
 	struct nft_ctx ctx;
 	u64 handle = 0;
-	bool create;
-
-	create = nlh->nlmsg_flags & NLM_F_CREATE ? true : false;
 
 	lockdep_assert_held(&net->nft.commit_mutex);
 
@@ -1828,10 +1824,10 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 		if (nlh->nlmsg_flags & NLM_F_REPLACE)
 			return -EOPNOTSUPP;
 
-		return nf_tables_updchain(&ctx, genmask, policy, create);
+		return nf_tables_updchain(&ctx, genmask, policy);
 	}
 
-	return nf_tables_addchain(&ctx, family, genmask, policy, create);
+	return nf_tables_addchain(&ctx, family, genmask, policy);
 }
 
 static int nf_tables_delchain(struct net *net, struct sock *nlsk,
@@ -2529,12 +2525,9 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 	struct nlattr *tmp;
 	unsigned int size, i, n, ulen = 0, usize = 0;
 	int err, rem;
-	bool create;
 	u64 handle, pos_handle;
 
 	lockdep_assert_held(&net->nft.commit_mutex);
-
-	create = nlh->nlmsg_flags & NLM_F_CREATE ? true : false;
 
 	table = nft_table_lookup(net, nla[NFTA_RULE_TABLE], family, genmask);
 	if (IS_ERR(table)) {
@@ -2565,7 +2558,8 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 		else
 			return -EOPNOTSUPP;
 	} else {
-		if (!create || nlh->nlmsg_flags & NLM_F_REPLACE)
+		if (!(nlh->nlmsg_flags & NLM_F_CREATE) ||
+		    nlh->nlmsg_flags & NLM_F_REPLACE)
 			return -EINVAL;
 		handle = nf_tables_alloc_handle(table);
 
@@ -3361,7 +3355,6 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 	struct nft_ctx ctx;
 	char *name;
 	unsigned int size;
-	bool create;
 	u64 timeout;
 	u32 ktype, dtype, flags, policy, gc_int, objtype;
 	struct nft_set_desc desc;
@@ -3461,8 +3454,6 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 		if (err < 0)
 			return err;
 	}
-
-	create = nlh->nlmsg_flags & NLM_F_CREATE ? true : false;
 
 	table = nft_table_lookup(net, nla[NFTA_SET_TABLE], family, genmask);
 	if (IS_ERR(table)) {
