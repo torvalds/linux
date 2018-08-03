@@ -124,8 +124,8 @@ struct dig {
 };
 
 enum cck_rx_path_method {
-	CCK_Rx_Version_1 = 0,
-	CCK_Rx_Version_2 = 1,
+	CCK_RX_VERSION_1 = 0,
+	CCK_RX_VERSION_2 = 1,
 };
 
 struct dynamic_rx_path_sel {

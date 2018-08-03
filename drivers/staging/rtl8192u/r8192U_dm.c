@@ -2391,9 +2391,9 @@ static void dm_init_rxpath_selection(struct net_device *dev)
 	DM_RxPathSelTable.SS_TH_low = RxPathSelection_SS_TH_low;
 	DM_RxPathSelTable.diff_TH = RxPathSelection_diff_TH;
 	if (priv->CustomerID == RT_CID_819x_Netcore)
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
+		DM_RxPathSelTable.cck_method = CCK_RX_VERSION_2;
 	else
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_1;
+		DM_RxPathSelTable.cck_method = CCK_RX_VERSION_1;
 	DM_RxPathSelTable.disabledRF = 0;
 	for (i = 0; i < 4; i++) {
 		DM_RxPathSelTable.rf_rssi[i] = 50;
@@ -2429,7 +2429,7 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 	DM_RxPathSelTable.disabledRF = ~DM_RxPathSelTable.disabledRF & 0xf;
 
 	if (priv->ieee80211->mode == WIRELESS_MODE_B) {
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;	/* pure B mode, fixed cck version2 */
+		DM_RxPathSelTable.cck_method = CCK_RX_VERSION_2;	/* pure B mode, fixed cck version2 */
 		/*DbgPrint("Pure B mode, use cck rx version2\n");*/
 	}
 
@@ -2493,7 +2493,7 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 
 	rf_num = 0;
 	/* decide max/sec/min cck pwdb index */
-	if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_2) {
+	if (DM_RxPathSelTable.cck_method == CCK_RX_VERSION_2) {
 		for (i = 0; i < RF90_PATH_MAX; i++) {
 			if (priv->brfpath_rxenable[i]) {
 				rf_num++;
@@ -2551,7 +2551,7 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 	 * reg0xA07[3:2]=cck default rx path, reg0xa07[1:0]=cck optional rx path.
 	 */
 	update_cck_rx_path = 0;
-	if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_2) {
+	if (DM_RxPathSelTable.cck_method == CCK_RX_VERSION_2) {
 		cck_default_Rx = cck_rx_ver2_max_index;
 		cck_optional_Rx = cck_rx_ver2_sec_index;
 		if (tmp_cck_max_pwdb != -64)
@@ -2567,7 +2567,7 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 			rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x1<<min_rssi_index, 0x0);	/* 0xd04[3:0] */
 			disabled_rf_cnt++;
 		}
-		if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_1) {
+		if (DM_RxPathSelTable.cck_method == CCK_RX_VERSION_1) {
 			cck_default_Rx = max_rssi_index;
 			cck_optional_Rx = sec_rssi_index;
 			if (tmp_max_rssi)
