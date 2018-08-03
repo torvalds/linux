@@ -553,7 +553,6 @@ static void pppol2tp_show(struct seq_file *m, void *arg)
 static void pppol2tp_session_init(struct l2tp_session *session)
 {
 	struct pppol2tp_session *ps;
-	u32 mtu;
 
 	session->recv_skb = pppol2tp_recv;
 #if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
@@ -563,11 +562,6 @@ static void pppol2tp_session_init(struct l2tp_session *session)
 	ps = l2tp_session_priv(session);
 	mutex_init(&ps->sk_lock);
 	ps->owner = current->pid;
-
-	/* If PMTU discovery was enabled, use the MTU that was discovered */
-	mtu = l2tp_tunnel_dst_mtu(session->tunnel);
-	if (mtu)
-		session->mtu = mtu - PPPOL2TP_HEADER_OVERHEAD;
 }
 
 struct l2tp_connect_info {
@@ -652,6 +646,22 @@ static int pppol2tp_sockaddr_get_info(const void *sa, int sa_len,
 	}
 
 	return 0;
+}
+
+/* Rough estimation of the maximum payload size a tunnel can transmit without
+ * fragmenting at the lower IP layer. Assumes L2TPv2 with sequence
+ * numbers and no IP option. Not quite accurate, but the result is mostly
+ * unused anyway.
+ */
+static int pppol2tp_tunnel_mtu(const struct l2tp_tunnel *tunnel)
+{
+	int mtu;
+
+	mtu = l2tp_tunnel_dst_mtu(tunnel);
+	if (mtu <= PPPOL2TP_HEADER_OVERHEAD)
+		return 1500 - PPPOL2TP_HEADER_OVERHEAD;
+
+	return mtu - PPPOL2TP_HEADER_OVERHEAD;
 }
 
 /* connect() handler. Attach a PPPoX socket to a tunnel UDP socket
@@ -771,8 +781,6 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 			goto end;
 		}
 	} else {
-		/* Default MTU must allow space for UDP/L2TP/PPP headers */
-		cfg.mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
 		cfg.pw_type = L2TP_PWTYPE_PPP;
 
 		session = l2tp_session_create(sizeof(struct pppol2tp_session),
@@ -817,7 +825,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 	po->chan.private = sk;
 	po->chan.ops	 = &pppol2tp_chan_ops;
-	po->chan.mtu	 = session->mtu;
+	po->chan.mtu	 = pppol2tp_tunnel_mtu(tunnel);
 
 	error = ppp_register_net_channel(sock_net(sk), &po->chan);
 	if (error) {
@@ -872,10 +880,6 @@ static int pppol2tp_session_create(struct net *net, struct l2tp_tunnel *tunnel,
 		error = -ENOENT;
 		goto err;
 	}
-
-	/* Default MTU values. */
-	if (cfg->mtu == 0)
-		cfg->mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
 
 	/* Allocate and initialize a new session context. */
 	session = l2tp_session_create(sizeof(struct pppol2tp_session),
@@ -1040,7 +1044,6 @@ static void pppol2tp_copy_stats(struct pppol2tp_ioc_stats *dest,
 static int pppol2tp_session_ioctl(struct l2tp_session *session,
 				  unsigned int cmd, unsigned long arg)
 {
-	struct ifreq ifr;
 	int err = 0;
 	struct sock *sk;
 	int val = (int) arg;
@@ -1056,39 +1059,6 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 		return -EBADR;
 
 	switch (cmd) {
-	case SIOCGIFMTU:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		err = -EFAULT;
-		if (copy_from_user(&ifr, (void __user *) arg, sizeof(struct ifreq)))
-			break;
-		ifr.ifr_mtu = session->mtu;
-		if (copy_to_user((void __user *) arg, &ifr, sizeof(struct ifreq)))
-			break;
-
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get mtu=%d\n",
-			  session->name, session->mtu);
-		err = 0;
-		break;
-
-	case SIOCSIFMTU:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		err = -EFAULT;
-		if (copy_from_user(&ifr, (void __user *) arg, sizeof(struct ifreq)))
-			break;
-
-		session->mtu = ifr.ifr_mtu;
-
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: set mtu=%d\n",
-			  session->name, session->mtu);
-		err = 0;
-		break;
-
 	case PPPIOCGMRU:
 	case PPPIOCGFLAGS:
 		err = -EFAULT;
@@ -1685,8 +1655,7 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   tunnel->peer_tunnel_id,
 		   session->peer_session_id,
 		   state, user_data_ok);
-	seq_printf(m, "   %d/0/%c/%c/%s %08x %u\n",
-		   session->mtu,
+	seq_printf(m, "   0/0/%c/%c/%s %08x %u\n",
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
 		   session->lns_mode ? "LNS" : "LAC",
