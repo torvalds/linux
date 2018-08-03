@@ -739,6 +739,17 @@
 			dma-names = "tx", "rx";
 		};
 
+		blsp_i2c12: i2c@f9968000 {
+			status = "disabled";
+			compatible = "qcom,i2c-qup-v2.1.1";
+			reg = <0xf9968000 0x1000>;
+			interrupts = <0 106 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_BLSP2_QUP6_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		spmi_bus: spmi@fc4cf000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg-names = "core", "intr", "cnfg";
