@@ -22,14 +22,15 @@ static uint32_t _vkms_get_crc(struct vkms_crc_data *crc_data)
 	mutex_lock(&vkms_obj->pages_lock);
 	vaddr = vkms_obj->vaddr;
 	if (WARN_ON(!vaddr))
-		return crc;
+		goto out;
 
 	for (i = y; i < y + height; i++) {
 		src_offset = fb->offsets[0] + (i * fb->pitches[0]) + (x * cpp);
 		crc = crc32_le(crc, vaddr + src_offset, size_byte);
 	}
-	mutex_unlock(&vkms_obj->pages_lock);
 
+out:
+	mutex_unlock(&vkms_obj->pages_lock);
 	return crc;
 }
 
