@@ -5205,9 +5205,9 @@ int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 	return drm_mode_obj_set_property_ioctl(dev, &obj_set_prop, file_priv);
 }
 
-static int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
-					   struct drm_property *property,
-					   uint64_t value)
+int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
+				    struct drm_property *property,
+				    uint64_t value)
 {
 	int ret = -EINVAL;
 	struct drm_connector *connector = obj_to_connector(obj);
@@ -5225,6 +5225,7 @@ static int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 		drm_object_property_set_value(&connector->base, property, value);
 	return ret;
 }
+EXPORT_SYMBOL(drm_mode_connector_set_obj_prop);
 
 static int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 				      struct drm_property *property,
