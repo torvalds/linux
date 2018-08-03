@@ -119,7 +119,6 @@ struct dig {
 
 	u8		backoff_val;
 	u8		rx_gain_range_min;
-	bool		initialgain_lowerbound_state;
 
 	long		rssi_val;
 };
