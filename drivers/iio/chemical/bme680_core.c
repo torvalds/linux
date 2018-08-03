@@ -577,7 +577,7 @@ static int bme680_gas_config(struct bme680_data *data)
 	/* set target heating duration */
 	ret = regmap_write(data->regmap, BME680_REG_GAS_WAIT_0, heatr_dur);
 	if (ret < 0) {
-		dev_err(dev, "failted to write gas_wait_0 register\n");
+		dev_err(dev, "failed to write gas_wait_0 register\n");
 		return ret;
 	}
 
