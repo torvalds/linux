@@ -9,6 +9,9 @@
 #define probe(function, vars) \
 	SEC(#function "=" #function " " #vars) function
 
+#define syscall_enter(name) \
+	SEC("syscalls:sys_enter_" #name) syscall_enter_ ## name
+
 #define license(name) \
 char _license[] SEC("license") = #name; \
 int _version SEC("version") = LINUX_VERSION_CODE;
