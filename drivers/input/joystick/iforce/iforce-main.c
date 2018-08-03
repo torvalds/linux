@@ -221,7 +221,8 @@ static void iforce_close(struct input_dev *dev)
 	iforce->xport_ops->stop_io(iforce);
 }
 
-int iforce_init_device(struct iforce *iforce)
+int iforce_init_device(struct device *parent, u16 bustype,
+		       struct iforce *iforce)
 {
 	struct input_dev *input_dev;
 	struct ff_device *ff;
@@ -243,20 +244,8 @@ int iforce_init_device(struct iforce *iforce)
  * Input device fields.
  */
 
-	switch (iforce->bus) {
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	case IFORCE_USB:
-		input_dev->id.bustype = BUS_USB;
-		input_dev->dev.parent = &iforce->usbdev->dev;
-		break;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	case IFORCE_232:
-		input_dev->id.bustype = BUS_RS232;
-		input_dev->dev.parent = &iforce->serio->dev;
-		break;
-#endif
-	}
+	input_dev->id.bustype = bustype;
+	input_dev->dev.parent = parent;
 
 	input_set_drvdata(input_dev, iforce);
 

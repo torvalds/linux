@@ -183,7 +183,7 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 	if (err)
 		goto fail1;
 
-	err = iforce_init_device(iforce);
+	err = iforce_init_device(&serio->dev, BUS_RS232, iforce);
 	if (err)
 		goto fail2;
 

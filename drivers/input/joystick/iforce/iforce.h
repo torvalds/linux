@@ -156,7 +156,8 @@ static inline int iforce_get_id_packet(struct iforce *iforce, u8* id)
 
 /* Public functions */
 /* iforce-main.c */
-int iforce_init_device(struct iforce *iforce);
+int iforce_init_device(struct device *parent, u16 bustype,
+		       struct iforce *iforce);
 
 /* iforce-packets.c */
 int iforce_control_playback(struct iforce*, u16 id, unsigned int);

@@ -229,7 +229,7 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	usb_fill_control_urb(iforce->ctrl, dev, usb_rcvctrlpipe(dev, 0),
 			(void*) &iforce->cr, iforce->edata, 16, iforce_usb_ctrl, iforce);
 
-	err = iforce_init_device(iforce);
+	err = iforce_init_device(&intf->dev, BUS_USB, iforce);
 	if (err)
 		goto fail;
 
