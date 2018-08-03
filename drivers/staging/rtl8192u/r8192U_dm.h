@@ -96,7 +96,6 @@ enum dig_cck_cs_ratio_state {
 struct dig {
 	u8		dig_enable_flag;
 	enum dig_algorithm		dig_algorithm;
-	u8		dbg_mode;
 	u8		dig_algorithm_switch;
 
 	long		rssi_low_thresh;
@@ -133,7 +132,6 @@ enum cck_rx_path_method {
 
 struct dynamic_rx_path_sel {
 	u8		Enable;
-	u8		DbgMode;
 	enum cck_rx_path_method		cck_method;
 	u8		cck_Rx_path;
 
@@ -146,12 +144,6 @@ struct dynamic_rx_path_sel {
 	u8		rf_enable_rssi_th[4];
 	long		cck_pwdb_sta[4];
 };
-
-typedef enum tag_DM_DbgMode_Definition {
-	DM_DBG_OFF = 0,
-	DM_DBG_ON = 1,
-	DM_DBG_MAX
-} DM_DBG_E;
 
 typedef struct tag_Tx_Config_Cmd_Format {
 	u32	Op;			/* Command packet type. */

@@ -1635,7 +1635,6 @@ static void dm_dig_init(struct net_device *dev)
 	/* 2007/10/05 MH Disable DIG scheme now. Not tested. */
 	dm_digtable.dig_enable_flag	= true;
 	dm_digtable.dig_algorithm = DIG_ALGO_BY_RSSI;
-	dm_digtable.dbg_mode = DM_DBG_OFF;	/* off=by real rssi value, on=by DM_DigTable.Rssi_val for new dig */
 	dm_digtable.dig_algorithm_switch = 0;
 
 	/* 2007/10/04 MH Define init gain threshold. */
@@ -1720,8 +1719,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 	/*DbgPrint("DM_DigTable.PreConnectState = %d, DM_DigTable.CurConnectState = %d\n",
 		DM_DigTable.PreConnectState, DM_DigTable.CurConnectState);*/
 
-	if (dm_digtable.dbg_mode == DM_DBG_OFF)
-		dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
+	dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
 	/*DbgPrint("DM_DigTable.Rssi_val = %d\n", DM_DigTable.Rssi_val);*/
 	dm_initial_gain(dev);
 	dm_pd_th(dev);
@@ -2398,7 +2396,6 @@ static void dm_init_rxpath_selection(struct net_device *dev)
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
 	else
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_1;
-	DM_RxPathSelTable.DbgMode = DM_DBG_OFF;
 	DM_RxPathSelTable.disabledRF = 0;
 	for (i = 0; i < 4; i++) {
 		DM_RxPathSelTable.rf_rssi[i] = 50;
@@ -2440,8 +2437,7 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 
 	/* decide max/sec/min rssi index */
 	for (i = 0; i < RF90_PATH_MAX; i++) {
-		if (!DM_RxPathSelTable.DbgMode)
-			DM_RxPathSelTable.rf_rssi[i] = priv->stats.rx_rssi_percentage[i];
+		DM_RxPathSelTable.rf_rssi[i] = priv->stats.rx_rssi_percentage[i];
 
 		if (priv->brfpath_rxenable[i]) {
 			rf_num++;
