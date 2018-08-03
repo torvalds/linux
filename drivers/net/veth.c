@@ -543,6 +543,23 @@ static int veth_get_iflink(const struct net_device *dev)
 	return iflink;
 }
 
+static netdev_features_t veth_fix_features(struct net_device *dev,
+					   netdev_features_t features)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer;
+
+	peer = rtnl_dereference(priv->peer);
+	if (peer) {
+		struct veth_priv *peer_priv = netdev_priv(peer);
+
+		if (peer_priv->_xdp_prog)
+			features &= ~NETIF_F_GSO_SOFTWARE;
+	}
+
+	return features;
+}
+
 static void veth_set_rx_headroom(struct net_device *dev, int new_hr)
 {
 	struct veth_priv *peer_priv, *priv = netdev_priv(dev);
@@ -572,6 +589,7 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	struct veth_priv *priv = netdev_priv(dev);
 	struct bpf_prog *old_prog;
 	struct net_device *peer;
+	unsigned int max_mtu;
 	int err;
 
 	old_prog = priv->_xdp_prog;
@@ -585,6 +603,15 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			goto err;
 		}
 
+		max_mtu = PAGE_SIZE - VETH_XDP_HEADROOM -
+			  peer->hard_header_len -
+			  SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+		if (peer->mtu > max_mtu) {
+			NL_SET_ERR_MSG_MOD(extack, "Peer MTU is too large to set XDP");
+			err = -ERANGE;
+			goto err;
+		}
+
 		if (dev->flags & IFF_UP) {
 			err = veth_enable_xdp(dev);
 			if (err) {
@@ -592,13 +619,28 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 				goto err;
 			}
 		}
+
+		if (!old_prog) {
+			peer->hw_features &= ~NETIF_F_GSO_SOFTWARE;
+			peer->max_mtu = max_mtu;
+		}
 	}
 
 	if (old_prog) {
-		if (!prog && dev->flags & IFF_UP)
-			veth_disable_xdp(dev);
+		if (!prog) {
+			if (dev->flags & IFF_UP)
+				veth_disable_xdp(dev);
+
+			if (peer) {
+				peer->hw_features |= NETIF_F_GSO_SOFTWARE;
+				peer->max_mtu = ETH_MAX_MTU;
+			}
+		}
 		bpf_prog_put(old_prog);
 	}
+
+	if ((!!old_prog ^ !!prog) && peer)
+		netdev_update_features(peer);
 
 	return 0;
 err:
@@ -644,6 +686,7 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_poll_controller	= veth_poll_controller,
 #endif
 	.ndo_get_iflink		= veth_get_iflink,
+	.ndo_fix_features	= veth_fix_features,
 	.ndo_features_check	= passthru_features_check,
 	.ndo_set_rx_headroom	= veth_set_rx_headroom,
 	.ndo_bpf		= veth_xdp,
