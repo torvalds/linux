@@ -194,20 +194,6 @@
 					P80211DID_LSB_ACCESS)
 
 /*----------------------------------------------------------------*/
-/* The following structure types are used for the representation */
-/*  of ENUMint type metadata. */
-
-struct p80211enumpair {
-	u32 val;
-	char *name;
-};
-
-struct p80211enum {
-	int nitems;
-	struct p80211enumpair *list;
-};
-
-/*----------------------------------------------------------------*/
 /* The following structure types are used to store data items in */
 /*  messages. */
 
@@ -329,18 +315,5 @@ struct p80211item_unk4096 {
 	u16 len;
 	u8 data[4096];
 } __packed;
-
-struct catlistitem;
-
-/*----------------------------------------------------------------*/
-/* The following structure type is used to represent all of the */
-/*  metadata items.  Some components may choose to use more, */
-/*  less or different metadata items. */
-
-typedef void (*p80211_totext_t) (struct catlistitem *, u32 did, u8 *itembuf,
-				 char *textbuf);
-typedef void (*p80211_fromtext_t) (struct catlistitem *, u32 did, u8 *itembuf,
-				   char *textbuf);
-typedef u32(*p80211_valid_t) (struct catlistitem *, u32 did, u8 *itembuf);
 
 #endif /* _P80211TYPES_H */
