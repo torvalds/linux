@@ -124,12 +124,6 @@ struct mt76x0_eeprom_params;
 
 #define MT_VEND_ADDR(type, n)	(MT_VEND_TYPE_##type | (n))
 
-enum mt_temp_mode {
-	MT_TEMP_MODE_NORMAL,
-	MT_TEMP_MODE_HIGH,
-	MT_TEMP_MODE_LOW,
-};
-
 enum mt_bw {
 	MT_BW_20,
 	MT_BW_40,

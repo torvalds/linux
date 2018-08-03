@@ -84,7 +84,7 @@ int mt76x0_usb_submit_buf(struct mt76x0_dev *dev, int dir, int ep_idx,
 	buf->urb->transfer_dma = buf->dma;
 	buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	trace_mt_submit_urb(&dev->mt76, buf->urb);
+	trace_mt76x0_submit_urb(&dev->mt76, buf->urb);
 	ret = usb_submit_urb(buf->urb, gfp);
 	if (ret)
 		dev_err(dev->mt76.dev, "Error: submit URB dir:%d ep:%d failed:%d\n",
@@ -113,7 +113,7 @@ int mt76x0_vendor_request(struct mt76x0_dev *dev, const u8 req,
 		ret = usb_control_msg(usb_dev, pipe, req, req_type,
 				      val, offset, buf, buflen,
 				      MT_VEND_REQ_TOUT_MS);
-		trace_mt_vend_req(&dev->mt76, pipe, req, req_type, val, offset,
+		trace_mt76x0_vend_req(&dev->mt76, pipe, req, req_type, val, offset,
 				  buf, buflen, ret);
 
 		if (ret == -ENODEV)
@@ -156,7 +156,7 @@ static u32 mt76x0_rr(struct mt76_dev *dev, u32 offset)
 
 	mutex_unlock(&mdev->usb_ctrl_mtx);
 
-	trace_reg_read(dev, offset, val);
+	trace_mt76x0_reg_read(dev, offset, val);
 	return val;
 }
 
@@ -191,7 +191,7 @@ static void mt76x0_wr(struct mt76_dev *dev, u32 offset, u32 val)
 	put_unaligned_le32(val, mdev->data);
 	ret = mt76x0_vendor_request(mdev, MT_VEND_MULTI_WRITE, USB_DIR_OUT,
 				    0, offset, mdev->data, MT_VEND_BUF);
-	trace_reg_write(dev, offset, val);
+	trace_mt76x0_reg_write(dev, offset, val);
 
 	mutex_unlock(&mdev->usb_ctrl_mtx);
 }

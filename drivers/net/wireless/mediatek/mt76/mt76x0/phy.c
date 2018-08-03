@@ -52,7 +52,7 @@ mt76x0_rf_csr_wr(struct mt76x0_dev *dev, u32 offset, u8 value)
 		   FIELD_PREP(MT_RF_CSR_CFG_REG_ID, reg) |
 		   MT_RF_CSR_CFG_WR |
 		   MT_RF_CSR_CFG_KICK);
-	trace_rf_write(&dev->mt76, bank, offset, value);
+	trace_mt76x0_rf_write(&dev->mt76, bank, offset, value);
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);
 
@@ -96,7 +96,7 @@ mt76x0_rf_csr_rr(struct mt76x0_dev *dev, u32 offset)
 	if (FIELD_GET(MT_RF_CSR_CFG_REG_ID, val) == reg &&
 	    FIELD_GET(MT_RF_CSR_CFG_REG_BANK, val) == bank) {
 		ret = FIELD_GET(MT_RF_CSR_CFG_DATA, val);
-		trace_rf_read(&dev->mt76, bank, offset, ret);
+		trace_mt76x0_rf_read(&dev->mt76, bank, offset, ret);
 	}
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);

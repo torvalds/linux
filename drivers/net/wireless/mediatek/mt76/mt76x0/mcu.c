@@ -48,7 +48,7 @@ static inline void mt76x0_dma_skb_wrap_cmd(struct sk_buff *skb,
 				     FIELD_PREP(MT_TXD_CMD_TYPE, cmd)));
 }
 
-static inline void trace_mt_mcu_msg_send_cs(struct mt76_dev *dev,
+static inline void trace_mt76x0_mcu_msg_send_cs(struct mt76_dev *dev,
 					    struct sk_buff *skb, bool need_resp)
 {
 	u32 i, csum = 0;
@@ -56,7 +56,7 @@ static inline void trace_mt_mcu_msg_send_cs(struct mt76_dev *dev,
 	for (i = 0; i < skb->len / 4; i++)
 		csum ^= get_unaligned_le32(skb->data + i * 4);
 
-	trace_mt_mcu_msg_send(dev, skb, csum, need_resp);
+	trace_mt76x0_mcu_msg_send(dev, skb, csum, need_resp);
 }
 
 static struct sk_buff *
@@ -168,8 +168,8 @@ __mt76x0_mcu_msg_send(struct mt76x0_dev *dev, struct sk_buff *skb,
 	if (dev->mcu.resp_cmpl.done)
 		dev_err(dev->mt76.dev, "Error: MCU response pre-completed!\n");
 
-	trace_mt_mcu_msg_send_cs(&dev->mt76, skb, wait_resp);
-	trace_mt_submit_urb_sync(&dev->mt76, cmd_pipe, skb->len);
+	trace_mt76x0_mcu_msg_send_cs(&dev->mt76, skb, wait_resp);
+	trace_mt76x0_submit_urb_sync(&dev->mt76, cmd_pipe, skb->len);
 
 	ret = usb_bulk_msg(usb_dev, cmd_pipe, skb->data, skb->len, &sent, 500);
 	if (ret) {

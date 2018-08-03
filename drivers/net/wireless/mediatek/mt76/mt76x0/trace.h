@@ -51,17 +51,17 @@ DECLARE_EVENT_CLASS(dev_reg_evt,
 	)
 );
 
-DEFINE_EVENT(dev_reg_evt, reg_read,
+DEFINE_EVENT(dev_reg_evt, mt76x0_reg_read,
 	TP_PROTO(struct mt76_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val)
 );
 
-DEFINE_EVENT(dev_reg_evt, reg_write,
+DEFINE_EVENT(dev_reg_evt, mt76x0_reg_write,
 	TP_PROTO(struct mt76_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val)
 );
 
-TRACE_EVENT(mt_submit_urb,
+TRACE_EVENT(mt76x0_submit_urb,
 	TP_PROTO(struct mt76_dev *dev, struct urb *u),
 	TP_ARGS(dev, u),
 	TP_STRUCT__entry(
@@ -76,14 +76,14 @@ TRACE_EVENT(mt_submit_urb,
 		  DEV_PR_ARG, __entry->pipe, __entry->len)
 );
 
-#define trace_mt_submit_urb_sync(__dev, __pipe, __len) ({	\
+#define trace_mt76x0_submit_urb_sync(__dev, __pipe, __len) ({	\
 	struct urb u;					\
 	u.pipe = __pipe;				\
 	u.transfer_buffer_length = __len;		\
-	trace_mt_submit_urb(__dev, &u);			\
+	trace_mt76x0_submit_urb(__dev, &u);			\
 })
 
-TRACE_EVENT(mt_mcu_msg_send,
+TRACE_EVENT(mt76x0_mcu_msg_send,
 	TP_PROTO(struct mt76_dev *dev,
 		 struct sk_buff *skb, u32 csum, bool resp),
 	TP_ARGS(dev, skb, csum, resp),
@@ -103,7 +103,7 @@ TRACE_EVENT(mt_mcu_msg_send,
 		  DEV_PR_ARG, __entry->info, __entry->csum, __entry->resp)
 );
 
-TRACE_EVENT(mt_vend_req,
+TRACE_EVENT(mt76x0_vend_req,
 	TP_PROTO(struct mt76_dev *dev, unsigned pipe, u8 req, u8 req_type,
 		 u16 val, u16 offset, void *buf, size_t buflen, int ret),
 	TP_ARGS(dev, pipe, req, req_type, val, offset, buf, buflen, ret),
@@ -131,21 +131,6 @@ TRACE_EVENT(mt_vend_req,
 		  !!__entry->buf, __entry->buflen)
 );
 
-TRACE_EVENT(ee_read,
-	TP_PROTO(struct mt76_dev *dev, int offset, u16 val),
-	TP_ARGS(dev, offset, val),
-	TP_STRUCT__entry(
-		DEV_ENTRY
-		__field(int, o) __field(u16, v)
-	),
-	TP_fast_assign(
-		DEV_ASSIGN;
-		__entry->o = offset;
-		__entry->v = val;
-	),
-	TP_printk(DEV_PR_FMT "%04x=%04x", DEV_PR_ARG, __entry->o, __entry->v)
-);
-
 DECLARE_EVENT_CLASS(dev_rf_reg_evt,
 	TP_PROTO(struct mt76_dev *dev, u8 bank, u8 reg, u8 val),
 	TP_ARGS(dev, bank, reg, val),
@@ -166,42 +151,14 @@ DECLARE_EVENT_CLASS(dev_rf_reg_evt,
 	)
 );
 
-DEFINE_EVENT(dev_rf_reg_evt, rf_read,
+DEFINE_EVENT(dev_rf_reg_evt, mt76x0_rf_read,
 	TP_PROTO(struct mt76_dev *dev, u8 bank, u8 reg, u8 val),
 	TP_ARGS(dev, bank, reg, val)
 );
 
-DEFINE_EVENT(dev_rf_reg_evt, rf_write,
+DEFINE_EVENT(dev_rf_reg_evt, mt76x0_rf_write,
 	TP_PROTO(struct mt76_dev *dev, u8 bank, u8 reg, u8 val),
 	TP_ARGS(dev, bank, reg, val)
-);
-
-DECLARE_EVENT_CLASS(dev_bbp_reg_evt,
-	TP_PROTO(struct mt76_dev *dev, u8 reg, u8 val),
-	TP_ARGS(dev, reg, val),
-	TP_STRUCT__entry(
-		DEV_ENTRY
-		__field(u8, reg)
-		__field(u8, val)
-	),
-	TP_fast_assign(
-		DEV_ASSIGN;
-		REG_ASSIGN;
-	),
-	TP_printk(
-		DEV_PR_FMT "%02hhx=%02hhx",
-		DEV_PR_ARG, __entry->reg, __entry->val
-	)
-);
-
-DEFINE_EVENT(dev_bbp_reg_evt, bbp_read,
-	TP_PROTO(struct mt76_dev *dev, u8 reg, u8 val),
-	TP_ARGS(dev, reg, val)
-);
-
-DEFINE_EVENT(dev_bbp_reg_evt, bbp_write,
-	TP_PROTO(struct mt76_dev *dev, u8 reg, u8 val),
-	TP_ARGS(dev, reg, val)
 );
 
 DECLARE_EVENT_CLASS(dev_simple_evt,
@@ -220,17 +177,7 @@ DECLARE_EVENT_CLASS(dev_simple_evt,
 	)
 );
 
-DEFINE_EVENT(dev_simple_evt, temp_mode,
-	TP_PROTO(struct mt76_dev *dev, u8 val),
-	TP_ARGS(dev, val)
-);
-
-DEFINE_EVENT(dev_simple_evt, read_temp,
-	TP_PROTO(struct mt76_dev *dev, u8 val),
-	TP_ARGS(dev, val)
-);
-
-TRACE_EVENT(mt_rx,
+TRACE_EVENT(mt76x0_rx,
 	TP_PROTO(struct mt76_dev *dev, struct mt76x0_rxwi *rxwi, u32 f),
 	TP_ARGS(dev, rxwi, f),
 	TP_STRUCT__entry(
@@ -248,7 +195,7 @@ TRACE_EVENT(mt_rx,
 		  le32_to_cpu(__entry->rxwi.ctl))
 );
 
-TRACE_EVENT(mt_tx,
+TRACE_EVENT(mt76x0_tx,
 	TP_PROTO(struct mt76_dev *dev, struct sk_buff *skb,
 		 struct mt76_sta *sta, struct mt76_txwi *h),
 	TP_ARGS(dev, skb, sta, h),
@@ -273,7 +220,7 @@ TRACE_EVENT(mt_tx,
 		  le16_to_cpu(__entry->h.len_ctl))
 );
 
-TRACE_EVENT(mt_tx_dma_done,
+TRACE_EVENT(mt76x0_tx_dma_done,
 	TP_PROTO(struct mt76_dev *dev, struct sk_buff *skb),
 	TP_ARGS(dev, skb),
 	TP_STRUCT__entry(
@@ -287,7 +234,7 @@ TRACE_EVENT(mt_tx_dma_done,
 	TP_printk(DEV_PR_FMT "%p", DEV_PR_ARG, __entry->skb)
 );
 
-TRACE_EVENT(mt_tx_status_cleaned,
+TRACE_EVENT(mt76x0_tx_status_cleaned,
 	TP_PROTO(struct mt76_dev *dev, int cleaned),
 	TP_ARGS(dev, cleaned),
 	TP_STRUCT__entry(
@@ -301,7 +248,7 @@ TRACE_EVENT(mt_tx_status_cleaned,
 	TP_printk(DEV_PR_FMT "%d", DEV_PR_ARG, __entry->cleaned)
 );
 
-TRACE_EVENT(mt_tx_status,
+TRACE_EVENT(mt76x0_tx_status,
 	TP_PROTO(struct mt76_dev *dev, u32 stat1, u32 stat2),
 	TP_ARGS(dev, stat1, stat2),
 	TP_STRUCT__entry(
@@ -317,7 +264,7 @@ TRACE_EVENT(mt_tx_status,
 		  DEV_PR_ARG, __entry->stat1, __entry->stat2)
 );
 
-TRACE_EVENT(mt_rx_dma_aggr,
+TRACE_EVENT(mt76x0_rx_dma_aggr,
 	TP_PROTO(struct mt76_dev *dev, int cnt, bool paged),
 	TP_ARGS(dev, cnt, paged),
 	TP_STRUCT__entry(
@@ -334,12 +281,12 @@ TRACE_EVENT(mt_rx_dma_aggr,
 		  DEV_PR_ARG, __entry->cnt, __entry->paged)
 );
 
-DEFINE_EVENT(dev_simple_evt, set_key,
+DEFINE_EVENT(dev_simple_evt, mt76x0_set_key,
 	TP_PROTO(struct mt76_dev *dev, u8 val),
 	TP_ARGS(dev, val)
 );
 
-TRACE_EVENT(set_shared_key,
+TRACE_EVENT(mt76x0_set_shared_key,
 	TP_PROTO(struct mt76_dev *dev, u8 vid, u8 key),
 	TP_ARGS(dev, vid, key),
 	TP_STRUCT__entry(

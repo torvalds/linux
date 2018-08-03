@@ -177,7 +177,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	if (mt76x0_dma_enqueue_tx(dev, skb, wcid, hw_q))
 		return;
 
-	trace_mt_tx(&dev->mt76, skb, msta, txwi);
+	trace_mt76x0_tx(&dev->mt76, skb, msta, txwi);
 }
 
 void mt76x0_tx_stat(struct work_struct *work)
@@ -198,7 +198,7 @@ void mt76x0_tx_stat(struct work_struct *work)
 
 		cleaned++;
 	}
-	trace_mt_tx_status_cleaned(&dev->mt76, cleaned);
+	trace_mt76x0_tx_status_cleaned(&dev->mt76, cleaned);
 
 	spin_lock_irqsave(&dev->tx_lock, flags);
 	if (cleaned)

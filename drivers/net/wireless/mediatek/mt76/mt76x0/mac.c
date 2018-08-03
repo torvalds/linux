@@ -606,7 +606,7 @@ int mt76x0_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
 	if (cipher == MT_CIPHER_NONE && key)
 		return -EINVAL;
 
-	trace_set_key(&dev->mt76, idx);
+	trace_mt76x0_set_key(&dev->mt76, idx);
 
 	mt76_wr_copy(dev, MT_WCID_KEY(idx), key_data, sizeof(key_data));
 
@@ -646,7 +646,7 @@ int mt76x0_mac_shared_key_setup(struct mt76x0_dev *dev, u8 vif_idx, u8 key_idx,
 	if (cipher == MT_CIPHER_NONE && key)
 		return -EINVAL;
 
-	trace_set_shared_key(&dev->mt76, vif_idx, key_idx);
+	trace_mt76x0_set_shared_key(&dev->mt76, vif_idx, key_idx);
 
 	mt76_wr_copy(dev, MT_SKEY(vif_idx, key_idx),
 			key_data, sizeof(key_data));

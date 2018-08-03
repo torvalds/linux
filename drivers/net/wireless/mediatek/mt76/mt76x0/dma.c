@@ -105,7 +105,7 @@ static void mt76x0_rx_process_seg(struct mt76x0_dev *dev, u8 *data,
 	if (unlikely(FIELD_GET(MT_RXD_INFO_TYPE, fce_info)))
 		dev_err_once(dev->mt76.dev, "Error: RX path seen a non-pkt urb\n");
 
-	trace_mt_rx(&dev->mt76, rxwi, fce_info);
+	trace_mt76x0_rx(&dev->mt76, rxwi, fce_info);
 
 	skb = mt76x0_rx_skb_from_seg(dev, rxwi, data, seg_len, truesize, p);
 	if (!skb)
@@ -155,7 +155,7 @@ mt76x0_rx_process_entry(struct mt76x0_dev *dev, struct mt76x0_dma_buf_rx *e)
 	}
 
 	if (cnt > 1)
-		trace_mt_rx_dma_aggr(&dev->mt76, cnt, !!new_p);
+		trace_mt76x0_rx_dma_aggr(&dev->mt76, cnt, !!new_p);
 
 	if (new_p) {
 		/* we have one extra ref from the allocator */
@@ -235,7 +235,7 @@ static void mt76x0_complete_tx(struct urb *urb)
 		goto out;
 
 	skb = q->e[q->start].skb;
-	trace_mt_tx_dma_done(&dev->mt76, skb);
+	trace_mt76x0_tx_dma_done(&dev->mt76, skb);
 
 	__skb_queue_tail(&dev->tx_skb_done, skb);
 	tasklet_schedule(&dev->tx_tasklet);
@@ -384,7 +384,7 @@ static int mt76x0_submit_rx_buf(struct mt76x0_dev *dev,
 	usb_fill_bulk_urb(e->urb, usb_dev, pipe, buf, MT_RX_URB_SIZE,
 			  mt76x0_complete_rx, dev);
 
-	trace_mt_submit_urb(&dev->mt76, e->urb);
+	trace_mt76x0_submit_urb(&dev->mt76, e->urb);
 	ret = usb_submit_urb(e->urb, gfp);
 	if (ret)
 		dev_err(dev->mt76.dev, "Error: submit RX URB failed:%d\n", ret);
