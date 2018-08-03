@@ -205,7 +205,7 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 	setup_pa_pxp(hose);
 
-	printk(KERN_INFO "Found PA-PXP PCI host bridge.\n");
+	pr_info("Found PA-PXP PCI host bridge.\n");
 
 	/* Interpret the "ranges" property */
 	pci_process_bridge_OF_ranges(hose, dev, 1);
@@ -220,8 +220,7 @@ void __init pas_pci_init(void)
 
 	root = of_find_node_by_path("/");
 	if (!root) {
-		printk(KERN_CRIT "pas_pci_init: can't find root "
-			"of device tree\n");
+		pr_crit("pas_pci_init: can't find root of device tree\n");
 		return;
 	}
 
