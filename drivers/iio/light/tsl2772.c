@@ -107,6 +107,8 @@
 #define TSL2772_ALS_GAIN_TRIM_MIN	250
 #define TSL2772_ALS_GAIN_TRIM_MAX	4000
 
+#define TSL2772_MAX_PROX_LEDS		2
+
 /* Device family members */
 enum {
 	tsl2571,
@@ -139,6 +141,14 @@ struct tsl2772_chip_info {
 	struct iio_chan_spec channel_with_events[4];
 	struct iio_chan_spec channel_without_events[4];
 	const struct iio_info *info;
+};
+
+static const int tsl2772_led_currents[][2] = {
+	{ 100000, TSL2772_100_mA },
+	{  50000, TSL2772_50_mA },
+	{  25000, TSL2772_25_mA },
+	{  13000, TSL2772_13_mA },
+	{      0, 0 }
 };
 
 struct tsl2772_chip {
@@ -515,6 +525,75 @@ prox_poll_err:
 	return ret;
 }
 
+static int tsl2772_read_prox_led_current(struct tsl2772_chip *chip)
+{
+	struct device_node *of_node = chip->client->dev.of_node;
+	int ret, tmp, i;
+
+	ret = of_property_read_u32(of_node, "led-max-microamp", &tmp);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; tsl2772_led_currents[i][0] != 0; i++) {
+		if (tmp == tsl2772_led_currents[i][0]) {
+			chip->settings.prox_power = tsl2772_led_currents[i][1];
+			return 0;
+		}
+	}
+
+	dev_err(&chip->client->dev, "Invalid value %d for led-max-microamp\n",
+		tmp);
+
+	return -EINVAL;
+
+}
+
+static int tsl2772_read_prox_diodes(struct tsl2772_chip *chip)
+{
+	struct device_node *of_node = chip->client->dev.of_node;
+	int i, ret, num_leds, prox_diode_mask;
+	u32 leds[TSL2772_MAX_PROX_LEDS];
+
+	ret = of_property_count_u32_elems(of_node, "amstaos,proximity-diodes");
+	if (ret < 0)
+		return ret;
+
+	num_leds = ret;
+	if (num_leds > TSL2772_MAX_PROX_LEDS)
+		num_leds = TSL2772_MAX_PROX_LEDS;
+
+	ret = of_property_read_u32_array(of_node, "amstaos,proximity-diodes",
+					 leds, num_leds);
+	if (ret < 0) {
+		dev_err(&chip->client->dev,
+			"Invalid value for amstaos,proximity-diodes: %d.\n",
+			ret);
+		return ret;
+	}
+
+	prox_diode_mask = 0;
+	for (i = 0; i < num_leds; i++) {
+		if (leds[i] == 0)
+			prox_diode_mask |= TSL2772_DIODE0;
+		else if (leds[i] == 1)
+			prox_diode_mask |= TSL2772_DIODE1;
+		else {
+			dev_err(&chip->client->dev,
+				"Invalid value %d in amstaos,proximity-diodes.\n",
+				leds[i]);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static void tsl2772_parse_dt(struct tsl2772_chip *chip)
+{
+	tsl2772_read_prox_led_current(chip);
+	tsl2772_read_prox_diodes(chip);
+}
+
 /**
  * tsl2772_defaults() - Populates the device nominal operating parameters
  *                      with those provided by a 'platform' data struct or
@@ -541,6 +620,8 @@ static void tsl2772_defaults(struct tsl2772_chip *chip)
 		memcpy(chip->tsl2772_device_lux,
 		       tsl2772_default_lux_table_group[chip->id],
 		       TSL2772_DEFAULT_TABLE_BYTES);
+
+	tsl2772_parse_dt(chip);
 }
 
 /**
