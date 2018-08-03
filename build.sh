@@ -51,7 +51,7 @@ function parse_argv {
                 elif [[ "$arg" == '--norsync' ]]; then
                         USE_RSYNC=0
                 elif [[ "$arg" == '--rsync-only' ]]; then
-                        RSYNC_ONLY=0
+                        RSYNC_ONLY=1
                 elif [[ "$arg" == '-h' || "$arg" == '--help' || "$arg" == '-help' ]]; then
                         help
                 else
@@ -147,7 +147,7 @@ parse_argv $@
 
 if [ $RSYNC_ONLY -eq 1 ]; then
     rsync_repo
-    return 0
+    exit 0
 fi
 
 [ -f vmlinux ] && sudo rm -f vmlinux 2> /dev/null
