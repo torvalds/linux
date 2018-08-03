@@ -35,7 +35,7 @@
 #define		DM_DIG_BACKOFF				12
 #define		DM_DIG_MAX					0x36
 #define		DM_DIG_MIN					0x1c
-#define		DM_DIG_MIN_Netcore			0x12
+#define		DM_DIG_MIN_NETCORE			0x12
 
 #define		RX_PATH_SELECTION_SS_TH_LOW		30
 #define		RX_PATH_SELECTION_DIFF_TH			18
