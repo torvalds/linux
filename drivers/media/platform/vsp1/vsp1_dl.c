@@ -142,6 +142,30 @@ struct vsp1_dl_body_pool {
 };
 
 /**
+ * struct vsp1_cmd_pool - Display List commands pool
+ * @dma: DMA address of the entries
+ * @size: size of the full DMA memory pool in bytes
+ * @mem: CPU memory pointer for the pool
+ * @cmds: Array of command structures for the pool
+ * @free: Free pool entries
+ * @lock: Protects the free list
+ * @vsp1: the VSP1 device
+ */
+struct vsp1_dl_cmd_pool {
+	/* DMA allocation */
+	dma_addr_t dma;
+	size_t size;
+	void *mem;
+
+	struct vsp1_dl_ext_cmd *cmds;
+	struct list_head free;
+
+	spinlock_t lock;
+
+	struct vsp1_device *vsp1;
+};
+
+/**
  * struct vsp1_dl_list - Display list
  * @list: entry in the display list manager lists
  * @dlm: the display list manager
@@ -187,6 +211,7 @@ struct vsp1_dl_list {
  * @queued: list queued to the hardware (written to the DL registers)
  * @pending: list waiting to be queued to the hardware
  * @pool: body pool for the display list bodies
+ * @autofld_cmds: command pool to support auto-fld interlaced mode
  */
 struct vsp1_dl_manager {
 	unsigned int index;
@@ -200,6 +225,7 @@ struct vsp1_dl_manager {
 	struct vsp1_dl_list *pending;
 
 	struct vsp1_dl_body_pool *pool;
+	struct vsp1_dl_cmd_pool *cmdpool;
 };
 
 /* -----------------------------------------------------------------------------
@@ -363,6 +389,157 @@ void vsp1_dl_body_write(struct vsp1_dl_body *dlb, u32 reg, u32 data)
 }
 
 /* -----------------------------------------------------------------------------
+ * Display List Extended Command Management
+ */
+
+enum vsp1_extcmd_type {
+	VSP1_EXTCMD_AUTODISP,
+	VSP1_EXTCMD_AUTOFLD,
+};
+
+struct vsp1_extended_command_info {
+	u16 opcode;
+	size_t body_size;
+};
+
+static const struct vsp1_extended_command_info vsp1_extended_commands[] = {
+	[VSP1_EXTCMD_AUTODISP] = { 0x02, 96 },
+	[VSP1_EXTCMD_AUTOFLD]  = { 0x03, 160 },
+};
+
+/**
+ * vsp1_dl_cmd_pool_create - Create a pool of commands from a single allocation
+ * @vsp1: The VSP1 device
+ * @type: The command pool type
+ * @num_cmds: The number of commands to allocate
+ *
+ * Allocate a pool of commands each with enough memory to contain the private
+ * data of each command. The allocation sizes are dependent upon the command
+ * type.
+ *
+ * Return a pointer to the pool on success or NULL if memory can't be allocated.
+ */
+static struct vsp1_dl_cmd_pool *
+vsp1_dl_cmd_pool_create(struct vsp1_device *vsp1, enum vsp1_extcmd_type type,
+			unsigned int num_cmds)
+{
+	struct vsp1_dl_cmd_pool *pool;
+	unsigned int i;
+	size_t cmd_size;
+
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	if (!pool)
+		return NULL;
+
+	spin_lock_init(&pool->lock);
+	INIT_LIST_HEAD(&pool->free);
+
+	pool->cmds = kcalloc(num_cmds, sizeof(*pool->cmds), GFP_KERNEL);
+	if (!pool->cmds) {
+		kfree(pool);
+		return NULL;
+	}
+
+	cmd_size = sizeof(struct vsp1_pre_ext_dl_body) +
+		   vsp1_extended_commands[type].body_size;
+	cmd_size = ALIGN(cmd_size, 16);
+
+	pool->size = cmd_size * num_cmds;
+	pool->mem = dma_alloc_wc(vsp1->bus_master, pool->size, &pool->dma,
+				 GFP_KERNEL);
+	if (!pool->mem) {
+		kfree(pool->cmds);
+		kfree(pool);
+		return NULL;
+	}
+
+	for (i = 0; i < num_cmds; ++i) {
+		struct vsp1_dl_ext_cmd *cmd = &pool->cmds[i];
+		size_t cmd_offset = i * cmd_size;
+		/* data_offset must be 16 byte aligned for DMA. */
+		size_t data_offset = sizeof(struct vsp1_pre_ext_dl_body) +
+				     cmd_offset;
+
+		cmd->pool = pool;
+		cmd->opcode = vsp1_extended_commands[type].opcode;
+
+		/*
+		 * TODO: Auto-disp can utilise more than one extended body
+		 * command per cmd.
+		 */
+		cmd->num_cmds = 1;
+		cmd->cmds = pool->mem + cmd_offset;
+		cmd->cmd_dma = pool->dma + cmd_offset;
+
+		cmd->data = pool->mem + data_offset;
+		cmd->data_dma = pool->dma + data_offset;
+
+		list_add_tail(&cmd->free, &pool->free);
+	}
+
+	return pool;
+}
+
+static
+struct vsp1_dl_ext_cmd *vsp1_dl_ext_cmd_get(struct vsp1_dl_cmd_pool *pool)
+{
+	struct vsp1_dl_ext_cmd *cmd = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pool->lock, flags);
+
+	if (!list_empty(&pool->free)) {
+		cmd = list_first_entry(&pool->free, struct vsp1_dl_ext_cmd,
+				       free);
+		list_del(&cmd->free);
+	}
+
+	spin_unlock_irqrestore(&pool->lock, flags);
+
+	return cmd;
+}
+
+static void vsp1_dl_ext_cmd_put(struct vsp1_dl_ext_cmd *cmd)
+{
+	unsigned long flags;
+
+	if (!cmd)
+		return;
+
+	/* Reset flags, these mark data usage. */
+	cmd->flags = 0;
+
+	spin_lock_irqsave(&cmd->pool->lock, flags);
+	list_add_tail(&cmd->free, &cmd->pool->free);
+	spin_unlock_irqrestore(&cmd->pool->lock, flags);
+}
+
+static void vsp1_dl_ext_cmd_pool_destroy(struct vsp1_dl_cmd_pool *pool)
+{
+	if (!pool)
+		return;
+
+	if (pool->mem)
+		dma_free_wc(pool->vsp1->bus_master, pool->size, pool->mem,
+			    pool->dma);
+
+	kfree(pool->cmds);
+	kfree(pool);
+}
+
+struct vsp1_dl_ext_cmd *vsp1_dl_get_pre_cmd(struct vsp1_dl_list *dl)
+{
+	struct vsp1_dl_manager *dlm = dl->dlm;
+
+	if (dl->pre_cmd)
+		return dl->pre_cmd;
+
+	dl->pre_cmd = vsp1_dl_ext_cmd_get(dlm->cmdpool);
+
+	return dl->pre_cmd;
+}
+
+/* ----------------------------------------------------------------------------
  * Display List Transaction Management
  */
 
@@ -463,6 +640,12 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 	dl->has_chain = false;
 
 	vsp1_dl_list_bodies_put(dl);
+
+	vsp1_dl_ext_cmd_put(dl->pre_cmd);
+	vsp1_dl_ext_cmd_put(dl->post_cmd);
+
+	dl->pre_cmd = NULL;
+	dl->post_cmd = NULL;
 
 	/*
 	 * body0 is reused as as an optimisation as presently every display list
@@ -915,6 +1098,15 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 		list_add_tail(&dl->list, &dlm->free);
 	}
 
+	if (vsp1_feature(vsp1, VSP1_HAS_EXT_DL)) {
+		dlm->cmdpool = vsp1_dl_cmd_pool_create(vsp1,
+					VSP1_EXTCMD_AUTOFLD, prealloc);
+		if (!dlm->cmdpool) {
+			vsp1_dlm_destroy(dlm);
+			return NULL;
+		}
+	}
+
 	return dlm;
 }
 
@@ -931,4 +1123,5 @@ void vsp1_dlm_destroy(struct vsp1_dl_manager *dlm)
 	}
 
 	vsp1_dl_body_pool_destroy(dlm->pool);
+	vsp1_dl_ext_cmd_pool_destroy(dlm->cmdpool);
 }
