@@ -11,6 +11,11 @@
 
 static enum chip_ps_states chip_ps_state = CHIP_WAKEDUP;
 
+static inline bool is_wilc1000(u32 id)
+{
+	return ((id & 0xfffff000) == 0x100000 ? true : false);
+}
+
 static inline void acquire_bus(struct wilc *wilc, enum bus_acquire acquire)
 {
 	mutex_lock(&wilc->hif_cs);
@@ -794,7 +799,7 @@ static void wilc_pllupdate_isr_ext(struct wilc *wilc, u32 int_stats)
 	else
 		mdelay(WILC_PLL_TO_SPI);
 
-	while (!(ISWILC1000(wilc_get_chipid(wilc, true)) && --trials))
+	while (!(is_wilc1000(wilc_get_chipid(wilc, true)) && --trials))
 		mdelay(1);
 }
 
@@ -1294,7 +1299,7 @@ u32 wilc_get_chipid(struct wilc *wilc, bool update)
 	if (chipid == 0 || update) {
 		wilc->hif_func->hif_read_reg(wilc, 0x1000, &tempchipid);
 		wilc->hif_func->hif_read_reg(wilc, 0x13f4, &rfrevid);
-		if (!ISWILC1000(tempchipid)) {
+		if (!is_wilc1000(tempchipid)) {
 			chipid = 0;
 			return chipid;
 		}

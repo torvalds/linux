@@ -9,8 +9,6 @@
 
 #include <linux/types.h>
 
-#define ISWILC1000(id)			((id & 0xfffff000) == 0x100000 ? 1 : 0)
-
 /********************************************
  *
  *      Mac eth header length
