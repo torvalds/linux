@@ -1758,9 +1758,6 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 	}
 	mutex_unlock(&g_mutex);
 
-	pr_info("Loaded %s driver, framework version %s\n",
-		driver_desc->name, GASKET_FRAMEWORK_VERSION);
-
 	if (desc_idx == -1) {
 		pr_err("Too many Gasket drivers loaded: %d\n",
 		       GASKET_FRAMEWORK_DESC_MAX);
@@ -1808,7 +1805,6 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 		goto fail2;
 	}
 
-	pr_info("Driver registered successfully.\n");
 	return 0;
 
 fail2:
