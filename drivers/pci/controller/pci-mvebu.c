@@ -1220,6 +1220,9 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		pcie->realio.end = min_t(resource_size_t,
 					 IO_SPACE_LIMIT,
 					 resource_size(&pcie->io) - 1);
+
+		for (i = 0; i < (IO_SPACE_LIMIT - SZ_64K); i += SZ_64K)
+			pci_ioremap_io(i, pcie->io.start + i);
 	} else
 		pcie->realio = pcie->io;
 
@@ -1277,9 +1280,6 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	}
 
 	pcie->nports = i;
-
-	for (i = 0; i < (IO_SPACE_LIMIT - SZ_64K); i += SZ_64K)
-		pci_ioremap_io(i, pcie->io.start + i);
 
 	mvebu_pcie_enable(pcie);
 
