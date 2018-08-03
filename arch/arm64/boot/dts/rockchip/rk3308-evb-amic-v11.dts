@@ -12,7 +12,7 @@
 	compatible = "rockchip,rk3308-evb-amic-v11", "rockchip,rk3308";
 
 	vad_acodec_sound: vad-acodec-sound {
-		status = "disabled";
+		status = "okay";
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip,rk3308-vad";
 		rockchip,codec-hp-det;
@@ -20,6 +20,15 @@
 		rockchip,cpu = <&i2s_8ch_2>;
 		rockchip,codec = <&acodec>, <&vad>;
 	};
+};
+
+&acodec {
+	rockchip,no-deep-low-power;
+	rockchip,en-always-grps = <0 1 2 3>;
+};
+
+&acodec_sound {
+	status = "disabled";
 };
 
 &bluetooth_sound {
@@ -37,8 +46,9 @@
 };
 
 &vad {
-	status = "disabled";
+	status = "okay";
 	rockchip,audio-src = <&i2s_8ch_2>;
+	rockchip,buffer-time-ms = <200>;
 	rockchip,mode = <1>;
 	#sound-dai-cells = <0>;
 };
