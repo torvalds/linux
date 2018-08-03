@@ -1185,19 +1185,3 @@ static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 /* */
 
 EXPORT_SYMBOL(snd_sb_csp_new);
-
-/*
- * INIT part
- */
-
-static int __init alsa_sb_csp_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_sb_csp_exit(void)
-{
-}
-
-module_init(alsa_sb_csp_init)
-module_exit(alsa_sb_csp_exit)

@@ -900,19 +900,3 @@ EXPORT_SYMBOL(snd_sb16dsp_pcm);
 EXPORT_SYMBOL(snd_sb16dsp_get_pcm_ops);
 EXPORT_SYMBOL(snd_sb16dsp_configure);
 EXPORT_SYMBOL(snd_sb16dsp_interrupt);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_sb16_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_sb16_exit(void)
-{
-}
-
-module_init(alsa_sb16_init)
-module_exit(alsa_sb16_exit)
