@@ -862,6 +862,7 @@ static void
 mlxsw_afa_mirror_destroy(struct mlxsw_afa_block *block,
 			 struct mlxsw_afa_mirror *mirror)
 {
+	mlxsw_afa_resource_del(&mirror->resource);
 	block->afa->ops->mirror_del(block->afa->ops_priv,
 				    mirror->local_in_port,
 				    mirror->span_id,
