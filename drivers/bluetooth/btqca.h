@@ -127,7 +127,8 @@ struct tlv_type_hdr {
 #if IS_ENABLED(CONFIG_BT_QCA)
 
 int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr);
-int qca_uart_setup_rome(struct hci_dev *hdev, uint8_t baudrate);
+int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate);
+int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version);
 
 #else
 
@@ -136,7 +137,12 @@ static inline int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdad
 	return -EOPNOTSUPP;
 }
 
-static inline int qca_uart_setup_rome(struct hci_dev *hdev, int speed)
+static inline int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
 {
 	return -EOPNOTSUPP;
 }
