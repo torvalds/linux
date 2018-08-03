@@ -6,6 +6,9 @@
  *
  * Copyright (C) 2018 Google, Inc.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "gasket_core.h"
 
 #include "gasket_interrupt.h"
@@ -208,7 +211,7 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 
 	gasket_dev = *pdev = kzalloc(sizeof(*gasket_dev), GFP_KERNEL);
 	if (!gasket_dev) {
-		pr_err("no memory for device\n");
+		pr_err("no memory for device %s\n", kobj_name);
 		return -ENOMEM;
 	}
 	internal_desc->devs[dev_idx] = gasket_dev;
@@ -1760,7 +1763,7 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 	mutex_unlock(&g_mutex);
 
 	if (desc_idx == -1) {
-		pr_err("Too many Gasket drivers loaded: %d\n",
+		pr_err("too many drivers loaded, max %d\n",
 		       GASKET_FRAMEWORK_DESC_MAX);
 		return -EBUSY;
 	}
@@ -1790,7 +1793,8 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 	ret = __pci_register_driver(&internal->pci, driver_desc->module,
 				    driver_desc->name);
 	if (ret) {
-		pr_err("cannot register pci driver [ret=%d]\n", ret);
+		pr_err("cannot register %s pci driver [ret=%d]\n",
+		       driver_desc->name, ret);
 		goto fail1;
 	}
 
@@ -1798,7 +1802,8 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 					   driver_desc->minor), GASKET_DEV_MAX,
 				     driver_desc->name);
 	if (ret) {
-		pr_err("cannot register char driver [ret=%d]\n", ret);
+		pr_err("cannot register %s char driver [ret=%d]\n",
+		       driver_desc->name, ret);
 		goto fail2;
 	}
 
