@@ -2376,8 +2376,6 @@ void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 		else
 			priv->brfpath_rxenable[i] = false;
 	}
-	if (!DM_RxPathSelTable.Enable)
-		return;
 
 	dm_rxpath_sel_byrssi(dev);
 }	/* DM_RFPathCheckWorkItemCallBack */
@@ -2387,7 +2385,6 @@ static void dm_init_rxpath_selection(struct net_device *dev)
 	u8 i;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	DM_RxPathSelTable.Enable = 1;	/* default enabled */
 	DM_RxPathSelTable.SS_TH_low = RxPathSelection_SS_TH_low;
 	DM_RxPathSelTable.diff_TH = RxPathSelection_diff_TH;
 	if (priv->CustomerID == RT_CID_819x_Netcore)
