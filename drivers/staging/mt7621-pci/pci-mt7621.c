@@ -74,8 +74,8 @@
 #define RALINK_PCIE1_RST		(1<<25)
 #define RALINK_PCIE2_RST		(1<<26)
 
-#define RALINK_PCI_PCICFG_ADDR		*(volatile u32 *)(RALINK_PCI_BASE + 0x0000)
-#define RALINK_PCI_PCIMSK_ADDR		*(volatile u32 *)(RALINK_PCI_BASE + 0x000C)
+#define RALINK_PCI_PCICFG_ADDR		0x0000
+#define RALINK_PCI_PCIMSK_ADDR		0x000C
 #define RALINK_PCI_BASE	0xBE140000
 
 #define RT6855_PCIE0_OFFSET		0x2000
@@ -553,7 +553,9 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		pcie_link_status &= ~(1<<0);
 	} else {
 		pcie_link_status |= 1<<0;
-		RALINK_PCI_PCIMSK_ADDR |= (1<<20); // enable pcie1 interrupt
+		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
+		val |= (1<<20); // enable pcie1 interrupt
+		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
 	if ((pcie_read(pcie, RT6855_PCIE1_OFFSET + RALINK_PCI_STATUS) & 0x1) == 0) {
@@ -563,7 +565,9 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		pcie_link_status &= ~(1<<1);
 	} else {
 		pcie_link_status |= 1<<1;
-		RALINK_PCI_PCIMSK_ADDR |= (1<<21); // enable pcie1 interrupt
+		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
+		val |= (1<<21); // enable pcie1 interrupt
+		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
 	if ((pcie_read(pcie, RT6855_PCIE2_OFFSET + RALINK_PCI_STATUS) & 0x1) == 0) {
@@ -573,7 +577,9 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		pcie_link_status &= ~(1<<2);
 	} else {
 		pcie_link_status |= 1<<2;
-		RALINK_PCI_PCIMSK_ADDR |= (1<<22); // enable pcie2 interrupt
+		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
+		val |= (1<<22); // enable pcie2 interrupt
+		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
 	if (pcie_link_status == 0)
@@ -592,27 +598,35 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 */
 	switch (pcie_link_status) {
 	case 2:
-		RALINK_PCI_PCICFG_ADDR &= ~0x00ff0000;
-		RALINK_PCI_PCICFG_ADDR |= 0x1 << 16;	//port0
-		RALINK_PCI_PCICFG_ADDR |= 0x0 << 20;	//port1
+		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+		val &= ~0x00ff0000;
+		val |= 0x1 << 16;	// port 0
+		val |= 0x0 << 20;	// port 1
+		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
 		break;
 	case 4:
-		RALINK_PCI_PCICFG_ADDR &= ~0x0fff0000;
-		RALINK_PCI_PCICFG_ADDR |= 0x1 << 16;	//port0
-		RALINK_PCI_PCICFG_ADDR |= 0x2 << 20;	//port1
-		RALINK_PCI_PCICFG_ADDR |= 0x0 << 24;	//port2
+		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+		val &= ~0x0fff0000;
+		val |= 0x1 << 16;	//port0
+		val |= 0x2 << 20;	//port1
+		val |= 0x0 << 24;	//port2
+		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
 		break;
 	case 5:
-		RALINK_PCI_PCICFG_ADDR &= ~0x0fff0000;
-		RALINK_PCI_PCICFG_ADDR |= 0x0 << 16;	//port0
-		RALINK_PCI_PCICFG_ADDR |= 0x2 << 20;	//port1
-		RALINK_PCI_PCICFG_ADDR |= 0x1 << 24;	//port2
+		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+		val &= ~0x0fff0000;
+		val |= 0x0 << 16;	//port0
+		val |= 0x2 << 20;	//port1
+		val |= 0x1 << 24;	//port2
+		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
 		break;
 	case 6:
-		RALINK_PCI_PCICFG_ADDR &= ~0x0fff0000;
-		RALINK_PCI_PCICFG_ADDR |= 0x2 << 16;	//port0
-		RALINK_PCI_PCICFG_ADDR |= 0x0 << 20;	//port1
-		RALINK_PCI_PCICFG_ADDR |= 0x1 << 24;	//port2
+		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+		val &= ~0x0fff0000;
+		val |= 0x2 << 16;	//port0
+		val |= 0x0 << 20;	//port1
+		val |= 0x1 << 24;	//port2
+		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
 		break;
 	}
 
