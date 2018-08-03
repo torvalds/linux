@@ -132,7 +132,7 @@ struct dynamic_rx_path_sel {
 	enum cck_rx_path_method		cck_method;
 	u8		cck_rx_path;
 
-	u8		disabledRF;
+	u8		disabled_rf;
 	u8		reserved;
 
 	u8		rf_rssi[4];

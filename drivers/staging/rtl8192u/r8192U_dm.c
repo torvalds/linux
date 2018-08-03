@@ -2389,7 +2389,7 @@ static void dm_init_rxpath_selection(struct net_device *dev)
 		DM_RxPathSelTable.cck_method = CCK_RX_VERSION_2;
 	else
 		DM_RxPathSelTable.cck_method = CCK_RX_VERSION_1;
-	DM_RxPathSelTable.disabledRF = 0;
+	DM_RxPathSelTable.disabled_rf = 0;
 	for (i = 0; i < 4; i++) {
 		DM_RxPathSelTable.rf_rssi[i] = 50;
 		DM_RxPathSelTable.cck_pwdb_sta[i] = -64;
@@ -2420,8 +2420,8 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 		cck_Rx_Path_initialized = 1;
 	}
 
-	read_nic_byte(dev, 0xc04, &DM_RxPathSelTable.disabledRF);
-	DM_RxPathSelTable.disabledRF = ~DM_RxPathSelTable.disabledRF & 0xf;
+	read_nic_byte(dev, 0xc04, &DM_RxPathSelTable.disabled_rf);
+	DM_RxPathSelTable.disabled_rf = ~DM_RxPathSelTable.disabled_rf & 0xf;
 
 	if (priv->ieee80211->mode == WIRELESS_MODE_B) {
 		DM_RxPathSelTable.cck_method = CCK_RX_VERSION_2;	/* pure B mode, fixed cck version2 */
@@ -2575,9 +2575,9 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 		rtl8192_setBBreg(dev, rCCK0_AFESetting, 0x0f000000, DM_RxPathSelTable.cck_rx_path);
 	}
 
-	if (DM_RxPathSelTable.disabledRF) {
+	if (DM_RxPathSelTable.disabled_rf) {
 		for (i = 0; i < 4; i++) {
-			if ((DM_RxPathSelTable.disabledRF>>i) & 0x1) {	/* disabled rf */
+			if ((DM_RxPathSelTable.disabled_rf >> i) & 0x1) {	/* disabled rf */
 				if (tmp_max_rssi >= DM_RxPathSelTable.rf_enable_rssi_th[i]) {
 					/* enable the BB Rx path */
 					/*DbgPrint("RF-%d is enabled.\n", 0x1<<i);*/
