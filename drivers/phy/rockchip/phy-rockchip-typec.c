@@ -367,7 +367,7 @@ struct phy_reg {
 	u32 addr;
 };
 
-struct phy_reg usb3_pll_cfg[] = {
+static const struct phy_reg usb3_pll_cfg[] = {
 	{ 0xf0,		CMN_PLL0_VCOCAL_INIT },
 	{ 0x18,		CMN_PLL0_VCOCAL_ITER },
 	{ 0xd0,		CMN_PLL0_INTDIV },
@@ -384,15 +384,15 @@ struct phy_reg usb3_pll_cfg[] = {
 	{ 0x8,		CMN_DIAG_PLL0_LF_PROG },
 };
 
-struct phy_reg dp_pll_rbr_cfg[] = {
+static const struct phy_reg dp_pll_rbr_cfg[] = {
 	{ 0xf0,		CMN_PLL1_VCOCAL_INIT },
 	{ 0x18,		CMN_PLL1_VCOCAL_ITER },
 	{ 0x30b9,	CMN_PLL1_VCOCAL_START },
-	{ 0x87,		CMN_PLL1_INTDIV },
-	{ 0,		CMN_PLL1_FRACDIV },
-	{ 0x22,		CMN_PLL1_HIGH_THR },
-	{ 0x8000,	CMN_PLL1_SS_CTRL1 },
-	{ 0,		CMN_PLL1_SS_CTRL2 },
+	{ 0x0086,	CMN_PLL1_INTDIV },
+	{ 0xf915,	CMN_PLL1_FRACDIV },
+	{ 0x0022,	CMN_PLL1_HIGH_THR },
+	{ 0x0140,	CMN_PLL1_SS_CTRL1 },
+	{ 0x7f03,	CMN_PLL1_SS_CTRL2 },
 	{ 0x20,		CMN_PLL1_DSM_DIAG },
 	{ 0,		CMN_PLLSM1_USER_DEF_CTRL },
 	{ 0,		CMN_DIAG_PLL1_OVRD },
@@ -406,15 +406,15 @@ struct phy_reg dp_pll_rbr_cfg[] = {
 	{ 0x1,		CMN_DIAG_PLL1_INCLK_CTRL },
 };
 
-struct phy_reg dp_pll_hbr_cfg[] = {
+static const struct phy_reg dp_pll_hbr_cfg[] = {
 	{ 0xf0,		CMN_PLL1_VCOCAL_INIT },
 	{ 0x18,		CMN_PLL1_VCOCAL_ITER },
 	{ 0x30b4,	CMN_PLL1_VCOCAL_START },
-	{ 0xe1,		CMN_PLL1_INTDIV },
-	{ 0,		CMN_PLL1_FRACDIV },
-	{ 0x5,		CMN_PLL1_HIGH_THR },
-	{ 0x8000,	CMN_PLL1_SS_CTRL1 },
-	{ 0,		CMN_PLL1_SS_CTRL2 },
+	{ 0x00e0,	CMN_PLL1_INTDIV },
+	{ 0xf479,	CMN_PLL1_FRACDIV },
+	{ 0x0038,	CMN_PLL1_HIGH_THR },
+	{ 0x0204,	CMN_PLL1_SS_CTRL1 },
+	{ 0x7f03,	CMN_PLL1_SS_CTRL2 },
 	{ 0x20,		CMN_PLL1_DSM_DIAG },
 	{ 0x1000,	CMN_PLLSM1_USER_DEF_CTRL },
 	{ 0,		CMN_DIAG_PLL1_OVRD },
@@ -428,15 +428,15 @@ struct phy_reg dp_pll_hbr_cfg[] = {
 	{ 0x1,		CMN_DIAG_PLL1_INCLK_CTRL },
 };
 
-struct phy_reg dp_pll_hbr2_cfg[] = {
+static const struct phy_reg dp_pll_hbr2_cfg[] = {
 	{ 0xf0,		CMN_PLL1_VCOCAL_INIT },
 	{ 0x18,		CMN_PLL1_VCOCAL_ITER },
 	{ 0x30b4,	CMN_PLL1_VCOCAL_START },
-	{ 0xe1,		CMN_PLL1_INTDIV },
-	{ 0,		CMN_PLL1_FRACDIV },
-	{ 0x5,		CMN_PLL1_HIGH_THR },
-	{ 0x8000,	CMN_PLL1_SS_CTRL1 },
-	{ 0,		CMN_PLL1_SS_CTRL2 },
+	{ 0x00e0,	CMN_PLL1_INTDIV },
+	{ 0xf479,	CMN_PLL1_FRACDIV },
+	{ 0x0038,	CMN_PLL1_HIGH_THR },
+	{ 0x0204,	CMN_PLL1_SS_CTRL1 },
+	{ 0x7f03,	CMN_PLL1_SS_CTRL2 },
 	{ 0x20,		CMN_PLL1_DSM_DIAG },
 	{ 0x1000,	CMN_PLLSM1_USER_DEF_CTRL },
 	{ 0,		CMN_DIAG_PLL1_OVRD },
@@ -505,7 +505,7 @@ static void tcphy_cfg_usb3_pll(struct rockchip_typec_phy *tcphy)
 
 static void tcphy_cfg_dp_pll(struct rockchip_typec_phy *tcphy, int link_rate)
 {
-	struct phy_reg *phy_cfg;
+	const struct phy_reg *phy_cfg;
 	u32 clk_ctrl;
 	u32 i, cfg_size, hsclk_sel;
 
@@ -595,7 +595,7 @@ static void tcphy_dp_cfg_lane(struct rockchip_typec_phy *tcphy, int link_rate,
 	val = val & 0x8fff;
 	switch (link_rate) {
 	case 540000:
-		val |= (4 << 12);
+		val |= (5 << 12);
 		break;
 	case 162000:
 	case 270000:
