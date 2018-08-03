@@ -524,22 +524,58 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 						 (i ? h_subsample : 1) *
 						 fb->format->cpp[i];
 		}
+
 		break;
 
 	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED: {
-		/* For T-tiled, the FB pitch is "how many bytes from
-		 * one row to the next, such that pitch * tile_h ==
-		 * tile_size * tiles_per_row."
-		 */
 		u32 tile_size_shift = 12; /* T tiles are 4kb */
+		/* Whole-tile offsets, mostly for setting the pitch. */
+		u32 tile_w_shift = fb->format->cpp[0] == 2 ? 6 : 5;
 		u32 tile_h_shift = 5; /* 16 and 32bpp are 32 pixels high */
+		u32 tile_w_mask = (1 << tile_w_shift) - 1;
+		/* The height mask on 32-bit-per-pixel tiles is 63, i.e. twice
+		 * the height (in pixels) of a 4k tile.
+		 */
+		u32 tile_h_mask = (2 << tile_h_shift) - 1;
+		/* For T-tiled, the FB pitch is "how many bytes from one row to
+		 * the next, such that
+		 *
+		 *	pitch * tile_h == tile_size * tiles_per_row
+		 */
 		u32 tiles_w = fb->pitches[0] >> (tile_size_shift - tile_h_shift);
+		u32 tiles_l = vc4_state->src_x >> tile_w_shift;
+		u32 tiles_r = tiles_w - tiles_l;
+		u32 tiles_t = vc4_state->src_y >> tile_h_shift;
+		/* Intra-tile offsets, which modify the base address (the
+		 * SCALER_PITCH0_TILE_Y_OFFSET tells HVS how to walk from that
+		 * base address).
+		 */
+		u32 tile_y = (vc4_state->src_y >> 4) & 1;
+		u32 subtile_y = (vc4_state->src_y >> 2) & 3;
+		u32 utile_y = vc4_state->src_y & 3;
+		u32 x_off = vc4_state->src_x & tile_w_mask;
+		u32 y_off = vc4_state->src_y & tile_h_mask;
 
 		tiling = SCALER_CTL0_TILING_256B_OR_T;
+		pitch0 = (VC4_SET_FIELD(x_off, SCALER_PITCH0_SINK_PIX) |
+			  VC4_SET_FIELD(y_off, SCALER_PITCH0_TILE_Y_OFFSET) |
+			  VC4_SET_FIELD(tiles_l, SCALER_PITCH0_TILE_WIDTH_L) |
+			  VC4_SET_FIELD(tiles_r, SCALER_PITCH0_TILE_WIDTH_R));
+		vc4_state->offsets[0] += tiles_t * (tiles_w << tile_size_shift);
+		vc4_state->offsets[0] += subtile_y << 8;
+		vc4_state->offsets[0] += utile_y << 4;
 
-		pitch0 = (VC4_SET_FIELD(0, SCALER_PITCH0_TILE_Y_OFFSET) |
-			  VC4_SET_FIELD(0, SCALER_PITCH0_TILE_WIDTH_L) |
-			  VC4_SET_FIELD(tiles_w, SCALER_PITCH0_TILE_WIDTH_R));
+		/* Rows of tiles alternate left-to-right and right-to-left. */
+		if (tiles_t & 1) {
+			pitch0 |= SCALER_PITCH0_TILE_INITIAL_LINE_DIR;
+			vc4_state->offsets[0] += (tiles_w - tiles_l) <<
+						 tile_size_shift;
+			vc4_state->offsets[0] -= (1 + !tile_y) << 10;
+		} else {
+			vc4_state->offsets[0] += tiles_l << tile_size_shift;
+			vc4_state->offsets[0] += tile_y << 10;
+		}
+
 		break;
 	}
 
