@@ -358,6 +358,8 @@ struct hclge_pf_res_cmd {
 	__le16 buf_size;
 	__le16 msixcap_localid_ba_nic;
 	__le16 msixcap_localid_ba_rocee;
+#define HCLGE_MSIX_OFT_ROCEE_S		0
+#define HCLGE_MSIX_OFT_ROCEE_M		GENMASK(15, 0)
 #define HCLGE_PF_VEC_NUM_S		0
 #define HCLGE_PF_VEC_NUM_M		GENMASK(7, 0)
 	__le16 pf_intr_vector_number;

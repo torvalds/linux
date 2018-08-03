@@ -932,6 +932,9 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 	hdev->pkt_buf_size = __le16_to_cpu(req->buf_size) << HCLGE_BUF_UNIT_S;
 
 	if (hnae3_dev_roce_supported(hdev)) {
+		hdev->roce_base_msix_offset =
+		hnae3_get_field(__le16_to_cpu(req->msixcap_localid_ba_rocee),
+				HCLGE_MSIX_OFT_ROCEE_M, HCLGE_MSIX_OFT_ROCEE_S);
 		hdev->num_roce_msi =
 		hnae3_get_field(__le16_to_cpu(req->pf_intr_vector_number),
 				HCLGE_PF_VEC_NUM_M, HCLGE_PF_VEC_NUM_S);
@@ -939,7 +942,8 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 		/* PF should have NIC vectors and Roce vectors,
 		 * NIC vectors are queued before Roce vectors.
 		 */
-		hdev->num_msi = hdev->num_roce_msi  + HCLGE_ROCE_VECTOR_OFFSET;
+		hdev->num_msi = hdev->num_roce_msi  +
+				hdev->roce_base_msix_offset;
 	} else {
 		hdev->num_msi =
 		hnae3_get_field(__le16_to_cpu(req->pf_intr_vector_number),
@@ -2037,7 +2041,7 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 	hdev->num_msi_left = vectors;
 	hdev->base_msi_vector = pdev->irq;
 	hdev->roce_base_vector = hdev->base_msi_vector +
-				HCLGE_ROCE_VECTOR_OFFSET;
+				hdev->roce_base_msix_offset;
 
 	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
 					   sizeof(u16), GFP_KERNEL);
