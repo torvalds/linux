@@ -36,12 +36,6 @@
 #define FN(reg_name, field_name) \
 	dce_i2c_hw->shifts->field_name, dce_i2c_hw->masks->field_name
 
-static void disable_i2c_hw_engine(
-	struct dce_i2c_hw *dce_i2c_hw)
-{
-	REG_UPDATE_N(SETUP, 1, FN(SETUP, DC_I2C_DDC1_ENABLE), 0);
-}
-
 static void execute_transaction(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
@@ -348,60 +342,40 @@ static void release_engine(
 		REG_UPDATE(DC_I2C_CONTROL, DC_I2C_SW_STATUS_RESET, 1);
 	/* HW I2c engine - clock gating feature */
 	if (!dce_i2c_hw->engine_keep_power_up_count)
-		disable_i2c_hw_engine(dce_i2c_hw);
+		REG_UPDATE_N(SETUP, 1, FN(SETUP, DC_I2C_DDC1_ENABLE), 0);
 
 }
 
-static void release_engine_dce_hw(
+struct dce_i2c_hw *acquire_i2c_hw_engine(
 	struct resource_pool *pool,
-	struct dce_i2c_hw *dce_i2c_hw)
-{
-	pool->i2c_hw_buffer_in_use = false;
-
-	release_engine(dce_i2c_hw);
-	dal_ddc_close(dce_i2c_hw->ddc);
-
-	dce_i2c_hw->ddc = NULL;
-}
-
-bool dce_i2c_hw_engine_acquire_engine(
-	struct dce_i2c_hw *dce_i2c_hw,
 	struct ddc *ddc)
 {
-
+	uint32_t counter = 0;
 	enum gpio_result result;
 	uint32_t current_speed;
+	struct dce_i2c_hw *dce_i2c_hw = NULL;
 
-	result = dal_ddc_open(ddc, GPIO_MODE_HARDWARE,
-		GPIO_DDC_CONFIG_TYPE_MODE_I2C);
+	if (!ddc)
+		return NULL;
 
-	if (result != GPIO_RESULT_OK)
-		return false;
+	if (ddc->hw_info.hw_supported) {
+		enum gpio_ddc_line line = dal_ddc_get_line(ddc);
 
-	dce_i2c_hw->ddc = ddc;
+		if (line < pool->pipe_count)
+			dce_i2c_hw = pool->hw_i2cs[line];
+	}
 
+	if (!dce_i2c_hw)
+		return NULL;
 
-	current_speed = get_speed(dce_i2c_hw);
-
-	if (current_speed)
-		dce_i2c_hw->original_speed = current_speed;
-
-	return true;
-}
-
-bool dce_i2c_engine_acquire_hw(
-	struct dce_i2c_hw *dce_i2c_hw,
-	struct ddc *ddc_handle)
-{
-
-	uint32_t counter = 0;
-	bool result;
+	if (pool->i2c_hw_buffer_in_use)
+		return NULL;
 
 	do {
-		result = dce_i2c_hw_engine_acquire_engine(
-				dce_i2c_hw, ddc_handle);
+		result = dal_ddc_open(ddc, GPIO_MODE_HARDWARE,
+			GPIO_DDC_CONFIG_TYPE_MODE_I2C);
 
-		if (result)
+		if (result == GPIO_RESULT_OK)
 			break;
 
 		/* i2c_engine is busy by VBios, lets wait and retry */
@@ -411,45 +385,23 @@ bool dce_i2c_engine_acquire_hw(
 		++counter;
 	} while (counter < 2);
 
-	if (result) {
-		if (!setup_engine(dce_i2c_hw)) {
-			release_engine(dce_i2c_hw);
-			result = false;
-		}
-	}
-
-	return result;
-}
-
-struct dce_i2c_hw *acquire_i2c_hw_engine(
-	struct resource_pool *pool,
-	struct ddc *ddc)
-{
-
-	struct dce_i2c_hw *engine = NULL;
-
-	if (!ddc)
+	if (result != GPIO_RESULT_OK)
 		return NULL;
 
-	if (ddc->hw_info.hw_supported) {
-		enum gpio_ddc_line line = dal_ddc_get_line(ddc);
+	dce_i2c_hw->ddc = ddc;
 
-		if (line < pool->pipe_count)
-			engine = pool->hw_i2cs[line];
-	}
+	current_speed = get_speed(dce_i2c_hw);
 
-	if (!engine)
+	if (current_speed)
+		dce_i2c_hw->original_speed = current_speed;
+
+	if (!setup_engine(dce_i2c_hw)) {
+		release_engine(dce_i2c_hw);
 		return NULL;
-
-
-	if (!pool->i2c_hw_buffer_in_use &&
-			dce_i2c_engine_acquire_hw(engine, ddc)) {
-		pool->i2c_hw_buffer_in_use = true;
-		return engine;
 	}
 
-
-	return NULL;
+	pool->i2c_hw_buffer_in_use = true;
+	return dce_i2c_hw;
 }
 
 enum i2c_channel_operation_result dce_i2c_hw_engine_wait_on_operation_result(
@@ -619,7 +571,12 @@ bool dce_i2c_submit_command_hw(
 		++index_of_payload;
 	}
 
-	release_engine_dce_hw(pool, dce_i2c_hw);
+	pool->i2c_hw_buffer_in_use = false;
+
+	release_engine(dce_i2c_hw);
+	dal_ddc_close(dce_i2c_hw->ddc);
+
+	dce_i2c_hw->ddc = NULL;
 
 	return result;
 }
