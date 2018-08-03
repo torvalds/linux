@@ -67,7 +67,7 @@
 #define RALINK_PCIE2_CLK_EN		BIT(26)
 
 #define RALINK_PCI_CONFIG_ADDR		0x20
-#define RALINK_PCI_CONFIG_DATA_VIRTUAL_REG	0x24
+#define RALINK_PCI_CONFIG_DATA		0x24
 #define RALINK_PCI_MEMBASE		0x28
 #define RALINK_PCI_IOBASE		0x2C
 #define RALINK_PCIE0_RST		BIT(24)
@@ -187,7 +187,7 @@ static void __iomem *mt7621_pcie_map_bus(struct pci_bus *bus,
 
 	writel(address, pcie->base + RALINK_PCI_CONFIG_ADDR);
 
-	return pcie->base + RALINK_PCI_CONFIG_DATA_VIRTUAL_REG + (where & 3);
+	return pcie->base + RALINK_PCI_CONFIG_DATA + (where & 3);
 }
 
 struct pci_ops mt7621_pci_ops = {
@@ -202,7 +202,7 @@ read_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg)
 	u32 address = mt7621_pci_get_cfgaddr(0, dev, 0, reg);
 
 	pcie_write(pcie, address, RALINK_PCI_CONFIG_ADDR);
-	return pcie_read(pcie, RALINK_PCI_CONFIG_DATA_VIRTUAL_REG);
+	return pcie_read(pcie, RALINK_PCI_CONFIG_DATA);
 }
 
 static void
@@ -211,7 +211,7 @@ write_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg, u32 val)
 	u32 address = mt7621_pci_get_cfgaddr(0, dev, 0, reg);
 
 	pcie_write(pcie, address, RALINK_PCI_CONFIG_ADDR);
-	pcie_write(pcie, val, RALINK_PCI_CONFIG_DATA_VIRTUAL_REG);
+	pcie_write(pcie, val, RALINK_PCI_CONFIG_DATA);
 }
 
 int
