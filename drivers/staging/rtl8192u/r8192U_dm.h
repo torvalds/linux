@@ -118,7 +118,6 @@ struct dig {
 	u32		cur_ig_value;
 
 	u8		backoff_val;
-	u8		rx_gain_range_max;
 	u8		rx_gain_range_min;
 	bool		initialgain_lowerbound_state;
 

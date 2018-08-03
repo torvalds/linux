@@ -1650,7 +1650,6 @@ static void dm_dig_init(struct net_device *dev)
 
 	dm_digtable.rssi_val = 50;	/* for new dig debug rssi value */
 	dm_digtable.backoff_val = DM_DIG_BACKOFF;
-	dm_digtable.rx_gain_range_max = DM_DIG_MAX;
 	if (priv->CustomerID == RT_CID_819x_Netcore)
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN_Netcore;
 	else
@@ -1968,8 +1967,8 @@ static void dm_initial_gain(
 
 	if (dm_digtable.pre_connect_state == dm_digtable.cur_connect_state) {
 		if (dm_digtable.cur_connect_state == DIG_CONNECT) {
-			if ((dm_digtable.rssi_val+10-dm_digtable.backoff_val) > dm_digtable.rx_gain_range_max)
-				dm_digtable.cur_ig_value = dm_digtable.rx_gain_range_max;
+			if ((dm_digtable.rssi_val + 10 - dm_digtable.backoff_val) > DM_DIG_MAX)
+				dm_digtable.cur_ig_value = DM_DIG_MAX;
 			else if ((dm_digtable.rssi_val+10-dm_digtable.backoff_val) < dm_digtable.rx_gain_range_min)
 				dm_digtable.cur_ig_value = dm_digtable.rx_gain_range_min;
 			else
