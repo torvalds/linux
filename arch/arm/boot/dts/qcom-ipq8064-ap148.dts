@@ -12,6 +12,14 @@
 				function = "gsbi4";
 				bias-disable;
 			};
+
+			buttons_pins: buttons_pins {
+				mux {
+					pins = "gpio54", "gpio65";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
 		};
 
 		gsbi@16300000 {
