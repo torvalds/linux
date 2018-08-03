@@ -300,15 +300,15 @@ mt76x0_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (!msta) {
 		if (key || wcid->hw_key_idx == idx) {
-			ret = mt76_mac_wcid_set_key(dev, wcid->idx, key);
+			ret = mt76x0_mac_wcid_set_key(dev, wcid->idx, key);
 			if (ret)
 				return ret;
 		}
 
-		return mt76_mac_shared_key_setup(dev, mvif->idx, idx, key);
+		return mt76x0_mac_shared_key_setup(dev, mvif->idx, idx, key);
 	}
 
-	return mt76_mac_wcid_set_key(dev, msta->wcid.idx, key);
+	return mt76x0_mac_wcid_set_key(dev, msta->wcid.idx, key);
 }
 
 static int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
@@ -375,7 +375,7 @@ mt76_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	rate.idx = rates->rate[0].idx;
 	rate.flags = rates->rate[0].flags;
-	mt76_mac_wcid_set_rate(dev, &msta->wcid, &rate);
+	mt76x0_mac_wcid_set_rate(dev, &msta->wcid, &rate);
 
 out:
 	rcu_read_unlock();

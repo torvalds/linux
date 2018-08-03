@@ -136,19 +136,19 @@ struct mt76_txwi {
 
 #define MT_TXWI_PKTID_PROBE             BIT(7)
 
-u32 mt76_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
+u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 			u8 *data, void *rxi);
-int mt76_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
+int mt76x0_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
 			  struct ieee80211_key_conf *key);
-void mt76_mac_wcid_set_rate(struct mt76x0_dev *dev, struct mt76_wcid *wcid,
+void mt76x0_mac_wcid_set_rate(struct mt76x0_dev *dev, struct mt76_wcid *wcid,
 			    const struct ieee80211_tx_rate *rate);
 
-int mt76_mac_shared_key_setup(struct mt76x0_dev *dev, u8 vif_idx, u8 key_idx,
+int mt76x0_mac_shared_key_setup(struct mt76x0_dev *dev, u8 vif_idx, u8 key_idx,
 			      struct ieee80211_key_conf *key);
-u16 mt76_mac_tx_rate_val(struct mt76x0_dev *dev,
+u16 mt76x0_mac_tx_rate_val(struct mt76x0_dev *dev,
 			 const struct ieee80211_tx_rate *rate, u8 *nss_val);
 struct mt76_tx_status
 mt76x0_mac_fetch_tx_status(struct mt76x0_dev *dev);
-void mt76_send_tx_status(struct mt76x0_dev *dev, struct mt76_tx_status *stat, u8 *update);
+void mt76x0_send_tx_status(struct mt76x0_dev *dev, struct mt76_tx_status *stat, u8 *update);
 
 #endif

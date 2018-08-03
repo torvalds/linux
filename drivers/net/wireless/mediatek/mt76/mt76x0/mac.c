@@ -116,7 +116,7 @@ mt76_mac_fill_tx_status(struct mt76x0_dev *dev, struct ieee80211_tx_info *info,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 }
 
-u16 mt76_mac_tx_rate_val(struct mt76x0_dev *dev,
+u16 mt76x0_mac_tx_rate_val(struct mt76x0_dev *dev,
 			 const struct ieee80211_tx_rate *rate, u8 *nss_val)
 {
 	u16 rateval;
@@ -166,13 +166,13 @@ u16 mt76_mac_tx_rate_val(struct mt76x0_dev *dev,
 	return cpu_to_le16(rateval);
 }
 
-void mt76_mac_wcid_set_rate(struct mt76x0_dev *dev, struct mt76_wcid *wcid,
+void mt76x0_mac_wcid_set_rate(struct mt76x0_dev *dev, struct mt76_wcid *wcid,
 			    const struct ieee80211_tx_rate *rate)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->mt76.lock, flags);
-	wcid->tx_rate = mt76_mac_tx_rate_val(dev, rate, &wcid->tx_rate_nss);
+	wcid->tx_rate = mt76x0_mac_tx_rate_val(dev, rate, &wcid->tx_rate_nss);
 	wcid->tx_rate_set = true;
 	spin_unlock_irqrestore(&dev->mt76.lock, flags);
 }
@@ -198,7 +198,7 @@ struct mt76_tx_status mt76x0_mac_fetch_tx_status(struct mt76x0_dev *dev)
 	return stat;
 }
 
-void mt76_send_tx_status(struct mt76x0_dev *dev, struct mt76_tx_status *stat, u8 *update)
+void mt76x0_send_tx_status(struct mt76x0_dev *dev, struct mt76_tx_status *stat, u8 *update)
 {
 	struct ieee80211_tx_info info = {};
 	struct ieee80211_sta *sta = NULL;
@@ -527,7 +527,7 @@ mt76x0_rx_is_our_beacon(struct mt76x0_dev *dev, u8 *data)
 		ether_addr_equal(hdr->addr2, dev->ap_bssid);
 }
 
-u32 mt76_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
+u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 			u8 *data, void *rxi)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
@@ -594,7 +594,7 @@ mt76_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 	}
 }
 
-int mt76_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
+int mt76x0_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
 			  struct ieee80211_key_conf *key)
 {
 	enum mt76_cipher_type cipher;
@@ -635,7 +635,7 @@ int mt76_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
 	return 0;
 }
 
-int mt76_mac_shared_key_setup(struct mt76x0_dev *dev, u8 vif_idx, u8 key_idx,
+int mt76x0_mac_shared_key_setup(struct mt76x0_dev *dev, u8 vif_idx, u8 key_idx,
 			      struct ieee80211_key_conf *key)
 {
 	enum mt76_cipher_type cipher;

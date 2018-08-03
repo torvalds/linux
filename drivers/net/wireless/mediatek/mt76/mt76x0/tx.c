@@ -35,7 +35,7 @@ static void mt76x0_tx_skb_remove_dma_overhead(struct sk_buff *skb,
 
 	skb_pull(skb, sizeof(struct mt76_txwi) + 4);
 	if (ieee80211_get_hdrlen_from_skb(skb) % 4)
-		mt76_remove_hdr_pad(skb);
+		mt76x0_remove_hdr_pad(skb);
 
 	skb_trim(skb, pkt_len);
 }
@@ -93,7 +93,7 @@ mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 		rate_ctl = wcid->tx_rate;
 		nss = wcid->tx_rate_nss;
 	} else {
-		rate_ctl = mt76_mac_tx_rate_val(dev, rate, &nss);
+		rate_ctl = mt76x0_mac_tx_rate_val(dev, rate, &nss);
 	}
 	spin_unlock_irqrestore(&dev->mt76.lock, flags);
 
@@ -158,7 +158,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
 	info->status.status_driver_data[0] = (void *)(unsigned long)pkt_len;
 
-	if (mt76x0_skb_rooms(dev, skb) || mt76_insert_hdr_pad(skb)) {
+	if (mt76x0_skb_rooms(dev, skb) || mt76x0_insert_hdr_pad(skb)) {
 		ieee80211_free_txskb(dev->mt76.hw, skb);
 		return;
 	}
@@ -194,7 +194,7 @@ void mt76x0_tx_stat(struct work_struct *work)
 		if (!stat.valid)
 			break;
 
-		mt76_send_tx_status(dev, &stat, &update);
+		mt76x0_send_tx_status(dev, &stat, &update);
 
 		cleaned++;
 	}

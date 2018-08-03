@@ -44,7 +44,7 @@ mt76x0_rx_skb_from_seg(struct mt76x0_dev *dev, struct mt76x0_rxwi *rxwi,
 	if (!skb)
 		return NULL;
 
-	true_len = mt76_mac_process_rx(dev, skb, data, rxwi);
+	true_len = mt76x0_mac_process_rx(dev, skb, data, rxwi);
 	if (!true_len || true_len > seg_len)
 		goto bad_frame;
 

@@ -13,7 +13,7 @@
 
 #include "mt76x0.h"
 
-void mt76_remove_hdr_pad(struct sk_buff *skb)
+void mt76x0_remove_hdr_pad(struct sk_buff *skb)
 {
 	int len = ieee80211_get_hdrlen_from_skb(skb);
 
@@ -21,7 +21,7 @@ void mt76_remove_hdr_pad(struct sk_buff *skb)
 	skb_pull(skb, 2);
 }
 
-int mt76_insert_hdr_pad(struct sk_buff *skb)
+int mt76x0_insert_hdr_pad(struct sk_buff *skb)
 {
 	int len = ieee80211_get_hdrlen_from_skb(skb);
 	int ret;
