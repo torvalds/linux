@@ -72,7 +72,7 @@
 #define VI6_DL_SWAP_WDS			(1 << 1)
 #define VI6_DL_SWAP_BTS			(1 << 0)
 
-#define VI6_DL_EXT_CTRL			0x011c
+#define VI6_DL_EXT_CTRL(n)		(0x011c + (n) * 36)
 #define VI6_DL_EXT_CTRL_NWE		(1 << 16)
 #define VI6_DL_EXT_CTRL_POLINT_MASK	(0x3f << 8)
 #define VI6_DL_EXT_CTRL_POLINT_SHIFT	8

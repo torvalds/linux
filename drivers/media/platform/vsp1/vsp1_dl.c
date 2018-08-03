@@ -22,6 +22,9 @@
 #define VSP1_DLH_INT_ENABLE		(1 << 1)
 #define VSP1_DLH_AUTO_START		(1 << 0)
 
+#define VSP1_DLH_EXT_PRE_CMD_EXEC	(1 << 9)
+#define VSP1_DLH_EXT_POST_CMD_EXEC	(1 << 8)
+
 struct vsp1_dl_header_list {
 	u32 num_bytes;
 	u32 addr;
@@ -34,9 +37,56 @@ struct vsp1_dl_header {
 	u32 flags;
 } __packed;
 
+/**
+ * struct vsp1_dl_ext_header - Extended display list header
+ * @padding: padding zero bytes for alignment
+ * @pre_ext_dl_num_cmd: number of pre-extended command bodies to parse
+ * @flags: enables or disables execution of the pre and post command
+ * @pre_ext_dl_plist: start address of pre-extended display list bodies
+ * @post_ext_dl_num_cmd: number of post-extended command bodies to parse
+ * @post_ext_dl_plist: start address of post-extended display list bodies
+ */
+struct vsp1_dl_ext_header {
+	u32 padding;
+
+	/*
+	 * The datasheet represents flags as stored before pre_ext_dl_num_cmd,
+	 * expecting 32-bit accesses. The flags are appropriate to the whole
+	 * header, not just the pre_ext command, and thus warrant being
+	 * separated out. Due to byte ordering, and representing as 16 bit
+	 * values here, the flags must be positioned after the
+	 * pre_ext_dl_num_cmd.
+	 */
+	u16 pre_ext_dl_num_cmd;
+	u16 flags;
+	u32 pre_ext_dl_plist;
+
+	u32 post_ext_dl_num_cmd;
+	u32 post_ext_dl_plist;
+} __packed;
+
+struct vsp1_dl_header_extended {
+	struct vsp1_dl_header header;
+	struct vsp1_dl_ext_header ext;
+} __packed;
+
 struct vsp1_dl_entry {
 	u32 addr;
 	u32 data;
+} __packed;
+
+/**
+ * struct vsp1_pre_ext_dl_body - Pre Extended Display List Body
+ * @opcode: Extended display list command operation code
+ * @flags: Pre-extended command flags. These are specific to each command
+ * @address_set: Source address set pointer. Must have 16-byte alignment
+ * @reserved: Zero bits for alignment.
+ */
+struct vsp1_pre_ext_dl_body {
+	u32 opcode;
+	u32 flags;
+	u32 address_set;
+	u32 reserved;
 } __packed;
 
 /**
@@ -96,9 +146,12 @@ struct vsp1_dl_body_pool {
  * @list: entry in the display list manager lists
  * @dlm: the display list manager
  * @header: display list header
+ * @extension: extended display list header. NULL for normal lists
  * @dma: DMA address for the header
  * @body0: first display list body
  * @bodies: list of extra display list bodies
+ * @pre_cmd: pre command to be issued through extended dl header
+ * @post_cmd: post command to be issued through extended dl header
  * @has_chain: if true, indicates that there's a partition chain
  * @chain: entry in the display list partition chain
  * @internal: whether the display list is used for internal purpose
@@ -108,10 +161,14 @@ struct vsp1_dl_list {
 	struct vsp1_dl_manager *dlm;
 
 	struct vsp1_dl_header *header;
+	struct vsp1_dl_ext_header *extension;
 	dma_addr_t dma;
 
 	struct vsp1_dl_body *body0;
 	struct list_head bodies;
+
+	struct vsp1_dl_ext_cmd *pre_cmd;
+	struct vsp1_dl_ext_cmd *post_cmd;
 
 	bool has_chain;
 	struct list_head chain;
@@ -496,6 +553,14 @@ int vsp1_dl_list_add_chain(struct vsp1_dl_list *head,
 	return 0;
 }
 
+static void vsp1_dl_ext_cmd_fill_header(struct vsp1_dl_ext_cmd *cmd)
+{
+	cmd->cmds[0].opcode = cmd->opcode;
+	cmd->cmds[0].flags = cmd->flags;
+	cmd->cmds[0].address_set = cmd->data_dma;
+	cmd->cmds[0].reserved = 0;
+}
+
 static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 {
 	struct vsp1_dl_manager *dlm = dl->dlm;
@@ -547,6 +612,27 @@ static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 		 * and the next display list must not be started automatically.
 		 */
 		dl->header->flags = VSP1_DLH_INT_ENABLE;
+	}
+
+	if (!dl->extension)
+		return;
+
+	dl->extension->flags = 0;
+
+	if (dl->pre_cmd) {
+		dl->extension->pre_ext_dl_plist = dl->pre_cmd->cmd_dma;
+		dl->extension->pre_ext_dl_num_cmd = dl->pre_cmd->num_cmds;
+		dl->extension->flags |= VSP1_DLH_EXT_PRE_CMD_EXEC;
+
+		vsp1_dl_ext_cmd_fill_header(dl->pre_cmd);
+	}
+
+	if (dl->post_cmd) {
+		dl->extension->post_ext_dl_plist = dl->post_cmd->cmd_dma;
+		dl->extension->post_ext_dl_num_cmd = dl->post_cmd->num_cmds;
+		dl->extension->flags |= VSP1_DLH_EXT_POST_CMD_EXEC;
+
+		vsp1_dl_ext_cmd_fill_header(dl->post_cmd);
 	}
 }
 
@@ -737,9 +823,17 @@ done:
 /* Hardware Setup */
 void vsp1_dlm_setup(struct vsp1_device *vsp1)
 {
+	unsigned int i;
 	u32 ctrl = (256 << VI6_DL_CTRL_AR_WAIT_SHIFT)
 		 | VI6_DL_CTRL_DC2 | VI6_DL_CTRL_DC1 | VI6_DL_CTRL_DC0
 		 | VI6_DL_CTRL_DLE;
+	u32 ext_dl = (0x02 << VI6_DL_EXT_CTRL_POLINT_SHIFT)
+		   | VI6_DL_EXT_CTRL_DLPRI | VI6_DL_EXT_CTRL_EXT;
+
+	if (vsp1_feature(vsp1, VSP1_HAS_EXT_DL)) {
+		for (i = 0; i < vsp1->info->wpf_count; ++i)
+			vsp1_write(vsp1, VI6_DL_EXT_CTRL(i), ext_dl);
+	}
 
 	vsp1_write(vsp1, VI6_DL_CTRL, ctrl);
 	vsp1_write(vsp1, VI6_DL_SWAP, VI6_DL_SWAP_LWS);
@@ -793,7 +887,11 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 	 * memory. An extra body is allocated on top of the prealloc to account
 	 * for the cached body used by the vsp1_pipeline object.
 	 */
-	header_size = ALIGN(sizeof(struct vsp1_dl_header), 8);
+	header_size = vsp1_feature(vsp1, VSP1_HAS_EXT_DL) ?
+			sizeof(struct vsp1_dl_header_extended) :
+			sizeof(struct vsp1_dl_header);
+
+	header_size = ALIGN(header_size, 8);
 
 	dlm->pool = vsp1_dl_body_pool_create(vsp1, prealloc + 1,
 					     VSP1_DL_NUM_ENTRIES, header_size);
@@ -808,6 +906,11 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 			vsp1_dlm_destroy(dlm);
 			return NULL;
 		}
+
+		/* The extended header immediately follows the header. */
+		if (vsp1_feature(vsp1, VSP1_HAS_EXT_DL))
+			dl->extension = (void *)dl->header
+				      + sizeof(*dl->header);
 
 		list_add_tail(&dl->list, &dlm->free);
 	}
