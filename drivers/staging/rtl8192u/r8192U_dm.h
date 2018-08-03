@@ -154,7 +154,6 @@ typedef struct tag_Tx_Config_Cmd_Format {
 /*------------------------Export global variable----------------------------*/
 extern struct dig dm_digtable;
 extern u8 dm_shadow[16][256];
-extern struct dynamic_rx_path_sel DM_RxPathSelTable;
 /*------------------------Export global variable----------------------------*/
 
 
