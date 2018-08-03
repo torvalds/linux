@@ -13,6 +13,7 @@ Required properties:
 		"amstaos,tmd2672"
 		"amstaos,tsl2772"
 		"amstaos,tmd2772"
+		"avago,apds9930"
   - reg: the I2C address of the device
 
 Optional properties:
