@@ -23,8 +23,20 @@
 
 #include "iforce.h"
 
+struct iforce_serio {
+	struct iforce iforce;
+
+	struct serio *serio;
+	int idx, pkt, len, id;
+	u8 csum;
+	u8 expect_packet;
+};
+
 static void iforce_serio_xmit(struct iforce *iforce)
 {
+	struct iforce_serio *iforce_serio = container_of(iforce,
+							 struct iforce_serio,
+							 iforce);
 	unsigned char cs;
 	int i;
 	unsigned long flags;
@@ -45,19 +57,20 @@ again:
 
 	cs = 0x2b;
 
-	serio_write(iforce->serio, 0x2b);
+	serio_write(iforce_serio->serio, 0x2b);
 
-	serio_write(iforce->serio, iforce->xmit.buf[iforce->xmit.tail]);
+	serio_write(iforce_serio->serio, iforce->xmit.buf[iforce->xmit.tail]);
 	cs ^= iforce->xmit.buf[iforce->xmit.tail];
 	XMIT_INC(iforce->xmit.tail, 1);
 
 	for (i=iforce->xmit.buf[iforce->xmit.tail]; i >= 0; --i) {
-		serio_write(iforce->serio, iforce->xmit.buf[iforce->xmit.tail]);
+		serio_write(iforce_serio->serio,
+			    iforce->xmit.buf[iforce->xmit.tail]);
 		cs ^= iforce->xmit.buf[iforce->xmit.tail];
 		XMIT_INC(iforce->xmit.tail, 1);
 	}
 
-	serio_write(iforce->serio, cs);
+	serio_write(iforce_serio->serio, cs);
 
 	if (test_and_clear_bit(IFORCE_XMIT_AGAIN, iforce->xmit_flags))
 		goto again;
@@ -69,14 +82,18 @@ again:
 
 static int iforce_serio_get_id(struct iforce *iforce, u8 *packet)
 {
-	iforce->expect_packet = FF_CMD_QUERY;
+	struct iforce_serio *iforce_serio = container_of(iforce,
+							 struct iforce_serio,
+							 iforce);
+
+	iforce_serio->expect_packet = HI(FF_CMD_QUERY);
 	iforce_send_packet(iforce, FF_CMD_QUERY, packet);
 
 	wait_event_interruptible_timeout(iforce->wait,
-					 !iforce->expect_packet, HZ);
+					 !iforce_serio->expect_packet, HZ);
 
-	if (iforce->expect_packet) {
-		iforce->expect_packet = 0;
+	if (iforce_serio->expect_packet) {
+		iforce_serio->expect_packet = 0;
 		return -EIO;
 	}
 
@@ -111,54 +128,56 @@ static void iforce_serio_write_wakeup(struct serio *serio)
 static irqreturn_t iforce_serio_irq(struct serio *serio,
 		unsigned char data, unsigned int flags)
 {
-	struct iforce *iforce = serio_get_drvdata(serio);
+	struct iforce_serio *iforce_serio = serio_get_drvdata(serio);
+	struct iforce *iforce = &iforce_serio->iforce;
 
-	if (!iforce->pkt) {
+	if (!iforce_serio->pkt) {
 		if (data == 0x2b)
-			iforce->pkt = 1;
+			iforce_serio->pkt = 1;
 		goto out;
 	}
 
-	if (!iforce->id) {
+	if (!iforce_serio->id) {
 		if (data > 3 && data != 0xff)
-			iforce->pkt = 0;
+			iforce_serio->pkt = 0;
 		else
-			iforce->id = data;
+			iforce_serio->id = data;
 		goto out;
 	}
 
-	if (!iforce->len) {
+	if (!iforce_serio->len) {
 		if (data > IFORCE_MAX_LENGTH) {
-			iforce->pkt = 0;
-			iforce->id = 0;
+			iforce_serio->pkt = 0;
+			iforce_serio->id = 0;
 		} else {
-			iforce->len = data;
+			iforce_serio->len = data;
 		}
 		goto out;
 	}
 
-	if (iforce->idx < iforce->len) {
-		iforce->csum += iforce->data[iforce->idx++] = data;
+	if (iforce_serio->idx < iforce_serio->len) {
+		iforce->data[iforce_serio->idx++] = data;
+		iforce_serio->csum += data;
 		goto out;
 	}
 
-	if (iforce->idx == iforce->len) {
-		u16 cmd = (iforce->id << 8) | iforce->idx;
+	if (iforce_serio->idx == iforce_serio->len) {
+		u16 cmd = (iforce_serio->id << 8) | iforce_serio->idx;
 
 		/* Handle command completion */
-		if (HI(iforce->expect_packet) == HI(cmd)) {
-			iforce->expect_packet = 0;
+		if (iforce_serio->expect_packet == iforce_serio->id) {
+			iforce_serio->expect_packet = 0;
 			iforce->ecmd = cmd;
 			memcpy(iforce->edata, iforce->data, IFORCE_MAX_LENGTH);
 		}
 
 		iforce_process_packet(iforce, cmd, iforce->data);
 
-		iforce->pkt = 0;
-		iforce->id  = 0;
-		iforce->len = 0;
-		iforce->idx = 0;
-		iforce->csum = 0;
+		iforce_serio->pkt = 0;
+		iforce_serio->id  = 0;
+		iforce_serio->len = 0;
+		iforce_serio->idx = 0;
+		iforce_serio->csum = 0;
 	}
 out:
 	return IRQ_HANDLED;
@@ -166,18 +185,21 @@ out:
 
 static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 {
+	struct iforce_serio *iforce_serio;
 	struct iforce *iforce;
 	int err;
 
-	iforce = kzalloc(sizeof(struct iforce), GFP_KERNEL);
-	if (!iforce)
+	iforce_serio = kzalloc(sizeof(*iforce_serio), GFP_KERNEL);
+	if (!iforce_serio)
 		return -ENOMEM;
+
+	iforce = &iforce_serio->iforce;
 
 	iforce->xport_ops = &iforce_serio_xport_ops;
 	iforce->bus = IFORCE_232;
-	iforce->serio = serio;
 
-	serio_set_drvdata(serio, iforce);
+	iforce_serio->serio = serio;
+	serio_set_drvdata(serio, iforce_serio);
 
 	err = serio_open(serio, drv);
 	if (err)
@@ -191,18 +213,18 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 
  fail2:	serio_close(serio);
  fail1:	serio_set_drvdata(serio, NULL);
-	kfree(iforce);
+	kfree(iforce_serio);
 	return err;
 }
 
 static void iforce_serio_disconnect(struct serio *serio)
 {
-	struct iforce *iforce = serio_get_drvdata(serio);
+	struct iforce_serio *iforce_serio = serio_get_drvdata(serio);
 
-	input_unregister_device(iforce->dev);
+	input_unregister_device(iforce_serio->iforce.dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
-	kfree(iforce);
+	kfree(iforce_serio);
 }
 
 static const struct serio_device_id iforce_serio_ids[] = {

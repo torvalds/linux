@@ -111,19 +111,7 @@ struct iforce {
 	unsigned char data[IFORCE_MAX_LENGTH];
 	unsigned char edata[IFORCE_MAX_LENGTH];
 	u16 ecmd;
-	u16 expect_packet;
 
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	struct serio *serio;		/* RS232 transfer */
-	int idx, pkt, len, id;
-	unsigned char csum;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	struct usb_device *usbdev;	/* USB transfer */
-	struct usb_interface *intf;
-	struct urb *irq, *out, *ctrl;
-	struct usb_ctrlrequest cr;
-#endif
 	spinlock_t xmit_lock;
 	/* Buffer used for asynchronous sending of bytes to the device */
 	struct circ_buf xmit;

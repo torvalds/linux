@@ -23,8 +23,19 @@
 
 #include "iforce.h"
 
+struct iforce_usb {
+	struct iforce iforce;
+
+	struct usb_device *usbdev;
+	struct usb_interface *intf;
+	struct urb *irq, *out, *ctrl;
+	struct usb_ctrlrequest cr;
+};
+
 static void __iforce_usb_xmit(struct iforce *iforce)
 {
+	struct iforce_usb *iforce_usb = container_of(iforce, struct iforce_usb,
+						     iforce);
 	int n, c;
 	unsigned long flags;
 
@@ -36,31 +47,32 @@ static void __iforce_usb_xmit(struct iforce *iforce)
 		return;
 	}
 
-	((char *)iforce->out->transfer_buffer)[0] = iforce->xmit.buf[iforce->xmit.tail];
+	((char *)iforce_usb->out->transfer_buffer)[0] = iforce->xmit.buf[iforce->xmit.tail];
 	XMIT_INC(iforce->xmit.tail, 1);
 	n = iforce->xmit.buf[iforce->xmit.tail];
 	XMIT_INC(iforce->xmit.tail, 1);
 
-	iforce->out->transfer_buffer_length = n + 1;
-	iforce->out->dev = iforce->usbdev;
+	iforce_usb->out->transfer_buffer_length = n + 1;
+	iforce_usb->out->dev = iforce_usb->usbdev;
 
 	/* Copy rest of data then */
 	c = CIRC_CNT_TO_END(iforce->xmit.head, iforce->xmit.tail, XMIT_SIZE);
 	if (n < c) c=n;
 
-	memcpy(iforce->out->transfer_buffer + 1,
+	memcpy(iforce_usb->out->transfer_buffer + 1,
 	       &iforce->xmit.buf[iforce->xmit.tail],
 	       c);
 	if (n != c) {
-		memcpy(iforce->out->transfer_buffer + 1 + c,
+		memcpy(iforce_usb->out->transfer_buffer + 1 + c,
 		       &iforce->xmit.buf[0],
 		       n-c);
 	}
 	XMIT_INC(iforce->xmit.tail, n);
 
-	if ( (n=usb_submit_urb(iforce->out, GFP_ATOMIC)) ) {
+	if ( (n=usb_submit_urb(iforce_usb->out, GFP_ATOMIC)) ) {
 		clear_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags);
-		dev_warn(&iforce->intf->dev, "usb_submit_urb failed %d\n", n);
+		dev_warn(&iforce_usb->intf->dev,
+			 "usb_submit_urb failed %d\n", n);
 	}
 
 	/* The IFORCE_XMIT_RUNNING bit is not cleared here. That's intended.
@@ -77,26 +89,28 @@ static void iforce_usb_xmit(struct iforce *iforce)
 
 static int iforce_usb_get_id(struct iforce *iforce, u8 *packet)
 {
+	struct iforce_usb *iforce_usb = container_of(iforce, struct iforce_usb,
+						     iforce);
 	int status;
 
-	iforce->cr.bRequest = packet[0];
-	iforce->ctrl->dev = iforce->usbdev;
+	iforce_usb->cr.bRequest = packet[0];
+	iforce_usb->ctrl->dev = iforce_usb->usbdev;
 
-	status = usb_submit_urb(iforce->ctrl, GFP_KERNEL);
+	status = usb_submit_urb(iforce_usb->ctrl, GFP_KERNEL);
 	if (status) {
-		dev_err(&iforce->intf->dev,
+		dev_err(&iforce_usb->intf->dev,
 			"usb_submit_urb failed %d\n", status);
 		return -EIO;
 	}
 
 	wait_event_interruptible_timeout(iforce->wait,
-		iforce->ctrl->status != -EINPROGRESS, HZ);
+		iforce_usb->ctrl->status != -EINPROGRESS, HZ);
 
-	if (iforce->ctrl->status) {
-		dev_dbg(&iforce->intf->dev,
+	if (iforce_usb->ctrl->status) {
+		dev_dbg(&iforce_usb->intf->dev,
 			"iforce->ctrl->status = %d\n",
-			iforce->ctrl->status);
-		usb_unlink_urb(iforce->ctrl);
+			iforce_usb->ctrl->status);
+		usb_unlink_urb(iforce_usb->ctrl);
 		return -EIO;
 	}
 
@@ -105,7 +119,10 @@ static int iforce_usb_get_id(struct iforce *iforce, u8 *packet)
 
 static int iforce_usb_start_io(struct iforce *iforce)
 {
-	if (usb_submit_urb(iforce->irq, GFP_KERNEL))
+	struct iforce_usb *iforce_usb = container_of(iforce, struct iforce_usb,
+						     iforce);
+
+	if (usb_submit_urb(iforce_usb->irq, GFP_KERNEL))
 		return -EIO;
 
 	return 0;
@@ -113,9 +130,12 @@ static int iforce_usb_start_io(struct iforce *iforce)
 
 static void iforce_usb_stop_io(struct iforce *iforce)
 {
-	usb_kill_urb(iforce->irq);
-	usb_kill_urb(iforce->out);
-	usb_kill_urb(iforce->ctrl);
+	struct iforce_usb *iforce_usb = container_of(iforce, struct iforce_usb,
+						     iforce);
+
+	usb_kill_urb(iforce_usb->irq);
+	usb_kill_urb(iforce_usb->out);
+	usb_kill_urb(iforce_usb->ctrl);
 }
 
 static const struct iforce_xport_ops iforce_usb_xport_ops = {
@@ -127,8 +147,9 @@ static const struct iforce_xport_ops iforce_usb_xport_ops = {
 
 static void iforce_usb_irq(struct urb *urb)
 {
-	struct iforce *iforce = urb->context;
-	struct device *dev = &iforce->intf->dev;
+	struct iforce_usb *iforce_usb = urb->context;
+	struct iforce *iforce = &iforce_usb->iforce;
+	struct device *dev = &iforce_usb->intf->dev;
 	int status;
 
 	switch (urb->status) {
@@ -152,7 +173,7 @@ static void iforce_usb_irq(struct urb *urb)
 		(iforce->data[0] << 8) | (urb->actual_length - 1), iforce->data + 1);
 
 exit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
+	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
 		dev_err(dev, "%s - usb_submit_urb failed with result %d\n",
 			__func__, status);
@@ -160,11 +181,12 @@ exit:
 
 static void iforce_usb_out(struct urb *urb)
 {
-	struct iforce *iforce = urb->context;
+	struct iforce_usb *iforce_usb = urb->context;
+	struct iforce *iforce = &iforce_usb->iforce;
 
 	if (urb->status) {
 		clear_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags);
-		dev_dbg(&iforce->intf->dev, "urb->status %d, exiting\n",
+		dev_dbg(&iforce_usb->intf->dev, "urb->status %d, exiting\n",
 			urb->status);
 		return;
 	}
@@ -176,8 +198,12 @@ static void iforce_usb_out(struct urb *urb)
 
 static void iforce_usb_ctrl(struct urb *urb)
 {
-	struct iforce *iforce = urb->context;
-	if (urb->status) return;
+	struct iforce_usb *iforce_usb = urb->context;
+	struct iforce *iforce = &iforce_usb->iforce;
+
+	if (urb->status)
+		return;
+
 	iforce->ecmd = 0xff00 | urb->actual_length;
 	wake_up(&iforce->wait);
 }
@@ -188,6 +214,7 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *epirq, *epout;
+	struct iforce_usb *iforce_usb;
 	struct iforce *iforce;
 	int err = -ENOMEM;
 
@@ -199,49 +226,52 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	epirq = &interface->endpoint[0].desc;
 	epout = &interface->endpoint[1].desc;
 
-	if (!(iforce = kzalloc(sizeof(struct iforce) + 32, GFP_KERNEL)))
+	if (!(iforce_usb = kzalloc(sizeof(*iforce_usb) + 32, GFP_KERNEL)))
 		goto fail;
 
-	if (!(iforce->irq = usb_alloc_urb(0, GFP_KERNEL)))
+	if (!(iforce_usb->irq = usb_alloc_urb(0, GFP_KERNEL)))
 		goto fail;
 
-	if (!(iforce->out = usb_alloc_urb(0, GFP_KERNEL)))
+	if (!(iforce_usb->out = usb_alloc_urb(0, GFP_KERNEL)))
 		goto fail;
 
-	if (!(iforce->ctrl = usb_alloc_urb(0, GFP_KERNEL)))
+	if (!(iforce_usb->ctrl = usb_alloc_urb(0, GFP_KERNEL)))
 		goto fail;
+
+	iforce = &iforce_usb->iforce;
 
 	iforce->xport_ops = &iforce_usb_xport_ops;
 	iforce->bus = IFORCE_USB;
-	iforce->usbdev = dev;
-	iforce->intf = intf;
 
-	iforce->cr.bRequestType = USB_TYPE_VENDOR | USB_DIR_IN | USB_RECIP_INTERFACE;
-	iforce->cr.wIndex = 0;
-	iforce->cr.wLength = cpu_to_le16(16);
+	iforce_usb->usbdev = dev;
+	iforce_usb->intf = intf;
 
-	usb_fill_int_urb(iforce->irq, dev, usb_rcvintpipe(dev, epirq->bEndpointAddress),
-			iforce->data, 16, iforce_usb_irq, iforce, epirq->bInterval);
+	iforce_usb->cr.bRequestType = USB_TYPE_VENDOR | USB_DIR_IN | USB_RECIP_INTERFACE;
+	iforce_usb->cr.wIndex = 0;
+	iforce_usb->cr.wLength = cpu_to_le16(16);
 
-	usb_fill_int_urb(iforce->out, dev, usb_sndintpipe(dev, epout->bEndpointAddress),
-			iforce + 1, 32, iforce_usb_out, iforce, epout->bInterval);
+	usb_fill_int_urb(iforce_usb->irq, dev, usb_rcvintpipe(dev, epirq->bEndpointAddress),
+			iforce->data, 16, iforce_usb_irq, iforce_usb, epirq->bInterval);
 
-	usb_fill_control_urb(iforce->ctrl, dev, usb_rcvctrlpipe(dev, 0),
-			(void*) &iforce->cr, iforce->edata, 16, iforce_usb_ctrl, iforce);
+	usb_fill_int_urb(iforce_usb->out, dev, usb_sndintpipe(dev, epout->bEndpointAddress),
+			iforce_usb + 1, 32, iforce_usb_out, iforce_usb, epout->bInterval);
+
+	usb_fill_control_urb(iforce_usb->ctrl, dev, usb_rcvctrlpipe(dev, 0),
+			(void*) &iforce_usb->cr, iforce->edata, 16, iforce_usb_ctrl, iforce_usb);
 
 	err = iforce_init_device(&intf->dev, BUS_USB, iforce);
 	if (err)
 		goto fail;
 
-	usb_set_intfdata(intf, iforce);
+	usb_set_intfdata(intf, iforce_usb);
 	return 0;
 
 fail:
-	if (iforce) {
-		usb_free_urb(iforce->irq);
-		usb_free_urb(iforce->out);
-		usb_free_urb(iforce->ctrl);
-		kfree(iforce);
+	if (iforce_usb) {
+		usb_free_urb(iforce_usb->irq);
+		usb_free_urb(iforce_usb->out);
+		usb_free_urb(iforce_usb->ctrl);
+		kfree(iforce_usb);
 	}
 
 	return err;
@@ -249,17 +279,17 @@ fail:
 
 static void iforce_usb_disconnect(struct usb_interface *intf)
 {
-	struct iforce *iforce = usb_get_intfdata(intf);
+	struct iforce_usb *iforce_usb = usb_get_intfdata(intf);
 
 	usb_set_intfdata(intf, NULL);
 
-	input_unregister_device(iforce->dev);
+	input_unregister_device(iforce_usb->iforce.dev);
 
-	usb_free_urb(iforce->irq);
-	usb_free_urb(iforce->out);
-	usb_free_urb(iforce->ctrl);
+	usb_free_urb(iforce_usb->irq);
+	usb_free_urb(iforce_usb->out);
+	usb_free_urb(iforce_usb->ctrl);
 
-	kfree(iforce);
+	kfree(iforce_usb);
 }
 
 static const struct usb_device_id iforce_usb_ids[] = {
