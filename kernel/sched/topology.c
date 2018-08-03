@@ -7,8 +7,8 @@
 DEFINE_MUTEX(sched_domains_mutex);
 
 /* Protected by sched_domains_mutex: */
-cpumask_var_t sched_domains_tmpmask;
-cpumask_var_t sched_domains_tmpmask2;
+static cpumask_var_t sched_domains_tmpmask;
+static cpumask_var_t sched_domains_tmpmask2;
 
 #ifdef CONFIG_SCHED_DEBUG
 
