@@ -317,7 +317,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 		return;
 	default:		/* error */
 		dev_err(dev->dev,
-			"urb completition error %d.\n",	urb->status);
+			"urb completion error %d.\n", urb->status);
 		break;
 	}
 
