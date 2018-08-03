@@ -37,14 +37,6 @@ struct btf {
 	int fd;
 };
 
-static const char *btf_name_by_offset(const struct btf *btf, __u32 offset)
-{
-	if (offset < btf->hdr->str_len)
-		return &btf->strings[offset];
-	else
-		return NULL;
-}
-
 static int btf_add_type(struct btf *btf, struct btf_type *t)
 {
 	if (btf->types_size - btf->nr_types < 2) {
@@ -400,13 +392,4 @@ const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
 		return &btf->strings[offset];
 	else
 		return NULL;
-}
-
-const struct btf_type *btf__type_by_id(const struct btf *btf,
-				       __u32 type_id)
-{
-	if (type_id > btf->nr_types)
-		return NULL;
-
-	return btf->types[type_id];
 }
