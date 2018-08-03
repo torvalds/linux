@@ -42,7 +42,6 @@ function parse_argv {
                         REBOOT=0
                 elif [[ "$arg" == '--medusa-only' || "$arg" == '-medusa-only' ]]; then
                         MEDUSA_ONLY=1
-                        DELETE=1
                         GRUB=0
                 elif [[ "$arg" == '--build-only' || "$arg" == '-build-only' ]]; then
                         INSTALL=0
@@ -87,19 +86,25 @@ function delete_medusa {
 }
 
 function medusa_only {
-        sudo make -j `expr $PROCESSORS + 1`
+        RELEASE="$(make kernelrelease)"
+        make -j `expr $PROCESSORS + 1` security
+        [ $? -ne 0 ] && do_exit 1 "make security failed"
 
-        [ $? -ne 0 ] && do_exit 1 "Medusa compilation failed"
+        make -j `expr $PROCESSORS + 1` bzImage
+        [ $? -ne 0 ] && do_exit 1 "make bzImage failed"
 }
 
 function install_module {
-        sudo cp arch/x86/boot/bzImage /boot/vmlinuz-`make kernelrelease`
+        CMD="sudo cp arch/x86/boot/bzImage /boot/vmlinuz-$RELEASE"
+        eval $CMD
         [ $? -ne 0 ] && do_exit 1 "Copying of medusa module failed"
 
-        sudo cp System.map /boot/System.map-`make kernelrelease`
+        CMD="sudo cp System.map /boot/System.map-$RELEASE"
+        eval $CMD
         [ $? -ne 0 ] && do_exit 1 "Copying of System.map failed"
 
-        sudo update-initramfs -uk `make kernelrelease`
+        CMD="sudo update-initramfs -u -k $RELEASE"
+        eval $CMD
         [ $? -ne 0 ] && do_exit 1 "Update-initramfs failed"
 }
 
