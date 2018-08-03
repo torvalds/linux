@@ -33,7 +33,7 @@ static bool sste_matches(struct cxl_sste *sste, struct copro_slb *slb)
  * This finds a free SSTE for the given SLB, or returns NULL if it's already in
  * the segment table.
  */
-static struct cxl_sste* find_free_sste(struct cxl_context *ctx,
+static struct cxl_sste *find_free_sste(struct cxl_context *ctx,
 				       struct copro_slb *slb)
 {
 	struct cxl_sste *primary, *sste, *ret = NULL;
