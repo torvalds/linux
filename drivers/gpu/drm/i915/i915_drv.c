@@ -1758,7 +1758,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	/*
 	 * ... but also need to make sure that hotplug processing
 	 * doesn't cause havoc. Like in the driver load code we don't
-	 * bother with the tiny race here where we might loose hotplug
+	 * bother with the tiny race here where we might lose hotplug
 	 * notifications.
 	 * */
 	intel_hpd_init(dev_priv);
