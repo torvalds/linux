@@ -177,8 +177,11 @@ static int memtrace_init_debugfs(void)
 
 		snprintf(ent->name, 16, "%08x", ent->nid);
 		dir = debugfs_create_dir(ent->name, memtrace_debugfs_dir);
-		if (!dir)
+		if (!dir) {
+			pr_err("Failed to create debugfs directory for node %d\n",
+				ent->nid);
 			return -1;
+		}
 
 		ent->dir = dir;
 		debugfs_create_file("trace", 0400, dir, ent, &memtrace_fops);
@@ -189,18 +192,93 @@ static int memtrace_init_debugfs(void)
 	return ret;
 }
 
+static int online_mem_block(struct memory_block *mem, void *arg)
+{
+	return device_online(&mem->dev);
+}
+
+/*
+ * Iterate through the chunks of memory we have removed from the kernel
+ * and attempt to add them back to the kernel.
+ */
+static int memtrace_online(void)
+{
+	int i, ret = 0;
+	struct memtrace_entry *ent;
+
+	for (i = memtrace_array_nr - 1; i >= 0; i--) {
+		ent = &memtrace_array[i];
+
+		/* We have onlined this chunk previously */
+		if (ent->nid == -1)
+			continue;
+
+		/* Remove from io mappings */
+		if (ent->mem) {
+			iounmap(ent->mem);
+			ent->mem = 0;
+		}
+
+		if (add_memory(ent->nid, ent->start, ent->size)) {
+			pr_err("Failed to add trace memory to node %d\n",
+				ent->nid);
+			ret += 1;
+			continue;
+		}
+
+		/*
+		 * If kernel isn't compiled with the auto online option
+		 * we need to online the memory ourselves.
+		 */
+		if (!memhp_auto_online) {
+			walk_memory_range(PFN_DOWN(ent->start),
+					  PFN_UP(ent->start + ent->size - 1),
+					  NULL, online_mem_block);
+		}
+
+		/*
+		 * Memory was added successfully so clean up references to it
+		 * so on reentry we can tell that this chunk was added.
+		 */
+		debugfs_remove_recursive(ent->dir);
+		pr_info("Added trace memory back to node %d\n", ent->nid);
+		ent->size = ent->start = ent->nid = -1;
+	}
+	if (ret)
+		return ret;
+
+	/* If all chunks of memory were added successfully, reset globals */
+	kfree(memtrace_array);
+	memtrace_array = NULL;
+	memtrace_size = 0;
+	memtrace_array_nr = 0;
+	return 0;
+}
+
 static int memtrace_enable_set(void *data, u64 val)
 {
-	if (memtrace_size)
+	u64 bytes;
+
+	/*
+	 * Don't attempt to do anything if size isn't aligned to a memory
+	 * block or equal to zero.
+	 */
+	bytes = memory_block_size_bytes();
+	if (val & (bytes - 1)) {
+		pr_err("Value must be aligned with 0x%llx\n", bytes);
 		return -EINVAL;
+	}
+
+	/* Re-add/online previously removed/offlined memory */
+	if (memtrace_size) {
+		if (memtrace_online())
+			return -EAGAIN;
+	}
 
 	if (!val)
-		return -EINVAL;
+		return 0;
 
-	/* Make sure size is aligned to a memory block */
-	if (val & (memory_block_size_bytes() - 1))
-		return -EINVAL;
-
+	/* Offline and remove memory */
 	if (memtrace_init_regions_runtime(val))
 		return -EINVAL;
 
