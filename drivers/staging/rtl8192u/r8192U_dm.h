@@ -37,7 +37,7 @@
 #define		DM_DIG_MIN					0x1c
 #define		DM_DIG_MIN_Netcore			0x12
 
-#define		RxPathSelection_SS_TH_low		30
+#define		RX_PATH_SELECTION_SS_TH_LOW		30
 #define		RxPathSelection_diff_TH			18
 
 #define		RateAdaptiveTH_High			50
@@ -132,7 +132,6 @@ struct dynamic_rx_path_sel {
 	enum cck_rx_path_method		cck_method;
 	u8		cck_rx_path;
 
-	u8		SS_TH_low;
 	u8		diff_TH;
 	u8		disabledRF;
 	u8		reserved;
