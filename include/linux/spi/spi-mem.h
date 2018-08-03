@@ -134,7 +134,7 @@ struct spi_mem_op {
 struct spi_mem {
 	struct spi_device *spi;
 	void *drvpriv;
-	char *name;
+	const char *name;
 };
 
 /**
