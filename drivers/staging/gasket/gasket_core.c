@@ -255,7 +255,6 @@ static void gasket_free_dev(struct gasket_dev *gasket_dev)
 	internal_desc->devs[gasket_dev->dev_idx] = NULL;
 	mutex_unlock(&internal_desc->mutex);
 	put_device(gasket_dev->dev);
-	pci_dev_put(gasket_dev->pci_dev);
 	kfree(gasket_dev);
 }
 
@@ -1477,7 +1476,7 @@ static int gasket_pci_probe(struct pci_dev *pci_dev,
 	ret = gasket_alloc_dev(internal_desc, parent, &gasket_dev, kobj_name);
 	if (ret)
 		return ret;
-	gasket_dev->pci_dev = pci_dev_get(pci_dev);
+	gasket_dev->pci_dev = pci_dev;
 	if (IS_ERR_OR_NULL(gasket_dev->dev_info.device)) {
 		pr_err("Cannot create %s device %s [ret = %ld]\n",
 		       driver_desc->name, gasket_dev->dev_info.name,
