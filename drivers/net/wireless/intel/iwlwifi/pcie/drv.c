@@ -1000,7 +1000,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (WARN_ONCE(!cfg->trans.csr, "CSR addresses aren't configured\n"))
 		return -EINVAL;
 
-	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, cfg);
+	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, &cfg->trans);
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
 
