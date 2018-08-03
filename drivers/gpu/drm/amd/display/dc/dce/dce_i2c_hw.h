@@ -236,11 +236,6 @@ struct i2c_request_transaction_data {
 	uint8_t *data;
 };
 
-struct i2c_reply_transaction_data {
-	uint32_t length;
-	uint8_t *data;
-};
-
 struct dce_i2c_hw {
 	struct ddc *ddc;
 	uint32_t original_speed;

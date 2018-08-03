@@ -30,39 +30,6 @@
 #include "dce_i2c_hw.h"
 #include "dce_i2c_sw.h"
 
-enum dce_i2c_transaction_status {
-	DCE_I2C_TRANSACTION_STATUS_UNKNOWN = (-1L),
-	DCE_I2C_TRANSACTION_STATUS_SUCCEEDED,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_CHANNEL_BUSY,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_TIMEOUT,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_NACK,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_INCOMPLETE,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_OPERATION,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_INVALID_OPERATION,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_BUFFER_OVERFLOW,
-	DCE_I2C_TRANSACTION_STATUS_FAILED_HPD_DISCON
-};
-
-enum dce_i2c_transaction_operation {
-	DCE_I2C_TRANSACTION_READ,
-	DCE_I2C_TRANSACTION_WRITE
-};
-
-struct dce_i2c_transaction_payload {
-	enum dce_i2c_transaction_address_space address_space;
-	uint32_t address;
-	uint32_t length;
-	uint8_t *data;
-};
-
-struct dce_i2c_transaction_request {
-	enum dce_i2c_transaction_operation operation;
-	struct dce_i2c_transaction_payload payload;
-	enum dce_i2c_transaction_status status;
-};
-
-
 bool dce_i2c_submit_command(
 	struct resource_pool *pool,
 	struct ddc *ddc,

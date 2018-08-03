@@ -129,7 +129,7 @@ static uint32_t get_speed(
 
 static void process_channel_reply(
 	struct dce_i2c_hw *dce_i2c_hw,
-	struct i2c_reply_transaction_data *reply)
+	struct i2c_payload *reply)
 {
 	uint32_t length = reply->length;
 	uint8_t *buffer = reply->data;
@@ -522,9 +522,9 @@ static uint32_t get_transaction_timeout_hw(
 	return period_timeout * num_of_clock_stretches;
 }
 
-bool dce_i2c_hw_engine_submit_request(
+bool dce_i2c_hw_engine_submit_payload(
 	struct dce_i2c_hw *dce_i2c_hw,
-	struct dce_i2c_transaction_request *dce_i2c_request,
+	struct i2c_payload *payload,
 	bool middle_of_transaction)
 {
 
@@ -541,46 +541,36 @@ bool dce_i2c_hw_engine_submit_request(
 	 * the number of free bytes in HW buffer (minus one for address)
 	 */
 
-	if (dce_i2c_request->payload.length >=
+	if (payload->length >=
 			get_hw_buffer_available_size(dce_i2c_hw)) {
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_BUFFER_OVERFLOW;
 		return false;
 	}
 
-	if (dce_i2c_request->operation == DCE_I2C_TRANSACTION_READ)
+	if (!payload->write)
 		request.action = middle_of_transaction ?
 			DCE_I2C_TRANSACTION_ACTION_I2C_READ_MOT :
 			DCE_I2C_TRANSACTION_ACTION_I2C_READ;
-	else if (dce_i2c_request->operation == DCE_I2C_TRANSACTION_WRITE)
+	else
 		request.action = middle_of_transaction ?
 			DCE_I2C_TRANSACTION_ACTION_I2C_WRITE_MOT :
 			DCE_I2C_TRANSACTION_ACTION_I2C_WRITE;
-	else {
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_INVALID_OPERATION;
-		/* [anaumov] in DAL2, there was no "return false" */
-		return false;
-	}
 
-	request.address = (uint8_t) dce_i2c_request->payload.address;
-	request.length = dce_i2c_request->payload.length;
-	request.data = dce_i2c_request->payload.data;
+
+	request.address = (uint8_t) ((payload->address << 1) | !payload->write);
+	request.length = payload->length;
+	request.data = payload->data;
 
 	/* obtain timeout value before submitting request */
 
 	transaction_timeout = get_transaction_timeout_hw(
-		dce_i2c_hw, dce_i2c_request->payload.length + 1);
+		dce_i2c_hw, payload->length + 1);
 
 	submit_channel_request_hw(
 		dce_i2c_hw, &request);
 
 	if ((request.status == I2C_CHANNEL_OPERATION_FAILED) ||
-		(request.status == I2C_CHANNEL_OPERATION_ENGINE_BUSY)) {
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_CHANNEL_BUSY;
+		(request.status == I2C_CHANNEL_OPERATION_ENGINE_BUSY))
 		return false;
-	}
 
 	/* wait until transaction proceed */
 
@@ -591,37 +581,11 @@ bool dce_i2c_hw_engine_submit_request(
 
 	/* update transaction status */
 
-	switch (operation_result) {
-	case I2C_CHANNEL_OPERATION_SUCCEEDED:
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_SUCCEEDED;
+	if (operation_result == I2C_CHANNEL_OPERATION_SUCCEEDED)
 		result = true;
-	break;
-	case I2C_CHANNEL_OPERATION_NO_RESPONSE:
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_NACK;
-	break;
-	case I2C_CHANNEL_OPERATION_TIMEOUT:
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_TIMEOUT;
-	break;
-	case I2C_CHANNEL_OPERATION_FAILED:
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_INCOMPLETE;
-	break;
-	default:
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_OPERATION;
-	}
 
-	if (result && (dce_i2c_request->operation == DCE_I2C_TRANSACTION_READ)) {
-		struct i2c_reply_transaction_data reply;
-
-		reply.data = dce_i2c_request->payload.data;
-		reply.length = dce_i2c_request->payload.length;
-
-		process_channel_reply(dce_i2c_hw, &reply);
-	}
+	if (result && (!payload->write))
+		process_channel_reply(dce_i2c_hw, payload);
 
 	return result;
 }
@@ -644,22 +608,8 @@ bool dce_i2c_submit_command_hw(
 
 		struct i2c_payload *payload = cmd->payloads + index_of_payload;
 
-		struct dce_i2c_transaction_request request = { 0 };
-
-		request.operation = payload->write ?
-			DCE_I2C_TRANSACTION_WRITE :
-			DCE_I2C_TRANSACTION_READ;
-
-		request.payload.address_space =
-			DCE_I2C_TRANSACTION_ADDRESS_SPACE_I2C;
-		request.payload.address = (payload->address << 1) |
-			!payload->write;
-		request.payload.length = payload->length;
-		request.payload.data = payload->data;
-
-
-		if (!dce_i2c_hw_engine_submit_request(
-				dce_i2c_hw, &request, mot)) {
+		if (!dce_i2c_hw_engine_submit_payload(
+				dce_i2c_hw, payload, mot)) {
 			result = false;
 			break;
 		}

@@ -70,13 +70,6 @@ static void release_engine_dce_sw(
 	dce_i2c_sw->ddc = NULL;
 }
 
-enum i2c_channel_operation_result dce_i2c_sw_engine_get_channel_status(
-	struct dce_i2c_sw *engine,
-	uint8_t *returned_bytes)
-{
-	/* No arbitration with VBIOS is performed since DCE 6.0 */
-	return I2C_CHANNEL_OPERATION_SUCCEEDED;
-}
 static bool get_hw_supported_ddc_line(
 	struct ddc *ddc,
 	enum gpio_ddc_line *line)
@@ -469,73 +462,33 @@ void dce_i2c_sw_engine_submit_channel_request(
 		I2C_CHANNEL_OPERATION_SUCCEEDED :
 		I2C_CHANNEL_OPERATION_FAILED;
 }
-bool dce_i2c_sw_engine_submit_request(
+bool dce_i2c_sw_engine_submit_payload(
 	struct dce_i2c_sw *engine,
-	struct dce_i2c_transaction_request *dce_i2c_request,
+	struct i2c_payload *payload,
 	bool middle_of_transaction)
 {
 	struct i2c_request_transaction_data request;
-	bool operation_succeeded = false;
 
-	if (dce_i2c_request->operation == DCE_I2C_TRANSACTION_READ)
+	if (!payload->write)
 		request.action = middle_of_transaction ?
 			DCE_I2C_TRANSACTION_ACTION_I2C_READ_MOT :
 			DCE_I2C_TRANSACTION_ACTION_I2C_READ;
-	else if (dce_i2c_request->operation == DCE_I2C_TRANSACTION_WRITE)
+	else
 		request.action = middle_of_transaction ?
 			DCE_I2C_TRANSACTION_ACTION_I2C_WRITE_MOT :
 			DCE_I2C_TRANSACTION_ACTION_I2C_WRITE;
-	else {
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_INVALID_OPERATION;
-		/* in DAL2, there was no "return false" */
-		return false;
-	}
 
-	request.address = (uint8_t)dce_i2c_request->payload.address;
-	request.length = dce_i2c_request->payload.length;
-	request.data = dce_i2c_request->payload.data;
+	request.address = (uint8_t) ((payload->address << 1) | !payload->write);
+	request.length = payload->length;
+	request.data = payload->data;
 
 	dce_i2c_sw_engine_submit_channel_request(engine, &request);
 
 	if ((request.status == I2C_CHANNEL_OPERATION_ENGINE_BUSY) ||
 		(request.status == I2C_CHANNEL_OPERATION_FAILED))
-		dce_i2c_request->status =
-			DCE_I2C_TRANSACTION_STATUS_FAILED_CHANNEL_BUSY;
-	else {
-		enum i2c_channel_operation_result operation_result;
+		return false;
 
-		do {
-			operation_result =
-				dce_i2c_sw_engine_get_channel_status(engine, NULL);
-
-			switch (operation_result) {
-			case I2C_CHANNEL_OPERATION_SUCCEEDED:
-				dce_i2c_request->status =
-					DCE_I2C_TRANSACTION_STATUS_SUCCEEDED;
-				operation_succeeded = true;
-			break;
-			case I2C_CHANNEL_OPERATION_NO_RESPONSE:
-				dce_i2c_request->status =
-					DCE_I2C_TRANSACTION_STATUS_FAILED_NACK;
-			break;
-			case I2C_CHANNEL_OPERATION_TIMEOUT:
-				dce_i2c_request->status =
-				DCE_I2C_TRANSACTION_STATUS_FAILED_TIMEOUT;
-			break;
-			case I2C_CHANNEL_OPERATION_FAILED:
-				dce_i2c_request->status =
-				DCE_I2C_TRANSACTION_STATUS_FAILED_INCOMPLETE;
-			break;
-			default:
-				dce_i2c_request->status =
-				DCE_I2C_TRANSACTION_STATUS_FAILED_OPERATION;
-			break;
-			}
-		} while (operation_result == I2C_CHANNEL_OPERATION_ENGINE_BUSY);
-	}
-
-	return operation_succeeded;
+	return true;
 }
 bool dce_i2c_submit_command_sw(
 	struct resource_pool *pool,
@@ -555,22 +508,8 @@ bool dce_i2c_submit_command_sw(
 
 		struct i2c_payload *payload = cmd->payloads + index_of_payload;
 
-		struct dce_i2c_transaction_request request = { 0 };
-
-		request.operation = payload->write ?
-			DCE_I2C_TRANSACTION_WRITE :
-			DCE_I2C_TRANSACTION_READ;
-
-		request.payload.address_space =
-			DCE_I2C_TRANSACTION_ADDRESS_SPACE_I2C;
-		request.payload.address = (payload->address << 1) |
-			!payload->write;
-		request.payload.length = payload->length;
-		request.payload.data = payload->data;
-
-
-		if (!dce_i2c_sw_engine_submit_request(
-			dce_i2c_sw, &request, mot)) {
+		if (!dce_i2c_sw_engine_submit_payload(
+			dce_i2c_sw, payload, mot)) {
 			result = false;
 			break;
 		}
