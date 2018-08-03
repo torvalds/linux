@@ -239,15 +239,13 @@ struct pci_ops mt7621_pci_ops = {
 	.write		= pci_generic_config_write,
 };
 
-static void
-read_config(struct mt7621_pcie *pcie,
-	    unsigned long bus, unsigned long dev,
-	    unsigned long func, unsigned long reg, unsigned long *val)
+static u32
+read_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg)
 {
-	u32 address = mt7621_pci_get_cfgaddr(bus, dev, func, reg);
+	u32 address = mt7621_pci_get_cfgaddr(0, dev, 0, reg);
 
 	pcie_write(pcie, address, RALINK_PCI_CONFIG_ADDR);
-	*val = pcie_read(pcie, RALINK_PCI_CONFIG_DATA_VIRTUAL_REG);
+	return pcie_read(pcie, RALINK_PCI_CONFIG_DATA_VIRTUAL_REG);
 }
 
 static void
@@ -271,7 +269,7 @@ pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 	if (dev->bus->number == 0) {
 		write_config(pcie, 0, slot, 0, PCI_BASE_ADDRESS_0, MEMORY_BASE);
-		read_config(pcie, 0, slot, 0, PCI_BASE_ADDRESS_0, (unsigned long *)&val);
+		val = read_config(pcie, slot, PCI_BASE_ADDRESS_0);
 		printk("BAR0 at slot %d = %x\n", slot, val);
 	}
 
@@ -517,7 +515,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	struct mt7621_pcie *pcie;
 	struct pci_host_bridge *bridge;
 	int err;
-	unsigned long val = 0;
+	u32 val = 0;
 	LIST_HEAD(res);
 
 	if (!dev->of_node)
@@ -569,13 +567,13 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		bypass_pipe_rst();
 	set_phy_for_ssc();
 
-	read_config(pcie, 0, 0, 0, 0x70c, &val);
+	val = read_config(pcie, 0, 0x70c);
 	printk("Port 0 N_FTS = %x\n", (unsigned int)val);
 
-	read_config(pcie, 0, 1, 0, 0x70c, &val);
+	val = read_config(pcie, 1, 0x70c);
 	printk("Port 1 N_FTS = %x\n", (unsigned int)val);
 
-	read_config(pcie, 0, 2, 0, 0x70c, &val);
+	val = read_config(pcie, 2, 0x70c);
 	printk("Port 2 N_FTS = %x\n", (unsigned int)val);
 
 	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
@@ -696,25 +694,25 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 
 	switch (pcie_link_status) {
 	case 7:
-		read_config(pcie, 0, 2, 0, 0x4, &val);
+		val = read_config(pcie, 2, 0x4);
 		write_config(pcie, 0, 2, 0, 0x4, val|0x4);
-		read_config(pcie, 0, 2, 0, 0x70c, &val);
+		val = read_config(pcie, 2, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
 		write_config(pcie, 0, 2, 0, 0x70c, val);
 	case 3:
 	case 5:
 	case 6:
-		read_config(pcie, 0, 1, 0, 0x4, &val);
+		val = read_config(pcie, 1, 0x4);
 		write_config(pcie, 0, 1, 0, 0x4, val|0x4);
-		read_config(pcie, 0, 1, 0, 0x70c, &val);
+		val = read_config(pcie, 1, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
 		write_config(pcie, 0, 1, 0, 0x70c, val);
 	default:
-		read_config(pcie, 0, 0, 0, 0x4, &val);
+		val = read_config(pcie, 0, 0x4);
 		write_config(pcie, 0, 0, 0, 0x4, val|0x4); //bus master enable
-		read_config(pcie, 0, 0, 0, 0x70c, &val);
+		val = read_config(pcie, 0, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
 		write_config(pcie, 0, 0, 0, 0x70c, val);
