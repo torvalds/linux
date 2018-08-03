@@ -249,11 +249,9 @@ read_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg)
 }
 
 static void
-write_config(struct mt7621_pcie *pcie,
-	     unsigned long bus, unsigned long dev,
-	     unsigned long func, unsigned long reg, unsigned long val)
+write_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg, u32 val)
 {
-	u32 address = mt7621_pci_get_cfgaddr(bus, dev, func, reg);
+	u32 address = mt7621_pci_get_cfgaddr(0, dev, 0, reg);
 
 	pcie_write(pcie, address, RALINK_PCI_CONFIG_ADDR);
 	pcie_write(pcie, val, RALINK_PCI_CONFIG_DATA_VIRTUAL_REG);
@@ -268,7 +266,7 @@ pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	int irq;
 
 	if (dev->bus->number == 0) {
-		write_config(pcie, 0, slot, 0, PCI_BASE_ADDRESS_0, MEMORY_BASE);
+		write_config(pcie, slot, PCI_BASE_ADDRESS_0, MEMORY_BASE);
 		val = read_config(pcie, slot, PCI_BASE_ADDRESS_0);
 		printk("BAR0 at slot %d = %x\n", slot, val);
 	}
@@ -695,27 +693,27 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 	switch (pcie_link_status) {
 	case 7:
 		val = read_config(pcie, 2, 0x4);
-		write_config(pcie, 0, 2, 0, 0x4, val|0x4);
+		write_config(pcie, 2, 0x4, val|0x4);
 		val = read_config(pcie, 2, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
-		write_config(pcie, 0, 2, 0, 0x70c, val);
+		write_config(pcie, 2, 0x70c, val);
 	case 3:
 	case 5:
 	case 6:
 		val = read_config(pcie, 1, 0x4);
-		write_config(pcie, 0, 1, 0, 0x4, val|0x4);
+		write_config(pcie, 1, 0x4, val|0x4);
 		val = read_config(pcie, 1, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
-		write_config(pcie, 0, 1, 0, 0x70c, val);
+		write_config(pcie, 1, 0x70c, val);
 	default:
 		val = read_config(pcie, 0, 0x4);
-		write_config(pcie, 0, 0, 0, 0x4, val|0x4); //bus master enable
+		write_config(pcie, 0, 0x4, val|0x4); //bus master enable
 		val = read_config(pcie, 0, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
-		write_config(pcie, 0, 0, 0, 0x70c, val);
+		write_config(pcie, 0, 0x70c, val);
 	}
 
 	err = mt7621_pci_parse_request_of_pci_ranges(pcie);
