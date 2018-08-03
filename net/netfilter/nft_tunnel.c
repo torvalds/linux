@@ -116,7 +116,7 @@ struct nft_tunnel_opts {
 		struct erspan_metadata	erspan;
 	} u;
 	u32	len;
-	u32	flags;
+	__be16	flags;
 };
 
 struct nft_tunnel_obj {
@@ -337,12 +337,10 @@ static int nft_tunnel_obj_init(const struct nft_ctx *ctx,
 	}
 
 	if (tb[NFTA_TUNNEL_KEY_SPORT]) {
-		info.key.tp_src =
-			ntohs(nla_get_be16(tb[NFTA_TUNNEL_KEY_SPORT]));
+		info.key.tp_src = nla_get_be16(tb[NFTA_TUNNEL_KEY_SPORT]);
 	}
 	if (tb[NFTA_TUNNEL_KEY_DPORT]) {
-		info.key.tp_dst =
-			ntohs(nla_get_be16(tb[NFTA_TUNNEL_KEY_DPORT]));
+		info.key.tp_dst = nla_get_be16(tb[NFTA_TUNNEL_KEY_DPORT]);
 	}
 
 	if (tb[NFTA_TUNNEL_KEY_FLAGS]) {
