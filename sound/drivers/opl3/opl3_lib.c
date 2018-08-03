@@ -538,19 +538,3 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 }
 
 EXPORT_SYMBOL(snd_opl3_hwdep_new);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_opl3_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_opl3_exit(void)
-{
-}
-
-module_init(alsa_opl3_init)
-module_exit(alsa_opl3_exit)
