@@ -725,7 +725,7 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 	unsigned int adc_aif1 = 0, adc_aif2 = 0, dac_aif1 = 0, dac_aif2 = 0;
 	int idx, grp, is_master;
-	int type = ADC_TYPE_NORMAL;
+	int type = ADC_TYPE_ALL;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
