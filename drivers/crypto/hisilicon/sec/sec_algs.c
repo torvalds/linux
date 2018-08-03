@@ -393,7 +393,7 @@ static void sec_alg_free_el(struct sec_request_el *el,
 }
 
 /* queuelock must be held */
-int sec_send_request(struct sec_request *sec_req, struct sec_queue *queue)
+static int sec_send_request(struct sec_request *sec_req, struct sec_queue *queue)
 {
 	struct sec_request_el *el, *temp;
 	int ret = 0;
