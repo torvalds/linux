@@ -134,13 +134,6 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 	struct input_dev *dev = iforce->dev;
 	int i;
 
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	if (HI(iforce->expect_packet) == HI(cmd)) {
-		iforce->expect_packet = 0;
-		iforce->ecmd = cmd;
-		memcpy(iforce->edata, data, IFORCE_MAX_LENGTH);
-	}
-#endif
 	wake_up(&iforce->wait);
 
 	if (!iforce->type)

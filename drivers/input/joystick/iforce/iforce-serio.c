@@ -130,7 +130,17 @@ static irqreturn_t iforce_serio_irq(struct serio *serio,
 	}
 
 	if (iforce->idx == iforce->len) {
-		iforce_process_packet(iforce, (iforce->id << 8) | iforce->idx, iforce->data);
+		u16 cmd = (iforce->id << 8) | iforce->idx;
+
+		/* Handle command completion */
+		if (HI(iforce->expect_packet) == HI(cmd)) {
+			iforce->expect_packet = 0;
+			iforce->ecmd = cmd;
+			memcpy(iforce->edata, iforce->data, IFORCE_MAX_LENGTH);
+		}
+
+		iforce_process_packet(iforce, cmd, iforce->data);
+
 		iforce->pkt = 0;
 		iforce->id  = 0;
 		iforce->len = 0;
