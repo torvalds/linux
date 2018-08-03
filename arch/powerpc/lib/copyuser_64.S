@@ -12,6 +12,11 @@
 #include <asm/asm-compat.h>
 #include <asm/feature-fixups.h>
 
+#ifndef SELFTEST_CASE
+/* 0 == most CPUs, 1 == POWER6, 2 == Cell */
+#define SELFTEST_CASE	0
+#endif
+
 #ifdef __BIG_ENDIAN__
 #define sLd sld		/* Shift towards low-numbered address. */
 #define sHd srd		/* Shift towards high-numbered address. */
@@ -73,6 +78,7 @@ _GLOBAL(__copy_tofrom_user_base)
  * At the time of writing the only CPU that has this combination of bits
  * set is Power6.
  */
+test_feature = (SELFTEST_CASE == 1)
 BEGIN_FTR_SECTION
 	nop
 FTR_SECTION_ELSE
@@ -82,6 +88,7 @@ ALT_FTR_SECTION_END(CPU_FTR_UNALIGNED_LD_STD | CPU_FTR_CP_USE_DCBTZ, \
 .Ldst_aligned:
 	addi	r3,r3,-16
 r3_offset = 16
+test_feature = (SELFTEST_CASE == 0)
 BEGIN_FTR_SECTION
 	andi.	r0,r4,7
 	bne	.Lsrc_unaligned

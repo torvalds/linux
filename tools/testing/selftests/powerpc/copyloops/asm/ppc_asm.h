@@ -43,17 +43,16 @@ FUNC_START(enter_vmx_ops)
 FUNC_START(exit_vmx_ops)
 	blr
 
-FUNC_START(memcpy_power7)
-	blr
-
-FUNC_START(__copy_tofrom_user_power7)
-	blr
-
 FUNC_START(__copy_tofrom_user_base)
 	blr
 
-#define BEGIN_FTR_SECTION
-#define FTR_SECTION_ELSE
-#define ALT_FTR_SECTION_END_IFCLR(x)
-#define ALT_FTR_SECTION_END(x, y)
-#define END_FTR_SECTION_IFCLR(x)
+#define BEGIN_FTR_SECTION		.if test_feature
+#define FTR_SECTION_ELSE		.else
+#define ALT_FTR_SECTION_END_IFCLR(x)	.endif
+#define ALT_FTR_SECTION_END_IFSET(x)	.endif
+#define ALT_FTR_SECTION_END(x, y)	.endif
+#define END_FTR_SECTION_IFCLR(x)	.endif
+#define END_FTR_SECTION_IFSET(x)	.endif
+
+/* Default to taking the first of any alternative feature sections */
+test_feature = 1

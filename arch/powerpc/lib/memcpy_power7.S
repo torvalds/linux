@@ -19,7 +19,10 @@
  */
 #include <asm/ppc_asm.h>
 
-_GLOBAL(memcpy_power7)
+#ifndef SELFTEST_CASE
+/* 0 == don't use VMX, 1 == use VMX */
+#define SELFTEST_CASE	0
+#endif
 
 #ifdef __BIG_ENDIAN__
 #define LVS(VRT,RA,RB)		lvsl	VRT,RA,RB
@@ -29,20 +32,17 @@ _GLOBAL(memcpy_power7)
 #define VPERM(VRT,VRA,VRB,VRC)	vperm	VRT,VRB,VRA,VRC
 #endif
 
-#ifdef CONFIG_ALTIVEC
+_GLOBAL(memcpy_power7)
 	cmpldi	r5,16
 	cmpldi	cr1,r5,4096
-
 	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-
 	blt	.Lshort_copy
-	bgt	cr1,.Lvmx_copy
-#else
-	cmpldi	r5,16
 
-	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-
-	blt	.Lshort_copy
+#ifdef CONFIG_ALTIVEC
+test_feature = SELFTEST_CASE
+BEGIN_FTR_SECTION
+	bgt	cr1, .Lvmx_copy
+END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 
 .Lnonvmx_copy:
@@ -223,8 +223,8 @@ _GLOBAL(memcpy_power7)
 	addi	r1,r1,STACKFRAMESIZE
 	b	.Lnonvmx_copy
 
-#ifdef CONFIG_ALTIVEC
 .Lvmx_copy:
+#ifdef CONFIG_ALTIVEC
 	mflr	r0
 	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
 	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
