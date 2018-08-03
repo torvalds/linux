@@ -40,7 +40,7 @@
 #define		RX_PATH_SELECTION_SS_TH_LOW		30
 #define		RX_PATH_SELECTION_DIFF_TH			18
 
-#define		RateAdaptiveTH_High			50
+#define		RATE_ADAPTIVE_TH_HIGH			50
 #define		RateAdaptiveTH_Low_20M		30
 #define		RateAdaptiveTH_Low_40M		10
 #define		VeryLowRSSI					15
