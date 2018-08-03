@@ -564,6 +564,7 @@ void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv,
 				u8 enable_coex);
 void ath9k_htc_ani_work(struct work_struct *work);
+void ath9k_htc_check_ani(struct ath9k_htc_priv *priv);
 void ath9k_htc_start_ani(struct ath9k_htc_priv *priv);
 void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv);
 

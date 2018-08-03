@@ -398,6 +398,101 @@ static const struct file_operations fops_debug = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_ani(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	unsigned int len = 0;
+	const unsigned int size = 1024;
+	ssize_t retval = 0;
+	char *buf;
+	int i;
+	struct {
+		const char *name;
+		unsigned int val;
+	} ani_info[] = {
+		{ "ANI RESET", priv->ah->stats.ast_ani_reset },
+		{ "OFDM LEVEL", priv->ah->ani.ofdmNoiseImmunityLevel },
+		{ "CCK LEVEL", priv->ah->ani.cckNoiseImmunityLevel },
+		{ "SPUR UP", priv->ah->stats.ast_ani_spurup },
+		{ "SPUR DOWN", priv->ah->stats.ast_ani_spurup },
+		{ "OFDM WS-DET ON", priv->ah->stats.ast_ani_ofdmon },
+		{ "OFDM WS-DET OFF", priv->ah->stats.ast_ani_ofdmoff },
+		{ "MRC-CCK ON", priv->ah->stats.ast_ani_ccklow },
+		{ "MRC-CCK OFF", priv->ah->stats.ast_ani_cckhigh },
+		{ "FIR-STEP UP", priv->ah->stats.ast_ani_stepup },
+		{ "FIR-STEP DOWN", priv->ah->stats.ast_ani_stepdown },
+		{ "INV LISTENTIME", priv->ah->stats.ast_ani_lneg_or_lzero },
+		{ "OFDM ERRORS", priv->ah->stats.ast_ani_ofdmerrs },
+		{ "CCK ERRORS", priv->ah->stats.ast_ani_cckerrs },
+	};
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	len += scnprintf(buf + len, size - len, "%15s: %s\n", "ANI",
+			 common->disable_ani ? "DISABLED" : "ENABLED");
+
+	if (common->disable_ani)
+		goto exit;
+
+	for (i = 0; i < ARRAY_SIZE(ani_info); i++)
+		len += scnprintf(buf + len, size - len, "%15s: %u\n",
+				 ani_info[i].name, ani_info[i].val);
+
+exit:
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static ssize_t write_file_ani(struct file *file,
+			      const char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	unsigned long ani;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtoul(buf, 0, &ani))
+		return -EINVAL;
+
+	if (ani > 1)
+		return -EINVAL;
+
+	common->disable_ani = !ani;
+
+	if (common->disable_ani) {
+		clear_bit(ATH_OP_ANI_RUN, &common->op_flags);
+		ath9k_htc_stop_ani(priv);
+	} else {
+		ath9k_htc_check_ani(priv);
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_ani = {
+	.read = read_file_ani,
+	.write = write_file_ani,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 /* Ethtool support for get-stats */
 #define AMKSTR(nm) #nm "_BE", #nm "_BK", #nm "_VI", #nm "_VO"
 static const char ath9k_htc_gstrings_stats[][ETH_GSTRING_LEN] = {
@@ -523,6 +618,8 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 #ifdef CONFIG_ATH9K_DYNACK
 	ath9k_cmn_debug_ack_to(priv->debug.debugfs_phy, priv->ah);
 #endif
+
+	debugfs_create_file("ani", 0600, priv->debug.debugfs_phy, priv, &fops_ani);
 
 	return 0;
 }

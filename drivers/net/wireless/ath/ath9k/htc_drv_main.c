@@ -1505,11 +1505,55 @@ static void ath9k_htc_choose_set_bssid(struct ath9k_htc_priv *priv)
 	}
 }
 
+void ath9k_htc_check_ani(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_beacon_config *cur_conf = &priv->cur_beacon_conf;
+
+	/*
+	 * Check for the various conditions in which ANI has to
+	 * be stopped.
+	 */
+	if (ah->opmode == NL80211_IFTYPE_ADHOC) {
+		if (!cur_conf->enable_beacon)
+			goto stop_ani;
+	} else if (ah->opmode == NL80211_IFTYPE_AP) {
+		if (!cur_conf->enable_beacon) {
+			/*
+			 * Disable ANI only when there are no
+			 * associated stations.
+			 */
+			if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
+				goto stop_ani;
+		}
+	} else if (ah->opmode == NL80211_IFTYPE_STATION) {
+		if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
+			goto stop_ani;
+	}
+
+	if (!test_bit(ATH_OP_ANI_RUN, &common->op_flags)) {
+		set_bit(ATH_OP_ANI_RUN, &common->op_flags);
+		ath9k_htc_start_ani(priv);
+	}
+
+	return;
+
+stop_ani:
+	clear_bit(ATH_OP_ANI_RUN, &common->op_flags);
+	ath9k_htc_stop_ani(priv);
+}
+
 static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
 				       u32 changed)
 {
+#define CHECK_ANI				\
+	(BSS_CHANGED_ASSOC |			\
+	 BSS_CHANGED_IBSS |			\
+	 BSS_CHANGED_BEACON_ENABLED)
+
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1609,8 +1653,13 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_HT)
 		ath9k_htc_update_rate(priv, vif, bss_conf);
 
+	if (changed & CHECK_ANI)
+		ath9k_htc_check_ani(priv);
+
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
+
+#undef CHECK_ANI
 }
 
 static u64 ath9k_htc_get_tsf(struct ieee80211_hw *hw,
