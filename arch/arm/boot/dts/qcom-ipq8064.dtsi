@@ -144,6 +144,15 @@
 					bias-disable;
 				};
 			};
+
+			spi_pins: spi_pins {
+				mux {
+					pins = "gpio18", "gpio19", "gpio21";
+					function = "gsbi5";
+					drive-strength = <10>;
+					bias-none;
+				};
+			};
 		};
 
 		intc: interrupt-controller@2000000 {
