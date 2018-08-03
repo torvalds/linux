@@ -222,8 +222,10 @@ static int sdm845_snd_platform_probe(struct platform_device *pdev)
 
 	/* Allocate the private data */
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	if (!data) {
+		ret = -ENOMEM;
+		goto data_alloc_fail;
+	}
 
 	card->dev = dev;
 	dev_set_drvdata(dev, card);
@@ -248,6 +250,7 @@ register_card_fail:
 	kfree(card->dai_link);
 parse_dt_fail:
 	kfree(data);
+data_alloc_fail:
 	kfree(card);
 	return ret;
 }
