@@ -537,6 +537,16 @@ struct sk_msg_buff {
 	struct list_head list;
 };
 
+struct bpf_redirect_info {
+	u32 ifindex;
+	u32 flags;
+	struct bpf_map *map;
+	struct bpf_map *map_to_flush;
+	unsigned long   map_owner;
+};
+
+DECLARE_PER_CPU(struct bpf_redirect_info, bpf_redirect_info);
+
 /* Compute the linear packet data range [data, data_end) which
  * will be accessed by various program types (cls_bpf, act_bpf,
  * lwt, ...). Subsystems allowing direct data access must (!)
