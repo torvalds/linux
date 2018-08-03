@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) Atmel Corporation.  All rights reserved.
- *
- * Module Name:  wilc_sdio.c
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
  */
 
 #include <linux/mmc/sdio_func.h>

@@ -1,12 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* ///////////////////////////////////////////////////////////////////////// */
-/*  */
-/* Copyright (c) Atmel Corporation.  All rights reserved. */
-/*  */
-/* Module Name:  wilc_wlan_if.h */
-/*  */
-/*  */
-/* ///////////////////////////////////////////////////////////////////////// */
+/*
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
+ */
 
 #ifndef WILC_WLAN_IF_H
 #define WILC_WLAN_IF_H
