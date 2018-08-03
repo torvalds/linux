@@ -430,7 +430,12 @@ static int unix_dgram_peer_wake_me(struct sock *sk, struct sock *other)
 
 	connected = unix_dgram_peer_wake_connect(sk, other);
 
-	if (unix_recvq_full(other))
+	/* If other is SOCK_DEAD, we want to make sure we signal
+	 * POLLOUT, such that a subsequent write() can get a
+	 * -ECONNREFUSED. Otherwise, if we haven't queued any skbs
+	 * to other and its full, we will hang waiting for POLLOUT.
+	 */
+	if (unix_recvq_full(other) && !sock_flag(other, SOCK_DEAD))
 		return 1;
 
 	if (connected)
