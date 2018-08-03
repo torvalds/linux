@@ -1250,8 +1250,10 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 		goto errout_tb;
 
 	tmplt = kzalloc(sizeof(*tmplt), GFP_KERNEL);
-	if (!tmplt)
+	if (!tmplt) {
+		err = -ENOMEM;
 		goto errout_tb;
+	}
 	tmplt->chain = chain;
 	err = fl_set_key(net, tb, &tmplt->dummy_key, &tmplt->mask, extack);
 	if (err)
