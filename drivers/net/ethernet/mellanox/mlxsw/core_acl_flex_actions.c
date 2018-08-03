@@ -327,12 +327,16 @@ static void mlxsw_afa_resource_add(struct mlxsw_afa_block *block,
 	list_add(&resource->list, &block->resource_list);
 }
 
+static void mlxsw_afa_resource_del(struct mlxsw_afa_resource *resource)
+{
+	list_del(&resource->list);
+}
+
 static void mlxsw_afa_resources_destroy(struct mlxsw_afa_block *block)
 {
 	struct mlxsw_afa_resource *resource, *tmp;
 
 	list_for_each_entry_safe(resource, tmp, &block->resource_list, list) {
-		list_del(&resource->list);
 		resource->destructor(block, resource);
 	}
 }
@@ -530,6 +534,7 @@ static void
 mlxsw_afa_fwd_entry_ref_destroy(struct mlxsw_afa_block *block,
 				struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref)
 {
+	mlxsw_afa_resource_del(&fwd_entry_ref->resource);
 	mlxsw_afa_fwd_entry_put(block->afa, fwd_entry_ref->fwd_entry);
 	kfree(fwd_entry_ref);
 }
