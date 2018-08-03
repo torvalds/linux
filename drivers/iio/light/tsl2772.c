@@ -20,6 +20,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/platform_data/tsl2772.h>
+#include <linux/regulator/consumer.h>
 
 /* Cal defs */
 #define PROX_STAT_CAL			0
@@ -109,6 +110,9 @@
 
 #define TSL2772_MAX_PROX_LEDS		2
 
+#define TSL2772_BOOT_MIN_SLEEP_TIME	10000
+#define TSL2772_BOOT_MAX_SLEEP_TIME	28000
+
 /* Device family members */
 enum {
 	tsl2571,
@@ -157,6 +161,8 @@ struct tsl2772_chip {
 	struct mutex prox_mutex;
 	struct mutex als_mutex;
 	struct i2c_client *client;
+	struct regulator *vdd_supply;
+	struct regulator *vddio_supply;
 	u16 prox_data;
 	struct tsl2772_als_info als_cur_info;
 	struct tsl2772_settings settings;
@@ -685,6 +691,52 @@ static int tsl2772_als_calibrate(struct iio_dev *indio_dev)
 	chip->settings.als_gain_trim = ret;
 
 	return ret;
+}
+
+static void tsl2772_disable_regulators_action(void *_data)
+{
+	struct tsl2772_chip *chip = _data;
+
+	regulator_disable(chip->vdd_supply);
+	regulator_disable(chip->vddio_supply);
+}
+
+static int tsl2772_enable_regulator(struct tsl2772_chip *chip,
+				    struct regulator *regulator)
+{
+	int ret;
+
+	ret = regulator_enable(regulator);
+	if (ret < 0) {
+		dev_err(&chip->client->dev, "Failed to enable regulator: %d\n",
+			ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static struct regulator *tsl2772_get_regulator(struct tsl2772_chip *chip,
+					       char *name)
+{
+	struct regulator *regulator;
+	int ret;
+
+	regulator = devm_regulator_get(&chip->client->dev, name);
+	if (IS_ERR(regulator)) {
+		if (PTR_ERR(regulator) != -EPROBE_DEFER)
+			dev_err(&chip->client->dev,
+				"Failed to get %s regulator %d\n",
+				name, (int)PTR_ERR(regulator));
+
+		return regulator;
+	}
+
+	ret = tsl2772_enable_regulator(chip, regulator);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	return regulator;
 }
 
 static int tsl2772_chip_on(struct iio_dev *indio_dev)
@@ -1745,6 +1797,27 @@ static int tsl2772_probe(struct i2c_client *clientp,
 	chip->client = clientp;
 	i2c_set_clientdata(clientp, indio_dev);
 
+	chip->vddio_supply = tsl2772_get_regulator(chip, "vddio");
+	if (IS_ERR(chip->vddio_supply))
+		return PTR_ERR(chip->vddio_supply);
+
+	chip->vdd_supply = tsl2772_get_regulator(chip, "vdd");
+	if (IS_ERR(chip->vdd_supply)) {
+		regulator_disable(chip->vddio_supply);
+		return PTR_ERR(chip->vdd_supply);
+	}
+
+	ret = devm_add_action(&clientp->dev, tsl2772_disable_regulators_action,
+			      chip);
+	if (ret < 0) {
+		tsl2772_disable_regulators_action(chip);
+		dev_err(&clientp->dev, "Failed to setup regulator cleanup action %d\n",
+			ret);
+		return ret;
+	}
+
+	usleep_range(TSL2772_BOOT_MIN_SLEEP_TIME, TSL2772_BOOT_MAX_SLEEP_TIME);
+
 	ret = i2c_smbus_read_byte_data(chip->client,
 				       TSL2772_CMD_REG | TSL2772_CHIPID);
 	if (ret < 0)
@@ -1818,13 +1891,33 @@ static int tsl2772_probe(struct i2c_client *clientp,
 static int tsl2772_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct tsl2772_chip *chip = iio_priv(indio_dev);
+	int ret;
 
-	return tsl2772_chip_off(indio_dev);
+	ret = tsl2772_chip_off(indio_dev);
+	regulator_disable(chip->vdd_supply);
+	regulator_disable(chip->vddio_supply);
+
+	return ret;
 }
 
 static int tsl2772_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct tsl2772_chip *chip = iio_priv(indio_dev);
+	int ret;
+
+	ret = tsl2772_enable_regulator(chip, chip->vddio_supply);
+	if (ret < 0)
+		return ret;
+
+	ret = tsl2772_enable_regulator(chip, chip->vdd_supply);
+	if (ret < 0) {
+		regulator_disable(chip->vddio_supply);
+		return ret;
+	}
+
+	usleep_range(TSL2772_BOOT_MIN_SLEEP_TIME, TSL2772_BOOT_MAX_SLEEP_TIME);
 
 	return tsl2772_chip_on(indio_dev);
 }
