@@ -584,6 +584,7 @@ static void
 mlxsw_afa_counter_destroy(struct mlxsw_afa_block *block,
 			  struct mlxsw_afa_counter *counter)
 {
+	mlxsw_afa_resource_del(&counter->resource);
 	block->afa->ops->counter_index_put(block->afa->ops_priv,
 					   counter->counter_index);
 	kfree(counter);
