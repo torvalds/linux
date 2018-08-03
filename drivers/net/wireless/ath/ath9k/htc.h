@@ -251,8 +251,8 @@ struct ath9k_vif_iter_data {
 	u8 mask[ETH_ALEN];
 };
 
-#define ATH9K_HTC_MAX_STA 8
-#define ATH9K_HTC_MAX_TID 8
+#define ATH9K_HTC_MAX_STA 128
+#define ATH9K_HTC_MAX_TID 16
 
 enum tid_aggr_state {
 	AGGR_STOP = 0,
