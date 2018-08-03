@@ -130,7 +130,7 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 {
 	int i;
 
-	kfree(adev->vcn.saved_bo);
+	kvfree(adev->vcn.saved_bo);
 
 	amdgpu_bo_free_kernel(&adev->vcn.vcpu_bo,
 			      &adev->vcn.gpu_addr,
@@ -161,7 +161,7 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 	size = amdgpu_bo_size(adev->vcn.vcpu_bo);
 	ptr = adev->vcn.cpu_addr;
 
-	adev->vcn.saved_bo = kmalloc(size, GFP_KERNEL);
+	adev->vcn.saved_bo = kvmalloc(size, GFP_KERNEL);
 	if (!adev->vcn.saved_bo)
 		return -ENOMEM;
 
@@ -183,7 +183,7 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 
 	if (adev->vcn.saved_bo != NULL) {
 		memcpy_toio(ptr, adev->vcn.saved_bo, size);
-		kfree(adev->vcn.saved_bo);
+		kvfree(adev->vcn.saved_bo);
 		adev->vcn.saved_bo = NULL;
 	} else {
 		const struct common_firmware_header *hdr;

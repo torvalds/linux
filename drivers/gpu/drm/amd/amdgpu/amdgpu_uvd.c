@@ -302,7 +302,7 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
 		if (adev->uvd.harvest_config & (1 << j))
 			continue;
-		kfree(adev->uvd.inst[j].saved_bo);
+		kvfree(adev->uvd.inst[j].saved_bo);
 
 		amdgpu_bo_free_kernel(&adev->uvd.inst[j].vcpu_bo,
 				      &adev->uvd.inst[j].gpu_addr,
@@ -368,7 +368,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 		size = amdgpu_bo_size(adev->uvd.inst[j].vcpu_bo);
 		ptr = adev->uvd.inst[j].cpu_addr;
 
-		adev->uvd.inst[j].saved_bo = kmalloc(size, GFP_KERNEL);
+		adev->uvd.inst[j].saved_bo = kvmalloc(size, GFP_KERNEL);
 		if (!adev->uvd.inst[j].saved_bo)
 			return -ENOMEM;
 
@@ -394,7 +394,7 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 
 		if (adev->uvd.inst[i].saved_bo != NULL) {
 			memcpy_toio(ptr, adev->uvd.inst[i].saved_bo, size);
-			kfree(adev->uvd.inst[i].saved_bo);
+			kvfree(adev->uvd.inst[i].saved_bo);
 			adev->uvd.inst[i].saved_bo = NULL;
 		} else {
 			const struct common_firmware_header *hdr;

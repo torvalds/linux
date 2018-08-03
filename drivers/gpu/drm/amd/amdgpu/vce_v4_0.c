@@ -439,7 +439,7 @@ static int vce_v4_0_sw_init(void *handle)
 		const struct common_firmware_header *hdr;
 		unsigned size = amdgpu_bo_size(adev->vce.vcpu_bo);
 
-		adev->vce.saved_bo = kmalloc(size, GFP_KERNEL);
+		adev->vce.saved_bo = kvmalloc(size, GFP_KERNEL);
 		if (!adev->vce.saved_bo)
 			return -ENOMEM;
 
@@ -496,7 +496,7 @@ static int vce_v4_0_sw_fini(void *handle)
 	amdgpu_virt_free_mm_table(adev);
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		kfree(adev->vce.saved_bo);
+		kvfree(adev->vce.saved_bo);
 		adev->vce.saved_bo = NULL;
 	}
 
