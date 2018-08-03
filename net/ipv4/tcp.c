@@ -2531,7 +2531,6 @@ int tcp_disconnect(struct sock *sk, int flags)
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	int err = 0;
 	int old_state = sk->sk_state;
 
 	if (old_state != TCP_CLOSE)
@@ -2612,7 +2611,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	}
 
 	sk->sk_error_report(sk);
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(tcp_disconnect);
 
