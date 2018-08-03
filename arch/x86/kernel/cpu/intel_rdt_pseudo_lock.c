@@ -1171,7 +1171,7 @@ static ssize_t pseudo_lock_measure_trigger(struct file *file,
 	buf[buf_size] = '\0';
 	ret = kstrtoint(buf, 10, &sel);
 	if (ret == 0) {
-		if (sel != 1 && sel != 2)
+		if (sel != 1)
 			return -EINVAL;
 		ret = debugfs_file_get(file->f_path.dentry);
 		if (ret)
