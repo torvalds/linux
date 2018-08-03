@@ -226,8 +226,8 @@ static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 				struct net_device *dev)
 {
 	unsigned int overhead = 0;
-	struct dst_entry *dst;
 	u32 l3_overhead = 0;
+	u32 mtu;
 
 	/* if the encap is UDP, account for UDP header size */
 	if (tunnel->encap == L2TP_ENCAPTYPE_UDP) {
@@ -256,15 +256,9 @@ static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 	overhead += session->hdr_len + ETH_HLEN + l3_overhead;
 
 	/* If PMTU discovery was enabled, use discovered MTU on L2TP device */
-	dst = sk_dst_get(tunnel->sock);
-	if (dst) {
-		/* dst_mtu will use PMTU if found, else fallback to intf MTU */
-		u32 pmtu = dst_mtu(dst);
-
-		if (pmtu != 0)
-			dev->mtu = pmtu;
-		dst_release(dst);
-	}
+	mtu = l2tp_tunnel_dst_mtu(tunnel);
+	if (mtu)
+		dev->mtu = mtu;
 	session->mtu = dev->mtu - overhead;
 	dev->mtu = session->mtu;
 	dev->needed_headroom += session->hdr_len;

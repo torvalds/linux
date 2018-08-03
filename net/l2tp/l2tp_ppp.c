@@ -93,7 +93,6 @@
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
-#include <net/dst.h>
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/xfrm.h>
@@ -554,7 +553,7 @@ static void pppol2tp_show(struct seq_file *m, void *arg)
 static void pppol2tp_session_init(struct l2tp_session *session)
 {
 	struct pppol2tp_session *ps;
-	struct dst_entry *dst;
+	u32 mtu;
 
 	session->recv_skb = pppol2tp_recv;
 #if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
@@ -566,15 +565,9 @@ static void pppol2tp_session_init(struct l2tp_session *session)
 	ps->owner = current->pid;
 
 	/* If PMTU discovery was enabled, use the MTU that was discovered */
-	dst = sk_dst_get(session->tunnel->sock);
-	if (dst) {
-		u32 pmtu = dst_mtu(dst);
-
-		if (pmtu)
-			session->mtu = pmtu - PPPOL2TP_HEADER_OVERHEAD;
-
-		dst_release(dst);
-	}
+	mtu = l2tp_tunnel_dst_mtu(session->tunnel);
+	if (mtu)
+		session->mtu = mtu - PPPOL2TP_HEADER_OVERHEAD;
 }
 
 struct l2tp_connect_info {
