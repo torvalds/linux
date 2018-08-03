@@ -410,7 +410,7 @@ out_error:
 }
 
 /*
- * Reserve log space and return a ticket corresponding the reservation.
+ * Reserve log space and return a ticket corresponding to the reservation.
  *
  * Each reservation is going to reserve extra space for a log record header.
  * When writes happen to the on-disk log, we don't subtract the length of the
