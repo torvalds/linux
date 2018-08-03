@@ -160,6 +160,27 @@ struct amdgpu_vm_pt {
 	struct amdgpu_vm_pt		*entries;
 };
 
+/* provided by hw blocks that can write ptes, e.g., sdma */
+struct amdgpu_vm_pte_funcs {
+	/* number of dw to reserve per operation */
+	unsigned	copy_pte_num_dw;
+
+	/* copy pte entries from GART */
+	void (*copy_pte)(struct amdgpu_ib *ib,
+			 uint64_t pe, uint64_t src,
+			 unsigned count);
+
+	/* write pte one entry at a time with addr mapping */
+	void (*write_pte)(struct amdgpu_ib *ib, uint64_t pe,
+			  uint64_t value, unsigned count,
+			  uint32_t incr);
+	/* for linear pte/pde updates without addr mapping */
+	void (*set_pte_pde)(struct amdgpu_ib *ib,
+			    uint64_t pe,
+			    uint64_t addr, unsigned count,
+			    uint32_t incr, uint64_t flags);
+};
+
 #define AMDGPU_VM_FAULT(pasid, addr) (((u64)(pasid) << 48) | (addr))
 #define AMDGPU_VM_FAULT_PASID(fault) ((u64)(fault) >> 48)
 #define AMDGPU_VM_FAULT_ADDR(fault)  ((u64)(fault) & 0xfffffffff000ULL)
@@ -265,6 +286,10 @@ struct amdgpu_vm_manager {
 	struct idr				pasid_idr;
 	spinlock_t				pasid_lock;
 };
+
+#define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
+#define amdgpu_vm_write_pte(adev, ib, pe, value, count, incr) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (value), (count), (incr)))
+#define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
 
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);
 void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
