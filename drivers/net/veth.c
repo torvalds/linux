@@ -22,12 +22,12 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/ptr_ring.h>
-#include <linux/skb_array.h>
 #include <linux/bpf_trace.h>
 
 #define DRV_NAME	"veth"
 #define DRV_VERSION	"1.0"
 
+#define VETH_XDP_FLAG		BIT(0)
 #define VETH_RING_SIZE		256
 #define VETH_XDP_HEADROOM	(XDP_PACKET_HEADROOM + NET_IP_ALIGN)
 
@@ -114,6 +114,24 @@ static const struct ethtool_ops veth_ethtool_ops = {
 };
 
 /* general routines */
+
+static bool veth_is_xdp_frame(void *ptr)
+{
+	return (unsigned long)ptr & VETH_XDP_FLAG;
+}
+
+static void *veth_ptr_to_xdp(void *ptr)
+{
+	return (void *)((unsigned long)ptr & ~VETH_XDP_FLAG);
+}
+
+static void veth_ptr_free(void *ptr)
+{
+	if (veth_is_xdp_frame(ptr))
+		xdp_return_frame(veth_ptr_to_xdp(ptr));
+	else
+		kfree_skb(ptr);
+}
 
 static void __veth_xdp_flush(struct veth_priv *priv)
 {
@@ -249,6 +267,63 @@ static struct sk_buff *veth_build_skb(void *head, int headroom, int len,
 	return skb;
 }
 
+static struct sk_buff *veth_xdp_rcv_one(struct veth_priv *priv,
+					struct xdp_frame *frame)
+{
+	void *hard_start = frame->data - frame->headroom;
+	void *head = hard_start - sizeof(struct xdp_frame);
+	int len = frame->len, delta = 0;
+	struct bpf_prog *xdp_prog;
+	unsigned int headroom;
+	struct sk_buff *skb;
+
+	rcu_read_lock();
+	xdp_prog = rcu_dereference(priv->xdp_prog);
+	if (likely(xdp_prog)) {
+		struct xdp_buff xdp;
+		u32 act;
+
+		xdp.data_hard_start = hard_start;
+		xdp.data = frame->data;
+		xdp.data_end = frame->data + frame->len;
+		xdp.data_meta = frame->data - frame->metasize;
+		xdp.rxq = &priv->xdp_rxq;
+
+		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+		switch (act) {
+		case XDP_PASS:
+			delta = frame->data - xdp.data;
+			len = xdp.data_end - xdp.data;
+			break;
+		default:
+			bpf_warn_invalid_xdp_action(act);
+		case XDP_ABORTED:
+			trace_xdp_exception(priv->dev, xdp_prog, act);
+		case XDP_DROP:
+			goto err_xdp;
+		}
+	}
+	rcu_read_unlock();
+
+	headroom = sizeof(struct xdp_frame) + frame->headroom - delta;
+	skb = veth_build_skb(head, headroom, len, 0);
+	if (!skb) {
+		xdp_return_frame(frame);
+		goto err;
+	}
+
+	xdp_scrub_frame(frame);
+	skb->protocol = eth_type_trans(skb, priv->dev);
+err:
+	return skb;
+err_xdp:
+	rcu_read_unlock();
+	xdp_return_frame(frame);
+
+	return NULL;
+}
+
 static struct sk_buff *veth_xdp_rcv_skb(struct veth_priv *priv,
 					struct sk_buff *skb)
 {
@@ -359,12 +434,16 @@ static int veth_xdp_rcv(struct veth_priv *priv, int budget)
 	int i, done = 0;
 
 	for (i = 0; i < budget; i++) {
-		struct sk_buff *skb = __ptr_ring_consume(&priv->xdp_ring);
+		void *ptr = __ptr_ring_consume(&priv->xdp_ring);
+		struct sk_buff *skb;
 
-		if (!skb)
+		if (!ptr)
 			break;
 
-		skb = veth_xdp_rcv_skb(priv, skb);
+		if (veth_is_xdp_frame(ptr))
+			skb = veth_xdp_rcv_one(priv, veth_ptr_to_xdp(ptr));
+		else
+			skb = veth_xdp_rcv_skb(priv, ptr);
 
 		if (skb)
 			napi_gro_receive(&priv->xdp_napi, skb);
@@ -417,7 +496,7 @@ static void veth_napi_del(struct net_device *dev)
 	napi_disable(&priv->xdp_napi);
 	netif_napi_del(&priv->xdp_napi);
 	priv->rx_notify_masked = false;
-	ptr_ring_cleanup(&priv->xdp_ring, __skb_array_destroy_skb);
+	ptr_ring_cleanup(&priv->xdp_ring, veth_ptr_free);
 }
 
 static int veth_enable_xdp(struct net_device *dev)
