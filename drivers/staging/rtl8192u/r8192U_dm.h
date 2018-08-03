@@ -133,7 +133,6 @@ struct dynamic_rx_path_sel {
 	u8		cck_rx_path;
 
 	u8		disabled_rf;
-	u8		reserved;
 
 	u8		rf_rssi[4];
 	u8		rf_enable_rssi_th[4];
