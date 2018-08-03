@@ -53,10 +53,15 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
+#include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
 #include <ralink_regs.h>
 #include <mt7621.h>
+
+#include "../../pci/pci.h"
 
 /*
  * These functions and structures provide the BIOS scan and mapping of the PCI
@@ -178,6 +183,43 @@ static int pcie_link_status = 0;
 #define PCI_ACCESS_WRITE_2 4
 #define PCI_ACCESS_WRITE_4 5
 
+/**
+ * struct mt7621_pcie_port - PCIe port information
+ * @base: IO mapped register base
+ * @list: port list
+ * @pcie: pointer to PCIe host info
+ * @reset: pointer to port reset control
+ */
+struct mt7621_pcie_port {
+	void __iomem *base;
+	struct list_head list;
+	struct mt7621_pcie *pcie;
+	struct reset_control *reset;
+};
+
+/**
+ * struct mt7621_pcie - PCIe host information
+ * @base: IO Mapped Register Base
+ * @io: IO resource
+ * @mem: non-prefetchable memory resource
+ * @busn: bus range
+ * @offset: IO / Memory offset
+ * @dev: Pointer to PCIe device
+ * @ports: pointer to PCIe port information
+ */
+struct mt7621_pcie {
+	void __iomem *base;
+	struct device *dev;
+	struct resource io;
+	struct resource mem;
+	struct resource busn;
+	struct {
+		resource_size_t mem;
+		resource_size_t io;
+	} offset;
+	struct list_head ports;
+};
+
 static inline u32 mt7621_pci_get_cfgaddr(unsigned int bus, unsigned int slot,
 					 unsigned int func, unsigned int where)
 {
@@ -297,17 +339,22 @@ pci_config_write(struct pci_bus *bus, unsigned int devfn, int where, int size, u
 	}
 }
 
-struct pci_ops mt7621_pci_ops = {
-	.read		= pci_config_read,
-	.write		= pci_config_write,
-};
+static void __iomem *mt7621_pcie_map_bus(struct pci_bus *bus,
+					 unsigned int devfn, int where)
+{
+	struct mt7621_pcie *pcie = bus->sysdata;
+	u32 address = mt7621_pci_get_cfgaddr(bus->number, PCI_SLOT(devfn),
+					     PCI_FUNC(devfn), where);
 
-static struct resource mt7621_res_pci_mem1;
-static struct resource mt7621_res_pci_io1;
-static struct pci_controller mt7621_controller = {
-	.pci_ops	= &mt7621_pci_ops,
-	.mem_resource	= &mt7621_res_pci_mem1,
-	.io_resource	= &mt7621_res_pci_io1,
+	writel(address, pcie->base + RALINK_PCI_CONFIG_ADDR);
+
+	return pcie->base + RALINK_PCI_CONFIG_DATA_VIRTUAL_REG + (where & 3);
+}
+
+struct pci_ops mt7621_pci_ops = {
+	.map_bus	= mt7621_pcie_map_bus,
+	.read		= pci_generic_config_read,
+	.write		= pci_generic_config_write,
 };
 
 static void
@@ -463,9 +510,10 @@ set_phy_for_ssc(void)
 	set_pcie_phy((u32 *)(RALINK_PCIEPHY_P2_CTL_OFFSET + 0x000),  4, 1, 0x00);	// rg_pe1_frc_phy_en	//Force Port 0 disable control
 }
 
-void setup_cm_memory_region(struct resource *mem_resource)
+static void setup_cm_memory_region(struct resource *mem_resource)
 {
 	resource_size_t mask;
+
 	if (mips_cps_numiocu(0)) {
 		/* FIXME: hardware doesn't accept mask values with 1s after
 		 * 0s (e.g. 0xffef), so it would be great to warn if that's
@@ -480,14 +528,142 @@ void setup_cm_memory_region(struct resource *mem_resource)
 	}
 }
 
+static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	struct device_node *node = dev->of_node;
+	struct of_pci_range_parser parser;
+	struct of_pci_range range;
+	int err;
+
+	if (of_pci_range_parser_init(&parser, node)) {
+		dev_err(dev, "missing \"ranges\" property\n");
+		return -EINVAL;
+	}
+
+	for_each_of_pci_range(&parser, &range) {
+		struct resource *res = NULL;
+
+		switch (range.flags & IORESOURCE_TYPE_BITS) {
+		case IORESOURCE_IO:
+			ioremap(range.cpu_addr, range.size);
+			res = &pcie->io;
+			pcie->offset.io = 0x00000000UL;
+			break;
+		case IORESOURCE_MEM:
+			res = &pcie->mem;
+			pcie->offset.mem = 0x00000000UL;
+			break;
+		}
+
+		if (res != NULL)
+			of_pci_range_to_resource(&range, node, res);
+	}
+
+	err = of_pci_parse_bus_range(node, &pcie->busn);
+	if (err < 0) {
+		dev_err(dev, "failed to parse bus ranges property: %d\n", err);
+		pcie->busn.name = node->name;
+		pcie->busn.start = 0;
+		pcie->busn.end = 0xff;
+		pcie->busn.flags = IORESOURCE_BUS;
+	}
+
+	return 0;
+}
+
+static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	struct device_node *node = dev->of_node;
+	struct resource regs;
+	const char *type;
+	int err;
+
+	type = of_get_property(node, "device_type", NULL);
+	if (!type || strcmp(type, "pci") != 0) {
+		dev_err(dev, "invalid \"device_type\" %s\n", type);
+		return -EINVAL;
+	}
+
+	err = of_address_to_resource(node, 0, &regs);
+	if (err) {
+		dev_err(dev, "missing \"reg\" property\n");
+		return err;
+	}
+
+	pcie->base = devm_ioremap_resource(dev, &regs);
+	if (IS_ERR(pcie->base))
+		return PTR_ERR(pcie->base);
+
+	return 0;
+}
+
+static int mt7621_pcie_request_resources(struct mt7621_pcie *pcie,
+					 struct list_head *res)
+{
+	struct device *dev = pcie->dev;
+	int err;
+
+	pci_add_resource_offset(res, &pcie->io, pcie->offset.io);
+	pci_add_resource_offset(res, &pcie->mem, pcie->offset.mem);
+	pci_add_resource(res, &pcie->busn);
+
+	err = devm_request_pci_bus_resources(dev, res);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+static int mt7621_pcie_register_host(struct pci_host_bridge *host,
+				     struct list_head *res)
+{
+	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
+
+	list_splice_init(res, &host->windows);
+	host->busnr = pcie->busn.start;
+	host->dev.parent = pcie->dev;
+	host->ops = &mt7621_pci_ops;
+	host->map_irq = pcibios_map_irq;
+	host->swizzle_irq = pci_common_swizzle;
+	host->sysdata = pcie;
+
+	return pci_host_probe(host);
+}
+
 static int mt7621_pci_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct mt7621_pcie *pcie;
+	struct pci_host_bridge *bridge;
+	int err;
 	unsigned long val = 0;
+	LIST_HEAD(res);
 
+	if (!dev->of_node)
+		return -ENODEV;
+
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
+	if (!bridge)
+		return -ENODEV;
+
+	pcie = pci_host_bridge_priv(bridge);
+	pcie->dev = dev;
+	platform_set_drvdata(pdev, pcie);
+	INIT_LIST_HEAD(&pcie->ports);
+
+	err = mt7621_pcie_parse_dt(pcie);
+	if (err) {
+		dev_err(dev, "Parsing DT failed\n");
+		return err;
+	}
+
+	/* set resources limits */
 	iomem_resource.start = 0;
-	iomem_resource.end = ~0;
+	iomem_resource.end = ~0UL; /* no limit */
 	ioport_resource.start = 0;
-	ioport_resource.end = ~0;
+	ioport_resource.end = ~0UL; /* no limit */
 
 	val = RALINK_PCIE0_RST;
 	val |= RALINK_PCIE1_RST;
@@ -665,11 +841,27 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 		write_config(0, 0, 0, 0x70c, val);
 	}
 
-	pci_load_of_ranges(&mt7621_controller, pdev->dev.of_node);
-	setup_cm_memory_region(mt7621_controller.mem_resource);
-	register_pci_controller(&mt7621_controller);
-	return 0;
+	err = mt7621_pci_parse_request_of_pci_ranges(pcie);
+	if (err) {
+		dev_err(dev, "Error requesting pci resources from ranges");
+		return err;
+	}
 
+	setup_cm_memory_region(&pcie->mem);
+
+	err = mt7621_pcie_request_resources(pcie, &res);
+	if (err) {
+		dev_err(dev, "Error requesting resources\n");
+		return err;
+	}
+
+	err = mt7621_pcie_register_host(bridge, &res);
+	if (err) {
+		dev_err(dev, "Error registering host\n");
+		return err;
+	}
+
+	return 0;
 }
 
 int pcibios_plat_dev_init(struct pci_dev *dev)
