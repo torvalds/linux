@@ -43,8 +43,8 @@
 #define		RATE_ADAPTIVE_TH_HIGH			50
 #define		RATE_ADAPTIVE_TH_LOW_20M		30
 #define		RATE_ADAPTIVE_TH_LOW_40M		10
-#define		VeryLowRSSI					15
-#define		CTSToSelfTHVal					30
+#define		VERY_LOW_RSSI					15
+#define		CTS_TO_SELF_TH_VAL					30
 
 /* defined by vivi, for tx power track */
 #define		E_FOR_TX_POWER_TRACK               300

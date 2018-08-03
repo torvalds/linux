@@ -3090,7 +3090,7 @@ static bool HalRxCheckStuck819xUsb(struct net_device *dev)
 		rx_chk_cnt = 0;
 	} else if (((priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20 && priv->undecorated_smoothed_pwdb < RATE_ADAPTIVE_TH_LOW_40M) ||
 		    (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 && priv->undecorated_smoothed_pwdb < RATE_ADAPTIVE_TH_LOW_20M)) &&
-		     priv->undecorated_smoothed_pwdb >= VeryLowRSSI) {
+		     priv->undecorated_smoothed_pwdb >= VERY_LOW_RSSI) {
 		if (rx_chk_cnt < 4)
 			return bStuck;
 

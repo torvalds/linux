@@ -2268,7 +2268,7 @@ static void dm_init_ctstoself(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	priv->ieee80211->bCTSToSelfEnable = true;
-	priv->ieee80211->CTSToSelfTH = CTSToSelfTHVal;
+	priv->ieee80211->CTSToSelfTH = CTS_TO_SELF_TH_VAL;
 }
 
 static void dm_ctstoself(struct net_device *dev)
