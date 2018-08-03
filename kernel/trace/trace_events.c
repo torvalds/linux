@@ -239,7 +239,7 @@ bool trace_event_ignore_this_pid(struct trace_event_file *trace_file)
 	struct trace_array_cpu *data;
 	struct trace_pid_list *pid_list;
 
-	pid_list = rcu_dereference_sched(tr->filtered_pids);
+	pid_list = rcu_dereference_raw(tr->filtered_pids);
 	if (!pid_list)
 		return false;
 
@@ -512,7 +512,7 @@ event_filter_pid_sched_process_exit(void *data, struct task_struct *task)
 	struct trace_pid_list *pid_list;
 	struct trace_array *tr = data;
 
-	pid_list = rcu_dereference_sched(tr->filtered_pids);
+	pid_list = rcu_dereference_raw(tr->filtered_pids);
 	trace_filter_add_remove_task(pid_list, NULL, task);
 }
 
