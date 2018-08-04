@@ -780,7 +780,7 @@ static void sync_sched_exp_handler(void *unused)
 	}
 	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
 	/* Store .exp before .rcu_urgent_qs. */
-	smp_store_release(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs), true);
+	smp_store_release(this_cpu_ptr(&rcu_data.rcu_urgent_qs), true);
 	set_tsk_need_resched(current);
 	set_preempt_need_resched();
 }

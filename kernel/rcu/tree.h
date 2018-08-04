@@ -41,8 +41,6 @@ struct rcu_dynticks {
 	long dynticks_nesting;      /* Track process nesting level. */
 	long dynticks_nmi_nesting;  /* Track irq/NMI nesting level. */
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
-	bool rcu_need_heavy_qs;     /* GP old, need heavy quiescent state. */
-	bool rcu_urgent_qs;	    /* GP old need light quiescent state. */
 };
 
 /* Communicate arguments to a workqueue handler. */

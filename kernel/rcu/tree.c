@@ -362,7 +362,7 @@ static void __maybe_unused rcu_momentary_dyntick_idle(void)
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	int special;
 
-	raw_cpu_write(rcu_dynticks.rcu_need_heavy_qs, false);
+	raw_cpu_write(rcu_data.rcu_need_heavy_qs, false);
 	special = atomic_add_return(2 * RCU_DYNTICK_CTRL_CTR, &rdtp->dynticks);
 	/* It is illegal to call this from idle state. */
 	WARN_ON_ONCE(!(special & RCU_DYNTICK_CTRL_CTR));
@@ -928,7 +928,7 @@ void rcu_request_urgent_qs_task(struct task_struct *t)
 	cpu = task_cpu(t);
 	if (!task_curr(t))
 		return; /* This task is not running on that CPU. */
-	smp_store_release(per_cpu_ptr(&rcu_dynticks.rcu_urgent_qs, cpu), true);
+	smp_store_release(per_cpu_ptr(&rcu_data.rcu_urgent_qs, cpu), true);
 }
 
 #if defined(CONFIG_PROVE_RCU) && defined(CONFIG_HOTPLUG_CPU)
@@ -1081,8 +1081,8 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 * is set way high.
 	 */
 	jtsq = READ_ONCE(jiffies_to_sched_qs);
-	ruqp = per_cpu_ptr(&rcu_dynticks.rcu_urgent_qs, rdp->cpu);
-	rnhqp = &per_cpu(rcu_dynticks.rcu_need_heavy_qs, rdp->cpu);
+	ruqp = per_cpu_ptr(&rcu_data.rcu_urgent_qs, rdp->cpu);
+	rnhqp = &per_cpu(rcu_data.rcu_need_heavy_qs, rdp->cpu);
 	if (!READ_ONCE(*rnhqp) &&
 	    (time_after(jiffies, rcu_state.gp_start + jtsq * 2) ||
 	     time_after(jiffies, rcu_state.jiffies_resched))) {
@@ -2499,13 +2499,13 @@ void rcu_check_callbacks(int user)
 	trace_rcu_utilization(TPS("Start scheduler-tick"));
 	raw_cpu_inc(rcu_data.ticks_this_gp);
 	/* The load-acquire pairs with the store-release setting to true. */
-	if (smp_load_acquire(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs))) {
+	if (smp_load_acquire(this_cpu_ptr(&rcu_data.rcu_urgent_qs))) {
 		/* Idle and userspace execution already are quiescent states. */
 		if (!rcu_is_cpu_rrupt_from_idle() && !user) {
 			set_tsk_need_resched(current);
 			set_preempt_need_resched();
 		}
-		__this_cpu_write(rcu_dynticks.rcu_urgent_qs, false);
+		__this_cpu_write(rcu_data.rcu_urgent_qs, false);
 	}
 	rcu_flavor_check_callbacks(user);
 	if (rcu_pending())
