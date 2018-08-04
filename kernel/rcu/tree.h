@@ -38,8 +38,6 @@
  * Dynticks per-CPU state.
  */
 struct rcu_dynticks {
-	long dynticks_nesting;      /* Track process nesting level. */
-	long dynticks_nmi_nesting;  /* Track irq/NMI nesting level. */
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
 };
 
