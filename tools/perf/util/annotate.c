@@ -1310,10 +1310,10 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		struct annotation *notes = symbol__annotation(sym);
 
 		for (i = 0; i < al->data_nr; i++) {
-			struct annotation_data *sample = &al->data[i];
+			struct annotation_data *data = &al->data[i];
 
-			if (sample->percent > max_percent)
-				max_percent = sample->percent;
+			if (data->percent > max_percent)
+				max_percent = data->percent;
 		}
 
 		if (al->data_nr > nr_percent)
@@ -1351,18 +1351,18 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		}
 
 		for (i = 0; i < nr_percent; i++) {
-			struct annotation_data *sample = &al->data[i];
+			struct annotation_data *data = &al->data[i];
 
-			color = get_percent_color(sample->percent);
+			color = get_percent_color(data->percent);
 
 			if (symbol_conf.show_total_period)
 				color_fprintf(stdout, color, " %11" PRIu64,
-					      sample->he.period);
+					      data->he.period);
 			else if (symbol_conf.show_nr_samples)
 				color_fprintf(stdout, color, " %7" PRIu64,
-					      sample->he.nr_samples);
+					      data->he.nr_samples);
 			else
-				color_fprintf(stdout, color, " %7.2f", sample->percent);
+				color_fprintf(stdout, color, " %7.2f", data->percent);
 		}
 
 		printf(" : ");
@@ -1754,7 +1754,7 @@ out_close_stdout:
 }
 
 static void calc_percent(struct sym_hist *hist,
-			 struct annotation_data *sample,
+			 struct annotation_data *data,
 			 s64 offset, s64 end)
 {
 	unsigned int hits = 0;
@@ -1767,9 +1767,9 @@ static void calc_percent(struct sym_hist *hist,
 	}
 
 	if (hist->nr_samples) {
-		sample->he.period     = period;
-		sample->he.nr_samples = hits;
-		sample->percent = 100.0 * hits / hist->nr_samples;
+		data->he.period     = period;
+		data->he.nr_samples = hits;
+		data->percent = 100.0 * hits / hist->nr_samples;
 	}
 }
 
@@ -1789,13 +1789,13 @@ static void annotation__calc_percent(struct annotation *notes,
 		end  = next ? next->offset : len;
 
 		for (i = 0; i < al->data_nr; i++) {
-			struct annotation_data *sample;
+			struct annotation_data *data;
 			struct sym_hist *hist;
 
-			hist   = annotation__histogram(notes, evsel->idx + i);
-			sample = &al->data[i];
+			hist = annotation__histogram(notes, evsel->idx + i);
+			data = &al->data[i];
 
-			calc_percent(hist, sample, al->offset, end);
+			calc_percent(hist, data, al->offset, end);
 		}
 	}
 }
@@ -2356,12 +2356,12 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 		int i;
 
 		for (i = 0; i < al->data_nr; i++) {
-			struct annotation_data *sample;
+			struct annotation_data *data;
 
-			sample = &al->data[i];
+			data = &al->data[i];
 
-			if (sample->percent > percent_max)
-				percent_max = sample->percent;
+			if (data->percent > percent_max)
+				percent_max = data->percent;
 		}
 
 		if (percent_max <= 0.5)
