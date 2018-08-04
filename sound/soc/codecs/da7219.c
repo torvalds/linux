@@ -2143,9 +2143,9 @@ static bool da7219_volatile_register(struct device *dev, unsigned int reg)
 	case DA7219_ACCDET_IRQ_EVENT_B:
 	case DA7219_ACCDET_CONFIG_8:
 	case DA7219_SYSTEM_STATUS:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
