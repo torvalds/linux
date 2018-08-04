@@ -19,7 +19,6 @@
 #include <rtw_ioctl_set.h>
 #include <rtl8188e_hal.h>
 
-#include <rtw_iol.h>
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
 

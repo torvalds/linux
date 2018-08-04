@@ -11,7 +11,6 @@
 #include <rtw_efuse.h>
 #include <fw.h>
 #include <rtl8188e_hal.h>
-#include <rtw_iol.h>
 #include <phy.h>
 
 #define		HAL_BB_ENABLE		1
