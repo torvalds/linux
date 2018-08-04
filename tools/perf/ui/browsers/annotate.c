@@ -315,10 +315,13 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 		}
 
 		for (i = 0; i < pos->al.data_nr; i++) {
-			struct annotation_data *sample = &pos->al.data[i];
+			double percent;
 
-			if (max_percent < sample->percent)
-				max_percent = sample->percent;
+			percent = annotation_data__percent(&pos->al.data[i],
+							   PERCENT_HITS_LOCAL);
+
+			if (max_percent < percent)
+				max_percent = percent;
 		}
 
 		if (max_percent < 0.01 && pos->al.ipc == 0) {

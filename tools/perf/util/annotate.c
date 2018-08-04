@@ -1310,10 +1310,13 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		struct annotation *notes = symbol__annotation(sym);
 
 		for (i = 0; i < al->data_nr; i++) {
-			struct annotation_data *data = &al->data[i];
+			double percent;
 
-			if (data->percent > max_percent)
-				max_percent = data->percent;
+			percent = annotation_data__percent(&al->data[i],
+							   PERCENT_HITS_LOCAL);
+
+			if (percent > max_percent)
+				max_percent = percent;
 		}
 
 		if (al->data_nr > nr_percent)
@@ -1352,8 +1355,10 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 
 		for (i = 0; i < nr_percent; i++) {
 			struct annotation_data *data = &al->data[i];
+			double percent;
 
-			color = get_percent_color(data->percent);
+			percent = annotation_data__percent(data, PERCENT_HITS_LOCAL);
+			color = get_percent_color(percent);
 
 			if (symbol_conf.show_total_period)
 				color_fprintf(stdout, color, " %11" PRIu64,
@@ -1362,7 +1367,7 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 				color_fprintf(stdout, color, " %7" PRIu64,
 					      data->he.nr_samples);
 			else
-				color_fprintf(stdout, color, " %7.2f", data->percent);
+				color_fprintf(stdout, color, " %7.2f", percent);
 		}
 
 		printf(" : ");
@@ -1769,7 +1774,7 @@ static void calc_percent(struct sym_hist *sym_hist,
 	if (sym_hist->nr_samples) {
 		data->he.period     = period;
 		data->he.nr_samples = hits;
-		data->percent = 100.0 * hits / sym_hist->nr_samples;
+		data->percent[PERCENT_HITS_LOCAL] = 100.0 * hits / sym_hist->nr_samples;
 	}
 }
 
@@ -1862,8 +1867,10 @@ static void insert_source_line(struct rb_root *root, struct annotation_line *al)
 
 		ret = strcmp(iter->path, al->path);
 		if (ret == 0) {
-			for (i = 0; i < al->data_nr; i++)
-				iter->data[i].percent_sum += al->data[i].percent;
+			for (i = 0; i < al->data_nr; i++) {
+				iter->data[i].percent_sum += annotation_data__percent(&al->data[i],
+										      PERCENT_HITS_LOCAL);
+			}
 			return;
 		}
 
@@ -1873,8 +1880,10 @@ static void insert_source_line(struct rb_root *root, struct annotation_line *al)
 			p = &(*p)->rb_right;
 	}
 
-	for (i = 0; i < al->data_nr; i++)
-		al->data[i].percent_sum = al->data[i].percent;
+	for (i = 0; i < al->data_nr; i++) {
+		al->data[i].percent_sum = annotation_data__percent(&al->data[i],
+								   PERCENT_HITS_LOCAL);
+	}
 
 	rb_link_node(&al->rb_node, parent, p);
 	rb_insert_color(&al->rb_node, root);
@@ -2359,12 +2368,13 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 		int i;
 
 		for (i = 0; i < al->data_nr; i++) {
-			struct annotation_data *data;
+			double percent;
 
-			data = &al->data[i];
+			percent = annotation_data__percent(&al->data[i],
+							   PERCENT_HITS_LOCAL);
 
-			if (data->percent > percent_max)
-				percent_max = data->percent;
+			if (percent > percent_max)
+				percent_max = percent;
 		}
 
 		if (percent_max <= 0.5)
@@ -2451,8 +2461,13 @@ static double annotation_line__max_percent(struct annotation_line *al,
 	int i;
 
 	for (i = 0; i < notes->nr_events; i++) {
-		if (al->data[i].percent > percent_max)
-			percent_max = al->data[i].percent;
+		double percent;
+
+		percent = annotation_data__percent(&al->data[i],
+						   PERCENT_HITS_LOCAL);
+
+		if (percent > percent_max)
+			percent_max = percent;
 	}
 
 	return percent_max;
@@ -2518,15 +2533,19 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		int i;
 
 		for (i = 0; i < notes->nr_events; i++) {
-			obj__set_percent_color(obj, al->data[i].percent, current_entry);
+			double percent;
+
+			percent = annotation_data__percent(&al->data[i],
+							   PERCENT_HITS_LOCAL);
+
+			obj__set_percent_color(obj, percent, current_entry);
 			if (notes->options->show_total_period) {
 				obj__printf(obj, "%11" PRIu64 " ", al->data[i].he.period);
 			} else if (notes->options->show_nr_samples) {
 				obj__printf(obj, "%6" PRIu64 " ",
 						   al->data[i].he.nr_samples);
 			} else {
-				obj__printf(obj, "%6.2f ",
-						   al->data[i].percent);
+				obj__printf(obj, "%6.2f ", percent);
 			}
 		}
 	} else {
