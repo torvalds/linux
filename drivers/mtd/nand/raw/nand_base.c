@@ -6722,9 +6722,7 @@ static void nand_detach(struct nand_chip *chip)
 /**
  * nand_scan_with_ids - [NAND Interface] Scan for the NAND device
  * @chip: NAND chip object
- * @maxchips: number of chips to scan for. @nand_scan_ident() will not be run if
- *	      this parameter is zero (useful for specific drivers that must
- *	      handle this part of the process themselves, e.g docg4).
+ * @maxchips: number of chips to scan for.
  * @ids: optional flash IDs table
  *
  * This fills out all the uninitialized function pointers with the defaults.
@@ -6736,11 +6734,12 @@ int nand_scan_with_ids(struct nand_chip *chip, unsigned int maxchips,
 {
 	int ret;
 
-	if (maxchips) {
-		ret = nand_scan_ident(chip, maxchips, ids);
-		if (ret)
-			return ret;
-	}
+	if (!maxchips)
+		return -EINVAL;
+
+	ret = nand_scan_ident(chip, maxchips, ids);
+	if (ret)
+		return ret;
 
 	ret = nand_attach(chip);
 	if (ret)
