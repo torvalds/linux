@@ -17,51 +17,51 @@ enum tr_select {
 union qos_tclas {
 
 	struct type_general {
-		u8		Priority;
-		u8		ClassifierType;
-		u8		Mask;
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
 	} type_general;
 
 	struct type0_eth {
-		u8		Priority;
-		u8		ClassifierType;
-		u8		Mask;
-		u8		SrcAddr[6];
-		u8		DstAddr[6];
-		u16		Type;
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+		u8		src_addr[6];
+		u8		dst_addr[6];
+		u16		type;
 	} type0_eth;
 
 	struct type1_ipv4 {
-		u8		Priority;
-		u8		ClassifierType;
-		u8		Mask;
-		u8		Version;
-		u8		SrcIP[4];
-		u8		DstIP[4];
-		u16		SrcPort;
-		u16		DstPort;
-		u8		DSCP;
-		u8		Protocol;
-		u8		Reserved;
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+		u8		version;
+		u8		src_ip[4];
+		u8		dst_ip[4];
+		u16		src_port;
+		u16		dst_port;
+		u8		dscp;
+		u8		protocol;
+		u8		reserved;
 	} type1_ipv4;
 
 	struct type1_ipv6 {
-		u8		Priority;
-		u8		ClassifierType;
-		u8		Mask;
-		u8		Version;
-		u8		SrcIP[16];
-		u8		DstIP[16];
-		u16		SrcPort;
-		u16		DstPort;
-		u8		FlowLabel[3];
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+		u8		version;
+		u8		src_ip[16];
+		u8		dst_ip[16];
+		u16		src_port;
+		u16		dst_port;
+		u8		flow_label[3];
 	} type1_ipv6;
 
 	struct type2_8021q {
-		u8		Priority;
-		u8		ClassifierType;
-		u8		Mask;
-		u16		TagType;
+		u8		priority;
+		u8		classifier_type;
+		u8		mask;
+		u16		tag_type;
 	} type2_8021q;
 };
 
