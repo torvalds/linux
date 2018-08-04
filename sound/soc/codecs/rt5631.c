@@ -105,9 +105,9 @@ static bool rt5631_volatile_register(struct device *dev, unsigned int reg)
 	case RT5631_INDEX_ADD:
 	case RT5631_INDEX_DATA:
 	case RT5631_EQ_CTRL:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -164,9 +164,9 @@ static bool rt5631_readable_register(struct device *dev, unsigned int reg)
 	case RT5631_VENDOR_ID:
 	case RT5631_VENDOR_ID1:
 	case RT5631_VENDOR_ID2:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
