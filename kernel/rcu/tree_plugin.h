@@ -1597,16 +1597,14 @@ module_param(rcu_idle_lazy_gp_delay, int, 0644);
 static bool __maybe_unused rcu_try_advance_all_cbs(void)
 {
 	bool cbs_ready = false;
-	struct rcu_data *rdp;
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp;
 
 	/* Exit early if we advanced recently. */
-	if (jiffies == rdtp->last_advance_all)
+	if (jiffies == rdp->last_advance_all)
 		return false;
-	rdtp->last_advance_all = jiffies;
+	rdp->last_advance_all = jiffies;
 
-	rdp = this_cpu_ptr(&rcu_data);
 	rnp = rdp->mynode;
 
 	/*
@@ -1635,6 +1633,7 @@ static bool __maybe_unused rcu_try_advance_all_cbs(void)
  */
 int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 {
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	unsigned long dj;
 
@@ -1655,7 +1654,7 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 		invoke_rcu_core();
 		return 1;
 	}
-	rdtp->last_accelerate = jiffies;
+	rdp->last_accelerate = jiffies;
 
 	/* Request timer delay depending on laziness, and round. */
 	if (!rdtp->all_lazy) {
@@ -1718,9 +1717,9 @@ static void rcu_prepare_for_idle(void)
 	 * If we have not yet accelerated this jiffy, accelerate all
 	 * callbacks on this CPU.
 	 */
-	if (rdtp->last_accelerate == jiffies)
+	if (rdp->last_accelerate == jiffies)
 		return;
-	rdtp->last_accelerate = jiffies;
+	rdp->last_accelerate = jiffies;
 	if (rcu_segcblist_pend_cbs(&rdp->cblist)) {
 		rnp = rdp->mynode;
 		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
@@ -1769,7 +1768,7 @@ static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 	unsigned long nlpd = rdtp->nonlazy_posted - rdtp->nonlazy_posted_snap;
 
 	sprintf(cp, "last_accelerate: %04lx/%04lx, nonlazy_posted: %ld, %c%c",
-		rdtp->last_accelerate & 0xffff, jiffies & 0xffff,
+		rdp->last_accelerate & 0xffff, jiffies & 0xffff,
 		ulong2long(nlpd),
 		rdtp->all_lazy ? 'L' : '.',
 		rdp->tick_nohz_enabled_snap ? '.' : 'D');

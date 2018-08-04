@@ -49,10 +49,6 @@ struct rcu_dynticks {
 				    /* # times non-lazy CBs posted to CPU. */
 	unsigned long nonlazy_posted_snap;
 				    /* idle-period nonlazy_posted snapshot. */
-	unsigned long last_accelerate;
-				    /* Last jiffy CBs were accelerated. */
-	unsigned long last_advance_all;
-				    /* Last jiffy CBs were all advanced. */
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 };
 
