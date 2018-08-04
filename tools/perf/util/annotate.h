@@ -11,6 +11,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <pthread.h>
+#include <asm/bug.h>
 
 struct ins_ops;
 
@@ -147,6 +148,21 @@ static inline double annotation_data__percent(struct annotation_data *data,
 					      unsigned int which)
 {
 	return which < PERCENT_MAX ? data->percent[which] : -1;
+}
+
+static inline const char *percent_type_str(unsigned int type)
+{
+	static const char *str[PERCENT_MAX] = {
+		"local hits",
+		"global hits",
+		"local period",
+		"global period",
+	};
+
+	if (WARN_ON(type >= PERCENT_MAX))
+		return "N/A";
+
+	return str[type];
 }
 
 static inline struct disasm_line *disasm_line(struct annotation_line *al)
