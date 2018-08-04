@@ -113,6 +113,9 @@ static void ghash_do_update(int blocks, u64 dg[], const char *src,
 	}
 }
 
+/* avoid hogging the CPU for too long */
+#define MAX_BLOCKS	(SZ_64K / GHASH_BLOCK_SIZE)
+
 static int ghash_update(struct shash_desc *desc, const u8 *src,
 			unsigned int len)
 {
@@ -136,11 +139,16 @@ static int ghash_update(struct shash_desc *desc, const u8 *src,
 		blocks = len / GHASH_BLOCK_SIZE;
 		len %= GHASH_BLOCK_SIZE;
 
-		ghash_do_update(blocks, ctx->digest, src, key,
-				partial ? ctx->buf : NULL);
+		do {
+			int chunk = min(blocks, MAX_BLOCKS);
 
-		src += blocks * GHASH_BLOCK_SIZE;
-		partial = 0;
+			ghash_do_update(chunk, ctx->digest, src, key,
+					partial ? ctx->buf : NULL);
+
+			blocks -= chunk;
+			src += chunk * GHASH_BLOCK_SIZE;
+			partial = 0;
+		} while (unlikely(blocks > 0));
 	}
 	if (len)
 		memcpy(ctx->buf + partial, src, len);

@@ -213,31 +213,23 @@
 	.endm
 
 	.macro		__pmull_ghash, pn
-	frame_push	5
-
-	mov		x19, x0
-	mov		x20, x1
-	mov		x21, x2
-	mov		x22, x3
-	mov		x23, x4
-
-0:	ld1		{SHASH.2d}, [x22]
-	ld1		{XL.2d}, [x20]
+	ld1		{SHASH.2d}, [x3]
+	ld1		{XL.2d}, [x1]
 	ext		SHASH2.16b, SHASH.16b, SHASH.16b, #8
 	eor		SHASH2.16b, SHASH2.16b, SHASH.16b
 
 	__pmull_pre_\pn
 
 	/* do the head block first, if supplied */
-	cbz		x23, 1f
-	ld1		{T1.2d}, [x23]
-	mov		x23, xzr
-	b		2f
+	cbz		x4, 0f
+	ld1		{T1.2d}, [x4]
+	mov		x4, xzr
+	b		1f
 
-1:	ld1		{T1.2d}, [x21], #16
-	sub		w19, w19, #1
+0:	ld1		{T1.2d}, [x2], #16
+	sub		w0, w0, #1
 
-2:	/* multiply XL by SHASH in GF(2^128) */
+1:	/* multiply XL by SHASH in GF(2^128) */
 CPU_LE(	rev64		T1.16b, T1.16b	)
 
 	ext		T2.16b, XL.16b, XL.16b, #8
@@ -259,18 +251,9 @@ CPU_LE(	rev64		T1.16b, T1.16b	)
 	eor		T2.16b, T2.16b, XH.16b
 	eor		XL.16b, XL.16b, T2.16b
 
-	cbz		w19, 3f
+	cbnz		w0, 0b
 
-	if_will_cond_yield_neon
-	st1		{XL.2d}, [x20]
-	do_cond_yield_neon
-	b		0b
-	endif_yield_neon
-
-	b		1b
-
-3:	st1		{XL.2d}, [x20]
-	frame_pop
+	st1		{XL.2d}, [x1]
 	ret
 	.endm
 
