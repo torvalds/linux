@@ -328,7 +328,7 @@ static int tls_update_resync_sn(struct net_device *netdev,
 
 		sk = __inet6_lookup_established(dev_net(netdev), &tcp_hashinfo,
 						&ipv6h->saddr, th->source,
-						&ipv6h->daddr, th->dest,
+						&ipv6h->daddr, ntohs(th->dest),
 						netdev->ifindex, 0);
 #endif
 	}
