@@ -193,7 +193,7 @@ static int __exit tvc_remove(struct platform_device *pdev)
 	omapdss_unregister_display(&ddata->dssdev);
 
 	tvc_disable(dssdev);
-	tvc_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

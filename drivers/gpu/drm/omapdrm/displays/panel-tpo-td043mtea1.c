@@ -569,7 +569,7 @@ static int tpo_td043_remove(struct spi_device *spi)
 	omapdss_unregister_display(dssdev);
 
 	tpo_td043_disable(dssdev);
-	tpo_td043_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	sysfs_remove_group(&spi->dev.kobj, &tpo_td043_attr_group);
 

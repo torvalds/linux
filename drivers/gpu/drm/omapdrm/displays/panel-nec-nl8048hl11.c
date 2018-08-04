@@ -318,7 +318,7 @@ static int nec_8048_remove(struct spi_device *spi)
 	omapdss_unregister_display(dssdev);
 
 	nec_8048_disable(dssdev);
-	nec_8048_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

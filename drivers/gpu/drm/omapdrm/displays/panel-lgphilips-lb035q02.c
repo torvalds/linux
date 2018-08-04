@@ -292,7 +292,7 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 	omapdss_unregister_display(dssdev);
 
 	lb035q02_disable(dssdev);
-	lb035q02_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

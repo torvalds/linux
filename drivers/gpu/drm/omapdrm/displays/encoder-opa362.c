@@ -206,7 +206,7 @@ static int __exit opa362_remove(struct platform_device *pdev)
 
 	WARN_ON(omapdss_device_is_connected(dssdev));
 	if (omapdss_device_is_connected(dssdev))
-		opa362_disconnect(dssdev, dssdev->dst);
+		omapdss_device_disconnect(dssdev, dssdev->dst);
 
 	return 0;
 }

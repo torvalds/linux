@@ -292,7 +292,7 @@ static int __exit sharp_ls_remove(struct platform_device *pdev)
 	omapdss_unregister_display(dssdev);
 
 	sharp_ls_disable(dssdev);
-	sharp_ls_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

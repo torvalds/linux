@@ -420,7 +420,7 @@ static int __exit dvic_remove(struct platform_device *pdev)
 	omapdss_unregister_display(&ddata->dssdev);
 
 	dvic_disable(dssdev);
-	dvic_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	i2c_put_adapter(ddata->i2c_adapter);
 

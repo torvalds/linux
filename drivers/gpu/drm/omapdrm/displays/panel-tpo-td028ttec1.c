@@ -419,7 +419,7 @@ static int td028ttec1_panel_remove(struct spi_device *spi)
 	omapdss_unregister_display(dssdev);
 
 	td028ttec1_panel_disable(dssdev);
-	td028ttec1_panel_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

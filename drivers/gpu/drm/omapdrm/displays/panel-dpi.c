@@ -241,7 +241,7 @@ static int __exit panel_dpi_remove(struct platform_device *pdev)
 	omapdss_unregister_display(dssdev);
 
 	panel_dpi_disable(dssdev);
-	panel_dpi_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

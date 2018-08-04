@@ -375,7 +375,7 @@ static int __exit hdmic_remove(struct platform_device *pdev)
 	omapdss_unregister_display(&ddata->dssdev);
 
 	hdmic_disable(dssdev);
-	hdmic_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

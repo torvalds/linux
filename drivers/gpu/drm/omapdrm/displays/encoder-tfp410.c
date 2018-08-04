@@ -229,7 +229,7 @@ static int __exit tfp410_remove(struct platform_device *pdev)
 
 	WARN_ON(omapdss_device_is_connected(dssdev));
 	if (omapdss_device_is_connected(dssdev))
-		tfp410_disconnect(dssdev, dssdev->dst);
+		omapdss_device_disconnect(dssdev, dssdev->dst);
 
 	return 0;
 }

@@ -837,7 +837,7 @@ static int acx565akm_remove(struct spi_device *spi)
 	omapdss_unregister_display(dssdev);
 
 	acx565akm_disable(dssdev);
-	acx565akm_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

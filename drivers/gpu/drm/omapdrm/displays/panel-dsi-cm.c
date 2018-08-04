@@ -1408,7 +1408,7 @@ static int __exit dsicm_remove(struct platform_device *pdev)
 	omapdss_unregister_display(dssdev);
 
 	dsicm_disable(dssdev);
-	dsicm_disconnect(dssdev);
+	omapdss_device_disconnect(dssdev, NULL);
 
 	sysfs_remove_group(&pdev->dev.kobj, &dsicm_attr_group);
 
