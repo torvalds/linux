@@ -2544,7 +2544,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	}
 
 	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, rsv,
-				      min_size, 0);
+				      min_size, false);
 	BUG_ON(ret);
 	trans->block_rsv = rsv;
 
@@ -2594,7 +2594,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		}
 
 		ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv,
-					      rsv, min_size, 0);
+					      rsv, min_size, false);
 		BUG_ON(ret);	/* shouldn't happen */
 		trans->block_rsv = rsv;
 

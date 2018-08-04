@@ -5334,7 +5334,7 @@ static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
 		 * it.
 		 */
 		if (!btrfs_check_space_for_delayed_refs(trans, fs_info) &&
-		    !btrfs_block_rsv_migrate(global_rsv, rsv, min_size, 0))
+		    !btrfs_block_rsv_migrate(global_rsv, rsv, min_size, false))
 			return trans;
 
 		/* If not, commit and try again. */
@@ -9020,7 +9020,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 
 	/* Migrate the slack space for the truncate to our reserve */
 	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, rsv,
-				      min_size, 0);
+				      min_size, false);
 	BUG_ON(ret);
 
 	/*
@@ -9057,7 +9057,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 
 		btrfs_block_rsv_release(fs_info, rsv, -1);
 		ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv,
-					      rsv, min_size, 0);
+					      rsv, min_size, false);
 		BUG_ON(ret);	/* shouldn't happen */
 		trans->block_rsv = rsv;
 	}

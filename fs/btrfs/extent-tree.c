@@ -5284,7 +5284,7 @@ static int block_rsv_use_bytes(struct btrfs_block_rsv *block_rsv,
 }
 
 static void block_rsv_add_bytes(struct btrfs_block_rsv *block_rsv,
-				u64 num_bytes, int update_size)
+				u64 num_bytes, bool update_size)
 {
 	spin_lock(&block_rsv->lock);
 	block_rsv->reserved += num_bytes;
@@ -5316,7 +5316,7 @@ int btrfs_cond_migrate_bytes(struct btrfs_fs_info *fs_info,
 		global_rsv->full = 0;
 	spin_unlock(&global_rsv->lock);
 
-	block_rsv_add_bytes(dest, num_bytes, 1);
+	block_rsv_add_bytes(dest, num_bytes, true);
 	return 0;
 }
 
@@ -5479,7 +5479,7 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src,
 			    struct btrfs_block_rsv *dst, u64 num_bytes,
-			    int update_size)
+			    bool update_size)
 {
 	int ret;
 
@@ -5540,7 +5540,7 @@ int btrfs_block_rsv_add(struct btrfs_root *root,
 
 	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
 	if (!ret) {
-		block_rsv_add_bytes(block_rsv, num_bytes, 1);
+		block_rsv_add_bytes(block_rsv, num_bytes, true);
 		return 0;
 	}
 
@@ -5587,7 +5587,7 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 
 	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
 	if (!ret) {
-		block_rsv_add_bytes(block_rsv, num_bytes, 0);
+		block_rsv_add_bytes(block_rsv, num_bytes, false);
 		return 0;
 	}
 
@@ -5629,7 +5629,7 @@ static int btrfs_inode_rsv_refill(struct btrfs_inode *inode,
 		return ret;
 	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
 	if (!ret) {
-		block_rsv_add_bytes(block_rsv, num_bytes, 0);
+		block_rsv_add_bytes(block_rsv, num_bytes, false);
 		trace_btrfs_space_reservation(root->fs_info, "delalloc",
 					      btrfs_ino(inode), num_bytes, 1);
 
@@ -5835,7 +5835,7 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				  BTRFS_RESERVE_FLUSH_ALL);
 
 	if (ret == -ENOSPC && use_global_rsv)
-		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes, 1);
+		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes, true);
 
 	if (ret && qgroup_num_bytes)
 		btrfs_qgroup_free_meta_prealloc(root, qgroup_num_bytes);
@@ -8215,7 +8215,7 @@ try_reserve:
 static void unuse_block_rsv(struct btrfs_fs_info *fs_info,
 			    struct btrfs_block_rsv *block_rsv, u32 blocksize)
 {
-	block_rsv_add_bytes(block_rsv, blocksize, 0);
+	block_rsv_add_bytes(block_rsv, blocksize, false);
 	block_rsv_release_bytes(fs_info, block_rsv, NULL, 0, NULL);
 }
 

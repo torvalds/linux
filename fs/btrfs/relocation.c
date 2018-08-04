@@ -4669,7 +4669,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 	if (rc->merge_reloc_tree) {
 		ret = btrfs_block_rsv_migrate(&pending->block_rsv,
 					      rc->block_rsv,
-					      rc->nodes_relocated, 1);
+					      rc->nodes_relocated, true);
 		if (ret)
 			return ret;
 	}

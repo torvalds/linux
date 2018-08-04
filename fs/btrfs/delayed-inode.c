@@ -559,7 +559,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 	 * reserved space when starting a transaction.  So no need to reserve
 	 * qgroup space here.
 	 */
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
+	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, true);
 	if (!ret) {
 		trace_btrfs_space_reservation(fs_info, "delayed_item",
 					      item->key.objectid,
@@ -647,7 +647,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 		return ret;
 	}
 
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
+	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, true);
 	if (!ret) {
 		trace_btrfs_space_reservation(fs_info, "delayed_inode",
 					      btrfs_ino(inode), num_bytes, 1);
