@@ -1681,7 +1681,7 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 static void rcu_prepare_for_idle(void)
 {
 	bool needwake;
-	struct rcu_data *rdp;
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	struct rcu_node *rnp;
 	int tne;
@@ -1692,10 +1692,10 @@ static void rcu_prepare_for_idle(void)
 
 	/* Handle nohz enablement switches conservatively. */
 	tne = READ_ONCE(tick_nohz_active);
-	if (tne != rdtp->tick_nohz_enabled_snap) {
+	if (tne != rdp->tick_nohz_enabled_snap) {
 		if (rcu_cpu_has_callbacks(NULL))
 			invoke_rcu_core(); /* force nohz to see update. */
-		rdtp->tick_nohz_enabled_snap = tne;
+		rdp->tick_nohz_enabled_snap = tne;
 		return;
 	}
 	if (!tne)
@@ -1721,7 +1721,6 @@ static void rcu_prepare_for_idle(void)
 	if (rdtp->last_accelerate == jiffies)
 		return;
 	rdtp->last_accelerate = jiffies;
-	rdp = this_cpu_ptr(&rcu_data);
 	if (rcu_segcblist_pend_cbs(&rdp->cblist)) {
 		rnp = rdp->mynode;
 		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
@@ -1765,6 +1764,7 @@ static void rcu_idle_count_callbacks_posted(void)
 
 static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 {
+	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
 	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
 	unsigned long nlpd = rdtp->nonlazy_posted - rdtp->nonlazy_posted_snap;
 
@@ -1772,7 +1772,7 @@ static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 		rdtp->last_accelerate & 0xffff, jiffies & 0xffff,
 		ulong2long(nlpd),
 		rdtp->all_lazy ? 'L' : '.',
-		rdtp->tick_nohz_enabled_snap ? '.' : 'D');
+		rdp->tick_nohz_enabled_snap ? '.' : 'D');
 }
 
 #else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
