@@ -1613,10 +1613,9 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto fail;
 
-	ret = btrfs_insert_dir_item(trans, parent_root,
-				    dentry->d_name.name, dentry->d_name.len,
-				    BTRFS_I(parent_inode), &key,
-				    BTRFS_FT_DIR, index);
+	ret = btrfs_insert_dir_item(trans, dentry->d_name.name,
+				    dentry->d_name.len, BTRFS_I(parent_inode),
+				    &key, BTRFS_FT_DIR, index);
 	/* We have check then name at the beginning, so it is impossible. */
 	BUG_ON(ret == -EEXIST || ret == -EOVERFLOW);
 	if (ret) {

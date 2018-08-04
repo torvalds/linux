@@ -3021,8 +3021,7 @@ int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info,
 /* dir-item.c */
 int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 			  const char *name, int name_len);
-int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, const char *name,
+int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, const char *name,
 			  int name_len, struct btrfs_inode *dir,
 			  struct btrfs_key *location, u8 type, u64 index);
 struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
