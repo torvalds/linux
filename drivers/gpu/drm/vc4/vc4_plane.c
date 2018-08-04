@@ -200,9 +200,7 @@ static void vc4_plane_reset(struct drm_plane *plane)
 	if (!vc4_state)
 		return;
 
-	plane->state = &vc4_state->base;
-	plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
-	vc4_state->base.plane = plane;
+	__drm_atomic_helper_plane_reset(plane, &vc4_state->base);
 }
 
 static void vc4_dlist_write(struct vc4_plane_state *vc4_state, u32 val)
