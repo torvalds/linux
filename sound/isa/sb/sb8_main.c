@@ -621,19 +621,3 @@ EXPORT_SYMBOL(snd_sb8dsp_interrupt);
   /* sb8_midi.c */
 EXPORT_SYMBOL(snd_sb8dsp_midi_interrupt);
 EXPORT_SYMBOL(snd_sb8dsp_midi);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_sb8_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_sb8_exit(void)
-{
-}
-
-module_init(alsa_sb8_init)
-module_exit(alsa_sb8_exit)

@@ -2279,19 +2279,3 @@ const struct snd_pcm_ops *snd_wss_get_pcm_ops(int direction)
 		&snd_wss_playback_ops : &snd_wss_capture_ops;
 }
 EXPORT_SYMBOL(snd_wss_get_pcm_ops);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_wss_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_wss_exit(void)
-{
-}
-
-module_init(alsa_wss_init);
-module_exit(alsa_wss_exit);
