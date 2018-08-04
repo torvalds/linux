@@ -217,7 +217,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 	struct rtl_80211_hdr_3addr  *header =
 		(struct rtl_80211_hdr_3addr  *)skb->data;
 
-	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + 8);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
