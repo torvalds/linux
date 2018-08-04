@@ -43,13 +43,6 @@ struct rcu_dynticks {
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
 	bool rcu_need_heavy_qs;     /* GP old, need heavy quiescent state. */
 	bool rcu_urgent_qs;	    /* GP old need light quiescent state. */
-#ifdef CONFIG_RCU_FAST_NO_HZ
-	bool all_lazy;		    /* Are all CPU's CBs lazy? */
-	unsigned long nonlazy_posted;
-				    /* # times non-lazy CBs posted to CPU. */
-	unsigned long nonlazy_posted_snap;
-				    /* idle-period nonlazy_posted snapshot. */
-#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 };
 
 /* Communicate arguments to a workqueue handler. */

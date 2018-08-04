@@ -1634,16 +1634,15 @@ static bool __maybe_unused rcu_try_advance_all_cbs(void)
 int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 {
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	unsigned long dj;
 
 	lockdep_assert_irqs_disabled();
 
 	/* Snapshot to detect later posting of non-lazy callback. */
-	rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted;
+	rdp->nonlazy_posted_snap = rdp->nonlazy_posted;
 
 	/* If no callbacks, RCU doesn't need the CPU. */
-	if (!rcu_cpu_has_callbacks(&rdtp->all_lazy)) {
+	if (!rcu_cpu_has_callbacks(&rdp->all_lazy)) {
 		*nextevt = KTIME_MAX;
 		return 0;
 	}
@@ -1657,7 +1656,7 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 	rdp->last_accelerate = jiffies;
 
 	/* Request timer delay depending on laziness, and round. */
-	if (!rdtp->all_lazy) {
+	if (!rdp->all_lazy) {
 		dj = round_up(rcu_idle_gp_delay + jiffies,
 			       rcu_idle_gp_delay) - jiffies;
 	} else {
@@ -1681,7 +1680,6 @@ static void rcu_prepare_for_idle(void)
 {
 	bool needwake;
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	struct rcu_node *rnp;
 	int tne;
 
@@ -1705,10 +1703,10 @@ static void rcu_prepare_for_idle(void)
 	 * callbacks, invoke RCU core for the side-effect of recalculating
 	 * idle duration on re-entry to idle.
 	 */
-	if (rdtp->all_lazy &&
-	    rdtp->nonlazy_posted != rdtp->nonlazy_posted_snap) {
-		rdtp->all_lazy = false;
-		rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted;
+	if (rdp->all_lazy &&
+	    rdp->nonlazy_posted != rdp->nonlazy_posted_snap) {
+		rdp->all_lazy = false;
+		rdp->nonlazy_posted_snap = rdp->nonlazy_posted;
 		invoke_rcu_core();
 		return;
 	}
@@ -1754,7 +1752,7 @@ static void rcu_cleanup_after_idle(void)
  */
 static void rcu_idle_count_callbacks_posted(void)
 {
-	__this_cpu_add(rcu_dynticks.nonlazy_posted, 1);
+	__this_cpu_add(rcu_data.nonlazy_posted, 1);
 }
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
@@ -1764,13 +1762,12 @@ static void rcu_idle_count_callbacks_posted(void)
 static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 {
 	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
-	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
-	unsigned long nlpd = rdtp->nonlazy_posted - rdtp->nonlazy_posted_snap;
+	unsigned long nlpd = rdp->nonlazy_posted - rdp->nonlazy_posted_snap;
 
 	sprintf(cp, "last_accelerate: %04lx/%04lx, nonlazy_posted: %ld, %c%c",
 		rdp->last_accelerate & 0xffff, jiffies & 0xffff,
 		ulong2long(nlpd),
-		rdtp->all_lazy ? 'L' : '.',
+		rdp->all_lazy ? 'L' : '.',
 		rdp->tick_nohz_enabled_snap ? '.' : 'D');
 }
 
