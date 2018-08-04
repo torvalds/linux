@@ -680,7 +680,8 @@ struct TCP_Server_Info {
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t in_send; /* requests trying to send */
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
-#endif
+	atomic_t smb2slowcmd[NUMBER_OF_SMB2_COMMANDS]; /* count resps > 1 sec */
+#endif /* STATS2 */
 	unsigned int	max_read;
 	unsigned int	max_write;
 	__le16	cipher_type;

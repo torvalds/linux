@@ -378,6 +378,8 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 	rc = kstrtobool_from_user(buffer, count, &bv);
 	if (rc == 0) {
 #ifdef CONFIG_CIFS_STATS2
+		int i;
+
 		atomic_set(&totBufAllocCount, 0);
 		atomic_set(&totSmBufAllocCount, 0);
 #endif /* CONFIG_CIFS_STATS2 */
@@ -389,6 +391,10 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 		list_for_each(tmp1, &cifs_tcp_ses_list) {
 			server = list_entry(tmp1, struct TCP_Server_Info,
 					    tcp_ses_list);
+#ifdef CONFIG_CIFS_STATS2
+			for (i = 0; i < NUMBER_OF_SMB2_COMMANDS; i++)
+				atomic_set(&server->smb2slowcmd[i], 0);
+#endif /* CONFIG_CIFS_STATS2 */
 			list_for_each(tmp2, &server->smb_ses_list) {
 				ses = list_entry(tmp2, struct cifs_ses,
 						 smb_ses_list);
@@ -417,13 +423,15 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 static int cifs_stats_proc_show(struct seq_file *m, void *v)
 {
 	int i;
+#ifdef CONFIG_CIFS_STATS2
+	int j;
+#endif /* STATS2 */
 	struct list_head *tmp1, *tmp2, *tmp3;
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 
-	seq_printf(m,
-			"Resources in use\nCIFS Session: %d\n",
+	seq_printf(m, "Resources in use\nCIFS Session: %d\n",
 			sesInfoAllocCount.counter);
 	seq_printf(m, "Share (unique mount targets): %d\n",
 			tconInfoAllocCount.counter);
@@ -452,6 +460,13 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 	list_for_each(tmp1, &cifs_tcp_ses_list) {
 		server = list_entry(tmp1, struct TCP_Server_Info,
 				    tcp_ses_list);
+#ifdef CONFIG_CIFS_STATS2
+		for (j = 0; j < NUMBER_OF_SMB2_COMMANDS; j++)
+			if (atomic_read(&server->smb2slowcmd[j]))
+				seq_printf(m, "%d slow responses from %s for command %d\n",
+					atomic_read(&server->smb2slowcmd[j]),
+					server->hostname, j);
+#endif /* STATS2 */
 		list_for_each(tmp2, &server->smb_ses_list) {
 			ses = list_entry(tmp2, struct cifs_ses,
 					 smb_ses_list);

@@ -117,6 +117,11 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	   something is wrong, unless it is quite a slow link or server */
 	if (time_after(now, midEntry->when_alloc + HZ) &&
 	    (midEntry->command != command)) {
+		/* smb2slowcmd[NUMBER_OF_SMB2_COMMANDS] counts by command */
+		if ((le16_to_cpu(midEntry->command) < NUMBER_OF_SMB2_COMMANDS) &&
+		    (le16_to_cpu(midEntry->command) >= 0))
+			cifs_stats_inc(&midEntry->server->smb2slowcmd[le16_to_cpu(midEntry->command)]);
+
 		trace_smb3_slow_rsp(le16_to_cpu(midEntry->command),
 			       midEntry->mid, midEntry->pid,
 			       midEntry->when_sent, midEntry->when_received);
