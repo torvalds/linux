@@ -15,7 +15,6 @@ enum tr_select {
 };
 
 union qos_tclas {
-
 	struct type_general {
 		u8		priority;
 		u8		classifier_type;
