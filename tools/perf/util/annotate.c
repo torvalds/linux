@@ -1774,13 +1774,14 @@ static void calc_percent(struct sym_hist *sym_hist,
 }
 
 static void annotation__calc_percent(struct annotation *notes,
-				     struct perf_evsel *evsel, s64 len)
+				     struct perf_evsel *leader, s64 len)
 {
 	struct annotation_line *al, *next;
+	struct perf_evsel *evsel;
 
 	list_for_each_entry(al, &notes->src->source, node) {
 		s64 end;
-		int i;
+		int i = 0;
 
 		if (al->offset == -1)
 			continue;
@@ -1788,12 +1789,14 @@ static void annotation__calc_percent(struct annotation *notes,
 		next = annotation_line__next(al, &notes->src->source);
 		end  = next ? next->offset : len;
 
-		for (i = 0; i < al->data_nr; i++) {
+		for_each_group_evsel(evsel, leader) {
 			struct annotation_data *data;
 			struct sym_hist *sym_hist;
 
-			sym_hist = annotation__histogram(notes, evsel->idx + i);
-			data = &al->data[i];
+			BUG_ON(i >= al->data_nr);
+
+			sym_hist = annotation__histogram(notes, evsel->idx);
+			data = &al->data[i++];
 
 			calc_percent(sym_hist, data, al->offset, end);
 		}
