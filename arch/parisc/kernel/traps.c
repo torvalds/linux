@@ -172,7 +172,7 @@ static void do_show_stack(struct unwind_frame_info *info)
 	int i = 1;
 
 	printk(KERN_CRIT "Backtrace:\n");
-	while (i <= 16) {
+	while (i <= MAX_UNWIND_ENTRIES) {
 		if (unwind_once(info) < 0 || info->ip == 0)
 			break;
 
