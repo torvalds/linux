@@ -212,6 +212,23 @@ struct rcu_data {
 	/* 3) dynticks interface. */
 	struct rcu_dynticks *dynticks;	/* Shared per-CPU dynticks state. */
 	int dynticks_snap;		/* Per-GP tracking for dynticks. */
+	long dynticks_nesting;      /* Track process nesting level. */
+	long dynticks_nmi_nesting;  /* Track irq/NMI nesting level. */
+	// atomic_t dynticks;	    /* Even value for idle, else odd. */
+	bool rcu_need_heavy_qs;     /* GP old, need heavy quiescent state. */
+	bool rcu_urgent_qs;	    /* GP old need light quiescent state. */
+#ifdef CONFIG_RCU_FAST_NO_HZ
+	bool all_lazy;		    /* Are all CPU's CBs lazy? */
+	unsigned long nonlazy_posted;
+				    /* # times non-lazy CBs posted to CPU. */
+	unsigned long nonlazy_posted_snap;
+				    /* idle-period nonlazy_posted snapshot. */
+	unsigned long last_accelerate;
+				    /* Last jiffy CBs were accelerated. */
+	unsigned long last_advance_all;
+				    /* Last jiffy CBs were all advanced. */
+	int tick_nohz_enabled_snap; /* Previously seen value from sysfs. */
+#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 
 	/* 4) reasons this CPU needed to be kicked by force_quiescent_state */
 	unsigned long dynticks_fqs;	/* Kicked due to dynticks idle. */
