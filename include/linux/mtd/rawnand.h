@@ -28,10 +28,10 @@ struct nand_chip;
 struct nand_flash_dev;
 
 /* Scan and identify a NAND device */
-int nand_scan_with_ids(struct nand_chip *chip, int max_chips,
+int nand_scan_with_ids(struct nand_chip *chip, unsigned int max_chips,
 		       struct nand_flash_dev *ids);
 
-static inline int nand_scan(struct nand_chip *chip, int max_chips)
+static inline int nand_scan(struct nand_chip *chip, unsigned int max_chips)
 {
 	return nand_scan_with_ids(chip, max_chips, NULL);
 }

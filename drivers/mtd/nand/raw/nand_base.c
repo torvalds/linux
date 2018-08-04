@@ -5915,11 +5915,12 @@ static int nand_dt_init(struct nand_chip *chip)
  * prevented dynamic allocations during this phase which was unconvenient and
  * as been banned for the benefit of the ->init_ecc()/cleanup_ecc() hooks.
  */
-static int nand_scan_ident(struct nand_chip *chip, int maxchips,
+static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 			   struct nand_flash_dev *table)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	int i, nand_maf_id, nand_dev_id;
+	int nand_maf_id, nand_dev_id;
+	unsigned int i;
 	int ret;
 
 	/* Enforce the right timings for reset/detection */
@@ -6730,7 +6731,7 @@ static void nand_detach(struct nand_chip *chip)
  * The flash ID is read and the mtd/chip structures are filled with the
  * appropriate values.
  */
-int nand_scan_with_ids(struct nand_chip *chip, int maxchips,
+int nand_scan_with_ids(struct nand_chip *chip, unsigned int maxchips,
 		       struct nand_flash_dev *ids)
 {
 	int ret;
