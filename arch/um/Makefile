@@ -122,8 +122,7 @@ archheaders:
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.asm-generic \
 	            kbuild-file=$(HOST_DIR)/include/uapi/asm/Kbuild \
 		    obj=$(HOST_DIR)/include/generated/uapi/asm
-	$(Q)$(MAKE) KBUILD_SRC= ARCH=$(HEADER_ARCH) archheaders
-
+	$(Q)$(MAKE) -f $(srctree)/Makefile ARCH=$(HEADER_ARCH) archheaders
 
 archprepare: include/generated/user_constants.h
 
