@@ -178,6 +178,13 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 		nfp_record_adjust_head(bpf, nfp_prog, meta, reg2);
 		break;
 
+	case BPF_FUNC_xdp_adjust_tail:
+		if (!bpf->adjust_tail) {
+			pr_vlog(env, "adjust_tail not supported by FW\n");
+			return -EOPNOTSUPP;
+		}
+		break;
+
 	case BPF_FUNC_map_lookup_elem:
 		if (!nfp_bpf_map_call_ok("map_lookup", env, meta,
 					 bpf->helpers.map_lookup, reg1) ||

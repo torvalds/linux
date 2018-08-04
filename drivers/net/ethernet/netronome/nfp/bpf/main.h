@@ -150,6 +150,7 @@ enum pkt_vec {
  *
  * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
  * @queue_select:	BPF can set the RX queue ID in packet vector
+ * @adjust_tail:	BPF can simply trunc packet size for adjust tail
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
@@ -195,6 +196,7 @@ struct nfp_app_bpf {
 
 	bool pseudo_random;
 	bool queue_select;
+	bool adjust_tail;
 };
 
 enum nfp_bpf_map_use {
