@@ -1759,6 +1759,7 @@ out_close_stdout:
 }
 
 static void calc_percent(struct sym_hist *sym_hist,
+			 struct hists *hists,
 			 struct annotation_data *data,
 			 s64 offset, s64 end)
 {
@@ -1776,6 +1777,10 @@ static void calc_percent(struct sym_hist *sym_hist,
 		data->he.nr_samples = hits;
 		data->percent[PERCENT_HITS_LOCAL] = 100.0 * hits / sym_hist->nr_samples;
 	}
+
+	if (hists->stats.nr_non_filtered_samples)
+		data->percent[PERCENT_HITS_GLOBAL] = 100.0 * hits / hists->stats.nr_non_filtered_samples;
+
 }
 
 static void annotation__calc_percent(struct annotation *notes,
@@ -1795,6 +1800,7 @@ static void annotation__calc_percent(struct annotation *notes,
 		end  = next ? next->offset : len;
 
 		for_each_group_evsel(evsel, leader) {
+			struct hists *hists = evsel__hists(evsel);
 			struct annotation_data *data;
 			struct sym_hist *sym_hist;
 
@@ -1803,7 +1809,7 @@ static void annotation__calc_percent(struct annotation *notes,
 			sym_hist = annotation__histogram(notes, evsel->idx);
 			data = &al->data[i++];
 
-			calc_percent(sym_hist, data, al->offset, end);
+			calc_percent(sym_hist, hists, data, al->offset, end);
 		}
 	}
 }
