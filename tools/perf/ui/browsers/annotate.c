@@ -318,7 +318,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 			double percent;
 
 			percent = annotation_data__percent(&pos->al.data[i],
-							   PERCENT_HITS_LOCAL);
+							   browser->opts->percent_type);
 
 			if (max_percent < percent)
 				max_percent = percent;
