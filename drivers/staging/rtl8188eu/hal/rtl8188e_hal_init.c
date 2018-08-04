@@ -75,7 +75,7 @@ s32 rtl8188e_iol_efuse_patch(struct adapter *padapter)
 	s32	result = _SUCCESS;
 
 	DBG_88E("==> %s\n", __func__);
-	if (rtw_IOL_applied(padapter)) {
+	if (rtw_iol_applied(padapter)) {
 		iol_mode_enable(padapter, 1);
 		result = iol_execute(padapter, CMD_READ_EFUSE_MAP);
 		if (result == _SUCCESS)
@@ -207,7 +207,7 @@ s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 	u32	i;
 	u32	Last_Entry_Of_TxPktBuf = LAST_ENTRY_OF_TX_PKT_BUFFER;/*  176, 22k */
 
-	if (rtw_IOL_applied(padapter)) {
+	if (rtw_iol_applied(padapter)) {
 		status = iol_InitLLTTable(padapter, txpktbuf_bndy);
 	} else {
 		for (i = 0; i < (txpktbuf_bndy - 1); i++) {

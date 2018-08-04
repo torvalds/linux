@@ -298,7 +298,7 @@ static s32 iol_read_efuse(struct adapter *padapter, u8 txpktbuf_bndy, u16 offset
 
 void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf)
 {
-	if (rtw_IOL_applied(Adapter)) {
+	if (rtw_iol_applied(Adapter)) {
 		rtw_hal_power_on(Adapter);
 		iol_mode_enable(Adapter, 1);
 		iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);

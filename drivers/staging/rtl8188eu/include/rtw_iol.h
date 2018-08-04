@@ -10,6 +10,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-bool rtw_IOL_applied(struct adapter  *adapter);
+bool rtw_iol_applied(struct adapter *adapter);
 
 #endif /* __RTW_IOL_H_ */
