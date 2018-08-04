@@ -227,10 +227,10 @@ static int disasm__cmp(struct annotation_line *a, struct annotation_line *b)
 {
 	int i;
 
-	for (i = 0; i < a->samples_nr; i++) {
-		if (a->samples[i].percent == b->samples[i].percent)
+	for (i = 0; i < a->data_nr; i++) {
+		if (a->data[i].percent == b->data[i].percent)
 			continue;
-		return a->samples[i].percent < b->samples[i].percent;
+		return a->data[i].percent < b->data[i].percent;
 	}
 	return 0;
 }
@@ -314,8 +314,8 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 			continue;
 		}
 
-		for (i = 0; i < pos->al.samples_nr; i++) {
-			struct annotation_data *sample = &pos->al.samples[i];
+		for (i = 0; i < pos->al.data_nr; i++) {
+			struct annotation_data *sample = &pos->al.data[i];
 
 			if (max_percent < sample->percent)
 				max_percent = sample->percent;
