@@ -1781,6 +1781,8 @@ static void calc_percent(struct sym_hist *sym_hist,
 	if (hists->stats.nr_non_filtered_samples)
 		data->percent[PERCENT_HITS_GLOBAL] = 100.0 * hits / hists->stats.nr_non_filtered_samples;
 
+	if (sym_hist->period)
+		data->percent[PERCENT_PERIOD_LOCAL] = 100.0 * period / sym_hist->period;
 }
 
 static void annotation__calc_percent(struct annotation *notes,
