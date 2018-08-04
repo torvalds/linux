@@ -25,9 +25,6 @@
 #ifdef CONFIG_SMP
 
 /* SMP initialization hook for setup_arch */
-void __init init_clockevent(void);
-
-/* SMP initialization hook for setup_arch */
 void __init setup_smp(void);
 
 /* Hook for the generic smp_call_function_many() routine. */
