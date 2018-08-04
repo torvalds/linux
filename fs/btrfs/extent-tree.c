@@ -5539,10 +5539,8 @@ int btrfs_block_rsv_add(struct btrfs_root *root,
 		return 0;
 
 	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
-	if (!ret) {
+	if (!ret)
 		block_rsv_add_bytes(block_rsv, num_bytes, true);
-		return 0;
-	}
 
 	return ret;
 }
