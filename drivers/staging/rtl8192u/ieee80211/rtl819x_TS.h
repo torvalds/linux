@@ -16,22 +16,22 @@ enum tr_select {
 
 union qos_tclas {
 
-	struct _TYPE_GENERAL {
+	struct type_general {
 		u8		Priority;
 		u8		ClassifierType;
 		u8		Mask;
-	} TYPE_GENERAL;
+	} type_general;
 
-	struct _TYPE0_ETH {
+	struct type0_eth {
 		u8		Priority;
 		u8		ClassifierType;
 		u8		Mask;
 		u8		SrcAddr[6];
 		u8		DstAddr[6];
 		u16		Type;
-	} TYPE0_ETH;
+	} type0_eth;
 
-	struct _TYPE1_IPV4 {
+	struct type1_ipv4 {
 		u8		Priority;
 		u8		ClassifierType;
 		u8		Mask;
@@ -43,9 +43,9 @@ union qos_tclas {
 		u8		DSCP;
 		u8		Protocol;
 		u8		Reserved;
-	} TYPE1_IPV4;
+	} type1_ipv4;
 
-	struct _TYPE1_IPV6 {
+	struct type1_ipv6 {
 		u8		Priority;
 		u8		ClassifierType;
 		u8		Mask;
@@ -55,14 +55,14 @@ union qos_tclas {
 		u16		SrcPort;
 		u16		DstPort;
 		u8		FlowLabel[3];
-	} TYPE1_IPV6;
+	} type1_ipv6;
 
-	struct _TYPE2_8021Q {
+	struct type2_8021q {
 		u8		Priority;
 		u8		ClassifierType;
 		u8		Mask;
 		u16		TagType;
-	} TYPE2_8021Q;
+	} type2_8021q;
 };
 
 struct ts_common_info {
