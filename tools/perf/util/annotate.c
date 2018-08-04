@@ -1753,7 +1753,7 @@ out_close_stdout:
 	goto out_free_command;
 }
 
-static void calc_percent(struct sym_hist *hist,
+static void calc_percent(struct sym_hist *sym_hist,
 			 struct annotation_data *data,
 			 s64 offset, s64 end)
 {
@@ -1761,15 +1761,15 @@ static void calc_percent(struct sym_hist *hist,
 	u64 period = 0;
 
 	while (offset < end) {
-		hits   += hist->addr[offset].nr_samples;
-		period += hist->addr[offset].period;
+		hits   += sym_hist->addr[offset].nr_samples;
+		period += sym_hist->addr[offset].period;
 		++offset;
 	}
 
-	if (hist->nr_samples) {
+	if (sym_hist->nr_samples) {
 		data->he.period     = period;
 		data->he.nr_samples = hits;
-		data->percent = 100.0 * hits / hist->nr_samples;
+		data->percent = 100.0 * hits / sym_hist->nr_samples;
 	}
 }
 
@@ -1790,12 +1790,12 @@ static void annotation__calc_percent(struct annotation *notes,
 
 		for (i = 0; i < al->data_nr; i++) {
 			struct annotation_data *data;
-			struct sym_hist *hist;
+			struct sym_hist *sym_hist;
 
-			hist = annotation__histogram(notes, evsel->idx + i);
+			sym_hist = annotation__histogram(notes, evsel->idx + i);
 			data = &al->data[i];
 
-			calc_percent(hist, data, al->offset, end);
+			calc_percent(sym_hist, data, al->offset, end);
 		}
 	}
 }
