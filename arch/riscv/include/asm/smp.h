@@ -44,9 +44,6 @@ void arch_send_call_function_single_ipi(int cpu);
  */
 #define raw_smp_processor_id() (*((int*)((char*)get_current() + TASK_TI_CPU)))
 
-/* Interprocessor interrupt handler */
-irqreturn_t handle_ipi(void);
-
 #endif /* CONFIG_SMP */
 
 #endif /* _ASM_RISCV_SMP_H */
