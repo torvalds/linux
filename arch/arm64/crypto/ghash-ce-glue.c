@@ -33,9 +33,12 @@ MODULE_ALIAS_CRYPTO("ghash");
 #define GCM_IV_SIZE		12
 
 struct ghash_key {
-	u64 a;
-	u64 b;
-	be128 k;
+	u64			h[2];
+	u64			h2[2];
+	u64			h3[2];
+	u64			h4[2];
+
+	be128			k;
 };
 
 struct ghash_desc_ctx {
@@ -46,7 +49,6 @@ struct ghash_desc_ctx {
 
 struct gcm_aes_ctx {
 	struct crypto_aes_ctx	aes_key;
-	u64			h2[2];
 	struct ghash_key	ghash_key;
 };
 
@@ -63,11 +65,12 @@ static void (*pmull_ghash_update)(int blocks, u64 dg[], const char *src,
 				  const char *head);
 
 asmlinkage void pmull_gcm_encrypt(int blocks, u64 dg[], u8 dst[],
-				  const u8 src[], u64 const *k, u8 ctr[],
-				  u32 const rk[], int rounds, u8 ks[]);
+				  const u8 src[], struct ghash_key const *k,
+				  u8 ctr[], u32 const rk[], int rounds,
+				  u8 ks[]);
 
 asmlinkage void pmull_gcm_decrypt(int blocks, u64 dg[], u8 dst[],
-				  const u8 src[], u64 const *k,
+				  const u8 src[], struct ghash_key const *k,
 				  u8 ctr[], u32 const rk[], int rounds);
 
 asmlinkage void pmull_gcm_encrypt_block(u8 dst[], u8 const src[],
@@ -174,23 +177,36 @@ static int ghash_final(struct shash_desc *desc, u8 *dst)
 	return 0;
 }
 
+static void ghash_reflect(u64 h[], const be128 *k)
+{
+	u64 carry = be64_to_cpu(k->a) & BIT(63) ? 1 : 0;
+
+	h[0] = (be64_to_cpu(k->b) << 1) | carry;
+	h[1] = (be64_to_cpu(k->a) << 1) | (be64_to_cpu(k->b) >> 63);
+
+	if (carry)
+		h[1] ^= 0xc200000000000000UL;
+}
+
 static int __ghash_setkey(struct ghash_key *key,
 			  const u8 *inkey, unsigned int keylen)
 {
-	u64 a, b;
+	be128 h;
 
 	/* needed for the fallback */
 	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);
 
-	/* perform multiplication by 'x' in GF(2^128) */
-	b = get_unaligned_be64(inkey);
-	a = get_unaligned_be64(inkey + 8);
+	ghash_reflect(key->h, &key->k);
 
-	key->a = (a << 1) | (b >> 63);
-	key->b = (b << 1) | (a >> 63);
+	h = key->k;
+	gf128mul_lle(&h, &key->k);
+	ghash_reflect(key->h2, &h);
 
-	if (b >> 63)
-		key->b ^= 0xc200000000000000UL;
+	gf128mul_lle(&h, &key->k);
+	ghash_reflect(key->h3, &h);
+
+	gf128mul_lle(&h, &key->k);
+	ghash_reflect(key->h4, &h);
 
 	return 0;
 }
@@ -240,8 +256,7 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 		      unsigned int keylen)
 {
 	struct gcm_aes_ctx *ctx = crypto_aead_ctx(tfm);
-	be128 h1, h2;
-	u8 *key = (u8 *)&h1;
+	u8 key[GHASH_BLOCK_SIZE];
 	int ret;
 
 	ret = crypto_aes_expand_key(&ctx->aes_key, inkey, keylen);
@@ -253,19 +268,7 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 	__aes_arm64_encrypt(ctx->aes_key.key_enc, key, (u8[AES_BLOCK_SIZE]){},
 			    num_rounds(&ctx->aes_key));
 
-	__ghash_setkey(&ctx->ghash_key, key, sizeof(be128));
-
-	/* calculate H^2 (used for 2-way aggregation) */
-	h2 = h1;
-	gf128mul_lle(&h2, &h1);
-
-	ctx->h2[0] = (be64_to_cpu(h2.b) << 1) | (be64_to_cpu(h2.a) >> 63);
-	ctx->h2[1] = (be64_to_cpu(h2.a) << 1) | (be64_to_cpu(h2.b) >> 63);
-
-	if (be64_to_cpu(h2.a) >> 63)
-		ctx->h2[1] ^= 0xc200000000000000UL;
-
-	return 0;
+	return __ghash_setkey(&ctx->ghash_key, key, sizeof(be128));
 }
 
 static int gcm_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
@@ -401,8 +404,8 @@ static int gcm_encrypt(struct aead_request *req)
 				kernel_neon_begin();
 
 			pmull_gcm_encrypt(blocks, dg, walk.dst.virt.addr,
-					  walk.src.virt.addr, ctx->h2, iv,
-					  rk, nrounds, ks);
+					  walk.src.virt.addr, &ctx->ghash_key,
+					  iv, rk, nrounds, ks);
 			kernel_neon_end();
 
 			err = skcipher_walk_done(&walk,
@@ -512,8 +515,8 @@ static int gcm_decrypt(struct aead_request *req)
 				kernel_neon_begin();
 
 			pmull_gcm_decrypt(blocks, dg, walk.dst.virt.addr,
-					  walk.src.virt.addr, ctx->h2, iv,
-					  rk, nrounds);
+					  walk.src.virt.addr, &ctx->ghash_key,
+					  iv, rk, nrounds);
 
 			/* check if this is the final iteration of the loop */
 			if (rem < (2 * AES_BLOCK_SIZE)) {
