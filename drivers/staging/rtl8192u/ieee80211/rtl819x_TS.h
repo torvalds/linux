@@ -14,7 +14,7 @@ enum tr_select {
 	RX_DIR = 1,
 };
 
-typedef union _QOS_TCLAS {
+union qos_tclas {
 
 	struct _TYPE_GENERAL {
 		u8		Priority;
@@ -63,7 +63,7 @@ typedef union _QOS_TCLAS {
 		u8		Mask;
 		u16		TagType;
 	} TYPE2_8021Q;
-} QOS_TCLAS, *PQOS_TCLAS;
+};
 
 struct ts_common_info {
 	struct list_head		list;
@@ -71,7 +71,7 @@ struct ts_common_info {
 	struct timer_list		inact_timer;
 	u8				addr[6];
 	struct tspec_body		t_spec;
-	QOS_TCLAS			t_class[TCLAS_NUM];
+	union qos_tclas			t_class[TCLAS_NUM];
 	u8				t_clas_proc;
 	u8				t_clas_num;
 };
