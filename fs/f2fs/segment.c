@@ -2662,8 +2662,9 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 
 	trimmed += __wait_discard_cmd_range(sbi, &dpolicy,
 					start_block, end_block);
-	range->len = F2FS_BLK_TO_BYTES(trimmed);
 out:
+	if (!err)
+		range->len = F2FS_BLK_TO_BYTES(trimmed);
 	return err;
 }
 
