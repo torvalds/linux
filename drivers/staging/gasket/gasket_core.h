@@ -302,12 +302,6 @@ struct gasket_dev {
 	/* Hardware revision value for this device. */
 	int hardware_revision;
 
-	/*
-	 * Device-specific data; allocated in gasket_driver_desc.add_dev_cb()
-	 * and freed in gasket_driver_desc.remove_dev_cb().
-	 */
-	void *cb_data;
-
 	/* Protects access to per-device data (i.e. this structure). */
 	struct mutex mutex;
 
@@ -415,29 +409,6 @@ struct gasket_driver_desc {
 	int interrupt_pack_width;
 
 	/* Driver callback functions - all may be NULL */
-	/*
-	 * add_dev_cb: Callback when a device is found.
-	 * @dev: The gasket_dev struct for this driver instance.
-	 *
-	 * This callback should initialize the device-specific cb_data.
-	 * Called when a device is found by the driver,
-	 * before any BAR ranges have been mapped. If this call fails (returns
-	 * nonzero), remove_dev_cb will be called.
-	 *
-	 */
-	int (*add_dev_cb)(struct gasket_dev *dev);
-
-	/*
-	 * remove_dev_cb: Callback for when a device is removed from the system.
-	 * @dev: The gasket_dev struct for this driver instance.
-	 *
-	 * This callback should free data allocated in add_dev_cb.
-	 * Called immediately before a device is unregistered by the driver.
-	 * All framework-managed resources will have been cleaned up by the time
-	 * this callback is invoked (PCI BARs, character devices, ...).
-	 */
-	int (*remove_dev_cb)(struct gasket_dev *dev);
-
 	/*
 	 * device_open_cb: Callback for when a device node is opened in write
 	 * mode.
