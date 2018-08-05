@@ -607,6 +607,12 @@ int gasket_register_device(const struct gasket_driver_desc *desc);
  */
 void gasket_unregister_device(const struct gasket_driver_desc *desc);
 
+/* Add a PCI gasket device. */
+int gasket_pci_add_device(struct pci_dev *pci_dev,
+			  struct gasket_dev **gasket_devp);
+/* Remove a PCI gasket device. */
+void gasket_pci_remove_device(struct pci_dev *pci_dev);
+
 /*
  * Reset the Gasket device.
  * @gasket_dev: Gasket device struct.

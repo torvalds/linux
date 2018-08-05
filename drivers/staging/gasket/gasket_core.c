@@ -51,9 +51,6 @@ struct gasket_internal_desc {
 	/* Kernel-internal device class. */
 	struct class *class;
 
-	/* PCI subsystem metadata associated with this driver. */
-	struct pci_driver pci;
-
 	/* Instantiated / present devices of this type. */
 	struct gasket_dev *devs[GASKET_DEV_MAX];
 };
@@ -368,10 +365,10 @@ static void gasket_unmap_pci_bar(struct gasket_dev *dev, int bar_num)
 }
 
 /*
- * Setup PCI & set up memory mapping for the specified device.
+ * Setup PCI memory mapping for the specified device.
  *
- * Enables the PCI device, reads the BAR registers and sets up pointers to the
- * device's memory mapped IO space.
+ * Reads the BAR registers and sets up pointers to the device's memory mapped
+ * IO space.
  *
  * Returns 0 on success and a negative value otherwise.
  */
@@ -379,14 +376,6 @@ static int gasket_setup_pci(struct pci_dev *pci_dev,
 			    struct gasket_dev *gasket_dev)
 {
 	int i, mapped_bars, ret;
-
-	ret = pci_enable_device(pci_dev);
-	if (ret) {
-		dev_err(gasket_dev->dev, "cannot enable PCI device\n");
-		return ret;
-	}
-
-	pci_set_master(pci_dev);
 
 	for (i = 0; i < GASKET_NUM_BARS; i++) {
 		ret = gasket_map_pci_bar(gasket_dev, i);
@@ -402,19 +391,16 @@ fail:
 	for (i = 0; i < mapped_bars; i++)
 		gasket_unmap_pci_bar(gasket_dev, i);
 
-	pci_disable_device(pci_dev);
 	return -ENOMEM;
 }
 
-/* Unmaps memory and cleans up PCI for the specified device. */
+/* Unmaps memory for the specified device. */
 static void gasket_cleanup_pci(struct gasket_dev *gasket_dev)
 {
 	int i;
 
 	for (i = 0; i < GASKET_NUM_BARS; i++)
 		gasket_unmap_pci_bar(gasket_dev, i);
-
-	pci_disable_device(gasket_dev->pci_dev);
 }
 
 /* Determine the health of the Gasket device. */
@@ -1443,15 +1429,14 @@ static int gasket_enable_dev(struct gasket_internal_desc *internal_desc,
 }
 
 /*
- * PCI subsystem probe function.
+ * Add PCI gasket device.
  *
- * Called when a Gasket device is found. Allocates device metadata, maps device
- * memory, and calls gasket_enable_dev to prepare the device for active use.
- *
- * Returns 0 if successful and a negative value otherwise.
+ * Called by Gasket device probe function.
+ * Allocates device metadata, maps device memory, and calls gasket_enable_dev
+ * to prepare the device for active use.
  */
-static int gasket_pci_probe(struct pci_dev *pci_dev,
-			    const struct pci_device_id *id)
+int gasket_pci_add_device(struct pci_dev *pci_dev,
+			  struct gasket_dev **gasket_devp)
 {
 	int ret;
 	const char *kobj_name = dev_name(&pci_dev->dev);
@@ -1460,13 +1445,14 @@ static int gasket_pci_probe(struct pci_dev *pci_dev,
 	const struct gasket_driver_desc *driver_desc;
 	struct device *parent;
 
-	pr_info("Add Gasket device %s\n", kobj_name);
+	pr_debug("add PCI device %s\n", kobj_name);
 
 	mutex_lock(&g_mutex);
 	internal_desc = lookup_internal_desc(pci_dev);
 	mutex_unlock(&g_mutex);
 	if (!internal_desc) {
-		pr_err("PCI probe called for unknown driver type\n");
+		dev_err(&pci_dev->dev,
+			"PCI add device called for unknown driver type\n");
 		return -ENODEV;
 	}
 
@@ -1530,6 +1516,7 @@ static int gasket_pci_probe(struct pci_dev *pci_dev,
 		goto fail5;
 	}
 
+	*gasket_devp = gasket_dev;
 	return 0;
 
 fail5:
@@ -1545,14 +1532,10 @@ fail1:
 	gasket_free_dev(gasket_dev);
 	return ret;
 }
+EXPORT_SYMBOL(gasket_pci_add_device);
 
-/*
- * PCI subsystem remove function.
- *
- * Called to remove a Gasket device. Finds the device in the device list and
- * cleans up metadata.
- */
-static void gasket_pci_remove(struct pci_dev *pci_dev)
+/* Remove a PCI gasket device. */
+void gasket_pci_remove_device(struct pci_dev *pci_dev)
 {
 	int i;
 	struct gasket_internal_desc *internal_desc;
@@ -1583,8 +1566,8 @@ static void gasket_pci_remove(struct pci_dev *pci_dev)
 	if (!gasket_dev)
 		return;
 
-	pr_info("remove %s device %s\n", internal_desc->driver_desc->name,
-		gasket_dev->kobj_name);
+	dev_dbg(gasket_dev->dev, "remove %s PCI gasket device\n",
+		internal_desc->driver_desc->name);
 
 	gasket_disable_dev(gasket_dev);
 	gasket_cleanup_pci(gasket_dev);
@@ -1597,6 +1580,7 @@ static void gasket_pci_remove(struct pci_dev *pci_dev)
 	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
 	gasket_free_dev(gasket_dev);
 }
+EXPORT_SYMBOL(gasket_pci_remove_device);
 
 /**
  * Lookup a name by number in a num_name table.
@@ -1770,11 +1754,6 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 	internal = &g_descs[desc_idx];
 	mutex_init(&internal->mutex);
 	memset(internal->devs, 0, sizeof(struct gasket_dev *) * GASKET_DEV_MAX);
-	memset(&internal->pci, 0, sizeof(internal->pci));
-	internal->pci.name = driver_desc->name;
-	internal->pci.id_table = driver_desc->pci_id_table;
-	internal->pci.probe = gasket_pci_probe;
-	internal->pci.remove = gasket_pci_remove;
 	internal->class =
 		class_create(driver_desc->module, driver_desc->name);
 
@@ -1785,33 +1764,18 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 		goto unregister_gasket_driver;
 	}
 
-	/*
-	 * Not using pci_register_driver() (without underscores), as it
-	 * depends on KBUILD_MODNAME, and this is a shared file.
-	 */
-	ret = __pci_register_driver(&internal->pci, driver_desc->module,
-				    driver_desc->name);
-	if (ret) {
-		pr_err("cannot register %s pci driver [ret=%d]\n",
-		       driver_desc->name, ret);
-		goto fail1;
-	}
-
 	ret = register_chrdev_region(MKDEV(driver_desc->major,
 					   driver_desc->minor), GASKET_DEV_MAX,
 				     driver_desc->name);
 	if (ret) {
 		pr_err("cannot register %s char driver [ret=%d]\n",
 		       driver_desc->name, ret);
-		goto fail2;
+		goto destroy_class;
 	}
 
 	return 0;
 
-fail2:
-	pci_unregister_driver(&internal->pci);
-
-fail1:
+destroy_class:
 	class_destroy(internal->class);
 
 unregister_gasket_driver:
@@ -1847,8 +1811,6 @@ void gasket_unregister_device(const struct gasket_driver_desc *driver_desc)
 
 	unregister_chrdev_region(MKDEV(driver_desc->major, driver_desc->minor),
 				 GASKET_DEV_MAX);
-
-	pci_unregister_driver(&internal_desc->pci);
 
 	class_destroy(internal_desc->class);
 
