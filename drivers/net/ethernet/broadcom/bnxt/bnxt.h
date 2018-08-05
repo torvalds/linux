@@ -990,6 +990,8 @@ struct bnxt_led_info {
 
 struct bnxt_test_info {
 	u8 offline_mask;
+	u8 flags;
+#define BNXT_TEST_FL_EXT_LPBK	0x1
 	u16 timeout;
 	char string[BNXT_MAX_TEST][ETH_GSTRING_LEN];
 };

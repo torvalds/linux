@@ -2397,7 +2397,7 @@ static int bnxt_disable_an_for_lpbk(struct bnxt *bp,
 	return rc;
 }
 
-static int bnxt_hwrm_phy_loopback(struct bnxt *bp, bool enable)
+static int bnxt_hwrm_phy_loopback(struct bnxt *bp, bool enable, bool ext)
 {
 	struct hwrm_port_phy_cfg_input req = {0};
 
@@ -2405,7 +2405,10 @@ static int bnxt_hwrm_phy_loopback(struct bnxt *bp, bool enable)
 
 	if (enable) {
 		bnxt_disable_an_for_lpbk(bp, &req);
-		req.lpbk = PORT_PHY_CFG_REQ_LPBK_LOCAL;
+		if (ext)
+			req.lpbk = PORT_PHY_CFG_REQ_LPBK_EXTERNAL;
+		else
+			req.lpbk = PORT_PHY_CFG_REQ_LPBK_LOCAL;
 	} else {
 		req.lpbk = PORT_PHY_CFG_REQ_LPBK_NONE;
 	}
@@ -2538,15 +2541,17 @@ static int bnxt_run_fw_tests(struct bnxt *bp, u8 test_mask, u8 *test_results)
 	return rc;
 }
 
-#define BNXT_DRV_TESTS			3
+#define BNXT_DRV_TESTS			4
 #define BNXT_MACLPBK_TEST_IDX		(bp->num_tests - BNXT_DRV_TESTS)
 #define BNXT_PHYLPBK_TEST_IDX		(BNXT_MACLPBK_TEST_IDX + 1)
-#define BNXT_IRQ_TEST_IDX		(BNXT_MACLPBK_TEST_IDX + 2)
+#define BNXT_EXTLPBK_TEST_IDX		(BNXT_MACLPBK_TEST_IDX + 2)
+#define BNXT_IRQ_TEST_IDX		(BNXT_MACLPBK_TEST_IDX + 3)
 
 static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 			   u64 *buf)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	bool do_ext_lpbk = false;
 	bool offline = false;
 	u8 test_results = 0;
 	u8 test_mask = 0;
@@ -2559,6 +2564,10 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 		etest->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}
+
+	if ((etest->flags & ETH_TEST_FL_EXTERNAL_LB) &&
+	    (bp->test_info->flags & BNXT_TEST_FL_EXT_LPBK))
+		do_ext_lpbk = true;
 
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
 		if (bp->pf.active_vfs) {
@@ -2600,13 +2609,22 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 			buf[BNXT_MACLPBK_TEST_IDX] = 0;
 
 		bnxt_hwrm_mac_loopback(bp, false);
-		bnxt_hwrm_phy_loopback(bp, true);
+		bnxt_hwrm_phy_loopback(bp, true, false);
 		msleep(1000);
 		if (bnxt_run_loopback(bp)) {
 			buf[BNXT_PHYLPBK_TEST_IDX] = 1;
 			etest->flags |= ETH_TEST_FL_FAILED;
 		}
-		bnxt_hwrm_phy_loopback(bp, false);
+		if (do_ext_lpbk) {
+			etest->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
+			bnxt_hwrm_phy_loopback(bp, true, true);
+			msleep(1000);
+			if (bnxt_run_loopback(bp)) {
+				buf[BNXT_EXTLPBK_TEST_IDX] = 1;
+				etest->flags |= ETH_TEST_FL_FAILED;
+			}
+		}
+		bnxt_hwrm_phy_loopback(bp, false, false);
 		bnxt_half_close_nic(bp);
 		bnxt_open_nic(bp, false, true);
 	}
@@ -2707,6 +2725,8 @@ void bnxt_ethtool_init(struct bnxt *bp)
 			strcpy(str, "Mac loopback test (offline)");
 		} else if (i == BNXT_PHYLPBK_TEST_IDX) {
 			strcpy(str, "Phy loopback test (offline)");
+		} else if (i == BNXT_EXTLPBK_TEST_IDX) {
+			strcpy(str, "Ext loopback test (offline)");
 		} else if (i == BNXT_IRQ_TEST_IDX) {
 			strcpy(str, "Interrupt_test (offline)");
 		} else {
