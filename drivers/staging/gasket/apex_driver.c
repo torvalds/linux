@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/pci.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
@@ -621,6 +622,36 @@ static void apex_pci_fixup_class(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_CLASS_HEADER(APEX_PCI_VENDOR_ID, APEX_PCI_DEVICE_ID,
 			       PCI_CLASS_NOT_DEFINED, 8, apex_pci_fixup_class);
 
+static int apex_pci_probe(struct pci_dev *pci_dev,
+			  const struct pci_device_id *id)
+{
+	int ret;
+	struct gasket_dev *gasket_dev;
+
+	ret = pci_enable_device(pci_dev);
+	if (ret) {
+		dev_err(&pci_dev->dev, "error enabling PCI device\n");
+		return ret;
+	}
+
+	pci_set_master(pci_dev);
+
+	ret = gasket_pci_add_device(pci_dev, &gasket_dev);
+	if (ret) {
+		dev_err(&pci_dev->dev, "error adding gasket device\n");
+		pci_disable_device(pci_dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void apex_pci_remove(struct pci_dev *pci_dev)
+{
+	gasket_pci_remove_device(pci_dev);
+	pci_disable_device(pci_dev);
+}
+
 static struct gasket_driver_desc apex_desc = {
 	.name = "apex",
 	.driver_version = APEX_DRIVER_VERSION,
@@ -672,13 +703,29 @@ static struct gasket_driver_desc apex_desc = {
 	.device_reset_cb = apex_reset,
 };
 
+static struct pci_driver apex_pci_driver = {
+	.name = "apex",
+	.probe = apex_pci_probe,
+	.remove = apex_pci_remove,
+	.id_table = apex_pci_ids,
+};
+
 static int __init apex_init(void)
 {
-	return gasket_register_device(&apex_desc);
+	int ret;
+
+	ret = gasket_register_device(&apex_desc);
+	if (ret)
+		return ret;
+	ret = pci_register_driver(&apex_pci_driver);
+	if (ret)
+		gasket_unregister_device(&apex_desc);
+	return ret;
 }
 
 static void apex_exit(void)
 {
+	pci_unregister_driver(&apex_pci_driver);
 	gasket_unregister_device(&apex_desc);
 }
 MODULE_DESCRIPTION("Google Apex driver");
