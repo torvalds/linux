@@ -702,7 +702,8 @@ next_part:
 	/* can be used for verification */
 	map->m_llen = offset + cur - map->m_la;
 
-	if ((end = cur) > 0)
+	end = cur;
+	if (end > 0)
 		goto repeat;
 
 	/* FIXME! avoid the last relundant fixup & endio */
