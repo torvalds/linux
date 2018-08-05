@@ -198,8 +198,8 @@ const struct iwl_cfg iwl22000_2ac_cfg_jf = {
 	IWL_DEVICE_22500,
 };
 
-const struct iwl_cfg iwl22000_2ax_cfg_hr = {
-	.name = "Intel(R) Dual Band Wireless AX 22000",
+const struct iwl_cfg iwl22560_2ax_cfg_hr = {
+	.name = "Intel(R) Wireless-AX 22560",
 	.fw_name_pre = IWL_22000_QU_B_HR_B_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
