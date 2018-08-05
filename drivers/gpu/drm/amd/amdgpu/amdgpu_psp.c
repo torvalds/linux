@@ -134,6 +134,13 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		msleep(1);
 	}
 
+	/* the status field must be 0 after FW is loaded */
+	if (ucode && psp->cmd_buf_mem->resp.status) {
+		DRM_ERROR("failed loading with status (%d) and ucode id (%d)\n",
+			  psp->cmd_buf_mem->resp.status, ucode->ucode_id);
+		return -EINVAL;
+	}
+
 	if (ucode) {
 		ucode->tmr_mc_addr_lo = psp->cmd_buf_mem->resp.fw_addr_lo;
 		ucode->tmr_mc_addr_hi = psp->cmd_buf_mem->resp.fw_addr_hi;
