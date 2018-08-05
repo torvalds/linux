@@ -3445,7 +3445,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	cp_ring_id = le16_to_cpu(req->cmpl_ring);
 	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
 
-	if (bp->flags & BNXT_FLAG_SHORT_CMD) {
+	if (bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) {
 		void *short_cmd_req = bp->hwrm_short_cmd_req_addr;
 
 		memcpy(short_cmd_req, req, msg_len);
@@ -5089,9 +5089,9 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 	flags = le16_to_cpu(resp->flags);
 	if (flags & (FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED |
 		     FUNC_QCFG_RESP_FLAGS_FW_LLDP_AGENT_ENABLED)) {
-		bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
+		bp->fw_cap |= BNXT_FW_CAP_LLDP_AGENT;
 		if (flags & FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED)
-			bp->flags |= BNXT_FLAG_FW_DCBX_AGENT;
+			bp->fw_cap |= BNXT_FW_CAP_DCBX_AGENT;
 	}
 	if (BNXT_PF(bp) && (flags & FUNC_QCFG_RESP_FLAGS_MULTI_HOST))
 		bp->flags |= BNXT_FLAG_MULTI_HOST;
@@ -5249,7 +5249,7 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	if (bp->hwrm_spec_code >= 0x10803) {
 		rc = bnxt_hwrm_func_resc_qcaps(bp, true);
 		if (!rc)
-			bp->flags |= BNXT_FLAG_NEW_RM;
+			bp->fw_cap |= BNXT_FW_CAP_NEW_RM;
 	}
 	return 0;
 }
@@ -5352,7 +5352,7 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	dev_caps_cfg = le32_to_cpu(resp->dev_caps_cfg);
 	if ((dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED) &&
 	    (dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_REQUIRED))
-		bp->flags |= BNXT_FLAG_SHORT_CMD;
+		bp->fw_cap |= BNXT_FW_CAP_SHORT_CMD;
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -8760,7 +8760,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
-	if (bp->flags & BNXT_FLAG_SHORT_CMD) {
+	if (bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) {
 		rc = bnxt_alloc_hwrm_short_cmd_req(bp);
 		if (rc)
 			goto init_err_pci_clean;

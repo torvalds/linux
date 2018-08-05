@@ -610,7 +610,7 @@ static u8 bnxt_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 		return 1;
 
 	if (mode & DCB_CAP_DCBX_HOST) {
-		if (BNXT_VF(bp) || (bp->flags & BNXT_FLAG_FW_LLDP_AGENT))
+		if (BNXT_VF(bp) || (bp->fw_cap & BNXT_FW_CAP_LLDP_AGENT))
 			return 1;
 
 		/* only support IEEE */
@@ -643,9 +643,9 @@ void bnxt_dcb_init(struct bnxt *bp)
 		return;
 
 	bp->dcbx_cap = DCB_CAP_DCBX_VER_IEEE;
-	if (BNXT_PF(bp) && !(bp->flags & BNXT_FLAG_FW_LLDP_AGENT))
+	if (BNXT_PF(bp) && !(bp->fw_cap & BNXT_FW_CAP_LLDP_AGENT))
 		bp->dcbx_cap |= DCB_CAP_DCBX_HOST;
-	else if (bp->flags & BNXT_FLAG_FW_DCBX_AGENT)
+	else if (bp->fw_cap & BNXT_FW_CAP_DCBX_AGENT)
 		bp->dcbx_cap |= DCB_CAP_DCBX_LLD_MANAGED;
 	bp->dev->dcbnl_ops = &dcbnl_ops;
 }
