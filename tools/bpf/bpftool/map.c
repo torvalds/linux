@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/kernel.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,7 +91,8 @@ static bool map_is_map_of_progs(__u32 type)
 static void *alloc_value(struct bpf_map_info *info)
 {
 	if (map_is_per_cpu(info->type))
-		return malloc(info->value_size * get_possible_cpus());
+		return malloc(round_up(info->value_size, 8) *
+			      get_possible_cpus());
 	else
 		return malloc(info->value_size);
 }
@@ -161,9 +163,10 @@ static void print_entry_json(struct bpf_map_info *info, unsigned char *key,
 		jsonw_name(json_wtr, "value");
 		print_hex_data_json(value, info->value_size);
 	} else {
-		unsigned int i, n;
+		unsigned int i, n, step;
 
 		n = get_possible_cpus();
+		step = round_up(info->value_size, 8);
 
 		jsonw_name(json_wtr, "key");
 		print_hex_data_json(key, info->key_size);
@@ -176,7 +179,7 @@ static void print_entry_json(struct bpf_map_info *info, unsigned char *key,
 			jsonw_int_field(json_wtr, "cpu", i);
 
 			jsonw_name(json_wtr, "value");
-			print_hex_data_json(value + i * info->value_size,
+			print_hex_data_json(value + i * step,
 					    info->value_size);
 
 			jsonw_end_object(json_wtr);
@@ -207,9 +210,10 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 
 		printf("\n");
 	} else {
-		unsigned int i, n;
+		unsigned int i, n, step;
 
 		n = get_possible_cpus();
+		step = round_up(info->value_size, 8);
 
 		printf("key:\n");
 		fprint_hex(stdout, key, info->key_size, " ");
@@ -217,7 +221,7 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		for (i = 0; i < n; i++) {
 			printf("value (CPU %02d):%c",
 			       i, info->value_size > 16 ? '\n' : ' ');
-			fprint_hex(stdout, value + i * info->value_size,
+			fprint_hex(stdout, value + i * step,
 				   info->value_size, " ");
 			printf("\n");
 		}
