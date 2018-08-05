@@ -1792,7 +1792,6 @@ static int __init gasket_init(void)
 	int i;
 
 	pr_debug("%s\n", __func__);
-	/* Check for duplicates and find a free slot. */
 	mutex_lock(&g_mutex);
 	for (i = 0; i < GASKET_FRAMEWORK_DESC_MAX; i++) {
 		g_descs[i].driver_desc = NULL;
