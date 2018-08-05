@@ -5,6 +5,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include <linux/types.h>
+#include <linux/stddef.h>
 #include <linux/perf_event.h>
 
 extern bool test_attr__enabled;

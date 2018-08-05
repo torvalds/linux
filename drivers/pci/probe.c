@@ -2433,13 +2433,13 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 	dev = pci_scan_single_device(bus, devfn);
 	if (!dev)
 		return 0;
-	if (!dev->is_added)
+	if (!pci_dev_is_added(dev))
 		nr++;
 
 	for (fn = next_fn(bus, dev, 0); fn > 0; fn = next_fn(bus, dev, fn)) {
 		dev = pci_scan_single_device(bus, devfn + fn);
 		if (dev) {
-			if (!dev->is_added)
+			if (!pci_dev_is_added(dev))
 				nr++;
 			dev->multifunction = 1;
 		}
