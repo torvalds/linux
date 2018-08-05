@@ -3544,6 +3544,42 @@ mlxsw_reg_qpdpm_dscp_pack(char *payload, unsigned short dscp, u8 prio)
 	mlxsw_reg_qpdpm_dscp_entry_prio_set(payload, dscp, prio);
 }
 
+/* QTCTM - QoS Switch Traffic Class Table is Multicast-Aware Register
+ * ------------------------------------------------------------------
+ * This register configures if the Switch Priority to Traffic Class mapping is
+ * based on Multicast packet indication. If so, then multicast packets will get
+ * a Traffic Class that is plus (cap_max_tclass_data/2) the value configured by
+ * QTCT.
+ * By default, Switch Priority to Traffic Class mapping is not based on
+ * Multicast packet indication.
+ */
+#define MLXSW_REG_QTCTM_ID 0x401A
+#define MLXSW_REG_QTCTM_LEN 0x08
+
+MLXSW_REG_DEFINE(qtctm, MLXSW_REG_QTCTM_ID, MLXSW_REG_QTCTM_LEN);
+
+/* reg_qtctm_local_port
+ * Local port number.
+ * No support for CPU port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, qtctm, local_port, 0x00, 16, 8);
+
+/* reg_qtctm_mc
+ * Multicast Mode
+ * Whether Switch Priority to Traffic Class mapping is based on Multicast packet
+ * indication (default is 0, not based on Multicast packet indication).
+ */
+MLXSW_ITEM32(reg, qtctm, mc, 0x04, 0, 1);
+
+static inline void
+mlxsw_reg_qtctm_pack(char *payload, u8 local_port, bool mc)
+{
+	MLXSW_REG_ZERO(qtctm, payload);
+	mlxsw_reg_qtctm_local_port_set(payload, local_port);
+	mlxsw_reg_qtctm_mc_set(payload, mc);
+}
+
 /* PMLP - Ports Module to Local Port Register
  * ------------------------------------------
  * Configures the assignment of modules to local ports.
@@ -8761,6 +8797,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(qrwe),
 	MLXSW_REG(qpdsm),
 	MLXSW_REG(qpdpm),
+	MLXSW_REG(qtctm),
 	MLXSW_REG(pmlp),
 	MLXSW_REG(pmtu),
 	MLXSW_REG(ptys),
