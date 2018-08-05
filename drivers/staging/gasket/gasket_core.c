@@ -1819,7 +1819,7 @@ void gasket_unregister_device(const struct gasket_driver_desc *driver_desc)
 	g_descs[desc_idx].driver_desc = NULL;
 	mutex_unlock(&g_mutex);
 
-	pr_info("removed %s driver\n", driver_desc->name);
+	pr_debug("removed %s driver\n", driver_desc->name);
 }
 EXPORT_SYMBOL(gasket_unregister_device);
 
@@ -1827,7 +1827,7 @@ static int __init gasket_init(void)
 {
 	int i;
 
-	pr_info("Performing one-time init of the Gasket framework.\n");
+	pr_debug("%s\n", __func__);
 	/* Check for duplicates and find a free slot. */
 	mutex_lock(&g_mutex);
 	for (i = 0; i < GASKET_FRAMEWORK_DESC_MAX; i++) {
@@ -1843,8 +1843,7 @@ static int __init gasket_init(void)
 
 static void __exit gasket_exit(void)
 {
-	/* No deinit/dealloc needed at present. */
-	pr_info("Removing Gasket framework module.\n");
+	pr_debug("%s\n", __func__);
 }
 MODULE_DESCRIPTION("Google Gasket driver framework");
 MODULE_VERSION(GASKET_FRAMEWORK_VERSION);
