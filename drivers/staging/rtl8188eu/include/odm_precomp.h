@@ -24,7 +24,7 @@
 #include "odm.h"
 #include "odm_HWConfig.h"
 #include "odm_debug.h"
-#include "odm_RegDefine11N.h"
+#include "../../rtlwifi/phydm/phydm_regdefine11n.h"
 
 #include "hal8188e_rate_adaptive.h" /* for RA,Power training */
 #include "rtl8188e_hal.h"
