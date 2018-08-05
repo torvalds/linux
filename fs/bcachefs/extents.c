@@ -1298,6 +1298,17 @@ extent_insert_advance_pos(struct extent_insert_state *s, struct bkey_s_c k)
 	return __extent_insert_advance_pos(s, next_pos, k);
 }
 
+void bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)
+{
+	struct btree *b = iter->l[0].b;
+
+	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
+
+	bch2_cut_back(b->key.k.p, &k->k);
+
+	BUG_ON(bkey_cmp(bkey_start_pos(&k->k), b->data->min_key) < 0);
+}
+
 enum btree_insert_ret
 bch2_extent_can_insert(struct btree_insert *trans,
 		       struct btree_insert_entry *insert,
@@ -1310,6 +1321,9 @@ bch2_extent_can_insert(struct btree_insert *trans,
 	struct bkey unpacked;
 	struct bkey_s_c k;
 	int sectors;
+
+	BUG_ON(trans->flags & BTREE_INSERT_ATOMIC &&
+	       !bch2_extent_is_atomic(&insert->k->k, insert->iter));
 
 	/*
 	 * We avoid creating whiteouts whenever possible when deleting, but

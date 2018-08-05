@@ -6,6 +6,7 @@
 #include "buckets.h"
 #include "clock.h"
 #include "error.h"
+#include "extents.h"
 #include "fs.h"
 #include "fs-io.h"
 #include "fsck.h"
@@ -430,16 +431,21 @@ static int bchfs_write_index_update(struct bch_write_op *wop)
 	hook.need_inode_update	= false;
 
 	do {
-		/* XXX: inode->i_size locking */
-		k = bch2_keylist_front(keys);
-		if (min(k->k.p.offset << 9, op->new_i_size) >
-		    op->inode->ei_inode.bi_size)
-			hook.need_inode_update = true;
+		BKEY_PADDED(k) tmp;
 
-		/* optimization for fewer transaction restarts: */
 		ret = bch2_btree_iter_traverse(extent_iter);
 		if (ret)
 			goto err;
+
+		bkey_copy(&tmp.k, bch2_keylist_front(keys));
+		k = &tmp.k;
+
+		bch2_extent_trim_atomic(k, extent_iter);
+
+		/* XXX: inode->i_size locking */
+		if (min(k->k.p.offset << 9, op->new_i_size) >
+		    op->inode->ei_inode.bi_size)
+			hook.need_inode_update = true;
 
 		if (hook.need_inode_update) {
 			struct bkey_s_c inode;
@@ -515,8 +521,10 @@ err:
 		if (hook.need_inode_update)
 			op->inode->ei_inode = hook.inode_u;
 
-		BUG_ON(bkey_cmp(extent_iter->pos, k->k.p) < 0);
-		bch2_keylist_pop_front(keys);
+		if (bkey_cmp(extent_iter->pos, bch2_keylist_front(keys)->k.p) < 0)
+			bch2_cut_front(extent_iter->pos, bch2_keylist_front(keys));
+		else
+			bch2_keylist_pop_front(keys);
 	} while (!bch2_keylist_empty(keys));
 
 	bch2_trans_exit(&trans);
@@ -2457,6 +2465,12 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 
 		bch2_cut_front(src->pos, &copy.k);
 		copy.k.k.p.offset -= len >> 9;
+
+		ret = bch2_btree_iter_traverse(dst);
+		if (ret)
+			goto btree_iter_err;
+
+		bch2_extent_trim_atomic(&copy.k, dst);
 
 		BUG_ON(bkey_cmp(dst->pos, bkey_start_pos(&copy.k.k)));
 

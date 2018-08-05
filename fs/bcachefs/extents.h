@@ -62,6 +62,17 @@ int bch2_extent_pick_ptr(struct bch_fs *, struct bkey_s_c,
 			 struct bch_devs_mask *,
 			 struct extent_pick_ptr *);
 
+void bch2_extent_trim_atomic(struct bkey_i *, struct btree_iter *);
+
+static inline bool bch2_extent_is_atomic(struct bkey *k,
+					 struct btree_iter *iter)
+{
+	struct btree *b = iter->l[0].b;
+
+	return bkey_cmp(k->p, b->key.k.p) <= 0 &&
+		bkey_cmp(bkey_start_pos(k), b->data->min_key) >= 0;
+}
+
 enum btree_insert_ret
 bch2_extent_can_insert(struct btree_insert *, struct btree_insert_entry *,
 		       unsigned *);
