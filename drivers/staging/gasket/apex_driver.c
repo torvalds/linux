@@ -688,9 +688,6 @@ static struct gasket_driver_desc apex_desc = {
 	.add_dev_cb = apex_add_dev_cb,
 	.remove_dev_cb = NULL,
 
-	.enable_dev_cb = NULL,
-	.disable_dev_cb = NULL,
-
 	.sysfs_setup_cb = apex_sysfs_setup_cb,
 	.sysfs_cleanup_cb = NULL,
 
