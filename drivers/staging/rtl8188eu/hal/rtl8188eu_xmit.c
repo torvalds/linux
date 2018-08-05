@@ -43,9 +43,11 @@ static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 	ptxdesc->txdw7 |= cpu_to_le32(0x0000ffff & checksum);
 }
 
-/*  Description: In normal chip, we should send some packet to Hw which will be used by Fw */
-/*			in FW LPS mode. The function is to fill the Tx descriptor of this packets, then */
-/*			Fw can tell Hw to send these packet derectly. */
+/*
+ * In normal chip, we should send some packet to Hw which will be used by Fw
+ * in FW LPS mode. The function is to fill the Tx descriptor of this packets,
+ * then Fw can tell Hw to send these packet derectly.
+ */
 void rtl8188e_fill_fake_txdesc(struct adapter *adapt, u8 *desc, u32 BufferLen, u8  ispspoll, u8  is_btqosnull)
 {
 	struct tx_desc *ptxdesc;
