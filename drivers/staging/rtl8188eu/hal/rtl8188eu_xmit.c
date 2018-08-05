@@ -15,7 +15,7 @@
 
 s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
 {
-	struct xmit_priv	*pxmitpriv = &adapt->xmitpriv;
+	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
 
 	tasklet_init(&pxmitpriv->xmit_tasklet,
 		     (void(*)(unsigned long))rtl8188eu_xmit_tasklet,
@@ -30,8 +30,8 @@ static u8 urb_zero_packet_chk(struct adapter *adapt, int sz)
 
 static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 {
-	u16	*usptr = (u16 *)ptxdesc;
-	u32 count = 16;		/*  (32 bytes / 2 bytes per XOR) => 16 times */
+	u16 *usptr = (u16 *)ptxdesc;
+	u32 count = 16; /* (32 bytes / 2 bytes per XOR) => 16 times */
 	u32 index;
 	u16 checksum = 0;
 
@@ -160,15 +160,15 @@ static void fill_txdesc_phy(struct pkt_attrib *pattrib, __le32 *pdw)
 
 static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bagg_pkt)
 {
-	int	pull = 0;
-	uint	qsel;
+	int pull = 0;
+	uint qsel;
 	u8 data_rate, pwr_status, offset;
-	struct adapter		*adapt = pxmitframe->padapter;
-	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
+	struct adapter *adapt = pxmitframe->padapter;
+	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct odm_dm_struct *odmpriv = &adapt->HalData->odmpriv;
-	struct tx_desc	*ptxdesc = (struct tx_desc *)pmem;
-	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct tx_desc *ptxdesc = (struct tx_desc *)pmem;
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	if (adapt->registrypriv.mp_mode == 0) {
 		if ((!bagg_pkt) && (urb_zero_packet_chk(adapt, sz) == 0)) {
@@ -328,7 +328,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	return pull;
 }
 
-/* for non-agg data frame or  management frame */
+/* for non-agg data frame or management frame */
 static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 {
 	s32 ret = _SUCCESS;
