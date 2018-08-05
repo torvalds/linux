@@ -23,7 +23,7 @@
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
-#include <linux/netfilter/nf_osf.h>
+#include <linux/netfilter/nfnetlink_osf.h>
 
 #define XT_OSF_GENRE		NF_OSF_GENRE
 #define XT_OSF_INVERT		NF_OSF_INVERT
@@ -47,13 +47,6 @@
 #define xt_osf_nlmsg		nf_osf_nlmsg
 
 #define xt_osf_attr_type	nf_osf_attr_type
-/*
- * Add/remove fingerprint from the kernel.
- */
-enum xt_osf_msg_types {
-	OSF_MSG_ADD,
-	OSF_MSG_REMOVE,
-	OSF_MSG_MAX,
-};
+#define xt_osf_msg_types	nf_osf_msg_types
 
 #endif				/* _XT_OSF_H */

@@ -94,4 +94,13 @@ enum nf_osf_attr_type {
 	OSF_ATTR_MAX,
 };
 
+/*
+ * Add/remove fingerprint from the kernel.
+ */
+enum nf_osf_msg_types {
+	OSF_MSG_ADD,
+	OSF_MSG_REMOVE,
+	OSF_MSG_MAX,
+};
+
 #endif /* _NF_OSF_H */

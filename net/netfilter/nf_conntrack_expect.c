@@ -712,5 +712,5 @@ void nf_conntrack_expect_fini(void)
 {
 	rcu_barrier(); /* Wait for call_rcu() before destroy */
 	kmem_cache_destroy(nf_ct_expect_cachep);
-	nf_ct_free_hashtable(nf_ct_expect_hash, nf_ct_expect_hsize);
+	kvfree(nf_ct_expect_hash);
 }

@@ -18,7 +18,14 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/x_tables.h>
 #include <net/netfilter/nf_log.h>
-#include <linux/netfilter/nf_osf.h>
+#include <linux/netfilter/nfnetlink_osf.h>
+
+/*
+ * Indexed by dont-fragment bit.
+ * It is the only constant value in the fingerprint.
+ */
+struct list_head nf_osf_fingers[2];
+EXPORT_SYMBOL_GPL(nf_osf_fingers);
 
 static inline int nf_osf_ttl(const struct sk_buff *skb,
 			     int ttl_check, unsigned char f_ttl)
@@ -248,5 +255,182 @@ nf_osf_match(const struct sk_buff *skb, u_int8_t family,
 	return fmatch == FMATCH_OK;
 }
 EXPORT_SYMBOL_GPL(nf_osf_match);
+
+const char *nf_osf_find(const struct sk_buff *skb,
+			const struct list_head *nf_osf_fingers)
+{
+	const struct iphdr *ip = ip_hdr(skb);
+	const struct nf_osf_user_finger *f;
+	unsigned char opts[MAX_IPOPTLEN];
+	const struct nf_osf_finger *kf;
+	struct nf_osf_hdr_ctx ctx;
+	const struct tcphdr *tcp;
+	const char *genre = NULL;
+
+	memset(&ctx, 0, sizeof(ctx));
+
+	tcp = nf_osf_hdr_ctx_init(&ctx, skb, ip, opts);
+	if (!tcp)
+		return false;
+
+	list_for_each_entry_rcu(kf, &nf_osf_fingers[ctx.df], finger_entry) {
+		f = &kf->finger;
+		if (!nf_osf_match_one(skb, f, -1, &ctx))
+			continue;
+
+		genre = f->genre;
+		break;
+	}
+
+	return genre;
+}
+EXPORT_SYMBOL_GPL(nf_osf_find);
+
+static const struct nla_policy nfnl_osf_policy[OSF_ATTR_MAX + 1] = {
+	[OSF_ATTR_FINGER]	= { .len = sizeof(struct nf_osf_user_finger) },
+};
+
+static int nfnl_osf_add_callback(struct net *net, struct sock *ctnl,
+				 struct sk_buff *skb, const struct nlmsghdr *nlh,
+				 const struct nlattr * const osf_attrs[],
+				 struct netlink_ext_ack *extack)
+{
+	struct nf_osf_user_finger *f;
+	struct nf_osf_finger *kf = NULL, *sf;
+	int err = 0;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (!osf_attrs[OSF_ATTR_FINGER])
+		return -EINVAL;
+
+	if (!(nlh->nlmsg_flags & NLM_F_CREATE))
+		return -EINVAL;
+
+	f = nla_data(osf_attrs[OSF_ATTR_FINGER]);
+
+	kf = kmalloc(sizeof(struct nf_osf_finger), GFP_KERNEL);
+	if (!kf)
+		return -ENOMEM;
+
+	memcpy(&kf->finger, f, sizeof(struct nf_osf_user_finger));
+
+	list_for_each_entry(sf, &nf_osf_fingers[!!f->df], finger_entry) {
+		if (memcmp(&sf->finger, f, sizeof(struct nf_osf_user_finger)))
+			continue;
+
+		kfree(kf);
+		kf = NULL;
+
+		if (nlh->nlmsg_flags & NLM_F_EXCL)
+			err = -EEXIST;
+		break;
+	}
+
+	/*
+	 * We are protected by nfnl mutex.
+	 */
+	if (kf)
+		list_add_tail_rcu(&kf->finger_entry, &nf_osf_fingers[!!f->df]);
+
+	return err;
+}
+
+static int nfnl_osf_remove_callback(struct net *net, struct sock *ctnl,
+				    struct sk_buff *skb,
+				    const struct nlmsghdr *nlh,
+				    const struct nlattr * const osf_attrs[],
+				    struct netlink_ext_ack *extack)
+{
+	struct nf_osf_user_finger *f;
+	struct nf_osf_finger *sf;
+	int err = -ENOENT;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (!osf_attrs[OSF_ATTR_FINGER])
+		return -EINVAL;
+
+	f = nla_data(osf_attrs[OSF_ATTR_FINGER]);
+
+	list_for_each_entry(sf, &nf_osf_fingers[!!f->df], finger_entry) {
+		if (memcmp(&sf->finger, f, sizeof(struct nf_osf_user_finger)))
+			continue;
+
+		/*
+		 * We are protected by nfnl mutex.
+		 */
+		list_del_rcu(&sf->finger_entry);
+		kfree_rcu(sf, rcu_head);
+
+		err = 0;
+		break;
+	}
+
+	return err;
+}
+
+static const struct nfnl_callback nfnl_osf_callbacks[OSF_MSG_MAX] = {
+	[OSF_MSG_ADD]	= {
+		.call		= nfnl_osf_add_callback,
+		.attr_count	= OSF_ATTR_MAX,
+		.policy		= nfnl_osf_policy,
+	},
+	[OSF_MSG_REMOVE]	= {
+		.call		= nfnl_osf_remove_callback,
+		.attr_count	= OSF_ATTR_MAX,
+		.policy		= nfnl_osf_policy,
+	},
+};
+
+static const struct nfnetlink_subsystem nfnl_osf_subsys = {
+	.name			= "osf",
+	.subsys_id		= NFNL_SUBSYS_OSF,
+	.cb_count		= OSF_MSG_MAX,
+	.cb			= nfnl_osf_callbacks,
+};
+
+static int __init nfnl_osf_init(void)
+{
+	int err = -EINVAL;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nf_osf_fingers); ++i)
+		INIT_LIST_HEAD(&nf_osf_fingers[i]);
+
+	err = nfnetlink_subsys_register(&nfnl_osf_subsys);
+	if (err < 0) {
+		pr_err("Failed to register OSF nsfnetlink helper (%d)\n", err);
+		goto err_out_exit;
+	}
+	return 0;
+
+err_out_exit:
+	return err;
+}
+
+static void __exit nfnl_osf_fini(void)
+{
+	struct nf_osf_finger *f;
+	int i;
+
+	nfnetlink_subsys_unregister(&nfnl_osf_subsys);
+
+	rcu_read_lock();
+	for (i = 0; i < ARRAY_SIZE(nf_osf_fingers); ++i) {
+		list_for_each_entry_rcu(f, &nf_osf_fingers[i], finger_entry) {
+			list_del_rcu(&f->finger_entry);
+			kfree_rcu(f, rcu_head);
+		}
+	}
+	rcu_read_unlock();
+
+	rcu_barrier();
+}
+
+module_init(nfnl_osf_init);
+module_exit(nfnl_osf_fini);
 
 MODULE_LICENSE("GPL");
