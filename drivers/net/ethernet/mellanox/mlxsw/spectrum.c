@@ -2793,6 +2793,13 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 					    false, 0);
 		if (err)
 			return err;
+
+		err = mlxsw_sp_port_ets_set(mlxsw_sp_port,
+					    MLXSW_REG_QEEC_HIERARCY_TC,
+					    i + 8, i,
+					    false, 0);
+		if (err)
+			return err;
 	}
 
 	/* Make sure the max shaper is disabled in all hierarchies that
@@ -2828,6 +2835,16 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	}
 
 	return 0;
+}
+
+static int mlxsw_sp_port_tc_mc_mode_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char qtctm_pl[MLXSW_REG_QTCTM_LEN];
+
+	mlxsw_reg_qtctm_pack(qtctm_pl, mlxsw_sp_port->local_port, enable);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qtctm), qtctm_pl);
 }
 
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
@@ -2958,6 +2975,13 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_ets_init;
 	}
 
+	err = mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, true);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to initialize TC MC mode\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_tc_mc_mode;
+	}
+
 	/* ETS and buffers must be initialized before DCB. */
 	err = mlxsw_sp_port_dcb_init(mlxsw_sp_port);
 	if (err) {
@@ -3014,6 +3038,8 @@ err_port_qdiscs_init:
 err_port_fids_init:
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 err_port_dcb_init:
+	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
+err_port_tc_mc_mode:
 err_port_ets_init:
 err_port_buffers_init:
 err_port_admin_status_set:
@@ -3048,6 +3074,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_tc_qdisc_fini(mlxsw_sp_port);
 	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
+	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 	kfree(mlxsw_sp_port->sample);
