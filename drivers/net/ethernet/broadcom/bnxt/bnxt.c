@@ -5162,7 +5162,7 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all)
 
 		pf->vf_resv_strategy =
 			le16_to_cpu(resp->vf_reservation_strategy);
-		if (pf->vf_resv_strategy > BNXT_VF_RESV_STRATEGY_MINIMAL)
+		if (pf->vf_resv_strategy > BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC)
 			pf->vf_resv_strategy = BNXT_VF_RESV_STRATEGY_MAXIMAL;
 	}
 hwrm_func_resc_qcaps_exit:

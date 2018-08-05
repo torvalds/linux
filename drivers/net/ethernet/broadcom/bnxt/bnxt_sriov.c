@@ -447,7 +447,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings;
 	u16 vf_stat_ctx, vf_vnics, vf_ring_grps;
 	struct bnxt_pf_info *pf = &bp->pf;
-	int i, rc = 0;
+	int i, rc = 0, min = 1;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_RESOURCE_CFG, -1, -1);
 
@@ -464,14 +464,19 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 
 	req.min_rsscos_ctx = cpu_to_le16(BNXT_VF_MIN_RSS_CTX);
 	req.max_rsscos_ctx = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
-	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL) {
-		req.min_cmpl_rings = cpu_to_le16(1);
-		req.min_tx_rings = cpu_to_le16(1);
-		req.min_rx_rings = cpu_to_le16(1);
-		req.min_l2_ctxs = cpu_to_le16(BNXT_VF_MIN_L2_CTX);
-		req.min_vnics = cpu_to_le16(1);
-		req.min_stat_ctx = cpu_to_le16(1);
-		req.min_hw_ring_grps = cpu_to_le16(1);
+	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC) {
+		min = 0;
+		req.min_rsscos_ctx = cpu_to_le16(min);
+	}
+	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL ||
+	    pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC) {
+		req.min_cmpl_rings = cpu_to_le16(min);
+		req.min_tx_rings = cpu_to_le16(min);
+		req.min_rx_rings = cpu_to_le16(min);
+		req.min_l2_ctxs = cpu_to_le16(min);
+		req.min_vnics = cpu_to_le16(min);
+		req.min_stat_ctx = cpu_to_le16(min);
+		req.min_hw_ring_grps = cpu_to_le16(min);
 	} else {
 		vf_cp_rings /= num_vfs;
 		vf_tx_rings /= num_vfs;
