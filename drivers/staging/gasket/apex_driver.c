@@ -644,6 +644,10 @@ static int apex_pci_probe(struct pci_dev *pci_dev,
 		goto remove_device;
 	}
 
+	/* Place device in low power mode until opened */
+	if (allow_power_save)
+		apex_enter_reset(gasket_dev);
+
 	return 0;
 
 remove_device:
