@@ -643,11 +643,23 @@ static int apex_pci_probe(struct pci_dev *pci_dev,
 		return ret;
 	}
 
+	pci_set_drvdata(pci_dev, gasket_dev);
+	ret = gasket_enable_device(gasket_dev);
+	if (ret) {
+		dev_err(&pci_dev->dev, "error enabling gasket device\n");
+		gasket_pci_remove_device(pci_dev);
+		pci_disable_device(pci_dev);
+		return ret;
+	}
+
 	return 0;
 }
 
 static void apex_pci_remove(struct pci_dev *pci_dev)
 {
+	struct gasket_dev *gasket_dev = pci_get_drvdata(pci_dev);
+
+	gasket_disable_device(gasket_dev);
 	gasket_pci_remove_device(pci_dev);
 	pci_disable_device(pci_dev);
 }
