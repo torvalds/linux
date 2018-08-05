@@ -1489,18 +1489,9 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 	if (ret)
 		goto fail4;
 
-	ret = check_and_invoke_callback(gasket_dev,
-					driver_desc->sysfs_setup_cb);
-	if (ret) {
-		dev_err(gasket_dev->dev, "Error in sysfs setup cb: %d\n", ret);
-		goto fail5;
-	}
-
 	*gasket_devp = gasket_dev;
 	return 0;
 
-fail5:
-	check_and_invoke_callback(gasket_dev, driver_desc->sysfs_cleanup_cb);
 fail4:
 fail3:
 	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
@@ -1550,7 +1541,6 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 
 	gasket_cleanup_pci(gasket_dev);
 
-	check_and_invoke_callback(gasket_dev, driver_desc->sysfs_cleanup_cb);
 	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
 	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
 	gasket_free_dev(gasket_dev);

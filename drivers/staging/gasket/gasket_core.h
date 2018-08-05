@@ -445,24 +445,6 @@ struct gasket_driver_desc {
 	int (*device_close_cb)(struct gasket_dev *dev);
 
 	/*
-	 * sysfs_setup_cb: Callback to set up driver-specific sysfs nodes.
-	 * @dev: Pointer to the gasket_dev struct for this device.
-	 *
-	 * Called during the add gasket device call.
-	 *
-	 */
-	int (*sysfs_setup_cb)(struct gasket_dev *dev);
-
-	/*
-	 * sysfs_cleanup_cb: Callback to clean up driver-specific sysfs nodes.
-	 * @dev: Pointer to the gasket_dev struct for this device.
-	 *
-	 * Called during device disable processing.
-	 *
-	 */
-	int (*sysfs_cleanup_cb)(struct gasket_dev *dev);
-
-	/*
 	 * get_mappable_regions_cb: Get descriptors of mappable device memory.
 	 * @gasket_dev: Pointer to the struct gasket_dev for this device.
 	 * @bar_index: BAR for which to retrieve memory ranges.
