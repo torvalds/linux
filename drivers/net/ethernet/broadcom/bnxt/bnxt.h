@@ -1411,6 +1411,7 @@ struct bnxt {
 	struct bnxt_tc_info	*tc_info;
 	struct dentry		*debugfs_pdev;
 	struct dentry		*debugfs_dim;
+	struct device		*hwmon_dev;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\

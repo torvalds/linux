@@ -51,6 +51,8 @@
 #include <linux/cpu_rmap.h>
 #include <linux/cpumask.h>
 #include <net/pkt_cls.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -6789,6 +6791,62 @@ static void bnxt_get_wol_settings(struct bnxt *bp)
 	} while (handle && handle != 0xffff);
 }
 
+#ifdef CONFIG_BNXT_HWMON
+static ssize_t bnxt_show_temp(struct device *dev,
+			      struct device_attribute *devattr, char *buf)
+{
+	struct hwrm_temp_monitor_query_input req = {0};
+	struct hwrm_temp_monitor_query_output *resp;
+	struct bnxt *bp = dev_get_drvdata(dev);
+	u32 temp = 0;
+
+	resp = bp->hwrm_cmd_resp_addr;
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_TEMP_MONITOR_QUERY, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	if (!_hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT))
+		temp = resp->temp * 1000; /* display millidegree */
+	mutex_unlock(&bp->hwrm_cmd_lock);
+
+	return sprintf(buf, "%u\n", temp);
+}
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, bnxt_show_temp, NULL, 0);
+
+static struct attribute *bnxt_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(bnxt);
+
+static void bnxt_hwmon_close(struct bnxt *bp)
+{
+	if (bp->hwmon_dev) {
+		hwmon_device_unregister(bp->hwmon_dev);
+		bp->hwmon_dev = NULL;
+	}
+}
+
+static void bnxt_hwmon_open(struct bnxt *bp)
+{
+	struct pci_dev *pdev = bp->pdev;
+
+	bp->hwmon_dev = hwmon_device_register_with_groups(&pdev->dev,
+							  DRV_MODULE_NAME, bp,
+							  bnxt_groups);
+	if (IS_ERR(bp->hwmon_dev)) {
+		bp->hwmon_dev = NULL;
+		dev_warn(&pdev->dev, "Cannot register hwmon device\n");
+	}
+}
+#else
+static void bnxt_hwmon_close(struct bnxt *bp)
+{
+}
+
+static void bnxt_hwmon_open(struct bnxt *bp)
+{
+}
+#endif
+
 static bool bnxt_eee_config_ok(struct bnxt *bp)
 {
 	struct ethtool_eee *eee = &bp->eee;
@@ -7040,6 +7098,9 @@ static int bnxt_open(struct net_device *dev)
 	rc = __bnxt_open_nic(bp, true, true);
 	if (rc)
 		bnxt_hwrm_if_change(bp, false);
+
+	bnxt_hwmon_open(bp);
+
 	return rc;
 }
 
@@ -7102,6 +7163,7 @@ static int bnxt_close(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
+	bnxt_hwmon_close(bp);
 	bnxt_close_nic(bp, true, true);
 	bnxt_hwrm_shutdown_link(bp);
 	bnxt_hwrm_if_change(bp, false);
