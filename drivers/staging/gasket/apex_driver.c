@@ -568,12 +568,6 @@ static struct gasket_sysfs_attribute apex_sysfs_attrs[] = {
 	GASKET_END_OF_ATTR_ARRAY
 };
 
-static int apex_sysfs_setup_cb(struct gasket_dev *gasket_dev)
-{
-	return gasket_sysfs_create_entries(gasket_dev->dev_info.device,
-					   apex_sysfs_attrs);
-}
-
 /* On device open, perform a core reinit reset. */
 static int apex_device_open_cb(struct gasket_dev *gasket_dev)
 {
@@ -639,6 +633,11 @@ static int apex_pci_probe(struct pci_dev *pci_dev,
 		goto remove_device;
 	}
 
+	ret = gasket_sysfs_create_entries(gasket_dev->dev_info.device,
+					  apex_sysfs_attrs);
+	if (ret)
+		dev_err(&pci_dev->dev, "error creating device sysfs entries\n");
+
 	ret = gasket_enable_device(gasket_dev);
 	if (ret) {
 		dev_err(&pci_dev->dev, "error enabling gasket device\n");
@@ -694,9 +693,6 @@ static struct gasket_driver_desc apex_desc = {
 	.num_interrupts = APEX_INTERRUPT_COUNT,
 	.interrupts = apex_interrupts,
 	.interrupt_pack_width = 7,
-
-	.sysfs_setup_cb = apex_sysfs_setup_cb,
-	.sysfs_cleanup_cb = NULL,
 
 	.device_open_cb = apex_device_open_cb,
 	.device_close_cb = apex_device_cleanup,
