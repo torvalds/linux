@@ -1224,7 +1224,7 @@ static bool pwrap_is_pmic_cipher_ready(struct pmic_wrapper *wrp)
 	ret = pwrap_read(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_RDY],
 			 &rdata);
 	if (ret)
-		return 0;
+		return false;
 
 	return rdata == 1;
 }
