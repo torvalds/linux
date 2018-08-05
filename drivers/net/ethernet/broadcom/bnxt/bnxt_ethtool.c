@@ -112,6 +112,11 @@ static int bnxt_set_coalesce(struct net_device *dev,
 					      BNXT_MAX_STATS_COAL_TICKS);
 		stats_ticks = rounddown(stats_ticks, BNXT_MIN_STATS_COAL_TICKS);
 		bp->stats_coal_ticks = stats_ticks;
+		if (bp->stats_coal_ticks)
+			bp->current_interval =
+				bp->stats_coal_ticks * HZ / 1000000;
+		else
+			bp->current_interval = BNXT_TIMER_INTERVAL;
 		update_stats = true;
 	}
 
