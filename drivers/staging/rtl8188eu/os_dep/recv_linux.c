@@ -84,11 +84,11 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 		struct sta_info *psta = NULL;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 		struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
-		int bmcast = IS_MCAST(pattrib->dst);
+		bool mcast = is_multicast_ether_addr(pattrib->dst);
 
 		if (memcmp(pattrib->dst, myid(&padapter->eeprompriv),
 			   ETH_ALEN)) {
-			if (bmcast) {
+			if (mcast) {
 				psta = rtw_get_bcmc_stainfo(padapter);
 				pskb2 = skb_clone(skb, GFP_ATOMIC);
 			} else {
@@ -104,7 +104,7 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 
 				rtw_xmit_entry(skb, pnetdev);
 
-				if (bmcast)
+				if (mcast)
 					skb = pskb2;
 				else
 					goto _recv_indicatepkt_end;
