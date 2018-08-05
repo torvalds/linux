@@ -1115,7 +1115,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		tpa_info->hash_type = PKT_HASH_TYPE_L4;
 		tpa_info->gso_type = SKB_GSO_TCPV4;
 		/* RSS profiles 1 and 3 with extract code 0 for inner 4-tuple */
-		if (hash_type == 3)
+		if (hash_type == 3 || TPA_START_IS_IPV6(tpa_start1))
 			tpa_info->gso_type = SKB_GSO_TCPV6;
 		tpa_info->rss_hash =
 			le32_to_cpu(tpa_start->rx_tpa_start_cmp_rss_hash);
@@ -3981,6 +3981,7 @@ static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_RSS_CFG, -1, -1);
 	if (set_rss) {
 		req.hash_type = cpu_to_le32(bp->rss_hash_cfg);
+		req.hash_mode_flags = VNIC_RSS_CFG_REQ_HASH_MODE_FLAGS_DEFAULT;
 		if (vnic->flags & BNXT_VNIC_RSS_FLAG) {
 			if (BNXT_CHIP_TYPE_NITRO_A0(bp))
 				max_rings = bp->rx_nr_rings - 1;
