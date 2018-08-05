@@ -474,33 +474,10 @@ struct gasket_driver_desc {
 	int (*device_close_cb)(struct gasket_dev *dev);
 
 	/*
-	 * enable_dev_cb: Callback immediately before enabling the device.
-	 * @dev: Pointer to the gasket_dev struct for this driver instance.
-	 *
-	 * This callback is invoked after the device has been added and all BAR
-	 * spaces mapped, immediately before registering and enabling the
-	 * [character] device via cdev_add. If this call fails (returns
-	 * nonzero), disable_dev_cb will be called.
-	 *
-	 * Note that cdev are initialized but not active
-	 * (cdev_add has not yet been called) when this callback is invoked.
-	 */
-	int (*enable_dev_cb)(struct gasket_dev *dev);
-
-	/*
-	 * disable_dev_cb: Callback immediately after disabling the device.
-	 * @dev: Pointer to the gasket_dev struct for this driver instance.
-	 *
-	 * Called during device shutdown, immediately after disabling device
-	 * operations via cdev_del.
-	 */
-	int (*disable_dev_cb)(struct gasket_dev *dev);
-
-	/*
 	 * sysfs_setup_cb: Callback to set up driver-specific sysfs nodes.
 	 * @dev: Pointer to the gasket_dev struct for this device.
 	 *
-	 * Called just before enable_dev_cb.
+	 * Called during the add gasket device call.
 	 *
 	 */
 	int (*sysfs_setup_cb)(struct gasket_dev *dev);
@@ -509,7 +486,7 @@ struct gasket_driver_desc {
 	 * sysfs_cleanup_cb: Callback to clean up driver-specific sysfs nodes.
 	 * @dev: Pointer to the gasket_dev struct for this device.
 	 *
-	 * Called just before disable_dev_cb.
+	 * Called during device disable processing.
 	 *
 	 */
 	int (*sysfs_cleanup_cb)(struct gasket_dev *dev);

@@ -648,8 +648,6 @@ static void gasket_disable_dev(struct gasket_dev *gasket_dev)
 			gasket_page_table_cleanup(gasket_dev->page_table[i]);
 		}
 	}
-
-	check_and_invoke_callback(gasket_dev, driver_desc->disable_dev_cb);
 }
 
 /*
@@ -1407,13 +1405,6 @@ static int gasket_enable_dev(struct gasket_internal_desc *internal_desc,
 		return ret;
 	}
 	gasket_dev->hardware_revision = ret;
-
-	ret = check_and_invoke_callback(gasket_dev, driver_desc->enable_dev_cb);
-	if (ret) {
-		dev_err(gasket_dev->dev, "Error in enable device cb: %d\n",
-			ret);
-		return ret;
-	}
 
 	/* device_status_cb returns a device status, not an error code. */
 	gasket_dev->status = gasket_get_hw_status(gasket_dev);
