@@ -448,37 +448,6 @@ static int apex_reset(struct gasket_dev *gasket_dev)
 	return ret;
 }
 
-static int apex_add_dev_cb(struct gasket_dev *gasket_dev)
-{
-	ulong page_table_ready, msix_table_ready;
-	int retries = 0;
-
-	apex_reset(gasket_dev);
-
-	while (retries < APEX_RESET_RETRY) {
-		page_table_ready =
-			gasket_dev_read_64(gasket_dev, APEX_BAR_INDEX,
-					   APEX_BAR2_REG_KERNEL_HIB_PAGE_TABLE_INIT);
-		msix_table_ready =
-			gasket_dev_read_64(gasket_dev, APEX_BAR_INDEX,
-					   APEX_BAR2_REG_KERNEL_HIB_MSIX_TABLE_INIT);
-		if (page_table_ready && msix_table_ready)
-			break;
-		schedule_timeout(msecs_to_jiffies(APEX_RESET_DELAY));
-		retries++;
-	}
-
-	if (retries == APEX_RESET_RETRY) {
-		if (!page_table_ready)
-			dev_err(gasket_dev->dev, "Page table init timed out\n");
-		if (!msix_table_ready)
-			dev_err(gasket_dev->dev, "MSI-X table init timed out\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
 /*
  * Check permissions for Apex ioctls.
  * Returns true if the current user may execute this ioctl, and false otherwise.
@@ -626,6 +595,8 @@ static int apex_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)
 {
 	int ret;
+	ulong page_table_ready, msix_table_ready;
+	int retries = 0;
 	struct gasket_dev *gasket_dev;
 
 	ret = pci_enable_device(pci_dev);
@@ -644,15 +615,42 @@ static int apex_pci_probe(struct pci_dev *pci_dev,
 	}
 
 	pci_set_drvdata(pci_dev, gasket_dev);
+	apex_reset(gasket_dev);
+
+	while (retries < APEX_RESET_RETRY) {
+		page_table_ready =
+			gasket_dev_read_64(gasket_dev, APEX_BAR_INDEX,
+					   APEX_BAR2_REG_KERNEL_HIB_PAGE_TABLE_INIT);
+		msix_table_ready =
+			gasket_dev_read_64(gasket_dev, APEX_BAR_INDEX,
+					   APEX_BAR2_REG_KERNEL_HIB_MSIX_TABLE_INIT);
+		if (page_table_ready && msix_table_ready)
+			break;
+		schedule_timeout(msecs_to_jiffies(APEX_RESET_DELAY));
+		retries++;
+	}
+
+	if (retries == APEX_RESET_RETRY) {
+		if (!page_table_ready)
+			dev_err(gasket_dev->dev, "Page table init timed out\n");
+		if (!msix_table_ready)
+			dev_err(gasket_dev->dev, "MSI-X table init timed out\n");
+		ret = -ETIMEDOUT;
+		goto remove_device;
+	}
+
 	ret = gasket_enable_device(gasket_dev);
 	if (ret) {
 		dev_err(&pci_dev->dev, "error enabling gasket device\n");
-		gasket_pci_remove_device(pci_dev);
-		pci_disable_device(pci_dev);
-		return ret;
+		goto remove_device;
 	}
 
 	return 0;
+
+remove_device:
+	gasket_pci_remove_device(pci_dev);
+	pci_disable_device(pci_dev);
+	return ret;
 }
 
 static void apex_pci_remove(struct pci_dev *pci_dev)
@@ -696,9 +694,6 @@ static struct gasket_driver_desc apex_desc = {
 	.num_interrupts = APEX_INTERRUPT_COUNT,
 	.interrupts = apex_interrupts,
 	.interrupt_pack_width = 7,
-
-	.add_dev_cb = apex_add_dev_cb,
-	.remove_dev_cb = NULL,
 
 	.sysfs_setup_cb = apex_sysfs_setup_cb,
 	.sysfs_cleanup_cb = NULL,
