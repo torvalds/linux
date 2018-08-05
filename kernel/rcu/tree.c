@@ -1039,7 +1039,6 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 */
 	if (rcu_dynticks_in_eqs_since(rdp, rdp->dynticks_snap)) {
 		trace_rcu_fqs(rcu_state.name, rdp->gp_seq, rdp->cpu, TPS("dti"));
-		rdp->dynticks_fqs++;
 		rcu_gpnum_ovf(rnp, rdp);
 		return 1;
 	}

@@ -203,17 +203,11 @@ struct rcu_data {
 	int tick_nohz_enabled_snap;	/* Previously seen value from sysfs. */
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 
-	/* 4) reasons this CPU needed to be kicked by force_quiescent_state */
-	unsigned long dynticks_fqs;	/* Kicked due to dynticks idle. */
-	unsigned long cond_resched_completed;
-					/* Grace period that needs help */
-					/*  from cond_resched(). */
-
-	/* 5) rcu_barrier(), OOM callbacks, and expediting. */
+	/* 4) rcu_barrier(), OOM callbacks, and expediting. */
 	struct rcu_head barrier_head;
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
-	/* 6) Callback offloading. */
+	/* 5) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
 	struct rcu_head *nocb_head;	/* CBs waiting for kthread. */
 	struct rcu_head **nocb_tail;
@@ -240,7 +234,7 @@ struct rcu_data {
 					/* Leader CPU takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
-	/* 7) Diagnostic data, including RCU CPU stall warnings. */
+	/* 6) Diagnostic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
 	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
 	struct irq_work rcu_iw;		/* Check for non-irq activity. */
