@@ -5281,7 +5281,8 @@ static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 	int rc = 0;
 	struct hwrm_queue_qportcfg_input req = {0};
 	struct hwrm_queue_qportcfg_output *resp = bp->hwrm_cmd_resp_addr;
-	u8 i, *qptr;
+	u8 i, j, *qptr;
+	bool no_rdma;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_QUEUE_QPORTCFG, -1, -1);
 
@@ -5299,18 +5300,23 @@ static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 	if (bp->max_tc > BNXT_MAX_QUEUE)
 		bp->max_tc = BNXT_MAX_QUEUE;
 
+	no_rdma = !(bp->flags & BNXT_FLAG_ROCE_CAP);
+	qptr = &resp->queue_id0;
+	for (i = 0, j = 0; i < bp->max_tc; i++) {
+		bp->q_info[j].queue_id = *qptr++;
+		bp->q_info[j].queue_profile = *qptr++;
+		bp->tc_to_qidx[j] = j;
+		if (!BNXT_CNPQ(bp->q_info[j].queue_profile) ||
+		    (no_rdma && BNXT_PF(bp)))
+			j++;
+	}
+	bp->max_tc = max_t(u8, j, 1);
+
 	if (resp->queue_cfg_info & QUEUE_QPORTCFG_RESP_QUEUE_CFG_INFO_ASYM_CFG)
 		bp->max_tc = 1;
 
 	if (bp->max_lltc > bp->max_tc)
 		bp->max_lltc = bp->max_tc;
-
-	qptr = &resp->queue_id0;
-	for (i = 0; i < bp->max_tc; i++) {
-		bp->q_info[i].queue_id = *qptr++;
-		bp->q_info[i].queue_profile = *qptr++;
-		bp->tc_to_qidx[i] = i;
-	}
 
 qportcfg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);

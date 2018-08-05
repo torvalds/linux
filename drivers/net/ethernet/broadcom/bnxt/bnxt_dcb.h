@@ -43,6 +43,10 @@ struct bnxt_dscp2pri_entry {
 	((q_profile) ==		\
 	 QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSLESS_ROCE)
 
+#define BNXT_CNPQ(q_profile)	\
+	((q_profile) ==		\
+	 QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSY_ROCE_CNP)
+
 #define HWRM_STRUCT_DATA_SUBTYPE_HOST_OPERATIONAL	0x0300
 
 void bnxt_dcb_init(struct bnxt *bp);
