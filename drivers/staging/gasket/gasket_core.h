@@ -590,6 +590,12 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 /* Remove a PCI gasket device. */
 void gasket_pci_remove_device(struct pci_dev *pci_dev);
 
+/* Enable a Gasket device. */
+int gasket_enable_device(struct gasket_dev *gasket_dev);
+
+/* Disable a Gasket device. */
+void gasket_disable_device(struct gasket_dev *gasket_dev);
+
 /*
  * Reset the Gasket device.
  * @gasket_dev: Gasket device struct.

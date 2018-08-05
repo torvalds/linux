@@ -628,7 +628,7 @@ static int gasket_add_cdev(struct gasket_cdev_info *dev_info,
 }
 
 /* Disable device operations. */
-static void gasket_disable_dev(struct gasket_dev *gasket_dev)
+void gasket_disable_device(struct gasket_dev *gasket_dev)
 {
 	const struct gasket_driver_desc *driver_desc =
 		gasket_dev->internal_desc->driver_desc;
@@ -649,6 +649,7 @@ static void gasket_disable_dev(struct gasket_dev *gasket_dev)
 		}
 	}
 }
+EXPORT_SYMBOL(gasket_disable_device);
 
 /*
  * Registered descriptor lookup.
@@ -1350,13 +1351,12 @@ static const struct file_operations gasket_file_ops = {
 };
 
 /* Perform final init and marks the device as active. */
-static int gasket_enable_dev(struct gasket_internal_desc *internal_desc,
-			     struct gasket_dev *gasket_dev)
+int gasket_enable_device(struct gasket_dev *gasket_dev)
 {
 	int tbl_idx;
 	int ret;
 	const struct gasket_driver_desc *driver_desc =
-		internal_desc->driver_desc;
+		gasket_dev->internal_desc->driver_desc;
 
 	ret = gasket_interrupt_init(gasket_dev, driver_desc->name,
 				    driver_desc->interrupt_type,
@@ -1418,13 +1418,15 @@ static int gasket_enable_dev(struct gasket_internal_desc *internal_desc,
 
 	return 0;
 }
+EXPORT_SYMBOL(gasket_enable_device);
 
 /*
  * Add PCI gasket device.
  *
  * Called by Gasket device probe function.
- * Allocates device metadata, maps device memory, and calls gasket_enable_dev
- * to prepare the device for active use.
+ * Allocates device metadata and maps device memory.  The device driver must
+ * call gasket_enable_device after driver init is complete to place the device
+ * in active use.
  */
 int gasket_pci_add_device(struct pci_dev *pci_dev,
 			  struct gasket_dev **gasket_devp)
@@ -1500,13 +1502,6 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 		goto fail5;
 	}
 
-	ret = gasket_enable_dev(internal_desc, gasket_dev);
-	if (ret) {
-		pr_err("cannot setup %s device\n", driver_desc->name);
-		gasket_disable_dev(gasket_dev);
-		goto fail5;
-	}
-
 	*gasket_devp = gasket_dev;
 	return 0;
 
@@ -1560,7 +1555,6 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 	dev_dbg(gasket_dev->dev, "remove %s PCI gasket device\n",
 		internal_desc->driver_desc->name);
 
-	gasket_disable_dev(gasket_dev);
 	gasket_cleanup_pci(gasket_dev);
 
 	check_and_invoke_callback(gasket_dev, driver_desc->sysfs_cleanup_cb);
