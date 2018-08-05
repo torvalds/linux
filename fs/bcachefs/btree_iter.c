@@ -35,10 +35,10 @@ void bch2_btree_node_unlock_write(struct btree *b, struct btree_iter *iter)
 	struct btree_iter *linked;
 
 	EBUG_ON(iter->l[b->level].b != b);
-	EBUG_ON(iter->lock_seq[b->level] + 1 != b->lock.state.seq);
+	EBUG_ON(iter->l[b->level].lock_seq + 1 != b->lock.state.seq);
 
 	for_each_btree_iter_with_node(iter, b, linked)
-		linked->lock_seq[b->level] += 2;
+		linked->l[b->level].lock_seq += 2;
 
 	six_unlock_write(&b->lock);
 }
@@ -80,8 +80,8 @@ bool __bch2_btree_node_relock(struct btree_iter *iter, unsigned level)
 	if (race_fault())
 		return false;
 
-	if (!six_relock_type(&b->lock, want, iter->lock_seq[level]) &&
-	    !(iter->lock_seq[level] >> 1 == b->lock.state.seq >> 1 &&
+	if (!six_relock_type(&b->lock, want, iter->l[level].lock_seq) &&
+	    !(iter->l[level].lock_seq >> 1 == b->lock.state.seq >> 1 &&
 	      btree_node_lock_increment(iter, b, level, want)))
 		return false;
 
@@ -106,10 +106,10 @@ static bool bch2_btree_node_upgrade(struct btree_iter *iter, unsigned level)
 
 	if (btree_node_locked(iter, level)
 	    ? six_lock_tryupgrade(&b->lock)
-	    : six_relock_type(&b->lock, SIX_LOCK_intent, iter->lock_seq[level]))
+	    : six_relock_type(&b->lock, SIX_LOCK_intent, iter->l[level].lock_seq))
 		goto success;
 
-	if (iter->lock_seq[level] >> 1 == b->lock.state.seq >> 1 &&
+	if (iter->l[level].lock_seq >> 1 == b->lock.state.seq >> 1 &&
 	    btree_node_lock_increment(iter, b, level, BTREE_NODE_INTENT_LOCKED)) {
 		btree_node_unlock(iter, level);
 		goto success;
@@ -692,7 +692,7 @@ static inline void btree_iter_node_set(struct btree_iter *iter,
 	EBUG_ON(!btree_iter_pos_in_node(iter, b));
 	EBUG_ON(b->lock.state.seq & 1);
 
-	iter->lock_seq[b->level] = b->lock.state.seq;
+	iter->l[b->level].lock_seq = b->lock.state.seq;
 	iter->l[b->level].b = b;
 	__btree_iter_init(iter, b);
 }

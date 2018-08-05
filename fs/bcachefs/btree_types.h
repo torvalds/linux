@@ -231,9 +231,8 @@ struct btree_iter {
 	struct btree_iter_level {
 		struct btree	*b;
 		struct btree_node_iter iter;
+		u32		lock_seq;
 	}			l[BTREE_MAX_DEPTH];
-
-	u32			lock_seq[BTREE_MAX_DEPTH];
 
 	/*
 	 * Current unpacked key - so that bch2_btree_iter_next()/

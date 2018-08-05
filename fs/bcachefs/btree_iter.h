@@ -39,7 +39,7 @@ static inline bool __iter_has_node(const struct btree_iter *iter,
 	 */
 
 	return iter->l[b->level].b == b &&
-		iter->lock_seq[b->level] >> 1 == b->lock.state.seq >> 1;
+		iter->l[b->level].lock_seq >> 1 == b->lock.state.seq >> 1;
 }
 
 static inline struct btree_iter *
