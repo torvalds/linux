@@ -2795,7 +2795,7 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 			return err;
 	}
 
-	/* Make sure the max shaper is disabled in all hierarcies that
+	/* Make sure the max shaper is disabled in all hierarchies that
 	 * support it.
 	 */
 	err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
