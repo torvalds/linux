@@ -731,6 +731,7 @@ static const char *l1tf_vmx_states[] = {
 	[VMENTER_L1D_FLUSH_COND]		= "conditional cache flushes",
 	[VMENTER_L1D_FLUSH_ALWAYS]		= "cache flushes",
 	[VMENTER_L1D_FLUSH_EPT_DISABLED]	= "EPT disabled",
+	[VMENTER_L1D_FLUSH_NOT_REQUIRED]	= "flush not necessary"
 };
 
 static ssize_t l1tf_show_state(char *buf)
