@@ -1765,9 +1765,9 @@ void gasket_unregister_device(const struct gasket_driver_desc *driver_desc)
 			break;
 		}
 	}
-	mutex_unlock(&g_mutex);
 
 	if (!internal_desc) {
+		mutex_unlock(&g_mutex);
 		pr_err("request to unregister unknown desc: %s, %d:%d\n",
 		       driver_desc->name, driver_desc->major,
 		       driver_desc->minor);
@@ -1780,7 +1780,6 @@ void gasket_unregister_device(const struct gasket_driver_desc *driver_desc)
 	class_destroy(internal_desc->class);
 
 	/* Finally, effectively "remove" the driver. */
-	mutex_lock(&g_mutex);
 	g_descs[desc_idx].driver_desc = NULL;
 	mutex_unlock(&g_mutex);
 
