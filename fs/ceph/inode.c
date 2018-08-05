@@ -2157,6 +2157,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	int err;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
@@ -2165,6 +2166,10 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	err = setattr_prepare(dentry, attr);
 	if (err != 0)
 		return err;
+
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size > max(inode->i_size, fsc->max_file_size))
+		return -EFBIG;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    ceph_quota_is_max_bytes_exceeded(inode, attr->ia_size))
