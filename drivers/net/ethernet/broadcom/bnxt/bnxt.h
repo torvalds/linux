@@ -1195,6 +1195,7 @@ struct bnxt {
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
+#define BNXT_NEW_RM(bp)		((bp)->flags & BNXT_FLAG_NEW_RM)
 
 /* Chip class phase 4 and later */
 #define BNXT_CHIP_P4_PLUS(bp)			\

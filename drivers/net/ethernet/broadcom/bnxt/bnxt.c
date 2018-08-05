@@ -4579,7 +4579,7 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 	}
 
 	hw_resc->resv_tx_rings = le16_to_cpu(resp->alloc_tx_rings);
-	if (bp->flags & BNXT_FLAG_NEW_RM) {
+	if (BNXT_NEW_RM(bp)) {
 		u16 cp, stats;
 
 		hw_resc->resv_rx_rings = le16_to_cpu(resp->alloc_rx_rings);
@@ -4625,7 +4625,7 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, struct hwrm_func_cfg_input *req,
 	req->fid = cpu_to_le16(0xffff);
 	enables |= tx_rings ? FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS : 0;
 	req->num_tx_rings = cpu_to_le16(tx_rings);
-	if (bp->flags & BNXT_FLAG_NEW_RM) {
+	if (BNXT_NEW_RM(bp)) {
 		enables |= rx_rings ? FUNC_CFG_REQ_ENABLES_NUM_RX_RINGS : 0;
 		enables |= cp_rings ? FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
 				      FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
@@ -4698,7 +4698,7 @@ bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	struct hwrm_func_vf_cfg_input req = {0};
 	int rc;
 
-	if (!(bp->flags & BNXT_FLAG_NEW_RM)) {
+	if (!BNXT_NEW_RM(bp)) {
 		bp->hw_resc.resv_tx_rings = tx_rings;
 		return 0;
 	}
@@ -4758,7 +4758,7 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 		vnic = rx + 1;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx <<= 1;
-	if ((bp->flags & BNXT_FLAG_NEW_RM) &&
+	if (BNXT_NEW_RM(bp) &&
 	    (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
 	     hw_resc->resv_hw_ring_grps != grp || hw_resc->resv_vnics != vnic))
 		return true;
@@ -4794,7 +4794,7 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 		return rc;
 
 	tx = hw_resc->resv_tx_rings;
-	if (bp->flags & BNXT_FLAG_NEW_RM) {
+	if (BNXT_NEW_RM(bp)) {
 		rx = hw_resc->resv_rx_rings;
 		cp = hw_resc->resv_cp_rings;
 		grp = hw_resc->resv_hw_ring_grps;
@@ -4838,7 +4838,7 @@ static int bnxt_hwrm_check_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	u32 flags;
 	int rc;
 
-	if (!(bp->flags & BNXT_FLAG_NEW_RM))
+	if (!BNXT_NEW_RM(bp))
 		return 0;
 
 	__bnxt_hwrm_reserve_vf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
@@ -4867,7 +4867,7 @@ static int bnxt_hwrm_check_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	__bnxt_hwrm_reserve_pf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
 				     cp_rings, vnics);
 	flags = FUNC_CFG_REQ_FLAGS_TX_ASSETS_TEST;
-	if (bp->flags & BNXT_FLAG_NEW_RM)
+	if (BNXT_NEW_RM(bp))
 		flags |= FUNC_CFG_REQ_FLAGS_RX_ASSETS_TEST |
 			 FUNC_CFG_REQ_FLAGS_CMPL_ASSETS_TEST |
 			 FUNC_CFG_REQ_FLAGS_RING_GRP_ASSETS_TEST |
@@ -5921,7 +5921,7 @@ int bnxt_get_avail_msix(struct bnxt *bp, int num)
 
 	max_idx = min_t(int, bp->total_irqs, max_cp);
 	avail_msix = max_idx - bp->cp_nr_rings;
-	if (!(bp->flags & BNXT_FLAG_NEW_RM) || avail_msix >= num)
+	if (!BNXT_NEW_RM(bp) || avail_msix >= num)
 		return avail_msix;
 
 	if (max_irq < total_req) {
@@ -5934,7 +5934,7 @@ int bnxt_get_avail_msix(struct bnxt *bp, int num)
 
 static int bnxt_get_num_msix(struct bnxt *bp)
 {
-	if (!(bp->flags & BNXT_FLAG_NEW_RM))
+	if (!BNXT_NEW_RM(bp))
 		return bnxt_get_max_func_irqs(bp);
 
 	return bnxt_cp_rings_in_use(bp);
@@ -6057,8 +6057,7 @@ int bnxt_reserve_rings(struct bnxt *bp)
 		netdev_err(bp->dev, "ring reservation failure rc: %d\n", rc);
 		return rc;
 	}
-	if ((bp->flags & BNXT_FLAG_NEW_RM) &&
-	    (bnxt_get_num_msix(bp) != bp->total_irqs)) {
+	if (BNXT_NEW_RM(bp) && (bnxt_get_num_msix(bp) != bp->total_irqs)) {
 		bnxt_ulp_irq_stop(bp);
 		bnxt_clear_int_mode(bp);
 		rc = bnxt_init_int_mode(bp);
@@ -7306,7 +7305,7 @@ skip_uc:
 static bool bnxt_can_reserve_rings(struct bnxt *bp)
 {
 #ifdef CONFIG_BNXT_SRIOV
-	if ((bp->flags & BNXT_FLAG_NEW_RM) && BNXT_VF(bp)) {
+	if (BNXT_NEW_RM(bp) && BNXT_VF(bp)) {
 		struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 
 		/* No minimum rings were provisioned by the PF.  Don't
@@ -7356,7 +7355,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 		return false;
 	}
 
-	if (!(bp->flags & BNXT_FLAG_NEW_RM))
+	if (!BNXT_NEW_RM(bp))
 		return true;
 
 	if (vnics == bp->hw_resc.resv_vnics)
@@ -7752,7 +7751,7 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx_rings <<= 1;
 	cp = sh ? max_t(int, tx_rings_needed, rx) : tx_rings_needed + rx;
-	if (bp->flags & BNXT_FLAG_NEW_RM)
+	if (BNXT_NEW_RM(bp))
 		cp += bnxt_get_ulp_msix_num(bp);
 	return bnxt_hwrm_check_rings(bp, tx_rings_needed, rx_rings, rx, cp,
 				     vnics);

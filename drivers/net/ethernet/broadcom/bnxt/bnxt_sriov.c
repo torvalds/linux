@@ -623,7 +623,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 
 static int bnxt_func_cfg(struct bnxt *bp, int num_vfs)
 {
-	if (bp->flags & BNXT_FLAG_NEW_RM)
+	if (BNXT_NEW_RM(bp))
 		return bnxt_hwrm_func_vf_resc_cfg(bp, num_vfs);
 	else
 		return bnxt_hwrm_func_cfg(bp, num_vfs);
