@@ -6898,8 +6898,14 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		mutex_lock(&bp->link_lock);
 		rc = bnxt_update_phy_setting(bp);
 		mutex_unlock(&bp->link_lock);
-		if (rc)
+		if (rc) {
 			netdev_warn(bp->dev, "failed to update phy settings\n");
+			if (BNXT_SINGLE_PF(bp)) {
+				bp->link_info.phy_retry = true;
+				bp->link_info.phy_retry_expires =
+					jiffies + 5 * HZ;
+			}
+		}
 	}
 
 	if (irq_re_init)
@@ -7583,6 +7589,16 @@ static void bnxt_timer(struct timer_list *t)
 		set_bit(BNXT_FLOW_STATS_SP_EVENT, &bp->sp_event);
 		bnxt_queue_sp_work(bp);
 	}
+
+	if (bp->link_info.phy_retry) {
+		if (time_after(jiffies, bp->link_info.phy_retry_expires)) {
+			bp->link_info.phy_retry = 0;
+			netdev_warn(bp->dev, "failed to update phy settings after maximum retries.\n");
+		} else {
+			set_bit(BNXT_UPDATE_PHY_SP_EVENT, &bp->sp_event);
+			bnxt_queue_sp_work(bp);
+		}
+	}
 bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
@@ -7669,6 +7685,19 @@ static void bnxt_sp_task(struct work_struct *work)
 		if (rc)
 			netdev_err(bp->dev, "SP task can't update link (rc: %x)\n",
 				   rc);
+	}
+	if (test_and_clear_bit(BNXT_UPDATE_PHY_SP_EVENT, &bp->sp_event)) {
+		int rc;
+
+		mutex_lock(&bp->link_lock);
+		rc = bnxt_update_phy_setting(bp);
+		mutex_unlock(&bp->link_lock);
+		if (rc) {
+			netdev_warn(bp->dev, "update phy settings retry failed\n");
+		} else {
+			bp->link_info.phy_retry = false;
+			netdev_info(bp->dev, "update phy settings retry succeeded\n");
+		}
 	}
 	if (test_and_clear_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event)) {
 		mutex_lock(&bp->link_lock);

@@ -959,6 +959,9 @@ struct bnxt_link_info {
 	u16			advertising;	/* user adv setting */
 	bool			force_link_chng;
 
+	bool			phy_retry;
+	unsigned long		phy_retry_expires;
+
 	/* a copy of phy_qcfg output used to report link
 	 * info to VF
 	 */
@@ -1344,6 +1347,7 @@ struct bnxt {
 #define BNXT_GENEVE_DEL_PORT_SP_EVENT	13
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
 #define BNXT_FLOW_STATS_SP_EVENT	15
+#define BNXT_UPDATE_PHY_SP_EVENT	16
 
 	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;
