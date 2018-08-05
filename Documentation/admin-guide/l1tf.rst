@@ -546,6 +546,27 @@ available:
     EPT can be disabled in the hypervisor via the 'kvm-intel.ept'
     parameter.
 
+3.4. Nested virtual machines
+""""""""""""""""""""""""""""
+
+When nested virtualization is in use, three operating systems are involved:
+the bare metal hypervisor, the nested hypervisor and the nested virtual
+machine.  VMENTER operations from the nested hypervisor into the nested
+guest will always be processed by the bare metal hypervisor. If KVM is the
+bare metal hypervisor it wiil:
+
+ - Flush the L1D cache on every switch from the nested hypervisor to the
+   nested virtual machine, so that the nested hypervisor's secrets are not
+   exposed to the nested virtual machine;
+
+ - Flush the L1D cache on every switch from the nested virtual machine to
+   the nested hypervisor; this is a complex operation, and flushing the L1D
+   cache avoids that the bare metal hypervisor's secrets are exposed to the
+   nested virtual machine;
+
+ - Instruct the nested hypervisor to not perform any L1D cache flush. This
+   is an optimization to avoid double L1D flushing.
+
 
 .. _default_mitigations:
 
