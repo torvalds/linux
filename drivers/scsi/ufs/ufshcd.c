@@ -342,18 +342,19 @@ static void ufshcd_add_command_trace(struct ufs_hba *hba,
 	sector_t lba = -1;
 	u8 opcode = 0;
 	u32 intr, doorbell;
-	struct ufshcd_lrb *lrbp;
+	struct ufshcd_lrb *lrbp = &hba->lrb[tag];
 	int transfer_len = -1;
 
-	/* trace UPIU also */
-	ufshcd_add_cmd_upiu_trace(hba, tag, str);
-
-	if (!trace_ufshcd_command_enabled())
+	if (!trace_ufshcd_command_enabled()) {
+		/* trace UPIU W/O tracing command */
+		if (lrbp->cmd)
+			ufshcd_add_cmd_upiu_trace(hba, tag, str);
 		return;
-
-	lrbp = &hba->lrb[tag];
+	}
 
 	if (lrbp->cmd) { /* data phase exists */
+		/* trace UPIU also */
+		ufshcd_add_cmd_upiu_trace(hba, tag, str);
 		opcode = (u8)(*lrbp->cmd->cmnd);
 		if ((opcode == READ_10) || (opcode == WRITE_10)) {
 			/*
