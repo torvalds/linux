@@ -174,14 +174,30 @@ static struct nat_entry *__init_nat_entry(struct f2fs_nm_info *nm_i,
 
 	if (raw_ne)
 		node_info_from_raw_nat(&ne->ni, raw_ne);
+
+	spin_lock(&nm_i->nat_list_lock);
 	list_add_tail(&ne->list, &nm_i->nat_entries);
+	spin_unlock(&nm_i->nat_list_lock);
+
 	nm_i->nat_cnt++;
 	return ne;
 }
 
 static struct nat_entry *__lookup_nat_cache(struct f2fs_nm_info *nm_i, nid_t n)
 {
-	return radix_tree_lookup(&nm_i->nat_root, n);
+	struct nat_entry *ne;
+
+	ne = radix_tree_lookup(&nm_i->nat_root, n);
+
+	/* for recent accessed nat entry, move it to tail of lru list */
+	if (ne && !get_nat_flag(ne, IS_DIRTY)) {
+		spin_lock(&nm_i->nat_list_lock);
+		if (!list_empty(&ne->list))
+			list_move_tail(&ne->list, &nm_i->nat_entries);
+		spin_unlock(&nm_i->nat_list_lock);
+	}
+
+	return ne;
 }
 
 static unsigned int __gang_lookup_nat_cache(struct f2fs_nm_info *nm_i,
@@ -192,7 +208,6 @@ static unsigned int __gang_lookup_nat_cache(struct f2fs_nm_info *nm_i,
 
 static void __del_from_nat_cache(struct f2fs_nm_info *nm_i, struct nat_entry *e)
 {
-	list_del(&e->list);
 	radix_tree_delete(&nm_i->nat_root, nat_get_nid(e));
 	nm_i->nat_cnt--;
 	__free_nat_entry(e);
@@ -243,16 +258,21 @@ static void __set_nat_cache_dirty(struct f2fs_nm_info *nm_i,
 	nm_i->dirty_nat_cnt++;
 	set_nat_flag(ne, IS_DIRTY, true);
 refresh_list:
+	spin_lock(&nm_i->nat_list_lock);
 	if (new_ne)
 		list_del_init(&ne->list);
 	else
 		list_move_tail(&ne->list, &head->entry_list);
+	spin_unlock(&nm_i->nat_list_lock);
 }
 
 static void __clear_nat_cache_dirty(struct f2fs_nm_info *nm_i,
 		struct nat_entry_set *set, struct nat_entry *ne)
 {
+	spin_lock(&nm_i->nat_list_lock);
 	list_move_tail(&ne->list, &nm_i->nat_entries);
+	spin_unlock(&nm_i->nat_list_lock);
+
 	set_nat_flag(ne, IS_DIRTY, false);
 	set->entry_cnt--;
 	nm_i->dirty_nat_cnt--;
@@ -469,13 +489,25 @@ int f2fs_try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 	if (!down_write_trylock(&nm_i->nat_tree_lock))
 		return 0;
 
-	while (nr_shrink && !list_empty(&nm_i->nat_entries)) {
+	spin_lock(&nm_i->nat_list_lock);
+	while (nr_shrink) {
 		struct nat_entry *ne;
+
+		if (list_empty(&nm_i->nat_entries))
+			break;
+
 		ne = list_first_entry(&nm_i->nat_entries,
 					struct nat_entry, list);
+		list_del(&ne->list);
+		spin_unlock(&nm_i->nat_list_lock);
+
 		__del_from_nat_cache(nm_i, ne);
 		nr_shrink--;
+
+		spin_lock(&nm_i->nat_list_lock);
 	}
+	spin_unlock(&nm_i->nat_list_lock);
+
 	up_write(&nm_i->nat_tree_lock);
 	return nr - nr_shrink;
 }
@@ -2909,6 +2941,7 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	INIT_RADIX_TREE(&nm_i->nat_root, GFP_NOIO);
 	INIT_RADIX_TREE(&nm_i->nat_set_root, GFP_NOIO);
 	INIT_LIST_HEAD(&nm_i->nat_entries);
+	spin_lock_init(&nm_i->nat_list_lock);
 
 	mutex_init(&nm_i->build_lock);
 	spin_lock_init(&nm_i->nid_list_lock);
@@ -3027,8 +3060,13 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 		unsigned idx;
 
 		nid = nat_get_nid(natvec[found - 1]) + 1;
-		for (idx = 0; idx < found; idx++)
+		for (idx = 0; idx < found; idx++) {
+			spin_lock(&nm_i->nat_list_lock);
+			list_del(&natvec[idx]->list);
+			spin_unlock(&nm_i->nat_list_lock);
+
 			__del_from_nat_cache(nm_i, natvec[idx]);
+		}
 	}
 	f2fs_bug_on(sbi, nm_i->nat_cnt);
 
