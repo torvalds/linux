@@ -1281,6 +1281,7 @@ struct bnxt {
 	struct ieee_ets		*ieee_ets;
 	u8			dcbx_cap;
 	u8			default_pri;
+	u8			max_dscp_value;
 #endif /* CONFIG_BNXT_DCB */
 
 	u32			msg_enable;
