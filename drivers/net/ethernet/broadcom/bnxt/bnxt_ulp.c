@@ -169,7 +169,6 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 		edev->ulp_tbl[ulp_id].msix_requested = avail_msix;
 	}
 	bnxt_fill_msix_vecs(bp, ent);
-	bnxt_set_max_func_irqs(bp, bnxt_get_max_func_irqs(bp) - avail_msix);
 	bnxt_set_max_func_cp_rings(bp, max_cp_rings - avail_msix);
 	edev->flags |= BNXT_EN_FLAG_MSIX_REQUESTED;
 	return avail_msix;
@@ -192,7 +191,6 @@ static int bnxt_free_msix_vecs(struct bnxt_en_dev *edev, int ulp_id)
 	msix_requested = edev->ulp_tbl[ulp_id].msix_requested;
 	bnxt_set_max_func_cp_rings(bp, max_cp_rings + msix_requested);
 	edev->ulp_tbl[ulp_id].msix_requested = 0;
-	bnxt_set_max_func_irqs(bp, bnxt_get_max_func_irqs(bp) + msix_requested);
 	edev->flags &= ~BNXT_EN_FLAG_MSIX_REQUESTED;
 	if (netif_running(dev)) {
 		bnxt_close_nic(bp, true, false);

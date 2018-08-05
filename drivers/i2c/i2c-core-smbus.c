@@ -465,15 +465,18 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 
 	status = i2c_transfer(adapter, msg, num);
 	if (status < 0)
-		return status;
-	if (status != num)
-		return -EIO;
+		goto cleanup;
+	if (status != num) {
+		status = -EIO;
+		goto cleanup;
+	}
+	status = 0;
 
 	/* Check PEC if last message is a read */
 	if (i && (msg[num-1].flags & I2C_M_RD)) {
 		status = i2c_smbus_check_pec(partial_pec, &msg[num-1]);
 		if (status < 0)
-			return status;
+			goto cleanup;
 	}
 
 	if (read_write == I2C_SMBUS_READ)
@@ -499,12 +502,13 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			break;
 		}
 
+cleanup:
 	if (msg[0].flags & I2C_M_DMA_SAFE)
 		kfree(msg[0].buf);
 	if (msg[1].flags & I2C_M_DMA_SAFE)
 		kfree(msg[1].buf);
 
-	return 0;
+	return status;
 }
 
 /**

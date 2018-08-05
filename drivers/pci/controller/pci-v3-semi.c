@@ -537,7 +537,7 @@ static int v3_pci_setup_resource(struct v3_pci *v3,
 		v3->io_bus_addr = io->start - win->offset;
 		dev_dbg(dev, "I/O window %pR, bus addr %pap\n",
 			io, &v3->io_bus_addr);
-		ret = pci_remap_iospace(io, io_base);
+		ret = devm_pci_remap_iospace(dev, io, io_base);
 		if (ret) {
 			dev_warn(dev,
 				 "error %d: failed to map resource %pR\n",

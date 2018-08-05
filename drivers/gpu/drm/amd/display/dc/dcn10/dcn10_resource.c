@@ -1027,6 +1027,8 @@ static bool construct(
 	dc->caps.max_slave_planes = 1;
 	dc->caps.is_apu = true;
 	dc->caps.post_blend_color_processing = false;
+	/* Raven DP PHY HBR2 eye diagram pattern is not stable. Use TP4 */
+	dc->caps.force_dp_tps4_for_cp2520 = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

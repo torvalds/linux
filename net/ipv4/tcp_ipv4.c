@@ -156,11 +156,24 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 	 */
 	if (tcptw->tw_ts_recent_stamp &&
 	    (!twp || (reuse && get_seconds() - tcptw->tw_ts_recent_stamp > 1))) {
-		tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
-		if (tp->write_seq == 0)
-			tp->write_seq = 1;
-		tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
-		tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
+		/* In case of repair and re-using TIME-WAIT sockets we still
+		 * want to be sure that it is safe as above but honor the
+		 * sequence numbers and time stamps set as part of the repair
+		 * process.
+		 *
+		 * Without this check re-using a TIME-WAIT socket with TCP
+		 * repair would accumulate a -1 on the repair assigned
+		 * sequence number. The first time it is reused the sequence
+		 * is -1, the second time -2, etc. This fixes that issue
+		 * without appearing to create any others.
+		 */
+		if (likely(!tp->repair)) {
+			tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
+			if (tp->write_seq == 0)
+				tp->write_seq = 1;
+			tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
+			tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
+		}
 		sock_hold(sktw);
 		return 1;
 	}

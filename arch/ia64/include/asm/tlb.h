@@ -120,7 +120,7 @@ ia64_tlb_flush_mmu_tlbonly(struct mmu_gather *tlb, unsigned long start, unsigned
 		 */
 		struct vm_area_struct vma;
 
-		vma.vm_mm = tlb->mm;
+		vma_init(&vma, tlb->mm);
 		/* flush the address range from the tlb: */
 		flush_tlb_range(&vma, start, end);
 		/* now flush the virt. page-table area mapping the address range: */

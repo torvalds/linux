@@ -83,22 +83,21 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 	enum i2c_mot_mode mot = (msg->request & DP_AUX_I2C_MOT) ?
 		I2C_MOT_TRUE : I2C_MOT_FALSE;
 	enum ddc_result res;
-	uint32_t read_bytes = msg->size;
+	ssize_t read_bytes;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_READ:
-		res = dal_ddc_service_read_dpcd_data(
+		read_bytes = dal_ddc_service_read_dpcd_data(
 				TO_DM_AUX(aux)->ddc_service,
 				false,
 				I2C_MOT_UNDEF,
 				msg->address,
 				msg->buffer,
-				msg->size,
-				&read_bytes);
-		break;
+				msg->size);
+		return read_bytes;
 	case DP_AUX_NATIVE_WRITE:
 		res = dal_ddc_service_write_dpcd_data(
 				TO_DM_AUX(aux)->ddc_service,
@@ -109,15 +108,14 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 				msg->size);
 		break;
 	case DP_AUX_I2C_READ:
-		res = dal_ddc_service_read_dpcd_data(
+		read_bytes = dal_ddc_service_read_dpcd_data(
 				TO_DM_AUX(aux)->ddc_service,
 				true,
 				mot,
 				msg->address,
 				msg->buffer,
-				msg->size,
-				&read_bytes);
-		break;
+				msg->size);
+		return read_bytes;
 	case DP_AUX_I2C_WRITE:
 		res = dal_ddc_service_write_dpcd_data(
 				TO_DM_AUX(aux)->ddc_service,
@@ -139,9 +137,7 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 		 r == DDC_RESULT_SUCESSFULL);
 #endif
 
-	if (res != DDC_RESULT_SUCESSFULL)
-		return -EIO;
-	return read_bytes;
+	return msg->size;
 }
 
 static enum drm_connector_status

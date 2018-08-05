@@ -222,7 +222,7 @@ static int dp83811_config_intr(struct phy_device *phydev)
 		if (err < 0)
 			return err;
 
-		err = phy_write(phydev, MII_DP83811_INT_STAT1, 0);
+		err = phy_write(phydev, MII_DP83811_INT_STAT2, 0);
 	}
 
 	return err;

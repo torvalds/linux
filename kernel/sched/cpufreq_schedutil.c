@@ -192,7 +192,7 @@ static unsigned long sugov_aggregate_util(struct sugov_cpu *sg_cpu)
 {
 	struct rq *rq = cpu_rq(sg_cpu->cpu);
 
-	if (rq->rt.rt_nr_running)
+	if (rt_rq_is_runnable(&rq->rt))
 		return sg_cpu->max;
 
 	/*

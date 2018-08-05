@@ -334,15 +334,34 @@ int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
 {
 	struct net_device *dev = dst->dev;
 	struct xdp_frame *xdpf;
+	int err;
 
 	if (!dev->netdev_ops->ndo_xdp_xmit)
 		return -EOPNOTSUPP;
+
+	err = xdp_ok_fwd_dev(dev, xdp->data_end - xdp->data);
+	if (unlikely(err))
+		return err;
 
 	xdpf = convert_to_xdp_frame(xdp);
 	if (unlikely(!xdpf))
 		return -EOVERFLOW;
 
 	return bq_enqueue(dst, xdpf, dev_rx);
+}
+
+int dev_map_generic_redirect(struct bpf_dtab_netdev *dst, struct sk_buff *skb,
+			     struct bpf_prog *xdp_prog)
+{
+	int err;
+
+	err = xdp_ok_fwd_dev(dst->dev, skb->len);
+	if (unlikely(err))
+		return err;
+	skb->dev = dst->dev;
+	generic_xdp_tx(skb, xdp_prog);
+
+	return 0;
 }
 
 static void *dev_map_lookup_elem(struct bpf_map *map, void *key)

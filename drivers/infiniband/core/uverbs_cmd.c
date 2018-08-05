@@ -3488,8 +3488,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	struct ib_flow_attr		  *flow_attr;
 	struct ib_qp			  *qp;
 	struct ib_uflow_resources	  *uflow_res;
+	struct ib_uverbs_flow_spec_hdr	  *kern_spec;
 	int err = 0;
-	void *kern_spec;
 	void *ib_spec;
 	int i;
 
@@ -3538,8 +3538,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		if (!kern_flow_attr)
 			return -ENOMEM;
 
-		memcpy(kern_flow_attr, &cmd.flow_attr, sizeof(*kern_flow_attr));
-		err = ib_copy_from_udata(kern_flow_attr + 1, ucore,
+		*kern_flow_attr = cmd.flow_attr;
+		err = ib_copy_from_udata(&kern_flow_attr->flow_specs, ucore,
 					 cmd.flow_attr.size);
 		if (err)
 			goto err_free_attr;
@@ -3557,6 +3557,11 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	if (!qp) {
 		err = -EINVAL;
 		goto err_uobj;
+	}
+
+	if (qp->qp_type != IB_QPT_UD && qp->qp_type != IB_QPT_RAW_PACKET) {
+		err = -EINVAL;
+		goto err_put;
 	}
 
 	flow_attr = kzalloc(struct_size(flow_attr, flows,
@@ -3578,21 +3583,22 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	flow_attr->flags = kern_flow_attr->flags;
 	flow_attr->size = sizeof(*flow_attr);
 
-	kern_spec = kern_flow_attr + 1;
+	kern_spec = kern_flow_attr->flow_specs;
 	ib_spec = flow_attr + 1;
 	for (i = 0; i < flow_attr->num_of_specs &&
-	     cmd.flow_attr.size > offsetof(struct ib_uverbs_flow_spec, reserved) &&
-	     cmd.flow_attr.size >=
-	     ((struct ib_uverbs_flow_spec *)kern_spec)->size; i++) {
-		err = kern_spec_to_ib_spec(file->ucontext, kern_spec, ib_spec,
-					   uflow_res);
+			cmd.flow_attr.size >= sizeof(*kern_spec) &&
+			cmd.flow_attr.size >= kern_spec->size;
+	     i++) {
+		err = kern_spec_to_ib_spec(
+				file->ucontext, (struct ib_uverbs_flow_spec *)kern_spec,
+				ib_spec, uflow_res);
 		if (err)
 			goto err_free;
 
 		flow_attr->size +=
 			((union ib_flow_spec *) ib_spec)->size;
-		cmd.flow_attr.size -= ((struct ib_uverbs_flow_spec *)kern_spec)->size;
-		kern_spec += ((struct ib_uverbs_flow_spec *) kern_spec)->size;
+		cmd.flow_attr.size -= kern_spec->size;
+		kern_spec = ((void *)kern_spec) + kern_spec->size;
 		ib_spec += ((union ib_flow_spec *) ib_spec)->size;
 	}
 	if (cmd.flow_attr.size || (i != flow_attr->num_of_specs)) {
