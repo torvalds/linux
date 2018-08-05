@@ -408,7 +408,6 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 		case BTREE_INSERT_OK:
 			i->done = true;
 			break;
-		case BTREE_INSERT_JOURNAL_RES_FULL:
 		case BTREE_INSERT_NEED_TRAVERSE:
 			ret = -EINTR;
 			break;

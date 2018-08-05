@@ -632,8 +632,6 @@ void __bch2_verify_btree_nr_keys(struct btree *);
 void bch2_btree_node_iter_verify(struct btree_node_iter *, struct btree *);
 void bch2_verify_insert_pos(struct btree *, struct bkey_packed *,
 			    struct bkey_packed *, unsigned);
-void bch2_verify_key_order(struct btree *, struct btree_node_iter *,
-			  struct bkey_packed *);
 
 #else
 
@@ -644,9 +642,6 @@ static inline void bch2_verify_insert_pos(struct btree *b,
 					  struct bkey_packed *where,
 					  struct bkey_packed *insert,
 					  unsigned clobber_u64s) {}
-static inline void bch2_verify_key_order(struct btree *b,
-					struct btree_node_iter *iter,
-					struct bkey_packed *where) {}
 #endif
 
 static inline void bch2_verify_btree_nr_keys(struct btree *b)

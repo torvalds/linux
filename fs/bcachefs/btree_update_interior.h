@@ -336,38 +336,12 @@ static inline void reserve_whiteout(struct btree *b, struct bkey_packed *k)
  * insert into could be written out from under us)
  */
 static inline bool bch2_btree_node_insert_fits(struct bch_fs *c,
-					      struct btree *b, unsigned u64s)
+					       struct btree *b, unsigned u64s)
 {
 	if (unlikely(btree_node_fake(b)))
 		return false;
 
-	if (btree_node_is_extents(b)) {
-		/* The insert key might split an existing key
-		 * (bch2_insert_fixup_extent() -> BCH_EXTENT_OVERLAP_MIDDLE case:
-		 */
-		u64s += BKEY_EXTENT_U64s_MAX;
-	}
-
 	return u64s <= bch_btree_keys_u64s_remaining(c, b);
-}
-
-static inline bool journal_res_insert_fits(struct btree_insert *trans,
-					   struct btree_insert_entry *insert)
-{
-	unsigned u64s = 0;
-	struct btree_insert_entry *i;
-
-	/*
-	 * If we didn't get a journal reservation, we're in journal replay and
-	 * we're not journalling updates:
-	 */
-	if (!trans->journal_res.ref)
-		return true;
-
-	for (i = insert; i < trans->entries + trans->nr; i++)
-		u64s += jset_u64s(i->k->k.u64s + i->extra_res);
-
-	return u64s <= trans->journal_res.u64s;
 }
 
 ssize_t bch2_btree_updates_print(struct bch_fs *, char *);

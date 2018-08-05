@@ -255,13 +255,6 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 #endif
 }
 
-void bch2_verify_key_order(struct btree *b,
-			   struct btree_node_iter *_iter,
-			   struct bkey_packed *where)
-{
-	bch2_verify_insert_pos(b, where, where, where->u64s);
-}
-
 #else
 
 static inline void bch2_btree_node_iter_next_check(struct btree_node_iter *iter,
