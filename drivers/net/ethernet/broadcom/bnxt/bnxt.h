@@ -1290,6 +1290,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_LLDP_AGENT	0x00000002
 	#define BNXT_FW_CAP_DCBX_AGENT	0x00000004
 	#define BNXT_FW_CAP_NEW_RM	0x00000008
+	#define BNXT_FW_CAP_IF_CHANGE	0x00000010
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 	u32			hwrm_spec_code;

@@ -3638,7 +3638,9 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt *bp, unsigned long *bmap,
 
 static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 {
+	struct hwrm_func_drv_rgtr_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_func_drv_rgtr_input req = {0};
+	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_RGTR, -1, -1);
 
@@ -3676,7 +3678,15 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 			cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_VF_REQ_FWD);
 	}
 
-	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		rc = -EIO;
+	else if (resp->flags &
+		 cpu_to_le32(FUNC_DRV_RGTR_RESP_FLAGS_IF_CHANGE_SUPPORTED))
+		bp->fw_cap |= BNXT_FW_CAP_IF_CHANGE;
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
 }
 
 static int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp)
@@ -6637,6 +6647,39 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
+static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
+{
+	struct hwrm_func_drv_if_change_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_drv_if_change_input req = {0};
+	bool resc_reinit = false;
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_IF_CHANGE))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_IF_CHANGE, -1, -1);
+	if (up)
+		req.flags = cpu_to_le32(FUNC_DRV_IF_CHANGE_REQ_FLAGS_UP);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc && (resp->flags &
+		    cpu_to_le32(FUNC_DRV_IF_CHANGE_RESP_FLAGS_RESC_CHANGE)))
+		resc_reinit = true;
+	mutex_unlock(&bp->hwrm_cmd_lock);
+
+	if (up && resc_reinit && BNXT_NEW_RM(bp)) {
+		struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+
+		rc = bnxt_hwrm_func_resc_qcaps(bp, true);
+		hw_resc->resv_cp_rings = 0;
+		hw_resc->resv_tx_rings = 0;
+		hw_resc->resv_rx_rings = 0;
+		hw_resc->resv_hw_ring_grps = 0;
+		hw_resc->resv_vnics = 0;
+	}
+	return rc;
+}
+
 static int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
 {
 	struct hwrm_port_led_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
@@ -6991,8 +7034,13 @@ void bnxt_half_close_nic(struct bnxt *bp)
 static int bnxt_open(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	int rc;
 
-	return __bnxt_open_nic(bp, true, true);
+	bnxt_hwrm_if_change(bp, true);
+	rc = __bnxt_open_nic(bp, true, true);
+	if (rc)
+		bnxt_hwrm_if_change(bp, false);
+	return rc;
 }
 
 static bool bnxt_drv_busy(struct bnxt *bp)
@@ -7056,6 +7104,7 @@ static int bnxt_close(struct net_device *dev)
 
 	bnxt_close_nic(bp, true, true);
 	bnxt_hwrm_shutdown_link(bp);
+	bnxt_hwrm_if_change(bp, false);
 	return 0;
 }
 
