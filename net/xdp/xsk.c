@@ -84,10 +84,8 @@ static int __xsk_rcv_zc(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 {
 	int err = xskq_produce_batch_desc(xs->rx, (u64)xdp->handle, len);
 
-	if (err) {
-		xdp_return_buff(xdp);
+	if (err)
 		xs->rx_dropped++;
-	}
 
 	return err;
 }
