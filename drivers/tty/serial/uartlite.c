@@ -776,13 +776,17 @@ static int ulite_probe(struct platform_device *pdev)
 		pdata->clk = NULL;
 	}
 
-	ret = clk_prepare(pdata->clk);
+	ret = clk_prepare_enable(pdata->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare clock\n");
 		return ret;
 	}
 
-	return ulite_assign(&pdev->dev, id, res->start, irq, pdata);
+	ret = ulite_assign(&pdev->dev, id, res->start, irq, pdata);
+
+	clk_disable(pdata->clk);
+
+	return ret;
 }
 
 static int ulite_remove(struct platform_device *pdev)
