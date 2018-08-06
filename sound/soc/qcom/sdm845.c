@@ -5,11 +5,9 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/atomic.h>
 #include <linux/of_device.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <linux/soc/qcom/apr.h>
 #include "common.h"
 #include "qdsp6/q6afe.h"
 
