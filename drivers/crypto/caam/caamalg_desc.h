@@ -104,10 +104,6 @@ void cnstr_shdsc_ablkcipher_decap(u32 * const desc, struct alginfo *cdata,
 				  unsigned int ivsize, const bool is_rfc3686,
 				  const u32 ctx1_iv_off);
 
-void cnstr_shdsc_ablkcipher_givencap(u32 * const desc, struct alginfo *cdata,
-				     unsigned int ivsize, const bool is_rfc3686,
-				     const u32 ctx1_iv_off);
-
 void cnstr_shdsc_xts_ablkcipher_encap(u32 * const desc, struct alginfo *cdata);
 
 void cnstr_shdsc_xts_ablkcipher_decap(u32 * const desc, struct alginfo *cdata);

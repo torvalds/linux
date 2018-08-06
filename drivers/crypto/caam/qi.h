@@ -62,7 +62,6 @@ typedef void (*caam_qi_cbk)(struct caam_drv_req *drv_req, u32 status);
 enum optype {
 	ENCRYPT,
 	DECRYPT,
-	GIVENCRYPT,
 	NUM_OP
 };
 
