@@ -45,14 +45,12 @@
 
 
 /**
- * @spinlock: used for atomic read/modify/write of registers
  * @base: register base address
  * @domain: IRQ domain of GPIO generated interrupts managed by this controller
  * @irq: Interrupt line of parent interrupt controller
  * @gc: gpio_chip structure associated to this GPIO controller
  */
 struct tb10x_gpio {
-	spinlock_t spinlock;
 	void __iomem *base;
 	struct irq_domain *domain;
 	int irq;
@@ -76,60 +74,14 @@ static inline void tb10x_set_bits(struct tb10x_gpio *gpio, unsigned int offs,
 	u32 r;
 	unsigned long flags;
 
-	spin_lock_irqsave(&gpio->spinlock, flags);
+	spin_lock_irqsave(&gpio->gc.bgpio_lock, flags);
 
 	r = tb10x_reg_read(gpio, offs);
 	r = (r & ~mask) | (val & mask);
 
 	tb10x_reg_write(gpio, offs, r);
 
-	spin_unlock_irqrestore(&gpio->spinlock, flags);
-}
-
-static int tb10x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
-{
-	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
-	int mask = BIT(offset);
-	int val = TB10X_GPIO_DIR_IN << offset;
-
-	tb10x_set_bits(tb10x_gpio, OFFSET_TO_REG_DDR, mask, val);
-
-	return 0;
-}
-
-static int tb10x_gpio_get(struct gpio_chip *chip, unsigned offset)
-{
-	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
-	int val;
-
-	val = tb10x_reg_read(tb10x_gpio, OFFSET_TO_REG_DATA);
-
-	if (val & BIT(offset))
-		return 1;
-	else
-		return 0;
-}
-
-static void tb10x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
-{
-	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
-	int mask = BIT(offset);
-	int val = value << offset;
-
-	tb10x_set_bits(tb10x_gpio, OFFSET_TO_REG_DATA, mask, val);
-}
-
-static int tb10x_gpio_direction_out(struct gpio_chip *chip,
-					unsigned offset, int value)
-{
-	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
-	int mask = BIT(offset);
-	int val = TB10X_GPIO_DIR_OUT << offset;
-
-	tb10x_gpio_set(chip, offset, value);
-	tb10x_set_bits(tb10x_gpio, OFFSET_TO_REG_DDR, mask, val);
-
-	return 0;
+	spin_unlock_irqrestore(&gpio->gc.bgpio_lock, flags);
 }
 
 static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -184,8 +136,6 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	if (tb10x_gpio == NULL)
 		return -ENOMEM;
 
-	spin_lock_init(&tb10x_gpio->spinlock);
-
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tb10x_gpio->base = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(tb10x_gpio->base))
@@ -196,20 +146,34 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	if (!tb10x_gpio->gc.label)
 		return -ENOMEM;
 
-	tb10x_gpio->gc.parent		= &pdev->dev;
-	tb10x_gpio->gc.owner		= THIS_MODULE;
-	tb10x_gpio->gc.direction_input	= tb10x_gpio_direction_in;
-	tb10x_gpio->gc.get		= tb10x_gpio_get;
-	tb10x_gpio->gc.direction_output	= tb10x_gpio_direction_out;
-	tb10x_gpio->gc.set		= tb10x_gpio_set;
-	tb10x_gpio->gc.request		= gpiochip_generic_request;
-	tb10x_gpio->gc.free		= gpiochip_generic_free;
-	tb10x_gpio->gc.base		= -1;
-	tb10x_gpio->gc.ngpio		= ngpio;
-	tb10x_gpio->gc.can_sleep	= false;
+	/*
+	 * Initialize generic GPIO with one single register for reading and setting
+	 * the lines, no special set or clear registers and a data direction register
+	 * wher 1 means "output".
+	 */
+	ret = bgpio_init(&tb10x_gpio->gc, dev, 4,
+			 tb10x_gpio->base + OFFSET_TO_REG_DATA,
+			 NULL,
+			 NULL,
+			 tb10x_gpio->base + OFFSET_TO_REG_DDR,
+			 NULL,
+			 0);
+	if (ret) {
+		dev_err(dev, "unable to init generic GPIO\n");
+		return ret;
+	}
+	tb10x_gpio->gc.base = -1;
+	tb10x_gpio->gc.parent = dev;
+	tb10x_gpio->gc.owner = THIS_MODULE;
+	/*
+	 * ngpio is set by bgpio_init() but we override it, this .request()
+	 * callback also overrides the one set up by generic GPIO.
+	 */
+	tb10x_gpio->gc.ngpio = ngpio;
+	tb10x_gpio->gc.request = gpiochip_generic_request;
+	tb10x_gpio->gc.free = gpiochip_generic_free;
 
-
-	ret = devm_gpiochip_add_data(&pdev->dev, &tb10x_gpio->gc, tb10x_gpio);
+	ret = devm_gpiochip_add_data(dev, &tb10x_gpio->gc, tb10x_gpio);
 	if (ret < 0) {
 		dev_err(dev, "Could not add gpiochip.\n");
 		return ret;

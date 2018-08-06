@@ -480,6 +480,7 @@ config GPIO_SYSCON
 
 config GPIO_TB10X
 	bool
+	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	select OF_GPIO
 
