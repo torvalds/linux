@@ -830,9 +830,10 @@ static void sata_rcar_init_controller(struct ata_host *host)
 		sata_rcar_gen1_phy_init(priv);
 		break;
 	case RCAR_GEN2_SATA:
-	case RCAR_GEN3_SATA:
 	case RCAR_R8A7790_ES1_SATA:
 		sata_rcar_gen2_phy_init(priv);
+		break;
+	case RCAR_GEN3_SATA:
 		break;
 	default:
 		dev_warn(host->dev, "SATA phy is not initialized\n");
@@ -995,7 +996,6 @@ static int sata_rcar_resume(struct device *dev)
 		return ret;
 
 	if (priv->type == RCAR_GEN3_SATA) {
-		sata_rcar_gen2_phy_init(priv);
 		sata_rcar_init_module(priv);
 	} else {
 		/* ack and mask */
