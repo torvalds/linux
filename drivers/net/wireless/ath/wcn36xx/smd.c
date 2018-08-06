@@ -792,10 +792,10 @@ static int wcn36xx_smd_process_ptt_msg_rsp(void *buf, size_t len,
 			 rsp->header.len - sizeof(rsp->ptt_msg_resp_status));
 
 	if (rsp->header.len > 0) {
-		*p_ptt_rsp_msg = kmalloc(rsp->header.len, GFP_ATOMIC);
+		*p_ptt_rsp_msg = kmemdup(rsp->ptt_msg, rsp->header.len,
+					 GFP_ATOMIC);
 		if (!*p_ptt_rsp_msg)
 			return -ENOMEM;
-		memcpy(*p_ptt_rsp_msg, rsp->ptt_msg, rsp->header.len);
 	}
 	return ret;
 }
