@@ -712,7 +712,7 @@ cleanup_irq:
 	intel_teardown_gmbus(dev_priv);
 cleanup_csr:
 	intel_csr_ucode_fini(dev_priv);
-	intel_power_domains_fini(dev_priv);
+	intel_power_domains_fini_hw(dev_priv);
 	vga_switcheroo_unregister_client(pdev);
 cleanup_vga_client:
 	vga_client_register(pdev, NULL, NULL, NULL);
@@ -1462,7 +1462,7 @@ void i915_driver_unload(struct drm_device *dev)
 	i915_gem_fini(dev_priv);
 	intel_fbc_cleanup_cfb(dev_priv);
 
-	intel_power_domains_fini(dev_priv);
+	intel_power_domains_fini_hw(dev_priv);
 
 	i915_driver_cleanup_hw(dev_priv);
 	i915_driver_cleanup_mmio(dev_priv);

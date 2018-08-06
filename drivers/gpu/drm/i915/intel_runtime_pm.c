@@ -2902,41 +2902,6 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-/**
- * intel_power_domains_fini - finalizes the power domain structures
- * @dev_priv: i915 device instance
- *
- * Finalizes the power domain structures for @dev_priv depending upon the
- * supported platform. This function also disables runtime pm and ensures that
- * the device stays powered up so that the driver can be reloaded.
- */
-void intel_power_domains_fini(struct drm_i915_private *dev_priv)
-{
-	struct device *kdev = &dev_priv->drm.pdev->dev;
-
-	/*
-	 * The i915.ko module is still not prepared to be loaded when
-	 * the power well is not enabled, so just enable it in case
-	 * we're going to unload/reload.
-	 * The following also reacquires the RPM reference the core passed
-	 * to the driver during loading, which is dropped in
-	 * intel_runtime_pm_enable(). We have to hand back the control of the
-	 * device to the core with this reference held.
-	 */
-	intel_display_set_init_power(dev_priv, true);
-
-	/* Remove the refcount we took to keep power well support disabled. */
-	if (!i915_modparams.disable_power_well)
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
-
-	/*
-	 * Remove the refcount we took in intel_runtime_pm_enable() in case
-	 * the platform doesn't support runtime PM.
-	 */
-	if (!HAS_RUNTIME_PM(dev_priv))
-		pm_runtime_put(kdev);
-}
-
 static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
@@ -3574,6 +3539,40 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 	intel_power_domains_sync_hw(dev_priv);
 	power_domains->initializing = false;
+}
+
+/**
+ * intel_power_domains_fini_hw - deinitialize hw power domain state
+ * @dev_priv: i915 device instance
+ *
+ * De-initializes the display power domain HW state. It also ensures that the
+ * device stays powered up so that the driver can be reloaded.
+ */
+void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv)
+{
+	struct device *kdev = &dev_priv->drm.pdev->dev;
+
+	/*
+	 * The i915.ko module is still not prepared to be loaded when
+	 * the power well is not enabled, so just enable it in case
+	 * we're going to unload/reload.
+	 * The following also reacquires the RPM reference the core passed
+	 * to the driver during loading, which is dropped in
+	 * intel_runtime_pm_enable(). We have to hand back the control of the
+	 * device to the core with this reference held.
+	 */
+	intel_display_set_init_power(dev_priv, true);
+
+	/* Remove the refcount we took to keep power well support disabled. */
+	if (!i915_modparams.disable_power_well)
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	/*
+	 * Remove the refcount we took in intel_runtime_pm_enable() in case
+	 * the platform doesn't support runtime PM.
+	 */
+	if (!HAS_RUNTIME_PM(dev_priv))
+		pm_runtime_put(kdev);
 }
 
 /**
