@@ -247,6 +247,58 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
 
+static void ttm_bo_bulk_move_helper(struct ttm_lru_bulk_move_pos *pos,
+				    struct list_head *lru, bool is_swap)
+{
+	struct list_head entries, before;
+	struct list_head *list1, *list2;
+
+	list1 = is_swap ? &pos->last->swap : &pos->last->lru;
+	list2 = is_swap ? pos->first->swap.prev : pos->first->lru.prev;
+
+	list_cut_position(&entries, lru, list1);
+	list_cut_position(&before, &entries, list2);
+	list_splice(&before, lru);
+	list_splice_tail(&entries, lru);
+}
+
+void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
+{
+	unsigned i;
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_mem_type_manager *man;
+
+		if (!bulk->tt[i].first)
+			continue;
+
+		man = &bulk->tt[i].first->bdev->man[TTM_PL_TT];
+		ttm_bo_bulk_move_helper(&bulk->tt[i], &man->lru[i], false);
+	}
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_mem_type_manager *man;
+
+		if (!bulk->vram[i].first)
+			continue;
+
+		man = &bulk->vram[i].first->bdev->man[TTM_PL_VRAM];
+		ttm_bo_bulk_move_helper(&bulk->vram[i], &man->lru[i], false);
+	}
+
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->swap[i];
+		struct list_head *lru;
+
+		if (!pos->first)
+			continue;
+
+		lru = &pos->first->bdev->glob->swap_lru[i];
+		ttm_bo_bulk_move_helper(&bulk->swap[i], lru, true);
+	}
+}
+EXPORT_SYMBOL(ttm_bo_bulk_move_lru_tail);
+
 static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem, bool evict,
 				  struct ttm_operation_ctx *ctx)

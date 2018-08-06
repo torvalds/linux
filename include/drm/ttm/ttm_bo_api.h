@@ -417,6 +417,16 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 			     struct ttm_lru_bulk_move *bulk);
 
 /**
+ * ttm_bo_bulk_move_lru_tail
+ *
+ * @bulk: bulk move structure
+ *
+ * Bulk move BOs to the LRU tail, only valid to use when driver makes sure that
+ * BO order never changes. Should be called with ttm_bo_global::lru_lock held.
+ */
+void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk);
+
+/**
  * ttm_bo_lock_delayed_workqueue
  *
  * Prevent the delayed workqueue from running.
