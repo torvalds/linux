@@ -1045,9 +1045,6 @@ enum i915_power_well_id {
 	SKL_DISP_PW_MISC_IO,
 	SKL_DISP_PW_1,
 	SKL_DISP_PW_2,
-	BXT_DPIO_CMN_BC,
-	ICL_DISP_PW_1,
-	ICL_DISP_PW_2,
 };
 
 #define PUNIT_REG_PWRGT_CTRL			0x60
