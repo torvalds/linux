@@ -1259,6 +1259,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	union drm_amdgpu_cs *cs = data;
 	struct amdgpu_cs_parser parser = {};
 	bool reserved_buffers = false;
+	struct amdgpu_fpriv *fpriv;
 	int i, r;
 
 	if (!adev->accel_working)
@@ -1303,6 +1304,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	r = amdgpu_cs_submit(&parser, cs);
 
+	fpriv = filp->driver_priv;
+	amdgpu_vm_move_to_lru_tail(adev, &fpriv->vm);
 out:
 	amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
 	return r;

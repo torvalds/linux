@@ -268,6 +268,47 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 }
 
 /**
+ * amdgpu_vm_move_to_lru_tail - move all BOs to the end of LRU
+ *
+ * @adev: amdgpu device pointer
+ * @vm: vm providing the BOs
+ *
+ * Move all BOs to the end of LRU and remember their positions to put them
+ * together.
+ */
+void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
+				struct amdgpu_vm *vm)
+{
+	struct ttm_bo_global *glob = adev->mman.bdev.glob;
+	struct amdgpu_vm_bo_base *bo_base;
+
+	if (vm->bulk_moveable) {
+		spin_lock(&glob->lru_lock);
+		ttm_bo_bulk_move_lru_tail(&vm->lru_bulk_move);
+		spin_unlock(&glob->lru_lock);
+		return;
+	}
+
+	memset(&vm->lru_bulk_move, 0, sizeof(vm->lru_bulk_move));
+
+	spin_lock(&glob->lru_lock);
+	list_for_each_entry(bo_base, &vm->idle, vm_status) {
+		struct amdgpu_bo *bo = bo_base->bo;
+
+		if (!bo->parent)
+			continue;
+
+		ttm_bo_move_to_lru_tail(&bo->tbo, &vm->lru_bulk_move);
+		if (bo->shadow)
+			ttm_bo_move_to_lru_tail(&bo->shadow->tbo,
+						&vm->lru_bulk_move);
+	}
+	spin_unlock(&glob->lru_lock);
+
+	vm->bulk_moveable = true;
+}
+
+/**
  * amdgpu_vm_validate_pt_bos - validate the page table BOs
  *
  * @adev: amdgpu device pointer
@@ -284,9 +325,10 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      int (*validate)(void *p, struct amdgpu_bo *bo),
 			      void *param)
 {
-	struct ttm_bo_global *glob = adev->mman.bdev.glob;
 	struct amdgpu_vm_bo_base *bo_base, *tmp;
 	int r = 0;
+
+	vm->bulk_moveable &= list_empty(&vm->evicted);
 
 	list_for_each_entry_safe(bo_base, tmp, &vm->evicted, vm_status) {
 		struct amdgpu_bo *bo = bo_base->bo;
@@ -294,14 +336,6 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		r = validate(param, bo);
 		if (r)
 			break;
-
-		if (bo->parent) {
-			spin_lock(&glob->lru_lock);
-			ttm_bo_move_to_lru_tail(&bo->tbo, NULL);
-			if (bo->shadow)
-				ttm_bo_move_to_lru_tail(&bo->shadow->tbo, NULL);
-			spin_unlock(&glob->lru_lock);
-		}
 
 		if (bo->tbo.type != ttm_bo_type_kernel) {
 			spin_lock(&vm->moved_lock);
@@ -311,19 +345,6 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			list_move(&bo_base->vm_status, &vm->relocated);
 		}
 	}
-
-	spin_lock(&glob->lru_lock);
-	list_for_each_entry(bo_base, &vm->idle, vm_status) {
-		struct amdgpu_bo *bo = bo_base->bo;
-
-		if (!bo->parent)
-			continue;
-
-		ttm_bo_move_to_lru_tail(&bo->tbo, NULL);
-		if (bo->shadow)
-			ttm_bo_move_to_lru_tail(&bo->shadow->tbo, NULL);
-	}
-	spin_unlock(&glob->lru_lock);
 
 	return r;
 }
@@ -2590,6 +2611,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return r;
 
 	vm->pte_support_ats = false;
+	vm->bulk_moveable = true;
 
 	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE) {
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
