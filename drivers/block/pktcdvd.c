@@ -2716,8 +2716,10 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	pd->write_congestion_off = write_congestion_off;
 
 	disk = alloc_disk(1);
-	if (!disk)
+	if (!disk) {
+		ret = -ENOMEM;
 		goto out_mem;
+	}
 	pd->disk = disk;
 	disk->major = pktdev_major;
 	disk->first_minor = idx;
