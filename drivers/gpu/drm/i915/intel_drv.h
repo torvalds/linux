@@ -1948,6 +1948,7 @@ int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state);
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
+void intel_power_domains_cleanup(struct drm_i915_private *dev_priv);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume);
 void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv);
 void intel_power_domains_suspend(struct drm_i915_private *dev_priv);

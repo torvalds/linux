@@ -924,7 +924,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_uc_init_early(dev_priv);
 	intel_pm_setup(dev_priv);
 	intel_init_dpio(dev_priv);
-	intel_power_domains_init(dev_priv);
+	ret = intel_power_domains_init(dev_priv);
+	if (ret < 0)
+		goto err_uc;
 	intel_irq_init(dev_priv);
 	intel_hangcheck_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
@@ -936,6 +938,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	return 0;
 
+err_uc:
+	intel_uc_cleanup_early(dev_priv);
+	i915_gem_cleanup_early(dev_priv);
 err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
 err_engines:
@@ -950,6 +955,7 @@ err_engines:
 static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
 	intel_irq_fini(dev_priv);
+	intel_power_domains_cleanup(dev_priv);
 	intel_uc_cleanup_early(dev_priv);
 	i915_gem_cleanup_early(dev_priv);
 	i915_workqueues_cleanup(dev_priv);

@@ -868,13 +868,9 @@ struct i915_power_well_ops {
 };
 
 /* Power well structure for haswell */
-struct i915_power_well {
+struct i915_power_well_desc {
 	const char *name;
 	bool always_on;
-	/* power well enable/disable usage count */
-	int count;
-	/* cached hw enabled state */
-	bool hw_enabled;
 	u64 domains;
 	/* unique identifier for this power well */
 	enum i915_power_well_id id;
@@ -895,6 +891,14 @@ struct i915_power_well {
 		} hsw;
 	};
 	const struct i915_power_well_ops *ops;
+};
+
+struct i915_power_well {
+	const struct i915_power_well_desc *desc;
+	/* power well enable/disable usage count */
+	int count;
+	/* cached hw enabled state */
+	bool hw_enabled;
 };
 
 struct i915_power_domains {

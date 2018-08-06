@@ -2845,10 +2845,10 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 		enum intel_display_power_domain power_domain;
 
 		power_well = &power_domains->power_wells[i];
-		seq_printf(m, "%-25s %d\n", power_well->name,
+		seq_printf(m, "%-25s %d\n", power_well->desc->name,
 			   power_well->count);
 
-		for_each_power_domain(power_domain, power_well->domains)
+		for_each_power_domain(power_domain, power_well->desc->domains)
 			seq_printf(m, "  %-23s %d\n",
 				 intel_display_power_domain_str(power_domain),
 				 power_domains->domain_use_count[power_domain]);
