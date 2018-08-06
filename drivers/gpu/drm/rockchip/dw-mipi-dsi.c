@@ -1090,7 +1090,7 @@ static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
 	int pkt_size;
 
 	if (dsi->slave || dsi->master)
-		pkt_size = VID_PKT_SIZE(mode->hdisplay / 2 + 4);
+		pkt_size = VID_PKT_SIZE(mode->hdisplay / 2);
 	else
 		pkt_size = VID_PKT_SIZE(mode->hdisplay);
 
