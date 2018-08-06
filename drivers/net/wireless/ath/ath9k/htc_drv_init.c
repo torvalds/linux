@@ -730,6 +730,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	ieee80211_hw_set(hw, DOESNT_SUPPORT_QOS_NDP);
+	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 
 	if (ath9k_ps_enable)
 		ieee80211_hw_set(hw, SUPPORTS_PS);
@@ -752,8 +753,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
 			    WIPHY_FLAG_HAS_CHANNEL_SWITCH |
 			    WIPHY_FLAG_SUPPORTS_5_10_MHZ |
-			    WIPHY_FLAG_SUPPORTS_TDLS |
-			    WIPHY_FLAG_SUPPORT_FAST_XMIT;
+			    WIPHY_FLAG_SUPPORTS_TDLS;
 
 	hw->queues = 4;
 	hw->max_listen_interval = 1;
