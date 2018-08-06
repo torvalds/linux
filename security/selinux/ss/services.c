@@ -1365,7 +1365,6 @@ int security_sid_to_context_force(struct selinux_state *state, u32 sid,
 static int string_to_context_struct(struct policydb *pol,
 				    struct sidtab *sidtabp,
 				    char *scontext,
-				    u32 scontext_len,
 				    struct context *ctx,
 				    u32 def_sid)
 {
@@ -1426,15 +1425,12 @@ static int string_to_context_struct(struct policydb *pol,
 
 	ctx->type = typdatum->value;
 
-	rc = mls_context_to_sid(pol, oldc, &p, ctx, sidtabp, def_sid);
+	rc = mls_context_to_sid(pol, oldc, p, ctx, sidtabp, def_sid);
 	if (rc)
 		goto out;
 
-	rc = -EINVAL;
-	if ((p - scontext) < scontext_len)
-		goto out;
-
 	/* Check the validity of the new context. */
+	rc = -EINVAL;
 	if (!policydb_context_isvalid(pol, ctx))
 		goto out;
 	rc = 0;
@@ -1489,7 +1485,7 @@ static int security_context_to_sid_core(struct selinux_state *state,
 	policydb = &state->ss->policydb;
 	sidtab = state->ss->sidtab;
 	rc = string_to_context_struct(policydb, sidtab, scontext2,
-				      scontext_len, &context, def_sid);
+				      &context, def_sid);
 	if (rc == -EINVAL && force) {
 		context.str = str;
 		context.len = strlen(str) + 1;
@@ -1942,7 +1938,7 @@ static int convert_context(u32 key,
 			goto out;
 
 		rc = string_to_context_struct(args->newp, NULL, s,
-					      c->len, &ctx, SECSID_NULL);
+					      &ctx, SECSID_NULL);
 		kfree(s);
 		if (!rc) {
 			pr_info("SELinux:  Context %s became valid (mapped).\n",
