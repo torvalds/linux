@@ -1122,10 +1122,18 @@ static void __submit_discard_cmd(struct f2fs_sb_info *sbi,
 
 		dc->len += len;
 
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+		if (time_to_inject(sbi, FAULT_DISCARD)) {
+			f2fs_show_injection_info(FAULT_DISCARD);
+			err = -EIO;
+			goto submit;
+		}
+#endif
 		err = __blkdev_issue_discard(bdev,
 					SECTOR_FROM_BLOCK(start),
 					SECTOR_FROM_BLOCK(len),
 					GFP_NOFS, 0, &bio);
+submit:
 		if (!err && bio) {
 			/*
 			 * should keep before submission to avoid D_DONE
