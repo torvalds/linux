@@ -552,24 +552,28 @@ static void drm_sched_job_finish(struct work_struct *work)
 						   finish_work);
 	struct drm_gpu_scheduler *sched = s_job->sched;
 
-	/* remove job from ring_mirror_list */
+	/*
+	 * Canceling the timeout without removing our job from the ring mirror
+	 * list is safe, as we will only end up in this worker if our jobs
+	 * finished fence has been signaled. So even if some another worker
+	 * manages to find this job as the next job in the list, the fence
+	 * signaled check below will prevent the timeout to be restarted.
+	 */
+	cancel_delayed_work_sync(&s_job->work_tdr);
+
 	spin_lock(&sched->job_list_lock);
-	list_del_init(&s_job->node);
-	if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
-		struct drm_sched_job *next;
+	/* queue TDR for next job */
+	if (sched->timeout != MAX_SCHEDULE_TIMEOUT &&
+	    !list_is_last(&s_job->node, &sched->ring_mirror_list)) {
+		struct drm_sched_job *next = list_next_entry(s_job, node);
 
-		spin_unlock(&sched->job_list_lock);
-		cancel_delayed_work_sync(&s_job->work_tdr);
-		spin_lock(&sched->job_list_lock);
-
-		/* queue TDR for next job */
-		next = list_first_entry_or_null(&sched->ring_mirror_list,
-						struct drm_sched_job, node);
-
-		if (next)
+		if (!dma_fence_is_signaled(&next->s_fence->finished))
 			schedule_delayed_work(&next->work_tdr, sched->timeout);
 	}
+	/* remove job from ring_mirror_list */
+	list_del(&s_job->node);
 	spin_unlock(&sched->job_list_lock);
+
 	dma_fence_put(&s_job->s_fence->finished);
 	sched->ops->free_job(s_job);
 }
