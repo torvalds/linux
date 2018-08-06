@@ -125,8 +125,8 @@ struct async_submit_bio {
  * Different roots are used for different purposes and may nest inside each
  * other and they require separate keysets.  As lockdep keys should be
  * static, assign keysets according to the purpose of the root as indicated
- * by btrfs_root->objectid.  This ensures that all special purpose roots
- * have separate keysets.
+ * by btrfs_root->root_key.objectid.  This ensures that all special purpose
+ * roots have separate keysets.
  *
  * Lock-nesting across peer nodes is always done with the immediate parent
  * node locked thus preventing deadlock.  As lockdep doesn't know this, use
@@ -1148,7 +1148,6 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	root->state = 0;
 	root->orphan_cleanup_state = 0;
 
-	root->objectid = objectid;
 	root->last_trans = 0;
 	root->highest_objectid = 0;
 	root->nr_delalloc_inodes = 0;

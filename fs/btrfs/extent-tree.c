@@ -8873,7 +8873,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	int level;
 	bool root_dropped = false;
 
-	btrfs_debug(fs_info, "Drop subvolume %llu", root->objectid);
+	btrfs_debug(fs_info, "Drop subvolume %llu", root->root_key.objectid);
 
 	path = btrfs_alloc_path();
 	if (!path) {
