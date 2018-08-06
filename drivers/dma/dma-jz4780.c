@@ -847,7 +847,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 		jzchan->vchan.desc_free = jz4780_dma_desc_free;
 	}
 
-	ret = dma_async_device_register(dd);
+	ret = dmaenginem_async_device_register(dd);
 	if (ret) {
 		dev_err(dev, "failed to register device\n");
 		goto err_disable_clk;
@@ -858,14 +858,11 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 					 jzdma);
 	if (ret) {
 		dev_err(dev, "failed to register OF DMA controller\n");
-		goto err_unregister_dev;
+		goto err_disable_clk;
 	}
 
 	dev_info(dev, "JZ4780 DMA controller initialised\n");
 	return 0;
-
-err_unregister_dev:
-	dma_async_device_unregister(dd);
 
 err_disable_clk:
 	clk_disable_unprepare(jzdma->clk);
@@ -887,7 +884,6 @@ static int jz4780_dma_remove(struct platform_device *pdev)
 	for (i = 0; i < JZ_DMA_NR_CHANNELS; i++)
 		tasklet_kill(&jzdma->chan[i].vchan.task);
 
-	dma_async_device_unregister(&jzdma->dma_device);
 	return 0;
 }
 
