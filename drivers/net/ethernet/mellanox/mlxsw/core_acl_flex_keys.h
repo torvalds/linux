@@ -219,8 +219,7 @@ struct mlxsw_afk;
 struct mlxsw_afk_ops {
 	const struct mlxsw_afk_block *blocks;
 	unsigned int blocks_count;
-	void (*encode_one)(const struct mlxsw_afk_element_inst *elinst,
-			   int block_index, char *storage, char *output);
+	void (*encode_block)(char *block, int block_index, char *output);
 };
 
 struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
@@ -260,6 +259,6 @@ void mlxsw_afk_values_add_buf(struct mlxsw_afk_element_values *values,
 void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
 		      struct mlxsw_afk_key_info *key_info,
 		      struct mlxsw_afk_element_values *values,
-		      char *key, char *mask);
+		      char *key, char *mask, int block_start, int block_end);
 
 #endif

@@ -158,7 +158,8 @@ static void qed_ll2_kill_buffers(struct qed_dev *cdev)
 		qed_ll2_dealloc_buffer(cdev, buffer);
 }
 
-void qed_ll2b_complete_rx_packet(void *cxt, struct qed_ll2_comp_rx_data *data)
+static void qed_ll2b_complete_rx_packet(void *cxt,
+					struct qed_ll2_comp_rx_data *data)
 {
 	struct qed_hwfn *p_hwfn = cxt;
 	struct qed_ll2_buffer *buffer = data->cookie;

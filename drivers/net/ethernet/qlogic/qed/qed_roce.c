@@ -157,7 +157,7 @@ static enum roce_flavor qed_roce_mode_to_flavor(enum roce_mode roce_mode)
 	return flavor;
 }
 
-void qed_roce_free_cid_pair(struct qed_hwfn *p_hwfn, u16 cid)
+static void qed_roce_free_cid_pair(struct qed_hwfn *p_hwfn, u16 cid)
 {
 	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
 	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->cid_map, cid);

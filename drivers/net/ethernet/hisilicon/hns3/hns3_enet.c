@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
@@ -56,15 +50,16 @@ static const struct pci_device_id hns3_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC),
 	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_VF), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF), 0},
+	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF),
+	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
 	/* required last entry */
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, hns3_pci_tbl);
 
-static irqreturn_t hns3_irq_handle(int irq, void *dev)
+static irqreturn_t hns3_irq_handle(int irq, void *vector)
 {
-	struct hns3_enet_tqp_vector *tqp_vector = dev;
+	struct hns3_enet_tqp_vector *tqp_vector = vector;
 
 	napi_schedule(&tqp_vector->napi);
 
@@ -3085,7 +3080,6 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->dev = &pdev->dev;
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
-	priv->ae_handle->reset_level = HNAE3_NONE_RESET;
 	priv->ae_handle->last_reset_time = jiffies;
 	priv->tx_timeout_count = 0;
 
@@ -3105,6 +3099,11 @@ static int hns3_client_init(struct hnae3_handle *handle)
 
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
+
+	if (handle->flags & HNAE3_SUPPORT_VF)
+		handle->reset_level = HNAE3_VF_RESET;
+	else
+		handle->reset_level = HNAE3_FUNC_RESET;
 
 	ret = hns3_get_ring_config(priv);
 	if (ret) {
@@ -3396,7 +3395,7 @@ static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 	struct net_device *ndev = kinfo->netdev;
 
 	if (!netif_running(ndev))
-		return -EIO;
+		return 0;
 
 	return hns3_nic_net_stop(ndev);
 }
@@ -3436,10 +3435,6 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
-	ret = hns3_get_ring_config(priv);
-	if (ret)
-		return ret;
-
 	ret = hns3_nic_init_vector_data(priv);
 	if (ret)
 		return ret;
@@ -3470,10 +3465,6 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
-
-	hns3_put_ring_config(priv);
-
-	priv->ring_data = NULL;
 
 	hns3_uninit_mac_addr(netdev);
 

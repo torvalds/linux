@@ -18,8 +18,6 @@ README.ipw2200
 	- README for the Intel PRO/Wireless 2915ABG and 2200BG driver.
 README.sb1000
 	- info on General Instrument/NextLevel SURFboard1000 cable modem.
-alias.txt
-	- info on using alias network devices.
 altera_tse.txt
 	- Altera Triple-Speed Ethernet controller.
 arcnet-hardware.txt
@@ -140,8 +138,6 @@ multiqueue.txt
 	- HOWTO for multiqueue network device support.
 netconsole.txt
 	- The network console module netconsole.ko: configuration and notes.
-netdev-FAQ.txt
-	- FAQ describing how to submit net changes to netdev mailing list.
 netdev-features.txt
 	- Network interface features API description.
 netdevices.txt

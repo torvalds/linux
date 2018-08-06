@@ -297,11 +297,6 @@ static bool link_is_bc_rcvlink(struct tipc_link *l)
 	return ((l->bc_rcvlink == l) && !link_is_bc_sndlink(l));
 }
 
-int tipc_link_is_active(struct tipc_link *l)
-{
-	return l->active;
-}
-
 void tipc_link_set_active(struct tipc_link *l, bool active)
 {
 	l->active = active;
@@ -378,7 +373,7 @@ int tipc_link_bc_peers(struct tipc_link *l)
 	return l->ackers;
 }
 
-u16 link_bc_rcv_gap(struct tipc_link *l)
+static u16 link_bc_rcv_gap(struct tipc_link *l)
 {
 	struct sk_buff *skb = skb_peek(&l->deferdq);
 	u16 gap = 0;
@@ -825,7 +820,7 @@ static int link_schedule_user(struct tipc_link *l, struct tipc_msg *hdr)
  * Wake up a number of waiting users, as permitted by available space
  * in the send queue
  */
-void link_prepare_wakeup(struct tipc_link *l)
+static void link_prepare_wakeup(struct tipc_link *l)
 {
 	struct sk_buff *skb, *tmp;
 	int imp, i = 0;
@@ -961,7 +956,8 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 	return rc;
 }
 
-void tipc_link_advance_backlog(struct tipc_link *l, struct sk_buff_head *xmitq)
+static void tipc_link_advance_backlog(struct tipc_link *l,
+				      struct sk_buff_head *xmitq)
 {
 	struct sk_buff *skb, *_skb;
 	struct tipc_msg *hdr;
@@ -1011,8 +1007,8 @@ static void link_retransmit_failure(struct tipc_link *l, struct sk_buff *skb)
  * @to: retransmit to (inclusive) this sequence number
  * xmitq: queue for accumulating the retransmitted packets
  */
-int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
-		      u16 from, u16 to, struct sk_buff_head *xmitq)
+static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
+			     u16 from, u16 to, struct sk_buff_head *xmitq)
 {
 	struct sk_buff *_skb, *skb = skb_peek(&l->transmq);
 	u16 bc_ack = l->bc_rcvlink->rcv_nxt - 1;

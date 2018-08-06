@@ -91,7 +91,8 @@ static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
 	"." __stringify(MLXSW_SP1_FWREV_MINOR) \
 	"." __stringify(MLXSW_SP1_FWREV_SUBMINOR) ".mfa2"
 
-static const char mlxsw_sp_driver_name[] = "mlxsw_spectrum";
+static const char mlxsw_sp1_driver_name[] = "mlxsw_spectrum";
+static const char mlxsw_sp2_driver_name[] = "mlxsw_spectrum2";
 static const char mlxsw_sp_driver_version[] = "1.0";
 
 /* tx_hdr_version
@@ -1454,6 +1455,11 @@ mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_acl_block *acl_block,
 		return 0;
 	case TC_CLSFLOWER_STATS:
 		return mlxsw_sp_flower_stats(mlxsw_sp, acl_block, f);
+	case TC_CLSFLOWER_TMPLT_CREATE:
+		return mlxsw_sp_flower_tmplt_create(mlxsw_sp, acl_block, f);
+	case TC_CLSFLOWER_TMPLT_DESTROY:
+		mlxsw_sp_flower_tmplt_destroy(mlxsw_sp, acl_block, f);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1727,7 +1733,8 @@ static void mlxsw_sp_port_get_drvinfo(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
-	strlcpy(drvinfo->driver, mlxsw_sp_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->driver, mlxsw_sp->bus_info->device_kind,
+		sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, mlxsw_sp_driver_version,
 		sizeof(drvinfo->version));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
@@ -1888,6 +1895,52 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_stats[] = {
 
 #define MLXSW_SP_PORT_HW_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_stats)
 
+static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_rfc_2819_stats[] = {
+	{
+		.str = "ether_pkts64octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts64octets_get,
+	},
+	{
+		.str = "ether_pkts65to127octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts65to127octets_get,
+	},
+	{
+		.str = "ether_pkts128to255octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts128to255octets_get,
+	},
+	{
+		.str = "ether_pkts256to511octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts256to511octets_get,
+	},
+	{
+		.str = "ether_pkts512to1023octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts512to1023octets_get,
+	},
+	{
+		.str = "ether_pkts1024to1518octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts1024to1518octets_get,
+	},
+	{
+		.str = "ether_pkts1519to2047octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts1519to2047octets_get,
+	},
+	{
+		.str = "ether_pkts2048to4095octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts2048to4095octets_get,
+	},
+	{
+		.str = "ether_pkts4096to8191octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts4096to8191octets_get,
+	},
+	{
+		.str = "ether_pkts8192to10239octets",
+		.getter = mlxsw_reg_ppcnt_ether_stats_pkts8192to10239octets_get,
+	},
+};
+
+#define MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN \
+	ARRAY_SIZE(mlxsw_sp_port_hw_rfc_2819_stats)
+
 static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_prio_stats[] = {
 	{
 		.str = "rx_octets_prio",
@@ -1979,6 +2032,11 @@ static void mlxsw_sp_port_get_strings(struct net_device *dev,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
+		for (i = 0; i < MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN; i++) {
+			memcpy(p, mlxsw_sp_port_hw_rfc_2819_stats[i].str,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
 
 		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 			mlxsw_sp_port_get_prio_strings(&p, i);
@@ -2018,9 +2076,13 @@ mlxsw_sp_get_hw_stats_by_group(struct mlxsw_sp_port_hw_stats **p_hw_stats,
 			       int *p_len, enum mlxsw_reg_ppcnt_grp grp)
 {
 	switch (grp) {
-	case  MLXSW_REG_PPCNT_IEEE_8023_CNT:
+	case MLXSW_REG_PPCNT_IEEE_8023_CNT:
 		*p_hw_stats = mlxsw_sp_port_hw_stats;
 		*p_len = MLXSW_SP_PORT_HW_STATS_LEN;
+		break;
+	case MLXSW_REG_PPCNT_RFC_2819_CNT:
+		*p_hw_stats = mlxsw_sp_port_hw_rfc_2819_stats;
+		*p_len = MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN;
 		break;
 	case MLXSW_REG_PPCNT_PRIO_CNT:
 		*p_hw_stats = mlxsw_sp_port_hw_prio_stats;
@@ -2070,6 +2132,11 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 	__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_IEEE_8023_CNT, 0,
 				  data, data_index);
 	data_index = MLXSW_SP_PORT_HW_STATS_LEN;
+
+	/* RFC 2819 Counters */
+	__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_RFC_2819_CNT, 0,
+				  data, data_index);
+	data_index += MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN;
 
 	/* Per-Priority Counters */
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
@@ -2726,9 +2793,16 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 					    false, 0);
 		if (err)
 			return err;
+
+		err = mlxsw_sp_port_ets_set(mlxsw_sp_port,
+					    MLXSW_REG_QEEC_HIERARCY_TC,
+					    i + 8, i,
+					    false, 0);
+		if (err)
+			return err;
 	}
 
-	/* Make sure the max shaper is disabled in all hierarcies that
+	/* Make sure the max shaper is disabled in all hierarchies that
 	 * support it.
 	 */
 	err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
@@ -2761,6 +2835,16 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	}
 
 	return 0;
+}
+
+static int mlxsw_sp_port_tc_mc_mode_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char qtctm_pl[MLXSW_REG_QTCTM_LEN];
+
+	mlxsw_reg_qtctm_pack(qtctm_pl, mlxsw_sp_port->local_port, enable);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qtctm), qtctm_pl);
 }
 
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
@@ -2891,6 +2975,13 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_ets_init;
 	}
 
+	err = mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, true);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to initialize TC MC mode\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_tc_mc_mode;
+	}
+
 	/* ETS and buffers must be initialized before DCB. */
 	err = mlxsw_sp_port_dcb_init(mlxsw_sp_port);
 	if (err) {
@@ -2947,6 +3038,8 @@ err_port_qdiscs_init:
 err_port_fids_init:
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 err_port_dcb_init:
+	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
+err_port_tc_mc_mode:
 err_port_ets_init:
 err_port_buffers_init:
 err_port_admin_status_set:
@@ -2981,6 +3074,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_tc_qdisc_fini(mlxsw_sp_port);
 	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
+	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 	kfree(mlxsw_sp_port->sample);
@@ -3386,6 +3480,8 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV4, TRAP_TO_CPU, ROUTER_EXP, false),
 	MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV6, TRAP_TO_CPU, ROUTER_EXP, false),
 	MLXSW_SP_RXL_MARK(IPIP_DECAP_ERROR, TRAP_TO_CPU, ROUTER_EXP, false),
+	MLXSW_SP_RXL_MARK(IPV4_VRRP, TRAP_TO_CPU, ROUTER_EXP, false),
+	MLXSW_SP_RXL_MARK(IPV6_VRRP, TRAP_TO_CPU, ROUTER_EXP, false),
 	/* PKT Sample trap */
 	MLXSW_RXL(mlxsw_sp_rx_listener_sample_func, PKT_SAMPLE, MIRROR_TO_CPU,
 		  false, SP_IP2ME, DISCARD),
@@ -3634,14 +3730,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	int err;
 
-	mlxsw_sp->req_rev = &mlxsw_sp1_fw_rev;
-	mlxsw_sp->fw_filename = MLXSW_SP1_FW_FILENAME;
-	mlxsw_sp->kvdl_ops = &mlxsw_sp1_kvdl_ops;
-	mlxsw_sp->afa_ops = &mlxsw_sp1_act_afa_ops;
-	mlxsw_sp->afk_ops = &mlxsw_sp1_afk_ops;
-	mlxsw_sp->mr_tcam_ops = &mlxsw_sp1_mr_tcam_ops;
-	mlxsw_sp->acl_tcam_ops = &mlxsw_sp1_acl_tcam_ops;
-
 	mlxsw_sp->core = mlxsw_core;
 	mlxsw_sp->bus_info = mlxsw_bus_info;
 
@@ -3780,6 +3868,36 @@ err_fids_init:
 	return err;
 }
 
+static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
+			  const struct mlxsw_bus_info *mlxsw_bus_info)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	mlxsw_sp->req_rev = &mlxsw_sp1_fw_rev;
+	mlxsw_sp->fw_filename = MLXSW_SP1_FW_FILENAME;
+	mlxsw_sp->kvdl_ops = &mlxsw_sp1_kvdl_ops;
+	mlxsw_sp->afa_ops = &mlxsw_sp1_act_afa_ops;
+	mlxsw_sp->afk_ops = &mlxsw_sp1_afk_ops;
+	mlxsw_sp->mr_tcam_ops = &mlxsw_sp1_mr_tcam_ops;
+	mlxsw_sp->acl_tcam_ops = &mlxsw_sp1_acl_tcam_ops;
+
+	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
+}
+
+static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
+			  const struct mlxsw_bus_info *mlxsw_bus_info)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	mlxsw_sp->kvdl_ops = &mlxsw_sp2_kvdl_ops;
+	mlxsw_sp->afa_ops = &mlxsw_sp2_act_afa_ops;
+	mlxsw_sp->afk_ops = &mlxsw_sp2_afk_ops;
+	mlxsw_sp->mr_tcam_ops = &mlxsw_sp2_mr_tcam_ops;
+	mlxsw_sp->acl_tcam_ops = &mlxsw_sp2_acl_tcam_ops;
+
+	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
+}
+
 static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
@@ -3800,7 +3918,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
 }
 
-static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
+static const struct mlxsw_config_profile mlxsw_sp1_config_profile = {
 	.used_max_mid			= 1,
 	.max_mid			= MLXSW_SP_MID_MAX,
 	.used_flood_tables		= 1,
@@ -3818,6 +3936,28 @@ static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.kvd_hash_single_parts		= 59,
 	.kvd_hash_double_parts		= 41,
 	.kvd_linear_size		= MLXSW_SP_KVD_LINEAR_SIZE,
+	.swid_config			= {
+		{
+			.used_type	= 1,
+			.type		= MLXSW_PORT_SWID_TYPE_ETH,
+		}
+	},
+};
+
+static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
+	.used_max_mid			= 1,
+	.max_mid			= MLXSW_SP_MID_MAX,
+	.used_flood_tables		= 1,
+	.used_flood_mode		= 1,
+	.flood_mode			= 3,
+	.max_fid_offset_flood_tables	= 3,
+	.fid_offset_flood_table_size	= VLAN_N_VID - 1,
+	.max_fid_flood_tables		= 3,
+	.fid_flood_table_size		= MLXSW_SP_FID_8021D_MAX,
+	.used_max_ib_mc			= 1,
+	.max_ib_mc			= 0,
+	.used_max_pkey			= 1,
+	.max_pkey			= 0,
 	.swid_config			= {
 		{
 			.used_type	= 1,
@@ -3862,7 +4002,7 @@ mlxsw_sp_resource_size_params_prepare(struct mlxsw_core *mlxsw_core,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
 }
 
-static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
+static int mlxsw_sp1_resources_kvd_register(struct mlxsw_core *mlxsw_core)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 	struct devlink_resource_size_params hash_single_size_params;
@@ -3873,7 +4013,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	const struct mlxsw_config_profile *profile;
 	int err;
 
-	profile = &mlxsw_sp_config_profile;
+	profile = &mlxsw_sp1_config_profile;
 	if (!MLXSW_CORE_RES_VALID(mlxsw_core, KVD_SIZE))
 		return -EIO;
 
@@ -3925,6 +4065,16 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		return err;
 
+	return 0;
+}
+
+static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_sp1_resources_kvd_register(mlxsw_core);
+}
+
+static int mlxsw_sp2_resources_register(struct mlxsw_core *mlxsw_core)
+{
 	return 0;
 }
 
@@ -3983,10 +4133,10 @@ static int mlxsw_sp_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 	return 0;
 }
 
-static struct mlxsw_driver mlxsw_sp_driver = {
-	.kind				= mlxsw_sp_driver_name,
+static struct mlxsw_driver mlxsw_sp1_driver = {
+	.kind				= mlxsw_sp1_driver_name,
 	.priv_size			= sizeof(struct mlxsw_sp),
-	.init				= mlxsw_sp_init,
+	.init				= mlxsw_sp1_init,
 	.fini				= mlxsw_sp_fini,
 	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
@@ -4002,10 +4152,35 @@ static struct mlxsw_driver mlxsw_sp_driver = {
 	.sb_occ_port_pool_get		= mlxsw_sp_sb_occ_port_pool_get,
 	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
 	.txhdr_construct		= mlxsw_sp_txhdr_construct,
-	.resources_register		= mlxsw_sp_resources_register,
+	.resources_register		= mlxsw_sp1_resources_register,
 	.kvd_sizes_get			= mlxsw_sp_kvd_sizes_get,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
-	.profile			= &mlxsw_sp_config_profile,
+	.profile			= &mlxsw_sp1_config_profile,
+	.res_query_enabled		= true,
+};
+
+static struct mlxsw_driver mlxsw_sp2_driver = {
+	.kind				= mlxsw_sp2_driver_name,
+	.priv_size			= sizeof(struct mlxsw_sp),
+	.init				= mlxsw_sp2_init,
+	.fini				= mlxsw_sp_fini,
+	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
+	.port_split			= mlxsw_sp_port_split,
+	.port_unsplit			= mlxsw_sp_port_unsplit,
+	.sb_pool_get			= mlxsw_sp_sb_pool_get,
+	.sb_pool_set			= mlxsw_sp_sb_pool_set,
+	.sb_port_pool_get		= mlxsw_sp_sb_port_pool_get,
+	.sb_port_pool_set		= mlxsw_sp_sb_port_pool_set,
+	.sb_tc_pool_bind_get		= mlxsw_sp_sb_tc_pool_bind_get,
+	.sb_tc_pool_bind_set		= mlxsw_sp_sb_tc_pool_bind_set,
+	.sb_occ_snapshot		= mlxsw_sp_sb_occ_snapshot,
+	.sb_occ_max_clear		= mlxsw_sp_sb_occ_max_clear,
+	.sb_occ_port_pool_get		= mlxsw_sp_sb_occ_port_pool_get,
+	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
+	.txhdr_construct		= mlxsw_sp_txhdr_construct,
+	.resources_register		= mlxsw_sp2_resources_register,
+	.txhdr_len			= MLXSW_TXHDR_LEN,
+	.profile			= &mlxsw_sp2_config_profile,
 	.res_query_enabled		= true,
 };
 
@@ -4420,7 +4595,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		if (!is_vlan_dev(upper_dev) &&
 		    !netif_is_lag_master(upper_dev) &&
 		    !netif_is_bridge_master(upper_dev) &&
-		    !netif_is_ovs_master(upper_dev)) {
+		    !netif_is_ovs_master(upper_dev) &&
+		    !netif_is_macvlan(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EINVAL;
 		}
@@ -4445,6 +4621,11 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		    !netif_is_lag_master(vlan_dev_real_dev(upper_dev))) {
 			NL_SET_ERR_MSG_MOD(extack, "Can not put a VLAN on a LAG port");
 			return -EINVAL;
+		}
+		if (netif_is_macvlan(upper_dev) &&
+		    !mlxsw_sp_rif_find_by_dev(mlxsw_sp, lower_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+			return -EOPNOTSUPP;
 		}
 		if (netif_is_ovs_master(upper_dev) && vlan_uses_dev(dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Master device is an OVS master and this device has a VLAN");
@@ -4484,6 +4665,9 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 				err = mlxsw_sp_port_ovs_join(mlxsw_sp_port);
 			else
 				mlxsw_sp_port_ovs_leave(mlxsw_sp_port);
+		} else if (netif_is_macvlan(upper_dev)) {
+			if (!info->linking)
+				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
 		}
 		break;
 	}
@@ -4568,8 +4752,9 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!netif_is_bridge_master(upper_dev)) {
-			NL_SET_ERR_MSG_MOD(extack, "VLAN devices only support bridge and VRF uppers");
+		if (!netif_is_bridge_master(upper_dev) &&
+		    !netif_is_macvlan(upper_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EINVAL;
 		}
 		if (!info->linking)
@@ -4580,6 +4765,11 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 							  upper_dev))) {
 			NL_SET_ERR_MSG_MOD(extack, "Enslaving a port to a device that already has an upper device is not supported");
 			return -EINVAL;
+		}
+		if (netif_is_macvlan(upper_dev) &&
+		    !mlxsw_sp_rif_find_by_dev(mlxsw_sp, vlan_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+			return -EOPNOTSUPP;
 		}
 		break;
 	case NETDEV_CHANGEUPPER:
@@ -4594,6 +4784,9 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
 							   vlan_dev,
 							   upper_dev);
+		} else if (netif_is_macvlan(upper_dev)) {
+			if (!info->linking)
+				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
 		} else {
 			err = -EINVAL;
 			WARN_ON(1);
@@ -4643,6 +4836,64 @@ static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
+static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
+					   unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(br_dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
+	struct net_device *upper_dev;
+
+	if (!mlxsw_sp)
+		return 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (!is_vlan_dev(upper_dev) && !netif_is_macvlan(upper_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+			return -EOPNOTSUPP;
+		}
+		if (!info->linking)
+			break;
+		if (netif_is_macvlan(upper_dev) &&
+		    !mlxsw_sp_rif_find_by_dev(mlxsw_sp, br_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+			return -EOPNOTSUPP;
+		}
+		break;
+	case NETDEV_CHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (info->linking)
+			break;
+		if (netif_is_macvlan(upper_dev))
+			mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
+		break;
+	}
+
+	return 0;
+}
+
+static int mlxsw_sp_netdevice_macvlan_event(struct net_device *macvlan_dev,
+					    unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(macvlan_dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
+
+	if (!mlxsw_sp || event != NETDEV_PRECHANGEUPPER)
+		return 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	/* VRF enslavement is handled in mlxsw_sp_netdevice_vrf_event() */
+	NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+
+	return -EOPNOTSUPP;
+}
+
 static bool mlxsw_sp_is_vrf_event(unsigned long event, void *ptr)
 {
 	struct netdev_notifier_changeupper_info *info = ptr;
@@ -4684,6 +4935,10 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 		err = mlxsw_sp_netdevice_lag_event(dev, event, ptr);
 	else if (is_vlan_dev(dev))
 		err = mlxsw_sp_netdevice_vlan_event(dev, event, ptr);
+	else if (netif_is_bridge_master(dev))
+		err = mlxsw_sp_netdevice_bridge_event(dev, event, ptr);
+	else if (netif_is_macvlan(dev))
+		err = mlxsw_sp_netdevice_macvlan_event(dev, event, ptr);
 
 	return notifier_from_errno(err);
 }
@@ -4704,14 +4959,24 @@ static struct notifier_block mlxsw_sp_inet6addr_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_inet6addr_event,
 };
 
-static const struct pci_device_id mlxsw_sp_pci_id_table[] = {
+static const struct pci_device_id mlxsw_sp1_pci_id_table[] = {
 	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SPECTRUM), 0},
 	{0, },
 };
 
-static struct pci_driver mlxsw_sp_pci_driver = {
-	.name = mlxsw_sp_driver_name,
-	.id_table = mlxsw_sp_pci_id_table,
+static struct pci_driver mlxsw_sp1_pci_driver = {
+	.name = mlxsw_sp1_driver_name,
+	.id_table = mlxsw_sp1_pci_id_table,
+};
+
+static const struct pci_device_id mlxsw_sp2_pci_id_table[] = {
+	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SPECTRUM2), 0},
+	{0, },
+};
+
+static struct pci_driver mlxsw_sp2_pci_driver = {
+	.name = mlxsw_sp2_driver_name,
+	.id_table = mlxsw_sp2_pci_id_table,
 };
 
 static int __init mlxsw_sp_module_init(void)
@@ -4723,19 +4988,31 @@ static int __init mlxsw_sp_module_init(void)
 	register_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	register_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 
-	err = mlxsw_core_driver_register(&mlxsw_sp_driver);
+	err = mlxsw_core_driver_register(&mlxsw_sp1_driver);
 	if (err)
-		goto err_core_driver_register;
+		goto err_sp1_core_driver_register;
 
-	err = mlxsw_pci_driver_register(&mlxsw_sp_pci_driver);
+	err = mlxsw_core_driver_register(&mlxsw_sp2_driver);
 	if (err)
-		goto err_pci_driver_register;
+		goto err_sp2_core_driver_register;
+
+	err = mlxsw_pci_driver_register(&mlxsw_sp1_pci_driver);
+	if (err)
+		goto err_sp1_pci_driver_register;
+
+	err = mlxsw_pci_driver_register(&mlxsw_sp2_pci_driver);
+	if (err)
+		goto err_sp2_pci_driver_register;
 
 	return 0;
 
-err_pci_driver_register:
-	mlxsw_core_driver_unregister(&mlxsw_sp_driver);
-err_core_driver_register:
+err_sp2_pci_driver_register:
+	mlxsw_pci_driver_unregister(&mlxsw_sp2_pci_driver);
+err_sp1_pci_driver_register:
+	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
+err_sp2_core_driver_register:
+	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
+err_sp1_core_driver_register:
 	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
@@ -4745,8 +5022,10 @@ err_core_driver_register:
 
 static void __exit mlxsw_sp_module_exit(void)
 {
-	mlxsw_pci_driver_unregister(&mlxsw_sp_pci_driver);
-	mlxsw_core_driver_unregister(&mlxsw_sp_driver);
+	mlxsw_pci_driver_unregister(&mlxsw_sp2_pci_driver);
+	mlxsw_pci_driver_unregister(&mlxsw_sp1_pci_driver);
+	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
+	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
 	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
@@ -4759,5 +5038,6 @@ module_exit(mlxsw_sp_module_exit);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Spectrum driver");
-MODULE_DEVICE_TABLE(pci, mlxsw_sp_pci_id_table);
+MODULE_DEVICE_TABLE(pci, mlxsw_sp1_pci_id_table);
+MODULE_DEVICE_TABLE(pci, mlxsw_sp2_pci_id_table);
 MODULE_FIRMWARE(MLXSW_SP1_FW_FILENAME);

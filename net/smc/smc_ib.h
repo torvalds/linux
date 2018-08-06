@@ -40,7 +40,6 @@ struct smc_ib_device {				/* ib-device infos for smc */
 	struct tasklet_struct	recv_tasklet;	/* called by recv cq handler */
 	char			mac[SMC_MAX_PORTS][ETH_ALEN];
 						/* mac address per port*/
-	union ib_gid		gid[SMC_MAX_PORTS]; /* gid per port */
 	u8			pnetid[SMC_MAX_PORTS][SMC_MAX_PNETID_LEN];
 						/* pnetid per port */
 	u8			initialized : 1; /* ib dev CQ, evthdl done */
@@ -77,4 +76,6 @@ void smc_ib_sync_sg_for_cpu(struct smc_ib_device *smcibdev,
 void smc_ib_sync_sg_for_device(struct smc_ib_device *smcibdev,
 			       struct smc_buf_desc *buf_slot,
 			       enum dma_data_direction data_direction);
+int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
+			 unsigned short vlan_id, u8 gid[], u8 *sgid_index);
 #endif

@@ -80,7 +80,6 @@
 #define CAKE_QUEUES (1024)
 #define CAKE_FLOW_MASK 63
 #define CAKE_FLOW_NAT_FLAG 64
-#define CAKE_SPLIT_GSO_THRESHOLD (125000000) /* 1Gbps */
 
 /* struct cobalt_params - contains codel and blue parameters
  * @interval:	codel initial drop rate
@@ -1546,7 +1545,7 @@ static struct cake_tin_data *cake_select_tin(struct Qdisc *sch,
 	if (TC_H_MAJ(skb->priority) == sch->handle &&
 	    TC_H_MIN(skb->priority) > 0 &&
 	    TC_H_MIN(skb->priority) <= q->tin_cnt) {
-		tin = TC_H_MIN(skb->priority) - 1;
+		tin = q->tin_order[TC_H_MIN(skb->priority) - 1];
 
 		if (q->rate_flags & CAKE_FLAG_WASH)
 			cake_wash_diffserv(skb);
@@ -2569,10 +2568,12 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 	if (tb[TCA_CAKE_MEMORY])
 		q->buffer_config_limit = nla_get_u32(tb[TCA_CAKE_MEMORY]);
 
-	if (q->rate_bps && q->rate_bps <= CAKE_SPLIT_GSO_THRESHOLD)
-		q->rate_flags |= CAKE_FLAG_SPLIT_GSO;
-	else
-		q->rate_flags &= ~CAKE_FLAG_SPLIT_GSO;
+	if (tb[TCA_CAKE_SPLIT_GSO]) {
+		if (!!nla_get_u32(tb[TCA_CAKE_SPLIT_GSO]))
+			q->rate_flags |= CAKE_FLAG_SPLIT_GSO;
+		else
+			q->rate_flags &= ~CAKE_FLAG_SPLIT_GSO;
+	}
 
 	if (q->tins) {
 		sch_tree_lock(sch);
@@ -2608,7 +2609,7 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	q->target   =   5000; /* 5ms: codel RFC argues
 			       * for 5 to 10% of interval
 			       */
-
+	q->rate_flags |= CAKE_FLAG_SPLIT_GSO;
 	q->cur_tin = 0;
 	q->cur_flow  = 0;
 

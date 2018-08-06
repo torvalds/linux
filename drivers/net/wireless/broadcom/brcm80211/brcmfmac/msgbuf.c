@@ -69,6 +69,8 @@
 #define BRCMF_MSGBUF_MAX_EVENTBUF_POST		8
 
 #define BRCMF_MSGBUF_PKT_FLAGS_FRAME_802_3	0x01
+#define BRCMF_MSGBUF_PKT_FLAGS_FRAME_802_11	0x02
+#define BRCMF_MSGBUF_PKT_FLAGS_FRAME_MASK	0x07
 #define BRCMF_MSGBUF_PKT_FLAGS_PRIO_SHIFT	5
 
 #define BRCMF_MSGBUF_TX_FLUSH_CNT1		32
@@ -1128,6 +1130,7 @@ brcmf_msgbuf_process_rx_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 	struct sk_buff *skb;
 	u16 data_offset;
 	u16 buflen;
+	u16 flags;
 	u32 idx;
 	struct brcmf_if *ifp;
 
@@ -1137,6 +1140,7 @@ brcmf_msgbuf_process_rx_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 	data_offset = le16_to_cpu(rx_complete->data_offset);
 	buflen = le16_to_cpu(rx_complete->data_len);
 	idx = le32_to_cpu(rx_complete->msg.request_id);
+	flags = le16_to_cpu(rx_complete->flags);
 
 	skb = brcmf_msgbuf_get_pktid(msgbuf->drvr->bus_if->dev,
 				     msgbuf->rx_pktids, idx);
@@ -1149,6 +1153,20 @@ brcmf_msgbuf_process_rx_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 		skb_pull(skb, msgbuf->rx_dataoffset);
 
 	skb_trim(skb, buflen);
+
+	if ((flags & BRCMF_MSGBUF_PKT_FLAGS_FRAME_MASK) ==
+	    BRCMF_MSGBUF_PKT_FLAGS_FRAME_802_11) {
+		ifp = msgbuf->drvr->mon_if;
+
+		if (!ifp) {
+			brcmf_err("Received unexpected monitor pkt\n");
+			brcmu_pkt_buf_free_skb(skb);
+			return;
+		}
+
+		brcmf_netif_mon_rx(ifp, skb);
+		return;
+	}
 
 	ifp = brcmf_get_ifp(msgbuf->drvr, rx_complete->msg.ifidx);
 	if (!ifp || !ifp->ndev) {

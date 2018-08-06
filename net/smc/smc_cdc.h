@@ -104,47 +104,34 @@ static inline u64 smc_curs_read(union smc_host_cursor *curs,
 #endif
 }
 
-static inline u64 smc_curs_read_net(union smc_cdc_cursor *curs,
-				    struct smc_connection *conn)
+/* Copy cursor src into tgt */
+static inline void smc_curs_copy(union smc_host_cursor *tgt,
+				 union smc_host_cursor *src,
+				 struct smc_connection *conn)
 {
 #ifndef KERNEL_HAS_ATOMIC64
 	unsigned long flags;
-	u64 ret;
 
 	spin_lock_irqsave(&conn->acurs_lock, flags);
-	ret = curs->acurs;
+	tgt->acurs = src->acurs;
 	spin_unlock_irqrestore(&conn->acurs_lock, flags);
-	return ret;
 #else
-	return atomic64_read(&curs->acurs);
+	atomic64_set(&tgt->acurs, atomic64_read(&src->acurs));
 #endif
 }
 
-static inline void smc_curs_write(union smc_host_cursor *curs, u64 val,
-				  struct smc_connection *conn)
+static inline void smc_curs_copy_net(union smc_cdc_cursor *tgt,
+				     union smc_cdc_cursor *src,
+				     struct smc_connection *conn)
 {
 #ifndef KERNEL_HAS_ATOMIC64
 	unsigned long flags;
 
 	spin_lock_irqsave(&conn->acurs_lock, flags);
-	curs->acurs = val;
+	tgt->acurs = src->acurs;
 	spin_unlock_irqrestore(&conn->acurs_lock, flags);
 #else
-	atomic64_set(&curs->acurs, val);
-#endif
-}
-
-static inline void smc_curs_write_net(union smc_cdc_cursor *curs, u64 val,
-				      struct smc_connection *conn)
-{
-#ifndef KERNEL_HAS_ATOMIC64
-	unsigned long flags;
-
-	spin_lock_irqsave(&conn->acurs_lock, flags);
-	curs->acurs = val;
-	spin_unlock_irqrestore(&conn->acurs_lock, flags);
-#else
-	atomic64_set(&curs->acurs, val);
+	atomic64_set(&tgt->acurs, atomic64_read(&src->acurs));
 #endif
 }
 
@@ -179,7 +166,7 @@ static inline void smc_host_cursor_to_cdc(union smc_cdc_cursor *peer,
 {
 	union smc_host_cursor temp;
 
-	smc_curs_write(&temp, smc_curs_read(local, conn), conn);
+	smc_curs_copy(&temp, local, conn);
 	peer->count = htonl(temp.count);
 	peer->wrap = htons(temp.wrap);
 	/* peer->reserved = htons(0); must be ensured by caller */
@@ -206,8 +193,8 @@ static inline void smc_cdc_cursor_to_host(union smc_host_cursor *local,
 	union smc_host_cursor temp, old;
 	union smc_cdc_cursor net;
 
-	smc_curs_write(&old, smc_curs_read(local, conn), conn);
-	smc_curs_write_net(&net, smc_curs_read_net(peer, conn), conn);
+	smc_curs_copy(&old, local, conn);
+	smc_curs_copy_net(&net, peer, conn);
 	temp.count = ntohl(net.count);
 	temp.wrap = ntohs(net.wrap);
 	if ((old.wrap > temp.wrap) && temp.wrap)
@@ -215,7 +202,7 @@ static inline void smc_cdc_cursor_to_host(union smc_host_cursor *local,
 	if ((old.wrap == temp.wrap) &&
 	    (old.count > temp.count))
 		return;
-	smc_curs_write(local, smc_curs_read(&temp, conn), conn);
+	smc_curs_copy(local, &temp, conn);
 }
 
 static inline void smcr_cdc_msg_to_host(struct smc_host_cdc_msg *local,

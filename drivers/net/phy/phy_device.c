@@ -1555,6 +1555,14 @@ int genphy_read_status(struct phy_device *phydev)
 			if (adv < 0)
 				return adv;
 
+			if (lpagb & LPA_1000MSFAIL) {
+				if (adv & CTL1000_ENABLE_MASTER)
+					phydev_err(phydev, "Master/Slave resolution failed, maybe conflicting manual settings?\n");
+				else
+					phydev_err(phydev, "Master/Slave resolution failed\n");
+				return -ENOLINK;
+			}
+
 			phydev->lp_advertising =
 				mii_stat1000_to_ethtool_lpa_t(lpagb);
 			common_adv_gb = lpagb & adv << 2;
@@ -1724,11 +1732,8 @@ EXPORT_SYMBOL(genphy_loopback);
 
 static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
 {
-	/* The default values for phydev->supported are provided by the PHY
-	 * driver "features" member, we want to reset to sane defaults first
-	 * before supporting higher speeds.
-	 */
-	phydev->supported &= PHY_DEFAULT_FEATURES;
+	phydev->supported &= ~(PHY_1000BT_FEATURES | PHY_100BT_FEATURES |
+			       PHY_10BT_FEATURES);
 
 	switch (max_speed) {
 	default:

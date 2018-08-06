@@ -4252,7 +4252,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	/* Reinjected packets coming from act_mirred or similar should
 	 * not get XDP generic processing.
 	 */
-	if (skb_cloned(skb))
+	if (skb_cloned(skb) || skb_is_tc_redirected(skb))
 		return XDP_PASS;
 
 	/* XDP packets must be linear and must have sufficient headroom
@@ -4601,6 +4601,10 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 		 */
 		__skb_push(skb, skb->mac_len);
 		skb_do_redirect(skb);
+		return NULL;
+	case TC_ACT_REINSERT:
+		/* this does not scrub the packet, and updates stats on error */
+		skb_tc_reinsert(skb, &cl_res);
 		return NULL;
 	default:
 		break;
@@ -5042,7 +5046,6 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 		break;
 
 	case XDP_QUERY_PROG:
-		xdp->prog_attached = !!old;
 		xdp->prog_id = old ? old->aux->id : 0;
 		break;
 
@@ -5283,9 +5286,11 @@ static void __napi_gro_flush_chain(struct napi_struct *napi, u32 index,
 		list_del(&skb->list);
 		skb->next = NULL;
 		napi_gro_complete(skb);
-		napi->gro_count--;
 		napi->gro_hash[index].count--;
 	}
+
+	if (!napi->gro_hash[index].count)
+		__clear_bit(index, &napi->gro_bitmask);
 }
 
 /* napi->gro_hash[].list contains packets ordered by age.
@@ -5296,8 +5301,10 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 {
 	u32 i;
 
-	for (i = 0; i < GRO_HASH_BUCKETS; i++)
-		__napi_gro_flush_chain(napi, i, flush_old);
+	for (i = 0; i < GRO_HASH_BUCKETS; i++) {
+		if (test_bit(i, &napi->gro_bitmask))
+			__napi_gro_flush_chain(napi, i, flush_old);
+	}
 }
 EXPORT_SYMBOL(napi_gro_flush);
 
@@ -5389,8 +5396,8 @@ static void gro_flush_oldest(struct list_head *head)
 	if (WARN_ON_ONCE(!oldest))
 		return;
 
-	/* Do not adjust napi->gro_count, caller is adding a new SKB to
-	 * the chain.
+	/* Do not adjust napi->gro_hash[].count, caller is adding a new
+	 * SKB to the chain.
 	 */
 	list_del(&oldest->list);
 	napi_gro_complete(oldest);
@@ -5465,7 +5472,6 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		list_del(&pp->list);
 		pp->next = NULL;
 		napi_gro_complete(pp);
-		napi->gro_count--;
 		napi->gro_hash[hash].count--;
 	}
 
@@ -5478,7 +5484,6 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (unlikely(napi->gro_hash[hash].count >= MAX_GRO_SKBS)) {
 		gro_flush_oldest(gro_head);
 	} else {
-		napi->gro_count++;
 		napi->gro_hash[hash].count++;
 	}
 	NAPI_GRO_CB(skb)->count = 1;
@@ -5493,6 +5498,13 @@ pull:
 	if (grow > 0)
 		gro_pull_from_frag0(skb, grow);
 ok:
+	if (napi->gro_hash[hash].count) {
+		if (!test_bit(hash, &napi->gro_bitmask))
+			__set_bit(hash, &napi->gro_bitmask);
+	} else if (test_bit(hash, &napi->gro_bitmask)) {
+		__clear_bit(hash, &napi->gro_bitmask);
+	}
+
 	return ret;
 
 normal:
@@ -5891,7 +5903,7 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 				 NAPIF_STATE_IN_BUSY_POLL)))
 		return false;
 
-	if (n->gro_count) {
+	if (n->gro_bitmask) {
 		unsigned long timeout = 0;
 
 		if (work_done)
@@ -6100,26 +6112,31 @@ static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
 	/* Note : we use a relaxed variant of napi_schedule_prep() not setting
 	 * NAPI_STATE_MISSED, since we do not react to a device IRQ.
 	 */
-	if (napi->gro_count && !napi_disable_pending(napi) &&
+	if (napi->gro_bitmask && !napi_disable_pending(napi) &&
 	    !test_and_set_bit(NAPI_STATE_SCHED, &napi->state))
 		__napi_schedule_irqoff(napi);
 
 	return HRTIMER_NORESTART;
 }
 
-void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
-		    int (*poll)(struct napi_struct *, int), int weight)
+static void init_gro_hash(struct napi_struct *napi)
 {
 	int i;
 
-	INIT_LIST_HEAD(&napi->poll_list);
-	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
-	napi->timer.function = napi_watchdog;
-	napi->gro_count = 0;
 	for (i = 0; i < GRO_HASH_BUCKETS; i++) {
 		INIT_LIST_HEAD(&napi->gro_hash[i].list);
 		napi->gro_hash[i].count = 0;
 	}
+	napi->gro_bitmask = 0;
+}
+
+void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
+		    int (*poll)(struct napi_struct *, int), int weight)
+{
+	INIT_LIST_HEAD(&napi->poll_list);
+	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
+	napi->timer.function = napi_watchdog;
+	init_gro_hash(napi);
 	napi->skb = NULL;
 	napi->poll = poll;
 	if (weight > NAPI_POLL_WEIGHT)
@@ -6175,7 +6192,7 @@ void netif_napi_del(struct napi_struct *napi)
 	napi_free_frags(napi);
 
 	flush_gro_hash(napi);
-	napi->gro_count = 0;
+	napi->gro_bitmask = 0;
 }
 EXPORT_SYMBOL(netif_napi_del);
 
@@ -6217,7 +6234,7 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 		goto out_unlock;
 	}
 
-	if (n->gro_count) {
+	if (n->gro_bitmask) {
 		/* flush too old packets
 		 * If HZ < 1000, flush all packets.
 		 */
@@ -7510,13 +7527,15 @@ int __dev_set_mtu(struct net_device *dev, int new_mtu)
 EXPORT_SYMBOL(__dev_set_mtu);
 
 /**
- *	dev_set_mtu - Change maximum transfer unit
+ *	dev_set_mtu_ext - Change maximum transfer unit
  *	@dev: device
  *	@new_mtu: new transfer unit
+ *	@extack: netlink extended ack
  *
  *	Change the maximum transfer size of the network device.
  */
-int dev_set_mtu(struct net_device *dev, int new_mtu)
+int dev_set_mtu_ext(struct net_device *dev, int new_mtu,
+		    struct netlink_ext_ack *extack)
 {
 	int err, orig_mtu;
 
@@ -7525,14 +7544,12 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 
 	/* MTU must be positive, and in range */
 	if (new_mtu < 0 || new_mtu < dev->min_mtu) {
-		net_err_ratelimited("%s: Invalid MTU %d requested, hw min %d\n",
-				    dev->name, new_mtu, dev->min_mtu);
+		NL_SET_ERR_MSG(extack, "mtu less than device minimum");
 		return -EINVAL;
 	}
 
 	if (dev->max_mtu > 0 && new_mtu > dev->max_mtu) {
-		net_err_ratelimited("%s: Invalid MTU %d requested, hw max %d\n",
-				    dev->name, new_mtu, dev->max_mtu);
+		NL_SET_ERR_MSG(extack, "mtu greater than device maximum");
 		return -EINVAL;
 	}
 
@@ -7560,6 +7577,18 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 	}
 	return err;
 }
+
+int dev_set_mtu(struct net_device *dev, int new_mtu)
+{
+	struct netlink_ext_ack extack;
+	int err;
+
+	memset(&extack, 0, sizeof(extack));
+	err = dev_set_mtu_ext(dev, new_mtu, &extack);
+	if (err && extack._msg)
+		net_err_ratelimited("%s: %s\n", dev->name, extack._msg);
+	return err;
+}
 EXPORT_SYMBOL(dev_set_mtu);
 
 /**
@@ -7579,16 +7608,19 @@ int dev_change_tx_queue_len(struct net_device *dev, unsigned long new_len)
 		dev->tx_queue_len = new_len;
 		res = call_netdevice_notifiers(NETDEV_CHANGE_TX_QUEUE_LEN, dev);
 		res = notifier_to_errno(res);
-		if (res) {
-			netdev_err(dev,
-				   "refused to change device tx_queue_len\n");
-			dev->tx_queue_len = orig_len;
-			return res;
-		}
-		return dev_qdisc_change_tx_queue_len(dev);
+		if (res)
+			goto err_rollback;
+		res = dev_qdisc_change_tx_queue_len(dev);
+		if (res)
+			goto err_rollback;
 	}
 
 	return 0;
+
+err_rollback:
+	netdev_err(dev, "refused to change device tx_queue_len\n");
+	dev->tx_queue_len = orig_len;
+	return res;
 }
 
 /**
@@ -7706,23 +7738,21 @@ int dev_change_proto_down(struct net_device *dev, bool proto_down)
 }
 EXPORT_SYMBOL(dev_change_proto_down);
 
-void __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
-		     struct netdev_bpf *xdp)
-{
-	memset(xdp, 0, sizeof(*xdp));
-	xdp->command = XDP_QUERY_PROG;
-
-	/* Query must always succeed. */
-	WARN_ON(bpf_op(dev, xdp) < 0);
-}
-
-static u8 __dev_xdp_attached(struct net_device *dev, bpf_op_t bpf_op)
+u32 __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
+		    enum bpf_netdev_command cmd)
 {
 	struct netdev_bpf xdp;
 
-	__dev_xdp_query(dev, bpf_op, &xdp);
+	if (!bpf_op)
+		return 0;
 
-	return xdp.prog_attached;
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = cmd;
+
+	/* Query must always succeed. */
+	WARN_ON(bpf_op(dev, &xdp) < 0 && cmd == XDP_QUERY_PROG);
+
+	return xdp.prog_id;
 }
 
 static int dev_xdp_install(struct net_device *dev, bpf_op_t bpf_op,
@@ -7756,12 +7786,19 @@ static void dev_xdp_uninstall(struct net_device *dev)
 	if (!ndo_bpf)
 		return;
 
-	__dev_xdp_query(dev, ndo_bpf, &xdp);
-	if (xdp.prog_attached == XDP_ATTACHED_NONE)
-		return;
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = XDP_QUERY_PROG;
+	WARN_ON(ndo_bpf(dev, &xdp));
+	if (xdp.prog_id)
+		WARN_ON(dev_xdp_install(dev, ndo_bpf, NULL, xdp.prog_flags,
+					NULL));
 
-	/* Program removal should always succeed */
-	WARN_ON(dev_xdp_install(dev, ndo_bpf, NULL, xdp.prog_flags, NULL));
+	/* Remove HW offload */
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = XDP_QUERY_PROG_HW;
+	if (!ndo_bpf(dev, &xdp) && xdp.prog_id)
+		WARN_ON(dev_xdp_install(dev, ndo_bpf, NULL, xdp.prog_flags,
+					NULL));
 }
 
 /**
@@ -7777,11 +7814,14 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		      int fd, u32 flags)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+	enum bpf_netdev_command query;
 	struct bpf_prog *prog = NULL;
 	bpf_op_t bpf_op, bpf_chk;
 	int err;
 
 	ASSERT_RTNL();
+
+	query = flags & XDP_FLAGS_HW_MODE ? XDP_QUERY_PROG_HW : XDP_QUERY_PROG;
 
 	bpf_op = bpf_chk = ops->ndo_bpf;
 	if (!bpf_op && (flags & (XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE)))
@@ -7792,10 +7832,11 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		bpf_chk = generic_xdp_install;
 
 	if (fd >= 0) {
-		if (bpf_chk && __dev_xdp_attached(dev, bpf_chk))
+		if (__dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG) ||
+		    __dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG_HW))
 			return -EEXIST;
 		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) &&
-		    __dev_xdp_attached(dev, bpf_op))
+		    __dev_xdp_query(dev, bpf_op, query))
 			return -EBUSY;
 
 		prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,
@@ -9264,6 +9305,9 @@ static struct hlist_head * __net_init netdev_create_hash(void)
 /* Initialize per network namespace state */
 static int __net_init netdev_init(struct net *net)
 {
+	BUILD_BUG_ON(GRO_HASH_BUCKETS >
+		     8 * FIELD_SIZEOF(struct napi_struct, gro_bitmask));
+
 	if (net != &init_net)
 		INIT_LIST_HEAD(&net->dev_base_head);
 
@@ -9534,6 +9578,7 @@ static int __init net_dev_init(void)
 		sd->cpu = i;
 #endif
 
+		init_gro_hash(&sd->backlog);
 		sd->backlog.poll = process_backlog;
 		sd->backlog.weight = weight_p;
 	}

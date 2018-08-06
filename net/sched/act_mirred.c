@@ -25,6 +25,7 @@
 #include <net/net_namespace.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 #include <linux/tc_act/tc_mirred.h>
 #include <net/tc_act/tc_mirred.h>
 
@@ -47,6 +48,18 @@ static bool tcf_mirred_act_wants_ingress(int action)
 	default:
 		BUG();
 	}
+}
+
+static bool tcf_mirred_can_reinsert(int action)
+{
+	switch (action) {
+	case TC_ACT_SHOT:
+	case TC_ACT_STOLEN:
+	case TC_ACT_QUEUED:
+	case TC_ACT_TRAP:
+		return true;
+	}
+	return false;
 }
 
 static void tcf_mirred_release(struct tc_action *a)
@@ -171,21 +184,23 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		      struct tcf_result *res)
 {
 	struct tcf_mirred *m = to_mirred(a);
+	struct sk_buff *skb2 = skb;
 	bool m_mac_header_xmit;
 	struct net_device *dev;
-	struct sk_buff *skb2;
 	int retval, err = 0;
+	bool use_reinsert;
+	bool want_ingress;
+	bool is_redirect;
 	int m_eaction;
 	int mac_len;
 
 	tcf_lastuse_update(&m->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
 
-	rcu_read_lock();
 	m_mac_header_xmit = READ_ONCE(m->tcfm_mac_header_xmit);
 	m_eaction = READ_ONCE(m->tcfm_eaction);
 	retval = READ_ONCE(m->tcf_action);
-	dev = rcu_dereference(m->tcfm_dev);
+	dev = rcu_dereference_bh(m->tcfm_dev);
 	if (unlikely(!dev)) {
 		pr_notice_once("tc mirred: target device is gone\n");
 		goto out;
@@ -197,16 +212,25 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		goto out;
 	}
 
-	skb2 = skb_clone(skb, GFP_ATOMIC);
-	if (!skb2)
-		goto out;
+	/* we could easily avoid the clone only if called by ingress and clsact;
+	 * since we can't easily detect the clsact caller, skip clone only for
+	 * ingress - that covers the TC S/W datapath.
+	 */
+	is_redirect = tcf_mirred_is_act_redirect(m_eaction);
+	use_reinsert = skb_at_tc_ingress(skb) && is_redirect &&
+		       tcf_mirred_can_reinsert(retval);
+	if (!use_reinsert) {
+		skb2 = skb_clone(skb, GFP_ATOMIC);
+		if (!skb2)
+			goto out;
+	}
 
 	/* If action's target direction differs than filter's direction,
 	 * and devices expect a mac header on xmit, then mac push/pull is
 	 * needed.
 	 */
-	if (skb_at_tc_ingress(skb) != tcf_mirred_act_wants_ingress(m_eaction) &&
-	    m_mac_header_xmit) {
+	want_ingress = tcf_mirred_act_wants_ingress(m_eaction);
+	if (skb_at_tc_ingress(skb) != want_ingress && m_mac_header_xmit) {
 		if (!skb_at_tc_ingress(skb)) {
 			/* caught at egress, act ingress: pull mac */
 			mac_len = skb_network_header(skb) - skb_mac_header(skb);
@@ -217,15 +241,23 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		}
 	}
 
-	/* mirror is always swallowed */
-	if (tcf_mirred_is_act_redirect(m_eaction)) {
-		skb2->tc_redirected = 1;
-		skb2->tc_from_ingress = skb2->tc_at_ingress;
-	}
-
 	skb2->skb_iif = skb->dev->ifindex;
 	skb2->dev = dev;
-	if (!tcf_mirred_act_wants_ingress(m_eaction))
+
+	/* mirror is always swallowed */
+	if (is_redirect) {
+		skb2->tc_redirected = 1;
+		skb2->tc_from_ingress = skb2->tc_at_ingress;
+
+		/* let's the caller reinsert the packet, if possible */
+		if (use_reinsert) {
+			res->ingress = want_ingress;
+			res->qstats = this_cpu_ptr(m->common.cpu_qstats);
+			return TC_ACT_REINSERT;
+		}
+	}
+
+	if (!want_ingress)
 		err = dev_queue_xmit(skb2);
 	else
 		err = netif_receive_skb(skb2);
@@ -236,7 +268,6 @@ out:
 		if (tcf_mirred_is_act_redirect(m_eaction))
 			retval = TC_ACT_SHOT;
 	}
-	rcu_read_unlock();
 
 	return retval;
 }

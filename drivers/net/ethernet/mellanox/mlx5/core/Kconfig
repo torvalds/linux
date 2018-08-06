@@ -3,7 +3,7 @@
 #
 
 config MLX5_CORE
-	tristate "Mellanox Technologies ConnectX-4 and Connect-IB core driver"
+	tristate "Mellanox 5th generation network adapters (ConnectX series) core driver"
 	depends on MAY_USE_DEVLINK
 	depends on PCI
 	imply PTP_1588_CLOCK
@@ -27,7 +27,7 @@ config MLX5_FPGA
           sandbox-specific client drivers.
 
 config MLX5_CORE_EN
-	bool "Mellanox Technologies ConnectX-4 Ethernet support"
+	bool "Mellanox 5th generation network adapters (ConnectX series) Ethernet support"
 	depends on NETDEVICES && ETHERNET && INET && PCI && MLX5_CORE
 	depends on IPV6=y || IPV6=n || MLX5_CORE=m
 	select PAGE_POOL
@@ -69,7 +69,7 @@ config MLX5_CORE_EN_DCB
 	  If unsure, set to Y
 
 config MLX5_CORE_IPOIB
-	bool "Mellanox Technologies ConnectX-4 IPoIB offloads support"
+	bool "Mellanox 5th generation network adapters (connectX series) IPoIB offloads support"
 	depends on MLX5_CORE_EN
 	default n
 	---help---

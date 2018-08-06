@@ -166,6 +166,11 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	reg &= ~P_TXQ_PSM_VDD(port);
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
 
+	/* Enable learning */
+	reg = core_readl(priv, CORE_DIS_LEARN);
+	reg &= ~BIT(port);
+	core_writel(priv, reg, CORE_DIS_LEARN);
+
 	/* Enable Broadcom tags for that port if requested */
 	if (priv->brcm_tag_mask & BIT(port))
 		b53_brcm_hdr_setup(ds, port);
@@ -222,8 +227,13 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	u32 reg;
 
-	if (priv->wol_ports_mask & (1 << port))
+	/* Disable learning while in WoL mode */
+	if (priv->wol_ports_mask & (1 << port)) {
+		reg = core_readl(priv, CORE_DIS_LEARN);
+		reg |= BIT(port);
+		core_writel(priv, reg, CORE_DIS_LEARN);
 		return;
+	}
 
 	if (port == priv->moca_port)
 		bcm_sf2_port_intr_disable(priv, port);

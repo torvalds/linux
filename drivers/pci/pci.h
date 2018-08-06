@@ -288,6 +288,7 @@ struct pci_sriov {
 
 /* pci_dev priv_flags */
 #define PCI_DEV_DISCONNECTED 0
+#define PCI_DEV_ADDED 1
 
 static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
 {
@@ -298,6 +299,16 @@ static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
 static inline bool pci_dev_is_disconnected(const struct pci_dev *dev)
 {
 	return test_bit(PCI_DEV_DISCONNECTED, &dev->priv_flags);
+}
+
+static inline void pci_dev_assign_added(struct pci_dev *dev, bool added)
+{
+	assign_bit(PCI_DEV_ADDED, &dev->priv_flags, added);
+}
+
+static inline bool pci_dev_is_added(const struct pci_dev *dev)
+{
+	return test_bit(PCI_DEV_ADDED, &dev->priv_flags);
 }
 
 #ifdef CONFIG_PCI_ATS
@@ -311,6 +322,7 @@ static inline void pci_restore_ats_state(struct pci_dev *dev)
 #ifdef CONFIG_PCI_IOV
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
+void pci_iov_remove(struct pci_dev *dev);
 void pci_iov_update_resource(struct pci_dev *dev, int resno);
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 void pci_restore_iov_state(struct pci_dev *dev);
@@ -323,6 +335,9 @@ static inline int pci_iov_init(struct pci_dev *dev)
 }
 static inline void pci_iov_release(struct pci_dev *dev)
 
+{
+}
+static inline void pci_iov_remove(struct pci_dev *dev)
 {
 }
 static inline void pci_restore_iov_state(struct pci_dev *dev)

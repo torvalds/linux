@@ -90,6 +90,7 @@ int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr);
 int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags);
 ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size);
+int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
 
 /*
  * dir.c
@@ -104,6 +105,7 @@ void kernfs_put_active(struct kernfs_node *kn);
 int kernfs_add_one(struct kernfs_node *kn);
 struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 				    const char *name, umode_t mode,
+				    kuid_t uid, kgid_t gid,
 				    unsigned flags);
 struct kernfs_node *kernfs_find_and_get_node_by_ino(struct kernfs_root *root,
 						    unsigned int ino);

@@ -48,6 +48,7 @@
 #include <linux/route.h>
 #include <linux/gcd.h>
 #include <linux/random.h>
+#include <linux/if_macvlan.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -60,6 +61,7 @@
 #include <net/ndisc.h>
 #include <net/ipv6.h>
 #include <net/fib_notifier.h>
+#include <net/switchdev.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -165,6 +167,7 @@ struct mlxsw_sp_rif_ops {
 	void (*deconfigure)(struct mlxsw_sp_rif *rif);
 	struct mlxsw_sp_fid * (*fid_get)(struct mlxsw_sp_rif *rif,
 					 struct netlink_ext_ack *extack);
+	void (*fdb_del)(struct mlxsw_sp_rif *rif, const char *mac);
 };
 
 static void mlxsw_sp_lpm_tree_hold(struct mlxsw_sp_lpm_tree *lpm_tree);
@@ -2433,17 +2436,48 @@ static void mlxsw_sp_router_mp_hash_event_work(struct work_struct *work)
 	kfree(net_work);
 }
 
+static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
+
+static void mlxsw_sp_router_update_priority_work(struct work_struct *work)
+{
+	struct mlxsw_sp_netevent_work *net_work =
+		container_of(work, struct mlxsw_sp_netevent_work, work);
+	struct mlxsw_sp *mlxsw_sp = net_work->mlxsw_sp;
+
+	__mlxsw_sp_router_init(mlxsw_sp);
+	kfree(net_work);
+}
+
+static int mlxsw_sp_router_schedule_work(struct net *net,
+					 struct notifier_block *nb,
+					 void (*cb)(struct work_struct *))
+{
+	struct mlxsw_sp_netevent_work *net_work;
+	struct mlxsw_sp_router *router;
+
+	if (!net_eq(net, &init_net))
+		return NOTIFY_DONE;
+
+	net_work = kzalloc(sizeof(*net_work), GFP_ATOMIC);
+	if (!net_work)
+		return NOTIFY_BAD;
+
+	router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
+	INIT_WORK(&net_work->work, cb);
+	net_work->mlxsw_sp = router->mlxsw_sp;
+	mlxsw_core_schedule_work(&net_work->work);
+	return NOTIFY_DONE;
+}
+
 static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 					  unsigned long event, void *ptr)
 {
 	struct mlxsw_sp_netevent_work *net_work;
 	struct mlxsw_sp_port *mlxsw_sp_port;
-	struct mlxsw_sp_router *router;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long interval;
 	struct neigh_parms *p;
 	struct neighbour *n;
-	struct net *net;
 
 	switch (event) {
 	case NETEVENT_DELAY_PROBE_TIME_UPDATE:
@@ -2497,20 +2531,12 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 		break;
 	case NETEVENT_IPV4_MPATH_HASH_UPDATE:
 	case NETEVENT_IPV6_MPATH_HASH_UPDATE:
-		net = ptr;
+		return mlxsw_sp_router_schedule_work(ptr, nb,
+				mlxsw_sp_router_mp_hash_event_work);
 
-		if (!net_eq(net, &init_net))
-			return NOTIFY_DONE;
-
-		net_work = kzalloc(sizeof(*net_work), GFP_ATOMIC);
-		if (!net_work)
-			return NOTIFY_BAD;
-
-		router = container_of(nb, struct mlxsw_sp_router, netevent_nb);
-		INIT_WORK(&net_work->work, mlxsw_sp_router_mp_hash_event_work);
-		net_work->mlxsw_sp = router->mlxsw_sp;
-		mlxsw_core_schedule_work(&net_work->work);
-		break;
+	case NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE:
+		return mlxsw_sp_router_schedule_work(ptr, nb,
+				mlxsw_sp_router_update_priority_work);
 	}
 
 	return NOTIFY_DONE;
@@ -4759,6 +4785,12 @@ static void mlxsw_sp_rt6_destroy(struct mlxsw_sp_rt6 *mlxsw_sp_rt6)
 	kfree(mlxsw_sp_rt6);
 }
 
+static bool mlxsw_sp_fib6_rt_can_mp(const struct fib6_info *rt)
+{
+	/* RTF_CACHE routes are ignored */
+	return (rt->fib6_flags & (RTF_GATEWAY | RTF_ADDRCONF)) == RTF_GATEWAY;
+}
+
 static struct fib6_info *
 mlxsw_sp_fib6_entry_rt(const struct mlxsw_sp_fib6_entry *fib6_entry)
 {
@@ -4768,11 +4800,11 @@ mlxsw_sp_fib6_entry_rt(const struct mlxsw_sp_fib6_entry *fib6_entry)
 
 static struct mlxsw_sp_fib6_entry *
 mlxsw_sp_fib6_node_mp_entry_find(const struct mlxsw_sp_fib_node *fib_node,
-				 const struct fib6_info *nrt, bool append)
+				 const struct fib6_info *nrt, bool replace)
 {
 	struct mlxsw_sp_fib6_entry *fib6_entry;
 
-	if (!append)
+	if (!mlxsw_sp_fib6_rt_can_mp(nrt) || replace)
 		return NULL;
 
 	list_for_each_entry(fib6_entry, &fib_node->entry_list, common.list) {
@@ -4787,7 +4819,8 @@ mlxsw_sp_fib6_node_mp_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 			break;
 		if (rt->fib6_metric < nrt->fib6_metric)
 			continue;
-		if (rt->fib6_metric == nrt->fib6_metric)
+		if (rt->fib6_metric == nrt->fib6_metric &&
+		    mlxsw_sp_fib6_rt_can_mp(rt))
 			return fib6_entry;
 		if (rt->fib6_metric > nrt->fib6_metric)
 			break;
@@ -5166,7 +5199,7 @@ static struct mlxsw_sp_fib6_entry *
 mlxsw_sp_fib6_node_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 			      const struct fib6_info *nrt, bool replace)
 {
-	struct mlxsw_sp_fib6_entry *fib6_entry;
+	struct mlxsw_sp_fib6_entry *fib6_entry, *fallback = NULL;
 
 	list_for_each_entry(fib6_entry, &fib_node->entry_list, common.list) {
 		struct fib6_info *rt = mlxsw_sp_fib6_entry_rt(fib6_entry);
@@ -5175,13 +5208,18 @@ mlxsw_sp_fib6_node_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 			continue;
 		if (rt->fib6_table->tb6_id != nrt->fib6_table->tb6_id)
 			break;
-		if (replace && rt->fib6_metric == nrt->fib6_metric)
-			return fib6_entry;
+		if (replace && rt->fib6_metric == nrt->fib6_metric) {
+			if (mlxsw_sp_fib6_rt_can_mp(rt) ==
+			    mlxsw_sp_fib6_rt_can_mp(nrt))
+				return fib6_entry;
+			if (mlxsw_sp_fib6_rt_can_mp(nrt))
+				fallback = fallback ?: fib6_entry;
+		}
 		if (rt->fib6_metric > nrt->fib6_metric)
-			return fib6_entry;
+			return fallback ?: fib6_entry;
 	}
 
-	return NULL;
+	return fallback;
 }
 
 static int
@@ -5307,8 +5345,7 @@ static void mlxsw_sp_fib6_entry_replace(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
-				    struct fib6_info *rt, bool replace,
-				    bool append)
+				    struct fib6_info *rt, bool replace)
 {
 	struct mlxsw_sp_fib6_entry *fib6_entry;
 	struct mlxsw_sp_fib_node *fib_node;
@@ -5334,20 +5371,12 @@ static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
 	/* Before creating a new entry, try to append route to an existing
 	 * multipath entry.
 	 */
-	fib6_entry = mlxsw_sp_fib6_node_mp_entry_find(fib_node, rt, append);
+	fib6_entry = mlxsw_sp_fib6_node_mp_entry_find(fib_node, rt, replace);
 	if (fib6_entry) {
 		err = mlxsw_sp_fib6_entry_nexthop_add(mlxsw_sp, fib6_entry, rt);
 		if (err)
 			goto err_fib6_entry_nexthop_add;
 		return 0;
-	}
-
-	/* We received an append event, yet did not find any route to
-	 * append to.
-	 */
-	if (WARN_ON(append)) {
-		err = -EINVAL;
-		goto err_fib6_entry_append;
 	}
 
 	fib6_entry = mlxsw_sp_fib6_entry_create(mlxsw_sp, fib_node, rt);
@@ -5367,7 +5396,6 @@ static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
 err_fib6_node_entry_link:
 	mlxsw_sp_fib6_entry_destroy(mlxsw_sp, fib6_entry);
 err_fib6_entry_create:
-err_fib6_entry_append:
 err_fib6_entry_nexthop_add:
 	mlxsw_sp_fib_node_put(mlxsw_sp, fib_node);
 	return err;
@@ -5718,7 +5746,7 @@ static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 	struct mlxsw_sp_fib_event_work *fib_work =
 		container_of(work, struct mlxsw_sp_fib_event_work, work);
 	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
-	bool replace, append;
+	bool replace;
 	int err;
 
 	rtnl_lock();
@@ -5729,10 +5757,8 @@ static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 	case FIB_EVENT_ENTRY_APPEND: /* fall through */
 	case FIB_EVENT_ENTRY_ADD:
 		replace = fib_work->event == FIB_EVENT_ENTRY_REPLACE;
-		append = fib_work->event == FIB_EVENT_ENTRY_APPEND;
 		err = mlxsw_sp_router_fib6_add(mlxsw_sp,
-					       fib_work->fen6_info.rt, replace,
-					       append);
+					       fib_work->fen6_info.rt, replace);
 		if (err)
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
 		mlxsw_sp_rt6_release(fib_work->fen6_info.rt);
@@ -6026,6 +6052,12 @@ mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *rif, struct net_device *dev,
 		if (addr_list_empty && inet6_dev &&
 		    !list_empty(&inet6_dev->addr_list))
 			addr_list_empty = false;
+
+		/* macvlans do not have a RIF, but rather piggy back on the
+		 * RIF of their lower device.
+		 */
+		if (netif_is_macvlan(dev) && addr_list_empty)
+			return true;
 
 		if (rif && addr_list_empty &&
 		    !netif_is_l3_slave(rif->dev))
@@ -6440,6 +6472,123 @@ static int mlxsw_sp_inetaddr_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
+static bool mlxsw_sp_rif_macvlan_is_vrrp4(const u8 *mac)
+{
+	u8 vrrp4[ETH_ALEN] = { 0x00, 0x00, 0x5e, 0x00, 0x01, 0x00 };
+	u8 mask[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
+
+	return ether_addr_equal_masked(mac, vrrp4, mask);
+}
+
+static bool mlxsw_sp_rif_macvlan_is_vrrp6(const u8 *mac)
+{
+	u8 vrrp6[ETH_ALEN] = { 0x00, 0x00, 0x5e, 0x00, 0x02, 0x00 };
+	u8 mask[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
+
+	return ether_addr_equal_masked(mac, vrrp6, mask);
+}
+
+static int mlxsw_sp_rif_vrrp_op(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
+				const u8 *mac, bool adding)
+{
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+	u8 vrrp_id = adding ? mac[5] : 0;
+	int err;
+
+	if (!mlxsw_sp_rif_macvlan_is_vrrp4(mac) &&
+	    !mlxsw_sp_rif_macvlan_is_vrrp6(mac))
+		return 0;
+
+	mlxsw_reg_ritr_rif_pack(ritr_pl, rif_index);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+	if (err)
+		return err;
+
+	if (mlxsw_sp_rif_macvlan_is_vrrp4(mac))
+		mlxsw_reg_ritr_if_vrrp_id_ipv4_set(ritr_pl, vrrp_id);
+	else
+		mlxsw_reg_ritr_if_vrrp_id_ipv6_set(ritr_pl, vrrp_id);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+static int mlxsw_sp_rif_macvlan_add(struct mlxsw_sp *mlxsw_sp,
+				    const struct net_device *macvlan_dev,
+				    struct netlink_ext_ack *extack)
+{
+	struct macvlan_dev *vlan = netdev_priv(macvlan_dev);
+	struct mlxsw_sp_rif *rif;
+	int err;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, vlan->lowerdev);
+	if (!rif) {
+		NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+		return -EOPNOTSUPP;
+	}
+
+	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, macvlan_dev->dev_addr,
+				  mlxsw_sp_fid_index(rif->fid), true);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_rif_vrrp_op(mlxsw_sp, rif->rif_index,
+				   macvlan_dev->dev_addr, true);
+	if (err)
+		goto err_rif_vrrp_add;
+
+	/* Make sure the bridge driver does not have this MAC pointing at
+	 * some other port.
+	 */
+	if (rif->ops->fdb_del)
+		rif->ops->fdb_del(rif, macvlan_dev->dev_addr);
+
+	return 0;
+
+err_rif_vrrp_add:
+	mlxsw_sp_rif_fdb_op(mlxsw_sp, macvlan_dev->dev_addr,
+			    mlxsw_sp_fid_index(rif->fid), false);
+	return err;
+}
+
+void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
+			      const struct net_device *macvlan_dev)
+{
+	struct macvlan_dev *vlan = netdev_priv(macvlan_dev);
+	struct mlxsw_sp_rif *rif;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, vlan->lowerdev);
+	/* If we do not have a RIF, then we already took care of
+	 * removing the macvlan's MAC during RIF deletion.
+	 */
+	if (!rif)
+		return;
+	mlxsw_sp_rif_vrrp_op(mlxsw_sp, rif->rif_index, macvlan_dev->dev_addr,
+			     false);
+	mlxsw_sp_rif_fdb_op(mlxsw_sp, macvlan_dev->dev_addr,
+			    mlxsw_sp_fid_index(rif->fid), false);
+}
+
+static int mlxsw_sp_inetaddr_macvlan_event(struct net_device *macvlan_dev,
+					   unsigned long event,
+					   struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp *mlxsw_sp;
+
+	mlxsw_sp = mlxsw_sp_lower_get(macvlan_dev);
+	if (!mlxsw_sp)
+		return 0;
+
+	switch (event) {
+	case NETDEV_UP:
+		return mlxsw_sp_rif_macvlan_add(mlxsw_sp, macvlan_dev, extack);
+	case NETDEV_DOWN:
+		mlxsw_sp_rif_macvlan_del(mlxsw_sp, macvlan_dev);
+		break;
+	}
+
+	return 0;
+}
+
 static int __mlxsw_sp_inetaddr_event(struct net_device *dev,
 				     unsigned long event,
 				     struct netlink_ext_ack *extack)
@@ -6452,6 +6601,8 @@ static int __mlxsw_sp_inetaddr_event(struct net_device *dev,
 		return mlxsw_sp_inetaddr_bridge_event(dev, event, extack);
 	else if (is_vlan_dev(dev))
 		return mlxsw_sp_inetaddr_vlan_event(dev, event, extack);
+	else if (netif_is_macvlan(dev))
+		return mlxsw_sp_inetaddr_macvlan_event(dev, event, extack);
 	else
 		return 0;
 }
@@ -6692,7 +6843,10 @@ int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(l3_dev);
 	int err = 0;
 
-	if (!mlxsw_sp)
+	/* We do not create a RIF for a macvlan, but only use it to
+	 * direct more MAC addresses to the router.
+	 */
+	if (!mlxsw_sp || netif_is_macvlan(l3_dev))
 		return 0;
 
 	switch (event) {
@@ -6711,6 +6865,27 @@ int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 	}
 
 	return err;
+}
+
+static int __mlxsw_sp_rif_macvlan_flush(struct net_device *dev, void *data)
+{
+	struct mlxsw_sp_rif *rif = data;
+
+	if (!netif_is_macvlan(dev))
+		return 0;
+
+	return mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, dev->dev_addr,
+				   mlxsw_sp_fid_index(rif->fid), false);
+}
+
+static int mlxsw_sp_rif_macvlan_flush(struct mlxsw_sp_rif *rif)
+{
+	if (!netif_is_macvlan_port(rif->dev))
+		return 0;
+
+	netdev_warn(rif->dev, "Router interface is deleted. Upper macvlans will not work\n");
+	return netdev_walk_all_upper_dev_rcu(rif->dev,
+					     __mlxsw_sp_rif_macvlan_flush, rif);
 }
 
 static struct mlxsw_sp_rif_subport *
@@ -6779,6 +6954,7 @@ static void mlxsw_sp_rif_subport_deconfigure(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_fid_rif_set(fid, NULL);
 	mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, rif->dev->dev_addr,
 			    mlxsw_sp_fid_index(fid), false);
+	mlxsw_sp_rif_macvlan_flush(rif);
 	mlxsw_sp_rif_subport_op(rif, false);
 }
 
@@ -6866,6 +7042,7 @@ static void mlxsw_sp_rif_vlan_deconfigure(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_fid_rif_set(fid, NULL);
 	mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, rif->dev->dev_addr,
 			    mlxsw_sp_fid_index(fid), false);
+	mlxsw_sp_rif_macvlan_flush(rif);
 	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
 			       mlxsw_sp_router_port(mlxsw_sp), false);
 	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_MC,
@@ -6893,12 +7070,30 @@ mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
 }
 
+static void mlxsw_sp_rif_vlan_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
+{
+	u16 vid = mlxsw_sp_fid_8021q_vid(rif->fid);
+	struct switchdev_notifier_fdb_info info;
+	struct net_device *br_dev;
+	struct net_device *dev;
+
+	br_dev = is_vlan_dev(rif->dev) ? vlan_dev_real_dev(rif->dev) : rif->dev;
+	dev = br_fdb_find_port(br_dev, mac, vid);
+	if (!dev)
+		return;
+
+	info.addr = mac;
+	info.vid = vid;
+	call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE, dev, &info.info);
+}
+
 static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_vlan_ops = {
 	.type			= MLXSW_SP_RIF_TYPE_VLAN,
 	.rif_size		= sizeof(struct mlxsw_sp_rif),
 	.configure		= mlxsw_sp_rif_vlan_configure,
 	.deconfigure		= mlxsw_sp_rif_vlan_deconfigure,
 	.fid_get		= mlxsw_sp_rif_vlan_fid_get,
+	.fdb_del		= mlxsw_sp_rif_vlan_fdb_del,
 };
 
 static int mlxsw_sp_rif_fid_configure(struct mlxsw_sp_rif *rif)
@@ -6950,6 +7145,7 @@ static void mlxsw_sp_rif_fid_deconfigure(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_fid_rif_set(fid, NULL);
 	mlxsw_sp_rif_fdb_op(rif->mlxsw_sp, rif->dev->dev_addr,
 			    mlxsw_sp_fid_index(fid), false);
+	mlxsw_sp_rif_macvlan_flush(rif);
 	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
 			       mlxsw_sp_router_port(mlxsw_sp), false);
 	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_MC,
@@ -6964,12 +7160,27 @@ mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif,
 	return mlxsw_sp_fid_8021d_get(rif->mlxsw_sp, rif->dev->ifindex);
 }
 
+static void mlxsw_sp_rif_fid_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
+{
+	struct switchdev_notifier_fdb_info info;
+	struct net_device *dev;
+
+	dev = br_fdb_find_port(rif->dev, mac, 0);
+	if (!dev)
+		return;
+
+	info.addr = mac;
+	info.vid = 0;
+	call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE, dev, &info.info);
+}
+
 static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_fid_ops = {
 	.type			= MLXSW_SP_RIF_TYPE_FID,
 	.rif_size		= sizeof(struct mlxsw_sp_rif),
 	.configure		= mlxsw_sp_rif_fid_configure,
 	.deconfigure		= mlxsw_sp_rif_fid_deconfigure,
 	.fid_get		= mlxsw_sp_rif_fid_fid_get,
+	.fdb_del		= mlxsw_sp_rif_fid_fdb_del,
 };
 
 static struct mlxsw_sp_rif_ipip_lb *
@@ -7194,6 +7405,7 @@ static int mlxsw_sp_dscp_init(struct mlxsw_sp *mlxsw_sp)
 
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
+	bool usp = init_net.ipv4.sysctl_ip_fwd_update_priority;
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
 	u64 max_rifs;
 	int err;
@@ -7204,7 +7416,7 @@ static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 
 	mlxsw_reg_rgcr_pack(rgcr_pl, true, true);
 	mlxsw_reg_rgcr_max_router_interfaces_set(rgcr_pl, max_rifs);
-	mlxsw_reg_rgcr_usp_set(rgcr_pl, true);
+	mlxsw_reg_rgcr_usp_set(rgcr_pl, usp);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rgcr), rgcr_pl);
 	if (err)
 		return err;

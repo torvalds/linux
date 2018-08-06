@@ -2370,11 +2370,8 @@ static void ieee80211_deliver_skb_to_local_stack(struct sk_buff *skb,
 		     sdata->control_port_over_nl80211)) {
 		struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 		bool noencrypt = status->flag & RX_FLAG_DECRYPTED;
-		struct ethhdr *ehdr = eth_hdr(skb);
 
-		cfg80211_rx_control_port(dev, skb->data, skb->len,
-					 ehdr->h_source,
-					 be16_to_cpu(skb->protocol), noencrypt);
+		cfg80211_rx_control_port(dev, skb, noencrypt);
 		dev_kfree_skb(skb);
 	} else {
 		/* deliver to local stack */

@@ -700,13 +700,16 @@ void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
 	}
 	if (np->rxopt.bits.rxorigdstaddr) {
 		struct sockaddr_in6 sin6;
-		__be16 *ports = (__be16 *) skb_transport_header(skb);
+		__be16 *ports;
+		int end;
 
-		if (skb_transport_offset(skb) + 4 <= (int)skb->len) {
+		end = skb_transport_offset(skb) + 4;
+		if (end <= 0 || pskb_may_pull(skb, end)) {
 			/* All current transport protocols have the port numbers in the
 			 * first four bytes of the transport header and this function is
 			 * written with this assumption in mind.
 			 */
+			ports = (__be16 *)skb_transport_header(skb);
 
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_addr = ipv6_hdr(skb)->daddr;
@@ -800,7 +803,7 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 
 			if (addr_type != IPV6_ADDR_ANY) {
 				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
-				if (!(inet_sk(sk)->freebind || inet_sk(sk)->transparent) &&
+				if (!ipv6_can_nonlocal_bind(net, inet_sk(sk)) &&
 				    !ipv6_chk_addr_and_flags(net, &src_info->ipi6_addr,
 							     dev, !strict, 0,
 							     IFA_F_TENTATIVE) &&

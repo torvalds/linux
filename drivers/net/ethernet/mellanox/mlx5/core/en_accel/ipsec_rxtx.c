@@ -37,6 +37,7 @@
 
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/ipsec.h"
+#include "accel/accel.h"
 #include "en.h"
 
 enum {
@@ -346,19 +347,12 @@ mlx5e_ipsec_build_sp(struct net_device *netdev, struct sk_buff *skb,
 }
 
 struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
-					  struct sk_buff *skb)
+					  struct sk_buff *skb, u32 *cqe_bcnt)
 {
 	struct mlx5e_ipsec_metadata *mdata;
-	struct ethhdr *old_eth;
-	struct ethhdr *new_eth;
 	struct xfrm_state *xs;
-	__be16 *ethtype;
 
-	/* Detect inline metadata */
-	if (skb->len < ETH_HLEN + MLX5E_METADATA_ETHER_LEN)
-		return skb;
-	ethtype = (__be16 *)(skb->data + ETH_ALEN * 2);
-	if (*ethtype != cpu_to_be16(MLX5E_METADATA_ETHER_TYPE))
+	if (!is_metadata_hdr_valid(skb))
 		return skb;
 
 	/* Use the metadata */
@@ -369,12 +363,8 @@ struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
 		return NULL;
 	}
 
-	/* Remove the metadata from the buffer */
-	old_eth = (struct ethhdr *)skb->data;
-	new_eth = (struct ethhdr *)(skb->data + MLX5E_METADATA_ETHER_LEN);
-	memmove(new_eth, old_eth, 2 * ETH_ALEN);
-	/* Ethertype is already in its new place */
-	skb_pull_inline(skb, MLX5E_METADATA_ETHER_LEN);
+	remove_metadata_hdr(skb);
+	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 
 	return skb;
 }

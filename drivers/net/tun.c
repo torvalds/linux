@@ -200,6 +200,7 @@ struct tun_flow_entry {
 };
 
 #define TUN_NUM_FLOW_ENTRIES 1024
+#define TUN_MASK_FLOW_ENTRIES (TUN_NUM_FLOW_ENTRIES - 1)
 
 struct tun_prog {
 	struct rcu_head rcu;
@@ -406,7 +407,7 @@ static inline __virtio16 cpu_to_tun16(struct tun_struct *tun, u16 val)
 
 static inline u32 tun_hashfn(u32 rxhash)
 {
-	return rxhash & 0x3ff;
+	return rxhash & TUN_MASK_FLOW_ENTRIES;
 }
 
 static struct tun_flow_entry *tun_flow_find(struct hlist_head *head, u32 rxhash)
@@ -1269,7 +1270,6 @@ static int tun_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 		return tun_xdp_set(dev, xdp->prog, xdp->extack);
 	case XDP_QUERY_PROG:
 		xdp->prog_id = tun_xdp_query(dev);
-		xdp->prog_attached = !!xdp->prog_id;
 		return 0;
 	default:
 		return -EINVAL;
@@ -1689,7 +1689,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 		case XDP_TX:
 			get_page(alloc_frag->page);
 			alloc_frag->offset += buflen;
-			if (tun_xdp_tx(tun->dev, &xdp))
+			if (tun_xdp_tx(tun->dev, &xdp) < 0)
 				goto err_redirect;
 			rcu_read_unlock();
 			local_bh_enable();

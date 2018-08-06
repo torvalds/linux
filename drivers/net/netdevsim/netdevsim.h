@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
+#include <net/xdp.h>
 
 #define DRV_NAME	"netdevsim"
 
@@ -26,8 +27,24 @@
 #define NSIM_EA(extack, msg)	NL_SET_ERR_MSG_MOD((extack), msg)
 
 struct bpf_prog;
+struct bpf_offload_dev;
 struct dentry;
 struct nsim_vf_config;
+
+struct netdevsim_shared_dev {
+	unsigned int refcnt;
+	u32 switch_id;
+
+	struct dentry *ddir;
+
+	struct bpf_offload_dev *bpf_dev;
+
+	struct dentry *ddir_bpf_bound_progs;
+	u32 prog_id_gen;
+
+	struct list_head bpf_bound_progs;
+	struct list_head bpf_bound_maps;
+};
 
 #define NSIM_IPSEC_MAX_SA_COUNT		33
 #define NSIM_IPSEC_VALID		BIT(31)
@@ -58,6 +75,7 @@ struct netdevsim {
 	struct u64_stats_sync syncp;
 
 	struct device dev;
+	struct netdevsim_shared_dev *sdev;
 
 	struct dentry *ddir;
 
@@ -67,16 +85,11 @@ struct netdevsim {
 	struct bpf_prog	*bpf_offloaded;
 	u32 bpf_offloaded_id;
 
-	u32 xdp_flags;
-	int xdp_prog_mode;
-	struct bpf_prog	*xdp_prog;
-
-	u32 prog_id_gen;
+	struct xdp_attachment_info xdp;
+	struct xdp_attachment_info xdp_hw;
 
 	bool bpf_bind_accept;
 	u32 bpf_bind_verifier_delay;
-	struct dentry *ddir_bpf_bound_progs;
-	struct list_head bpf_bound_progs;
 
 	bool bpf_tc_accept;
 	bool bpf_tc_non_bound_accept;
@@ -84,14 +97,11 @@ struct netdevsim {
 	bool bpf_xdpoffload_accept;
 
 	bool bpf_map_accept;
-	struct list_head bpf_bound_maps;
 #if IS_ENABLED(CONFIG_NET_DEVLINK)
 	struct devlink *devlink;
 #endif
 	struct nsim_ipsec ipsec;
 };
-
-extern struct dentry *nsim_ddir;
 
 #ifdef CONFIG_BPF_SYSCALL
 int nsim_bpf_init(struct netdevsim *ns);

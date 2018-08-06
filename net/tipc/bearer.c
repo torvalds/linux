@@ -395,6 +395,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 		tipc_net_init(net, node_id, 0);
 	}
 	if (!tipc_own_id(net)) {
+		dev_put(dev);
 		pr_warn("Failed to obtain node identity\n");
 		return -EINVAL;
 	}

@@ -124,6 +124,21 @@ struct tc_fifo_qopt {
 	__u32	limit;	/* Queue length: bytes for bfifo, packets for pfifo */
 };
 
+/* SKBPRIO section */
+
+/*
+ * Priorities go from zero to (SKBPRIO_MAX_PRIORITY - 1).
+ * SKBPRIO_MAX_PRIORITY should be at least 64 in order for skbprio to be able
+ * to map one to one the DS field of IPV4 and IPV6 headers.
+ * Memory allocation grows linearly with SKBPRIO_MAX_PRIORITY.
+ */
+
+#define SKBPRIO_MAX_PRIORITY 64
+
+struct tc_skbprio_qopt {
+	__u32	limit;		/* Queue length in packets. */
+};
+
 /* PRIO section */
 
 #define TCQ_PRIO_BANDS	16

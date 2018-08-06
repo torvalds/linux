@@ -29,7 +29,10 @@
 /* Nasty hack. Better have per device instances */
 static u32 mem_addr;
 static u32 dbg_txdesc_index;
-static u32 dbg_vring_index; /* 24+ for Rx, 0..23 for Tx */
+static u32 dbg_ring_index; /* 24+ for Rx, 0..23 for Tx */
+static u32 dbg_status_msg_index;
+/* 0..wil->num_rx_status_rings-1 for Rx, wil->tx_sring_idx for Tx */
+static u32 dbg_sring_index;
 
 enum dbg_off_type {
 	doff_u32 = 0,
@@ -47,20 +50,53 @@ struct dbg_off {
 	enum dbg_off_type type;
 };
 
-static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
-			    const char *name, struct vring *vring,
-			    char _s, char _h)
+static void wil_print_desc_edma(struct seq_file *s, struct wil6210_priv *wil,
+				struct wil_ring *ring,
+				char _s, char _h, int idx)
 {
-	void __iomem *x = wmi_addr(wil, vring->hwtail);
+	u8 num_of_descs;
+	bool has_skb = false;
+
+	if (ring->is_rx) {
+		struct wil_rx_enhanced_desc *rx_d =
+			(struct wil_rx_enhanced_desc *)
+			&ring->va[idx].rx.enhanced;
+		u16 buff_id = le16_to_cpu(rx_d->mac.buff_id);
+
+		has_skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
+		seq_printf(s, "%c", (has_skb) ? _h : _s);
+	} else {
+		struct wil_tx_enhanced_desc *d =
+			(struct wil_tx_enhanced_desc *)
+			&ring->va[idx].tx.enhanced;
+
+		num_of_descs = (u8)d->mac.d[2];
+		has_skb = ring->ctx[idx].skb;
+		if (num_of_descs >= 1)
+			seq_printf(s, "%c", ring->ctx[idx].skb ? _h : _s);
+		else
+			/* num_of_descs == 0, it's a frag in a list of descs */
+			seq_printf(s, "%c", has_skb ? 'h' : _s);
+	}
+}
+
+static void wil_print_ring(struct seq_file *s, struct wil6210_priv *wil,
+			   const char *name, struct wil_ring *ring,
+			   char _s, char _h)
+{
+	void __iomem *x = wmi_addr(wil, ring->hwtail);
 	u32 v;
 
-	seq_printf(s, "VRING %s = {\n", name);
-	seq_printf(s, "  pa     = %pad\n", &vring->pa);
-	seq_printf(s, "  va     = 0x%p\n", vring->va);
-	seq_printf(s, "  size   = %d\n", vring->size);
-	seq_printf(s, "  swtail = %d\n", vring->swtail);
-	seq_printf(s, "  swhead = %d\n", vring->swhead);
-	seq_printf(s, "  hwtail = [0x%08x] -> ", vring->hwtail);
+	seq_printf(s, "RING %s = {\n", name);
+	seq_printf(s, "  pa     = %pad\n", &ring->pa);
+	seq_printf(s, "  va     = 0x%p\n", ring->va);
+	seq_printf(s, "  size   = %d\n", ring->size);
+	if (wil->use_enhanced_dma_hw && ring->is_rx)
+		seq_printf(s, "  swtail = %u\n", *ring->edma_rx_swtail.va);
+	else
+		seq_printf(s, "  swtail = %d\n", ring->swtail);
+	seq_printf(s, "  swhead = %d\n", ring->swhead);
+	seq_printf(s, "  hwtail = [0x%08x] -> ", ring->hwtail);
 	if (x) {
 		v = readl(x);
 		seq_printf(s, "0x%08x = %d\n", v, v);
@@ -68,41 +104,45 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 		seq_puts(s, "???\n");
 	}
 
-	if (vring->va && (vring->size <= (1 << WIL_RING_SIZE_ORDER_MAX))) {
+	if (ring->va && (ring->size <= (1 << WIL_RING_SIZE_ORDER_MAX))) {
 		uint i;
 
-		for (i = 0; i < vring->size; i++) {
-			volatile struct vring_tx_desc *d = &vring->va[i].tx;
-
-			if ((i % 128) == 0 && (i != 0))
+		for (i = 0; i < ring->size; i++) {
+			if ((i % 128) == 0 && i != 0)
 				seq_puts(s, "\n");
-			seq_printf(s, "%c", (d->dma.status & BIT(0)) ?
-					_s : (vring->ctx[i].skb ? _h : 'h'));
+			if (wil->use_enhanced_dma_hw) {
+				wil_print_desc_edma(s, wil, ring, _s, _h, i);
+			} else {
+				volatile struct vring_tx_desc *d =
+					&ring->va[i].tx.legacy;
+				seq_printf(s, "%c", (d->dma.status & BIT(0)) ?
+					   _s : (ring->ctx[i].skb ? _h : 'h'));
+			}
 		}
 		seq_puts(s, "\n");
 	}
 	seq_puts(s, "}\n");
 }
 
-static int wil_vring_debugfs_show(struct seq_file *s, void *data)
+static int wil_ring_debugfs_show(struct seq_file *s, void *data)
 {
 	uint i;
 	struct wil6210_priv *wil = s->private;
 
-	wil_print_vring(s, wil, "rx", &wil->vring_rx, 'S', '_');
+	wil_print_ring(s, wil, "rx", &wil->ring_rx, 'S', '_');
 
-	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
-		struct vring *vring = &wil->vring_tx[i];
-		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+	for (i = 0; i < ARRAY_SIZE(wil->ring_tx); i++) {
+		struct wil_ring *ring = &wil->ring_tx[i];
+		struct wil_ring_tx_data *txdata = &wil->ring_tx_data[i];
 
-		if (vring->va) {
-			int cid = wil->vring2cid_tid[i][0];
-			int tid = wil->vring2cid_tid[i][1];
-			u32 swhead = vring->swhead;
-			u32 swtail = vring->swtail;
-			int used = (vring->size + swhead - swtail)
-				   % vring->size;
-			int avail = vring->size - used - 1;
+		if (ring->va) {
+			int cid = wil->ring2cid_tid[i][0];
+			int tid = wil->ring2cid_tid[i][1];
+			u32 swhead = ring->swhead;
+			u32 swtail = ring->swtail;
+			int used = (ring->size + swhead - swtail)
+				   % ring->size;
+			int avail = ring->size - used - 1;
 			char name[10];
 			char sidle[10];
 			/* performance monitoring */
@@ -137,20 +177,88 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 					   txdata->dot1x_open ? "+" : "-",
 					   used, avail, sidle);
 
-			wil_print_vring(s, wil, name, vring, '_', 'H');
+			wil_print_ring(s, wil, name, ring, '_', 'H');
 		}
 	}
 
 	return 0;
 }
 
-static int wil_vring_seq_open(struct inode *inode, struct file *file)
+static int wil_ring_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, wil_vring_debugfs_show, inode->i_private);
+	return single_open(file, wil_ring_debugfs_show, inode->i_private);
 }
 
-static const struct file_operations fops_vring = {
-	.open		= wil_vring_seq_open,
+static const struct file_operations fops_ring = {
+	.open		= wil_ring_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
+static void wil_print_sring(struct seq_file *s, struct wil6210_priv *wil,
+			    struct wil_status_ring *sring)
+{
+	void __iomem *x = wmi_addr(wil, sring->hwtail);
+	int sring_idx = sring - wil->srings;
+	u32 v;
+
+	seq_printf(s, "Status Ring %s [ %d ] = {\n",
+		   sring->is_rx ? "RX" : "TX", sring_idx);
+	seq_printf(s, "  pa     = %pad\n", &sring->pa);
+	seq_printf(s, "  va     = 0x%pK\n", sring->va);
+	seq_printf(s, "  size   = %d\n", sring->size);
+	seq_printf(s, "  elem_size   = %zu\n", sring->elem_size);
+	seq_printf(s, "  swhead = %d\n", sring->swhead);
+	seq_printf(s, "  hwtail = [0x%08x] -> ", sring->hwtail);
+	if (x) {
+		v = readl_relaxed(x);
+		seq_printf(s, "0x%08x = %d\n", v, v);
+	} else {
+		seq_puts(s, "???\n");
+	}
+	seq_printf(s, "  desc_rdy_pol   = %d\n", sring->desc_rdy_pol);
+
+	if (sring->va && (sring->size <= (1 << WIL_RING_SIZE_ORDER_MAX))) {
+		uint i;
+
+		for (i = 0; i < sring->size; i++) {
+			u32 *sdword_0 =
+				(u32 *)(sring->va + (sring->elem_size * i));
+
+			if ((i % 128) == 0 && i != 0)
+				seq_puts(s, "\n");
+			if (i == sring->swhead)
+				seq_printf(s, "%c", (*sdword_0 & BIT(31)) ?
+					   'X' : 'x');
+			else
+				seq_printf(s, "%c", (*sdword_0 & BIT(31)) ?
+					   '1' : '0');
+		}
+		seq_puts(s, "\n");
+	}
+	seq_puts(s, "}\n");
+}
+
+static int wil_srings_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	int i = 0;
+
+	for (i = 0; i < WIL6210_MAX_STATUS_RINGS; i++)
+		if (wil->srings[i].va)
+			wil_print_sring(s, wil, &wil->srings[i]);
+
+	return 0;
+}
+
+static int wil_srings_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_srings_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_srings = {
+	.open		= wil_srings_seq_open,
 	.release	= single_release,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -162,8 +270,8 @@ static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
 	seq_hex_dump(s, prefix, DUMP_PREFIX_NONE, 16, 1, p, len, false);
 }
 
-static void wil_print_ring(struct seq_file *s, const char *prefix,
-			   void __iomem *off)
+static void wil_print_mbox_ring(struct seq_file *s, const char *prefix,
+				void __iomem *off)
 {
 	struct wil6210_priv *wil = s->private;
 	struct wil6210_mbox_ring r;
@@ -249,9 +357,9 @@ static int wil_mbox_debugfs_show(struct seq_file *s, void *data)
 	if (ret < 0)
 		return ret;
 
-	wil_print_ring(s, "tx", wil->csr + HOST_MBOX +
+	wil_print_mbox_ring(s, "tx", wil->csr + HOST_MBOX +
 		       offsetof(struct wil6210_mbox_ctl, tx));
-	wil_print_ring(s, "rx", wil->csr + HOST_MBOX +
+	wil_print_mbox_ring(s, "rx", wil->csr + HOST_MBOX +
 		       offsetof(struct wil6210_mbox_ctl, rx));
 
 	wil_pm_runtime_put(wil);
@@ -719,13 +827,13 @@ static ssize_t wil_write_back(struct file *file, const char __user *buf,
 
 	if ((strcmp(cmd, "add") == 0) ||
 	    (strcmp(cmd, "del_tx") == 0)) {
-		struct vring_tx_data *txdata;
+		struct wil_ring_tx_data *txdata;
 
 		if (p1 < 0 || p1 >= WIL6210_MAX_TX_RINGS) {
 			wil_err(wil, "BACK: invalid ring id %d\n", p1);
 			return -EINVAL;
 		}
-		txdata = &wil->vring_tx_data[p1];
+		txdata = &wil->ring_tx_data[p1];
 		if (strcmp(cmd, "add") == 0) {
 			if (rc < 3) {
 				wil_err(wil, "BACK: add require at least 2 params\n");
@@ -972,54 +1080,93 @@ static void wil_seq_print_skb(struct seq_file *s, struct sk_buff *skb)
 static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	struct vring *vring;
-	bool tx = (dbg_vring_index < WIL6210_MAX_TX_RINGS);
+	struct wil_ring *ring;
+	bool tx;
+	int ring_idx = dbg_ring_index;
+	int txdesc_idx = dbg_txdesc_index;
+	volatile struct vring_tx_desc *d;
+	volatile u32 *u;
+	struct sk_buff *skb;
 
-	vring = tx ? &wil->vring_tx[dbg_vring_index] : &wil->vring_rx;
+	if (wil->use_enhanced_dma_hw) {
+		/* RX ring index == 0 */
+		if (ring_idx >= WIL6210_MAX_TX_RINGS) {
+			seq_printf(s, "invalid ring index %d\n", ring_idx);
+			return 0;
+		}
+		tx = ring_idx > 0; /* desc ring 0 is reserved for RX */
+	} else {
+		/* RX ring index == WIL6210_MAX_TX_RINGS */
+		if (ring_idx > WIL6210_MAX_TX_RINGS) {
+			seq_printf(s, "invalid ring index %d\n", ring_idx);
+			return 0;
+		}
+		tx = (ring_idx < WIL6210_MAX_TX_RINGS);
+	}
 
-	if (!vring->va) {
+	ring = tx ? &wil->ring_tx[ring_idx] : &wil->ring_rx;
+
+	if (!ring->va) {
 		if (tx)
-			seq_printf(s, "No Tx[%2d] VRING\n", dbg_vring_index);
+			seq_printf(s, "No Tx[%2d] RING\n", ring_idx);
 		else
-			seq_puts(s, "No Rx VRING\n");
+			seq_puts(s, "No Rx RING\n");
 		return 0;
 	}
 
-	if (dbg_txdesc_index < vring->size) {
-		/* use struct vring_tx_desc for Rx as well,
-		 * only field used, .dma.length, is the same
-		 */
-		volatile struct vring_tx_desc *d =
-				&vring->va[dbg_txdesc_index].tx;
-		volatile u32 *u = (volatile u32 *)d;
-		struct sk_buff *skb = vring->ctx[dbg_txdesc_index].skb;
-
-		if (tx)
-			seq_printf(s, "Tx[%2d][%3d] = {\n", dbg_vring_index,
-				   dbg_txdesc_index);
-		else
-			seq_printf(s, "Rx[%3d] = {\n", dbg_txdesc_index);
-		seq_printf(s, "  MAC = 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			   u[0], u[1], u[2], u[3]);
-		seq_printf(s, "  DMA = 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			   u[4], u[5], u[6], u[7]);
-		seq_printf(s, "  SKB = 0x%p\n", skb);
-
-		if (skb) {
-			skb_get(skb);
-			wil_seq_print_skb(s, skb);
-			kfree_skb(skb);
-		}
-		seq_puts(s, "}\n");
-	} else {
+	if (txdesc_idx >= ring->size) {
 		if (tx)
 			seq_printf(s, "[%2d] TxDesc index (%d) >= size (%d)\n",
-				   dbg_vring_index, dbg_txdesc_index,
-				   vring->size);
+				   ring_idx, txdesc_idx, ring->size);
 		else
 			seq_printf(s, "RxDesc index (%d) >= size (%d)\n",
-				   dbg_txdesc_index, vring->size);
+				   txdesc_idx, ring->size);
+		return 0;
 	}
+
+	/* use struct vring_tx_desc for Rx as well,
+	 * only field used, .dma.length, is the same
+	 */
+	d = &ring->va[txdesc_idx].tx.legacy;
+	u = (volatile u32 *)d;
+	skb = NULL;
+
+	if (wil->use_enhanced_dma_hw) {
+		if (tx) {
+			skb = ring->ctx[txdesc_idx].skb;
+		} else {
+			struct wil_rx_enhanced_desc *rx_d =
+				(struct wil_rx_enhanced_desc *)
+				&ring->va[txdesc_idx].rx.enhanced;
+			u16 buff_id = le16_to_cpu(rx_d->mac.buff_id);
+
+			if (!wil_val_in_range(buff_id, 0,
+					      wil->rx_buff_mgmt.size)) {
+				seq_printf(s, "invalid buff_id %d\n", buff_id);
+				return 0;
+			}
+			skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
+		}
+	} else {
+		skb = ring->ctx[txdesc_idx].skb;
+	}
+	if (tx)
+		seq_printf(s, "Tx[%2d][%3d] = {\n", ring_idx,
+			   txdesc_idx);
+	else
+		seq_printf(s, "Rx[%3d] = {\n", txdesc_idx);
+	seq_printf(s, "  MAC = 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		   u[0], u[1], u[2], u[3]);
+	seq_printf(s, "  DMA = 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		   u[4], u[5], u[6], u[7]);
+	seq_printf(s, "  SKB = 0x%p\n", skb);
+
+	if (skb) {
+		skb_get(skb);
+		wil_seq_print_skb(s, skb);
+		kfree_skb(skb);
+	}
+	seq_puts(s, "}\n");
 
 	return 0;
 }
@@ -1031,6 +1178,115 @@ static int wil_txdesc_seq_open(struct inode *inode, struct file *file)
 
 static const struct file_operations fops_txdesc = {
 	.open		= wil_txdesc_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
+/*---------Tx/Rx status message------------*/
+static int wil_status_msg_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	int sring_idx = dbg_sring_index;
+	struct wil_status_ring *sring;
+	bool tx = sring_idx == wil->tx_sring_idx ? 1 : 0;
+	u32 status_msg_idx = dbg_status_msg_index;
+	u32 *u;
+
+	if (sring_idx >= WIL6210_MAX_STATUS_RINGS) {
+		seq_printf(s, "invalid status ring index %d\n", sring_idx);
+		return 0;
+	}
+
+	sring = &wil->srings[sring_idx];
+
+	if (!sring->va) {
+		seq_printf(s, "No %cX status ring\n", tx ? 'T' : 'R');
+		return 0;
+	}
+
+	if (status_msg_idx >= sring->size) {
+		seq_printf(s, "%cxDesc index (%d) >= size (%d)\n",
+			   tx ? 'T' : 'R', status_msg_idx, sring->size);
+		return 0;
+	}
+
+	u = sring->va + (sring->elem_size * status_msg_idx);
+
+	seq_printf(s, "%cx[%d][%3d] = {\n",
+		   tx ? 'T' : 'R', sring_idx, status_msg_idx);
+
+	seq_printf(s, "  0x%08x 0x%08x 0x%08x 0x%08x\n",
+		   u[0], u[1], u[2], u[3]);
+	if (!tx && !wil->use_compressed_rx_status)
+		seq_printf(s, "  0x%08x 0x%08x 0x%08x 0x%08x\n",
+			   u[4], u[5], u[6], u[7]);
+
+	seq_puts(s, "}\n");
+
+	return 0;
+}
+
+static int wil_status_msg_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_status_msg_debugfs_show,
+			   inode->i_private);
+}
+
+static const struct file_operations fops_status_msg = {
+	.open		= wil_status_msg_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
+static int wil_print_rx_buff(struct seq_file *s, struct list_head *lh)
+{
+	struct wil_rx_buff *it;
+	int i = 0;
+
+	list_for_each_entry(it, lh, list) {
+		if ((i % 16) == 0 && i != 0)
+			seq_puts(s, "\n    ");
+		seq_printf(s, "[%4d] ", it->id);
+		i++;
+	}
+	seq_printf(s, "\nNumber of buffers: %u\n", i);
+
+	return i;
+}
+
+static int wil_rx_buff_mgmt_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	struct wil_rx_buff_mgmt *rbm = &wil->rx_buff_mgmt;
+	int num_active;
+	int num_free;
+
+	seq_printf(s, "  size = %zu\n", rbm->size);
+	seq_printf(s, "  free_list_empty_cnt = %lu\n",
+		   rbm->free_list_empty_cnt);
+
+	/* Print active list */
+	seq_puts(s, "  Active list:\n");
+	num_active = wil_print_rx_buff(s, &rbm->active);
+	seq_puts(s, "\n  Free list:\n");
+	num_free = wil_print_rx_buff(s, &rbm->free);
+
+	seq_printf(s, "  Total number of buffers: %u\n",
+		   num_active + num_free);
+
+	return 0;
+}
+
+static int wil_rx_buff_mgmt_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_rx_buff_mgmt_debugfs_show,
+			   inode->i_private);
+}
+
+static const struct file_operations fops_rx_buff_mgmt = {
+	.open		= wil_rx_buff_mgmt_seq_open,
 	.release	= single_release,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1478,6 +1734,13 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 				   p->stats.rx_large_frame,
 				   p->stats.rx_replay);
 
+			if (wil->use_enhanced_dma_hw)
+				seq_printf(s,
+					   "mic error  %lu, key error %lu, amsdu error %lu\n",
+					   p->stats.rx_mic_error,
+					   p->stats.rx_key_error,
+					   p->stats.rx_amsdu_error);
+
 			seq_puts(s, "Rx/MCS:");
 			for (mcs = 0; mcs < ARRAY_SIZE(p->stats.rx_per_mcs);
 			     mcs++)
@@ -1760,6 +2023,60 @@ static const struct file_operations fops_suspend_stats = {
 	.open  = simple_open,
 };
 
+/*---------compressed_rx_status---------*/
+static ssize_t wil_compressed_rx_status_write(struct file *file,
+					      const char __user *buf,
+					      size_t len, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct wil6210_priv *wil = s->private;
+	int compressed_rx_status;
+	int rc;
+
+	rc = kstrtoint_from_user(buf, len, 0, &compressed_rx_status);
+	if (rc) {
+		wil_err(wil, "Invalid argument\n");
+		return rc;
+	}
+
+	if (wil_has_active_ifaces(wil, true, false)) {
+		wil_err(wil, "cannot change edma config after iface is up\n");
+		return -EPERM;
+	}
+
+	wil_info(wil, "%sable compressed_rx_status\n",
+		 compressed_rx_status ? "En" : "Dis");
+
+	wil->use_compressed_rx_status = compressed_rx_status;
+
+	return len;
+}
+
+static int
+wil_compressed_rx_status_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+
+	seq_printf(s, "%d\n", wil->use_compressed_rx_status);
+
+	return 0;
+}
+
+static int
+wil_compressed_rx_status_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_compressed_rx_status_show,
+			   inode->i_private);
+}
+
+static const struct file_operations fops_compressed_rx_status = {
+	.open  = wil_compressed_rx_status_seq_open,
+	.release = single_release,
+	.read = seq_read,
+	.write = wil_compressed_rx_status_write,
+	.llseek	= seq_lseek,
+};
+
 /*----------------*/
 static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 				       struct dentry *dbg)
@@ -1790,7 +2107,7 @@ static const struct {
 	const struct file_operations *fops;
 } dbg_files[] = {
 	{"mbox",	0444,		&fops_mbox},
-	{"vrings",	0444,		&fops_vring},
+	{"rings",	0444,		&fops_ring},
 	{"stations", 0444,		&fops_sta},
 	{"mids",	0444,		&fops_mids},
 	{"desc",	0444,		&fops_txdesc},
@@ -1813,6 +2130,10 @@ static const struct {
 	{"fw_capabilities",	0444,	&fops_fw_capabilities},
 	{"fw_version",	0444,		&fops_fw_version},
 	{"suspend_stats",	0644,	&fops_suspend_stats},
+	{"compressed_rx_status", 0644,	&fops_compressed_rx_status},
+	{"srings",	0444,		&fops_srings},
+	{"status_msg",	0444,		&fops_status_msg},
+	{"rx_buff_mgmt",	0444,	&fops_rx_buff_mgmt},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
@@ -1858,7 +2179,12 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(chip_revision, 0444,	doff_u8),
 	WIL_FIELD(abft_len, 0644,		doff_u8),
 	WIL_FIELD(wakeup_trigger, 0644,		doff_u8),
-	WIL_FIELD(vring_idle_trsh, 0644,	doff_u32),
+	WIL_FIELD(ring_idle_trsh, 0644,	doff_u32),
+	WIL_FIELD(num_rx_status_rings, 0644,	doff_u8),
+	WIL_FIELD(rx_status_ring_order, 0644,	doff_u32),
+	WIL_FIELD(tx_status_ring_order, 0644,	doff_u32),
+	WIL_FIELD(rx_buff_id_count, 0644,	doff_u32),
+	WIL_FIELD(amsdu_en, 0644,	doff_u8),
 	{},
 };
 
@@ -1872,9 +2198,11 @@ static const struct dbg_off dbg_wil_regs[] = {
 /* static parameters */
 static const struct dbg_off dbg_statics[] = {
 	{"desc_index",	0644, (ulong)&dbg_txdesc_index, doff_u32},
-	{"vring_index",	0644, (ulong)&dbg_vring_index, doff_u32},
+	{"ring_index",	0644, (ulong)&dbg_ring_index, doff_u32},
 	{"mem_addr",	0644, (ulong)&mem_addr, doff_u32},
 	{"led_polarity", 0644, (ulong)&led_polarity, doff_u8},
+	{"status_index", 0644, (ulong)&dbg_status_msg_index, doff_u32},
+	{"sring_index",	0644, (ulong)&dbg_sring_index, doff_u32},
 	{},
 };
 

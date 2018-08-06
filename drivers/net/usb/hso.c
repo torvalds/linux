@@ -1732,7 +1732,6 @@ static int hso_serial_ioctl(struct tty_struct *tty,
 /* starts a transmit */
 static void hso_kick_transmit(struct hso_serial *serial)
 {
-	u8 *temp;
 	unsigned long flags;
 	int res;
 
@@ -1748,14 +1747,12 @@ static void hso_kick_transmit(struct hso_serial *serial)
 		goto out;
 
 	/* Switch pointers around to avoid memcpy */
-	temp = serial->tx_buffer;
-	serial->tx_buffer = serial->tx_data;
-	serial->tx_data = temp;
+	swap(serial->tx_buffer, serial->tx_data);
 	serial->tx_data_count = serial->tx_buffer_count;
 	serial->tx_buffer_count = 0;
 
-	/* If temp is set, it means we switched buffers */
-	if (temp && serial->write_data) {
+	/* If serial->tx_data is set, it means we switched buffers */
+	if (serial->tx_data && serial->write_data) {
 		res = serial->write_data(serial);
 		if (res >= 0)
 			serial->tx_urb_used = 1;

@@ -5,7 +5,7 @@ source "drivers/net/dsa/b53/Kconfig"
 
 config NET_DSA_BCM_SF2
 	tristate "Broadcom Starfighter 2 Ethernet switch support"
-	depends on HAS_IOMEM && NET_DSA && OF_MDIO
+	depends on HAS_IOMEM && NET_DSA
 	select NET_DSA_TAG_BRCM
 	select FIXED_PHY
 	select BCM7XXX_PHY
@@ -51,6 +51,17 @@ config NET_DSA_QCA8K
 	---help---
 	  This enables support for the Qualcomm Atheros QCA8K Ethernet
 	  switch chips.
+
+config NET_DSA_REALTEK_SMI
+	tristate "Realtek SMI Ethernet switch family support"
+	depends on NET_DSA
+	select FIXED_PHY
+	select IRQ_DOMAIN
+	select REALTEK_PHY
+	select REGMAP
+	---help---
+	  This enables support for the Realtek SMI-based switch
+	  chips, currently only RTL8366RB.
 
 config NET_DSA_SMSC_LAN9303
 	tristate

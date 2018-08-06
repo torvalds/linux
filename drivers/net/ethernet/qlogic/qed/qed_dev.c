@@ -230,12 +230,12 @@ static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 }
 
 /* Getters for resource amounts necessary for qm initialization */
-u8 qed_init_qm_get_num_tcs(struct qed_hwfn *p_hwfn)
+static u8 qed_init_qm_get_num_tcs(struct qed_hwfn *p_hwfn)
 {
 	return p_hwfn->hw_info.num_hw_tc;
 }
 
-u16 qed_init_qm_get_num_vfs(struct qed_hwfn *p_hwfn)
+static u16 qed_init_qm_get_num_vfs(struct qed_hwfn *p_hwfn)
 {
 	return IS_QED_SRIOV(p_hwfn->cdev) ?
 	       p_hwfn->cdev->p_iov_info->total_vfs : 0;
@@ -243,7 +243,7 @@ u16 qed_init_qm_get_num_vfs(struct qed_hwfn *p_hwfn)
 
 #define NUM_DEFAULT_RLS 1
 
-u16 qed_init_qm_get_num_pf_rls(struct qed_hwfn *p_hwfn)
+static u16 qed_init_qm_get_num_pf_rls(struct qed_hwfn *p_hwfn)
 {
 	u16 num_pf_rls, num_vfs = qed_init_qm_get_num_vfs(p_hwfn);
 
@@ -261,7 +261,7 @@ u16 qed_init_qm_get_num_pf_rls(struct qed_hwfn *p_hwfn)
 	return num_pf_rls;
 }
 
-u16 qed_init_qm_get_num_vports(struct qed_hwfn *p_hwfn)
+static u16 qed_init_qm_get_num_vports(struct qed_hwfn *p_hwfn)
 {
 	u32 pq_flags = qed_get_pq_flags(p_hwfn);
 
@@ -273,7 +273,7 @@ u16 qed_init_qm_get_num_vports(struct qed_hwfn *p_hwfn)
 }
 
 /* calc amount of PQs according to the requested flags */
-u16 qed_init_qm_get_num_pqs(struct qed_hwfn *p_hwfn)
+static u16 qed_init_qm_get_num_pqs(struct qed_hwfn *p_hwfn)
 {
 	u32 pq_flags = qed_get_pq_flags(p_hwfn);
 
@@ -505,16 +505,6 @@ u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf)
 		DP_ERR(p_hwfn, "vf %d must be smaller than %d\n", vf, max_vf);
 
 	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_VFS) + vf;
-}
-
-u16 qed_get_cm_pq_idx_rl(struct qed_hwfn *p_hwfn, u8 rl)
-{
-	u16 max_rl = qed_init_qm_get_num_pf_rls(p_hwfn);
-
-	if (rl > max_rl)
-		DP_ERR(p_hwfn, "rl %d must be smaller than %d\n", rl, max_rl);
-
-	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_RLS) + rl;
 }
 
 /* Functions for creating specific types of pqs */

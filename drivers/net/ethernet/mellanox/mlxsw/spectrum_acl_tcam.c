@@ -189,6 +189,8 @@ struct mlxsw_sp_acl_tcam_group {
 	struct mlxsw_sp_acl_tcam_group_ops *ops;
 	const struct mlxsw_sp_acl_tcam_pattern *patterns;
 	unsigned int patterns_count;
+	bool tmplt_elusage_set;
+	struct mlxsw_afk_element_usage tmplt_elusage;
 };
 
 struct mlxsw_sp_acl_tcam_chunk {
@@ -234,13 +236,19 @@ mlxsw_sp_acl_tcam_group_add(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_tcam *tcam,
 			    struct mlxsw_sp_acl_tcam_group *group,
 			    const struct mlxsw_sp_acl_tcam_pattern *patterns,
-			    unsigned int patterns_count)
+			    unsigned int patterns_count,
+			    struct mlxsw_afk_element_usage *tmplt_elusage)
 {
 	int err;
 
 	group->tcam = tcam;
 	group->patterns = patterns;
 	group->patterns_count = patterns_count;
+	if (tmplt_elusage) {
+		group->tmplt_elusage_set = true;
+		memcpy(&group->tmplt_elusage, tmplt_elusage,
+		       sizeof(group->tmplt_elusage));
+	}
 	INIT_LIST_HEAD(&group->region_list);
 	err = mlxsw_sp_acl_tcam_group_id_get(tcam, &group->id);
 	if (err)
@@ -449,6 +457,15 @@ mlxsw_sp_acl_tcam_group_use_patterns(struct mlxsw_sp_acl_tcam_group *group,
 	const struct mlxsw_sp_acl_tcam_pattern *pattern;
 	int i;
 
+	/* In case the template is set, we don't have to look up the pattern
+	 * and just use the template.
+	 */
+	if (group->tmplt_elusage_set) {
+		memcpy(out, &group->tmplt_elusage, sizeof(*out));
+		WARN_ON(!mlxsw_afk_element_usage_subset(elusage, out));
+		return;
+	}
+
 	for (i = 0; i < group->patterns_count; i++) {
 		pattern = &group->patterns[i];
 		mlxsw_afk_element_usage_fill(out, pattern->elements,
@@ -547,6 +564,10 @@ mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_region_id_get;
 
+	err = ops->region_associate(mlxsw_sp, region);
+	if (err)
+		goto err_tcam_region_associate;
+
 	region->key_type = ops->key_type;
 	err = mlxsw_sp_acl_tcam_region_alloc(mlxsw_sp, region);
 	if (err)
@@ -556,7 +577,7 @@ mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_tcam_region_enable;
 
-	err = ops->region_init(mlxsw_sp, region->priv, region);
+	err = ops->region_init(mlxsw_sp, region->priv, tcam->priv, region);
 	if (err)
 		goto err_tcam_region_init;
 
@@ -567,6 +588,7 @@ err_tcam_region_init:
 err_tcam_region_enable:
 	mlxsw_sp_acl_tcam_region_free(mlxsw_sp, region);
 err_tcam_region_alloc:
+err_tcam_region_associate:
 	mlxsw_sp_acl_tcam_region_id_put(tcam, region->id);
 err_region_id_get:
 	mlxsw_afk_key_info_put(region->key_info);
@@ -860,13 +882,15 @@ struct mlxsw_sp_acl_tcam_flower_rule {
 static int
 mlxsw_sp_acl_tcam_flower_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam *tcam,
-				     void *ruleset_priv)
+				     void *ruleset_priv,
+				     struct mlxsw_afk_element_usage *tmplt_elusage)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
 	return mlxsw_sp_acl_tcam_group_add(mlxsw_sp, tcam, &ruleset->group,
 					   mlxsw_sp_acl_tcam_patterns,
-					   MLXSW_SP_ACL_TCAM_PATTERNS_COUNT);
+					   MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
+					   tmplt_elusage);
 }
 
 static void

@@ -104,6 +104,7 @@ struct qeth_dbf_info {
 struct qeth_perf_stats {
 	unsigned int bufs_rec;
 	unsigned int bufs_sent;
+	unsigned int buf_elements_sent;
 
 	unsigned int skbs_sent_pack;
 	unsigned int bufs_sent_pack;
@@ -137,7 +138,6 @@ struct qeth_perf_stats {
 	unsigned int large_send_bytes;
 	unsigned int large_send_cnt;
 	unsigned int sg_skbs_sent;
-	unsigned int sg_frags_sent;
 	/* initial values when measuring starts */
 	unsigned long initial_rx_packets;
 	unsigned long initial_tx_packets;
@@ -658,11 +658,8 @@ struct qeth_card_info {
 	char mcl_level[QETH_MCL_LENGTH + 1];
 	int guestlan;
 	int mac_bits;
-	int portno;
 	enum qeth_card_types type;
 	enum qeth_link_types link_type;
-	int initial_mtu;
-	int max_mtu;
 	int broadcast_capable;
 	int unique_id;
 	bool layer_enforced;
@@ -966,6 +963,7 @@ extern struct qeth_card_list_struct qeth_core_card_list;
 extern struct kmem_cache *qeth_core_header_cache;
 extern struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS];
 
+struct net_device *qeth_clone_netdev(struct net_device *orig);
 void qeth_set_recovery_task(struct qeth_card *);
 void qeth_clear_recovery_task(struct qeth_card *);
 void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
@@ -995,7 +993,6 @@ void qeth_clear_cmd_buffers(struct qeth_channel *);
 void qeth_clear_qdio_buffers(struct qeth_card *);
 void qeth_setadp_promisc_mode(struct qeth_card *);
 struct net_device_stats *qeth_get_stats(struct net_device *);
-int qeth_change_mtu(struct net_device *, int);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *);
 void qeth_prepare_control_data(struct qeth_card *, int,
@@ -1050,7 +1047,9 @@ netdev_features_t qeth_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features);
 int qeth_vm_request_mac(struct qeth_card *card);
-int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len);
+int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
+		       struct qeth_hdr **hdr, unsigned int hdr_len,
+		       unsigned int proto_len, unsigned int *elements);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

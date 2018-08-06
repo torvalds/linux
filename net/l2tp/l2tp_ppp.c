@@ -93,7 +93,6 @@
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
-#include <net/dst.h>
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/xfrm.h>
@@ -127,8 +126,6 @@ struct pppol2tp_session {
 						 * PPPoX socket */
 	struct sock		*__sk;		/* Copy of .sk, for cleanup */
 	struct rcu_head		rcu;		/* For asynchronous release */
-	int			flags;		/* accessed by PPPIOCGFLAGS.
-						 * Unused. */
 };
 
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
@@ -183,25 +180,6 @@ out:
  * Receive data handling
  *****************************************************************************/
 
-static int pppol2tp_recv_payload_hook(struct sk_buff *skb)
-{
-	/* Skip PPP header, if present.	 In testing, Microsoft L2TP clients
-	 * don't send the PPP header (PPP header compression enabled), but
-	 * other clients can include the header. So we cope with both cases
-	 * here. The PPP header is always FF03 when using L2TP.
-	 *
-	 * Note that skb->data[] isn't dereferenced from a u16 ptr here since
-	 * the field may be unaligned.
-	 */
-	if (!pskb_may_pull(skb, 2))
-		return 1;
-
-	if ((skb->data[0] == PPP_ALLSTATIONS) && (skb->data[1] == PPP_UI))
-		skb_pull(skb, 2);
-
-	return 0;
-}
-
 /* Receive message. This is the recvmsg for the PPPoL2TP socket.
  */
 static int pppol2tp_recvmsg(struct socket *sock, struct msghdr *msg,
@@ -247,6 +225,17 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 	sk = rcu_dereference(ps->sk);
 	if (sk == NULL)
 		goto no_sock;
+
+	/* If the first two bytes are 0xFF03, consider that it is the PPP's
+	 * Address and Control fields and skip them. The L2TP module has always
+	 * worked this way, although, in theory, the use of these fields should
+	 * be negociated and handled at the PPP layer. These fields are
+	 * constant: 0xFF is the All-Stations Address and 0x03 the Unnumbered
+	 * Information command with Poll/Final bit set to zero (RFC 1662).
+	 */
+	if (pskb_may_pull(skb, 2) && skb->data[0] == PPP_ALLSTATIONS &&
+	    skb->data[1] == PPP_UI)
+		skb_pull(skb, 2);
 
 	if (sk->sk_state & PPPOX_BOUND) {
 		struct pppox_sock *po;
@@ -564,7 +553,6 @@ static void pppol2tp_show(struct seq_file *m, void *arg)
 static void pppol2tp_session_init(struct l2tp_session *session)
 {
 	struct pppol2tp_session *ps;
-	struct dst_entry *dst;
 
 	session->recv_skb = pppol2tp_recv;
 #if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
@@ -574,18 +562,6 @@ static void pppol2tp_session_init(struct l2tp_session *session)
 	ps = l2tp_session_priv(session);
 	mutex_init(&ps->sk_lock);
 	ps->owner = current->pid;
-
-	/* If PMTU discovery was enabled, use the MTU that was discovered */
-	dst = sk_dst_get(session->tunnel->sock);
-	if (dst) {
-		u32 pmtu = dst_mtu(dst);
-
-		if (pmtu) {
-			session->mtu = pmtu - PPPOL2TP_HEADER_OVERHEAD;
-			session->mru = pmtu - PPPOL2TP_HEADER_OVERHEAD;
-		}
-		dst_release(dst);
-	}
 }
 
 struct l2tp_connect_info {
@@ -670,6 +646,22 @@ static int pppol2tp_sockaddr_get_info(const void *sa, int sa_len,
 	}
 
 	return 0;
+}
+
+/* Rough estimation of the maximum payload size a tunnel can transmit without
+ * fragmenting at the lower IP layer. Assumes L2TPv2 with sequence
+ * numbers and no IP option. Not quite accurate, but the result is mostly
+ * unused anyway.
+ */
+static int pppol2tp_tunnel_mtu(const struct l2tp_tunnel *tunnel)
+{
+	int mtu;
+
+	mtu = l2tp_tunnel_dst_mtu(tunnel);
+	if (mtu <= PPPOL2TP_HEADER_OVERHEAD)
+		return 1500 - PPPOL2TP_HEADER_OVERHEAD;
+
+	return mtu - PPPOL2TP_HEADER_OVERHEAD;
 }
 
 /* connect() handler. Attach a PPPoX socket to a tunnel UDP socket
@@ -763,9 +755,6 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 			goto end;
 	}
 
-	if (tunnel->recv_payload_hook == NULL)
-		tunnel->recv_payload_hook = pppol2tp_recv_payload_hook;
-
 	if (tunnel->peer_tunnel_id == 0)
 		tunnel->peer_tunnel_id = info.peer_tunnel_id;
 
@@ -792,9 +781,6 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 			goto end;
 		}
 	} else {
-		/* Default MTU must allow space for UDP/L2TP/PPP headers */
-		cfg.mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
-		cfg.mru = cfg.mtu;
 		cfg.pw_type = L2TP_PWTYPE_PPP;
 
 		session = l2tp_session_create(sizeof(struct pppol2tp_session),
@@ -839,7 +825,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 	po->chan.private = sk;
 	po->chan.ops	 = &pppol2tp_chan_ops;
-	po->chan.mtu	 = session->mtu;
+	po->chan.mtu	 = pppol2tp_tunnel_mtu(tunnel);
 
 	error = ppp_register_net_channel(sock_net(sk), &po->chan);
 	if (error) {
@@ -894,12 +880,6 @@ static int pppol2tp_session_create(struct net *net, struct l2tp_tunnel *tunnel,
 		error = -ENOENT;
 		goto err;
 	}
-
-	/* Default MTU values. */
-	if (cfg->mtu == 0)
-		cfg->mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
-	if (cfg->mru == 0)
-		cfg->mru = cfg->mtu;
 
 	/* Allocate and initialize a new session context. */
 	session = l2tp_session_create(sizeof(struct pppol2tp_session),
@@ -1064,11 +1044,9 @@ static void pppol2tp_copy_stats(struct pppol2tp_ioc_stats *dest,
 static int pppol2tp_session_ioctl(struct l2tp_session *session,
 				  unsigned int cmd, unsigned long arg)
 {
-	struct ifreq ifr;
 	int err = 0;
 	struct sock *sk;
 	int val = (int) arg;
-	struct pppol2tp_session *ps = l2tp_session_priv(session);
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	struct pppol2tp_ioc_stats stats;
 
@@ -1081,85 +1059,19 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 		return -EBADR;
 
 	switch (cmd) {
-	case SIOCGIFMTU:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		err = -EFAULT;
-		if (copy_from_user(&ifr, (void __user *) arg, sizeof(struct ifreq)))
-			break;
-		ifr.ifr_mtu = session->mtu;
-		if (copy_to_user((void __user *) arg, &ifr, sizeof(struct ifreq)))
-			break;
-
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get mtu=%d\n",
-			  session->name, session->mtu);
-		err = 0;
-		break;
-
-	case SIOCSIFMTU:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		err = -EFAULT;
-		if (copy_from_user(&ifr, (void __user *) arg, sizeof(struct ifreq)))
-			break;
-
-		session->mtu = ifr.ifr_mtu;
-
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: set mtu=%d\n",
-			  session->name, session->mtu);
-		err = 0;
-		break;
-
 	case PPPIOCGMRU:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
+	case PPPIOCGFLAGS:
 		err = -EFAULT;
-		if (put_user(session->mru, (int __user *) arg))
+		if (put_user(0, (int __user *)arg))
 			break;
-
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get mru=%d\n",
-			  session->name, session->mru);
 		err = 0;
 		break;
 
 	case PPPIOCSMRU:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		err = -EFAULT;
-		if (get_user(val, (int __user *) arg))
-			break;
-
-		session->mru = val;
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: set mru=%d\n",
-			  session->name, session->mru);
-		err = 0;
-		break;
-
-	case PPPIOCGFLAGS:
-		err = -EFAULT;
-		if (put_user(ps->flags, (int __user *) arg))
-			break;
-
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get flags=%d\n",
-			  session->name, ps->flags);
-		err = 0;
-		break;
-
 	case PPPIOCSFLAGS:
 		err = -EFAULT;
-		if (get_user(val, (int __user *) arg))
+		if (get_user(val, (int __user *)arg))
 			break;
-		ps->flags = val;
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: set flags=%d\n",
-			  session->name, ps->flags);
 		err = 0;
 		break;
 
@@ -1227,13 +1139,18 @@ static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
 				l2tp_session_get(sock_net(sk), tunnel,
 						 stats.session_id);
 
-			if (session && session->pwtype == L2TP_PWTYPE_PPP) {
-				err = pppol2tp_session_ioctl(session, cmd,
-							     arg);
-				l2tp_session_dec_refcount(session);
-			} else {
+			if (!session) {
 				err = -EBADR;
+				break;
 			}
+			if (session->pwtype != L2TP_PWTYPE_PPP) {
+				l2tp_session_dec_refcount(session);
+				err = -EBADR;
+				break;
+			}
+
+			err = pppol2tp_session_ioctl(session, cmd, arg);
+			l2tp_session_dec_refcount(session);
 			break;
 		}
 #ifdef CONFIG_XFRM
@@ -1743,8 +1660,7 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   tunnel->peer_tunnel_id,
 		   session->peer_session_id,
 		   state, user_data_ok);
-	seq_printf(m, "   %d/%d/%c/%c/%s %08x %u\n",
-		   session->mtu, session->mru,
+	seq_printf(m, "   0/0/%c/%c/%s %08x %u\n",
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
 		   session->lns_mode ? "LNS" : "LAC",

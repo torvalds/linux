@@ -320,8 +320,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 		if (addr->sin_addr.s_addr == htonl(INADDR_ANY))
 			chk_addr_ret = RTN_LOCAL;
 
-		if ((net->ipv4.sysctl_ip_nonlocal_bind == 0 &&
-		    isk->freebind == 0 && isk->transparent == 0 &&
+		if ((!inet_can_nonlocal_bind(net, isk) &&
 		     chk_addr_ret != RTN_LOCAL) ||
 		    chk_addr_ret == RTN_MULTICAST ||
 		    chk_addr_ret == RTN_BROADCAST)
@@ -361,8 +360,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 						    scoped);
 		rcu_read_unlock();
 
-		if (!(net->ipv6.sysctl.ip_nonlocal_bind ||
-		      isk->freebind || isk->transparent || has_addr ||
+		if (!(ipv6_can_nonlocal_bind(net, isk) || has_addr ||
 		      addr_type == IPV6_ADDR_ANY))
 			return -EADDRNOTAVAIL;
 

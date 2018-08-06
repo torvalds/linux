@@ -1465,7 +1465,9 @@ static bool check_conflicting_actions(u32 action1, u32 action2)
 			     MLX5_FLOW_CONTEXT_ACTION_DECAP |
 			     MLX5_FLOW_CONTEXT_ACTION_MOD_HDR  |
 			     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP |
-			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH))
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH |
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2 |
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2))
 		return true;
 
 	return false;
@@ -1824,7 +1826,7 @@ search_again_locked:
 
 	g = alloc_auto_flow_group(ft, spec);
 	if (IS_ERR(g)) {
-		rule = (void *)g;
+		rule = ERR_CAST(g);
 		up_write_ref_node(&ft->node);
 		return rule;
 	}
@@ -1887,7 +1889,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 	if (flow_act->action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		if (!fwd_next_prio_supported(ft))
 			return ERR_PTR(-EOPNOTSUPP);
-		if (dest)
+		if (dest_num)
 			return ERR_PTR(-EINVAL);
 		mutex_lock(&root->chain_lock);
 		next_ft = find_next_chained_ft(prio);

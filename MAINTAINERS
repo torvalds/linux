@@ -581,7 +581,7 @@ W:	https://www.infradead.org/~dhowells/kafs/
 
 AGPGART DRIVER
 M:	David Airlie <airlied@linux.ie>
-T:	git git://people.freedesktop.org/~airlied/linux (part of drm maint)
+T:	git git://anongit.freedesktop.org/drm/drm
 S:	Maintained
 F:	drivers/char/agp/
 F:	include/linux/agp*
@@ -2523,7 +2523,7 @@ S:	Supported
 F:	drivers/scsi/esas2r
 
 ATUSB IEEE 802.15.4 RADIO DRIVER
-M:	Stefan Schmidt <stefan@osg.samsung.com>
+M:	Stefan Schmidt <stefan@datenfreihafen.org>
 L:	linux-wpan@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ieee802154/atusb.c
@@ -4460,6 +4460,7 @@ F:	Documentation/blockdev/drbd/
 
 DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+R:	"Rafael J. Wysocki" <rafael@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
 S:	Supported
 F:	Documentation/kobject.txt
@@ -4630,7 +4631,7 @@ F:	include/uapi/drm/vmwgfx_drm.h
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
 L:	dri-devel@lists.freedesktop.org
-T:	git git://people.freedesktop.org/~airlied/linux
+T:	git git://anongit.freedesktop.org/drm/drm
 B:	https://bugs.freedesktop.org/
 C:	irc://chat.freenode.net/dri-devel
 S:	Maintained
@@ -5443,6 +5444,7 @@ F:	drivers/iommu/exynos-iommu.c
 
 EZchip NPS platform support
 M:	Vineet Gupta <vgupta@synopsys.com>
+M:	Ofer Levi <oferle@mellanox.com>
 S:	Supported
 F:	arch/arc/plat-eznps
 F:	arch/arc/boot/dts/eznps.dts
@@ -5789,7 +5791,6 @@ F:	include/linux/fsl/
 
 FREESCALE SOC FS_ENET DRIVER
 M:	Pantelis Antoniou <pantelis.antoniou@gmail.com>
-M:	Vitaly Bordug <vbordug@ru.mvista.com>
 L:	linuxppc-dev@lists.ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -6908,7 +6909,7 @@ F:	drivers/clk/clk-versaclock5.c
 
 IEEE 802.15.4 SUBSYSTEM
 M:	Alexander Aring <alex.aring@gmail.com>
-M:	Stefan Schmidt <stefan@osg.samsung.com>
+M:	Stefan Schmidt <stefan@datenfreihafen.org>
 L:	linux-wpan@vger.kernel.org
 W:	http://wpan.cakelab.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan.git
@@ -7095,6 +7096,7 @@ F:	include/uapi/linux/input.h
 F:	include/uapi/linux/input-event-codes.h
 F:	include/linux/input/
 F:	Documentation/devicetree/bindings/input/
+F:	Documentation/devicetree/bindings/serio/
 F:	Documentation/input/
 
 INPUT MULTITOUCH (MT) PROTOCOL
@@ -7984,7 +7986,7 @@ F:	lib/test_kmod.c
 F:	tools/testing/selftests/kmod/
 
 KPROBES
-M:	Ananth N Mavinakayanahalli <ananth@linux.vnet.ibm.com>
+M:	Naveen N. Rao <naveen.n.rao@linux.vnet.ibm.com>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Masami Hiramatsu <mhiramat@kernel.org>
@@ -8628,7 +8630,7 @@ MARVELL MWIFIEX WIRELESS DRIVER
 M:	Amitkumar Karwar <amitkarwar@gmail.com>
 M:	Nishant Sarmukadam <nishants@marvell.com>
 M:	Ganapathi Bhat <gbhat@marvell.com>
-M:	Xinming Hu <huxm@marvell.com>
+M:	Xinming Hu <huxinming820@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/marvell/mwifiex/
@@ -9074,7 +9076,7 @@ S:	Maintained
 F:	drivers/usb/mtu3/
 
 MEGACHIPS STDPXXXX-GE-B850V3-FW LVDS/DP++ BRIDGES
-M:	Peter Senna Tschudin <peter.senna@collabora.com>
+M:	Peter Senna Tschudin <peter.senna@gmail.com>
 M:	Martin Donnelly <martin.donnelly@ge.com>
 M:	Martyn Welch <martyn.welch@collabora.co.uk>
 S:	Maintained
@@ -10214,11 +10216,13 @@ F:	sound/soc/codecs/sgtl5000*
 
 NXP TDA998X DRM DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Supported
+S:	Maintained
 T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-tda998x-devel
 T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-tda998x-fixes
 F:	drivers/gpu/drm/i2c/tda998x_drv.c
 F:	include/drm/i2c/tda998x.h
+F:	include/dt-bindings/display/tda998x.h
+K:	"nxp,tda998x"
 
 NXP TFA9879 DRIVER
 M:	Peter Rosin <peda@axentia.se>
@@ -11836,7 +11840,7 @@ S:	Supported
 F:	arch/hexagon/
 
 QUALCOMM HIDMA DRIVER
-M:	Sinan Kaya <okaya@codeaurora.org>
+M:	Sinan Kaya <okaya@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-arm-msm@vger.kernel.org
 L:	dmaengine@vger.kernel.org
@@ -12062,6 +12066,13 @@ M:	Oder Chiou <oder_chiou@realtek.com>
 S:	Maintained
 F:	sound/soc/codecs/rt*
 F:	include/sound/rt*.h
+
+REALTEK RTL83xx SMI DSA ROUTER CHIPS
+M:	Linus Walleij <linus.walleij@linaro.org>
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/dsa/realtek-smi.txt
+F:	drivers/net/dsa/realtek-smi*
+F:	drivers/net/dsa/rtl83*
 
 REGISTER MAP ABSTRACTION
 M:	Mark Brown <broonie@kernel.org>

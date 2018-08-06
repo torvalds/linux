@@ -250,58 +250,13 @@ static const char *const af_family_kern_clock_key_strings[AF_MAX+1] = {
 	_sock_locks("k-clock-")
 };
 static const char *const af_family_rlock_key_strings[AF_MAX+1] = {
-  "rlock-AF_UNSPEC", "rlock-AF_UNIX"     , "rlock-AF_INET"     ,
-  "rlock-AF_AX25"  , "rlock-AF_IPX"      , "rlock-AF_APPLETALK",
-  "rlock-AF_NETROM", "rlock-AF_BRIDGE"   , "rlock-AF_ATMPVC"   ,
-  "rlock-AF_X25"   , "rlock-AF_INET6"    , "rlock-AF_ROSE"     ,
-  "rlock-AF_DECnet", "rlock-AF_NETBEUI"  , "rlock-AF_SECURITY" ,
-  "rlock-AF_KEY"   , "rlock-AF_NETLINK"  , "rlock-AF_PACKET"   ,
-  "rlock-AF_ASH"   , "rlock-AF_ECONET"   , "rlock-AF_ATMSVC"   ,
-  "rlock-AF_RDS"   , "rlock-AF_SNA"      , "rlock-AF_IRDA"     ,
-  "rlock-AF_PPPOX" , "rlock-AF_WANPIPE"  , "rlock-AF_LLC"      ,
-  "rlock-27"       , "rlock-28"          , "rlock-AF_CAN"      ,
-  "rlock-AF_TIPC"  , "rlock-AF_BLUETOOTH", "rlock-AF_IUCV"     ,
-  "rlock-AF_RXRPC" , "rlock-AF_ISDN"     , "rlock-AF_PHONET"   ,
-  "rlock-AF_IEEE802154", "rlock-AF_CAIF" , "rlock-AF_ALG"      ,
-  "rlock-AF_NFC"   , "rlock-AF_VSOCK"    , "rlock-AF_KCM"      ,
-  "rlock-AF_QIPCRTR", "rlock-AF_SMC"     , "rlock-AF_XDP"      ,
-  "rlock-AF_MAX"
+	_sock_locks("rlock-")
 };
 static const char *const af_family_wlock_key_strings[AF_MAX+1] = {
-  "wlock-AF_UNSPEC", "wlock-AF_UNIX"     , "wlock-AF_INET"     ,
-  "wlock-AF_AX25"  , "wlock-AF_IPX"      , "wlock-AF_APPLETALK",
-  "wlock-AF_NETROM", "wlock-AF_BRIDGE"   , "wlock-AF_ATMPVC"   ,
-  "wlock-AF_X25"   , "wlock-AF_INET6"    , "wlock-AF_ROSE"     ,
-  "wlock-AF_DECnet", "wlock-AF_NETBEUI"  , "wlock-AF_SECURITY" ,
-  "wlock-AF_KEY"   , "wlock-AF_NETLINK"  , "wlock-AF_PACKET"   ,
-  "wlock-AF_ASH"   , "wlock-AF_ECONET"   , "wlock-AF_ATMSVC"   ,
-  "wlock-AF_RDS"   , "wlock-AF_SNA"      , "wlock-AF_IRDA"     ,
-  "wlock-AF_PPPOX" , "wlock-AF_WANPIPE"  , "wlock-AF_LLC"      ,
-  "wlock-27"       , "wlock-28"          , "wlock-AF_CAN"      ,
-  "wlock-AF_TIPC"  , "wlock-AF_BLUETOOTH", "wlock-AF_IUCV"     ,
-  "wlock-AF_RXRPC" , "wlock-AF_ISDN"     , "wlock-AF_PHONET"   ,
-  "wlock-AF_IEEE802154", "wlock-AF_CAIF" , "wlock-AF_ALG"      ,
-  "wlock-AF_NFC"   , "wlock-AF_VSOCK"    , "wlock-AF_KCM"      ,
-  "wlock-AF_QIPCRTR", "wlock-AF_SMC"     , "wlock-AF_XDP"      ,
-  "wlock-AF_MAX"
+	_sock_locks("wlock-")
 };
 static const char *const af_family_elock_key_strings[AF_MAX+1] = {
-  "elock-AF_UNSPEC", "elock-AF_UNIX"     , "elock-AF_INET"     ,
-  "elock-AF_AX25"  , "elock-AF_IPX"      , "elock-AF_APPLETALK",
-  "elock-AF_NETROM", "elock-AF_BRIDGE"   , "elock-AF_ATMPVC"   ,
-  "elock-AF_X25"   , "elock-AF_INET6"    , "elock-AF_ROSE"     ,
-  "elock-AF_DECnet", "elock-AF_NETBEUI"  , "elock-AF_SECURITY" ,
-  "elock-AF_KEY"   , "elock-AF_NETLINK"  , "elock-AF_PACKET"   ,
-  "elock-AF_ASH"   , "elock-AF_ECONET"   , "elock-AF_ATMSVC"   ,
-  "elock-AF_RDS"   , "elock-AF_SNA"      , "elock-AF_IRDA"     ,
-  "elock-AF_PPPOX" , "elock-AF_WANPIPE"  , "elock-AF_LLC"      ,
-  "elock-27"       , "elock-28"          , "elock-AF_CAN"      ,
-  "elock-AF_TIPC"  , "elock-AF_BLUETOOTH", "elock-AF_IUCV"     ,
-  "elock-AF_RXRPC" , "elock-AF_ISDN"     , "elock-AF_PHONET"   ,
-  "elock-AF_IEEE802154", "elock-AF_CAIF" , "elock-AF_ALG"      ,
-  "elock-AF_NFC"   , "elock-AF_VSOCK"    , "elock-AF_KCM"      ,
-  "elock-AF_QIPCRTR", "elock-AF_SMC"     , "elock-AF_XDP"      ,
-  "elock-AF_MAX"
+	_sock_locks("elock-")
 };
 
 /*
@@ -2316,9 +2271,9 @@ int sk_alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
 		pfrag->offset += use;
 
 		sge = sg + sg_curr - 1;
-		if (sg_curr > first_coalesce && sg_page(sg) == pfrag->page &&
-		    sg->offset + sg->length == orig_offset) {
-			sg->length += use;
+		if (sg_curr > first_coalesce && sg_page(sge) == pfrag->page &&
+		    sge->offset + sge->length == orig_offset) {
+			sge->length += use;
 		} else {
 			sge = sg + sg_curr;
 			sg_unmark_end(sge);

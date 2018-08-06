@@ -408,8 +408,6 @@ EXPORT_SYMBOL_GPL(strp_data_ready);
 
 static void do_strp_work(struct strparser *strp)
 {
-	read_descriptor_t rd_desc;
-
 	/* We need the read lock to synchronize with strp_data_ready. We
 	 * need the socket lock for calling strp_read_sock.
 	 */
@@ -420,8 +418,6 @@ static void do_strp_work(struct strparser *strp)
 
 	if (strp->paused)
 		goto out;
-
-	rd_desc.arg.data = strp;
 
 	if (strp_read_sock(strp) == -ENOMEM)
 		queue_work(strp_wq, &strp->work);

@@ -64,7 +64,8 @@ int mlxsw_sp_acl_tcam_priority_get(struct mlxsw_sp *mlxsw_sp,
 struct mlxsw_sp_acl_profile_ops {
 	size_t ruleset_priv_size;
 	int (*ruleset_add)(struct mlxsw_sp *mlxsw_sp,
-			   struct mlxsw_sp_acl_tcam *tcam, void *ruleset_priv);
+			   struct mlxsw_sp_acl_tcam *tcam, void *ruleset_priv,
+			   struct mlxsw_afk_element_usage *tmplt_elusage);
 	void (*ruleset_del)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
 	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 			    struct mlxsw_sp_port *mlxsw_sp_port,
@@ -91,6 +92,9 @@ mlxsw_sp_acl_tcam_profile_ops(struct mlxsw_sp *mlxsw_sp,
 
 #define MLXSW_SP_ACL_TCAM_CATCHALL_PRIO (~0U)
 
+#define MLXSW_SP_ACL_TCAM_MASK_LEN \
+	(MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN * BITS_PER_BYTE)
+
 struct mlxsw_sp_acl_tcam_group;
 
 struct mlxsw_sp_acl_tcam_region {
@@ -108,6 +112,7 @@ struct mlxsw_sp_acl_tcam_region {
 
 struct mlxsw_sp_acl_ctcam_region {
 	struct parman *parman;
+	const struct mlxsw_sp_acl_ctcam_region_ops *ops;
 	struct mlxsw_sp_acl_tcam_region *region;
 };
 
@@ -119,9 +124,19 @@ struct mlxsw_sp_acl_ctcam_entry {
 	struct parman_item parman_item;
 };
 
-int mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_ctcam_region *cregion,
-				   struct mlxsw_sp_acl_tcam_region *region);
+struct mlxsw_sp_acl_ctcam_region_ops {
+	int (*entry_insert)(struct mlxsw_sp_acl_ctcam_region *cregion,
+			    struct mlxsw_sp_acl_ctcam_entry *centry,
+			    const char *mask);
+	void (*entry_remove)(struct mlxsw_sp_acl_ctcam_region *cregion,
+			     struct mlxsw_sp_acl_ctcam_entry *centry);
+};
+
+int
+mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_ctcam_region *cregion,
+			       struct mlxsw_sp_acl_tcam_region *region,
+			       const struct mlxsw_sp_acl_ctcam_region_ops *ops);
 void mlxsw_sp_acl_ctcam_region_fini(struct mlxsw_sp_acl_ctcam_region *cregion);
 void mlxsw_sp_acl_ctcam_chunk_init(struct mlxsw_sp_acl_ctcam_region *cregion,
 				   struct mlxsw_sp_acl_ctcam_chunk *cchunk,
@@ -142,5 +157,103 @@ mlxsw_sp_acl_ctcam_entry_offset(struct mlxsw_sp_acl_ctcam_entry *centry)
 {
 	return centry->parman_item.index;
 }
+
+enum mlxsw_sp_acl_atcam_region_type {
+	MLXSW_SP_ACL_ATCAM_REGION_TYPE_2KB,
+	MLXSW_SP_ACL_ATCAM_REGION_TYPE_4KB,
+	MLXSW_SP_ACL_ATCAM_REGION_TYPE_8KB,
+	MLXSW_SP_ACL_ATCAM_REGION_TYPE_12KB,
+	__MLXSW_SP_ACL_ATCAM_REGION_TYPE_MAX,
+};
+
+#define MLXSW_SP_ACL_ATCAM_REGION_TYPE_MAX \
+	(__MLXSW_SP_ACL_ATCAM_REGION_TYPE_MAX - 1)
+
+struct mlxsw_sp_acl_atcam {
+	struct mlxsw_sp_acl_erp_core *erp_core;
+};
+
+struct mlxsw_sp_acl_atcam_region {
+	struct rhashtable entries_ht; /* A-TCAM only */
+	struct mlxsw_sp_acl_ctcam_region cregion;
+	const struct mlxsw_sp_acl_atcam_region_ops *ops;
+	struct mlxsw_sp_acl_tcam_region *region;
+	struct mlxsw_sp_acl_atcam *atcam;
+	enum mlxsw_sp_acl_atcam_region_type type;
+	struct mlxsw_sp_acl_erp_table *erp_table;
+	void *priv;
+};
+
+struct mlxsw_sp_acl_atcam_entry_ht_key {
+	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key */
+	u8 erp_id;
+};
+
+struct mlxsw_sp_acl_atcam_chunk {
+	struct mlxsw_sp_acl_ctcam_chunk cchunk;
+};
+
+struct mlxsw_sp_acl_atcam_entry {
+	struct rhash_head ht_node;
+	struct mlxsw_sp_acl_atcam_entry_ht_key ht_key;
+	struct mlxsw_sp_acl_ctcam_entry centry;
+	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id;
+	struct mlxsw_sp_acl_erp *erp;
+};
+
+static inline struct mlxsw_sp_acl_atcam_region *
+mlxsw_sp_acl_tcam_cregion_aregion(struct mlxsw_sp_acl_ctcam_region *cregion)
+{
+	return container_of(cregion, struct mlxsw_sp_acl_atcam_region, cregion);
+}
+
+static inline struct mlxsw_sp_acl_atcam_entry *
+mlxsw_sp_acl_tcam_centry_aentry(struct mlxsw_sp_acl_ctcam_entry *centry)
+{
+	return container_of(centry, struct mlxsw_sp_acl_atcam_entry, centry);
+}
+
+int mlxsw_sp_acl_atcam_region_associate(struct mlxsw_sp *mlxsw_sp,
+					u16 region_id);
+int
+mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_atcam *atcam,
+			       struct mlxsw_sp_acl_atcam_region *aregion,
+			       struct mlxsw_sp_acl_tcam_region *region,
+			       const struct mlxsw_sp_acl_ctcam_region_ops *ops);
+void mlxsw_sp_acl_atcam_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
+void mlxsw_sp_acl_atcam_chunk_init(struct mlxsw_sp_acl_atcam_region *aregion,
+				   struct mlxsw_sp_acl_atcam_chunk *achunk,
+				   unsigned int priority);
+void mlxsw_sp_acl_atcam_chunk_fini(struct mlxsw_sp_acl_atcam_chunk *achunk);
+int mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_atcam_region *aregion,
+				 struct mlxsw_sp_acl_atcam_chunk *achunk,
+				 struct mlxsw_sp_acl_atcam_entry *aentry,
+				 struct mlxsw_sp_acl_rule_info *rulei);
+void mlxsw_sp_acl_atcam_entry_del(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_atcam_region *aregion,
+				  struct mlxsw_sp_acl_atcam_chunk *achunk,
+				  struct mlxsw_sp_acl_atcam_entry *aentry);
+int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_atcam *atcam);
+void mlxsw_sp_acl_atcam_fini(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_acl_atcam *atcam);
+
+struct mlxsw_sp_acl_erp;
+
+bool mlxsw_sp_acl_erp_is_ctcam_erp(const struct mlxsw_sp_acl_erp *erp);
+u8 mlxsw_sp_acl_erp_id(const struct mlxsw_sp_acl_erp *erp);
+struct mlxsw_sp_acl_erp *
+mlxsw_sp_acl_erp_get(struct mlxsw_sp_acl_atcam_region *aregion,
+		     const char *mask, bool ctcam);
+void mlxsw_sp_acl_erp_put(struct mlxsw_sp_acl_atcam_region *aregion,
+			  struct mlxsw_sp_acl_erp *erp);
+int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion);
+void mlxsw_sp_acl_erp_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
+int mlxsw_sp_acl_erps_init(struct mlxsw_sp *mlxsw_sp,
+			   struct mlxsw_sp_acl_atcam *atcam);
+void mlxsw_sp_acl_erps_fini(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_atcam *atcam);
 
 #endif

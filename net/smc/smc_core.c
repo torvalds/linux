@@ -30,6 +30,7 @@
 #define SMC_LGR_NUM_INCR		256
 #define SMC_LGR_FREE_DELAY_SERV		(600 * HZ)
 #define SMC_LGR_FREE_DELAY_CLNT		(SMC_LGR_FREE_DELAY_SERV + 10 * HZ)
+#define SMC_LGR_FREE_DELAY_FAST		(8 * HZ)
 
 static struct smc_lgr_list smc_lgr_list = {	/* established link groups */
 	.lock = __SPIN_LOCK_UNLOCKED(smc_lgr_list.lock),
@@ -49,6 +50,11 @@ static void smc_lgr_schedule_free_work(struct smc_link_group *lgr)
 	mod_delayed_work(system_wq, &lgr->free_work,
 			 (!lgr->is_smcd && lgr->role == SMC_CLNT) ?
 			 SMC_LGR_FREE_DELAY_CLNT : SMC_LGR_FREE_DELAY_SERV);
+}
+
+void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr)
+{
+	mod_delayed_work(system_wq, &lgr->free_work, SMC_LGR_FREE_DELAY_FAST);
 }
 
 /* Register connection's alert token in our lookup structure.
@@ -133,6 +139,20 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 	smc_lgr_schedule_free_work(lgr);
 }
 
+/* Send delete link, either as client to request the initiation
+ * of the DELETE LINK sequence from server; or as server to
+ * initiate the delete processing. See smc_llc_rx_delete_link().
+ */
+static int smc_link_send_delete(struct smc_link *lnk)
+{
+	if (lnk->state == SMC_LNK_ACTIVE &&
+	    !smc_llc_send_delete_link(lnk, SMC_LLC_REQ, true)) {
+		smc_llc_link_deleting(lnk);
+		return 0;
+	}
+	return -ENOTCONN;
+}
+
 static void smc_lgr_free_work(struct work_struct *work)
 {
 	struct smc_link_group *lgr = container_of(to_delayed_work(work),
@@ -153,10 +173,21 @@ static void smc_lgr_free_work(struct work_struct *work)
 	list_del_init(&lgr->list); /* remove from smc_lgr_list */
 free:
 	spin_unlock_bh(&smc_lgr_list.lock);
+
+	if (!lgr->is_smcd && !lgr->terminating)	{
+		/* try to send del link msg, on error free lgr immediately */
+		if (!smc_link_send_delete(&lgr->lnk[SMC_SINGLE_LINK])) {
+			/* reschedule in case we never receive a response */
+			smc_lgr_schedule_free_work(lgr);
+			return;
+		}
+	}
+
 	if (!delayed_work_pending(&lgr->free_work)) {
-		if (!lgr->is_smcd &&
-		    lgr->lnk[SMC_SINGLE_LINK].state != SMC_LNK_INACTIVE)
-			smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
+		struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
+
+		if (!lgr->is_smcd && lnk->state != SMC_LNK_INACTIVE)
+			smc_llc_link_inactive(lnk);
 		smc_lgr_free(lgr);
 	}
 }
@@ -219,6 +250,10 @@ static int smc_lgr_create(struct smc_sock *smc, bool is_smcd,
 		get_random_bytes(rndvec, sizeof(rndvec));
 		lnk->psn_initial = rndvec[0] + (rndvec[1] << 8) +
 			(rndvec[2] << 16);
+		rc = smc_ib_determine_gid(lnk->smcibdev, lnk->ibport,
+					  vlan_id, lnk->gid, &lnk->sgid_index);
+		if (rc)
+			goto free_lgr;
 		rc = smc_llc_link_init(lnk);
 		if (rc)
 			goto free_lgr;
@@ -522,37 +557,6 @@ out:
 	return rc;
 }
 
-/* determine the link gid matching the vlan id of the link group */
-static int smc_link_determine_gid(struct smc_link_group *lgr)
-{
-	struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
-	struct ib_gid_attr gattr;
-	union ib_gid gid;
-	int i;
-
-	if (!lgr->vlan_id) {
-		lnk->gid = lnk->smcibdev->gid[lnk->ibport - 1];
-		return 0;
-	}
-
-	for (i = 0; i < lnk->smcibdev->pattr[lnk->ibport - 1].gid_tbl_len;
-	     i++) {
-		if (ib_query_gid(lnk->smcibdev->ibdev, lnk->ibport, i, &gid,
-				 &gattr))
-			continue;
-		if (gattr.ndev) {
-			if (is_vlan_dev(gattr.ndev) &&
-			    vlan_dev_vlan_id(gattr.ndev) == lgr->vlan_id) {
-				lnk->gid = gid;
-				dev_put(gattr.ndev);
-				return 0;
-			}
-			dev_put(gattr.ndev);
-		}
-	}
-	return -ENODEV;
-}
-
 static bool smcr_lgr_match(struct smc_link_group *lgr,
 			   struct smc_clc_msg_local *lcl,
 			   enum smc_lgr_role role)
@@ -631,8 +635,6 @@ create:
 		if (rc)
 			goto out;
 		smc_lgr_register_conn(conn); /* add smc conn to lgr */
-		if (!is_smcd)
-			rc = smc_link_determine_gid(conn->lgr);
 	}
 	conn->local_tx_ctrl.common.type = SMC_CDC_MSG_TYPE;
 	conn->local_tx_ctrl.len = SMC_WR_TX_SIZE;
@@ -1013,8 +1015,14 @@ void smc_core_exit(void)
 	spin_unlock_bh(&smc_lgr_list.lock);
 	list_for_each_entry_safe(lgr, lg, &lgr_freeing_list, list) {
 		list_del_init(&lgr->list);
-		if (!lgr->is_smcd)
-			smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
+		if (!lgr->is_smcd) {
+			struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
+
+			if (lnk->state == SMC_LNK_ACTIVE)
+				smc_llc_send_delete_link(lnk, SMC_LLC_REQ,
+							 false);
+			smc_llc_link_inactive(lnk);
+		}
 		cancel_delayed_work_sync(&lgr->free_work);
 		smc_lgr_free(lgr); /* free link group */
 	}

@@ -41,9 +41,9 @@ static DEFINE_PER_CPU(struct rnd_state, nft_prandom_state);
 #include "../bridge/br_private.h"
 #endif
 
-static void nft_meta_get_eval(const struct nft_expr *expr,
-			      struct nft_regs *regs,
-			      const struct nft_pktinfo *pkt)
+void nft_meta_get_eval(const struct nft_expr *expr,
+		       struct nft_regs *regs,
+		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;

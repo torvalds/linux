@@ -308,9 +308,14 @@ struct gro_list {
 };
 
 /*
- * Structure for NAPI scheduling similar to tasklet but with weighting
+ * size of gro hash buckets, must less than bit number of
+ * napi_struct::gro_bitmask
  */
 #define GRO_HASH_BUCKETS	8
+
+/*
+ * Structure for NAPI scheduling similar to tasklet but with weighting
+ */
 struct napi_struct {
 	/* The poll_list must only be managed by the entity which
 	 * changes the state of the NAPI_STATE_SCHED bit.  This means
@@ -322,7 +327,7 @@ struct napi_struct {
 
 	unsigned long		state;
 	int			weight;
-	unsigned int		gro_count;
+	unsigned long		gro_bitmask;
 	int			(*poll)(struct napi_struct *, int);
 #ifdef CONFIG_NETPOLL
 	int			poll_owner;
@@ -823,11 +828,8 @@ enum bpf_netdev_command {
 	 */
 	XDP_SETUP_PROG,
 	XDP_SETUP_PROG_HW,
-	/* Check if a bpf program is set on the device.  The callee should
-	 * set @prog_attached to one of XDP_ATTACHED_* values, note that "true"
-	 * is equivalent to XDP_ATTACHED_DRV.
-	 */
 	XDP_QUERY_PROG,
+	XDP_QUERY_PROG_HW,
 	/* BPF program for offload callbacks, invoked at program load time. */
 	BPF_OFFLOAD_VERIFIER_PREP,
 	BPF_OFFLOAD_TRANSLATE,
@@ -851,9 +853,8 @@ struct netdev_bpf {
 			struct bpf_prog *prog;
 			struct netlink_ext_ack *extack;
 		};
-		/* XDP_QUERY_PROG */
+		/* XDP_QUERY_PROG, XDP_QUERY_PROG_HW */
 		struct {
-			u8 prog_attached;
 			u32 prog_id;
 			/* flags with which program was installed */
 			u32 prog_flags;
@@ -871,10 +872,10 @@ struct netdev_bpf {
 		struct {
 			struct bpf_offloaded_map *offmap;
 		};
-		/* XDP_SETUP_XSK_UMEM */
+		/* XDP_QUERY_XSK_UMEM, XDP_SETUP_XSK_UMEM */
 		struct {
-			struct xdp_umem *umem;
-			u16 queue_id;
+			struct xdp_umem *umem; /* out for query*/
+			u16 queue_id; /* in for query */
 		} xsk;
 	};
 };
@@ -907,6 +908,8 @@ struct tlsdev_ops {
 	void (*tls_dev_del)(struct net_device *netdev,
 			    struct tls_context *ctx,
 			    enum tls_offload_ctx_dir direction);
+	void (*tls_dev_resync_rx)(struct net_device *netdev,
+				  struct sock *sk, u32 seq, u64 rcd_sn);
 };
 #endif
 
@@ -3428,8 +3431,9 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq);
 int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq);
 #else
 static inline int netif_set_real_num_rx_queues(struct net_device *dev,
-						unsigned int rxq)
+						unsigned int rxqs)
 {
+	dev->real_num_rx_queues = rxqs;
 	return 0;
 }
 #endif
@@ -3543,6 +3547,8 @@ int dev_set_alias(struct net_device *, const char *, size_t);
 int dev_get_alias(const struct net_device *, char *, size_t);
 int dev_change_net_namespace(struct net_device *, struct net *, const char *);
 int __dev_set_mtu(struct net_device *, int);
+int dev_set_mtu_ext(struct net_device *dev, int mtu,
+		    struct netlink_ext_ack *extack);
 int dev_set_mtu(struct net_device *, int);
 int dev_change_tx_queue_len(struct net_device *, unsigned long);
 void dev_set_group(struct net_device *, int);
@@ -3560,8 +3566,9 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 typedef int (*bpf_op_t)(struct net_device *dev, struct netdev_bpf *bpf);
 int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		      int fd, u32 flags);
-void __dev_xdp_query(struct net_device *dev, bpf_op_t xdp_op,
-		     struct netdev_bpf *xdp);
+u32 __dev_xdp_query(struct net_device *dev, bpf_op_t xdp_op,
+		    enum bpf_netdev_command cmd);
+int xdp_umem_query(struct net_device *dev, u16 queue_id);
 
 int __dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
 int dev_forward_skb(struct net_device *dev, struct sk_buff *skb);

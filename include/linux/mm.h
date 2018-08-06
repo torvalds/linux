@@ -155,7 +155,9 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
  * mmap() functions).
  */
 
-extern struct kmem_cache *vm_area_cachep;
+struct vm_area_struct *vm_area_alloc(struct mm_struct *);
+struct vm_area_struct *vm_area_dup(struct vm_area_struct *);
+void vm_area_free(struct vm_area_struct *);
 
 #ifndef CONFIG_MMU
 extern struct rb_root nommu_region_tree;
@@ -449,6 +451,23 @@ struct vm_operations_struct {
 	struct page *(*find_special_page)(struct vm_area_struct *vma,
 					  unsigned long addr);
 };
+
+static inline void vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
+{
+	static const struct vm_operations_struct dummy_vm_ops = {};
+
+	vma->vm_mm = mm;
+	vma->vm_ops = &dummy_vm_ops;
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
+}
+
+static inline void vma_set_anonymous(struct vm_area_struct *vma)
+{
+	vma->vm_ops = NULL;
+}
+
+/* flush_tlb_range() takes a vma, not a mm, and can care about flags */
+#define TLB_FLUSH_VMA(mm,flags) { .vm_mm = (mm), .vm_flags = (flags) }
 
 struct mmu_gather;
 struct inode;
@@ -2132,7 +2151,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
 					struct mminit_pfnnid_cache *state);
 #endif
 
-#ifdef CONFIG_HAVE_MEMBLOCK
+#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
 void zero_resv_unavail(void);
 #else
 static inline void zero_resv_unavail(void) {}

@@ -69,13 +69,15 @@ mlxsw_sp_acl_ctcam_region_move(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_acl_tcam_region *region,
-				       unsigned int offset,
+				       struct mlxsw_sp_acl_ctcam_region *cregion,
+				       struct mlxsw_sp_acl_ctcam_entry *centry,
 				       struct mlxsw_sp_acl_rule_info *rulei,
 				       bool fillup_priority)
 {
+	struct mlxsw_sp_acl_tcam_region *region = cregion->region;
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
 	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
+	unsigned int blocks_count;
 	char *act_set;
 	u32 priority;
 	char *mask;
@@ -88,10 +90,17 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 		return err;
 
 	mlxsw_reg_ptce2_pack(ptce2_pl, true, MLXSW_REG_PTCE2_OP_WRITE_WRITE,
-			     region->tcam_region_info, offset, priority);
+			     region->tcam_region_info,
+			     centry->parman_item.index, priority);
 	key = mlxsw_reg_ptce2_flex_key_blocks_data(ptce2_pl);
 	mask = mlxsw_reg_ptce2_mask_data(ptce2_pl);
-	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask);
+	blocks_count = mlxsw_afk_key_info_blocks_count_get(region->key_info);
+	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask, 0,
+			 blocks_count - 1);
+
+	err = cregion->ops->entry_insert(cregion, centry, mask);
+	if (err)
+		return err;
 
 	/* Only the first action set belongs here, the rest is in KVD */
 	act_set = mlxsw_afa_block_first_set(rulei->act_block);
@@ -102,14 +111,16 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 
 static void
 mlxsw_sp_acl_ctcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_acl_tcam_region *region,
-				       unsigned int offset)
+				       struct mlxsw_sp_acl_ctcam_region *cregion,
+				       struct mlxsw_sp_acl_ctcam_entry *centry)
 {
 	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
 
 	mlxsw_reg_ptce2_pack(ptce2_pl, false, MLXSW_REG_PTCE2_OP_WRITE_WRITE,
-			     region->tcam_region_info, offset, 0);
+			     cregion->region->tcam_region_info,
+			     centry->parman_item.index, 0);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
+	cregion->ops->entry_remove(cregion, centry);
 }
 
 static int mlxsw_sp_acl_ctcam_region_parman_resize(void *priv,
@@ -147,11 +158,14 @@ static const struct parman_ops mlxsw_sp_acl_ctcam_region_parman_ops = {
 	.algo		= PARMAN_ALGO_TYPE_LSORT,
 };
 
-int mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_ctcam_region *cregion,
-				   struct mlxsw_sp_acl_tcam_region *region)
+int
+mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_ctcam_region *cregion,
+			       struct mlxsw_sp_acl_tcam_region *region,
+			       const struct mlxsw_sp_acl_ctcam_region_ops *ops)
 {
 	cregion->region = region;
+	cregion->ops = ops;
 	cregion->parman = parman_create(&mlxsw_sp_acl_ctcam_region_parman_ops,
 					cregion);
 	if (!cregion->parman)
@@ -190,8 +204,7 @@ int mlxsw_sp_acl_ctcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	err = mlxsw_sp_acl_ctcam_region_entry_insert(mlxsw_sp, cregion->region,
-						     centry->parman_item.index,
+	err = mlxsw_sp_acl_ctcam_region_entry_insert(mlxsw_sp, cregion, centry,
 						     rulei, fillup_priority);
 	if (err)
 		goto err_rule_insert;
@@ -208,8 +221,7 @@ void mlxsw_sp_acl_ctcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_ctcam_chunk *cchunk,
 				  struct mlxsw_sp_acl_ctcam_entry *centry)
 {
-	mlxsw_sp_acl_ctcam_region_entry_remove(mlxsw_sp, cregion->region,
-					       centry->parman_item.index);
+	mlxsw_sp_acl_ctcam_region_entry_remove(mlxsw_sp, cregion, centry);
 	parman_item_remove(cregion->parman, &cchunk->parman_prio,
 			   &centry->parman_item);
 }

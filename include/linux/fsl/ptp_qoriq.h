@@ -127,8 +127,12 @@ struct qoriq_ptp_registers {
 
 
 #define DRIVER		"ptp_qoriq"
-#define DEFAULT_CKSEL	1
 #define N_EXT_TS	2
+
+#define DEFAULT_CKSEL		1
+#define DEFAULT_TMR_PRSC	2
+#define DEFAULT_FIPER1_PERIOD	1000000000
+#define DEFAULT_FIPER2_PERIOD	100000
 
 struct qoriq_ptp {
 	void __iomem *base;

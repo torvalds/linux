@@ -493,6 +493,9 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 	for (q_no = srn; q_no < ern; q_no++) {
 		reg_val = octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_no));
 
+		/* clear IPTR */
+		reg_val &= ~CN23XX_PKT_OUTPUT_CTL_IPTR;
+
 		/* set DPTR */
 		reg_val |= CN23XX_PKT_OUTPUT_CTL_DPTR;
 
@@ -1412,50 +1415,6 @@ int validate_cn23xx_pf_config_info(struct octeon_device *oct,
 	}
 
 	return 0;
-}
-
-void cn23xx_dump_iq_regs(struct octeon_device *oct)
-{
-	u32 regval, q_no;
-
-	dev_dbg(&oct->pci_dev->dev, "SLI_IQ_DOORBELL_0 [0x%x]: 0x%016llx\n",
-		CN23XX_SLI_IQ_DOORBELL(0),
-		CVM_CAST64(octeon_read_csr64
-			(oct, CN23XX_SLI_IQ_DOORBELL(0))));
-
-	dev_dbg(&oct->pci_dev->dev, "SLI_IQ_BASEADDR_0 [0x%x]: 0x%016llx\n",
-		CN23XX_SLI_IQ_BASE_ADDR64(0),
-		CVM_CAST64(octeon_read_csr64
-			(oct, CN23XX_SLI_IQ_BASE_ADDR64(0))));
-
-	dev_dbg(&oct->pci_dev->dev, "SLI_IQ_FIFO_RSIZE_0 [0x%x]: 0x%016llx\n",
-		CN23XX_SLI_IQ_SIZE(0),
-		CVM_CAST64(octeon_read_csr64(oct, CN23XX_SLI_IQ_SIZE(0))));
-
-	dev_dbg(&oct->pci_dev->dev, "SLI_CTL_STATUS [0x%x]: 0x%016llx\n",
-		CN23XX_SLI_CTL_STATUS,
-		CVM_CAST64(octeon_read_csr64(oct, CN23XX_SLI_CTL_STATUS)));
-
-	for (q_no = 0; q_no < CN23XX_MAX_INPUT_QUEUES; q_no++) {
-		dev_dbg(&oct->pci_dev->dev, "SLI_PKT[%d]_INPUT_CTL [0x%x]: 0x%016llx\n",
-			q_no, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
-			CVM_CAST64(octeon_read_csr64
-				(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no))));
-	}
-
-	pci_read_config_dword(oct->pci_dev, CN23XX_CONFIG_PCIE_DEVCTL, &regval);
-	dev_dbg(&oct->pci_dev->dev, "Config DevCtl [0x%x]: 0x%08x\n",
-		CN23XX_CONFIG_PCIE_DEVCTL, regval);
-
-	dev_dbg(&oct->pci_dev->dev, "SLI_PRT[%d]_CFG [0x%llx]: 0x%016llx\n",
-		oct->pcie_port, CN23XX_DPI_SLI_PRTX_CFG(oct->pcie_port),
-		CVM_CAST64(lio_pci_readq(
-			oct, CN23XX_DPI_SLI_PRTX_CFG(oct->pcie_port))));
-
-	dev_dbg(&oct->pci_dev->dev, "SLI_S2M_PORT[%d]_CTL [0x%x]: 0x%016llx\n",
-		oct->pcie_port, CN23XX_SLI_S2M_PORTX_CTL(oct->pcie_port),
-		CVM_CAST64(octeon_read_csr64(
-			oct, CN23XX_SLI_S2M_PORTX_CTL(oct->pcie_port))));
 }
 
 int cn23xx_fw_loaded(struct octeon_device *oct)

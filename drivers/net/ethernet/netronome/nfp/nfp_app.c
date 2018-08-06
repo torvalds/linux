@@ -86,6 +86,23 @@ const char *nfp_app_mip_name(struct nfp_app *app)
 	return nfp_mip_name(app->pf->mip);
 }
 
+int nfp_app_ndo_init(struct net_device *netdev)
+{
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
+
+	if (!app || !app->type->ndo_init)
+		return 0;
+	return app->type->ndo_init(app, netdev);
+}
+
+void nfp_app_ndo_uninit(struct net_device *netdev)
+{
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
+
+	if (app && app->type->ndo_uninit)
+		app->type->ndo_uninit(app, netdev);
+}
+
 u64 *nfp_app_port_get_stats(struct nfp_port *port, u64 *data)
 {
 	if (!port || !port->app || !port->app->type->port_get_stats)

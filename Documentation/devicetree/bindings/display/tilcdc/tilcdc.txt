@@ -36,7 +36,7 @@ Optional nodes:
 
  - port/ports: to describe a connection to an external encoder. The
    binding follows Documentation/devicetree/bindings/graph.txt and
-   suppors a single port with a single endpoint.
+   supports a single port with a single endpoint.
 
  - See also Documentation/devicetree/bindings/display/tilcdc/panel.txt and
    Documentation/devicetree/bindings/display/tilcdc/tfp410.txt for connecting

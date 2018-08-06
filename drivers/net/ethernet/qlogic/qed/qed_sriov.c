@@ -672,8 +672,8 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-bool _qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn,
-			      int vfid, bool b_fail_malicious)
+static bool _qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn,
+				     int vfid, bool b_fail_malicious)
 {
 	/* Check PF supports sriov */
 	if (IS_VF(p_hwfn->cdev) || !IS_QED_SRIOV(p_hwfn->cdev) ||
@@ -687,7 +687,7 @@ bool _qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn,
 	return true;
 }
 
-bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
+static bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
 {
 	return _qed_iov_pf_sanity_check(p_hwfn, vfid, true);
 }
@@ -2831,7 +2831,7 @@ qed_iov_vp_update_mcast_bin_param(struct qed_hwfn *p_hwfn,
 
 	p_data->update_approx_mcast_flg = 1;
 	memcpy(p_data->bins, p_mcast_tlv->bins,
-	       sizeof(unsigned long) * ETH_MULTICAST_MAC_BINS_IN_REGS);
+	       sizeof(u32) * ETH_MULTICAST_MAC_BINS_IN_REGS);
 	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_MCAST;
 }
 
@@ -3979,7 +3979,7 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 	}
 }
 
-void qed_iov_pf_get_pending_events(struct qed_hwfn *p_hwfn, u64 *events)
+static void qed_iov_pf_get_pending_events(struct qed_hwfn *p_hwfn, u64 *events)
 {
 	int i;
 

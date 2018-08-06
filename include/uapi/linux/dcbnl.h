@@ -233,7 +233,8 @@ struct cee_pfc {
  *	2	Well known port number over TCP or SCTP
  *	3	Well known port number over UDP or DCCP
  *	4	Well known port number over TCP, SCTP, UDP, or DCCP
- *	5-7	Reserved
+ *	5	Differentiated Services Code Point (DSCP) value
+ *	6-7	Reserved
  *
  *  Selector field values for CEE
  *	0	Ethertype

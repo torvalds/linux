@@ -34,7 +34,8 @@ enum smc_lgr_role {		/* possible roles of a link group */
 enum smc_link_state {			/* possible states of a link */
 	SMC_LNK_INACTIVE,	/* link is inactive */
 	SMC_LNK_ACTIVATING,	/* link is being activated */
-	SMC_LNK_ACTIVE		/* link is active */
+	SMC_LNK_ACTIVE,		/* link is active */
+	SMC_LNK_DELETING,	/* link is being deleted */
 };
 
 #define SMC_WR_BUF_SIZE		48	/* size of work request buffer */
@@ -84,14 +85,15 @@ struct smc_link {
 	wait_queue_head_t	wr_reg_wait;	/* wait for wr_reg result */
 	enum smc_wr_reg_state	wr_reg_state;	/* state of wr_reg request */
 
-	union ib_gid		gid;		/* gid matching used vlan id */
+	u8			gid[SMC_GID_SIZE];/* gid matching used vlan id*/
+	u8			sgid_index;	/* gid index for vlan id      */
 	u32			peer_qpn;	/* QP number of peer */
 	enum ib_mtu		path_mtu;	/* used mtu */
 	enum ib_mtu		peer_mtu;	/* mtu size of peer */
 	u32			psn_initial;	/* QP tx initial packet seqno */
 	u32			peer_psn;	/* QP rx initial packet seqno */
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
-	u8			peer_gid[sizeof(union ib_gid)];	/* gid of peer*/
+	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
 
 	enum smc_link_state	state;		/* state of link */
@@ -192,8 +194,7 @@ struct smc_link_group {
 			struct smc_rtoken	rtokens[SMC_RMBS_PER_LGR_MAX]
 						[SMC_LINKS_PER_LGR_MAX];
 						/* remote addr/key pairs */
-			unsigned long		rtokens_used_mask[BITS_TO_LONGS
-							(SMC_RMBS_PER_LGR_MAX)];
+			DECLARE_BITMAP(rtokens_used_mask, SMC_RMBS_PER_LGR_MAX);
 						/* used rtoken elements */
 		};
 		struct { /* SMC-D */
@@ -265,5 +266,11 @@ int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
 		    u64 peer_gid);
 void smcd_conn_free(struct smc_connection *conn);
+void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr);
 void smc_core_exit(void);
+
+static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)
+{
+	return container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+}
 #endif

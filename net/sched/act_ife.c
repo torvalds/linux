@@ -820,14 +820,11 @@ static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_ife_params *p;
 	int ret;
 
-	rcu_read_lock();
-	p = rcu_dereference(ife->params);
+	p = rcu_dereference_bh(ife->params);
 	if (p->flags & IFE_ENCODE) {
 		ret = tcf_ife_encode(skb, a, res, p);
-		rcu_read_unlock();
 		return ret;
 	}
-	rcu_read_unlock();
 
 	return tcf_ife_decode(skb, a, res);
 }

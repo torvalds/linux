@@ -12,6 +12,9 @@
 #ifndef _L2TP_CORE_H_
 #define _L2TP_CORE_H_
 
+#include <net/dst.h>
+#include <net/sock.h>
+
 /* Just some random numbers */
 #define L2TP_TUNNEL_MAGIC	0x42114DDA
 #define L2TP_SESSION_MAGIC	0x0C04EB7D
@@ -45,10 +48,6 @@ struct l2tp_tunnel;
  */
 struct l2tp_session_cfg {
 	enum l2tp_pwtype	pw_type;
-	unsigned int		data_seq:2;	/* data sequencing level
-						 * 0 => none, 1 => IP only,
-						 * 2 => all
-						 */
 	unsigned int		recv_seq:1;	/* expect receive packets with
 						 * sequence numbers? */
 	unsigned int		send_seq:1;	/* send packets with sequence
@@ -58,7 +57,6 @@ struct l2tp_session_cfg {
 						 * control of LNS. */
 	int			debug;		/* bitmask of debug message
 						 * categories */
-	u16			vlan_id;	/* VLAN pseudowire only */
 	u16			l2specific_type; /* Layer 2 specific type */
 	u8			cookie[8];	/* optional cookie */
 	int			cookie_len;	/* 0, 4 or 8 bytes */
@@ -66,8 +64,6 @@ struct l2tp_session_cfg {
 	int			peer_cookie_len; /* 0, 4 or 8 bytes */
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
-	int			mtu;
-	int			mru;
 	char			*ifname;
 };
 
@@ -99,10 +95,6 @@ struct l2tp_session {
 
 	char			name[32];	/* for logging */
 	char			ifname[IFNAMSIZ];
-	unsigned int		data_seq:2;	/* data sequencing level
-						 * 0 => none, 1 => IP only,
-						 * 2 => all
-						 */
 	unsigned int		recv_seq:1;	/* expect receive packets with
 						 * sequence numbers? */
 	unsigned int		send_seq:1;	/* send packets with sequence
@@ -115,8 +107,6 @@ struct l2tp_session {
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
 	int			reorder_skip;	/* set if skip to next nr */
-	int			mtu;
-	int			mru;
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
 	struct hlist_node	global_hlist;	/* Global hash list node */
@@ -180,7 +170,6 @@ struct l2tp_tunnel {
 	struct net		*l2tp_net;	/* the net we belong to */
 
 	refcount_t		ref_count;
-	int (*recv_payload_hook)(struct sk_buff *skb);
 	void (*old_sk_destruct)(struct sock *);
 	struct sock		*sock;		/* Parent socket */
 	int			fd;		/* Parent fd, if tunnel socket
@@ -232,7 +221,7 @@ int l2tp_session_delete(struct l2tp_session *session);
 void l2tp_session_free(struct l2tp_session *session);
 void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      unsigned char *ptr, unsigned char *optr, u16 hdrflags,
-		      int length, int (*payload_hook)(struct sk_buff *skb));
+		      int length);
 int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 void l2tp_session_set_header_len(struct l2tp_session *session, int version);
 
@@ -278,6 +267,21 @@ static inline int l2tp_get_l2specific_len(struct l2tp_session *session)
 	default:
 		return 0;
 	}
+}
+
+static inline u32 l2tp_tunnel_dst_mtu(const struct l2tp_tunnel *tunnel)
+{
+	struct dst_entry *dst;
+	u32 mtu;
+
+	dst = sk_dst_get(tunnel->sock);
+	if (!dst)
+		return 0;
+
+	mtu = dst_mtu(dst);
+	dst_release(dst);
+
+	return mtu;
 }
 
 #define l2tp_printk(ptr, type, func, fmt, ...)				\

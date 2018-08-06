@@ -191,12 +191,9 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 	if (session->send_seq || session->recv_seq)
 		seq_printf(m, "   nr %hu, ns %hu\n", session->nr, session->ns);
 	seq_printf(m, "   refcnt %d\n", refcount_read(&session->ref_count));
-	seq_printf(m, "   config %d/%d/%c/%c/%s/%s %08x %u\n",
-		   session->mtu, session->mru,
+	seq_printf(m, "   config 0/0/%c/%c/-/%s %08x %u\n",
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
-		   session->data_seq == 1 ? "IPSEQ" :
-		   session->data_seq == 2 ? "DATASEQ" : "-",
 		   session->lns_mode ? "LNS" : "LAC",
 		   session->debug,
 		   jiffies_to_msecs(session->reorder_timeout));

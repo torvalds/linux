@@ -189,13 +189,31 @@ static int ipv4_ping_group_range(struct ctl_table *table, int write,
 	if (write && ret == 0) {
 		low = make_kgid(user_ns, urange[0]);
 		high = make_kgid(user_ns, urange[1]);
-		if (!gid_valid(low) || !gid_valid(high) ||
-		    (urange[1] < urange[0]) || gid_lt(high, low)) {
+		if (!gid_valid(low) || !gid_valid(high))
+			return -EINVAL;
+		if (urange[1] < urange[0] || gid_lt(high, low)) {
 			low = make_kgid(&init_user_ns, 1);
 			high = make_kgid(&init_user_ns, 0);
 		}
 		set_ping_group_range(table, low, high);
 	}
+
+	return ret;
+}
+
+static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
+				    void __user *buffer,
+				    size_t *lenp, loff_t *ppos)
+{
+	struct net *net;
+	int ret;
+
+	net = container_of(table->data, struct net,
+			   ipv4.sysctl_ip_fwd_update_priority);
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (write && ret == 0)
+		call_netevent_notifiers(NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE,
+					net);
 
 	return ret;
 }
@@ -661,6 +679,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "ip_forward_update_priority",
+		.data		= &init_net.ipv4.sysctl_ip_fwd_update_priority,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler   = ipv4_fwd_update_priority,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 	{
 		.procname	= "ip_nonlocal_bind",

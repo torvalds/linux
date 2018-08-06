@@ -1107,25 +1107,26 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_rxbuf *rxbuf = NULL, *tmp_buf = NULL;
+	unsigned long flags;
 
-	spin_lock(&priv->rx.rxbuflock);
+	spin_lock_irqsave(&priv->rx.rxbuflock, flags);
 	list_for_each_entry(tmp_buf, &priv->rx.rxbuf, list) {
 		if (!tmp_buf->in_process) {
 			rxbuf = tmp_buf;
 			break;
 		}
 	}
-	spin_unlock(&priv->rx.rxbuflock);
+	spin_unlock_irqrestore(&priv->rx.rxbuflock, flags);
 
 	if (rxbuf == NULL) {
 		ath_dbg(common, ANY, "No free RX buffer\n");
 		goto err;
 	}
 
-	spin_lock(&priv->rx.rxbuflock);
+	spin_lock_irqsave(&priv->rx.rxbuflock, flags);
 	rxbuf->skb = skb;
 	rxbuf->in_process = true;
-	spin_unlock(&priv->rx.rxbuflock);
+	spin_unlock_irqrestore(&priv->rx.rxbuflock, flags);
 
 	tasklet_schedule(&priv->rx_tasklet);
 	return;

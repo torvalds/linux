@@ -1,6 +1,6 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum.h
- * Copyright (c) 2015-2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2015-2017 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2015 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
@@ -54,6 +54,7 @@
 #include "core.h"
 #include "core_acl_flex_keys.h"
 #include "core_acl_flex_actions.h"
+#include "reg.h"
 
 #define MLXSW_SP_FID_8021D_MAX 1024
 
@@ -243,6 +244,7 @@ struct mlxsw_sp_port {
 		struct ieee_ets *ets;
 		struct ieee_maxrate *maxrate;
 		struct ieee_pfc *pfc;
+		enum mlxsw_reg_qpts_trust_state trust_state;
 	} dcb;
 	struct {
 		u8 module;
@@ -417,6 +419,8 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
+void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
+			      const struct net_device *macvlan_dev);
 int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 			    unsigned long event, void *ptr);
 int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
@@ -499,6 +503,9 @@ int mlxsw_sp_kvdl_alloc_count_query(struct mlxsw_sp *mlxsw_sp,
 extern const struct mlxsw_sp_kvdl_ops mlxsw_sp1_kvdl_ops;
 int mlxsw_sp1_kvdl_resources_register(struct mlxsw_core *mlxsw_core);
 
+/* spectrum2_kvdl.c */
+extern const struct mlxsw_sp_kvdl_ops mlxsw_sp2_kvdl_ops;
+
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
@@ -538,7 +545,8 @@ mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_block *block, u32 chain_index,
-			 enum mlxsw_sp_acl_profile profile);
+			 enum mlxsw_sp_acl_profile profile,
+			 struct mlxsw_afk_element_usage *tmplt_elusage);
 void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_ruleset *ruleset);
 u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset);
@@ -565,25 +573,30 @@ int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
 				  struct mlxsw_sp_acl_block *block,
-				  struct net_device *out_dev);
+				  struct net_device *out_dev,
+				  struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_rule_info *rulei,
-			       struct net_device *out_dev);
+			       struct net_device *out_dev,
+			       struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule_info *rulei,
-				u32 action, u16 vid, u16 proto, u8 prio);
+				u32 action, u16 vid, u16 proto, u8 prio,
+				struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_rule_info *rulei);
+				 struct mlxsw_sp_acl_rule_info *rulei,
+				 struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_rule_info *rulei,
-				   u16 fid);
+				   u16 fid, struct netlink_ext_ack *extack);
 
 struct mlxsw_sp_acl_rule;
 
 struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,
-			 unsigned long cookie);
+			 unsigned long cookie,
+			 struct netlink_ext_ack *extack);
 void mlxsw_sp_acl_rule_destroy(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_rule *rule);
 int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
@@ -617,8 +630,11 @@ struct mlxsw_sp_acl_tcam_ops {
 	void (*fini)(struct mlxsw_sp *mlxsw_sp, void *priv);
 	size_t region_priv_size;
 	int (*region_init)(struct mlxsw_sp *mlxsw_sp, void *region_priv,
+			   void *tcam_priv,
 			   struct mlxsw_sp_acl_tcam_region *region);
 	void (*region_fini)(struct mlxsw_sp *mlxsw_sp, void *region_priv);
+	int (*region_associate)(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_tcam_region *region);
 	size_t chunk_priv_size;
 	void (*chunk_init)(void *region_priv, void *chunk_priv,
 			   unsigned int priority);
@@ -639,11 +655,16 @@ struct mlxsw_sp_acl_tcam_ops {
 /* spectrum1_acl_tcam.c */
 extern const struct mlxsw_sp_acl_tcam_ops mlxsw_sp1_acl_tcam_ops;
 
+/* spectrum2_acl_tcam.c */
+extern const struct mlxsw_sp_acl_tcam_ops mlxsw_sp2_acl_tcam_ops;
+
 /* spectrum_acl_flex_actions.c */
 extern const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops;
+extern const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops;
 
 /* spectrum_acl_flex_keys.c */
 extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
+extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
@@ -655,6 +676,12 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 			  struct mlxsw_sp_acl_block *block,
 			  struct tc_cls_flower_offload *f);
+int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_block *block,
+				 struct tc_cls_flower_offload *f);
+void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_block *block,
+				   struct tc_cls_flower_offload *f);
 
 /* spectrum_qdisc.c */
 int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port);
@@ -724,5 +751,8 @@ struct mlxsw_sp_mr_tcam_ops {
 
 /* spectrum1_mr_tcam.c */
 extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp1_mr_tcam_ops;
+
+/* spectrum2_mr_tcam.c */
+extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp2_mr_tcam_ops;
 
 #endif

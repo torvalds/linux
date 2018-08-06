@@ -229,6 +229,7 @@ int inet_listen(struct socket *sock, int backlog)
 		err = inet_csk_listen_start(sk, backlog);
 		if (err)
 			goto out;
+		tcp_call_bpf(sk, BPF_SOCK_OPS_TCP_LISTEN_CB, 0, NULL);
 	}
 	sk->sk_max_ack_backlog = backlog;
 	err = 0;
@@ -485,8 +486,7 @@ int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 	 *  is temporarily down)
 	 */
 	err = -EADDRNOTAVAIL;
-	if (!net->ipv4.sysctl_ip_nonlocal_bind &&
-	    !(inet->freebind || inet->transparent) &&
+	if (!inet_can_nonlocal_bind(net, inet) &&
 	    addr->sin_addr.s_addr != htonl(INADDR_ANY) &&
 	    chk_addr_ret != RTN_LOCAL &&
 	    chk_addr_ret != RTN_MULTICAST &&
@@ -1801,6 +1801,7 @@ static __net_init int inet_init_net(struct net *net)
 	 * We set them here, in case sysctl is not compiled.
 	 */
 	net->ipv4.sysctl_ip_default_ttl = IPDEFTTL;
+	net->ipv4.sysctl_ip_fwd_update_priority = 1;
 	net->ipv4.sysctl_ip_dynaddr = 0;
 	net->ipv4.sysctl_ip_early_demux = 1;
 	net->ipv4.sysctl_udp_early_demux = 1;

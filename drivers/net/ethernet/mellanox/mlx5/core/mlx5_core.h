@@ -66,6 +66,12 @@ do {									\
 		__func__, __LINE__, current->pid,	\
 	       ##__VA_ARGS__)
 
+#define mlx5_core_err_rl(__dev, format, ...)				\
+	dev_err_ratelimited(&(__dev)->pdev->dev,			\
+			   "%s:%d:(pid %d): " format,			\
+			   __func__, __LINE__, current->pid,		\
+			   ##__VA_ARGS__)
+
 #define mlx5_core_warn(__dev, format, ...)				\
 	dev_warn(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
 		 __func__, __LINE__, current->pid,			\

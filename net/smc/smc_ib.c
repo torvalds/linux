@@ -68,7 +68,7 @@ static int smc_ib_modify_qp_rtr(struct smc_link *lnk)
 	qp_attr.path_mtu = min(lnk->path_mtu, lnk->peer_mtu);
 	qp_attr.ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
 	rdma_ah_set_port_num(&qp_attr.ah_attr, lnk->ibport);
-	rdma_ah_set_grh(&qp_attr.ah_attr, NULL, 0, 0, 1, 0);
+	rdma_ah_set_grh(&qp_attr.ah_attr, NULL, 0, lnk->sgid_index, 1, 0);
 	rdma_ah_set_dgid_raw(&qp_attr.ah_attr, lnk->peer_gid);
 	memcpy(&qp_attr.ah_attr.roce.dmac, lnk->peer_mac,
 	       sizeof(lnk->peer_mac));
@@ -112,8 +112,7 @@ int smc_ib_modify_qp_reset(struct smc_link *lnk)
 
 int smc_ib_ready_link(struct smc_link *lnk)
 {
-	struct smc_link_group *lgr =
-		container_of(lnk, struct smc_link_group, lnk[0]);
+	struct smc_link_group *lgr = smc_get_lgr(lnk);
 	int rc = 0;
 
 	rc = smc_ib_modify_qp_init(lnk);
@@ -143,13 +142,13 @@ out:
 	return rc;
 }
 
-static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
+static int smc_ib_fill_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
 	struct ib_gid_attr gattr;
+	union ib_gid gid;
 	int rc;
 
-	rc = ib_query_gid(smcibdev->ibdev, ibport, 0,
-			  &smcibdev->gid[ibport - 1], &gattr);
+	rc = ib_query_gid(smcibdev->ibdev, ibport, 0, &gid, &gattr);
 	if (rc || !gattr.ndev)
 		return -ENODEV;
 
@@ -176,6 +175,37 @@ bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport)
 	return smcibdev->pattr[ibport - 1].state == IB_PORT_ACTIVE;
 }
 
+/* determine the gid for an ib-device port and vlan id */
+int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
+			 unsigned short vlan_id, u8 gid[], u8 *sgid_index)
+{
+	struct ib_gid_attr gattr;
+	union ib_gid _gid;
+	int i;
+
+	for (i = 0; i < smcibdev->pattr[ibport - 1].gid_tbl_len; i++) {
+		memset(&_gid, 0, SMC_GID_SIZE);
+		memset(&gattr, 0, sizeof(gattr));
+		if (ib_query_gid(smcibdev->ibdev, ibport, i, &_gid, &gattr))
+			continue;
+		if (!gattr.ndev)
+			continue;
+		if (((!vlan_id && !is_vlan_dev(gattr.ndev)) ||
+		     (vlan_id && is_vlan_dev(gattr.ndev) &&
+		      vlan_dev_vlan_id(gattr.ndev) == vlan_id)) &&
+		    gattr.gid_type == IB_GID_TYPE_IB) {
+			if (gid)
+				memcpy(gid, &_gid, SMC_GID_SIZE);
+			if (sgid_index)
+				*sgid_index = i;
+			dev_put(gattr.ndev);
+			return 0;
+		}
+		dev_put(gattr.ndev);
+	}
+	return -ENODEV;
+}
+
 static int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
 {
 	int rc;
@@ -187,7 +217,7 @@ static int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
 	if (rc)
 		goto out;
 	/* the SMC protocol requires specification of the RoCE MAC address */
-	rc = smc_ib_fill_gid_and_mac(smcibdev, ibport);
+	rc = smc_ib_fill_mac(smcibdev, ibport);
 	if (rc)
 		goto out;
 	if (!strncmp(local_systemid, SMC_LOCAL_SYSTEMID_RESET,

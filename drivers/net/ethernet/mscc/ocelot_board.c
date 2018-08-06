@@ -29,7 +29,7 @@ static int ocelot_parse_ifh(u32 *ifh, struct frame_info *info)
 	info->port = (ifh[2] & GENMASK(14, 11)) >> 11;
 
 	info->cpuq = (ifh[3] & GENMASK(27, 20)) >> 20;
-	info->tag_type = (ifh[3] & GENMASK(16, 16)) >> 16;
+	info->tag_type = (ifh[3] & BIT(16)) >> 16;
 	info->vid = ifh[3] & GENMASK(11, 0);
 
 	return 0;

@@ -51,7 +51,7 @@ static unsigned long audio_divider_recalc_rate(struct clk_hw *hw,
 	struct meson_clk_audio_div_data *adiv = meson_clk_audio_div_data(clk);
 	unsigned long divider;
 
-	divider = meson_parm_read(clk->map, &adiv->div);
+	divider = meson_parm_read(clk->map, &adiv->div) + 1;
 
 	return DIV_ROUND_UP_ULL((u64)parent_rate, divider);
 }

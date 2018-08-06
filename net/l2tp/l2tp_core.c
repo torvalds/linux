@@ -619,7 +619,7 @@ discard:
  */
 void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      unsigned char *ptr, unsigned char *optr, u16 hdrflags,
-		      int length, int (*payload_hook)(struct sk_buff *skb))
+		      int length)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	int offset;
@@ -740,13 +740,6 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 
 	__skb_pull(skb, offset);
 
-	/* If caller wants to process the payload before we queue the
-	 * packet, do so now.
-	 */
-	if (payload_hook)
-		if ((*payload_hook)(skb))
-			goto discard;
-
 	/* Prepare skb for adding to the session's reorder_q.  Hold
 	 * packets for max reorder_timeout or 1 second if not
 	 * reordering.
@@ -800,8 +793,7 @@ static int l2tp_session_queue_purge(struct l2tp_session *session)
  * Returns 1 if the packet was not a good data packet and could not be
  * forwarded.  All such packets are passed up to userspace to deal with.
  */
-static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
-			      int (*payload_hook)(struct sk_buff *skb))
+static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 {
 	struct l2tp_session *session = NULL;
 	unsigned char *ptr, *optr;
@@ -892,7 +884,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 		goto error;
 	}
 
-	l2tp_recv_common(session, skb, ptr, optr, hdrflags, length, payload_hook);
+	l2tp_recv_common(session, skb, ptr, optr, hdrflags, length);
 	l2tp_session_dec_refcount(session);
 
 	return 0;
@@ -921,7 +913,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	l2tp_dbg(tunnel, L2TP_MSG_DATA, "%s: received %d bytes\n",
 		 tunnel->name, skb->len);
 
-	if (l2tp_udp_recv_core(tunnel, skb, tunnel->recv_payload_hook))
+	if (l2tp_udp_recv_core(tunnel, skb))
 		goto pass_up;
 
 	return 0;
@@ -1682,8 +1674,6 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		if (cfg) {
 			session->pwtype = cfg->pw_type;
 			session->debug = cfg->debug;
-			session->mtu = cfg->mtu;
-			session->mru = cfg->mru;
 			session->send_seq = cfg->send_seq;
 			session->recv_seq = cfg->recv_seq;
 			session->lns_mode = cfg->lns_mode;
@@ -1795,4 +1785,3 @@ MODULE_AUTHOR("James Chapman <jchapman@katalix.com>");
 MODULE_DESCRIPTION("L2TP core");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(L2TP_DRV_VERSION);
-

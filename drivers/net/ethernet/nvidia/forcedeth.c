@@ -5777,7 +5777,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 						      (np->rx_ring_size +
 						      np->tx_ring_size),
 						      &np->ring_addr,
-						      GFP_ATOMIC);
+						      GFP_KERNEL);
 		if (!np->rx_ring.orig)
 			goto out_unmap;
 		np->tx_ring.orig = &np->rx_ring.orig[np->rx_ring_size];
@@ -5786,7 +5786,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 						    sizeof(struct ring_desc_ex) *
 						    (np->rx_ring_size +
 						    np->tx_ring_size),
-						    &np->ring_addr, GFP_ATOMIC);
+						    &np->ring_addr, GFP_KERNEL);
 		if (!np->rx_ring.ex)
 			goto out_unmap;
 		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];

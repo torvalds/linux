@@ -29,6 +29,7 @@
 #include <linux/of_platform.h>
 #include <linux/timex.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <linux/fsl/ptp_qoriq.h>
 
@@ -317,6 +318,105 @@ static const struct ptp_clock_info ptp_qoriq_caps = {
 	.enable		= ptp_qoriq_enable,
 };
 
+/**
+ * qoriq_ptp_nominal_freq - calculate nominal frequency according to
+ *			    reference clock frequency
+ *
+ * @clk_src: reference clock frequency
+ *
+ * The nominal frequency is the desired clock frequency.
+ * It should be less than the reference clock frequency.
+ * It should be a factor of 1000MHz.
+ *
+ * Return the nominal frequency
+ */
+static u32 qoriq_ptp_nominal_freq(u32 clk_src)
+{
+	u32 remainder = 0;
+
+	clk_src /= 1000000;
+	remainder = clk_src % 100;
+	if (remainder) {
+		clk_src -= remainder;
+		clk_src += 100;
+	}
+
+	do {
+		clk_src -= 100;
+
+	} while (1000 % clk_src);
+
+	return clk_src * 1000000;
+}
+
+/**
+ * qoriq_ptp_auto_config - calculate a set of default configurations
+ *
+ * @qoriq_ptp: pointer to qoriq_ptp
+ * @node: pointer to device_node
+ *
+ * If below dts properties are not provided, this function will be
+ * called to calculate a set of default configurations for them.
+ *   "fsl,tclk-period"
+ *   "fsl,tmr-prsc"
+ *   "fsl,tmr-add"
+ *   "fsl,tmr-fiper1"
+ *   "fsl,tmr-fiper2"
+ *   "fsl,max-adj"
+ *
+ * Return 0 if success
+ */
+static int qoriq_ptp_auto_config(struct qoriq_ptp *qoriq_ptp,
+				 struct device_node *node)
+{
+	struct clk *clk;
+	u64 freq_comp;
+	u64 max_adj;
+	u32 nominal_freq;
+	u32 clk_src = 0;
+
+	qoriq_ptp->cksel = DEFAULT_CKSEL;
+
+	clk = of_clk_get(node, 0);
+	if (!IS_ERR(clk)) {
+		clk_src = clk_get_rate(clk);
+		clk_put(clk);
+	}
+
+	if (clk_src <= 100000000UL) {
+		pr_err("error reference clock value, or lower than 100MHz\n");
+		return -EINVAL;
+	}
+
+	nominal_freq = qoriq_ptp_nominal_freq(clk_src);
+	if (!nominal_freq)
+		return -EINVAL;
+
+	qoriq_ptp->tclk_period = 1000000000UL / nominal_freq;
+	qoriq_ptp->tmr_prsc = DEFAULT_TMR_PRSC;
+
+	/* Calculate initial frequency compensation value for TMR_ADD register.
+	 * freq_comp = ceil(2^32 / freq_ratio)
+	 * freq_ratio = reference_clock_freq / nominal_freq
+	 */
+	freq_comp = ((u64)1 << 32) * nominal_freq;
+	if (do_div(freq_comp, clk_src))
+		freq_comp++;
+
+	qoriq_ptp->tmr_add = freq_comp;
+	qoriq_ptp->tmr_fiper1 = DEFAULT_FIPER1_PERIOD - qoriq_ptp->tclk_period;
+	qoriq_ptp->tmr_fiper2 = DEFAULT_FIPER2_PERIOD - qoriq_ptp->tclk_period;
+
+	/* max_adj = 1000000000 * (freq_ratio - 1.0) - 1
+	 * freq_ratio = reference_clock_freq / nominal_freq
+	 */
+	max_adj = 1000000000ULL * (clk_src - nominal_freq);
+	max_adj = max_adj / nominal_freq - 1;
+	qoriq_ptp->caps.max_adj = max_adj;
+
+	return 0;
+}
+
 static int qoriq_ptp_probe(struct platform_device *dev)
 {
 	struct device_node *node = dev->dev.of_node;
@@ -332,7 +432,7 @@ static int qoriq_ptp_probe(struct platform_device *dev)
 	if (!qoriq_ptp)
 		goto no_memory;
 
-	err = -ENODEV;
+	err = -EINVAL;
 
 	qoriq_ptp->caps = ptp_qoriq_caps;
 
@@ -351,9 +451,13 @@ static int qoriq_ptp_probe(struct platform_device *dev)
 				 "fsl,tmr-fiper2", &qoriq_ptp->tmr_fiper2) ||
 	    of_property_read_u32(node,
 				 "fsl,max-adj", &qoriq_ptp->caps.max_adj)) {
-		pr_err("device tree node missing required elements\n");
-		goto no_node;
+		pr_warn("device tree node missing required elements, try automatic configuration\n");
+
+		if (qoriq_ptp_auto_config(qoriq_ptp, node))
+			goto no_config;
 	}
+
+	err = -ENODEV;
 
 	qoriq_ptp->irq = platform_get_irq(dev, 0);
 
@@ -436,6 +540,7 @@ no_ioremap:
 	release_resource(qoriq_ptp->rsrc);
 no_resource:
 	free_irq(qoriq_ptp->irq, qoriq_ptp);
+no_config:
 no_node:
 	kfree(qoriq_ptp);
 no_memory:

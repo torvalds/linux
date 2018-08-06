@@ -1249,7 +1249,7 @@ static struct txq_info *ieee80211_get_txq(struct ieee80211_local *local,
 	    (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE))
 		return NULL;
 
-	if (!ieee80211_is_data(hdr->frame_control))
+	if (!ieee80211_is_data_present(hdr->frame_control))
 		return NULL;
 
 	if (sta) {

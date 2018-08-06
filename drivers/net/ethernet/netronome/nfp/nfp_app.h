@@ -78,6 +78,8 @@ extern const struct nfp_app_type app_abm;
  * @init:	perform basic app checks and init
  * @clean:	clean app state
  * @extra_cap:	extra capabilities string
+ * @ndo_init:	vNIC and repr netdev .ndo_init
+ * @ndo_uninit:	vNIC and repr netdev .ndo_unint
  * @vnic_alloc:	allocate vNICs (assign port types, etc.)
  * @vnic_free:	free up app's vNIC state
  * @vnic_init:	vNIC netdev was registered
@@ -116,6 +118,9 @@ struct nfp_app_type {
 	void (*clean)(struct nfp_app *app);
 
 	const char *(*extra_cap)(struct nfp_app *app, struct nfp_net *nn);
+
+	int (*ndo_init)(struct nfp_app *app, struct net_device *netdev);
+	void (*ndo_uninit)(struct nfp_app *app, struct net_device *netdev);
 
 	int (*vnic_alloc)(struct nfp_app *app, struct nfp_net *nn,
 			  unsigned int id);
@@ -199,6 +204,9 @@ static inline void nfp_app_clean(struct nfp_app *app)
 	if (app->type->clean)
 		app->type->clean(app);
 }
+
+int nfp_app_ndo_init(struct net_device *netdev);
+void nfp_app_ndo_uninit(struct net_device *netdev);
 
 static inline int nfp_app_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 				     unsigned int id)

@@ -89,28 +89,28 @@ MODULE_PARM_DESC(led_id,
  */
 const struct fw_map sparrow_fw_mapping[] = {
 	/* FW code RAM 256k */
-	{0x000000, 0x040000, 0x8c0000, "fw_code", true},
+	{0x000000, 0x040000, 0x8c0000, "fw_code", true, true},
 	/* FW data RAM 32k */
-	{0x800000, 0x808000, 0x900000, "fw_data", true},
+	{0x800000, 0x808000, 0x900000, "fw_data", true, true},
 	/* periph data 128k */
-	{0x840000, 0x860000, 0x908000, "fw_peri", true},
+	{0x840000, 0x860000, 0x908000, "fw_peri", true, true},
 	/* various RGF 40k */
-	{0x880000, 0x88a000, 0x880000, "rgf", true},
+	{0x880000, 0x88a000, 0x880000, "rgf", true, true},
 	/* AGC table   4k */
-	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true},
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true, true},
 	/* Pcie_ext_rgf 4k */
-	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true},
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true, true},
 	/* mac_ext_rgf 512b */
-	{0x88c000, 0x88c200, 0x88c000, "mac_rgf_ext", true},
+	{0x88c000, 0x88c200, 0x88c000, "mac_rgf_ext", true, true},
 	/* upper area 548k */
-	{0x8c0000, 0x949000, 0x8c0000, "upper", true},
+	{0x8c0000, 0x949000, 0x8c0000, "upper", true, true},
 	/* UCODE areas - accessible by debugfs blobs but not by
 	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
 	/* ucode code RAM 128k */
-	{0x000000, 0x020000, 0x920000, "uc_code", false},
+	{0x000000, 0x020000, 0x920000, "uc_code", false, false},
 	/* ucode data RAM 16k */
-	{0x800000, 0x804000, 0x940000, "uc_data", false},
+	{0x800000, 0x804000, 0x940000, "uc_data", false, false},
 };
 
 /**
@@ -118,7 +118,7 @@ const struct fw_map sparrow_fw_mapping[] = {
  * it is a bit larger to support extra features
  */
 const struct fw_map sparrow_d0_mac_rgf_ext = {
-	0x88c000, 0x88c500, 0x88c000, "mac_rgf_ext", true
+	0x88c000, 0x88c500, 0x88c000, "mac_rgf_ext", true, true
 };
 
 /**
@@ -134,34 +134,89 @@ const struct fw_map sparrow_d0_mac_rgf_ext = {
  */
 const struct fw_map talyn_fw_mapping[] = {
 	/* FW code RAM 1M */
-	{0x000000, 0x100000, 0x900000, "fw_code", true},
+	{0x000000, 0x100000, 0x900000, "fw_code", true, true},
 	/* FW data RAM 128k */
-	{0x800000, 0x820000, 0xa00000, "fw_data", true},
+	{0x800000, 0x820000, 0xa00000, "fw_data", true, true},
 	/* periph. data RAM 96k */
-	{0x840000, 0x858000, 0xa20000, "fw_peri", true},
+	{0x840000, 0x858000, 0xa20000, "fw_peri", true, true},
 	/* various RGF 40k */
-	{0x880000, 0x88a000, 0x880000, "rgf", true},
+	{0x880000, 0x88a000, 0x880000, "rgf", true, true},
 	/* AGC table 4k */
-	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true},
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true, true},
 	/* Pcie_ext_rgf 4k */
-	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true},
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true, true},
 	/* mac_ext_rgf 1344b */
-	{0x88c000, 0x88c540, 0x88c000, "mac_rgf_ext", true},
+	{0x88c000, 0x88c540, 0x88c000, "mac_rgf_ext", true, true},
 	/* ext USER RGF 4k */
-	{0x88d000, 0x88e000, 0x88d000, "ext_user_rgf", true},
+	{0x88d000, 0x88e000, 0x88d000, "ext_user_rgf", true, true},
 	/* OTP 4k */
-	{0x8a0000, 0x8a1000, 0x8a0000, "otp", true},
+	{0x8a0000, 0x8a1000, 0x8a0000, "otp", true, false},
 	/* DMA EXT RGF 64k */
-	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true},
+	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true, true},
 	/* upper area 1536k */
-	{0x900000, 0xa80000, 0x900000, "upper", true},
+	{0x900000, 0xa80000, 0x900000, "upper", true, true},
 	/* UCODE areas - accessible by debugfs blobs but not by
 	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
 	/* ucode code RAM 256k */
-	{0x000000, 0x040000, 0xa38000, "uc_code", false},
+	{0x000000, 0x040000, 0xa38000, "uc_code", false, false},
 	/* ucode data RAM 32k */
-	{0x800000, 0x808000, 0xa78000, "uc_data", false},
+	{0x800000, 0x808000, 0xa78000, "uc_data", false, false},
+};
+
+/**
+ * @talyn_mb_fw_mapping provides memory remapping table for Talyn-MB
+ *
+ * array size should be in sync with the declaration in the wil6210.h
+ *
+ * Talyn MB memory mapping:
+ * Linker address         PCI/Host address
+ *                        0x880000 .. 0xc80000  4Mb BAR0
+ * 0x800000 .. 0x820000   0xa00000 .. 0xa20000  128k DCCM
+ * 0x840000 .. 0x858000   0xa20000 .. 0xa38000  96k PERIPH
+ */
+const struct fw_map talyn_mb_fw_mapping[] = {
+	/* FW code RAM 768k */
+	{0x000000, 0x0c0000, 0x900000, "fw_code", true, true},
+	/* FW data RAM 128k */
+	{0x800000, 0x820000, 0xa00000, "fw_data", true, true},
+	/* periph. data RAM 96k */
+	{0x840000, 0x858000, 0xa20000, "fw_peri", true, true},
+	/* various RGF 40k */
+	{0x880000, 0x88a000, 0x880000, "rgf", true, true},
+	/* AGC table 4k */
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true, true},
+	/* Pcie_ext_rgf 4k */
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true, true},
+	/* mac_ext_rgf 2256b */
+	{0x88c000, 0x88c8d0, 0x88c000, "mac_rgf_ext", true, true},
+	/* ext USER RGF 4k */
+	{0x88d000, 0x88e000, 0x88d000, "ext_user_rgf", true, true},
+	/* SEC PKA 16k */
+	{0x890000, 0x894000, 0x890000, "sec_pka", true, true},
+	/* SEC KDF RGF 3096b */
+	{0x898000, 0x898c18, 0x898000, "sec_kdf_rgf", true, true},
+	/* SEC MAIN 2124b */
+	{0x89a000, 0x89a84c, 0x89a000, "sec_main", true, true},
+	/* OTP 4k */
+	{0x8a0000, 0x8a1000, 0x8a0000, "otp", true, false},
+	/* DMA EXT RGF 64k */
+	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true, true},
+	/* DUM USER RGF 528b */
+	{0x8c0000, 0x8c0210, 0x8c0000, "dum_user_rgf", true, true},
+	/* DMA OFU 296b */
+	{0x8c2000, 0x8c2128, 0x8c2000, "dma_ofu", true, true},
+	/* ucode debug 4k */
+	{0x8c3000, 0x8c4000, 0x8c3000, "ucode_debug", true, true},
+	/* upper area 1536k */
+	{0x900000, 0xa80000, 0x900000, "upper", true, true},
+	/* UCODE areas - accessible by debugfs blobs but not by
+	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
+	 */
+	/* ucode code RAM 256k */
+	{0x000000, 0x040000, 0xa38000, "uc_code", false, false},
+	/* ucode data RAM 32k */
+	{0x800000, 0x808000, 0xa78000, "uc_data", false, false},
 };
 
 struct fw_map fw_mapping[MAX_FW_MAPPING_TABLE_SIZE];
@@ -365,14 +420,16 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_DEL_STA_CMD";
 	case WMI_DISCONNECT_STA_CMDID:
 		return "WMI_DISCONNECT_STA_CMD";
-	case WMI_VRING_BA_EN_CMDID:
-		return "WMI_VRING_BA_EN_CMD";
-	case WMI_VRING_BA_DIS_CMDID:
-		return "WMI_VRING_BA_DIS_CMD";
+	case WMI_RING_BA_EN_CMDID:
+		return "WMI_RING_BA_EN_CMD";
+	case WMI_RING_BA_DIS_CMDID:
+		return "WMI_RING_BA_DIS_CMD";
 	case WMI_RCP_DELBA_CMDID:
 		return "WMI_RCP_DELBA_CMD";
 	case WMI_RCP_ADDBA_RESP_CMDID:
 		return "WMI_RCP_ADDBA_RESP_CMD";
+	case WMI_RCP_ADDBA_RESP_EDMA_CMDID:
+		return "WMI_RCP_ADDBA_RESP_EDMA_CMD";
 	case WMI_PS_DEV_PROFILE_CFG_CMDID:
 		return "WMI_PS_DEV_PROFILE_CFG_CMD";
 	case WMI_SET_MGMT_RETRY_LIMIT_CMDID:
@@ -395,6 +452,18 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_START_SCHED_SCAN_CMD";
 	case WMI_STOP_SCHED_SCAN_CMDID:
 		return "WMI_STOP_SCHED_SCAN_CMD";
+	case WMI_TX_STATUS_RING_ADD_CMDID:
+		return "WMI_TX_STATUS_RING_ADD_CMD";
+	case WMI_RX_STATUS_RING_ADD_CMDID:
+		return "WMI_RX_STATUS_RING_ADD_CMD";
+	case WMI_TX_DESC_RING_ADD_CMDID:
+		return "WMI_TX_DESC_RING_ADD_CMD";
+	case WMI_RX_DESC_RING_ADD_CMDID:
+		return "WMI_RX_DESC_RING_ADD_CMD";
+	case WMI_BCAST_DESC_RING_ADD_CMDID:
+		return "WMI_BCAST_DESC_RING_ADD_CMD";
+	case WMI_CFG_DEF_RX_OFFLOAD_CMDID:
+		return "WMI_CFG_DEF_RX_OFFLOAD_CMD";
 	default:
 		return "Untracked CMD";
 	}
@@ -449,8 +518,8 @@ static const char *eventid2name(u16 eventid)
 		return "WMI_RCP_ADDBA_REQ_EVENT";
 	case WMI_DELBA_EVENTID:
 		return "WMI_DELBA_EVENT";
-	case WMI_VRING_EN_EVENTID:
-		return "WMI_VRING_EN_EVENT";
+	case WMI_RING_EN_EVENTID:
+		return "WMI_RING_EN_EVENT";
 	case WMI_DATA_PORT_OPEN_EVENTID:
 		return "WMI_DATA_PORT_OPEN_EVENT";
 	case WMI_AOA_MEAS_EVENTID:
@@ -519,6 +588,16 @@ static const char *eventid2name(u16 eventid)
 		return "WMI_STOP_SCHED_SCAN_EVENT";
 	case WMI_SCHED_SCAN_RESULT_EVENTID:
 		return "WMI_SCHED_SCAN_RESULT_EVENT";
+	case WMI_TX_STATUS_RING_CFG_DONE_EVENTID:
+		return "WMI_TX_STATUS_RING_CFG_DONE_EVENT";
+	case WMI_RX_STATUS_RING_CFG_DONE_EVENTID:
+		return "WMI_RX_STATUS_RING_CFG_DONE_EVENT";
+	case WMI_TX_DESC_RING_CFG_DONE_EVENTID:
+		return "WMI_TX_DESC_RING_CFG_DONE_EVENT";
+	case WMI_RX_DESC_RING_CFG_DONE_EVENTID:
+		return "WMI_RX_DESC_RING_CFG_DONE_EVENT";
+	case WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENTID:
+		return "WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENT";
 	default:
 		return "Untracked EVENT";
 	}
@@ -906,7 +985,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 	wil->sta[evt->cid].mid = vif->mid;
 	wil->sta[evt->cid].status = wil_sta_conn_pending;
 
-	rc = wil_tx_init(vif, evt->cid);
+	rc = wil_ring_init_tx(vif, evt->cid);
 	if (rc) {
 		wil_err(wil, "config tx vring failed for CID %d, rc (%d)\n",
 			evt->cid, rc);
@@ -1063,16 +1142,16 @@ static void wmi_evt_eapol_rx(struct wil6210_vif *vif, int id, void *d, int len)
 	}
 }
 
-static void wmi_evt_vring_en(struct wil6210_vif *vif, int id, void *d, int len)
+static void wmi_evt_ring_en(struct wil6210_vif *vif, int id, void *d, int len)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	struct wmi_vring_en_event *evt = d;
-	u8 vri = evt->vring_index;
+	struct wmi_ring_en_event *evt = d;
+	u8 vri = evt->ring_index;
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 
 	wil_dbg_wmi(wil, "Enable vring %d MID %d\n", vri, vif->mid);
 
-	if (vri >= ARRAY_SIZE(wil->vring_tx)) {
+	if (vri >= ARRAY_SIZE(wil->ring_tx)) {
 		wil_err(wil, "Enable for invalid vring %d\n", vri);
 		return;
 	}
@@ -1081,8 +1160,8 @@ static void wmi_evt_vring_en(struct wil6210_vif *vif, int id, void *d, int len)
 		/* in AP mode with disable_ap_sme, this is done by
 		 * wil_cfg80211_change_station()
 		 */
-		wil->vring_tx_data[vri].dot1x_open = true;
-	if (vri == vif->bcast_vring) /* no BA for bcast */
+		wil->ring_tx_data[vri].dot1x_open = true;
+	if (vri == vif->bcast_ring) /* no BA for bcast */
 		return;
 	if (agg_wsize >= 0)
 		wil_addba_tx_request(wil, vri, agg_wsize);
@@ -1093,7 +1172,7 @@ static void wmi_evt_ba_status(struct wil6210_vif *vif, int id,
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	struct wmi_ba_status_event *evt = d;
-	struct vring_tx_data *txdata;
+	struct wil_ring_tx_data *txdata;
 
 	wil_dbg_wmi(wil, "BACK[%d] %s {%d} timeout %d AMSDU%s\n",
 		    evt->ringid,
@@ -1112,7 +1191,7 @@ static void wmi_evt_ba_status(struct wil6210_vif *vif, int id,
 		evt->amsdu = 0;
 	}
 
-	txdata = &wil->vring_tx_data[evt->ringid];
+	txdata = &wil->ring_tx_data[evt->ringid];
 
 	txdata->agg_timeout = le16_to_cpu(evt->ba_timeout);
 	txdata->agg_wsize = evt->agg_wsize;
@@ -1150,11 +1229,11 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	if (!evt->from_initiator) {
 		int i;
 		/* find Tx vring it belongs to */
-		for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++) {
-			if ((wil->vring2cid_tid[i][0] == cid) &&
-			    (wil->vring2cid_tid[i][1] == tid)) {
-				struct vring_tx_data *txdata =
-					&wil->vring_tx_data[i];
+		for (i = 0; i < ARRAY_SIZE(wil->ring2cid_tid); i++) {
+			if (wil->ring2cid_tid[i][0] == cid &&
+			    wil->ring2cid_tid[i][1] == tid) {
+				struct wil_ring_tx_data *txdata =
+					&wil->ring_tx_data[i];
 
 				wil_dbg_wmi(wil, "DELBA Tx vring %d\n", i);
 				txdata->agg_timeout = 0;
@@ -1164,7 +1243,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 				break; /* max. 1 matching ring */
 			}
 		}
-		if (i >= ARRAY_SIZE(wil->vring2cid_tid))
+		if (i >= ARRAY_SIZE(wil->ring2cid_tid))
 			wil_err(wil, "DELBA: unable to find Tx vring\n");
 		return;
 	}
@@ -1277,7 +1356,7 @@ static const struct {
 	{WMI_BA_STATUS_EVENTID,		wmi_evt_ba_status},
 	{WMI_RCP_ADDBA_REQ_EVENTID,	wmi_evt_addba_rx_req},
 	{WMI_DELBA_EVENTID,		wmi_evt_delba},
-	{WMI_VRING_EN_EVENTID,		wmi_evt_vring_en},
+	{WMI_RING_EN_EVENTID,		wmi_evt_ring_en},
 	{WMI_DATA_PORT_OPEN_EVENTID,		wmi_evt_ignore},
 	{WMI_SCHED_SCAN_RESULT_EVENTID,		wmi_evt_sched_scan_result},
 };
@@ -1909,7 +1988,7 @@ int wmi_rxon(struct wil6210_priv *wil, bool on)
 	return rc;
 }
 
-int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
+int wmi_rx_chain_add(struct wil6210_priv *wil, struct wil_ring *vring)
 {
 	struct net_device *ndev = wil->main_ndev;
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
@@ -2063,29 +2142,32 @@ int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
 int wmi_addba(struct wil6210_priv *wil, u8 mid,
 	      u8 ringid, u8 size, u16 timeout)
 {
-	struct wmi_vring_ba_en_cmd cmd = {
-		.ringid = ringid,
+	u8 amsdu = wil->use_enhanced_dma_hw && wil->use_rx_hw_reordering &&
+		test_bit(WMI_FW_CAPABILITY_AMSDU, wil->fw_capabilities) &&
+		wil->amsdu_en;
+	struct wmi_ring_ba_en_cmd cmd = {
+		.ring_id = ringid,
 		.agg_max_wsize = size,
 		.ba_timeout = cpu_to_le16(timeout),
-		.amsdu = 0,
+		.amsdu = amsdu,
 	};
 
-	wil_dbg_wmi(wil, "addba: (ring %d size %d timeout %d)\n", ringid, size,
-		    timeout);
+	wil_dbg_wmi(wil, "addba: (ring %d size %d timeout %d amsdu %d)\n",
+		    ringid, size, timeout, amsdu);
 
-	return wmi_send(wil, WMI_VRING_BA_EN_CMDID, mid, &cmd, sizeof(cmd));
+	return wmi_send(wil, WMI_RING_BA_EN_CMDID, mid, &cmd, sizeof(cmd));
 }
 
 int wmi_delba_tx(struct wil6210_priv *wil, u8 mid, u8 ringid, u16 reason)
 {
-	struct wmi_vring_ba_dis_cmd cmd = {
-		.ringid = ringid,
+	struct wmi_ring_ba_dis_cmd cmd = {
+		.ring_id = ringid,
 		.reason = cpu_to_le16(reason),
 	};
 
 	wil_dbg_wmi(wil, "delba_tx: (ring %d reason %d)\n", ringid, reason);
 
-	return wmi_send(wil, WMI_VRING_BA_DIS_CMDID, mid, &cmd, sizeof(cmd));
+	return wmi_send(wil, WMI_RING_BA_DIS_CMDID, mid, &cmd, sizeof(cmd));
 }
 
 int wmi_delba_rx(struct wil6210_priv *wil, u8 mid, u8 cidxtid, u16 reason)
@@ -2134,6 +2216,54 @@ int wmi_addba_rx_resp(struct wil6210_priv *wil,
 	rc = wmi_call(wil, WMI_RCP_ADDBA_RESP_CMDID, mid, &cmd, sizeof(cmd),
 		      WMI_RCP_ADDBA_RESP_SENT_EVENTID, &reply, sizeof(reply),
 		      100);
+	if (rc)
+		return rc;
+
+	if (reply.evt.status) {
+		wil_err(wil, "ADDBA response failed with status %d\n",
+			le16_to_cpu(reply.evt.status));
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
+int wmi_addba_rx_resp_edma(struct wil6210_priv *wil, u8 mid, u8 cid, u8 tid,
+			   u8 token, u16 status, bool amsdu, u16 agg_wsize,
+			   u16 timeout)
+{
+	int rc;
+	struct wmi_rcp_addba_resp_edma_cmd cmd = {
+		.cid = cid,
+		.tid = tid,
+		.dialog_token = token,
+		.status_code = cpu_to_le16(status),
+		/* bit 0: A-MSDU supported
+		 * bit 1: policy (should be 0 for us)
+		 * bits 2..5: TID
+		 * bits 6..15: buffer size
+		 */
+		.ba_param_set = cpu_to_le16((amsdu ? 1 : 0) | (tid << 2) |
+					    (agg_wsize << 6)),
+		.ba_timeout = cpu_to_le16(timeout),
+		/* route all the connections to status ring 0 */
+		.status_ring_id = WIL_DEFAULT_RX_STATUS_RING_ID,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_rcp_addba_resp_sent_event evt;
+	} __packed reply = {
+		.evt = {.status = cpu_to_le16(WMI_FW_STATUS_FAILURE)},
+	};
+
+	wil_dbg_wmi(wil,
+		    "ADDBA response for CID %d TID %d size %d timeout %d status %d AMSDU%s, sring_id %d\n",
+		    cid, tid, agg_wsize, timeout, status, amsdu ? "+" : "-",
+		    WIL_DEFAULT_RX_STATUS_RING_ID);
+
+	rc = wmi_call(wil, WMI_RCP_ADDBA_RESP_EDMA_CMDID, mid, &cmd,
+		      sizeof(cmd), WMI_RCP_ADDBA_RESP_SENT_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
 	if (rc)
 		return rc;
 
@@ -2851,4 +2981,264 @@ int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len)
 	kfree(cmd);
 
 	return rc;
+}
+
+int wil_wmi_tx_sring_cfg(struct wil6210_priv *wil, int ring_id)
+{
+	int rc;
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
+	struct wil_status_ring *sring = &wil->srings[ring_id];
+	struct wmi_tx_status_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(sring->size),
+		},
+		.irq_index = WIL_TX_STATUS_IRQ_IDX
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_tx_status_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.ring_cfg.ring_id = ring_id;
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(sring->pa);
+	rc = wmi_call(wil, WMI_TX_STATUS_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_TX_STATUS_RING_CFG_DONE_EVENTID,
+		      &reply, sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "TX_STATUS_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "TX_STATUS_RING_ADD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	sring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+
+	return 0;
+}
+
+int wil_wmi_cfg_def_rx_offload(struct wil6210_priv *wil, u16 max_rx_pl_per_desc)
+{
+	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+	int rc;
+	struct wmi_cfg_def_rx_offload_cmd cmd = {
+		.max_msdu_size = cpu_to_le16(wil_mtu2macbuf(WIL_MAX_ETH_MTU)),
+		.max_rx_pl_per_desc = cpu_to_le16(max_rx_pl_per_desc),
+		.decap_trans_type = WMI_DECAP_TYPE_802_3,
+		.l2_802_3_offload_ctrl = 0,
+		.l3_l4_ctrl = 1 << L3_L4_CTRL_TCPIP_CHECKSUM_EN_POS,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_cfg_def_rx_offload_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	rc = wmi_call(wil, WMI_CFG_DEF_RX_OFFLOAD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_CFG_DEF_RX_OFFLOAD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_CFG_DEF_RX_OFFLOAD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int wil_wmi_rx_sring_add(struct wil6210_priv *wil, u16 ring_id)
+{
+	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+	struct wil_status_ring *sring = &wil->srings[ring_id];
+	int rc;
+	struct wmi_rx_status_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(sring->size),
+			.ring_id = ring_id,
+		},
+		.rx_msg_type = wil->use_compressed_rx_status ?
+			WMI_RX_MSG_TYPE_COMPRESSED :
+			WMI_RX_MSG_TYPE_EXTENDED,
+		.irq_index = WIL_RX_STATUS_IRQ_IDX,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_rx_status_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(sring->pa);
+	rc = wmi_call(wil, WMI_RX_STATUS_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_RX_STATUS_RING_CFG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "RX_STATUS_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "RX_STATUS_RING_ADD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	sring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+
+	return 0;
+}
+
+int wil_wmi_rx_desc_ring_add(struct wil6210_priv *wil, int status_ring_id)
+{
+	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+	struct wil_ring *ring = &wil->ring_rx;
+	int rc;
+	struct wmi_rx_desc_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(ring->size),
+			.ring_id = WIL_RX_DESC_RING_ID,
+		},
+		.status_ring_id = status_ring_id,
+		.irq_index = WIL_RX_STATUS_IRQ_IDX,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_rx_desc_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(ring->pa);
+	cmd.sw_tail_host_addr = cpu_to_le64(ring->edma_rx_swtail.pa);
+	rc = wmi_call(wil, WMI_RX_DESC_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_RX_DESC_RING_CFG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_RX_DESC_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_RX_DESC_RING_ADD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	ring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+
+	return 0;
+}
+
+int wil_wmi_tx_desc_ring_add(struct wil6210_vif *vif, int ring_id, int cid,
+			     int tid)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	int sring_id = wil->tx_sring_idx; /* there is only one TX sring */
+	int rc;
+	struct wil_ring *ring = &wil->ring_tx[ring_id];
+	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[ring_id];
+	struct wmi_tx_desc_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(ring->size),
+			.ring_id = ring_id,
+		},
+		.status_ring_id = sring_id,
+		.cid = cid,
+		.tid = tid,
+		.encap_trans_type = WMI_VRING_ENC_TYPE_802_3,
+		.max_msdu_size = cpu_to_le16(wil_mtu2macbuf(mtu_max)),
+		.schd_params = {
+			.priority = cpu_to_le16(0),
+			.timeslot_us = cpu_to_le16(0xfff),
+		}
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_tx_desc_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(ring->pa);
+	rc = wmi_call(wil, WMI_TX_DESC_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_TX_DESC_RING_CFG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_TX_DESC_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_TX_DESC_RING_ADD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&txdata->lock);
+	ring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+	txdata->mid = vif->mid;
+	txdata->enabled = 1;
+	spin_unlock_bh(&txdata->lock);
+
+	return 0;
+}
+
+int wil_wmi_bcast_desc_ring_add(struct wil6210_vif *vif, int ring_id)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct wil_ring *ring = &wil->ring_tx[ring_id];
+	int rc;
+	struct wmi_bcast_desc_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(ring->size),
+			.ring_id = ring_id,
+		},
+		.status_ring_id = wil->tx_sring_idx,
+		.encap_trans_type = WMI_VRING_ENC_TYPE_802_3,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_rx_desc_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[ring_id];
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(ring->pa);
+	rc = wmi_call(wil, WMI_BCAST_DESC_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_TX_DESC_RING_CFG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_BCAST_DESC_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "Broadcast Tx config failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&txdata->lock);
+	ring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+	txdata->mid = vif->mid;
+	txdata->enabled = 1;
+	spin_unlock_bh(&txdata->lock);
+
+	return 0;
 }

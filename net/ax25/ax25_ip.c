@@ -249,4 +249,3 @@ const struct header_ops ax25_header_ops = {
 
 EXPORT_SYMBOL(ax25_header_ops);
 EXPORT_SYMBOL(ax25_ip_xmit);
-

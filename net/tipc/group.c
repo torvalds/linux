@@ -159,11 +159,6 @@ u32 tipc_group_exclude(struct tipc_group *grp)
 	return 0;
 }
 
-int tipc_group_size(struct tipc_group *grp)
-{
-	return grp->member_cnt;
-}
-
 struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 				     struct tipc_group_req *mreq,
 				     bool *group_is_open)
@@ -232,8 +227,8 @@ void tipc_group_delete(struct net *net, struct tipc_group *grp)
 	kfree(grp);
 }
 
-struct tipc_member *tipc_group_find_member(struct tipc_group *grp,
-					   u32 node, u32 port)
+static struct tipc_member *tipc_group_find_member(struct tipc_group *grp,
+						  u32 node, u32 port)
 {
 	struct rb_node *n = grp->members.rb_node;
 	u64 nkey, key = (u64)node << 32 | port;

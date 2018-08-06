@@ -2366,7 +2366,7 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	 */
 	if (channel >= 1 && channel <= 14) {
 		status->band = NL80211_BAND_2GHZ;
-	} else if (channel >= 36 && channel <= 169) {
+	} else if (channel >= 36 && channel <= ATH10K_MAX_5G_CHAN) {
 		status->band = NL80211_BAND_5GHZ;
 	} else {
 		/* Shouldn't happen unless list of advertised channels to
@@ -4602,10 +4602,6 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 
 	ev = (struct wmi_pdev_tpc_config_event *)skb->data;
 
-	tpc_stats = kzalloc(sizeof(*tpc_stats), GFP_ATOMIC);
-	if (!tpc_stats)
-		return;
-
 	num_tx_chain = __le32_to_cpu(ev->num_tx_chain);
 
 	if (num_tx_chain > WMI_TPC_TX_N_CHAIN) {
@@ -4613,6 +4609,10 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 			    num_tx_chain, WMI_TPC_TX_N_CHAIN);
 		return;
 	}
+
+	tpc_stats = kzalloc(sizeof(*tpc_stats), GFP_ATOMIC);
+	if (!tpc_stats)
+		return;
 
 	ath10k_wmi_tpc_config_get_rate_code(rate_code, pream_table,
 					    num_tx_chain);
@@ -5018,12 +5018,10 @@ static int ath10k_wmi_alloc_chunk(struct ath10k *ar, u32 req_id,
 	void *vaddr;
 
 	pool_size = num_units * round_up(unit_len, 4);
-	vaddr = dma_alloc_coherent(ar->dev, pool_size, &paddr, GFP_KERNEL);
+	vaddr = dma_zalloc_coherent(ar->dev, pool_size, &paddr, GFP_KERNEL);
 
 	if (!vaddr)
 		return -ENOMEM;
-
-	memset(vaddr, 0, pool_size);
 
 	ar->wmi.mem_chunks[idx].vaddr = vaddr;
 	ar->wmi.mem_chunks[idx].paddr = paddr;

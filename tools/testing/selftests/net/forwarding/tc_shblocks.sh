@@ -105,6 +105,8 @@ cleanup()
 	ip link set $swp2 address $swp2origmac
 }
 
+check_tc_shblock_support
+
 trap cleanup EXIT
 
 setup_prepare

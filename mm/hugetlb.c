@@ -2163,6 +2163,7 @@ static void __init gather_bootmem_prealloc(void)
 		 */
 		if (hstate_is_gigantic(h))
 			adjust_managed_page_count(page, 1 << h->order);
+		cond_resched();
 	}
 }
 
@@ -3166,6 +3167,13 @@ static vm_fault_t hugetlb_vm_op_fault(struct vm_fault *vmf)
 	return 0;
 }
 
+/*
+ * When a new function is introduced to vm_operations_struct and added
+ * to hugetlb_vm_ops, please consider adding the function to shm_vm_ops.
+ * This is because under System V memory model, mappings created via
+ * shmget/shmat with "huge page" specified are backed by hugetlbfs files,
+ * their original vm_ops are overwritten with shm_vm_ops.
+ */
 const struct vm_operations_struct hugetlb_vm_ops = {
 	.fault = hugetlb_vm_op_fault,
 	.open = hugetlb_vm_op_open,

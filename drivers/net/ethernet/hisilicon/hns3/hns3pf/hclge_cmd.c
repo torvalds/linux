@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -72,7 +66,7 @@ static int hclge_alloc_cmd_queue(struct hclge_dev *hdev, int ring_type)
 		(ring_type == HCLGE_TYPE_CSQ) ? &hw->cmq.csq : &hw->cmq.crq;
 	int ret;
 
-	ring->flag = ring_type;
+	ring->ring_type = ring_type;
 	ring->dev = hdev;
 
 	ret = hclge_alloc_cmd_desc(ring);
@@ -111,7 +105,7 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 	struct hclge_dev *hdev = ring->dev;
 	struct hclge_hw *hw = &hdev->hw;
 
-	if (ring->flag == HCLGE_TYPE_CSQ) {
+	if (ring->ring_type == HCLGE_TYPE_CSQ) {
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_L_REG,
 				lower_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_H_REG,
@@ -119,8 +113,8 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG,
 				(ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S) |
 				HCLGE_NIC_CMQ_ENABLE);
-		hclge_write_dev(hw, HCLGE_NIC_CSQ_TAIL_REG, 0);
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_HEAD_REG, 0);
+		hclge_write_dev(hw, HCLGE_NIC_CSQ_TAIL_REG, 0);
 	} else {
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_BASEADDR_L_REG,
 				lower_32_bits(dma));
@@ -129,8 +123,8 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_DEPTH_REG,
 				(ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S) |
 				HCLGE_NIC_CMQ_ENABLE);
-		hclge_write_dev(hw, HCLGE_NIC_CRQ_TAIL_REG, 0);
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_HEAD_REG, 0);
+		hclge_write_dev(hw, HCLGE_NIC_CRQ_TAIL_REG, 0);
 	}
 }
 
@@ -153,7 +147,12 @@ static int hclge_cmd_csq_clean(struct hclge_hw *hw)
 	if (!is_valid_csq_clean_head(csq, head)) {
 		dev_warn(&hdev->pdev->dev, "wrong cmd head (%d, %d-%d)\n", head,
 			 csq->next_to_use, csq->next_to_clean);
-		return 0;
+		dev_warn(&hdev->pdev->dev,
+			 "Disabling any further commands to IMP firmware\n");
+		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		dev_warn(&hdev->pdev->dev,
+			 "IMP firmware watchdog reset soon expected!\n");
+		return -EIO;
 	}
 
 	clean = (head - csq->next_to_clean + csq->desc_num) % csq->desc_num;
@@ -273,10 +272,11 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 
 	/* Clean the command send queue */
 	handle = hclge_cmd_csq_clean(hw);
-	if (handle != num) {
+	if (handle < 0)
+		retval = handle;
+	else if (handle != num)
 		dev_warn(&hdev->pdev->dev,
 			 "cleaned %d, need to clean %d\n", handle, num);
-	}
 
 	spin_unlock_bh(&hw->cmq.csq.lock);
 

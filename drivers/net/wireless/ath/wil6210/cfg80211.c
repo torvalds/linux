@@ -302,14 +302,14 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 
 	sinfo->generation = wil->sinfo_gen;
 
-	sinfo->filled = BIT(NL80211_STA_INFO_RX_BYTES) |
-			BIT(NL80211_STA_INFO_TX_BYTES) |
-			BIT(NL80211_STA_INFO_RX_PACKETS) |
-			BIT(NL80211_STA_INFO_TX_PACKETS) |
-			BIT(NL80211_STA_INFO_RX_BITRATE) |
-			BIT(NL80211_STA_INFO_TX_BITRATE) |
-			BIT(NL80211_STA_INFO_RX_DROP_MISC) |
-			BIT(NL80211_STA_INFO_TX_FAILED);
+	sinfo->filled = BIT_ULL(NL80211_STA_INFO_RX_BYTES) |
+			BIT_ULL(NL80211_STA_INFO_TX_BYTES) |
+			BIT_ULL(NL80211_STA_INFO_RX_PACKETS) |
+			BIT_ULL(NL80211_STA_INFO_TX_PACKETS) |
+			BIT_ULL(NL80211_STA_INFO_RX_BITRATE) |
+			BIT_ULL(NL80211_STA_INFO_TX_BITRATE) |
+			BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC) |
+			BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 
 	sinfo->txrate.flags = RATE_INFO_FLAGS_60G;
 	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
@@ -322,7 +322,7 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	sinfo->tx_failed = stats->tx_errors;
 
 	if (test_bit(wil_vif_fwconnected, vif->status)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 		if (test_bit(WMI_FW_CAPABILITY_RSSI_REPORTING,
 			     wil->fw_capabilities))
 			sinfo->signal = reply.evt.rssi;
@@ -1726,7 +1726,7 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int authorize;
 	int cid, i;
-	struct vring_tx_data *txdata = NULL;
+	struct wil_ring_tx_data *txdata = NULL;
 
 	wil_dbg_misc(wil, "change station %pM mask 0x%x set 0x%x mid %d\n",
 		     mac, params->sta_flags_mask, params->sta_flags_set,
@@ -1746,20 +1746,20 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 		return -ENOLINK;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++)
-		if (wil->vring2cid_tid[i][0] == cid) {
-			txdata = &wil->vring_tx_data[i];
+	for (i = 0; i < ARRAY_SIZE(wil->ring2cid_tid); i++)
+		if (wil->ring2cid_tid[i][0] == cid) {
+			txdata = &wil->ring_tx_data[i];
 			break;
 		}
 
 	if (!txdata) {
-		wil_err(wil, "vring data not found\n");
+		wil_err(wil, "ring data not found\n");
 		return -ENOLINK;
 	}
 
 	authorize = params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED);
 	txdata->dot1x_open = authorize ? 1 : 0;
-	wil_dbg_misc(wil, "cid %d vring %d authorize %d\n", cid, i,
+	wil_dbg_misc(wil, "cid %d ring %d authorize %d\n", cid, i,
 		     txdata->dot1x_open);
 
 	return 0;

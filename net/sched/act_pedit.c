@@ -286,7 +286,7 @@ static int pedit_skb_hdr_offset(struct sk_buff *skb,
 	default:
 		ret = -EINVAL;
 		break;
-	};
+	}
 
 	return ret;
 }
@@ -516,4 +516,3 @@ static void __exit pedit_cleanup_module(void)
 
 module_init(pedit_init_module);
 module_exit(pedit_cleanup_module);
-

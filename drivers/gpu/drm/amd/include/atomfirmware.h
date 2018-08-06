@@ -1433,7 +1433,10 @@ struct atom_smc_dpm_info_v4_1
 	uint8_t  acggfxclkspreadpercent;
 	uint16_t acggfxclkspreadfreq;
 
-	uint32_t boardreserved[10];
+	uint8_t Vr2_I2C_address;
+	uint8_t padding_vr2[3];
+
+	uint32_t boardreserved[9];
 };
 
 /* 

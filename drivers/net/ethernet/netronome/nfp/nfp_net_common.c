@@ -53,6 +53,8 @@
 #include <linux/interrupt.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/mm.h>
+#include <linux/overflow.h>
 #include <linux/page_ref.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
@@ -1078,7 +1080,7 @@ static bool nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
  * @dp:		NFP Net data path struct
  * @tx_ring:	TX ring structure
  *
- * Assumes that the device is stopped
+ * Assumes that the device is stopped, must be idempotent.
  */
 static void
 nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
@@ -1120,7 +1122,7 @@ nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 		tx_ring->rd_p++;
 	}
 
-	memset(tx_ring->txds, 0, sizeof(*tx_ring->txds) * tx_ring->cnt);
+	memset(tx_ring->txds, 0, tx_ring->size);
 	tx_ring->wr_p = 0;
 	tx_ring->rd_p = 0;
 	tx_ring->qcp_rd_p = 0;
@@ -1280,12 +1282,17 @@ static void nfp_net_rx_give_one(const struct nfp_net_dp *dp,
  * nfp_net_rx_ring_reset() - Reflect in SW state of freelist after disable
  * @rx_ring:	RX ring structure
  *
- * Warning: Do *not* call if ring buffers were never put on the FW freelist
- *	    (i.e. device was not enabled)!
+ * Assumes that the device is stopped, must be idempotent.
  */
 static void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring)
 {
 	unsigned int wr_idx, last_idx;
+
+	/* wr_p == rd_p means ring was never fed FL bufs.  RX rings are always
+	 * kept at cnt - 1 FL bufs.
+	 */
+	if (rx_ring->wr_p == 0 && rx_ring->rd_p == 0)
+		return;
 
 	/* Move the empty entry to the end of the list */
 	wr_idx = D_IDX(rx_ring, rx_ring->wr_p);
@@ -1295,7 +1302,7 @@ static void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring)
 	rx_ring->rxbufs[last_idx].dma_addr = 0;
 	rx_ring->rxbufs[last_idx].frag = NULL;
 
-	memset(rx_ring->rxds, 0, sizeof(*rx_ring->rxds) * rx_ring->cnt);
+	memset(rx_ring->rxds, 0, rx_ring->size);
 	rx_ring->wr_p = 0;
 	rx_ring->rd_p = 0;
 }
@@ -1710,8 +1717,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			}
 		}
 
-		if (xdp_prog && !(rxd->rxd.flags & PCIE_DESC_RX_BPF &&
-				  dp->bpf_offload_xdp) && !meta.portid) {
+		if (xdp_prog && !meta.portid) {
 			void *orig_data = rxbuf->frag + pkt_off;
 			unsigned int dma_off;
 			int act;
@@ -2122,7 +2128,7 @@ static void nfp_net_tx_ring_free(struct nfp_net_tx_ring *tx_ring)
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
 
-	kfree(tx_ring->txbufs);
+	kvfree(tx_ring->txbufs);
 
 	if (tx_ring->txds)
 		dma_free_coherent(dp->dev, tx_ring->size,
@@ -2146,18 +2152,17 @@ static int
 nfp_net_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
-	int sz;
 
 	tx_ring->cnt = dp->txd_cnt;
 
-	tx_ring->size = sizeof(*tx_ring->txds) * tx_ring->cnt;
+	tx_ring->size = array_size(tx_ring->cnt, sizeof(*tx_ring->txds));
 	tx_ring->txds = dma_zalloc_coherent(dp->dev, tx_ring->size,
 					    &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->txds)
 		goto err_alloc;
 
-	sz = sizeof(*tx_ring->txbufs) * tx_ring->cnt;
-	tx_ring->txbufs = kzalloc(sz, GFP_KERNEL);
+	tx_ring->txbufs = kvcalloc(tx_ring->cnt, sizeof(*tx_ring->txbufs),
+				   GFP_KERNEL);
 	if (!tx_ring->txbufs)
 		goto err_alloc;
 
@@ -2271,7 +2276,7 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 
 	if (dp->netdev)
 		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
-	kfree(rx_ring->rxbufs);
+	kvfree(rx_ring->rxbufs);
 
 	if (rx_ring->rxds)
 		dma_free_coherent(dp->dev, rx_ring->size,
@@ -2294,7 +2299,7 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 static int
 nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 {
-	int sz, err;
+	int err;
 
 	if (dp->netdev) {
 		err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, dp->netdev,
@@ -2304,14 +2309,14 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 	}
 
 	rx_ring->cnt = dp->rxd_cnt;
-	rx_ring->size = sizeof(*rx_ring->rxds) * rx_ring->cnt;
+	rx_ring->size = array_size(rx_ring->cnt, sizeof(*rx_ring->rxds));
 	rx_ring->rxds = dma_zalloc_coherent(dp->dev, rx_ring->size,
 					    &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->rxds)
 		goto err_alloc;
 
-	sz = sizeof(*rx_ring->rxbufs) * rx_ring->cnt;
-	rx_ring->rxbufs = kzalloc(sz, GFP_KERNEL);
+	rx_ring->rxbufs = kvcalloc(rx_ring->cnt, sizeof(*rx_ring->rxbufs),
+				   GFP_KERNEL);
 	if (!rx_ring->rxbufs)
 		goto err_alloc;
 
@@ -2509,6 +2514,8 @@ static void nfp_net_vec_clear_ring_data(struct nfp_net *nn, unsigned int idx)
 /**
  * nfp_net_clear_config_and_disable() - Clear control BAR and disable NFP
  * @nn:      NFP Net device to reconfigure
+ *
+ * Warning: must be fully idempotent.
  */
 static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 {
@@ -3393,14 +3400,18 @@ static void nfp_net_del_vxlan_port(struct net_device *netdev,
 		nfp_net_set_vxlan_port(nn, idx, 0);
 }
 
-static int
-nfp_net_xdp_setup_drv(struct nfp_net *nn, struct bpf_prog *prog,
-		      struct netlink_ext_ack *extack)
+static int nfp_net_xdp_setup_drv(struct nfp_net *nn, struct netdev_bpf *bpf)
 {
+	struct bpf_prog *prog = bpf->prog;
 	struct nfp_net_dp *dp;
+	int err;
+
+	if (!xdp_attachment_flags_ok(&nn->xdp, bpf))
+		return -EBUSY;
 
 	if (!prog == !nn->dp.xdp_prog) {
 		WRITE_ONCE(nn->dp.xdp_prog, prog);
+		xdp_attachment_setup(&nn->xdp, bpf);
 		return 0;
 	}
 
@@ -3414,38 +3425,26 @@ nfp_net_xdp_setup_drv(struct nfp_net *nn, struct bpf_prog *prog,
 	dp->rx_dma_off = prog ? XDP_PACKET_HEADROOM - nn->dp.rx_offset : 0;
 
 	/* We need RX reconfig to remap the buffers (BIDIR vs FROM_DEV) */
-	return nfp_net_ring_reconfig(nn, dp, extack);
-}
-
-static int
-nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog, u32 flags,
-		  struct netlink_ext_ack *extack)
-{
-	struct bpf_prog *drv_prog, *offload_prog;
-	int err;
-
-	if (nn->xdp_prog && (flags ^ nn->xdp_flags) & XDP_FLAGS_MODES)
-		return -EBUSY;
-
-	/* Load both when no flags set to allow easy activation of driver path
-	 * when program is replaced by one which can't be offloaded.
-	 */
-	drv_prog     = flags & XDP_FLAGS_HW_MODE  ? NULL : prog;
-	offload_prog = flags & XDP_FLAGS_DRV_MODE ? NULL : prog;
-
-	err = nfp_net_xdp_setup_drv(nn, drv_prog, extack);
+	err = nfp_net_ring_reconfig(nn, dp, bpf->extack);
 	if (err)
 		return err;
 
-	err = nfp_app_xdp_offload(nn->app, nn, offload_prog, extack);
-	if (err && flags & XDP_FLAGS_HW_MODE)
+	xdp_attachment_setup(&nn->xdp, bpf);
+	return 0;
+}
+
+static int nfp_net_xdp_setup_hw(struct nfp_net *nn, struct netdev_bpf *bpf)
+{
+	int err;
+
+	if (!xdp_attachment_flags_ok(&nn->xdp_hw, bpf))
+		return -EBUSY;
+
+	err = nfp_app_xdp_offload(nn->app, nn, bpf->prog, bpf->extack);
+	if (err)
 		return err;
 
-	if (nn->xdp_prog)
-		bpf_prog_put(nn->xdp_prog);
-	nn->xdp_prog = prog;
-	nn->xdp_flags = flags;
-
+	xdp_attachment_setup(&nn->xdp_hw, bpf);
 	return 0;
 }
 
@@ -3455,16 +3454,13 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
+		return nfp_net_xdp_setup_drv(nn, xdp);
 	case XDP_SETUP_PROG_HW:
-		return nfp_net_xdp_setup(nn, xdp->prog, xdp->flags,
-					 xdp->extack);
+		return nfp_net_xdp_setup_hw(nn, xdp);
 	case XDP_QUERY_PROG:
-		xdp->prog_attached = !!nn->xdp_prog;
-		if (nn->dp.bpf_offload_xdp)
-			xdp->prog_attached = XDP_ATTACHED_HW;
-		xdp->prog_id = nn->xdp_prog ? nn->xdp_prog->aux->id : 0;
-		xdp->prog_flags = nn->xdp_prog ? nn->xdp_flags : 0;
-		return 0;
+		return xdp_attachment_query(&nn->xdp, xdp);
+	case XDP_QUERY_PROG_HW:
+		return xdp_attachment_query(&nn->xdp_hw, xdp);
 	default:
 		return nfp_app_bpf(nn->app, nn, xdp);
 	}
@@ -3492,6 +3488,8 @@ static int nfp_net_set_mac_address(struct net_device *netdev, void *addr)
 }
 
 const struct net_device_ops nfp_net_netdev_ops = {
+	.ndo_init		= nfp_app_ndo_init,
+	.ndo_uninit		= nfp_app_ndo_uninit,
 	.ndo_open		= nfp_net_netdev_open,
 	.ndo_stop		= nfp_net_netdev_close,
 	.ndo_start_xmit		= nfp_net_tx,

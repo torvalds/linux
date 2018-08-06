@@ -867,7 +867,7 @@ static int qed_dcbx_read_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-void qed_dcbx_aen(struct qed_hwfn *hwfn, u32 mib_type)
+static void qed_dcbx_aen(struct qed_hwfn *hwfn, u32 mib_type)
 {
 	struct qed_common_cb_ops *op = hwfn->cdev->protocol_ops.common;
 	void *cookie = hwfn->cdev->ops_cookie;

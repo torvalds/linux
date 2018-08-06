@@ -2155,11 +2155,12 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 	if (part->policy && op_is_write(bio_op(bio))) {
 		char b[BDEVNAME_SIZE];
 
-		printk(KERN_ERR
+		WARN_ONCE(1,
 		       "generic_make_request: Trying to write "
 			"to read-only block-device %s (partno %d)\n",
 			bio_devname(bio, b), part->partno);
-		return true;
+		/* Older lvm-tools actually trigger this */
+		return false;
 	}
 
 	return false;

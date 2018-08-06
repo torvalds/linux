@@ -67,27 +67,17 @@ struct nf_conn_timeout *nf_ct_timeout_ext_add(struct nf_conn *ct,
 #endif
 };
 
-static inline unsigned int *
-nf_ct_timeout_lookup(struct net *net, struct nf_conn *ct,
-		     const struct nf_conntrack_l4proto *l4proto)
+static inline unsigned int *nf_ct_timeout_lookup(const struct nf_conn *ct)
 {
+	unsigned int *timeouts = NULL;
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	struct nf_conn_timeout *timeout_ext;
-	unsigned int *timeouts;
 
 	timeout_ext = nf_ct_timeout_find(ct);
-	if (timeout_ext) {
+	if (timeout_ext)
 		timeouts = nf_ct_timeout_data(timeout_ext);
-		if (unlikely(!timeouts))
-			timeouts = l4proto->get_timeouts(net);
-	} else {
-		timeouts = l4proto->get_timeouts(net);
-	}
-
-	return timeouts;
-#else
-	return l4proto->get_timeouts(net);
 #endif
+	return timeouts;
 }
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT

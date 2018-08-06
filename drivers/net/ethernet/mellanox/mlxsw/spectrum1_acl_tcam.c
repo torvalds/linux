@@ -58,6 +58,26 @@ struct mlxsw_sp1_acl_tcam_entry {
 	struct mlxsw_sp_acl_ctcam_entry centry;
 };
 
+static int
+mlxsw_sp1_acl_ctcam_region_entry_insert(struct mlxsw_sp_acl_ctcam_region *cregion,
+					struct mlxsw_sp_acl_ctcam_entry *centry,
+					const char *mask)
+{
+	return 0;
+}
+
+static void
+mlxsw_sp1_acl_ctcam_region_entry_remove(struct mlxsw_sp_acl_ctcam_region *cregion,
+					struct mlxsw_sp_acl_ctcam_entry *centry)
+{
+}
+
+static const struct mlxsw_sp_acl_ctcam_region_ops
+mlxsw_sp1_acl_ctcam_region_ops = {
+	.entry_insert = mlxsw_sp1_acl_ctcam_region_entry_insert,
+	.entry_remove = mlxsw_sp1_acl_ctcam_region_entry_remove,
+};
+
 static int mlxsw_sp1_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 				   struct mlxsw_sp_acl_tcam *tcam)
 {
@@ -122,13 +142,15 @@ mlxsw_sp1_acl_ctcam_region_catchall_del(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp1_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
+			       void *tcam_priv,
 			       struct mlxsw_sp_acl_tcam_region *_region)
 {
 	struct mlxsw_sp1_acl_tcam_region *region = region_priv;
 	int err;
 
 	err = mlxsw_sp_acl_ctcam_region_init(mlxsw_sp, &region->cregion,
-					     _region);
+					     _region,
+					     &mlxsw_sp1_acl_ctcam_region_ops);
 	if (err)
 		return err;
 	err = mlxsw_sp1_acl_ctcam_region_catchall_add(mlxsw_sp, region);
@@ -149,6 +171,13 @@ mlxsw_sp1_acl_tcam_region_fini(struct mlxsw_sp *mlxsw_sp, void *region_priv)
 
 	mlxsw_sp1_acl_ctcam_region_catchall_del(mlxsw_sp, region);
 	mlxsw_sp_acl_ctcam_region_fini(&region->cregion);
+}
+
+static int
+mlxsw_sp1_acl_tcam_region_associate(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_acl_tcam_region *region)
+{
+	return 0;
 }
 
 static void mlxsw_sp1_acl_tcam_chunk_init(void *region_priv, void *chunk_priv,
@@ -235,6 +264,7 @@ const struct mlxsw_sp_acl_tcam_ops mlxsw_sp1_acl_tcam_ops = {
 	.region_priv_size	= sizeof(struct mlxsw_sp1_acl_tcam_region),
 	.region_init		= mlxsw_sp1_acl_tcam_region_init,
 	.region_fini		= mlxsw_sp1_acl_tcam_region_fini,
+	.region_associate	= mlxsw_sp1_acl_tcam_region_associate,
 	.chunk_priv_size	= sizeof(struct mlxsw_sp1_acl_tcam_chunk),
 	.chunk_init		= mlxsw_sp1_acl_tcam_chunk_init,
 	.chunk_fini		= mlxsw_sp1_acl_tcam_chunk_fini,

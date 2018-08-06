@@ -110,8 +110,8 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 
 	memset(iq->request_list, 0, sizeof(*iq->request_list) * num_descs);
 
-	dev_dbg(&oct->pci_dev->dev, "IQ[%d]: base: %p basedma: %llx count: %d\n",
-		iq_no, iq->base_addr, iq->base_addr_dma, iq->max_count);
+	dev_dbg(&oct->pci_dev->dev, "IQ[%d]: base: %p basedma: %pad count: %d\n",
+		iq_no, iq->base_addr, &iq->base_addr_dma, iq->max_count);
 
 	iq->txpciq.u64 = txpciq.u64;
 	iq->fill_threshold = (u32)conf->db_min;

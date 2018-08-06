@@ -267,6 +267,7 @@ out:
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type)
 {
+	long rcvtimeo = smc->clcsock->sk->sk_rcvtimeo;
 	struct sock *clc_sk = smc->clcsock->sk;
 	struct smc_clc_msg_hdr *clcm = buf;
 	struct msghdr msg = {NULL, 0};
@@ -326,7 +327,6 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	memset(&msg, 0, sizeof(struct msghdr));
 	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &vec, 1, datlen);
 	krflags = MSG_WAITALL;
-	smc->clcsock->sk->sk_rcvtimeo = CLC_WAIT_TIME;
 	len = sock_recvmsg(smc->clcsock, &msg, krflags);
 	if (len < datlen || !smc_clc_msg_hdr_valid(clcm)) {
 		smc->sk.sk_err = EPROTO;
@@ -334,7 +334,11 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		goto out;
 	}
 	if (clcm->type == SMC_CLC_DECLINE) {
-		reason_code = SMC_CLC_DECL_REPLY;
+		struct smc_clc_msg_decline *dclc;
+
+		dclc = (struct smc_clc_msg_decline *)clcm;
+		reason_code = SMC_CLC_DECL_PEERDECL;
+		smc->peer_diagnosis = ntohl(dclc->peer_diagnosis);
 		if (((struct smc_clc_msg_decline *)buf)->hdr.flag) {
 			smc->conn.lgr->sync_err = 1;
 			smc_lgr_terminate(smc->conn.lgr);
@@ -342,6 +346,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 
 out:
+	smc->clcsock->sk->sk_rcvtimeo = rcvtimeo;
 	return reason_code;
 }
 
@@ -377,7 +382,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 
 /* send CLC PROPOSAL message across internal TCP socket */
 int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
-			  struct smc_ib_device *ibdev, u8 ibport,
+			  struct smc_ib_device *ibdev, u8 ibport, u8 gid[],
 			  struct smcd_dev *ismdev)
 {
 	struct smc_clc_ipv6_prefix ipv6_prfx[SMC_CLC_MAX_V6_PREFIX];
@@ -408,7 +413,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 		/* add SMC-R specifics */
 		memcpy(pclc.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&pclc.lcl.gid, &ibdev->gid[ibport - 1], SMC_GID_SIZE);
+		memcpy(&pclc.lcl.gid, gid, SMC_GID_SIZE);
 		memcpy(&pclc.lcl.mac, &ibdev->mac[ibport - 1], ETH_ALEN);
 		pclc.iparea_offset = htons(0);
 	}
@@ -491,8 +496,7 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 		cclc.hdr.length = htons(SMCR_CLC_ACCEPT_CONFIRM_LEN);
 		memcpy(cclc.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&cclc.lcl.gid, &link->smcibdev->gid[link->ibport - 1],
-		       SMC_GID_SIZE);
+		memcpy(&cclc.lcl.gid, link->gid, SMC_GID_SIZE);
 		memcpy(&cclc.lcl.mac, &link->smcibdev->mac[link->ibport - 1],
 		       ETH_ALEN);
 		hton24(cclc.qpn, link->roce_qp->qp_num);
@@ -565,8 +569,7 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 		link = &conn->lgr->lnk[SMC_SINGLE_LINK];
 		memcpy(aclc.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&aclc.lcl.gid, &link->smcibdev->gid[link->ibport - 1],
-		       SMC_GID_SIZE);
+		memcpy(&aclc.lcl.gid, link->gid, SMC_GID_SIZE);
 		memcpy(&aclc.lcl.mac, link->smcibdev->mac[link->ibport - 1],
 		       ETH_ALEN);
 		hton24(aclc.qpn, link->roce_qp->qp_num);

@@ -375,14 +375,7 @@ struct ipv6_txoptions *ipv6_dup_options(struct sock *sk,
 struct ipv6_txoptions *ipv6_renew_options(struct sock *sk,
 					  struct ipv6_txoptions *opt,
 					  int newtype,
-					  struct ipv6_opt_hdr __user *newopt,
-					  int newoptlen);
-struct ipv6_txoptions *
-ipv6_renew_options_kern(struct sock *sk,
-			struct ipv6_txoptions *opt,
-			int newtype,
-			struct ipv6_opt_hdr *newopt,
-			int newoptlen);
+					  struct ipv6_opt_hdr *newopt);
 struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 					  struct ipv6_txoptions *opt);
 
@@ -580,34 +573,6 @@ static inline bool ipv6_prefix_equal(const struct in6_addr *addr1,
 	return true;
 }
 #endif
-
-struct inet_frag_queue;
-
-enum ip6_defrag_users {
-	IP6_DEFRAG_LOCAL_DELIVER,
-	IP6_DEFRAG_CONNTRACK_IN,
-	__IP6_DEFRAG_CONNTRACK_IN	= IP6_DEFRAG_CONNTRACK_IN + USHRT_MAX,
-	IP6_DEFRAG_CONNTRACK_OUT,
-	__IP6_DEFRAG_CONNTRACK_OUT	= IP6_DEFRAG_CONNTRACK_OUT + USHRT_MAX,
-	IP6_DEFRAG_CONNTRACK_BRIDGE_IN,
-	__IP6_DEFRAG_CONNTRACK_BRIDGE_IN = IP6_DEFRAG_CONNTRACK_BRIDGE_IN + USHRT_MAX,
-};
-
-void ip6_frag_init(struct inet_frag_queue *q, const void *a);
-extern const struct rhashtable_params ip6_rhash_params;
-
-/*
- *	Equivalent of ipv4 struct ip
- */
-struct frag_queue {
-	struct inet_frag_queue	q;
-
-	int			iif;
-	__u16			nhoffset;
-	u8			ecn;
-};
-
-void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq);
 
 static inline bool ipv6_addr_any(const struct in6_addr *a)
 {
@@ -817,6 +782,13 @@ static inline void iph_to_flow_copy_v6addrs(struct flow_keys *flow,
 
 #if IS_ENABLED(CONFIG_IPV6)
 
+static inline bool ipv6_can_nonlocal_bind(struct net *net,
+					  struct inet_sock *inet)
+{
+	return net->ipv6.sysctl.ip_nonlocal_bind ||
+		inet->freebind || inet->transparent;
+}
+
 /* Sysctl settings for net ipv6.auto_flowlabels */
 #define IP6_AUTO_FLOW_LABEL_OFF		0
 #define IP6_AUTO_FLOW_LABEL_OPTOUT	1
@@ -850,7 +822,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 	 * to minimize possbility that any useful information to an
 	 * attacker is leaked. Only lower 20 bits are relevant.
 	 */
-	rol32(hash, 16);
+	hash = rol32(hash, 16);
 
 	flowlabel = (__force __be32)hash & IPV6_FLOWLABEL_MASK;
 
@@ -1127,6 +1099,8 @@ void ipv6_sysctl_unregister(void);
 
 int ipv6_sock_mc_join(struct sock *sk, int ifindex,
 		      const struct in6_addr *addr);
+int ipv6_sock_mc_join_ssm(struct sock *sk, int ifindex,
+			  const struct in6_addr *addr, unsigned int mode);
 int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
 		      const struct in6_addr *addr);
 #endif /* _NET_IPV6_H */

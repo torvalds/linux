@@ -8,6 +8,8 @@
 PING=${PING:=ping}
 PING6=${PING6:=ping6}
 MZ=${MZ:=mausezahn}
+ARPING=${ARPING:=arping}
+TEAMD=${TEAMD:=teamd}
 WAIT_TIME=${WAIT_TIME:=5}
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
@@ -33,10 +35,22 @@ check_tc_version()
 		echo "SKIP: iproute2 too old; tc is missing JSON support"
 		exit 1
 	fi
+}
 
+check_tc_shblock_support()
+{
 	tc filter help 2>&1 | grep block &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing shared block support"
+		exit 1
+	fi
+}
+
+check_tc_chain_support()
+{
+	tc help 2>&1|grep chain &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing chain support"
 		exit 1
 	fi
 }
@@ -50,15 +64,18 @@ if [[ "$CHECK_TC" = "yes" ]]; then
 	check_tc_version
 fi
 
-if [[ ! -x "$(command -v jq)" ]]; then
-	echo "SKIP: jq not installed"
-	exit 1
-fi
+require_command()
+{
+	local cmd=$1; shift
 
-if [[ ! -x "$(command -v $MZ)" ]]; then
-	echo "SKIP: $MZ not installed"
-	exit 1
-fi
+	if [[ ! -x "$(command -v "$cmd")" ]]; then
+		echo "SKIP: $cmd not installed"
+		exit 1
+	fi
+}
+
+require_command jq
+require_command $MZ
 
 if [[ ! -v NUM_NETIFS ]]; then
 	echo "SKIP: importer does not define \"NUM_NETIFS\""
@@ -228,6 +245,27 @@ setup_wait()
 
 	# Make sure links are ready.
 	sleep $WAIT_TIME
+}
+
+lldpad_app_wait_set()
+{
+	local dev=$1; shift
+
+	while lldptool -t -i $dev -V APP -c app | grep -q pending; do
+		echo "$dev: waiting for lldpad to push pending APP updates"
+		sleep 5
+	done
+}
+
+lldpad_app_wait_del()
+{
+	# Give lldpad a chance to push down the changes. If the device is downed
+	# too soon, the updates will be left pending. However, they will have
+	# been struck off the lldpad's DB already, so we won't be able to tell
+	# they are pending. Then on next test iteration this would cause
+	# weirdness as newly-added APP rules conflict with the old ones,
+	# sometimes getting stuck in an "unknown" state.
+	sleep 5
 }
 
 pre_cleanup()
@@ -408,6 +446,28 @@ vlan_destroy()
 	local name=$if_name.$vid
 
 	ip link del dev $name
+}
+
+team_create()
+{
+	local if_name=$1; shift
+	local mode=$1; shift
+
+	require_command $TEAMD
+	$TEAMD -t $if_name -d -c '{"runner": {"name": "'$mode'"}}'
+	for slave in "$@"; do
+		ip link set dev $slave down
+		ip link set dev $slave master $if_name
+		ip link set dev $slave up
+	done
+	ip link set dev $if_name up
+}
+
+team_destroy()
+{
+	local if_name=$1; shift
+
+	$TEAMD -t $if_name -k
 }
 
 master_name_get()
@@ -591,6 +651,48 @@ vlan_capture_install()
 vlan_capture_uninstall()
 {
 	__vlan_capture_add_del del 100 "$@"
+}
+
+__dscp_capture_add_del()
+{
+	local add_del=$1; shift
+	local dev=$1; shift
+	local base=$1; shift
+	local dscp;
+
+	for prio in {0..7}; do
+		dscp=$((base + prio))
+		__icmp_capture_add_del $add_del $((dscp + 100)) "" $dev \
+				       "skip_hw ip_tos $((dscp << 2))"
+	done
+}
+
+dscp_capture_install()
+{
+	local dev=$1; shift
+	local base=$1; shift
+
+	__dscp_capture_add_del add $dev $base
+}
+
+dscp_capture_uninstall()
+{
+	local dev=$1; shift
+	local base=$1; shift
+
+	__dscp_capture_add_del del $dev $base
+}
+
+dscp_fetch_stats()
+{
+	local dev=$1; shift
+	local base=$1; shift
+
+	for prio in {0..7}; do
+		local dscp=$((base + prio))
+		local t=$(tc_rule_stats_get $dev $((dscp + 100)))
+		echo "[$dscp]=$t "
+	done
 }
 
 matchall_sink_create()

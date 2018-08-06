@@ -37,6 +37,9 @@
 #define RTL8201F_ISR				0x1e
 #define RTL8201F_IER				0x13
 
+#define RTL8366RB_POWER_SAVE			0x15
+#define RTL8366RB_POWER_SAVE_ON			BIT(12)
+
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
@@ -190,6 +193,24 @@ static int rtl8211b_resume(struct phy_device *phydev)
 	return genphy_resume(phydev);
 }
 
+static int rtl8366rb_config_init(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_config_init(phydev);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_set_bits(phydev, RTL8366RB_POWER_SAVE,
+			   RTL8366RB_POWER_SAVE_ON);
+	if (ret) {
+		dev_err(&phydev->mdio.dev,
+			"error enabling power management\n");
+	}
+
+	return ret;
+}
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		.phy_id         = 0x00008201,
@@ -270,6 +291,15 @@ static struct phy_driver realtek_drvs[] = {
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+	}, {
+		.phy_id		= 0x001cc961,
+		.name		= "RTL8366RB Gigabit Ethernet",
+		.phy_id_mask	= 0x001fffff,
+		.features	= PHY_GBIT_FEATURES,
+		.flags		= PHY_HAS_INTERRUPT,
+		.config_init	= &rtl8366rb_config_init,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
 	},
 };
 
@@ -279,9 +309,11 @@ static struct mdio_device_id __maybe_unused realtek_tbl[] = {
 	{ 0x001cc816, 0x001fffff },
 	{ 0x001cc910, 0x001fffff },
 	{ 0x001cc912, 0x001fffff },
+	{ 0x001cc913, 0x001fffff },
 	{ 0x001cc914, 0x001fffff },
 	{ 0x001cc915, 0x001fffff },
 	{ 0x001cc916, 0x001fffff },
+	{ 0x001cc961, 0x001fffff },
 	{ }
 };
 

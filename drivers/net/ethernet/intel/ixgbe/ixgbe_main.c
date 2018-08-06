@@ -4022,38 +4022,6 @@ static void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 	}
 }
 
-void ixgbe_disable_rx_queue(struct ixgbe_adapter *adapter,
-			    struct ixgbe_ring *ring)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	int wait_loop = IXGBE_MAX_RX_DESC_POLL;
-	u32 rxdctl;
-	u8 reg_idx = ring->reg_idx;
-
-	if (ixgbe_removed(hw->hw_addr))
-		return;
-	rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
-	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
-
-	/* write value back with RXDCTL.ENABLE bit cleared */
-	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
-
-	if (hw->mac.type == ixgbe_mac_82598EB &&
-	    !(IXGBE_READ_REG(hw, IXGBE_LINKS) & IXGBE_LINKS_UP))
-		return;
-
-	/* the hardware may take up to 100us to really disable the rx queue */
-	do {
-		udelay(10);
-		rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
-	} while (--wait_loop && (rxdctl & IXGBE_RXDCTL_ENABLE));
-
-	if (!wait_loop) {
-		e_err(drv, "RXDCTL.ENABLE on Rx queue %d not cleared within "
-		      "the polling period\n", reg_idx);
-	}
-}
-
 void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 			     struct ixgbe_ring *ring)
 {
@@ -4063,9 +4031,13 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 	u32 rxdctl;
 	u8 reg_idx = ring->reg_idx;
 
-	/* disable queue to avoid issues while updating state */
+	/* disable queue to avoid use of these values while updating state */
 	rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
-	ixgbe_disable_rx_queue(adapter, ring);
+	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
+
+	/* write value back with RXDCTL.ENABLE bit cleared */
+	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
+	IXGBE_WRITE_FLUSH(hw);
 
 	IXGBE_WRITE_REG(hw, IXGBE_RDBAL(reg_idx), (rdba & DMA_BIT_MASK(32)));
 	IXGBE_WRITE_REG(hw, IXGBE_RDBAH(reg_idx), (rdba >> 32));
@@ -5633,6 +5605,212 @@ void ixgbe_up(struct ixgbe_adapter *adapter)
 	ixgbe_up_complete(adapter);
 }
 
+static unsigned long ixgbe_get_completion_timeout(struct ixgbe_adapter *adapter)
+{
+	u16 devctl2;
+
+	pcie_capability_read_word(adapter->pdev, PCI_EXP_DEVCTL2, &devctl2);
+
+	switch (devctl2 & IXGBE_PCIDEVCTRL2_TIMEO_MASK) {
+	case IXGBE_PCIDEVCTRL2_17_34s:
+	case IXGBE_PCIDEVCTRL2_4_8s:
+		/* For now we cap the upper limit on delay to 2 seconds
+		 * as we end up going up to 34 seconds of delay in worst
+		 * case timeout value.
+		 */
+	case IXGBE_PCIDEVCTRL2_1_2s:
+		return 2000000ul;	/* 2.0 s */
+	case IXGBE_PCIDEVCTRL2_260_520ms:
+		return 520000ul;	/* 520 ms */
+	case IXGBE_PCIDEVCTRL2_65_130ms:
+		return 130000ul;	/* 130 ms */
+	case IXGBE_PCIDEVCTRL2_16_32ms:
+		return 32000ul;		/* 32 ms */
+	case IXGBE_PCIDEVCTRL2_1_2ms:
+		return 2000ul;		/* 2 ms */
+	case IXGBE_PCIDEVCTRL2_50_100us:
+		return 100ul;		/* 100 us */
+	case IXGBE_PCIDEVCTRL2_16_32ms_def:
+		return 32000ul;		/* 32 ms */
+	default:
+		break;
+	}
+
+	/* We shouldn't need to hit this path, but just in case default as
+	 * though completion timeout is not supported and support 32ms.
+	 */
+	return 32000ul;
+}
+
+void ixgbe_disable_rx(struct ixgbe_adapter *adapter)
+{
+	unsigned long wait_delay, delay_interval;
+	struct ixgbe_hw *hw = &adapter->hw;
+	int i, wait_loop;
+	u32 rxdctl;
+
+	/* disable receives */
+	hw->mac.ops.disable_rx(hw);
+
+	if (ixgbe_removed(hw->hw_addr))
+		return;
+
+	/* disable all enabled Rx queues */
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		struct ixgbe_ring *ring = adapter->rx_ring[i];
+		u8 reg_idx = ring->reg_idx;
+
+		rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
+		rxdctl &= ~IXGBE_RXDCTL_ENABLE;
+		rxdctl |= IXGBE_RXDCTL_SWFLSH;
+
+		/* write value back with RXDCTL.ENABLE bit cleared */
+		IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
+	}
+
+	/* RXDCTL.EN may not change on 82598 if link is down, so skip it */
+	if (hw->mac.type == ixgbe_mac_82598EB &&
+	    !(IXGBE_READ_REG(hw, IXGBE_LINKS) & IXGBE_LINKS_UP))
+		return;
+
+	/* Determine our minimum delay interval. We will increase this value
+	 * with each subsequent test. This way if the device returns quickly
+	 * we should spend as little time as possible waiting, however as
+	 * the time increases we will wait for larger periods of time.
+	 *
+	 * The trick here is that we increase the interval using the
+	 * following pattern: 1x 3x 5x 7x 9x 11x 13x 15x 17x 19x. The result
+	 * of that wait is that it totals up to 100x whatever interval we
+	 * choose. Since our minimum wait is 100us we can just divide the
+	 * total timeout by 100 to get our minimum delay interval.
+	 */
+	delay_interval = ixgbe_get_completion_timeout(adapter) / 100;
+
+	wait_loop = IXGBE_MAX_RX_DESC_POLL;
+	wait_delay = delay_interval;
+
+	while (wait_loop--) {
+		usleep_range(wait_delay, wait_delay + 10);
+		wait_delay += delay_interval * 2;
+		rxdctl = 0;
+
+		/* OR together the reading of all the active RXDCTL registers,
+		 * and then test the result. We need the disable to complete
+		 * before we start freeing the memory and invalidating the
+		 * DMA mappings.
+		 */
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			struct ixgbe_ring *ring = adapter->rx_ring[i];
+			u8 reg_idx = ring->reg_idx;
+
+			rxdctl |= IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
+		}
+
+		if (!(rxdctl & IXGBE_RXDCTL_ENABLE))
+			return;
+	}
+
+	e_err(drv,
+	      "RXDCTL.ENABLE for one or more queues not cleared within the polling period\n");
+}
+
+void ixgbe_disable_tx(struct ixgbe_adapter *adapter)
+{
+	unsigned long wait_delay, delay_interval;
+	struct ixgbe_hw *hw = &adapter->hw;
+	int i, wait_loop;
+	u32 txdctl;
+
+	if (ixgbe_removed(hw->hw_addr))
+		return;
+
+	/* disable all enabled Tx queues */
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct ixgbe_ring *ring = adapter->tx_ring[i];
+		u8 reg_idx = ring->reg_idx;
+
+		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), IXGBE_TXDCTL_SWFLSH);
+	}
+
+	/* disable all enabled XDP Tx queues */
+	for (i = 0; i < adapter->num_xdp_queues; i++) {
+		struct ixgbe_ring *ring = adapter->xdp_ring[i];
+		u8 reg_idx = ring->reg_idx;
+
+		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), IXGBE_TXDCTL_SWFLSH);
+	}
+
+	/* If the link is not up there shouldn't be much in the way of
+	 * pending transactions. Those that are left will be flushed out
+	 * when the reset logic goes through the flush sequence to clean out
+	 * the pending Tx transactions.
+	 */
+	if (!(IXGBE_READ_REG(hw, IXGBE_LINKS) & IXGBE_LINKS_UP))
+		goto dma_engine_disable;
+
+	/* Determine our minimum delay interval. We will increase this value
+	 * with each subsequent test. This way if the device returns quickly
+	 * we should spend as little time as possible waiting, however as
+	 * the time increases we will wait for larger periods of time.
+	 *
+	 * The trick here is that we increase the interval using the
+	 * following pattern: 1x 3x 5x 7x 9x 11x 13x 15x 17x 19x. The result
+	 * of that wait is that it totals up to 100x whatever interval we
+	 * choose. Since our minimum wait is 100us we can just divide the
+	 * total timeout by 100 to get our minimum delay interval.
+	 */
+	delay_interval = ixgbe_get_completion_timeout(adapter) / 100;
+
+	wait_loop = IXGBE_MAX_RX_DESC_POLL;
+	wait_delay = delay_interval;
+
+	while (wait_loop--) {
+		usleep_range(wait_delay, wait_delay + 10);
+		wait_delay += delay_interval * 2;
+		txdctl = 0;
+
+		/* OR together the reading of all the active TXDCTL registers,
+		 * and then test the result. We need the disable to complete
+		 * before we start freeing the memory and invalidating the
+		 * DMA mappings.
+		 */
+		for (i = 0; i < adapter->num_tx_queues; i++) {
+			struct ixgbe_ring *ring = adapter->tx_ring[i];
+			u8 reg_idx = ring->reg_idx;
+
+			txdctl |= IXGBE_READ_REG(hw, IXGBE_TXDCTL(reg_idx));
+		}
+		for (i = 0; i < adapter->num_xdp_queues; i++) {
+			struct ixgbe_ring *ring = adapter->xdp_ring[i];
+			u8 reg_idx = ring->reg_idx;
+
+			txdctl |= IXGBE_READ_REG(hw, IXGBE_TXDCTL(reg_idx));
+		}
+
+		if (!(txdctl & IXGBE_TXDCTL_ENABLE))
+			goto dma_engine_disable;
+	}
+
+	e_err(drv,
+	      "TXDCTL.ENABLE for one or more queues not cleared within the polling period\n");
+
+dma_engine_disable:
+	/* Disable the Tx DMA engine on 82599 and later MAC */
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
+		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL,
+				(IXGBE_READ_REG(hw, IXGBE_DMATXCTL) &
+				 ~IXGBE_DMATXCTL_TE));
+		/* fall through */
+	default:
+		break;
+	}
+}
+
 void ixgbe_reset(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -5814,24 +5992,19 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	if (test_and_set_bit(__IXGBE_DOWN, &adapter->state))
 		return; /* do nothing if already down */
 
-	/* disable receives */
-	hw->mac.ops.disable_rx(hw);
-
-	/* disable all enabled rx queues */
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		/* this call also flushes the previous write */
-		ixgbe_disable_rx_queue(adapter, adapter->rx_ring[i]);
-
-	usleep_range(10000, 20000);
-
-	/* synchronize_sched() needed for pending XDP buffers to drain */
-	if (adapter->xdp_ring[0])
-		synchronize_sched();
+	/* Shut off incoming Tx traffic */
 	netif_tx_stop_all_queues(netdev);
 
 	/* call carrier off first to avoid false dev_watchdog timeouts */
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
+
+	/* Disable Rx */
+	ixgbe_disable_rx(adapter);
+
+	/* synchronize_sched() needed for pending XDP buffers to drain */
+	if (adapter->xdp_ring[0])
+		synchronize_sched();
 
 	ixgbe_irq_disable(adapter);
 
@@ -5859,30 +6032,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	}
 
 	/* disable transmits in the hardware now that interrupts are off */
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		u8 reg_idx = adapter->tx_ring[i]->reg_idx;
-		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), IXGBE_TXDCTL_SWFLSH);
-	}
-	for (i = 0; i < adapter->num_xdp_queues; i++) {
-		u8 reg_idx = adapter->xdp_ring[i]->reg_idx;
-
-		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), IXGBE_TXDCTL_SWFLSH);
-	}
-
-	/* Disable the Tx DMA engine on 82599 and later MAC */
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL,
-				(IXGBE_READ_REG(hw, IXGBE_DMATXCTL) &
-				 ~IXGBE_DMATXCTL_TE));
-		break;
-	default:
-		break;
-	}
+	ixgbe_disable_tx(adapter);
 
 	if (!pci_channel_offline(adapter->pdev))
 		ixgbe_reset(adapter);
@@ -6468,6 +6618,11 @@ static void ixgbe_free_all_rx_resources(struct ixgbe_adapter *adapter)
 static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	if (adapter->xdp_prog) {
+		e_warn(probe, "MTU cannot be changed while XDP program is loaded\n");
+		return -EPERM;
+	}
 
 	/*
 	 * For 82599EB we cannot allow legacy VFs to enable their receive
@@ -9407,6 +9562,11 @@ static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
 	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
 		features &= ~NETIF_F_LRO;
 
+	if (adapter->xdp_prog && (features & NETIF_F_LRO)) {
+		e_dev_err("LRO is not supported with XDP\n");
+		features &= ~NETIF_F_LRO;
+	}
+
 	return features;
 }
 
@@ -9992,7 +10152,6 @@ static int ixgbe_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	case XDP_SETUP_PROG:
 		return ixgbe_xdp_setup(dev, xdp->prog);
 	case XDP_QUERY_PROG:
-		xdp->prog_attached = !!(adapter->xdp_prog);
 		xdp->prog_id = adapter->xdp_prog ?
 			adapter->xdp_prog->aux->id : 0;
 		return 0;

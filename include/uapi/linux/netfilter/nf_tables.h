@@ -921,10 +921,12 @@ enum nft_socket_attributes {
 /*
  * enum nft_socket_keys - nf_tables socket expression keys
  *
- * @NFT_SOCKET_TRANSPARENT: Value of the IP(V6)_TRANSPARENT socket option_
+ * @NFT_SOCKET_TRANSPARENT: Value of the IP(V6)_TRANSPARENT socket option
+ * @NFT_SOCKET_MARK: Value of the socket mark
  */
 enum nft_socket_keys {
 	NFT_SOCKET_TRANSPARENT,
+	NFT_SOCKET_MARK,
 	__NFT_SOCKET_MAX
 };
 #define NFT_SOCKET_MAX	(__NFT_SOCKET_MAX - 1)
@@ -1251,6 +1253,22 @@ enum nft_nat_attributes {
 #define NFTA_NAT_MAX		(__NFTA_NAT_MAX - 1)
 
 /**
+ * enum nft_tproxy_attributes - nf_tables tproxy expression netlink attributes
+ *
+ * NFTA_TPROXY_FAMILY: Target address family (NLA_U32: nft_registers)
+ * NFTA_TPROXY_REG_ADDR: Target address register (NLA_U32: nft_registers)
+ * NFTA_TPROXY_REG_PORT: Target port register (NLA_U32: nft_registers)
+ */
+enum nft_tproxy_attributes {
+	NFTA_TPROXY_UNSPEC,
+	NFTA_TPROXY_FAMILY,
+	NFTA_TPROXY_REG_ADDR,
+	NFTA_TPROXY_REG_PORT,
+	__NFTA_TPROXY_MAX
+};
+#define NFTA_TPROXY_MAX		(__NFTA_TPROXY_MAX - 1)
+
+/**
  * enum nft_masq_attributes - nf_tables masquerade expression attributes
  *
  * @NFTA_MASQ_FLAGS: NAT flags (see NF_NAT_RANGE_* in linux/netfilter/nf_nat.h) (NLA_U32)
@@ -1398,7 +1416,8 @@ enum nft_ct_helper_attributes {
 #define NFT_OBJECT_CT_HELPER	3
 #define NFT_OBJECT_LIMIT	4
 #define NFT_OBJECT_CONNLIMIT	5
-#define __NFT_OBJECT_MAX	6
+#define NFT_OBJECT_TUNNEL	6
+#define __NFT_OBJECT_MAX	7
 #define NFT_OBJECT_MAX		(__NFT_OBJECT_MAX - 1)
 
 /**
@@ -1460,6 +1479,13 @@ enum nft_flowtable_hook_attributes {
 	__NFTA_FLOWTABLE_HOOK_MAX
 };
 #define NFTA_FLOWTABLE_HOOK_MAX	(__NFTA_FLOWTABLE_HOOK_MAX - 1)
+
+enum nft_osf_attributes {
+	NFTA_OSF_UNSPEC,
+	NFTA_OSF_DREG,
+	__NFTA_OSF_MAX,
+};
+#define NFTA_OSF_MAX (__NFTA_OSF_MAX - 1)
 
 /**
  * enum nft_device_attributes - nf_tables device netlink attributes
@@ -1554,5 +1580,86 @@ enum nft_ng_types {
 	__NFT_NG_MAX
 };
 #define NFT_NG_MAX	(__NFT_NG_MAX - 1)
+
+enum nft_tunnel_key_ip_attributes {
+	NFTA_TUNNEL_KEY_IP_UNSPEC,
+	NFTA_TUNNEL_KEY_IP_SRC,
+	NFTA_TUNNEL_KEY_IP_DST,
+	__NFTA_TUNNEL_KEY_IP_MAX
+};
+#define NFTA_TUNNEL_KEY_IP_MAX	(__NFTA_TUNNEL_KEY_IP_MAX - 1)
+
+enum nft_tunnel_ip6_attributes {
+	NFTA_TUNNEL_KEY_IP6_UNSPEC,
+	NFTA_TUNNEL_KEY_IP6_SRC,
+	NFTA_TUNNEL_KEY_IP6_DST,
+	NFTA_TUNNEL_KEY_IP6_FLOWLABEL,
+	__NFTA_TUNNEL_KEY_IP6_MAX
+};
+#define NFTA_TUNNEL_KEY_IP6_MAX	(__NFTA_TUNNEL_KEY_IP6_MAX - 1)
+
+enum nft_tunnel_opts_attributes {
+	NFTA_TUNNEL_KEY_OPTS_UNSPEC,
+	NFTA_TUNNEL_KEY_OPTS_VXLAN,
+	NFTA_TUNNEL_KEY_OPTS_ERSPAN,
+	__NFTA_TUNNEL_KEY_OPTS_MAX
+};
+#define NFTA_TUNNEL_KEY_OPTS_MAX	(__NFTA_TUNNEL_KEY_OPTS_MAX - 1)
+
+enum nft_tunnel_opts_vxlan_attributes {
+	NFTA_TUNNEL_KEY_VXLAN_UNSPEC,
+	NFTA_TUNNEL_KEY_VXLAN_GBP,
+	__NFTA_TUNNEL_KEY_VXLAN_MAX
+};
+#define NFTA_TUNNEL_KEY_VXLAN_MAX	(__NFTA_TUNNEL_KEY_VXLAN_MAX - 1)
+
+enum nft_tunnel_opts_erspan_attributes {
+	NFTA_TUNNEL_KEY_ERSPAN_UNSPEC,
+	NFTA_TUNNEL_KEY_ERSPAN_VERSION,
+	NFTA_TUNNEL_KEY_ERSPAN_V1_INDEX,
+	NFTA_TUNNEL_KEY_ERSPAN_V2_HWID,
+	NFTA_TUNNEL_KEY_ERSPAN_V2_DIR,
+	__NFTA_TUNNEL_KEY_ERSPAN_MAX
+};
+#define NFTA_TUNNEL_KEY_ERSPAN_MAX	(__NFTA_TUNNEL_KEY_ERSPAN_MAX - 1)
+
+enum nft_tunnel_flags {
+	NFT_TUNNEL_F_ZERO_CSUM_TX	= (1 << 0),
+	NFT_TUNNEL_F_DONT_FRAGMENT	= (1 << 1),
+	NFT_TUNNEL_F_SEQ_NUMBER		= (1 << 2),
+};
+#define NFT_TUNNEL_F_MASK	(NFT_TUNNEL_F_ZERO_CSUM_TX | \
+				 NFT_TUNNEL_F_DONT_FRAGMENT | \
+				 NFT_TUNNEL_F_SEQ_NUMBER)
+
+enum nft_tunnel_key_attributes {
+	NFTA_TUNNEL_KEY_UNSPEC,
+	NFTA_TUNNEL_KEY_ID,
+	NFTA_TUNNEL_KEY_IP,
+	NFTA_TUNNEL_KEY_IP6,
+	NFTA_TUNNEL_KEY_FLAGS,
+	NFTA_TUNNEL_KEY_TOS,
+	NFTA_TUNNEL_KEY_TTL,
+	NFTA_TUNNEL_KEY_SPORT,
+	NFTA_TUNNEL_KEY_DPORT,
+	NFTA_TUNNEL_KEY_OPTS,
+	__NFTA_TUNNEL_KEY_MAX
+};
+#define NFTA_TUNNEL_KEY_MAX	(__NFTA_TUNNEL_KEY_MAX - 1)
+
+enum nft_tunnel_keys {
+	NFT_TUNNEL_PATH,
+	NFT_TUNNEL_ID,
+	__NFT_TUNNEL_MAX
+};
+#define NFT_TUNNEL_MAX	(__NFT_TUNNEL_MAX - 1)
+
+enum nft_tunnel_attributes {
+	NFTA_TUNNEL_UNSPEC,
+	NFTA_TUNNEL_KEY,
+	NFTA_TUNNEL_DREG,
+	__NFTA_TUNNEL_MAX
+};
+#define NFTA_TUNNEL_MAX	(__NFTA_TUNNEL_MAX - 1)
 
 #endif /* _LINUX_NF_TABLES_H */

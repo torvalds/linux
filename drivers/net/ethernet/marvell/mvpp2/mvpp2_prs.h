@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Header Parser definitions for Marvell PPv2 Network Controller
  *
  * Copyright (C) 2014 Marvell
  *
  * Marcin Wojtas <mw@semihalf.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 #ifndef _MVPP2_PRS_H_
 #define _MVPP2_PRS_H_
@@ -297,6 +294,15 @@ struct mvpp2_prs_shadow {
 
 int mvpp2_prs_default_init(struct platform_device *pdev, struct mvpp2 *priv);
 
+int mvpp2_prs_init_from_hw(struct mvpp2 *priv, struct mvpp2_prs_entry *pe,
+			   int tid);
+
+unsigned int mvpp2_prs_tcam_port_map_get(struct mvpp2_prs_entry *pe);
+
+void mvpp2_prs_tcam_data_byte_get(struct mvpp2_prs_entry *pe,
+				  unsigned int offs, unsigned char *byte,
+				  unsigned char *enable);
+
 int mvpp2_prs_mac_da_accept(struct mvpp2_port *port, const u8 *da, bool add);
 
 int mvpp2_prs_tag_mode_set(struct mvpp2 *priv, int port, int type);
@@ -321,5 +327,7 @@ void mvpp2_prs_mac_promisc_set(struct mvpp2 *priv, int port,
 void mvpp2_prs_mac_del_all(struct mvpp2_port *port);
 
 int mvpp2_prs_update_mac_da(struct net_device *dev, const u8 *da);
+
+int mvpp2_prs_hits(struct mvpp2 *priv, int index);
 
 #endif

@@ -91,6 +91,9 @@ static int octeon_console_debug_enabled(u32 console)
  */
 #define LIO_SYNC_OCTEON_TIME_INTERVAL_MS 60000
 
+/* time to wait for possible in-flight requests in milliseconds */
+#define WAIT_INFLIGHT_REQUEST	msecs_to_jiffies(1000)
+
 struct lio_trusted_vf_ctx {
 	struct completion complete;
 	int status;
@@ -259,7 +262,7 @@ static inline void pcierror_quiesce_device(struct octeon_device *oct)
 	force_io_queues_off(oct);
 
 	/* To allow for in-flight requests */
-	schedule_timeout_uninterruptible(100);
+	schedule_timeout_uninterruptible(WAIT_INFLIGHT_REQUEST);
 
 	if (wait_for_pending_requests(oct))
 		dev_err(&oct->pci_dev->dev, "There were pending requests\n");
@@ -2628,7 +2631,7 @@ static int liquidio_vlan_rx_kill_vid(struct net_device *netdev,
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
 	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
+		dev_err(&oct->pci_dev->dev, "Del VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
 	}
 	return ret;
@@ -2906,7 +2909,7 @@ static int liquidio_set_vf_vlan(struct net_device *netdev, int vfidx,
 	    vfidx + 1; /* vfidx is 0 based, but vf_num (param2) is 1 based */
 	nctrl.ncmd.s.more = 0;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.cb_fn = 0;
+	nctrl.cb_fn = NULL;
 	nctrl.wait_time = LIO_CMD_WAIT_TM;
 
 	octnet_send_nic_ctrl_pkt(oct, &nctrl);
@@ -3065,7 +3068,7 @@ static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
 	nctrl.ncmd.s.param2 = linkstate;
 	nctrl.ncmd.s.more = 0;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.cb_fn = 0;
+	nctrl.cb_fn = NULL;
 	nctrl.wait_time = LIO_CMD_WAIT_TM;
 
 	octnet_send_nic_ctrl_pkt(oct, &nctrl);

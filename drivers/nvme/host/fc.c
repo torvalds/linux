@@ -2272,7 +2272,7 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE ||
 	    !nvmf_check_ready(&queue->ctrl->ctrl, rq, queue_ready))
-		return nvmf_fail_nonready_command(rq);
+		return nvmf_fail_nonready_command(&queue->ctrl->ctrl, rq);
 
 	ret = nvme_setup_cmd(ns, rq, sqe);
 	if (ret)

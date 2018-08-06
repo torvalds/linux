@@ -1984,15 +1984,64 @@ static int modify_qp(struct ib_uverbs_file *file,
 		goto release_qp;
 	}
 
-	if ((cmd->base.attr_mask & IB_QP_AV) &&
-	    !rdma_is_port_valid(qp->device, cmd->base.dest.port_num)) {
-		ret = -EINVAL;
-		goto release_qp;
+	if ((cmd->base.attr_mask & IB_QP_AV)) {
+		if (!rdma_is_port_valid(qp->device, cmd->base.dest.port_num)) {
+			ret = -EINVAL;
+			goto release_qp;
+		}
+
+		if (cmd->base.attr_mask & IB_QP_STATE &&
+		    cmd->base.qp_state == IB_QPS_RTR) {
+		/* We are in INIT->RTR TRANSITION (if we are not,
+		 * this transition will be rejected in subsequent checks).
+		 * In the INIT->RTR transition, we cannot have IB_QP_PORT set,
+		 * but the IB_QP_STATE flag is required.
+		 *
+		 * Since kernel 3.14 (commit dbf727de7440), the uverbs driver,
+		 * when IB_QP_AV is set, has required inclusion of a valid
+		 * port number in the primary AV. (AVs are created and handled
+		 * differently for infiniband and ethernet (RoCE) ports).
+		 *
+		 * Check the port number included in the primary AV against
+		 * the port number in the qp struct, which was set (and saved)
+		 * in the RST->INIT transition.
+		 */
+			if (cmd->base.dest.port_num != qp->real_qp->port) {
+				ret = -EINVAL;
+				goto release_qp;
+			}
+		} else {
+		/* We are in SQD->SQD. (If we are not, this transition will
+		 * be rejected later in the verbs layer checks).
+		 * Check for both IB_QP_PORT and IB_QP_AV, these can be set
+		 * together in the SQD->SQD transition.
+		 *
+		 * If only IP_QP_AV was set, add in IB_QP_PORT as well (the
+		 * verbs layer driver does not track primary port changes
+		 * resulting from path migration. Thus, in SQD, if the primary
+		 * AV is modified, the primary port should also be modified).
+		 *
+		 * Note that in this transition, the IB_QP_STATE flag
+		 * is not allowed.
+		 */
+			if (((cmd->base.attr_mask & (IB_QP_AV | IB_QP_PORT))
+			     == (IB_QP_AV | IB_QP_PORT)) &&
+			    cmd->base.port_num != cmd->base.dest.port_num) {
+				ret = -EINVAL;
+				goto release_qp;
+			}
+			if ((cmd->base.attr_mask & (IB_QP_AV | IB_QP_PORT))
+			    == IB_QP_AV) {
+				cmd->base.attr_mask |= IB_QP_PORT;
+				cmd->base.port_num = cmd->base.dest.port_num;
+			}
+		}
 	}
 
 	if ((cmd->base.attr_mask & IB_QP_ALT_PATH) &&
 	    (!rdma_is_port_valid(qp->device, cmd->base.alt_port_num) ||
-	    !rdma_is_port_valid(qp->device, cmd->base.alt_dest.port_num))) {
+	    !rdma_is_port_valid(qp->device, cmd->base.alt_dest.port_num) ||
+	    cmd->base.alt_port_num != cmd->base.alt_dest.port_num)) {
 		ret = -EINVAL;
 		goto release_qp;
 	}
@@ -3488,8 +3537,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	struct ib_flow_attr		  *flow_attr;
 	struct ib_qp			  *qp;
 	struct ib_uflow_resources	  *uflow_res;
+	struct ib_uverbs_flow_spec_hdr	  *kern_spec;
 	int err = 0;
-	void *kern_spec;
 	void *ib_spec;
 	int i;
 
@@ -3538,8 +3587,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		if (!kern_flow_attr)
 			return -ENOMEM;
 
-		memcpy(kern_flow_attr, &cmd.flow_attr, sizeof(*kern_flow_attr));
-		err = ib_copy_from_udata(kern_flow_attr + 1, ucore,
+		*kern_flow_attr = cmd.flow_attr;
+		err = ib_copy_from_udata(&kern_flow_attr->flow_specs, ucore,
 					 cmd.flow_attr.size);
 		if (err)
 			goto err_free_attr;
@@ -3557,6 +3606,11 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	if (!qp) {
 		err = -EINVAL;
 		goto err_uobj;
+	}
+
+	if (qp->qp_type != IB_QPT_UD && qp->qp_type != IB_QPT_RAW_PACKET) {
+		err = -EINVAL;
+		goto err_put;
 	}
 
 	flow_attr = kzalloc(struct_size(flow_attr, flows,
@@ -3578,21 +3632,22 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	flow_attr->flags = kern_flow_attr->flags;
 	flow_attr->size = sizeof(*flow_attr);
 
-	kern_spec = kern_flow_attr + 1;
+	kern_spec = kern_flow_attr->flow_specs;
 	ib_spec = flow_attr + 1;
 	for (i = 0; i < flow_attr->num_of_specs &&
-	     cmd.flow_attr.size > offsetof(struct ib_uverbs_flow_spec, reserved) &&
-	     cmd.flow_attr.size >=
-	     ((struct ib_uverbs_flow_spec *)kern_spec)->size; i++) {
-		err = kern_spec_to_ib_spec(file->ucontext, kern_spec, ib_spec,
-					   uflow_res);
+			cmd.flow_attr.size >= sizeof(*kern_spec) &&
+			cmd.flow_attr.size >= kern_spec->size;
+	     i++) {
+		err = kern_spec_to_ib_spec(
+				file->ucontext, (struct ib_uverbs_flow_spec *)kern_spec,
+				ib_spec, uflow_res);
 		if (err)
 			goto err_free;
 
 		flow_attr->size +=
 			((union ib_flow_spec *) ib_spec)->size;
-		cmd.flow_attr.size -= ((struct ib_uverbs_flow_spec *)kern_spec)->size;
-		kern_spec += ((struct ib_uverbs_flow_spec *) kern_spec)->size;
+		cmd.flow_attr.size -= kern_spec->size;
+		kern_spec = ((void *)kern_spec) + kern_spec->size;
 		ib_spec += ((union ib_flow_spec *) ib_spec)->size;
 	}
 	if (cmd.flow_attr.size || (i != flow_attr->num_of_specs)) {

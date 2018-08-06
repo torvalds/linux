@@ -1012,7 +1012,7 @@ dummy_pstack(struct PStack *st, int pr, void *arg) {
 
 static int
 init_PStack(struct PStack **stp) {
-	*stp = kmalloc(sizeof(struct PStack), GFP_ATOMIC);
+	*stp = kmalloc(sizeof(struct PStack), GFP_KERNEL);
 	if (!*stp)
 		return -ENOMEM;
 	(*stp)->next = NULL;

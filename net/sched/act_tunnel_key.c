@@ -31,13 +31,11 @@ static int tunnel_key_act(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_tunnel_key_params *params;
 	int action;
 
-	rcu_read_lock();
-
-	params = rcu_dereference(t->params);
+	params = rcu_dereference_bh(t->params);
 
 	tcf_lastuse_update(&t->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(t->common.cpu_bstats), skb);
-	action = params->action;
+	action = READ_ONCE(t->tcf_action);
 
 	switch (params->tcft_action) {
 	case TCA_TUNNEL_KEY_ACT_RELEASE:
@@ -52,8 +50,6 @@ static int tunnel_key_act(struct sk_buff *skb, const struct tc_action *a,
 			  params->tcft_action);
 		break;
 	}
-
-	rcu_read_unlock();
 
 	return action;
 }
@@ -197,6 +193,8 @@ static const struct nla_policy tunnel_key_policy[TCA_TUNNEL_KEY_MAX + 1] = {
 	[TCA_TUNNEL_KEY_ENC_DST_PORT] = {.type = NLA_U16},
 	[TCA_TUNNEL_KEY_NO_CSUM]      = { .type = NLA_U8 },
 	[TCA_TUNNEL_KEY_ENC_OPTS]     = { .type = NLA_NESTED },
+	[TCA_TUNNEL_KEY_ENC_TOS]      = { .type = NLA_U8 },
+	[TCA_TUNNEL_KEY_ENC_TTL]      = { .type = NLA_U8 },
 };
 
 static int tunnel_key_init(struct net *net, struct nlattr *nla,
@@ -216,6 +214,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	int opts_len = 0;
 	__be64 key_id;
 	__be16 flags;
+	u8 tos, ttl;
 	int ret = 0;
 	int err;
 
@@ -273,6 +272,13 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			}
 		}
 
+		tos = 0;
+		if (tb[TCA_TUNNEL_KEY_ENC_TOS])
+			tos = nla_get_u8(tb[TCA_TUNNEL_KEY_ENC_TOS]);
+		ttl = 0;
+		if (tb[TCA_TUNNEL_KEY_ENC_TTL])
+			ttl = nla_get_u8(tb[TCA_TUNNEL_KEY_ENC_TTL]);
+
 		if (tb[TCA_TUNNEL_KEY_ENC_IPV4_SRC] &&
 		    tb[TCA_TUNNEL_KEY_ENC_IPV4_DST]) {
 			__be32 saddr;
@@ -281,7 +287,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			saddr = nla_get_in_addr(tb[TCA_TUNNEL_KEY_ENC_IPV4_SRC]);
 			daddr = nla_get_in_addr(tb[TCA_TUNNEL_KEY_ENC_IPV4_DST]);
 
-			metadata = __ip_tun_set_dst(saddr, daddr, 0, 0,
+			metadata = __ip_tun_set_dst(saddr, daddr, tos, ttl,
 						    dst_port, flags,
 						    key_id, opts_len);
 		} else if (tb[TCA_TUNNEL_KEY_ENC_IPV6_SRC] &&
@@ -292,7 +298,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			saddr = nla_get_in6_addr(tb[TCA_TUNNEL_KEY_ENC_IPV6_SRC]);
 			daddr = nla_get_in6_addr(tb[TCA_TUNNEL_KEY_ENC_IPV6_DST]);
 
-			metadata = __ipv6_tun_set_dst(&saddr, &daddr, 0, 0, dst_port,
+			metadata = __ipv6_tun_set_dst(&saddr, &daddr, tos, ttl, dst_port,
 						      0, flags,
 						      key_id, 0);
 		} else {
@@ -350,7 +356,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 	params_old = rtnl_dereference(t->params);
 
-	params_new->action = parm->action;
+	t->tcf_action = parm->action;
 	params_new->tcft_action = parm->t_action;
 	params_new->tcft_enc_metadata = metadata;
 
@@ -479,13 +485,13 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		.index    = t->tcf_index,
 		.refcnt   = refcount_read(&t->tcf_refcnt) - ref,
 		.bindcnt  = atomic_read(&t->tcf_bindcnt) - bind,
+		.action   = t->tcf_action,
 	};
 	struct tcf_t tm;
 
 	params = rtnl_dereference(t->params);
 
 	opt.t_action = params->tcft_action;
-	opt.action = params->action;
 
 	if (nla_put(skb, TCA_TUNNEL_KEY_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -503,6 +509,12 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		    nla_put_u8(skb, TCA_TUNNEL_KEY_NO_CSUM,
 			       !(key->tun_flags & TUNNEL_CSUM)) ||
 		    tunnel_key_opts_dump(skb, info))
+			goto nla_put_failure;
+
+		if (key->tos && nla_put_u8(skb, TCA_TUNNEL_KEY_ENC_TOS, key->tos))
+			goto nla_put_failure;
+
+		if (key->ttl && nla_put_u8(skb, TCA_TUNNEL_KEY_ENC_TTL, key->ttl))
 			goto nla_put_failure;
 	}
 
