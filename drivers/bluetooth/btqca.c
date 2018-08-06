@@ -39,7 +39,7 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
 
 	cmd = EDL_PATCH_VER_REQ_CMD;
 	skb = __hci_cmd_sync_ev(hdev, EDL_PATCH_CMD_OPCODE, EDL_PATCH_CMD_LEN,
-				&cmd, HCI_VENDOR_PKT, HCI_INIT_TIMEOUT);
+				&cmd, HCI_EV_VENDOR, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
 		bt_dev_err(hdev, "Reading QCA version information failed (%d)",
@@ -229,7 +229,7 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 				      cmd);
 
 	skb = __hci_cmd_sync_ev(hdev, EDL_PATCH_CMD_OPCODE, seg_size + 2, cmd,
-				HCI_VENDOR_PKT, HCI_INIT_TIMEOUT);
+				HCI_EV_VENDOR, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
 		bt_dev_err(hdev, "QCA Failed to send TLV segment (%d)", err);
@@ -318,7 +318,7 @@ int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	cmd[2] = sizeof(bdaddr_t);	/* size */
 	memcpy(cmd + 3, bdaddr, sizeof(bdaddr_t));
 	skb = __hci_cmd_sync_ev(hdev, EDL_NVM_ACCESS_OPCODE, sizeof(cmd), cmd,
-				HCI_VENDOR_PKT, HCI_INIT_TIMEOUT);
+				HCI_EV_VENDOR, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
 		bt_dev_err(hdev, "QCA Change address command failed (%d)", err);
