@@ -872,14 +872,14 @@ static void i830_pipes_power_well_sync_hw(struct drm_i915_private *dev_priv,
 static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 			       struct i915_power_well *power_well, bool enable)
 {
-	enum i915_power_well_id power_well_id = power_well->desc->id;
+	int pw_idx = power_well->desc->vlv.idx;
 	u32 mask;
 	u32 state;
 	u32 ctrl;
 
-	mask = PUNIT_PWRGT_MASK(power_well_id);
-	state = enable ? PUNIT_PWRGT_PWR_ON(power_well_id) :
-			 PUNIT_PWRGT_PWR_GATE(power_well_id);
+	mask = PUNIT_PWRGT_MASK(pw_idx);
+	state = enable ? PUNIT_PWRGT_PWR_ON(pw_idx) :
+			 PUNIT_PWRGT_PWR_GATE(pw_idx);
 
 	mutex_lock(&dev_priv->pcu_lock);
 
@@ -920,14 +920,14 @@ static void vlv_power_well_disable(struct drm_i915_private *dev_priv,
 static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
-	enum i915_power_well_id power_well_id = power_well->desc->id;
+	int pw_idx = power_well->desc->vlv.idx;
 	bool enabled = false;
 	u32 mask;
 	u32 state;
 	u32 ctrl;
 
-	mask = PUNIT_PWRGT_MASK(power_well_id);
-	ctrl = PUNIT_PWRGT_PWR_ON(power_well_id);
+	mask = PUNIT_PWRGT_MASK(pw_idx);
+	ctrl = PUNIT_PWRGT_PWR_ON(pw_idx);
 
 	mutex_lock(&dev_priv->pcu_lock);
 
@@ -936,8 +936,8 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 	 * We only ever set the power-on and power-gate states, anything
 	 * else is unexpected.
 	 */
-	WARN_ON(state != PUNIT_PWRGT_PWR_ON(power_well_id) &&
-		state != PUNIT_PWRGT_PWR_GATE(power_well_id));
+	WARN_ON(state != PUNIT_PWRGT_PWR_ON(pw_idx) &&
+		state != PUNIT_PWRGT_PWR_GATE(pw_idx));
 	if (state == ctrl)
 		enabled = true;
 
@@ -2179,8 +2179,11 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 	{
 		.name = "display",
 		.domains = VLV_DISPLAY_POWER_DOMAINS,
-		.id = PUNIT_POWER_WELL_DISP2D,
 		.ops = &vlv_display_power_well_ops,
+		.id = PUNIT_POWER_WELL_DISP2D,
+		{
+			.vlv.idx = PUNIT_PWGT_IDX_DISP2D,
+		},
 	},
 	{
 		.name = "dpio-tx-b-01",
@@ -2190,6 +2193,9 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
 		.id = PUNIT_POWER_WELL_DPIO_TX_B_LANES_01,
+		{
+			.vlv.idx = PUNIT_PWGT_IDX_DPIO_TX_B_LANES_01,
+		},
 	},
 	{
 		.name = "dpio-tx-b-23",
@@ -2199,6 +2205,9 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
 		.id = PUNIT_POWER_WELL_DPIO_TX_B_LANES_23,
+		{
+			.vlv.idx = PUNIT_PWGT_IDX_DPIO_TX_B_LANES_23,
+		},
 	},
 	{
 		.name = "dpio-tx-c-01",
@@ -2208,6 +2217,9 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
 		.id = PUNIT_POWER_WELL_DPIO_TX_C_LANES_01,
+		{
+			.vlv.idx = PUNIT_PWGT_IDX_DPIO_TX_C_LANES_01,
+		},
 	},
 	{
 		.name = "dpio-tx-c-23",
@@ -2217,12 +2229,18 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
 		.id = PUNIT_POWER_WELL_DPIO_TX_C_LANES_23,
+		{
+			.vlv.idx = PUNIT_PWGT_IDX_DPIO_TX_C_LANES_23,
+		},
 	},
 	{
 		.name = "dpio-common",
 		.domains = VLV_DPIO_CMN_BC_POWER_DOMAINS,
-		.id = PUNIT_POWER_WELL_DPIO_CMN_BC,
 		.ops = &vlv_dpio_cmn_power_well_ops,
+		.id = PUNIT_POWER_WELL_DPIO_CMN_BC,
+		{
+			.vlv.idx = PUNIT_PWGT_IDX_DPIO_CMN_BC,
+		},
 	},
 };
 
@@ -2242,20 +2260,26 @@ static const struct i915_power_well_desc chv_power_wells[] = {
 		 * required for any pipe to work.
 		 */
 		.domains = CHV_DISPLAY_POWER_DOMAINS,
-		.id = CHV_DISP_PW_PIPE_A,
 		.ops = &chv_pipe_power_well_ops,
+		.id = CHV_DISP_PW_PIPE_A,
 	},
 	{
 		.name = "dpio-common-bc",
 		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS,
-		.id = PUNIT_POWER_WELL_DPIO_CMN_BC,
 		.ops = &chv_dpio_cmn_power_well_ops,
+		.id = PUNIT_POWER_WELL_DPIO_CMN_BC,
+		{
+			.vlv.idx = PUNIT_PWGT_IDX_DPIO_CMN_BC,
+		},
 	},
 	{
 		.name = "dpio-common-d",
 		.domains = CHV_DPIO_CMN_D_POWER_DOMAINS,
-		.id = PUNIT_POWER_WELL_DPIO_CMN_D,
 		.ops = &chv_dpio_cmn_power_well_ops,
+		.id = PUNIT_POWER_WELL_DPIO_CMN_D,
+		{
+			.vlv.idx = PUNIT_PWGT_IDX_DPIO_CMN_D,
+		},
 	},
 };
 

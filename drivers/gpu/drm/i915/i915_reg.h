@@ -1144,11 +1144,23 @@ enum i915_power_well_id {
 
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
-#define   PUNIT_PWRGT_MASK(power_well)		(3 << ((power_well) * 2))
-#define   PUNIT_PWRGT_PWR_ON(power_well)	(0 << ((power_well) * 2))
-#define   PUNIT_PWRGT_CLK_GATE(power_well)	(1 << ((power_well) * 2))
-#define   PUNIT_PWRGT_RESET(power_well)		(2 << ((power_well) * 2))
-#define   PUNIT_PWRGT_PWR_GATE(power_well)	(3 << ((power_well) * 2))
+#define   PUNIT_PWRGT_MASK(pw_idx)		(3 << ((pw_idx) * 2))
+#define   PUNIT_PWRGT_PWR_ON(pw_idx)		(0 << ((pw_idx) * 2))
+#define   PUNIT_PWRGT_CLK_GATE(pw_idx)		(1 << ((pw_idx) * 2))
+#define   PUNIT_PWRGT_RESET(pw_idx)		(2 << ((pw_idx) * 2))
+#define   PUNIT_PWRGT_PWR_GATE(pw_idx)		(3 << ((pw_idx) * 2))
+
+#define PUNIT_PWGT_IDX_RENDER			0
+#define PUNIT_PWGT_IDX_MEDIA			1
+#define PUNIT_PWGT_IDX_DISP2D			3
+#define PUNIT_PWGT_IDX_DPIO_CMN_BC		5
+#define PUNIT_PWGT_IDX_DPIO_TX_B_LANES_01	6
+#define PUNIT_PWGT_IDX_DPIO_TX_B_LANES_23	7
+#define PUNIT_PWGT_IDX_DPIO_TX_C_LANES_01	8
+#define PUNIT_PWGT_IDX_DPIO_TX_C_LANES_23	9
+#define PUNIT_PWGT_IDX_DPIO_RX0			10
+#define PUNIT_PWGT_IDX_DPIO_RX1			11
+#define PUNIT_PWGT_IDX_DPIO_CMN_D		12
 
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
