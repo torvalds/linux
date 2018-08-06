@@ -219,46 +219,16 @@
 #define PHY_STATUS_TIMEOUT_US		10000
 #define CMD_PKT_STATUS_TIMEOUT_US	20000
 
-#define BYPASS_VCO_RANGE	BIT(7)
-#define VCO_RANGE_CON_SEL(val)	(((val) & 0x7) << 3)
-#define VCO_IN_CAP_CON_DEFAULT	(0x0 << 1)
-#define VCO_IN_CAP_CON_LOW	(0x1 << 1)
-#define VCO_IN_CAP_CON_HIGH	(0x2 << 1)
-#define REF_BIAS_CUR_SEL	BIT(0)
-
-#define CP_CURRENT_3MA		BIT(3)
-#define CP_PROGRAM_EN		BIT(7)
-#define LPF_PROGRAM_EN		BIT(6)
-#define LPF_RESISTORS_20_KOHM	0
-
-#define HSFREQRANGE_SEL(val)	(((val) & 0x3f) << 1)
-
-#define INPUT_DIVIDER(val)	((val - 1) & 0x7f)
-#define LOW_PROGRAM_EN		0
-#define HIGH_PROGRAM_EN		BIT(7)
-#define LOOP_DIV_LOW_SEL(val)	((val - 1) & 0x1f)
-#define LOOP_DIV_HIGH_SEL(val)	(((val - 1) >> 5) & 0x1f)
-#define PLL_LOOP_DIV_EN		BIT(5)
-#define PLL_INPUT_DIV_EN	BIT(4)
-
-#define POWER_CONTROL		BIT(6)
-#define INTERNAL_REG_CURRENT	BIT(3)
-#define BIAS_BLOCK_ON		BIT(2)
-#define BANDGAP_ON		BIT(0)
-
-#define TER_RESISTOR_HIGH	BIT(7)
-#define	TER_RESISTOR_LOW	0
-#define LEVEL_SHIFTERS_ON	BIT(6)
-#define TER_CAL_DONE		BIT(5)
-#define SETRD_MAX		(0x7 << 2)
-#define POWER_MANAGE		BIT(1)
-#define TER_RESISTORS_ON	BIT(0)
-
-#define BIASEXTR_SEL(val)	((val) & 0x7)
-#define BANDGAP_SEL(val)	((val) & 0x7)
-#define TLP_PROGRAM_EN		BIT(7)
-#define THS_PRE_PROGRAM_EN	BIT(7)
-#define THS_ZERO_PROGRAM_EN	BIT(6)
+/* Test Code: 0x44 (HS RX Control of Lane 0) */
+#define HSFREQRANGE(x)			UPDATE(x, 6, 1)
+/* Test Code: 0x17 (PLL Input Divider Ratio) */
+#define INPUT_DIV(x)			UPDATE(x, 6, 0)
+/* Test Code: 0x18 (PLL Loop Divider Ratio) */
+#define FEEDBACK_DIV_LO(x)		UPDATE(x, 4, 0)
+#define FEEDBACK_DIV_HI(x)		(BIT(7) | UPDATE(x, 3, 0))
+/* Test Code: 0x19 (PLL Input and Loop Divider Ratios Control) */
+#define FEEDBACK_DIV_DEF_VAL_BYPASS	BIT(5)
+#define INPUT_DIV_DEF_VAL_BYPASS	BIT(4)
 
 enum soc_type {
 	PX30,
@@ -267,28 +237,6 @@ enum soc_type {
 	RK3366,
 	RK3368,
 	RK3399,
-};
-
-enum {
-	BANDGAP_97_07,
-	BANDGAP_98_05,
-	BANDGAP_99_02,
-	BANDGAP_100_00,
-	BANDGAP_93_17,
-	BANDGAP_94_15,
-	BANDGAP_95_12,
-	BANDGAP_96_10,
-};
-
-enum {
-	BIASEXTR_87_1,
-	BIASEXTR_91_5,
-	BIASEXTR_95_9,
-	BIASEXTR_100,
-	BIASEXTR_105_94,
-	BIASEXTR_111_88,
-	BIASEXTR_118_8,
-	BIASEXTR_127_7,
 };
 
 #define GRF_REG_FIELD(reg, lsb, msb)	((reg << 16) | (lsb << 8) | (msb))
@@ -366,25 +314,6 @@ enum dw_mipi_dsi_mode {
 	DSI_VIDEO_MODE,
 };
 
-struct dphy_pll_testdin_map {
-	unsigned int max_mbps;
-	u8 testdin;
-};
-
-/* The table is based on 27MHz DPHY pll reference clock. */
-static const struct dphy_pll_testdin_map dptdin_map[] = {
-	{  90, 0x00}, { 100, 0x10}, { 110, 0x20}, { 130, 0x01},
-	{ 140, 0x11}, { 150, 0x21}, { 170, 0x02}, { 180, 0x12},
-	{ 200, 0x22}, { 220, 0x03}, { 240, 0x13}, { 250, 0x23},
-	{ 270, 0x04}, { 300, 0x14}, { 330, 0x05}, { 360, 0x15},
-	{ 400, 0x25}, { 450, 0x06}, { 500, 0x16}, { 550, 0x07},
-	{ 600, 0x17}, { 650, 0x08}, { 700, 0x18}, { 750, 0x09},
-	{ 800, 0x19}, { 850, 0x29}, { 900, 0x39}, { 950, 0x0a},
-	{1000, 0x1a}, {1050, 0x2a}, {1100, 0x3a}, {1150, 0x0b},
-	{1200, 0x1b}, {1250, 0x2b}, {1300, 0x3b}, {1350, 0x0c},
-	{1400, 0x1c}, {1450, 0x2c}, {1500, 0x3c}
-};
-
 static void grf_field_write(struct dw_mipi_dsi *dsi, enum grf_reg_fields index,
 			    unsigned int val)
 {
@@ -402,17 +331,6 @@ static void grf_field_write(struct dw_mipi_dsi *dsi, enum grf_reg_fields index,
 	msb = (field >>  0) & 0xff;
 
 	regmap_write(dsi->grf, reg, (val << lsb) | (GENMASK(msb, lsb) << 16));
-}
-
-static int max_mbps_to_testdin(unsigned int max_mbps)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dptdin_map); i++)
-		if (dptdin_map[i].max_mbps > max_mbps)
-			return dptdin_map[i].testdin;
-
-	return -EINVAL;
 }
 
 static inline struct dw_mipi_dsi *host_to_dsi(struct mipi_dsi_host *host)
@@ -698,61 +616,52 @@ static void dw_mipi_dsi_host_power_off(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_phy_pll_init(struct dw_mipi_dsi *dsi)
 {
 	struct mipi_dphy *dphy = &dsi->dphy;
+	u16 n, m;
 
-	regmap_write(dphy->regmap, 0x17, INPUT_DIVIDER(dphy->input_div));
-	regmap_write(dphy->regmap, 0x18,
-		     LOOP_DIV_LOW_SEL(dphy->feedback_div) | LOW_PROGRAM_EN);
-	regmap_write(dphy->regmap, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
-	regmap_write(dphy->regmap, 0x18,
-		     LOOP_DIV_HIGH_SEL(dphy->feedback_div) | HIGH_PROGRAM_EN);
-	regmap_write(dphy->regmap, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
+	n = dphy->input_div - 1;
+	m = dphy->feedback_div - 1;
+
+	regmap_write(dphy->regmap, 0x19,
+		     FEEDBACK_DIV_DEF_VAL_BYPASS | INPUT_DIV_DEF_VAL_BYPASS);
+	regmap_write(dphy->regmap, 0x17, INPUT_DIV(n));
+	regmap_write(dphy->regmap, 0x18, FEEDBACK_DIV_LO(m));
+	regmap_write(dphy->regmap, 0x18, FEEDBACK_DIV_HI(m >> 5));
 }
 
-static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 {
 	struct mipi_dphy *dphy = &dsi->dphy;
-	int testdin, vco;
+	/* Table 5-1 Frequency Ranges */
+	const struct {
+		unsigned long max_lane_mbps;
+		u8 hsfreqrange;
+	} hsfreqrange_table[] = {
+		{  90, 0x00}, { 100, 0x10}, { 110, 0x20}, { 130, 0x01},
+		{ 140, 0x11}, { 150, 0x21}, { 170, 0x02}, { 180, 0x12},
+		{ 200, 0x22}, { 220, 0x03}, { 240, 0x13}, { 250, 0x23},
+		{ 270, 0x04}, { 300, 0x14}, { 330, 0x05}, { 360, 0x15},
+		{ 400, 0x25}, { 450, 0x06}, { 500, 0x16}, { 550, 0x07},
+		{ 600, 0x17}, { 650, 0x08}, { 700, 0x18}, { 750, 0x09},
+		{ 800, 0x19}, { 850, 0x29}, { 900, 0x39}, { 950, 0x0a},
+		{1000, 0x1a}, {1050, 0x2a}, {1100, 0x3a}, {1150, 0x0b},
+		{1200, 0x1b}, {1250, 0x2b}, {1300, 0x3b}, {1350, 0x0c},
+		{1400, 0x1c}, {1450, 0x2c}, {1500, 0x3c}
+	};
+	u8 hsfreqrange;
+	unsigned int index;
 
-	vco = (dsi->lane_mbps < 200) ? 0 : (dsi->lane_mbps + 100) / 200;
+	for (index = 0; index < ARRAY_SIZE(hsfreqrange_table); index++)
+		if (dsi->lane_mbps <= hsfreqrange_table[index].max_lane_mbps)
+			break;
 
-	testdin = max_mbps_to_testdin(dsi->lane_mbps);
-	if (testdin < 0) {
-		dev_err(dsi->dev,
-			"failed to get testdin for %dmbps lane clock\n",
-			dsi->lane_mbps);
-		return testdin;
-	}
+	if (index == ARRAY_SIZE(hsfreqrange_table))
+		--index;
 
-	regmap_write(dphy->regmap, 0x10,
-		     BYPASS_VCO_RANGE | VCO_RANGE_CON_SEL(vco) |
-		     VCO_IN_CAP_CON_LOW | REF_BIAS_CUR_SEL);
-	regmap_write(dphy->regmap, 0x11, CP_CURRENT_3MA);
-	regmap_write(dphy->regmap, 0x12,
-		     CP_PROGRAM_EN | LPF_PROGRAM_EN | LPF_RESISTORS_20_KOHM);
-
-	regmap_write(dphy->regmap, 0x44, HSFREQRANGE_SEL(testdin));
+	hsfreqrange = hsfreqrange_table[index].hsfreqrange;
+	regmap_write(dphy->regmap, 0x44, HSFREQRANGE(hsfreqrange));
 
 	if (IS_DSI0(dsi))
 		dw_mipi_dsi_phy_pll_init(dsi);
-
-	regmap_write(dphy->regmap, 0x20,
-		     POWER_CONTROL | INTERNAL_REG_CURRENT |
-		     BIAS_BLOCK_ON | BANDGAP_ON);
-	regmap_write(dphy->regmap, 0x21,
-		     TER_RESISTOR_LOW | TER_CAL_DONE | SETRD_MAX |
-		     TER_RESISTORS_ON);
-	regmap_write(dphy->regmap, 0x21,
-		     TER_RESISTOR_HIGH | LEVEL_SHIFTERS_ON |
-		     SETRD_MAX | POWER_MANAGE | TER_RESISTORS_ON);
-	regmap_write(dphy->regmap, 0x22,
-		     LOW_PROGRAM_EN | BIASEXTR_SEL(BIASEXTR_127_7));
-	regmap_write(dphy->regmap, 0x22,
-		     HIGH_PROGRAM_EN | BANDGAP_SEL(BANDGAP_96_10));
-	regmap_write(dphy->regmap, 0x70, TLP_PROGRAM_EN | 0xf);
-	regmap_write(dphy->regmap, 0x71, THS_PRE_PROGRAM_EN | 0x2d);
-	regmap_write(dphy->regmap, 0x72, THS_ZERO_PROGRAM_EN | 0xa);
-
-	return 0;
 }
 
 static unsigned long dw_mipi_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
@@ -857,11 +766,8 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	if (dsi->master)
 		return 0;
 
-	if (device->lanes < 0 || device->lanes > 8) {
-		dev_err(dsi->dev, "the number of data lanes(%u) is too many\n",
-			device->lanes);
+	if (device->lanes < 1 || device->lanes > 8)
 		return -EINVAL;
-	}
 
 	dsi->client = device->dev.of_node;
 	dsi->lanes = device->lanes;
