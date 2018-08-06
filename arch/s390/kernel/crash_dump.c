@@ -478,26 +478,20 @@ static void *nt_vmcoreinfo(void *ptr)
 
 static size_t nt_vmcoreinfo_size(void)
 {
-	const char *name = "VMCOREINFO";
-	char nt_name[11];
-	Elf64_Nhdr note;
-	void *addr;
+	const char *name = VMCOREINFO_NOTE_NAME;
+	unsigned long size;
+	void *vmcoreinfo;
 
-	if (copy_oldmem_kernel(&addr, &S390_lowcore.vmcore_info, sizeof(addr)))
+	vmcoreinfo = os_info_old_entry(OS_INFO_VMCOREINFO, &size);
+	if (vmcoreinfo)
+		return nt_size_name(size, name);
+
+	vmcoreinfo = get_vmcoreinfo_old(&size);
+	if (!vmcoreinfo)
 		return 0;
 
-	if (copy_oldmem_kernel(&note, addr, sizeof(note)))
-		return 0;
-
-	memset(nt_name, 0, sizeof(nt_name));
-	if (copy_oldmem_kernel(nt_name, addr + sizeof(note),
-			       sizeof(nt_name) - 1))
-		return 0;
-
-	if (strcmp(nt_name, name) != 0)
-		return 0;
-
-	return nt_size_name(note.n_descsz, name);
+	kfree(vmcoreinfo);
+	return nt_size_name(size, name);
 }
 
 /*
