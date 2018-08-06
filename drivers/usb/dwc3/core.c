@@ -1272,7 +1272,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (!dwc->clks)
 		return -ENOMEM;
 
-	dwc->num_clks = ARRAY_SIZE(dwc3_core_clks);
 	dwc->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1307,15 +1306,19 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (IS_ERR(dwc->reset))
 		return PTR_ERR(dwc->reset);
 
-	ret = clk_bulk_get(dev, dwc->num_clks, dwc->clks);
-	if (ret == -EPROBE_DEFER)
-		return ret;
-	/*
-	 * Clocks are optional, but new DT platforms should support all clocks
-	 * as required by the DT-binding.
-	 */
-	if (ret)
-		dwc->num_clks = 0;
+	if (dev->of_node) {
+		dwc->num_clks = ARRAY_SIZE(dwc3_core_clks);
+
+		ret = clk_bulk_get(dev, dwc->num_clks, dwc->clks);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		/*
+		 * Clocks are optional, but new DT platforms should support all
+		 * clocks as required by the DT-binding.
+		 */
+		if (ret)
+			dwc->num_clks = 0;
+	}
 
 	ret = reset_control_deassert(dwc->reset);
 	if (ret)

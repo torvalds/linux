@@ -309,8 +309,7 @@
 			interrupts = <0 99 4>;
 			resets = <&rst SPIM0_RESET>;
 			reg-io-width = <4>;
-			num-chipselect = <4>;
-			bus-num = <0>;
+			num-cs = <4>;
 			status = "disabled";
 		};
 
@@ -322,8 +321,7 @@
 			interrupts = <0 100 4>;
 			resets = <&rst SPIM1_RESET>;
 			reg-io-width = <4>;
-			num-chipselect = <4>;
-			bus-num = <0>;
+			num-cs = <4>;
 			status = "disabled";
 		};
 

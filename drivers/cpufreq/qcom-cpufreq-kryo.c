@@ -87,8 +87,8 @@ static int qcom_cpufreq_kryo_probe(struct platform_device *pdev)
 	int ret;
 
 	cpu_dev = get_cpu_device(0);
-	if (NULL == cpu_dev)
-		ret = -ENODEV;
+	if (!cpu_dev)
+		return -ENODEV;
 
 	msm8996_version = qcom_cpufreq_kryo_get_msm_id();
 	if (NUM_OF_MSM8996_VERSIONS == msm8996_version) {
@@ -97,8 +97,8 @@ static int qcom_cpufreq_kryo_probe(struct platform_device *pdev)
 	}
 
 	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
-	if (IS_ERR(np))
-		return PTR_ERR(np);
+	if (!np)
+		return -ENOENT;
 
 	ret = of_device_is_compatible(np, "operating-points-v2-kryo-cpu");
 	if (!ret) {

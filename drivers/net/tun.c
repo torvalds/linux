@@ -1688,7 +1688,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 		case XDP_TX:
 			get_page(alloc_frag->page);
 			alloc_frag->offset += buflen;
-			if (tun_xdp_tx(tun->dev, &xdp))
+			if (tun_xdp_tx(tun->dev, &xdp) < 0)
 				goto err_redirect;
 			rcu_read_unlock();
 			local_bh_enable();

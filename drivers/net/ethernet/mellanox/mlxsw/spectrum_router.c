@@ -4756,6 +4756,12 @@ static void mlxsw_sp_rt6_destroy(struct mlxsw_sp_rt6 *mlxsw_sp_rt6)
 	kfree(mlxsw_sp_rt6);
 }
 
+static bool mlxsw_sp_fib6_rt_can_mp(const struct fib6_info *rt)
+{
+	/* RTF_CACHE routes are ignored */
+	return (rt->fib6_flags & (RTF_GATEWAY | RTF_ADDRCONF)) == RTF_GATEWAY;
+}
+
 static struct fib6_info *
 mlxsw_sp_fib6_entry_rt(const struct mlxsw_sp_fib6_entry *fib6_entry)
 {
@@ -4765,11 +4771,11 @@ mlxsw_sp_fib6_entry_rt(const struct mlxsw_sp_fib6_entry *fib6_entry)
 
 static struct mlxsw_sp_fib6_entry *
 mlxsw_sp_fib6_node_mp_entry_find(const struct mlxsw_sp_fib_node *fib_node,
-				 const struct fib6_info *nrt, bool append)
+				 const struct fib6_info *nrt, bool replace)
 {
 	struct mlxsw_sp_fib6_entry *fib6_entry;
 
-	if (!append)
+	if (!mlxsw_sp_fib6_rt_can_mp(nrt) || replace)
 		return NULL;
 
 	list_for_each_entry(fib6_entry, &fib_node->entry_list, common.list) {
@@ -4784,7 +4790,8 @@ mlxsw_sp_fib6_node_mp_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 			break;
 		if (rt->fib6_metric < nrt->fib6_metric)
 			continue;
-		if (rt->fib6_metric == nrt->fib6_metric)
+		if (rt->fib6_metric == nrt->fib6_metric &&
+		    mlxsw_sp_fib6_rt_can_mp(rt))
 			return fib6_entry;
 		if (rt->fib6_metric > nrt->fib6_metric)
 			break;
@@ -5163,7 +5170,7 @@ static struct mlxsw_sp_fib6_entry *
 mlxsw_sp_fib6_node_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 			      const struct fib6_info *nrt, bool replace)
 {
-	struct mlxsw_sp_fib6_entry *fib6_entry;
+	struct mlxsw_sp_fib6_entry *fib6_entry, *fallback = NULL;
 
 	list_for_each_entry(fib6_entry, &fib_node->entry_list, common.list) {
 		struct fib6_info *rt = mlxsw_sp_fib6_entry_rt(fib6_entry);
@@ -5172,13 +5179,18 @@ mlxsw_sp_fib6_node_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 			continue;
 		if (rt->fib6_table->tb6_id != nrt->fib6_table->tb6_id)
 			break;
-		if (replace && rt->fib6_metric == nrt->fib6_metric)
-			return fib6_entry;
+		if (replace && rt->fib6_metric == nrt->fib6_metric) {
+			if (mlxsw_sp_fib6_rt_can_mp(rt) ==
+			    mlxsw_sp_fib6_rt_can_mp(nrt))
+				return fib6_entry;
+			if (mlxsw_sp_fib6_rt_can_mp(nrt))
+				fallback = fallback ?: fib6_entry;
+		}
 		if (rt->fib6_metric > nrt->fib6_metric)
-			return fib6_entry;
+			return fallback ?: fib6_entry;
 	}
 
-	return NULL;
+	return fallback;
 }
 
 static int
@@ -5304,8 +5316,7 @@ static void mlxsw_sp_fib6_entry_replace(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
-				    struct fib6_info *rt, bool replace,
-				    bool append)
+				    struct fib6_info *rt, bool replace)
 {
 	struct mlxsw_sp_fib6_entry *fib6_entry;
 	struct mlxsw_sp_fib_node *fib_node;
@@ -5331,20 +5342,12 @@ static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
 	/* Before creating a new entry, try to append route to an existing
 	 * multipath entry.
 	 */
-	fib6_entry = mlxsw_sp_fib6_node_mp_entry_find(fib_node, rt, append);
+	fib6_entry = mlxsw_sp_fib6_node_mp_entry_find(fib_node, rt, replace);
 	if (fib6_entry) {
 		err = mlxsw_sp_fib6_entry_nexthop_add(mlxsw_sp, fib6_entry, rt);
 		if (err)
 			goto err_fib6_entry_nexthop_add;
 		return 0;
-	}
-
-	/* We received an append event, yet did not find any route to
-	 * append to.
-	 */
-	if (WARN_ON(append)) {
-		err = -EINVAL;
-		goto err_fib6_entry_append;
 	}
 
 	fib6_entry = mlxsw_sp_fib6_entry_create(mlxsw_sp, fib_node, rt);
@@ -5364,7 +5367,6 @@ static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
 err_fib6_node_entry_link:
 	mlxsw_sp_fib6_entry_destroy(mlxsw_sp, fib6_entry);
 err_fib6_entry_create:
-err_fib6_entry_append:
 err_fib6_entry_nexthop_add:
 	mlxsw_sp_fib_node_put(mlxsw_sp, fib_node);
 	return err;
@@ -5715,7 +5717,7 @@ static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 	struct mlxsw_sp_fib_event_work *fib_work =
 		container_of(work, struct mlxsw_sp_fib_event_work, work);
 	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
-	bool replace, append;
+	bool replace;
 	int err;
 
 	rtnl_lock();
@@ -5726,10 +5728,8 @@ static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 	case FIB_EVENT_ENTRY_APPEND: /* fall through */
 	case FIB_EVENT_ENTRY_ADD:
 		replace = fib_work->event == FIB_EVENT_ENTRY_REPLACE;
-		append = fib_work->event == FIB_EVENT_ENTRY_APPEND;
 		err = mlxsw_sp_router_fib6_add(mlxsw_sp,
-					       fib_work->fen6_info.rt, replace,
-					       append);
+					       fib_work->fen6_info.rt, replace);
 		if (err)
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
 		mlxsw_sp_rt6_release(fib_work->fen6_info.rt);

@@ -141,7 +141,7 @@ int percpu_ida_alloc(struct percpu_ida *pool, int state)
 	spin_lock_irqsave(&tags->lock, flags);
 
 	/* Fastpath */
-	if (likely(tags->nr_free >= 0)) {
+	if (likely(tags->nr_free)) {
 		tag = tags->freelist[--tags->nr_free];
 		spin_unlock_irqrestore(&tags->lock, flags);
 		return tag;

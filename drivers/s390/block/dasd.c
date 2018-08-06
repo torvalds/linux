@@ -41,6 +41,15 @@
 
 #define DASD_DIAG_MOD		"dasd_diag_mod"
 
+static unsigned int queue_depth = 32;
+static unsigned int nr_hw_queues = 4;
+
+module_param(queue_depth, uint, 0444);
+MODULE_PARM_DESC(queue_depth, "Default queue depth for new DASD devices");
+
+module_param(nr_hw_queues, uint, 0444);
+MODULE_PARM_DESC(nr_hw_queues, "Default number of hardware queues for new DASD devices");
+
 /*
  * SECTION: exported variables of dasd.c
  */
@@ -3115,8 +3124,8 @@ static int dasd_alloc_queue(struct dasd_block *block)
 
 	block->tag_set.ops = &dasd_mq_ops;
 	block->tag_set.cmd_size = sizeof(struct dasd_ccw_req);
-	block->tag_set.nr_hw_queues = DASD_NR_HW_QUEUES;
-	block->tag_set.queue_depth = DASD_MAX_LCU_DEV * DASD_REQ_PER_DEV;
+	block->tag_set.nr_hw_queues = nr_hw_queues;
+	block->tag_set.queue_depth = queue_depth;
 	block->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 
 	rc = blk_mq_alloc_tag_set(&block->tag_set);
