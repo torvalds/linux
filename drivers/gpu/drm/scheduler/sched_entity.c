@@ -44,7 +44,7 @@
  *       the entity
  *
  * Returns 0 on success or a negative error code on failure.
-*/
+ */
 int drm_sched_entity_init(struct drm_sched_entity *entity,
 			  struct drm_sched_rq **rq_list,
 			  unsigned int num_rq_list,
@@ -88,7 +88,7 @@ EXPORT_SYMBOL(drm_sched_entity_init);
  */
 static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 {
-	rmb();
+	rmb(); /* for list_empty to work without lock */
 
 	if (list_empty(&entity->list) ||
 	    spsc_queue_peek(&entity->job_queue) == NULL)
@@ -140,26 +140,15 @@ drm_sched_entity_get_free_sched(struct drm_sched_entity *entity)
 	return rq;
 }
 
-static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
-				    struct dma_fence_cb *cb)
-{
-	struct drm_sched_job *job = container_of(cb, struct drm_sched_job,
-						 finish_cb);
-	drm_sched_fence_finished(job->s_fence);
-	WARN_ON(job->s_fence->parent);
-	dma_fence_put(&job->s_fence->finished);
-	job->sched->ops->free_job(job);
-}
-
-
 /**
  * drm_sched_entity_flush - Flush a context entity
  *
  * @entity: scheduler entity
  * @timeout: time to wait in for Q to become empty in jiffies.
  *
- * Splitting drm_sched_entity_fini() into two functions, The first one does the waiting,
- * removes the entity from the runqueue and returns an error when the process was killed.
+ * Splitting drm_sched_entity_fini() into two functions, The first one does the
+ * waiting, removes the entity from the runqueue and returns an error when the
+ * process was killed.
  *
  * Returns the remaining time in jiffies left from the input timeout
  */
@@ -173,7 +162,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 	/**
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs or discard them on SIGKILL
-	*/
+	 */
 	if (current->flags & PF_EXITING) {
 		if (timeout)
 			ret = wait_event_timeout(
@@ -196,6 +185,65 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 EXPORT_SYMBOL(drm_sched_entity_flush);
 
 /**
+ * drm_sched_entity_kill_jobs - helper for drm_sched_entity_kill_jobs
+ *
+ * @f: signaled fence
+ * @cb: our callback structure
+ *
+ * Signal the scheduler finished fence when the entity in question is killed.
+ */
+static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
+					  struct dma_fence_cb *cb)
+{
+	struct drm_sched_job *job = container_of(cb, struct drm_sched_job,
+						 finish_cb);
+
+	drm_sched_fence_finished(job->s_fence);
+	WARN_ON(job->s_fence->parent);
+	dma_fence_put(&job->s_fence->finished);
+	job->sched->ops->free_job(job);
+}
+
+/**
+ * drm_sched_entity_kill_jobs - Make sure all remaining jobs are killed
+ *
+ * @entity: entity which is cleaned up
+ *
+ * Makes sure that all remaining jobs in an entity are killed before it is
+ * destroyed.
+ */
+static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
+{
+	struct drm_sched_job *job;
+	int r;
+
+	while ((job = to_drm_sched_job(spsc_queue_pop(&entity->job_queue)))) {
+		struct drm_sched_fence *s_fence = job->s_fence;
+
+		drm_sched_fence_scheduled(s_fence);
+		dma_fence_set_error(&s_fence->finished, -ESRCH);
+
+		/*
+		 * When pipe is hanged by older entity, new entity might
+		 * not even have chance to submit it's first job to HW
+		 * and so entity->last_scheduled will remain NULL
+		 */
+		if (!entity->last_scheduled) {
+			drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
+			continue;
+		}
+
+		r = dma_fence_add_callback(entity->last_scheduled,
+					   &job->finish_cb,
+					   drm_sched_entity_kill_jobs_cb);
+		if (r == -ENOENT)
+			drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
+		else if (r)
+			DRM_ERROR("fence add callback failed (%d)\n", r);
+	}
+}
+
+/**
  * drm_sched_entity_cleanup - Destroy a context entity
  *
  * @entity: scheduler entity
@@ -215,9 +263,6 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 	 * remove them here.
 	 */
 	if (spsc_queue_peek(&entity->job_queue)) {
-		struct drm_sched_job *job;
-		int r;
-
 		/* Park the kernel for a moment to make sure it isn't processing
 		 * our enity.
 		 */
@@ -230,27 +275,7 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 			entity->dependency = NULL;
 		}
 
-		while ((job = to_drm_sched_job(spsc_queue_pop(&entity->job_queue)))) {
-			struct drm_sched_fence *s_fence = job->s_fence;
-			drm_sched_fence_scheduled(s_fence);
-			dma_fence_set_error(&s_fence->finished, -ESRCH);
-
-			/*
-			 * When pipe is hanged by older entity, new entity might
-			 * not even have chance to submit it's first job to HW
-			 * and so entity->last_scheduled will remain NULL
-			 */
-			if (!entity->last_scheduled) {
-				drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
-			} else {
-				r = dma_fence_add_callback(entity->last_scheduled, &job->finish_cb,
-								drm_sched_entity_kill_jobs_cb);
-				if (r == -ENOENT)
-					drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
-				else if (r)
-					DRM_ERROR("fence add callback failed (%d)\n", r);
-			}
-		}
+		drm_sched_entity_kill_jobs(entity);
 	}
 
 	dma_fence_put(entity->last_scheduled);
@@ -273,21 +298,31 @@ void drm_sched_entity_destroy(struct drm_sched_entity *entity)
 }
 EXPORT_SYMBOL(drm_sched_entity_destroy);
 
-static void drm_sched_entity_wakeup(struct dma_fence *f, struct dma_fence_cb *cb)
+/**
+ * drm_sched_entity_clear_dep - callback to clear the entities dependency
+ */
+static void drm_sched_entity_clear_dep(struct dma_fence *f,
+				       struct dma_fence_cb *cb)
 {
 	struct drm_sched_entity *entity =
 		container_of(cb, struct drm_sched_entity, cb);
+
 	entity->dependency = NULL;
 	dma_fence_put(f);
-	drm_sched_wakeup(entity->rq->sched);
 }
 
-static void drm_sched_entity_clear_dep(struct dma_fence *f, struct dma_fence_cb *cb)
+/**
+ * drm_sched_entity_clear_dep - callback to clear the entities dependency and
+ * wake up scheduler
+ */
+static void drm_sched_entity_wakeup(struct dma_fence *f,
+				    struct dma_fence_cb *cb)
 {
 	struct drm_sched_entity *entity =
 		container_of(cb, struct drm_sched_entity, cb);
-	entity->dependency = NULL;
-	dma_fence_put(f);
+
+	drm_sched_entity_clear_dep(f, cb);
+	drm_sched_wakeup(entity->rq->sched);
 }
 
 /**
@@ -325,19 +360,27 @@ void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
 }
 EXPORT_SYMBOL(drm_sched_entity_set_priority);
 
+/**
+ * drm_sched_entity_add_dependency_cb - add callback for the entities dependency
+ *
+ * @entity: entity with dependency
+ *
+ * Add a callback to the current dependency of the entity to wake up the
+ * scheduler when the entity becomes available.
+ */
 static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 {
 	struct drm_gpu_scheduler *sched = entity->rq->sched;
-	struct dma_fence * fence = entity->dependency;
+	struct dma_fence *fence = entity->dependency;
 	struct drm_sched_fence *s_fence;
 
 	if (fence->context == entity->fence_context ||
-            fence->context == entity->fence_context + 1) {
-                /*
-                 * Fence is a scheduled/finished fence from a job
-                 * which belongs to the same entity, we can ignore
-                 * fences from ourself
-                 */
+	    fence->context == entity->fence_context + 1) {
+		/*
+		 * Fence is a scheduled/finished fence from a job
+		 * which belongs to the same entity, we can ignore
+		 * fences from ourself
+		 */
 		dma_fence_put(entity->dependency);
 		return false;
 	}
@@ -369,19 +412,29 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 	return false;
 }
 
+/**
+ * drm_sched_entity_pop_job - get a ready to be scheduled job from the entity
+ *
+ * @entity: entity to get the job from
+ *
+ * Process all dependencies and try to get one job from the entities queue.
+ */
 struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 {
 	struct drm_gpu_scheduler *sched = entity->rq->sched;
-	struct drm_sched_job *sched_job = to_drm_sched_job(
-						spsc_queue_peek(&entity->job_queue));
+	struct drm_sched_job *sched_job;
 
+	sched_job = to_drm_sched_job(spsc_queue_peek(&entity->job_queue));
 	if (!sched_job)
 		return NULL;
 
-	while ((entity->dependency = sched->ops->dependency(sched_job, entity))) {
+	while ((entity->dependency =
+			sched->ops->dependency(sched_job, entity))) {
+
 		if (drm_sched_entity_add_dependency_cb(entity)) {
 
-			trace_drm_sched_job_wait_dep(sched_job, entity->dependency);
+			trace_drm_sched_job_wait_dep(sched_job,
+						     entity->dependency);
 			return NULL;
 		}
 	}
