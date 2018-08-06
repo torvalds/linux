@@ -48,7 +48,7 @@ obj-$(CONFIG_UCODE_PATCH)	+= micropatch.o
 obj-$(CONFIG_PPC_MPC512x)	+= mpc5xxx_clocks.o
 obj-$(CONFIG_PPC_MPC52xx)	+= mpc5xxx_clocks.o
 
-ifeq ($(CONFIG_SUSPEND),y)
+ifdef CONFIG_SUSPEND
 obj-$(CONFIG_6xx)		+= 6xx-suspend.o
 endif
 

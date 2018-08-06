@@ -36,7 +36,7 @@ else
 KBUILD_DEFCONFIG := ppc64_defconfig
 endif
 
-ifeq ($(CONFIG_PPC64),y)
+ifdef CONFIG_PPC64
 new_nm := $(shell if $(NM) --help 2>&1 | grep -- '--synthetic' > /dev/null; then echo y; else echo n; fi)
 
 ifeq ($(new_nm),y)
@@ -74,7 +74,7 @@ KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o
 endif
 endif
 
-ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
+ifdef CONFIG_CPU_LITTLE_ENDIAN
 KBUILD_CFLAGS	+= -mlittle-endian
 LDFLAGS		+= -EL
 LDEMULATION	:= lppc
@@ -117,7 +117,7 @@ LDFLAGS_vmlinux-$(CONFIG_RELOCATABLE) := -pie
 LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-y)
 LDFLAGS_vmlinux += $(call ld-option,--orphan-handling=warn)
 
-ifeq ($(CONFIG_PPC64),y)
+ifdef CONFIG_PPC64
 ifeq ($(call cc-option-yn,-mcmodel=medium),y)
 	# -mcmodel=medium breaks modules because it uses 32bit offsets from
 	# the TOC pointer to create pointers where possible. Pointers into the
@@ -134,7 +134,7 @@ endif
 endif
 
 CFLAGS-$(CONFIG_PPC64)	:= $(call cc-option,-mtraceback=no)
-ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
+ifdef CONFIG_CPU_LITTLE_ENDIAN
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv2,$(call cc-option,-mcall-aixdesc))
 AFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv2)
 else
@@ -148,8 +148,8 @@ CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mno-pointers-to-nested-functions)
 CFLAGS-$(CONFIG_PPC32)	:= -ffixed-r2 $(MULTIPLEWORD)
 CFLAGS-$(CONFIG_PPC32)	+= $(call cc-option,-mno-readonly-in-sdata)
 
-ifeq ($(CONFIG_PPC_BOOK3S_64),y)
-ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
+ifdef CONFIG_PPC_BOOK3S_64
+ifdef CONFIG_CPU_LITTLE_ENDIAN
 CFLAGS-$(CONFIG_GENERIC_CPU) += -mcpu=power8
 CFLAGS-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=power9,-mtune=power8)
 else
@@ -173,7 +173,7 @@ CFLAGS-$(CONFIG_POWER9_CPU) += $(call cc-option,-mcpu=power9)
 CFLAGS-$(CONFIG_PPC_8xx) += $(call cc-option,-mcpu=860)
 
 # Altivec option not allowed with e500mc64 in GCC.
-ifeq ($(CONFIG_ALTIVEC),y)
+ifdef CONFIG_ALTIVEC
 E5500_CPU := -mcpu=powerpc64
 else
 E5500_CPU := $(call cc-option,-mcpu=e500mc64,-mcpu=powerpc64)
@@ -181,8 +181,8 @@ endif
 CFLAGS-$(CONFIG_E5500_CPU) += $(E5500_CPU)
 CFLAGS-$(CONFIG_E6500_CPU) += $(call cc-option,-mcpu=e6500,$(E5500_CPU))
 
-ifeq ($(CONFIG_PPC32),y)
-ifeq ($(CONFIG_PPC_E500MC),y)
+ifdef CONFIG_PPC32
+ifdef CONFIG_PPC_E500MC
 CFLAGS-y += $(call cc-option,-mcpu=e500mc,-mcpu=powerpc)
 else
 CFLAGS-$(CONFIG_E500) += $(call cc-option,-mcpu=8540 -msoft-float,-mcpu=powerpc)
@@ -204,7 +204,7 @@ else
 CHECKFLAGS	+= -D__LITTLE_ENDIAN__
 endif
 
-ifeq ($(CONFIG_476FPE_ERR46),y)
+ifdef CONFIG_476FPE_ERR46
 	KBUILD_LDFLAGS_MODULE += --ppc476-workaround \
 		-T $(srctree)/arch/powerpc/platforms/44x/ppc476_modules.lds
 endif
@@ -231,12 +231,12 @@ KBUILD_CFLAGS	+= $(call cc-option,-fno-dwarf2-cfi-asm)
 # often slow when they are implemented at all
 KBUILD_CFLAGS		+= $(call cc-option,-mno-string)
 
-ifeq ($(CONFIG_6xx),y)
+ifdef CONFIG_6xx
 KBUILD_CFLAGS		+= -mcpu=powerpc
 endif
 
 # Work around a gcc code-gen bug with -fno-omit-frame-pointer.
-ifeq ($(CONFIG_FUNCTION_TRACER),y)
+ifdef CONFIG_FUNCTION_TRACER
 KBUILD_CFLAGS		+= -mno-sched-epilog
 endif
 
@@ -395,7 +395,7 @@ install:
 	$(Q)$(MAKE) $(build)=$(boot) install
 
 vdso_install:
-ifeq ($(CONFIG_PPC64),y)
+ifdef CONFIG_PPC64
 	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso64 $@
 endif
 	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso32 $@
