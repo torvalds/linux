@@ -48,13 +48,6 @@ enum toggling_mode {
 	TOGGLING_MODE_SRC,
 };
 
-static const char * const toggling_mode_name[] = {
-	[TOGGLINE_MODE_OFF]	= "toggling_OFF",
-	[TOGGLING_MODE_DRP]	= "toggling_DRP",
-	[TOGGLING_MODE_SNK]	= "toggling_SNK",
-	[TOGGLING_MODE_SRC]	= "toggling_SRC",
-};
-
 enum src_current_status {
 	SRC_CURRENT_DEFAULT,
 	SRC_CURRENT_MEDIUM,
@@ -1175,10 +1168,6 @@ done:
 	(PDO_FIXED_DUAL_ROLE | PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM)
 
 static const u32 src_pdo[] = {
-	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS),
-};
-
-static const u32 snk_pdo[] = {
 	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS),
 };
 
