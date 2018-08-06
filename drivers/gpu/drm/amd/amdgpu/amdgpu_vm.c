@@ -297,9 +297,9 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 		if (bo->parent) {
 			spin_lock(&glob->lru_lock);
-			ttm_bo_move_to_lru_tail(&bo->tbo);
+			ttm_bo_move_to_lru_tail(&bo->tbo, NULL);
 			if (bo->shadow)
-				ttm_bo_move_to_lru_tail(&bo->shadow->tbo);
+				ttm_bo_move_to_lru_tail(&bo->shadow->tbo, NULL);
 			spin_unlock(&glob->lru_lock);
 		}
 
@@ -319,9 +319,9 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		if (!bo->parent)
 			continue;
 
-		ttm_bo_move_to_lru_tail(&bo->tbo);
+		ttm_bo_move_to_lru_tail(&bo->tbo, NULL);
 		if (bo->shadow)
-			ttm_bo_move_to_lru_tail(&bo->shadow->tbo);
+			ttm_bo_move_to_lru_tail(&bo->shadow->tbo, NULL);
 	}
 	spin_unlock(&glob->lru_lock);
 
