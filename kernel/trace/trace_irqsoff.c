@@ -603,14 +603,40 @@ static void irqsoff_tracer_stop(struct trace_array *tr)
  */
 static void tracer_hardirqs_on(void *none, unsigned long a0, unsigned long a1)
 {
+	/*
+	 * Tracepoint probes are expected to be called with preempt disabled,
+	 * We don't care about being called with preempt disabled but we need
+	 * to know in the future if that changes so we can remove the next
+	 * preempt_enable.
+	 */
+	WARN_ON_ONCE(!preempt_count());
+
+	/* Tracepoint probes disable preemption atleast once, account for that */
+	preempt_enable_notrace();
+
 	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(a0, a1);
+
+	preempt_disable_notrace();
 }
 
 static void tracer_hardirqs_off(void *none, unsigned long a0, unsigned long a1)
 {
+	/*
+	 * Tracepoint probes are expected to be called with preempt disabled,
+	 * We don't care about being called with preempt disabled but we need
+	 * to know in the future if that changes so we can remove the next
+	 * preempt_enable.
+	 */
+	WARN_ON_ONCE(!preempt_count());
+
+	/* Tracepoint probes disable preemption atleast once, account for that */
+	preempt_enable_notrace();
+
 	if (!preempt_trace() && irq_trace())
 		start_critical_timing(a0, a1);
+
+	preempt_disable_notrace();
 }
 
 static int irqsoff_tracer_init(struct trace_array *tr)
