@@ -234,7 +234,7 @@ struct uvc_control_mapping {
 	enum v4l2_ctrl_type v4l2_type;
 	u32 data_type;
 
-	struct uvc_menu_info *menu_info;
+	const struct uvc_menu_info *menu_info;
 	u32 menu_count;
 
 	u32 master_id;
