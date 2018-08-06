@@ -782,6 +782,15 @@ static int ulite_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (!ulite_uart_driver.state) {
+		dev_dbg(&pdev->dev, "uartlite: calling uart_register_driver()\n");
+		ret = uart_register_driver(&ulite_uart_driver);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to register driver\n");
+			return ret;
+		}
+	}
+
 	ret = ulite_assign(&pdev->dev, id, res->start, irq, pdata);
 
 	clk_disable(pdata->clk);
@@ -817,25 +826,9 @@ static struct platform_driver ulite_platform_driver = {
 
 static int __init ulite_init(void)
 {
-	int ret;
-
-	pr_debug("uartlite: calling uart_register_driver()\n");
-	ret = uart_register_driver(&ulite_uart_driver);
-	if (ret)
-		goto err_uart;
 
 	pr_debug("uartlite: calling platform_driver_register()\n");
-	ret = platform_driver_register(&ulite_platform_driver);
-	if (ret)
-		goto err_plat;
-
-	return 0;
-
-err_plat:
-	uart_unregister_driver(&ulite_uart_driver);
-err_uart:
-	pr_err("registering uartlite driver failed: err=%i\n", ret);
-	return ret;
+	return platform_driver_register(&ulite_platform_driver);
 }
 
 static void __exit ulite_exit(void)
