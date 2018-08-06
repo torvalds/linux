@@ -371,6 +371,11 @@ __btree_node_offset_to_key(const struct btree *b, u16 k)
 	return (void *) ((u64 *) b->data + k + 1);
 }
 
+static inline unsigned btree_bkey_first_offset(const struct bset_tree *t)
+{
+	return t->data_offset + offsetof(struct bset, _data) / sizeof(u64);
+}
+
 #define btree_bkey_first(_b, _t)	(bset(_b, _t)->start)
 
 #define btree_bkey_last(_b, _t)						\

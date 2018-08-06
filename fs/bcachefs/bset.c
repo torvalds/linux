@@ -614,28 +614,30 @@ static unsigned rw_aux_tree_bsearch(struct btree *b,
 				    struct bset_tree *t,
 				    unsigned offset)
 {
-	unsigned l = 0, r = t->size;
+	unsigned bset_offs = offset - btree_bkey_first_offset(t);
+	unsigned bset_u64s = t->end_offset - btree_bkey_first_offset(t);
+	unsigned idx = bset_u64s ? bset_offs * t->size / bset_u64s : 0;
 
 	EBUG_ON(bset_aux_tree_type(t) != BSET_RW_AUX_TREE);
+	EBUG_ON(!t->size);
+	EBUG_ON(idx > t->size);
 
-	while (l < r) {
-		unsigned m = (l + r) >> 1;
+	while (idx < t->size &&
+	       rw_aux_tree(b, t)[idx].offset < offset)
+		idx++;
 
-		if (rw_aux_tree(b, t)[m].offset < offset)
-			l = m + 1;
-		else
-			r = m;
-	}
+	while (idx &&
+	       rw_aux_tree(b, t)[idx - 1].offset >= offset)
+		idx--;
 
-	EBUG_ON(l < t->size &&
-		rw_aux_tree(b, t)[l].offset < offset);
-	EBUG_ON(l &&
-		rw_aux_tree(b, t)[l - 1].offset >= offset);
+	EBUG_ON(idx < t->size &&
+		rw_aux_tree(b, t)[idx].offset < offset);
+	EBUG_ON(idx && rw_aux_tree(b, t)[idx - 1].offset >= offset);
+	EBUG_ON(idx + 1 < t->size &&
+		rw_aux_tree(b, t)[idx].offset ==
+		rw_aux_tree(b, t)[idx + 1].offset);
 
-	EBUG_ON(l > r);
-	EBUG_ON(l > t->size);
-
-	return l;
+	return idx;
 }
 
 static inline unsigned bfloat_mantissa(const struct bkey_float *f,
@@ -1150,12 +1152,8 @@ static void bch2_bset_fix_lookup_table(struct btree *b,
 	if (!bset_has_rw_aux_tree(t))
 		return;
 
+	/* returns first entry >= where */
 	l = rw_aux_tree_bsearch(b, t, where);
-
-	/* l is first >= than @where */
-
-	EBUG_ON(l < t->size && rw_aux_tree(b, t)[l].offset < where);
-	EBUG_ON(l && rw_aux_tree(b, t)[l - 1].offset >= where);
 
 	if (!l) /* never delete first entry */
 		l++;
