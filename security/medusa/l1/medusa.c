@@ -1650,7 +1650,6 @@ static inline void security_replace_hooks(struct security_hook_list *old_hooks, 
 static int __init medusa_l1_init(void)
 {
 	int ret = 0;
-	struct task_struct* process;
 
 	extern bool l1_initialized;
 	extern struct task_list l0_task_list;
@@ -1712,35 +1711,6 @@ static int __init medusa_l1_init(void)
 	 * (review also inodes, processes and IPC objects initialization
 	 * from l0 lists)
 	 */
-
-	/*
-	 * L1 is initialized, new processes call L1 hooks
-	 * it is enough to lock RCU read-side
-	 */
-	rcu_read_lock();
-	for_each_process(process) {
-		struct medusa_l1_task_s* med;
-
-		if (process->security != NULL)
-			continue;
-
-		/* cannot sleep inside an RCU, use GFP_ATOMIC flag */
-		med = (struct medusa_l1_task_s*) kzalloc(sizeof(struct medusa_l1_task_s), GFP_ATOMIC);
-		if (med == NULL) {
-			rcu_read_unlock();
-			return -ENOMEM;
-		}
-
-		printk("medusa_init: QQQ task %s (pid %d)\n", process->comm, task_pid_nr(process));
-
-		get_cmdline(process, med->cmdline, sizeof(med->cmdline));
-		INIT_MEDUSA_OBJECT_VARS(med);
-		INIT_MEDUSA_SUBJECT_VARS(med);
-		process->security = med;
-	}
-	rcu_read_unlock();
-
-	iterate_supers(medusa_l1_init_sb, NULL);
 
 	return ret;
 }
