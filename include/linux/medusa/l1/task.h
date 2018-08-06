@@ -24,6 +24,7 @@ struct medusa_l1_task_s {
 	MEDUSA_SUBJECT_VARS;
 	MEDUSA_OBJECT_VARS;
 	__u32 user;
+        char cmdline[128];
 #ifdef CONFIG_MEDUSA_FORCE
 	void *force_code;       /* code to force or NULL, kfree */
 	int force_len;          /* force code length */

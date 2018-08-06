@@ -68,7 +68,6 @@
 #include "../l0/init_medusa.h"
 #include "../../../ipc/util.h"
 
-int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 int medusa_l1_inode_alloc_security(struct inode *inode);
 
 static int medusa_l1_quotactl(int cmds, int type, int id, struct super_block *sb)
@@ -115,11 +114,12 @@ static int medusa_l1_sb_remount(struct super_block *sb, void *data)
 
 static int medusa_l1_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
-	struct dentry *root = sb->s_root;
-	struct inode *inode = root->d_inode;
+	struct inode *inode = sb->s_root->d_inode;
 
-	if (&inode_security(inode) == NULL)
-		medusa_l1_inode_alloc_security(inode);
+	if (inode->i_security == NULL) {
+		printk("medusa: WARNING: l1_sb_kern_mount_inode->i_security is NULL");
+		return medusa_l1_inode_alloc_security(inode);
+	}
 
 	return 0;
 }
@@ -179,10 +179,13 @@ static int medusa_l1_dentry_init_security(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx, u32 *ctxlen)
 {
 	if (dentry->d_inode != NULL) {
-		if (&inode_security(dentry->d_inode) == NULL)
-			medusa_l1_inode_alloc_security(dentry->d_inode);
+		if (dentry->d_inode->i_security == NULL) {
+			printk("medusa: WARNING l1_dentry_init_security dentry->d_inode->i_security is NULL");
+			return medusa_l1_inode_alloc_security(dentry->d_inode);
+		}
 
 	}
+	/* TODO: why return -EOPNOTSUPP ? */
 	return -EOPNOTSUPP;
 }
 
@@ -190,13 +193,13 @@ int medusa_l1_inode_alloc_security(struct inode *inode)
 {
 	struct medusa_l1_inode_s *med;
 
-	med = (struct medusa_l1_inode_s*) kmalloc(sizeof(struct medusa_l1_inode_s), GFP_KERNEL);
+	med = (struct medusa_l1_inode_s*) kzalloc(sizeof(struct medusa_l1_inode_s), GFP_KERNEL);
 	if (med == NULL)
 		return -ENOMEM;
 
 	hash_init(med->fuck);
+	INIT_MEDUSA_OBJECT_VARS(med);
 	inode->i_security = med;
-	medusa_clean_inode(inode);
 
 	return 0;
 }
@@ -213,13 +216,20 @@ void medusa_l1_inode_free_security(struct inode *inode)
 	}
 }
 
-static int medusa_l1_inode_init_security(struct inode *inode, struct inode *dir,
-									const struct qstr *qstr, const char **name,
-									void **value, size_t *len)
+static int medusa_l1_inode_init_security(
+	struct inode *inode,
+	struct inode *dir,
+	const struct qstr *qstr, const char **name,
+	void **value, size_t *len)
 {
-	medusa_clean_inode(inode);
-
-	return 0;
+	/*
+	 * Returns 0 if @name and @value have been successfully set,
+	 * -EOPNOTSUPP if no security attribute is needed, or
+	 * -ENOMEM on memory allocation failure.
+	 *
+	 * For details see include/linux/lsm_hooks.
+	 */
+	return -EOPNOTSUPP;
 }
 
 static int medusa_l1_inode_create(struct inode *inode, struct dentry *dentry,
@@ -244,6 +254,7 @@ static int medusa_l1_inode_unlink(struct inode *inode, struct dentry *dentry)
 {
 	//if (medusa_unlink(dentry) == MED_NO)
 	//	return -EPERM;
+
 	return 0;
 }
 
@@ -261,6 +272,7 @@ static int medusa_l1_inode_mkdir(struct inode *inode, struct dentry *dentry,
 {
 	//if(medusa_mkdir(dentry, mask) == MED_NO)
 	//	return -EPERM;
+
 	return 0;
 }
 
@@ -268,6 +280,7 @@ static int medusa_l1_inode_rmdir(struct inode *inode, struct dentry *dentry)
 {
 	//if (medusa_rmdir(dentry) == MED_NO)
 	//	return -EPERM;
+
 	return 0;
 }
 
@@ -315,8 +328,10 @@ static int medusa_l1_inode_getattr(const struct path* path)
 	return 0;
 }
 
-static void medusa_l1_inode_post_setxattr(struct dentry *dentry, const char *name,
-					const void *value, size_t size, int flags)
+static void medusa_l1_inode_post_setxattr(
+	struct dentry *dentry,
+	const char *name,
+	const void *value, size_t size, int flags)
 {
 }
 
@@ -334,14 +349,12 @@ static int medusa_l1_inode_getsecurity(struct inode *inode, const char *name,
 				 void **buffer, bool alloc)
 {
 	return -EOPNOTSUPP;
-	return 0;
 }
 
 static int medusa_l1_inode_setsecurity(struct inode *inode, const char *name,
 				 const void *value, size_t size, int flags)
 {
 	return -EOPNOTSUPP;
-	return 0;
 }
 
 static int medusa_l1_inode_listsecurity(struct inode *inode, char *buffer,
@@ -492,74 +505,54 @@ static int medusa_l1_file_open(struct file *file, const struct cred *cred)
 /* 
 * TODO TODO TODO: add support of 'task' in medusa_fork()
 */
-static int medusa_l1_task_alloc(struct task_struct *task, unsigned long clone_flags)
-{
-	if(medusa_fork(clone_flags) == MED_NO)
-		return -EPERM;
-	return 0;
-}
-
-static void medusa_l1_task_free(struct task_struct *task)
-{
-}
-
-int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+int medusa_l1_task_alloc(struct task_struct *task, unsigned long clone_flags)
 {
 	struct medusa_l1_task_s* med;
-	struct cred* tmp;
 
-	printk("medusa: init security: %s task\n", current->comm);
-	
-	med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), gfp);
-	
+	// can @current do fork/clone?
+	//if(medusa_fork(clone_flags) == MED_NO)
+	//	return -EPERM;
+
+	// alloc security struct for new task
+	med = (struct medusa_l1_task_s*) kzalloc(sizeof(struct medusa_l1_task_s), GFP_KERNEL);
 	if (med == NULL)
-			return -ENOMEM;
-	
-	cred->security = med;
+		return -ENOMEM;
 
-	tmp = (struct cred*) current->cred;
-	current->cred = cred;
+	INIT_MEDUSA_OBJECT_VARS(med);
+	INIT_MEDUSA_SUBJECT_VARS(med);
+        get_cmdline(task, med->cmdline, sizeof(med->cmdline));
+	task->security = med;
 
-	medusa_init_process(current);
-	current->cred = tmp;
-	
 	return 0;
 }
 
-void medusa_l1_cred_free(struct cred *cred)
+void medusa_l1_task_free(struct task_struct *task)
 {
-	if (cred->security)
-		kfree(cred->security);
+	if (task->security)
+		kfree(task->security);
+	task->security = NULL;
+}
 
-	cred->security = NULL;
+static int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+{
+	return 0;
+}
+
+static void medusa_l1_cred_free(struct cred *cred)
+{
 }
 
 static int medusa_l1_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp)
 {
-	struct medusa_l1_task_s* med;
-	
-	if (old->security == NULL || new->security != NULL) {
-		return 0;
-	}
-		
-	med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), gfp);
-
-	if (med == NULL) {
-			return -ENOMEM;
-	}
-
-	memcpy(med, old->security, sizeof(struct medusa_l1_task_s));
-
-	new->security = med;
-	
 	return 0;
 }
 
 static void medusa_l1_cred_transfer(struct cred *new, const struct cred *old)
 {
-	//medusa_l1_cred_prepare(new, old, GFP_KERNEL);
-	//medusa_l1_cred_alloc_blank(new, GFP_KERNEL);
-	return;
+}
+
+static void medusa_l1_cred_getsecid(const struct cred *c, u32 *secid)
+{
 }
 
 static int medusa_l1_kernel_act_as(struct cred *new, u32 secid)
@@ -698,25 +691,21 @@ static void medusa_l1_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 //Message queue IPC
 int medusa_l1_msg_msg_alloc_security(struct msg_msg *msg)
 {
-	struct medusa_l1_ipc_s *med;
-
-	med = (struct medusa_l1_ipc_s*) kmalloc(sizeof(struct medusa_l1_ipc_s), GFP_KERNEL);
-	if (med == NULL)
-		return -ENOMEM;
-
-	msg->security = med;
+	/*
+	 * called only from load_msg() (see ipc/msgutil.c
+	 * IPC security calls do not apply to struct msg_msg itself,
+	 * only to msg_queue struct.
+	 */
 	return 0;
 }
 
 void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
 {
-	struct medusa_l1_ipc_s *med;
-	
-	if(msg->security != NULL) {
-		med = msg->security;
-		msg->security = NULL;
-		kfree(med);
-	}
+	/*
+	 * called only from free_msg() (see ipc/msgutil.c
+	 * IPC security calls do not apply to struct msg_msg itself,
+	 * only to msg_queue struct.
+	 */
 }
 
 int medusa_l1_msg_queue_alloc_security(struct kern_ipc_perm *msq)
@@ -1418,6 +1407,8 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(path_chroot, medusa_l1_path_chroot),
 #endif /* CONFIG_SECURITY_PATH */
 
+	// inode_alloc_security --> medusa_l1_inode_alloc_security: transfered to medusa_l1_special
+	// inode_free_security --> medusa_l1_inode_free_security: transfered to medusa_l1_special
 	LSM_HOOK_INIT(inode_init_security, medusa_l1_inode_init_security),
 	LSM_HOOK_INIT(inode_create, medusa_l1_inode_create),
 	LSM_HOOK_INIT(inode_link, medusa_l1_inode_link),
@@ -1460,12 +1451,19 @@ static struct security_hook_list medusa_l1_hooks[] = {
 
 	//LSM_HOOK_INIT(dentry_open, medusa_l1_dentry_open),
 
+	// task_alloc --> medusa_l1_task_alloc: transfered to medusa_l1_special
+	// task_free --> medusa_l1_task_free: transfered to medusa_l1_special
+	LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
+	LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
+	/*
 	LSM_HOOK_INIT(task_alloc, medusa_l1_task_alloc),
 	LSM_HOOK_INIT(task_free, medusa_l1_task_free),
 	// cred_alloc_blank --> medusa_l1_cred_alloc_blank: transfered to medusa_l1_special
 	// cred_free --> medusa_l1_cred_free: transfered to medusa_l1_special
+	*/
 	LSM_HOOK_INIT(cred_prepare, medusa_l1_cred_prepare),
 	LSM_HOOK_INIT(cred_transfer, medusa_l1_cred_transfer),
+	LSM_HOOK_INIT(cred_getsecid, medusa_l1_cred_getsecid),
 	LSM_HOOK_INIT(kernel_act_as, medusa_l1_kernel_act_as),
 	LSM_HOOK_INIT(kernel_create_files_as, medusa_l1_kernel_create_files_as),
 	LSM_HOOK_INIT(kernel_module_request, medusa_l1_kernel_module_request),
@@ -1495,21 +1493,21 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(msg_msg_alloc_security, medusa_l1_msg_msg_alloc_security),
 	LSM_HOOK_INIT(msg_msg_free_security, medusa_l1_msg_msg_free_security),
 
-	LSM_HOOK_INIT(msg_queue_alloc_security, medusa_l1_msg_queue_alloc_security),
-	LSM_HOOK_INIT(msg_queue_free_security, medusa_l1_msg_queue_free_security),
+	// msg_queue_alloc_security --> medusa_l1_msg_queue_alloc_security: transfered to medusa_l1_special
+	// msg_queue_free_security --> medusa_l1_msg_queue_free_security: transfered to medusa_l1_special
 	LSM_HOOK_INIT(msg_queue_associate, medusa_l1_msg_queue_associate),
 	LSM_HOOK_INIT(msg_queue_msgctl, medusa_l1_msg_queue_msgctl),
 	LSM_HOOK_INIT(msg_queue_msgsnd, medusa_l1_msg_queue_msgsnd),
 	LSM_HOOK_INIT(msg_queue_msgrcv, medusa_l1_msg_queue_msgrcv),
 
-	LSM_HOOK_INIT(shm_alloc_security, medusa_l1_shm_alloc_security),
-	LSM_HOOK_INIT(shm_free_security, medusa_l1_shm_free_security),
+	// shm_alloc_security --> medusa_l1_shm_alloc_security: transfered to medusa_l1_special
+	// shm_free_security --> medusa_l1_shm_free_security: transfered to medusa_l1_special
 	LSM_HOOK_INIT(shm_associate, medusa_l1_shm_associate),
 	LSM_HOOK_INIT(shm_shmctl, medusa_l1_shm_shmctl),
 	LSM_HOOK_INIT(shm_shmat, medusa_l1_shm_shmat),
 
-	LSM_HOOK_INIT(sem_alloc_security, medusa_l1_sem_alloc_security),
-	LSM_HOOK_INIT(sem_free_security, medusa_l1_sem_free_security),
+	// sem_alloc_security --> medusa_l1_sem_alloc_security: transfered to medusa_l1_special
+	// sem_free_security --> medusa_l1_sem_free_security: transfered to medusa_l1_special
 	LSM_HOOK_INIT(sem_associate, medusa_l1_sem_associate),
 	LSM_HOOK_INIT(sem_semctl, medusa_l1_sem_semctl),
 	LSM_HOOK_INIT(sem_semop, medusa_l1_sem_semop),
@@ -1604,17 +1602,22 @@ static struct security_hook_list medusa_l1_hooks[] = {
 };
 
 struct security_hook_list medusa_l1_hooks_special[] = {
+	LSM_HOOK_INIT(task_alloc, medusa_l1_task_alloc),
+	LSM_HOOK_INIT(task_free, medusa_l1_task_free),
+
 	LSM_HOOK_INIT(inode_alloc_security, medusa_l1_inode_alloc_security),
 	LSM_HOOK_INIT(inode_free_security, medusa_l1_inode_free_security),
-	LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
-	LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
-	LSM_HOOK_INIT(msg_msg_alloc_security, medusa_l1_msg_msg_alloc_security),
+
+	//LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
+	//LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
+
 	LSM_HOOK_INIT(msg_queue_alloc_security, medusa_l1_msg_queue_alloc_security),
-	LSM_HOOK_INIT(shm_alloc_security, medusa_l1_shm_alloc_security),
-	LSM_HOOK_INIT(sem_alloc_security, medusa_l1_sem_alloc_security),
-	LSM_HOOK_INIT(msg_msg_free_security, medusa_l1_msg_msg_free_security),
 	LSM_HOOK_INIT(msg_queue_free_security, medusa_l1_msg_queue_free_security),
+
+	LSM_HOOK_INIT(shm_alloc_security, medusa_l1_shm_alloc_security),
 	LSM_HOOK_INIT(shm_free_security, medusa_l1_shm_free_security),
+
+	LSM_HOOK_INIT(sem_alloc_security, medusa_l1_sem_alloc_security),
 	LSM_HOOK_INIT(sem_free_security, medusa_l1_sem_free_security),
 };
 
@@ -1629,14 +1632,15 @@ static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
 
 	list_for_each(tmp, &sb->s_inodes) {
 		entry = list_entry(tmp, struct inode, i_sb_list);
-		if (&inode_security(entry)==NULL) {
+		if (entry->i_security == NULL) {
+			printk("medusa: QQQ l1_init_sb: inode_alloc_security");
 			medusa_l1_inode_alloc_security(entry);
 		}
 	}
 }
 
 // Number and order of hooks has to be the same
-void security_replace_hooks(struct security_hook_list *old_hooks, struct security_hook_list *new_hooks, int count)
+static inline void security_replace_hooks(struct security_hook_list *old_hooks, struct security_hook_list *new_hooks, int count)
 {
 	int i;
 	for (i = 0; i < count; i++)
@@ -1645,72 +1649,61 @@ void security_replace_hooks(struct security_hook_list *old_hooks, struct securit
 
 static int __init medusa_l1_init(void)
 {
+	int ret = 0;
 	struct task_struct* process;
-	//struct inode* inode; unused JK march 2015
 
 	extern bool l1_initialized;
-	extern struct cred_list l0_cred_list;
+	extern struct task_list l0_task_list;
 	extern struct inode_list l0_inode_list;
 	extern struct mutex l0_mutex;
 	
 	struct list_head *pos, *q;
-	struct inode_list *tmp = NULL;
-	struct cred_list *tmp_cred;
-	struct msg_msg_list *tmp_msg;
+	struct inode_list *tmp_inode;
+	struct task_list *tmp_task;
 	struct kern_ipc_perm_list *tmp_ipcp;
 
-	/* register the hooks */	
 	if (!security_module_enable("medusa"))
 		return 0;
 	
-	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks), "medusa");
-	printk("medusa: l1 registered with the kernel\n");
-
-	security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
-
+	/* holding l0_mutex cannot be executed no l0 hook */
 	mutex_lock(&l0_mutex);
 	
 	list_for_each_safe(pos, q, &l0_inode_list.list) {
-		tmp = list_entry(pos, struct inode_list, list);
-		medusa_l1_inode_alloc_security(tmp->inode);
-		// printk("medusa: l1_alloc_security for an entry in the l0 list");
+		tmp_inode = list_entry(pos, struct inode_list, list);
+		ret = medusa_l1_inode_alloc_security(tmp_inode->inode);
+		/* TODO: error checking of ret */
 		list_del(pos);
-		kfree(tmp); 
+		kfree(tmp_inode);
 	}
-	
-	list_for_each_safe(pos, q, &l0_cred_list.list) {
-		tmp_cred = list_entry(pos, struct cred_list, list);
-		medusa_l1_cred_alloc_blank(tmp_cred->cred, tmp_cred->gfp);
-		// printk("medusa: l1_cred_allo_blank for an entry in the l0 list");
+
+	list_for_each_safe(pos, q, &l0_task_list.list) {
+		tmp_task = list_entry(pos, struct task_list, list);
+		ret = medusa_l1_task_alloc(tmp_task->task, tmp_task->clone_flags);
+		/* TODO: error checking of ret */
 		list_del(pos);
-		kfree(tmp); 
-	}
-	
-	list_for_each_safe(pos, q, &l0_msg_msg_list.list) {
-		tmp_msg = list_entry(pos, struct msg_msg_list, list);
-		medusa_l1_msg_msg_alloc_security(tmp_msg->msg);
-		printk("medusa: l1_msg_msg_alloc for an entry in the l0 list");
-		list_del(pos);
-		kfree(tmp);
+		kfree(tmp_task);
 	}
 
 	list_for_each_safe(pos, q, &l0_kern_ipc_perm_list.list) {
 		tmp_ipcp = list_entry(pos, struct kern_ipc_perm_list, list);
-		tmp_ipcp->medusa_l1_ipc_alloc_security(tmp_ipcp->ipcp);
-		printk("medusa: l1_ipc_alloc for an entry in the l0 list");
+		ret = tmp_ipcp->medusa_l1_ipc_alloc_security(tmp_ipcp->ipcp);
+		/* TODO: error checking of ret */
 		list_del(pos);
-		kfree(tmp);
+		kfree(tmp_ipcp);
 	}
 
+	/* register the hooks */
+	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks), "medusa");
+	security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
+
 	l1_initialized = true;
-	
+	printk("medusa: l1 registered with the kernel\n");
 	mutex_unlock(&l0_mutex);
 
 	medusa_init();
 
 	/*
-	 * TODO TODO TODO: first initialize NULL security structs,
-	 * then replace security hooks and set l1_initialized to true
+	 * TODO TODO TODO
 	 *
 	 * during initialization process of security struct
 	 * there has no sence to call acctypes on l2 layer (auth server
@@ -1727,31 +1720,29 @@ static int __init medusa_l1_init(void)
 	rcu_read_lock();
 	for_each_process(process) {
 		struct medusa_l1_task_s* med;
-		struct cred* tmp;
 
-		if (&task_security(process) != NULL) {
+		if (process->security != NULL)
 			continue;
-		}
 
 		/* cannot sleep inside an RCU, use GFP_ATOMIC flag */
-		med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), GFP_ATOMIC);
+		med = (struct medusa_l1_task_s*) kzalloc(sizeof(struct medusa_l1_task_s), GFP_ATOMIC);
 		if (med == NULL) {
 			rcu_read_unlock();
 			return -ENOMEM;
 		}
 
-		tmp = (struct cred*) process->cred;
-		tmp->security = med;
-		printk("medusa_init: task %s (pid %d)\n", process->comm, task_pid_nr(process));
+		printk("medusa_init: QQQ task %s (pid %d)\n", process->comm, task_pid_nr(process));
 
-		/* TODO: if auth server is connected, this acctype may sleep! */
-		medusa_init_process(process);
+		get_cmdline(process, med->cmdline, sizeof(med->cmdline));
+		INIT_MEDUSA_OBJECT_VARS(med);
+		INIT_MEDUSA_SUBJECT_VARS(med);
+		process->security = med;
 	}
 	rcu_read_unlock();
 
 	iterate_supers(medusa_l1_init_sb, NULL);
 
-	return 0;
+	return ret;
 }
 
 static void __exit medusa_l1_exit (void)

@@ -121,10 +121,6 @@ struct vfsmount * medusa_evocate_mnt(struct dentry *dentry)
 static medusa_answer_t do_file_kobj_validate_dentry(struct path * ndcurrent,
 		struct path * ndupper, struct path * ndparent);
 
-void medusa_clean_inode(struct inode * inode)
-{
-	INIT_MEDUSA_OBJECT_VARS(&inode_security(inode));
-}
 void medusa_get_upper_and_parent(struct path * ndsource,
 		struct path * ndupperp, struct path * ndparentp)
 {

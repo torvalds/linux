@@ -67,7 +67,6 @@ int process_kern2kobj(struct process_kobject * tk, struct task_struct * ts)
 {
         memset(tk, '\0', sizeof(struct process_kobject));
 
-        get_cmdline(ts, tk->cmdline, sizeof(tk->cmdline));
 	tk->parent_pid = tk->child_pid = tk->sibling_pid = 0;
 
 	tk->pid = ts->pid;
@@ -94,6 +93,7 @@ int process_kern2kobj(struct process_kobject * tk, struct task_struct * ts)
 #ifdef CONFIG_MEDUSA_SYSCALL
 	memcpy(tk->med_syscall, task_security(ts).med_syscall, sizeof(tk->med_syscall));
 #endif
+	memcpy(tk->cmdline, task_security(ts).cmdline, sizeof(tk->cmdline));
 	return 0;
 }
 

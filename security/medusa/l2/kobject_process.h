@@ -17,7 +17,7 @@
 #include <linux/medusa/l1/task.h>
 #include <linux/medusa/l1/process_handlers.h>
 
-#define task_security(task) (*((struct medusa_l1_task_s*)task_cred_xxx((task), security)))
+#define task_security(task) (*((struct medusa_l1_task_s*)(task->security)))
 #define task_suid(task) (task_cred_xxx((task), suid))
 #define task_fsuid(task) (task_cred_xxx((task), fsuid))
 #define task_gid(task) (task_cred_xxx((task), gid))
