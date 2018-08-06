@@ -356,5 +356,6 @@ void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
 			     int *mec, int *pipe, int *queue);
 bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int mec,
 				     int pipe, int queue);
+void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
 
 #endif
