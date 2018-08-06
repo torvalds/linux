@@ -1296,8 +1296,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_free;
 
-	sz = ALIGN(c->max_idx_node_sz, c->min_io_size);
-	sz = ALIGN(sz + c->max_idx_node_sz, c->min_io_size);
+	sz = ALIGN(c->max_idx_node_sz, c->min_io_size) * 2;
 	c->cbuf = kmalloc(sz, GFP_NOFS);
 	if (!c->cbuf) {
 		err = -ENOMEM;
