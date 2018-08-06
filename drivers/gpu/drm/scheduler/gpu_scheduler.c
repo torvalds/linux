@@ -530,8 +530,6 @@ drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 	if (!sched_job)
 		return NULL;
 
-	sched_job->sched = sched;
-	sched_job->s_fence->sched = sched;
 	while ((entity->dependency = sched->ops->dependency(sched_job, entity))) {
 		if (drm_sched_entity_add_dependency_cb(entity)) {
 
@@ -582,6 +580,8 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 		spin_unlock(&entity->rq_lock);
 	}
 
+	sched_job->sched = entity->rq->sched;
+	sched_job->s_fence->sched = entity->rq->sched;
 	trace_drm_sched_job(sched_job, entity);
 	atomic_inc(&entity->rq->sched->num_jobs);
 	WRITE_ONCE(entity->last_user, current->group_leader);

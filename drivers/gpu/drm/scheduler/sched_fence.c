@@ -161,7 +161,7 @@ struct drm_sched_fence *drm_sched_fence_create(struct drm_sched_entity *entity,
 		return NULL;
 
 	fence->owner = owner;
-	fence->sched = entity->rq->sched;
+	fence->sched = NULL;
 	spin_lock_init(&fence->lock);
 
 	seq = atomic_inc_return(&entity->fence_seq);
