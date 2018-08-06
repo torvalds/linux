@@ -155,6 +155,7 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
 	struct msm_gpu *gpu = NULL;
+	struct adreno_gpu *adreno_gpu;
 	int ret;
 
 	if (pdev)
@@ -165,7 +166,27 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 		return NULL;
 	}
 
-	pm_runtime_get_sync(&pdev->dev);
+	adreno_gpu = to_adreno_gpu(gpu);
+
+	/*
+	 * The number one reason for HW init to fail is if the firmware isn't
+	 * loaded yet. Try that first and don't bother continuing on
+	 * otherwise
+	 */
+
+	ret = adreno_load_fw(adreno_gpu);
+	if (ret)
+		return NULL;
+
+	/* Make sure pm runtime is active and reset any previous errors */
+	pm_runtime_set_active(&pdev->dev);
+
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "Couldn't power up the GPU: %d\n", ret);
+		return NULL;
+	}
+
 	mutex_lock(&dev->struct_mutex);
 	ret = msm_gpu_hw_init(gpu);
 	mutex_unlock(&dev->struct_mutex);
