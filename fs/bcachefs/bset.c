@@ -20,12 +20,14 @@
 
 struct bset_tree *bch2_bkey_to_bset(struct btree *b, struct bkey_packed *k)
 {
+	unsigned offset = __btree_node_key_to_offset(b, k);
 	struct bset_tree *t;
 
 	for_each_bset(b, t)
-		if (k >= btree_bkey_first(b, t) &&
-		    k < btree_bkey_last(b, t))
+		if (offset <= t->end_offset) {
+			EBUG_ON(offset < btree_bkey_first_offset(t));
 			return t;
+		}
 
 	BUG();
 }
@@ -172,34 +174,29 @@ static void bch2_btree_node_iter_next_check(struct btree_node_iter *iter,
 void bch2_btree_node_iter_verify(struct btree_node_iter *iter,
 				struct btree *b)
 {
-	struct btree_node_iter_set *set, *prev = NULL;
+	struct btree_node_iter_set *set, *s2;
 	struct bset_tree *t;
-	struct bkey_packed *k, *first;
 
-	if (bch2_btree_node_iter_end(iter))
-		return;
+	/* Verify no duplicates: */
+	btree_node_iter_for_each(iter, set)
+		btree_node_iter_for_each(iter, s2)
+			BUG_ON(set != s2 && set->end == s2->end);
 
+	/* Verify that set->end is correct: */
 	btree_node_iter_for_each(iter, set) {
-		k = __btree_node_offset_to_key(b, set->k);
-		t = bch2_bkey_to_bset(b, k);
-
-		BUG_ON(__btree_node_offset_to_key(b, set->end) !=
-		       btree_bkey_last(b, t));
-
-		BUG_ON(prev &&
-		       btree_node_iter_cmp(iter, b, *prev, *set) > 0);
-
-		prev = set;
+		for_each_bset(b, t)
+			if (set->end == t->end_offset)
+				goto found;
+		BUG();
+found:
+		BUG_ON(set->k < btree_bkey_first_offset(t) ||
+		       set->k >= t->end_offset);
 	}
 
-	first = __btree_node_offset_to_key(b, iter->data[0].k);
-
-	for_each_bset(b, t)
-		if (bch2_btree_node_iter_bset_pos(iter, b, t) ==
-		    btree_bkey_last(b, t) &&
-		    (k = bch2_bkey_prev_all(b, t, btree_bkey_last(b, t))))
-			BUG_ON(__btree_node_iter_cmp(iter->is_extents, b,
-						     k, first) > 0);
+	/* Verify iterator is sorted: */
+	btree_node_iter_for_each(iter, set)
+		BUG_ON(set != iter->data &&
+		       btree_node_iter_cmp(iter, b, set[-1], set[0]) > 0);
 }
 
 void bch2_verify_key_order(struct btree *b,

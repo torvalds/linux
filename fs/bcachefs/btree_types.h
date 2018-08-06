@@ -340,10 +340,38 @@ static inline struct bset_tree *bset_tree_last(struct btree *b)
 	return b->set + b->nsets - 1;
 }
 
+static inline void *
+__btree_node_offset_to_ptr(const struct btree *b, u16 offset)
+{
+	return (void *) ((u64 *) b->data + 1 + offset);
+}
+
+static inline u16
+__btree_node_ptr_to_offset(const struct btree *b, const void *p)
+{
+	u16 ret = (u64 *) p - 1 - (u64 *) b->data;
+
+	EBUG_ON(__btree_node_offset_to_ptr(b, ret) != p);
+	return ret;
+}
+
 static inline struct bset *bset(const struct btree *b,
 				const struct bset_tree *t)
 {
-	return (void *) b->data + t->data_offset * sizeof(u64);
+	return __btree_node_offset_to_ptr(b, t->data_offset);
+}
+
+static inline void set_btree_bset_end(struct btree *b, struct bset_tree *t)
+{
+	t->end_offset =
+		__btree_node_ptr_to_offset(b, vstruct_last(bset(b, t)));
+}
+
+static inline void set_btree_bset(struct btree *b, struct bset_tree *t,
+				  const struct bset *i)
+{
+	t->data_offset = __btree_node_ptr_to_offset(b, i);
+	set_btree_bset_end(b, t);
 }
 
 static inline struct bset *btree_bset_first(struct btree *b)
@@ -359,16 +387,13 @@ static inline struct bset *btree_bset_last(struct btree *b)
 static inline u16
 __btree_node_key_to_offset(const struct btree *b, const struct bkey_packed *k)
 {
-	size_t ret = (u64 *) k - (u64 *) b->data - 1;
-
-	EBUG_ON(ret > U16_MAX);
-	return ret;
+	return __btree_node_ptr_to_offset(b, k);
 }
 
 static inline struct bkey_packed *
 __btree_node_offset_to_key(const struct btree *b, u16 k)
 {
-	return (void *) ((u64 *) b->data + k + 1);
+	return __btree_node_offset_to_ptr(b, k);
 }
 
 static inline unsigned btree_bkey_first_offset(const struct bset_tree *t)
@@ -376,7 +401,13 @@ static inline unsigned btree_bkey_first_offset(const struct bset_tree *t)
 	return t->data_offset + offsetof(struct bset, _data) / sizeof(u64);
 }
 
-#define btree_bkey_first(_b, _t)	(bset(_b, _t)->start)
+#define btree_bkey_first(_b, _t)					\
+({									\
+	EBUG_ON(bset(_b, _t)->start !=					\
+		__btree_node_offset_to_key(_b, btree_bkey_first_offset(_t)));\
+									\
+	bset(_b, _t)->start;						\
+})
 
 #define btree_bkey_last(_b, _t)						\
 ({									\
@@ -385,23 +416,6 @@ static inline unsigned btree_bkey_first_offset(const struct bset_tree *t)
 									\
 	__btree_node_offset_to_key(_b, (_t)->end_offset);		\
 })
-
-static inline void set_btree_bset_end(struct btree *b, struct bset_tree *t)
-{
-	t->end_offset =
-		__btree_node_key_to_offset(b, vstruct_last(bset(b, t)));
-	btree_bkey_last(b, t);
-}
-
-static inline void set_btree_bset(struct btree *b, struct bset_tree *t,
-				  const struct bset *i)
-{
-	t->data_offset = (u64 *) i - (u64 *) b->data;
-
-	EBUG_ON(bset(b, t) != i);
-
-	set_btree_bset_end(b, t);
-}
 
 static inline unsigned bset_byte_offset(struct btree *b, void *i)
 {

@@ -1429,7 +1429,7 @@ extent_squash(struct extent_insert_state *s, struct bkey_i *insert,
 		 * what k points to)
 		 */
 		bkey_reassemble(&split.k, k.s_c);
-		split.k.k.needs_whiteout |= bset_written(b, bset(b, t));
+		split.k.k.needs_whiteout |= bkey_written(b, _k);
 
 		bch2_cut_back(bkey_start_pos(&insert->k), &split.k.k);
 		BUG_ON(bkey_deleted(&split.k.k));
@@ -1499,9 +1499,9 @@ __bch2_delete_fixup_extent(struct extent_insert_state *s)
 			bch2_subtract_sectors(s, k.s_c,
 					     bkey_start_offset(k.k), k.k->size);
 			_k->type = KEY_TYPE_DISCARD;
-			reserve_whiteout(b, t, _k);
+			reserve_whiteout(b, _k);
 		} else if (k.k->needs_whiteout ||
-			   bset_written(b, bset(b, t))) {
+			   bkey_written(b, _k)) {
 			struct bkey_i discard = *insert;
 
 			discard.k.type = KEY_TYPE_DISCARD;
@@ -1573,13 +1573,13 @@ __bch2_insert_fixup_extent(struct extent_insert_state *s)
 			break;
 
 		if (k.k->size &&
-		    (k.k->needs_whiteout || bset_written(b, bset(b, t))))
+		    (k.k->needs_whiteout || bkey_written(b, _k)))
 			insert->k.needs_whiteout = true;
 
 		if (overlap == BCH_EXTENT_OVERLAP_ALL &&
 		    bkey_whiteout(k.k) &&
 		    k.k->needs_whiteout) {
-			unreserve_whiteout(b, t, _k);
+			unreserve_whiteout(b, _k);
 			_k->needs_whiteout = false;
 		}
 squash:

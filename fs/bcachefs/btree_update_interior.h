@@ -241,14 +241,19 @@ static inline void *write_block(struct btree *b)
 	return (void *) b->data + (b->written << 9);
 }
 
-static inline bool bset_written(struct btree *b, struct bset *i)
+static inline bool __btree_addr_written(struct btree *b, void *p)
 {
-	return (void *) i < write_block(b);
+	return p < write_block(b);
 }
 
-static inline bool bset_unwritten(struct btree *b, struct bset *i)
+static inline bool bset_written(struct btree *b, struct bset *i)
 {
-	return (void *) i > write_block(b);
+	return __btree_addr_written(b, i);
+}
+
+static inline bool bkey_written(struct btree *b, struct bkey_packed *k)
+{
+	return __btree_addr_written(b, k);
 }
 
 static inline ssize_t __bch_btree_u64s_remaining(struct bch_fs *c,
@@ -307,10 +312,9 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
 	return NULL;
 }
 
-static inline void unreserve_whiteout(struct btree *b, struct bset_tree *t,
-				      struct bkey_packed *k)
+static inline void unreserve_whiteout(struct btree *b, struct bkey_packed *k)
 {
-	if (bset_written(b, bset(b, t))) {
+	if (bkey_written(b, k)) {
 		EBUG_ON(b->uncompacted_whiteout_u64s <
 			bkeyp_key_u64s(&b->format, k));
 		b->uncompacted_whiteout_u64s -=
@@ -318,10 +322,9 @@ static inline void unreserve_whiteout(struct btree *b, struct bset_tree *t,
 	}
 }
 
-static inline void reserve_whiteout(struct btree *b, struct bset_tree *t,
-				    struct bkey_packed *k)
+static inline void reserve_whiteout(struct btree *b, struct bkey_packed *k)
 {
-	if (bset_written(b, bset(b, t))) {
+	if (bkey_written(b, k)) {
 		BUG_ON(!k->needs_whiteout);
 		b->uncompacted_whiteout_u64s +=
 			bkeyp_key_u64s(&b->format, k);

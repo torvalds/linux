@@ -40,7 +40,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 
 		t = bch2_bkey_to_bset(b, k);
 
-		if (bset_unwritten(b, bset(b, t)) &&
+		if (!bkey_written(b, k) &&
 		    bkey_val_u64s(&insert->k) == bkeyp_val_u64s(f, k) &&
 		    !bkey_whiteout(&insert->k)) {
 			k->type = insert->k.type;
@@ -76,7 +76,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 					k->u64s, k->u64s);
 
 		if (bkey_whiteout(&insert->k)) {
-			reserve_whiteout(b, t, k);
+			reserve_whiteout(b, k);
 			return true;
 		} else {
 			k->needs_whiteout = false;
