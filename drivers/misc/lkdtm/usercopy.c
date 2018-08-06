@@ -18,7 +18,7 @@
  * hardened usercopy checks by added "unconst" to all the const copies,
  * and making sure "cache_size" isn't optimized into a const.
  */
-static volatile size_t unconst = 0;
+static volatile size_t unconst;
 static volatile size_t cache_size = 1024;
 static struct kmem_cache *whitelist_cache;
 
