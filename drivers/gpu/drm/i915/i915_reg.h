@@ -8925,46 +8925,78 @@ enum {
 #define HSW_AUD_CHICKENBIT			_MMIO(0x65f10)
 #define   SKL_AUD_CODEC_WAKE_SIGNAL		(1 << 15)
 
-/* HSW Power Wells */
-#define _HSW_PWR_WELL_CTL1			0x45400
-#define _HSW_PWR_WELL_CTL2			0x45404
-#define _HSW_PWR_WELL_CTL3			0x45408
-#define _HSW_PWR_WELL_CTL4			0x4540C
-
-#define _ICL_PWR_WELL_CTL_AUX1			0x45440
-#define _ICL_PWR_WELL_CTL_AUX2			0x45444
-#define _ICL_PWR_WELL_CTL_AUX4			0x4544C
-
-#define _ICL_PWR_WELL_CTL_DDI1			0x45450
-#define _ICL_PWR_WELL_CTL_DDI2			0x45454
-#define _ICL_PWR_WELL_CTL_DDI4			0x4545C
-
 /*
- * Each power well control register contains up to 16 (request, status) HW
- * flag tuples. The register index and HW flag shift is determined by the
- * power well ID (see i915_power_well_id). There are 4 possible sources of
- * power well requests each source having its own set of control registers:
- * BIOS, DRIVER, KVMR, DEBUG.
+ * HSW - ICL power wells
+ *
+ * Platforms have up to 3 power well control register sets, each set
+ * controlling up to 16 power wells via a request/status HW flag tuple:
+ * - main (HSW_PWR_WELL_CTL[1-4])
+ * - AUX  (ICL_PWR_WELL_CTL_AUX[1-4])
+ * - DDI  (ICL_PWR_WELL_CTL_DDI[1-4])
+ * Each control register set consists of up to 4 registers used by different
+ * sources that can request a power well to be enabled:
+ * - BIOS   (HSW_PWR_WELL_CTL1/ICL_PWR_WELL_CTL_AUX1/ICL_PWR_WELL_CTL_DDI1)
+ * - DRIVER (HSW_PWR_WELL_CTL2/ICL_PWR_WELL_CTL_AUX2/ICL_PWR_WELL_CTL_DDI2)
+ * - KVMR   (HSW_PWR_WELL_CTL3)   (only in the main register set)
+ * - DEBUG  (HSW_PWR_WELL_CTL4/ICL_PWR_WELL_CTL_AUX4/ICL_PWR_WELL_CTL_DDI4)
  */
-#define _HSW_PW_REG_IDX(pw)			((pw) >> 4)
-#define _HSW_PW_SHIFT(pw)			(((pw) & 0xf) * 2)
-#define HSW_PWR_WELL_CTL_BIOS(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
-						    _HSW_PWR_WELL_CTL1,	       \
-						    _ICL_PWR_WELL_CTL_AUX1,    \
-						    _ICL_PWR_WELL_CTL_DDI1))
-#define HSW_PWR_WELL_CTL_DRIVER(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
-						    _HSW_PWR_WELL_CTL2,	       \
-						    _ICL_PWR_WELL_CTL_AUX2,    \
-						    _ICL_PWR_WELL_CTL_DDI2))
-/* KVMR doesn't have a reg for AUX or DDI power well control */
-#define HSW_PWR_WELL_CTL_KVMR		_MMIO(_HSW_PWR_WELL_CTL3)
-#define HSW_PWR_WELL_CTL_DEBUG(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
-						    _HSW_PWR_WELL_CTL4,	       \
-						    _ICL_PWR_WELL_CTL_AUX4,    \
-						    _ICL_PWR_WELL_CTL_DDI4))
+#define HSW_PWR_WELL_CTL1			_MMIO(0x45400)
+#define HSW_PWR_WELL_CTL2			_MMIO(0x45404)
+#define HSW_PWR_WELL_CTL3			_MMIO(0x45408)
+#define HSW_PWR_WELL_CTL4			_MMIO(0x4540C)
+#define   HSW_PWR_WELL_CTL_REQ(pw_idx)		(0x2 << ((pw_idx) * 2))
+#define   HSW_PWR_WELL_CTL_STATE(pw_idx)	(0x1 << ((pw_idx) * 2))
 
-#define   HSW_PWR_WELL_CTL_REQ(pw)		(1 << (_HSW_PW_SHIFT(pw) + 1))
-#define   HSW_PWR_WELL_CTL_STATE(pw)		(1 << _HSW_PW_SHIFT(pw))
+/* HSW/BDW power well */
+#define   HSW_PW_CTL_IDX_GLOBAL			15
+
+/* SKL/BXT/GLK/CNL power wells */
+#define   SKL_PW_CTL_IDX_PW_2			15
+#define   SKL_PW_CTL_IDX_PW_1			14
+#define   CNL_PW_CTL_IDX_AUX_F			12
+#define   CNL_PW_CTL_IDX_AUX_D			11
+#define   GLK_PW_CTL_IDX_AUX_C			10
+#define   GLK_PW_CTL_IDX_AUX_B			9
+#define   GLK_PW_CTL_IDX_AUX_A			8
+#define   CNL_PW_CTL_IDX_DDI_F			6
+#define   SKL_PW_CTL_IDX_DDI_D			4
+#define   SKL_PW_CTL_IDX_DDI_C			3
+#define   SKL_PW_CTL_IDX_DDI_B			2
+#define   SKL_PW_CTL_IDX_DDI_A_E		1
+#define   GLK_PW_CTL_IDX_DDI_A			1
+#define   SKL_PW_CTL_IDX_MISC_IO		0
+
+/* ICL - power wells */
+#define   ICL_PW_CTL_IDX_PW_4			3
+#define   ICL_PW_CTL_IDX_PW_3			2
+#define   ICL_PW_CTL_IDX_PW_2			1
+#define   ICL_PW_CTL_IDX_PW_1			0
+
+#define ICL_PWR_WELL_CTL_AUX1			_MMIO(0x45440)
+#define ICL_PWR_WELL_CTL_AUX2			_MMIO(0x45444)
+#define ICL_PWR_WELL_CTL_AUX4			_MMIO(0x4544C)
+#define   ICL_PW_CTL_IDX_AUX_TBT4		11
+#define   ICL_PW_CTL_IDX_AUX_TBT3		10
+#define   ICL_PW_CTL_IDX_AUX_TBT2		9
+#define   ICL_PW_CTL_IDX_AUX_TBT1		8
+#define   ICL_PW_CTL_IDX_AUX_F			5
+#define   ICL_PW_CTL_IDX_AUX_E			4
+#define   ICL_PW_CTL_IDX_AUX_D			3
+#define   ICL_PW_CTL_IDX_AUX_C			2
+#define   ICL_PW_CTL_IDX_AUX_B			1
+#define   ICL_PW_CTL_IDX_AUX_A			0
+
+#define ICL_PWR_WELL_CTL_DDI1			_MMIO(0x45450)
+#define ICL_PWR_WELL_CTL_DDI2			_MMIO(0x45454)
+#define ICL_PWR_WELL_CTL_DDI4			_MMIO(0x4545C)
+#define   ICL_PW_CTL_IDX_DDI_F			5
+#define   ICL_PW_CTL_IDX_DDI_E			4
+#define   ICL_PW_CTL_IDX_DDI_D			3
+#define   ICL_PW_CTL_IDX_DDI_C			2
+#define   ICL_PW_CTL_IDX_DDI_B			1
+#define   ICL_PW_CTL_IDX_DDI_A			0
+
+/* HSW - power well misc debug registers */
 #define HSW_PWR_WELL_CTL5			_MMIO(0x45410)
 #define   HSW_PWR_WELL_ENABLE_SINGLE_STEP	(1 << 31)
 #define   HSW_PWR_WELL_PWR_GATE_OVERRIDE	(1 << 20)
@@ -8980,18 +9012,26 @@ enum skl_power_gate {
 
 #define SKL_FUSE_STATUS				_MMIO(0x42000)
 #define  SKL_FUSE_DOWNLOAD_STATUS		(1 << 31)
-/* PG0 (HW control->no power well ID), PG1..PG2 (SKL_DISP_PW1..SKL_DISP_PW2) */
-#define  SKL_PW_TO_PG(pw)			((pw) - SKL_DISP_PW_1 + SKL_PG1)
-/* PG0 (HW control->no power well ID), PG1..PG4 (ICL_DISP_PW1..ICL_DISP_PW4) */
-#define  ICL_PW_TO_PG(pw)			((pw) - ICL_DISP_PW_1 + SKL_PG1)
+/*
+ * PG0 is HW controlled, so doesn't have a corresponding power well control knob
+ * SKL_DISP_PW1_IDX..SKL_DISP_PW2_IDX -> PG1..PG2
+ */
+#define  SKL_PW_CTL_IDX_TO_PG(pw_idx)		\
+	((pw_idx) - SKL_PW_CTL_IDX_PW_1 + SKL_PG1)
+/*
+ * PG0 is HW controlled, so doesn't have a corresponding power well control knob
+ * ICL_DISP_PW1_IDX..ICL_DISP_PW4_IDX -> PG1..PG4
+ */
+#define  ICL_PW_CTL_IDX_TO_PG(pw_idx)		\
+	((pw_idx) - ICL_PW_CTL_IDX_PW_1 + SKL_PG1)
 #define  SKL_FUSE_PG_DIST_STATUS(pg)		(1 << (27 - (pg)))
 
-#define _CNL_AUX_REG_IDX(pw)		((pw) - 9)
+#define _CNL_AUX_REG_IDX(pw_idx)	((pw_idx) - GLK_PW_CTL_IDX_AUX_B)
 #define _CNL_AUX_ANAOVRD1_B		0x162250
 #define _CNL_AUX_ANAOVRD1_C		0x162210
 #define _CNL_AUX_ANAOVRD1_D		0x1622D0
 #define _CNL_AUX_ANAOVRD1_F		0x162A90
-#define CNL_AUX_ANAOVRD1(pw)		_MMIO(_PICK(_CNL_AUX_REG_IDX(pw), \
+#define CNL_AUX_ANAOVRD1(pw_idx)	_MMIO(_PICK(_CNL_AUX_REG_IDX(pw_idx), \
 						    _CNL_AUX_ANAOVRD1_B, \
 						    _CNL_AUX_ANAOVRD1_C, \
 						    _CNL_AUX_ANAOVRD1_D, \

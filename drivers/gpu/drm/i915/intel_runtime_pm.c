@@ -323,26 +323,29 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv,
 static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	enum i915_power_well_id id = power_well->desc->id;
+	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	int pw_idx = power_well->desc->hsw.idx;
 
 	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
 	WARN_ON(intel_wait_for_register(dev_priv,
-					HSW_PWR_WELL_CTL_DRIVER(id),
-					HSW_PWR_WELL_CTL_STATE(id),
-					HSW_PWR_WELL_CTL_STATE(id),
+					regs->driver,
+					HSW_PWR_WELL_CTL_STATE(pw_idx),
+					HSW_PWR_WELL_CTL_STATE(pw_idx),
 					1));
 }
 
 static u32 hsw_power_well_requesters(struct drm_i915_private *dev_priv,
-				     enum i915_power_well_id id)
+				     const struct i915_power_well_regs *regs,
+				     int pw_idx)
 {
-	u32 req_mask = HSW_PWR_WELL_CTL_REQ(id);
+	u32 req_mask = HSW_PWR_WELL_CTL_REQ(pw_idx);
 	u32 ret;
 
-	ret = I915_READ(HSW_PWR_WELL_CTL_BIOS(id)) & req_mask ? 1 : 0;
-	ret |= I915_READ(HSW_PWR_WELL_CTL_DRIVER(id)) & req_mask ? 2 : 0;
-	ret |= I915_READ(HSW_PWR_WELL_CTL_KVMR) & req_mask ? 4 : 0;
-	ret |= I915_READ(HSW_PWR_WELL_CTL_DEBUG(id)) & req_mask ? 8 : 0;
+	ret = I915_READ(regs->bios) & req_mask ? 1 : 0;
+	ret |= I915_READ(regs->driver) & req_mask ? 2 : 0;
+	if (regs->kvmr.reg)
+		ret |= I915_READ(regs->kvmr) & req_mask ? 4 : 0;
+	ret |= I915_READ(regs->debug) & req_mask ? 8 : 0;
 
 	return ret;
 }
@@ -350,7 +353,8 @@ static u32 hsw_power_well_requesters(struct drm_i915_private *dev_priv,
 static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	enum i915_power_well_id id = power_well->desc->id;
+	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	int pw_idx = power_well->desc->hsw.idx;
 	bool disabled;
 	u32 reqs;
 
@@ -363,9 +367,9 @@ static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 	 * Skip the wait in case any of the request bits are set and print a
 	 * diagnostic message.
 	 */
-	wait_for((disabled = !(I915_READ(HSW_PWR_WELL_CTL_DRIVER(id)) &
-			       HSW_PWR_WELL_CTL_STATE(id))) ||
-		 (reqs = hsw_power_well_requesters(dev_priv, id)), 1);
+	wait_for((disabled = !(I915_READ(regs->driver) &
+			       HSW_PWR_WELL_CTL_STATE(pw_idx))) ||
+		 (reqs = hsw_power_well_requesters(dev_priv, regs, pw_idx)), 1);
 	if (disabled)
 		return;
 
@@ -386,14 +390,15 @@ static void gen9_wait_for_power_well_fuses(struct drm_i915_private *dev_priv,
 static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 				  struct i915_power_well *power_well)
 {
-	enum i915_power_well_id id = power_well->desc->id;
+	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	int pw_idx = power_well->desc->hsw.idx;
 	bool wait_fuses = power_well->desc->hsw.has_fuses;
 	enum skl_power_gate uninitialized_var(pg);
 	u32 val;
 
 	if (wait_fuses) {
-		pg = INTEL_GEN(dev_priv) >= 11 ? ICL_PW_TO_PG(id) :
-						 SKL_PW_TO_PG(id);
+		pg = INTEL_GEN(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
+						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
 		/*
 		 * For PW1 we have to wait both for the PW0/PG0 fuse state
 		 * before enabling the power well and PW1/PG1's own fuse
@@ -405,17 +410,17 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 			gen9_wait_for_power_well_fuses(dev_priv, SKL_PG0);
 	}
 
-	val = I915_READ(HSW_PWR_WELL_CTL_DRIVER(id));
-	I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id), val | HSW_PWR_WELL_CTL_REQ(id));
+	val = I915_READ(regs->driver);
+	I915_WRITE(regs->driver, val | HSW_PWR_WELL_CTL_REQ(pw_idx));
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
 	/* Display WA #1178: cnl */
 	if (IS_CANNONLAKE(dev_priv) &&
-	    (id == CNL_DISP_PW_AUX_B || id == CNL_DISP_PW_AUX_C ||
-	     id == CNL_DISP_PW_AUX_D || id == CNL_DISP_PW_AUX_F)) {
-		val = I915_READ(CNL_AUX_ANAOVRD1(id));
+	    pw_idx >= GLK_PW_CTL_IDX_AUX_B &&
+	    pw_idx <= CNL_PW_CTL_IDX_AUX_F) {
+		val = I915_READ(CNL_AUX_ANAOVRD1(pw_idx));
 		val |= CNL_AUX_ANAOVRD1_ENABLE | CNL_AUX_ANAOVRD1_LDO_BYPASS;
-		I915_WRITE(CNL_AUX_ANAOVRD1(id), val);
+		I915_WRITE(CNL_AUX_ANAOVRD1(pw_idx), val);
 	}
 
 	if (wait_fuses)
@@ -429,30 +434,31 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
-	enum i915_power_well_id id = power_well->desc->id;
+	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	int pw_idx = power_well->desc->hsw.idx;
 	u32 val;
 
 	hsw_power_well_pre_disable(dev_priv,
 				   power_well->desc->hsw.irq_pipe_mask);
 
-	val = I915_READ(HSW_PWR_WELL_CTL_DRIVER(id));
-	I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id),
-		   val & ~HSW_PWR_WELL_CTL_REQ(id));
+	val = I915_READ(regs->driver);
+	I915_WRITE(regs->driver, val & ~HSW_PWR_WELL_CTL_REQ(pw_idx));
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
-#define ICL_AUX_PW_TO_PORT(pw)	((pw) - ICL_DISP_PW_AUX_A)
+#define ICL_AUX_PW_TO_PORT(pw_idx)	((pw_idx) - ICL_PW_CTL_IDX_AUX_A)
 
 static void
 icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 				    struct i915_power_well *power_well)
 {
-	enum i915_power_well_id id = power_well->desc->id;
-	enum port port = ICL_AUX_PW_TO_PORT(id);
+	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	int pw_idx = power_well->desc->hsw.idx;
+	enum port port = ICL_AUX_PW_TO_PORT(pw_idx);
 	u32 val;
 
-	val = I915_READ(HSW_PWR_WELL_CTL_DRIVER(id));
-	I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id), val | HSW_PWR_WELL_CTL_REQ(id));
+	val = I915_READ(regs->driver);
+	I915_WRITE(regs->driver, val | HSW_PWR_WELL_CTL_REQ(pw_idx));
 
 	val = I915_READ(ICL_PORT_CL_DW12(port));
 	I915_WRITE(ICL_PORT_CL_DW12(port), val | ICL_LANE_ENABLE_AUX);
@@ -464,16 +470,16 @@ static void
 icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 				     struct i915_power_well *power_well)
 {
-	enum i915_power_well_id id = power_well->desc->id;
-	enum port port = ICL_AUX_PW_TO_PORT(id);
+	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	int pw_idx = power_well->desc->hsw.idx;
+	enum port port = ICL_AUX_PW_TO_PORT(pw_idx);
 	u32 val;
 
 	val = I915_READ(ICL_PORT_CL_DW12(port));
 	I915_WRITE(ICL_PORT_CL_DW12(port), val & ~ICL_LANE_ENABLE_AUX);
 
-	val = I915_READ(HSW_PWR_WELL_CTL_DRIVER(id));
-	I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id),
-		   val & ~HSW_PWR_WELL_CTL_REQ(id));
+	val = I915_READ(regs->driver);
+	I915_WRITE(regs->driver, val & ~HSW_PWR_WELL_CTL_REQ(pw_idx));
 
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
@@ -486,22 +492,22 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
-	enum i915_power_well_id id = power_well->desc->id;
-	u32 mask = HSW_PWR_WELL_CTL_REQ(id) | HSW_PWR_WELL_CTL_STATE(id);
+	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	int pw_idx = power_well->desc->hsw.idx;
+	u32 mask = HSW_PWR_WELL_CTL_REQ(pw_idx) |
+		   HSW_PWR_WELL_CTL_STATE(pw_idx);
 
-	return (I915_READ(HSW_PWR_WELL_CTL_DRIVER(id)) & mask) == mask;
+	return (I915_READ(regs->driver) & mask) == mask;
 }
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 {
-	enum i915_power_well_id id = SKL_DISP_PW_2;
-
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
 		  "DC9 already programmed to be enabled.\n");
 	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
 		  "DC5 still not disabled to enable DC9.\n");
-	WARN_ONCE(I915_READ(HSW_PWR_WELL_CTL_DRIVER(id)) &
-		  HSW_PWR_WELL_CTL_REQ(id),
+	WARN_ONCE(I915_READ(HSW_PWR_WELL_CTL2) &
+		  HSW_PWR_WELL_CTL_REQ(SKL_PW_CTL_IDX_PW_2),
 		  "Power well 2 on.\n");
 	WARN_ONCE(intel_irqs_enabled(dev_priv),
 		  "Interrupts not disabled yet.\n");
@@ -725,17 +731,18 @@ static void skl_enable_dc6(struct drm_i915_private *dev_priv)
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
-	enum i915_power_well_id id = power_well->desc->id;
-	u32 mask = HSW_PWR_WELL_CTL_REQ(id);
-	u32 bios_req = I915_READ(HSW_PWR_WELL_CTL_BIOS(id));
+	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	int pw_idx = power_well->desc->hsw.idx;
+	u32 mask = HSW_PWR_WELL_CTL_REQ(pw_idx);
+	u32 bios_req = I915_READ(regs->bios);
 
 	/* Take over the request bit if set by BIOS. */
 	if (bios_req & mask) {
-		u32 drv_req = I915_READ(HSW_PWR_WELL_CTL_DRIVER(id));
+		u32 drv_req = I915_READ(regs->driver);
 
 		if (!(drv_req & mask))
-			I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id), drv_req | mask);
-		I915_WRITE(HSW_PWR_WELL_CTL_BIOS(id), bios_req & ~mask);
+			I915_WRITE(regs->driver, drv_req | mask);
+		I915_WRITE(regs->bios, bios_req & ~mask);
 	}
 }
 
@@ -2108,6 +2115,13 @@ static const struct i915_power_well_ops bxt_dpio_cmn_power_well_ops = {
 	.is_enabled = bxt_dpio_cmn_power_well_enabled,
 };
 
+static const struct i915_power_well_regs hsw_power_well_regs = {
+	.bios	= HSW_PWR_WELL_CTL1,
+	.driver	= HSW_PWR_WELL_CTL2,
+	.kvmr	= HSW_PWR_WELL_CTL3,
+	.debug	= HSW_PWR_WELL_CTL4,
+};
+
 static const struct i915_power_well_desc hsw_power_wells[] = {
 	{
 		.name = "always-on",
@@ -2122,6 +2136,8 @@ static const struct i915_power_well_desc hsw_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = HSW_DISP_PW_GLOBAL,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = HSW_PW_CTL_IDX_GLOBAL,
 			.hsw.has_vga = true,
 		},
 	},
@@ -2141,6 +2157,8 @@ static const struct i915_power_well_desc bdw_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = HSW_DISP_PW_GLOBAL,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = HSW_PW_CTL_IDX_GLOBAL,
 			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
 			.hsw.has_vga = true,
 		},
@@ -2310,6 +2328,8 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_PW_1,
 			.hsw.has_fuses = true,
 		},
 	},
@@ -2319,6 +2339,10 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_MISC_IO,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_MISC_IO,
+		},
 	},
 	{
 		.name = "DC off",
@@ -2332,6 +2356,8 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_PW_2,
 			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
 			.hsw.has_vga = true,
 			.hsw.has_fuses = true,
@@ -2342,24 +2368,40 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.domains = SKL_DISPLAY_DDI_IO_A_E_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_A_E,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_A_E,
+		},
 	},
 	{
 		.name = "DDI B IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_B,
+		},
 	},
 	{
 		.name = "DDI C IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_C,
+		},
 	},
 	{
 		.name = "DDI D IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_D_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_D,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_D,
+		},
 	},
 };
 
@@ -2377,6 +2419,8 @@ static const struct i915_power_well_desc bxt_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_PW_1,
 			.hsw.has_fuses = true,
 		},
 	},
@@ -2392,6 +2436,8 @@ static const struct i915_power_well_desc bxt_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_PW_2,
 			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
 			.hsw.has_vga = true,
 			.hsw.has_fuses = true,
@@ -2432,6 +2478,8 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_PW_1,
 			.hsw.has_fuses = true,
 		},
 	},
@@ -2447,6 +2495,8 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_PW_2,
 			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
 			.hsw.has_vga = true,
 			.hsw.has_fuses = true,
@@ -2484,36 +2534,60 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.domains = GLK_DISPLAY_AUX_A_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = GLK_DISP_PW_AUX_A,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = GLK_PW_CTL_IDX_AUX_A,
+		},
 	},
 	{
 		.name = "AUX B",
 		.domains = GLK_DISPLAY_AUX_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = GLK_DISP_PW_AUX_B,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = GLK_PW_CTL_IDX_AUX_B,
+		},
 	},
 	{
 		.name = "AUX C",
 		.domains = GLK_DISPLAY_AUX_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = GLK_DISP_PW_AUX_C,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = GLK_PW_CTL_IDX_AUX_C,
+		},
 	},
 	{
 		.name = "DDI A IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_A_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = GLK_DISP_PW_DDI_A,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = GLK_PW_CTL_IDX_DDI_A,
+		},
 	},
 	{
 		.name = "DDI B IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_B,
+		},
 	},
 	{
 		.name = "DDI C IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_C,
+		},
 	},
 };
 
@@ -2532,6 +2606,8 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_PW_1,
 			.hsw.has_fuses = true,
 		},
 	},
@@ -2540,24 +2616,40 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.domains = CNL_DISPLAY_AUX_A_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_A,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = GLK_PW_CTL_IDX_AUX_A,
+		},
 	},
 	{
 		.name = "AUX B",
 		.domains = CNL_DISPLAY_AUX_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_B,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = GLK_PW_CTL_IDX_AUX_B,
+		},
 	},
 	{
 		.name = "AUX C",
 		.domains = CNL_DISPLAY_AUX_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_C,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = GLK_PW_CTL_IDX_AUX_C,
+		},
 	},
 	{
 		.name = "AUX D",
 		.domains = CNL_DISPLAY_AUX_D_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_D,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = CNL_PW_CTL_IDX_AUX_D,
+		},
 	},
 	{
 		.name = "DC off",
@@ -2571,6 +2663,8 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_PW_2,
 			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
 			.hsw.has_vga = true,
 			.hsw.has_fuses = true,
@@ -2581,36 +2675,60 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.domains = CNL_DISPLAY_DDI_A_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_DDI_A,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = GLK_PW_CTL_IDX_DDI_A,
+		},
 	},
 	{
 		.name = "DDI B IO power well",
 		.domains = CNL_DISPLAY_DDI_B_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_B,
+		},
 	},
 	{
 		.name = "DDI C IO power well",
 		.domains = CNL_DISPLAY_DDI_C_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_C,
+		},
 	},
 	{
 		.name = "DDI D IO power well",
 		.domains = CNL_DISPLAY_DDI_D_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_D,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = SKL_PW_CTL_IDX_DDI_D,
+		},
 	},
 	{
 		.name = "DDI F IO power well",
 		.domains = CNL_DISPLAY_DDI_F_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_DDI_F,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = CNL_PW_CTL_IDX_DDI_F,
+		},
 	},
 	{
 		.name = "AUX F",
 		.domains = CNL_DISPLAY_AUX_F_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_F,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = CNL_PW_CTL_IDX_AUX_F,
+		},
 	},
 };
 
@@ -2619,6 +2737,18 @@ static const struct i915_power_well_ops icl_combo_phy_aux_power_well_ops = {
 	.enable = icl_combo_phy_aux_power_well_enable,
 	.disable = icl_combo_phy_aux_power_well_disable,
 	.is_enabled = hsw_power_well_enabled,
+};
+
+static const struct i915_power_well_regs icl_aux_power_well_regs = {
+	.bios	= ICL_PWR_WELL_CTL_AUX1,
+	.driver	= ICL_PWR_WELL_CTL_AUX2,
+	.debug	= ICL_PWR_WELL_CTL_AUX4,
+};
+
+static const struct i915_power_well_regs icl_ddi_power_well_regs = {
+	.bios	= ICL_PWR_WELL_CTL_DDI1,
+	.driver	= ICL_PWR_WELL_CTL_DDI2,
+	.debug	= ICL_PWR_WELL_CTL_DDI4,
 };
 
 static const struct i915_power_well_desc icl_power_wells[] = {
@@ -2636,6 +2766,8 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_1,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_PW_1,
 			.hsw.has_fuses = true,
 		},
 	},
@@ -2645,6 +2777,8 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_2,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_PW_2,
 			.hsw.has_fuses = true,
 		},
 	},
@@ -2660,6 +2794,8 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_3,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_PW_3,
 			.hsw.irq_pipe_mask = BIT(PIPE_B),
 			.hsw.has_vga = true,
 			.hsw.has_fuses = true,
@@ -2670,96 +2806,160 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.domains = ICL_DDI_IO_A_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_DDI_A,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_A,
+		},
 	},
 	{
 		.name = "DDI B IO",
 		.domains = ICL_DDI_IO_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_DDI_B,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_B,
+		},
 	},
 	{
 		.name = "DDI C IO",
 		.domains = ICL_DDI_IO_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_DDI_C,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_C,
+		},
 	},
 	{
 		.name = "DDI D IO",
 		.domains = ICL_DDI_IO_D_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_DDI_D,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_D,
+		},
 	},
 	{
 		.name = "DDI E IO",
 		.domains = ICL_DDI_IO_E_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_DDI_E,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_E,
+		},
 	},
 	{
 		.name = "DDI F IO",
 		.domains = ICL_DDI_IO_F_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_DDI_F,
+		{
+			.hsw.regs = &icl_ddi_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_DDI_F,
+		},
 	},
 	{
 		.name = "AUX A",
 		.domains = ICL_AUX_A_IO_POWER_DOMAINS,
 		.ops = &icl_combo_phy_aux_power_well_ops,
 		.id = ICL_DISP_PW_AUX_A,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_A,
+		},
 	},
 	{
 		.name = "AUX B",
 		.domains = ICL_AUX_B_IO_POWER_DOMAINS,
 		.ops = &icl_combo_phy_aux_power_well_ops,
 		.id = ICL_DISP_PW_AUX_B,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_B,
+		},
 	},
 	{
 		.name = "AUX C",
 		.domains = ICL_AUX_C_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_AUX_C,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_C,
+		},
 	},
 	{
 		.name = "AUX D",
 		.domains = ICL_AUX_D_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_AUX_D,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_D,
+		},
 	},
 	{
 		.name = "AUX E",
 		.domains = ICL_AUX_E_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_AUX_E,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_E,
+		},
 	},
 	{
 		.name = "AUX F",
 		.domains = ICL_AUX_F_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_AUX_F,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_F,
+		},
 	},
 	{
 		.name = "AUX TBT1",
 		.domains = ICL_AUX_TBT1_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_AUX_TBT1,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT1,
+		},
 	},
 	{
 		.name = "AUX TBT2",
 		.domains = ICL_AUX_TBT2_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_AUX_TBT2,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT2,
+		},
 	},
 	{
 		.name = "AUX TBT3",
 		.domains = ICL_AUX_TBT3_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_AUX_TBT3,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT3,
+		},
 	},
 	{
 		.name = "AUX TBT4",
 		.domains = ICL_AUX_TBT4_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_AUX_TBT4,
+		{
+			.hsw.regs = &icl_aux_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT4,
+		},
 	},
 	{
 		.name = "power well 4",
@@ -2767,6 +2967,8 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_4,
 		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = ICL_PW_CTL_IDX_PW_4,
 			.hsw.has_fuses = true,
 			.hsw.irq_pipe_mask = BIT(PIPE_C),
 		},
