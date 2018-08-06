@@ -21,6 +21,15 @@
 # An UDP datagram is sent from fb00::1 to fb00::6. The test succeeds if this
 # datagram can be read on NS6 when binding to fb00::6.
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
+msg="skip all tests:"
+if [ $UID != 0 ]; then
+	echo $msg please run this as root >&2
+	exit $ksft_skip
+fi
+
 TMP_FILE="/tmp/selftest_lwt_seg6local.txt"
 
 cleanup()

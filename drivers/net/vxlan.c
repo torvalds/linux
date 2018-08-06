@@ -623,9 +623,7 @@ static struct sk_buff **vxlan_gro_receive(struct sock *sk,
 	flush = 0;
 
 out:
-	skb_gro_remcsum_cleanup(skb, &grc);
-	skb->remcsum_offload = 0;
-	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_flush_final_remcsum(skb, pp, flush, &grc);
 
 	return pp;
 }

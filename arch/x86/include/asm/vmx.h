@@ -114,6 +114,7 @@
 #define VMX_MISC_PREEMPTION_TIMER_RATE_MASK	0x0000001f
 #define VMX_MISC_SAVE_EFER_LMA			0x00000020
 #define VMX_MISC_ACTIVITY_HLT			0x00000040
+#define VMX_MISC_ZERO_LEN_INS			0x40000000
 
 /* VMFUNC functions */
 #define VMX_VMFUNC_EPTP_SWITCHING               0x00000001
@@ -351,11 +352,13 @@ enum vmcs_field {
 #define VECTORING_INFO_VALID_MASK       	INTR_INFO_VALID_MASK
 
 #define INTR_TYPE_EXT_INTR              (0 << 8) /* external interrupt */
+#define INTR_TYPE_RESERVED              (1 << 8) /* reserved */
 #define INTR_TYPE_NMI_INTR		(2 << 8) /* NMI */
 #define INTR_TYPE_HARD_EXCEPTION	(3 << 8) /* processor exception */
 #define INTR_TYPE_SOFT_INTR             (4 << 8) /* software interrupt */
 #define INTR_TYPE_PRIV_SW_EXCEPTION	(5 << 8) /* ICE breakpoint - undocumented */
 #define INTR_TYPE_SOFT_EXCEPTION	(6 << 8) /* software exception */
+#define INTR_TYPE_OTHER_EVENT           (7 << 8) /* other event */
 
 /* GUEST_INTERRUPTIBILITY_INFO flags. */
 #define GUEST_INTR_STATE_STI		0x00000001

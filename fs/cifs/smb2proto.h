@@ -113,8 +113,8 @@ extern int smb2_unlock_range(struct cifsFileInfo *cfile,
 extern int smb2_push_mandatory_locks(struct cifsFileInfo *cfile);
 extern void smb2_reconnect_server(struct work_struct *work);
 extern int smb3_crypto_aead_allocate(struct TCP_Server_Info *server);
-extern unsigned long
-smb2_rqst_len(struct smb_rqst *rqst, bool skip_rfc1002_marker);
+extern unsigned long smb_rqst_len(struct TCP_Server_Info *server,
+				  struct smb_rqst *rqst);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details

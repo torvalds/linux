@@ -168,9 +168,9 @@ static void rotator_dst_set_transf(struct rot_context *rot,
 	val &= ~ROT_CONTROL_FLIP_MASK;
 
 	if (rotation & DRM_MODE_REFLECT_X)
-		val |= ROT_CONTROL_FLIP_HORIZONTAL;
-	if (rotation & DRM_MODE_REFLECT_Y)
 		val |= ROT_CONTROL_FLIP_VERTICAL;
+	if (rotation & DRM_MODE_REFLECT_Y)
+		val |= ROT_CONTROL_FLIP_HORIZONTAL;
 
 	val &= ~ROT_CONTROL_ROT_MASK;
 

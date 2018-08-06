@@ -991,6 +991,7 @@ struct ca0132_spec {
 enum {
 	QUIRK_NONE,
 	QUIRK_ALIENWARE,
+	QUIRK_ALIENWARE_M17XR4,
 	QUIRK_SBZ,
 	QUIRK_R3DI,
 };
@@ -1040,13 +1041,15 @@ static const struct hda_pintbl r3di_pincfgs[] = {
 };
 
 static const struct snd_pci_quirk ca0132_quirks[] = {
+	SND_PCI_QUIRK(0x1028, 0x057b, "Alienware M17x R4", QUIRK_ALIENWARE_M17XR4),
 	SND_PCI_QUIRK(0x1028, 0x0685, "Alienware 15 2015", QUIRK_ALIENWARE),
 	SND_PCI_QUIRK(0x1028, 0x0688, "Alienware 17 2015", QUIRK_ALIENWARE),
 	SND_PCI_QUIRK(0x1028, 0x0708, "Alienware 15 R2 2016", QUIRK_ALIENWARE),
 	SND_PCI_QUIRK(0x1102, 0x0010, "Sound Blaster Z", QUIRK_SBZ),
 	SND_PCI_QUIRK(0x1102, 0x0023, "Sound Blaster Z", QUIRK_SBZ),
 	SND_PCI_QUIRK(0x1458, 0xA016, "Recon3Di", QUIRK_R3DI),
-	SND_PCI_QUIRK(0x1458, 0xA036, "Recon3Di", QUIRK_R3DI),
+	SND_PCI_QUIRK(0x1458, 0xA026, "Gigabyte G1.Sniper Z97", QUIRK_R3DI),
+	SND_PCI_QUIRK(0x1458, 0xA036, "Gigabyte GA-Z170X-Gaming 7", QUIRK_R3DI),
 	{}
 };
 
@@ -5663,7 +5666,7 @@ static const char * const ca0132_alt_slave_pfxs[] = {
  * I think this has to do with the pin for rear surround being 0x11,
  * and the center/lfe being 0x10. Usually the pin order is the opposite.
  */
-const struct snd_pcm_chmap_elem ca0132_alt_chmaps[] = {
+static const struct snd_pcm_chmap_elem ca0132_alt_chmaps[] = {
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
 	{ .channels = 4,
@@ -5966,7 +5969,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
 
 	/* With the DSP enabled, desktops don't use this ADC. */
-	if (spec->use_alt_functions) {
+	if (!spec->use_alt_functions) {
 		info = snd_hda_codec_pcm_new(codec, "CA0132 Analog Mic-In2");
 		if (!info)
 			return -ENOMEM;
@@ -6130,7 +6133,10 @@ static void ca0132_init_dmic(struct hda_codec *codec)
 	 * Bit   6: set to select Data2, clear for Data1
 	 * Bit   7: set to enable DMic, clear for AMic
 	 */
-	val = 0x23;
+	if (spec->quirk == QUIRK_ALIENWARE_M17XR4)
+		val = 0x33;
+	else
+		val = 0x23;
 	/* keep a copy of dmic ctl val for enable/disable dmic purpuse */
 	spec->dmic_ctl = val;
 	snd_hda_codec_write(codec, spec->input_pins[0], 0,
@@ -7223,7 +7229,7 @@ static int ca0132_init(struct hda_codec *codec)
 
 	snd_hda_sequence_write(codec, spec->base_init_verbs);
 
-	if (spec->quirk != QUIRK_NONE)
+	if (spec->use_alt_functions)
 		ca0132_alt_init(codec);
 
 	ca0132_download_dsp(codec);
@@ -7237,8 +7243,9 @@ static int ca0132_init(struct hda_codec *codec)
 	case QUIRK_R3DI:
 		r3di_setup_defaults(codec);
 		break;
-	case QUIRK_NONE:
-	case QUIRK_ALIENWARE:
+	case QUIRK_SBZ:
+		break;
+	default:
 		ca0132_setup_defaults(codec);
 		ca0132_init_analog_mic2(codec);
 		ca0132_init_dmic(codec);
@@ -7343,7 +7350,6 @@ static const struct hda_codec_ops ca0132_patch_ops = {
 static void ca0132_config(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
 
 	spec->dacs[0] = 0x2;
 	spec->dacs[1] = 0x3;
@@ -7405,12 +7411,7 @@ static void ca0132_config(struct hda_codec *codec)
 		/* SPDIF I/O */
 		spec->dig_out = 0x05;
 		spec->multiout.dig_out_nid = spec->dig_out;
-		cfg->dig_out_pins[0] = 0x0c;
-		cfg->dig_outs = 1;
-		cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
 		spec->dig_in = 0x09;
-		cfg->dig_in_pin = 0x0e;
-		cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
 		break;
 	case QUIRK_R3DI:
 		codec_dbg(codec, "%s: QUIRK_R3DI applied.\n", __func__);
@@ -7438,9 +7439,6 @@ static void ca0132_config(struct hda_codec *codec)
 		/* SPDIF I/O */
 		spec->dig_out = 0x05;
 		spec->multiout.dig_out_nid = spec->dig_out;
-		cfg->dig_out_pins[0] = 0x0c;
-		cfg->dig_outs = 1;
-		cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
 		break;
 	default:
 		spec->num_outputs = 2;
@@ -7463,12 +7461,7 @@ static void ca0132_config(struct hda_codec *codec)
 		/* SPDIF I/O */
 		spec->dig_out = 0x05;
 		spec->multiout.dig_out_nid = spec->dig_out;
-		cfg->dig_out_pins[0] = 0x0c;
-		cfg->dig_outs = 1;
-		cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
 		spec->dig_in = 0x09;
-		cfg->dig_in_pin = 0x0e;
-		cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
 		break;
 	}
 }
@@ -7476,7 +7469,7 @@ static void ca0132_config(struct hda_codec *codec)
 static int ca0132_prepare_verbs(struct hda_codec *codec)
 {
 /* Verbs + terminator (an empty element) */
-#define NUM_SPEC_VERBS 4
+#define NUM_SPEC_VERBS 2
 	struct ca0132_spec *spec = codec->spec;
 
 	spec->chip_init_verbs = ca0132_init_verbs0;
@@ -7488,34 +7481,24 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	if (!spec->spec_init_verbs)
 		return -ENOMEM;
 
-	/* HP jack autodetection */
-	spec->spec_init_verbs[0].nid = spec->unsol_tag_hp;
-	spec->spec_init_verbs[0].param = AC_VERB_SET_UNSOLICITED_ENABLE;
-	spec->spec_init_verbs[0].verb = AC_USRSP_EN | spec->unsol_tag_hp;
-
-	/* MIC1 jack autodetection */
-	spec->spec_init_verbs[1].nid = spec->unsol_tag_amic1;
-	spec->spec_init_verbs[1].param = AC_VERB_SET_UNSOLICITED_ENABLE;
-	spec->spec_init_verbs[1].verb = AC_USRSP_EN | spec->unsol_tag_amic1;
-
 	/* config EAPD */
-	spec->spec_init_verbs[2].nid = 0x0b;
-	spec->spec_init_verbs[2].param = 0x78D;
-	spec->spec_init_verbs[2].verb = 0x00;
+	spec->spec_init_verbs[0].nid = 0x0b;
+	spec->spec_init_verbs[0].param = 0x78D;
+	spec->spec_init_verbs[0].verb = 0x00;
 
 	/* Previously commented configuration */
 	/*
-	spec->spec_init_verbs[3].nid = 0x0b;
-	spec->spec_init_verbs[3].param = AC_VERB_SET_EAPD_BTLENABLE;
+	spec->spec_init_verbs[2].nid = 0x0b;
+	spec->spec_init_verbs[2].param = AC_VERB_SET_EAPD_BTLENABLE;
+	spec->spec_init_verbs[2].verb = 0x02;
+
+	spec->spec_init_verbs[3].nid = 0x10;
+	spec->spec_init_verbs[3].param = 0x78D;
 	spec->spec_init_verbs[3].verb = 0x02;
 
 	spec->spec_init_verbs[4].nid = 0x10;
-	spec->spec_init_verbs[4].param = 0x78D;
+	spec->spec_init_verbs[4].param = AC_VERB_SET_EAPD_BTLENABLE;
 	spec->spec_init_verbs[4].verb = 0x02;
-
-	spec->spec_init_verbs[5].nid = 0x10;
-	spec->spec_init_verbs[5].param = AC_VERB_SET_EAPD_BTLENABLE;
-	spec->spec_init_verbs[5].verb = 0x02;
 	*/
 
 	/* Terminator: spec->spec_init_verbs[NUM_SPEC_VERBS-1] */

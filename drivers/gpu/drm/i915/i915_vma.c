@@ -109,7 +109,7 @@ vma_create(struct drm_i915_gem_object *obj,
 						     obj->base.size >> PAGE_SHIFT));
 			vma->size = view->partial.size;
 			vma->size <<= PAGE_SHIFT;
-			GEM_BUG_ON(vma->size >= obj->base.size);
+			GEM_BUG_ON(vma->size > obj->base.size);
 		} else if (view->type == I915_GGTT_VIEW_ROTATED) {
 			vma->size = intel_rotation_info_size(&view->rotated);
 			vma->size <<= PAGE_SHIFT;
