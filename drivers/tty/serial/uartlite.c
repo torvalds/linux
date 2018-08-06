@@ -541,14 +541,6 @@ static struct console ulite_console = {
 	.data	= &ulite_uart_driver,
 };
 
-static int __init ulite_console_init(void)
-{
-	register_console(&ulite_console);
-	return 0;
-}
-
-console_initcall(ulite_console_init);
-
 static void early_uartlite_putc(struct uart_port *port, int c)
 {
 	/*
