@@ -724,10 +724,10 @@ struct drbd_connection {
 	struct list_head transfer_log;	/* all requests not yet fully processed */
 
 	struct crypto_shash *cram_hmac_tfm;
-	struct crypto_ahash *integrity_tfm;  /* checksums we compute, updates protected by connection->data->mutex */
-	struct crypto_ahash *peer_integrity_tfm;  /* checksums we verify, only accessed from receiver thread  */
-	struct crypto_ahash *csums_tfm;
-	struct crypto_ahash *verify_tfm;
+	struct crypto_shash *integrity_tfm;  /* checksums we compute, updates protected by connection->data->mutex */
+	struct crypto_shash *peer_integrity_tfm;  /* checksums we verify, only accessed from receiver thread  */
+	struct crypto_shash *csums_tfm;
+	struct crypto_shash *verify_tfm;
 	void *int_dig_in;
 	void *int_dig_vv;
 
@@ -1531,8 +1531,9 @@ static inline void ov_out_of_sync_print(struct drbd_device *device)
 }
 
 
-extern void drbd_csum_bio(struct crypto_ahash *, struct bio *, void *);
-extern void drbd_csum_ee(struct crypto_ahash *, struct drbd_peer_request *, void *);
+extern void drbd_csum_bio(struct crypto_shash *, struct bio *, void *);
+extern void drbd_csum_ee(struct crypto_shash *, struct drbd_peer_request *,
+			 void *);
 /* worker callbacks */
 extern int w_e_end_data_req(struct drbd_work *, int);
 extern int w_e_end_rsdata_req(struct drbd_work *, int);
