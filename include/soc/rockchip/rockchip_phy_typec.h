@@ -45,6 +45,10 @@ struct rockchip_typec_phy {
 	bool flip;
 	u8 mode;
 	struct phy_config config[3][4];
+	struct {
+		int link_rate;
+		u8 lane_count;
+	} dp;
 	int (*typec_phy_config)(struct phy *phy, int link_rate,
 				int lanes, u8 swing, u8 pre_emp);
 };
