@@ -81,6 +81,63 @@ module_param(modeset, bool, 0600);
  * Util/helpers:
  */
 
+int msm_clk_bulk_get(struct device *dev, struct clk_bulk_data **bulk)
+{
+	struct property *prop;
+	const char *name;
+	struct clk_bulk_data *local;
+	int i = 0, ret, count;
+
+	count = of_property_count_strings(dev->of_node, "clock-names");
+	if (count < 1)
+		return 0;
+
+	local = devm_kcalloc(dev, sizeof(struct clk_bulk_data *),
+		count, GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
+
+	of_property_for_each_string(dev->of_node, "clock-names", prop, name) {
+		local[i].id = devm_kstrdup(dev, name, GFP_KERNEL);
+		if (!local[i].id) {
+			devm_kfree(dev, local);
+			return -ENOMEM;
+		}
+
+		i++;
+	}
+
+	ret = devm_clk_bulk_get(dev, count, local);
+
+	if (ret) {
+		for (i = 0; i < count; i++)
+			devm_kfree(dev, (void *) local[i].id);
+		devm_kfree(dev, local);
+
+		return ret;
+	}
+
+	*bulk = local;
+	return count;
+}
+
+struct clk *msm_clk_bulk_get_clock(struct clk_bulk_data *bulk, int count,
+		const char *name)
+{
+	int i;
+	char n[32];
+
+	snprintf(n, sizeof(n), "%s_clk", name);
+
+	for (i = 0; bulk && i < count; i++) {
+		if (!strcmp(bulk[i].id, name) || !strcmp(bulk[i].id, n))
+			return bulk[i].clk;
+	}
+
+
+	return NULL;
+}
+
 struct clk *msm_clk_get(struct platform_device *pdev, const char *name)
 {
 	struct clk *clk;

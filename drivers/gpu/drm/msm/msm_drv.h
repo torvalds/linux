@@ -387,6 +387,10 @@ static inline void msm_perf_debugfs_cleanup(struct msm_drm_private *priv) {}
 #endif
 
 struct clk *msm_clk_get(struct platform_device *pdev, const char *name);
+int msm_clk_bulk_get(struct device *dev, struct clk_bulk_data **bulk);
+
+struct clk *msm_clk_bulk_get_clock(struct clk_bulk_data *bulk, int count,
+	const char *name);
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname);
 void msm_writel(u32 data, void __iomem *addr);
