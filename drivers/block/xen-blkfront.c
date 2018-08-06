@@ -1436,7 +1436,7 @@ static bool blkif_completion(unsigned long *id,
 
 		/* Wait the second response if not yet here. */
 		if (s2->status == REQ_WAITING)
-			return 0;
+			return false;
 
 		bret->status = blkif_get_final_status(s->status,
 						      s2->status);
@@ -1537,7 +1537,7 @@ static bool blkif_completion(unsigned long *id,
 		}
 	}
 
-	return 1;
+	return true;
 }
 
 static irqreturn_t blkif_interrupt(int irq, void *dev_id)
