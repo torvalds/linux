@@ -154,6 +154,13 @@
 				regulator-always-on;
 			};
 
+			ldo2_reg: LDO2 {
+				regulator-name = "vdd_ldo2";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
 			ldo3_reg: LDO3 {
 				regulator-name = "vddq_mmc0";
 				regulator-min-microvolt = <1800000>;
@@ -261,6 +268,13 @@
 				regulator-max-microvolt = <2800000>;
 			};
 
+			ldo23_reg: LDO23 {
+				regulator-name = "vdd_mifs";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
+			};
+
 			ldo24_reg: LDO24 {
 				regulator-name = "tsp_io";
 				regulator-min-microvolt = <2800000>;
@@ -272,6 +286,13 @@
 				regulator-name = "vdd_ldo26";
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
+				regulator-always-on;
+			};
+
+			ldo27_reg: LDO27 {
+				regulator-name = "vdd_g3ds";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
 			};
 
