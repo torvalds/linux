@@ -1,7 +1,7 @@
 /*
- * Shared descriptors for aead, ablkcipher algorithms
+ * Shared descriptors for aead, skcipher algorithms
  *
- * Copyright 2016 NXP
+ * Copyright 2016-2018 NXP
  */
 
 #include "compat.h"
@@ -1212,11 +1212,8 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 }
 EXPORT_SYMBOL(cnstr_shdsc_rfc4543_decap);
 
-/*
- * For ablkcipher encrypt and decrypt, read from req->src and
- * write to req->dst
- */
-static inline void ablkcipher_append_src_dst(u32 *desc)
+/* For skcipher encrypt and decrypt, read from req->src and write to req->dst */
+static inline void skcipher_append_src_dst(u32 *desc)
 {
 	append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
 	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
@@ -1226,7 +1223,7 @@ static inline void ablkcipher_append_src_dst(u32 *desc)
 }
 
 /**
- * cnstr_shdsc_ablkcipher_encap - ablkcipher encapsulation shared descriptor
+ * cnstr_shdsc_skcipher_encap - skcipher encapsulation shared descriptor
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
@@ -1235,9 +1232,9 @@ static inline void ablkcipher_append_src_dst(u32 *desc)
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @ctx1_iv_off: IV offset in CONTEXT1 register
  */
-void cnstr_shdsc_ablkcipher_encap(u32 * const desc, struct alginfo *cdata,
-				  unsigned int ivsize, const bool is_rfc3686,
-				  const u32 ctx1_iv_off)
+void cnstr_shdsc_skcipher_encap(u32 * const desc, struct alginfo *cdata,
+				unsigned int ivsize, const bool is_rfc3686,
+				const u32 ctx1_iv_off)
 {
 	u32 *key_jump_cmd;
 
@@ -1280,18 +1277,18 @@ void cnstr_shdsc_ablkcipher_encap(u32 * const desc, struct alginfo *cdata,
 			 OP_ALG_ENCRYPT);
 
 	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
+	skcipher_append_src_dst(desc);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
-		       "ablkcipher enc shdesc@" __stringify(__LINE__)": ",
+		       "skcipher enc shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
 }
-EXPORT_SYMBOL(cnstr_shdsc_ablkcipher_encap);
+EXPORT_SYMBOL(cnstr_shdsc_skcipher_encap);
 
 /**
- * cnstr_shdsc_ablkcipher_decap - ablkcipher decapsulation shared descriptor
+ * cnstr_shdsc_skcipher_decap - skcipher decapsulation shared descriptor
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
@@ -1300,9 +1297,9 @@ EXPORT_SYMBOL(cnstr_shdsc_ablkcipher_encap);
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @ctx1_iv_off: IV offset in CONTEXT1 register
  */
-void cnstr_shdsc_ablkcipher_decap(u32 * const desc, struct alginfo *cdata,
-				  unsigned int ivsize, const bool is_rfc3686,
-				  const u32 ctx1_iv_off)
+void cnstr_shdsc_skcipher_decap(u32 * const desc, struct alginfo *cdata,
+				unsigned int ivsize, const bool is_rfc3686,
+				const u32 ctx1_iv_off)
 {
 	u32 *key_jump_cmd;
 
@@ -1348,24 +1345,23 @@ void cnstr_shdsc_ablkcipher_decap(u32 * const desc, struct alginfo *cdata,
 		append_dec_op1(desc, cdata->algtype);
 
 	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
+	skcipher_append_src_dst(desc);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
-		       "ablkcipher dec shdesc@" __stringify(__LINE__)": ",
+		       "skcipher dec shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
 }
-EXPORT_SYMBOL(cnstr_shdsc_ablkcipher_decap);
+EXPORT_SYMBOL(cnstr_shdsc_skcipher_decap);
 
 /**
- * cnstr_shdsc_xts_ablkcipher_encap - xts ablkcipher encapsulation shared
- *                                    descriptor
+ * cnstr_shdsc_xts_skcipher_encap - xts skcipher encapsulation shared descriptor
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_XTS.
  */
-void cnstr_shdsc_xts_ablkcipher_encap(u32 * const desc, struct alginfo *cdata)
+void cnstr_shdsc_xts_skcipher_encap(u32 * const desc, struct alginfo *cdata)
 {
 	__be64 sector_size = cpu_to_be64(512);
 	u32 *key_jump_cmd;
@@ -1400,24 +1396,23 @@ void cnstr_shdsc_xts_ablkcipher_encap(u32 * const desc, struct alginfo *cdata)
 			 OP_ALG_ENCRYPT);
 
 	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
+	skcipher_append_src_dst(desc);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
-		       "xts ablkcipher enc shdesc@" __stringify(__LINE__) ": ",
+		       "xts skcipher enc shdesc@" __stringify(__LINE__) ": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
 }
-EXPORT_SYMBOL(cnstr_shdsc_xts_ablkcipher_encap);
+EXPORT_SYMBOL(cnstr_shdsc_xts_skcipher_encap);
 
 /**
- * cnstr_shdsc_xts_ablkcipher_decap - xts ablkcipher decapsulation shared
- *                                    descriptor
+ * cnstr_shdsc_xts_skcipher_decap - xts skcipher decapsulation shared descriptor
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_XTS.
  */
-void cnstr_shdsc_xts_ablkcipher_decap(u32 * const desc, struct alginfo *cdata)
+void cnstr_shdsc_xts_skcipher_decap(u32 * const desc, struct alginfo *cdata)
 {
 	__be64 sector_size = cpu_to_be64(512);
 	u32 *key_jump_cmd;
@@ -1451,15 +1446,15 @@ void cnstr_shdsc_xts_ablkcipher_decap(u32 * const desc, struct alginfo *cdata)
 	append_dec_op1(desc, cdata->algtype);
 
 	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
+	skcipher_append_src_dst(desc);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
-		       "xts ablkcipher dec shdesc@" __stringify(__LINE__) ": ",
+		       "xts skcipher dec shdesc@" __stringify(__LINE__) ": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
 }
-EXPORT_SYMBOL(cnstr_shdsc_xts_ablkcipher_decap);
+EXPORT_SYMBOL(cnstr_shdsc_xts_skcipher_decap);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("FSL CAAM descriptor support");

@@ -693,15 +693,15 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 
 	/* skcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	cnstr_shdsc_ablkcipher_encap(desc, &ctx->cdata, ivsize, is_rfc3686,
-				     ctx1_iv_off);
+	cnstr_shdsc_skcipher_encap(desc, &ctx->cdata, ivsize, is_rfc3686,
+				   ctx1_iv_off);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
 				   desc_bytes(desc), ctx->dir);
 
 	/* skcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
-	cnstr_shdsc_ablkcipher_decap(desc, &ctx->cdata, ivsize, is_rfc3686,
-				     ctx1_iv_off);
+	cnstr_shdsc_skcipher_decap(desc, &ctx->cdata, ivsize, is_rfc3686,
+				   ctx1_iv_off);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
 				   desc_bytes(desc), ctx->dir);
 
@@ -727,13 +727,13 @@ static int xts_skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 
 	/* xts_skcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	cnstr_shdsc_xts_ablkcipher_encap(desc, &ctx->cdata);
+	cnstr_shdsc_xts_skcipher_encap(desc, &ctx->cdata);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
 				   desc_bytes(desc), ctx->dir);
 
 	/* xts_skcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
-	cnstr_shdsc_xts_ablkcipher_decap(desc, &ctx->cdata);
+	cnstr_shdsc_xts_skcipher_decap(desc, &ctx->cdata);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
 				   desc_bytes(desc), ctx->dir);
 
