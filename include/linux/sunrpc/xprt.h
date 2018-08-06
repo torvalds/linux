@@ -103,6 +103,7 @@ struct rpc_rqst {
 						/* A cookie used to track the
 						   state of the transport
 						   connection */
+	atomic_t		rq_pin;
 	
 	/*
 	 * Partial send handling

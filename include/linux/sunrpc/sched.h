@@ -142,8 +142,7 @@ struct rpc_task_setup {
 #define RPC_TASK_ACTIVE		2
 #define RPC_TASK_NEED_XMIT	3
 #define RPC_TASK_NEED_RECV	4
-#define RPC_TASK_MSG_RECV	5
-#define RPC_TASK_MSG_RECV_WAIT	6
+#define RPC_TASK_MSG_PIN_WAIT	5
 
 #define RPC_IS_RUNNING(t)	test_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
 #define rpc_set_running(t)	set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
