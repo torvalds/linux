@@ -21,11 +21,13 @@
 
 #include "wil6210.h"
 #include "txrx.h"
+#include "txrx_edma.h"
 #include "wmi.h"
 #include "boot_loader.h"
 
 #define WAIT_FOR_HALP_VOTE_MS 100
 #define WAIT_FOR_SCAN_ABORT_MS 1000
+#define WIL_DEFAULT_NUM_RX_STATUS_RINGS 1
 
 bool debug_fw; /* = false; */
 module_param(debug_fw, bool, 0444);
@@ -110,8 +112,28 @@ MODULE_PARM_DESC(tx_ring_order, " Tx ring order; size = 1 << order");
 module_param_cb(bcast_ring_order, &ring_order_ops, &bcast_ring_order, 0444);
 MODULE_PARM_DESC(bcast_ring_order, " Bcast ring order; size = 1 << order");
 
-#define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
+enum {
+	WIL_BOOT_ERR,
+	WIL_BOOT_VANILLA,
+	WIL_BOOT_PRODUCTION,
+	WIL_BOOT_DEVELOPMENT,
+};
+
+enum {
+	WIL_SIG_STATUS_VANILLA = 0x0,
+	WIL_SIG_STATUS_DEVELOPMENT = 0x1,
+	WIL_SIG_STATUS_PRODUCTION = 0x2,
+	WIL_SIG_STATUS_CORRUPTED_PRODUCTION = 0x3,
+};
+
+#define RST_DELAY (20) /* msec, for loop in @wil_wait_device_ready */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
+
+#define PMU_READY_DELAY_MS (4) /* ms, for sleep in @wil_wait_device_ready */
+
+#define OTP_HW_DELAY (200) /* usec, loop in @wil_wait_device_ready_talyn_mb */
+/* round up to be above 2 ms total */
+#define OTP_HW_COUNT (1 + 2000 / OTP_HW_DELAY)
 
 /*
  * Due to a hardware issue,
@@ -158,6 +180,37 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 		memcpy(&tmp, s, count);
 		__raw_writel(tmp, d);
 	}
+}
+
+static void wil_ring_fini_tx(struct wil6210_priv *wil, int id)
+{
+	struct wil_ring *ring = &wil->ring_tx[id];
+	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[id];
+
+	lockdep_assert_held(&wil->mutex);
+
+	if (!ring->va)
+		return;
+
+	wil_dbg_misc(wil, "vring_fini_tx: id=%d\n", id);
+
+	spin_lock_bh(&txdata->lock);
+	txdata->dot1x_open = false;
+	txdata->mid = U8_MAX;
+	txdata->enabled = 0; /* no Tx can be in progress or start anew */
+	spin_unlock_bh(&txdata->lock);
+	/* napi_synchronize waits for completion of the current NAPI but will
+	 * not prevent the next NAPI run.
+	 * Add a memory barrier to guarantee that txdata->enabled is zeroed
+	 * before napi_synchronize so that the next scheduled NAPI will not
+	 * handle this vring
+	 */
+	wmb();
+	/* make sure NAPI won't touch this vring */
+	if (test_bit(wil_status_napi_en, wil->status))
+		napi_synchronize(&wil->napi_tx);
+
+	wil->txrx_ops.ring_fini_tx(wil, ring);
 }
 
 static void wil_disconnect_cid(struct wil6210_vif *vif, int cid,
@@ -219,9 +272,9 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	memset(sta->tid_crypto_rx, 0, sizeof(sta->tid_crypto_rx));
 	memset(&sta->group_crypto_rx, 0, sizeof(sta->group_crypto_rx));
 	/* release vrings */
-	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
-		if (wil->vring2cid_tid[i][0] == cid)
-			wil_vring_fini_tx(wil, i);
+	for (i = 0; i < ARRAY_SIZE(wil->ring_tx); i++) {
+		if (wil->ring2cid_tid[i][0] == cid)
+			wil_ring_fini_tx(wil, i);
 	}
 	/* statistics */
 	memset(&sta->stats, 0, sizeof(sta->stats));
@@ -453,18 +506,19 @@ static void wil_fw_error_worker(struct work_struct *work)
 	mutex_unlock(&wil->mutex);
 }
 
-static int wil_find_free_vring(struct wil6210_priv *wil)
+static int wil_find_free_ring(struct wil6210_priv *wil)
 {
 	int i;
+	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
-	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
-		if (!wil->vring_tx[i].va)
+	for (i = min_ring_id; i < WIL6210_MAX_TX_RINGS; i++) {
+		if (!wil->ring_tx[i].va)
 			return i;
 	}
 	return -EINVAL;
 }
 
-int wil_tx_init(struct wil6210_vif *vif, int cid)
+int wil_ring_init_tx(struct wil6210_vif *vif, int cid)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	int rc = -EINVAL, ringid;
@@ -473,16 +527,17 @@ int wil_tx_init(struct wil6210_vif *vif, int cid)
 		wil_err(wil, "No connection pending\n");
 		goto out;
 	}
-	ringid = wil_find_free_vring(wil);
+	ringid = wil_find_free_ring(wil);
 	if (ringid < 0) {
 		wil_err(wil, "No free vring found\n");
 		goto out;
 	}
 
-	wil_dbg_wmi(wil, "Configure for connection CID %d MID %d vring %d\n",
+	wil_dbg_wmi(wil, "Configure for connection CID %d MID %d ring %d\n",
 		    cid, vif->mid, ringid);
 
-	rc = wil_vring_init_tx(vif, ringid, 1 << tx_ring_order, cid, 0);
+	rc = wil->txrx_ops.ring_init_tx(vif, ringid, 1 << tx_ring_order,
+					cid, 0);
 	if (rc)
 		wil_err(wil, "init TX for CID %d MID %d vring %d failed\n",
 			cid, vif->mid, ringid);
@@ -494,19 +549,19 @@ out:
 int wil_bcast_init(struct wil6210_vif *vif)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	int ri = vif->bcast_vring, rc;
+	int ri = vif->bcast_ring, rc;
 
-	if ((ri >= 0) && wil->vring_tx[ri].va)
+	if (ri >= 0 && wil->ring_tx[ri].va)
 		return 0;
 
-	ri = wil_find_free_vring(wil);
+	ri = wil_find_free_ring(wil);
 	if (ri < 0)
 		return ri;
 
-	vif->bcast_vring = ri;
-	rc = wil_vring_init_bcast(vif, ri, 1 << bcast_ring_order);
+	vif->bcast_ring = ri;
+	rc = wil->txrx_ops.ring_init_bcast(vif, ri, 1 << bcast_ring_order);
 	if (rc)
-		vif->bcast_vring = -1;
+		vif->bcast_ring = -1;
 
 	return rc;
 }
@@ -514,13 +569,13 @@ int wil_bcast_init(struct wil6210_vif *vif)
 void wil_bcast_fini(struct wil6210_vif *vif)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	int ri = vif->bcast_vring;
+	int ri = vif->bcast_ring;
 
 	if (ri < 0)
 		return;
 
-	vif->bcast_vring = -1;
-	wil_vring_fini_tx(wil, ri);
+	vif->bcast_ring = -1;
+	wil_ring_fini_tx(wil, ri);
 }
 
 void wil_bcast_fini_all(struct wil6210_priv *wil)
@@ -548,7 +603,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	}
 
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++)
-		spin_lock_init(&wil->vring_tx_data[i].lock);
+		spin_lock_init(&wil->ring_tx_data[i].lock);
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->vif_mutex);
@@ -589,10 +644,29 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->wakeup_trigger = WMI_WAKEUP_TRIGGER_UCAST |
 			      WMI_WAKEUP_TRIGGER_BCAST;
 	memset(&wil->suspend_stats, 0, sizeof(wil->suspend_stats));
-	wil->vring_idle_trsh = 16;
+	wil->ring_idle_trsh = 16;
 
 	wil->reply_mid = U8_MAX;
 	wil->max_vifs = 1;
+
+	/* edma configuration can be updated via debugfs before allocation */
+	wil->num_rx_status_rings = WIL_DEFAULT_NUM_RX_STATUS_RINGS;
+	wil->use_compressed_rx_status = true;
+	wil->use_rx_hw_reordering = true;
+	wil->tx_status_ring_order = WIL_TX_SRING_SIZE_ORDER_DEFAULT;
+
+	/* Rx status ring size should be bigger than the number of RX buffers
+	 * in order to prevent backpressure on the status ring, which may
+	 * cause HW freeze.
+	 */
+	wil->rx_status_ring_order = WIL_RX_SRING_SIZE_ORDER_DEFAULT;
+	/* Number of RX buffer IDs should be bigger than the RX descriptor
+	 * ring size as in HW reorder flow, the HW can consume additional
+	 * buffers before releasing the previous ones.
+	 */
+	wil->rx_buff_id_count = WIL_RX_BUFF_ARR_SIZE_DEFAULT;
+
+	wil->amsdu_en = 1;
 
 	return 0;
 
@@ -736,14 +810,24 @@ static void wil_bl_prepare_halt(struct wil6210_priv *wil)
 
 static inline void wil_halt_cpu(struct wil6210_priv *wil)
 {
-	wil_w(wil, RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
-	wil_w(wil, RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
+	if (wil->hw_version >= HW_VER_TALYN_MB) {
+		wil_w(wil, RGF_USER_USER_CPU_0_TALYN_MB,
+		      BIT_USER_USER_CPU_MAN_RST);
+		wil_w(wil, RGF_USER_MAC_CPU_0_TALYN_MB,
+		      BIT_USER_MAC_CPU_MAN_RST);
+	} else {
+		wil_w(wil, RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
+		wil_w(wil, RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
+	}
 }
 
 static inline void wil_release_cpu(struct wil6210_priv *wil)
 {
 	/* Start CPU */
-	wil_w(wil, RGF_USER_USER_CPU_0, 1);
+	if (wil->hw_version >= HW_VER_TALYN_MB)
+		wil_w(wil, RGF_USER_USER_CPU_0_TALYN_MB, 1);
+	else
+		wil_w(wil, RGF_USER_USER_CPU_0, 1);
 }
 
 static void wil_set_oob_mode(struct wil6210_priv *wil, u8 mode)
@@ -767,10 +851,145 @@ static void wil_set_oob_mode(struct wil6210_priv *wil, u8 mode)
 	}
 }
 
-static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
+static int wil_wait_device_ready(struct wil6210_priv *wil, int no_flash)
 {
 	int delay = 0;
 	u32 x, x1 = 0;
+
+	/* wait until device ready. */
+	if (no_flash) {
+		msleep(PMU_READY_DELAY_MS);
+
+		wil_dbg_misc(wil, "Reset completed\n");
+	} else {
+		do {
+			msleep(RST_DELAY);
+			x = wil_r(wil, RGF_USER_BL +
+				  offsetof(struct bl_dedicated_registers_v0,
+					   boot_loader_ready));
+			if (x1 != x) {
+				wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n",
+					     x1, x);
+				x1 = x;
+			}
+			if (delay++ > RST_COUNT) {
+				wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
+					x);
+				return -ETIME;
+			}
+		} while (x != BL_READY);
+
+		wil_dbg_misc(wil, "Reset completed in %d ms\n",
+			     delay * RST_DELAY);
+	}
+
+	return 0;
+}
+
+static int wil_wait_device_ready_talyn_mb(struct wil6210_priv *wil)
+{
+	u32 otp_hw;
+	u8 signature_status;
+	bool otp_signature_err;
+	bool hw_section_done;
+	u32 otp_qc_secured;
+	int delay = 0;
+
+	/* Wait for OTP signature test to complete */
+	usleep_range(2000, 2200);
+
+	wil->boot_config = WIL_BOOT_ERR;
+
+	/* Poll until OTP signature status is valid.
+	 * In vanilla and development modes, when signature test is complete
+	 * HW sets BIT_OTP_SIGNATURE_ERR_TALYN_MB.
+	 * In production mode BIT_OTP_SIGNATURE_ERR_TALYN_MB remains 0, poll
+	 * for signature status change to 2 or 3.
+	 */
+	do {
+		otp_hw = wil_r(wil, RGF_USER_OTP_HW_RD_MACHINE_1);
+		signature_status = WIL_GET_BITS(otp_hw, 8, 9);
+		otp_signature_err = otp_hw & BIT_OTP_SIGNATURE_ERR_TALYN_MB;
+
+		if (otp_signature_err &&
+		    signature_status == WIL_SIG_STATUS_VANILLA) {
+			wil->boot_config = WIL_BOOT_VANILLA;
+			break;
+		}
+		if (otp_signature_err &&
+		    signature_status == WIL_SIG_STATUS_DEVELOPMENT) {
+			wil->boot_config = WIL_BOOT_DEVELOPMENT;
+			break;
+		}
+		if (!otp_signature_err &&
+		    signature_status == WIL_SIG_STATUS_PRODUCTION) {
+			wil->boot_config = WIL_BOOT_PRODUCTION;
+			break;
+		}
+		if  (!otp_signature_err &&
+		     signature_status ==
+		     WIL_SIG_STATUS_CORRUPTED_PRODUCTION) {
+			/* Unrecognized OTP signature found. Possibly a
+			 * corrupted production signature, access control
+			 * is applied as in production mode, therefore
+			 * do not fail
+			 */
+			wil->boot_config = WIL_BOOT_PRODUCTION;
+			break;
+		}
+		if (delay++ > OTP_HW_COUNT)
+			break;
+
+		usleep_range(OTP_HW_DELAY, OTP_HW_DELAY + 10);
+	} while (!otp_signature_err && signature_status == 0);
+
+	if (wil->boot_config == WIL_BOOT_ERR) {
+		wil_err(wil,
+			"invalid boot config, signature_status %d otp_signature_err %d\n",
+			signature_status, otp_signature_err);
+		return -ETIME;
+	}
+
+	wil_dbg_misc(wil,
+		     "signature test done in %d usec, otp_hw 0x%x, boot_config %d\n",
+		     delay * OTP_HW_DELAY, otp_hw, wil->boot_config);
+
+	if (wil->boot_config == WIL_BOOT_VANILLA)
+		/* Assuming not SPI boot (currently not supported) */
+		goto out;
+
+	hw_section_done = otp_hw & BIT_OTP_HW_SECTION_DONE_TALYN_MB;
+	delay = 0;
+
+	while (!hw_section_done) {
+		msleep(RST_DELAY);
+
+		otp_hw = wil_r(wil, RGF_USER_OTP_HW_RD_MACHINE_1);
+		hw_section_done = otp_hw & BIT_OTP_HW_SECTION_DONE_TALYN_MB;
+
+		if (delay++ > RST_COUNT) {
+			wil_err(wil, "TO waiting for hw_section_done\n");
+			return -ETIME;
+		}
+	}
+
+	wil_dbg_misc(wil, "HW section done in %d ms\n", delay * RST_DELAY);
+
+	otp_qc_secured = wil_r(wil, RGF_OTP_QC_SECURED);
+	wil->secured_boot = otp_qc_secured & BIT_BOOT_FROM_ROM ? 1 : 0;
+	wil_dbg_misc(wil, "secured boot is %sabled\n",
+		     wil->secured_boot ? "en" : "dis");
+
+out:
+	wil_dbg_misc(wil, "Reset completed\n");
+
+	return 0;
+}
+
+static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
+{
+	u32 x;
+	int rc;
 
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->hw_name);
 
@@ -811,10 +1030,17 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
 	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
 
-	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
-	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
-	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x000000f0);
-	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
+	if (wil->hw_version >= HW_VER_TALYN_MB) {
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x7e000000);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003f);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0xc00000f0);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xffe7fe00);
+	} else {
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xfe000000);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003f);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x000000f0);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xffe7fe00);
+	}
 
 	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
 	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
@@ -830,34 +1056,12 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 
 	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
-	/* wait until device ready. typical time is 20..80 msec */
-	if (no_flash)
-		do {
-			msleep(RST_DELAY);
-			x = wil_r(wil, USER_EXT_USER_PMU_3);
-			if (delay++ > RST_COUNT) {
-				wil_err(wil, "Reset not completed, PMU_3 0x%08x\n",
-					x);
-				return -ETIME;
-			}
-		} while ((x & BIT_PMU_DEVICE_RDY) == 0);
+	if (wil->hw_version == HW_VER_TALYN_MB)
+		rc = wil_wait_device_ready_talyn_mb(wil);
 	else
-		do {
-			msleep(RST_DELAY);
-			x = wil_r(wil, RGF_USER_BL +
-				  offsetof(struct bl_dedicated_registers_v0,
-					   boot_loader_ready));
-			if (x1 != x) {
-				wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n",
-					     x1, x);
-				x1 = x;
-			}
-			if (delay++ > RST_COUNT) {
-				wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
-					x);
-				return -ETIME;
-			}
-		} while (x != BL_READY);
+		rc = wil_wait_device_ready(wil, no_flash);
+	if (rc)
+		return rc;
 
 	wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
@@ -865,7 +1069,7 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 	wil_s(wil, RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
 	      BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
 
-	if (no_flash) {
+	if (wil->hw_version < HW_VER_TALYN_MB && no_flash) {
 		/* Reset OTP HW vectors to fit 40MHz */
 		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME1, 0x60001);
 		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME2, 0x20027);
@@ -880,7 +1084,6 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 		wil_w(wil, RGF_USER_XPM_RD_DOUT_SAMPLE_TIME, 0x57);
 	}
 
-	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
 }
 
@@ -1042,8 +1245,14 @@ static int wil_get_otp_info(struct wil6210_priv *wil)
 	struct net_device *ndev = wil->main_ndev;
 	struct wiphy *wiphy = wil_to_wiphy(wil);
 	u8 mac[8];
+	int mac_addr;
 
-	wil_memcpy_fromio_32(mac, wil->csr + HOSTADDR(RGF_OTP_MAC),
+	if (wil->hw_version >= HW_VER_TALYN_MB)
+		mac_addr = RGF_OTP_MAC_TALYN_MB;
+	else
+		mac_addr = RGF_OTP_MAC;
+
+	wil_memcpy_fromio_32(mac, wil->csr + HOSTADDR(mac_addr),
 			     sizeof(mac));
 	if (!is_valid_ether_addr(mac)) {
 		wil_err(wil, "Invalid MAC %pM\n", mac);
@@ -1147,8 +1356,13 @@ static void wil_pre_fw_config(struct wil6210_priv *wil)
 	/* it is W1C, clear by writing back same value */
 	wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
 	wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
-	/* clear PAL_UNIT_ICR (potential D0->D3 leftover) */
-	wil_s(wil, RGF_PAL_UNIT_ICR + offsetof(struct RGF_ICR, ICR), 0);
+	/* clear PAL_UNIT_ICR (potential D0->D3 leftover)
+	 * In Talyn-MB host cannot access this register due to
+	 * access control, hence PAL_UNIT_ICR is cleared by the FW
+	 */
+	if (wil->hw_version < HW_VER_TALYN_MB)
+		wil_s(wil, RGF_PAL_UNIT_ICR + offsetof(struct RGF_ICR, ICR),
+		      0);
 
 	if (wil->fw_calib_result > 0) {
 		__le32 val = cpu_to_le32(wil->fw_calib_result |
@@ -1284,7 +1498,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	rc = wil_target_reset(wil, no_flash);
 	wil6210_clear_irq(wil);
 	wil_enable_irq(wil);
-	wil_rx_fini(wil);
+	wil->txrx_ops.rx_fini(wil);
+	wil->txrx_ops.tx_fini(wil);
 	if (rc) {
 		if (!no_flash)
 			wil_bl_crash_info(wil, true);
@@ -1337,7 +1552,6 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	clear_bit(wil_status_resetting, wil->status);
 
 	if (load_fw) {
-		wil_configure_interrupt_moderation(wil);
 		wil_unmask_irq(wil);
 
 		/* we just started MAC, wait for FW ready */
@@ -1351,6 +1565,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 			wil_err(wil, "wmi_echo failed, rc %d\n", rc);
 			return rc;
 		}
+
+		wil->txrx_ops.configure_interrupt_moderation(wil);
 
 		rc = wil_restore_vifs(wil);
 		if (rc) {
@@ -1406,8 +1622,12 @@ int __wil_up(struct wil6210_priv *wil)
 	if (rc)
 		return rc;
 
-	/* Rx VRING. After MAC and beacon */
-	rc = wil_rx_init(wil, 1 << rx_ring_order);
+	/* Rx RING. After MAC and beacon */
+	rc = wil->txrx_ops.rx_init(wil, 1 << rx_ring_order);
+	if (rc)
+		return rc;
+
+	rc = wil->txrx_ops.tx_init(wil);
 	if (rc)
 		return rc;
 
@@ -1567,4 +1787,12 @@ void wil_halp_unvote(struct wil6210_priv *wil)
 		    wil->halp.ref_cnt);
 
 	mutex_unlock(&wil->halp.lock);
+}
+
+void wil_init_txrx_ops(struct wil6210_priv *wil)
+{
+	if (wil->use_enhanced_dma_hw)
+		wil_init_txrx_ops_edma(wil);
+	else
+		wil_init_txrx_ops_legacy_dma(wil);
 }

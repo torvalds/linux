@@ -93,6 +93,7 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_8000,
 	IWL_DEVICE_FAMILY_9000,
 	IWL_DEVICE_FAMILY_22000,
+	IWL_DEVICE_FAMILY_22560,
 };
 
 /*
@@ -176,6 +177,7 @@ static inline u8 num_of_ant(u8 mask)
  * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
  *	is in flight. This is due to a HW bug in 7260, 3160 and 7265.
  * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
+ * @max_tfd_queue_size: max number of entries in tfd queue.
  */
 struct iwl_base_params {
 	unsigned int wd_timeout;
@@ -191,6 +193,7 @@ struct iwl_base_params {
 	   scd_chain_ext_wa:1;
 
 	u16 num_of_queues;	/* def: HW dependent */
+	u32 max_tfd_queue_size;	/* def: HW dependent */
 
 	u8 max_ll_items;
 	u8 led_compensation;
@@ -571,9 +574,11 @@ extern const struct iwl_cfg iwl22000_2ac_cfg_hr;
 extern const struct iwl_cfg iwl22000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwl22000_2ac_cfg_jf;
 extern const struct iwl_cfg iwl22000_2ax_cfg_hr;
-extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_f0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0_f0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_jf_b0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0;
+extern const struct iwl_cfg iwl22560_2ax_cfg_su_cdb;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

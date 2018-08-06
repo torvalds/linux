@@ -146,6 +146,9 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FW_GSCAN_CAPA	= 50,
 	IWL_UCODE_TLV_FW_MEM_SEG	= 51,
 	IWL_UCODE_TLV_IML		= 52,
+
+	/* TLVs 0x1000-0x2000 are for internal driver usage */
+	IWL_UCODE_TLV_FW_DBG_DUMP_LST	= 0x1000,
 };
 
 struct iwl_ucode_tlv {
@@ -318,7 +321,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE. When either is set, multi-source LAR
  *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
- * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan
+ * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan (no longer used)
  * @IWL_UCODE_TLV_CAPA_STA_PM_NOTIF: firmware will send STA PM notification
  * @IWL_UCODE_TLV_CAPA_TLC_OFFLOAD: firmware implements rate scaling algorithm
  * @IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA: firmware implements quota related
@@ -887,41 +890,6 @@ struct iwl_fw_dbg_conf_tlv {
 	u8 reserved;
 	u8 num_of_hcmds;
 	struct iwl_fw_dbg_conf_hcmd hcmd;
-} __packed;
-
-/**
- * struct iwl_fw_gscan_capabilities - gscan capabilities supported by FW
- * @max_scan_cache_size: total space allocated for scan results (in bytes).
- * @max_scan_buckets: maximum number of channel buckets.
- * @max_ap_cache_per_scan: maximum number of APs that can be stored per scan.
- * @max_rssi_sample_size: number of RSSI samples used for averaging RSSI.
- * @max_scan_reporting_threshold: max possible report threshold. in percentage.
- * @max_hotlist_aps: maximum number of entries for hotlist APs.
- * @max_significant_change_aps: maximum number of entries for significant
- *	change APs.
- * @max_bssid_history_entries: number of BSSID/RSSI entries that the device can
- *	hold.
- * @max_hotlist_ssids: maximum number of entries for hotlist SSIDs.
- * @max_number_epno_networks: max number of epno entries.
- * @max_number_epno_networks_by_ssid: max number of epno entries if ssid is
- *	specified.
- * @max_number_of_white_listed_ssid: max number of white listed SSIDs.
- * @max_number_of_black_listed_ssid: max number of black listed SSIDs.
- */
-struct iwl_fw_gscan_capabilities {
-	__le32 max_scan_cache_size;
-	__le32 max_scan_buckets;
-	__le32 max_ap_cache_per_scan;
-	__le32 max_rssi_sample_size;
-	__le32 max_scan_reporting_threshold;
-	__le32 max_hotlist_aps;
-	__le32 max_significant_change_aps;
-	__le32 max_bssid_history_entries;
-	__le32 max_hotlist_ssids;
-	__le32 max_number_epno_networks;
-	__le32 max_number_epno_networks_by_ssid;
-	__le32 max_number_of_white_listed_ssid;
-	__le32 max_number_of_black_listed_ssid;
 } __packed;
 
 #endif  /* __iwl_fw_file_h__ */

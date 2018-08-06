@@ -5112,11 +5112,9 @@ static int ipw2100_disassociate_bssid(struct ipw2100_priv *priv)
 		.host_command_length = ETH_ALEN
 	};
 	int err;
-	int len;
 
 	IPW_DEBUG_HC("DISASSOCIATION_BSSID\n");
 
-	len = ETH_ALEN;
 	/* The Firmware currently ignores the BSSID and just disassociates from
 	 * the currently associated AP -- but in the off chance that a future
 	 * firmware does use the BSSID provided here, we go ahead and try and
@@ -7723,7 +7721,6 @@ static int ipw2100_wx_get_auth(struct net_device *dev,
 	struct libipw_device *ieee = priv->ieee;
 	struct lib80211_crypt_data *crypt;
 	struct iw_param *param = &wrqu->param;
-	int ret = 0;
 
 	switch (param->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
@@ -7733,7 +7730,6 @@ static int ipw2100_wx_get_auth(struct net_device *dev,
 		/*
 		 * wpa_supplicant will control these internally
 		 */
-		ret = -EOPNOTSUPP;
 		break;
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
@@ -7801,9 +7797,6 @@ static int ipw2100_wx_set_mlme(struct net_device *dev,
 {
 	struct ipw2100_priv *priv = libipw_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
-	__le16 reason;
-
-	reason = cpu_to_le16(mlme->reason_code);
 
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:

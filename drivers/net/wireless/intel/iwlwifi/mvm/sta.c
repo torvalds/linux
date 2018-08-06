@@ -2184,7 +2184,7 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 
 static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 					struct iwl_mvm_baid_data *data,
-					u16 ssn, u8 buf_size)
+					u16 ssn, u16 buf_size)
 {
 	int i;
 
@@ -2211,7 +2211,7 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 }
 
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		       int tid, u16 ssn, bool start, u8 buf_size, u16 timeout)
+		       int tid, u16 ssn, bool start, u16 buf_size, u16 timeout)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd cmd = {};
@@ -2273,7 +2273,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (start) {
 		cmd.add_immediate_ba_tid = (u8) tid;
 		cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
-		cmd.rx_ba_window = cpu_to_le16((u16)buf_size);
+		cmd.rx_ba_window = cpu_to_le16(buf_size);
 	} else {
 		cmd.remove_immediate_ba_tid = (u8) tid;
 	}
@@ -2559,7 +2559,7 @@ out:
 }
 
 int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta, u16 tid, u8 buf_size,
+			    struct ieee80211_sta *sta, u16 tid, u16 buf_size,
 			    bool amsdu)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);

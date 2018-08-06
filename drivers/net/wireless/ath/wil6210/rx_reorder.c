@@ -95,16 +95,16 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
 	struct wil6210_vif *vif;
 	struct net_device *ndev;
-	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
-	int tid = wil_rxdesc_tid(d);
-	int cid = wil_rxdesc_cid(d);
-	int mid = wil_rxdesc_mid(d);
-	u16 seq = wil_rxdesc_seq(d);
-	int mcast = wil_rxdesc_mcast(d);
-	struct wil_sta_info *sta = &wil->sta[cid];
+	int tid, cid, mid, mcast;
+	u16 seq;
+	struct wil_sta_info *sta;
 	struct wil_tid_ampdu_rx *r;
 	u16 hseq;
 	int index;
+
+	wil->txrx_ops.get_reorder_params(wil, skb, &tid, &cid, &mid, &seq,
+					 &mcast);
+	sta = &wil->sta[cid];
 
 	wil_dbg_txrx(wil, "MID %d CID %d TID %d Seq 0x%03x mcast %01x\n",
 		     mid, cid, tid, seq, mcast);
@@ -315,7 +315,10 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	 * bits 6..15: buffer size
 	 */
 	u16 req_agg_wsize = WIL_GET_BITS(param_set, 6, 15);
-	bool agg_amsdu = !!(param_set & BIT(0));
+	bool agg_amsdu = wil->use_enhanced_dma_hw &&
+		wil->use_rx_hw_reordering &&
+		test_bit(WMI_FW_CAPABILITY_AMSDU, wil->fw_capabilities) &&
+		wil->amsdu_en && (param_set & BIT(0));
 	int ba_policy = param_set & BIT(1);
 	u16 status = WLAN_STATUS_SUCCESS;
 	u16 ssn = seq_ctrl >> 4;
@@ -360,8 +363,9 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		}
 	}
 
-	rc = wmi_addba_rx_resp(wil, mid, cid, tid, dialog_token, status,
-			       agg_amsdu, agg_wsize, agg_timeout);
+	rc = wil->txrx_ops.wmi_addba_rx_resp(wil, mid, cid, tid, dialog_token,
+					     status, agg_amsdu, agg_wsize,
+					     agg_timeout);
 	if (rc || (status != WLAN_STATUS_SUCCESS)) {
 		wil_err(wil, "do not apply ba, rc(%d), status(%d)\n", rc,
 			status);
@@ -384,7 +388,7 @@ int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize)
 {
 	u8 agg_wsize = wil_agg_size(wil, wsize);
 	u16 agg_timeout = 0;
-	struct vring_tx_data *txdata = &wil->vring_tx_data[ringid];
+	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[ringid];
 	int rc = 0;
 
 	if (txdata->addba_in_progress) {
