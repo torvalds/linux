@@ -314,6 +314,8 @@
 #define SYS_ICC_DIR_EL1			sys_reg(3, 0, 12, 11, 1)
 #define SYS_ICC_RPR_EL1			sys_reg(3, 0, 12, 11, 3)
 #define SYS_ICC_SGI1R_EL1		sys_reg(3, 0, 12, 11, 5)
+#define SYS_ICC_ASGI1R_EL1		sys_reg(3, 0, 12, 11, 6)
+#define SYS_ICC_SGI0R_EL1		sys_reg(3, 0, 12, 11, 7)
 #define SYS_ICC_IAR1_EL1		sys_reg(3, 0, 12, 12, 0)
 #define SYS_ICC_EOIR1_EL1		sys_reg(3, 0, 12, 12, 1)
 #define SYS_ICC_HPPIR1_EL1		sys_reg(3, 0, 12, 12, 2)
