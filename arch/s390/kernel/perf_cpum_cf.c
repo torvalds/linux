@@ -10,52 +10,13 @@
 
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
-#include <linux/perf_event.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <asm/ctl_reg.h>
 #include <asm/irq.h>
-#include <asm/cpu_mf.h>
-
-enum cpumf_ctr_set {
-	CPUMF_CTR_SET_BASIC   = 0,    /* Basic Counter Set */
-	CPUMF_CTR_SET_USER    = 1,    /* Problem-State Counter Set */
-	CPUMF_CTR_SET_CRYPTO  = 2,    /* Crypto-Activity Counter Set */
-	CPUMF_CTR_SET_EXT     = 3,    /* Extended Counter Set */
-	CPUMF_CTR_SET_MT_DIAG = 4,    /* MT-diagnostic Counter Set */
-
-	/* Maximum number of counter sets */
-	CPUMF_CTR_SET_MAX,
-};
-
-#define CPUMF_LCCTL_ENABLE_SHIFT    16
-#define CPUMF_LCCTL_ACTCTL_SHIFT     0
-static const u64 cpumf_state_ctl[CPUMF_CTR_SET_MAX] = {
-	[CPUMF_CTR_SET_BASIC]	= 0x02,
-	[CPUMF_CTR_SET_USER]	= 0x04,
-	[CPUMF_CTR_SET_CRYPTO]	= 0x08,
-	[CPUMF_CTR_SET_EXT]	= 0x01,
-	[CPUMF_CTR_SET_MT_DIAG] = 0x20,
-};
-
-static void ctr_set_enable(u64 *state, int ctr_set)
-{
-	*state |= cpumf_state_ctl[ctr_set] << CPUMF_LCCTL_ENABLE_SHIFT;
-}
-static void ctr_set_disable(u64 *state, int ctr_set)
-{
-	*state &= ~(cpumf_state_ctl[ctr_set] << CPUMF_LCCTL_ENABLE_SHIFT);
-}
-static void ctr_set_start(u64 *state, int ctr_set)
-{
-	*state |= cpumf_state_ctl[ctr_set] << CPUMF_LCCTL_ACTCTL_SHIFT;
-}
-static void ctr_set_stop(u64 *state, int ctr_set)
-{
-	*state &= ~(cpumf_state_ctl[ctr_set] << CPUMF_LCCTL_ACTCTL_SHIFT);
-}
+#include <asm/cpu_mcf.h>
 
 /* Local CPUMF event structure */
 struct cpu_hw_events {
@@ -135,7 +96,7 @@ static int validate_ctr_version(const struct hw_perf_event *hwc)
 		 * Thus, the counters can only be used if SMT is on and the
 		 * counter set is enabled and active.
 		 */
-		mtdiag_ctl = cpumf_state_ctl[CPUMF_CTR_SET_MT_DIAG];
+		mtdiag_ctl = cpumf_ctr_ctl[CPUMF_CTR_SET_MT_DIAG];
 		if (!((cpuhw->info.auth_ctl & mtdiag_ctl) &&
 		      (cpuhw->info.enable_ctl & mtdiag_ctl) &&
 		      (cpuhw->info.act_ctl & mtdiag_ctl)))
@@ -160,7 +121,7 @@ static int validate_ctr_auth(const struct hw_perf_event *hwc)
 	 * return with -ENOENT in order to fall back to other
 	 * PMUs that might suffice the event request.
 	 */
-	ctrs_state = cpumf_state_ctl[hwc->config_base];
+	ctrs_state = cpumf_ctr_ctl[hwc->config_base];
 	if (!(ctrs_state & cpuhw->info.auth_ctl))
 		err = -ENOENT;
 
