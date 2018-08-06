@@ -236,25 +236,45 @@ static void setup_pmc_cpu(void *flags)
 	lcctl(0);
 }
 
-/* Initialize the CPU-measurement facility */
-static int reserve_pmc_hardware(void)
+/* Reserve/release functions for sharing perf hardware */
+static DEFINE_SPINLOCK(cpumcf_owner_lock);
+static void *cpumcf_owner;
+
+/* Initialize the CPU-measurement counter facility */
+int __kernel_cpumcf_begin(void)
 {
 	int flags = PMC_INIT;
+	int err = 0;
+
+	spin_lock(&cpumcf_owner_lock);
+	if (cpumcf_owner)
+		err = -EBUSY;
+	else
+		cpumcf_owner = __builtin_return_address(0);
+	spin_unlock(&cpumcf_owner_lock);
+	if (err)
+		return err;
 
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 
 	return 0;
 }
+EXPORT_SYMBOL(__kernel_cpumcf_begin);
 
-/* Release the CPU-measurement facility */
-static void release_pmc_hardware(void)
+/* Release the CPU-measurement counter facility */
+void __kernel_cpumcf_end(void)
 {
 	int flags = PMC_RELEASE;
 
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
+
+	spin_lock(&cpumcf_owner_lock);
+	cpumcf_owner = NULL;
+	spin_unlock(&cpumcf_owner_lock);
 }
+EXPORT_SYMBOL(__kernel_cpumcf_end);
 
 /* Release the PMU if event is the last perf event */
 static void hw_perf_event_destroy(struct perf_event *event)
@@ -262,7 +282,7 @@ static void hw_perf_event_destroy(struct perf_event *event)
 	if (!atomic_add_unless(&num_events, -1, 1)) {
 		mutex_lock(&pmc_reserve_mutex);
 		if (atomic_dec_return(&num_events) == 0)
-			release_pmc_hardware();
+			__kernel_cpumcf_end();
 		mutex_unlock(&pmc_reserve_mutex);
 	}
 }
@@ -363,7 +383,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	/* Initialize for using the CPU-measurement counter facility */
 	if (!atomic_inc_not_zero(&num_events)) {
 		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_read(&num_events) == 0 && reserve_pmc_hardware())
+		if (atomic_read(&num_events) == 0 && __kernel_cpumcf_begin())
 			err = -EBUSY;
 		else
 			atomic_inc(&num_events);

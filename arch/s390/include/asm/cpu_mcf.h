@@ -49,4 +49,7 @@ static inline void ctr_set_stop(u64 *state, int ctr_set)
 	*state &= ~(cpumf_ctr_ctl[ctr_set] << CPUMF_LCCTL_ACTCTL_SHIFT);
 }
 
+int __kernel_cpumcf_begin(void);
+void __kernel_cpumcf_end(void);
+
 #endif /* _ASM_S390_CPU_MCF_H */
