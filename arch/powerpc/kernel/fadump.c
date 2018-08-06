@@ -908,22 +908,41 @@ static int allocate_crash_memory_ranges(void)
 static inline int fadump_add_crash_memory(unsigned long long base,
 					  unsigned long long end)
 {
+	u64  start, size;
+	bool is_adjacent = false;
+
 	if (base == end)
 		return 0;
 
-	if (crash_mem_ranges == max_crash_mem_ranges) {
-		int ret;
+	/*
+	 * Fold adjacent memory ranges to bring down the memory ranges/
+	 * PT_LOAD segments count.
+	 */
+	if (crash_mem_ranges) {
+		start = crash_memory_ranges[crash_mem_ranges - 1].base;
+		size = crash_memory_ranges[crash_mem_ranges - 1].size;
 
-		ret = allocate_crash_memory_ranges();
-		if (ret)
-			return ret;
+		if ((start + size) == base)
+			is_adjacent = true;
+	}
+	if (!is_adjacent) {
+		/* resize the array on reaching the limit */
+		if (crash_mem_ranges == max_crash_mem_ranges) {
+			int ret;
+
+			ret = allocate_crash_memory_ranges();
+			if (ret)
+				return ret;
+		}
+
+		start = base;
+		crash_memory_ranges[crash_mem_ranges].base = start;
+		crash_mem_ranges++;
 	}
 
+	crash_memory_ranges[crash_mem_ranges - 1].size = (end - start);
 	pr_debug("crash_memory_range[%d] [%#016llx-%#016llx], %#llx bytes\n",
-		crash_mem_ranges, base, end - 1, (end - base));
-	crash_memory_ranges[crash_mem_ranges].base = base;
-	crash_memory_ranges[crash_mem_ranges].size = end - base;
-	crash_mem_ranges++;
+		(crash_mem_ranges - 1), start, end - 1, (end - start));
 	return 0;
 }
 
@@ -999,6 +1018,14 @@ static int fadump_setup_crash_memory_ranges(void)
 
 	pr_debug("Setup crash memory ranges.\n");
 	crash_mem_ranges = 0;
+
+	/* allocate memory for crash memory ranges for the first time */
+	if (!max_crash_mem_ranges) {
+		ret = allocate_crash_memory_ranges();
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * add the first memory chunk (RMA_START through boot_memory_size) as
 	 * a separate memory chunk. The reason is, at the time crash firmware
