@@ -331,6 +331,13 @@
 				regulator-always-on;
 			};
 
+			ldo28_reg: LDO28 {
+				/* Used on XU3 */
+				regulator-name = "vdd_ldo28";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
 			ldo29_reg: LDO29 {
 				/* Unused */
 				regulator-name = "vdd_ldo29";
