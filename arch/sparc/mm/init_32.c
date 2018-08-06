@@ -133,7 +133,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	}
 
 	/* Start with page aligned address of last symbol in kernel
-	 * image.  
+	 * image.
 	 */
 	start_pfn  = (unsigned long)__pa(PAGE_ALIGN((unsigned long) &_end));
 
@@ -214,7 +214,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 		*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 		initrd_start = (initrd_start - phys_base) + PAGE_OFFSET;
-		initrd_end = (initrd_end - phys_base) + PAGE_OFFSET;		
+		initrd_end = (initrd_end - phys_base) + PAGE_OFFSET;
 	}
 #endif
 	/* Reserve the kernel text/data/bss. */
@@ -322,7 +322,7 @@ void __init mem_init(void)
 
 		map_high_region(start_pfn, end_pfn);
 	}
-	
+
 	mem_init_print_info(NULL);
 }
 
