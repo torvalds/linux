@@ -83,9 +83,7 @@ int bpf__strerror_apply_obj_config(int err, char *buf, size_t size);
 
 int bpf__setup_stdout(struct perf_evlist *evlist);
 int bpf__setup_output_event(struct perf_evlist *evlist, const char *name);
-int bpf__strerror_setup_stdout(struct perf_evlist *evlist, int err,
-			       char *buf, size_t size);
-
+int bpf__strerror_setup_output_event(struct perf_evlist *evlist, int err, char *buf, size_t size);
 #else
 #include <errno.h>
 
@@ -200,11 +198,16 @@ bpf__strerror_apply_obj_config(int err __maybe_unused,
 }
 
 static inline int
-bpf__strerror_setup_stdout(struct perf_evlist *evlist __maybe_unused,
-			   int err __maybe_unused, char *buf,
-			   size_t size)
+bpf__strerror_setup_output_event(struct perf_evlist *evlist __maybe_unused,
+				 int err __maybe_unused, char *buf, size_t size)
 {
 	return __bpf_strerror(buf, size);
 }
+
 #endif
+
+static inline int bpf__strerror_setup_stdout(struct perf_evlist *evlist, int err, char *buf, size_t size)
+{
+	return bpf__strerror_setup_output_event(evlist, err, buf, size);
+}
 #endif

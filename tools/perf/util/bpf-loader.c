@@ -1791,8 +1791,8 @@ int bpf__strerror_apply_obj_config(int err, char *buf, size_t size)
 	return 0;
 }
 
-int bpf__strerror_setup_stdout(struct perf_evlist *evlist __maybe_unused,
-			       int err, char *buf, size_t size)
+int bpf__strerror_setup_output_event(struct perf_evlist *evlist __maybe_unused,
+				     int err, char *buf, size_t size)
 {
 	bpf__strerror_head(err, buf, size);
 	bpf__strerror_end(buf, size);
