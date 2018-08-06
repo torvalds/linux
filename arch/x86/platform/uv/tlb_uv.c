@@ -2147,6 +2147,9 @@ static int __init init_per_cpu(int nuvhubs, int base_part_pnode)
 	memset(uvhub_descs, 0, nuvhubs * sizeof(struct uvhub_desc));
 	uvhub_mask = kzalloc((nuvhubs+7)/8, GFP_KERNEL);
 
+	if (!uvhub_mask)
+		goto fail;
+
 	if (get_cpu_topology(base_part_pnode, uvhub_descs, uvhub_mask))
 		goto fail;
 
