@@ -27,6 +27,8 @@
 #include "trace.h"
 
 #define WIL_EDMA_MAX_DATA_OFFSET (2)
+/* RX buffer size must be aligned to 4 bytes */
+#define WIL_EDMA_RX_BUF_LEN_DEFAULT (2048)
 
 static void wil_tx_desc_unmap_edma(struct device *dev,
 				   union wil_tx_desc *desc,
@@ -158,8 +160,7 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 				   struct wil_ring *ring, u32 i)
 {
 	struct device *dev = wil_to_dev(wil);
-	unsigned int sz = wil->rx_buf_len + ETH_HLEN +
-		WIL_EDMA_MAX_DATA_OFFSET;
+	unsigned int sz = ALIGN(wil->rx_buf_len, 4);
 	dma_addr_t pa;
 	u16 buff_id;
 	struct list_head *active = &wil->rx_buff_mgmt.active;
@@ -181,6 +182,12 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 		return -ENOMEM;
 
 	skb_put(skb, sz);
+
+	/**
+	 * Make sure that the network stack calculates checksum for packets
+	 * which failed the HW checksum calculation
+	 */
+	skb->ip_summed = CHECKSUM_NONE;
 
 	pa = dma_map_single(dev, skb->data, skb->len, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(dev, pa))) {
@@ -503,7 +510,7 @@ out_free:
 static void wil_get_reorder_params_edma(struct wil6210_priv *wil,
 					struct sk_buff *skb, int *tid,
 					int *cid, int *mid, u16 *seq,
-					int *mcast)
+					int *mcast, int *retry)
 {
 	struct wil_rx_status_extended *s = wil_skb_rxstatus(skb);
 
@@ -512,6 +519,7 @@ static void wil_get_reorder_params_edma(struct wil6210_priv *wil,
 	*mid = wil_rx_status_get_mid(s);
 	*seq = le16_to_cpu(wil_rx_status_get_seq(wil, s));
 	*mcast = wil_rx_status_get_mcast(s);
+	*retry = wil_rx_status_get_retry(s);
 }
 
 static void wil_get_netif_rx_params_edma(struct sk_buff *skb, int *cid,
@@ -593,7 +601,7 @@ static bool wil_is_rx_idle_edma(struct wil6210_priv *wil)
 static void wil_rx_buf_len_init_edma(struct wil6210_priv *wil)
 {
 	wil->rx_buf_len = rx_large_buf ?
-		WIL_MAX_ETH_MTU : TXRX_BUF_LEN_DEFAULT - WIL_MAX_MPDU_OVERHEAD;
+		WIL_MAX_ETH_MTU : WIL_EDMA_RX_BUF_LEN_DEFAULT;
 }
 
 static int wil_rx_init_edma(struct wil6210_priv *wil, u16 desc_ring_size)
@@ -626,8 +634,7 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, u16 desc_ring_size)
 
 	wil_rx_buf_len_init_edma(wil);
 
-	max_rx_pl_per_desc = wil->rx_buf_len + ETH_HLEN +
-		WIL_EDMA_MAX_DATA_OFFSET;
+	max_rx_pl_per_desc = ALIGN(wil->rx_buf_len, 4);
 
 	/* Use debugfs dbg_num_rx_srings if set, reserve one sring for TX */
 	if (wil->num_rx_status_rings > WIL6210_MAX_STATUS_RINGS - 1)
@@ -794,14 +801,15 @@ static int wil_check_bar(struct wil6210_priv *wil, void *msg, int cid,
 	return -EAGAIN;
 }
 
-static int wil_rx_edma_check_errors(struct wil6210_priv *wil, void *msg,
-				    struct wil_net_stats *stats,
-				    struct sk_buff *skb)
+static int wil_rx_error_check_edma(struct wil6210_priv *wil,
+				   struct sk_buff *skb,
+				   struct wil_net_stats *stats)
 {
 	int error;
 	int l2_rx_status;
 	int l3_rx_status;
 	int l4_rx_status;
+	void *msg = wil_skb_rxstatus(skb);
 
 	error = wil_rx_status_get_error(msg);
 	if (!error) {
@@ -845,6 +853,8 @@ static int wil_rx_edma_check_errors(struct wil6210_priv *wil, void *msg,
 	 * mis-calculates TCP checksum - if it should be 0x0,
 	 * it writes 0xffff in violation of RFC 1624
 	 */
+	else
+		stats->rx_csum_err++;
 
 	return 0;
 }
@@ -859,12 +869,10 @@ static struct sk_buff *wil_sring_reap_rx_edma(struct wil6210_priv *wil,
 	struct sk_buff *skb;
 	dma_addr_t pa;
 	struct wil_ring_rx_data *rxdata = &sring->rx_data;
-	unsigned int sz = wil->rx_buf_len + ETH_HLEN +
-		WIL_EDMA_MAX_DATA_OFFSET;
+	unsigned int sz = ALIGN(wil->rx_buf_len, 4);
 	struct wil_net_stats *stats = NULL;
 	u16 dmalen;
 	int cid;
-	int rc;
 	bool eop, headstolen;
 	int delta;
 	u8 dr_bit;
@@ -932,13 +940,6 @@ again:
 	if (unlikely(skb->len < ETH_HLEN)) {
 		wil_dbg_txrx(wil, "Short frame, len = %d\n", skb->len);
 		stats->rx_short_frame++;
-		rxdata->skipping = true;
-		goto skipping;
-	}
-
-	/* Check and treat errors reported by HW */
-	rc = wil_rx_edma_check_errors(wil, msg, stats, skb);
-	if (rc) {
 		rxdata->skipping = true;
 		goto skipping;
 	}
@@ -1223,6 +1224,9 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 					if (stats) {
 						stats->tx_packets++;
 						stats->tx_bytes += skb->len;
+
+						wil_tx_latency_calc(wil, skb,
+							&wil->sta[cid]);
 					}
 				} else {
 					ndev->stats.tx_errors++;
@@ -1473,6 +1477,11 @@ static int __wil_tx_ring_tso_edma(struct wil6210_priv *wil,
 	 */
 	wmb();
 
+	if (wil->tx_latency)
+		*(ktime_t *)&skb->cb = ktime_get();
+	else
+		memset(skb->cb, 0, sizeof(ktime_t));
+
 	wil_w(wil, ring->hwtail, ring->swhead);
 
 	return 0;
@@ -1592,6 +1601,7 @@ void wil_init_txrx_ops_edma(struct wil6210_priv *wil)
 	wil->txrx_ops.get_reorder_params = wil_get_reorder_params_edma;
 	wil->txrx_ops.get_netif_rx_params = wil_get_netif_rx_params_edma;
 	wil->txrx_ops.rx_crypto_check = wil_rx_crypto_check_edma;
+	wil->txrx_ops.rx_error_check = wil_rx_error_check_edma;
 	wil->txrx_ops.is_rx_idle = wil_is_rx_idle_edma;
 	wil->txrx_ops.rx_fini = wil_rx_fini_edma;
 }

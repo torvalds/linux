@@ -1333,7 +1333,7 @@ static struct wmi_pdev_param_map wmi_10_2_4_pdev_param_map = {
 	.enable_per_tid_ampdu = WMI_PDEV_PARAM_UNSUPPORTED,
 	.cca_threshold = WMI_PDEV_PARAM_UNSUPPORTED,
 	.rts_fixed_rate = WMI_PDEV_PARAM_UNSUPPORTED,
-	.pdev_reset = WMI_PDEV_PARAM_UNSUPPORTED,
+	.pdev_reset = WMI_10X_PDEV_PARAM_PDEV_RESET,
 	.wapi_mbssid_offset = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_srcaddr = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_dstaddr = WMI_PDEV_PARAM_UNSUPPORTED,
@@ -2311,6 +2311,59 @@ static bool ath10k_wmi_rx_is_decrypted(struct ath10k *ar,
 		return false;
 
 	return true;
+}
+
+static int wmi_process_mgmt_tx_comp(struct ath10k *ar, u32 desc_id,
+				    u32 status)
+{
+	struct ath10k_mgmt_tx_pkt_addr *pkt_addr;
+	struct ath10k_wmi *wmi = &ar->wmi;
+	struct ieee80211_tx_info *info;
+	struct sk_buff *msdu;
+	int ret;
+
+	spin_lock_bh(&ar->data_lock);
+
+	pkt_addr = idr_find(&wmi->mgmt_pending_tx, desc_id);
+	if (!pkt_addr) {
+		ath10k_warn(ar, "received mgmt tx completion for invalid msdu_id: %d\n",
+			    desc_id);
+		ret = -ENOENT;
+		goto out;
+	}
+
+	msdu = pkt_addr->vaddr;
+	dma_unmap_single(ar->dev, pkt_addr->paddr,
+			 msdu->len, DMA_FROM_DEVICE);
+	info = IEEE80211_SKB_CB(msdu);
+	info->flags |= status;
+	ieee80211_tx_status_irqsafe(ar->hw, msdu);
+
+	ret = 0;
+
+out:
+	idr_remove(&wmi->mgmt_pending_tx, desc_id);
+	spin_unlock_bh(&ar->data_lock);
+	return ret;
+}
+
+int ath10k_wmi_event_mgmt_tx_compl(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct wmi_tlv_mgmt_tx_compl_ev_arg arg;
+	int ret;
+
+	ret = ath10k_wmi_pull_mgmt_tx_compl(ar, skb, &arg);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse mgmt comp event: %d\n", ret);
+		return ret;
+	}
+
+	wmi_process_mgmt_tx_comp(ar, __le32_to_cpu(arg.desc_id),
+				 __le32_to_cpu(arg.status));
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv evnt mgmt tx completion\n");
+
+	return 0;
 }
 
 int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
@@ -9073,6 +9126,11 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	INIT_WORK(&ar->radar_confirmation_work,
 		  ath10k_radar_confirmation_work);
 
+	if (test_bit(ATH10K_FW_FEATURE_MGMT_TX_BY_REF,
+		     ar->running_fw->fw_file.fw_features)) {
+		idr_init(&ar->wmi.mgmt_pending_tx);
+	}
+
 	return 0;
 }
 
@@ -9091,8 +9149,35 @@ void ath10k_wmi_free_host_mem(struct ath10k *ar)
 	ar->wmi.num_mem_chunks = 0;
 }
 
+static int ath10k_wmi_mgmt_tx_clean_up_pending(int msdu_id, void *ptr,
+					       void *ctx)
+{
+	struct ath10k_mgmt_tx_pkt_addr *pkt_addr = ptr;
+	struct ath10k *ar = ctx;
+	struct sk_buff *msdu;
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "force cleanup mgmt msdu_id %hu\n", msdu_id);
+
+	msdu = pkt_addr->vaddr;
+	dma_unmap_single(ar->dev, pkt_addr->paddr,
+			 msdu->len, DMA_FROM_DEVICE);
+	ieee80211_free_txskb(ar->hw, msdu);
+
+	return 0;
+}
+
 void ath10k_wmi_detach(struct ath10k *ar)
 {
+	if (test_bit(ATH10K_FW_FEATURE_MGMT_TX_BY_REF,
+		     ar->running_fw->fw_file.fw_features)) {
+		spin_lock_bh(&ar->data_lock);
+		idr_for_each(&ar->wmi.mgmt_pending_tx,
+			     ath10k_wmi_mgmt_tx_clean_up_pending, ar);
+		idr_destroy(&ar->wmi.mgmt_pending_tx);
+		spin_unlock_bh(&ar->data_lock);
+	}
+
 	cancel_work_sync(&ar->svc_rdy_work);
 
 	if (ar->svc_rdy_skb)

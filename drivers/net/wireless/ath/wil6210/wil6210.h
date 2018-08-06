@@ -37,6 +37,7 @@ extern bool rx_align_2;
 extern bool rx_large_buf;
 extern bool debug_fw;
 extern bool disable_ap_sme;
+extern bool ftm_mode;
 
 struct wil6210_priv;
 struct wil6210_vif;
@@ -50,10 +51,16 @@ union wil_tx_desc;
 #define WIL_FW_NAME_SPARROW_PLUS "wil6210_sparrow_plus.fw"
 #define WIL_FW_NAME_FTM_SPARROW_PLUS "wil6210_sparrow_plus_ftm.fw"
 
+#define WIL_FW_NAME_TALYN "wil6436.fw"
+#define WIL_FW_NAME_FTM_TALYN "wil6436_ftm.fw"
+#define WIL_BRD_NAME_TALYN "wil6436.brd"
+
 #define WIL_BOARD_FILE_NAME "wil6210.brd" /* board & radio parameters */
 
 #define WIL_DEFAULT_BUS_REQUEST_KBPS 128000 /* ~1Gbps */
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
+
+#define WIL_NUM_LATENCY_BINS 200
 
 /* maximum number of virtual interfaces the driver supports
  * (including the main interface)
@@ -85,6 +92,8 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 #define WIL_MAX_AMPDU_SIZE	(64 * 1024) /* FW/HW limit */
 #define WIL_MAX_AGG_WSIZE	(32) /* FW/HW limit */
+#define WIL_MAX_AMPDU_SIZE_128	(128 * 1024) /* FW/HW limit */
+#define WIL_MAX_AGG_WSIZE_64	(64) /* FW/HW limit */
 #define WIL6210_MAX_STATUS_RINGS	(8)
 
 /* Hardware offload block adds the following:
@@ -293,6 +302,8 @@ struct RGF_ICR {
 	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_FOREVER		BIT(2)
 	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_CLR			BIT(3)
 	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_REACHED_TRESH	BIT(4)
+#define RGF_DMA_MISC_CTL				(0x881d6c)
+	#define BIT_OFUL34_RDY_VALID_BUG_FIX_EN			BIT(7)
 
 #define RGF_DMA_PSEUDO_CAUSE		(0x881c68)
 #define RGF_DMA_PSEUDO_CAUSE_MASK_SW	(0x881c6c)
@@ -543,6 +554,31 @@ struct wil_status_ring {
 	struct wil_ring_rx_data rx_data;
 };
 
+#define WIL_STA_TID_NUM (16)
+#define WIL_MCS_MAX (12) /* Maximum MCS supported */
+
+struct wil_net_stats {
+	unsigned long	rx_packets;
+	unsigned long	tx_packets;
+	unsigned long	rx_bytes;
+	unsigned long	tx_bytes;
+	unsigned long	tx_errors;
+	u32 tx_latency_min_us;
+	u32 tx_latency_max_us;
+	u64 tx_latency_total_us;
+	unsigned long	rx_dropped;
+	unsigned long	rx_non_data_frame;
+	unsigned long	rx_short_frame;
+	unsigned long	rx_large_frame;
+	unsigned long	rx_replay;
+	unsigned long	rx_mic_error;
+	unsigned long	rx_key_error; /* eDMA specific */
+	unsigned long	rx_amsdu_error; /* eDMA specific */
+	unsigned long	rx_csum_err;
+	u16 last_mcs_rx;
+	u64 rx_per_mcs[WIL_MCS_MAX + 1];
+};
+
 /**
  * struct tx_rx_ops - different TX/RX ops for legacy and enhanced
  * DMA flow
@@ -572,10 +608,12 @@ struct wil_txrx_ops {
 				 u16 agg_wsize, u16 timeout);
 	void (*get_reorder_params)(struct wil6210_priv *wil,
 				   struct sk_buff *skb, int *tid, int *cid,
-				   int *mid, u16 *seq, int *mcast);
+				   int *mid, u16 *seq, int *mcast, int *retry);
 	void (*get_netif_rx_params)(struct sk_buff *skb,
 				    int *cid, int *security);
 	int (*rx_crypto_check)(struct wil6210_priv *wil, struct sk_buff *skb);
+	int (*rx_error_check)(struct wil6210_priv *wil, struct sk_buff *skb,
+			      struct wil_net_stats *stats);
 	bool (*is_rx_idle)(struct wil6210_priv *wil);
 	irqreturn_t (*irq_rx)(int irq, void *cookie);
 };
@@ -625,6 +663,8 @@ struct pci_dev;
  * @drop_dup: duplicate frames dropped for this reorder buffer
  * @drop_old: old frames dropped for this reorder buffer
  * @first_time: true when this buffer used 1-st time
+ * @mcast_last_seq: sequence number (SN) of last received multicast packet
+ * @drop_dup_mcast: duplicate multicast frames dropped for this reorder buffer
  */
 struct wil_tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
@@ -638,6 +678,8 @@ struct wil_tid_ampdu_rx {
 	unsigned long long drop_dup;
 	unsigned long long drop_old;
 	bool first_time; /* is it 1-st time this buffer used? */
+	u16 mcast_last_seq; /* multicast dup detection */
+	unsigned long long drop_dup_mcast;
 };
 
 /**
@@ -672,27 +714,6 @@ enum wil_sta_status {
 	wil_sta_connected = 2,
 };
 
-#define WIL_STA_TID_NUM (16)
-#define WIL_MCS_MAX (12) /* Maximum MCS supported */
-
-struct wil_net_stats {
-	unsigned long	rx_packets;
-	unsigned long	tx_packets;
-	unsigned long	rx_bytes;
-	unsigned long	tx_bytes;
-	unsigned long	tx_errors;
-	unsigned long	rx_dropped;
-	unsigned long	rx_non_data_frame;
-	unsigned long	rx_short_frame;
-	unsigned long	rx_large_frame;
-	unsigned long	rx_replay;
-	unsigned long	rx_mic_error; /* eDMA specific */
-	unsigned long	rx_key_error; /* eDMA specific */
-	unsigned long	rx_amsdu_error; /* eDMA specific */
-	u16 last_mcs_rx;
-	u64 rx_per_mcs[WIL_MCS_MAX + 1];
-};
-
 /**
  * struct wil_sta_info - data for peer
  *
@@ -706,6 +727,14 @@ struct wil_sta_info {
 	u8 mid;
 	enum wil_sta_status status;
 	struct wil_net_stats stats;
+	/**
+	 * 20 latency bins. 1st bin counts packets with latency
+	 * of 0..tx_latency_res, last bin counts packets with latency
+	 * of 19*tx_latency_res and above.
+	 * tx_latency_res is configured from "tx_latency" debug-fs.
+	 */
+	u64 *tx_latency_bins;
+	struct wmi_link_stats_basic fw_stats_basic;
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
 	spinlock_t tid_rx_lock; /* guarding tid_rx array */
@@ -820,6 +849,8 @@ struct wil6210_vif {
 	struct mutex probe_client_mutex; /* protect @probe_client_pending */
 	struct work_struct probe_client_worker;
 	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
+	bool fw_stats_ready; /* per-cid statistics are ready inside sta_info */
+	u64 fw_stats_tsf; /* measurement timestamp */
 };
 
 /**
@@ -847,11 +878,18 @@ struct wil_rx_buff_mgmt {
 	unsigned long free_list_empty_cnt; /* statistics */
 };
 
+struct wil_fw_stats_global {
+	bool ready;
+	u64 tsf; /* measurement timestamp */
+	struct wmi_link_stats_global stats;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	u32 bar_size;
 	struct wiphy *wiphy;
 	struct net_device *main_ndev;
+	int n_msi;
 	void __iomem *csr;
 	DECLARE_BITMAP(status, wil_status_last);
 	u8 fw_version[ETHTOOL_FWVERS_LEN];
@@ -937,6 +975,8 @@ struct wil6210_priv {
 	u8 wakeup_trigger;
 	struct wil_suspend_stats suspend_stats;
 	struct wil_debugfs_data dbg_data;
+	bool tx_latency; /* collect TX latency measurements */
+	size_t tx_latency_res; /* bin resolution in usec */
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
@@ -977,6 +1017,11 @@ struct wil6210_priv {
 	bool use_rx_hw_reordering;
 	bool secured_boot;
 	u8 boot_config;
+
+	struct wil_fw_stats_global fw_stats_global;
+
+	u32 max_agg_wsize;
+	u32 max_ampdu_size;
 };
 
 #define wil_to_wiphy(i) (i->wiphy)
@@ -1059,6 +1104,8 @@ static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 {
 	wil_w(wil, reg, wil_r(wil, reg) & ~val);
 }
+
+void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len);
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
@@ -1176,13 +1223,14 @@ int wmi_new_sta(struct wil6210_vif *vif, const u8 *mac, u8 aid);
 int wmi_port_allocate(struct wil6210_priv *wil, u8 mid,
 		      const u8 *mac, enum nl80211_iftype iftype);
 int wmi_port_delete(struct wil6210_priv *wil, u8 mid);
+int wmi_link_stats_cfg(struct wil6210_vif *vif, u32 type, u8 cid, u32 interval);
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid,
 			 u8 cidxtid, u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
 int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize);
 
 void wil6210_clear_irq(struct wil6210_priv *wil);
-int wil6210_init_irq(struct wil6210_priv *wil, int irq, bool use_msi);
+int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
 void wil_mask_irq(struct wil6210_priv *wil);
 void wil_unmask_irq(struct wil6210_priv *wil);
@@ -1304,6 +1352,8 @@ int wmi_start_sched_scan(struct wil6210_priv *wil,
 			 struct cfg80211_sched_scan_request *request);
 int wmi_stop_sched_scan(struct wil6210_priv *wil);
 int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
+int wmi_mgmt_tx_ext(struct wil6210_vif *vif, const u8 *buf, size_t len,
+		    u8 channel, u16 duration_ms);
 
 int reverse_memcmp(const void *cs, const void *ct, size_t count);
 

@@ -95,7 +95,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
 	struct wil6210_vif *vif;
 	struct net_device *ndev;
-	int tid, cid, mid, mcast;
+	int tid, cid, mid, mcast, retry;
 	u16 seq;
 	struct wil_sta_info *sta;
 	struct wil_tid_ampdu_rx *r;
@@ -103,7 +103,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	int index;
 
 	wil->txrx_ops.get_reorder_params(wil, skb, &tid, &cid, &mid, &seq,
-					 &mcast);
+					 &mcast, &retry);
 	sta = &wil->sta[cid];
 
 	wil_dbg_txrx(wil, "MID %d CID %d TID %d Seq 0x%03x mcast %01x\n",
@@ -117,15 +117,23 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	}
 	ndev = vif_to_ndev(vif);
 
-	if (unlikely(mcast)) {
-		wil_netif_rx_any(skb, ndev);
-		return;
-	}
-
 	spin_lock(&sta->tid_rx_lock);
 
 	r = sta->tid_rx[tid];
 	if (!r) {
+		wil_netif_rx_any(skb, ndev);
+		goto out;
+	}
+
+	if (unlikely(mcast)) {
+		if (retry && seq == r->mcast_last_seq) {
+			r->drop_dup_mcast++;
+			wil_dbg_txrx(wil, "Rx drop: dup mcast seq 0x%03x\n",
+				     seq);
+			dev_kfree_skb(skb);
+			goto out;
+		}
+		r->mcast_last_seq = seq;
 		wil_netif_rx_any(skb, ndev);
 		goto out;
 	}
@@ -262,6 +270,7 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 	r->buf_size = size;
 	r->stored_mpdu_num = 0;
 	r->first_time = true;
+	r->mcast_last_seq = U16_MAX;
 	return r;
 }
 
@@ -288,7 +297,7 @@ void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 /* ADDBA processing */
 static u16 wil_agg_size(struct wil6210_priv *wil, u16 req_agg_wsize)
 {
-	u16 max_agg_size = min_t(u16, WIL_MAX_AGG_WSIZE, WIL_MAX_AMPDU_SIZE /
+	u16 max_agg_size = min_t(u16, wil->max_agg_wsize, wil->max_ampdu_size /
 				 (mtu_max + WIL_MAX_MPDU_OVERHEAD));
 
 	if (!req_agg_wsize)
@@ -355,11 +364,11 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	if (status == WLAN_STATUS_SUCCESS) {
 		if (req_agg_wsize == 0) {
 			wil_dbg_misc(wil, "Suggest BACK wsize %d\n",
-				     WIL_MAX_AGG_WSIZE);
-			agg_wsize = WIL_MAX_AGG_WSIZE;
+				     wil->max_agg_wsize);
+			agg_wsize = wil->max_agg_wsize;
 		} else {
 			agg_wsize = min_t(u16,
-					  WIL_MAX_AGG_WSIZE, req_agg_wsize);
+					  wil->max_agg_wsize, req_agg_wsize);
 		}
 	}
 

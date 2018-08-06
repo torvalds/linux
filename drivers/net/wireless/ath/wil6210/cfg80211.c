@@ -689,11 +689,12 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "scan: wdev=0x%p iftype=%d\n", wdev, wdev->iftype);
 
-	/* check we are client side */
+	/* scan is supported on client interfaces and on AP interface */
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_AP:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1089,18 +1090,51 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	int rc;
 	bool tx_status;
 
-	/* Note, currently we do not support the "wait" parameter, user-space
-	 * must call remain_on_channel before mgmt_tx or listen on a channel
-	 * another way (AP/PCP or connected station)
-	 * in addition we need to check if specified "chan" argument is
-	 * different from currently "listened" channel and fail if it is.
+	wil_dbg_misc(wil, "mgmt_tx: channel %d offchan %d, wait %d\n",
+		     params->chan ? params->chan->hw_value : -1,
+		     params->offchan,
+		     params->wait);
+
+	/* Note, currently we support the "wait" parameter only on AP mode.
+	 * In other modes, user-space must call remain_on_channel before
+	 * mgmt_tx or listen on a channel other than active one.
 	 */
 
-	rc = wmi_mgmt_tx(vif, buf, len);
-	tx_status = (rc == 0);
+	if (params->chan && params->chan->hw_value == 0) {
+		wil_err(wil, "invalid channel\n");
+		return -EINVAL;
+	}
 
+	if (wdev->iftype != NL80211_IFTYPE_AP) {
+		wil_dbg_misc(wil,
+			     "send WMI_SW_TX_REQ_CMDID on non-AP interfaces\n");
+		rc = wmi_mgmt_tx(vif, buf, len);
+		goto out;
+	}
+
+	if (!params->chan || params->chan->hw_value == vif->channel) {
+		wil_dbg_misc(wil,
+			     "send WMI_SW_TX_REQ_CMDID for on-channel\n");
+		rc = wmi_mgmt_tx(vif, buf, len);
+		goto out;
+	}
+
+	if (params->offchan == 0) {
+		wil_err(wil,
+			"invalid channel params: current %d requested %d, off-channel not allowed\n",
+			vif->channel, params->chan->hw_value);
+		return -EBUSY;
+	}
+
+	/* use the wmi_mgmt_tx_ext only on AP mode and off-channel */
+	rc = wmi_mgmt_tx_ext(vif, buf, len, params->chan->hw_value,
+			     params->wait);
+
+out:
+	tx_status = (rc == 0);
 	cfg80211_mgmt_tx_status(wdev, cookie ? *cookie : 0, buf, len,
 				tx_status, GFP_KERNEL);
+
 	return rc;
 }
 
