@@ -29,7 +29,6 @@
 
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/signal.h>
 #include <asm/byteorder.h>
 
 typedef __kernel_ulong_t aio_context_t;
@@ -109,11 +108,6 @@ struct iocb {
 
 #undef IFBIG
 #undef IFLITTLE
-
-struct __aio_sigset {
-	const sigset_t __user	*sigmask;
-	size_t		sigsetsize;
-};
 
 #endif /* __LINUX__AIO_ABI_H */
 

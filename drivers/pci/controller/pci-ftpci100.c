@@ -503,7 +503,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 				dev_err(dev, "illegal IO mem size\n");
 				return -EINVAL;
 			}
-			ret = pci_remap_iospace(io, io_base);
+			ret = devm_pci_remap_iospace(dev, io, io_base);
 			if (ret) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 ret, io);

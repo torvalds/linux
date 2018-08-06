@@ -2140,7 +2140,7 @@ static unsigned int tcpm_pd_select_pps_apdo(struct tcpm_port *port)
 			 * PPS APDO. Again skip the first sink PDO as this will
 			 * always be 5V 3A.
 			 */
-			for (j = i; j < port->nr_snk_pdo; j++) {
+			for (j = 1; j < port->nr_snk_pdo; j++) {
 				pdo = port->snk_pdo[j];
 
 				switch (pdo_type(pdo)) {

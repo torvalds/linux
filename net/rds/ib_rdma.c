@@ -537,11 +537,12 @@ void rds_ib_flush_mrs(void)
 }
 
 void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
-		    struct rds_sock *rs, u32 *key_ret)
+		    struct rds_sock *rs, u32 *key_ret,
+		    struct rds_connection *conn)
 {
 	struct rds_ib_device *rds_ibdev;
 	struct rds_ib_mr *ibmr = NULL;
-	struct rds_ib_connection *ic = rs->rs_conn->c_transport_data;
+	struct rds_ib_connection *ic = NULL;
 	int ret;
 
 	rds_ibdev = rds_ib_get_device(rs->rs_bound_addr);
@@ -549,6 +550,9 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		ret = -ENODEV;
 		goto out;
 	}
+
+	if (conn)
+		ic = conn->c_transport_data;
 
 	if (!rds_ibdev->mr_8k_pool || !rds_ibdev->mr_1m_pool) {
 		ret = -ENODEV;
@@ -559,17 +563,18 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		ibmr = rds_ib_reg_frmr(rds_ibdev, ic, sg, nents, key_ret);
 	else
 		ibmr = rds_ib_reg_fmr(rds_ibdev, sg, nents, key_ret);
-	if (ibmr)
-		rds_ibdev = NULL;
+	if (IS_ERR(ibmr)) {
+		ret = PTR_ERR(ibmr);
+		pr_warn("RDS/IB: rds_ib_get_mr failed (errno=%d)\n", ret);
+	} else {
+		return ibmr;
+	}
 
  out:
-	if (!ibmr)
-		pr_warn("RDS/IB: rds_ib_get_mr failed (errno=%d)\n", ret);
-
 	if (rds_ibdev)
 		rds_ib_dev_put(rds_ibdev);
 
-	return ibmr;
+	return ERR_PTR(ret);
 }
 
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *pool)

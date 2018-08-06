@@ -1470,7 +1470,6 @@ void bnxt_set_max_func_stat_ctxs(struct bnxt *bp, unsigned int max);
 unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp);
 void bnxt_set_max_func_cp_rings(struct bnxt *bp, unsigned int max);
 unsigned int bnxt_get_max_func_irqs(struct bnxt *bp);
-void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max);
 int bnxt_get_avail_msix(struct bnxt *bp, int num);
 int bnxt_reserve_rings(struct bnxt *bp);
 void bnxt_tx_disable(struct bnxt *bp);

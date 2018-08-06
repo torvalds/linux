@@ -3712,7 +3712,8 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 
 	if (!reset) {
 		params->sw_mtu = new_mtu;
-		set_mtu_cb(priv);
+		if (set_mtu_cb)
+			set_mtu_cb(priv);
 		netdev->mtu = params->sw_mtu;
 		goto out;
 	}
