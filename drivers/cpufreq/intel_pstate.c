@@ -670,21 +670,18 @@ static ssize_t store_energy_performance_preference(
 {
 	struct cpudata *cpu_data = all_cpu_data[policy->cpu];
 	char str_preference[21];
-	int ret, i = 0;
+	int ret;
 
 	ret = sscanf(buf, "%20s", str_preference);
 	if (ret != 1)
 		return -EINVAL;
 
-	while (energy_perf_strings[i] != NULL) {
-		if (!strcmp(str_preference, energy_perf_strings[i])) {
-			intel_pstate_set_energy_pref_index(cpu_data, i);
-			return count;
-		}
-		++i;
-	}
+	ret = match_string(energy_perf_strings, -1, str_preference);
+	if (ret < 0)
+		return ret;
 
-	return -EINVAL;
+	intel_pstate_set_energy_pref_index(cpu_data, ret);
+	return count;
 }
 
 static ssize_t show_energy_performance_preference(
@@ -2084,6 +2081,15 @@ static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.max_freq = global.turbo_disabled ?
 			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 	policy->cpuinfo.max_freq *= cpu->pstate.scaling;
+
+	if (hwp_active) {
+		unsigned int max_freq;
+
+		max_freq = global.turbo_disabled ?
+			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
+		if (max_freq < policy->cpuinfo.max_freq)
+			policy->cpuinfo.max_freq = max_freq;
+	}
 
 	intel_pstate_init_acpi_perf_limits(policy);
 
