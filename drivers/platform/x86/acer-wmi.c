@@ -672,10 +672,7 @@ static void __init find_quirks(void)
 
 static bool has_cap(u32 cap)
 {
-	if ((interface->capability & cap) != 0)
-		return 1;
-
-	return 0;
+	return interface->capability & cap;
 }
 
 /*
