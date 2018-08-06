@@ -255,7 +255,7 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p, r);
 
-	vgic_v3_dispatch_sgi(vcpu, p->regval);
+	vgic_v3_dispatch_sgi(vcpu, p->regval, true);
 
 	return true;
 }

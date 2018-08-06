@@ -253,7 +253,7 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 	reg = (u64)*vcpu_reg(vcpu, p->Rt2) << 32;
 	reg |= *vcpu_reg(vcpu, p->Rt1) ;
 
-	vgic_v3_dispatch_sgi(vcpu, reg);
+	vgic_v3_dispatch_sgi(vcpu, reg, true);
 
 	return true;
 }

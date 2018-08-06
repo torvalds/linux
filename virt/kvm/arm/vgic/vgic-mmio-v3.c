@@ -900,7 +900,8 @@ static int match_mpidr(u64 sgi_aff, u16 sgi_cpu_mask, struct kvm_vcpu *vcpu)
 /**
  * vgic_v3_dispatch_sgi - handle SGI requests from VCPUs
  * @vcpu: The VCPU requesting a SGI
- * @reg: The value written into the ICC_SGI1R_EL1 register by that VCPU
+ * @reg: The value written into ICC_{ASGI1,SGI0,SGI1}R by that VCPU
+ * @allow_group1: Does the sysreg access allow generation of G1 SGIs
  *
  * With GICv3 (and ARE=1) CPUs trigger SGIs by writing to a system register.
  * This will trap in sys_regs.c and call this function.
@@ -910,7 +911,7 @@ static int match_mpidr(u64 sgi_aff, u16 sgi_cpu_mask, struct kvm_vcpu *vcpu)
  * check for matching ones. If this bit is set, we signal all, but not the
  * calling VCPU.
  */
-void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
+void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu *c_vcpu;
@@ -959,9 +960,19 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
 		irq = vgic_get_irq(vcpu->kvm, c_vcpu, sgi);
 
 		spin_lock_irqsave(&irq->irq_lock, flags);
-		irq->pending_latch = true;
 
-		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
+		/*
+		 * An access targetting Group0 SGIs can only generate
+		 * those, while an access targetting Group1 SGIs can
+		 * generate interrupts of either group.
+		 */
+		if (!irq->group || allow_group1) {
+			irq->pending_latch = true;
+			vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
+		} else {
+			spin_unlock_irqrestore(&irq->irq_lock, flags);
+		}
+
 		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
