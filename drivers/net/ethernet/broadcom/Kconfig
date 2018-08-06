@@ -230,4 +230,12 @@ config BNXT_DCB
 
 	  If unsure, say N.
 
+config BNXT_HWMON
+	bool "Broadcom NetXtreme-C/E HWMON support"
+	default y
+	depends on BNXT && HWMON && !(BNXT=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
+	  devices, via the hwmon sysfs interface.
+
 endif # NET_VENDOR_BROADCOM

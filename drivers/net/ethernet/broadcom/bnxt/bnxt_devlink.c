@@ -29,7 +29,7 @@ static const struct bnxt_dl_nvm_param nvm_params[] = {
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 			     int msg_len, union devlink_param_value *val)
 {
-	struct hwrm_nvm_variable_input *req = msg;
+	struct hwrm_nvm_get_variable_input *req = msg;
 	void *data_addr = NULL, *buf = NULL;
 	struct bnxt_dl_nvm_param nvm_param;
 	int bytesize, idx = 0, rc, i;
@@ -60,18 +60,18 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	if (!data_addr)
 		return -ENOMEM;
 
-	req->data_addr = cpu_to_le64(data_dma_addr);
+	req->dest_data_addr = cpu_to_le64(data_dma_addr);
 	req->data_len = cpu_to_le16(nvm_param.num_bits);
 	req->option_num = cpu_to_le16(nvm_param.offset);
 	req->index_0 = cpu_to_le16(idx);
 	if (idx)
 		req->dimensions = cpu_to_le16(1);
 
-	if (req->req_type == HWRM_NVM_SET_VARIABLE)
+	if (req->req_type == cpu_to_le16(HWRM_NVM_SET_VARIABLE))
 		memcpy(data_addr, buf, bytesize);
 
 	rc = hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
-	if (!rc && req->req_type == HWRM_NVM_GET_VARIABLE)
+	if (!rc && req->req_type == cpu_to_le16(HWRM_NVM_GET_VARIABLE))
 		memcpy(buf, data_addr, bytesize);
 
 	dma_free_coherent(&bp->pdev->dev, bytesize, data_addr, data_dma_addr);
