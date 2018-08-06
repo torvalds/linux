@@ -199,8 +199,11 @@ static void xsk_destruct_skb(struct sk_buff *skb)
 {
 	u64 addr = (u64)(long)skb_shinfo(skb)->destructor_arg;
 	struct xdp_sock *xs = xdp_sk(skb->sk);
+	unsigned long flags;
 
+	spin_lock_irqsave(&xs->tx_completion_lock, flags);
 	WARN_ON_ONCE(xskq_produce_addr(xs->umem->cq, addr));
+	spin_unlock_irqrestore(&xs->tx_completion_lock, flags);
 
 	sock_wfree(skb);
 }
@@ -215,9 +218,6 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 	struct sk_buff *skb;
 	int err = 0;
 
-	if (unlikely(!xs->tx))
-		return -ENOBUFS;
-
 	mutex_lock(&xs->mutex);
 
 	while (xskq_peek_desc(xs->tx, &desc)) {
@@ -230,22 +230,13 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 			goto out;
 		}
 
-		if (xskq_reserve_addr(xs->umem->cq)) {
-			err = -EAGAIN;
+		if (xskq_reserve_addr(xs->umem->cq))
 			goto out;
-		}
+
+		if (xs->queue_id >= xs->dev->real_num_tx_queues)
+			goto out;
 
 		len = desc.len;
-		if (unlikely(len > xs->dev->mtu)) {
-			err = -EMSGSIZE;
-			goto out;
-		}
-
-		if (xs->queue_id >= xs->dev->real_num_tx_queues) {
-			err = -ENXIO;
-			goto out;
-		}
-
 		skb = sock_alloc_send_skb(sk, len, 1, &err);
 		if (unlikely(!skb)) {
 			err = -EAGAIN;
@@ -268,15 +259,15 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 		skb->destructor = xsk_destruct_skb;
 
 		err = dev_direct_xmit(skb, xs->queue_id);
+		xskq_discard_desc(xs->tx);
 		/* Ignore NET_XMIT_CN as packet might have been sent */
 		if (err == NET_XMIT_DROP || err == NETDEV_TX_BUSY) {
-			err = -EAGAIN;
-			/* SKB consumed by dev_direct_xmit() */
+			/* SKB completed but not sent */
+			err = -EBUSY;
 			goto out;
 		}
 
 		sent_frame = true;
-		xskq_discard_desc(xs->tx);
 	}
 
 out:
@@ -297,6 +288,8 @@ static int xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 		return -ENXIO;
 	if (unlikely(!(xs->dev->flags & IFF_UP)))
 		return -ENETDOWN;
+	if (unlikely(!xs->tx))
+		return -ENOBUFS;
 	if (need_wait)
 		return -EOPNOTSUPP;
 
@@ -755,6 +748,7 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 
 	xs = xdp_sk(sk);
 	mutex_init(&xs->mutex);
+	spin_lock_init(&xs->tx_completion_lock);
 
 	local_bh_disable();
 	sock_prot_inuse_add(net, &xsk_proto, 1);

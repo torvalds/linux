@@ -495,7 +495,8 @@ out:
 
 void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 {
-	union smc_host_cursor cfed, cons;
+	union smc_host_cursor cfed, cons, prod;
+	int sender_free = conn->rmb_desc->len;
 	int to_confirm;
 
 	smc_curs_write(&cons,
@@ -505,11 +506,18 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 		       smc_curs_read(&conn->rx_curs_confirmed, conn),
 		       conn);
 	to_confirm = smc_curs_diff(conn->rmb_desc->len, &cfed, &cons);
+	if (to_confirm > conn->rmbe_update_limit) {
+		smc_curs_write(&prod,
+			       smc_curs_read(&conn->local_rx_ctrl.prod, conn),
+			       conn);
+		sender_free = conn->rmb_desc->len -
+			      smc_curs_diff(conn->rmb_desc->len, &prod, &cfed);
+	}
 
 	if (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||
 	    force ||
 	    ((to_confirm > conn->rmbe_update_limit) &&
-	     ((to_confirm > (conn->rmb_desc->len / 2)) ||
+	     ((sender_free <= (conn->rmb_desc->len / 2)) ||
 	      conn->local_rx_ctrl.prod_flags.write_blocked))) {
 		if ((smc_cdc_get_slot_and_msg_send(conn) < 0) &&
 		    conn->alert_token_local) { /* connection healthy */

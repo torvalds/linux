@@ -3327,11 +3327,13 @@ static void btrfs_cmp_data_free(struct cmp_pages *cmp)
 		if (pg) {
 			unlock_page(pg);
 			put_page(pg);
+			cmp->src_pages[i] = NULL;
 		}
 		pg = cmp->dst_pages[i];
 		if (pg) {
 			unlock_page(pg);
 			put_page(pg);
+			cmp->dst_pages[i] = NULL;
 		}
 	}
 }

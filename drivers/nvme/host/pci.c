@@ -2485,11 +2485,6 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	quirks |= check_vendor_combination_bug(pdev);
 
-	result = nvme_init_ctrl(&dev->ctrl, &pdev->dev, &nvme_pci_ctrl_ops,
-			quirks);
-	if (result)
-		goto release_pools;
-
 	/*
 	 * Double check that our mempool alloc size will cover the biggest
 	 * command we support.
@@ -2507,6 +2502,11 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto release_pools;
 	}
 
+	result = nvme_init_ctrl(&dev->ctrl, &pdev->dev, &nvme_pci_ctrl_ops,
+			quirks);
+	if (result)
+		goto release_mempool;
+
 	dev_info(dev->ctrl.device, "pci function %s\n", dev_name(&pdev->dev));
 
 	nvme_get_ctrl(&dev->ctrl);
@@ -2514,6 +2514,8 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
+ release_mempool:
+	mempool_destroy(dev->iod_mempool);
  release_pools:
 	nvme_release_prp_pools(dev);
  unmap:
