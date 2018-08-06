@@ -55,6 +55,11 @@
 #define ULITE_CONTROL_RST_RX	0x02
 #define ULITE_CONTROL_IE	0x10
 
+/* Static pointer to console port */
+#ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
+static struct uart_port *console_port;
+#endif
+
 struct uartlite_data {
 	const struct uartlite_reg_ops *reg_ops;
 	struct clk *clk;
@@ -472,7 +477,7 @@ static void ulite_console_putchar(struct uart_port *port, int ch)
 static void ulite_console_write(struct console *co, const char *s,
 				unsigned int count)
 {
-	struct uart_port *port = &ulite_ports[co->index];
+	struct uart_port *port = console_port;
 	unsigned long flags;
 	unsigned int ier;
 	int locked = 1;
@@ -506,10 +511,8 @@ static int ulite_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	if (co->index < 0 || co->index >= ULITE_NR_UARTS)
-		return -EINVAL;
 
-	port = &ulite_ports[co->index];
+	port = console_port;
 
 	/* Has the device been initialized yet? */
 	if (!port->mapbase) {
@@ -652,6 +655,17 @@ static int ulite_assign(struct device *dev, int id, u32 base, int irq,
 
 	dev_set_drvdata(dev, port);
 
+#ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
+	/*
+	 * If console hasn't been found yet try to assign this port
+	 * because it is required to be assigned for console setup function.
+	 * If register_console() don't assign value, then console_port pointer
+	 * is cleanup.
+	 */
+	if (ulite_uart_driver.cons->index == -1)
+		console_port = port;
+#endif
+
 	/* Register the port */
 	rc = uart_add_one_port(&ulite_uart_driver, port);
 	if (rc) {
@@ -660,6 +674,12 @@ static int ulite_assign(struct device *dev, int id, u32 base, int irq,
 		dev_set_drvdata(dev, NULL);
 		return rc;
 	}
+
+#ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
+	/* This is not port which is used for console that's why clean it up */
+	if (ulite_uart_driver.cons->index == -1)
+		console_port = NULL;
+#endif
 
 	return 0;
 }
