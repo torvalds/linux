@@ -386,7 +386,7 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev, const char *name,
 			"Cannot handle unsupported interrupt type %d\n",
 			interrupt_data->type);
 		ret = -EINVAL;
-	};
+	}
 
 	if (ret) {
 		/* Failing to setup interrupts will cause the device to report
@@ -445,7 +445,7 @@ int gasket_interrupt_reinit(struct gasket_dev *gasket_dev)
 			"Cannot handle unsupported interrupt type %d\n",
 			gasket_dev->interrupt_data->type);
 		ret = -EINVAL;
-	};
+	}
 
 	if (ret) {
 		/* Failing to setup MSIx will cause the device
@@ -493,7 +493,7 @@ void gasket_interrupt_cleanup(struct gasket_dev *gasket_dev)
 		dev_dbg(gasket_dev->dev,
 			"Cannot handle unsupported interrupt type %d\n",
 			interrupt_data->type);
-	};
+	}
 
 	kfree(interrupt_data->interrupt_counts);
 	kfree(interrupt_data->eventfd_ctxs);
