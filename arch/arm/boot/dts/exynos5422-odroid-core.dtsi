@@ -235,6 +235,13 @@
 				regulator-max-microvolt = <2800000>;
 			};
 
+			ldo14_reg: LDO14 {
+				/* Unused */
+				regulator-name = "vdd_ldo14";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
 			ldo15_reg: LDO15 {
 				regulator-name = "vdd_ldo15";
 				regulator-min-microvolt = <3300000>;
@@ -268,6 +275,27 @@
 				regulator-max-microvolt = <2800000>;
 			};
 
+			ldo20_reg: LDO20 {
+				/* Unused */
+				regulator-name = "vdd_ldo20";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo21_reg: LDO21 {
+				/* Unused */
+				regulator-name = "vdd_ldo21";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo22_reg: LDO22 {
+				/* Unused */
+				regulator-name = "vdd_ldo22";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <2375000>;
+			};
+
 			ldo23_reg: LDO23 {
 				regulator-name = "vdd_mifs";
 				regulator-min-microvolt = <1100000>;
@@ -282,6 +310,13 @@
 				regulator-always-on;
 			};
 
+			ldo25_reg: LDO25 {
+				/* Unused */
+				regulator-name = "vdd_ldo25";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
 			ldo26_reg: LDO26 {
 				regulator-name = "vdd_ldo26";
 				regulator-min-microvolt = <3000000>;
@@ -294,6 +329,76 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
+			};
+
+			ldo29_reg: LDO29 {
+				/* Unused */
+				regulator-name = "vdd_ldo29";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo30_reg: LDO30 {
+				/* Unused */
+				regulator-name = "vdd_ldo30";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo31_reg: LDO31 {
+				/* Unused */
+				regulator-name = "vdd_ldo31";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo32_reg: LDO32 {
+				/* Unused */
+				regulator-name = "vdd_ldo32";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo33_reg: LDO33 {
+				/* Unused */
+				regulator-name = "vdd_ldo33";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo34_reg: LDO34 {
+				/* Unused */
+				regulator-name = "vdd_ldo34";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo35_reg: LDO35 {
+				/* Unused */
+				regulator-name = "vdd_ldo35";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <2375000>;
+			};
+
+			ldo36_reg: LDO36 {
+				/* Unused */
+				regulator-name = "vdd_ldo36";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo37_reg: LDO37 {
+				/* Unused */
+				regulator-name = "vdd_ldo37";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo38_reg: LDO38 {
+				/* Unused */
+				regulator-name = "vdd_ldo38";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			buck1_reg: BUCK1 {
