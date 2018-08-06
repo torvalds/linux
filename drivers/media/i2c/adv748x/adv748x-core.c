@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Analog Devices ADV748X HDMI receiver with AFE
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Authors:
  *	Koji Matsuoka <koji.matsuoka.xm@renesas.com>
@@ -755,4 +751,4 @@ module_i2c_driver(adv748x_driver);
 
 MODULE_AUTHOR("Kieran Bingham <kieran.bingham@ideasonboard.com>");
 MODULE_DESCRIPTION("ADV748X video decoder");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
