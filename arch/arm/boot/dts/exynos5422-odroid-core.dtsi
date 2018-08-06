@@ -223,10 +223,10 @@
 			};
 
 			ldo12_reg: LDO12 {
+				/* Unused */
 				regulator-name = "vdd_ldo12";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <2375000>;
 			};
 
 			ldo13_reg: LDO13 {
@@ -250,10 +250,10 @@
 			};
 
 			ldo16_reg: LDO16 {
+				/* Unused */
 				regulator-name = "vdd_ldo16";
-				regulator-min-microvolt = <2200000>;
-				regulator-max-microvolt = <2200000>;
-				regulator-always-on;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			ldo17_reg: LDO17 {
@@ -304,10 +304,10 @@
 			};
 
 			ldo24_reg: LDO24 {
-				regulator-name = "tsp_io";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
+				/* Unused */
+				regulator-name = "vdd_ldo24";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			ldo25_reg: LDO25 {
@@ -318,10 +318,10 @@
 			};
 
 			ldo26_reg: LDO26 {
+				/* Used on XU3, XU3-Lite and XU4 */
 				regulator-name = "vdd_ldo26";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-always-on;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			ldo27_reg: LDO27 {
