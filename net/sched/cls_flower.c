@@ -1338,8 +1338,8 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 				TC_CLSFLOWER_REPLACE : TC_CLSFLOWER_DESTROY;
 			cls_flower.cookie = (unsigned long)f;
 			cls_flower.dissector = &mask->dissector;
-			cls_flower.mask = &f->mkey;
-			cls_flower.key = &f->key;
+			cls_flower.mask = &mask->key;
+			cls_flower.key = &f->mkey;
 			cls_flower.exts = &f->exts;
 			cls_flower.classid = f->res.classid;
 
