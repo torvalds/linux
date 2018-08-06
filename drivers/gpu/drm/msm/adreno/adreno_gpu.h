@@ -50,7 +50,9 @@ enum adreno_regs {
 
 enum {
 	ADRENO_FW_PM4 = 0,
+	ADRENO_FW_SQE = 0, /* a6xx */
 	ADRENO_FW_PFP = 1,
+	ADRENO_FW_GMU = 1, /* a6xx */
 	ADRENO_FW_GPMU = 2,
 	ADRENO_FW_MAX,
 };
@@ -335,6 +337,7 @@ static inline void adreno_gpu_write(struct adreno_gpu *gpu,
 struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a5xx_gpu_init(struct drm_device *dev);
+struct msm_gpu *a6xx_gpu_init(struct drm_device *dev);
 
 static inline void adreno_gpu_write64(struct adreno_gpu *gpu,
 		enum adreno_regs lo, enum adreno_regs hi, u64 data)

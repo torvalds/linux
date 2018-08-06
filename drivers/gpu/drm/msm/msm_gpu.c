@@ -88,7 +88,7 @@ static struct devfreq_dev_profile msm_devfreq_profile = {
 static void msm_devfreq_init(struct msm_gpu *gpu)
 {
 	/* We need target support to do devfreq */
-	if (!gpu->funcs->gpu_busy)
+	if (!gpu->funcs->gpu_busy || !gpu->core_clk)
 		return;
 
 	msm_devfreq_profile.initial_freq = gpu->fast_rate;
