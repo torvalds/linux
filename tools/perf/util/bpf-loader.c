@@ -1529,11 +1529,14 @@ int bpf__apply_obj_config(void)
 	bpf_object__for_each_safe(obj, objtmp)	\
 		bpf_map__for_each(pos, obj)
 
-#define bpf__for_each_stdout_map(pos, obj, objtmp)	\
+#define bpf__for_each_map_named(pos, obj, objtmp, name)	\
 	bpf__for_each_map(pos, obj, objtmp) 		\
 		if (bpf_map__name(pos) && 		\
-			(strcmp("__bpf_stdout__", 	\
+			(strcmp(name, 			\
 				bpf_map__name(pos)) == 0))
+
+#define bpf__for_each_stdout_map(pos, obj, objtmp) \
+	 bpf__for_each_map_named(pos, obj, objtmp, "__bpf_stdout__")
 
 int bpf__setup_stdout(struct perf_evlist *evlist)
 {
