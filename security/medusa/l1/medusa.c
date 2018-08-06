@@ -1623,22 +1623,6 @@ struct security_hook_list medusa_l1_hooks_special[] = {
 
 void __init medusa_init(void);
 
-static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
-	struct inode *entry;
-	struct list_head *tmp;
-
-	medusa_l1_sb_kern_mount(sb, 0, NULL);
-	printk("medusa: sb: %s\n", sb->s_root->d_name.name);
-
-	list_for_each(tmp, &sb->s_inodes) {
-		entry = list_entry(tmp, struct inode, i_sb_list);
-		if (entry->i_security == NULL) {
-			printk("medusa: QQQ l1_init_sb: inode_alloc_security");
-			medusa_l1_inode_alloc_security(entry);
-		}
-	}
-}
-
 // Number and order of hooks has to be the same
 static inline void security_replace_hooks(struct security_hook_list *old_hooks, struct security_hook_list *new_hooks, int count)
 {
