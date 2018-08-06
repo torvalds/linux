@@ -1029,117 +1029,25 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 /*
  * i915_power_well_id:
  *
- * Platform specific IDs used to look up power wells and - except for custom
- * power wells - to define request/status register flag bit positions. As such
- * the set of IDs on a given platform must be unique and except for custom
- * power wells their value must stay fixed.
+ * IDs used to look up power wells. Power wells accessed directly bypassing
+ * the power domains framework must be assigned a unique ID. The rest of power
+ * wells must be assigned DISP_PW_ID_NONE.
  */
 enum i915_power_well_id {
-	/*
-	 * I830
-	 *  - custom power well
-	 */
-	I830_DISP_PW_PIPES = 0,
+	DISP_PW_ID_NONE,
 
-	/*
-	 * VLV/CHV
-	 *  - PUNIT_REG_PWRGT_CTRL (bit: id*2),
-	 *    PUNIT_REG_PWRGT_STATUS (bit: id*2) (PUNIT HAS v0.8)
-	 */
-	PUNIT_POWER_WELL_RENDER			= 0,
-	PUNIT_POWER_WELL_MEDIA			= 1,
-	PUNIT_POWER_WELL_DISP2D			= 3,
-	PUNIT_POWER_WELL_DPIO_CMN_BC		= 5,
-	PUNIT_POWER_WELL_DPIO_TX_B_LANES_01	= 6,
-	PUNIT_POWER_WELL_DPIO_TX_B_LANES_23	= 7,
-	PUNIT_POWER_WELL_DPIO_TX_C_LANES_01	= 8,
-	PUNIT_POWER_WELL_DPIO_TX_C_LANES_23	= 9,
-	PUNIT_POWER_WELL_DPIO_RX0		= 10,
-	PUNIT_POWER_WELL_DPIO_RX1		= 11,
-	PUNIT_POWER_WELL_DPIO_CMN_D		= 12,
-	/*  - custom power well */
-	CHV_DISP_PW_PIPE_A,			/* 13 */
-
-	/*
-	 * HSW/BDW
-	 *  - _HSW_PWR_WELL_CTL1-4 (status bit: id*2, req bit: id*2+1)
-	 */
-	HSW_DISP_PW_GLOBAL = 15,
-
-	/*
-	 * GEN9+
-	 *  - _HSW_PWR_WELL_CTL1-4 (status bit: id*2, req bit: id*2+1)
-	 */
-	SKL_DISP_PW_MISC_IO = 0,
-	SKL_DISP_PW_DDI_A_E,
-	GLK_DISP_PW_DDI_A = SKL_DISP_PW_DDI_A_E,
-	CNL_DISP_PW_DDI_A = SKL_DISP_PW_DDI_A_E,
-	SKL_DISP_PW_DDI_B,
-	SKL_DISP_PW_DDI_C,
-	SKL_DISP_PW_DDI_D,
-	CNL_DISP_PW_DDI_F = 6,
-
-	GLK_DISP_PW_AUX_A = 8,
-	GLK_DISP_PW_AUX_B,
-	GLK_DISP_PW_AUX_C,
-	CNL_DISP_PW_AUX_A = GLK_DISP_PW_AUX_A,
-	CNL_DISP_PW_AUX_B = GLK_DISP_PW_AUX_B,
-	CNL_DISP_PW_AUX_C = GLK_DISP_PW_AUX_C,
-	CNL_DISP_PW_AUX_D,
-	CNL_DISP_PW_AUX_F,
-
-	SKL_DISP_PW_1 = 14,
+	PUNIT_POWER_WELL_DISP2D,
+	PUNIT_POWER_WELL_DPIO_CMN_BC,
+	PUNIT_POWER_WELL_DPIO_CMN_D,
+	HSW_DISP_PW_GLOBAL,
+	SKL_DISP_PW_MISC_IO,
+	SKL_DISP_PW_1,
 	SKL_DISP_PW_2,
-
-	/* - custom power wells */
 	BXT_DPIO_CMN_A,
 	BXT_DPIO_CMN_BC,
-	GLK_DPIO_CMN_C,			/* 18 */
-
-	/*
-	 * GEN11+
-	 *  - _HSW_PWR_WELL_CTL1-4
-	 *    (status bit: (id&15)*2, req bit:(id&15)*2+1)
-	 */
-	ICL_DISP_PW_1 = 0,
+	GLK_DPIO_CMN_C,
+	ICL_DISP_PW_1,
 	ICL_DISP_PW_2,
-	ICL_DISP_PW_3,
-	ICL_DISP_PW_4,
-
-	/*
-	 *  - _HSW_PWR_WELL_CTL_AUX1/2/4
-	 *    (status bit: (id&15)*2, req bit:(id&15)*2+1)
-	 */
-	ICL_DISP_PW_AUX_A = 16,
-	ICL_DISP_PW_AUX_B,
-	ICL_DISP_PW_AUX_C,
-	ICL_DISP_PW_AUX_D,
-	ICL_DISP_PW_AUX_E,
-	ICL_DISP_PW_AUX_F,
-
-	ICL_DISP_PW_AUX_TBT1 = 24,
-	ICL_DISP_PW_AUX_TBT2,
-	ICL_DISP_PW_AUX_TBT3,
-	ICL_DISP_PW_AUX_TBT4,
-
-	/*
-	 *  - _HSW_PWR_WELL_CTL_DDI1/2/4
-	 *    (status bit: (id&15)*2, req bit:(id&15)*2+1)
-	 */
-	ICL_DISP_PW_DDI_A = 32,
-	ICL_DISP_PW_DDI_B,
-	ICL_DISP_PW_DDI_C,
-	ICL_DISP_PW_DDI_D,
-	ICL_DISP_PW_DDI_E,
-	ICL_DISP_PW_DDI_F,                      /* 37 */
-
-	/*
-	 * Multiple platforms.
-	 * Must start following the highest ID of any platform.
-	 * - custom power wells
-	 */
-	SKL_DISP_PW_DC_OFF = 38,
-	I915_DISP_PW_ALWAYS_ON,
 };
 
 #define PUNIT_REG_PWRGT_CTRL			0x60

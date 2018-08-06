@@ -2067,7 +2067,7 @@ static const struct i915_power_well_desc i9xx_always_on_power_well[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 };
 
@@ -2084,13 +2084,13 @@ static const struct i915_power_well_desc i830_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "pipes",
 		.domains = I830_PIPES_POWER_DOMAINS,
 		.ops = &i830_pipes_power_well_ops,
-		.id = I830_DISP_PW_PIPES,
+		.id = DISP_PW_ID_NONE,
 	},
 };
 
@@ -2128,7 +2128,7 @@ static const struct i915_power_well_desc hsw_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "display",
@@ -2149,7 +2149,7 @@ static const struct i915_power_well_desc bdw_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "display",
@@ -2192,7 +2192,7 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "display",
@@ -2210,7 +2210,7 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
-		.id = PUNIT_POWER_WELL_DPIO_TX_B_LANES_01,
+		.id = DISP_PW_ID_NONE,
 		{
 			.vlv.idx = PUNIT_PWGT_IDX_DPIO_TX_B_LANES_01,
 		},
@@ -2222,7 +2222,7 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
-		.id = PUNIT_POWER_WELL_DPIO_TX_B_LANES_23,
+		.id = DISP_PW_ID_NONE,
 		{
 			.vlv.idx = PUNIT_PWGT_IDX_DPIO_TX_B_LANES_23,
 		},
@@ -2234,7 +2234,7 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
-		.id = PUNIT_POWER_WELL_DPIO_TX_C_LANES_01,
+		.id = DISP_PW_ID_NONE,
 		{
 			.vlv.idx = PUNIT_PWGT_IDX_DPIO_TX_C_LANES_01,
 		},
@@ -2246,7 +2246,7 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
-		.id = PUNIT_POWER_WELL_DPIO_TX_C_LANES_23,
+		.id = DISP_PW_ID_NONE,
 		{
 			.vlv.idx = PUNIT_PWGT_IDX_DPIO_TX_C_LANES_23,
 		},
@@ -2268,7 +2268,7 @@ static const struct i915_power_well_desc chv_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "display",
@@ -2279,7 +2279,7 @@ static const struct i915_power_well_desc chv_power_wells[] = {
 		 */
 		.domains = CHV_DISPLAY_POWER_DOMAINS,
 		.ops = &chv_pipe_power_well_ops,
-		.id = CHV_DISP_PW_PIPE_A,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "dpio-common-bc",
@@ -2319,7 +2319,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 1",
@@ -2348,7 +2348,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.name = "DC off",
 		.domains = SKL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = SKL_DISP_PW_DC_OFF,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 2",
@@ -2367,7 +2367,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.name = "DDI A/E IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_A_E_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_A_E,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_A_E,
@@ -2377,7 +2377,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.name = "DDI B IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_B,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_B,
@@ -2387,7 +2387,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.name = "DDI C IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_C,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_C,
@@ -2397,7 +2397,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.name = "DDI D IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_D_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_D,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_D,
@@ -2411,7 +2411,7 @@ static const struct i915_power_well_desc bxt_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 1",
@@ -2428,7 +2428,7 @@ static const struct i915_power_well_desc bxt_power_wells[] = {
 		.name = "DC off",
 		.domains = BXT_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = SKL_DISP_PW_DC_OFF,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 2",
@@ -2469,7 +2469,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 1",
@@ -2487,7 +2487,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "DC off",
 		.domains = GLK_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = SKL_DISP_PW_DC_OFF,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 2",
@@ -2533,7 +2533,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "AUX A",
 		.domains = GLK_DISPLAY_AUX_A_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = GLK_DISP_PW_AUX_A,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = GLK_PW_CTL_IDX_AUX_A,
@@ -2543,7 +2543,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "AUX B",
 		.domains = GLK_DISPLAY_AUX_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = GLK_DISP_PW_AUX_B,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = GLK_PW_CTL_IDX_AUX_B,
@@ -2553,7 +2553,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "AUX C",
 		.domains = GLK_DISPLAY_AUX_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = GLK_DISP_PW_AUX_C,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = GLK_PW_CTL_IDX_AUX_C,
@@ -2563,7 +2563,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "DDI A IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_A_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = GLK_DISP_PW_DDI_A,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = GLK_PW_CTL_IDX_DDI_A,
@@ -2573,7 +2573,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "DDI B IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_B,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_B,
@@ -2583,7 +2583,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "DDI C IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_C,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_C,
@@ -2597,7 +2597,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 1",
@@ -2615,7 +2615,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "AUX A",
 		.domains = CNL_DISPLAY_AUX_A_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = CNL_DISP_PW_AUX_A,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = GLK_PW_CTL_IDX_AUX_A,
@@ -2625,7 +2625,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "AUX B",
 		.domains = CNL_DISPLAY_AUX_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = CNL_DISP_PW_AUX_B,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = GLK_PW_CTL_IDX_AUX_B,
@@ -2635,7 +2635,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "AUX C",
 		.domains = CNL_DISPLAY_AUX_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = CNL_DISP_PW_AUX_C,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = GLK_PW_CTL_IDX_AUX_C,
@@ -2645,7 +2645,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "AUX D",
 		.domains = CNL_DISPLAY_AUX_D_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = CNL_DISP_PW_AUX_D,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = CNL_PW_CTL_IDX_AUX_D,
@@ -2655,7 +2655,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DC off",
 		.domains = CNL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = SKL_DISP_PW_DC_OFF,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 2",
@@ -2674,7 +2674,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DDI A IO power well",
 		.domains = CNL_DISPLAY_DDI_A_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = CNL_DISP_PW_DDI_A,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = GLK_PW_CTL_IDX_DDI_A,
@@ -2684,7 +2684,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DDI B IO power well",
 		.domains = CNL_DISPLAY_DDI_B_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_B,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_B,
@@ -2694,7 +2694,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DDI C IO power well",
 		.domains = CNL_DISPLAY_DDI_C_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_C,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_C,
@@ -2704,7 +2704,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DDI D IO power well",
 		.domains = CNL_DISPLAY_DDI_D_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = SKL_DISP_PW_DDI_D,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = SKL_PW_CTL_IDX_DDI_D,
@@ -2714,7 +2714,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DDI F IO power well",
 		.domains = CNL_DISPLAY_DDI_F_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = CNL_DISP_PW_DDI_F,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = CNL_PW_CTL_IDX_DDI_F,
@@ -2724,7 +2724,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "AUX F",
 		.domains = CNL_DISPLAY_AUX_F_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = CNL_DISP_PW_AUX_F,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = CNL_PW_CTL_IDX_AUX_F,
@@ -2757,7 +2757,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.id = I915_DISP_PW_ALWAYS_ON,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 1",
@@ -2786,13 +2786,13 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DC off",
 		.domains = ICL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = SKL_DISP_PW_DC_OFF,
+		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 3",
 		.domains = ICL_PW_3_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_3,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_PW_3,
@@ -2805,7 +2805,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DDI A IO",
 		.domains = ICL_DDI_IO_A_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_DDI_A,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_ddi_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_DDI_A,
@@ -2815,7 +2815,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DDI B IO",
 		.domains = ICL_DDI_IO_B_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_DDI_B,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_ddi_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_DDI_B,
@@ -2825,7 +2825,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DDI C IO",
 		.domains = ICL_DDI_IO_C_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_DDI_C,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_ddi_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_DDI_C,
@@ -2835,7 +2835,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DDI D IO",
 		.domains = ICL_DDI_IO_D_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_DDI_D,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_ddi_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_DDI_D,
@@ -2845,7 +2845,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DDI E IO",
 		.domains = ICL_DDI_IO_E_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_DDI_E,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_ddi_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_DDI_E,
@@ -2855,7 +2855,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DDI F IO",
 		.domains = ICL_DDI_IO_F_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_DDI_F,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_ddi_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_DDI_F,
@@ -2865,7 +2865,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX A",
 		.domains = ICL_AUX_A_IO_POWER_DOMAINS,
 		.ops = &icl_combo_phy_aux_power_well_ops,
-		.id = ICL_DISP_PW_AUX_A,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_A,
@@ -2875,7 +2875,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX B",
 		.domains = ICL_AUX_B_IO_POWER_DOMAINS,
 		.ops = &icl_combo_phy_aux_power_well_ops,
-		.id = ICL_DISP_PW_AUX_B,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_B,
@@ -2885,7 +2885,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX C",
 		.domains = ICL_AUX_C_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_AUX_C,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_C,
@@ -2895,7 +2895,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX D",
 		.domains = ICL_AUX_D_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_AUX_D,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_D,
@@ -2905,7 +2905,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX E",
 		.domains = ICL_AUX_E_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_AUX_E,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_E,
@@ -2915,7 +2915,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX F",
 		.domains = ICL_AUX_F_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_AUX_F,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_F,
@@ -2925,7 +2925,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX TBT1",
 		.domains = ICL_AUX_TBT1_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_AUX_TBT1,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT1,
@@ -2935,7 +2935,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX TBT2",
 		.domains = ICL_AUX_TBT2_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_AUX_TBT2,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT2,
@@ -2945,7 +2945,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX TBT3",
 		.domains = ICL_AUX_TBT3_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_AUX_TBT3,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT3,
@@ -2955,7 +2955,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "AUX TBT4",
 		.domains = ICL_AUX_TBT4_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_AUX_TBT4,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT4,
@@ -2965,7 +2965,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "power well 4",
 		.domains = ICL_PW_4_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = ICL_DISP_PW_4,
+		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_PW_4,
@@ -3054,6 +3054,9 @@ __set_power_wells(struct i915_power_domains *power_domains,
 		enum i915_power_well_id id = power_well_descs[i].id;
 
 		power_domains->power_wells[i].desc = &power_well_descs[i];
+
+		if (id == DISP_PW_ID_NONE)
+			continue;
 
 		WARN_ON(id >= sizeof(power_well_ids) * 8);
 		WARN_ON(power_well_ids & BIT_ULL(id));
