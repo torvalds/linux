@@ -27,7 +27,6 @@
 #include <linux/mutex.h>
 #include <linux/bitmap.h>
 #include <linux/irq.h>
-#include <linux/interrupt.h>
 #include <linux/perf_event.h>
 #include <linux/atomic.h>
 #include <linux/of.h>
