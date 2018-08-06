@@ -249,11 +249,6 @@ static const char * const msdc30_parents[] = {
 	"univpll2_d4"
 };
 
-static const char * const audio_parents[] = {
-	"clk26m",
-	"syspll1_d16"
-};
-
 static const char * const aud_intbus_parents[] = {
 	"clk26m",
 	"syspll1_d4",
