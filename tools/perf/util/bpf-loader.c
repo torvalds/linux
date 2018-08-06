@@ -1535,10 +1535,7 @@ int bpf__apply_obj_config(void)
 			(strcmp(name, 			\
 				bpf_map__name(pos)) == 0))
 
-#define bpf__for_each_stdout_map(pos, obj, objtmp) \
-	 bpf__for_each_map_named(pos, obj, objtmp, "__bpf_stdout__")
-
-int bpf__setup_stdout(struct perf_evlist *evlist)
+int bpf__setup_output_event(struct perf_evlist *evlist, const char *name)
 {
 	struct bpf_map_priv *tmpl_priv = NULL;
 	struct bpf_object *obj, *tmp;
@@ -1547,7 +1544,7 @@ int bpf__setup_stdout(struct perf_evlist *evlist)
 	int err;
 	bool need_init = false;
 
-	bpf__for_each_stdout_map(map, obj, tmp) {
+	bpf__for_each_map_named(map, obj, tmp, name) {
 		struct bpf_map_priv *priv = bpf_map__priv(map);
 
 		if (IS_ERR(priv))
@@ -1567,17 +1564,23 @@ int bpf__setup_stdout(struct perf_evlist *evlist)
 		return 0;
 
 	if (!tmpl_priv) {
-		err = parse_events(evlist, "bpf-output/no-inherit=1,name=__bpf_stdout__/",
-				   NULL);
+		char *event_definition = NULL;
+
+		if (asprintf(&event_definition, "bpf-output/no-inherit=1,name=%s/", name) < 0)
+			return -ENOMEM;
+
+		err = parse_events(evlist, event_definition, NULL);
+		free(event_definition);
+
 		if (err) {
-			pr_debug("ERROR: failed to create bpf-output event\n");
+			pr_debug("ERROR: failed to create the \"%s\" bpf-output event\n", name);
 			return -err;
 		}
 
 		evsel = perf_evlist__last(evlist);
 	}
 
-	bpf__for_each_stdout_map(map, obj, tmp) {
+	bpf__for_each_map_named(map, obj, tmp, name) {
 		struct bpf_map_priv *priv = bpf_map__priv(map);
 
 		if (IS_ERR(priv))
@@ -1607,6 +1610,11 @@ int bpf__setup_stdout(struct perf_evlist *evlist)
 	}
 
 	return 0;
+}
+
+int bpf__setup_stdout(struct perf_evlist *evlist)
+{
+	return bpf__setup_output_event(evlist, "__bpf_stdout__");
 }
 
 #define ERRNO_OFFSET(e)		((e) - __BPF_LOADER_ERRNO__START)
