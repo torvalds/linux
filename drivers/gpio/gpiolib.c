@@ -1262,6 +1262,8 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	/* If the gpiochip has an assigned OF node this takes precedence */
 	if (chip->of_node)
 		gdev->dev.of_node = chip->of_node;
+	else
+		chip->of_node = gdev->dev.of_node;
 #endif
 
 	gdev->id = ida_simple_get(&gpio_ida, 0, 0, GFP_KERNEL);
