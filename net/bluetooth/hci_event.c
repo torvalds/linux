@@ -1132,7 +1132,6 @@ static void hci_cc_le_set_ext_adv_enable(struct hci_dev *hdev,
 					 struct sk_buff *skb)
 {
 	struct hci_cp_le_set_ext_adv_enable *cp;
-	struct hci_cp_ext_adv_set *adv_set;
 	__u8 status = *((__u8 *) skb->data);
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
@@ -1143,8 +1142,6 @@ static void hci_cc_le_set_ext_adv_enable(struct hci_dev *hdev,
 	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_EXT_ADV_ENABLE);
 	if (!cp)
 		return;
-
-	adv_set = (void *) cp->data;
 
 	hci_dev_lock(hdev);
 
