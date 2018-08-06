@@ -910,14 +910,10 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine);
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
 
-static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
-{
-	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
-}
-
 static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 {
-	/* We are only peeking at the tail of the submit queue (and not the
+	/*
+	 * We are only peeking at the tail of the submit queue (and not the
 	 * queue itself) in order to gain a hint as to the current active
 	 * state of the engine. Callers are not expected to be taking
 	 * engine->timeline->lock, nor are they expected to be concerned
@@ -925,6 +921,31 @@ static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 	 * a hint and nothing more.
 	 */
 	return READ_ONCE(engine->timeline.seqno);
+}
+
+static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
+{
+	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
+}
+
+static inline bool intel_engine_signaled(struct intel_engine_cs *engine,
+					 u32 seqno)
+{
+	return i915_seqno_passed(intel_engine_get_seqno(engine), seqno);
+}
+
+static inline bool intel_engine_has_completed(struct intel_engine_cs *engine,
+					      u32 seqno)
+{
+	GEM_BUG_ON(!seqno);
+	return intel_engine_signaled(engine, seqno);
+}
+
+static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
+					    u32 seqno)
+{
+	GEM_BUG_ON(!seqno);
+	return intel_engine_signaled(engine, seqno - 1);
 }
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,

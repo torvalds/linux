@@ -968,8 +968,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* Any inflight/incomplete requests? */
-	if (!i915_seqno_passed(intel_engine_get_seqno(engine),
-			       intel_engine_last_submit(engine)))
+	if (!intel_engine_signaled(engine, intel_engine_last_submit(engine)))
 		return false;
 
 	if (I915_SELFTEST_ONLY(engine->breadcrumbs.mock))
