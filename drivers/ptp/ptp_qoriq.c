@@ -373,6 +373,7 @@ static int qoriq_ptp_auto_config(struct qoriq_ptp *qoriq_ptp,
 	u64 freq_comp;
 	u64 max_adj;
 	u32 nominal_freq;
+	u32 remainder = 0;
 	u32 clk_src = 0;
 
 	qoriq_ptp->cksel = DEFAULT_CKSEL;
@@ -400,7 +401,8 @@ static int qoriq_ptp_auto_config(struct qoriq_ptp *qoriq_ptp,
 	 * freq_ratio = reference_clock_freq / nominal_freq
 	 */
 	freq_comp = ((u64)1 << 32) * nominal_freq;
-	if (do_div(freq_comp, clk_src))
+	freq_comp = div_u64_rem(freq_comp, clk_src, &remainder);
+	if (remainder)
 		freq_comp++;
 
 	qoriq_ptp->tmr_add = freq_comp;
@@ -411,7 +413,7 @@ static int qoriq_ptp_auto_config(struct qoriq_ptp *qoriq_ptp,
 	 * freq_ratio = reference_clock_freq / nominal_freq
 	 */
 	max_adj = 1000000000ULL * (clk_src - nominal_freq);
-	max_adj = max_adj / nominal_freq - 1;
+	max_adj = div_u64(max_adj, nominal_freq) - 1;
 	qoriq_ptp->caps.max_adj = max_adj;
 
 	return 0;
