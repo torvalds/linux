@@ -19,41 +19,45 @@ static DEFINE_PER_CPU(int, tracing_irq_cpu);
 
 void trace_hardirqs_on(void)
 {
-	if (!this_cpu_read(tracing_irq_cpu))
-		return;
+	if (this_cpu_read(tracing_irq_cpu)) {
+		trace_irq_enable_rcuidle(CALLER_ADDR0, CALLER_ADDR1);
+		this_cpu_write(tracing_irq_cpu, 0);
+	}
 
-	trace_irq_enable_rcuidle(CALLER_ADDR0, CALLER_ADDR1);
-	this_cpu_write(tracing_irq_cpu, 0);
+	lockdep_hardirqs_on(CALLER_ADDR0);
 }
 EXPORT_SYMBOL(trace_hardirqs_on);
 
 void trace_hardirqs_off(void)
 {
-	if (this_cpu_read(tracing_irq_cpu))
-		return;
+	if (!this_cpu_read(tracing_irq_cpu)) {
+		this_cpu_write(tracing_irq_cpu, 1);
+		trace_irq_disable_rcuidle(CALLER_ADDR0, CALLER_ADDR1);
+	}
 
-	this_cpu_write(tracing_irq_cpu, 1);
-	trace_irq_disable_rcuidle(CALLER_ADDR0, CALLER_ADDR1);
+	lockdep_hardirqs_off(CALLER_ADDR0);
 }
 EXPORT_SYMBOL(trace_hardirqs_off);
 
 __visible void trace_hardirqs_on_caller(unsigned long caller_addr)
 {
-	if (!this_cpu_read(tracing_irq_cpu))
-		return;
+	if (this_cpu_read(tracing_irq_cpu)) {
+		trace_irq_enable_rcuidle(CALLER_ADDR0, caller_addr);
+		this_cpu_write(tracing_irq_cpu, 0);
+	}
 
-	trace_irq_enable_rcuidle(CALLER_ADDR0, caller_addr);
-	this_cpu_write(tracing_irq_cpu, 0);
+	lockdep_hardirqs_on(CALLER_ADDR0);
 }
 EXPORT_SYMBOL(trace_hardirqs_on_caller);
 
 __visible void trace_hardirqs_off_caller(unsigned long caller_addr)
 {
-	if (this_cpu_read(tracing_irq_cpu))
-		return;
+	if (!this_cpu_read(tracing_irq_cpu)) {
+		this_cpu_write(tracing_irq_cpu, 1);
+		trace_irq_disable_rcuidle(CALLER_ADDR0, caller_addr);
+	}
 
-	this_cpu_write(tracing_irq_cpu, 1);
-	trace_irq_disable_rcuidle(CALLER_ADDR0, caller_addr);
+	lockdep_hardirqs_off(CALLER_ADDR0);
 }
 EXPORT_SYMBOL(trace_hardirqs_off_caller);
 #endif /* CONFIG_TRACE_IRQFLAGS */

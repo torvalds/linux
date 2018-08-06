@@ -19,9 +19,13 @@
 #ifdef CONFIG_PROVE_LOCKING
   extern void trace_softirqs_on(unsigned long ip);
   extern void trace_softirqs_off(unsigned long ip);
+  extern void lockdep_hardirqs_on(unsigned long ip);
+  extern void lockdep_hardirqs_off(unsigned long ip);
 #else
-# define trace_softirqs_on(ip)	do { } while (0)
-# define trace_softirqs_off(ip)	do { } while (0)
+  static inline void trace_softirqs_on(unsigned long ip) { }
+  static inline void trace_softirqs_off(unsigned long ip) { }
+  static inline void lockdep_hardirqs_on(unsigned long ip) { }
+  static inline void lockdep_hardirqs_off(unsigned long ip) { }
 #endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS

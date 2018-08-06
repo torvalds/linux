@@ -649,8 +649,6 @@ asmlinkage __visible void __init start_kernel(void)
 	call_function_init();
 	WARN(!irqs_disabled(), "Interrupts were enabled early\n");
 
-	lockdep_init_early();
-
 	early_boot_irqs_disabled = false;
 	local_irq_enable();
 
