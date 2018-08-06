@@ -1918,7 +1918,6 @@ void i915_reset(struct drm_i915_private *i915,
 		dev_notice(i915->drm.dev, "Resetting chip for %s\n", reason);
 	error->reset_count++;
 
-	disable_irq(i915->drm.irq);
 	ret = i915_gem_reset_prepare(i915);
 	if (ret) {
 		dev_err(i915->drm.dev, "GPU recovery failed\n");
@@ -1980,8 +1979,6 @@ void i915_reset(struct drm_i915_private *i915,
 
 finish:
 	i915_gem_reset_finish(i915);
-	enable_irq(i915->drm.irq);
-
 wakeup:
 	clear_bit(I915_RESET_HANDOFF, &error->flags);
 	wake_up_bit(&error->flags, I915_RESET_HANDOFF);
