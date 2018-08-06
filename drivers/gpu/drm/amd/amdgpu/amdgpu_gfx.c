@@ -26,8 +26,8 @@
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 
-/* 0.5 second timeout */
-#define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(500)
+/* delay 0.1 second to enable gfx off feature */
+#define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(100)
 
 /*
  * GPU GFX IP block helpers function.
