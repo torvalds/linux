@@ -2620,14 +2620,18 @@ static struct i915_power_well icl_power_wells[] = {
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_1,
-		.hsw.has_fuses = true,
+		{
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "power well 2",
 		.domains = ICL_PW_2_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_2,
-		.hsw.has_fuses = true,
+		{
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "DC off",
@@ -2640,9 +2644,11 @@ static struct i915_power_well icl_power_wells[] = {
 		.domains = ICL_PW_3_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_3,
-		.hsw.irq_pipe_mask = BIT(PIPE_B),
-		.hsw.has_vga = true,
-		.hsw.has_fuses = true,
+		{
+			.hsw.irq_pipe_mask = BIT(PIPE_B),
+			.hsw.has_vga = true,
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "DDI A IO",
@@ -2745,8 +2751,10 @@ static struct i915_power_well icl_power_wells[] = {
 		.domains = ICL_PW_4_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = ICL_DISP_PW_4,
-		.hsw.has_fuses = true,
-		.hsw.irq_pipe_mask = BIT(PIPE_C),
+		{
+			.hsw.has_fuses = true,
+			.hsw.irq_pipe_mask = BIT(PIPE_C),
+		},
 	},
 };
 
