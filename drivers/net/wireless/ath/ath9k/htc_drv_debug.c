@@ -357,6 +357,50 @@ static const struct file_operations fops_queue = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_chan_bw(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "0x%08x\n", common->chan_bw);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_chan_bw(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath9k_htc_priv *priv = file->private_data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	unsigned long chan_bw;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtoul(buf, 0, &chan_bw))
+		return -EINVAL;
+
+	common->chan_bw = chan_bw;
+	if (!test_bit(ATH_OP_INVALID, &common->op_flags))
+		ath9k_htc_ops.config(priv->hw, IEEE80211_CONF_CHANGE_CHANNEL);
+
+	return count;
+}
+
+static const struct file_operations fops_chanbw = {
+	.read = read_file_chan_bw,
+	.write = write_file_chan_bw,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
@@ -611,6 +655,8 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 			    priv, &fops_queue);
 	debugfs_create_file("debug", 0600, priv->debug.debugfs_phy,
 			    priv, &fops_debug);
+	debugfs_create_file("chanbw", 0600, priv->debug.debugfs_phy,
+			    priv, &fops_chanbw);
 
 	ath9k_cmn_debug_base_eeprom(priv->debug.debugfs_phy, priv->ah);
 	ath9k_cmn_debug_modal_eeprom(priv->debug.debugfs_phy, priv->ah);

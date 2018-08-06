@@ -149,6 +149,7 @@ struct ath_common {
 	int debug_mask;
 	enum ath_device_state state;
 	unsigned long op_flags;
+	u32 chan_bw;
 
 	struct ath_ani ani;
 

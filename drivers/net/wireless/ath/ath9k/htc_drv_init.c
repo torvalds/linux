@@ -750,9 +750,9 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN |
 			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			    WIPHY_FLAG_HAS_CHANNEL_SWITCH;
-
-	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+			    WIPHY_FLAG_HAS_CHANNEL_SWITCH |
+			    WIPHY_FLAG_SUPPORTS_5_10_MHZ |
+			    WIPHY_FLAG_SUPPORTS_TDLS;
 
 	hw->queues = 4;
 	hw->max_listen_interval = 1;
