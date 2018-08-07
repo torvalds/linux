@@ -845,9 +845,6 @@ static int intel_probe(struct platform_device *pdev)
 	sdw_intel_ops.read_prop = intel_prop_read;
 	sdw->cdns.bus.ops = &sdw_intel_ops;
 
-	sdw_intel_ops.read_prop = intel_prop_read;
-	sdw->cdns.bus.ops = &sdw_intel_ops;
-
 	platform_set_drvdata(pdev, sdw);
 
 	ret = sdw_add_bus_master(&sdw->cdns.bus);
