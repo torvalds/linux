@@ -211,7 +211,7 @@ struct vsp1_dl_list {
  * @queued: list queued to the hardware (written to the DL registers)
  * @pending: list waiting to be queued to the hardware
  * @pool: body pool for the display list bodies
- * @autofld_cmds: command pool to support auto-fld interlaced mode
+ * @cmdpool: commands pool for extended display list
  */
 struct vsp1_dl_manager {
 	unsigned int index;
