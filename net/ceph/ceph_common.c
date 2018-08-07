@@ -304,7 +304,7 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 	struct ceph_crypto_key *ckey;
 
 	ukey = request_key(&key_type_ceph, name, NULL);
-	if (!ukey || IS_ERR(ukey)) {
+	if (IS_ERR(ukey)) {
 		/* request_key errors don't map nicely to mount(2)
 		   errors; don't even try, but still printk */
 		key_err = PTR_ERR(ukey);
