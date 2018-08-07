@@ -270,6 +270,7 @@ nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *frame,
 	struct fl_flow_key *target = mask_version ? flow->mask : flow->key;
 	struct flow_dissector_key_ipv4_addrs *tun_ips;
 	struct flow_dissector_key_keyid *vni;
+	struct flow_dissector_key_ip *ip;
 
 	memset(frame, 0, sizeof(struct nfp_flower_ipv4_udp_tun));
 
@@ -292,6 +293,14 @@ nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *frame,
 					     target);
 		frame->ip_src = tun_ips->src;
 		frame->ip_dst = tun_ips->dst;
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_ENC_IP)) {
+		ip = skb_flow_dissector_target(flow->dissector,
+					       FLOW_DISSECTOR_KEY_ENC_IP,
+					       target);
+		frame->tos = ip->tos;
+		frame->ttl = ip->ttl;
 	}
 }
 
