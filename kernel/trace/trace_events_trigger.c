@@ -663,6 +663,8 @@ event_trigger_callback(struct event_command *cmd_ops,
 		goto out_free;
 
  out_reg:
+	/* Up the trigger_data count to make sure reg doesn't free it on failure */
+	event_trigger_init(trigger_ops, trigger_data);
 	ret = cmd_ops->reg(glob, trigger_ops, trigger_data, file);
 	/*
 	 * The above returns on success the # of functions enabled,
@@ -670,11 +672,13 @@ event_trigger_callback(struct event_command *cmd_ops,
 	 * Consider no functions a failure too.
 	 */
 	if (!ret) {
+		cmd_ops->unreg(glob, trigger_ops, trigger_data, file);
 		ret = -ENOENT;
-		goto out_free;
-	} else if (ret < 0)
-		goto out_free;
-	ret = 0;
+	} else if (ret > 0)
+		ret = 0;
+
+	/* Down the counter of trigger_data or free it if not used anymore */
+	event_trigger_free(trigger_ops, trigger_data);
  out:
 	return ret;
 
@@ -1227,6 +1231,9 @@ event_enable_trigger_func(struct event_command *cmd_ops,
 		goto out;
 	}
 
+	/* Up the trigger_data count to make sure nothing frees it on failure */
+	event_trigger_init(trigger_ops, trigger_data);
+
 	if (trigger) {
 		number = strsep(&trigger, ":");
 
@@ -1277,6 +1284,7 @@ event_enable_trigger_func(struct event_command *cmd_ops,
 		goto out_disable;
 	/* Just return zero, not the number of enabled functions */
 	ret = 0;
+	event_trigger_free(trigger_ops, trigger_data);
  out:
 	return ret;
 
@@ -1287,7 +1295,7 @@ event_enable_trigger_func(struct event_command *cmd_ops,
  out_free:
 	if (cmd_ops->set_filter)
 		cmd_ops->set_filter(NULL, trigger_data, NULL);
-	kfree(trigger_data);
+	event_trigger_free(trigger_ops, trigger_data);
 	kfree(enable_data);
 	goto out;
 }

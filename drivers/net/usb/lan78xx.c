@@ -1361,6 +1361,8 @@ static void lan78xx_init_mac_address(struct lan78xx_net *dev)
 			netif_dbg(dev, ifup, dev->net,
 				  "MAC address set to random addr");
 		}
+
+		tasklet_schedule(&dev->bh);
 	}
 
 	ret = lan78xx_write_reg(dev, MAF_LO(0), addr_lo);

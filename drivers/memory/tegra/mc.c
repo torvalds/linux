@@ -20,14 +20,6 @@
 #include "mc.h"
 
 #define MC_INTSTATUS 0x000
-#define  MC_INT_DECERR_MTS (1 << 16)
-#define  MC_INT_SECERR_SEC (1 << 13)
-#define  MC_INT_DECERR_VPR (1 << 12)
-#define  MC_INT_INVALID_APB_ASID_UPDATE (1 << 11)
-#define  MC_INT_INVALID_SMMU_PAGE (1 << 10)
-#define  MC_INT_ARBITRATION_EMEM (1 << 9)
-#define  MC_INT_SECURITY_VIOLATION (1 << 8)
-#define  MC_INT_DECERR_EMEM (1 << 6)
 
 #define MC_INTMASK 0x004
 
@@ -248,12 +240,13 @@ static const char *const error_names[8] = {
 static irqreturn_t tegra_mc_irq(int irq, void *data)
 {
 	struct tegra_mc *mc = data;
-	unsigned long status, mask;
+	unsigned long status;
 	unsigned int bit;
 
 	/* mask all interrupts to avoid flooding */
-	status = mc_readl(mc, MC_INTSTATUS);
-	mask = mc_readl(mc, MC_INTMASK);
+	status = mc_readl(mc, MC_INTSTATUS) & mc->soc->intmask;
+	if (!status)
+		return IRQ_NONE;
 
 	for_each_set_bit(bit, &status, 32) {
 		const char *error = status_names[bit] ?: "unknown";
@@ -346,7 +339,6 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct resource *res;
 	struct tegra_mc *mc;
-	u32 value;
 	int err;
 
 	match = of_match_node(tegra_mc_of_match, pdev->dev.of_node);
@@ -414,11 +406,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 
 	WARN(!mc->soc->client_id_mask, "Missing client ID mask for this SoC\n");
 
-	value = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
-		MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
-		MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM;
-
-	mc_writel(mc, value, MC_INTMASK);
+	mc_writel(mc, mc->soc->intmask, MC_INTMASK);
 
 	return 0;
 }
