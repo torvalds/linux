@@ -1528,7 +1528,7 @@ static int acpi_check_serial_bus_slave(struct acpi_resource *ares, void *data)
 static bool acpi_is_indirect_io_slave(struct acpi_device *device)
 {
 	struct acpi_device *parent = device->parent;
-	const struct acpi_device_id indirect_io_hosts[] = {
+	static const struct acpi_device_id indirect_io_hosts[] = {
 		{"HISI0191", 0},
 		{}
 	};
