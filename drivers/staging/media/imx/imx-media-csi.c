@@ -460,7 +460,8 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 			passthrough_cycles = incc->cycles;
 			break;
 		}
-		/* fallthrough for non-passthrough RGB565 (CSI-2 bus) */
+		/* for non-passthrough RGB565 (CSI-2 bus) */
+		/* Falls through */
 	default:
 		burst_size = (image.pix.width & 0xf) ? 8 : 16;
 		passthrough_bits = 16;
