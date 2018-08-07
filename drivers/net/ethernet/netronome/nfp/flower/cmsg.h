@@ -37,6 +37,7 @@
 #include <linux/bitfield.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
+#include <net/geneve.h>
 
 #include "../nfp_app.h"
 #include "../nfpcore/nfp_cpp.h"
@@ -81,6 +82,10 @@
 #define NFP_FL_MAX_A_SIZ		1216
 #define NFP_FL_LW_SIZ			2
 
+/* Maximum allowed geneve options */
+#define NFP_FL_MAX_GENEVE_OPT_ACT	32
+#define NFP_FL_MAX_GENEVE_OPT_CNT	64
+
 /* Action opcodes */
 #define NFP_FL_ACTION_OPCODE_OUTPUT		0
 #define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
@@ -94,6 +99,7 @@
 #define NFP_FL_ACTION_OPCODE_SET_TCP		15
 #define NFP_FL_ACTION_OPCODE_PRE_LAG		16
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
+#define NFP_FL_ACTION_OPCODE_PUSH_GENEVE	26
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
 #define NFP_FL_OUT_FLAGS_LAST		BIT(15)
@@ -206,7 +212,19 @@ struct nfp_fl_set_ipv4_udp_tun {
 	__be16 tun_flags;
 	u8 ttl;
 	u8 tos;
-	__be32 extra[2];
+	__be32 extra;
+	u8 tun_len;
+	u8 res2;
+	__be16 tun_proto;
+};
+
+struct nfp_fl_push_geneve {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be16 class;
+	u8 type;
+	u8 length;
+	u8 opt_data[];
 };
 
 /* Metadata with L2 (1W/4B)
