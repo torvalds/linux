@@ -383,7 +383,7 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 {
 	struct host1x *host1x = cdma_to_host1x(cdma);
 	u32 restart_addr, syncpt_incrs, syncpt_val;
-	struct host1x_job *job;
+	struct host1x_job *job, *next_job = NULL;
 
 	syncpt_val = host1x_syncpt_load(cdma->timeout.syncpt);
 
@@ -401,8 +401,13 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 		__func__);
 
 	list_for_each_entry(job, &cdma->sync_queue, list) {
-		if (syncpt_val < job->syncpt_end)
+		if (syncpt_val < job->syncpt_end) {
+
+			if (!list_is_last(&job->list, &cdma->sync_queue))
+				next_job = list_next_entry(job, list);
+
 			goto syncpt_incr;
+		}
 
 		host1x_job_dump(dev, job);
 	}
@@ -415,17 +420,11 @@ syncpt_incr:
 	/*
 	 * Increment with CPU the remaining syncpts of a partially executed job.
 	 *
-	 * Syncpt increments must be done inline with the pushbuffer from a
-	 * GATHER buffer to maintain the order (slots are modified to be a
-	 * GATHER of syncpt incrs).
-	 *
-	 * Note: save in restart_addr the location where the timed out buffer
-	 * started in the PB, so we can start the refetch from there (with the
-	 * modified NOP-ed PB slots). This lets things appear to have completed
-	 * properly for this buffer and resources are freed.
+	 * CDMA will continue execution starting with the next job or will get
+	 * into idle state.
 	 */
-	if (job)
-		restart_addr = job->first_get;
+	if (next_job)
+		restart_addr = next_job->first_get;
 	else
 		restart_addr = cdma->last_pos;
 

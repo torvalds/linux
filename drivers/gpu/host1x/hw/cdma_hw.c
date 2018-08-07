@@ -39,8 +39,6 @@ static void push_buffer_init(struct push_buffer *pb)
 static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 				u32 syncpt_incrs, u32 syncval, u32 nr_slots)
 {
-	struct host1x *host1x = cdma_to_host1x(cdma);
-	struct push_buffer *pb = &cdma->push_buffer;
 	unsigned int i;
 
 	for (i = 0; i < syncpt_incrs; i++)
@@ -48,18 +46,6 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 
 	/* after CPU incr, ensure shadow is up to date */
 	host1x_syncpt_load(cdma->timeout.syncpt);
-
-	/* NOP all the PB slots */
-	while (nr_slots--) {
-		u32 *p = (u32 *)(pb->mapped + getptr);
-		*(p++) = HOST1X_OPCODE_NOP;
-		*(p++) = HOST1X_OPCODE_NOP;
-		dev_dbg(host1x->dev, "%s: NOP at %pad+%#x\n", __func__,
-			&pb->dma, getptr);
-		getptr = (getptr + 8) & (pb->size - 1);
-	}
-
-	wmb();
 }
 
 /*
