@@ -314,6 +314,11 @@ DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_mapping,
 	    TP_ARGS(mapping)
 );
 
+DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_cs,
+	    TP_PROTO(struct amdgpu_bo_va_mapping *mapping),
+	    TP_ARGS(mapping)
+);
+
 TRACE_EVENT(amdgpu_vm_set_ptes,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
 		     uint32_t incr, uint64_t flags),

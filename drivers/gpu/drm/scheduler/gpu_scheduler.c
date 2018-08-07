@@ -199,21 +199,6 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 EXPORT_SYMBOL(drm_sched_entity_init);
 
 /**
- * drm_sched_entity_is_initialized - Query if entity is initialized
- *
- * @sched: Pointer to scheduler instance
- * @entity: The pointer to a valid scheduler entity
- *
- * return true if entity is initialized, false otherwise
-*/
-static bool drm_sched_entity_is_initialized(struct drm_gpu_scheduler *sched,
-					    struct drm_sched_entity *entity)
-{
-	return entity->rq != NULL &&
-		entity->rq->sched == sched;
-}
-
-/**
  * drm_sched_entity_is_idle - Check if entity is idle
  *
  * @entity: scheduler entity
@@ -224,7 +209,8 @@ static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 {
 	rmb();
 
-	if (!entity->rq || spsc_queue_peek(&entity->job_queue) == NULL)
+	if (list_empty(&entity->list) ||
+	    spsc_queue_peek(&entity->job_queue) == NULL)
 		return true;
 
 	return false;
@@ -275,11 +261,10 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 {
 	struct drm_gpu_scheduler *sched;
+	struct task_struct *last_user;
 	long ret = timeout;
 
 	sched = entity->rq->sched;
-	if (!drm_sched_entity_is_initialized(sched, entity))
-		return ret;
 	/**
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs or discard them on SIGKILL
@@ -295,8 +280,10 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 
 
 	/* For killed process disable any more IBs enqueue right now */
-	if ((current->flags & PF_EXITING) && (current->exit_code == SIGKILL))
-		drm_sched_entity_set_rq(entity, NULL);
+	last_user = cmpxchg(&entity->last_user, current->group_leader, NULL);
+	if ((!last_user || last_user == current->group_leader) &&
+	    (current->flags & PF_EXITING) && (current->exit_code == SIGKILL))
+		drm_sched_rq_remove_entity(entity->rq, entity);
 
 	return ret;
 }
@@ -317,7 +304,7 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 	struct drm_gpu_scheduler *sched;
 
 	sched = entity->rq->sched;
-	drm_sched_entity_set_rq(entity, NULL);
+	drm_sched_rq_remove_entity(entity->rq, entity);
 
 	/* Consumption of existing IBs wasn't completed. Forcefully
 	 * remove them here.
@@ -413,15 +400,12 @@ void drm_sched_entity_set_rq(struct drm_sched_entity *entity,
 	if (entity->rq == rq)
 		return;
 
+	BUG_ON(!rq);
+
 	spin_lock(&entity->rq_lock);
-
-	if (entity->rq)
-		drm_sched_rq_remove_entity(entity->rq, entity);
-
+	drm_sched_rq_remove_entity(entity->rq, entity);
 	entity->rq = rq;
-	if (rq)
-		drm_sched_rq_add_entity(rq, entity);
-
+	drm_sched_rq_add_entity(rq, entity);
 	spin_unlock(&entity->rq_lock);
 }
 EXPORT_SYMBOL(drm_sched_entity_set_rq);
@@ -541,6 +525,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 
 	trace_drm_sched_job(sched_job, entity);
 
+	WRITE_ONCE(entity->last_user, current->group_leader);
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
 
 	/* first job wakes up scheduler */

@@ -74,6 +74,7 @@
 #include "amdgpu_gart.h"
 #include "amdgpu_debugfs.h"
 #include "amdgpu_job.h"
+#include "amdgpu_bo_list.h"
 
 /*
  * Modules parameters.
@@ -688,45 +689,6 @@ struct amdgpu_fpriv {
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
 };
-
-/*
- * residency list
- */
-struct amdgpu_bo_list_entry {
-	struct amdgpu_bo		*robj;
-	struct ttm_validate_buffer	tv;
-	struct amdgpu_bo_va		*bo_va;
-	uint32_t			priority;
-	struct page			**user_pages;
-	int				user_invalidated;
-};
-
-struct amdgpu_bo_list {
-	struct mutex lock;
-	struct rcu_head rhead;
-	struct kref refcount;
-	struct amdgpu_bo *gds_obj;
-	struct amdgpu_bo *gws_obj;
-	struct amdgpu_bo *oa_obj;
-	unsigned first_userptr;
-	unsigned num_entries;
-	struct amdgpu_bo_list_entry *array;
-};
-
-struct amdgpu_bo_list *
-amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id);
-void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
-			     struct list_head *validated);
-void amdgpu_bo_list_put(struct amdgpu_bo_list *list);
-void amdgpu_bo_list_free(struct amdgpu_bo_list *list);
-int amdgpu_bo_create_list_entry_array(struct drm_amdgpu_bo_list_in *in,
-				      struct drm_amdgpu_bo_list_entry **info_param);
-
-int amdgpu_bo_list_create(struct amdgpu_device *adev,
-				 struct drm_file *filp,
-				 struct drm_amdgpu_bo_list_entry *info,
-				 unsigned num_entries,
-				 struct amdgpu_bo_list **list);
 
 /*
  * GFX stuff
@@ -1748,6 +1710,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_vm_write_pte(adev, ib, pe, value, count, incr) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (value), (count), (incr)))
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
+#define amdgpu_ring_patch_cs_in_place(r, p, ib) ((r)->funcs->patch_cs_in_place((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
 #define amdgpu_ring_test_ib(r, t) (r)->funcs->test_ib((r), (t))
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))

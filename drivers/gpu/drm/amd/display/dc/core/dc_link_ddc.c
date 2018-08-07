@@ -33,7 +33,6 @@
 #include "include/vector.h"
 #include "core_types.h"
 #include "dc_link_ddc.h"
-#include "engine.h"
 #include "aux_engine.h"
 
 #define AUX_POWER_UP_WA_DELAY 500
@@ -640,7 +639,6 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 			     enum i2caux_transaction_action action)
 {
 	struct ddc *ddc_pin = ddc->ddc_pin;
-	struct engine *engine;
 	struct aux_engine *aux_engine;
 	enum aux_channel_operation_result operation_result;
 	struct aux_request_transaction_data aux_req;
@@ -652,8 +650,8 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 	memset(&aux_req, 0, sizeof(aux_req));
 	memset(&aux_rep, 0, sizeof(aux_rep));
 
-	engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
-	aux_engine = engine->funcs->acquire(engine, ddc_pin);
+	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
+	aux_engine->funcs->acquire(aux_engine, ddc_pin);
 
 	aux_req.type = type;
 	aux_req.action = action;
@@ -685,7 +683,7 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 		res = -1;
 		break;
 	}
-	aux_engine->base.funcs->release_engine(&aux_engine->base);
+	aux_engine->funcs->release_engine(aux_engine);
 	return res;
 }
 

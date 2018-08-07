@@ -286,7 +286,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	struct drm_crtc *crtc;
 	uint32_t ui32 = 0;
 	uint64_t ui64 = 0;
-	int i, found;
+	int i, j, found;
 	int ui32_size = sizeof(ui32);
 
 	if (!info->return_size || !info->return_pointer)
@@ -348,7 +348,11 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_UVD:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			ring_mask |= adev->uvd.inst[0].ring.ready;
+			for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+				if (adev->uvd.harvest_config & (1 << i))
+					continue;
+				ring_mask |= adev->uvd.inst[i].ring.ready;
+			}
 			ib_start_alignment = 64;
 			ib_size_alignment = 64;
 			break;
@@ -361,9 +365,12 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_UVD_ENC:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			for (i = 0; i < adev->uvd.num_enc_rings; i++)
-				ring_mask |=
-					adev->uvd.inst[0].ring_enc[i].ready << i;
+			for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+				if (adev->uvd.harvest_config & (1 << i))
+					continue;
+				for (j = 0; j < adev->uvd.num_enc_rings; j++)
+					ring_mask |= adev->uvd.inst[i].ring_enc[j].ready << j;
+			}
 			ib_start_alignment = 64;
 			ib_size_alignment = 64;
 			break;
@@ -960,7 +967,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	amdgpu_bo_unref(&pd);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)
-		amdgpu_bo_list_free(list);
+		amdgpu_bo_list_put(list);
 
 	idr_destroy(&fpriv->bo_list_handles);
 	mutex_destroy(&fpriv->bo_list_lock);

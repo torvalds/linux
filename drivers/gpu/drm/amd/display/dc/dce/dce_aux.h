@@ -103,9 +103,9 @@ struct aux_engine *dce110_aux_engine_construct(
 		uint32_t timeout_period,
 		const struct dce110_aux_registers *regs);
 
-void dce110_engine_destroy(struct engine **engine);
+void dce110_engine_destroy(struct aux_engine **engine);
 
 bool dce110_aux_engine_acquire(
-	struct engine *aux_engine,
+	struct aux_engine *aux_engine,
 	struct ddc *ddc);
 #endif

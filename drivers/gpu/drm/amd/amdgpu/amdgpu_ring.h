@@ -123,6 +123,7 @@ struct amdgpu_ring_funcs {
 	void (*set_wptr)(struct amdgpu_ring *ring);
 	/* validating and patching of IBs */
 	int (*parse_cs)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
+	int (*patch_cs_in_place)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
 	/* constants to calculate how many DW are needed for an emit */
 	unsigned emit_frame_size;
 	unsigned emit_ib_size;
