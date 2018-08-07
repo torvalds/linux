@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/uio.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 
 /*
  * The SBEFIFO is a pipe-like FSI device for communicating with
@@ -110,7 +111,7 @@ enum sbe_state
 #define SBEFIFO_TIMEOUT_IN_RSP		1000
 
 /* Other constants */
-#define SBEFIFO_MAX_CMD_LEN		PAGE_SIZE
+#define SBEFIFO_MAX_USER_CMD_LEN	(0x100000 + PAGE_SIZE)
 #define SBEFIFO_RESET_MAGIC		0x52534554 /* "RSET" */
 
 struct sbefifo {
@@ -128,6 +129,7 @@ struct sbefifo {
 struct sbefifo_user {
 	struct sbefifo		*sbefifo;
 	struct mutex		file_lock;
+	void			*cmd_page;
 	void			*pending_cmd;
 	size_t			pending_len;
 };
@@ -726,7 +728,7 @@ int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
 		return -ENODEV;
 	if (WARN_ON_ONCE(sbefifo->magic != SBEFIFO_MAGIC))
 		return -ENODEV;
-	if (!resp_len || !command || !response || cmd_len > SBEFIFO_MAX_CMD_LEN)
+	if (!resp_len || !command || !response)
 		return -EINVAL;
 
 	/* Prepare iov iterator */
@@ -751,6 +753,15 @@ EXPORT_SYMBOL_GPL(sbefifo_submit);
 /*
  * Char device interface
  */
+
+static void sbefifo_release_command(struct sbefifo_user *user)
+{
+	if (is_vmalloc_addr(user->pending_cmd))
+		vfree(user->pending_cmd);
+	user->pending_cmd = NULL;
+	user->pending_len = 0;
+}
+
 static int sbefifo_user_open(struct inode *inode, struct file *file)
 {
 	struct sbefifo *sbefifo = container_of(inode->i_cdev, struct sbefifo, cdev);
@@ -762,8 +773,8 @@ static int sbefifo_user_open(struct inode *inode, struct file *file)
 
 	file->private_data = user;
 	user->sbefifo = sbefifo;
-	user->pending_cmd = (void *)__get_free_page(GFP_KERNEL);
-	if (!user->pending_cmd) {
+	user->cmd_page = (void *)__get_free_page(GFP_KERNEL);
+	if (!user->cmd_page) {
 		kfree(user);
 		return -ENOMEM;
 	}
@@ -816,7 +827,7 @@ static ssize_t sbefifo_user_read(struct file *file, char __user *buf,
 	/* Extract the response length */
 	rc = len - iov_iter_count(&resp_iter);
  bail:
-	user->pending_len = 0;
+	sbefifo_release_command(user);
 	mutex_unlock(&user->file_lock);
 	return rc;
 }
@@ -831,12 +842,22 @@ static ssize_t sbefifo_user_write(struct file *file, const char __user *buf,
 	if (!user)
 		return -EINVAL;
 	sbefifo = user->sbefifo;
-	if (len > SBEFIFO_MAX_CMD_LEN)
+	if (len > SBEFIFO_MAX_USER_CMD_LEN)
 		return -EINVAL;
 	if (len & 3)
 		return -EINVAL;
 
 	mutex_lock(&user->file_lock);
+
+	/* Can we use the pre-allocate buffer ? If not, allocate */
+	if (len <= PAGE_SIZE)
+		user->pending_cmd = user->cmd_page;
+	else
+		user->pending_cmd = vmalloc(len);
+	if (!user->pending_cmd) {
+		rc = -ENOMEM;
+		goto bail;
+	}
 
 	/* Copy the command into the staging buffer */
 	if (copy_from_user(user->pending_cmd, buf, len)) {
@@ -863,6 +884,9 @@ static ssize_t sbefifo_user_write(struct file *file, const char __user *buf,
 	/* Update the staging buffer size */
 	user->pending_len = len;
  bail:
+	if (!user->pending_len)
+		sbefifo_release_command(user);
+
 	mutex_unlock(&user->file_lock);
 
 	/* And that's it, we'll issue the command on a read */
@@ -876,7 +900,8 @@ static int sbefifo_user_release(struct inode *inode, struct file *file)
 	if (!user)
 		return -EINVAL;
 
-	free_page((unsigned long)user->pending_cmd);
+	sbefifo_release_command(user);
+	free_page((unsigned long)user->cmd_page);
 	kfree(user);
 
 	return 0;
