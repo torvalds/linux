@@ -601,7 +601,7 @@ static __poll_t s3c_camif_poll(struct file *file,
 
 	mutex_lock(&camif->lock);
 	if (vp->owner && vp->owner != file->private_data)
-		ret = -EBUSY;
+		ret = EPOLLERR;
 	else
 		ret = vb2_poll(&vp->vb_queue, file, wait);
 
