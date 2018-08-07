@@ -262,7 +262,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		connector->dpms = DRM_MODE_DPMS_OFF;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_rgb_connector_funcs,
-					 DRM_MODE_CONNECTOR_Unknown);
+					 DRM_MODE_CONNECTOR_LVDS);
 		if (ret < 0) {
 			DRM_DEV_ERROR(drm_dev->dev,
 				      "failed to initialize connector: %d\n",
