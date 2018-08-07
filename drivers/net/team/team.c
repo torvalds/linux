@@ -2378,7 +2378,7 @@ static int team_nl_send_options_get(struct team *team, u32 portid, u32 seq,
 start_again:
 	err = __send_and_alloc_skb(&skb, team, portid, send_func);
 	if (err)
-		return err;
+		goto errout;
 
 	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_OPTIONS_GET);
@@ -2419,7 +2419,7 @@ send_done:
 	if (!nlh) {
 		err = __send_and_alloc_skb(&skb, team, portid, send_func);
 		if (err)
-			return err;
+			goto errout;
 		goto send_done;
 	}
 
@@ -2661,7 +2661,7 @@ static int team_nl_send_port_list_get(struct team *team, u32 portid, u32 seq,
 start_again:
 	err = __send_and_alloc_skb(&skb, team, portid, send_func);
 	if (err)
-		return err;
+		goto errout;
 
 	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_PORT_LIST_GET);
@@ -2712,7 +2712,7 @@ send_done:
 	if (!nlh) {
 		err = __send_and_alloc_skb(&skb, team, portid, send_func);
 		if (err)
-			return err;
+			goto errout;
 		goto send_done;
 	}
 
