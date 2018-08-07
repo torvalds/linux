@@ -105,6 +105,8 @@ static const struct tctl_offset tctl_offset_table[] = {
 	{ 0x17, "AMD Ryzen Threadripper 1950", 10000 },
 	{ 0x17, "AMD Ryzen Threadripper 1920", 10000 },
 	{ 0x17, "AMD Ryzen Threadripper 1910", 10000 },
+	{ 0x17, "AMD Ryzen Threadripper 2950X", 27000 },
+	{ 0x17, "AMD Ryzen Threadripper 2990WX", 27000 },
 };
 
 static void read_htcreg_pci(struct pci_dev *pdev, u32 *regval)
