@@ -95,10 +95,10 @@ sw1_create()
 	   nexthop dev g1b
 
 	tc qdisc add dev $ul1 clsact
-	tc filter add dev $ul1 egress pref 111 prot 802.1q \
-	   flower vlan_id 111 action pass
-	tc filter add dev $ul1 egress pref 222 prot 802.1q \
-	   flower vlan_id 222 action pass
+	tc filter add dev $ul1 egress pref 111 prot ipv4 \
+	   flower dst_ip 192.0.2.66 action pass
+	tc filter add dev $ul1 egress pref 222 prot ipv4 \
+	   flower dst_ip 192.0.2.82 action pass
 }
 
 sw1_destroy()
