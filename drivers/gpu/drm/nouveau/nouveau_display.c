@@ -442,7 +442,7 @@ nouveau_display_init(struct drm_device *dev)
 }
 
 void
-nouveau_display_fini(struct drm_device *dev, bool suspend)
+nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -466,6 +466,9 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 		nvif_notify_put(&conn->hpd);
 	}
 	drm_connector_list_iter_end(&conn_iter);
+
+	if (!runtime)
+		cancel_work_sync(&drm->hpd_work);
 
 	drm_kms_helper_poll_disable(dev);
 	disp->fini(dev);
@@ -635,11 +638,11 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 			}
 		}
 
-		nouveau_display_fini(dev, true);
+		nouveau_display_fini(dev, true, runtime);
 		return 0;
 	}
 
-	nouveau_display_fini(dev, true);
+	nouveau_display_fini(dev, true, runtime);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
