@@ -4,8 +4,6 @@
 #include <net/netfilter/nf_tables.h>
 #include <linux/netfilter/nfnetlink_osf.h>
 
-#define OSF_GENRE_SIZE		32
-
 struct nft_osf {
 	enum nft_registers	dreg:8;
 };
@@ -37,9 +35,9 @@ static void nft_osf_eval(const struct nft_expr *expr, struct nft_regs *regs,
 
 	os_name = nf_osf_find(skb, nf_osf_fingers);
 	if (!os_name)
-		strncpy((char *)dest, "unknown", IFNAMSIZ);
+		strncpy((char *)dest, "unknown", NFT_OSF_MAXGENRELEN);
 	else
-		strncpy((char *)dest, os_name, IFNAMSIZ);
+		strncpy((char *)dest, os_name, NFT_OSF_MAXGENRELEN);
 }
 
 static int nft_osf_init(const struct nft_ctx *ctx,
@@ -51,7 +49,7 @@ static int nft_osf_init(const struct nft_ctx *ctx,
 
 	priv->dreg = nft_parse_register(tb[NFTA_OSF_DREG]);
 	err = nft_validate_register_store(ctx, priv->dreg, NULL,
-					  NFTA_DATA_VALUE, OSF_GENRE_SIZE);
+					  NFTA_DATA_VALUE, NFT_OSF_MAXGENRELEN);
 	if (err < 0)
 		return err;
 

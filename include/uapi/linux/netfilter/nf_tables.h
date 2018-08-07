@@ -8,6 +8,7 @@
 #define NFT_SET_MAXNAMELEN	NFT_NAME_MAXLEN
 #define NFT_OBJ_MAXNAMELEN	NFT_NAME_MAXLEN
 #define NFT_USERDATA_MAXLEN	256
+#define NFT_OSF_MAXGENRELEN	16
 
 /**
  * enum nft_registers - nf_tables registers
