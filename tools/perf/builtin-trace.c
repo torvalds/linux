@@ -77,7 +77,8 @@ struct trace {
 		struct syscall  *table;
 		struct {
 			struct perf_evsel *sys_enter,
-					  *sys_exit;
+					  *sys_exit,
+					  *augmented;
 		}		events;
 	} syscalls;
 	struct record_opts	opts;
@@ -261,6 +262,30 @@ static int perf_evsel__init_syscall_tp(struct perf_evsel *evsel)
 out_delete:
 	zfree(&evsel->priv);
 	return -ENOENT;
+}
+
+static int perf_evsel__init_augmented_syscall_tp(struct perf_evsel *evsel)
+{
+	struct syscall_tp *sc = evsel->priv = malloc(sizeof(struct syscall_tp));
+
+	if (evsel->priv != NULL) {       /* field, sizeof_field, offsetof_field */
+		if (__tp_field__init_uint(&sc->id, sizeof(long), sizeof(long long), evsel->needs_swap))
+			goto out_delete;
+
+		return 0;
+	}
+
+	return -ENOMEM;
+out_delete:
+	zfree(&evsel->priv);
+	return -EINVAL;
+}
+
+static int perf_evsel__init_augmented_syscall_tp_args(struct perf_evsel *evsel)
+{
+	struct syscall_tp *sc = evsel->priv;
+
+	return __tp_field__init_ptr(&sc->args, sc->id.offset + sizeof(u64));
 }
 
 static int perf_evsel__init_raw_syscall_tp(struct perf_evsel *evsel, void *handler)
@@ -3246,6 +3271,13 @@ int cmd_trace(int argc, const char **argv)
 		bpf__strerror_setup_output_event(trace.evlist, PTR_ERR(evsel), bf, sizeof(bf));
 		pr_err("ERROR: Setup trace syscalls enter failed: %s\n", bf);
 		goto out;
+	}
+
+	if (evsel) {
+		if (perf_evsel__init_augmented_syscall_tp(evsel) ||
+		    perf_evsel__init_augmented_syscall_tp_args(evsel))
+			goto out;
+		trace.syscalls.events.augmented = evsel;
 	}
 
 	err = bpf__setup_stdout(trace.evlist);
