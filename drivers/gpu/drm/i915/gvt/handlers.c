@@ -1296,6 +1296,19 @@ static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int gen9_dbuf_ctl_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & DBUF_POWER_REQUEST)
+		vgpu_vreg(vgpu, offset) |= DBUF_POWER_STATE;
+	else
+		vgpu_vreg(vgpu, offset) &= ~DBUF_POWER_STATE;
+
+	return 0;
+}
+
 static int fpga_dbg_mmio_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
@@ -2812,6 +2825,8 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(SKL_DISP_PW_MISC_IO), D_SKL_PLUS, NULL,
 		skl_power_well_ctl_write);
 
+	MMIO_DH(DBUF_CTL, D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
+
 	MMIO_D(_MMIO(0xa210), D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
 	MMIO_D(GEN9_RENDER_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
@@ -2986,8 +3001,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0x4df4), D_SKL_PLUS, F_CMD_ACCESS,
 		NULL, gen9_trtte_write);
 	MMIO_DH(_MMIO(0x4dfc), D_SKL_PLUS, NULL, gen9_trtt_chicken_write);
-
-	MMIO_D(_MMIO(0x45008), D_SKL_PLUS);
 
 	MMIO_D(_MMIO(0x46430), D_SKL_PLUS);
 
