@@ -647,6 +647,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	unsigned node_type = node_types[inst];
 	unsigned int allocator = allocators[inst];
 	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
+	char *strings_base;
 	int ret;
 	int i;
 
@@ -859,17 +860,33 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	/* create a string array containing the names of all the preset timings */
 	while (v4l2_dv_timings_presets[dev->query_dv_timings_size].bt.width)
 		dev->query_dv_timings_size++;
+
+	/*
+	 * In order to save one allocation and an extra free, let's optimize
+	 * the allocation here: we'll use the first elements of the
+	 * dev->query_dv_timings_qmenu to store the timing strings pointer,
+	 * adding an extra space there to a store a string up to 32 bytes.
+	 * So, instead of allocating an array with size of:
+	 * 	dev->query_dv_timings_size * (sizeof(void *)
+	 * it will allocate:
+	 * 	dev->query_dv_timings_size * (sizeof(void *) +
+	 *	dev->query_dv_timings_size * 32
+	 */
 	dev->query_dv_timings_qmenu = kmalloc_array(dev->query_dv_timings_size,
 						    (sizeof(void *) + 32),
 						    GFP_KERNEL);
 	if (dev->query_dv_timings_qmenu == NULL)
 		goto free_dev;
+
+	/* Sets strings_base to be after the space to store the pointers */
+	strings_base = ((char *)&dev->query_dv_timings_qmenu)
+		       + dev->query_dv_timings_size * sizeof(void *);
+
 	for (i = 0; i < dev->query_dv_timings_size; i++) {
 		const struct v4l2_bt_timings *bt = &v4l2_dv_timings_presets[i].bt;
-		char *p = (char *)&dev->query_dv_timings_qmenu[dev->query_dv_timings_size];
+		char *p = strings_base + i * 32;
 		u32 htot, vtot;
 
-		p += i * 32;
 		dev->query_dv_timings_qmenu[i] = p;
 
 		htot = V4L2_DV_BT_FRAME_WIDTH(bt);
