@@ -17,8 +17,6 @@ enum dot11d_state {
 };
 
 struct rt_dot11d_info {
-	/* DECLARE_RT_OBJECT(rt_dot11d_info); */
-
 	bool enabled; /* dot11MultiDomainCapabilityEnabled */
 
 	u16 country_ie_len; /* > 0 if country_ie_buf[] contains valid country information element. */
