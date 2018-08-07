@@ -24,11 +24,11 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
 
-struct ctnl_timeout *
+struct nf_ct_timeout *
 (*nf_ct_timeout_find_get_hook)(struct net *net, const char *name) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_timeout_find_get_hook);
 
-void (*nf_ct_timeout_put_hook)(struct ctnl_timeout *timeout) __read_mostly;
+void (*nf_ct_timeout_put_hook)(struct nf_ct_timeout *timeout) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_timeout_put_hook);
 
 static int untimeout(struct nf_conn *ct, void *timeout)
@@ -42,7 +42,7 @@ static int untimeout(struct nf_conn *ct, void *timeout)
 	return 0;
 }
 
-void nf_ct_untimeout(struct net *net, struct ctnl_timeout *timeout)
+void nf_ct_untimeout(struct net *net, struct nf_ct_timeout *timeout)
 {
 	nf_ct_iterate_cleanup_net(net, untimeout, timeout, 0, 0);
 }

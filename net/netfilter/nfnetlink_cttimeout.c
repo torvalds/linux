@@ -113,13 +113,13 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 			/* You cannot replace one timeout policy by another of
 			 * different kind, sorry.
 			 */
-			if (matching->l3num != l3num ||
-			    matching->l4proto->l4proto != l4num)
+			if (matching->timeout.l3num != l3num ||
+			    matching->timeout.l4proto->l4proto != l4num)
 				return -EINVAL;
 
-			return ctnl_timeout_parse_policy(&matching->data,
-							 matching->l4proto, net,
-							 cda[CTA_TIMEOUT_DATA]);
+			return ctnl_timeout_parse_policy(&matching->timeout.data,
+							 matching->timeout.l4proto,
+							 net, cda[CTA_TIMEOUT_DATA]);
 		}
 
 		return -EBUSY;
@@ -140,14 +140,14 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 		goto err_proto_put;
 	}
 
-	ret = ctnl_timeout_parse_policy(&timeout->data, l4proto, net,
+	ret = ctnl_timeout_parse_policy(&timeout->timeout.data, l4proto, net,
 					cda[CTA_TIMEOUT_DATA]);
 	if (ret < 0)
 		goto err;
 
 	strcpy(timeout->name, nla_data(cda[CTA_TIMEOUT_NAME]));
-	timeout->l3num = l3num;
-	timeout->l4proto = l4proto;
+	timeout->timeout.l3num = l3num;
+	timeout->timeout.l4proto = l4proto;
 	refcount_set(&timeout->refcnt, 1);
 	list_add_tail_rcu(&timeout->head, &net->nfct_timeout_list);
 
@@ -166,7 +166,7 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	unsigned int flags = portid ? NLM_F_MULTI : 0;
-	const struct nf_conntrack_l4proto *l4proto = timeout->l4proto;
+	const struct nf_conntrack_l4proto *l4proto = timeout->timeout.l4proto;
 
 	event = nfnl_msg_type(NFNL_SUBSYS_CTNETLINK_TIMEOUT, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
@@ -179,8 +179,9 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	nfmsg->res_id = 0;
 
 	if (nla_put_string(skb, CTA_TIMEOUT_NAME, timeout->name) ||
-	    nla_put_be16(skb, CTA_TIMEOUT_L3PROTO, htons(timeout->l3num)) ||
-	    nla_put_u8(skb, CTA_TIMEOUT_L4PROTO, timeout->l4proto->l4proto) ||
+	    nla_put_be16(skb, CTA_TIMEOUT_L3PROTO,
+			 htons(timeout->timeout.l3num)) ||
+	    nla_put_u8(skb, CTA_TIMEOUT_L4PROTO, l4proto->l4proto) ||
 	    nla_put_be32(skb, CTA_TIMEOUT_USE,
 			 htonl(refcount_read(&timeout->refcnt))))
 		goto nla_put_failure;
@@ -194,7 +195,8 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 		if (!nest_parms)
 			goto nla_put_failure;
 
-		ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, &timeout->data);
+		ret = l4proto->ctnl_timeout.obj_to_nlattr(skb,
+							&timeout->timeout.data);
 		if (ret < 0)
 			goto nla_put_failure;
 
@@ -308,8 +310,8 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 	if (refcount_dec_if_one(&timeout->refcnt)) {
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
-		nf_ct_l4proto_put(timeout->l4proto);
-		nf_ct_untimeout(net, timeout);
+		nf_ct_l4proto_put(timeout->timeout.l4proto);
+		nf_ct_untimeout(net, &timeout->timeout);
 		kfree_rcu(timeout, rcu_head);
 	} else {
 		ret = -EBUSY;
@@ -510,8 +512,11 @@ err:
 	return matching;
 }
 
-static void ctnl_timeout_put(struct ctnl_timeout *timeout)
+static void ctnl_timeout_put(struct nf_ct_timeout *t)
 {
+	struct ctnl_timeout *timeout =
+		container_of(t, struct ctnl_timeout, timeout);
+
 	if (refcount_dec_and_test(&timeout->refcnt))
 		kfree_rcu(timeout, rcu_head);
 
@@ -561,7 +566,7 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 
 	list_for_each_entry_safe(cur, tmp, &net->nfct_timeout_list, head) {
 		list_del_rcu(&cur->head);
-		nf_ct_l4proto_put(cur->l4proto);
+		nf_ct_l4proto_put(cur->timeout.l4proto);
 
 		if (refcount_dec_and_test(&cur->refcnt))
 			kfree_rcu(cur, rcu_head);
