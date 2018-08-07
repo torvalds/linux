@@ -3474,7 +3474,13 @@ static int acpi_nfit_add(struct acpi_device *adev)
 
 	status = acpi_get_table(ACPI_SIG_NFIT, 0, &tbl);
 	if (ACPI_FAILURE(status)) {
-		/* This is ok, we could have an nvdimm hotplugged later */
+		/* The NVDIMM root device allows OS to trigger enumeration of
+		 * NVDIMMs through NFIT at boot time and re-enumeration at
+		 * root level via the _FIT method during runtime.
+		 * This is ok to return 0 here, we could have an nvdimm
+		 * hotplugged later and evaluate _FIT method which returns
+		 * data in the format of a series of NFIT Structures.
+		 */
 		dev_dbg(dev, "failed to find NFIT at startup\n");
 		return 0;
 	}
