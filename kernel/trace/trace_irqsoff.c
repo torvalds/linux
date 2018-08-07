@@ -40,12 +40,12 @@ static int start_irqsoff_tracer(struct trace_array *tr, int graph);
 
 #ifdef CONFIG_PREEMPT_TRACER
 static inline int
-preempt_trace(void)
+preempt_trace(int pc)
 {
-	return ((trace_type & TRACER_PREEMPT_OFF) && preempt_count());
+	return ((trace_type & TRACER_PREEMPT_OFF) && pc);
 }
 #else
-# define preempt_trace() (0)
+# define preempt_trace(pc) (0)
 #endif
 
 #ifdef CONFIG_IRQSOFF_TRACER
@@ -366,7 +366,7 @@ out:
 }
 
 static inline void
-start_critical_timing(unsigned long ip, unsigned long parent_ip)
+start_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
 {
 	int cpu;
 	struct trace_array *tr = irqsoff_trace;
@@ -394,7 +394,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 
 	local_save_flags(flags);
 
-	__trace_function(tr, ip, parent_ip, flags, preempt_count());
+	__trace_function(tr, ip, parent_ip, flags, pc);
 
 	per_cpu(tracing_cpu, cpu) = 1;
 
@@ -402,7 +402,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 }
 
 static inline void
-stop_critical_timing(unsigned long ip, unsigned long parent_ip)
+stop_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
 {
 	int cpu;
 	struct trace_array *tr = irqsoff_trace;
@@ -428,7 +428,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	atomic_inc(&data->disabled);
 
 	local_save_flags(flags);
-	__trace_function(tr, ip, parent_ip, flags, preempt_count());
+	__trace_function(tr, ip, parent_ip, flags, pc);
 	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
 	data->critical_start = 0;
 	atomic_dec(&data->disabled);
@@ -437,15 +437,19 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 /* start and stop critical timings used to for stoppage (in idle) */
 void start_critical_timings(void)
 {
-	if (preempt_trace() || irq_trace())
-		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
+	int pc = preempt_count();
+
+	if (preempt_trace(pc) || irq_trace())
+		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1, pc);
 }
 EXPORT_SYMBOL_GPL(start_critical_timings);
 
 void stop_critical_timings(void)
 {
-	if (preempt_trace() || irq_trace())
-		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
+	int pc = preempt_count();
+
+	if (preempt_trace(pc) || irq_trace())
+		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1, pc);
 }
 EXPORT_SYMBOL_GPL(stop_critical_timings);
 
@@ -603,40 +607,40 @@ static void irqsoff_tracer_stop(struct trace_array *tr)
  */
 static void tracer_hardirqs_on(void *none, unsigned long a0, unsigned long a1)
 {
+	unsigned int pc = preempt_count();
+
 	/*
 	 * Tracepoint probes are expected to be called with preempt disabled,
 	 * We don't care about being called with preempt disabled but we need
 	 * to know in the future if that changes so we can remove the next
 	 * preempt_enable.
 	 */
-	WARN_ON_ONCE(!preempt_count());
+	WARN_ON_ONCE(pc < PREEMPT_DISABLE_OFFSET);
 
-	/* Tracepoint probes disable preemption atleast once, account for that */
-	preempt_enable_notrace();
+	/* Use PREEMPT_DISABLE_OFFSET to handle !CONFIG_PREEMPT cases */
+	pc -= PREEMPT_DISABLE_OFFSET;
 
-	if (!preempt_trace() && irq_trace())
-		stop_critical_timing(a0, a1);
-
-	preempt_disable_notrace();
+	if (!preempt_trace(pc) && irq_trace())
+		stop_critical_timing(a0, a1, pc);
 }
 
 static void tracer_hardirqs_off(void *none, unsigned long a0, unsigned long a1)
 {
+	unsigned int pc = preempt_count();
+
 	/*
 	 * Tracepoint probes are expected to be called with preempt disabled,
 	 * We don't care about being called with preempt disabled but we need
 	 * to know in the future if that changes so we can remove the next
 	 * preempt_enable.
 	 */
-	WARN_ON_ONCE(!preempt_count());
+	WARN_ON_ONCE(pc < PREEMPT_DISABLE_OFFSET);
 
-	/* Tracepoint probes disable preemption atleast once, account for that */
-	preempt_enable_notrace();
+	/* Use PREEMPT_DISABLE_OFFSET to handle !CONFIG_PREEMPT cases */
+	pc -= PREEMPT_DISABLE_OFFSET;
 
-	if (!preempt_trace() && irq_trace())
-		start_critical_timing(a0, a1);
-
-	preempt_disable_notrace();
+	if (!preempt_trace(pc) && irq_trace())
+		start_critical_timing(a0, a1, pc);
 }
 
 static int irqsoff_tracer_init(struct trace_array *tr)
@@ -679,14 +683,18 @@ static struct tracer irqsoff_tracer __read_mostly =
 #ifdef CONFIG_PREEMPT_TRACER
 static void tracer_preempt_on(void *none, unsigned long a0, unsigned long a1)
 {
-	if (preempt_trace() && !irq_trace())
-		stop_critical_timing(a0, a1);
+	int pc = preempt_count();
+
+	if (preempt_trace(pc) && !irq_trace())
+		stop_critical_timing(a0, a1, pc);
 }
 
 static void tracer_preempt_off(void *none, unsigned long a0, unsigned long a1)
 {
-	if (preempt_trace() && !irq_trace())
-		start_critical_timing(a0, a1);
+	int pc = preempt_count();
+
+	if (preempt_trace(pc) && !irq_trace())
+		start_critical_timing(a0, a1, pc);
 }
 
 static int preemptoff_tracer_init(struct trace_array *tr)
