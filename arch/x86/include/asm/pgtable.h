@@ -410,11 +410,6 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 	return pmd_set_flags(pmd, _PAGE_RW);
 }
 
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
-{
-	return pmd_clear_flags(pmd, _PAGE_PRESENT | _PAGE_PROTNONE);
-}
-
 static inline pud_t pud_set_flags(pud_t pud, pudval_t set)
 {
 	pudval_t v = native_pud_val(pud);
@@ -467,11 +462,6 @@ static inline pud_t pud_mkyoung(pud_t pud)
 static inline pud_t pud_mkwrite(pud_t pud)
 {
 	return pud_set_flags(pud, _PAGE_RW);
-}
-
-static inline pud_t pud_mknotpresent(pud_t pud)
-{
-	return pud_clear_flags(pud, _PAGE_PRESENT | _PAGE_PROTNONE);
 }
 
 #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
@@ -575,6 +565,18 @@ static inline pud_t pfn_pud(unsigned long page_nr, pgprot_t pgprot)
 	pfn ^= protnone_mask(pgprot_val(pgprot));
 	pfn &= PHYSICAL_PUD_PAGE_MASK;
 	return __pud(pfn | check_pgprot(pgprot));
+}
+
+static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+{
+	return pfn_pmd(pmd_pfn(pmd),
+		      __pgprot(pmd_flags(pmd) & ~(_PAGE_PRESENT|_PAGE_PROTNONE)));
+}
+
+static inline pud_t pud_mknotpresent(pud_t pud)
+{
+	return pfn_pud(pud_pfn(pud),
+	      __pgprot(pud_flags(pud) & ~(_PAGE_PRESENT|_PAGE_PROTNONE)));
 }
 
 static inline u64 flip_protnone_guard(u64 oldval, u64 val, u64 mask);
