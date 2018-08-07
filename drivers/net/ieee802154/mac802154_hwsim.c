@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL");
 static LIST_HEAD(hwsim_phys);
 static DEFINE_MUTEX(hwsim_phys_lock);
 
-static __rcu LIST_HEAD(hwsim_ifup_phys);
+static LIST_HEAD(hwsim_ifup_phys);
 
 static struct platform_device *mac802154hwsim_dev;
 
@@ -68,7 +68,7 @@ struct hwsim_edge_info {
 
 struct hwsim_edge {
 	struct hwsim_phy *endpoint;
-	struct hwsim_edge_info *info;
+	struct hwsim_edge_info __rcu *info;
 
 	struct list_head list;
 	struct rcu_head rcu;
@@ -81,7 +81,7 @@ struct hwsim_phy {
 	struct hwsim_pib __rcu *pib;
 
 	bool suspended;
-	struct list_head __rcu edges;
+	struct list_head edges;
 
 	struct list_head list;
 	struct list_head list_ifup;
