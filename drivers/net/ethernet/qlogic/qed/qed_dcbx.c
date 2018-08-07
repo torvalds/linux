@@ -208,7 +208,7 @@ qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 
 	/* QM reconf data */
 	if (p_info->personality == personality)
-		p_info->offload_tc = tc;
+		qed_hw_info_set_offload_tc(p_info, tc);
 }
 
 /* Update app protocol data and hw_info fields with the TLV info */

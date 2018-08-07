@@ -394,7 +394,25 @@ static void qed_init_qm_advance_vport(struct qed_hwfn *p_hwfn)
 /* defines for pq init */
 #define PQ_INIT_DEFAULT_WRR_GROUP       1
 #define PQ_INIT_DEFAULT_TC              0
-#define PQ_INIT_OFLD_TC                 (p_hwfn->hw_info.offload_tc)
+
+void qed_hw_info_set_offload_tc(struct qed_hw_info *p_info, u8 tc)
+{
+	p_info->offload_tc = tc;
+	p_info->offload_tc_set = true;
+}
+
+static bool qed_is_offload_tc_set(struct qed_hwfn *p_hwfn)
+{
+	return p_hwfn->hw_info.offload_tc_set;
+}
+
+static u32 qed_get_offload_tc(struct qed_hwfn *p_hwfn)
+{
+	if (qed_is_offload_tc_set(p_hwfn))
+		return p_hwfn->hw_info.offload_tc;
+
+	return PQ_INIT_DEFAULT_TC;
+}
 
 static void qed_init_qm_pq(struct qed_hwfn *p_hwfn,
 			   struct qed_qm_info *qm_info,
@@ -538,7 +556,8 @@ static void qed_init_qm_pure_ack_pq(struct qed_hwfn *p_hwfn)
 		return;
 
 	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_ACK, qm_info->num_pqs);
-	qed_init_qm_pq(p_hwfn, qm_info, PQ_INIT_OFLD_TC, PQ_INIT_SHARE_VPORT);
+	qed_init_qm_pq(p_hwfn, qm_info, qed_get_offload_tc(p_hwfn),
+		       PQ_INIT_SHARE_VPORT);
 }
 
 static void qed_init_qm_offload_pq(struct qed_hwfn *p_hwfn)
@@ -549,7 +568,8 @@ static void qed_init_qm_offload_pq(struct qed_hwfn *p_hwfn)
 		return;
 
 	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_OFLD, qm_info->num_pqs);
-	qed_init_qm_pq(p_hwfn, qm_info, PQ_INIT_OFLD_TC, PQ_INIT_SHARE_VPORT);
+	qed_init_qm_pq(p_hwfn, qm_info, qed_get_offload_tc(p_hwfn),
+		       PQ_INIT_SHARE_VPORT);
 }
 
 static void qed_init_qm_low_latency_pq(struct qed_hwfn *p_hwfn)
@@ -560,7 +580,8 @@ static void qed_init_qm_low_latency_pq(struct qed_hwfn *p_hwfn)
 		return;
 
 	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_LLT, qm_info->num_pqs);
-	qed_init_qm_pq(p_hwfn, qm_info, PQ_INIT_OFLD_TC, PQ_INIT_SHARE_VPORT);
+	qed_init_qm_pq(p_hwfn, qm_info, qed_get_offload_tc(p_hwfn),
+		       PQ_INIT_SHARE_VPORT);
 }
 
 static void qed_init_qm_mcos_pqs(struct qed_hwfn *p_hwfn)
@@ -601,7 +622,8 @@ static void qed_init_qm_rl_pqs(struct qed_hwfn *p_hwfn)
 
 	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_RLS, qm_info->num_pqs);
 	for (pf_rls_idx = 0; pf_rls_idx < num_pf_rls; pf_rls_idx++)
-		qed_init_qm_pq(p_hwfn, qm_info, PQ_INIT_OFLD_TC, PQ_INIT_PF_RL);
+		qed_init_qm_pq(p_hwfn, qm_info, qed_get_offload_tc(p_hwfn),
+			       PQ_INIT_PF_RL);
 }
 
 static void qed_init_qm_pq_params(struct qed_hwfn *p_hwfn)

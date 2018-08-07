@@ -336,6 +336,7 @@ struct qed_hw_info {
 	 */
 	u8 num_active_tc;
 	u8				offload_tc;
+	bool				offload_tc_set;
 
 	u32				concrete_fid;
 	u16				opaque_fid;
@@ -921,4 +922,6 @@ int qed_mfw_tlv_req(struct qed_hwfn *hwfn);
 int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn,
 			  enum qed_mfw_tlv_type type,
 			  union qed_mfw_tlv_data *tlv_data);
+
+void qed_hw_info_set_offload_tc(struct qed_hw_info *p_info, u8 tc);
 #endif /* _QED_H */
