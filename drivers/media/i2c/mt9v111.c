@@ -848,7 +848,7 @@ static int mt9v111_enum_frame_size(struct v4l2_subdev *subdev,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->pad || fse->index > ARRAY_SIZE(mt9v111_frame_sizes))
+	if (fse->pad || fse->index >= ARRAY_SIZE(mt9v111_frame_sizes))
 		return -EINVAL;
 
 	fse->min_width = mt9v111_frame_sizes[fse->index].width;
