@@ -66,6 +66,7 @@
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IP) | \
 	 BIT(FLOW_DISSECTOR_KEY_MPLS) | \
 	 BIT(FLOW_DISSECTOR_KEY_IP))
@@ -75,6 +76,7 @@
 	 BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IP))
 
@@ -141,6 +143,21 @@ static bool nfp_flower_check_higher_than_mac(struct tc_cls_flower_offload *f)
 }
 
 static int
+nfp_flower_calc_opt_layer(struct flow_dissector_key_enc_opts *enc_opts,
+			  u32 *key_layer_two, int *key_size)
+{
+	if (enc_opts->len > NFP_FL_MAX_GENEVE_OPT_KEY)
+		return -EOPNOTSUPP;
+
+	if (enc_opts->len > 0) {
+		*key_layer_two |= NFP_FLOWER_LAYER2_GENEVE_OP;
+		*key_size += sizeof(struct nfp_flower_geneve_options);
+	}
+
+	return 0;
+}
+
+static int
 nfp_flower_calculate_key_layers(struct nfp_app *app,
 				struct nfp_fl_key_ls *ret_key_ls,
 				struct tc_cls_flower_offload *flow,
@@ -153,6 +170,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	u32 key_layer_two;
 	u8 key_layer;
 	int key_size;
+	int err;
 
 	if (flow->dissector->used_keys & ~NFP_FLOWER_WHITELIST_DISSECTOR)
 		return -EOPNOTSUPP;
@@ -178,6 +196,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			       FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
 		struct flow_dissector_key_ipv4_addrs *mask_ipv4 = NULL;
 		struct flow_dissector_key_ports *mask_enc_ports = NULL;
+		struct flow_dissector_key_enc_opts *enc_op = NULL;
 		struct flow_dissector_key_ports *enc_ports = NULL;
 		struct flow_dissector_key_control *mask_enc_ctl =
 			skb_flow_dissector_target(flow->dissector,
@@ -214,11 +233,21 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		if (mask_enc_ports->dst != cpu_to_be16(~0))
 			return -EOPNOTSUPP;
 
+		if (dissector_uses_key(flow->dissector,
+				       FLOW_DISSECTOR_KEY_ENC_OPTS)) {
+			enc_op = skb_flow_dissector_target(flow->dissector,
+							   FLOW_DISSECTOR_KEY_ENC_OPTS,
+							   flow->key);
+		}
+
 		switch (enc_ports->dst) {
 		case htons(NFP_FL_VXLAN_PORT):
 			*tun_type = NFP_FL_TUNNEL_VXLAN;
 			key_layer |= NFP_FLOWER_LAYER_VXLAN;
 			key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
+
+			if (enc_op)
+				return -EOPNOTSUPP;
 			break;
 		case htons(NFP_FL_GENEVE_PORT):
 			if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE))
@@ -228,6 +257,15 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			key_size += sizeof(struct nfp_flower_ext_meta);
 			key_layer_two |= NFP_FLOWER_LAYER2_GENEVE;
 			key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
+
+			if (!enc_op)
+				break;
+			if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE_OPT))
+				return -EOPNOTSUPP;
+			err = nfp_flower_calc_opt_layer(enc_op, &key_layer_two,
+							&key_size);
+			if (err)
+				return err;
 			break;
 		default:
 			return -EOPNOTSUPP;

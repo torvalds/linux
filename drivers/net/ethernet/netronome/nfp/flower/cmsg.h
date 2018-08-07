@@ -52,6 +52,7 @@
 #define NFP_FLOWER_LAYER_VXLAN		BIT(7)
 
 #define NFP_FLOWER_LAYER2_GENEVE	BIT(5)
+#define NFP_FLOWER_LAYER2_GENEVE_OP	BIT(6)
 
 #define NFP_FLOWER_MASK_VLAN_PRIO	GENMASK(15, 13)
 #define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
@@ -85,6 +86,7 @@
 /* Maximum allowed geneve options */
 #define NFP_FL_MAX_GENEVE_OPT_ACT	32
 #define NFP_FL_MAX_GENEVE_OPT_CNT	64
+#define NFP_FL_MAX_GENEVE_OPT_KEY	32
 
 /* Action opcodes */
 #define NFP_FL_ACTION_OPCODE_OUTPUT		0
@@ -379,6 +381,10 @@ struct nfp_flower_ipv4_udp_tun {
 	u8 ttl;
 	__be32 reserved2;
 	__be32 tun_id;
+};
+
+struct nfp_flower_geneve_options {
+	u8 data[NFP_FL_MAX_GENEVE_OPT_KEY];
 };
 
 #define NFP_FL_TUN_VNI_OFFSET 8
