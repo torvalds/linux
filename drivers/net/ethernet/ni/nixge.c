@@ -155,7 +155,6 @@ struct nixge_priv {
 
 	int tx_irq;
 	int rx_irq;
-	u32 last_link;
 
 	/* Buffer descriptors */
 	struct nixge_hw_dma_bd *tx_bd_v;
