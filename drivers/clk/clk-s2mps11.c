@@ -28,12 +28,7 @@
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/mfd/samsung/core.h>
 
-enum {
-	S2MPS11_CLK_AP = 0,
-	S2MPS11_CLK_CP,
-	S2MPS11_CLK_BT,
-	S2MPS11_CLKS_NUM,
-};
+#include <dt-bindings/clock/samsung,s2mps11.h>
 
 struct s2mps11_clk {
 	struct sec_pmic_dev *iodev;
