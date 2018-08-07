@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/platform_device.h>
+#include <linux/rtnetlink.h>
 #include <linux/netdevice.h>
 #include <linux/device.h>
 #include <linux/spinlock.h>
@@ -110,7 +111,7 @@ static int hwsim_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	pib->page = page;
 	pib->channel = channel;
 
-	pib_old = phy->pib;
+	pib_old = rtnl_dereference(phy->pib);
 	rcu_assign_pointer(phy->pib, pib);
 	kfree_rcu(pib_old, rcu);
 	return 0;
@@ -406,7 +407,7 @@ static struct hwsim_edge *hwsim_alloc_edge(struct hwsim_phy *endpoint, u8 lqi)
 	}
 
 	einfo->lqi = 0xff;
-	e->info = einfo;
+	rcu_assign_pointer(e->info, einfo);
 	e->endpoint = endpoint;
 
 	return e;
@@ -414,7 +415,13 @@ static struct hwsim_edge *hwsim_alloc_edge(struct hwsim_phy *endpoint, u8 lqi)
 
 static void hwsim_free_edge(struct hwsim_edge *e)
 {
-	kfree_rcu(e->info, rcu);
+	struct hwsim_edge_info *einfo;
+
+	rcu_read_lock();
+	einfo = rcu_dereference(e->info);
+	rcu_read_unlock();
+
+	kfree_rcu(einfo, rcu);
 	kfree_rcu(e, rcu);
 }
 
@@ -796,7 +803,7 @@ static int hwsim_add_one(struct genl_info *info, struct device *dev,
 		goto err_pib;
 	}
 
-	phy->pib = pib;
+	rcu_assign_pointer(phy->pib, pib);
 	phy->idx = idx;
 	INIT_LIST_HEAD(&phy->edges);
 
@@ -829,10 +836,17 @@ err_pib:
 
 static void hwsim_del(struct hwsim_phy *phy)
 {
+	struct hwsim_pib *pib;
+
 	hwsim_edge_unsubscribe_me(phy);
 
 	list_del(&phy->list);
-	kfree_rcu(phy->pib, rcu);
+
+	rcu_read_lock();
+	pib = rcu_dereference(phy->pib);
+	rcu_read_unlock();
+
+	kfree_rcu(pib, rcu);
 
 	ieee802154_unregister_hw(phy->hw);
 	ieee802154_free_hw(phy->hw);
