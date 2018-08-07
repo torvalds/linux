@@ -32,6 +32,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <net/geneve.h>
 #include <net/pkt_cls.h>
 #include <net/switchdev.h>
 #include <net/tc_act/tc_csum.h>
@@ -45,7 +46,15 @@
 #include "main.h"
 #include "../nfp_net_repr.h"
 
-#define NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS	(TUNNEL_CSUM | TUNNEL_KEY)
+/* The kernel versions of TUNNEL_* are not ABI and therefore vulnerable
+ * to change. Such changes will break our FW ABI.
+ */
+#define NFP_FL_TUNNEL_CSUM			cpu_to_be16(0x01)
+#define NFP_FL_TUNNEL_KEY			cpu_to_be16(0x04)
+#define NFP_FL_TUNNEL_GENEVE_OPT		cpu_to_be16(0x0800)
+#define NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS	(NFP_FL_TUNNEL_CSUM | \
+						 NFP_FL_TUNNEL_KEY | \
+						 NFP_FL_TUNNEL_GENEVE_OPT)
 
 static void nfp_fl_pop_vlan(struct nfp_fl_pop_vlan *pop_vlan)
 {
@@ -229,7 +238,71 @@ static struct nfp_fl_pre_tunnel *nfp_fl_pre_tunnel(char *act_data, int act_len)
 }
 
 static int
-nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
+nfp_fl_push_geneve_options(struct nfp_fl_payload *nfp_fl, int *list_len,
+			   const struct tc_action *action)
+{
+	struct ip_tunnel_info *ip_tun = tcf_tunnel_info(action);
+	int opt_len, opt_cnt, act_start, tot_push_len;
+	u8 *src = ip_tunnel_info_opts(ip_tun);
+
+	/* We need to populate the options in reverse order for HW.
+	 * Therefore we go through the options, calculating the
+	 * number of options and the total size, then we populate
+	 * them in reverse order in the action list.
+	 */
+	opt_cnt = 0;
+	tot_push_len = 0;
+	opt_len = ip_tun->options_len;
+	while (opt_len > 0) {
+		struct geneve_opt *opt = (struct geneve_opt *)src;
+
+		opt_cnt++;
+		if (opt_cnt > NFP_FL_MAX_GENEVE_OPT_CNT)
+			return -EOPNOTSUPP;
+
+		tot_push_len += sizeof(struct nfp_fl_push_geneve) +
+			       opt->length * 4;
+		if (tot_push_len > NFP_FL_MAX_GENEVE_OPT_ACT)
+			return -EOPNOTSUPP;
+
+		opt_len -= sizeof(struct geneve_opt) + opt->length * 4;
+		src += sizeof(struct geneve_opt) + opt->length * 4;
+	}
+
+	if (*list_len + tot_push_len > NFP_FL_MAX_A_SIZ)
+		return -EOPNOTSUPP;
+
+	act_start = *list_len;
+	*list_len += tot_push_len;
+	src = ip_tunnel_info_opts(ip_tun);
+	while (opt_cnt) {
+		struct geneve_opt *opt = (struct geneve_opt *)src;
+		struct nfp_fl_push_geneve *push;
+		size_t act_size, len;
+
+		opt_cnt--;
+		act_size = sizeof(struct nfp_fl_push_geneve) + opt->length * 4;
+		tot_push_len -= act_size;
+		len = act_start + tot_push_len;
+
+		push = (struct nfp_fl_push_geneve *)&nfp_fl->action_data[len];
+		push->head.jump_id = NFP_FL_ACTION_OPCODE_PUSH_GENEVE;
+		push->head.len_lw = act_size >> NFP_FL_LW_SIZ;
+		push->reserved = 0;
+		push->class = opt->opt_class;
+		push->type = opt->type;
+		push->length = opt->length;
+		memcpy(&push->opt_data, opt->opt_data, opt->length * 4);
+
+		src += sizeof(struct geneve_opt) + opt->length * 4;
+	}
+
+	return 0;
+}
+
+static int
+nfp_fl_set_ipv4_udp_tun(struct nfp_app *app,
+			struct nfp_fl_set_ipv4_udp_tun *set_tun,
 			const struct tc_action *action,
 			struct nfp_fl_pre_tunnel *pre_tun,
 			enum nfp_flower_tun_type tun_type,
@@ -237,18 +310,18 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 {
 	size_t act_size = sizeof(struct nfp_fl_set_ipv4_udp_tun);
 	struct ip_tunnel_info *ip_tun = tcf_tunnel_info(action);
+	struct nfp_flower_priv *priv = app->priv;
 	u32 tmp_set_ip_tun_type_index = 0;
-	struct flowi4 flow = {};
 	/* Currently support one pre-tunnel so index is always 0. */
 	int pretun_idx = 0;
-	struct rtable *rt;
-	struct net *net;
-	int err;
 
-	if (ip_tun->options_len)
+	BUILD_BUG_ON(NFP_FL_TUNNEL_CSUM != TUNNEL_CSUM ||
+		     NFP_FL_TUNNEL_KEY	!= TUNNEL_KEY ||
+		     NFP_FL_TUNNEL_GENEVE_OPT != TUNNEL_GENEVE_OPT);
+	if (ip_tun->options_len &&
+	    (tun_type != NFP_FL_TUNNEL_GENEVE ||
+	    !(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE_OPT)))
 		return -EOPNOTSUPP;
-
-	net = dev_net(netdev);
 
 	set_tun->head.jump_id = NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL;
 	set_tun->head.len_lw = act_size >> NFP_FL_LW_SIZ;
@@ -261,27 +334,41 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 	set_tun->tun_type_index = cpu_to_be32(tmp_set_ip_tun_type_index);
 	set_tun->tun_id = ip_tun->key.tun_id;
 
-	/* Do a route lookup to determine ttl - if fails then use default.
-	 * Note that CONFIG_INET is a requirement of CONFIG_NET_SWITCHDEV so
-	 * must be defined here.
-	 */
-	flow.daddr = ip_tun->key.u.ipv4.dst;
-	flow.flowi4_proto = IPPROTO_UDP;
-	rt = ip_route_output_key(net, &flow);
-	err = PTR_ERR_OR_ZERO(rt);
-	if (!err) {
-		set_tun->ttl = ip4_dst_hoplimit(&rt->dst);
-		ip_rt_put(rt);
+	if (ip_tun->key.ttl) {
+		set_tun->ttl = ip_tun->key.ttl;
 	} else {
-		set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
+		struct net *net = dev_net(netdev);
+		struct flowi4 flow = {};
+		struct rtable *rt;
+		int err;
+
+		/* Do a route lookup to determine ttl - if fails then use
+		 * default. Note that CONFIG_INET is a requirement of
+		 * CONFIG_NET_SWITCHDEV so must be defined here.
+		 */
+		flow.daddr = ip_tun->key.u.ipv4.dst;
+		flow.flowi4_proto = IPPROTO_UDP;
+		rt = ip_route_output_key(net, &flow);
+		err = PTR_ERR_OR_ZERO(rt);
+		if (!err) {
+			set_tun->ttl = ip4_dst_hoplimit(&rt->dst);
+			ip_rt_put(rt);
+		} else {
+			set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
+		}
 	}
 
 	set_tun->tos = ip_tun->key.tos;
 
-	if (!(ip_tun->key.tun_flags & TUNNEL_KEY) ||
+	if (!(ip_tun->key.tun_flags & NFP_FL_TUNNEL_KEY) ||
 	    ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS)
 		return -EOPNOTSUPP;
 	set_tun->tun_flags = ip_tun->key.tun_flags;
+
+	if (tun_type == NFP_FL_TUNNEL_GENEVE) {
+		set_tun->tun_proto = htons(ETH_P_TEB);
+		set_tun->tun_len = ip_tun->options_len / 4;
+	}
 
 	/* Complete pre_tunnel action. */
 	pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
@@ -671,9 +758,13 @@ nfp_flower_loop_action(struct nfp_app *app, const struct tc_action *a,
 		nfp_fl->meta.shortcut = cpu_to_be32(NFP_FL_SC_ACT_NULL);
 		*a_len += sizeof(struct nfp_fl_pre_tunnel);
 
+		err = nfp_fl_push_geneve_options(nfp_fl, a_len, a);
+		if (err)
+			return err;
+
 		set_tun = (void *)&nfp_fl->action_data[*a_len];
-		err = nfp_fl_set_ipv4_udp_tun(set_tun, a, pre_tun, *tun_type,
-					      netdev);
+		err = nfp_fl_set_ipv4_udp_tun(app, set_tun, a, pre_tun,
+					      *tun_type, netdev);
 		if (err)
 			return err;
 		*a_len += sizeof(struct nfp_fl_set_ipv4_udp_tun);

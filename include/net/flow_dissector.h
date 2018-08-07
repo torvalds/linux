@@ -57,6 +57,21 @@ struct flow_dissector_key_mpls {
 		mpls_label:20;
 };
 
+#define FLOW_DIS_TUN_OPTS_MAX 255
+/**
+ * struct flow_dissector_key_enc_opts:
+ * @data: tunnel option data
+ * @len: length of tunnel option data
+ * @dst_opt_type: tunnel option type
+ */
+struct flow_dissector_key_enc_opts {
+	u8 data[FLOW_DIS_TUN_OPTS_MAX];	/* Using IP_TUNNEL_OPTS_MAX is desired
+					 * here but seems difficult to #include
+					 */
+	u8 len;
+	__be16 dst_opt_type;
+};
+
 struct flow_dissector_key_keyid {
 	__be32	keyid;
 };
@@ -208,6 +223,8 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_IP, /* struct flow_dissector_key_ip */
 	FLOW_DISSECTOR_KEY_CVLAN, /* struct flow_dissector_key_flow_vlan */
 	FLOW_DISSECTOR_KEY_ENC_IP, /* struct flow_dissector_key_ip */
+	FLOW_DISSECTOR_KEY_ENC_OPTS, /* struct flow_dissector_key_enc_opts */
+
 	FLOW_DISSECTOR_KEY_MAX,
 };
 
