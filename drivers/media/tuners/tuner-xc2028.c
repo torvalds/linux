@@ -376,9 +376,8 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 			tuner_err("Firmware type ");
 			dump_firm_type(type);
 			printk(KERN_CONT
-			       "(%x), id %llx is corrupted (size=%d, expected %d)\n",
-			       type, (unsigned long long)id,
-			       (unsigned)(endp - p), size);
+			       "(%x), id %llx is corrupted (size=%zd, expected %d)\n",
+			       type, (unsigned long long)id, (endp - p), size);
 			goto corrupt;
 		}
 
@@ -616,8 +615,8 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 		}
 
 		if ((size + p > endp)) {
-			tuner_err("missing bytes: need %d, have %d\n",
-				   size, (int)(endp - p));
+			tuner_err("missing bytes: need %d, have %zd\n",
+				   size, (endp - p));
 			return -EINVAL;
 		}
 
