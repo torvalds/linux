@@ -7009,6 +7009,10 @@ enum {
 #define SKL_CSR_DC5_DC6_COUNT	_MMIO(0x8002C)
 #define BXT_CSR_DC3_DC5_COUNT	_MMIO(0x80038)
 
+/* Display Internal Timeout Register */
+#define RM_TIMEOUT		_MMIO(0x42060)
+#define  MMIO_TIMEOUT_US(us)	((us) << 0)
+
 /* interrupts */
 #define DE_MASTER_IRQ_CONTROL   (1 << 31)
 #define DE_SPRITEB_FLIP_DONE    (1 << 29)
