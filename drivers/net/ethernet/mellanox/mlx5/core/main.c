@@ -878,8 +878,10 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	priv->numa_node = dev_to_node(&dev->pdev->dev);
 
 	priv->dbg_root = debugfs_create_dir(dev_name(&pdev->dev), mlx5_debugfs_root);
-	if (!priv->dbg_root)
+	if (!priv->dbg_root) {
+		dev_err(&pdev->dev, "Cannot create debugfs dir, aborting\n");
 		return -ENOMEM;
+	}
 
 	err = mlx5_pci_enable_device(dev);
 	if (err) {
@@ -928,7 +930,7 @@ static void mlx5_pci_close(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	pci_clear_master(dev->pdev);
 	release_bar(dev->pdev);
 	mlx5_pci_disable_device(dev);
-	debugfs_remove(priv->dbg_root);
+	debugfs_remove_recursive(priv->dbg_root);
 }
 
 static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
