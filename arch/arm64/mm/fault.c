@@ -864,17 +864,3 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	return rv;
 }
 NOKPROBE_SYMBOL(do_debug_exception);
-
-#ifdef CONFIG_ARM64_PAN
-void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused)
-{
-	/*
-	 * We modify PSTATE. This won't work from irq context as the PSTATE
-	 * is discarded once we return from the exception.
-	 */
-	WARN_ON_ONCE(in_interrupt());
-
-	sysreg_clear_set(sctlr_el1, SCTLR_EL1_SPAN, 0);
-	asm(SET_PSTATE_PAN(1));
-}
-#endif /* CONFIG_ARM64_PAN */
