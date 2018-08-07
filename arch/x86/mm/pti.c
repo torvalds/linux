@@ -549,7 +549,7 @@ void __init pti_init(void)
 	 * supported on 32 bit anyway. To print the warning we need to
 	 * check with cpuid directly again.
 	 */
-	if (cpuid_ecx(0x1) && BIT(17)) {
+	if (cpuid_ecx(0x1) & BIT(17)) {
 		/* Use printk to work around pr_fmt() */
 		printk(KERN_WARNING "\n");
 		printk(KERN_WARNING "************************************************************\n");
