@@ -565,19 +565,20 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 			       struct drm_sched_entity *entity)
 {
 	struct drm_sched_rq *rq = entity->rq;
-	bool first, reschedule, idle;
+	bool first;
 
-	idle = entity->last_scheduled == NULL ||
-		dma_fence_is_signaled(entity->last_scheduled);
 	first = spsc_queue_count(&entity->job_queue) == 0;
-	reschedule = idle && first && (entity->num_rq_list > 1);
+	if (first && (entity->num_rq_list > 1)) {
+		struct dma_fence *fence;
 
-	if (reschedule) {
-		rq = drm_sched_entity_get_free_sched(entity);
-		spin_lock(&entity->rq_lock);
-		drm_sched_rq_remove_entity(entity->rq, entity);
-		entity->rq = rq;
-		spin_unlock(&entity->rq_lock);
+		fence = READ_ONCE(entity->last_scheduled);
+		if (fence == NULL || dma_fence_is_signaled(fence)) {
+			rq = drm_sched_entity_get_free_sched(entity);
+			spin_lock(&entity->rq_lock);
+			drm_sched_rq_remove_entity(entity->rq, entity);
+			entity->rq = rq;
+			spin_unlock(&entity->rq_lock);
+		}
 	}
 
 	sched_job->sched = entity->rq->sched;
