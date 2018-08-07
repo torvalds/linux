@@ -65,6 +65,27 @@ struct gfs2_log_operations {
 
 #define GBF_FULL 1
 
+/**
+ * Clone bitmaps (bi_clone):
+ *
+ * - When a block is freed, we remember the previous state of the block in the
+ *   clone bitmap, and only mark the block as free in the real bitmap.
+ *
+ * - When looking for a block to allocate, we check for a free block in the
+ *   clone bitmap, and if no clone bitmap exists, in the real bitmap.
+ *
+ * - For allocating a block, we mark it as allocated in the real bitmap, and if
+ *   a clone bitmap exists, also in the clone bitmap.
+ *
+ * - At the end of a log_flush, we copy the real bitmap into the clone bitmap
+ *   to make the clone bitmap reflect the current allocation state.
+ *   (Alternatively, we could remove the clone bitmap.)
+ *
+ * The clone bitmaps are in-core only, and is never written to disk.
+ *
+ * These steps ensure that blocks which have been freed in a transaction cannot
+ * be reallocated in that same transaction.
+ */
 struct gfs2_bitmap {
 	struct buffer_head *bi_bh;
 	char *bi_clone;

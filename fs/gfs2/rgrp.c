@@ -123,17 +123,26 @@ static inline void gfs2_setbit(const struct gfs2_rbm *rbm, bool do_clone,
 /**
  * gfs2_testbit - test a bit in the bitmaps
  * @rbm: The bit to test
+ * @use_clone: If true, test the clone bitmap, not the official bitmap.
+ *
+ * Some callers like gfs2_unaligned_extlen need to test the clone bitmaps,
+ * not the "real" bitmaps, to avoid allocating recently freed blocks.
  *
  * Returns: The two bit block state of the requested bit
  */
 
-static inline u8 gfs2_testbit(const struct gfs2_rbm *rbm)
+static inline u8 gfs2_testbit(const struct gfs2_rbm *rbm, bool use_clone)
 {
 	struct gfs2_bitmap *bi = rbm_bi(rbm);
-	const u8 *buffer = bi->bi_bh->b_data + bi->bi_offset;
+	const u8 *buffer;
 	const u8 *byte;
 	unsigned int bit;
 
+	if (use_clone && bi->bi_clone)
+		buffer = bi->bi_clone;
+	else
+		buffer = bi->bi_bh->b_data;
+	buffer += bi->bi_offset;
 	byte = buffer + (rbm->offset / GFS2_NBBY);
 	bit = (rbm->offset % GFS2_NBBY) * GFS2_BIT_SIZE;
 
@@ -322,7 +331,7 @@ static bool gfs2_unaligned_extlen(struct gfs2_rbm *rbm, u32 n_unaligned, u32 *le
 	u8 res;
 
 	for (n = 0; n < n_unaligned; n++) {
-		res = gfs2_testbit(rbm);
+		res = gfs2_testbit(rbm, true);
 		if (res != GFS2_BLKST_FREE)
 			return true;
 		(*len)--;
@@ -2147,26 +2156,6 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 }
 
 /**
- * gfs2_get_block_type - Check a block in a RG is of given type
- * @rgd: the resource group holding the block
- * @block: the block number
- *
- * Returns: The block type (GFS2_BLKST_*)
- */
-
-static unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block)
-{
-	struct gfs2_rbm rbm = { .rgd = rgd, };
-	int ret;
-
-	ret = gfs2_rbm_from_block(&rbm, block);
-	WARN_ON_ONCE(ret != 0);
-
-	return gfs2_testbit(&rbm);
-}
-
-
-/**
  * gfs2_alloc_extent - allocate an extent from a given bitmap
  * @rbm: the resource group information
  * @dinode: TRUE if the first block we allocate is for a dinode
@@ -2190,7 +2179,7 @@ static void gfs2_alloc_extent(const struct gfs2_rbm *rbm, bool dinode,
 	block++;
 	while (*n < elen) {
 		ret = gfs2_rbm_from_block(&pos, block);
-		if (ret || gfs2_testbit(&pos) != GFS2_BLKST_FREE)
+		if (ret || gfs2_testbit(&pos, true) != GFS2_BLKST_FREE)
 			break;
 		gfs2_trans_add_meta(pos.rgd->rd_gl, rbm_bi(&pos)->bi_bh);
 		gfs2_setbit(&pos, true, GFS2_BLKST_USED);
@@ -2543,6 +2532,7 @@ int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr, unsigned int type)
 {
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_holder rgd_gh;
+	struct gfs2_rbm rbm;
 	int error = -EINVAL;
 
 	rgd = gfs2_blk2rgrpd(sdp, no_addr, 1);
@@ -2553,7 +2543,11 @@ int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr, unsigned int type)
 	if (error)
 		goto fail;
 
-	if (gfs2_get_block_type(rgd, no_addr) != type)
+	rbm.rgd = rgd;
+	error = gfs2_rbm_from_block(&rbm, no_addr);
+	WARN_ON_ONCE(error != 0);
+
+	if (gfs2_testbit(&rbm, false) != type)
 		error = -ESTALE;
 
 	gfs2_glock_dq_uninit(&rgd_gh);
