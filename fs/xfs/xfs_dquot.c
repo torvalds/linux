@@ -311,7 +311,7 @@ xfs_dquot_disk_alloc(
 			XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
 			XFS_QM_DQALLOC_SPACE_RES(mp), &map, &nmaps);
 	if (error)
-		goto error0;
+		return error;
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);
 	ASSERT(nmaps == 1);
 	ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
@@ -325,10 +325,8 @@ xfs_dquot_disk_alloc(
 	/* now we can just get the buffer (there's nothing to read yet) */
 	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, dqp->q_blkno,
 			mp->m_quotainfo->qi_dqchunklen, 0);
-	if (!bp) {
-		error = -ENOMEM;
-		goto error1;
-	}
+	if (!bp)
+		return -ENOMEM;
 	bp->b_ops = &xfs_dquot_buf_ops;
 
 	/*
@@ -349,10 +347,8 @@ xfs_dquot_disk_alloc(
 	 * the buffer locked across the _defer_finish call.  We can now do
 	 * this correctly with xfs_defer_bjoin.
 	 *
-	 * Above, we allocated a disk block for the dquot information and
-	 * used get_buf to initialize the dquot.  If the _defer_bjoin fails,
-	 * the buffer is still locked to *tpp, so we must _bhold_release and
-	 * then _trans_brelse the buffer.  If the _defer_finish fails, the old
+	 * Above, we allocated a disk block for the dquot information and used
+	 * get_buf to initialize the dquot. If the _defer_finish fails, the old
 	 * transaction is gone but the new buffer is not joined or held to any
 	 * transaction, so we must _buf_relse it.
 	 *
@@ -362,24 +358,14 @@ xfs_dquot_disk_alloc(
 	 * manually or by committing the transaction.
 	 */
 	xfs_trans_bhold(tp, bp);
-	if (error) {
-		xfs_trans_bhold_release(tp, bp);
-		xfs_trans_brelse(tp, bp);
-		goto error1;
-	}
 	error = xfs_defer_finish(tpp);
 	tp = *tpp;
 	if (error) {
 		xfs_buf_relse(bp);
-		goto error0;
+		return error;
 	}
 	*bpp = bp;
 	return 0;
-
-error1:
-	xfs_defer_cancel(tp);
-error0:
-	return error;
 }
 
 /*
