@@ -3825,15 +3825,41 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	ibmvnic_send_crq(adapter, &crq);
 }
 
+static const char *ibmvnic_fw_err_cause(u16 cause)
+{
+	switch (cause) {
+	case ADAPTER_PROBLEM:
+		return "adapter problem";
+	case BUS_PROBLEM:
+		return "bus problem";
+	case FW_PROBLEM:
+		return "firmware problem";
+	case DD_PROBLEM:
+		return "device driver problem";
+	case EEH_RECOVERY:
+		return "EEH recovery";
+	case FW_UPDATED:
+		return "firmware updated";
+	case LOW_MEMORY:
+		return "low Memory";
+	default:
+		return "unknown";
+	}
+}
+
 static void handle_error_indication(union ibmvnic_crq *crq,
 				    struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
+	u16 cause;
 
-	dev_err(dev, "Firmware reports %serror, cause %d\n",
-		crq->error_indication.flags
-			& IBMVNIC_FATAL_ERROR ? "FATAL " : "",
-		be16_to_cpu(crq->error_indication.error_cause));
+	cause = be16_to_cpu(crq->error_indication.error_cause);
+
+	dev_warn_ratelimited(dev,
+			     "Firmware reports %serror, cause: %s. Starting recovery...\n",
+			     crq->error_indication.flags
+				& IBMVNIC_FATAL_ERROR ? "FATAL " : "",
+			     ibmvnic_fw_err_cause(cause));
 
 	if (crq->error_indication.flags & IBMVNIC_FATAL_ERROR)
 		ibmvnic_reset(adapter, VNIC_RESET_FATAL);
