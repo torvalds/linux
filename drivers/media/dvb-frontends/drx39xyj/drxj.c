@@ -11810,8 +11810,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 		block_hdr.CRC = be16_to_cpu(*(__be16 *)(mc_data));
 		mc_data += sizeof(u16);
 
-		pr_debug("%u: addr %u, size %u, flags 0x%04x, CRC 0x%04x\n",
-			(unsigned)(mc_data - mc_data_init), block_hdr.addr,
+		pr_debug("%zd: addr %u, size %u, flags 0x%04x, CRC 0x%04x\n",
+			(mc_data - mc_data_init), block_hdr.addr,
 			 block_hdr.size, block_hdr.flags, block_hdr.CRC);
 
 		/* Check block header on:
@@ -11841,8 +11841,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 							mc_block_nr_bytes,
 							mc_data, 0x0000)) {
 				rc = -EIO;
-				pr_err("error writing firmware at pos %u\n",
-				       (unsigned)(mc_data - mc_data_init));
+				pr_err("error writing firmware at pos %zd\n",
+				       mc_data - mc_data_init);
 				goto release;
 			}
 			break;
@@ -11865,8 +11865,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 						    (u16)bytes_to_comp,
 						    (u8 *)mc_data_buffer,
 						    0x0000)) {
-					pr_err("error reading firmware at pos %u\n",
-					       (unsigned)(mc_data - mc_data_init));
+					pr_err("error reading firmware at pos %zd\n",
+					       mc_data - mc_data_init);
 					return -EIO;
 				}
 
@@ -11874,8 +11874,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 						bytes_to_comp);
 
 				if (result) {
-					pr_err("error verifying firmware at pos %u\n",
-					       (unsigned)(mc_data - mc_data_init));
+					pr_err("error verifying firmware at pos %zd\n",
+					       mc_data - mc_data_init);
 					return -EIO;
 				}
 
