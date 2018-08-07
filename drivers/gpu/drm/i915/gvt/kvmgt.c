@@ -185,12 +185,6 @@ static int gvt_dma_map_page(struct intel_vgpu *vgpu, unsigned long gfn,
 	if (ret)
 		return ret;
 
-	if (!pfn_valid(pfn)) {
-		gvt_vgpu_err("pfn 0x%lx is not mem backed\n", pfn);
-		vfio_unpin_pages(mdev_dev(vgpu->vdev.mdev), &gfn, 1);
-		return -EINVAL;
-	}
-
 	/* Setup DMA mapping. */
 	*dma_addr = dma_map_page(dev, page, 0, size, PCI_DMA_BIDIRECTIONAL);
 	ret = dma_mapping_error(dev, *dma_addr);
