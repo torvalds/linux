@@ -666,7 +666,7 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 	if (atomic_cmpxchg(&vgpu->vdev.released, 0, 1))
 		return;
 
-	intel_gvt_ops->vgpu_deactivate(vgpu);
+	intel_gvt_ops->vgpu_release(vgpu);
 
 	ret = vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_IOMMU_NOTIFY,
 					&vgpu->vdev.iommu_notifier);

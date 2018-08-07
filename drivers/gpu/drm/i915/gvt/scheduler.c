@@ -784,7 +784,8 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	kunmap(page);
 }
 
-static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
+void intel_vgpu_clean_workloads(struct intel_vgpu *vgpu,
+				unsigned long engine_mask)
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -879,7 +880,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 		 * cleaned up during the resetting process later, so doing
 		 * the workload clean up here doesn't have any impact.
 		 **/
-		clean_workloads(vgpu, ENGINE_MASK(ring_id));
+		intel_vgpu_clean_workloads(vgpu, ENGINE_MASK(ring_id));
 	}
 
 	workload->complete(workload);
@@ -1081,7 +1082,7 @@ void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
 	if (!s->active)
 		return;
 
-	clean_workloads(vgpu, engine_mask);
+	intel_vgpu_clean_workloads(vgpu, engine_mask);
 	s->ops->reset(vgpu, engine_mask);
 }
 
