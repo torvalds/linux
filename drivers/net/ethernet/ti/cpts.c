@@ -161,6 +161,7 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 				 */
 				break;
 			}
+			/* fall through */
 		case CPTS_EV_PUSH:
 		case CPTS_EV_RX:
 			list_del_init(&event->list);
