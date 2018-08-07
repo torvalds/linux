@@ -47,6 +47,8 @@
 #include "../nfp_asm.h"
 #include "fw.h"
 
+#define cmsg_warn(bpf, msg...)	nn_dp_warn(&(bpf)->app->ctrl->dp, msg)
+
 /* For relocation logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
  */
@@ -148,6 +150,7 @@ enum pkt_vec {
  *
  * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
  * @queue_select:	BPF can set the RX queue ID in packet vector
+ * @adjust_tail:	BPF can simply trunc packet size for adjust tail
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
@@ -193,6 +196,7 @@ struct nfp_app_bpf {
 
 	bool pseudo_random;
 	bool queue_select;
+	bool adjust_tail;
 };
 
 enum nfp_bpf_map_use {
@@ -221,6 +225,7 @@ struct nfp_bpf_map {
 struct nfp_bpf_neutral_map {
 	struct rhash_head l;
 	struct bpf_map *ptr;
+	u32 map_id;
 	u32 count;
 };
 
@@ -501,7 +506,11 @@ int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
 int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 			       void *key, void *next_key);
 
-int nfp_bpf_event_output(struct nfp_app_bpf *bpf, struct sk_buff *skb);
+int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
+			 unsigned int len);
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
+void
+nfp_bpf_ctrl_msg_rx_raw(struct nfp_app *app, const void *data,
+			unsigned int len);
 #endif

@@ -69,6 +69,7 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_SOCKMAP]		= "sockmap",
 	[BPF_MAP_TYPE_CPUMAP]		= "cpumap",
 	[BPF_MAP_TYPE_SOCKHASH]		= "sockhash",
+	[BPF_MAP_TYPE_CGROUP_STORAGE]	= "cgroup_storage",
 };
 
 static bool map_is_per_cpu(__u32 type)
@@ -232,7 +233,7 @@ static int get_btf(struct bpf_map_info *map_info, struct btf **btf)
 
 	*btf = btf__new((__u8 *)btf_info.btf, btf_info.btf_size, NULL);
 	if (IS_ERR(*btf)) {
-		err = PTR_ERR(btf);
+		err = PTR_ERR(*btf);
 		*btf = NULL;
 	}
 

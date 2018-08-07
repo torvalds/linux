@@ -45,8 +45,8 @@
 
 const struct rhashtable_params nfp_bpf_maps_neutral_params = {
 	.nelem_hint		= 4,
-	.key_len		= FIELD_SIZEOF(struct nfp_bpf_neutral_map, ptr),
-	.key_offset		= offsetof(struct nfp_bpf_neutral_map, ptr),
+	.key_len		= FIELD_SIZEOF(struct bpf_map, id),
+	.key_offset		= offsetof(struct nfp_bpf_neutral_map, map_id),
 	.head_offset		= offsetof(struct nfp_bpf_neutral_map, l),
 	.automatic_shrinking	= true,
 };
@@ -334,6 +334,14 @@ nfp_bpf_parse_cap_qsel(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
 	return 0;
 }
 
+static int
+nfp_bpf_parse_cap_adjust_tail(struct nfp_app_bpf *bpf, void __iomem *value,
+			      u32 length)
+{
+	bpf->adjust_tail = true;
+	return 0;
+}
+
 static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 {
 	struct nfp_cpp *cpp = app->pf->cpp;
@@ -378,6 +386,11 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 			break;
 		case NFP_BPF_CAP_TYPE_QUEUE_SELECT:
 			if (nfp_bpf_parse_cap_qsel(app->priv, value, length))
+				goto err_release_free;
+			break;
+		case NFP_BPF_CAP_TYPE_ADJUST_TAIL:
+			if (nfp_bpf_parse_cap_adjust_tail(app->priv, value,
+							  length))
 				goto err_release_free;
 			break;
 		default:
@@ -490,6 +503,7 @@ const struct nfp_app_type app_bpf = {
 	.vnic_free	= nfp_bpf_vnic_free,
 
 	.ctrl_msg_rx	= nfp_bpf_ctrl_msg_rx,
+	.ctrl_msg_rx_raw	= nfp_bpf_ctrl_msg_rx_raw,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.bpf		= nfp_ndo_bpf,

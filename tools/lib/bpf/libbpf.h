@@ -86,6 +86,9 @@ const char *bpf_object__name(struct bpf_object *obj);
 unsigned int bpf_object__kversion(struct bpf_object *obj);
 int bpf_object__btf_fd(const struct bpf_object *obj);
 
+struct bpf_program *
+bpf_object__find_program_by_title(struct bpf_object *obj, const char *title);
+
 struct bpf_object *bpf_object__next(struct bpf_object *prev);
 #define bpf_object__for_each_safe(pos, tmp)			\
 	for ((pos) = bpf_object__next(NULL),		\

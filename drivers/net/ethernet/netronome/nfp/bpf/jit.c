@@ -1642,6 +1642,51 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+static int adjust_tail(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	u32 ret_einval, end;
+	swreg plen, delta;
+
+	BUILD_BUG_ON(plen_reg(nfp_prog) != reg_b(STATIC_REG_PKT_LEN));
+
+	plen = imm_a(nfp_prog);
+	delta = reg_a(2 * 2);
+
+	ret_einval = nfp_prog_current_offset(nfp_prog) + 9;
+	end = nfp_prog_current_offset(nfp_prog) + 11;
+
+	/* Calculate resulting length */
+	emit_alu(nfp_prog, plen, plen_reg(nfp_prog), ALU_OP_ADD, delta);
+	/* delta == 0 is not allowed by the kernel, add must overflow to make
+	 * length smaller.
+	 */
+	emit_br(nfp_prog, BR_BCC, ret_einval, 0);
+
+	/* if (new_len < 14) then -EINVAL */
+	emit_alu(nfp_prog, reg_none(), plen, ALU_OP_SUB, reg_imm(ETH_HLEN));
+	emit_br(nfp_prog, BR_BMI, ret_einval, 0);
+
+	emit_alu(nfp_prog, plen_reg(nfp_prog),
+		 plen_reg(nfp_prog), ALU_OP_ADD, delta);
+	emit_alu(nfp_prog, pv_len(nfp_prog),
+		 pv_len(nfp_prog), ALU_OP_ADD, delta);
+
+	emit_br(nfp_prog, BR_UNC, end, 2);
+	wrp_immed(nfp_prog, reg_both(0), 0);
+	wrp_immed(nfp_prog, reg_both(1), 0);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, ret_einval))
+		return -EINVAL;
+
+	wrp_immed(nfp_prog, reg_both(0), -22);
+	wrp_immed(nfp_prog, reg_both(1), ~0);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, end))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int
 map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
@@ -3041,6 +3086,8 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	switch (meta->insn.imm) {
 	case BPF_FUNC_xdp_adjust_head:
 		return adjust_head(nfp_prog, meta);
+	case BPF_FUNC_xdp_adjust_tail:
+		return adjust_tail(nfp_prog, meta);
 	case BPF_FUNC_map_lookup_elem:
 	case BPF_FUNC_map_update_elem:
 	case BPF_FUNC_map_delete_elem:
@@ -3883,6 +3930,7 @@ static int nfp_bpf_replace_map_ptrs(struct nfp_prog *nfp_prog)
 	struct nfp_insn_meta *meta1, *meta2;
 	struct nfp_bpf_map *nfp_map;
 	struct bpf_map *map;
+	u32 id;
 
 	nfp_for_each_insn_walk2(nfp_prog, meta1, meta2) {
 		if (meta1->skip || meta2->skip)
@@ -3894,11 +3942,14 @@ static int nfp_bpf_replace_map_ptrs(struct nfp_prog *nfp_prog)
 
 		map = (void *)(unsigned long)((u32)meta1->insn.imm |
 					      (u64)meta2->insn.imm << 32);
-		if (bpf_map_offload_neutral(map))
-			continue;
-		nfp_map = map_to_offmap(map)->dev_priv;
+		if (bpf_map_offload_neutral(map)) {
+			id = map->id;
+		} else {
+			nfp_map = map_to_offmap(map)->dev_priv;
+			id = nfp_map->tid;
+		}
 
-		meta1->insn.imm = nfp_map->tid;
+		meta1->insn.imm = id;
 		meta2->insn.imm = 0;
 	}
 

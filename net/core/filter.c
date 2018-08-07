@@ -3814,6 +3814,30 @@ static const struct bpf_func_proto bpf_get_socket_cookie_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
+BPF_CALL_1(bpf_get_socket_cookie_sock_addr, struct bpf_sock_addr_kern *, ctx)
+{
+	return sock_gen_cookie(ctx->sk);
+}
+
+static const struct bpf_func_proto bpf_get_socket_cookie_sock_addr_proto = {
+	.func		= bpf_get_socket_cookie_sock_addr,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+};
+
+BPF_CALL_1(bpf_get_socket_cookie_sock_ops, struct bpf_sock_ops_kern *, ctx)
+{
+	return sock_gen_cookie(ctx->sk);
+}
+
+static const struct bpf_func_proto bpf_get_socket_cookie_sock_ops_proto = {
+	.func		= bpf_get_socket_cookie_sock_ops,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+};
+
 BPF_CALL_1(bpf_get_socket_uid, struct sk_buff *, skb)
 {
 	struct sock *sk = sk_to_full_sk(skb->sk);
@@ -4544,26 +4568,28 @@ BPF_CALL_4(bpf_lwt_seg6_store_bytes, struct sk_buff *, skb, u32, offset,
 {
 	struct seg6_bpf_srh_state *srh_state =
 		this_cpu_ptr(&seg6_bpf_srh_states);
+	struct ipv6_sr_hdr *srh = srh_state->srh;
 	void *srh_tlvs, *srh_end, *ptr;
-	struct ipv6_sr_hdr *srh;
 	int srhoff = 0;
 
-	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+	if (srh == NULL)
 		return -EINVAL;
 
-	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
 	srh_tlvs = (void *)((char *)srh + ((srh->first_segment + 1) << 4));
 	srh_end = (void *)((char *)srh + sizeof(*srh) + srh_state->hdrlen);
 
 	ptr = skb->data + offset;
 	if (ptr >= srh_tlvs && ptr + len <= srh_end)
-		srh_state->valid = 0;
+		srh_state->valid = false;
 	else if (ptr < (void *)&srh->flags ||
 		 ptr + len > (void *)&srh->segments)
 		return -EFAULT;
 
 	if (unlikely(bpf_try_make_writable(skb, offset + len)))
 		return -EFAULT;
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+		return -EINVAL;
+	srh_state->srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
 
 	memcpy(skb->data + offset, from, len);
 	return 0;
@@ -4579,52 +4605,78 @@ static const struct bpf_func_proto bpf_lwt_seg6_store_bytes_proto = {
 	.arg4_type	= ARG_CONST_SIZE
 };
 
+static void bpf_update_srh_state(struct sk_buff *skb)
+{
+	struct seg6_bpf_srh_state *srh_state =
+		this_cpu_ptr(&seg6_bpf_srh_states);
+	int srhoff = 0;
+
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0) {
+		srh_state->srh = NULL;
+	} else {
+		srh_state->srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+		srh_state->hdrlen = srh_state->srh->hdrlen << 3;
+		srh_state->valid = true;
+	}
+}
+
 BPF_CALL_4(bpf_lwt_seg6_action, struct sk_buff *, skb,
 	   u32, action, void *, param, u32, param_len)
 {
 	struct seg6_bpf_srh_state *srh_state =
 		this_cpu_ptr(&seg6_bpf_srh_states);
-	struct ipv6_sr_hdr *srh;
-	int srhoff = 0;
+	int hdroff = 0;
 	int err;
-
-	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
-		return -EINVAL;
-	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
-
-	if (!srh_state->valid) {
-		if (unlikely((srh_state->hdrlen & 7) != 0))
-			return -EBADMSG;
-
-		srh->hdrlen = (u8)(srh_state->hdrlen >> 3);
-		if (unlikely(!seg6_validate_srh(srh, (srh->hdrlen + 1) << 3)))
-			return -EBADMSG;
-
-		srh_state->valid = 1;
-	}
 
 	switch (action) {
 	case SEG6_LOCAL_ACTION_END_X:
+		if (!seg6_bpf_has_valid_srh(skb))
+			return -EBADMSG;
 		if (param_len != sizeof(struct in6_addr))
 			return -EINVAL;
 		return seg6_lookup_nexthop(skb, (struct in6_addr *)param, 0);
 	case SEG6_LOCAL_ACTION_END_T:
+		if (!seg6_bpf_has_valid_srh(skb))
+			return -EBADMSG;
 		if (param_len != sizeof(int))
 			return -EINVAL;
 		return seg6_lookup_nexthop(skb, NULL, *(int *)param);
+	case SEG6_LOCAL_ACTION_END_DT6:
+		if (!seg6_bpf_has_valid_srh(skb))
+			return -EBADMSG;
+		if (param_len != sizeof(int))
+			return -EINVAL;
+
+		if (ipv6_find_hdr(skb, &hdroff, IPPROTO_IPV6, NULL, NULL) < 0)
+			return -EBADMSG;
+		if (!pskb_pull(skb, hdroff))
+			return -EBADMSG;
+
+		skb_postpull_rcsum(skb, skb_network_header(skb), hdroff);
+		skb_reset_network_header(skb);
+		skb_reset_transport_header(skb);
+		skb->encapsulation = 0;
+
+		bpf_compute_data_pointers(skb);
+		bpf_update_srh_state(skb);
+		return seg6_lookup_nexthop(skb, NULL, *(int *)param);
 	case SEG6_LOCAL_ACTION_END_B6:
+		if (srh_state->srh && !seg6_bpf_has_valid_srh(skb))
+			return -EBADMSG;
 		err = bpf_push_seg6_encap(skb, BPF_LWT_ENCAP_SEG6_INLINE,
 					  param, param_len);
 		if (!err)
-			srh_state->hdrlen =
-				((struct ipv6_sr_hdr *)param)->hdrlen << 3;
+			bpf_update_srh_state(skb);
+
 		return err;
 	case SEG6_LOCAL_ACTION_END_B6_ENCAP:
+		if (srh_state->srh && !seg6_bpf_has_valid_srh(skb))
+			return -EBADMSG;
 		err = bpf_push_seg6_encap(skb, BPF_LWT_ENCAP_SEG6,
 					  param, param_len);
 		if (!err)
-			srh_state->hdrlen =
-				((struct ipv6_sr_hdr *)param)->hdrlen << 3;
+			bpf_update_srh_state(skb);
+
 		return err;
 	default:
 		return -EINVAL;
@@ -4646,15 +4698,14 @@ BPF_CALL_3(bpf_lwt_seg6_adjust_srh, struct sk_buff *, skb, u32, offset,
 {
 	struct seg6_bpf_srh_state *srh_state =
 		this_cpu_ptr(&seg6_bpf_srh_states);
+	struct ipv6_sr_hdr *srh = srh_state->srh;
 	void *srh_end, *srh_tlvs, *ptr;
-	struct ipv6_sr_hdr *srh;
 	struct ipv6hdr *hdr;
 	int srhoff = 0;
 	int ret;
 
-	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+	if (unlikely(srh == NULL))
 		return -EINVAL;
-	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
 
 	srh_tlvs = (void *)((unsigned char *)srh + sizeof(*srh) +
 			((srh->first_segment + 1) << 4));
@@ -4684,8 +4735,11 @@ BPF_CALL_3(bpf_lwt_seg6_adjust_srh, struct sk_buff *, skb, u32, offset,
 	hdr = (struct ipv6hdr *)skb->data;
 	hdr->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+		return -EINVAL;
+	srh_state->srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
 	srh_state->hdrlen += len;
-	srh_state->valid = 0;
+	srh_state->valid = false;
 	return 0;
 }
 
@@ -4768,6 +4822,8 @@ sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	 */
 	case BPF_FUNC_get_current_uid_gid:
 		return &bpf_get_current_uid_gid_proto;
+	case BPF_FUNC_get_local_storage:
+		return &bpf_get_local_storage_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -4790,6 +4846,10 @@ sock_addr_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		default:
 			return NULL;
 		}
+	case BPF_FUNC_get_socket_cookie:
+		return &bpf_get_socket_cookie_sock_addr_proto;
+	case BPF_FUNC_get_local_storage:
+		return &bpf_get_local_storage_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -4809,6 +4869,17 @@ sk_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_get_socket_uid_proto;
 	default:
 		return bpf_base_func_proto(func_id);
+	}
+}
+
+static const struct bpf_func_proto *
+cg_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_get_local_storage:
+		return &bpf_get_local_storage_proto;
+	default:
+		return sk_filter_func_proto(func_id, prog);
 	}
 }
 
@@ -4932,6 +5003,10 @@ sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sock_map_update_proto;
 	case BPF_FUNC_sock_hash_update:
 		return &bpf_sock_hash_update_proto;
+	case BPF_FUNC_get_socket_cookie:
+		return &bpf_get_socket_cookie_sock_ops_proto;
+	case BPF_FUNC_get_local_storage:
+		return &bpf_get_local_storage_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -4951,6 +5026,8 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_msg_cork_bytes_proto;
 	case BPF_FUNC_msg_pull_data:
 		return &bpf_msg_pull_data_proto;
+	case BPF_FUNC_get_local_storage:
+		return &bpf_get_local_storage_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -4978,6 +5055,8 @@ sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sk_redirect_map_proto;
 	case BPF_FUNC_sk_redirect_hash:
 		return &bpf_sk_redirect_hash_proto;
+	case BPF_FUNC_get_local_storage:
+		return &bpf_get_local_storage_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -6782,7 +6861,7 @@ const struct bpf_prog_ops xdp_prog_ops = {
 };
 
 const struct bpf_verifier_ops cg_skb_verifier_ops = {
-	.get_func_proto		= sk_filter_func_proto,
+	.get_func_proto		= cg_skb_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 };

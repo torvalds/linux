@@ -98,6 +98,7 @@ extern const struct nfp_app_type app_abm;
  * @start:	start application logic
  * @stop:	stop application logic
  * @ctrl_msg_rx:    control message handler
+ * @ctrl_msg_rx_raw:	handler for control messages from data queues
  * @setup_tc:	setup TC ndo
  * @bpf:	BPF ndo offload-related calls
  * @xdp_offload:    offload an XDP program
@@ -150,6 +151,8 @@ struct nfp_app_type {
 	void (*stop)(struct nfp_app *app);
 
 	void (*ctrl_msg_rx)(struct nfp_app *app, struct sk_buff *skb);
+	void (*ctrl_msg_rx_raw)(struct nfp_app *app, const void *data,
+				unsigned int len);
 
 	int (*setup_tc)(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data);
@@ -318,6 +321,11 @@ static inline bool nfp_app_ctrl_has_meta(struct nfp_app *app)
 	return app->type->ctrl_has_meta;
 }
 
+static inline bool nfp_app_ctrl_uses_data_vnics(struct nfp_app *app)
+{
+	return app && app->type->ctrl_msg_rx_raw;
+}
+
 static inline const char *nfp_app_extra_cap(struct nfp_app *app,
 					    struct nfp_net *nn)
 {
@@ -379,6 +387,16 @@ static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
 			    skb->data, skb->len);
 
 	app->type->ctrl_msg_rx(app, skb);
+}
+
+static inline void
+nfp_app_ctrl_rx_raw(struct nfp_app *app, const void *data, unsigned int len)
+{
+	if (!app || !app->type->ctrl_msg_rx_raw)
+		return;
+
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), true, 0, data, len);
+	app->type->ctrl_msg_rx_raw(app, data, len);
 }
 
 static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
