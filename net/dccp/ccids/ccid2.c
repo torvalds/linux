@@ -228,14 +228,16 @@ static void ccid2_cwnd_restart(struct sock *sk, const u32 now)
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 	u32 cwnd = hc->tx_cwnd, restart_cwnd,
 	    iwnd = rfc3390_bytes_to_packets(dccp_sk(sk)->dccps_mss_cache);
+	s32 delta = now - hc->tx_lsndtime;
 
 	hc->tx_ssthresh = max(hc->tx_ssthresh, (cwnd >> 1) + (cwnd >> 2));
 
 	/* don't reduce cwnd below the initial window (IW) */
 	restart_cwnd = min(cwnd, iwnd);
-	cwnd >>= (now - hc->tx_lsndtime) / hc->tx_rto;
-	hc->tx_cwnd = max(cwnd, restart_cwnd);
 
+	while ((delta -= hc->tx_rto) >= 0 && cwnd > restart_cwnd)
+		cwnd >>= 1;
+	hc->tx_cwnd = max(cwnd, restart_cwnd);
 	hc->tx_cwnd_stamp = now;
 	hc->tx_cwnd_used  = 0;
 
