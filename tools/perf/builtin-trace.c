@@ -3240,6 +3240,13 @@ int cmd_trace(int argc, const char **argv)
 				       "cgroup monitoring only available in system-wide mode");
 	}
 
+	err = bpf__setup_output_event(trace.evlist, "__augmented_syscalls__");
+	if (err) {
+		bpf__strerror_setup_output_event(trace.evlist, err, bf, sizeof(bf));
+		pr_err("ERROR: Setup trace syscalls enter failed: %s\n", bf);
+		goto out;
+	}
+
 	err = bpf__setup_stdout(trace.evlist);
 	if (err) {
 		bpf__strerror_setup_stdout(trace.evlist, err, bf, sizeof(bf));
