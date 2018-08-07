@@ -364,6 +364,20 @@ static enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
+static enum power_supply_property energy_battery_full_cap_broken_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+};
+
 /* --------------------------------------------------------------------------
                                Battery Management
    -------------------------------------------------------------------------- */
@@ -798,6 +812,11 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 		battery->bat_desc.properties = charge_battery_props;
 		battery->bat_desc.num_properties =
 			ARRAY_SIZE(charge_battery_props);
+	} else if (battery->full_charge_capacity == 0) {
+		battery->bat_desc.properties =
+			energy_battery_full_cap_broken_props;
+		battery->bat_desc.num_properties =
+			ARRAY_SIZE(energy_battery_full_cap_broken_props);
 	} else {
 		battery->bat_desc.properties = energy_battery_props;
 		battery->bat_desc.num_properties =
