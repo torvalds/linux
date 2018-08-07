@@ -24,8 +24,8 @@ struct rt_dot11d_info {
 	u8  country_ie_src_addr[6]; /* Source AP of the country IE. */
 	u8  country_ie_watchdog;
 
-	u8  channel_map[MAX_CHANNEL_NUMBER+1];  /* !Value 0: Invalid, 1: Valid (active scan), 2: Valid (passive scan) */
-	u8  max_tx_pwr_dbm_list[MAX_CHANNEL_NUMBER+1];
+	u8  channel_map[MAX_CHANNEL_NUMBER + 1];  /* !Value 0: Invalid, 1: Valid (active scan), 2: Valid (passive scan) */
+	u8  max_tx_pwr_dbm_list[MAX_CHANNEL_NUMBER + 1];
 
 	enum dot11d_state state;
 };
