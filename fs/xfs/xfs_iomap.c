@@ -655,6 +655,7 @@ xfs_iomap_write_allocate(
 	unsigned int	*cow_seq)
 {
 	xfs_mount_t	*mp = ip->i_mount;
+	struct xfs_ifork *ifp = XFS_IFORK_PTR(ip, whichfork);
 	xfs_fileoff_t	offset_fsb, last_block;
 	xfs_fileoff_t	end_fsb, map_start_fsb;
 	xfs_filblks_t	count_fsb;
@@ -768,7 +769,7 @@ xfs_iomap_write_allocate(
 				goto error0;
 
 			if (whichfork == XFS_COW_FORK)
-				*cow_seq = XFS_IFORK_PTR(ip, whichfork)->if_seq;
+				*cow_seq = READ_ONCE(ifp->if_seq);
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		}
 

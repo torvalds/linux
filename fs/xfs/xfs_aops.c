@@ -351,7 +351,7 @@ xfs_map_blocks(
 	if (imap_valid &&
 	    (!xfs_inode_has_cow_data(ip) ||
 	     wpc->io_type == XFS_IO_COW ||
-	     wpc->cow_seq == ip->i_cowfp->if_seq))
+	     wpc->cow_seq == READ_ONCE(ip->i_cowfp->if_seq)))
 		return 0;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
@@ -380,7 +380,7 @@ xfs_map_blocks(
 	    xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &imap))
 		cow_fsb = imap.br_startoff;
 	if (cow_fsb != NULLFILEOFF && cow_fsb <= offset_fsb) {
-		wpc->cow_seq = ip->i_cowfp->if_seq;
+		wpc->cow_seq = READ_ONCE(ip->i_cowfp->if_seq);
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 		/*
 		 * Truncate can race with writeback since writeback doesn't
