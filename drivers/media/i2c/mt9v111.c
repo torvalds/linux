@@ -797,7 +797,7 @@ static struct v4l2_mbus_framefmt *__mt9v111_get_pad_format(
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-#if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
+#if IS_ENABLED(CONFIG_VIDEO_V4L2_SUBDEV_API)
 		return v4l2_subdev_get_try_format(&mt9v111->sd, cfg, pad);
 #else
 		return &cfg->try_fmt;
