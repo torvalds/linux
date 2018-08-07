@@ -31,6 +31,23 @@ EXPORT_SYMBOL_GPL(nf_ct_timeout_find_get_hook);
 void (*nf_ct_timeout_put_hook)(struct ctnl_timeout *timeout) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_timeout_put_hook);
 
+static int untimeout(struct nf_conn *ct, void *timeout)
+{
+	struct nf_conn_timeout *timeout_ext = nf_ct_timeout_find(ct);
+
+	if (timeout_ext && (!timeout || timeout_ext->timeout == timeout))
+		RCU_INIT_POINTER(timeout_ext->timeout, NULL);
+
+	/* We are not intended to delete this conntrack. */
+	return 0;
+}
+
+void nf_ct_untimeout(struct net *net, struct ctnl_timeout *timeout)
+{
+	nf_ct_iterate_cleanup_net(net, untimeout, timeout, 0, 0);
+}
+EXPORT_SYMBOL_GPL(nf_ct_untimeout);
+
 static const struct nf_ct_ext_type timeout_extend = {
 	.len	= sizeof(struct nf_conn_timeout),
 	.align	= __alignof__(struct nf_conn_timeout),

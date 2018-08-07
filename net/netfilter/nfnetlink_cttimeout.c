@@ -297,22 +297,6 @@ static int cttimeout_get_timeout(struct net *net, struct sock *ctnl,
 	return ret;
 }
 
-static int untimeout(struct nf_conn *ct, void *timeout)
-{
-	struct nf_conn_timeout *timeout_ext = nf_ct_timeout_find(ct);
-
-	if (timeout_ext && (!timeout || timeout_ext->timeout == timeout))
-		RCU_INIT_POINTER(timeout_ext->timeout, NULL);
-
-	/* We are not intended to delete this conntrack. */
-	return 0;
-}
-
-static void ctnl_untimeout(struct net *net, struct ctnl_timeout *timeout)
-{
-	nf_ct_iterate_cleanup_net(net, untimeout, timeout, 0, 0);
-}
-
 /* try to delete object, fail if it is still in use. */
 static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 {
@@ -325,7 +309,7 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
 		nf_ct_l4proto_put(timeout->l4proto);
-		ctnl_untimeout(net, timeout);
+		nf_ct_untimeout(net, timeout);
 		kfree_rcu(timeout, rcu_head);
 	} else {
 		ret = -EBUSY;
@@ -573,7 +557,7 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 	struct ctnl_timeout *cur, *tmp;
 
 	nf_ct_unconfirmed_destroy(net);
-	ctnl_untimeout(net, NULL);
+	nf_ct_untimeout(net, NULL);
 
 	list_for_each_entry_safe(cur, tmp, &net->nfct_timeout_list, head) {
 		list_del_rcu(&cur->head);
