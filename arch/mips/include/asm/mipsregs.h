@@ -16,6 +16,7 @@
 #include <linux/linkage.h>
 #include <linux/types.h>
 #include <asm/hazards.h>
+#include <asm/isa-rev.h>
 #include <asm/war.h>
 
 /*
@@ -1489,7 +1490,15 @@ do {									\
 	unsigned long __flags;						\
 									\
 	local_irq_save(__flags);					\
-	if (sel == 0)							\
+	if (MIPS_ISA_REV >= 2)						\
+		__asm__ __volatile__(					\
+			".set\tpush\n\t"				\
+			".set\t" MIPS_ISA_LEVEL "\n\t"			\
+			"dins\t%L0, %M0, 32, 32\n\t"			\
+			"dmtc0\t%L0, " #source ", " #sel "\n\t"		\
+			".set\tpop"					\
+			: "+r" (__tmp));				\
+	else if (sel == 0)						\
 		__asm__ __volatile__(					\
 			".set\tmips64\n\t"				\
 			"dsll\t%L0, %L0, 32\n\t"			\
