@@ -408,13 +408,11 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 	}
 
 	/*
-	 * Walk the sync_queue, first incrementing with the CPU syncpts that
-	 * are partially executed (the first buffer) or fully skipped while
-	 * still in the current context (slots are also NOP-ed).
+	 * Increment with CPU the remaining syncpts of a partially executed job.
 	 *
-	 * At the point contexts are interleaved, syncpt increments must be
-	 * done inline with the pushbuffer from a GATHER buffer to maintain
-	 * the order (slots are modified to be a GATHER of syncpt incrs).
+	 * Syncpt increments must be done inline with the pushbuffer from a
+	 * GATHER buffer to maintain the order (slots are modified to be a
+	 * GATHER of syncpt incrs).
 	 *
 	 * Note: save in restart_addr the location where the timed out buffer
 	 * started in the PB, so we can start the refetch from there (with the
@@ -422,20 +420,15 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 	 * properly for this buffer and resources are freed.
 	 */
 
-	dev_dbg(dev, "%s: perform CPU incr on pending same ctx buffers\n",
-		__func__);
+	dev_dbg(dev, "%s: perform CPU incr on pending buffers\n", __func__);
 
 	if (!list_empty(&cdma->sync_queue))
 		restart_addr = job->first_get;
 	else
 		restart_addr = cdma->last_pos;
 
-	/* do CPU increments as long as this context continues */
-	list_for_each_entry_from(job, &cdma->sync_queue, list) {
-		/* different context, gets us out of this loop */
-		if (job->client != cdma->timeout.client)
-			break;
-
+	/* do CPU increments for the remaining syncpts */
+	if (job) {
 		/* won't need a timeout when replayed */
 		job->timeout = 0;
 
@@ -448,19 +441,7 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 		host1x_hw_cdma_timeout_cpu_incr(host1x, cdma, job->first_get,
 						syncpt_incrs, job->syncpt_end,
 						job->num_slots);
-
-		syncpt_val += syncpt_incrs;
 	}
-
-	/*
-	 * The following sumbits from the same client may be dependent on the
-	 * failed submit and therefore they may fail. Force a small timeout
-	 * to make the queue cleanup faster.
-	 */
-
-	list_for_each_entry_from(job, &cdma->sync_queue, list)
-		if (job->client == cdma->timeout.client)
-			job->timeout = min_t(unsigned int, job->timeout, 500);
 
 	dev_dbg(dev, "%s: finished sync_queue modification\n", __func__);
 
