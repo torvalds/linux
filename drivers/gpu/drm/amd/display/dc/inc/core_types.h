@@ -92,6 +92,7 @@ struct resource_context;
 
 struct resource_funcs {
 	void (*destroy)(struct resource_pool **pool);
+	void (*link_init)(struct dc_link *link);
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
 
