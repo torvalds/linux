@@ -1970,8 +1970,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->transmission_mode) {
 		default:	/* Not set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_MODE__M;
-			/* try first guess DRX_FFTMODE_8K */
-			/* fall through */
+			/* fall through - try first guess DRX_FFTMODE_8K */
 		case TRANSMISSION_MODE_8K:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_MODE_8K;
 			if (state->type_A) {
@@ -2144,8 +2143,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->modulation) {
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_CONST__M;
-			/* try first guess DRX_CONSTELLATION_QAM64 */
-			/* fall through */
+			/* fall through - try first guess DRX_CONSTELLATION_QAM64 */
 		case QAM_64:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_CONST_QAM64;
 			if (state->type_A) {

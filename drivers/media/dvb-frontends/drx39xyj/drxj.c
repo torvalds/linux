@@ -2841,8 +2841,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			/* coef = 188/204                          */
 			max_bit_rate =
 			    (ext_attr->curr_symbol_rate / 8) * nr_bits * 188;
-			/* pass through as b/c Annex A/c need following settings */
-			/* fall-through */
+			/* fall-through - as b/c Annex A/C need following settings */
 		case DRX_STANDARD_ITU_B:
 			rc = drxj_dap_write_reg16(dev_addr, FEC_OC_FCT_USAGE__A, FEC_OC_FCT_USAGE__PRE, 0);
 			if (rc != 0) {
