@@ -269,6 +269,7 @@ enum {
 	HCI_VENDOR_DIAG,
 	HCI_FORCE_BREDR_SMP,
 	HCI_FORCE_STATIC_ADDR,
+	HCI_LL_RPA_RESOLUTION,
 
 	__HCI_NUM_FLAGS,
 };
@@ -1523,6 +1524,8 @@ struct hci_rp_le_read_resolv_list_size {
 	__u8	status;
 	__u8	size;
 } __packed;
+
+#define HCI_OP_LE_SET_ADDR_RESOLV_ENABLE 0x202d
 
 #define HCI_OP_LE_READ_MAX_DATA_LEN	0x202f
 struct hci_rp_le_read_max_data_len {
