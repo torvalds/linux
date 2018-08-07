@@ -30,4 +30,9 @@ void *ftl_memset(void *s, int c, unsigned int n);
 void *ftl_memcpy(void *pv_to,
 		 const void *pv_from,
 		 unsigned int size);
+
+/*
+ * Function that needs to be defined
+ */
+void  __printf(1, 2)  sftl_printk(char *fmt, ...);
 #endif

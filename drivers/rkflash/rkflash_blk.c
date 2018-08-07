@@ -33,6 +33,15 @@
 
 #include "../soc/rockchip/flash_vendor_storage.h"
 
+void __printf(1, 2) sftl_printk(char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vprintk(fmt, ap);
+	va_end(ap);
+}
+
 static struct flash_boot_ops nandc_nand_ops = {
 #ifdef	CONFIG_RK_NANDC_NAND
 	FLASH_TYPE_NANDC_NAND,
