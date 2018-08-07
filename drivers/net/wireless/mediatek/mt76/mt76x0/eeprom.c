@@ -241,7 +241,7 @@ mt76x0_set_rf_freq_off(struct mt76x0_dev *dev, u8 *eeprom)
 static void
 mt76x0_set_lna_gain(struct mt76x0_dev *dev, u8 *eeprom)
 {
-	s8 gain;
+	u8 gain;
 
 	dev->ee->lna_gain_2ghz = eeprom[MT_EE_LNA_GAIN_2GHZ];
 	dev->ee->lna_gain_5ghz[0] = eeprom[MT_EE_LNA_GAIN_5GHZ_0];
