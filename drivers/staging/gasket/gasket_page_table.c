@@ -1311,7 +1311,7 @@ int gasket_alloc_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 	gasket_dev->coherent_buffer.virt_base = mem;
 
 	*dma_address = driver_desc->coherent_buffer_description.base;
-		for (j = 0; j < num_pages; j++) {
+	for (j = 0; j < num_pages; j++) {
 		gasket_dev->page_table[index]->coherent_pages[j].paddr =
 			handle + j * PAGE_SIZE;
 		gasket_dev->page_table[index]->coherent_pages[j].kernel_virt =
