@@ -4,6 +4,7 @@ Rockchip specific extensions to the Synopsys Designware MIPI DSI
 Required properties:
 - compatible: must be one of:
 	"rockchip,px30-mipi-dsi", "snps,dw-mipi-dsi".
+	"rockchip,rk1808-mipi-dsi", "snps,dw-mipi-dsi".
 	"rockchip,rk3128-mipi-dsi", "snps,dw-mipi-dsi".
 	"rockchip,rk3288-mipi-dsi", "snps,dw-mipi-dsi".
 	"rockchip,rk3366-mipi-dsi", "snps,dw-mipi-dsi".
