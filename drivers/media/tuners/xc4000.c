@@ -815,9 +815,9 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 		p += sizeof(size);
 
 		if (!size || size > endp - p) {
-			printk(KERN_ERR "Firmware type (%x), id %llx is corrupted (size=%d, expected %d)\n",
+			printk(KERN_ERR "Firmware type (%x), id %llx is corrupted (size=%zd, expected %d)\n",
 			       type, (unsigned long long)id,
-			       (unsigned)(endp - p), size);
+			       endp - p, size);
 			goto corrupt;
 		}
 
