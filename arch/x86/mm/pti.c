@@ -291,7 +291,7 @@ static void __init pti_setup_vsyscall(void) { }
 #endif
 
 static void
-pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+pti_clone_pmds(unsigned long start, unsigned long end)
 {
 	unsigned long addr;
 
@@ -352,7 +352,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
 		 * tables will share the last-level page tables of this
 		 * address range
 		 */
-		*target_pmd = pmd_clear_flags(*pmd, clear);
+		*target_pmd = *pmd;
 	}
 }
 
@@ -398,7 +398,7 @@ static void __init pti_clone_user_shared(void)
 	start = CPU_ENTRY_AREA_BASE;
 	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
 
-	pti_clone_pmds(start, end, 0);
+	pti_clone_pmds(start, end);
 }
 #endif /* CONFIG_X86_64 */
 
@@ -418,8 +418,7 @@ static void __init pti_setup_espfix64(void)
 static void pti_clone_entry_text(void)
 {
 	pti_clone_pmds((unsigned long) __entry_text_start,
-			(unsigned long) __irqentry_text_end,
-		       _PAGE_RW);
+		       (unsigned long) __irqentry_text_end);
 }
 
 /*
@@ -501,7 +500,7 @@ static void pti_clone_kernel_text(void)
 	 * pti_set_kernel_image_nonglobal() did to clear the
 	 * global bit.
 	 */
-	pti_clone_pmds(start, end_clone, _PAGE_RW);
+	pti_clone_pmds(start, end_clone);
 
 	/*
 	 * pti_clone_pmds() will set the global bit in any PMDs
