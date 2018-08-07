@@ -1706,7 +1706,7 @@ static int rcu_torture_fwd_prog(void *args)
 {
 	unsigned long cver;
 	unsigned long dur;
-	struct fwd_cb_state fcs = { .stop = 0 };
+	struct fwd_cb_state fcs;
 	unsigned long gps;
 	int idx;
 	int sd;
@@ -1722,11 +1722,14 @@ static int rcu_torture_fwd_prog(void *args)
 		set_user_nice(current, MAX_NICE);
 	if  (cur_ops->call && cur_ops->sync && cur_ops->cb_barrier) {
 		init_rcu_head_on_stack(&fcs.rh);
-		cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
 		selfpropcb = true;
 	}
 	do {
 		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
+		if  (selfpropcb) {
+			WRITE_ONCE(fcs.stop, 0);
+			cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
+		}
 		cver = READ_ONCE(rcu_torture_current_version);
 		gps = cur_ops->get_gp_seq();
 		sd = cur_ops->stall_dur() + 1;
@@ -1748,13 +1751,15 @@ static int rcu_torture_fwd_prog(void *args)
 			WARN_ON(!cver && gps < 2);
 			pr_alert("%s: Duration %ld cver %ld gps %ld\n", __func__, dur, cver, gps);
 		}
+		if (selfpropcb) {
+			WRITE_ONCE(fcs.stop, 1);
+			cur_ops->sync(); /* Wait for running CB to complete. */
+			cur_ops->cb_barrier(); /* Wait for queued callbacks. */
+		}
 		/* Avoid slow periods, better to test when busy. */
 		stutter_wait("rcu_torture_fwd_prog");
 	} while (!torture_must_stop());
 	if (selfpropcb) {
-		WRITE_ONCE(fcs.stop, 1);
-		cur_ops->sync(); /* Wait for running callback to complete. */
-		cur_ops->cb_barrier(); /* Wait for queued callbacks. */
 		WARN_ON(READ_ONCE(fcs.stop) != 2);
 		destroy_rcu_head_on_stack(&fcs.rh);
 	}
