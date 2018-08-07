@@ -157,7 +157,7 @@ static void drm_dp_cec_adap_status(struct cec_adapter *adap,
 
 	if (drm_dp_read_desc(aux, &desc, true))
 		return;
-	seq_printf(file, "OUI: %*pdH\n",
+	seq_printf(file, "OUI: %*phD\n",
 		   (int)sizeof(id->oui), id->oui);
 	seq_printf(file, "ID: %*pE\n",
 		   (int)strnlen(id->device_id, sizeof(id->device_id)),
