@@ -8241,9 +8241,9 @@
 #define MC_VM_LOCAL_HBM_ADDRESS_LOCK_CNTL__LOCK_MASK                                                          0x00000001L
 //MC_VM_XGMI_LFB_CNTL
 #define MC_VM_XGMI_LFB_CNTL__PF_LFB_REGION__SHIFT                                                             0x0
-#define MC_VM_XGMI_LFB_CNTL__PF_MAX_REGION__SHIFT                                                             0x3
+#define MC_VM_XGMI_LFB_CNTL__PF_MAX_REGION__SHIFT                                                             0x4
 #define MC_VM_XGMI_LFB_CNTL__PF_LFB_REGION_MASK                                                               0x00000007L
-#define MC_VM_XGMI_LFB_CNTL__PF_MAX_REGION_MASK                                                               0x00000038L
+#define MC_VM_XGMI_LFB_CNTL__PF_MAX_REGION_MASK                                                               0x00000070L
 //MC_VM_XGMI_LFB_SIZE
 #define MC_VM_XGMI_LFB_SIZE__PF_LFB_SIZE__SHIFT                                                               0x0
 #define MC_VM_XGMI_LFB_SIZE__PF_LFB_SIZE_MASK                                                                 0x0000FFFFL
