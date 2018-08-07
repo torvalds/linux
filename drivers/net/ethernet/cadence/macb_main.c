@@ -1651,7 +1651,7 @@ static inline int macb_clear_csum(struct sk_buff *skb)
 	return 0;
 }
 
-static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	u16 queue_index = skb_get_queue_mapping(skb);
 	struct macb *bp = netdev_priv(dev);
@@ -1660,6 +1660,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int desc_cnt, nr_frags, frag_size, f;
 	unsigned int hdrlen;
 	bool is_lso, is_udp = 0;
+	netdev_tx_t ret = NETDEV_TX_OK;
 
 	is_lso = (skb_shinfo(skb)->gso_size != 0);
 
@@ -1739,7 +1740,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 unlock:
 	spin_unlock_irqrestore(&bp->lock, flags);
 
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static void macb_init_rx_buffer_size(struct macb *bp, size_t size)
@@ -3549,7 +3550,8 @@ static int at91ether_close(struct net_device *dev)
 }
 
 /* Transmit packet */
-static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t at91ether_start_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	struct macb *lp = netdev_priv(dev);
 
