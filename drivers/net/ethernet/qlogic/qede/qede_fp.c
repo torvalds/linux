@@ -1119,8 +1119,10 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 
 	default:
 		bpf_warn_invalid_xdp_action(act);
+		/* Fall through */
 	case XDP_ABORTED:
 		trace_xdp_exception(edev->ndev, prog, act);
+		/* Fall through */
 	case XDP_DROP:
 		qede_recycle_rx_bd_ring(rxq, cqe->bd_num);
 	}
