@@ -2077,6 +2077,7 @@ ieee80211_reassemble_find(struct ieee80211_sub_if_data *sdata,
 	idx = sdata->fragment_next;
 	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++) {
 		struct ieee80211_hdr *f_hdr;
+		struct sk_buff *f_skb;
 
 		idx--;
 		if (idx < 0)
@@ -2088,7 +2089,8 @@ ieee80211_reassemble_find(struct ieee80211_sub_if_data *sdata,
 		    entry->last_frag + 1 != frag)
 			continue;
 
-		f_hdr = (struct ieee80211_hdr *)entry->skb_list.next->data;
+		f_skb = __skb_peek(&entry->skb_list);
+		f_hdr = (struct ieee80211_hdr *) f_skb->data;
 
 		/*
 		 * Check ftype and addresses are equal, else check next fragment
