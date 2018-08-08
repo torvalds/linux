@@ -446,7 +446,7 @@ struct nvme_ana_group_desc {
 	__le32	nnsids;
 	__le64	chgcnt;
 	__u8	state;
-	__u8	rsvd17[7];
+	__u8	rsvd17[15];
 	__le32	nsids[];
 };
 
