@@ -37,6 +37,7 @@
 #define NO_DEV_ID	0xffff
 #define IT8620_ID	0x8620
 #define IT8628_ID	0x8628
+#define IT8718_ID       0x8718
 #define IT8728_ID	0x8728
 #define IT8732_ID	0x8732
 #define IT8761_ID	0x8761
@@ -315,6 +316,7 @@ static int __init it87_gpio_init(void)
 		it87_gpio->simple_size = 0;
 		it87_gpio->chip.ngpio = 64;
 		break;
+	case IT8718_ID:
 	case IT8728_ID:
 	case IT8732_ID:
 	case IT8772_ID:
