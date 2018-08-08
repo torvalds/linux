@@ -2220,7 +2220,7 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 	size = be32_to_cpup(ranges);
 
 	pr_debug("omap_hwmod: %s %s at 0x%llx size 0x%llx\n",
-		 oh->name, np->name, base, size);
+		 oh ? oh->name : "", np->name, base, size);
 
 	res->start = base;
 	res->end = base + size - 1;
