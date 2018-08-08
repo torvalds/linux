@@ -150,7 +150,7 @@ int is_legal_channel(struct ieee80211_device *dev, u8 channel)
 }
 EXPORT_SYMBOL(is_legal_channel);
 
-int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
+int to_legal_channel(struct ieee80211_device *dev, u8 channel)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 default_chn = 0;
@@ -173,4 +173,4 @@ int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
 
 	return default_chn;
 }
-EXPORT_SYMBOL(ToLegalChannel);
+EXPORT_SYMBOL(to_legal_channel);

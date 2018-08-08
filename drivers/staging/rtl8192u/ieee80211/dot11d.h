@@ -52,6 +52,6 @@ void dot11d_update_country_ie(struct ieee80211_device *dev,
 u8 dot11d_get_max_tx_pwr_in_dbm(struct ieee80211_device *dev, u8 channel);
 void dot11d_scan_complete(struct ieee80211_device *dev);
 int is_legal_channel(struct ieee80211_device *dev, u8 channel);
-int ToLegalChannel(struct ieee80211_device *dev, u8 channel);
+int to_legal_channel(struct ieee80211_device *dev, u8 channel);
 
 #endif /* #ifndef __INC_DOT11D_H */
