@@ -799,7 +799,7 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	}
 
 	/* Check if there is a GMU phandle and set it up */
-	node = of_parse_phandle(pdev->dev.of_node, "gmu", 0);
+	node = of_parse_phandle(pdev->dev.of_node, "qcom,gmu", 0);
 
 	/* FIXME: How do we gracefully handle this? */
 	BUG_ON(!node);
