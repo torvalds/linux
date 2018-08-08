@@ -335,6 +335,8 @@ int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
 void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev);
 
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev);
+void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev);
+
 int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev, int mec,
 			    int pipe, int queue);
 void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,

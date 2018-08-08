@@ -199,6 +199,30 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 		adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
 }
 
+void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
+{
+	int i, queue, pipe, me;
+
+	for (i = 0; i < AMDGPU_MAX_GFX_QUEUES; ++i) {
+		queue = i % adev->gfx.me.num_queue_per_pipe;
+		pipe = (i / adev->gfx.me.num_queue_per_pipe)
+			% adev->gfx.me.num_pipe_per_me;
+		me = (i / adev->gfx.me.num_queue_per_pipe)
+		      / adev->gfx.me.num_pipe_per_me;
+
+		if (me >= adev->gfx.me.num_me)
+			break;
+		/* policy: amdgpu owns the first queue per pipe at this stage
+		 * will extend to mulitple queues per pipe later */
+		if (me == 0 && queue < 1)
+			set_bit(i, adev->gfx.me.queue_bitmap);
+	}
+
+	/* update the number of active graphics rings */
+	adev->gfx.num_gfx_rings =
+		bitmap_weight(adev->gfx.me.queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
+}
+
 static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring)
 {
