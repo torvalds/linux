@@ -89,9 +89,15 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return 0;
 }
 
-#define RGB565toRGB323(c) (((c&0xE000)>>8) | ((c&0600)>>6) | ((c&0x001C)>>2))
-#define RGB565toRGB332(c) (((c&0xE000)>>8) | ((c&0700)>>6) | ((c&0x0018)>>3))
-#define RGB565toRGB233(c) (((c&0xC000)>>8) | ((c&0700)>>5) | ((c&0x001C)>>2))
+#define RGB565toRGB323(c) ((((c) & 0xE000) >> 8) |\
+			   (((c) & 000600) >> 6) |\
+			   (((c) & 0x001C) >> 2))
+#define RGB565toRGB332(c) ((((c) & 0xE000) >> 8) |\
+			   (((c) & 000700) >> 6) |\
+			   (((c) & 0x0018) >> 3))
+#define RGB565toRGB233(c) ((((c) & 0xC000) >> 8) |\
+			   (((c) & 000700) >> 5) |\
+			   (((c) & 0x001C) >> 2))
 
 static int write_vmem_8bit(struct fbtft_par *par, size_t offset, size_t len)
 {

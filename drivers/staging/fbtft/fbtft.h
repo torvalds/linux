@@ -234,8 +234,8 @@ struct fbtft_par {
 
 #define NUMARGS(...)  (sizeof((int[]){__VA_ARGS__})/sizeof(int))
 
-#define write_reg(par, ...)                                              \
-	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__)
+#define write_reg(par, ...)                                            \
+	((par)->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__))
 
 /* fbtft-core.c */
 int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc);
@@ -404,8 +404,9 @@ do {                                                         \
 
 #define fbtft_par_dbg_hex(level, par, dev, type, buf, num, format, arg...) \
 do {                                                                       \
-	if (unlikely(par->debug & level))                                  \
-		fbtft_dbg_hex(dev, sizeof(type), buf, num * sizeof(type), format, ##arg); \
+	if (unlikely((par)->debug & (level)))                                  \
+		fbtft_dbg_hex(dev, sizeof(type), buf,\
+			      (num) * sizeof(type), format, ##arg); \
 } while (0)
 
 #endif /* __LINUX_FBTFT_H */
