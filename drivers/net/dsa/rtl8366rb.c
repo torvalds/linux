@@ -48,6 +48,23 @@
 #define RTL8366RB_SSCR2				0x0004
 #define RTL8366RB_SSCR2_DROP_UNKNOWN_DA		BIT(0)
 
+/* Port Mode Control registers */
+#define RTL8366RB_PMC0				0x0005
+#define RTL8366RB_PMC0_SPI			BIT(0)
+#define RTL8366RB_PMC0_EN_AUTOLOAD		BIT(1)
+#define RTL8366RB_PMC0_PROBE			BIT(2)
+#define RTL8366RB_PMC0_DIS_BISR			BIT(3)
+#define RTL8366RB_PMC0_ADCTEST			BIT(4)
+#define RTL8366RB_PMC0_SRAM_DIAG		BIT(5)
+#define RTL8366RB_PMC0_EN_SCAN			BIT(6)
+#define RTL8366RB_PMC0_P4_IOMODE_SHIFT		7
+#define RTL8366RB_PMC0_P4_IOMODE_MASK		GENMASK(9, 7)
+#define RTL8366RB_PMC0_P5_IOMODE_SHIFT		10
+#define RTL8366RB_PMC0_P5_IOMODE_MASK		GENMASK(12, 10)
+#define RTL8366RB_PMC0_SDSMODE_SHIFT		13
+#define RTL8366RB_PMC0_SDSMODE_MASK		GENMASK(15, 13)
+#define RTL8366RB_PMC1				0x0006
+
 /* Port Mirror Control Register */
 #define RTL8366RB_PMCR				0x0007
 #define RTL8366RB_PMCR_SOURCE_PORT(a)		(a)
@@ -857,6 +874,19 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	/* Enable auto ageing for all ports */
 	ret = regmap_write(smi->map, RTL8366RB_SSCR1, 0);
+	if (ret)
+		return ret;
+
+	/* Port 4 setup: this enables Port 4, usually the WAN port,
+	 * common PHY IO mode is apparently mode 0, and this is not what
+	 * the port is initialized to. There is no explanation of the
+	 * IO modes in the Realtek source code, if your WAN port is
+	 * connected to something exotic such as fiber, then this might
+	 * be worth experimenting with.
+	 */
+	ret = regmap_update_bits(smi->map, RTL8366RB_PMC0,
+				 RTL8366RB_PMC0_P4_IOMODE_MASK,
+				 0 << RTL8366RB_PMC0_P4_IOMODE_SHIFT);
 	if (ret)
 		return ret;
 
