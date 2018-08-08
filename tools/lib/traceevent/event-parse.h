@@ -693,9 +693,9 @@ struct format_field *tep_find_any_field(struct event_format *event, const char *
 const char *pevent_find_function(struct tep_handle *pevent, unsigned long long addr);
 unsigned long long
 pevent_find_function_address(struct tep_handle *pevent, unsigned long long addr);
-unsigned long long pevent_read_number(struct tep_handle *pevent, const void *ptr, int size);
-int pevent_read_number_field(struct format_field *field, const void *data,
-			     unsigned long long *value);
+unsigned long long tep_read_number(struct tep_handle *pevent, const void *ptr, int size);
+int tep_read_number_field(struct format_field *field, const void *data,
+			  unsigned long long *value);
 
 struct event_format *tep_find_event(struct tep_handle *pevent, int id);
 

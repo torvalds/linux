@@ -48,7 +48,7 @@ static int get_common_field(struct scripting_context *context,
 		*size = field->size;
 	}
 
-	return pevent_read_number(pevent, context->event_data + *offset, *size);
+	return tep_read_number(pevent, context->event_data + *offset, *size);
 }
 
 int common_lock_depth(struct scripting_context *context)
@@ -103,14 +103,14 @@ raw_field_value(struct event_format *event, const char *name, void *data)
 	if (!field)
 		return 0ULL;
 
-	pevent_read_number_field(field, data, &val);
+	tep_read_number_field(field, data, &val);
 
 	return val;
 }
 
 unsigned long long read_size(struct event_format *event, void *ptr, int size)
 {
-	return pevent_read_number(event->pevent, ptr, size);
+	return tep_read_number(event->pevent, ptr, size);
 }
 
 void event_format__fprintf(struct event_format *event,
