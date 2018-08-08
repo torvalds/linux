@@ -2444,6 +2444,8 @@ int dpu_encoder_wait_for_event(struct drm_encoder *drm_enc,
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
+		if (!phys)
+			continue;
 
 		switch (event) {
 		case MSM_ENC_COMMIT_DONE:
@@ -2461,7 +2463,7 @@ int dpu_encoder_wait_for_event(struct drm_encoder *drm_enc,
 			return -EINVAL;
 		};
 
-		if (phys && fn_wait) {
+		if (fn_wait) {
 			DPU_ATRACE_BEGIN("wait_for_completion_event");
 			ret = fn_wait(phys);
 			DPU_ATRACE_END("wait_for_completion_event");
