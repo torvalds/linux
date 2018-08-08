@@ -758,6 +758,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		break;
 
 	case HID_UP_DIGITIZER:
+		if ((field->application & 0xff) == 0x01) /* Digitizer */
+			__set_bit(INPUT_PROP_POINTER, input->propbit);
+		else if ((field->application & 0xff) == 0x02) /* Pen */
+			__set_bit(INPUT_PROP_DIRECT, input->propbit);
+
 		switch (usage->hid & 0xff) {
 		case 0x00: /* Undefined */
 			goto ignore;
