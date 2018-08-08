@@ -514,10 +514,9 @@ int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
 					   f->common.chain_index,
 					   MLXSW_SP_ACL_PROFILE_FLOWER,
 					   &rulei.values.elusage);
-	if (IS_ERR(ruleset))
-		return PTR_ERR(ruleset);
+
 	/* keep the reference to the ruleset */
-	return 0;
+	return PTR_ERR_OR_ZERO(ruleset);
 }
 
 void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
