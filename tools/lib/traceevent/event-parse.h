@@ -379,7 +379,7 @@ enum tep_flag {
 	TEP_DISABLE_PLUGINS	= 1 << 2,
 };
 
-#define PEVENT_ERRORS 							      \
+#define TEP_ERRORS 							      \
 	_PE(MEM_ALLOC_FAILED,	"failed to allocate memory"),		      \
 	_PE(PARSE_EVENT_FAILED,	"failed to parse event"),		      \
 	_PE(READ_ID_FAILED,	"failed to read event id"),		      \
@@ -411,10 +411,10 @@ enum tep_flag {
 	_PE(FILTER_MISS,	"record does not match to filter")
 
 #undef _PE
-#define _PE(__code, __str) PEVENT_ERRNO__ ## __code
-enum pevent_errno {
-	PEVENT_ERRNO__SUCCESS			= 0,
-	PEVENT_ERRNO__FILTER_MATCH		= PEVENT_ERRNO__SUCCESS,
+#define _PE(__code, __str) TEP_ERRNO__ ## __code
+enum tep_errno {
+	TEP_ERRNO__SUCCESS			= 0,
+	TEP_ERRNO__FILTER_MATCH			= TEP_ERRNO__SUCCESS,
 
 	/*
 	 * Choose an arbitrary negative big number not to clash with standard
@@ -423,11 +423,11 @@ enum pevent_errno {
 	 *
 	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
 	 */
-	__PEVENT_ERRNO__START			= -100000,
+	__TEP_ERRNO__START			= -100000,
 
-	PEVENT_ERRORS,
+	TEP_ERRORS,
 
-	__PEVENT_ERRNO__END,
+	__TEP_ERRNO__END,
 };
 #undef _PE
 
@@ -642,12 +642,12 @@ void tep_print_event(struct tep_handle *pevent, struct trace_seq *s,
 int tep_parse_header_page(struct tep_handle *pevent, char *buf, unsigned long size,
 			  int long_size);
 
-enum pevent_errno tep_parse_event(struct tep_handle *pevent, const char *buf,
-				  unsigned long size, const char *sys);
-enum pevent_errno tep_parse_format(struct tep_handle *pevent,
-				   struct event_format **eventp,
-				   const char *buf,
-				   unsigned long size, const char *sys);
+enum tep_errno tep_parse_event(struct tep_handle *pevent, const char *buf,
+			       unsigned long size, const char *sys);
+enum tep_errno tep_parse_format(struct tep_handle *pevent,
+				struct event_format **eventp,
+				const char *buf,
+				unsigned long size, const char *sys);
 void pevent_free_format(struct event_format *event);
 void pevent_free_format_field(struct format_field *field);
 
@@ -724,7 +724,7 @@ void tep_print_fields(struct trace_seq *s, void *data,
 		      int size __maybe_unused, struct event_format *event);
 void tep_event_info(struct trace_seq *s, struct event_format *event,
 		       struct tep_record *record);
-int pevent_strerror(struct tep_handle *pevent, enum pevent_errno errnum,
+int pevent_strerror(struct tep_handle *pevent, enum tep_errno errnum,
 		    char *buf, size_t buflen);
 
 struct event_format **pevent_list_events(struct tep_handle *pevent, enum event_sort_type);
@@ -942,10 +942,10 @@ struct event_filter {
 struct event_filter *pevent_filter_alloc(struct tep_handle *pevent);
 
 /* for backward compatibility */
-#define FILTER_NONE		PEVENT_ERRNO__NO_FILTER
-#define FILTER_NOEXIST		PEVENT_ERRNO__FILTER_NOT_FOUND
-#define FILTER_MISS		PEVENT_ERRNO__FILTER_MISS
-#define FILTER_MATCH		PEVENT_ERRNO__FILTER_MATCH
+#define FILTER_NONE		TEP_ERRNO__NO_FILTER
+#define FILTER_NOEXIST		TEP_ERRNO__FILTER_NOT_FOUND
+#define FILTER_MISS		TEP_ERRNO__FILTER_MISS
+#define FILTER_MATCH		TEP_ERRNO__FILTER_MATCH
 
 enum filter_trivial_type {
 	FILTER_TRIVIAL_FALSE,
@@ -953,13 +953,13 @@ enum filter_trivial_type {
 	FILTER_TRIVIAL_BOTH,
 };
 
-enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
-					       const char *filter_str);
+enum tep_errno pevent_filter_add_filter_str(struct event_filter *filter,
+					    const char *filter_str);
 
-enum pevent_errno pevent_filter_match(struct event_filter *filter,
-				      struct tep_record *record);
+enum tep_errno pevent_filter_match(struct event_filter *filter,
+				   struct tep_record *record);
 
-int pevent_filter_strerror(struct event_filter *filter, enum pevent_errno err,
+int pevent_filter_strerror(struct event_filter *filter, enum tep_errno err,
 			   char *buf, size_t buflen);
 
 int pevent_event_filtered(struct event_filter *filter,

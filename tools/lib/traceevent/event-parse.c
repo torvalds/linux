@@ -6035,9 +6035,9 @@ static int find_event_handle(struct tep_handle *pevent, struct event_format *eve
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno __pevent_parse_format(struct event_format **eventp,
-					struct tep_handle *pevent, const char *buf,
-					unsigned long size, const char *sys)
+enum tep_errno __pevent_parse_format(struct event_format **eventp,
+				     struct tep_handle *pevent, const char *buf,
+				     unsigned long size, const char *sys)
 {
 	struct event_format *event;
 	int ret;
@@ -6046,12 +6046,12 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 
 	*eventp = event = alloc_event();
 	if (!event)
-		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		return TEP_ERRNO__MEM_ALLOC_FAILED;
 
 	event->name = event_read_name();
 	if (!event->name) {
 		/* Bad event? */
-		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		ret = TEP_ERRNO__MEM_ALLOC_FAILED;
 		goto event_alloc_failed;
 	}
 
@@ -6064,7 +6064,7 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 		
 	event->id = event_read_id();
 	if (event->id < 0) {
-		ret = PEVENT_ERRNO__READ_ID_FAILED;
+		ret = TEP_ERRNO__READ_ID_FAILED;
 		/*
 		 * This isn't an allocation error actually.
 		 * But as the ID is critical, just bail out.
@@ -6074,7 +6074,7 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 
 	event->system = strdup(sys);
 	if (!event->system) {
-		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		ret = TEP_ERRNO__MEM_ALLOC_FAILED;
 		goto event_alloc_failed;
 	}
 
@@ -6083,7 +6083,7 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 
 	ret = event_read_format(event);
 	if (ret < 0) {
-		ret = PEVENT_ERRNO__READ_FORMAT_FAILED;
+		ret = TEP_ERRNO__READ_FORMAT_FAILED;
 		goto event_parse_failed;
 	}
 
@@ -6098,7 +6098,7 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 	show_warning = 1;
 
 	if (ret < 0) {
-		ret = PEVENT_ERRNO__READ_PRINT_FAILED;
+		ret = TEP_ERRNO__READ_PRINT_FAILED;
 		goto event_parse_failed;
 	}
 
@@ -6112,14 +6112,14 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 			arg = alloc_arg();
 			if (!arg) {
 				event->flags |= EVENT_FL_FAILED;
-				return PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED;
+				return TEP_ERRNO__OLD_FTRACE_ARG_FAILED;
 			}
 			arg->type = PRINT_FIELD;
 			arg->field.name = strdup(field->name);
 			if (!arg->field.name) {
 				event->flags |= EVENT_FL_FAILED;
 				free_arg(arg);
-				return PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED;
+				return TEP_ERRNO__OLD_FTRACE_ARG_FAILED;
 			}
 			arg->field.field = field;
 			*list = arg;
@@ -6142,7 +6142,7 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 	return ret;
 }
 
-static enum pevent_errno
+static enum tep_errno
 __pevent_parse_event(struct tep_handle *pevent,
 		     struct event_format **eventp,
 		     const char *buf, unsigned long size,
@@ -6155,7 +6155,7 @@ __pevent_parse_event(struct tep_handle *pevent,
 		return ret;
 
 	if (pevent && add_event(pevent, event)) {
-		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		ret = TEP_ERRNO__MEM_ALLOC_FAILED;
 		goto event_add_failed;
 	}
 
@@ -6185,10 +6185,10 @@ event_add_failed:
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno tep_parse_format(struct tep_handle *pevent,
-				   struct event_format **eventp,
-				   const char *buf,
-				   unsigned long size, const char *sys)
+enum tep_errno tep_parse_format(struct tep_handle *pevent,
+				struct event_format **eventp,
+				const char *buf,
+				unsigned long size, const char *sys)
 {
 	return __pevent_parse_event(pevent, eventp, buf, size, sys);
 }
@@ -6207,8 +6207,8 @@ enum pevent_errno tep_parse_format(struct tep_handle *pevent,
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno tep_parse_event(struct tep_handle *pevent, const char *buf,
-				  unsigned long size, const char *sys)
+enum tep_errno tep_parse_event(struct tep_handle *pevent, const char *buf,
+			       unsigned long size, const char *sys)
 {
 	struct event_format *event = NULL;
 	return __pevent_parse_event(pevent, &event, buf, size, sys);
@@ -6217,12 +6217,12 @@ enum pevent_errno tep_parse_event(struct tep_handle *pevent, const char *buf,
 #undef _PE
 #define _PE(code, str) str
 static const char * const pevent_error_str[] = {
-	PEVENT_ERRORS
+	TEP_ERRORS
 };
 #undef _PE
 
 int pevent_strerror(struct tep_handle *pevent __maybe_unused,
-		    enum pevent_errno errnum, char *buf, size_t buflen)
+		    enum tep_errno errnum, char *buf, size_t buflen)
 {
 	int idx;
 	const char *msg;
@@ -6232,11 +6232,11 @@ int pevent_strerror(struct tep_handle *pevent __maybe_unused,
 		return 0;
 	}
 
-	if (errnum <= __PEVENT_ERRNO__START ||
-	    errnum >= __PEVENT_ERRNO__END)
+	if (errnum <= __TEP_ERRNO__START ||
+	    errnum >= __TEP_ERRNO__END)
 		return -1;
 
-	idx = errnum - __PEVENT_ERRNO__START - 1;
+	idx = errnum - __TEP_ERRNO__START - 1;
 	msg = pevent_error_str[idx];
 	snprintf(buf, buflen, "%s", msg);
 
@@ -6517,7 +6517,7 @@ int pevent_register_print_function(struct tep_handle *pevent,
 	func_handle = calloc(1, sizeof(*func_handle));
 	if (!func_handle) {
 		do_warning("Failed to allocate function handler");
-		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		return TEP_ERRNO__MEM_ALLOC_FAILED;
 	}
 
 	func_handle->ret_type = ret_type;
@@ -6526,7 +6526,7 @@ int pevent_register_print_function(struct tep_handle *pevent,
 	if (!func_handle->name) {
 		do_warning("Failed to allocate function name");
 		free(func_handle);
-		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		return TEP_ERRNO__MEM_ALLOC_FAILED;
 	}
 
 	next_param = &(func_handle->params);
@@ -6538,14 +6538,14 @@ int pevent_register_print_function(struct tep_handle *pevent,
 
 		if (type >= PEVENT_FUNC_ARG_MAX_TYPES) {
 			do_warning("Invalid argument type %d", type);
-			ret = PEVENT_ERRNO__INVALID_ARG_TYPE;
+			ret = TEP_ERRNO__INVALID_ARG_TYPE;
 			goto out_free;
 		}
 
 		param = malloc(sizeof(*param));
 		if (!param) {
 			do_warning("Failed to allocate function param");
-			ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
+			ret = TEP_ERRNO__MEM_ALLOC_FAILED;
 			goto out_free;
 		}
 		param->type = type;
@@ -6654,7 +6654,7 @@ int pevent_register_event_handler(struct tep_handle *pevent, int id,
 	handle = calloc(1, sizeof(*handle));
 	if (!handle) {
 		do_warning("Failed to allocate event handler");
-		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		return TEP_ERRNO__MEM_ALLOC_FAILED;
 	}
 
 	handle->id = id;
@@ -6669,7 +6669,7 @@ int pevent_register_event_handler(struct tep_handle *pevent, int id,
 		free((void *)handle->event_name);
 		free((void *)handle->sys_name);
 		free(handle);
-		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+		return TEP_ERRNO__MEM_ALLOC_FAILED;
 	}
 
 	handle->func = func;
