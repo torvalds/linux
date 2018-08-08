@@ -3993,6 +3993,10 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 			chipio_set_control_param(codec, 0x0D, 0x24);
 			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
 			break;
+		case QUIRK_R3D:
+			chipio_set_control_param(codec, 0x0D, 0x24);
+			ca0132_mmio_gpio_set(codec, 1, true);
+			break;
 		}
 
 		/* disable headphone node */
@@ -4028,6 +4032,10 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		case QUIRK_R3DI:
 			chipio_set_control_param(codec, 0x0D, 0x21);
 			r3di_gpio_out_set(codec, R3DI_HEADPHONE_OUT);
+			break;
+		case QUIRK_R3D:
+			chipio_set_control_param(codec, 0x0D, 0x21);
+			ca0132_mmio_gpio_set(codec, 0x1, false);
 			break;
 		}
 
@@ -4070,6 +4078,10 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		case QUIRK_R3DI:
 			chipio_set_control_param(codec, 0x0D, 0x24);
 			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
+			break;
+		case QUIRK_R3D:
+			ca0132_mmio_gpio_set(codec, 1, true);
+			chipio_set_control_param(codec, 0x0D, 0x24);
 			break;
 		}
 		/* enable line out node */
@@ -4328,6 +4340,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 	case REAR_MIC:
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
+		case QUIRK_R3D:
 			ca0132_mmio_gpio_set(codec, 0, false);
 			tmp = FLOAT_THREE;
 			break;
@@ -4360,6 +4373,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 		ca0132_mic_boost_set(codec, 0);
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
+		case QUIRK_R3D:
 			ca0132_mmio_gpio_set(codec, 0, false);
 			break;
 		case QUIRK_R3DI:
@@ -4386,6 +4400,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 	case FRONT_MIC:
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
+		case QUIRK_R3D:
 			ca0132_mmio_gpio_set(codec, 0, true);
 			ca0132_mmio_gpio_set(codec, 5, false);
 			tmp = FLOAT_THREE;
