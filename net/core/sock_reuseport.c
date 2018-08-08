@@ -81,6 +81,7 @@ static struct sock_reuseport *reuseport_grow(struct sock_reuseport *reuse)
 
 	memcpy(more_reuse->socks, reuse->socks,
 	       reuse->num_socks * sizeof(struct sock *));
+	more_reuse->synq_overflow_ts = READ_ONCE(reuse->synq_overflow_ts);
 
 	for (i = 0; i < reuse->num_socks; ++i)
 		rcu_assign_pointer(reuse->socks[i]->sk_reuseport_cb,

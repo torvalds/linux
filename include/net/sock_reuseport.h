@@ -12,6 +12,10 @@ struct sock_reuseport {
 
 	u16			max_socks;	/* length of socks */
 	u16			num_socks;	/* elements in socks */
+	/* The last synq overflow event timestamp of this
+	 * reuse->socks[] group.
+	 */
+	unsigned int		synq_overflow_ts;
 	struct bpf_prog __rcu	*prog;		/* optional BPF sock selector */
 	struct sock		*socks[0];	/* array of sock pointers */
 };
