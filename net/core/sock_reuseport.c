@@ -186,6 +186,14 @@ void reuseport_detach_sock(struct sock *sk)
 	spin_lock_bh(&reuseport_lock);
 	reuse = rcu_dereference_protected(sk->sk_reuseport_cb,
 					  lockdep_is_held(&reuseport_lock));
+
+	/* At least one of the sk in this reuseport group is added to
+	 * a bpf map.  Notify the bpf side.  The bpf map logic will
+	 * remove the sk if it is indeed added to a bpf map.
+	 */
+	if (reuse->reuseport_id)
+		bpf_sk_reuseport_detach(sk);
+
 	rcu_assign_pointer(sk->sk_reuseport_cb, NULL);
 
 	for (i = 0; i < reuse->num_socks; i++) {

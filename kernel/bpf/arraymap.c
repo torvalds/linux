@@ -54,7 +54,7 @@ static int bpf_array_alloc_percpu(struct bpf_array *array)
 }
 
 /* Called from syscall */
-static int array_map_alloc_check(union bpf_attr *attr)
+int array_map_alloc_check(union bpf_attr *attr)
 {
 	bool percpu = attr->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
 	int numa_node = bpf_map_attr_numa_node(attr);

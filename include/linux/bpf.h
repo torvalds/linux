@@ -524,6 +524,7 @@ static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
 }
 
 struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type);
+int array_map_alloc_check(union bpf_attr *attr);
 
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
@@ -768,6 +769,33 @@ static inline void __xsk_map_flush(struct bpf_map *map)
 {
 }
 #endif
+
+#if defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL)
+void bpf_sk_reuseport_detach(struct sock *sk);
+int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
+				       void *value);
+int bpf_fd_reuseport_array_update_elem(struct bpf_map *map, void *key,
+				       void *value, u64 map_flags);
+#else
+static inline void bpf_sk_reuseport_detach(struct sock *sk)
+{
+}
+
+#ifdef CONFIG_BPF_SYSCALL
+static inline int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map,
+						     void *key, void *value)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int bpf_fd_reuseport_array_update_elem(struct bpf_map *map,
+						     void *key, void *value,
+						     u64 map_flags)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_BPF_SYSCALL */
+#endif /* defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL) */
 
 /* verifier prototypes for helper functions called from eBPF programs */
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
