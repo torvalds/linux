@@ -101,16 +101,16 @@ extern int trace_seq_do_printf(struct trace_seq *s);
 struct tep_handle;
 struct event_format;
 
-typedef int (*pevent_event_handler_func)(struct trace_seq *s,
-					 struct tep_record *record,
-					 struct event_format *event,
-					 void *context);
+typedef int (*tep_event_handler_func)(struct trace_seq *s,
+				      struct tep_record *record,
+				      struct event_format *event,
+				      void *context);
 
-typedef int (*pevent_plugin_load_func)(struct tep_handle *pevent);
-typedef int (*pevent_plugin_unload_func)(struct tep_handle *pevent);
+typedef int (*tep_plugin_load_func)(struct tep_handle *pevent);
+typedef int (*tep_plugin_unload_func)(struct tep_handle *pevent);
 
-struct pevent_plugin_option {
-	struct pevent_plugin_option	*next;
+struct tep_plugin_option {
+	struct tep_plugin_option	*next;
 	void				*handle;
 	char				*file;
 	char				*name;
@@ -124,20 +124,20 @@ struct pevent_plugin_option {
 /*
  * Plugin hooks that can be called:
  *
- * PEVENT_PLUGIN_LOADER:  (required)
+ * TEP_PLUGIN_LOADER:  (required)
  *   The function name to initialized the plugin.
  *
- *   int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
+ *   int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
  *
- * PEVENT_PLUGIN_UNLOADER:  (optional)
+ * TEP_PLUGIN_UNLOADER:  (optional)
  *   The function called just before unloading
  *
- *   int PEVENT_PLUGIN_UNLOADER(struct tep_handle *pevent)
+ *   int TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
  *
- * PEVENT_PLUGIN_OPTIONS:  (optional)
+ * TEP_PLUGIN_OPTIONS:  (optional)
  *   Plugin options that can be set before loading
  *
- *   struct pevent_plugin_option PEVENT_PLUGIN_OPTIONS[] = {
+ *   struct tep_plugin_option TEP_PLUGIN_OPTIONS[] = {
  *	{
  *		.name = "option-name",
  *		.plugin_alias = "override-file-name", (optional)
@@ -158,19 +158,19 @@ struct pevent_plugin_option {
  *   .set will be processed. If .value is defined, then it is considered
  *   a string option and .set will be ignored.
  *
- * PEVENT_PLUGIN_ALIAS: (optional)
+ * TEP_PLUGIN_ALIAS: (optional)
  *   The name to use for finding options (uses filename if not defined)
  */
-#define PEVENT_PLUGIN_LOADER pevent_plugin_loader
-#define PEVENT_PLUGIN_UNLOADER pevent_plugin_unloader
-#define PEVENT_PLUGIN_OPTIONS pevent_plugin_options
-#define PEVENT_PLUGIN_ALIAS pevent_plugin_alias
+#define TEP_PLUGIN_LOADER tep_plugin_loader
+#define TEP_PLUGIN_UNLOADER tep_plugin_unloader
+#define TEP_PLUGIN_OPTIONS tep_plugin_options
+#define TEP_PLUGIN_ALIAS tep_plugin_alias
 #define _MAKE_STR(x)	#x
 #define MAKE_STR(x)	_MAKE_STR(x)
-#define PEVENT_PLUGIN_LOADER_NAME MAKE_STR(PEVENT_PLUGIN_LOADER)
-#define PEVENT_PLUGIN_UNLOADER_NAME MAKE_STR(PEVENT_PLUGIN_UNLOADER)
-#define PEVENT_PLUGIN_OPTIONS_NAME MAKE_STR(PEVENT_PLUGIN_OPTIONS)
-#define PEVENT_PLUGIN_ALIAS_NAME MAKE_STR(PEVENT_PLUGIN_ALIAS)
+#define TEP_PLUGIN_LOADER_NAME MAKE_STR(TEP_PLUGIN_LOADER)
+#define TEP_PLUGIN_UNLOADER_NAME MAKE_STR(TEP_PLUGIN_UNLOADER)
+#define TEP_PLUGIN_OPTIONS_NAME MAKE_STR(TEP_PLUGIN_OPTIONS)
+#define TEP_PLUGIN_ALIAS_NAME MAKE_STR(TEP_PLUGIN_ALIAS)
 
 enum format_flags {
 	FIELD_IS_ARRAY		= 1,
@@ -327,7 +327,7 @@ struct event_format {
 	struct format		format;
 	struct print_fmt	print_fmt;
 	char			*system;
-	pevent_event_handler_func handler;
+	tep_event_handler_func	handler;
 	void			*context;
 };
 
@@ -441,8 +441,8 @@ void traceevent_unload_plugins(struct plugin_list *plugin_list,
 char **traceevent_plugin_list_options(void);
 void traceevent_plugin_free_options_list(char **list);
 int traceevent_plugin_add_options(const char *name,
-				  struct pevent_plugin_option *options);
-void traceevent_plugin_remove_options(struct pevent_plugin_option *options);
+				  struct tep_plugin_option *options);
+void traceevent_plugin_remove_options(struct tep_plugin_option *options);
 void traceevent_print_plugins(struct trace_seq *s,
 			      const char *prefix, const char *suffix,
 			      const struct plugin_list *list);
@@ -675,10 +675,10 @@ int pevent_print_func_field(struct trace_seq *s, const char *fmt,
 
 int pevent_register_event_handler(struct tep_handle *pevent, int id,
 				  const char *sys_name, const char *event_name,
-				  pevent_event_handler_func func, void *context);
+				  tep_event_handler_func func, void *context);
 int pevent_unregister_event_handler(struct tep_handle *pevent, int id,
 				    const char *sys_name, const char *event_name,
-				    pevent_event_handler_func func, void *context);
+				    tep_event_handler_func func, void *context);
 int pevent_register_print_function(struct tep_handle *pevent,
 				   pevent_func_handler func,
 				   enum pevent_func_arg_type ret_type,

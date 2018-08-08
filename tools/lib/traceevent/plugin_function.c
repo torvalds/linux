@@ -33,7 +33,7 @@ static int cpus = -1;
 
 #define STK_BLK 10
 
-struct pevent_plugin_option plugin_options[] =
+struct tep_plugin_option plugin_options[] =
 {
 	{
 		.name = "parent",
@@ -53,8 +53,8 @@ struct pevent_plugin_option plugin_options[] =
 	}
 };
 
-static struct pevent_plugin_option *ftrace_parent = &plugin_options[0];
-static struct pevent_plugin_option *ftrace_indent = &plugin_options[1];
+static struct tep_plugin_option *ftrace_parent = &plugin_options[0];
+static struct tep_plugin_option *ftrace_indent = &plugin_options[1];
 
 static void add_child(struct func_stack *stack, const char *child, int pos)
 {
@@ -163,7 +163,7 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "ftrace", "function",
 				      function_handler, NULL);
@@ -173,7 +173,7 @@ int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
 	return 0;
 }
 
-void PEVENT_PLUGIN_UNLOADER(struct tep_handle *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
 	int i, x;
 

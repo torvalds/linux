@@ -34,7 +34,7 @@
 
 static struct registered_plugin_options {
 	struct registered_plugin_options	*next;
-	struct pevent_plugin_option		*options;
+	struct tep_plugin_option		*options;
 } *registered_options;
 
 static struct trace_plugin_options {
@@ -58,7 +58,7 @@ static void lower_case(char *str)
 		*str = tolower(*str);
 }
 
-static int update_option_value(struct pevent_plugin_option *op, const char *val)
+static int update_option_value(struct tep_plugin_option *op, const char *val)
 {
 	char *op_val;
 
@@ -111,7 +111,7 @@ static int update_option_value(struct pevent_plugin_option *op, const char *val)
 char **traceevent_plugin_list_options(void)
 {
 	struct registered_plugin_options *reg;
-	struct pevent_plugin_option *op;
+	struct tep_plugin_option *op;
 	char **list = NULL;
 	char *name;
 	int count = 0;
@@ -163,7 +163,7 @@ void traceevent_plugin_free_options_list(char **list)
 }
 
 static int
-update_option(const char *file, struct pevent_plugin_option *option)
+update_option(const char *file, struct tep_plugin_option *option)
 {
 	struct trace_plugin_options *op;
 	char *plugin;
@@ -222,7 +222,7 @@ update_option(const char *file, struct pevent_plugin_option *option)
  * Sets the options with the values that have been added by user.
  */
 int traceevent_plugin_add_options(const char *name,
-				  struct pevent_plugin_option *options)
+				  struct tep_plugin_option *options)
 {
 	struct registered_plugin_options *reg;
 
@@ -244,7 +244,7 @@ int traceevent_plugin_add_options(const char *name,
  * traceevent_plugin_remove_options - remove plugin options that were registered
  * @options: Options to removed that were registered with traceevent_plugin_add_options
  */
-void traceevent_plugin_remove_options(struct pevent_plugin_option *options)
+void traceevent_plugin_remove_options(struct tep_plugin_option *options)
 {
 	struct registered_plugin_options **last;
 	struct registered_plugin_options *reg;
@@ -285,7 +285,7 @@ load_plugin(struct tep_handle *pevent, const char *path,
 	    const char *file, void *data)
 {
 	struct plugin_list **plugin_list = data;
-	pevent_plugin_load_func func;
+	tep_plugin_load_func func;
 	struct plugin_list *list;
 	const char *alias;
 	char *plugin;
@@ -305,14 +305,14 @@ load_plugin(struct tep_handle *pevent, const char *path,
 		goto out_free;
 	}
 
-	alias = dlsym(handle, PEVENT_PLUGIN_ALIAS_NAME);
+	alias = dlsym(handle, TEP_PLUGIN_ALIAS_NAME);
 	if (!alias)
 		alias = file;
 
-	func = dlsym(handle, PEVENT_PLUGIN_LOADER_NAME);
+	func = dlsym(handle, TEP_PLUGIN_LOADER_NAME);
 	if (!func) {
 		warning("could not find func '%s' in plugin '%s'\n%s\n",
-			PEVENT_PLUGIN_LOADER_NAME, plugin, dlerror());
+			TEP_PLUGIN_LOADER_NAME, plugin, dlerror());
 		goto out_free;
 	}
 
@@ -442,13 +442,13 @@ traceevent_load_plugins(struct tep_handle *pevent)
 void
 traceevent_unload_plugins(struct plugin_list *plugin_list, struct tep_handle *pevent)
 {
-	pevent_plugin_unload_func func;
+	tep_plugin_unload_func func;
 	struct plugin_list *list;
 
 	while (plugin_list) {
 		list = plugin_list;
 		plugin_list = list->next;
-		func = dlsym(list->handle, PEVENT_PLUGIN_UNLOADER_NAME);
+		func = dlsym(list->handle, TEP_PLUGIN_UNLOADER_NAME);
 		if (func)
 			func(pevent);
 		dlclose(list->handle);
