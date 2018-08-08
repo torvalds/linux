@@ -29,6 +29,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_damage_helper.h>
 
 
 #define vmw_crtc_to_sou(x) \
@@ -908,6 +909,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	}
 
 	drm_plane_helper_add(primary, &vmw_sou_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary);
 
 	/* Initialize cursor plane */
 	vmw_du_plane_reset(cursor);
