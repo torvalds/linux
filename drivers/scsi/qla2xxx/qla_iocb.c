@@ -2642,6 +2642,7 @@ qla2x00_els_dcmd2_sp_done(void *ptr, int res)
 				    elsio->u.els_plogi.els_resp_pyld,
 				    elsio->u.els_plogi.els_resp_pyld_dma);
 			sp->free(sp);
+			return;
 		}
 		e->u.iosb.sp = sp;
 		qla2x00_post_work(vha, e);
