@@ -2200,58 +2200,14 @@ static void intel_pmu_reset(void)
 	local_irq_restore(flags);
 }
 
-/*
- * This handler is triggered by the local APIC, so the APIC IRQ handling
- * rules apply:
- */
-static int intel_pmu_handle_irq(struct pt_regs *regs)
+static int handle_pmi_common(struct pt_regs *regs, u64 status)
 {
 	struct perf_sample_data data;
-	struct cpu_hw_events *cpuc;
-	int bit, loops;
-	u64 status;
-	int handled;
-	int pmu_enabled;
-
-	cpuc = this_cpu_ptr(&cpu_hw_events);
-
-	/*
-	 * Save the PMU state.
-	 * It needs to be restored when leaving the handler.
-	 */
-	pmu_enabled = cpuc->enabled;
-	/*
-	 * No known reason to not always do late ACK,
-	 * but just in case do it opt-in.
-	 */
-	if (!x86_pmu.late_ack)
-		apic_write(APIC_LVTPC, APIC_DM_NMI);
-	intel_bts_disable_local();
-	cpuc->enabled = 0;
-	__intel_pmu_disable_all();
-	handled = intel_pmu_drain_bts_buffer();
-	handled += intel_bts_interrupt();
-	status = intel_pmu_get_status();
-	if (!status)
-		goto done;
-
-	loops = 0;
-again:
-	intel_pmu_lbr_read();
-	intel_pmu_ack_status(status);
-	if (++loops > 100) {
-		static bool warned = false;
-		if (!warned) {
-			WARN(1, "perfevents: irq loop stuck!\n");
-			perf_event_print_debug();
-			warned = true;
-		}
-		intel_pmu_reset();
-		goto done;
-	}
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	int bit;
+	int handled = 0;
 
 	inc_irq_stat(apic_perf_irqs);
-
 
 	/*
 	 * Ignore a range of extra bits in status that do not indicate
@@ -2261,7 +2217,7 @@ again:
 		    GLOBAL_STATUS_ASIF |
 		    GLOBAL_STATUS_LBRS_FROZEN);
 	if (!status)
-		goto done;
+		return 0;
 	/*
 	 * In case multiple PEBS events are sampled at the same time,
 	 * it is possible to have GLOBAL_STATUS bit 62 set indicating
@@ -2330,6 +2286,61 @@ again:
 		if (perf_event_overflow(event, &data, regs))
 			x86_pmu_stop(event, 0);
 	}
+
+	return handled;
+}
+
+/*
+ * This handler is triggered by the local APIC, so the APIC IRQ handling
+ * rules apply:
+ */
+static int intel_pmu_handle_irq(struct pt_regs *regs)
+{
+	struct cpu_hw_events *cpuc;
+	int loops;
+	u64 status;
+	int handled;
+	int pmu_enabled;
+
+	cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	/*
+	 * Save the PMU state.
+	 * It needs to be restored when leaving the handler.
+	 */
+	pmu_enabled = cpuc->enabled;
+	/*
+	 * No known reason to not always do late ACK,
+	 * but just in case do it opt-in.
+	 */
+	if (!x86_pmu.late_ack)
+		apic_write(APIC_LVTPC, APIC_DM_NMI);
+	intel_bts_disable_local();
+	cpuc->enabled = 0;
+	__intel_pmu_disable_all();
+	handled = intel_pmu_drain_bts_buffer();
+	handled += intel_bts_interrupt();
+	status = intel_pmu_get_status();
+	if (!status)
+		goto done;
+
+	loops = 0;
+again:
+	intel_pmu_lbr_read();
+	intel_pmu_ack_status(status);
+	if (++loops > 100) {
+		static bool warned;
+
+		if (!warned) {
+			WARN(1, "perfevents: irq loop stuck!\n");
+			perf_event_print_debug();
+			warned = true;
+		}
+		intel_pmu_reset();
+		goto done;
+	}
+
+	handled += handle_pmi_common(regs, status);
 
 	/*
 	 * Repeat if there is more work to be done:
