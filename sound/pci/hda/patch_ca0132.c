@@ -1026,6 +1026,21 @@ static const struct hda_pintbl sbz_pincfgs[] = {
 	{}
 };
 
+/* Recon3D pin configs taken from Windows Driver */
+static const struct hda_pintbl r3d_pincfgs[] = {
+	{ 0x0b, 0x01014110 }, /* Port G -- Lineout FRONT L/R */
+	{ 0x0c, 0x014510f0 }, /* SPDIF Out 1 */
+	{ 0x0d, 0x014510f0 }, /* Digital Out */
+	{ 0x0e, 0x01c520f0 }, /* SPDIF In */
+	{ 0x0f, 0x0221401f }, /* Port A -- BackPanel HP */
+	{ 0x10, 0x01016011 }, /* Port D -- Center/LFE or FP Hp */
+	{ 0x11, 0x01011014 }, /* Port B -- LineMicIn2 / Rear L/R */
+	{ 0x12, 0x02a090f0 }, /* Port C -- LineIn1 */
+	{ 0x13, 0x908700f0 }, /* What U Hear In*/
+	{ 0x18, 0x50d000f0 }, /* N/A */
+	{}
+};
+
 /* Recon3D integrated pin configs taken from Windows Driver */
 static const struct hda_pintbl r3di_pincfgs[] = {
 	{ 0x0b, 0x01014110 }, /* Port G -- Lineout FRONT L/R */
@@ -7396,8 +7411,15 @@ static void ca0132_config(struct hda_codec *codec)
 		spec->unsol_tag_amic1 = 0x11;
 		break;
 	case QUIRK_SBZ:
-		codec_dbg(codec, "%s: QUIRK_SBZ applied.\n", __func__);
-		snd_hda_apply_pincfgs(codec, sbz_pincfgs);
+	case QUIRK_R3D:
+		if (spec->quirk == QUIRK_SBZ) {
+			codec_dbg(codec, "%s: QUIRK_SBZ applied.\n", __func__);
+			snd_hda_apply_pincfgs(codec, sbz_pincfgs);
+		}
+		if (spec->quirk == QUIRK_R3D) {
+			codec_dbg(codec, "%s: QUIRK_R3D applied.\n", __func__);
+			snd_hda_apply_pincfgs(codec, r3d_pincfgs);
+		}
 
 		spec->num_outputs = 2;
 		spec->out_pins[0] = 0x0B; /* Line out */
