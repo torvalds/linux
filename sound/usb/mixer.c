@@ -856,12 +856,14 @@ static int check_input_term(struct mixer_build *state, int id,
 					term->type = UAC3_PROCESSING_UNIT << 16; /* virtual type */
 				else /* UAC_VERSION_2 */
 					term->type = UAC3_EFFECT_UNIT << 16; /* virtual type */
+				/* fall through */
 			case UAC1_EXTENSION_UNIT:
 			/* UAC2_PROCESSING_UNIT_V2 */
 				if (protocol == UAC_VERSION_1 && !term->type)
 					term->type = UAC3_EXTENSION_UNIT << 16; /* virtual type */
 				else if (protocol == UAC_VERSION_2 && !term->type)
 					term->type = UAC3_PROCESSING_UNIT << 16; /* virtual type */
+				/* fall through */
 			case UAC2_EXTENSION_UNIT_V2: {
 				struct uac_processing_unit_descriptor *d = p1;
 
