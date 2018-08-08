@@ -63,4 +63,18 @@ int __kernel_cpumcf_begin(void);
 unsigned long kernel_cpumcf_alert(int clear);
 void __kernel_cpumcf_end(void);
 
+static inline int kernel_cpumcf_begin(void)
+{
+	if (!cpum_cf_avail())
+		return -ENODEV;
+
+	preempt_disable();
+	return __kernel_cpumcf_begin();
+}
+static inline void kernel_cpumcf_end(void)
+{
+	__kernel_cpumcf_end();
+	preempt_enable();
+}
+
 #endif /* _ASM_S390_CPU_MCF_H */
