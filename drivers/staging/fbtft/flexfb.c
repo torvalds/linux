@@ -694,7 +694,9 @@ static int flexfb_probe_common(struct spi_device *sdev,
 			}
 			break;
 		default:
-			dev_err(dev, "argument 'buswidth': %d is not supported with SPI.\n", buswidth);
+			dev_err(dev,
+				"argument 'buswidth': %d is not supported with SPI.\n",
+				buswidth);
 			return -EINVAL;
 		}
 	} else {

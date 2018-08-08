@@ -46,7 +46,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	va_end(args);
 
 	fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par,
-		par->info->device, u8, par->buf, len, "%s: ", __func__);
+			  par->info->device, u8, par->buf,
+			  len, "%s: ", __func__);
 
 	ret = par->fbtftops.write(par, par->buf, len);
 	if (ret < 0) {
@@ -175,7 +176,7 @@ static int init_display(struct fbtft_par *par)
 
 	version = firmware_version(par);
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "Firmware version: %x.%02x\n",
-						version >> 8, version & 0xFF);
+		      version >> 8, version & 0xFF);
 
 	if (mode == 332)
 		par->fbtftops.write_vmem = write_vmem_8bit;
@@ -226,9 +227,9 @@ static int backlight_chip_update_status(struct backlight_device *bd)
 	int brightness = bd->props.brightness;
 
 	fbtft_par_dbg(DEBUG_BACKLIGHT, par,
-		"%s: brightness=%d, power=%d, fb_blank=%d\n",
-		__func__, bd->props.brightness, bd->props.power,
-		bd->props.fb_blank);
+		      "%s: brightness=%d, power=%d, fb_blank=%d\n", __func__,
+		      bd->props.brightness, bd->props.power,
+		      bd->props.fb_blank);
 
 	if (bd->props.power != FB_BLANK_UNBLANK)
 		brightness = 0;
@@ -256,7 +257,8 @@ static void register_chip_backlight(struct fbtft_par *par)
 	bl_props.brightness = DEFAULT_BRIGHTNESS;
 
 	bd = backlight_device_register(dev_driver_string(par->info->device),
-				par->info->device, par, &bl_ops, &bl_props);
+				       par->info->device, par, &bl_ops,
+				       &bl_props);
 	if (IS_ERR(bd)) {
 		dev_err(par->info->device,
 			"cannot register backlight device (%ld)\n",
