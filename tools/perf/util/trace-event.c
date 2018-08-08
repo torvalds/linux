@@ -28,7 +28,7 @@ static bool tevent_initialized;
 
 int trace_event__init(struct trace_event *t)
 {
-	struct pevent *pevent = pevent_alloc();
+	struct tep_handle *pevent = pevent_alloc();
 
 	if (pevent) {
 		t->plugin_list = traceevent_load_plugins(pevent);
@@ -41,7 +41,7 @@ int trace_event__init(struct trace_event *t)
 static int trace_event__init2(void)
 {
 	int be = traceevent_host_bigendian();
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 
 	if (trace_event__init(&tevent))
 		return -1;
@@ -76,7 +76,7 @@ static struct event_format*
 tp_format(const char *sys, const char *name)
 {
 	char *tp_dir = get_events_file(sys);
-	struct pevent *pevent = tevent.pevent;
+	struct tep_handle *pevent = tevent.pevent;
 	struct event_format *event = NULL;
 	char path[PATH_MAX];
 	size_t size;

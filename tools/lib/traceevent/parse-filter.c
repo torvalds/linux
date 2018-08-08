@@ -179,7 +179,7 @@ add_filter_type(struct event_filter *filter, int id)
  * pevent_filter_alloc - create a new event filter
  * @pevent: The pevent that this filter is associated with
  */
-struct event_filter *pevent_filter_alloc(struct pevent *pevent)
+struct event_filter *pevent_filter_alloc(struct tep_handle *pevent)
 {
 	struct event_filter *filter;
 
@@ -269,7 +269,7 @@ static int event_match(struct event_format *event,
 }
 
 static enum pevent_errno
-find_event(struct pevent *pevent, struct event_list **events,
+find_event(struct tep_handle *pevent, struct event_list **events,
 	   char *sys_name, char *event_name)
 {
 	struct event_format *event;
@@ -1270,7 +1270,7 @@ static void filter_init_error_buf(struct event_filter *filter)
 enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
 					       const char *filter_str)
 {
-	struct pevent *pevent = filter->pevent;
+	struct tep_handle *pevent = filter->pevent;
 	struct event_list *event;
 	struct event_list *events = NULL;
 	const char *filter_start;
@@ -1550,8 +1550,8 @@ int pevent_filter_copy(struct event_filter *dest, struct event_filter *source)
 int pevent_update_trivial(struct event_filter *dest, struct event_filter *source,
 			  enum filter_trivial_type type)
 {
-	struct pevent *src_pevent;
-	struct pevent *dest_pevent;
+	struct tep_handle *src_pevent;
+	struct tep_handle *dest_pevent;
 	struct event_format *event;
 	struct filter_type *filter_type;
 	struct filter_arg *arg;
@@ -1874,7 +1874,7 @@ static int test_num(struct event_format *event, struct filter_arg *arg,
 static const char *get_field_str(struct filter_arg *arg, struct pevent_record *record)
 {
 	struct event_format *event;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	unsigned long long addr;
 	const char *val = NULL;
 	unsigned int size;
@@ -2049,7 +2049,7 @@ int pevent_event_filtered(struct event_filter *filter, int event_id)
 enum pevent_errno pevent_filter_match(struct event_filter *filter,
 				      struct pevent_record *record)
 {
-	struct pevent *pevent = filter->pevent;
+	struct tep_handle *pevent = filter->pevent;
 	struct filter_type *filter_type;
 	int event_id;
 	int ret;

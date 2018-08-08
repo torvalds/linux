@@ -281,7 +281,7 @@ void traceevent_print_plugins(struct trace_seq *s,
 }
 
 static void
-load_plugin(struct pevent *pevent, const char *path,
+load_plugin(struct tep_handle *pevent, const char *path,
 	    const char *file, void *data)
 {
 	struct plugin_list **plugin_list = data;
@@ -336,9 +336,9 @@ load_plugin(struct pevent *pevent, const char *path,
 }
 
 static void
-load_plugins_dir(struct pevent *pevent, const char *suffix,
+load_plugins_dir(struct tep_handle *pevent, const char *suffix,
 		 const char *path,
-		 void (*load_plugin)(struct pevent *pevent,
+		 void (*load_plugin)(struct tep_handle *pevent,
 				     const char *path,
 				     const char *name,
 				     void *data),
@@ -378,8 +378,8 @@ load_plugins_dir(struct pevent *pevent, const char *suffix,
 }
 
 static void
-load_plugins(struct pevent *pevent, const char *suffix,
-	     void (*load_plugin)(struct pevent *pevent,
+load_plugins(struct tep_handle *pevent, const char *suffix,
+	     void (*load_plugin)(struct tep_handle *pevent,
 				 const char *path,
 				 const char *name,
 				 void *data),
@@ -431,7 +431,7 @@ load_plugins(struct pevent *pevent, const char *suffix,
 }
 
 struct plugin_list*
-traceevent_load_plugins(struct pevent *pevent)
+traceevent_load_plugins(struct tep_handle *pevent)
 {
 	struct plugin_list *list = NULL;
 
@@ -440,7 +440,7 @@ traceevent_load_plugins(struct pevent *pevent)
 }
 
 void
-traceevent_unload_plugins(struct plugin_list *plugin_list, struct pevent *pevent)
+traceevent_unload_plugins(struct plugin_list *plugin_list, struct tep_handle *pevent)
 {
 	pevent_plugin_unload_func func;
 	struct plugin_list *list;

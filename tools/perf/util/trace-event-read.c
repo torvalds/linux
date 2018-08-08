@@ -96,7 +96,7 @@ static void skip(int size)
 	};
 }
 
-static unsigned int read4(struct pevent *pevent)
+static unsigned int read4(struct tep_handle *pevent)
 {
 	unsigned int data;
 
@@ -105,7 +105,7 @@ static unsigned int read4(struct pevent *pevent)
 	return __data2host4(pevent, data);
 }
 
-static unsigned long long read8(struct pevent *pevent)
+static unsigned long long read8(struct tep_handle *pevent)
 {
 	unsigned long long data;
 
@@ -158,7 +158,7 @@ out:
 	return str;
 }
 
-static int read_proc_kallsyms(struct pevent *pevent)
+static int read_proc_kallsyms(struct tep_handle *pevent)
 {
 	unsigned int size;
 
@@ -181,7 +181,7 @@ static int read_proc_kallsyms(struct pevent *pevent)
 	return 0;
 }
 
-static int read_ftrace_printk(struct pevent *pevent)
+static int read_ftrace_printk(struct tep_handle *pevent)
 {
 	unsigned int size;
 	char *buf;
@@ -208,7 +208,7 @@ static int read_ftrace_printk(struct pevent *pevent)
 	return 0;
 }
 
-static int read_header_files(struct pevent *pevent)
+static int read_header_files(struct tep_handle *pevent)
 {
 	unsigned long long size;
 	char *header_page;
@@ -259,7 +259,7 @@ static int read_header_files(struct pevent *pevent)
 	return ret;
 }
 
-static int read_ftrace_file(struct pevent *pevent, unsigned long long size)
+static int read_ftrace_file(struct tep_handle *pevent, unsigned long long size)
 {
 	int ret;
 	char *buf;
@@ -284,8 +284,8 @@ out:
 	return ret;
 }
 
-static int read_event_file(struct pevent *pevent, char *sys,
-			    unsigned long long size)
+static int read_event_file(struct tep_handle *pevent, char *sys,
+			   unsigned long long size)
 {
 	int ret;
 	char *buf;
@@ -310,7 +310,7 @@ out:
 	return ret;
 }
 
-static int read_ftrace_files(struct pevent *pevent)
+static int read_ftrace_files(struct tep_handle *pevent)
 {
 	unsigned long long size;
 	int count;
@@ -328,7 +328,7 @@ static int read_ftrace_files(struct pevent *pevent)
 	return 0;
 }
 
-static int read_event_files(struct pevent *pevent)
+static int read_event_files(struct tep_handle *pevent)
 {
 	unsigned long long size;
 	char *sys;
@@ -356,7 +356,7 @@ static int read_event_files(struct pevent *pevent)
 	return 0;
 }
 
-static int read_saved_cmdline(struct pevent *pevent)
+static int read_saved_cmdline(struct tep_handle *pevent)
 {
 	unsigned long long size;
 	char *buf;
@@ -399,7 +399,7 @@ ssize_t trace_report(int fd, struct trace_event *tevent, bool __repipe)
 	int host_bigendian;
 	int file_long_size;
 	int file_page_size;
-	struct pevent *pevent = NULL;
+	struct tep_handle *pevent = NULL;
 	int err;
 
 	repipe = __repipe;

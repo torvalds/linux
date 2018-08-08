@@ -32,7 +32,7 @@
 static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)
 {
-	struct pevent *pevent = context->pevent;
+	struct tep_handle *pevent = context->pevent;
 	struct event_format *event;
 	struct format_field *field;
 
@@ -136,7 +136,7 @@ void event_format__print(struct event_format *event,
 	return event_format__fprintf(event, cpu, data, size, stdout);
 }
 
-void parse_ftrace_printk(struct pevent *pevent,
+void parse_ftrace_printk(struct tep_handle *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
@@ -161,7 +161,7 @@ void parse_ftrace_printk(struct pevent *pevent,
 	}
 }
 
-void parse_saved_cmdline(struct pevent *pevent,
+void parse_saved_cmdline(struct tep_handle *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
 	char *comm;
@@ -178,18 +178,18 @@ void parse_saved_cmdline(struct pevent *pevent,
 	}
 }
 
-int parse_ftrace_file(struct pevent *pevent, char *buf, unsigned long size)
+int parse_ftrace_file(struct tep_handle *pevent, char *buf, unsigned long size)
 {
 	return pevent_parse_event(pevent, buf, size, "ftrace");
 }
 
-int parse_event_file(struct pevent *pevent,
+int parse_event_file(struct tep_handle *pevent,
 		     char *buf, unsigned long size, char *sys)
 {
 	return pevent_parse_event(pevent, buf, size, sys);
 }
 
-struct event_format *trace_find_next_event(struct pevent *pevent,
+struct event_format *trace_find_next_event(struct tep_handle *pevent,
 					   struct event_format *event)
 {
 	static int idx;
