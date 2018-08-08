@@ -1944,7 +1944,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 					{
 						network->bMBssidValid = true;
 						network->MBssidMask = 0xff << (network->MBssidMask);
-						cpMacAddr(network->MBssid, network->bssid);
+						ether_addr_copy(network->MBssid, network->bssid);
 						network->MBssid[5] &= network->MBssidMask;
 					}
 					else

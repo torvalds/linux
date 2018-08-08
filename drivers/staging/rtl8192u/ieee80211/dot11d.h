@@ -31,17 +31,13 @@ struct rt_dot11d_info {
 	bool enabled; /* dot11MultiDomainCapabilityEnabled */
 };
 
-#define cpMacAddr(des, src)	      ((des)[0] = (src)[0], \
-	(des)[1] = (src)[1], (des)[2] = (src)[2], \
-	(des)[3] = (src)[3], (des)[4] = (src)[4], \
-	(des)[5] = (src)[5])
 #define GET_DOT11D_INFO(__pIeeeDev) ((struct rt_dot11d_info *)((__pIeeeDev)->pDot11dInfo))
 
 #define IS_DOT11D_ENABLE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->enabled)
 #define IS_COUNTRY_IE_VALID(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->country_ie_len > 0)
 
 #define IS_EQUAL_CIE_SRC(__pIeeeDev, __pTa) ether_addr_equal(GET_DOT11D_INFO(__pIeeeDev)->country_ie_src_addr, __pTa)
-#define UPDATE_CIE_SRC(__pIeeeDev, __pTa) cpMacAddr(GET_DOT11D_INFO(__pIeeeDev)->country_ie_src_addr, __pTa)
+#define UPDATE_CIE_SRC(__pIeeeDev, __pTa) ether_addr_copy(GET_DOT11D_INFO(__pIeeeDev)->country_ie_src_addr, __pTa)
 
 #define GET_CIE_WATCHDOG(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->country_ie_watchdog)
 #define RESET_CIE_WATCHDOG(__pIeeeDev) (GET_CIE_WATCHDOG(__pIeeeDev) = 0)

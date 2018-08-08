@@ -1329,8 +1329,13 @@ typedef enum _erp_t {
 
 struct ieee80211_network {
 	/* These entries are used to identify a unique network */
-	u8 bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN];   /* u16 aligned! */
 	u8 channel;
+
+	// CCXv4 S59, MBSSID.
+	bool	bMBssidValid;
+	u8	MBssid[ETH_ALEN];    /* u16 aligned! */
+	u8	MBssidMask;
 	/* Ensure null-terminated for any debug msgs */
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
@@ -1341,10 +1346,6 @@ struct ieee80211_network {
 	bool	bCkipSupported;
 	bool	bCcxRmEnable;
 	u16	CcxRmState[2];
-	// CCXv4 S59, MBSSID.
-	bool	bMBssidValid;
-	u8	MBssidMask;
-	u8	MBssid[6];
 	// CCX 2 S38, WLAN Device Version Number element. Annie, 2006-08-20.
 	bool	bWithCcxVerNum;
 	u8	BssCcxVerNumber;
