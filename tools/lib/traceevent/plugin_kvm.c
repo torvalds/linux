@@ -276,7 +276,7 @@ static int kvm_exit_handler(struct trace_seq *s, struct tep_record *record,
 	if (print_exit_reason(s, record, event, "exit_reason") < 0)
 		return -1;
 
-	pevent_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
+	tep_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
 
 	if (pevent_get_field_val(s, event, "info1", record, &info1, 0) >= 0
 	    && pevent_get_field_val(s, event, "info2", record, &info2, 0) >= 0)
@@ -336,10 +336,10 @@ static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct tep_reco
 	if (print_exit_reason(s, record, event, "exit_code") < 0)
 		return -1;
 
-	pevent_print_num_field(s, " info1 %llx", event, "exit_info1", record, 1);
-	pevent_print_num_field(s, " info2 %llx", event, "exit_info2", record, 1);
-	pevent_print_num_field(s, " int_info %llx", event, "exit_int_info", record, 1);
-	pevent_print_num_field(s, " int_info_err %llx", event, "exit_int_info_err", record, 1);
+	tep_print_num_field(s, " info1 %llx", event, "exit_info1", record, 1);
+	tep_print_num_field(s, " info2 %llx", event, "exit_info2", record, 1);
+	tep_print_num_field(s, " int_info %llx", event, "exit_int_info", record, 1);
+	tep_print_num_field(s, " int_info_err %llx", event, "exit_int_info_err", record, 1);
 
 	return 0;
 }
@@ -347,7 +347,7 @@ static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct tep_reco
 static int kvm_nested_vmexit_handler(struct trace_seq *s, struct tep_record *record,
 				     struct event_format *event, void *context)
 {
-	pevent_print_num_field(s, "rip %llx ", event, "rip", record, 1);
+	tep_print_num_field(s, "rip %llx ", event, "rip", record, 1);
 
 	return kvm_nested_vmexit_inject_handler(s, record, event, context);
 }
@@ -406,8 +406,8 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
 	} else
 		trace_seq_printf(s, "WORD: %08x", role.word);
 
-	pevent_print_num_field(s, " root %u ",  event,
-			       "root_count", record, 1);
+	tep_print_num_field(s, " root %u ",  event,
+			    "root_count", record, 1);
 
 	if (pevent_get_field_val(s, event, "unsync", record, &val, 1) < 0)
 		return -1;

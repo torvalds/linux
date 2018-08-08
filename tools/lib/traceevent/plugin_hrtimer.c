@@ -30,16 +30,16 @@ static int timer_expire_handler(struct trace_seq *s,
 {
 	trace_seq_printf(s, "hrtimer=");
 
-	if (pevent_print_num_field(s, "0x%llx", event, "timer",
-				   record, 0) == -1)
-		pevent_print_num_field(s, "0x%llx", event, "hrtimer",
-				       record, 1);
+	if (tep_print_num_field(s, "0x%llx", event, "timer",
+				record, 0) == -1)
+		tep_print_num_field(s, "0x%llx", event, "hrtimer",
+				    record, 1);
 
 	trace_seq_printf(s, " now=");
 
-	pevent_print_num_field(s, "%llu", event, "now", record, 1);
+	tep_print_num_field(s, "%llu", event, "now", record, 1);
 
-	pevent_print_func_field(s, " function=%s", event, "function",
+	tep_print_func_field(s, " function=%s", event, "function",
 				record, 0);
 	return 0;
 }
@@ -50,19 +50,19 @@ static int timer_start_handler(struct trace_seq *s,
 {
 	trace_seq_printf(s, "hrtimer=");
 
-	if (pevent_print_num_field(s, "0x%llx", event, "timer",
-				   record, 0) == -1)
-		pevent_print_num_field(s, "0x%llx", event, "hrtimer",
-				       record, 1);
+	if (tep_print_num_field(s, "0x%llx", event, "timer",
+				record, 0) == -1)
+		tep_print_num_field(s, "0x%llx", event, "hrtimer",
+				    record, 1);
 
-	pevent_print_func_field(s, " function=%s", event, "function",
-				record, 0);
+	tep_print_func_field(s, " function=%s", event, "function",
+			     record, 0);
 
 	trace_seq_printf(s, " expires=");
-	pevent_print_num_field(s, "%llu", event, "expires", record, 1);
+	tep_print_num_field(s, "%llu", event, "expires", record, 1);
 
 	trace_seq_printf(s, " softexpires=");
-	pevent_print_num_field(s, "%llu", event, "softexpires", record, 1);
+	tep_print_num_field(s, "%llu", event, "softexpires", record, 1);
 	return 0;
 }
 

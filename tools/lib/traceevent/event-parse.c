@@ -589,12 +589,12 @@ out_free:
 }
 
 /**
- * pevent_print_funcs - print out the stored functions
+ * tep_print_funcs - print out the stored functions
  * @pevent: handle for the pevent
  *
  * This prints out the stored functions.
  */
-void pevent_print_funcs(struct tep_handle *pevent)
+void tep_print_funcs(struct tep_handle *pevent)
 {
 	int i;
 
@@ -732,12 +732,12 @@ out_free:
 }
 
 /**
- * pevent_print_printk - print out the stored strings
+ * tep_print_printk - print out the stored strings
  * @pevent: handle for the pevent
  *
  * This prints the string formats that were stored.
  */
-void pevent_print_printk(struct tep_handle *pevent)
+void tep_print_printk(struct tep_handle *pevent)
 {
 	int i;
 
@@ -4800,8 +4800,8 @@ static int is_printable_array(char *p, unsigned int len)
 	return 1;
 }
 
-void pevent_print_field(struct trace_seq *s, void *data,
-			struct format_field *field)
+void tep_print_field(struct trace_seq *s, void *data,
+		     struct format_field *field)
 {
 	unsigned long long val;
 	unsigned int offset, len, i;
@@ -4865,15 +4865,15 @@ void pevent_print_field(struct trace_seq *s, void *data,
 	}
 }
 
-void pevent_print_fields(struct trace_seq *s, void *data,
-			 int size __maybe_unused, struct event_format *event)
+void tep_print_fields(struct trace_seq *s, void *data,
+		      int size __maybe_unused, struct event_format *event)
 {
 	struct format_field *field;
 
 	field = event->format.fields;
 	while (field) {
 		trace_seq_printf(s, " %s=", field->name);
-		pevent_print_field(s, data, field);
+		tep_print_field(s, data, field);
 		field = field->next;
 	}
 }
@@ -4899,7 +4899,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 
 	if (event->flags & EVENT_FL_FAILED) {
 		trace_seq_printf(s, "[FAILED TO PARSE]");
-		pevent_print_fields(s, data, size, event);
+		tep_print_fields(s, data, size, event);
 		return;
 	}
 
@@ -5405,7 +5405,7 @@ void tep_event_info(struct trace_seq *s, struct event_format *event,
 	int print_pretty = 1;
 
 	if (event->pevent->print_raw || (event->flags & EVENT_FL_PRINTRAW))
-		pevent_print_fields(s, record->data, record->size, event);
+		tep_print_fields(s, record->data, record->size, event);
 	else {
 
 		if (event->handler && !(event->flags & EVENT_FL_NOHANDLE))
@@ -5456,7 +5456,7 @@ pevent_find_event_by_record(struct tep_handle *pevent, struct tep_record *record
 }
 
 /**
- * pevent_print_event_task - Write the event task comm, pid and CPU
+ * tep_print_event_task - Write the event task comm, pid and CPU
  * @pevent: a handle to the pevent
  * @s: the trace_seq to write to
  * @event: the handle to the record's event
@@ -5464,9 +5464,9 @@ pevent_find_event_by_record(struct tep_handle *pevent, struct tep_record *record
  *
  * Writes the tasks comm, pid and CPU to @s.
  */
-void pevent_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
-			     struct event_format *event,
-			     struct tep_record *record)
+void tep_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
+			  struct event_format *event,
+			  struct tep_record *record)
 {
 	void *data = record->data;
 	const char *comm;
@@ -5483,7 +5483,7 @@ void pevent_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
 }
 
 /**
- * pevent_print_event_time - Write the event timestamp
+ * tep_print_event_time - Write the event timestamp
  * @pevent: a handle to the pevent
  * @s: the trace_seq to write to
  * @event: the handle to the record's event
@@ -5492,10 +5492,10 @@ void pevent_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
  *
  * Writes the timestamp of the record into @s.
  */
-void pevent_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
-			     struct event_format *event,
-			     struct tep_record *record,
-			     bool use_trace_clock)
+void tep_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
+			  struct event_format *event,
+			  struct tep_record *record,
+			  bool use_trace_clock)
 {
 	unsigned long secs;
 	unsigned long usecs;
@@ -5534,7 +5534,7 @@ void pevent_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
 }
 
 /**
- * pevent_print_event_data - Write the event data section
+ * tep_print_event_data - Write the event data section
  * @pevent: a handle to the pevent
  * @s: the trace_seq to write to
  * @event: the handle to the record's event
@@ -5542,9 +5542,9 @@ void pevent_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
  *
  * Writes the parsing of the record's data to @s.
  */
-void pevent_print_event_data(struct tep_handle *pevent, struct trace_seq *s,
-			     struct event_format *event,
-			     struct tep_record *record)
+void tep_print_event_data(struct tep_handle *pevent, struct trace_seq *s,
+			  struct event_format *event,
+			  struct tep_record *record)
 {
 	static const char *spaces = "                    "; /* 20 spaces */
 	int len;
@@ -5559,8 +5559,8 @@ void pevent_print_event_data(struct tep_handle *pevent, struct trace_seq *s,
 	tep_event_info(s, event, record);
 }
 
-void pevent_print_event(struct tep_handle *pevent, struct trace_seq *s,
-			struct tep_record *record, bool use_trace_clock)
+void tep_print_event(struct tep_handle *pevent, struct trace_seq *s,
+		     struct tep_record *record, bool use_trace_clock)
 {
 	struct event_format *event;
 
@@ -5577,9 +5577,9 @@ void pevent_print_event(struct tep_handle *pevent, struct trace_seq *s,
 		return;
 	}
 
-	pevent_print_event_task(pevent, s, event, record);
-	pevent_print_event_time(pevent, s, event, record, use_trace_clock);
-	pevent_print_event_data(pevent, s, event, record);
+	tep_print_event_task(pevent, s, event, record);
+	tep_print_event_time(pevent, s, event, record, use_trace_clock);
+	tep_print_event_data(pevent, s, event, record);
 }
 
 static int events_id_cmp(const void *a, const void *b)
@@ -6388,7 +6388,7 @@ int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
 }
 
 /**
- * pevent_print_num_field - print a field and a format
+ * tep_print_num_field - print a field and a format
  * @s: The seq to print to
  * @fmt: The printf format to print the field with.
  * @event: the event that the field is for
@@ -6398,9 +6398,9 @@ int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
  *
  * Returns: 0 on success, -1 field not found, or 1 if buffer is full.
  */
-int pevent_print_num_field(struct trace_seq *s, const char *fmt,
-			   struct event_format *event, const char *name,
-			   struct tep_record *record, int err)
+int tep_print_num_field(struct trace_seq *s, const char *fmt,
+			struct event_format *event, const char *name,
+			struct tep_record *record, int err)
 {
 	struct format_field *field = tep_find_field(event, name);
 	unsigned long long val;
@@ -6420,7 +6420,7 @@ int pevent_print_num_field(struct trace_seq *s, const char *fmt,
 }
 
 /**
- * pevent_print_func_field - print a field and a format for function pointers
+ * tep_print_func_field - print a field and a format for function pointers
  * @s: The seq to print to
  * @fmt: The printf format to print the field with.
  * @event: the event that the field is for
@@ -6430,9 +6430,9 @@ int pevent_print_num_field(struct trace_seq *s, const char *fmt,
  *
  * Returns: 0 on success, -1 field not found, or 1 if buffer is full.
  */
-int pevent_print_func_field(struct trace_seq *s, const char *fmt,
-			    struct event_format *event, const char *name,
-			    struct tep_record *record, int err)
+int tep_print_func_field(struct trace_seq *s, const char *fmt,
+			 struct event_format *event, const char *name,
+			 struct tep_record *record, int err)
 {
 	struct format_field *field = tep_find_field(event, name);
 	struct tep_handle *pevent = event->pevent;

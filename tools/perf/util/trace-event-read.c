@@ -479,9 +479,9 @@ ssize_t trace_report(int fd, struct trace_event *tevent, bool __repipe)
 	repipe = false;
 
 	if (show_funcs) {
-		pevent_print_funcs(pevent);
+		tep_print_funcs(pevent);
 	} else if (show_printk) {
-		pevent_print_printk(pevent);
+		tep_print_printk(pevent);
 	}
 
 	pevent = NULL;

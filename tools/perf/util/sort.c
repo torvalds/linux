@@ -610,8 +610,8 @@ static char *get_trace_output(struct hist_entry *he)
 
 	trace_seq_init(&seq);
 	if (symbol_conf.raw_trace) {
-		pevent_print_fields(&seq, he->raw_data, he->raw_size,
-				    evsel->tp_format);
+		tep_print_fields(&seq, he->raw_data, he->raw_size,
+				 evsel->tp_format);
 	} else {
 		tep_event_info(&seq, evsel->tp_format, &rec);
 	}
@@ -2047,7 +2047,7 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		struct trace_seq seq;
 raw_field:
 		trace_seq_init(&seq);
-		pevent_print_field(&seq, he->raw_data, hde->field);
+		tep_print_field(&seq, he->raw_data, hde->field);
 		str = seq.buffer;
 	}
 

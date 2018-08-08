@@ -53,8 +53,8 @@ static void print_string(struct trace_seq *s, struct event_format *event,
 	trace_seq_printf(s, "%.*s", length, (char *)data + offset);
 }
 
-#define SF(fn)	pevent_print_num_field(s, fn ":%d", event, fn, record, 0)
-#define SFX(fn)	pevent_print_num_field(s, fn ":%#x", event, fn, record, 0)
+#define SF(fn)	tep_print_num_field(s, fn ":%d", event, fn, record, 0)
+#define SFX(fn)	tep_print_num_field(s, fn ":%#x", event, fn, record, 0)
 #define SP()	trace_seq_putc(s, ' ')
 
 static int drv_bss_info_changed(struct trace_seq *s,
@@ -66,7 +66,7 @@ static int drv_bss_info_changed(struct trace_seq *s,
 	print_string(s, event, "wiphy_name", data);
 	trace_seq_printf(s, " vif:");
 	print_string(s, event, "vif_name", data);
-	pevent_print_num_field(s, "(%d)", event, "vif_type", record, 1);
+	tep_print_num_field(s, "(%d)", event, "vif_type", record, 1);
 
 	trace_seq_printf(s, "\n%*s", INDENT, "");
 	SF("assoc"); SP();

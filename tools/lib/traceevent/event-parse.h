@@ -626,18 +626,18 @@ int pevent_register_print_string(struct tep_handle *pevent, const char *fmt,
 				 unsigned long long addr);
 int pevent_pid_is_registered(struct tep_handle *pevent, int pid);
 
-void pevent_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
-			     struct event_format *event,
-			     struct tep_record *record);
-void pevent_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
-			     struct event_format *event,
-			     struct tep_record *record,
-			     bool use_trace_clock);
-void pevent_print_event_data(struct tep_handle *pevent, struct trace_seq *s,
-			     struct event_format *event,
-			     struct tep_record *record);
-void pevent_print_event(struct tep_handle *pevent, struct trace_seq *s,
-			struct tep_record *record, bool use_trace_clock);
+void tep_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
+			  struct event_format *event,
+			  struct tep_record *record);
+void tep_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
+			  struct event_format *event,
+			  struct tep_record *record,
+			  bool use_trace_clock);
+void tep_print_event_data(struct tep_handle *pevent, struct trace_seq *s,
+			  struct event_format *event,
+			  struct tep_record *record);
+void tep_print_event(struct tep_handle *pevent, struct trace_seq *s,
+		     struct tep_record *record, bool use_trace_clock);
 
 int tep_parse_header_page(struct tep_handle *pevent, char *buf, unsigned long size,
 			  int long_size);
@@ -665,13 +665,13 @@ int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
 			     const char *name, struct tep_record *record,
 			     unsigned long long *val, int err);
 
-int pevent_print_num_field(struct trace_seq *s, const char *fmt,
+int tep_print_num_field(struct trace_seq *s, const char *fmt,
 			   struct event_format *event, const char *name,
 			   struct tep_record *record, int err);
 
-int pevent_print_func_field(struct trace_seq *s, const char *fmt,
-			   struct event_format *event, const char *name,
-			   struct tep_record *record, int err);
+int tep_print_func_field(struct trace_seq *s, const char *fmt,
+			 struct event_format *event, const char *name,
+			 struct tep_record *record, int err);
 
 int pevent_register_event_handler(struct tep_handle *pevent, int id,
 				  const char *sys_name, const char *event_name,
@@ -718,10 +718,10 @@ struct cmdline *pevent_data_pid_from_comm(struct tep_handle *pevent, const char 
 					  struct cmdline *next);
 int pevent_cmdline_pid(struct tep_handle *pevent, struct cmdline *cmdline);
 
-void pevent_print_field(struct trace_seq *s, void *data,
-			struct format_field *field);
-void pevent_print_fields(struct trace_seq *s, void *data,
-			 int size __maybe_unused, struct event_format *event);
+void tep_print_field(struct trace_seq *s, void *data,
+		     struct format_field *field);
+void tep_print_fields(struct trace_seq *s, void *data,
+		      int size __maybe_unused, struct event_format *event);
 void tep_event_info(struct trace_seq *s, struct event_format *event,
 		       struct tep_record *record);
 int pevent_strerror(struct tep_handle *pevent, enum pevent_errno errnum,
@@ -805,8 +805,8 @@ const char *pevent_get_input_buf(void);
 unsigned long long pevent_get_input_buf_ptr(void);
 
 /* for debugging */
-void pevent_print_funcs(struct tep_handle *pevent);
-void pevent_print_printk(struct tep_handle *pevent);
+void tep_print_funcs(struct tep_handle *pevent);
+void tep_print_printk(struct tep_handle *pevent);
 
 /* ----------------------- filtering ----------------------- */
 
