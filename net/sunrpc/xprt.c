@@ -708,7 +708,7 @@ static void
 xprt_schedule_autodisconnect(struct rpc_xprt *xprt)
 	__must_hold(&xprt->transport_lock)
 {
-	if (list_empty(&xprt->recv) && xprt_has_timer(xprt))
+	if (list_empty(&xprt->recv_queue) && xprt_has_timer(xprt))
 		mod_timer(&xprt->timer, xprt->last_used + xprt->idle_timeout);
 }
 
@@ -718,7 +718,7 @@ xprt_init_autodisconnect(struct timer_list *t)
 	struct rpc_xprt *xprt = from_timer(xprt, t, timer);
 
 	spin_lock(&xprt->transport_lock);
-	if (!list_empty(&xprt->recv))
+	if (!list_empty(&xprt->recv_queue))
 		goto out_abort;
 	/* Reset xprt->last_used to avoid connect/autodisconnect cycling */
 	xprt->last_used = jiffies;
@@ -848,7 +848,7 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 {
 	struct rpc_rqst *entry;
 
-	list_for_each_entry(entry, &xprt->recv, rq_list)
+	list_for_each_entry(entry, &xprt->recv_queue, rq_recv)
 		if (entry->rq_xid == xid) {
 			trace_xprt_lookup_rqst(xprt, xid, 0);
 			entry->rq_rtt = ktime_sub(ktime_get(), entry->rq_xtime);
@@ -938,7 +938,7 @@ xprt_request_enqueue_receive(struct rpc_task *task)
 			sizeof(req->rq_private_buf));
 
 	/* Add request to the receive list */
-	list_add_tail(&req->rq_list, &xprt->recv);
+	list_add_tail(&req->rq_recv, &xprt->recv_queue);
 	set_bit(RPC_TASK_NEED_RECV, &task->tk_runstate);
 	spin_unlock(&xprt->queue_lock);
 
@@ -957,7 +957,7 @@ static void
 xprt_request_dequeue_receive_locked(struct rpc_task *task)
 {
 	if (test_and_clear_bit(RPC_TASK_NEED_RECV, &task->tk_runstate))
-		list_del(&task->tk_rqstp->rq_list);
+		list_del(&task->tk_rqstp->rq_recv);
 }
 
 /**
@@ -1492,7 +1492,7 @@ static void xprt_init(struct rpc_xprt *xprt, struct net *net)
 	spin_lock_init(&xprt->queue_lock);
 
 	INIT_LIST_HEAD(&xprt->free);
-	INIT_LIST_HEAD(&xprt->recv);
+	INIT_LIST_HEAD(&xprt->recv_queue);
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	spin_lock_init(&xprt->bc_pa_lock);
 	INIT_LIST_HEAD(&xprt->bc_pa_list);

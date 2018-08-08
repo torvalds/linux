@@ -82,7 +82,11 @@ struct rpc_rqst {
 	struct page		**rq_enc_pages;	/* scratch pages for use by
 						   gss privacy code */
 	void (*rq_release_snd_buf)(struct rpc_rqst *); /* release rq_enc_pages */
-	struct list_head	rq_list;
+
+	union {
+		struct list_head	rq_list;	/* Slot allocation list */
+		struct list_head	rq_recv;	/* Receive queue */
+	};
 
 	void			*rq_buffer;	/* Call XDR encode buffer */
 	size_t			rq_callsize;
@@ -249,7 +253,8 @@ struct rpc_xprt {
 	struct list_head	bc_pa_list;	/* List of preallocated
 						 * backchannel rpc_rqst's */
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
-	struct list_head	recv;
+
+	struct list_head	recv_queue;	/* Receive queue */
 
 	struct {
 		unsigned long		bind_count,	/* total number of binds */
