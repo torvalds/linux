@@ -2942,13 +2942,20 @@ discard_data:
 
 static int
 receive_encrypted_standard(struct TCP_Server_Info *server,
-			   struct mid_q_entry **mid)
+			   struct mid_q_entry **mids, char **bufs,
+			   int *num_mids)
 {
-	int length;
+	int ret, length;
 	char *buf = server->smallbuf;
+	char *tmpbuf;
+	struct smb2_sync_hdr *shdr;
 	unsigned int pdu_length = server->pdu_size;
 	unsigned int buf_size;
 	struct mid_q_entry *mid_entry;
+	int next_is_large;
+	char *next_buffer = NULL;
+
+	*num_mids = 0;
 
 	/* switch to large buffer if too big for a small one */
 	if (pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE) {
@@ -2969,24 +2976,61 @@ receive_encrypted_standard(struct TCP_Server_Info *server,
 	if (length)
 		return length;
 
+	next_is_large = server->large_buf;
+ one_more:
+	shdr = (struct smb2_sync_hdr *)buf;
+	if (shdr->NextCommand) {
+		if (next_is_large) {
+			tmpbuf = server->bigbuf;
+			next_buffer = (char *)cifs_buf_get();
+		} else {
+			tmpbuf = server->smallbuf;
+			next_buffer = (char *)cifs_small_buf_get();
+		}
+		memcpy(next_buffer,
+		       tmpbuf + le32_to_cpu(shdr->NextCommand),
+		       pdu_length - le32_to_cpu(shdr->NextCommand));
+	}
+
 	mid_entry = smb2_find_mid(server, buf);
 	if (mid_entry == NULL)
 		cifs_dbg(FYI, "mid not found\n");
 	else {
 		cifs_dbg(FYI, "mid found\n");
 		mid_entry->decrypted = true;
+		mid_entry->resp_buf_size = server->pdu_size;
 	}
 
-	*mid = mid_entry;
+	if (*num_mids >= MAX_COMPOUND) {
+		cifs_dbg(VFS, "too many PDUs in compound\n");
+		return -1;
+	}
+	bufs[*num_mids] = buf;
+	mids[(*num_mids)++] = mid_entry;
 
 	if (mid_entry && mid_entry->handle)
-		return mid_entry->handle(server, mid_entry);
+		ret = mid_entry->handle(server, mid_entry);
+	else
+		ret = cifs_handle_standard(server, mid_entry);
 
-	return cifs_handle_standard(server, mid_entry);
+	if (ret == 0 && shdr->NextCommand) {
+		pdu_length -= le32_to_cpu(shdr->NextCommand);
+		server->large_buf = next_is_large;
+		if (next_is_large)
+			server->bigbuf = next_buffer;
+		else
+			server->smallbuf = next_buffer;
+
+		buf += le32_to_cpu(shdr->NextCommand);
+		goto one_more;
+	}
+
+	return ret;
 }
 
 static int
-smb3_receive_transform(struct TCP_Server_Info *server, struct mid_q_entry **mid)
+smb3_receive_transform(struct TCP_Server_Info *server,
+		       struct mid_q_entry **mids, char **bufs, int *num_mids)
 {
 	char *buf = server->smallbuf;
 	unsigned int pdu_length = server->pdu_size;
@@ -3009,10 +3053,11 @@ smb3_receive_transform(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 		return -ECONNABORTED;
 	}
 
+	/* TODO: add support for compounds containing READ. */
 	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server))
-		return receive_encrypted_read(server, mid);
+		return receive_encrypted_read(server, &mids[0]);
 
-	return receive_encrypted_standard(server, mid);
+	return receive_encrypted_standard(server, mids, bufs, num_mids);
 }
 
 int

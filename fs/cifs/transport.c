@@ -383,8 +383,6 @@ smbd_done:
 	return rc;
 }
 
-#define MAX_COMPOUND 5
-
 static int
 smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	      struct smb_rqst *rqst, int flags)
