@@ -752,7 +752,7 @@ static int hw_atl_b0_hw_packet_filter_set(struct aq_hw_s *self,
 
 	rpfl2promiscuous_mode_en_set(self, IS_FILTER_ENABLED(IFF_PROMISC));
 	rpfl2multicast_flr_en_set(self,
-				  IS_FILTER_ENABLED(IFF_MULTICAST), 0);
+				  IS_FILTER_ENABLED(IFF_ALLMULTI), 0);
 
 	rpfl2_accept_all_mc_packets_set(self,
 					IS_FILTER_ENABLED(IFF_ALLMULTI));
