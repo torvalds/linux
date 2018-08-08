@@ -36,8 +36,8 @@ struct rt_dot11d_info {
 #define IS_DOT11D_ENABLE(ieee_dev) (GET_DOT11D_INFO(ieee_dev)->enabled)
 #define IS_COUNTRY_IE_VALID(ieee_dev) (GET_DOT11D_INFO(ieee_dev)->country_ie_len > 0)
 
-#define IS_EQUAL_CIE_SRC(ieee_dev, __pTa) ether_addr_equal(GET_DOT11D_INFO(ieee_dev)->country_ie_src_addr, __pTa)
-#define UPDATE_CIE_SRC(ieee_dev, __pTa) ether_addr_copy(GET_DOT11D_INFO(ieee_dev)->country_ie_src_addr, __pTa)
+#define IS_EQUAL_CIE_SRC(ieee_dev, addr) ether_addr_equal(GET_DOT11D_INFO(ieee_dev)->country_ie_src_addr, addr)
+#define UPDATE_CIE_SRC(ieee_dev, addr) ether_addr_copy(GET_DOT11D_INFO(ieee_dev)->country_ie_src_addr, addr)
 
 #define GET_CIE_WATCHDOG(ieee_dev) (GET_DOT11D_INFO(ieee_dev)->country_ie_watchdog)
 #define RESET_CIE_WATCHDOG(ieee_dev) (GET_CIE_WATCHDOG(ieee_dev) = 0)
