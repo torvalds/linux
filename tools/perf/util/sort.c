@@ -613,7 +613,7 @@ static char *get_trace_output(struct hist_entry *he)
 		pevent_print_fields(&seq, he->raw_data, he->raw_size,
 				    evsel->tp_format);
 	} else {
-		pevent_event_info(&seq, evsel->tp_format, &rec);
+		tep_event_info(&seq, evsel->tp_format, &rec);
 	}
 	/*
 	 * Trim the buffer, it starts at 4KB and we're not going to
