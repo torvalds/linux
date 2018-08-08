@@ -138,4 +138,61 @@
 #define XGMAC_ABPSIS			BIT(1)
 #define XGMAC_TXUNFIS			BIT(0)
 
+/* DMA Registers */
+#define XGMAC_DMA_MODE			0x00003000
+#define XGMAC_SWR			BIT(0)
+#define XGMAC_DMA_SYSBUS_MODE		0x00003004
+#define XGMAC_WR_OSR_LMT		GENMASK(29, 24)
+#define XGMAC_WR_OSR_LMT_SHIFT		24
+#define XGMAC_RD_OSR_LMT		GENMASK(21, 16)
+#define XGMAC_RD_OSR_LMT_SHIFT		16
+#define XGMAC_EN_LPI			BIT(15)
+#define XGMAC_LPI_XIT_PKT		BIT(14)
+#define XGMAC_AAL			BIT(12)
+#define XGMAC_BLEN			GENMASK(7, 1)
+#define XGMAC_BLEN256			BIT(7)
+#define XGMAC_BLEN128			BIT(6)
+#define XGMAC_BLEN64			BIT(5)
+#define XGMAC_BLEN32			BIT(4)
+#define XGMAC_BLEN16			BIT(3)
+#define XGMAC_BLEN8			BIT(2)
+#define XGMAC_BLEN4			BIT(1)
+#define XGMAC_UNDEF			BIT(0)
+#define XGMAC_DMA_CH_CONTROL(x)		(0x00003100 + (0x80 * (x)))
+#define XGMAC_PBLx8			BIT(16)
+#define XGMAC_DMA_CH_TX_CONTROL(x)	(0x00003104 + (0x80 * (x)))
+#define XGMAC_TxPBL			GENMASK(21, 16)
+#define XGMAC_TxPBL_SHIFT		16
+#define XGMAC_TSE			BIT(12)
+#define XGMAC_OSP			BIT(4)
+#define XGMAC_TXST			BIT(0)
+#define XGMAC_DMA_CH_RX_CONTROL(x)	(0x00003108 + (0x80 * (x)))
+#define XGMAC_RxPBL			GENMASK(21, 16)
+#define XGMAC_RxPBL_SHIFT		16
+#define XGMAC_RXST			BIT(0)
+#define XGMAC_DMA_CH_TxDESC_LADDR(x)	(0x00003114 + (0x80 * (x)))
+#define XGMAC_DMA_CH_RxDESC_LADDR(x)	(0x0000311c + (0x80 * (x)))
+#define XGMAC_DMA_CH_TxDESC_TAIL_LPTR(x)	(0x00003124 + (0x80 * (x)))
+#define XGMAC_DMA_CH_RxDESC_TAIL_LPTR(x)	(0x0000312c + (0x80 * (x)))
+#define XGMAC_DMA_CH_TxDESC_RING_LEN(x)		(0x00003130 + (0x80 * (x)))
+#define XGMAC_DMA_CH_RxDESC_RING_LEN(x)		(0x00003134 + (0x80 * (x)))
+#define XGMAC_DMA_CH_INT_EN(x)		(0x00003138 + (0x80 * (x)))
+#define XGMAC_NIE			BIT(15)
+#define XGMAC_AIE			BIT(14)
+#define XGMAC_RBUE			BIT(7)
+#define XGMAC_RIE			BIT(6)
+#define XGMAC_TIE			BIT(0)
+#define XGMAC_DMA_INT_DEFAULT_EN	(XGMAC_NIE | XGMAC_AIE | XGMAC_RBUE | \
+					XGMAC_RIE | XGMAC_TIE)
+#define XGMAC_DMA_CH_Rx_WATCHDOG(x)	(0x0000313c + (0x80 * (x)))
+#define XGMAC_RWT			GENMASK(7, 0)
+#define XGMAC_DMA_CH_STATUS(x)		(0x00003160 + (0x80 * (x)))
+#define XGMAC_NIS			BIT(15)
+#define XGMAC_AIS			BIT(14)
+#define XGMAC_FBE			BIT(12)
+#define XGMAC_RBU			BIT(7)
+#define XGMAC_RI			BIT(6)
+#define XGMAC_TPS			BIT(1)
+#define XGMAC_TI			BIT(0)
+
 #endif /* __STMMAC_DWXGMAC2_H__ */

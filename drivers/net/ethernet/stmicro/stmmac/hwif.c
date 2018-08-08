@@ -197,7 +197,7 @@ static const struct stmmac_hwif_entry {
 			.mmc_off = 0,
 		},
 		.desc = NULL,
-		.dma = NULL,
+		.dma = &dwxgmac210_dma_ops,
 		.mac = &dwxgmac210_ops,
 		.hwtimestamp = NULL,
 		.mode = NULL,
