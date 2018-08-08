@@ -34,8 +34,7 @@ extern struct sock *reuseport_select_sock(struct sock *sk,
 					  u32 hash,
 					  struct sk_buff *skb,
 					  int hdr_len);
-extern struct bpf_prog *reuseport_attach_prog(struct sock *sk,
-					      struct bpf_prog *prog);
+extern int reuseport_attach_prog(struct sock *sk, struct bpf_prog *prog);
 int reuseport_get_id(struct sock_reuseport *reuse);
 
 #endif  /* _SOCK_REUSEPORT_H */
