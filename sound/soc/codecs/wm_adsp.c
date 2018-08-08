@@ -2650,7 +2650,10 @@ int wm_adsp2_preloader_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct wm_adsp *dsp = snd_soc_component_get_drvdata(component);
+	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct wm_adsp *dsp = &dsps[mc->shift - 1];
 
 	ucontrol->value.integer.value[0] = dsp->preloaded;
 
@@ -2662,10 +2665,11 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct wm_adsp *dsp = snd_soc_component_get_drvdata(component);
+	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
+	struct wm_adsp *dsp = &dsps[mc->shift - 1];
 	char preload[32];
 
 	snprintf(preload, ARRAY_SIZE(preload), "DSP%u Preload", mc->shift);
@@ -2678,6 +2682,8 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 		snd_soc_component_disable_pin(component, preload);
 
 	snd_soc_dapm_sync(dapm);
+
+	flush_work(&dsp->boot_work);
 
 	return 0;
 }
