@@ -373,10 +373,10 @@ enum pevent_func_arg_type {
 	PEVENT_FUNC_ARG_MAX_TYPES
 };
 
-enum pevent_flag {
-	PEVENT_NSEC_OUTPUT		= 1,	/* output in NSECS */
-	PEVENT_DISABLE_SYS_PLUGINS	= 1 << 1,
-	PEVENT_DISABLE_PLUGINS		= 1 << 2,
+enum tep_flag {
+	TEP_NSEC_OUTPUT		= 1,	/* output in NSECS */
+	TEP_DISABLE_SYS_PLUGINS	= 1 << 1,
+	TEP_DISABLE_PLUGINS	= 1 << 2,
 };
 
 #define PEVENT_ERRORS 							      \
@@ -751,7 +751,7 @@ static inline void tep_set_long_size(struct tep_handle *pevent, int long_size)
 	pevent->long_size = long_size;
 }
 
-static inline int pevent_get_page_size(struct tep_handle *pevent)
+static inline int tep_get_page_size(struct tep_handle *pevent)
 {
 	return pevent->page_size;
 }

@@ -439,7 +439,7 @@ ssize_t trace_report(int fd, struct trace_event *tevent, bool __repipe)
 
 	pevent = tevent->pevent;
 
-	tep_set_flag(pevent, PEVENT_NSEC_OUTPUT);
+	tep_set_flag(pevent, TEP_NSEC_OUTPUT);
 	tep_set_file_bigendian(pevent, file_bigendian);
 	tep_set_host_bigendian(pevent, host_bigendian);
 

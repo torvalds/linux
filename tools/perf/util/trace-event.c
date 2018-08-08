@@ -47,7 +47,7 @@ static int trace_event__init2(void)
 		return -1;
 
 	pevent = tevent.pevent;
-	tep_set_flag(pevent, PEVENT_NSEC_OUTPUT);
+	tep_set_flag(pevent, TEP_NSEC_OUTPUT);
 	tep_set_file_bigendian(pevent, be);
 	tep_set_host_bigendian(pevent, be);
 	tevent_initialized = true;
