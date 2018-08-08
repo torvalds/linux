@@ -87,11 +87,6 @@ struct azx;
 struct hda_controller_ops {
 	/* Disable msi if supported, PCI only */
 	int (*disable_msi_reset_irq)(struct azx *);
-	int (*substream_alloc_pages)(struct azx *chip,
-				     struct snd_pcm_substream *substream,
-				     size_t size);
-	int (*substream_free_pages)(struct azx *chip,
-				    struct snd_pcm_substream *substream);
 	void (*pcm_mmap_prepare)(struct snd_pcm_substream *substream,
 				 struct vm_area_struct *area);
 	/* Check if current position is acceptable */

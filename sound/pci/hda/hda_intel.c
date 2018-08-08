@@ -2010,19 +2010,6 @@ static void dma_free_pages(struct hdac_bus *bus, struct snd_dma_buffer *buf)
 	snd_dma_free_pages(buf);
 }
 
-static int substream_alloc_pages(struct azx *chip,
-				 struct snd_pcm_substream *substream,
-				 size_t size)
-{
-	return snd_pcm_lib_malloc_pages(substream, size);
-}
-
-static int substream_free_pages(struct azx *chip,
-				struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
 			     struct vm_area_struct *area)
 {
@@ -2047,8 +2034,6 @@ static const struct hdac_io_ops pci_hda_io_ops = {
 
 static const struct hda_controller_ops pci_hda_ops = {
 	.disable_msi_reset_irq = disable_msi_reset_irq,
-	.substream_alloc_pages = substream_alloc_pages,
-	.substream_free_pages = substream_free_pages,
 	.pcm_mmap_prepare = pcm_mmap_prepare,
 	.position_check = azx_position_check,
 	.link_power = azx_intel_link_power,
