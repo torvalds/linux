@@ -36,12 +36,14 @@
 #include "mmc.h"
 
 /* Synopsys Core versions */
-#define	DWMAC_CORE_3_40	0x34
-#define	DWMAC_CORE_3_50	0x35
-#define	DWMAC_CORE_4_00	0x40
-#define DWMAC_CORE_4_10	0x41
-#define DWMAC_CORE_5_00 0x50
-#define DWMAC_CORE_5_10 0x51
+#define	DWMAC_CORE_3_40		0x34
+#define	DWMAC_CORE_3_50		0x35
+#define	DWMAC_CORE_4_00		0x40
+#define DWMAC_CORE_4_10		0x41
+#define DWMAC_CORE_5_00		0x50
+#define DWMAC_CORE_5_10		0x51
+#define DWXGMAC_CORE_2_10	0x21
+
 #define STMMAC_CHAN0	0	/* Always supported and default for all chips */
 
 /* These need to be power of two, and >= 4 */
