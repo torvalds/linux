@@ -167,7 +167,7 @@ add_filter_type(struct event_filter *filter, int id)
 
 	filter_type = &filter->event_filters[i];
 	filter_type->event_id = id;
-	filter_type->event = pevent_find_event(filter->pevent, id);
+	filter_type->event = tep_find_event(filter->pevent, id);
 	filter_type->filter = NULL;
 
 	filter->filters++;
@@ -382,7 +382,7 @@ create_arg_item(struct event_format *event, const char *token,
 			break;
 		}
 		/* Consider this a field */
-		field = pevent_find_any_field(event, token);
+		field = tep_find_any_field(event, token);
 		if (!field) {
 			/* If token is 'COMM' or 'CPU' then it is special */
 			if (strcmp(token, COMM) == 0) {

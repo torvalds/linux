@@ -686,9 +686,9 @@ int pevent_register_print_function(struct tep_handle *pevent,
 int pevent_unregister_print_function(struct tep_handle *pevent,
 				     pevent_func_handler func, char *name);
 
-struct format_field *pevent_find_common_field(struct event_format *event, const char *name);
-struct format_field *pevent_find_field(struct event_format *event, const char *name);
-struct format_field *pevent_find_any_field(struct event_format *event, const char *name);
+struct format_field *tep_find_common_field(struct event_format *event, const char *name);
+struct format_field *tep_find_field(struct event_format *event, const char *name);
+struct format_field *tep_find_any_field(struct event_format *event, const char *name);
 
 const char *pevent_find_function(struct tep_handle *pevent, unsigned long long addr);
 unsigned long long
@@ -697,7 +697,7 @@ unsigned long long pevent_read_number(struct tep_handle *pevent, const void *ptr
 int pevent_read_number_field(struct format_field *field, const void *data,
 			     unsigned long long *value);
 
-struct event_format *pevent_find_event(struct tep_handle *pevent, int id);
+struct event_format *tep_find_event(struct tep_handle *pevent, int id);
 
 struct event_format *
 pevent_find_event_by_name(struct tep_handle *pevent, const char *sys, const char *name);

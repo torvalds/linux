@@ -74,7 +74,7 @@ static int sched_wakeup_handler(struct trace_seq *s,
 	if (pevent_get_field_val(s, event, "pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
-	field = pevent_find_any_field(event, "comm");
+	field = tep_find_any_field(event, "comm");
 	if (field) {
 		write_and_save_comm(field, record, s, val);
 		trace_seq_putc(s, ':');
@@ -103,7 +103,7 @@ static int sched_switch_handler(struct trace_seq *s,
 	if (pevent_get_field_val(s, event, "prev_pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
-	field = pevent_find_any_field(event, "prev_comm");
+	field = tep_find_any_field(event, "prev_comm");
 	if (field) {
 		write_and_save_comm(field, record, s, val);
 		trace_seq_putc(s, ':');
@@ -121,7 +121,7 @@ static int sched_switch_handler(struct trace_seq *s,
 	if (pevent_get_field_val(s, event, "next_pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
-	field = pevent_find_any_field(event, "next_comm");
+	field = tep_find_any_field(event, "next_comm");
 	if (field) {
 		write_and_save_comm(field, record, s, val);
 		trace_seq_putc(s, ':');

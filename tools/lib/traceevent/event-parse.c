@@ -2101,11 +2101,11 @@ process_entry(struct event_format *event __maybe_unused, struct print_arg *arg,
 	arg->field.name = field;
 
 	if (is_flag_field) {
-		arg->field.field = pevent_find_any_field(event, arg->field.name);
+		arg->field.field = tep_find_any_field(event, arg->field.name);
 		arg->field.field->flags |= FIELD_IS_FLAG;
 		is_flag_field = 0;
 	} else if (is_symbolic_field) {
-		arg->field.field = pevent_find_any_field(event, arg->field.name);
+		arg->field.field = tep_find_any_field(event, arg->field.name);
 		arg->field.field->flags |= FIELD_IS_SYMBOLIC;
 		is_symbolic_field = 0;
 	}
@@ -2714,7 +2714,7 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 
 	/* Find the field */
 
-	field = pevent_find_field(event, token);
+	field = tep_find_field(event, token);
 	if (!field)
 		goto out_free;
 
@@ -2771,7 +2771,7 @@ process_dynamic_array_len(struct event_format *event, struct print_arg *arg,
 	arg->type = PRINT_DYNAMIC_ARRAY_LEN;
 
 	/* Find the field */
-	field = pevent_find_field(event, token);
+	field = tep_find_field(event, token);
 	if (!field)
 		goto out_free;
 
@@ -3265,7 +3265,7 @@ static int event_read_print(struct event_format *event)
 }
 
 /**
- * pevent_find_common_field - return a common field by event
+ * tep_find_common_field - return a common field by event
  * @event: handle for the event
  * @name: the name of the common field to return
  *
@@ -3273,7 +3273,7 @@ static int event_read_print(struct event_format *event)
  * This only searchs the common fields and not all field.
  */
 struct format_field *
-pevent_find_common_field(struct event_format *event, const char *name)
+tep_find_common_field(struct event_format *event, const char *name)
 {
 	struct format_field *format;
 
@@ -3287,7 +3287,7 @@ pevent_find_common_field(struct event_format *event, const char *name)
 }
 
 /**
- * pevent_find_field - find a non-common field
+ * tep_find_field - find a non-common field
  * @event: handle for the event
  * @name: the name of the non-common field
  *
@@ -3295,7 +3295,7 @@ pevent_find_common_field(struct event_format *event, const char *name)
  * This does not search common fields.
  */
 struct format_field *
-pevent_find_field(struct event_format *event, const char *name)
+tep_find_field(struct event_format *event, const char *name)
 {
 	struct format_field *format;
 
@@ -3309,7 +3309,7 @@ pevent_find_field(struct event_format *event, const char *name)
 }
 
 /**
- * pevent_find_any_field - find any field by name
+ * tep_find_any_field - find any field by name
  * @event: handle for the event
  * @name: the name of the field
  *
@@ -3318,14 +3318,14 @@ pevent_find_field(struct event_format *event, const char *name)
  * the non-common ones if a common one was not found.
  */
 struct format_field *
-pevent_find_any_field(struct event_format *event, const char *name)
+tep_find_any_field(struct event_format *event, const char *name)
 {
 	struct format_field *format;
 
-	format = pevent_find_common_field(event, name);
+	format = tep_find_common_field(event, name);
 	if (format)
 		return format;
-	return pevent_find_field(event, name);
+	return tep_find_field(event, name);
 }
 
 /**
@@ -3400,7 +3400,7 @@ static int get_common_info(struct tep_handle *pevent,
 	}
 
 	event = pevent->events[0];
-	field = pevent_find_common_field(event, type);
+	field = tep_find_common_field(event, type);
 	if (!field)
 		return -1;
 
@@ -3468,13 +3468,13 @@ static int parse_common_migrate_disable(struct tep_handle *pevent, void *data)
 static int events_id_cmp(const void *a, const void *b);
 
 /**
- * pevent_find_event - find an event by given id
+ * tep_find_event - find an event by given id
  * @pevent: a handle to the pevent
  * @id: the id of the event
  *
  * Returns an event that has a given @id.
  */
-struct event_format *pevent_find_event(struct tep_handle *pevent, int id)
+struct event_format *tep_find_event(struct tep_handle *pevent, int id)
 {
 	struct event_format **eventptr;
 	struct event_format key;
@@ -3553,7 +3553,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		return strtoull(arg->atom.atom, NULL, 0);
 	case PRINT_FIELD:
 		if (!arg->field.field) {
-			arg->field.field = pevent_find_any_field(event, arg->field.name);
+			arg->field.field = tep_find_any_field(event, arg->field.name);
 			if (!arg->field.field)
 				goto out_warning_field;
 			
@@ -3619,7 +3619,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 			case PRINT_FIELD:
 				if (!larg->field.field) {
 					larg->field.field =
-						pevent_find_any_field(event, larg->field.name);
+						tep_find_any_field(event, larg->field.name);
 					if (!larg->field.field) {
 						arg = larg;
 						goto out_warning_field;
@@ -3899,7 +3899,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	case PRINT_FIELD:
 		field = arg->field.field;
 		if (!field) {
-			field = pevent_find_any_field(event, arg->field.name);
+			field = tep_find_any_field(event, arg->field.name);
 			if (!field) {
 				str = arg->field.name;
 				goto out_warning_field;
@@ -4000,7 +4000,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			field = arg->hex.field->field.field;
 			if (!field) {
 				str = arg->hex.field->field.name;
-				field = pevent_find_any_field(event, str);
+				field = tep_find_any_field(event, str);
 				if (!field)
 					goto out_warning_field;
 				arg->hex.field->field.field = field;
@@ -4031,7 +4031,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			field = arg->int_array.field->field.field;
 			if (!field) {
 				str = arg->int_array.field->field.name;
-				field = pevent_find_any_field(event, str);
+				field = tep_find_any_field(event, str);
 				if (!field)
 					goto out_warning_field;
 				arg->int_array.field->field.field = field;
@@ -4071,7 +4071,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		if (arg->string.offset == -1) {
 			struct format_field *f;
 
-			f = pevent_find_any_field(event, arg->string.string);
+			f = tep_find_any_field(event, arg->string.string);
 			arg->string.offset = f->offset;
 		}
 		str_offset = data2host4(pevent, data + arg->string.offset);
@@ -4089,7 +4089,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		if (arg->bitmask.offset == -1) {
 			struct format_field *f;
 
-			f = pevent_find_any_field(event, arg->bitmask.bitmask);
+			f = tep_find_any_field(event, arg->bitmask.bitmask);
 			arg->bitmask.offset = f->offset;
 		}
 		bitmask_offset = data2host4(pevent, data + arg->bitmask.offset);
@@ -4239,12 +4239,12 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	ip_field = pevent->bprint_ip_field;
 
 	if (!field) {
-		field = pevent_find_field(event, "buf");
+		field = tep_find_field(event, "buf");
 		if (!field) {
 			do_warning_event(event, "can't find buffer field for binary printk");
 			return NULL;
 		}
-		ip_field = pevent_find_field(event, "ip");
+		ip_field = tep_find_field(event, "ip");
 		if (!ip_field) {
 			do_warning_event(event, "can't find ip field for binary printk");
 			return NULL;
@@ -4413,7 +4413,7 @@ get_bprint_format(void *data, int size __maybe_unused,
 	field = pevent->bprint_fmt_field;
 
 	if (!field) {
-		field = pevent_find_field(event, "fmt");
+		field = tep_find_field(event, "fmt");
 		if (!field) {
 			do_warning_event(event, "can't find format field for binary printk");
 			return NULL;
@@ -4457,7 +4457,7 @@ static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 		fmt = "%.2x%.2x%.2x%.2x%.2x%.2x";
 	if (!arg->field.field) {
 		arg->field.field =
-			pevent_find_any_field(event, arg->field.name);
+			tep_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
 			do_warning_event(event, "%s: field %s not found",
 					 __func__, arg->field.name);
@@ -4607,7 +4607,7 @@ static int print_ipv4_arg(struct trace_seq *s, const char *ptr, char i,
 
 	if (!arg->field.field) {
 		arg->field.field =
-			pevent_find_any_field(event, arg->field.name);
+			tep_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
 			do_warning("%s: field %s not found",
 				   __func__, arg->field.name);
@@ -4653,7 +4653,7 @@ static int print_ipv6_arg(struct trace_seq *s, const char *ptr, char i,
 
 	if (!arg->field.field) {
 		arg->field.field =
-			pevent_find_any_field(event, arg->field.name);
+			tep_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
 			do_warning("%s: field %s not found",
 				   __func__, arg->field.name);
@@ -4711,7 +4711,7 @@ static int print_ipsa_arg(struct trace_seq *s, const char *ptr, char i,
 
 	if (!arg->field.field) {
 		arg->field.field =
-			pevent_find_any_field(event, arg->field.name);
+			tep_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
 			do_warning("%s: field %s not found",
 				   __func__, arg->field.name);
@@ -5243,7 +5243,7 @@ int pevent_data_type(struct tep_handle *pevent, struct tep_record *rec)
  */
 struct event_format *pevent_data_event_from_type(struct tep_handle *pevent, int type)
 {
-	return pevent_find_event(pevent, type);
+	return tep_find_event(pevent, type);
 }
 
 /**
@@ -5452,7 +5452,7 @@ pevent_find_event_by_record(struct tep_handle *pevent, struct tep_record *record
 
 	type = trace_parse_common_type(pevent, record->data);
 
-	return pevent_find_event(pevent, type);
+	return tep_find_event(pevent, type);
 }
 
 /**
@@ -6288,7 +6288,7 @@ void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
 	if (!event)
 		return NULL;
 
-	field = pevent_find_field(event, name);
+	field = tep_find_field(event, name);
 
 	if (!field) {
 		if (err)
@@ -6332,7 +6332,7 @@ int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
 	if (!event)
 		return -1;
 
-	field = pevent_find_field(event, name);
+	field = tep_find_field(event, name);
 
 	return get_field_val(s, field, name, record, val, err);
 }
@@ -6357,7 +6357,7 @@ int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
 	if (!event)
 		return -1;
 
-	field = pevent_find_common_field(event, name);
+	field = tep_find_common_field(event, name);
 
 	return get_field_val(s, field, name, record, val, err);
 }
@@ -6382,7 +6382,7 @@ int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
 	if (!event)
 		return -1;
 
-	field = pevent_find_any_field(event, name);
+	field = tep_find_any_field(event, name);
 
 	return get_field_val(s, field, name, record, val, err);
 }
@@ -6402,7 +6402,7 @@ int pevent_print_num_field(struct trace_seq *s, const char *fmt,
 			   struct event_format *event, const char *name,
 			   struct tep_record *record, int err)
 {
-	struct format_field *field = pevent_find_field(event, name);
+	struct format_field *field = tep_find_field(event, name);
 	unsigned long long val;
 
 	if (!field)
@@ -6434,7 +6434,7 @@ int pevent_print_func_field(struct trace_seq *s, const char *fmt,
 			    struct event_format *event, const char *name,
 			    struct tep_record *record, int err)
 {
-	struct format_field *field = pevent_find_field(event, name);
+	struct format_field *field = tep_find_field(event, name);
 	struct tep_handle *pevent = event->pevent;
 	unsigned long long val;
 	struct func_map *func;
@@ -6599,7 +6599,7 @@ static struct event_format *pevent_search_event(struct tep_handle *pevent, int i
 
 	if (id >= 0) {
 		/* search by id */
-		event = pevent_find_event(pevent, id);
+		event = tep_find_event(pevent, id);
 		if (!event)
 			return NULL;
 		if (event_name && (strcmp(event_name, event->name) != 0))

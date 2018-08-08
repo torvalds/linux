@@ -116,5 +116,5 @@ struct event_format *trace_event__tp_format_id(int id)
 	if (!tevent_initialized && trace_event__init2())
 		return ERR_PTR(-ENOMEM);
 
-	return pevent_find_event(tevent.pevent, id);
+	return tep_find_event(tevent.pevent, id);
 }

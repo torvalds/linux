@@ -31,7 +31,7 @@ static int call_site_handler(struct trace_seq *s, struct tep_record *record,
 	void *data = record->data;
 	const char *func;
 
-	field = pevent_find_field(event, "call_site");
+	field = tep_find_field(event, "call_site");
 	if (!field)
 		return 1;
 

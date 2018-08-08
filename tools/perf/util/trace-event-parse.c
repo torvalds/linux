@@ -41,7 +41,7 @@ static int get_common_field(struct scripting_context *context,
 			return 0;
 
 		event = pevent->events[0];
-		field = pevent_find_common_field(event, type);
+		field = tep_find_common_field(event, type);
 		if (!field)
 			return 0;
 		*offset = field->offset;
@@ -99,7 +99,7 @@ raw_field_value(struct event_format *event, const char *name, void *data)
 	struct format_field *field;
 	unsigned long long val;
 
-	field = pevent_find_any_field(event, name);
+	field = tep_find_any_field(event, name);
 	if (!field)
 		return 0ULL;
 

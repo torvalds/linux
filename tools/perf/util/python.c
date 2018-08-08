@@ -394,7 +394,7 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 		evsel->tp_format = tp_format;
 	}
 
-	field = pevent_find_any_field(evsel->tp_format, str);
+	field = tep_find_any_field(evsel->tp_format, str);
 	if (!field)
 		return NULL;
 
