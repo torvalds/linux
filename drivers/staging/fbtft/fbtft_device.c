@@ -262,6 +262,10 @@ static const s16 waveshare32b_init_sequence[] = {
 	-3
 };
 
+#define PIOLED_GAMMA	"0 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 " \
+			"2 2 2 2 2 2 2 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 " \
+			"3 3 3 4 4 4 4 4 4 4 4 4 4 4 4"
+
 /* Supported displays in alphabetical order */
 static struct fbtft_device_display displays[] = {
 	{
@@ -890,14 +894,7 @@ static struct fbtft_device_display displays[] = {
 					{ "dc", 25 },
 					{},
 				},
-				.gamma =	"0 2 2 2 2 2 2 2 "
-						"2 2 2 2 2 2 2 2 "
-						"2 2 2 2 2 2 2 2 "
-						"2 2 2 2 2 2 2 3 "
-						"3 3 3 3 3 3 3 3 "
-						"3 3 3 3 3 3 3 3 "
-						"3 3 3 4 4 4 4 4 "
-						"4 4 4 4 4 4 4"
+				.gamma = PIOLED_GAMMA
 			}
 		}
 	}, {
