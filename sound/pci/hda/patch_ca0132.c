@@ -3073,6 +3073,24 @@ static bool dspload_wait_loaded(struct hda_codec *codec)
  */
 
 /*
+ * For cards with PCI-E region2 (Sound Blaster Z/ZxR, Recon3D, and AE-5)
+ * the mmio address 0x320 is used to set GPIO pins. The format for the data
+ * The first eight bits are just the number of the pin. So far, I've only seen
+ * this number go to 7.
+ */
+static void ca0132_mmio_gpio_set(struct hda_codec *codec, unsigned int gpio_pin,
+		bool enable)
+{
+	struct ca0132_spec *spec = codec->spec;
+	unsigned short gpio_data;
+
+	gpio_data = gpio_pin & 0xF;
+	gpio_data |= ((enable << 8) & 0x100);
+
+	writew(gpio_data, spec->mem_base + 0x320);
+}
+
+/*
  * Sets up the GPIO pins so that they are discoverable. If this isn't done,
  * the card shows as having no GPIO pins.
  */
@@ -3947,9 +3965,9 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		/*speaker out config*/
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
-			writew(0x0007, spec->mem_base + 0x320);
-			writew(0x0104, spec->mem_base + 0x320);
-			writew(0x0101, spec->mem_base + 0x320);
+			ca0132_mmio_gpio_set(codec, 7, false);
+			ca0132_mmio_gpio_set(codec, 4, true);
+			ca0132_mmio_gpio_set(codec, 1, true);
 			chipio_set_control_param(codec, 0x0D, 0x18);
 			break;
 		case QUIRK_R3DI:
@@ -3983,9 +4001,9 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		/* Headphone out config*/
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
-			writew(0x0107, spec->mem_base + 0x320);
-			writew(0x0104, spec->mem_base + 0x320);
-			writew(0x0001, spec->mem_base + 0x320);
+			ca0132_mmio_gpio_set(codec, 7, true);
+			ca0132_mmio_gpio_set(codec, 4, true);
+			ca0132_mmio_gpio_set(codec, 1, false);
 			chipio_set_control_param(codec, 0x0D, 0x12);
 			break;
 		case QUIRK_R3DI:
@@ -4025,9 +4043,9 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		/* Surround out config*/
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
-			writew(0x0007, spec->mem_base + 0x320);
-			writew(0x0104, spec->mem_base + 0x320);
-			writew(0x0101, spec->mem_base + 0x320);
+			ca0132_mmio_gpio_set(codec, 7, false);
+			ca0132_mmio_gpio_set(codec, 4, true);
+			ca0132_mmio_gpio_set(codec, 1, true);
 			chipio_set_control_param(codec, 0x0D, 0x18);
 			break;
 		case QUIRK_R3DI:
@@ -4291,7 +4309,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 	case REAR_MIC:
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
-			writew(0x0000, spec->mem_base + 0x320);
+			ca0132_mmio_gpio_set(codec, 0, false);
 			tmp = FLOAT_THREE;
 			break;
 		case QUIRK_R3DI:
@@ -4323,7 +4341,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 		ca0132_mic_boost_set(codec, 0);
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
-			writew(0x0000, spec->mem_base + 0x320);
+			ca0132_mmio_gpio_set(codec, 0, false);
 			break;
 		case QUIRK_R3DI:
 			r3di_gpio_mic_set(codec, R3DI_REAR_MIC);
@@ -4349,8 +4367,8 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 	case FRONT_MIC:
 		switch (spec->quirk) {
 		case QUIRK_SBZ:
-			writew(0x0100, spec->mem_base + 0x320);
-			writew(0x0005, spec->mem_base + 0x320);
+			ca0132_mmio_gpio_set(codec, 0, true);
+			ca0132_mmio_gpio_set(codec, 5, false);
 			tmp = FLOAT_THREE;
 			break;
 		case QUIRK_R3DI:
@@ -6890,16 +6908,12 @@ static void sbz_region2_exit(struct hda_codec *codec)
 		writeb(0x0, spec->mem_base + 0x100);
 	for (i = 0; i < 8; i++)
 		writeb(0xb3, spec->mem_base + 0x304);
-	/*
-	 * I believe these are GPIO, with the right most hex digit being the
-	 * gpio pin, and the second digit being on or off. We see this more in
-	 * the input/output select functions.
-	 */
-	writew(0x0000, spec->mem_base + 0x320);
-	writew(0x0001, spec->mem_base + 0x320);
-	writew(0x0104, spec->mem_base + 0x320);
-	writew(0x0005, spec->mem_base + 0x320);
-	writew(0x0007, spec->mem_base + 0x320);
+
+	ca0132_mmio_gpio_set(codec, 0, false);
+	ca0132_mmio_gpio_set(codec, 1, false);
+	ca0132_mmio_gpio_set(codec, 4, true);
+	ca0132_mmio_gpio_set(codec, 5, false);
+	ca0132_mmio_gpio_set(codec, 7, false);
 }
 
 static void sbz_set_pin_ctl_default(struct hda_codec *codec)
@@ -7236,7 +7250,7 @@ static int ca0132_init(struct hda_codec *codec)
 	ca0132_refresh_widget_caps(codec);
 
 	if (spec->quirk == QUIRK_SBZ)
-		writew(0x0107, spec->mem_base + 0x320);
+		ca0132_mmio_gpio_set(codec, 7, true);
 
 	switch (spec->quirk) {
 	case QUIRK_R3DI:
