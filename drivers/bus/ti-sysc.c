@@ -1175,10 +1175,10 @@ static int sysc_child_suspend_noirq(struct device *dev)
 	if (!pm_runtime_status_suspended(dev)) {
 		error = pm_generic_runtime_suspend(dev);
 		if (error) {
-			dev_err(dev, "%s error at %i: %i\n",
-				__func__, __LINE__, error);
+			dev_warn(dev, "%s busy at %i: %i\n",
+				 __func__, __LINE__, error);
 
-			return error;
+			return 0;
 		}
 
 		error = sysc_runtime_suspend(ddata->dev);
