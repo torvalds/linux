@@ -168,7 +168,7 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 	pevent_register_event_handler(pevent, -1, "ftrace", "function",
 				      function_handler, NULL);
 
-	traceevent_plugin_add_options("ftrace", plugin_options);
+	tep_plugin_add_options("ftrace", plugin_options);
 
 	return 0;
 }
@@ -186,7 +186,7 @@ void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 		free(fstack[i].stack);
 	}
 
-	traceevent_plugin_remove_options(plugin_options);
+	tep_plugin_remove_options(plugin_options);
 
 	free(fstack);
 	fstack = NULL;
