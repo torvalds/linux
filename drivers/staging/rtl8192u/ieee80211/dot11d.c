@@ -136,19 +136,19 @@ void dot11d_scan_complete(struct ieee80211_device *dev)
 }
 EXPORT_SYMBOL(dot11d_scan_complete);
 
-int IsLegalChannel(struct ieee80211_device *dev, u8 channel)
+int is_legal_channel(struct ieee80211_device *dev, u8 channel)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 
 	if (channel > MAX_CHANNEL_NUMBER) {
-		netdev_err(dev->dev, "IsLegalChannel(): Invalid Channel\n");
+		netdev_err(dev->dev, "is_legal_channel(): Invalid Channel\n");
 		return 0;
 	}
 	if (pDot11dInfo->channel_map[channel] > 0)
 		return 1;
 	return 0;
 }
-EXPORT_SYMBOL(IsLegalChannel);
+EXPORT_SYMBOL(is_legal_channel);
 
 int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
 {
@@ -164,7 +164,7 @@ int ToLegalChannel(struct ieee80211_device *dev, u8 channel)
 	}
 
 	if (channel > MAX_CHANNEL_NUMBER) {
-		netdev_err(dev->dev, "IsLegalChannel(): Invalid Channel\n");
+		netdev_err(dev->dev, "is_legal_channel(): Invalid Channel\n");
 		return default_chn;
 	}
 
