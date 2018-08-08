@@ -76,7 +76,6 @@ struct azx_dev {
 	 *  when link position is not greater than FIFO size
 	 */
 	unsigned int insufficient:1;
-	unsigned int wc_marked:1;
 };
 
 #define azx_stream(dev)		(&(dev)->core)
