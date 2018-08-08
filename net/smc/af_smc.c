@@ -1522,12 +1522,16 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 
 	smc = smc_sk(sock->sk);
 	conn = &smc->conn;
-	if (smc->use_fallback) {
-		if (!smc->clcsock)
-			return -EBADF;
-		return smc->clcsock->ops->ioctl(smc->clcsock, cmd, arg);
-	}
 	lock_sock(&smc->sk);
+	if (smc->use_fallback) {
+		if (!smc->clcsock) {
+			release_sock(&smc->sk);
+			return -EBADF;
+		}
+		answ = smc->clcsock->ops->ioctl(smc->clcsock, cmd, arg);
+		release_sock(&smc->sk);
+		return answ;
+	}
 	switch (cmd) {
 	case SIOCINQ: /* same as FIONREAD */
 		if (smc->sk.sk_state == SMC_LISTEN) {
