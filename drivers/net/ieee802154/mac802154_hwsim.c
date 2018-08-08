@@ -571,7 +571,7 @@ static int hwsim_set_edge_lqi(struct sk_buff *msg, struct genl_info *info)
 	}
 
 	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
-	if (!info) {
+	if (!einfo) {
 		mutex_unlock(&hwsim_phys_lock);
 		return -ENOMEM;
 	}
