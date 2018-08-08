@@ -464,7 +464,7 @@ out:
 	} else {
 		ieee->sync_scan_hurryup = 0;
 		if (IS_DOT11D_ENABLE(ieee))
-			DOT11D_ScanComplete(ieee);
+			dot11d_scan_complete(ieee);
 		mutex_unlock(&ieee->scan_mutex);
 	}
 }
@@ -504,7 +504,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 	return;
 out:
 	if (IS_DOT11D_ENABLE(ieee))
-		DOT11D_ScanComplete(ieee);
+		dot11d_scan_complete(ieee);
 	ieee->actscanning = false;
 	watchdog = 0;
 	ieee->scanning = 0;

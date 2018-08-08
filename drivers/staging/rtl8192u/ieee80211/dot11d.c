@@ -115,7 +115,7 @@ u8 dot11d_get_max_tx_pwr_in_dbm(struct ieee80211_device *dev, u8 Channel)
 }
 EXPORT_SYMBOL(dot11d_get_max_tx_pwr_in_dbm);
 
-void DOT11D_ScanComplete(struct ieee80211_device *dev)
+void dot11d_scan_complete(struct ieee80211_device *dev)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 
@@ -134,7 +134,7 @@ void DOT11D_ScanComplete(struct ieee80211_device *dev)
 		break;
 	}
 }
-EXPORT_SYMBOL(DOT11D_ScanComplete);
+EXPORT_SYMBOL(dot11d_scan_complete);
 
 int IsLegalChannel(struct ieee80211_device *dev, u8 channel)
 {
