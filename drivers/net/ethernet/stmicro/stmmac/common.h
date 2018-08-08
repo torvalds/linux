@@ -400,6 +400,8 @@ struct mac_link {
 	u32 speed10;
 	u32 speed100;
 	u32 speed1000;
+	u32 speed2500;
+	u32 speed10000;
 	u32 duplex;
 };
 
@@ -441,6 +443,7 @@ struct stmmac_rx_routing {
 int dwmac100_setup(struct stmmac_priv *priv);
 int dwmac1000_setup(struct stmmac_priv *priv);
 int dwmac4_setup(struct stmmac_priv *priv);
+int dwxgmac2_setup(struct stmmac_priv *priv);
 
 void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 			 unsigned int high, unsigned int low);
