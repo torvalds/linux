@@ -780,6 +780,8 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 		block->refcnt--;
 		if (list_empty(&block->chain_list))
 			kfree(block);
+	} else {
+		block->refcnt--;
 	}
 }
 EXPORT_SYMBOL(tcf_block_put_ext);
