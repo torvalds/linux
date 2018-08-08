@@ -31,17 +31,17 @@ struct rt_dot11d_info {
 	bool enabled; /* dot11MultiDomainCapabilityEnabled */
 };
 
-#define GET_DOT11D_INFO(__pIeeeDev) ((struct rt_dot11d_info *)((__pIeeeDev)->pDot11dInfo))
+#define GET_DOT11D_INFO(ieee_dev) ((struct rt_dot11d_info *)((ieee_dev)->pDot11dInfo))
 
-#define IS_DOT11D_ENABLE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->enabled)
-#define IS_COUNTRY_IE_VALID(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->country_ie_len > 0)
+#define IS_DOT11D_ENABLE(ieee_dev) (GET_DOT11D_INFO(ieee_dev)->enabled)
+#define IS_COUNTRY_IE_VALID(ieee_dev) (GET_DOT11D_INFO(ieee_dev)->country_ie_len > 0)
 
-#define IS_EQUAL_CIE_SRC(__pIeeeDev, __pTa) ether_addr_equal(GET_DOT11D_INFO(__pIeeeDev)->country_ie_src_addr, __pTa)
-#define UPDATE_CIE_SRC(__pIeeeDev, __pTa) ether_addr_copy(GET_DOT11D_INFO(__pIeeeDev)->country_ie_src_addr, __pTa)
+#define IS_EQUAL_CIE_SRC(ieee_dev, __pTa) ether_addr_equal(GET_DOT11D_INFO(ieee_dev)->country_ie_src_addr, __pTa)
+#define UPDATE_CIE_SRC(ieee_dev, __pTa) ether_addr_copy(GET_DOT11D_INFO(ieee_dev)->country_ie_src_addr, __pTa)
 
-#define GET_CIE_WATCHDOG(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->country_ie_watchdog)
-#define RESET_CIE_WATCHDOG(__pIeeeDev) (GET_CIE_WATCHDOG(__pIeeeDev) = 0)
-#define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
+#define GET_CIE_WATCHDOG(ieee_dev) (GET_DOT11D_INFO(ieee_dev)->country_ie_watchdog)
+#define RESET_CIE_WATCHDOG(ieee_dev) (GET_CIE_WATCHDOG(ieee_dev) = 0)
+#define UPDATE_CIE_WATCHDOG(ieee_dev) (++GET_CIE_WATCHDOG(ieee_dev))
 
 void
 Dot11d_Init(
