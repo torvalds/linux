@@ -5780,11 +5780,11 @@ static const struct snd_kcontrol_new ca0132_mixer[] = {
 };
 
 /*
- * SBZ specific control mixer. Removes auto-detect for mic, and adds surround
- * controls. Also sets both the Front Playback and Capture Volume controls to
- * alt so they set the DSP's decibel level.
+ * Desktop specific control mixer. Removes auto-detect for mic, and adds
+ * surround controls. Also sets both the Front Playback and Capture Volume
+ * controls to alt so they set the DSP's decibel level.
  */
-static const struct snd_kcontrol_new sbz_mixer[] = {
+static const struct snd_kcontrol_new desktop_mixer[] = {
 	CA0132_ALT_CODEC_VOL("Front Playback Volume", 0x02, HDA_OUTPUT),
 	CA0132_CODEC_MUTE("Front Playback Switch", VNID_SPK, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x04, 0, HDA_OUTPUT),
@@ -5855,8 +5855,8 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 */
 	num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT;
 	for (i = 0; i < num_fx; i++) {
-		/* SBZ breaks if Echo Cancellation is used */
-		if (spec->quirk == QUIRK_SBZ) {
+		/* SBZ and R3D break if Echo Cancellation is used. */
+		if (spec->quirk == QUIRK_SBZ || spec->quirk == QUIRK_R3D) {
 			if (i == (ECHO_CANCELLATION - IN_EFFECT_START_NID +
 						OUT_EFFECTS_COUNT))
 				continue;
@@ -7608,8 +7608,12 @@ static int patch_ca0132(struct hda_codec *codec)
 	/* Set which mixers each quirk uses. */
 	switch (spec->quirk) {
 	case QUIRK_SBZ:
-		spec->mixers[0] = sbz_mixer;
+		spec->mixers[0] = desktop_mixer;
 		snd_hda_codec_set_name(codec, "Sound Blaster Z");
+		break;
+	case QUIRK_R3D:
+		spec->mixers[0] = desktop_mixer;
+		snd_hda_codec_set_name(codec, "Recon3D");
 		break;
 	case QUIRK_R3DI:
 		spec->mixers[0] = r3di_mixer;
