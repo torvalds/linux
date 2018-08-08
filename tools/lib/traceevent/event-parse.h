@@ -930,16 +930,16 @@ struct filter_type {
 	struct filter_arg	*filter;
 };
 
-#define PEVENT_FILTER_ERROR_BUFSZ  1024
+#define TEP_FILTER_ERROR_BUFSZ  1024
 
 struct event_filter {
 	struct tep_handle	*pevent;
 	int			filters;
 	struct filter_type	*event_filters;
-	char			error_buffer[PEVENT_FILTER_ERROR_BUFSZ];
+	char			error_buffer[TEP_FILTER_ERROR_BUFSZ];
 };
 
-struct event_filter *pevent_filter_alloc(struct tep_handle *pevent);
+struct event_filter *tep_filter_alloc(struct tep_handle *pevent);
 
 /* for backward compatibility */
 #define FILTER_NONE		TEP_ERRNO__NO_FILTER
@@ -953,39 +953,39 @@ enum filter_trivial_type {
 	FILTER_TRIVIAL_BOTH,
 };
 
-enum tep_errno pevent_filter_add_filter_str(struct event_filter *filter,
-					    const char *filter_str);
+enum tep_errno tep_filter_add_filter_str(struct event_filter *filter,
+					 const char *filter_str);
 
-enum tep_errno pevent_filter_match(struct event_filter *filter,
-				   struct tep_record *record);
+enum tep_errno tep_filter_match(struct event_filter *filter,
+				struct tep_record *record);
 
-int pevent_filter_strerror(struct event_filter *filter, enum tep_errno err,
-			   char *buf, size_t buflen);
+int tep_filter_strerror(struct event_filter *filter, enum tep_errno err,
+			char *buf, size_t buflen);
 
-int pevent_event_filtered(struct event_filter *filter,
-			  int event_id);
+int tep_event_filtered(struct event_filter *filter,
+		       int event_id);
 
-void pevent_filter_reset(struct event_filter *filter);
+void tep_filter_reset(struct event_filter *filter);
 
-int pevent_filter_clear_trivial(struct event_filter *filter,
+int tep_filter_clear_trivial(struct event_filter *filter,
+			     enum filter_trivial_type type);
+
+void tep_filter_free(struct event_filter *filter);
+
+char *tep_filter_make_string(struct event_filter *filter, int event_id);
+
+int tep_filter_remove_event(struct event_filter *filter,
+			    int event_id);
+
+int tep_filter_event_has_trivial(struct event_filter *filter,
+				 int event_id,
 				 enum filter_trivial_type type);
 
-void pevent_filter_free(struct event_filter *filter);
+int tep_filter_copy(struct event_filter *dest, struct event_filter *source);
 
-char *pevent_filter_make_string(struct event_filter *filter, int event_id);
+int tep_update_trivial(struct event_filter *dest, struct event_filter *source,
+			enum filter_trivial_type type);
 
-int pevent_filter_remove_event(struct event_filter *filter,
-			       int event_id);
-
-int pevent_filter_event_has_trivial(struct event_filter *filter,
-				    int event_id,
-				    enum filter_trivial_type type);
-
-int pevent_filter_copy(struct event_filter *dest, struct event_filter *source);
-
-int pevent_update_trivial(struct event_filter *dest, struct event_filter *source,
-			  enum filter_trivial_type type);
-
-int pevent_filter_compare(struct event_filter *filter1, struct event_filter *filter2);
+int tep_filter_compare(struct event_filter *filter1, struct event_filter *filter2);
 
 #endif /* _PARSE_EVENTS_H */
