@@ -180,7 +180,7 @@ out_unlock:
 	mutex_unlock(&ctrl->lock);
 }
 
-static void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid)
+void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid)
 {
 	struct nvmet_ctrl *ctrl;
 
@@ -609,6 +609,21 @@ static inline u16 nvmet_check_ana_state(struct nvmet_port *port,
 	return 0;
 }
 
+static inline u16 nvmet_io_cmd_check_access(struct nvmet_req *req)
+{
+	if (unlikely(req->ns->readonly)) {
+		switch (req->cmd->common.opcode) {
+		case nvme_cmd_read:
+		case nvme_cmd_flush:
+			break;
+		default:
+			return NVME_SC_NS_WRITE_PROTECTED;
+		}
+	}
+
+	return 0;
+}
+
 static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
@@ -622,6 +637,9 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	if (unlikely(!req->ns))
 		return NVME_SC_INVALID_NS | NVME_SC_DNR;
 	ret = nvmet_check_ana_state(req->port, req->ns);
+	if (unlikely(ret))
+		return ret;
+	ret = nvmet_io_cmd_check_access(req);
 	if (unlikely(ret))
 		return ret;
 
