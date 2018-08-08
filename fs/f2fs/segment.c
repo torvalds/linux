@@ -2711,8 +2711,8 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	if (start >= MAX_BLKADDR(sbi) || range->len < sbi->blocksize)
 		return -EINVAL;
 
-	if (end <= MAIN_BLKADDR(sbi))
-		return -EINVAL;
+	if (end < MAIN_BLKADDR(sbi))
+		goto out;
 
 	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK)) {
 		f2fs_msg(sbi->sb, KERN_WARNING,
