@@ -897,7 +897,7 @@ struct ca0132_spec {
 	const struct hda_verb *base_init_verbs;
 	const struct hda_verb *base_exit_verbs;
 	const struct hda_verb *chip_init_verbs;
-	const struct hda_verb *sbz_init_verbs;
+	const struct hda_verb *desktop_init_verbs;
 	struct hda_verb *spec_init_verbs;
 	struct auto_pin_cfg autocfg;
 
@@ -6839,8 +6839,8 @@ static struct hda_verb ca0132_init_verbs0[] = {
 	{}
 };
 
-/* Extra init verbs for SBZ */
-static struct hda_verb sbz_init_verbs[] = {
+/* Extra init verbs for desktop cards. */
+static struct hda_verb ca0132_init_verbs1[] = {
 	{0x15, 0x70D, 0x20},
 	{0x15, 0x70E, 0x19},
 	{0x15, 0x707, 0x00},
@@ -7135,9 +7135,27 @@ static void sbz_pre_dsp_setup(struct hda_codec *codec)
 			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x44);
 }
 
-/*
- * Extra commands that don't really fit anywhere else.
- */
+static void r3d_pre_dsp_setup(struct hda_codec *codec)
+{
+
+	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfc);
+	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfd);
+	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfe);
+	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xff);
+
+	chipio_write(codec, 0x18b0a4, 0x000000c2);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x1E);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0x1C);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x5B);
+
+	snd_hda_codec_write(codec, 0x11, 0,
+			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x44);
+}
+
 static void r3di_pre_dsp_setup(struct hda_codec *codec)
 {
 	chipio_write(codec, 0x18b0a4, 0x000000c2);
@@ -7162,13 +7180,12 @@ static void r3di_pre_dsp_setup(struct hda_codec *codec)
 			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x04);
 }
 
-
 /*
  * These are sent before the DSP is downloaded. Not sure
  * what they do, or if they're necessary. Could possibly
  * be removed. Figure they're better to leave in.
  */
-static void sbz_region2_startup(struct hda_codec *codec)
+static void ca0132_mmio_init(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
@@ -7208,7 +7225,7 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		ca0132_gpio_init(codec);
 		sbz_pre_dsp_setup(codec);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
-		snd_hda_sequence_write(codec, spec->sbz_init_verbs);
+		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
 		break;
 	case QUIRK_R3DI:
 		codec_dbg(codec, "R3DI alt_init");
@@ -7218,6 +7235,11 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		r3di_pre_dsp_setup(codec);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x6FF, 0xC4);
+		break;
+	case QUIRK_R3D:
+		r3d_pre_dsp_setup(codec);
+		snd_hda_sequence_write(codec, spec->chip_init_verbs);
+		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
 		break;
 	}
 }
@@ -7255,8 +7277,8 @@ static int ca0132_init(struct hda_codec *codec)
 		spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->curr_chip_addx = INVALID_CHIP_ADDRESS;
 
-	if (spec->quirk == QUIRK_SBZ)
-		sbz_region2_startup(codec);
+	if (spec->use_pci_mmio)
+		ca0132_mmio_init(codec);
 
 	snd_hda_power_up_pm(codec);
 
@@ -7507,8 +7529,8 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 
 	spec->chip_init_verbs = ca0132_init_verbs0;
-	if (spec->quirk == QUIRK_SBZ)
-		spec->sbz_init_verbs = sbz_init_verbs;
+	if (spec->quirk == QUIRK_SBZ || spec->quirk == QUIRK_R3D)
+		spec->desktop_init_verbs = ca0132_init_verbs1;
 	spec->spec_init_verbs = kcalloc(NUM_SPEC_VERBS,
 					sizeof(struct hda_verb),
 					GFP_KERNEL);
@@ -7585,6 +7607,7 @@ static int patch_ca0132(struct hda_codec *codec)
 	/* Setup whether or not to use alt functions/controls/pci_mmio */
 	switch (spec->quirk) {
 	case QUIRK_SBZ:
+	case QUIRK_R3D:
 		spec->use_alt_controls = true;
 		spec->use_alt_functions = true;
 		spec->use_pci_mmio = true;
