@@ -965,9 +965,11 @@ struct ca0132_spec {
 	long cur_ctl_vals[TUNING_CTLS_COUNT];
 #endif
 	/*
-	 * Sound Blaster Z PCI region 2 iomem, used for input and output
-	 * switching, and other unknown commands.
+	 * The Recon3D, Sound Blaster Z, Sound Blaster ZxR, and Sound Blaster
+	 * AE-5 all use PCI region 2 to toggle GPIO and other currently unknown
+	 * things.
 	 */
+	bool use_pci_mmio;
 	void __iomem *mem_base;
 
 	/*
@@ -7562,16 +7564,6 @@ static int patch_ca0132(struct hda_codec *codec)
 	else
 		spec->quirk = QUIRK_NONE;
 
-	/* Setup BAR Region 2 for Sound Blaster Z */
-	if (spec->quirk == QUIRK_SBZ) {
-		spec->mem_base = pci_iomap(codec->bus->pci, 2, 0xC20);
-		if (spec->mem_base == NULL) {
-			codec_warn(codec, "pci_iomap failed!");
-			codec_info(codec, "perhaps this is not an SBZ?");
-			spec->quirk = QUIRK_NONE;
-		}
-	}
-
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
 
@@ -7590,17 +7582,31 @@ static int patch_ca0132(struct hda_codec *codec)
 		break;
 	}
 
-	/* Setup whether or not to use alt functions/controls */
+	/* Setup whether or not to use alt functions/controls/pci_mmio */
 	switch (spec->quirk) {
 	case QUIRK_SBZ:
+		spec->use_alt_controls = true;
+		spec->use_alt_functions = true;
+		spec->use_pci_mmio = true;
+		break;
 	case QUIRK_R3DI:
 		spec->use_alt_controls = true;
 		spec->use_alt_functions = true;
+		spec->use_pci_mmio = false;
 		break;
 	default:
 		spec->use_alt_controls = false;
 		spec->use_alt_functions = false;
+		spec->use_pci_mmio = false;
 		break;
+	}
+
+	if (spec->use_pci_mmio) {
+		spec->mem_base = pci_iomap(codec->bus->pci, 2, 0xC20);
+		if (spec->mem_base == NULL) {
+			codec_warn(codec, "pci_iomap failed! Setting quirk to QUIRK_NONE.");
+			spec->quirk = QUIRK_NONE;
+		}
 	}
 
 	spec->base_init_verbs = ca0132_base_init_verbs;
