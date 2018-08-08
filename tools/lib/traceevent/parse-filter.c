@@ -1705,8 +1705,8 @@ get_comm(struct event_format *event, struct tep_record *record)
 	const char *comm;
 	int pid;
 
-	pid = pevent_data_pid(event->pevent, record);
-	comm = pevent_data_comm_from_pid(event->pevent, pid);
+	pid = tep_data_pid(event->pevent, record);
+	comm = tep_data_comm_from_pid(event->pevent, pid);
 	return comm;
 }
 
@@ -2060,7 +2060,7 @@ enum tep_errno tep_filter_match(struct event_filter *filter,
 	if (!filter->filters)
 		return TEP_ERRNO__NO_FILTER;
 
-	event_id = pevent_data_type(pevent, record);
+	event_id = tep_data_type(pevent, record);
 
 	filter_type = find_filter_type(filter, event_id);
 	if (!filter_type)

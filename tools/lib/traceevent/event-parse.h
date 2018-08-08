@@ -705,18 +705,18 @@ pevent_find_event_by_name(struct tep_handle *pevent, const char *sys, const char
 struct event_format *
 pevent_find_event_by_record(struct tep_handle *pevent, struct tep_record *record);
 
-void pevent_data_lat_fmt(struct tep_handle *pevent,
-			 struct trace_seq *s, struct tep_record *record);
-int pevent_data_type(struct tep_handle *pevent, struct tep_record *rec);
-struct event_format *pevent_data_event_from_type(struct tep_handle *pevent, int type);
-int pevent_data_pid(struct tep_handle *pevent, struct tep_record *rec);
-int pevent_data_preempt_count(struct tep_handle *pevent, struct tep_record *rec);
-int pevent_data_flags(struct tep_handle *pevent, struct tep_record *rec);
-const char *pevent_data_comm_from_pid(struct tep_handle *pevent, int pid);
+void tep_data_lat_fmt(struct tep_handle *pevent,
+		      struct trace_seq *s, struct tep_record *record);
+int tep_data_type(struct tep_handle *pevent, struct tep_record *rec);
+struct event_format *tep_data_event_from_type(struct tep_handle *pevent, int type);
+int tep_data_pid(struct tep_handle *pevent, struct tep_record *rec);
+int tep_data_preempt_count(struct tep_handle *pevent, struct tep_record *rec);
+int tep_data_flags(struct tep_handle *pevent, struct tep_record *rec);
+const char *tep_data_comm_from_pid(struct tep_handle *pevent, int pid);
 struct cmdline;
-struct cmdline *pevent_data_pid_from_comm(struct tep_handle *pevent, const char *comm,
-					  struct cmdline *next);
-int pevent_cmdline_pid(struct tep_handle *pevent, struct cmdline *cmdline);
+struct cmdline *tep_data_pid_from_comm(struct tep_handle *pevent, const char *comm,
+				       struct cmdline *next);
+int tep_cmdline_pid(struct tep_handle *pevent, struct cmdline *cmdline);
 
 void tep_print_field(struct trace_seq *s, void *data,
 		     struct format_field *field);

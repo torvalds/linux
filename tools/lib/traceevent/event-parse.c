@@ -5140,7 +5140,7 @@ out_failed:
 }
 
 /**
- * pevent_data_lat_fmt - parse the data for the latency format
+ * tep_data_lat_fmt - parse the data for the latency format
  * @pevent: a handle to the pevent
  * @s: the trace_seq to write to
  * @record: the record to read from
@@ -5149,8 +5149,8 @@ out_failed:
  * need rescheduling, in hard/soft interrupt, preempt count
  * and lock depth) and places it into the trace_seq.
  */
-void pevent_data_lat_fmt(struct tep_handle *pevent,
-			 struct trace_seq *s, struct tep_record *record)
+void tep_data_lat_fmt(struct tep_handle *pevent,
+		      struct trace_seq *s, struct tep_record *record)
 {
 	static int check_lock_depth = 1;
 	static int check_migrate_disable = 1;
@@ -5223,55 +5223,55 @@ void pevent_data_lat_fmt(struct tep_handle *pevent,
 }
 
 /**
- * pevent_data_type - parse out the given event type
+ * tep_data_type - parse out the given event type
  * @pevent: a handle to the pevent
  * @rec: the record to read from
  *
  * This returns the event id from the @rec.
  */
-int pevent_data_type(struct tep_handle *pevent, struct tep_record *rec)
+int tep_data_type(struct tep_handle *pevent, struct tep_record *rec)
 {
 	return trace_parse_common_type(pevent, rec->data);
 }
 
 /**
- * pevent_data_event_from_type - find the event by a given type
+ * tep_data_event_from_type - find the event by a given type
  * @pevent: a handle to the pevent
  * @type: the type of the event.
  *
  * This returns the event form a given @type;
  */
-struct event_format *pevent_data_event_from_type(struct tep_handle *pevent, int type)
+struct event_format *tep_data_event_from_type(struct tep_handle *pevent, int type)
 {
 	return tep_find_event(pevent, type);
 }
 
 /**
- * pevent_data_pid - parse the PID from record
+ * tep_data_pid - parse the PID from record
  * @pevent: a handle to the pevent
  * @rec: the record to parse
  *
  * This returns the PID from a record.
  */
-int pevent_data_pid(struct tep_handle *pevent, struct tep_record *rec)
+int tep_data_pid(struct tep_handle *pevent, struct tep_record *rec)
 {
 	return parse_common_pid(pevent, rec->data);
 }
 
 /**
- * pevent_data_preempt_count - parse the preempt count from the record
+ * tep_data_preempt_count - parse the preempt count from the record
  * @pevent: a handle to the pevent
  * @rec: the record to parse
  *
  * This returns the preempt count from a record.
  */
-int pevent_data_preempt_count(struct tep_handle *pevent, struct tep_record *rec)
+int tep_data_preempt_count(struct tep_handle *pevent, struct tep_record *rec)
 {
 	return parse_common_pc(pevent, rec->data);
 }
 
 /**
- * pevent_data_flags - parse the latency flags from the record
+ * tep_data_flags - parse the latency flags from the record
  * @pevent: a handle to the pevent
  * @rec: the record to parse
  *
@@ -5279,20 +5279,20 @@ int pevent_data_preempt_count(struct tep_handle *pevent, struct tep_record *rec)
  *
  *  Use trace_flag_type enum for the flags (see event-parse.h).
  */
-int pevent_data_flags(struct tep_handle *pevent, struct tep_record *rec)
+int tep_data_flags(struct tep_handle *pevent, struct tep_record *rec)
 {
 	return parse_common_flags(pevent, rec->data);
 }
 
 /**
- * pevent_data_comm_from_pid - return the command line from PID
+ * tep_data_comm_from_pid - return the command line from PID
  * @pevent: a handle to the pevent
  * @pid: the PID of the task to search for
  *
  * This returns a pointer to the command line that has the given
  * @pid.
  */
-const char *pevent_data_comm_from_pid(struct tep_handle *pevent, int pid)
+const char *tep_data_comm_from_pid(struct tep_handle *pevent, int pid)
 {
 	const char *comm;
 
@@ -5317,7 +5317,7 @@ pid_from_cmdlist(struct tep_handle *pevent, const char *comm, struct cmdline *ne
 }
 
 /**
- * pevent_data_pid_from_comm - return the pid from a given comm
+ * tep_data_pid_from_comm - return the pid from a given comm
  * @pevent: a handle to the pevent
  * @comm: the cmdline to find the pid from
  * @next: the cmdline structure to find the next comm
@@ -5329,8 +5329,8 @@ pid_from_cmdlist(struct tep_handle *pevent, const char *comm, struct cmdline *ne
  * next pid.
  * Also, it does a linear seach, so it may be slow.
  */
-struct cmdline *pevent_data_pid_from_comm(struct tep_handle *pevent, const char *comm,
-					  struct cmdline *next)
+struct cmdline *tep_data_pid_from_comm(struct tep_handle *pevent, const char *comm,
+				       struct cmdline *next)
 {
 	struct cmdline *cmdline;
 
@@ -5365,13 +5365,13 @@ struct cmdline *pevent_data_pid_from_comm(struct tep_handle *pevent, const char 
 }
 
 /**
- * pevent_cmdline_pid - return the pid associated to a given cmdline
+ * tep_cmdline_pid - return the pid associated to a given cmdline
  * @cmdline: The cmdline structure to get the pid from
  *
  * Returns the pid for a give cmdline. If @cmdline is NULL, then
  * -1 is returned.
  */
-int pevent_cmdline_pid(struct tep_handle *pevent, struct cmdline *cmdline)
+int tep_cmdline_pid(struct tep_handle *pevent, struct cmdline *cmdline)
 {
 	struct cmdline_list *cmdlist = (struct cmdline_list *)cmdline;
 
@@ -5391,7 +5391,7 @@ int pevent_cmdline_pid(struct tep_handle *pevent, struct cmdline *cmdline)
 }
 
 /**
- * pevent_data_comm_from_pid - parse the data into the print format
+ * tep_event_info - parse the data into the print format
  * @s: the trace_seq to write to
  * @event: the handle to the event
  * @record: the record to read from
@@ -5511,7 +5511,7 @@ void tep_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
 	}
 
 	if (pevent->latency_format) {
-		pevent_data_lat_fmt(pevent, s, record);
+		tep_data_lat_fmt(pevent, s, record);
 	}
 
 	if (use_usec_format) {
