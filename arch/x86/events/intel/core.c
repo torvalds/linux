@@ -3839,6 +3839,40 @@ static __init void intel_nehalem_quirk(void)
 	}
 }
 
+static bool intel_glp_counter_freezing_broken(int cpu)
+{
+	u32 rev = UINT_MAX; /* default to broken for unknown stepping */
+
+	switch (cpu_data(cpu).x86_stepping) {
+	case 1:
+		rev = 0x28;
+		break;
+	case 8:
+		rev = 0x6;
+		break;
+	}
+
+	return (cpu_data(cpu).microcode < rev);
+}
+
+static __init void intel_glp_counter_freezing_quirk(void)
+{
+	/* Check if it's already disabled */
+	if (disable_counter_freezing)
+		return;
+
+	/*
+	 * If the system starts with the wrong ucode, leave the
+	 * counter-freezing feature permanently disabled.
+	 */
+	if (intel_glp_counter_freezing_broken(raw_smp_processor_id())) {
+		pr_info("PMU counter freezing disabled due to CPU errata,"
+			"please upgrade microcode\n");
+		x86_pmu.counter_freezing = false;
+		x86_pmu.handle_irq = intel_pmu_handle_irq;
+	}
+}
+
 /*
  * enable software workaround for errata:
  * SNB: BJ122
@@ -4188,6 +4222,7 @@ __init int intel_pmu_init(void)
 		break;
 
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
+		x86_add_quirk(intel_glp_counter_freezing_quirk);
 		memcpy(hw_cache_event_ids, glp_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, glp_hw_cache_extra_regs,
