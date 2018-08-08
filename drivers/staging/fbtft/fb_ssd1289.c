@@ -153,6 +153,7 @@ static int set_gamma(struct fbtft_par *par, u32 *curves)
 
 	return 0;
 }
+
 #undef CURVE
 
 static struct fbtft_display display = {

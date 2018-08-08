@@ -837,7 +837,6 @@ static struct fbtft_device_display displays[] = {
 			}
 		}
 	}, {
-
 		.name = "piscreen",
 		.spi = &(struct spi_board_info) {
 			.modalias = "fb_ili9486",
@@ -1580,7 +1579,6 @@ static void __exit fbtft_device_exit(void)
 
 	if (p_device)
 		platform_device_unregister(p_device);
-
 }
 
 arch_initcall(fbtft_device_init);
