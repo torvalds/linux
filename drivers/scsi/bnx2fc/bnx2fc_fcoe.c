@@ -150,15 +150,11 @@ static void bnx2fc_clean_rx_queue(struct fc_lport *lp)
 	struct fcoe_rcv_info *fr;
 	struct sk_buff_head *list;
 	struct sk_buff *skb, *next;
-	struct sk_buff *head;
 
 	bg = &bnx2fc_global;
 	spin_lock_bh(&bg->fcoe_rx_list.lock);
 	list = &bg->fcoe_rx_list;
-	head = list->next;
-	for (skb = head; skb != (struct sk_buff *)list;
-	     skb = next) {
-		next = skb->next;
+	skb_queue_walk_safe(list, skb, next) {
 		fr = fcoe_dev_from_skb(skb);
 		if (fr->fr_dev == lp) {
 			__skb_unlink(skb, list);
