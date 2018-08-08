@@ -71,7 +71,6 @@ void print_microsec(struct dc_context *dc_ctx, uint32_t ref_cycle)
 			us_x10 % frac);
 }
 
-
 static void log_mpc_crc(struct dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
@@ -2712,6 +2711,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dce110_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,
+	.get_hw_state = dcn10_get_hw_state,
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
 	.ready_shared_resources = ready_shared_resources,
 	.optimize_shared_resources = optimize_shared_resources,

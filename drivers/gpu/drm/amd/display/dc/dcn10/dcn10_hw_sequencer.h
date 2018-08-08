@@ -46,4 +46,9 @@ void dcn10_program_pipe(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context);
 
+void dcn10_get_hw_state(
+		struct dc *dc,
+		char *pBuf, unsigned int bufSize,
+		unsigned int mask);
+
 #endif /* __DC_HWSS_DCN10_H__ */
