@@ -550,6 +550,34 @@ drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 }
 
 /**
+ * drm_sched_entity_select_rq - select a new rq for the entity
+ *
+ * @entity: scheduler entity
+ *
+ * Check all prerequisites and select a new rq for the entity for load
+ * balancing.
+ */
+static void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
+{
+	struct dma_fence *fence;
+	struct drm_sched_rq *rq;
+
+	if (!spsc_queue_count(&entity->job_queue) == 0 ||
+	    entity->num_rq_list <= 1)
+		return;
+
+	fence = READ_ONCE(entity->last_scheduled);
+	if (fence && !dma_fence_is_signaled(fence))
+		return;
+
+	rq = drm_sched_entity_get_free_sched(entity);
+	spin_lock(&entity->rq_lock);
+	drm_sched_rq_remove_entity(entity->rq, entity);
+	entity->rq = rq;
+	spin_unlock(&entity->rq_lock);
+}
+
+/**
  * drm_sched_entity_push_job - Submit a job to the entity's job queue
  *
  * @sched_job: job to submit
@@ -564,25 +592,8 @@ drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 			       struct drm_sched_entity *entity)
 {
-	struct drm_sched_rq *rq = entity->rq;
 	bool first;
 
-	first = spsc_queue_count(&entity->job_queue) == 0;
-	if (first && (entity->num_rq_list > 1)) {
-		struct dma_fence *fence;
-
-		fence = READ_ONCE(entity->last_scheduled);
-		if (fence == NULL || dma_fence_is_signaled(fence)) {
-			rq = drm_sched_entity_get_free_sched(entity);
-			spin_lock(&entity->rq_lock);
-			drm_sched_rq_remove_entity(entity->rq, entity);
-			entity->rq = rq;
-			spin_unlock(&entity->rq_lock);
-		}
-	}
-
-	sched_job->sched = entity->rq->sched;
-	sched_job->s_fence->sched = entity->rq->sched;
 	trace_drm_sched_job(sched_job, entity);
 	atomic_inc(&entity->rq->sched->num_jobs);
 	WRITE_ONCE(entity->last_user, current->group_leader);
@@ -786,7 +797,10 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		       struct drm_sched_entity *entity,
 		       void *owner)
 {
-	struct drm_gpu_scheduler *sched = entity->rq->sched;
+	struct drm_gpu_scheduler *sched;
+
+	drm_sched_entity_select_rq(entity);
+	sched = entity->rq->sched;
 
 	job->sched = sched;
 	job->entity = entity;
