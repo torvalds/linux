@@ -2161,6 +2161,37 @@ static int of_dev_hwmod_lookup(struct device_node *np,
 }
 
 /**
+ * omap_hwmod_fix_mpu_rt_idx - fix up mpu_rt_idx register offsets
+ *
+ * @oh: struct omap_hwmod *
+ * @np: struct device_node *
+ *
+ * Fix up module register offsets for modules with mpu_rt_idx.
+ * Only needed for cpsw with interconnect target module defined
+ * in device tree while still using legacy hwmod platform data
+ * for rev, sysc and syss registers.
+ *
+ * Can be removed when all cpsw hwmod platform data has been
+ * dropped.
+ */
+static void omap_hwmod_fix_mpu_rt_idx(struct omap_hwmod *oh,
+				      struct device_node *np,
+				      struct resource *res)
+{
+	struct device_node *child = NULL;
+	int error;
+
+	child = of_get_next_child(np, child);
+	if (!child)
+		return;
+
+	error = of_address_to_resource(child, oh->mpu_rt_idx, res);
+	if (error)
+		pr_err("%s: error mapping mpu_rt_idx: %i\n",
+		       __func__, error);
+}
+
+/**
  * omap_hwmod_parse_module_range - map module IO range from device tree
  * @oh: struct omap_hwmod *
  * @np: struct device_node *
@@ -2221,6 +2252,12 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 
 	pr_debug("omap_hwmod: %s %s at 0x%llx size 0x%llx\n",
 		 oh ? oh->name : "", np->name, base, size);
+
+	if (oh && oh->mpu_rt_idx) {
+		omap_hwmod_fix_mpu_rt_idx(oh, np, res);
+
+		return 0;
+	}
 
 	res->start = base;
 	res->end = base + size - 1;
