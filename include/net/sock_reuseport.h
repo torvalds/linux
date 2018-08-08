@@ -21,12 +21,14 @@ struct sock_reuseport {
 	unsigned int		synq_overflow_ts;
 	/* ID stays the same even after the size of socks[] grows. */
 	unsigned int		reuseport_id;
+	bool			bind_inany;
 	struct bpf_prog __rcu	*prog;		/* optional BPF sock selector */
 	struct sock		*socks[0];	/* array of sock pointers */
 };
 
-extern int reuseport_alloc(struct sock *sk);
-extern int reuseport_add_sock(struct sock *sk, struct sock *sk2);
+extern int reuseport_alloc(struct sock *sk, bool bind_inany);
+extern int reuseport_add_sock(struct sock *sk, struct sock *sk2,
+			      bool bind_inany);
 extern void reuseport_detach_sock(struct sock *sk);
 extern struct sock *reuseport_select_sock(struct sock *sk,
 					  u32 hash,

@@ -51,7 +51,7 @@ static struct sock_reuseport *__reuseport_alloc(unsigned int max_socks)
 	return reuse;
 }
 
-int reuseport_alloc(struct sock *sk)
+int reuseport_alloc(struct sock *sk, bool bind_inany)
 {
 	struct sock_reuseport *reuse;
 
@@ -63,9 +63,17 @@ int reuseport_alloc(struct sock *sk)
 	/* Allocation attempts can occur concurrently via the setsockopt path
 	 * and the bind/hash path.  Nothing to do when we lose the race.
 	 */
-	if (rcu_dereference_protected(sk->sk_reuseport_cb,
-				      lockdep_is_held(&reuseport_lock)))
+	reuse = rcu_dereference_protected(sk->sk_reuseport_cb,
+					  lockdep_is_held(&reuseport_lock));
+	if (reuse) {
+		/* Only set reuse->bind_inany if the bind_inany is true.
+		 * Otherwise, it will overwrite the reuse->bind_inany
+		 * which was set by the bind/hash path.
+		 */
+		if (bind_inany)
+			reuse->bind_inany = bind_inany;
 		goto out;
+	}
 
 	reuse = __reuseport_alloc(INIT_SOCKS);
 	if (!reuse) {
@@ -75,6 +83,7 @@ int reuseport_alloc(struct sock *sk)
 
 	reuse->socks[0] = sk;
 	reuse->num_socks = 1;
+	reuse->bind_inany = bind_inany;
 	rcu_assign_pointer(sk->sk_reuseport_cb, reuse);
 
 out:
@@ -101,6 +110,7 @@ static struct sock_reuseport *reuseport_grow(struct sock_reuseport *reuse)
 	more_reuse->num_socks = reuse->num_socks;
 	more_reuse->prog = reuse->prog;
 	more_reuse->reuseport_id = reuse->reuseport_id;
+	more_reuse->bind_inany = reuse->bind_inany;
 
 	memcpy(more_reuse->socks, reuse->socks,
 	       reuse->num_socks * sizeof(struct sock *));
@@ -136,12 +146,12 @@ static void reuseport_free_rcu(struct rcu_head *head)
  *  @sk2: Socket belonging to the existing reuseport group.
  *  May return ENOMEM and not add socket to group under memory pressure.
  */
-int reuseport_add_sock(struct sock *sk, struct sock *sk2)
+int reuseport_add_sock(struct sock *sk, struct sock *sk2, bool bind_inany)
 {
 	struct sock_reuseport *old_reuse, *reuse;
 
 	if (!rcu_access_pointer(sk2->sk_reuseport_cb)) {
-		int err = reuseport_alloc(sk2);
+		int err = reuseport_alloc(sk2, bind_inany);
 
 		if (err)
 			return err;
