@@ -76,6 +76,11 @@ struct vmw_kms_sou_dirty_cmd {
 	SVGA3dCmdBlitSurfaceToScreen body;
 };
 
+struct vmw_kms_sou_define_gmrfb {
+	uint32_t header;
+	SVGAFifoCmdDefineGMRFB body;
+};
+
 /**
  * Display unit using screen objects.
  */
@@ -496,6 +501,102 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * pin_count is upped.
 	 */
 	return vmw_bo_pin_in_vram(dev_priv, vps->bo, true);
+}
+
+static uint32_t vmw_sou_bo_fifo_size(struct vmw_du_update_plane *update,
+				     uint32_t num_hits)
+{
+	return sizeof(struct vmw_kms_sou_define_gmrfb) +
+		sizeof(struct vmw_kms_sou_bo_blit) * num_hits;
+}
+
+static uint32_t vmw_sou_bo_define_gmrfb(struct vmw_du_update_plane *update,
+					void *cmd)
+{
+	struct vmw_framebuffer_bo *vfbbo =
+		container_of(update->vfb, typeof(*vfbbo), base);
+	struct vmw_kms_sou_define_gmrfb *gmr = cmd;
+	int depth = update->vfb->base.format->depth;
+
+	/* Emulate RGBA support, contrary to svga_reg.h this is not
+	 * supported by hosts. This is only a problem if we are reading
+	 * this value later and expecting what we uploaded back.
+	 */
+	if (depth == 32)
+		depth = 24;
+
+	gmr->header = SVGA_CMD_DEFINE_GMRFB;
+
+	gmr->body.format.bitsPerPixel = update->vfb->base.format->cpp[0] * 8;
+	gmr->body.format.colorDepth = depth;
+	gmr->body.format.reserved = 0;
+	gmr->body.bytesPerLine = update->vfb->base.pitches[0];
+	vmw_bo_get_guest_ptr(&vfbbo->buffer->base, &gmr->body.ptr);
+
+	return sizeof(*gmr);
+}
+
+static uint32_t vmw_sou_bo_populate_clip(struct vmw_du_update_plane  *update,
+					 void *cmd, struct drm_rect *clip,
+					 uint32_t fb_x, uint32_t fb_y)
+{
+	struct vmw_kms_sou_bo_blit *blit = cmd;
+
+	blit->header = SVGA_CMD_BLIT_GMRFB_TO_SCREEN;
+	blit->body.destScreenId = update->du->unit;
+	blit->body.srcOrigin.x = fb_x;
+	blit->body.srcOrigin.y = fb_y;
+	blit->body.destRect.left = clip->x1;
+	blit->body.destRect.top = clip->y1;
+	blit->body.destRect.right = clip->x2;
+	blit->body.destRect.bottom = clip->y2;
+
+	return sizeof(*blit);
+}
+
+static uint32_t vmw_stud_bo_post_clip(struct vmw_du_update_plane  *update,
+				      void *cmd, struct drm_rect *bb)
+{
+	return 0;
+}
+
+/**
+ * vmw_sou_plane_update_bo - Update display unit for bo backed fb.
+ * @dev_priv: Device private.
+ * @plane: Plane state.
+ * @old_state: Old plane state.
+ * @vfb: Framebuffer which is blitted to display unit.
+ * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ *             The returned fence pointer may be NULL in which case the device
+ *             has already synchronized.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int vmw_sou_plane_update_bo(struct vmw_private *dev_priv,
+				   struct drm_plane *plane,
+				   struct drm_plane_state *old_state,
+				   struct vmw_framebuffer *vfb,
+				   struct vmw_fence_obj **out_fence)
+{
+	struct vmw_du_update_plane_buffer bo_update;
+
+	memset(&bo_update, 0, sizeof(struct vmw_du_update_plane_buffer));
+	bo_update.base.plane = plane;
+	bo_update.base.old_state = old_state;
+	bo_update.base.dev_priv = dev_priv;
+	bo_update.base.du = vmw_crtc_to_du(plane->state->crtc);
+	bo_update.base.vfb = vfb;
+	bo_update.base.out_fence = out_fence;
+	bo_update.base.mutex = NULL;
+	bo_update.base.cpu_blit = false;
+	bo_update.base.intr = true;
+
+	bo_update.base.calc_fifo_size = vmw_sou_bo_fifo_size;
+	bo_update.base.post_prepare = vmw_sou_bo_define_gmrfb;
+	bo_update.base.clip = vmw_sou_bo_populate_clip;
+	bo_update.base.post_clip = vmw_stud_bo_post_clip;
+
+	return vmw_du_helper_plane_update(&bo_update.base);
 }
 
 static uint32_t vmw_sou_surface_fifo_size(struct vmw_du_update_plane *update,
