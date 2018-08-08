@@ -372,7 +372,7 @@ void scsi_device_unbusy(struct scsi_device *sdev)
 static void scsi_kick_queue(struct request_queue *q)
 {
 	if (q->mq_ops)
-		blk_mq_start_hw_queues(q);
+		blk_mq_run_hw_queues(q, false);
 	else
 		blk_run_queue(q);
 }
