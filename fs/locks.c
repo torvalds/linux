@@ -202,10 +202,6 @@ static DEFINE_HASHTABLE(blocked_hash, BLOCKED_HASH_BITS);
  * we often hold the flc_lock as well. In certain cases, when reading the fields
  * protected by this lock, we can skip acquiring it iff we already hold the
  * flc_lock.
- *
- * In particular, adding an entry to the fl_block list requires that you hold
- * both the flc_lock and the blocked_lock_lock (acquired in that order).
- * Deleting an entry from the list however only requires the file_lock_lock.
  */
 static DEFINE_SPINLOCK(blocked_lock_lock);
 
