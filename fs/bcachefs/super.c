@@ -1246,8 +1246,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	ret = bch2_btree_delete_range(c, BTREE_ID_ALLOC,
 				      POS(ca->dev_idx, 0),
 				      POS(ca->dev_idx + 1, 0),
-				      ZERO_VERSION,
-				      NULL, NULL, NULL);
+				      NULL);
 	if (ret) {
 		bch_err(ca, "Remove failed, error deleting alloc info");
 		goto err;

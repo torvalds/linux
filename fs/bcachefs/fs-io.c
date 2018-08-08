@@ -326,7 +326,7 @@ static int bch2_extent_update(struct btree_trans *trans,
 			BTREE_INSERT_ENTRY(inode_iter, &inode_p.inode.k_i));
 	}
 
-	ret = bch2_trans_commit(trans, disk_res, NULL,
+	ret = bch2_trans_commit(trans, disk_res,
 				&inode->ei_journal_seq,
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_ATOMIC|

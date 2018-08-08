@@ -196,11 +196,7 @@ enum btree_iter_type {
  * @pos or the first key strictly greater than @pos
  */
 #define BTREE_ITER_IS_EXTENTS		(1 << 4)
-/*
- * indicates we need to call bch2_btree_iter_traverse() to revalidate iterator:
- */
-#define BTREE_ITER_AT_END_OF_LEAF	(1 << 5)
-#define BTREE_ITER_ERROR		(1 << 6)
+#define BTREE_ITER_ERROR		(1 << 5)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
@@ -256,12 +252,6 @@ struct btree_iter {
 struct btree_insert_entry {
 	struct btree_iter *iter;
 	struct bkey_i	*k;
-	unsigned	extra_res;
-	/*
-	 * true if entire key was inserted - can only be false for
-	 * extents
-	 */
-	bool		done;
 };
 
 struct btree_trans {
@@ -465,12 +455,6 @@ enum btree_insert_ret {
 	BTREE_INSERT_BTREE_NODE_FULL,
 	BTREE_INSERT_ENOSPC,
 	BTREE_INSERT_NEED_GC_LOCK,
-};
-
-struct extent_insert_hook {
-	enum btree_insert_ret
-	(*fn)(struct extent_insert_hook *, struct bpos, struct bpos,
-	      struct bkey_s_c, const struct bkey_i *);
 };
 
 enum btree_gc_coalesce_fail_reason {

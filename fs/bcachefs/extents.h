@@ -12,7 +12,6 @@ struct btree_node_iter;
 struct btree_node_iter_large;
 struct btree_insert;
 struct btree_insert_entry;
-struct extent_insert_hook;
 struct bch_devs_mask;
 union bch_extent_crc;
 

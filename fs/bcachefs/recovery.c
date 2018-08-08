@@ -331,7 +331,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	err = "error creating root directory";
 	ret = bch2_btree_insert(c, BTREE_ID_INODES,
 				&packed_inode.inode.k_i,
-				NULL, NULL, NULL, 0);
+				NULL, NULL, 0);
 	if (ret)
 		goto err;
 
@@ -344,7 +344,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	err = "error creating lost+found";
 	ret = bch2_btree_insert(c, BTREE_ID_INODES,
 				&packed_inode.inode.k_i,
-				NULL, NULL, NULL, 0);
+				NULL, NULL, 0);
 	if (ret)
 		goto err;
 

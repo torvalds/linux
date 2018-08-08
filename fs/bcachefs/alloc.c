@@ -319,7 +319,7 @@ static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
 
 	bch2_btree_iter_set_pos(iter, a->k.p);
 
-	return bch2_btree_insert_at(c, NULL, NULL, journal_seq,
+	return bch2_btree_insert_at(c, NULL, journal_seq,
 				    BTREE_INSERT_NOFAIL|
 				    BTREE_INSERT_USE_RESERVE|
 				    BTREE_INSERT_USE_ALLOC_RESERVE|

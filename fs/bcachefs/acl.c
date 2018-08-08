@@ -322,7 +322,7 @@ retry:
 		bch2_write_inode_trans(&trans, inode, &inode_u,
 				       inode_update_for_set_acl_fn,
 				       (void *)(unsigned long) mode) ?:
-		bch2_trans_commit(&trans, NULL, NULL,
+		bch2_trans_commit(&trans, NULL,
 				  &inode->ei_journal_seq,
 				  BTREE_INSERT_ATOMIC|
 				  BTREE_INSERT_NOUNLOCK);

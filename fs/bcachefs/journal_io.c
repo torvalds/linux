@@ -904,7 +904,7 @@ int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 					bch2_disk_reservation_init(c, 0);
 
 				ret = bch2_btree_insert(c, entry->btree_id, k,
-							&disk_res, NULL, NULL,
+							&disk_res, NULL,
 							BTREE_INSERT_NOFAIL|
 							BTREE_INSERT_JOURNAL_REPLAY);
 			}

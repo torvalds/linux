@@ -46,8 +46,6 @@ int __bch2_inode_create(struct btree_trans *,
 int bch2_inode_create(struct bch_fs *, struct bch_inode_unpacked *,
 		      u64, u64, u64 *);
 
-int bch2_inode_truncate(struct bch_fs *, u64, u64,
-		       struct extent_insert_hook *, u64 *);
 int bch2_inode_rm(struct bch_fs *, u64);
 
 int bch2_inode_find_by_inum(struct bch_fs *, u64,

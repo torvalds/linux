@@ -158,7 +158,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 			break;
 
 		ret = bch2_btree_insert_at(c, &op->res,
-				NULL, op_journal_seq(op),
+				op_journal_seq(op),
 				BTREE_INSERT_ATOMIC|
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_USE_RESERVE|

@@ -23,7 +23,6 @@ struct btree_insert {
 	struct disk_reservation *disk_res;
 	struct journal_res	journal_res;
 	u64			*journal_seq;
-	struct extent_insert_hook *hook;
 	unsigned		flags;
 	bool			did_work;
 
@@ -37,15 +36,6 @@ int __bch2_btree_insert_at(struct btree_insert *);
 	((struct btree_insert_entry) {					\
 		.iter		= (_iter),				\
 		.k		= (_k),					\
-		.done		= false,				\
-	})
-
-#define BTREE_INSERT_ENTRY_EXTRA_RES(_iter, _k, _extra)			\
-	((struct btree_insert_entry) {					\
-		.iter		= (_iter),				\
-		.k		= (_k),					\
-		.extra_res = (_extra),					\
-		.done		= false,				\
 	})
 
 /**
@@ -61,13 +51,11 @@ int __bch2_btree_insert_at(struct btree_insert *);
  * -EROFS: filesystem read only
  * -EIO: journal or btree node IO error
  */
-#define bch2_btree_insert_at(_c, _disk_res, _hook,			\
-			    _journal_seq, _flags, ...)			\
+#define bch2_btree_insert_at(_c, _disk_res, _journal_seq, _flags, ...)	\
 	__bch2_btree_insert_at(&(struct btree_insert) {			\
 		.c		= (_c),					\
 		.disk_res	= (_disk_res),				\
 		.journal_seq	= (_journal_seq),			\
-		.hook		= (_hook),				\
 		.flags		= (_flags),				\
 		.nr		= COUNT_ARGS(__VA_ARGS__),		\
 		.entries	= (struct btree_insert_entry[]) {	\
@@ -121,17 +109,13 @@ enum {
 int bch2_btree_delete_at(struct btree_iter *, unsigned);
 
 int bch2_btree_insert_list_at(struct btree_iter *, struct keylist *,
-			     struct disk_reservation *,
-			     struct extent_insert_hook *, u64 *, unsigned);
+			     struct disk_reservation *, u64 *, unsigned);
 
 int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
-		     struct disk_reservation *,
-		     struct extent_insert_hook *, u64 *, int flags);
+		     struct disk_reservation *, u64 *, int flags);
 
 int bch2_btree_delete_range(struct bch_fs *, enum btree_id,
-			   struct bpos, struct bpos, struct bversion,
-			   struct disk_reservation *,
-			   struct extent_insert_hook *, u64 *);
+			    struct bpos, struct bpos, u64 *);
 
 int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *,
 			    __le64, unsigned);
@@ -151,7 +135,6 @@ bch2_trans_update(struct btree_trans *trans,
 
 int bch2_trans_commit(struct btree_trans *,
 		      struct disk_reservation *,
-		      struct extent_insert_hook *,
 		      u64 *, unsigned);
 
 #define bch2_trans_do(_c, _journal_seq, _flags, _do)			\
@@ -164,7 +147,7 @@ int bch2_trans_commit(struct btree_trans *,
 	do {								\
 		bch2_trans_begin(&trans);				\
 									\
-		_ret = (_do) ?:	bch2_trans_commit(&trans, NULL, NULL,	\
+		_ret = (_do) ?:	bch2_trans_commit(&trans, NULL,		\
 					(_journal_seq), (_flags));	\
 	} while (_ret == -EINTR);					\
 									\

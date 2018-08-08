@@ -1252,52 +1252,6 @@ static void extent_insert_committed(struct extent_insert_state *s)
 	s->trans->did_work		= true;
 }
 
-static enum btree_insert_ret
-__extent_insert_advance_pos(struct extent_insert_state *s,
-			    struct bpos next_pos,
-			    struct bkey_s_c k)
-{
-	struct extent_insert_hook *hook = s->trans->hook;
-	enum btree_insert_ret ret;
-
-	if (hook)
-		ret = hook->fn(hook, s->committed, next_pos, k, s->insert->k);
-	else
-		ret = BTREE_INSERT_OK;
-
-	if (ret == BTREE_INSERT_OK)
-		s->committed = next_pos;
-
-	return ret;
-}
-
-/*
- * Update iter->pos, marking how much of @insert we've processed, and call hook
- * fn:
- */
-static enum btree_insert_ret
-extent_insert_advance_pos(struct extent_insert_state *s, struct bkey_s_c k)
-{
-	struct btree *b = s->insert->iter->l[0].b;
-	struct bpos next_pos = bpos_min(s->insert->k->k.p,
-					k.k ? k.k->p : b->key.k.p);
-	enum btree_insert_ret ret;
-
-	/* hole? */
-	if (k.k && bkey_cmp(s->committed, bkey_start_pos(k.k)) < 0) {
-		ret = __extent_insert_advance_pos(s, bkey_start_pos(k.k),
-						    bkey_s_c_null);
-		if (ret != BTREE_INSERT_OK)
-			return ret;
-	}
-
-	/* avoid redundant calls to hook fn: */
-	if (!bkey_cmp(s->committed, next_pos))
-		return BTREE_INSERT_OK;
-
-	return __extent_insert_advance_pos(s, next_pos, k);
-}
-
 void bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)
 {
 	struct btree *b = iter->l[0].b;
@@ -1468,8 +1422,7 @@ extent_squash(struct extent_insert_state *s, struct bkey_i *insert,
 	}
 }
 
-static enum btree_insert_ret
-__bch2_insert_fixup_extent(struct extent_insert_state *s)
+static void __bch2_insert_fixup_extent(struct extent_insert_state *s)
 {
 	struct btree_iter *iter = s->insert->iter;
 	struct btree_iter_level *l = &iter->l[0];
@@ -1477,7 +1430,6 @@ __bch2_insert_fixup_extent(struct extent_insert_state *s)
 	struct bkey_packed *_k;
 	struct bkey unpacked;
 	struct bkey_i *insert = s->insert->k;
-	enum btree_insert_ret ret = BTREE_INSERT_OK;
 
 	while (bkey_cmp(s->committed, insert->k.p) < 0 &&
 	       (_k = bch2_btree_node_iter_peek_filter(&l->iter, b,
@@ -1491,9 +1443,7 @@ __bch2_insert_fixup_extent(struct extent_insert_state *s)
 		if (bkey_cmp(bkey_start_pos(k.k), insert->k.p) >= 0)
 			break;
 
-		ret = extent_insert_advance_pos(s, k.s_c);
-		if (ret)
-			break;
+		s->committed = bpos_min(s->insert->k->k.p, k.k->p);
 
 		if (!bkey_whiteout(k.k))
 			s->update_journal = true;
@@ -1547,9 +1497,8 @@ next:
 			break;
 	}
 
-	if (ret == BTREE_INSERT_OK &&
-	    bkey_cmp(s->committed, insert->k.p) < 0)
-		ret = extent_insert_advance_pos(s, bkey_s_c_null);
+	if (bkey_cmp(s->committed, insert->k.p) < 0)
+		s->committed = bpos_min(s->insert->k->k.p, b->key.k.p);
 
 	/*
 	 * may have skipped past some deleted extents greater than the insert
@@ -1563,8 +1512,6 @@ next:
 		       bkey_cmp_left_packed(b, _k, &s->committed) > 0)
 			l->iter = node_iter;
 	}
-
-	return ret;
 }
 
 /**
@@ -1610,16 +1557,13 @@ enum btree_insert_ret
 bch2_insert_fixup_extent(struct btree_insert *trans,
 			 struct btree_insert_entry *insert)
 {
-	struct bch_fs *c = trans->c;
-	struct btree_iter *iter = insert->iter;
-	struct btree_iter_level *l = &iter->l[0];
-	struct btree *b = l->b;
-	enum btree_insert_ret ret = BTREE_INSERT_OK;
-
+	struct bch_fs *c	= trans->c;
+	struct btree_iter *iter	= insert->iter;
+	struct btree *b		= iter->l[0].b;
 	struct extent_insert_state s = {
 		.trans		= trans,
 		.insert		= insert,
-		.committed	= insert->iter->pos,
+		.committed	= iter->pos,
 
 		.whiteout	= *insert->k,
 		.update_journal	= !bkey_whiteout(&insert->k->k),
@@ -1644,7 +1588,7 @@ bch2_insert_fixup_extent(struct btree_insert *trans,
 				bkey_start_offset(&insert->k->k),
 				insert->k->k.size);
 
-	ret = __bch2_insert_fixup_extent(&s);
+	__bch2_insert_fixup_extent(&s);
 
 	extent_insert_committed(&s);
 
@@ -1653,16 +1597,14 @@ bch2_insert_fixup_extent(struct btree_insert *trans,
 
 	EBUG_ON(bkey_cmp(iter->pos, bkey_start_pos(&insert->k->k)));
 	EBUG_ON(bkey_cmp(iter->pos, s.committed));
-	EBUG_ON((bkey_cmp(iter->pos, b->key.k.p) == 0) !=
-		!!(iter->flags & BTREE_ITER_AT_END_OF_LEAF));
 
-	if (insert->k->k.size && (iter->flags & BTREE_ITER_AT_END_OF_LEAF))
-		ret = BTREE_INSERT_NEED_TRAVERSE;
+	if (insert->k->k.size) {
+		/* got to the end of this leaf node */
+		BUG_ON(bkey_cmp(iter->pos, b->key.k.p));
+		return BTREE_INSERT_NEED_TRAVERSE;
+	}
 
-	WARN_ONCE((ret == BTREE_INSERT_OK) != (insert->k->k.size == 0),
-		  "ret %u insert->k.size %u", ret, insert->k->k.size);
-
-	return ret;
+	return BTREE_INSERT_OK;
 }
 
 const char *bch2_extent_invalid(const struct bch_fs *c, struct bkey_s_c k)

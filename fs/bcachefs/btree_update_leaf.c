@@ -336,14 +336,12 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 	unsigned u64s;
 	int ret;
 
-	trans_for_each_entry(trans, i) {
-		BUG_ON(i->done);
+	trans_for_each_entry(trans, i)
 		BUG_ON(i->iter->uptodate >= BTREE_ITER_NEED_RELOCK);
-	}
 
 	u64s = 0;
 	trans_for_each_entry(trans, i)
-		u64s += jset_u64s(i->k->k.u64s + i->extra_res);
+		u64s += jset_u64s(i->k->k.u64s);
 
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
@@ -374,7 +372,7 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 		if (!same_leaf_as_prev(trans, i))
 			u64s = 0;
 
-		u64s += i->k->k.u64s + i->extra_res;
+		u64s += i->k->k.u64s;
 		switch (btree_key_can_insert(trans, i, &u64s)) {
 		case BTREE_INSERT_OK:
 			break;
@@ -406,28 +404,14 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 	trans_for_each_entry(trans, i) {
 		switch (btree_insert_key_leaf(trans, i)) {
 		case BTREE_INSERT_OK:
-			i->done = true;
 			break;
 		case BTREE_INSERT_NEED_TRAVERSE:
+			BUG_ON((trans->flags & BTREE_INSERT_ATOMIC));
 			ret = -EINTR;
-			break;
-		case BTREE_INSERT_BTREE_NODE_FULL:
-			ret = -EINTR;
-			*split = i->iter;
-			break;
-		case BTREE_INSERT_ENOSPC:
-			ret = -ENOSPC;
-			break;
+			goto out;
 		default:
 			BUG();
 		}
-
-		/*
-		 * If we did some work (i.e. inserted part of an extent),
-		 * we have to do all the other updates as well:
-		 */
-		if (!trans->did_work && (ret || *split))
-			break;
 	}
 out:
 	multi_unlock_write(trans);
@@ -523,11 +507,6 @@ out:
 			       trans->did_work &&
 			       !btree_node_locked(linked, 0));
 		}
-
-		/* make sure we didn't lose an error: */
-		if (!ret)
-			trans_for_each_entry(trans, i)
-				BUG_ON(!i->done);
 	}
 
 	BUG_ON(!(trans->flags & BTREE_INSERT_ATOMIC) && ret == -EINTR);
@@ -614,7 +593,6 @@ err:
 
 int bch2_trans_commit(struct btree_trans *trans,
 		      struct disk_reservation *disk_res,
-		      struct extent_insert_hook *hook,
 		      u64 *journal_seq,
 		      unsigned flags)
 {
@@ -642,7 +620,7 @@ int bch2_btree_delete_at(struct btree_iter *iter, unsigned flags)
 	bkey_init(&k.k);
 	k.k.p = iter->pos;
 
-	return bch2_btree_insert_at(iter->c, NULL, NULL, NULL,
+	return bch2_btree_insert_at(iter->c, NULL, NULL,
 				    BTREE_INSERT_NOFAIL|
 				    BTREE_INSERT_USE_RESERVE|flags,
 				    BTREE_INSERT_ENTRY(iter, &k));
@@ -651,7 +629,6 @@ int bch2_btree_delete_at(struct btree_iter *iter, unsigned flags)
 int bch2_btree_insert_list_at(struct btree_iter *iter,
 			     struct keylist *keys,
 			     struct disk_reservation *disk_res,
-			     struct extent_insert_hook *hook,
 			     u64 *journal_seq, unsigned flags)
 {
 	BUG_ON(flags & BTREE_INSERT_ATOMIC);
@@ -659,7 +636,7 @@ int bch2_btree_insert_list_at(struct btree_iter *iter,
 	bch2_verify_keylist_sorted(keys);
 
 	while (!bch2_keylist_empty(keys)) {
-		int ret = bch2_btree_insert_at(iter->c, disk_res, hook,
+		int ret = bch2_btree_insert_at(iter->c, disk_res,
 				journal_seq, flags,
 				BTREE_INSERT_ENTRY(iter, bch2_keylist_front(keys)));
 		if (ret)
@@ -681,7 +658,6 @@ int bch2_btree_insert_list_at(struct btree_iter *iter,
 int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 		     struct bkey_i *k,
 		     struct disk_reservation *disk_res,
-		     struct extent_insert_hook *hook,
 		     u64 *journal_seq, int flags)
 {
 	struct btree_iter iter;
@@ -689,7 +665,7 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 
 	bch2_btree_iter_init(&iter, c, id, bkey_start_pos(&k->k),
 			     BTREE_ITER_INTENT);
-	ret = bch2_btree_insert_at(c, disk_res, hook, journal_seq, flags,
+	ret = bch2_btree_insert_at(c, disk_res, journal_seq, flags,
 				   BTREE_INSERT_ENTRY(&iter, k));
 	bch2_btree_iter_unlock(&iter);
 
@@ -702,12 +678,8 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
  * Range is a half open interval - [start, end)
  */
 int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
-			   struct bpos start,
-			   struct bpos end,
-			   struct bversion version,
-			   struct disk_reservation *disk_res,
-			   struct extent_insert_hook *hook,
-			   u64 *journal_seq)
+			    struct bpos start, struct bpos end,
+			    u64 *journal_seq)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -717,13 +689,11 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			     BTREE_ITER_INTENT);
 
 	while ((k = bch2_btree_iter_peek(&iter)).k &&
-	       !(ret = btree_iter_err(k))) {
+	       !(ret = btree_iter_err(k)) &&
+	       bkey_cmp(iter.pos, end) < 0) {
 		unsigned max_sectors = KEY_SIZE_MAX & (~0 << c->block_bits);
 		/* really shouldn't be using a bare, unpadded bkey_i */
 		struct bkey_i delete;
-
-		if (bkey_cmp(iter.pos, end) >= 0)
-			break;
 
 		bkey_init(&delete.k);
 
@@ -738,7 +708,6 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 		 * bkey_start_pos(k.k)).
 		 */
 		delete.k.p = iter.pos;
-		delete.k.version = version;
 
 		if (iter.flags & BTREE_ITER_IS_EXTENTS) {
 			/* create the biggest key we can */
@@ -746,7 +715,7 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			bch2_cut_back(end, &delete.k);
 		}
 
-		ret = bch2_btree_insert_at(c, disk_res, hook, journal_seq,
+		ret = bch2_btree_insert_at(c, NULL, journal_seq,
 					   BTREE_INSERT_NOFAIL,
 					   BTREE_INSERT_ENTRY(&iter, &delete));
 		if (ret)

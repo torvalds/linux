@@ -302,7 +302,7 @@ int bch2_write_index_default(struct bch_write_op *op)
 			     BTREE_ITER_INTENT);
 
 	ret = bch2_btree_insert_list_at(&iter, keys, &op->res,
-					NULL, op_journal_seq(op),
+					op_journal_seq(op),
 					BTREE_INSERT_NOFAIL|
 					BTREE_INSERT_USE_RESERVE);
 	bch2_btree_iter_unlock(&iter);
@@ -1403,7 +1403,7 @@ retry:
 	if (!bch2_extent_narrow_crcs(e, new_crc))
 		goto out;
 
-	ret = bch2_btree_insert_at(c, NULL, NULL, NULL,
+	ret = bch2_btree_insert_at(c, NULL, NULL,
 				   BTREE_INSERT_ATOMIC|
 				   BTREE_INSERT_NOFAIL|
 				   BTREE_INSERT_NOWAIT,

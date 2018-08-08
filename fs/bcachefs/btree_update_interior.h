@@ -161,15 +161,6 @@ static inline void bch2_foreground_maybe_merge_sibling(struct bch_fs *c,
 {
 	struct btree *b;
 
-	/*
-	 * iterators are inconsistent when they hit end of leaf, until
-	 * traversed again
-	 *
-	 * XXX inconsistent how?
-	 */
-	if (iter->flags & BTREE_ITER_AT_END_OF_LEAF)
-		return;
-
 	if (iter->uptodate >= BTREE_ITER_NEED_TRAVERSE)
 		return;
 

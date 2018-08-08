@@ -975,8 +975,6 @@ int __must_check __bch2_btree_iter_traverse(struct btree_iter *iter)
 	if (__bch2_btree_iter_relock(iter))
 		return 0;
 
-	iter->flags &= ~BTREE_ITER_AT_END_OF_LEAF;
-
 	/*
 	 * XXX: correctly using BTREE_ITER_UPTODATE should make using check_pos
 	 * here unnecessary
@@ -1155,10 +1153,8 @@ void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *iter, struct bpos new_
 					  iter->flags & BTREE_ITER_IS_EXTENTS))
 		__btree_iter_advance(l);
 
-	if (!k && btree_iter_pos_after_node(iter, l->b)) {
+	if (!k && btree_iter_pos_after_node(iter, l->b))
 		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
-		iter->flags |= BTREE_ITER_AT_END_OF_LEAF;
-	}
 }
 
 void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)

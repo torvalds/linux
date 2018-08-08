@@ -79,7 +79,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 		iter.pos = bkey_start_pos(&tmp.key.k);
 
-		ret = bch2_btree_insert_at(c, NULL, NULL, NULL,
+		ret = bch2_btree_insert_at(c, NULL, NULL,
 					   BTREE_INSERT_ATOMIC|
 					   BTREE_INSERT_NOFAIL,
 					   BTREE_INSERT_ENTRY(&iter, &tmp.key));
