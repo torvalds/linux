@@ -35,6 +35,7 @@
 
 /* Chip Id numbers */
 #define NO_DEV_ID	0xffff
+#define IT8613_ID	0x8613
 #define IT8620_ID	0x8620
 #define IT8628_ID	0x8628
 #define IT8718_ID       0x8718
@@ -308,6 +309,14 @@ static int __init it87_gpio_init(void)
 	it87_gpio->chip = it87_template_chip;
 
 	switch (chip_type) {
+	case IT8613_ID:
+		gpio_ba_reg = 0x62;
+		it87_gpio->io_size = 8;  /* it8613 only needs 6, use 8 for alignment */
+		it87_gpio->output_base = 0xc8;
+		it87_gpio->simple_base = 0xc0;
+		it87_gpio->simple_size = 6;
+		it87_gpio->chip.ngpio = 64;  /* has 48, use 64 for convenient calc */
+		break;
 	case IT8620_ID:
 	case IT8628_ID:
 		gpio_ba_reg = 0x62;
