@@ -1469,7 +1469,7 @@ static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
 		return;
 
 	mlx5_modify_vport_admin_state(esw->dev,
-				      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
+				      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 				      vport_num,
 				      vport->info.link_state);
 	mlx5_modify_nic_vport_mac_address(esw->dev, vport_num, vport->info.mac);
@@ -1582,9 +1582,9 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 	esw_vport_disable_qos(esw, vport_num);
 	if (vport_num && esw->mode == SRIOV_LEGACY) {
 		mlx5_modify_vport_admin_state(esw->dev,
-					      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
+					      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 					      vport_num,
-					      MLX5_ESW_VPORT_ADMIN_STATE_DOWN);
+					      MLX5_VPORT_ADMIN_STATE_DOWN);
 		esw_vport_disable_egress_acl(esw, vport);
 		esw_vport_disable_ingress_acl(esw, vport);
 		esw_vport_destroy_drop_counters(vport);
@@ -1736,7 +1736,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		struct mlx5_vport *vport = &esw->vports[vport_num];
 
 		vport->vport = vport_num;
-		vport->info.link_state = MLX5_ESW_VPORT_ADMIN_STATE_AUTO;
+		vport->info.link_state = MLX5_VPORT_ADMIN_STATE_AUTO;
 		vport->dev = dev;
 		INIT_WORK(&vport->vport_change_handler,
 			  esw_vport_change_handler);
@@ -1860,7 +1860,7 @@ int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
 	evport = &esw->vports[vport];
 
 	err = mlx5_modify_vport_admin_state(esw->dev,
-					    MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
+					    MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 					    vport, link_state);
 	if (err) {
 		mlx5_core_warn(esw->dev,

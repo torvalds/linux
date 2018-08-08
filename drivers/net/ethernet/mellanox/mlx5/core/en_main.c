@@ -228,7 +228,7 @@ static void mlx5e_update_carrier(struct mlx5e_priv *priv)
 	u8 port_state;
 
 	port_state = mlx5_query_vport_state(mdev,
-					    MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT,
+					    MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT,
 					    0);
 
 	if (port_state == VPORT_STATE_UP) {
@@ -3916,9 +3916,9 @@ static int mlx5e_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
 static int mlx5_vport_link2ifla(u8 esw_link)
 {
 	switch (esw_link) {
-	case MLX5_ESW_VPORT_ADMIN_STATE_DOWN:
+	case MLX5_VPORT_ADMIN_STATE_DOWN:
 		return IFLA_VF_LINK_STATE_DISABLE;
-	case MLX5_ESW_VPORT_ADMIN_STATE_UP:
+	case MLX5_VPORT_ADMIN_STATE_UP:
 		return IFLA_VF_LINK_STATE_ENABLE;
 	}
 	return IFLA_VF_LINK_STATE_AUTO;
@@ -3928,11 +3928,11 @@ static int mlx5_ifla_link2vport(u8 ifla_link)
 {
 	switch (ifla_link) {
 	case IFLA_VF_LINK_STATE_DISABLE:
-		return MLX5_ESW_VPORT_ADMIN_STATE_DOWN;
+		return MLX5_VPORT_ADMIN_STATE_DOWN;
 	case IFLA_VF_LINK_STATE_ENABLE:
-		return MLX5_ESW_VPORT_ADMIN_STATE_UP;
+		return MLX5_VPORT_ADMIN_STATE_UP;
 	}
-	return MLX5_ESW_VPORT_ADMIN_STATE_AUTO;
+	return MLX5_VPORT_ADMIN_STATE_AUTO;
 }
 
 static int mlx5e_set_vf_link_state(struct net_device *dev, int vf,
