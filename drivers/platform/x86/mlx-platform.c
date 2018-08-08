@@ -1704,8 +1704,8 @@ static int __init mlxplat_init(void)
 					PLATFORM_DEVID_NONE, NULL, 0,
 					mlxplat_fan,
 					sizeof(*mlxplat_fan));
-		if (IS_ERR(priv->pdev_io_regs)) {
-			err = PTR_ERR(priv->pdev_io_regs);
+		if (IS_ERR(priv->pdev_fan)) {
+			err = PTR_ERR(priv->pdev_fan);
 			goto fail_platform_io_regs_register;
 		}
 	}
