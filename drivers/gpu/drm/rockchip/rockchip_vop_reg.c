@@ -69,6 +69,15 @@ static const uint32_t formats_win_lite[] = {
 	DRM_FORMAT_BGR565,
 };
 
+static const uint32_t formats_win_ex[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGB332,		/* raw8 */
+	DRM_FORMAT_BGR233,
+};
+
 static const struct vop_scl_extension rk3288_win_full_scl_ext = {
 	.cbcr_vsd_mode = VOP_REG(RK3288_WIN0_CTRL1, 0x1, 31),
 	.cbcr_vsu_mode = VOP_REG(RK3288_WIN0_CTRL1, 0x1, 30),
@@ -1662,6 +1671,226 @@ static const struct vop_data rk3308_vop = {
 	.win_size = ARRAY_SIZE(rk3366_vop_lit_win_data),
 };
 
+static const struct vop_grf_ctrl rk1808_vop_lite_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(RK1808_GRF_PD_VO_CON1, 0x1, 4),
+};
+
+static const struct vop_data rk1808_vop_lit = {
+	.version = VOP_VERSION(2, 8),
+	.max_input = {1920, 8192},
+	.max_output = {1920, 1080},
+	.ctrl = &px30_ctrl_data,
+	.intr = &rk3366_lit_intr,
+	.grf_ctrl = &rk1808_vop_lite_grf_ctrl,
+	.win = px30_vop_lit_win_data,
+	.win_size = ARRAY_SIZE(px30_vop_lit_win_data),
+};
+
+static const struct vop_ctrl rk1808_vop_raw_ctrl_data = {
+	.frame_st = VOP_REG(RK1808_SYS_CTRL0, 0x1, 0),
+	.work_mode = VOP_REG(RK1808_SYS_CTRL0, 0x7, 1),
+	.dsp_black = VOP_REG(RK1808_SYS_CTRL0, 0x1, 11),
+	.dsp_outzero = VOP_REG(RK1808_SYS_CTRL0, 0x1, 12),
+	.dma_stop = VOP_REG(RK1808_SYS_CTRL0, 0x1, 13),
+	.standby = VOP_REG(RK1808_SYS_CTRL0, 0x1, 14),
+	.auto_gate_en = VOP_REG(RK1808_SYS_CTRL0, 0x1, 15),
+
+	.axi_outstanding_max_num = VOP_REG(RK1808_SYS_CTRL1, 0x1f, 4),
+	.axi_max_outstanding_en = VOP_REG(RK1808_SYS_CTRL1, 0x1, 3),
+
+	.mipi_en = VOP_REG(RK1808_DSP_CTRL0, 0x1, 0),
+	.mipi_dclk_pol = VOP_REG(RK1808_DSP_CTRL0, 0x1, 1),
+	.mipi_pin_pol = VOP_REG(RK1808_DSP_CTRL0, 0x7, 2),
+
+	.htotal_pw = VOP_REG(RK1808_DSP_HTOTAL_HS_END, 0x0fff0fff, 0),
+	.hact_st_end = VOP_REG(RK1808_DSP_HACT_ST_END, 0x0fff0fff, 0),
+	.vtotal_pw = VOP_REG(RK1808_DSP_VTOTAL_VS_END, 0x0fff0fff, 0),
+	.vact_st_end = VOP_REG(RK1808_DSP_VACT_ST_END, 0x0fff0fff, 0),
+
+	.pdaf_en = VOP_REG(RK1808_PDAF_CTRL, 0x1, 0),
+	.pdaf_type = VOP_REG(RK1808_PDAF_CTRL, 0x7, 1),
+	.pdaf_vc_num = VOP_REG(RK1808_PDAF_CTRL, 0x3, 4),
+
+	.dsp_background = VOP_REG(RK1808_DSP_BG, 0x00ffffff, 0),
+	.cfg_done = VOP_REG(RK1808_REG_CFG_DONE, 0x1, 0),
+};
+
+static const int rk1808_vop_raw_intrs[] = {
+	DSP_HOLD_VALID_INTR,
+	FS_INTR,
+	FE_INTR,
+	BUS_ERROR_INTR,
+	LINE_FLAG_INTR,
+	LINE_FLAG1_INTR,
+	WIN1_EMPTY_INTR,
+	DMA_FINISH_INTR
+};
+
+static const struct vop_intr rk1808_vop_raw_intr = {
+	.intrs = rk1808_vop_raw_intrs,
+	.nintrs = ARRAY_SIZE(rk1808_vop_raw_intrs),
+	.line_flag_num[0] = VOP_REG(RK1808_LINE_FLAG, 0xfff, 0),
+	.line_flag_num[1] = VOP_REG(RK1808_LINE_FLAG, 0xfff, 16),
+	.status = VOP_REG_MASK(RK1808_INTR_STATUS, 0xffff, 0),
+	.enable = VOP_REG_MASK(RK1808_INTR_EN, 0xffff, 0),
+	.clear = VOP_REG_MASK(RK1808_INTR_CLEAR, 0xffff, 0),
+};
+
+/* vblank end */
+static const struct vop_win_phy rk1808_lit_win9_ex7_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_PDAF_EX_EN_CTRL, 0x1, 7),
+	.format = VOP_REG(RK1808_PDAF_CTRL, 0x3, 6),
+	.data_type = VOP_REG(RK1808_PDAF_EX_TYPE_CTRL1, 0x3f, 24),
+	.yrgb_vir = VOP_REG(RK1808_PDAF_EX_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_PDAF_EX_END_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_PDAF_EX_END_MST1, 0xffffffff, 0),
+	.ex_wc = VOP_REG(RK1808_PDAF_EX_WC3, 0xffff, 16),
+	.vact_st_end_info = VOP_REG(RK1808_DSP_EX7_VACT_ST_END, 0xffffffff, 0),
+};
+
+static const struct vop_win_phy rk1808_lit_win8_ex6_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_PDAF_EX_EN_CTRL, 0x1, 6),
+	.format = VOP_REG(RK1808_PDAF_CTRL, 0x3, 6),
+	.data_type = VOP_REG(RK1808_PDAF_EX_TYPE_CTRL1, 0x3f, 16),
+	.yrgb_vir = VOP_REG(RK1808_PDAF_EX_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_PDAF_EX_END_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_PDAF_EX_END_MST1, 0xffffffff, 0),
+	.ex_wc = VOP_REG(RK1808_PDAF_EX_WC3, 0xffff, 0),
+	.vact_st_end_info = VOP_REG(RK1808_DSP_EX6_VACT_ST_END, 0xffffffff, 0),
+};
+
+static const struct vop_win_phy rk1808_lit_win7_ex5_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_PDAF_EX_EN_CTRL, 0x1, 5),
+	.format = VOP_REG(RK1808_PDAF_CTRL, 0x3, 6),
+	.data_type = VOP_REG(RK1808_PDAF_EX_TYPE_CTRL1, 0x3f, 8),
+	.yrgb_vir = VOP_REG(RK1808_PDAF_EX_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_PDAF_EX_END_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_PDAF_EX_END_MST1, 0xffffffff, 0),
+	.ex_wc = VOP_REG(RK1808_PDAF_EX_WC2, 0xffff, 16),
+	.vact_st_end_info = VOP_REG(RK1808_DSP_EX5_VACT_ST_END, 0xffffffff, 0),
+};
+
+static const struct vop_win_phy rk1808_lit_win6_ex4_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_PDAF_EX_EN_CTRL, 0x1, 4),
+	.format = VOP_REG(RK1808_PDAF_CTRL, 0x3, 6),
+	.data_type = VOP_REG(RK1808_PDAF_EX_TYPE_CTRL1, 0x3f, 0),
+	.yrgb_vir = VOP_REG(RK1808_PDAF_EX_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_PDAF_EX_END_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_PDAF_EX_END_MST1, 0xffffffff, 0),
+	.ex_wc = VOP_REG(RK1808_PDAF_EX_WC2, 0xffff, 0),
+	.vact_st_end_info = VOP_REG(RK1808_DSP_EX4_VACT_ST_END, 0xffffffff, 0),
+};
+
+/* vblank front */
+static const struct vop_win_phy rk1808_lit_win5_ex3_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_PDAF_EX_EN_CTRL, 0x1, 3),
+	.format = VOP_REG(RK1808_PDAF_CTRL, 0x3, 6),
+	.data_type = VOP_REG(RK1808_PDAF_EX_TYPE_CTRL0, 0x3f, 24),
+	.yrgb_vir = VOP_REG(RK1808_PDAF_EX_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_PDAF_EX_FRT_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_PDAF_EX_FRT_MST1, 0xffffffff, 0),
+	.ex_wc = VOP_REG(RK1808_PDAF_EX_WC1, 0xffff, 16),
+	.vact_st_end_info = VOP_REG(RK1808_DSP_EX3_VACT_ST_END, 0xffffffff, 0),
+};
+
+static const struct vop_win_phy rk1808_lit_win4_ex2_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_PDAF_EX_EN_CTRL, 0x1, 2),
+	.format = VOP_REG(RK1808_PDAF_CTRL, 0x3, 6),
+	.data_type = VOP_REG(RK1808_PDAF_EX_TYPE_CTRL0, 0x3f, 16),
+	.yrgb_vir = VOP_REG(RK1808_PDAF_EX_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_PDAF_EX_FRT_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_PDAF_EX_FRT_MST1, 0xffffffff, 0),
+	.ex_wc = VOP_REG(RK1808_PDAF_EX_WC1, 0xffff, 0),
+	.vact_st_end_info = VOP_REG(RK1808_DSP_EX2_VACT_ST_END, 0xffffffff, 0),
+};
+
+static const struct vop_win_phy rk1808_lit_win3_ex1_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_PDAF_EX_EN_CTRL, 0x1, 1),
+	.format = VOP_REG(RK1808_PDAF_CTRL, 0x3, 6),
+	.data_type = VOP_REG(RK1808_PDAF_EX_TYPE_CTRL0, 0x3f, 8),
+	.yrgb_vir = VOP_REG(RK1808_PDAF_EX_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_PDAF_EX_FRT_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_PDAF_EX_FRT_MST1, 0xffffffff, 0),
+	.ex_wc = VOP_REG(RK1808_PDAF_EX_WC0, 0xffff, 16),
+	.vact_st_end_info = VOP_REG(RK1808_DSP_EX1_VACT_ST_END, 0xffffffff, 0),
+};
+
+static const struct vop_win_phy rk1808_lit_win2_ex0_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_PDAF_EX_EN_CTRL, 0x1, 0),
+	.format = VOP_REG(RK1808_PDAF_CTRL, 0x3, 6),
+	.data_type = VOP_REG(RK1808_PDAF_EX_TYPE_CTRL0, 0x3f, 0),
+	.yrgb_vir = VOP_REG(RK1808_PDAF_EX_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_PDAF_EX_FRT_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_PDAF_EX_FRT_MST1, 0xffffffff, 0),
+	.ex_wc = VOP_REG(RK1808_PDAF_EX_WC0, 0xffff, 0),
+	.vact_st_end_info = VOP_REG(RK1808_DSP_EX0_VACT_ST_END, 0xffffffff, 0),
+};
+
+static const struct vop_win_phy rk1808_lit_win1_data = {
+	.data_formats = formats_win_ex,
+	.nformats = ARRAY_SIZE(formats_win_ex),
+	.enable = VOP_REG(RK1808_WIN1_CTRL0, 0x1, 0),
+	.format = VOP_REG(RK1808_WIN1_CTRL0, 0x3, 1),
+	.yrgb_vir = VOP_REG(RK1808_WIN1_VIR, 0x1fff, 0),
+	.yrgb_mst = VOP_REG(RK1808_WIN1_MST, 0xffffffff, 0),
+	.yrgb_mst1 = VOP_REG(RK1808_WIN1_MST1, 0xffffffff, 0),
+	.dsp_info = VOP_REG(RK1808_WIN1_DSP_INFO, 0xffffffff, 0),
+	.dsp_st = VOP_REG(RK1808_WIN1_DSP_ST, 0xffffffff, 0),
+};
+
+static const struct vop_win_data rk1808_vop_raw_win_data[] = {
+	{ .phy = NULL },
+	{ .base = 0x00, .phy = &rk1808_lit_win1_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+	{ .base = 0x00, .phy = &rk1808_lit_win2_ex0_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY },
+	{ .base = 0x00, .phy = &rk1808_lit_win3_ex1_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY },
+	{ .base = 0x00, .phy = &rk1808_lit_win4_ex2_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY },
+	{ .base = 0x00, .phy = &rk1808_lit_win5_ex3_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY },
+	{ .base = 0x00, .phy = &rk1808_lit_win6_ex4_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .feature = WIN_FEATURE_PDAF_AFTER_VBLANK },
+	{ .base = 0x00, .phy = &rk1808_lit_win7_ex5_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .feature = WIN_FEATURE_PDAF_AFTER_VBLANK },
+	{ .base = 0x00, .phy = &rk1808_lit_win8_ex6_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .feature = WIN_FEATURE_PDAF_AFTER_VBLANK },
+	{ .base = 0x00, .phy = &rk1808_lit_win9_ex7_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .feature = WIN_FEATURE_PDAF_AFTER_VBLANK },
+	{ .phy = NULL },
+};
+
+static const struct vop_data rk1808_vop_raw = {
+	.version = VOP_VERSION(1, 0),
+	.max_input = {1920, 8192},
+	.max_output = {1920, 1080},
+	.ctrl = &rk1808_vop_raw_ctrl_data,
+	.intr = &rk1808_vop_raw_intr,
+	.win = rk1808_vop_raw_win_data,
+	.win_size = ARRAY_SIZE(rk1808_vop_raw_win_data),
+};
+
 static const struct of_device_id vop_driver_dt_match[] = {
 	{ .compatible = "rockchip,rk3036-vop",
 	  .data = &rk3036_vop },
@@ -1675,6 +1904,10 @@ static const struct of_device_id vop_driver_dt_match[] = {
 	  .data = &px30_vop_big },
 	{ .compatible = "rockchip,rk3308-vop",
 	  .data = &rk3308_vop },
+	{ .compatible = "rockchip,rk1808-vop-lit",
+	  .data = &rk1808_vop_lit },
+	{ .compatible = "rockchip,rk1808-vop-raw",
+	  .data = &rk1808_vop_raw },
 	{ .compatible = "rockchip,rk3288-vop-big",
 	  .data = &rk3288_vop_big },
 	{ .compatible = "rockchip,rk3288-vop-lit",

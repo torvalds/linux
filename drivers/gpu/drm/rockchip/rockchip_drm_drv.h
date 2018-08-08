@@ -132,6 +132,8 @@ struct rockchip_crtc_state {
 	int bcsh_en;
 	int color_space;
 	int eotf;
+	int pdaf_work_mode;
+	int pdaf_type;
 	struct rockchip_hdr_state hdr;
 	struct drm_framebuffer *crtc_primary_fb;
 };
@@ -182,6 +184,9 @@ struct rockchip_drm_private {
 	struct drm_property *global_alpha_prop;
 	struct drm_property *blend_mode_prop;
 	struct drm_property *alpha_scale_prop;
+	struct drm_property *pdaf_type;
+	struct drm_property *work_mode;
+	struct drm_property *pdaf_data_type;
 	void *backlight;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;

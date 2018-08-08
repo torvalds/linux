@@ -1233,6 +1233,24 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->alpha_scale_prop = prop;
 
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "PDAF_TYPE", 0, 4);
+	if (!prop)
+		return -ENOMEM;
+	private->pdaf_type = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "WORK_MODE", 0, 6);
+	if (!prop)
+		return -ENOMEM;
+	private->work_mode = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "PDAF_DATA_TYPE", 0, 255);
+	if (!prop)
+		return -ENOMEM;
+	private->pdaf_data_type = prop;
+
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 

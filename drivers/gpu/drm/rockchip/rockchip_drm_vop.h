@@ -74,6 +74,13 @@ enum vop_data_format {
 	VOP_FMT_YUV444SP,
 };
 
+enum vop_raw_format {
+	VOP_RAW8	= 0,
+	VOP_RAW10,
+	VOP_RAW_RESERVED,
+	VOP_RAW16,
+};
+
 struct vop_reg_data {
 	uint32_t offset;
 	uint32_t value;
@@ -253,6 +260,13 @@ struct vop_ctrl {
 	struct vop_reg mcu_type;
 	struct vop_reg mcu_rw_bypass_port;
 
+	/* VOP RAW */
+	struct vop_reg frame_st;
+	struct vop_reg work_mode; /* bypass, pingpong, hold mode */
+	struct vop_reg pdaf_en;
+	struct vop_reg pdaf_type; /* hblank or vblank mode */
+	struct vop_reg pdaf_vc_num;
+
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
 };
@@ -415,6 +429,10 @@ struct vop_win_phy {
 	struct vop_reg global_alpha_val;
 	struct vop_reg key_color;
 	struct vop_reg key_en;
+	struct vop_reg yrgb_mst1;
+	struct vop_reg ex_wc;
+	struct vop_reg data_type;
+	struct vop_reg vact_st_end_info;
 };
 
 struct vop_win_data {
@@ -439,6 +457,7 @@ struct vop_grf_ctrl {
 #define WIN_FEATURE_SDR2HDR		BIT(1)
 #define WIN_FEATURE_PRE_OVERLAY		BIT(2)
 #define WIN_FEATURE_AFBDC		BIT(3)
+#define WIN_FEATURE_PDAF_AFTER_VBLANK	BIT(4)
 
 struct vop_rect {
 	int width;
@@ -480,6 +499,7 @@ struct vop_data {
 #define PWM_GEN_INTR			BIT(13)
 #define DMA_FINISH_INTR			BIT(14)
 #define FS_FIELD_INTR			BIT(15)
+#define FE_INTR				BIT(16)
 
 #define INTR_MASK			(DSP_HOLD_VALID_INTR | FS_INTR | \
 					 LINE_FLAG_INTR | BUS_ERROR_INTR | \
@@ -488,7 +508,8 @@ struct vop_data {
 					 WIN2_EMPTY_INTR | WIN3_EMPTY_INTR | \
 					 HWC_EMPTY_INTR | \
 					 POST_BUF_EMPTY_INTR | \
-					 DMA_FINISH_INTR | FS_FIELD_INTR)
+					 DMA_FINISH_INTR | FS_FIELD_INTR | \
+					 FE_INTR)
 
 #define DSP_LINE_NUM(x)			(((x) & 0x1fff) << 12)
 #define DSP_LINE_NUM_MASK		(0x1fff << 12)
@@ -591,6 +612,24 @@ enum vop_pol {
 	HSYNC_POSITIVE = 0,
 	VSYNC_POSITIVE = 1,
 	DEN_NEGATIVE   = 2,
+};
+
+enum vop_pdaf_mode {
+	VOP_HOLD_MODE = 0,
+	VOP_NORMAL_MODE,
+	VOP_PINGPONG_MODE,
+	VOP_BYPASS_MODE,
+	VOP_BACKGROUND_MODE,
+	VOP_ONEFRAME_MODE,
+	VOP_ONEFRAME_NOSEND_MODE
+};
+
+enum vop_pdaf_type {
+	VOP_PDAF_TYPE_DEFAULT = 0,
+	VOP_PDAF_TYPE_HBLANK,
+	VOP_PDAF_TYPE_VBLANK,
+	VOP_PDAF_TYPE_HBLANK_VBLANK,
+	VOP_PDAF_TYPE_INTERWEAVE,
 };
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
