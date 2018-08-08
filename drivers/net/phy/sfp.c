@@ -60,6 +60,69 @@ enum {
 	SFP_S_TX_DISABLE,
 };
 
+static const char  * const mod_state_strings[] = {
+	[SFP_MOD_EMPTY] = "empty",
+	[SFP_MOD_PROBE] = "probe",
+	[SFP_MOD_HPOWER] = "hpower",
+	[SFP_MOD_PRESENT] = "present",
+	[SFP_MOD_ERROR] = "error",
+};
+
+static const char *mod_state_to_str(unsigned short mod_state)
+{
+	if (mod_state >= ARRAY_SIZE(mod_state_strings))
+		return "Unknown module state";
+	return mod_state_strings[mod_state];
+}
+
+static const char * const dev_state_strings[] = {
+	[SFP_DEV_DOWN] = "down",
+	[SFP_DEV_UP] = "up",
+};
+
+static const char *dev_state_to_str(unsigned short dev_state)
+{
+	if (dev_state >= ARRAY_SIZE(dev_state_strings))
+		return "Unknown device state";
+	return dev_state_strings[dev_state];
+}
+
+static const char * const event_strings[] = {
+	[SFP_E_INSERT] = "insert",
+	[SFP_E_REMOVE] = "remove",
+	[SFP_E_DEV_DOWN] = "dev_down",
+	[SFP_E_DEV_UP] = "dev_up",
+	[SFP_E_TX_FAULT] = "tx_fault",
+	[SFP_E_TX_CLEAR] = "tx_clear",
+	[SFP_E_LOS_HIGH] = "los_high",
+	[SFP_E_LOS_LOW] = "los_low",
+	[SFP_E_TIMEOUT] = "timeout",
+};
+
+static const char *event_to_str(unsigned short event)
+{
+	if (event >= ARRAY_SIZE(event_strings))
+		return "Unknown event";
+	return event_strings[event];
+}
+
+static const char * const sm_state_strings[] = {
+	[SFP_S_DOWN] = "down",
+	[SFP_S_INIT] = "init",
+	[SFP_S_WAIT_LOS] = "wait_los",
+	[SFP_S_LINK_UP] = "link_up",
+	[SFP_S_TX_FAULT] = "tx_fault",
+	[SFP_S_REINIT] = "reinit",
+	[SFP_S_TX_DISABLE] = "rx_disable",
+};
+
+static const char *sm_state_to_str(unsigned short sm_state)
+{
+	if (sm_state >= ARRAY_SIZE(sm_state_strings))
+		return "Unknown state";
+	return sm_state_strings[sm_state];
+}
+
 static const char *gpio_of_names[] = {
 	"mod-def0",
 	"los",
@@ -1388,8 +1451,11 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 {
 	mutex_lock(&sfp->sm_mutex);
 
-	dev_dbg(sfp->dev, "SM: enter %u:%u:%u event %u\n",
-		sfp->sm_mod_state, sfp->sm_dev_state, sfp->sm_state, event);
+	dev_dbg(sfp->dev, "SM: enter %s:%s:%s event %s\n",
+		mod_state_to_str(sfp->sm_mod_state),
+		dev_state_to_str(sfp->sm_dev_state),
+		sm_state_to_str(sfp->sm_state),
+		event_to_str(event));
 
 	/* This state machine tracks the insert/remove state of
 	 * the module, and handles probing the on-board EEPROM.
@@ -1520,8 +1586,10 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		break;
 	}
 
-	dev_dbg(sfp->dev, "SM: exit %u:%u:%u\n",
-		sfp->sm_mod_state, sfp->sm_dev_state, sfp->sm_state);
+	dev_dbg(sfp->dev, "SM: exit %s:%s:%s\n",
+		mod_state_to_str(sfp->sm_mod_state),
+		dev_state_to_str(sfp->sm_dev_state),
+		sm_state_to_str(sfp->sm_state));
 
 	mutex_unlock(&sfp->sm_mutex);
 }
