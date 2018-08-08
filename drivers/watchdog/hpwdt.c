@@ -205,9 +205,7 @@ static struct watchdog_device hpwdt_dev = {
 	.min_timeout	= 1,
 	.max_timeout	= HPWDT_MAX_TIMER,
 	.timeout	= DEFAULT_MARGIN,
-#ifdef CONFIG_HPWDT_NMI_DECODING
 	.pretimeout	= PRETIMEOUT_SEC,
-#endif
 };
 
 
@@ -312,6 +310,8 @@ static int hpwdt_init_one(struct pci_dev *dev,
 	watchdog_set_nowayout(&hpwdt_dev, nowayout);
 	if (watchdog_init_timeout(&hpwdt_dev, soft_margin, NULL))
 		dev_warn(&dev->dev, "Invalid soft_margin: %d.\n", soft_margin);
+
+	hpwdt_dev.pretimeout = pretimeout ? PRETIMEOUT_SEC : 0;
 
 	hpwdt_dev.parent = &dev->dev;
 	retval = watchdog_register_device(&hpwdt_dev);
