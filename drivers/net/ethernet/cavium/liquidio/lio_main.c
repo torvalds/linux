@@ -2209,6 +2209,7 @@ static int liquidio_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCSHWTSTAMP:
 		if (lio->oct_dev->ptp_enable)
 			return hwtstamp_ioctl(netdev, ifr);
+		/* fall through */
 	default:
 		return -EOPNOTSUPP;
 	}

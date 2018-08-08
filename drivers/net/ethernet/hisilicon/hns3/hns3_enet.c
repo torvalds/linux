@@ -2104,6 +2104,7 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 	case HNS3_OL4_TYPE_MAC_IN_UDP:
 	case HNS3_OL4_TYPE_NVGRE:
 		skb->csum_level = 1;
+		/* fall through */
 	case HNS3_OL4_TYPE_NO_TUN:
 		/* Can checksum ipv4 or ipv6 + UDP/TCP/SCTP packets */
 		if ((l3_type == HNS3_L3_TYPE_IPV4 ||

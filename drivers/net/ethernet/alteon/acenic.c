@@ -551,6 +551,7 @@ static int acenic_probe_one(struct pci_dev *pdev,
 			       ap->name);
 			break;
 		}
+		/* Fall through */
 	case PCI_VENDOR_ID_SGI:
 		printk(KERN_INFO "%s: SGI AceNIC ", ap->name);
 		break;
