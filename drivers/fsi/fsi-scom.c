@@ -598,6 +598,7 @@ static int scom_probe(struct device *dev)
 		kfree(scom);
 		return -ENODEV;
 	}
+	scom->fsi_dev = fsi_dev;
 
 	/* Create chardev for userspace access */
 	scom->dev.type = &fsi_cdev_type;
