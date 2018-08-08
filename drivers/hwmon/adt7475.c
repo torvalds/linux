@@ -194,7 +194,7 @@ struct adt7475_data {
 	struct mutex lock;
 
 	unsigned long measure_updated;
-	char valid;
+	bool valid;
 
 	u8 config4;
 	u8 config5;
@@ -1781,6 +1781,7 @@ static struct adt7475_data *adt7475_update_device(struct device *dev)
 	    !data->valid) {
 		adt7475_update_measure(dev);
 		data->measure_updated = jiffies;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->lock);
