@@ -616,6 +616,7 @@ struct i915_psr {
 #define I915_PSR_DEBUG_DEFAULT		0x00
 #define I915_PSR_DEBUG_DISABLE		0x01
 #define I915_PSR_DEBUG_ENABLE		0x02
+#define I915_PSR_DEBUG_FORCE_PSR1	0x03
 #define I915_PSR_DEBUG_IRQ		0x10
 
 	u32 debug;
