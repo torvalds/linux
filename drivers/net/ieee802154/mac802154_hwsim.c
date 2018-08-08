@@ -817,8 +817,10 @@ static int hwsim_add_one(struct genl_info *info, struct device *dev,
 	mutex_lock(&hwsim_phys_lock);
 	if (init) {
 		err = hwsim_subscribe_all_others(phy);
-		if (err < 0)
+		if (err < 0) {
+			mutex_unlock(&hwsim_phys_lock);
 			goto err_reg;
+		}
 	}
 	list_add_tail(&phy->list, &hwsim_phys);
 	mutex_unlock(&hwsim_phys_lock);
