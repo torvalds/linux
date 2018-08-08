@@ -125,7 +125,7 @@ static int a6xx_gmu_start(struct a6xx_gmu *gmu)
 		val == 0xbabeface, 100, 10000);
 
 	if (ret)
-		dev_err(gmu->dev, "GMU firmware initalization timed out\n");
+		dev_err(gmu->dev, "GMU firmware initialization timed out\n");
 
 	return ret;
 }
@@ -1034,7 +1034,7 @@ static int a6xx_gmu_pwrlevels_probe(struct a6xx_gmu *gmu)
 
 	/*
 	 * The GMU handles its own frequency switching so build a list of
-	 * available frequencies to send during initalization
+	 * available frequencies to send during initialization
 	 */
 	ret = dev_pm_opp_of_add_table(gmu->dev);
 	if (ret) {
