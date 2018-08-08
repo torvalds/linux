@@ -217,7 +217,8 @@ void __dev_map_insert_ctx(struct bpf_map *map, u32 bit)
 }
 
 static int bq_xmit_all(struct bpf_dtab_netdev *obj,
-		       struct xdp_bulk_queue *bq, u32 flags)
+		       struct xdp_bulk_queue *bq, u32 flags,
+		       bool in_napi_ctx)
 {
 	struct net_device *dev = obj->dev;
 	int sent = 0, drops = 0, err = 0;
@@ -254,7 +255,10 @@ error:
 		struct xdp_frame *xdpf = bq->q[i];
 
 		/* RX path under NAPI protection, can return frames faster */
-		xdp_return_frame_rx_napi(xdpf);
+		if (likely(in_napi_ctx))
+			xdp_return_frame_rx_napi(xdpf);
+		else
+			xdp_return_frame(xdpf);
 		drops++;
 	}
 	goto out;
@@ -286,7 +290,7 @@ void __dev_map_flush(struct bpf_map *map)
 		__clear_bit(bit, bitmap);
 
 		bq = this_cpu_ptr(dev->bulkq);
-		bq_xmit_all(dev, bq, XDP_XMIT_FLUSH);
+		bq_xmit_all(dev, bq, XDP_XMIT_FLUSH, true);
 	}
 }
 
@@ -316,7 +320,7 @@ static int bq_enqueue(struct bpf_dtab_netdev *obj, struct xdp_frame *xdpf,
 	struct xdp_bulk_queue *bq = this_cpu_ptr(obj->bulkq);
 
 	if (unlikely(bq->count == DEV_MAP_BULK_SIZE))
-		bq_xmit_all(obj, bq, 0);
+		bq_xmit_all(obj, bq, 0, true);
 
 	/* Ingress dev_rx will be the same for all xdp_frame's in
 	 * bulk_queue, because bq stored per-CPU and must be flushed
@@ -385,7 +389,7 @@ static void dev_map_flush_old(struct bpf_dtab_netdev *dev)
 			__clear_bit(dev->bit, bitmap);
 
 			bq = per_cpu_ptr(dev->bulkq, cpu);
-			bq_xmit_all(dev, bq, XDP_XMIT_FLUSH);
+			bq_xmit_all(dev, bq, XDP_XMIT_FLUSH, false);
 		}
 	}
 }
