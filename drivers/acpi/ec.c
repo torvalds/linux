@@ -2046,6 +2046,13 @@ static const struct dmi_system_id acpi_ec_no_wakeup[] = {
 		},
 	},
 	{
+		.ident = "ThinkPad X1 Carbon 6th",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "ThinkPad X1 Carbon 6th"),
+		},
+	},
+	{
 		.ident = "ThinkPad X1 Yoga 3rd",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
