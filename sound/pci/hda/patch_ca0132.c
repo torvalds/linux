@@ -6744,7 +6744,12 @@ static void hp_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 
 static void amic_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 {
-	ca0132_select_mic(codec);
+	struct ca0132_spec *spec = codec->spec;
+
+	if (spec->use_alt_functions)
+		ca0132_alt_select_in(codec);
+	else
+		ca0132_select_mic(codec);
 }
 
 static void ca0132_init_unsol(struct hda_codec *codec)
