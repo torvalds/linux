@@ -186,6 +186,14 @@ struct iwl_mac_data_ibss {
 } __packed; /* IBSS_MAC_DATA_API_S_VER_1 */
 
 /**
+ * enum iwl_mac_data_policy - policy of the data path for this MAC
+ * @TWT_SUPPORTED: twt is supported
+ */
+enum iwl_mac_data_policy {
+	TWT_SUPPORTED	= BIT(0),
+};
+
+/**
  * struct iwl_mac_data_sta - configuration data for station MAC context
  * @is_assoc: 1 for associated state, 0 otherwise
  * @dtim_time: DTIM arrival time in system time
@@ -193,7 +201,7 @@ struct iwl_mac_data_ibss {
  * @bi: beacon interval in TU, applicable only when associated
  * @reserved1: reserved
  * @dtim_interval: DTIM interval in TU, applicable only when associated
- * @reserved2: reserved
+ * @data_policy: see &enum iwl_mac_data_policy
  * @listen_interval: in beacon intervals, applicable only when associated
  * @assoc_id: unique ID assigned by the AP during association
  * @assoc_beacon_arrive_time: TSF of first beacon after association
@@ -205,11 +213,11 @@ struct iwl_mac_data_sta {
 	__le32 bi;
 	__le32 reserved1;
 	__le32 dtim_interval;
-	__le32 reserved2;
+	__le32 data_policy;
 	__le32 listen_interval;
 	__le32 assoc_id;
 	__le32 assoc_beacon_arrive_time;
-} __packed; /* STA_MAC_DATA_API_S_VER_1 */
+} __packed; /* STA_MAC_DATA_API_S_VER_2 */
 
 /**
  * struct iwl_mac_data_go - configuration data for P2P GO MAC context
@@ -233,7 +241,7 @@ struct iwl_mac_data_go {
 struct iwl_mac_data_p2p_sta {
 	struct iwl_mac_data_sta sta;
 	__le32 ctwin;
-} __packed; /* P2P_STA_MAC_DATA_API_S_VER_1 */
+} __packed; /* P2P_STA_MAC_DATA_API_S_VER_2 */
 
 /**
  * struct iwl_mac_data_pibss - Pseudo IBSS config data
