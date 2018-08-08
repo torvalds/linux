@@ -797,12 +797,12 @@ void pevent_ref(struct tep_handle *pevent);
 void pevent_unref(struct tep_handle *pevent);
 
 /* access to the internal parser */
-void pevent_buffer_init(const char *buf, unsigned long long size);
-enum event_type pevent_read_token(char **tok);
-void pevent_free_token(char *token);
-int pevent_peek_char(void);
-const char *pevent_get_input_buf(void);
-unsigned long long pevent_get_input_buf_ptr(void);
+void tep_buffer_init(const char *buf, unsigned long long size);
+enum event_type tep_read_token(char **tok);
+void tep_free_token(char *token);
+int tep_peek_char(void);
+const char *tep_get_input_buf(void);
+unsigned long long tep_get_input_buf_ptr(void);
 
 /* for debugging */
 void tep_print_funcs(struct tep_handle *pevent);

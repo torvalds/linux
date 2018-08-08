@@ -73,12 +73,12 @@ static void init_input_buf(const char *buf, unsigned long long size)
 	input_buf_ptr = 0;
 }
 
-const char *pevent_get_input_buf(void)
+const char *tep_get_input_buf(void)
 {
 	return input_buf;
 }
 
-unsigned long long pevent_get_input_buf_ptr(void)
+unsigned long long tep_get_input_buf_ptr(void)
 {
 	return input_buf_ptr;
 }
@@ -113,14 +113,14 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 static void free_func_handle(struct tep_function_handler *func);
 
 /**
- * pevent_buffer_init - init buffer for parsing
+ * tep_buffer_init - init buffer for parsing
  * @buf: buffer to parse
  * @size: the size of the buffer
  *
- * For use with pevent_read_token(), this initializes the internal
- * buffer that pevent_read_token() will parse.
+ * For use with tep_read_token(), this initializes the internal
+ * buffer that tep_read_token() will parse.
  */
-void pevent_buffer_init(const char *buf, unsigned long long size)
+void tep_buffer_init(const char *buf, unsigned long long size)
 {
 	init_input_buf(buf, size);
 }
@@ -913,11 +913,11 @@ static int __peek_char(void)
 }
 
 /**
- * pevent_peek_char - peek at the next character that will be read
+ * tep_peek_char - peek at the next character that will be read
  *
  * Returns the next character read, or -1 if end of buffer.
  */
-int pevent_peek_char(void)
+int tep_peek_char(void)
 {
 	return __peek_char();
 }
@@ -1157,7 +1157,7 @@ static enum event_type read_token(char **tok)
 }
 
 /**
- * pevent_read_token - access to utilites to use the pevent parser
+ * tep_read_token - access to utilites to use the pevent parser
  * @tok: The token to return
  *
  * This will parse tokens from the string given by
@@ -1165,16 +1165,16 @@ static enum event_type read_token(char **tok)
  *
  * Returns the token type.
  */
-enum event_type pevent_read_token(char **tok)
+enum event_type tep_read_token(char **tok)
 {
 	return read_token(tok);
 }
 
 /**
- * pevent_free_token - free a token returned by pevent_read_token
+ * tep_free_token - free a token returned by tep_read_token
  * @token: the token to free
  */
-void pevent_free_token(char *token)
+void tep_free_token(char *token)
 {
 	free_token(token);
 }

@@ -51,8 +51,8 @@ static void show_error(char *error_buf, const char *fmt, ...)
 	int len;
 	int i;
 
-	input = pevent_get_input_buf();
-	index = pevent_get_input_buf_ptr();
+	input = tep_get_input_buf();
+	index = tep_get_input_buf_ptr();
 	len = input ? strlen(input) : 0;
 
 	if (len) {
@@ -72,7 +72,7 @@ static void show_error(char *error_buf, const char *fmt, ...)
 
 static void free_token(char *token)
 {
-	pevent_free_token(token);
+	tep_free_token(token);
 }
 
 static enum event_type read_token(char **tok)
@@ -82,13 +82,13 @@ static enum event_type read_token(char **tok)
 
 	do {
 		free_token(token);
-		type = pevent_read_token(&token);
+		type = tep_read_token(&token);
 	} while (type == EVENT_NEWLINE || type == EVENT_SPACE);
 
 	/* If token is = or ! check to see if the next char is ~ */
 	if (token &&
 	    (strcmp(token, "=") == 0 || strcmp(token, "!") == 0) &&
-	    pevent_peek_char() == '~') {
+	    tep_peek_char() == '~') {
 		/* append it */
 		*tok = malloc(3);
 		if (*tok == NULL) {
@@ -98,7 +98,7 @@ static enum event_type read_token(char **tok)
 		sprintf(*tok, "%c%c", *token, '~');
 		free_token(token);
 		/* Now remove the '~' from the buffer */
-		pevent_read_token(&token);
+		tep_read_token(&token);
 		free_token(token);
 	} else
 		*tok = token;
@@ -1198,7 +1198,7 @@ process_event(struct event_format *event, const char *filter_str,
 {
 	int ret;
 
-	pevent_buffer_init(filter_str, strlen(filter_str));
+	tep_buffer_init(filter_str, strlen(filter_str));
 
 	ret = process_filter(event, parg, error_str, 0);
 	if (ret < 0)
@@ -1254,7 +1254,7 @@ filter_event(struct event_filter *filter, struct event_format *event,
 static void filter_init_error_buf(struct event_filter *filter)
 {
 	/* clear buffer to reset show error */
-	pevent_buffer_init("", 0);
+	tep_buffer_init("", 0);
 	filter->error_buffer[0] = '\0';
 }
 
