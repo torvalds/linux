@@ -1122,6 +1122,8 @@ static void smc_tcp_listen_work(struct work_struct *work)
 		sock_hold(lsk); /* sock_put in smc_listen_work */
 		INIT_WORK(&new_smc->smc_listen_work, smc_listen_work);
 		smc_copy_sock_settings_to_smc(new_smc);
+		new_smc->sk.sk_sndbuf = lsmc->sk.sk_sndbuf;
+		new_smc->sk.sk_rcvbuf = lsmc->sk.sk_rcvbuf;
 		sock_hold(&new_smc->sk); /* sock_put in passive closing */
 		if (!schedule_work(&new_smc->smc_listen_work))
 			sock_put(&new_smc->sk);
