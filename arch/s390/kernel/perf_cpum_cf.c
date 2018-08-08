@@ -18,15 +18,8 @@
 #include <asm/irq.h>
 #include <asm/cpu_mcf.h>
 
-/* Local CPUMF event structure */
-struct cpu_cf_events {
-	struct cpumf_ctr_info	info;
-	atomic_t		ctr_set[CPUMF_CTR_SET_MAX];
-	u64			state, tx_state;
-	unsigned int		flags;
-	unsigned int		txn_flags;
-};
-static DEFINE_PER_CPU(struct cpu_cf_events, cpu_cf_events) = {
+/* Per-CPU event structure for the counter facility */
+DEFINE_PER_CPU(struct cpu_cf_events, cpu_cf_events) = {
 	.ctr_set = {
 		[CPUMF_CTR_SET_BASIC]	= ATOMIC_INIT(0),
 		[CPUMF_CTR_SET_USER]	= ATOMIC_INIT(0),
