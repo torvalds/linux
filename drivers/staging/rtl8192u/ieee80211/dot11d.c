@@ -20,7 +20,7 @@ void dot11d_init(struct ieee80211_device *ieee)
 EXPORT_SYMBOL(dot11d_init);
 
 /* Reset to the state as we are just entering a regulatory domain. */
-void Dot11d_Reset(struct ieee80211_device *ieee)
+void dot11d_reset(struct ieee80211_device *ieee)
 {
 	u32 i;
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
@@ -38,7 +38,7 @@ void Dot11d_Reset(struct ieee80211_device *ieee)
 	pDot11dInfo->country_ie_len = 0;
 	RESET_CIE_WATCHDOG(ieee);
 }
-EXPORT_SYMBOL(Dot11d_Reset);
+EXPORT_SYMBOL(dot11d_reset);
 
 /*
  * Update country IE from Beacon or Probe Resopnse and configure PHY for
@@ -127,7 +127,7 @@ void DOT11D_ScanComplete(struct ieee80211_device *dev)
 	case DOT11D_STATE_DONE:
 		if (GET_CIE_WATCHDOG(dev) == 0) {
 			/* Reset country IE if previous one is gone. */
-			Dot11d_Reset(dev);
+			dot11d_reset(dev);
 		}
 		break;
 	case DOT11D_STATE_NONE:

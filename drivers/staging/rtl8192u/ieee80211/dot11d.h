@@ -44,7 +44,7 @@ struct rt_dot11d_info {
 #define UPDATE_CIE_WATCHDOG(ieee_dev) (++GET_CIE_WATCHDOG(ieee_dev))
 
 void dot11d_init(struct ieee80211_device *dev);
-void Dot11d_Reset(struct ieee80211_device *dev);
+void dot11d_reset(struct ieee80211_device *dev);
 void Dot11d_UpdateCountryIe(struct ieee80211_device *dev,
 			    u8 *pTaddr,
 			    u16 CoutryIeLen,
