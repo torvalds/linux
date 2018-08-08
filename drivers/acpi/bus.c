@@ -935,7 +935,7 @@ static int acpi_device_probe(struct device *dev)
 	return 0;
 }
 
-static int acpi_device_remove(struct device * dev)
+static int acpi_device_remove(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = acpi_dev->driver;
