@@ -133,6 +133,10 @@ extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 		     __le16 *path, __u8 *oplock,
 		     struct smb2_file_all_info *buf,
 		     struct kvec *err_iov, int *resp_buftype);
+extern int SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+			  __u8 *oplock, struct cifs_open_parms *oparms,
+			  __le16 *path);
+extern void SMB2_open_free(struct smb_rqst *rqst);
 extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
 		     bool is_fsctl, char *in_data, u32 indatalen,
