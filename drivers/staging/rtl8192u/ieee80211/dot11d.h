@@ -46,9 +46,9 @@ struct rt_dot11d_info {
 void dot11d_init(struct ieee80211_device *dev);
 void dot11d_reset(struct ieee80211_device *dev);
 void dot11d_update_country_ie(struct ieee80211_device *dev,
-			      u8 *pTaddr,
-			      u16 CoutryIeLen,
-			      u8 *pCoutryIe);
+			      u8 *addr,
+			      u16 coutry_ie_len,
+			      u8 *coutry_ie);
 u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel);
 void DOT11D_ScanComplete(struct ieee80211_device *dev);
 int IsLegalChannel(struct ieee80211_device *dev, u8 channel);
