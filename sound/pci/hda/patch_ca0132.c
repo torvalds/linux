@@ -7249,14 +7249,12 @@ static int ca0132_init(struct hda_codec *codec)
 
 	ca0132_refresh_widget_caps(codec);
 
-	if (spec->quirk == QUIRK_SBZ)
-		ca0132_mmio_gpio_set(codec, 7, true);
-
 	switch (spec->quirk) {
 	case QUIRK_R3DI:
 		r3di_setup_defaults(codec);
 		break;
 	case QUIRK_SBZ:
+		sbz_setup_defaults(codec);
 		break;
 	default:
 		ca0132_setup_defaults(codec);
@@ -7287,20 +7285,12 @@ static int ca0132_init(struct hda_codec *codec)
 		ca0132_gpio_setup(codec);
 
 	snd_hda_sequence_write(codec, spec->spec_init_verbs);
-	switch (spec->quirk) {
-	case QUIRK_SBZ:
-		sbz_setup_defaults(codec);
+	if (spec->use_alt_functions) {
 		ca0132_alt_select_out(codec);
 		ca0132_alt_select_in(codec);
-		break;
-	case QUIRK_R3DI:
-		ca0132_alt_select_out(codec);
-		ca0132_alt_select_in(codec);
-		break;
-	default:
+	} else {
 		ca0132_select_out(codec);
 		ca0132_select_mic(codec);
-		break;
 	}
 
 	snd_hda_jack_report_sync(codec);
