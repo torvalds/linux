@@ -348,8 +348,23 @@ static void a6xx_rpmh_stop(struct a6xx_gmu *gmu)
 	gmu_write(gmu, REG_A6XX_GMU_RSCC_CONTROL_REQ, 0);
 }
 
+static inline void pdc_write(void __iomem *ptr, u32 offset, u32 value)
+{
+	return msm_writel(value, ptr + (offset << 2));
+}
+
+static void __iomem *a6xx_gmu_get_mmio(struct platform_device *pdev,
+		const char *name);
+
 static void a6xx_gmu_rpmh_init(struct a6xx_gmu *gmu)
 {
+	struct platform_device *pdev = to_platform_device(gmu->dev);
+	void __iomem *pdcptr = a6xx_gmu_get_mmio(pdev, "gmu_pdc");
+	void __iomem *seqptr = a6xx_gmu_get_mmio(pdev, "gmu_pdc_seq");
+
+	if (!pdcptr || !seqptr)
+		goto err;
+
 	/* Disable SDE clock gating */
 	gmu_write(gmu, REG_A6XX_GPU_RSCC_RSC_STATUS0_DRV0, BIT(24));
 
@@ -374,44 +389,48 @@ static void a6xx_gmu_rpmh_init(struct a6xx_gmu *gmu)
 	gmu_write(gmu, REG_A6XX_RSCC_SEQ_MEM_0_DRV0 + 4, 0x0020e8a8);
 
 	/* Load PDC sequencer uCode for power up and power down sequence */
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0, 0xfebea1e1);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 1, 0xa5a4a3a2);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 2, 0x8382a6e0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 3, 0xbce3e284);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 4, 0x002081fc);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0, 0xfebea1e1);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 1, 0xa5a4a3a2);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 2, 0x8382a6e0);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 3, 0xbce3e284);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 4, 0x002081fc);
 
 	/* Set TCS commands used by PDC sequence for low power modes */
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD_ENABLE_BANK, 7);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD_WAIT_FOR_CMPL_BANK, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CONTROL, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR, 0x30010);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA, 1);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID + 4, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR + 4, 0x30000);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA + 4, 0x0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID + 8, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR + 8, 0x30080);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA + 8, 0x0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD_ENABLE_BANK, 7);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD_WAIT_FOR_CMPL_BANK, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CONTROL, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR, 0x30010);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA, 2);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID + 4, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR + 4, 0x30000);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA + 4, 0x3);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID + 8, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR + 8, 0x30080);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA + 8, 0x3);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD_ENABLE_BANK, 7);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD_WAIT_FOR_CMPL_BANK, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CONTROL, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR, 0x30010);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA, 1);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID + 4, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR + 4, 0x30000);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA + 4, 0x0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID + 8, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR + 8, 0x30080);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA + 8, 0x0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD_ENABLE_BANK, 7);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD_WAIT_FOR_CMPL_BANK, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CONTROL, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR, 0x30010);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA, 2);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID + 4, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR + 4, 0x30000);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA + 4, 0x3);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID + 8, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR + 8, 0x30080);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA + 8, 0x3);
 
 	/* Setup GPU PDC */
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_START_ADDR, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_ENABLE_PDC, 0x80000001);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_SEQ_START_ADDR, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_ENABLE_PDC, 0x80000001);
 
 	/* ensure no writes happen before the uCode is fully written */
 	wmb();
+
+err:
+	devm_iounmap(gmu->dev, pdcptr);
+	devm_iounmap(gmu->dev, seqptr);
 }
 
 /*
@@ -1170,11 +1189,7 @@ int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	/* Map the GMU registers */
 	gmu->mmio = a6xx_gmu_get_mmio(pdev, "gmu");
-
-	/* Map the GPU power domain controller registers */
-	gmu->pdc_mmio = a6xx_gmu_get_mmio(pdev, "gmu_pdc");
-
-	if (IS_ERR(gmu->mmio) || IS_ERR(gmu->pdc_mmio))
+	if (IS_ERR(gmu->mmio))
 		goto err;
 
 	/* Get the HFI and GMU interrupts */

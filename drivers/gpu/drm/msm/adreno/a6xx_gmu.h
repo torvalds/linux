@@ -47,7 +47,6 @@ struct a6xx_gmu {
 	struct device *dev;
 
 	void * __iomem mmio;
-	void * __iomem pdc_mmio;
 
 	int hfi_irq;
 	int gmu_irq;
@@ -87,11 +86,6 @@ static inline u32 gmu_read(struct a6xx_gmu *gmu, u32 offset)
 static inline void gmu_write(struct a6xx_gmu *gmu, u32 offset, u32 value)
 {
 	return msm_writel(value, gmu->mmio + (offset << 2));
-}
-
-static inline void pdc_write(struct a6xx_gmu *gmu, u32 offset, u32 value)
-{
-	return msm_writel(value, gmu->pdc_mmio + (offset << 2));
 }
 
 static inline void gmu_rmw(struct a6xx_gmu *gmu, u32 reg, u32 mask, u32 or)
