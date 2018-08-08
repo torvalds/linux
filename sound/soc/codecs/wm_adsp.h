@@ -57,6 +57,8 @@ struct wm_adsp_compr_buf;
 
 struct wm_adsp {
 	const char *part;
+	const char *name;
+	const char *fwf_name;
 	int rev;
 	int num;
 	int type;
