@@ -3823,6 +3823,12 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 			if (timeout < 0)
 				return timeout;
 		}
+		if (GEM_SHOW_DEBUG() && !timeout) {
+			/* Presume that timeout was non-zero to begin with! */
+			dev_warn(&i915->drm.pdev->dev,
+				 "Missed idle-completion interrupt!\n");
+			GEM_TRACE_DUMP();
+		}
 
 		err = wait_for_engines(i915);
 		if (err)
