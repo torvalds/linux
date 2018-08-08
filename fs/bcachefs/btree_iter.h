@@ -271,8 +271,8 @@ static inline int btree_iter_err(struct bkey_s_c k)
 /* new multiple iterator interface: */
 
 void bch2_trans_preload_iters(struct btree_trans *);
-void bch2_trans_iter_free(struct btree_trans *,
-				struct btree_iter *);
+void bch2_trans_iter_put(struct btree_trans *, struct btree_iter *);
+void bch2_trans_iter_free(struct btree_trans *, struct btree_iter *);
 
 struct btree_iter *__bch2_trans_get_iter(struct btree_trans *, enum btree_id,
 					 struct bpos, unsigned, u64);
@@ -306,6 +306,11 @@ bch2_trans_copy_iter(struct btree_trans *trans, struct btree_iter *src)
 }
 
 void __bch2_trans_begin(struct btree_trans *);
+
+static inline void bch2_trans_begin_updates(struct btree_trans *trans)
+{
+	trans->nr_updates = 0;
+}
 
 void *bch2_trans_kmalloc(struct btree_trans *, size_t);
 int bch2_trans_unlock(struct btree_trans *);

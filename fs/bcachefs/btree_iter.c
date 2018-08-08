@@ -1040,7 +1040,6 @@ static inline void bch2_btree_iter_checks(struct btree_iter *iter,
 					  enum btree_iter_type type)
 {
 	EBUG_ON(iter->btree_id >= BTREE_ID_NR);
-	EBUG_ON((iter->flags & BTREE_ITER_TYPE) != type);
 	EBUG_ON(!!(iter->flags & BTREE_ITER_IS_EXTENTS) !=
 		(iter->btree_id == BTREE_ID_EXTENTS &&
 		 type != BTREE_ITER_NODES));
@@ -1624,17 +1623,29 @@ static void btree_trans_verify(struct btree_trans *trans)
 	}
 }
 
+static inline unsigned btree_trans_iter_idx(struct btree_trans *trans,
+					    struct btree_iter *iter)
+{
+	ssize_t idx = iter - trans->iters;
+
+	BUG_ON(idx < 0 || idx >= trans->nr_iters);
+	BUG_ON(!(trans->iters_live & (1U << idx)));
+
+	return idx;
+}
+
+void bch2_trans_iter_put(struct btree_trans *trans,
+			 struct btree_iter *iter)
+{
+	ssize_t idx = btree_trans_iter_idx(trans, iter);
+
+	trans->iters_live	&= ~(1U << idx);
+}
+
 void bch2_trans_iter_free(struct btree_trans *trans,
 			  struct btree_iter *iter)
 {
-	unsigned idx;
-
-	for (idx = 0; idx < trans->nr_iters; idx++)
-		if (&trans->iters[idx] == iter)
-			goto found;
-	BUG();
-found:
-	BUG_ON(!(trans->iters_linked & (1U << idx)));
+	ssize_t idx = btree_trans_iter_idx(trans, iter);
 
 	trans->iters_live	&= ~(1U << idx);
 	trans->iters_linked	&= ~(1U << idx);
@@ -1719,10 +1730,6 @@ got_slot:
 	} else {
 		iter = &trans->iters[idx];
 
-		BUG_ON(iter->btree_id != btree_id);
-		BUG_ON((iter->flags ^ flags) &
-		       (BTREE_ITER_SLOTS|BTREE_ITER_IS_EXTENTS));
-
 		iter->flags &= ~(BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
 		iter->flags |= flags & (BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
 	}
@@ -1738,6 +1745,9 @@ got_slot:
 	trans->iters_linked |= 1 << idx;
 
 	btree_trans_verify(trans);
+
+	BUG_ON(iter->btree_id != btree_id);
+	BUG_ON((iter->flags ^ flags) & BTREE_ITER_TYPE);
 
 	return iter;
 }
