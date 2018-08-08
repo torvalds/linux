@@ -320,9 +320,12 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		goto error_wd_register;
 	}
 
-	dev_info(&dev->dev, "HPE Watchdog Timer Driver: %s"
-			", timer margin: %d seconds (nowayout=%d).\n",
-			HPWDT_VERSION, hpwdt_dev.timeout, nowayout);
+	dev_info(&dev->dev, "HPE Watchdog Timer Driver: Version: %s\n",
+				HPWDT_VERSION);
+	dev_info(&dev->dev, "timeout: %d seconds (nowayout=%d)\n",
+				hpwdt_dev.timeout, nowayout);
+	dev_info(&dev->dev, "pretimeout: %s.\n",
+				pretimeout ? "on" : "off");
 
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_HP_3PAR)
 		ilo5 = true;
