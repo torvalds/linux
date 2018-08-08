@@ -6968,7 +6968,7 @@ static void sbz_set_pin_ctl_default(struct hda_codec *codec)
 				AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00);
 }
 
-static void sbz_clear_unsolicited(struct hda_codec *codec)
+static void ca0132_clear_unsolicited(struct hda_codec *codec)
 {
 	hda_nid_t pins[7] = {0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13};
 	unsigned int i;
@@ -7021,19 +7021,20 @@ static void sbz_exit_chip(struct hda_codec *codec)
 
 	chipio_set_control_param(codec, 0x0D, 0x24);
 
-	sbz_clear_unsolicited(codec);
+	ca0132_clear_unsolicited(codec);
 	sbz_set_pin_ctl_default(codec);
 
 	snd_hda_codec_write(codec, 0x0B, 0,
 		AC_VERB_SET_EAPD_BTLENABLE, 0x00);
 
-	if (dspload_is_loaded(codec))
-		dsp_reset(codec);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-		VENDOR_CHIPIO_CT_EXTENSIONS_ENABLE, 0x00);
-
 	sbz_region2_exit(codec);
+}
+
+static void r3d_exit_chip(struct hda_codec *codec)
+{
+	ca0132_clear_unsolicited(codec);
+	snd_hda_codec_write(codec, 0x01, 0, 0x793, 0x00);
+	snd_hda_codec_write(codec, 0x01, 0, 0x794, 0x5b);
 }
 
 static void ca0132_exit_chip(struct hda_codec *codec)
@@ -7381,16 +7382,17 @@ static void ca0132_free(struct hda_codec *codec)
 	case QUIRK_SBZ:
 		sbz_exit_chip(codec);
 		break;
+	case QUIRK_R3D:
+		r3d_exit_chip(codec);
+		break;
 	case QUIRK_R3DI:
 		r3di_gpio_shutdown(codec);
-		snd_hda_sequence_write(codec, spec->base_exit_verbs);
-		ca0132_exit_chip(codec);
-		break;
-	default:
-		snd_hda_sequence_write(codec, spec->base_exit_verbs);
-		ca0132_exit_chip(codec);
 		break;
 	}
+
+	snd_hda_sequence_write(codec, spec->base_exit_verbs);
+	ca0132_exit_chip(codec);
+
 	snd_hda_power_down(codec);
 	if (spec->mem_base)
 		iounmap(spec->mem_base);
