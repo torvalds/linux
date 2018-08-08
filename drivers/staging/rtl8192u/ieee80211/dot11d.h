@@ -17,22 +17,20 @@ enum dot11d_state {
 };
 
 struct rt_dot11d_info {
-	bool enabled; /* dot11MultiDomainCapabilityEnabled */
-
 	u16 country_ie_len; /* > 0 if country_ie_buf[] contains valid country information element. */
-	u8  country_ie_buf[MAX_IE_LEN];
+
+	/*  country_ie_src_addr u16 aligned for comparison and copy */
 	u8  country_ie_src_addr[6]; /* Source AP of the country IE. */
+	u8  country_ie_buf[MAX_IE_LEN];
 	u8  country_ie_watchdog;
 
 	u8  channel_map[MAX_CHANNEL_NUMBER + 1];  /* !Value 0: Invalid, 1: Valid (active scan), 2: Valid (passive scan) */
 	u8  max_tx_pwr_dbm_list[MAX_CHANNEL_NUMBER + 1];
 
 	enum dot11d_state state;
+	bool enabled; /* dot11MultiDomainCapabilityEnabled */
 };
 
-#define eqMacAddr(a, b)		(((a)[0] == (b)[0] &&		    \
-	(a)[1] == (b)[1] && (a)[2] == (b)[2] && (a)[3] == (b)[3] && \
-	(a)[4] == (b)[4] && (a)[5] == (b)[5]) ? 1 : 0)
 #define cpMacAddr(des, src)	      ((des)[0] = (src)[0], \
 	(des)[1] = (src)[1], (des)[2] = (src)[2], \
 	(des)[3] = (src)[3], (des)[4] = (src)[4], \
@@ -42,7 +40,7 @@ struct rt_dot11d_info {
 #define IS_DOT11D_ENABLE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->enabled)
 #define IS_COUNTRY_IE_VALID(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->country_ie_len > 0)
 
-#define IS_EQUAL_CIE_SRC(__pIeeeDev, __pTa) eqMacAddr(GET_DOT11D_INFO(__pIeeeDev)->country_ie_src_addr, __pTa)
+#define IS_EQUAL_CIE_SRC(__pIeeeDev, __pTa) ether_addr_equal(GET_DOT11D_INFO(__pIeeeDev)->country_ie_src_addr, __pTa)
 #define UPDATE_CIE_SRC(__pIeeeDev, __pTa) cpMacAddr(GET_DOT11D_INFO(__pIeeeDev)->country_ie_src_addr, __pTa)
 
 #define GET_CIE_WATCHDOG(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->country_ie_watchdog)
