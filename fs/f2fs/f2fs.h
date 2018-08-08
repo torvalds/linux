@@ -60,6 +60,8 @@ enum {
 	FAULT_MAX,
 };
 
+#define F2FS_ALL_FAULT_TYPE		((1 << FAULT_MAX) - 1)
+
 struct f2fs_fault_info {
 	atomic_t inject_ops;
 	unsigned int inject_rate;
@@ -3435,9 +3437,10 @@ static inline bool f2fs_force_buffered_io(struct inode *inode, int rw)
 }
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-extern void f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned int rate);
+extern void f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned int rate,
+							unsigned int type);
 #else
-#define f2fs_build_fault_attr(sbi, rate)		do { } while (0)
+#define f2fs_build_fault_attr(sbi, rate, type)		do { } while (0)
 #endif
 
 #endif
