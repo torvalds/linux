@@ -269,10 +269,10 @@ struct print_arg_op {
 	struct print_arg	*right;
 };
 
-struct pevent_function_handler;
+struct tep_function_handler;
 
 struct print_arg_func {
-	struct pevent_function_handler	*func;
+	struct tep_function_handler	*func;
 	struct print_arg		*args;
 };
 
@@ -361,16 +361,16 @@ enum event_type {
 	EVENT_SQUOTE,
 };
 
-typedef unsigned long long (*pevent_func_handler)(struct trace_seq *s,
-					     unsigned long long *args);
+typedef unsigned long long (*tep_func_handler)(struct trace_seq *s,
+					       unsigned long long *args);
 
-enum pevent_func_arg_type {
-	PEVENT_FUNC_ARG_VOID,
-	PEVENT_FUNC_ARG_INT,
-	PEVENT_FUNC_ARG_LONG,
-	PEVENT_FUNC_ARG_STRING,
-	PEVENT_FUNC_ARG_PTR,
-	PEVENT_FUNC_ARG_MAX_TYPES
+enum tep_func_arg_type {
+	TEP_FUNC_ARG_VOID,
+	TEP_FUNC_ARG_INT,
+	TEP_FUNC_ARG_LONG,
+	TEP_FUNC_ARG_STRING,
+	TEP_FUNC_ARG_PTR,
+	TEP_FUNC_ARG_MAX_TYPES
 };
 
 enum tep_flag {
@@ -524,7 +524,7 @@ struct tep_handle {
 	struct format_field *bprint_buf_field;
 
 	struct event_handler *handlers;
-	struct pevent_function_handler *func_handlers;
+	struct tep_function_handler *func_handlers;
 
 	/* cache */
 	struct event_format *last_event;
@@ -680,11 +680,11 @@ int pevent_unregister_event_handler(struct tep_handle *pevent, int id,
 				    const char *sys_name, const char *event_name,
 				    tep_event_handler_func func, void *context);
 int pevent_register_print_function(struct tep_handle *pevent,
-				   pevent_func_handler func,
-				   enum pevent_func_arg_type ret_type,
+				   tep_func_handler func,
+				   enum tep_func_arg_type ret_type,
 				   char *name, ...);
 int pevent_unregister_print_function(struct tep_handle *pevent,
-				     pevent_func_handler func, char *name);
+				     tep_func_handler func, char *name);
 
 struct format_field *tep_find_common_field(struct event_format *event, const char *name);
 struct format_field *tep_find_field(struct event_format *event, const char *name);

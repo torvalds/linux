@@ -94,14 +94,14 @@ struct event_handler {
 
 struct pevent_func_params {
 	struct pevent_func_params	*next;
-	enum pevent_func_arg_type	type;
+	enum tep_func_arg_type		type;
 };
 
-struct pevent_function_handler {
-	struct pevent_function_handler	*next;
-	enum pevent_func_arg_type	ret_type;
+struct tep_function_handler {
+	struct tep_function_handler	*next;
+	enum tep_func_arg_type		ret_type;
 	char				*name;
-	pevent_func_handler		func;
+	tep_func_handler		func;
 	struct pevent_func_params	*params;
 	int				nr_args;
 };
@@ -110,7 +110,7 @@ static unsigned long long
 process_defined_func(struct trace_seq *s, void *data, int size,
 		     struct event_format *event, struct print_arg *arg);
 
-static void free_func_handle(struct pevent_function_handler *func);
+static void free_func_handle(struct tep_function_handler *func);
 
 /**
  * pevent_buffer_init - init buffer for parsing
@@ -2914,10 +2914,10 @@ process_bitmask(struct event_format *event __maybe_unused, struct print_arg *arg
 	return EVENT_ERROR;
 }
 
-static struct pevent_function_handler *
+static struct tep_function_handler *
 find_func_handler(struct tep_handle *pevent, char *func_name)
 {
-	struct pevent_function_handler *func;
+	struct tep_function_handler *func;
 
 	if (!pevent)
 		return NULL;
@@ -2932,8 +2932,8 @@ find_func_handler(struct tep_handle *pevent, char *func_name)
 
 static void remove_func_handler(struct tep_handle *pevent, char *func_name)
 {
-	struct pevent_function_handler *func;
-	struct pevent_function_handler **next;
+	struct tep_function_handler *func;
+	struct tep_function_handler **next;
 
 	next = &pevent->func_handlers;
 	while ((func = *next)) {
@@ -2947,7 +2947,7 @@ static void remove_func_handler(struct tep_handle *pevent, char *func_name)
 }
 
 static enum event_type
-process_func_handler(struct event_format *event, struct pevent_function_handler *func,
+process_func_handler(struct event_format *event, struct tep_function_handler *func,
 		     struct print_arg *arg, char **tok)
 {
 	struct print_arg **next_arg;
@@ -3008,7 +3008,7 @@ static enum event_type
 process_function(struct event_format *event, struct print_arg *arg,
 		 char *token, char **tok)
 {
-	struct pevent_function_handler *func;
+	struct tep_function_handler *func;
 
 	if (strcmp(token, "__print_flags") == 0) {
 		free_token(token);
@@ -4132,7 +4132,7 @@ static unsigned long long
 process_defined_func(struct trace_seq *s, void *data, int size,
 		     struct event_format *event, struct print_arg *arg)
 {
-	struct pevent_function_handler *func_handle = arg->func.func;
+	struct tep_function_handler *func_handle = arg->func.func;
 	struct pevent_func_params *param;
 	unsigned long long *args;
 	unsigned long long ret;
@@ -4159,12 +4159,12 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 
 	for (i = 0; i < func_handle->nr_args; i++) {
 		switch (param->type) {
-		case PEVENT_FUNC_ARG_INT:
-		case PEVENT_FUNC_ARG_LONG:
-		case PEVENT_FUNC_ARG_PTR:
+		case TEP_FUNC_ARG_INT:
+		case TEP_FUNC_ARG_LONG:
+		case TEP_FUNC_ARG_PTR:
 			args[i] = eval_num_arg(data, size, event, farg);
 			break;
-		case PEVENT_FUNC_ARG_STRING:
+		case TEP_FUNC_ARG_STRING:
 			trace_seq_init(&str);
 			print_str_arg(&str, data, size, event, "%s", -1, farg);
 			trace_seq_terminate(&str);
@@ -6461,7 +6461,7 @@ int tep_print_func_field(struct trace_seq *s, const char *fmt,
 	return -1;
 }
 
-static void free_func_handle(struct pevent_function_handler *func)
+static void free_func_handle(struct tep_function_handler *func)
 {
 	struct pevent_func_params *params;
 
@@ -6482,24 +6482,24 @@ static void free_func_handle(struct pevent_function_handler *func)
  * @func: the function to process the helper function
  * @ret_type: the return type of the helper function
  * @name: the name of the helper function
- * @parameters: A list of enum pevent_func_arg_type
+ * @parameters: A list of enum tep_func_arg_type
  *
  * Some events may have helper functions in the print format arguments.
  * This allows a plugin to dynamically create a way to process one
  * of these functions.
  *
- * The @parameters is a variable list of pevent_func_arg_type enums that
- * must end with PEVENT_FUNC_ARG_VOID.
+ * The @parameters is a variable list of tep_func_arg_type enums that
+ * must end with TEP_FUNC_ARG_VOID.
  */
 int pevent_register_print_function(struct tep_handle *pevent,
-				   pevent_func_handler func,
-				   enum pevent_func_arg_type ret_type,
+				   tep_func_handler func,
+				   enum tep_func_arg_type ret_type,
 				   char *name, ...)
 {
-	struct pevent_function_handler *func_handle;
+	struct tep_function_handler *func_handle;
 	struct pevent_func_params **next_param;
 	struct pevent_func_params *param;
-	enum pevent_func_arg_type type;
+	enum tep_func_arg_type type;
 	va_list ap;
 	int ret;
 
@@ -6532,11 +6532,11 @@ int pevent_register_print_function(struct tep_handle *pevent,
 	next_param = &(func_handle->params);
 	va_start(ap, name);
 	for (;;) {
-		type = va_arg(ap, enum pevent_func_arg_type);
-		if (type == PEVENT_FUNC_ARG_VOID)
+		type = va_arg(ap, enum tep_func_arg_type);
+		if (type == TEP_FUNC_ARG_VOID)
 			break;
 
-		if (type >= PEVENT_FUNC_ARG_MAX_TYPES) {
+		if (type >= TEP_FUNC_ARG_MAX_TYPES) {
 			do_warning("Invalid argument type %d", type);
 			ret = TEP_ERRNO__INVALID_ARG_TYPE;
 			goto out_free;
@@ -6579,9 +6579,9 @@ int pevent_register_print_function(struct tep_handle *pevent,
  * Returns 0 if the handler was removed successully, -1 otherwise.
  */
 int pevent_unregister_print_function(struct tep_handle *pevent,
-				     pevent_func_handler func, char *name)
+				     tep_func_handler func, char *name)
 {
-	struct pevent_function_handler *func_handle;
+	struct tep_function_handler *func_handle;
 
 	func_handle = find_func_handler(pevent, name);
 	if (func_handle && func_handle->func == func) {
@@ -6819,7 +6819,7 @@ void tep_free(struct tep_handle *pevent)
 	struct cmdline_list *cmdlist, *cmdnext;
 	struct func_list *funclist, *funcnext;
 	struct printk_list *printklist, *printknext;
-	struct pevent_function_handler *func_handler;
+	struct tep_function_handler *func_handler;
 	struct event_handler *handle;
 	int i;
 

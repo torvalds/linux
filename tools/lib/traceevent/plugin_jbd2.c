@@ -51,17 +51,17 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	pevent_register_print_function(pevent,
 				       process_jbd2_dev_to_name,
-				       PEVENT_FUNC_ARG_STRING,
+				       TEP_FUNC_ARG_STRING,
 				       "jbd2_dev_to_name",
-				       PEVENT_FUNC_ARG_INT,
-				       PEVENT_FUNC_ARG_VOID);
+				       TEP_FUNC_ARG_INT,
+				       TEP_FUNC_ARG_VOID);
 
 	pevent_register_print_function(pevent,
 				       process_jiffies_to_msecs,
-				       PEVENT_FUNC_ARG_LONG,
+				       TEP_FUNC_ARG_LONG,
 				       "jiffies_to_msecs",
-				       PEVENT_FUNC_ARG_LONG,
-				       PEVENT_FUNC_ARG_VOID);
+				       TEP_FUNC_ARG_LONG,
+				       TEP_FUNC_ARG_VOID);
 	return 0;
 }
 

@@ -479,10 +479,10 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 
 	pevent_register_print_function(pevent,
 				       process_is_writable_pte,
-				       PEVENT_FUNC_ARG_INT,
+				       TEP_FUNC_ARG_INT,
 				       "is_writable_pte",
-				       PEVENT_FUNC_ARG_LONG,
-				       PEVENT_FUNC_ARG_VOID);
+				       TEP_FUNC_ARG_LONG,
+				       TEP_FUNC_ARG_VOID);
 	return 0;
 }
 

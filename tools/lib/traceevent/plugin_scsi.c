@@ -417,12 +417,12 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	pevent_register_print_function(pevent,
 				       process_scsi_trace_parse_cdb,
-				       PEVENT_FUNC_ARG_STRING,
+				       TEP_FUNC_ARG_STRING,
 				       "scsi_trace_parse_cdb",
-				       PEVENT_FUNC_ARG_PTR,
-				       PEVENT_FUNC_ARG_PTR,
-				       PEVENT_FUNC_ARG_INT,
-				       PEVENT_FUNC_ARG_VOID);
+				       TEP_FUNC_ARG_PTR,
+				       TEP_FUNC_ARG_PTR,
+				       TEP_FUNC_ARG_INT,
+				       TEP_FUNC_ARG_VOID);
 	return 0;
 }
 
