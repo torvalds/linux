@@ -254,10 +254,10 @@ static int print_exit_reason(struct trace_seq *s, struct tep_record *record,
 	unsigned long long val;
 	const char *reason;
 
-	if (pevent_get_field_val(s, event, field, record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, field, record, &val, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "isa", record, &isa, 0) < 0)
+	if (tep_get_field_val(s, event, "isa", record, &isa, 0) < 0)
 		isa = 1;
 
 	reason = find_exit_reason(isa, val);
@@ -278,8 +278,8 @@ static int kvm_exit_handler(struct trace_seq *s, struct tep_record *record,
 
 	tep_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
 
-	if (pevent_get_field_val(s, event, "info1", record, &info1, 0) >= 0
-	    && pevent_get_field_val(s, event, "info2", record, &info2, 0) >= 0)
+	if (tep_get_field_val(s, event, "info1", record, &info1, 0) >= 0
+	    && tep_get_field_val(s, event, "info2", record, &info2, 0) >= 0)
 		trace_seq_printf(s, " info %llx %llx", info1, info2);
 
 	return 0;
@@ -299,22 +299,22 @@ static int kvm_emulate_insn_handler(struct trace_seq *s,
 	uint8_t *insn;
 	const char *disasm;
 
-	if (pevent_get_field_val(s, event, "rip", record, &rip, 1) < 0)
+	if (tep_get_field_val(s, event, "rip", record, &rip, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "csbase", record, &csbase, 1) < 0)
+	if (tep_get_field_val(s, event, "csbase", record, &csbase, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "len", record, &len, 1) < 0)
+	if (tep_get_field_val(s, event, "len", record, &len, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "flags", record, &flags, 1) < 0)
+	if (tep_get_field_val(s, event, "flags", record, &flags, 1) < 0)
 		return -1;
 
-	if (pevent_get_field_val(s, event, "failed", record, &failed, 1) < 0)
+	if (tep_get_field_val(s, event, "failed", record, &failed, 1) < 0)
 		return -1;
 
-	insn = pevent_get_field_raw(s, event, "insn", record, &llen, 1);
+	insn = tep_get_field_raw(s, event, "insn", record, &llen, 1);
 	if (!insn)
 		return -1;
 
@@ -379,7 +379,7 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
 	};
 	union kvm_mmu_page_role role;
 
-	if (pevent_get_field_val(s, event, "role", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "role", record, &val, 1) < 0)
 		return -1;
 
 	role.word = (int)val;
@@ -409,7 +409,7 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
 	tep_print_num_field(s, " root %u ",  event,
 			    "root_count", record, 1);
 
-	if (pevent_get_field_val(s, event, "unsync", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "unsync", record, &val, 1) < 0)
 		return -1;
 
 	trace_seq_printf(s, "%s%c",  val ? "unsync" : "sync", 0);
@@ -422,12 +422,12 @@ static int kvm_mmu_get_page_handler(struct trace_seq *s,
 {
 	unsigned long long val;
 
-	if (pevent_get_field_val(s, event, "created", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "created", record, &val, 1) < 0)
 		return -1;
 
 	trace_seq_printf(s, "%s ", val ? "new" : "existing");
 
-	if (pevent_get_field_val(s, event, "gfn", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "gfn", record, &val, 1) < 0)
 		return -1;
 
 	trace_seq_printf(s, "sp gfn %llx ", val);

@@ -648,22 +648,22 @@ enum tep_errno tep_parse_format(struct tep_handle *pevent,
 				struct event_format **eventp,
 				const char *buf,
 				unsigned long size, const char *sys);
-void pevent_free_format(struct event_format *event);
-void pevent_free_format_field(struct format_field *field);
+void tep_free_format(struct event_format *event);
+void tep_free_format_field(struct format_field *field);
 
-void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
-			   const char *name, struct tep_record *record,
-			   int *len, int err);
+void *tep_get_field_raw(struct trace_seq *s, struct event_format *event,
+			const char *name, struct tep_record *record,
+			int *len, int err);
 
-int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
-			 const char *name, struct tep_record *record,
-			 unsigned long long *val, int err);
-int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
-				const char *name, struct tep_record *record,
-				unsigned long long *val, int err);
-int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
+int tep_get_field_val(struct trace_seq *s, struct event_format *event,
+		      const char *name, struct tep_record *record,
+		      unsigned long long *val, int err);
+int tep_get_common_field_val(struct trace_seq *s, struct event_format *event,
 			     const char *name, struct tep_record *record,
 			     unsigned long long *val, int err);
+int tep_get_any_field_val(struct trace_seq *s, struct event_format *event,
+			  const char *name, struct tep_record *record,
+			  unsigned long long *val, int err);
 
 int tep_print_num_field(struct trace_seq *s, const char *fmt,
 			   struct event_format *event, const char *name,

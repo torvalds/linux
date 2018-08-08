@@ -132,12 +132,12 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	const char *parent;
 	int index = 0;
 
-	if (pevent_get_field_val(s, event, "ip", record, &function, 1))
+	if (tep_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
 	func = pevent_find_function(pevent, function);
 
-	if (pevent_get_field_val(s, event, "parent_ip", record, &pfunction, 1))
+	if (tep_get_field_val(s, event, "parent_ip", record, &pfunction, 1))
 		return trace_seq_putc(s, '!');
 
 	parent = pevent_find_function(pevent, pfunction);
