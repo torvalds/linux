@@ -49,7 +49,7 @@ EXPORT_SYMBOL(dot11d_reset);
  * 1. IS_DOT11D_ENABLE() is TRUE.
  * 2. Input IE is an valid one.
  */
-void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
+void dot11d_update_country_ie(struct ieee80211_device *dev, u8 *pTaddr,
 			    u16 CoutryIeLen, u8 *pCoutryIe)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
@@ -66,14 +66,14 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 			/* It is not in a monotonically increasing order, so
 			 * stop processing.
 			 */
-			netdev_err(dev->dev, "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........1\n");
+			netdev_err(dev->dev, "dot11d_update_country_ie(): Invalid country IE, skip it........1\n");
 			return;
 		}
 		if (MAX_CHANNEL_NUMBER < (pTriple->first_channel + pTriple->num_channels)) {
 			/* It is not a valid set of channel id, so stop
 			 * processing.
 			 */
-			netdev_err(dev->dev, "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........2\n");
+			netdev_err(dev->dev, "dot11d_update_country_ie(): Invalid country IE, skip it........2\n");
 			return;
 		}
 
@@ -97,7 +97,7 @@ void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
 	memcpy(pDot11dInfo->country_ie_buf, pCoutryIe, CoutryIeLen);
 	pDot11dInfo->state = DOT11D_STATE_LEARNED;
 }
-EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
+EXPORT_SYMBOL(dot11d_update_country_ie);
 
 u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
 {

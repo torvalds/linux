@@ -1582,7 +1582,7 @@ static inline void ieee80211_extract_country_ie(
 
 			if (!IS_COUNTRY_IE_VALID(ieee))
 			{
-				Dot11d_UpdateCountryIe(ieee, addr2, info_element->len, info_element->data);
+				dot11d_update_country_ie(ieee, addr2, info_element->len, info_element->data);
 			}
 		}
 
