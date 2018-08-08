@@ -124,6 +124,14 @@ static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
 	return container_of(panel, struct panel_simple, base);
 }
 
+static void panel_simple_sleep(unsigned int msec)
+{
+	if (msec > 20)
+		msleep(msec);
+	else
+		usleep_range(msec * 1000, (msec + 1) * 1000);
+}
+
 static int panel_simple_parse_cmd_seq(struct device *dev,
 				      const u8 *data, int length,
 				      struct panel_cmd_seq *seq)
@@ -211,7 +219,7 @@ static int panel_simple_xfer_cmd_seq(struct panel_simple *panel,
 		}
 
 		if (header->delay)
-			msleep(header->delay);
+			panel_simple_sleep(header->delay);
 	}
 
 	return 0;
@@ -351,7 +359,7 @@ static int panel_simple_disable(struct drm_panel *panel)
 	}
 
 	if (p->desc->delay.disable)
-		msleep(p->desc->delay.disable);
+		panel_simple_sleep(p->desc->delay.disable);
 
 	p->enabled = false;
 
@@ -375,7 +383,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	panel_simple_regulator_disable(p);
 
 	if (p->desc->delay.unprepare)
-		msleep(p->desc->delay.unprepare);
+		panel_simple_sleep(p->desc->delay.unprepare);
 
 	p->prepared = false;
 
@@ -399,17 +407,17 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	gpiod_direction_output(p->enable_gpio, 1);
 
 	if (p->desc->delay.prepare)
-		msleep(p->desc->delay.prepare);
+		panel_simple_sleep(p->desc->delay.prepare);
 
 	gpiod_direction_output(p->reset_gpio, 1);
 
 	if (p->desc->delay.reset)
-		msleep(p->desc->delay.reset);
+		panel_simple_sleep(p->desc->delay.reset);
 
 	gpiod_direction_output(p->reset_gpio, 0);
 
 	if (p->desc->delay.init)
-		msleep(p->desc->delay.init);
+		panel_simple_sleep(p->desc->delay.init);
 
 	if (p->desc->init_seq)
 		panel_simple_xfer_cmd_seq(p, p->desc->init_seq);
@@ -427,7 +435,7 @@ static int panel_simple_enable(struct drm_panel *panel)
 		return 0;
 
 	if (p->desc->delay.enable)
-		msleep(p->desc->delay.enable);
+		panel_simple_sleep(p->desc->delay.enable);
 
 	if (p->backlight) {
 		p->backlight->props.state &= ~BL_CORE_FBBLANK;
