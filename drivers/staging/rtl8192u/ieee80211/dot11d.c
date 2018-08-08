@@ -99,13 +99,13 @@ void dot11d_update_country_ie(struct ieee80211_device *dev, u8 *pTaddr,
 }
 EXPORT_SYMBOL(dot11d_update_country_ie);
 
-u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
+u8 dot11d_get_max_tx_pwr_in_dbm(struct ieee80211_device *dev, u8 Channel)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 MaxTxPwrInDbm = 255;
 
 	if (Channel > MAX_CHANNEL_NUMBER) {
-		netdev_err(dev->dev, "DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
+		netdev_err(dev->dev, "dot11d_get_max_tx_pwr_in_dbm(): Invalid Channel\n");
 		return MaxTxPwrInDbm;
 	}
 	if (pDot11dInfo->channel_map[Channel])
@@ -113,7 +113,7 @@ u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel)
 
 	return MaxTxPwrInDbm;
 }
-EXPORT_SYMBOL(DOT11D_GetMaxTxPwrInDbm);
+EXPORT_SYMBOL(dot11d_get_max_tx_pwr_in_dbm);
 
 void DOT11D_ScanComplete(struct ieee80211_device *dev)
 {
