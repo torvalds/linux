@@ -84,29 +84,24 @@ EXPORT_SYMBOL(snd_free_pages);
 /* allocate the coherent DMA pages */
 static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *dma)
 {
-	int pg;
 	gfp_t gfp_flags;
 
 	if (WARN_ON(!dma))
 		return NULL;
-	pg = get_order(size);
 	gfp_flags = GFP_KERNEL
 		| __GFP_COMP	/* compound page lets parts be mapped */
 		| __GFP_NORETRY /* don't trigger OOM-killer */
 		| __GFP_NOWARN; /* no stack trace print - this call is non-critical */
-	return dma_alloc_coherent(dev, PAGE_SIZE << pg, dma, gfp_flags);
+	return dma_alloc_coherent(dev, size, dma, gfp_flags);
 }
 
 /* free the coherent DMA pages */
 static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
 			       dma_addr_t dma)
 {
-	int pg;
-
 	if (ptr == NULL)
 		return;
-	pg = get_order(size);
-	dma_free_coherent(dev, PAGE_SIZE << pg, ptr, dma);
+	dma_free_coherent(dev, size, ptr, dma);
 }
 
 #ifdef CONFIG_GENERIC_ALLOCATOR
