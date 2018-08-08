@@ -52,6 +52,7 @@ static inline void ctr_set_stop(u64 *state, int ctr_set)
 struct cpu_cf_events {
 	struct cpumf_ctr_info	info;
 	atomic_t		ctr_set[CPUMF_CTR_SET_MAX];
+	atomic64_t		alert;
 	u64			state, tx_state;
 	unsigned int		flags;
 	unsigned int		txn_flags;
@@ -59,6 +60,7 @@ struct cpu_cf_events {
 DECLARE_PER_CPU(struct cpu_cf_events, cpu_cf_events);
 
 int __kernel_cpumcf_begin(void);
+unsigned long kernel_cpumcf_alert(int clear);
 void __kernel_cpumcf_end(void);
 
 #endif /* _ASM_S390_CPU_MCF_H */

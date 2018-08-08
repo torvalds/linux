@@ -27,6 +27,7 @@ DEFINE_PER_CPU(struct cpu_cf_events, cpu_cf_events) = {
 		[CPUMF_CTR_SET_EXT]	= ATOMIC_INIT(0),
 		[CPUMF_CTR_SET_MT_DIAG] = ATOMIC_INIT(0),
 	},
+	.alert = ATOMIC64_INIT(0),
 	.state = 0,
 	.flags = 0,
 	.txn_flags = 0,
@@ -205,6 +206,9 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 	if (alert & CPU_MF_INT_CF_MTDA)
 		pr_warn("CPU[%i] MT counter data was lost\n",
 			smp_processor_id());
+
+	/* store alert for special handling by in-kernel users */
+	atomic64_or(alert, &cpuhw->alert);
 }
 
 #define PMC_INIT      0
@@ -254,6 +258,20 @@ int __kernel_cpumcf_begin(void)
 	return 0;
 }
 EXPORT_SYMBOL(__kernel_cpumcf_begin);
+
+/* Obtain the CPU-measurement alerts for the counter facility */
+unsigned long kernel_cpumcf_alert(int clear)
+{
+	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
+	unsigned long alert;
+
+	alert = atomic64_read(&cpuhw->alert);
+	if (clear)
+		atomic64_set(&cpuhw->alert, 0);
+
+	return alert;
+}
+EXPORT_SYMBOL(kernel_cpumcf_alert);
 
 /* Release the CPU-measurement counter facility */
 void __kernel_cpumcf_end(void)
