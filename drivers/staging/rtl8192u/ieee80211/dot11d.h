@@ -20,7 +20,7 @@ struct rt_dot11d_info {
 	u16 country_ie_len; /* > 0 if country_ie_buf[] contains valid country information element. */
 
 	/*  country_ie_src_addr u16 aligned for comparison and copy */
-	u8  country_ie_src_addr[6]; /* Source AP of the country IE. */
+	u8  country_ie_src_addr[ETH_ALEN]; /* Source AP of the country IE. */
 	u8  country_ie_buf[MAX_IE_LEN];
 	u8  country_ie_watchdog;
 
