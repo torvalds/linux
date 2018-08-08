@@ -130,6 +130,17 @@ struct vmw_du_update_plane {
 };
 
 /**
+ * struct vmw_du_update_plane_surface - closure structure for surface
+ * @base: base closure structure.
+ * @cmd_start: FIFO command start address (used by SOU only).
+ */
+struct vmw_du_update_plane_surface {
+	struct vmw_du_update_plane base;
+	/* This member is to handle special case SOU surface update */
+	void *cmd_start;
+};
+
+/**
  * struct vmw_du_update_plane_buffer - Closure structure for buffer object
  * @base: Base closure structure.
  * @fb_left: x1 for fb damage bounding box.

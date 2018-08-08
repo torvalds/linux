@@ -498,6 +498,167 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	return vmw_bo_pin_in_vram(dev_priv, vps->bo, true);
 }
 
+static uint32_t vmw_sou_surface_fifo_size(struct vmw_du_update_plane *update,
+					  uint32_t num_hits)
+{
+	return sizeof(struct vmw_kms_sou_dirty_cmd) + sizeof(SVGASignedRect) *
+		num_hits;
+}
+
+static uint32_t vmw_sou_surface_post_prepare(struct vmw_du_update_plane *update,
+					     void *cmd)
+{
+	struct vmw_du_update_plane_surface *srf_update;
+
+	srf_update = container_of(update, typeof(*srf_update), base);
+
+	/*
+	 * SOU SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN is special in the sense that
+	 * its bounding box is filled before iterating over all the clips. So
+	 * store the FIFO start address and revisit to fill the details.
+	 */
+	srf_update->cmd_start = cmd;
+
+	return 0;
+}
+
+static uint32_t vmw_sou_surface_pre_clip(struct vmw_du_update_plane *update,
+					 void *cmd, uint32_t num_hits)
+{
+	struct vmw_kms_sou_dirty_cmd *blit = cmd;
+	struct vmw_framebuffer_surface *vfbs;
+
+	vfbs = container_of(update->vfb, typeof(*vfbs), base);
+
+	blit->header.id = SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN;
+	blit->header.size = sizeof(blit->body) + sizeof(SVGASignedRect) *
+		num_hits;
+
+	blit->body.srcImage.sid = vfbs->surface->res.id;
+	blit->body.destScreenId = update->du->unit;
+
+	/* Update the source and destination bounding box later in post_clip */
+	blit->body.srcRect.left = 0;
+	blit->body.srcRect.top = 0;
+	blit->body.srcRect.right = 0;
+	blit->body.srcRect.bottom = 0;
+
+	blit->body.destRect.left = 0;
+	blit->body.destRect.top = 0;
+	blit->body.destRect.right = 0;
+	blit->body.destRect.bottom = 0;
+
+	return sizeof(*blit);
+}
+
+static uint32_t vmw_sou_surface_clip_rect(struct vmw_du_update_plane *update,
+					  void *cmd, struct drm_rect *clip,
+					  uint32_t src_x, uint32_t src_y)
+{
+	SVGASignedRect *rect = cmd;
+
+	/*
+	 * rects are relative to dest bounding box rect on screen object, so
+	 * translate to it later in post_clip
+	 */
+	rect->left = clip->x1;
+	rect->top = clip->y1;
+	rect->right = clip->x2;
+	rect->bottom = clip->y2;
+
+	return sizeof(*rect);
+}
+
+static uint32_t vmw_sou_surface_post_clip(struct vmw_du_update_plane *update,
+					  void *cmd, struct drm_rect *bb)
+{
+	struct vmw_du_update_plane_surface *srf_update;
+	struct drm_plane_state *state = update->plane->state;
+	struct drm_rect src_bb;
+	struct vmw_kms_sou_dirty_cmd *blit;
+	SVGASignedRect *rect;
+	uint32_t num_hits;
+	int translate_src_x;
+	int translate_src_y;
+	int i;
+
+	srf_update = container_of(update, typeof(*srf_update), base);
+
+	blit = srf_update->cmd_start;
+	rect = (SVGASignedRect *)&blit[1];
+
+	num_hits = (blit->header.size - sizeof(blit->body))/
+		sizeof(SVGASignedRect);
+
+	src_bb = *bb;
+
+	/* To translate bb back to fb src coord */
+	translate_src_x = (state->src_x >> 16) - state->crtc_x;
+	translate_src_y = (state->src_y >> 16) - state->crtc_y;
+
+	drm_rect_translate(&src_bb, translate_src_x, translate_src_y);
+
+	blit->body.srcRect.left = src_bb.x1;
+	blit->body.srcRect.top = src_bb.y1;
+	blit->body.srcRect.right = src_bb.x2;
+	blit->body.srcRect.bottom = src_bb.y2;
+
+	blit->body.destRect.left = bb->x1;
+	blit->body.destRect.top = bb->y1;
+	blit->body.destRect.right = bb->x2;
+	blit->body.destRect.bottom = bb->y2;
+
+	/* rects are relative to dest bb rect */
+	for (i = 0; i < num_hits; i++) {
+		rect->left -= bb->x1;
+		rect->top -= bb->y1;
+		rect->right -= bb->x1;
+		rect->bottom -= bb->y1;
+		rect++;
+	}
+
+	return 0;
+}
+
+/**
+ * vmw_sou_plane_update_surface - Update display unit for surface backed fb.
+ * @dev_priv: Device private.
+ * @plane: Plane state.
+ * @old_state: Old plane state.
+ * @vfb: Framebuffer which is blitted to display unit
+ * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ *             The returned fence pointer may be NULL in which case the device
+ *             has already synchronized.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int vmw_sou_plane_update_surface(struct vmw_private *dev_priv,
+					struct drm_plane *plane,
+					struct drm_plane_state *old_state,
+					struct vmw_framebuffer *vfb,
+					struct vmw_fence_obj **out_fence)
+{
+	struct vmw_du_update_plane_surface srf_update;
+
+	memset(&srf_update, 0, sizeof(struct vmw_du_update_plane_surface));
+	srf_update.base.plane = plane;
+	srf_update.base.old_state = old_state;
+	srf_update.base.dev_priv = dev_priv;
+	srf_update.base.du = vmw_crtc_to_du(plane->state->crtc);
+	srf_update.base.vfb = vfb;
+	srf_update.base.out_fence = out_fence;
+	srf_update.base.mutex = &dev_priv->cmdbuf_mutex;
+	srf_update.base.cpu_blit = false;
+	srf_update.base.intr = true;
+
+	srf_update.base.calc_fifo_size = vmw_sou_surface_fifo_size;
+	srf_update.base.post_prepare = vmw_sou_surface_post_prepare;
+	srf_update.base.pre_clip = vmw_sou_surface_pre_clip;
+	srf_update.base.clip = vmw_sou_surface_clip_rect;
+	srf_update.base.post_clip = vmw_sou_surface_post_clip;
+
+	return vmw_du_helper_plane_update(&srf_update.base);
+}
 
 static void
 vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
