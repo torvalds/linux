@@ -8,11 +8,33 @@
 
 #include <net/sock_reuseport.h>
 #include <linux/bpf.h>
+#include <linux/idr.h>
 #include <linux/rcupdate.h>
 
 #define INIT_SOCKS 128
 
-static DEFINE_SPINLOCK(reuseport_lock);
+DEFINE_SPINLOCK(reuseport_lock);
+
+#define REUSEPORT_MIN_ID 1
+static DEFINE_IDA(reuseport_ida);
+
+int reuseport_get_id(struct sock_reuseport *reuse)
+{
+	int id;
+
+	if (reuse->reuseport_id)
+		return reuse->reuseport_id;
+
+	id = ida_simple_get(&reuseport_ida, REUSEPORT_MIN_ID, 0,
+			    /* Called under reuseport_lock */
+			    GFP_ATOMIC);
+	if (id < 0)
+		return id;
+
+	reuse->reuseport_id = id;
+
+	return reuse->reuseport_id;
+}
 
 static struct sock_reuseport *__reuseport_alloc(unsigned int max_socks)
 {
@@ -78,6 +100,7 @@ static struct sock_reuseport *reuseport_grow(struct sock_reuseport *reuse)
 	more_reuse->max_socks = more_socks_size;
 	more_reuse->num_socks = reuse->num_socks;
 	more_reuse->prog = reuse->prog;
+	more_reuse->reuseport_id = reuse->reuseport_id;
 
 	memcpy(more_reuse->socks, reuse->socks,
 	       reuse->num_socks * sizeof(struct sock *));
@@ -102,6 +125,8 @@ static void reuseport_free_rcu(struct rcu_head *head)
 	reuse = container_of(head, struct sock_reuseport, rcu);
 	if (reuse->prog)
 		bpf_prog_destroy(reuse->prog);
+	if (reuse->reuseport_id)
+		ida_simple_remove(&reuseport_ida, reuse->reuseport_id);
 	kfree(reuse);
 }
 
