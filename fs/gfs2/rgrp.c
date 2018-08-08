@@ -1111,13 +1111,6 @@ static int gfs2_rgrp_lvb_valid(struct gfs2_rgrpd *rgd)
 	return 1;
 }
 
-static void update_rgrp_lvb_unlinked(struct gfs2_rgrpd *rgd, u32 change)
-{
-	struct gfs2_rgrp_lvb *rgl = rgd->rd_rgl;
-	u32 unlinked = be32_to_cpu(rgl->rl_unlinked) + change;
-	rgl->rl_unlinked = cpu_to_be32(unlinked);
-}
-
 static u32 count_unlinked(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_bitmap *bi;
@@ -2489,7 +2482,7 @@ void gfs2_unlink_di(struct inode *inode)
 	trace_gfs2_block_alloc(ip, rgd, blkno, 1, GFS2_BLKST_UNLINKED);
 	gfs2_trans_add_meta(rgd->rd_gl, rgd->rd_bits[0].bi_bh);
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
-	update_rgrp_lvb_unlinked(rgd, 1);
+	be32_add_cpu(&rgd->rd_rgl->rl_unlinked, 1);
 }
 
 void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
@@ -2509,7 +2502,7 @@ void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 
 	gfs2_trans_add_meta(rgd->rd_gl, rgd->rd_bits[0].bi_bh);
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
-	update_rgrp_lvb_unlinked(rgd, -1);
+	be32_add_cpu(&rgd->rd_rgl->rl_unlinked, -1);
 
 	gfs2_statfs_change(sdp, 0, +1, -1);
 	trace_gfs2_block_alloc(ip, rgd, ip->i_no_addr, 1, GFS2_BLKST_FREE);
