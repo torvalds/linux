@@ -153,6 +153,8 @@ struct smb2_transform_hdr {
  *
  */
 
+#define COMPOUND_FID 0xFFFFFFFFFFFFFFFFULL
+
 #define SMB2_ERROR_STRUCTURE_SIZE2 cpu_to_le16(9)
 
 struct smb2_err_rsp {
@@ -1372,5 +1374,7 @@ struct smb2_file_all_info { /* data block encoding of response to level 18 */
 struct smb2_file_eof_info { /* encoding of request for level 10 */
 	__le64 EndOfFile; /* new end of file value */
 } __packed; /* level 20 Set */
+
+extern char smb2_padding[7];
 
 #endif				/* _SMB2PDU_H */

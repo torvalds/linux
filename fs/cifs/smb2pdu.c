@@ -80,7 +80,7 @@ static const int smb2_req_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_OPLOCK_BREAK */ 24 /* BB this is 36 for LEASE_BREAK variant */
 };
 
-static int smb3_encryption_required(const struct cifs_tcon *tcon)
+int smb3_encryption_required(const struct cifs_tcon *tcon)
 {
 	if (!tcon)
 		return 0;
@@ -2182,7 +2182,8 @@ SMB2_open_free(struct smb_rqst *rqst)
 
 	cifs_small_buf_release(rqst->rq_iov[0].iov_base);
 	for (i = 1; i < rqst->rq_nvec; i++)
-		kfree(rqst->rq_iov[i].iov_base);
+		if (rqst->rq_iov[i].iov_base != smb2_padding)
+			kfree(rqst->rq_iov[i].iov_base);
 }
 
 int
@@ -2528,9 +2529,9 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 	return SMB2_close_flags(xid, tcon, persistent_fid, volatile_fid, 0);
 }
 
-static int
-validate_iov(unsigned int offset, unsigned int buffer_length,
-	     struct kvec *iov, unsigned int min_buf_size)
+int
+smb2_validate_iov(unsigned int offset, unsigned int buffer_length,
+		  struct kvec *iov, unsigned int min_buf_size)
 {
 	unsigned int smb_len = iov->iov_len;
 	char *end_of_smb = smb_len + (char *)iov->iov_base;
@@ -2574,7 +2575,7 @@ validate_and_copy_iov(unsigned int offset, unsigned int buffer_length,
 	if (!data)
 		return -EINVAL;
 
-	rc = validate_iov(offset, buffer_length, iov, minbufsize);
+	rc = smb2_validate_iov(offset, buffer_length, iov, minbufsize);
 	if (rc)
 		return rc;
 
@@ -3646,9 +3647,9 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 		goto qdir_exit;
 	}
 
-	rc = validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
-			  le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
-			  info_buf_size);
+	rc = smb2_validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
+			       le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
+			       info_buf_size);
 	if (rc)
 		goto qdir_exit;
 
@@ -3950,9 +3951,9 @@ SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static void
-copy_fs_info_to_kstatfs(struct smb2_fs_full_size_info *pfs_inf,
-			struct kstatfs *kst)
+void
+smb2_copy_fs_info_to_kstatfs(struct smb2_fs_full_size_info *pfs_inf,
+			     struct kstatfs *kst)
 {
 	kst->f_bsize = le32_to_cpu(pfs_inf->BytesPerSector) *
 			  le32_to_cpu(pfs_inf->SectorsPerAllocationUnit);
@@ -4054,9 +4055,9 @@ SMB311_posix_qfs_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	info = (FILE_SYSTEM_POSIX_INFO *)(
 		le16_to_cpu(rsp->OutputBufferOffset) + (char *)rsp);
-	rc = validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
-			  le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
-			  sizeof(FILE_SYSTEM_POSIX_INFO));
+	rc = smb2_validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
+			       le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
+			       sizeof(FILE_SYSTEM_POSIX_INFO));
 	if (!rc)
 		copy_posix_fs_info_to_kstatfs(info, fsdata);
 
@@ -4102,11 +4103,11 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	info = (struct smb2_fs_full_size_info *)(
 		le16_to_cpu(rsp->OutputBufferOffset) + (char *)rsp);
-	rc = validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
-			  le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
-			  sizeof(struct smb2_fs_full_size_info));
+	rc = smb2_validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
+			       le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
+			       sizeof(struct smb2_fs_full_size_info));
 	if (!rc)
-		copy_fs_info_to_kstatfs(info, fsdata);
+		smb2_copy_fs_info_to_kstatfs(info, fsdata);
 
 qfsinf_exit:
 	free_rsp_buf(resp_buftype, rsp_iov.iov_base);
@@ -4166,7 +4167,7 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rsp_len = le32_to_cpu(rsp->OutputBufferLength);
 	offset = le16_to_cpu(rsp->OutputBufferOffset);
-	rc = validate_iov(offset, rsp_len, &rsp_iov, min_len);
+	rc = smb2_validate_iov(offset, rsp_len, &rsp_iov, min_len);
 	if (rc)
 		goto qfsattr_exit;
 

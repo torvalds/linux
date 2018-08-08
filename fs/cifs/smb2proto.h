@@ -229,6 +229,12 @@ extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
 extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
+extern int smb3_encryption_required(const struct cifs_tcon *tcon);
+extern int smb2_validate_iov(unsigned int offset, unsigned int buffer_length,
+			     struct kvec *iov, unsigned int min_buf_size);
+extern void smb2_copy_fs_info_to_kstatfs(
+	 struct smb2_fs_full_size_info *pfs_inf,
+	 struct kstatfs *kst);
 extern int smb311_crypto_shash_allocate(struct TCP_Server_Info *server);
 extern int smb311_update_preauth_hash(struct cifs_ses *ses,
 				      struct kvec *iov, int nvec);
