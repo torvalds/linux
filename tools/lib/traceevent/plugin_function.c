@@ -165,8 +165,8 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 
 int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
-	pevent_register_event_handler(pevent, -1, "ftrace", "function",
-				      function_handler, NULL);
+	tep_register_event_handler(pevent, -1, "ftrace", "function",
+				   function_handler, NULL);
 
 	tep_plugin_add_options("ftrace", plugin_options);
 
@@ -177,8 +177,8 @@ void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
 	int i, x;
 
-	pevent_unregister_event_handler(pevent, -1, "ftrace", "function",
-					function_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "ftrace", "function",
+				     function_handler, NULL);
 
 	for (i = 0; i <= cpus; i++) {
 		for (x = 0; x < fstack[i].size && fstack[i].stack[x]; x++)

@@ -68,21 +68,21 @@ static int timer_start_handler(struct trace_seq *s,
 
 int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
-	pevent_register_event_handler(pevent, -1,
-				      "timer", "hrtimer_expire_entry",
-				      timer_expire_handler, NULL);
+	tep_register_event_handler(pevent, -1,
+				   "timer", "hrtimer_expire_entry",
+				   timer_expire_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "timer", "hrtimer_start",
-				      timer_start_handler, NULL);
+	tep_register_event_handler(pevent, -1, "timer", "hrtimer_start",
+				   timer_start_handler, NULL);
 	return 0;
 }
 
 void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
-	pevent_unregister_event_handler(pevent, -1,
-					"timer", "hrtimer_expire_entry",
-					timer_expire_handler, NULL);
+	tep_unregister_event_handler(pevent, -1,
+				     "timer", "hrtimer_expire_entry",
+				     timer_expire_handler, NULL);
 
-	pevent_unregister_event_handler(pevent, -1, "timer", "hrtimer_start",
-					timer_start_handler, NULL);
+	tep_unregister_event_handler(pevent, -1, "timer", "hrtimer_start",
+				     timer_start_handler, NULL);
 }

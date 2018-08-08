@@ -324,7 +324,7 @@ int tep_register_comm(struct tep_handle *pevent, const char *comm, int pid)
 	return 0;
 }
 
-int pevent_register_trace_clock(struct tep_handle *pevent, const char *trace_clock)
+int tep_register_trace_clock(struct tep_handle *pevent, const char *trace_clock)
 {
 	pevent->trace_clock = strdup(trace_clock);
 	if (!pevent->trace_clock) {
@@ -544,7 +544,7 @@ pevent_find_function_address(struct tep_handle *pevent, unsigned long long addr)
 }
 
 /**
- * pevent_register_function - register a function with a given address
+ * tep_register_function - register a function with a given address
  * @pevent: handle for the pevent
  * @function: the function name to register
  * @addr: the address the function starts at
@@ -553,8 +553,8 @@ pevent_find_function_address(struct tep_handle *pevent, unsigned long long addr)
  * This registers a function name with an address and module.
  * The @func passed in is duplicated.
  */
-int pevent_register_function(struct tep_handle *pevent, char *func,
-			     unsigned long long addr, char *mod)
+int tep_register_function(struct tep_handle *pevent, char *func,
+			  unsigned long long addr, char *mod)
 {
 	struct func_list *item = malloc(sizeof(*item));
 
@@ -6477,7 +6477,7 @@ static void free_func_handle(struct tep_function_handler *func)
 }
 
 /**
- * pevent_register_print_function - register a helper function
+ * tep_register_print_function - register a helper function
  * @pevent: the handle to the pevent
  * @func: the function to process the helper function
  * @ret_type: the return type of the helper function
@@ -6491,10 +6491,10 @@ static void free_func_handle(struct tep_function_handler *func)
  * The @parameters is a variable list of tep_func_arg_type enums that
  * must end with TEP_FUNC_ARG_VOID.
  */
-int pevent_register_print_function(struct tep_handle *pevent,
-				   tep_func_handler func,
-				   enum tep_func_arg_type ret_type,
-				   char *name, ...)
+int tep_register_print_function(struct tep_handle *pevent,
+				tep_func_handler func,
+				enum tep_func_arg_type ret_type,
+				char *name, ...)
 {
 	struct tep_function_handler *func_handle;
 	struct pevent_func_params **next_param;
@@ -6569,7 +6569,7 @@ int pevent_register_print_function(struct tep_handle *pevent,
 }
 
 /**
- * pevent_unregister_print_function - unregister a helper function
+ * tep_unregister_print_function - unregister a helper function
  * @pevent: the handle to the pevent
  * @func: the function to process the helper function
  * @name: the name of the helper function
@@ -6578,8 +6578,8 @@ int pevent_register_print_function(struct tep_handle *pevent,
  *
  * Returns 0 if the handler was removed successully, -1 otherwise.
  */
-int pevent_unregister_print_function(struct tep_handle *pevent,
-				     tep_func_handler func, char *name)
+int tep_unregister_print_function(struct tep_handle *pevent,
+				  tep_func_handler func, char *name)
 {
 	struct tep_function_handler *func_handle;
 
@@ -6615,7 +6615,7 @@ static struct event_format *pevent_search_event(struct tep_handle *pevent, int i
 }
 
 /**
- * pevent_register_event_handler - register a way to parse an event
+ * tep_register_event_handler - register a way to parse an event
  * @pevent: the handle to the pevent
  * @id: the id of the event to register
  * @sys_name: the system name the event belongs to
@@ -6631,9 +6631,9 @@ static struct event_format *pevent_search_event(struct tep_handle *pevent, int i
  * If @id is >= 0, then it is used to find the event.
  * else @sys_name and @event_name are used.
  */
-int pevent_register_event_handler(struct tep_handle *pevent, int id,
-				  const char *sys_name, const char *event_name,
-				  tep_event_handler_func func, void *context)
+int tep_register_event_handler(struct tep_handle *pevent, int id,
+			       const char *sys_name, const char *event_name,
+			       tep_event_handler_func func, void *context)
 {
 	struct event_format *event;
 	struct event_handler *handle;
@@ -6700,7 +6700,7 @@ static int handle_matches(struct event_handler *handler, int id,
 }
 
 /**
- * pevent_unregister_event_handler - unregister an existing event handler
+ * tep_unregister_event_handler - unregister an existing event handler
  * @pevent: the handle to the pevent
  * @id: the id of the event to unregister
  * @sys_name: the system name the handler belongs to
@@ -6715,9 +6715,9 @@ static int handle_matches(struct event_handler *handler, int id,
  *
  * Returns 0 if handler was removed successfully, -1 if event was not found.
  */
-int pevent_unregister_event_handler(struct tep_handle *pevent, int id,
-				    const char *sys_name, const char *event_name,
-				    tep_event_handler_func func, void *context)
+int tep_unregister_event_handler(struct tep_handle *pevent, int id,
+				 const char *sys_name, const char *event_name,
+				 tep_event_handler_func func, void *context)
 {
 	struct event_format *event;
 	struct event_handler *handle;

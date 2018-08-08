@@ -619,9 +619,9 @@ int tep_set_function_resolver(struct tep_handle *pevent,
 			      tep_func_resolver_t *func, void *priv);
 void pevent_reset_function_resolver(struct tep_handle *pevent);
 int tep_register_comm(struct tep_handle *pevent, const char *comm, int pid);
-int pevent_register_trace_clock(struct tep_handle *pevent, const char *trace_clock);
-int pevent_register_function(struct tep_handle *pevent, char *name,
-			     unsigned long long addr, char *mod);
+int tep_register_trace_clock(struct tep_handle *pevent, const char *trace_clock);
+int tep_register_function(struct tep_handle *pevent, char *name,
+			  unsigned long long addr, char *mod);
 int tep_register_print_string(struct tep_handle *pevent, const char *fmt,
 			      unsigned long long addr);
 int pevent_pid_is_registered(struct tep_handle *pevent, int pid);
@@ -673,18 +673,18 @@ int tep_print_func_field(struct trace_seq *s, const char *fmt,
 			 struct event_format *event, const char *name,
 			 struct tep_record *record, int err);
 
-int pevent_register_event_handler(struct tep_handle *pevent, int id,
-				  const char *sys_name, const char *event_name,
-				  tep_event_handler_func func, void *context);
-int pevent_unregister_event_handler(struct tep_handle *pevent, int id,
-				    const char *sys_name, const char *event_name,
-				    tep_event_handler_func func, void *context);
-int pevent_register_print_function(struct tep_handle *pevent,
-				   tep_func_handler func,
-				   enum tep_func_arg_type ret_type,
-				   char *name, ...);
-int pevent_unregister_print_function(struct tep_handle *pevent,
-				     tep_func_handler func, char *name);
+int tep_register_event_handler(struct tep_handle *pevent, int id,
+			       const char *sys_name, const char *event_name,
+			       tep_event_handler_func func, void *context);
+int tep_unregister_event_handler(struct tep_handle *pevent, int id,
+				 const char *sys_name, const char *event_name,
+				 tep_event_handler_func func, void *context);
+int tep_register_print_function(struct tep_handle *pevent,
+				tep_func_handler func,
+				enum tep_func_arg_type ret_type,
+				char *name, ...);
+int tep_unregister_print_function(struct tep_handle *pevent,
+				  tep_func_handler func, char *name);
 
 struct format_field *tep_find_common_field(struct event_format *event, const char *name);
 struct format_field *tep_find_field(struct event_format *event, const char *name);

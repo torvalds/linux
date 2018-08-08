@@ -27,17 +27,17 @@ process___le16_to_cpup(struct trace_seq *s, unsigned long long *args)
 
 int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
-	pevent_register_print_function(pevent,
-				       process___le16_to_cpup,
-				       TEP_FUNC_ARG_INT,
-				       "__le16_to_cpup",
-				       TEP_FUNC_ARG_PTR,
-				       TEP_FUNC_ARG_VOID);
+	tep_register_print_function(pevent,
+				    process___le16_to_cpup,
+				    TEP_FUNC_ARG_INT,
+				    "__le16_to_cpup",
+				    TEP_FUNC_ARG_PTR,
+				    TEP_FUNC_ARG_VOID);
 	return 0;
 }
 
 void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
-	pevent_unregister_print_function(pevent, process___le16_to_cpup,
-					 "__le16_to_cpup");
+	tep_unregister_print_function(pevent, process___le16_to_cpup,
+				      "__le16_to_cpup");
 }
