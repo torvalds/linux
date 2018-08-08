@@ -91,7 +91,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	}
 	params_old = rtnl_dereference(p->params);
 
-	params_new->action = parm->action;
+	p->tcf_action = parm->action;
 	params_new->update_flags = parm->update_flags;
 	rcu_assign_pointer(p->params, params_new);
 	if (params_old)
@@ -561,7 +561,7 @@ static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
 	tcf_lastuse_update(&p->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(p->common.cpu_bstats), skb);
 
-	action = params->action;
+	action = READ_ONCE(p->tcf_action);
 	if (unlikely(action == TC_ACT_SHOT))
 		goto drop_stats;
 
@@ -599,11 +599,11 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 		.index   = p->tcf_index,
 		.refcnt  = p->tcf_refcnt - ref,
 		.bindcnt = p->tcf_bindcnt - bind,
+		.action  = p->tcf_action,
 	};
 	struct tcf_t t;
 
 	params = rtnl_dereference(p->params);
-	opt.action = params->action;
 	opt.update_flags = params->update_flags;
 
 	if (nla_put(skb, TCA_CSUM_PARMS, sizeof(opt), &opt))

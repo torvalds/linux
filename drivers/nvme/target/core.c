@@ -339,7 +339,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 		goto out_unlock;
 
 	ret = nvmet_bdev_ns_enable(ns);
-	if (ret)
+	if (ret == -ENOTBLK)
 		ret = nvmet_file_ns_enable(ns);
 	if (ret)
 		goto out_unlock;

@@ -547,7 +547,7 @@
 
 			thermal: thermal@e8078 {
 				compatible = "marvell,armada380-thermal";
-				reg = <0xe4078 0x4>, <0xe4074 0x4>;
+				reg = <0xe4078 0x4>, <0xe4070 0x8>;
 				status = "okay";
 			};
 

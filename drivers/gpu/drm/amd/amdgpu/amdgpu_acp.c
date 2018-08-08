@@ -57,6 +57,10 @@
 #define ACP_I2S_COMP2_CAP_REG_OFFSET		0xa8
 #define ACP_I2S_COMP1_PLAY_REG_OFFSET		0x6c
 #define ACP_I2S_COMP2_PLAY_REG_OFFSET		0x68
+#define ACP_BT_PLAY_REGS_START			0x14970
+#define ACP_BT_PLAY_REGS_END			0x14a24
+#define ACP_BT_COMP1_REG_OFFSET			0xac
+#define ACP_BT_COMP2_REG_OFFSET			0xa8
 
 #define mmACP_PGFSM_RETAIN_REG			0x51c9
 #define mmACP_PGFSM_CONFIG_REG			0x51ca
@@ -77,7 +81,7 @@
 #define ACP_SOFT_RESET_DONE_TIME_OUT_VALUE	0x000000FF
 
 #define ACP_TIMEOUT_LOOP			0x000000FF
-#define ACP_DEVS				3
+#define ACP_DEVS				4
 #define ACP_SRC_ID				162
 
 enum {
@@ -316,14 +320,13 @@ static int acp_hw_init(void *handle)
 	if (adev->acp.acp_cell == NULL)
 		return -ENOMEM;
 
-	adev->acp.acp_res = kcalloc(4, sizeof(struct resource), GFP_KERNEL);
-
+	adev->acp.acp_res = kcalloc(5, sizeof(struct resource), GFP_KERNEL);
 	if (adev->acp.acp_res == NULL) {
 		kfree(adev->acp.acp_cell);
 		return -ENOMEM;
 	}
 
-	i2s_pdata = kcalloc(2, sizeof(struct i2s_platform_data), GFP_KERNEL);
+	i2s_pdata = kcalloc(3, sizeof(struct i2s_platform_data), GFP_KERNEL);
 	if (i2s_pdata == NULL) {
 		kfree(adev->acp.acp_res);
 		kfree(adev->acp.acp_cell);
@@ -358,6 +361,20 @@ static int acp_hw_init(void *handle)
 	i2s_pdata[1].i2s_reg_comp1 = ACP_I2S_COMP1_CAP_REG_OFFSET;
 	i2s_pdata[1].i2s_reg_comp2 = ACP_I2S_COMP2_CAP_REG_OFFSET;
 
+	i2s_pdata[2].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET;
+	switch (adev->asic_type) {
+	case CHIP_STONEY:
+		i2s_pdata[2].quirks |= DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
+		break;
+	default:
+		break;
+	}
+
+	i2s_pdata[2].cap = DWC_I2S_PLAY | DWC_I2S_RECORD;
+	i2s_pdata[2].snd_rates = SNDRV_PCM_RATE_8000_96000;
+	i2s_pdata[2].i2s_reg_comp1 = ACP_BT_COMP1_REG_OFFSET;
+	i2s_pdata[2].i2s_reg_comp2 = ACP_BT_COMP2_REG_OFFSET;
+
 	adev->acp.acp_res[0].name = "acp2x_dma";
 	adev->acp.acp_res[0].flags = IORESOURCE_MEM;
 	adev->acp.acp_res[0].start = acp_base;
@@ -373,13 +390,18 @@ static int acp_hw_init(void *handle)
 	adev->acp.acp_res[2].start = acp_base + ACP_I2S_CAP_REGS_START;
 	adev->acp.acp_res[2].end = acp_base + ACP_I2S_CAP_REGS_END;
 
-	adev->acp.acp_res[3].name = "acp2x_dma_irq";
-	adev->acp.acp_res[3].flags = IORESOURCE_IRQ;
-	adev->acp.acp_res[3].start = amdgpu_irq_create_mapping(adev, 162);
-	adev->acp.acp_res[3].end = adev->acp.acp_res[3].start;
+	adev->acp.acp_res[3].name = "acp2x_dw_bt_i2s_play_cap";
+	adev->acp.acp_res[3].flags = IORESOURCE_MEM;
+	adev->acp.acp_res[3].start = acp_base + ACP_BT_PLAY_REGS_START;
+	adev->acp.acp_res[3].end = acp_base + ACP_BT_PLAY_REGS_END;
+
+	adev->acp.acp_res[4].name = "acp2x_dma_irq";
+	adev->acp.acp_res[4].flags = IORESOURCE_IRQ;
+	adev->acp.acp_res[4].start = amdgpu_irq_create_mapping(adev, 162);
+	adev->acp.acp_res[4].end = adev->acp.acp_res[4].start;
 
 	adev->acp.acp_cell[0].name = "acp_audio_dma";
-	adev->acp.acp_cell[0].num_resources = 4;
+	adev->acp.acp_cell[0].num_resources = 5;
 	adev->acp.acp_cell[0].resources = &adev->acp.acp_res[0];
 	adev->acp.acp_cell[0].platform_data = &adev->asic_type;
 	adev->acp.acp_cell[0].pdata_size = sizeof(adev->asic_type);
@@ -395,6 +417,12 @@ static int acp_hw_init(void *handle)
 	adev->acp.acp_cell[2].resources = &adev->acp.acp_res[2];
 	adev->acp.acp_cell[2].platform_data = &i2s_pdata[1];
 	adev->acp.acp_cell[2].pdata_size = sizeof(struct i2s_platform_data);
+
+	adev->acp.acp_cell[3].name = "designware-i2s";
+	adev->acp.acp_cell[3].num_resources = 1;
+	adev->acp.acp_cell[3].resources = &adev->acp.acp_res[3];
+	adev->acp.acp_cell[3].platform_data = &i2s_pdata[2];
+	adev->acp.acp_cell[3].pdata_size = sizeof(struct i2s_platform_data);
 
 	r = mfd_add_hotplug_devices(adev->acp.parent, adev->acp.acp_cell,
 								ACP_DEVS);
@@ -451,7 +479,6 @@ static int acp_hw_init(void *handle)
 	val = cgs_read_register(adev->acp.cgs_device, mmACP_SOFT_RESET);
 	val &= ~ACP_SOFT_RESET__SoftResetAud_MASK;
 	cgs_write_register(adev->acp.cgs_device, mmACP_SOFT_RESET, val);
-
 	return 0;
 }
 

@@ -183,6 +183,7 @@ struct stmmac_dma_ops {
 	void (*set_rx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
 	void (*set_tx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
 	void (*enable_tso)(void __iomem *ioaddr, bool en, u32 chan);
+	void (*set_bfsize)(void __iomem *ioaddr, int bfsize, u32 chan);
 };
 
 #define stmmac_reset(__priv, __args...) \
@@ -235,6 +236,8 @@ struct stmmac_dma_ops {
 	stmmac_do_void_callback(__priv, dma, set_tx_tail_ptr, __args)
 #define stmmac_enable_tso(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, enable_tso, __args)
+#define stmmac_set_dma_bfsize(__priv, __args...) \
+	stmmac_do_void_callback(__priv, dma, set_bfsize, __args)
 
 struct mac_device_info;
 struct net_device;

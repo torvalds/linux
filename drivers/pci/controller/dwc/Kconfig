@@ -58,7 +58,6 @@ config PCIE_DW_PLAT_HOST
 	depends on PCI && PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	select PCIE_DW_PLAT
-	default y
 	help
 	  Enables support for the PCIe controller in the Designware IP to
 	  work in host mode. There are two instances of PCIe controller in

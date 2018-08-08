@@ -598,8 +598,6 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 	bpf_fill_ill_insns(hdr, size);
 
 	hdr->pages = size / PAGE_SIZE;
-	hdr->locked = 0;
-
 	hole = min_t(unsigned int, size - (proglen + sizeof(*hdr)),
 		     PAGE_SIZE - sizeof(*hdr));
 	start = (get_random_int() % hole) & ~(alignment - 1);
@@ -1450,22 +1448,6 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
 	return 0;
 }
 
-static int bpf_prog_check_pages_ro_locked(const struct bpf_prog *fp)
-{
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
-	int i, err;
-
-	for (i = 0; i < fp->aux->func_cnt; i++) {
-		err = bpf_prog_check_pages_ro_single(fp->aux->func[i]);
-		if (err)
-			return err;
-	}
-
-	return bpf_prog_check_pages_ro_single(fp);
-#endif
-	return 0;
-}
-
 static void bpf_prog_select_func(struct bpf_prog *fp)
 {
 #ifndef CONFIG_BPF_JIT_ALWAYS_ON
@@ -1524,17 +1506,7 @@ finalize:
 	 * all eBPF JITs might immediately support all features.
 	 */
 	*err = bpf_check_tail_call(fp);
-	if (*err)
-		return fp;
 
-	/* Checkpoint: at this point onwards any cBPF -> eBPF or
-	 * native eBPF program is read-only. If we failed to change
-	 * the page attributes (e.g. allocation failure from
-	 * splitting large pages), then reject the whole program
-	 * in order to guarantee not ending up with any W+X pages
-	 * from BPF side in kernel.
-	 */
-	*err = bpf_prog_check_pages_ro_locked(fp);
 	return fp;
 }
 EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);

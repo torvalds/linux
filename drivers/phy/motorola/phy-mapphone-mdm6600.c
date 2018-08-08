@@ -182,13 +182,13 @@ static void phy_mdm6600_status(struct work_struct *work)
 	ddata = container_of(work, struct phy_mdm6600, status_work.work);
 	dev = ddata->dev;
 
-	error = gpiod_get_array_value_cansleep(PHY_MDM6600_NR_CMD_LINES,
+	error = gpiod_get_array_value_cansleep(PHY_MDM6600_NR_STATUS_LINES,
 					       ddata->status_gpios->desc,
 					       values);
 	if (error)
 		return;
 
-	for (i = 0; i < PHY_MDM6600_NR_CMD_LINES; i++) {
+	for (i = 0; i < PHY_MDM6600_NR_STATUS_LINES; i++) {
 		val |= values[i] << i;
 		dev_dbg(ddata->dev, "XXX %s: i: %i values[i]: %i val: %i\n",
 			__func__, i, values[i], val);

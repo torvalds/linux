@@ -1446,6 +1446,7 @@ static int sunxi_mmc_runtime_resume(struct device *dev)
 	sunxi_mmc_init_host(host);
 	sunxi_mmc_set_bus_width(host, mmc->ios.bus_width);
 	sunxi_mmc_set_clk(host, &mmc->ios);
+	enable_irq(host->irq);
 
 	return 0;
 }
@@ -1455,6 +1456,12 @@ static int sunxi_mmc_runtime_suspend(struct device *dev)
 	struct mmc_host	*mmc = dev_get_drvdata(dev);
 	struct sunxi_mmc_host *host = mmc_priv(mmc);
 
+	/*
+	 * When clocks are off, it's possible receiving
+	 * fake interrupts, which will stall the system.
+	 * Disabling the irq  will prevent this.
+	 */
+	disable_irq(host->irq);
 	sunxi_mmc_reset_host(host);
 	sunxi_mmc_disable(host);
 
