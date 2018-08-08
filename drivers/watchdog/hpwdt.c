@@ -367,6 +367,9 @@ MODULE_VERSION(HPWDT_VERSION);
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");
 
+module_param_named(timeout, soft_margin, int, 0);
+MODULE_PARM_DESC(timeout, "Alias of soft_margin");
+
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
