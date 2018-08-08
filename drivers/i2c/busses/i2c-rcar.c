@@ -19,6 +19,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
@@ -112,9 +113,9 @@
 #define ID_ARBLOST	(1 << 3)
 #define ID_NACK		(1 << 4)
 /* persistent flags */
-#define ID_P_NO_RXDMA	(1 << 30) /* HW forbids RXDMA sometimes */
-#define ID_P_PM_BLOCKED	(1 << 31)
-#define ID_P_MASK	(ID_P_PM_BLOCKED | ID_P_NO_RXDMA)
+#define ID_P_NO_RXDMA		BIT(30) /* HW forbids RXDMA sometimes */
+#define ID_P_PM_BLOCKED		BIT(31)
+#define ID_P_MASK		GENMASK(31, 30)
 
 enum rcar_i2c_type {
 	I2C_RCAR_GEN1,
