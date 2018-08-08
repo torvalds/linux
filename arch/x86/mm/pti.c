@@ -646,4 +646,6 @@ void pti_finalize(void)
 	 */
 	pti_clone_entry_text();
 	pti_clone_kernel_text();
+
+	debug_checkwx_user();
 }
