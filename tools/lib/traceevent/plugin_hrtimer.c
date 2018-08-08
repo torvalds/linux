@@ -25,7 +25,7 @@
 #include "event-parse.h"
 
 static int timer_expire_handler(struct trace_seq *s,
-				struct pevent_record *record,
+				struct tep_record *record,
 				struct event_format *event, void *context)
 {
 	trace_seq_printf(s, "hrtimer=");
@@ -45,7 +45,7 @@ static int timer_expire_handler(struct trace_seq *s,
 }
 
 static int timer_start_handler(struct trace_seq *s,
-			       struct pevent_record *record,
+			       struct tep_record *record,
 			       struct event_format *event, void *context)
 {
 	trace_seq_printf(s, "hrtimer=");

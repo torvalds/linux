@@ -116,7 +116,7 @@ unsigned long long read_size(struct event_format *event, void *ptr, int size)
 void event_format__fprintf(struct event_format *event,
 			   int cpu, void *data, int size, FILE *fp)
 {
-	struct pevent_record record;
+	struct tep_record record;
 	struct trace_seq s;
 
 	memset(&record, 0, sizeof(record));

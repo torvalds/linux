@@ -58,7 +58,7 @@ static void print_string(struct trace_seq *s, struct event_format *event,
 #define SP()	trace_seq_putc(s, ' ')
 
 static int drv_bss_info_changed(struct trace_seq *s,
-				struct pevent_record *record,
+				struct tep_record *record,
 				struct event_format *event, void *context)
 {
 	void *data = record->data;

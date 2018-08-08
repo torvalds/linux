@@ -247,7 +247,7 @@ static const char *find_exit_reason(unsigned isa, int val)
 	return strings[i].str;
 }
 
-static int print_exit_reason(struct trace_seq *s, struct pevent_record *record,
+static int print_exit_reason(struct trace_seq *s, struct tep_record *record,
 			     struct event_format *event, const char *field)
 {
 	unsigned long long isa;
@@ -268,7 +268,7 @@ static int print_exit_reason(struct trace_seq *s, struct pevent_record *record,
 	return 0;
 }
 
-static int kvm_exit_handler(struct trace_seq *s, struct pevent_record *record,
+static int kvm_exit_handler(struct trace_seq *s, struct tep_record *record,
 			    struct event_format *event, void *context)
 {
 	unsigned long long info1 = 0, info2 = 0;
@@ -291,7 +291,7 @@ static int kvm_exit_handler(struct trace_seq *s, struct pevent_record *record,
 #define KVM_EMUL_INSN_F_CS_L   (1 << 3)
 
 static int kvm_emulate_insn_handler(struct trace_seq *s,
-				    struct pevent_record *record,
+				    struct tep_record *record,
 				    struct event_format *event, void *context)
 {
 	unsigned long long rip, csbase, len, flags, failed;
@@ -330,7 +330,7 @@ static int kvm_emulate_insn_handler(struct trace_seq *s,
 }
 
 
-static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct pevent_record *record,
+static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct tep_record *record,
 					    struct event_format *event, void *context)
 {
 	if (print_exit_reason(s, record, event, "exit_code") < 0)
@@ -344,7 +344,7 @@ static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct pevent_r
 	return 0;
 }
 
-static int kvm_nested_vmexit_handler(struct trace_seq *s, struct pevent_record *record,
+static int kvm_nested_vmexit_handler(struct trace_seq *s, struct tep_record *record,
 				     struct event_format *event, void *context)
 {
 	pevent_print_num_field(s, "rip %llx ", event, "rip", record, 1);
@@ -370,7 +370,7 @@ union kvm_mmu_page_role {
 	};
 };
 
-static int kvm_mmu_print_role(struct trace_seq *s, struct pevent_record *record,
+static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
 			      struct event_format *event, void *context)
 {
 	unsigned long long val;
@@ -417,7 +417,7 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct pevent_record *record,
 }
 
 static int kvm_mmu_get_page_handler(struct trace_seq *s,
-				    struct pevent_record *record,
+				    struct tep_record *record,
 				    struct event_format *event, void *context)
 {
 	unsigned long long val;
