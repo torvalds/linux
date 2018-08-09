@@ -107,7 +107,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		if (!p->ainsn.api.insn)
 			return -ENOMEM;
 		break;
-	};
+	}
 
 	/* prepare the instruction */
 	if (p->ainsn.api.insn)
