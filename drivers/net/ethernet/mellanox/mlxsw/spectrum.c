@@ -1972,9 +1972,10 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 
 #define MLXSW_SP_PORT_ETHTOOL_STATS_LEN (MLXSW_SP_PORT_HW_STATS_LEN + \
 					 MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN + \
-					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN + \
-					  MLXSW_SP_PORT_HW_TC_STATS_LEN) * \
-					 IEEE_8021QAZ_MAX_TCS)
+					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN * \
+					  IEEE_8021QAZ_MAX_TCS) + \
+					 (MLXSW_SP_PORT_HW_TC_STATS_LEN * \
+					  TC_MAX_QUEUE))
 
 static void mlxsw_sp_port_get_prio_strings(u8 **p, int prio)
 {
@@ -2020,7 +2021,7 @@ static void mlxsw_sp_port_get_strings(struct net_device *dev,
 		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 			mlxsw_sp_port_get_prio_strings(&p, i);
 
-		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		for (i = 0; i < TC_MAX_QUEUE; i++)
 			mlxsw_sp_port_get_tc_strings(&p, i);
 
 		break;
@@ -2125,7 +2126,7 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 	}
 
 	/* Per-TC Counters */
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+	for (i = 0; i < TC_MAX_QUEUE; i++) {
 		__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_TC_CNT, i,
 					  data, data_index);
 		data_index += MLXSW_SP_PORT_HW_TC_STATS_LEN;
