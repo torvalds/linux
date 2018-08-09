@@ -535,7 +535,7 @@ int uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 	if (attr->ptr_attr.len == 8)
 		flags = attr->ptr_attr.data;
 	else if (attr->ptr_attr.len == 4)
-		memcpy(&flags, &attr->ptr_attr.data, 4);
+		flags = *(u32 *)&attr->ptr_attr.data;
 	else
 		return -EINVAL;
 
