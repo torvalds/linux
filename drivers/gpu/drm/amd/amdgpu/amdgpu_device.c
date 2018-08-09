@@ -1829,6 +1829,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 				return r;
 			}
 			amdgpu_gfx_off_ctrl(adev, false);
+			cancel_delayed_work_sync(&adev->gfx.gfx_off_delay_work);
 			r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 			/* XXX handle errors */
 			if (r) {
@@ -2012,6 +2013,7 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 
 	/* call smu to disable gfx off feature first when suspend */
 	amdgpu_gfx_off_ctrl(adev, false);
+	cancel_delayed_work_sync(&adev->gfx.gfx_off_delay_work);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
