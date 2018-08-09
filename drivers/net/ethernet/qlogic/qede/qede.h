@@ -386,6 +386,15 @@ struct qede_tx_queue {
 #define QEDE_TXQ_XDP_TO_IDX(edev, txq)	((txq)->index - \
 					 QEDE_MAX_TSS_CNT(edev))
 #define QEDE_TXQ_IDX_TO_XDP(edev, idx)	((idx) + QEDE_MAX_TSS_CNT(edev))
+#define QEDE_NDEV_TXQ_ID_TO_FP_ID(edev, idx)	((edev)->fp_num_rx + \
+						 ((idx) % QEDE_TSS_COUNT(edev)))
+#define QEDE_NDEV_TXQ_ID_TO_TXQ_COS(edev, idx)	((idx) / QEDE_TSS_COUNT(edev))
+#define QEDE_TXQ_TO_NDEV_TXQ_ID(edev, txq)	((QEDE_TSS_COUNT(edev) * \
+						 (txq)->cos) + (txq)->index)
+#define QEDE_NDEV_TXQ_ID_TO_TXQ(edev, idx)	\
+	(&((edev)->fp_array[QEDE_NDEV_TXQ_ID_TO_FP_ID(edev, idx)].txq \
+	[QEDE_NDEV_TXQ_ID_TO_TXQ_COS(edev, idx)]))
+#define QEDE_FP_TC0_TXQ(fp)	(&((fp)->txq[0]))
 
 	/* Regular Tx requires skb + metadata for release purpose,
 	 * while XDP requires the pages and the mapped address.
@@ -399,6 +408,8 @@ struct qede_tx_queue {
 
 	/* Slowpath; Should be kept in end [unless missing padding] */
 	void *handle;
+	u16 cos;
+	u16 ndev_txq_id;
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
@@ -541,5 +552,7 @@ void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
 #define QEDE_RX_HDR_SIZE		256
 #define QEDE_MAX_JUMBO_PACKET_SIZE	9600
 #define	for_each_queue(i) for (i = 0; i < edev->num_queues; i++)
+#define for_each_cos_in_txq(edev, var) \
+	for ((var) = 0; (var) < (edev)->dev_info.num_tc; (var)++)
 
 #endif /* _QEDE_H_ */
