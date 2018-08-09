@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/cpu.h>
 
 #include "net-sysfs.h"
 
@@ -1400,7 +1401,10 @@ static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
 		return err;
 	}
 
+	cpus_read_lock();
 	err = __netif_set_xps_queue(dev, mask, index, true);
+	cpus_read_unlock();
+
 	kfree(mask);
 	return err ? : len;
 }

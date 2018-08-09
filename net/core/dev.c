@@ -2176,6 +2176,7 @@ static void netif_reset_xps_queues(struct net_device *dev, u16 offset,
 	if (!static_key_false(&xps_needed))
 		return;
 
+	cpus_read_lock();
 	mutex_lock(&xps_map_mutex);
 
 	if (static_key_false(&xps_rxqs_needed)) {
@@ -2199,10 +2200,11 @@ static void netif_reset_xps_queues(struct net_device *dev, u16 offset,
 
 out_no_maps:
 	if (static_key_enabled(&xps_rxqs_needed))
-		static_key_slow_dec(&xps_rxqs_needed);
+		static_key_slow_dec_cpuslocked(&xps_rxqs_needed);
 
-	static_key_slow_dec(&xps_needed);
+	static_key_slow_dec_cpuslocked(&xps_needed);
 	mutex_unlock(&xps_map_mutex);
+	cpus_read_unlock();
 }
 
 static void netif_reset_xps_queues_gt(struct net_device *dev, u16 index)
@@ -2250,6 +2252,7 @@ static struct xps_map *expand_xps_map(struct xps_map *map, int attr_index,
 	return new_map;
 }
 
+/* Must be called under cpus_read_lock */
 int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 			  u16 index, bool is_rxqs_map)
 {
@@ -2317,9 +2320,9 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 	if (!new_dev_maps)
 		goto out_no_new_maps;
 
-	static_key_slow_inc(&xps_needed);
+	static_key_slow_inc_cpuslocked(&xps_needed);
 	if (is_rxqs_map)
-		static_key_slow_inc(&xps_rxqs_needed);
+		static_key_slow_inc_cpuslocked(&xps_rxqs_needed);
 
 	for (j = -1; j = netif_attrmask_next(j, possible_mask, nr_ids),
 	     j < nr_ids;) {
@@ -2448,11 +2451,18 @@ error:
 	kfree(new_dev_maps);
 	return -ENOMEM;
 }
+EXPORT_SYMBOL_GPL(__netif_set_xps_queue);
 
 int netif_set_xps_queue(struct net_device *dev, const struct cpumask *mask,
 			u16 index)
 {
-	return __netif_set_xps_queue(dev, cpumask_bits(mask), index, false);
+	int ret;
+
+	cpus_read_lock();
+	ret =  __netif_set_xps_queue(dev, cpumask_bits(mask), index, false);
+	cpus_read_unlock();
+
+	return ret;
 }
 EXPORT_SYMBOL(netif_set_xps_queue);
 

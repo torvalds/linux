@@ -1903,9 +1903,11 @@ static void virtnet_set_affinity(struct virtnet_info *vi)
 
 	i = 0;
 	for_each_online_cpu(cpu) {
+		const unsigned long *mask = cpumask_bits(cpumask_of(cpu));
+
 		virtqueue_set_affinity(vi->rq[i].vq, cpu);
 		virtqueue_set_affinity(vi->sq[i].vq, cpu);
-		netif_set_xps_queue(vi->dev, cpumask_of(cpu), i);
+		__netif_set_xps_queue(vi->dev, mask, i, false);
 		i++;
 	}
 
