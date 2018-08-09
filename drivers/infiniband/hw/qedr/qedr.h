@@ -122,6 +122,11 @@ struct qedr_device_attr {
 
 #define QEDR_ENET_STATE_BIT	(0)
 
+struct qedr_idr {
+	spinlock_t idr_lock; /* Protect idr data-structure */
+	struct idr idr;
+};
+
 struct qedr_dev {
 	struct ib_device	ibdev;
 	struct qed_dev		*cdev;
@@ -165,8 +170,7 @@ struct qedr_dev {
 	struct qedr_cq		*gsi_rqcq;
 	struct qedr_qp		*gsi_qp;
 	enum qed_rdma_type	rdma_type;
-	spinlock_t		idr_lock; /* Protect qpidr data-structure */
-	struct idr		qpidr;
+	struct qedr_idr		qpidr;
 	struct workqueue_struct *iwarp_wq;
 	u16			iwarp_max_mtu;
 

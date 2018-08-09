@@ -325,8 +325,8 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	spin_lock_init(&dev->sgid_lock);
 
 	if (IS_IWARP(dev)) {
-		spin_lock_init(&dev->idr_lock);
-		idr_init(&dev->qpidr);
+		spin_lock_init(&dev->qpidr.idr_lock);
+		idr_init(&dev->qpidr.idr);
 		dev->iwarp_wq = create_singlethread_workqueue("qedr_iwarpq");
 	}
 
