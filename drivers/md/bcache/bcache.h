@@ -423,9 +423,9 @@ struct cache {
 	/*
 	 * When allocating new buckets, prio_write() gets first dibs - since we
 	 * may not be allocate at all without writing priorities and gens.
-	 * prio_buckets[] contains the last buckets we wrote priorities to (so
-	 * gc can mark them as metadata), prio_next[] contains the buckets
-	 * allocated for the next prio write.
+	 * prio_last_buckets[] contains the last buckets we wrote priorities to
+	 * (so gc can mark them as metadata), prio_buckets[] contains the
+	 * buckets allocated for the next prio write.
 	 */
 	uint64_t		*prio_buckets;
 	uint64_t		*prio_last_buckets;
