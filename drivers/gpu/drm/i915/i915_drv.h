@@ -611,8 +611,17 @@ struct i915_drrs {
 
 struct i915_psr {
 	struct mutex lock;
+
+#define I915_PSR_DEBUG_MODE_MASK	0x0f
+#define I915_PSR_DEBUG_DEFAULT		0x00
+#define I915_PSR_DEBUG_DISABLE		0x01
+#define I915_PSR_DEBUG_ENABLE		0x02
+#define I915_PSR_DEBUG_IRQ		0x10
+
+	u32 debug;
 	bool sink_support;
-	struct intel_dp *enabled;
+	bool prepared, enabled;
+	struct intel_dp *dp;
 	bool active;
 	struct work_struct work;
 	unsigned busy_frontbuffer_bits;
@@ -622,7 +631,6 @@ struct i915_psr {
 	bool alpm;
 	bool psr2_enabled;
 	u8 sink_sync_latency;
-	bool debug;
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
 };
