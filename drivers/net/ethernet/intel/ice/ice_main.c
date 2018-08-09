@@ -917,13 +917,27 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 }
 
 /**
+ * ice_ctrlq_pending - check if there is a difference between ntc and ntu
+ * @hw: pointer to hardware info
+ * @cq: control queue information
+ *
+ * returns true if there are pending messages in a queue, false if there aren't
+ */
+static bool ice_ctrlq_pending(struct ice_hw *hw, struct ice_ctl_q_info *cq)
+{
+	u16 ntu;
+
+	ntu = (u16)(rd32(hw, cq->rq.head) & cq->rq.head_mask);
+	return cq->rq.next_to_clean != ntu;
+}
+
+/**
  * ice_clean_adminq_subtask - clean the AdminQ rings
  * @pf: board private structure
  */
 static void ice_clean_adminq_subtask(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
-	u32 val;
 
 	if (!test_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state))
 		return;
@@ -933,9 +947,13 @@ static void ice_clean_adminq_subtask(struct ice_pf *pf)
 
 	clear_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state);
 
-	/* re-enable Admin queue interrupt causes */
-	val = rd32(hw, PFINT_FW_CTL);
-	wr32(hw, PFINT_FW_CTL, (val | PFINT_FW_CTL_CAUSE_ENA_M));
+	/* There might be a situation where new messages arrive to a control
+	 * queue between processing the last message and clearing the
+	 * EVENT_PENDING bit. So before exiting, check queue head again (using
+	 * ice_ctrlq_pending) and process new messages if any.
+	 */
+	if (ice_ctrlq_pending(hw, &hw->adminq))
+		__ice_clean_ctrlq(pf, ICE_CTL_Q_ADMIN);
 
 	ice_flush(hw);
 }

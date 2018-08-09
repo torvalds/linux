@@ -1065,8 +1065,11 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 clean_rq_elem_out:
 	/* Set pending if needed, unlock and return */
-	if (pending)
+	if (pending) {
+		/* re-read HW head to calculate actual pending messages */
+		ntu = (u16)(rd32(hw, cq->rq.head) & cq->rq.head_mask);
 		*pending = (u16)((ntc > ntu ? cq->rq.count : 0) + (ntu - ntc));
+	}
 clean_rq_elem_err:
 	mutex_unlock(&cq->rq_lock);
 
