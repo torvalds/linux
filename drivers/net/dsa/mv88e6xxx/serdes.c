@@ -174,11 +174,41 @@ int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 	return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
 }
 
+/* Return the SERDES lane address a port is using. Only Ports 9 and 10
+ * have SERDES lanes. Returns -ENODEV if a port does not have a lane.
+ */
+static int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
+{
+	u8 cmode;
+	int err;
+
+	err = mv88e6xxx_port_get_cmode(chip, port, &cmode);
+	if (err)
+		return err;
+
+	switch (port) {
+	case 9:
+		if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||
+		    cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
+			return MV88E6390_PORT9_LANE0;
+		return -ENODEV;
+	case 10:
+		if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||
+		    cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
+			return MV88E6390_PORT10_LANE0;
+		return -ENODEV;
+	default:
+		return -ENODEV;
+	}
+}
+
 /* Return the SERDES lane address a port is using. Ports 9 and 10 can
  * use multiple lanes. If so, return the first lane the port uses.
  * Returns -ENODEV if a port does not have a lane.
  */
-static int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
+static int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode_port9, cmode_port10, cmode_port;
 	int err;
@@ -344,6 +374,25 @@ int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
 	int lane;
 
 	lane = mv88e6390_serdes_get_lane(chip, port);
+	if (lane == -ENODEV)
+		return 0;
+
+	if (lane < 0)
+		return lane;
+
+	switch (port) {
+	case 9 ... 10:
+		return mv88e6390_serdes_power_lane(chip, port, lane, on);
+	}
+
+	return 0;
+}
+
+int mv88e6390x_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
+{
+	int lane;
+
+	lane = mv88e6390x_serdes_get_lane(chip, port);
 	if (lane == -ENODEV)
 		return 0;
 

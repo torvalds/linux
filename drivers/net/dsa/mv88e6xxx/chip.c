@@ -3234,7 +3234,7 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.vtu_getnext = mv88e6390_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
-	.serdes_power = mv88e6390_serdes_power,
+	.serdes_power = mv88e6390x_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.phylink_validate = mv88e6390x_phylink_validate,
 };
@@ -3697,7 +3697,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.rmu_disable = mv88e6390_g1_rmu_disable,
 	.vtu_getnext = mv88e6390_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
-	.serdes_power = mv88e6390_serdes_power,
+	.serdes_power = mv88e6390x_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
