@@ -19,6 +19,7 @@
 
 #include "chip.h"
 #include "port.h"
+#include "serdes.h"
 
 int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
 			u16 *val)
@@ -372,6 +373,10 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		cmode = 0;
 	}
 
+	err = mv88e6390_serdes_power(chip, port, false);
+	if (err)
+		return err;
+
 	if (cmode) {
 		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 		if (err)
@@ -381,6 +386,10 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		reg |= cmode;
 
 		err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, reg);
+		if (err)
+			return err;
+
+		err = mv88e6390_serdes_power(chip, port, true);
 		if (err)
 			return err;
 	}
