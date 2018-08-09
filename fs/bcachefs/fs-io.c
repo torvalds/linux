@@ -2380,7 +2380,6 @@ err:
 static long bch2_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	u64 ino = inode->v.i_ino;
 	u64 discard_start = round_up(offset, PAGE_SIZE) >> 9;
 	u64 discard_end = round_down(offset + len, PAGE_SIZE) >> 9;
 	int ret = 0;
@@ -2406,34 +2405,9 @@ static long bch2_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
 
 	truncate_pagecache_range(&inode->v, offset, offset + len - 1);
 
-	if (discard_start < discard_end) {
-		/*
-		 * We need to pass in a disk reservation here because we might
-		 * be splitting a compressed extent into two. This isn't a
-		 * problem with truncate because truncate will never split an
-		 * extent, only truncate it...
-		 */
-		struct disk_reservation disk_res =
-			bch2_disk_reservation_init(c, 0);
-		struct i_sectors_hook i_sectors_hook =
-			i_sectors_hook_init(inode, 0);
-		int ret;
-
-		ret = i_sectors_dirty_start(c, &i_sectors_hook);
-		if (unlikely(ret))
-			goto err;
-
-		ret = bch2_btree_delete_range(c,
-				BTREE_ID_EXTENTS,
-				POS(ino, discard_start),
-				POS(ino, discard_end),
-				ZERO_VERSION,
-				&disk_res,
-				&i_sectors_hook.hook,
-				&inode->ei_journal_seq);
-
-		ret = i_sectors_dirty_finish(c, &i_sectors_hook) ?: ret;
-	}
+	if (discard_start < discard_end)
+		ret = __bch2_fpunch(c, inode, discard_start, discard_end,
+				    &inode->ei_journal_seq);
 err:
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	inode_unlock(&inode->v);
