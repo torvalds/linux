@@ -1239,25 +1239,26 @@ EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 static int qeth_osn_send_control_data(struct qeth_card *card, int len,
 			   struct qeth_cmd_buffer *iob)
 {
+	struct qeth_channel *channel = iob->channel;
 	unsigned long flags;
 	int rc = 0;
 
 	QETH_CARD_TEXT(card, 5, "osndctrd");
 
 	wait_event(card->wait_q,
-		   atomic_cmpxchg(&card->write.irq_pending, 0, 1) == 0);
+		   atomic_cmpxchg(&channel->irq_pending, 0, 1) == 0);
 	qeth_prepare_control_data(card, len, iob);
 	QETH_CARD_TEXT(card, 6, "osnoirqp");
-	spin_lock_irqsave(get_ccwdev_lock(card->write.ccwdev), flags);
-	rc = ccw_device_start_timeout(CARD_WDEV(card), &card->write.ccw,
+	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
+	rc = ccw_device_start_timeout(channel->ccwdev, channel->ccw,
 				      (addr_t) iob, 0, 0, QETH_IPA_TIMEOUT);
-	spin_unlock_irqrestore(get_ccwdev_lock(card->write.ccwdev), flags);
+	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 	if (rc) {
 		QETH_DBF_MESSAGE(2, "qeth_osn_send_control_data: "
 			   "ccw_device_start rc = %i\n", rc);
 		QETH_CARD_TEXT_(card, 2, " err%d", rc);
-		qeth_release_buffer(iob->channel, iob);
-		atomic_set(&card->write.irq_pending, 0);
+		qeth_release_buffer(channel, iob);
+		atomic_set(&channel->irq_pending, 0);
 		wake_up(&card->wait_q);
 	}
 	return rc;
@@ -1270,7 +1271,7 @@ static int qeth_osn_send_ipa_cmd(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "osndipa");
 
-	qeth_prepare_ipa_cmd(card, iob, QETH_PROT_OSN2);
+	qeth_prepare_ipa_cmd(card, iob);
 	s1 = (u16)(IPA_PDU_HEADER_SIZE + data_len);
 	s2 = (u16)data_len;
 	memcpy(QETH_IPA_PDU_LEN_TOTAL(iob->data), &s1, 2);
