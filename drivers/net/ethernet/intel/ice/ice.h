@@ -138,6 +138,7 @@ enum ice_state {
 	__ICE_FLTR_OVERFLOW_PROMISC,
 	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
+	__ICE_SERVICE_DIS,
 	__ICE_STATE_NBITS		/* must be last */
 };
 

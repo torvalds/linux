@@ -1107,7 +1107,7 @@ static void ice_clean_adminq_subtask(struct ice_pf *pf)
  */
 static void ice_service_task_schedule(struct ice_pf *pf)
 {
-	if (!test_bit(__ICE_DOWN, pf->state) &&
+	if (!test_bit(__ICE_SERVICE_DIS, pf->state) &&
 	    !test_and_set_bit(__ICE_SERVICE_SCHED, pf->state) &&
 	    !test_bit(__ICE_NEEDS_RESTART, pf->state))
 		queue_work(ice_wq, &pf->serv_task);
@@ -1123,6 +1123,22 @@ static void ice_service_task_complete(struct ice_pf *pf)
 
 	/* force memory (pf->state) to sync before next service task */
 	smp_mb__before_atomic();
+	clear_bit(__ICE_SERVICE_SCHED, pf->state);
+}
+
+/**
+ * ice_service_task_stop - stop service task and cancel works
+ * @pf: board private structure
+ */
+static void ice_service_task_stop(struct ice_pf *pf)
+{
+	set_bit(__ICE_SERVICE_DIS, pf->state);
+
+	if (pf->serv_tmr.function)
+		del_timer_sync(&pf->serv_tmr);
+	if (pf->serv_task.func)
+		cancel_work_sync(&pf->serv_task);
+
 	clear_bit(__ICE_SERVICE_SCHED, pf->state);
 }
 
@@ -3389,10 +3405,7 @@ static void ice_determine_q_usage(struct ice_pf *pf)
  */
 static void ice_deinit_pf(struct ice_pf *pf)
 {
-	if (pf->serv_tmr.function)
-		del_timer_sync(&pf->serv_tmr);
-	if (pf->serv_task.func)
-		cancel_work_sync(&pf->serv_task);
+	ice_service_task_stop(pf);
 	mutex_destroy(&pf->sw_mutex);
 	mutex_destroy(&pf->avail_q_mutex);
 }
@@ -3599,6 +3612,8 @@ static int ice_probe(struct pci_dev *pdev,
 	pf->pdev = pdev;
 	pci_set_drvdata(pdev, pf);
 	set_bit(__ICE_DOWN, pf->state);
+	/* Disable service task until DOWN bit is cleared */
+	set_bit(__ICE_SERVICE_DIS, pf->state);
 
 	hw = &pf->hw;
 	hw->hw_addr = pcim_iomap_table(pdev)[ICE_BAR0];
@@ -3656,6 +3671,9 @@ static int ice_probe(struct pci_dev *pdev,
 		goto err_init_interrupt_unroll;
 	}
 
+	/* Driver is mostly up */
+	clear_bit(__ICE_DOWN, pf->state);
+
 	/* In case of MSIX we are going to setup the misc vector right here
 	 * to handle admin queue events etc. In case of legacy and MSI
 	 * the misc functionality and queue processing is combined in
@@ -3695,8 +3713,7 @@ static int ice_probe(struct pci_dev *pdev,
 		goto err_alloc_sw_unroll;
 	}
 
-	/* Driver is mostly up */
-	clear_bit(__ICE_DOWN, pf->state);
+	clear_bit(__ICE_SERVICE_DIS, pf->state);
 
 	/* since everything is good, start the service timer */
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
@@ -3710,6 +3727,7 @@ static int ice_probe(struct pci_dev *pdev,
 	return 0;
 
 err_alloc_sw_unroll:
+	set_bit(__ICE_SERVICE_DIS, pf->state);
 	set_bit(__ICE_DOWN, pf->state);
 	devm_kfree(&pf->pdev->dev, pf->first_sw);
 err_msix_misc_unroll:
@@ -3737,6 +3755,7 @@ static void ice_remove(struct pci_dev *pdev)
 		return;
 
 	set_bit(__ICE_DOWN, pf->state);
+	ice_service_task_stop(pf);
 
 	ice_vsi_release_all(pf);
 	ice_free_irq_msix_misc(pf);
@@ -5996,6 +6015,7 @@ static void ice_tx_timeout(struct net_device *netdev)
 		netdev_err(netdev, "tx_timeout recovery unsuccessful, device is in unrecoverable state.\n");
 		set_bit(__ICE_DOWN, pf->state);
 		set_bit(__ICE_NEEDS_RESTART, vsi->state);
+		set_bit(__ICE_SERVICE_DIS, pf->state);
 		break;
 	}
 
