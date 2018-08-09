@@ -725,6 +725,9 @@ static int tcpm_set_current_limit(struct tcpm_port *port, u32 max_ma, u32 mv)
 
 	tcpm_log(port, "Setting voltage/current limit %u mV %u mA", mv, max_ma);
 
+	port->supply_voltage = mv;
+	port->current_limit = max_ma;
+
 	if (port->tcpc->set_current_limit)
 		ret = port->tcpc->set_current_limit(port->tcpc, max_ma, mv);
 
@@ -2137,7 +2140,7 @@ static unsigned int tcpm_pd_select_pps_apdo(struct tcpm_port *port)
 			 * PPS APDO. Again skip the first sink PDO as this will
 			 * always be 5V 3A.
 			 */
-			for (j = i; j < port->nr_snk_pdo; j++) {
+			for (j = 1; j < port->nr_snk_pdo; j++) {
 				pdo = port->snk_pdo[j];
 
 				switch (pdo_type(pdo)) {
@@ -2595,8 +2598,6 @@ static void tcpm_reset_port(struct tcpm_port *port)
 	tcpm_set_attached_state(port, false);
 	port->try_src_count = 0;
 	port->try_snk_count = 0;
-	port->supply_voltage = 0;
-	port->current_limit = 0;
 	port->usb_type = POWER_SUPPLY_USB_TYPE_C;
 
 	power_supply_changed(port->psy);

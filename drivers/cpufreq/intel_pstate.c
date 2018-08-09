@@ -311,10 +311,18 @@ static DEFINE_MUTEX(intel_pstate_limits_lock);
 
 #ifdef CONFIG_ACPI
 
-static bool intel_pstate_get_ppc_enable_status(void)
+static bool intel_pstate_acpi_pm_profile_server(void)
 {
 	if (acpi_gbl_FADT.preferred_profile == PM_ENTERPRISE_SERVER ||
 	    acpi_gbl_FADT.preferred_profile == PM_PERFORMANCE_SERVER)
+		return true;
+
+	return false;
+}
+
+static bool intel_pstate_get_ppc_enable_status(void)
+{
+	if (intel_pstate_acpi_pm_profile_server())
 		return true;
 
 	return acpi_ppc;
@@ -458,6 +466,11 @@ static inline void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *pol
 
 static inline void intel_pstate_exit_perf_limits(struct cpufreq_policy *policy)
 {
+}
+
+static inline bool intel_pstate_acpi_pm_profile_server(void)
+{
+	return false;
 }
 #endif
 
@@ -1841,7 +1854,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 		intel_pstate_hwp_enable(cpu);
 
 		id = x86_match_cpu(intel_pstate_hwp_boost_ids);
-		if (id)
+		if (id && intel_pstate_acpi_pm_profile_server())
 			hwp_boost = true;
 	}
 
@@ -2394,6 +2407,18 @@ static bool __init intel_pstate_no_acpi_pss(void)
 	return true;
 }
 
+static bool __init intel_pstate_no_acpi_pcch(void)
+{
+	acpi_status status;
+	acpi_handle handle;
+
+	status = acpi_get_handle(NULL, "\\_SB", &handle);
+	if (ACPI_FAILURE(status))
+		return true;
+
+	return !acpi_has_method(handle, "PCCH");
+}
+
 static bool __init intel_pstate_has_acpi_ppc(void)
 {
 	int i;
@@ -2453,7 +2478,10 @@ static bool __init intel_pstate_platform_pwr_mgmt_exists(void)
 
 	switch (plat_info[idx].data) {
 	case PSS:
-		return intel_pstate_no_acpi_pss();
+		if (!intel_pstate_no_acpi_pss())
+			return false;
+
+		return intel_pstate_no_acpi_pcch();
 	case PPC:
 		return intel_pstate_has_acpi_ppc() && !force_load;
 	}

@@ -1767,12 +1767,10 @@ static void dp_test_send_link_training(struct dc_link *link)
 	dp_retrain_link_dp_test(link, &link_settings, false);
 }
 
-/* TODO hbr2 compliance eye output is unstable
+/* TODO Raven hbr2 compliance eye output is unstable
  * (toggling on and off) with debugger break
  * This caueses intermittent PHY automation failure
  * Need to look into the root cause */
-static uint8_t force_tps4_for_cp2520 = 1;
-
 static void dp_test_send_phy_test_pattern(struct dc_link *link)
 {
 	union phy_test_pattern dpcd_test_pattern;
@@ -1832,13 +1830,13 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 		break;
 	case PHY_TEST_PATTERN_CP2520_1:
 		/* CP2520 pattern is unstable, temporarily use TPS4 instead */
-		test_pattern = (force_tps4_for_cp2520 == 1) ?
+		test_pattern = (link->dc->caps.force_dp_tps4_for_cp2520 == 1) ?
 				DP_TEST_PATTERN_TRAINING_PATTERN4 :
 				DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE;
 		break;
 	case PHY_TEST_PATTERN_CP2520_2:
 		/* CP2520 pattern is unstable, temporarily use TPS4 instead */
-		test_pattern = (force_tps4_for_cp2520 == 1) ?
+		test_pattern = (link->dc->caps.force_dp_tps4_for_cp2520 == 1) ?
 				DP_TEST_PATTERN_TRAINING_PATTERN4 :
 				DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE;
 		break;

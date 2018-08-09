@@ -429,6 +429,18 @@ static void adv7511_hpd_work(struct work_struct *work)
 	else
 		status = connector_status_disconnected;
 
+	/*
+	 * The bridge resets its registers on unplug. So when we get a plug
+	 * event and we're already supposed to be powered, cycle the bridge to
+	 * restore its state.
+	 */
+	if (status == connector_status_connected &&
+	    adv7511->connector.status == connector_status_disconnected &&
+	    adv7511->powered) {
+		regcache_mark_dirty(adv7511->regmap);
+		adv7511_power_on(adv7511);
+	}
+
 	if (adv7511->connector.status != status) {
 		adv7511->connector.status = status;
 		if (status == connector_status_disconnected)

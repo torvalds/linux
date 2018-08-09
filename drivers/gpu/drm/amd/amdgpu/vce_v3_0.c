@@ -900,7 +900,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 	.emit_frame_size =
 		4 + /* vce_v3_0_emit_pipeline_sync */
 		6, /* amdgpu_vce_ring_emit_fence x1 no user fence */
-	.emit_ib_size = 5, /* vce_v3_0_ring_emit_ib */
+	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
@@ -924,7 +924,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 		6 + /* vce_v3_0_emit_vm_flush */
 		4 + /* vce_v3_0_emit_pipeline_sync */
 		6 + 6, /* amdgpu_vce_ring_emit_fence x2 vm fence */
-	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
+	.emit_ib_size = 5, /* vce_v3_0_ring_emit_ib */
 	.emit_ib = vce_v3_0_ring_emit_ib,
 	.emit_vm_flush = vce_v3_0_emit_vm_flush,
 	.emit_pipeline_sync = vce_v3_0_emit_pipeline_sync,

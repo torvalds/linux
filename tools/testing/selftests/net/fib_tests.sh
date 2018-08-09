@@ -740,40 +740,12 @@ ipv6_rt_add()
 	run_cmd "$IP -6 ro add unreachable 2001:db8:104::/64"
 	log_test $? 2 "Attempt to add duplicate route - reject route"
 
-	# iproute2 prepend only sets NLM_F_CREATE
-	# - adds a new route; does NOT convert existing route to ECMP
-	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
-	run_cmd "$IP -6 ro prepend 2001:db8:104::/64 via 2001:db8:103::2"
-	check_route6 "2001:db8:104::/64 via 2001:db8:101::2 dev veth1 metric 1024 2001:db8:104::/64 via 2001:db8:103::2 dev veth3 metric 1024"
-	log_test $? 0 "Add new route for existing prefix (w/o NLM_F_EXCL)"
-
 	# route append with same prefix adds a new route
 	# - iproute2 sets NLM_F_CREATE | NLM_F_APPEND
 	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
 	run_cmd "$IP -6 ro append 2001:db8:104::/64 via 2001:db8:103::2"
 	check_route6 "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
 	log_test $? 0 "Append nexthop to existing route - gw"
-
-	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
-	run_cmd "$IP -6 ro append 2001:db8:104::/64 dev veth3"
-	check_route6 "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop dev veth3 weight 1"
-	log_test $? 0 "Append nexthop to existing route - dev only"
-
-	# multipath route can not have a nexthop that is a reject route
-	add_route6 "2001:db8:104::/64" "via 2001:db8:101::2"
-	run_cmd "$IP -6 ro append unreachable 2001:db8:104::/64"
-	log_test $? 2 "Append nexthop to existing route - reject route"
-
-	# reject route can not be converted to multipath route
-	run_cmd "$IP -6 ro flush 2001:db8:104::/64"
-	run_cmd "$IP -6 ro add unreachable 2001:db8:104::/64"
-	run_cmd "$IP -6 ro append 2001:db8:104::/64 via 2001:db8:103::2"
-	log_test $? 2 "Append nexthop to existing reject route - gw"
-
-	run_cmd "$IP -6 ro flush 2001:db8:104::/64"
-	run_cmd "$IP -6 ro add unreachable 2001:db8:104::/64"
-	run_cmd "$IP -6 ro append 2001:db8:104::/64 dev veth3"
-	log_test $? 2 "Append nexthop to existing reject route - dev only"
 
 	# insert mpath directly
 	add_route6 "2001:db8:104::/64" "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
@@ -818,13 +790,6 @@ ipv6_rt_replace_single()
 	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:101::3 nexthop via 2001:db8:103::2"
 	check_route6 "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::3 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
 	log_test $? 0 "Single path with multipath"
-
-	# single path with reject
-	#
-	add_initial_route6 "nexthop via 2001:db8:101::2"
-	run_cmd "$IP -6 ro replace unreachable 2001:db8:104::/64"
-	check_route6 "unreachable 2001:db8:104::/64 dev lo metric 1024"
-	log_test $? 0 "Single path with reject route"
 
 	# single path with single path using MULTIPATH attribute
 	#
@@ -872,12 +837,6 @@ ipv6_rt_replace_mpath()
 	run_cmd "$IP -6 ro replace 2001:db8:104::/64 nexthop via 2001:db8:101::3"
 	check_route6 "2001:db8:104::/64 via 2001:db8:101::3 dev veth1 metric 1024"
 	log_test $? 0 "Multipath with single path via multipath attribute"
-
-	# multipath with reject
-	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
-	run_cmd "$IP -6 ro replace unreachable 2001:db8:104::/64"
-	check_route6 "unreachable 2001:db8:104::/64 dev lo metric 1024"
-	log_test $? 0 "Multipath with reject route"
 
 	# route replace fails - invalid nexthop 1
 	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
