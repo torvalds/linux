@@ -126,7 +126,7 @@ next:
 			dev_err(dev, "Failed to get soc process version\n");
 			goto out;
 		}
-		if (value == 0 || value == 1)
+		if (soc_is_rk3288() && (value == 0 || value == 1))
 			*process = 0;
 	}
 	if (*process >= 0)
@@ -281,7 +281,9 @@ EXPORT_SYMBOL_GPL(rockchip_cpufreq_update_cur_volt);
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
 	struct device_node *np;
+	struct property *pp;
 	struct device *dev;
+	char *reg_name = NULL;
 	int ret = 0, bin = -EINVAL;
 
 	cluster->process = -EINVAL;
@@ -291,6 +293,17 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	dev = get_cpu_device(cpu);
 	if (!dev)
 		return -ENODEV;
+
+	pp = of_find_property(dev->of_node, "cpu-supply", NULL);
+	if (pp) {
+		reg_name = "cpu";
+	} else {
+		pp = of_find_property(dev->of_node, "cpu0-supply", NULL);
+		if (pp)
+			reg_name = "cpu0";
+		else
+			return -ENOENT;
+	}
 
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 	if (!np) {
@@ -313,7 +326,7 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 
 	rockchip_get_soc_info(dev, rockchip_cpufreq_of_match,
 			      &bin, &cluster->process);
-	rockchip_get_scale_volt_sel(dev, "cpu_leakage", "cpu",
+	rockchip_get_scale_volt_sel(dev, "cpu_leakage", reg_name,
 				    bin, cluster->process,
 				    &cluster->scale, &cluster->volt_sel);
 np_err:
