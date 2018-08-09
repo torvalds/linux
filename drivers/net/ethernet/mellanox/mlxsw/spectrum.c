@@ -1,38 +1,5 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum.c
- * Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2015-2017 Jiri Pirko <jiri@mellanox.com>
- * Copyright (c) 2015 Ido Schimmel <idosch@mellanox.com>
- * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -77,13 +44,15 @@
 #define MLXSW_SP_FWREV_MINOR_TO_BRANCH(minor) ((minor) / 100)
 
 #define MLXSW_SP1_FWREV_MAJOR 13
-#define MLXSW_SP1_FWREV_MINOR 1620
-#define MLXSW_SP1_FWREV_SUBMINOR 192
+#define MLXSW_SP1_FWREV_MINOR 1702
+#define MLXSW_SP1_FWREV_SUBMINOR 6
+#define MLXSW_SP1_FWREV_CAN_RESET_MINOR 1702
 
 static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
 	.major = MLXSW_SP1_FWREV_MAJOR,
 	.minor = MLXSW_SP1_FWREV_MINOR,
 	.subminor = MLXSW_SP1_FWREV_SUBMINOR,
+	.can_reset_minor = MLXSW_SP1_FWREV_CAN_RESET_MINOR,
 };
 
 #define MLXSW_SP1_FW_FILENAME \
@@ -380,7 +349,16 @@ static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 
 	err = mlxsw_sp_firmware_flash(mlxsw_sp, firmware);
 	release_firmware(firmware);
-	return err;
+	if (err)
+		dev_err(mlxsw_sp->bus_info->dev, "Could not upgrade firmware\n");
+
+	/* On FW flash success, tell the caller FW reset is needed
+	 * if current FW supports it.
+	 */
+	if (rev->minor >= req_rev->can_reset_minor)
+		return err ? err : -EAGAIN;
+	else
+		return 0;
 }
 
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
@@ -1993,9 +1971,11 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 #define MLXSW_SP_PORT_HW_TC_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_tc_stats)
 
 #define MLXSW_SP_PORT_ETHTOOL_STATS_LEN (MLXSW_SP_PORT_HW_STATS_LEN + \
-					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN + \
-					  MLXSW_SP_PORT_HW_TC_STATS_LEN) * \
-					 IEEE_8021QAZ_MAX_TCS)
+					 MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN + \
+					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN * \
+					  IEEE_8021QAZ_MAX_TCS) + \
+					 (MLXSW_SP_PORT_HW_TC_STATS_LEN * \
+					  TC_MAX_QUEUE))
 
 static void mlxsw_sp_port_get_prio_strings(u8 **p, int prio)
 {
@@ -2041,7 +2021,7 @@ static void mlxsw_sp_port_get_strings(struct net_device *dev,
 		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 			mlxsw_sp_port_get_prio_strings(&p, i);
 
-		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		for (i = 0; i < TC_MAX_QUEUE; i++)
 			mlxsw_sp_port_get_tc_strings(&p, i);
 
 		break;
@@ -2146,7 +2126,7 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 	}
 
 	/* Per-TC Counters */
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+	for (i = 0; i < TC_MAX_QUEUE; i++) {
 		__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_TC_CNT, i,
 					  data, data_index);
 		data_index += MLXSW_SP_PORT_HW_TC_STATS_LEN;
@@ -3734,10 +3714,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->bus_info = mlxsw_bus_info;
 
 	err = mlxsw_sp_fw_rev_validate(mlxsw_sp);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Could not upgrade firmware\n");
+	if (err)
 		return err;
-	}
 
 	err = mlxsw_sp_base_mac_get(mlxsw_sp);
 	if (err) {
