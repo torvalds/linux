@@ -3023,6 +3023,9 @@ static void pci_disable_acs_redir(struct pci_dev *dev)
 	if (ret != 1)
 		return;
 
+	if (!pci_dev_specific_disable_acs_redir(dev))
+		return;
+
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS);
 	if (!pos) {
 		pci_warn(dev, "cannot disable ACS redirect for this hardware as it does not have ACS capabilities\n");
