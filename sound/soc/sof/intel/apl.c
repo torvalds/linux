@@ -81,6 +81,7 @@ struct snd_sof_dsp_ops sof_apl_ops = {
 	.pcm_close	= hda_dsp_pcm_close,
 	.pcm_hw_params	= hda_dsp_pcm_hw_params,
 	.pcm_trigger	= hda_dsp_pcm_trigger,
+	.pcm_pointer	= hda_dsp_pcm_pointer,
 
 	/* firmware loading */
 	.load_firmware = hda_dsp_cl_load_fw,
