@@ -77,8 +77,8 @@
 #define MLXSW_SP_FWREV_MINOR_TO_BRANCH(minor) ((minor) / 100)
 
 #define MLXSW_SP1_FWREV_MAJOR 13
-#define MLXSW_SP1_FWREV_MINOR 1620
-#define MLXSW_SP1_FWREV_SUBMINOR 192
+#define MLXSW_SP1_FWREV_MINOR 1702
+#define MLXSW_SP1_FWREV_SUBMINOR 6
 
 static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
 	.major = MLXSW_SP1_FWREV_MAJOR,
