@@ -5179,7 +5179,9 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
 	    (tp->rcv_nxt - tp->copied_seq < sk->sk_rcvlowat ||
 	     __tcp_select_window(sk) >= tp->rcv_wnd)) ||
 	    /* We ACK each frame or... */
-	    tcp_in_quickack_mode(sk)) {
+	    tcp_in_quickack_mode(sk) ||
+	    /* Protocol state mandates a one-time immediate ACK */
+	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_NOW) {
 send_now:
 		tcp_send_ack(sk);
 		return;
