@@ -200,6 +200,7 @@ struct mv88e6xxx_port {
 	u64 vtu_member_violation;
 	u64 vtu_miss_violation;
 	u8 cmode;
+	int serdes_irq;
 };
 
 struct mv88e6xxx_chip {
@@ -433,6 +434,10 @@ struct mv88e6xxx_ops {
 
 	/* Power on/off a SERDES interface */
 	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
+
+	/* SERDES interrupt handling */
+	int (*serdes_irq_setup)(struct mv88e6xxx_chip *chip, int port);
+	void (*serdes_irq_free)(struct mv88e6xxx_chip *chip, int port);
 
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);

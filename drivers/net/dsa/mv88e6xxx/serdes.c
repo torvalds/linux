@@ -11,6 +11,8 @@
  * (at your option) any later version.
  */
 
+#include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/mii.h>
 
 #include "chip.h"
@@ -397,6 +399,183 @@ int mv88e6390x_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
 	}
 
 	return 0;
+}
+
+static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
+					    int port, int lane)
+{
+	struct dsa_switch *ds = chip->ds;
+	u16 status;
+	bool up;
+
+	mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+			      MV88E6390_SGMII_STATUS, &status);
+
+	/* Status must be read twice in order to give the current link
+	 * status. Otherwise the change in link status since the last
+	 * read of the register is returned.
+	 */
+	mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+			      MV88E6390_SGMII_STATUS, &status);
+	up = status & MV88E6390_SGMII_STATUS_LINK;
+
+	dsa_port_phylink_mac_change(ds, port, up);
+}
+
+static int mv88e6390_serdes_irq_enable_sgmii(struct mv88e6xxx_chip *chip,
+					     int lane)
+{
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6390_SGMII_INT_ENABLE,
+				      MV88E6390_SGMII_INT_LINK_DOWN |
+				      MV88E6390_SGMII_INT_LINK_UP);
+}
+
+static int mv88e6390_serdes_irq_disable_sgmii(struct mv88e6xxx_chip *chip,
+					      int lane)
+{
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6390_SGMII_INT_ENABLE, 0);
+}
+
+int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port,
+				int lane)
+{
+	u8 cmode = chip->ports[port].cmode;
+	int err = 0;
+
+	switch (cmode) {
+	case MV88E6XXX_PORT_STS_CMODE_SGMII:
+	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
+	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
+		err = mv88e6390_serdes_irq_enable_sgmii(chip, lane);
+	}
+
+	return err;
+}
+
+int mv88e6390_serdes_irq_disable(struct mv88e6xxx_chip *chip, int port,
+				 int lane)
+{
+	u8 cmode = chip->ports[port].cmode;
+	int err = 0;
+
+	switch (cmode) {
+	case MV88E6XXX_PORT_STS_CMODE_SGMII:
+	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
+	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
+		err = mv88e6390_serdes_irq_disable_sgmii(chip, lane);
+	}
+
+	return err;
+}
+
+static int mv88e6390_serdes_irq_status_sgmii(struct mv88e6xxx_chip *chip,
+					     int lane, u16 *status)
+{
+	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_INT_STATUS, status);
+
+	return err;
+}
+
+static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
+{
+	struct mv88e6xxx_port *port = dev_id;
+	struct mv88e6xxx_chip *chip = port->chip;
+	irqreturn_t ret = IRQ_NONE;
+	u8 cmode = port->cmode;
+	u16 status;
+	int lane;
+	int err;
+
+	lane = mv88e6390x_serdes_get_lane(chip, port->port);
+
+	mutex_lock(&chip->reg_lock);
+
+	switch (cmode) {
+	case MV88E6XXX_PORT_STS_CMODE_SGMII:
+	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
+	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
+		err = mv88e6390_serdes_irq_status_sgmii(chip, lane, &status);
+		if (err)
+			goto out;
+		if (status && (MV88E6390_SGMII_INT_LINK_DOWN ||
+			       MV88E6390_SGMII_INT_LINK_UP)) {
+			ret = IRQ_HANDLED;
+			mv88e6390_serdes_irq_link_sgmii(chip, port->port, lane);
+		}
+	}
+out:
+	mutex_unlock(&chip->reg_lock);
+
+	return ret;
+}
+
+int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
+{
+	int lane;
+	int err;
+
+	/* Only support ports 9 and 10 at the moment */
+	if (port < 9)
+		return 0;
+
+	lane = mv88e6390x_serdes_get_lane(chip, port);
+
+	if (lane == -ENODEV)
+		return 0;
+
+	if (lane < 0)
+		return lane;
+
+	chip->ports[port].serdes_irq = irq_find_mapping(chip->g2_irq.domain,
+							port);
+	if (chip->ports[port].serdes_irq < 0) {
+		dev_err(chip->dev, "Unable to map SERDES irq: %d\n",
+			chip->ports[port].serdes_irq);
+		return chip->ports[port].serdes_irq;
+	}
+
+	/* Requesting the IRQ will trigger irq callbacks. So we cannot
+	 * hold the reg_lock.
+	 */
+	mutex_unlock(&chip->reg_lock);
+	err = request_threaded_irq(chip->ports[port].serdes_irq, NULL,
+				   mv88e6390_serdes_thread_fn,
+				   IRQF_ONESHOT, "mv88e6xxx-serdes",
+				   &chip->ports[port]);
+	mutex_lock(&chip->reg_lock);
+
+	if (err) {
+		dev_err(chip->dev, "Unable to request SERDES interrupt: %d\n",
+			err);
+		return err;
+	}
+
+	return mv88e6390_serdes_irq_enable(chip, port, lane);
+}
+
+void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
+{
+	int lane = mv88e6390x_serdes_get_lane(chip, port);
+
+	if (port < 9)
+		return;
+
+	if (lane < 0)
+		return;
+
+	mv88e6390_serdes_irq_disable(chip, port, lane);
+
+	/* Freeing the IRQ will trigger irq callbacks. So we cannot
+	 * hold the reg_lock.
+	 */
+	mutex_unlock(&chip->reg_lock);
+	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
+	mutex_lock(&chip->reg_lock);
 }
 
 int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
