@@ -3599,7 +3599,11 @@ static int ice_probe(struct pci_dev *pdev,
 		goto err_msix_misc_unroll;
 	}
 
-	pf->first_sw->bridge_mode = BRIDGE_MODE_VEB;
+	if (hw->evb_veb)
+		pf->first_sw->bridge_mode = BRIDGE_MODE_VEB;
+	else
+		pf->first_sw->bridge_mode = BRIDGE_MODE_VEPA;
+
 	pf->first_sw->pf = pf;
 
 	/* record the sw_id available for later use */
@@ -5696,6 +5700,138 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 }
 
 /**
+ * ice_bridge_getlink - Get the hardware bridge mode
+ * @skb: skb buff
+ * @pid: process id
+ * @seq: RTNL message seq
+ * @dev: the netdev being configured
+ * @filter_mask: filter mask passed in
+ * @nlflags: netlink flags passed in
+ *
+ * Return the bridge mode (VEB/VEPA)
+ */
+static int
+ice_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+		   struct net_device *dev, u32 filter_mask, int nlflags)
+{
+	struct ice_netdev_priv *np = netdev_priv(dev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	u16 bmode;
+
+	bmode = pf->first_sw->bridge_mode;
+
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, bmode, 0, 0, nlflags,
+				       filter_mask, NULL);
+}
+
+/**
+ * ice_vsi_update_bridge_mode - Update VSI for switching bridge mode (VEB/VEPA)
+ * @vsi: Pointer to VSI structure
+ * @bmode: Hardware bridge mode (VEB/VEPA)
+ *
+ * Returns 0 on success, negative on failure
+ */
+static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
+{
+	struct device *dev = &vsi->back->pdev->dev;
+	struct ice_aqc_vsi_props *vsi_props;
+	struct ice_hw *hw = &vsi->back->hw;
+	struct ice_vsi_ctx ctxt = { 0 };
+	enum ice_status status;
+
+	vsi_props = &vsi->info;
+	ctxt.info = vsi->info;
+
+	if (bmode == BRIDGE_MODE_VEB)
+		/* change from VEPA to VEB mode */
+		ctxt.info.sw_flags |= ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
+	else
+		/* change from VEB to VEPA mode */
+		ctxt.info.sw_flags &= ~ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
+	ctxt.vsi_num = vsi->vsi_num;
+	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SW_VALID);
+	status = ice_aq_update_vsi(hw, &ctxt, NULL);
+	if (status) {
+		dev_err(dev, "update VSI for bridge mode failed, bmode = %d err %d aq_err %d\n",
+			bmode, status, hw->adminq.sq_last_status);
+		return -EIO;
+	}
+	/* Update sw flags for book keeping */
+	vsi_props->sw_flags = ctxt.info.sw_flags;
+
+	return 0;
+}
+
+/**
+ * ice_bridge_setlink - Set the hardware bridge mode
+ * @dev: the netdev being configured
+ * @nlh: RTNL message
+ * @flags: bridge setlink flags
+ *
+ * Sets the bridge mode (VEB/VEPA) of the switch to which the netdev (VSI) is
+ * hooked up to. Iterates through the PF VSI list and sets the loopback mode (if
+ * not already set for all VSIs connected to this switch. And also update the
+ * unicast switch filter rules for the corresponding switch of the netdev.
+ */
+static int
+ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
+		   u16 __always_unused flags)
+{
+	struct ice_netdev_priv *np = netdev_priv(dev);
+	struct ice_pf *pf = np->vsi->back;
+	struct nlattr *attr, *br_spec;
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status;
+	struct ice_sw *pf_sw;
+	int rem, v, err = 0;
+
+	pf_sw = pf->first_sw;
+	/* find the attribute in the netlink message */
+	br_spec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
+
+	nla_for_each_nested(attr, br_spec, rem) {
+		__u16 mode;
+
+		if (nla_type(attr) != IFLA_BRIDGE_MODE)
+			continue;
+		mode = nla_get_u16(attr);
+		if (mode != BRIDGE_MODE_VEPA && mode != BRIDGE_MODE_VEB)
+			return -EINVAL;
+		/* Continue  if bridge mode is not being flipped */
+		if (mode == pf_sw->bridge_mode)
+			continue;
+		/* Iterates through the PF VSI list and update the loopback
+		 * mode of the VSI
+		 */
+		ice_for_each_vsi(pf, v) {
+			if (!pf->vsi[v])
+				continue;
+			err = ice_vsi_update_bridge_mode(pf->vsi[v], mode);
+			if (err)
+				return err;
+		}
+
+		hw->evb_veb = (mode == BRIDGE_MODE_VEB);
+		/* Update the unicast switch filter rules for the corresponding
+		 * switch of the netdev
+		 */
+		status = ice_update_sw_rule_bridge_mode(hw);
+		if (status) {
+			netdev_err(dev, "update SW_RULE for bridge mode failed,  = %d err %d aq_err %d\n",
+				   mode, status, hw->adminq.sq_last_status);
+			/* revert hw->evb_veb */
+			hw->evb_veb = (pf_sw->bridge_mode == BRIDGE_MODE_VEB);
+			return -EIO;
+		}
+
+		pf_sw->bridge_mode = mode;
+	}
+
+	return 0;
+}
+
+/**
  * ice_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
@@ -5907,6 +6043,8 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
 	.ndo_set_features = ice_set_features,
+	.ndo_bridge_getlink = ice_bridge_getlink,
+	.ndo_bridge_setlink = ice_bridge_setlink,
 	.ndo_fdb_add = ice_fdb_add,
 	.ndo_fdb_del = ice_fdb_del,
 	.ndo_tx_timeout = ice_tx_timeout,

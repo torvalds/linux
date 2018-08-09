@@ -169,6 +169,7 @@ ice_free_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
 
 /* Switch/bridge related commands */
+enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_id);

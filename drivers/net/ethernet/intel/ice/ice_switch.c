@@ -1131,6 +1131,47 @@ ice_update_pkt_fwd_rule(struct ice_hw *hw, struct ice_fltr_info *f_info)
 }
 
 /**
+ * ice_update_sw_rule_bridge_mode
+ * @hw: pointer to the hw struct
+ *
+ * Updates unicast switch filter rules based on VEB/VEPA mode
+ */
+enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw)
+{
+	struct ice_switch_info *sw = hw->switch_info;
+	struct ice_fltr_mgmt_list_entry *fm_entry;
+	enum ice_status status = 0;
+	struct list_head *rule_head;
+	struct mutex *rule_lock; /* Lock to protect filter rule list */
+
+	rule_lock = &sw->recp_list[ICE_SW_LKUP_MAC].filt_rule_lock;
+	rule_head = &sw->recp_list[ICE_SW_LKUP_MAC].filt_rules;
+
+	mutex_lock(rule_lock);
+	list_for_each_entry(fm_entry, rule_head, list_entry) {
+		struct ice_fltr_info *fi = &fm_entry->fltr_info;
+		u8 *addr = fi->l_data.mac.mac_addr;
+
+		/* Update unicast Tx rules to reflect the selected
+		 * VEB/VEPA mode
+		 */
+		if ((fi->flag & ICE_FLTR_TX) && is_unicast_ether_addr(addr) &&
+		    (fi->fltr_act == ICE_FWD_TO_VSI ||
+		     fi->fltr_act == ICE_FWD_TO_VSI_LIST ||
+		     fi->fltr_act == ICE_FWD_TO_Q ||
+		     fi->fltr_act == ICE_FWD_TO_QGRP)) {
+			status = ice_update_pkt_fwd_rule(hw, fi);
+			if (status)
+				break;
+		}
+	}
+
+	mutex_unlock(rule_lock);
+
+	return status;
+}
+
+/**
  * ice_add_update_vsi_list
  * @hw: pointer to the hardware structure
  * @m_entry: pointer to current filter management list entry
