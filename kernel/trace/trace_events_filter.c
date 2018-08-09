@@ -899,7 +899,8 @@ int filter_match_preds(struct event_filter *filter, void *rec)
 	if (!filter)
 		return 1;
 
-	prog = rcu_dereference_sched(filter->prog);
+	/* Protected by either SRCU(tracepoint_srcu) or preempt_disable */
+	prog = rcu_dereference_raw(filter->prog);
 	if (!prog)
 		return 1;
 
@@ -1626,10 +1627,10 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 
 	/*
 	 * The calls can still be using the old filters.
-	 * Do a synchronize_sched() to ensure all calls are
+	 * Do a synchronize_sched() and to ensure all calls are
 	 * done with them before we free them.
 	 */
-	synchronize_sched();
+	tracepoint_synchronize_unregister();
 	list_for_each_entry_safe(filter_item, tmp, &filter_list, list) {
 		__free_filter(filter_item->filter);
 		list_del(&filter_item->list);
@@ -1648,7 +1649,7 @@ static int process_system_preds(struct trace_subsystem_dir *dir,
 	kfree(filter);
 	/* If any call succeeded, we still need to sync */
 	if (!fail)
-		synchronize_sched();
+		tracepoint_synchronize_unregister();
 	list_for_each_entry_safe(filter_item, tmp, &filter_list, list) {
 		__free_filter(filter_item->filter);
 		list_del(&filter_item->list);
@@ -1790,7 +1791,7 @@ int apply_event_filter(struct trace_event_file *file, char *filter_string)
 		event_clear_filter(file);
 
 		/* Make sure the filter is not being used */
-		synchronize_sched();
+		tracepoint_synchronize_unregister();
 		__free_filter(filter);
 
 		return 0;
@@ -1817,7 +1818,7 @@ int apply_event_filter(struct trace_event_file *file, char *filter_string)
 
 		if (tmp) {
 			/* Make sure the call is done with the filter */
-			synchronize_sched();
+			tracepoint_synchronize_unregister();
 			__free_filter(tmp);
 		}
 	}
@@ -1847,7 +1848,7 @@ int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 		filter = system->filter;
 		system->filter = NULL;
 		/* Ensure all filters are no longer used */
-		synchronize_sched();
+		tracepoint_synchronize_unregister();
 		filter_free_subsystem_filters(dir, tr);
 		__free_filter(filter);
 		goto out_unlock;

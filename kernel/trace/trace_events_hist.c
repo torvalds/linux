@@ -5141,7 +5141,7 @@ static void hist_clear(struct event_trigger_data *data)
 	if (data->name)
 		pause_named_trigger(data);
 
-	synchronize_sched();
+	tracepoint_synchronize_unregister();
 
 	tracing_map_clear(hist_data->map);
 

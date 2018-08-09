@@ -636,7 +636,7 @@ static void __ftrace_clear_event_pids(struct trace_array *tr)
 	rcu_assign_pointer(tr->filtered_pids, NULL);
 
 	/* Wait till all users are no longer using pid filtering */
-	synchronize_sched();
+	tracepoint_synchronize_unregister();
 
 	trace_free_pid_list(pid_list);
 }
@@ -1622,7 +1622,7 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 	}
 
 	if (filtered_pids) {
-		synchronize_sched();
+		tracepoint_synchronize_unregister();
 		trace_free_pid_list(filtered_pids);
 	} else if (pid_list) {
 		/*
@@ -3036,8 +3036,8 @@ int event_trace_del_tracer(struct trace_array *tr)
 	/* Disable any running events */
 	__ftrace_set_clr_event_nolock(tr, NULL, NULL, NULL, 0);
 
-	/* Access to events are within rcu_read_lock_sched() */
-	synchronize_sched();
+	/* Make sure no more events are being executed */
+	tracepoint_synchronize_unregister();
 
 	down_write(&trace_event_sem);
 	__trace_remove_event_dirs(tr);
