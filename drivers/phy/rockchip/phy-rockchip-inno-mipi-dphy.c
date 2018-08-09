@@ -37,91 +37,145 @@
 #define VIDEO_PHY_TTL_MODE_ENBALE	HIWORD_UPDATE(1, 15, 15)
 #define VIDEO_PHY_TTL_MODE_DISABLE	HIWORD_UPDATE(0, 15, 15)
 
-/* Innosilicon MIPI D-PHY registers */
-#define INNO_PHY_LANE_CTRL	0x00000
-#define MIPI_BGPD		BIT(7)
-#define PWROK_BP		BIT(1)
-#define PWROK			BIT(0)
-#define INNO_PHY_POWER_CTRL	0x00004
-#define ANALOG_RESET_MASK	BIT(2)
-#define ANALOG_RESET		BIT(2)
-#define ANALOG_NORMAL		0
-#define LDO_POWER_MASK		BIT(1)
-#define LDO_POWER_DOWN		BIT(1)
-#define LDO_POWER_ON		0
-#define PLL_POWER_MASK		BIT(0)
-#define PLL_POWER_DOWN		BIT(0)
-#define PLL_POWER_ON		0
-#define INNO_PHY_PLL_CTRL_0	0x0000c
-#define FBDIV_HI_MASK		BIT(5)
-#define FBDIV_HI(x)		UPDATE(x, 5, 5)
-#define PREDIV_MASK		GENMASK(4, 0)
-#define PREDIV(x)		UPDATE(x, 4, 0)
-#define INNO_PHY_PLL_CTRL_1	0x00010
-#define FBDIV_LO_MASK		GENMASK(7, 0)
-#define FBDIV_LO(x)		UPDATE(x, 7, 0)
-#define INNO_PHY_DIG_CTRL	0x00080
-#define DIGITAL_RESET_MASK	BIT(0)
-#define DIGITAL_NORMAL		BIT(0)
-#define DIGITAL_RESET		0
-#define INNO_PHY_MODE		0x0038c
-#define TTL_MODE_ENABLE		BIT(2)
-#define LVDS_MODE_ENABLE	BIT(1)
-#define MIPI_MODE_ENABLE	BIT(0)
-#define INNO_PHY_LVDS_CTRL	0x003ac
-#define LVDS_BGPD		BIT(0)
+/*
+ * The offset address[7:0] is distributed two parts, one from the bit7 to bit5
+ * is the first address, the other from the bit4 to bit0 is the second address.
+ * when you configure the registers, you must set both of them. The Clock Lane
+ * and Data Lane use the same registers with the same second address, but the
+ * first address is different.
+ */
+#define FIRST_ADDRESS(x)		(((x) & 0x7) << 5)
+#define SECOND_ADDRESS(x)		(((x) & 0x1f) << 0)
+#define INNO_PHY_REG(first, second)	(FIRST_ADDRESS(first) | \
+					 SECOND_ADDRESS(second))
 
-#define INNO_CLOCK_LANE_REG_BASE	0x00100
-#define INNO_DATA_LANE_0_REG_BASE	0x00180
-#define INNO_DATA_LANE_1_REG_BASE	0x00200
-#define INNO_DATA_LANE_2_REG_BASE	0x00280
-#define INNO_DATA_LANE_3_REG_BASE	0x00300
-
-#define T_LPX_OFFSET		0x00014
-#define T_HS_PREPARE_OFFSET	0x00018
-#define T_HS_ZERO_OFFSET	0x0001c
-#define T_HS_TRAIL_OFFSET	0x00020
-#define T_HS_EXIT_OFFSET	0x00024
-#define T_CLK_POST_OFFSET	0x00028
-#define T_WAKUP_H_OFFSET	0x00030
-#define T_WAKUP_L_OFFSET	0x00034
-#define T_CLK_PRE_OFFSET	0x00038
-#define T_TA_GO_OFFSET		0x00040
-#define T_TA_SURE_OFFSET	0x00044
-#define T_TA_WAIT_OFFSET	0x00048
-
-#define T_LPX_MASK		GENMASK(5, 0)
-#define T_LPX(x)		UPDATE(x, 5, 0)
-#define T_HS_PREPARE_MASK	GENMASK(6, 0)
-#define T_HS_PREPARE(x)		UPDATE(x, 6, 0)
-#define T_HS_ZERO_MASK		GENMASK(5, 0)
-#define T_HS_ZERO(x)		UPDATE(x, 5, 0)
-#define T_HS_TRAIL_MASK		GENMASK(6, 0)
-#define T_HS_TRAIL(x)		UPDATE(x, 6, 0)
-#define T_HS_EXIT_MASK		GENMASK(4, 0)
-#define T_HS_EXIT(x)		UPDATE(x, 4, 0)
-#define T_CLK_POST_MASK		GENMASK(3, 0)
-#define T_CLK_POST(x)		UPDATE(x, 3, 0)
-#define T_WAKUP_H_MASK		GENMASK(1, 0)
-#define T_WAKUP_H(x)		UPDATE(x, 1, 0)
-#define T_WAKUP_L_MASK		GENMASK(7, 0)
-#define T_WAKUP_L(x)		UPDATE(x, 7, 0)
-#define T_CLK_PRE_MASK		GENMASK(3, 0)
-#define T_CLK_PRE(x)		UPDATE(x, 3, 0)
-#define T_TA_GO_MASK		GENMASK(5, 0)
-#define T_TA_GO(x)		UPDATE(x, 5, 0)
-#define T_TA_SURE_MASK		GENMASK(5, 0)
-#define T_TA_SURE(x)		UPDATE(x, 5, 0)
-#define T_TA_WAIT_MASK		GENMASK(5, 0)
-#define T_TA_WAIT(x)		UPDATE(x, 5, 0)
-
-enum lane_type {
-	CLOCK_LANE,
-	DATA_LANE_0,
-	DATA_LANE_1,
-	DATA_LANE_2,
-	DATA_LANE_3,
-};
+/* Analog Register Part: reg00 */
+#define BANDGAP_POWER_MASK		BIT(7)
+#define BANDGAP_POWER_DOWN		BIT(7)
+#define BANDGAP_POWER_ON		0
+#define LANE_EN_MASK			GENMASK(6, 2)
+#define LANE_EN_CK			BIT(6)
+#define LANE_EN_3			BIT(5)
+#define LANE_EN_2			BIT(4)
+#define LANE_EN_1			BIT(3)
+#define LANE_EN_0			BIT(2)
+#define POWER_WORK_MASK			GENMASK(1, 0)
+#define POWER_WORK_ENABLE		UPDATE(1, 1, 0)
+#define POWER_WORK_DISABLE		UPDATE(2, 1, 0)
+/* Analog Register Part: reg01 */
+#define REG_SYNCRST_MASK		BIT(2)
+#define REG_SYNCRST_RESET		BIT(2)
+#define REG_SYNCRST_NORMAL		0
+#define REG_LDOPD_MASK			BIT(1)
+#define REG_LDOPD_POWER_DOWN		BIT(1)
+#define REG_LDOPD_POWER_ON		0
+#define REG_PLLPD_MASK			BIT(0)
+#define REG_PLLPD_POWER_DOWN		BIT(0)
+#define REG_PLLPD_POWER_ON		0
+/* Analog Register Part: reg03 */
+#define REG_FBDIV_HI_MASK		BIT(5)
+#define REG_FBDIV_HI(x)			UPDATE(x, 5, 5)
+#define REG_PREDIV_MASK			GENMASK(4, 0)
+#define REG_PREDIV(x)			UPDATE(x, 4, 0)
+/* Analog Register Part: reg04 */
+#define REG_FBDIV_LO_MASK		GENMASK(7, 0)
+#define REG_FBDIV_LO(x)			UPDATE(x, 7, 0)
+/* Analog Register Part: reg05 */
+#define CLK_LANE_SKEW_PHASE_SET_MASK	GENMASK(2, 0)
+#define CLK_LANE_SKEW_PHASE_SET(x)	UPDATE(x, 2, 0)
+/* Analog Register Part: reg06 */
+#define LDO_OUTPUT_SET_HI_MASK		BIT(7)
+#define LDO_OUTPUT_SET_HI(x)		UPDATE(x, 7, 7)
+#define LANE_3_SKEW_PHASE_SET_MASK	GENMASK(6, 4)
+#define LANE_3_SKEW_PHASE_SET(x)	UPDATE(x, 6, 4)
+#define LDO_OUTPUT_SET_LO_MASK		BIT(3)
+#define LDO_OUTPUT_SET_LO(x)		UPDATE(x, 3, 3)
+#define LANE_2_SKEW_PHASE_SET_MASK	GENMASK(2, 0)
+#define LANE_2_SKEW_PHASE_SET(x)	UPDATE(x, 2, 0)
+/* Analog Register Part: reg07 */
+#define PRE_EMPHASIS_RANGE_SET_HI_MASK	BIT(7)
+#define PRE_EMPHASIS_RANGE_SET_HI(x)	UPDATE(x, 7, 7)
+#define LANE_1_SKEW_PHASE_SET_MASK	GENMASK(6, 4)
+#define LANE_1_SKEW_PHASE_SET(x)	UPDATE(x, 6, 4)
+#define PRE_EMPHASIS_RANGE_SET_LO_MASK	BIT(3)
+#define PRE_EMPHASIS_RANGE_SET_LO(x)	UPDATE(x, 3, 3)
+#define LANE_0_SKEW_PHASE_SET_MASK	GENMASK(2, 0)
+#define LANE_0_SKEW_PHASE_SET(x)	UPDATE(x, 2, 0)
+/* Analog Register Part: reg08 */
+#define PRE_EMPHASIS_ENABLE_MASK	BIT(7)
+#define PRE_EMPHASIS_ENABLE		BIT(7)
+#define PRE_EMPHASIS_DISABLE		0
+#define PLL_POST_DIV_ENABLE_MASK	BIT(5)
+#define PLL_POST_DIV_ENABLE		BIT(5)
+#define PLL_POST_DIV_DISABLE		0
+#define DATA_LANE_VOD_RANGE_SET_MASK	GENMASK(3, 0)
+#define DATA_LANE_VOD_RANGE_SET(x)	UPDATE(x, 3, 0)
+/* Analog Register Part: reg0b */
+#define CLOCK_LANE_VOD_RANGE_SET_MASK	GENMASK(3, 0)
+#define CLOCK_LANE_VOD_RANGE_SET(x)	UPDATE(x, 3, 0)
+/* Analog Register Part: reg11 */
+#define DATA_SAMPLE_PHASE_SET_MASK	GENMASK(7, 6)
+#define DATA_SAMPLE_PHASE_SET(x)	UPDATE(x, 7, 6)
+/* Digital Register Part: reg00 */
+#define REG_DIG_RSTN_MASK		BIT(0)
+#define REG_DIG_RSTN_NORMAL		BIT(0)
+#define REG_DIG_RSTN_RESET		0
+/* Digital Register Part: reg01 */
+#define INV_PIN_TXCLKESC_0_ENABLE_MASK	BIT(1)
+#define INV_PIN_TXCLKESC_0_ENABLE	BIT(1)
+#define INV_PIN_TXCLKESC_0_DISABLE	0
+#define INV_PIN_TXBYTECLKHS_ENABLE_MASK	BIT(0)
+#define INV_PIN_TXBYTECLKHS_ENABLE	BIT(0)
+#define INV_PIN_TXBYTECLKHS_DISABLE	0
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg00 */
+#define DIFF_SIGNAL_SWAP_ENABLE_MASK	BIT(4)
+#define DIFF_SIGNAL_SWAP_ENABLE		BIT(4)
+#define DIFF_SIGNAL_SWAP_DISABLE	0
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg05 */
+#define T_LPX_CNT_MASK			GENMASK(5, 0)
+#define T_LPX_CNT(x)			UPDATE(x, 5, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg06 */
+#define T_HS_ZERO_CNT_HI_MASK		BIT(7)
+#define T_HS_ZERO_CNT_HI(x)		UPDATE(x, 7, 7)
+#define T_HS_PREPARE_CNT_MASK		GENMASK(6, 0)
+#define T_HS_PREPARE_CNT(x)		UPDATE(x, 6, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg07 */
+#define T_HS_ZERO_CNT_LO_MASK		GENMASK(5, 0)
+#define T_HS_ZERO_CNT_LO(x)		UPDATE(x, 5, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg08 */
+#define T_HS_TRAIL_CNT_MASK		GENMASK(6, 0)
+#define T_HS_TRAIL_CNT(x)		UPDATE(x, 6, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg09 */
+#define T_HS_EXIT_CNT_LO_MASK		GENMASK(4, 0)
+#define T_HS_EXIT_CNT_LO(x)		UPDATE(x, 4, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg0a */
+#define T_CLK_POST_CNT_LO_MASK		GENMASK(3, 0)
+#define T_CLK_POST_CNT_LO(x)		UPDATE(x, 3, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg0c */
+#define LPDT_TX_PPI_SYNC_ENABLE_MASK	BIT(2)
+#define LPDT_TX_PPI_SYNC_ENABLE		BIT(2)
+#define LPDT_TX_PPI_SYNC_DISABLE	0
+#define T_WAKEUP_CNT_HI_MASK		GENMASK(1, 0)
+#define T_WAKEUP_CNT_HI(x)		UPDATE(x, 1, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg0d */
+#define T_WAKEUP_CNT_LO_MASK		GENMASK(7, 0)
+#define T_WAKEUP_CNT_LO(x)		UPDATE(x, 7, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg0e */
+#define T_CLK_PRE_CNT_MASK		GENMASK(3, 0)
+#define T_CLK_PRE_CNT(x)		UPDATE(x, 3, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg10 */
+#define T_CLK_POST_HI_MASK		GENMASK(7, 6)
+#define T_CLK_POST_HI(x)		UPDATE(x, 7, 6)
+#define T_TA_GO_CNT_MASK		GENMASK(5, 0)
+#define T_TA_GO_CNT(x)			UPDATE(x, 5, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg11 */
+#define T_HS_EXIT_CNT_HI_MASK		BIT(6)
+#define T_HS_EXIT_CNT_HI(x)		UPDATE(x, 6, 6)
+#define T_TA_SURE_CNT_MASK		GENMASK(5, 0)
+#define T_TA_SURE_CNT(x)		UPDATE(x, 5, 0)
+/* Clock/Data0/Data1/Data2/Data3 Lane Register Part: reg12 */
+#define T_TA_WAIT_CNT_MASK		GENMASK(5, 0)
+#define T_TA_WAIT_CNT(x)		UPDATE(x, 5, 0)
 
 enum inno_video_phy_functions {
 	INNO_PHY_PADCTL_FUNC_MIPI,
@@ -155,21 +209,6 @@ struct mipi_dphy_timing {
 	unsigned int wakeup;
 };
 
-struct inno_mipi_dphy_timing {
-	u8 lpx;
-	u8 hs_prepare;
-	u8 hs_zero;
-	u8 hs_trail;
-	u8 hs_exit;
-	u8 clk_post;
-	u8 wakup_h;
-	u8 wakup_l;
-	u8 clk_pre;
-	u8 ta_go;
-	u8 ta_sure;
-	u8 ta_wait;
-};
-
 struct inno_video_phy_socdata {
 	bool pinmux;
 	bool has_h2p_clk;
@@ -198,49 +237,36 @@ struct inno_mipi_dphy {
 	const struct inno_video_phy_socdata *socdata;
 };
 
-static const u32 lane_reg_offset[] = {
-	[CLOCK_LANE]  = INNO_CLOCK_LANE_REG_BASE,
-	[DATA_LANE_0] = INNO_DATA_LANE_0_REG_BASE,
-	[DATA_LANE_1] = INNO_DATA_LANE_1_REG_BASE,
-	[DATA_LANE_2] = INNO_DATA_LANE_2_REG_BASE,
-	[DATA_LANE_3] = INNO_DATA_LANE_3_REG_BASE,
+enum {
+	REGISTER_PART_ANALOG,
+	REGISTER_PART_DIGITAL,
+	REGISTER_PART_CLOCK_LANE,
+	REGISTER_PART_DATA0_LANE,
+	REGISTER_PART_DATA1_LANE,
+	REGISTER_PART_DATA2_LANE,
+	REGISTER_PART_DATA3_LANE,
 };
 
-#define FIXED_PARAM(_freq, _prepare, _clk_zero, _data_zero, _trail)	\
-{	\
-	.max_freq = _freq,	\
-	.hs_prepare = _prepare,	\
-	.clk_lane = {	\
-		.hs_zero = _clk_zero,	\
-	},	\
-	.data_lane = {	\
-		.hs_zero = _data_zero,	\
-	},	\
-	.hs_trail = _trail,	\
-}
-
-static const struct {
-	unsigned long max_freq;
+struct inno_mipi_dphy_timing {
+	unsigned int max_lane_mbps;
 	u8 hs_prepare;
-	struct {
-		u8 hs_zero;
-	} clk_lane;
-	struct {
-		u8 hs_zero;
-	} data_lane;
+	u8 clk_lane_hs_zero;
+	u8 data_lane_hs_zero;
 	u8 hs_trail;
-} fixed_param_table[] = {
-	FIXED_PARAM(110,  0x20, 0x16, 0x02, 0x22),
-	FIXED_PARAM(150,  0x06, 0x16, 0x03, 0x45),
-	FIXED_PARAM(200,  0x18, 0x17, 0x04, 0x0b),
-	FIXED_PARAM(250,  0x05, 0x17, 0x05, 0x16),
-	FIXED_PARAM(300,  0x51, 0x18, 0x06, 0x2c),
-	FIXED_PARAM(400,  0x64, 0x19, 0x07, 0x33),
-	FIXED_PARAM(500,  0x20, 0x1b, 0x07, 0x4e),
-	FIXED_PARAM(600,  0x6a, 0x1d, 0x08, 0x3a),
-	FIXED_PARAM(700,  0x3e, 0x1e, 0x08, 0x6a),
-	FIXED_PARAM(800,  0x21, 0x1f, 0x09, 0x29),
-	FIXED_PARAM(1000, 0x09, 0x20, 0x09, 0x27),
+};
+
+static const struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table[] = {
+	{ 110, 0x20, 0x16, 0x02, 0x22},
+	{ 150, 0x06, 0x16, 0x03, 0x45},
+	{ 200, 0x18, 0x17, 0x04, 0x0b},
+	{ 250, 0x05, 0x17, 0x05, 0x16},
+	{ 300, 0x51, 0x18, 0x06, 0x2c},
+	{ 400, 0x64, 0x19, 0x07, 0x33},
+	{ 500, 0x20, 0x1b, 0x07, 0x4e},
+	{ 600, 0x6a, 0x1d, 0x08, 0x3a},
+	{ 700, 0x3e, 0x1e, 0x08, 0x6a},
+	{ 800, 0x21, 0x1f, 0x09, 0x29},
+	{1000, 0x09, 0x20, 0x09, 0x27},
 };
 
 static const struct pinctrl_pin_desc inno_video_phy_pins[] = {
@@ -279,7 +305,7 @@ inno_video_phy_pad_config(struct inno_mipi_dphy *inno, unsigned int function)
 		pm_runtime_get_sync(inno->dev);
 		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
 			     VIDEO_PHY_TTL_MODE_ENBALE);
-		regmap_write(inno->regmap, INNO_PHY_MODE, TTL_MODE_ENABLE);
+		regmap_write(inno->regmap, 0x38c, 0x04);
 		/* Enable analog driver */
 		regmap_write(inno->regmap, 0x3ac, 0xfd);
 		break;
@@ -287,20 +313,20 @@ inno_video_phy_pad_config(struct inno_mipi_dphy *inno, unsigned int function)
 		pm_runtime_get_sync(inno->dev);
 		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
 			     VIDEO_PHY_TTL_MODE_DISABLE);
-		regmap_write(inno->regmap, INNO_PHY_MODE, MIPI_MODE_ENABLE);
+		regmap_write(inno->regmap, 0x38c, 0x01);
 		break;
 	case INNO_PHY_PADCTL_FUNC_LVDS:
 		pm_runtime_get_sync(inno->dev);
 		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
 			     VIDEO_PHY_TTL_MODE_DISABLE);
-		regmap_write(inno->regmap, INNO_PHY_MODE, LVDS_MODE_ENABLE);
+		regmap_write(inno->regmap, 0x38c, 0x02);
 		/* Enable LVDS analog driver */
 		regmap_write(inno->regmap, 0x3ac, 0xf8);
 		break;
 	case INNO_PHY_PADCTL_FUNC_IDLE:
 		/* Disable analog driver */
 		regmap_write(inno->regmap, 0x3ac, 0x04);
-		regmap_write(inno->regmap, INNO_PHY_MODE, 0x00);
+		regmap_write(inno->regmap, 0x38c, 0x00);
 		pm_runtime_put(inno->dev);
 		break;
 	default:
@@ -384,77 +410,100 @@ static inline struct inno_mipi_dphy *hw_to_inno(struct clk_hw *hw)
 	return container_of(hw, struct inno_mipi_dphy, pll.hw);
 }
 
-static inline void inno_mipi_dphy_reset(struct inno_mipi_dphy *inno)
+static void inno_update_bits(struct inno_mipi_dphy *inno, u8 first, u8 second,
+			     u8 mask, u8 val)
+{
+	u32 reg = INNO_PHY_REG(first, second) << 2;
+
+	regmap_update_bits(inno->regmap, reg, mask, val);
+}
+
+static void inno_mipi_dphy_reset(struct inno_mipi_dphy *inno)
 {
 	/* Reset analog */
-	regmap_update_bits(inno->regmap, INNO_PHY_POWER_CTRL,
-			   ANALOG_RESET_MASK, ANALOG_RESET);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+			 REG_SYNCRST_MASK, REG_SYNCRST_RESET);
 	udelay(1);
-	regmap_update_bits(inno->regmap, INNO_PHY_POWER_CTRL,
-			   ANALOG_RESET_MASK, ANALOG_NORMAL);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+			 REG_SYNCRST_MASK, REG_SYNCRST_NORMAL);
 	/* Reset digital */
-	regmap_update_bits(inno->regmap, INNO_PHY_DIG_CTRL,
-			   DIGITAL_RESET_MASK, DIGITAL_RESET);
+	inno_update_bits(inno, REGISTER_PART_DIGITAL, 0x00,
+			 REG_DIG_RSTN_MASK, REG_DIG_RSTN_RESET);
 	udelay(1);
-	regmap_update_bits(inno->regmap, INNO_PHY_DIG_CTRL,
-			   DIGITAL_RESET_MASK, DIGITAL_NORMAL);
+	inno_update_bits(inno, REGISTER_PART_DIGITAL, 0x00,
+			 REG_DIG_RSTN_MASK, REG_DIG_RSTN_NORMAL);
 }
 
-static inline void inno_mipi_dphy_da_pwrok_enable(struct inno_mipi_dphy *inno)
+static void inno_mipi_dphy_power_work_enable(struct inno_mipi_dphy *inno)
 {
-	regmap_update_bits(inno->regmap, INNO_PHY_LANE_CTRL,
-			   PWROK_BP | PWROK, PWROK);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+			 POWER_WORK_MASK, POWER_WORK_ENABLE);
 }
 
-static inline void inno_mipi_dphy_da_pwrok_disable(struct inno_mipi_dphy *inno)
+static void inno_mipi_dphy_power_work_disable(struct inno_mipi_dphy *inno)
 {
-	regmap_update_bits(inno->regmap, INNO_PHY_LANE_CTRL,
-			   PWROK_BP | PWROK, PWROK_BP);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+			 POWER_WORK_MASK, POWER_WORK_DISABLE);
 }
 
-static inline void inno_mipi_dphy_bgpd_enable(struct inno_mipi_dphy *inno)
+static void inno_mipi_dphy_bandgap_power_enable(struct inno_mipi_dphy *inno)
 {
-	regmap_update_bits(inno->regmap, INNO_PHY_LANE_CTRL, MIPI_BGPD, 0);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+			 BANDGAP_POWER_MASK, BANDGAP_POWER_ON);
 }
 
-static inline void inno_mipi_dphy_bgpd_disable(struct inno_mipi_dphy *inno)
+static void inno_mipi_dphy_bandgap_power_disable(struct inno_mipi_dphy *inno)
 {
-	regmap_update_bits(inno->regmap, INNO_PHY_LANE_CTRL,
-			   MIPI_BGPD, MIPI_BGPD);
-	regmap_update_bits(inno->regmap, INNO_PHY_LVDS_CTRL,
-			   LVDS_BGPD, LVDS_BGPD);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+			 BANDGAP_POWER_MASK, BANDGAP_POWER_DOWN);
 }
 
-static inline void inno_mipi_dphy_lane_enable(struct inno_mipi_dphy *inno)
+static void inno_mipi_dphy_lane_enable(struct inno_mipi_dphy *inno)
 {
-	u8 map[] = {0x44, 0x4c, 0x5c, 0x7c};
+	u8 val = LANE_EN_CK;
 
-	regmap_update_bits(inno->regmap, INNO_PHY_LANE_CTRL,
-			   0x7c, map[inno->lanes - 1]);
+	switch (inno->lanes) {
+	case 1:
+		val |= LANE_EN_0;
+		break;
+	case 2:
+		val |= LANE_EN_1 | LANE_EN_0;
+		break;
+	case 3:
+		val |= LANE_EN_2 | LANE_EN_1 | LANE_EN_0;
+		break;
+	case 4:
+	default:
+		val |= LANE_EN_3 | LANE_EN_2 | LANE_EN_1 | LANE_EN_0;
+		break;
+	}
+
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x00, LANE_EN_MASK, val);
 }
 
-static inline void inno_mipi_dphy_lane_disable(struct inno_mipi_dphy *inno)
+static void inno_mipi_dphy_lane_disable(struct inno_mipi_dphy *inno)
 {
-	regmap_update_bits(inno->regmap, INNO_PHY_LANE_CTRL, 0x7c, 0x00);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x00, LANE_EN_MASK, 0);
 }
 
 static void inno_mipi_dphy_pll_enable(struct inno_mipi_dphy *inno)
 {
-	regmap_update_bits(inno->regmap, INNO_PHY_PLL_CTRL_0, FBDIV_HI_MASK |
-			   PREDIV_MASK, FBDIV_HI(inno->pll.fbdiv >> 8) |
-			   PREDIV(inno->pll.prediv));
-	regmap_update_bits(inno->regmap, INNO_PHY_PLL_CTRL_1,
-			   FBDIV_LO_MASK, FBDIV_LO(inno->pll.fbdiv));
-	regmap_update_bits(inno->regmap, INNO_PHY_POWER_CTRL,
-			   PLL_POWER_MASK | LDO_POWER_MASK,
-			   PLL_POWER_ON | LDO_POWER_ON);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+			 REG_PREDIV_MASK, REG_PREDIV(inno->pll.prediv));
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+			 REG_FBDIV_HI_MASK, REG_FBDIV_HI(inno->pll.fbdiv >> 8));
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
+			 REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+			 REG_LDOPD_MASK | REG_PLLPD_MASK,
+			 REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
 }
 
 static void inno_mipi_dphy_pll_disable(struct inno_mipi_dphy *inno)
 {
-	regmap_update_bits(inno->regmap, INNO_PHY_POWER_CTRL,
-			   PLL_POWER_MASK | LDO_POWER_MASK,
-			   PLL_POWER_DOWN | LDO_POWER_DOWN);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+			 REG_LDOPD_MASK | REG_PLLPD_MASK,
+			 REG_LDOPD_POWER_DOWN | REG_PLLPD_POWER_DOWN);
 }
 
 static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
@@ -485,108 +534,110 @@ static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 	timing->wakeup = 1000000;
 }
 
-static void inno_mipi_dphy_timing_update(struct inno_mipi_dphy *inno,
-					 enum lane_type lane_type,
-					 struct inno_mipi_dphy_timing *t)
+static const struct inno_mipi_dphy_timing *
+inno_mipi_dphy_get_timing(unsigned int lane_mbps)
 {
-	u32 base = lane_reg_offset[lane_type];
+	unsigned int i;
 
-	regmap_update_bits(inno->regmap, base + T_HS_PREPARE_OFFSET,
-			   T_HS_PREPARE_MASK, T_HS_PREPARE(t->hs_prepare));
-	regmap_update_bits(inno->regmap, base + T_HS_ZERO_OFFSET,
-			   T_HS_ZERO_MASK, T_HS_ZERO(t->hs_zero));
-	regmap_update_bits(inno->regmap, base + T_HS_TRAIL_OFFSET,
-			   T_HS_TRAIL_MASK, T_HS_TRAIL(t->hs_trail));
-	regmap_update_bits(inno->regmap, base + T_HS_EXIT_OFFSET,
-			   T_HS_EXIT_MASK, T_HS_EXIT(t->hs_exit));
-
-	if (lane_type == CLOCK_LANE) {
-		regmap_update_bits(inno->regmap, base + T_CLK_POST_OFFSET,
-				   T_CLK_POST_MASK, T_CLK_POST(t->clk_post));
-		regmap_update_bits(inno->regmap, base + T_CLK_PRE_OFFSET,
-				   T_CLK_PRE_MASK, T_CLK_PRE(t->clk_pre));
-	}
-
-	regmap_update_bits(inno->regmap, base + T_WAKUP_H_OFFSET,
-			   T_WAKUP_H_MASK, T_WAKUP_H(t->wakup_h));
-	regmap_update_bits(inno->regmap, base + T_WAKUP_L_OFFSET,
-			   T_WAKUP_L_MASK, T_WAKUP_L(t->wakup_l));
-	regmap_update_bits(inno->regmap, base + T_LPX_OFFSET,
-			   T_LPX_MASK, T_LPX(t->lpx));
-	regmap_update_bits(inno->regmap, base + T_TA_GO_OFFSET,
-			   T_TA_GO_MASK, T_TA_GO(t->ta_go));
-	regmap_update_bits(inno->regmap, base + T_TA_SURE_OFFSET,
-			   T_TA_SURE_MASK, T_TA_SURE(t->ta_sure));
-	regmap_update_bits(inno->regmap, base + T_TA_WAIT_OFFSET,
-			   T_TA_WAIT_MASK, T_TA_WAIT(t->ta_wait));
-}
-
-static void inno_mipi_dphy_get_fixed_param(struct inno_mipi_dphy_timing *t,
-					   unsigned long freq,
-					   enum lane_type lane_type)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(fixed_param_table); i++)
-		if (freq <= fixed_param_table[i].max_freq)
+	for (i = 0; i < ARRAY_SIZE(inno_mipi_dphy_timing_table); i++)
+		if (lane_mbps <= inno_mipi_dphy_timing_table[i].max_lane_mbps)
 			break;
 
-	if (i == ARRAY_SIZE(fixed_param_table))
+	if (i == ARRAY_SIZE(inno_mipi_dphy_timing_table))
 		--i;
 
-	if (lane_type == CLOCK_LANE)
-		t->hs_zero = fixed_param_table[i].clk_lane.hs_zero;
-	else
-		t->hs_zero = fixed_param_table[i].data_lane.hs_zero;
-
-	t->hs_prepare = fixed_param_table[i].hs_prepare;
-	t->hs_trail = fixed_param_table[i].hs_trail;
+	return &inno_mipi_dphy_timing_table[i];
 }
 
-static void inno_mipi_dphy_lane_timing_init(struct inno_mipi_dphy *inno,
-					    enum lane_type lane_type)
+static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
 {
-	struct mipi_dphy_timing timing;
-	struct inno_mipi_dphy_timing data;
-	unsigned long txbyteclk, txclkesc, UI;
+	struct mipi_dphy_timing gotp;
+	const struct inno_mipi_dphy_timing *timing;
+	unsigned long txbyteclk, txclkesc, ui, sys_clk;
 	unsigned int esc_clk_div;
+	u32 hs_exit, clk_post, clk_pre, wakeup, lpx, ta_go, ta_sure, ta_wait;
+	u32 hs_prepare, hs_trail, hs_zero;
+	unsigned int i;
 
-	memset(&timing, 0, sizeof(timing));
-	memset(&data, 0, sizeof(data));
+	memset(&gotp, 0, sizeof(gotp));
 
 	txbyteclk = inno->lane_rate / 8;
+	sys_clk = clk_get_rate(inno->pclk);
 	esc_clk_div = DIV_ROUND_UP(txbyteclk, 20000000);
 	txclkesc = txbyteclk / esc_clk_div;
-	UI = DIV_ROUND_CLOSEST_ULL(NSEC_PER_SEC, inno->lane_rate);
+	ui = DIV_ROUND_CLOSEST_ULL(NSEC_PER_SEC, inno->lane_rate);
 
-	mipi_dphy_timing_get_default(&timing, UI);
-	inno_mipi_dphy_get_fixed_param(&data, inno->lane_rate / USEC_PER_SEC,
-				       lane_type);
+	dev_dbg(inno->dev, "txbyteclk=%ld, ui=%ld, sys_clk=%ld\n",
+		txbyteclk, ui, sys_clk);
 
-	data.hs_exit = DIV_ROUND_UP(timing.hsexit * txbyteclk, NSEC_PER_SEC);
-	data.clk_post = DIV_ROUND_UP(timing.clkpost * txbyteclk, NSEC_PER_SEC);
-	data.clk_pre = DIV_ROUND_UP(timing.clkpre * txbyteclk, NSEC_PER_SEC);
-	data.wakup_h = 0x3;
-	data.wakup_l = 0xff;
-	data.lpx = DIV_ROUND_UP(txbyteclk * timing.lpx, NSEC_PER_SEC);
-	if (data.lpx >= 2)
-		data.lpx -= 2;
-	data.ta_go = DIV_ROUND_UP(timing.tago * txclkesc, NSEC_PER_SEC);
-	data.ta_sure = DIV_ROUND_UP(timing.tasure * txclkesc, NSEC_PER_SEC);
-	data.ta_wait = DIV_ROUND_UP(timing.taget * txclkesc, NSEC_PER_SEC);
+	mipi_dphy_timing_get_default(&gotp, ui);
+	timing = inno_mipi_dphy_get_timing(inno->lane_rate / USEC_PER_SEC);
 
-	inno_mipi_dphy_timing_update(inno, lane_type, &data);
+	hs_exit = DIV_ROUND_UP(gotp.hsexit * txbyteclk, NSEC_PER_SEC);
+	clk_post = DIV_ROUND_UP(gotp.clkpost * txbyteclk, NSEC_PER_SEC);
+	clk_pre = DIV_ROUND_UP(gotp.clkpre * txbyteclk, NSEC_PER_SEC);
 
-#define TIMING_NS(x, freq) (((x) * (DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq))))
-	dev_dbg(inno->dev, "hs-exit=%lu, clk-post=%lu, clk-pre=%lu, lpx=%lu\n",
-		TIMING_NS(data.hs_exit, txbyteclk),
-		TIMING_NS(data.clk_post, txbyteclk),
-		TIMING_NS(data.clk_pre, txbyteclk),
-		TIMING_NS(data.lpx + 2, txbyteclk));
-	dev_dbg(inno->dev, "ta-go=%lu, ta-sure=%lu, ta-wait=%lu\n",
-		TIMING_NS(data.ta_go, txclkesc),
-		TIMING_NS(data.ta_sure, txclkesc),
-		TIMING_NS(data.ta_wait, txclkesc));
+	wakeup = DIV_ROUND_UP(gotp.wakeup * sys_clk, NSEC_PER_SEC);
+	if (wakeup > 0x3ff)
+		wakeup = 0x3ff;
+
+	lpx = DIV_ROUND_UP(txbyteclk * gotp.lpx, NSEC_PER_SEC);
+	if (lpx >= 2)
+		lpx -= 2;
+
+	ta_go = DIV_ROUND_UP(gotp.tago * txclkesc, NSEC_PER_SEC);
+	ta_sure = DIV_ROUND_UP(gotp.tasure * txclkesc, NSEC_PER_SEC);
+	ta_wait = DIV_ROUND_UP(gotp.taget * txclkesc, NSEC_PER_SEC);
+
+	hs_prepare = timing->hs_prepare;
+	hs_trail = timing->hs_trail;
+
+	for (i = REGISTER_PART_CLOCK_LANE; i <= REGISTER_PART_DATA3_LANE; i++) {
+		if (i == REGISTER_PART_CLOCK_LANE)
+			hs_zero = timing->clk_lane_hs_zero;
+		else
+			hs_zero = timing->data_lane_hs_zero;
+
+		dev_dbg(inno->dev, "lpx=%x\n", lpx);
+		dev_dbg(inno->dev,
+			"hs_trail=%x, hs_exit=%x, hs_prepare=%x, hs_zero=%x\n",
+			hs_trail, hs_exit, hs_prepare, hs_zero);
+		dev_dbg(inno->dev, "clk_pre=%x, clk_post=%x\n",
+			clk_pre, clk_post);
+		dev_dbg(inno->dev, "ta_go=%x, ta_sure=%x, ta_wait=%x\n",
+			ta_go, ta_sure, ta_wait);
+
+		inno_update_bits(inno, i, 0x05, T_LPX_CNT_MASK,
+				 T_LPX_CNT(lpx));
+		inno_update_bits(inno, i, 0x06, T_HS_PREPARE_CNT_MASK,
+				 T_HS_PREPARE_CNT(hs_prepare));
+		inno_update_bits(inno, i, 0x06, T_HS_ZERO_CNT_HI_MASK,
+				 T_HS_ZERO_CNT_HI(hs_zero >> 6));
+		inno_update_bits(inno, i, 0x07, T_HS_ZERO_CNT_LO_MASK,
+				 T_HS_ZERO_CNT_LO(hs_zero));
+		inno_update_bits(inno, i, 0x08, T_HS_TRAIL_CNT_MASK,
+				 T_HS_TRAIL_CNT(hs_trail));
+		inno_update_bits(inno, i, 0x11, T_HS_EXIT_CNT_HI_MASK,
+				 T_HS_EXIT_CNT_HI(hs_exit >> 5));
+		inno_update_bits(inno, i, 0x09, T_HS_EXIT_CNT_LO_MASK,
+				 T_HS_EXIT_CNT_LO(hs_exit));
+		inno_update_bits(inno, i, 0x10, T_CLK_POST_HI_MASK,
+				 T_CLK_POST_HI(clk_post >> 4));
+		inno_update_bits(inno, i, 0x0a, T_CLK_POST_CNT_LO_MASK,
+				 T_CLK_POST_CNT_LO(clk_post));
+		inno_update_bits(inno, i, 0x0e, T_CLK_PRE_CNT_MASK,
+				 T_CLK_PRE_CNT(clk_pre));
+		inno_update_bits(inno, i, 0x0c, T_WAKEUP_CNT_HI_MASK,
+				 T_WAKEUP_CNT_HI(wakeup >> 8));
+		inno_update_bits(inno, i, 0x0d, T_WAKEUP_CNT_LO_MASK,
+				 T_WAKEUP_CNT_LO(wakeup));
+		inno_update_bits(inno, i, 0x10, T_TA_GO_CNT_MASK,
+				 T_TA_GO_CNT(ta_go));
+		inno_update_bits(inno, i, 0x11, T_TA_SURE_CNT_MASK,
+				 T_TA_SURE_CNT(ta_sure));
+		inno_update_bits(inno, i, 0x12, T_TA_WAIT_CNT_MASK,
+				 T_TA_WAIT_CNT(ta_wait));
+	}
 }
 
 static unsigned long inno_mipi_dphy_pll_rate_fixup(unsigned long fin,
@@ -596,8 +647,8 @@ static unsigned long inno_mipi_dphy_pll_rate_fixup(unsigned long fin,
 	unsigned long best_freq = 0;
 	unsigned long fout;
 	u8 min_prediv, max_prediv;
-	u8 _prediv, uninitialized_var(best_prediv);
-	u16 _fbdiv, uninitialized_var(best_fbdiv);
+	u8 _prediv, best_prediv = 1;
+	u16 _fbdiv, best_fbdiv = 1;
 	u32 min_delta = UINT_MAX;
 
 	/*
@@ -644,26 +695,6 @@ static unsigned long inno_mipi_dphy_pll_rate_fixup(unsigned long fin,
 	return best_freq / 2;
 }
 
-static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
-{
-	switch (inno->lanes) {
-	case 4:
-		inno_mipi_dphy_lane_timing_init(inno, DATA_LANE_3);
-		/* Fall through */
-	case 3:
-		inno_mipi_dphy_lane_timing_init(inno, DATA_LANE_2);
-		/* Fall through */
-	case 2:
-		inno_mipi_dphy_lane_timing_init(inno, DATA_LANE_1);
-		/* Fall through */
-	case 1:
-	default:
-		inno_mipi_dphy_lane_timing_init(inno, DATA_LANE_0);
-		inno_mipi_dphy_lane_timing_init(inno, CLOCK_LANE);
-		break;
-	}
-}
-
 static int inno_mipi_dphy_power_on(struct phy *phy)
 {
 	struct inno_mipi_dphy *inno = phy_get_drvdata(phy);
@@ -671,8 +702,8 @@ static int inno_mipi_dphy_power_on(struct phy *phy)
 	clk_prepare_enable(inno->h2p_clk);
 	clk_prepare_enable(inno->pclk);
 	pm_runtime_get_sync(inno->dev);
-	inno_mipi_dphy_bgpd_enable(inno);
-	inno_mipi_dphy_da_pwrok_enable(inno);
+	inno_mipi_dphy_bandgap_power_enable(inno);
+	inno_mipi_dphy_power_work_enable(inno);
 	inno_mipi_dphy_pll_enable(inno);
 	inno_mipi_dphy_lane_enable(inno);
 	inno_mipi_dphy_reset(inno);
@@ -688,8 +719,8 @@ static int inno_mipi_dphy_power_off(struct phy *phy)
 
 	inno_mipi_dphy_lane_disable(inno);
 	inno_mipi_dphy_pll_disable(inno);
-	inno_mipi_dphy_da_pwrok_disable(inno);
-	inno_mipi_dphy_bgpd_disable(inno);
+	inno_mipi_dphy_power_work_disable(inno);
+	inno_mipi_dphy_bandgap_power_disable(inno);
 	pm_runtime_put(inno->dev);
 	clk_disable_unprepare(inno->pclk);
 	clk_disable_unprepare(inno->h2p_clk);
@@ -710,8 +741,8 @@ static long inno_mipi_dphy_pll_clk_round_rate(struct clk_hw *hw,
 	struct inno_mipi_dphy *inno = hw_to_inno(hw);
 	unsigned long fin = *prate;
 	unsigned long fout;
-	u16 fbdiv;
-	u8 prediv;
+	u16 fbdiv = 1;
+	u8 prediv = 1;
 
 	fout = inno_mipi_dphy_pll_rate_fixup(fin, rate, &prediv, &fbdiv);
 
@@ -793,10 +824,11 @@ static void inno_mipi_dphy_pll_unregister(struct inno_mipi_dphy *inno)
 	of_clk_del_provider(inno->dev->of_node);
 }
 
-static int inno_mipi_dphy_parse_dt(struct device_node *np,
-				   struct inno_mipi_dphy *inno)
+static int inno_mipi_dphy_parse_dt(struct inno_mipi_dphy *inno)
 {
-	if (of_property_read_u32(np, "inno,lanes", &inno->lanes))
+	struct device *dev = inno->dev;
+
+	if (of_property_read_u32(dev->of_node, "inno,lanes", &inno->lanes))
 		inno->lanes = 4;
 
 	return 0;
@@ -827,7 +859,7 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 	inno->socdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, inno);
 
-	ret = inno_mipi_dphy_parse_dt(dev->of_node, inno);
+	ret = inno_mipi_dphy_parse_dt(inno);
 	if (ret) {
 		dev_err(dev, "failed to parse DT\n");
 		return ret;
