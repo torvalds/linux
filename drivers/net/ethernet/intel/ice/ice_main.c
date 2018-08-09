@@ -1352,14 +1352,13 @@ static void ice_set_dflt_vsi_ctx(struct ice_vsi_ctx *ctxt)
 	ctxt->info.sw_flags = ICE_AQ_VSI_SW_FLAG_SRC_PRUNE;
 	/* Traffic from VSI can be sent to LAN */
 	ctxt->info.sw_flags2 = ICE_AQ_VSI_SW_FLAG_LAN_ENA;
-	/* Allow all packets untagged/tagged */
+	/* By default bits 3 and 4 in port_vlan_flags are 0's which results in
+	 * legacy behavior (show VLAN, DEI, and UP) in descriptor. Also, allow
+	 * all packets untagged/tagged.
+	 */
 	ctxt->info.port_vlan_flags = ((ICE_AQ_VSI_PVLAN_MODE_ALL &
 				       ICE_AQ_VSI_PVLAN_MODE_M) >>
 				      ICE_AQ_VSI_PVLAN_MODE_S);
-	/* Show VLAN/UP from packets in Rx descriptors */
-	ctxt->info.port_vlan_flags |= ((ICE_AQ_VSI_PVLAN_EMOD_STR_BOTH &
-					ICE_AQ_VSI_PVLAN_EMOD_M) >>
-				       ICE_AQ_VSI_PVLAN_EMOD_S);
 	/* Have 1:1 UP mapping for both ingress/egress tables */
 	table |= ICE_UP_TABLE_TRANSLATE(0, 0);
 	table |= ICE_UP_TABLE_TRANSLATE(1, 1);
@@ -2058,15 +2057,13 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 skip_req_irq:
 	ice_ena_misc_vector(pf);
 
-	val = (pf->oicr_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
-	      (ICE_RX_ITR & PFINT_OICR_CTL_ITR_INDX_M) |
-	      PFINT_OICR_CTL_CAUSE_ENA_M;
+	val = ((pf->oicr_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
+	       PFINT_OICR_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_OICR_CTL, val);
 
 	/* This enables Admin queue Interrupt causes */
-	val = (pf->oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
-	      (ICE_RX_ITR & PFINT_FW_CTL_ITR_INDX_M) |
-	      PFINT_FW_CTL_CAUSE_ENA_M;
+	val = ((pf->oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
+	       PFINT_FW_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_FW_CTL, val);
 
 	itr_gran = hw->itr_gran_200;
