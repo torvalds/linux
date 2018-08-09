@@ -1707,8 +1707,6 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	if (!s->valid)
 		return DM_MAPIO_KILL;
 
-	/* FIXME: should only take write lock if we need
-	 * to copy an exception */
 	mutex_lock(&s->lock);
 
 	if (!s->valid || (unlikely(s->snapshot_overflowed) &&
