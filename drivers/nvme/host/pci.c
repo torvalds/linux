@@ -2299,11 +2299,12 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	disk->queue = ns->queue;
 	disk->driverfs_dev = dev->device;
 	disk->flags = GENHD_FL_EXT_DEVT;
-#ifdef CONFIG_ARCH_ROCKCHIP
-	disk->is_rk_disk = true;
-#else
-	disk->is_rk_disk = false;
-#endif
+
+	if (strstr(saved_command_line, "storagemedia=nvme"))
+		disk->is_rk_disk = true;
+	else
+		disk->is_rk_disk = false;
+
 	sprintf(disk->disk_name, "nvme%dn%d", dev->instance, nsid);
 
 	/*
