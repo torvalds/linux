@@ -804,7 +804,9 @@ static struct nullb_page *null_lookup_page(struct nullb *nullb,
 }
 
 static struct nullb_page *null_insert_page(struct nullb *nullb,
-	sector_t sector, bool ignore_cache)
+					   sector_t sector, bool ignore_cache)
+	__releases(&nullb->lock)
+	__acquires(&nullb->lock)
 {
 	u64 idx;
 	struct nullb_page *t_page;
