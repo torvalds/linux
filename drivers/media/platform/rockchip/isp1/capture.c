@@ -40,6 +40,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
+#include <linux/dma-iommu.h>
 #include "dev.h"
 #include "regs.h"
 
@@ -1379,6 +1380,64 @@ static void rkisp1_set_fmt(struct rkisp1_stream *stream,
 	}
 }
 
+static int rkisp1_dma_attach_device(struct rkisp1_device *rkisp1_dev)
+{
+	struct iommu_domain *domain = rkisp1_dev->domain;
+	struct device *dev = rkisp1_dev->dev;
+	int ret;
+
+	ret = iommu_attach_device(domain, dev);
+	if (ret) {
+		dev_err(dev, "Failed to attach iommu device\n");
+		return ret;
+	}
+
+	if (!common_iommu_setup_dma_ops(dev, 0x10000000, SZ_2G, domain->ops)) {
+		dev_err(dev, "Failed to set dma_ops\n");
+		iommu_detach_device(domain, dev);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+
+static void rkisp1_dma_detach_device(struct rkisp1_device *rkisp1_dev)
+{
+	struct iommu_domain *domain = rkisp1_dev->domain;
+	struct device *dev = rkisp1_dev->dev;
+
+	iommu_detach_device(domain, dev);
+}
+
+static int rkisp1_fh_open(struct file *filp)
+{
+	struct rkisp1_stream *stream = video_drvdata(filp);
+	struct rkisp1_device *dev = stream->ispdev;
+	int ret;
+
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		if (atomic_inc_return(&dev->open_cnt) == 1)
+			rkisp1_dma_attach_device(dev);
+	}
+
+	return ret;
+}
+
+static int rkisp1_fop_release(struct file *file)
+{
+	struct rkisp1_stream *stream = video_drvdata(file);
+	struct rkisp1_device *dev = stream->ispdev;
+	int ret;
+
+	ret = vb2_fop_release(file);
+
+	if (atomic_dec_return(&dev->open_cnt) == 0)
+		rkisp1_dma_detach_device(dev);
+
+	return ret;
+}
+
 /************************* v4l2_file_operations***************************/
 void rkisp1_stream_init(struct rkisp1_device *dev, u32 id)
 {
@@ -1415,8 +1474,8 @@ void rkisp1_stream_init(struct rkisp1_device *dev, u32 id)
 }
 
 static const struct v4l2_file_operations rkisp1_fops = {
-	.open = v4l2_fh_open,
-	.release = vb2_fop_release,
+	.open = rkisp1_fh_open,
+	.release = rkisp1_fop_release,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
 	.mmap = vb2_fop_mmap,

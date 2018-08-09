@@ -636,16 +636,6 @@ static int rkisp1_iommu_init(struct rkisp1_device *rkisp1_dev)
 			goto err;
 	}
 
-	ret = iommu_attach_device(rkisp1_dev->domain, rkisp1_dev->dev);
-	if (ret)
-		goto err;
-	if (!common_iommu_setup_dma_ops(rkisp1_dev->dev, 0x10000000,
-					SZ_2G, rkisp1_dev->domain->ops)) {
-		iommu_detach_device(rkisp1_dev->domain, rkisp1_dev->dev);
-		ret = -ENODEV;
-		goto err;
-	}
-
 	return 0;
 
 err:
@@ -656,7 +646,6 @@ err:
 
 static void rkisp1_iommu_cleanup(struct rkisp1_device *rkisp1_dev)
 {
-	iommu_detach_device(rkisp1_dev->domain, rkisp1_dev->dev);
 	iommu_domain_free(rkisp1_dev->domain);
 }
 
@@ -712,6 +701,7 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 
 	atomic_set(&isp_dev->pipe.power_cnt, 0);
 	atomic_set(&isp_dev->pipe.stream_cnt, 0);
+	atomic_set(&isp_dev->open_cnt, 0);
 	isp_dev->pipe.open = rkisp1_pipeline_open;
 	isp_dev->pipe.close = rkisp1_pipeline_close;
 	isp_dev->pipe.set_stream = rkisp1_pipeline_set_stream;
@@ -774,27 +764,6 @@ static int rkisp1_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused rkisp1_suspend(struct device *dev)
-{
-	struct rkisp1_device *isp_dev = dev_get_drvdata(dev);
-
-	if (isp_dev->domain)
-		iommu_detach_device(isp_dev->domain, isp_dev->dev);
-
-	return 0;
-}
-
-static int __maybe_unused rkisp1_resume(struct device *dev)
-{
-	struct rkisp1_device *isp_dev = dev_get_drvdata(dev);
-	int ret = 0;
-
-	if (isp_dev->domain)
-		ret = iommu_attach_device(isp_dev->domain, isp_dev->dev);
-
-	return ret;
-}
-
 static int __maybe_unused rkisp1_runtime_suspend(struct device *dev)
 {
 	struct rkisp1_device *isp_dev = dev_get_drvdata(dev);
@@ -817,7 +786,8 @@ static int __maybe_unused rkisp1_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rkisp1_plat_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rkisp1_suspend, rkisp1_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(rkisp1_runtime_suspend, rkisp1_runtime_resume, NULL)
 };
 

@@ -125,6 +125,7 @@ struct rkisp1_device {
 	enum rkisp1_isp_ver isp_ver;
 	const unsigned int *clk_rate_tbl;
 	int num_clk_rate_tbl;
+	atomic_t open_cnt;
 };
 
 #endif
