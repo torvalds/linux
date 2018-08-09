@@ -3105,7 +3105,7 @@ static int amdgpu_device_handle_vram_lost(struct amdgpu_device *adev)
 	long tmo;
 
 	if (amdgpu_sriov_runtime(adev))
-		tmo = msecs_to_jiffies(amdgpu_lockup_timeout);
+		tmo = msecs_to_jiffies(8000);
 	else
 		tmo = msecs_to_jiffies(100);
 
