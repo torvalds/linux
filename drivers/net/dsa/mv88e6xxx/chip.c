@@ -2173,6 +2173,9 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	int err;
 	u16 reg;
 
+	chip->ports[port].chip = chip;
+	chip->ports[port].port = port;
+
 	/* MAC Forcing register: don't force link, speed, duplex or flow control
 	 * state to any particular values on physical ports, but force the CPU
 	 * port and all DSA ports to their maximum bandwidth and full duplex.
