@@ -1322,6 +1322,7 @@ static int __load_mapping_v1(struct dm_cache_metadata *cmd,
 
 	dm_oblock_t oblock;
 	unsigned flags;
+	bool dirty = true;
 
 	dm_array_cursor_get_value(mapping_cursor, (void **) &mapping_value_le);
 	memcpy(&mapping, mapping_value_le, sizeof(mapping));
@@ -1332,8 +1333,10 @@ static int __load_mapping_v1(struct dm_cache_metadata *cmd,
 			dm_array_cursor_get_value(hint_cursor, (void **) &hint_value_le);
 			memcpy(&hint, hint_value_le, sizeof(hint));
 		}
+		if (cmd->clean_when_opened)
+			dirty = flags & M_DIRTY;
 
-		r = fn(context, oblock, to_cblock(cb), flags & M_DIRTY,
+		r = fn(context, oblock, to_cblock(cb), dirty,
 		       le32_to_cpu(hint), hints_valid);
 		if (r) {
 			DMERR("policy couldn't load cache block %llu",
@@ -1361,7 +1364,7 @@ static int __load_mapping_v2(struct dm_cache_metadata *cmd,
 
 	dm_oblock_t oblock;
 	unsigned flags;
-	bool dirty;
+	bool dirty = true;
 
 	dm_array_cursor_get_value(mapping_cursor, (void **) &mapping_value_le);
 	memcpy(&mapping, mapping_value_le, sizeof(mapping));
@@ -1372,8 +1375,9 @@ static int __load_mapping_v2(struct dm_cache_metadata *cmd,
 			dm_array_cursor_get_value(hint_cursor, (void **) &hint_value_le);
 			memcpy(&hint, hint_value_le, sizeof(hint));
 		}
+		if (cmd->clean_when_opened)
+			dirty = dm_bitset_cursor_get_value(dirty_cursor);
 
-		dirty = dm_bitset_cursor_get_value(dirty_cursor);
 		r = fn(context, oblock, to_cblock(cb), dirty,
 		       le32_to_cpu(hint), hints_valid);
 		if (r) {
