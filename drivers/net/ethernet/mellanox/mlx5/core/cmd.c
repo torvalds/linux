@@ -211,7 +211,7 @@ static void poll_timeout(struct mlx5_cmd_work_ent *ent)
 			ent->ret = 0;
 			return;
 		}
-		usleep_range(5000, 10000);
+		cond_resched();
 	} while (time_before(jiffies, poll_end));
 
 	ent->ret = -ETIMEDOUT;
