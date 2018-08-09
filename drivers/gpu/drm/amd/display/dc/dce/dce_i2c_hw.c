@@ -36,169 +36,96 @@
 #define FN(reg_name, field_name) \
 	dce_i2c_hw->shifts->field_name, dce_i2c_hw->masks->field_name
 
-
-static inline void reset_hw_engine(struct dce_i2c_hw *dce_i2c_hw)
-{
-	REG_UPDATE_2(DC_I2C_CONTROL,
-		     DC_I2C_SW_STATUS_RESET, 1,
-		     DC_I2C_SW_STATUS_RESET, 1);
-}
-
-static bool is_hw_busy(struct dce_i2c_hw *dce_i2c_hw)
-{
-	uint32_t i2c_sw_status = 0;
-
-	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
-	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_IDLE)
-		return false;
-
-	reset_hw_engine(dce_i2c_hw);
-
-	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
-	return i2c_sw_status != DC_I2C_STATUS__DC_I2C_STATUS_IDLE;
-}
-
-static void set_speed(
-	struct dce_i2c_hw *dce_i2c_hw,
-	uint32_t speed)
-{
-
-	if (speed) {
-		if (dce_i2c_hw->masks->DC_I2C_DDC1_START_STOP_TIMING_CNTL)
-			REG_UPDATE_N(SPEED, 3,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), dce_i2c_hw->reference_frequency / speed,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_START_STOP_TIMING_CNTL), speed > 50 ? 2:1);
-		else
-			REG_UPDATE_N(SPEED, 2,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), dce_i2c_hw->reference_frequency / speed,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2);
-	}
-}
-
-bool dce_i2c_hw_engine_acquire_engine(
-	struct dce_i2c_hw *dce_i2c_hw,
-	struct ddc *ddc)
-{
-
-	enum gpio_result result;
-	uint32_t current_speed;
-
-	result = dal_ddc_open(ddc, GPIO_MODE_HARDWARE,
-		GPIO_DDC_CONFIG_TYPE_MODE_I2C);
-
-	if (result != GPIO_RESULT_OK)
-		return false;
-
-	dce_i2c_hw->ddc = ddc;
-
-
-	current_speed = dce_i2c_hw->funcs->get_speed(dce_i2c_hw);
-
-	if (current_speed)
-		dce_i2c_hw->original_speed = current_speed;
-
-	return true;
-}
-bool dce_i2c_engine_acquire_hw(
-	struct dce_i2c_hw *dce_i2c_hw,
-	struct ddc *ddc_handle)
-{
-
-	uint32_t counter = 0;
-	bool result;
-
-	do {
-		result = dce_i2c_hw_engine_acquire_engine(
-				dce_i2c_hw, ddc_handle);
-
-		if (result)
-			break;
-
-		/* i2c_engine is busy by VBios, lets wait and retry */
-
-		udelay(10);
-
-		++counter;
-	} while (counter < 2);
-
-	if (result) {
-		if (!dce_i2c_hw->funcs->setup_engine(dce_i2c_hw)) {
-			dce_i2c_hw->funcs->release_engine(dce_i2c_hw);
-			result = false;
-		}
-	}
-
-	return result;
-}
-struct dce_i2c_hw *acquire_i2c_hw_engine(
-	struct resource_pool *pool,
-	struct ddc *ddc)
-{
-
-	struct dce_i2c_hw *engine = NULL;
-
-	if (!ddc)
-		return NULL;
-
-	if (ddc->hw_info.hw_supported) {
-		enum gpio_ddc_line line = dal_ddc_get_line(ddc);
-
-		if (line < pool->pipe_count)
-			engine = pool->hw_i2cs[line];
-	}
-
-	if (!engine)
-		return NULL;
-
-
-	if (!pool->i2c_hw_buffer_in_use &&
-			dce_i2c_engine_acquire_hw(engine, ddc)) {
-		pool->i2c_hw_buffer_in_use = true;
-		return engine;
-	}
-
-
-	return NULL;
-}
-
-static bool setup_engine(
+static void disable_i2c_hw_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
-	uint32_t i2c_setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
-
-	if (dce_i2c_hw->setup_limit != 0)
-		i2c_setup_limit = dce_i2c_hw->setup_limit;
-	/* Program pin select */
-	REG_UPDATE_6(DC_I2C_CONTROL,
-		     DC_I2C_GO, 0,
-		     DC_I2C_SOFT_RESET, 0,
-		     DC_I2C_SEND_RESET, 0,
-		     DC_I2C_SW_STATUS_RESET, 1,
-		     DC_I2C_TRANSACTION_COUNT, 0,
-		     DC_I2C_DDC_SELECT, dce_i2c_hw->engine_id);
-
-	/* Program time limit */
-	if (dce_i2c_hw->send_reset_length == 0) {
-		/*pre-dcn*/
-		REG_UPDATE_N(SETUP, 2,
-			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_TIME_LIMIT), i2c_setup_limit,
-			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_ENABLE), 1);
-	}
-	/* Program HW priority
-	 * set to High - interrupt software I2C at any time
-	 * Enable restart of SW I2C that was interrupted by HW
-	 * disable queuing of software while I2C is in use by HW
-	 */
-	REG_UPDATE_2(DC_I2C_ARBITRATION,
-		     DC_I2C_NO_QUEUED_SW_GO, 0,
-		     DC_I2C_SW_PRIORITY, DC_I2C_ARBITRATION__DC_I2C_SW_PRIORITY_NORMAL);
-
-	return true;
+	REG_UPDATE_N(SETUP, 1, FN(SETUP, DC_I2C_DDC1_ENABLE), 0);
 }
 
+static void execute_transaction(
+	struct dce_i2c_hw *dce_i2c_hw)
+{
+	REG_UPDATE_N(SETUP, 5,
+		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_DATA_DRIVE_EN), 0,
+		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_DRIVE_EN), 0,
+		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_DATA_DRIVE_SEL), 0,
+		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_INTRA_TRANSACTION_DELAY), 0,
+		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_INTRA_BYTE_DELAY), 0);
 
 
+	REG_UPDATE_5(DC_I2C_CONTROL,
+		     DC_I2C_SOFT_RESET, 0,
+		     DC_I2C_SW_STATUS_RESET, 0,
+		     DC_I2C_SEND_RESET, 0,
+		     DC_I2C_GO, 0,
+		     DC_I2C_TRANSACTION_COUNT, dce_i2c_hw->transaction_count - 1);
+
+	/* start I2C transfer */
+	REG_UPDATE(DC_I2C_CONTROL, DC_I2C_GO, 1);
+
+	/* all transactions were executed and HW buffer became empty
+	 * (even though it actually happens when status becomes DONE)
+	 */
+	dce_i2c_hw->transaction_count = 0;
+	dce_i2c_hw->buffer_used_bytes = 0;
+}
+
+static enum i2c_channel_operation_result get_channel_status(
+	struct dce_i2c_hw *dce_i2c_hw,
+	uint8_t *returned_bytes)
+{
+	uint32_t i2c_sw_status = 0;
+	uint32_t value =
+		REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
+	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_SW)
+		return I2C_CHANNEL_OPERATION_ENGINE_BUSY;
+	else if (value & dce_i2c_hw->masks->DC_I2C_SW_STOPPED_ON_NACK)
+		return I2C_CHANNEL_OPERATION_NO_RESPONSE;
+	else if (value & dce_i2c_hw->masks->DC_I2C_SW_TIMEOUT)
+		return I2C_CHANNEL_OPERATION_TIMEOUT;
+	else if (value & dce_i2c_hw->masks->DC_I2C_SW_ABORTED)
+		return I2C_CHANNEL_OPERATION_FAILED;
+	else if (value & dce_i2c_hw->masks->DC_I2C_SW_DONE)
+		return I2C_CHANNEL_OPERATION_SUCCEEDED;
+
+	/*
+	 * this is the case when HW used for communication, I2C_SW_STATUS
+	 * could be zero
+	 */
+	return I2C_CHANNEL_OPERATION_SUCCEEDED;
+}
+
+static uint32_t get_hw_buffer_available_size(
+	const struct dce_i2c_hw *dce_i2c_hw)
+{
+	return dce_i2c_hw->buffer_size -
+			dce_i2c_hw->buffer_used_bytes;
+}
+
+uint32_t get_reference_clock(
+		struct dc_bios *bios)
+{
+	struct dc_firmware_info info = { { 0 } };
+
+	if (bios->funcs->get_firmware_info(bios, &info) != BP_RESULT_OK)
+		return 0;
+
+	return info.pll_info.crystal_frequency;
+}
+
+static uint32_t get_speed(
+	const struct dce_i2c_hw *dce_i2c_hw)
+{
+	uint32_t pre_scale = 0;
+
+	REG_GET(SPEED, DC_I2C_DDC1_PRESCALE, &pre_scale);
+
+	/* [anaumov] it seems following is unnecessary */
+	/*ASSERT(value.bits.DC_I2C_DDC1_PRESCALE);*/
+	return pre_scale ?
+		dce_i2c_hw->reference_frequency / pre_scale :
+		dce_i2c_hw->default_speed;
+}
 
 static void process_channel_reply(
 	struct dce_i2c_hw *dce_i2c_hw,
@@ -227,112 +154,7 @@ static void process_channel_reply(
 		--length;
 	}
 }
-enum i2c_channel_operation_result dce_i2c_hw_engine_wait_on_operation_result(
-	struct dce_i2c_hw *dce_i2c_hw,
-	uint32_t timeout,
-	enum i2c_channel_operation_result expected_result)
-{
-	enum i2c_channel_operation_result result;
-	uint32_t i = 0;
 
-	if (!timeout)
-		return I2C_CHANNEL_OPERATION_SUCCEEDED;
-
-	do {
-
-		result = dce_i2c_hw->funcs->get_channel_status(
-				dce_i2c_hw, NULL);
-
-		if (result != expected_result)
-			break;
-
-		udelay(1);
-
-		++i;
-	} while (i < timeout);
-	return result;
-}
-static enum i2c_channel_operation_result get_channel_status_hw(
-	struct dce_i2c_hw *dce_i2c_hw,
-	uint8_t *returned_bytes)
-{
-	uint32_t i2c_sw_status = 0;
-	uint32_t value =
-		REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
-	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_SW)
-		return I2C_CHANNEL_OPERATION_ENGINE_BUSY;
-	else if (value & dce_i2c_hw->masks->DC_I2C_SW_STOPPED_ON_NACK)
-		return I2C_CHANNEL_OPERATION_NO_RESPONSE;
-	else if (value & dce_i2c_hw->masks->DC_I2C_SW_TIMEOUT)
-		return I2C_CHANNEL_OPERATION_TIMEOUT;
-	else if (value & dce_i2c_hw->masks->DC_I2C_SW_ABORTED)
-		return I2C_CHANNEL_OPERATION_FAILED;
-	else if (value & dce_i2c_hw->masks->DC_I2C_SW_DONE)
-		return I2C_CHANNEL_OPERATION_SUCCEEDED;
-
-	/*
-	 * this is the case when HW used for communication, I2C_SW_STATUS
-	 * could be zero
-	 */
-	return I2C_CHANNEL_OPERATION_SUCCEEDED;
-}
-
-static void submit_channel_request_hw(
-	struct dce_i2c_hw *dce_i2c_hw,
-	struct i2c_request_transaction_data *request)
-{
-	request->status = I2C_CHANNEL_OPERATION_SUCCEEDED;
-
-	if (!dce_i2c_hw->funcs->process_transaction(dce_i2c_hw, request))
-		return;
-
-	if (dce_i2c_hw->funcs->is_hw_busy(dce_i2c_hw)) {
-		request->status = I2C_CHANNEL_OPERATION_ENGINE_BUSY;
-		return;
-	}
-
-	dce_i2c_hw->funcs->execute_transaction(dce_i2c_hw);
-
-
-}
-uint32_t get_reference_clock(
-		struct dc_bios *bios)
-{
-	struct dc_firmware_info info = { { 0 } };
-
-	if (bios->funcs->get_firmware_info(bios, &info) != BP_RESULT_OK)
-		return 0;
-
-	return info.pll_info.crystal_frequency;
-}
-
-static void execute_transaction_hw(
-	struct dce_i2c_hw *dce_i2c_hw)
-{
-	REG_UPDATE_N(SETUP, 5,
-		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_DATA_DRIVE_EN), 0,
-		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_DRIVE_EN), 0,
-		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_DATA_DRIVE_SEL), 0,
-		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_INTRA_TRANSACTION_DELAY), 0,
-		     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_INTRA_BYTE_DELAY), 0);
-
-
-	REG_UPDATE_5(DC_I2C_CONTROL,
-		     DC_I2C_SOFT_RESET, 0,
-		     DC_I2C_SW_STATUS_RESET, 0,
-		     DC_I2C_SEND_RESET, 0,
-		     DC_I2C_GO, 0,
-		     DC_I2C_TRANSACTION_COUNT, dce_i2c_hw->transaction_count - 1);
-
-	/* start I2C transfer */
-	REG_UPDATE(DC_I2C_CONTROL, DC_I2C_GO, 1);
-
-	/* all transactions were executed and HW buffer became empty
-	 * (even though it actually happens when status becomes DONE)
-	 */
-	dce_i2c_hw->transaction_count = 0;
-	dce_i2c_hw->buffer_used_bytes = 0;
-}
 static bool process_transaction(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct i2c_request_transaction_data *request)
@@ -422,51 +244,89 @@ static bool process_transaction(
 
 	return last_transaction;
 }
-static uint32_t get_transaction_timeout_hw(
-	const struct dce_i2c_hw *dce_i2c_hw,
-	uint32_t length)
+
+static inline void reset_hw_engine(struct dce_i2c_hw *dce_i2c_hw)
 {
-
-	uint32_t speed = dce_i2c_hw->funcs->get_speed(dce_i2c_hw);
-
-
-
-	uint32_t period_timeout;
-	uint32_t num_of_clock_stretches;
-
-	if (!speed)
-		return 0;
-
-	period_timeout = (1000 * TRANSACTION_TIMEOUT_IN_I2C_CLOCKS) / speed;
-
-	num_of_clock_stretches = 1 + (length << 3) + 1;
-	num_of_clock_stretches +=
-		(dce_i2c_hw->buffer_used_bytes << 3) +
-		(dce_i2c_hw->transaction_count << 1);
-
-	return period_timeout * num_of_clock_stretches;
+	REG_UPDATE_2(DC_I2C_CONTROL,
+		     DC_I2C_SW_STATUS_RESET, 1,
+		     DC_I2C_SW_STATUS_RESET, 1);
 }
 
-static void release_engine_dce_hw(
-	struct resource_pool *pool,
+static void set_speed(
+	struct dce_i2c_hw *dce_i2c_hw,
+	uint32_t speed)
+{
+
+	if (speed) {
+		if (dce_i2c_hw->masks->DC_I2C_DDC1_START_STOP_TIMING_CNTL)
+			REG_UPDATE_N(SPEED, 3,
+				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), dce_i2c_hw->reference_frequency / speed,
+				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2,
+				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_START_STOP_TIMING_CNTL), speed > 50 ? 2:1);
+		else
+			REG_UPDATE_N(SPEED, 2,
+				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), dce_i2c_hw->reference_frequency / speed,
+				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2);
+	}
+}
+
+static bool setup_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
-	pool->i2c_hw_buffer_in_use = false;
+	uint32_t i2c_setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
 
-	dce_i2c_hw->funcs->release_engine(dce_i2c_hw);
-	dal_ddc_close(dce_i2c_hw->ddc);
+	if (dce_i2c_hw->setup_limit != 0)
+		i2c_setup_limit = dce_i2c_hw->setup_limit;
+	/* Program pin select */
+	REG_UPDATE_6(DC_I2C_CONTROL,
+		     DC_I2C_GO, 0,
+		     DC_I2C_SOFT_RESET, 0,
+		     DC_I2C_SEND_RESET, 0,
+		     DC_I2C_SW_STATUS_RESET, 1,
+		     DC_I2C_TRANSACTION_COUNT, 0,
+		     DC_I2C_DDC_SELECT, dce_i2c_hw->engine_id);
 
-	dce_i2c_hw->ddc = NULL;
+	/* Program time limit */
+	if (dce_i2c_hw->send_reset_length == 0) {
+		/*pre-dcn*/
+		REG_UPDATE_N(SETUP, 2,
+			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_TIME_LIMIT), i2c_setup_limit,
+			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_ENABLE), 1);
+	}
+	/* Program HW priority
+	 * set to High - interrupt software I2C at any time
+	 * Enable restart of SW I2C that was interrupted by HW
+	 * disable queuing of software while I2C is in use by HW
+	 */
+	REG_UPDATE_2(DC_I2C_ARBITRATION,
+		     DC_I2C_NO_QUEUED_SW_GO, 0,
+		     DC_I2C_SW_PRIORITY, DC_I2C_ARBITRATION__DC_I2C_SW_PRIORITY_NORMAL);
+
+	return true;
 }
 
-static void release_engine_hw(
+static bool is_hw_busy(struct dce_i2c_hw *dce_i2c_hw)
+{
+	uint32_t i2c_sw_status = 0;
+
+	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
+	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_IDLE)
+		return false;
+
+	reset_hw_engine(dce_i2c_hw);
+
+	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
+	return i2c_sw_status != DC_I2C_STATUS__DC_I2C_STATUS_IDLE;
+}
+
+static void release_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
 	bool safe_to_reset;
 
 	/* Restore original HW engine speed */
 
-	dce_i2c_hw->funcs->set_speed(dce_i2c_hw, dce_i2c_hw->original_speed);
+	set_speed(dce_i2c_hw, dce_i2c_hw->original_speed);
 
 	/* Release I2C */
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, 1);
@@ -488,35 +348,180 @@ static void release_engine_hw(
 		REG_UPDATE(DC_I2C_CONTROL, DC_I2C_SW_STATUS_RESET, 1);
 	/* HW I2c engine - clock gating feature */
 	if (!dce_i2c_hw->engine_keep_power_up_count)
-		dce_i2c_hw->funcs->disable_i2c_hw_engine(dce_i2c_hw);
+		disable_i2c_hw_engine(dce_i2c_hw);
 
 }
 
-
-static void disable_i2c_hw_engine(
+static void release_engine_dce_hw(
+	struct resource_pool *pool,
 	struct dce_i2c_hw *dce_i2c_hw)
 {
-	REG_UPDATE_N(SETUP, 1, FN(SETUP, DC_I2C_DDC1_ENABLE), 0);
-}
-static uint32_t get_speed_hw(
-	const struct dce_i2c_hw *dce_i2c_hw)
-{
-	uint32_t pre_scale = 0;
+	pool->i2c_hw_buffer_in_use = false;
 
-	REG_GET(SPEED, DC_I2C_DDC1_PRESCALE, &pre_scale);
+	release_engine(dce_i2c_hw);
+	dal_ddc_close(dce_i2c_hw->ddc);
 
-	/* [anaumov] it seems following is unnecessary */
-	/*ASSERT(value.bits.DC_I2C_DDC1_PRESCALE);*/
-	return pre_scale ?
-		dce_i2c_hw->reference_frequency / pre_scale :
-		dce_i2c_hw->default_speed;
+	dce_i2c_hw->ddc = NULL;
 }
-static uint32_t get_hw_buffer_available_size(
-	const struct dce_i2c_hw *dce_i2c_hw)
+
+bool dce_i2c_hw_engine_acquire_engine(
+	struct dce_i2c_hw *dce_i2c_hw,
+	struct ddc *ddc)
 {
-	return dce_i2c_hw->buffer_size -
-			dce_i2c_hw->buffer_used_bytes;
+
+	enum gpio_result result;
+	uint32_t current_speed;
+
+	result = dal_ddc_open(ddc, GPIO_MODE_HARDWARE,
+		GPIO_DDC_CONFIG_TYPE_MODE_I2C);
+
+	if (result != GPIO_RESULT_OK)
+		return false;
+
+	dce_i2c_hw->ddc = ddc;
+
+
+	current_speed = get_speed(dce_i2c_hw);
+
+	if (current_speed)
+		dce_i2c_hw->original_speed = current_speed;
+
+	return true;
 }
+
+bool dce_i2c_engine_acquire_hw(
+	struct dce_i2c_hw *dce_i2c_hw,
+	struct ddc *ddc_handle)
+{
+
+	uint32_t counter = 0;
+	bool result;
+
+	do {
+		result = dce_i2c_hw_engine_acquire_engine(
+				dce_i2c_hw, ddc_handle);
+
+		if (result)
+			break;
+
+		/* i2c_engine is busy by VBios, lets wait and retry */
+
+		udelay(10);
+
+		++counter;
+	} while (counter < 2);
+
+	if (result) {
+		if (!setup_engine(dce_i2c_hw)) {
+			release_engine(dce_i2c_hw);
+			result = false;
+		}
+	}
+
+	return result;
+}
+
+struct dce_i2c_hw *acquire_i2c_hw_engine(
+	struct resource_pool *pool,
+	struct ddc *ddc)
+{
+
+	struct dce_i2c_hw *engine = NULL;
+
+	if (!ddc)
+		return NULL;
+
+	if (ddc->hw_info.hw_supported) {
+		enum gpio_ddc_line line = dal_ddc_get_line(ddc);
+
+		if (line < pool->pipe_count)
+			engine = pool->hw_i2cs[line];
+	}
+
+	if (!engine)
+		return NULL;
+
+
+	if (!pool->i2c_hw_buffer_in_use &&
+			dce_i2c_engine_acquire_hw(engine, ddc)) {
+		pool->i2c_hw_buffer_in_use = true;
+		return engine;
+	}
+
+
+	return NULL;
+}
+
+enum i2c_channel_operation_result dce_i2c_hw_engine_wait_on_operation_result(
+	struct dce_i2c_hw *dce_i2c_hw,
+	uint32_t timeout,
+	enum i2c_channel_operation_result expected_result)
+{
+	enum i2c_channel_operation_result result;
+	uint32_t i = 0;
+
+	if (!timeout)
+		return I2C_CHANNEL_OPERATION_SUCCEEDED;
+
+	do {
+
+		result = get_channel_status(
+				dce_i2c_hw, NULL);
+
+		if (result != expected_result)
+			break;
+
+		udelay(1);
+
+		++i;
+	} while (i < timeout);
+	return result;
+}
+
+static void submit_channel_request_hw(
+	struct dce_i2c_hw *dce_i2c_hw,
+	struct i2c_request_transaction_data *request)
+{
+	request->status = I2C_CHANNEL_OPERATION_SUCCEEDED;
+
+	if (!process_transaction(dce_i2c_hw, request))
+		return;
+
+	if (is_hw_busy(dce_i2c_hw)) {
+		request->status = I2C_CHANNEL_OPERATION_ENGINE_BUSY;
+		return;
+	}
+
+	execute_transaction(dce_i2c_hw);
+
+
+}
+
+static uint32_t get_transaction_timeout_hw(
+	const struct dce_i2c_hw *dce_i2c_hw,
+	uint32_t length)
+{
+
+	uint32_t speed = get_speed(dce_i2c_hw);
+
+
+
+	uint32_t period_timeout;
+	uint32_t num_of_clock_stretches;
+
+	if (!speed)
+		return 0;
+
+	period_timeout = (1000 * TRANSACTION_TIMEOUT_IN_I2C_CLOCKS) / speed;
+
+	num_of_clock_stretches = 1 + (length << 3) + 1;
+	num_of_clock_stretches +=
+		(dce_i2c_hw->buffer_used_bytes << 3) +
+		(dce_i2c_hw->transaction_count << 1);
+
+	return period_timeout * num_of_clock_stretches;
+}
+
 bool dce_i2c_hw_engine_submit_request(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct dce_i2c_transaction_request *dce_i2c_request,
@@ -615,9 +620,7 @@ bool dce_i2c_hw_engine_submit_request(
 		reply.data = dce_i2c_request->payload.data;
 		reply.length = dce_i2c_request->payload.length;
 
-		dce_i2c_hw->funcs->process_channel_reply(dce_i2c_hw, &reply);
-
-
+		process_channel_reply(dce_i2c_hw, &reply);
 	}
 
 	return result;
@@ -632,7 +635,7 @@ bool dce_i2c_submit_command_hw(
 	uint8_t index_of_payload = 0;
 	bool result;
 
-	dce_i2c_hw->funcs->set_speed(dce_i2c_hw, cmd->speed);
+	set_speed(dce_i2c_hw, cmd->speed);
 
 	result = true;
 
@@ -670,32 +673,6 @@ bool dce_i2c_submit_command_hw(
 
 	return result;
 }
-static const struct dce_i2c_hw_funcs dce100_i2c_hw_funcs = {
-		.setup_engine = setup_engine,
-		.set_speed = set_speed,
-		.get_speed = get_speed_hw,
-		.release_engine = release_engine_hw,
-		.process_transaction = process_transaction,
-		.process_channel_reply = process_channel_reply,
-		.is_hw_busy = is_hw_busy,
-		.get_channel_status = get_channel_status_hw,
-		.execute_transaction = execute_transaction_hw,
-		.disable_i2c_hw_engine = disable_i2c_hw_engine
-};
-static const struct dce_i2c_hw_funcs dce80_i2c_hw_funcs = {
-		.setup_engine = setup_engine,
-		.set_speed = set_speed,
-		.get_speed = get_speed_hw,
-		.release_engine = release_engine_hw,
-		.process_transaction = process_transaction,
-		.process_channel_reply = process_channel_reply,
-		.is_hw_busy = is_hw_busy,
-		.get_channel_status = get_channel_status_hw,
-		.execute_transaction = execute_transaction_hw,
-		.disable_i2c_hw_engine = disable_i2c_hw_engine
-};
-
-
 
 void dce_i2c_hw_construct(
 	struct dce_i2c_hw *dce_i2c_hw,
@@ -718,7 +695,6 @@ void dce_i2c_hw_construct(
 	dce_i2c_hw->default_speed = DEFAULT_I2C_HW_SPEED;
 	dce_i2c_hw->send_reset_length = 0;
 	dce_i2c_hw->setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
-	dce_i2c_hw->funcs = &dce80_i2c_hw_funcs;
 	dce_i2c_hw->buffer_size = I2C_HW_BUFFER_SIZE_DCE;
 }
 
@@ -739,7 +715,6 @@ void dce100_i2c_hw_construct(
 			regs,
 			shifts,
 			masks);
-	dce_i2c_hw->funcs = &dce100_i2c_hw_funcs;
 	dce_i2c_hw->buffer_size = I2C_HW_BUFFER_SIZE_DCE100;
 
 	REG_GET(MICROSECOND_TIME_BASE_DIV, XTAL_REF_DIV, &xtal_ref_div);

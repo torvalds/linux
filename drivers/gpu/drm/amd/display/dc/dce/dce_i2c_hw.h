@@ -256,38 +256,9 @@ struct dce_i2c_hw {
 	uint32_t buffer_size;
 	struct dc_context *ctx;
 
-	const struct dce_i2c_hw_funcs *funcs;
 	const struct dce_i2c_registers *regs;
 	const struct dce_i2c_shift *shifts;
 	const struct dce_i2c_mask *masks;
-};
-
-
-struct dce_i2c_hw_funcs {
-	bool (*setup_engine)(
-		struct dce_i2c_hw *dce_i2c_hw);
-	void (*set_speed)(
-		struct dce_i2c_hw *dce_i2c_hw,
-		uint32_t speed);
-	uint32_t (*get_speed)(
-		const struct dce_i2c_hw *dce_i2c_hw);
-	void (*release_engine)(
-		struct dce_i2c_hw *dce_i2c_hw);
-	bool (*process_transaction)(
-		struct dce_i2c_hw *dce_i2c_hw,
-		struct i2c_request_transaction_data *request);
-	void (*process_channel_reply)(
-		struct dce_i2c_hw *dce_i2c_hw,
-		struct i2c_reply_transaction_data *reply);
-	bool (*is_hw_busy)(
-		struct dce_i2c_hw *dce_i2c_hw);
-	enum i2c_channel_operation_result (*get_channel_status)(
-		struct dce_i2c_hw *dce_i2c_hw,
-		uint8_t *returned_bytes);
-	void (*execute_transaction)(
-		struct dce_i2c_hw *dce_i2c_hw);
-	void (*disable_i2c_hw_engine)(
-		struct dce_i2c_hw *dce_i2c_hw);
 };
 
 void dce_i2c_hw_construct(
