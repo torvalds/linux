@@ -1824,17 +1824,29 @@ static int rk3308_codec_adc_grps_route_config(struct rk3308_codec_priv *rk3308)
 /* Put default one-to-one mapping */
 static int rk3308_codec_adc_grps_route_default(struct rk3308_codec_priv *rk3308)
 {
-	unsigned int v, idx;
+	unsigned int idx;
 
-	rk3308->which_i2s = ACODEC_TO_I2S2_8CH;
-	rk3308->to_i2s_grps = ADC_LR_GROUP_MAX;
 	/*
 	 * The GRF values may be kept the previous status after hot reboot,
-	 * we need to update them.
+	 * if the property 'rockchip,adc-grps-route' is not set, we need to
+	 * recover default the order of sdi/sdo for i2s2_8ch/i2s3_8ch/i2s1_2ch.
 	 */
-	for (idx = 0; idx < rk3308->to_i2s_grps; idx++) {
-		regmap_read(rk3308->grf, GRF_SOC_CON1, &v);
-		rk3308->i2s_sdis[idx] = GRF_I2S2_8CH_SDI_R_MSK(idx, v);
+	regmap_write(rk3308->grf, GRF_SOC_CON1,
+		     GRF_I2S1_2CH_SDI(0));
+
+	for (idx = 0; idx < 2; idx++) {
+		regmap_write(rk3308->grf, GRF_SOC_CON1,
+			     GRF_I2S3_4CH_SDI(idx, idx));
+	}
+
+	/* Using i2s2_8ch by default. */
+	rk3308->which_i2s = ACODEC_TO_I2S2_8CH;
+	rk3308->to_i2s_grps = ADC_LR_GROUP_MAX;
+
+	for (idx = 0; idx < ADC_LR_GROUP_MAX; idx++) {
+		rk3308->i2s_sdis[idx] = idx;
+		regmap_write(rk3308->grf, GRF_SOC_CON1,
+			     GRF_I2S2_8CH_SDI(idx, idx));
 	}
 
 	return 0;
