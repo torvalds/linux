@@ -4560,20 +4560,20 @@ static const struct pci_dev_enable_acs {
 } pci_dev_enable_acs[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_enable_intel_pch_acs },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_enable_intel_spt_pch_acs },
-	{ 0 }
 };
 
 int pci_dev_specific_enable_acs(struct pci_dev *dev)
 {
-	const struct pci_dev_enable_acs *i;
-	int ret;
+	const struct pci_dev_enable_acs *p;
+	int i, ret;
 
-	for (i = pci_dev_enable_acs; i->enable_acs; i++) {
-		if ((i->vendor == dev->vendor ||
-		     i->vendor == (u16)PCI_ANY_ID) &&
-		    (i->device == dev->device ||
-		     i->device == (u16)PCI_ANY_ID)) {
-			ret = i->enable_acs(dev);
+	for (i = 0; i < ARRAY_SIZE(pci_dev_enable_acs); i++) {
+		p = &pci_dev_enable_acs[i];
+		if ((p->vendor == dev->vendor ||
+		     p->vendor == (u16)PCI_ANY_ID) &&
+		    (p->device == dev->device ||
+		     p->device == (u16)PCI_ANY_ID)) {
+			ret = p->enable_acs(dev);
 			if (ret >= 0)
 				return ret;
 		}
