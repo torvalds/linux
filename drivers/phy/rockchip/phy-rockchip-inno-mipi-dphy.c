@@ -209,9 +209,21 @@ struct mipi_dphy_timing {
 	unsigned int wakeup;
 };
 
+struct inno_mipi_dphy_timing {
+	unsigned int max_lane_mbps;
+	u8 lpx;
+	u8 hs_prepare;
+	u8 clk_lane_hs_zero;
+	u8 data_lane_hs_zero;
+	u8 hs_trail;
+};
+
 struct inno_video_phy_socdata {
 	bool pinmux;
 	bool has_h2p_clk;
+	bool post_div_enable;
+	const struct inno_mipi_dphy_timing *timings;
+	unsigned int num_timings;
 };
 
 struct inno_mipi_dphy {
@@ -247,26 +259,41 @@ enum {
 	REGISTER_PART_DATA3_LANE,
 };
 
-struct inno_mipi_dphy_timing {
-	unsigned int max_lane_mbps;
-	u8 hs_prepare;
-	u8 clk_lane_hs_zero;
-	u8 data_lane_hs_zero;
-	u8 hs_trail;
+static const struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table[] = {
+	{ 110, 0x00, 0x20, 0x16, 0x02, 0x22},
+	{ 150, 0x00, 0x06, 0x16, 0x03, 0x45},
+	{ 200, 0x00, 0x18, 0x17, 0x04, 0x0b},
+	{ 250, 0x00, 0x05, 0x17, 0x05, 0x16},
+	{ 300, 0x00, 0x51, 0x18, 0x06, 0x2c},
+	{ 400, 0x00, 0x64, 0x19, 0x07, 0x33},
+	{ 500, 0x00, 0x20, 0x1b, 0x07, 0x4e},
+	{ 600, 0x00, 0x6a, 0x1d, 0x08, 0x3a},
+	{ 700, 0x00, 0x3e, 0x1e, 0x08, 0x6a},
+	{ 800, 0x00, 0x21, 0x1f, 0x09, 0x29},
+	{1000, 0x00, 0x09, 0x20, 0x09, 0x27},
 };
 
-static const struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table[] = {
-	{ 110, 0x20, 0x16, 0x02, 0x22},
-	{ 150, 0x06, 0x16, 0x03, 0x45},
-	{ 200, 0x18, 0x17, 0x04, 0x0b},
-	{ 250, 0x05, 0x17, 0x05, 0x16},
-	{ 300, 0x51, 0x18, 0x06, 0x2c},
-	{ 400, 0x64, 0x19, 0x07, 0x33},
-	{ 500, 0x20, 0x1b, 0x07, 0x4e},
-	{ 600, 0x6a, 0x1d, 0x08, 0x3a},
-	{ 700, 0x3e, 0x1e, 0x08, 0x6a},
-	{ 800, 0x21, 0x1f, 0x09, 0x29},
-	{1000, 0x09, 0x20, 0x09, 0x27},
+static const
+struct inno_mipi_dphy_timing inno_mipi_dphy_gf22fdx_timing_table[] = {
+	{ 110, 0x02, 0x7f, 0x16, 0x02, 0x02},
+	{ 150, 0x02, 0x7f, 0x16, 0x03, 0x02},
+	{ 200, 0x02, 0x7f, 0x17, 0x04, 0x02},
+	{ 250, 0x02, 0x7f, 0x17, 0x05, 0x04},
+	{ 300, 0x02, 0x7f, 0x18, 0x06, 0x04},
+	{ 400, 0x03, 0x7e, 0x19, 0x07, 0x04},
+	{ 500, 0x03, 0x7c, 0x1b, 0x07, 0x08},
+	{ 600, 0x03, 0x70, 0x1d, 0x08, 0x10},
+	{ 700, 0x05, 0x40, 0x1e, 0x08, 0x30},
+	{ 800, 0x05, 0x02, 0x1f, 0x09, 0x30},
+	{1000, 0x05, 0x08, 0x20, 0x09, 0x30},
+	{1200, 0x06, 0x03, 0x32, 0x14, 0x0f},
+	{1400, 0x09, 0x03, 0x32, 0x14, 0x0f},
+	{1600, 0x0d, 0x42, 0x36, 0x0e, 0x0f},
+	{1800, 0x0e, 0x47, 0x7a, 0x0e, 0x0f},
+	{2000, 0x11, 0x64, 0x7a, 0x0e, 0x0b},
+	{2200, 0x13, 0x64, 0x7e, 0x15, 0x0b},
+	{2400, 0x13, 0x33, 0x7f, 0x15, 0x6a},
+	{2500, 0x15, 0x54, 0x7f, 0x15, 0x6a},
 };
 
 static const struct pinctrl_pin_desc inno_video_phy_pins[] = {
@@ -494,6 +521,9 @@ static void inno_mipi_dphy_pll_enable(struct inno_mipi_dphy *inno)
 			 REG_FBDIV_HI_MASK, REG_FBDIV_HI(inno->pll.fbdiv >> 8));
 	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
 			 REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
+	if (inno->socdata->post_div_enable)
+		inno_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
+				 PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
 	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
 			 REG_LDOPD_MASK | REG_PLLPD_MASK,
 			 REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
@@ -535,18 +565,19 @@ static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 }
 
 static const struct inno_mipi_dphy_timing *
-inno_mipi_dphy_get_timing(unsigned int lane_mbps)
+inno_mipi_dphy_get_timing(struct inno_mipi_dphy *inno)
 {
+	unsigned int lane_mbps = inno->lane_rate / USEC_PER_SEC;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(inno_mipi_dphy_timing_table); i++)
-		if (lane_mbps <= inno_mipi_dphy_timing_table[i].max_lane_mbps)
+	for (i = 0; i < inno->socdata->num_timings; i++)
+		if (lane_mbps <= inno->socdata->timings[i].max_lane_mbps)
 			break;
 
-	if (i == ARRAY_SIZE(inno_mipi_dphy_timing_table))
+	if (i == inno->socdata->num_timings)
 		--i;
 
-	return &inno_mipi_dphy_timing_table[i];
+	return &inno->socdata->timings[i];
 }
 
 static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
@@ -571,7 +602,7 @@ static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
 		txbyteclk, ui, sys_clk);
 
 	mipi_dphy_timing_get_default(&gotp, ui);
-	timing = inno_mipi_dphy_get_timing(inno->lane_rate / USEC_PER_SEC);
+	timing = inno_mipi_dphy_get_timing(inno);
 
 	hs_exit = DIV_ROUND_UP(gotp.hsexit * txbyteclk, NSEC_PER_SEC);
 	clk_post = DIV_ROUND_UP(gotp.clkpost * txbyteclk, NSEC_PER_SEC);
@@ -581,9 +612,14 @@ static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
 	if (wakeup > 0x3ff)
 		wakeup = 0x3ff;
 
-	lpx = DIV_ROUND_UP(txbyteclk * gotp.lpx, NSEC_PER_SEC);
-	if (lpx >= 2)
-		lpx -= 2;
+	if (timing->lpx) {
+		lpx = timing->lpx;
+	} else {
+		/* Tlpx = Tpin_txbyteclkhs * (2 + value) */
+		lpx = DIV_ROUND_UP(txbyteclk * gotp.lpx, NSEC_PER_SEC);
+		if (lpx >= 2)
+			lpx -= 2;
+	}
 
 	ta_go = DIV_ROUND_UP(gotp.tago * txclkesc, NSEC_PER_SEC);
 	ta_sure = DIV_ROUND_UP(gotp.tasure * txclkesc, NSEC_PER_SEC);
@@ -640,12 +676,15 @@ static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
 	}
 }
 
-static unsigned long inno_mipi_dphy_pll_rate_fixup(unsigned long fin,
+static unsigned long inno_mipi_dphy_pll_round_rate(struct inno_mipi_dphy *inno,
+						   unsigned long prate,
 						   unsigned long rate,
 						   u8 *prediv, u16 *fbdiv)
 {
+	const struct inno_mipi_dphy_timing *timings = inno->socdata->timings;
+	unsigned int num_timings = inno->socdata->num_timings;
 	unsigned long best_freq = 0;
-	unsigned long fout;
+	unsigned int fin, fout, max_fout;
 	u8 min_prediv, max_prediv;
 	u8 _prediv, best_prediv = 1;
 	u16 _fbdiv, best_fbdiv = 1;
@@ -656,34 +695,34 @@ static unsigned long inno_mipi_dphy_pll_rate_fixup(unsigned long fin,
 	 * PLL_Output_Frequency = (FREF / PREDIV * FBDIV) / 2
 	 * PLL_Output_Frequency: it is equal to DDR-Clock-Frequency * 2
 	 */
-	fout = 2 * rate;
+	fin = prate / USEC_PER_SEC;
+	fout = 2 * (rate / USEC_PER_SEC);
+	max_fout = 2 * timings[num_timings - 1].max_lane_mbps;
+	if (fout > max_fout)
+		fout = max_fout;
 
 	/* constraint: 5Mhz < Fref / prediv < 40MHz */
-	min_prediv = DIV_ROUND_UP(fin, 40000000);
-	max_prediv = fin / 5000000;
+	min_prediv = DIV_ROUND_UP(fin, 40);
+	max_prediv = fin / 5;
 
 	for (_prediv = min_prediv; _prediv <= max_prediv; _prediv++) {
-		u64 tmp;
-		u32 delta;
+		u32 delta, tmp;
 
-		tmp = (u64)fout * _prediv;
-		do_div(tmp, fin);
-		_fbdiv = tmp;
+		_fbdiv = fout * _prediv / fin;
 		/*
 		 * The all possible settings of feedback divider are
 		 * 12, 13, 14, 16, ~ 511
 		 */
 		if ((_fbdiv == 15) || (_fbdiv < 12) || (_fbdiv > 511))
 			continue;
-		tmp = (u64)_fbdiv * fin;
-		do_div(tmp, _prediv);
 
+		tmp = _fbdiv * fin / _prediv;
 		delta = abs(fout - tmp);
 		if (delta < min_delta) {
 			best_prediv = _prediv;
 			best_fbdiv = _fbdiv;
 			min_delta = delta;
-			best_freq = tmp;
+			best_freq = tmp * USEC_PER_SEC;
 		}
 	}
 
@@ -744,7 +783,8 @@ static long inno_mipi_dphy_pll_clk_round_rate(struct clk_hw *hw,
 	u16 fbdiv = 1;
 	u8 prediv = 1;
 
-	fout = inno_mipi_dphy_pll_rate_fixup(fin, rate, &prediv, &fbdiv);
+	fout = inno_mipi_dphy_pll_round_rate(inno, fin, rate,
+					     &prediv, &fbdiv);
 
 	dev_dbg(inno->dev, "%s: fin=%lu, req_rate=%lu\n",
 		__func__, *prate, rate);
@@ -965,25 +1005,46 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 static const struct inno_video_phy_socdata px30_socdata = {
 	.has_h2p_clk = false,
 	.pinmux = false,
+	.post_div_enable = false,
+	.timings = inno_mipi_dphy_timing_table,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
+};
+
+static const struct inno_video_phy_socdata rk1808_socdata = {
+	.has_h2p_clk = false,
+	.pinmux = false,
+	.post_div_enable = true,
+	.timings = inno_mipi_dphy_gf22fdx_timing_table,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_gf22fdx_timing_table),
 };
 
 static const struct inno_video_phy_socdata rk3128_socdata = {
 	.has_h2p_clk = true,
 	.pinmux = false,
+	.post_div_enable = false,
+	.timings = inno_mipi_dphy_timing_table,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
 };
 
 static const struct inno_video_phy_socdata rk3366_socdata = {
 	.has_h2p_clk = false,
 	.pinmux = false,
+	.post_div_enable = false,
+	.timings = inno_mipi_dphy_timing_table,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
 };
 
 static const struct inno_video_phy_socdata rk3368_socdata = {
 	.has_h2p_clk = false,
 	.pinmux = true,
+	.post_div_enable = false,
+	.timings = inno_mipi_dphy_timing_table,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
 };
 
 static const struct of_device_id inno_mipi_dphy_of_match[] = {
 	{ .compatible = "rockchip,px30-mipi-dphy", .data = &px30_socdata },
+	{ .compatible = "rockchip,rk1808-mipi-dphy", .data = &rk1808_socdata },
 	{ .compatible = "rockchip,rk3128-mipi-dphy", .data = &rk3128_socdata },
 	{ .compatible = "rockchip,rk3366-mipi-dphy", .data = &rk3366_socdata },
 	{ .compatible = "rockchip,rk3368-mipi-dphy", .data = &rk3368_socdata },
