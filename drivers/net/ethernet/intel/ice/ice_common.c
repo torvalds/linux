@@ -45,6 +45,9 @@ static enum ice_status ice_set_mac_type(struct ice_hw *hw)
 /**
  * ice_clear_pf_cfg - Clear PF configuration
  * @hw: pointer to the hardware structure
+ *
+ * Clears any existing PF configuration (VSIs, VSI lists, switch rules, port
+ * configuration, flow director filters, etc.).
  */
 enum ice_status ice_clear_pf_cfg(struct ice_hw *hw)
 {

@@ -901,7 +901,7 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		case ice_aqc_opc_get_link_status:
 			if (ice_handle_link_event(pf))
 				dev_err(&pf->pdev->dev,
-					"Could not handle link event");
+					"Could not handle link event\n");
 			break;
 		default:
 			dev_dbg(&pf->pdev->dev,
@@ -3284,7 +3284,7 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = pcim_iomap_regions(pdev, BIT(ICE_BAR0), pci_name(pdev));
 	if (err) {
-		dev_err(&pdev->dev, "I/O map error %d\n", err);
+		dev_err(&pdev->dev, "BAR0 I/O map error %d\n", err);
 		return err;
 	}
 
@@ -5252,7 +5252,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	u8 count = 0;
 
 	if (new_mtu == netdev->mtu) {
-		netdev_warn(netdev, "mtu is already %d\n", netdev->mtu);
+		netdev_warn(netdev, "mtu is already %u\n", netdev->mtu);
 		return 0;
 	}
 
