@@ -4,12 +4,17 @@
 #ifndef _LAN743X_H
 #define _LAN743X_H
 
+#include "lan743x_ptp.h"
+
 #define DRIVER_AUTHOR   "Bryan Whitehead <Bryan.Whitehead@microchip.com>"
 #define DRIVER_DESC "LAN743x PCIe Gigabit Ethernet Driver"
 #define DRIVER_NAME "lan743x"
 
 /* Register Definitions */
 #define ID_REV				(0x00)
+#define ID_REV_ID_MASK_			(0xFFFF0000)
+#define ID_REV_ID_LAN7430_		(0x74300000)
+#define ID_REV_ID_LAN7431_		(0x74310000)
 #define ID_REV_IS_VALID_CHIP_ID_(id_rev)	\
 	(((id_rev) & 0xFFF00000) == 0x74300000)
 #define ID_REV_CHIP_REV_MASK_		(0x0000FFFF)
@@ -61,6 +66,21 @@
 #define E2P_CMD_EPC_ADDR_MASK_		(0x000001FF)
 
 #define E2P_DATA			(0x044)
+
+#define GPIO_CFG0			(0x050)
+#define GPIO_CFG0_GPIO_DIR_BIT_(bit)	BIT(16 + (bit))
+#define GPIO_CFG0_GPIO_DATA_BIT_(bit)	BIT(0 + (bit))
+
+#define GPIO_CFG1			(0x054)
+#define GPIO_CFG1_GPIOEN_BIT_(bit)	BIT(16 + (bit))
+#define GPIO_CFG1_GPIOBUF_BIT_(bit)	BIT(0 + (bit))
+
+#define GPIO_CFG2			(0x058)
+#define GPIO_CFG2_1588_POL_BIT_(bit)	BIT(0 + (bit))
+
+#define GPIO_CFG3			(0x05C)
+#define GPIO_CFG3_1588_CH_SEL_BIT_(bit)	BIT(16 + (bit))
+#define GPIO_CFG3_1588_OE_BIT_(bit)	BIT(0 + (bit))
 
 #define FCT_RX_CTL			(0xAC)
 #define FCT_RX_CTL_EN_(channel)		BIT(28 + (channel))
@@ -193,7 +213,8 @@
 #define INT_BIT_DMA_TX_(channel)	BIT(16 + (channel))
 #define INT_BIT_ALL_TX_			(0x000F0000)
 #define INT_BIT_SW_GP_			BIT(9)
-#define INT_BIT_ALL_OTHER_		(0x00000280)
+#define INT_BIT_1588_			BIT(7)
+#define INT_BIT_ALL_OTHER_		(INT_BIT_SW_GP_ | INT_BIT_1588_)
 #define INT_BIT_MAS_			BIT(0)
 
 #define INT_SET				(0x784)
@@ -233,6 +254,71 @@
 #define INT_MOD_CFG5			(0x7D4)
 #define INT_MOD_CFG6			(0x7D8)
 #define INT_MOD_CFG7			(0x7DC)
+
+#define PTP_CMD_CTL					(0x0A00)
+#define PTP_CMD_CTL_PTP_CLK_STP_NSEC_			BIT(6)
+#define PTP_CMD_CTL_PTP_CLOCK_STEP_SEC_			BIT(5)
+#define PTP_CMD_CTL_PTP_CLOCK_LOAD_			BIT(4)
+#define PTP_CMD_CTL_PTP_CLOCK_READ_			BIT(3)
+#define PTP_CMD_CTL_PTP_ENABLE_				BIT(2)
+#define PTP_CMD_CTL_PTP_DISABLE_			BIT(1)
+#define PTP_CMD_CTL_PTP_RESET_				BIT(0)
+#define PTP_GENERAL_CONFIG				(0x0A04)
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_X_MASK_(channel) \
+	(0x7 << (1 + ((channel) << 2)))
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_100NS_	(0)
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_10US_	(1)
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_100US_	(2)
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_1MS_	(3)
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_10MS_	(4)
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_	(5)
+#define PTP_GENERAL_CONFIG_CLOCK_EVENT_X_SET_(channel, value) \
+	(((value) & 0x7) << (1 + ((channel) << 2)))
+#define PTP_GENERAL_CONFIG_RELOAD_ADD_X_(channel)	(BIT((channel) << 2))
+
+#define PTP_INT_STS				(0x0A08)
+#define PTP_INT_EN_SET				(0x0A0C)
+#define PTP_INT_EN_CLR				(0x0A10)
+#define PTP_INT_BIT_TX_SWTS_ERR_		BIT(13)
+#define PTP_INT_BIT_TX_TS_			BIT(12)
+#define PTP_INT_BIT_TIMER_B_			BIT(1)
+#define PTP_INT_BIT_TIMER_A_			BIT(0)
+
+#define PTP_CLOCK_SEC				(0x0A14)
+#define PTP_CLOCK_NS				(0x0A18)
+#define PTP_CLOCK_SUBNS				(0x0A1C)
+#define PTP_CLOCK_RATE_ADJ			(0x0A20)
+#define PTP_CLOCK_RATE_ADJ_DIR_			BIT(31)
+#define PTP_CLOCK_STEP_ADJ			(0x0A2C)
+#define PTP_CLOCK_STEP_ADJ_DIR_			BIT(31)
+#define PTP_CLOCK_STEP_ADJ_VALUE_MASK_		(0x3FFFFFFF)
+#define PTP_CLOCK_TARGET_SEC_X(channel)		(0x0A30 + ((channel) << 4))
+#define PTP_CLOCK_TARGET_NS_X(channel)		(0x0A34 + ((channel) << 4))
+#define PTP_CLOCK_TARGET_RELOAD_SEC_X(channel)	(0x0A38 + ((channel) << 4))
+#define PTP_CLOCK_TARGET_RELOAD_NS_X(channel)	(0x0A3C + ((channel) << 4))
+#define PTP_LATENCY				(0x0A5C)
+#define PTP_LATENCY_TX_SET_(tx_latency)		(((u32)(tx_latency)) << 16)
+#define PTP_LATENCY_RX_SET_(rx_latency)		\
+	(((u32)(rx_latency)) & 0x0000FFFF)
+#define PTP_CAP_INFO				(0x0A60)
+#define PTP_CAP_INFO_TX_TS_CNT_GET_(reg_val)	(((reg_val) & 0x00000070) >> 4)
+
+#define PTP_TX_MOD				(0x0AA4)
+#define PTP_TX_MOD_TX_PTP_SYNC_TS_INSERT_	(0x10000000)
+
+#define PTP_TX_MOD2				(0x0AA8)
+#define PTP_TX_MOD2_TX_PTP_CLR_UDPV4_CHKSUM_	(0x00000001)
+
+#define PTP_TX_EGRESS_SEC			(0x0AAC)
+#define PTP_TX_EGRESS_NS			(0x0AB0)
+#define PTP_TX_EGRESS_NS_CAPTURE_CAUSE_MASK_	(0xC0000000)
+#define PTP_TX_EGRESS_NS_CAPTURE_CAUSE_AUTO_	(0x00000000)
+#define PTP_TX_EGRESS_NS_CAPTURE_CAUSE_SW_	(0x40000000)
+#define PTP_TX_EGRESS_NS_TS_NS_MASK_		(0x3FFFFFFF)
+
+#define PTP_TX_MSG_HEADER			(0x0AB4)
+#define PTP_TX_MSG_HEADER_MSG_TYPE_		(0x000F0000)
+#define PTP_TX_MSG_HEADER_MSG_TYPE_SYNC_	(0x00000000)
 
 #define DMAC_CFG				(0xC00)
 #define DMAC_CFG_COAL_EN_			BIT(16)
@@ -542,8 +628,12 @@ struct lan743x_tx_buffer_info;
 
 #define TX_FRAME_FLAG_IN_PROGRESS	BIT(0)
 
+#define TX_TS_FLAG_TIMESTAMPING_ENABLED	BIT(0)
+#define TX_TS_FLAG_ONE_STEP_SYNC	BIT(1)
+
 struct lan743x_tx {
 	struct lan743x_adapter *adapter;
+	u32	ts_flags;
 	u32	vector_flags;
 	int	channel_number;
 
@@ -569,6 +659,10 @@ struct lan743x_tx {
 
 	struct sk_buff *overflow_skb;
 };
+
+void lan743x_tx_set_timestamping_mode(struct lan743x_tx *tx,
+				      bool enable_timestamping,
+				      bool enable_onestep_sync);
 
 /* RX */
 struct lan743x_rx_descriptor;
@@ -609,6 +703,9 @@ struct lan743x_adapter {
 
 	/* lock, used to prevent concurrent access to data port */
 	struct mutex		dp_lock;
+
+	struct lan743x_gpio	gpio;
+	struct lan743x_ptp	ptp;
 
 	u8			mac_address[ETH_ALEN];
 
@@ -660,6 +757,7 @@ struct lan743x_adapter {
 #define TX_DESC_DATA0_IPE_			(0x00200000)
 #define TX_DESC_DATA0_TPE_			(0x00100000)
 #define TX_DESC_DATA0_FCS_			(0x00020000)
+#define TX_DESC_DATA0_TSE_			(0x00010000)
 #define TX_DESC_DATA0_BUF_LENGTH_MASK_		(0x0000FFFF)
 #define TX_DESC_DATA0_EXT_LSO_			(0x00200000)
 #define TX_DESC_DATA0_EXT_PAY_LENGTH_MASK_	(0x000FFFFF)
@@ -673,6 +771,7 @@ struct lan743x_tx_descriptor {
 } __aligned(DEFAULT_DMA_DESCRIPTOR_SPACING);
 
 #define TX_BUFFER_INFO_FLAG_ACTIVE		BIT(0)
+#define TX_BUFFER_INFO_FLAG_TIMESTAMP_REQUESTED	BIT(1)
 #define TX_BUFFER_INFO_FLAG_IGNORE_SYNC		BIT(2)
 #define TX_BUFFER_INFO_FLAG_SKB_FRAGMENT	BIT(3)
 struct lan743x_tx_buffer_info {

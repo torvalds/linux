@@ -267,6 +267,10 @@ static void lan743x_intr_shared_isr(void *context, u32 int_sts, u32 flags)
 			lan743x_intr_software_isr(adapter);
 			int_sts &= ~INT_BIT_SW_GP_;
 		}
+		if (int_sts & INT_BIT_1588_) {
+			lan743x_ptp_isr(adapter);
+			int_sts &= ~INT_BIT_1588_;
+		}
 	}
 	if (int_sts)
 		lan743x_csr_write(adapter, INT_EN_CLR, int_sts);
@@ -976,6 +980,7 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 					       ksettings.base.duplex,
 					       local_advertisement,
 					       remote_advertisement);
+		lan743x_ptp_update_latency(adapter, ksettings.base.speed);
 	}
 }
 
@@ -1226,6 +1231,7 @@ static void lan743x_tx_release_desc(struct lan743x_tx *tx,
 	struct lan743x_tx_buffer_info *buffer_info = NULL;
 	struct lan743x_tx_descriptor *descriptor = NULL;
 	u32 descriptor_type = 0;
+	bool ignore_sync;
 
 	descriptor = &tx->ring_cpu_ptr[descriptor_index];
 	buffer_info = &tx->buffer_info[descriptor_index];
@@ -1256,10 +1262,26 @@ clean_up_data_descriptor:
 		buffer_info->dma_ptr = 0;
 		buffer_info->buffer_length = 0;
 	}
-	if (buffer_info->skb) {
+	if (!buffer_info->skb)
+		goto clear_active;
+
+	if (!(buffer_info->flags & TX_BUFFER_INFO_FLAG_TIMESTAMP_REQUESTED)) {
 		dev_kfree_skb(buffer_info->skb);
-		buffer_info->skb = NULL;
+		goto clear_skb;
 	}
+
+	if (cleanup) {
+		lan743x_ptp_unrequest_tx_timestamp(tx->adapter);
+		dev_kfree_skb(buffer_info->skb);
+	} else {
+		ignore_sync = (buffer_info->flags &
+			       TX_BUFFER_INFO_FLAG_IGNORE_SYNC) != 0;
+		lan743x_ptp_tx_timestamp_skb(tx->adapter,
+					     buffer_info->skb, ignore_sync);
+	}
+
+clear_skb:
+	buffer_info->skb = NULL;
 
 clear_active:
 	buffer_info->flags &= ~TX_BUFFER_INFO_FLAG_ACTIVE;
@@ -1321,10 +1343,25 @@ static int lan743x_tx_get_avail_desc(struct lan743x_tx *tx)
 		return last_head - last_tail - 1;
 }
 
+void lan743x_tx_set_timestamping_mode(struct lan743x_tx *tx,
+				      bool enable_timestamping,
+				      bool enable_onestep_sync)
+{
+	if (enable_timestamping)
+		tx->ts_flags |= TX_TS_FLAG_TIMESTAMPING_ENABLED;
+	else
+		tx->ts_flags &= ~TX_TS_FLAG_TIMESTAMPING_ENABLED;
+	if (enable_onestep_sync)
+		tx->ts_flags |= TX_TS_FLAG_ONE_STEP_SYNC;
+	else
+		tx->ts_flags &= ~TX_TS_FLAG_ONE_STEP_SYNC;
+}
+
 static int lan743x_tx_frame_start(struct lan743x_tx *tx,
 				  unsigned char *first_buffer,
 				  unsigned int first_buffer_length,
 				  unsigned int frame_length,
+				  bool time_stamp,
 				  bool check_sum)
 {
 	/* called only from within lan743x_tx_xmit_frame.
@@ -1362,6 +1399,8 @@ static int lan743x_tx_frame_start(struct lan743x_tx *tx,
 		TX_DESC_DATA0_DTYPE_DATA_ |
 		TX_DESC_DATA0_FS_ |
 		TX_DESC_DATA0_FCS_;
+	if (time_stamp)
+		tx->frame_data0 |= TX_DESC_DATA0_TSE_;
 
 	if (check_sum)
 		tx->frame_data0 |= TX_DESC_DATA0_ICE_ |
@@ -1475,6 +1514,7 @@ static int lan743x_tx_frame_add_fragment(struct lan743x_tx *tx,
 
 static void lan743x_tx_frame_end(struct lan743x_tx *tx,
 				 struct sk_buff *skb,
+				 bool time_stamp,
 				 bool ignore_sync)
 {
 	/* called only from within lan743x_tx_xmit_frame
@@ -1492,6 +1532,8 @@ static void lan743x_tx_frame_end(struct lan743x_tx *tx,
 	tx_descriptor = &tx->ring_cpu_ptr[tx->frame_tail];
 	buffer_info = &tx->buffer_info[tx->frame_tail];
 	buffer_info->skb = skb;
+	if (time_stamp)
+		buffer_info->flags |= TX_BUFFER_INFO_FLAG_TIMESTAMP_REQUESTED;
 	if (ignore_sync)
 		buffer_info->flags |= TX_BUFFER_INFO_FLAG_IGNORE_SYNC;
 
@@ -1520,6 +1562,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	unsigned int frame_length = 0;
 	unsigned int head_length = 0;
 	unsigned long irq_flags = 0;
+	bool do_timestamp = false;
 	bool ignore_sync = false;
 	int nr_frags = 0;
 	bool gso = false;
@@ -1541,6 +1584,14 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	}
 
 	/* space available, transmit skb  */
+	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+	    (tx->ts_flags & TX_TS_FLAG_TIMESTAMPING_ENABLED) &&
+	    (lan743x_ptp_request_tx_timestamp(tx->adapter))) {
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		do_timestamp = true;
+		if (tx->ts_flags & TX_TS_FLAG_ONE_STEP_SYNC)
+			ignore_sync = true;
+	}
 	head_length = skb_headlen(skb);
 	frame_length = skb_pagelen(skb);
 	nr_frags = skb_shinfo(skb)->nr_frags;
@@ -1554,6 +1605,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	if (lan743x_tx_frame_start(tx,
 				   skb->data, head_length,
 				   start_frame_length,
+				   do_timestamp,
 				   skb->ip_summed == CHECKSUM_PARTIAL)) {
 		dev_kfree_skb(skb);
 		goto unlock;
@@ -1581,7 +1633,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	}
 
 finish:
-	lan743x_tx_frame_end(tx, skb, ignore_sync);
+	lan743x_tx_frame_end(tx, skb, do_timestamp, ignore_sync);
 
 unlock:
 	spin_unlock_irqrestore(&tx->ring_lock, irq_flags);
@@ -2410,6 +2462,8 @@ static int lan743x_netdev_close(struct net_device *netdev)
 	for (index = 0; index < LAN743X_USED_RX_CHANNELS; index++)
 		lan743x_rx_close(&adapter->rx[index]);
 
+	lan743x_ptp_close(adapter);
+
 	lan743x_phy_close(adapter);
 
 	lan743x_mac_close(adapter);
@@ -2437,6 +2491,10 @@ static int lan743x_netdev_open(struct net_device *netdev)
 	if (ret)
 		goto close_mac;
 
+	ret = lan743x_ptp_open(adapter);
+	if (ret)
+		goto close_phy;
+
 	lan743x_rfe_open(adapter);
 
 	for (index = 0; index < LAN743X_USED_RX_CHANNELS; index++) {
@@ -2456,6 +2514,9 @@ close_rx:
 		if (adapter->rx[index].ring_cpu_ptr)
 			lan743x_rx_close(&adapter->rx[index]);
 	}
+	lan743x_ptp_close(adapter);
+
+close_phy:
 	lan743x_phy_close(adapter);
 
 close_mac:
@@ -2483,6 +2544,8 @@ static int lan743x_netdev_ioctl(struct net_device *netdev,
 {
 	if (!netif_running(netdev))
 		return -EINVAL;
+	if (cmd == SIOCSHWTSTAMP)
+		return lan743x_ptp_ioctl(netdev, ifr, cmd);
 	return phy_mii_ioctl(netdev->phydev, ifr, cmd);
 }
 
@@ -2607,11 +2670,20 @@ static int lan743x_hardware_init(struct lan743x_adapter *adapter,
 	adapter->intr.irq = adapter->pdev->irq;
 	lan743x_csr_write(adapter, INT_EN_CLR, 0xFFFFFFFF);
 	mutex_init(&adapter->dp_lock);
+
+	ret = lan743x_gpio_init(adapter);
+	if (ret)
+		return ret;
+
 	ret = lan743x_mac_init(adapter);
 	if (ret)
 		return ret;
 
 	ret = lan743x_phy_init(adapter);
+	if (ret)
+		return ret;
+
+	ret = lan743x_ptp_init(adapter);
 	if (ret)
 		return ret;
 

@@ -4,6 +4,7 @@
 #include <linux/netdevice.h>
 #include "lan743x_main.h"
 #include "lan743x_ethtool.h"
+#include <linux/net_tstamp.h>
 #include <linux/pci.h>
 #include <linux/phy.h>
 
@@ -542,6 +543,31 @@ static int lan743x_ethtool_set_rxfh(struct net_device *netdev,
 	return 0;
 }
 
+static int lan743x_ethtool_get_ts_info(struct net_device *netdev,
+				       struct ethtool_ts_info *ts_info)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				   SOF_TIMESTAMPING_RX_SOFTWARE |
+				   SOF_TIMESTAMPING_SOFTWARE |
+				   SOF_TIMESTAMPING_TX_HARDWARE |
+				   SOF_TIMESTAMPING_RX_HARDWARE |
+				   SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	if (adapter->ptp.ptp_clock)
+		ts_info->phc_index = ptp_clock_index(adapter->ptp.ptp_clock);
+	else
+		ts_info->phc_index = -1;
+
+	ts_info->tx_types = BIT(HWTSTAMP_TX_OFF) |
+			    BIT(HWTSTAMP_TX_ON) |
+			    BIT(HWTSTAMP_TX_ONESTEP_SYNC);
+	ts_info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+			      BIT(HWTSTAMP_FILTER_ALL);
+	return 0;
+}
+
 static int lan743x_ethtool_get_eee(struct net_device *netdev,
 				   struct ethtool_eee *eee)
 {
@@ -685,6 +711,7 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_rxfh_indir_size = lan743x_ethtool_get_rxfh_indir_size,
 	.get_rxfh = lan743x_ethtool_get_rxfh,
 	.set_rxfh = lan743x_ethtool_set_rxfh,
+	.get_ts_info = lan743x_ethtool_get_ts_info,
 	.get_eee = lan743x_ethtool_get_eee,
 	.set_eee = lan743x_ethtool_set_eee,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
