@@ -899,7 +899,7 @@ static int routing_hw_params(struct snd_pcm_substream *substream,
 	else
 		path_type = ADM_PATH_LIVE_REC;
 
-	if (be_id > AFE_MAX_PORTS)
+	if (be_id >= AFE_MAX_PORTS)
 		return -EINVAL;
 
 	session = &data->port_data[be_id];

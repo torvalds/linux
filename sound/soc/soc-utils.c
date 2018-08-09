@@ -381,6 +381,6 @@ int __init snd_soc_util_init(void)
 
 void __exit snd_soc_util_exit(void)
 {
-	platform_device_unregister(soc_dummy_dev);
 	platform_driver_unregister(&soc_dummy_driver);
+	platform_device_unregister(soc_dummy_dev);
 }
