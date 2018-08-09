@@ -541,11 +541,6 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(execlists->preempt_complete_status !=
 		   upper_32_bits(ce->lrc_desc));
-	GEM_BUG_ON((ce->lrc_reg_state[CTX_CONTEXT_CONTROL + 1] &
-		    _MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-				       CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT)) !=
-		   _MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-				      CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT));
 
 	/*
 	 * Switch to our empty preempt context so
@@ -2582,10 +2577,13 @@ static void execlists_init_reg_state(u32 *regs,
 				 MI_LRI_FORCE_POSTED;
 
 	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(engine),
-		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-				    CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
-				    CTX_CTRL_RS_CTX_ENABLE) |
+		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
 		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH));
+	if (INTEL_GEN(dev_priv) < 11) {
+		regs[CTX_CONTEXT_CONTROL + 1] |=
+			_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
+					    CTX_CTRL_RS_CTX_ENABLE);
+	}
 	CTX_REG(regs, CTX_RING_HEAD, RING_HEAD(base), 0);
 	CTX_REG(regs, CTX_RING_TAIL, RING_TAIL(base), 0);
 	CTX_REG(regs, CTX_RING_BUFFER_START, RING_START(base), 0);
