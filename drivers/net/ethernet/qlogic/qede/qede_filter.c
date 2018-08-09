@@ -1599,6 +1599,69 @@ static int qede_flow_spec_validate_unused(struct qede_dev *edev,
 	return 0;
 }
 
+static int qede_set_v4_tuple_to_profile(struct qede_dev *edev,
+					struct qede_arfs_tuple *t)
+{
+	/* We must have Only 4-tuples/l4 port/src ip/dst ip
+	 * as an input.
+	 */
+	if (t->src_port && t->dst_port && t->src_ipv4 && t->dst_ipv4) {
+		t->mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
+	} else if (!t->src_port && t->dst_port &&
+		   !t->src_ipv4 && !t->dst_ipv4) {
+		t->mode = QED_FILTER_CONFIG_MODE_L4_PORT;
+	} else if (!t->src_port && !t->dst_port &&
+		   !t->dst_ipv4 && t->src_ipv4) {
+		t->mode = QED_FILTER_CONFIG_MODE_IP_SRC;
+	} else if (!t->src_port && !t->dst_port &&
+		   t->dst_ipv4 && !t->src_ipv4) {
+		t->mode = QED_FILTER_CONFIG_MODE_IP_DEST;
+	} else {
+		DP_INFO(edev, "Invalid N-tuple\n");
+		return -EOPNOTSUPP;
+	}
+
+	t->ip_comp = qede_flow_spec_ipv4_cmp;
+	t->build_hdr = qede_flow_build_ipv4_hdr;
+	t->stringify = qede_flow_stringify_ipv4_hdr;
+
+	return 0;
+}
+
+static int qede_set_v6_tuple_to_profile(struct qede_dev *edev,
+					struct qede_arfs_tuple *t,
+					struct in6_addr *zaddr)
+{
+	/* We must have Only 4-tuples/l4 port/src ip/dst ip
+	 * as an input.
+	 */
+	if (t->src_port && t->dst_port &&
+	    memcmp(&t->src_ipv6, zaddr, sizeof(struct in6_addr)) &&
+	    memcmp(&t->dst_ipv6, zaddr, sizeof(struct in6_addr))) {
+		t->mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
+	} else if (!t->src_port && t->dst_port &&
+		   !memcmp(&t->src_ipv6, zaddr, sizeof(struct in6_addr)) &&
+		   !memcmp(&t->dst_ipv6, zaddr, sizeof(struct in6_addr))) {
+		t->mode = QED_FILTER_CONFIG_MODE_L4_PORT;
+	} else if (!t->src_port && !t->dst_port &&
+		   !memcmp(&t->dst_ipv6, zaddr, sizeof(struct in6_addr)) &&
+		   memcmp(&t->src_ipv6, zaddr, sizeof(struct in6_addr))) {
+		t->mode = QED_FILTER_CONFIG_MODE_IP_SRC;
+	} else if (!t->src_port && !t->dst_port &&
+		   memcmp(&t->dst_ipv6, zaddr, sizeof(struct in6_addr)) &&
+		   !memcmp(&t->src_ipv6, zaddr, sizeof(struct in6_addr))) {
+		t->mode = QED_FILTER_CONFIG_MODE_IP_DEST;
+	} else {
+		DP_INFO(edev, "Invalid N-tuple\n");
+		return -EOPNOTSUPP;
+	}
+
+	t->ip_comp = qede_flow_spec_ipv6_cmp;
+	t->build_hdr = qede_flow_build_ipv6_hdr;
+
+	return 0;
+}
+
 static int qede_flow_spec_to_tuple_ipv4_common(struct qede_dev *edev,
 					       struct qede_arfs_tuple *t,
 					       struct ethtool_rx_flow_spec *fs)
@@ -1638,27 +1701,7 @@ static int qede_flow_spec_to_tuple_ipv4_common(struct qede_dev *edev,
 	t->src_port = fs->h_u.tcp_ip4_spec.psrc;
 	t->dst_port = fs->h_u.tcp_ip4_spec.pdst;
 
-	/* We must either have a valid 4-tuple or only dst port
-	 * or only src ip as an input
-	 */
-	if (t->src_port && t->dst_port && t->src_ipv4 && t->dst_ipv4) {
-		t->mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
-	} else if (!t->src_port && t->dst_port &&
-		   !t->src_ipv4 && !t->dst_ipv4) {
-		t->mode = QED_FILTER_CONFIG_MODE_L4_PORT;
-	}  else if (!t->src_port && !t->dst_port &&
-		    !t->dst_ipv4 && t->src_ipv4) {
-		t->mode = QED_FILTER_CONFIG_MODE_IP_SRC;
-	} else {
-		DP_INFO(edev, "Invalid N-tuple\n");
-		return -EOPNOTSUPP;
-	}
-
-	t->ip_comp = qede_flow_spec_ipv4_cmp;
-	t->build_hdr = qede_flow_build_ipv4_hdr;
-	t->stringify = qede_flow_stringify_ipv4_hdr;
-
-	return 0;
+	return qede_set_v4_tuple_to_profile(edev, t);
 }
 
 static int qede_flow_spec_to_tuple_tcpv4(struct qede_dev *edev,
@@ -1690,10 +1733,8 @@ static int qede_flow_spec_to_tuple_ipv6_common(struct qede_dev *edev,
 					       struct ethtool_rx_flow_spec *fs)
 {
 	struct in6_addr zero_addr;
-	void *p;
 
-	p = &zero_addr;
-	memset(p, 0, sizeof(zero_addr));
+	memset(&zero_addr, 0, sizeof(zero_addr));
 
 	if ((fs->h_u.tcp_ip6_spec.psrc &
 	     fs->m_u.tcp_ip6_spec.psrc) != fs->h_u.tcp_ip6_spec.psrc) {
@@ -1720,30 +1761,7 @@ static int qede_flow_spec_to_tuple_ipv6_common(struct qede_dev *edev,
 	t->src_port = fs->h_u.tcp_ip6_spec.psrc;
 	t->dst_port = fs->h_u.tcp_ip6_spec.pdst;
 
-	/* We must make sure we have a valid 4-tuple or only dest port
-	 * or only src ip as an input
-	 */
-	if (t->src_port && t->dst_port &&
-	    memcmp(&t->src_ipv6, p, sizeof(struct in6_addr)) &&
-	    memcmp(&t->dst_ipv6, p, sizeof(struct in6_addr))) {
-		t->mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
-	} else if (!t->src_port && t->dst_port &&
-		   !memcmp(&t->src_ipv6, p, sizeof(struct in6_addr)) &&
-		   !memcmp(&t->dst_ipv6, p, sizeof(struct in6_addr))) {
-		t->mode = QED_FILTER_CONFIG_MODE_L4_PORT;
-	} else if (!t->src_port && !t->dst_port &&
-		   !memcmp(&t->dst_ipv6, p, sizeof(struct in6_addr)) &&
-		   memcmp(&t->src_ipv6, p, sizeof(struct in6_addr))) {
-		t->mode = QED_FILTER_CONFIG_MODE_IP_SRC;
-	} else {
-		DP_INFO(edev, "Invalid N-tuple\n");
-		return -EOPNOTSUPP;
-	}
-
-	t->ip_comp = qede_flow_spec_ipv6_cmp;
-	t->build_hdr = qede_flow_build_ipv6_hdr;
-
-	return 0;
+	return qede_set_v6_tuple_to_profile(edev, t, &zero_addr);
 }
 
 static int qede_flow_spec_to_tuple_tcpv6(struct qede_dev *edev,
