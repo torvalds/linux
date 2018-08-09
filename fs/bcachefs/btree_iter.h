@@ -270,7 +270,7 @@ static inline int btree_iter_err(struct bkey_s_c k)
 
 /* new multiple iterator interface: */
 
-int bch2_trans_preload_iters(struct btree_trans *);
+void bch2_trans_preload_iters(struct btree_trans *);
 void bch2_trans_iter_free(struct btree_trans *,
 				struct btree_iter *);
 

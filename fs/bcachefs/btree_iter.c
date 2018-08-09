@@ -1648,10 +1648,7 @@ static int btree_trans_realloc_iters(struct btree_trans *trans)
 
 	bch2_trans_unlock(trans);
 
-	new_iters = kmalloc(sizeof(struct btree_iter) * BTREE_ITER_MAX,
-			    GFP_NOFS);
-	if (!new_iters)
-		return -ENOMEM;
+	new_iters = mempool_alloc(&trans->c->btree_iters_pool, GFP_NOFS);
 
 	memcpy(new_iters, trans->iters,
 	       sizeof(struct btree_iter) * trans->nr_iters);
@@ -1679,12 +1676,10 @@ static int btree_trans_realloc_iters(struct btree_trans *trans)
 	return 0;
 }
 
-int bch2_trans_preload_iters(struct btree_trans *trans)
+void bch2_trans_preload_iters(struct btree_trans *trans)
 {
-	if (trans->iters != trans->iters_onstack)
-		return 0;
-
-	return btree_trans_realloc_iters(trans);
+	if (trans->iters == trans->iters_onstack)
+		btree_trans_realloc_iters(trans);
 }
 
 static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
@@ -1868,7 +1863,7 @@ int bch2_trans_exit(struct btree_trans *trans)
 
 	kfree(trans->mem);
 	if (trans->iters != trans->iters_onstack)
-		kfree(trans->iters);
+		mempool_free(trans->iters, &trans->c->btree_iters_pool);
 	trans->mem	= (void *) 0x1;
 	trans->iters	= (void *) 0x1;
 	return ret;

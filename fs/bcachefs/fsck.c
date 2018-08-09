@@ -398,7 +398,7 @@ static int check_dirents(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c);
 
-	BUG_ON(bch2_trans_preload_iters(&trans));
+	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_DIRENTS,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
@@ -539,7 +539,7 @@ static int check_xattrs(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c);
 
-	BUG_ON(bch2_trans_preload_iters(&trans));
+	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_XATTRS,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
