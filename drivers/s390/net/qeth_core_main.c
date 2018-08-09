@@ -2367,12 +2367,19 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 	return 0;
 }
 
+static u8 qeth_mpc_select_prot_type(struct qeth_card *card)
+{
+	if (IS_OSN(card))
+		return QETH_PROT_OSN2;
+	return (card->options.layer2 == 1) ? QETH_PROT_LAYER2 : QETH_PROT_TCPIP;
+}
+
 static int qeth_ulp_enable(struct qeth_card *card)
 {
-	int rc;
-	char prot_type;
+	u8 prot_type = qeth_mpc_select_prot_type(card);
 	struct qeth_cmd_buffer *iob;
 	u16 max_mtu;
+	int rc;
 
 	/*FIXME: trace view callbacks*/
 	QETH_DBF_TEXT(SETUP, 2, "ulpenabl");
@@ -2381,14 +2388,6 @@ static int qeth_ulp_enable(struct qeth_card *card)
 	memcpy(iob->data, ULP_ENABLE, ULP_ENABLE_SIZE);
 
 	*(QETH_ULP_ENABLE_LINKNUM(iob->data)) = (u8) card->dev->dev_port;
-	if (card->options.layer2)
-		if (card->info.type == QETH_CARD_TYPE_OSN)
-			prot_type = QETH_PROT_OSN2;
-		else
-			prot_type = QETH_PROT_LAYER2;
-	else
-		prot_type = QETH_PROT_TCPIP;
-
 	memcpy(QETH_ULP_ENABLE_PROT_TYPE(iob->data), &prot_type, 1);
 	memcpy(QETH_ULP_ENABLE_DEST_ADDR(iob->data),
 	       &card->token.cm_connection_r, QETH_MPC_TOKEN_LENGTH);
@@ -2939,9 +2938,10 @@ struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *card,
 }
 EXPORT_SYMBOL_GPL(qeth_get_ipacmd_buffer);
 
-void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
-		char prot_type)
+void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob)
 {
+	u8 prot_type = qeth_mpc_select_prot_type(card);
+
 	memcpy(iob->data, IPA_PDU_HEADER, IPA_PDU_HEADER_SIZE);
 	memcpy(QETH_IPA_CMD_PROT_TYPE(iob->data), &prot_type, 1);
 	memcpy(QETH_IPA_CMD_DEST_ADDR(iob->data),
@@ -2961,18 +2961,9 @@ int qeth_send_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 		void *reply_param)
 {
 	int rc;
-	char prot_type;
 
 	QETH_CARD_TEXT(card, 4, "sendipa");
-
-	if (card->options.layer2)
-		if (card->info.type == QETH_CARD_TYPE_OSN)
-			prot_type = QETH_PROT_OSN2;
-		else
-			prot_type = QETH_PROT_LAYER2;
-	else
-		prot_type = QETH_PROT_TCPIP;
-	qeth_prepare_ipa_cmd(card, iob, prot_type);
+	qeth_prepare_ipa_cmd(card, iob);
 	rc = qeth_send_control_data(card, IPA_CMD_LENGTH,
 						iob, reply_cb, reply_param);
 	if (rc == -ETIME) {

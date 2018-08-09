@@ -1270,7 +1270,7 @@ static int qeth_osn_send_ipa_cmd(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "osndipa");
 
-	qeth_prepare_ipa_cmd(card, iob, QETH_PROT_OSN2);
+	qeth_prepare_ipa_cmd(card, iob);
 	s1 = (u16)(IPA_PDU_HEADER_SIZE + data_len);
 	s2 = (u16)data_len;
 	memcpy(QETH_IPA_PDU_LEN_TOTAL(iob->data), &s1, 2);
