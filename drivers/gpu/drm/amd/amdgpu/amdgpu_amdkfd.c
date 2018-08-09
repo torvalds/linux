@@ -178,14 +178,25 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			 * process in case of 64-bit doorbells so we
 			 * can use each doorbell assignment twice.
 			 */
-			gpu_resources.sdma_doorbell[0][i] =
-				AMDGPU_DOORBELL64_sDMA_ENGINE0 + (i >> 1);
-			gpu_resources.sdma_doorbell[0][i+1] =
-				AMDGPU_DOORBELL64_sDMA_ENGINE0 + 0x200 + (i >> 1);
-			gpu_resources.sdma_doorbell[1][i] =
-				AMDGPU_DOORBELL64_sDMA_ENGINE1 + (i >> 1);
-			gpu_resources.sdma_doorbell[1][i+1] =
-				AMDGPU_DOORBELL64_sDMA_ENGINE1 + 0x200 + (i >> 1);
+			if (adev->asic_type == CHIP_VEGA10) {
+				gpu_resources.sdma_doorbell[0][i] =
+					AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 + (i >> 1);
+				gpu_resources.sdma_doorbell[0][i+1] =
+					AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 + 0x200 + (i >> 1);
+				gpu_resources.sdma_doorbell[1][i] =
+					AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 + (i >> 1);
+				gpu_resources.sdma_doorbell[1][i+1] =
+					AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 + 0x200 + (i >> 1);
+			} else {
+				gpu_resources.sdma_doorbell[0][i] =
+					AMDGPU_DOORBELL64_sDMA_ENGINE0 + (i >> 1);
+				gpu_resources.sdma_doorbell[0][i+1] =
+					AMDGPU_DOORBELL64_sDMA_ENGINE0 + 0x200 + (i >> 1);
+				gpu_resources.sdma_doorbell[1][i] =
+					AMDGPU_DOORBELL64_sDMA_ENGINE1 + (i >> 1);
+				gpu_resources.sdma_doorbell[1][i+1] =
+					AMDGPU_DOORBELL64_sDMA_ENGINE1 + 0x200 + (i >> 1);
+			}
 		}
 		/* Doorbells 0x0e0-0ff and 0x2e0-2ff are reserved for
 		 * SDMA, IH and VCN. So don't use them for the CP.
