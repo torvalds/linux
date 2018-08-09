@@ -36,6 +36,29 @@ int mv88e6xxx_port_write(struct mv88e6xxx_chip *chip, int port, int reg,
 	return mv88e6xxx_write(chip, addr, reg, val);
 }
 
+/* Offset 0x00: MAC (or PCS or Physical) Status Register
+ *
+ * For most devices, this is read only. However the 6185 has the MyPause
+ * bit read/write.
+ */
+int mv88e6185_port_set_pause(struct mv88e6xxx_chip *chip, int port,
+			     int pause)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
+	if (err)
+		return err;
+
+	if (pause)
+		reg |= MV88E6XXX_PORT_STS_MY_PAUSE;
+	else
+		reg &= ~MV88E6XXX_PORT_STS_MY_PAUSE;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, reg);
+}
+
 /* Offset 0x01: MAC (or PCS or Physical) Control Register
  *
  * Link, Duplex and Flow Control have one force bit, one value bit.

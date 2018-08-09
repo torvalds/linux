@@ -351,6 +351,13 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_duplex)(struct mv88e6xxx_chip *chip, int port, int dup);
 
+#define PAUSE_ON		1
+#define PAUSE_OFF		0
+
+	/* Enable/disable sending Pause */
+	int (*port_set_pause)(struct mv88e6xxx_chip *chip, int port,
+			      int pause);
+
 #define SPEED_MAX		INT_MAX
 #define SPEED_UNFORCED		-2
 

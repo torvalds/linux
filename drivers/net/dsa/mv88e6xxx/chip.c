@@ -524,7 +524,7 @@ int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg, u16 update)
 }
 
 static int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port,
-				    int link, int speed, int duplex,
+				    int link, int speed, int duplex, int pause,
 				    phy_interface_t mode)
 {
 	int err;
@@ -540,6 +540,12 @@ static int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port,
 	if (chip->info->ops->port_set_speed) {
 		err = chip->info->ops->port_set_speed(chip, port, speed);
 		if (err && err != -EOPNOTSUPP)
+			goto restore_link;
+	}
+
+	if (chip->info->ops->port_set_pause) {
+		err = chip->info->ops->port_set_pause(chip, port, pause);
+		if (err)
 			goto restore_link;
 	}
 
@@ -584,7 +590,8 @@ static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_port_setup_mac(chip, port, phydev->link, phydev->speed,
-				       phydev->duplex, phydev->interface);
+				       phydev->duplex, phydev->pause,
+				       phydev->interface);
 	mutex_unlock(&chip->reg_lock);
 
 	if (err && err != -EOPNOTSUPP)
@@ -615,7 +622,7 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 				 const struct phylink_link_state *state)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int speed, duplex, link, err;
+	int speed, duplex, link, pause, err;
 
 	if (mode == MLO_AN_PHY)
 		return;
@@ -629,9 +636,10 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 		duplex = DUPLEX_UNFORCED;
 		link = LINK_UNFORCED;
 	}
+	pause = !!phylink_test(state->advertising, Pause);
 
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex,
+	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex, pause,
 				       state->interface);
 	mutex_unlock(&chip->reg_lock);
 
@@ -2087,10 +2095,12 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 		err = mv88e6xxx_port_setup_mac(chip, port, LINK_FORCED_UP,
 					       SPEED_MAX, DUPLEX_FULL,
+					       PAUSE_OFF,
 					       PHY_INTERFACE_MODE_NA);
 	else
 		err = mv88e6xxx_port_setup_mac(chip, port, LINK_UNFORCED,
 					       SPEED_UNFORCED, DUPLEX_UNFORCED,
+					       PAUSE_ON,
 					       PHY_INTERFACE_MODE_NA);
 	if (err)
 		return err;
@@ -2729,6 +2739,7 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
 	.port_pause_limit = mv88e6097_port_pause_limit,
+	.port_set_pause = mv88e6185_port_set_pause,
 	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 	.stats_set_histogram = mv88e6095_g1_stats_set_histogram,
 	.stats_get_sset_count = mv88e6095_stats_get_sset_count,
@@ -3021,6 +3032,7 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.port_set_egress_floods = mv88e6185_port_set_egress_floods,
 	.port_egress_rate_limiting = mv88e6095_port_egress_rate_limiting,
 	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
+	.port_set_pause = mv88e6185_port_set_pause,
 	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 	.stats_set_histogram = mv88e6095_g1_stats_set_histogram,
 	.stats_get_sset_count = mv88e6095_stats_get_sset_count,
