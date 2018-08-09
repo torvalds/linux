@@ -1,0 +1,10 @@
+#
+# Phy driver for Cadence MHDP DisplayPort controller
+#
+config PHY_CADENCE_DP
+	tristate "Cadence MHDP DisplayPort PHY driver"
+	depends on OF
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Support for Cadence MHDP DisplayPort PHY.
