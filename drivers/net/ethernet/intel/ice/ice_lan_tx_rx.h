@@ -188,23 +188,25 @@ struct ice_32b_rx_flex_desc_nic {
  * with a specific metadata (profile 7 reserved for HW)
  */
 enum ice_rxdid {
-	ICE_RXDID_START			= 0,
-	ICE_RXDID_LEGACY_0		= ICE_RXDID_START,
-	ICE_RXDID_LEGACY_1,
-	ICE_RXDID_FLX_START,
-	ICE_RXDID_FLEX_NIC		= ICE_RXDID_FLX_START,
-	ICE_RXDID_FLX_LAST		= 63,
-	ICE_RXDID_LAST			= ICE_RXDID_FLX_LAST
+	ICE_RXDID_LEGACY_0		= 0,
+	ICE_RXDID_LEGACY_1		= 1,
+	ICE_RXDID_FLEX_NIC		= 2,
+	ICE_RXDID_FLEX_NIC_2		= 6,
+	ICE_RXDID_HW			= 7,
+	ICE_RXDID_LAST			= 63,
 };
 
 /* Receive Flex Descriptor Rx opcode values */
 #define ICE_RX_OPC_MDID		0x01
 
 /* Receive Descriptor MDID values */
-#define ICE_RX_MDID_FLOW_ID_LOWER	5
-#define ICE_RX_MDID_FLOW_ID_HIGH	6
-#define ICE_RX_MDID_HASH_LOW		56
-#define ICE_RX_MDID_HASH_HIGH		57
+enum ice_flex_rx_mdid {
+	ICE_RX_MDID_FLOW_ID_LOWER	= 5,
+	ICE_RX_MDID_FLOW_ID_HIGH,
+	ICE_RX_MDID_SRC_VSI		= 19,
+	ICE_RX_MDID_HASH_LOW		= 56,
+	ICE_RX_MDID_HASH_HIGH,
+};
 
 /* Rx Flag64 packet flag bits */
 enum ice_rx_flg64_bits {
