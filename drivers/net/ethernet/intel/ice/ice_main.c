@@ -1367,13 +1367,15 @@ static void ice_set_dflt_vsi_ctx(struct ice_vsi_ctx *ctxt)
 	ctxt->info.sw_flags = ICE_AQ_VSI_SW_FLAG_SRC_PRUNE;
 	/* Traffic from VSI can be sent to LAN */
 	ctxt->info.sw_flags2 = ICE_AQ_VSI_SW_FLAG_LAN_ENA;
-	/* By default bits 3 and 4 in port_vlan_flags are 0's which results in
-	 * legacy behavior (show VLAN, DEI, and UP) in descriptor. Also, allow
-	 * all packets untagged/tagged.
+
+	/* By default bits 3 and 4 in vlan_flags are 0's which results in legacy
+	 * behavior (show VLAN, DEI, and UP) in descriptor. Also, allow all
+	 * packets untagged/tagged.
 	 */
-	ctxt->info.port_vlan_flags = ((ICE_AQ_VSI_PVLAN_MODE_ALL &
-				       ICE_AQ_VSI_PVLAN_MODE_M) >>
-				      ICE_AQ_VSI_PVLAN_MODE_S);
+	ctxt->info.vlan_flags = ((ICE_AQ_VSI_VLAN_MODE_ALL &
+				  ICE_AQ_VSI_VLAN_MODE_M) >>
+				 ICE_AQ_VSI_VLAN_MODE_S);
+
 	/* Have 1:1 UP mapping for both ingress/egress tables */
 	table |= ICE_UP_TABLE_TRANSLATE(0, 0);
 	table |= ICE_UP_TABLE_TRANSLATE(1, 1);
@@ -3732,10 +3734,10 @@ static int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 	enum ice_status status;
 
 	/* Here we are configuring the VSI to let the driver add VLAN tags by
-	 * setting port_vlan_flags to ICE_AQ_VSI_PVLAN_MODE_ALL. The actual VLAN
-	 * tag insertion happens in the Tx hot path, in ice_tx_map.
+	 * setting vlan_flags to ICE_AQ_VSI_VLAN_MODE_ALL. The actual VLAN tag
+	 * insertion happens in the Tx hot path, in ice_tx_map.
 	 */
-	ctxt.info.port_vlan_flags = ICE_AQ_VSI_PVLAN_MODE_ALL;
+	ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_ALL;
 
 	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
 	ctxt.vsi_num = vsi->vsi_num;
@@ -3747,7 +3749,7 @@ static int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 		return -EIO;
 	}
 
-	vsi->info.port_vlan_flags = ctxt.info.port_vlan_flags;
+	vsi->info.vlan_flags = ctxt.info.vlan_flags;
 	return 0;
 }
 
@@ -3769,11 +3771,14 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	 */
 	if (ena) {
 		/* Strip VLAN tag from Rx packet and put it in the desc */
-		ctxt.info.port_vlan_flags = ICE_AQ_VSI_PVLAN_EMOD_STR_BOTH;
+		ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_EMOD_STR_BOTH;
 	} else {
 		/* Disable stripping. Leave tag in packet */
-		ctxt.info.port_vlan_flags = ICE_AQ_VSI_PVLAN_EMOD_NOTHING;
+		ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_EMOD_NOTHING;
 	}
+
+	/* Allow all packets untagged/tagged */
+	ctxt.info.vlan_flags |= ICE_AQ_VSI_VLAN_MODE_ALL;
 
 	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
 	ctxt.vsi_num = vsi->vsi_num;
@@ -3785,7 +3790,7 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 		return -EIO;
 	}
 
-	vsi->info.port_vlan_flags = ctxt.info.port_vlan_flags;
+	vsi->info.vlan_flags = ctxt.info.vlan_flags;
 	return 0;
 }
 
