@@ -802,6 +802,21 @@ static void __blk_release_queue(struct work_struct *work)
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
 
+	if (!blk_queue_dead(q)) {
+		/*
+		 * Last reference was dropped without having called
+		 * blk_cleanup_queue().
+		 */
+		WARN_ONCE(blk_queue_init_done(q),
+			  "request queue %p has been registered but blk_cleanup_queue() has not been called for that queue\n",
+			  q);
+		blk_exit_queue(q);
+	}
+
+	WARN(blkg_root_lookup(q),
+	     "request queue %p is being released but it has not yet been removed from the blkcg controller\n",
+	     q);
+
 	blk_free_queue_stats(q->stats);
 
 	blk_exit_rl(q, &q->root_rl);
