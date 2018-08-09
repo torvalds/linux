@@ -32,11 +32,20 @@
 			reg = <0x0 0x0>;
 			clocks = <&cru ARMCLK>;
 		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a35", "arm,armv8";
+			reg = <0x0 0x1>;
+			clocks = <&cru ARMCLK>;
+		};
 	};
 
 	arm-pmu {
 		compatible = "arm,cortex-a53-pmu";
-		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
 	timer {
@@ -45,6 +54,14 @@
 			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW 0>,
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW 0>,
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW 0>;
+		arm,no-tick-in-suspend;
+	};
+
+	xin24m: xin24m {
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "xin24m";
+		#clock-cells = <0>;
 	};
 
 	gic: interrupt-controller@ff100000 {
@@ -68,7 +85,7 @@
 		};
 		ppi-partitions {
 			ppi_cluster0: interrupt-partition-0 {
-				affinity = <&cpu0>;
+				affinity = <&cpu0, &cpu1>;
 			};
 		};
 	};
