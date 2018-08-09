@@ -385,11 +385,12 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			return err;
 	}
 
+	chip->ports[port].cmode = cmode;
+
 	return 0;
 }
 
-/* mv88e6185 only has 3 bits for CMODE */
-static int mv88e6185_port_get_cmode(struct mv88e6xxx_chip *chip, int port)
+int mv88e6185_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 {
 	int err;
 	u16 reg;
@@ -398,10 +399,12 @@ static int mv88e6185_port_get_cmode(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	return reg & MV88E6185_PORT_STS_CMODE_MASK;
+	*cmode = reg & MV88E6185_PORT_STS_CMODE_MASK;
+
+	return 0;
 }
 
-int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
+int mv88e6352_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 {
 	int err;
 	u16 reg;
@@ -457,10 +460,7 @@ int mv88e6185_port_link_state(struct mv88e6xxx_chip *chip, int port,
 			      struct phylink_link_state *state)
 {
 	if (state->interface == PHY_INTERFACE_MODE_1000BASEX) {
-		int cmode = mv88e6185_port_get_cmode(chip, port);
-
-		if (cmode < 0)
-			return cmode;
+		u8 cmode = chip->ports[port].cmode;
 
 		/* When a port is in "Cross-chip serdes" mode, it uses
 		 * 1000Base-X full duplex mode, but there is no automatic

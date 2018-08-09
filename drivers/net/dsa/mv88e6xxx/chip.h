@@ -197,6 +197,7 @@ struct mv88e6xxx_port {
 	u64 atu_full_violation;
 	u64 vtu_member_violation;
 	u64 vtu_miss_violation;
+	u8 cmode;
 };
 
 struct mv88e6xxx_chip {
@@ -390,6 +391,7 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_cmode)(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
+	int (*port_get_cmode)(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
 
 	/* Some devices have a per port register indicating what is
 	 * the upstream port this port should forward to.
