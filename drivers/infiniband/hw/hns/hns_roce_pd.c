@@ -35,7 +35,7 @@
 
 static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
 {
-	return hns_roce_bitmap_alloc(&hr_dev->pd_bitmap, pdn);
+	return hns_roce_bitmap_alloc(&hr_dev->pd_bitmap, pdn) ? -ENOMEM : 0;
 }
 
 static void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn)

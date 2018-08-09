@@ -114,7 +114,10 @@ static int hns_roce_reserve_range_qp(struct hns_roce_dev *hr_dev, int cnt,
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 
-	return hns_roce_bitmap_alloc_range(&qp_table->bitmap, cnt, align, base);
+	return hns_roce_bitmap_alloc_range(&qp_table->bitmap, cnt, align,
+					   base) ?
+		       -ENOMEM :
+		       0;
 }
 
 enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
