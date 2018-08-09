@@ -176,14 +176,9 @@ config USB_STORAGE_CYPRESS_ATACB
 
 config USB_STORAGE_ENE_UB6250
 	tristate "USB ENE card reader support"
-	depends on SCSI
 	---help---
 	  Say Y here if you wish to control a ENE SD/MS Card reader.
 	  Note that this driver does not support SM cards.
-
-	  This option depends on 'SCSI' support being enabled, but you
-	  probably also need 'SCSI device support: SCSI disk support'
-	  (BLK_DEV_SD) for most USB storage devices.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ums-eneub6250.
