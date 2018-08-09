@@ -362,6 +362,7 @@ struct mlxsw_fw_rev {
 	u16 major;
 	u16 minor;
 	u16 subminor;
+	u16 can_reset_minor;
 };
 
 struct mlxsw_bus_info {

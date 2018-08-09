@@ -79,11 +79,13 @@
 #define MLXSW_SP1_FWREV_MAJOR 13
 #define MLXSW_SP1_FWREV_MINOR 1702
 #define MLXSW_SP1_FWREV_SUBMINOR 6
+#define MLXSW_SP1_FWREV_CAN_RESET_MINOR 1702
 
 static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
 	.major = MLXSW_SP1_FWREV_MAJOR,
 	.minor = MLXSW_SP1_FWREV_MINOR,
 	.subminor = MLXSW_SP1_FWREV_SUBMINOR,
+	.can_reset_minor = MLXSW_SP1_FWREV_CAN_RESET_MINOR,
 };
 
 #define MLXSW_SP1_FW_FILENAME \
@@ -380,7 +382,16 @@ static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 
 	err = mlxsw_sp_firmware_flash(mlxsw_sp, firmware);
 	release_firmware(firmware);
-	return err;
+	if (err)
+		dev_err(mlxsw_sp->bus_info->dev, "Could not upgrade firmware\n");
+
+	/* On FW flash success, tell the caller FW reset is needed
+	 * if current FW supports it.
+	 */
+	if (rev->minor >= req_rev->can_reset_minor)
+		return err ? err : -EAGAIN;
+	else
+		return 0;
 }
 
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
@@ -3734,10 +3745,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->bus_info = mlxsw_bus_info;
 
 	err = mlxsw_sp_fw_rev_validate(mlxsw_sp);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Could not upgrade firmware\n");
+	if (err)
 		return err;
-	}
 
 	err = mlxsw_sp_base_mac_get(mlxsw_sp);
 	if (err) {
