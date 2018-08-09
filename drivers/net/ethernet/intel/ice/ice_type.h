@@ -34,9 +34,14 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 enum ice_aq_res_ids {
 	ICE_NVM_RES_ID = 1,
 	ICE_SPD_RES_ID,
-	ICE_GLOBAL_CFG_LOCK_RES_ID,
-	ICE_CHANGE_LOCK_RES_ID
+	ICE_CHANGE_LOCK_RES_ID,
+	ICE_GLOBAL_CFG_LOCK_RES_ID
 };
+
+/* FW update timeout definitions are in milliseconds */
+#define ICE_NVM_TIMEOUT			180000
+#define ICE_CHANGE_LOCK_TIMEOUT		1000
+#define ICE_GLOBAL_CFG_LOCK_TIMEOUT	3000
 
 enum ice_aq_res_access_type {
 	ICE_RES_READ = 1,
