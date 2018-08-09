@@ -35,6 +35,22 @@ static int mv88e6352_serdes_write(struct mv88e6xxx_chip *chip, int reg,
 					reg, val);
 }
 
+static int mv88e6390_serdes_read(struct mv88e6xxx_chip *chip,
+				 int lane, int device, int reg, u16 *val)
+{
+	int reg_c45 = MII_ADDR_C45 | device << 16 | reg;
+
+	return mv88e6xxx_phy_read(chip, lane, reg_c45, val);
+}
+
+static int mv88e6390_serdes_write(struct mv88e6xxx_chip *chip,
+				  int lane, int device, int reg, u16 val)
+{
+	int reg_c45 = MII_ADDR_C45 | device << 16 | reg;
+
+	return mv88e6xxx_phy_write(chip, lane, reg_c45, val);
+}
+
 static int mv88e6352_serdes_power_set(struct mv88e6xxx_chip *chip, bool on)
 {
 	u16 val, new_val;
@@ -298,12 +314,11 @@ static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, int lane,
 				      bool on)
 {
 	u16 val, new_val;
-	int reg_c45;
 	int err;
 
-	reg_c45 = MII_ADDR_C45 | MV88E6390_SERDES_DEVICE |
-		MV88E6390_PCS_CONTROL_1;
-	err = mv88e6xxx_phy_read(chip, lane, reg_c45, &val);
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_PCS_CONTROL_1, &val);
+
 	if (err)
 		return err;
 
@@ -315,7 +330,8 @@ static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, int lane,
 		new_val = val | MV88E6390_PCS_CONTROL_1_PDOWN;
 
 	if (val != new_val)
-		err = mv88e6xxx_phy_write(chip, lane, reg_c45, new_val);
+		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+					     MV88E6390_PCS_CONTROL_1, new_val);
 
 	return err;
 }
@@ -325,12 +341,10 @@ static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, int lane,
 					bool on)
 {
 	u16 val, new_val;
-	int reg_c45;
 	int err;
 
-	reg_c45 = MII_ADDR_C45 | MV88E6390_SERDES_DEVICE |
-		MV88E6390_SGMII_CONTROL;
-	err = mv88e6xxx_phy_read(chip, lane, reg_c45, &val);
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_CONTROL, &val);
 	if (err)
 		return err;
 
@@ -342,7 +356,8 @@ static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, int lane,
 		new_val = val | MV88E6390_SGMII_CONTROL_PDOWN;
 
 	if (val != new_val)
-		err = mv88e6xxx_phy_write(chip, lane, reg_c45, new_val);
+		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+					     MV88E6390_SGMII_CONTROL, new_val);
 
 	return err;
 }
