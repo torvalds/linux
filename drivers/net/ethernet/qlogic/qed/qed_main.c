@@ -948,13 +948,14 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 		params->eth_pf_params.num_arfs_filters = 0;
 
 	/* In case we might support RDMA, don't allow qede to be greedy
-	 * with the L2 contexts. Allow for 64 queues [rx, tx, xdp] per hwfn.
+	 * with the L2 contexts. Allow for 64 queues [rx, tx cos, xdp]
+	 * per hwfn.
 	 */
 	if (QED_IS_RDMA_PERSONALITY(QED_LEADING_HWFN(cdev))) {
 		u16 *num_cons;
 
 		num_cons = &params->eth_pf_params.num_cons;
-		*num_cons = min_t(u16, *num_cons, 192);
+		*num_cons = min_t(u16, *num_cons, QED_MAX_L2_CONS);
 	}
 
 	for (i = 0; i < cdev->num_hwfns; i++) {
