@@ -1483,7 +1483,7 @@ enum ice_status ice_get_link_status(struct ice_port_info *pi, bool *link_up)
 	struct ice_phy_info *phy_info;
 	enum ice_status status = 0;
 
-	if (!pi)
+	if (!pi || !link_up)
 		return ICE_ERR_PARAM;
 
 	phy_info = &pi->phy;
