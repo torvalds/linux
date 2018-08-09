@@ -605,39 +605,17 @@ static void irqsoff_tracer_stop(struct trace_array *tr)
 /*
  * We are only interested in hardirq on/off events:
  */
-static void tracer_hardirqs_on(void *none, unsigned long a0, unsigned long a1)
+void tracer_hardirqs_on(unsigned long a0, unsigned long a1)
 {
 	unsigned int pc = preempt_count();
-
-	/*
-	 * Tracepoint probes are expected to be called with preempt disabled,
-	 * We don't care about being called with preempt disabled but we need
-	 * to know in the future if that changes so we can remove the next
-	 * preempt_enable.
-	 */
-	WARN_ON_ONCE(pc < PREEMPT_DISABLE_OFFSET);
-
-	/* Use PREEMPT_DISABLE_OFFSET to handle !CONFIG_PREEMPT cases */
-	pc -= PREEMPT_DISABLE_OFFSET;
 
 	if (!preempt_trace(pc) && irq_trace())
 		stop_critical_timing(a0, a1, pc);
 }
 
-static void tracer_hardirqs_off(void *none, unsigned long a0, unsigned long a1)
+void tracer_hardirqs_off(unsigned long a0, unsigned long a1)
 {
 	unsigned int pc = preempt_count();
-
-	/*
-	 * Tracepoint probes are expected to be called with preempt disabled,
-	 * We don't care about being called with preempt disabled but we need
-	 * to know in the future if that changes so we can remove the next
-	 * preempt_enable.
-	 */
-	WARN_ON_ONCE(pc < PREEMPT_DISABLE_OFFSET);
-
-	/* Use PREEMPT_DISABLE_OFFSET to handle !CONFIG_PREEMPT cases */
-	pc -= PREEMPT_DISABLE_OFFSET;
 
 	if (!preempt_trace(pc) && irq_trace())
 		start_critical_timing(a0, a1, pc);
@@ -647,15 +625,11 @@ static int irqsoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_IRQS_OFF;
 
-	register_trace_irq_disable(tracer_hardirqs_off, NULL);
-	register_trace_irq_enable(tracer_hardirqs_on, NULL);
 	return __irqsoff_tracer_init(tr);
 }
 
 static void irqsoff_tracer_reset(struct trace_array *tr)
 {
-	unregister_trace_irq_disable(tracer_hardirqs_off, NULL);
-	unregister_trace_irq_enable(tracer_hardirqs_on, NULL);
 	__irqsoff_tracer_reset(tr);
 }
 
@@ -681,7 +655,7 @@ static struct tracer irqsoff_tracer __read_mostly =
 #endif /*  CONFIG_IRQSOFF_TRACER */
 
 #ifdef CONFIG_PREEMPT_TRACER
-static void tracer_preempt_on(void *none, unsigned long a0, unsigned long a1)
+void tracer_preempt_on(unsigned long a0, unsigned long a1)
 {
 	int pc = preempt_count();
 
@@ -689,7 +663,7 @@ static void tracer_preempt_on(void *none, unsigned long a0, unsigned long a1)
 		stop_critical_timing(a0, a1, pc);
 }
 
-static void tracer_preempt_off(void *none, unsigned long a0, unsigned long a1)
+void tracer_preempt_off(unsigned long a0, unsigned long a1)
 {
 	int pc = preempt_count();
 
@@ -701,15 +675,11 @@ static int preemptoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_PREEMPT_OFF;
 
-	register_trace_preempt_disable(tracer_preempt_off, NULL);
-	register_trace_preempt_enable(tracer_preempt_on, NULL);
 	return __irqsoff_tracer_init(tr);
 }
 
 static void preemptoff_tracer_reset(struct trace_array *tr)
 {
-	unregister_trace_preempt_disable(tracer_preempt_off, NULL);
-	unregister_trace_preempt_enable(tracer_preempt_on, NULL);
 	__irqsoff_tracer_reset(tr);
 }
 
@@ -740,21 +710,11 @@ static int preemptirqsoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_IRQS_OFF | TRACER_PREEMPT_OFF;
 
-	register_trace_irq_disable(tracer_hardirqs_off, NULL);
-	register_trace_irq_enable(tracer_hardirqs_on, NULL);
-	register_trace_preempt_disable(tracer_preempt_off, NULL);
-	register_trace_preempt_enable(tracer_preempt_on, NULL);
-
 	return __irqsoff_tracer_init(tr);
 }
 
 static void preemptirqsoff_tracer_reset(struct trace_array *tr)
 {
-	unregister_trace_irq_disable(tracer_hardirqs_off, NULL);
-	unregister_trace_irq_enable(tracer_hardirqs_on, NULL);
-	unregister_trace_preempt_disable(tracer_preempt_off, NULL);
-	unregister_trace_preempt_enable(tracer_preempt_on, NULL);
-
 	__irqsoff_tracer_reset(tr);
 }
 
