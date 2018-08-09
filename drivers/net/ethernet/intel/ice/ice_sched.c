@@ -17,7 +17,6 @@ ice_sched_add_root_node(struct ice_port_info *pi,
 {
 	struct ice_sched_node *root;
 	struct ice_hw *hw;
-	u16 max_children;
 
 	if (!pi)
 		return ICE_ERR_PARAM;
@@ -28,8 +27,8 @@ ice_sched_add_root_node(struct ice_port_info *pi,
 	if (!root)
 		return ICE_ERR_NO_MEMORY;
 
-	max_children = le16_to_cpu(hw->layer_info[0].max_children);
-	root->children = devm_kcalloc(ice_hw_to_dev(hw), max_children,
+	/* coverity[suspicious_sizeof] */
+	root->children = devm_kcalloc(ice_hw_to_dev(hw), hw->max_children[0],
 				      sizeof(*root), GFP_KERNEL);
 	if (!root->children) {
 		devm_kfree(ice_hw_to_dev(hw), root);
@@ -100,7 +99,6 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 	struct ice_sched_node *parent;
 	struct ice_sched_node *node;
 	struct ice_hw *hw;
-	u16 max_children;
 
 	if (!pi)
 		return ICE_ERR_PARAM;
@@ -120,9 +118,10 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 	node = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return ICE_ERR_NO_MEMORY;
-	max_children = le16_to_cpu(hw->layer_info[layer].max_children);
-	if (max_children) {
-		node->children = devm_kcalloc(ice_hw_to_dev(hw), max_children,
+	if (hw->max_children[layer]) {
+		/* coverity[suspicious_sizeof] */
+		node->children = devm_kcalloc(ice_hw_to_dev(hw),
+					      hw->max_children[layer],
 					      sizeof(*node), GFP_KERNEL);
 		if (!node->children) {
 			devm_kfree(ice_hw_to_dev(hw), node);
@@ -192,14 +191,17 @@ ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_node *parent,
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;
+
 	buf->hdr.parent_teid = parent->info.node_teid;
 	buf->hdr.num_elems = cpu_to_le16(num_nodes);
 	for (i = 0; i < num_nodes; i++)
 		buf->teid[i] = cpu_to_le32(node_teids[i]);
+
 	status = ice_aq_delete_sched_elems(hw, 1, buf, buf_size,
 					   &num_groups_removed, NULL);
 	if (status || num_groups_removed != 1)
 		ice_debug(hw, ICE_DBG_SCHED, "remove elements failed\n");
+
 	devm_kfree(ice_hw_to_dev(hw), buf);
 	return status;
 }
@@ -592,13 +594,16 @@ static void ice_sched_clear_port(struct ice_port_info *pi)
  */
 void ice_sched_cleanup_all(struct ice_hw *hw)
 {
-	if (!hw || !hw->port_info)
+	if (!hw)
 		return;
 
-	if (hw->layer_info)
+	if (hw->layer_info) {
 		devm_kfree(ice_hw_to_dev(hw), hw->layer_info);
+		hw->layer_info = NULL;
+	}
 
-	ice_sched_clear_port(hw->port_info);
+	if (hw->port_info)
+		ice_sched_clear_port(hw->port_info);
 
 	hw->num_tx_sched_layers = 0;
 	hw->num_tx_sched_phys_layers = 0;
@@ -671,9 +676,13 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 			ICE_AQC_ELEM_VALID_EIR;
 		buf->generic[i].data.generic = 0;
 		buf->generic[i].data.cir_bw.bw_profile_idx =
-			ICE_SCHED_DFLT_RL_PROF_ID;
+			cpu_to_le16(ICE_SCHED_DFLT_RL_PROF_ID);
+		buf->generic[i].data.cir_bw.bw_alloc =
+			cpu_to_le16(ICE_SCHED_DFLT_BW_WT);
 		buf->generic[i].data.eir_bw.bw_profile_idx =
-			ICE_SCHED_DFLT_RL_PROF_ID;
+			cpu_to_le16(ICE_SCHED_DFLT_RL_PROF_ID);
+		buf->generic[i].data.eir_bw.bw_alloc =
+			cpu_to_le16(ICE_SCHED_DFLT_BW_WT);
 	}
 
 	status = ice_aq_add_sched_elems(hw, 1, buf, buf_size,
@@ -697,7 +706,6 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 
 		teid = le32_to_cpu(buf->generic[i].node_teid);
 		new_node = ice_sched_find_node_by_teid(parent, teid);
-
 		if (!new_node) {
 			ice_debug(hw, ICE_DBG_SCHED,
 				  "Node is missing for teid =%d\n", teid);
@@ -710,7 +718,6 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 		/* add it to previous node sibling pointer */
 		/* Note: siblings are not linked across branches */
 		prev = ice_sched_get_first_node(hw, tc_node, layer);
-
 		if (prev && prev != new_node) {
 			while (prev->sibling)
 				prev = prev->sibling;
@@ -760,8 +767,7 @@ ice_sched_add_nodes_to_layer(struct ice_port_info *pi,
 		return ICE_ERR_PARAM;
 
 	/* max children per node per layer */
-	max_child_nodes =
-	    le16_to_cpu(hw->layer_info[parent->tx_sched_layer].max_children);
+	max_child_nodes = hw->max_children[parent->tx_sched_layer];
 
 	/* current number of children + required nodes exceed max children ? */
 	if ((parent->num_children + num_nodes) > max_child_nodes) {
@@ -851,78 +857,6 @@ static u8 ice_sched_get_vsi_layer(struct ice_hw *hw)
 }
 
 /**
- * ice_sched_get_num_nodes_per_layer - Get the total number of nodes per layer
- * @pi: pointer to the port info struct
- * @layer: layer number
- *
- * This function calculates the number of nodes present in the scheduler tree
- * including all the branches for a given layer
- */
-static u16
-ice_sched_get_num_nodes_per_layer(struct ice_port_info *pi, u8 layer)
-{
-	struct ice_hw *hw;
-	u16 num_nodes = 0;
-	u8 i;
-
-	if (!pi)
-		return num_nodes;
-
-	hw = pi->hw;
-
-	/* Calculate the number of nodes for all TCs */
-	for (i = 0; i < pi->root->num_children; i++) {
-		struct ice_sched_node *tc_node, *node;
-
-		tc_node = pi->root->children[i];
-
-		/* Get the first node */
-		node = ice_sched_get_first_node(hw, tc_node, layer);
-		if (!node)
-			continue;
-
-		/* count the siblings */
-		while (node) {
-			num_nodes++;
-			node = node->sibling;
-		}
-	}
-
-	return num_nodes;
-}
-
-/**
- * ice_sched_val_max_nodes - check max number of nodes reached or not
- * @pi: port information structure
- * @new_num_nodes_per_layer: pointer to the new number of nodes array
- *
- * This function checks whether the scheduler tree layers have enough space to
- * add new nodes
- */
-static enum ice_status
-ice_sched_validate_for_max_nodes(struct ice_port_info *pi,
-				 u16 *new_num_nodes_per_layer)
-{
-	struct ice_hw *hw = pi->hw;
-	u8 i, qg_layer;
-	u16 num_nodes;
-
-	qg_layer = ice_sched_get_qgrp_layer(hw);
-
-	/* walk through all the layers from SW entry point to qgroup layer */
-	for (i = hw->sw_entry_point_layer; i <= qg_layer; i++) {
-		num_nodes = ice_sched_get_num_nodes_per_layer(pi, i);
-		if (num_nodes + new_num_nodes_per_layer[i] >
-		    le16_to_cpu(hw->layer_info[i].max_pf_nodes)) {
-			ice_debug(hw, ICE_DBG_SCHED,
-				  "max nodes reached for layer = %d\n", i);
-			return ICE_ERR_CFG;
-		}
-	}
-	return 0;
-}
-
-/**
  * ice_rm_dflt_leaf_node - remove the default leaf node in the tree
  * @pi: port information structure
  *
@@ -1003,14 +937,12 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 	hw = pi->hw;
 
 	/* Query the Default Topology from FW */
-	buf = devm_kcalloc(ice_hw_to_dev(hw), ICE_TXSCHED_MAX_BRANCHES,
-			   sizeof(*buf), GFP_KERNEL);
+	buf = devm_kzalloc(ice_hw_to_dev(hw), ICE_AQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;
 
 	/* Query default scheduling tree topology */
-	status = ice_aq_get_dflt_topo(hw, pi->lport, buf,
-				      sizeof(*buf) * ICE_TXSCHED_MAX_BRANCHES,
+	status = ice_aq_get_dflt_topo(hw, pi->lport, buf, ICE_AQ_MAX_BUF_LEN,
 				      &num_branches, NULL);
 	if (status)
 		goto err_init_port;
@@ -1097,6 +1029,8 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 {
 	struct ice_aqc_query_txsched_res_resp *buf;
 	enum ice_status status = 0;
+	__le16 max_sibl;
+	u8 i;
 
 	if (hw->layer_info)
 		return status;
@@ -1115,7 +1049,20 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 	hw->flattened_layers = buf->sched_props.flattening_bitmap;
 	hw->max_cgds = buf->sched_props.max_pf_cgds;
 
-	 hw->layer_info = devm_kmemdup(ice_hw_to_dev(hw), buf->layer_props,
+	/* max sibling group size of current layer refers to the max children
+	 * of the below layer node.
+	 * layer 1 node max children will be layer 2 max sibling group size
+	 * layer 2 node max children will be layer 3 max sibling group size
+	 * and so on. This array will be populated from root (index 0) to
+	 * qgroup layer 7. Leaf node has no children.
+	 */
+	for (i = 0; i < hw->num_tx_sched_layers; i++) {
+		max_sibl = buf->layer_props[i].max_sibl_grp_sz;
+		hw->max_children[i] = le16_to_cpu(max_sibl);
+	}
+
+	hw->layer_info = (struct ice_aqc_layer_props *)
+			  devm_kmemdup(ice_hw_to_dev(hw), buf->layer_props,
 				       (hw->num_tx_sched_layers *
 					sizeof(*hw->layer_info)),
 				       GFP_KERNEL);
@@ -1202,7 +1149,7 @@ ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_id, u8 tc,
 	u8 qgrp_layer;
 
 	qgrp_layer = ice_sched_get_qgrp_layer(pi->hw);
-	max_children = le16_to_cpu(pi->hw->layer_info[qgrp_layer].max_children);
+	max_children = pi->hw->max_children[qgrp_layer];
 
 	list_elem = ice_sched_get_vsi_info_entry(pi, vsi_id);
 	if (!list_elem)
@@ -1278,10 +1225,8 @@ ice_sched_calc_vsi_child_nodes(struct ice_hw *hw, u16 num_qs, u16 *num_nodes)
 
 	/* calculate num nodes from q group to VSI layer */
 	for (i = qgl; i > vsil; i--) {
-		u16 max_children = le16_to_cpu(hw->layer_info[i].max_children);
-
 		/* round to the next integer if there is a remainder */
-		num = DIV_ROUND_UP(num, max_children);
+		num = DIV_ROUND_UP(num, hw->max_children[i]);
 
 		/* need at least one node */
 		num_nodes[i] = num ? num : 1;
@@ -1311,16 +1256,13 @@ ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id,
 	u16 num_added = 0;
 	u8 i, qgl, vsil;
 
-	status = ice_sched_validate_for_max_nodes(pi, num_nodes);
-	if (status)
-		return status;
-
 	qgl = ice_sched_get_qgrp_layer(hw);
 	vsil = ice_sched_get_vsi_layer(hw);
 	parent = ice_sched_get_vsi_node(hw, tc_node, vsi_id);
 	for (i = vsil + 1; i <= qgl; i++) {
 		if (!parent)
 			return ICE_ERR_CFG;
+
 		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent, i,
 						      num_nodes[i],
 						      &first_node_teid,
@@ -1398,8 +1340,8 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 				 struct ice_sched_node *tc_node, u16 *num_nodes)
 {
 	struct ice_sched_node *node;
-	u16 max_child;
-	u8 i, vsil;
+	u8 vsil;
+	int i;
 
 	vsil = ice_sched_get_vsi_layer(hw);
 	for (i = vsil; i >= hw->sw_entry_point_layer; i--)
@@ -1412,12 +1354,10 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 			/* If intermediate nodes are reached max children
 			 * then add a new one.
 			 */
-			node = ice_sched_get_first_node(hw, tc_node, i);
-			max_child = le16_to_cpu(hw->layer_info[i].max_children);
-
+			node = ice_sched_get_first_node(hw, tc_node, (u8)i);
 			/* scan all the siblings */
 			while (node) {
-				if (node->num_children < max_child)
+				if (node->num_children < hw->max_children[i])
 					break;
 				node = node->sibling;
 			}
@@ -1451,10 +1391,6 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_id,
 	if (!pi)
 		return ICE_ERR_PARAM;
 
-	status = ice_sched_validate_for_max_nodes(pi, num_nodes);
-	if (status)
-		return status;
-
 	vsil = ice_sched_get_vsi_layer(pi->hw);
 	for (i = pi->hw->sw_entry_point_layer; i <= vsil; i++) {
 		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent,
@@ -1479,6 +1415,7 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_id,
 		if (i == vsil)
 			parent->vsi_id = vsi_id;
 	}
+
 	return 0;
 }
 
@@ -1633,9 +1570,11 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_id, u8 tc, u16 maxqs,
 		status = ice_sched_add_vsi_to_topo(pi, vsi_id, tc);
 		if (status)
 			return status;
+
 		vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_id);
 		if (!vsi_node)
 			return ICE_ERR_CFG;
+
 		vsi->vsi_node[tc] = vsi_node;
 		vsi_node->in_use = true;
 	}

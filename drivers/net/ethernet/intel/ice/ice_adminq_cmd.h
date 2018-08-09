@@ -771,9 +771,8 @@ struct ice_aqc_layer_props {
 	u8 chunk_size;
 	__le16 max_device_nodes;
 	__le16 max_pf_nodes;
-	u8 rsvd0[2];
-	__le16 max_shared_rate_lmtr;
-	__le16 max_children;
+	u8 rsvd0[4];
+	__le16 max_sibl_grp_sz;
 	__le16 max_cir_rl_profiles;
 	__le16 max_eir_rl_profiles;
 	__le16 max_srl_profiles;

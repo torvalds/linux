@@ -204,6 +204,7 @@ enum ice_agg_type {
 };
 
 #define ICE_SCHED_DFLT_RL_PROF_ID	0
+#define ICE_SCHED_DFLT_BW_WT		1
 
 /* vsi type list entry to locate corresponding vsi/ag nodes */
 struct ice_sched_vsi_info {
@@ -286,6 +287,7 @@ struct ice_hw {
 	u8 flattened_layers;
 	u8 max_cgds;
 	u8 sw_entry_point_layer;
+	u16 max_children[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 
 	u8 evb_veb;		/* true for VEB, false for VEPA */
 	struct ice_bus_info bus;

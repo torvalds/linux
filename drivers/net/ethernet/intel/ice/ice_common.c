@@ -527,6 +527,13 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_sched;
 
+	/* need a valid SW entry point to build a Tx tree */
+	if (!hw->sw_entry_point_layer) {
+		ice_debug(hw, ICE_DBG_SCHED, "invalid sw entry point\n");
+		status = ICE_ERR_CFG;
+		goto err_unroll_sched;
+	}
+
 	status = ice_init_fltr_mgmt_struct(hw);
 	if (status)
 		goto err_unroll_sched;
