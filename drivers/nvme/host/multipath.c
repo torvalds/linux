@@ -22,7 +22,7 @@ MODULE_PARM_DESC(multipath,
 
 inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
 {
-	return multipath && (ctrl->subsys->cmic & (1 << 3));
+	return multipath && ctrl->subsys && (ctrl->subsys->cmic & (1 << 3));
 }
 
 /*

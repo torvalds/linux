@@ -211,14 +211,18 @@ static void nvmet_file_execute_rw_buffered_io(struct nvmet_req *req)
 	queue_work(buffered_io_wq, &req->f.work);
 }
 
+u16 nvmet_file_flush(struct nvmet_req *req)
+{
+	if (vfs_fsync(req->ns->file, 1) < 0)
+		return NVME_SC_INTERNAL | NVME_SC_DNR;
+	return 0;
+}
+
 static void nvmet_file_flush_work(struct work_struct *w)
 {
 	struct nvmet_req *req = container_of(w, struct nvmet_req, f.work);
-	int ret;
 
-	ret = vfs_fsync(req->ns->file, 1);
-
-	nvmet_req_complete(req, ret < 0 ? NVME_SC_INTERNAL | NVME_SC_DNR : 0);
+	nvmet_req_complete(req, nvmet_file_flush(req));
 }
 
 static void nvmet_file_execute_flush(struct nvmet_req *req)

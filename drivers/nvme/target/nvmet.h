@@ -58,6 +58,7 @@ struct nvmet_ns {
 	struct percpu_ref	ref;
 	struct block_device	*bdev;
 	struct file		*file;
+	bool			readonly;
 	u32			nsid;
 	u32			blksize_shift;
 	loff_t			size;
@@ -429,6 +430,9 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns);
 int nvmet_file_ns_enable(struct nvmet_ns *ns);
 void nvmet_bdev_ns_disable(struct nvmet_ns *ns);
 void nvmet_file_ns_disable(struct nvmet_ns *ns);
+u16 nvmet_bdev_flush(struct nvmet_req *req);
+u16 nvmet_file_flush(struct nvmet_req *req);
+void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid);
 
 static inline u32 nvmet_rw_len(struct nvmet_req *req)
 {
