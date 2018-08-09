@@ -52,6 +52,9 @@
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_eth_if.h>
 
+#include <net/pkt_cls.h>
+#include <net/tc_act/tc_gact.h>
+
 #define QEDE_MAJOR_VERSION		8
 #define QEDE_MINOR_VERSION		33
 #define QEDE_REVISION_VERSION		0
@@ -469,7 +472,7 @@ void qede_arfs_filter_op(void *dev, void *filter, u8 fw_rc);
 void qede_free_arfs(struct qede_dev *edev);
 int qede_alloc_arfs(struct qede_dev *edev);
 int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info);
-int qede_del_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info);
+int qede_delete_flow_filter(struct qede_dev *edev, u64 cookie);
 int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd);
 int qede_get_cls_rule_all(struct qede_dev *edev, struct ethtool_rxnfc *info,
 			  u32 *rule_locs);
@@ -535,6 +538,8 @@ bool qede_has_rx_work(struct qede_rx_queue *rxq);
 int qede_txq_has_work(struct qede_tx_queue *txq);
 void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, u8 count);
 void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
+int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
+			    struct tc_cls_flower_offload *f);
 
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))

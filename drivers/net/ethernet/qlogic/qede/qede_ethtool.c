@@ -1285,7 +1285,7 @@ static int qede_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 		rc = qede_add_cls_rule(edev, info);
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
-		rc = qede_del_cls_rule(edev, info);
+		rc = qede_delete_flow_filter(edev, info->fs.location);
 		break;
 	default:
 		DP_INFO(edev, "Command parameters not supported\n");

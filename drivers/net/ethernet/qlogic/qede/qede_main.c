@@ -557,12 +557,66 @@ int qede_setup_tc(struct net_device *ndev, u8 num_tc)
 }
 
 static int
+qede_set_flower(struct qede_dev *edev, struct tc_cls_flower_offload *f,
+		__be16 proto)
+{
+	switch (f->command) {
+	case TC_CLSFLOWER_REPLACE:
+		return qede_add_tc_flower_fltr(edev, proto, f);
+	case TC_CLSFLOWER_DESTROY:
+		return qede_delete_flow_filter(edev, f->cookie);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int qede_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				  void *cb_priv)
+{
+	struct tc_cls_flower_offload *f;
+	struct qede_dev *edev = cb_priv;
+
+	if (!tc_cls_can_offload_and_chain0(edev->ndev, type_data))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		f = type_data;
+		return qede_set_flower(edev, f, f->common.protocol);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int qede_setup_tc_block(struct qede_dev *edev,
+			       struct tc_block_offload *f)
+{
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block,
+					     qede_setup_tc_block_cb,
+					     edev, edev, f->extack);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block, qede_setup_tc_block_cb, edev);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int
 qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
 		      void *type_data)
 {
+	struct qede_dev *edev = netdev_priv(dev);
 	struct tc_mqprio_qopt *mqprio;
 
 	switch (type) {
+	case TC_SETUP_BLOCK:
+		return qede_setup_tc_block(edev, type_data);
 	case TC_SETUP_QDISC_MQPRIO:
 		mqprio = type_data;
 
@@ -727,7 +781,7 @@ static void qede_init_ndev(struct qede_dev *edev)
 	/* user-changeble features */
 	hw_features = NETIF_F_GRO | NETIF_F_GRO_HW | NETIF_F_SG |
 		      NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		      NETIF_F_TSO | NETIF_F_TSO6;
+		      NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_TC;
 
 	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1)
 		hw_features |= NETIF_F_NTUPLE;
