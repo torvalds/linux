@@ -109,13 +109,9 @@ static const struct always_present_id always_present_ids[] = {
 
 bool acpi_device_always_present(struct acpi_device *adev)
 {
-	u32 *status = (u32 *)&adev->status;
-	u32 old_status = *status;
 	bool ret = false;
 	unsigned int i;
 
-	/* acpi_match_device_ids checks status, so set it to default */
-	*status = ACPI_STA_DEFAULT;
 	for (i = 0; i < ARRAY_SIZE(always_present_ids); i++) {
 		if (acpi_match_device_ids(adev, always_present_ids[i].hid))
 			continue;
@@ -131,15 +127,9 @@ bool acpi_device_always_present(struct acpi_device *adev)
 		    !dmi_check_system(always_present_ids[i].dmi_ids))
 			continue;
 
-		if (old_status != ACPI_STA_DEFAULT) /* Log only once */
-			dev_info(&adev->dev,
-				 "Device [%s] is in always present list\n",
-				 adev->pnp.bus_id);
-
 		ret = true;
 		break;
 	}
-	*status = old_status;
 
 	return ret;
 }
