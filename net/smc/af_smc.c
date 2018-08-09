@@ -1122,6 +1122,8 @@ static void smc_tcp_listen_work(struct work_struct *work)
 		sock_hold(lsk); /* sock_put in smc_listen_work */
 		INIT_WORK(&new_smc->smc_listen_work, smc_listen_work);
 		smc_copy_sock_settings_to_smc(new_smc);
+		new_smc->sk.sk_sndbuf = lsmc->sk.sk_sndbuf;
+		new_smc->sk.sk_rcvbuf = lsmc->sk.sk_rcvbuf;
 		sock_hold(&new_smc->sk); /* sock_put in passive closing */
 		if (!schedule_work(&new_smc->smc_listen_work))
 			sock_put(&new_smc->sk);
@@ -1397,8 +1399,7 @@ static int smc_shutdown(struct socket *sock, int how)
 	lock_sock(sk);
 
 	rc = -ENOTCONN;
-	if ((sk->sk_state != SMC_LISTEN) &&
-	    (sk->sk_state != SMC_ACTIVE) &&
+	if ((sk->sk_state != SMC_ACTIVE) &&
 	    (sk->sk_state != SMC_PEERCLOSEWAIT1) &&
 	    (sk->sk_state != SMC_PEERCLOSEWAIT2) &&
 	    (sk->sk_state != SMC_APPCLOSEWAIT1) &&
@@ -1521,12 +1522,16 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 
 	smc = smc_sk(sock->sk);
 	conn = &smc->conn;
-	if (smc->use_fallback) {
-		if (!smc->clcsock)
-			return -EBADF;
-		return smc->clcsock->ops->ioctl(smc->clcsock, cmd, arg);
-	}
 	lock_sock(&smc->sk);
+	if (smc->use_fallback) {
+		if (!smc->clcsock) {
+			release_sock(&smc->sk);
+			return -EBADF;
+		}
+		answ = smc->clcsock->ops->ioctl(smc->clcsock, cmd, arg);
+		release_sock(&smc->sk);
+		return answ;
+	}
 	switch (cmd) {
 	case SIOCINQ: /* same as FIONREAD */
 		if (smc->sk.sk_state == SMC_LISTEN) {
