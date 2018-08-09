@@ -294,7 +294,8 @@ static int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 }
 
 /* Set the power on/off for 10GBASE-R and 10GBASE-X4/X2 */
-static int mv88e6390_serdes_10g(struct mv88e6xxx_chip *chip, int lane, bool on)
+static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, int lane,
+				      bool on)
 {
 	u16 val, new_val;
 	int reg_c45;
@@ -320,8 +321,8 @@ static int mv88e6390_serdes_10g(struct mv88e6xxx_chip *chip, int lane, bool on)
 }
 
 /* Set the power on/off for SGMII and 1000Base-X */
-static int mv88e6390_serdes_sgmii(struct mv88e6xxx_chip *chip, int lane,
-				  bool on)
+static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, int lane,
+					bool on)
 {
 	u16 val, new_val;
 	int reg_c45;
@@ -359,11 +360,11 @@ static int mv88e6390_serdes_power_lane(struct mv88e6xxx_chip *chip, int port,
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
 	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
-		return mv88e6390_serdes_sgmii(chip, lane, on);
+		return mv88e6390_serdes_power_sgmii(chip, lane, on);
 	case MV88E6XXX_PORT_STS_CMODE_XAUI:
 	case MV88E6XXX_PORT_STS_CMODE_RXAUI:
 	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		return mv88e6390_serdes_10g(chip, lane, on);
+		return mv88e6390_serdes_power_10g(chip, lane, on);
 	}
 
 	return 0;
@@ -424,7 +425,8 @@ int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
 	if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
 	    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 	    cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
-		return mv88e6390_serdes_sgmii(chip, MV88E6341_ADDR_SERDES, on);
+		return mv88e6390_serdes_power_sgmii(chip, MV88E6341_ADDR_SERDES,
+						    on);
 
 	return 0;
 }
