@@ -120,8 +120,6 @@
 		rockchip,codec = <&dummy_codec>;
 		rockchip,format = "dsp_b";
 		rockchip,bitclock-inversion = <0>;
-		rockchip,bitclock-master = <&dummy_codec>;
-		rockchip,frame-master = <&dummy_codec>;
 		rockchip,wait-card-locked = <0>;
 	};
 
