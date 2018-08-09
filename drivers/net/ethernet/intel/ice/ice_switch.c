@@ -169,17 +169,17 @@ ice_aq_get_sw_cfg(struct ice_hw *hw, struct ice_aqc_get_sw_cfg_resp *buf,
  *
  * Add a VSI context to the hardware (0x0210)
  */
-enum ice_status
+static enum ice_status
 ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 	       struct ice_sq_cd *cd)
 {
 	struct ice_aqc_add_update_free_vsi_resp *res;
 	struct ice_aqc_add_get_update_free_vsi *cmd;
-	enum ice_status status;
 	struct ice_aq_desc desc;
+	enum ice_status status;
 
 	cmd = &desc.params.vsi_cmd;
-	res = (struct ice_aqc_add_update_free_vsi_resp *)&desc.params.raw;
+	res = &desc.params.add_update_free_vsi_res;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_add_vsi);
 
@@ -204,6 +204,42 @@ ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 }
 
 /**
+ * ice_aq_free_vsi
+ * @hw: pointer to the hw struct
+ * @vsi_ctx: pointer to a VSI context struct
+ * @keep_vsi_alloc: keep VSI allocation as part of this PF's resources
+ * @cd: pointer to command details structure or NULL
+ *
+ * Free VSI context info from hardware (0x0213)
+ */
+static enum ice_status
+ice_aq_free_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
+		bool keep_vsi_alloc, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_add_update_free_vsi_resp *resp;
+	struct ice_aqc_add_get_update_free_vsi *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	cmd = &desc.params.vsi_cmd;
+	resp = &desc.params.add_update_free_vsi_res;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_free_vsi);
+
+	cmd->vsi_num = cpu_to_le16(vsi_ctx->vsi_num | ICE_AQ_VSI_IS_VALID);
+	if (keep_vsi_alloc)
+		cmd->cmd_flags = cpu_to_le16(ICE_AQ_VSI_KEEP_ALLOC);
+
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+	if (!status) {
+		vsi_ctx->vsis_allocd = le16_to_cpu(resp->vsi_used);
+		vsi_ctx->vsis_unallocated = le16_to_cpu(resp->vsi_free);
+	}
+
+	return status;
+}
+
+/**
  * ice_aq_update_vsi
  * @hw: pointer to the hw struct
  * @vsi_ctx: pointer to a VSI context struct
@@ -221,7 +257,7 @@ ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 	enum ice_status status;
 
 	cmd = &desc.params.vsi_cmd;
-	resp = (struct ice_aqc_add_update_free_vsi_resp *)&desc.params.raw;
+	resp = &desc.params.add_update_free_vsi_res;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_update_vsi);
 
@@ -241,38 +277,202 @@ ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 }
 
 /**
- * ice_aq_free_vsi
+ * ice_update_fltr_vsi_map - update given filter VSI map
+ * @list_head: list for which filters needs to be updated
+ * @list_lock: filter lock which needs to be updated
+ * @old_vsi_num: old VSI HW id
+ * @new_vsi_num: new VSI HW id
+ *
+ * update the VSI map for a given filter list
+ */
+static void
+ice_update_fltr_vsi_map(struct list_head *list_head,
+			struct mutex *list_lock, u16 old_vsi_num,
+			u16 new_vsi_num)
+{
+	struct ice_fltr_mgmt_list_entry *itr;
+
+	mutex_lock(list_lock);
+	if (list_empty(list_head))
+		goto exit_update_map;
+
+	list_for_each_entry(itr, list_head, list_entry) {
+		if (itr->vsi_list_info &&
+		    test_bit(old_vsi_num, itr->vsi_list_info->vsi_map)) {
+			clear_bit(old_vsi_num, itr->vsi_list_info->vsi_map);
+			set_bit(new_vsi_num, itr->vsi_list_info->vsi_map);
+		} else if (itr->fltr_info.fltr_act == ICE_FWD_TO_VSI &&
+			   itr->fltr_info.fwd_id.vsi_id == old_vsi_num) {
+			itr->fltr_info.fwd_id.vsi_id = new_vsi_num;
+			itr->fltr_info.src = new_vsi_num;
+		}
+	}
+exit_update_map:
+	mutex_unlock(list_lock);
+}
+
+/**
+ * ice_update_all_fltr_vsi_map - update all filters VSI map
+ * @hw: pointer to the hardware structure
+ * @old_vsi_num: old VSI HW id
+ * @new_vsi_num: new VSI HW id
+ *
+ * update all filters VSI map
+ */
+static void
+ice_update_all_fltr_vsi_map(struct ice_hw *hw, u16 old_vsi_num, u16 new_vsi_num)
+{
+	struct ice_switch_info *sw = hw->switch_info;
+	u8 i;
+
+	for (i = 0; i < ICE_SW_LKUP_LAST; i++) {
+		struct list_head *head = &sw->recp_list[i].filt_rules;
+		struct mutex *lock; /* Lock to protect filter rule list */
+
+		lock = &sw->recp_list[i].filt_rule_lock;
+		ice_update_fltr_vsi_map(head, lock, old_vsi_num,
+					new_vsi_num);
+	}
+}
+
+/**
+ * ice_is_vsi_valid - check whether the VSI is valid or not
  * @hw: pointer to the hw struct
+ * @vsi_handle: VSI handle
+ *
+ * check whether the VSI is valid or not
+ */
+static bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle)
+{
+	return vsi_handle < ICE_MAX_VSI && hw->vsi_ctx[vsi_handle];
+}
+
+/**
+ * ice_get_hw_vsi_num - return the hw VSI number
+ * @hw: pointer to the hw struct
+ * @vsi_handle: VSI handle
+ *
+ * return the hw VSI number
+ * Caution: call this function only if VSI is valid (ice_is_vsi_valid)
+ */
+static u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle)
+{
+	return hw->vsi_ctx[vsi_handle]->vsi_num;
+}
+
+/**
+ * ice_get_vsi_ctx - return the VSI context entry for a given VSI handle
+ * @hw: pointer to the hw struct
+ * @vsi_handle: VSI handle
+ *
+ * return the VSI context entry for a given VSI handle
+ */
+static struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle)
+{
+	return (vsi_handle >= ICE_MAX_VSI) ? NULL : hw->vsi_ctx[vsi_handle];
+}
+
+/**
+ * ice_save_vsi_ctx - save the VSI context for a given VSI handle
+ * @hw: pointer to the hw struct
+ * @vsi_handle: VSI handle
+ * @vsi: VSI context pointer
+ *
+ * save the VSI context entry for a given VSI handle
+ */
+static void ice_save_vsi_ctx(struct ice_hw *hw, u16 vsi_handle,
+			     struct ice_vsi_ctx *vsi)
+{
+	hw->vsi_ctx[vsi_handle] = vsi;
+}
+
+/**
+ * ice_clear_vsi_ctx - clear the VSI context entry
+ * @hw: pointer to the hw struct
+ * @vsi_handle: VSI handle
+ *
+ * clear the VSI context entry
+ */
+static void ice_clear_vsi_ctx(struct ice_hw *hw, u16 vsi_handle)
+{
+	struct ice_vsi_ctx *vsi;
+
+	vsi = ice_get_vsi_ctx(hw, vsi_handle);
+	if (vsi) {
+		devm_kfree(ice_hw_to_dev(hw), vsi);
+		hw->vsi_ctx[vsi_handle] = NULL;
+	}
+}
+
+/**
+ * ice_add_vsi - add VSI context to the hardware and VSI handle list
+ * @hw: pointer to the hw struct
+ * @vsi_handle: unique VSI handle provided by drivers
+ * @vsi_ctx: pointer to a VSI context struct
+ * @cd: pointer to command details structure or NULL
+ *
+ * Add a VSI context to the hardware also add it into the VSI handle list.
+ * If this function gets called after reset for existing VSIs then update
+ * with the new HW VSI number in the corresponding VSI handle list entry.
+ */
+enum ice_status
+ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
+	    struct ice_sq_cd *cd)
+{
+	struct ice_vsi_ctx *tmp_vsi_ctx;
+	enum ice_status status;
+
+	if (vsi_handle >= ICE_MAX_VSI)
+		return ICE_ERR_PARAM;
+	status = ice_aq_add_vsi(hw, vsi_ctx, cd);
+	if (status)
+		return status;
+	tmp_vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
+	if (!tmp_vsi_ctx) {
+		/* Create a new vsi context */
+		tmp_vsi_ctx = devm_kzalloc(ice_hw_to_dev(hw),
+					   sizeof(*tmp_vsi_ctx), GFP_KERNEL);
+		if (!tmp_vsi_ctx) {
+			ice_aq_free_vsi(hw, vsi_ctx, false, cd);
+			return ICE_ERR_NO_MEMORY;
+		}
+		*tmp_vsi_ctx = *vsi_ctx;
+		ice_save_vsi_ctx(hw, vsi_handle, tmp_vsi_ctx);
+	} else {
+		/* update with new HW VSI num */
+		if (tmp_vsi_ctx->vsi_num != vsi_ctx->vsi_num) {
+			/* update all filter lists with new HW VSI num */
+			ice_update_all_fltr_vsi_map(hw, tmp_vsi_ctx->vsi_num,
+						    vsi_ctx->vsi_num);
+			tmp_vsi_ctx->vsi_num = vsi_ctx->vsi_num;
+		}
+	}
+
+	return status;
+}
+
+/**
+ * ice_free_vsi- free VSI context from hardware and VSI handle list
+ * @hw: pointer to the hw struct
+ * @vsi_handle: unique VSI handle
  * @vsi_ctx: pointer to a VSI context struct
  * @keep_vsi_alloc: keep VSI allocation as part of this PF's resources
  * @cd: pointer to command details structure or NULL
  *
- * Get VSI context info from hardware (0x0213)
+ * Free VSI context info from hardware as well as from VSI handle list
  */
 enum ice_status
-ice_aq_free_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
-		bool keep_vsi_alloc, struct ice_sq_cd *cd)
+ice_free_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
+	     bool keep_vsi_alloc, struct ice_sq_cd *cd)
 {
-	struct ice_aqc_add_update_free_vsi_resp *resp;
-	struct ice_aqc_add_get_update_free_vsi *cmd;
-	struct ice_aq_desc desc;
 	enum ice_status status;
 
-	cmd = &desc.params.vsi_cmd;
-	resp = (struct ice_aqc_add_update_free_vsi_resp *)&desc.params.raw;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_free_vsi);
-
-	cmd->vsi_num = cpu_to_le16(vsi_ctx->vsi_num | ICE_AQ_VSI_IS_VALID);
-	if (keep_vsi_alloc)
-		cmd->cmd_flags = cpu_to_le16(ICE_AQ_VSI_KEEP_ALLOC);
-
-	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
-	if (!status) {
-		vsi_ctx->vsis_allocd = le16_to_cpu(resp->vsi_used);
-		vsi_ctx->vsis_unallocated = le16_to_cpu(resp->vsi_free);
-	}
-
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+	vsi_ctx->vsi_num = ice_get_hw_vsi_num(hw, vsi_handle);
+	status = ice_aq_free_vsi(hw, vsi_ctx, keep_vsi_alloc, cd);
+	if (!status)
+		ice_clear_vsi_ctx(hw, vsi_handle);
 	return status;
 }
 
@@ -1517,6 +1717,25 @@ ice_add_vlan(struct ice_hw *hw, struct list_head *v_list)
 }
 
 /**
+ * ice_rem_sw_rule_info
+ * @hw: pointer to the hardware structure
+ * @rule_head: pointer to the switch list structure that we want to delete
+ */
+static void
+ice_rem_sw_rule_info(struct ice_hw *hw, struct list_head *rule_head)
+{
+	if (!list_empty(rule_head)) {
+		struct ice_fltr_mgmt_list_entry *entry;
+		struct ice_fltr_mgmt_list_entry *tmp;
+
+		list_for_each_entry_safe(entry, tmp, rule_head, list_entry) {
+			list_del(&entry->list_entry);
+			devm_kfree(ice_hw_to_dev(hw), entry);
+		}
+	}
+}
+
+/**
  * ice_cfg_dflt_vsi - change state of VSI to set/clear default
  * @hw: pointer to the hardware structure
  * @vsi_id: number of VSI to set as default
@@ -1821,4 +2040,90 @@ void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_id)
 	ice_remove_vsi_lkup_fltr(hw, vsi_id, ICE_SW_LKUP_ETHERTYPE);
 	ice_remove_vsi_lkup_fltr(hw, vsi_id, ICE_SW_LKUP_ETHERTYPE_MAC);
 	ice_remove_vsi_lkup_fltr(hw, vsi_id, ICE_SW_LKUP_PROMISC_VLAN);
+}
+
+/**
+ * ice_replay_fltr - Replay all the filters stored by a specific list head
+ * @hw: pointer to the hardware structure
+ * @list_head: list for which filters needs to be replayed
+ * @recp_id: Recipe id for which rules need to be replayed
+ */
+static enum ice_status
+ice_replay_fltr(struct ice_hw *hw, u8 recp_id, struct list_head *list_head)
+{
+	struct ice_fltr_mgmt_list_entry *itr;
+	struct list_head l_head;
+	enum ice_status status = 0;
+
+	if (list_empty(list_head))
+		return status;
+
+	/* Move entries from the given list_head to a temporary l_head so that
+	 * they can be replayed. Otherwise when trying to re-add the same
+	 * filter, the function will return already exists
+	 */
+	list_replace_init(list_head, &l_head);
+
+	/* Mark the given list_head empty by reinitializing it so filters
+	 * could be added again by *handler
+	 */
+	list_for_each_entry(itr, &l_head, list_entry) {
+		struct ice_fltr_list_entry f_entry;
+
+		f_entry.fltr_info = itr->fltr_info;
+		if (itr->vsi_count < 2 && recp_id != ICE_SW_LKUP_VLAN) {
+			status = ice_add_rule_internal(hw, recp_id, &f_entry);
+			if (status)
+				goto end;
+			continue;
+		}
+
+		/* Add a filter per vsi separately */
+		while (1) {
+			u16 vsi;
+
+			vsi = find_first_bit(itr->vsi_list_info->vsi_map,
+					     ICE_MAX_VSI);
+			if (vsi == ICE_MAX_VSI)
+				break;
+
+			clear_bit(vsi, itr->vsi_list_info->vsi_map);
+			f_entry.fltr_info.fwd_id.vsi_id = vsi;
+			f_entry.fltr_info.fltr_act = ICE_FWD_TO_VSI;
+			if (recp_id == ICE_SW_LKUP_VLAN)
+				status = ice_add_vlan_internal(hw, &f_entry);
+			else
+				status = ice_add_rule_internal(hw, recp_id,
+							       &f_entry);
+			if (status)
+				goto end;
+		}
+	}
+end:
+	/* Clear the filter management list */
+	ice_rem_sw_rule_info(hw, &l_head);
+	return status;
+}
+
+/**
+ * ice_replay_all_fltr - replay all filters stored in bookkeeping lists
+ * @hw: pointer to the hardware structure
+ *
+ * NOTE: This function does not clean up partially added filters on error.
+ * It is up to caller of the function to issue a reset or fail early.
+ */
+enum ice_status ice_replay_all_fltr(struct ice_hw *hw)
+{
+	struct ice_switch_info *sw = hw->switch_info;
+	enum ice_status status = 0;
+	u8 i;
+
+	for (i = 0; i < ICE_SW_LKUP_LAST; i++) {
+		struct list_head *head = &sw->recp_list[i].filt_rules;
+
+		status = ice_replay_fltr(hw, i, head);
+		if (status)
+			return status;
+	}
+	return status;
 }

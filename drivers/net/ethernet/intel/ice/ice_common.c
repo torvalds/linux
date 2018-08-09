@@ -711,6 +711,8 @@ enum ice_status ice_reset(struct ice_hw *hw, enum ice_reset_req req)
 		ice_debug(hw, ICE_DBG_INIT, "GlobalR requested\n");
 		val = GLGEN_RTRIG_GLOBR_M;
 		break;
+	default:
+		return ICE_ERR_PARAM;
 	}
 
 	val |= rd32(hw, GLGEN_RTRIG);

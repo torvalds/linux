@@ -62,6 +62,7 @@ extern const char ice_drv_ver[];
 #define ICE_RES_VALID_BIT	0x8000
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
+#define ICE_INVAL_VFID		256
 
 #define ICE_VSIQF_HKEY_ARRAY_SIZE	((VSIQF_HKEY_MAX_INDEX + 1) *	4)
 
@@ -122,6 +123,7 @@ struct ice_sw {
 enum ice_state {
 	__ICE_DOWN,
 	__ICE_NEEDS_RESTART,
+	__ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
 	__ICE_RESET_RECOVERY_PENDING,	/* set by driver when reset starts */
 	__ICE_PFR_REQ,			/* set by driver and peers */
 	__ICE_CORER_REQ,		/* set by driver and peers */

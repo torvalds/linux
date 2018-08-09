@@ -158,15 +158,14 @@ struct ice_fltr_mgmt_list_entry {
 
 /* VSI related commands */
 enum ice_status
-ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
-	       struct ice_sq_cd *cd);
-enum ice_status
 ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 		  struct ice_sq_cd *cd);
 enum ice_status
-ice_aq_free_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
-		bool keep_vsi_alloc, struct ice_sq_cd *cd);
-
+ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
+	    struct ice_sq_cd *cd);
+enum ice_status
+ice_free_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
+	     bool keep_vsi_alloc, struct ice_sq_cd *cd);
 enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
 
 /* Switch/bridge related commands */
@@ -177,6 +176,9 @@ enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
 enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
 enum ice_status
 ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_id, bool set, u8 direction);
+
+enum ice_status ice_replay_all_fltr(struct ice_hw *hw);
+
 enum ice_status ice_init_def_sw_recp(struct ice_hw *hw);
 
 #endif /* _ICE_SWITCH_H_ */

@@ -149,9 +149,10 @@ struct ice_mac_info {
 
 /* Various RESET request, These are not tied with HW reset types */
 enum ice_reset_req {
-	ICE_RESET_PFR	= 0,
-	ICE_RESET_CORER	= 1,
-	ICE_RESET_GLOBR	= 2,
+	ICE_RESET_INVAL	= 0,
+	ICE_RESET_PFR	= 1,
+	ICE_RESET_CORER	= 2,
+	ICE_RESET_GLOBR	= 3,
 };
 
 /* Bus parameters */
@@ -283,6 +284,7 @@ struct ice_hw {
 	u8 sw_entry_point_layer;
 	u16 max_children[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 
+	struct ice_vsi_ctx *vsi_ctx[ICE_MAX_VSI];
 	u8 evb_veb;		/* true for VEB, false for VEPA */
 	u8 reset_ongoing;	/* true if hw is in reset, false otherwise */
 	struct ice_bus_info bus;
