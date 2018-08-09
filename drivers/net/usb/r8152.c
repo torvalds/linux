@@ -4415,7 +4415,6 @@ out1:
 static int rtl8152_system_suspend(struct r8152 *tp)
 {
 	struct net_device *netdev = tp->netdev;
-	int ret = 0;
 
 	netif_device_detach(netdev);
 
@@ -4430,7 +4429,7 @@ static int rtl8152_system_suspend(struct r8152 *tp)
 		napi_enable(napi);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
