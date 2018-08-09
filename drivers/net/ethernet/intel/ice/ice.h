@@ -134,6 +134,7 @@ enum ice_state {
 	__ICE_SUSPENDED,		/* set on module remove path */
 	__ICE_RESET_FAILED,		/* set by reset/rebuild */
 	__ICE_ADMINQ_EVENT_PENDING,
+	__ICE_MDD_EVENT_PENDING,
 	__ICE_FLTR_OVERFLOW_PROMISC,
 	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
@@ -272,6 +273,9 @@ struct ice_pf {
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
 	u8 stat_prev_loaded;	/* has previous stats been loaded */
+	u32 tx_timeout_count;
+	unsigned long tx_timeout_last_recovery;
+	u32 tx_timeout_recovery_level;
 	char int_name[ICE_INT_NAME_STR_LEN];
 };
 

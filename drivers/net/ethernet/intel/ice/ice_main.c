@@ -37,6 +37,81 @@ static void ice_update_vsi_stats(struct ice_vsi *vsi);
 static void ice_update_pf_stats(struct ice_pf *pf);
 
 /**
+ * ice_get_tx_pending - returns number of Tx descriptors not processed
+ * @ring: the ring of descriptors
+ */
+static u32 ice_get_tx_pending(struct ice_ring *ring)
+{
+	u32 head, tail;
+
+	head = ring->next_to_clean;
+	tail = readl(ring->tail);
+
+	if (head != tail)
+		return (head < tail) ?
+			tail - head : (tail + ring->count - head);
+	return 0;
+}
+
+/**
+ * ice_check_for_hang_subtask - check for and recover hung queues
+ * @pf: pointer to PF struct
+ */
+static void ice_check_for_hang_subtask(struct ice_pf *pf)
+{
+	struct ice_vsi *vsi = NULL;
+	unsigned int i;
+	u32 v, v_idx;
+	int packets;
+
+	ice_for_each_vsi(pf, v)
+		if (pf->vsi[v] && pf->vsi[v]->type == ICE_VSI_PF) {
+			vsi = pf->vsi[v];
+			break;
+		}
+
+	if (!vsi || test_bit(__ICE_DOWN, vsi->state))
+		return;
+
+	if (!(vsi->netdev && netif_carrier_ok(vsi->netdev)))
+		return;
+
+	for (i = 0; i < vsi->num_txq; i++) {
+		struct ice_ring *tx_ring = vsi->tx_rings[i];
+
+		if (tx_ring && tx_ring->desc) {
+			int itr = ICE_ITR_NONE;
+
+			/* If packet counter has not changed the queue is
+			 * likely stalled, so force an interrupt for this
+			 * queue.
+			 *
+			 * prev_pkt would be negative if there was no
+			 * pending work.
+			 */
+			packets = tx_ring->stats.pkts & INT_MAX;
+			if (tx_ring->tx_stats.prev_pkt == packets) {
+				/* Trigger sw interrupt to revive the queue */
+				v_idx = tx_ring->q_vector->v_idx;
+				wr32(&vsi->back->hw,
+				     GLINT_DYN_CTL(vsi->base_vector + v_idx),
+				     (itr << GLINT_DYN_CTL_ITR_INDX_S) |
+				     GLINT_DYN_CTL_SWINT_TRIG_M |
+				     GLINT_DYN_CTL_INTENA_MSK_M);
+				continue;
+			}
+
+			/* Memory barrier between read of packet count and call
+			 * to ice_get_tx_pending()
+			 */
+			smp_rmb();
+			tx_ring->tx_stats.prev_pkt =
+			    ice_get_tx_pending(tx_ring) ? packets : -1;
+		}
+	}
+}
+
+/**
  * ice_get_free_slot - get the next non-NULL location index in array
  * @array: array to search
  * @size: size of the array
@@ -1004,6 +1079,114 @@ static void ice_service_timer(struct timer_list *t)
 }
 
 /**
+ * ice_handle_mdd_event - handle malicious driver detect event
+ * @pf: pointer to the PF structure
+ *
+ * Called from service task. OICR interrupt handler indicates MDD event
+ */
+static void ice_handle_mdd_event(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+	bool mdd_detected = false;
+	u32 reg;
+
+	if (!test_bit(__ICE_MDD_EVENT_PENDING, pf->state))
+		return;
+
+	/* find what triggered the MDD event */
+	reg = rd32(hw, GL_MDET_TX_PQM);
+	if (reg & GL_MDET_TX_PQM_VALID_M) {
+		u8 pf_num = (reg & GL_MDET_TX_PQM_PF_NUM_M) >>
+				GL_MDET_TX_PQM_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_TX_PQM_VF_NUM_M) >>
+				GL_MDET_TX_PQM_VF_NUM_S;
+		u8 event = (reg & GL_MDET_TX_PQM_MAL_TYPE_M) >>
+				GL_MDET_TX_PQM_MAL_TYPE_S;
+		u16 queue = ((reg & GL_MDET_TX_PQM_QNUM_M) >>
+				GL_MDET_TX_PQM_QNUM_S);
+
+		if (netif_msg_tx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event %d on TX queue %d PF# %d VF# %d\n",
+				 event, queue, pf_num, vf_num);
+		wr32(hw, GL_MDET_TX_PQM, 0xffffffff);
+		mdd_detected = true;
+	}
+
+	reg = rd32(hw, GL_MDET_TX_TCLAN);
+	if (reg & GL_MDET_TX_TCLAN_VALID_M) {
+		u8 pf_num = (reg & GL_MDET_TX_TCLAN_PF_NUM_M) >>
+				GL_MDET_TX_TCLAN_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_TX_TCLAN_VF_NUM_M) >>
+				GL_MDET_TX_TCLAN_VF_NUM_S;
+		u8 event = (reg & GL_MDET_TX_TCLAN_MAL_TYPE_M) >>
+				GL_MDET_TX_TCLAN_MAL_TYPE_S;
+		u16 queue = ((reg & GL_MDET_TX_TCLAN_QNUM_M) >>
+				GL_MDET_TX_TCLAN_QNUM_S);
+
+		if (netif_msg_rx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event %d on TX queue %d PF# %d VF# %d\n",
+				 event, queue, pf_num, vf_num);
+		wr32(hw, GL_MDET_TX_TCLAN, 0xffffffff);
+		mdd_detected = true;
+	}
+
+	reg = rd32(hw, GL_MDET_RX);
+	if (reg & GL_MDET_RX_VALID_M) {
+		u8 pf_num = (reg & GL_MDET_RX_PF_NUM_M) >>
+				GL_MDET_RX_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_RX_VF_NUM_M) >>
+				GL_MDET_RX_VF_NUM_S;
+		u8 event = (reg & GL_MDET_RX_MAL_TYPE_M) >>
+				GL_MDET_RX_MAL_TYPE_S;
+		u16 queue = ((reg & GL_MDET_RX_QNUM_M) >>
+				GL_MDET_RX_QNUM_S);
+
+		if (netif_msg_rx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event %d on RX queue %d PF# %d VF# %d\n",
+				 event, queue, pf_num, vf_num);
+		wr32(hw, GL_MDET_RX, 0xffffffff);
+		mdd_detected = true;
+	}
+
+	if (mdd_detected) {
+		bool pf_mdd_detected = false;
+
+		reg = rd32(hw, PF_MDET_TX_PQM);
+		if (reg & PF_MDET_TX_PQM_VALID_M) {
+			wr32(hw, PF_MDET_TX_PQM, 0xFFFF);
+			dev_info(&pf->pdev->dev, "TX driver issue detected, PF reset issued\n");
+			pf_mdd_detected = true;
+		}
+
+		reg = rd32(hw, PF_MDET_TX_TCLAN);
+		if (reg & PF_MDET_TX_TCLAN_VALID_M) {
+			wr32(hw, PF_MDET_TX_TCLAN, 0xFFFF);
+			dev_info(&pf->pdev->dev, "TX driver issue detected, PF reset issued\n");
+			pf_mdd_detected = true;
+		}
+
+		reg = rd32(hw, PF_MDET_RX);
+		if (reg & PF_MDET_RX_VALID_M) {
+			wr32(hw, PF_MDET_RX, 0xFFFF);
+			dev_info(&pf->pdev->dev, "RX driver issue detected, PF reset issued\n");
+			pf_mdd_detected = true;
+		}
+		/* Queue belongs to the PF initiate a reset */
+		if (pf_mdd_detected) {
+			set_bit(__ICE_NEEDS_RESTART, pf->state);
+			ice_service_task_schedule(pf);
+		}
+	}
+
+	/* re-enable MDD interrupt cause */
+	clear_bit(__ICE_MDD_EVENT_PENDING, pf->state);
+	reg = rd32(hw, PFINT_OICR_ENA);
+	reg |= PFINT_OICR_MAL_DETECT_M;
+	wr32(hw, PFINT_OICR_ENA, reg);
+	ice_flush(hw);
+}
+
+/**
  * ice_service_task - manage and run subtasks
  * @work: pointer to work_struct contained by the PF struct
  */
@@ -1025,7 +1208,9 @@ static void ice_service_task(struct work_struct *work)
 		return;
 	}
 
+	ice_check_for_hang_subtask(pf);
 	ice_sync_fltr_subtask(pf);
+	ice_handle_mdd_event(pf);
 	ice_watchdog_subtask(pf);
 	ice_clean_adminq_subtask(pf);
 
@@ -1037,6 +1222,7 @@ static void ice_service_task(struct work_struct *work)
 	 * schedule the service task now.
 	 */
 	if (time_after(jiffies, (start_time + pf->serv_tmr_period)) ||
+	    test_bit(__ICE_MDD_EVENT_PENDING, pf->state) ||
 	    test_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state))
 		mod_timer(&pf->serv_tmr, jiffies);
 }
@@ -1747,8 +1933,14 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	oicr = rd32(hw, PFINT_OICR);
 	ena_mask = rd32(hw, PFINT_OICR_ENA);
 
+	if (oicr & PFINT_OICR_MAL_DETECT_M) {
+		ena_mask &= ~PFINT_OICR_MAL_DETECT_M;
+		set_bit(__ICE_MDD_EVENT_PENDING, pf->state);
+	}
+
 	if (oicr & PFINT_OICR_GRST_M) {
 		u32 reset;
+
 		/* we have a reset warning */
 		ena_mask &= ~PFINT_OICR_GRST_M;
 		reset = (rd32(hw, GLGEN_RSTAT) & GLGEN_RSTAT_RESET_TYPE_M) >>
@@ -5504,6 +5696,99 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 }
 
 /**
+ * ice_tx_timeout - Respond to a Tx Hang
+ * @netdev: network interface device structure
+ */
+static void ice_tx_timeout(struct net_device *netdev)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_ring *tx_ring = NULL;
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	u32 head, val = 0, i;
+	int hung_queue = -1;
+
+	pf->tx_timeout_count++;
+
+	/* find the stopped queue the same way the stack does */
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		struct netdev_queue *q;
+		unsigned long trans_start;
+
+		q = netdev_get_tx_queue(netdev, i);
+		trans_start = q->trans_start;
+		if (netif_xmit_stopped(q) &&
+		    time_after(jiffies,
+			       (trans_start + netdev->watchdog_timeo))) {
+			hung_queue = i;
+			break;
+		}
+	}
+
+	if (i == netdev->num_tx_queues) {
+		netdev_info(netdev, "tx_timeout: no netdev hung queue found\n");
+	} else {
+		/* now that we have an index, find the tx_ring struct */
+		for (i = 0; i < vsi->num_txq; i++) {
+			if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc) {
+				if (hung_queue ==
+				    vsi->tx_rings[i]->q_index) {
+					tx_ring = vsi->tx_rings[i];
+					break;
+				}
+			}
+		}
+	}
+
+	/* Reset recovery level if enough time has elapsed after last timeout.
+	 * Also ensure no new reset action happens before next timeout period.
+	 */
+	if (time_after(jiffies, (pf->tx_timeout_last_recovery + HZ * 20)))
+		pf->tx_timeout_recovery_level = 1;
+	else if (time_before(jiffies, (pf->tx_timeout_last_recovery +
+				       netdev->watchdog_timeo)))
+		return;
+
+	if (tx_ring) {
+		head = tx_ring->next_to_clean;
+		/* Read interrupt register */
+		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
+			val = rd32(&pf->hw,
+				   GLINT_DYN_CTL(tx_ring->q_vector->v_idx +
+						tx_ring->vsi->base_vector - 1));
+
+		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HWB: 0x%x, NTU: 0x%x, TAIL: 0x%x, INT: 0x%x\n",
+			    vsi->vsi_num, hung_queue, tx_ring->next_to_clean,
+			    head, tx_ring->next_to_use,
+			    readl(tx_ring->tail), val);
+	}
+
+	pf->tx_timeout_last_recovery = jiffies;
+	netdev_info(netdev, "tx_timeout recovery level %d, hung_queue %d\n",
+		    pf->tx_timeout_recovery_level, hung_queue);
+
+	switch (pf->tx_timeout_recovery_level) {
+	case 1:
+		set_bit(__ICE_PFR_REQ, pf->state);
+		break;
+	case 2:
+		set_bit(__ICE_CORER_REQ, pf->state);
+		break;
+	case 3:
+		set_bit(__ICE_GLOBR_REQ, pf->state);
+		break;
+	default:
+		netdev_err(netdev, "tx_timeout recovery unsuccessful, device is in unrecoverable state.\n");
+		set_bit(__ICE_DOWN, pf->state);
+		set_bit(__ICE_NEEDS_RESTART, vsi->state);
+		break;
+	}
+
+	ice_service_task_schedule(pf);
+	pf->tx_timeout_recovery_level++;
+}
+
+/**
  * ice_open - Called when a network interface becomes active
  * @netdev: network interface device structure
  *
@@ -5624,4 +5909,5 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_set_features = ice_set_features,
 	.ndo_fdb_add = ice_fdb_add,
 	.ndo_fdb_del = ice_fdb_del,
+	.ndo_tx_timeout = ice_tx_timeout,
 };
