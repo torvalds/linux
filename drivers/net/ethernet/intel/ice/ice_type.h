@@ -295,6 +295,7 @@ struct ice_hw {
 	u16 max_children[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 
 	u8 evb_veb;		/* true for VEB, false for VEPA */
+	u8 reset_ongoing;	/* true if hw is in reset, false otherwise */
 	struct ice_bus_info bus;
 	struct ice_nvm_info nvm;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */
