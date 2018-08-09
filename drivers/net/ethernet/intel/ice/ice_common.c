@@ -427,6 +427,176 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 	devm_kfree(ice_hw_to_dev(hw), sw);
 }
 
+#define ICE_FW_LOG_DESC_SIZE(n)	(sizeof(struct ice_aqc_fw_logging_data) + \
+	(((n) - 1) * sizeof(((struct ice_aqc_fw_logging_data *)0)->entry)))
+#define ICE_FW_LOG_DESC_SIZE_MAX	\
+	ICE_FW_LOG_DESC_SIZE(ICE_AQC_FW_LOG_ID_MAX)
+
+/**
+ * ice_cfg_fw_log - configure FW logging
+ * @hw: pointer to the hw struct
+ * @enable: enable certain FW logging events if true, disable all if false
+ *
+ * This function enables/disables the FW logging via Rx CQ events and a UART
+ * port based on predetermined configurations. FW logging via the Rx CQ can be
+ * enabled/disabled for individual PF's. However, FW logging via the UART can
+ * only be enabled/disabled for all PFs on the same device.
+ *
+ * To enable overall FW logging, the "cq_en" and "uart_en" enable bits in
+ * hw->fw_log need to be set accordingly, e.g. based on user-provided input,
+ * before initializing the device.
+ *
+ * When re/configuring FW logging, callers need to update the "cfg" elements of
+ * the hw->fw_log.evnts array with the desired logging event configurations for
+ * modules of interest. When disabling FW logging completely, the callers can
+ * just pass false in the "enable" parameter. On completion, the function will
+ * update the "cur" element of the hw->fw_log.evnts array with the resulting
+ * logging event configurations of the modules that are being re/configured. FW
+ * logging modules that are not part of a reconfiguration operation retain their
+ * previous states.
+ *
+ * Before resetting the device, it is recommended that the driver disables FW
+ * logging before shutting down the control queue. When disabling FW logging
+ * ("enable" = false), the latest configurations of FW logging events stored in
+ * hw->fw_log.evnts[] are not overridden to allow them to be reconfigured after
+ * a device reset.
+ *
+ * When enabling FW logging to emit log messages via the Rx CQ during the
+ * device's initialization phase, a mechanism alternative to interrupt handlers
+ * needs to be used to extract FW log messages from the Rx CQ periodically and
+ * to prevent the Rx CQ from being full and stalling other types of control
+ * messages from FW to SW. Interrupts are typically disabled during the device's
+ * initialization phase.
+ */
+static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
+{
+	struct ice_aqc_fw_logging_data *data = NULL;
+	struct ice_aqc_fw_logging *cmd;
+	enum ice_status status = 0;
+	u16 i, chgs = 0, len = 0;
+	struct ice_aq_desc desc;
+	u8 actv_evnts = 0;
+	void *buf = NULL;
+
+	if (!hw->fw_log.cq_en && !hw->fw_log.uart_en)
+		return 0;
+
+	/* Disable FW logging only when the control queue is still responsive */
+	if (!enable &&
+	    (!hw->fw_log.actv_evnts || !ice_check_sq_alive(hw, &hw->adminq)))
+		return 0;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging);
+	cmd = &desc.params.fw_logging;
+
+	/* Indicate which controls are valid */
+	if (hw->fw_log.cq_en)
+		cmd->log_ctrl_valid |= ICE_AQC_FW_LOG_AQ_VALID;
+
+	if (hw->fw_log.uart_en)
+		cmd->log_ctrl_valid |= ICE_AQC_FW_LOG_UART_VALID;
+
+	if (enable) {
+		/* Fill in an array of entries with FW logging modules and
+		 * logging events being reconfigured.
+		 */
+		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++) {
+			u16 val;
+
+			/* Keep track of enabled event types */
+			actv_evnts |= hw->fw_log.evnts[i].cfg;
+
+			if (hw->fw_log.evnts[i].cfg == hw->fw_log.evnts[i].cur)
+				continue;
+
+			if (!data) {
+				data = devm_kzalloc(ice_hw_to_dev(hw),
+						    ICE_FW_LOG_DESC_SIZE_MAX,
+						    GFP_KERNEL);
+				if (!data)
+					return ICE_ERR_NO_MEMORY;
+			}
+
+			val = i << ICE_AQC_FW_LOG_ID_S;
+			val |= hw->fw_log.evnts[i].cfg << ICE_AQC_FW_LOG_EN_S;
+			data->entry[chgs++] = cpu_to_le16(val);
+		}
+
+		/* Only enable FW logging if at least one module is specified.
+		 * If FW logging is currently enabled but all modules are not
+		 * enabled to emit log messages, disable FW logging altogether.
+		 */
+		if (actv_evnts) {
+			/* Leave if there is effectively no change */
+			if (!chgs)
+				goto out;
+
+			if (hw->fw_log.cq_en)
+				cmd->log_ctrl |= ICE_AQC_FW_LOG_AQ_EN;
+
+			if (hw->fw_log.uart_en)
+				cmd->log_ctrl |= ICE_AQC_FW_LOG_UART_EN;
+
+			buf = data;
+			len = ICE_FW_LOG_DESC_SIZE(chgs);
+			desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+		}
+	}
+
+	status = ice_aq_send_cmd(hw, &desc, buf, len, NULL);
+	if (!status) {
+		/* Update the current configuration to reflect events enabled.
+		 * hw->fw_log.cq_en and hw->fw_log.uart_en indicate if the FW
+		 * logging mode is enabled for the device. They do not reflect
+		 * actual modules being enabled to emit log messages. So, their
+		 * values remain unchanged even when all modules are disabled.
+		 */
+		u16 cnt = enable ? chgs : (u16)ICE_AQC_FW_LOG_ID_MAX;
+
+		hw->fw_log.actv_evnts = actv_evnts;
+		for (i = 0; i < cnt; i++) {
+			u16 v, m;
+
+			if (!enable) {
+				/* When disabling all FW logging events as part
+				 * of device's de-initialization, the original
+				 * configurations are retained, and can be used
+				 * to reconfigure FW logging later if the device
+				 * is re-initialized.
+				 */
+				hw->fw_log.evnts[i].cur = 0;
+				continue;
+			}
+
+			v = le16_to_cpu(data->entry[i]);
+			m = (v & ICE_AQC_FW_LOG_ID_M) >> ICE_AQC_FW_LOG_ID_S;
+			hw->fw_log.evnts[m].cur = hw->fw_log.evnts[m].cfg;
+		}
+	}
+
+out:
+	if (data)
+		devm_kfree(ice_hw_to_dev(hw), data);
+
+	return status;
+}
+
+/**
+ * ice_output_fw_log
+ * @hw: pointer to the hw struct
+ * @desc: pointer to the AQ message descriptor
+ * @buf: pointer to the buffer accompanying the AQ message
+ *
+ * Formats a FW Log message and outputs it via the standard driver logs.
+ */
+void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
+{
+	ice_debug(hw, ICE_DBG_AQ_MSG, "[ FW Log Msg Start ]\n");
+	ice_debug_array(hw, ICE_DBG_AQ_MSG, 16, 1, (u8 *)buf,
+			le16_to_cpu(desc->datalen));
+	ice_debug(hw, ICE_DBG_AQ_MSG, "[ FW Log Msg End ]\n");
+}
+
 /**
  * ice_init_hw - main hardware initialization routine
  * @hw: pointer to the hardware structure
@@ -460,6 +630,11 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	status = ice_init_all_ctrlq(hw);
 	if (status)
 		goto err_unroll_cqinit;
+
+	/* Enable FW logging. Not fatal if this fails. */
+	status = ice_cfg_fw_log(hw, true);
+	if (status)
+		ice_debug(hw, ICE_DBG_INIT, "Failed to enable FW logging.\n");
 
 	status = ice_clear_pf_cfg(hw);
 	if (status)
@@ -574,15 +749,18 @@ err_unroll_cqinit:
  */
 void ice_deinit_hw(struct ice_hw *hw)
 {
+	ice_cleanup_fltr_mgmt_struct(hw);
+
 	ice_sched_cleanup_all(hw);
-	ice_shutdown_all_ctrlq(hw);
 
 	if (hw->port_info) {
 		devm_kfree(ice_hw_to_dev(hw), hw->port_info);
 		hw->port_info = NULL;
 	}
 
-	ice_cleanup_fltr_mgmt_struct(hw);
+	/* Attempt to disable FW logging before shutting down control queues */
+	ice_cfg_fw_log(hw, false);
+	ice_shutdown_all_ctrlq(hw);
 }
 
 /**

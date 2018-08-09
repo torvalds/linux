@@ -984,6 +984,9 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 				dev_err(&pf->pdev->dev,
 					"Could not handle link event\n");
 			break;
+		case ice_aqc_opc_fw_logging:
+			ice_output_fw_log(hw, &event.desc, event.msg_buf);
+			break;
 		default:
 			dev_dbg(&pf->pdev->dev,
 				"%s Receive Queue unknown event 0x%04x ignored\n",

@@ -95,4 +95,5 @@ enum ice_status
 ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_id, u8 tc, u8 num_qgrps,
 		struct ice_aqc_add_tx_qgrp *buf, u16 buf_size,
 		struct ice_sq_cd *cd);
+void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf);
 #endif /* _ICE_COMMON_H_ */

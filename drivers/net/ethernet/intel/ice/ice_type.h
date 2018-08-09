@@ -258,6 +258,24 @@ struct ice_switch_info {
 	struct ice_sw_recipe *recp_list;
 };
 
+/* FW logging configuration */
+struct ice_fw_log_evnt {
+	u8 cfg : 4;	/* New event enables to configure */
+	u8 cur : 4;	/* Current/active event enables */
+};
+
+struct ice_fw_log_cfg {
+	u8 cq_en : 1;    /* FW logging is enabled via the control queue */
+	u8 uart_en : 1;  /* FW logging is enabled via UART for all PFs */
+	u8 actv_evnts;   /* Cumulation of currently enabled log events */
+
+#define ICE_FW_LOG_EVNT_INFO	(ICE_AQC_FW_LOG_INFO_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_INIT	(ICE_AQC_FW_LOG_INIT_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_FLOW	(ICE_AQC_FW_LOG_FLOW_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_ERR	(ICE_AQC_FW_LOG_ERR_EN >> ICE_AQC_FW_LOG_EN_S)
+	struct ice_fw_log_evnt evnts[ICE_AQC_FW_LOG_ID_MAX];
+};
+
 /* Port hardware description */
 struct ice_hw {
 	u8 __iomem *hw_addr;
@@ -307,6 +325,7 @@ struct ice_hw {
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
 
+	struct ice_fw_log_cfg fw_log;
 	/* minimum allowed value for different speeds */
 #define ICE_ITR_GRAN_MIN_200	1
 #define ICE_ITR_GRAN_MIN_100	1
