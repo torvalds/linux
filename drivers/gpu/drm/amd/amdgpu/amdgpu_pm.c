@@ -27,6 +27,7 @@
 #include "amdgpu_drv.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_dpm.h"
+#include "amdgpu_display.h"
 #include "atom.h"
 #include <linux/power_supply.h>
 #include <linux/hwmon.h>

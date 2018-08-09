@@ -31,6 +31,7 @@
 #include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
+#include "amdgpu_display.h"
 #include "amd_acpi.h"
 #include "atom.h"
 

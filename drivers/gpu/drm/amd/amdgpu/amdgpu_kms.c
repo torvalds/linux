@@ -38,6 +38,7 @@
 #include <linux/pm_runtime.h>
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gem.h"
+#include "amdgpu_display.h"
 
 /**
  * amdgpu_driver_unload_kms - Main unload function for KMS.
