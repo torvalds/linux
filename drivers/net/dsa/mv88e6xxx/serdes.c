@@ -214,7 +214,7 @@ static int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
  * use multiple lanes. If so, return the first lane the port uses.
  * Returns -ENODEV if a port does not have a lane.
  */
-static int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
+int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode_port9, cmode_port10, cmode_port;
 
@@ -576,6 +576,8 @@ void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 	mutex_unlock(&chip->reg_lock);
 	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
 	mutex_lock(&chip->reg_lock);
+
+	chip->ports[port].serdes_irq = 0;
 }
 
 int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)

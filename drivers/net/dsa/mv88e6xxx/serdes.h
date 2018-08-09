@@ -57,6 +57,7 @@
 #define MV88E6390_SGMII_INT_FALSE_CARRIER	BIT(7)
 #define MV88E6390_SGMII_INT_STATUS	0xa002
 
+int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
@@ -68,4 +69,9 @@ int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
 				 int port, uint8_t *data);
 int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 			       uint64_t *data);
+int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port,
+				int lane);
+int mv88e6390_serdes_irq_disable(struct mv88e6xxx_chip *chip, int port,
+				 int lane);
+
 #endif
