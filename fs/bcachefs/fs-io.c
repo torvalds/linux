@@ -2116,6 +2116,55 @@ out:
 
 /* truncate: */
 
+static int __bch2_fpunch(struct bch_fs *c, struct bch_inode_info *inode,
+			 u64 start_offset, u64 end_offset, u64 *journal_seq)
+{
+	struct bpos start	= POS(inode->v.i_ino, start_offset);
+	struct bpos end		= POS(inode->v.i_ino, end_offset);
+	unsigned max_sectors	= KEY_SIZE_MAX & (~0 << c->block_bits);
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, start,
+				   BTREE_ITER_INTENT);
+
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       !(ret = btree_iter_err(k)) &&
+	       bkey_cmp(iter->pos, end) < 0) {
+		struct disk_reservation disk_res =
+			bch2_disk_reservation_init(c, 0);
+		struct bkey_i delete;
+
+		bkey_init(&delete.k);
+		delete.k.p = iter->pos;
+
+		/* create the biggest key we can */
+		bch2_key_resize(&delete.k, max_sectors);
+		bch2_cut_back(end, &delete.k);
+
+		ret = bch2_extent_update(&trans, inode,
+				&disk_res, NULL, iter, &delete,
+				0, true, true, NULL);
+		bch2_disk_reservation_put(c, &disk_res);
+
+		if (ret == -EINTR)
+			ret = 0;
+		if (ret)
+			break;
+
+		bch2_btree_iter_cond_resched(iter);
+	}
+
+	bch2_trans_exit(&trans);
+
+	return ret;
+}
+
 static inline int range_has_data(struct bch_fs *c,
 				  struct bpos start,
 				  struct bpos end)
@@ -2238,12 +2287,32 @@ static int bch2_extend(struct bch_inode_info *inode, struct iattr *iattr)
 	return ret;
 }
 
+static int bch2_truncate_finish_fn(struct bch_inode_info *inode,
+				   struct bch_inode_unpacked *bi,
+				   void *p)
+{
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+
+	bi->bi_flags &= ~BCH_INODE_I_SIZE_DIRTY;
+	bi->bi_mtime = bi->bi_ctime = bch2_current_time(c);
+	return 0;
+}
+
+static int bch2_truncate_start_fn(struct bch_inode_info *inode,
+				  struct bch_inode_unpacked *bi, void *p)
+{
+	u64 *new_i_size = p;
+
+	bi->bi_flags |= BCH_INODE_I_SIZE_DIRTY;
+	bi->bi_size = *new_i_size;
+	return 0;
+}
+
 int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
-	struct i_sectors_hook i_sectors_hook =
-		i_sectors_hook_init(inode, BCH_INODE_I_SIZE_DIRTY);
+	u64 new_i_size = iattr->ia_size;
 	bool shrink;
 	int ret = 0;
 
@@ -2256,12 +2325,12 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 
 	if (!shrink) {
 		ret = bch2_extend(inode, iattr);
-		goto err_put_pagecache;
+		goto err;
 	}
 
 	ret = bch2_truncate_page(inode, iattr->ia_size);
 	if (unlikely(ret))
-		goto err_put_pagecache;
+		goto err;
 
 	if (iattr->ia_size > inode->ei_inode.bi_size)
 		ret = filemap_write_and_wait_range(mapping,
@@ -2272,37 +2341,38 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 				round_down(iattr->ia_size, PAGE_SIZE),
 				iattr->ia_size - 1);
 	if (ret)
-		goto err_put_pagecache;
+		goto err;
 
-	i_sectors_hook.new_i_size = iattr->ia_size;
+	mutex_lock(&inode->ei_update_lock);
+	ret = bch2_write_inode(c, inode, bch2_truncate_start_fn,
+			       &new_i_size, 0);
+	mutex_unlock(&inode->ei_update_lock);
 
-	ret = i_sectors_dirty_start(c, &i_sectors_hook);
 	if (unlikely(ret))
-		goto err_put_pagecache;
+		goto err;
 
 	truncate_setsize(&inode->v, iattr->ia_size);
 
-	ret = bch2_inode_truncate(c, inode->v.i_ino,
-				  round_up(iattr->ia_size, PAGE_SIZE) >> 9,
-				  &i_sectors_hook.hook,
-				  &inode->ei_journal_seq);
+	/*
+	 * XXX: need a comment explaining why PAGE_SIZE and not block_bytes()
+	 * here:
+	 */
+	ret = __bch2_fpunch(c, inode,
+			round_up(iattr->ia_size, PAGE_SIZE) >> 9,
+			U64_MAX, &inode->ei_journal_seq);
 	if (unlikely(ret))
-		goto err_put_sectors_dirty;
+		goto err;
 
 	/* ATTR_MODE will never be set here, ns argument isn't needed: */
 	setattr_copy(NULL, &inode->v, iattr);
-out:
-	ret = i_sectors_dirty_finish(c, &i_sectors_hook) ?: ret;
-err_put_pagecache:
+
+	mutex_lock(&inode->ei_update_lock);
+	ret = bch2_write_inode(c, inode, bch2_truncate_finish_fn, NULL,
+			       ATTR_MTIME|ATTR_CTIME);
+	mutex_unlock(&inode->ei_update_lock);
+err:
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	return ret;
-err_put_sectors_dirty:
-	/*
-	 * On error - in particular, bch2_truncate_page() error - don't clear
-	 * I_SIZE_DIRTY, as we've left data above i_size!:
-	 */
-	i_sectors_hook.flags &= ~BCH_INODE_I_SIZE_DIRTY;
-	goto out;
 }
 
 /* fallocate: */
