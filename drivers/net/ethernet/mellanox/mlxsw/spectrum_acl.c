@@ -158,6 +158,17 @@ bool mlxsw_sp_acl_block_disabled(struct mlxsw_sp_acl_block *block)
 	return block->disable_count;
 }
 
+bool mlxsw_sp_acl_block_is_egress_bound(struct mlxsw_sp_acl_block *block)
+{
+	struct mlxsw_sp_acl_block_binding *binding;
+
+	list_for_each_entry(binding, &block->binding_list, list) {
+		if (!binding->ingress)
+			return true;
+	}
+	return false;
+}
+
 static bool
 mlxsw_sp_acl_ruleset_is_singular(const struct mlxsw_sp_acl_ruleset *ruleset)
 {

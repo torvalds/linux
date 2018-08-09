@@ -538,6 +538,7 @@ int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_block *block,
 			      struct mlxsw_sp_port *mlxsw_sp_port,
 			      bool ingress);
+bool mlxsw_sp_acl_block_is_egress_bound(struct mlxsw_sp_acl_block *block);
 struct mlxsw_sp_acl_ruleset *
 mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_block *block, u32 chain_index,

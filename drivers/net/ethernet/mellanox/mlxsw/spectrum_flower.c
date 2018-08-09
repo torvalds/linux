@@ -386,6 +386,11 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_VLAN,
 						  f->mask);
+
+		if (mlxsw_sp_acl_block_is_egress_bound(block)) {
+			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
+			return -EOPNOTSUPP;
+		}
 		if (mask->vlan_id != 0)
 			mlxsw_sp_acl_rulei_keymask_u32(rulei,
 						       MLXSW_AFK_ELEMENT_VID,
