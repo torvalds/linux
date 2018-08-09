@@ -1199,6 +1199,21 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 	return 0;
 }
 
+static int qedr_copy_srq_uresp(struct qedr_dev *dev,
+			       struct qedr_srq *srq, struct ib_udata *udata)
+{
+	struct qedr_create_srq_uresp uresp = {};
+	int rc;
+
+	uresp.srq_id = srq->srq_id;
+
+	rc = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+	if (rc)
+		DP_ERR(dev, "create srq: problem copying data to user space\n");
+
+	return rc;
+}
+
 static void qedr_copy_rq_uresp(struct qedr_dev *dev,
 			       struct qedr_create_qp_uresp *uresp,
 			       struct qedr_qp *qp)
@@ -1321,6 +1336,13 @@ static int qedr_check_srq_params(struct ib_pd *ibpd, struct qedr_dev *dev,
 	return 0;
 }
 
+static void qedr_free_srq_user_params(struct qedr_srq *srq)
+{
+	qedr_free_pbl(srq->dev, &srq->usrq.pbl_info, srq->usrq.pbl_tbl);
+	ib_umem_release(srq->usrq.umem);
+	ib_umem_release(srq->prod_umem);
+}
+
 static void qedr_free_srq_kernel_params(struct qedr_srq *srq)
 {
 	struct qedr_srq_hwq_info *hw_srq = &srq->hw_srq;
@@ -1331,6 +1353,37 @@ static void qedr_free_srq_kernel_params(struct qedr_srq *srq)
 	dma_free_coherent(&dev->pdev->dev, sizeof(struct rdma_srq_producers),
 			  hw_srq->virt_prod_pair_addr,
 			  hw_srq->phy_prod_pair_addr);
+}
+
+static int qedr_init_srq_user_params(struct ib_ucontext *ib_ctx,
+				     struct qedr_srq *srq,
+				     struct qedr_create_srq_ureq *ureq,
+				     int access, int dmasync)
+{
+	struct scatterlist *sg;
+	int rc;
+
+	rc = qedr_init_user_queue(ib_ctx, srq->dev, &srq->usrq, ureq->srq_addr,
+				  ureq->srq_len, access, dmasync, 1);
+	if (rc)
+		return rc;
+
+	srq->prod_umem = ib_umem_get(ib_ctx, ureq->prod_pair_addr,
+				     sizeof(struct rdma_srq_producers),
+				     access, dmasync);
+	if (IS_ERR(srq->prod_umem)) {
+		qedr_free_pbl(srq->dev, &srq->usrq.pbl_info, srq->usrq.pbl_tbl);
+		ib_umem_release(srq->usrq.umem);
+		DP_ERR(srq->dev,
+		       "create srq: failed ib_umem_get for producer, got %ld\n",
+		       PTR_ERR(srq->prod_umem));
+		return PTR_ERR(srq->prod_umem);
+	}
+
+	sg = srq->prod_umem->sg_head.sgl;
+	srq->hw_srq.phy_prod_pair_addr = sg_dma_address(sg);
+
+	return 0;
 }
 
 static int qedr_alloc_srq_kernel_params(struct qedr_srq *srq,
@@ -1390,10 +1443,12 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qed_rdma_create_srq_out_params out_params;
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
+	struct qedr_create_srq_ureq ureq = {};
 	u64 pbl_base_addr, phy_prod_pair_addr;
+	struct ib_ucontext *ib_ctx = NULL;
 	struct qedr_srq_hwq_info *hw_srq;
+	struct qedr_ucontext *ctx = NULL;
 	u32 page_cnt, page_size;
-	struct qed_chain *pbl;
 	struct qedr_srq *srq;
 	int rc = 0;
 
@@ -1416,15 +1471,38 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 	hw_srq->max_wr = init_attr->attr.max_wr;
 	hw_srq->max_sges = init_attr->attr.max_sge;
 
-	rc = qedr_alloc_srq_kernel_params(srq, dev, init_attr);
-	if (rc)
-		goto err0;
+	if (udata && ibpd->uobject && ibpd->uobject->context) {
+		ib_ctx = ibpd->uobject->context;
+		ctx = get_qedr_ucontext(ib_ctx);
 
-	pbl = &hw_srq->pbl;
-	page_cnt = qed_chain_get_page_cnt(pbl);
-	pbl_base_addr = qed_chain_get_pbl_phys(pbl);
-	phy_prod_pair_addr = hw_srq->phy_prod_pair_addr;
-	page_size = QED_CHAIN_PAGE_SIZE;
+		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
+			DP_ERR(dev,
+			       "create srq: problem copying data from user space\n");
+			goto err0;
+		}
+
+		rc = qedr_init_srq_user_params(ib_ctx, srq, &ureq, 0, 0);
+		if (rc)
+			goto err0;
+
+		page_cnt = srq->usrq.pbl_info.num_pbes;
+		pbl_base_addr = srq->usrq.pbl_tbl->pa;
+		phy_prod_pair_addr = hw_srq->phy_prod_pair_addr;
+		page_size = BIT(srq->usrq.umem->page_shift);
+	} else {
+		struct qed_chain *pbl;
+
+		rc = qedr_alloc_srq_kernel_params(srq, dev, init_attr);
+		if (rc)
+			goto err0;
+
+		pbl = &hw_srq->pbl;
+		page_cnt = qed_chain_get_page_cnt(pbl);
+		pbl_base_addr = qed_chain_get_pbl_phys(pbl);
+		phy_prod_pair_addr = hw_srq->phy_prod_pair_addr;
+		page_size = QED_CHAIN_PAGE_SIZE;
+	}
+
 	in_params.pd_id = pd->pd_id;
 	in_params.pbl_base_addr = pbl_base_addr;
 	in_params.prod_pair_addr = phy_prod_pair_addr;
@@ -1436,6 +1514,12 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 		goto err1;
 
 	srq->srq_id = out_params.srq_id;
+
+	if (udata) {
+		rc = qedr_copy_srq_uresp(dev, srq, udata);
+		if (rc)
+			goto err2;
+	}
 
 	rc = qedr_idr_add(dev, &dev->srqidr, srq, srq->srq_id);
 	if (rc)
@@ -1450,7 +1534,10 @@ err2:
 
 	dev->ops->rdma_destroy_srq(dev->rdma_ctx, &destroy_in_params);
 err1:
-	qedr_free_srq_kernel_params(srq);
+	if (udata)
+		qedr_free_srq_user_params(srq);
+	else
+		qedr_free_srq_kernel_params(srq);
 err0:
 	kfree(srq);
 
@@ -1467,7 +1554,10 @@ int qedr_destroy_srq(struct ib_srq *ibsrq)
 	in_params.srq_id = srq->srq_id;
 	dev->ops->rdma_destroy_srq(dev->rdma_ctx, &in_params);
 
-	qedr_free_srq_kernel_params(srq);
+	if (ibsrq->pd->uobject)
+		qedr_free_srq_user_params(srq);
+	else
+		qedr_free_srq_kernel_params(srq);
 
 	DP_DEBUG(dev, QEDR_MSG_SRQ,
 		 "destroy srq: destroyed srq with srq_id=0x%0x\n",
@@ -1593,9 +1683,10 @@ qedr_iwarp_populate_user_qp(struct qedr_dev *dev,
 
 	qedr_populate_pbls(dev, qp->usq.umem, qp->usq.pbl_tbl,
 			   &qp->usq.pbl_info, FW_PAGE_SHIFT);
-
-	qp->urq.pbl_tbl->va = out_params->rq_pbl_virt;
-	qp->urq.pbl_tbl->pa = out_params->rq_pbl_phys;
+	if (!qp->srq) {
+		qp->urq.pbl_tbl->va = out_params->rq_pbl_virt;
+		qp->urq.pbl_tbl->pa = out_params->rq_pbl_phys;
+	}
 
 	qedr_populate_pbls(dev, qp->urq.umem, qp->urq.pbl_tbl,
 			   &qp->urq.pbl_info, FW_PAGE_SHIFT);
@@ -1641,11 +1732,13 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	if (rc)
 		return rc;
 
-	/* RQ - read access only (0), dma sync not required (0) */
-	rc = qedr_init_user_queue(ib_ctx, dev, &qp->urq, ureq.rq_addr,
-				  ureq.rq_len, 0, 0, alloc_and_init);
-	if (rc)
-		return rc;
+	if (!qp->srq) {
+		/* RQ - read access only (0), dma sync not required (0) */
+		rc = qedr_init_user_queue(ib_ctx, dev, &qp->urq, ureq.rq_addr,
+					  ureq.rq_len, 0, 0, alloc_and_init);
+		if (rc)
+			return rc;
+	}
 
 	memset(&in_params, 0, sizeof(in_params));
 	qedr_init_common_qp_in_params(dev, pd, qp, attrs, false, &in_params);
@@ -1653,8 +1746,10 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	in_params.qp_handle_hi = ureq.qp_handle_hi;
 	in_params.sq_num_pages = qp->usq.pbl_info.num_pbes;
 	in_params.sq_pbl_ptr = qp->usq.pbl_tbl->pa;
-	in_params.rq_num_pages = qp->urq.pbl_info.num_pbes;
-	in_params.rq_pbl_ptr = qp->urq.pbl_tbl->pa;
+	if (!qp->srq) {
+		in_params.rq_num_pages = qp->urq.pbl_info.num_pbes;
+		in_params.rq_pbl_ptr = qp->urq.pbl_tbl->pa;
+	}
 
 	qp->qed_qp = dev->ops->rdma_create_qp(dev->rdma_ctx,
 					      &in_params, &out_params);
