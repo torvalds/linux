@@ -1103,6 +1103,44 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
 		generic_make_request(bio);
 }
 
+static void quit_max_writeback_rate(struct cache_set *c,
+				    struct cached_dev *this_dc)
+{
+	int i;
+	struct bcache_device *d;
+	struct cached_dev *dc;
+
+	/*
+	 * mutex bch_register_lock may compete with other parallel requesters,
+	 * or attach/detach operations on other backing device. Waiting to
+	 * the mutex lock may increase I/O request latency for seconds or more.
+	 * To avoid such situation, if mutext_trylock() failed, only writeback
+	 * rate of current cached device is set to 1, and __update_write_back()
+	 * will decide writeback rate of other cached devices (remember now
+	 * c->idle_counter is 0 already).
+	 */
+	if (mutex_trylock(&bch_register_lock)) {
+		for (i = 0; i < c->devices_max_used; i++) {
+			if (!c->devices[i])
+				continue;
+
+			if (UUID_FLASH_ONLY(&c->uuids[i]))
+				continue;
+
+			d = c->devices[i];
+			dc = container_of(d, struct cached_dev, disk);
+			/*
+			 * set writeback rate to default minimum value,
+			 * then let update_writeback_rate() to decide the
+			 * upcoming rate.
+			 */
+			atomic_long_set(&dc->writeback_rate.rate, 1);
+		}
+		mutex_unlock(&bch_register_lock);
+	} else
+		atomic_long_set(&this_dc->writeback_rate.rate, 1);
+}
+
 /* Cached devices - read & write stuff */
 
 static blk_qc_t cached_dev_make_request(struct request_queue *q,
@@ -1120,8 +1158,25 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
 		return BLK_QC_T_NONE;
 	}
 
-	atomic_set(&dc->backing_idle, 0);
-	generic_start_io_acct(q, bio_op(bio), bio_sectors(bio), &d->disk->part0);
+	if (likely(d->c)) {
+		if (atomic_read(&d->c->idle_counter))
+			atomic_set(&d->c->idle_counter, 0);
+		/*
+		 * If at_max_writeback_rate of cache set is true and new I/O
+		 * comes, quit max writeback rate of all cached devices
+		 * attached to this cache set, and set at_max_writeback_rate
+		 * to false.
+		 */
+		if (unlikely(atomic_read(&d->c->at_max_writeback_rate) == 1)) {
+			atomic_set(&d->c->at_max_writeback_rate, 0);
+			quit_max_writeback_rate(d->c, dc);
+		}
+	}
+
+	generic_start_io_acct(q,
+			      bio_op(bio),
+			      bio_sectors(bio),
+			      &d->disk->part0);
 
 	bio_set_dev(bio, dc->bdev);
 	bio->bi_iter.bi_sector += dc->sb.data_offset;

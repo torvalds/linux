@@ -200,7 +200,7 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 {
 	uint64_t now = local_clock();
 
-	d->next += div_u64(done * NSEC_PER_SEC, d->rate);
+	d->next += div_u64(done * NSEC_PER_SEC, atomic_long_read(&d->rate));
 
 	/* Bound the time.  Don't let us fall further than 2 seconds behind
 	 * (this prevents unnecessary backlog that would make it impossible

@@ -328,13 +328,6 @@ struct cached_dev {
 	 */
 	atomic_t		has_dirty;
 
-	/*
-	 * Set to zero by things that touch the backing volume-- except
-	 * writeback.  Incremented by writeback.  Used to determine when to
-	 * accelerate idle writeback.
-	 */
-	atomic_t		backing_idle;
-
 	struct bch_ratelimit	writeback_rate;
 	struct delayed_work	writeback_rate_update;
 
@@ -515,6 +508,8 @@ struct cache_set {
 	struct cache_accounting accounting;
 
 	unsigned long		flags;
+	atomic_t		idle_counter;
+	atomic_t		at_max_writeback_rate;
 
 	struct cache_sb		sb;
 
@@ -524,6 +519,7 @@ struct cache_set {
 
 	struct bcache_device	**devices;
 	unsigned		devices_max_used;
+	atomic_t		attached_dev_nr;
 	struct list_head	cached_devs;
 	uint64_t		cached_dev_sectors;
 	atomic_long_t		flash_dev_dirty_sectors;

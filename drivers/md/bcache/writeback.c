@@ -104,9 +104,54 @@ static void __update_writeback_rate(struct cached_dev *dc)
 
 	dc->writeback_rate_proportional = proportional_scaled;
 	dc->writeback_rate_integral_scaled = integral_scaled;
-	dc->writeback_rate_change = new_rate - dc->writeback_rate.rate;
-	dc->writeback_rate.rate = new_rate;
+	dc->writeback_rate_change = new_rate -
+			atomic_long_read(&dc->writeback_rate.rate);
+	atomic_long_set(&dc->writeback_rate.rate, new_rate);
 	dc->writeback_rate_target = target;
+}
+
+static bool set_at_max_writeback_rate(struct cache_set *c,
+				       struct cached_dev *dc)
+{
+	/*
+	 * Idle_counter is increased everytime when update_writeback_rate() is
+	 * called. If all backing devices attached to the same cache set have
+	 * identical dc->writeback_rate_update_seconds values, it is about 6
+	 * rounds of update_writeback_rate() on each backing device before
+	 * c->at_max_writeback_rate is set to 1, and then max wrteback rate set
+	 * to each dc->writeback_rate.rate.
+	 * In order to avoid extra locking cost for counting exact dirty cached
+	 * devices number, c->attached_dev_nr is used to calculate the idle
+	 * throushold. It might be bigger if not all cached device are in write-
+	 * back mode, but it still works well with limited extra rounds of
+	 * update_writeback_rate().
+	 */
+	if (atomic_inc_return(&c->idle_counter) <
+	    atomic_read(&c->attached_dev_nr) * 6)
+		return false;
+
+	if (atomic_read(&c->at_max_writeback_rate) != 1)
+		atomic_set(&c->at_max_writeback_rate, 1);
+
+	atomic_long_set(&dc->writeback_rate.rate, INT_MAX);
+
+	/* keep writeback_rate_target as existing value */
+	dc->writeback_rate_proportional = 0;
+	dc->writeback_rate_integral_scaled = 0;
+	dc->writeback_rate_change = 0;
+
+	/*
+	 * Check c->idle_counter and c->at_max_writeback_rate agagain in case
+	 * new I/O arrives during before set_at_max_writeback_rate() returns.
+	 * Then the writeback rate is set to 1, and its new value should be
+	 * decided via __update_writeback_rate().
+	 */
+	if ((atomic_read(&c->idle_counter) <
+	     atomic_read(&c->attached_dev_nr) * 6) ||
+	    !atomic_read(&c->at_max_writeback_rate))
+		return false;
+
+	return true;
 }
 
 static void update_writeback_rate(struct work_struct *work)
@@ -136,13 +181,20 @@ static void update_writeback_rate(struct work_struct *work)
 		return;
 	}
 
-	down_read(&dc->writeback_lock);
+	if (atomic_read(&dc->has_dirty) && dc->writeback_percent) {
+		/*
+		 * If the whole cache set is idle, set_at_max_writeback_rate()
+		 * will set writeback rate to a max number. Then it is
+		 * unncessary to update writeback rate for an idle cache set
+		 * in maximum writeback rate number(s).
+		 */
+		if (!set_at_max_writeback_rate(c, dc)) {
+			down_read(&dc->writeback_lock);
+			__update_writeback_rate(dc);
+			up_read(&dc->writeback_lock);
+		}
+	}
 
-	if (atomic_read(&dc->has_dirty) &&
-	    dc->writeback_percent)
-		__update_writeback_rate(dc);
-
-	up_read(&dc->writeback_lock);
 
 	/*
 	 * CACHE_SET_IO_DISABLE might be set via sysfs interface,
@@ -421,27 +473,6 @@ static void read_dirty(struct cached_dev *dc)
 		}
 
 		delay = writeback_delay(dc, size);
-
-		/* If the control system would wait for at least half a
-		 * second, and there's been no reqs hitting the backing disk
-		 * for awhile: use an alternate mode where we have at most
-		 * one contiguous set of writebacks in flight at a time.  If
-		 * someone wants to do IO it will be quick, as it will only
-		 * have to contend with one operation in flight, and we'll
-		 * be round-tripping data to the backing disk as quickly as
-		 * it can accept it.
-		 */
-		if (delay >= HZ / 2) {
-			/* 3 means at least 1.5 seconds, up to 7.5 if we
-			 * have slowed way down.
-			 */
-			if (atomic_inc_return(&dc->backing_idle) >= 3) {
-				/* Wait for current I/Os to finish */
-				closure_sync(&cl);
-				/* And immediately launch a new set. */
-				delay = 0;
-			}
-		}
 
 		while (!kthread_should_stop() &&
 		       !test_bit(CACHE_SET_IO_DISABLE, &dc->disk.c->flags) &&
@@ -741,7 +772,7 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 	dc->writeback_running		= true;
 	dc->writeback_percent		= 10;
 	dc->writeback_delay		= 30;
-	dc->writeback_rate.rate		= 1024;
+	atomic_long_set(&dc->writeback_rate.rate, 1024);
 	dc->writeback_rate_minimum	= 8;
 
 	dc->writeback_rate_update_seconds = WRITEBACK_RATE_UPDATE_SECS_DEFAULT;
