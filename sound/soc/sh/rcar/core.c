@@ -1,16 +1,12 @@
-/*
- * Renesas R-Car SRU/SCU/SSIU/SSI support
- *
- * Copyright (C) 2013 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * Based on fsi.c
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car SRU/SCU/SSIU/SSI support
+//
+// Copyright (C) 2013 Renesas Solutions Corp.
+// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+//
+// Based on fsi.c
+// Kuninori Morimoto <morimoto.kuninori@renesas.com>
 
 /*
  * Renesas R-Car sound device structure
@@ -552,6 +548,15 @@ struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id)
 	return priv->rdai + id;
 }
 
+static struct snd_soc_dai_driver
+*rsnd_daidrv_get(struct rsnd_priv *priv, int id)
+{
+	if ((id < 0) || (id >= rsnd_rdai_nr(priv)))
+		return NULL;
+
+	return priv->daidrv + id;
+}
+
 #define rsnd_dai_to_priv(dai) snd_soc_dai_get_drvdata(dai)
 static struct rsnd_dai *rsnd_dai_to_rdai(struct snd_soc_dai *dai)
 {
@@ -1037,7 +1042,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	int io_i;
 
 	rdai		= rsnd_rdai_get(priv, dai_i);
-	drv		= priv->daidrv + dai_i;
+	drv		= rsnd_daidrv_get(priv, dai_i);
 	io_playback	= &rdai->playback;
 	io_capture	= &rdai->capture;
 
@@ -1612,7 +1617,7 @@ static struct platform_driver rsnd_driver = {
 };
 module_platform_driver(rsnd_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas R-Car audio driver");
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
 MODULE_ALIAS("platform:rcar-pcm-audio");

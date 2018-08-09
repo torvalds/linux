@@ -1498,9 +1498,9 @@ static bool wm8996_readable_register(struct device *dev, unsigned int reg)
 	case WM8996_RIGHT_PDM_SPEAKER:
 	case WM8996_PDM_SPEAKER_MUTE_SEQUENCE:
 	case WM8996_PDM_SPEAKER_VOLUME:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -1522,9 +1522,9 @@ static bool wm8996_volatile_register(struct device *dev, unsigned int reg)
 	case WM8996_MIC_DETECT_3:
 	case WM8996_HEADPHONE_DETECT_1:
 	case WM8996_HEADPHONE_DETECT_2:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -1858,6 +1858,7 @@ static int wm8996_set_sysclk(struct snd_soc_dai *dai,
 	case 24576000:
 		ratediv = WM8996_SYSCLK_DIV;
 		wm8996->sysclk /= 2;
+		/* fall through */
 	case 11289600:
 	case 12288000:
 		snd_soc_component_update_bits(component, WM8996_AIF_RATE,

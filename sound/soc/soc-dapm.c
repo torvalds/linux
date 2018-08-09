@@ -1,27 +1,21 @@
-/*
- * soc-dapm.c  --  ALSA SoC Dynamic Audio Power Management
- *
- * Copyright 2005 Wolfson Microelectronics PLC.
- * Author: Liam Girdwood <lrg@slimlogic.co.uk>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- *  Features:
- *    o Changes power status of internal codec blocks depending on the
- *      dynamic configuration of codec internal audio paths and active
- *      DACs/ADCs.
- *    o Platform power domain - can support external components i.e. amps and
- *      mic/headphone insertion events.
- *    o Automatic Mic Bias support
- *    o Jack insertion power event initiation - e.g. hp insertion will enable
- *      sinks, dacs, etc
- *    o Delayed power down of audio subsystem to reduce pops between a quick
- *      device reopen.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// soc-dapm.c  --  ALSA SoC Dynamic Audio Power Management
+//
+// Copyright 2005 Wolfson Microelectronics PLC.
+// Author: Liam Girdwood <lrg@slimlogic.co.uk>
+//
+//  Features:
+//    o Changes power status of internal codec blocks depending on the
+//      dynamic configuration of codec internal audio paths and active
+//      DACs/ADCs.
+//    o Platform power domain - can support external components i.e. amps and
+//      mic/headphone insertion events.
+//    o Automatic Mic Bias support
+//    o Jack insertion power event initiation - e.g. hp insertion will enable
+//      sinks, dacs, etc
+//    o Delayed power down of audio subsystem to reduce pops between a quick
+//      device reopen.
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -3662,7 +3656,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	struct snd_pcm_substream substream;
 	struct snd_pcm_hw_params *params = NULL;
 	struct snd_pcm_runtime *runtime = NULL;
-	u64 fmt;
+	unsigned int fmt;
 	int ret;
 
 	if (WARN_ON(!config) ||

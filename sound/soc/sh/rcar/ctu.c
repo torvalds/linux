@@ -1,12 +1,9 @@
-/*
- * ctu.c
- *
- * Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ctu.c
+//
+// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include "rsnd.h"
 
 #define CTU_NAME_SIZE	16

@@ -1,17 +1,8 @@
-/*
- *  Copyright (C) 2013, Analog Devices Inc.
- *	Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+//  Copyright (C) 2013, Analog Devices Inc.
+//	Author: Lars-Peter Clausen <lars@metafoo.de>
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dmaengine.h>
@@ -197,7 +188,7 @@ static int dmaengine_pcm_set_runtime_hwparams(struct snd_pcm_substream *substrea
 			case 32:
 			case 64:
 				if (addr_widths & (1 << (bits / 8)))
-					hw.formats |= (1LL << i);
+					hw.formats |= pcm_format_to_bits(i);
 				break;
 			default:
 				/* Unsupported types */
@@ -343,7 +334,7 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 
 static int dmaengine_copy_user(struct snd_pcm_substream *substream,
 			       int channel, unsigned long hwoff,
-			       void *buf, unsigned long bytes)
+			       void __user *buf, unsigned long bytes)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component =
@@ -359,18 +350,17 @@ static int dmaengine_copy_user(struct snd_pcm_substream *substream,
 	int ret;
 
 	if (is_playback)
-		if (copy_from_user(dma_ptr, (void __user *)buf, bytes))
+		if (copy_from_user(dma_ptr, buf, bytes))
 			return -EFAULT;
 
 	if (process) {
-		ret = process(substream, channel, hwoff,
-			      (void __user *)buf, bytes);
+		ret = process(substream, channel, hwoff, (__force void *)buf, bytes);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (!is_playback)
-		if (copy_to_user((void __user *)buf, dma_ptr, bytes))
+		if (copy_to_user(buf, dma_ptr, bytes))
 			return -EFAULT;
 
 	return 0;

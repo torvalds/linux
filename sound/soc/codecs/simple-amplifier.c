@@ -21,9 +21,9 @@
 #include <linux/module.h>
 #include <sound/soc.h>
 
-#define DRV_NAME "dio2125"
+#define DRV_NAME "simple-amplifier"
 
-struct dio2125 {
+struct simple_amp {
 	struct gpio_desc *gpiod_enable;
 };
 
@@ -31,7 +31,7 @@ static int drv_event(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *control, int event)
 {
 	struct snd_soc_component *c = snd_soc_dapm_to_component(w->dapm);
-	struct dio2125 *priv = snd_soc_component_get_drvdata(c);
+	struct simple_amp *priv = snd_soc_component_get_drvdata(c);
 	int val;
 
 	switch (event) {
@@ -51,7 +51,7 @@ static int drv_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static const struct snd_soc_dapm_widget dio2125_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget simple_amp_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("INL"),
 	SND_SOC_DAPM_INPUT("INR"),
 	SND_SOC_DAPM_OUT_DRV_E("DRV", SND_SOC_NOPM, 0, 0, NULL, 0, drv_event,
@@ -60,24 +60,24 @@ static const struct snd_soc_dapm_widget dio2125_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("OUTR"),
 };
 
-static const struct snd_soc_dapm_route dio2125_dapm_routes[] = {
+static const struct snd_soc_dapm_route simple_amp_dapm_routes[] = {
 	{ "DRV", NULL, "INL" },
 	{ "DRV", NULL, "INR" },
 	{ "OUTL", NULL, "DRV" },
 	{ "OUTR", NULL, "DRV" },
 };
 
-static const struct snd_soc_component_driver dio2125_component_driver = {
-	.dapm_widgets		= dio2125_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(dio2125_dapm_widgets),
-	.dapm_routes		= dio2125_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(dio2125_dapm_routes),
+static const struct snd_soc_component_driver simple_amp_component_driver = {
+	.dapm_widgets		= simple_amp_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(simple_amp_dapm_widgets),
+	.dapm_routes		= simple_amp_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(simple_amp_dapm_routes),
 };
 
-static int dio2125_probe(struct platform_device *pdev)
+static int simple_amp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct dio2125 *priv;
+	struct simple_amp *priv;
 	int err;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -93,28 +93,30 @@ static int dio2125_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	return devm_snd_soc_register_component(dev, &dio2125_component_driver,
+	return devm_snd_soc_register_component(dev,
+					       &simple_amp_component_driver,
 					       NULL, 0);
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id dio2125_ids[] = {
+static const struct of_device_id simple_amp_ids[] = {
 	{ .compatible = "dioo,dio2125", },
+	{ .compatible = "simple-audio-amplifier", },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, dio2125_ids);
+MODULE_DEVICE_TABLE(of, simple_amp_ids);
 #endif
 
-static struct platform_driver dio2125_driver = {
+static struct platform_driver simple_amp_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.of_match_table = of_match_ptr(dio2125_ids),
+		.of_match_table = of_match_ptr(simple_amp_ids),
 	},
-	.probe = dio2125_probe,
+	.probe = simple_amp_probe,
 };
 
-module_platform_driver(dio2125_driver);
+module_platform_driver(simple_amp_driver);
 
-MODULE_DESCRIPTION("ASoC DIO2125 output driver");
+MODULE_DESCRIPTION("ASoC Simple Audio Amplifier driver");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_LICENSE("GPL");

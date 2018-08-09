@@ -188,6 +188,11 @@ struct hdac_driver {
 	const struct hda_device_id *id_table;
 	int (*match)(struct hdac_device *dev, struct hdac_driver *drv);
 	void (*unsol_event)(struct hdac_device *dev, unsigned int event);
+
+	/* fields used by ext bus APIs */
+	int (*probe)(struct hdac_device *dev);
+	int (*remove)(struct hdac_device *dev);
+	void (*shutdown)(struct hdac_device *dev);
 };
 
 #define drv_to_hdac_driver(_drv) container_of(_drv, struct hdac_driver, driver)
@@ -206,6 +211,14 @@ struct hdac_bus_ops {
 			    unsigned int *res);
 	/* control the link power  */
 	int (*link_power)(struct hdac_bus *bus, bool enable);
+};
+
+/*
+ * ops used for ASoC HDA codec drivers
+ */
+struct hdac_ext_bus_ops {
+	int (*hdev_attach)(struct hdac_device *hdev);
+	int (*hdev_detach)(struct hdac_device *hdev);
 };
 
 /*
@@ -250,11 +263,17 @@ struct hdac_rb {
  * @mlcap: MultiLink capabilities pointer
  * @gtscap: gts capabilities pointer
  * @drsmcap: dma resume capabilities pointer
+ * @num_streams: streams supported
+ * @idx: HDA link index
+ * @hlink_list: link list of HDA links
+ * @lock: lock for link mgmt
+ * @cmd_dma_state: state of cmd DMAs: CORB and RIRB
  */
 struct hdac_bus {
 	struct device *dev;
 	const struct hdac_bus_ops *ops;
 	const struct hdac_io_ops *io_ops;
+	const struct hdac_ext_bus_ops *ext_ops;
 
 	/* h/w resources */
 	unsigned long addr;
@@ -314,9 +333,19 @@ struct hdac_bus {
 	spinlock_t reg_lock;
 	struct mutex cmd_mutex;
 
-	/* i915 component interface */
-	struct i915_audio_component *audio_component;
-	int i915_power_refcount;
+	/* DRM component interface */
+	struct drm_audio_component *audio_component;
+	int drm_power_refcount;
+
+	/* parameters required for enhanced capabilities */
+	int num_streams;
+	int idx;
+
+	struct list_head hlink_list;
+
+	struct mutex lock;
+	bool cmd_dma_state;
+
 };
 
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
