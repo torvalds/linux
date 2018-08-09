@@ -1210,7 +1210,8 @@ static int fiji_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	 * PECI_GetNumberOfActiveDisplays(hwmgr->pPECI,
 	 * &(data->DisplayTiming.numExistingDisplays));
 	 */
-	data->display_timing.num_existing_displays = 1;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&
