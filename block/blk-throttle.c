@@ -922,12 +922,7 @@ static bool tg_with_in_iops_limit(struct throtl_grp *tg, struct bio *bio,
 	}
 
 	/* Calc approx time to dispatch */
-	jiffy_wait = ((tg->io_disp[rw] + 1) * HZ) / tg_iops_limit(tg, rw) + 1;
-
-	if (jiffy_wait > jiffy_elapsed)
-		jiffy_wait = jiffy_wait - jiffy_elapsed;
-	else
-		jiffy_wait = 1;
+	jiffy_wait = jiffy_elapsed_rnd - jiffy_elapsed;
 
 	if (wait)
 		*wait = jiffy_wait;
