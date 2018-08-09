@@ -594,7 +594,7 @@ static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
  */
 struct qeth_channel {
 	enum qeth_channel_states state;
-	struct ccw1 ccw;
+	struct ccw1 *ccw;
 	spinlock_t iob_lock;
 	wait_queue_head_t wait_q;
 	struct ccw_device *ccwdev;
