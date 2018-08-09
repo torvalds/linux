@@ -226,6 +226,9 @@ struct amdgpu_firmware_info {
 	void *kaddr;
 	/* ucode_size_bytes */
 	uint32_t ucode_size;
+	/* starting tmr mc address */
+	uint32_t tmr_mc_addr_lo;
+	uint32_t tmr_mc_addr_hi;
 };
 
 void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr);
