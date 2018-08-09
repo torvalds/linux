@@ -1971,6 +1971,7 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 #define MLXSW_SP_PORT_HW_TC_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_tc_stats)
 
 #define MLXSW_SP_PORT_ETHTOOL_STATS_LEN (MLXSW_SP_PORT_HW_STATS_LEN + \
+					 MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN + \
 					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN + \
 					  MLXSW_SP_PORT_HW_TC_STATS_LEN) * \
 					 IEEE_8021QAZ_MAX_TCS)
