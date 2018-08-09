@@ -1704,15 +1704,12 @@ static void ice_ena_misc_vector(struct ice_pf *pf)
 	wr32(hw, PFINT_OICR_ENA, 0);	/* disable all */
 	rd32(hw, PFINT_OICR);		/* read to clear */
 
-	val = (PFINT_OICR_HLP_RDY_M |
-	       PFINT_OICR_CPM_RDY_M |
-	       PFINT_OICR_ECC_ERR_M |
+	val = (PFINT_OICR_ECC_ERR_M |
 	       PFINT_OICR_MAL_DETECT_M |
 	       PFINT_OICR_GRST_M |
 	       PFINT_OICR_PCI_EXCEPTION_M |
-	       PFINT_OICR_GPIO_M |
-	       PFINT_OICR_STORM_DETECT_M |
-	       PFINT_OICR_HMC_ERR_M);
+	       PFINT_OICR_HMC_ERR_M |
+	       PFINT_OICR_PE_CRITERR_M);
 
 	wr32(hw, PFINT_OICR_ENA, val);
 
