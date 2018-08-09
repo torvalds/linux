@@ -289,7 +289,7 @@ static int sof_probe(struct platform_device *pdev)
 	}
 
 	/* load the firmware */
-	ret = snd_sof_load_firmware(sdev, plat_data->fw, true);
+	ret = snd_sof_load_firmware(sdev, true);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to load DSP firmware %d\n",
 			ret);

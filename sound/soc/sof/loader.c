@@ -19,6 +19,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
+#include <sound/sof.h>
 #include <uapi/sound/sof-fw.h>
 #include "sof-priv.h"
 #include "ops.h"
@@ -208,42 +209,60 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 }
 
 int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev,
-				 const struct firmware *fw, bool first_boot)
+				 bool first_boot)
 {
+	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
 	int ret;
 
+	/* set code loading condition to true */
+	sdev->code_loading = 1;
+
+	ret = request_firmware(&plat_data->fw,
+			       plat_data->machine->sof_fw_filename, sdev->dev);
+
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: request firmware failed err: %d\n",
+			ret);
+		return ret;
+	}
+
 	/* make sure the FW header and file is valid */
-	ret = check_header(sdev, fw);
+	ret = check_header(sdev, plat_data->fw);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: invalid FW header\n");
-		return ret;
+		goto error;
 	}
 
 	/* prepare the DSP for FW loading */
 	ret = snd_sof_dsp_reset(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to reset DSP\n");
-		return ret;
+		goto error;
 	}
 
 	/* parse and load firmware modules to DSP */
-	ret = load_modules(sdev, fw);
+	ret = load_modules(sdev, plat_data->fw);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: invalid FW modules\n");
-		return ret;
+		goto error;
 	}
 
+	return 0;
+
+error:
+	release_firmware(plat_data->fw);
 	return ret;
+
 }
 EXPORT_SYMBOL(snd_sof_load_firmware_memcpy);
 
 int snd_sof_load_firmware(struct snd_sof_dev *sdev,
-			  const struct firmware *fw, bool first_boot)
+			  bool first_boot)
 {
 	dev_dbg(sdev->dev, "loading firmware\n");
 
 	if (sdev->ops->load_firmware)
-		return sdev->ops->load_firmware(sdev, fw, first_boot);
+		return sdev->ops->load_firmware(sdev, first_boot);
 	return 0;
 }
 EXPORT_SYMBOL(snd_sof_load_firmware);

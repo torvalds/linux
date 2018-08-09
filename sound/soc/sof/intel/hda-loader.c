@@ -287,28 +287,15 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, int tag)
 	return status;
 }
 
-int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev, const struct firmware *fw,
-		       bool first_boot)
+int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev, bool first_boot)
 {
 	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
-	int ret;
 
 	/* set code loading condition to true */
 	sdev->code_loading = 1;
 
-	ret = request_firmware(&plat_data->fw,
-			       plat_data->machine->sof_fw_filename, sdev->dev);
-
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: request firmware failed err: %d\n",
-			ret);
-		return -EINVAL;
-	}
-
-	if (!plat_data->fw)
-		return -EINVAL;
-
-	return ret;
+	return request_firmware(&plat_data->fw,
+				plat_data->machine->sof_fw_filename, sdev->dev);
 }
 
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
