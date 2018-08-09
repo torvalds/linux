@@ -89,6 +89,13 @@ extern const char ice_drv_ver[];
 #define ice_for_each_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
 
+/* Macros for each allocated tx/rx ring whether used or not in a VSI */
+#define ice_for_each_alloc_txq(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->alloc_txq; (i)++)
+
+#define ice_for_each_alloc_rxq(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->alloc_rxq; (i)++)
+
 struct ice_tc_info {
 	u16 qoffset;
 	u16 qcount;
