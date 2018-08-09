@@ -388,20 +388,7 @@ static enum ice_status ice_init_fltr_mgmt_struct(struct ice_hw *hw)
 
 	INIT_LIST_HEAD(&sw->vsi_list_map_head);
 
-	mutex_init(&sw->mac_list_lock);
-	INIT_LIST_HEAD(&sw->mac_list_head);
-
-	mutex_init(&sw->vlan_list_lock);
-	INIT_LIST_HEAD(&sw->vlan_list_head);
-
-	mutex_init(&sw->eth_m_list_lock);
-	INIT_LIST_HEAD(&sw->eth_m_list_head);
-
-	mutex_init(&sw->promisc_list_lock);
-	INIT_LIST_HEAD(&sw->promisc_list_head);
-
-	mutex_init(&sw->mac_vlan_list_lock);
-	INIT_LIST_HEAD(&sw->mac_vlan_list_head);
+	ice_init_def_sw_recp(hw);
 
 	return 0;
 }
@@ -415,19 +402,28 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 	struct ice_switch_info *sw = hw->switch_info;
 	struct ice_vsi_list_map_info *v_pos_map;
 	struct ice_vsi_list_map_info *v_tmp_map;
+	struct ice_sw_recipe *recps;
+	u8 i;
 
 	list_for_each_entry_safe(v_pos_map, v_tmp_map, &sw->vsi_list_map_head,
 				 list_entry) {
 		list_del(&v_pos_map->list_entry);
 		devm_kfree(ice_hw_to_dev(hw), v_pos_map);
 	}
+	recps = hw->switch_info->recp_list;
+	for (i = 0; i < ICE_SW_LKUP_LAST; i++) {
+		struct ice_fltr_mgmt_list_entry *lst_itr, *tmp_entry;
 
-	mutex_destroy(&sw->mac_list_lock);
-	mutex_destroy(&sw->vlan_list_lock);
-	mutex_destroy(&sw->eth_m_list_lock);
-	mutex_destroy(&sw->promisc_list_lock);
-	mutex_destroy(&sw->mac_vlan_list_lock);
+		recps[i].root_rid = i;
+		mutex_destroy(&recps[i].filt_rule_lock);
+		list_for_each_entry_safe(lst_itr, tmp_entry,
+					 &recps[i].filt_rules, list_entry) {
+			list_del(&lst_itr->list_entry);
+			devm_kfree(ice_hw_to_dev(hw), lst_itr);
+		}
+	}
 
+	devm_kfree(ice_hw_to_dev(hw), sw->recp_list);
 	devm_kfree(ice_hw_to_dev(hw), sw);
 }
 

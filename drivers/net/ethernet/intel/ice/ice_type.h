@@ -253,19 +253,8 @@ struct ice_port_info {
 };
 
 struct ice_switch_info {
-	/* Switch VSI lists to MAC/VLAN translation */
-	struct mutex mac_list_lock;		/* protect MAC list */
-	struct list_head mac_list_head;
-	struct mutex vlan_list_lock;		/* protect VLAN list */
-	struct list_head vlan_list_head;
-	struct mutex eth_m_list_lock;	/* protect ethtype list */
-	struct list_head eth_m_list_head;
-	struct mutex promisc_list_lock;	/* protect promisc mode list */
-	struct list_head promisc_list_head;
-	struct mutex mac_vlan_list_lock;	/* protect MAC-VLAN list */
-	struct list_head mac_vlan_list_head;
-
 	struct list_head vsi_list_map_head;
+	struct ice_sw_recipe *recp_list;
 };
 
 /* Port hardware description */

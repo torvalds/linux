@@ -443,6 +443,8 @@ struct ice_aqc_vsi_props {
 	u8 reserved[24];
 };
 
+#define ICE_MAX_NUM_RECIPES 64
+
 /* Add/Update/Remove/Get switch rules (indirect 0x02A0, 0x02A1, 0x02A2, 0x02A3)
  */
 struct ice_aqc_sw_rules {
