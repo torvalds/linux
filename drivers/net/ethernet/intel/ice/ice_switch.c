@@ -464,8 +464,9 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 		 struct ice_aqc_sw_rules_elem *s_rule, enum ice_adminq_opc opc)
 {
 	u16 vlan_id = ICE_MAX_VLAN_ID + 1;
-	u8 eth_hdr[DUMMY_ETH_HDR_LEN];
 	void *daddr = NULL;
+	u16 eth_hdr_sz;
+	u8 *eth_hdr;
 	u32 act = 0;
 	__be16 *off;
 
@@ -477,8 +478,11 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 		return;
 	}
 
+	eth_hdr_sz = sizeof(dummy_eth_header);
+	eth_hdr = s_rule->pdata.lkup_tx_rx.hdr;
+
 	/* initialize the ether header with a dummy header */
-	memcpy(eth_hdr, dummy_eth_header, sizeof(dummy_eth_header));
+	memcpy(eth_hdr, dummy_eth_header, eth_hdr_sz);
 	ice_fill_sw_info(hw, f_info);
 
 	switch (f_info->fltr_act) {
@@ -536,7 +540,7 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 		daddr = f_info->l_data.ethertype_mac.mac_addr;
 		/* fall-through */
 	case ICE_SW_LKUP_ETHERTYPE:
-		off = (__be16 *)&eth_hdr[ICE_ETH_ETHTYPE_OFFSET];
+		off = (__be16 *)(eth_hdr + ICE_ETH_ETHTYPE_OFFSET);
 		*off = cpu_to_be16(f_info->l_data.ethertype_mac.ethertype);
 		break;
 	case ICE_SW_LKUP_MAC_VLAN:
@@ -563,18 +567,16 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 	s_rule->pdata.lkup_tx_rx.act = cpu_to_le32(act);
 
 	if (daddr)
-		ether_addr_copy(&eth_hdr[ICE_ETH_DA_OFFSET], daddr);
+		ether_addr_copy(eth_hdr + ICE_ETH_DA_OFFSET, daddr);
 
 	if (!(vlan_id > ICE_MAX_VLAN_ID)) {
-		off = (__be16 *)&eth_hdr[ICE_ETH_VLAN_TCI_OFFSET];
+		off = (__be16 *)(eth_hdr + ICE_ETH_VLAN_TCI_OFFSET);
 		*off = cpu_to_be16(vlan_id);
 	}
 
 	/* Create the switch rule with the final dummy Ethernet header */
 	if (opc != ice_aqc_opc_update_sw_rules)
-		s_rule->pdata.lkup_tx_rx.hdr_len = cpu_to_le16(sizeof(eth_hdr));
-
-	memcpy(s_rule->pdata.lkup_tx_rx.hdr, eth_hdr, sizeof(eth_hdr));
+		s_rule->pdata.lkup_tx_rx.hdr_len = cpu_to_le16(eth_hdr_sz);
 }
 
 /**
