@@ -817,7 +817,7 @@ static int pnv_parse_cpuidle_dt(void)
 		goto out;
 	}
 	for (i = 0; i < nr_idle_states; i++)
-		strncpy(pnv_idle_states[i].name, temp_string[i],
+		strlcpy(pnv_idle_states[i].name, temp_string[i],
 			PNV_IDLE_NAME_LEN);
 	nr_pnv_idle_states = nr_idle_states;
 	rc = 0;
