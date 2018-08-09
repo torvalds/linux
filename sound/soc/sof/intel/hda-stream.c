@@ -507,8 +507,8 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 			&& s->opened) {
 			sd_status = snd_hdac_stream_readb(s, SD_STS);
 
-			dev_dbg(bus->dev, "stream %d status 0x%x\n",
-				s->index, sd_status);
+			dev_vdbg(bus->dev, "stream %d status 0x%x\n",
+				 s->index, sd_status);
 
 			snd_hdac_stream_writeb(s, SD_STS, SD_INT_MASK);
 

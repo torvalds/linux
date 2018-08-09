@@ -26,6 +26,7 @@
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda_register.h>
 #include <sound/sof.h>
 #include <sound/pcm_params.h>
 #include <linux/pm_runtime.h>
@@ -134,6 +135,65 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
 
 	return hda_dsp_stream_trigger(sdev, stream, cmd);
+}
+
+snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
+				      struct snd_pcm_substream *substream)
+{
+	struct hdac_stream *hstream = substream->runtime->private_data;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_sof_pcm *spcm = rtd->private;
+	snd_pcm_uframes_t pos = 0;
+
+	if (!sdev->hda->no_ipc_position) {
+		/* read position from IPC position */
+		pos = spcm->stream[substream->stream].posn.host_posn;
+		goto found;
+	}
+
+	/*
+	 * DPIB/posbuf position mode:
+	 * For Playback, Use DPIB register from HDA space which
+	 * reflects the actual data transferred.
+	 * For Capture, Use the position buffer for pointer, as DPIB
+	 * is not accurate enough, its update may be completed
+	 * earlier than the data written to DDR.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		pos = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
+				       AZX_REG_VS_SDXDPIB_XBASE +
+				       (AZX_REG_VS_SDXDPIB_XINTERVAL *
+					hstream->index));
+	} else {
+		/*
+		 * For capture stream, we need more workaround to fix the
+		 * position incorrect issue:
+		 *
+		 * 1. Wait at least 20us before reading position buffer after
+		 * the interrupt generated(IOC), to make sure position update
+		 * happens on frame boundary i.e. 20.833uSec for 48KHz.
+		 * 2. Perform a dummy Read to DPIB register to flush DMA
+		 * position value.
+		 * 3. Read the DMA Position from posbuf. Now the readback
+		 * value should be >= period boundary.
+		 */
+		usleep_range(20, 21);
+		snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
+				 AZX_REG_VS_SDXDPIB_XBASE +
+				 (AZX_REG_VS_SDXDPIB_XINTERVAL *
+				  hstream->index));
+		pos = snd_hdac_stream_get_pos_posbuf(hstream);
+	}
+
+	if (pos >= hstream->bufsize)
+		pos = 0;
+
+found:
+	pos = bytes_to_frames(substream->runtime, pos);
+
+	dev_vdbg(sdev->dev, "PCM: stream %d dir %d position %lu\n",
+		 hstream->index, substream->stream, pos);
+	return pos;
 }
 
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
