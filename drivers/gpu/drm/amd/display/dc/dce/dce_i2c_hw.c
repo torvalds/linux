@@ -58,18 +58,7 @@ static bool is_hw_busy(struct dce_i2c_hw *dce_i2c_hw)
 	return i2c_sw_status != DC_I2C_STATUS__DC_I2C_STATUS_IDLE;
 }
 
-static void set_speed_hw_dce80(
-	struct dce_i2c_hw *dce_i2c_hw,
-	uint32_t speed)
-{
-
-	if (speed) {
-		REG_UPDATE_N(SPEED, 2,
-			     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), dce_i2c_hw->reference_frequency / speed,
-			     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2);
-	}
-}
-static void set_speed_hw_dce100(
+static void set_speed(
 	struct dce_i2c_hw *dce_i2c_hw,
 	uint32_t speed)
 {
@@ -86,6 +75,7 @@ static void set_speed_hw_dce100(
 				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2);
 	}
 }
+
 bool dce_i2c_hw_engine_acquire_engine(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct ddc *ddc)
@@ -172,7 +162,7 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 	return NULL;
 }
 
-static bool setup_engine_hw_dce100(
+static bool setup_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
 	uint32_t i2c_setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
@@ -206,72 +196,11 @@ static bool setup_engine_hw_dce100(
 
 	return true;
 }
-static bool setup_engine_hw_dce80(
-	struct dce_i2c_hw *dce_i2c_hw)
-{
-
-	/* Program pin select */
-	{
-		REG_UPDATE_6(DC_I2C_CONTROL,
-			     DC_I2C_GO, 0,
-			     DC_I2C_SOFT_RESET, 0,
-			     DC_I2C_SEND_RESET, 0,
-			     DC_I2C_SW_STATUS_RESET, 1,
-			     DC_I2C_TRANSACTION_COUNT, 0,
-			     DC_I2C_DDC_SELECT, dce_i2c_hw->engine_id);
-	}
-
-	/* Program time limit */
-	{
-		REG_UPDATE_2(SETUP,
-			     DC_I2C_DDC1_TIME_LIMIT, I2C_SETUP_TIME_LIMIT_DCE,
-			     DC_I2C_DDC1_ENABLE, 1);
-	}
-
-	/* Program HW priority
-	 * set to High - interrupt software I2C at any time
-	 * Enable restart of SW I2C that was interrupted by HW
-	 * disable queuing of software while I2C is in use by HW
-	 */
-	{
-		REG_UPDATE_2(DC_I2C_ARBITRATION,
-			     DC_I2C_NO_QUEUED_SW_GO, 0,
-			     DC_I2C_SW_PRIORITY, DC_I2C_ARBITRATION__DC_I2C_SW_PRIORITY_NORMAL);
-	}
-
-	return true;
-}
 
 
 
-static void process_channel_reply_hw_dce80(
-	struct dce_i2c_hw *dce_i2c_hw,
-	struct i2c_reply_transaction_data *reply)
-{
-	uint32_t length = reply->length;
-	uint8_t *buffer = reply->data;
 
-	REG_SET_3(DC_I2C_DATA, 0,
-		 DC_I2C_INDEX, length - 1,
-		 DC_I2C_DATA_RW, 1,
-		 DC_I2C_INDEX_WRITE, 1);
-
-	while (length) {
-		/* after reading the status,
-		 * if the I2C operation executed successfully
-		 * (i.e. DC_I2C_STATUS_DONE = 1) then the I2C controller
-		 * should read data bytes from I2C circular data buffer
-		 */
-
-		uint32_t i2c_data;
-
-		REG_GET(DC_I2C_DATA, DC_I2C_DATA, &i2c_data);
-		*buffer++ = i2c_data;
-
-		--length;
-	}
-}
-static void process_channel_reply_hw_dce100(
+static void process_channel_reply(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct i2c_reply_transaction_data *reply)
 {
@@ -404,7 +333,7 @@ static void execute_transaction_hw(
 	dce_i2c_hw->transaction_count = 0;
 	dce_i2c_hw->buffer_used_bytes = 0;
 }
-static bool process_transaction_hw_dce80(
+static bool process_transaction(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct i2c_request_transaction_data *request)
 {
@@ -414,134 +343,48 @@ static bool process_transaction_hw_dce80(
 	bool last_transaction = false;
 	uint32_t value = 0;
 
-	{
+	last_transaction = ((dce_i2c_hw->transaction_count == 3) ||
+			(request->action == DCE_I2C_TRANSACTION_ACTION_I2C_WRITE) ||
+			(request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ));
 
-		last_transaction = ((dce_i2c_hw->transaction_count == 3) ||
-				(request->action == DCE_I2C_TRANSACTION_ACTION_I2C_WRITE) ||
-				(request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ));
-
-
-		switch (dce_i2c_hw->transaction_count) {
-		case 0:
-			REG_UPDATE_5(DC_I2C_TRANSACTION0,
-				     DC_I2C_STOP_ON_NACK0, 1,
-				     DC_I2C_START0, 1,
-				     DC_I2C_RW0, 0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ),
-				     DC_I2C_COUNT0, length,
-				     DC_I2C_STOP0, last_transaction ? 1 : 0);
-			break;
-		case 1:
-			REG_UPDATE_5(DC_I2C_TRANSACTION1,
-				     DC_I2C_STOP_ON_NACK0, 1,
-				     DC_I2C_START0, 1,
-				     DC_I2C_RW0, 0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ),
-				     DC_I2C_COUNT0, length,
-				     DC_I2C_STOP0, last_transaction ? 1 : 0);
-			break;
-		case 2:
-			REG_UPDATE_5(DC_I2C_TRANSACTION2,
-				     DC_I2C_STOP_ON_NACK0, 1,
-				     DC_I2C_START0, 1,
-				     DC_I2C_RW0, 0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ),
-				     DC_I2C_COUNT0, length,
-				     DC_I2C_STOP0, last_transaction ? 1 : 0);
-			break;
-		case 3:
-			REG_UPDATE_5(DC_I2C_TRANSACTION3,
-				     DC_I2C_STOP_ON_NACK0, 1,
-				     DC_I2C_START0, 1,
-				     DC_I2C_RW0, 0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ),
-				     DC_I2C_COUNT0, length,
-				     DC_I2C_STOP0, last_transaction ? 1 : 0);
-			break;
-		default:
-			/* TODO Warning ? */
-			break;
-		}
-	}
-
-	/* Write the I2C address and I2C data
-	 * into the hardware circular buffer, one byte per entry.
-	 * As an example, the 7-bit I2C slave address for CRT monitor
-	 * for reading DDC/EDID information is 0b1010001.
-	 * For an I2C send operation, the LSB must be programmed to 0;
-	 * for I2C receive operation, the LSB must be programmed to 1.
-	 */
-
-	{
-		if (dce_i2c_hw->transaction_count == 0) {
-			value = REG_SET_4(DC_I2C_DATA, 0,
-					 DC_I2C_DATA_RW, false,
-					 DC_I2C_DATA, request->address,
-					 DC_I2C_INDEX, 0,
-					 DC_I2C_INDEX_WRITE, 1);
-		} else
-			value = REG_SET_2(DC_I2C_DATA, 0,
-					 DC_I2C_DATA_RW, false,
-					 DC_I2C_DATA, request->address);
-
-		if (!(request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ)) {
-
-			while (length) {
-				REG_SET_2(DC_I2C_DATA, value,
-					 DC_I2C_INDEX_WRITE, 0,
-					 DC_I2C_DATA, *buffer++);
-				--length;
-			}
-		}
-	}
-
-	++dce_i2c_hw->transaction_count;
-	dce_i2c_hw->buffer_used_bytes += length + 1;
-
-	return last_transaction;
-}
-
-#define STOP_TRANS_PREDICAT \
-		((dce_i2c_hw->transaction_count == 3) ||	\
-				(request->action == DCE_I2C_TRANSACTION_ACTION_I2C_WRITE) ||	\
-				(request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ))
-
-#define SET_I2C_TRANSACTION(id)	\
-		do {	\
-			REG_UPDATE_N(DC_I2C_TRANSACTION##id, 5,	\
-				FN(DC_I2C_TRANSACTION0, DC_I2C_STOP_ON_NACK0), 1,	\
-				FN(DC_I2C_TRANSACTION0, DC_I2C_START0), 1,	\
-				FN(DC_I2C_TRANSACTION0, DC_I2C_STOP0), STOP_TRANS_PREDICAT ? 1:0,	\
-				FN(DC_I2C_TRANSACTION0, DC_I2C_RW0), (0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ)),	\
-				FN(DC_I2C_TRANSACTION0, DC_I2C_COUNT0), length);	\
-				if (STOP_TRANS_PREDICAT)	\
-					last_transaction = true;	\
-		} while (false)
-
-static bool process_transaction_hw_dce100(
-	struct dce_i2c_hw *dce_i2c_hw,
-	struct i2c_request_transaction_data *request)
-{
-	uint32_t length = request->length;
-	uint8_t *buffer = request->data;
-	uint32_t value = 0;
-
-	bool last_transaction = false;
 
 	switch (dce_i2c_hw->transaction_count) {
 	case 0:
-		SET_I2C_TRANSACTION(0);
+		REG_UPDATE_5(DC_I2C_TRANSACTION0,
+				 DC_I2C_STOP_ON_NACK0, 1,
+				 DC_I2C_START0, 1,
+				 DC_I2C_RW0, 0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ),
+				 DC_I2C_COUNT0, length,
+				 DC_I2C_STOP0, last_transaction ? 1 : 0);
 		break;
 	case 1:
-		SET_I2C_TRANSACTION(1);
+		REG_UPDATE_5(DC_I2C_TRANSACTION1,
+				 DC_I2C_STOP_ON_NACK0, 1,
+				 DC_I2C_START0, 1,
+				 DC_I2C_RW0, 0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ),
+				 DC_I2C_COUNT0, length,
+				 DC_I2C_STOP0, last_transaction ? 1 : 0);
 		break;
 	case 2:
-		SET_I2C_TRANSACTION(2);
+		REG_UPDATE_5(DC_I2C_TRANSACTION2,
+				 DC_I2C_STOP_ON_NACK0, 1,
+				 DC_I2C_START0, 1,
+				 DC_I2C_RW0, 0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ),
+				 DC_I2C_COUNT0, length,
+				 DC_I2C_STOP0, last_transaction ? 1 : 0);
 		break;
 	case 3:
-		SET_I2C_TRANSACTION(3);
+		REG_UPDATE_5(DC_I2C_TRANSACTION3,
+				 DC_I2C_STOP_ON_NACK0, 1,
+				 DC_I2C_START0, 1,
+				 DC_I2C_RW0, 0 != (request->action & DCE_I2C_TRANSACTION_ACTION_I2C_READ),
+				 DC_I2C_COUNT0, length,
+				 DC_I2C_STOP0, last_transaction ? 1 : 0);
 		break;
 	default:
 		/* TODO Warning ? */
 		break;
 	}
-
 
 	/* Write the I2C address and I2C data
 	 * into the hardware circular buffer, one byte per entry.
@@ -828,24 +671,24 @@ bool dce_i2c_submit_command_hw(
 	return result;
 }
 static const struct dce_i2c_hw_funcs dce100_i2c_hw_funcs = {
-		.setup_engine = setup_engine_hw_dce100,
-		.set_speed = set_speed_hw_dce100,
+		.setup_engine = setup_engine,
+		.set_speed = set_speed,
 		.get_speed = get_speed_hw,
 		.release_engine = release_engine_hw,
-		.process_transaction = process_transaction_hw_dce100,
-		.process_channel_reply = process_channel_reply_hw_dce100,
+		.process_transaction = process_transaction,
+		.process_channel_reply = process_channel_reply,
 		.is_hw_busy = is_hw_busy,
 		.get_channel_status = get_channel_status_hw,
 		.execute_transaction = execute_transaction_hw,
 		.disable_i2c_hw_engine = disable_i2c_hw_engine
 };
 static const struct dce_i2c_hw_funcs dce80_i2c_hw_funcs = {
-		.setup_engine = setup_engine_hw_dce80,
-		.set_speed = set_speed_hw_dce80,
+		.setup_engine = setup_engine,
+		.set_speed = set_speed,
 		.get_speed = get_speed_hw,
 		.release_engine = release_engine_hw,
-		.process_transaction = process_transaction_hw_dce80,
-		.process_channel_reply = process_channel_reply_hw_dce80,
+		.process_transaction = process_transaction,
+		.process_channel_reply = process_channel_reply,
 		.is_hw_busy = is_hw_busy,
 		.get_channel_status = get_channel_status_hw,
 		.execute_transaction = execute_transaction_hw,
