@@ -2345,9 +2345,11 @@ static int __init bcache_init(void)
 		goto err;
 
 	if (bch_request_init() ||
-	    bch_debug_init(bcache_kobj) || closure_debug_init() ||
 	    sysfs_create_files(bcache_kobj, files))
 		goto err;
+
+	bch_debug_init(bcache_kobj);
+	closure_debug_init();
 
 	return 0;
 err:

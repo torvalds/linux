@@ -252,11 +252,12 @@ void bch_debug_exit(void)
 		debugfs_remove_recursive(bcache_debug);
 }
 
-int __init bch_debug_init(struct kobject *kobj)
+void __init bch_debug_init(struct kobject *kobj)
 {
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
-		return 0;
-
+	/*
+	 * it is unnecessary to check return value of
+	 * debugfs_create_file(), we should not care
+	 * about this.
+	 */
 	bcache_debug = debugfs_create_dir("bcache", NULL);
-	return IS_ERR_OR_NULL(bcache_debug);
 }
