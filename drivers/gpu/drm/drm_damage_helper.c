@@ -29,6 +29,7 @@
  *
  **************************************************************************/
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
 
 /**
@@ -81,3 +82,37 @@ void drm_plane_enable_fb_damage_clips(struct drm_plane *plane)
 				   0);
 }
 EXPORT_SYMBOL(drm_plane_enable_fb_damage_clips);
+
+/**
+ * drm_atomic_helper_check_plane_damage - Verify plane damage on atomic_check.
+ * @state: The driver state object.
+ * @plane_state: Plane state for which to verify damage.
+ *
+ * This helper function makes sure that damage from plane state is discarded
+ * for full modeset. If there are more reasons a driver would want to do a full
+ * plane update rather than processing individual damage regions, then those
+ * cases should be taken care of here.
+ *
+ * Note that &drm_plane_state.fb_damage_clips == NULL in plane state means that
+ * full plane update should happen. It also ensure helper iterator will return
+ * &drm_plane_state.src as damage.
+ */
+void drm_atomic_helper_check_plane_damage(struct drm_atomic_state *state,
+					  struct drm_plane_state *plane_state)
+{
+	struct drm_crtc_state *crtc_state;
+
+	if (plane_state->crtc) {
+		crtc_state = drm_atomic_get_new_crtc_state(state,
+							   plane_state->crtc);
+
+		if (WARN_ON(!crtc_state))
+			return;
+
+		if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+			drm_property_blob_put(plane_state->fb_damage_clips);
+			plane_state->fb_damage_clips = NULL;
+		}
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_check_plane_damage);

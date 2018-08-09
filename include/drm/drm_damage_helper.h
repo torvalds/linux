@@ -35,5 +35,7 @@
 #include <drm/drm_atomic_helper.h>
 
 void drm_plane_enable_fb_damage_clips(struct drm_plane *plane);
+void drm_atomic_helper_check_plane_damage(struct drm_atomic_state *state,
+					  struct drm_plane_state *plane_state);
 
 #endif
