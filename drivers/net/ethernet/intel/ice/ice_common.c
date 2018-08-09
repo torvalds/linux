@@ -125,7 +125,7 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
  *
  * Returns the various PHY capabilities supported on the Port (0x0600)
  */
-static enum ice_status
+enum ice_status
 ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 		    struct ice_aqc_get_phy_caps_data *pcaps,
 		    struct ice_sq_cd *cd)
@@ -1409,6 +1409,110 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
 }
 
 /**
+ * ice_get_link_speed_based_on_phy_type - returns link speed
+ * @phy_type_low: lower part of phy_type
+ *
+ * This helper function will convert a phy_type_low to its corresponding link
+ * speed.
+ * Note: In the structure of phy_type_low, there should be one bit set, as
+ * this function will convert one phy type to its speed.
+ * If no bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
+ * If more than one bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
+ */
+static u16
+ice_get_link_speed_based_on_phy_type(u64 phy_type_low)
+{
+	u16 speed_phy_type_low = ICE_AQ_LINK_SPEED_UNKNOWN;
+
+	switch (phy_type_low) {
+	case ICE_PHY_TYPE_LOW_100BASE_TX:
+	case ICE_PHY_TYPE_LOW_100M_SGMII:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_100MB;
+		break;
+	case ICE_PHY_TYPE_LOW_1000BASE_T:
+	case ICE_PHY_TYPE_LOW_1000BASE_SX:
+	case ICE_PHY_TYPE_LOW_1000BASE_LX:
+	case ICE_PHY_TYPE_LOW_1000BASE_KX:
+	case ICE_PHY_TYPE_LOW_1G_SGMII:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_1000MB;
+		break;
+	case ICE_PHY_TYPE_LOW_2500BASE_T:
+	case ICE_PHY_TYPE_LOW_2500BASE_X:
+	case ICE_PHY_TYPE_LOW_2500BASE_KX:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_2500MB;
+		break;
+	case ICE_PHY_TYPE_LOW_5GBASE_T:
+	case ICE_PHY_TYPE_LOW_5GBASE_KR:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_5GB;
+		break;
+	case ICE_PHY_TYPE_LOW_10GBASE_T:
+	case ICE_PHY_TYPE_LOW_10G_SFI_DA:
+	case ICE_PHY_TYPE_LOW_10GBASE_SR:
+	case ICE_PHY_TYPE_LOW_10GBASE_LR:
+	case ICE_PHY_TYPE_LOW_10GBASE_KR_CR1:
+	case ICE_PHY_TYPE_LOW_10G_SFI_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_10G_SFI_C2C:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_10GB;
+		break;
+	case ICE_PHY_TYPE_LOW_25GBASE_T:
+	case ICE_PHY_TYPE_LOW_25GBASE_CR:
+	case ICE_PHY_TYPE_LOW_25GBASE_CR_S:
+	case ICE_PHY_TYPE_LOW_25GBASE_CR1:
+	case ICE_PHY_TYPE_LOW_25GBASE_SR:
+	case ICE_PHY_TYPE_LOW_25GBASE_LR:
+	case ICE_PHY_TYPE_LOW_25GBASE_KR:
+	case ICE_PHY_TYPE_LOW_25GBASE_KR_S:
+	case ICE_PHY_TYPE_LOW_25GBASE_KR1:
+	case ICE_PHY_TYPE_LOW_25G_AUI_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_25G_AUI_C2C:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_25GB;
+		break;
+	case ICE_PHY_TYPE_LOW_40GBASE_CR4:
+	case ICE_PHY_TYPE_LOW_40GBASE_SR4:
+	case ICE_PHY_TYPE_LOW_40GBASE_LR4:
+	case ICE_PHY_TYPE_LOW_40GBASE_KR4:
+	case ICE_PHY_TYPE_LOW_40G_XLAUI_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_40G_XLAUI:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_40GB;
+		break;
+	default:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_UNKNOWN;
+		break;
+	}
+
+	return speed_phy_type_low;
+}
+
+/**
+ * ice_update_phy_type
+ * @phy_type_low: pointer to the lower part of phy_type
+ * @link_speeds_bitmap: targeted link speeds bitmap
+ *
+ * Note: For the link_speeds_bitmap structure, you can check it at
+ * [ice_aqc_get_link_status->link_speed]. Caller can pass in
+ * link_speeds_bitmap include multiple speeds.
+ *
+ * The value of phy_type_low will present a certain link speed. This helper
+ * function will turn on bits in the phy_type_low based on the value of
+ * link_speeds_bitmap input parameter.
+ */
+void ice_update_phy_type(u64 *phy_type_low, u16 link_speeds_bitmap)
+{
+	u16 speed = ICE_AQ_LINK_SPEED_UNKNOWN;
+	u64 pt_low;
+	int index;
+
+	/* We first check with low part of phy_type */
+	for (index = 0; index <= ICE_PHY_TYPE_LOW_MAX_INDEX; index++) {
+		pt_low = BIT_ULL(index);
+		speed = ice_get_link_speed_based_on_phy_type(pt_low);
+
+		if (link_speeds_bitmap & speed)
+			*phy_type_low |= BIT_ULL(index);
+	}
+}
+
+/**
  * ice_aq_set_phy_cfg
  * @hw: pointer to the hw struct
  * @lport: logical port number
@@ -1420,19 +1524,18 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
  * mode as the PF may not have the privilege to set some of the PHY Config
  * parameters. This status will be indicated by the command response (0x0601).
  */
-static enum ice_status
+enum ice_status
 ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 		   struct ice_aqc_set_phy_cfg_data *cfg, struct ice_sq_cd *cd)
 {
-	struct ice_aqc_set_phy_cfg *cmd;
 	struct ice_aq_desc desc;
 
 	if (!cfg)
 		return ICE_ERR_PARAM;
 
-	cmd = &desc.params.set_phy;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_phy_cfg);
-	cmd->lport_num = lport;
+	desc.params.set_phy.lport_num = lport;
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 
 	return ice_aq_send_cmd(hw, &desc, cfg, sizeof(*cfg), cd);
 }
@@ -1481,12 +1584,12 @@ out:
  * ice_set_fc
  * @pi: port information structure
  * @aq_failures: pointer to status code, specific to ice_set_fc routine
- * @atomic_restart: enable automatic link update
+ * @ena_auto_link_update: enable automatic link update
  *
  * Set the requested flow control mode.
  */
 enum ice_status
-ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool atomic_restart)
+ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 {
 	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
 	struct ice_aqc_get_phy_caps_data *pcaps;
@@ -1536,8 +1639,8 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool atomic_restart)
 		int retry_count, retry_max = 10;
 
 		/* Auto restart link so settings take effect */
-		if (atomic_restart)
-			cfg.caps |= ICE_AQ_PHY_ENA_ATOMIC_LINK;
+		if (ena_auto_link_update)
+			cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
 		/* Copy over all the old settings */
 		cfg.phy_type_low = pcaps->phy_type_low;
 		cfg.low_power_ctrl = pcaps->low_power_ctrl;

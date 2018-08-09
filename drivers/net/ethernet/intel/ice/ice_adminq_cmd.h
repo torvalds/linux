@@ -920,9 +920,11 @@ struct ice_aqc_set_phy_cfg_data {
 	u8 caps;
 #define ICE_AQ_PHY_ENA_TX_PAUSE_ABILITY		BIT(0)
 #define ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY		BIT(1)
-#define ICE_AQ_PHY_ENA_LOW_POWER		BIT(2)
-#define ICE_AQ_PHY_ENA_LINK			BIT(3)
-#define ICE_AQ_PHY_ENA_ATOMIC_LINK		BIT(5)
+#define ICE_AQ_PHY_ENA_LOW_POWER	BIT(2)
+#define ICE_AQ_PHY_ENA_LINK		BIT(3)
+#define ICE_AQ_PHY_ENA_AUTO_LINK_UPDT	BIT(5)
+#define ICE_AQ_PHY_ENA_LESM		BIT(6)
+#define ICE_AQ_PHY_ENA_AUTO_FEC		BIT(7)
 	u8 low_power_ctrl;
 	__le16 eee_cap; /* Value from ice_aqc_get_phy_caps */
 	__le16 eeer_value;

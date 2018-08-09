@@ -58,12 +58,24 @@ enum ice_status
 ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc,
 		void *buf, u16 buf_size, struct ice_sq_cd *cd);
 enum ice_status ice_aq_get_fw_ver(struct ice_hw *hw, struct ice_sq_cd *cd);
+
+enum ice_status
+ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
+		    struct ice_aqc_get_phy_caps_data *caps,
+		    struct ice_sq_cd *cd);
+void
+ice_update_phy_type(u64 *phy_type_low, u16 link_speeds_bitmap);
 enum ice_status
 ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
 			struct ice_sq_cd *cd);
 enum ice_status ice_clear_pf_cfg(struct ice_hw *hw);
 enum ice_status
-ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool atomic_restart);
+ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
+		   struct ice_aqc_set_phy_cfg_data *cfg, struct ice_sq_cd *cd);
+enum ice_status
+ice_set_fc(struct ice_port_info *pi, u8 *aq_failures,
+	   bool ena_auto_link_update);
+
 enum ice_status
 ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 			   struct ice_sq_cd *cd);
