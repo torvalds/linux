@@ -191,12 +191,16 @@ struct mv88e6xxx_port_hwtstamp {
 };
 
 struct mv88e6xxx_port {
+	struct mv88e6xxx_chip *chip;
+	int port;
 	u64 serdes_stats[2];
 	u64 atu_member_violation;
 	u64 atu_miss_violation;
 	u64 atu_full_violation;
 	u64 vtu_member_violation;
 	u64 vtu_miss_violation;
+	u8 cmode;
+	int serdes_irq;
 };
 
 struct mv88e6xxx_chip {
@@ -351,6 +355,13 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_duplex)(struct mv88e6xxx_chip *chip, int port, int dup);
 
+#define PAUSE_ON		1
+#define PAUSE_OFF		0
+
+	/* Enable/disable sending Pause */
+	int (*port_set_pause)(struct mv88e6xxx_chip *chip, int port,
+			      int pause);
+
 #define SPEED_MAX		INT_MAX
 #define SPEED_UNFORCED		-2
 
@@ -383,12 +394,16 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_cmode)(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
+	int (*port_get_cmode)(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
 
 	/* Some devices have a per port register indicating what is
 	 * the upstream port this port should forward to.
 	 */
 	int (*port_set_upstream_port)(struct mv88e6xxx_chip *chip, int port,
 				      int upstream_port);
+	/* Return the port link state, as required by phylink */
+	int (*port_link_state)(struct mv88e6xxx_chip *chip, int port,
+			       struct phylink_link_state *state);
 
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
@@ -420,6 +435,10 @@ struct mv88e6xxx_ops {
 	/* Power on/off a SERDES interface */
 	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
 
+	/* SERDES interrupt handling */
+	int (*serdes_irq_setup)(struct mv88e6xxx_chip *chip, int port);
+	void (*serdes_irq_free)(struct mv88e6xxx_chip *chip, int port);
+
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
 	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip,  int port,
@@ -444,6 +463,11 @@ struct mv88e6xxx_ops {
 
 	/* Precision Time Protocol operations */
 	const struct mv88e6xxx_ptp_ops *ptp_ops;
+
+	/* Phylink */
+	void (*phylink_validate)(struct mv88e6xxx_chip *chip, int port,
+				 unsigned long *mask,
+				 struct phylink_link_state *state);
 };
 
 struct mv88e6xxx_irq_ops {
