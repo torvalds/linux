@@ -229,6 +229,11 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.query_qp = qedr_query_qp;
 	dev->ibdev.destroy_qp = qedr_destroy_qp;
 
+	dev->ibdev.create_srq = qedr_create_srq;
+	dev->ibdev.destroy_srq = qedr_destroy_srq;
+	dev->ibdev.modify_srq = qedr_modify_srq;
+	dev->ibdev.query_srq = qedr_query_srq;
+	dev->ibdev.post_srq_recv = qedr_post_srq_recv;
 	dev->ibdev.query_pkey = qedr_query_pkey;
 
 	dev->ibdev.create_ah = qedr_create_ah;
