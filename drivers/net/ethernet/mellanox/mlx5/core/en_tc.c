@@ -1970,15 +1970,15 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 {
 	struct mlx5_core_dev *fmdev, *pmdev;
-	u16 func_id, peer_id;
+	u64 fsystem_guid, psystem_guid;
 
 	fmdev = priv->mdev;
 	pmdev = peer_priv->mdev;
 
-	func_id = (u16)((fmdev->pdev->bus->number << 8) | PCI_SLOT(fmdev->pdev->devfn));
-	peer_id = (u16)((pmdev->pdev->bus->number << 8) | PCI_SLOT(pmdev->pdev->devfn));
+	mlx5_query_nic_vport_system_image_guid(fmdev, &fsystem_guid);
+	mlx5_query_nic_vport_system_image_guid(pmdev, &psystem_guid);
 
-	return (func_id == peer_id);
+	return (fsystem_guid == psystem_guid);
 }
 
 static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
