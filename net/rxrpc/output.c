@@ -209,7 +209,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	now = ktime_get_real();
 	if (ping)
 		call->ping_time = now;
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_ack);
@@ -299,7 +299,7 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 
 	ret = kernel_sendmsg(conn->params.local->socket,
 			     &msg, iov, 1, sizeof(pkt));
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_abort);
@@ -397,7 +397,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	 *     message and update the peer record
 	 */
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 
 	up_read(&conn->params.local->defrag_sem);
 	if (ret < 0)
@@ -466,7 +466,7 @@ send_fragmentable:
 		if (ret == 0) {
 			ret = kernel_sendmsg(conn->params.local->socket, &msg,
 					     iov, 2, len);
-			conn->params.peer->last_tx_at = ktime_get_real();
+			conn->params.peer->last_tx_at = ktime_get_seconds();
 
 			opt = IP_PMTUDISC_DO;
 			kernel_setsockopt(conn->params.local->socket, SOL_IP,
@@ -484,7 +484,7 @@ send_fragmentable:
 		if (ret == 0) {
 			ret = kernel_sendmsg(conn->params.local->socket, &msg,
 					     iov, 2, len);
-			conn->params.peer->last_tx_at = ktime_get_real();
+			conn->params.peer->last_tx_at = ktime_get_seconds();
 
 			opt = IPV6_PMTUDISC_DO;
 			kernel_setsockopt(conn->params.local->socket,
@@ -617,6 +617,6 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 		trace_rxrpc_tx_packet(peer->debug_id, &whdr,
 				      rxrpc_tx_point_version_keepalive);
 
-	peer->last_tx_at = ktime_get_real();
+	peer->last_tx_at = ktime_get_seconds();
 	_leave("");
 }

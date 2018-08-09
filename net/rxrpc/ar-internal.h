@@ -104,9 +104,9 @@ struct rxrpc_net {
 
 #define RXRPC_KEEPALIVE_TIME 20 /* NAT keepalive time in seconds */
 	u8			peer_keepalive_cursor;
-	ktime_t			peer_keepalive_base;
-	struct hlist_head	peer_keepalive[RXRPC_KEEPALIVE_TIME + 1];
-	struct hlist_head	peer_keepalive_new;
+	time64_t		peer_keepalive_base;
+	struct list_head	peer_keepalive[32];
+	struct list_head	peer_keepalive_new;
 	struct timer_list	peer_keepalive_timer;
 	struct work_struct	peer_keepalive_work;
 };
@@ -295,7 +295,7 @@ struct rxrpc_peer {
 	struct hlist_head	error_targets;	/* targets for net error distribution */
 	struct work_struct	error_distributor;
 	struct rb_root		service_conns;	/* Service connections */
-	struct hlist_node	keepalive_link;	/* Link in net->peer_keepalive[] */
+	struct list_head	keepalive_link;	/* Link in net->peer_keepalive[] */
 	time64_t		last_tx_at;	/* Last time packet sent here */
 	seqlock_t		service_conn_lock;
 	spinlock_t		lock;		/* access lock */
