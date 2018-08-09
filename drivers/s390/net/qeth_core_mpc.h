@@ -818,10 +818,6 @@ extern char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 /* END OF   IP Assist related definitions                                    */
 /*****************************************************************************/
 
-
-extern unsigned char WRITE_CCW[];
-extern unsigned char READ_CCW[];
-
 extern unsigned char CM_ENABLE[];
 #define CM_ENABLE_SIZE 0x63
 #define QETH_CM_ENABLE_ISSUER_RM_TOKEN(buffer) (buffer + 0x2c)

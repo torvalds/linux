@@ -235,6 +235,8 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
 
 #define QETH_BUFSIZE		4096
+#define CCW_CMD_WRITE		0x01
+#define CCW_CMD_READ		0x02
 
 /**
  * some more defs

@@ -65,7 +65,6 @@ static struct mutex qeth_mod_mutex;
 static void qeth_send_control_data_cb(struct qeth_channel *,
 			struct qeth_cmd_buffer *);
 static struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *);
-static void qeth_setup_ccw(struct qeth_channel *, unsigned char *, __u32);
 static void qeth_free_buffer_pool(struct qeth_card *);
 static int qeth_qdio_establish(struct qeth_card *);
 static void qeth_free_qdio_buffers(struct qeth_card *);
@@ -532,6 +531,14 @@ static inline int qeth_is_cq(struct qeth_card *card, unsigned int queue)
 	    queue == card->qdio.no_in_queues - 1;
 }
 
+static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u32 len, void *data)
+{
+	ccw->cmd_code = cmd_code;
+	ccw->flags = CCW_FLAG_SLI;
+	ccw->count = len;
+	ccw->cda = (__u32) __pa(data);
+}
+
 static int __qeth_issue_next_read(struct qeth_card *card)
 {
 	struct qeth_channel *channel = &card->read;
@@ -549,7 +556,7 @@ static int __qeth_issue_next_read(struct qeth_card *card)
 			"available\n", dev_name(&card->gdev->dev));
 		return -ENOMEM;
 	}
-	qeth_setup_ccw(channel, iob->data, QETH_BUFSIZE);
+	qeth_setup_ccw(&channel->ccw, CCW_CMD_READ, QETH_BUFSIZE, iob->data);
 	QETH_CARD_TEXT(card, 6, "noirqpnd");
 	rc = ccw_device_start(channel->ccwdev, &channel->ccw,
 			      (addr_t) iob, 0, 0);
@@ -743,21 +750,6 @@ static struct qeth_card *CARD_FROM_CDEV(struct ccw_device *cdev)
 	struct qeth_card *card = dev_get_drvdata(&((struct ccwgroup_device *)
 		dev_get_drvdata(&cdev->dev))->dev);
 	return card;
-}
-
-static void qeth_setup_ccw(struct qeth_channel *channel, unsigned char *iob,
-		__u32 len)
-{
-	struct qeth_card *card;
-
-	card = CARD_FROM_CDEV(channel->ccwdev);
-	QETH_CARD_TEXT(card, 4, "setupccw");
-	if (channel == &card->read)
-		memcpy(&channel->ccw, READ_CCW, sizeof(struct ccw1));
-	else
-		memcpy(&channel->ccw, WRITE_CCW, sizeof(struct ccw1));
-	channel->ccw.count = len;
-	channel->ccw.cda = (__u32) __pa(iob);
 }
 
 static struct qeth_cmd_buffer *__qeth_get_buffer(struct qeth_channel *channel)
@@ -1680,10 +1672,7 @@ static int qeth_read_conf_data(struct qeth_card *card, void **buffer,
 	if (!rcd_buf)
 		return -ENOMEM;
 
-	channel->ccw.cmd_code = ciw->cmd;
-	channel->ccw.cda = (__u32) __pa(rcd_buf);
-	channel->ccw.count = ciw->count;
-	channel->ccw.flags = CCW_FLAG_SLI;
+	qeth_setup_ccw(&channel->ccw, ciw->cmd, ciw->count, rcd_buf);
 	channel->state = CH_STATE_RCD;
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	ret = ccw_device_start_timeout(channel->ccwdev, &channel->ccw,
@@ -1857,9 +1846,7 @@ static int qeth_idx_activate_get_answer(struct qeth_channel *channel,
 	if (!iob)
 		return -ENOMEM;
 	iob->callback = idx_reply_cb;
-	memcpy(&channel->ccw, READ_CCW, sizeof(struct ccw1));
-	channel->ccw.count = QETH_BUFSIZE;
-	channel->ccw.cda = (__u32) __pa(iob->data);
+	qeth_setup_ccw(&channel->ccw, CCW_CMD_READ, QETH_BUFSIZE, iob->data);
 
 	wait_event(card->wait_q,
 		   atomic_cmpxchg(&channel->irq_pending, 0, 1) == 0);
@@ -1908,9 +1895,8 @@ static int qeth_idx_activate_channel(struct qeth_channel *channel,
 	if (!iob)
 		return -ENOMEM;
 	iob->callback = idx_reply_cb;
-	memcpy(&channel->ccw, WRITE_CCW, sizeof(struct ccw1));
-	channel->ccw.count = IDX_ACTIVATE_SIZE;
-	channel->ccw.cda = (__u32) __pa(iob->data);
+	qeth_setup_ccw(&channel->ccw, CCW_CMD_WRITE, IDX_ACTIVATE_SIZE,
+		       iob->data);
 	if (channel == &card->write) {
 		memcpy(iob->data, IDX_ACTIVATE_WRITE, IDX_ACTIVATE_SIZE);
 		memcpy(QETH_TRANSPORT_HEADER_SEQ_NO(iob->data),
@@ -2070,7 +2056,7 @@ out:
 void qeth_prepare_control_data(struct qeth_card *card, int len,
 		struct qeth_cmd_buffer *iob)
 {
-	qeth_setup_ccw(iob->channel, iob->data, len);
+	qeth_setup_ccw(&iob->channel->ccw, CCW_CMD_WRITE, len, iob->data);
 	iob->callback = qeth_release_buffer;
 
 	memcpy(QETH_TRANSPORT_HEADER_SEQ_NO(iob->data),
