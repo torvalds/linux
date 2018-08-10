@@ -40,6 +40,8 @@
 #include <linux/wait.h>
 #include <stdarg.h>
 
+#include "debugfs.h"
+
 #define BATADV_LOG_BUFF_MASK (batadv_log_buff_len - 1)
 
 static const int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
@@ -114,6 +116,8 @@ static int batadv_log_open(struct inode *inode, struct file *file)
 {
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
+
+	batadv_debugfs_deprecated(file, "");
 
 	nonseekable_open(inode, file);
 	file->private_data = inode->i_private;
