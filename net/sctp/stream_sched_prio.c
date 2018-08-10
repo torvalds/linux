@@ -75,10 +75,10 @@ static struct sctp_stream_priorities *sctp_sched_prio_get_head(
 
 	/* No luck. So we search on all streams now. */
 	for (i = 0; i < stream->outcnt; i++) {
-		if (!stream->out[i].ext)
+		if (!SCTP_SO(stream, i)->ext)
 			continue;
 
-		p = stream->out[i].ext->prio_head;
+		p = SCTP_SO(stream, i)->ext->prio_head;
 		if (!p)
 			/* Means all other streams won't be initialized
 			 * as well.
@@ -165,7 +165,7 @@ static void sctp_sched_prio_sched(struct sctp_stream *stream,
 static int sctp_sched_prio_set(struct sctp_stream *stream, __u16 sid,
 			       __u16 prio, gfp_t gfp)
 {
-	struct sctp_stream_out *sout = &stream->out[sid];
+	struct sctp_stream_out *sout = SCTP_SO(stream, sid);
 	struct sctp_stream_out_ext *soute = sout->ext;
 	struct sctp_stream_priorities *prio_head, *old;
 	bool reschedule = false;
@@ -186,7 +186,7 @@ static int sctp_sched_prio_set(struct sctp_stream *stream, __u16 sid,
 		return 0;
 
 	for (i = 0; i < stream->outcnt; i++) {
-		soute = stream->out[i].ext;
+		soute = SCTP_SO(stream, i)->ext;
 		if (soute && soute->prio_head == old)
 			/* It's still in use, nothing else to do here. */
 			return 0;
@@ -201,7 +201,7 @@ static int sctp_sched_prio_set(struct sctp_stream *stream, __u16 sid,
 static int sctp_sched_prio_get(struct sctp_stream *stream, __u16 sid,
 			       __u16 *value)
 {
-	*value = stream->out[sid].ext->prio_head->prio;
+	*value = SCTP_SO(stream, sid)->ext->prio_head->prio;
 	return 0;
 }
 
@@ -215,7 +215,7 @@ static int sctp_sched_prio_init(struct sctp_stream *stream)
 static int sctp_sched_prio_init_sid(struct sctp_stream *stream, __u16 sid,
 				    gfp_t gfp)
 {
-	INIT_LIST_HEAD(&stream->out[sid].ext->prio_list);
+	INIT_LIST_HEAD(&SCTP_SO(stream, sid)->ext->prio_list);
 	return sctp_sched_prio_set(stream, sid, 0, gfp);
 }
 
@@ -233,9 +233,9 @@ static void sctp_sched_prio_free(struct sctp_stream *stream)
 	 */
 	sctp_sched_prio_unsched_all(stream);
 	for (i = 0; i < stream->outcnt; i++) {
-		if (!stream->out[i].ext)
+		if (!SCTP_SO(stream, i)->ext)
 			continue;
-		prio = stream->out[i].ext->prio_head;
+		prio = SCTP_SO(stream, i)->ext->prio_head;
 		if (prio && list_empty(&prio->prio_sched))
 			list_add(&prio->prio_sched, &list);
 	}
@@ -255,7 +255,7 @@ static void sctp_sched_prio_enqueue(struct sctp_outq *q,
 	ch = list_first_entry(&msg->chunks, struct sctp_chunk, frag_list);
 	sid = sctp_chunk_stream_no(ch);
 	stream = &q->asoc->stream;
-	sctp_sched_prio_sched(stream, stream->out[sid].ext);
+	sctp_sched_prio_sched(stream, SCTP_SO(stream, sid)->ext);
 }
 
 static struct sctp_chunk *sctp_sched_prio_dequeue(struct sctp_outq *q)
@@ -297,7 +297,7 @@ static void sctp_sched_prio_dequeue_done(struct sctp_outq *q,
 	 * this priority.
 	 */
 	sid = sctp_chunk_stream_no(ch);
-	soute = q->asoc->stream.out[sid].ext;
+	soute = SCTP_SO(&q->asoc->stream, sid)->ext;
 	prio = soute->prio_head;
 
 	sctp_sched_prio_next_stream(prio);
@@ -317,7 +317,7 @@ static void sctp_sched_prio_sched_all(struct sctp_stream *stream)
 		__u16 sid;
 
 		sid = sctp_chunk_stream_no(ch);
-		sout = &stream->out[sid];
+		sout = SCTP_SO(stream, sid);
 		if (sout->ext)
 			sctp_sched_prio_sched(stream, sout->ext);
 	}
