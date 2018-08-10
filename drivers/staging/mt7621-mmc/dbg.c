@@ -249,7 +249,9 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 	cmd_buf[count] = '\0';
 	pr_debug("msdc Write %s\n", cmd_buf);
 
-	sscanf(cmd_buf, "%x %x %x", &cmd, &p1, &p2);
+	ret = sscanf(cmd_buf, "%x %x %x", &cmd, &p1, &p2);
+	if (ret != 3)
+		return -EINVAL;
 
 	if (cmd == SD_TOOL_ZONE) {
 		id = p1;
