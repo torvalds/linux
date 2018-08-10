@@ -214,7 +214,7 @@ write_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg, u32 val)
 	pcie_write(pcie, val, RALINK_PCI_CONFIG_DATA);
 }
 
-void
+static void
 set_pcie_phy(struct mt7621_pcie *pcie, u32 offset,
 	     int start_b, int bits, int val)
 {
@@ -225,7 +225,7 @@ set_pcie_phy(struct mt7621_pcie *pcie, u32 offset,
 	pcie_write(pcie, reg, offset);
 }
 
-void
+static void
 bypass_pipe_rst(struct mt7621_pcie *pcie)
 {
 	/* PCIe Port 0 */
@@ -239,7 +239,7 @@ bypass_pipe_rst(struct mt7621_pcie *pcie)
 	set_pcie_phy(pcie, (RALINK_PCIEPHY_P2_CTL_OFFSET + 0x02c),  4, 1, 0x01);	// rg_pe1_pipe_cmd_frc[4]
 }
 
-void
+static void
 set_phy_for_ssc(struct mt7621_pcie *pcie)
 {
 	unsigned long reg = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0);
