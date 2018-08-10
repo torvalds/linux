@@ -204,7 +204,6 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 {
 	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
 	struct nlattr *tb[TCA_TUNNEL_KEY_MAX + 1];
-	struct tcf_tunnel_key_params *params_old;
 	struct tcf_tunnel_key_params *params_new;
 	struct metadata_dst *metadata = NULL;
 	struct tc_tunnel_key *parm;
@@ -346,24 +345,22 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 	t = to_tunnel_key(*a);
 
-	ASSERT_RTNL();
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
 		tcf_idr_release(*a, bind);
 		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
 		return -ENOMEM;
 	}
-
-	params_old = rtnl_dereference(t->params);
-
-	t->tcf_action = parm->action;
 	params_new->tcft_action = parm->t_action;
 	params_new->tcft_enc_metadata = metadata;
 
-	rcu_assign_pointer(t->params, params_new);
-
-	if (params_old)
-		kfree_rcu(params_old, rcu);
+	spin_lock(&t->tcf_lock);
+	t->tcf_action = parm->action;
+	rcu_swap_protected(t->params, params_new,
+			   lockdep_is_held(&t->tcf_lock));
+	spin_unlock(&t->tcf_lock);
+	if (params_new)
+		kfree_rcu(params_new, rcu);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -485,12 +482,13 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		.index    = t->tcf_index,
 		.refcnt   = refcount_read(&t->tcf_refcnt) - ref,
 		.bindcnt  = atomic_read(&t->tcf_bindcnt) - bind,
-		.action   = t->tcf_action,
 	};
 	struct tcf_t tm;
 
-	params = rtnl_dereference(t->params);
-
+	spin_lock(&t->tcf_lock);
+	params = rcu_dereference_protected(t->params,
+					   lockdep_is_held(&t->tcf_lock));
+	opt.action   = t->tcf_action;
 	opt.t_action = params->tcft_action;
 
 	if (nla_put(skb, TCA_TUNNEL_KEY_PARMS, sizeof(opt), &opt))
@@ -522,10 +520,12 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put_64bit(skb, TCA_TUNNEL_KEY_TM, sizeof(tm),
 			  &tm, TCA_TUNNEL_KEY_PAD))
 		goto nla_put_failure;
+	spin_unlock(&t->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock(&t->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
