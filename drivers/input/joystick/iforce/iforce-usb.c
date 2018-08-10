@@ -208,7 +208,6 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *epirq, *epout;
 	struct iforce_usb *iforce_usb;
-	struct iforce *iforce;
 	int err = -ENOMEM;
 
 	interface = intf->cur_altsetting;
@@ -231,9 +230,7 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	if (!iforce_usb->out)
 		goto fail;
 
-	iforce = &iforce_usb->iforce;
-
-	iforce->xport_ops = &iforce_usb_xport_ops;
+	iforce_usb->iforce.xport_ops = &iforce_usb_xport_ops;
 
 	iforce_usb->usbdev = dev;
 	iforce_usb->intf = intf;
@@ -248,7 +245,7 @@ static int iforce_usb_probe(struct usb_interface *intf,
 			 iforce_usb->data_out, sizeof(iforce_usb->data_out),
 			 iforce_usb_out, iforce_usb, epout->bInterval);
 
-	err = iforce_init_device(&intf->dev, BUS_USB, iforce);
+	err = iforce_init_device(&intf->dev, BUS_USB, &iforce_usb->iforce);
 	if (err)
 		goto fail;
 

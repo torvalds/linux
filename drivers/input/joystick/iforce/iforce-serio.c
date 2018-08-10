@@ -204,16 +204,13 @@ out:
 static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct iforce_serio *iforce_serio;
-	struct iforce *iforce;
 	int err;
 
 	iforce_serio = kzalloc(sizeof(*iforce_serio), GFP_KERNEL);
 	if (!iforce_serio)
 		return -ENOMEM;
 
-	iforce = &iforce_serio->iforce;
-
-	iforce->xport_ops = &iforce_serio_xport_ops;
+	iforce_serio->iforce.xport_ops = &iforce_serio_xport_ops;
 
 	iforce_serio->serio = serio;
 	serio_set_drvdata(serio, iforce_serio);
@@ -222,7 +219,7 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 	if (err)
 		goto fail1;
 
-	err = iforce_init_device(&serio->dev, BUS_RS232, iforce);
+	err = iforce_init_device(&serio->dev, BUS_RS232, &iforce_serio->iforce);
 	if (err)
 		goto fail2;
 
