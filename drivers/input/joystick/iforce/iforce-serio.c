@@ -31,6 +31,8 @@ struct iforce_serio {
 	int idx, pkt, len, id;
 	u8 csum;
 	u8 expect_packet;
+	u8 cmd_response[IFORCE_MAX_LENGTH];
+	u8 cmd_response_len;
 };
 
 static void iforce_serio_xmit(struct iforce *iforce)
@@ -81,24 +83,34 @@ again:
 	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 }
 
-static int iforce_serio_get_id(struct iforce *iforce, u8 *packet)
+static int iforce_serio_get_id(struct iforce *iforce, u8 id,
+			       u8 *response_data, size_t *response_len)
 {
 	struct iforce_serio *iforce_serio = container_of(iforce,
 							 struct iforce_serio,
 							 iforce);
 
 	iforce_serio->expect_packet = HI(FF_CMD_QUERY);
-	iforce_send_packet(iforce, FF_CMD_QUERY, packet);
+	iforce_serio->cmd_response_len = 0;
+
+	iforce_send_packet(iforce, FF_CMD_QUERY, &id);
 
 	wait_event_interruptible_timeout(iforce->wait,
 					 !iforce_serio->expect_packet, HZ);
 
 	if (iforce_serio->expect_packet) {
 		iforce_serio->expect_packet = 0;
-		return -EIO;
+		return -ETIMEDOUT;
 	}
 
-	return -(iforce->edata[0] != packet[0]);
+	if (iforce_serio->cmd_response[0] != id)
+		return -EIO;
+
+	memcpy(response_data, iforce_serio->cmd_response,
+	       iforce_serio->cmd_response_len);
+	*response_len = iforce_serio->cmd_response_len;
+
+	return 0;
 }
 
 static int iforce_serio_start_io(struct iforce *iforce)
@@ -127,7 +139,7 @@ static void iforce_serio_write_wakeup(struct serio *serio)
 }
 
 static irqreturn_t iforce_serio_irq(struct serio *serio,
-		unsigned char data, unsigned int flags)
+				    unsigned char data, unsigned int flags)
 {
 	struct iforce_serio *iforce_serio = serio_get_drvdata(serio);
 	struct iforce *iforce = &iforce_serio->iforce;
@@ -166,9 +178,9 @@ static irqreturn_t iforce_serio_irq(struct serio *serio,
 		/* Handle command completion */
 		if (iforce_serio->expect_packet == iforce_serio->id) {
 			iforce_serio->expect_packet = 0;
-			iforce->ecmd = (iforce_serio->id << 8) |
-					iforce_serio->idx;
-			memcpy(iforce->edata, iforce->data, IFORCE_MAX_LENGTH);
+			memcpy(iforce_serio->cmd_response, iforce->data,
+			       IFORCE_MAX_LENGTH);
+			iforce_serio->cmd_response_len = iforce_serio->len;
 
 			/* Signal that command is done */
 			wake_up(&iforce->wait);

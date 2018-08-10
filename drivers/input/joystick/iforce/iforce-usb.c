@@ -87,7 +87,8 @@ static void iforce_usb_xmit(struct iforce *iforce)
 		__iforce_usb_xmit(iforce);
 }
 
-static int iforce_usb_get_id(struct iforce *iforce, u8 *packet)
+static int iforce_usb_get_id(struct iforce *iforce, u8 id,
+			     u8 *response_data, size_t *response_len)
 {
 	struct iforce_usb *iforce_usb = container_of(iforce, struct iforce_usb,
 						     iforce);
@@ -100,18 +101,18 @@ static int iforce_usb_get_id(struct iforce *iforce, u8 *packet)
 
 	status = usb_control_msg(iforce_usb->usbdev,
 				 usb_rcvctrlpipe(iforce_usb->usbdev, 0),
-				 packet[0],
+				 id,
 				 USB_TYPE_VENDOR | USB_DIR_IN |
 					USB_RECIP_INTERFACE,
 				 0, 0, buf, IFORCE_MAX_LENGTH, HZ);
 	if (status < 0) {
 		dev_err(&iforce_usb->intf->dev,
 			"usb_submit_urb failed: %d\n", status);
-	} else if (buf[0] != packet[0]) {
+	} else if (buf[0] != id) {
 		status = -EIO;
 	} else {
-		iforce->ecmd = 0xff00 | status;
-		memcpy(iforce->edata, buf, status);
+		memcpy(response_data, buf, status);
+		*response_len = status;
 		status = 0;
 	}
 

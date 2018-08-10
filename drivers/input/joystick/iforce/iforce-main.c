@@ -225,7 +225,9 @@ int iforce_init_device(struct device *parent, u16 bustype,
 {
 	struct input_dev *input_dev;
 	struct ff_device *ff;
-	unsigned char c[] = "CEOV";
+	u8 c[] = "CEOV";
+	u8 buf[IFORCE_MAX_LENGTH];
+	size_t len;
 	int i, error;
 	int ff_effects = 0;
 
@@ -269,7 +271,7 @@ int iforce_init_device(struct device *parent, u16 bustype,
  */
 
 	for (i = 0; i < 20; i++)
-		if (!iforce_get_id_packet(iforce, "O"))
+		if (!iforce_get_id_packet(iforce, 'O', buf, &len))
 			break;
 
 	if (i == 20) { /* 5 seconds */
@@ -283,23 +285,23 @@ int iforce_init_device(struct device *parent, u16 bustype,
  * Get device info.
  */
 
-	if (!iforce_get_id_packet(iforce, "M"))
-		input_dev->id.vendor = (iforce->edata[2] << 8) | iforce->edata[1];
+	if (!iforce_get_id_packet(iforce, 'M', buf, &len) || len < 3)
+		input_dev->id.vendor = (buf[2] << 8) | buf[1];
 	else
 		dev_warn(&iforce->dev->dev, "Device does not respond to id packet M\n");
 
-	if (!iforce_get_id_packet(iforce, "P"))
-		input_dev->id.product = (iforce->edata[2] << 8) | iforce->edata[1];
+	if (!iforce_get_id_packet(iforce, 'P', buf, &len) || len < 3)
+		input_dev->id.product = (buf[2] << 8) | buf[1];
 	else
 		dev_warn(&iforce->dev->dev, "Device does not respond to id packet P\n");
 
-	if (!iforce_get_id_packet(iforce, "B"))
-		iforce->device_memory.end = (iforce->edata[2] << 8) | iforce->edata[1];
+	if (!iforce_get_id_packet(iforce, 'B', buf, &len) || len < 3)
+		iforce->device_memory.end = (buf[2] << 8) | buf[1];
 	else
 		dev_warn(&iforce->dev->dev, "Device does not respond to id packet B\n");
 
-	if (!iforce_get_id_packet(iforce, "N"))
-		ff_effects = iforce->edata[1];
+	if (!iforce_get_id_packet(iforce, 'N', buf, &len) || len < 2)
+		ff_effects = buf[1];
 	else
 		dev_warn(&iforce->dev->dev, "Device does not respond to id packet N\n");
 
@@ -315,8 +317,9 @@ int iforce_init_device(struct device *parent, u16 bustype,
  */
 
 	for (i = 0; c[i]; i++)
-		if (!iforce_get_id_packet(iforce, c + i))
-			iforce_dump_packet(iforce, "info", iforce->ecmd, iforce->edata);
+		if (!iforce_get_id_packet(iforce, c[i], buf, &len))
+			iforce_dump_packet(iforce, "info",
+					   (FF_CMD_QUERY & 0xff00) | len, buf);
 
 /*
  * Disable spring, enable force feedback.

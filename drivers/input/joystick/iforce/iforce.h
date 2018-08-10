@@ -95,7 +95,8 @@ struct iforce;
 
 struct iforce_xport_ops {
 	void (*xmit)(struct iforce *iforce);
-	int (*get_id)(struct iforce *iforce, u8* id);
+	int (*get_id)(struct iforce *iforce, u8 id,
+		      u8 *response_data, size_t *response_len);
 	int (*start_io)(struct iforce *iforce);
 	void (*stop_io)(struct iforce *iforce);
 };
@@ -107,8 +108,6 @@ struct iforce {
 	int bus;
 
 	unsigned char data[IFORCE_MAX_LENGTH];
-	unsigned char edata[IFORCE_MAX_LENGTH];
-	u16 ecmd;
 
 	spinlock_t xmit_lock;
 	/* Buffer used for asynchronous sending of bytes to the device */
@@ -135,9 +134,11 @@ struct iforce {
 /* Encode a time value */
 #define TIME_SCALE(a)	(a)
 
-static inline int iforce_get_id_packet(struct iforce *iforce, u8* id)
+static inline int iforce_get_id_packet(struct iforce *iforce, u8 id,
+				       u8 *response_data, size_t *response_len)
 {
-	return iforce->xport_ops->get_id(iforce, id);
+	return iforce->xport_ops->get_id(iforce, id,
+					 response_data, response_len);
 }
 
 /* Public functions */
