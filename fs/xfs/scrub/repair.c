@@ -128,9 +128,12 @@ xrep_roll_ag_trans(
 	int			error;
 
 	/* Keep the AG header buffers locked so we can keep going. */
-	xfs_trans_bhold(sc->tp, sc->sa.agi_bp);
-	xfs_trans_bhold(sc->tp, sc->sa.agf_bp);
-	xfs_trans_bhold(sc->tp, sc->sa.agfl_bp);
+	if (sc->sa.agi_bp)
+		xfs_trans_bhold(sc->tp, sc->sa.agi_bp);
+	if (sc->sa.agf_bp)
+		xfs_trans_bhold(sc->tp, sc->sa.agf_bp);
+	if (sc->sa.agfl_bp)
+		xfs_trans_bhold(sc->tp, sc->sa.agfl_bp);
 
 	/* Roll the transaction. */
 	error = xfs_trans_roll(&sc->tp);
@@ -138,9 +141,12 @@ xrep_roll_ag_trans(
 		goto out_release;
 
 	/* Join AG headers to the new transaction. */
-	xfs_trans_bjoin(sc->tp, sc->sa.agi_bp);
-	xfs_trans_bjoin(sc->tp, sc->sa.agf_bp);
-	xfs_trans_bjoin(sc->tp, sc->sa.agfl_bp);
+	if (sc->sa.agi_bp)
+		xfs_trans_bjoin(sc->tp, sc->sa.agi_bp);
+	if (sc->sa.agf_bp)
+		xfs_trans_bjoin(sc->tp, sc->sa.agf_bp);
+	if (sc->sa.agfl_bp)
+		xfs_trans_bjoin(sc->tp, sc->sa.agfl_bp);
 
 	return 0;
 
@@ -150,9 +156,12 @@ out_release:
 	 * buffers will be released during teardown on our way out
 	 * of the kernel.
 	 */
-	xfs_trans_bhold_release(sc->tp, sc->sa.agi_bp);
-	xfs_trans_bhold_release(sc->tp, sc->sa.agf_bp);
-	xfs_trans_bhold_release(sc->tp, sc->sa.agfl_bp);
+	if (sc->sa.agi_bp)
+		xfs_trans_bhold_release(sc->tp, sc->sa.agi_bp);
+	if (sc->sa.agf_bp)
+		xfs_trans_bhold_release(sc->tp, sc->sa.agf_bp);
+	if (sc->sa.agfl_bp)
+		xfs_trans_bhold_release(sc->tp, sc->sa.agfl_bp);
 
 	return error;
 }
