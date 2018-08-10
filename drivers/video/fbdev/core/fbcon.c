@@ -3612,27 +3612,25 @@ static int fbcon_output_notifier(struct notifier_block *nb,
 
 	return NOTIFY_OK;
 }
-
-static void fbcon_register_output_notifier(void)
-{
-	fbcon_output_nb.notifier_call = fbcon_output_notifier;
-	dummycon_register_output_notifier(&fbcon_output_nb);
-}
-#else
-static inline void fbcon_register_output_notifier(void) {}
 #endif
 
 static void fbcon_start(void)
 {
+	WARN_CONSOLE_UNLOCKED();
+
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
+	if (conswitchp != &dummy_con)
+		deferred_takeover = false;
+
 	if (deferred_takeover) {
-		fbcon_register_output_notifier();
+		fbcon_output_nb.notifier_call = fbcon_output_notifier;
+		dummycon_register_output_notifier(&fbcon_output_nb);
 		return;
 	}
+#endif
 
 	if (num_registered_fb) {
 		int i;
-
-		console_lock();
 
 		for_each_registered_fb(i) {
 			info_idx = i;
@@ -3640,8 +3638,6 @@ static void fbcon_start(void)
 		}
 
 		do_fbcon_takeover(0);
-		console_unlock();
-
 	}
 }
 
@@ -3724,8 +3720,8 @@ void __init fb_console_init(void)
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
 		con2fb_map[i] = -1;
 
-	console_unlock();
 	fbcon_start();
+	console_unlock();
 }
 
 #ifdef MODULE
