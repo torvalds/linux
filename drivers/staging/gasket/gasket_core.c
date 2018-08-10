@@ -1419,6 +1419,48 @@ int gasket_enable_device(struct gasket_dev *gasket_dev)
 }
 EXPORT_SYMBOL(gasket_enable_device);
 
+static int __gasket_add_device(struct device *parent_dev,
+			       struct gasket_internal_desc *internal_desc,
+			       struct gasket_dev **gasket_devp)
+{
+	int ret;
+	struct gasket_dev *gasket_dev;
+	const struct gasket_driver_desc *driver_desc =
+	    internal_desc->driver_desc;
+
+	ret = gasket_alloc_dev(internal_desc, parent_dev, &gasket_dev);
+	if (ret)
+		return ret;
+	if (IS_ERR(gasket_dev->dev_info.device)) {
+		dev_err(parent_dev, "Cannot create %s device %s [ret = %ld]\n",
+			driver_desc->name, gasket_dev->dev_info.name,
+			PTR_ERR(gasket_dev->dev_info.device));
+		ret = -ENODEV;
+		goto free_gasket_dev;
+	}
+
+	ret = gasket_sysfs_create_mapping(gasket_dev->dev_info.device,
+					  gasket_dev);
+	if (ret)
+		goto remove_device;
+
+	ret = gasket_sysfs_create_entries(gasket_dev->dev_info.device,
+					  gasket_sysfs_generic_attrs);
+	if (ret)
+		goto remove_sysfs_mapping;
+
+	*gasket_devp = gasket_dev;
+	return 0;
+
+remove_sysfs_mapping:
+	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
+remove_device:
+	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
+free_gasket_dev:
+	gasket_free_dev(gasket_dev);
+	return ret;
+}
+
 /*
  * Add PCI gasket device.
  *
@@ -1433,7 +1475,6 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 	int ret;
 	struct gasket_internal_desc *internal_desc;
 	struct gasket_dev *gasket_dev;
-	const struct gasket_driver_desc *driver_desc;
 	struct device *parent;
 
 	dev_dbg(&pci_dev->dev, "add PCI gasket device\n");
@@ -1447,29 +1488,15 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 		return -ENODEV;
 	}
 
-	driver_desc = internal_desc->driver_desc;
-
 	parent = &pci_dev->dev;
-	ret = gasket_alloc_dev(internal_desc, parent, &gasket_dev);
+	ret = __gasket_add_device(parent, internal_desc, &gasket_dev);
 	if (ret)
 		return ret;
-	gasket_dev->pci_dev = pci_dev;
-	if (IS_ERR_OR_NULL(gasket_dev->dev_info.device)) {
-		pr_err("Cannot create %s device %s [ret = %ld]\n",
-		       driver_desc->name, gasket_dev->dev_info.name,
-		       PTR_ERR(gasket_dev->dev_info.device));
-		ret = -ENODEV;
-		goto fail1;
-	}
 
+	gasket_dev->pci_dev = pci_dev;
 	ret = gasket_setup_pci(pci_dev, gasket_dev);
 	if (ret)
-		goto fail2;
-
-	ret = gasket_sysfs_create_mapping(gasket_dev->dev_info.device,
-					  gasket_dev);
-	if (ret)
-		goto fail3;
+		goto cleanup_pci;
 
 	/*
 	 * Once we've created the mapping structures successfully, attempt to
@@ -1480,23 +1507,16 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 	if (ret) {
 		dev_err(gasket_dev->dev,
 			"Cannot create sysfs pci link: %d\n", ret);
-		goto fail3;
+		goto cleanup_pci;
 	}
-	ret = gasket_sysfs_create_entries(gasket_dev->dev_info.device,
-					  gasket_sysfs_generic_attrs);
-	if (ret)
-		goto fail4;
 
 	*gasket_devp = gasket_dev;
 	return 0;
 
-fail4:
-fail3:
-	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
-fail2:
+cleanup_pci:
 	gasket_cleanup_pci(gasket_dev);
+	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
 	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
-fail1:
 	gasket_free_dev(gasket_dev);
 	return ret;
 }
