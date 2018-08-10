@@ -104,22 +104,18 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(
 
 	uattr = uverbs_attr_get(attrs, UVERBS_ATTR_READ_COUNTERS_BUFF);
 	read_attr.ncounters = uattr->ptr_attr.len / sizeof(u64);
-	read_attr.counters_buff = kcalloc(read_attr.ncounters,
-					  sizeof(u64), GFP_KERNEL);
-	if (!read_attr.counters_buff)
-		return -ENOMEM;
+	read_attr.counters_buff = uverbs_zalloc(
+		attrs, array_size(read_attr.ncounters, sizeof(u64)));
+	if (IS_ERR(read_attr.counters_buff))
+		return PTR_ERR(read_attr.counters_buff);
 
 	ret = counters->device->read_counters(counters, &read_attr, attrs);
 	if (ret)
-		goto err_read;
+		return ret;
 
-	ret = uverbs_copy_to(attrs, UVERBS_ATTR_READ_COUNTERS_BUFF,
-			     read_attr.counters_buff,
-			     read_attr.ncounters * sizeof(u64));
-
-err_read:
-	kfree(read_attr.counters_buff);
-	return ret;
+	return uverbs_copy_to(attrs, UVERBS_ATTR_READ_COUNTERS_BUFF,
+			      read_attr.counters_buff,
+			      read_attr.ncounters * sizeof(u64));
 }
 
 DECLARE_UVERBS_NAMED_METHOD(

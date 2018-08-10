@@ -511,22 +511,19 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OTHER)(
 	if (!devx_is_general_cmd(cmd_in))
 		return -EINVAL;
 
-	cmd_out = kvzalloc(cmd_out_len, GFP_KERNEL);
-	if (!cmd_out)
-		return -ENOMEM;
+	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
+	if (IS_ERR(cmd_out))
+		return PTR_ERR(cmd_out);
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, c->devx_uid);
 	err = mlx5_cmd_exec(dev->mdev, cmd_in,
 			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OTHER_CMD_IN),
 			    cmd_out, cmd_out_len);
 	if (err)
-		goto other_cmd_free;
+		return err;
 
-	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OTHER_CMD_OUT, cmd_out, cmd_out_len);
-
-other_cmd_free:
-	kvfree(cmd_out);
-	return err;
+	return uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OTHER_CMD_OUT, cmd_out,
+			      cmd_out_len);
 }
 
 static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
@@ -735,22 +732,20 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 	if (!devx_is_obj_create_cmd(cmd_in))
 		return -EINVAL;
 
+	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
+	if (IS_ERR(cmd_out))
+		return PTR_ERR(cmd_out);
+
 	obj = kzalloc(sizeof(struct devx_obj), GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
-
-	cmd_out = kvzalloc(cmd_out_len, GFP_KERNEL);
-	if (!cmd_out) {
-		err = -ENOMEM;
-		goto obj_free;
-	}
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, c->devx_uid);
 	err = mlx5_cmd_exec(dev->mdev, cmd_in,
 			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_IN),
 			    cmd_out, cmd_out_len);
 	if (err)
-		goto cmd_free;
+		goto obj_free;
 
 	uobj->object = obj;
 	obj->mdev = dev->mdev;
@@ -759,13 +754,10 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
 	if (err)
-		goto cmd_free;
+		goto obj_free;
 
-	kvfree(cmd_out);
 	return 0;
 
-cmd_free:
-	kvfree(cmd_out);
 obj_free:
 	kfree(obj);
 	return err;
@@ -793,23 +785,19 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
 	if (!devx_is_valid_obj_id(obj, cmd_in))
 		return -EINVAL;
 
-	cmd_out = kvzalloc(cmd_out_len, GFP_KERNEL);
-	if (!cmd_out)
-		return -ENOMEM;
+	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
+	if (IS_ERR(cmd_out))
+		return PTR_ERR(cmd_out);
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, c->devx_uid);
 	err = mlx5_cmd_exec(obj->mdev, cmd_in,
 			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN),
 			    cmd_out, cmd_out_len);
 	if (err)
-		goto other_cmd_free;
+		return err;
 
-	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_OUT,
-			     cmd_out, cmd_out_len);
-
-other_cmd_free:
-	kvfree(cmd_out);
-	return err;
+	return uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_OUT,
+			      cmd_out, cmd_out_len);
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
@@ -834,22 +822,19 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 	if (!devx_is_valid_obj_id(obj, cmd_in))
 		return -EINVAL;
 
-	cmd_out = kvzalloc(cmd_out_len, GFP_KERNEL);
-	if (!cmd_out)
-		return -ENOMEM;
+	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
+	if (IS_ERR(cmd_out))
+		return PTR_ERR(cmd_out);
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, c->devx_uid);
 	err = mlx5_cmd_exec(obj->mdev, cmd_in,
 			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN),
 			    cmd_out, cmd_out_len);
 	if (err)
-		goto other_cmd_free;
+		return err;
 
-	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_OUT, cmd_out, cmd_out_len);
-
-other_cmd_free:
-	kvfree(cmd_out);
-	return err;
+	return uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_OUT,
+			      cmd_out, cmd_out_len);
 }
 
 static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
@@ -896,18 +881,14 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 	return 0;
 }
 
-static int devx_umem_reg_cmd_alloc(struct devx_umem *obj,
+static int devx_umem_reg_cmd_alloc(struct uverbs_attr_bundle *attrs,
+				   struct devx_umem *obj,
 				   struct devx_umem_reg_cmd *cmd)
 {
 	cmd->inlen = MLX5_ST_SZ_BYTES(create_umem_in) +
 		    (MLX5_ST_SZ_BYTES(mtt) * obj->ncont);
-	cmd->in = kvzalloc(cmd->inlen, GFP_KERNEL);
-	return cmd->in ? 0 : -ENOMEM;
-}
-
-static void devx_umem_reg_cmd_free(struct devx_umem_reg_cmd *cmd)
-{
-	kvfree(cmd->in);
+	cmd->in = uverbs_zalloc(attrs, cmd->inlen);
+	return PTR_ERR_OR_ZERO(cmd->in);
 }
 
 static void devx_umem_reg_cmd_build(struct mlx5_ib_dev *dev,
@@ -954,7 +935,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
 	if (err)
 		goto err_obj_free;
 
-	err = devx_umem_reg_cmd_alloc(obj, &cmd);
+	err = devx_umem_reg_cmd_alloc(attrs, obj, &cmd);
 	if (err)
 		goto err_umem_release;
 
@@ -964,7 +945,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
 	err = mlx5_cmd_exec(dev->mdev, cmd.in, cmd.inlen, cmd.out,
 			    sizeof(cmd.out));
 	if (err)
-		goto err_umem_reg_cmd_free;
+		goto err_umem_release;
 
 	obj->mdev = dev->mdev;
 	uobj->object = obj;
@@ -973,14 +954,10 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
 	if (err)
 		goto err_umem_destroy;
 
-	devx_umem_reg_cmd_free(&cmd);
-
 	return 0;
 
 err_umem_destroy:
 	mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, cmd.out, sizeof(cmd.out));
-err_umem_reg_cmd_free:
-	devx_umem_reg_cmd_free(&cmd);
 err_umem_release:
 	ib_umem_release(obj->umem);
 err_obj_free:
