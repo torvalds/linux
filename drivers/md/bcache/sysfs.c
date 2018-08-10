@@ -265,10 +265,17 @@ STORE(__cached_dev)
 	sysfs_strtoul_clamp(writeback_percent, dc->writeback_percent, 0, 40);
 
 	if (attr == &sysfs_writeback_rate) {
-		int v;
+		ssize_t ret;
+		long int v = atomic_long_read(&dc->writeback_rate.rate);
 
-		sysfs_strtoul_clamp(writeback_rate, v, 1, INT_MAX);
-		atomic_long_set(&dc->writeback_rate.rate, v);
+		ret = strtoul_safe_clamp(buf, v, 1, INT_MAX);
+
+		if (!ret) {
+			atomic_long_set(&dc->writeback_rate.rate, v);
+			ret = size;
+		}
+
+		return ret;
 	}
 
 	sysfs_strtoul_clamp(writeback_rate_update_seconds,
