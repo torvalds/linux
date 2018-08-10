@@ -89,7 +89,7 @@ void uverbs_close_fd(struct file *f);
  * uverbs_finalize_objects are called.
  */
 struct ib_uobject *
-uverbs_get_uobject_from_file(const struct uverbs_obj_type *type_attrs,
+uverbs_get_uobject_from_file(u16 object_id,
 			     struct ib_uverbs_file *ufile,
 			     enum uverbs_obj_access access, s64 id);
 

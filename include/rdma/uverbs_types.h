@@ -37,6 +37,7 @@
 #include <rdma/ib_verbs.h>
 
 struct uverbs_obj_type;
+struct uverbs_api_object;
 
 enum rdma_lookup_mode {
 	UVERBS_LOOKUP_READ,
@@ -81,14 +82,14 @@ enum rdma_lookup_mode {
  * alloc_abort returns.
  */
 struct uverbs_obj_type_class {
-	struct ib_uobject *(*alloc_begin)(const struct uverbs_obj_type *type,
+	struct ib_uobject *(*alloc_begin)(const struct uverbs_api_object *obj,
 					  struct ib_uverbs_file *ufile);
 	/* This consumes the kref on uobj */
 	int (*alloc_commit)(struct ib_uobject *uobj);
 	/* This does not consume the kref on uobj */
 	void (*alloc_abort)(struct ib_uobject *uobj);
 
-	struct ib_uobject *(*lookup_get)(const struct uverbs_obj_type *type,
+	struct ib_uobject *(*lookup_get)(const struct uverbs_api_object *obj,
 					 struct ib_uverbs_file *ufile, s64 id,
 					 enum rdma_lookup_mode mode);
 	void (*lookup_put)(struct ib_uobject *uobj, enum rdma_lookup_mode mode);
@@ -128,12 +129,12 @@ struct uverbs_obj_idr_type {
 					   enum rdma_remove_reason why);
 };
 
-struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
+struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 					   struct ib_uverbs_file *ufile, s64 id,
 					   enum rdma_lookup_mode mode);
 void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 			     enum rdma_lookup_mode mode);
-struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
+struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
 					    struct ib_uverbs_file *ufile);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
 int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj);

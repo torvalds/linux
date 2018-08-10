@@ -57,7 +57,6 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 	const struct uverbs_attr_spec *spec;
 	const struct uverbs_attr_spec *val_spec;
 	struct uverbs_attr *e;
-	const struct uverbs_object_spec *object;
 	struct uverbs_obj_attr *o_attr;
 	struct uverbs_attr *elements = attr_bundle_h->attrs;
 
@@ -145,9 +144,6 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 			return -EINVAL;
 
 		o_attr = &e->obj_attr;
-		object = uverbs_get_object(ufile, spec->u.obj.obj_type);
-		if (!object)
-			return -EINVAL;
 
 		/* specs are allowed to have only one destroy attribute */
 		WARN_ON(spec->u.obj.access == UVERBS_ACCESS_DESTROY &&
@@ -162,7 +158,7 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		 * IDR implementation today rejects negative IDs
 		 */
 		o_attr->uobject = uverbs_get_uobject_from_file(
-					object->type_attrs,
+					spec->u.obj.obj_type,
 					ufile,
 					spec->u.obj.access,
 					uattr->data_s64);
