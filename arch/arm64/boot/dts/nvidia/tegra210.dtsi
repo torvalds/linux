@@ -1051,6 +1051,10 @@
 		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
 		pinctrl-0 = <&sdmmc1_3v3>;
 		pinctrl-1 = <&sdmmc1_1v8>;
+		nvidia,pad-autocal-pull-up-offset-3v3 = <0x00>;
+		nvidia,pad-autocal-pull-down-offset-3v3 = <0x7d>;
+		nvidia,pad-autocal-pull-up-offset-1v8 = <0x7b>;
+		nvidia,pad-autocal-pull-down-offset-1v8 = <0x7b>;
 		status = "disabled";
 	};
 
@@ -1062,6 +1066,8 @@
 		clock-names = "sdhci";
 		resets = <&tegra_car 9>;
 		reset-names = "sdhci";
+		nvidia,pad-autocal-pull-up-offset-1v8 = <0x05>;
+		nvidia,pad-autocal-pull-down-offset-1v8 = <0x05>;
 		status = "disabled";
 	};
 
@@ -1076,6 +1082,10 @@
 		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
 		pinctrl-0 = <&sdmmc3_3v3>;
 		pinctrl-1 = <&sdmmc3_1v8>;
+		nvidia,pad-autocal-pull-up-offset-3v3 = <0x00>;
+		nvidia,pad-autocal-pull-down-offset-3v3 = <0x7d>;
+		nvidia,pad-autocal-pull-up-offset-1v8 = <0x7b>;
+		nvidia,pad-autocal-pull-down-offset-1v8 = <0x7b>;
 		status = "disabled";
 	};
 
@@ -1087,6 +1097,8 @@
 		clock-names = "sdhci";
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
+		nvidia,pad-autocal-pull-up-offset-1v8 = <0x05>;
+		nvidia,pad-autocal-pull-down-offset-1v8 = <0x05>;
 		status = "disabled";
 	};
 
