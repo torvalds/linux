@@ -1094,12 +1094,9 @@ static void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
 {
 	struct __vxge_hw_device *hldev;
 	struct list_head *p, *n;
-	u16 ret;
 
-	if (blockpool == NULL) {
-		ret = 1;
-		goto exit;
-	}
+	if (!blockpool)
+		return;
 
 	hldev = blockpool->hldev;
 
@@ -1122,8 +1119,7 @@ static void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
 		list_del(&((struct __vxge_hw_blockpool_entry *)p)->item);
 		kfree((void *)p);
 	}
-	ret = 0;
-exit:
+
 	return;
 }
 
@@ -2259,14 +2255,11 @@ static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
 	struct __vxge_hw_blockpool *blockpool;
 	struct __vxge_hw_blockpool_entry *entry = NULL;
 	dma_addr_t dma_addr;
-	enum vxge_hw_status status = VXGE_HW_OK;
-	u32 req_out;
 
 	blockpool = &devh->block_pool;
 
 	if (block_addr == NULL) {
 		blockpool->req_out--;
-		status = VXGE_HW_FAIL;
 		goto exit;
 	}
 
@@ -2276,7 +2269,6 @@ static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
 	if (unlikely(pci_dma_mapping_error(devh->pdev, dma_addr))) {
 		vxge_os_dma_free(devh->pdev, block_addr, &acc_handle);
 		blockpool->req_out--;
-		status = VXGE_HW_FAIL;
 		goto exit;
 	}
 
@@ -2291,7 +2283,7 @@ static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
 	else
 		list_del(&entry->item);
 
-	if (entry != NULL) {
+	if (entry) {
 		entry->length = length;
 		entry->memblock = block_addr;
 		entry->dma_addr = dma_addr;
@@ -2299,13 +2291,10 @@ static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
 		entry->dma_handle = dma_h;
 		list_add(&entry->item, &blockpool->free_block_list);
 		blockpool->pool_size++;
-		status = VXGE_HW_OK;
-	} else
-		status = VXGE_HW_ERR_OUT_OF_MEMORY;
+	}
 
 	blockpool->req_out--;
 
-	req_out = blockpool->req_out;
 exit:
 	return;
 }
@@ -2357,7 +2346,6 @@ static void *__vxge_hw_blockpool_malloc(struct __vxge_hw_device *devh, u32 size,
 	struct __vxge_hw_blockpool_entry *entry = NULL;
 	struct __vxge_hw_blockpool  *blockpool;
 	void *memblock = NULL;
-	enum vxge_hw_status status = VXGE_HW_OK;
 
 	blockpool = &devh->block_pool;
 
@@ -2367,10 +2355,8 @@ static void *__vxge_hw_blockpool_malloc(struct __vxge_hw_device *devh, u32 size,
 						&dma_object->handle,
 						&dma_object->acc_handle);
 
-		if (memblock == NULL) {
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+		if (!memblock)
 			goto exit;
-		}
 
 		dma_object->addr = pci_map_single(devh->pdev, memblock, size,
 					PCI_DMA_BIDIRECTIONAL);
@@ -2379,7 +2365,6 @@ static void *__vxge_hw_blockpool_malloc(struct __vxge_hw_device *devh, u32 size,
 				dma_object->addr))) {
 			vxge_os_dma_free(devh->pdev, memblock,
 				&dma_object->acc_handle);
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
 			goto exit;
 		}
 
