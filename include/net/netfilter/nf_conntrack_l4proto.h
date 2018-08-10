@@ -77,7 +77,6 @@ struct nf_conntrack_l4proto {
 			       struct nf_conntrack_tuple *t);
 	const struct nla_policy *nla_policy;
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 	struct {
 		int (*nlattr_to_obj)(struct nlattr *tb[],
 				     struct net *net, void *data);
@@ -87,7 +86,6 @@ struct nf_conntrack_l4proto {
 		u16 nlattr_max;
 		const struct nla_policy *nla_policy;
 	} ctnl_timeout;
-#endif
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	/* Print out the private part of the conntrack. */
 	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);

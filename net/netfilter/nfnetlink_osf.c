@@ -271,7 +271,7 @@ const char *nf_osf_find(const struct sk_buff *skb,
 
 	tcp = nf_osf_hdr_ctx_init(&ctx, skb, ip, opts);
 	if (!tcp)
-		return false;
+		return NULL;
 
 	list_for_each_entry_rcu(kf, &nf_osf_fingers[ctx.df], finger_entry) {
 		f = &kf->finger;
