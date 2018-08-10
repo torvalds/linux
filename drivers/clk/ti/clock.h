@@ -184,6 +184,7 @@ struct omap_clkctrl_data {
 extern const struct omap_clkctrl_data omap4_clkctrl_data[];
 extern const struct omap_clkctrl_data omap5_clkctrl_data[];
 extern const struct omap_clkctrl_data dra7_clkctrl_data[];
+extern const struct omap_clkctrl_data am3_clkctrl_data[];
 extern const struct omap_clkctrl_data am3_clkctrl_compat_data[];
 extern struct ti_dt_clk am33xx_compat_clks[];
 extern const struct omap_clkctrl_data am4_clkctrl_data[];
