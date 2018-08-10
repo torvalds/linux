@@ -41,7 +41,7 @@
 	status = "okay";
 	rockchip,no-deep-low-power;
 	/* ADC3-6 for 4ch capture, loopback to ADC7 */
-	rockchip,adc-grps-route = <1 2 3 0>;
+	rockchip,adc-grps-route = <2 3 1 0>;
 };
 
 &i2c1 {

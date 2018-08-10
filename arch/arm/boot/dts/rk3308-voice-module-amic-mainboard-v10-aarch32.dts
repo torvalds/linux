@@ -18,6 +18,10 @@
 	rockchip,en-always-grps = <1 2>;
 };
 
+&bluetooth_sound {
+	status = "okay";
+};
+
 &is31fl3236 {
 	reg = <0x3f>;
 };

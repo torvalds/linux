@@ -97,6 +97,17 @@
 		status = "disabled";
 	};
 
+	bluetooth_sound: bluetooth-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-pcm";
+		rockchip,mclk-fs = <128>;
+		rockchip,cpu = <&i2s_2ch_0>;
+		rockchip,codec = <&dummy_codec>;
+		rockchip,format = "dsp_b";
+		rockchip,wait-card-locked = <0>;
+	};
+
 	spdif_tx_sound: spdif-tx-sound {
 		status = "disabled";
 		compatible = "simple-audio-card";
@@ -209,6 +220,10 @@
 	vccio3-supply = <&vcc_io>;
 	vccio4-supply = <&vccio_sdio>;
 	vccio5-supply = <&vcc_io>;
+};
+
+&i2s_2ch_0 {
+	status = "okay";
 };
 
 &i2s_8ch_2 {
