@@ -234,8 +234,6 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 	dev_info->device = device_create(internal_desc->class, parent,
 		dev_info->devt, gasket_dev, dev_info->name);
 
-	dev_dbg(dev_info->device, "Gasket device allocated.\n");
-
 	/* cdev has not yet been added; cdev_added is 0 */
 	dev_info->gasket_dev_ptr = gasket_dev;
 	/* ownership is all 0, indicating no owner or opens. */
