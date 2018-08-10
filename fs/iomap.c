@@ -145,11 +145,11 @@ iomap_adjust_read_range(struct inode *inode, struct iomap_page *iop,
 {
 	unsigned block_bits = inode->i_blkbits;
 	unsigned block_size = (1 << block_bits);
-	unsigned poff = *pos & (PAGE_SIZE - 1);
+	unsigned poff = offset_in_page(*pos);
 	unsigned plen = min_t(loff_t, PAGE_SIZE - poff, length);
 	unsigned first = poff >> block_bits;
 	unsigned last = (poff + plen - 1) >> block_bits;
-	unsigned end = (i_size_read(inode) & (PAGE_SIZE - 1)) >> block_bits;
+	unsigned end = offset_in_page(i_size_read(inode)) >> block_bits;
 
 	/*
 	 * If the block size is smaller than the page size we need to check the
@@ -427,7 +427,7 @@ iomap_readpages_actor(struct inode *inode, loff_t pos, loff_t length,
 	loff_t done, ret;
 
 	for (done = 0; done < length; done += ret) {
-		if (ctx->cur_page && ((pos + done) & (PAGE_SIZE - 1)) == 0) {
+		if (ctx->cur_page && offset_in_page(pos + done) == 0) {
 			if (!ctx->cur_page_in_bio)
 				unlock_page(ctx->cur_page);
 			put_page(ctx->cur_page);
@@ -609,7 +609,7 @@ __iomap_write_begin(struct inode *inode, loff_t pos, unsigned len,
 	loff_t block_size = i_blocksize(inode);
 	loff_t block_start = pos & ~(block_size - 1);
 	loff_t block_end = (pos + len + block_size - 1) & ~(block_size - 1);
-	unsigned from = pos & (PAGE_SIZE - 1), to = from + len, poff, plen;
+	unsigned from = offset_in_page(pos), to = from + len, poff, plen;
 	int status = 0;
 
 	if (PageUptodate(page))
@@ -714,7 +714,7 @@ __iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
 	if (unlikely(copied < len && !PageUptodate(page))) {
 		copied = 0;
 	} else {
-		iomap_set_range_uptodate(page, pos & (PAGE_SIZE - 1), len);
+		iomap_set_range_uptodate(page, offset_in_page(pos), len);
 		iomap_set_page_dirty(page);
 	}
 	return __generic_write_end(inode, pos, copied, page);
@@ -776,7 +776,7 @@ iomap_write_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		unsigned long bytes;	/* Bytes to write to page */
 		size_t copied;		/* Bytes copied from user */
 
-		offset = (pos & (PAGE_SIZE - 1));
+		offset = offset_in_page(pos);
 		bytes = min_t(unsigned long, PAGE_SIZE - offset,
 						iov_iter_count(i));
 again:
@@ -890,7 +890,7 @@ iomap_dirty_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		unsigned long offset;	/* Offset into pagecache page */
 		unsigned long bytes;	/* Bytes to write to page */
 
-		offset = (pos & (PAGE_SIZE - 1));
+		offset = offset_in_page(pos);
 		bytes = min_t(loff_t, PAGE_SIZE - offset, length);
 
 		rpage = __iomap_read_page(inode, pos);
@@ -982,7 +982,7 @@ iomap_zero_range_actor(struct inode *inode, loff_t pos, loff_t count,
 	do {
 		unsigned offset, bytes;
 
-		offset = pos & (PAGE_SIZE - 1); /* Within page */
+		offset = offset_in_page(pos);
 		bytes = min_t(loff_t, PAGE_SIZE - offset, count);
 
 		if (IS_DAX(inode))
@@ -1075,7 +1075,7 @@ int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
 
 	/* page is wholly or partially inside EOF */
 	if (((page->index + 1) << PAGE_SHIFT) > size)
-		length = size & ~PAGE_MASK;
+		length = offset_in_page(size);
 	else
 		length = PAGE_SIZE;
 
@@ -1238,7 +1238,7 @@ page_seek_hole_data(struct inode *inode, struct page *page, loff_t *lastoff,
 		goto out_unlock_not_found;
 
 	for (off = 0; off < PAGE_SIZE; off += bsize) {
-		if ((*lastoff & ~PAGE_MASK) >= off + bsize)
+		if (offset_in_page(*lastoff) >= off + bsize)
 			continue;
 		if (ops->is_partially_uptodate(page, off, bsize) == seek_data) {
 			unlock_page(page);
