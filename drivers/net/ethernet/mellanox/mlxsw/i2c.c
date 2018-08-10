@@ -15,8 +15,6 @@
 #include "core.h"
 #include "i2c.h"
 
-static const char mlxsw_i2c_driver_name[] = "mlxsw_i2c";
-
 #define MLXSW_I2C_CIR2_BASE		0x72000
 #define MLXSW_I2C_CIR_STATUS_OFF	0x18
 #define MLXSW_I2C_CIR2_OFF_STATUS	(MLXSW_I2C_CIR2_BASE + \

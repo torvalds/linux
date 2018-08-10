@@ -22,8 +22,6 @@
 #include "port.h"
 #include "resources.h"
 
-static const char mlxsw_pci_driver_name[] = "mlxsw_pci";
-
 #define mlxsw_pci_write32(mlxsw_pci, reg, val) \
 	iowrite32be(val, (mlxsw_pci)->hw_addr + (MLXSW_PCI_ ## reg))
 #define mlxsw_pci_read32(mlxsw_pci, reg) \
