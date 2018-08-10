@@ -174,6 +174,7 @@ static void ib_uverbs_release_dev(struct kobject *kobj)
 	struct ib_uverbs_device *dev =
 		container_of(kobj, struct ib_uverbs_device, kobj);
 
+	uverbs_destroy_api(dev->uapi);
 	cleanup_srcu_struct(&dev->disassociate_srcu);
 	uverbs_free_spec_tree(dev->specs_root);
 	kfree(dev);
@@ -1000,6 +1001,7 @@ static int ib_uverbs_create_uapi(struct ib_device *device,
 	const struct uverbs_object_tree_def **specs;
 	struct uverbs_root_spec *specs_root;
 	unsigned int num_specs = 1;
+	struct uverbs_api *uapi;
 	unsigned int i;
 
 	if (device->driver_specs)
@@ -1020,7 +1022,14 @@ static int ib_uverbs_create_uapi(struct ib_device *device,
 	if (IS_ERR(specs_root))
 		return PTR_ERR(specs_root);
 
+	uapi = uverbs_alloc_api(device->driver_specs, device->driver_id);
+	if (IS_ERR(uapi)) {
+		uverbs_free_spec_tree(specs_root);
+		return PTR_ERR(uapi);
+	}
+
 	uverbs_dev->specs_root = specs_root;
+	uverbs_dev->uapi = uapi;
 	return 0;
 }
 
@@ -1115,7 +1124,7 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 	struct ib_event event;
 
 	/* Pending running commands to terminate */
-	synchronize_srcu(&uverbs_dev->disassociate_srcu);
+	uverbs_disassociate_api_pre(uverbs_dev);
 	event.event = IB_EVENT_DEVICE_FATAL;
 	event.element.port_num = 0;
 	event.device = ib_dev;
@@ -1161,6 +1170,8 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 		kill_fasync(&event_file->ev_queue.async_queue, SIGIO, POLL_IN);
 	}
 	mutex_unlock(&uverbs_dev->lists_mutex);
+
+	uverbs_disassociate_api(uverbs_dev->uapi);
 }
 
 static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
@@ -1188,7 +1199,6 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 		 * cdev was deleted, however active clients can still issue
 		 * commands and close their open files.
 		 */
-		rcu_assign_pointer(uverbs_dev->ib_dev, NULL);
 		ib_uverbs_free_hw_resources(uverbs_dev, device);
 		wait_clients = 0;
 	}

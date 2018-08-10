@@ -43,6 +43,8 @@
 #include <rdma/ib_verbs.h>
 #include <linux/mutex.h>
 
+struct ib_uverbs_device;
+
 int uverbs_ns_idx(u16 *id, unsigned int ns_count);
 const struct uverbs_object_spec *uverbs_get_object(struct ib_uverbs_file *ufile,
 						   uint16_t object);
@@ -112,5 +114,53 @@ int uverbs_finalize_object(struct ib_uobject *uobj,
 
 void setup_ufile_idr_uobject(struct ib_uverbs_file *ufile);
 void release_ufile_idr_uobject(struct ib_uverbs_file *ufile);
+
+/*
+ * This is the runtime description of the uverbs API, used by the syscall
+ * machinery to validate and dispatch calls.
+ */
+
+/*
+ * Depending on ID the slot pointer in the radix tree points at one of these
+ * structs.
+ */
+struct uverbs_api_object {
+	const struct uverbs_obj_type *type_attrs;
+	const struct uverbs_obj_type_class *type_class;
+};
+
+struct uverbs_api_ioctl_method {
+	int (__rcu *handler)(struct ib_uverbs_file *ufile,
+			     struct uverbs_attr_bundle *ctx);
+	DECLARE_BITMAP(attr_mandatory, UVERBS_API_ATTR_BKEY_LEN);
+	u8 driver_method:1;
+	u8 key_bitmap_len;
+	u8 destroy_bkey;
+};
+
+struct uverbs_api_attr {
+	struct uverbs_attr_spec spec;
+};
+
+struct uverbs_api_object;
+struct uverbs_api {
+	/* radix tree contains struct uverbs_api_* pointers */
+	struct radix_tree_root radix;
+	enum rdma_driver_id driver_id;
+};
+
+static inline const struct uverbs_api_object *
+uapi_get_object(struct uverbs_api *uapi, u16 object_id)
+{
+	return radix_tree_lookup(&uapi->radix, uapi_key_obj(object_id));
+}
+
+char *uapi_key_format(char *S, unsigned int key);
+struct uverbs_api *uverbs_alloc_api(
+	const struct uverbs_object_tree_def *const *driver_specs,
+	enum rdma_driver_id driver_id);
+void uverbs_disassociate_api_pre(struct ib_uverbs_device *uverbs_dev);
+void uverbs_disassociate_api(struct uverbs_api *uapi);
+void uverbs_destroy_api(struct uverbs_api *uapi);
 
 #endif /* RDMA_CORE_H */

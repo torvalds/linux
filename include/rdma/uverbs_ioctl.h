@@ -155,6 +155,143 @@ struct uverbs_root_spec {
 };
 
 /*
+ * Information about the API is loaded into a radix tree. For IOCTL we start
+ * with a tuple of:
+ *  object_id, attr_id, method_id
+ *
+ * Which is a 48 bit value, with most of the bits guaranteed to be zero. Based
+ * on the current kernel support this is compressed into 16 bit key for the
+ * radix tree. Since this compression is entirely internal to the kernel the
+ * below limits can be revised if the kernel gains additional data.
+ *
+ * With 64 leafs per node this is a 3 level radix tree.
+ *
+ * The tree encodes multiple types, and uses a scheme where OBJ_ID,0,0 returns
+ * the object slot, and OBJ_ID,METH_ID,0 and returns the method slot.
+ */
+enum uapi_radix_data {
+	UVERBS_API_NS_FLAG = 1U << UVERBS_ID_NS_SHIFT,
+
+	UVERBS_API_ATTR_KEY_BITS = 6,
+	UVERBS_API_ATTR_KEY_MASK = GENMASK(UVERBS_API_ATTR_KEY_BITS - 1, 0),
+	UVERBS_API_ATTR_BKEY_LEN = (1 << UVERBS_API_ATTR_KEY_BITS) - 1,
+
+	UVERBS_API_METHOD_KEY_BITS = 5,
+	UVERBS_API_METHOD_KEY_SHIFT = UVERBS_API_ATTR_KEY_BITS,
+	UVERBS_API_METHOD_KEY_NUM_CORE = 24,
+	UVERBS_API_METHOD_KEY_NUM_DRIVER = (1 << UVERBS_API_METHOD_KEY_BITS) -
+					   UVERBS_API_METHOD_KEY_NUM_CORE,
+	UVERBS_API_METHOD_KEY_MASK = GENMASK(
+		UVERBS_API_METHOD_KEY_BITS + UVERBS_API_METHOD_KEY_SHIFT - 1,
+		UVERBS_API_METHOD_KEY_SHIFT),
+
+	UVERBS_API_OBJ_KEY_BITS = 5,
+	UVERBS_API_OBJ_KEY_SHIFT =
+		UVERBS_API_METHOD_KEY_BITS + UVERBS_API_METHOD_KEY_SHIFT,
+	UVERBS_API_OBJ_KEY_NUM_CORE = 24,
+	UVERBS_API_OBJ_KEY_NUM_DRIVER =
+		(1 << UVERBS_API_OBJ_KEY_BITS) - UVERBS_API_OBJ_KEY_NUM_CORE,
+	UVERBS_API_OBJ_KEY_MASK = GENMASK(31, UVERBS_API_OBJ_KEY_SHIFT),
+
+	/* This id guaranteed to not exist in the radix tree */
+	UVERBS_API_KEY_ERR = 0xFFFFFFFF,
+};
+
+static inline __attribute_const__ u32 uapi_key_obj(u32 id)
+{
+	if (id & UVERBS_API_NS_FLAG) {
+		id &= ~UVERBS_API_NS_FLAG;
+		if (id >= UVERBS_API_OBJ_KEY_NUM_DRIVER)
+			return UVERBS_API_KEY_ERR;
+		id = id + UVERBS_API_OBJ_KEY_NUM_CORE;
+	} else {
+		if (id >= UVERBS_API_OBJ_KEY_NUM_CORE)
+			return UVERBS_API_KEY_ERR;
+	}
+
+	return id << UVERBS_API_OBJ_KEY_SHIFT;
+}
+
+static inline __attribute_const__ bool uapi_key_is_object(u32 key)
+{
+	return (key & ~UVERBS_API_OBJ_KEY_MASK) == 0;
+}
+
+static inline __attribute_const__ u32 uapi_key_ioctl_method(u32 id)
+{
+	if (id & UVERBS_API_NS_FLAG) {
+		id &= ~UVERBS_API_NS_FLAG;
+		if (id >= UVERBS_API_METHOD_KEY_NUM_DRIVER)
+			return UVERBS_API_KEY_ERR;
+		id = id + UVERBS_API_METHOD_KEY_NUM_CORE;
+	} else {
+		id++;
+		if (id >= UVERBS_API_METHOD_KEY_NUM_CORE)
+			return UVERBS_API_KEY_ERR;
+	}
+
+	return id << UVERBS_API_METHOD_KEY_SHIFT;
+}
+
+static inline __attribute_const__ u32 uapi_key_attr_to_method(u32 attr_key)
+{
+	return attr_key &
+	       (UVERBS_API_OBJ_KEY_MASK | UVERBS_API_METHOD_KEY_MASK);
+}
+
+static inline __attribute_const__ bool uapi_key_is_ioctl_method(u32 key)
+{
+	return (key & UVERBS_API_METHOD_KEY_MASK) != 0 &&
+	       (key & UVERBS_API_ATTR_KEY_MASK) == 0;
+}
+
+static inline __attribute_const__ u32 uapi_key_attrs_start(u32 ioctl_method_key)
+{
+	/* 0 is the method slot itself */
+	return ioctl_method_key + 1;
+}
+
+static inline __attribute_const__ u32 uapi_key_attr(u32 id)
+{
+	/*
+	 * The attr is designed to fit in the typical single radix tree node
+	 * of 64 entries. Since allmost all methods have driver attributes we
+	 * organize things so that the driver and core attributes interleave to
+	 * reduce the length of the attributes array in typical cases.
+	 */
+	if (id & UVERBS_API_NS_FLAG) {
+		id &= ~UVERBS_API_NS_FLAG;
+		id++;
+		if (id >= 1 << (UVERBS_API_ATTR_KEY_BITS - 1))
+			return UVERBS_API_KEY_ERR;
+		id = (id << 1) | 0;
+	} else {
+		if (id >= 1 << (UVERBS_API_ATTR_KEY_BITS - 1))
+			return UVERBS_API_KEY_ERR;
+		id = (id << 1) | 1;
+	}
+
+	return id;
+}
+
+static inline __attribute_const__ bool uapi_key_is_attr(u32 key)
+{
+	return (key & UVERBS_API_METHOD_KEY_MASK) != 0 &&
+	       (key & UVERBS_API_ATTR_KEY_MASK) != 0;
+}
+
+/*
+ * This returns a value in the range [0 to UVERBS_API_ATTR_BKEY_LEN),
+ * basically it undoes the reservation of 0 in the ID numbering. attr_key
+ * must already be masked with UVERBS_API_ATTR_KEY_MASK, or be the output of
+ * uapi_key_attr().
+ */
+static inline __attribute_const__ u32 uapi_bkey_attr(u32 attr_key)
+{
+	return attr_key - 1;
+}
+
+/*
  * =======================================
  *	Verbs definitions
  * =======================================

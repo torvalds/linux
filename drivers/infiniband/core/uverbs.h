@@ -112,6 +112,7 @@ struct ib_uverbs_device {
 	struct list_head			uverbs_file_list;
 	struct list_head			uverbs_events_file_list;
 	struct uverbs_root_spec			*specs_root;
+	struct uverbs_api			*uapi;
 };
 
 struct ib_uverbs_event_queue {
