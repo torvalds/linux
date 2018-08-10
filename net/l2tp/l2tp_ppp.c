@@ -1045,7 +1045,6 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 {
 	int err = 0;
 	struct sock *sk;
-	int val = (int) arg;
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	struct pppol2tp_ioc_stats stats;
 
@@ -1058,22 +1057,6 @@ static int pppol2tp_session_ioctl(struct l2tp_session *session,
 		return -EBADR;
 
 	switch (cmd) {
-	case PPPIOCGMRU:
-	case PPPIOCGFLAGS:
-		err = -EFAULT;
-		if (put_user(0, (int __user *)arg))
-			break;
-		err = 0;
-		break;
-
-	case PPPIOCSMRU:
-	case PPPIOCSFLAGS:
-		err = -EFAULT;
-		if (get_user(val, (int __user *)arg))
-			break;
-		err = 0;
-		break;
-
 	case PPPIOCGL2TPSTATS:
 		err = -ENXIO;
 		if (!(sk->sk_state & PPPOX_CONNECTED))
@@ -1180,23 +1163,55 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 			  unsigned long arg)
 {
 	struct l2tp_session *session;
-	struct l2tp_tunnel *tunnel;
+	int val;
 
-	session = sock->sk->sk_user_data;
-	if (!session)
-		return -ENOTCONN;
+	switch (cmd) {
+	case PPPIOCGMRU:
+	case PPPIOCGFLAGS:
+		session = sock->sk->sk_user_data;
+		if (!session)
+			return -ENOTCONN;
 
-	/* Special case: if session's session_id is zero, treat ioctl as a
-	 * tunnel ioctl
-	 */
-	if ((session->session_id == 0) &&
-	    (session->peer_session_id == 0)) {
-		tunnel = session->tunnel;
+		/* Not defined for tunnels */
+		if (!session->session_id && !session->peer_session_id)
+			return -ENOSYS;
 
-		return pppol2tp_tunnel_ioctl(tunnel, cmd, arg);
+		if (put_user(0, (int __user *)arg))
+			return -EFAULT;
+		break;
+
+	case PPPIOCSMRU:
+	case PPPIOCSFLAGS:
+		session = sock->sk->sk_user_data;
+		if (!session)
+			return -ENOTCONN;
+
+		/* Not defined for tunnels */
+		if (!session->session_id && !session->peer_session_id)
+			return -ENOSYS;
+
+		if (get_user(val, (int __user *)arg))
+			return -EFAULT;
+		break;
+
+	case PPPIOCGL2TPSTATS:
+		session = sock->sk->sk_user_data;
+		if (!session)
+			return -ENOTCONN;
+
+		/* Session 0 represents the parent tunnel */
+		if (!session->session_id && !session->peer_session_id)
+			return pppol2tp_tunnel_ioctl(session->tunnel, cmd,
+						     arg);
+		else
+			return pppol2tp_session_ioctl(session, cmd, arg);
+		break;
+
+	default:
+		return -ENOSYS;
 	}
 
-	return pppol2tp_session_ioctl(session, cmd, arg);
+	return 0;
 }
 
 /*****************************************************************************
