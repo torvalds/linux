@@ -26,6 +26,8 @@ struct owl_clk_desc {
 	struct owl_clk_common		**clks;
 	unsigned long			num_clks;
 	struct clk_hw_onecell_data	*hw_clks;
+	const struct owl_reset_map	*resets;
+	unsigned long			num_resets;
 	struct regmap			*regmap;
 };
 
