@@ -1853,4 +1853,5 @@ void cxgb4_write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 void cxgb4_ring_tx_db(struct adapter *adap, struct sge_txq *q, int n);
 int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 		    u16 vlan);
+int cxgb4_dcb_enabled(const struct net_device *dev);
 #endif /* __CXGB4_H__ */

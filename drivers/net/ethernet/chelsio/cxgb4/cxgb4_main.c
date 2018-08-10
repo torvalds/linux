@@ -267,7 +267,7 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 	}
 }
 
-static int cxgb4_dcb_enabled(const struct net_device *dev)
+int cxgb4_dcb_enabled(const struct net_device *dev)
 {
 	struct port_info *pi = netdev_priv(dev);
 
@@ -5658,6 +5658,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_CHELSIO_T4_DCB
 		netdev->dcbnl_ops = &cxgb4_dcb_ops;
 		cxgb4_dcb_state_init(netdev);
+		cxgb4_dcb_version_init(netdev);
 #endif
 		cxgb4_set_ethtool_ops(netdev);
 	}
