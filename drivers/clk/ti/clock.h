@@ -233,6 +233,8 @@ extern const struct clk_ops ti_clk_divider_ops;
 extern const struct clk_ops ti_clk_mux_ops;
 extern const struct clk_ops omap_gate_clk_ops;
 
+extern struct ti_clk_features ti_clk_features;
+
 void omap2_init_clk_clkdm(struct clk_hw *hw);
 int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 void omap2_clkops_disable_clkdm(struct clk_hw *hw);
