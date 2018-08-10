@@ -38,10 +38,6 @@
 
 #define IFORCE_MAX_LENGTH	16
 
-/* iforce::bus */
-#define IFORCE_232	1
-#define IFORCE_USB	2
-
 #define IFORCE_EFFECTS_MAX	32
 
 /* Each force feedback effect is made of one core effect, which can be
@@ -105,7 +101,6 @@ struct iforce {
 	struct input_dev *dev;		/* Input device interface */
 	struct iforce_device *type;
 	const struct iforce_xport_ops *xport_ops;
-	int bus;
 
 	spinlock_t xmit_lock;
 	/* Buffer used for asynchronous sending of bytes to the device */

@@ -234,7 +234,6 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	iforce = &iforce_usb->iforce;
 
 	iforce->xport_ops = &iforce_usb_xport_ops;
-	iforce->bus = IFORCE_USB;
 
 	iforce_usb->usbdev = dev;
 	iforce_usb->intf = intf;

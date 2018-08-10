@@ -214,7 +214,6 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 	iforce = &iforce_serio->iforce;
 
 	iforce->xport_ops = &iforce_serio_xport_ops;
-	iforce->bus = IFORCE_232;
 
 	iforce_serio->serio = serio;
 	serio_set_drvdata(serio, iforce_serio);
