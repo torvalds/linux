@@ -358,8 +358,17 @@ static struct notifier_block mirred_device_notifier = {
 static struct net_device *tcf_mirred_get_dev(const struct tc_action *a)
 {
 	struct tcf_mirred *m = to_mirred(a);
+	struct net_device *dev = rtnl_dereference(m->tcfm_dev);
 
-	return rtnl_dereference(m->tcfm_dev);
+	if (dev)
+		dev_hold(dev);
+
+	return dev;
+}
+
+static void tcf_mirred_put_dev(struct net_device *dev)
+{
+	dev_put(dev);
 }
 
 static int tcf_mirred_delete(struct net *net, u32 index)
@@ -382,6 +391,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.lookup		=	tcf_mirred_search,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
+	.put_dev	=	tcf_mirred_put_dev,
 	.delete		=	tcf_mirred_delete,
 };
 
