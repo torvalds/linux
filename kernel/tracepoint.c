@@ -53,6 +53,9 @@ static LIST_HEAD(tracepoint_module_list);
  */
 static DEFINE_MUTEX(tracepoints_mutex);
 
+static struct rcu_head *early_probes;
+static bool ok_to_free_tracepoints;
+
 /*
  * Note about RCU :
  * It is used to delay the free of multiple probes array until a quiescent
@@ -80,11 +83,40 @@ static void rcu_free_old_probes(struct rcu_head *head)
 	call_srcu(&tracepoint_srcu, head, srcu_free_old_probes);
 }
 
+static __init int release_early_probes(void)
+{
+	struct rcu_head *tmp;
+
+	ok_to_free_tracepoints = true;
+
+	while (early_probes) {
+		tmp = early_probes;
+		early_probes = tmp->next;
+		call_rcu_sched(tmp, rcu_free_old_probes);
+	}
+
+	return 0;
+}
+
+/* SRCU is initialized at core_initcall */
+postcore_initcall(release_early_probes);
+
 static inline void release_probes(struct tracepoint_func *old)
 {
 	if (old) {
 		struct tp_probes *tp_probes = container_of(old,
 			struct tp_probes, probes[0]);
+
+		/*
+		 * We can't free probes if SRCU is not initialized yet.
+		 * Postpone the freeing till after SRCU is initialized.
+		 */
+		if (unlikely(!ok_to_free_tracepoints)) {
+			tp_probes->rcu.next = early_probes;
+			early_probes = &tp_probes->rcu;
+			return;
+		}
+
 		/*
 		 * Tracepoint probes are protected by both sched RCU and SRCU,
 		 * by calling the SRCU callback in the sched RCU callback we
