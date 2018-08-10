@@ -536,7 +536,7 @@ static int qede_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
-int qede_setup_tc(struct net_device *ndev, u8 num_tc)
+static int qede_setup_tc(struct net_device *ndev, u8 num_tc)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
 	int cos, count, offset;
