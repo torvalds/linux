@@ -1868,7 +1868,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	num_devices = fs_devices->num_devices;
 	btrfs_dev_replace_read_lock(&fs_info->dev_replace);
 	if (btrfs_dev_replace_is_ongoing(&fs_info->dev_replace)) {
-		WARN_ON(num_devices < 1);
+		ASSERT(num_devices > 1);
 		num_devices--;
 	}
 	btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
@@ -3743,7 +3743,7 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 	num_devices = fs_info->fs_devices->num_devices;
 	btrfs_dev_replace_read_lock(&fs_info->dev_replace);
 	if (btrfs_dev_replace_is_ongoing(&fs_info->dev_replace)) {
-		BUG_ON(num_devices < 1);
+		ASSERT(num_devices > 1);
 		num_devices--;
 	}
 	btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
