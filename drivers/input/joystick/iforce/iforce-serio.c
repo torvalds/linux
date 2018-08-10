@@ -169,10 +169,13 @@ static irqreturn_t iforce_serio_irq(struct serio *serio,
 			iforce->ecmd = (iforce_serio->id << 8) |
 					iforce_serio->idx;
 			memcpy(iforce->edata, iforce->data, IFORCE_MAX_LENGTH);
-		}
 
-		iforce_process_packet(iforce, iforce_serio->id,
-				      iforce->data, iforce_serio->len);
+			/* Signal that command is done */
+			wake_up(&iforce->wait);
+		} else {
+			iforce_process_packet(iforce, iforce_serio->id,
+					      iforce->data, iforce_serio->len);
+		}
 
 		iforce_serio->pkt = 0;
 		iforce_serio->id  = 0;

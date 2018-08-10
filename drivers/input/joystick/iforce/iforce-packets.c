@@ -172,8 +172,6 @@ void iforce_process_packet(struct iforce *iforce,
 	struct input_dev *dev = iforce->dev;
 	int i, j;
 
-	wake_up(&iforce->wait);
-
 	if (!iforce->type)
 		return;
 
