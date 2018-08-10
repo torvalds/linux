@@ -399,7 +399,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 	struct sta_info *psta = NULL;
 	struct ethhdr etherhdr;
 
-	int bmcast;
+	bool mcast;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
 	struct security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
@@ -460,10 +460,10 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 	if ((pattrib->ether_type == ETH_P_ARP) || (pattrib->ether_type == ETH_P_PAE) || (pattrib->dhcp_pkt == 1))
 		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_SPECIAL_PACKET, 1);
 
-	bmcast = IS_MCAST(pattrib->ra);
+	mcast = is_multicast_ether_addr(pattrib->ra);
 
 	/*  get sta_info */
-	if (bmcast) {
+	if (mcast) {
 		psta = rtw_get_bcmc_stainfo(padapter);
 	} else {
 		psta = rtw_get_stainfo(pstapriv, pattrib->ra);
@@ -517,7 +517,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 			goto exit;
 		}
 	} else {
-		GET_ENCRY_ALGO(psecuritypriv, psta, pattrib->encrypt, bmcast);
+		GET_ENCRY_ALGO(psecuritypriv, psta, pattrib->encrypt, mcast);
 
 		switch (psecuritypriv->dot11AuthAlgrthm) {
 		case dot11AuthAlgrthm_Open:
@@ -526,7 +526,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 			pattrib->key_idx = (u8)psecuritypriv->dot11PrivacyKeyIndex;
 			break;
 		case dot11AuthAlgrthm_8021X:
-			if (bmcast)
+			if (mcast)
 				pattrib->key_idx = (u8)psecuritypriv->dot118021XGrpKeyid;
 			else
 				pattrib->key_idx = 0;
@@ -596,7 +596,6 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 	struct	xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	u8 priority[4] = {0x0, 0x0, 0x0, 0x0};
 	u8 hw_hdr_offset = 0;
-	int bmcst = IS_MCAST(pattrib->ra);
 
 	if (pattrib->psta)
 		stainfo = pattrib->psta;
@@ -614,7 +613,7 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 
 			pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
-			if (bmcst) {
+			if (is_multicast_ether_addr(pattrib->ra)) {
 				if (!memcmp(psecuritypriv->dot118021XGrptxmickey[psecuritypriv->dot118021XGrpKeyid].skey, null_key, 16))
 					return _FAIL;
 				/* start to calculate the mic code */
@@ -743,12 +742,10 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 
 	struct sta_info *psta;
 
-	int bmcst = IS_MCAST(pattrib->ra);
-
 	if (pattrib->psta) {
 		psta = pattrib->psta;
 	} else {
-		if (bmcst)
+		if (is_multicast_ether_addr(pattrib->ra))
 			psta = rtw_get_bcmc_stainfo(padapter);
 		else
 			psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
@@ -914,7 +911,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
 	u8 *pbuf_start;
-	s32 bmcst = IS_MCAST(pattrib->ra);
+	bool mcast = is_multicast_ether_addr(pattrib->ra);
 	s32 res = _SUCCESS;
 	size_t remainder = pkt->len - ETH_HLEN;
 
@@ -964,13 +961,13 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 				WEP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
 				break;
 			case _TKIP_:
-				if (bmcst)
+				if (mcast)
 					TKIP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
 				else
 					TKIP_IV(pattrib->iv, psta->dot11txpn, 0);
 				break;
 			case _AES_:
-				if (bmcst)
+				if (mcast)
 					AES_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
 				else
 					AES_IV(pattrib->iv, psta->dot11txpn, 0);
@@ -997,7 +994,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 		if ((pattrib->icv_len > 0) && (pattrib->bswenc))
 			mpdu_len -= pattrib->icv_len;
 
-		mem_sz = min_t(size_t, bmcst ? pattrib->pktlen : mpdu_len, remainder);
+		mem_sz = min_t(size_t, mcast ? pattrib->pktlen : mpdu_len, remainder);
 		skb_copy_bits(pkt, pkt->len - remainder, pframe, mem_sz);
 		remainder -= mem_sz;
 
@@ -1010,7 +1007,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 
 		frg_inx++;
 
-		if (bmcst || remainder == 0) {
+		if (mcast || remainder == 0) {
 			pattrib->nr_frags = frg_inx;
 
 			pattrib->last_txcmdsz = pattrib->hdrlen + pattrib->iv_len + ((pattrib->nr_frags == 1) ? llc_sz : 0) +
@@ -1041,7 +1038,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 
 	xmitframe_swencrypt(padapter, pxmitframe);
 
-	if (!bmcst)
+	if (!mcast)
 		update_attrib_vcs_info(padapter, pxmitframe);
 	else
 		pattrib->vcs_mode = NONE_VCS;
@@ -1632,7 +1629,7 @@ int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fra
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	int bmcst = IS_MCAST(pattrib->ra);
+	bool mcast = is_multicast_ether_addr(pattrib->ra);
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false)
 		return ret;
@@ -1646,12 +1643,12 @@ int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fra
 		return ret;
 
 	if (pattrib->triggered == 1) {
-		if (bmcst)
+		if (mcast)
 			pattrib->qsel = 0x11;/* HIQ */
 		return ret;
 	}
 
-	if (bmcst) {
+	if (mcast) {
 		spin_lock_bh(&psta->sleep_q.lock);
 
 		if (pstapriv->sta_dz_bitmap) {/* if any one sta is in ps mode */
