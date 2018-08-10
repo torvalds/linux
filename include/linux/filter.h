@@ -537,6 +537,20 @@ struct sk_msg_buff {
 	struct list_head list;
 };
 
+struct bpf_redirect_info {
+	u32 ifindex;
+	u32 flags;
+	struct bpf_map *map;
+	struct bpf_map *map_to_flush;
+	unsigned long   map_owner;
+	u32 kern_flags;
+};
+
+DECLARE_PER_CPU(struct bpf_redirect_info, bpf_redirect_info);
+
+/* flags for bpf_redirect_info kern_flags */
+#define BPF_RI_F_RF_NO_DIRECT	BIT(0)	/* no napi_direct on return_frame */
+
 /* Compute the linear packet data range [data, data_end) which
  * will be accessed by various program types (cls_bpf, act_bpf,
  * lwt, ...). Subsystems allowing direct data access must (!)
@@ -764,6 +778,27 @@ static inline bool bpf_dump_raw_ok(void)
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
+
+static inline bool xdp_return_frame_no_direct(void)
+{
+	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
+
+	return ri->kern_flags & BPF_RI_F_RF_NO_DIRECT;
+}
+
+static inline void xdp_set_return_frame_no_direct(void)
+{
+	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
+
+	ri->kern_flags |= BPF_RI_F_RF_NO_DIRECT;
+}
+
+static inline void xdp_clear_return_frame_no_direct(void)
+{
+	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
+
+	ri->kern_flags &= ~BPF_RI_F_RF_NO_DIRECT;
+}
 
 static inline int xdp_ok_fwd_dev(const struct net_device *fwd,
 				 unsigned int pktlen)

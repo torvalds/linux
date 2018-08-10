@@ -84,6 +84,13 @@ struct xdp_frame {
 	struct net_device *dev_rx; /* used by cpumap */
 };
 
+/* Clear kernel pointers in xdp_frame */
+static inline void xdp_scrub_frame(struct xdp_frame *frame)
+{
+	frame->data = NULL;
+	frame->dev_rx = NULL;
+}
+
 /* Convert xdp_buff to xdp_frame */
 static inline
 struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
