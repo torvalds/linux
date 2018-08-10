@@ -157,9 +157,22 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 	}
 }
 
-static irqreturn_t gasket_msix_interrupt_handler(int irq, void *dev_id)
+static void
+gasket_handle_interrupt(struct gasket_interrupt_data *interrupt_data,
+			int interrupt_index)
 {
 	struct eventfd_ctx *ctx;
+
+	trace_gasket_interrupt_event(interrupt_data->name, interrupt_index);
+	ctx = interrupt_data->eventfd_ctxs[interrupt_index];
+	if (ctx)
+		eventfd_signal(ctx, 1);
+
+	++(interrupt_data->interrupt_counts[interrupt_index]);
+}
+
+static irqreturn_t gasket_msix_interrupt_handler(int irq, void *dev_id)
+{
 	struct gasket_interrupt_data *interrupt_data = dev_id;
 	int interrupt = -1;
 	int i;
@@ -175,14 +188,7 @@ static irqreturn_t gasket_msix_interrupt_handler(int irq, void *dev_id)
 		pr_err("Received unknown irq %d\n", irq);
 		return IRQ_HANDLED;
 	}
-	trace_gasket_interrupt_event(interrupt_data->name, interrupt);
-
-	ctx = interrupt_data->eventfd_ctxs[interrupt];
-	if (ctx)
-		eventfd_signal(ctx, 1);
-
-	++(interrupt_data->interrupt_counts[interrupt]);
-
+	gasket_handle_interrupt(interrupt_data, interrupt);
 	return IRQ_HANDLED;
 }
 
@@ -191,6 +197,12 @@ gasket_interrupt_msix_init(struct gasket_interrupt_data *interrupt_data)
 {
 	int ret = 1;
 	int i;
+
+	interrupt_data->msix_entries =
+		kcalloc(interrupt_data->num_interrupts,
+			sizeof(struct msix_entry), GFP_KERNEL);
+	if (!interrupt_data->msix_entries)
+		return -ENOMEM;
 
 	for (i = 0; i < interrupt_data->num_interrupts; i++) {
 		interrupt_data->msix_entries[i].entry = i;
@@ -343,20 +355,10 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev, const char *name,
 	interrupt_data->num_configured = 0;
 	interrupt_data->wire_interrupt_offsets = wire_int_offsets;
 
-	/* Allocate all dynamic structures. */
-	interrupt_data->msix_entries = kcalloc(num_interrupts,
-					       sizeof(struct msix_entry),
-					       GFP_KERNEL);
-	if (!interrupt_data->msix_entries) {
-		kfree(interrupt_data);
-		return -ENOMEM;
-	}
-
 	interrupt_data->eventfd_ctxs = kcalloc(num_interrupts,
 					       sizeof(struct eventfd_ctx *),
 					       GFP_KERNEL);
 	if (!interrupt_data->eventfd_ctxs) {
-		kfree(interrupt_data->msix_entries);
 		kfree(interrupt_data);
 		return -ENOMEM;
 	}
@@ -366,7 +368,6 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev, const char *name,
 						   GFP_KERNEL);
 	if (!interrupt_data->interrupt_counts) {
 		kfree(interrupt_data->eventfd_ctxs);
-		kfree(interrupt_data->msix_entries);
 		kfree(interrupt_data);
 		return -ENOMEM;
 	}
@@ -417,6 +418,7 @@ gasket_interrupt_msix_cleanup(struct gasket_interrupt_data *interrupt_data)
 	if (interrupt_data->msix_configured)
 		pci_disable_msix(interrupt_data->pci_dev);
 	interrupt_data->msix_configured = 0;
+	kfree(interrupt_data->msix_entries);
 }
 
 int gasket_interrupt_reinit(struct gasket_dev *gasket_dev)
@@ -448,10 +450,11 @@ int gasket_interrupt_reinit(struct gasket_dev *gasket_dev)
 	}
 
 	if (ret) {
-		/* Failing to setup MSIx will cause the device
+		/* Failing to setup interrupts will cause the device
 		 * to report GASKET_STATUS_LAMED, but is not fatal.
 		 */
-		dev_warn(gasket_dev->dev, "Couldn't init msix: %d\n", ret);
+		dev_warn(gasket_dev->dev, "Couldn't reinit interrupts: %d\n",
+			 ret);
 		return 0;
 	}
 
@@ -497,7 +500,6 @@ void gasket_interrupt_cleanup(struct gasket_dev *gasket_dev)
 
 	kfree(interrupt_data->interrupt_counts);
 	kfree(interrupt_data->eventfd_ctxs);
-	kfree(interrupt_data->msix_entries);
 	kfree(interrupt_data);
 	gasket_dev->interrupt_data = NULL;
 }
