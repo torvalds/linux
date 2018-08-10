@@ -129,7 +129,8 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.thermal_support = 1;
 	data->registry_data.fw_ctf_enabled = 1;
 
-	data->registry_data.avfs_support = 1;
+	data->registry_data.avfs_support =
+		hwmgr->feature_mask & PP_AVFS_MASK ? true : false;
 	data->registry_data.led_dpm_enabled = 1;
 
 	data->registry_data.vr0hot_enabled = 1;
