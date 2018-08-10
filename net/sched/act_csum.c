@@ -50,7 +50,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
-	struct tcf_csum_params *params_old, *params_new;
+	struct tcf_csum_params *params_new;
 	struct nlattr *tb[TCA_CSUM_MAX + 1];
 	struct tc_csum *parm;
 	struct tcf_csum *p;
@@ -88,20 +88,22 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	}
 
 	p = to_tcf_csum(*a);
-	ASSERT_RTNL();
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
 		tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
-	params_old = rtnl_dereference(p->params);
-
-	p->tcf_action = parm->action;
 	params_new->update_flags = parm->update_flags;
-	rcu_assign_pointer(p->params, params_new);
-	if (params_old)
-		kfree_rcu(params_old, rcu);
+
+	spin_lock(&p->tcf_lock);
+	p->tcf_action = parm->action;
+	rcu_swap_protected(p->params, params_new,
+			   lockdep_is_held(&p->tcf_lock));
+	spin_unlock(&p->tcf_lock);
+
+	if (params_new)
+		kfree_rcu(params_new, rcu);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -599,11 +601,13 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 		.index   = p->tcf_index,
 		.refcnt  = refcount_read(&p->tcf_refcnt) - ref,
 		.bindcnt = atomic_read(&p->tcf_bindcnt) - bind,
-		.action  = p->tcf_action,
 	};
 	struct tcf_t t;
 
-	params = rtnl_dereference(p->params);
+	spin_lock(&p->tcf_lock);
+	params = rcu_dereference_protected(p->params,
+					   lockdep_is_held(&p->tcf_lock));
+	opt.action = p->tcf_action;
 	opt.update_flags = params->update_flags;
 
 	if (nla_put(skb, TCA_CSUM_PARMS, sizeof(opt), &opt))
@@ -612,10 +616,12 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	tcf_tm_dump(&t, &p->tcf_tm);
 	if (nla_put_64bit(skb, TCA_CSUM_TM, sizeof(t), &t, TCA_CSUM_PAD))
 		goto nla_put_failure;
+	spin_unlock(&p->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock(&p->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
