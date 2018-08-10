@@ -1576,7 +1576,6 @@ extern u32 handle_tlbs[], handle_tlbs_end[];
 extern u32 handle_tlbm[], handle_tlbm_end[];
 extern u32 tlbmiss_handler_setup_pgd_start[];
 extern u32 tlbmiss_handler_setup_pgd[];
-EXPORT_SYMBOL_GPL(tlbmiss_handler_setup_pgd);
 extern u32 tlbmiss_handler_setup_pgd_end[];
 
 static void build_setup_pgd(void)
