@@ -832,12 +832,13 @@ static int nft_ct_timeout_obj_init(const struct nft_ctx *ctx,
 	__u8 l4num;
 	int ret;
 
-	if (!tb[NFTA_CT_TIMEOUT_L3PROTO] ||
-	    !tb[NFTA_CT_TIMEOUT_L4PROTO] ||
+	if (!tb[NFTA_CT_TIMEOUT_L4PROTO] ||
 	    !tb[NFTA_CT_TIMEOUT_DATA])
 		return -EINVAL;
 
-	l3num = ntohs(nla_get_be16(tb[NFTA_CT_TIMEOUT_L3PROTO]));
+	if (tb[NFTA_CT_TIMEOUT_L3PROTO])
+		l3num = ntohs(nla_get_be16(tb[NFTA_CT_TIMEOUT_L3PROTO]));
+
 	l4num = nla_get_u8(tb[NFTA_CT_TIMEOUT_L4PROTO]);
 	priv->l4proto = l4num;
 
