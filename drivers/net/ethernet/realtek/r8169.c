@@ -147,123 +147,64 @@ enum mac_version {
 #define JUMBO_7K	(7*1024 - ETH_HLEN - 2)
 #define JUMBO_9K	(9*1024 - ETH_HLEN - 2)
 
-#define _R(NAME, FW, SZ) {	\
-	.name = NAME,		\
-	.fw_name = FW,		\
-	.jumbo_max = SZ,	\
-}
-
 static const struct {
 	const char *name;
 	const char *fw_name;
-	u16 jumbo_max;
 } rtl_chip_infos[] = {
 	/* PCI devices. */
-	[RTL_GIGA_MAC_VER_01] =
-		_R("RTL8169",		NULL, JUMBO_7K),
-	[RTL_GIGA_MAC_VER_02] =
-		_R("RTL8169s",		NULL, JUMBO_7K),
-	[RTL_GIGA_MAC_VER_03] =
-		_R("RTL8110s",		NULL, JUMBO_7K),
-	[RTL_GIGA_MAC_VER_04] =
-		_R("RTL8169sb/8110sb",	NULL, JUMBO_7K),
-	[RTL_GIGA_MAC_VER_05] =
-		_R("RTL8169sc/8110sc",	NULL, JUMBO_7K),
-	[RTL_GIGA_MAC_VER_06] =
-		_R("RTL8169sc/8110sc",	NULL, JUMBO_7K),
+	[RTL_GIGA_MAC_VER_01] = {"RTL8169"				},
+	[RTL_GIGA_MAC_VER_02] = {"RTL8169s"				},
+	[RTL_GIGA_MAC_VER_03] = {"RTL8110s"				},
+	[RTL_GIGA_MAC_VER_04] = {"RTL8169sb/8110sb"			},
+	[RTL_GIGA_MAC_VER_05] = {"RTL8169sc/8110sc"			},
+	[RTL_GIGA_MAC_VER_06] = {"RTL8169sc/8110sc"			},
 	/* PCI-E devices. */
-	[RTL_GIGA_MAC_VER_07] =
-		_R("RTL8102e",		NULL, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_08] =
-		_R("RTL8102e",		NULL, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_09] =
-		_R("RTL8102e",		NULL, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_10] =
-		_R("RTL8101e",		NULL, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_11] =
-		_R("RTL8168b/8111b",	NULL, JUMBO_4K),
-	[RTL_GIGA_MAC_VER_12] =
-		_R("RTL8168b/8111b",	NULL, JUMBO_4K),
-	[RTL_GIGA_MAC_VER_13] =
-		_R("RTL8101e",		NULL, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_14] =
-		_R("RTL8100e",		NULL, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_15] =
-		_R("RTL8100e",		NULL, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_16] =
-		_R("RTL8101e",		NULL, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_17] =
-		_R("RTL8168b/8111b",	NULL, JUMBO_4K),
-	[RTL_GIGA_MAC_VER_18] =
-		_R("RTL8168cp/8111cp",	NULL, JUMBO_6K),
-	[RTL_GIGA_MAC_VER_19] =
-		_R("RTL8168c/8111c",	NULL, JUMBO_6K),
-	[RTL_GIGA_MAC_VER_20] =
-		_R("RTL8168c/8111c",	NULL, JUMBO_6K),
-	[RTL_GIGA_MAC_VER_21] =
-		_R("RTL8168c/8111c",	NULL, JUMBO_6K),
-	[RTL_GIGA_MAC_VER_22] =
-		_R("RTL8168c/8111c",	NULL, JUMBO_6K),
-	[RTL_GIGA_MAC_VER_23] =
-		_R("RTL8168cp/8111cp",	NULL, JUMBO_6K),
-	[RTL_GIGA_MAC_VER_24] =
-		_R("RTL8168cp/8111cp",	NULL, JUMBO_6K),
-	[RTL_GIGA_MAC_VER_25] =
-		_R("RTL8168d/8111d",	FIRMWARE_8168D_1, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_26] =
-		_R("RTL8168d/8111d",	FIRMWARE_8168D_2, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_27] =
-		_R("RTL8168dp/8111dp",	NULL, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_28] =
-		_R("RTL8168dp/8111dp",	NULL, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_29] =
-		_R("RTL8105e",		FIRMWARE_8105E_1, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_30] =
-		_R("RTL8105e",		FIRMWARE_8105E_1, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_31] =
-		_R("RTL8168dp/8111dp",	NULL, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_32] =
-		_R("RTL8168e/8111e",	FIRMWARE_8168E_1, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_33] =
-		_R("RTL8168e/8111e",	FIRMWARE_8168E_2, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_34] =
-		_R("RTL8168evl/8111evl", FIRMWARE_8168E_3, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_35] =
-		_R("RTL8168f/8111f",	FIRMWARE_8168F_1, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_36] =
-		_R("RTL8168f/8111f",	FIRMWARE_8168F_2, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_37] =
-		_R("RTL8402",		FIRMWARE_8402_1,  JUMBO_1K),
-	[RTL_GIGA_MAC_VER_38] =
-		_R("RTL8411",		FIRMWARE_8411_1,  JUMBO_9K),
-	[RTL_GIGA_MAC_VER_39] =
-		_R("RTL8106e",		FIRMWARE_8106E_1, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_40] =
-		_R("RTL8168g/8111g",	FIRMWARE_8168G_2, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_41] =
-		_R("RTL8168g/8111g",	NULL, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_42] =
-		_R("RTL8168g/8111g",	FIRMWARE_8168G_3, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_43] =
-		_R("RTL8106e",		FIRMWARE_8106E_2, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_44] =
-		_R("RTL8411",		FIRMWARE_8411_2,  JUMBO_9K),
-	[RTL_GIGA_MAC_VER_45] =
-		_R("RTL8168h/8111h",	FIRMWARE_8168H_1, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_46] =
-		_R("RTL8168h/8111h",	FIRMWARE_8168H_2, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_47] =
-		_R("RTL8107e",		FIRMWARE_8107E_1, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_48] =
-		_R("RTL8107e",		FIRMWARE_8107E_2, JUMBO_1K),
-	[RTL_GIGA_MAC_VER_49] =
-		_R("RTL8168ep/8111ep",	NULL, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_50] =
-		_R("RTL8168ep/8111ep",	NULL, JUMBO_9K),
-	[RTL_GIGA_MAC_VER_51] =
-		_R("RTL8168ep/8111ep",	NULL, JUMBO_9K),
+	[RTL_GIGA_MAC_VER_07] = {"RTL8102e"				},
+	[RTL_GIGA_MAC_VER_08] = {"RTL8102e"				},
+	[RTL_GIGA_MAC_VER_09] = {"RTL8102e"				},
+	[RTL_GIGA_MAC_VER_10] = {"RTL8101e"				},
+	[RTL_GIGA_MAC_VER_11] = {"RTL8168b/8111b"			},
+	[RTL_GIGA_MAC_VER_12] = {"RTL8168b/8111b"			},
+	[RTL_GIGA_MAC_VER_13] = {"RTL8101e"				},
+	[RTL_GIGA_MAC_VER_14] = {"RTL8100e"				},
+	[RTL_GIGA_MAC_VER_15] = {"RTL8100e"				},
+	[RTL_GIGA_MAC_VER_16] = {"RTL8101e"				},
+	[RTL_GIGA_MAC_VER_17] = {"RTL8168b/8111b"			},
+	[RTL_GIGA_MAC_VER_18] = {"RTL8168cp/8111cp"			},
+	[RTL_GIGA_MAC_VER_19] = {"RTL8168c/8111c"			},
+	[RTL_GIGA_MAC_VER_20] = {"RTL8168c/8111c"			},
+	[RTL_GIGA_MAC_VER_21] = {"RTL8168c/8111c"			},
+	[RTL_GIGA_MAC_VER_22] = {"RTL8168c/8111c"			},
+	[RTL_GIGA_MAC_VER_23] = {"RTL8168cp/8111cp"			},
+	[RTL_GIGA_MAC_VER_24] = {"RTL8168cp/8111cp"			},
+	[RTL_GIGA_MAC_VER_25] = {"RTL8168d/8111d",	FIRMWARE_8168D_1},
+	[RTL_GIGA_MAC_VER_26] = {"RTL8168d/8111d",	FIRMWARE_8168D_2},
+	[RTL_GIGA_MAC_VER_27] = {"RTL8168dp/8111dp"			},
+	[RTL_GIGA_MAC_VER_28] = {"RTL8168dp/8111dp"			},
+	[RTL_GIGA_MAC_VER_29] = {"RTL8105e",		FIRMWARE_8105E_1},
+	[RTL_GIGA_MAC_VER_30] = {"RTL8105e",		FIRMWARE_8105E_1},
+	[RTL_GIGA_MAC_VER_31] = {"RTL8168dp/8111dp"			},
+	[RTL_GIGA_MAC_VER_32] = {"RTL8168e/8111e",	FIRMWARE_8168E_1},
+	[RTL_GIGA_MAC_VER_33] = {"RTL8168e/8111e",	FIRMWARE_8168E_2},
+	[RTL_GIGA_MAC_VER_34] = {"RTL8168evl/8111evl",	FIRMWARE_8168E_3},
+	[RTL_GIGA_MAC_VER_35] = {"RTL8168f/8111f",	FIRMWARE_8168F_1},
+	[RTL_GIGA_MAC_VER_36] = {"RTL8168f/8111f",	FIRMWARE_8168F_2},
+	[RTL_GIGA_MAC_VER_37] = {"RTL8402",		FIRMWARE_8402_1 },
+	[RTL_GIGA_MAC_VER_38] = {"RTL8411",		FIRMWARE_8411_1 },
+	[RTL_GIGA_MAC_VER_39] = {"RTL8106e",		FIRMWARE_8106E_1},
+	[RTL_GIGA_MAC_VER_40] = {"RTL8168g/8111g",	FIRMWARE_8168G_2},
+	[RTL_GIGA_MAC_VER_41] = {"RTL8168g/8111g"			},
+	[RTL_GIGA_MAC_VER_42] = {"RTL8168g/8111g",	FIRMWARE_8168G_3},
+	[RTL_GIGA_MAC_VER_43] = {"RTL8106e",		FIRMWARE_8106E_2},
+	[RTL_GIGA_MAC_VER_44] = {"RTL8411",		FIRMWARE_8411_2 },
+	[RTL_GIGA_MAC_VER_45] = {"RTL8168h/8111h",	FIRMWARE_8168H_1},
+	[RTL_GIGA_MAC_VER_46] = {"RTL8168h/8111h",	FIRMWARE_8168H_2},
+	[RTL_GIGA_MAC_VER_47] = {"RTL8107e",		FIRMWARE_8107E_1},
+	[RTL_GIGA_MAC_VER_48] = {"RTL8107e",		FIRMWARE_8107E_2},
+	[RTL_GIGA_MAC_VER_49] = {"RTL8168ep/8111ep"			},
+	[RTL_GIGA_MAC_VER_50] = {"RTL8168ep/8111ep"			},
+	[RTL_GIGA_MAC_VER_51] = {"RTL8168ep/8111ep"			},
 };
-#undef _R
 
 enum cfg_version {
 	RTL_CFG_0 = 0x00,
@@ -7279,13 +7220,36 @@ static bool rtl_chip_supports_csum_v2(struct rtl8169_private *tp)
 	}
 }
 
+static int rtl_jumbo_max(struct rtl8169_private *tp)
+{
+	/* Non-GBit versions don't support jumbo frames */
+	if (!tp->supports_gmii)
+		return JUMBO_1K;
+
+	switch (tp->mac_version) {
+	/* RTL8169 */
+	case RTL_GIGA_MAC_VER_01 ... RTL_GIGA_MAC_VER_06:
+		return JUMBO_7K;
+	/* RTL8168b */
+	case RTL_GIGA_MAC_VER_11:
+	case RTL_GIGA_MAC_VER_12:
+	case RTL_GIGA_MAC_VER_17:
+		return JUMBO_4K;
+	/* RTL8168c */
+	case RTL_GIGA_MAC_VER_18 ... RTL_GIGA_MAC_VER_24:
+		return JUMBO_6K;
+	default:
+		return JUMBO_9K;
+	}
+}
+
 static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
 	struct rtl8169_private *tp;
 	struct net_device *dev;
 	int chipset, region, i;
-	int rc;
+	int jumbo_max, rc;
 
 	dev = devm_alloc_etherdev(&pdev->dev, sizeof (*tp));
 	if (!dev)
@@ -7448,7 +7412,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* MTU range: 60 - hw-specific max */
 	dev->min_mtu = ETH_ZLEN;
-	dev->max_mtu = rtl_chip_infos[chipset].jumbo_max;
+	jumbo_max = rtl_jumbo_max(tp);
+	dev->max_mtu = jumbo_max;
 
 	tp->hw_start = cfg->hw_start;
 	tp->event_slow = cfg->event_slow;
@@ -7479,12 +7444,12 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		   rtl_chip_infos[chipset].name, dev->dev_addr,
 		   (u32)(RTL_R32(tp, TxConfig) & 0xfcf0f8ff),
 		   pci_irq_vector(pdev, 0));
-	if (rtl_chip_infos[chipset].jumbo_max != JUMBO_1K) {
-		netif_info(tp, probe, dev, "jumbo features [frames: %d bytes, "
-			   "tx checksumming: %s]\n",
-			   rtl_chip_infos[chipset].jumbo_max,
-			  tp->mac_version <= RTL_GIGA_MAC_VER_06 ? "ok" : "ko");
-	}
+
+	if (jumbo_max > JUMBO_1K)
+		netif_info(tp, probe, dev,
+			   "jumbo features [frames: %d bytes, tx checksumming: %s]\n",
+			   jumbo_max, tp->mac_version <= RTL_GIGA_MAC_VER_06 ?
+			   "ok" : "ko");
 
 	if (r8168_check_dash(tp))
 		rtl8168_driver_start(tp);
