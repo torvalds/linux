@@ -203,44 +203,44 @@ struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth)
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_get_nth);
 
-/* Lookup a session. A new reference is held on the returned session. */
-struct l2tp_session *l2tp_session_get(const struct net *net,
-				      struct l2tp_tunnel *tunnel,
-				      u32 session_id)
+struct l2tp_session *l2tp_tunnel_get_session(struct l2tp_tunnel *tunnel,
+					     u32 session_id)
 {
 	struct hlist_head *session_list;
 	struct l2tp_session *session;
 
-	if (!tunnel) {
-		struct l2tp_net *pn = l2tp_pernet(net);
-
-		session_list = l2tp_session_id_hash_2(pn, session_id);
-
-		rcu_read_lock_bh();
-		hlist_for_each_entry_rcu(session, session_list, global_hlist) {
-			if (session->session_id == session_id) {
-				l2tp_session_inc_refcount(session);
-				rcu_read_unlock_bh();
-
-				return session;
-			}
-		}
-		rcu_read_unlock_bh();
-
-		return NULL;
-	}
-
 	session_list = l2tp_session_id_hash(tunnel, session_id);
+
 	read_lock_bh(&tunnel->hlist_lock);
-	hlist_for_each_entry(session, session_list, hlist) {
+	hlist_for_each_entry(session, session_list, hlist)
 		if (session->session_id == session_id) {
 			l2tp_session_inc_refcount(session);
 			read_unlock_bh(&tunnel->hlist_lock);
 
 			return session;
 		}
-	}
 	read_unlock_bh(&tunnel->hlist_lock);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_get_session);
+
+struct l2tp_session *l2tp_session_get(const struct net *net, u32 session_id)
+{
+	struct hlist_head *session_list;
+	struct l2tp_session *session;
+
+	session_list = l2tp_session_id_hash_2(l2tp_pernet(net), session_id);
+
+	rcu_read_lock_bh();
+	hlist_for_each_entry_rcu(session, session_list, global_hlist)
+		if (session->session_id == session_id) {
+			l2tp_session_inc_refcount(session);
+			rcu_read_unlock_bh();
+
+			return session;
+		}
+	rcu_read_unlock_bh();
 
 	return NULL;
 }
@@ -872,7 +872,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	}
 
 	/* Find the session context */
-	session = l2tp_session_get(tunnel->l2tp_net, tunnel, session_id);
+	session = l2tp_tunnel_get_session(tunnel, session_id);
 	if (!session || !session->recv_skb) {
 		if (session)
 			l2tp_session_dec_refcount(session);

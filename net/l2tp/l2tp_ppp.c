@@ -757,7 +757,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	if (tunnel->peer_tunnel_id == 0)
 		tunnel->peer_tunnel_id = info.peer_tunnel_id;
 
-	session = l2tp_session_get(sock_net(sk), tunnel, info.session_id);
+	session = l2tp_tunnel_get_session(tunnel, info.session_id);
 	if (session) {
 		drop_refcnt = true;
 
@@ -1134,10 +1134,10 @@ static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
 		}
 		if (stats.session_id != 0) {
 			/* resend to session ioctl handler */
-			struct l2tp_session *session =
-				l2tp_session_get(sock_net(sk), tunnel,
-						 stats.session_id);
+			struct l2tp_session *session;
 
+			session = l2tp_tunnel_get_session(tunnel,
+							  stats.session_id);
 			if (!session) {
 				err = -EBADR;
 				break;
