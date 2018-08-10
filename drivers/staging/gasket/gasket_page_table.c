@@ -493,7 +493,8 @@ static int gasket_perform_mapping(struct gasket_page_table *pg_tbl,
 				(void *)page_to_pfn(page),
 				(unsigned long long)ptes[i].dma_addr);
 
-			if (ptes[i].dma_addr == -1) {
+			if (dma_mapping_error(pg_tbl->device,
+					      ptes[i].dma_addr)) {
 				dev_dbg(pg_tbl->device,
 					"%s i %d -> fail to map page %llx "
 					"[pfn %p ohys %p]\n",
