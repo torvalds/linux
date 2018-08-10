@@ -1026,8 +1026,10 @@ end:
  ****************************************************************************/
 
 static void pppol2tp_copy_stats(struct pppol2tp_ioc_stats *dest,
-				struct l2tp_stats *stats)
+				const struct l2tp_stats *stats)
 {
+	memset(dest, 0, sizeof(*dest));
+
 	dest->tx_packets = atomic_long_read(&stats->tx_packets);
 	dest->tx_bytes = atomic_long_read(&stats->tx_bytes);
 	dest->tx_errors = atomic_long_read(&stats->tx_errors);
@@ -1044,7 +1046,6 @@ static int pppol2tp_tunnel_copy_stats(struct pppol2tp_ioc_stats *stats,
 	struct l2tp_session *session;
 
 	if (!stats->session_id) {
-		memset(stats, 0, sizeof(*stats));
 		pppol2tp_copy_stats(stats, &tunnel->stats);
 		return 0;
 	}
@@ -1061,7 +1062,6 @@ static int pppol2tp_tunnel_copy_stats(struct pppol2tp_ioc_stats *stats,
 		return -EBADR;
 	}
 
-	memset(stats, 0, sizeof(*stats));
 	pppol2tp_copy_stats(stats, &session->stats);
 	l2tp_session_dec_refcount(session);
 
@@ -1126,7 +1126,6 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 
 			stats.session_id = session_id;
 		} else {
-			memset(&stats, 0, sizeof(stats));
 			pppol2tp_copy_stats(&stats, &session->stats);
 			stats.session_id = session->session_id;
 		}
