@@ -994,6 +994,36 @@ static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
 static CLASS_ATTR_STRING(abi_version, S_IRUGO,
 			 __stringify(IB_USER_VERBS_ABI_VERSION));
 
+static int ib_uverbs_create_uapi(struct ib_device *device,
+				 struct ib_uverbs_device *uverbs_dev)
+{
+	const struct uverbs_object_tree_def **specs;
+	struct uverbs_root_spec *specs_root;
+	unsigned int num_specs = 1;
+	unsigned int i;
+
+	if (device->driver_specs)
+		for (i = 0; device->driver_specs[i]; i++)
+			num_specs++;
+
+	specs = kmalloc_array(num_specs, sizeof(*specs), GFP_KERNEL);
+	if (!specs)
+		return -ENOMEM;
+
+	specs[0] = uverbs_default_get_objects();
+	if (device->driver_specs)
+		for (i = 0; device->driver_specs[i]; i++)
+			specs[i+1] = device->driver_specs[i];
+
+	specs_root = uverbs_alloc_spec_tree(num_specs, specs);
+	kfree(specs);
+	if (IS_ERR(specs_root))
+		return PTR_ERR(specs_root);
+
+	uverbs_dev->specs_root = specs_root;
+	return 0;
+}
+
 static void ib_uverbs_add_one(struct ib_device *device)
 {
 	int devnum;
@@ -1036,6 +1066,9 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	rcu_assign_pointer(uverbs_dev->ib_dev, device);
 	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
 
+	if (ib_uverbs_create_uapi(device, uverbs_dev))
+		goto err;
+
 	cdev_init(&uverbs_dev->cdev, NULL);
 	uverbs_dev->cdev.owner = THIS_MODULE;
 	uverbs_dev->cdev.ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
@@ -1054,23 +1087,6 @@ static void ib_uverbs_add_one(struct ib_device *device)
 		goto err_class;
 	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
 		goto err_class;
-
-	if (!device->driver_specs_root) {
-		const struct uverbs_object_tree_def *default_root[] = {
-			uverbs_default_get_objects()};
-
-		uverbs_dev->specs_root = uverbs_alloc_spec_tree(1,
-								default_root);
-		if (IS_ERR(uverbs_dev->specs_root))
-			goto err_class;
-	} else {
-		uverbs_dev->specs_root = device->driver_specs_root;
-		/*
-		 * Take responsibility to free the specs allocated by the
-		 * driver.
-		 */
-		device->driver_specs_root = NULL;
-	}
 
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
 

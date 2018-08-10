@@ -5523,37 +5523,29 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(
 	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS,
 			     enum mlx5_ib_uapi_flow_action_flags));
 
-#define NUM_TREES	5
 static int populate_specs_root(struct mlx5_ib_dev *dev)
 {
-	const struct uverbs_object_tree_def *default_root[NUM_TREES + 1] = {
-		uverbs_default_get_objects()};
-	size_t num_trees = 1;
+	const struct uverbs_object_tree_def **trees = dev->driver_trees;
+	size_t num_trees = 0;
 
-	if (mlx5_accel_ipsec_device_caps(dev->mdev) & MLX5_ACCEL_IPSEC_CAP_DEVICE &&
-	    !WARN_ON(num_trees >= ARRAY_SIZE(default_root)))
-		default_root[num_trees++] = &mlx5_ib_flow_action;
+	if (mlx5_accel_ipsec_device_caps(dev->mdev) &
+	    MLX5_ACCEL_IPSEC_CAP_DEVICE)
+		trees[num_trees++] = &mlx5_ib_flow_action;
 
-	if (MLX5_CAP_DEV_MEM(dev->mdev, memic) &&
-	    !WARN_ON(num_trees >= ARRAY_SIZE(default_root)))
-		default_root[num_trees++] = &mlx5_ib_dm;
+	if (MLX5_CAP_DEV_MEM(dev->mdev, memic))
+		trees[num_trees++] = &mlx5_ib_dm;
 
 	if (MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &
-			    MLX5_GENERAL_OBJ_TYPES_CAP_UCTX &&
-	    !WARN_ON(num_trees >= ARRAY_SIZE(default_root)))
-		default_root[num_trees++] = mlx5_ib_get_devx_tree();
+	    MLX5_GENERAL_OBJ_TYPES_CAP_UCTX)
+		trees[num_trees++] = mlx5_ib_get_devx_tree();
 
-	num_trees += mlx5_ib_get_flow_trees(default_root + num_trees);
+	num_trees += mlx5_ib_get_flow_trees(trees + num_trees);
 
-	dev->ib_dev.driver_specs_root =
-		uverbs_alloc_spec_tree(num_trees, default_root);
+	WARN_ON(num_trees >= ARRAY_SIZE(dev->driver_trees));
+	trees[num_trees] = NULL;
+	dev->ib_dev.driver_specs = trees;
 
-	return PTR_ERR_OR_ZERO(dev->ib_dev.driver_specs_root);
-}
-
-static void depopulate_specs_root(struct mlx5_ib_dev *dev)
-{
-	uverbs_free_spec_tree(dev->ib_dev.driver_specs_root);
+	return 0;
 }
 
 static int mlx5_ib_read_counters(struct ib_counters *counters,
@@ -6092,11 +6084,6 @@ int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 	return ib_register_device(&dev->ib_dev, NULL);
 }
 
-static void mlx5_ib_stage_depopulate_specs(struct mlx5_ib_dev *dev)
-{
-	depopulate_specs_root(dev);
-}
-
 void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev)
 {
 	destroy_umrc_res(dev);
@@ -6231,7 +6218,7 @@ static const struct mlx5_ib_profile pf_profile = {
 		     mlx5_ib_stage_pre_ib_reg_umr_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_SPECS,
 		     mlx5_ib_stage_populate_specs,
-		     mlx5_ib_stage_depopulate_specs),
+		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
 		     mlx5_ib_stage_ib_reg_init,
 		     mlx5_ib_stage_ib_reg_cleanup),
@@ -6279,7 +6266,7 @@ static const struct mlx5_ib_profile nic_rep_profile = {
 		     mlx5_ib_stage_pre_ib_reg_umr_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_SPECS,
 		     mlx5_ib_stage_populate_specs,
-		     mlx5_ib_stage_depopulate_specs),
+		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
 		     mlx5_ib_stage_ib_reg_init,
 		     mlx5_ib_stage_ib_reg_cleanup),

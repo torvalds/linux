@@ -316,4 +316,3 @@ const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
 {
 	return &uverbs_default_objects;
 }
-EXPORT_SYMBOL_GPL(uverbs_default_get_objects);
