@@ -651,13 +651,13 @@ void gasket_disable_device(struct gasket_dev *gasket_dev)
 EXPORT_SYMBOL(gasket_disable_device);
 
 /*
- * Registered descriptor lookup.
+ * Registered driver descriptor lookup for PCI devices.
  *
  * Precondition: Called with g_mutex held (to avoid a race on return).
  * Returns NULL if no matching device was found.
  */
 static struct gasket_internal_desc *
-lookup_internal_desc(struct pci_dev *pci_dev)
+lookup_pci_internal_desc(struct pci_dev *pci_dev)
 {
 	int i;
 
@@ -1488,7 +1488,7 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 	dev_dbg(&pci_dev->dev, "add PCI gasket device\n");
 
 	mutex_lock(&g_mutex);
-	internal_desc = lookup_internal_desc(pci_dev);
+	internal_desc = lookup_pci_internal_desc(pci_dev);
 	mutex_unlock(&g_mutex);
 	if (!internal_desc) {
 		dev_err(&pci_dev->dev,
@@ -1536,7 +1536,7 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 	struct gasket_dev *gasket_dev = NULL;
 	/* Find the device desc. */
 	mutex_lock(&g_mutex);
-	internal_desc = lookup_internal_desc(pci_dev);
+	internal_desc = lookup_pci_internal_desc(pci_dev);
 	if (!internal_desc) {
 		mutex_unlock(&g_mutex);
 		return;
