@@ -30,6 +30,7 @@
 #include <net/tc_act/tc_mirred.h>
 
 static LIST_HEAD(mirred_list);
+static DEFINE_SPINLOCK(mirred_list_lock);
 
 static bool tcf_mirred_is_act_redirect(int action)
 {
@@ -62,13 +63,23 @@ static bool tcf_mirred_can_reinsert(int action)
 	return false;
 }
 
+static struct net_device *tcf_mirred_dev_dereference(struct tcf_mirred *m)
+{
+	return rcu_dereference_protected(m->tcfm_dev,
+					 lockdep_is_held(&m->tcf_lock));
+}
+
 static void tcf_mirred_release(struct tc_action *a)
 {
 	struct tcf_mirred *m = to_mirred(a);
 	struct net_device *dev;
 
+	spin_lock(&mirred_list_lock);
 	list_del(&m->tcfm_list);
-	dev = rtnl_dereference(m->tcfm_dev);
+	spin_unlock(&mirred_list_lock);
+
+	/* last reference to action, no need to lock */
+	dev = rcu_dereference_protected(m->tcfm_dev, 1);
 	if (dev)
 		dev_put(dev);
 }
@@ -128,22 +139,9 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		NL_SET_ERR_MSG_MOD(extack, "Unknown mirred option");
 		return -EINVAL;
 	}
-	if (parm->ifindex) {
-		dev = __dev_get_by_index(net, parm->ifindex);
-		if (dev == NULL) {
-			if (exists)
-				tcf_idr_release(*a, bind);
-			else
-				tcf_idr_cleanup(tn, parm->index);
-			return -ENODEV;
-		}
-		mac_header_xmit = dev_is_mac_header_xmit(dev);
-	} else {
-		dev = NULL;
-	}
 
 	if (!exists) {
-		if (!dev) {
+		if (!parm->ifindex) {
 			tcf_idr_cleanup(tn, parm->index);
 			NL_SET_ERR_MSG_MOD(extack, "Specified device does not exist");
 			return -EINVAL;
@@ -161,19 +159,31 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 	m = to_mirred(*a);
 
-	ASSERT_RTNL();
+	spin_lock(&m->tcf_lock);
 	m->tcf_action = parm->action;
 	m->tcfm_eaction = parm->eaction;
-	if (dev != NULL) {
-		if (ret != ACT_P_CREATED)
-			dev_put(rcu_dereference_protected(m->tcfm_dev, 1));
-		dev_hold(dev);
-		rcu_assign_pointer(m->tcfm_dev, dev);
+
+	if (parm->ifindex) {
+		dev = dev_get_by_index(net, parm->ifindex);
+		if (!dev) {
+			spin_unlock(&m->tcf_lock);
+			tcf_idr_release(*a, bind);
+			return -ENODEV;
+		}
+		mac_header_xmit = dev_is_mac_header_xmit(dev);
+		rcu_swap_protected(m->tcfm_dev, dev,
+				   lockdep_is_held(&m->tcf_lock));
+		if (dev)
+			dev_put(dev);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
+	spin_unlock(&m->tcf_lock);
 
 	if (ret == ACT_P_CREATED) {
+		spin_lock(&mirred_list_lock);
 		list_add(&m->tcfm_list, &mirred_list);
+		spin_unlock(&mirred_list_lock);
+
 		tcf_idr_insert(tn, *a);
 	}
 
@@ -287,16 +297,20 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_mirred *m = to_mirred(a);
-	struct net_device *dev = rtnl_dereference(m->tcfm_dev);
 	struct tc_mirred opt = {
 		.index   = m->tcf_index,
-		.action  = m->tcf_action,
 		.refcnt  = refcount_read(&m->tcf_refcnt) - ref,
 		.bindcnt = atomic_read(&m->tcf_bindcnt) - bind,
-		.eaction = m->tcfm_eaction,
-		.ifindex = dev ? dev->ifindex : 0,
 	};
+	struct net_device *dev;
 	struct tcf_t t;
+
+	spin_lock(&m->tcf_lock);
+	opt.action = m->tcf_action;
+	opt.eaction = m->tcfm_eaction;
+	dev = tcf_mirred_dev_dereference(m);
+	if (dev)
+		opt.ifindex = dev->ifindex;
 
 	if (nla_put(skb, TCA_MIRRED_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -304,9 +318,12 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	tcf_tm_dump(&t, &m->tcf_tm);
 	if (nla_put_64bit(skb, TCA_MIRRED_TM, sizeof(t), &t, TCA_MIRRED_PAD))
 		goto nla_put_failure;
+	spin_unlock(&m->tcf_lock);
+
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock(&m->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -337,15 +354,19 @@ static int mirred_device_event(struct notifier_block *unused,
 
 	ASSERT_RTNL();
 	if (event == NETDEV_UNREGISTER) {
+		spin_lock(&mirred_list_lock);
 		list_for_each_entry(m, &mirred_list, tcfm_list) {
-			if (rcu_access_pointer(m->tcfm_dev) == dev) {
+			spin_lock(&m->tcf_lock);
+			if (tcf_mirred_dev_dereference(m) == dev) {
 				dev_put(dev);
 				/* Note : no rcu grace period necessary, as
 				 * net_device are already rcu protected.
 				 */
 				RCU_INIT_POINTER(m->tcfm_dev, NULL);
 			}
+			spin_unlock(&m->tcf_lock);
 		}
+		spin_unlock(&mirred_list_lock);
 	}
 
 	return NOTIFY_DONE;
@@ -358,10 +379,13 @@ static struct notifier_block mirred_device_notifier = {
 static struct net_device *tcf_mirred_get_dev(const struct tc_action *a)
 {
 	struct tcf_mirred *m = to_mirred(a);
-	struct net_device *dev = rtnl_dereference(m->tcfm_dev);
+	struct net_device *dev;
 
+	rcu_read_lock();
+	dev = rcu_dereference(m->tcfm_dev);
 	if (dev)
 		dev_hold(dev);
+	rcu_read_unlock();
 
 	return dev;
 }
