@@ -198,10 +198,6 @@ typedef struct xfs_buf {
 	int			b_last_error;
 
 	const struct xfs_buf_ops	*b_ops;
-
-#ifdef XFS_BUF_LOCK_TRACKING
-	int			b_last_holder;
-#endif
 } xfs_buf_t;
 
 /* Finding and Reading Buffers */
