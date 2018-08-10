@@ -1461,6 +1461,14 @@ free_gasket_dev:
 	return ret;
 }
 
+static void __gasket_remove_device(struct gasket_internal_desc *internal_desc,
+				   struct gasket_dev *gasket_dev)
+{
+	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
+	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
+	gasket_free_dev(gasket_dev);
+}
+
 /*
  * Add PCI gasket device.
  *
@@ -1515,9 +1523,7 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 
 cleanup_pci:
 	gasket_cleanup_pci(gasket_dev);
-	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
-	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
-	gasket_free_dev(gasket_dev);
+	__gasket_remove_device(internal_desc, gasket_dev);
 	return ret;
 }
 EXPORT_SYMBOL(gasket_pci_add_device);
@@ -1528,7 +1534,6 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 	int i;
 	struct gasket_internal_desc *internal_desc;
 	struct gasket_dev *gasket_dev = NULL;
-	const struct gasket_driver_desc *driver_desc;
 	/* Find the device desc. */
 	mutex_lock(&g_mutex);
 	internal_desc = lookup_internal_desc(pci_dev);
@@ -1537,8 +1542,6 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 		return;
 	}
 	mutex_unlock(&g_mutex);
-
-	driver_desc = internal_desc->driver_desc;
 
 	/* Now find the specific device */
 	mutex_lock(&internal_desc->mutex);
@@ -1558,10 +1561,7 @@ void gasket_pci_remove_device(struct pci_dev *pci_dev)
 		internal_desc->driver_desc->name);
 
 	gasket_cleanup_pci(gasket_dev);
-
-	gasket_sysfs_remove_mapping(gasket_dev->dev_info.device);
-	device_destroy(internal_desc->class, gasket_dev->dev_info.devt);
-	gasket_free_dev(gasket_dev);
+	__gasket_remove_device(internal_desc, gasket_dev);
 }
 EXPORT_SYMBOL(gasket_pci_remove_device);
 
