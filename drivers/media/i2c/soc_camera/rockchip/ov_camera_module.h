@@ -206,7 +206,7 @@ struct ov_camera_module {
 	u32 rotation;
 	void *pltfm_data;
 	bool inited;
-	bool as_master;
+	int as_master;
 	struct mutex lock;
 };
 

@@ -341,7 +341,7 @@ static struct ov_camera_module_config ov9750_configs[] = {
 
 static int ov9750_dual_mode(struct ov_camera_module *cam_mod)
 {
-	if (cam_mod->as_master) {
+	if (cam_mod->as_master == 1) {
 		ov_camera_module_write_reg(cam_mod, 0x3002, 0xa1);
 		ov_camera_module_write_reg(cam_mod, 0x3007, 0x02);
 		ov_camera_module_write_reg(cam_mod, 0x3816, 0x00);
@@ -350,10 +350,12 @@ static int ov9750_dual_mode(struct ov_camera_module *cam_mod)
 		ov_camera_module_write_reg(cam_mod, 0x3819, 0x01);
 		ov_camera_module_write_reg(cam_mod, 0x3823, 0x00);
 		ov_camera_module_write_reg(cam_mod, 0x3824, 0x00);
-	} else {
+	} else if (cam_mod->as_master == 0) {
 		ov_camera_module_write_reg(cam_mod, 0x3002, 0x21);
 		ov_camera_module_write_reg(cam_mod, 0x3823, 0x48);
 		ov_camera_module_write_reg(cam_mod, 0x3824, 0x11);
+	} else {
+		;/* do nothing */
 	}
 	return 0;
 }
@@ -971,6 +973,7 @@ static int ov9750_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	int ret = 0;
+	int as_master = -1;
 	struct device_node *np = of_node_get(client->dev.of_node);
 
 	dev_info(&client->dev, "probing cam_num:%d 0x%x\n",
@@ -982,8 +985,8 @@ static int ov9750_probe(struct i2c_client *client,
 
 	ov9750[cam_num].custom = ov9750_custom_config;
 
-	of_property_read_u32(np, "as-master", &ret);
-	ov9750[cam_num].as_master = (ret == 0) ? false : true;
+	ret = of_property_read_u32(np, "as-master", &as_master);
+	ov9750[cam_num].as_master = (ret == 0) ? as_master : -1;
 	cam_num++;
 
 	dev_info(&client->dev, "probing successful\n");
