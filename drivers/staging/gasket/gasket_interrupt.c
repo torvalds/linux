@@ -45,9 +45,6 @@ struct gasket_interrupt_data {
 	/* The width of a single interrupt in a packed interrupt register. */
 	int pack_width;
 
-	/* offset of wire interrupt registers */
-	const struct gasket_wire_interrupt_offsets *wire_interrupt_offsets;
-
 	/*
 	 * Design-wise, these elements should be bundled together, but
 	 * pci_enable_msix's interface requires that they be managed
@@ -91,19 +88,6 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 	}
 
 	dev_dbg(gasket_dev->dev, "Running interrupt setup\n");
-
-	if (interrupt_data->type == PLATFORM_WIRE ||
-	    interrupt_data->type == PCI_MSI) {
-		/* Nothing needs to be done for platform or PCI devices. */
-		return;
-	}
-
-	if (interrupt_data->type != PCI_MSIX) {
-		dev_dbg(gasket_dev->dev,
-			"Cannot handle unsupported interrupt type %d\n",
-			interrupt_data->type);
-		return;
-	}
 
 	/* Setup the MSIX table. */
 
@@ -351,8 +335,6 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev)
 	interrupt_data->interrupt_bar_index = driver_desc->interrupt_bar_index;
 	interrupt_data->pack_width = driver_desc->interrupt_pack_width;
 	interrupt_data->num_configured = 0;
-	interrupt_data->wire_interrupt_offsets =
-	    driver_desc->wire_interrupt_offsets;
 
 	interrupt_data->eventfd_ctxs = kcalloc(driver_desc->num_interrupts,
 					       sizeof(struct eventfd_ctx *),
@@ -379,12 +361,7 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev)
 		force_msix_interrupt_unmasking(gasket_dev);
 		break;
 
-	case PCI_MSI:
-	case PLATFORM_WIRE:
 	default:
-		dev_err(gasket_dev->dev,
-			"Cannot handle unsupported interrupt type %d\n",
-			interrupt_data->type);
 		ret = -EINVAL;
 	}
 
@@ -439,12 +416,7 @@ int gasket_interrupt_reinit(struct gasket_dev *gasket_dev)
 		force_msix_interrupt_unmasking(gasket_dev);
 		break;
 
-	case PCI_MSI:
-	case PLATFORM_WIRE:
 	default:
-		dev_dbg(gasket_dev->dev,
-			"Cannot handle unsupported interrupt type %d\n",
-			gasket_dev->interrupt_data->type);
 		ret = -EINVAL;
 	}
 
@@ -489,12 +461,8 @@ void gasket_interrupt_cleanup(struct gasket_dev *gasket_dev)
 		gasket_interrupt_msix_cleanup(interrupt_data);
 		break;
 
-	case PCI_MSI:
-	case PLATFORM_WIRE:
 	default:
-		dev_dbg(gasket_dev->dev,
-			"Cannot handle unsupported interrupt type %d\n",
-			interrupt_data->type);
+		break;
 	}
 
 	kfree(interrupt_data->interrupt_counts);

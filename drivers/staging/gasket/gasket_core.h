@@ -50,8 +50,6 @@ enum gasket_interrupt_packing {
 /* Type of the interrupt supported by the device. */
 enum gasket_interrupt_type {
 	PCI_MSIX = 0,
-	PCI_MSI = 1,
-	PLATFORM_WIRE = 2,
 };
 
 /*
@@ -67,12 +65,6 @@ struct gasket_interrupt_desc {
 	u64 reg;
 	/* The location of this interrupt inside register reg, if packed. */
 	int packing;
-};
-
-/* Offsets to the wire interrupt handling registers */
-struct gasket_wire_interrupt_offsets {
-	u64 pending_bit_array;
-	u64 mask_array;
 };
 
 /*
@@ -383,9 +375,6 @@ struct gasket_driver_desc {
 	 * Coherent buffer description.
 	 */
 	struct gasket_coherent_buffer_desc coherent_buffer_description;
-
-	/* Offset of wire interrupt registers. */
-	const struct gasket_wire_interrupt_offsets *wire_interrupt_offsets;
 
 	/* Interrupt type. (One of gasket_interrupt_type). */
 	int interrupt_type;
