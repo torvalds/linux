@@ -47,9 +47,16 @@ struct bundle_priv {
 	size_t internal_avail;
 	size_t internal_used;
 
+	struct radix_tree_root *radix;
+	const struct uverbs_api_ioctl_method *method_elm;
+	void __rcu **radix_slots;
+	unsigned long radix_slots_len;
+	u32 method_key;
+
 	struct ib_uverbs_attr __user *user_attrs;
 	struct ib_uverbs_attr *uattrs;
-	struct uverbs_obj_attr *destroy_attr;
+
+	DECLARE_BITMAP(uobj_finalize, UVERBS_API_ATTR_BKEY_LEN);
 
 	/*
 	 * Must be last. bundle ends in a flex array which overlaps
@@ -58,6 +65,28 @@ struct bundle_priv {
 	struct uverbs_attr_bundle bundle;
 	u64 internal_buffer[32];
 };
+
+/*
+ * Each method has an absolute minimum amount of memory it needs to allocate,
+ * precompute that amount and determine if the onstack memory can be used or
+ * if allocation is need.
+ */
+void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
+			      unsigned int num_attrs)
+{
+	struct bundle_priv *pbundle;
+	size_t bundle_size =
+		offsetof(struct bundle_priv, internal_buffer) +
+		sizeof(*pbundle->bundle.attrs) * method_elm->key_bitmap_len +
+		sizeof(*pbundle->uattrs) * num_attrs;
+
+	method_elm->use_stack = bundle_size <= sizeof(*pbundle);
+	method_elm->bundle_size =
+		ALIGN(bundle_size + 256, sizeof(*pbundle->internal_buffer));
+
+	/* Do not want order-2 allocations for this. */
+	WARN_ON_ONCE(method_elm->bundle_size > PAGE_SIZE);
+}
 
 /**
  * uverbs_alloc() - Quickly allocate memory for use with a bundle
@@ -81,7 +110,7 @@ __malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
 	void *res;
 
 	if (check_add_overflow(size, pbundle->internal_used, &new_used))
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOVERFLOW);
 
 	if (new_used > pbundle->internal_avail) {
 		struct bundle_alloc_head *buf;
@@ -115,31 +144,13 @@ static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 }
 
 static int uverbs_process_attr(struct bundle_priv *pbundle,
-			       const struct ib_uverbs_attr *uattr,
-			       u16 attr_id,
-			       const struct uverbs_attr_spec_hash *attr_spec_bucket,
-			       struct uverbs_attr_bundle_hash *attr_bundle_h,
-			       struct ib_uverbs_attr __user *uattr_ptr)
+			       const struct uverbs_api_attr *attr_uapi,
+			       struct ib_uverbs_attr *uattr, u32 attr_bkey)
 {
-	const struct uverbs_attr_spec *spec;
-	const struct uverbs_attr_spec *val_spec;
-	struct uverbs_attr *e;
+	const struct uverbs_attr_spec *spec = &attr_uapi->spec;
+	struct uverbs_attr *e = &pbundle->bundle.attrs[attr_bkey];
+	const struct uverbs_attr_spec *val_spec = spec;
 	struct uverbs_obj_attr *o_attr;
-	struct uverbs_attr *elements = attr_bundle_h->attrs;
-
-	if (attr_id >= attr_spec_bucket->num_attrs) {
-		if (uattr->flags & UVERBS_ATTR_F_MANDATORY)
-			return -EINVAL;
-		else
-			return 0;
-	}
-
-	if (test_bit(attr_id, attr_bundle_h->valid_bitmap))
-		return -EINVAL;
-
-	spec = &attr_spec_bucket->attrs[attr_id];
-	val_spec = spec;
-	e = &elements[attr_id];
 
 	switch (spec->type) {
 	case UVERBS_ATTR_TYPE_ENUM_IN:
@@ -208,12 +219,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 			return -EINVAL;
 
 		o_attr = &e->obj_attr;
-
-		/* specs are allowed to have only one destroy attribute */
-		WARN_ON(spec->u.obj.access == UVERBS_ACCESS_DESTROY &&
-			pbundle->destroy_attr);
-		if (spec->u.obj.access == UVERBS_ACCESS_DESTROY)
-			pbundle->destroy_attr = o_attr;
+		o_attr->attr_elm = attr_uapi;
 
 		/*
 		 * The type of uattr->data is u64 for UVERBS_ATTR_TYPE_IDR and
@@ -226,20 +232,17 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 					pbundle->bundle.ufile,
 					spec->u.obj.access,
 					uattr->data_s64);
-
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);
+		__set_bit(attr_bkey, pbundle->uobj_finalize);
 
 		if (spec->u.obj.access == UVERBS_ACCESS_NEW) {
+			unsigned int uattr_idx = uattr - pbundle->uattrs;
 			s64 id = o_attr->uobject->id;
 
 			/* Copy the allocated id to the user-space */
-			if (put_user(id, &uattr_ptr->data)) {
-				uverbs_finalize_object(o_attr->uobject,
-						       UVERBS_ACCESS_NEW,
-						       false);
+			if (put_user(id, &pbundle->user_attrs[uattr_idx].data))
 				return -EFAULT;
-			}
 		}
 
 		break;
@@ -247,184 +250,152 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		return -EOPNOTSUPP;
 	}
 
-	set_bit(attr_id, attr_bundle_h->valid_bitmap);
 	return 0;
 }
 
-static int uverbs_finalize_attrs(struct bundle_priv *pbundle,
-				 struct uverbs_attr_spec_hash *const *spec_hash,
-				 size_t num, bool commit)
+/*
+ * We search the radix tree with the method prefix and now we want to fast
+ * search the suffix bits to get a particular attribute pointer. It is not
+ * totally clear to me if this breaks the radix tree encasulation or not, but
+ * it uses the iter data to determine if the method iter points at the same
+ * chunk that will store the attribute, if so it just derefs it directly. By
+ * construction in most kernel configs the method and attrs will all fit in a
+ * single radix chunk, so in most cases this will have no search. Other cases
+ * this falls back to a full search.
+ */
+static void __rcu **uapi_get_attr_for_method(struct bundle_priv *pbundle,
+					     u32 attr_key)
 {
-	struct uverbs_attr_bundle *attrs_bundle = &pbundle->bundle;
-	unsigned int i;
-	int ret = 0;
+	void __rcu **slot;
 
-	for (i = 0; i < num; i++) {
-		struct uverbs_attr_bundle_hash *curr_bundle =
-			&attrs_bundle->hash[i];
-		const struct uverbs_attr_spec_hash *curr_spec_bucket =
-			spec_hash[i];
-		unsigned int j;
+	if (likely(attr_key < pbundle->radix_slots_len)) {
+		void *entry;
 
-		if (!curr_spec_bucket)
-			continue;
-
-		for (j = 0; j < curr_bundle->num_attrs; j++) {
-			struct uverbs_attr *attr;
-			const struct uverbs_attr_spec *spec;
-
-			if (!uverbs_attr_is_valid_in_hash(curr_bundle, j))
-				continue;
-
-			attr = &curr_bundle->attrs[j];
-			spec = &curr_spec_bucket->attrs[j];
-
-			if (spec->type == UVERBS_ATTR_TYPE_IDR ||
-			    spec->type == UVERBS_ATTR_TYPE_FD) {
-				int current_ret;
-
-				current_ret = uverbs_finalize_object(
-					attr->obj_attr.uobject,
-					spec->u.obj.access, commit);
-				if (!ret)
-					ret = current_ret;
-			}
-		}
+		slot = pbundle->radix_slots + attr_key;
+		entry = rcu_dereference_raw(*slot);
+		if (likely(!radix_tree_is_internal_node(entry) && entry))
+			return slot;
 	}
+
+	return radix_tree_lookup_slot(pbundle->radix,
+				      pbundle->method_key | attr_key);
+}
+
+static int uverbs_set_attr(struct bundle_priv *pbundle,
+			   struct ib_uverbs_attr *uattr)
+{
+	u32 attr_key = uapi_key_attr(uattr->attr_id);
+	u32 attr_bkey = uapi_bkey_attr(attr_key);
+	const struct uverbs_api_attr *attr;
+	void __rcu **slot;
+	int ret;
+
+	slot = uapi_get_attr_for_method(pbundle, attr_key);
+	if (!slot) {
+		/*
+		 * Kernel does not support the attribute but user-space says it
+		 * is mandatory
+		 */
+		if (uattr->flags & UVERBS_ATTR_F_MANDATORY)
+			return -EPROTONOSUPPORT;
+		return 0;
+	}
+	attr = srcu_dereference(
+		*slot, &pbundle->bundle.ufile->device->disassociate_srcu);
+
+	/* Reject duplicate attributes from user-space */
+	if (test_bit(attr_bkey, pbundle->bundle.attr_present))
+		return -EINVAL;
+
+	ret = uverbs_process_attr(pbundle, attr, uattr, attr_bkey);
+	if (ret)
+		return ret;
+
+	__set_bit(attr_bkey, pbundle->bundle.attr_present);
+
+	return 0;
+}
+
+static int ib_uverbs_run_method(struct bundle_priv *pbundle,
+				unsigned int num_attrs)
+{
+	int (*handler)(struct ib_uverbs_file *ufile,
+		       struct uverbs_attr_bundle *ctx);
+	size_t uattrs_size = array_size(sizeof(*pbundle->uattrs), num_attrs);
+	unsigned int destroy_bkey = pbundle->method_elm->destroy_bkey;
+	unsigned int i;
+	int ret;
+
+	/* See uverbs_disassociate_api() */
+	handler = srcu_dereference(
+		pbundle->method_elm->handler,
+		&pbundle->bundle.ufile->device->disassociate_srcu);
+	if (!handler)
+		return -EIO;
+
+	pbundle->uattrs = uverbs_alloc(&pbundle->bundle, uattrs_size);
+	if (IS_ERR(pbundle->uattrs))
+		return PTR_ERR(pbundle->uattrs);
+	if (copy_from_user(pbundle->uattrs, pbundle->user_attrs, uattrs_size))
+		return -EFAULT;
+
+	for (i = 0; i != num_attrs; i++) {
+		ret = uverbs_set_attr(pbundle, &pbundle->uattrs[i]);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	/* User space did not provide all the mandatory attributes */
+	if (unlikely(!bitmap_subset(pbundle->method_elm->attr_mandatory,
+				    pbundle->bundle.attr_present,
+				    pbundle->method_elm->key_bitmap_len)))
+		return -EINVAL;
+
+	if (destroy_bkey != UVERBS_API_ATTR_BKEY_LEN) {
+		struct uverbs_obj_attr *destroy_attr =
+			&pbundle->bundle.attrs[destroy_bkey].obj_attr;
+
+		ret = uobj_destroy(destroy_attr->uobject);
+		if (ret)
+			return ret;
+		__clear_bit(destroy_bkey, pbundle->uobj_finalize);
+
+		ret = handler(pbundle->bundle.ufile, &pbundle->bundle);
+		uobj_put_destroy(destroy_attr->uobject);
+	} else {
+		ret = handler(pbundle->bundle.ufile, &pbundle->bundle);
+	}
+
+	/*
+	 * EPROTONOSUPPORT is ONLY to be returned if the ioctl framework can
+	 * not invoke the method because the request is not supported.  No
+	 * other cases should return this code.
+	 */
+	if (WARN_ON_ONCE(ret == -EPROTONOSUPPORT))
+		return -EINVAL;
+
 	return ret;
 }
 
-static int uverbs_uattrs_process(size_t num_uattrs,
-				 const struct uverbs_method_spec *method,
-				 struct bundle_priv *pbundle)
+static int bundle_destroy(struct bundle_priv *pbundle, bool commit)
 {
-	struct uverbs_attr_bundle *attr_bundle = &pbundle->bundle;
-	struct ib_uverbs_attr __user *uattr_ptr = pbundle->user_attrs;
-	size_t i;
-	int ret = 0;
-	int num_given_buckets = 0;
-
-	for (i = 0; i < num_uattrs; i++) {
-		const struct ib_uverbs_attr *uattr = &pbundle->uattrs[i];
-		u16 attr_id = uattr->attr_id;
-		struct uverbs_attr_spec_hash *attr_spec_bucket;
-
-		ret = uverbs_ns_idx(&attr_id, method->num_buckets);
-		if (ret < 0 || !method->attr_buckets[ret]) {
-			if (uattr->flags & UVERBS_ATTR_F_MANDATORY) {
-				uverbs_finalize_attrs(pbundle,
-						      method->attr_buckets,
-						      num_given_buckets,
-						      false);
-				return ret;
-			}
-			continue;
-		}
-
-		/*
-		 * ret is the found ns, so increase num_given_buckets if
-		 * necessary.
-		 */
-		if (ret >= num_given_buckets)
-			num_given_buckets = ret + 1;
-
-		attr_spec_bucket = method->attr_buckets[ret];
-		ret = uverbs_process_attr(pbundle,
-					  uattr, attr_id,
-					  attr_spec_bucket,
-					  &attr_bundle->hash[ret],
-					  uattr_ptr++);
-		if (ret) {
-			uverbs_finalize_attrs(pbundle,
-					      method->attr_buckets,
-					      num_given_buckets,
-					      false);
-			return ret;
-		}
-	}
-
-	return num_given_buckets;
-}
-
-static int uverbs_validate_kernel_mandatory(const struct uverbs_method_spec *method_spec,
-					    struct bundle_priv *pbundle)
-{
-	struct uverbs_attr_bundle *attr_bundle = &pbundle->bundle;
-	unsigned int i;
-
-	for (i = 0; i < attr_bundle->num_buckets; i++) {
-		struct uverbs_attr_spec_hash *attr_spec_bucket =
-			method_spec->attr_buckets[i];
-
-		if (!attr_spec_bucket)
-			continue;
-
-		if (!bitmap_subset(attr_spec_bucket->mandatory_attrs_bitmask,
-				   attr_bundle->hash[i].valid_bitmap,
-				   attr_spec_bucket->num_attrs))
-			return -EINVAL;
-	}
-
-	for (; i < method_spec->num_buckets; i++) {
-		struct uverbs_attr_spec_hash *attr_spec_bucket =
-			method_spec->attr_buckets[i];
-
-		if (!bitmap_empty(attr_spec_bucket->mandatory_attrs_bitmask,
-				  attr_spec_bucket->num_attrs))
-			return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int uverbs_handle_method(size_t num_uattrs,
-				const struct uverbs_method_spec *method_spec,
-				struct bundle_priv *pbundle)
-{
-	struct uverbs_attr_bundle *attr_bundle = &pbundle->bundle;
-	int ret;
-	int finalize_ret;
-	int num_given_buckets;
-
-	num_given_buckets =
-		uverbs_uattrs_process(num_uattrs, method_spec, pbundle);
-	if (num_given_buckets <= 0)
-		return -EINVAL;
-
-	attr_bundle->num_buckets = num_given_buckets;
-	ret = uverbs_validate_kernel_mandatory(method_spec, pbundle);
-	if (ret)
-		goto cleanup;
-
-	/*
-	 * We destroy the HW object before invoking the handler, handlers do
-	 * not get to manipulate the HW objects.
-	 */
-	if (pbundle->destroy_attr) {
-		ret = uobj_destroy(pbundle->destroy_attr->uobject);
-		if (ret)
-			goto cleanup;
-	}
-
-	ret = method_spec->handler(pbundle->bundle.ufile, attr_bundle);
-
-	if (pbundle->destroy_attr) {
-		uobj_put_destroy(pbundle->destroy_attr->uobject);
-		pbundle->destroy_attr->uobject = NULL;
-	}
-
-cleanup:
-	finalize_ret = uverbs_finalize_attrs(pbundle,
-					     method_spec->attr_buckets,
-					     attr_bundle->num_buckets,
-					     !ret);
-
-	return ret ? ret : finalize_ret;
-}
-
-static void bundle_destroy(struct bundle_priv *pbundle)
-{
+	unsigned int key_bitmap_len = pbundle->method_elm->key_bitmap_len;
 	struct bundle_alloc_head *memblock;
+	unsigned int i;
+	int ret = 0;
+
+	i = -1;
+	while ((i = find_next_bit(pbundle->uobj_finalize, key_bitmap_len,
+				  i + 1)) < key_bitmap_len) {
+		struct uverbs_attr *attr = &pbundle->bundle.attrs[i];
+		int current_ret;
+
+		current_ret = uverbs_finalize_object(
+			attr->obj_attr.uobject,
+			attr->obj_attr.attr_elm->spec.u.obj.access, commit);
+		if (!ret)
+			ret = current_ret;
+	}
 
 	for (memblock = pbundle->allocated_mem; memblock;) {
 		struct bundle_alloc_head *tmp = memblock;
@@ -432,108 +403,71 @@ static void bundle_destroy(struct bundle_priv *pbundle)
 		memblock = memblock->next;
 		kvfree(tmp);
 	}
+
+	return ret;
 }
 
-static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
-				struct ib_uverbs_file *file,
-				struct ib_uverbs_ioctl_hdr *hdr,
-				struct ib_uverbs_attr __user *user_attrs)
+static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
+			       struct ib_uverbs_ioctl_hdr *hdr,
+			       struct ib_uverbs_attr __user *user_attrs)
 {
-	const struct uverbs_object_spec *object_spec;
-	const struct uverbs_method_spec *method_spec;
-	long err = 0;
-	unsigned int i;
-	struct bundle_priv onstack_pbundle;
-	struct bundle_priv *ctx;
-	struct uverbs_attr *curr_attr;
-	unsigned long *curr_bitmap;
-	size_t ctx_size;
+	const struct uverbs_api_ioctl_method *method_elm;
+	struct uverbs_api *uapi = ufile->device->uapi;
+	struct radix_tree_iter attrs_iter;
+	struct bundle_priv *pbundle;
+	struct bundle_priv onstack;
+	void __rcu **slot;
+	int destroy_ret;
+	int ret;
 
-	if (hdr->driver_id != ib_dev->driver_id)
+	if (unlikely(hdr->driver_id != uapi->driver_id))
 		return -EINVAL;
 
-	object_spec = uverbs_get_object(file, hdr->object_id);
-	if (!object_spec)
+	slot = radix_tree_iter_lookup(
+		&uapi->radix, &attrs_iter,
+		uapi_key_obj(hdr->object_id) |
+			uapi_key_ioctl_method(hdr->method_id));
+	if (unlikely(!slot))
 		return -EPROTONOSUPPORT;
+	method_elm = srcu_dereference(*slot, &ufile->device->disassociate_srcu);
 
-	method_spec = uverbs_get_method(object_spec, hdr->method_id);
-	if (!method_spec)
-		return -EPROTONOSUPPORT;
-
-	ctx_size = sizeof(*ctx) - sizeof(ctx->internal_buffer) +
-		   sizeof(struct uverbs_attr_bundle_hash) * method_spec->num_buckets +
-		   sizeof(*ctx->uattrs) * hdr->num_attrs +
-		   sizeof(*ctx->bundle.hash[0].attrs) *
-		   method_spec->num_child_attrs +
-		   sizeof(*ctx->bundle.hash[0].valid_bitmap) *
-			(method_spec->num_child_attrs / BITS_PER_LONG +
-			 method_spec->num_buckets);
-
-	if (ctx_size <= sizeof(onstack_pbundle)) {
-		ctx = &onstack_pbundle;
-		ctx->internal_avail =
-			sizeof(onstack_pbundle) -
-			offsetof(struct bundle_priv, internal_buffer);
-		ctx->allocated_mem = NULL;
-	} else {
-		ctx = kmalloc(ctx_size, GFP_KERNEL);
-		if (!ctx)
+	if (!method_elm->use_stack) {
+		pbundle = kmalloc(method_elm->bundle_size, GFP_KERNEL);
+		if (!pbundle)
 			return -ENOMEM;
-		ctx->internal_avail = 0;
-		ctx->alloc_head.next = NULL;
-		ctx->allocated_mem = &ctx->alloc_head;
+		pbundle->internal_avail =
+			method_elm->bundle_size -
+			offsetof(struct bundle_priv, internal_buffer);
+		pbundle->alloc_head.next = NULL;
+		pbundle->allocated_mem = &pbundle->alloc_head;
+	} else {
+		pbundle = &onstack;
+		pbundle->internal_avail = sizeof(pbundle->internal_buffer);
+		pbundle->allocated_mem = NULL;
 	}
 
-	ctx->uattrs = (void *)(ctx + 1) +
-		      (sizeof(ctx->bundle.hash[0]) * method_spec->num_buckets);
-	curr_attr = (void *)(ctx->uattrs + hdr->num_attrs);
-	curr_bitmap = (void *)(curr_attr + method_spec->num_child_attrs);
-	ctx->internal_used = ALIGN(ctx_size, sizeof(*ctx->internal_buffer));
+	/* Space for the pbundle->bundle.attrs flex array */
+	pbundle->method_elm = method_elm;
+	pbundle->method_key = attrs_iter.index;
+	pbundle->bundle.ufile = ufile;
+	pbundle->radix = &uapi->radix;
+	pbundle->radix_slots = slot;
+	pbundle->radix_slots_len = radix_tree_chunk_size(&attrs_iter);
+	pbundle->user_attrs = user_attrs;
 
-	/*
-	 * We just fill the pointers and num_attrs here. The data itself will be
-	 * filled at a later stage (uverbs_process_attr)
-	 */
-	for (i = 0; i < method_spec->num_buckets; i++) {
-		unsigned int curr_num_attrs;
+	pbundle->internal_used = ALIGN(pbundle->method_elm->key_bitmap_len *
+					       sizeof(*pbundle->bundle.attrs),
+				       sizeof(*pbundle->internal_buffer));
+	memset(pbundle->bundle.attr_present, 0,
+	       sizeof(pbundle->bundle.attr_present));
+	memset(pbundle->uobj_finalize, 0, sizeof(pbundle->uobj_finalize));
 
-		if (!method_spec->attr_buckets[i])
-			continue;
+	ret = ib_uverbs_run_method(pbundle, hdr->num_attrs);
+	destroy_ret = bundle_destroy(pbundle, ret == 0);
+	if (unlikely(destroy_ret && !ret))
+		return destroy_ret;
 
-		curr_num_attrs = method_spec->attr_buckets[i]->num_attrs;
-
-		ctx->bundle.hash[i].attrs = curr_attr;
-		curr_attr += curr_num_attrs;
-		ctx->bundle.hash[i].num_attrs = curr_num_attrs;
-		ctx->bundle.hash[i].valid_bitmap = curr_bitmap;
-		bitmap_zero(curr_bitmap, curr_num_attrs);
-		curr_bitmap += BITS_TO_LONGS(curr_num_attrs);
-	}
-
-	err = copy_from_user(ctx->uattrs, user_attrs,
-			     sizeof(*ctx->uattrs) * hdr->num_attrs);
-	if (err) {
-		err = -EFAULT;
-		goto out;
-	}
-
-	ctx->destroy_attr = NULL;
-	ctx->bundle.ufile = file;
-	ctx->user_attrs = user_attrs;
-	err = uverbs_handle_method(hdr->num_attrs, method_spec, ctx);
-
-	/*
-	 * EPROTONOSUPPORT is ONLY to be returned if the ioctl framework can
-	 * not invoke the method because the request is not supported.  No
-	 * other cases should return this code.
-	*/
-	if (unlikely(err == -EPROTONOSUPPORT)) {
-		WARN_ON_ONCE(err == -EPROTONOSUPPORT);
-		err = -EINVAL;
-	}
-out:
-	bundle_destroy(ctx);
-	return err;
+	return ret;
 }
 
 #define IB_UVERBS_MAX_CMD_SZ 4096
@@ -570,7 +504,7 @@ long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto out;
 		}
 
-		err = ib_uverbs_cmd_verbs(ib_dev, file, &hdr, user_hdr->attrs);
+		err = ib_uverbs_cmd_verbs(file, &hdr, user_hdr->attrs);
 	} else {
 		err = -ENOIOCTLCMD;
 	}

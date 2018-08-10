@@ -160,6 +160,7 @@ uapi_finalize_ioctl_method(struct uverbs_api *uapi,
 			   u32 method_key)
 {
 	struct radix_tree_iter iter;
+	unsigned int num_attrs = 0;
 	unsigned int max_bkey = 0;
 	bool single_uobj = false;
 	void __rcu **slot;
@@ -204,11 +205,13 @@ uapi_finalize_ioctl_method(struct uverbs_api *uapi,
 		}
 
 		max_bkey = max(max_bkey, attr_bkey);
+		num_attrs++;
 	}
 
 	method_elm->key_bitmap_len = max_bkey + 1;
 	WARN_ON(method_elm->key_bitmap_len > UVERBS_API_ATTR_BKEY_LEN);
 
+	uapi_compute_bundle_size(method_elm, num_attrs);
 	return 0;
 }
 

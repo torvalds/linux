@@ -451,6 +451,7 @@ struct uverbs_object_tree_def {
  * =================================================
  */
 
+
 struct uverbs_ptr_attr {
 	/*
 	 * If UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY is set then the 'ptr' is
@@ -467,6 +468,7 @@ struct uverbs_ptr_attr {
 
 struct uverbs_obj_attr {
 	struct ib_uobject		*uobject;
+	const struct uverbs_api_attr	*attr_elm;
 };
 
 struct uverbs_attr {
@@ -476,39 +478,17 @@ struct uverbs_attr {
 	};
 };
 
-struct uverbs_attr_bundle_hash {
-	/* if bit i is set, it means attrs[i] contains valid information */
-	unsigned long *valid_bitmap;
-	size_t num_attrs;
-	/*
-	 * arrays of attributes, each element corresponds to the specification
-	 * of the attribute in the same index.
-	 */
-	struct uverbs_attr *attrs;
-};
-
 struct uverbs_attr_bundle {
 	struct ib_uverbs_file *ufile;
-	size_t				num_buckets;
-	struct uverbs_attr_bundle_hash  hash[];
+	DECLARE_BITMAP(attr_present, UVERBS_API_ATTR_BKEY_LEN);
+	struct uverbs_attr attrs[];
 };
-
-static inline bool uverbs_attr_is_valid_in_hash(const struct uverbs_attr_bundle_hash *attrs_hash,
-						unsigned int idx)
-{
-	return test_bit(idx, attrs_hash->valid_bitmap);
-}
 
 static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_bundle,
 					unsigned int idx)
 {
-	u16 idx_bucket = idx >>	UVERBS_ID_NS_SHIFT;
-
-	if (attrs_bundle->num_buckets <= idx_bucket)
-		return false;
-
-	return uverbs_attr_is_valid_in_hash(&attrs_bundle->hash[idx_bucket],
-					    idx & ~UVERBS_ID_NS_MASK);
+	return test_bit(uapi_bkey_attr(uapi_key_attr(idx)),
+			attrs_bundle->attr_present);
 }
 
 #define IS_UVERBS_COPY_ERR(_ret)		((_ret) && (_ret) != -ENOENT)
@@ -516,12 +496,10 @@ static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_b
 static inline const struct uverbs_attr *uverbs_attr_get(const struct uverbs_attr_bundle *attrs_bundle,
 							u16 idx)
 {
-	u16 idx_bucket = idx >>	UVERBS_ID_NS_SHIFT;
-
 	if (!uverbs_attr_is_valid(attrs_bundle, idx))
 		return ERR_PTR(-ENOENT);
 
-	return &attrs_bundle->hash[idx_bucket].attrs[idx & ~UVERBS_ID_NS_MASK];
+	return &attrs_bundle->attrs[uapi_bkey_attr(uapi_key_attr(idx))];
 }
 
 static inline int uverbs_attr_get_enum_id(const struct uverbs_attr_bundle *attrs_bundle,

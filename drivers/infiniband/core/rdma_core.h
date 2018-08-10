@@ -133,6 +133,8 @@ struct uverbs_api_ioctl_method {
 	int (__rcu *handler)(struct ib_uverbs_file *ufile,
 			     struct uverbs_attr_bundle *ctx);
 	DECLARE_BITMAP(attr_mandatory, UVERBS_API_ATTR_BKEY_LEN);
+	u16 bundle_size;
+	u8 use_stack:1;
 	u8 driver_method:1;
 	u8 key_bitmap_len;
 	u8 destroy_bkey;
@@ -162,5 +164,7 @@ struct uverbs_api *uverbs_alloc_api(
 void uverbs_disassociate_api_pre(struct ib_uverbs_device *uverbs_dev);
 void uverbs_disassociate_api(struct uverbs_api *uapi);
 void uverbs_destroy_api(struct uverbs_api *uapi);
+void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
+			      unsigned int num_attrs);
 
 #endif /* RDMA_CORE_H */
