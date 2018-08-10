@@ -57,6 +57,7 @@
 #include <linux/atomic.h>		/* This gets us atomic counters.  */
 #include <linux/skbuff.h>	/* We need sk_buff_head. */
 #include <linux/workqueue.h>	/* We need tq_struct.	 */
+#include <linux/flex_array.h>	/* We need flex_array.   */
 #include <linux/sctp.h>		/* We need sctp* header structs.  */
 #include <net/sctp/auth.h>	/* We need auth specific structs */
 #include <net/ip.h>		/* For inet_skb_parm */
@@ -1438,8 +1439,8 @@ struct sctp_stream_in {
 };
 
 struct sctp_stream {
-	struct sctp_stream_out *out;
-	struct sctp_stream_in *in;
+	struct flex_array *out;
+	struct flex_array *in;
 	__u16 outcnt;
 	__u16 incnt;
 	/* Current stream being sent, if any */
@@ -1465,14 +1466,14 @@ static inline struct sctp_stream_out *sctp_stream_out(
 	const struct sctp_stream *stream,
 	__u16 sid)
 {
-	return ((struct sctp_stream_out *)(stream->out)) + sid;
+	return flex_array_get(stream->out, sid);
 }
 
 static inline struct sctp_stream_in *sctp_stream_in(
 	const struct sctp_stream *stream,
 	__u16 sid)
 {
-	return ((struct sctp_stream_in *)(stream->in)) + sid;
+	return flex_array_get(stream->in, sid);
 }
 
 #define SCTP_SO(s, i) sctp_stream_out((s), (i))
