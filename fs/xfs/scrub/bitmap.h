@@ -28,5 +28,9 @@ void xfs_bitmap_destroy(struct xfs_bitmap *bitmap);
 
 int xfs_bitmap_set(struct xfs_bitmap *bitmap, uint64_t start, uint64_t len);
 int xfs_bitmap_disunion(struct xfs_bitmap *bitmap, struct xfs_bitmap *sub);
+int xfs_bitmap_set_btcur_path(struct xfs_bitmap *bitmap,
+		struct xfs_btree_cur *cur);
+int xfs_bitmap_set_btblocks(struct xfs_bitmap *bitmap,
+		struct xfs_btree_cur *cur);
 
 #endif	/* __XFS_SCRUB_BITMAP_H__ */
