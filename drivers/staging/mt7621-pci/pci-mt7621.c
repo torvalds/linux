@@ -500,14 +500,11 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		bypass_pipe_rst(pcie);
 	set_phy_for_ssc(pcie);
 
-	val = read_config(pcie, 0, 0x70c);
-	printk("Port 0 N_FTS = %x\n", (unsigned int)val);
-
-	val = read_config(pcie, 1, 0x70c);
-	printk("Port 1 N_FTS = %x\n", (unsigned int)val);
-
-	val = read_config(pcie, 2, 0x70c);
-	printk("Port 2 N_FTS = %x\n", (unsigned int)val);
+	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
+		u32 slot = port->slot;
+		val = read_config(pcie, slot, 0x70c);
+		dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
+	}
 
 	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
 	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
