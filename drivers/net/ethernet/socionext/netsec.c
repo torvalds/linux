@@ -642,8 +642,6 @@ static struct sk_buff *netsec_get_rx_pkt_data(struct netsec_priv *priv,
 
 	tmp_skb = netsec_alloc_skb(priv, &td);
 
-	dma_rmb();
-
 	tail = dring->tail;
 
 	if (!tmp_skb) {
@@ -656,8 +654,6 @@ static struct sk_buff *netsec_get_rx_pkt_data(struct netsec_priv *priv,
 
 	/* move tail ahead */
 	dring->tail = (dring->tail + 1) % DESC_NUM;
-
-	dring->pkt_cnt--;
 
 	return skb;
 }
@@ -731,25 +727,24 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
 	struct net_device *ndev = priv->ndev;
 	struct netsec_rx_pkt_info rx_info;
-	int done = 0, rx_num = 0;
+	int done = 0;
 	struct netsec_desc desc;
 	struct sk_buff *skb;
 	u16 len;
 
 	while (done < budget) {
-		if (!rx_num) {
-			rx_num = netsec_read(priv, NETSEC_REG_NRM_RX_PKTCNT);
-			dring->pkt_cnt += rx_num;
+		u16 idx = dring->tail;
+		struct netsec_de *de = dring->vaddr + (DESC_SZ * idx);
 
-			/* move head 'rx_num' */
-			dring->head = (dring->head + rx_num) % DESC_NUM;
+		if (de->attr & (1U << NETSEC_RX_PKT_OWN_FIELD))
+			break;
 
-			rx_num = dring->pkt_cnt;
-			if (!rx_num)
-				break;
-		}
+		/* This  barrier is needed to keep us from reading
+		 * any other fields out of the netsec_de until we have
+		 * verified the descriptor has been written back
+		 */
+		dma_rmb();
 		done++;
-		rx_num--;
 		skb = netsec_get_rx_pkt_data(priv, &rx_info, &desc, &len);
 		if (unlikely(!skb) || rx_info.err_flag) {
 			netif_err(priv, drv, priv->ndev,
