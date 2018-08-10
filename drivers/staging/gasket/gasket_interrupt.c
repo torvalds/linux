@@ -331,31 +331,30 @@ static struct gasket_sysfs_attribute interrupt_sysfs_attrs[] = {
 	GASKET_END_OF_ATTR_ARRAY,
 };
 
-int gasket_interrupt_init(struct gasket_dev *gasket_dev, const char *name,
-			  int type,
-			  const struct gasket_interrupt_desc *interrupts,
-			  int num_interrupts, int pack_width, int bar_index,
-			  const struct gasket_wire_interrupt_offsets *wire_int_offsets)
+int gasket_interrupt_init(struct gasket_dev *gasket_dev)
 {
 	int ret;
 	struct gasket_interrupt_data *interrupt_data;
+	const struct gasket_driver_desc *driver_desc =
+		gasket_get_driver_desc(gasket_dev);
 
 	interrupt_data = kzalloc(sizeof(struct gasket_interrupt_data),
 				 GFP_KERNEL);
 	if (!interrupt_data)
 		return -ENOMEM;
 	gasket_dev->interrupt_data = interrupt_data;
-	interrupt_data->name = name;
-	interrupt_data->type = type;
+	interrupt_data->name = driver_desc->name;
+	interrupt_data->type = driver_desc->interrupt_type;
 	interrupt_data->pci_dev = gasket_dev->pci_dev;
-	interrupt_data->num_interrupts = num_interrupts;
-	interrupt_data->interrupts = interrupts;
-	interrupt_data->interrupt_bar_index = bar_index;
-	interrupt_data->pack_width = pack_width;
+	interrupt_data->num_interrupts = driver_desc->num_interrupts;
+	interrupt_data->interrupts = driver_desc->interrupts;
+	interrupt_data->interrupt_bar_index = driver_desc->interrupt_bar_index;
+	interrupt_data->pack_width = driver_desc->interrupt_pack_width;
 	interrupt_data->num_configured = 0;
-	interrupt_data->wire_interrupt_offsets = wire_int_offsets;
+	interrupt_data->wire_interrupt_offsets =
+	    driver_desc->wire_interrupt_offsets;
 
-	interrupt_data->eventfd_ctxs = kcalloc(num_interrupts,
+	interrupt_data->eventfd_ctxs = kcalloc(driver_desc->num_interrupts,
 					       sizeof(struct eventfd_ctx *),
 					       GFP_KERNEL);
 	if (!interrupt_data->eventfd_ctxs) {
@@ -363,7 +362,7 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev, const char *name,
 		return -ENOMEM;
 	}
 
-	interrupt_data->interrupt_counts = kcalloc(num_interrupts,
+	interrupt_data->interrupt_counts = kcalloc(driver_desc->num_interrupts,
 						   sizeof(ulong),
 						   GFP_KERNEL);
 	if (!interrupt_data->interrupt_counts) {

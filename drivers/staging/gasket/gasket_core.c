@@ -1357,13 +1357,7 @@ int gasket_enable_device(struct gasket_dev *gasket_dev)
 	const struct gasket_driver_desc *driver_desc =
 		gasket_dev->internal_desc->driver_desc;
 
-	ret = gasket_interrupt_init(gasket_dev, driver_desc->name,
-				    driver_desc->interrupt_type,
-				    driver_desc->interrupts,
-				    driver_desc->num_interrupts,
-				    driver_desc->interrupt_pack_width,
-				    driver_desc->interrupt_bar_index,
-				    driver_desc->wire_interrupt_offsets);
+	ret = gasket_interrupt_init(gasket_dev);
 	if (ret) {
 		dev_err(gasket_dev->dev,
 			"Critical failure to allocate interrupts: %d\n", ret);
