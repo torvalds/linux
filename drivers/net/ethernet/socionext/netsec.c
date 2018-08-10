@@ -232,8 +232,7 @@
 #define NETSEC_EEPROM_PKT_ME_ADDRESS		0x20
 #define NETSEC_EEPROM_PKT_ME_SIZE		0x24
 
-#define DESC_NUM	128
-#define NAPI_BUDGET	(DESC_NUM / 2)
+#define DESC_NUM	256
 
 #define DESC_SZ	sizeof(struct netsec_de)
 
@@ -1659,7 +1658,7 @@ static int netsec_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "hardware revision %d.%d\n",
 		 hw_ver >> 16, hw_ver & 0xffff);
 
-	netif_napi_add(ndev, &priv->napi, netsec_napi_poll, NAPI_BUDGET);
+	netif_napi_add(ndev, &priv->napi, netsec_napi_poll, NAPI_POLL_WEIGHT);
 
 	ndev->netdev_ops = &netsec_netdev_ops;
 	ndev->ethtool_ops = &netsec_ethtool_ops;
