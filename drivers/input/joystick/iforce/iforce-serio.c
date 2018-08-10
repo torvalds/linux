@@ -172,7 +172,7 @@ static irqreturn_t iforce_serio_irq(struct serio *serio,
 
 			/* Signal that command is done */
 			wake_up(&iforce->wait);
-		} else {
+		} else if (likely(iforce->type)) {
 			iforce_process_packet(iforce, iforce_serio->id,
 					      iforce->data, iforce_serio->len);
 		}

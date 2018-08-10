@@ -172,9 +172,6 @@ void iforce_process_packet(struct iforce *iforce,
 	struct input_dev *dev = iforce->dev;
 	int i, j;
 
-	if (!iforce->type)
-		return;
-
 	switch (packet_id) {
 
 	case 0x01:	/* joystick position data */
