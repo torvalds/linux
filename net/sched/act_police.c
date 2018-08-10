@@ -274,14 +274,15 @@ static int tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_police *police = to_police(a);
 	struct tc_police opt = {
 		.index = police->tcf_index,
-		.action = police->tcf_action,
-		.mtu = police->tcfp_mtu,
-		.burst = PSCHED_NS2TICKS(police->tcfp_burst),
 		.refcnt = refcount_read(&police->tcf_refcnt) - ref,
 		.bindcnt = atomic_read(&police->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 
+	spin_lock_bh(&police->tcf_lock);
+	opt.action = police->tcf_action;
+	opt.mtu = police->tcfp_mtu;
+	opt.burst = PSCHED_NS2TICKS(police->tcfp_burst);
 	if (police->rate_present)
 		psched_ratecfg_getrate(&opt.rate, &police->rate);
 	if (police->peak_present)
@@ -301,10 +302,12 @@ static int tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a,
 	t.expires = jiffies_to_clock_t(police->tcf_tm.expires);
 	if (nla_put_64bit(skb, TCA_POLICE_TM, sizeof(t), &t, TCA_POLICE_PAD))
 		goto nla_put_failure;
+	spin_unlock_bh(&police->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&police->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
