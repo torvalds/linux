@@ -417,10 +417,9 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 						     acpi_ns_get_attached_object
 						     (info->field_node),
 						     &result_desc);
-						ACPI_FREE(name_path);
-						acpi_ut_remove_reference
-						    (obj_desc);
 					}
+					acpi_ut_remove_reference(obj_desc);
+					ACPI_FREE(name_path);
 #endif
 				}
 			}
