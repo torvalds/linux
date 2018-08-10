@@ -132,22 +132,21 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect,
  * Upload the effect
  */
 	switch (effect->type) {
+	case FF_PERIODIC:
+		ret = iforce_upload_periodic(iforce, effect, old);
+		break;
 
-		case FF_PERIODIC:
-			ret = iforce_upload_periodic(iforce, effect, old);
-			break;
+	case FF_CONSTANT:
+		ret = iforce_upload_constant(iforce, effect, old);
+		break;
 
-		case FF_CONSTANT:
-			ret = iforce_upload_constant(iforce, effect, old);
-			break;
+	case FF_SPRING:
+	case FF_DAMPER:
+		ret = iforce_upload_condition(iforce, effect, old);
+		break;
 
-		case FF_SPRING:
-		case FF_DAMPER:
-			ret = iforce_upload_condition(iforce, effect, old);
-			break;
-
-		default:
-			return -EINVAL;
+	default:
+		return -EINVAL;
 	}
 
 	if (ret == 0) {
@@ -351,34 +350,29 @@ int iforce_init_device(struct device *parent, u16 bustype,
 		signed short t = iforce->type->abs[i];
 
 		switch (t) {
+		case ABS_X:
+		case ABS_Y:
+		case ABS_WHEEL:
+			input_set_abs_params(input_dev, t, -1920, 1920, 16, 128);
+			set_bit(t, input_dev->ffbit);
+			break;
 
-			case ABS_X:
-			case ABS_Y:
-			case ABS_WHEEL:
+		case ABS_THROTTLE:
+		case ABS_GAS:
+		case ABS_BRAKE:
+			input_set_abs_params(input_dev, t, 0, 255, 0, 0);
+			break;
 
-				input_set_abs_params(input_dev, t, -1920, 1920, 16, 128);
-				set_bit(t, input_dev->ffbit);
-				break;
+		case ABS_RUDDER:
+			input_set_abs_params(input_dev, t, -128, 127, 0, 0);
+			break;
 
-			case ABS_THROTTLE:
-			case ABS_GAS:
-			case ABS_BRAKE:
-
-				input_set_abs_params(input_dev, t, 0, 255, 0, 0);
-				break;
-
-			case ABS_RUDDER:
-
-				input_set_abs_params(input_dev, t, -128, 127, 0, 0);
-				break;
-
-			case ABS_HAT0X:
-			case ABS_HAT0Y:
-		        case ABS_HAT1X:
-		        case ABS_HAT1Y:
-
-				input_set_abs_params(input_dev, t, -1, 1, 0, 0);
-				break;
+		case ABS_HAT0X:
+		case ABS_HAT0Y:
+		case ABS_HAT1X:
+		case ABS_HAT1Y:
+			input_set_abs_params(input_dev, t, -1, 1, 0, 0);
+			break;
 		}
 	}
 
