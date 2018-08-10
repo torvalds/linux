@@ -184,6 +184,37 @@ struct smc_ism_event_work {
 	struct smcd_event event;
 };
 
+#define ISM_EVENT_REQUEST		0x0001
+#define ISM_EVENT_RESPONSE		0x0002
+#define ISM_EVENT_REQUEST_IR		0x00000001
+#define ISM_EVENT_CODE_TESTLINK		0x83
+
+static void smcd_handle_sw_event(struct smc_ism_event_work *wrk)
+{
+	union {
+		u64	info;
+		struct {
+			u32		uid;
+			unsigned short	vlanid;
+			u16		code;
+		};
+	} ev_info;
+
+	switch (wrk->event.code) {
+	case ISM_EVENT_CODE_TESTLINK:	/* Activity timer */
+		ev_info.info = wrk->event.info;
+		if (ev_info.code == ISM_EVENT_REQUEST) {
+			ev_info.code = ISM_EVENT_RESPONSE;
+			wrk->smcd->ops->signal_event(wrk->smcd,
+						     wrk->event.tok,
+						     ISM_EVENT_REQUEST_IR,
+						     ISM_EVENT_CODE_TESTLINK,
+						     ev_info.info);
+			}
+		break;
+	}
+}
+
 /* worker for SMC-D events */
 static void smc_ism_event_work(struct work_struct *work)
 {
@@ -195,6 +226,9 @@ static void smc_ism_event_work(struct work_struct *work)
 		smc_smcd_terminate(wrk->smcd, wrk->event.tok);
 		break;
 	case ISM_EVENT_DMB:
+		break;
+	case ISM_EVENT_SWR:	/* Software defined event */
+		smcd_handle_sw_event(wrk);
 		break;
 	}
 	kfree(wrk);
