@@ -2823,7 +2823,7 @@ bnxt_fill_coredump_seg_hdr(struct bnxt *bp,
 			   int status, u32 duration, u32 instance)
 {
 	memset(seg_hdr, 0, sizeof(*seg_hdr));
-	strcpy(seg_hdr->signature, "sEgM");
+	memcpy(seg_hdr->signature, "sEgM", 4);
 	if (seg_rec) {
 		seg_hdr->component_id = (__force __le32)seg_rec->component_id;
 		seg_hdr->segment_id = (__force __le32)seg_rec->segment_id;
@@ -2855,7 +2855,7 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 
 	time64_to_tm(start, 0, &tm);
 	memset(record, 0, sizeof(*record));
-	strcpy(record->signature, "cOrE");
+	memcpy(record->signature, "cOrE", 4);
 	record->flags = 0;
 	record->low_version = 0;
 	record->high_version = 1;
@@ -2876,7 +2876,7 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	record->os_ver_major = cpu_to_le32(os_ver_major);
 	record->os_ver_minor = cpu_to_le32(os_ver_minor);
 
-	strcpy(record->os_name, utsname()->sysname);
+	strlcpy(record->os_name, utsname()->sysname, 32);
 	time64_to_tm(end, 0, &tm);
 	record->end_year = cpu_to_le16(tm.tm_year + 1900);
 	record->end_month = cpu_to_le16(tm.tm_mon + 1);
