@@ -43,6 +43,9 @@
 #define SDHCI_CLOCK_CTRL_PADPIPE_CLKEN_OVERRIDE		BIT(3)
 #define SDHCI_CLOCK_CTRL_SPI_MODE_CLKEN_OVERRIDE	BIT(2)
 
+#define SDHCI_TEGRA_VENDOR_SYS_SW_CTRL			0x104
+#define SDHCI_TEGRA_SYS_SW_CTRL_ENHANCED_STROBE		BIT(31)
+
 #define SDHCI_TEGRA_VENDOR_CAP_OVERRIDES		0x10c
 #define SDHCI_TEGRA_CAP_OVERRIDES_DQS_TRIM_MASK		0x00003f00
 #define SDHCI_TEGRA_CAP_OVERRIDES_DQS_TRIM_SHIFT	8
@@ -292,6 +295,23 @@ static void tegra_sdhci_set_tap(struct sdhci_host *host, unsigned int tap)
 		sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 		tegra_sdhci_configure_card_clk(host, card_clk_enabled);
 	}
+}
+
+static void tegra_sdhci_hs400_enhanced_strobe(struct mmc_host *mmc,
+					      struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	u32 val;
+
+	val = sdhci_readl(host, SDHCI_TEGRA_VENDOR_SYS_SW_CTRL);
+
+	if (ios->enhanced_strobe)
+		val |= SDHCI_TEGRA_SYS_SW_CTRL_ENHANCED_STROBE;
+	else
+		val &= ~SDHCI_TEGRA_SYS_SW_CTRL_ENHANCED_STROBE;
+
+	sdhci_writel(host, val, SDHCI_TEGRA_VENDOR_SYS_SW_CTRL);
+
 }
 
 static void tegra_sdhci_reset(struct sdhci_host *host, u8 mask)
@@ -995,6 +1015,9 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 			host->mmc_host_ops.start_signal_voltage_switch =
 				sdhci_tegra_start_signal_voltage_switch;
 	}
+
+	host->mmc_host_ops.hs400_enhanced_strobe =
+			tegra_sdhci_hs400_enhanced_strobe;
 
 	rc = mmc_of_parse(host->mmc);
 	if (rc)
