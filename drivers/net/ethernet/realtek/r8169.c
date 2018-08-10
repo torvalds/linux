@@ -19,6 +19,7 @@
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
 #include <linux/in.h>
+#include <linux/io.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/interrupt.h>
@@ -28,9 +29,6 @@
 #include <linux/prefetch.h>
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
-
-#include <asm/io.h>
-#include <asm/irq.h>
 
 #define MODULENAME "r8169"
 
