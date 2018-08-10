@@ -288,6 +288,7 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	 * for foolproof you need to not assume this
 	 */
 
+	spin_lock_bh(&ipt->tcf_lock);
 	t = kmemdup(ipt->tcfi_t, ipt->tcfi_t->u.user.target_size, GFP_ATOMIC);
 	if (unlikely(!t))
 		goto nla_put_failure;
@@ -307,10 +308,12 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	if (nla_put_64bit(skb, TCA_IPT_TM, sizeof(tm), &tm, TCA_IPT_PAD))
 		goto nla_put_failure;
 
+	spin_unlock_bh(&ipt->tcf_lock);
 	kfree(t);
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&ipt->tcf_lock);
 	nlmsg_trim(skb, b);
 	kfree(t);
 	return -1;
