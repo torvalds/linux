@@ -1068,52 +1068,6 @@ static int pppol2tp_tunnel_copy_stats(struct pppol2tp_ioc_stats *stats,
 	return 0;
 }
 
-/* Session ioctl helper.
- */
-static int pppol2tp_session_ioctl(struct l2tp_session *session,
-				  unsigned int cmd, unsigned long arg)
-{
-	int err = 0;
-	struct sock *sk;
-	struct l2tp_tunnel *tunnel = session->tunnel;
-	struct pppol2tp_ioc_stats stats;
-
-	l2tp_dbg(session, L2TP_MSG_CONTROL,
-		 "%s: pppol2tp_session_ioctl(cmd=%#x, arg=%#lx)\n",
-		 session->name, cmd, arg);
-
-	sk = pppol2tp_session_get_sock(session);
-	if (!sk)
-		return -EBADR;
-
-	switch (cmd) {
-	case PPPIOCGL2TPSTATS:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		memset(&stats, 0, sizeof(stats));
-		stats.tunnel_id = tunnel->tunnel_id;
-		stats.session_id = session->session_id;
-		pppol2tp_copy_stats(&stats, &session->stats);
-		if (copy_to_user((void __user *) arg, &stats,
-				 sizeof(stats)))
-			break;
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get L2TP stats\n",
-			  session->name);
-		err = 0;
-		break;
-
-	default:
-		err = -ENOSYS;
-		break;
-	}
-
-	sock_put(sk);
-
-	return err;
-}
-
 static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 			  unsigned long arg)
 {
@@ -1172,7 +1126,9 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 
 			stats.session_id = session_id;
 		} else {
-			return pppol2tp_session_ioctl(session, cmd, arg);
+			memset(&stats, 0, sizeof(stats));
+			pppol2tp_copy_stats(&stats, &session->stats);
+			stats.session_id = session->session_id;
 		}
 		stats.tunnel_id = session->tunnel->tunnel_id;
 		stats.using_ipsec = l2tp_tunnel_uses_xfrm(session->tunnel);
