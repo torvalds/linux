@@ -35,7 +35,18 @@
 #include "rdma_core.h"
 #include "uverbs.h"
 
+struct bundle_alloc_head {
+	struct bundle_alloc_head *next;
+	u8 data[];
+};
+
 struct bundle_priv {
+	/* Must be first */
+	struct bundle_alloc_head alloc_head;
+	struct bundle_alloc_head *allocated_mem;
+	size_t internal_avail;
+	size_t internal_used;
+
 	struct ib_uverbs_attr __user *user_attrs;
 	struct ib_uverbs_attr *uattrs;
 	struct uverbs_obj_attr *destroy_attr;
@@ -45,7 +56,52 @@ struct bundle_priv {
 	 * internal_buffer.
 	 */
 	struct uverbs_attr_bundle bundle;
+	u64 internal_buffer[32];
 };
+
+/**
+ * uverbs_alloc() - Quickly allocate memory for use with a bundle
+ * @bundle: The bundle
+ * @size: Number of bytes to allocate
+ * @flags: Allocator flags
+ *
+ * The bundle allocator is intended for allocations that are connected with
+ * processing the system call related to the bundle. The allocated memory is
+ * always freed once the system call completes, and cannot be freed any other
+ * way.
+ *
+ * This tries to use a small pool of pre-allocated memory for performance.
+ */
+__malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
+			     gfp_t flags)
+{
+	struct bundle_priv *pbundle =
+		container_of(bundle, struct bundle_priv, bundle);
+	size_t new_used;
+	void *res;
+
+	if (check_add_overflow(size, pbundle->internal_used, &new_used))
+		return ERR_PTR(-EINVAL);
+
+	if (new_used > pbundle->internal_avail) {
+		struct bundle_alloc_head *buf;
+
+		buf = kvmalloc(struct_size(buf, data, size), flags);
+		if (!buf)
+			return ERR_PTR(-ENOMEM);
+		buf->next = pbundle->allocated_mem;
+		pbundle->allocated_mem = buf;
+		return buf->data;
+	}
+
+	res = (void *)pbundle->internal_buffer + pbundle->internal_used;
+	pbundle->internal_used =
+		ALIGN(new_used, sizeof(*pbundle->internal_buffer));
+	if (flags & __GFP_ZERO)
+		memset(res, 0, size);
+	return res;
+}
+EXPORT_SYMBOL(_uverbs_alloc);
 
 static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 				   u16 len)
@@ -129,17 +185,15 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		if (val_spec->alloc_and_copy && !uverbs_attr_ptr_is_inline(e)) {
 			void *p;
 
-			p = kvmalloc(uattr->len, GFP_KERNEL);
-			if (!p)
-				return -ENOMEM;
+			p = uverbs_alloc(&pbundle->bundle, uattr->len);
+			if (IS_ERR(p))
+				return PTR_ERR(p);
 
 			e->ptr_attr.ptr = p;
 
 			if (copy_from_user(p, u64_to_user_ptr(uattr->data),
-					   uattr->len)) {
-				kvfree(p);
+					   uattr->len))
 				return -EFAULT;
-			}
 		} else {
 			e->ptr_attr.data = uattr->data;
 		}
@@ -234,10 +288,6 @@ static int uverbs_finalize_attrs(struct bundle_priv *pbundle,
 					spec->u.obj.access, commit);
 				if (!ret)
 					ret = current_ret;
-			} else if (spec->type == UVERBS_ATTR_TYPE_PTR_IN &&
-				   spec->alloc_and_copy &&
-				   !uverbs_attr_ptr_is_inline(attr)) {
-				kvfree(attr->ptr_attr.ptr);
 			}
 		}
 	}
@@ -372,7 +422,18 @@ cleanup:
 	return ret ? ret : finalize_ret;
 }
 
-#define UVERBS_OPTIMIZE_USING_STACK_SZ  256
+static void bundle_destroy(struct bundle_priv *pbundle)
+{
+	struct bundle_alloc_head *memblock;
+
+	for (memblock = pbundle->allocated_mem; memblock;) {
+		struct bundle_alloc_head *tmp = memblock;
+
+		memblock = memblock->next;
+		kvfree(tmp);
+	}
+}
+
 static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 				struct ib_uverbs_file *file,
 				struct ib_uverbs_ioctl_hdr *hdr,
@@ -382,11 +443,11 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	const struct uverbs_method_spec *method_spec;
 	long err = 0;
 	unsigned int i;
+	struct bundle_priv onstack_pbundle;
 	struct bundle_priv *ctx;
 	struct uverbs_attr *curr_attr;
 	unsigned long *curr_bitmap;
 	size_t ctx_size;
-	uintptr_t data[UVERBS_OPTIMIZE_USING_STACK_SZ / sizeof(uintptr_t)];
 
 	if (hdr->driver_id != ib_dev->driver_id)
 		return -EINVAL;
@@ -399,7 +460,7 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	if (!method_spec)
 		return -EPROTONOSUPPORT;
 
-	ctx_size = sizeof(*ctx) +
+	ctx_size = sizeof(*ctx) - sizeof(ctx->internal_buffer) +
 		   sizeof(struct uverbs_attr_bundle_hash) * method_spec->num_buckets +
 		   sizeof(*ctx->uattrs) * hdr->num_attrs +
 		   sizeof(*ctx->bundle.hash[0].attrs) *
@@ -408,17 +469,26 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 			(method_spec->num_child_attrs / BITS_PER_LONG +
 			 method_spec->num_buckets);
 
-	if (ctx_size <= UVERBS_OPTIMIZE_USING_STACK_SZ)
-		ctx = (void *)data;
-	if (!ctx)
+	if (ctx_size <= sizeof(onstack_pbundle)) {
+		ctx = &onstack_pbundle;
+		ctx->internal_avail =
+			sizeof(onstack_pbundle) -
+			offsetof(struct bundle_priv, internal_buffer);
+		ctx->allocated_mem = NULL;
+	} else {
 		ctx = kmalloc(ctx_size, GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+		if (!ctx)
+			return -ENOMEM;
+		ctx->internal_avail = 0;
+		ctx->alloc_head.next = NULL;
+		ctx->allocated_mem = &ctx->alloc_head;
+	}
 
 	ctx->uattrs = (void *)(ctx + 1) +
 		      (sizeof(ctx->bundle.hash[0]) * method_spec->num_buckets);
 	curr_attr = (void *)(ctx->uattrs + hdr->num_attrs);
 	curr_bitmap = (void *)(curr_attr + method_spec->num_child_attrs);
+	ctx->internal_used = ALIGN(ctx_size, sizeof(*ctx->internal_buffer));
 
 	/*
 	 * We just fill the pointers and num_attrs here. The data itself will be
@@ -462,8 +532,7 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 		err = -EINVAL;
 	}
 out:
-	if (ctx != (void *)data)
-		kfree(ctx);
+	bundle_destroy(ctx);
 	return err;
 }
 

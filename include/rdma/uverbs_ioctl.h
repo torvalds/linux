@@ -651,6 +651,20 @@ int uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		       size_t idx, u64 allowed_bits);
 int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle, size_t idx,
 		   const void *from, size_t size);
+__malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
+			     gfp_t flags);
+
+static inline __malloc void *uverbs_alloc(struct uverbs_attr_bundle *bundle,
+					  size_t size)
+{
+	return _uverbs_alloc(bundle, size, GFP_KERNEL);
+}
+
+static inline __malloc void *uverbs_zalloc(struct uverbs_attr_bundle *bundle,
+					   size_t size)
+{
+	return _uverbs_alloc(bundle, size, GFP_KERNEL | __GFP_ZERO);
+}
 #else
 static inline int
 uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
@@ -668,6 +682,16 @@ static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
 				 size_t idx, const void *from, size_t size)
 {
 	return -EINVAL;
+}
+static inline __malloc void *uverbs_alloc(struct uverbs_attr_bundle *bundle,
+					  size_t size)
+{
+	return ERR_PTR(-EINVAL);
+}
+static inline __malloc void *uverbs_zalloc(struct uverbs_attr_bundle *bundle,
+					   size_t size)
+{
+	return ERR_PTR(-EINVAL);
 }
 #endif
 
