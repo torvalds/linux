@@ -1856,6 +1856,51 @@ add_durable_context(struct kvec *iov, unsigned int *num_iovec,
 	return 0;
 }
 
+/* See MS-SMB2 2.2.13.2.7 */
+static struct crt_twarp_ctxt *
+create_twarp_buf(__u64 timewarp)
+{
+	struct crt_twarp_ctxt *buf;
+
+	buf = kzalloc(sizeof(struct crt_twarp_ctxt), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct crt_twarp_ctxt, Timestamp));
+	buf->ccontext.DataLength = cpu_to_le32(8);
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct crt_twarp_ctxt, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	/* SMB2_CREATE_TIMEWARP_TOKEN is "TWrp" */
+	buf->Name[0] = 'T';
+	buf->Name[1] = 'W';
+	buf->Name[2] = 'r';
+	buf->Name[3] = 'p';
+	buf->Timestamp = cpu_to_le64(timewarp);
+	return buf;
+}
+
+/* See MS-SMB2 2.2.13.2.7 */
+static int
+add_twarp_context(struct kvec *iov, unsigned int *num_iovec, __u64 timewarp)
+{
+	struct smb2_create_req *req = iov[0].iov_base;
+	unsigned int num = *num_iovec;
+
+	iov[num].iov_base = create_twarp_buf(timewarp);
+	if (iov[num].iov_base == NULL)
+		return -ENOMEM;
+	iov[num].iov_len = sizeof(struct crt_twarp_ctxt);
+	if (!req->CreateContextsOffset)
+		req->CreateContextsOffset = cpu_to_le32(
+				sizeof(struct smb2_create_req) +
+				iov[num - 1].iov_len);
+	le32_add_cpu(&req->CreateContextsLength, sizeof(struct crt_twarp_ctxt));
+	*num_iovec = num + 1;
+	return 0;
+}
+
 static int
 alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 			    const char *treename, const __le16 *path)
@@ -2167,6 +2212,21 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 		if (rc)
 			return rc;
 	}
+
+	if (tcon->snapshot_time) {
+		cifs_dbg(FYI, "adding snapshot context\n");
+		if (n_iov > 2) {
+			struct create_context *ccontext =
+			    (struct create_context *)iov[n_iov-1].iov_base;
+			ccontext->Next =
+				cpu_to_le32(iov[n_iov-1].iov_len);
+		}
+
+		rc = add_twarp_context(iov, &n_iov, tcon->snapshot_time);
+		if (rc)
+			return rc;
+	}
+
 
 	rqst->rq_nvec = n_iov;
 	return 0;

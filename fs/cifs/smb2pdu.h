@@ -767,6 +767,14 @@ struct create_durable_handle_reconnect_v2 {
 	struct durable_reconnect_context_v2 dcontext;
 } __packed;
 
+/* See MS-SMB2 2.2.13.2.5 */
+struct crt_twarp_ctxt {
+	struct create_context ccontext;
+	__u8	Name[8];
+	__le64	Timestamp;
+
+} __packed;
+
 #define COPY_CHUNK_RES_KEY_SIZE	24
 struct resume_key_req {
 	char ResumeKey[COPY_CHUNK_RES_KEY_SIZE];
