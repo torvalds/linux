@@ -432,7 +432,7 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	else if (tcon->ses->user_name)
 		seq_show_option(s, "username", tcon->ses->user_name);
 
-	if (tcon->ses->domainName)
+	if (tcon->ses->domainName && tcon->ses->domainName[0] != 0)
 		seq_show_option(s, "domain", tcon->ses->domainName);
 
 	if (srcaddr->sa_family != AF_UNSPEC) {
