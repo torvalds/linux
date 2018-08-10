@@ -64,6 +64,17 @@
 #define PFUZE3000_VLDO3		11
 #define PFUZE3000_VLDO4		12
 
+#define PFUZE3001_SW1		0
+#define PFUZE3001_SW2		1
+#define PFUZE3001_SW3		2
+#define PFUZE3001_VSNVS		3
+#define PFUZE3001_VLDO1		4
+#define PFUZE3001_VLDO2		5
+#define PFUZE3001_VCCSD		6
+#define PFUZE3001_V33		7
+#define PFUZE3001_VLDO3		8
+#define PFUZE3001_VLDO4		9
+
 struct regulator_init_data;
 
 struct pfuze_regulator_platform_data {
