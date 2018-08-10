@@ -107,8 +107,6 @@ struct iforce {
 	const struct iforce_xport_ops *xport_ops;
 	int bus;
 
-	unsigned char data[IFORCE_MAX_LENGTH];
-
 	spinlock_t xmit_lock;
 	/* Buffer used for asynchronous sending of bytes to the device */
 	struct circ_buf xmit;

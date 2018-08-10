@@ -30,6 +30,9 @@ struct iforce_usb {
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
 	struct urb *irq, *out;
+
+	u8 data_in[IFORCE_MAX_LENGTH] ____cacheline_aligned;
+	u8 data_out[IFORCE_MAX_LENGTH] ____cacheline_aligned;
 };
 
 static void __iforce_usb_xmit(struct iforce *iforce)
@@ -171,8 +174,8 @@ static void iforce_usb_irq(struct urb *urb)
 		goto exit;
 	}
 
-	iforce_process_packet(iforce, iforce->data[0],
-			      iforce->data + 1, urb->actual_length - 1);
+	iforce_process_packet(iforce, iforce_usb->data_in[0],
+			      iforce_usb->data_in + 1, urb->actual_length - 1);
 
 exit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -216,13 +219,16 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	epirq = &interface->endpoint[0].desc;
 	epout = &interface->endpoint[1].desc;
 
-	if (!(iforce_usb = kzalloc(sizeof(*iforce_usb) + 32, GFP_KERNEL)))
+	iforce_usb = kzalloc(sizeof(*iforce_usb), GFP_KERNEL);
+	if (!iforce_usb)
 		goto fail;
 
-	if (!(iforce_usb->irq = usb_alloc_urb(0, GFP_KERNEL)))
+	iforce_usb->irq = usb_alloc_urb(0, GFP_KERNEL);
+	if (!iforce_usb->irq)
 		goto fail;
 
-	if (!(iforce_usb->out = usb_alloc_urb(0, GFP_KERNEL)))
+	iforce_usb->out = usb_alloc_urb(0, GFP_KERNEL);
+	if (!iforce_usb->out)
 		goto fail;
 
 	iforce = &iforce_usb->iforce;
@@ -233,11 +239,15 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	iforce_usb->usbdev = dev;
 	iforce_usb->intf = intf;
 
-	usb_fill_int_urb(iforce_usb->irq, dev, usb_rcvintpipe(dev, epirq->bEndpointAddress),
-			iforce->data, 16, iforce_usb_irq, iforce_usb, epirq->bInterval);
+	usb_fill_int_urb(iforce_usb->irq, dev,
+			 usb_rcvintpipe(dev, epirq->bEndpointAddress),
+			 iforce_usb->data_in, sizeof(iforce_usb->data_in),
+			 iforce_usb_irq, iforce_usb, epirq->bInterval);
 
-	usb_fill_int_urb(iforce_usb->out, dev, usb_sndintpipe(dev, epout->bEndpointAddress),
-			iforce_usb + 1, 32, iforce_usb_out, iforce_usb, epout->bInterval);
+	usb_fill_int_urb(iforce_usb->out, dev,
+			 usb_sndintpipe(dev, epout->bEndpointAddress),
+			 iforce_usb->data_out, sizeof(iforce_usb->data_out),
+			 iforce_usb_out, iforce_usb, epout->bInterval);
 
 	err = iforce_init_device(&intf->dev, BUS_USB, iforce);
 	if (err)
