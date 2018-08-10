@@ -710,9 +710,6 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	void *hdr;
 	struct nlattr *nest;
 	struct l2tp_tunnel *tunnel = session->tunnel;
-	struct sock *sk = NULL;
-
-	sk = tunnel->sock;
 
 	hdr = genlmsg_put(skb, portid, seq, &l2tp_nl_family, flags, cmd);
 	if (!hdr)
@@ -738,10 +735,8 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	    nla_put_u8(skb, L2TP_ATTR_RECV_SEQ, session->recv_seq) ||
 	    nla_put_u8(skb, L2TP_ATTR_SEND_SEQ, session->send_seq) ||
 	    nla_put_u8(skb, L2TP_ATTR_LNS_MODE, session->lns_mode) ||
-#ifdef CONFIG_XFRM
-	    (((sk) && (sk->sk_policy[0] || sk->sk_policy[1])) &&
+	    (l2tp_tunnel_uses_xfrm(tunnel) &&
 	     nla_put_u8(skb, L2TP_ATTR_USING_IPSEC, 1)) ||
-#endif
 	    (session->reorder_timeout &&
 	     nla_put_msecs(skb, L2TP_ATTR_RECV_TIMEOUT,
 			   session->reorder_timeout, L2TP_ATTR_PAD)))

@@ -95,7 +95,6 @@
 #include <net/netns/generic.h>
 #include <net/ip.h>
 #include <net/udp.h>
-#include <net/xfrm.h>
 #include <net/inet_common.h>
 
 #include <asm/byteorder.h>
@@ -1153,9 +1152,7 @@ static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
 			l2tp_session_dec_refcount(session);
 			break;
 		}
-#ifdef CONFIG_XFRM
-		stats.using_ipsec = (sk->sk_policy[0] || sk->sk_policy[1]) ? 1 : 0;
-#endif
+		stats.using_ipsec = l2tp_tunnel_uses_xfrm(tunnel);
 		pppol2tp_copy_stats(&stats, &tunnel->stats);
 		if (copy_to_user((void __user *) arg, &stats, sizeof(stats))) {
 			err = -EFAULT;

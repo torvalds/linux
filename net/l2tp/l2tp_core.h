@@ -15,6 +15,10 @@
 #include <net/dst.h>
 #include <net/sock.h>
 
+#ifdef CONFIG_XFRM
+#include <net/xfrm.h>
+#endif
+
 /* Just some random numbers */
 #define L2TP_TUNNEL_MAGIC	0x42114DDA
 #define L2TP_SESSION_MAGIC	0x0C04EB7D
@@ -283,6 +287,21 @@ static inline u32 l2tp_tunnel_dst_mtu(const struct l2tp_tunnel *tunnel)
 
 	return mtu;
 }
+
+#ifdef CONFIG_XFRM
+static inline bool l2tp_tunnel_uses_xfrm(const struct l2tp_tunnel *tunnel)
+{
+	struct sock *sk = tunnel->sock;
+
+	return sk && (rcu_access_pointer(sk->sk_policy[0]) ||
+		      rcu_access_pointer(sk->sk_policy[1]));
+}
+#else
+static inline bool l2tp_tunnel_uses_xfrm(const struct l2tp_tunnel *tunnel)
+{
+	return false;
+}
+#endif
 
 #define l2tp_printk(ptr, type, func, fmt, ...)				\
 do {									\
