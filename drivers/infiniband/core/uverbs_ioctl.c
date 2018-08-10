@@ -470,47 +470,32 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 	return ret;
 }
 
-#define IB_UVERBS_MAX_CMD_SZ 4096
-
 long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct ib_uverbs_file *file = filp->private_data;
 	struct ib_uverbs_ioctl_hdr __user *user_hdr =
 		(struct ib_uverbs_ioctl_hdr __user *)arg;
 	struct ib_uverbs_ioctl_hdr hdr;
-	struct ib_device *ib_dev;
 	int srcu_key;
-	long err;
+	int err;
+
+	if (unlikely(cmd != RDMA_VERBS_IOCTL))
+		return -ENOIOCTLCMD;
+
+	err = copy_from_user(&hdr, user_hdr, sizeof(hdr));
+	if (err)
+		return -EFAULT;
+
+	if (hdr.length > PAGE_SIZE ||
+	    hdr.length != struct_size(&hdr, attrs, hdr.num_attrs))
+		return -EINVAL;
+
+	if (hdr.reserved1 || hdr.reserved2)
+		return -EPROTONOSUPPORT;
 
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
-	ib_dev = srcu_dereference(file->device->ib_dev,
-				  &file->device->disassociate_srcu);
-	if (!ib_dev) {
-		err = -EIO;
-		goto out;
-	}
-
-	if (cmd == RDMA_VERBS_IOCTL) {
-		err = copy_from_user(&hdr, user_hdr, sizeof(hdr));
-
-		if (err || hdr.length > IB_UVERBS_MAX_CMD_SZ ||
-		    hdr.length != sizeof(hdr) + hdr.num_attrs * sizeof(struct ib_uverbs_attr)) {
-			err = -EINVAL;
-			goto out;
-		}
-
-		if (hdr.reserved1 || hdr.reserved2) {
-			err = -EPROTONOSUPPORT;
-			goto out;
-		}
-
-		err = ib_uverbs_cmd_verbs(file, &hdr, user_hdr->attrs);
-	} else {
-		err = -ENOIOCTLCMD;
-	}
-out:
+	err = ib_uverbs_cmd_verbs(file, &hdr, user_hdr->attrs);
 	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
-
 	return err;
 }
 
