@@ -1789,7 +1789,6 @@ static int __init gasket_init(void)
 {
 	int i;
 
-	pr_debug("%s\n", __func__);
 	mutex_lock(&g_mutex);
 	for (i = 0; i < GASKET_FRAMEWORK_DESC_MAX; i++) {
 		g_descs[i].driver_desc = NULL;
@@ -1804,7 +1803,6 @@ static int __init gasket_init(void)
 
 static void __exit gasket_exit(void)
 {
-	pr_debug("%s\n", __func__);
 }
 MODULE_DESCRIPTION("Google Gasket driver framework");
 MODULE_VERSION(GASKET_FRAMEWORK_VERSION);
