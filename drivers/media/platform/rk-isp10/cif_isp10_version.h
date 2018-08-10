@@ -114,8 +114,12 @@
  *5. fix the issue that setting of isp0 mipi affect txrx dphy.
  *6. fix the issue cannot set exposure by mp path device.
  *
+ *v0.2.0x1
+ *1. add isp reset function.
+ *2. fix the issue that setting of isp0 mipi affect txrx dphy.
+ *
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 2, 0x0)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 2, 0x1)
 
 #endif
