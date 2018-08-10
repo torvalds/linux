@@ -189,26 +189,26 @@ static int gasket_find_dev_slot(struct gasket_internal_desc *internal_desc,
  * Returns 0 if successful, a negative error code otherwise.
  */
 static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
-			    struct device *parent, struct gasket_dev **pdev,
-			    const char *kobj_name)
+			    struct device *parent, struct gasket_dev **pdev)
 {
 	int dev_idx;
 	const struct gasket_driver_desc *driver_desc =
 		internal_desc->driver_desc;
 	struct gasket_dev *gasket_dev;
 	struct gasket_cdev_info *dev_info;
+	const char *parent_name = dev_name(parent);
 
-	pr_debug("Allocating a Gasket device %s.\n", kobj_name);
+	pr_debug("Allocating a Gasket device, parent %s.\n", parent_name);
 
 	*pdev = NULL;
 
-	dev_idx = gasket_find_dev_slot(internal_desc, kobj_name);
+	dev_idx = gasket_find_dev_slot(internal_desc, parent_name);
 	if (dev_idx < 0)
 		return dev_idx;
 
 	gasket_dev = *pdev = kzalloc(sizeof(*gasket_dev), GFP_KERNEL);
 	if (!gasket_dev) {
-		pr_err("no memory for device %s\n", kobj_name);
+		pr_err("no memory for device, parent %s\n", parent_name);
 		return -ENOMEM;
 	}
 	internal_desc->devs[dev_idx] = gasket_dev;
@@ -217,7 +217,7 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 
 	gasket_dev->internal_desc = internal_desc;
 	gasket_dev->dev_idx = dev_idx;
-	snprintf(gasket_dev->kobj_name, GASKET_NAME_MAX, "%s", kobj_name);
+	snprintf(gasket_dev->kobj_name, GASKET_NAME_MAX, "%s", parent_name);
 	gasket_dev->dev = get_device(parent);
 	/* gasket_bar_data is uninitialized. */
 	gasket_dev->num_page_tables = driver_desc->num_page_tables;
@@ -1431,13 +1431,12 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 			  struct gasket_dev **gasket_devp)
 {
 	int ret;
-	const char *kobj_name = dev_name(&pci_dev->dev);
 	struct gasket_internal_desc *internal_desc;
 	struct gasket_dev *gasket_dev;
 	const struct gasket_driver_desc *driver_desc;
 	struct device *parent;
 
-	pr_debug("add PCI device %s\n", kobj_name);
+	dev_dbg(&pci_dev->dev, "add PCI gasket device\n");
 
 	mutex_lock(&g_mutex);
 	internal_desc = lookup_internal_desc(pci_dev);
@@ -1451,7 +1450,7 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 	driver_desc = internal_desc->driver_desc;
 
 	parent = &pci_dev->dev;
-	ret = gasket_alloc_dev(internal_desc, parent, &gasket_dev, kobj_name);
+	ret = gasket_alloc_dev(internal_desc, parent, &gasket_dev);
 	if (ret)
 		return ret;
 	gasket_dev->pci_dev = pci_dev;
