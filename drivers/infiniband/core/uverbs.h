@@ -111,7 +111,6 @@ struct ib_uverbs_device {
 	struct mutex				lists_mutex; /* protect lists */
 	struct list_head			uverbs_file_list;
 	struct list_head			uverbs_events_file_list;
-	struct uverbs_root_spec			*specs_root;
 	struct uverbs_api			*uapi;
 };
 

@@ -176,7 +176,6 @@ static void ib_uverbs_release_dev(struct kobject *kobj)
 
 	uverbs_destroy_api(dev->uapi);
 	cleanup_srcu_struct(&dev->disassociate_srcu);
-	uverbs_free_spec_tree(dev->specs_root);
 	kfree(dev);
 }
 
@@ -998,37 +997,12 @@ static CLASS_ATTR_STRING(abi_version, S_IRUGO,
 static int ib_uverbs_create_uapi(struct ib_device *device,
 				 struct ib_uverbs_device *uverbs_dev)
 {
-	const struct uverbs_object_tree_def **specs;
-	struct uverbs_root_spec *specs_root;
-	unsigned int num_specs = 1;
 	struct uverbs_api *uapi;
-	unsigned int i;
-
-	if (device->driver_specs)
-		for (i = 0; device->driver_specs[i]; i++)
-			num_specs++;
-
-	specs = kmalloc_array(num_specs, sizeof(*specs), GFP_KERNEL);
-	if (!specs)
-		return -ENOMEM;
-
-	specs[0] = uverbs_default_get_objects();
-	if (device->driver_specs)
-		for (i = 0; device->driver_specs[i]; i++)
-			specs[i+1] = device->driver_specs[i];
-
-	specs_root = uverbs_alloc_spec_tree(num_specs, specs);
-	kfree(specs);
-	if (IS_ERR(specs_root))
-		return PTR_ERR(specs_root);
 
 	uapi = uverbs_alloc_api(device->driver_specs, device->driver_id);
-	if (IS_ERR(uapi)) {
-		uverbs_free_spec_tree(specs_root);
+	if (IS_ERR(uapi))
 		return PTR_ERR(uapi);
-	}
 
-	uverbs_dev->specs_root = specs_root;
 	uverbs_dev->uapi = uapi;
 	return 0;
 }
