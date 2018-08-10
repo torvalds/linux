@@ -3550,6 +3550,7 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 	u32 polarity;
 	u32 level;
 	u32 data;
+	u32 inten;
 	unsigned long flags;
 	int ret;
 
@@ -3620,8 +3621,19 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
+	/*
+	 * Accroding to the steps of gpio interrupt, write GPIO_INTEN[x] as
+	 * 1 to enable GPIO’s interrupt should be done after the level and
+	 * polarity configured.
+	 */
+
+	inten = readl_relaxed(gc->reg_base + GPIO_INTEN);
+	inten &= ~mask;
+	writel_relaxed(inten, gc->reg_base + GPIO_INTEN);
 	writel_relaxed(level, gc->reg_base + GPIO_INTTYPE_LEVEL);
 	writel_relaxed(polarity, gc->reg_base + GPIO_INT_POLARITY);
+	inten |= mask;
+	writel_relaxed(inten, gc->reg_base + GPIO_INTEN);
 
 	irq_gc_unlock(gc);
 	raw_spin_unlock_irqrestore(&bank->slock, flags);
