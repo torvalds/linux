@@ -558,6 +558,14 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 						  (char *)&current_node->name,
 						  current_node));
 			}
+#ifdef ACPI_EXEC_APP
+			if ((status == AE_ALREADY_EXISTS) &&
+			    (this_node->flags & ANOBJ_NODE_EARLY_INIT)) {
+				this_node->flags &= ~ANOBJ_NODE_EARLY_INIT;
+				status = AE_OK;
+			}
+#endif
+
 #ifdef ACPI_ASL_COMPILER
 			/*
 			 * If this ACPI name already exists within the namespace as an
@@ -676,6 +684,11 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			}
 		}
 	}
+#ifdef ACPI_EXEC_APP
+	if (flags & ACPI_NS_EARLY_INIT) {
+		this_node->flags |= ANOBJ_NODE_EARLY_INIT;
+	}
+#endif
 
 	*return_node = this_node;
 	return_ACPI_STATUS(AE_OK);
