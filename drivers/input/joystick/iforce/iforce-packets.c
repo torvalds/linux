@@ -166,7 +166,8 @@ static void iforce_report_hats_buttons(struct iforce *iforce, u8 *data)
 	}
 }
 
-void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
+void iforce_process_packet(struct iforce *iforce,
+			   u8 packet_id, u8 *data, size_t len)
 {
 	struct input_dev *dev = iforce->dev;
 	int i, j;
@@ -176,14 +177,14 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 	if (!iforce->type)
 		return;
 
-	switch (HI(cmd)) {
+	switch (packet_id) {
 
 	case 0x01:	/* joystick position data */
 		input_report_abs(dev, ABS_X, (__s16) (((__s16)data[1] << 8) | data[0]));
 		input_report_abs(dev, ABS_Y, (__s16) (((__s16)data[3] << 8) | data[2]));
 		input_report_abs(dev, ABS_THROTTLE, 255 - data[4]);
 
-		if (LO(cmd) >= 8 && test_bit(ABS_RUDDER ,dev->absbit))
+		if (len >= 8 && test_bit(ABS_RUDDER ,dev->absbit))
 			input_report_abs(dev, ABS_RUDDER, (__s8)data[7]);
 
 		iforce_report_hats_buttons(iforce, data);
@@ -217,7 +218,7 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 			input_report_ff_status(dev, i, FF_STATUS_STOPPED);
 		}
 
-		for (j = 3; j < LO(cmd); j += 2)
+		for (j = 3; j < len; j += 2)
 			mark_core_as_ready(iforce, data[j] | (data[j + 1] << 8));
 
 		break;

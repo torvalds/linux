@@ -170,8 +170,8 @@ static void iforce_usb_irq(struct urb *urb)
 		goto exit;
 	}
 
-	iforce_process_packet(iforce,
-		(iforce->data[0] << 8) | (urb->actual_length - 1), iforce->data + 1);
+	iforce_process_packet(iforce, iforce->data[0],
+			      iforce->data + 1, urb->actual_length - 1);
 
 exit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);

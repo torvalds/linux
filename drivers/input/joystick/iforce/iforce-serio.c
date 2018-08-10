@@ -163,16 +163,16 @@ static irqreturn_t iforce_serio_irq(struct serio *serio,
 	}
 
 	if (iforce_serio->idx == iforce_serio->len) {
-		u16 cmd = (iforce_serio->id << 8) | iforce_serio->idx;
-
 		/* Handle command completion */
 		if (iforce_serio->expect_packet == iforce_serio->id) {
 			iforce_serio->expect_packet = 0;
-			iforce->ecmd = cmd;
+			iforce->ecmd = (iforce_serio->id << 8) |
+					iforce_serio->idx;
 			memcpy(iforce->edata, iforce->data, IFORCE_MAX_LENGTH);
 		}
 
-		iforce_process_packet(iforce, cmd, iforce->data);
+		iforce_process_packet(iforce, iforce_serio->id,
+				      iforce->data, iforce_serio->len);
 
 		iforce_serio->pkt = 0;
 		iforce_serio->id  = 0;
