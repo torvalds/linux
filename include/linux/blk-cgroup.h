@@ -342,20 +342,14 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
 }
 
 /**
- * blkg_lookup - look up blkg for the specified request queue
+ * blk_queue_root_blkg - return blkg for the (blkcg_root, @q) pair
  * @q: request_queue of interest
  *
  * Lookup blkg for @q at the root level. See also blkg_lookup().
  */
-static inline struct blkcg_gq *blkg_root_lookup(struct request_queue *q)
+static inline struct blkcg_gq *blk_queue_root_blkg(struct request_queue *q)
 {
-	struct blkcg_gq *blkg;
-
-	rcu_read_lock();
-	blkg = blkg_lookup(&blkcg_root, q);
-	rcu_read_unlock();
-
-	return blkg;
+	return q->root_blkg;
 }
 
 /**
@@ -881,7 +875,8 @@ static inline bool blk_cgroup_congested(void) { return false; }
 static inline void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay) { }
 
 static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { return NULL; }
-static inline struct blkcg_gq *blkg_root_lookup(struct request_queue *q) { return NULL; }
+static inline struct blkcg_gq *blk_queue_root_blkg(struct request_queue *q)
+{ return NULL; }
 static inline int blkcg_init_queue(struct request_queue *q) { return 0; }
 static inline void blkcg_drain_queue(struct request_queue *q) { }
 static inline void blkcg_exit_queue(struct request_queue *q) { }

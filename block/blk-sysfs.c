@@ -813,7 +813,7 @@ static void __blk_release_queue(struct work_struct *work)
 		blk_exit_queue(q);
 	}
 
-	WARN(blkg_root_lookup(q),
+	WARN(blk_queue_root_blkg(q),
 	     "request queue %p is being released but it has not yet been removed from the blkcg controller\n",
 	     q);
 
