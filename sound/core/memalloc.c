@@ -82,26 +82,22 @@ EXPORT_SYMBOL(snd_free_pages);
 
 #ifdef CONFIG_HAS_DMA
 /* allocate the coherent DMA pages */
-static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *dma)
+static void snd_malloc_dev_pages(struct snd_dma_buffer *dmab, size_t size)
 {
 	gfp_t gfp_flags;
 
-	if (WARN_ON(!dma))
-		return NULL;
 	gfp_flags = GFP_KERNEL
 		| __GFP_COMP	/* compound page lets parts be mapped */
 		| __GFP_NORETRY /* don't trigger OOM-killer */
 		| __GFP_NOWARN; /* no stack trace print - this call is non-critical */
-	return dma_alloc_coherent(dev, size, dma, gfp_flags);
+	dmab->area = dma_alloc_coherent(dmab->dev.dev, size, &dmab->addr,
+					gfp_flags);
 }
 
 /* free the coherent DMA pages */
-static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
-			       dma_addr_t dma)
+static void snd_free_dev_pages(struct snd_dma_buffer *dmab)
 {
-	if (ptr == NULL)
-		return;
-	dma_free_coherent(dev, size, ptr, dma);
+	dma_free_coherent(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
 }
 
 #ifdef CONFIG_GENERIC_ALLOCATOR
@@ -195,7 +191,7 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		dmab->dev.type = SNDRV_DMA_TYPE_DEV;
 #endif /* CONFIG_GENERIC_ALLOCATOR */
 	case SNDRV_DMA_TYPE_DEV:
-		dmab->area = snd_malloc_dev_pages(device, size, &dmab->addr);
+		snd_malloc_dev_pages(dmab, size);
 		break;
 #endif
 #ifdef CONFIG_SND_DMA_SGBUF
@@ -270,7 +266,7 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
 		break;
 #endif /* CONFIG_GENERIC_ALLOCATOR */
 	case SNDRV_DMA_TYPE_DEV:
-		snd_free_dev_pages(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
+		snd_free_dev_pages(dmab);
 		break;
 #endif
 #ifdef CONFIG_SND_DMA_SGBUF
