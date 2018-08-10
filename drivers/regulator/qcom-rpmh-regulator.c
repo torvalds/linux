@@ -504,6 +504,7 @@ static unsigned int rpmh_regulator_pmic4_ldo_of_map_mode(unsigned int rpmh_mode)
 		break;
 	default:
 		mode = REGULATOR_MODE_INVALID;
+		break;
 	}
 
 	return mode;
@@ -537,6 +538,7 @@ rpmh_regulator_pmic4_smps_of_map_mode(unsigned int rpmh_mode)
 		break;
 	default:
 		mode = REGULATOR_MODE_INVALID;
+		break;
 	}
 
 	return mode;
@@ -566,6 +568,7 @@ static unsigned int rpmh_regulator_pmic4_bob_of_map_mode(unsigned int rpmh_mode)
 		break;
 	default:
 		mode = REGULATOR_MODE_INVALID;
+		break;
 	}
 
 	return mode;
