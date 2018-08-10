@@ -3592,13 +3592,24 @@ static int fbcon_init_device(void)
 }
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
+static void fbcon_register_existing_fbs(struct work_struct *work)
+{
+	int i;
+
+	console_lock();
+
+	for_each_registered_fb(i)
+		fbcon_fb_registered(registered_fb[i]);
+
+	console_unlock();
+}
+
 static struct notifier_block fbcon_output_nb;
+static DECLARE_WORK(fbcon_deferred_takeover_work, fbcon_register_existing_fbs);
 
 static int fbcon_output_notifier(struct notifier_block *nb,
 				 unsigned long action, void *data)
 {
-	int i;
-
 	WARN_CONSOLE_UNLOCKED();
 
 	pr_info("fbcon: Taking over console\n");
@@ -3607,8 +3618,8 @@ static int fbcon_output_notifier(struct notifier_block *nb,
 	deferred_takeover = false;
 	logo_shown = FBCON_LOGO_DONTSHOW;
 
-	for_each_registered_fb(i)
-		fbcon_fb_registered(registered_fb[i]);
+	/* We may get called in atomic context */
+	schedule_work(&fbcon_deferred_takeover_work);
 
 	return NOTIFY_OK;
 }
