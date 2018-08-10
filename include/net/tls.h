@@ -124,10 +124,6 @@ struct tls_sw_context_rx {
 	struct sk_buff *recv_pkt;
 	u8 control;
 	bool decrypted;
-
-	char rx_aad_ciphertext[TLS_AAD_SPACE_SIZE];
-	char rx_aad_plaintext[TLS_AAD_SPACE_SIZE];
-
 };
 
 struct tls_record_info {
