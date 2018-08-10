@@ -21,6 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <asm/unaligned.h>
 #include "iforce.h"
 
 static struct {
@@ -175,8 +176,10 @@ void iforce_process_packet(struct iforce *iforce,
 	switch (packet_id) {
 
 	case 0x01:	/* joystick position data */
-		input_report_abs(dev, ABS_X, (__s16) (((__s16)data[1] << 8) | data[0]));
-		input_report_abs(dev, ABS_Y, (__s16) (((__s16)data[3] << 8) | data[2]));
+		input_report_abs(dev, ABS_X,
+				 (__s16) get_unaligned_le16(data));
+		input_report_abs(dev, ABS_Y,
+				 (__s16) get_unaligned_le16(data + 2));
 		input_report_abs(dev, ABS_THROTTLE, 255 - data[4]);
 
 		if (len >= 8 && test_bit(ABS_RUDDER ,dev->absbit))
@@ -188,7 +191,8 @@ void iforce_process_packet(struct iforce *iforce,
 		break;
 
 	case 0x03:	/* wheel position data */
-		input_report_abs(dev, ABS_WHEEL, (__s16) (((__s16)data[1] << 8) | data[0]));
+		input_report_abs(dev, ABS_WHEEL,
+				 (__s16) get_unaligned_le16(data));
 		input_report_abs(dev, ABS_GAS,   255 - data[2]);
 		input_report_abs(dev, ABS_BRAKE, 255 - data[3]);
 
@@ -214,7 +218,7 @@ void iforce_process_packet(struct iforce *iforce,
 		}
 
 		for (j = 3; j < len; j += 2)
-			mark_core_as_ready(iforce, data[j] | (data[j + 1] << 8));
+			mark_core_as_ready(iforce, get_unaligned_le16(data + j));
 
 		break;
 	}
