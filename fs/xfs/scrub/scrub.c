@@ -226,7 +226,7 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_fs,
 		.scrub	= xchk_agi,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_agi,
 	},
 	[XFS_SCRUB_TYPE_BNOBT] = {	/* bnobt */
 		.type	= ST_PERAG,

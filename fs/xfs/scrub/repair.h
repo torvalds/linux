@@ -60,6 +60,7 @@ int xrep_probe(struct xfs_scrub *sc);
 int xrep_superblock(struct xfs_scrub *sc);
 int xrep_agf(struct xfs_scrub *sc);
 int xrep_agfl(struct xfs_scrub *sc);
+int xrep_agi(struct xfs_scrub *sc);
 
 #else
 
@@ -85,6 +86,7 @@ xrep_calc_ag_resblks(
 #define xrep_superblock			xrep_notsupported
 #define xrep_agf			xrep_notsupported
 #define xrep_agfl			xrep_notsupported
+#define xrep_agi			xrep_notsupported
 
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 
