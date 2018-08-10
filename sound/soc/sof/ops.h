@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <sound/pcm.h>
 #include <uapi/sound/sof-ipc.h>
 #include "sof-priv.h"
 
@@ -261,6 +262,17 @@ snd_sof_pcm_platform_trigger(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops && sdev->ops->pcm_trigger)
 		return sdev->ops->pcm_trigger(sdev, substream, cmd);
+	else
+		return 0;
+}
+
+/* host stream pointer */
+static inline snd_pcm_uframes_t
+snd_sof_pcm_platform_pointer(struct snd_sof_dev *sdev,
+			     struct snd_pcm_substream *substream)
+{
+	if (sdev->ops && sdev->ops->pcm_pointer)
+		return sdev->ops->pcm_pointer(sdev, substream);
 	else
 		return 0;
 }

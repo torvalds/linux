@@ -138,6 +138,10 @@ struct snd_sof_dsp_ops {
 	int (*pcm_trigger)(struct snd_sof_dev *sdev,
 			   struct snd_pcm_substream *substream, int cmd);
 
+	/* host stream pointer */
+	snd_pcm_uframes_t (*pcm_pointer)(struct snd_sof_dev *sdev,
+					 struct snd_pcm_substream *substream);
+
 	/* FW loading */
 	int (*load_firmware)(struct snd_sof_dev *sof_dev,
 			     bool first_boot);
