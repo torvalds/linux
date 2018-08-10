@@ -3356,7 +3356,6 @@ int mgmt_phy_configuration_changed(struct hci_dev *hdev, struct sock *skip)
 static void set_default_phy_complete(struct hci_dev *hdev, u8 status,
 				     u16 opcode, struct sk_buff *skb)
 {
-	struct mgmt_cp_set_phy_confguration *cp;
 	struct mgmt_pending_cmd *cmd;
 
 	BT_DBG("status 0x%02x", status);
@@ -3366,8 +3365,6 @@ static void set_default_phy_complete(struct hci_dev *hdev, u8 status,
 	cmd = pending_find(MGMT_OP_SET_PHY_CONFIGURATION, hdev);
 	if (!cmd)
 		goto unlock;
-
-	cp = cmd->param;
 
 	if (status) {
 		mgmt_cmd_status(cmd->sk, hdev->id,
