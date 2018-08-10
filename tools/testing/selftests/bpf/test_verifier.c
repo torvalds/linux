@@ -42,11 +42,8 @@
 #endif
 #include "bpf_rlimit.h"
 #include "bpf_rand.h"
+#include "bpf_util.h"
 #include "../../../include/linux/filter.h"
-
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
 
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_FIXUPS	8

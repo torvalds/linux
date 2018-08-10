@@ -111,6 +111,8 @@ static int (*bpf_xdp_adjust_tail)(void *ctx, int offset) =
 static int (*bpf_skb_get_xfrm_state)(void *ctx, int index, void *state,
 				     int size, int flags) =
 	(void *) BPF_FUNC_skb_get_xfrm_state;
+static int (*bpf_sk_select_reuseport)(void *ctx, void *map, void *key, __u32 flags) =
+	(void *) BPF_FUNC_sk_select_reuseport;
 static int (*bpf_get_stack)(void *ctx, void *buf, int size, int flags) =
 	(void *) BPF_FUNC_get_stack;
 static int (*bpf_fib_lookup)(void *ctx, struct bpf_fib_lookup *params,
@@ -173,6 +175,8 @@ struct bpf_map_def {
 
 static int (*bpf_skb_load_bytes)(void *ctx, int off, void *to, int len) =
 	(void *) BPF_FUNC_skb_load_bytes;
+static int (*bpf_skb_load_bytes_relative)(void *ctx, int off, void *to, int len, __u32 start_header) =
+	(void *) BPF_FUNC_skb_load_bytes_relative;
 static int (*bpf_skb_store_bytes)(void *ctx, int off, void *from, int len, int flags) =
 	(void *) BPF_FUNC_skb_store_bytes;
 static int (*bpf_l3_csum_replace)(void *ctx, int off, int from, int to, int flags) =

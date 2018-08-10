@@ -19,6 +19,7 @@
 #include <bpf/btf.h>
 
 #include "bpf_rlimit.h"
+#include "bpf_util.h"
 
 static uint32_t pass_cnt;
 static uint32_t error_cnt;
@@ -92,10 +93,6 @@ static int __base_pr(const char *format, ...)
 
 #define MAX_NR_RAW_TYPES 1024
 #define BTF_LOG_BUF_SIZE 65535
-
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
 
 static struct args {
 	unsigned int raw_test_num;

@@ -20,13 +20,10 @@
 
 #include "cgroup_helpers.h"
 #include "bpf_rlimit.h"
+#include "bpf_util.h"
 
 #ifndef ENOTSUPP
 # define ENOTSUPP 524
-#endif
-
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
 #define CG_PATH	"/foo"
