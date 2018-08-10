@@ -71,6 +71,7 @@ Optional properties for Tegra210 and Tegra186:
   trimmer value for non-tunable modes.
 - nvidia,default-trim : Specify the default outbound clock trimmer
   value.
+- nvidia,dqs-trim : Specify DQS trim value for HS400 timing
 
   Notes on the pad calibration pull up and pulldown offset values:
     - The property values are drive codes which are programmed into the
@@ -87,6 +88,9 @@ Optional properties for Tegra210 and Tegra186:
     - The values are programmed to the Vendor Clock Control Register.
       Please refer to the reference manual of the SoC for correct
       values.
+    - The DQS trim values are only used on controllers which support
+      HS400 timing. Only SDMMC4 on Tegra210 and Tegra 186 supports
+      HS400.
 
 Example:
 sdhci@700b0000 {
