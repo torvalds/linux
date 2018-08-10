@@ -32,7 +32,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define RTL8169_VERSION "2.3LK-NAPI"
 #define MODULENAME "r8169"
 
 #define FIRMWARE_8168D_1	"rtl_nic/rtl8168d-1.fw"
@@ -784,7 +783,6 @@ MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(RTL8169_VERSION);
 MODULE_FIRMWARE(FIRMWARE_8168D_1);
 MODULE_FIRMWARE(FIRMWARE_8168D_2);
 MODULE_FIRMWARE(FIRMWARE_8168E_1);
@@ -1635,7 +1633,6 @@ static void rtl8169_get_drvinfo(struct net_device *dev,
 	struct rtl_fw *rtl_fw = tp->rtl_fw;
 
 	strlcpy(info->driver, MODULENAME, sizeof(info->driver));
-	strlcpy(info->version, RTL8169_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(tp->pci_dev), sizeof(info->bus_info));
 	BUILD_BUG_ON(sizeof(info->fw_version) < sizeof(rtl_fw->version));
 	if (!IS_ERR_OR_NULL(rtl_fw))
@@ -7291,11 +7288,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *dev;
 	int chipset, region, i;
 	int rc;
-
-	if (netif_msg_drv(&debug)) {
-		printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
-		       MODULENAME, RTL8169_VERSION);
-	}
 
 	dev = devm_alloc_etherdev(&pdev->dev, sizeof (*tp));
 	if (!dev)
