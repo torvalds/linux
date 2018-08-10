@@ -569,7 +569,7 @@ static struct clk_hw_onecell_data s700_hw_clks = {
 		.num    = CLK_NR_CLKS,
 };
 
-static const struct owl_clk_desc s700_clk_desc = {
+static struct owl_clk_desc s700_clk_desc = {
 	.clks       = s700_clks,
 	.num_clks   = ARRAY_SIZE(s700_clks),
 
@@ -578,7 +578,7 @@ static const struct owl_clk_desc s700_clk_desc = {
 
 static int s700_clk_probe(struct platform_device *pdev)
 {
-	const struct owl_clk_desc *desc;
+	struct owl_clk_desc *desc;
 
 	desc = &s700_clk_desc;
 	owl_clk_regmap_init(pdev, desc);
