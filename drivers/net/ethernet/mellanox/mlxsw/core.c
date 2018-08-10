@@ -726,15 +726,6 @@ static struct mlxsw_driver *mlxsw_core_driver_get(const char *kind)
 	return mlxsw_driver;
 }
 
-static void mlxsw_core_driver_put(const char *kind)
-{
-	struct mlxsw_driver *mlxsw_driver;
-
-	spin_lock(&mlxsw_core_driver_list_lock);
-	mlxsw_driver = __driver_find(kind);
-	spin_unlock(&mlxsw_core_driver_list_lock);
-}
-
 static int mlxsw_devlink_port_split(struct devlink *devlink,
 				    unsigned int port_index,
 				    unsigned int count,
@@ -1082,7 +1073,6 @@ err_bus_init:
 	if (!reload)
 		devlink_free(devlink);
 err_devlink_alloc:
-	mlxsw_core_driver_put(device_kind);
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_core_bus_device_register);
@@ -1090,7 +1080,6 @@ EXPORT_SYMBOL(mlxsw_core_bus_device_register);
 void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 				      bool reload)
 {
-	const char *device_kind = mlxsw_core->bus_info->device_kind;
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 
 	if (mlxsw_core->reload_fail)
@@ -1111,7 +1100,6 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 		return;
 reload_fail:
 	devlink_free(devlink);
-	mlxsw_core_driver_put(device_kind);
 }
 EXPORT_SYMBOL(mlxsw_core_bus_device_unregister);
 
