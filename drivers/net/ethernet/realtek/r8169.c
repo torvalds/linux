@@ -6520,20 +6520,15 @@ release_descriptor:
 static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 {
 	struct rtl8169_private *tp = dev_instance;
-	int handled = 0;
-	u16 status;
+	u16 status = rtl_get_events(tp);
 
-	status = rtl_get_events(tp);
-	if (status && status != 0xffff) {
-		status &= RTL_EVENT_NAPI | tp->event_slow;
-		if (status) {
-			handled = 1;
+	if (status == 0xffff || !(status & (RTL_EVENT_NAPI | tp->event_slow)))
+		return IRQ_NONE;
 
-			rtl_irq_disable(tp);
-			napi_schedule_irqoff(&tp->napi);
-		}
-	}
-	return IRQ_RETVAL(handled);
+	rtl_irq_disable(tp);
+	napi_schedule_irqoff(&tp->napi);
+
+	return IRQ_HANDLED;
 }
 
 /*
