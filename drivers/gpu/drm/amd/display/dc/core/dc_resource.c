@@ -330,12 +330,29 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.pix_clk_khz)
 		return false;
 
+	if (stream1->clamping.c_depth != stream2->clamping.c_depth)
+		return false;
+
 	if (stream1->phy_pix_clk != stream2->phy_pix_clk
 			&& (!dc_is_dp_signal(stream1->signal)
 			|| !dc_is_dp_signal(stream2->signal)))
 		return false;
 
 	return true;
+}
+static bool is_dp_and_hdmi_sharable(
+		struct dc_stream_state *stream1,
+		struct dc_stream_state *stream2)
+{
+	if (stream1->ctx->dc->caps.disable_dp_clk_share)
+		return false;
+
+	if (stream1->clamping.c_depth != COLOR_DEPTH_888 ||
+	    stream2->clamping.c_depth != COLOR_DEPTH_888)
+	return false;
+
+	return true;
+
 }
 
 static bool is_sharable_clk_src(
@@ -348,7 +365,10 @@ static bool is_sharable_clk_src(
 	if (pipe_with_clk_src->stream->signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
-	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal))
+	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal) ||
+		(dc_is_dp_signal(pipe->stream->signal) &&
+		!is_dp_and_hdmi_sharable(pipe_with_clk_src->stream,
+				     pipe->stream)))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe_with_clk_src->stream->signal)

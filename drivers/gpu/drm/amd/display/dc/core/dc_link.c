@@ -744,6 +744,18 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			break;
 		case EDID_NO_RESPONSE:
 			DC_LOG_ERROR("No EDID read.\n");
+
+			/*
+			 * Abort detection for non-DP connectors if we have
+			 * no EDID
+			 *
+			 * DP needs to report as connected if HDP is high
+			 * even if we have no EDID in order to go to
+			 * fail-safe mode
+			 */
+			if (dc_is_hdmi_signal(link->connector_signal) ||
+			    dc_is_dvi_signal(link->connector_signal))
+				return false;
 		default:
 			break;
 		}
@@ -752,38 +764,40 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		if ((prev_sink != NULL) && ((edid_status == EDID_THE_SAME) || (edid_status == EDID_OK)))
 			same_edid = is_same_edid(&prev_sink->dc_edid, &sink->dc_edid);
 
-		// If both edid and dpcd are the same, then discard new sink and revert back to original sink
-		if ((same_edid) && (same_dpcd)) {
-			link_disconnect_remap(prev_sink, link);
-			sink = prev_sink;
-			prev_sink = NULL;
-		} else {
-			if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
-					sink_caps.transaction_type ==
-						DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
-				/*
-				 * TODO debug why Dell 2413 doesn't like
-				 *  two link trainings
-				 */
+		if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+			sink_caps.transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX &&
+			reason != DETECT_REASON_HPDRX) {
+			/*
+			 * TODO debug why Dell 2413 doesn't like
+			 *  two link trainings
+			 */
 
-				/* deal with non-mst cases */
-				for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
-					int fail_count = 0;
+			/* deal with non-mst cases */
+			for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
+				int fail_count = 0;
 
-					dp_verify_link_cap(link,
-							  &link->reported_link_cap,
-							  &fail_count);
+				dp_verify_link_cap(link,
+						  &link->reported_link_cap,
+						  &fail_count);
 
-					if (fail_count == 0)
-						break;
-				}
+				if (fail_count == 0)
+					break;
 			}
 
-			/* HDMI-DVI Dongle */
-			if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
-					!sink->edid_caps.edid_hdmi)
-				sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		} else {
+			// If edid is the same, then discard new sink and revert back to original sink
+			if (same_edid) {
+				link_disconnect_remap(prev_sink, link);
+				sink = prev_sink;
+				prev_sink = NULL;
+
+			}
 		}
+
+		/* HDMI-DVI Dongle */
+		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
+				!sink->edid_caps.edid_hdmi)
+			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 
 		/* Connectivity log: detection */
 		for (i = 0; i < sink->dc_edid.length / EDID_BLOCK_SIZE; i++) {
@@ -1024,6 +1038,9 @@ static bool construct(
 	link->link_index = init_params->link_index;
 
 	link->link_id = bios->funcs->get_connector_id(bios, init_params->connector_index);
+
+	if (dc_ctx->dc_bios->integrated_info)
+		link->dp_ss_off = !!dc_ctx->dc_bios->integrated_info->dp_ss_control;
 
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
 		dm_error("%s: Invalid Connector ObjectID from Adapter Service for connector index:%d! type %d expected %d\n",
@@ -2012,6 +2029,15 @@ enum dc_status dc_link_validate_mode_timing(
 	return DC_OK;
 }
 
+int dc_link_get_backlight_level(const struct dc_link *link)
+{
+	struct abm *abm = link->ctx->dc->res_pool->abm;
+
+	if (abm == NULL || abm->funcs->get_current_backlight_8_bit == NULL)
+		return DC_ERROR_UNEXPECTED;
+
+	return (int) abm->funcs->get_current_backlight_8_bit(abm);
+}
 
 bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream_state *stream)

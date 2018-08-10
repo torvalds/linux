@@ -997,7 +997,9 @@ static void scale_user_regamma_ramp(struct pwl_float_data *pwl_rgb,
  * norm_y = 4095*regamma_y, and index is just truncating to nearest integer
  * lut1 = lut1D[index], lut2 = lut1D[index+1]
  *
- *adjustedY is then linearly interpolating regamma Y between lut1 and lut2
+ * adjustedY is then linearly interpolating regamma Y between lut1 and lut2
+ *
+ * Custom degamma on Linux uses the same interpolation math, so is handled here
  */
 static void apply_lut_1d(
 		const struct dc_gamma *ramp,
@@ -1018,7 +1020,7 @@ static void apply_lut_1d(
 	struct fixed31_32 delta_lut;
 	struct fixed31_32 delta_index;
 
-	if (ramp->type != GAMMA_CS_TFM_1D)
+	if (ramp->type != GAMMA_CS_TFM_1D && ramp->type != GAMMA_CUSTOM)
 		return; // this is not expected
 
 	for (i = 0; i < num_hw_points; i++) {
@@ -1636,7 +1638,9 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
 			coordinates_x, axix_x, curve,
 			MAX_HW_POINTS, tf_pts,
-			mapUserRamp);
+			mapUserRamp && ramp->type != GAMMA_CUSTOM);
+	if (ramp->type == GAMMA_CUSTOM)
+		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 
 	ret = true;
 

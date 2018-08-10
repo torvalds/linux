@@ -256,6 +256,11 @@ static void setup_panel_mode(
 	enum dp_panel_mode panel_mode)
 {
 	uint32_t value;
+	struct dc_context *ctx = enc110->base.ctx;
+
+	/* if psp set panel mode, dal should be program it */
+	if (ctx->dc->caps.psp_setup_panel_mode)
+		return;
 
 	ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
 	value = REG_READ(DP_DPHY_INTERNAL_CTRL);

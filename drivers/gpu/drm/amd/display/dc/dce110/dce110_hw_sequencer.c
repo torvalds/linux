@@ -2530,7 +2530,7 @@ static void pplib_apply_display_requirements(
 	/* TODO: dce11.2*/
 	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
 
-	pp_display_cfg->disp_clk_khz = context->bw.dce.dispclk_khz;
+	pp_display_cfg->disp_clk_khz = dc->res_pool->dccg->clks.dispclk_khz;
 
 	dce110_fill_display_configs(context, pp_display_cfg);
 
@@ -2559,7 +2559,7 @@ void dce110_set_bandwidth(
 {
 	struct dc_clocks req_clks;
 
-	req_clks.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
+	req_clks.dispclk_khz = context->bw.dce.dispclk_khz;
 	req_clks.phyclk_khz = get_max_pixel_clock_for_all_paths(dc, context);
 
 	if (decrease_allowed)
