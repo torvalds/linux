@@ -1137,7 +1137,7 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		break;
 
 	default:
-		return -ENOSYS;
+		return -ENOIOCTLCMD;
 	}
 
 	return 0;
