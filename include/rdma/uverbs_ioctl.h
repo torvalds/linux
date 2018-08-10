@@ -461,8 +461,7 @@ struct uverbs_ptr_attr {
 		u64 data;
 	};
 	u16		len;
-	/* Combination of bits from enum UVERBS_ATTR_F_XXXX */
-	u16		flags;
+	u16		uattr_idx;
 	u8		enum_id;
 };
 
@@ -471,11 +470,6 @@ struct uverbs_obj_attr {
 };
 
 struct uverbs_attr {
-	/*
-	 * pointer to the user-space given attribute, in order to write the
-	 * new uobject's id or update flags.
-	 */
-	struct ib_uverbs_attr __user	*uattr;
 	union {
 		struct uverbs_ptr_attr	ptr_attr;
 		struct uverbs_obj_attr	obj_attr;
@@ -575,27 +569,6 @@ uverbs_attr_get_len(const struct uverbs_attr_bundle *attrs_bundle, u16 idx)
 	return attr->ptr_attr.len;
 }
 
-static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
-				 size_t idx, const void *from, size_t size)
-{
-	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
-	u16 flags;
-	size_t min_size;
-
-	if (IS_ERR(attr))
-		return PTR_ERR(attr);
-
-	min_size = min_t(size_t, attr->ptr_attr.len, size);
-	if (copy_to_user(u64_to_user_ptr(attr->ptr_attr.data), from, min_size))
-		return -EFAULT;
-
-	flags = attr->ptr_attr.flags | UVERBS_ATTR_F_VALID_OUTPUT;
-	if (put_user(flags, &attr->uattr->flags))
-		return -EFAULT;
-
-	return 0;
-}
-
 static inline bool uverbs_attr_ptr_is_inline(const struct uverbs_attr *attr)
 {
 	return attr->ptr_attr.len <= sizeof(attr->ptr_attr.data);
@@ -676,6 +649,8 @@ int uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		       size_t idx, u64 allowed_bits);
 int uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		       size_t idx, u64 allowed_bits);
+int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle, size_t idx,
+		   const void *from, size_t size);
 #else
 static inline int
 uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
@@ -686,6 +661,11 @@ uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 static inline int
 uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		   size_t idx, u64 allowed_bits)
+{
+	return -EINVAL;
+}
+static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
+				 size_t idx, const void *from, size_t size)
 {
 	return -EINVAL;
 }

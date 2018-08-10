@@ -84,7 +84,6 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 	spec = &attr_spec_bucket->attrs[attr_id];
 	val_spec = spec;
 	e = &elements[attr_id];
-	e->uattr = uattr_ptr;
 
 	switch (spec->type) {
 	case UVERBS_ATTR_TYPE_ENUM_IN:
@@ -124,8 +123,8 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		    uattr->attr_data.reserved)
 			return -EINVAL;
 
+		e->ptr_attr.uattr_idx = uattr - pbundle->uattrs;
 		e->ptr_attr.len = uattr->len;
-		e->ptr_attr.flags = uattr->flags;
 
 		if (val_spec->alloc_and_copy && !uverbs_attr_ptr_is_inline(e)) {
 			void *p;
@@ -181,7 +180,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 			s64 id = o_attr->uobject->id;
 
 			/* Copy the allocated id to the user-space */
-			if (put_user(id, &e->uattr->data)) {
+			if (put_user(id, &uattr_ptr->data)) {
 				uverbs_finalize_object(o_attr->uobject,
 						       UVERBS_ACCESS_NEW,
 						       false);
@@ -562,3 +561,65 @@ int uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
 	return 0;
 }
 EXPORT_SYMBOL(uverbs_get_flags32);
+
+/*
+ * This is for ease of conversion. The purpose is to convert all drivers to
+ * use uverbs_attr_bundle instead of ib_udata.  Assume attr == 0 is input and
+ * attr == 1 is output.
+ */
+void create_udata(struct uverbs_attr_bundle *bundle, struct ib_udata *udata)
+{
+	struct bundle_priv *pbundle =
+		container_of(bundle, struct bundle_priv, bundle);
+	const struct uverbs_attr *uhw_in =
+		uverbs_attr_get(bundle, UVERBS_ATTR_UHW_IN);
+	const struct uverbs_attr *uhw_out =
+		uverbs_attr_get(bundle, UVERBS_ATTR_UHW_OUT);
+
+	if (!IS_ERR(uhw_in)) {
+		udata->inlen = uhw_in->ptr_attr.len;
+		if (uverbs_attr_ptr_is_inline(uhw_in))
+			udata->inbuf =
+				&pbundle->user_attrs[uhw_in->ptr_attr.uattr_idx]
+					 .data;
+		else
+			udata->inbuf = u64_to_user_ptr(uhw_in->ptr_attr.data);
+	} else {
+		udata->inbuf = NULL;
+		udata->inlen = 0;
+	}
+
+	if (!IS_ERR(uhw_out)) {
+		udata->outbuf = u64_to_user_ptr(uhw_out->ptr_attr.data);
+		udata->outlen = uhw_out->ptr_attr.len;
+	} else {
+		udata->outbuf = NULL;
+		udata->outlen = 0;
+	}
+}
+
+int uverbs_copy_to(const struct uverbs_attr_bundle *bundle, size_t idx,
+		   const void *from, size_t size)
+{
+	struct bundle_priv *pbundle =
+		container_of(bundle, struct bundle_priv, bundle);
+	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
+	u16 flags;
+	size_t min_size;
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	min_size = min_t(size_t, attr->ptr_attr.len, size);
+	if (copy_to_user(u64_to_user_ptr(attr->ptr_attr.data), from, min_size))
+		return -EFAULT;
+
+	flags = pbundle->uattrs[attr->ptr_attr.uattr_idx].flags |
+		UVERBS_ATTR_F_VALID_OUTPUT;
+	if (put_user(flags,
+		     &pbundle->user_attrs[attr->ptr_attr.uattr_idx].flags))
+		return -EFAULT;
+
+	return 0;
+}
+EXPORT_SYMBOL(uverbs_copy_to);
