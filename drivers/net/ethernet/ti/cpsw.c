@@ -2125,16 +2125,10 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 
 	dev_info(priv->dev, "removing vlanid %d from vlan filter\n", vid);
 	ret = cpsw_ale_del_vlan(cpsw->ale, vid, 0);
-	if (ret != 0)
-		return ret;
-
-	ret = cpsw_ale_del_ucast(cpsw->ale, priv->mac_addr,
-				 HOST_PORT_NUM, ALE_VLAN, vid);
-	if (ret != 0)
-		return ret;
-
-	ret = cpsw_ale_del_mcast(cpsw->ale, priv->ndev->broadcast,
-				 0, ALE_VLAN, vid);
+	ret |= cpsw_ale_del_ucast(cpsw->ale, priv->mac_addr,
+				  HOST_PORT_NUM, ALE_VLAN, vid);
+	ret |= cpsw_ale_del_mcast(cpsw->ale, priv->ndev->broadcast,
+				  0, ALE_VLAN, vid);
 	pm_runtime_put(cpsw->dev);
 	return ret;
 }
