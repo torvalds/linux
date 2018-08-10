@@ -1179,28 +1179,12 @@ static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
 static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 			  unsigned long arg)
 {
-	struct sock *sk = sock->sk;
 	struct l2tp_session *session;
 	struct l2tp_tunnel *tunnel;
-	int err;
 
-	if (!sk)
-		return 0;
-
-	err = -EBADF;
-	if (sock_flag(sk, SOCK_DEAD) != 0)
-		goto end;
-
-	err = -ENOTCONN;
-	if ((sk->sk_user_data == NULL) ||
-	    (!(sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND))))
-		goto end;
-
-	/* Get session context from the socket */
-	err = -EBADF;
-	session = pppol2tp_sock_to_session(sk);
-	if (session == NULL)
-		goto end;
+	session = sock->sk->sk_user_data;
+	if (!session)
+		return -ENOTCONN;
 
 	/* Special case: if session's session_id is zero, treat ioctl as a
 	 * tunnel ioctl
@@ -1208,16 +1192,11 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 	if ((session->session_id == 0) &&
 	    (session->peer_session_id == 0)) {
 		tunnel = session->tunnel;
-		err = pppol2tp_tunnel_ioctl(tunnel, cmd, arg);
-		goto end_put_sess;
+
+		return pppol2tp_tunnel_ioctl(tunnel, cmd, arg);
 	}
 
-	err = pppol2tp_session_ioctl(session, cmd, arg);
-
-end_put_sess:
-	sock_put(sk);
-end:
-	return err;
+	return pppol2tp_session_ioctl(session, cmd, arg);
 }
 
 /*****************************************************************************
