@@ -35,6 +35,18 @@
 #include "rdma_core.h"
 #include "uverbs.h"
 
+struct bundle_priv {
+	struct ib_uverbs_attr __user *user_attrs;
+	struct ib_uverbs_attr *uattrs;
+	struct uverbs_obj_attr *destroy_attr;
+
+	/*
+	 * Must be last. bundle ends in a flex array which overlaps
+	 * internal_buffer.
+	 */
+	struct uverbs_attr_bundle bundle;
+};
+
 static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 				   u16 len)
 {
@@ -46,12 +58,11 @@ static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 			   0, uattr->len - len);
 }
 
-static int uverbs_process_attr(struct ib_uverbs_file *ufile,
+static int uverbs_process_attr(struct bundle_priv *pbundle,
 			       const struct ib_uverbs_attr *uattr,
 			       u16 attr_id,
 			       const struct uverbs_attr_spec_hash *attr_spec_bucket,
 			       struct uverbs_attr_bundle_hash *attr_bundle_h,
-			       struct uverbs_obj_attr **destroy_attr,
 			       struct ib_uverbs_attr __user *uattr_ptr)
 {
 	const struct uverbs_attr_spec *spec;
@@ -147,9 +158,9 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 
 		/* specs are allowed to have only one destroy attribute */
 		WARN_ON(spec->u.obj.access == UVERBS_ACCESS_DESTROY &&
-			*destroy_attr);
+			pbundle->destroy_attr);
 		if (spec->u.obj.access == UVERBS_ACCESS_DESTROY)
-			*destroy_attr = o_attr;
+			pbundle->destroy_attr = o_attr;
 
 		/*
 		 * The type of uattr->data is u64 for UVERBS_ATTR_TYPE_IDR and
@@ -159,7 +170,7 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		 */
 		o_attr->uobject = uverbs_get_uobject_from_file(
 					spec->u.obj.obj_type,
-					ufile,
+					pbundle->bundle.ufile,
 					spec->u.obj.access,
 					uattr->data_s64);
 
@@ -187,10 +198,11 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 	return 0;
 }
 
-static int uverbs_finalize_attrs(struct uverbs_attr_bundle *attrs_bundle,
+static int uverbs_finalize_attrs(struct bundle_priv *pbundle,
 				 struct uverbs_attr_spec_hash *const *spec_hash,
 				 size_t num, bool commit)
 {
+	struct uverbs_attr_bundle *attrs_bundle = &pbundle->bundle;
 	unsigned int i;
 	int ret = 0;
 
@@ -233,27 +245,25 @@ static int uverbs_finalize_attrs(struct uverbs_attr_bundle *attrs_bundle,
 	return ret;
 }
 
-static int uverbs_uattrs_process(struct ib_uverbs_file *ufile,
-				 const struct ib_uverbs_attr *uattrs,
-				 size_t num_uattrs,
+static int uverbs_uattrs_process(size_t num_uattrs,
 				 const struct uverbs_method_spec *method,
-				 struct uverbs_attr_bundle *attr_bundle,
-				 struct uverbs_obj_attr **destroy_attr,
-				 struct ib_uverbs_attr __user *uattr_ptr)
+				 struct bundle_priv *pbundle)
 {
+	struct uverbs_attr_bundle *attr_bundle = &pbundle->bundle;
+	struct ib_uverbs_attr __user *uattr_ptr = pbundle->user_attrs;
 	size_t i;
 	int ret = 0;
 	int num_given_buckets = 0;
 
 	for (i = 0; i < num_uattrs; i++) {
-		const struct ib_uverbs_attr *uattr = &uattrs[i];
+		const struct ib_uverbs_attr *uattr = &pbundle->uattrs[i];
 		u16 attr_id = uattr->attr_id;
 		struct uverbs_attr_spec_hash *attr_spec_bucket;
 
 		ret = uverbs_ns_idx(&attr_id, method->num_buckets);
 		if (ret < 0 || !method->attr_buckets[ret]) {
 			if (uattr->flags & UVERBS_ATTR_F_MANDATORY) {
-				uverbs_finalize_attrs(attr_bundle,
+				uverbs_finalize_attrs(pbundle,
 						      method->attr_buckets,
 						      num_given_buckets,
 						      false);
@@ -270,12 +280,13 @@ static int uverbs_uattrs_process(struct ib_uverbs_file *ufile,
 			num_given_buckets = ret + 1;
 
 		attr_spec_bucket = method->attr_buckets[ret];
-		ret = uverbs_process_attr(ufile, uattr, attr_id,
+		ret = uverbs_process_attr(pbundle,
+					  uattr, attr_id,
 					  attr_spec_bucket,
-					  &attr_bundle->hash[ret], destroy_attr,
+					  &attr_bundle->hash[ret],
 					  uattr_ptr++);
 		if (ret) {
-			uverbs_finalize_attrs(attr_bundle,
+			uverbs_finalize_attrs(pbundle,
 					      method->attr_buckets,
 					      num_given_buckets,
 					      false);
@@ -287,8 +298,9 @@ static int uverbs_uattrs_process(struct ib_uverbs_file *ufile,
 }
 
 static int uverbs_validate_kernel_mandatory(const struct uverbs_method_spec *method_spec,
-					    struct uverbs_attr_bundle *attr_bundle)
+					    struct bundle_priv *pbundle)
 {
+	struct uverbs_attr_bundle *attr_bundle = &pbundle->bundle;
 	unsigned int i;
 
 	for (i = 0; i < attr_bundle->num_buckets; i++) {
@@ -316,27 +328,22 @@ static int uverbs_validate_kernel_mandatory(const struct uverbs_method_spec *met
 	return 0;
 }
 
-static int uverbs_handle_method(struct ib_uverbs_attr __user *uattr_ptr,
-				const struct ib_uverbs_attr *uattrs,
-				size_t num_uattrs,
-				struct ib_device *ibdev,
-				struct ib_uverbs_file *ufile,
+static int uverbs_handle_method(size_t num_uattrs,
 				const struct uverbs_method_spec *method_spec,
-				struct uverbs_attr_bundle *attr_bundle)
+				struct bundle_priv *pbundle)
 {
+	struct uverbs_attr_bundle *attr_bundle = &pbundle->bundle;
 	int ret;
 	int finalize_ret;
 	int num_given_buckets;
-	struct uverbs_obj_attr *destroy_attr = NULL;
 
 	num_given_buckets =
-		uverbs_uattrs_process(ufile, uattrs, num_uattrs, method_spec,
-				      attr_bundle, &destroy_attr, uattr_ptr);
+		uverbs_uattrs_process(num_uattrs, method_spec, pbundle);
 	if (num_given_buckets <= 0)
 		return -EINVAL;
 
 	attr_bundle->num_buckets = num_given_buckets;
-	ret = uverbs_validate_kernel_mandatory(method_spec, attr_bundle);
+	ret = uverbs_validate_kernel_mandatory(method_spec, pbundle);
 	if (ret)
 		goto cleanup;
 
@@ -344,21 +351,21 @@ static int uverbs_handle_method(struct ib_uverbs_attr __user *uattr_ptr,
 	 * We destroy the HW object before invoking the handler, handlers do
 	 * not get to manipulate the HW objects.
 	 */
-	if (destroy_attr) {
-		ret = uobj_destroy(destroy_attr->uobject);
+	if (pbundle->destroy_attr) {
+		ret = uobj_destroy(pbundle->destroy_attr->uobject);
 		if (ret)
 			goto cleanup;
 	}
 
-	ret = method_spec->handler(ufile, attr_bundle);
+	ret = method_spec->handler(pbundle->bundle.ufile, attr_bundle);
 
-	if (destroy_attr) {
-		uobj_put_destroy(destroy_attr->uobject);
-		destroy_attr->uobject = NULL;
+	if (pbundle->destroy_attr) {
+		uobj_put_destroy(pbundle->destroy_attr->uobject);
+		pbundle->destroy_attr->uobject = NULL;
 	}
 
 cleanup:
-	finalize_ret = uverbs_finalize_attrs(attr_bundle,
+	finalize_ret = uverbs_finalize_attrs(pbundle,
 					     method_spec->attr_buckets,
 					     attr_bundle->num_buckets,
 					     !ret);
@@ -370,16 +377,13 @@ cleanup:
 static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 				struct ib_uverbs_file *file,
 				struct ib_uverbs_ioctl_hdr *hdr,
-				void __user *buf)
+				struct ib_uverbs_attr __user *user_attrs)
 {
 	const struct uverbs_object_spec *object_spec;
 	const struct uverbs_method_spec *method_spec;
 	long err = 0;
 	unsigned int i;
-	struct {
-		struct ib_uverbs_attr		*uattrs;
-		struct uverbs_attr_bundle	*uverbs_attr_bundle;
-	} *ctx = NULL;
+	struct bundle_priv *ctx;
 	struct uverbs_attr *curr_attr;
 	unsigned long *curr_bitmap;
 	size_t ctx_size;
@@ -397,12 +401,11 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 		return -EPROTONOSUPPORT;
 
 	ctx_size = sizeof(*ctx) +
-		   sizeof(struct uverbs_attr_bundle) +
 		   sizeof(struct uverbs_attr_bundle_hash) * method_spec->num_buckets +
 		   sizeof(*ctx->uattrs) * hdr->num_attrs +
-		   sizeof(*ctx->uverbs_attr_bundle->hash[0].attrs) *
+		   sizeof(*ctx->bundle.hash[0].attrs) *
 		   method_spec->num_child_attrs +
-		   sizeof(*ctx->uverbs_attr_bundle->hash[0].valid_bitmap) *
+		   sizeof(*ctx->bundle.hash[0].valid_bitmap) *
 			(method_spec->num_child_attrs / BITS_PER_LONG +
 			 method_spec->num_buckets);
 
@@ -413,10 +416,8 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->uverbs_attr_bundle = (void *)ctx + sizeof(*ctx);
-	ctx->uattrs = (void *)(ctx->uverbs_attr_bundle + 1) +
-			      (sizeof(ctx->uverbs_attr_bundle->hash[0]) *
-			       method_spec->num_buckets);
+	ctx->uattrs = (void *)(ctx + 1) +
+		      (sizeof(ctx->bundle.hash[0]) * method_spec->num_buckets);
 	curr_attr = (void *)(ctx->uattrs + hdr->num_attrs);
 	curr_bitmap = (void *)(curr_attr + method_spec->num_child_attrs);
 
@@ -432,23 +433,25 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 
 		curr_num_attrs = method_spec->attr_buckets[i]->num_attrs;
 
-		ctx->uverbs_attr_bundle->hash[i].attrs = curr_attr;
+		ctx->bundle.hash[i].attrs = curr_attr;
 		curr_attr += curr_num_attrs;
-		ctx->uverbs_attr_bundle->hash[i].num_attrs = curr_num_attrs;
-		ctx->uverbs_attr_bundle->hash[i].valid_bitmap = curr_bitmap;
+		ctx->bundle.hash[i].num_attrs = curr_num_attrs;
+		ctx->bundle.hash[i].valid_bitmap = curr_bitmap;
 		bitmap_zero(curr_bitmap, curr_num_attrs);
 		curr_bitmap += BITS_TO_LONGS(curr_num_attrs);
 	}
 
-	err = copy_from_user(ctx->uattrs, buf,
+	err = copy_from_user(ctx->uattrs, user_attrs,
 			     sizeof(*ctx->uattrs) * hdr->num_attrs);
 	if (err) {
 		err = -EFAULT;
 		goto out;
 	}
 
-	err = uverbs_handle_method(buf, ctx->uattrs, hdr->num_attrs, ib_dev,
-				   file, method_spec, ctx->uverbs_attr_bundle);
+	ctx->destroy_attr = NULL;
+	ctx->bundle.ufile = file;
+	ctx->user_attrs = user_attrs;
+	err = uverbs_handle_method(hdr->num_attrs, method_spec, ctx);
 
 	/*
 	 * EPROTONOSUPPORT is ONLY to be returned if the ioctl framework can
@@ -499,8 +502,7 @@ long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto out;
 		}
 
-		err = ib_uverbs_cmd_verbs(ib_dev, file, &hdr,
-					  (__user void *)arg + sizeof(hdr));
+		err = ib_uverbs_cmd_verbs(ib_dev, file, &hdr, user_hdr->attrs);
 	} else {
 		err = -ENOIOCTLCMD;
 	}

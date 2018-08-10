@@ -494,6 +494,7 @@ struct uverbs_attr_bundle_hash {
 };
 
 struct uverbs_attr_bundle {
+	struct ib_uverbs_file *ufile;
 	size_t				num_buckets;
 	struct uverbs_attr_bundle_hash  hash[];
 };
