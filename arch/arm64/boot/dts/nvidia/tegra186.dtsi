@@ -246,6 +246,8 @@
 		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x07>;
 		nvidia,pad-autocal-pull-up-offset-sdr104 = <0x03>;
 		nvidia,pad-autocal-pull-down-offset-sdr104 = <0x05>;
+		nvidia,default-tap = <0x5>;
+		nvidia,default-trim = <0xb>;
 		status = "disabled";
 	};
 
@@ -264,6 +266,8 @@
 		nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x06>;
 		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x07>;
 		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x07>;
+		nvidia,default-tap = <0x5>;
+		nvidia,default-trim = <0xb>;
 		status = "disabled";
 	};
 
@@ -284,6 +288,8 @@
 		nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x06>;
 		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x07>;
 		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x07>;
+		nvidia,default-tap = <0x5>;
+		nvidia,default-trim = <0xb>;
 		status = "disabled";
 	};
 
@@ -299,6 +305,8 @@
 		nvidia,pad-autocal-pull-down-offset-hs400 = <0x05>;
 		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x0a>;
 		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x0a>;
+		nvidia,default-tap = <0x5>;
+		nvidia,default-trim = <0x9>;
 		status = "disabled";
 	};
 
