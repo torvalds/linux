@@ -313,6 +313,7 @@
 		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x0a>;
 		nvidia,default-tap = <0x5>;
 		nvidia,default-trim = <0x9>;
+		nvidia,dqs-trim = <63>;
 		status = "disabled";
 	};
 
