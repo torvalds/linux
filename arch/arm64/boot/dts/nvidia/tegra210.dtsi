@@ -1116,6 +1116,7 @@
 				  <&tegra_car TEGRA210_CLK_PLL_C4_OUT0>;
 		assigned-clock-parents = <&tegra_car TEGRA210_CLK_PLL_C4_OUT0>;
 		nvidia,dqs-trim = <40>;
+		mmc-hs400-1_8v;
 		status = "disabled";
 	};
 
