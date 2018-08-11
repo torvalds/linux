@@ -2103,9 +2103,8 @@ static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
 	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
 #else
 	unsigned int truesize = SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
-				SKB_DATA_ALIGN(I40E_SKB_PAD +
-					       (xdp->data_end -
-						xdp->data_hard_start));
+				SKB_DATA_ALIGN(xdp->data_end -
+					       xdp->data_hard_start);
 #endif
 	struct sk_buff *skb;
 
@@ -2124,7 +2123,7 @@ static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
 		return NULL;
 
 	/* update pointers within the skb to store the data */
-	skb_reserve(skb, I40E_SKB_PAD + (xdp->data - xdp->data_hard_start));
+	skb_reserve(skb, xdp->data - xdp->data_hard_start);
 	__skb_put(skb, xdp->data_end - xdp->data);
 	if (metasize)
 		skb_metadata_set(skb, metasize);

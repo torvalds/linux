@@ -107,10 +107,10 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	}
 	spin_unlock(&tcon->open_file_lock);
 
-	mutex_lock(&tcon->prfid_mutex);
-	tcon->valid_root_fid = false;
-	memset(tcon->prfid, 0, sizeof(struct cifs_fid));
-	mutex_unlock(&tcon->prfid_mutex);
+	mutex_lock(&tcon->crfid.fid_mutex);
+	tcon->crfid.is_valid = false;
+	memset(tcon->crfid.fid, 0, sizeof(struct cifs_fid));
+	mutex_unlock(&tcon->crfid.fid_mutex);
 
 	/*
 	 * BB Add call to invalidate_inodes(sb) for all superblocks mounted

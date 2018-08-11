@@ -23,9 +23,13 @@
 #define CCWCHAIN_LEN_MAX	256
 
 struct pfn_array {
+	/* Starting guest physical I/O address. */
 	unsigned long		pa_iova;
+	/* Array that stores PFNs of the pages need to pin. */
 	unsigned long		*pa_iova_pfn;
+	/* Array that receives PFNs of the pages pinned. */
 	unsigned long		*pa_pfn;
+	/* Number of pages pinned from @pa_iova. */
 	int			pa_nr;
 };
 
@@ -46,70 +50,33 @@ struct ccwchain {
 };
 
 /*
- * pfn_array_pin() - pin user pages in memory
+ * pfn_array_alloc_pin() - alloc memory for PFNs, then pin user pages in memory
  * @pa: pfn_array on which to perform the operation
  * @mdev: the mediated device to perform pin/unpin operations
+ * @iova: target guest physical address
+ * @len: number of bytes that should be pinned from @iova
  *
- * Attempt to pin user pages in memory.
+ * Attempt to allocate memory for PFNs, and pin user pages in memory.
  *
  * Usage of pfn_array:
- * @pa->pa_iova     starting guest physical I/O address. Assigned by caller.
- * @pa->pa_iova_pfn array that stores PFNs of the pages need to pin. Allocated
- *                  by caller.
- * @pa->pa_pfn      array that receives PFNs of the pages pinned. Allocated by
- *                  caller.
- * @pa->pa_nr       number of pages from @pa->pa_iova to pin. Assigned by
- *                  caller.
- *                  number of pages pinned. Assigned by callee.
+ * We expect (pa_nr == 0) and (pa_iova_pfn == NULL), any field in
+ * this structure will be filled in by this function.
  *
  * Returns:
  *   Number of pages pinned on success.
- *   If @pa->pa_nr is 0 or negative, returns 0.
+ *   If @pa->pa_nr is not 0, or @pa->pa_iova_pfn is not NULL initially,
+ *   returns -EINVAL.
  *   If no pages were pinned, returns -errno.
  */
-static int pfn_array_pin(struct pfn_array *pa, struct device *mdev)
-{
-	int i, ret;
-
-	if (pa->pa_nr <= 0) {
-		pa->pa_nr = 0;
-		return 0;
-	}
-
-	pa->pa_iova_pfn[0] = pa->pa_iova >> PAGE_SHIFT;
-	for (i = 1; i < pa->pa_nr; i++)
-		pa->pa_iova_pfn[i] = pa->pa_iova_pfn[i - 1] + 1;
-
-	ret = vfio_pin_pages(mdev, pa->pa_iova_pfn, pa->pa_nr,
-			     IOMMU_READ | IOMMU_WRITE, pa->pa_pfn);
-
-	if (ret > 0 && ret != pa->pa_nr) {
-		vfio_unpin_pages(mdev, pa->pa_iova_pfn, ret);
-		pa->pa_nr = 0;
-		return 0;
-	}
-
-	return ret;
-}
-
-/* Unpin the pages before releasing the memory. */
-static void pfn_array_unpin_free(struct pfn_array *pa, struct device *mdev)
-{
-	vfio_unpin_pages(mdev, pa->pa_iova_pfn, pa->pa_nr);
-	pa->pa_nr = 0;
-	kfree(pa->pa_iova_pfn);
-}
-
-/* Alloc memory for PFNs, then pin pages with them. */
 static int pfn_array_alloc_pin(struct pfn_array *pa, struct device *mdev,
 			       u64 iova, unsigned int len)
 {
-	int ret = 0;
+	int i, ret = 0;
 
 	if (!len)
 		return 0;
 
-	if (pa->pa_nr)
+	if (pa->pa_nr || pa->pa_iova_pfn)
 		return -EINVAL;
 
 	pa->pa_iova = iova;
@@ -126,16 +93,37 @@ static int pfn_array_alloc_pin(struct pfn_array *pa, struct device *mdev,
 		return -ENOMEM;
 	pa->pa_pfn = pa->pa_iova_pfn + pa->pa_nr;
 
-	ret = pfn_array_pin(pa, mdev);
+	pa->pa_iova_pfn[0] = pa->pa_iova >> PAGE_SHIFT;
+	for (i = 1; i < pa->pa_nr; i++)
+		pa->pa_iova_pfn[i] = pa->pa_iova_pfn[i - 1] + 1;
 
-	if (ret > 0)
-		return ret;
-	else if (!ret)
+	ret = vfio_pin_pages(mdev, pa->pa_iova_pfn, pa->pa_nr,
+			     IOMMU_READ | IOMMU_WRITE, pa->pa_pfn);
+
+	if (ret < 0) {
+		goto err_out;
+	} else if (ret > 0 && ret != pa->pa_nr) {
+		vfio_unpin_pages(mdev, pa->pa_iova_pfn, ret);
 		ret = -EINVAL;
-
-	kfree(pa->pa_iova_pfn);
+		goto err_out;
+	}
 
 	return ret;
+
+err_out:
+	pa->pa_nr = 0;
+	kfree(pa->pa_iova_pfn);
+	pa->pa_iova_pfn = NULL;
+
+	return ret;
+}
+
+/* Unpin the pages before releasing the memory. */
+static void pfn_array_unpin_free(struct pfn_array *pa, struct device *mdev)
+{
+	vfio_unpin_pages(mdev, pa->pa_iova_pfn, pa->pa_nr);
+	pa->pa_nr = 0;
+	kfree(pa->pa_iova_pfn);
 }
 
 static int pfn_array_table_init(struct pfn_array_table *pat, int nr)
@@ -365,6 +353,9 @@ static void cp_unpin_free(struct channel_program *cp)
  * This is the chain length not considering any TICs.
  * You need to do a new round for each TIC target.
  *
+ * The program is also validated for absence of not yet supported
+ * indirect data addressing scenarios.
+ *
  * Returns: the length of the ccw chain or -errno.
  */
 static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
@@ -390,6 +381,14 @@ static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 	cnt = 0;
 	do {
 		cnt++;
+
+		/*
+		 * As we don't want to fail direct addressing even if the
+		 * orb specified one of the unsupported formats, we defer
+		 * checking for IDAWs in unsupported formats to here.
+		 */
+		if ((!cp->orb.cmd.c64 || cp->orb.cmd.i2k) && ccw_is_idal(ccw))
+			return -EOPNOTSUPP;
 
 		if ((!ccw_is_chain(ccw)) && (!ccw_is_tic(ccw)))
 			break;
@@ -503,7 +502,7 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	struct ccw1 *ccw;
 	struct pfn_array_table *pat;
 	unsigned long *idaws;
-	int idaw_nr;
+	int ret;
 
 	ccw = chain->ch_ccw + idx;
 
@@ -523,18 +522,19 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	 * needed when translating a direct ccw to a idal ccw.
 	 */
 	pat = chain->ch_pat + idx;
-	if (pfn_array_table_init(pat, 1))
-		return -ENOMEM;
-	idaw_nr = pfn_array_alloc_pin(pat->pat_pa, cp->mdev,
-				      ccw->cda, ccw->count);
-	if (idaw_nr < 0)
-		return idaw_nr;
+	ret = pfn_array_table_init(pat, 1);
+	if (ret)
+		goto out_init;
+
+	ret = pfn_array_alloc_pin(pat->pat_pa, cp->mdev, ccw->cda, ccw->count);
+	if (ret < 0)
+		goto out_init;
 
 	/* Translate this direct ccw to a idal ccw. */
-	idaws = kcalloc(idaw_nr, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
+	idaws = kcalloc(ret, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
 	if (!idaws) {
-		pfn_array_table_unpin_free(pat, cp->mdev);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_unpin;
 	}
 	ccw->cda = (__u32) virt_to_phys(idaws);
 	ccw->flags |= CCW_FLAG_IDA;
@@ -542,6 +542,12 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	pfn_array_table_idal_create_words(pat, idaws);
 
 	return 0;
+
+out_unpin:
+	pfn_array_table_unpin_free(pat, cp->mdev);
+out_init:
+	ccw->cda = 0;
+	return ret;
 }
 
 static int ccwchain_fetch_idal(struct ccwchain *chain,
@@ -571,7 +577,7 @@ static int ccwchain_fetch_idal(struct ccwchain *chain,
 	pat = chain->ch_pat + idx;
 	ret = pfn_array_table_init(pat, idaw_nr);
 	if (ret)
-		return ret;
+		goto out_init;
 
 	/* Translate idal ccw to use new allocated idaws. */
 	idaws = kzalloc(idaw_len, GFP_DMA | GFP_KERNEL);
@@ -603,6 +609,8 @@ out_free_idaws:
 	kfree(idaws);
 out_unpin:
 	pfn_array_table_unpin_free(pat, cp->mdev);
+out_init:
+	ccw->cda = 0;
 	return ret;
 }
 
@@ -656,10 +664,8 @@ int cp_init(struct channel_program *cp, struct device *mdev, union orb *orb)
 	/*
 	 * XXX:
 	 * Only support prefetch enable mode now.
-	 * Only support 64bit addressing idal.
-	 * Only support 4k IDAW.
 	 */
-	if (!orb->cmd.pfch || !orb->cmd.c64 || orb->cmd.i2k)
+	if (!orb->cmd.pfch)
 		return -EOPNOTSUPP;
 
 	INIT_LIST_HEAD(&cp->ccwchain_list);
@@ -688,6 +694,10 @@ int cp_init(struct channel_program *cp, struct device *mdev, union orb *orb)
 	ret = ccwchain_loop_tic(chain, cp);
 	if (ret)
 		cp_unpin_free(cp);
+	/* It is safe to force: if not set but idals used
+	 * ccwchain_calc_length returns an error.
+	 */
+	cp->orb.cmd.c64 = 1;
 
 	return ret;
 }

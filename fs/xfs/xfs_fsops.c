@@ -387,7 +387,7 @@ xfs_reserve_blocks(
 	do {
 		free = percpu_counter_sum(&mp->m_fdblocks) -
 						mp->m_alloc_set_aside;
-		if (!free)
+		if (free <= 0)
 			break;
 
 		delta = request - mp->m_resblks;

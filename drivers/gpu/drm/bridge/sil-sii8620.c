@@ -36,8 +36,11 @@
 
 #define SII8620_BURST_BUF_LEN 288
 #define VAL_RX_HDMI_CTRL2_DEFVAL VAL_RX_HDMI_CTRL2_IDLE_CNT(3)
-#define MHL1_MAX_LCLK 225000
-#define MHL3_MAX_LCLK 600000
+
+#define MHL1_MAX_PCLK 75000
+#define MHL1_MAX_PCLK_PP_MODE 150000
+#define MHL3_MAX_PCLK 200000
+#define MHL3_MAX_PCLK_PP_MODE 300000
 
 enum sii8620_mode {
 	CM_DISCONNECTED,
@@ -80,6 +83,9 @@ struct sii8620 {
 	u8 devcap[MHL_DCAP_SIZE];
 	u8 xdevcap[MHL_XDC_SIZE];
 	u8 avif[HDMI_INFOFRAME_SIZE(AVI)];
+	bool feature_complete;
+	bool devcap_read;
+	bool sink_detected;
 	struct edid *edid;
 	unsigned int gen2_write_burst:1;
 	enum sii8620_mt_state mt_state;
@@ -476,7 +482,7 @@ static void sii8620_update_array(u8 *dst, u8 *src, int count)
 	}
 }
 
-static void sii8620_sink_detected(struct sii8620 *ctx, int ret)
+static void sii8620_identify_sink(struct sii8620 *ctx)
 {
 	static const char * const sink_str[] = {
 		[SINK_NONE] = "NONE",
@@ -487,7 +493,7 @@ static void sii8620_sink_detected(struct sii8620 *ctx, int ret)
 	char sink_name[20];
 	struct device *dev = ctx->dev;
 
-	if (ret < 0)
+	if (!ctx->sink_detected || !ctx->devcap_read)
 		return;
 
 	sii8620_fetch_edid(ctx);
@@ -496,6 +502,7 @@ static void sii8620_sink_detected(struct sii8620 *ctx, int ret)
 		sii8620_mhl_disconnected(ctx);
 		return;
 	}
+	sii8620_set_upstream_edid(ctx);
 
 	if (drm_detect_hdmi_monitor(ctx->edid))
 		ctx->sink_type = SINK_HDMI;
@@ -506,53 +513,6 @@ static void sii8620_sink_detected(struct sii8620 *ctx, int ret)
 
 	dev_info(dev, "detected sink(type: %s): %s\n",
 		 sink_str[ctx->sink_type], sink_name);
-}
-
-static void sii8620_hsic_init(struct sii8620 *ctx)
-{
-	if (!sii8620_is_mhl3(ctx))
-		return;
-
-	sii8620_write(ctx, REG_FCGC,
-		BIT_FCGC_HSIC_HOSTMODE | BIT_FCGC_HSIC_ENABLE);
-	sii8620_setbits(ctx, REG_HRXCTRL3,
-		BIT_HRXCTRL3_HRX_STAY_RESET | BIT_HRXCTRL3_STATUS_EN, ~0);
-	sii8620_setbits(ctx, REG_TTXNUMB, MSK_TTXNUMB_TTX_NUMBPS, 4);
-	sii8620_setbits(ctx, REG_TRXCTRL, BIT_TRXCTRL_TRX_FROM_SE_COC, ~0);
-	sii8620_setbits(ctx, REG_HTXCTRL, BIT_HTXCTRL_HTX_DRVCONN1, 0);
-	sii8620_setbits(ctx, REG_KEEPER, MSK_KEEPER_MODE, VAL_KEEPER_MODE_HOST);
-	sii8620_write_seq_static(ctx,
-		REG_TDMLLCTL, 0,
-		REG_UTSRST, BIT_UTSRST_HRX_SRST | BIT_UTSRST_HTX_SRST |
-			BIT_UTSRST_KEEPER_SRST | BIT_UTSRST_FC_SRST,
-		REG_UTSRST, BIT_UTSRST_HRX_SRST | BIT_UTSRST_HTX_SRST,
-		REG_HRXINTL, 0xff,
-		REG_HRXINTH, 0xff,
-		REG_TTXINTL, 0xff,
-		REG_TTXINTH, 0xff,
-		REG_TRXINTL, 0xff,
-		REG_TRXINTH, 0xff,
-		REG_HTXINTL, 0xff,
-		REG_HTXINTH, 0xff,
-		REG_FCINTR0, 0xff,
-		REG_FCINTR1, 0xff,
-		REG_FCINTR2, 0xff,
-		REG_FCINTR3, 0xff,
-		REG_FCINTR4, 0xff,
-		REG_FCINTR5, 0xff,
-		REG_FCINTR6, 0xff,
-		REG_FCINTR7, 0xff
-	);
-}
-
-static void sii8620_edid_read(struct sii8620 *ctx, int ret)
-{
-	if (ret < 0)
-		return;
-
-	sii8620_set_upstream_edid(ctx);
-	sii8620_hsic_init(ctx);
-	sii8620_enable_hpd(ctx);
 }
 
 static void sii8620_mr_devcap(struct sii8620 *ctx)
@@ -570,6 +530,8 @@ static void sii8620_mr_devcap(struct sii8620 *ctx)
 		 dcap[MHL_DCAP_ADOPTER_ID_H], dcap[MHL_DCAP_ADOPTER_ID_L],
 		 dcap[MHL_DCAP_DEVICE_ID_H], dcap[MHL_DCAP_DEVICE_ID_L]);
 	sii8620_update_array(ctx->devcap, dcap, MHL_DCAP_SIZE);
+	ctx->devcap_read = true;
+	sii8620_identify_sink(ctx);
 }
 
 static void sii8620_mr_xdevcap(struct sii8620 *ctx)
@@ -807,6 +769,7 @@ static void sii8620_burst_rx_all(struct sii8620 *ctx)
 static void sii8620_fetch_edid(struct sii8620 *ctx)
 {
 	u8 lm_ddc, ddc_cmd, int3, cbus;
+	unsigned long timeout;
 	int fetched, i;
 	int edid_len = EDID_LENGTH;
 	u8 *edid;
@@ -856,23 +819,31 @@ static void sii8620_fetch_edid(struct sii8620 *ctx)
 			REG_DDC_CMD, ddc_cmd | VAL_DDC_CMD_ENH_DDC_READ_NO_ACK
 		);
 
-		do {
-			int3 = sii8620_readb(ctx, REG_INTR3);
+		int3 = 0;
+		timeout = jiffies + msecs_to_jiffies(200);
+		for (;;) {
 			cbus = sii8620_readb(ctx, REG_CBUS_STATUS);
-
-			if (int3 & BIT_DDC_CMD_DONE)
-				break;
-
-			if (!(cbus & BIT_CBUS_STATUS_CBUS_CONNECTED)) {
+			if (~cbus & BIT_CBUS_STATUS_CBUS_CONNECTED) {
 				kfree(edid);
 				edid = NULL;
 				goto end;
 			}
-		} while (1);
-
-		sii8620_readb(ctx, REG_DDC_STATUS);
-		while (sii8620_readb(ctx, REG_DDC_DOUT_CNT) < FETCH_SIZE)
+			if (int3 & BIT_DDC_CMD_DONE) {
+				if (sii8620_readb(ctx, REG_DDC_DOUT_CNT)
+				    >= FETCH_SIZE)
+					break;
+			} else {
+				int3 = sii8620_readb(ctx, REG_INTR3);
+			}
+			if (time_is_before_jiffies(timeout)) {
+				ctx->error = -ETIMEDOUT;
+				dev_err(ctx->dev, "timeout during EDID read\n");
+				kfree(edid);
+				edid = NULL;
+				goto end;
+			}
 			usleep_range(10, 20);
+		}
 
 		sii8620_read_buf(ctx, REG_DDC_DATA, edid + fetched, FETCH_SIZE);
 		if (fetched + FETCH_SIZE == EDID_LENGTH) {
@@ -971,8 +942,17 @@ static int sii8620_hw_on(struct sii8620 *ctx)
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret)
 		return ret;
+
 	usleep_range(10000, 20000);
-	return clk_prepare_enable(ctx->clk_xtal);
+	ret = clk_prepare_enable(ctx->clk_xtal);
+	if (ret)
+		return ret;
+
+	msleep(100);
+	gpiod_set_value(ctx->gpio_reset, 0);
+	msleep(100);
+
+	return 0;
 }
 
 static int sii8620_hw_off(struct sii8620 *ctx)
@@ -980,17 +960,6 @@ static int sii8620_hw_off(struct sii8620 *ctx)
 	clk_disable_unprepare(ctx->clk_xtal);
 	gpiod_set_value(ctx->gpio_reset, 1);
 	return regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
-}
-
-static void sii8620_hw_reset(struct sii8620 *ctx)
-{
-	usleep_range(10000, 20000);
-	gpiod_set_value(ctx->gpio_reset, 0);
-	usleep_range(5000, 20000);
-	gpiod_set_value(ctx->gpio_reset, 1);
-	usleep_range(10000, 20000);
-	gpiod_set_value(ctx->gpio_reset, 0);
-	msleep(300);
 }
 
 static void sii8620_cbus_reset(struct sii8620 *ctx)
@@ -1048,20 +1017,11 @@ static void sii8620_stop_video(struct sii8620 *ctx)
 
 static void sii8620_set_format(struct sii8620 *ctx)
 {
-	u8 out_fmt;
-
 	if (sii8620_is_mhl3(ctx)) {
 		sii8620_setbits(ctx, REG_M3_P0CTRL,
 				BIT_M3_P0CTRL_MHL3_P0_PIXEL_MODE_PACKED,
 				ctx->use_packed_pixel ? ~0 : 0);
 	} else {
-		if (ctx->use_packed_pixel)
-			sii8620_write_seq_static(ctx,
-				REG_VID_MODE, BIT_VID_MODE_M1080P,
-				REG_MHL_TOP_CTL, BIT_MHL_TOP_CTL_MHL_PP_SEL | 1,
-				REG_MHLTX_CTL6, 0x60
-			);
-		else
 			sii8620_write_seq_static(ctx,
 				REG_VID_MODE, 0,
 				REG_MHL_TOP_CTL, 1,
@@ -1069,15 +1029,9 @@ static void sii8620_set_format(struct sii8620 *ctx)
 			);
 	}
 
-	if (ctx->use_packed_pixel)
-		out_fmt = VAL_TPI_FORMAT(YCBCR422, FULL) |
-			BIT_TPI_OUTPUT_CSCMODE709;
-	else
-		out_fmt = VAL_TPI_FORMAT(RGB, FULL);
-
 	sii8620_write_seq(ctx,
 		REG_TPI_INPUT, VAL_TPI_FORMAT(RGB, FULL),
-		REG_TPI_OUTPUT, out_fmt,
+		REG_TPI_OUTPUT, VAL_TPI_FORMAT(RGB, FULL),
 	);
 }
 
@@ -1216,7 +1170,7 @@ static void sii8620_start_video(struct sii8620 *ctx)
 		int clk = ctx->pixel_clock * (ctx->use_packed_pixel ? 2 : 3);
 		int i;
 
-		for (i = 0; i < ARRAY_SIZE(clk_spec); ++i)
+		for (i = 0; i < ARRAY_SIZE(clk_spec) - 1; ++i)
 			if (clk < clk_spec[i].max_clk)
 				break;
 
@@ -1534,6 +1488,16 @@ static void sii8620_set_mode(struct sii8620 *ctx, enum sii8620_mode mode)
 	);
 }
 
+static void sii8620_hpd_unplugged(struct sii8620 *ctx)
+{
+	sii8620_disable_hpd(ctx);
+	ctx->sink_type = SINK_NONE;
+	ctx->sink_detected = false;
+	ctx->feature_complete = false;
+	kfree(ctx->edid);
+	ctx->edid = NULL;
+}
+
 static void sii8620_disconnect(struct sii8620 *ctx)
 {
 	sii8620_disable_gen2_write_burst(ctx);
@@ -1561,7 +1525,7 @@ static void sii8620_disconnect(struct sii8620 *ctx)
 		REG_MHL_DP_CTL6, 0x2A,
 		REG_MHL_DP_CTL7, 0x03
 	);
-	sii8620_disable_hpd(ctx);
+	sii8620_hpd_unplugged(ctx);
 	sii8620_write_seq_static(ctx,
 		REG_M3_CTRL, VAL_M3_CTRL_MHL3_VALUE,
 		REG_MHL_COC_CTL1, 0x07,
@@ -1609,10 +1573,8 @@ static void sii8620_disconnect(struct sii8620 *ctx)
 	memset(ctx->xstat, 0, sizeof(ctx->xstat));
 	memset(ctx->devcap, 0, sizeof(ctx->devcap));
 	memset(ctx->xdevcap, 0, sizeof(ctx->xdevcap));
+	ctx->devcap_read = false;
 	ctx->cbus_status = 0;
-	ctx->sink_type = SINK_NONE;
-	kfree(ctx->edid);
-	ctx->edid = NULL;
 	sii8620_mt_cleanup(ctx);
 }
 
@@ -1703,9 +1665,6 @@ static void sii8620_status_changed_path(struct sii8620 *ctx)
 		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
 				      MHL_DST_LM_CLK_MODE_NORMAL
 				      | MHL_DST_LM_PATH_ENABLED);
-		if (!sii8620_is_mhl3(ctx))
-			sii8620_mt_read_devcap(ctx, false);
-		sii8620_mt_set_cont(ctx, sii8620_sink_detected);
 	} else {
 		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
 				      MHL_DST_LM_CLK_MODE_NORMAL);
@@ -1722,8 +1681,13 @@ static void sii8620_msc_mr_write_stat(struct sii8620 *ctx)
 	sii8620_update_array(ctx->stat, st, MHL_DST_SIZE);
 	sii8620_update_array(ctx->xstat, xst, MHL_XDS_SIZE);
 
-	if (ctx->stat[MHL_DST_CONNECTED_RDY] & MHL_DST_CONN_DCAP_RDY)
+	if (ctx->stat[MHL_DST_CONNECTED_RDY] & st[MHL_DST_CONNECTED_RDY] &
+	    MHL_DST_CONN_DCAP_RDY) {
 		sii8620_status_dcap_ready(ctx);
+
+		if (!sii8620_is_mhl3(ctx))
+			sii8620_mt_read_devcap(ctx, false);
+	}
 
 	if (st[MHL_DST_LINK_MODE] & MHL_DST_LM_PATH_ENABLED)
 		sii8620_status_changed_path(ctx);
@@ -1808,8 +1772,11 @@ static void sii8620_msc_mr_set_int(struct sii8620 *ctx)
 	}
 	if (ints[MHL_INT_RCHANGE] & MHL_INT_RC_FEAT_REQ)
 		sii8620_send_features(ctx);
-	if (ints[MHL_INT_RCHANGE] & MHL_INT_RC_FEAT_COMPLETE)
-		sii8620_edid_read(ctx, 0);
+	if (ints[MHL_INT_RCHANGE] & MHL_INT_RC_FEAT_COMPLETE) {
+		ctx->feature_complete = true;
+		if (ctx->edid)
+			sii8620_enable_hpd(ctx);
+	}
 }
 
 static struct sii8620_mt_msg *sii8620_msc_msg_first(struct sii8620 *ctx)
@@ -1884,6 +1851,15 @@ static void sii8620_irq_msc(struct sii8620 *ctx)
 	if (stat & BIT_CBUS_MSC_MR_WRITE_STAT)
 		sii8620_msc_mr_write_stat(ctx);
 
+	if (stat & BIT_CBUS_HPD_CHG) {
+		if (ctx->cbus_status & BIT_CBUS_STATUS_CBUS_HPD) {
+			ctx->sink_detected = true;
+			sii8620_identify_sink(ctx);
+		} else {
+			sii8620_hpd_unplugged(ctx);
+		}
+	}
+
 	if (stat & BIT_CBUS_MSC_MR_SET_INT)
 		sii8620_msc_mr_set_int(ctx);
 
@@ -1931,14 +1907,6 @@ static void sii8620_irq_edid(struct sii8620 *ctx)
 		ctx->mt_state = MT_STATE_DONE;
 }
 
-static void sii8620_scdt_high(struct sii8620 *ctx)
-{
-	sii8620_write_seq_static(ctx,
-		REG_INTR8_MASK, BIT_CEA_NEW_AVI | BIT_CEA_NEW_VSI,
-		REG_TPI_SC, BIT_TPI_SC_TPI_OUTPUT_MODE_0_HDMI,
-	);
-}
-
 static void sii8620_irq_scdt(struct sii8620 *ctx)
 {
 	u8 stat = sii8620_readb(ctx, REG_INTR5);
@@ -1946,51 +1914,11 @@ static void sii8620_irq_scdt(struct sii8620 *ctx)
 	if (stat & BIT_INTR_SCDT_CHANGE) {
 		u8 cstat = sii8620_readb(ctx, REG_TMDS_CSTAT_P3);
 
-		if (cstat & BIT_TMDS_CSTAT_P3_SCDT) {
-			if (ctx->sink_type == SINK_HDMI)
-				/* enable infoframe interrupt */
-				sii8620_scdt_high(ctx);
-			else
-				sii8620_start_video(ctx);
-		}
+		if (cstat & BIT_TMDS_CSTAT_P3_SCDT)
+			sii8620_start_video(ctx);
 	}
 
 	sii8620_write(ctx, REG_INTR5, stat);
-}
-
-static void sii8620_new_vsi(struct sii8620 *ctx)
-{
-	u8 vsif[11];
-
-	sii8620_write(ctx, REG_RX_HDMI_CTRL2,
-		      VAL_RX_HDMI_CTRL2_DEFVAL |
-		      BIT_RX_HDMI_CTRL2_VSI_MON_SEL_VSI);
-	sii8620_read_buf(ctx, REG_RX_HDMI_MON_PKT_HEADER1, vsif,
-			 ARRAY_SIZE(vsif));
-}
-
-static void sii8620_new_avi(struct sii8620 *ctx)
-{
-	sii8620_write(ctx, REG_RX_HDMI_CTRL2, VAL_RX_HDMI_CTRL2_DEFVAL);
-	sii8620_read_buf(ctx, REG_RX_HDMI_MON_PKT_HEADER1, ctx->avif,
-			 ARRAY_SIZE(ctx->avif));
-}
-
-static void sii8620_irq_infr(struct sii8620 *ctx)
-{
-	u8 stat = sii8620_readb(ctx, REG_INTR8)
-		& (BIT_CEA_NEW_VSI | BIT_CEA_NEW_AVI);
-
-	sii8620_write(ctx, REG_INTR8, stat);
-
-	if (stat & BIT_CEA_NEW_VSI)
-		sii8620_new_vsi(ctx);
-
-	if (stat & BIT_CEA_NEW_AVI)
-		sii8620_new_avi(ctx);
-
-	if (stat & (BIT_CEA_NEW_VSI | BIT_CEA_NEW_AVI))
-		sii8620_start_video(ctx);
 }
 
 static void sii8620_got_xdevcap(struct sii8620 *ctx, int ret)
@@ -2043,11 +1971,11 @@ static void sii8620_irq_ddc(struct sii8620 *ctx)
 
 	if (stat & BIT_DDC_CMD_DONE) {
 		sii8620_write(ctx, REG_INTR3_MASK, 0);
-		if (sii8620_is_mhl3(ctx))
+		if (sii8620_is_mhl3(ctx) && !ctx->feature_complete)
 			sii8620_mt_set_int(ctx, MHL_INT_REG(RCHANGE),
 					   MHL_INT_RC_FEAT_REQ);
 		else
-			sii8620_edid_read(ctx, 0);
+			sii8620_enable_hpd(ctx);
 	}
 	sii8620_write(ctx, REG_INTR3, stat);
 }
@@ -2074,7 +2002,6 @@ static irqreturn_t sii8620_irq_thread(int irq, void *data)
 		{ BIT_FAST_INTR_STAT_EDID, sii8620_irq_edid },
 		{ BIT_FAST_INTR_STAT_DDC, sii8620_irq_ddc },
 		{ BIT_FAST_INTR_STAT_SCDT, sii8620_irq_scdt },
-		{ BIT_FAST_INTR_STAT_INFR, sii8620_irq_infr },
 	};
 	struct sii8620 *ctx = data;
 	u8 stats[LEN_FAST_INTR_STAT];
@@ -2112,7 +2039,6 @@ static void sii8620_cable_in(struct sii8620 *ctx)
 		dev_err(dev, "Error powering on, %d.\n", ret);
 		return;
 	}
-	sii8620_hw_reset(ctx);
 
 	sii8620_read_buf(ctx, REG_VND_IDL, ver, ARRAY_SIZE(ver));
 	ret = sii8620_clear_error(ctx);
@@ -2268,17 +2194,43 @@ static void sii8620_detach(struct drm_bridge *bridge)
 	rc_unregister_device(ctx->rc_dev);
 }
 
+static int sii8620_is_packing_required(struct sii8620 *ctx,
+				       const struct drm_display_mode *mode)
+{
+	int max_pclk, max_pclk_pp_mode;
+
+	if (sii8620_is_mhl3(ctx)) {
+		max_pclk = MHL3_MAX_PCLK;
+		max_pclk_pp_mode = MHL3_MAX_PCLK_PP_MODE;
+	} else {
+		max_pclk = MHL1_MAX_PCLK;
+		max_pclk_pp_mode = MHL1_MAX_PCLK_PP_MODE;
+	}
+
+	if (mode->clock < max_pclk)
+		return 0;
+	else if (mode->clock < max_pclk_pp_mode)
+		return 1;
+	else
+		return -1;
+}
+
 static enum drm_mode_status sii8620_mode_valid(struct drm_bridge *bridge,
 					 const struct drm_display_mode *mode)
 {
 	struct sii8620 *ctx = bridge_to_sii8620(bridge);
+	int pack_required = sii8620_is_packing_required(ctx, mode);
 	bool can_pack = ctx->devcap[MHL_DCAP_VID_LINK_MODE] &
 			MHL_DCAP_VID_LINK_PPIXEL;
-	unsigned int max_pclk = sii8620_is_mhl3(ctx) ? MHL3_MAX_LCLK :
-						       MHL1_MAX_LCLK;
-	max_pclk /= can_pack ? 2 : 3;
 
-	return (mode->clock > max_pclk) ? MODE_CLOCK_HIGH : MODE_OK;
+	switch (pack_required) {
+	case 0:
+		return MODE_OK;
+	case 1:
+		return (can_pack) ? MODE_OK : MODE_CLOCK_HIGH;
+	default:
+		return MODE_CLOCK_HIGH;
+	}
 }
 
 static bool sii8620_mode_fixup(struct drm_bridge *bridge,
@@ -2286,43 +2238,16 @@ static bool sii8620_mode_fixup(struct drm_bridge *bridge,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct sii8620 *ctx = bridge_to_sii8620(bridge);
-	int max_lclk;
-	bool ret = true;
 
 	mutex_lock(&ctx->lock);
 
-	max_lclk = sii8620_is_mhl3(ctx) ? MHL3_MAX_LCLK : MHL1_MAX_LCLK;
-	if (max_lclk > 3 * adjusted_mode->clock) {
-		ctx->use_packed_pixel = 0;
-		goto end;
-	}
-	if ((ctx->devcap[MHL_DCAP_VID_LINK_MODE] & MHL_DCAP_VID_LINK_PPIXEL) &&
-	    max_lclk > 2 * adjusted_mode->clock) {
-		ctx->use_packed_pixel = 1;
-		goto end;
-	}
-	ret = false;
-end:
-	if (ret) {
-		u8 vic = drm_match_cea_mode(adjusted_mode);
+	ctx->use_packed_pixel = sii8620_is_packing_required(ctx, adjusted_mode);
+	ctx->video_code = drm_match_cea_mode(adjusted_mode);
+	ctx->pixel_clock = adjusted_mode->clock;
 
-		if (!vic) {
-			union hdmi_infoframe frm;
-			u8 mhl_vic[] = { 0, 95, 94, 93, 98 };
-
-			/* FIXME: We need the connector here */
-			drm_hdmi_vendor_infoframe_from_display_mode(
-				&frm.vendor.hdmi, NULL, adjusted_mode);
-			vic = frm.vendor.hdmi.vic;
-			if (vic >= ARRAY_SIZE(mhl_vic))
-				vic = 0;
-			vic = mhl_vic[vic];
-		}
-		ctx->video_code = vic;
-		ctx->pixel_clock = adjusted_mode->clock;
-	}
 	mutex_unlock(&ctx->lock);
-	return ret;
+
+	return true;
 }
 
 static const struct drm_bridge_funcs sii8620_bridge_funcs = {

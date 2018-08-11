@@ -235,6 +235,10 @@ static ssize_t get_mm_cmdline(struct mm_struct *mm, char __user *buf,
 	if (env_start != arg_end || env_start >= env_end)
 		env_start = env_end = arg_end;
 
+	/* .. and limit it to a maximum of one page of slop */
+	if (env_end >= arg_end + PAGE_SIZE)
+		env_end = arg_end + PAGE_SIZE - 1;
+
 	/* We're not going to care if "*ppos" has high bits set */
 	pos = arg_start + *ppos;
 
@@ -254,10 +258,19 @@ static ssize_t get_mm_cmdline(struct mm_struct *mm, char __user *buf,
 	while (count) {
 		int got;
 		size_t size = min_t(size_t, PAGE_SIZE, count);
+		long offset;
 
-		got = access_remote_vm(mm, pos, page, size, FOLL_ANON);
-		if (got <= 0)
+		/*
+		 * Are we already starting past the official end?
+		 * We always include the last byte that is *supposed*
+		 * to be NUL
+		 */
+		offset = (pos >= arg_end) ? pos - arg_end + 1 : 0;
+
+		got = access_remote_vm(mm, pos - offset, page, size + offset, FOLL_ANON);
+		if (got <= offset)
 			break;
+		got -= offset;
 
 		/* Don't walk past a NUL character once you hit arg_end */
 		if (pos + got >= arg_end) {
@@ -276,12 +289,17 @@ static ssize_t get_mm_cmdline(struct mm_struct *mm, char __user *buf,
 				n = arg_end - pos - 1;
 
 			/* Cut off at first NUL after 'n' */
-			got = n + strnlen(page+n, got-n);
-			if (!got)
+			got = n + strnlen(page+n, offset+got-n);
+			if (got < offset)
 				break;
+			got -= offset;
+
+			/* Include the NUL if it existed */
+			if (got < size)
+				got++;
 		}
 
-		got -= copy_to_user(buf, page, got);
+		got -= copy_to_user(buf, page+offset, got);
 		if (unlikely(!got)) {
 			if (!len)
 				len = -EFAULT;

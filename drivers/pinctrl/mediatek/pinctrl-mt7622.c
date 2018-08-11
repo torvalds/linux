@@ -1459,6 +1459,9 @@ static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
 	unsigned long eint_n;
 
+	if (!hw->eint)
+		return -ENOTSUPP;
+
 	eint_n = offset;
 
 	return mtk_eint_find_irq(hw->eint, eint_n);
@@ -1471,7 +1474,8 @@ static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	unsigned long eint_n;
 	u32 debounce;
 
-	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+	if (!hw->eint ||
+	    pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
 		return -ENOTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
