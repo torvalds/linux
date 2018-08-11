@@ -2152,7 +2152,8 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 kobj_attribute_write(register,		register_bcache);
 kobj_attribute_write(register_quiet,	register_bcache);
 
-static bool bch_is_open_backing(struct block_device *bdev) {
+static bool bch_is_open_backing(struct block_device *bdev)
+{
 	struct cache_set *c, *tc;
 	struct cached_dev *dc, *t;
 
@@ -2166,7 +2167,8 @@ static bool bch_is_open_backing(struct block_device *bdev) {
 	return false;
 }
 
-static bool bch_is_open_cache(struct block_device *bdev) {
+static bool bch_is_open_cache(struct block_device *bdev)
+{
 	struct cache_set *c, *tc;
 	struct cache *ca;
 	unsigned int i;
@@ -2178,7 +2180,8 @@ static bool bch_is_open_cache(struct block_device *bdev) {
 	return false;
 }
 
-static bool bch_is_open(struct block_device *bdev) {
+static bool bch_is_open(struct block_device *bdev)
+{
 	return bch_is_open_cache(bdev) || bch_is_open_backing(bdev);
 }
 
