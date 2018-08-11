@@ -20,6 +20,7 @@
 #include "mt76x2u.h"
 
 static const struct usb_device_id mt76x2u_device_table[] = {
+	{ USB_DEVICE(0x0e8d, 0x7612) }, /* Alfa AWUS036ACM */
 	{ USB_DEVICE(0x0b05, 0x1833) },	/* Asus USB-AC54 */
 	{ USB_DEVICE(0x0b05, 0x17eb) },	/* Asus USB-AC55 */
 	{ USB_DEVICE(0x0b05, 0x180b) },	/* Asus USB-N53 B1 */
