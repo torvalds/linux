@@ -2010,8 +2010,8 @@ bye:
 }
 
 /*
- * Returns -EINVAL if attempts to flash the firmware failed
- * else returns 0,
+ * Returns -EINVAL if attempts to flash the firmware failed,
+ * -ENOMEM if memory allocation failed else returns 0,
  * if flashing was not attempted because the card had the
  * latest firmware ECANCELED is returned
  */
@@ -2039,6 +2039,13 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		return -EINVAL;
 	}
 
+	/* allocate memory to read the header of the firmware on the
+	 * card
+	 */
+	card_fw = kmalloc(sizeof(*card_fw), GFP_KERNEL);
+	if (!card_fw)
+		return -ENOMEM;
+
 	if (csio_is_t5(pci_dev->device & CSIO_HW_CHIP_MASK))
 		fw_bin_file = FW_FNAME_T5;
 	else
@@ -2051,11 +2058,6 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		fw_data = fw->data;
 		fw_size = fw->size;
 	}
-
-	/* allocate memory to read the header of the firmware on the
-	 * card
-	 */
-	card_fw = kmalloc(sizeof(*card_fw), GFP_KERNEL);
 
 	/* upgrade FW logic */
 	ret = csio_hw_prep_fw(hw, fw_info, fw_data, fw_size, card_fw,
