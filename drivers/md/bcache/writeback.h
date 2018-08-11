@@ -96,10 +96,11 @@ static inline void bch_writeback_add(struct cached_dev *dc)
 	}
 }
 
-void bcache_dev_sectors_dirty_add(struct cache_set *, unsigned int, uint64_t, int);
+void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int inode,
+				  uint64_t offset, int nr_sectors);
 
-void bch_sectors_dirty_init(struct bcache_device *);
-void bch_cached_dev_writeback_init(struct cached_dev *);
-int bch_cached_dev_writeback_start(struct cached_dev *);
+void bch_sectors_dirty_init(struct bcache_device *d);
+void bch_cached_dev_writeback_init(struct cached_dev *dc);
+int bch_cached_dev_writeback_start(struct cached_dev *dc);
 
 #endif

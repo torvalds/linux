@@ -2136,8 +2136,8 @@ err:
 
 /* Global interfaces/init */
 
-static ssize_t register_bcache(struct kobject *, struct kobj_attribute *,
-			       const char *, size_t);
+static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
+			       const char *buffer, size_t size);
 
 kobj_attribute_write(register,		register_bcache);
 kobj_attribute_write(register_quiet,	register_bcache);

@@ -273,9 +273,10 @@ struct bcache_device {
 
 	unsigned int		data_csum:1;
 
-	int (*cache_miss)(struct btree *, struct search *,
-			  struct bio *, unsigned int);
-	int (*ioctl) (struct bcache_device *, fmode_t, unsigned int, unsigned long);
+	int (*cache_miss)(struct btree *b, struct search *s,
+			  struct bio *bio, unsigned int sectors);
+	int (*ioctl) (struct bcache_device *d, fmode_t mode,
+		      unsigned int cmd, unsigned long arg);
 };
 
 struct io {
@@ -925,41 +926,43 @@ static inline void wait_for_kthread_stop(void)
 /* Forward declarations */
 
 void bch_count_backing_io_errors(struct cached_dev *dc, struct bio *bio);
-void bch_count_io_errors(struct cache *, blk_status_t, int, const char *);
-void bch_bbio_count_io_errors(struct cache_set *, struct bio *,
-			      blk_status_t, const char *);
-void bch_bbio_endio(struct cache_set *, struct bio *, blk_status_t,
-		const char *);
-void bch_bbio_free(struct bio *, struct cache_set *);
-struct bio *bch_bbio_alloc(struct cache_set *);
+void bch_count_io_errors(struct cache *ca, blk_status_t error,
+			 int is_read, const char *m);
+void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
+			      blk_status_t error, const char *m);
+void bch_bbio_endio(struct cache_set *c, struct bio *bio,
+		    blk_status_t error, const char *m);
+void bch_bbio_free(struct bio *bio, struct cache_set *c);
+struct bio *bch_bbio_alloc(struct cache_set *c);
 
-void __bch_submit_bbio(struct bio *, struct cache_set *);
-void bch_submit_bbio(struct bio *, struct cache_set *,
-		     struct bkey *, unsigned int);
+void __bch_submit_bbio(struct bio *bio, struct cache_set *c);
+void bch_submit_bbio(struct bio *bio, struct cache_set *c,
+		     struct bkey *k, unsigned int ptr);
 
-uint8_t bch_inc_gen(struct cache *, struct bucket *);
-void bch_rescale_priorities(struct cache_set *, int);
+uint8_t bch_inc_gen(struct cache *ca, struct bucket *b);
+void bch_rescale_priorities(struct cache_set *c, int sectors);
 
-bool bch_can_invalidate_bucket(struct cache *, struct bucket *);
-void __bch_invalidate_one_bucket(struct cache *, struct bucket *);
+bool bch_can_invalidate_bucket(struct cache *ca, struct bucket *b);
+void __bch_invalidate_one_bucket(struct cache *ca, struct bucket *b);
 
-void __bch_bucket_free(struct cache *, struct bucket *);
-void bch_bucket_free(struct cache_set *, struct bkey *);
+void __bch_bucket_free(struct cache *ca, struct bucket *b);
+void bch_bucket_free(struct cache_set *c, struct bkey *k);
 
-long bch_bucket_alloc(struct cache *, unsigned int, bool);
-int __bch_bucket_alloc_set(struct cache_set *, unsigned int,
-			   struct bkey *, int, bool);
-int bch_bucket_alloc_set(struct cache_set *, unsigned int,
-			 struct bkey *, int, bool);
-bool bch_alloc_sectors(struct cache_set *, struct bkey *, unsigned int,
-		       unsigned int, unsigned int, bool);
+long bch_bucket_alloc(struct cache *ca, unsigned int reserve, bool wait);
+int __bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,
+			   struct bkey *k, int n, bool wait);
+int bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,
+			 struct bkey *k, int n, bool wait);
+bool bch_alloc_sectors(struct cache_set *c, struct bkey *k,
+		       unsigned int sectors, unsigned int write_point,
+		       unsigned int write_prio, bool wait);
 bool bch_cached_dev_error(struct cached_dev *dc);
 
 __printf(2, 3)
-bool bch_cache_set_error(struct cache_set *, const char *, ...);
+bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...);
 
-void bch_prio_write(struct cache *);
-void bch_write_bdev_super(struct cached_dev *, struct closure *);
+void bch_prio_write(struct cache *ca);
+void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent);
 
 extern struct workqueue_struct *bcache_wq;
 extern struct mutex bch_register_lock;
@@ -971,30 +974,31 @@ extern struct kobj_type bch_cache_set_ktype;
 extern struct kobj_type bch_cache_set_internal_ktype;
 extern struct kobj_type bch_cache_ktype;
 
-void bch_cached_dev_release(struct kobject *);
-void bch_flash_dev_release(struct kobject *);
-void bch_cache_set_release(struct kobject *);
-void bch_cache_release(struct kobject *);
+void bch_cached_dev_release(struct kobject *kobj);
+void bch_flash_dev_release(struct kobject *kobj);
+void bch_cache_set_release(struct kobject *kobj);
+void bch_cache_release(struct kobject *kobj);
 
-int bch_uuid_write(struct cache_set *);
-void bcache_write_super(struct cache_set *);
+int bch_uuid_write(struct cache_set *c);
+void bcache_write_super(struct cache_set *c);
 
 int bch_flash_dev_create(struct cache_set *c, uint64_t size);
 
-int bch_cached_dev_attach(struct cached_dev *, struct cache_set *, uint8_t *);
-void bch_cached_dev_detach(struct cached_dev *);
-void bch_cached_dev_run(struct cached_dev *);
-void bcache_device_stop(struct bcache_device *);
+int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
+			  uint8_t *set_uuid);
+void bch_cached_dev_detach(struct cached_dev *dc);
+void bch_cached_dev_run(struct cached_dev *dc);
+void bcache_device_stop(struct bcache_device *d);
 
-void bch_cache_set_unregister(struct cache_set *);
-void bch_cache_set_stop(struct cache_set *);
+void bch_cache_set_unregister(struct cache_set *c);
+void bch_cache_set_stop(struct cache_set *c);
 
-struct cache_set *bch_cache_set_alloc(struct cache_sb *);
-void bch_btree_cache_free(struct cache_set *);
-int bch_btree_cache_alloc(struct cache_set *);
-void bch_moving_init_cache_set(struct cache_set *);
-int bch_open_buckets_alloc(struct cache_set *);
-void bch_open_buckets_free(struct cache_set *);
+struct cache_set *bch_cache_set_alloc(struct cache_sb *sb);
+void bch_btree_cache_free(struct cache_set *c);
+int bch_btree_cache_alloc(struct cache_set *c);
+void bch_moving_init_cache_set(struct cache_set *c);
+int bch_open_buckets_alloc(struct cache_set *c);
+void bch_open_buckets_free(struct cache_set *c);
 
 int bch_cache_allocator_start(struct cache *ca);
 

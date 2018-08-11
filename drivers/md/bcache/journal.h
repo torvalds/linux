@@ -167,14 +167,16 @@ struct cache_set;
 struct btree_op;
 struct keylist;
 
-atomic_t *bch_journal(struct cache_set *, struct keylist *, struct closure *);
-void bch_journal_next(struct journal *);
-void bch_journal_mark(struct cache_set *, struct list_head *);
-void bch_journal_meta(struct cache_set *, struct closure *);
-int bch_journal_read(struct cache_set *, struct list_head *);
-int bch_journal_replay(struct cache_set *, struct list_head *);
+atomic_t *bch_journal(struct cache_set *c,
+		      struct keylist *keys,
+		      struct closure *parent);
+void bch_journal_next(struct journal *j);
+void bch_journal_mark(struct cache_set *c, struct list_head *list);
+void bch_journal_meta(struct cache_set *c, struct closure *cl);
+int bch_journal_read(struct cache_set *c, struct list_head *list);
+int bch_journal_replay(struct cache_set *c, struct list_head *list);
 
-void bch_journal_free(struct cache_set *);
-int bch_journal_alloc(struct cache_set *);
+void bch_journal_free(struct cache_set *c);
+int bch_journal_alloc(struct cache_set *c);
 
 #endif /* _BCACHE_JOURNAL_H */

@@ -288,10 +288,10 @@ do {									\
 #define ANYSINT_MAX(t)							\
 	((((t) 1 << (sizeof(t) * 8 - 2)) - (t) 1) * (t) 2 + (t) 1)
 
-int bch_strtoint_h(const char *, int *);
-int bch_strtouint_h(const char *, unsigned int *);
-int bch_strtoll_h(const char *, long long *);
-int bch_strtoull_h(const char *, unsigned long long *);
+int bch_strtoint_h(const char *cp, int *res);
+int bch_strtouint_h(const char *cp, unsigned int *res);
+int bch_strtoll_h(const char *cp, long long *res);
+int bch_strtoull_h(const char *cp, unsigned long long *res);
 
 static inline int bch_strtol_h(const char *cp, long *res)
 {
@@ -563,7 +563,7 @@ static inline sector_t bdev_sectors(struct block_device *bdev)
 	return bdev->bd_inode->i_size >> 9;
 }
 
-uint64_t bch_crc64_update(uint64_t, const void *, size_t);
-uint64_t bch_crc64(const void *, size_t);
+uint64_t bch_crc64_update(uint64_t crc, const void *_data, size_t len);
+uint64_t bch_crc64(const void *data, size_t len);
 
 #endif /* _BCACHE_UTIL_H */

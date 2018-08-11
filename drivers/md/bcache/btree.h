@@ -238,26 +238,28 @@ static inline void rw_unlock(bool w, struct btree *b)
 	(w ? up_write : up_read)(&b->lock);
 }
 
-void bch_btree_node_read_done(struct btree *);
-void __bch_btree_node_write(struct btree *, struct closure *);
-void bch_btree_node_write(struct btree *, struct closure *);
+void bch_btree_node_read_done(struct btree *b);
+void __bch_btree_node_write(struct btree *b, struct closure *parent);
+void bch_btree_node_write(struct btree *b, struct closure *parent);
 
-void bch_btree_set_root(struct btree *);
-struct btree *__bch_btree_node_alloc(struct cache_set *, struct btree_op *,
-				     int, bool, struct btree *);
-struct btree *bch_btree_node_get(struct cache_set *, struct btree_op *,
-				 struct bkey *, int, bool, struct btree *);
+void bch_btree_set_root(struct btree *b);
+struct btree *__bch_btree_node_alloc(struct cache_set *c, struct btree_op *op,
+				     int level, bool wait,
+				     struct btree *parent);
+struct btree *bch_btree_node_get(struct cache_set *c, struct btree_op *op,
+				 struct bkey *k, int level, bool write,
+				 struct btree *parent);
 
-int bch_btree_insert_check_key(struct btree *, struct btree_op *,
-			       struct bkey *);
-int bch_btree_insert(struct cache_set *, struct keylist *,
-		     atomic_t *, struct bkey *);
+int bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
+			       struct bkey *check_key);
+int bch_btree_insert(struct cache_set *c, struct keylist *keys,
+		     atomic_t *journal_ref, struct bkey *replace_key);
 
-int bch_gc_thread_start(struct cache_set *);
-void bch_initial_gc_finish(struct cache_set *);
-void bch_moving_gc(struct cache_set *);
-int bch_btree_check(struct cache_set *);
-void bch_initial_mark_key(struct cache_set *, int, struct bkey *);
+int bch_gc_thread_start(struct cache_set *c);
+void bch_initial_gc_finish(struct cache_set *c);
+void bch_moving_gc(struct cache_set *c);
+int bch_btree_check(struct cache_set *c);
+void bch_initial_mark_key(struct cache_set *c, int level, struct bkey *k);
 
 static inline void wake_up_gc(struct cache_set *c)
 {
@@ -272,9 +274,9 @@ static inline void wake_up_gc(struct cache_set *c)
 
 #define MAP_END_KEY	1
 
-typedef int (btree_map_nodes_fn)(struct btree_op *, struct btree *);
-int __bch_btree_map_nodes(struct btree_op *, struct cache_set *,
-			  struct bkey *, btree_map_nodes_fn *, int);
+typedef int (btree_map_nodes_fn)(struct btree_op *b_op, struct btree *b);
+int __bch_btree_map_nodes(struct btree_op *op, struct cache_set *c,
+			  struct bkey *from, btree_map_nodes_fn *fn, int flags);
 
 static inline int bch_btree_map_nodes(struct btree_op *op, struct cache_set *c,
 				      struct bkey *from, btree_map_nodes_fn *fn)
@@ -290,21 +292,21 @@ static inline int bch_btree_map_leaf_nodes(struct btree_op *op,
 	return __bch_btree_map_nodes(op, c, from, fn, MAP_LEAF_NODES);
 }
 
-typedef int (btree_map_keys_fn)(struct btree_op *, struct btree *,
-				struct bkey *);
-int bch_btree_map_keys(struct btree_op *, struct cache_set *,
-		       struct bkey *, btree_map_keys_fn *, int);
+typedef int (btree_map_keys_fn)(struct btree_op *op, struct btree *b,
+				struct bkey *k);
+int bch_btree_map_keys(struct btree_op *op, struct cache_set *c,
+		       struct bkey *from, btree_map_keys_fn *fn, int flags);
 
-typedef bool (keybuf_pred_fn)(struct keybuf *, struct bkey *);
+typedef bool (keybuf_pred_fn)(struct keybuf *buf, struct bkey *k);
 
-void bch_keybuf_init(struct keybuf *);
-void bch_refill_keybuf(struct cache_set *, struct keybuf *,
-		       struct bkey *, keybuf_pred_fn *);
-bool bch_keybuf_check_overlapping(struct keybuf *, struct bkey *,
-				  struct bkey *);
-void bch_keybuf_del(struct keybuf *, struct keybuf_key *);
-struct keybuf_key *bch_keybuf_next(struct keybuf *);
-struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *, struct keybuf *,
-					  struct bkey *, keybuf_pred_fn *);
+void bch_keybuf_init(struct keybuf *buf);
+void bch_refill_keybuf(struct cache_set *c, struct keybuf *buf,
+		       struct bkey *end, keybuf_pred_fn *pred);
+bool bch_keybuf_check_overlapping(struct keybuf *buf, struct bkey *start,
+				  struct bkey *end);
+void bch_keybuf_del(struct keybuf *buf, struct keybuf_key *w);
+struct keybuf_key *bch_keybuf_next(struct keybuf *buf);
+struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *c, struct keybuf *buf,
+					  struct bkey *end, keybuf_pred_fn *pred);
 void bch_update_bucket_in_use(struct cache_set *c, struct gc_stat *stats);
 #endif

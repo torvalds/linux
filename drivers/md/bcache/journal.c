@@ -581,7 +581,7 @@ static void journal_write_endio(struct bio *bio)
 	closure_put(&w->c->journal.io);
 }
 
-static void journal_write(struct closure *);
+static void journal_write(struct closure *cl);
 
 static void journal_write_done(struct closure *cl)
 {

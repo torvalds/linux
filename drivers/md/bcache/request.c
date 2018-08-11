@@ -25,7 +25,7 @@
 
 struct kmem_cache *bch_search_cache;
 
-static void bch_data_insert_start(struct closure *);
+static void bch_data_insert_start(struct closure *cl);
 
 static unsigned int cache_mode(struct cached_dev *dc)
 {
