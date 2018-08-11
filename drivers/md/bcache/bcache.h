@@ -881,11 +881,11 @@ static inline uint8_t bucket_gc_gen(struct bucket *b)
 #define BUCKET_GC_GEN_MAX	96U
 
 #define kobj_attribute_write(n, fn)					\
-	static struct kobj_attribute ksysfs_##n = __ATTR(n, S_IWUSR, NULL, fn)
+	static struct kobj_attribute ksysfs_##n = __ATTR(n, 0200, NULL, fn)
 
 #define kobj_attribute_rw(n, show, store)				\
 	static struct kobj_attribute ksysfs_##n =			\
-		__ATTR(n, S_IWUSR|S_IRUSR, show, store)
+		__ATTR(n, 0600, show, store)
 
 static inline void wake_up_allocators(struct cache_set *c)
 {
