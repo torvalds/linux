@@ -156,10 +156,11 @@ static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 		.index   = d->tcf_index,
 		.refcnt  = refcount_read(&d->tcf_refcnt) - ref,
 		.bindcnt = atomic_read(&d->tcf_bindcnt) - bind,
-		.action  = d->tcf_action,
 	};
 	struct tcf_t t;
 
+	spin_lock_bh(&d->tcf_lock);
+	opt.action = d->tcf_action;
 	if (nla_put(skb, TCA_DEF_PARMS, sizeof(opt), &opt) ||
 	    nla_put_string(skb, TCA_DEF_DATA, d->tcfd_defdata))
 		goto nla_put_failure;
@@ -167,9 +168,12 @@ static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 	tcf_tm_dump(&t, &d->tcf_tm);
 	if (nla_put_64bit(skb, TCA_DEF_TM, sizeof(t), &t, TCA_DEF_PAD))
 		goto nla_put_failure;
+	spin_unlock_bh(&d->tcf_lock);
+
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&d->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
