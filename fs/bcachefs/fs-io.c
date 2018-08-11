@@ -2424,7 +2424,6 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 	struct btree_iter *src, *dst;
 	BKEY_PADDED(k) copy;
 	struct bkey_s_c k;
-	struct i_sectors_hook i_sectors_hook = i_sectors_hook_init(inode, 0);
 	loff_t new_size;
 	int ret;
 
@@ -2432,16 +2431,7 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 		return -EINVAL;
 
 	bch2_trans_init(&trans, c);
-
-	dst = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-			     POS(inode->v.i_ino, offset >> 9),
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	BUG_ON(IS_ERR(dst));
-
-	/* position will be set from dst iter's position: */
-	src = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, POS_MIN,
-			     BTREE_ITER_SLOTS);
-	BUG_ON(IS_ERR(src));
+	bch2_trans_preload_iters(&trans);
 
 	/*
 	 * We need i_mutex to keep the page cache consistent with the extents
@@ -2466,14 +2456,23 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 	if (ret)
 		goto err;
 
-	ret = i_sectors_dirty_start(c, &i_sectors_hook);
-	if (ret)
-		goto err;
+	dst = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+			POS(inode->v.i_ino, offset >> 9),
+			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	BUG_ON(IS_ERR_OR_NULL(dst));
+
+	src = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+			POS_MIN, BTREE_ITER_SLOTS);
+	BUG_ON(IS_ERR_OR_NULL(src));
 
 	while (bkey_cmp(dst->pos,
 			POS(inode->v.i_ino,
 			    round_up(new_size, PAGE_SIZE) >> 9)) < 0) {
 		struct disk_reservation disk_res;
+
+		ret = bch2_btree_iter_traverse(dst);
+		if (ret)
+			goto btree_iter_err;
 
 		bch2_btree_iter_set_pos(src,
 			POS(dst->pos.inode, dst->pos.offset + (len >> 9)));
@@ -2487,10 +2486,6 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 		bch2_cut_front(src->pos, &copy.k);
 		copy.k.k.p.offset -= len >> 9;
 
-		ret = bch2_btree_iter_traverse(dst);
-		if (ret)
-			goto btree_iter_err;
-
 		bch2_extent_trim_atomic(&copy.k, dst);
 
 		BUG_ON(bkey_cmp(dst->pos, bkey_start_pos(&copy.k.k)));
@@ -2500,19 +2495,16 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 				BCH_DISK_RESERVATION_NOFAIL);
 		BUG_ON(ret);
 
-		ret = bch2_btree_insert_at(c, &disk_res, &i_sectors_hook.hook,
-					   &inode->ei_journal_seq,
-					   BTREE_INSERT_ATOMIC|
-					   BTREE_INSERT_NOFAIL,
-					   BTREE_INSERT_ENTRY(dst, &copy.k));
+		ret = bch2_extent_update(&trans, inode,
+				&disk_res, NULL,
+				dst, &copy.k,
+				0, true, true, NULL);
 		bch2_disk_reservation_put(c, &disk_res);
 btree_iter_err:
 		if (ret == -EINTR)
 			ret = 0;
-		if (ret) {
-			bch2_trans_exit(&trans);
-			goto err_put_sectors_dirty;
-		}
+		if (ret)
+			goto err;
 		/*
 		 * XXX: if we error here we've left data with multiple
 		 * pointers... which isn't a _super_ serious problem...
@@ -2520,20 +2512,21 @@ btree_iter_err:
 
 		bch2_btree_iter_cond_resched(src);
 	}
+	bch2_trans_unlock(&trans);
 
-	bch2_trans_exit(&trans);
-
-	ret = bch2_inode_truncate(c, inode->v.i_ino,
-				 round_up(new_size, block_bytes(c)) >> 9,
-				 &i_sectors_hook.hook,
-				 &inode->ei_journal_seq);
+	ret = __bch2_fpunch(c, inode,
+			round_up(new_size, block_bytes(c)) >> 9,
+			U64_MAX, &inode->ei_journal_seq);
 	if (ret)
-		goto err_put_sectors_dirty;
+		goto err;
 
-	i_sectors_hook.new_i_size = new_size;
-err_put_sectors_dirty:
-	ret = i_sectors_dirty_finish(c, &i_sectors_hook) ?: ret;
+	i_size_write(&inode->v, new_size);
+	mutex_lock(&inode->ei_update_lock);
+	ret = bch2_write_inode_size(c, inode, new_size,
+				    ATTR_MTIME|ATTR_CTIME);
+	mutex_unlock(&inode->ei_update_lock);
 err:
+	bch2_trans_exit(&trans);
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	inode_unlock(&inode->v);
 	return ret;
