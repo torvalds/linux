@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
  */
 
 /dts-v1/;
@@ -14,15 +14,12 @@
 #include "px30-android.dtsi"
 
 / {
-	model = "Rockchip rk3326 86v board";
-	compatible = "rockchip,rk3326-86v-v10", "rockchip,rk3326";
-
 	adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 2>;
 		io-channel-names = "buttons";
 		poll-interval = <100>;
-		keyup-threshold-microvolt = <617000>;
+		keyup-threshold-microvolt = <1800000>;
 
 		vol-down-key {
 			linux,code = <KEY_VOLUMEDOWN>;
@@ -78,46 +75,11 @@
 
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
-		rockchip,uboot-charge-on = <0>;
+		rockchip,uboot-charge-on = <1>;
 		rockchip,android-charge-on = <0>;
 		rockchip,uboot-low-power-voltage = <3500>;
 		rockchip,screen-on-voltage = <3600>;
 		status = "okay";
-	};
-
-	panel {
-		compatible ="simple-panel";
-		enable-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
-		reset-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
-		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
-		rockchip,data-width = <18>;
-		rockchip,output = "rgb";
-
-		display-timings {
-			native-mode = <&timing0>;
-
-			timing0: timing0 {
-				clock-frequency = <51200000>;
-				hactive = <1024>;
-				vactive = <600>;
-				hback-porch = <100>;
-				hfront-porch = <120>;
-				vback-porch = <10>;
-				vfront-porch = <15>;
-				hsync-len = <100>;
-				vsync-len = <10>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
-
-		port {
-			panel_in_lvds: endpoint {
-				remote-endpoint = <&lvds_out_panel>;
-			};
-		};
 	};
 
 	rk817-sound {
@@ -172,6 +134,26 @@
 		regulator-min-microvolt = <3800000>;
 		regulator-max-microvolt = <3800000>;
 	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "rtl8723cs";
+		WIFI,host_wake_irq = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+		WIFI,vbat_gpio = <&gpio3 RK_PB6 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio1 RK_PC3 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default","rts_gpio";
+		pinctrl-0 = <&uart1_rts>;
+		pinctrl-1 = <&uart1_rts_gpio>;
+		BT,reset_gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
 
 &cif {
@@ -184,6 +166,62 @@
 
 &display_subsystem {
 	status = "okay";
+};
+
+&dsi {
+	status = "okay";
+
+	panel@0 {
+		compatible = "aoly,sl008pa21y1285-b00", "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
+		prepare-delay-ms = <20>;
+		reset-delay-ms = <20>;
+		init-delay-ms = <20>;
+		enable-delay-ms = <120>;
+		disable-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+
+		width-mm = <108>;
+		height-mm = <172>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <4>;
+
+		panel-init-sequence = [
+			05 78 01 11
+			05 14 01 29
+		];
+
+		panel-exit-sequence = [
+			05 00 01 28
+			05 00 01 10
+		];
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <66000000>;
+				hactive = <800>;
+				vactive = <1280>;
+				hfront-porch = <2>;
+				hsync-len = <18>;
+				hback-porch = <18>;
+				vfront-porch = <4>;
+				vsync-len = <4>;
+				vback-porch = <16>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
 };
 
 &bus_apll {
@@ -201,8 +239,8 @@
 	 */
 	rockchip,board-irdrop = <
 		/*MHz	MHz	uV */
-		0	815	75000
-		816	1119	75000
+		0	815	37500
+		816	1119	50000
 		1200	1512	75000
 	>;
 };
@@ -217,19 +255,23 @@
 	>;
 };
 
+&dsi_in_vopl {
+	status = "disabled";
+};
+
 &dfi {
 	status = "okay";
 };
 
 &dmc {
 	center-supply = <&vdd_logic>;
-	status = "disabled";
+	status = "okay";
 };
 
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	/*mmc-hs200-1_8v;*/
+	mmc-hs200-1_8v;
 	supports-emmc;
 	disable-wp;
 	non-removable;
@@ -249,7 +291,7 @@
 		compatible = "rockchip,rk817";
 		reg = <0x20>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default", "pmic-sleep",
 				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int>;
@@ -555,25 +597,22 @@
 	status = "okay";
 
 	ts@40 {
-		compatible = "gslX680-d708";
-		reg = <0x40>;
-		touch-gpio = <&gpio0 RK_PB3 IRQ_TYPE_LEVEL_LOW>;
-		wake-gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-		screen_max_x = <1024>;
-		screen_max_y = <600>;
-		revert_x = <1>;
 		status = "okay";
+		compatible = "GSL,GSL3673_800X1280";
+		reg = <0x40>;
+		irq_gpio_number = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 	};
 
-	sensor@1d {
+	sensor@19 {
 		status = "okay";
-		compatible = "gs_lsm303d";
-		reg = <0x1d>;
+		compatible = "gs_lis3dh";
+		reg = <0x19>;
 		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio0 RK_PA1 IRQ_TYPE_LEVEL_LOW>;
+		irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
-		layout = <5>;
+		layout = <7>;
 		reprobe_en = <1>;
 	};
 };
@@ -597,20 +636,8 @@
 	vccio5-supply = <&vcc_3v0>;
 };
 
-&lvds {
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcdc_rgb_dclk_pin &lcdc_rgb666_m1_data_pins>;
+&mipi_dphy {
 	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			lvds_out_panel: endpoint {
-				remote-endpoint = <&panel_in_lvds>;
-			};
-		};
-	};
 };
 
 &nandc0 {
@@ -624,16 +651,10 @@
 		};
 	};
 
-	lcdc {
-		lcdc_rgb_dclk_pin: lcdc-rgb-dclk-pin {
-			rockchip,pins = <3 RK_PA0 RK_FUNC_1 &pcfg_pull_none>;
-		};
-	};
-
 	pmic {
 		pmic_int: pmic_int {
 			rockchip,pins =
-				<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+				<0 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		soc_slppin_gpio: soc_slppin_gpio {
@@ -679,7 +700,7 @@
 	rockchip,sleep-debug-en = <1>;
 };
 
-&route_lvds {
+&route_dsi {
 	status = "okay";
 };
 
@@ -713,7 +734,7 @@
 	non-removable;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	sd-uhs-sdr104;
-	status = "disabled";
+	status = "okay";
 };
 
 &tsadc {
@@ -769,25 +790,4 @@
 
 &vpu_combo {
 	status = "okay";
-};
-
-&firmware_android {
-	compatible = "android,firmware";
-	fstab {
-		compatible = "android,fstab";
-		system {
-			compatible = "android,system";
-			dev = "/dev/block/by-name/system";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait";
-		};
-		vendor {
-			compatible = "android,vendor";
-			dev = "/dev/block/by-name/vendor";
-			type = "ext4";
-			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-			fsmgr_flags = "wait";
-		};
-	};
 };
