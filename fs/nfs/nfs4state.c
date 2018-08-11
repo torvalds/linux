@@ -274,7 +274,7 @@ static int nfs4_drain_slot_tbl(struct nfs4_slot_table *tbl)
 static int nfs4_begin_drain_session(struct nfs_client *clp)
 {
 	struct nfs4_session *ses = clp->cl_session;
-	int ret = 0;
+	int ret;
 
 	if (clp->cl_slot_tbl)
 		return nfs4_drain_slot_tbl(clp->cl_slot_tbl);
@@ -1958,7 +1958,9 @@ static int nfs4_establish_lease(struct nfs_client *clp)
 		clp->cl_mvops->reboot_recovery_ops;
 	int status;
 
-	nfs4_begin_drain_session(clp);
+	status = nfs4_begin_drain_session(clp);
+	if (status != 0)
+		return status;
 	cred = nfs4_get_clid_cred(clp);
 	if (cred == NULL)
 		return -ENOENT;
@@ -2046,7 +2048,9 @@ static int nfs4_try_migration(struct nfs_server *server, struct rpc_cred *cred)
 		goto out;
 	}
 
-	nfs4_begin_drain_session(clp);
+	status = nfs4_begin_drain_session(clp);
+	if (status != 0)
+		return status;
 
 	status = nfs4_replace_transport(server, locations);
 	if (status != 0) {
@@ -2396,7 +2400,9 @@ static int nfs4_reset_session(struct nfs_client *clp)
 
 	if (!nfs4_has_session(clp))
 		return 0;
-	nfs4_begin_drain_session(clp);
+	status = nfs4_begin_drain_session(clp);
+	if (status != 0)
+		return status;
 	cred = nfs4_get_clid_cred(clp);
 	status = nfs4_proc_destroy_session(clp->cl_session, cred);
 	switch (status) {
@@ -2439,7 +2445,9 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 
 	if (!nfs4_has_session(clp))
 		return 0;
-	nfs4_begin_drain_session(clp);
+	ret = nfs4_begin_drain_session(clp);
+	if (ret != 0)
+		return ret;
 	cred = nfs4_get_clid_cred(clp);
 	ret = nfs4_proc_bind_conn_to_session(clp, cred);
 	if (cred)
