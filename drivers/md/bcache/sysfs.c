@@ -459,6 +459,7 @@ STORE(__bch_flash_dev)
 
 	if (attr == &sysfs_size) {
 		uint64_t v;
+
 		strtoi_h_or_return(buf, v);
 
 		u->sectors = v >> 9;
@@ -703,6 +704,7 @@ STORE(__bch_cache_set)
 	if (attr == &sysfs_flash_vol_create) {
 		int r;
 		uint64_t v;
+
 		strtoi_h_or_return(buf, v);
 
 		r = bch_flash_dev_create(c, v);
@@ -736,6 +738,7 @@ STORE(__bch_cache_set)
 
 	if (attr == &sysfs_prune_cache) {
 		struct shrink_control sc;
+
 		sc.gfp_mask = GFP_KERNEL;
 		sc.nr_to_scan = strtoul_or_return(buf);
 		c->shrink.scan_objects(&c->shrink, &sc);
@@ -789,12 +792,14 @@ STORE_LOCKED(bch_cache_set)
 SHOW(bch_cache_set_internal)
 {
 	struct cache_set *c = container_of(kobj, struct cache_set, internal);
+
 	return bch_cache_set_show(&c->kobj, attr, buf);
 }
 
 STORE(bch_cache_set_internal)
 {
 	struct cache_set *c = container_of(kobj, struct cache_set, internal);
+
 	return bch_cache_set_store(&c->kobj, attr, buf, size);
 }
 

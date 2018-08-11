@@ -38,6 +38,7 @@ static bool moving_pred(struct keybuf *buf, struct bkey *k)
 static void moving_io_destructor(struct closure *cl)
 {
 	struct moving_io *io = container_of(cl, struct moving_io, cl);
+
 	kfree(io);
 }
 
@@ -189,6 +190,7 @@ static bool bucket_cmp(struct bucket *l, struct bucket *r)
 static unsigned int bucket_heap_top(struct cache *ca)
 {
 	struct bucket *b;
+
 	return (b = heap_peek(&ca->heap)) ? GC_SECTORS_USED(b) : 0;
 }
 

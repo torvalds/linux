@@ -415,8 +415,8 @@ static int __uuid_write(struct cache_set *c)
 {
 	BKEY_PADDED(key) k;
 	struct closure cl;
-	closure_init_stack(&cl);
 
+	closure_init_stack(&cl);
 	lockdep_assert_held(&bch_register_lock);
 
 	if (bch_bucket_alloc_set(c, RESERVE_BTREE, &k.key, 1, true))
@@ -456,6 +456,7 @@ static struct uuid_entry *uuid_find(struct cache_set *c, const char *uuid)
 static struct uuid_entry *uuid_find_empty(struct cache_set *c)
 {
 	static const char zero_uuid[16] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
 	return uuid_find(c, zero_uuid);
 }
 
@@ -619,6 +620,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 static int open_dev(struct block_device *b, fmode_t mode)
 {
 	struct bcache_device *d = b->bd_disk->private_data;
+
 	if (test_bit(BCACHE_DEV_CLOSING, &d->flags))
 		return -ENXIO;
 
@@ -629,6 +631,7 @@ static int open_dev(struct block_device *b, fmode_t mode)
 static void release_dev(struct gendisk *b, fmode_t mode)
 {
 	struct bcache_device *d = b->private_data;
+
 	closure_put(&d->cl);
 }
 
@@ -919,6 +922,7 @@ void bch_cached_dev_run(struct cached_dev *dc)
 	if (!d->c &&
 	    BDEV_STATE(&dc->sb) != BDEV_STATE_NONE) {
 		struct closure cl;
+
 		closure_init_stack(&cl);
 
 		SET_BDEV_STATE(&dc->sb, BDEV_STATE_STALE);
@@ -976,6 +980,7 @@ static void cached_dev_detach_finish(struct work_struct *w)
 {
 	struct cached_dev *dc = container_of(w, struct cached_dev, detach);
 	struct closure cl;
+
 	closure_init_stack(&cl);
 
 	BUG_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
@@ -1103,6 +1108,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 
 	if (bch_is_zero(u->uuid, 16)) {
 		struct closure cl;
+
 		closure_init_stack(&cl);
 
 		memcpy(u->uuid, dc->sb.uuid, 16);
@@ -1320,6 +1326,7 @@ void bch_flash_dev_release(struct kobject *kobj)
 static void flash_dev_free(struct closure *cl)
 {
 	struct bcache_device *d = container_of(cl, struct bcache_device, cl);
+
 	mutex_lock(&bch_register_lock);
 	atomic_long_sub(bcache_dev_sectors_dirty(d),
 			&d->c->flash_dev_dirty_sectors);
@@ -1481,6 +1488,7 @@ bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...)
 void bch_cache_set_release(struct kobject *kobj)
 {
 	struct cache_set *c = container_of(kobj, struct cache_set, kobj);
+
 	kfree(c);
 	module_put(THIS_MODULE);
 }
@@ -1671,6 +1679,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 {
 	int iter_size;
 	struct cache_set *c = kzalloc(sizeof(struct cache_set), GFP_KERNEL);
+
 	if (!c)
 		return NULL;
 
@@ -2216,6 +2225,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	err = "failed to register device";
 	if (SB_IS_BDEV(sb)) {
 		struct cached_dev *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
+
 		if (!dc)
 			goto err_close;
 
@@ -2224,6 +2234,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 		mutex_unlock(&bch_register_lock);
 	} else {
 		struct cache *ca = kzalloc(sizeof(*ca), GFP_KERNEL);
+
 		if (!ca)
 			goto err_close;
 

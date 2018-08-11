@@ -17,6 +17,7 @@
 void bch_bbio_free(struct bio *bio, struct cache_set *c)
 {
 	struct bbio *b = container_of(bio, struct bbio, bio);
+
 	mempool_free(b, &c->bio_meta);
 }
 
@@ -45,6 +46,7 @@ void bch_submit_bbio(struct bio *bio, struct cache_set *c,
 		     struct bkey *k, unsigned int ptr)
 {
 	struct bbio *b = container_of(bio, struct bbio, bio);
+
 	bch_bkey_copy_single_ptr(&b->key, k, ptr);
 	__bch_submit_bbio(bio, c);
 }
@@ -132,12 +134,12 @@ void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
 
 	if (threshold) {
 		unsigned int t = local_clock_us();
-
 		int us = t - b->submit_time_us;
 		int congested = atomic_read(&c->congested);
 
 		if (us > (int) threshold) {
 			int ms = us / 1024;
+
 			c->congested_last_us = t;
 
 			ms = min(ms, CONGESTED_MAX + congested);

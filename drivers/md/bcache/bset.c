@@ -585,6 +585,7 @@ static inline unsigned int bfloat_mantissa(const struct bkey *k,
 				       struct bkey_float *f)
 {
 	const uint64_t *p = &k->low - (f->exponent >> 6);
+
 	return shrd128(p[-1], p[0], f->exponent & 63) & BKEY_MANTISSA_MASK;
 }
 
@@ -964,6 +965,7 @@ static struct bset_search_iter bset_search_tree(struct bset_tree *t,
 		 * but a branch instruction is avoided.
 		 */
 		unsigned int p = n << 4;
+
 		p &= ((int) (p - t->size)) >> 31;
 
 		prefetch(&t->tree[p]);
@@ -1114,6 +1116,7 @@ static struct bkey *__bch_btree_iter_init(struct btree_keys *b,
 					  struct bset_tree *start)
 {
 	struct bkey *ret = NULL;
+
 	iter->size = ARRAY_SIZE(iter->data);
 	iter->used = 0;
 
@@ -1329,8 +1332,8 @@ void bch_btree_sort_into(struct btree_keys *b, struct btree_keys *new,
 			 struct bset_sort_state *state)
 {
 	uint64_t start_time = local_clock();
-
 	struct btree_iter iter;
+
 	bch_btree_iter_init(b, &iter, NULL);
 
 	btree_mergesort(b, new->set->data, &iter, false, true);

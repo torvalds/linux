@@ -134,8 +134,8 @@ static void bch_bkey_dump(struct btree_keys *keys, const struct bkey *k)
 
 	for (j = 0; j < KEY_PTRS(k); j++) {
 		size_t n = PTR_BUCKET_NR(b->c, k, j);
-		printk(" bucket %zu", n);
 
+		printk(" bucket %zu", n);
 		if (n >= b->c->sb.first_bucket && n < b->c->sb.nbuckets)
 			printk(" prio %i",
 			       PTR_BUCKET(b->c, k, j)->prio);
@@ -166,6 +166,7 @@ bad:
 static bool bch_btree_ptr_invalid(struct btree_keys *bk, const struct bkey *k)
 {
 	struct btree *b = container_of(bk, struct btree, keys);
+
 	return __bch_btree_ptr_invalid(b->c, k);
 }
 
@@ -334,6 +335,7 @@ static bool bch_extent_insert_fixup(struct btree_keys *b,
 
 	while (1) {
 		struct bkey *k = bch_btree_iter_next(iter);
+
 		if (!k)
 			break;
 
@@ -498,6 +500,7 @@ bad:
 static bool bch_extent_invalid(struct btree_keys *bk, const struct bkey *k)
 {
 	struct btree *b = container_of(bk, struct btree, keys);
+
 	return __bch_extent_invalid(b->c, k);
 }
 

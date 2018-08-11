@@ -133,6 +133,7 @@ bool bch_is_zero(const char *p, size_t n)
 int bch_parse_uuid(const char *s, char *uuid)
 {
 	size_t i, j, x;
+
 	memset(uuid, 0, 16);
 
 	for (i = 0, j = 0;

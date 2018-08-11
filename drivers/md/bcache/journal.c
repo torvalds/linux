@@ -28,6 +28,7 @@
 static void journal_read_endio(struct bio *bio)
 {
 	struct closure *cl = bio->bi_private;
+
 	closure_put(cl);
 }
 
@@ -614,6 +615,7 @@ static void journal_write_unlocked(struct closure *cl)
 
 	struct bio *bio;
 	struct bio_list list;
+
 	bio_list_init(&list);
 
 	if (!w->need_write) {

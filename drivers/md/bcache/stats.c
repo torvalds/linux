@@ -200,6 +200,7 @@ void bch_mark_cache_accounting(struct cache_set *c, struct bcache_device *d,
 			       bool hit, bool bypass)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+
 	mark_cache_stats(&dc->accounting.collector, hit, bypass);
 	mark_cache_stats(&c->accounting.collector, hit, bypass);
 }
@@ -207,6 +208,7 @@ void bch_mark_cache_accounting(struct cache_set *c, struct bcache_device *d,
 void bch_mark_cache_readahead(struct cache_set *c, struct bcache_device *d)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+
 	atomic_inc(&dc->accounting.collector.cache_readaheads);
 	atomic_inc(&c->accounting.collector.cache_readaheads);
 }
@@ -214,6 +216,7 @@ void bch_mark_cache_readahead(struct cache_set *c, struct bcache_device *d)
 void bch_mark_cache_miss_collision(struct cache_set *c, struct bcache_device *d)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+
 	atomic_inc(&dc->accounting.collector.cache_miss_collisions);
 	atomic_inc(&c->accounting.collector.cache_miss_collisions);
 }

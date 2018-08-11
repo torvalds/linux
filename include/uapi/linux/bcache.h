@@ -117,12 +117,14 @@ static inline void bkey_copy_key(struct bkey *dest, const struct bkey *src)
 static inline struct bkey *bkey_next(const struct bkey *k)
 {
 	__u64 *d = (void *) k;
+
 	return (struct bkey *) (d + bkey_u64s(k));
 }
 
 static inline struct bkey *bkey_idx(const struct bkey *k, unsigned int nr_keys)
 {
 	__u64 *d = (void *) k;
+
 	return (struct bkey *) (d + nr_keys);
 }
 /* Enough for a key with 6 pointers */

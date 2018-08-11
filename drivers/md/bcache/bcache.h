@@ -783,6 +783,7 @@ static inline struct bucket *PTR_BUCKET(struct cache_set *c,
 static inline uint8_t gen_after(uint8_t a, uint8_t b)
 {
 	uint8_t r = a - b;
+
 	return r > 128U ? 0 : r;
 }
 
