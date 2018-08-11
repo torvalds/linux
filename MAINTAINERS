@@ -5930,7 +5930,7 @@ F:	Documentation/dev-tools/gcov.rst
 
 GDB KERNEL DEBUGGING HELPER SCRIPTS
 M:	Jan Kiszka <jan.kiszka@siemens.com>
-M:	Kieran Bingham <kieran@bingham.xyz>
+M:	Kieran Bingham <kbingham@kernel.org>
 S:	Supported
 F:	scripts/gdb/
 
