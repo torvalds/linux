@@ -61,7 +61,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 	const char *err;
 	struct cache_sb *s;
 	struct buffer_head *bh = __bread(bdev, 1, SB_SIZE);
-	unsigned i;
+	unsigned int i;
 
 	if (!bh)
 		return "IO error";
@@ -202,7 +202,7 @@ static void write_bdev_super_endio(struct bio *bio)
 static void __write_super(struct cache_sb *sb, struct bio *bio)
 {
 	struct cache_sb *out = page_address(bio_first_page_all(bio));
-	unsigned i;
+	unsigned int i;
 
 	bio->bi_iter.bi_sector	= SB_SECTOR;
 	bio->bi_iter.bi_size	= SB_SIZE;
@@ -282,7 +282,7 @@ void bcache_write_super(struct cache_set *c)
 {
 	struct closure *cl = &c->sb_write;
 	struct cache *ca;
-	unsigned i;
+	unsigned int i;
 
 	down(&c->sb_write_mutex);
 	closure_init(cl, &c->cl);
@@ -334,7 +334,7 @@ static void uuid_io(struct cache_set *c, int op, unsigned long op_flags,
 {
 	struct closure *cl = &c->uuid_write;
 	struct uuid_entry *u;
-	unsigned i;
+	unsigned int i;
 	char buf[80];
 
 	BUG_ON(!parent);
@@ -587,7 +587,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 	struct prio_set *p = ca->disk_buckets;
 	struct bucket_disk *d = p->data + prios_per_bucket(ca), *end = d;
 	struct bucket *b;
-	unsigned bucket_nr = 0;
+	unsigned int bucket_nr = 0;
 
 	for (b = ca->buckets;
 	     b < ca->buckets + ca->sb.nbuckets;
@@ -662,7 +662,7 @@ static void bcache_device_unlink(struct bcache_device *d)
 	lockdep_assert_held(&bch_register_lock);
 
 	if (d->c && !test_and_set_bit(BCACHE_DEV_UNLINK_DONE, &d->flags)) {
-		unsigned i;
+		unsigned int i;
 		struct cache *ca;
 
 		sysfs_remove_link(&d->c->kobj, d->name);
@@ -676,7 +676,7 @@ static void bcache_device_unlink(struct bcache_device *d)
 static void bcache_device_link(struct bcache_device *d, struct cache_set *c,
 			       const char *name)
 {
-	unsigned i;
+	unsigned int i;
 	struct cache *ca;
 
 	for_each_cache(ca, d->c, i)
@@ -715,7 +715,7 @@ static void bcache_device_detach(struct bcache_device *d)
 }
 
 static void bcache_device_attach(struct bcache_device *d, struct cache_set *c,
-				 unsigned id)
+				 unsigned int id)
 {
 	d->id = id;
 	d->c = c;
@@ -762,7 +762,7 @@ static void bcache_device_free(struct bcache_device *d)
 	closure_debug_destroy(&d->cl);
 }
 
-static int bcache_device_init(struct bcache_device *d, unsigned block_size,
+static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 			      sector_t sectors)
 {
 	struct request_queue *q;
@@ -778,7 +778,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 
 	if (!d->nr_stripes || d->nr_stripes > max_stripes) {
 		pr_err("nr_stripes too large or invalid: %u (start sector beyond end of disk?)",
-			(unsigned)d->nr_stripes);
+			(unsigned int)d->nr_stripes);
 		return -ENOMEM;
 	}
 
@@ -1212,7 +1212,7 @@ static void cached_dev_flush(struct closure *cl)
 	continue_at(cl, cached_dev_free, system_wq);
 }
 
-static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
+static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 {
 	int ret;
 	struct io *io;
@@ -1489,7 +1489,7 @@ static void cache_set_free(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, cl);
 	struct cache *ca;
-	unsigned i;
+	unsigned int i;
 
 	if (!IS_ERR_OR_NULL(c->debug))
 		debugfs_remove(c->debug);
@@ -1532,7 +1532,7 @@ static void cache_set_flush(struct closure *cl)
 	struct cache_set *c = container_of(cl, struct cache_set, caching);
 	struct cache *ca;
 	struct btree *b;
-	unsigned i;
+	unsigned int i;
 
 	bch_cache_accounting_destroy(&c->accounting);
 
@@ -1762,7 +1762,7 @@ static void run_cache_set(struct cache_set *c)
 	struct cached_dev *dc, *t;
 	struct cache *ca;
 	struct closure cl;
-	unsigned i;
+	unsigned int i;
 
 	closure_init_stack(&cl);
 
@@ -1853,7 +1853,7 @@ static void run_cache_set(struct cache_set *c)
 		pr_notice("invalidating existing data");
 
 		for_each_cache(ca, c, i) {
-			unsigned j;
+			unsigned int j;
 
 			ca->sb.keys = clamp_t(int, ca->sb.nbuckets >> 7,
 					      2, SB_JOURNAL_BUCKETS);
@@ -1998,7 +1998,7 @@ err:
 void bch_cache_release(struct kobject *kobj)
 {
 	struct cache *ca = container_of(kobj, struct cache, kobj);
-	unsigned i;
+	unsigned int i;
 
 	if (ca->set) {
 		BUG_ON(ca->set->cache[ca->sb.nr_this_dev] != ca);
@@ -2150,7 +2150,7 @@ static bool bch_is_open_backing(struct block_device *bdev) {
 static bool bch_is_open_cache(struct block_device *bdev) {
 	struct cache_set *c, *tc;
 	struct cache *ca;
-	unsigned i;
+	unsigned int i;
 
 	list_for_each_entry_safe(c, tc, &bch_cache_sets, list)
 		for_each_cache(ca, c, i)

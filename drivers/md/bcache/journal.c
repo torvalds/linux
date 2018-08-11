@@ -32,7 +32,7 @@ static void journal_read_endio(struct bio *bio)
 }
 
 static int journal_read_bucket(struct cache *ca, struct list_head *list,
-			       unsigned bucket_index)
+			       unsigned int bucket_index)
 {
 	struct journal_device *ja = &ca->journal;
 	struct bio *bio = &ja->bio;
@@ -40,7 +40,7 @@ static int journal_read_bucket(struct cache *ca, struct list_head *list,
 	struct journal_replay *i;
 	struct jset *j, *data = ca->set->journal.w[0].data;
 	struct closure cl;
-	unsigned len, left, offset = 0;
+	unsigned int len, left, offset = 0;
 	int ret = 0;
 	sector_t bucket = bucket_to_sector(ca->set, ca->sb.d[bucket_index]);
 
@@ -50,7 +50,7 @@ static int journal_read_bucket(struct cache *ca, struct list_head *list,
 
 	while (offset < ca->sb.bucket_size) {
 reread:		left = ca->sb.bucket_size - offset;
-		len = min_t(unsigned, left, PAGE_SECTORS << JSET_BITS);
+		len = min_t(unsigned int, left, PAGE_SECTORS << JSET_BITS);
 
 		bio_reset(bio);
 		bio->bi_iter.bi_sector	= bucket + offset;
@@ -154,12 +154,12 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 	})
 
 	struct cache *ca;
-	unsigned iter;
+	unsigned int iter;
 
 	for_each_cache(ca, c, iter) {
 		struct journal_device *ja = &ca->journal;
 		DECLARE_BITMAP(bitmap, SB_JOURNAL_BUCKETS);
-		unsigned i, l, r, m;
+		unsigned int i, l, r, m;
 		uint64_t seq;
 
 		bitmap_zero(bitmap, SB_JOURNAL_BUCKETS);
@@ -304,7 +304,7 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 		     k < bset_bkey_last(&i->j);
 		     k = bkey_next(k))
 			if (!__bch_extent_invalid(c, k)) {
-				unsigned j;
+				unsigned int j;
 
 				for (j = 0; j < KEY_PTRS(k); j++)
 					if (ptr_available(c, k, j))
@@ -492,7 +492,7 @@ static void journal_reclaim(struct cache_set *c)
 	struct bkey *k = &c->journal.key;
 	struct cache *ca;
 	uint64_t last_seq;
-	unsigned iter, n = 0;
+	unsigned int iter, n = 0;
 	atomic_t p __maybe_unused;
 
 	atomic_long_inc(&c->reclaim);
@@ -526,7 +526,7 @@ static void journal_reclaim(struct cache_set *c)
 
 	for_each_cache(ca, c, iter) {
 		struct journal_device *ja = &ca->journal;
-		unsigned next = (ja->cur_idx + 1) % ca->sb.njournal_buckets;
+		unsigned int next = (ja->cur_idx + 1) % ca->sb.njournal_buckets;
 
 		/* No space available on this device */
 		if (next == ja->discard_idx)
@@ -609,7 +609,7 @@ static void journal_write_unlocked(struct closure *cl)
 	struct cache *ca;
 	struct journal_write *w = c->journal.cur;
 	struct bkey *k = &c->journal.key;
-	unsigned i, sectors = set_blocks(w->data, block_bytes(c)) *
+	unsigned int i, sectors = set_blocks(w->data, block_bytes(c)) *
 		c->sb.block_size;
 
 	struct bio *bio;
@@ -705,7 +705,7 @@ static void journal_try_write(struct cache_set *c)
 }
 
 static struct journal_write *journal_wait_for_write(struct cache_set *c,
-						    unsigned nkeys)
+						    unsigned int nkeys)
 	__acquires(&c->journal.lock)
 {
 	size_t sectors;

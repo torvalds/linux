@@ -184,7 +184,7 @@ static inline struct bset *btree_bset_last(struct btree *b)
 	return bset_tree_last(&b->keys)->data;
 }
 
-static inline unsigned bset_block_offset(struct btree *b, struct bset *i)
+static inline unsigned int bset_block_offset(struct btree *b, struct bset *i)
 {
 	return bset_sector_offset(&b->keys, i) >> b->c->block_bits;
 }
@@ -213,7 +213,7 @@ struct btree_op {
 	/* Btree level at which we start taking write locks */
 	short			lock;
 
-	unsigned		insert_collision:1;
+	unsigned int		insert_collision:1;
 };
 
 static inline void bch_btree_op_init(struct btree_op *op, int write_lock_level)

@@ -110,7 +110,7 @@ struct journal {
 	struct delayed_work	work;
 
 	/* Number of blocks free in the bucket(s) we're currently writing to */
-	unsigned		blocks_free;
+	unsigned int		blocks_free;
 	uint64_t		seq;
 	DECLARE_FIFO(atomic_t, pin);
 
@@ -131,13 +131,13 @@ struct journal_device {
 	uint64_t		seq[SB_JOURNAL_BUCKETS];
 
 	/* Journal bucket we're currently writing to */
-	unsigned		cur_idx;
+	unsigned int		cur_idx;
 
 	/* Last journal bucket that still contains an open journal entry */
-	unsigned		last_idx;
+	unsigned int		last_idx;
 
 	/* Next journal bucket to be discarded */
-	unsigned		discard_idx;
+	unsigned int		discard_idx;
 
 #define DISCARD_READY		0
 #define DISCARD_IN_FLIGHT	1

@@ -252,7 +252,7 @@ struct bcache_device {
 	struct kobject		kobj;
 
 	struct cache_set	*c;
-	unsigned		id;
+	unsigned int		id;
 #define BCACHEDEVNAME_SIZE	12
 	char			name[BCACHEDEVNAME_SIZE];
 
@@ -264,18 +264,18 @@ struct bcache_device {
 #define BCACHE_DEV_UNLINK_DONE		2
 #define BCACHE_DEV_WB_RUNNING		3
 #define BCACHE_DEV_RATE_DW_RUNNING	4
-	unsigned		nr_stripes;
-	unsigned		stripe_size;
+	unsigned int		nr_stripes;
+	unsigned int		stripe_size;
 	atomic_t		*stripe_sectors_dirty;
 	unsigned long		*full_dirty_stripes;
 
 	struct bio_set		bio_split;
 
-	unsigned		data_csum:1;
+	unsigned int		data_csum:1;
 
 	int (*cache_miss)(struct btree *, struct search *,
-			  struct bio *, unsigned);
-	int (*ioctl) (struct bcache_device *, fmode_t, unsigned, unsigned long);
+			  struct bio *, unsigned int);
+	int (*ioctl) (struct bcache_device *, fmode_t, unsigned int, unsigned long);
 };
 
 struct io {
@@ -284,7 +284,7 @@ struct io {
 	struct list_head	lru;
 
 	unsigned long		jiffies;
-	unsigned		sequential;
+	unsigned int		sequential;
 	sector_t		last;
 };
 
@@ -358,18 +358,18 @@ struct cached_dev {
 	struct cache_accounting	accounting;
 
 	/* The rest of this all shows up in sysfs */
-	unsigned		sequential_cutoff;
-	unsigned		readahead;
+	unsigned int		sequential_cutoff;
+	unsigned int		readahead;
 
-	unsigned		io_disable:1;
-	unsigned		verify:1;
-	unsigned		bypass_torture_test:1;
+	unsigned int		io_disable:1;
+	unsigned int		verify:1;
+	unsigned int		bypass_torture_test:1;
 
-	unsigned		partial_stripes_expensive:1;
-	unsigned		writeback_metadata:1;
-	unsigned		writeback_running:1;
+	unsigned int		partial_stripes_expensive:1;
+	unsigned int		writeback_metadata:1;
+	unsigned int		writeback_running:1;
 	unsigned char		writeback_percent;
-	unsigned		writeback_delay;
+	unsigned int		writeback_delay;
 
 	uint64_t		writeback_rate_target;
 	int64_t			writeback_rate_proportional;
@@ -377,16 +377,16 @@ struct cached_dev {
 	int64_t			writeback_rate_integral_scaled;
 	int32_t			writeback_rate_change;
 
-	unsigned		writeback_rate_update_seconds;
-	unsigned		writeback_rate_i_term_inverse;
-	unsigned		writeback_rate_p_term_inverse;
-	unsigned		writeback_rate_minimum;
+	unsigned int		writeback_rate_update_seconds;
+	unsigned int		writeback_rate_i_term_inverse;
+	unsigned int		writeback_rate_p_term_inverse;
+	unsigned int		writeback_rate_minimum;
 
 	enum stop_on_failure	stop_when_cache_set_failed;
 #define DEFAULT_CACHED_DEV_ERROR_LIMIT	64
 	atomic_t		io_errors;
-	unsigned		error_limit;
-	unsigned		offline_seconds;
+	unsigned int		error_limit;
+	unsigned int		offline_seconds;
 
 	char			backing_dev_name[BDEVNAME_SIZE];
 };
@@ -447,7 +447,7 @@ struct cache {
 	 * until a gc finishes - otherwise we could pointlessly burn a ton of
 	 * cpu
 	 */
-	unsigned		invalidate_needs_gc;
+	unsigned int		invalidate_needs_gc;
 
 	bool			discard; /* Get rid of? */
 
@@ -472,7 +472,7 @@ struct gc_stat {
 
 	size_t			nkeys;
 	uint64_t		data;	/* sectors */
-	unsigned		in_use; /* percent */
+	unsigned int		in_use; /* percent */
 };
 
 /*
@@ -518,7 +518,7 @@ struct cache_set {
 	int			caches_loaded;
 
 	struct bcache_device	**devices;
-	unsigned		devices_max_used;
+	unsigned int		devices_max_used;
 	atomic_t		attached_dev_nr;
 	struct list_head	cached_devs;
 	uint64_t		cached_dev_sectors;
@@ -548,7 +548,7 @@ struct cache_set {
 	 * Default number of pages for a new btree node - may be less than a
 	 * full bucket
 	 */
-	unsigned		btree_pages;
+	unsigned int		btree_pages;
 
 	/*
 	 * Lists of struct btrees; lru is the list for structs that have memory
@@ -571,7 +571,7 @@ struct cache_set {
 	struct list_head	btree_cache_freed;
 
 	/* Number of elements in btree_cache + btree_cache_freeable lists */
-	unsigned		btree_cache_used;
+	unsigned int		btree_cache_used;
 
 	/*
 	 * If we need to allocate memory for a new btree node and that
@@ -649,7 +649,7 @@ struct cache_set {
 	struct mutex		verify_lock;
 #endif
 
-	unsigned		nr_uuids;
+	unsigned int		nr_uuids;
 	struct uuid_entry	*uuids;
 	BKEY_PADDED(uuid_bucket);
 	struct closure		uuid_write;
@@ -670,12 +670,12 @@ struct cache_set {
 	struct journal		journal;
 
 #define CONGESTED_MAX		1024
-	unsigned		congested_last_us;
+	unsigned int		congested_last_us;
 	atomic_t		congested;
 
 	/* The rest of this all shows up in sysfs */
-	unsigned		congested_read_threshold_us;
-	unsigned		congested_write_threshold_us;
+	unsigned int		congested_read_threshold_us;
+	unsigned int		congested_write_threshold_us;
 
 	struct time_stats	btree_gc_time;
 	struct time_stats	btree_split_time;
@@ -694,16 +694,16 @@ struct cache_set {
 		ON_ERROR_PANIC,
 	}			on_error;
 #define DEFAULT_IO_ERROR_LIMIT 8
-	unsigned		error_limit;
-	unsigned		error_decay;
+	unsigned int		error_limit;
+	unsigned int		error_decay;
 
 	unsigned short		journal_delay_ms;
 	bool			expensive_debug_checks;
-	unsigned		verify:1;
-	unsigned		key_merging_disabled:1;
-	unsigned		gc_always_rewrite:1;
-	unsigned		shrinker_disabled:1;
-	unsigned		copy_gc_enabled:1;
+	unsigned int		verify:1;
+	unsigned int		key_merging_disabled:1;
+	unsigned int		gc_always_rewrite:1;
+	unsigned int		shrinker_disabled:1;
+	unsigned int		copy_gc_enabled:1;
 
 #define BUCKET_HASH_BITS	12
 	struct hlist_head	bucket_hash[1 << BUCKET_HASH_BITS];
@@ -712,7 +712,7 @@ struct cache_set {
 };
 
 struct bbio {
-	unsigned		submit_time_us;
+	unsigned int		submit_time_us;
 	union {
 		struct bkey	key;
 		uint64_t	_pad[3];
@@ -729,10 +729,10 @@ struct bbio {
 
 #define btree_bytes(c)		((c)->btree_pages * PAGE_SIZE)
 #define btree_blocks(b)							\
-	((unsigned) (KEY_SIZE(&b->key) >> (b)->c->block_bits))
+	((unsigned int) (KEY_SIZE(&b->key) >> (b)->c->block_bits))
 
 #define btree_default_blocks(c)						\
-	((unsigned) ((PAGE_SECTORS * (c)->btree_pages) >> (c)->block_bits))
+	((unsigned int) ((PAGE_SECTORS * (c)->btree_pages) >> (c)->block_bits))
 
 #define bucket_pages(c)		((c)->sb.bucket_size / PAGE_SECTORS)
 #define bucket_bytes(c)		((c)->sb.bucket_size << 9)
@@ -761,21 +761,21 @@ static inline sector_t bucket_remainder(struct cache_set *c, sector_t s)
 
 static inline struct cache *PTR_CACHE(struct cache_set *c,
 				      const struct bkey *k,
-				      unsigned ptr)
+				      unsigned int ptr)
 {
 	return c->cache[PTR_DEV(k, ptr)];
 }
 
 static inline size_t PTR_BUCKET_NR(struct cache_set *c,
 				   const struct bkey *k,
-				   unsigned ptr)
+				   unsigned int ptr)
 {
 	return sector_to_bucket(c, PTR_OFFSET(k, ptr));
 }
 
 static inline struct bucket *PTR_BUCKET(struct cache_set *c,
 					const struct bkey *k,
-					unsigned ptr)
+					unsigned int ptr)
 {
 	return PTR_CACHE(c, k, ptr)->buckets + PTR_BUCKET_NR(c, k, ptr);
 }
@@ -787,13 +787,13 @@ static inline uint8_t gen_after(uint8_t a, uint8_t b)
 }
 
 static inline uint8_t ptr_stale(struct cache_set *c, const struct bkey *k,
-				unsigned i)
+				unsigned int i)
 {
 	return gen_after(PTR_BUCKET(c, k, i)->gen, PTR_GEN(k, i));
 }
 
 static inline bool ptr_available(struct cache_set *c, const struct bkey *k,
-				 unsigned i)
+				 unsigned int i)
 {
 	return (PTR_DEV(k, i) < MAX_CACHES_PER_SET) && PTR_CACHE(c, k, i);
 }
@@ -888,7 +888,7 @@ static inline uint8_t bucket_gc_gen(struct bucket *b)
 static inline void wake_up_allocators(struct cache_set *c)
 {
 	struct cache *ca;
-	unsigned i;
+	unsigned int i;
 
 	for_each_cache(ca, c, i)
 		wake_up_process(ca->alloc_thread);
@@ -933,7 +933,8 @@ void bch_bbio_free(struct bio *, struct cache_set *);
 struct bio *bch_bbio_alloc(struct cache_set *);
 
 void __bch_submit_bbio(struct bio *, struct cache_set *);
-void bch_submit_bbio(struct bio *, struct cache_set *, struct bkey *, unsigned);
+void bch_submit_bbio(struct bio *, struct cache_set *,
+		     struct bkey *, unsigned int);
 
 uint8_t bch_inc_gen(struct cache *, struct bucket *);
 void bch_rescale_priorities(struct cache_set *, int);
@@ -944,13 +945,13 @@ void __bch_invalidate_one_bucket(struct cache *, struct bucket *);
 void __bch_bucket_free(struct cache *, struct bucket *);
 void bch_bucket_free(struct cache_set *, struct bkey *);
 
-long bch_bucket_alloc(struct cache *, unsigned, bool);
-int __bch_bucket_alloc_set(struct cache_set *, unsigned,
+long bch_bucket_alloc(struct cache *, unsigned int, bool);
+int __bch_bucket_alloc_set(struct cache_set *, unsigned int,
 			   struct bkey *, int, bool);
-int bch_bucket_alloc_set(struct cache_set *, unsigned,
+int bch_bucket_alloc_set(struct cache_set *, unsigned int,
 			 struct bkey *, int, bool);
-bool bch_alloc_sectors(struct cache_set *, struct bkey *, unsigned,
-		       unsigned, unsigned, bool);
+bool bch_alloc_sectors(struct cache_set *, struct bkey *, unsigned int,
+		       unsigned int, unsigned int, bool);
 bool bch_cached_dev_error(struct cached_dev *dc);
 
 __printf(2, 3)

@@ -347,7 +347,7 @@ static inline int bch_strtoul_h(const char *cp, long *res)
 	snprintf(buf, size,						\
 		__builtin_types_compatible_p(typeof(var), int)		\
 		     ? "%i\n" :						\
-		__builtin_types_compatible_p(typeof(var), unsigned)	\
+		__builtin_types_compatible_p(typeof(var), unsigned int)	\
 		     ? "%u\n" :						\
 		__builtin_types_compatible_p(typeof(var), long)		\
 		     ? "%li\n" :					\
@@ -379,7 +379,7 @@ struct time_stats {
 
 void bch_time_stats_update(struct time_stats *stats, uint64_t time);
 
-static inline unsigned local_clock_us(void)
+static inline unsigned int local_clock_us(void)
 {
 	return local_clock() >> 10;
 }
@@ -543,9 +543,10 @@ dup:									\
 	container_of_or_null(rb_prev(&(ptr)->member), typeof(*ptr), member)
 
 /* Does linear interpolation between powers of two */
-static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
+static inline unsigned int fract_exp_two(unsigned int x,
+					 unsigned int fract_bits)
 {
-	unsigned fract = x & ~(~0 << fract_bits);
+	unsigned int fract = x & ~(~0 << fract_bits);
 
 	x >>= fract_bits;
 	x   = 1 << x;

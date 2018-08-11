@@ -33,11 +33,11 @@
  * stored left shifted by 16, and scaled back in the sysfs show() function.
  */
 
-static const unsigned DAY_RESCALE		= 288;
-static const unsigned HOUR_RESCALE		= 12;
-static const unsigned FIVE_MINUTE_RESCALE	= 1;
-static const unsigned accounting_delay		= (HZ * 300) / 22;
-static const unsigned accounting_weight		= 32;
+static const unsigned int DAY_RESCALE		= 288;
+static const unsigned int HOUR_RESCALE		= 12;
+static const unsigned int FIVE_MINUTE_RESCALE	= 1;
+static const unsigned int accounting_delay	= (HZ * 300) / 22;
+static const unsigned int accounting_weight	= 32;
 
 /* sysfs reading/writing */
 
@@ -152,7 +152,7 @@ static void scale_accounting(struct timer_list *t)
 	struct cache_accounting *acc = from_timer(acc, t, timer);
 
 #define move_stat(name) do {						\
-	unsigned t = atomic_xchg(&acc->collector.name, 0);		\
+	unsigned int t = atomic_xchg(&acc->collector.name, 0);		\
 	t <<= 16;							\
 	acc->five_minute.name += t;					\
 	acc->hour.name += t;						\

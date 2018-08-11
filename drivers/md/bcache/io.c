@@ -42,7 +42,7 @@ void __bch_submit_bbio(struct bio *bio, struct cache_set *c)
 }
 
 void bch_submit_bbio(struct bio *bio, struct cache_set *c,
-		     struct bkey *k, unsigned ptr)
+		     struct bkey *k, unsigned int ptr)
 {
 	struct bbio *b = container_of(bio, struct bbio, bio);
 	bch_bkey_copy_single_ptr(&b->key, k, ptr);
@@ -52,7 +52,7 @@ void bch_submit_bbio(struct bio *bio, struct cache_set *c,
 /* IO errors */
 void bch_count_backing_io_errors(struct cached_dev *dc, struct bio *bio)
 {
-	unsigned errors;
+	unsigned int errors;
 
 	WARN_ONCE(!dc, "NULL pointer of struct cached_dev");
 
@@ -75,12 +75,12 @@ void bch_count_io_errors(struct cache *ca,
 	 */
 
 	if (ca->set->error_decay) {
-		unsigned count = atomic_inc_return(&ca->io_count);
+		unsigned int count = atomic_inc_return(&ca->io_count);
 
 		while (count > ca->set->error_decay) {
-			unsigned errors;
-			unsigned old = count;
-			unsigned new = count - ca->set->error_decay;
+			unsigned int errors;
+			unsigned int old = count;
+			unsigned int new = count - ca->set->error_decay;
 
 			/*
 			 * First we subtract refresh from count; each time we
@@ -104,7 +104,7 @@ void bch_count_io_errors(struct cache *ca,
 	}
 
 	if (error) {
-		unsigned errors = atomic_add_return(1 << IO_ERROR_SHIFT,
+		unsigned int errors = atomic_add_return(1 << IO_ERROR_SHIFT,
 						    &ca->io_errors);
 		errors >>= IO_ERROR_SHIFT;
 
@@ -126,12 +126,12 @@ void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
 	struct cache *ca = PTR_CACHE(c, &b->key, 0);
 	int is_read = (bio_data_dir(bio) == READ ? 1 : 0);
 
-	unsigned threshold = op_is_write(bio_op(bio))
+	unsigned int threshold = op_is_write(bio_op(bio))
 		? c->congested_write_threshold_us
 		: c->congested_read_threshold_us;
 
 	if (threshold) {
-		unsigned t = local_clock_us();
+		unsigned int t = local_clock_us();
 
 		int us = t - b->submit_time_us;
 		int congested = atomic_read(&c->congested);

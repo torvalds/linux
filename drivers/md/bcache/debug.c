@@ -69,7 +69,7 @@ void bch_btree_verify(struct btree *b)
 		   sorted->start,
 		   (void *) bset_bkey_last(inmemory) - (void *) inmemory->start)) {
 		struct bset *i;
-		unsigned j;
+		unsigned int j;
 
 		console_lock();
 
@@ -80,7 +80,7 @@ void bch_btree_verify(struct btree *b)
 		bch_dump_bset(&v->keys, sorted, 0);
 
 		for_each_written_bset(b, ondisk, i) {
-			unsigned block = ((void *) i - (void *) ondisk) /
+			unsigned int block = ((void *) i - (void *) ondisk) /
 				block_bytes(b->c);
 
 			printk(KERN_ERR "*** on disk block %u:\n", block);
@@ -176,7 +176,7 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 
 	while (size) {
 		struct keybuf_key *w;
-		unsigned bytes = min(i->bytes, size);
+		unsigned int bytes = min(i->bytes, size);
 
 		int err = copy_to_user(buf, i->buf, bytes);
 		if (err)

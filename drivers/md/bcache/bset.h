@@ -163,10 +163,10 @@ struct bset_tree {
 	 */
 
 	/* size of the binary tree and prev array */
-	unsigned		size;
+	unsigned int		size;
 
 	/* function of size - precalculated for to_inorder() */
-	unsigned		extra;
+	unsigned int		extra;
 
 	/* copy of the last key in the set */
 	struct bkey		end;
@@ -211,7 +211,7 @@ struct btree_keys {
 	const struct btree_keys_ops	*ops;
 	uint8_t			page_order;
 	uint8_t			nsets;
-	unsigned		last_set_unwritten:1;
+	unsigned int		last_set_unwritten:1;
 	bool			*expensive_debug_checks;
 
 	/*
@@ -239,12 +239,12 @@ static inline bool bkey_written(struct btree_keys *b, struct bkey *k)
 	return !b->last_set_unwritten || k < b->set[b->nsets].data->start;
 }
 
-static inline unsigned bset_byte_offset(struct btree_keys *b, struct bset *i)
+static inline unsigned int bset_byte_offset(struct btree_keys *b, struct bset *i)
 {
 	return ((size_t) i) - ((size_t) b->set->data);
 }
 
-static inline unsigned bset_sector_offset(struct btree_keys *b, struct bset *i)
+static inline unsigned int bset_sector_offset(struct btree_keys *b, struct bset *i)
 {
 	return bset_byte_offset(b, i) >> 9;
 }
@@ -273,7 +273,7 @@ static inline size_t bch_btree_keys_u64s_remaining(struct btree_keys *b)
 }
 
 static inline struct bset *bset_next_set(struct btree_keys *b,
-					 unsigned block_bytes)
+					 unsigned int block_bytes)
 {
 	struct bset *i = bset_tree_last(b)->data;
 
@@ -281,7 +281,7 @@ static inline struct bset *bset_next_set(struct btree_keys *b,
 }
 
 void bch_btree_keys_free(struct btree_keys *);
-int bch_btree_keys_alloc(struct btree_keys *, unsigned, gfp_t);
+int bch_btree_keys_alloc(struct btree_keys *, unsigned int, gfp_t);
 void bch_btree_keys_init(struct btree_keys *, const struct btree_keys_ops *,
 			 bool *);
 
@@ -290,7 +290,7 @@ void bch_bset_build_written_tree(struct btree_keys *);
 void bch_bset_fix_invalidated_key(struct btree_keys *, struct bkey *);
 bool bch_bkey_try_merge(struct btree_keys *, struct bkey *, struct bkey *);
 void bch_bset_insert(struct btree_keys *, struct bkey *, struct bkey *);
-unsigned bch_btree_insert_key(struct btree_keys *, struct bkey *,
+unsigned int bch_btree_insert_key(struct btree_keys *, struct bkey *,
 			      struct bkey *);
 
 enum {
@@ -349,20 +349,20 @@ static inline struct bkey *bch_bset_search(struct btree_keys *b,
 struct bset_sort_state {
 	mempool_t		pool;
 
-	unsigned		page_order;
-	unsigned		crit_factor;
+	unsigned int		page_order;
+	unsigned int		crit_factor;
 
 	struct time_stats	time;
 };
 
 void bch_bset_sort_state_free(struct bset_sort_state *);
-int bch_bset_sort_state_init(struct bset_sort_state *, unsigned);
+int bch_bset_sort_state_init(struct bset_sort_state *, unsigned int);
 void bch_btree_sort_lazy(struct btree_keys *, struct bset_sort_state *);
 void bch_btree_sort_into(struct btree_keys *, struct btree_keys *,
 			 struct bset_sort_state *);
 void bch_btree_sort_and_fix_extents(struct btree_keys *, struct btree_iter *,
 				    struct bset_sort_state *);
-void bch_btree_sort_partial(struct btree_keys *, unsigned,
+void bch_btree_sort_partial(struct btree_keys *, unsigned int,
 			    struct bset_sort_state *);
 
 static inline void bch_btree_sort(struct btree_keys *b,
@@ -383,7 +383,7 @@ void bch_btree_keys_stats(struct btree_keys *, struct bset_stats *);
 
 #define bset_bkey_last(i)	bkey_idx((struct bkey *) (i)->d, (i)->keys)
 
-static inline struct bkey *bset_bkey_idx(struct bset *i, unsigned idx)
+static inline struct bkey *bset_bkey_idx(struct bset *i, unsigned int idx)
 {
 	return bkey_idx(i->start, idx);
 }
@@ -402,7 +402,7 @@ static __always_inline int64_t bkey_cmp(const struct bkey *l,
 }
 
 void bch_bkey_copy_single_ptr(struct bkey *, const struct bkey *,
-			      unsigned);
+			      unsigned int);
 bool __bch_cut_front(const struct bkey *, struct bkey *);
 bool __bch_cut_back(const struct bkey *, struct bkey *);
 
@@ -524,7 +524,7 @@ static inline size_t bch_keylist_bytes(struct keylist *l)
 
 struct bkey *bch_keylist_pop(struct keylist *);
 void bch_keylist_pop_front(struct keylist *);
-int __bch_keylist_realloc(struct keylist *, unsigned);
+int __bch_keylist_realloc(struct keylist *, unsigned int);
 
 /* Debug stuff */
 
@@ -532,7 +532,7 @@ int __bch_keylist_realloc(struct keylist *, unsigned);
 
 int __bch_count_data(struct btree_keys *);
 void __printf(2, 3) __bch_check_keys(struct btree_keys *, const char *, ...);
-void bch_dump_bset(struct btree_keys *, struct bset *, unsigned);
+void bch_dump_bset(struct btree_keys *, struct bset *, unsigned int);
 void bch_dump_bucket(struct btree_keys *);
 
 #else
@@ -541,7 +541,7 @@ static inline int __bch_count_data(struct btree_keys *b) { return -1; }
 static inline void __printf(2, 3)
 	__bch_check_keys(struct btree_keys *b, const char *fmt, ...) {}
 static inline void bch_dump_bucket(struct btree_keys *b) {}
-void bch_dump_bset(struct btree_keys *, struct bset *, unsigned);
+void bch_dump_bset(struct btree_keys *, struct bset *, unsigned int);
 
 #endif
 

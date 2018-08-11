@@ -46,7 +46,7 @@ static bool bch_key_sort_cmp(struct btree_iter_set l,
 
 static bool __ptr_invalid(struct cache_set *c, const struct bkey *k)
 {
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < KEY_PTRS(k); i++)
 		if (ptr_available(c, k, i)) {
@@ -67,7 +67,7 @@ static bool __ptr_invalid(struct cache_set *c, const struct bkey *k)
 
 static const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
 {
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < KEY_PTRS(k); i++)
 		if (ptr_available(c, k, i)) {
@@ -96,7 +96,7 @@ static const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
 
 void bch_extent_to_text(char *buf, size_t size, const struct bkey *k)
 {
-	unsigned i = 0;
+	unsigned int i = 0;
 	char *out = buf, *end = buf + size;
 
 #define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
@@ -126,7 +126,7 @@ void bch_extent_to_text(char *buf, size_t size, const struct bkey *k)
 static void bch_bkey_dump(struct btree_keys *keys, const struct bkey *k)
 {
 	struct btree *b = container_of(keys, struct btree, keys);
-	unsigned j;
+	unsigned int j;
 	char buf[80];
 
 	bch_extent_to_text(buf, sizeof(buf), k);
@@ -171,7 +171,7 @@ static bool bch_btree_ptr_invalid(struct btree_keys *bk, const struct bkey *k)
 
 static bool btree_ptr_bad_expensive(struct btree *b, const struct bkey *k)
 {
-	unsigned i;
+	unsigned int i;
 	char buf[80];
 	struct bucket *g;
 
@@ -204,7 +204,7 @@ err:
 static bool bch_btree_ptr_bad(struct btree_keys *bk, const struct bkey *k)
 {
 	struct btree *b = container_of(bk, struct btree, keys);
-	unsigned i;
+	unsigned int i;
 
 	if (!bkey_cmp(k, &ZERO_KEY) ||
 	    !KEY_PTRS(k) ||
@@ -327,7 +327,7 @@ static bool bch_extent_insert_fixup(struct btree_keys *b,
 	struct cache_set *c = container_of(b, struct btree, keys)->c;
 
 	uint64_t old_offset;
-	unsigned old_size, sectors_found = 0;
+	unsigned int old_size, sectors_found = 0;
 
 	BUG_ON(!KEY_OFFSET(insert));
 	BUG_ON(!KEY_SIZE(insert));
@@ -363,7 +363,7 @@ static bool bch_extent_insert_fixup(struct btree_keys *b,
 			 * k might have been split since we inserted/found the
 			 * key we're replacing
 			 */
-			unsigned i;
+			unsigned int i;
 			uint64_t offset = KEY_START(k) -
 				KEY_START(replace_key);
 
@@ -502,7 +502,7 @@ static bool bch_extent_invalid(struct btree_keys *bk, const struct bkey *k)
 }
 
 static bool bch_extent_bad_expensive(struct btree *b, const struct bkey *k,
-				     unsigned ptr)
+				     unsigned int ptr)
 {
 	struct bucket *g = PTR_BUCKET(b->c, k, ptr);
 	char buf[80];
@@ -534,7 +534,7 @@ err:
 static bool bch_extent_bad(struct btree_keys *bk, const struct bkey *k)
 {
 	struct btree *b = container_of(bk, struct btree, keys);
-	unsigned i, stale;
+	unsigned int i, stale;
 
 	if (!KEY_PTRS(k) ||
 	    bch_extent_invalid(bk, k))
@@ -577,7 +577,7 @@ static uint64_t merge_chksums(struct bkey *l, struct bkey *r)
 static bool bch_extent_merge(struct btree_keys *bk, struct bkey *l, struct bkey *r)
 {
 	struct btree *b = container_of(bk, struct btree, keys);
-	unsigned i;
+	unsigned int i;
 
 	if (key_merging_disabled(b->c))
 		return false;

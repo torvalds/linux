@@ -28,7 +28,7 @@ static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 	return ret;
 }
 
-static inline unsigned offset_to_stripe(struct bcache_device *d,
+static inline unsigned int offset_to_stripe(struct bcache_device *d,
 					uint64_t offset)
 {
 	do_div(offset, d->stripe_size);
@@ -37,9 +37,9 @@ static inline unsigned offset_to_stripe(struct bcache_device *d,
 
 static inline bool bcache_dev_stripe_dirty(struct cached_dev *dc,
 					   uint64_t offset,
-					   unsigned nr_sectors)
+					   unsigned int nr_sectors)
 {
-	unsigned stripe = offset_to_stripe(&dc->disk, offset);
+	unsigned int stripe = offset_to_stripe(&dc->disk, offset);
 
 	while (1) {
 		if (atomic_read(dc->disk.stripe_sectors_dirty + stripe))
@@ -54,9 +54,9 @@ static inline bool bcache_dev_stripe_dirty(struct cached_dev *dc,
 }
 
 static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
-				    unsigned cache_mode, bool would_skip)
+				    unsigned int cache_mode, bool would_skip)
 {
-	unsigned in_use = dc->disk.c->gc_stats.in_use;
+	unsigned int in_use = dc->disk.c->gc_stats.in_use;
 
 	if (cache_mode != CACHE_MODE_WRITEBACK ||
 	    test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
@@ -96,7 +96,7 @@ static inline void bch_writeback_add(struct cached_dev *dc)
 	}
 }
 
-void bcache_dev_sectors_dirty_add(struct cache_set *, unsigned, uint64_t, int);
+void bcache_dev_sectors_dirty_add(struct cache_set *, unsigned int, uint64_t, int);
 
 void bch_sectors_dirty_init(struct bcache_device *);
 void bch_cached_dev_writeback_init(struct cached_dev *);
