@@ -69,7 +69,7 @@ struct bpf_cpu_map {
 };
 
 static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
-			     struct xdp_bulk_queue *bq);
+			     struct xdp_bulk_queue *bq, bool in_napi_ctx);
 
 static u64 cpu_map_bitmap_size(const union bpf_attr *attr)
 {
@@ -375,7 +375,7 @@ static void __cpu_map_entry_free(struct rcu_head *rcu)
 		struct xdp_bulk_queue *bq = per_cpu_ptr(rcpu->bulkq, cpu);
 
 		/* No concurrent bq_enqueue can run at this point */
-		bq_flush_to_queue(rcpu, bq);
+		bq_flush_to_queue(rcpu, bq, false);
 	}
 	free_percpu(rcpu->bulkq);
 	/* Cannot kthread_stop() here, last put free rcpu resources */
@@ -558,7 +558,7 @@ const struct bpf_map_ops cpu_map_ops = {
 };
 
 static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
-			     struct xdp_bulk_queue *bq)
+			     struct xdp_bulk_queue *bq, bool in_napi_ctx)
 {
 	unsigned int processed = 0, drops = 0;
 	const int to_cpu = rcpu->cpu;
@@ -578,7 +578,10 @@ static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
 		err = __ptr_ring_produce(q, xdpf);
 		if (err) {
 			drops++;
-			xdp_return_frame_rx_napi(xdpf);
+			if (likely(in_napi_ctx))
+				xdp_return_frame_rx_napi(xdpf);
+			else
+				xdp_return_frame(xdpf);
 		}
 		processed++;
 	}
@@ -598,7 +601,7 @@ static int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_frame *xdpf)
 	struct xdp_bulk_queue *bq = this_cpu_ptr(rcpu->bulkq);
 
 	if (unlikely(bq->count == CPU_MAP_BULK_SIZE))
-		bq_flush_to_queue(rcpu, bq);
+		bq_flush_to_queue(rcpu, bq, true);
 
 	/* Notice, xdp_buff/page MUST be queued here, long enough for
 	 * driver to code invoking us to finished, due to driver
@@ -661,7 +664,7 @@ void __cpu_map_flush(struct bpf_map *map)
 
 		/* Flush all frames in bulkq to real queue */
 		bq = this_cpu_ptr(rcpu->bulkq);
-		bq_flush_to_queue(rcpu, bq);
+		bq_flush_to_queue(rcpu, bq, true);
 
 		/* If already running, costs spin_lock_irqsave + smb_mb */
 		wake_up_process(rcpu->kthread);

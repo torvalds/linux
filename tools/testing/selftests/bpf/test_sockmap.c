@@ -354,7 +354,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		while (s->bytes_recvd < total_bytes) {
 			if (txmsg_cork) {
 				timeout.tv_sec = 0;
-				timeout.tv_usec = 1000;
+				timeout.tv_usec = 300000;
 			} else {
 				timeout.tv_sec = 1;
 				timeout.tv_usec = 0;
