@@ -90,6 +90,8 @@ void ssv6xxx_late_resume(void)
 #else
  struct ssv_softc *sc = ssv_notify_sc;
 #endif
+	if (!sc)
+		return;
     if(sc->ps_status == PWRSV_ENABLE)
     {
         if(sc->vif_info[0].vif)

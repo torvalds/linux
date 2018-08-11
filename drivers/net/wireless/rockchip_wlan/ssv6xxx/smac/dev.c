@@ -468,7 +468,7 @@ int ssv6xxx_set_channel(struct ssv_softc *sc, int ch)
                 printk("0xce0100a0 [%x]\n",regval);
                 printk("[%x][%x][%x]\n",vt_tbl[sh->cfg.crystal_type][chidx].rf_ctrl_N,vt_tbl[sh->cfg.crystal_type][chidx].rf_ctrl_F,vt_tbl[sh->cfg.crystal_type][chidx].rf_precision_default);
 #endif
-                dev_info(sc->dev, "Lock to channel %d ([0xce010098]=%x)!!\n", vt_tbl[sh->cfg.crystal_type][chidx].channel_id, regval);
+                //dev_info(sc->dev, "Lock to channel %d ([0xce010098]=%x)!!\n", vt_tbl[sh->cfg.crystal_type][chidx].channel_id, regval);
                 sc->hw_chan = ch;
                 goto exit;
             }
@@ -4178,7 +4178,7 @@ static void ssv6200_sw_scan_start(struct ieee80211_hw *hw)
 #ifdef CONFIG_SSV_MRX_EN3_CTRL
     SMAC_REG_WRITE(((struct ssv_softc *)(hw->priv))->sh, ADR_MRX_FLT_EN3, 0x0400);
 #endif
-    printk("--------------%s(): \n", __FUNCTION__);
+    //printk("--------------%s(): \n", __FUNCTION__);
 }
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0)
 static void ssv6200_sw_scan_complete(struct ieee80211_hw *hw,
@@ -4199,7 +4199,7 @@ static void ssv6200_sw_scan_complete(struct ieee80211_hw *hw)
     if(((struct ssv_softc *)(hw->priv))->ps_aid != 0 && (!is_p2p_assoc))
     SMAC_REG_WRITE(((struct ssv_softc *)(hw->priv))->sh, ADR_MRX_FLT_EN3, 0x1000);
 #endif
-    printk("==============%s(): \n", __FUNCTION__);
+    //printk("==============%s(): \n", __FUNCTION__);
 }
 static int ssv6200_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
                             bool set)
