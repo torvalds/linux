@@ -416,6 +416,14 @@
 		interrupts = <31 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 
+		onkey {
+			compatible = "dlg,da9063-onkey";
+		};
+
+		rtc {
+			compatible = "dlg,da9063-rtc";
+		};
+
 		wdt {
 			compatible = "dlg,da9063-watchdog";
 		};
