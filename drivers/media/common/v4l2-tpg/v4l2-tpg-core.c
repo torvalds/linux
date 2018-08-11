@@ -235,6 +235,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_Y12:
 	case V4L2_PIX_FMT_Y16:
 	case V4L2_PIX_FMT_Y16_BE:
+	case V4L2_PIX_FMT_Z16:
 		tpg->color_enc = TGP_COLOR_ENC_LUMA;
 		break;
 	case V4L2_PIX_FMT_YUV444:
@@ -351,6 +352,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_Y12:
 	case V4L2_PIX_FMT_Y16:
 	case V4L2_PIX_FMT_Y16_BE:
+	case V4L2_PIX_FMT_Z16:
 		tpg->twopixelsize[0] = 2 * 2;
 		break;
 	case V4L2_PIX_FMT_RGB24:
@@ -1062,6 +1064,7 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[0][offset+1] = r_y_h >> 4;
 		break;
 	case V4L2_PIX_FMT_Y16:
+	case V4L2_PIX_FMT_Z16:
 		/*
 		 * Ideally both bytes should be set to r_y_h, but then you won't
 		 * be able to detect endian problems. So keep it 0 except for
