@@ -444,7 +444,8 @@ static void read_dirty(struct cached_dev *dc)
 
 			io = kzalloc(sizeof(struct dirty_io) +
 				     sizeof(struct bio_vec) *
-				     DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS),
+				     DIV_ROUND_UP(KEY_SIZE(&w->key),
+						  PAGE_SECTORS),
 				     GFP_KERNEL);
 			if (!io)
 				goto err;
@@ -540,7 +541,9 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int inode,
 
 static bool dirty_pred(struct keybuf *buf, struct bkey *k)
 {
-	struct cached_dev *dc = container_of(buf, struct cached_dev, writeback_keys);
+	struct cached_dev *dc = container_of(buf,
+					     struct cached_dev,
+					     writeback_keys);
 
 	BUG_ON(KEY_INODE(k) != dc->disk.id);
 

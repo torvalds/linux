@@ -130,8 +130,10 @@ rw_attribute(btree_shrinker_disabled);
 rw_attribute(copy_gc_enabled);
 rw_attribute(size);
 
-static ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[],
-			    size_t selected)
+static ssize_t bch_snprint_string_list(char *buf,
+				       size_t size,
+				       const char * const list[],
+				       size_t selected)
 {
 	char *out = buf;
 	size_t i;
@@ -341,8 +343,9 @@ STORE(__cached_dev)
 		add_uevent_var(env, "DRIVER=bcache");
 		add_uevent_var(env, "CACHED_UUID=%pU", dc->sb.uuid),
 		add_uevent_var(env, "CACHED_LABEL=%s", buf);
-		kobject_uevent_env(
-			&disk_to_dev(dc->disk.disk)->kobj, KOBJ_CHANGE, env->envp);
+		kobject_uevent_env(&disk_to_dev(dc->disk.disk)->kobj,
+				   KOBJ_CHANGE,
+				   env->envp);
 		kfree(env);
 	}
 

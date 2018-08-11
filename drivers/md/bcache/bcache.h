@@ -614,8 +614,8 @@ struct cache_set {
 	uint16_t		min_prio;
 
 	/*
-	 * max(gen - last_gc) for all buckets. When it gets too big we have to gc
-	 * to keep gens from wrapping around.
+	 * max(gen - last_gc) for all buckets. When it gets too big we have to
+	 * gc to keep gens from wrapping around.
 	 */
 	uint8_t			need_gc;
 	struct gc_stat		gc_stats;

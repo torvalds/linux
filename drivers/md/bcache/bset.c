@@ -311,7 +311,9 @@ void bch_btree_keys_free(struct btree_keys *b)
 }
 EXPORT_SYMBOL(bch_btree_keys_free);
 
-int bch_btree_keys_alloc(struct btree_keys *b, unsigned int page_order, gfp_t gfp)
+int bch_btree_keys_alloc(struct btree_keys *b,
+			 unsigned int page_order,
+			 gfp_t gfp)
 {
 	struct bset_tree *t = b->set;
 
@@ -475,7 +477,8 @@ void inorder_test(void)
 	for (unsigned int size = 2;
 	     size < 65536000;
 	     size++) {
-		unsigned int extra = (size - rounddown_pow_of_two(size - 1)) << 1;
+		unsigned int extra =
+			(size - rounddown_pow_of_two(size - 1)) << 1;
 		unsigned int i = 1, j = rounddown_pow_of_two(size - 1);
 
 		if (!(size % 4096))
@@ -825,7 +828,8 @@ static void bch_bset_fix_lookup_table(struct btree_keys *b,
 	     k != bset_bkey_last(t->data);
 	     k = bkey_next(k))
 		if (t->size == bkey_to_cacheline(t, k)) {
-			t->prev[t->size] = bkey_to_cacheline_offset(t, t->size, k);
+			t->prev[t->size] =
+				bkey_to_cacheline_offset(t, t->size, k);
 			t->size++;
 		}
 }

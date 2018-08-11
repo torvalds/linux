@@ -193,7 +193,8 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 
 		for (l = find_first_zero_bit(bitmap, ca->sb.njournal_buckets);
 		     l < ca->sb.njournal_buckets;
-		     l = find_next_zero_bit(bitmap, ca->sb.njournal_buckets, l + 1))
+		     l = find_next_zero_bit(bitmap, ca->sb.njournal_buckets,
+					    l + 1))
 			if (read_bucket(l))
 				goto bsearch;
 

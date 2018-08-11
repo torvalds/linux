@@ -67,7 +67,8 @@ void bch_btree_verify(struct btree *b)
 	if (inmemory->keys != sorted->keys ||
 	    memcmp(inmemory->start,
 		   sorted->start,
-		   (void *) bset_bkey_last(inmemory) - (void *) inmemory->start)) {
+		   (void *) bset_bkey_last(inmemory) -
+		   (void *) inmemory->start)) {
 		struct bset *i;
 		unsigned int j;
 

@@ -577,7 +577,9 @@ static uint64_t merge_chksums(struct bkey *l, struct bkey *r)
 		~((uint64_t)1 << 63);
 }
 
-static bool bch_extent_merge(struct btree_keys *bk, struct bkey *l, struct bkey *r)
+static bool bch_extent_merge(struct btree_keys *bk,
+			     struct bkey *l,
+			     struct bkey *r)
 {
 	struct btree *b = container_of(bk, struct btree, keys);
 	unsigned int i;

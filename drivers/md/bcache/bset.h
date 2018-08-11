@@ -246,12 +246,14 @@ static inline bool bkey_written(struct btree_keys *b, struct bkey *k)
 	return !b->last_set_unwritten || k < b->set[b->nsets].data->start;
 }
 
-static inline unsigned int bset_byte_offset(struct btree_keys *b, struct bset *i)
+static inline unsigned int bset_byte_offset(struct btree_keys *b,
+					    struct bset *i)
 {
 	return ((size_t) i) - ((size_t) b->set->data);
 }
 
-static inline unsigned int bset_sector_offset(struct btree_keys *b, struct bset *i)
+static inline unsigned int bset_sector_offset(struct btree_keys *b,
+					      struct bset *i)
 {
 	return bset_byte_offset(b, i) >> 9;
 }

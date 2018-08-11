@@ -306,7 +306,9 @@ bool bch_keybuf_check_overlapping(struct keybuf *buf, struct bkey *start,
 				  struct bkey *end);
 void bch_keybuf_del(struct keybuf *buf, struct keybuf_key *w);
 struct keybuf_key *bch_keybuf_next(struct keybuf *buf);
-struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *c, struct keybuf *buf,
-					  struct bkey *end, keybuf_pred_fn *pred);
+struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *c,
+					  struct keybuf *buf,
+					  struct bkey *end,
+					  keybuf_pred_fn *pred);
 void bch_update_bucket_in_use(struct cache_set *c, struct gc_stat *stats);
 #endif
