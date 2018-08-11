@@ -279,6 +279,7 @@ config MTD_NAND_ATMEL
 	tristate "Support for NAND Flash / SmartMedia on AT91"
 	depends on ARCH_AT91 || COMPILE_TEST
 	depends on HAS_IOMEM
+	select GENERIC_ALLOCATOR
 	select MFD_ATMEL_SMC
 	help
 	  Enables support for NAND Flash / Smart Media Card interface
