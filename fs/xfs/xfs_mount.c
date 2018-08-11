@@ -637,6 +637,7 @@ xfs_check_summary_counts(
 	 */
 	if (XFS_LAST_UNMOUNT_WAS_CLEAN(mp) &&
 	    (mp->m_sb.sb_fdblocks > mp->m_sb.sb_dblocks ||
+	     !xfs_verify_icount(mp, mp->m_sb.sb_icount) ||
 	     mp->m_sb.sb_ifree > mp->m_sb.sb_icount))
 		mp->m_flags |= XFS_MOUNT_BAD_SUMMARY;
 
