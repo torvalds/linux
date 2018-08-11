@@ -197,7 +197,7 @@ static struct sctp_ulpevent *sctp_intl_retrieve_partial(
 	__u32 next_fsn = 0;
 	int is_last = 0;
 
-	sin = sctp_stream_in(ulpq->asoc, event->stream);
+	sin = sctp_stream_in(&ulpq->asoc->stream, event->stream);
 
 	skb_queue_walk(&ulpq->reasm, pos) {
 		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
@@ -278,7 +278,7 @@ static struct sctp_ulpevent *sctp_intl_retrieve_reassembled(
 	__u32 pd_len = 0;
 	__u32 mid = 0;
 
-	sin = sctp_stream_in(ulpq->asoc, event->stream);
+	sin = sctp_stream_in(&ulpq->asoc->stream, event->stream);
 
 	skb_queue_walk(&ulpq->reasm, pos) {
 		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
@@ -368,7 +368,7 @@ static struct sctp_ulpevent *sctp_intl_reasm(struct sctp_ulpq *ulpq,
 
 	sctp_intl_store_reasm(ulpq, event);
 
-	sin = sctp_stream_in(ulpq->asoc, event->stream);
+	sin = sctp_stream_in(&ulpq->asoc->stream, event->stream);
 	if (sin->pd_mode && event->mid == sin->mid &&
 	    event->fsn == sin->fsn)
 		retval = sctp_intl_retrieve_partial(ulpq, event);
@@ -575,7 +575,7 @@ static struct sctp_ulpevent *sctp_intl_retrieve_partial_uo(
 	__u32 next_fsn = 0;
 	int is_last = 0;
 
-	sin = sctp_stream_in(ulpq->asoc, event->stream);
+	sin = sctp_stream_in(&ulpq->asoc->stream, event->stream);
 
 	skb_queue_walk(&ulpq->reasm_uo, pos) {
 		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
@@ -659,7 +659,7 @@ static struct sctp_ulpevent *sctp_intl_retrieve_reassembled_uo(
 	__u32 pd_len = 0;
 	__u32 mid = 0;
 
-	sin = sctp_stream_in(ulpq->asoc, event->stream);
+	sin = sctp_stream_in(&ulpq->asoc->stream, event->stream);
 
 	skb_queue_walk(&ulpq->reasm_uo, pos) {
 		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
@@ -750,7 +750,7 @@ static struct sctp_ulpevent *sctp_intl_reasm_uo(struct sctp_ulpq *ulpq,
 
 	sctp_intl_store_reasm_uo(ulpq, event);
 
-	sin = sctp_stream_in(ulpq->asoc, event->stream);
+	sin = sctp_stream_in(&ulpq->asoc->stream, event->stream);
 	if (sin->pd_mode_uo && event->mid == sin->mid_uo &&
 	    event->fsn == sin->fsn_uo)
 		retval = sctp_intl_retrieve_partial_uo(ulpq, event);
@@ -774,7 +774,7 @@ static struct sctp_ulpevent *sctp_intl_retrieve_first_uo(struct sctp_ulpq *ulpq)
 	skb_queue_walk(&ulpq->reasm_uo, pos) {
 		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
 
-		csin = sctp_stream_in(ulpq->asoc, cevent->stream);
+		csin = sctp_stream_in(&ulpq->asoc->stream, cevent->stream);
 		if (csin->pd_mode_uo)
 			continue;
 
@@ -875,7 +875,7 @@ static struct sctp_ulpevent *sctp_intl_retrieve_first(struct sctp_ulpq *ulpq)
 	skb_queue_walk(&ulpq->reasm, pos) {
 		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
 
-		csin = sctp_stream_in(ulpq->asoc, cevent->stream);
+		csin = sctp_stream_in(&ulpq->asoc->stream, cevent->stream);
 		if (csin->pd_mode)
 			continue;
 
@@ -1053,7 +1053,7 @@ static void sctp_intl_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 	__u16 sid;
 
 	for (sid = 0; sid < stream->incnt; sid++) {
-		struct sctp_stream_in *sin = &stream->in[sid];
+		struct sctp_stream_in *sin = SCTP_SI(stream, sid);
 		__u32 mid;
 
 		if (sin->pd_mode_uo) {
@@ -1247,7 +1247,7 @@ static void sctp_handle_fwdtsn(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk)
 static void sctp_intl_skip(struct sctp_ulpq *ulpq, __u16 sid, __u32 mid,
 			   __u8 flags)
 {
-	struct sctp_stream_in *sin = sctp_stream_in(ulpq->asoc, sid);
+	struct sctp_stream_in *sin = sctp_stream_in(&ulpq->asoc->stream, sid);
 	struct sctp_stream *stream  = &ulpq->asoc->stream;
 
 	if (flags & SCTP_FTSN_U_BIT) {

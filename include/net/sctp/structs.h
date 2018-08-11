@@ -57,6 +57,7 @@
 #include <linux/atomic.h>		/* This gets us atomic counters.  */
 #include <linux/skbuff.h>	/* We need sk_buff_head. */
 #include <linux/workqueue.h>	/* We need tq_struct.	 */
+#include <linux/flex_array.h>	/* We need flex_array.   */
 #include <linux/sctp.h>		/* We need sctp* header structs.  */
 #include <net/sctp/auth.h>	/* We need auth specific structs */
 #include <net/ip.h>		/* For inet_skb_parm */
@@ -398,37 +399,35 @@ void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
 
 /* What is the current SSN number for this stream? */
 #define sctp_ssn_peek(stream, type, sid) \
-	((stream)->type[sid].ssn)
+	(sctp_stream_##type((stream), (sid))->ssn)
 
 /* Return the next SSN number for this stream.	*/
 #define sctp_ssn_next(stream, type, sid) \
-	((stream)->type[sid].ssn++)
+	(sctp_stream_##type((stream), (sid))->ssn++)
 
 /* Skip over this ssn and all below. */
 #define sctp_ssn_skip(stream, type, sid, ssn) \
-	((stream)->type[sid].ssn = ssn + 1)
+	(sctp_stream_##type((stream), (sid))->ssn = ssn + 1)
 
 /* What is the current MID number for this stream? */
 #define sctp_mid_peek(stream, type, sid) \
-	((stream)->type[sid].mid)
+	(sctp_stream_##type((stream), (sid))->mid)
 
 /* Return the next MID number for this stream.  */
 #define sctp_mid_next(stream, type, sid) \
-	((stream)->type[sid].mid++)
+	(sctp_stream_##type((stream), (sid))->mid++)
 
 /* Skip over this mid and all below. */
 #define sctp_mid_skip(stream, type, sid, mid) \
-	((stream)->type[sid].mid = mid + 1)
-
-#define sctp_stream_in(asoc, sid) (&(asoc)->stream.in[sid])
+	(sctp_stream_##type((stream), (sid))->mid = mid + 1)
 
 /* What is the current MID_uo number for this stream? */
 #define sctp_mid_uo_peek(stream, type, sid) \
-	((stream)->type[sid].mid_uo)
+	(sctp_stream_##type((stream), (sid))->mid_uo)
 
 /* Return the next MID_uo number for this stream.  */
 #define sctp_mid_uo_next(stream, type, sid) \
-	((stream)->type[sid].mid_uo++)
+	(sctp_stream_##type((stream), (sid))->mid_uo++)
 
 /*
  * Pointers to address related SCTP functions.
@@ -1440,8 +1439,8 @@ struct sctp_stream_in {
 };
 
 struct sctp_stream {
-	struct sctp_stream_out *out;
-	struct sctp_stream_in *in;
+	struct flex_array *out;
+	struct flex_array *in;
 	__u16 outcnt;
 	__u16 incnt;
 	/* Current stream being sent, if any */
@@ -1462,6 +1461,23 @@ struct sctp_stream {
 	};
 	struct sctp_stream_interleave *si;
 };
+
+static inline struct sctp_stream_out *sctp_stream_out(
+	const struct sctp_stream *stream,
+	__u16 sid)
+{
+	return flex_array_get(stream->out, sid);
+}
+
+static inline struct sctp_stream_in *sctp_stream_in(
+	const struct sctp_stream *stream,
+	__u16 sid)
+{
+	return flex_array_get(stream->in, sid);
+}
+
+#define SCTP_SO(s, i) sctp_stream_out((s), (i))
+#define SCTP_SI(s, i) sctp_stream_in((s), (i))
 
 #define SCTP_STREAM_CLOSED		0x00
 #define SCTP_STREAM_OPEN		0x01
