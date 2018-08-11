@@ -465,8 +465,8 @@ static struct uuid_entry *uuid_find_empty(struct cache_set *c)
  * Bucket priorities/gens:
  *
  * For each bucket, we store on disk its
-   * 8 bit gen
-   * 16 bit priority
+ *   8 bit gen
+ *  16 bit priority
  *
  * See alloc.c for an explanation of the gen. The priority is used to implement
  * lru (and in the future other) cache replacement policies; for most purposes
@@ -934,8 +934,10 @@ void bch_cached_dev_run(struct cached_dev *dc)
 
 	add_disk(d->disk);
 	bd_link_disk_holder(dc->bdev, dc->disk.disk);
-	/* won't show up in the uevent file, use udevadm monitor -e instead
-	 * only class / kset properties are persistent */
+	/*
+	 * won't show up in the uevent file, use udevadm monitor -e instead
+	 * only class / kset properties are persistent
+	 */
 	kobject_uevent_env(&disk_to_dev(d->disk)->kobj, KOBJ_CHANGE, env);
 	kfree(env[1]);
 	kfree(env[2]);
@@ -1104,8 +1106,9 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 		}
 	}
 
-	/* Deadlocks since we're called via sysfs...
-	sysfs_remove_file(&dc->kobj, &sysfs_attach);
+	/*
+	 * Deadlocks since we're called via sysfs...
+	 * sysfs_remove_file(&dc->kobj, &sysfs_attach);
 	 */
 
 	if (bch_is_zero(u->uuid, 16)) {
@@ -1468,9 +1471,10 @@ bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...)
 	if (test_and_set_bit(CACHE_SET_IO_DISABLE, &c->flags))
 		pr_info("CACHE_SET_IO_DISABLE already set");
 
-	/* XXX: we can be called from atomic context
-	acquire_console_sem();
-	*/
+	/*
+	 * XXX: we can be called from atomic context
+	 * acquire_console_sem();
+	 */
 
 	pr_err("bcache: error on %pU: ", c->sb.set_uuid);
 

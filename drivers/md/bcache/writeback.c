@@ -468,7 +468,8 @@ static void read_dirty(struct cached_dev *dc)
 
 			down(&dc->in_flight);
 
-			/* We've acquired a semaphore for the maximum
+			/*
+			 * We've acquired a semaphore for the maximum
 			 * simultaneous number of writebacks; from here
 			 * everything happens asynchronously.
 			 */

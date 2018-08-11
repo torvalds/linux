@@ -402,7 +402,8 @@ static unsigned int inorder_prev(unsigned int j, unsigned int size)
 	return j;
 }
 
-/* I have no idea why this code works... and I'm the one who wrote it
+/*
+ * I have no idea why this code works... and I'm the one who wrote it
  *
  * However, I do know what it does:
  * Given a binary tree constructed in an array (i.e. how you normally implement
@@ -795,7 +796,8 @@ static void bch_bset_fix_lookup_table(struct btree_keys *b,
 	if (!t->size)
 		return;
 
-	/* k is the key we just inserted; we need to find the entry in the
+	/*
+	 * k is the key we just inserted; we need to find the entry in the
 	 * lookup table for the first key that is strictly greater than k:
 	 * it's either k's cacheline or the next one
 	 */
@@ -803,7 +805,8 @@ static void bch_bset_fix_lookup_table(struct btree_keys *b,
 	       table_to_bkey(t, j) <= k)
 		j++;
 
-	/* Adjust all the lookup table entries, and find a new key for any that
+	/*
+	 * Adjust all the lookup table entries, and find a new key for any that
 	 * have gotten too big
 	 */
 	for (; j < t->size; j++) {
