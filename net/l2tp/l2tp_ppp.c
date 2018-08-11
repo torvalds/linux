@@ -95,7 +95,6 @@
 #include <net/netns/generic.h>
 #include <net/ip.h>
 #include <net/udp.h>
-#include <net/xfrm.h>
 #include <net/inet_common.h>
 
 #include <asm/byteorder.h>
@@ -758,7 +757,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	if (tunnel->peer_tunnel_id == 0)
 		tunnel->peer_tunnel_id = info.peer_tunnel_id;
 
-	session = l2tp_session_get(sock_net(sk), tunnel, info.session_id);
+	session = l2tp_tunnel_get_session(tunnel, info.session_id);
 	if (session) {
 		drop_refcnt = true;
 
@@ -1027,8 +1026,10 @@ end:
  ****************************************************************************/
 
 static void pppol2tp_copy_stats(struct pppol2tp_ioc_stats *dest,
-				struct l2tp_stats *stats)
+				const struct l2tp_stats *stats)
 {
+	memset(dest, 0, sizeof(*dest));
+
 	dest->tx_packets = atomic_long_read(&stats->tx_packets);
 	dest->tx_bytes = atomic_long_read(&stats->tx_bytes);
 	dest->tx_errors = atomic_long_read(&stats->tx_errors);
@@ -1039,188 +1040,107 @@ static void pppol2tp_copy_stats(struct pppol2tp_ioc_stats *dest,
 	dest->rx_errors = atomic_long_read(&stats->rx_errors);
 }
 
-/* Session ioctl helper.
- */
-static int pppol2tp_session_ioctl(struct l2tp_session *session,
-				  unsigned int cmd, unsigned long arg)
+static int pppol2tp_tunnel_copy_stats(struct pppol2tp_ioc_stats *stats,
+				      struct l2tp_tunnel *tunnel)
 {
-	int err = 0;
-	struct sock *sk;
-	int val = (int) arg;
-	struct l2tp_tunnel *tunnel = session->tunnel;
-	struct pppol2tp_ioc_stats stats;
+	struct l2tp_session *session;
 
-	l2tp_dbg(session, L2TP_MSG_CONTROL,
-		 "%s: pppol2tp_session_ioctl(cmd=%#x, arg=%#lx)\n",
-		 session->name, cmd, arg);
+	if (!stats->session_id) {
+		pppol2tp_copy_stats(stats, &tunnel->stats);
+		return 0;
+	}
 
-	sk = pppol2tp_session_get_sock(session);
-	if (!sk)
+	/* If session_id is set, search the corresponding session in the
+	 * context of this tunnel and record the session's statistics.
+	 */
+	session = l2tp_tunnel_get_session(tunnel, stats->session_id);
+	if (!session)
 		return -EBADR;
+
+	if (session->pwtype != L2TP_PWTYPE_PPP) {
+		l2tp_session_dec_refcount(session);
+		return -EBADR;
+	}
+
+	pppol2tp_copy_stats(stats, &session->stats);
+	l2tp_session_dec_refcount(session);
+
+	return 0;
+}
+
+static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
+			  unsigned long arg)
+{
+	struct pppol2tp_ioc_stats stats;
+	struct l2tp_session *session;
+	int val;
 
 	switch (cmd) {
 	case PPPIOCGMRU:
 	case PPPIOCGFLAGS:
-		err = -EFAULT;
+		session = sock->sk->sk_user_data;
+		if (!session)
+			return -ENOTCONN;
+
+		/* Not defined for tunnels */
+		if (!session->session_id && !session->peer_session_id)
+			return -ENOSYS;
+
 		if (put_user(0, (int __user *)arg))
-			break;
-		err = 0;
+			return -EFAULT;
 		break;
 
 	case PPPIOCSMRU:
 	case PPPIOCSFLAGS:
-		err = -EFAULT;
+		session = sock->sk->sk_user_data;
+		if (!session)
+			return -ENOTCONN;
+
+		/* Not defined for tunnels */
+		if (!session->session_id && !session->peer_session_id)
+			return -ENOSYS;
+
 		if (get_user(val, (int __user *)arg))
-			break;
-		err = 0;
+			return -EFAULT;
 		break;
 
 	case PPPIOCGL2TPSTATS:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
+		session = sock->sk->sk_user_data;
+		if (!session)
+			return -ENOTCONN;
 
-		memset(&stats, 0, sizeof(stats));
-		stats.tunnel_id = tunnel->tunnel_id;
-		stats.session_id = session->session_id;
-		pppol2tp_copy_stats(&stats, &session->stats);
-		if (copy_to_user((void __user *) arg, &stats,
-				 sizeof(stats)))
-			break;
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get L2TP stats\n",
-			  session->name);
-		err = 0;
+		/* Session 0 represents the parent tunnel */
+		if (!session->session_id && !session->peer_session_id) {
+			u32 session_id;
+			int err;
+
+			if (copy_from_user(&stats, (void __user *)arg,
+					   sizeof(stats)))
+				return -EFAULT;
+
+			session_id = stats.session_id;
+			err = pppol2tp_tunnel_copy_stats(&stats,
+							 session->tunnel);
+			if (err < 0)
+				return err;
+
+			stats.session_id = session_id;
+		} else {
+			pppol2tp_copy_stats(&stats, &session->stats);
+			stats.session_id = session->session_id;
+		}
+		stats.tunnel_id = session->tunnel->tunnel_id;
+		stats.using_ipsec = l2tp_tunnel_uses_xfrm(session->tunnel);
+
+		if (copy_to_user((void __user *)arg, &stats, sizeof(stats)))
+			return -EFAULT;
 		break;
 
 	default:
-		err = -ENOSYS;
-		break;
+		return -ENOIOCTLCMD;
 	}
 
-	sock_put(sk);
-
-	return err;
-}
-
-/* Tunnel ioctl helper.
- *
- * Note the special handling for PPPIOCGL2TPSTATS below. If the ioctl data
- * specifies a session_id, the session ioctl handler is called. This allows an
- * application to retrieve session stats via a tunnel socket.
- */
-static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
-				 unsigned int cmd, unsigned long arg)
-{
-	int err = 0;
-	struct sock *sk;
-	struct pppol2tp_ioc_stats stats;
-
-	l2tp_dbg(tunnel, L2TP_MSG_CONTROL,
-		 "%s: pppol2tp_tunnel_ioctl(cmd=%#x, arg=%#lx)\n",
-		 tunnel->name, cmd, arg);
-
-	sk = tunnel->sock;
-	sock_hold(sk);
-
-	switch (cmd) {
-	case PPPIOCGL2TPSTATS:
-		err = -ENXIO;
-		if (!(sk->sk_state & PPPOX_CONNECTED))
-			break;
-
-		if (copy_from_user(&stats, (void __user *) arg,
-				   sizeof(stats))) {
-			err = -EFAULT;
-			break;
-		}
-		if (stats.session_id != 0) {
-			/* resend to session ioctl handler */
-			struct l2tp_session *session =
-				l2tp_session_get(sock_net(sk), tunnel,
-						 stats.session_id);
-
-			if (!session) {
-				err = -EBADR;
-				break;
-			}
-			if (session->pwtype != L2TP_PWTYPE_PPP) {
-				l2tp_session_dec_refcount(session);
-				err = -EBADR;
-				break;
-			}
-
-			err = pppol2tp_session_ioctl(session, cmd, arg);
-			l2tp_session_dec_refcount(session);
-			break;
-		}
-#ifdef CONFIG_XFRM
-		stats.using_ipsec = (sk->sk_policy[0] || sk->sk_policy[1]) ? 1 : 0;
-#endif
-		pppol2tp_copy_stats(&stats, &tunnel->stats);
-		if (copy_to_user((void __user *) arg, &stats, sizeof(stats))) {
-			err = -EFAULT;
-			break;
-		}
-		l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: get L2TP stats\n",
-			  tunnel->name);
-		err = 0;
-		break;
-
-	default:
-		err = -ENOSYS;
-		break;
-	}
-
-	sock_put(sk);
-
-	return err;
-}
-
-/* Main ioctl() handler.
- * Dispatch to tunnel or session helpers depending on the socket.
- */
-static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
-			  unsigned long arg)
-{
-	struct sock *sk = sock->sk;
-	struct l2tp_session *session;
-	struct l2tp_tunnel *tunnel;
-	int err;
-
-	if (!sk)
-		return 0;
-
-	err = -EBADF;
-	if (sock_flag(sk, SOCK_DEAD) != 0)
-		goto end;
-
-	err = -ENOTCONN;
-	if ((sk->sk_user_data == NULL) ||
-	    (!(sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND))))
-		goto end;
-
-	/* Get session context from the socket */
-	err = -EBADF;
-	session = pppol2tp_sock_to_session(sk);
-	if (session == NULL)
-		goto end;
-
-	/* Special case: if session's session_id is zero, treat ioctl as a
-	 * tunnel ioctl
-	 */
-	if ((session->session_id == 0) &&
-	    (session->peer_session_id == 0)) {
-		tunnel = session->tunnel;
-		err = pppol2tp_tunnel_ioctl(tunnel, cmd, arg);
-		goto end_put_sess;
-	}
-
-	err = pppol2tp_session_ioctl(session, cmd, arg);
-
-end_put_sess:
-	sock_put(sk);
-end:
-	return err;
+	return 0;
 }
 
 /*****************************************************************************

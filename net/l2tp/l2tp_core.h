@@ -15,6 +15,10 @@
 #include <net/dst.h>
 #include <net/sock.h>
 
+#ifdef CONFIG_XFRM
+#include <net/xfrm.h>
+#endif
+
 /* Just some random numbers */
 #define L2TP_TUNNEL_MAGIC	0x42114DDA
 #define L2TP_SESSION_MAGIC	0x0C04EB7D
@@ -192,12 +196,12 @@ static inline void *l2tp_session_priv(struct l2tp_session *session)
 
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id);
 struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth);
+struct l2tp_session *l2tp_tunnel_get_session(struct l2tp_tunnel *tunnel,
+					     u32 session_id);
 
 void l2tp_tunnel_free(struct l2tp_tunnel *tunnel);
 
-struct l2tp_session *l2tp_session_get(const struct net *net,
-				      struct l2tp_tunnel *tunnel,
-				      u32 session_id);
+struct l2tp_session *l2tp_session_get(const struct net *net, u32 session_id);
 struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth);
 struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 						const char *ifname);
@@ -283,6 +287,21 @@ static inline u32 l2tp_tunnel_dst_mtu(const struct l2tp_tunnel *tunnel)
 
 	return mtu;
 }
+
+#ifdef CONFIG_XFRM
+static inline bool l2tp_tunnel_uses_xfrm(const struct l2tp_tunnel *tunnel)
+{
+	struct sock *sk = tunnel->sock;
+
+	return sk && (rcu_access_pointer(sk->sk_policy[0]) ||
+		      rcu_access_pointer(sk->sk_policy[1]));
+}
+#else
+static inline bool l2tp_tunnel_uses_xfrm(const struct l2tp_tunnel *tunnel)
+{
+	return false;
+}
+#endif
 
 #define l2tp_printk(ptr, type, func, fmt, ...)				\
 do {									\
