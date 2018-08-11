@@ -123,7 +123,7 @@
 	.macro	___invalidate_dcache_all ar at
 
 #if XCHAL_DCACHE_SIZE
-	__loop_cache_all \ar \at dii __stringify(DCACHE_WAY_SIZE) \
+	__loop_cache_all \ar \at dii XCHAL_DCACHE_SIZE \
 			 XCHAL_DCACHE_LINEWIDTH 1020
 #endif
 
@@ -133,7 +133,7 @@
 	.macro	___invalidate_icache_all ar at
 
 #if XCHAL_ICACHE_SIZE
-	__loop_cache_all \ar \at iii __stringify(ICACHE_WAY_SIZE) \
+	__loop_cache_all \ar \at iii XCHAL_ICACHE_SIZE \
 			 XCHAL_ICACHE_LINEWIDTH 1020
 #endif
 
