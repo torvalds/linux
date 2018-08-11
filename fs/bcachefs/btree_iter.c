@@ -519,11 +519,11 @@ iter_current_key_not_modified:
 	if (b->level && new_u64s && !bkey_deleted(where) &&
 	    btree_iter_pos_cmp_packed(b, &iter->pos, where,
 				iter->flags & BTREE_ITER_IS_EXTENTS)) {
-		struct bset_tree *t;
+		struct bset_tree *t, *where_set = bch2_bkey_to_bset_inlined(b, where);
 		struct bkey_packed *k;
 
 		for_each_bset(b, t) {
-			if (bch2_bkey_to_bset(b, where) == t)
+			if (where_set == t)
 				continue;
 
 			k = bch2_bkey_prev_all(b, t,
@@ -551,13 +551,13 @@ next_bset:
 }
 
 void bch2_btree_node_iter_fix(struct btree_iter *iter,
-			     struct btree *b,
-			     struct btree_node_iter *node_iter,
-			     struct bset_tree *t,
-			     struct bkey_packed *where,
-			     unsigned clobber_u64s,
-			     unsigned new_u64s)
+			      struct btree *b,
+			      struct btree_node_iter *node_iter,
+			      struct bkey_packed *where,
+			      unsigned clobber_u64s,
+			      unsigned new_u64s)
 {
+	struct bset_tree *t = bch2_bkey_to_bset_inlined(b, where);
 	struct btree_iter *linked;
 
 	if (node_iter != &iter->l[b->level].iter)

@@ -598,15 +598,14 @@ out:
 
 static void recalc_packed_keys(struct btree *b)
 {
+	struct bset *i = btree_bset_first(b);
 	struct bkey_packed *k;
 
 	memset(&b->nr, 0, sizeof(b->nr));
 
 	BUG_ON(b->nsets != 1);
 
-	for (k =  btree_bkey_first(b, b->set);
-	     k != btree_bkey_last(b, b->set);
-	     k = bkey_next(k))
+	vstruct_for_each(i, k)
 		btree_keys_account_key_add(&b->nr, 0, k);
 }
 

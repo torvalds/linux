@@ -25,7 +25,6 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 {
 	const struct bkey_format *f = &b->format;
 	struct bkey_packed *k;
-	struct bset_tree *t;
 	unsigned clobber_u64s;
 
 	EBUG_ON(btree_node_just_written(b));
@@ -38,8 +37,6 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 	if (k && !bkey_cmp_packed(b, k, &insert->k)) {
 		BUG_ON(bkey_whiteout(k));
 
-		t = bch2_bkey_to_bset(b, k);
-
 		if (!bkey_written(b, k) &&
 		    bkey_val_u64s(&insert->k) == bkeyp_val_u64s(f, k) &&
 		    !bkey_whiteout(&insert->k)) {
@@ -51,9 +48,9 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 
 		insert->k.needs_whiteout = k->needs_whiteout;
 
-		btree_keys_account_key_drop(&b->nr, t - b->set, k);
+		btree_account_key_drop(b, k);
 
-		if (t == bset_tree_last(b)) {
+		if (k >= btree_bset_last(b)->start) {
 			clobber_u64s = k->u64s;
 
 			/*
@@ -63,7 +60,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 			 */
 			if (bkey_whiteout(&insert->k) && !k->needs_whiteout) {
 				bch2_bset_delete(b, k, clobber_u64s);
-				bch2_btree_node_iter_fix(iter, b, node_iter, t,
+				bch2_btree_node_iter_fix(iter, b, node_iter,
 							 k, clobber_u64s, 0);
 				bch2_btree_iter_verify(iter, b);
 				return true;
@@ -73,7 +70,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 		}
 
 		k->type = KEY_TYPE_DELETED;
-		bch2_btree_node_iter_fix(iter, b, node_iter, t, k,
+		bch2_btree_node_iter_fix(iter, b, node_iter, k,
 					 k->u64s, k->u64s);
 		bch2_btree_iter_verify(iter, b);
 
@@ -93,13 +90,12 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 		insert->k.needs_whiteout = false;
 	}
 
-	t = bset_tree_last(b);
-	k = bch2_btree_node_iter_bset_pos(node_iter, b, t);
+	k = bch2_btree_node_iter_bset_pos(node_iter, b, bset_tree_last(b));
 	clobber_u64s = 0;
 overwrite:
 	bch2_bset_insert(b, node_iter, k, insert, clobber_u64s);
 	if (k->u64s != clobber_u64s || bkey_whiteout(&insert->k))
-		bch2_btree_node_iter_fix(iter, b, node_iter, t, k,
+		bch2_btree_node_iter_fix(iter, b, node_iter, k,
 					 clobber_u64s, k->u64s);
 	bch2_btree_iter_verify(iter, b);
 	return true;

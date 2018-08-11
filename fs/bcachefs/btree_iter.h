@@ -99,8 +99,8 @@ static inline void bch2_btree_iter_verify_locks(struct btree_iter *iter) {}
 #endif
 
 void bch2_btree_node_iter_fix(struct btree_iter *, struct btree *,
-			     struct btree_node_iter *, struct bset_tree *,
-			     struct bkey_packed *, unsigned, unsigned);
+			      struct btree_node_iter *, struct bkey_packed *,
+			      unsigned, unsigned);
 
 int bch2_btree_iter_unlock(struct btree_iter *);
 

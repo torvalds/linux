@@ -343,8 +343,7 @@ void bch2_bset_init_first(struct btree *, struct bset *);
 void bch2_bset_init_next(struct bch_fs *, struct btree *,
 			 struct btree_node_entry *);
 void bch2_bset_build_aux_tree(struct btree *, struct bset_tree *, bool);
-void bch2_bset_fix_invalidated_key(struct btree *, struct bset_tree *,
-				  struct bkey_packed *);
+void bch2_bset_fix_invalidated_key(struct btree *, struct bkey_packed *);
 
 void bch2_bset_insert(struct btree *, struct btree_node_iter *,
 		     struct bkey_packed *, struct bkey_i *, unsigned);
@@ -402,6 +401,21 @@ static inline bool btree_iter_pos_cmp_p_or_unp(const struct btree *b,
 
 	return cmp > 0 ||
 		(cmp == 0 && !strictly_greater && !bkey_deleted(k));
+}
+
+static inline struct bset_tree *
+bch2_bkey_to_bset_inlined(struct btree *b, struct bkey_packed *k)
+{
+	unsigned offset = __btree_node_key_to_offset(b, k);
+	struct bset_tree *t;
+
+	for_each_bset(b, t)
+		if (offset <= t->end_offset) {
+			EBUG_ON(offset < btree_bkey_first_offset(t));
+			return t;
+		}
+
+	BUG();
 }
 
 struct bset_tree *bch2_bkey_to_bset(struct btree *, struct bkey_packed *);
@@ -604,6 +618,13 @@ static inline void btree_keys_account_key(struct btree_nr_keys *n,
 	btree_keys_account_key(_nr, _bset_idx, _k, 1)
 #define btree_keys_account_key_drop(_nr, _bset_idx, _k)	\
 	btree_keys_account_key(_nr, _bset_idx, _k, -1)
+
+#define btree_account_key_add(_b, _k)				\
+	btree_keys_account_key(&(_b)->nr,			\
+		bch2_bkey_to_bset(_b, _k) - (_b)->set, _k, 1)
+#define btree_account_key_drop(_b, _k)				\
+	btree_keys_account_key(&(_b)->nr,			\
+		bch2_bkey_to_bset(_b, _k) - (_b)->set, _k, -1)
 
 struct bset_stats {
 	struct {
