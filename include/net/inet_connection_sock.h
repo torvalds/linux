@@ -167,7 +167,8 @@ enum inet_csk_ack_state_t {
 	ICSK_ACK_SCHED	= 1,
 	ICSK_ACK_TIMER  = 2,
 	ICSK_ACK_PUSHED = 4,
-	ICSK_ACK_PUSHED2 = 8
+	ICSK_ACK_PUSHED2 = 8,
+	ICSK_ACK_NOW = 16	/* Send the next ACK immediately (once) */
 };
 
 void inet_csk_init_xmit_timers(struct sock *sk,

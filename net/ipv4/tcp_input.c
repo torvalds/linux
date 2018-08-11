@@ -245,16 +245,16 @@ static void tcp_ecn_queue_cwr(struct tcp_sock *tp)
 		tp->ecn_flags |= TCP_ECN_QUEUE_CWR;
 }
 
-static void tcp_ecn_accept_cwr(struct tcp_sock *tp, const struct sk_buff *skb)
+static void tcp_ecn_accept_cwr(struct sock *sk, const struct sk_buff *skb)
 {
 	if (tcp_hdr(skb)->cwr) {
-		tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
+		tcp_sk(sk)->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
 
 		/* If the sender is telling us it has entered CWR, then its
 		 * cwnd may be very low (even just 1 packet), so we should ACK
 		 * immediately.
 		 */
-		tcp_enter_quickack_mode((struct sock *)tp, 2);
+		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
 	}
 }
 
@@ -4703,7 +4703,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	skb_dst_drop(skb);
 	__skb_pull(skb, tcp_hdr(skb)->doff * 4);
 
-	tcp_ecn_accept_cwr(tp, skb);
+	tcp_ecn_accept_cwr(sk, skb);
 
 	tp->rx_opt.dsack = 0;
 
@@ -4735,11 +4735,11 @@ queue_and_out:
 		if (!RB_EMPTY_ROOT(&tp->out_of_order_queue)) {
 			tcp_ofo_queue(sk);
 
-			/* RFC2581. 4.2. SHOULD send immediate ACK, when
+			/* RFC5681. 4.2. SHOULD send immediate ACK, when
 			 * gap in queue is filled.
 			 */
 			if (RB_EMPTY_ROOT(&tp->out_of_order_queue))
-				inet_csk(sk)->icsk_ack.pingpong = 0;
+				inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
 		}
 
 		if (tp->rx_opt.num_sacks)
@@ -5179,7 +5179,9 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
 	    (tp->rcv_nxt - tp->copied_seq < sk->sk_rcvlowat ||
 	     __tcp_select_window(sk) >= tp->rcv_wnd)) ||
 	    /* We ACK each frame or... */
-	    tcp_in_quickack_mode(sk)) {
+	    tcp_in_quickack_mode(sk) ||
+	    /* Protocol state mandates a one-time immediate ACK */
+	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_NOW) {
 send_now:
 		tcp_send_ack(sk);
 		return;
