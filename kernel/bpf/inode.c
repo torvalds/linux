@@ -334,7 +334,8 @@ static int bpf_mkmap(struct dentry *dentry, umode_t mode, void *arg)
 	struct bpf_map *map = arg;
 
 	return bpf_mkobj_ops(dentry, mode, arg, &bpf_map_iops,
-			     map->btf ? &bpffs_map_fops : &bpffs_obj_fops);
+			     bpf_map_support_seq_show(map) ?
+			     &bpffs_map_fops : &bpffs_obj_fops);
 }
 
 static struct dentry *

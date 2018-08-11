@@ -1185,23 +1185,6 @@ static void htab_map_seq_show_elem(struct bpf_map *map, void *key,
 	rcu_read_unlock();
 }
 
-static int htab_map_check_btf(const struct bpf_map *map, const struct btf *btf,
-			      u32 btf_key_id, u32 btf_value_id)
-{
-	const struct btf_type *key_type, *value_type;
-	u32 key_size, value_size;
-
-	key_type = btf_type_id_size(btf, &btf_key_id, &key_size);
-	if (!key_type || key_size != map->key_size)
-		return -EINVAL;
-
-	value_type = btf_type_id_size(btf, &btf_value_id, &value_size);
-	if (!value_type || value_size != map->value_size)
-		return -EINVAL;
-
-	return 0;
-}
-
 const struct bpf_map_ops htab_map_ops = {
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
@@ -1212,7 +1195,6 @@ const struct bpf_map_ops htab_map_ops = {
 	.map_delete_elem = htab_map_delete_elem,
 	.map_gen_lookup = htab_map_gen_lookup,
 	.map_seq_show_elem = htab_map_seq_show_elem,
-	.map_check_btf = htab_map_check_btf,
 };
 
 const struct bpf_map_ops htab_lru_map_ops = {
@@ -1225,7 +1207,6 @@ const struct bpf_map_ops htab_lru_map_ops = {
 	.map_delete_elem = htab_lru_map_delete_elem,
 	.map_gen_lookup = htab_lru_map_gen_lookup,
 	.map_seq_show_elem = htab_map_seq_show_elem,
-	.map_check_btf = htab_map_check_btf,
 };
 
 /* Called from eBPF program */
@@ -1452,4 +1433,5 @@ const struct bpf_map_ops htab_of_maps_map_ops = {
 	.map_fd_put_ptr = bpf_map_fd_put_ptr,
 	.map_fd_sys_lookup_elem = bpf_map_fd_sys_lookup_elem,
 	.map_gen_lookup = htab_of_map_gen_lookup,
+	.map_check_btf = map_check_no_btf,
 };
