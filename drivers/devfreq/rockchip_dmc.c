@@ -805,7 +805,7 @@ struct rockchip_dmcfreq {
 	struct devfreq *devfreq;
 	struct devfreq_simple_ondemand_data ondemand_data;
 	struct clk *dmc_clk;
-	struct devfreq_event_dev *edev;
+	struct devfreq_event_dev **edev;
 	struct mutex lock; /* serializes access to video_info_list */
 	struct dram_timing *timing;
 	struct regulator *vdd_center;
@@ -818,6 +818,7 @@ struct rockchip_dmcfreq {
 	struct input_handler input_handler;
 	struct thermal_opp_info *opp_info;
 
+	unsigned long *nocp_bw;
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
 
@@ -845,6 +846,9 @@ struct rockchip_dmcfreq {
 	unsigned int system_status_en;
 	unsigned int refresh;
 	unsigned int last_refresh;
+	int edev_count;
+	int dfi_id;
+
 	bool is_fixed;
 
 	struct thermal_cooling_device *devfreq_cooling;
@@ -1148,16 +1152,32 @@ static int rockchip_dmcfreq_get_dev_status(struct device *dev,
 {
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct devfreq_event_data edata;
-	int ret = 0;
+	int i, j, ret = 0;
 
-	ret = devfreq_event_get_event(dmcfreq->edev, &edata);
-	if (ret < 0)
-		return ret;
+	if (dmcfreq->dfi_id >= 0) {
+		ret = devfreq_event_get_event(dmcfreq->edev[dmcfreq->dfi_id],
+					      &edata);
+		if (ret < 0) {
+			dev_err(dev, "failed to get dfi event\n");
+			return ret;
+		}
+		stat->busy_time = edata.load_count;
+		stat->total_time = edata.total_count;
+	}
 
-	stat->busy_time = edata.load_count;
-	stat->total_time = edata.total_count;
+	for (i = 0, j = 0; i < dmcfreq->edev_count; i++) {
+		if (i == dmcfreq->dfi_id)
+			continue;
+		ret = devfreq_event_get_event(dmcfreq->edev[i], &edata);
+		if (ret < 0) {
+			dev_err(dev, "failed to get event %s\n",
+				dmcfreq->edev[i]->desc->name);
+			return ret;
+		}
+		dmcfreq->nocp_bw[j++] = edata.load_count;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int rockchip_dmcfreq_get_cur_freq(struct device *dev,
@@ -2785,16 +2805,18 @@ static struct devfreq_governor devfreq_dmc_ondemand = {
 
 static int rockchip_dmcfreq_enable_event(struct rockchip_dmcfreq *dmcfreq)
 {
-	int ret;
+	int i, ret;
 
 	if (!dmcfreq->auto_freq_en)
 		return 0;
 
-	ret = devfreq_event_enable_edev(dmcfreq->edev);
-	if (ret < 0) {
-		dev_err(dmcfreq->dev,
-			"failed to enable devfreq-event devices\n");
-		return ret;
+	for (i = 0; i < dmcfreq->edev_count; i++) {
+		ret = devfreq_event_enable_edev(dmcfreq->edev[i]);
+		if (ret < 0) {
+			dev_err(dmcfreq->dev,
+				"failed to enable devfreq-event\n");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -2802,41 +2824,100 @@ static int rockchip_dmcfreq_enable_event(struct rockchip_dmcfreq *dmcfreq)
 
 static int rockchip_dmcfreq_disable_event(struct rockchip_dmcfreq *dmcfreq)
 {
-	int ret;
+	int i, ret;
 
 	if (!dmcfreq->auto_freq_en)
 		return 0;
 
-	ret = devfreq_event_disable_edev(dmcfreq->edev);
-	if (ret < 0) {
-		dev_err(dmcfreq->dev,
-			"failed to disable devfreq-event devices\n");
-		return ret;
+	for (i = 0; i < dmcfreq->edev_count; i++) {
+		ret = devfreq_event_disable_edev(dmcfreq->edev[i]);
+		if (ret < 0) {
+			dev_err(dmcfreq->dev,
+				"failed to disable devfreq-event\n");
+			return ret;
+		}
 	}
 
 	return 0;
+}
+
+static int rockchip_get_edev_id(struct rockchip_dmcfreq *dmcfreq,
+				const char *name)
+{
+	struct devfreq_event_dev *edev;
+	int i;
+
+	for (i = 0; i < dmcfreq->edev_count; i++) {
+		edev = dmcfreq->edev[i];
+		if (!strcmp(edev->desc->name, name))
+			return i;
+	}
+
+	return -EINVAL;
 }
 
 static int rockchip_dmcfreq_get_event(struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device *dev = dmcfreq->dev;
 	struct device_node *events_np, *np = dev->of_node;
-	int ret = 0;
+	int i, j, count, available_count = 0;
 
-	events_np = of_parse_phandle(np, "devfreq-events", 0);
-	if (!events_np)
+	count = devfreq_event_get_edev_count(dev);
+	if (count < 0) {
+		dev_dbg(dev, "failed to get count of devfreq-event dev\n");
 		return 0;
-	if (!of_device_is_available(events_np))
-		goto out;
-	dmcfreq->edev = devfreq_event_get_edev_by_phandle(dev, 0);
-	if (IS_ERR(dmcfreq->edev))
-		ret = -EPROBE_DEFER;
-	else
-		dmcfreq->auto_freq_en = true;
-out:
-	of_node_put(events_np);
+	}
+	for (i = 0; i < count; i++) {
+		events_np = of_parse_phandle(np, "devfreq-events", i);
+		if (!events_np)
+			continue;
+		if (of_device_is_available(events_np))
+			available_count++;
+		of_node_put(events_np);
+	}
+	if (!available_count) {
+		dev_dbg(dev, "failed to get available devfreq-event\n");
+		return 0;
+	}
+	dmcfreq->edev_count = available_count;
+	dmcfreq->edev = devm_kzalloc(dev,
+				     sizeof(*dmcfreq->edev) * available_count,
+				     GFP_KERNEL);
+	if (!dmcfreq->edev)
+		return -ENOMEM;
 
-	return ret;
+	for (i = 0, j = 0; i < count; i++) {
+		events_np = of_parse_phandle(np, "devfreq-events", i);
+		if (!events_np)
+			continue;
+		if (of_device_is_available(events_np)) {
+			of_node_put(events_np);
+			if (j >= available_count) {
+				dev_err(dev, "invalid event conut\n");
+				return -EINVAL;
+			}
+			dmcfreq->edev[j] =
+				devfreq_event_get_edev_by_phandle(dev, i);
+			if (IS_ERR(dmcfreq->edev[j]))
+				return -EPROBE_DEFER;
+			j++;
+		} else {
+			of_node_put(events_np);
+		}
+	}
+	dmcfreq->auto_freq_en = true;
+	dmcfreq->dfi_id = rockchip_get_edev_id(dmcfreq, "dfi");
+	if (dmcfreq->dfi_id >= 0)
+		available_count--;
+	if (available_count <= 0)
+		return 0;
+	dmcfreq->nocp_bw =
+		devm_kzalloc(dev, sizeof(*dmcfreq->nocp_bw) * available_count,
+			     GFP_KERNEL);
+	if (!dmcfreq->nocp_bw)
+		return -ENOMEM;
+
+	return 0;
 }
 
 static int rockchip_dmcfreq_power_control(struct rockchip_dmcfreq *dmcfreq)
