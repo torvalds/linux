@@ -1472,13 +1472,13 @@ bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...)
 	acquire_console_sem();
 	*/
 
-	printk(KERN_ERR "bcache: error on %pU: ", c->sb.set_uuid);
+	pr_err("bcache: error on %pU: ", c->sb.set_uuid);
 
 	va_start(args, fmt);
 	vprintk(fmt, args);
 	va_end(args);
 
-	printk(", disabling caching\n");
+	pr_err(", disabling caching\n");
 
 	if (c->on_error == ON_ERROR_PANIC)
 		panic("panic forced after error\n");

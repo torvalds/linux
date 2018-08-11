@@ -25,18 +25,18 @@ void bch_dump_bset(struct btree_keys *b, struct bset *i, unsigned int set)
 	for (k = i->start; k < bset_bkey_last(i); k = next) {
 		next = bkey_next(k);
 
-		printk(KERN_ERR "block %u key %u/%u: ", set,
+		pr_err("block %u key %u/%u: ", set,
 		       (unsigned int) ((u64 *) k - i->d), i->keys);
 
 		if (b->ops->key_dump)
 			b->ops->key_dump(b, k);
 		else
-			printk("%llu:%llu\n", KEY_INODE(k), KEY_OFFSET(k));
+			pr_err("%llu:%llu\n", KEY_INODE(k), KEY_OFFSET(k));
 
 		if (next < bset_bkey_last(i) &&
 		    bkey_cmp(k, b->ops->is_extents ?
 			     &START_KEY(next) : next) > 0)
-			printk(KERN_ERR "Key skipped backwards\n");
+			pr_err("Key skipped backwards\n");
 	}
 }
 
@@ -482,7 +482,7 @@ void inorder_test(void)
 		unsigned int i = 1, j = rounddown_pow_of_two(size - 1);
 
 		if (!(size % 4096))
-			printk(KERN_NOTICE "loop %u, %llu per us\n", size,
+			pr_notice("loop %u, %llu per us\n", size,
 			       done / ktime_us_delta(ktime_get(), start));
 
 		while (1) {

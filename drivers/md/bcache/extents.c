@@ -130,18 +130,18 @@ static void bch_bkey_dump(struct btree_keys *keys, const struct bkey *k)
 	char buf[80];
 
 	bch_extent_to_text(buf, sizeof(buf), k);
-	printk(" %s", buf);
+	pr_err(" %s", buf);
 
 	for (j = 0; j < KEY_PTRS(k); j++) {
 		size_t n = PTR_BUCKET_NR(b->c, k, j);
 
-		printk(" bucket %zu", n);
+		pr_err(" bucket %zu", n);
 		if (n >= b->c->sb.first_bucket && n < b->c->sb.nbuckets)
-			printk(" prio %i",
+			pr_err(" prio %i",
 			       PTR_BUCKET(b->c, k, j)->prio);
 	}
 
-	printk(" %s\n", bch_ptr_status(b->c, k));
+	pr_err(" %s\n", bch_ptr_status(b->c, k));
 }
 
 /* Btree ptrs */

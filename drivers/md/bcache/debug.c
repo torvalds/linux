@@ -74,28 +74,28 @@ void bch_btree_verify(struct btree *b)
 
 		console_lock();
 
-		printk(KERN_ERR "*** in memory:\n");
+		pr_err("*** in memory:\n");
 		bch_dump_bset(&b->keys, inmemory, 0);
 
-		printk(KERN_ERR "*** read back in:\n");
+		pr_err("*** read back in:\n");
 		bch_dump_bset(&v->keys, sorted, 0);
 
 		for_each_written_bset(b, ondisk, i) {
 			unsigned int block = ((void *) i - (void *) ondisk) /
 				block_bytes(b->c);
 
-			printk(KERN_ERR "*** on disk block %u:\n", block);
+			pr_err("*** on disk block %u:\n", block);
 			bch_dump_bset(&b->keys, i, block);
 		}
 
-		printk(KERN_ERR "*** block %zu not written\n",
+		pr_err("*** block %zu not written\n",
 		       ((void *) i - (void *) ondisk) / block_bytes(b->c));
 
 		for (j = 0; j < inmemory->keys; j++)
 			if (inmemory->d[j] != sorted->d[j])
 				break;
 
-		printk(KERN_ERR "b->written %u\n", b->written);
+		pr_err("b->written %u\n", b->written);
 
 		console_unlock();
 		panic("verify failed at %u\n", j);
