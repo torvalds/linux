@@ -503,7 +503,6 @@ static int nixge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tx_skb->skb = skb;
 
 	cur_p->cntrl |= XAXIDMA_BD_CTRL_TXEOF_MASK;
-	cur_p->app4 = (unsigned long)skb;
 
 	tail_p = priv->tx_bd_p + sizeof(*priv->tx_bd_v) * priv->tx_bd_tail;
 	/* Start the transfer */
