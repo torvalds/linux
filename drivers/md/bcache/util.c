@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * random utiility code, for bcache but in theory not specific to bcache
  *
