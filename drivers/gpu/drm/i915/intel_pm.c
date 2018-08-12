@@ -8260,7 +8260,7 @@ void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		gen11_reset_rps_interrupts(dev_priv);
-	else
+	else if (INTEL_GEN(dev_priv) >= 6)
 		gen6_reset_rps_interrupts(dev_priv);
 }
 
