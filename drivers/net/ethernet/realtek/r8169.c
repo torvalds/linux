@@ -7076,6 +7076,11 @@ static int rtl_alloc_irq(struct rtl8169_private *tp)
 		RTL_W8(tp, Config2, RTL_R8(tp, Config2) & ~MSIEnable);
 		RTL_W8(tp, Cfg9346, Cfg9346_Lock);
 		flags = PCI_IRQ_LEGACY;
+	} else if (tp->mac_version == RTL_GIGA_MAC_VER_40) {
+		/* This version was reported to have issues with resume
+		 * from suspend when using MSI-X
+		 */
+		flags = PCI_IRQ_LEGACY | PCI_IRQ_MSI;
 	} else {
 		flags = PCI_IRQ_ALL_TYPES;
 	}
