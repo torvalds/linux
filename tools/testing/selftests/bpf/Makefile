@@ -34,7 +34,8 @@ TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o test
 	test_btf_haskv.o test_btf_nokv.o test_sockmap_kern.o test_tunnel_kern.o \
 	test_get_stack_rawtp.o test_sockmap_kern.o test_sockhash_kern.o \
 	test_lwt_seg6local.o sendmsg4_prog.o sendmsg6_prog.o test_lirc_mode2_kern.o \
-	get_cgroup_id_kern.o socket_cookie_prog.o test_select_reuseport_kern.o
+	get_cgroup_id_kern.o socket_cookie_prog.o test_select_reuseport_kern.o \
+	test_skb_cgroup_id_kern.o
 
 # Order correspond to 'make run_tests' order
 TEST_PROGS := test_kmod.sh \
@@ -45,10 +46,11 @@ TEST_PROGS := test_kmod.sh \
 	test_sock_addr.sh \
 	test_tunnel.sh \
 	test_lwt_seg6local.sh \
-	test_lirc_mode2.sh
+	test_lirc_mode2.sh \
+	test_skb_cgroup_id.sh
 
 # Compile but not part of 'make run_tests'
-TEST_GEN_PROGS_EXTENDED = test_libbpf_open test_sock_addr
+TEST_GEN_PROGS_EXTENDED = test_libbpf_open test_sock_addr test_skb_cgroup_id_user
 
 include ../lib.mk
 
@@ -59,6 +61,7 @@ $(TEST_GEN_PROGS): $(BPFOBJ)
 $(TEST_GEN_PROGS_EXTENDED): $(OUTPUT)/libbpf.a
 
 $(OUTPUT)/test_dev_cgroup: cgroup_helpers.c
+$(OUTPUT)/test_skb_cgroup_id_user: cgroup_helpers.c
 $(OUTPUT)/test_sock: cgroup_helpers.c
 $(OUTPUT)/test_sock_addr: cgroup_helpers.c
 $(OUTPUT)/test_socket_cookie: cgroup_helpers.c
