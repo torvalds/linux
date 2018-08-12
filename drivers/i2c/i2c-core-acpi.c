@@ -453,8 +453,12 @@ static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 		else
 			dev_err(&client->adapter->dev, "i2c read %d bytes from client@%#x starting at reg %#x failed, error: %d\n",
 				data_len, client->addr, cmd, ret);
-	} else {
+	/* 2 transfers must have completed successfully */
+	} else if (ret == 2) {
 		memcpy(data, buffer, data_len);
+		ret = 0;
+	} else {
+		ret = -EIO;
 	}
 
 	kfree(buffer);
@@ -595,8 +599,6 @@ i2c_acpi_space_handler(u32 function, acpi_physical_address command,
 		if (action == ACPI_READ) {
 			status = acpi_gsb_i2c_read_bytes(client, command,
 					gsb->data, info->access_length);
-			if (status > 0)
-				status = 0;
 		} else {
 			status = acpi_gsb_i2c_write_bytes(client, command,
 					gsb->data, info->access_length);
