@@ -28,8 +28,8 @@ static unsigned int simp_net_id;
 static struct tc_action_ops act_simp_ops;
 
 #define SIMP_MAX_DATA	32
-static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
-		    struct tcf_result *res)
+static int tcf_simp_act(struct sk_buff *skb, const struct tc_action *a,
+			struct tcf_result *res)
 {
 	struct tcf_defact *d = to_defact(a);
 
@@ -207,7 +207,7 @@ static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
 	.type		=	TCA_ACT_SIMP,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_simp,
+	.act		=	tcf_simp_act,
 	.dump		=	tcf_simp_dump,
 	.cleanup	=	tcf_simp_release,
 	.init		=	tcf_simp_init,
