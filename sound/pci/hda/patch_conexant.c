@@ -37,8 +37,6 @@
 struct conexant_spec {
 	struct hda_gen_spec gen;
 
-	unsigned int beep_amp;
-
 	/* extra EAPD pins */
 	unsigned int num_eapds;
 	hda_nid_t eapds[4];
@@ -62,64 +60,47 @@ struct conexant_spec {
 
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
-static inline void set_beep_amp(struct conexant_spec *spec, hda_nid_t nid,
-				int idx, int dir)
-{
-	spec->gen.beep_nid = nid;
-	spec->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir);
-}
-/* additional beep mixers; the actual parameters are overwritten at build */
+/* additional beep mixers; private_value will be overwritten */
 static const struct snd_kcontrol_new cxt_beep_mixer[] = {
 	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_BEEP_MONO("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
-	{ } /* end */
 };
 
-/* create beep controls if needed */
-static int add_beep_ctls(struct hda_codec *codec)
+static int set_beep_amp(struct conexant_spec *spec, hda_nid_t nid,
+			int idx, int dir)
 {
-	struct conexant_spec *spec = codec->spec;
-	int err;
+	struct snd_kcontrol_new *knew;
+	unsigned int beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir);
+	int i;
 
-	if (spec->beep_amp) {
-		const struct snd_kcontrol_new *knew;
-		for (knew = cxt_beep_mixer; knew->name; knew++) {
-			struct snd_kcontrol *kctl;
-			kctl = snd_ctl_new1(knew, codec);
-			if (!kctl)
-				return -ENOMEM;
-			kctl->private_value = spec->beep_amp;
-			err = snd_hda_ctl_add(codec, 0, kctl);
-			if (err < 0)
-				return err;
-		}
+	spec->gen.beep_nid = nid;
+	for (i = 0; i < ARRAY_SIZE(cxt_beep_mixer); i++) {
+		knew = snd_hda_gen_add_kctl(&spec->gen, NULL,
+					    &cxt_beep_mixer[i]);
+		if (!knew)
+			return -ENOMEM;
+		knew->private_value = beep_amp;
 	}
 	return 0;
 }
-#else
-#define set_beep_amp(spec, nid, idx, dir) /* NOP */
-#define add_beep_ctls(codec)	0
-#endif
 
-/*
- * Automatic parser for CX20641 & co
- */
-
-#ifdef CONFIG_SND_HDA_INPUT_BEEP
-static void cx_auto_parse_beep(struct hda_codec *codec)
+static int cx_auto_parse_beep(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 	hda_nid_t nid;
 
 	for_each_hda_codec_node(nid, codec)
-		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP) {
-			set_beep_amp(spec, nid, 0, HDA_OUTPUT);
-			break;
-		}
+		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP)
+			return set_beep_amp(spec, nid, 0, HDA_OUTPUT);
+	return 0;
 }
 #else
-#define cx_auto_parse_beep(codec)
+#define cx_auto_parse_beep(codec)	0
 #endif
+
+/*
+ * Automatic parser for CX20641 & co
+ */
 
 /* parse EAPDs */
 static void cx_auto_parse_eapd(struct hda_codec *codec)
@@ -179,21 +160,6 @@ static void cx_auto_vmaster_hook_mute_led(void *private_data, int enabled)
 			    enabled ? 0x00 : 0x02);
 }
 
-static int cx_auto_build_controls(struct hda_codec *codec)
-{
-	int err;
-
-	err = snd_hda_gen_build_controls(codec);
-	if (err < 0)
-		return err;
-
-	err = add_beep_ctls(codec);
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-
 static int cx_auto_init(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -236,7 +202,7 @@ static void cx_auto_free(struct hda_codec *codec)
 }
 
 static const struct hda_codec_ops cx_auto_patch_ops = {
-	.build_controls = cx_auto_build_controls,
+	.build_controls = snd_hda_gen_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cx_auto_init,
 	.reboot_notify = cx_auto_reboot_notify,
@@ -345,6 +311,7 @@ static void cxt_fixup_headphone_mic(struct hda_codec *codec,
 		snd_hdac_regmap_add_vendor_verb(&codec->core, 0x410);
 		break;
 	case HDA_FIXUP_ACT_PROBE:
+		WARN_ON(spec->gen.cap_sync_hook);
 		spec->gen.cap_sync_hook = cxt_update_headset_mode_hook;
 		spec->gen.automute_hook = cxt_update_headset_mode;
 		break;
@@ -376,7 +343,7 @@ static void cxt_fixup_headset_mic(struct hda_codec *codec,
  * control. */
 
 #define update_mic_pin(codec, nid, val)					\
-	snd_hda_codec_update_cache(codec, nid, 0,			\
+	snd_hda_codec_write_cache(codec, nid, 0,			\
 				   AC_VERB_SET_PIN_WIDGET_CONTROL, val)
 
 static const struct hda_input_mux olpc_xo_dc_bias = {
@@ -697,16 +664,12 @@ static void cxt_fixup_gpio_mute_hook(void *private_data, int enabled)
 }
 
 /* turn on/off mic-mute LED via GPIO per capture hook */
-static void cxt_fixup_gpio_mic_mute_hook(struct hda_codec *codec,
-					 struct snd_kcontrol *kcontrol,
-					 struct snd_ctl_elem_value *ucontrol)
+static void cxt_gpio_micmute_update(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 
-	if (ucontrol)
-		cxt_update_gpio_led(codec, spec->gpio_mic_led_mask,
-				    ucontrol->value.integer.value[0] ||
-				    ucontrol->value.integer.value[1]);
+	cxt_update_gpio_led(codec, spec->gpio_mic_led_mask,
+			    spec->gen.micmute_led.led_value);
 }
 
 
@@ -723,11 +686,11 @@ static void cxt_fixup_mute_led_gpio(struct hda_codec *codec,
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->gen.vmaster_mute.hook = cxt_fixup_gpio_mute_hook;
-		spec->gen.cap_sync_hook = cxt_fixup_gpio_mic_mute_hook;
 		spec->gpio_led = 0;
 		spec->mute_led_polarity = 0;
 		spec->gpio_mute_led_mask = 0x01;
 		spec->gpio_mic_led_mask = 0x02;
+		snd_hda_gen_add_micmute_led(codec, cxt_gpio_micmute_update);
 	}
 	snd_hda_add_verbs(codec, gpio_init);
 	if (spec->gpio_led)
@@ -1039,7 +1002,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	codec->spec = spec;
 	codec->patch_ops = cx_auto_patch_ops;
 
-	cx_auto_parse_beep(codec);
 	cx_auto_parse_eapd(codec);
 	spec->gen.own_eapd_ctl = 1;
 	if (spec->dynamic_eapd)
@@ -1096,6 +1058,10 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		goto error;
 
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
+	if (err < 0)
+		goto error;
+
+	err = cx_auto_parse_beep(codec);
 	if (err < 0)
 		goto error;
 

@@ -67,16 +67,15 @@ struct hdac_ext_stream *get_hdac_ext_stream(struct snd_pcm_substream *substream)
 	return substream->runtime->private_data;
 }
 
-static struct hdac_ext_bus *get_bus_ctx(struct snd_pcm_substream *substream)
+static struct hdac_bus *get_bus_ctx(struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct hdac_stream *hstream = hdac_stream(stream);
 	struct hdac_bus *bus = hstream->bus;
-
-	return hbus_to_ebus(bus);
+	return bus;
 }
 
-static int skl_substream_alloc_pages(struct hdac_ext_bus *ebus,
+static int skl_substream_alloc_pages(struct hdac_bus *bus,
 				 struct snd_pcm_substream *substream,
 				 size_t size)
 {
@@ -95,7 +94,7 @@ static int skl_substream_free_pages(struct hdac_bus *bus,
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static void skl_set_pcm_constrains(struct hdac_ext_bus *ebus,
+static void skl_set_pcm_constrains(struct hdac_bus *bus,
 				 struct snd_pcm_runtime *runtime)
 {
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
@@ -105,9 +104,9 @@ static void skl_set_pcm_constrains(struct hdac_ext_bus *ebus,
 				     20, 178000000);
 }
 
-static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_ext_bus *ebus)
+static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_bus *bus)
 {
-	if ((ebus_to_hbus(ebus))->ppcap)
+	if (bus->ppcap)
 		return HDAC_EXT_STREAM_TYPE_HOST;
 	else
 		return HDAC_EXT_STREAM_TYPE_COUPLED;
@@ -123,9 +122,9 @@ static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_ext_bus *e
 static void skl_set_suspend_active(struct snd_pcm_substream *substream,
 					 struct snd_soc_dai *dai, bool enable)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct snd_soc_dapm_widget *w;
-	struct skl *skl = ebus_to_skl(ebus);
+	struct skl *skl = bus_to_skl(bus);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		w = dai->playback_widget;
@@ -140,8 +139,7 @@ static void skl_set_suspend_active(struct snd_pcm_substream *substream,
 
 int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = dev_get_drvdata(dev);
 	unsigned int format_val;
 	struct hdac_stream *hstream;
 	struct hdac_ext_stream *stream;
@@ -153,7 +151,7 @@ int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 		return -EINVAL;
 
 	stream = stream_to_hdac_ext_stream(hstream);
-	snd_hdac_ext_stream_decouple(ebus, stream, true);
+	snd_hdac_ext_stream_decouple(bus, stream, true);
 
 	format_val = snd_hdac_calc_stream_format(params->s_freq,
 			params->ch, params->format, params->host_bps, 0);
@@ -177,8 +175,7 @@ int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 
 int skl_pcm_link_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = dev_get_drvdata(dev);
 	unsigned int format_val;
 	struct hdac_stream *hstream;
 	struct hdac_ext_stream *stream;
@@ -190,7 +187,7 @@ int skl_pcm_link_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 		return -EINVAL;
 
 	stream = stream_to_hdac_ext_stream(hstream);
-	snd_hdac_ext_stream_decouple(ebus, stream, true);
+	snd_hdac_ext_stream_decouple(bus, stream, true);
 	format_val = snd_hdac_calc_stream_format(params->s_freq, params->ch,
 					params->format, params->link_bps, 0);
 
@@ -201,7 +198,7 @@ int skl_pcm_link_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 
 	snd_hdac_ext_link_stream_setup(stream, format_val);
 
-	list_for_each_entry(link, &ebus->hlink_list, list) {
+	list_for_each_entry(link, &bus->hlink_list, list) {
 		if (link->index == params->link_index)
 			snd_hdac_ext_link_set_stream_id(link,
 					hstream->stream_tag);
@@ -215,7 +212,7 @@ int skl_pcm_link_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 static int skl_pcm_open(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *stream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct skl_dma_params *dma_params;
@@ -224,12 +221,12 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
-	stream = snd_hdac_ext_stream_assign(ebus, substream,
-					skl_get_host_stream_type(ebus));
+	stream = snd_hdac_ext_stream_assign(bus, substream,
+					skl_get_host_stream_type(bus));
 	if (stream == NULL)
 		return -EBUSY;
 
-	skl_set_pcm_constrains(ebus, runtime);
+	skl_set_pcm_constrains(bus, runtime);
 
 	/*
 	 * disable WALLCLOCK timestamps for capture streams
@@ -301,7 +298,7 @@ static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct skl_pipe_params p_params = {0};
@@ -309,7 +306,7 @@ static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
 	int ret, dma_id;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
-	ret = skl_substream_alloc_pages(ebus, substream,
+	ret = skl_substream_alloc_pages(bus, substream,
 					  params_buffer_bytes(params));
 	if (ret < 0)
 		return ret;
@@ -343,14 +340,14 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct skl_dma_params *dma_params = NULL;
-	struct skl *skl = ebus_to_skl(ebus);
+	struct skl *skl = bus_to_skl(bus);
 	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
-	snd_hdac_ext_stream_release(stream, skl_get_host_stream_type(ebus));
+	snd_hdac_ext_stream_release(stream, skl_get_host_stream_type(bus));
 
 	dma_params = snd_soc_dai_get_dma_data(dai, substream);
 	/*
@@ -380,7 +377,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 static int skl_pcm_hw_free(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct skl *skl = get_skl_ctx(dai->dev);
 	struct skl_module_cfg *mconfig;
@@ -400,7 +397,7 @@ static int skl_pcm_hw_free(struct snd_pcm_substream *substream,
 	snd_hdac_stream_cleanup(hdac_stream(stream));
 	hdac_stream(stream)->prepared = 0;
 
-	return skl_substream_free_pages(ebus_to_hbus(ebus), substream);
+	return skl_substream_free_pages(bus, substream);
 }
 
 static int skl_be_hw_params(struct snd_pcm_substream *substream,
@@ -420,8 +417,7 @@ static int skl_be_hw_params(struct snd_pcm_substream *substream,
 static int skl_decoupled_trigger(struct snd_pcm_substream *substream,
 		int cmd)
 {
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = get_bus_ctx(substream);
 	struct hdac_ext_stream *stream;
 	int start;
 	unsigned long cookie;
@@ -470,7 +466,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct skl *skl = get_skl_ctx(dai->dev);
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_cfg *mconfig;
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_bus *bus = get_bus_ctx(substream);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct snd_soc_dapm_widget *w;
 	int ret;
@@ -492,9 +488,9 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			 * dpib & lpib position to resume before starting the
 			 * DMA
 			 */
-			snd_hdac_ext_stream_drsm_enable(ebus, true,
+			snd_hdac_ext_stream_drsm_enable(bus, true,
 						hdac_stream(stream)->index);
-			snd_hdac_ext_stream_set_dpibr(ebus, stream,
+			snd_hdac_ext_stream_set_dpibr(bus, stream,
 							stream->lpib);
 			snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
 		}
@@ -528,14 +524,14 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = skl_decoupled_trigger(substream, cmd);
 		if ((cmd == SNDRV_PCM_TRIGGER_SUSPEND) && !w->ignore_suspend) {
 			/* save the dpib and lpib positions */
-			stream->dpib = readl(ebus->bus.remap_addr +
+			stream->dpib = readl(bus->remap_addr +
 					AZX_REG_VS_SDXDPIB_XBASE +
 					(AZX_REG_VS_SDXDPIB_XINTERVAL *
 					hdac_stream(stream)->index));
 
 			stream->lpib = snd_hdac_stream_get_pos_lpib(
 							hdac_stream(stream));
-			snd_hdac_ext_stream_decouple(ebus, stream, false);
+			snd_hdac_ext_stream_decouple(bus, stream, false);
 		}
 		break;
 
@@ -546,11 +542,12 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
+
 static int skl_link_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *link_dev;
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
@@ -558,14 +555,14 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_ext_link *link;
 	int stream_tag;
 
-	link_dev = snd_hdac_ext_stream_assign(ebus, substream,
+	link_dev = snd_hdac_ext_stream_assign(bus, substream,
 					HDAC_EXT_STREAM_TYPE_LINK);
 	if (!link_dev)
 		return -EBUSY;
 
 	snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
 
-	link = snd_hdac_ext_bus_get_link(ebus, codec_dai->component->name);
+	link = snd_hdac_ext_bus_get_link(bus, codec_dai->component->name);
 	if (!link)
 		return -EINVAL;
 
@@ -610,7 +607,7 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_stream *link_dev =
 				snd_soc_dai_get_dma_data(dai, substream);
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_bus *bus = get_bus_ctx(substream);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
@@ -626,7 +623,7 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_hdac_ext_link_stream_clear(link_dev);
 		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
-			snd_hdac_ext_stream_decouple(ebus, stream, false);
+			snd_hdac_ext_stream_decouple(bus, stream, false);
 		break;
 
 	default:
@@ -638,7 +635,7 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 static int skl_link_hw_free(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	struct hdac_ext_stream *link_dev =
 				snd_soc_dai_get_dma_data(dai, substream);
@@ -648,7 +645,7 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 
 	link_dev->link_prepared = 0;
 
-	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec_dai->component->name);
+	link = snd_hdac_ext_bus_get_link(bus, rtd->codec_dai->component->name);
 	if (!link)
 		return -EINVAL;
 
@@ -1041,8 +1038,7 @@ static int skl_platform_open(struct snd_pcm_substream *substream)
 static int skl_coupled_trigger(struct snd_pcm_substream *substream,
 					int cmd)
 {
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = get_bus_ctx(substream);
 	struct hdac_ext_stream *stream;
 	struct snd_pcm_substream *s;
 	bool start;
@@ -1115,9 +1111,9 @@ static int skl_coupled_trigger(struct snd_pcm_substream *substream,
 static int skl_platform_pcm_trigger(struct snd_pcm_substream *substream,
 					int cmd)
 {
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_bus *bus = get_bus_ctx(substream);
 
-	if (!(ebus_to_hbus(ebus))->ppcap)
+	if (!bus->ppcap)
 		return skl_coupled_trigger(substream, cmd);
 
 	return 0;
@@ -1127,7 +1123,7 @@ static snd_pcm_uframes_t skl_platform_pcm_pointer
 			(struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *hstream = get_hdac_ext_stream(substream);
-	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_bus *bus = get_bus_ctx(substream);
 	unsigned int pos;
 
 	/*
@@ -1152,12 +1148,12 @@ static snd_pcm_uframes_t skl_platform_pcm_pointer
 	 */
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		pos = readl(ebus->bus.remap_addr + AZX_REG_VS_SDXDPIB_XBASE +
+		pos = readl(bus->remap_addr + AZX_REG_VS_SDXDPIB_XBASE +
 				(AZX_REG_VS_SDXDPIB_XINTERVAL *
 				hdac_stream(hstream)->index));
 	} else {
 		udelay(20);
-		readl(ebus->bus.remap_addr +
+		readl(bus->remap_addr +
 				AZX_REG_VS_SDXDPIB_XBASE +
 				(AZX_REG_VS_SDXDPIB_XINTERVAL *
 				 hdac_stream(hstream)->index));
@@ -1242,11 +1238,11 @@ static void skl_pcm_free(struct snd_pcm *pcm)
 static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->cpu_dai;
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct snd_pcm *pcm = rtd->pcm;
 	unsigned int size;
 	int retval = 0;
-	struct skl *skl = ebus_to_skl(ebus);
+	struct skl *skl = bus_to_skl(bus);
 
 	if (dai->driver->playback.channels_min ||
 		dai->driver->capture.channels_min) {
@@ -1356,19 +1352,19 @@ static int skl_populate_modules(struct skl *skl)
 
 static int skl_platform_soc_probe(struct snd_soc_component *component)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(component->dev);
-	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = dev_get_drvdata(component->dev);
+	struct skl *skl = bus_to_skl(bus);
 	const struct skl_dsp_ops *ops;
 	int ret;
 
 	pm_runtime_get_sync(component->dev);
-	if ((ebus_to_hbus(ebus))->ppcap) {
+	if (bus->ppcap) {
 		skl->component = component;
 
 		/* init debugfs */
 		skl->debugfs = skl_debugfs_init(skl);
 
-		ret = skl_tplg_init(component, ebus);
+		ret = skl_tplg_init(component, bus);
 		if (ret < 0) {
 			dev_err(component->dev, "Failed to init topology!\n");
 			return ret;
@@ -1425,10 +1421,10 @@ static const struct snd_soc_component_driver skl_component  = {
 int skl_platform_register(struct device *dev)
 {
 	int ret;
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
-	struct skl *skl = ebus_to_skl(ebus);
 	struct snd_soc_dai_driver *dais;
 	int num_dais = ARRAY_SIZE(skl_platform_dai);
+	struct hdac_bus *bus = dev_get_drvdata(dev);
+	struct skl *skl = bus_to_skl(bus);
 
 	INIT_LIST_HEAD(&skl->ppl_list);
 	INIT_LIST_HEAD(&skl->bind_list);
@@ -1464,8 +1460,8 @@ err:
 
 int skl_platform_unregister(struct device *dev)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
-	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = dev_get_drvdata(dev);
+	struct skl *skl = bus_to_skl(bus);
 	struct skl_module_deferred_bind *modules, *tmp;
 
 	if (!list_empty(&skl->bind_list)) {

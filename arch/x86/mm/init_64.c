@@ -1350,16 +1350,28 @@ int kern_addr_valid(unsigned long addr)
 /* Amount of ram needed to start using large blocks */
 #define MEM_SIZE_FOR_LARGE_BLOCK (64UL << 30)
 
+/* Adjustable memory block size */
+static unsigned long set_memory_block_size;
+int __init set_memory_block_size_order(unsigned int order)
+{
+	unsigned long size = 1UL << order;
+
+	if (size > MEM_SIZE_FOR_LARGE_BLOCK || size < MIN_MEMORY_BLOCK_SIZE)
+		return -EINVAL;
+
+	set_memory_block_size = size;
+	return 0;
+}
+
 static unsigned long probe_memory_block_size(void)
 {
 	unsigned long boot_mem_end = max_pfn << PAGE_SHIFT;
 	unsigned long bz;
 
-	/* If this is UV system, always set 2G block size */
-	if (is_uv_system()) {
-		bz = MAX_BLOCK_SIZE;
+	/* If memory block size has been set, then use it */
+	bz = set_memory_block_size;
+	if (bz)
 		goto done;
-	}
 
 	/* Use regular block if RAM is smaller than MEM_SIZE_FOR_LARGE_BLOCK */
 	if (boot_mem_end < MEM_SIZE_FOR_LARGE_BLOCK) {

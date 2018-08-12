@@ -169,9 +169,9 @@ static int sysc_get_clocks(struct sysc *ddata)
 	const char *name;
 	int nr_fck = 0, nr_ick = 0, i, error = 0;
 
-	ddata->clock_roles = devm_kzalloc(ddata->dev,
-					  sizeof(*ddata->clock_roles) *
+	ddata->clock_roles = devm_kcalloc(ddata->dev,
 					  SYSC_MAX_CLOCKS,
+					  sizeof(*ddata->clock_roles),
 					  GFP_KERNEL);
 	if (!ddata->clock_roles)
 		return -ENOMEM;
@@ -200,8 +200,8 @@ static int sysc_get_clocks(struct sysc *ddata)
 		return -EINVAL;
 	}
 
-	ddata->clocks = devm_kzalloc(ddata->dev,
-				     sizeof(*ddata->clocks) * ddata->nr_clocks,
+	ddata->clocks = devm_kcalloc(ddata->dev,
+				     ddata->nr_clocks, sizeof(*ddata->clocks),
 				     GFP_KERNEL);
 	if (!ddata->clocks)
 		return -ENOMEM;

@@ -123,6 +123,20 @@ nfp_flower_compile_mac(struct nfp_flower_mac_mpls *frame,
 			 NFP_FLOWER_MASK_MPLS_Q;
 
 		frame->mpls_lse = cpu_to_be32(t_mpls);
+	} else if (dissector_uses_key(flow->dissector,
+				      FLOW_DISSECTOR_KEY_BASIC)) {
+		/* Check for mpls ether type and set NFP_FLOWER_MASK_MPLS_Q
+		 * bit, which indicates an mpls ether type but without any
+		 * mpls fields.
+		 */
+		struct flow_dissector_key_basic *key_basic;
+
+		key_basic = skb_flow_dissector_target(flow->dissector,
+						      FLOW_DISSECTOR_KEY_BASIC,
+						      flow->key);
+		if (key_basic->n_proto == cpu_to_be16(ETH_P_MPLS_UC) ||
+		    key_basic->n_proto == cpu_to_be16(ETH_P_MPLS_MC))
+			frame->mpls_lse = cpu_to_be32(NFP_FLOWER_MASK_MPLS_Q);
 	}
 }
 

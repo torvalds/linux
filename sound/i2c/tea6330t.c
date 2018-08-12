@@ -368,19 +368,3 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
 
 EXPORT_SYMBOL(snd_tea6330t_detect);
 EXPORT_SYMBOL(snd_tea6330t_update_mixer);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_tea6330t_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_tea6330t_exit(void)
-{
-}
-
-module_init(alsa_tea6330t_init)
-module_exit(alsa_tea6330t_exit)

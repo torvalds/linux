@@ -75,7 +75,7 @@
 
 		serial@75b1000 {
 			label = "LS-UART0";
-			status = "okay";
+			status = "disabled";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp2_uart2_4pins_default>;
 			pinctrl-1 = <&blsp2_uart2_4pins_sleep>;

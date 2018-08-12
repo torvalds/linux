@@ -277,8 +277,7 @@ static bool tick_check_preferred(struct clock_event_device *curdev,
 	 */
 	return !curdev ||
 		newdev->rating > curdev->rating ||
-	       (!cpumask_equal(curdev->cpumask, newdev->cpumask) &&
-	        !tick_check_percpu(curdev, newdev, smp_processor_id()));
+	       !cpumask_equal(curdev->cpumask, newdev->cpumask);
 }
 
 /*

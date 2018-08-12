@@ -318,7 +318,7 @@ do_control(struct snd_midi_op *ops, void *drv, struct snd_midi_channel_set *chse
 		break;
 	case MIDI_CTL_MSB_DATA_ENTRY:
 		chan->control[MIDI_CTL_LSB_DATA_ENTRY] = 0;
-		/* go through here */
+		/* fall through */
 	case MIDI_CTL_LSB_DATA_ENTRY:
 		if (chan->param_type == SNDRV_MIDI_PARAM_TYPE_REGISTERED)
 			rpn(ops, drv, chan, chset);
@@ -728,15 +728,3 @@ void snd_midi_channel_free_set(struct snd_midi_channel_set *chset)
 	kfree(chset);
 }
 EXPORT_SYMBOL(snd_midi_channel_free_set);
-
-static int __init alsa_seq_midi_emul_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_seq_midi_emul_exit(void)
-{
-}
-
-module_init(alsa_seq_midi_emul_init)
-module_exit(alsa_seq_midi_emul_exit)

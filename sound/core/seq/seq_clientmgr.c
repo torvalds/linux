@@ -311,10 +311,9 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 	if (err < 0)
 		return err;
 
-	if (mutex_lock_interruptible(&register_mutex))
-		return -ERESTARTSYS;
+	mutex_lock(&register_mutex);
 	client = seq_create_client1(-1, SNDRV_SEQ_DEFAULT_EVENTS);
-	if (client == NULL) {
+	if (!client) {
 		mutex_unlock(&register_mutex);
 		return -ENOMEM;	/* failure code */
 	}
@@ -1704,10 +1703,7 @@ static int snd_seq_ioctl_get_queue_timer(struct snd_seq_client *client,
 	if (queue == NULL)
 		return -EINVAL;
 
-	if (mutex_lock_interruptible(&queue->timer_mutex)) {
-		queuefree(queue);
-		return -ERESTARTSYS;
-	}
+	mutex_lock(&queue->timer_mutex);
 	tmr = queue->timer;
 	memset(timer, 0, sizeof(*timer));
 	timer->queue = queue->queue;
@@ -1741,10 +1737,7 @@ static int snd_seq_ioctl_set_queue_timer(struct snd_seq_client *client,
 		q = queueptr(timer->queue);
 		if (q == NULL)
 			return -ENXIO;
-		if (mutex_lock_interruptible(&q->timer_mutex)) {
-			queuefree(q);
-			return -ERESTARTSYS;
-		}
+		mutex_lock(&q->timer_mutex);
 		tmr = q->timer;
 		snd_seq_queue_timer_close(timer->queue);
 		tmr->type = timer->type;
@@ -2180,8 +2173,7 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	if (card == NULL && client_index >= SNDRV_SEQ_GLOBAL_CLIENTS)
 		return -EINVAL;
 
-	if (mutex_lock_interruptible(&register_mutex))
-		return -ERESTARTSYS;
+	mutex_lock(&register_mutex);
 
 	if (card) {
 		client_index += SNDRV_SEQ_GLOBAL_CLIENTS
@@ -2522,19 +2514,15 @@ int __init snd_sequencer_device_init(void)
 	snd_device_initialize(&seq_dev, NULL);
 	dev_set_name(&seq_dev, "seq");
 
-	if (mutex_lock_interruptible(&register_mutex))
-		return -ERESTARTSYS;
-
+	mutex_lock(&register_mutex);
 	err = snd_register_device(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0,
 				  &snd_seq_f_ops, NULL, &seq_dev);
+	mutex_unlock(&register_mutex);
 	if (err < 0) {
-		mutex_unlock(&register_mutex);
 		put_device(&seq_dev);
 		return err;
 	}
 	
-	mutex_unlock(&register_mutex);
-
 	return 0;
 }
 
@@ -2543,7 +2531,7 @@ int __init snd_sequencer_device_init(void)
 /* 
  * unregister sequencer device 
  */
-void __exit snd_sequencer_device_done(void)
+void snd_sequencer_device_done(void)
 {
 	snd_unregister_device(&seq_dev);
 	put_device(&seq_dev);

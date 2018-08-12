@@ -52,7 +52,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	unsigned long bo_size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
-	unsigned version_major, version_minor, family_id;
+	unsigned char fw_check;
 	int r;
 
 	INIT_DELAYED_WORK(&adev->vcn.idle_work, amdgpu_vcn_idle_work_handler);
@@ -83,12 +83,33 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 
 	hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
 	adev->vcn.fw_version = le32_to_cpu(hdr->ucode_version);
-	family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
-	version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
-	version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
-	DRM_INFO("Found VCN firmware Version: %hu.%hu Family ID: %hu\n",
-		version_major, version_minor, family_id);
 
+	/* Bit 20-23, it is encode major and non-zero for new naming convention.
+	 * This field is part of version minor and DRM_DISABLED_FLAG in old naming
+	 * convention. Since the l:wq!atest version minor is 0x5B and DRM_DISABLED_FLAG
+	 * is zero in old naming convention, this field is always zero so far.
+	 * These four bits are used to tell which naming convention is present.
+	 */
+	fw_check = (le32_to_cpu(hdr->ucode_version) >> 20) & 0xf;
+	if (fw_check) {
+		unsigned int dec_ver, enc_major, enc_minor, vep, fw_rev;
+
+		fw_rev = le32_to_cpu(hdr->ucode_version) & 0xfff;
+		enc_minor = (le32_to_cpu(hdr->ucode_version) >> 12) & 0xff;
+		enc_major = fw_check;
+		dec_ver = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xf;
+		vep = (le32_to_cpu(hdr->ucode_version) >> 28) & 0xf;
+		DRM_INFO("Found VCN firmware Version ENC: %hu.%hu DEC: %hu VEP: %hu Revision: %hu\n",
+			enc_major, enc_minor, dec_ver, vep, fw_rev);
+	} else {
+		unsigned int version_major, version_minor, family_id;
+
+		family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
+		version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
+		version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
+		DRM_INFO("Found VCN firmware Version: %hu.%hu Family ID: %hu\n",
+			version_major, version_minor, family_id);
+	}
 
 	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
 		  +  AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_HEAP_SIZE

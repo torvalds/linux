@@ -1319,15 +1319,16 @@ static const struct vga_switcheroo_client_ops azx_vs_ops = {
 static int register_vga_switcheroo(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct pci_dev *p;
 	int err;
 
 	if (!hda->use_vga_switcheroo)
 		return 0;
-	/* FIXME: currently only handling DIS controller
-	 * is there any machine with two switchable HDMI audio controllers?
-	 */
-	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops,
-						   VGA_SWITCHEROO_DIS);
+
+	p = get_bound_vga(chip->pci);
+	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops, p);
+	pci_dev_put(p);
+
 	if (err < 0)
 		return err;
 	hda->vga_switcheroo_registered = 1;
@@ -1429,7 +1430,7 @@ static struct pci_dev *get_bound_vga(struct pci_dev *pci)
 			p = pci_get_domain_bus_and_slot(pci_domain_nr(pci->bus),
 							pci->bus->number, 0);
 			if (p) {
-				if ((p->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+				if ((p->class >> 16) == PCI_BASE_CLASS_DISPLAY)
 					return p;
 				pci_dev_put(p);
 			}
@@ -2535,7 +2536,8 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_SB },
 	/* AMD Raven */
 	{ PCI_DEVICE(0x1022, 0x15e3),
-	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_SB },
+	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_SB |
+			 AZX_DCAPS_PM_RUNTIME },
 	/* ATI HDMI */
 	{ PCI_DEVICE(0x1002, 0x0002),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },

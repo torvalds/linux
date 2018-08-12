@@ -4528,6 +4528,7 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 			       unsigned long expires, u32 flags)
 {
 	struct fib6_info *f6i;
+	u32 prio;
 
 	f6i = addrconf_get_prefix_route(&ifp->addr,
 					ifp->prefix_len,
@@ -4536,13 +4537,15 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 	if (!f6i)
 		return -ENOENT;
 
-	if (f6i->fib6_metric != ifp->rt_priority) {
+	prio = ifp->rt_priority ? : IP6_RT_PRIO_ADDRCONF;
+	if (f6i->fib6_metric != prio) {
+		/* delete old one */
+		ip6_del_rt(dev_net(ifp->idev->dev), f6i);
+
 		/* add new one */
 		addrconf_prefix_route(&ifp->addr, ifp->prefix_len,
 				      ifp->rt_priority, ifp->idev->dev,
 				      expires, flags, GFP_KERNEL);
-		/* delete old one */
-		ip6_del_rt(dev_net(ifp->idev->dev), f6i);
 	} else {
 		if (!expires)
 			fib6_clean_expires(f6i);

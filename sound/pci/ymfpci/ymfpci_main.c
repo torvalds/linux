@@ -336,7 +336,7 @@ static void snd_ymfpci_pcm_interrupt(struct snd_ymfpci *chip, struct snd_ymfpci_
 			unsigned int subs = ypcm->substream->number;
 			unsigned int next_bank = 1 - chip->active_bank;
 			struct snd_ymfpci_playback_bank *bank;
-			u32 volume;
+			__le32 volume;
 			
 			bank = &voice->bank[next_bank];
 			volume = cpu_to_le32(chip->pcm_mixer[subs].left << 15);
@@ -505,7 +505,7 @@ static void snd_ymfpci_pcm_init_voice(struct snd_ymfpci_pcm *ypcm, unsigned int 
 	u32 lpfK = snd_ymfpci_calc_lpfK(runtime->rate);
 	struct snd_ymfpci_playback_bank *bank;
 	unsigned int nbank;
-	u32 vol_left, vol_right;
+	__le32 vol_left, vol_right;
 	u8 use_left, use_right;
 	unsigned long flags;
 
@@ -2135,7 +2135,7 @@ static int snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 
 	chip->bank_base_playback = ptr;
 	chip->bank_base_playback_addr = ptr_addr;
-	chip->ctrl_playback = (u32 *)ptr;
+	chip->ctrl_playback = (__le32 *)ptr;
 	chip->ctrl_playback[0] = cpu_to_le32(YDSXG_PLAYBACK_VOICES);
 	ptr += ALIGN(playback_ctrl_size, 0x100);
 	ptr_addr += ALIGN(playback_ctrl_size, 0x100);

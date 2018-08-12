@@ -583,13 +583,14 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
 						    size >> PAGE_SHIFT);
 			return NULL;
 		}
-		if (!coherent)
-			__dma_flush_area(page_to_virt(page), iosize);
-
 		addr = dma_common_contiguous_remap(page, size, VM_USERMAP,
 						   prot,
 						   __builtin_return_address(0));
-		if (!addr) {
+		if (addr) {
+			memset(addr, 0, size);
+			if (!coherent)
+				__dma_flush_area(page_to_virt(page), iosize);
+		} else {
 			iommu_dma_unmap_page(dev, *handle, iosize, 0, attrs);
 			dma_release_from_contiguous(dev, page,
 						    size >> PAGE_SHIFT);

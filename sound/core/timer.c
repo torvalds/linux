@@ -883,6 +883,11 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 
 	if (snd_BUG_ON(!tid))
 		return -EINVAL;
+	if (tid->dev_class == SNDRV_TIMER_CLASS_CARD ||
+	    tid->dev_class == SNDRV_TIMER_CLASS_PCM) {
+		if (WARN_ON(!card))
+			return -EINVAL;
+	}
 	if (rtimer)
 		*rtimer = NULL;
 	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
