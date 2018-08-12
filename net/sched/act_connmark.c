@@ -31,8 +31,8 @@
 static unsigned int connmark_net_id;
 static struct tc_action_ops act_connmark_ops;
 
-static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
-			struct tcf_result *res)
+static int tcf_connmark_act(struct sk_buff *skb, const struct tc_action *a,
+			    struct tcf_result *res)
 {
 	const struct nf_conntrack_tuple_hash *thash;
 	struct nf_conntrack_tuple tuple;
@@ -209,7 +209,7 @@ static struct tc_action_ops act_connmark_ops = {
 	.kind		=	"connmark",
 	.type		=	TCA_ACT_CONNMARK,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_connmark,
+	.act		=	tcf_connmark_act,
 	.dump		=	tcf_connmark_dump,
 	.init		=	tcf_connmark_init,
 	.walk		=	tcf_connmark_walker,
