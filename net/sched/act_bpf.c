@@ -34,8 +34,8 @@ struct tcf_bpf_cfg {
 static unsigned int bpf_net_id;
 static struct tc_action_ops act_bpf_ops;
 
-static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
-		   struct tcf_result *res)
+static int tcf_bpf_act(struct sk_buff *skb, const struct tc_action *act,
+		       struct tcf_result *res)
 {
 	bool at_ingress = skb_at_tc_ingress(skb);
 	struct tcf_bpf *prog = to_bpf(act);
@@ -406,7 +406,7 @@ static struct tc_action_ops act_bpf_ops __read_mostly = {
 	.kind		=	"bpf",
 	.type		=	TCA_ACT_BPF,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_bpf,
+	.act		=	tcf_bpf_act,
 	.dump		=	tcf_bpf_dump,
 	.cleanup	=	tcf_bpf_cleanup,
 	.init		=	tcf_bpf_init,
