@@ -2189,7 +2189,7 @@ brcmf_sdio_txpkt_prep(struct brcmf_sdio *bus, struct sk_buff_head *pktq,
 	 * length of the chain (including padding)
 	 */
 	if (bus->txglom)
-		brcmf_sdio_update_hwhdr(pktq->next->data, total_len);
+		brcmf_sdio_update_hwhdr(__skb_peek(pktq)->data, total_len);
 	return 0;
 }
 
