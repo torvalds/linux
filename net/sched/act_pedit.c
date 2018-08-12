@@ -288,8 +288,8 @@ static int pedit_skb_hdr_offset(struct sk_buff *skb,
 	return ret;
 }
 
-static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
-		     struct tcf_result *res)
+static int tcf_pedit_act(struct sk_buff *skb, const struct tc_action *a,
+			 struct tcf_result *res)
 {
 	struct tcf_pedit *p = to_pedit(a);
 	int i;
@@ -471,7 +471,7 @@ static struct tc_action_ops act_pedit_ops = {
 	.kind		=	"pedit",
 	.type		=	TCA_ACT_PEDIT,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_pedit,
+	.act		=	tcf_pedit_act,
 	.dump		=	tcf_pedit_dump,
 	.cleanup	=	tcf_pedit_cleanup,
 	.init		=	tcf_pedit_init,
