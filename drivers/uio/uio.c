@@ -443,13 +443,10 @@ static irqreturn_t uio_interrupt(int irq, void *dev_id)
 	struct uio_device *idev = (struct uio_device *)dev_id;
 	irqreturn_t ret;
 
-	mutex_lock(&idev->info_lock);
-
 	ret = idev->info->handler(irq, idev->info);
 	if (ret == IRQ_HANDLED)
 		uio_event_notify(idev->info);
 
-	mutex_unlock(&idev->info_lock);
 	return ret;
 }
 
@@ -969,9 +966,8 @@ int __uio_register_device(struct module *owner,
 		 * FDs at the time of unregister and therefore may not be
 		 * freed until they are released.
 		 */
-		ret = request_threaded_irq(info->irq, NULL, uio_interrupt,
-					   info->irq_flags, info->name, idev);
-
+		ret = request_irq(info->irq, uio_interrupt,
+				  info->irq_flags, info->name, idev);
 		if (ret)
 			goto err_request_irq;
 	}
