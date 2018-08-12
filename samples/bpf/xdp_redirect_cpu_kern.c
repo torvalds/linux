@@ -14,7 +14,7 @@
 #include <uapi/linux/bpf.h>
 #include "bpf_helpers.h"
 
-#define MAX_CPUS 12 /* WARNING - sync with _user.c */
+#define MAX_CPUS 64 /* WARNING - sync with _user.c */
 
 /* Special map type that can XDP_REDIRECT frames to another CPU */
 struct bpf_map_def SEC("maps") cpu_map = {
