@@ -181,6 +181,8 @@ ENTRY(_startup)
 
 	isync
 
+	initialize_cacheattr
+
 #ifdef CONFIG_HAVE_SMP
 	movi	a2, CCON	# MX External Register to Configure Cache
 	movi	a3, 1

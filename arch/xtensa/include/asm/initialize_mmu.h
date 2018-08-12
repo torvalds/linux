@@ -177,36 +177,36 @@
 #endif /* defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU &&
 	  XCHAL_HAVE_SPANNING_WAY */
 
-#if !defined(CONFIG_MMU) && XCHAL_HAVE_TLBS && \
-		(XCHAL_DCACHE_SIZE || XCHAL_ICACHE_SIZE)
-	/* Enable data and instruction cache in the DEFAULT_MEMORY region
-	 * if the processor has DTLB and ITLB.
-	 */
+	.endm
 
-	movi	a5, PLATFORM_DEFAULT_MEM_START | XCHAL_SPANNING_WAY
+	.macro	initialize_cacheattr
+
+#if !defined(CONFIG_MMU) && XCHAL_HAVE_TLBS
+#if CONFIG_MEMMAP_CACHEATTR == 0x22222222 && XCHAL_HAVE_PTP_MMU
+#error Default MEMMAP_CACHEATTR of 0x22222222 does not work with full MMU.
+#endif
+
+	movi	a5, XCHAL_SPANNING_WAY
 	movi	a6, ~_PAGE_ATTRIB_MASK
-	movi	a7, CA_WRITEBACK
+	movi	a4, CONFIG_MEMMAP_CACHEATTR
 	movi	a8, 0x20000000
-	movi	a9, PLATFORM_DEFAULT_MEM_SIZE
-	j	2f
 1:
-	sub	a9, a9, a8
-2:
-#if XCHAL_DCACHE_SIZE
 	rdtlb1	a3, a5
+	xor	a3, a3, a4
 	and	a3, a3, a6
-	or	a3, a3, a7
+	xor	a3, a3, a4
 	wdtlb	a3, a5
-#endif
-#if XCHAL_ICACHE_SIZE
-	ritlb1	a4, a5
-	and	a4, a4, a6
-	or	a4, a4, a7
-	witlb	a4, a5
-#endif
-	add	a5, a5, a8
-	bltu	a8, a9, 1b
+	ritlb1	a3, a5
+	xor	a3, a3, a4
+	and	a3, a3, a6
+	xor	a3, a3, a4
+	witlb	a3, a5
 
+	add	a5, a5, a8
+	srli	a4, a4, 4
+	bgeu	a5, a8, 1b
+
+	isync
 #endif
 
 	.endm
