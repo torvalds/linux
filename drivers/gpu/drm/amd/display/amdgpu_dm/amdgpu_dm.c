@@ -1882,6 +1882,10 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 	case DRM_FORMAT_ABGR2101010:
 		plane_state->format = SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010;
 		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		plane_state->format = SURFACE_PIXEL_FORMAT_GRPH_ABGR8888;
+		break;
 	case DRM_FORMAT_NV21:
 		plane_state->format = SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr;
 		break;
@@ -3185,6 +3189,8 @@ static const uint32_t rgb_formats[] = {
 	DRM_FORMAT_XBGR2101010,
 	DRM_FORMAT_ARGB2101010,
 	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 };
 
 static const uint32_t yuv_formats[] = {
