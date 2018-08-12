@@ -555,8 +555,8 @@ fail:
 	return 0;
 }
 
-static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
-		    struct tcf_result *res)
+static int tcf_csum_act(struct sk_buff *skb, const struct tc_action *a,
+			struct tcf_result *res)
 {
 	struct tcf_csum *p = to_tcf_csum(a);
 	struct tcf_csum_params *params;
@@ -670,7 +670,7 @@ static struct tc_action_ops act_csum_ops = {
 	.kind		= "csum",
 	.type		= TCA_ACT_CSUM,
 	.owner		= THIS_MODULE,
-	.act		= tcf_csum,
+	.act		= tcf_csum_act,
 	.dump		= tcf_csum_dump,
 	.init		= tcf_csum_init,
 	.cleanup	= tcf_csum_cleanup,
