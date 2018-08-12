@@ -862,6 +862,16 @@
 			status = "disabled";
 		};
 
+		can0: can@e6c30000 {
+			reg = <0 0xe6c30000 0 0x1000>;
+			/* placeholder */
+		};
+
+		can1: can@e6c38000 {
+			reg = <0 0xe6c38000 0 0x1000>;
+			/* placeholder */
+		};
+
 		pwm0: pwm@e6e30000 {
 			compatible = "renesas,pwm-r8a77965", "renesas,pwm-rcar";
 			reg = <0 0xe6e30000 0 8>;
