@@ -1593,6 +1593,17 @@ static inline struct sk_buff *skb_peek(const struct sk_buff_head *list_)
 }
 
 /**
+ *	__skb_peek - peek at the head of a non-empty &sk_buff_head
+ *	@list_: list to peek at
+ *
+ *	Like skb_peek(), but the caller knows that the list is not empty.
+ */
+static inline struct sk_buff *__skb_peek(const struct sk_buff_head *list_)
+{
+	return list_->next;
+}
+
+/**
  *	skb_peek_next - peek skb following the given one from a queue
  *	@skb: skb to start from
  *	@list_: list to peek at
