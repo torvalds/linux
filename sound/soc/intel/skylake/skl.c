@@ -838,11 +838,7 @@ static int skl_first_init(struct hdac_bus *bus)
 
 	snd_hdac_bus_parse_capabilities(bus);
 
-	if (skl_acquire_irq(bus, 0) < 0)
-		return -EBUSY;
-
 	pci_set_master(pci);
-	synchronize_irq(bus->irq);
 
 	gcap = snd_hdac_chip_readw(bus, GCAP);
 	dev_dbg(bus->dev, "chipset global capabilities = 0x%x\n", gcap);
@@ -874,6 +870,12 @@ static int skl_first_init(struct hdac_bus *bus)
 	err = snd_hdac_bus_alloc_stream_pages(bus);
 	if (err < 0)
 		return err;
+
+	err = skl_acquire_irq(bus, 0);
+	if (err < 0)
+		return err;
+
+	synchronize_irq(bus->irq);
 
 	/* initialize chip */
 	skl_init_pci(skl);
