@@ -382,16 +382,13 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		tcf_bind_filter(tp, &cr.res, base);
 	}
 
-	if (old_r)
-		tcf_exts_change(tp, &r->exts, &e);
-	else
-		tcf_exts_change(tp, &cr.exts, &e);
-
 	if (old_r && old_r != r)
 		tcindex_filter_result_init(old_r);
 
 	oldp = p;
 	r->res = cr.res;
+	tcf_exts_change(tp, &r->exts, &e);
+
 	rcu_assign_pointer(tp->root, cp);
 
 	if (r == &new_filter_result) {
