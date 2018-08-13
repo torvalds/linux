@@ -346,7 +346,7 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 					struct list_head *device_list)
 {
 	struct kfd_iolink_properties *props = NULL, *props2;
-	struct kfd_topology_device *dev, *cpu_dev;
+	struct kfd_topology_device *dev, *to_dev;
 	uint32_t id_from;
 	uint32_t id_to;
 
@@ -369,6 +369,8 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 
 			if (props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS)
 				props->weight = 20;
+			else if (props->iolink_type == CRAT_IOLINK_TYPE_XGMI)
+				props->weight = 15;
 			else
 				props->weight = node_distance(id_from, id_to);
 
@@ -390,19 +392,22 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 	 * links are not built at that time. If a PCIe type is discovered, it
 	 * means a GPU is detected and we are adding GPU->CPU to the topology.
 	 * At this time, also add the corresponded CPU->GPU link.
+	 * For xGMI, we only added the link with one direction in the crat
+	 * table, add corresponded reversed direction link now.
 	 */
-	if (props && props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS) {
-		cpu_dev = kfd_topology_device_by_proximity_domain(id_to);
-		if (!cpu_dev)
+	if (props && (props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS ||
+		      props->iolink_type == CRAT_IOLINK_TYPE_XGMI)) {
+		to_dev = kfd_topology_device_by_proximity_domain(id_to);
+		if (!to_dev)
 			return -ENODEV;
 		/* same everything but the other direction */
 		props2 = kmemdup(props, sizeof(*props2), GFP_KERNEL);
 		props2->node_from = id_to;
 		props2->node_to = id_from;
 		props2->kobj = NULL;
-		cpu_dev->io_link_count++;
-		cpu_dev->node_props.io_links_count++;
-		list_add_tail(&props2->list, &cpu_dev->io_link_props);
+		to_dev->io_link_count++;
+		to_dev->node_props.io_links_count++;
+		list_add_tail(&props2->list, &to_dev->io_link_props);
 	}
 
 	return 0;
@@ -1037,7 +1042,7 @@ static int kfd_fill_gpu_memory_affinity(int *avail_size,
  *
  *	Return 0 if successful else return -ve value
  */
-static int kfd_fill_gpu_direct_io_link(int *avail_size,
+static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 			struct kfd_dev *kdev,
 			struct crat_subtype_iolink *sub_type_hdr,
 			uint32_t proximity_domain)
@@ -1069,6 +1074,28 @@ static int kfd_fill_gpu_direct_io_link(int *avail_size,
 	return 0;
 }
 
+static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
+			struct kfd_dev *kdev,
+			struct crat_subtype_iolink *sub_type_hdr,
+			uint32_t proximity_domain_from,
+			uint32_t proximity_domain_to)
+{
+	*avail_size -= sizeof(struct crat_subtype_iolink);
+	if (*avail_size < 0)
+		return -ENOMEM;
+
+	memset((void *)sub_type_hdr, 0, sizeof(struct crat_subtype_iolink));
+
+	sub_type_hdr->type = CRAT_SUBTYPE_IOLINK_AFFINITY;
+	sub_type_hdr->length = sizeof(struct crat_subtype_iolink);
+	sub_type_hdr->flags |= CRAT_SUBTYPE_FLAGS_ENABLED;
+
+	sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
+	sub_type_hdr->proximity_domain_from = proximity_domain_from;
+	sub_type_hdr->proximity_domain_to = proximity_domain_to;
+	return 0;
+}
+
 /* kfd_create_vcrat_image_gpu - Create Virtual CRAT for CPU
  *
  *	@pcrat_image: Fill in VCRAT for GPU
@@ -1081,14 +1108,16 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 {
 	struct crat_header *crat_table = (struct crat_header *)pcrat_image;
 	struct crat_subtype_generic *sub_type_hdr;
+	struct kfd_local_mem_info local_mem_info;
+	struct kfd_topology_device *peer_dev;
 	struct crat_subtype_computeunit *cu;
 	struct kfd_cu_info cu_info;
 	int avail_size = *size;
 	uint32_t total_num_of_cu;
 	int num_of_cache_entries = 0;
 	int cache_mem_filled = 0;
+	uint32_t nid = 0;
 	int ret = 0;
-	struct kfd_local_mem_info local_mem_info;
 
 	if (!pcrat_image || avail_size < VCRAT_SIZE_FOR_GPU)
 		return -EINVAL;
@@ -1212,7 +1241,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 */
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 		cache_mem_filled);
-	ret = kfd_fill_gpu_direct_io_link(&avail_size, kdev,
+	ret = kfd_fill_gpu_direct_io_link_to_cpu(&avail_size, kdev,
 		(struct crat_subtype_iolink *)sub_type_hdr, proximity_domain);
 
 	if (ret < 0)
@@ -1221,6 +1250,35 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	crat_table->length += sub_type_hdr->length;
 	crat_table->total_entries++;
 
+
+	/* Fill in Subtype: IO_LINKS
+	 * Direct links from GPU to other GPUs through xGMI.
+	 * We will loop GPUs that already be processed (with lower value
+	 * of proximity_domain), add the link for the GPUs with same
+	 * hive id (from this GPU to other GPU) . The reversed iolink
+	 * (from other GPU to this GPU) will be added
+	 * in kfd_parse_subtype_iolink.
+	 */
+	if (kdev->hive_id) {
+		for (nid = 0; nid < proximity_domain; ++nid) {
+			peer_dev = kfd_topology_device_by_proximity_domain(nid);
+			if (!peer_dev->gpu)
+				continue;
+			if (peer_dev->gpu->hive_id != kdev->hive_id)
+				continue;
+			sub_type_hdr = (typeof(sub_type_hdr))(
+				(char *)sub_type_hdr +
+				sizeof(struct crat_subtype_iolink));
+			ret = kfd_fill_gpu_xgmi_link_to_gpu(
+				&avail_size, kdev,
+				(struct crat_subtype_iolink *)sub_type_hdr,
+				proximity_domain, nid);
+			if (ret < 0)
+				return ret;
+			crat_table->length += sub_type_hdr->length;
+			crat_table->total_entries++;
+		}
+	}
 	*size = crat_table->length;
 	pr_info("Virtual CRAT table created for GPU\n");
 
