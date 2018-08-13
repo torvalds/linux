@@ -419,6 +419,7 @@ static int vce_v4_0_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring;
+
 	unsigned size;
 	int r, i;
 
@@ -473,6 +474,11 @@ static int vce_v4_0_sw_init(void *handle)
 		if (r)
 			return r;
 	}
+
+
+	r = amdgpu_vce_entity_init(adev);
+	if (r)
+		return r;
 
 	r = amdgpu_virt_alloc_mm_table(adev);
 	if (r)
