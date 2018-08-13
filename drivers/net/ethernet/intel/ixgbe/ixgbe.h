@@ -1004,15 +1004,24 @@ void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
 		    struct sk_buff *skb);
 int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring, struct ixgbe_tx_buffer *first,
 		   struct ixgbe_ipsec_tx_data *itd);
+void ixgbe_ipsec_vf_clear(struct ixgbe_adapter *adapter, u32 vf);
+int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *mbuf, u32 vf);
+int ixgbe_ipsec_vf_del_sa(struct ixgbe_adapter *adapter, u32 *mbuf, u32 vf);
 #else
-static inline void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter) { };
-static inline void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter) { };
-static inline void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter) { };
+static inline void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter) { }
+static inline void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter) { }
+static inline void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter) { }
 static inline void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
 				  union ixgbe_adv_rx_desc *rx_desc,
-				  struct sk_buff *skb) { };
+				  struct sk_buff *skb) { }
 static inline int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 				 struct ixgbe_tx_buffer *first,
-				 struct ixgbe_ipsec_tx_data *itd) { return 0; };
+				 struct ixgbe_ipsec_tx_data *itd) { return 0; }
+static inline void ixgbe_ipsec_vf_clear(struct ixgbe_adapter *adapter,
+					u32 vf) { }
+static inline int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter,
+					u32 *mbuf, u32 vf) { return -EACCES; }
+static inline int ixgbe_ipsec_vf_del_sa(struct ixgbe_adapter *adapter,
+					u32 *mbuf, u32 vf) { return -EACCES; }
 #endif /* CONFIG_XFRM_OFFLOAD */
 #endif /* _IXGBE_H_ */
