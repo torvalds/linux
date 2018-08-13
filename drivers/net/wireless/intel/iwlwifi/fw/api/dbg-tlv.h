@@ -180,6 +180,7 @@ struct iwl_fw_ini_region_tlv {
  * @occurrences: max amount of times to be fired
  * @ignore_consec: ignore consecutive triggers, in usec
  * @force_restart: force FW restart
+ * @multi_dut: initiate debug dump data on several DUTs
  * @trigger_data: generic data to be utilized per trigger
  * @num_regions: number of dump regions defined for this trigger
  * @data: region IDs
@@ -191,6 +192,7 @@ struct iwl_fw_ini_trigger {
 	__le32 occurrences;
 	__le32 ignore_consec;
 	__le32 force_restart;
+	__le32 multi_dut;
 	__le32 trigger_data;
 	__le32 num_regions;
 	__le32 data[];
