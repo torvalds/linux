@@ -363,7 +363,7 @@ static int erofs_raw_access_readpage(struct file *file, struct page *page)
 
 static int erofs_raw_access_readpages(struct file *filp,
 	struct address_space *mapping,
-	struct list_head *pages, unsigned nr_pages)
+	struct list_head *pages, unsigned int nr_pages)
 {
 	erofs_off_t last_block;
 	struct bio *bio = NULL;
