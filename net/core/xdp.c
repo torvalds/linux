@@ -98,23 +98,15 @@ static void __xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 {
 	struct xdp_mem_allocator *xa;
 	int id = xdp_rxq->mem.id;
-	int err;
 
 	if (id == 0)
 		return;
 
 	mutex_lock(&mem_id_lock);
 
-	xa = rhashtable_lookup(mem_id_ht, &id, mem_id_rht_params);
-	if (!xa) {
-		mutex_unlock(&mem_id_lock);
-		return;
-	}
-
-	err = rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params);
-	WARN_ON(err);
-
-	call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
+	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
+	if (xa && !rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
 
 	mutex_unlock(&mem_id_lock);
 }
