@@ -293,19 +293,6 @@ int remap_oldmem_pfn_range(struct vm_area_struct *vma, unsigned long from,
 						       prot);
 }
 
-/*
- * Alloc memory and panic in case of ENOMEM
- */
-static void *kzalloc_panic(int len)
-{
-	void *rc;
-
-	rc = kzalloc(len, GFP_KERNEL);
-	if (!rc)
-		panic("s390 kdump kzalloc (%d) failed", len);
-	return rc;
-}
-
 static const char *nt_name(Elf64_Word type)
 {
 	const char *name = "LINUX";
@@ -453,7 +440,9 @@ static void *get_vmcoreinfo_old(unsigned long *size)
 		return NULL;
 	if (strcmp(nt_name, VMCOREINFO_NOTE_NAME) != 0)
 		return NULL;
-	vmcoreinfo = kzalloc_panic(note.n_descsz);
+	vmcoreinfo = kzalloc(note.n_descsz, GFP_KERNEL);
+	if (!vmcoreinfo)
+		return NULL;
 	if (copy_oldmem_kernel(vmcoreinfo, addr + 24, note.n_descsz)) {
 		kfree(vmcoreinfo);
 		return NULL;
@@ -661,7 +650,15 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 
 	alloc_size = get_elfcorehdr_size(mem_chunk_cnt);
 
-	hdr = kzalloc_panic(alloc_size);
+	hdr = kzalloc(alloc_size, GFP_KERNEL);
+
+	/* Without elfcorehdr /proc/vmcore cannot be created. Thus creating
+	 * a dump with this crash kernel will fail. Panic now to allow other
+	 * dump mechanisms to take over.
+	 */
+	if (!hdr)
+		panic("s390 kdump allocating elfcorehdr failed");
+
 	/* Init elf header */
 	ptr = ehdr_init(hdr, mem_chunk_cnt);
 	/* Init program headers */
