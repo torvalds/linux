@@ -78,8 +78,9 @@ static inline void set_fs(mm_segment_t fs)
 #define get_user(x,p)							\
 ({									\
 	long __e = -EFAULT;						\
-	if(likely(access_ok(VERIFY_READ,  p, sizeof(*p)))) {		\
-		__e = __get_user(x,p);					\
+	const __typeof__(*(p)) __user *__p = (p);			\
+	if(likely(access_ok(VERIFY_READ, __p, sizeof(*__p)))) {		\
+		__e = __get_user(x, __p);				\
 	} else								\
 		x = 0;							\
 	__e;								\
@@ -99,10 +100,10 @@ static inline void set_fs(mm_segment_t fs)
 
 #define __get_user_err(x,ptr,err)					\
 do {									\
-	unsigned long __gu_addr = (unsigned long)(ptr);			\
+	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
 	unsigned long __gu_val;						\
-	__chk_user_ptr(ptr);						\
-	switch (sizeof(*(ptr))) {					\
+	__chk_user_ptr(__gu_addr);					\
+	switch (sizeof(*(__gu_addr))) {					\
 	case 1:								\
 		__get_user_asm("lbi",__gu_val,__gu_addr,err);		\
 		break;							\
@@ -119,7 +120,7 @@ do {									\
 		BUILD_BUG(); 						\
 		break;							\
 	}								\
-	(x) = (__typeof__(*(ptr)))__gu_val;				\
+	(x) = (__typeof__(*(__gu_addr)))__gu_val;			\
 } while (0)
 
 #define __get_user_asm(inst,x,addr,err)					\
@@ -169,8 +170,9 @@ do {									\
 #define put_user(x,p)							\
 ({									\
 	long __e = -EFAULT;						\
-	if(likely(access_ok(VERIFY_WRITE,  p, sizeof(*p)))) {		\
-		__e = __put_user(x,p);					\
+	__typeof__(*(p)) __user *__p = (p);				\
+	if(likely(access_ok(VERIFY_WRITE, __p, sizeof(*__p)))) {	\
+		__e = __put_user(x, __p);				\
 	}								\
 	__e;								\
 })
@@ -189,10 +191,10 @@ do {									\
 
 #define __put_user_err(x,ptr,err)					\
 do {									\
-	unsigned long __pu_addr = (unsigned long)(ptr);			\
-	__typeof__(*(ptr)) __pu_val = (x);				\
-	__chk_user_ptr(ptr);						\
-	switch (sizeof(*(ptr))) {					\
+	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
+	__typeof__(*(__pu_addr)) __pu_val = (x);			\
+	__chk_user_ptr(__pu_addr);					\
+	switch (sizeof(*(__pu_addr))) {					\
 	case 1:								\
 		__put_user_asm("sbi",__pu_val,__pu_addr,err);		\
 		break;							\
