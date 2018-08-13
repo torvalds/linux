@@ -456,6 +456,7 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 {
 	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
 	unsigned int val;
+	int ret;
 
 	/* DSI_A lane config */
 	val = CHA_DSI_LANES(4 - pdata->dsi->lanes);
@@ -472,7 +473,14 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 
 	/* enable DP PLL */
 	regmap_write(pdata->regmap, SN_PLL_ENABLE_REG, 1);
-	usleep_range(10000, 10500); /* 10ms delay recommended by spec */
+
+	ret = regmap_read_poll_timeout(pdata->regmap, SN_DPPLL_SRC_REG, val,
+				       val & DPPLL_SRC_DP_PLL_LOCK, 1000,
+				       50 * 1000);
+	if (ret) {
+		DRM_ERROR("DP_PLL_LOCK polling failed (%d)\n", ret);
+		return;
+	}
 
 	/**
 	 * The SN65DSI86 only supports ASSR Display Authentication method and
