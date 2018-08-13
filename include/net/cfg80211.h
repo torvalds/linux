@@ -149,7 +149,7 @@ enum ieee80211_channel_flags {
  */
 struct ieee80211_channel {
 	enum nl80211_band band;
-	u16 center_freq;
+	u32 center_freq;
 	u16 hw_value;
 	u32 flags;
 	int max_antenna_gain;

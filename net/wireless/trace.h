@@ -112,7 +112,7 @@
 	} while (0)
 
 #define CHAN_ENTRY __field(enum nl80211_band, band) \
-		   __field(u16, center_freq)
+		   __field(u32, center_freq)
 #define CHAN_ASSIGN(chan)					  \
 	do {							  \
 		if (chan) {					  \
