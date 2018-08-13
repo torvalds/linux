@@ -5,6 +5,9 @@
 #include <net/xfrm.h>
 #include <crypto/aead.h>
 
+#define IXGBE_IPSEC_KEY_BITS  160
+static const char aes_gcm_name[] = "rfc4106(gcm(aes))";
+
 /**
  * ixgbe_ipsec_set_tx_sa - set the Tx SA registers
  * @hw: hw specific details
@@ -407,7 +410,6 @@ static int ixgbe_ipsec_parse_proto_keys(struct xfrm_state *xs,
 	struct net_device *dev = xs->xso.dev;
 	unsigned char *key_data;
 	char *alg_name = NULL;
-	const char aes_gcm_name[] = "rfc4106(gcm(aes))";
 	int key_len;
 
 	if (!xs->aead) {
@@ -435,9 +437,9 @@ static int ixgbe_ipsec_parse_proto_keys(struct xfrm_state *xs,
 	 * we don't need to do any byteswapping.
 	 * 160 accounts for 16 byte key and 4 byte salt
 	 */
-	if (key_len == 160) {
+	if (key_len == IXGBE_IPSEC_KEY_BITS) {
 		*mysalt = ((u32 *)key_data)[4];
-	} else if (key_len != 128) {
+	} else if (key_len != (IXGBE_IPSEC_KEY_BITS - (sizeof(*mysalt) * 8))) {
 		netdev_err(dev, "IPsec hw offload only supports keys up to 128 bits with a 32 bit salt\n");
 		return -EINVAL;
 	} else {
