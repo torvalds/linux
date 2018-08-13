@@ -1291,7 +1291,7 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(skb_clone);
 
-static void skb_headers_offset_update(struct sk_buff *skb, int off)
+void skb_headers_offset_update(struct sk_buff *skb, int off)
 {
 	/* Only adjust this if it actually is csum_start rather than csum */
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -1305,6 +1305,7 @@ static void skb_headers_offset_update(struct sk_buff *skb, int off)
 	skb->inner_network_header += off;
 	skb->inner_mac_header += off;
 }
+EXPORT_SYMBOL(skb_headers_offset_update);
 
 void skb_copy_header(struct sk_buff *new, const struct sk_buff *old)
 {

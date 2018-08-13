@@ -23,7 +23,7 @@ struct bpf_prog;
 struct bpf_map;
 struct sock;
 struct seq_file;
-struct btf;
+struct btf_type;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
 struct bpf_map_ops {
@@ -48,8 +48,9 @@ struct bpf_map_ops {
 	u32 (*map_fd_sys_lookup_elem)(void *ptr);
 	void (*map_seq_show_elem)(struct bpf_map *map, void *key,
 				  struct seq_file *m);
-	int (*map_check_btf)(const struct bpf_map *map, const struct btf *btf,
-			     u32 key_type_id, u32 value_type_id);
+	int (*map_check_btf)(const struct bpf_map *map,
+			     const struct btf_type *key_type,
+			     const struct btf_type *value_type);
 };
 
 struct bpf_map {
@@ -118,8 +119,12 @@ static inline bool bpf_map_offload_neutral(const struct bpf_map *map)
 
 static inline bool bpf_map_support_seq_show(const struct bpf_map *map)
 {
-	return map->ops->map_seq_show_elem && map->ops->map_check_btf;
+	return map->btf && map->ops->map_seq_show_elem;
 }
+
+int map_check_no_btf(const struct bpf_map *map,
+		     const struct btf_type *key_type,
+		     const struct btf_type *value_type);
 
 extern const struct bpf_map_ops bpf_map_offload_ops;
 
@@ -524,6 +529,7 @@ static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
 }
 
 struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type);
+int array_map_alloc_check(union bpf_attr *attr);
 
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
@@ -768,6 +774,33 @@ static inline void __xsk_map_flush(struct bpf_map *map)
 {
 }
 #endif
+
+#if defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL)
+void bpf_sk_reuseport_detach(struct sock *sk);
+int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
+				       void *value);
+int bpf_fd_reuseport_array_update_elem(struct bpf_map *map, void *key,
+				       void *value, u64 map_flags);
+#else
+static inline void bpf_sk_reuseport_detach(struct sock *sk)
+{
+}
+
+#ifdef CONFIG_BPF_SYSCALL
+static inline int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map,
+						     void *key, void *value)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int bpf_fd_reuseport_array_update_elem(struct bpf_map *map,
+						     void *key, void *value,
+						     u64 map_flags)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_BPF_SYSCALL */
+#endif /* defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL) */
 
 /* verifier prototypes for helper functions called from eBPF programs */
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;

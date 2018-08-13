@@ -246,6 +246,7 @@ const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_lookup_elem = cgroup_storage_lookup_elem,
 	.map_update_elem = cgroup_storage_update_elem,
 	.map_delete_elem = cgroup_storage_delete_elem,
+	.map_check_btf = map_check_no_btf,
 };
 
 int bpf_cgroup_storage_assign(struct bpf_prog *prog, struct bpf_map *_map)
