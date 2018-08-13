@@ -458,6 +458,18 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 	unsigned int val;
 	int ret;
 
+	/*
+	 * FIXME:
+	 * This 70ms was found necessary by experimentation. If it's not
+	 * present, link training fails. It seems like it can go anywhere from
+	 * pre_enable() up to semi-auto link training initiation below.
+	 *
+	 * Neither the datasheet for the bridge nor the panel tested mention a
+	 * delay of this magnitude in the timing requirements. So for now, add
+	 * the mystery delay until someone figures out a better fix.
+	 */
+	msleep(70);
+
 	/* DSI_A lane config */
 	val = CHA_DSI_LANES(4 - pdata->dsi->lanes);
 	regmap_update_bits(pdata->regmap, SN_DSI_LANES_REG,
