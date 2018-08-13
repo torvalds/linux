@@ -122,8 +122,6 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
 	unsigned long bo_size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
@@ -266,13 +264,6 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		}
 	}
 
-	ring = &adev->uvd.inst[0].ring;
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-	r = drm_sched_entity_init(&adev->uvd.entity, &rq, 1, NULL);
-	if (r) {
-		DRM_ERROR("Failed setting up UVD kernel entity.\n");
-		return r;
-	}
 	for (i = 0; i < adev->uvd.max_handles; ++i) {
 		atomic_set(&adev->uvd.handles[i], 0);
 		adev->uvd.filp[i] = NULL;
@@ -323,6 +314,29 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 			amdgpu_ring_fini(&adev->uvd.inst[j].ring_enc[i]);
 	}
 	release_firmware(adev->uvd.fw);
+
+	return 0;
+}
+
+/**
+ * amdgpu_uvd_entity_init - init entity
+ *
+ * @adev: amdgpu_device pointer
+ *
+ */
+int amdgpu_uvd_entity_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	struct drm_sched_rq *rq;
+	int r;
+
+	ring = &adev->uvd.inst[0].ring;
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+	r = drm_sched_entity_init(&adev->uvd.entity, &rq, 1, NULL);
+	if (r) {
+		DRM_ERROR("Failed setting up UVD kernel entity.\n");
+		return r;
+	}
 
 	return 0;
 }
