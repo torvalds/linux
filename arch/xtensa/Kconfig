@@ -530,14 +530,13 @@ config PLATFORM_WANT_DEFAULT_MEM
 	def_bool n
 
 config DEFAULT_MEM_START
-	hex "Physical address of the default memory area start"
-	depends on PLATFORM_WANT_DEFAULT_MEM
-	default 0x00000000 if MMU
-	default 0x60000000 if !MMU
+	hex
+	prompt "PAGE_OFFSET/PHYS_OFFSET" if !MMU && PLATFORM_WANT_DEFAULT_MEM
+	default 0x60000000 if PLATFORM_WANT_DEFAULT_MEM
+	default 0x00000000
 	help
-	  This is the base address of the default memory area.
-	  Default memory area has platform-specific meaning, it may be used
-	  for e.g. early cache initialization.
+	  This is the base address used for both PAGE_OFFSET and PHYS_OFFSET
+	  in noMMU configurations.
 
 	  If unsure, leave the default value here.
 

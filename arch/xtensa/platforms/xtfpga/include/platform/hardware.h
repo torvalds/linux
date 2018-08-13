@@ -17,10 +17,6 @@
 #ifndef __XTENSA_XTAVNET_HARDWARE_H
 #define __XTENSA_XTAVNET_HARDWARE_H
 
-/* Memory configuration. */
-
-#define PLATFORM_DEFAULT_MEM_START __XTENSA_UL(CONFIG_DEFAULT_MEM_START)
-
 /* Interrupt configuration. */
 
 #define PLATFORM_NR_IRQS	0

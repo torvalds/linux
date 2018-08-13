@@ -14,7 +14,6 @@
 #include <asm/processor.h>
 #include <asm/types.h>
 #include <asm/cache.h>
-#include <platform/hardware.h>
 #include <asm/kmem_layout.h>
 
 /*
@@ -31,8 +30,8 @@
 #define MAX_LOW_PFN	(PHYS_PFN(XCHAL_KSEG_PADDR) + \
 			 PHYS_PFN(XCHAL_KSEG_SIZE))
 #else
-#define PAGE_OFFSET	PLATFORM_DEFAULT_MEM_START
-#define PHYS_OFFSET	PLATFORM_DEFAULT_MEM_START
+#define PAGE_OFFSET	_AC(CONFIG_DEFAULT_MEM_START, UL)
+#define PHYS_OFFSET	_AC(CONFIG_DEFAULT_MEM_START, UL)
 #define MAX_LOW_PFN	PHYS_PFN(0xfffffffful)
 #endif
 
