@@ -4,9 +4,10 @@ Rockchip RGB interface
 Required properties:
 - compatible: matching the soc type:
 	- "rockchip,px30-rgb";
-	- "rockchip,rv1108-rgb";
+	- "rockchip,rk1808-rgb";
 	- "rockchip,rk3066-rgb";
 	- "rockchip,rk3308-rgb";
+	- "rockchip,rv1108-rgb";
 
 Optional properties:
 - pinctrl-names: the pin control state names; should contain "default"
