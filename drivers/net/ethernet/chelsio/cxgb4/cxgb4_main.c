@@ -5144,16 +5144,8 @@ static void print_port_info(const struct net_device *dev)
 {
 	char buf[80];
 	char *bufp = buf;
-	const char *spd = "";
 	const struct port_info *pi = netdev_priv(dev);
 	const struct adapter *adap = pi->adapter;
-
-	if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_2_5GB)
-		spd = " 2.5 GT/s";
-	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_5_0GB)
-		spd = " 5 GT/s";
-	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_8_0GB)
-		spd = " 8 GT/s";
 
 	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_100M)
 		bufp += sprintf(bufp, "100M/");
