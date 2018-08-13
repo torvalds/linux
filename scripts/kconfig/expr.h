@@ -185,7 +185,6 @@ enum prop_type {
 	P_SELECT,   /* select BAR */
 	P_IMPLY,    /* imply BAR */
 	P_RANGE,    /* range 7..100 (for a symbol) */
-	P_ENV,      /* value from environment variable */
 	P_SYMBOL,   /* where a symbol is defined */
 };
 
