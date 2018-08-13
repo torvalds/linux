@@ -2085,7 +2085,7 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static int gen8_reset_engine_start(struct intel_engine_cs *engine)
+static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
@@ -2105,7 +2105,7 @@ static int gen8_reset_engine_start(struct intel_engine_cs *engine)
 	return ret;
 }
 
-static void gen8_reset_engine_cancel(struct intel_engine_cs *engine)
+static void gen8_engine_reset_cancel(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
@@ -2113,29 +2113,50 @@ static void gen8_reset_engine_cancel(struct intel_engine_cs *engine)
 		      _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET));
 }
 
+static int reset_engines(struct drm_i915_private *i915,
+			 unsigned int engine_mask,
+			 unsigned int retry)
+{
+	if (INTEL_GEN(i915) >= 11)
+		return gen11_reset_engines(i915, engine_mask);
+	else
+		return gen6_reset_engines(i915, engine_mask, retry);
+}
+
 static int gen8_reset_engines(struct drm_i915_private *dev_priv,
 			      unsigned int engine_mask,
 			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
+	const bool reset_non_ready = retry >= 1;
 	unsigned int tmp;
 	int ret;
 
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
-		if (gen8_reset_engine_start(engine)) {
-			ret = -EIO;
-			goto not_ready;
-		}
+		ret = gen8_engine_reset_prepare(engine);
+		if (ret && !reset_non_ready)
+			goto skip_reset;
+
+		/*
+		 * If this is not the first failed attempt to prepare,
+		 * we decide to proceed anyway.
+		 *
+		 * By doing so we risk context corruption and with
+		 * some gens (kbl), possible system hang if reset
+		 * happens during active bb execution.
+		 *
+		 * We rather take context corruption instead of
+		 * failed reset with a wedged driver/gpu. And
+		 * active bb execution case should be covered by
+		 * i915_stop_engines we have before the reset.
+		 */
 	}
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		ret = gen11_reset_engines(dev_priv, engine_mask);
-	else
-		ret = gen6_reset_engines(dev_priv, engine_mask, retry);
+	ret = reset_engines(dev_priv, engine_mask, retry);
 
-not_ready:
+skip_reset:
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
-		gen8_reset_engine_cancel(engine);
+		gen8_engine_reset_cancel(engine);
 
 	return ret;
 }
@@ -2164,11 +2185,14 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 		return NULL;
 }
 
-int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned int engine_mask)
+int intel_gpu_reset(struct drm_i915_private *dev_priv,
+		    const unsigned int engine_mask)
 {
 	reset_func reset = intel_get_gpu_reset(dev_priv);
 	unsigned int retry;
 	int ret;
+
+	GEM_BUG_ON(!engine_mask);
 
 	/*
 	 * We want to perform per-engine reset from atomic context (e.g.
