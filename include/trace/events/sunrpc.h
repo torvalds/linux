@@ -525,11 +525,11 @@ TRACE_EVENT(xs_tcp_data_recv,
 	TP_fast_assign(
 		__assign_str(addr, xs->xprt.address_strings[RPC_DISPLAY_ADDR]);
 		__assign_str(port, xs->xprt.address_strings[RPC_DISPLAY_PORT]);
-		__entry->xid = be32_to_cpu(xs->tcp_xid);
-		__entry->flags = xs->tcp_flags;
-		__entry->copied = xs->tcp_copied;
-		__entry->reclen = xs->tcp_reclen;
-		__entry->offset = xs->tcp_offset;
+		__entry->xid = be32_to_cpu(xs->recv.xid);
+		__entry->flags = xs->recv.flags;
+		__entry->copied = xs->recv.copied;
+		__entry->reclen = xs->recv.len;
+		__entry->offset = xs->recv.offset;
 	),
 
 	TP_printk("peer=[%s]:%s xid=0x%08x flags=%s copied=%lu reclen=%u offset=%lu",

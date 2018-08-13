@@ -30,15 +30,17 @@ struct sock_xprt {
 	/*
 	 * State of TCP reply receive
 	 */
-	__be32			tcp_fraghdr,
-				tcp_xid,
-				tcp_calldir;
+	struct {
+		__be32		fraghdr,
+				xid,
+				calldir;
 
-	u32			tcp_offset,
-				tcp_reclen;
+		u32		offset,
+				len;
 
-	unsigned long		tcp_copied,
-				tcp_flags;
+		unsigned long	copied,
+				flags;
+	} recv;
 
 	/*
 	 * Connection of transports
