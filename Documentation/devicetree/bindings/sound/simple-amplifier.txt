@@ -1,0 +1,12 @@
+Simple Amplifier Audio Driver
+
+Required properties:
+- compatible : "dioo,dio2125" or "simple-audio-amplifier"
+- enable-gpios : the gpio connected to the enable pin of the simple amplifier
+
+Example:
+
+amp: analog-amplifier {
+	compatible = "simple-audio-amplifier";
+	enable-gpios = <&gpio GPIOH_3 0>;
+};

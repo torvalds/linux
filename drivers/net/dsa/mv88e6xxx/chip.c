@@ -343,6 +343,7 @@ static const struct irq_domain_ops mv88e6xxx_g1_irq_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
+/* To be called with reg_lock held */
 static void mv88e6xxx_g1_irq_free_common(struct mv88e6xxx_chip *chip)
 {
 	int irq, virq;
@@ -362,9 +363,15 @@ static void mv88e6xxx_g1_irq_free_common(struct mv88e6xxx_chip *chip)
 
 static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 {
-	mv88e6xxx_g1_irq_free_common(chip);
-
+	/*
+	 * free_irq must be called without reg_lock taken because the irq
+	 * handler takes this lock, too.
+	 */
 	free_irq(chip->irq, chip);
+
+	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_g1_irq_free_common(chip);
+	mutex_unlock(&chip->reg_lock);
 }
 
 static int mv88e6xxx_g1_irq_setup_common(struct mv88e6xxx_chip *chip)
@@ -469,10 +476,12 @@ static int mv88e6xxx_irq_poll_setup(struct mv88e6xxx_chip *chip)
 
 static void mv88e6xxx_irq_poll_free(struct mv88e6xxx_chip *chip)
 {
-	mv88e6xxx_g1_irq_free_common(chip);
-
 	kthread_cancel_delayed_work_sync(&chip->irq_poll_work);
 	kthread_destroy_worker(chip->kworker);
+
+	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_g1_irq_free_common(chip);
+	mutex_unlock(&chip->reg_lock);
 }
 
 int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask)
@@ -2608,7 +2617,6 @@ static const struct mv88e6xxx_ops mv88e6085_ops = {
 	.rmu_disable = mv88e6085_g1_rmu_disable,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
-	.serdes_power = mv88e6341_serdes_power,
 };
 
 static const struct mv88e6xxx_ops mv88e6095_ops = {
@@ -2774,6 +2782,7 @@ static const struct mv88e6xxx_ops mv88e6141_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.serdes_power = mv88e6341_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 };
 
@@ -2951,7 +2960,6 @@ static const struct mv88e6xxx_ops mv88e6175_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
-	.serdes_power = mv88e6341_serdes_power,
 };
 
 static const struct mv88e6xxx_ops mv88e6176_ops = {
@@ -3327,6 +3335,7 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.serdes_power = mv88e6341_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
 };
@@ -4506,12 +4515,10 @@ out_g2_irq:
 	if (chip->info->g2_irqs > 0)
 		mv88e6xxx_g2_irq_free(chip);
 out_g1_irq:
-	mutex_lock(&chip->reg_lock);
 	if (chip->irq > 0)
 		mv88e6xxx_g1_irq_free(chip);
 	else
 		mv88e6xxx_irq_poll_free(chip);
-	mutex_unlock(&chip->reg_lock);
 out:
 	if (pdata)
 		dev_put(pdata->netdev);
@@ -4539,12 +4546,10 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	if (chip->info->g2_irqs > 0)
 		mv88e6xxx_g2_irq_free(chip);
 
-	mutex_lock(&chip->reg_lock);
 	if (chip->irq > 0)
 		mv88e6xxx_g1_irq_free(chip);
 	else
 		mv88e6xxx_irq_poll_free(chip);
-	mutex_unlock(&chip->reg_lock);
 }
 
 static const struct of_device_id mv88e6xxx_of_match[] = {

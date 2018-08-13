@@ -233,7 +233,8 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 			/* force immediate tx of current consumer cursor, but
 			 * under send_lock to guarantee arrival in seqno-order
 			 */
-			smc_tx_sndbuf_nonempty(conn);
+			if (smc->sk.sk_state != SMC_INIT)
+				smc_tx_sndbuf_nonempty(conn);
 		}
 	}
 

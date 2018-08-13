@@ -152,6 +152,7 @@ regex_asm=(
 )
 regex_c=(
 	'/^SYSCALL_DEFINE[0-9](\([[:alnum:]_]*\).*/sys_\1/'
+	'/^BPF_CALL_[0-9](\([[:alnum:]_]*\).*/\1/'
 	'/^COMPAT_SYSCALL_DEFINE[0-9](\([[:alnum:]_]*\).*/compat_sys_\1/'
 	'/^TRACE_EVENT(\([[:alnum:]_]*\).*/trace_\1/'
 	'/^TRACE_EVENT(\([[:alnum:]_]*\).*/trace_\1_rcuidle/'

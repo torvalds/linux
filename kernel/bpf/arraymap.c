@@ -378,7 +378,7 @@ static int array_map_check_btf(const struct bpf_map *map, const struct btf *btf,
 		return -EINVAL;
 
 	value_type = btf_type_id_size(btf, &btf_value_id, &value_size);
-	if (!value_type || value_size > map->value_size)
+	if (!value_type || value_size != map->value_size)
 		return -EINVAL;
 
 	return 0;

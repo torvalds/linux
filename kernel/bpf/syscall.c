@@ -735,7 +735,9 @@ static int map_update_elem(union bpf_attr *attr)
 	if (bpf_map_is_dev_bound(map)) {
 		err = bpf_map_offload_update_elem(map, key, value, attr->flags);
 		goto out;
-	} else if (map->map_type == BPF_MAP_TYPE_CPUMAP) {
+	} else if (map->map_type == BPF_MAP_TYPE_CPUMAP ||
+		   map->map_type == BPF_MAP_TYPE_SOCKHASH ||
+		   map->map_type == BPF_MAP_TYPE_SOCKMAP) {
 		err = map->ops->map_update_elem(map, key, value, attr->flags);
 		goto out;
 	}

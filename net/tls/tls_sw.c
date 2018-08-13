@@ -440,7 +440,7 @@ alloc_encrypted:
 			ret = tls_push_record(sk, msg->msg_flags, record_type);
 			if (!ret)
 				continue;
-			if (ret == -EAGAIN)
+			if (ret < 0)
 				goto send_end;
 
 			copied -= try_to_copy;
@@ -646,6 +646,9 @@ static struct sk_buff *tls_wait_data(struct sock *sk, int flags,
 			return NULL;
 		}
 
+		if (sk->sk_shutdown & RCV_SHUTDOWN)
+			return NULL;
+
 		if (sock_flag(sk, SOCK_DONE))
 			return NULL;
 
@@ -701,6 +704,10 @@ static int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 	nsg = skb_to_sgvec(skb, &sgin[1],
 			   rxm->offset + tls_ctx->rx.prepend_size,
 			   rxm->full_len - tls_ctx->rx.prepend_size);
+	if (nsg < 0) {
+		ret = nsg;
+		goto out;
+	}
 
 	tls_make_aad(ctx->rx_aad_ciphertext,
 		     rxm->full_len - tls_ctx->rx.overhead_size,
@@ -712,6 +719,7 @@ static int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 				rxm->full_len - tls_ctx->rx.overhead_size,
 				skb, sk->sk_allocation);
 
+out:
 	if (sgin != &sgin_arr[0])
 		kfree(sgin);
 
