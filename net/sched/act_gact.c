@@ -133,8 +133,8 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	return ret;
 }
 
-static int tcf_gact(struct sk_buff *skb, const struct tc_action *a,
-		    struct tcf_result *res)
+static int tcf_gact_act(struct sk_buff *skb, const struct tc_action *a,
+			struct tcf_result *res)
 {
 	struct tcf_gact *gact = to_gact(a);
 	int action = READ_ONCE(gact->tcf_action);
@@ -254,7 +254,7 @@ static struct tc_action_ops act_gact_ops = {
 	.kind		=	"gact",
 	.type		=	TCA_ACT_GACT,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_gact,
+	.act		=	tcf_gact_act,
 	.stats_update	=	tcf_gact_stats_update,
 	.dump		=	tcf_gact_dump,
 	.init		=	tcf_gact_init,

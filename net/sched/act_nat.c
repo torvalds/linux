@@ -93,8 +93,8 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	return ret;
 }
 
-static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
-		   struct tcf_result *res)
+static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
+		       struct tcf_result *res)
 {
 	struct tcf_nat *p = to_tcf_nat(a);
 	struct iphdr *iph;
@@ -311,7 +311,7 @@ static struct tc_action_ops act_nat_ops = {
 	.kind		=	"nat",
 	.type		=	TCA_ACT_NAT,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_nat,
+	.act		=	tcf_nat_act,
 	.dump		=	tcf_nat_dump,
 	.init		=	tcf_nat_init,
 	.walk		=	tcf_nat_walker,

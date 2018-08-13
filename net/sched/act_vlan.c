@@ -22,8 +22,8 @@
 static unsigned int vlan_net_id;
 static struct tc_action_ops act_vlan_ops;
 
-static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
-		    struct tcf_result *res)
+static int tcf_vlan_act(struct sk_buff *skb, const struct tc_action *a,
+			struct tcf_result *res)
 {
 	struct tcf_vlan *v = to_vlan(a);
 	struct tcf_vlan_params *p;
@@ -307,7 +307,7 @@ static struct tc_action_ops act_vlan_ops = {
 	.kind		=	"vlan",
 	.type		=	TCA_ACT_VLAN,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_vlan,
+	.act		=	tcf_vlan_act,
 	.dump		=	tcf_vlan_dump,
 	.init		=	tcf_vlan_init,
 	.cleanup	=	tcf_vlan_cleanup,

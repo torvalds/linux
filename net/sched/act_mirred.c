@@ -190,8 +190,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	return ret;
 }
 
-static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
-		      struct tcf_result *res)
+static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
+			  struct tcf_result *res)
 {
 	struct tcf_mirred *m = to_mirred(a);
 	struct sk_buff *skb2 = skb;
@@ -406,7 +406,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.type		=	TCA_ACT_MIRRED,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_mirred,
+	.act		=	tcf_mirred_act,
 	.stats_update	=	tcf_stats_update,
 	.dump		=	tcf_mirred_dump,
 	.cleanup	=	tcf_mirred_release,

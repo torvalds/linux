@@ -33,8 +33,8 @@
 static unsigned int skbedit_net_id;
 static struct tc_action_ops act_skbedit_ops;
 
-static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
-		       struct tcf_result *res)
+static int tcf_skbedit_act(struct sk_buff *skb, const struct tc_action *a,
+			   struct tcf_result *res)
 {
 	struct tcf_skbedit *d = to_skbedit(a);
 	struct tcf_skbedit_params *params;
@@ -310,7 +310,7 @@ static struct tc_action_ops act_skbedit_ops = {
 	.kind		=	"skbedit",
 	.type		=	TCA_ACT_SKBEDIT,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_skbedit,
+	.act		=	tcf_skbedit_act,
 	.dump		=	tcf_skbedit_dump,
 	.init		=	tcf_skbedit_init,
 	.cleanup	=	tcf_skbedit_cleanup,

@@ -24,7 +24,7 @@ static unsigned int skbmod_net_id;
 static struct tc_action_ops act_skbmod_ops;
 
 #define MAX_EDIT_LEN ETH_HLEN
-static int tcf_skbmod_run(struct sk_buff *skb, const struct tc_action *a,
+static int tcf_skbmod_act(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
 	struct tcf_skbmod *d = to_skbmod(a);
@@ -270,7 +270,7 @@ static struct tc_action_ops act_skbmod_ops = {
 	.kind		=	"skbmod",
 	.type		=	TCA_ACT_SKBMOD,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_skbmod_run,
+	.act		=	tcf_skbmod_act,
 	.dump		=	tcf_skbmod_dump,
 	.init		=	tcf_skbmod_init,
 	.cleanup	=	tcf_skbmod_cleanup,
