@@ -389,18 +389,14 @@ static int lio_set_link_ksettings(struct net_device *netdev,
 	struct lio *lio = GET_LIO(netdev);
 	struct oct_link_info *linfo;
 	struct octeon_device *oct;
-	u32 is25G = 0;
 
 	oct = lio->oct_dev;
 
 	linfo = &lio->linfo;
 
-	if (oct->subsystem_id == OCTEON_CN2350_25GB_SUBSYS_ID ||
-	    oct->subsystem_id == OCTEON_CN2360_25GB_SUBSYS_ID) {
-		is25G = 1;
-	} else {
+	if (!(oct->subsystem_id == OCTEON_CN2350_25GB_SUBSYS_ID ||
+	      oct->subsystem_id == OCTEON_CN2360_25GB_SUBSYS_ID))
 		return -EOPNOTSUPP;
-	}
 
 	if (oct->no_speed_setting) {
 		dev_err(&oct->pci_dev->dev, "%s: Changing speed is not supported\n",
