@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3128h-box.dtsi"
+
+/ {
+	model = "Rockchip RK3128h box avb board";
+	compatible = "rockchip,rk3128h-box-avb", "rockchip,rk3128h";
+};
+
+&dmc_opp_table {
+	opp-300000000 {
+		status = "disabled";
+	};
+	opp-330000000 {
+		status = "disabled";
+	};
+	opp-588000000 {
+		opp-hz = /bits/ 64 <588000000>;
+		opp-microvolt = <1100000>;
+		opp-microvolt-L0 = <1100000>;
+		opp-microvolt-L1 = <1050000>;
+	};
+};
+
+&dmc {
+	system-status-freq = <
+		/*system status freq(KHz)*/
+		SYS_STATUS_NORMAL	588000
+	>;
+};
+
+&firmware_android {
+	compatible = "android,firmware";
+	vbmeta {
+		compatible = "android,vbmeta";
+		parts = "vbmeta,boot,system,vendor,dtbo";
+	};
+	fstab {
+		compatible = "android,fstab";
+		vendor {
+			compatible = "android,vendor";
+			dev = "/dev/block/platform/30020000.dwmmc/by-name/vendor";
+			type = "ext4";
+			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
+			fsmgr_flags = "wait,avb";
+		};
+	};
+};
+
+&secure_memory {
+	/*
+	 * enable like this:
+	 * reg = <0x80000000 0x10000000>;
+	 */
+	reg = <0x80000000 0x8000000>;
+};
