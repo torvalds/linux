@@ -194,6 +194,40 @@ static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 		return hv_status;
 }
 
+/* Fast hypercall with 16 bytes of input */
+static inline u64 hv_do_fast_hypercall16(u16 code, u64 input1, u64 input2)
+{
+	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;
+
+#ifdef CONFIG_X86_64
+	{
+		__asm__ __volatile__("mov %4, %%r8\n"
+				     CALL_NOSPEC
+				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
+				       "+c" (control), "+d" (input1)
+				     : "r" (input2),
+				       THUNK_TARGET(hv_hypercall_pg)
+				     : "cc", "r8", "r9", "r10", "r11");
+	}
+#else
+	{
+		u32 input1_hi = upper_32_bits(input1);
+		u32 input1_lo = lower_32_bits(input1);
+		u32 input2_hi = upper_32_bits(input2);
+		u32 input2_lo = lower_32_bits(input2);
+
+		__asm__ __volatile__ (CALL_NOSPEC
+				      : "=A"(hv_status),
+					"+c"(input1_lo), ASM_CALL_CONSTRAINT
+				      :	"A" (control), "b" (input1_hi),
+					"D"(input2_hi), "S"(input2_lo),
+					THUNK_TARGET(hv_hypercall_pg)
+				      : "cc");
+	}
+#endif
+		return hv_status;
+}
+
 /*
  * Rep hypercalls. Callers of this functions are supposed to ensure that
  * rep_count and varhead_size comply with Hyper-V hypercall definition.
