@@ -140,6 +140,7 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 	struct nfs4_copy_state *copy;
 	int status = NFS4_OK;
 	bool found_pending = false;
+	struct nfs_open_context *ctx = nfs_file_open_context(dst);
 
 	spin_lock(&server->nfs_client->cl_lock);
 	list_for_each_entry(copy, &server->nfs_client->pending_cb_stateids,
@@ -163,6 +164,7 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 	}
 	memcpy(&copy->stateid, &res->write_res.stateid, NFS4_STATEID_SIZE);
 	init_completion(&copy->completion);
+	copy->parent_state = ctx->state;
 
 	list_add_tail(&copy->copies, &server->ss_copies);
 	spin_unlock(&server->nfs_client->cl_lock);
@@ -172,15 +174,20 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 	list_del_init(&copy->copies);
 	spin_unlock(&server->nfs_client->cl_lock);
 	if (status == -ERESTARTSYS) {
-		nfs42_do_offload_cancel_async(dst, &copy->stateid);
-		kfree(copy);
-		return status;
+		goto out_cancel;
+	} else if (copy->flags) {
+		status = -EAGAIN;
+		goto out_cancel;
 	}
 out:
 	res->write_res.count = copy->count;
 	memcpy(&res->write_res.verifier, &copy->verf, sizeof(copy->verf));
 	status = -copy->error;
 
+	kfree(copy);
+	return status;
+out_cancel:
+	nfs42_do_offload_cancel_async(dst, &copy->stateid);
 	kfree(copy);
 	return status;
 }
@@ -254,6 +261,9 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 		if (!res->commit_res.verf)
 			return -ENOMEM;
 	}
+	set_bit(NFS_CLNT_DST_SSC_COPY_STATE,
+		&dst_lock->open_context->state->flags);
+
 	status = nfs4_call_sync(server->client, server, &msg,
 				&args->seq_args, &res->seq_res, 0);
 	if (status == -ENOTSUPP)

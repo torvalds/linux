@@ -192,6 +192,8 @@ struct nfs4_copy_state {
 	uint64_t		count;
 	struct nfs_writeverf	verf;
 	int			error;
+	int			flags;
+	struct nfs4_state	*parent_state;
 };
 
 /*
