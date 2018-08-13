@@ -493,7 +493,17 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 
 	/* Semi auto link training mode */
 	regmap_write(pdata->regmap, SN_ML_TX_MODE_REG, 0x0A);
-	msleep(20); /* 20ms delay recommended by spec */
+	ret = regmap_read_poll_timeout(pdata->regmap, SN_ML_TX_MODE_REG, val,
+				       val == ML_TX_MAIN_LINK_OFF ||
+				       val == ML_TX_NORMAL_MODE, 1000,
+				       500 * 1000);
+	if (ret) {
+		DRM_ERROR("Training complete polling failed (%d)\n", ret);
+		return;
+	} else if (val == ML_TX_MAIN_LINK_OFF) {
+		DRM_ERROR("Link training failed, link is off\n");
+		return;
+	}
 
 	/* config video parameters */
 	ti_sn_bridge_set_video_timings(pdata);
