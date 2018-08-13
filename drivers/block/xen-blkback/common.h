@@ -269,7 +269,6 @@ struct xen_blkif_ring {
 	wait_queue_head_t	pending_free_wq;
 
 	/* Tree to store persistent grants. */
-	spinlock_t		pers_gnts_lock;
 	struct rb_root		persistent_gnts;
 	unsigned int		persistent_gnt_c;
 	atomic_t		persistent_gnt_in_use;
