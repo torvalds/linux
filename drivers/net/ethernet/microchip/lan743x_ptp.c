@@ -6,7 +6,6 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
 
 #include "lan743x_ptp.h"
