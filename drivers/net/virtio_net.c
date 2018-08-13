@@ -30,7 +30,6 @@
 #include <linux/cpu.h>
 #include <linux/average.h>
 #include <linux/filter.h>
-#include <linux/netdevice.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <net/route.h>
