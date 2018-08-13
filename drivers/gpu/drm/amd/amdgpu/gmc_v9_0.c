@@ -25,6 +25,7 @@
 #include "amdgpu.h"
 #include "gmc_v9_0.h"
 #include "amdgpu_atomfirmware.h"
+#include "amdgpu_gem.h"
 
 #include "hdp/hdp_4_0_offset.h"
 #include "hdp/hdp_4_0_sh_mask.h"

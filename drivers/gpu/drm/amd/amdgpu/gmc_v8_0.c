@@ -27,6 +27,7 @@
 #include "gmc_v8_0.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_gem.h"
 
 #include "gmc/gmc_8_1_d.h"
 #include "gmc/gmc_8_1_sh_mask.h"

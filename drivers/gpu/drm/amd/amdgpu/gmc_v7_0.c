@@ -29,6 +29,7 @@
 #include "gmc_v7_0.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_gem.h"
 
 #include "bif/bif_4_1_d.h"
 #include "bif/bif_4_1_sh_mask.h"

@@ -26,6 +26,7 @@
 #include "amdgpu.h"
 #include "gmc_v6_0.h"
 #include "amdgpu_ucode.h"
+#include "amdgpu_gem.h"
 
 #include "bif/bif_3_0_d.h"
 #include "bif/bif_3_0_sh_mask.h"

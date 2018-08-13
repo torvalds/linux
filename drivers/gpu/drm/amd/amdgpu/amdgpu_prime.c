@@ -35,6 +35,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_display.h"
+#include "amdgpu_gem.h"
 #include <drm/amdgpu_drm.h>
 #include <linux/dma-buf.h>
 

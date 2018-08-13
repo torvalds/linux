@@ -36,6 +36,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_irq.h"
+#include "amdgpu_gem.h"
 
 #include "amdgpu_amdkfd.h"
 
