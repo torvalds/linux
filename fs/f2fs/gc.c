@@ -53,12 +53,10 @@ static int gc_thread_func(void *data)
 			continue;
 		}
 
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 		if (time_to_inject(sbi, FAULT_CHECKPOINT)) {
 			f2fs_show_injection_info(FAULT_CHECKPOINT);
 			f2fs_stop_checkpoint(sbi, false);
 		}
-#endif
 
 		if (!sb_start_write_trylock(sbi->sb))
 			continue;

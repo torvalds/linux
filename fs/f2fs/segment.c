@@ -470,12 +470,10 @@ int f2fs_commit_inmem_pages(struct inode *inode)
  */
 void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 {
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_CHECKPOINT)) {
 		f2fs_show_injection_info(FAULT_CHECKPOINT);
 		f2fs_stop_checkpoint(sbi, false);
 	}
-#endif
 
 	/* balance_fs_bg is able to be pending */
 	if (need && excess_cached_nats(sbi))
@@ -1122,13 +1120,11 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 
 		dc->len += len;
 
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 		if (time_to_inject(sbi, FAULT_DISCARD)) {
 			f2fs_show_injection_info(FAULT_DISCARD);
 			err = -EIO;
 			goto submit;
 		}
-#endif
 		err = __blkdev_issue_discard(bdev,
 					SECTOR_FROM_BLOCK(start),
 					SECTOR_FROM_BLOCK(len),
