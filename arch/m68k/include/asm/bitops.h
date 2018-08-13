@@ -454,7 +454,7 @@ static inline unsigned long ffz(unsigned long word)
  */
 #if (defined(__mcfisaaplus__) || defined(__mcfisac__)) && \
 	!defined(CONFIG_M68000) && !defined(CONFIG_MCPU32)
-static inline int __ffs(int x)
+static inline unsigned long __ffs(unsigned long x)
 {
 	__asm__ __volatile__ ("bitrev %0; ff1 %0"
 		: "=d" (x)
@@ -493,7 +493,11 @@ static inline int ffs(int x)
 		: "dm" (x & -x));
 	return 32 - cnt;
 }
-#define __ffs(x) (ffs(x) - 1)
+
+static inline unsigned long __ffs(unsigned long x)
+{
+	return ffs(x) - 1;
+}
 
 /*
  *	fls: find last bit set.
