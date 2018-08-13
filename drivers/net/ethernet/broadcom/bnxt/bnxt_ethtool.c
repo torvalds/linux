@@ -2860,8 +2860,8 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	record->low_version = 0;
 	record->high_version = 1;
 	record->asic_state = 0;
-	strncpy(record->system_name, utsname()->nodename,
-		strlen(utsname()->nodename));
+	strlcpy(record->system_name, utsname()->nodename,
+		sizeof(record->system_name));
 	record->year = cpu_to_le16(tm.tm_year);
 	record->month = cpu_to_le16(tm.tm_mon);
 	record->day = cpu_to_le16(tm.tm_mday);
