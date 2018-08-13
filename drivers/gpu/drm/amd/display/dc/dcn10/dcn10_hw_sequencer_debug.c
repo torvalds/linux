@@ -314,14 +314,35 @@ static unsigned int dcn10_get_cm_states(struct dc *dc, char *pBuf, unsigned int 
 		struct dpp *dpp = pool->dpps[i];
 		struct dcn_dpp_state s = {0};
 
+
+
+
 		dpp->funcs->dpp_read_state(dpp, &s);
 
 		if (s.is_enabled) {
-			chars_printed = snprintf_count(pBuf, remaining_buffer, "%x,%x,%x,%x,%x,%x,"
-				"%08x,%08x,%08x,%08x,%08x,%08x"
+			chars_printed = snprintf_count(pBuf, remaining_buffer, "%x,%x,"
+					"%s,%s,%s,"
+					"%x,%08x,%08x,%08x,%08x,%08x,%08x"
 				"\n",
-				dpp->inst, s.igam_input_format, s.igam_lut_mode, s.dgam_lut_mode,
-				s.rgam_lut_mode, s.gamut_remap_mode, s.gamut_remap_c11_c12,
+				dpp->inst, s.igam_input_format,
+				(s.igam_lut_mode == 0) ? "BypassFixed" :
+					((s.igam_lut_mode == 1) ? "BypassFloat" :
+					((s.igam_lut_mode == 2) ? "RAM" :
+					((s.igam_lut_mode == 3) ? "RAM" :
+								 "Unknown"))),
+				(s.dgam_lut_mode == 0) ? "Bypass" :
+					((s.dgam_lut_mode == 1) ? "sRGB" :
+					((s.dgam_lut_mode == 2) ? "Ycc" :
+					((s.dgam_lut_mode == 3) ? "RAM" :
+					((s.dgam_lut_mode == 4) ? "RAM" :
+								 "Unknown")))),
+				(s.rgam_lut_mode == 0) ? "Bypass" :
+					((s.rgam_lut_mode == 1) ? "sRGB" :
+					((s.rgam_lut_mode == 2) ? "Ycc" :
+					((s.rgam_lut_mode == 3) ? "RAM" :
+					((s.rgam_lut_mode == 4) ? "RAM" :
+								 "Unknown")))),
+				s.gamut_remap_mode, s.gamut_remap_c11_c12,
 				s.gamut_remap_c13_c14, s.gamut_remap_c21_c22, s.gamut_remap_c23_c24,
 				s.gamut_remap_c31_c32, s.gamut_remap_c33_c34);
 
