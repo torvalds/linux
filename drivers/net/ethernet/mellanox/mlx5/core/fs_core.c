@@ -1876,7 +1876,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		    struct mlx5_flow_spec *spec,
 		    struct mlx5_flow_act *flow_act,
 		    struct mlx5_flow_destination *dest,
-		    int dest_num)
+		    int num_dest)
 {
 	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
 	struct mlx5_flow_destination gen_dest = {};
@@ -1889,7 +1889,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 	if (flow_act->action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		if (!fwd_next_prio_supported(ft))
 			return ERR_PTR(-EOPNOTSUPP);
-		if (dest_num)
+		if (num_dest)
 			return ERR_PTR(-EINVAL);
 		mutex_lock(&root->chain_lock);
 		next_ft = find_next_chained_ft(prio);
@@ -1897,7 +1897,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 			gen_dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 			gen_dest.ft = next_ft;
 			dest = &gen_dest;
-			dest_num = 1;
+			num_dest = 1;
 			flow_act->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 		} else {
 			mutex_unlock(&root->chain_lock);
@@ -1905,7 +1905,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		}
 	}
 
-	handle = _mlx5_add_flow_rules(ft, spec, flow_act, dest, dest_num);
+	handle = _mlx5_add_flow_rules(ft, spec, flow_act, dest, num_dest);
 
 	if (sw_action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		if (!IS_ERR_OR_NULL(handle) &&
