@@ -311,16 +311,14 @@ static void dm_crtc_high_irq(void *interrupt_params)
 {
 	struct common_irq_params *irq_params = interrupt_params;
 	struct amdgpu_device *adev = irq_params->adev;
-	uint8_t crtc_index = 0;
 	struct amdgpu_crtc *acrtc;
 
 	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
 
-	if (acrtc)
-		crtc_index = acrtc->crtc_id;
-
-	drm_handle_vblank(adev->ddev, crtc_index);
-	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+	if (acrtc) {
+		drm_crtc_handle_vblank(&acrtc->base);
+		amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+	}
 }
 
 static int dm_set_clockgating_state(void *handle,
