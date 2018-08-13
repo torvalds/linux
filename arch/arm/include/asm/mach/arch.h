@@ -59,7 +59,7 @@ struct machine_desc {
 	void			(*init_time)(void);
 	void			(*init_machine)(void);
 	void			(*init_late)(void);
-#ifdef CONFIG_MULTI_IRQ_HANDLER
+#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
 	void			(*handle_irq)(struct pt_regs *);
 #endif
 	void			(*restart)(enum reboot_mode, const char *);

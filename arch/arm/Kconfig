@@ -337,8 +337,8 @@ config ARCH_MULTIPLATFORM
 	select TIMER_OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select MIGHT_HAVE_PCI
-	select MULTI_IRQ_HANDLER
 	select PCI_DOMAINS if PCI
 	select SPARSE_IRQ
 	select USE_OF
@@ -465,9 +465,9 @@ config ARCH_DOVE
 	bool "Marvell Dove"
 	select CPU_PJ4
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select MIGHT_HAVE_PCI
-	select MULTI_IRQ_HANDLER
 	select MVEBU_MBUS
 	select PINCTRL
 	select PINCTRL_DOVE
@@ -512,8 +512,8 @@ config ARCH_LPC32XX
 	select COMMON_CLK
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
-	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select USE_OF
 	help
@@ -532,11 +532,11 @@ config ARCH_PXA
 	select TIMER_OF
 	select CPU_XSCALE if !CPU_XSC3
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_PXA
 	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
-	select MULTI_IRQ_HANDLER
 	select PLAT_PXA
 	select SPARSE_IRQ
 	help
@@ -572,11 +572,11 @@ config ARCH_SA1100
 	select CPU_FREQ
 	select CPU_SA1100
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
 	select ISA
-	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
 	help
@@ -590,10 +590,10 @@ config ARCH_S3C24XX
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
 	select GPIOLIB
+	select GENERIC_IRQ_MULTI_HANDLER
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
-	select MULTI_IRQ_HANDLER
 	select NEED_MACH_IO_H
 	select SAMSUNG_ATAGS
 	select USE_OF
@@ -627,10 +627,10 @@ config ARCH_OMAP1
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
-	select MULTI_IRQ_HANDLER
 	select NEED_MACH_IO_H if PCCARD
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
@@ -920,11 +920,6 @@ config IWMMXT
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
-
-config MULTI_IRQ_HANDLER
-	bool
-	help
-	  Allow each machine to specify it's own IRQ handler at run time.
 
 if !MMU
 source "arch/arm/Kconfig-nommu"

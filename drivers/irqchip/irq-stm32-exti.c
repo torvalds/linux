@@ -159,6 +159,7 @@ static const struct stm32_exti_bank *stm32mp1_exti_banks[] = {
 };
 
 static const struct stm32_desc_irq stm32mp1_desc_irq[] = {
+	{ .exti = 0, .irq_parent = 6 },
 	{ .exti = 1, .irq_parent = 7 },
 	{ .exti = 2, .irq_parent = 8 },
 	{ .exti = 3, .irq_parent = 9 },
