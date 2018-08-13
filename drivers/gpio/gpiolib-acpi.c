@@ -186,7 +186,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 
 	gpiod_direction_input(desc);
 
-	value = gpiod_get_value(desc);
+	value = gpiod_get_value_cansleep(desc);
 
 	ret = gpiochip_lock_as_irq(chip, pin);
 	if (ret) {
