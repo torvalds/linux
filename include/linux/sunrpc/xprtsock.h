@@ -43,6 +43,13 @@ struct sock_xprt {
 	} recv;
 
 	/*
+	 * State of TCP transmit queue
+	 */
+	struct {
+		u32		offset;
+	} xmit;
+
+	/*
 	 * Connection of transports
 	 */
 	unsigned long		sock_state;
