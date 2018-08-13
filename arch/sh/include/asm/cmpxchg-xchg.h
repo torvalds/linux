@@ -8,7 +8,8 @@
  * This work is licensed under the terms of the GNU GPL, version 2.  See the
  * file "COPYING" in the main directory of this archive for more details.
  */
-#include <linux/bitops.h>
+#include <linux/bits.h>
+#include <linux/compiler.h>
 #include <asm/byteorder.h>
 
 /*

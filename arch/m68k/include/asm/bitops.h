@@ -519,12 +519,16 @@ static inline int __fls(int x)
 
 #endif
 
+/* Simple test-and-set bit locks */
+#define test_and_set_bit_lock	test_and_set_bit
+#define clear_bit_unlock	clear_bit
+#define __clear_bit_unlock	clear_bit_unlock
+
 #include <asm-generic/bitops/ext2-atomic.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/hweight.h>
-#include <asm-generic/bitops/lock.h>
 #endif /* __KERNEL__ */
 
 #endif /* _M68K_BITOPS_H */

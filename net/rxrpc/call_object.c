@@ -415,7 +415,7 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 bool rxrpc_queue_call(struct rxrpc_call *call)
 {
 	const void *here = __builtin_return_address(0);
-	int n = __atomic_add_unless(&call->usage, 1, 0);
+	int n = atomic_fetch_add_unless(&call->usage, 1, 0);
 	if (n == 0)
 		return false;
 	if (rxrpc_queue_work(&call->processor))

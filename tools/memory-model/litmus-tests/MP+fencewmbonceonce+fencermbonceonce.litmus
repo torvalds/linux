@@ -1,4 +1,4 @@
-C MP+wmbonceonce+rmbonceonce
+C MP+fencewmbonceonce+fencermbonceonce
 
 (*
  * Result: Never

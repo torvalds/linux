@@ -575,7 +575,7 @@ static struct bpf_map *bpf_map_inc_not_zero(struct bpf_map *map,
 {
 	int refold;
 
-	refold = __atomic_add_unless(&map->refcnt, 1, 0);
+	refold = atomic_fetch_add_unless(&map->refcnt, 1, 0);
 
 	if (refold >= BPF_MAX_REFCNT) {
 		__bpf_map_put(map, false);
@@ -1144,7 +1144,7 @@ struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 {
 	int refold;
 
-	refold = __atomic_add_unless(&prog->aux->refcnt, 1, 0);
+	refold = atomic_fetch_add_unless(&prog->aux->refcnt, 1, 0);
 
 	if (refold >= BPF_MAX_REFCNT) {
 		__bpf_prog_put(prog, false);
