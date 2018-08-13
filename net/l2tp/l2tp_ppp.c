@@ -533,7 +533,6 @@ out:
 	return error;
 }
 
-#if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
 static void pppol2tp_show(struct seq_file *m, void *arg)
 {
 	struct l2tp_session *session = arg;
@@ -547,16 +546,14 @@ static void pppol2tp_show(struct seq_file *m, void *arg)
 		sock_put(sk);
 	}
 }
-#endif
 
 static void pppol2tp_session_init(struct l2tp_session *session)
 {
 	struct pppol2tp_session *ps;
 
 	session->recv_skb = pppol2tp_recv;
-#if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
-	session->show = pppol2tp_show;
-#endif
+	if (IS_ENABLED(CONFIG_L2TP_DEBUGFS))
+		session->show = pppol2tp_show;
 
 	ps = l2tp_session_priv(session);
 	mutex_init(&ps->sk_lock);

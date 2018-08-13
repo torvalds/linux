@@ -199,7 +199,6 @@ static void l2tp_eth_delete(struct l2tp_session *session)
 	}
 }
 
-#if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
 static void l2tp_eth_show(struct seq_file *m, void *arg)
 {
 	struct l2tp_session *session = arg;
@@ -219,7 +218,6 @@ static void l2tp_eth_show(struct seq_file *m, void *arg)
 
 	dev_put(dev);
 }
-#endif
 
 static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 				struct l2tp_session *session,
@@ -305,9 +303,8 @@ static int l2tp_eth_create(struct net *net, struct l2tp_tunnel *tunnel,
 
 	session->recv_skb = l2tp_eth_dev_recv;
 	session->session_close = l2tp_eth_delete;
-#if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
-	session->show = l2tp_eth_show;
-#endif
+	if (IS_ENABLED(CONFIG_L2TP_DEBUGFS))
+		session->show = l2tp_eth_show;
 
 	spriv = l2tp_session_priv(session);
 
