@@ -457,8 +457,6 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
 	unsigned int val;
 
-	drm_panel_prepare(pdata->panel);
-
 	/* DSI_A lane config */
 	val = CHA_DSI_LANES(4 - pdata->dsi->lanes);
 	regmap_update_bits(pdata->regmap, SN_DSI_LANES_REG,
@@ -511,6 +509,8 @@ static void ti_sn_bridge_pre_enable(struct drm_bridge *bridge)
 	/* in case drm_panel is connected then HPD is not supported */
 	regmap_update_bits(pdata->regmap, SN_HPD_DISABLE_REG, HPD_DISABLE,
 			   HPD_DISABLE);
+
+	drm_panel_prepare(pdata->panel);
 }
 
 static void ti_sn_bridge_post_disable(struct drm_bridge *bridge)
