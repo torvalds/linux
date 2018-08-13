@@ -416,6 +416,11 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 			mvm->nvm_phy_sku_blob.data = temp;
 			mvm->nvm_phy_sku_blob.size  = ret;
 			break;
+		case NVM_SECTION_TYPE_REGULATORY_SDP:
+		case NVM_SECTION_TYPE_REGULATORY:
+			mvm->nvm_reg_blob.data = temp;
+			mvm->nvm_reg_blob.size  = ret;
+			break;
 		default:
 			if (section == mvm->cfg->nvm_hw_section_num) {
 				mvm->nvm_hw_blob.data = temp;
