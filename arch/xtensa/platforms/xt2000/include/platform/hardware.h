@@ -22,7 +22,6 @@
  */
 
 #define PLATFORM_DEFAULT_MEM_START 0x00000000
-#define PLATFORM_DEFAULT_MEM_SIZE 0x08000000
 
 /*
  * Number of platform IRQs

@@ -20,7 +20,6 @@
 /* Memory configuration. */
 
 #define PLATFORM_DEFAULT_MEM_START __XTENSA_UL(CONFIG_DEFAULT_MEM_START)
-#define PLATFORM_DEFAULT_MEM_SIZE  __XTENSA_UL(CONFIG_DEFAULT_MEM_SIZE)
 
 /* Interrupt configuration. */
 

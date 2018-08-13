@@ -541,17 +541,6 @@ config DEFAULT_MEM_START
 
 	  If unsure, leave the default value here.
 
-config DEFAULT_MEM_SIZE
-	hex "Maximal size of the default memory area"
-	depends on PLATFORM_WANT_DEFAULT_MEM
-	default 0x04000000
-	help
-	  This is the size of the default memory area.
-	  Default memory area has platform-specific meaning, it may be used
-	  for e.g. early cache initialization.
-
-	  If unsure, leave the default value here.
-
 config XTFPGA_LCD
 	bool "Enable XTFPGA LCD driver"
 	depends on XTENSA_PLATFORM_XTFPGA
