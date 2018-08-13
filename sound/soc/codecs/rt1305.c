@@ -1066,7 +1066,7 @@ static void rt1305_calibrate(struct rt1305_priv *rt1305)
 	pr_debug("Left_rhl = 0x%x rh=0x%x rl=0x%x\n", rhl, rh, rl);
 	pr_info("Left channel %d.%dohm\n", (r0ohm/10), (r0ohm%10));
 
-	r0l = 562949953421312;
+	r0l = 562949953421312ULL;
 	if (rhl != 0)
 		do_div(r0l, rhl);
 	pr_debug("Left_r0 = 0x%llx\n", r0l);
@@ -1083,7 +1083,7 @@ static void rt1305_calibrate(struct rt1305_priv *rt1305)
 	pr_debug("Right_rhl = 0x%x rh=0x%x rl=0x%x\n", rhl, rh, rl);
 	pr_info("Right channel %d.%dohm\n", (r0ohm/10), (r0ohm%10));
 
-	r0r = 562949953421312;
+	r0r = 562949953421312ULL;
 	if (rhl != 0)
 		do_div(r0r, rhl);
 	pr_debug("Right_r0 = 0x%llx\n", r0r);
@@ -1150,15 +1150,9 @@ static int rt1305_i2c_probe(struct i2c_client *i2c,
 	rt1305_reset(rt1305->regmap);
 	rt1305_calibrate(rt1305);
 
-	return snd_soc_register_component(&i2c->dev, &soc_component_dev_rt1305,
+	return devm_snd_soc_register_component(&i2c->dev,
+			&soc_component_dev_rt1305,
 			rt1305_dai, ARRAY_SIZE(rt1305_dai));
-}
-
-static int rt1305_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_component(&i2c->dev);
-
-	return 0;
 }
 
 static void rt1305_i2c_shutdown(struct i2c_client *client)
@@ -1180,7 +1174,6 @@ static struct i2c_driver rt1305_i2c_driver = {
 #endif
 	},
 	.probe = rt1305_i2c_probe,
-	.remove   = rt1305_i2c_remove,
 	.shutdown = rt1305_i2c_shutdown,
 	.id_table = rt1305_i2c_id,
 };

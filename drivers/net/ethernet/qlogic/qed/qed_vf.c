@@ -1126,7 +1126,7 @@ int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
 		resp_size += sizeof(struct pfvf_def_resp_tlv);
 
 		memcpy(p_mcast_tlv->bins, p_params->bins,
-		       sizeof(unsigned long) * ETH_MULTICAST_MAC_BINS_IN_REGS);
+		       sizeof(u32) * ETH_MULTICAST_MAC_BINS_IN_REGS);
 	}
 
 	update_rx = p_params->accept_flags.update_rx_mode_config;
@@ -1272,7 +1272,7 @@ void qed_vf_pf_filter_mcast(struct qed_hwfn *p_hwfn,
 			u32 bit;
 
 			bit = qed_mcast_bin_from_mac(p_filter_cmd->mac[i]);
-			__set_bit(bit, sp_params.bins);
+			sp_params.bins[bit / 32] |= 1 << (bit % 32);
 		}
 	}
 

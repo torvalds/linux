@@ -6466,34 +6466,34 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 		if (data->arg.new_lock && !data->cancelled) {
 			data->fl.fl_flags &= ~(FL_SLEEP | FL_ACCESS);
 			if (locks_lock_inode_wait(lsp->ls_state->inode, &data->fl) < 0)
-				break;
+				goto out_restart;
 		}
-
 		if (data->arg.new_lock_owner != 0) {
 			nfs_confirm_seqid(&lsp->ls_seqid, 0);
 			nfs4_stateid_copy(&lsp->ls_stateid, &data->res.stateid);
 			set_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags);
-			goto out_done;
-		} else if (nfs4_update_lock_stateid(lsp, &data->res.stateid))
-			goto out_done;
-
+		} else if (!nfs4_update_lock_stateid(lsp, &data->res.stateid))
+			goto out_restart;
 		break;
 	case -NFS4ERR_BAD_STATEID:
 	case -NFS4ERR_OLD_STATEID:
 	case -NFS4ERR_STALE_STATEID:
 	case -NFS4ERR_EXPIRED:
 		if (data->arg.new_lock_owner != 0) {
-			if (nfs4_stateid_match(&data->arg.open_stateid,
+			if (!nfs4_stateid_match(&data->arg.open_stateid,
 						&lsp->ls_state->open_stateid))
-				goto out_done;
-		} else if (nfs4_stateid_match(&data->arg.lock_stateid,
+				goto out_restart;
+		} else if (!nfs4_stateid_match(&data->arg.lock_stateid,
 						&lsp->ls_stateid))
-				goto out_done;
+				goto out_restart;
 	}
-	if (!data->cancelled)
-		rpc_restart_call_prepare(task);
 out_done:
 	dprintk("%s: done, ret = %d!\n", __func__, data->rpc_status);
+	return;
+out_restart:
+	if (!data->cancelled)
+		rpc_restart_call_prepare(task);
+	goto out_done;
 }
 
 static void nfs4_lock_release(void *calldata)
@@ -6502,7 +6502,7 @@ static void nfs4_lock_release(void *calldata)
 
 	dprintk("%s: begin!\n", __func__);
 	nfs_free_seqid(data->arg.open_seqid);
-	if (data->cancelled) {
+	if (data->cancelled && data->rpc_status == 0) {
 		struct rpc_task *task;
 		task = nfs4_do_unlck(&data->fl, data->ctx, data->lsp,
 				data->arg.lock_seqid);

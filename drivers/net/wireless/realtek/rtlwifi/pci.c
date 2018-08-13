@@ -2377,7 +2377,7 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 		ieee80211_unregister_hw(hw);
 		rtlmac->mac80211_registered = 0;
 	} else {
-		rtl_deinit_deferred_work(hw);
+		rtl_deinit_deferred_work(hw, false);
 		rtlpriv->intf_ops->adapter_stop(hw);
 	}
 	rtlpriv->cfg->ops->disable_interrupt(hw);

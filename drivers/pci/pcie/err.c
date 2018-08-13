@@ -295,6 +295,7 @@ void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
 
 	parent = udev->subordinate;
 	pci_lock_rescan_remove();
+	pci_dev_get(dev);
 	list_for_each_entry_safe_reverse(pdev, temp, &parent->devices,
 					 bus_list) {
 		pci_dev_get(pdev);
@@ -328,6 +329,7 @@ void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
 		pci_info(dev, "Device recovery from fatal error failed\n");
 	}
 
+	pci_dev_put(dev);
 	pci_unlock_rescan_remove();
 }
 
