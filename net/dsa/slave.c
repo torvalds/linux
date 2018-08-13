@@ -1219,6 +1219,9 @@ int dsa_slave_suspend(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
 
+	if (!netif_running(slave_dev))
+		return 0;
+
 	netif_device_detach(slave_dev);
 
 	if (p->phy) {
@@ -1235,6 +1238,9 @@ int dsa_slave_suspend(struct net_device *slave_dev)
 int dsa_slave_resume(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
+
+	if (!netif_running(slave_dev))
+		return 0;
 
 	netif_device_attach(slave_dev);
 

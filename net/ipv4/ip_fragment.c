@@ -447,11 +447,16 @@ found:
 		int i = end - FRAG_CB(next)->offset; /* overlap is 'i' bytes */
 
 		if (i < next->len) {
+			int delta = -next->truesize;
+
 			/* Eat head of the next overlapped fragment
 			 * and leave the loop. The next ones cannot overlap.
 			 */
 			if (!pskb_pull(next, i))
 				goto err;
+			delta += next->truesize;
+			if (delta)
+				add_frag_mem_limit(qp->q.net, delta);
 			FRAG_CB(next)->offset += i;
 			qp->q.meat -= i;
 			if (next->ip_summed != CHECKSUM_UNNECESSARY)
