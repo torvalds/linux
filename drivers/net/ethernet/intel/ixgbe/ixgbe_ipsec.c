@@ -301,14 +301,6 @@ void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter)
 	ixgbe_ipsec_clear_hw_tables(adapter);
 	ixgbe_ipsec_start_engine(adapter);
 
-	/* reload the IP addrs */
-	for (i = 0; i < IXGBE_IPSEC_MAX_RX_IP_COUNT; i++) {
-		struct rx_ip_sa *ipsa = &ipsec->ip_tbl[i];
-
-		if (ipsa->used)
-			ixgbe_ipsec_set_rx_ip(hw, i, ipsa->ipaddr);
-	}
-
 	/* reload the Rx and Tx keys */
 	for (i = 0; i < IXGBE_IPSEC_MAX_SA_COUNT; i++) {
 		struct rx_sa *rsa = &ipsec->rx_tbl[i];
@@ -321,6 +313,14 @@ void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter)
 
 		if (tsa->used)
 			ixgbe_ipsec_set_tx_sa(hw, i, tsa->key, tsa->salt);
+	}
+
+	/* reload the IP addrs */
+	for (i = 0; i < IXGBE_IPSEC_MAX_RX_IP_COUNT; i++) {
+		struct rx_ip_sa *ipsa = &ipsec->ip_tbl[i];
+
+		if (ipsa->used)
+			ixgbe_ipsec_set_rx_ip(hw, i, ipsa->ipaddr);
 	}
 }
 
