@@ -1439,10 +1439,6 @@ int most_register_interface(struct most_interface *iface)
 		c->dev.parent = &iface->dev;
 		c->dev.groups = channel_attr_groups;
 		c->dev.release = release_channel;
-		if (device_register(&c->dev)) {
-			pr_err("registering c->dev failed\n");
-			goto free_instance_nodev;
-		}
 		iface->p->channel[i] = c;
 		c->is_starving = 0;
 		c->iface = iface;
@@ -1465,6 +1461,10 @@ int most_register_interface(struct most_interface *iface)
 		mutex_init(&c->start_mutex);
 		mutex_init(&c->nq_mutex);
 		list_add_tail(&c->list, &iface->p->channel_list);
+		if (device_register(&c->dev)) {
+			pr_err("registering c->dev failed\n");
+			goto free_instance_nodev;
+		}
 	}
 	pr_info("registered new device mdev%d (%s)\n",
 		id, iface->description);
