@@ -880,7 +880,8 @@ int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 	int err;
 
 	sam = (struct sa_mbx_msg *)(&msgbuf[1]);
-	if (!adapter->vfinfo[vf].trusted) {
+	if (!adapter->vfinfo[vf].trusted ||
+	    !(adapter->flags2 & IXGBE_FLAG2_VF_IPSEC_ENABLED)) {
 		e_warn(drv, "VF %d attempted to add an IPsec SA\n", vf);
 		err = -EACCES;
 		goto err_out;

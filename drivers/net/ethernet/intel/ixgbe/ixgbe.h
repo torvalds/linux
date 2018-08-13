@@ -605,6 +605,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_EEE_ENABLED			BIT(15)
 #define IXGBE_FLAG2_RX_LEGACY			BIT(16)
 #define IXGBE_FLAG2_IPSEC_ENABLED		BIT(17)
+#define IXGBE_FLAG2_VF_IPSEC_ENABLED		BIT(18)
 
 	/* Tx fast path data */
 	int num_tx_queues;
