@@ -47,9 +47,6 @@
 			   (unsigned long)(addr) +	\
 			   (size))
 
-/* Used as a marker in ARM_pc to note when we're in a jprobe. */
-#define JPROBE_MAGIC_ADDR		0xffffffff
-
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
@@ -289,8 +286,8 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 				break;
 			case KPROBE_REENTER:
 				/* A nested probe was hit in FIQ, it is a BUG */
-				pr_warn("Unrecoverable kprobe detected at %p.\n",
-					p->addr);
+				pr_warn("Unrecoverable kprobe detected.\n");
+				dump_kprobe(p);
 				/* fall through */
 			default:
 				/* impossible cases */
@@ -303,10 +300,10 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 
 			/*
 			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, it prepped
-			 * for calling the break_handler below on re-entry,
-			 * so get out doing nothing more here.
+			 * continue with normal processing. If we have a
+			 * pre-handler and it returned non-zero, it will
+			 * modify the execution path and no need to single
+			 * stepping. Let's just reset current kprobe and exit.
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs)) {
 				kcb->kprobe_status = KPROBE_HIT_SS;
@@ -315,20 +312,9 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 					kcb->kprobe_status = KPROBE_HIT_SSDONE;
 					p->post_handler(p, regs, 0);
 				}
-				reset_current_kprobe();
 			}
+			reset_current_kprobe();
 		}
-	} else if (cur) {
-		/* We probably hit a jprobe.  Call its break handler. */
-		if (cur->break_handler && cur->break_handler(cur, regs)) {
-			kcb->kprobe_status = KPROBE_HIT_SS;
-			singlestep(cur, regs, kcb);
-			if (cur->post_handler) {
-				kcb->kprobe_status = KPROBE_HIT_SSDONE;
-				cur->post_handler(cur, regs, 0);
-			}
-		}
-		reset_current_kprobe();
 	} else {
 		/*
 		 * The probe was removed and a race is in progress.
@@ -519,117 +505,6 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 
 	/* Replace the return addr with trampoline addr. */
 	regs->ARM_lr = (unsigned long)&kretprobe_trampoline;
-}
-
-int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	long sp_addr = regs->ARM_sp;
-	long cpsr;
-
-	kcb->jprobe_saved_regs = *regs;
-	memcpy(kcb->jprobes_stack, (void *)sp_addr, MIN_STACK_SIZE(sp_addr));
-	regs->ARM_pc = (long)jp->entry;
-
-	cpsr = regs->ARM_cpsr | PSR_I_BIT;
-#ifdef CONFIG_THUMB2_KERNEL
-	/* Set correct Thumb state in cpsr */
-	if (regs->ARM_pc & 1)
-		cpsr |= PSR_T_BIT;
-	else
-		cpsr &= ~PSR_T_BIT;
-#endif
-	regs->ARM_cpsr = cpsr;
-
-	preempt_disable();
-	return 1;
-}
-
-void __kprobes jprobe_return(void)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-
-	__asm__ __volatile__ (
-		/*
-		 * Setup an empty pt_regs. Fill SP and PC fields as
-		 * they're needed by longjmp_break_handler.
-		 *
-		 * We allocate some slack between the original SP and start of
-		 * our fabricated regs. To be precise we want to have worst case
-		 * covered which is STMFD with all 16 regs so we allocate 2 *
-		 * sizeof(struct_pt_regs)).
-		 *
-		 * This is to prevent any simulated instruction from writing
-		 * over the regs when they are accessing the stack.
-		 */
-#ifdef CONFIG_THUMB2_KERNEL
-		"sub    r0, %0, %1		\n\t"
-		"mov    sp, r0			\n\t"
-#else
-		"sub    sp, %0, %1		\n\t"
-#endif
-		"ldr    r0, ="__stringify(JPROBE_MAGIC_ADDR)"\n\t"
-		"str    %0, [sp, %2]		\n\t"
-		"str    r0, [sp, %3]		\n\t"
-		"mov    r0, sp			\n\t"
-		"bl     kprobe_handler		\n\t"
-
-		/*
-		 * Return to the context saved by setjmp_pre_handler
-		 * and restored by longjmp_break_handler.
-		 */
-#ifdef CONFIG_THUMB2_KERNEL
-		"ldr	lr, [sp, %2]		\n\t" /* lr = saved sp */
-		"ldrd	r0, r1, [sp, %5]	\n\t" /* r0,r1 = saved lr,pc */
-		"ldr	r2, [sp, %4]		\n\t" /* r2 = saved psr */
-		"stmdb	lr!, {r0, r1, r2}	\n\t" /* push saved lr and */
-						      /* rfe context */
-		"ldmia	sp, {r0 - r12}		\n\t"
-		"mov	sp, lr			\n\t"
-		"ldr	lr, [sp], #4		\n\t"
-		"rfeia	sp!			\n\t"
-#else
-		"ldr	r0, [sp, %4]		\n\t"
-		"msr	cpsr_cxsf, r0		\n\t"
-		"ldmia	sp, {r0 - pc}		\n\t"
-#endif
-		:
-		: "r" (kcb->jprobe_saved_regs.ARM_sp),
-		  "I" (sizeof(struct pt_regs) * 2),
-		  "J" (offsetof(struct pt_regs, ARM_sp)),
-		  "J" (offsetof(struct pt_regs, ARM_pc)),
-		  "J" (offsetof(struct pt_regs, ARM_cpsr)),
-		  "J" (offsetof(struct pt_regs, ARM_lr))
-		: "memory", "cc");
-}
-
-int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	long stack_addr = kcb->jprobe_saved_regs.ARM_sp;
-	long orig_sp = regs->ARM_sp;
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-
-	if (regs->ARM_pc == JPROBE_MAGIC_ADDR) {
-		if (orig_sp != stack_addr) {
-			struct pt_regs *saved_regs =
-				(struct pt_regs *)kcb->jprobe_saved_regs.ARM_sp;
-			printk("current sp %lx does not match saved sp %lx\n",
-			       orig_sp, stack_addr);
-			printk("Saved registers for jprobe %p\n", jp);
-			show_regs(saved_regs);
-			printk("Current registers\n");
-			show_regs(regs);
-			BUG();
-		}
-		*regs = kcb->jprobe_saved_regs;
-		memcpy((void *)stack_addr, kcb->jprobes_stack,
-		       MIN_STACK_SIZE(stack_addr));
-		preempt_enable_no_resched();
-		return 1;
-	}
-	return 0;
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)

@@ -2193,7 +2193,7 @@ static void print_cacheline(struct c2c_hists *c2c_hists,
 	fprintf(out, "%s\n", bf);
 	fprintf(out, "  -------------------------------------------------------------\n");
 
-	hists__fprintf(&c2c_hists->hists, false, 0, 0, 0, out, true);
+	hists__fprintf(&c2c_hists->hists, false, 0, 0, 0, out, false);
 }
 
 static void print_pareto(FILE *out)
@@ -2268,7 +2268,7 @@ static void perf_c2c__hists_fprintf(FILE *out, struct perf_session *session)
 	fprintf(out, "=================================================\n");
 	fprintf(out, "#\n");
 
-	hists__fprintf(&c2c.hists.hists, true, 0, 0, 0, stdout, false);
+	hists__fprintf(&c2c.hists.hists, true, 0, 0, 0, stdout, true);
 
 	fprintf(out, "\n");
 	fprintf(out, "=================================================\n");
@@ -2348,6 +2348,9 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	" n             Toggle Node details info \n"
 	" s             Toggle full length of symbol and source line columns \n"
 	" q             Return back to cacheline list \n";
+
+	if (!he)
+		return 0;
 
 	/* Display compact version first. */
 	c2c.symbol_full = false;
