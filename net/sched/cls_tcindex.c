@@ -398,6 +398,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		struct tcindex_filter *nfp;
 		struct tcindex_filter __rcu **fp;
 
+		f->result.res = r->res;
 		tcf_exts_change(tp, &f->result.exts, &r->exts);
 
 		fp = cp->h + (handle % cp->hash);
