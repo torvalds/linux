@@ -459,6 +459,31 @@ int ethtool_ioctl(struct ifreq *ifr);
 
 extern void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector);
 
+#ifdef CONFIG_XFRM_OFFLOAD
+void ixgbevf_init_ipsec_offload(struct ixgbevf_adapter *adapter);
+void ixgbevf_stop_ipsec_offload(struct ixgbevf_adapter *adapter);
+void ixgbevf_ipsec_restore(struct ixgbevf_adapter *adapter);
+void ixgbevf_ipsec_rx(struct ixgbevf_ring *rx_ring,
+		      union ixgbe_adv_rx_desc *rx_desc,
+		      struct sk_buff *skb);
+int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
+		     struct ixgbevf_tx_buffer *first,
+		     struct ixgbevf_ipsec_tx_data *itd);
+#else
+static inline void ixgbevf_init_ipsec_offload(struct ixgbevf_adapter *adapter)
+{ }
+static inline void ixgbevf_stop_ipsec_offload(struct ixgbevf_adapter *adapter)
+{ }
+static inline void ixgbevf_ipsec_restore(struct ixgbevf_adapter *adapter) { }
+static inline void ixgbevf_ipsec_rx(struct ixgbevf_ring *rx_ring,
+				    union ixgbe_adv_rx_desc *rx_desc,
+				    struct sk_buff *skb) { }
+static inline int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
+				   struct ixgbevf_tx_buffer *first,
+				   struct ixgbevf_ipsec_tx_data *itd)
+{ return 0; }
+#endif /* CONFIG_XFRM_OFFLOAD */
+
 void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
 void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
 

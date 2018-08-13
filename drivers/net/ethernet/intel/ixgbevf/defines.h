@@ -234,7 +234,7 @@ union ixgbe_adv_rx_desc {
 /* Context descriptors */
 struct ixgbe_adv_tx_context_desc {
 	__le32 vlan_macip_lens;
-	__le32 seqnum_seed;
+	__le32 fceof_saidx;
 	__le32 type_tucmd_mlhl;
 	__le32 mss_l4len_idx;
 };
