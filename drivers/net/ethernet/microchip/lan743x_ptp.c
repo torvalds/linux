@@ -4,6 +4,7 @@
 #include <linux/netdevice.h>
 #include "lan743x_main.h"
 
+#include <linux/ptp_clock_kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/net_tstamp.h>
@@ -138,7 +139,6 @@ done:
 	spin_unlock_bh(&ptp->tx_ts_lock);
 }
 
-#ifdef CONFIG_PTP_1588_CLOCK
 static int lan743x_ptp_reserve_event_ch(struct lan743x_adapter *adapter)
 {
 	struct lan743x_ptp *ptp = &adapter->ptp;
@@ -760,7 +760,6 @@ static void lan743x_ptp_clock_step(struct lan743x_adapter *adapter,
 		mutex_unlock(&ptp->command_lock);
 	}
 }
-#endif /* CONFIG_PTP_1588_CLOCK */
 
 void lan743x_ptp_isr(void *context)
 {
@@ -889,7 +888,9 @@ int lan743x_ptp_open(struct lan743x_adapter *adapter)
 			  PTP_INT_BIT_TX_SWTS_ERR_ | PTP_INT_BIT_TX_TS_);
 	ptp->flags |= PTP_FLAG_ISR_ENABLED;
 
-#ifdef CONFIG_PTP_1588_CLOCK
+	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK))
+		return 0;
+
 	snprintf(ptp->pin_config[0].name, 32, "lan743x_ptp_pin_0");
 	ptp->pin_config[0].index = 0;
 	ptp->pin_config[0].func = PTP_PF_PEROUT;
@@ -931,9 +932,6 @@ int lan743x_ptp_open(struct lan743x_adapter *adapter)
 done:
 	lan743x_ptp_close(adapter);
 	return ret;
-#else
-	return 0;
-#endif
 }
 
 void lan743x_ptp_close(struct lan743x_adapter *adapter)
@@ -941,15 +939,14 @@ void lan743x_ptp_close(struct lan743x_adapter *adapter)
 	struct lan743x_ptp *ptp = &adapter->ptp;
 	int index;
 
-#ifdef CONFIG_PTP_1588_CLOCK
-	if (ptp->flags & PTP_FLAG_PTP_CLOCK_REGISTERED) {
+	if (IS_ENABLED(CONFIG_PTP_1588_CLOCK) &&
+	    ptp->flags & PTP_FLAG_PTP_CLOCK_REGISTERED) {
 		ptp_clock_unregister(ptp->ptp_clock);
 		ptp->ptp_clock = NULL;
 		ptp->flags &= ~PTP_FLAG_PTP_CLOCK_REGISTERED;
 		netif_info(adapter, drv, adapter->netdev,
 			   "ptp clock unregister\n");
 	}
-#endif
 
 	if (ptp->flags & PTP_FLAG_ISR_ENABLED) {
 		lan743x_csr_write(adapter, PTP_INT_EN_CLR,

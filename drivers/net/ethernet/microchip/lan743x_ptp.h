@@ -49,11 +49,9 @@ struct lan743x_ptp {
 	/* command_lock: used to prevent concurrent ptp commands */
 	struct mutex	command_lock;
 
-#ifdef CONFIG_PTP_1588_CLOCK
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
 	struct ptp_pin_desc pin_config[1];
-#endif /* CONFIG_PTP_1588_CLOCK */
 
 #define LAN743X_PTP_NUMBER_OF_EVENT_CHANNELS (2)
 	unsigned long used_event_ch;
