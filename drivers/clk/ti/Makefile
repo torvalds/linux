@@ -17,7 +17,8 @@ obj-$(CONFIG_ARCH_OMAP4)		+= $(clk-common) clk-44xx.o \
 obj-$(CONFIG_SOC_OMAP5)			+= $(clk-common) clk-54xx.o \
 					   dpll3xxx.o dpll44xx.o
 obj-$(CONFIG_SOC_DRA7XX)		+= $(clk-common) clk-7xx.o \
-					   clk-dra7-atl.o dpll3xxx.o dpll44xx.o
+					   clk-dra7-atl.o dpll3xxx.o \
+					   dpll44xx.o clk-7xx-compat.o
 obj-$(CONFIG_SOC_AM43XX)		+= $(clk-common) dpll3xxx.o clk-43xx.o \
 					   clk-43xx-compat.o
 
