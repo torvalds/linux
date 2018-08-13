@@ -180,8 +180,7 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int dwc3_of_simple_runtime_suspend(struct device *dev)
+static int __maybe_unused dwc3_of_simple_runtime_suspend(struct device *dev)
 {
 	struct dwc3_of_simple	*simple = dev_get_drvdata(dev);
 	int			i;
@@ -192,7 +191,7 @@ static int dwc3_of_simple_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int dwc3_of_simple_runtime_resume(struct device *dev)
+static int __maybe_unused dwc3_of_simple_runtime_resume(struct device *dev)
 {
 	struct dwc3_of_simple	*simple = dev_get_drvdata(dev);
 	int			ret;
@@ -210,7 +209,7 @@ static int dwc3_of_simple_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int dwc3_of_simple_suspend(struct device *dev)
+static int __maybe_unused dwc3_of_simple_suspend(struct device *dev)
 {
 	struct dwc3_of_simple *simple = dev_get_drvdata(dev);
 
@@ -220,7 +219,7 @@ static int dwc3_of_simple_suspend(struct device *dev)
 	return 0;
 }
 
-static int dwc3_of_simple_resume(struct device *dev)
+static int __maybe_unused dwc3_of_simple_resume(struct device *dev)
 {
 	struct dwc3_of_simple *simple = dev_get_drvdata(dev);
 
@@ -229,7 +228,6 @@ static int dwc3_of_simple_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops dwc3_of_simple_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_of_simple_suspend, dwc3_of_simple_resume)
