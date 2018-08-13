@@ -233,11 +233,6 @@ struct xen_vbd {
 
 struct backend_info;
 
-/* Number of available flags */
-#define PERSISTENT_GNT_FLAGS_SIZE	1
-/* This persistent grant is currently in use */
-#define PERSISTENT_GNT_ACTIVE		0
-
 /* Number of requests that we can fit in a ring */
 #define XEN_BLKIF_REQS_PER_PAGE		32
 
@@ -246,7 +241,7 @@ struct persistent_gnt {
 	grant_ref_t gnt;
 	grant_handle_t handle;
 	unsigned long last_used;
-	DECLARE_BITMAP(flags, PERSISTENT_GNT_FLAGS_SIZE);
+	bool active;
 	struct rb_node node;
 	struct list_head remove_node;
 };

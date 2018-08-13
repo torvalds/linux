@@ -255,8 +255,7 @@ static int add_persistent_gnt(struct xen_blkif_ring *ring,
 		}
 	}
 
-	bitmap_zero(persistent_gnt->flags, PERSISTENT_GNT_FLAGS_SIZE);
-	set_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags);
+	persistent_gnt->active = true;
 	/* Add new node and rebalance tree. */
 	rb_link_node(&(persistent_gnt->node), parent, new);
 	rb_insert_color(&(persistent_gnt->node), &ring->persistent_gnts);
@@ -280,11 +279,11 @@ static struct persistent_gnt *get_persistent_gnt(struct xen_blkif_ring *ring,
 		else if (gref > data->gnt)
 			node = node->rb_right;
 		else {
-			if(test_bit(PERSISTENT_GNT_ACTIVE, data->flags)) {
+			if (data->active) {
 				pr_alert_ratelimited("requesting a grant already in use\n");
 				return NULL;
 			}
-			set_bit(PERSISTENT_GNT_ACTIVE, data->flags);
+			data->active = true;
 			atomic_inc(&ring->persistent_gnt_in_use);
 			return data;
 		}
@@ -295,10 +294,10 @@ static struct persistent_gnt *get_persistent_gnt(struct xen_blkif_ring *ring,
 static void put_persistent_gnt(struct xen_blkif_ring *ring,
                                struct persistent_gnt *persistent_gnt)
 {
-	if(!test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
+	if (!persistent_gnt->active)
 		pr_alert_ratelimited("freeing a grant already unused\n");
 	persistent_gnt->last_used = jiffies;
-	clear_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags);
+	persistent_gnt->active = false;
 	atomic_dec(&ring->persistent_gnt_in_use);
 }
 
@@ -429,7 +428,7 @@ purge_list:
 		BUG_ON(persistent_gnt->handle ==
 			BLKBACK_INVALID_HANDLE);
 
-		if (test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
+		if (persistent_gnt->active)
 			continue;
 		if (!scan_used && !persistent_gnt_timeout(persistent_gnt))
 			continue;
