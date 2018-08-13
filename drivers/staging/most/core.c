@@ -442,6 +442,24 @@ static ssize_t set_dbr_size_store(struct device *dev,
 	return count;
 }
 
+#define to_dev_attr(a) container_of(a, struct device_attribute, attr)
+static umode_t channel_attr_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int index)
+{
+	struct device_attribute *dev_attr = to_dev_attr(attr);
+	struct device *dev = kobj_to_dev(kobj);
+	struct most_channel *c = to_channel(dev);
+
+	if (!strcmp(dev_attr->attr.name, "set_dbr_size") &&
+	    (c->iface->interface != ITYPE_MEDIALB_DIM2))
+		return 0;
+	if (!strcmp(dev_attr->attr.name, "set_packets_per_xact") &&
+	    (c->iface->interface != ITYPE_USB))
+		return 0;
+
+	return attr->mode;
+}
+
 #define DEV_ATTR(_name)  (&dev_attr_##_name.attr)
 
 static DEVICE_ATTR_RO(available_directions);
@@ -479,6 +497,7 @@ static struct attribute *channel_attrs[] = {
 
 static struct attribute_group channel_attr_group = {
 	.attrs = channel_attrs,
+	.is_visible = channel_attr_is_visible,
 };
 
 static const struct attribute_group *channel_attr_groups[] = {
