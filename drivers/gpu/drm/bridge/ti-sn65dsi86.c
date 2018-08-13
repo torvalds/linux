@@ -7,12 +7,14 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_dp_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/of_graph.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -46,7 +48,7 @@
 #define SN_DATA_FORMAT_REG			0x5B
 #define SN_HPD_DISABLE_REG			0x5C
 #define  HPD_DISABLE				BIT(0)
-#define SN_AUX_WDATA0_REG			0x64
+#define SN_AUX_WDATA_REG(x)			(0x64 + (x))
 #define SN_AUX_ADDR_19_16_REG			0x74
 #define SN_AUX_ADDR_15_8_REG			0x75
 #define SN_AUX_ADDR_7_0_REG			0x76
@@ -54,6 +56,7 @@
 #define SN_AUX_CMD_REG				0x78
 #define  AUX_CMD_SEND				BIT(1)
 #define  AUX_CMD_REQ(x)				((x) << 4)
+#define SN_AUX_RDATA_REG(x)			(0x79 + (x))
 #define SN_SSC_CONFIG_REG			0x93
 #define  DP_NUM_LANES_MASK			GENMASK(5, 4)
 #define  DP_NUM_LANES(x)			((x) << 4)
@@ -63,6 +66,10 @@
 #define SN_ML_TX_MODE_REG			0x96
 #define  ML_TX_MAIN_LINK_OFF			0
 #define  ML_TX_NORMAL_MODE			BIT(0)
+#define SN_AUX_CMD_STATUS_REG			0xF4
+#define  AUX_IRQ_STATUS_AUX_RPLY_TOUT		BIT(3)
+#define  AUX_IRQ_STATUS_AUX_SHORT		BIT(5)
+#define  AUX_IRQ_STATUS_NAT_I2C_FAIL		BIT(6)
 
 #define MIN_DSI_CLK_FREQ_MHZ	40
 
@@ -70,11 +77,15 @@
 #define DP_CLK_FUDGE_NUM	10
 #define DP_CLK_FUDGE_DEN	8
 
+/* Matches DP_AUX_MAX_PAYLOAD_BYTES (for now) */
+#define SN_AUX_MAX_PAYLOAD_BYTES	16
+
 #define SN_REGULATOR_SUPPLY_NUM		4
 
 struct ti_sn_bridge {
 	struct device			*dev;
 	struct regmap			*regmap;
+	struct drm_dp_aux		aux;
 	struct drm_bridge		bridge;
 	struct drm_connector		connector;
 	struct device_node		*host_node;
@@ -471,13 +482,8 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 	 * authentication method. We need to enable this method in the eDP panel
 	 * at DisplayPort address 0x0010A prior to link training.
 	 */
-	regmap_write(pdata->regmap, SN_AUX_WDATA0_REG, 0x01);
-	regmap_write(pdata->regmap, SN_AUX_ADDR_19_16_REG, 0x00);
-	regmap_write(pdata->regmap, SN_AUX_ADDR_15_8_REG, 0x01);
-	regmap_write(pdata->regmap, SN_AUX_ADDR_7_0_REG, 0x0A);
-	regmap_write(pdata->regmap, SN_AUX_LENGTH_REG, 0x01);
-	regmap_write(pdata->regmap, SN_AUX_CMD_REG, 0x81);
-	usleep_range(10000, 10500); /* 10ms delay recommended by spec */
+	drm_dp_dpcd_writeb(&pdata->aux, DP_EDP_CONFIGURATION_SET,
+			   DP_ALTERNATE_SCRAMBLER_RESET_ENABLE);
 
 	/* Semi auto link training mode */
 	regmap_write(pdata->regmap, SN_ML_TX_MODE_REG, 0x0A);
@@ -524,6 +530,82 @@ static const struct drm_bridge_funcs ti_sn_bridge_funcs = {
 	.disable = ti_sn_bridge_disable,
 	.post_disable = ti_sn_bridge_post_disable,
 };
+
+static struct ti_sn_bridge *aux_to_ti_sn_bridge(struct drm_dp_aux *aux)
+{
+	return container_of(aux, struct ti_sn_bridge, aux);
+}
+
+static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
+				  struct drm_dp_aux_msg *msg)
+{
+	struct ti_sn_bridge *pdata = aux_to_ti_sn_bridge(aux);
+	u32 request = msg->request & ~DP_AUX_I2C_MOT;
+	u32 request_val = AUX_CMD_REQ(msg->request);
+	u8 *buf = (u8 *)msg->buffer;
+	unsigned int val;
+	int ret, i;
+
+	if (msg->size > SN_AUX_MAX_PAYLOAD_BYTES)
+		return -EINVAL;
+
+	switch (request) {
+	case DP_AUX_NATIVE_WRITE:
+	case DP_AUX_I2C_WRITE:
+	case DP_AUX_NATIVE_READ:
+	case DP_AUX_I2C_READ:
+		regmap_write(pdata->regmap, SN_AUX_CMD_REG, request_val);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	regmap_write(pdata->regmap, SN_AUX_ADDR_19_16_REG,
+		     (msg->address >> 16) & 0xF);
+	regmap_write(pdata->regmap, SN_AUX_ADDR_15_8_REG,
+		     (msg->address >> 8) & 0xFF);
+	regmap_write(pdata->regmap, SN_AUX_ADDR_7_0_REG, msg->address & 0xFF);
+
+	regmap_write(pdata->regmap, SN_AUX_LENGTH_REG, msg->size);
+
+	if (request == DP_AUX_NATIVE_WRITE || request == DP_AUX_I2C_WRITE) {
+		for (i = 0; i < msg->size; i++)
+			regmap_write(pdata->regmap, SN_AUX_WDATA_REG(i),
+				     buf[i]);
+	}
+
+	regmap_write(pdata->regmap, SN_AUX_CMD_REG, request_val | AUX_CMD_SEND);
+
+	ret = regmap_read_poll_timeout(pdata->regmap, SN_AUX_CMD_REG, val,
+				       !(val & AUX_CMD_SEND), 200,
+				       50 * 1000);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(pdata->regmap, SN_AUX_CMD_STATUS_REG, &val);
+	if (ret)
+		return ret;
+	else if ((val & AUX_IRQ_STATUS_NAT_I2C_FAIL)
+		 || (val & AUX_IRQ_STATUS_AUX_RPLY_TOUT)
+		 || (val & AUX_IRQ_STATUS_AUX_SHORT))
+		return -ENXIO;
+
+	if (request == DP_AUX_NATIVE_WRITE || request == DP_AUX_I2C_WRITE)
+		return msg->size;
+
+	for (i = 0; i < msg->size; i++) {
+		unsigned int val;
+		ret = regmap_read(pdata->regmap, SN_AUX_RDATA_REG(i),
+				  &val);
+		if (ret)
+			return ret;
+
+		WARN_ON(val & ~0xFF);
+		buf[i] = (u8)(val & 0xFF);
+	}
+
+	return msg->size;
+}
 
 static int ti_sn_bridge_parse_dsi_host(struct ti_sn_bridge *pdata)
 {
@@ -603,6 +685,11 @@ static int ti_sn_bridge_probe(struct i2c_client *client,
 	pm_runtime_enable(pdata->dev);
 
 	i2c_set_clientdata(client, pdata);
+
+	pdata->aux.name = "ti-sn65dsi86-aux";
+	pdata->aux.dev = pdata->dev;
+	pdata->aux.transfer = ti_sn_aux_transfer;
+	drm_dp_aux_register(&pdata->aux);
 
 	pdata->bridge.funcs = &ti_sn_bridge_funcs;
 	pdata->bridge.of_node = client->dev.of_node;
