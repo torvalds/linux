@@ -59,7 +59,7 @@
 #define RGA2_TEST_FLUSH_TIME 0
 #define RGA2_INFO_BUS_ERROR 1
 #define RGA2_POWER_OFF_DELAY	4*HZ /* 4s */
-#define RGA2_TIMEOUT_DELAY	(HZ / 10) /* 100ms */
+#define RGA2_TIMEOUT_DELAY	(HZ / 5) /* 200ms */
 #define RGA2_MAJOR		255
 #define RGA2_RESET_TIMEOUT	1000
 
@@ -908,13 +908,18 @@ retry:
 		return ret;
 
 	if (rk3368)
-		ret_timeout = wait_event_timeout(session->wait, atomic_read(&session->done), RGA2_TIMEOUT_DELAY/2);
+		ret_timeout = wait_event_timeout(session->wait,
+						 atomic_read(&session->done),
+						 RGA2_TIMEOUT_DELAY / 4);
 	else
-		ret_timeout = wait_event_timeout(session->wait, atomic_read(&session->done), RGA2_TIMEOUT_DELAY);
+		ret_timeout = wait_event_timeout(session->wait,
+						 atomic_read(&session->done),
+						 RGA2_TIMEOUT_DELAY);
 
 	if (unlikely(ret_timeout< 0))
 	{
-		//pr_err("sync pid %d wait task ret %d\n", session->pid, ret_timeout);
+		pr_err("Rga sync pid %d wait task ret %d\n", session->pid,
+			ret_timeout);
 		mutex_lock(&rga2_service.lock);
 		rga2_del_running_list();
 		mutex_unlock(&rga2_service.lock);
@@ -922,7 +927,8 @@ retry:
 	}
 	else if (0 == ret_timeout)
 	{
-		//pr_err("sync pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
+		pr_err("Rga sync pid %d wait %d task done timeout\n",
+			session->pid, atomic_read(&session->task_running));
 		mutex_lock(&rga2_service.lock);
 		rga2_del_running_list_timeout();
 		rga2_try_set_reg();
@@ -1343,6 +1349,12 @@ static irqreturn_t rga2_irq_thread(int irq, void *dev_id)
 
 static irqreturn_t rga2_irq(int irq,  void *dev_id)
 {
+	/*if error interrupt then soft reset hardware*/
+	if (rga2_read(RGA2_INT) & 0x01) {
+		pr_err("Rga err irq! INT[%x],STATS[%x]\n",
+		       rga2_read(RGA2_INT), rga2_read(RGA2_STATUS));
+		rga2_soft_reset();
+	}
 	/*clear INT */
 	rga2_write(rga2_read(RGA2_INT) | (0x1<<4) | (0x1<<5) | (0x1<<6) | (0x1<<7), RGA2_INT);
 
