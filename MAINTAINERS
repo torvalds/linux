@@ -8300,7 +8300,7 @@ F:	include/linux/libata.h
 F:	Documentation/devicetree/bindings/ata/
 
 LIBLOCKDEP
-M:	Sasha Levin <alexander.levin@verizon.com>
+M:	Sasha Levin <alexander.levin@microsoft.com>
 S:	Maintained
 F:	tools/lib/lockdep/
 
