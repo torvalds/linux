@@ -317,6 +317,7 @@ again:
 	down_read(&c->commit_sem);
 	err = reserve_space(c, jhead, len);
 	if (!err)
+		/* c->commit_sem will get released via finish_reservation(). */
 		return 0;
 	up_read(&c->commit_sem);
 
