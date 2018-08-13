@@ -177,7 +177,7 @@ static inline time64_t ktime_get_clocktai_seconds(void)
 extern bool timekeeping_rtc_skipsuspend(void);
 extern bool timekeeping_rtc_skipresume(void);
 
-extern void timekeeping_inject_sleeptime64(struct timespec64 *delta);
+extern void timekeeping_inject_sleeptime64(const struct timespec64 *delta);
 
 /*
  * struct system_time_snapshot - simultaneous raw/real time capture with

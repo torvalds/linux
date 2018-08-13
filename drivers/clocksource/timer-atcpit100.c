@@ -185,7 +185,7 @@ static struct timer_of to = {
 		.set_state_oneshot = atcpit100_clkevt_set_oneshot,
 		.tick_resume = atcpit100_clkevt_shutdown,
 		.set_next_event = atcpit100_clkevt_next_event,
-		.cpumask = cpu_all_mask,
+		.cpumask = cpu_possible_mask,
 	},
 
 	.of_irq = {
