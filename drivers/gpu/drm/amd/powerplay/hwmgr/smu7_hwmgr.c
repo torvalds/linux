@@ -4857,6 +4857,7 @@ static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 			podn_vdd_dep_in_backend->entries[input_level].clk = input_clk;
 			podn_dpm_table_in_backend->entries[input_level].vddc = input_vol;
 			podn_vdd_dep_in_backend->entries[input_level].vddc = input_vol;
+			podn_vdd_dep_in_backend->entries[input_level].vddgfx = input_vol;
 		} else {
 			return -EINVAL;
 		}
