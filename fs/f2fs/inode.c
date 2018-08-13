@@ -659,12 +659,11 @@ retry:
 	if (F2FS_HAS_BLOCKS(inode))
 		err = f2fs_truncate(inode);
 
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_EVICT_INODE)) {
 		f2fs_show_injection_info(FAULT_EVICT_INODE);
 		err = -EIO;
 	}
-#endif
+
 	if (!err) {
 		f2fs_lock_op(sbi);
 		err = f2fs_remove_inode_page(inode);

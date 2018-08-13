@@ -518,10 +518,9 @@ retry_dn:
 
 			if (src == NULL_ADDR) {
 				err = f2fs_reserve_new_block(&dn);
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-				while (err)
+				while (err &&
+				       IS_ENABLED(CONFIG_F2FS_FAULT_INJECTION))
 					err = f2fs_reserve_new_block(&dn);
-#endif
 				/* We should not get -ENOSPC */
 				f2fs_bug_on(sbi, err);
 				if (err)

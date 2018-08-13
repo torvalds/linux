@@ -41,7 +41,6 @@
 	} while (0)
 #endif
 
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 enum {
 	FAULT_KMALLOC,
 	FAULT_KVMALLOC,
@@ -60,6 +59,7 @@ enum {
 	FAULT_MAX,
 };
 
+#ifdef CONFIG_F2FS_FAULT_INJECTION
 #define F2FS_ALL_FAULT_TYPE		((1 << FAULT_MAX) - 1)
 
 struct f2fs_fault_info {
@@ -1324,6 +1324,12 @@ static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 	}
 	return false;
 }
+#else
+#define f2fs_show_injection_info(type) do { } while (0)
+static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
+{
+	return false;
+}
 #endif
 
 /* For write statistics. Suppose sector size is 512 bytes,
@@ -1676,13 +1682,12 @@ static inline int inc_valid_block_count(struct f2fs_sb_info *sbi,
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_BLOCK)) {
 		f2fs_show_injection_info(FAULT_BLOCK);
 		release = *count;
 		goto enospc;
 	}
-#endif
+
 	/*
 	 * let's increase this in prior to actual block count change in order
 	 * for f2fs_sync_file to avoid data races when deciding checkpoint.
@@ -1891,12 +1896,10 @@ static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 			return ret;
 	}
 
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_BLOCK)) {
 		f2fs_show_injection_info(FAULT_BLOCK);
 		goto enospc;
 	}
-#endif
 
 	spin_lock(&sbi->stat_lock);
 
@@ -1981,22 +1984,23 @@ static inline s64 valid_inode_count(struct f2fs_sb_info *sbi)
 static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
 						pgoff_t index, bool for_write)
 {
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	struct page *page;
 
-	if (!for_write)
-		page = find_get_page_flags(mapping, index,
-						FGP_LOCK | FGP_ACCESSED);
-	else
-		page = find_lock_page(mapping, index);
-	if (page)
-		return page;
+	if (IS_ENABLED(CONFIG_F2FS_FAULT_INJECTION)) {
+		if (!for_write)
+			page = find_get_page_flags(mapping, index,
+							FGP_LOCK | FGP_ACCESSED);
+		else
+			page = find_lock_page(mapping, index);
+		if (page)
+			return page;
 
-	if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_ALLOC)) {
-		f2fs_show_injection_info(FAULT_PAGE_ALLOC);
-		return NULL;
+		if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_ALLOC)) {
+			f2fs_show_injection_info(FAULT_PAGE_ALLOC);
+			return NULL;
+		}
 	}
-#endif
+
 	if (!for_write)
 		return grab_cache_page(mapping, index);
 	return grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
@@ -2006,12 +2010,11 @@ static inline struct page *f2fs_pagecache_get_page(
 				struct address_space *mapping, pgoff_t index,
 				int fgp_flags, gfp_t gfp_mask)
 {
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_GET)) {
 		f2fs_show_injection_info(FAULT_PAGE_GET);
 		return NULL;
 	}
-#endif
+
 	return pagecache_get_page(mapping, index, fgp_flags, gfp_mask);
 }
 
@@ -2076,12 +2079,11 @@ static inline struct bio *f2fs_bio_alloc(struct f2fs_sb_info *sbi,
 			bio = bio_alloc(GFP_NOIO | __GFP_NOFAIL, npages);
 		return bio;
 	}
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_ALLOC_BIO)) {
 		f2fs_show_injection_info(FAULT_ALLOC_BIO);
 		return NULL;
 	}
-#endif
+
 	return bio_alloc(GFP_KERNEL, npages);
 }
 
@@ -2616,12 +2618,11 @@ static inline bool f2fs_may_extent_tree(struct inode *inode)
 static inline void *f2fs_kmalloc(struct f2fs_sb_info *sbi,
 					size_t size, gfp_t flags)
 {
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_KMALLOC)) {
 		f2fs_show_injection_info(FAULT_KMALLOC);
 		return NULL;
 	}
-#endif
+
 	return kmalloc(size, flags);
 }
 
@@ -2634,12 +2635,11 @@ static inline void *f2fs_kzalloc(struct f2fs_sb_info *sbi,
 static inline void *f2fs_kvmalloc(struct f2fs_sb_info *sbi,
 					size_t size, gfp_t flags)
 {
-#ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_KVMALLOC)) {
 		f2fs_show_injection_info(FAULT_KVMALLOC);
 		return NULL;
 	}
-#endif
+
 	return kvmalloc(size, flags);
 }
 
