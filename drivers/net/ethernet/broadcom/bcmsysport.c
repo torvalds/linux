@@ -2585,7 +2585,6 @@ static int bcm_sysport_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int bcm_sysport_suspend_to_wol(struct bcm_sysport_priv *priv)
 {
 	struct net_device *ndev = priv->netdev;
@@ -2650,7 +2649,7 @@ static int bcm_sysport_suspend_to_wol(struct bcm_sysport_priv *priv)
 	return 0;
 }
 
-static int bcm_sysport_suspend(struct device *d)
+static int __maybe_unused bcm_sysport_suspend(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
@@ -2712,7 +2711,7 @@ static int bcm_sysport_suspend(struct device *d)
 	return ret;
 }
 
-static int bcm_sysport_resume(struct device *d)
+static int __maybe_unused bcm_sysport_resume(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
@@ -2805,7 +2804,6 @@ out_free_tx_rings:
 		bcm_sysport_fini_tx_ring(priv, i);
 	return ret;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(bcm_sysport_pm_ops,
 		bcm_sysport_suspend, bcm_sysport_resume);
