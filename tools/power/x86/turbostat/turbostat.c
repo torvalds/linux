@@ -3465,7 +3465,7 @@ dump_sysfs_pstate_config(void)
 			base_cpu);
 	input = fopen(path, "r");
 	if (input == NULL) {
-		fprintf(stderr, "NSFOD %s\n", path);
+		fprintf(outf, "NSFOD %s\n", path);
 		return;
 	}
 	fgets(driver_buf, sizeof(driver_buf), input);
@@ -3475,7 +3475,7 @@ dump_sysfs_pstate_config(void)
 			base_cpu);
 	input = fopen(path, "r");
 	if (input == NULL) {
-		fprintf(stderr, "NSFOD %s\n", path);
+		fprintf(outf, "NSFOD %s\n", path);
 		return;
 	}
 	fgets(governor_buf, sizeof(governor_buf), input);
