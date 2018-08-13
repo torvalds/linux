@@ -2900,7 +2900,6 @@ static int bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
 	struct coredump_segment_record *seg_record = NULL;
 	u32 offset = 0, seg_hdr_len, seg_record_len;
 	struct bnxt_coredump_segment_hdr seg_hdr;
-	struct bnxt_coredump_record coredump_rec;
 	struct bnxt_coredump coredump = {NULL};
 	time64_t start_time;
 	u16 start_utc;
@@ -2976,14 +2975,12 @@ next_seg:
 	}
 
 err:
-	if (buf) {
-		bnxt_fill_coredump_record(bp, &coredump_rec, start_time,
+	if (buf)
+		bnxt_fill_coredump_record(bp, buf + offset, start_time,
 					  start_utc, coredump.total_segs + 1,
 					  rc);
-		memcpy(buf + offset, &coredump_rec, sizeof(coredump_rec));
-	}
 	kfree(coredump.data);
-	*dump_len += sizeof(coredump_rec);
+	*dump_len += sizeof(struct bnxt_coredump_record);
 
 	return rc;
 }
