@@ -64,6 +64,8 @@ struct torture_random_state {
 	long trs_count;
 };
 #define DEFINE_TORTURE_RANDOM(name) struct torture_random_state name = { 0, 0 }
+#define DEFINE_TORTURE_RANDOM_PERCPU(name) \
+	DEFINE_PER_CPU(struct torture_random_state, name)
 unsigned long torture_random(struct torture_random_state *trsp);
 
 /* Task shuffler, which causes CPUs to occasionally go idle. */
@@ -79,7 +81,7 @@ void stutter_wait(const char *title);
 int torture_stutter_init(int s);
 
 /* Initialization and cleanup. */
-bool torture_init_begin(char *ttype, bool v);
+bool torture_init_begin(char *ttype, int v);
 void torture_init_end(void);
 bool torture_cleanup_begin(void);
 void torture_cleanup_end(void);
