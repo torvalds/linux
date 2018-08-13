@@ -75,54 +75,54 @@ static inline void set_fs(mm_segment_t fs)
  * versions are void (ie, don't return a value as such).
  */
 
-#define get_user(x, ptr)						\
-({									\
-	long __e = -EFAULT;						\
-	const __typeof__(*(ptr)) __user *__p = (ptr);			\
-	if (likely(access_ok(VERIFY_READ, __p, sizeof(*__p)))) {	\
-		__e = __get_user(x, __p);				\
-	} else {							\
-		(x) = 0;						\
-	}								\
-	__e;								\
-})
+#define get_user	__get_user					\
 
 #define __get_user(x, ptr)						\
 ({									\
 	long __gu_err = 0;						\
-	__get_user_err((x), (ptr), __gu_err);				\
+	__get_user_check((x), (ptr), __gu_err);				\
 	__gu_err;							\
 })
 
 #define __get_user_error(x, ptr, err)					\
 ({									\
-	__get_user_err((x), (ptr), err);				\
+	__get_user_check((x), (ptr), (err));				\
 	(void)0;							\
+})
+
+#define __get_user_check(x, ptr, err)					\
+({									\
+	const __typeof__(*(ptr)) __user *__p = (ptr);			\
+	might_fault();							\
+	if (access_ok(VERIFY_READ, __p, sizeof(*__p))) {		\
+		__get_user_err((x), __p, (err));			\
+	} else {							\
+		(x) = 0; (err) = -EFAULT;				\
+	}								\
 })
 
 #define __get_user_err(x, ptr, err)					\
 do {									\
-	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
 	unsigned long __gu_val;						\
-	__chk_user_ptr(__gu_addr);					\
-	switch (sizeof(*(__gu_addr))) {					\
+	__chk_user_ptr(ptr);						\
+	switch (sizeof(*(ptr))) {					\
 	case 1:								\
-		__get_user_asm("lbi", __gu_val, __gu_addr, (err));	\
+		__get_user_asm("lbi", __gu_val, (ptr), (err));		\
 		break;							\
 	case 2:								\
-		__get_user_asm("lhi", __gu_val, __gu_addr, (err));	\
+		__get_user_asm("lhi", __gu_val, (ptr), (err));		\
 		break;							\
 	case 4:								\
-		__get_user_asm("lwi", __gu_val, __gu_addr, (err));	\
+		__get_user_asm("lwi", __gu_val, (ptr), (err));		\
 		break;							\
 	case 8:								\
-		__get_user_asm_dword(__gu_val, __gu_addr, (err));	\
+		__get_user_asm_dword(__gu_val, (ptr), (err));		\
 		break;							\
 	default:							\
 		BUILD_BUG(); 						\
 		break;							\
 	}								\
-	(x) = (__typeof__(*(__gu_addr)))__gu_val;			\
+	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
 
 #define __get_user_asm(inst, x, addr, err)				\
@@ -170,15 +170,7 @@ do {									\
 		: "r"(addr), "i"(-EFAULT)				\
 		: "cc")
 
-#define put_user(x, ptr)						\
-({									\
-	long __e = -EFAULT;						\
-	__typeof__(*(ptr)) __user *__p = (ptr);				\
-	if (likely(access_ok(VERIFY_WRITE, __p, sizeof(*__p)))) {	\
-		__e = __put_user(x, __p);				\
-	}								\
-	__e;								\
-})
+#define put_user	__put_user					\
 
 #define __put_user(x, ptr)						\
 ({									\
@@ -189,27 +181,37 @@ do {									\
 
 #define __put_user_error(x, ptr, err)					\
 ({									\
-	__put_user_err((x), (ptr), err);				\
+	__put_user_err((x), (ptr), (err));				\
 	(void)0;							\
+})
+
+#define __put_user_check(x, ptr, err)					\
+({									\
+	__typeof__(*(ptr)) __user *__p = (ptr);				\
+	might_fault();							\
+	if (access_ok(VERIFY_WRITE, __p, sizeof(*__p))) {		\
+		__put_user_err((x), __p, (err));			\
+	} else	{							\
+		(err) = -EFAULT;					\
+	}								\
 })
 
 #define __put_user_err(x, ptr, err)					\
 do {									\
-	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
-	__typeof__(*(__pu_addr)) __pu_val = (x);			\
-	__chk_user_ptr(__pu_addr);					\
-	switch (sizeof(*(__pu_addr))) {					\
+	__typeof__(*(ptr)) __pu_val = (x);				\
+	__chk_user_ptr(ptr);						\
+	switch (sizeof(*(ptr))) {					\
 	case 1:								\
-		__put_user_asm("sbi", __pu_val, __pu_addr, (err));	\
+		__put_user_asm("sbi", __pu_val, (ptr), (err));		\
 		break;							\
 	case 2: 							\
-		__put_user_asm("shi", __pu_val, __pu_addr, (err));	\
+		__put_user_asm("shi", __pu_val, (ptr), (err));		\
 		break;							\
 	case 4: 							\
-		__put_user_asm("swi", __pu_val, __pu_addr, (err));	\
+		__put_user_asm("swi", __pu_val, (ptr), (err));		\
 		break;							\
 	case 8:								\
-		__put_user_asm_dword(__pu_val, __pu_addr, (err));	\
+		__put_user_asm_dword(__pu_val, (ptr), (err));		\
 		break;							\
 	default:							\
 		BUILD_BUG(); 						\
