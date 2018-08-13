@@ -114,6 +114,7 @@ struct virtio_gpu_output {
 	struct virtio_gpu_update_cursor cursor;
 	int cur_x;
 	int cur_y;
+	bool enabled;
 };
 #define drm_crtc_to_virtio_gpu_output(x) \
 	container_of(x, struct virtio_gpu_output, crtc)

@@ -152,7 +152,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 	if (WARN_ON(!output))
 		return;
 
-	if (plane->state->fb) {
+	if (plane->state->fb && output->enabled) {
 		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
 		bo = gem_to_virtio_gpu_obj(vgfb->base.obj[0]);
 		handle = bo->hw_res_handle;
