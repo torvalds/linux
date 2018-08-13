@@ -267,6 +267,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 #else
 	int split_text_mapping = 0;
 #endif
+	int psize;
 
 	start = _ALIGN_UP(start, PAGE_SIZE);
 	for (addr = start; addr < end; addr += mapping_size) {
@@ -280,13 +281,17 @@ static int __meminit create_physical_mapping(unsigned long start,
 retry:
 		if (IS_ALIGNED(addr, PUD_SIZE) && gap >= PUD_SIZE &&
 		    mmu_psize_defs[MMU_PAGE_1G].shift &&
-		    PUD_SIZE <= max_mapping_size)
+		    PUD_SIZE <= max_mapping_size) {
 			mapping_size = PUD_SIZE;
-		else if (IS_ALIGNED(addr, PMD_SIZE) && gap >= PMD_SIZE &&
-			 mmu_psize_defs[MMU_PAGE_2M].shift)
+			psize = MMU_PAGE_1G;
+		} else if (IS_ALIGNED(addr, PMD_SIZE) && gap >= PMD_SIZE &&
+			   mmu_psize_defs[MMU_PAGE_2M].shift) {
 			mapping_size = PMD_SIZE;
-		else
+			psize = MMU_PAGE_2M;
+		} else {
 			mapping_size = PAGE_SIZE;
+			psize = mmu_virtual_psize;
+		}
 
 		if (split_text_mapping && (mapping_size == PUD_SIZE) &&
 			(addr <= __pa_symbol(__init_begin)) &&
@@ -297,8 +302,10 @@ retry:
 
 		if (split_text_mapping && (mapping_size == PMD_SIZE) &&
 		    (addr <= __pa_symbol(__init_begin)) &&
-		    (addr + mapping_size) >= __pa_symbol(_stext))
+		    (addr + mapping_size) >= __pa_symbol(_stext)) {
 			mapping_size = PAGE_SIZE;
+			psize = mmu_virtual_psize;
+		}
 
 		if (mapping_size != previous_size) {
 			print_mapping(start, addr, previous_size);
@@ -316,6 +323,8 @@ retry:
 		rc = __map_kernel_page(vaddr, addr, prot, mapping_size, nid, start, end);
 		if (rc)
 			return rc;
+
+		update_page_count(psize, 1);
 	}
 
 	print_mapping(start, addr, mapping_size);

@@ -227,4 +227,11 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 
 #define check_pgt_cache()	do { } while (0)
 
+extern atomic_long_t direct_pages_count[MMU_PAGE_COUNT];
+static inline void update_page_count(int psize, long count)
+{
+	if (IS_ENABLED(CONFIG_PROC_FS))
+		atomic_long_add(count, &direct_pages_count[psize]);
+}
+
 #endif /* _ASM_POWERPC_BOOK3S_64_PGALLOC_H */
