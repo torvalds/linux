@@ -831,6 +831,4 @@ struct wilc;
 int wilc_wlan_init(struct net_device *dev);
 u32 wilc_get_chipid(struct wilc *wilc, bool update);
 
-int wilc_debugfs_init(void);
-void wilc_debugfs_remove(void);
 #endif
