@@ -1819,7 +1819,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	/* Switch away from any user context. */
 	ret = gen8_switch_to_updated_kernel_context(dev_priv, oa_config);
 	if (ret)
-		goto out;
+		return ret;
 
 	/*
 	 * The OA register config is setup through the context image. This image
@@ -1838,7 +1838,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				     wait_flags,
 				     MAX_SCHEDULE_TIMEOUT);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
@@ -1850,10 +1850,8 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 			continue;
 
 		regs = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
-		if (IS_ERR(regs)) {
-			ret = PTR_ERR(regs);
-			goto out;
-		}
+		if (IS_ERR(regs))
+			return PTR_ERR(regs);
 
 		ce->state->obj->mm.dirty = true;
 		regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
@@ -1863,7 +1861,6 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		i915_gem_object_unpin_map(ce->state->obj);
 	}
 
- out:
 	return ret;
 }
 
