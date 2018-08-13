@@ -2297,6 +2297,52 @@ static const struct file_operations fops_tpc_stats_final = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_write_warm_hw_reset(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	int ret;
+	bool val;
+
+	if (kstrtobool_from_user(user_buf, count, &val))
+		return -EFAULT;
+
+	if (!val)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	if (!(test_bit(WMI_SERVICE_RESET_CHIP, ar->wmi.svc_map)))
+		ath10k_warn(ar, "wmi service for reset chip is not available\n");
+
+	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->pdev_reset,
+					WMI_RST_MODE_WARM_RESET);
+
+	if (ret) {
+		ath10k_warn(ar, "failed to enable warm hw reset: %d\n", ret);
+		goto exit;
+	}
+
+	ret = count;
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static const struct file_operations fops_warm_hw_reset = {
+	.write = ath10k_write_warm_hw_reset,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.cal_data = vzalloc(ATH10K_DEBUG_CAL_DATA_LEN);
@@ -2424,6 +2470,9 @@ int ath10k_debug_register(struct ath10k *ar)
 		debugfs_create_file("tpc_stats_final", 0400,
 				    ar->debug.debugfs_phy, ar,
 				    &fops_tpc_stats_final);
+
+	debugfs_create_file("warm_hw_reset", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_warm_hw_reset);
 
 	return 0;
 }

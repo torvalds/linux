@@ -500,6 +500,11 @@ static inline int wil_rxdesc_ext_subtype(struct vring_rx_desc *d)
 	return WIL_GET_BITS(d->mac.d0, 28, 31);
 }
 
+static inline int wil_rxdesc_retry(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d0, 31, 31);
+}
+
 static inline int wil_rxdesc_key_id(struct vring_rx_desc *d)
 {
 	return WIL_GET_BITS(d->mac.d1, 4, 5);
@@ -615,5 +620,7 @@ void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 			   struct wil_tid_ampdu_rx *r);
 void wil_tx_data_init(struct wil_ring_tx_data *txdata);
 void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil);
+void wil_tx_latency_calc(struct wil6210_priv *wil, struct sk_buff *skb,
+			 struct wil_sta_info *sta);
 
 #endif /* WIL6210_TXRX_H */

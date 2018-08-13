@@ -281,6 +281,12 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct wil_ring *vring,
 	skb_reserve(skb, headroom);
 	skb_put(skb, sz);
 
+	/**
+	 * Make sure that the network stack calculates checksum for packets
+	 * which failed the HW checksum calculation
+	 */
+	skb->ip_summed = CHECKSUM_NONE;
+
 	pa = dma_map_single(dev, skb->data, skb->len, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(dev, pa))) {
 		kfree_skb(skb);
@@ -569,6 +575,8 @@ again:
 		 * mis-calculates TCP checksum - if it should be 0x0,
 		 * it writes 0xffff in violation of RFC 1624
 		 */
+		else
+			stats->rx_csum_err++;
 	}
 
 	if (snaplen) {
@@ -678,6 +686,21 @@ static int wil_rx_crypto_check(struct wil6210_priv *wil, struct sk_buff *skb)
 	return 0;
 }
 
+static int wil_rx_error_check(struct wil6210_priv *wil, struct sk_buff *skb,
+			      struct wil_net_stats *stats)
+{
+	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
+
+	if ((d->dma.status & RX_DMA_STATUS_ERROR) &&
+	    (d->dma.error & RX_DMA_ERROR_MIC)) {
+		stats->rx_mic_error++;
+		wil_dbg_txrx(wil, "MIC error, dropping packet\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static void wil_get_netif_rx_params(struct sk_buff *skb, int *cid,
 				    int *security)
 {
@@ -734,6 +757,12 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		dev_kfree_skb(skb);
 		stats->rx_replay++;
 		goto stats;
+	}
+
+	/* check errors reported by HW and update statistics */
+	if (unlikely(wil->txrx_ops.rx_error_check(wil, skb, stats))) {
+		dev_kfree_skb(skb);
+		return;
 	}
 
 	if (wdev->iftype == NL80211_IFTYPE_AP && !vif->ap_isolate) {
@@ -1672,6 +1701,11 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	 */
 	wmb();
 
+	if (wil->tx_latency)
+		*(ktime_t *)&skb->cb = ktime_get();
+	else
+		memset(skb->cb, 0, sizeof(ktime_t));
+
 	wil_w(wil, vring->hwtail, vring->swhead);
 	return 0;
 
@@ -1822,6 +1856,11 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	 * committing them to HW
 	 */
 	wmb();
+
+	if (wil->tx_latency)
+		*(ktime_t *)&skb->cb = ktime_get();
+	else
+		memset(skb->cb, 0, sizeof(ktime_t));
 
 	wil_w(wil, ring->hwtail, ring->swhead);
 
@@ -2044,6 +2083,31 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NET_XMIT_DROP;
 }
 
+void wil_tx_latency_calc(struct wil6210_priv *wil, struct sk_buff *skb,
+			 struct wil_sta_info *sta)
+{
+	int skb_time_us;
+	int bin;
+
+	if (!wil->tx_latency)
+		return;
+
+	if (ktime_to_ms(*(ktime_t *)&skb->cb) == 0)
+		return;
+
+	skb_time_us = ktime_us_delta(ktime_get(), *(ktime_t *)&skb->cb);
+	bin = skb_time_us / wil->tx_latency_res;
+	bin = min_t(int, bin, WIL_NUM_LATENCY_BINS - 1);
+
+	wil_dbg_txrx(wil, "skb time %dus => bin %d\n", skb_time_us, bin);
+	sta->tx_latency_bins[bin]++;
+	sta->stats.tx_latency_total_us += skb_time_us;
+	if (skb_time_us < sta->stats.tx_latency_min_us)
+		sta->stats.tx_latency_min_us = skb_time_us;
+	if (skb_time_us > sta->stats.tx_latency_max_us)
+		sta->stats.tx_latency_max_us = skb_time_us;
+}
+
 /**
  * Clean up transmitted skb's from the Tx VRING
  *
@@ -2130,6 +2194,9 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 					if (stats) {
 						stats->tx_packets++;
 						stats->tx_bytes += skb->len;
+
+						wil_tx_latency_calc(wil, skb,
+							&wil->sta[cid]);
 					}
 				} else {
 					ndev->stats.tx_errors++;
@@ -2180,7 +2247,7 @@ static inline void wil_tx_fini(struct wil6210_priv *wil) {}
 
 static void wil_get_reorder_params(struct wil6210_priv *wil,
 				   struct sk_buff *skb, int *tid, int *cid,
-				   int *mid, u16 *seq, int *mcast)
+				   int *mid, u16 *seq, int *mcast, int *retry)
 {
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
 
@@ -2189,6 +2256,7 @@ static void wil_get_reorder_params(struct wil6210_priv *wil,
 	*mid = wil_rxdesc_mid(d);
 	*seq = wil_rxdesc_seq(d);
 	*mcast = wil_rxdesc_mcast(d);
+	*retry = wil_rxdesc_retry(d);
 }
 
 void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil)
@@ -2211,6 +2279,7 @@ void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil)
 	wil->txrx_ops.get_netif_rx_params =
 		wil_get_netif_rx_params;
 	wil->txrx_ops.rx_crypto_check = wil_rx_crypto_check;
+	wil->txrx_ops.rx_error_check = wil_rx_error_check;
 	wil->txrx_ops.is_rx_idle = wil_is_rx_idle;
 	wil->txrx_ops.rx_fini = wil_rx_fini;
 }

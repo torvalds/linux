@@ -699,6 +699,7 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define TARGET_TLV_NUM_TIDS			((TARGET_TLV_NUM_PEERS) * 2)
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
 #define TARGET_TLV_NUM_WOW_PATTERNS		22
+#define TARGET_TLV_MGMT_NUM_MSDU_DESC		(50)
 
 /* Target specific defines for WMI-HL-1.0 firmware */
 #define TARGET_HL_10_TLV_NUM_PEERS		14

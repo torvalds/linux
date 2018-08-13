@@ -625,6 +625,15 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 
 	wil6210_unmask_irq_misc(wil, false);
 
+	/* in non-triple MSI case, this is done inside wil6210_thread_irq
+	 * because it has to be done after unmasking the pseudo.
+	 */
+	if (wil->n_msi == 3 && wil->suspend_resp_rcvd) {
+		wil_dbg_irq(wil, "set suspend_resp_comp to true\n");
+		wil->suspend_resp_comp = true;
+		wake_up_interruptible(&wil->wq);
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -782,6 +791,40 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	return rc;
 }
 
+static int wil6210_request_3msi(struct wil6210_priv *wil, int irq)
+{
+	int rc;
+
+	/* IRQ's are in the following order:
+	 * - Tx
+	 * - Rx
+	 * - Misc
+	 */
+	rc = request_irq(irq, wil->txrx_ops.irq_tx, IRQF_SHARED,
+			 WIL_NAME "_tx", wil);
+	if (rc)
+		return rc;
+
+	rc = request_irq(irq + 1, wil->txrx_ops.irq_rx, IRQF_SHARED,
+			 WIL_NAME "_rx", wil);
+	if (rc)
+		goto free0;
+
+	rc = request_threaded_irq(irq + 2, wil6210_irq_misc,
+				  wil6210_irq_misc_thread,
+				  IRQF_SHARED, WIL_NAME "_misc", wil);
+	if (rc)
+		goto free1;
+
+	return 0;
+free1:
+	free_irq(irq + 1, wil);
+free0:
+	free_irq(irq, wil);
+
+	return rc;
+}
+
 /* can't use wil_ioread32_and_clear because ICC value is not set yet */
 static inline void wil_clear32(void __iomem *addr)
 {
@@ -822,11 +865,12 @@ void wil6210_clear_halp(struct wil6210_priv *wil)
 	wil6210_unmask_halp(wil);
 }
 
-int wil6210_init_irq(struct wil6210_priv *wil, int irq, bool use_msi)
+int wil6210_init_irq(struct wil6210_priv *wil, int irq)
 {
 	int rc;
 
-	wil_dbg_misc(wil, "init_irq: %s\n", use_msi ? "MSI" : "INTx");
+	wil_dbg_misc(wil, "init_irq: %s, n_msi=%d\n",
+		     wil->n_msi ? "MSI" : "INTx", wil->n_msi);
 
 	if (wil->use_enhanced_dma_hw) {
 		wil->txrx_ops.irq_tx = wil6210_irq_tx_edma;
@@ -835,10 +879,14 @@ int wil6210_init_irq(struct wil6210_priv *wil, int irq, bool use_msi)
 		wil->txrx_ops.irq_tx = wil6210_irq_tx;
 		wil->txrx_ops.irq_rx = wil6210_irq_rx;
 	}
-	rc = request_threaded_irq(irq, wil6210_hardirq,
-				  wil6210_thread_irq,
-				  use_msi ? 0 : IRQF_SHARED,
-				  WIL_NAME, wil);
+
+	if (wil->n_msi == 3)
+		rc = wil6210_request_3msi(wil, irq);
+	else
+		rc = request_threaded_irq(irq, wil6210_hardirq,
+					  wil6210_thread_irq,
+					  wil->n_msi ? 0 : IRQF_SHARED,
+					  WIL_NAME, wil);
 	return rc;
 }
 
@@ -848,4 +896,8 @@ void wil6210_fini_irq(struct wil6210_priv *wil, int irq)
 
 	wil_mask_irq(wil);
 	free_irq(irq, wil);
+	if (wil->n_msi == 3) {
+		free_irq(irq + 1, wil);
+		free_irq(irq + 2, wil);
+	}
 }

@@ -186,6 +186,11 @@ struct ath10k_wmi {
 	const struct wmi_ops *ops;
 	const struct wmi_peer_flags_map *peer_flags;
 
+	u32 mgmt_max_num_pending_tx;
+
+	/* Protected by data_lock */
+	struct idr mgmt_pending_tx;
+
 	u32 num_mem_chunks;
 	u32 rx_decap_mode;
 	struct ath10k_mem_chunk mem_chunks[WMI_MAX_MEM_REQS];

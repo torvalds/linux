@@ -6926,14 +6926,14 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	cfg->d11inf.io_type = (u8)io_type;
 	brcmu_d11_attach(&cfg->d11inf);
 
-	err = brcmf_setup_wiphy(wiphy, ifp);
-	if (err < 0)
-		goto priv_out;
-
 	/* regulatory notifer below needs access to cfg so
 	 * assign it now.
 	 */
 	drvr->config = cfg;
+
+	err = brcmf_setup_wiphy(wiphy, ifp);
+	if (err < 0)
+		goto priv_out;
 
 	brcmf_dbg(INFO, "Registering custom regulatory\n");
 	wiphy->reg_notifier = brcmf_cfg80211_reg_notifier;

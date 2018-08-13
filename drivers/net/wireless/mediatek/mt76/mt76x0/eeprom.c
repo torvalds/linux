@@ -81,15 +81,15 @@ mt76x0_efuse_read(struct mt76x0_dev *dev, u16 addr, u8 *data,
 	return 0;
 }
 
+#define MT_MAP_READS	DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16)
 static int
 mt76x0_efuse_physical_size_check(struct mt76x0_dev *dev)
 {
-	const int map_reads = DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16);
-	u8 data[map_reads * 16];
+	u8 data[MT_MAP_READS * 16];
 	int ret, i;
 	u32 start = 0, end = 0, cnt_free;
 
-	for (i = 0; i < map_reads; i++) {
+	for (i = 0; i < MT_MAP_READS; i++) {
 		ret = mt76x0_efuse_read(dev, MT_EE_USAGE_MAP_START + i * 16,
 					 data + i * 16, MT_EE_PHYSICAL_READ);
 		if (ret)
@@ -241,7 +241,7 @@ mt76x0_set_rf_freq_off(struct mt76x0_dev *dev, u8 *eeprom)
 static void
 mt76x0_set_lna_gain(struct mt76x0_dev *dev, u8 *eeprom)
 {
-	s8 gain;
+	u8 gain;
 
 	dev->ee->lna_gain_2ghz = eeprom[MT_EE_LNA_GAIN_2GHZ];
 	dev->ee->lna_gain_5ghz[0] = eeprom[MT_EE_LNA_GAIN_5GHZ_0];

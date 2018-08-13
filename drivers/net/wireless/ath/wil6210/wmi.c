@@ -464,6 +464,10 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_BCAST_DESC_RING_ADD_CMD";
 	case WMI_CFG_DEF_RX_OFFLOAD_CMDID:
 		return "WMI_CFG_DEF_RX_OFFLOAD_CMD";
+	case WMI_LINK_STATS_CMDID:
+		return "WMI_LINK_STATS_CMD";
+	case WMI_SW_TX_REQ_EXT_CMDID:
+		return "WMI_SW_TX_REQ_EXT_CMDID";
 	default:
 		return "Untracked CMD";
 	}
@@ -598,6 +602,10 @@ static const char *eventid2name(u16 eventid)
 		return "WMI_RX_DESC_RING_CFG_DONE_EVENT";
 	case WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENTID:
 		return "WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENT";
+	case WMI_LINK_STATS_CONFIG_DONE_EVENTID:
+		return "WMI_LINK_STATS_CONFIG_DONE_EVENT";
+	case WMI_LINK_STATS_EVENTID:
+		return "WMI_LINK_STATS_EVENT";
 	default:
 		return "Untracked EVENT";
 	}
@@ -1329,6 +1337,130 @@ wmi_evt_sched_scan_result(struct wil6210_vif *vif, int id, void *d, int len)
 	cfg80211_sched_scan_results(wiphy, 0);
 }
 
+static void wil_link_stats_store_basic(struct wil6210_vif *vif,
+				       struct wmi_link_stats_basic *basic)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	u8 cid = basic->cid;
+	struct wil_sta_info *sta;
+
+	if (cid < 0 || cid >= WIL6210_MAX_CID) {
+		wil_err(wil, "invalid cid %d\n", cid);
+		return;
+	}
+
+	sta = &wil->sta[cid];
+	sta->fw_stats_basic = *basic;
+}
+
+static void wil_link_stats_store_global(struct wil6210_vif *vif,
+					struct wmi_link_stats_global *global)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	wil->fw_stats_global.stats = *global;
+}
+
+static void wmi_link_stats_parse(struct wil6210_vif *vif, u64 tsf,
+				 bool has_next, void *payload,
+				 size_t payload_size)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	size_t hdr_size = sizeof(struct wmi_link_stats_record);
+	size_t stats_size, record_size, expected_size;
+	struct wmi_link_stats_record *hdr;
+
+	if (payload_size < hdr_size) {
+		wil_err(wil, "link stats wrong event size %zu\n", payload_size);
+		return;
+	}
+
+	while (payload_size >= hdr_size) {
+		hdr = payload;
+		stats_size = le16_to_cpu(hdr->record_size);
+		record_size = hdr_size + stats_size;
+
+		if (payload_size < record_size) {
+			wil_err(wil, "link stats payload ended unexpectedly, size %zu < %zu\n",
+				payload_size, record_size);
+			return;
+		}
+
+		switch (hdr->record_type_id) {
+		case WMI_LINK_STATS_TYPE_BASIC:
+			expected_size = sizeof(struct wmi_link_stats_basic);
+			if (stats_size < expected_size) {
+				wil_err(wil, "link stats invalid basic record size %zu < %zu\n",
+					stats_size, expected_size);
+				return;
+			}
+			if (vif->fw_stats_ready) {
+				/* clean old statistics */
+				vif->fw_stats_tsf = 0;
+				vif->fw_stats_ready = 0;
+			}
+
+			wil_link_stats_store_basic(vif, payload + hdr_size);
+
+			if (!has_next) {
+				vif->fw_stats_tsf = tsf;
+				vif->fw_stats_ready = 1;
+			}
+
+			break;
+		case WMI_LINK_STATS_TYPE_GLOBAL:
+			expected_size = sizeof(struct wmi_link_stats_global);
+			if (stats_size < sizeof(struct wmi_link_stats_global)) {
+				wil_err(wil, "link stats invalid global record size %zu < %zu\n",
+					stats_size, expected_size);
+				return;
+			}
+
+			if (wil->fw_stats_global.ready) {
+				/* clean old statistics */
+				wil->fw_stats_global.tsf = 0;
+				wil->fw_stats_global.ready = 0;
+			}
+
+			wil_link_stats_store_global(vif, payload + hdr_size);
+
+			if (!has_next) {
+				wil->fw_stats_global.tsf = tsf;
+				wil->fw_stats_global.ready = 1;
+			}
+
+			break;
+		default:
+			break;
+		}
+
+		/* skip to next record */
+		payload += record_size;
+		payload_size -= record_size;
+	}
+}
+
+static void
+wmi_evt_link_stats(struct wil6210_vif *vif, int id, void *d, int len)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct wmi_link_stats_event *evt = d;
+	size_t payload_size;
+
+	if (len < offsetof(struct wmi_link_stats_event, payload)) {
+		wil_err(wil, "stats event way too short %d\n", len);
+		return;
+	}
+	payload_size = le16_to_cpu(evt->payload_size);
+	if (len < sizeof(struct wmi_link_stats_event) + payload_size) {
+		wil_err(wil, "stats event too short %d\n", len);
+		return;
+	}
+
+	wmi_link_stats_parse(vif, le64_to_cpu(evt->tsf), evt->has_next,
+			     evt->payload, payload_size);
+}
+
 /**
  * Some events are ignored for purpose; and need not be interpreted as
  * "unhandled events"
@@ -1359,6 +1491,7 @@ static const struct {
 	{WMI_RING_EN_EVENTID,		wmi_evt_ring_en},
 	{WMI_DATA_PORT_OPEN_EVENTID,		wmi_evt_ignore},
 	{WMI_SCHED_SCAN_RESULT_EVENTID,		wmi_evt_sched_scan_result},
+	{WMI_LINK_STATS_EVENTID,		wmi_evt_link_stats},
 };
 
 /*
@@ -2983,6 +3116,60 @@ int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len)
 	return rc;
 }
 
+int wmi_mgmt_tx_ext(struct wil6210_vif *vif, const u8 *buf, size_t len,
+		    u8 channel, u16 duration_ms)
+{
+	size_t total;
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct ieee80211_mgmt *mgmt_frame = (void *)buf;
+	struct wmi_sw_tx_req_ext_cmd *cmd;
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_sw_tx_complete_event evt;
+	} __packed evt = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+	int rc;
+
+	wil_dbg_wmi(wil, "mgmt_tx_ext mid %d channel %d duration %d\n",
+		    vif->mid, channel, duration_ms);
+	wil_hex_dump_wmi("mgmt_tx_ext frame ", DUMP_PREFIX_OFFSET, 16, 1, buf,
+			 len, true);
+
+	if (len < sizeof(struct ieee80211_hdr_3addr)) {
+		wil_err(wil, "short frame. len %zu\n", len);
+		return -EINVAL;
+	}
+
+	total = sizeof(*cmd) + len;
+	if (total < len) {
+		wil_err(wil, "mgmt_tx_ext invalid len %zu\n", len);
+		return -EINVAL;
+	}
+
+	cmd = kzalloc(total, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memcpy(cmd->dst_mac, mgmt_frame->da, WMI_MAC_LEN);
+	cmd->len = cpu_to_le16(len);
+	memcpy(cmd->payload, buf, len);
+	cmd->channel = channel - 1;
+	cmd->duration_ms = cpu_to_le16(duration_ms);
+
+	rc = wmi_call(wil, WMI_SW_TX_REQ_EXT_CMDID, vif->mid, cmd, total,
+		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
+	if (!rc && evt.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "mgmt_tx_ext failed with status %d\n",
+			evt.evt.status);
+		rc = -EINVAL;
+	}
+
+	kfree(cmd);
+
+	return rc;
+}
+
 int wil_wmi_tx_sring_cfg(struct wil6210_priv *wil, int ring_id)
 {
 	int rc;
@@ -3239,6 +3426,40 @@ int wil_wmi_bcast_desc_ring_add(struct wil6210_vif *vif, int ring_id)
 	txdata->mid = vif->mid;
 	txdata->enabled = 1;
 	spin_unlock_bh(&txdata->lock);
+
+	return 0;
+}
+
+int wmi_link_stats_cfg(struct wil6210_vif *vif, u32 type, u8 cid, u32 interval)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct wmi_link_stats_cmd cmd = {
+		.record_type_mask = cpu_to_le32(type),
+		.cid = cid,
+		.action = WMI_LINK_STATS_SNAPSHOT,
+		.interval_msec = cpu_to_le32(interval),
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_link_stats_config_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+	int rc;
+
+	rc = wmi_call(wil, WMI_LINK_STATS_CMDID, vif->mid, &cmd, sizeof(cmd),
+		      WMI_LINK_STATS_CONFIG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_LINK_STATS_CMDID failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "Link statistics config failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
 
 	return 0;
 }

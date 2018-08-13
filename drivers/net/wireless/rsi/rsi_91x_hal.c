@@ -57,7 +57,6 @@ int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	struct ieee80211_vif *vif;
 	struct rsi_mgmt_desc *mgmt_desc;
 	struct skb_info *tx_params;
-	struct ieee80211_bss_conf *bss = NULL;
 	struct rsi_xtended_desc *xtend_desc = NULL;
 	u8 header_size;
 	u32 dword_align_bytes = 0;
@@ -91,7 +90,6 @@ int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 
 	tx_params->internal_hdr_size = header_size;
 	memset(&skb->data[0], 0, header_size);
-	bss = &vif->bss_conf;
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 
 	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
@@ -148,7 +146,6 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	struct ieee80211_hdr *wh = NULL;
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
-	struct ieee80211_bss_conf *bss;
 	struct rsi_data_desc *data_desc;
 	struct rsi_xtended_desc *xtend_desc;
 	u8 ieee80211_size = MIN_802_11_HDR_LEN;
@@ -159,7 +156,6 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 
 	info = IEEE80211_SKB_CB(skb);
 	vif = info->control.vif;
-	bss = &vif->bss_conf;
 	tx_params = (struct skb_info *)info->driver_data;
 
 	header_size = FRAME_DESC_SZ + sizeof(struct rsi_xtended_desc);
@@ -288,7 +284,6 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss;
-	struct ieee80211_hdr *wh;
 	int status = -EINVAL;
 	u8 header_size;
 
@@ -304,7 +299,6 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	bss = &vif->bss_conf;
 	tx_params = (struct skb_info *)info->driver_data;
 	header_size = tx_params->internal_hdr_size;
-	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 
 	if (((vif->type == NL80211_IFTYPE_STATION) ||
 	     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
@@ -747,12 +741,10 @@ static int ping_pong_write(struct rsi_hw *adapter, u8 cmd, u8 *addr, u32 size)
 static int auto_fw_upgrade(struct rsi_hw *adapter, u8 *flash_content,
 			   u32 content_size)
 {
-	u8 cmd, *temp_flash_content;
+	u8 cmd;
 	u32 temp_content_size, num_flash, index;
 	u32 flash_start_address;
 	int status;
-
-	temp_flash_content = flash_content;
 
 	if (content_size > MAX_FLASH_FILE_SIZE) {
 		rsi_dbg(ERR_ZONE,

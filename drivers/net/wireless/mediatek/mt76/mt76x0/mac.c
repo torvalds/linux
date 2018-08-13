@@ -424,8 +424,6 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
 	u8 min_factor = 3;
 	int i;
 
-	return;
-
 	rcu_read_lock();
 	for (i = 0; i < ARRAY_SIZE(dev->wcid); i++) {
 		wcid = rcu_dereference(dev->wcid[i]);
