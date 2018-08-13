@@ -346,7 +346,7 @@ static int btmtkuart_recv(struct hci_dev *hdev, const u8 *data, size_t count)
 
 		bdev->rx_skb = h4_recv_buf(bdev->hdev, bdev->rx_skb, p_h4,
 					   sz_h4, mtk_recv_pkts,
-					   sizeof(mtk_recv_pkts));
+					   ARRAY_SIZE(mtk_recv_pkts));
 		if (IS_ERR(bdev->rx_skb)) {
 			err = PTR_ERR(bdev->rx_skb);
 			bt_dev_err(bdev->hdev,
