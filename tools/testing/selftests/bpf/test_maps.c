@@ -1191,7 +1191,7 @@ static void prepare_reuseport_grp(int type, int map_fd,
 
 		err = setsockopt(fd64, SOL_SOCKET, SO_REUSEPORT,
 				 &optval, sizeof(optval));
-		CHECK(err == -1, "setsockopt(SO_REUSEEPORT)",
+		CHECK(err == -1, "setsockopt(SO_REUSEPORT)",
 		      "err:%d errno:%d\n", err, errno);
 
 		/* reuseport_array does not allow unbound sk */
