@@ -21,8 +21,6 @@
 #define _XT_OSF_H
 
 #include <linux/types.h>
-#include <linux/ip.h>
-#include <linux/tcp.h>
 #include <linux/netfilter/nfnetlink_osf.h>
 
 #define XT_OSF_GENRE		NF_OSF_GENRE
