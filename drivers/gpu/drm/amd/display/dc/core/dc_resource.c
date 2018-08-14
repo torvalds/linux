@@ -367,7 +367,7 @@ static bool is_dp_and_hdmi_sharable(
 
 	if (stream1->clamping.c_depth != COLOR_DEPTH_888 ||
 	    stream2->clamping.c_depth != COLOR_DEPTH_888)
-	return false;
+		return false;
 
 	return true;
 
