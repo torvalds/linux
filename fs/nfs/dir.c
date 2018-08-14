@@ -1643,6 +1643,7 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *dir = d_inode(parent);
 	struct inode *inode;
+	struct dentry *d;
 	int error = -EACCES;
 
 	d_drop(dentry);
@@ -1664,10 +1665,12 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 			goto out_error;
 	}
 	inode = nfs_fhget(dentry->d_sb, fhandle, fattr, label);
-	error = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	d = d_splice_alias(inode, dentry);
+	if (IS_ERR(d)) {
+		error = PTR_ERR(d);
 		goto out_error;
-	d_add(dentry, inode);
+	}
+	dput(d);
 out:
 	dput(parent);
 	return 0;

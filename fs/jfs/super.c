@@ -581,7 +581,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	inode->i_ino = 0;
 	inode->i_size = i_size_read(sb->s_bdev->bd_inode);
 	inode->i_mapping->a_ops = &jfs_metapage_aops;
-	hlist_add_fake(&inode->i_hash);
+	inode_fake_hash(inode);
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
 
 	sbi->direct_inode = inode;

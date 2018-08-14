@@ -1253,7 +1253,7 @@ xfs_setup_inode(
 
 	inode_sb_list_add(inode);
 	/* make the inode look hashed for the writeback code */
-	hlist_add_fake(&inode->i_hash);
+	inode_fake_hash(inode);
 
 	inode->i_uid    = xfs_uid_to_kuid(ip->i_d.di_uid);
 	inode->i_gid    = xfs_gid_to_kgid(ip->i_d.di_gid);
