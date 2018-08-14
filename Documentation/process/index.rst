@@ -19,6 +19,7 @@ Below are the essential guides that every developer should read.
 .. toctree::
    :maxdepth: 1
 
+   license-rules
    howto
    code-of-conflict
    development-process
