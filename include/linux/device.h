@@ -90,7 +90,7 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @num_vf:	Called to find out how many virtual functions a device on this
  *		bus supports.
  * @dma_configure:	Called to setup DMA configuration on a device on
-			this bus.
+ *			this bus.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
  * @iommu_ops:  IOMMU specific operations for this bus, used to attach IOMMU
@@ -784,14 +784,16 @@ enum device_link_state {
  * Device link flags.
  *
  * STATELESS: The core won't track the presence of supplier/consumer drivers.
- * AUTOREMOVE: Remove this link automatically on consumer driver unbind.
+ * AUTOREMOVE_CONSUMER: Remove the link automatically on consumer driver unbind.
  * PM_RUNTIME: If set, the runtime PM framework will use this link.
  * RPM_ACTIVE: Run pm_runtime_get_sync() on the supplier during link creation.
+ * AUTOREMOVE_SUPPLIER: Remove the link automatically on supplier driver unbind.
  */
-#define DL_FLAG_STATELESS	BIT(0)
-#define DL_FLAG_AUTOREMOVE	BIT(1)
-#define DL_FLAG_PM_RUNTIME	BIT(2)
-#define DL_FLAG_RPM_ACTIVE	BIT(3)
+#define DL_FLAG_STATELESS		BIT(0)
+#define DL_FLAG_AUTOREMOVE_CONSUMER	BIT(1)
+#define DL_FLAG_PM_RUNTIME		BIT(2)
+#define DL_FLAG_RPM_ACTIVE		BIT(3)
+#define DL_FLAG_AUTOREMOVE_SUPPLIER	BIT(4)
 
 /**
  * struct device_link - Device link representation.

@@ -209,7 +209,7 @@ static int imx_pgc_power_domain_probe(struct platform_device *pdev)
 			goto genpd_err;
 	}
 
-	device_link_add(dev, dev->parent, DL_FLAG_AUTOREMOVE);
+	device_link_add(dev, dev->parent, DL_FLAG_AUTOREMOVE_CONSUMER);
 
 	return 0;
 
