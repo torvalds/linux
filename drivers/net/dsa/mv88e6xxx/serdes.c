@@ -502,8 +502,8 @@ static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
 		err = mv88e6390_serdes_irq_status_sgmii(chip, lane, &status);
 		if (err)
 			goto out;
-		if (status && (MV88E6390_SGMII_INT_LINK_DOWN ||
-			       MV88E6390_SGMII_INT_LINK_UP)) {
+		if (status & (MV88E6390_SGMII_INT_LINK_DOWN |
+			      MV88E6390_SGMII_INT_LINK_UP)) {
 			ret = IRQ_HANDLED;
 			mv88e6390_serdes_irq_link_sgmii(chip, port->port, lane);
 		}
