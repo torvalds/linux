@@ -3,7 +3,6 @@
  * Copyright (C) 2007 Oracle.  All rights reserved.
  */
 
-#include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/pagemap.h>
 
@@ -244,8 +243,6 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 		return;
 
 	while (1) {
-		bool add_to_ctl = true;
-
 		spin_lock(rbroot_lock);
 		n = rb_first(rbroot);
 		if (!n) {
@@ -257,15 +254,14 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 		BUG_ON(info->bitmap); /* Logic error */
 
 		if (info->offset > root->ino_cache_progress)
-			add_to_ctl = false;
-		else if (info->offset + info->bytes > root->ino_cache_progress)
-			count = root->ino_cache_progress - info->offset + 1;
+			count = 0;
 		else
-			count = info->bytes;
+			count = min(root->ino_cache_progress - info->offset + 1,
+				    info->bytes);
 
 		rb_erase(&info->offset_index, rbroot);
 		spin_unlock(rbroot_lock);
-		if (add_to_ctl)
+		if (count)
 			__btrfs_add_free_space(root->fs_info, ctl,
 					       info->offset, count);
 		kmem_cache_free(btrfs_free_space_cachep, info);

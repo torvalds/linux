@@ -7,10 +7,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
-#include <linux/buffer_head.h>
 #include <linux/kobject.h>
 #include <linux/bug.h>
-#include <linux/genhd.h>
 #include <linux/debugfs.h>
 
 #include "ctree.h"
