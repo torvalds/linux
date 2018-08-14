@@ -52,10 +52,4 @@ static inline void getboottime(struct timespec *ts)
 	*ts = timespec64_to_timespec(ts64);
 }
 
-/*
- * Persistent clock related interfaces
- */
-extern void read_persistent_clock(struct timespec *ts);
-extern int update_persistent_clock(struct timespec now);
-
 #endif
