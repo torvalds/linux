@@ -6,8 +6,6 @@ Required properties:
  * "ti,bq24251"
  * "ti,bq24257"
 - reg: integer, i2c address of the device.
-- interrupt-parent: Should be the phandle for the interrupt controller. Use in
-    conjunction with "interrupts".
 - interrupts: Interrupt mapping for GPIO IRQ (configure for both edges). Use in
     conjunction with "interrupt-parent".
 - ti,battery-regulation-voltage: integer, maximum charging voltage in uV.

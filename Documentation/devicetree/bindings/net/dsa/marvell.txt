@@ -30,7 +30,6 @@ Required properties:
 Optional properties:
 
 - reset-gpios		: Should be a gpio specifier for a reset line
-- interrupt-parent	: Parent interrupt controller
 - interrupts		: Interrupt from the switch
 - interrupt-controller	: Indicates the switch is itself an interrupt
 			  controller. This is used for the PHY interrupts.

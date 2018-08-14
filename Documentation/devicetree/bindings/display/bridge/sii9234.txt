@@ -7,7 +7,7 @@ Required properties:
 	- iovcc18-supply : I/O Supply Voltage (1.8V)
 	- avcc12-supply : TMDS Analog Supply Voltage (1.2V)
 	- cvcc12-supply : Digital Core Supply Voltage (1.2V)
-	- interrupts, interrupt-parent: interrupt specifier of INT pin
+	- interrupts: interrupt specifier of INT pin
 	- reset-gpios: gpio specifier of RESET pin (active low)
 	- video interfaces: Device node can contain two video interface port
 			    nodes for HDMI encoder and connector according to [1].

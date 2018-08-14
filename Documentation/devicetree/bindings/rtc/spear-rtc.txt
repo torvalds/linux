@@ -3,8 +3,6 @@
 Required properties:
 - compatible : "st,spear600-rtc"
 - reg : Address range of the rtc registers
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupt: Should contain the rtc interrupt number
 
 Example:

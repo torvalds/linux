@@ -15,7 +15,6 @@ Documentation/devicetree/bindings/net/marvell-bt-8xxx.txt
 
 Optional properties:
 
-  - interrupt-parent: phandle of the parent interrupt controller
   - interrupt-names: (see below)
   - interrupts : The interrupt specified by the name "wakeup" is the interrupt
 		 that shall be used for out-of-band wake-on-bt. Driver will

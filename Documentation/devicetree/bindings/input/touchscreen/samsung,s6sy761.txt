@@ -3,8 +3,6 @@
 Required properties:
 - compatible		: must be "samsung,s6sy761"
 - reg			: I2C slave address, (e.g. 0x48)
-- interrupt-parent	: the phandle to the interrupt controller which provides
-			  the interrupt
 - interrupts		: interrupt specification
 - avdd-supply		: analogic power supply
 - vdd-supply		: power supply

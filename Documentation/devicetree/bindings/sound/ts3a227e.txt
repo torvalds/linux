@@ -10,7 +10,6 @@ Required properties:
 
  - compatible:		Should contain "ti,ts3a227e".
  - reg:			The i2c address. Should contain <0x3b>.
- - interrupt-parent:	The parent interrupt controller
  - interrupts:		Interrupt number for /INT pin from the 227e
 
 Optional properies:

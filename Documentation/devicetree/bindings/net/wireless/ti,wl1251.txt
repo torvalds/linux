@@ -8,8 +8,6 @@ Required properties:
 - reg :               Chip select address of device
 - spi-max-frequency : Maximum SPI clocking speed of device in Hz
 - interrupts :        Should contain interrupt line
-- interrupt-parent :  Should be the phandle for the interrupt controller
-                      that services interrupts for this device
 - vio-supply :        phandle to regulator providing VIO
 - ti,power-gpio :     GPIO connected to chip's PMEN pin
 

@@ -83,8 +83,6 @@ Required properties:
   - "snps,dwc-qos-ethernet-4.10" (deprecated):
     - "phy_ref_clk"
     - "apb_clk"
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the core's combined interrupt signal
 - phy-mode: See ethernet.txt file in the same directory
 - resets: Phandle and reset specifiers for each entry in reset-names, in the

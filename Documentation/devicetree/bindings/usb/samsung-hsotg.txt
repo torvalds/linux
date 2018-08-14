@@ -14,8 +14,6 @@ Binding details
 Required properties:
 - compatible: "samsung,s3c6400-hsotg" should be used for all currently
     supported SoC,
-- interrupt-parent: phandle for the interrupt controller to which the
-    interrupt signal of the HSOTG block is routed,
 - interrupts: specifier of interrupt signal of interrupt controller,
     according to bindings of interrupt controller,
 - clocks: contains an array of clock specifiers:
