@@ -548,6 +548,33 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
 	return 0;
 }
 
+/* TODO: Fill in follow functions once PSP firmware interface for XGMI is ready.
+ * For now, return success and hack the hive_id so high level code can
+ * start testing
+ */
+static int psp_v11_0_xgmi_get_topology_info(struct psp_context *psp,
+	int number_devices, struct psp_xgmi_topology_info *topology)
+{
+	return 0;
+}
+
+static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
+	int number_devices, struct psp_xgmi_topology_info *topology)
+{
+	return 0;
+}
+
+static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
+{
+	u64 hive_id = 0;
+
+	/* Remove me when we can get correct hive_id through PSP */
+	if (psp->adev->gmc.xgmi.num_physical_nodes)
+		hive_id = 0x123456789abcdef;
+
+	return hive_id;
+}
+
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
@@ -560,6 +587,9 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.cmd_submit = psp_v11_0_cmd_submit,
 	.compare_sram_data = psp_v11_0_compare_sram_data,
 	.mode1_reset = psp_v11_0_mode1_reset,
+	.xgmi_get_topology_info = psp_v11_0_xgmi_get_topology_info,
+	.xgmi_set_topology_info = psp_v11_0_xgmi_set_topology_info,
+	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)
