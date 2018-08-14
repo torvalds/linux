@@ -720,3 +720,56 @@ int connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	return 0;
 }
 
+static ssize_t dtn_log_read(
+	struct file *f,
+	char __user *buf,
+	size_t size,
+	loff_t *pos)
+{
+	/* TODO: Write log output to the user supplied buffer. */
+	return 0;
+}
+
+static ssize_t dtn_log_write(
+	struct file *f,
+	const char __user *buf,
+	size_t size,
+	loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct dc *dc = adev->dm.dc;
+
+	/* Write triggers log output via dmesg. */
+	if (size == 0)
+		return 0;
+
+	if (dc->hwss.log_hw_state)
+		dc->hwss.log_hw_state(dc);
+
+	return size;
+}
+
+int dtn_debugfs_init(struct amdgpu_device *adev)
+{
+	static const struct file_operations dtn_log_fops = {
+		.owner = THIS_MODULE,
+		.read = dtn_log_read,
+		.write = dtn_log_write,
+		.llseek = default_llseek
+	};
+
+	struct drm_minor *minor = adev->ddev->primary;
+	struct dentry *root = minor->debugfs_root;
+
+	struct dentry *ent = debugfs_create_file(
+		"amdgpu_dm_dtn_log",
+		0644,
+		root,
+		adev,
+		&dtn_log_fops);
+
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+
+	return 0;
+}

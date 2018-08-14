@@ -336,14 +336,28 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 }
 
 void dm_dtn_log_begin(struct dc_context *ctx)
-{}
+{
+	pr_info("[dtn begin]\n");
+}
 
 void dm_dtn_log_append_v(struct dc_context *ctx,
-		const char *pMsg, ...)
-{}
+		const char *msg, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, msg);
+	vaf.fmt = msg;
+	vaf.va = &args;
+
+	pr_info("%pV", &vaf);
+	va_end(args);
+}
 
 void dm_dtn_log_end(struct dc_context *ctx)
-{}
+{
+	pr_info("[dtn end]\n");
+}
 
 bool dm_helpers_dp_mst_start_top_mgr(
 		struct dc_context *ctx,
