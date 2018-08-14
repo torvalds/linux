@@ -440,6 +440,17 @@ static void del_default_gids(struct ib_device *ib_dev, u8 port,
 				     IB_CACHE_GID_DEFAULT_MODE_DELETE);
 }
 
+static void add_default_gids(struct ib_device *ib_dev, u8 port,
+			     struct net_device *rdma_ndev, void *cookie)
+{
+	struct net_device *event_ndev = cookie;
+	unsigned long gid_type_mask;
+
+	gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
+	ib_cache_gid_set_default_gid(ib_dev, port, event_ndev, gid_type_mask,
+				     IB_CACHE_GID_DEFAULT_MODE_SET);
+}
+
 static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 				    u8 port,
 				    struct net_device *rdma_ndev,
@@ -637,6 +648,11 @@ ndev_event_unlink(struct netdev_notifier_changeupper_info *changeupper_info,
 	cmds[1] = add_cmd;
 }
 
+static const struct netdev_event_work_cmd bonding_default_add_cmd = {
+	.cb	= add_default_gids,
+	.filter	= is_upper_ndev_bond_master_filter
+};
+
 static void
 ndev_event_link(struct net_device *event_ndev,
 		struct netdev_notifier_changeupper_info *changeupper_info,
@@ -655,9 +671,15 @@ ndev_event_link(struct net_device *event_ndev,
 	cmds[0].ndev = event_ndev;
 	cmds[0].filter_ndev = changeupper_info->upper_dev;
 
-	cmds[1] = add_cmd_upper_ips;
+	/* Now add bonding upper device default GIDs */
+	cmds[1] = bonding_default_add_cmd;
 	cmds[1].ndev = changeupper_info->upper_dev;
 	cmds[1].filter_ndev = changeupper_info->upper_dev;
+
+	/* Now add bonding upper device IP based GIDs */
+	cmds[2] = add_cmd_upper_ips;
+	cmds[2].ndev = changeupper_info->upper_dev;
+	cmds[2].filter_ndev = changeupper_info->upper_dev;
 }
 
 static void netdevice_event_changeupper(struct net_device *event_ndev,
