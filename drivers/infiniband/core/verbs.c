@@ -2643,13 +2643,27 @@ struct net_device *rdma_alloc_netdev(struct ib_device *device, u8 port_num,
 	if (!netdev)
 		return ERR_PTR(-ENOMEM);
 
-	rc = params.initialize_rdma_netdev(device, port_num, netdev,
-					   params.param);
-	if (rc) {
-		free_netdev(netdev);
-		return ERR_PTR(rc);
-	}
-
 	return netdev;
 }
 EXPORT_SYMBOL(rdma_alloc_netdev);
+
+int rdma_init_netdev(struct ib_device *device, u8 port_num,
+		     enum rdma_netdev_t type, const char *name,
+		     unsigned char name_assign_type,
+		     void (*setup)(struct net_device *),
+		     struct net_device *netdev)
+{
+	struct rdma_netdev_alloc_params params;
+	int rc;
+
+	if (!device->rdma_netdev_get_params)
+		return -EOPNOTSUPP;
+
+	rc = device->rdma_netdev_get_params(device, port_num, type, &params);
+	if (rc)
+		return rc;
+
+	return params.initialize_rdma_netdev(device, port_num,
+					     netdev, params.param);
+}
+EXPORT_SYMBOL(rdma_init_netdev);
