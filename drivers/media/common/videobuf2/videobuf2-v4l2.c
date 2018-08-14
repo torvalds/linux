@@ -190,21 +190,25 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 	vbuf->sequence = 0;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
-		if (b->memory == VB2_MEMORY_USERPTR) {
+		switch (b->memory) {
+		case VB2_MEMORY_USERPTR:
 			for (plane = 0; plane < vb->num_planes; ++plane) {
 				planes[plane].m.userptr =
 					b->m.planes[plane].m.userptr;
 				planes[plane].length =
 					b->m.planes[plane].length;
 			}
-		}
-		if (b->memory == VB2_MEMORY_DMABUF) {
+			break;
+		case VB2_MEMORY_DMABUF:
 			for (plane = 0; plane < vb->num_planes; ++plane) {
 				planes[plane].m.fd =
 					b->m.planes[plane].m.fd;
 				planes[plane].length =
 					b->m.planes[plane].length;
 			}
+			break;
+		default:
+			break;
 		}
 
 		/* Fill in driver-provided information for OUTPUT types */
@@ -255,14 +259,17 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 		 * the driver should use the allow_zero_bytesused flag to keep
 		 * old userspace applications working.
 		 */
-		if (b->memory == VB2_MEMORY_USERPTR) {
+		switch (b->memory) {
+		case VB2_MEMORY_USERPTR:
 			planes[0].m.userptr = b->m.userptr;
 			planes[0].length = b->length;
-		}
-
-		if (b->memory == VB2_MEMORY_DMABUF) {
+			break;
+		case VB2_MEMORY_DMABUF:
 			planes[0].m.fd = b->m.fd;
 			planes[0].length = b->length;
+			break;
+		default:
+			break;
 		}
 
 		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
