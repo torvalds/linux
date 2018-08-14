@@ -184,6 +184,43 @@ static int is_eth_port_inactive_slave(struct ib_device *ib_dev, u8 port,
 	return res;
 }
 
+/** is_ndev_for_default_gid_filter - Check if a given netdevice
+ * can be considered for default GIDs or not.
+ * @ib_dev:		IB device to check
+ * @port:		Port to consider for adding default GID
+ * @rdma_ndev:		rdma netdevice pointer
+ * @cookie_ndev:	Netdevice to consider to form a default GID
+ *
+ * is_ndev_for_default_gid_filter() returns true (1) if a given netdevice can be
+ * considered for deriving default RoCE GID, returns false (0) otherwise.
+ */
+static int
+is_ndev_for_default_gid_filter(struct ib_device *ib_dev, u8 port,
+			       struct net_device *rdma_ndev, void *cookie)
+{
+	struct net_device *cookie_ndev = cookie;
+	int res;
+
+	if (!rdma_ndev)
+		return 0;
+
+	rcu_read_lock();
+
+	/*
+	 * When rdma netdevice is used in bonding, bonding master netdevice
+	 * should be considered for default GIDs. Therefore, ignore slave rdma
+	 * netdevices when bonding is considered.
+	 * Additionally when event(cookie) netdevice is bond master device,
+	 * make sure that it the upper netdevice of rdma netdevice.
+	 */
+	res = ((cookie_ndev == rdma_ndev && !netif_is_bond_slave(rdma_ndev)) ||
+	       (netif_is_bond_master(cookie_ndev) &&
+		rdma_is_upper_dev_rcu(rdma_ndev, cookie_ndev)));
+
+	rcu_read_unlock();
+	return res;
+}
+
 static int pass_all_filter(struct ib_device *ib_dev, u8 port,
 			   struct net_device *rdma_ndev, void *cookie)
 {
@@ -249,30 +286,6 @@ static void update_gid_ip(enum gid_op_type gid_op,
 	gid_attr.ndev = ndev;
 
 	update_gid(gid_op, ib_dev, port, &gid, &gid_attr);
-}
-
-static void enum_netdev_default_gids(struct ib_device *ib_dev,
-				     u8 port, struct net_device *event_ndev,
-				     struct net_device *rdma_ndev)
-{
-	unsigned long gid_type_mask;
-
-	rcu_read_lock();
-	if (!rdma_ndev ||
-	    ((rdma_ndev != event_ndev &&
-	      !rdma_is_upper_dev_rcu(rdma_ndev, event_ndev)) ||
-	     is_eth_active_slave_of_bonding_rcu(rdma_ndev,
-						netdev_master_upper_dev_get_rcu(rdma_ndev)) ==
-	     BONDING_SLAVE_STATE_INACTIVE)) {
-		rcu_read_unlock();
-		return;
-	}
-	rcu_read_unlock();
-
-	gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
-
-	ib_cache_gid_set_default_gid(ib_dev, port, rdma_ndev, gid_type_mask,
-				     IB_CACHE_GID_DEFAULT_MODE_SET);
 }
 
 static void bond_delete_netdev_default_gids(struct ib_device *ib_dev,
@@ -409,7 +422,6 @@ static void _add_netdev_ips(struct ib_device *ib_dev, u8 port,
 static void add_netdev_ips(struct ib_device *ib_dev, u8 port,
 			   struct net_device *rdma_ndev, void *cookie)
 {
-	enum_netdev_default_gids(ib_dev, port, cookie, rdma_ndev);
 	_add_netdev_ips(ib_dev, port, cookie);
 }
 
@@ -465,9 +477,19 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 	rtnl_lock();
 	down_read(&net_rwsem);
 	for_each_net(net)
-		for_each_netdev(net, ndev)
+		for_each_netdev(net, ndev) {
+			/*
+			 * Filter and add default GIDs of the primary netdevice
+			 * when not in bonding mode, or add default GIDs
+			 * of bond master device, when in bonding mode.
+			 */
+			if (is_ndev_for_default_gid_filter(ib_dev, port,
+							   rdma_ndev, ndev))
+				add_default_gids(ib_dev, port, rdma_ndev, ndev);
+
 			if (is_eth_port_of_netdev(ib_dev, port, rdma_ndev, ndev))
-				add_netdev_ips(ib_dev, port, rdma_ndev, ndev);
+				_add_netdev_ips(ib_dev, port, ndev);
+		}
 	up_read(&net_rwsem);
 	rtnl_unlock();
 }
@@ -692,6 +714,11 @@ static void netdevice_event_changeupper(struct net_device *event_ndev,
 		ndev_event_unlink(changeupper_info, cmds);
 }
 
+static const struct netdev_event_work_cmd add_default_gid_cmd = {
+	.cb	= add_default_gids,
+	.filter	= is_ndev_for_default_gid_filter,
+};
+
 static int netdevice_event(struct notifier_block *this, unsigned long event,
 			   void *ptr)
 {
@@ -716,7 +743,8 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_REGISTER:
 	case NETDEV_UP:
 		cmds[0] = bonding_default_del_cmd_join;
-		cmds[1] = add_cmd;
+		cmds[1] = add_default_gid_cmd;
+		cmds[2] = add_cmd;
 		break;
 
 	case NETDEV_UNREGISTER:
@@ -739,7 +767,9 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_BONDING_FAILOVER:
 		cmds[0] = bonding_event_ips_del_cmd;
-		cmds[1] = bonding_default_del_cmd_join;
+		/* Add default GIDs of the bond device */
+		cmds[1] = bonding_default_add_cmd;
+		/* Add IP based GIDs of the bond device */
 		cmds[2] = add_cmd_upper_ips;
 		break;
 
