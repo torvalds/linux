@@ -2374,6 +2374,30 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
 
+/**
+ * genpd_dev_pm_attach_by_name - Associate a device with one of its PM domains.
+ * @dev: The device used to lookup the PM domain.
+ * @name: The name of the PM domain.
+ *
+ * Parse device's OF node to find a PM domain specifier using the
+ * power-domain-names DT property. For further description see
+ * genpd_dev_pm_attach_by_id().
+ */
+struct device *genpd_dev_pm_attach_by_name(struct device *dev, char *name)
+{
+	int index;
+
+	if (!dev->of_node)
+		return NULL;
+
+	index = of_property_match_string(dev->of_node, "power-domain-names",
+					 name);
+	if (index < 0)
+		return NULL;
+
+	return genpd_dev_pm_attach_by_id(dev, index);
+}
+
 static const struct of_device_id idle_state_match[] = {
 	{ .compatible = "domain-idle-state", },
 	{ }

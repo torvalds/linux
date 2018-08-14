@@ -114,18 +114,26 @@ Required properties:
  - power-domains : A list of PM domain specifiers, as defined by bindings of
 		the power controller that is the PM domain provider.
 
+Optional properties:
+ - power-domain-names : A list of power domain name strings sorted in the same
+		order as the power-domains property. Consumers drivers will use
+		power-domain-names to match power domains with power-domains
+		specifiers.
+
 Example:
 
 	leaky-device@12350000 {
 		compatible = "foo,i-leak-current";
 		reg = <0x12350000 0x1000>;
 		power-domains = <&power 0>;
+		power-domain-names = "io";
 	};
 
 	leaky-device@12351000 {
 		compatible = "foo,i-leak-current";
 		reg = <0x12351000 0x1000>;
 		power-domains = <&power 0>, <&power 1> ;
+		power-domain-names = "io", "clk";
 	};
 
 The first example above defines a typical PM domain consumer device, which is
