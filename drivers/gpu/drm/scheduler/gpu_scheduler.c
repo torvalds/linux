@@ -191,6 +191,9 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 	entity->num_rq_list = num_rq_list;
 	entity->rq_list = kcalloc(num_rq_list, sizeof(struct drm_sched_rq *),
 				GFP_KERNEL);
+	if (!entity->rq_list)
+		return -ENOMEM;
+
 	for (i = 0; i < num_rq_list; ++i)
 		entity->rq_list[i] = rq_list[i];
 	entity->last_scheduled = NULL;
