@@ -249,8 +249,8 @@ static void enum_netdev_default_gids(struct ib_device *ib_dev,
 
 static void bond_delete_netdev_default_gids(struct ib_device *ib_dev,
 					    u8 port,
-					    struct net_device *event_ndev,
-					    struct net_device *rdma_ndev)
+					    struct net_device *rdma_ndev,
+					    void *event_ndev)
 {
 	struct net_device *real_dev = rdma_vlan_dev_real_dev(event_ndev);
 	unsigned long gid_type_mask;
@@ -513,16 +513,10 @@ static void del_netdev_default_ips_join(struct ib_device *ib_dev, u8 port,
 	rcu_read_unlock();
 
 	if (master_ndev) {
-		bond_delete_netdev_default_gids(ib_dev, port, master_ndev,
-						rdma_ndev);
+		bond_delete_netdev_default_gids(ib_dev, port, rdma_ndev,
+						master_ndev);
 		dev_put(master_ndev);
 	}
-}
-
-static void del_netdev_default_ips(struct ib_device *ib_dev, u8 port,
-				   struct net_device *rdma_ndev, void *cookie)
-{
-	bond_delete_netdev_default_gids(ib_dev, port, cookie, rdma_ndev);
 }
 
 /* The following functions operate on all IB devices. netdevice_event and
@@ -600,7 +594,7 @@ ndev_event_link(struct netdev_notifier_changeupper_info *changeupper_info,
 {
 	static const struct netdev_event_work_cmd
 			bonding_default_del_cmd = {
-				.cb	= del_netdev_default_ips,
+				.cb	= bond_delete_netdev_default_gids,
 				.filter	= is_eth_port_inactive_slave
 			};
 	/*
@@ -630,8 +624,11 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 		.cb = del_netdev_ips, .filter = pass_all_filter};
 	static const struct netdev_event_work_cmd bonding_default_del_cmd_join = {
 		.cb = del_netdev_default_ips_join, .filter = is_eth_port_inactive_slave};
-	static const struct netdev_event_work_cmd default_del_cmd = {
-		.cb = del_netdev_default_ips, .filter = pass_all_filter};
+	static const struct netdev_event_work_cmd
+			default_del_cmd = {
+				.cb	= bond_delete_netdev_default_gids,
+				.filter = pass_all_filter
+			};
 	static const struct netdev_event_work_cmd bonding_event_ips_del_cmd = {
 		.cb = del_netdev_upper_ips, .filter = upper_device_filter};
 	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
