@@ -2722,6 +2722,8 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	if (fbcon)
 		amdgpu_fbdev_set_suspend(adev, 1);
 
+	cancel_delayed_work_sync(&adev->late_init_work);
+
 	if (!amdgpu_device_has_dc_support(adev)) {
 		/* turn off display hw */
 		drm_modeset_lock_all(dev);
