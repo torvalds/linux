@@ -61,6 +61,7 @@
 #define HPDET_POLL_MS			2000
 #define NOT_USED			255
 #define LOOPBACK_HANDLE_MS		100
+#define PA_DRV_MS		        5
 
 #define GRF_SOC_CON1			0x304
 #define GRF_I2S2_8CH_SDI_SFT		0
@@ -129,6 +130,7 @@ struct rk3308_codec_priv {
 	struct clk *mclk_tx;
 	struct gpio_desc *hp_ctl_gpio;
 	struct gpio_desc *spk_ctl_gpio;
+	struct gpio_desc *pa_drv_gpio;
 	struct snd_soc_codec *codec;
 	struct snd_soc_jack *hpdet_jack;
 	/*
@@ -149,6 +151,7 @@ struct rk3308_codec_priv {
 	u32 to_i2s_grps;
 	u32 delay_loopback_handle_ms;
 	u32 delay_start_play_ms;
+	u32 delay_pa_drv_ms;
 	int which_i2s;
 	int irq;
 	int adc_grp0_using_linein;
@@ -649,8 +652,23 @@ static void rk3308_headphone_ctl(struct rk3308_codec_priv *rk3308, int on)
 
 static void rk3308_speaker_ctl(struct rk3308_codec_priv *rk3308, int on)
 {
-	if (rk3308->spk_ctl_gpio)
-		gpiod_direction_output(rk3308->spk_ctl_gpio, on);
+	if (on) {
+		if (rk3308->pa_drv_gpio) {
+			gpiod_direction_output(rk3308->pa_drv_gpio, on);
+			msleep(rk3308->delay_pa_drv_ms);
+		}
+
+		if (rk3308->spk_ctl_gpio)
+			gpiod_direction_output(rk3308->spk_ctl_gpio, on);
+	} else {
+		if (rk3308->spk_ctl_gpio)
+			gpiod_direction_output(rk3308->spk_ctl_gpio, on);
+
+		if (rk3308->pa_drv_gpio) {
+			msleep(rk3308->delay_pa_drv_ms);
+			gpiod_direction_output(rk3308->pa_drv_gpio, on);
+		}
+	}
 }
 
 static int rk3308_codec_reset(struct snd_soc_codec *codec)
@@ -3804,6 +3822,23 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rk3308->spk_ctl_gpio);
 		dev_err(&pdev->dev, "Unable to claim gpio spk-ctl\n");
 		return ret;
+	}
+
+	rk3308->pa_drv_gpio = devm_gpiod_get_optional(&pdev->dev, "pa-drv",
+						       GPIOD_OUT_LOW);
+
+	if (!rk3308->pa_drv_gpio) {
+		dev_info(&pdev->dev, "Don't need pa-drv gpio\n");
+	} else if (IS_ERR(rk3308->pa_drv_gpio)) {
+		ret = PTR_ERR(rk3308->pa_drv_gpio);
+		dev_err(&pdev->dev, "Unable to claim gpio pa-drv\n");
+		return ret;
+	}
+
+	if (rk3308->pa_drv_gpio) {
+		rk3308->delay_pa_drv_ms = PA_DRV_MS;
+		ret = of_property_read_u32(np, "rockchip,delay-pa-drv-ms",
+					   &rk3308->delay_pa_drv_ms);
 	}
 
 #if DEBUG_POP_ALWAYS
