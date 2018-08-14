@@ -1,0 +1,56 @@
+Rockchip MIPI CSI HOST
+================================
+
+Required properties:
+- compatible: must be one of:
+	"rockchip,rk1808-mipi-csi".
+- reg: Represent the physical address range of the controller.
+- interrupts: Represent the controller's interrupt to the CPU(s).
+- clocks, clock-names: Phandles to the controller's APB clock(pclk) as
+  described in [1].
+- resets : phandle to the reset of MIPI CSI APB Clock.
+- reset-names : should be "apb".
+- rockchip,grf: this soc should set GRF regs to mux vopl/vopb.
+- #address-cells: Should be <1>.
+- #size-cells: Should be <0>.
+- ports: contain a port node with endpoint definitions as defined in [2].
+  For vopb,set the reg = <0> and set the reg = <1> for vopl.
+
+Optional properties
+- clocks, clock-names:
+  phandle to the SNPS-PHY config clock, name should be "phy_cfg".
+  phandle to the SNPS-PHY PLL reference clock, name should be "ref".
+  phandle to the Non-SNPS PHY high speed clock, name should be "hs_clk".
+  phandle to the h2p bridge clock, name should be "h2p".
+- phys: phandle to Non-SNPS PHY node
+- phy-names: the string "mipi_dphy" when is found in a node, along with "phys"
+  attribute, provides phandle to MIPI PHY node
+- rockchip,dual-channel: for dual-channel panel, if not, don't configure
+- rockchip,lane-rate: manually configure lane-rate, not necessary.
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] Documentation/devicetree/bindings/media/video-interfaces.txt
+[3] Documentation/devicetree/bindings/reset/reset.txt
+
+Example:
+
+For Rockchip RK1808:
+
+	csi: csi@ffb20000 {
+		compatible = "rockchip,rk1808-mipi-csi";
+		clocks = <&cru PCLK_MIPI_CSI0>, <&mipi_dphy>;
+		clock-names = "pclk", "hs_clk";
+		phys = <&mipi_dphy>;
+		phy-names = "mipi_dphy";
+		resets = <&cru SRST_MIPICSI>;
+		reset-names = "apb";
+		...
+
+		ports {
+			port {
+				csi_in_vop: endpoint {
+					remote-endpoint = <&vop_out_csi>;
+				};
+			};
+		};
+	};

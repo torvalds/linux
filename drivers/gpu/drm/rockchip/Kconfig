@@ -60,6 +60,16 @@ config ROCKCHIP_DW_MIPI_DSI
 	 enable MIPI DSI on RK3288 based SoC, you should selet this
 	 option.
 
+config ROCKCHIP_MIPI_CSI_TX
+	tristate "Rockchip specific extensions for MIPI CSI TX"
+	depends on DRM_ROCKCHIP
+	select DRM_MIPI_DSI
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the rocckhip mipi CSI TX driver. If you want to
+	  enable MIPI CSI on RK1808 based SoC, you should selet this
+	  option.
+
 config ROCKCHIP_ANALOGIX_DP
 	tristate "Rockchip specific extensions for Analogix DP driver"
 	depends on DRM_ROCKCHIP
