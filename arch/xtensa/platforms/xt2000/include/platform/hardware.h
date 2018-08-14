@@ -18,10 +18,6 @@
 #include <variant/core.h>
 
 /*
- * Number of platform IRQs
- */
-#define PLATFORM_NR_IRQS 3
-/*
  * On-board components.
  */
 

@@ -17,10 +17,6 @@
 #ifndef __XTENSA_XTAVNET_HARDWARE_H
 #define __XTENSA_XTAVNET_HARDWARE_H
 
-/* Interrupt configuration. */
-
-#define PLATFORM_NR_IRQS	0
-
 /* Default assignment of LX60 devices to external interrupts. */
 
 #ifdef CONFIG_XTENSA_MX

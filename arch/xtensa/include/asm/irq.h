@@ -12,7 +12,6 @@
 #define _XTENSA_IRQ_H
 
 #include <linux/init.h>
-#include <platform/hardware.h>
 #include <variant/core.h>
 
 #ifdef CONFIG_VARIANT_IRQ_SWITCH
@@ -25,7 +24,9 @@ static inline void variant_irq_disable(unsigned int irq) { }
 #ifndef VARIANT_NR_IRQS
 # define VARIANT_NR_IRQS 0
 #endif
-#ifndef PLATFORM_NR_IRQS
+#ifdef CONFIG_PLATFORM_NR_IRQS
+# define PLATFORM_NR_IRQS CONFIG_PLATFORM_NR_IRQS
+#else
 # define PLATFORM_NR_IRQS 0
 #endif
 #define XTENSA_NR_IRQS XCHAL_NUM_INTERRUPTS

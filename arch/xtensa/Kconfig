@@ -435,6 +435,10 @@ config XTENSA_PLATFORM_XTFPGA
 
 endchoice
 
+config PLATFORM_NR_IRQS
+	int
+	default 3 if XTENSA_PLATFORM_XT2000
+	default 0
 
 config XTENSA_CPU_CLOCK
 	int "CPU clock rate [MHz]"
