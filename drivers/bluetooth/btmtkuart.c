@@ -144,8 +144,10 @@ static int mtk_setup_fw(struct hci_dev *hdev)
 	fw_size = fw->size;
 
 	/* The size of patch header is 30 bytes, should be skip */
-	if (fw_size < 30)
-		return -EINVAL;
+	if (fw_size < 30) {
+		err = -EINVAL;
+		goto free_fw;
+	}
 
 	fw_size -= 30;
 	fw_ptr += 30;
@@ -172,8 +174,8 @@ static int mtk_setup_fw(struct hci_dev *hdev)
 		fw_ptr += dlen;
 	}
 
+free_fw:
 	release_firmware(fw);
-
 	return err;
 }
 
