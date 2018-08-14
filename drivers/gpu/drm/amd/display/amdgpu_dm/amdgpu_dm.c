@@ -3358,6 +3358,8 @@ static int to_drm_connector_type(enum signal_type st)
 		return DRM_MODE_CONNECTOR_HDMIA;
 	case SIGNAL_TYPE_EDP:
 		return DRM_MODE_CONNECTOR_eDP;
+	case SIGNAL_TYPE_LVDS:
+		return DRM_MODE_CONNECTOR_LVDS;
 	case SIGNAL_TYPE_RGB:
 		return DRM_MODE_CONNECTOR_VGA;
 	case SIGNAL_TYPE_DISPLAY_PORT:

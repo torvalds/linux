@@ -125,6 +125,8 @@ struct dce110_clk_src {
 	uint32_t hdmi_ss_params_cnt;
 	struct spread_spectrum_data *dvi_ss_params;
 	uint32_t dvi_ss_params_cnt;
+	struct spread_spectrum_data *lvds_ss_params;
+	uint32_t lvds_ss_params_cnt;
 
 	uint32_t ext_clk_khz;
 	uint32_t ref_freq_khz;

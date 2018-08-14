@@ -203,6 +203,11 @@ static bool detect_sink(struct dc_link *link, enum dc_connection_type *type)
 	uint32_t is_hpd_high = 0;
 	struct gpio *hpd_pin;
 
+	if (link->connector_signal == SIGNAL_TYPE_LVDS) {
+		*type = dc_connection_single;
+		return true;
+	}
+
 	/* todo: may need to lock gpio access */
 	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 	if (hpd_pin == NULL)
@@ -616,6 +621,10 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			link->local_sink)
 		return true;
 
+	if (link->connector_signal == SIGNAL_TYPE_LVDS &&
+			link->local_sink)
+		return true;
+
 	prev_sink = link->local_sink;
 	if (prev_sink != NULL) {
 		dc_sink_retain(prev_sink);
@@ -646,6 +655,12 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		case SIGNAL_TYPE_DVI_DUAL_LINK: {
 			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
 			sink_caps.signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+			break;
+		}
+
+		case SIGNAL_TYPE_LVDS: {
+			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
+			sink_caps.signal = SIGNAL_TYPE_LVDS;
 			break;
 		}
 
@@ -1086,6 +1101,9 @@ static bool construct(
 			link->irq_source_hpd_rx =
 					dal_irq_get_rx_source(hpd_gpio);
 		}
+		break;
+	case CONNECTOR_ID_LVDS:
+		link->connector_signal = SIGNAL_TYPE_LVDS;
 		break;
 	default:
 		DC_LOG_WARNING("Unsupported Connector type:%d!\n", link->link_id.id);
@@ -1920,6 +1938,24 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 		dal_ddc_service_read_scdc_data(link->ddc);
 }
 
+static void enable_link_lvds(struct pipe_ctx *pipe_ctx)
+{
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->sink->link;
+
+	if (stream->phy_pix_clk == 0)
+		stream->phy_pix_clk = stream->timing.pix_clk_khz;
+
+	memset(&stream->sink->link->cur_link_settings, 0,
+			sizeof(struct dc_link_settings));
+
+	link->link_enc->funcs->enable_lvds_output(
+			link->link_enc,
+			pipe_ctx->clock_source->id,
+			stream->phy_pix_clk);
+
+}
+
 /****************************enable_link***********************************/
 static enum dc_status enable_link(
 		struct dc_state *state,
@@ -1941,6 +1977,10 @@ static enum dc_status enable_link(
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 	case SIGNAL_TYPE_HDMI_TYPE_A:
 		enable_link_hdmi(pipe_ctx);
+		status = DC_OK;
+		break;
+	case SIGNAL_TYPE_LVDS:
+		enable_link_lvds(pipe_ctx);
 		status = DC_OK;
 		break;
 	case SIGNAL_TYPE_VIRTUAL:
@@ -2491,6 +2531,11 @@ void core_link_enable_stream(
 			&stream->timing,
 			(pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
 			true : false);
+
+	if (dc_is_lvds_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->lvds_set_stream_attribute(
+			pipe_ctx->stream_res.stream_enc,
+			&stream->timing);
 
 	resource_build_info_frame(pipe_ctx);
 	core_dc->hwss.update_info_frame(pipe_ctx);

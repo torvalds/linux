@@ -75,6 +75,11 @@ static const struct spread_spectrum_data *get_ss_data_entry(
 		entrys_num = clk_src->hdmi_ss_params_cnt;
 		break;
 
+	case SIGNAL_TYPE_LVDS:
+		ss_parm = clk_src->lvds_ss_params;
+		entrys_num = clk_src->lvds_ss_params_cnt;
+		break;
+
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 	case SIGNAL_TYPE_EDP:
@@ -1184,6 +1189,11 @@ static void ss_info_from_atombios_create(
 		AS_SIGNAL_TYPE_DVI,
 		&clk_src->dvi_ss_params,
 		&clk_src->dvi_ss_params_cnt);
+	get_ss_info_from_atombios(
+		clk_src,
+		AS_SIGNAL_TYPE_LVDS,
+		&clk_src->lvds_ss_params,
+		&clk_src->lvds_ss_params_cnt);
 }
 
 static bool calc_pll_max_vco_construct(
