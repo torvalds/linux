@@ -83,7 +83,8 @@ config SENSORS_LTC2978_REGULATOR
 	depends on SENSORS_LTC2978 && REGULATOR
 	help
 	  If you say yes here you get regulator support for Linear
-	  Technology LTC2974, LTC2977, LTC2978, LTC3880, LTC3883, and LTM4676.
+	  Technology LTC2974, LTC2977, LTC2978, LTC3880, LTC3883, LTM4676
+	  and LTM4686.
 
 config SENSORS_LTC3815
 	tristate "Linear Technologies LTC3815"
