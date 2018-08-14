@@ -143,14 +143,15 @@ static enum bonding_slave_state is_eth_active_slave_of_bonding_rcu(struct net_de
 
 #define REQUIRED_BOND_STATES		(BONDING_SLAVE_STATE_ACTIVE |	\
 					 BONDING_SLAVE_STATE_NA)
-static int is_eth_port_of_netdev(struct ib_device *ib_dev, u8 port,
-				 struct net_device *rdma_ndev, void *cookie)
+static bool
+is_eth_port_of_netdev_filter(struct ib_device *ib_dev, u8 port,
+			     struct net_device *rdma_ndev, void *cookie)
 {
 	struct net_device *real_dev;
-	int res;
+	bool res;
 
 	if (!rdma_ndev)
-		return 0;
+		return false;
 
 	rcu_read_lock();
 	real_dev = rdma_vlan_dev_real_dev(cookie);
@@ -166,14 +167,15 @@ static int is_eth_port_of_netdev(struct ib_device *ib_dev, u8 port,
 	return res;
 }
 
-static int is_eth_port_inactive_slave(struct ib_device *ib_dev, u8 port,
-				      struct net_device *rdma_ndev, void *cookie)
+static bool
+is_eth_port_inactive_slave_filter(struct ib_device *ib_dev, u8 port,
+				  struct net_device *rdma_ndev, void *cookie)
 {
 	struct net_device *master_dev;
-	int res;
+	bool res;
 
 	if (!rdma_ndev)
-		return 0;
+		return false;
 
 	rcu_read_lock();
 	master_dev = netdev_master_upper_dev_get_rcu(rdma_ndev);
@@ -191,18 +193,18 @@ static int is_eth_port_inactive_slave(struct ib_device *ib_dev, u8 port,
  * @rdma_ndev:		rdma netdevice pointer
  * @cookie_ndev:	Netdevice to consider to form a default GID
  *
- * is_ndev_for_default_gid_filter() returns true (1) if a given netdevice can be
- * considered for deriving default RoCE GID, returns false (0) otherwise.
+ * is_ndev_for_default_gid_filter() returns true if a given netdevice can be
+ * considered for deriving default RoCE GID, returns false otherwise.
  */
-static int
+static bool
 is_ndev_for_default_gid_filter(struct ib_device *ib_dev, u8 port,
 			       struct net_device *rdma_ndev, void *cookie)
 {
 	struct net_device *cookie_ndev = cookie;
-	int res;
+	bool res;
 
 	if (!rdma_ndev)
-		return 0;
+		return false;
 
 	rcu_read_lock();
 
@@ -221,22 +223,22 @@ is_ndev_for_default_gid_filter(struct ib_device *ib_dev, u8 port,
 	return res;
 }
 
-static int pass_all_filter(struct ib_device *ib_dev, u8 port,
-			   struct net_device *rdma_ndev, void *cookie)
+static bool pass_all_filter(struct ib_device *ib_dev, u8 port,
+			    struct net_device *rdma_ndev, void *cookie)
 {
-	return 1;
+	return true;
 }
 
-static int upper_device_filter(struct ib_device *ib_dev, u8 port,
-			       struct net_device *rdma_ndev, void *cookie)
+static bool upper_device_filter(struct ib_device *ib_dev, u8 port,
+				struct net_device *rdma_ndev, void *cookie)
 {
-	int res;
+	bool res;
 
 	if (!rdma_ndev)
-		return 0;
+		return false;
 
 	if (rdma_ndev == cookie)
-		return 1;
+		return true;
 
 	rcu_read_lock();
 	res = rdma_is_upper_dev_rcu(rdma_ndev, cookie);
@@ -257,7 +259,7 @@ static int upper_device_filter(struct ib_device *ib_dev, u8 port,
  * is bond master device and rdma_ndev is its lower netdevice. It might
  * not have been established as slave device yet.
  */
-static int
+static bool
 is_upper_ndev_bond_master_filter(struct ib_device *ib_dev, u8 port,
 				 struct net_device *rdma_ndev,
 				 void *cookie)
@@ -487,7 +489,8 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 							   rdma_ndev, ndev))
 				add_default_gids(ib_dev, port, rdma_ndev, ndev);
 
-			if (is_eth_port_of_netdev(ib_dev, port, rdma_ndev, ndev))
+			if (is_eth_port_of_netdev_filter(ib_dev, port,
+							 rdma_ndev, ndev))
 				_add_netdev_ips(ib_dev, port, ndev);
 		}
 	up_read(&net_rwsem);
@@ -651,9 +654,14 @@ static int netdevice_queue_work(struct netdev_event_work_cmd *cmds,
 }
 
 static const struct netdev_event_work_cmd add_cmd = {
-	.cb = add_netdev_ips, .filter = is_eth_port_of_netdev};
+	.cb	= add_netdev_ips,
+	.filter	= is_eth_port_of_netdev_filter
+};
+
 static const struct netdev_event_work_cmd add_cmd_upper_ips = {
-	.cb = add_netdev_upper_ips, .filter = is_eth_port_of_netdev};
+	.cb	= add_netdev_upper_ips,
+	.filter = is_eth_port_of_netdev_filter
+};
 
 static void
 ndev_event_unlink(struct netdev_notifier_changeupper_info *changeupper_info,
@@ -724,12 +732,15 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 {
 	static const struct netdev_event_work_cmd del_cmd = {
 		.cb = del_netdev_ips, .filter = pass_all_filter};
-	static const struct netdev_event_work_cmd bonding_default_del_cmd_join = {
-		.cb = del_netdev_default_ips_join, .filter = is_eth_port_inactive_slave};
+	static const struct netdev_event_work_cmd
+			bonding_default_del_cmd_join = {
+				.cb	= del_netdev_default_ips_join,
+				.filter	= is_eth_port_inactive_slave_filter
+			};
 	static const struct netdev_event_work_cmd
 			netdev_del_cmd = {
 				.cb	= del_netdev_ips,
-				.filter = is_eth_port_of_netdev
+				.filter = is_eth_port_of_netdev_filter
 			};
 	static const struct netdev_event_work_cmd bonding_event_ips_del_cmd = {
 		.cb = del_netdev_upper_ips, .filter = upper_device_filter};
@@ -786,7 +797,8 @@ static void update_gid_event_work_handler(struct work_struct *_work)
 	struct update_gid_event_work *work =
 		container_of(_work, struct update_gid_event_work, work);
 
-	ib_enum_all_roce_netdevs(is_eth_port_of_netdev, work->gid_attr.ndev,
+	ib_enum_all_roce_netdevs(is_eth_port_of_netdev_filter,
+				 work->gid_attr.ndev,
 				 callback_for_addr_gid_device_scan, work);
 
 	dev_put(work->gid_attr.ndev);
