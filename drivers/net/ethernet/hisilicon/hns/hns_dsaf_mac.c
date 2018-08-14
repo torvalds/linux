@@ -708,7 +708,7 @@ hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 
 static int hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 {
-	struct acpi_reference_args args;
+	struct fwnode_reference_args args;
 	struct platform_device *pdev;
 	struct mii_bus *mii_bus;
 	int rc;
@@ -722,13 +722,15 @@ static int hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 			mac_cb->fw_port, "mdio-node", 0, &args);
 	if (rc)
 		return rc;
+	if (!is_acpi_device_node(args.fwnode))
+		return -EINVAL;
 
 	addr = hns_mac_phy_parse_addr(mac_cb->dev, mac_cb->fw_port);
 	if (addr < 0)
 		return addr;
 
 	/* dev address in adev */
-	pdev = hns_dsaf_find_platform_device(acpi_fwnode_handle(args.adev));
+	pdev = hns_dsaf_find_platform_device(args.fwnode);
 	if (!pdev) {
 		dev_err(mac_cb->dev, "mac%d mdio pdev is NULL\n",
 			mac_cb->mac_id);

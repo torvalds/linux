@@ -353,7 +353,7 @@ EXPORT_SYMBOL_GPL(devm_acpi_dev_remove_driver_gpios);
 
 static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 				      const char *name, int index,
-				      struct acpi_reference_args *args,
+				      struct fwnode_reference_args *args,
 				      unsigned int *quirks)
 {
 	const struct acpi_gpio_mapping *gm;
@@ -365,7 +365,7 @@ static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 		if (!strcmp(name, gm->name) && gm->data && index < gm->size) {
 			const struct acpi_gpio_params *par = gm->data + index;
 
-			args->adev = adev;
+			args->fwnode = acpi_fwnode_handle(adev);
 			args->args[0] = par->crs_entry_index;
 			args->args[1] = par->line_index;
 			args->args[2] = par->active_low;
@@ -528,7 +528,7 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 				     const char *propname, int index,
 				     struct acpi_gpio_lookup *lookup)
 {
-	struct acpi_reference_args args;
+	struct fwnode_reference_args args;
 	unsigned int quirks = 0;
 	int ret;
 
@@ -549,6 +549,8 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	 * The property was found and resolved, so need to lookup the GPIO based
 	 * on returned args.
 	 */
+	if (!to_acpi_device_node(args.fwnode))
+		return -EINVAL;
 	if (args.nargs != 3)
 		return -EPROTO;
 
@@ -556,8 +558,9 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	lookup->pin_index = args.args[1];
 	lookup->active_low = !!args.args[2];
 
-	lookup->info.adev = args.adev;
+	lookup->info.adev = to_acpi_device_node(args.fwnode);
 	lookup->info.quirks = quirks;
+
 	return 0;
 }
 
