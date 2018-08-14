@@ -7677,6 +7677,23 @@ static int status_resync(struct seq_file *seq, struct mddev *mddev)
 		resync -= atomic_read(&mddev->recovery_active);
 
 	if (resync == 0) {
+		if (test_bit(MD_RESYNCING_REMOTE, &mddev->recovery)) {
+			struct md_rdev *rdev;
+
+			rdev_for_each(rdev, mddev)
+				if (rdev->raid_disk >= 0 &&
+				    !test_bit(Faulty, &rdev->flags) &&
+				    rdev->recovery_offset != MaxSector &&
+				    rdev->recovery_offset) {
+					seq_printf(seq, "\trecover=REMOTE");
+					return 1;
+				}
+			if (mddev->reshape_position != MaxSector)
+				seq_printf(seq, "\treshape=REMOTE");
+			else
+				seq_printf(seq, "\tresync=REMOTE");
+			return 1;
+		}
 		if (mddev->recovery_cp < MaxSector) {
 			seq_printf(seq, "\tresync=PENDING");
 			return 1;
