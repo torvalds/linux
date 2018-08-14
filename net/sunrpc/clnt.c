@@ -1949,9 +1949,6 @@ call_transmit(struct rpc_task *task)
 	task->tk_action = call_status;
 	if (task->tk_status < 0)
 		return;
-	if (!xprt_prepare_transmit(task))
-		return;
-	task->tk_action = call_transmit_status;
 	/* Encode here so that rpcsec_gss can use correct sequence number. */
 	if (rpc_task_need_encode(task)) {
 		rpc_xdr_encode(task);
@@ -1965,6 +1962,9 @@ call_transmit(struct rpc_task *task)
 			return;
 		}
 	}
+	if (!xprt_prepare_transmit(task))
+		return;
+	task->tk_action = call_transmit_status;
 	xprt_transmit(task);
 	if (task->tk_status < 0)
 		return;
