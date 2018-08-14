@@ -579,25 +579,48 @@ static const struct netdev_event_work_cmd add_cmd = {
 static const struct netdev_event_work_cmd add_cmd_upper_ips = {
 	.cb = add_netdev_upper_ips, .filter = is_eth_port_of_netdev};
 
+static void
+ndev_event_unlink(struct netdev_notifier_changeupper_info *changeupper_info,
+		  struct netdev_event_work_cmd *cmds)
+{
+	static const struct netdev_event_work_cmd
+			upper_ips_del_cmd = {
+				.cb	= del_netdev_upper_ips,
+				.filter	= upper_device_filter
+	};
+
+	cmds[0] = upper_ips_del_cmd;
+	cmds[0].ndev = changeupper_info->upper_dev;
+	cmds[1] = add_cmd;
+}
+
+static void
+ndev_event_link(struct netdev_notifier_changeupper_info *changeupper_info,
+		struct netdev_event_work_cmd *cmds)
+{
+	static const struct netdev_event_work_cmd
+			bonding_default_del_cmd = {
+				.cb	= del_netdev_default_ips,
+				.filter	= is_eth_port_inactive_slave
+			};
+	/*
+	 * When a lower netdev is linked to its upper bonding
+	 * netdev, delete lower inactive slave netdev's default GIDs.
+	 */
+	cmds[0] = bonding_default_del_cmd;
+	cmds[0].ndev = changeupper_info->upper_dev;
+	cmds[1] = add_cmd_upper_ips;
+	cmds[1].ndev = changeupper_info->upper_dev;
+	cmds[1].filter_ndev = changeupper_info->upper_dev;
+}
+
 static void netdevice_event_changeupper(struct netdev_notifier_changeupper_info *changeupper_info,
 					struct netdev_event_work_cmd *cmds)
 {
-	static const struct netdev_event_work_cmd upper_ips_del_cmd = {
-		.cb = del_netdev_upper_ips, .filter = upper_device_filter};
-	static const struct netdev_event_work_cmd bonding_default_del_cmd = {
-		.cb = del_netdev_default_ips, .filter = is_eth_port_inactive_slave};
-
-	if (changeupper_info->linking == false) {
-		cmds[0] = upper_ips_del_cmd;
-		cmds[0].ndev = changeupper_info->upper_dev;
-		cmds[1] = add_cmd;
-	} else {
-		cmds[0] = bonding_default_del_cmd;
-		cmds[0].ndev = changeupper_info->upper_dev;
-		cmds[1] = add_cmd_upper_ips;
-		cmds[1].ndev = changeupper_info->upper_dev;
-		cmds[1].filter_ndev = changeupper_info->upper_dev;
-	}
+	if (changeupper_info->linking)
+		ndev_event_link(changeupper_info, cmds);
+	else
+		ndev_event_unlink(changeupper_info, cmds);
 }
 
 static int netdevice_event(struct notifier_block *this, unsigned long event,
