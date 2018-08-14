@@ -37,7 +37,7 @@ config INFINIBAND_USER_ACCESS
 
 config INFINIBAND_USER_ACCESS_UCM
 	bool "Userspace CM (UCM, DEPRECATED)"
-	depends on BROKEN
+	depends on BROKEN || COMPILE_TEST
 	depends on INFINIBAND_USER_ACCESS
 	help
 	  The UCM module has known security flaws, which no one is
