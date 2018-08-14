@@ -624,7 +624,6 @@ cifs_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 static void
 cifs_clear_stats(struct cifs_tcon *tcon)
 {
-#ifdef CONFIG_CIFS_STATS
 	atomic_set(&tcon->stats.cifs_stats.num_writes, 0);
 	atomic_set(&tcon->stats.cifs_stats.num_reads, 0);
 	atomic_set(&tcon->stats.cifs_stats.num_flushes, 0);
@@ -646,13 +645,11 @@ cifs_clear_stats(struct cifs_tcon *tcon)
 	atomic_set(&tcon->stats.cifs_stats.num_locks, 0);
 	atomic_set(&tcon->stats.cifs_stats.num_acl_get, 0);
 	atomic_set(&tcon->stats.cifs_stats.num_acl_set, 0);
-#endif
 }
 
 static void
 cifs_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 {
-#ifdef CONFIG_CIFS_STATS
 	seq_printf(m, " Oplocks breaks: %d",
 		   atomic_read(&tcon->stats.cifs_stats.num_oplock_brks));
 	seq_printf(m, "\nReads:  %d Bytes: %llu",
@@ -684,7 +681,6 @@ cifs_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 		   atomic_read(&tcon->stats.cifs_stats.num_ffirst),
 		   atomic_read(&tcon->stats.cifs_stats.num_fnext),
 		   atomic_read(&tcon->stats.cifs_stats.num_fclose));
-#endif
 }
 
 static void

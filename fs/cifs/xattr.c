@@ -35,6 +35,14 @@
 #define CIFS_XATTR_CIFS_ACL "system.cifs_acl"
 #define CIFS_XATTR_ATTRIB "cifs.dosattrib"  /* full name: user.cifs.dosattrib */
 #define CIFS_XATTR_CREATETIME "cifs.creationtime"  /* user.cifs.creationtime */
+/*
+ * Although these three are just aliases for the above, need to move away from
+ * confusing users and using the 20+ year old term 'cifs' when it is no longer
+ * secure, replaced by SMB2 (then even more highly secure SMB3) many years ago
+ */
+#define SMB3_XATTR_CIFS_ACL "system.smb3_acl"
+#define SMB3_XATTR_ATTRIB "smb3.dosattrib"  /* full name: user.smb3.dosattrib */
+#define SMB3_XATTR_CREATETIME "smb3.creationtime"  /* user.smb3.creationtime */
 /* BB need to add server (Samba e.g) support for security and trusted prefix */
 
 enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT };
@@ -220,10 +228,12 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 	switch (handler->flags) {
 	case XATTR_USER:
 		cifs_dbg(FYI, "%s:querying user xattr %s\n", __func__, name);
-		if (strcmp(name, CIFS_XATTR_ATTRIB) == 0) {
+		if ((strcmp(name, CIFS_XATTR_ATTRIB) == 0) ||
+		    (strcmp(name, SMB3_XATTR_ATTRIB) == 0)) {
 			rc = cifs_attrib_get(dentry, inode, value, size);
 			break;
-		} else if (strcmp(name, CIFS_XATTR_CREATETIME) == 0) {
+		} else if ((strcmp(name, CIFS_XATTR_CREATETIME) == 0) ||
+		    (strcmp(name, SMB3_XATTR_CREATETIME) == 0)) {
 			rc = cifs_creation_time_get(dentry, inode, value, size);
 			break;
 		}
@@ -363,6 +373,19 @@ static const struct xattr_handler cifs_cifs_acl_xattr_handler = {
 	.set = cifs_xattr_set,
 };
 
+/*
+ * Although this is just an alias for the above, need to move away from
+ * confusing users and using the 20 year old term 'cifs' when it is no
+ * longer secure and was replaced by SMB2/SMB3 a long time ago, and
+ * SMB3 and later are highly secure.
+ */
+static const struct xattr_handler smb3_acl_xattr_handler = {
+	.name = SMB3_XATTR_CIFS_ACL,
+	.flags = XATTR_CIFS_ACL,
+	.get = cifs_xattr_get,
+	.set = cifs_xattr_set,
+};
+
 static const struct xattr_handler cifs_posix_acl_access_xattr_handler = {
 	.name = XATTR_NAME_POSIX_ACL_ACCESS,
 	.flags = XATTR_ACL_ACCESS,
@@ -381,6 +404,7 @@ const struct xattr_handler *cifs_xattr_handlers[] = {
 	&cifs_user_xattr_handler,
 	&cifs_os2_xattr_handler,
 	&cifs_cifs_acl_xattr_handler,
+	&smb3_acl_xattr_handler, /* alias for above since avoiding "cifs" */
 	&cifs_posix_acl_access_xattr_handler,
 	&cifs_posix_acl_default_xattr_handler,
 	NULL
