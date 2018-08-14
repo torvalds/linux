@@ -938,6 +938,7 @@ static int analogix_dp_fast_link_train_detection(struct analogix_dp_device *dp)
 
 static int analogix_dp_commit(struct analogix_dp_device *dp)
 {
+	struct video_info *video = &dp->video_info;
 	int ret;
 
 	/* Keep the panel disabled while we configure video */
@@ -959,6 +960,11 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 	}
 
 	analogix_dp_init_video(dp);
+	analogix_dp_set_video_format(dp);
+
+	if (video->video_bist_enable)
+		analogix_dp_video_bist_enable(dp);
+
 	ret = analogix_dp_config_video(dp);
 	if (ret) {
 		dev_err(dp->dev, "unable to config video\n");
@@ -1500,6 +1506,8 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 	struct device_node *dp_node = dp->dev->of_node;
 	int vic;
 
+	drm_mode_copy(&video->mode, mode);
+
 	/* Input video interlaces & hsync pol & vsync pol */
 	video->interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
 	video->v_sync_polarity = !!(mode->flags & DRM_MODE_FLAG_NVSYNC);
@@ -1631,6 +1639,9 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 				     &video_info->max_lane_count);
 		break;
 	}
+
+	video_info->video_bist_enable =
+		of_property_read_bool(dp_node, "analogix,video-bist-enable");
 
 	return 0;
 }
