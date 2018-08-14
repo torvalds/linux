@@ -441,8 +441,8 @@ static struct undef_hook swp_hooks[] = {
 	{
 		.instr_mask	= 0x0fb00ff0,
 		.instr_val	= 0x01000090,
-		.pstate_mask	= COMPAT_PSR_MODE_MASK,
-		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.pstate_mask	= PSR_AA32_MODE_MASK,
+		.pstate_val	= PSR_AA32_MODE_USR,
 		.fn		= swp_handler
 	},
 	{ }
@@ -511,9 +511,9 @@ ret:
 static int cp15_barrier_set_hw_mode(bool enable)
 {
 	if (enable)
-		config_sctlr_el1(0, SCTLR_EL1_CP15BEN);
+		sysreg_clear_set(sctlr_el1, 0, SCTLR_EL1_CP15BEN);
 	else
-		config_sctlr_el1(SCTLR_EL1_CP15BEN, 0);
+		sysreg_clear_set(sctlr_el1, SCTLR_EL1_CP15BEN, 0);
 	return 0;
 }
 
@@ -521,15 +521,15 @@ static struct undef_hook cp15_barrier_hooks[] = {
 	{
 		.instr_mask	= 0x0fff0fdf,
 		.instr_val	= 0x0e070f9a,
-		.pstate_mask	= COMPAT_PSR_MODE_MASK,
-		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.pstate_mask	= PSR_AA32_MODE_MASK,
+		.pstate_val	= PSR_AA32_MODE_USR,
 		.fn		= cp15barrier_handler,
 	},
 	{
 		.instr_mask	= 0x0fff0fff,
 		.instr_val	= 0x0e070f95,
-		.pstate_mask	= COMPAT_PSR_MODE_MASK,
-		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.pstate_mask	= PSR_AA32_MODE_MASK,
+		.pstate_val	= PSR_AA32_MODE_USR,
 		.fn		= cp15barrier_handler,
 	},
 	{ }
@@ -548,9 +548,9 @@ static int setend_set_hw_mode(bool enable)
 		return -EINVAL;
 
 	if (enable)
-		config_sctlr_el1(SCTLR_EL1_SED, 0);
+		sysreg_clear_set(sctlr_el1, SCTLR_EL1_SED, 0);
 	else
-		config_sctlr_el1(0, SCTLR_EL1_SED);
+		sysreg_clear_set(sctlr_el1, 0, SCTLR_EL1_SED);
 	return 0;
 }
 
@@ -562,10 +562,10 @@ static int compat_setend_handler(struct pt_regs *regs, u32 big_endian)
 
 	if (big_endian) {
 		insn = "setend be";
-		regs->pstate |= COMPAT_PSR_E_BIT;
+		regs->pstate |= PSR_AA32_E_BIT;
 	} else {
 		insn = "setend le";
-		regs->pstate &= ~COMPAT_PSR_E_BIT;
+		regs->pstate &= ~PSR_AA32_E_BIT;
 	}
 
 	trace_instruction_emulation(insn, regs->pc);
@@ -593,16 +593,16 @@ static struct undef_hook setend_hooks[] = {
 	{
 		.instr_mask	= 0xfffffdff,
 		.instr_val	= 0xf1010000,
-		.pstate_mask	= COMPAT_PSR_MODE_MASK,
-		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.pstate_mask	= PSR_AA32_MODE_MASK,
+		.pstate_val	= PSR_AA32_MODE_USR,
 		.fn		= a32_setend_handler,
 	},
 	{
 		/* Thumb mode */
 		.instr_mask	= 0x0000fff7,
 		.instr_val	= 0x0000b650,
-		.pstate_mask	= (COMPAT_PSR_T_BIT | COMPAT_PSR_MODE_MASK),
-		.pstate_val	= (COMPAT_PSR_T_BIT | COMPAT_PSR_MODE_USR),
+		.pstate_mask	= (PSR_AA32_T_BIT | PSR_AA32_MODE_MASK),
+		.pstate_val	= (PSR_AA32_T_BIT | PSR_AA32_MODE_USR),
 		.fn		= t16_setend_handler,
 	},
 	{}

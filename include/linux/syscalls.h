@@ -81,6 +81,7 @@ union bpf_attr;
 #include <linux/unistd.h>
 #include <linux/quota.h>
 #include <linux/key.h>
+#include <linux/personality.h>
 #include <trace/syscall.h>
 
 #ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
@@ -1280,6 +1281,16 @@ extern long do_sys_truncate(const char __user *pathname, loff_t length);
 static inline long ksys_truncate(const char __user *pathname, loff_t length)
 {
 	return do_sys_truncate(pathname, length);
+}
+
+static inline unsigned int ksys_personality(unsigned int personality)
+{
+	unsigned int old = current->personality;
+
+	if (personality != 0xffffffff)
+		set_personality(personality);
+
+	return old;
 }
 
 #endif

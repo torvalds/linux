@@ -42,8 +42,8 @@ static const struct kvm_regs default_regs_reset = {
 };
 
 static const struct kvm_regs default_regs_reset32 = {
-	.regs.pstate = (COMPAT_PSR_MODE_SVC | COMPAT_PSR_A_BIT |
-			COMPAT_PSR_I_BIT | COMPAT_PSR_F_BIT),
+	.regs.pstate = (PSR_AA32_MODE_SVC | PSR_AA32_A_BIT |
+			PSR_AA32_I_BIT | PSR_AA32_F_BIT),
 };
 
 static bool cpu_has_32bit_el1(void)
