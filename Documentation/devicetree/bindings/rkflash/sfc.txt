@@ -5,9 +5,11 @@ Required properties:
 - reg : shall contain registers location and length for data and reg.
 - interrupts : shall define the nand controller interrupt.
 - clocks : shall reference sfc controller clocks.
-- clock-names : nand controller internal clock names. Shall contain :
+- clock-names : sfc controller internal clock names. Shall contain :
     * "clk_sfc" : sfc controller clock
     * "hclk_sfc" : sfc ahb clock gate
+- assigned-clocks : sclk preset by dts
+- assigned-clock-frequency : sclk frequency, io clk = sclk/2;
 
 Examples:
 sfc: sfc@301c0000 {
@@ -16,5 +18,7 @@ sfc: sfc@301c0000 {
 	interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 	clocks = <&clk_sfc>, <&clk_gates15 10>;
 	clock-names = "clk_sfc", "hclk_sfc";
+	assigned-clocks = <&cru SCLK_SFC>;
+	assigned-clock-frequency = <100000000>;
 	status = "okay";
 };
