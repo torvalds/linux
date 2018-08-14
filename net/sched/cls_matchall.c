@@ -113,6 +113,8 @@ static void mall_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 	if (!head)
 		return;
 
+	tcf_unbind_filter(tp, &head->res);
+
 	if (!tc_skip_hw(head->flags))
 		mall_destroy_hw_filter(tp, head, (unsigned long) head, extack);
 
