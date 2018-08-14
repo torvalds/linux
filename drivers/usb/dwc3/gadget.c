@@ -1308,7 +1308,7 @@ static int __dwc3_gadget_get_frame(struct dwc3 *dwc)
  * Synopsys STAR 9001202023: Wrong microframe number for isochronous IN
  * endpoints.
  */
-static void dwc3_gadget_start_isoc_quirk(struct dwc3_ep *dep)
+static int dwc3_gadget_start_isoc_quirk(struct dwc3_ep *dep)
 {
 	int cmd_status = 0;
 	bool test0;
@@ -1338,7 +1338,7 @@ static void dwc3_gadget_start_isoc_quirk(struct dwc3_ep *dep)
 		if (cmd_status && cmd_status != -EAGAIN) {
 			dep->start_cmd_status = 0;
 			dep->combo_num = 0;
-			return;
+			return 0;
 		}
 
 		/* Store the first test status */
@@ -1353,7 +1353,7 @@ static void dwc3_gadget_start_isoc_quirk(struct dwc3_ep *dep)
 		 */
 		if (cmd_status == 0) {
 			dwc3_stop_active_transfer(dep, true);
-			return;
+			return 0;
 		}
 	}
 
@@ -1378,10 +1378,10 @@ static void dwc3_gadget_start_isoc_quirk(struct dwc3_ep *dep)
 	dep->start_cmd_status = 0;
 	dep->combo_num = 0;
 
-	__dwc3_gadget_kick_transfer(dep);
+	return __dwc3_gadget_kick_transfer(dep);
 }
 
-static void __dwc3_gadget_start_isoc(struct dwc3_ep *dep)
+static int __dwc3_gadget_start_isoc(struct dwc3_ep *dep)
 {
 	struct dwc3 *dwc = dep->dwc;
 
@@ -1389,7 +1389,7 @@ static void __dwc3_gadget_start_isoc(struct dwc3_ep *dep)
 		dev_info(dep->dwc->dev, "%s: ran out of requests\n",
 				dep->name);
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
-		return;
+		return -EAGAIN;
 	}
 
 	if (!dwc->dis_start_transfer_quirk && dwc3_is_usb31(dwc) &&
@@ -1398,14 +1398,12 @@ static void __dwc3_gadget_start_isoc(struct dwc3_ep *dep)
 	      dwc->version_type >= DWC31_VERSIONTYPE_EA01 &&
 	      dwc->version_type <= DWC31_VERSIONTYPE_EA06))) {
 
-		if (dwc->gadget.speed <= USB_SPEED_HIGH && dep->direction) {
-			dwc3_gadget_start_isoc_quirk(dep);
-			return;
-		}
+		if (dwc->gadget.speed <= USB_SPEED_HIGH && dep->direction)
+			return dwc3_gadget_start_isoc_quirk(dep);
 	}
 
 	dep->frame_number = DWC3_ALIGN_FRAME(dep);
-	__dwc3_gadget_kick_transfer(dep);
+	return __dwc3_gadget_kick_transfer(dep);
 }
 
 static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
@@ -1446,8 +1444,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 		if ((dep->flags & DWC3_EP_PENDING_REQUEST)) {
 			if (!(dep->flags & DWC3_EP_TRANSFER_STARTED)) {
-				__dwc3_gadget_start_isoc(dep);
-				return 0;
+				return __dwc3_gadget_start_isoc(dep);
 			}
 		}
 	}
@@ -2513,7 +2510,7 @@ static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event)
 {
 	dwc3_gadget_endpoint_frame_from_event(dep, event);
-	__dwc3_gadget_start_isoc(dep);
+	(void) __dwc3_gadget_start_isoc(dep);
 }
 
 static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
