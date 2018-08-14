@@ -149,8 +149,9 @@ static void snd_vmidi_output_work(struct work_struct *work)
 	/* discard the outputs in dispatch mode unless subscribed */
 	if (vmidi->seq_mode == SNDRV_VIRMIDI_SEQ_DISPATCH &&
 	    !(vmidi->rdev->flags & SNDRV_VIRMIDI_SUBSCRIBE)) {
-		while (!snd_rawmidi_transmit_empty(substream))
-			snd_rawmidi_transmit_ack(substream, 1);
+		char buf[32];
+		while (snd_rawmidi_transmit(substream, buf, sizeof(buf)) > 0)
+			; /* ignored */
 		return;
 	}
 
