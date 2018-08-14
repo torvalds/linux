@@ -12619,7 +12619,7 @@ S:	Maintained
 F:	drivers/scsi/sr*
 
 SCSI RDMA PROTOCOL (SRP) INITIATOR
-M:	Bart Van Assche <bart.vanassche@wdc.com>
+M:	Bart Van Assche <bvanassche@acm.org>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
@@ -12627,7 +12627,7 @@ F:	drivers/infiniband/ulp/srp/
 F:	include/scsi/srp.h
 
 SCSI RDMA PROTOCOL (SRP) TARGET
-M:	Bart Van Assche <bart.vanassche@wdc.com>
+M:	Bart Van Assche <bvanassche@acm.org>
 L:	linux-rdma@vger.kernel.org
 L:	target-devel@vger.kernel.org
 S:	Supported
