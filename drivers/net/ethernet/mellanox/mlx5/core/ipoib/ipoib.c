@@ -658,53 +658,36 @@ static void mlx5_rdma_netdev_free(struct net_device *netdev)
 	}
 }
 
-struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
-					  struct ib_device *ibdev,
-					  const char *name,
-					  void (*setup)(struct net_device *))
+static bool mlx5_is_sub_interface(struct mlx5_core_dev *mdev)
 {
-	const struct mlx5e_profile *profile;
-	struct net_device *netdev;
+	return mdev->mlx5e_res.pdn != 0;
+}
+
+static const struct mlx5e_profile *mlx5_get_profile(struct mlx5_core_dev *mdev)
+{
+	if (mlx5_is_sub_interface(mdev))
+		return mlx5i_pkey_get_profile();
+	return &mlx5i_nic_profile;
+}
+
+static int mlx5_rdma_setup_rn(struct ib_device *ibdev, u8 port_num,
+			      struct net_device *netdev, void *param)
+{
+	struct mlx5_core_dev *mdev = (struct mlx5_core_dev *)param;
+	const struct mlx5e_profile *prof = mlx5_get_profile(mdev);
 	struct mlx5i_priv *ipriv;
 	struct mlx5e_priv *epriv;
 	struct rdma_netdev *rn;
-	bool sub_interface;
-	int nch;
 	int err;
-
-	if (mlx5i_check_required_hca_cap(mdev)) {
-		mlx5_core_warn(mdev, "Accelerated mode is not supported\n");
-		return ERR_PTR(-EOPNOTSUPP);
-	}
-
-	/* TODO: Need to find a better way to check if child device*/
-	sub_interface = (mdev->mlx5e_res.pdn != 0);
-
-	if (sub_interface)
-		profile = mlx5i_pkey_get_profile();
-	else
-		profile = &mlx5i_nic_profile;
-
-	nch = profile->max_nch(mdev);
-
-	netdev = alloc_netdev_mqs(sizeof(struct mlx5i_priv) + sizeof(struct mlx5e_priv),
-				  name, NET_NAME_UNKNOWN,
-				  setup,
-				  nch * MLX5E_MAX_NUM_TC,
-				  nch);
-	if (!netdev) {
-		mlx5_core_warn(mdev, "alloc_netdev_mqs failed\n");
-		return NULL;
-	}
 
 	ipriv = netdev_priv(netdev);
 	epriv = mlx5i_epriv(netdev);
 
 	epriv->wq = create_singlethread_workqueue("mlx5i");
 	if (!epriv->wq)
-		goto err_free_netdev;
+		return -ENOMEM;
 
-	ipriv->sub_interface = sub_interface;
+	ipriv->sub_interface = mlx5_is_sub_interface(mdev);
 	if (!ipriv->sub_interface) {
 		err = mlx5i_pkey_qpn_ht_init(netdev);
 		if (err) {
@@ -718,7 +701,7 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 			goto destroy_ht;
 	}
 
-	profile->init(mdev, netdev, profile, ipriv);
+	prof->init(mdev, netdev, prof, ipriv);
 
 	mlx5e_attach_netdev(epriv);
 	netif_carrier_off(netdev);
@@ -734,15 +717,37 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 	netdev->priv_destructor = mlx5_rdma_netdev_free;
 	netdev->needs_free_netdev = 1;
 
-	return netdev;
+	return 0;
 
 destroy_ht:
 	mlx5i_pkey_qpn_ht_cleanup(netdev);
 destroy_wq:
 	destroy_workqueue(epriv->wq);
-err_free_netdev:
-	free_netdev(netdev);
-
-	return NULL;
+	return err;
 }
-EXPORT_SYMBOL(mlx5_rdma_netdev_alloc);
+
+int mlx5_rdma_rn_get_params(struct mlx5_core_dev *mdev,
+			    struct ib_device *device,
+			    struct rdma_netdev_alloc_params *params)
+{
+	int nch;
+	int rc;
+
+	rc = mlx5i_check_required_hca_cap(mdev);
+	if (rc)
+		return rc;
+
+	nch = mlx5_get_profile(mdev)->max_nch(mdev);
+
+	*params = (struct rdma_netdev_alloc_params){
+		.sizeof_priv = sizeof(struct mlx5i_priv) +
+			       sizeof(struct mlx5e_priv),
+		.txqs = nch * MLX5E_MAX_NUM_TC,
+		.rxqs = nch,
+		.param = mdev,
+		.initialize_rdma_netdev = mlx5_rdma_setup_rn,
+	};
+
+	return 0;
+}
+EXPORT_SYMBOL(mlx5_rdma_rn_get_params);

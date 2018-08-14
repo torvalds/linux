@@ -2146,20 +2146,15 @@ static struct net_device *ipoib_get_netdev(struct ib_device *hca, u8 port,
 {
 	struct net_device *dev;
 
-	if (hca->alloc_rdma_netdev) {
-		dev = hca->alloc_rdma_netdev(hca, port,
-					     RDMA_NETDEV_IPOIB, name,
-					     NET_NAME_UNKNOWN,
-					     ipoib_setup_common);
-		if (IS_ERR_OR_NULL(dev) && PTR_ERR(dev) != -EOPNOTSUPP)
-			return NULL;
-	}
+	dev = rdma_alloc_netdev(hca, port, RDMA_NETDEV_IPOIB, name,
+				NET_NAME_UNKNOWN, ipoib_setup_common);
+	if (!IS_ERR(dev))
+		return dev;
+	if (PTR_ERR(dev) != -EOPNOTSUPP)
+		return NULL;
 
-	if (!hca->alloc_rdma_netdev || PTR_ERR(dev) == -EOPNOTSUPP)
-		dev = ipoib_create_netdev_default(hca, name, NET_NAME_UNKNOWN,
-						  ipoib_setup_common);
-
-	return dev;
+	return ipoib_create_netdev_default(hca, name, NET_NAME_UNKNOWN,
+					   ipoib_setup_common);
 }
 
 struct ipoib_dev_priv *ipoib_intf_alloc(struct ib_device *hca, u8 port,
