@@ -35,7 +35,7 @@ Kernel upstream + BPI-R2
 * 4.9-main
 * 4.16-main (EOL)
 * 4.17-main
-* 4.18-rc
+* 4.18-main
 
 ## Kernel version
 
