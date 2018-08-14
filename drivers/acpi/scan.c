@@ -1528,7 +1528,7 @@ static int acpi_check_serial_bus_slave(struct acpi_resource *ares, void *data)
 static bool acpi_is_indirect_io_slave(struct acpi_device *device)
 {
 	struct acpi_device *parent = device->parent;
-	const struct acpi_device_id indirect_io_hosts[] = {
+	static const struct acpi_device_id indirect_io_hosts[] = {
 		{"HISI0191", 0},
 		{}
 	};
@@ -1540,6 +1540,18 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 {
 	struct list_head resource_list;
 	bool is_serial_bus_slave = false;
+	/*
+	 * These devices have multiple I2cSerialBus resources and an i2c-client
+	 * must be instantiated for each, each with its own i2c_device_id.
+	 * Normally we only instantiate an i2c-client for the first resource,
+	 * using the ACPI HID as id. These special cases are handled by the
+	 * drivers/platform/x86/i2c-multi-instantiate.c driver, which knows
+	 * which i2c_device_id to use for each resource.
+	 */
+	static const struct acpi_device_id i2c_multi_instantiate_ids[] = {
+		{"BSG1160", },
+		{}
+	};
 
 	if (acpi_is_indirect_io_slave(device))
 		return true;
@@ -1550,6 +1562,10 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	     fwnode_property_present(&device->fwnode, "i2cAddress") ||
 	     fwnode_property_present(&device->fwnode, "baud")))
 		return true;
+
+	/* Instantiate a pdev for the i2c-multi-instantiate drv to bind to */
+	if (!acpi_match_device_ids(device, i2c_multi_instantiate_ids))
+		return false;
 
 	INIT_LIST_HEAD(&resource_list);
 	acpi_dev_get_resources(device, &resource_list,
@@ -1612,7 +1628,8 @@ static int acpi_add_single_object(struct acpi_device **child,
 	 * Note this must be done before the get power-/wakeup_dev-flags calls.
 	 */
 	if (type == ACPI_BUS_TYPE_DEVICE)
-		acpi_bus_get_status(device);
+		if (acpi_bus_get_status(device) < 0)
+			acpi_set_device_status(device, 0);
 
 	acpi_bus_get_power_flags(device);
 	acpi_bus_get_wakeup_device_flags(device);
@@ -1690,7 +1707,7 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 		 * acpi_add_single_object updates this once we've an acpi_device
 		 * so that acpi_bus_get_status' quirk handling can be used.
 		 */
-		*sta = 0;
+		*sta = ACPI_STA_DEFAULT;
 		break;
 	case ACPI_TYPE_PROCESSOR:
 		*type = ACPI_BUS_TYPE_PROCESSOR;
