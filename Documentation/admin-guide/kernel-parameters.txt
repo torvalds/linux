@@ -1967,9 +1967,83 @@
 			(virtualized real and unpaged mode) on capable
 			Intel chips. Default is 1 (enabled)
 
+	kvm-intel.vmentry_l1d_flush=[KVM,Intel] Mitigation for L1 Terminal Fault
+			CVE-2018-3620.
+
+			Valid arguments: never, cond, always
+
+			always: L1D cache flush on every VMENTER.
+			cond:	Flush L1D on VMENTER only when the code between
+				VMEXIT and VMENTER can leak host memory.
+			never:	Disables the mitigation
+
+			Default is cond (do L1 cache flush in specific instances)
+
 	kvm-intel.vpid=	[KVM,Intel] Disable Virtual Processor Identification
 			feature (tagged TLBs) on capable Intel chips.
 			Default is 1 (enabled)
+
+	l1tf=           [X86] Control mitigation of the L1TF vulnerability on
+			      affected CPUs
+
+			The kernel PTE inversion protection is unconditionally
+			enabled and cannot be disabled.
+
+			full
+				Provides all available mitigations for the
+				L1TF vulnerability. Disables SMT and
+				enables all mitigations in the
+				hypervisors, i.e. unconditional L1D flush.
+
+				SMT control and L1D flush control via the
+				sysfs interface is still possible after
+				boot.  Hypervisors will issue a warning
+				when the first VM is started in a
+				potentially insecure configuration,
+				i.e. SMT enabled or L1D flush disabled.
+
+			full,force
+				Same as 'full', but disables SMT and L1D
+				flush runtime control. Implies the
+				'nosmt=force' command line option.
+				(i.e. sysfs control of SMT is disabled.)
+
+			flush
+				Leaves SMT enabled and enables the default
+				hypervisor mitigation, i.e. conditional
+				L1D flush.
+
+				SMT control and L1D flush control via the
+				sysfs interface is still possible after
+				boot.  Hypervisors will issue a warning
+				when the first VM is started in a
+				potentially insecure configuration,
+				i.e. SMT enabled or L1D flush disabled.
+
+			flush,nosmt
+
+				Disables SMT and enables the default
+				hypervisor mitigation.
+
+				SMT control and L1D flush control via the
+				sysfs interface is still possible after
+				boot.  Hypervisors will issue a warning
+				when the first VM is started in a
+				potentially insecure configuration,
+				i.e. SMT enabled or L1D flush disabled.
+
+			flush,nowarn
+				Same as 'flush', but hypervisors will not
+				warn when a VM is started in a potentially
+				insecure configuration.
+
+			off
+				Disables hypervisor mitigations and doesn't
+				emit any warnings.
+
+			Default is 'flush'.
+
+			For details see: Documentation/admin-guide/l1tf.rst
 
 	l2cr=		[PPC]
 
@@ -2686,6 +2760,10 @@
 
 	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
+
+			[KNL,x86] Disable symmetric multithreading (SMT).
+			nosmt=force: Force disable SMT, cannot be undone
+				     via the sysfs control file.
 
 	nospectre_v2	[X86] Disable all mitigations for the Spectre variant 2
 			(indirect branch prediction) vulnerability. System may
