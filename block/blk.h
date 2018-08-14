@@ -130,6 +130,7 @@ void blk_free_flush_queue(struct blk_flush_queue *q);
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
 		gfp_t gfp_mask);
 void blk_exit_rl(struct request_queue *q, struct request_list *rl);
+void blk_exit_queue(struct request_queue *q);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
 void blk_queue_bypass_start(struct request_queue *q);
@@ -411,5 +412,11 @@ static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
 #endif /* CONFIG_BOUNCE */
 
 extern void blk_drain_queue(struct request_queue *q);
+
+#ifdef CONFIG_BLK_CGROUP_IOLATENCY
+extern int blk_iolatency_init(struct request_queue *q);
+#else
+static inline int blk_iolatency_init(struct request_queue *q) { return 0; }
+#endif
 
 #endif /* BLK_INTERNAL_H */

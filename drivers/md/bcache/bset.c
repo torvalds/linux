@@ -366,6 +366,10 @@ EXPORT_SYMBOL(bch_btree_keys_init);
 
 /* Binary tree stuff for auxiliary search trees */
 
+/*
+ * return array index next to j when does in-order traverse
+ * of a binary tree which is stored in a linear array
+ */
 static unsigned inorder_next(unsigned j, unsigned size)
 {
 	if (j * 2 + 1 < size) {
@@ -379,6 +383,10 @@ static unsigned inorder_next(unsigned j, unsigned size)
 	return j;
 }
 
+/*
+ * return array index previous to j when does in-order traverse
+ * of a binary tree which is stored in a linear array
+ */
 static unsigned inorder_prev(unsigned j, unsigned size)
 {
 	if (j * 2 < size) {
@@ -421,6 +429,10 @@ static unsigned __to_inorder(unsigned j, unsigned size, unsigned extra)
 	return j;
 }
 
+/*
+ * Return the cacheline index in bset_tree->data, where j is index
+ * from a linear array which stores the auxiliar binary tree
+ */
 static unsigned to_inorder(unsigned j, struct bset_tree *t)
 {
 	return __to_inorder(j, t->size, t->extra);
@@ -441,6 +453,10 @@ static unsigned __inorder_to_tree(unsigned j, unsigned size, unsigned extra)
 	return j;
 }
 
+/*
+ * Return an index from a linear array which stores the auxiliar binary
+ * tree, j is the cacheline index of t->data.
+ */
 static unsigned inorder_to_tree(unsigned j, struct bset_tree *t)
 {
 	return __inorder_to_tree(j, t->size, t->extra);
@@ -546,6 +562,20 @@ static inline uint64_t shrd128(uint64_t high, uint64_t low, uint8_t shift)
 	return low;
 }
 
+/*
+ * Calculate mantissa value for struct bkey_float.
+ * If most significant bit of f->exponent is not set, then
+ *  - f->exponent >> 6 is 0
+ *  - p[0] points to bkey->low
+ *  - p[-1] borrows bits from KEY_INODE() of bkey->high
+ * if most isgnificant bits of f->exponent is set, then
+ *  - f->exponent >> 6 is 1
+ *  - p[0] points to bits from KEY_INODE() of bkey->high
+ *  - p[-1] points to other bits from KEY_INODE() of
+ *    bkey->high too.
+ * See make_bfloat() to check when most significant bit of f->exponent
+ * is set or not.
+ */
 static inline unsigned bfloat_mantissa(const struct bkey *k,
 				       struct bkey_float *f)
 {
@@ -570,6 +600,16 @@ static void make_bfloat(struct bset_tree *t, unsigned j)
 	BUG_ON(m < l || m > r);
 	BUG_ON(bkey_next(p) != m);
 
+	/*
+	 * If l and r have different KEY_INODE values (different backing
+	 * device), f->exponent records how many least significant bits
+	 * are different in KEY_INODE values and sets most significant
+	 * bits to 1 (by +64).
+	 * If l and r have same KEY_INODE value, f->exponent records
+	 * how many different bits in least significant bits of bkey->low.
+	 * See bfloat_mantiss() how the most significant bit of
+	 * f->exponent is used to calculate bfloat mantissa value.
+	 */
 	if (KEY_INODE(l) != KEY_INODE(r))
 		f->exponent = fls64(KEY_INODE(r) ^ KEY_INODE(l)) + 64;
 	else
@@ -633,6 +673,15 @@ void bch_bset_init_next(struct btree_keys *b, struct bset *i, uint64_t magic)
 }
 EXPORT_SYMBOL(bch_bset_init_next);
 
+/*
+ * Build auxiliary binary tree 'struct bset_tree *t', this tree is used to
+ * accelerate bkey search in a btree node (pointed by bset_tree->data in
+ * memory). After search in the auxiliar tree by calling bset_search_tree(),
+ * a struct bset_search_iter is returned which indicates range [l, r] from
+ * bset_tree->data where the searching bkey might be inside. Then a followed
+ * linear comparison does the exact search, see __bch_bset_search() for how
+ * the auxiliary tree is used.
+ */
 void bch_bset_build_written_tree(struct btree_keys *b)
 {
 	struct bset_tree *t = bset_tree_last(b);
@@ -898,6 +947,17 @@ static struct bset_search_iter bset_search_tree(struct bset_tree *t,
 	unsigned inorder, j, n = 1;
 
 	do {
+		/*
+		 * A bit trick here.
+		 * If p < t->size, (int)(p - t->size) is a minus value and
+		 * the most significant bit is set, right shifting 31 bits
+		 * gets 1. If p >= t->size, the most significant bit is
+		 * not set, right shifting 31 bits gets 0.
+		 * So the following 2 lines equals to
+		 *	if (p >= t->size)
+		 *		p = 0;
+		 * but a branch instruction is avoided.
+		 */
 		unsigned p = n << 4;
 		p &= ((int) (p - t->size)) >> 31;
 
@@ -907,6 +967,9 @@ static struct bset_search_iter bset_search_tree(struct bset_tree *t,
 		f = &t->tree[j];
 
 		/*
+		 * Similar bit trick, use subtract operation to avoid a branch
+		 * instruction.
+		 *
 		 * n = (f->mantissa > bfloat_mantissa())
 		 *	? j * 2
 		 *	: j * 2 + 1;

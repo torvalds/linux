@@ -124,6 +124,13 @@ static void nvmet_bdev_execute_flush(struct nvmet_req *req)
 	submit_bio(bio);
 }
 
+u16 nvmet_bdev_flush(struct nvmet_req *req)
+{
+	if (blkdev_issue_flush(req->ns->bdev, GFP_KERNEL, NULL))
+		return NVME_SC_INTERNAL | NVME_SC_DNR;
+	return 0;
+}
+
 static u16 nvmet_bdev_discard_range(struct nvmet_ns *ns,
 		struct nvme_dsm_range *range, struct bio **bio)
 {

@@ -110,11 +110,15 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 	struct bio_vec bv, cbv;
 	struct bvec_iter iter, citer = { 0 };
 
-	check = bio_clone_kmalloc(bio, GFP_NOIO);
+	check = bio_kmalloc(GFP_NOIO, bio_segments(bio));
 	if (!check)
 		return;
+	check->bi_disk = bio->bi_disk;
 	check->bi_opf = REQ_OP_READ;
+	check->bi_iter.bi_sector = bio->bi_iter.bi_sector;
+	check->bi_iter.bi_size = bio->bi_iter.bi_size;
 
+	bch_bio_map(check, NULL);
 	if (bch_bio_alloc_pages(check, GFP_NOIO))
 		goto out_put;
 
@@ -248,11 +252,12 @@ void bch_debug_exit(void)
 		debugfs_remove_recursive(bcache_debug);
 }
 
-int __init bch_debug_init(struct kobject *kobj)
+void __init bch_debug_init(struct kobject *kobj)
 {
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
-		return 0;
-
+	/*
+	 * it is unnecessary to check return value of
+	 * debugfs_create_file(), we should not care
+	 * about this.
+	 */
 	bcache_debug = debugfs_create_dir("bcache", NULL);
-	return IS_ERR_OR_NULL(bcache_debug);
 }

@@ -90,6 +90,9 @@
 
 #define MAX_NEED_GC		64
 #define MAX_SAVE_PRIO		72
+#define MAX_GC_TIMES		100
+#define MIN_GC_NODES		100
+#define GC_SLEEP_MS		100
 
 #define PTR_DIRTY_BIT		(((uint64_t) 1 << 36))
 
@@ -1008,6 +1011,13 @@ retry:
 		BUG_ON(b->level != level);
 	}
 
+	if (btree_node_io_error(b)) {
+		rw_unlock(write, b);
+		return ERR_PTR(-EIO);
+	}
+
+	BUG_ON(!b->written);
+
 	b->parent = parent;
 	b->accessed = 1;
 
@@ -1018,13 +1028,6 @@ retry:
 
 	for (; i <= b->keys.nsets; i++)
 		prefetch(b->keys.set[i].data);
-
-	if (btree_node_io_error(b)) {
-		rw_unlock(write, b);
-		return ERR_PTR(-EIO);
-	}
-
-	BUG_ON(!b->written);
 
 	return b;
 }
@@ -1520,6 +1523,32 @@ static unsigned btree_gc_count_keys(struct btree *b)
 	return ret;
 }
 
+static size_t btree_gc_min_nodes(struct cache_set *c)
+{
+	size_t min_nodes;
+
+	/*
+	 * Since incremental GC would stop 100ms when front
+	 * side I/O comes, so when there are many btree nodes,
+	 * if GC only processes constant (100) nodes each time,
+	 * GC would last a long time, and the front side I/Os
+	 * would run out of the buckets (since no new bucket
+	 * can be allocated during GC), and be blocked again.
+	 * So GC should not process constant nodes, but varied
+	 * nodes according to the number of btree nodes, which
+	 * realized by dividing GC into constant(100) times,
+	 * so when there are many btree nodes, GC can process
+	 * more nodes each time, otherwise, GC will process less
+	 * nodes each time (but no less than MIN_GC_NODES)
+	 */
+	min_nodes = c->gc_stats.nodes / MAX_GC_TIMES;
+	if (min_nodes < MIN_GC_NODES)
+		min_nodes = MIN_GC_NODES;
+
+	return min_nodes;
+}
+
+
 static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 			    struct closure *writes, struct gc_stat *gc)
 {
@@ -1584,6 +1613,13 @@ static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 
 		memmove(r + 1, r, sizeof(r[0]) * (GC_MERGE_NODES - 1));
 		r->b = NULL;
+
+		if (atomic_read(&b->c->search_inflight) &&
+		    gc->nodes >= gc->nodes_pre + btree_gc_min_nodes(b->c)) {
+			gc->nodes_pre =  gc->nodes;
+			ret = -EAGAIN;
+			break;
+		}
 
 		if (need_resched()) {
 			ret = -EAGAIN;
@@ -1753,7 +1789,10 @@ static void bch_btree_gc(struct cache_set *c)
 		closure_sync(&writes);
 		cond_resched();
 
-		if (ret && ret != -EAGAIN)
+		if (ret == -EAGAIN)
+			schedule_timeout_interruptible(msecs_to_jiffies
+						       (GC_SLEEP_MS));
+		else if (ret)
 			pr_warn("gc failed!");
 	} while (ret && !test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
@@ -1834,8 +1873,14 @@ static int bch_btree_check_recurse(struct btree *b, struct btree_op *op)
 		do {
 			k = bch_btree_iter_next_filter(&iter, &b->keys,
 						       bch_ptr_bad);
-			if (k)
+			if (k) {
 				btree_node_prefetch(b, k);
+				/*
+				 * initiallize c->gc_stats.nodes
+				 * for incremental GC
+				 */
+				b->c->gc_stats.nodes++;
+			}
 
 			if (p)
 				ret = btree(check_recurse, p, b, op);
