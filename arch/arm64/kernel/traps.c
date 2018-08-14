@@ -354,6 +354,9 @@ void force_signal_inject(int signal, int code, unsigned long address)
 	const char *desc;
 	struct pt_regs *regs = current_pt_regs();
 
+	if (WARN_ON(!user_mode(regs)))
+		return;
+
 	clear_siginfo(&info);
 
 	switch (signal) {
@@ -408,8 +411,8 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	if (call_undef_hook(regs) == 0)
 		return;
 
-	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
 	BUG_ON(!user_mode(regs));
+	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
 }
 
 #define __user_cache_maint(insn, address, res)			\
