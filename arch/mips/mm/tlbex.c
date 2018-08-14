@@ -1509,7 +1509,7 @@ static void setup_pw(void)
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	write_c0_pwctl(1 << 6 | psn);
 #endif
-	write_c0_kpgd(swapper_pg_dir);
+	write_c0_kpgd((long)swapper_pg_dir);
 	kscratch_used_mask |= (1 << 7); /* KScratch6 is used for KPGD */
 }
 

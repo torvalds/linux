@@ -149,6 +149,13 @@
 #define AR2315_PCI_HOST_SLOT	3
 #define AR2315_PCI_HOST_DEVID	((0xff18 << 16) | PCI_VENDOR_ID_ATHEROS)
 
+/*
+ * We need some arbitrary non-zero value to be programmed to the BAR1 register
+ * of PCI host controller to enable DMA. The same value should be used as the
+ * offset to calculate the physical address of DMA buffer for PCI devices.
+ */
+#define AR2315_PCI_HOST_SDRAM_BASEADDR	0x20000000
+
 /* ??? access BAR */
 #define AR2315_PCI_HOST_MBAR0		0x10000000
 /* RAM access BAR */
@@ -166,6 +173,23 @@ struct ar2315_pci_ctrl {
 	struct resource mem_res;
 	struct resource io_res;
 };
+
+static inline dma_addr_t ar2315_dev_offset(struct device *dev)
+{
+	if (dev && dev_is_pci(dev))
+		return AR2315_PCI_HOST_SDRAM_BASEADDR;
+	return 0;
+}
+
+dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
+{
+	return paddr + ar2315_dev_offset(dev);
+}
+
+phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t dma_addr)
+{
+	return dma_addr - ar2315_dev_offset(dev);
+}
 
 static inline struct ar2315_pci_ctrl *ar2315_pci_bus_to_apc(struct pci_bus *bus)
 {
