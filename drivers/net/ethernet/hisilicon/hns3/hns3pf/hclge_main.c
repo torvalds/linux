@@ -3782,7 +3782,7 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < vport->alloc_tqps; i++)
 		hclge_tqp_enable(hdev, i, 0, true);
@@ -3796,9 +3796,7 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 	/* reset tqp stats */
 	hclge_reset_tqp_stats(handle);
 
-	ret = hclge_mac_start_phy(hdev);
-	if (ret)
-		return ret;
+	hclge_mac_start_phy(hdev);
 
 	return 0;
 }
@@ -5417,6 +5415,16 @@ static void hclge_get_mdix_mode(struct hnae3_handle *handle,
 		*tp_mdix = ETH_TP_MDI;
 }
 
+static int hclge_init_instance_hw(struct hclge_dev *hdev)
+{
+	return hclge_mac_connect_phy(hdev);
+}
+
+static void hclge_uninit_instance_hw(struct hclge_dev *hdev)
+{
+	hclge_mac_disconnect_phy(hdev);
+}
+
 static int hclge_init_client_instance(struct hnae3_client *client,
 				      struct hnae3_ae_dev *ae_dev)
 {
@@ -5435,6 +5443,13 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 			ret = client->ops->init_instance(&vport->nic);
 			if (ret)
 				return ret;
+
+			ret = hclge_init_instance_hw(hdev);
+			if (ret) {
+			        client->ops->uninit_instance(&vport->nic,
+			                                     0);
+			        return ret;
+			}
 
 			if (hdev->roce_client &&
 			    hnae3_dev_roce_supported(hdev)) {
@@ -5498,6 +5513,7 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 		if (client->type == HNAE3_CLIENT_ROCE)
 			return;
 		if (client->ops->uninit_instance) {
+			hclge_uninit_instance_hw(hdev);
 			client->ops->uninit_instance(&vport->nic, 0);
 			hdev->nic_client = NULL;
 			vport->nic.client = NULL;
