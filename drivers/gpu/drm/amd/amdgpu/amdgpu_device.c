@@ -1700,6 +1700,7 @@ static bool amdgpu_device_check_vram_lost(struct amdgpu_device *adev)
  * Fini or suspend, pass disabling clockgating for hardware IPs.
  * Returns 0 on success, negative error code on failure.
  */
+
 static int amdgpu_device_set_cg_state(struct amdgpu_device *adev,
 						enum amd_clockgating_state state)
 {
@@ -1819,21 +1820,13 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	amdgpu_amdkfd_device_fini(adev);
 
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
+	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
+
 	/* need to disable SMC first */
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC &&
-			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
-			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     AMD_CG_STATE_UNGATE);
-			if (r) {
-				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].version->funcs->name, r);
-				return r;
-			}
-
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
 			r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 			/* XXX handle errors */
 			if (r) {
@@ -1848,20 +1841,6 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
-
-		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
-			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE &&
-			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCN &&
-			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
-			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     AMD_CG_STATE_UNGATE);
-			if (r) {
-				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].version->funcs->name, r);
-				return r;
-			}
-		}
 
 		r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 		/* XXX handle errors */
@@ -1957,21 +1936,13 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 		amdgpu_virt_request_full_gpu(adev, false);
 
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
+	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		/* displays are handled separately */
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) {
-			/* ungate blocks so that suspend can properly shut them down */
-			if (adev->ip_blocks[i].version->funcs->set_clockgating_state) {
-				r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-											     AMD_CG_STATE_UNGATE);
-				if (r) {
-					DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
-						  adev->ip_blocks[i].version->funcs->name, r);
-				}
-			}
 			/* XXX handle errors */
 			r = adev->ip_blocks[i].version->funcs->suspend(adev);
 			/* XXX handle errors */
@@ -2006,29 +1977,12 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_request_full_gpu(adev, false);
 
-	/* ungate SMC block first */
-	r = amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_SMC,
-						   AMD_CG_STATE_UNGATE);
-	if (r) {
-		DRM_ERROR("set_clockgating_state(ungate) SMC failed %d\n", r);
-	}
-
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		/* displays are handled in phase1 */
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE)
 			continue;
-		/* ungate blocks so that suspend can properly shut them down */
-		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_SMC &&
-			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     AMD_CG_STATE_UNGATE);
-			if (r) {
-				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].version->funcs->name, r);
-			}
-		}
 		/* XXX handle errors */
 		r = adev->ip_blocks[i].version->funcs->suspend(adev);
 		/* XXX handle errors */
