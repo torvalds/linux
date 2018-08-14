@@ -113,7 +113,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 
 	gact = to_gact(*a);
 
-	spin_lock(&gact->tcf_lock);
+	spin_lock_bh(&gact->tcf_lock);
 	gact->tcf_action = parm->action;
 #ifdef CONFIG_GACT_PROB
 	if (p_parm) {
@@ -126,7 +126,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 		gact->tcfg_ptype   = p_parm->ptype;
 	}
 #endif
-	spin_unlock(&gact->tcf_lock);
+	spin_unlock_bh(&gact->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -183,7 +183,7 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a,
 	};
 	struct tcf_t t;
 
-	spin_lock(&gact->tcf_lock);
+	spin_lock_bh(&gact->tcf_lock);
 	opt.action = gact->tcf_action;
 	if (nla_put(skb, TCA_GACT_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -202,12 +202,12 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a,
 	tcf_tm_dump(&t, &gact->tcf_tm);
 	if (nla_put_64bit(skb, TCA_GACT_TM, sizeof(t), &t, TCA_GACT_PAD))
 		goto nla_put_failure;
-	spin_unlock(&gact->tcf_lock);
+	spin_unlock_bh(&gact->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock(&gact->tcf_lock);
+	spin_unlock_bh(&gact->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }

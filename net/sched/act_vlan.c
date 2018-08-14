@@ -213,10 +213,10 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	p->tcfv_push_prio = push_prio;
 	p->tcfv_push_proto = push_proto;
 
-	spin_lock(&v->tcf_lock);
+	spin_lock_bh(&v->tcf_lock);
 	v->tcf_action = parm->action;
 	rcu_swap_protected(v->vlan_p, p, lockdep_is_held(&v->tcf_lock));
-	spin_unlock(&v->tcf_lock);
+	spin_unlock_bh(&v->tcf_lock);
 
 	if (p)
 		kfree_rcu(p, rcu);
@@ -249,7 +249,7 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	};
 	struct tcf_t t;
 
-	spin_lock(&v->tcf_lock);
+	spin_lock_bh(&v->tcf_lock);
 	opt.action = v->tcf_action;
 	p = rcu_dereference_protected(v->vlan_p, lockdep_is_held(&v->tcf_lock));
 	opt.v_action = p->tcfv_action;
@@ -268,12 +268,12 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	tcf_tm_dump(&t, &v->tcf_tm);
 	if (nla_put_64bit(skb, TCA_VLAN_TM, sizeof(t), &t, TCA_VLAN_PAD))
 		goto nla_put_failure;
-	spin_unlock(&v->tcf_lock);
+	spin_unlock_bh(&v->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock(&v->tcf_lock);
+	spin_unlock_bh(&v->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }

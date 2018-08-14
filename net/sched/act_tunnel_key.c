@@ -354,11 +354,11 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	params_new->tcft_action = parm->t_action;
 	params_new->tcft_enc_metadata = metadata;
 
-	spin_lock(&t->tcf_lock);
+	spin_lock_bh(&t->tcf_lock);
 	t->tcf_action = parm->action;
 	rcu_swap_protected(t->params, params_new,
 			   lockdep_is_held(&t->tcf_lock));
-	spin_unlock(&t->tcf_lock);
+	spin_unlock_bh(&t->tcf_lock);
 	if (params_new)
 		kfree_rcu(params_new, rcu);
 
@@ -485,7 +485,7 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 	};
 	struct tcf_t tm;
 
-	spin_lock(&t->tcf_lock);
+	spin_lock_bh(&t->tcf_lock);
 	params = rcu_dereference_protected(t->params,
 					   lockdep_is_held(&t->tcf_lock));
 	opt.action   = t->tcf_action;
@@ -520,12 +520,12 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put_64bit(skb, TCA_TUNNEL_KEY_TM, sizeof(tm),
 			  &tm, TCA_TUNNEL_KEY_PAD))
 		goto nla_put_failure;
-	spin_unlock(&t->tcf_lock);
+	spin_unlock_bh(&t->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock(&t->tcf_lock);
+	spin_unlock_bh(&t->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
