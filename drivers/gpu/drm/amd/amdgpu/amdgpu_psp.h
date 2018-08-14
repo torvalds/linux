@@ -32,6 +32,7 @@
 #define PSP_CMD_BUFFER_SIZE	0x1000
 #define PSP_ASD_SHARED_MEM_SIZE	0x4000
 #define PSP_1_MEG		0x100000
+#define PSP_TMR_SIZE	0x400000
 
 struct psp_context;
 
