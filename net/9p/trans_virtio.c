@@ -207,6 +207,13 @@ static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
 	return 1;
 }
 
+/* Reply won't come, so drop req ref */
+static int p9_virtio_cancelled(struct p9_client *client, struct p9_req_t *req)
+{
+	p9_req_put(req);
+	return 0;
+}
+
 /**
  * pack_sg_list_p - Just like pack_sg_list. Instead of taking a buffer,
  * this takes a list of pages.
@@ -404,6 +411,7 @@ p9_virtio_zc_request(struct p9_client *client, struct p9_req_t *req,
 	struct scatterlist *sgs[4];
 	size_t offs;
 	int need_drop = 0;
+	int kicked = 0;
 
 	p9_debug(P9_DEBUG_TRANS, "virtio request\n");
 
@@ -411,8 +419,10 @@ p9_virtio_zc_request(struct p9_client *client, struct p9_req_t *req,
 		__le32 sz;
 		int n = p9_get_mapped_pages(chan, &out_pages, uodata,
 					    outlen, &offs, &need_drop);
-		if (n < 0)
-			return n;
+		if (n < 0) {
+			err = n;
+			goto err_out;
+		}
 		out_nr_pages = DIV_ROUND_UP(n + offs, PAGE_SIZE);
 		if (n != outlen) {
 			__le32 v = cpu_to_le32(n);
@@ -428,8 +438,10 @@ p9_virtio_zc_request(struct p9_client *client, struct p9_req_t *req,
 	} else if (uidata) {
 		int n = p9_get_mapped_pages(chan, &in_pages, uidata,
 					    inlen, &offs, &need_drop);
-		if (n < 0)
-			return n;
+		if (n < 0) {
+			err = n;
+			goto err_out;
+		}
 		in_nr_pages = DIV_ROUND_UP(n + offs, PAGE_SIZE);
 		if (n != inlen) {
 			__le32 v = cpu_to_le32(n);
@@ -498,6 +510,7 @@ req_retry_pinned:
 	}
 	virtqueue_kick(chan->vq);
 	spin_unlock_irqrestore(&chan->lock, flags);
+	kicked = 1;
 	p9_debug(P9_DEBUG_TRANS, "virtio request kicked\n");
 	err = wait_event_killable(req->wq, req->status >= REQ_STATUS_RCVD);
 	/*
@@ -518,6 +531,10 @@ err_out:
 	}
 	kvfree(in_pages);
 	kvfree(out_pages);
+	if (!kicked) {
+		/* reply won't come */
+		p9_req_put(req);
+	}
 	return err;
 }
 
@@ -750,6 +767,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	.request = p9_virtio_request,
 	.zc_request = p9_virtio_zc_request,
 	.cancel = p9_virtio_cancel,
+	.cancelled = p9_virtio_cancelled,
 	/*
 	 * We leave one entry for input and one entry for response
 	 * headers. We also skip one more entry to accomodate, address

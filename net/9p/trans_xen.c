@@ -185,6 +185,7 @@ again:
 	ring->intf->out_prod = prod;
 	spin_unlock_irqrestore(&ring->lock, flags);
 	notify_remote_via_irq(ring->irq);
+	p9_req_put(p9_req);
 
 	return 0;
 }

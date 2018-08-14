@@ -307,6 +307,18 @@ p9_tag_alloc(struct p9_client *c, int8_t type, unsigned int max_size)
 	if (tag < 0)
 		goto free;
 
+	/* Init ref to two because in the general case there is one ref
+	 * that is put asynchronously by a writer thread, one ref
+	 * temporarily given by p9_tag_lookup and put by p9_client_cb
+	 * in the recv thread, and one ref put by p9_tag_remove in the
+	 * main thread. The only exception is virtio that does not use
+	 * p9_tag_lookup but does not have a writer thread either
+	 * (the write happens synchronously in the request/zc_request
+	 * callback), so p9_client_cb eats the second ref there
+	 * as the pointer is duplicated directly by virtqueue_add_sgs()
+	 */
+	refcount_set(&req->refcount.refcount, 2);
+
 	return req;
 
 free:
@@ -330,10 +342,21 @@ struct p9_req_t *p9_tag_lookup(struct p9_client *c, u16 tag)
 	struct p9_req_t *req;
 
 	rcu_read_lock();
+again:
 	req = idr_find(&c->reqs, tag);
-	/* There's no refcount on the req; a malicious server could cause
-	 * us to dereference a NULL pointer
-	 */
+	if (req) {
+		/* We have to be careful with the req found under rcu_read_lock
+		 * Thanks to SLAB_TYPESAFE_BY_RCU we can safely try to get the
+		 * ref again without corrupting other data, then check again
+		 * that the tag matches once we have the ref
+		 */
+		if (!p9_req_try_get(req))
+			goto again;
+		if (req->tc.tag != tag) {
+			p9_req_put(req);
+			goto again;
+		}
+	}
 	rcu_read_unlock();
 
 	return req;
@@ -347,7 +370,7 @@ EXPORT_SYMBOL(p9_tag_lookup);
  *
  * Context: Any context.
  */
-static void p9_tag_remove(struct p9_client *c, struct p9_req_t *r)
+static int p9_tag_remove(struct p9_client *c, struct p9_req_t *r)
 {
 	unsigned long flags;
 	u16 tag = r->tc.tag;
@@ -356,10 +379,22 @@ static void p9_tag_remove(struct p9_client *c, struct p9_req_t *r)
 	spin_lock_irqsave(&c->lock, flags);
 	idr_remove(&c->reqs, tag);
 	spin_unlock_irqrestore(&c->lock, flags);
+	return p9_req_put(r);
+}
+
+static void p9_req_free(struct kref *ref)
+{
+	struct p9_req_t *r = container_of(ref, struct p9_req_t, refcount);
 	p9_fcall_fini(&r->tc);
 	p9_fcall_fini(&r->rc);
 	kmem_cache_free(p9_req_cache, r);
 }
+
+int p9_req_put(struct p9_req_t *r)
+{
+	return kref_put(&r->refcount, p9_req_free);
+}
+EXPORT_SYMBOL(p9_req_put);
 
 /**
  * p9_tag_cleanup - cleans up tags structure and reclaims resources
@@ -376,7 +411,9 @@ static void p9_tag_cleanup(struct p9_client *c)
 	rcu_read_lock();
 	idr_for_each_entry(&c->reqs, req, id) {
 		pr_info("Tag %d still in use\n", id);
-		p9_tag_remove(c, req);
+		if (p9_tag_remove(c, req) == 0)
+			pr_warn("Packet with tag %d has still references",
+				req->tc.tag);
 	}
 	rcu_read_unlock();
 }
@@ -400,6 +437,7 @@ void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status)
 
 	wake_up(&req->wq);
 	p9_debug(P9_DEBUG_MUX, "wakeup: %d\n", req->tc.tag);
+	p9_req_put(req);
 }
 EXPORT_SYMBOL(p9_client_cb);
 
@@ -640,9 +678,10 @@ static int p9_client_flush(struct p9_client *c, struct p9_req_t *oldreq)
 	 * if we haven't received a response for oldreq,
 	 * remove it from the list
 	 */
-	if (oldreq->status == REQ_STATUS_SENT)
+	if (oldreq->status == REQ_STATUS_SENT) {
 		if (c->trans_mod->cancelled)
 			c->trans_mod->cancelled(c, oldreq);
+	}
 
 	p9_tag_remove(c, req);
 	return 0;
@@ -679,6 +718,8 @@ static struct p9_req_t *p9_client_prepare_req(struct p9_client *c,
 	return req;
 reterr:
 	p9_tag_remove(c, req);
+	/* We have to put also the 2nd reference as it won't be used */
+	p9_req_put(req);
 	return ERR_PTR(err);
 }
 
@@ -713,6 +754,8 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 
 	err = c->trans_mod->request(c, req);
 	if (err < 0) {
+		/* write won't happen */
+		p9_req_put(req);
 		if (err != -ERESTARTSYS && err != -EFAULT)
 			c->status = Disconnected;
 		goto recalc_sigpending;
@@ -2238,7 +2281,7 @@ EXPORT_SYMBOL(p9_client_readlink);
 
 int __init p9_client_init(void)
 {
-	p9_req_cache = KMEM_CACHE(p9_req_t, 0);
+	p9_req_cache = KMEM_CACHE(p9_req_t, SLAB_TYPESAFE_BY_RCU);
 	return p9_req_cache ? 0 : -ENOMEM;
 }
 
