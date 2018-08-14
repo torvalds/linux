@@ -521,7 +521,7 @@ config FUNCTION_PROFILER
 	  in debugfs called function_profile_enabled which defaults to zero.
 	  When a 1 is echoed into this file profiling begins, and when a
 	  zero is entered, profiling stops. A "functions" file is created in
-	  the trace_stats directory; this file shows the list of functions that
+	  the trace_stat directory; this file shows the list of functions that
 	  have been hit and their counters.
 
 	  If in doubt, say N.
@@ -605,7 +605,7 @@ config HIST_TRIGGERS
 	  Inter-event tracing of quantities such as latencies is also
 	  supported using hist triggers under this option.
 
-	  See Documentation/trace/histogram.txt.
+	  See Documentation/trace/histogram.rst.
 	  If in doubt, say N.
 
 config MMIOTRACE_TEST

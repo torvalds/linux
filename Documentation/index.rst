@@ -3,6 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. _linux_doc:
+
 The Linux Kernel documentation
 ==============================
 
@@ -113,29 +115,13 @@ subprojects.
 
    filesystems/ext4/index
 
-Korean translations
--------------------
+Translations
+------------
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   translations/ko_KR/index
-
-Chinese translations
---------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   translations/zh_CN/index
-
-Japanese translations
----------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   translations/ja_JP/index
+   translations/index
 
 Indices and tables
 ==================
