@@ -8,10 +8,10 @@
 /dts-v1/;
 
 #include "imx6q.dtsi"
-#include "imx6qdl-icore.dtsi"
+#include "imx6qdl-icore-1.5.dtsi"
 
 / {
-	model = "Engicam i.CoreM6 Quad/Dual MIPI Starter Kit";
+	model = "Engicam i.CoreM6 1.5 Quad/Dual MIPI Starter Kit";
 	compatible = "engicam,imx6-icore", "fsl,imx6q";
 };
 
