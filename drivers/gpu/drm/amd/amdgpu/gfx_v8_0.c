@@ -5164,10 +5164,6 @@ static int gfx_v8_0_hw_fini(void *handle)
 	gfx_v8_0_cp_enable(adev, false);
 	gfx_v8_0_rlc_stop(adev);
 
-	amdgpu_device_ip_set_powergating_state(adev,
-					       AMD_IP_BLOCK_TYPE_GFX,
-					       AMD_PG_STATE_UNGATE);
-
 	return 0;
 }
 
