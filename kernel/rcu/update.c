@@ -888,11 +888,16 @@ static void test_callback(struct rcu_head *r)
 	pr_info("RCU test callback executed %d\n", rcu_self_test_counter);
 }
 
+DEFINE_STATIC_SRCU(early_srcu);
+
 static void early_boot_test_call_rcu(void)
 {
 	static struct rcu_head head;
+	static struct rcu_head shead;
 
 	call_rcu(&head, test_callback);
+	if (IS_ENABLED(CONFIG_SRCU))
+		call_srcu(&early_srcu, &shead, test_callback);
 }
 
 static void early_boot_test_call_rcu_bh(void)
@@ -930,6 +935,10 @@ static int rcu_verify_early_boot_tests(void)
 	if (rcu_self_test) {
 		early_boot_test_counter++;
 		rcu_barrier();
+		if (IS_ENABLED(CONFIG_SRCU)) {
+			early_boot_test_counter++;
+			srcu_barrier(&early_srcu);
+		}
 	}
 	if (rcu_self_test_bh) {
 		early_boot_test_counter++;

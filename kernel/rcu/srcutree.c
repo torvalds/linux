@@ -51,6 +51,10 @@ module_param(exp_holdoff, ulong, 0444);
 static ulong counter_wrap_check = (ULONG_MAX >> 2);
 module_param(counter_wrap_check, ulong, 0444);
 
+/* Early-boot callback-management, so early that no lock is required! */
+static LIST_HEAD(srcu_boot_list);
+static bool __read_mostly srcu_init_done;
+
 static void srcu_invoke_callbacks(struct work_struct *work);
 static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
 static void process_srcu(struct work_struct *work);
@@ -182,6 +186,7 @@ static int init_srcu_struct_fields(struct srcu_struct *sp, bool is_static)
 	mutex_init(&sp->srcu_barrier_mutex);
 	atomic_set(&sp->srcu_barrier_cpu_cnt, 0);
 	INIT_DELAYED_WORK(&sp->work, process_srcu);
+	INIT_LIST_HEAD(&sp->srcu_boot_entry);
 	if (!is_static)
 		sp->sda = alloc_percpu(struct srcu_data);
 	init_srcu_struct_nodes(sp, is_static);
@@ -235,7 +240,6 @@ static void check_init_srcu_struct(struct srcu_struct *sp)
 {
 	unsigned long flags;
 
-	WARN_ON_ONCE(rcu_scheduler_active == RCU_SCHEDULER_INIT);
 	/* The smp_load_acquire() pairs with the smp_store_release(). */
 	if (!rcu_seq_state(smp_load_acquire(&sp->srcu_gp_seq_needed))) /*^^^*/
 		return; /* Already initialized. */
@@ -701,7 +705,11 @@ static void srcu_funnel_gp_start(struct srcu_struct *sp, struct srcu_data *sdp,
 	    rcu_seq_state(sp->srcu_gp_seq) == SRCU_STATE_IDLE) {
 		WARN_ON_ONCE(ULONG_CMP_GE(sp->srcu_gp_seq, sp->srcu_gp_seq_needed));
 		srcu_gp_start(sp);
-		queue_delayed_work(rcu_gp_wq, &sp->work, srcu_get_delay(sp));
+		if (likely(srcu_init_done))
+			queue_delayed_work(rcu_gp_wq, &sp->work,
+					   srcu_get_delay(sp));
+		else if (list_empty(&sp->srcu_boot_entry))
+			list_add(&sp->srcu_boot_entry, &srcu_boot_list);
 	}
 	spin_unlock_irqrestore_rcu_node(sp, flags);
 }
@@ -1308,3 +1316,17 @@ static int __init srcu_bootup_announce(void)
 	return 0;
 }
 early_initcall(srcu_bootup_announce);
+
+void __init srcu_init(void)
+{
+	struct srcu_struct *sp;
+
+	srcu_init_done = true;
+	while (!list_empty(&srcu_boot_list)) {
+		sp = list_first_entry(&srcu_boot_list,
+				      struct srcu_struct, srcu_boot_entry);
+		check_init_srcu_struct(sp);
+		list_del_init(&sp->srcu_boot_entry);
+		queue_work(rcu_gp_wq, &sp->work.work);
+	}
+}

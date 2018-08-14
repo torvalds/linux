@@ -94,6 +94,7 @@ struct srcu_struct {
 						/*  callback for the barrier */
 						/*  operation. */
 	struct delayed_work work;
+	struct list_head srcu_boot_entry;	/* Early-boot callbacks. */
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map dep_map;
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
@@ -105,12 +106,13 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN2	2
 
 #define __SRCU_STRUCT_INIT(name, pcpu_name)				\
-	{								\
-		.sda = &pcpu_name,					\
-		.lock = __SPIN_LOCK_UNLOCKED(name.lock),		\
-		.srcu_gp_seq_needed = 0 - 1,				\
-		__SRCU_DEP_MAP_INIT(name)				\
-	}
+{									\
+	.sda = &pcpu_name,						\
+	.lock = __SPIN_LOCK_UNLOCKED(name.lock),			\
+	.srcu_gp_seq_needed = -1UL,					\
+	.srcu_boot_entry = LIST_HEAD_INIT(name.srcu_boot_entry),	\
+	__SRCU_DEP_MAP_INIT(name)					\
+}
 
 /*
  * Define and initialize a srcu struct at build time.

@@ -4164,6 +4164,7 @@ void __init rcu_init(void)
 	WARN_ON(!rcu_gp_wq);
 	rcu_par_gp_wq = alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0);
 	WARN_ON(!rcu_par_gp_wq);
+	srcu_init();
 }
 
 #include "tree_exp.h"

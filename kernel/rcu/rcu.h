@@ -435,6 +435,12 @@ do {									\
 
 #endif /* #if defined(SRCU) || !defined(TINY_RCU) */
 
+#ifdef CONFIG_SRCU
+void srcu_init(void);
+#else /* #ifdef CONFIG_SRCU */
+static inline void srcu_init(void) { }
+#endif /* #else #ifdef CONFIG_SRCU */
+
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
 static inline bool rcu_gp_is_normal(void) { return true; }
