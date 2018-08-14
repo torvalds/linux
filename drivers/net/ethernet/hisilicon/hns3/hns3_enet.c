@@ -2969,8 +2969,6 @@ static void hns3_init_ring_hw(struct hns3_enet_ring *ring)
 		hns3_write_dev(q, HNS3_RING_TX_RING_BASEADDR_H_REG,
 			       (u32)((dma >> 31) >> 1));
 
-		hns3_write_dev(q, HNS3_RING_TX_RING_BD_LEN_REG,
-			       hns3_buf_size2type(ring->buf_size));
 		hns3_write_dev(q, HNS3_RING_TX_RING_BD_NUM_REG,
 			       ring->desc_num / 8 - 1);
 	}
