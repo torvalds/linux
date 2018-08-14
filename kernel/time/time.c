@@ -342,30 +342,6 @@ unsigned int jiffies_to_usecs(const unsigned long j)
 }
 EXPORT_SYMBOL(jiffies_to_usecs);
 
-/**
- * timespec_trunc - Truncate timespec to a granularity
- * @t: Timespec
- * @gran: Granularity in ns.
- *
- * Truncate a timespec to a granularity. Always rounds down. gran must
- * not be 0 nor greater than a second (NSEC_PER_SEC, or 10^9 ns).
- */
-struct timespec timespec_trunc(struct timespec t, unsigned gran)
-{
-	/* Avoid division in the common cases 1 ns and 1 s. */
-	if (gran == 1) {
-		/* nothing */
-	} else if (gran == NSEC_PER_SEC) {
-		t.tv_nsec = 0;
-	} else if (gran > 1 && gran < NSEC_PER_SEC) {
-		t.tv_nsec -= t.tv_nsec % gran;
-	} else {
-		WARN(1, "illegal file time granularity: %u", gran);
-	}
-	return t;
-}
-EXPORT_SYMBOL(timespec_trunc);
-
 /*
  * mktime64 - Converts date to seconds.
  * Converts Gregorian date to seconds since 1970-01-01 00:00:00.

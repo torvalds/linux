@@ -105,16 +105,6 @@ static inline bool timespec_valid(const struct timespec *ts)
 	return true;
 }
 
-static inline bool timespec_valid_strict(const struct timespec *ts)
-{
-	if (!timespec_valid(ts))
-		return false;
-	/* Disallow values that could overflow ktime_t */
-	if ((unsigned long long)ts->tv_sec >= KTIME_SEC_MAX)
-		return false;
-	return true;
-}
-
 /**
  * timespec_to_ns - Convert timespec to nanoseconds
  * @ts:		pointer to the timespec variable to be converted
@@ -149,19 +139,6 @@ static __always_inline void timespec_add_ns(struct timespec *a, u64 ns)
 	a->tv_nsec = ns;
 }
 
-/**
- * time_to_tm - converts the calendar time to local broken-down time
- *
- * @totalsecs	the number of seconds elapsed since 00:00:00 on January 1, 1970,
- *		Coordinated Universal Time (UTC).
- * @offset	offset seconds adding to totalsecs.
- * @result	pointer to struct tm variable to receive broken-down time
- */
-static inline void time_to_tm(time_t totalsecs, int offset, struct tm *result)
-{
-	time64_to_tm(totalsecs, offset, result);
-}
-
 static inline unsigned long mktime(const unsigned int year,
 			const unsigned int mon, const unsigned int day,
 			const unsigned int hour, const unsigned int min,
@@ -182,8 +159,6 @@ static inline bool timeval_valid(const struct timeval *tv)
 
 	return true;
 }
-
-extern struct timespec timespec_trunc(struct timespec t, unsigned int gran);
 
 /**
  * timeval_to_ns - Convert timeval to nanoseconds
