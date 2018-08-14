@@ -94,6 +94,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
+	HCLGE_OPC_SERDES_LOOPBACK       = 0x0315,
 
 	/* PFC/Pause commands */
 	HCLGE_OPC_CFG_MAC_PAUSE_EN      = 0x0701,
@@ -775,6 +776,17 @@ struct hclge_reset_cmd {
 	u8 fun_reset_vfid;
 	u8 rsv[22];
 };
+
+#define HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B	BIT(0)
+#define HCLGE_CMD_SERDES_DONE_B			BIT(0)
+#define HCLGE_CMD_SERDES_SUCCESS_B		BIT(1)
+struct hclge_serdes_lb_cmd {
+	u8 mask;
+	u8 enable;
+	u8 result;
+	u8 rsv[21];
+};
+
 #define HCLGE_DEFAULT_TX_BUF		0x4000	 /* 16k  bytes */
 #define HCLGE_TOTAL_PKT_BUF		0x108000 /* 1.03125M bytes */
 #define HCLGE_DEFAULT_DV		0xA000	 /* 40k byte */
