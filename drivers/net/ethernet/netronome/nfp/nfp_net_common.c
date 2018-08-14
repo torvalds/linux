@@ -949,8 +949,6 @@ err_free:
  * nfp_net_tx_complete() - Handled completed TX packets
  * @tx_ring:	TX ring structure
  * @budget:	NAPI budget (only used as bool to determine if in NAPI context)
- *
- * Return: Number of completed TX descriptors
  */
 static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
 {
