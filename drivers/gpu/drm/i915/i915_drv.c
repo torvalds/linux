@@ -2079,6 +2079,7 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 		goto out;
 
 out:
+	intel_engine_cancel_stop_cs(engine);
 	i915_gem_reset_finish_engine(engine);
 	return ret;
 }

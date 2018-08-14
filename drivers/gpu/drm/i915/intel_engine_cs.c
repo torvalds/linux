@@ -788,6 +788,16 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 	return err;
 }
 
+void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	I915_WRITE_FW(RING_MI_MODE(engine->mmio_base),
+		      _MASKED_BIT_DISABLE(STOP_RING));
+}
+
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 {
 	switch (type) {
