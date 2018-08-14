@@ -418,8 +418,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			 * tick, so try to correct that.
 			 */
 			for (i = idx - 1; i >= 0; i--) {
-			    if (drv->states[i].disabled ||
-			        dev->states_usage[i].disable)
+				if (drv->states[i].disabled ||
+				    dev->states_usage[i].disable)
 					continue;
 
 				idx = i;
