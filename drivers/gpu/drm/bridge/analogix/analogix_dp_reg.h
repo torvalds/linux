@@ -18,9 +18,27 @@
 #define ANALOGIX_DP_VIDEO_CTL_1			0x20
 #define ANALOGIX_DP_VIDEO_CTL_2			0x24
 #define ANALOGIX_DP_VIDEO_CTL_3			0x28
+#define ANALOGIX_DP_VIDEO_CTL_4			0x2C
 
 #define ANALOGIX_DP_VIDEO_CTL_8			0x3C
 #define ANALOGIX_DP_VIDEO_CTL_10		0x44
+#define ANALOGIX_DP_TOTAL_LINE_CFG_L		0x48
+#define ANALOGIX_DP_TOTAL_LINE_CFG_H		0x4C
+#define ANALOGIX_DP_ACTIVE_LINE_CFG_L		0x50
+#define ANALOGIX_DP_ACTIVE_LINE_CFG_H		0x54
+#define ANALOGIX_DP_V_F_PORCH_CFG		0x58
+#define ANALOGIX_DP_V_SYNC_WIDTH_CFG		0x5C
+#define ANALOGIX_DP_V_B_PORCH_CFG		0x60
+#define ANALOGIX_DP_TOTAL_PIXEL_CFG_L		0x64
+#define ANALOGIX_DP_TOTAL_PIXEL_CFG_H		0x68
+#define ANALOGIX_DP_ACTIVE_PIXEL_CFG_L		0x6C
+#define ANALOGIX_DP_ACTIVE_PIXEL_CFG_H		0x70
+#define ANALOGIX_DP_H_F_PORCH_CFG_L		0x74
+#define ANALOGIX_DP_H_F_PORCH_CFG_H		0x78
+#define ANALOGIX_DP_H_SYNC_CFG_L		0x7C
+#define ANALOGIX_DP_H_SYNC_CFG_H		0x80
+#define ANALOGIX_DP_H_B_PORCH_CFG_L		0x84
+#define ANALOGIX_DP_H_B_PORCH_CFG_H		0x88
 
 #define ANALOGIX_DP_PLL_REG_1			0xfc
 #define ANALOGIX_DP_PLL_REG_2			0x9e4
@@ -152,6 +170,11 @@
 #define VID_CHK_UPDATE_TYPE_1			(0x1 << 4)
 #define VID_CHK_UPDATE_TYPE_0			(0x0 << 4)
 
+/* ANALOGIX_DP_VIDEO_CTL_4 */
+#define BIST_EN					(0x1 << 3)
+#define BIST_WIDTH(x)				(((x) & 0x1) << 2)
+#define BIST_TYPE(x)				(((x) & 0x3) << 0)
+
 /* ANALOGIX_DP_VIDEO_CTL_8 */
 #define VID_HRES_TH(x)				(((x) & 0xf) << 4)
 #define VID_VRES_TH(x)				(((x) & 0xf) << 0)
@@ -161,6 +184,57 @@
 #define INTERACE_SCAN_CFG			(0x1 << 2)
 #define VSYNC_POLARITY_CFG			(0x1 << 1)
 #define HSYNC_POLARITY_CFG			(0x1 << 0)
+
+/* ANALOGIX_DP_TOTAL_LINE_CFG_L */
+#define TOTAL_LINE_CFG_L(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_TOTAL_LINE_CFG_H */
+#define TOTAL_LINE_CFG_H(x)			(((x) & 0xf) << 0)
+
+/* ANALOGIX_DP_ACTIVE_LINE_CFG_L */
+#define ACTIVE_LINE_CFG_L(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_ACTIVE_LINE_CFG_H */
+#define ACTIVE_LINE_CFG_H(x)			(((x) & 0xf) << 0)
+
+/* ANALOGIX_DP_V_F_PORCH_CFG */
+#define V_F_PORCH_CFG(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_V_SYNC_WIDTH_CFG */
+#define V_SYNC_WIDTH_CFG(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_V_B_PORCH_CFG */
+#define V_B_PORCH_CFG(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_TOTAL_PIXEL_CFG_L */
+#define TOTAL_PIXEL_CFG_L(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_TOTAL_PIXEL_CFG_H */
+#define TOTAL_PIXEL_CFG_H(x)			(((x) & 0x3f) << 0)
+
+/* ANALOGIX_DP_ACTIVE_PIXEL_CFG_L */
+#define ACTIVE_PIXEL_CFG_L(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_ACTIVE_PIXEL_CFG_H */
+#define ACTIVE_PIXEL_CFG_H(x)			(((x) & 0x3f) << 0)
+
+/* ANALOGIX_DP_H_F_PORCH_CFG_L */
+#define H_F_PORCH_CFG_L(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_H_F_PORCH_CFG_H */
+#define H_F_PORCH_CFG_H(x)			(((x) & 0xf) << 0)
+
+/* ANALOGIX_DP_H_SYNC_CFG_L */
+#define H_SYNC_CFG_L(x)				(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_H_SYNC_CFG_H */
+#define H_SYNC_CFG_H(x)				(((x) & 0xf) << 0)
+
+/* ANALOGIX_DP_H_B_PORCH_CFG_L */
+#define H_B_PORCH_CFG_L(x)			(((x) & 0xff) << 0)
+
+/* ANALOGIX_DP_H_B_PORCH_CFG_H */
+#define H_B_PORCH_CFG_H(x)			(((x) & 0xf) << 0)
 
 /* ANALOGIX_DP_PLL_REG_1 */
 #define REF_CLK_24M				(0x1 << 0)

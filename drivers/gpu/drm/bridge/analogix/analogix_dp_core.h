@@ -136,6 +136,7 @@ enum dp_irq_type {
 
 struct video_info {
 	char *name;
+	struct drm_display_mode mode;
 
 	bool h_sync_polarity;
 	bool v_sync_polarity;
@@ -148,6 +149,8 @@ struct video_info {
 
 	int max_link_rate;
 	enum link_lane_count_type max_lane_count;
+
+	bool video_bist_enable;
 };
 
 struct link_train {
@@ -279,4 +282,6 @@ int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp);
 void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp);
 void analogix_dp_enable_scrambling(struct analogix_dp_device *dp);
 void analogix_dp_disable_scrambling(struct analogix_dp_device *dp);
+void analogix_dp_set_video_format(struct analogix_dp_device *dp);
+void analogix_dp_video_bist_enable(struct analogix_dp_device *dp);
 #endif /* _ANALOGIX_DP_CORE_H */

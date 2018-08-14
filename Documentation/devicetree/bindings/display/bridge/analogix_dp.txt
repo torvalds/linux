@@ -23,6 +23,8 @@ Required properties for dp-controller:
 		from general PHY binding: Should be "dp".
 
 Optional properties for dp-controller:
+	-analogix,video-bist-enable:
+		Enable video bist pattern for DP_TX debugging.
 	-force-hpd:
 		Indicate driver need force hpd when hpd detect failed, this
 		is used for some eDP screen which don't have hpd signal.
