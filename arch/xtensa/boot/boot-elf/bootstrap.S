@@ -42,7 +42,10 @@ RomInitAddr:
 	.word	KERNELOFFSET
 #endif
 RomBootParam:
-	.word _bootparam
+#ifndef CONFIG_PARSE_BOOTPARAM
+	.word	0
+#else
+	.word	_bootparam
 _bootparam:
 	.short	BP_TAG_FIRST
 	.short	4
@@ -50,6 +53,7 @@ _bootparam:
 	.short	BP_TAG_LAST
 	.short	0
 	.long	0
+#endif
 
 	.align  4
 _SetupMMU:

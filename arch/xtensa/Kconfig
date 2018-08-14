@@ -473,6 +473,15 @@ config BUILTIN_DTB
 	string "DTB to build into the kernel image"
 	depends on OF
 
+config PARSE_BOOTPARAM
+	bool "Parse bootparam block"
+	default y
+	help
+	  Parse parameters passed to the kernel from the bootloader. It may
+	  be disabled if the kernel is known to run without the bootloader.
+
+	  If unsure, say Y.
+
 config BLK_DEV_SIMDISK
 	tristate "Host file-based simulated block device support"
 	default n
