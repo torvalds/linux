@@ -21,8 +21,8 @@
 #include "rkflash_api.h"
 #include "rkflash_blk.h"
 
-#define RKSFC_VERSION_AND_DATE  "rksfc_base v1.1 2016-01-08"
-#define	RKSFC_CLK_SET_RATE	(100 * 1000 * 1000)
+#define RKSFC_VERSION_AND_DATE	"rksfc_base v1.1 2016-01-08"
+#define RKSFC_CLK_MAX_RATE	(150 * 1000 * 1000)
 
 struct rksfc_info {
 	void __iomem	*reg_base;
@@ -138,8 +138,11 @@ static int rksfc_probe(struct platform_device *pdev)
 		return -1;
 	}
 	clk_prepare_enable(g_sfc_info.ahb_clk);
-	clk_set_rate(g_sfc_info.clk, RKSFC_CLK_SET_RATE);
 	g_sfc_info.clk_rate = clk_get_rate(g_sfc_info.clk);
+	if (g_sfc_info.clk_rate > RKSFC_CLK_MAX_RATE) {
+		clk_set_rate(g_sfc_info.clk, RKSFC_CLK_MAX_RATE);
+		g_sfc_info.clk_rate = clk_get_rate(g_sfc_info.clk);
+	}
 	clk_prepare_enable(g_sfc_info.clk);
 	dev_info(&pdev->dev,
 		 "%s clk rate = %d\n",
