@@ -44,7 +44,7 @@ static int krait_mux_set_parent(struct clk_hw *hw, u8 index)
 	struct krait_mux_clk *mux = to_krait_mux_clk(hw);
 	u32 sel;
 
-	sel = clk_mux_reindex(index, mux->parent_map, 0);
+	sel = clk_mux_index_to_val(mux->parent_map, 0, index);
 	mux->en_mask = sel;
 	/* Don't touch mux if CPU is off as it won't work */
 	if (__clk_is_enabled(hw->clk))
@@ -63,7 +63,7 @@ static u8 krait_mux_get_parent(struct clk_hw *hw)
 	sel &= mux->mask;
 	mux->en_mask = sel;
 
-	return clk_mux_get_parent(hw, sel, mux->parent_map, 0);
+	return clk_mux_val_to_index(hw, mux->parent_map, 0, sel);
 }
 
 const struct clk_ops krait_mux_clk_ops = {
