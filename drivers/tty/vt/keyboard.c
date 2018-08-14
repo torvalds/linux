@@ -959,7 +959,7 @@ struct kbd_led_trigger {
 	unsigned int mask;
 };
 
-static void kbd_led_trigger_activate(struct led_classdev *cdev)
+static int kbd_led_trigger_activate(struct led_classdev *cdev)
 {
 	struct kbd_led_trigger *trigger =
 		container_of(cdev->trigger, struct kbd_led_trigger, trigger);
@@ -970,6 +970,8 @@ static void kbd_led_trigger_activate(struct led_classdev *cdev)
 				  ledstate & trigger->mask ?
 					LED_FULL : LED_OFF);
 	tasklet_enable(&keyboard_tasklet);
+
+	return 0;
 }
 
 #define KBD_LED_TRIGGER(_led_bit, _name) {			\

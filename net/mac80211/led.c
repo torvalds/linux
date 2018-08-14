@@ -52,13 +52,15 @@ void ieee80211_free_led_names(struct ieee80211_local *local)
 	kfree(local->radio_led.name);
 }
 
-static void ieee80211_tx_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_tx_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     tx_led);
 
 	atomic_inc(&local->tx_led_active);
+
+	return 0;
 }
 
 static void ieee80211_tx_led_deactivate(struct led_classdev *led_cdev)
@@ -70,13 +72,15 @@ static void ieee80211_tx_led_deactivate(struct led_classdev *led_cdev)
 	atomic_dec(&local->tx_led_active);
 }
 
-static void ieee80211_rx_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_rx_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     rx_led);
 
 	atomic_inc(&local->rx_led_active);
+
+	return 0;
 }
 
 static void ieee80211_rx_led_deactivate(struct led_classdev *led_cdev)
@@ -88,13 +92,15 @@ static void ieee80211_rx_led_deactivate(struct led_classdev *led_cdev)
 	atomic_dec(&local->rx_led_active);
 }
 
-static void ieee80211_assoc_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_assoc_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     assoc_led);
 
 	atomic_inc(&local->assoc_led_active);
+
+	return 0;
 }
 
 static void ieee80211_assoc_led_deactivate(struct led_classdev *led_cdev)
@@ -106,13 +112,15 @@ static void ieee80211_assoc_led_deactivate(struct led_classdev *led_cdev)
 	atomic_dec(&local->assoc_led_active);
 }
 
-static void ieee80211_radio_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_radio_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     radio_led);
 
 	atomic_inc(&local->radio_led_active);
+
+	return 0;
 }
 
 static void ieee80211_radio_led_deactivate(struct led_classdev *led_cdev)
@@ -124,13 +132,15 @@ static void ieee80211_radio_led_deactivate(struct led_classdev *led_cdev)
 	atomic_dec(&local->radio_led_active);
 }
 
-static void ieee80211_tpt_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_tpt_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     tpt_led);
 
 	atomic_inc(&local->tpt_led_active);
+
+	return 0;
 }
 
 static void ieee80211_tpt_led_deactivate(struct led_classdev *led_cdev)
