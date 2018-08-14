@@ -2910,7 +2910,7 @@ cow_done:
 			}
 			if (!p->search_for_split)
 				unlock_up(p, level, lowest_unlock,
-					  min_write_lock_level, &write_lock_level);
+					  min_write_lock_level, NULL);
 			goto done;
 		}
 	}
