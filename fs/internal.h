@@ -93,7 +93,7 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
 /*
  * file_table.c
  */
-extern struct file *get_empty_filp(void);
+extern struct file *alloc_empty_file(int, const struct cred *);
 
 /*
  * super.c
@@ -125,8 +125,7 @@ int do_fchmodat(int dfd, const char __user *filename, umode_t mode);
 int do_fchownat(int dfd, const char __user *filename, uid_t user, gid_t group,
 		int flag);
 
-extern int open_check_o_direct(struct file *f);
-extern int vfs_open(const struct path *, struct file *, const struct cred *);
+extern int vfs_open(const struct path *, struct file *);
 
 /*
  * inode.c

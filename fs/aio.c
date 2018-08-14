@@ -202,9 +202,7 @@ static const struct address_space_operations aio_ctx_aops;
 
 static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 {
-	struct qstr this = QSTR_INIT("[aio]", 5);
 	struct file *file;
-	struct path path;
 	struct inode *inode = alloc_anon_inode(aio_mnt->mnt_sb);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
@@ -213,31 +211,17 @@ static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 	inode->i_mapping->private_data = ctx;
 	inode->i_size = PAGE_SIZE * nr_pages;
 
-	path.dentry = d_alloc_pseudo(aio_mnt->mnt_sb, &this);
-	if (!path.dentry) {
+	file = alloc_file_pseudo(inode, aio_mnt, "[aio]",
+				O_RDWR, &aio_ring_fops);
+	if (IS_ERR(file))
 		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-	path.mnt = mntget(aio_mnt);
-
-	d_instantiate(path.dentry, inode);
-	file = alloc_file(&path, FMODE_READ | FMODE_WRITE, &aio_ring_fops);
-	if (IS_ERR(file)) {
-		path_put(&path);
-		return file;
-	}
-
-	file->f_flags = O_RDWR;
 	return file;
 }
 
 static struct dentry *aio_mount(struct file_system_type *fs_type,
 				int flags, const char *dev_name, void *data)
 {
-	static const struct dentry_operations ops = {
-		.d_dname	= simple_dname,
-	};
-	struct dentry *root = mount_pseudo(fs_type, "aio:", NULL, &ops,
+	struct dentry *root = mount_pseudo(fs_type, "aio:", NULL, NULL,
 					   AIO_RING_MAGIC);
 
 	if (!IS_ERR(root))

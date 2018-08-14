@@ -386,7 +386,7 @@ struct inode_operations {
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
-			unsigned open_flag, umode_t create_mode, int *opened);
+			unsigned open_flag, umode_t create_mode);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
 };
 
@@ -496,13 +496,15 @@ otherwise noted.
 
   atomic_open: called on the last component of an open.  Using this optional
   	method the filesystem can look up, possibly create and open the file in
-  	one atomic operation.  If it cannot perform this (e.g. the file type
-  	turned out to be wrong) it may signal this by returning 1 instead of
-	usual 0 or -ve .  This method is only called if the last component is
-	negative or needs lookup.  Cached positive dentries are still handled by
-	f_op->open().  If the file was created, the FILE_CREATED flag should be
-	set in "opened".  In case of O_EXCL the method must only succeed if the
-	file didn't exist and hence FILE_CREATED shall always be set on success.
+	one atomic operation.  If it wants to leave actual opening to the
+	caller (e.g. if the file turned out to be a symlink, device, or just
+	something filesystem won't do atomic open for), it may signal this by
+	returning finish_no_open(file, dentry).  This method is only called if
+	the last component is negative or needs lookup.  Cached positive dentries
+	are still handled by f_op->open().  If the file was created,
+	FMODE_CREATED flag should be set in file->f_mode.  In case of O_EXCL
+	the method must only succeed if the file didn't exist and hence FMODE_CREATED
+	shall always be set on success.
 
   tmpfile: called in the end of O_TMPFILE open().  Optional, equivalent to
 	atomically creating, opening and unlinking a file in given directory.

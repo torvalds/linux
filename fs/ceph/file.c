@@ -429,8 +429,7 @@ out:
  * file or symlink, return 1 so the VFS can retry.
  */
 int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
-		     struct file *file, unsigned flags, umode_t mode,
-		     int *opened)
+		     struct file *file, unsigned flags, umode_t mode)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -507,9 +506,9 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		dout("atomic_open finish_open on dn %p\n", dn);
 		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_ino) {
 			ceph_init_inode_acls(d_inode(dentry), &acls);
-			*opened |= FILE_CREATED;
+			file->f_mode |= FMODE_CREATED;
 		}
-		err = finish_open(file, dentry, ceph_open, opened);
+		err = finish_open(file, dentry, ceph_open);
 	}
 out_req:
 	if (!req->r_err && req->r_target_inode)
