@@ -875,6 +875,7 @@ static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_summary sum;
 	struct node_info ni;
+	block_t old_blkaddr;
 	pgoff_t fofs;
 	blkcnt_t count = 1;
 	int err;
@@ -896,9 +897,12 @@ static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
 
 alloc:
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
-
-	f2fs_allocate_data_block(sbi, NULL, dn->data_blkaddr, &dn->data_blkaddr,
+	old_blkaddr = dn->data_blkaddr;
+	f2fs_allocate_data_block(sbi, NULL, old_blkaddr, &dn->data_blkaddr,
 					&sum, seg_type, NULL, false);
+	if (GET_SEGNO(sbi, old_blkaddr) != NULL_SEGNO)
+		invalidate_mapping_pages(META_MAPPING(sbi),
+					old_blkaddr, old_blkaddr);
 	f2fs_set_data_blkaddr(dn);
 
 	/* update i_size */
@@ -1614,6 +1618,7 @@ static int f2fs_read_data_pages(struct file *file,
 static int encrypt_one_page(struct f2fs_io_info *fio)
 {
 	struct inode *inode = fio->page->mapping->host;
+	struct page *mpage;
 	gfp_t gfp_flags = GFP_NOFS;
 
 	if (!f2fs_encrypted_file(inode))
@@ -1625,17 +1630,25 @@ static int encrypt_one_page(struct f2fs_io_info *fio)
 retry_encrypt:
 	fio->encrypted_page = fscrypt_encrypt_page(inode, fio->page,
 			PAGE_SIZE, 0, fio->page->index, gfp_flags);
-	if (!IS_ERR(fio->encrypted_page))
-		return 0;
-
-	/* flush pending IOs and wait for a while in the ENOMEM case */
-	if (PTR_ERR(fio->encrypted_page) == -ENOMEM) {
-		f2fs_flush_merged_writes(fio->sbi);
-		congestion_wait(BLK_RW_ASYNC, HZ/50);
-		gfp_flags |= __GFP_NOFAIL;
-		goto retry_encrypt;
+	if (IS_ERR(fio->encrypted_page)) {
+		/* flush pending IOs and wait for a while in the ENOMEM case */
+		if (PTR_ERR(fio->encrypted_page) == -ENOMEM) {
+			f2fs_flush_merged_writes(fio->sbi);
+			congestion_wait(BLK_RW_ASYNC, HZ/50);
+			gfp_flags |= __GFP_NOFAIL;
+			goto retry_encrypt;
+		}
+		return PTR_ERR(fio->encrypted_page);
 	}
-	return PTR_ERR(fio->encrypted_page);
+
+	mpage = find_lock_page(META_MAPPING(fio->sbi), fio->old_blkaddr);
+	if (mpage) {
+		if (PageUptodate(mpage))
+			memcpy(page_address(mpage),
+				page_address(fio->encrypted_page), PAGE_SIZE);
+		f2fs_put_page(mpage, 1);
+	}
+	return 0;
 }
 
 static inline bool check_inplace_update_policy(struct inode *inode,

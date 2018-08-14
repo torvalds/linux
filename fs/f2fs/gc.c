@@ -599,6 +599,72 @@ static bool is_alive(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	return true;
 }
 
+static int ra_data_block(struct inode *inode, pgoff_t index)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct address_space *mapping = inode->i_mapping;
+	struct dnode_of_data dn;
+	struct page *page;
+	struct extent_info ei = {0, 0, 0};
+	struct f2fs_io_info fio = {
+		.sbi = sbi,
+		.ino = inode->i_ino,
+		.type = DATA,
+		.temp = COLD,
+		.op = REQ_OP_READ,
+		.op_flags = 0,
+		.encrypted_page = NULL,
+		.in_list = false,
+		.retry = false,
+	};
+	int err;
+
+	page = f2fs_grab_cache_page(mapping, index, true);
+	if (!page)
+		return -ENOMEM;
+
+	if (f2fs_lookup_extent_cache(inode, index, &ei)) {
+		dn.data_blkaddr = ei.blk + index - ei.fofs;
+		goto got_it;
+	}
+
+	set_new_dnode(&dn, inode, NULL, NULL, 0);
+	err = f2fs_get_dnode_of_data(&dn, index, LOOKUP_NODE);
+	if (err)
+		goto put_page;
+	f2fs_put_dnode(&dn);
+
+	if (unlikely(!f2fs_is_valid_blkaddr(sbi, dn.data_blkaddr,
+						DATA_GENERIC))) {
+		err = -EFAULT;
+		goto put_page;
+	}
+got_it:
+	/* read page */
+	fio.page = page;
+	fio.new_blkaddr = fio.old_blkaddr = dn.data_blkaddr;
+
+	fio.encrypted_page = f2fs_pagecache_get_page(META_MAPPING(sbi),
+					dn.data_blkaddr,
+					FGP_LOCK | FGP_CREAT, GFP_NOFS);
+	if (!fio.encrypted_page) {
+		err = -ENOMEM;
+		goto put_page;
+	}
+
+	err = f2fs_submit_page_bio(&fio);
+	if (err)
+		goto put_encrypted_page;
+	f2fs_put_page(fio.encrypted_page, 0);
+	f2fs_put_page(page, 1);
+	return 0;
+put_encrypted_page:
+	f2fs_put_page(fio.encrypted_page, 1);
+put_page:
+	f2fs_put_page(page, 1);
+	return err;
+}
+
 /*
  * Move data block via META_MAPPING while keeping locked data page.
  * This can be used to move blocks, aka LBAs, directly on disk.
@@ -620,7 +686,7 @@ static void move_data_block(struct inode *inode, block_t bidx,
 	struct dnode_of_data dn;
 	struct f2fs_summary sum;
 	struct node_info ni;
-	struct page *page;
+	struct page *page, *mpage;
 	block_t newaddr;
 	int err;
 	bool lfs_mode = test_opt(fio.sbi, LFS);
@@ -683,6 +749,23 @@ static void move_data_block(struct inode *inode, block_t bidx,
 		goto recover_block;
 	}
 
+	mpage = f2fs_pagecache_get_page(META_MAPPING(fio.sbi),
+					fio.old_blkaddr, FGP_LOCK, GFP_NOFS);
+	if (mpage) {
+		bool updated = false;
+
+		if (PageUptodate(mpage)) {
+			memcpy(page_address(fio.encrypted_page),
+					page_address(mpage), PAGE_SIZE);
+			updated = true;
+		}
+		f2fs_put_page(mpage, 1);
+		invalidate_mapping_pages(META_MAPPING(fio.sbi),
+					fio.old_blkaddr, fio.old_blkaddr);
+		if (updated)
+			goto write_page;
+	}
+
 	err = f2fs_submit_page_bio(&fio);
 	if (err)
 		goto put_page_out;
@@ -699,6 +782,7 @@ static void move_data_block(struct inode *inode, block_t bidx,
 		goto put_page_out;
 	}
 
+write_page:
 	set_page_dirty(fio.encrypted_page);
 	f2fs_wait_on_page_writeback(fio.encrypted_page, DATA, true);
 	if (clear_page_dirty_for_io(fio.encrypted_page))
@@ -873,12 +957,6 @@ next_step:
 			if (IS_ERR(inode) || is_bad_inode(inode))
 				continue;
 
-			/* if inode uses special I/O path, let's go phase 3 */
-			if (f2fs_post_read_required(inode)) {
-				add_gc_inode(gc_list, inode);
-				continue;
-			}
-
 			if (!down_write_trylock(
 				&F2FS_I(inode)->i_gc_rwsem[WRITE])) {
 				iput(inode);
@@ -886,10 +964,23 @@ next_step:
 				continue;
 			}
 
-			start_bidx = f2fs_start_bidx_of_node(nofs, inode);
+			start_bidx = f2fs_start_bidx_of_node(nofs, inode) +
+								ofs_in_node;
+
+			if (f2fs_post_read_required(inode)) {
+				int err = ra_data_block(inode, start_bidx);
+
+				up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+				if (err) {
+					iput(inode);
+					continue;
+				}
+				add_gc_inode(gc_list, inode);
+				continue;
+			}
+
 			data_page = f2fs_get_read_data_page(inode,
-					start_bidx + ofs_in_node, REQ_RAHEAD,
-					true);
+						start_bidx, REQ_RAHEAD, true);
 			up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 			if (IS_ERR(data_page)) {
 				iput(inode);
