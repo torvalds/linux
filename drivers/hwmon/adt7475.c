@@ -962,13 +962,14 @@ static ssize_t show_pwmfreq(struct device *dev, struct device_attribute *attr,
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	int i = clamp_val(data->range[sattr->index] & 0xf, 0,
-			  ARRAY_SIZE(pwmfreq_table) - 1);
+	int idx;
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);
+	idx = clamp_val(data->range[sattr->index] & 0xf, 0,
+			ARRAY_SIZE(pwmfreq_table) - 1);
 
-	return sprintf(buf, "%d\n", pwmfreq_table[i]);
+	return sprintf(buf, "%d\n", pwmfreq_table[idx]);
 }
 
 static ssize_t set_pwmfreq(struct device *dev, struct device_attribute *attr,
@@ -1004,6 +1005,10 @@ static ssize_t pwm_use_point2_pwm_at_crit_show(struct device *dev,
 					char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", !!(data->config4 & CONFIG4_MAXDUTY));
 }
 
