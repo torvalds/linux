@@ -7235,6 +7235,7 @@ sk_reuseport_is_valid_access(int off, int size,
 	case offsetof(struct sk_reuseport_md, eth_protocol):
 		if (size < FIELD_SIZEOF(struct sk_buff, protocol))
 			return false;
+		/* fall through */
 	case offsetof(struct sk_reuseport_md, ip_protocol):
 	case offsetof(struct sk_reuseport_md, bind_inany):
 	case offsetof(struct sk_reuseport_md, len):
