@@ -20,7 +20,7 @@
 
 #include <asm/vectors.h>
 #include <variant/core.h>
-#include <platform/hardware.h>
+
 OUTPUT_ARCH(xtensa)
 ENTRY(_start)
 

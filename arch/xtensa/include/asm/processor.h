@@ -11,7 +11,6 @@
 #define _XTENSA_PROCESSOR_H
 
 #include <variant/core.h>
-#include <platform/hardware.h>
 
 #include <linux/compiler.h>
 #include <asm/ptrace.h>

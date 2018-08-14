@@ -47,8 +47,6 @@
 #include <asm/smp.h>
 #include <asm/sysmem.h>
 
-#include <platform/hardware.h>
-
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 struct screen_info screen_info = {
 	.orig_x = 0,
