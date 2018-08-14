@@ -3,12 +3,10 @@
  *    Copyright IBM Corp. 2016
  */
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <asm/processor.h>
 #include <asm/facility.h>
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
-#include "entry.h"
 
 /*
  * The code within this file will be called very early. It may _not_
@@ -18,9 +16,9 @@
  * For temporary objects the stack (16k) should be used.
  */
 
-static unsigned long als[] __initdata = { FACILITIES_ALS };
+static unsigned long als[] = { FACILITIES_ALS };
 
-static void __init u16_to_hex(char *str, u16 val)
+static void u16_to_hex(char *str, u16 val)
 {
 	int i, num;
 
@@ -33,9 +31,9 @@ static void __init u16_to_hex(char *str, u16 val)
 	*str = '\0';
 }
 
-static void __init print_machine_type(void)
+static void print_machine_type(void)
 {
-	static char mach_str[80] __initdata = "Detected machine-type number: ";
+	static char mach_str[80] = "Detected machine-type number: ";
 	char type_str[5];
 	struct cpuid id;
 
@@ -46,7 +44,7 @@ static void __init print_machine_type(void)
 	sclp_early_printk(mach_str);
 }
 
-static void __init u16_to_decimal(char *str, u16 val)
+static void u16_to_decimal(char *str, u16 val)
 {
 	int div = 1;
 
@@ -60,9 +58,9 @@ static void __init u16_to_decimal(char *str, u16 val)
 	*str = '\0';
 }
 
-static void __init print_missing_facilities(void)
+static void print_missing_facilities(void)
 {
-	static char als_str[80] __initdata = "Missing facilities: ";
+	static char als_str[80] = "Missing facilities: ";
 	unsigned long val;
 	char val_str[6];
 	int i, j, first;
@@ -95,7 +93,7 @@ static void __init print_missing_facilities(void)
 	sclp_early_printk("See Principles of Operations for facility bits\n");
 }
 
-static void __init facility_mismatch(void)
+static void facility_mismatch(void)
 {
 	sclp_early_printk("The Linux kernel requires more recent processor hardware\n");
 	print_machine_type();
@@ -103,7 +101,7 @@ static void __init facility_mismatch(void)
 	disabled_wait(0x8badcccc);
 }
 
-void __init verify_facilities(void)
+void verify_facilities(void)
 {
 	int i;
 
