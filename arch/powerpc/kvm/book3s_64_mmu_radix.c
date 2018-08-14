@@ -738,10 +738,10 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 					      gpa, shift);
 		kvmppc_radix_tlbie_page(kvm, gpa, shift);
 		if ((old & _PAGE_DIRTY) && memslot->dirty_bitmap) {
-			unsigned long npages = 1;
+			unsigned long psize = PAGE_SIZE;
 			if (shift)
-				npages = 1ul << (shift - PAGE_SHIFT);
-			kvmppc_update_dirty_map(memslot, gfn, npages);
+				psize = 1ul << shift;
+			kvmppc_update_dirty_map(memslot, gfn, psize);
 		}
 	}
 	return 0;				
