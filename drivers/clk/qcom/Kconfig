@@ -1,3 +1,7 @@
+config KRAIT_CLOCKS
+       bool
+       select KRAIT_L2_ACCESSORS
+
 config QCOM_GDSC
 	bool
 	select PM_GENERIC_DOMAINS if PM
