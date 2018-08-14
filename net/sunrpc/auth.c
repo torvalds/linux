@@ -817,6 +817,16 @@ rpcauth_unwrap_resp(struct rpc_task *task, kxdrdproc_t decode, void *rqstp,
 	return rpcauth_unwrap_req_decode(decode, rqstp, data, obj);
 }
 
+bool
+rpcauth_xmit_need_reencode(struct rpc_task *task)
+{
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
+
+	if (!cred || !cred->cr_ops->crneed_reencode)
+		return false;
+	return cred->cr_ops->crneed_reencode(task);
+}
+
 int
 rpcauth_refreshcred(struct rpc_task *task)
 {

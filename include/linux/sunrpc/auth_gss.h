@@ -70,6 +70,7 @@ struct gss_cl_ctx {
 	refcount_t		count;
 	enum rpc_gss_proc	gc_proc;
 	u32			gc_seq;
+	u32			gc_seq_xmit;
 	spinlock_t		gc_seq_lock;
 	struct gss_ctx		*gc_gss_ctx;
 	struct xdr_netobj	gc_wire_ctx;

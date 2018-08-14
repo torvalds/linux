@@ -1014,6 +1014,13 @@ void xprt_transmit(struct rpc_task *task)
 	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
 
 	if (!req->rq_reply_bytes_recvd) {
+
+		/* Verify that our message lies in the RPCSEC_GSS window */
+		if (!req->rq_bytes_sent && rpcauth_xmit_need_reencode(task)) {
+			task->tk_status = -EBADMSG;
+			return;
+		}
+
 		if (list_empty(&req->rq_list) && rpc_reply_expected(task)) {
 			/*
 			 * Add to the list only if we're expecting a reply
