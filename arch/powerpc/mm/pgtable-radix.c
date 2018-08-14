@@ -255,17 +255,21 @@ static inline void __meminit print_mapping(unsigned long start,
 	pr_info("Mapped 0x%016lx-0x%016lx with %s pages\n", start, end, buf);
 }
 
+static unsigned long next_boundary(unsigned long addr, unsigned long end)
+{
+#ifdef CONFIG_STRICT_KERNEL_RWX
+	if (addr < __pa_symbol(__init_begin))
+		return __pa_symbol(__init_begin);
+#endif
+	return end;
+}
+
 static int __meminit create_physical_mapping(unsigned long start,
 					     unsigned long end,
 					     int nid)
 {
 	unsigned long vaddr, addr, mapping_size = 0;
 	pgprot_t prot;
-#ifdef CONFIG_STRICT_KERNEL_RWX
-	int split_text_mapping = 1;
-#else
-	int split_text_mapping = 0;
-#endif
 	int psize;
 
 	start = _ALIGN_UP(start, PAGE_SIZE);
@@ -273,7 +277,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 		unsigned long gap, previous_size;
 		int rc;
 
-		gap = end - addr;
+		gap = next_boundary(addr, end) - addr;
 		previous_size = mapping_size;
 
 		if (IS_ALIGNED(addr, PUD_SIZE) && gap >= PUD_SIZE &&
@@ -285,22 +289,6 @@ static int __meminit create_physical_mapping(unsigned long start,
 			mapping_size = PMD_SIZE;
 			psize = MMU_PAGE_2M;
 		} else {
-			mapping_size = PAGE_SIZE;
-			psize = mmu_virtual_psize;
-		}
-
-		if (split_text_mapping && (mapping_size == PUD_SIZE) &&
-			(addr < __pa_symbol(__init_begin)) &&
-			(addr + mapping_size) > __pa_symbol(__init_begin)) {
-			if (mmu_psize_defs[MMU_PAGE_2M].shift)
-				mapping_size = PMD_SIZE;
-			else
-				mapping_size = PAGE_SIZE;
-		}
-
-		if (split_text_mapping && (mapping_size == PMD_SIZE) &&
-		    (addr < __pa_symbol(__init_begin)) &&
-		    (addr + mapping_size) > __pa_symbol(__init_begin)) {
 			mapping_size = PAGE_SIZE;
 			psize = mmu_virtual_psize;
 		}
