@@ -74,4 +74,5 @@ is returned, and the ``errno`` variable is set appropriately:
     The call was interrupted by a signal.
 
 ``EINVAL``
-    The ``nfds`` argument is greater than ``OPEN_MAX``.
+    The ``nfds`` value exceeds the ``RLIMIT_NOFILE`` value. Use
+    ``getrlimit()`` to obtain this value.
