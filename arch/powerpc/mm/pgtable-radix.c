@@ -261,7 +261,6 @@ static int __meminit create_physical_mapping(unsigned long start,
 {
 	unsigned long vaddr, addr, mapping_size = 0;
 	pgprot_t prot;
-	unsigned long max_mapping_size;
 #ifdef CONFIG_STRICT_KERNEL_RWX
 	int split_text_mapping = 1;
 #else
@@ -276,12 +275,9 @@ static int __meminit create_physical_mapping(unsigned long start,
 
 		gap = end - addr;
 		previous_size = mapping_size;
-		max_mapping_size = PUD_SIZE;
 
-retry:
 		if (IS_ALIGNED(addr, PUD_SIZE) && gap >= PUD_SIZE &&
-		    mmu_psize_defs[MMU_PAGE_1G].shift &&
-		    PUD_SIZE <= max_mapping_size) {
+		    mmu_psize_defs[MMU_PAGE_1G].shift) {
 			mapping_size = PUD_SIZE;
 			psize = MMU_PAGE_1G;
 		} else if (IS_ALIGNED(addr, PMD_SIZE) && gap >= PMD_SIZE &&
@@ -296,8 +292,10 @@ retry:
 		if (split_text_mapping && (mapping_size == PUD_SIZE) &&
 			(addr < __pa_symbol(__init_begin)) &&
 			(addr + mapping_size) > __pa_symbol(__init_begin)) {
-			max_mapping_size = PMD_SIZE;
-			goto retry;
+			if (mmu_psize_defs[MMU_PAGE_2M].shift)
+				mapping_size = PMD_SIZE;
+			else
+				mapping_size = PAGE_SIZE;
 		}
 
 		if (split_text_mapping && (mapping_size == PMD_SIZE) &&
