@@ -465,19 +465,3 @@ EXPORT_SYMBOL(snd_gf1_mem_alloc);
 EXPORT_SYMBOL(snd_gf1_mem_xfree);
 EXPORT_SYMBOL(snd_gf1_mem_free);
 EXPORT_SYMBOL(snd_gf1_mem_lock);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_gus_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_gus_exit(void)
-{
-}
-
-module_init(alsa_gus_init)
-module_exit(alsa_gus_exit)

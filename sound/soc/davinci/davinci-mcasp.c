@@ -320,12 +320,8 @@ static irqreturn_t davinci_mcasp_tx_irq_handler(int irq, void *data)
 		handled_mask |= XUNDRN;
 
 		substream = mcasp->substreams[SNDRV_PCM_STREAM_PLAYBACK];
-		if (substream) {
-			snd_pcm_stream_lock_irq(substream);
-			if (snd_pcm_running(substream))
-				snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-			snd_pcm_stream_unlock_irq(substream);
-		}
+		if (substream)
+			snd_pcm_stop_xrun(substream);
 	}
 
 	if (!handled_mask)
@@ -355,12 +351,8 @@ static irqreturn_t davinci_mcasp_rx_irq_handler(int irq, void *data)
 		handled_mask |= ROVRN;
 
 		substream = mcasp->substreams[SNDRV_PCM_STREAM_CAPTURE];
-		if (substream) {
-			snd_pcm_stream_lock_irq(substream);
-			if (snd_pcm_running(substream))
-				snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-			snd_pcm_stream_unlock_irq(substream);
-		}
+		if (substream)
+			snd_pcm_stop_xrun(substream);
 	}
 
 	if (!handled_mask)

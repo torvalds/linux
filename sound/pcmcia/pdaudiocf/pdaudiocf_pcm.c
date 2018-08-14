@@ -276,7 +276,6 @@ static const struct snd_pcm_ops pdacf_pcm_capture_ops = {
 	.trigger =	pdacf_pcm_trigger,
 	.pointer =	pdacf_pcm_capture_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 

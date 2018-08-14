@@ -283,7 +283,7 @@ struct snd_msnd {
 
 };
 
-void snd_msnd_init_queue(void *base, int start, int size);
+void snd_msnd_init_queue(void __iomem *base, int start, int size);
 
 int snd_msnd_send_dsp_cmd(struct snd_msnd *chip, u8 cmd);
 int snd_msnd_send_word(struct snd_msnd *chip,
