@@ -1039,6 +1039,8 @@
 		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
+		assigned-clocks = <&cru SCLK_SFC>;
+		assigned-clock-rates = <100000000>;
 		status = "disabled";
 	};
 
