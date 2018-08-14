@@ -208,6 +208,34 @@ static int upper_device_filter(struct ib_device *ib_dev, u8 port,
 	return res;
 }
 
+/**
+ * is_upper_ndev_bond_master_filter - Check if a given netdevice
+ * is bond master device of netdevice of the the RDMA device of port.
+ * @ib_dev:		IB device to check
+ * @port:		Port to consider for adding default GID
+ * @rdma_ndev:		Pointer to rdma netdevice
+ * @cookie:	        Netdevice to consider to form a default GID
+ *
+ * is_upper_ndev_bond_master_filter() returns true if a cookie_netdev
+ * is bond master device and rdma_ndev is its lower netdevice. It might
+ * not have been established as slave device yet.
+ */
+static int
+is_upper_ndev_bond_master_filter(struct ib_device *ib_dev, u8 port,
+				 struct net_device *rdma_ndev,
+				 void *cookie)
+{
+	struct net_device *cookie_ndev = cookie;
+	bool match = false;
+
+	rcu_read_lock();
+	if (netif_is_bond_master(cookie_ndev) &&
+	    rdma_is_upper_dev_rcu(rdma_ndev, cookie_ndev))
+		match = true;
+	rcu_read_unlock();
+	return match;
+}
+
 static void update_gid_ip(enum gid_op_type gid_op,
 			  struct ib_device *ib_dev,
 			  u8 port, struct net_device *ndev,
@@ -389,6 +417,27 @@ static void del_netdev_ips(struct ib_device *ib_dev, u8 port,
 			   struct net_device *rdma_ndev, void *cookie)
 {
 	ib_cache_gid_del_all_netdev_gids(ib_dev, port, cookie);
+}
+
+/**
+ * del_default_gids - Delete default GIDs of the event/cookie netdevice
+ * @ib_dev:	RDMA device pointer
+ * @port:	Port of the RDMA device whose GID table to consider
+ * @rdma_ndev:	Unused rdma netdevice
+ * @cookie:	Pointer to event netdevice
+ *
+ * del_default_gids() deletes the default GIDs of the event/cookie netdevice.
+ */
+static void del_default_gids(struct ib_device *ib_dev, u8 port,
+			     struct net_device *rdma_ndev, void *cookie)
+{
+	struct net_device *cookie_ndev = cookie;
+	unsigned long gid_type_mask;
+
+	gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
+
+	ib_cache_gid_set_default_gid(ib_dev, port, cookie_ndev, gid_type_mask,
+				     IB_CACHE_GID_DEFAULT_MODE_DELETE);
 }
 
 static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
@@ -589,30 +638,34 @@ ndev_event_unlink(struct netdev_notifier_changeupper_info *changeupper_info,
 }
 
 static void
-ndev_event_link(struct netdev_notifier_changeupper_info *changeupper_info,
+ndev_event_link(struct net_device *event_ndev,
+		struct netdev_notifier_changeupper_info *changeupper_info,
 		struct netdev_event_work_cmd *cmds)
 {
 	static const struct netdev_event_work_cmd
 			bonding_default_del_cmd = {
-				.cb	= bond_delete_netdev_default_gids,
-				.filter	= is_eth_port_inactive_slave
+				.cb	= del_default_gids,
+				.filter	= is_upper_ndev_bond_master_filter
 			};
 	/*
 	 * When a lower netdev is linked to its upper bonding
-	 * netdev, delete lower inactive slave netdev's default GIDs.
+	 * netdev, delete lower slave netdev's default GIDs.
 	 */
 	cmds[0] = bonding_default_del_cmd;
-	cmds[0].ndev = changeupper_info->upper_dev;
+	cmds[0].ndev = event_ndev;
+	cmds[0].filter_ndev = changeupper_info->upper_dev;
+
 	cmds[1] = add_cmd_upper_ips;
 	cmds[1].ndev = changeupper_info->upper_dev;
 	cmds[1].filter_ndev = changeupper_info->upper_dev;
 }
 
-static void netdevice_event_changeupper(struct netdev_notifier_changeupper_info *changeupper_info,
-					struct netdev_event_work_cmd *cmds)
+static void netdevice_event_changeupper(struct net_device *event_ndev,
+		struct netdev_notifier_changeupper_info *changeupper_info,
+		struct netdev_event_work_cmd *cmds)
 {
 	if (changeupper_info->linking)
-		ndev_event_link(changeupper_info, cmds);
+		ndev_event_link(event_ndev, changeupper_info, cmds);
 	else
 		ndev_event_unlink(changeupper_info, cmds);
 }
@@ -657,7 +710,7 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 		break;
 
 	case NETDEV_CHANGEUPPER:
-		netdevice_event_changeupper(
+		netdevice_event_changeupper(ndev,
 			container_of(ptr, struct netdev_notifier_changeupper_info, info),
 			cmds);
 		break;
