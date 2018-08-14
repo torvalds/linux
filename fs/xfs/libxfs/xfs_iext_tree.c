@@ -14,6 +14,7 @@
 #include "xfs_inode_fork.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_bmap.h"
 #include "xfs_trace.h"
 
 /*
@@ -612,6 +613,19 @@ xfs_iext_realloc_root(
 	cur->leaf = new;
 }
 
+/*
+ * Increment the sequence counter if we are on a COW fork.  This allows
+ * the writeback code to skip looking for a COW extent if the COW fork
+ * hasn't changed.  We use WRITE_ONCE here to ensure the update to the
+ * sequence counter is seen before the modifications to the extent
+ * tree itself take effect.
+ */
+static inline void xfs_iext_inc_seq(struct xfs_ifork *ifp, int state)
+{
+	if (state & BMAP_COWFORK)
+		WRITE_ONCE(ifp->if_seq, READ_ONCE(ifp->if_seq) + 1);
+}
+
 void
 xfs_iext_insert(
 	struct xfs_inode	*ip,
@@ -623,6 +637,8 @@ xfs_iext_insert(
 	xfs_fileoff_t		offset = irec->br_startoff;
 	struct xfs_iext_leaf	*new = NULL;
 	int			nr_entries, i;
+
+	xfs_iext_inc_seq(ifp, state);
 
 	if (ifp->if_height == 0)
 		xfs_iext_alloc_root(ifp, cur);
@@ -864,6 +880,8 @@ xfs_iext_remove(
 	ASSERT(ifp->if_u1.if_root != NULL);
 	ASSERT(xfs_iext_valid(ifp, cur));
 
+	xfs_iext_inc_seq(ifp, state);
+
 	nr_entries = xfs_iext_leaf_nr_entries(ifp, leaf, cur->pos) - 1;
 	for (i = cur->pos; i < nr_entries; i++)
 		leaf->recs[i] = leaf->recs[i + 1];
@@ -969,6 +987,8 @@ xfs_iext_update_extent(
 	struct xfs_bmbt_irec	*new)
 {
 	struct xfs_ifork	*ifp = xfs_iext_state_to_fork(ip, state);
+
+	xfs_iext_inc_seq(ifp, state);
 
 	if (cur->pos == 0) {
 		struct xfs_bmbt_irec	old;

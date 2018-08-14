@@ -15,7 +15,6 @@
 struct xfs_dinode;
 struct xfs_inode;
 struct xfs_buf;
-struct xfs_defer_ops;
 struct xfs_bmbt_irec;
 struct xfs_inode_log_item;
 struct xfs_mount;
@@ -34,9 +33,9 @@ typedef struct xfs_inode {
 	struct xfs_imap		i_imap;		/* location for xfs_imap() */
 
 	/* Extent information. */
-	xfs_ifork_t		*i_afp;		/* attribute fork pointer */
-	xfs_ifork_t		*i_cowfp;	/* copy on write extents */
-	xfs_ifork_t		i_df;		/* data fork */
+	struct xfs_ifork	*i_afp;		/* attribute fork pointer */
+	struct xfs_ifork	*i_cowfp;	/* copy on write extents */
+	struct xfs_ifork	i_df;		/* data fork */
 
 	/* operations vectors */
 	const struct xfs_dir_ops *d_ops;		/* directory ops vector */
@@ -196,6 +195,15 @@ xfs_get_initial_prid(struct xfs_inode *dp)
 static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
 {
 	return ip->i_d.di_flags2 & XFS_DIFLAG2_REFLINK;
+}
+
+/*
+ * Check if an inode has any data in the COW fork.  This might be often false
+ * even for inodes with the reflink flag when there is no pending COW operation.
+ */
+static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
+{
+	return ip->i_cowfp && ip->i_cowfp->if_bytes;
 }
 
 /*
@@ -415,8 +423,7 @@ uint		xfs_ilock_data_map_shared(struct xfs_inode *);
 uint		xfs_ilock_attr_map_shared(struct xfs_inode *);
 
 uint		xfs_ip2xflags(struct xfs_inode *);
-int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
-			   struct xfs_defer_ops *);
+int		xfs_ifree(struct xfs_trans *, struct xfs_inode *);
 int		xfs_itruncate_extents_flags(struct xfs_trans **,
 				struct xfs_inode *, int, xfs_fsize_t, int);
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
@@ -484,18 +491,7 @@ static inline void xfs_setup_existing_inode(struct xfs_inode *ip)
 	xfs_finish_inode_setup(ip);
 }
 
-#define IHOLD(ip) \
-do { \
-	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \
-	ihold(VFS_I(ip)); \
-	trace_xfs_ihold(ip, _THIS_IP_); \
-} while (0)
-
-#define IRELE(ip) \
-do { \
-	trace_xfs_irele(ip, _THIS_IP_); \
-	iput(VFS_I(ip)); \
-} while (0)
+void xfs_irele(struct xfs_inode *ip);
 
 extern struct kmem_zone	*xfs_inode_zone;
 

@@ -185,21 +185,17 @@ struct xfs_rmap_intent {
 };
 
 /* functions for updating the rmapbt based on bmbt map/unmap operations */
-int xfs_rmap_map_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
+int xfs_rmap_map_extent(struct xfs_trans *tp, struct xfs_inode *ip,
+		int whichfork, struct xfs_bmbt_irec *imap);
+int xfs_rmap_unmap_extent(struct xfs_trans *tp, struct xfs_inode *ip,
+		int whichfork, struct xfs_bmbt_irec *imap);
+int xfs_rmap_convert_extent(struct xfs_mount *mp, struct xfs_trans *tp,
 		struct xfs_inode *ip, int whichfork,
 		struct xfs_bmbt_irec *imap);
-int xfs_rmap_unmap_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
-		struct xfs_inode *ip, int whichfork,
-		struct xfs_bmbt_irec *imap);
-int xfs_rmap_convert_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
-		struct xfs_inode *ip, int whichfork,
-		struct xfs_bmbt_irec *imap);
-int xfs_rmap_alloc_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
-		xfs_agnumber_t agno, xfs_agblock_t bno, xfs_extlen_t len,
-		uint64_t owner);
-int xfs_rmap_free_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
-		xfs_agnumber_t agno, xfs_agblock_t bno, xfs_extlen_t len,
-		uint64_t owner);
+int xfs_rmap_alloc_extent(struct xfs_trans *tp, xfs_agnumber_t agno,
+		xfs_agblock_t bno, xfs_extlen_t len, uint64_t owner);
+int xfs_rmap_free_extent(struct xfs_trans *tp, xfs_agnumber_t agno,
+		xfs_agblock_t bno, xfs_extlen_t len, uint64_t owner);
 
 void xfs_rmap_finish_one_cleanup(struct xfs_trans *tp,
 		struct xfs_btree_cur *rcur, int error);

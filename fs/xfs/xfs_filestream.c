@@ -19,6 +19,8 @@
 #include "xfs_filestream.h"
 #include "xfs_trace.h"
 #include "xfs_ag_resv.h"
+#include "xfs_trans.h"
+#include "xfs_shared.h"
 
 struct xfs_fstrm_item {
 	struct xfs_mru_cache_elem	mru;
@@ -339,7 +341,7 @@ xfs_filestream_lookup_ag(
 	if (xfs_filestream_pick_ag(pip, startag, &ag, 0, 0))
 		ag = NULLAGNUMBER;
 out:
-	IRELE(pip);
+	xfs_irele(pip);
 	return ag;
 }
 
@@ -377,7 +379,7 @@ xfs_filestream_new_ag(
 
 	if (xfs_alloc_is_userdata(ap->datatype))
 		flags |= XFS_PICK_USERDATA;
-	if (ap->dfops->dop_low)
+	if (ap->tp->t_flags & XFS_TRANS_LOWMODE)
 		flags |= XFS_PICK_LOWSPACE;
 
 	err = xfs_filestream_pick_ag(pip, startag, agp, flags, minlen);
@@ -388,7 +390,7 @@ xfs_filestream_new_ag(
 	if (mru)
 		xfs_fstrm_free_func(mp, mru);
 
-	IRELE(pip);
+	xfs_irele(pip);
 exit:
 	if (*agp == NULLAGNUMBER)
 		*agp = 0;
