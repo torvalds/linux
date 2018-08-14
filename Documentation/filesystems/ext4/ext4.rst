@@ -1,6 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
 
-Ext4 Filesystem
-===============
+========================
+General Information
+========================
 
 Ext4 is an advanced level of the ext3 filesystem which incorporates
 scalability and reliability enhancements for supporting large filesystems
@@ -11,37 +13,30 @@ Mailing list:	linux-ext4@vger.kernel.org
 Web site:	http://ext4.wiki.kernel.org
 
 
-1. Quick usage instructions:
-===========================
+Quick usage instructions
+========================
 
 Note: More extensive information for getting started with ext4 can be
-      found at the ext4 wiki site at the URL:
-      http://ext4.wiki.kernel.org/index.php/Ext4_Howto
+found at the ext4 wiki site at the URL:
+http://ext4.wiki.kernel.org/index.php/Ext4_Howto
 
-  - Compile and install the latest version of e2fsprogs (as of this
-    writing version 1.41.3) from:
-
-    http://sourceforge.net/project/showfiles.php?group_id=2406
-	
-	or
+  - The latest version of e2fsprogs can be found at:
 
     https://www.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/
 
+	or
+
+    http://sourceforge.net/project/showfiles.php?group_id=2406
+
 	or grab the latest git repository from:
 
-    git://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git
-
-  - Note that it is highly important to install the mke2fs.conf file
-    that comes with the e2fsprogs 1.41.x sources in /etc/mke2fs.conf. If
-    you have edited the /etc/mke2fs.conf file installed on your system,
-    you will need to merge your changes with the version from e2fsprogs
-    1.41.x.
+   https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git
 
   - Create a new filesystem using the ext4 filesystem type:
 
-    	# mke2fs -t ext4 /dev/hda1
+        # mke2fs -t ext4 /dev/hda1
 
-    Or to configure an existing ext3 filesystem to support extents: 
+    Or to configure an existing ext3 filesystem to support extents:
 
 	# tune2fs -O extents /dev/hda1
 
@@ -49,10 +44,6 @@ Note: More extensive information for getting started with ext4 can be
     converted to use 256 byte for greater efficiency via:
 
         # tune2fs -I 256 /dev/hda1
-
-    (Note: we currently do not have tools to convert an ext4
-    filesystem back to ext3; so please do not do try this on production
-    filesystems.)
 
   - Mounting:
 
@@ -75,10 +66,11 @@ Note: More extensive information for getting started with ext4 can be
     the filesystem with a large journal can also be helpful for
     metadata-intensive workloads.
 
-2. Features
-===========
+Features
+========
 
-2.1 Currently available
+Currently Available
+-------------------
 
 * ability to use filesystems > 16TB (e2fsprogs support not available yet)
 * extent format reduces metadata overhead (RAM, IO for access, transactions)
@@ -103,31 +95,15 @@ Note: More extensive information for getting started with ext4 can be
 [1] Filesystems with a block size of 1k may see a limit imposed by the
 directory hash tree having a maximum depth of two.
 
-2.2 Candidate features for future inclusion
-
-* online defrag (patches available but not well tested)
-* reduced mke2fs time via lazy itable initialization in conjunction with
-  the uninit_bg feature (capability to do this is available in e2fsprogs
-  but a kernel thread to do lazy zeroing of unused inode table blocks
-  after filesystem is first mounted is required for safety)
-
-There are several others under discussion, whether they all make it in is
-partly a function of how much time everyone has to work on them. Features like
-metadata checksumming have been discussed and planned for a bit but no patches
-exist yet so I'm not sure they're in the near-term roadmap.
-
-The big performance win will come with mballoc, delalloc and flex_bg
-grouping of bitmaps and inode tables.  Some test results available here:
-
- - http://www.bullopensource.org/ext4/20080818-ffsb/ffsb-write-2.6.27-rc1.html
- - http://www.bullopensource.org/ext4/20080818-ffsb/ffsb-readwrite-2.6.27-rc1.html
-
-3. Options
-==========
+Options
+=======
 
 When mounting an ext4 filesystem, the following option are accepted:
 (*) == default
 
+======================= =======================================================
+Mount Option            Description
+======================= =======================================================
 ro                   	Mount filesystem read only. Note that ext4 will
                      	replay the journal (and thus write to the
                      	partition) even when mounted "read only". The
@@ -387,33 +363,38 @@ i_version		Enable 64-bit inode version support. This option is
 dax			Use direct access (no page cache).  See
 			Documentation/filesystems/dax.txt.  Note that
 			this option is incompatible with data=journal.
+======================= =======================================================
 
 Data Mode
 =========
 There are 3 different data modes:
 
 * writeback mode
-In data=writeback mode, ext4 does not journal data at all.  This mode provides
-a similar level of journaling as that of XFS, JFS, and ReiserFS in its default
-mode - metadata journaling.  A crash+recovery can cause incorrect data to
-appear in files which were written shortly before the crash.  This mode will
-typically provide the best ext4 performance.
+
+  In data=writeback mode, ext4 does not journal data at all.  This mode provides
+  a similar level of journaling as that of XFS, JFS, and ReiserFS in its default
+  mode - metadata journaling.  A crash+recovery can cause incorrect data to
+  appear in files which were written shortly before the crash.  This mode will
+  typically provide the best ext4 performance.
 
 * ordered mode
-In data=ordered mode, ext4 only officially journals metadata, but it logically
-groups metadata information related to data changes with the data blocks into a
-single unit called a transaction.  When it's time to write the new metadata
-out to disk, the associated data blocks are written first.  In general,
-this mode performs slightly slower than writeback but significantly faster than journal mode.
+
+  In data=ordered mode, ext4 only officially journals metadata, but it logically
+  groups metadata information related to data changes with the data blocks into
+  a single unit called a transaction.  When it's time to write the new metadata
+  out to disk, the associated data blocks are written first.  In general, this
+  mode performs slightly slower than writeback but significantly faster than
+  journal mode.
 
 * journal mode
-data=journal mode provides full data and metadata journaling.  All new data is
-written to the journal first, and then to its final location.
-In the event of a crash, the journal can be replayed, bringing both data and
-metadata into a consistent state.  This mode is the slowest except when data
-needs to be read from and written to disk at the same time where it
-outperforms all others modes.  Enabling this mode will disable delayed
-allocation and O_DIRECT support.
+
+  data=journal mode provides full data and metadata journaling.  All new data is
+  written to the journal first, and then to its final location.  In the event of
+  a crash, the journal can be replayed, bringing both data and metadata into a
+  consistent state.  This mode is the slowest except when data needs to be read
+  from and written to disk at the same time where it outperforms all others
+  modes.  Enabling this mode will disable delayed allocation and O_DIRECT
+  support.
 
 /proc entries
 =============
@@ -425,10 +406,12 @@ Information about mounted ext4 file systems can be found in
 in table below.
 
 Files in /proc/fs/ext4/<devname>
-..............................................................................
+
+================ =======
  File            Content
+================ =======
  mb_groups       details of multiblock allocator buddy cache of free blocks
-..............................................................................
+================ =======
 
 /sys entries
 ============
@@ -439,28 +422,30 @@ Information about mounted ext4 file systems can be found in
 /sys/fs/ext4/dm-0).   The files in each per-device directory are shown
 in table below.
 
-Files in /sys/fs/ext4/<devname>
-(see also Documentation/ABI/testing/sysfs-fs-ext4)
-..............................................................................
- File                         Content
+Files in /sys/fs/ext4/<devname>:
 
+(see also Documentation/ABI/testing/sysfs-fs-ext4)
+
+============================= =================================================
+File                          Content
+============================= =================================================
  delayed_allocation_blocks    This file is read-only and shows the number of
                               blocks that are dirty in the page cache, but
                               which do not have their location in the
                               filesystem allocated yet.
 
- inode_goal                   Tuning parameter which (if non-zero) controls
+inode_goal                    Tuning parameter which (if non-zero) controls
                               the goal inode used by the inode allocator in
                               preference to all other allocation heuristics.
                               This is intended for debugging use only, and
                               should be 0 on production systems.
 
- inode_readahead_blks         Tuning parameter which controls the maximum
+inode_readahead_blks          Tuning parameter which controls the maximum
                               number of inode table blocks that ext4's inode
                               table readahead algorithm will pre-read into
                               the buffer cache
 
- lifetime_write_kbytes        This file is read-only and shows the number of
+lifetime_write_kbytes         This file is read-only and shows the number of
                               kilobytes of data that have been written to this
                               filesystem since it was created.
 
@@ -508,7 +493,7 @@ Files in /sys/fs/ext4/<devname>
                               in the file system. If there is not enough space
                               for the reserved space when mounting the file
                               mount will _not_ fail.
-..............................................................................
+============================= =================================================
 
 Ioctls
 ======
@@ -518,8 +503,10 @@ through the system call interfaces. The list of all Ext4 specific ioctls are
 shown in the table below.
 
 Table of Ext4 specific ioctls
-..............................................................................
- Ioctl			      Description
+
+============================= =================================================
+Ioctl			      Description
+============================= =================================================
  EXT4_IOC_GETFLAGS	      Get additional attributes associated with inode.
 			      The ioctl argument is an integer bitfield, with
 			      bit values described in ext4.h. This ioctl is an
@@ -610,8 +597,7 @@ Table of Ext4 specific ioctls
 			      normal user by accident.
 			      The data blocks of the previous boot loader
 			      will be associated with the given inode.
-
-..............................................................................
+============================= =================================================
 
 References
 ==========

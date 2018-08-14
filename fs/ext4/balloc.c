@@ -426,9 +426,9 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	}
 	bh = sb_getblk(sb, bitmap_blk);
 	if (unlikely(!bh)) {
-		ext4_error(sb, "Cannot get buffer for block bitmap - "
-			   "block_group = %u, block_bitmap = %llu",
-			   block_group, bitmap_blk);
+		ext4_warning(sb, "Cannot get buffer for block bitmap - "
+			     "block_group = %u, block_bitmap = %llu",
+			     block_group, bitmap_blk);
 		return ERR_PTR(-ENOMEM);
 	}
 
