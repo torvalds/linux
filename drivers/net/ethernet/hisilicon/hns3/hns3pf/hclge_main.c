@@ -787,9 +787,10 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_1G) {
 			count += 1;
 			handle->flags |= HNAE3_SUPPORT_MAC_LOOPBACK;
-		} else {
-			count = -EOPNOTSUPP;
 		}
+
+		count++;
+		handle->flags |= HNAE3_SUPPORT_SERDES_LOOPBACK;
 	} else if (stringset == ETH_SS_STATS) {
 		count = ARRAY_SIZE(g_mac_stats_string) +
 			ARRAY_SIZE(g_all_32bit_stats_string) +
@@ -1266,35 +1267,37 @@ static int hclge_map_tqps_to_func(struct hclge_dev *hdev, u16 func_id,
 	return ret;
 }
 
-static int  hclge_assign_tqp(struct hclge_vport *vport,
-			     struct hnae3_queue **tqp, u16 num_tqps)
+static int  hclge_assign_tqp(struct hclge_vport *vport)
 {
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
 	int i, alloced;
 
 	for (i = 0, alloced = 0; i < hdev->num_tqps &&
-	     alloced < num_tqps; i++) {
+	     alloced < kinfo->num_tqps; i++) {
 		if (!hdev->htqp[i].alloced) {
 			hdev->htqp[i].q.handle = &vport->nic;
 			hdev->htqp[i].q.tqp_index = alloced;
-			tqp[alloced] = &hdev->htqp[i].q;
+			hdev->htqp[i].q.desc_num = kinfo->num_desc;
+			kinfo->tqp[alloced] = &hdev->htqp[i].q;
 			hdev->htqp[i].alloced = true;
 			alloced++;
 		}
 	}
-	vport->alloc_tqps = num_tqps;
+	vport->alloc_tqps = kinfo->num_tqps;
 
 	return 0;
 }
 
-static int hclge_knic_setup(struct hclge_vport *vport, u16 num_tqps)
+static int hclge_knic_setup(struct hclge_vport *vport,
+			    u16 num_tqps, u16 num_desc)
 {
 	struct hnae3_handle *nic = &vport->nic;
 	struct hnae3_knic_private_info *kinfo = &nic->kinfo;
 	struct hclge_dev *hdev = vport->back;
 	int i, ret;
 
-	kinfo->num_desc = hdev->num_desc;
+	kinfo->num_desc = num_desc;
 	kinfo->rx_buf_len = hdev->rx_buf_len;
 	kinfo->num_tc = min_t(u16, num_tqps, hdev->tm_info.num_tc);
 	kinfo->rss_size
@@ -1321,7 +1324,7 @@ static int hclge_knic_setup(struct hclge_vport *vport, u16 num_tqps)
 	if (!kinfo->tqp)
 		return -ENOMEM;
 
-	ret = hclge_assign_tqp(vport, kinfo->tqp, kinfo->num_tqps);
+	ret = hclge_assign_tqp(vport);
 	if (ret)
 		dev_err(&hdev->pdev->dev, "fail to assign TQPs %d.\n", ret);
 
@@ -1387,7 +1390,7 @@ static int hclge_vport_setup(struct hclge_vport *vport, u16 num_tqps)
 	nic->numa_node_mask = hdev->numa_node_mask;
 
 	if (hdev->ae_dev->dev_type == HNAE3_DEV_KNIC) {
-		ret = hclge_knic_setup(vport, num_tqps);
+		ret = hclge_knic_setup(vport, num_tqps, hdev->num_desc);
 		if (ret) {
 			dev_err(&hdev->pdev->dev, "knic setup failed %d\n",
 				ret);
@@ -3670,6 +3673,55 @@ static int hclge_set_mac_loopback(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
+static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en)
+{
+#define HCLGE_SERDES_RETRY_MS	10
+#define HCLGE_SERDES_RETRY_NUM	100
+	struct hclge_serdes_lb_cmd *req;
+	struct hclge_desc desc;
+	int ret, i = 0;
+
+	req = (struct hclge_serdes_lb_cmd *)&desc.data[0];
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK, false);
+
+	if (en) {
+		req->enable = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+		req->mask = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+	} else {
+		req->mask = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+	}
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"serdes loopback set fail, ret = %d\n", ret);
+		return ret;
+	}
+
+	do {
+		msleep(HCLGE_SERDES_RETRY_MS);
+		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK,
+					   true);
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"serdes loopback get, ret = %d\n", ret);
+			return ret;
+		}
+	} while (++i < HCLGE_SERDES_RETRY_NUM &&
+		 !(req->result & HCLGE_CMD_SERDES_DONE_B));
+
+	if (!(req->result & HCLGE_CMD_SERDES_DONE_B)) {
+		dev_err(&hdev->pdev->dev, "serdes loopback set timeout\n");
+		return -EBUSY;
+	} else if (!(req->result & HCLGE_CMD_SERDES_SUCCESS_B)) {
+		dev_err(&hdev->pdev->dev, "serdes loopback set failed in fw\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int hclge_set_loopback(struct hnae3_handle *handle,
 			      enum hnae3_loop loop_mode, bool en)
 {
@@ -3680,6 +3732,9 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	switch (loop_mode) {
 	case HNAE3_MAC_INTER_LOOP_MAC:
 		ret = hclge_set_mac_loopback(hdev, en);
+		break;
+	case HNAE3_MAC_INTER_LOOP_SERDES:
+		ret = hclge_set_serdes_loopback(hdev, en);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -3729,7 +3784,7 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < vport->alloc_tqps; i++)
 		hclge_tqp_enable(hdev, i, 0, true);
@@ -3743,9 +3798,7 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 	/* reset tqp stats */
 	hclge_reset_tqp_stats(handle);
 
-	ret = hclge_mac_start_phy(hdev);
-	if (ret)
-		return ret;
+	hclge_mac_start_phy(hdev);
 
 	return 0;
 }
@@ -3877,7 +3930,7 @@ static bool hclge_is_all_function_id_zero(struct hclge_desc *desc)
 #define HCLGE_FUNC_NUMBER_PER_DESC 6
 	int i, j;
 
-	for (i = 0; i < HCLGE_DESC_NUMBER; i++)
+	for (i = 1; i < HCLGE_DESC_NUMBER; i++)
 		for (j = 0; j < HCLGE_FUNC_NUMBER_PER_DESC; j++)
 			if (desc[i].data[j])
 				return false;
@@ -5364,6 +5417,16 @@ static void hclge_get_mdix_mode(struct hnae3_handle *handle,
 		*tp_mdix = ETH_TP_MDI;
 }
 
+static int hclge_init_instance_hw(struct hclge_dev *hdev)
+{
+	return hclge_mac_connect_phy(hdev);
+}
+
+static void hclge_uninit_instance_hw(struct hclge_dev *hdev)
+{
+	hclge_mac_disconnect_phy(hdev);
+}
+
 static int hclge_init_client_instance(struct hnae3_client *client,
 				      struct hnae3_ae_dev *ae_dev)
 {
@@ -5382,6 +5445,13 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 			ret = client->ops->init_instance(&vport->nic);
 			if (ret)
 				return ret;
+
+			ret = hclge_init_instance_hw(hdev);
+			if (ret) {
+			        client->ops->uninit_instance(&vport->nic,
+			                                     0);
+			        return ret;
+			}
 
 			if (hdev->roce_client &&
 			    hnae3_dev_roce_supported(hdev)) {
@@ -5445,6 +5515,7 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 		if (client->type == HNAE3_CLIENT_ROCE)
 			return;
 		if (client->ops->uninit_instance) {
+			hclge_uninit_instance_hw(hdev);
 			client->ops->uninit_instance(&vport->nic, 0);
 			hdev->nic_client = NULL;
 			vport->nic.client = NULL;
@@ -5867,7 +5938,7 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
 	/* Free old tqps, and reallocate with new tqp number when nic setup */
 	hclge_release_tqp(vport);
 
-	ret = hclge_knic_setup(vport, new_tqps_num);
+	ret = hclge_knic_setup(vport, new_tqps_num, kinfo->num_desc);
 	if (ret) {
 		dev_err(&hdev->pdev->dev, "setup nic fail, ret =%d\n", ret);
 		return ret;

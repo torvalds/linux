@@ -1673,6 +1673,9 @@ static struct pci_driver hns3_driver = {
 /* set default feature to hns3 */
 static void hns3_set_default_feature(struct net_device *netdev)
 {
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct pci_dev *pdev = h->pdev;
+
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
@@ -1706,6 +1709,9 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_GSO_UDP_TUNNEL_CSUM;
+
+	if (pdev->revision != 0x20)
+		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 }
 
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
@@ -2969,10 +2975,30 @@ static void hns3_init_ring_hw(struct hns3_enet_ring *ring)
 		hns3_write_dev(q, HNS3_RING_TX_RING_BASEADDR_H_REG,
 			       (u32)((dma >> 31) >> 1));
 
-		hns3_write_dev(q, HNS3_RING_TX_RING_BD_LEN_REG,
-			       hns3_buf_size2type(ring->buf_size));
 		hns3_write_dev(q, HNS3_RING_TX_RING_BD_NUM_REG,
 			       ring->desc_num / 8 - 1);
+	}
+}
+
+static void hns3_init_tx_ring_tc(struct hns3_nic_priv *priv)
+{
+	struct hnae3_knic_private_info *kinfo = &priv->ae_handle->kinfo;
+	int i;
+
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		struct hnae3_tc_info *tc_info = &kinfo->tc_info[i];
+		int j;
+
+		if (!tc_info->enable)
+			continue;
+
+		for (j = 0; j < tc_info->tqp_count; j++) {
+			struct hnae3_queue *q;
+
+			q = priv->ring_data[tc_info->tqp_offset + j].ring->tqp;
+			hns3_write_dev(q, HNS3_RING_TX_RING_TC_REG,
+				       tc_info->tc);
+		}
 	}
 }
 
@@ -3386,6 +3412,8 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 		rx_ring->next_to_clean = 0;
 		rx_ring->next_to_use = 0;
 	}
+
+	hns3_init_tx_ring_tc(priv);
 
 	return 0;
 }

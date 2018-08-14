@@ -193,7 +193,7 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 		netdev_err(netdev, "failed to configure flow control.\n");
 }
 
-int hclge_mac_start_phy(struct hclge_dev *hdev)
+int hclge_mac_connect_phy(struct hclge_dev *hdev)
 {
 	struct net_device *netdev = hdev->vport[0].nic.netdev;
 	struct phy_device *phydev = hdev->hw.mac.phydev;
@@ -201,6 +201,8 @@ int hclge_mac_start_phy(struct hclge_dev *hdev)
 
 	if (!phydev)
 		return 0;
+
+	phydev->supported &= ~SUPPORTED_FIBRE;
 
 	ret = phy_connect_direct(netdev, phydev,
 				 hclge_mac_adjust_link,
@@ -213,9 +215,27 @@ int hclge_mac_start_phy(struct hclge_dev *hdev)
 	phydev->supported &= HCLGE_PHY_SUPPORTED_FEATURES;
 	phydev->advertising = phydev->supported;
 
-	phy_start(phydev);
-
 	return 0;
+}
+
+void hclge_mac_disconnect_phy(struct hclge_dev *hdev)
+{
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+
+	if (!phydev)
+		return;
+
+	phy_disconnect(phydev);
+}
+
+void hclge_mac_start_phy(struct hclge_dev *hdev)
+{
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+
+	if (!phydev)
+		return;
+
+	phy_start(phydev);
 }
 
 void hclge_mac_stop_phy(struct hclge_dev *hdev)
@@ -227,5 +247,4 @@ void hclge_mac_stop_phy(struct hclge_dev *hdev)
 		return;
 
 	phy_stop(phydev);
-	phy_disconnect(phydev);
 }
