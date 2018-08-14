@@ -576,12 +576,8 @@ static void wbt_wait(struct rq_qos *rqos, struct bio *bio, spinlock_t *lock)
 	struct rq_wb *rwb = RQWB(rqos);
 	enum wbt_flags flags;
 
-	if (!rwb_enabled(rwb))
-		return;
-
 	flags = bio_to_wbt_flags(rwb, bio);
-
-	if (!wbt_should_throttle(rwb, bio)) {
+	if (!(flags & WBT_TRACKED)) {
 		if (flags & WBT_READ)
 			wb_timestamp(rwb, &rwb->last_issue);
 		return;
