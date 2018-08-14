@@ -291,7 +291,7 @@ static void update_gid_ip(enum gid_op_type gid_op,
 static void bond_delete_netdev_default_gids(struct ib_device *ib_dev,
 					    u8 port,
 					    struct net_device *rdma_ndev,
-					    void *event_ndev)
+					    struct net_device *event_ndev)
 {
 	struct net_device *real_dev = rdma_vlan_dev_real_dev(event_ndev);
 	unsigned long gid_type_mask;
@@ -727,9 +727,9 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 	static const struct netdev_event_work_cmd bonding_default_del_cmd_join = {
 		.cb = del_netdev_default_ips_join, .filter = is_eth_port_inactive_slave};
 	static const struct netdev_event_work_cmd
-			default_del_cmd = {
-				.cb	= bond_delete_netdev_default_gids,
-				.filter = pass_all_filter
+			netdev_del_cmd = {
+				.cb	= del_netdev_ips,
+				.filter = is_eth_port_of_netdev
 			};
 	static const struct netdev_event_work_cmd bonding_event_ips_del_cmd = {
 		.cb = del_netdev_upper_ips, .filter = upper_device_filter};
@@ -755,8 +755,9 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 		break;
 
 	case NETDEV_CHANGEADDR:
-		cmds[0] = default_del_cmd;
-		cmds[1] = add_cmd;
+		cmds[0] = netdev_del_cmd;
+		cmds[1] = add_default_gid_cmd;
+		cmds[2] = add_cmd;
 		break;
 
 	case NETDEV_CHANGEUPPER:
