@@ -1684,6 +1684,12 @@ static inline bool cpu_has_vmx_virtual_intr_delivery(void)
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY;
 }
 
+static inline bool cpu_has_vmx_encls_vmexit(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_ENCLS_EXITING;
+}
+
 /*
  * Comment's format: document - errata name - stepping - processor name.
  * Refer from
@@ -4551,7 +4557,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_RDRAND_EXITING |
 			SECONDARY_EXEC_ENABLE_PML |
 			SECONDARY_EXEC_TSC_SCALING |
-			SECONDARY_EXEC_ENABLE_VMFUNC;
+			SECONDARY_EXEC_ENABLE_VMFUNC |
+			SECONDARY_EXEC_ENCLS_EXITING;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -6648,6 +6655,9 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
 		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
 	}
+
+	if (cpu_has_vmx_encls_vmexit())
+		vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
 }
 
 static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
@@ -9314,6 +9324,17 @@ fail:
 	return 1;
 }
 
+static int handle_encls(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * SGX virtualization is not yet supported.  There is no software
+	 * enable bit for SGX, so we have to trap ENCLS and inject a #UD
+	 * to prevent the guest from executing ENCLS.
+	 */
+	kvm_queue_exception(vcpu, UD_VECTOR);
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -9371,6 +9392,7 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_INVPCID]                 = handle_invpcid,
 	[EXIT_REASON_VMFUNC]                  = handle_vmfunc,
 	[EXIT_REASON_PREEMPTION_TIMER]	      = handle_preemption_timer,
+	[EXIT_REASON_ENCLS]		      = handle_encls,
 };
 
 static const int kvm_vmx_max_exit_handlers =
@@ -9740,6 +9762,9 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 		return false;
 	case EXIT_REASON_VMFUNC:
 		/* VM functions are emulated through L2->L0 vmexits. */
+		return false;
+	case EXIT_REASON_ENCLS:
+		/* SGX is never exposed to L1 */
 		return false;
 	default:
 		return true;
@@ -12100,6 +12125,9 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		 */
 		if (exec_control & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)
 			vmcs_write64(APIC_ACCESS_ADDR, -1ull);
+
+		if (exec_control & SECONDARY_EXEC_ENCLS_EXITING)
+			vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
 
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
 	}
