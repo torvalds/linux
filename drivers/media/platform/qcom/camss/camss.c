@@ -848,17 +848,18 @@ static int camss_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	camss->csiphy = kcalloc(camss->csiphy_num, sizeof(*camss->csiphy),
-				GFP_KERNEL);
+	camss->csiphy = devm_kcalloc(dev, camss->csiphy_num,
+				     sizeof(*camss->csiphy), GFP_KERNEL);
 	if (!camss->csiphy)
 		return -ENOMEM;
 
-	camss->csid = kcalloc(camss->csid_num, sizeof(*camss->csid),
-			      GFP_KERNEL);
+	camss->csid = devm_kcalloc(dev, camss->csid_num, sizeof(*camss->csid),
+				   GFP_KERNEL);
 	if (!camss->csid)
 		return -ENOMEM;
 
-	camss->vfe = kcalloc(camss->vfe_num, sizeof(*camss->vfe), GFP_KERNEL);
+	camss->vfe = devm_kcalloc(dev, camss->vfe_num, sizeof(*camss->vfe),
+				  GFP_KERNEL);
 	if (!camss->vfe)
 		return -ENOMEM;
 

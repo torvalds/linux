@@ -1076,8 +1076,8 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	else
 		return -EINVAL;
 
-	ispif->line = kcalloc(ispif->line_num, sizeof(*ispif->line),
-			      GFP_KERNEL);
+	ispif->line = devm_kcalloc(dev, ispif->line_num, sizeof(*ispif->line),
+				   GFP_KERNEL);
 	if (!ispif->line)
 		return -ENOMEM;
 
