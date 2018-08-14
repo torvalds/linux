@@ -729,16 +729,16 @@ static inline bool fast_dput(struct dentry *dentry)
 		if (dentry->d_lockref.count > 1) {
 			dentry->d_lockref.count--;
 			spin_unlock(&dentry->d_lock);
-			return 1;
+			return true;
 		}
-		return 0;
+		return false;
 	}
 
 	/*
 	 * If we weren't the last ref, we're done.
 	 */
 	if (ret)
-		return 1;
+		return true;
 
 	/*
 	 * Careful, careful. The reference count went down
@@ -767,7 +767,7 @@ static inline bool fast_dput(struct dentry *dentry)
 
 	/* Nothing to do? Dropping the reference was all we needed? */
 	if (d_flags == (DCACHE_REFERENCED | DCACHE_LRU_LIST) && !d_unhashed(dentry))
-		return 1;
+		return true;
 
 	/*
 	 * Not the fast normal case? Get the lock. We've already decremented
@@ -784,7 +784,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	 */
 	if (dentry->d_lockref.count) {
 		spin_unlock(&dentry->d_lock);
-		return 1;
+		return true;
 	}
 
 	/*
@@ -793,7 +793,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	 * set it to 1.
 	 */
 	dentry->d_lockref.count = 1;
-	return 0;
+	return false;
 }
 
 
@@ -2647,33 +2647,6 @@ struct dentry *d_exact_alias(struct dentry *entry, struct inode *inode)
 	return NULL;
 }
 EXPORT_SYMBOL(d_exact_alias);
-
-/**
- * dentry_update_name_case - update case insensitive dentry with a new name
- * @dentry: dentry to be updated
- * @name: new name
- *
- * Update a case insensitive dentry with new case of name.
- *
- * dentry must have been returned by d_lookup with name @name. Old and new
- * name lengths must match (ie. no d_compare which allows mismatched name
- * lengths).
- *
- * Parent inode i_mutex must be held over d_lookup and into this call (to
- * keep renames and concurrent inserts, and readdir(2) away).
- */
-void dentry_update_name_case(struct dentry *dentry, const struct qstr *name)
-{
-	BUG_ON(!inode_is_locked(dentry->d_parent->d_inode));
-	BUG_ON(dentry->d_name.len != name->len); /* d_lookup gives this */
-
-	spin_lock(&dentry->d_lock);
-	write_seqcount_begin(&dentry->d_seq);
-	memcpy((unsigned char *)dentry->d_name.name, name->name, name->len);
-	write_seqcount_end(&dentry->d_seq);
-	spin_unlock(&dentry->d_lock);
-}
-EXPORT_SYMBOL(dentry_update_name_case);
 
 static void swap_names(struct dentry *dentry, struct dentry *target)
 {
