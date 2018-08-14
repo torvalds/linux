@@ -1256,6 +1256,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	get_cpu_cap(&boot_cpu_data);
 	x86_configure_nx();
 
+	/* Determine virtual and physical address sizes */
+	get_cpu_address_sizes(&boot_cpu_data);
+
 	/* Let's presume PV guests always boot on vCPU with id 0. */
 	per_cpu(xen_vcpu_id, 0) = 0;
 
