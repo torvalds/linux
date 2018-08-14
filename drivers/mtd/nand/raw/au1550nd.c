@@ -8,7 +8,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>

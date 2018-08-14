@@ -9353,7 +9353,6 @@ F:	drivers/media/platform/atmel/atmel-isc-regs.h
 F:	devicetree/bindings/media/atmel-isc.txt
 
 MICROCHIP / ATMEL NAND DRIVER
-M:	Wenyou Yang <wenyou.yang@microchip.com>
 M:	Josh Wu <rainyfeeling@outlook.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
@@ -14062,6 +14061,13 @@ TEGRA KBC DRIVER
 M:	Laxman Dewangan <ldewangan@nvidia.com>
 S:	Supported
 F:	drivers/input/keyboard/tegra-kbc.c
+
+TEGRA NAND DRIVER
+M:	Stefan Agner <stefan@agner.ch>
+M:	Lucas Stach <dev@lynxeye.de>
+S:	Maintained
+F:	Documentation/devicetree/bindings/mtd/nvidia-tegra20-nand.txt
+F:	drivers/mtd/nand/raw/tegra_nand.c
 
 TEGRA PWM DRIVER
 M:	Thierry Reding <thierry.reding@gmail.com>

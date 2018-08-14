@@ -577,7 +577,7 @@ static int get_fold_mark(struct NFTLrecord *nftl, unsigned int block)
 int NFTL_mount(struct NFTLrecord *s)
 {
 	int i;
-	unsigned int first_logical_block, logical_block, rep_block, nb_erases, erase_mark;
+	unsigned int first_logical_block, logical_block, rep_block, erase_mark;
 	unsigned int block, first_block, is_first_block;
 	int chain_length, do_format_chain;
 	struct nftl_uci0 h0;
@@ -621,7 +621,6 @@ int NFTL_mount(struct NFTLrecord *s)
 
 				logical_block = le16_to_cpu ((h0.VirtUnitNum | h0.SpareVirtUnitNum));
 				rep_block = le16_to_cpu ((h0.ReplUnitNum | h0.SpareReplUnitNum));
-				nb_erases = le32_to_cpu (h1.WearInfo);
 				erase_mark = le16_to_cpu ((h1.EraseMark | h1.EraseMark1));
 
 				is_first_block = !(logical_block >> 15);

@@ -2757,8 +2757,18 @@ static int spi_nor_init(struct spi_nor *nor)
 
 	if ((nor->addr_width == 4) &&
 	    (JEDEC_MFR(nor->info) != SNOR_MFR_SPANSION) &&
-	    !(nor->info->flags & SPI_NOR_4B_OPCODES))
+	    !(nor->info->flags & SPI_NOR_4B_OPCODES)) {
+		/*
+		 * If the RESET# pin isn't hooked up properly, or the system
+		 * otherwise doesn't perform a reset command in the boot
+		 * sequence, it's impossible to 100% protect against unexpected
+		 * reboots (e.g., crashes). Warn the user (or hopefully, system
+		 * designer) that this is bad.
+		 */
+		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
+			  "enabling reset hack; may not recover from unexpected reboots\n");
 		set_4byte(nor, nor->info, 1);
+	}
 
 	return 0;
 }
@@ -2781,7 +2791,8 @@ void spi_nor_restore(struct spi_nor *nor)
 	/* restore the addressing mode */
 	if ((nor->addr_width == 4) &&
 	    (JEDEC_MFR(nor->info) != SNOR_MFR_SPANSION) &&
-	    !(nor->info->flags & SPI_NOR_4B_OPCODES))
+	    !(nor->info->flags & SPI_NOR_4B_OPCODES) &&
+	    (nor->flags & SNOR_F_BROKEN_RESET))
 		set_4byte(nor, nor->info, 0);
 }
 EXPORT_SYMBOL_GPL(spi_nor_restore);
@@ -2910,6 +2921,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		/* If we weren't instantiated by DT, default to fast-read */
 		params.hwcaps.mask |= SNOR_HWCAPS_READ_FAST;
 	}
+
+	if (of_property_read_bool(np, "broken-flash-reset"))
+		nor->flags |= SNOR_F_BROKEN_RESET;
 
 	/* Some devices cannot do fast-read, no matter what DT tells us */
 	if (info->flags & SPI_NOR_NO_FR)
