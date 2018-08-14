@@ -186,7 +186,6 @@ static int init_srcu_struct_fields(struct srcu_struct *sp, bool is_static)
 	mutex_init(&sp->srcu_barrier_mutex);
 	atomic_set(&sp->srcu_barrier_cpu_cnt, 0);
 	INIT_DELAYED_WORK(&sp->work, process_srcu);
-	INIT_LIST_HEAD(&sp->srcu_boot_entry);
 	if (!is_static)
 		sp->sda = alloc_percpu(struct srcu_data);
 	init_srcu_struct_nodes(sp, is_static);
@@ -708,8 +707,8 @@ static void srcu_funnel_gp_start(struct srcu_struct *sp, struct srcu_data *sdp,
 		if (likely(srcu_init_done))
 			queue_delayed_work(rcu_gp_wq, &sp->work,
 					   srcu_get_delay(sp));
-		else if (list_empty(&sp->srcu_boot_entry))
-			list_add(&sp->srcu_boot_entry, &srcu_boot_list);
+		else if (list_empty(&sp->work.work.entry))
+			list_add(&sp->work.work.entry, &srcu_boot_list);
 	}
 	spin_unlock_irqrestore_rcu_node(sp, flags);
 }
@@ -1323,10 +1322,10 @@ void __init srcu_init(void)
 
 	srcu_init_done = true;
 	while (!list_empty(&srcu_boot_list)) {
-		sp = list_first_entry(&srcu_boot_list,
-				      struct srcu_struct, srcu_boot_entry);
+		sp = list_first_entry(&srcu_boot_list, struct srcu_struct,
+				      work.work.entry);
 		check_init_srcu_struct(sp);
-		list_del_init(&sp->srcu_boot_entry);
+		list_del_init(&sp->work.work.entry);
 		queue_work(rcu_gp_wq, &sp->work.work);
 	}
 }

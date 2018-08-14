@@ -48,7 +48,7 @@ static int init_srcu_struct_fields(struct srcu_struct *sp)
 	sp->srcu_gp_waiting = false;
 	sp->srcu_idx = 0;
 	INIT_WORK(&sp->srcu_work, srcu_drive_gp);
-	INIT_LIST_HEAD(&sp->srcu_boot_entry);
+	INIT_LIST_HEAD(&sp->srcu_work.entry);
 	return 0;
 }
 
@@ -185,8 +185,8 @@ void call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 	if (!READ_ONCE(sp->srcu_gp_running)) {
 		if (likely(srcu_init_done))
 			schedule_work(&sp->srcu_work);
-		else if (list_empty(&sp->srcu_boot_entry))
-			list_add(&sp->srcu_boot_entry, &srcu_boot_list);
+		else if (list_empty(&sp->srcu_work.entry))
+			list_add(&sp->srcu_work.entry, &srcu_boot_list);
 	}
 }
 EXPORT_SYMBOL_GPL(call_srcu);
@@ -224,8 +224,8 @@ void __init srcu_init(void)
 	srcu_init_done = true;
 	while (!list_empty(&srcu_boot_list)) {
 		sp = list_first_entry(&srcu_boot_list,
-				      struct srcu_struct, srcu_boot_entry);
-		list_del_init(&sp->srcu_boot_entry);
+				      struct srcu_struct, srcu_work.entry);
+		list_del_init(&sp->srcu_work.entry);
 		schedule_work(&sp->srcu_work);
 	}
 }
