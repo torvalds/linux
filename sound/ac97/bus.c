@@ -529,7 +529,7 @@ static int ac97_bus_remove(struct device *dev)
 	int ret;
 
 	ret = pm_runtime_get_sync(dev);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = adrv->remove(adev);
