@@ -269,12 +269,15 @@ struct mlx5_esw_flow_attr {
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 
-int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode);
+int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
+				  struct netlink_ext_ack *extack);
 int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode);
-int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode);
+int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode,
+					 struct netlink_ext_ack *extack);
 int mlx5_devlink_eswitch_inline_mode_get(struct devlink *devlink, u8 *mode);
 int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode);
-int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink, u8 encap);
+int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink, u8 encap,
+					struct netlink_ext_ack *extack);
 int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink, u8 *encap);
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type);
 

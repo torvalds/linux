@@ -177,7 +177,8 @@ static int nfp_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	return nfp_app_eswitch_mode_get(pf->app, mode);
 }
 
-static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode)
+static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
+					struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
 	int ret;

@@ -451,11 +451,14 @@ struct devlink_ops {
 				       u32 *p_cur, u32 *p_max);
 
 	int (*eswitch_mode_get)(struct devlink *devlink, u16 *p_mode);
-	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode);
+	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode,
+				struct netlink_ext_ack *extack);
 	int (*eswitch_inline_mode_get)(struct devlink *devlink, u8 *p_inline_mode);
-	int (*eswitch_inline_mode_set)(struct devlink *devlink, u8 inline_mode);
+	int (*eswitch_inline_mode_set)(struct devlink *devlink, u8 inline_mode,
+				       struct netlink_ext_ack *extack);
 	int (*eswitch_encap_mode_get)(struct devlink *devlink, u8 *p_encap_mode);
-	int (*eswitch_encap_mode_set)(struct devlink *devlink, u8 encap_mode);
+	int (*eswitch_encap_mode_set)(struct devlink *devlink, u8 encap_mode,
+				      struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
