@@ -291,11 +291,11 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	list_for_each_entry_safe(bo_base, tmp, &vm->evicted, vm_status) {
 		struct amdgpu_bo *bo = bo_base->bo;
 
-		if (bo->parent) {
-			r = validate(param, bo);
-			if (r)
-				break;
+		r = validate(param, bo);
+		if (r)
+			break;
 
+		if (bo->parent) {
 			spin_lock(&glob->lru_lock);
 			ttm_bo_move_to_lru_tail(&bo->tbo);
 			if (bo->shadow)
