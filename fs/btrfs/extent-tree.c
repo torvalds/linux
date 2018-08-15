@@ -2535,6 +2535,83 @@ static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
 	return head;
 }
 
+static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
+				    struct btrfs_delayed_ref_head *locked_ref,
+				    unsigned long *run_refs)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_delayed_ref_root *delayed_refs;
+	struct btrfs_delayed_extent_op *extent_op;
+	struct btrfs_delayed_ref_node *ref;
+	int must_insert_reserved = 0;
+	int ret;
+
+	delayed_refs = &trans->transaction->delayed_refs;
+
+	while ((ref = select_delayed_ref(locked_ref))) {
+		if (ref->seq &&
+		    btrfs_check_delayed_seq(fs_info, ref->seq)) {
+			spin_unlock(&locked_ref->lock);
+			unselect_delayed_ref_head(delayed_refs, locked_ref);
+			return -EAGAIN;
+		}
+
+		(*run_refs)++;
+		ref->in_tree = 0;
+		rb_erase_cached(&ref->ref_node, &locked_ref->ref_tree);
+		RB_CLEAR_NODE(&ref->ref_node);
+		if (!list_empty(&ref->add_list))
+			list_del(&ref->add_list);
+		/*
+		 * When we play the delayed ref, also correct the ref_mod on
+		 * head
+		 */
+		switch (ref->action) {
+		case BTRFS_ADD_DELAYED_REF:
+		case BTRFS_ADD_DELAYED_EXTENT:
+			locked_ref->ref_mod -= ref->ref_mod;
+			break;
+		case BTRFS_DROP_DELAYED_REF:
+			locked_ref->ref_mod += ref->ref_mod;
+			break;
+		default:
+			WARN_ON(1);
+		}
+		atomic_dec(&delayed_refs->num_entries);
+
+		/*
+		 * Record the must_insert_reserved flag before we drop the
+		 * spin lock.
+		 */
+		must_insert_reserved = locked_ref->must_insert_reserved;
+		locked_ref->must_insert_reserved = 0;
+
+		extent_op = locked_ref->extent_op;
+		locked_ref->extent_op = NULL;
+		spin_unlock(&locked_ref->lock);
+
+		ret = run_one_delayed_ref(trans, ref, extent_op,
+					  must_insert_reserved);
+
+		btrfs_free_delayed_extent_op(extent_op);
+		if (ret) {
+			unselect_delayed_ref_head(delayed_refs, locked_ref);
+			btrfs_put_delayed_ref(ref);
+			btrfs_debug(fs_info, "run_one_delayed_ref returned %d",
+				    ret);
+			return ret;
+		}
+
+		btrfs_put_delayed_ref(ref);
+		cond_resched();
+
+		spin_lock(&locked_ref->lock);
+		btrfs_merge_delayed_refs(trans, delayed_refs, locked_ref);
+	}
+
+	return 0;
+}
+
 /*
  * Returns 0 on success or if called with an already aborted transaction.
  * Returns -ENOMEM or -EIO on failure and will abort the transaction.
