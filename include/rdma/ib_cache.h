@@ -143,6 +143,7 @@ static inline __deprecated int ib_query_gid(struct ib_device *device,
 {
 	const struct ib_gid_attr *attr;
 
+	memset(attr_out, 0, sizeof(*attr_out));
 	attr = rdma_get_gid_attr(device, port_num, index);
 	if (IS_ERR(attr))
 		return PTR_ERR(attr);
