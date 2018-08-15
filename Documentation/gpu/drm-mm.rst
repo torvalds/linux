@@ -505,7 +505,7 @@ GPU Scheduler
 Overview
 --------
 
-.. kernel-doc:: drivers/gpu/drm/scheduler/gpu_scheduler.c
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
    :doc: Overview
 
 Scheduler Function References
@@ -514,5 +514,5 @@ Scheduler Function References
 .. kernel-doc:: include/drm/gpu_scheduler.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/scheduler/gpu_scheduler.c
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
    :export:
