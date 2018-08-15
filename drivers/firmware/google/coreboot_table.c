@@ -32,7 +32,7 @@
 #define CB_DEV(d) container_of(d, struct coreboot_device, dev)
 #define CB_DRV(d) container_of(d, struct coreboot_driver, drv)
 
-static struct coreboot_table_header __iomem *ptr_header;
+static struct coreboot_table_header *ptr_header;
 
 static int coreboot_bus_match(struct device *dev, struct device_driver *drv)
 {
@@ -94,18 +94,18 @@ void coreboot_driver_unregister(struct coreboot_driver *driver)
 }
 EXPORT_SYMBOL(coreboot_driver_unregister);
 
-static int coreboot_table_init(struct device *dev, void __iomem *ptr)
+static int coreboot_table_init(struct device *dev, void *ptr)
 {
 	int i, ret;
 	void *ptr_entry;
 	struct coreboot_device *device;
-	struct coreboot_table_entry entry;
-	struct coreboot_table_header header;
+	struct coreboot_table_entry *entry;
+	struct coreboot_table_header *header;
 
 	ptr_header = ptr;
-	memcpy_fromio(&header, ptr_header, sizeof(header));
+	header = ptr;
 
-	if (strncmp(header.signature, "LBIO", sizeof(header.signature))) {
+	if (strncmp(header->signature, "LBIO", sizeof(header->signature))) {
 		pr_warn("coreboot_table: coreboot table missing or corrupt!\n");
 		ret = -ENODEV;
 		goto out;
@@ -115,11 +115,11 @@ static int coreboot_table_init(struct device *dev, void __iomem *ptr)
 	if (ret)
 		goto out;
 
-	ptr_entry = (void *)ptr_header + header.header_bytes;
-	for (i = 0; i < header.table_entries; i++) {
-		memcpy_fromio(&entry, ptr_entry, sizeof(entry));
+	ptr_entry = ptr_header + header->header_bytes;
+	for (i = 0; i < header->table_entries; i++) {
+		entry = ptr_entry;
 
-		device = kzalloc(sizeof(struct device) + entry.size, GFP_KERNEL);
+		device = kzalloc(sizeof(struct device) + entry->size, GFP_KERNEL);
 		if (!device) {
 			ret = -ENOMEM;
 			break;
@@ -129,7 +129,7 @@ static int coreboot_table_init(struct device *dev, void __iomem *ptr)
 		device->dev.parent = dev;
 		device->dev.bus = &coreboot_bus_type;
 		device->dev.release = coreboot_device_release;
-		memcpy_fromio(&device->entry, ptr_entry, entry.size);
+		memcpy(&device->entry, ptr_entry, entry->size);
 
 		ret = device_register(&device->dev);
 		if (ret) {
@@ -137,24 +137,23 @@ static int coreboot_table_init(struct device *dev, void __iomem *ptr)
 			break;
 		}
 
-		ptr_entry += entry.size;
+		ptr_entry += entry->size;
 	}
 
 	if (ret)
 		bus_unregister(&coreboot_bus_type);
 
 out:
-	iounmap(ptr);
+	memunmap(ptr);
 	return ret;
 }
 
 static int coreboot_table_probe(struct platform_device *pdev)
 {
-	phys_addr_t phyaddr;
 	resource_size_t len;
-	struct coreboot_table_header __iomem *header = NULL;
+	struct coreboot_table_header *header;
 	struct resource *res;
-	void __iomem *ptr = NULL;
+	void *ptr;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -164,14 +163,13 @@ static int coreboot_table_probe(struct platform_device *pdev)
 	if (!res->start || !len)
 		return -EINVAL;
 
-	phyaddr = res->start;
-	header = ioremap_cache(phyaddr, sizeof(*header));
+	header = memremap(res->start, sizeof(*header), MEMREMAP_WB);
 	if (header == NULL)
 		return -ENOMEM;
 
-	ptr = ioremap_cache(phyaddr,
-			    header->header_bytes + header->table_bytes);
-	iounmap(header);
+	ptr = memremap(res->start, header->header_bytes + header->table_bytes,
+		       MEMREMAP_WB);
+	memunmap(header);
 	if (!ptr)
 		return -ENOMEM;
 
