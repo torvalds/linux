@@ -468,12 +468,6 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		csr->fw_path = I915_CSR_SKL;
 	else if (IS_BROXTON(dev_priv))
 		csr->fw_path = I915_CSR_BXT;
-	else {
-		DRM_ERROR("Unexpected: no known CSR firmware for platform\n");
-		return;
-	}
-
-	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
 
 	/*
 	 * Obtain a runtime pm reference, until CSR is loaded,
@@ -481,6 +475,14 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
+	if (csr->fw_path == NULL) {
+		DRM_DEBUG_KMS("No known CSR firmware for platform, disabling runtime PM\n");
+		WARN_ON(!IS_ALPHA_SUPPORT(INTEL_INFO(dev_priv)));
+
+		return;
+	}
+
+	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
 	schedule_work(&dev_priv->csr.work);
 }
 
