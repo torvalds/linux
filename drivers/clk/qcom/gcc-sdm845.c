@@ -25,8 +25,6 @@
 #include "gdsc.h"
 #include "reset.h"
 
-#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
-
 enum {
 	P_BI_TCXO,
 	P_AUD_REF_CLK,
