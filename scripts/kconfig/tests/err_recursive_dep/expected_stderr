@@ -1,5 +1,5 @@
 Kconfig:11:error: recursive dependency detected!
-Kconfig:11:	symbol B is selected or implied by B
+Kconfig:11:	symbol B is selected by B
 For a resolution refer to Documentation/kbuild/kconfig-language.txt
 subsection "Kconfig recursive dependency limitations"
 
@@ -15,14 +15,14 @@ For a resolution refer to Documentation/kbuild/kconfig-language.txt
 subsection "Kconfig recursive dependency limitations"
 
 Kconfig:32:error: recursive dependency detected!
-Kconfig:32:	symbol D2 is selected or implied by D1
+Kconfig:32:	symbol D2 is selected by D1
 Kconfig:27:	symbol D1 depends on D2
 For a resolution refer to Documentation/kbuild/kconfig-language.txt
 subsection "Kconfig recursive dependency limitations"
 
 Kconfig:37:error: recursive dependency detected!
 Kconfig:37:	symbol E1 depends on E2
-Kconfig:42:	symbol E2 is selected or implied by E1
+Kconfig:42:	symbol E2 is implied by E1
 For a resolution refer to Documentation/kbuild/kconfig-language.txt
 subsection "Kconfig recursive dependency limitations"
 
