@@ -237,6 +237,7 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 #define WPA2_AUTH_RESERVED4	0x0400
 #define WPA2_AUTH_RESERVED5	0x0800
 #define WPA2_AUTH_1X_SHA256	0x1000  /* 1X with SHA256 key derivation */
+#define WPA2_AUTH_FT		0x4000	/* Fast BSS Transition */
 #define WPA2_AUTH_PSK_SHA256	0x8000	/* PSK with SHA256 key derivation */
 
 #define DOT11_DEFAULT_RTS_LEN		2347
