@@ -2020,9 +2020,6 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 			ret = -ENOMEM;
 			break;
 		}
-		extent_buffer_get(eb);
-		btrfs_tree_read_lock(eb);
-		btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 		btrfs_release_path(path);
 
 		item = btrfs_item_nr(slot);
@@ -2042,7 +2039,6 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 			len = sizeof(*iref) + name_len;
 			iref = (struct btrfs_inode_ref *)((char *)iref + len);
 		}
-		btrfs_tree_read_unlock_blocking(eb);
 		free_extent_buffer(eb);
 	}
 
