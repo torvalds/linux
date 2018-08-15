@@ -318,6 +318,7 @@ function prepare_SD {
 #Test if the Kernel is there
 if [ -n "$kernver" ]; then
 	action=$1
+	file=$2
 	LANG=C
 	CFLAGS=-j$(grep ^processor /proc/cpuinfo  | wc -l)
 
@@ -376,8 +377,18 @@ if [ -n "$kernver" ]; then
 
 
 		"importconfig")
-			echo "Import fwu config"
-			make mt7623n_evb_fwu_defconfig
+			if [[ -z "$file" ]];then
+				echo "Import fwu config"
+				make mt7623n_evb_fwu_defconfig
+			else
+				f=mt7623n_${file}_defconfig
+				echo "Import config: $f"
+				if [[ -e "arch/arm/configs/${f}" ]];then
+					make ${f}
+				else
+					echo "file not found"
+				fi
+			fi
 			;;
 
 		"ic")
