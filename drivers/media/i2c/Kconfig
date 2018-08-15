@@ -722,6 +722,24 @@ config VIDEO_GC2155
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc2155.
 
+config VIDEO_GC0312
+	tristate "GalaxyCore GC0312 sensor support"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for the GalaxyCore GC0312 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc0312.
+
+config VIDEO_GC2145
+	tristate "GalaxyCore GC2145 sensor support"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for the GalaxyCore GC2145 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc2145.
+
 comment "Flash devices"
 
 config VIDEO_ADP1653
