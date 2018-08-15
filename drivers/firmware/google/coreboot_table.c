@@ -70,12 +70,6 @@ static struct bus_type coreboot_bus_type = {
 	.remove		= coreboot_bus_remove,
 };
 
-static int __init coreboot_bus_init(void)
-{
-	return bus_register(&coreboot_bus_type);
-}
-module_init(coreboot_bus_init);
-
 static void coreboot_device_release(struct device *dev)
 {
 	struct coreboot_device *device = CB_DEV(dev);
@@ -114,6 +108,10 @@ int coreboot_table_init(struct device *dev, void __iomem *ptr)
 		goto out;
 	}
 
+	ret = bus_register(&coreboot_bus_type);
+	if (ret)
+		goto out;
+
 	ptr_entry = (void *)ptr_header + header.header_bytes;
 	for (i = 0; i < header.table_entries; i++) {
 		memcpy_fromio(&entry, ptr_entry, sizeof(entry));
@@ -138,6 +136,10 @@ int coreboot_table_init(struct device *dev, void __iomem *ptr)
 
 		ptr_entry += entry.size;
 	}
+
+	if (ret)
+		bus_unregister(&coreboot_bus_type);
+
 out:
 	iounmap(ptr);
 	return ret;
