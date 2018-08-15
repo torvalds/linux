@@ -50,6 +50,9 @@ Optional properties:
 - rockchip,no-hp-det: If there is no headphone on boards, we don't need to
   enable headphone detection.
 - hp-ctl-gpios: The gpio of head phone controller.
+- pa-drv-gpios: The gpio of poweramplifier controller
+- rockchip,delay-pa-drv-ms: This property points out that the delay for
+  power on amplifier
 - spk-ctl-gpios: The gpio of speak controller.
 
 Example for rk3308 internal codec:
@@ -64,6 +67,7 @@ acodec: acodec@ff560000 {
 	reset-names = "acodec-reset";
 	rockchip,loopback-grp = <0>;
 	hp-ctl-gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+	pa-drv-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
 	spk-ctl-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
