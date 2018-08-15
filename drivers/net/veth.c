@@ -789,16 +789,48 @@ static int is_valid_veth_mtu(int mtu)
 	return mtu >= ETH_MIN_MTU && mtu <= ETH_MAX_MTU;
 }
 
+static int veth_alloc_queues(struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	int i;
+
+	priv->rq = kcalloc(dev->num_rx_queues, sizeof(*priv->rq), GFP_KERNEL);
+	if (!priv->rq)
+		return -ENOMEM;
+
+	for (i = 0; i < dev->num_rx_queues; i++)
+		priv->rq[i].dev = dev;
+
+	return 0;
+}
+
+static void veth_free_queues(struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+
+	kfree(priv->rq);
+}
+
 static int veth_dev_init(struct net_device *dev)
 {
+	int err;
+
 	dev->vstats = netdev_alloc_pcpu_stats(struct pcpu_vstats);
 	if (!dev->vstats)
 		return -ENOMEM;
+
+	err = veth_alloc_queues(dev);
+	if (err) {
+		free_percpu(dev->vstats);
+		return err;
+	}
+
 	return 0;
 }
 
 static void veth_dev_free(struct net_device *dev)
 {
+	veth_free_queues(dev);
 	free_percpu(dev->vstats);
 }
 
@@ -1040,31 +1072,13 @@ static int veth_validate(struct nlattr *tb[], struct nlattr *data[],
 	return 0;
 }
 
-static int veth_alloc_queues(struct net_device *dev)
-{
-	struct veth_priv *priv = netdev_priv(dev);
-
-	priv->rq = kcalloc(dev->num_rx_queues, sizeof(*priv->rq), GFP_KERNEL);
-	if (!priv->rq)
-		return -ENOMEM;
-
-	return 0;
-}
-
-static void veth_free_queues(struct net_device *dev)
-{
-	struct veth_priv *priv = netdev_priv(dev);
-
-	kfree(priv->rq);
-}
-
 static struct rtnl_link_ops veth_link_ops;
 
 static int veth_newlink(struct net *src_net, struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[],
 			struct netlink_ext_ack *extack)
 {
-	int err, i;
+	int err;
 	struct net_device *peer;
 	struct veth_priv *priv;
 	char ifname[IFNAMSIZ];
@@ -1117,12 +1131,6 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		return PTR_ERR(peer);
 	}
 
-	err = veth_alloc_queues(peer);
-	if (err) {
-		put_net(net);
-		goto err_peer_alloc_queues;
-	}
-
 	if (!ifmp || !tbp[IFLA_ADDRESS])
 		eth_hw_addr_random(peer);
 
@@ -1151,10 +1159,6 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	 * should be re-allocated
 	 */
 
-	err = veth_alloc_queues(dev);
-	if (err)
-		goto err_alloc_queues;
-
 	if (tb[IFLA_ADDRESS] == NULL)
 		eth_hw_addr_random(dev);
 
@@ -1174,28 +1178,20 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	 */
 
 	priv = netdev_priv(dev);
-	for (i = 0; i < dev->real_num_rx_queues; i++)
-		priv->rq[i].dev = dev;
 	rcu_assign_pointer(priv->peer, peer);
 
 	priv = netdev_priv(peer);
-	for (i = 0; i < peer->real_num_rx_queues; i++)
-		priv->rq[i].dev = peer;
 	rcu_assign_pointer(priv->peer, dev);
 
 	return 0;
 
 err_register_dev:
-	veth_free_queues(dev);
-err_alloc_queues:
 	/* nothing to do */
 err_configure_peer:
 	unregister_netdevice(peer);
 	return err;
 
 err_register_peer:
-	veth_free_queues(peer);
-err_peer_alloc_queues:
 	free_netdev(peer);
 	return err;
 }
