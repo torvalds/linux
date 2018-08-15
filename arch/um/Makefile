@@ -116,14 +116,7 @@ endef
 KBUILD_KCONFIG := $(HOST_DIR)/um/Kconfig
 
 archheaders:
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.asm-generic \
-	            kbuild-file=$(HOST_DIR)/include/asm/Kbuild \
-		    obj=$(HOST_DIR)/include/generated/asm
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.asm-generic \
-	            kbuild-file=$(HOST_DIR)/include/uapi/asm/Kbuild \
-		    obj=$(HOST_DIR)/include/generated/uapi/asm
-	$(Q)$(MAKE) KBUILD_SRC= ARCH=$(HEADER_ARCH) archheaders
-
+	$(Q)$(MAKE) -f $(srctree)/Makefile ARCH=$(HEADER_ARCH) asm-generic archheaders
 
 archprepare: include/generated/user_constants.h
 
@@ -169,7 +162,7 @@ define filechk_gen-asm-offsets
          echo " *"; \
          echo " */"; \
          echo ""; \
-         sed -ne "/^->/{s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}"; \
+         sed -ne "/^->/{s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}" < $<; \
          echo ""; )
 endef
 

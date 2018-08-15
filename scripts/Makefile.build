@@ -53,13 +53,6 @@ endif
 
 include scripts/Makefile.lib
 
-ifdef host-progs
-ifneq ($(hostprogs-y),$(host-progs))
-$(warning kbuild: $(obj)/Makefile - Usage of host-progs is deprecated. Please replace with hostprogs-y!)
-hostprogs-y += $(host-progs)
-endif
-endif
-
 # Do not include host rules unless needed
 ifneq ($(hostprogs-y)$(hostprogs-m)$(hostlibs-y)$(hostlibs-m)$(hostcxxlibs-y)$(hostcxxlibs-m),)
 include scripts/Makefile.host

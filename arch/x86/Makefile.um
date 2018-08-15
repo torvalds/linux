@@ -13,8 +13,6 @@ KBUILD_CFLAGS		+= $(call cc-option,-m32)
 KBUILD_AFLAGS		+= $(call cc-option,-m32)
 LINK-y			+= $(call cc-option,-m32)
 
-export LDFLAGS
-
 LDS_EXTRA		:= -Ui386
 export LDS_EXTRA
 
