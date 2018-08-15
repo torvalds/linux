@@ -46,7 +46,6 @@ nouveau_switcheroo_set_state(struct pci_dev *pdev,
 		pr_err("VGA switcheroo: switched nouveau on\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		nouveau_pmops_resume(&pdev->dev);
-		drm_kms_helper_poll_enable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
 		pr_err("VGA switcheroo: switched nouveau off\n");
