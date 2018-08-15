@@ -633,6 +633,13 @@ static int nand_remove_dev(struct nand_blk_dev *dev)
 
 int nand_blk_add_whole_disk(void)
 {
+	struct nand_part part;
+
+	part.offset = 0;
+	part.size = rk_ftl_get_capacity();
+	part.type = 0;
+	strncpy(part.name, "rknand", sizeof(part.name));
+	nand_add_dev(&mytr, &part);
 	return 0;
 }
 
