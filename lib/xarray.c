@@ -376,6 +376,14 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 	return node;
 }
 
+#ifdef CONFIG_XARRAY_MULTI
+/* Returns the number of indices covered by a given xa_state */
+static unsigned long xas_size(const struct xa_state *xas)
+{
+	return (xas->xa_sibs + 1UL) << xas->xa_shift;
+}
+#endif
+
 /*
  * Use this to calculate the maximum index that will need to be created
  * in order to add the entry described by @xas.  Because we cannot store a
@@ -388,8 +396,7 @@ static unsigned long xas_max(struct xa_state *xas)
 
 #ifdef CONFIG_XARRAY_MULTI
 	if (xas->xa_shift || xas->xa_sibs) {
-		unsigned long mask;
-		mask = (((xas->xa_sibs + 1UL) << xas->xa_shift) - 1);
+		unsigned long mask = xas_size(xas) - 1;
 		max |= mask;
 		if (mask == max)
 			max++;
@@ -1516,6 +1523,92 @@ int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
 	return xas_error(&xas);
 }
 EXPORT_SYMBOL(xa_reserve);
+
+#ifdef CONFIG_XARRAY_MULTI
+static void xas_set_range(struct xa_state *xas, unsigned long first,
+		unsigned long last)
+{
+	unsigned int shift = 0;
+	unsigned long sibs = last - first;
+	unsigned int offset = XA_CHUNK_MASK;
+
+	xas_set(xas, first);
+
+	while ((first & XA_CHUNK_MASK) == 0) {
+		if (sibs < XA_CHUNK_MASK)
+			break;
+		if ((sibs == XA_CHUNK_MASK) && (offset < XA_CHUNK_MASK))
+			break;
+		shift += XA_CHUNK_SHIFT;
+		if (offset == XA_CHUNK_MASK)
+			offset = sibs & XA_CHUNK_MASK;
+		sibs >>= XA_CHUNK_SHIFT;
+		first >>= XA_CHUNK_SHIFT;
+	}
+
+	offset = first & XA_CHUNK_MASK;
+	if (offset + sibs > XA_CHUNK_MASK)
+		sibs = XA_CHUNK_MASK - offset;
+	if ((((first + sibs + 1) << shift) - 1) > last)
+		sibs -= 1;
+
+	xas->xa_shift = shift;
+	xas->xa_sibs = sibs;
+}
+
+/**
+ * xa_store_range() - Store this entry at a range of indices in the XArray.
+ * @xa: XArray.
+ * @first: First index to affect.
+ * @last: Last index to affect.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * After this function returns, loads from any index between @first and @last,
+ * inclusive will return @entry.
+ * Storing into an existing multislot entry updates the entry of every index.
+ * The marks associated with @index are unaffected unless @entry is %NULL.
+ *
+ * Context: Process context.  Takes and releases the xa_lock.  May sleep
+ * if the @gfp flags permit.
+ * Return: %NULL on success, xa_err(-EINVAL) if @entry cannot be stored in
+ * an XArray, or xa_err(-ENOMEM) if memory allocation failed.
+ */
+void *xa_store_range(struct xarray *xa, unsigned long first,
+		unsigned long last, void *entry, gfp_t gfp)
+{
+	XA_STATE(xas, xa, 0);
+
+	if (WARN_ON_ONCE(xa_is_internal(entry)))
+		return XA_ERROR(-EINVAL);
+	if (last < first)
+		return XA_ERROR(-EINVAL);
+
+	do {
+		xas_lock(&xas);
+		if (entry) {
+			unsigned int order = (last == ~0UL) ? 64 :
+						ilog2(last + 1);
+			xas_set_order(&xas, last, order);
+			xas_create(&xas);
+			if (xas_error(&xas))
+				goto unlock;
+		}
+		do {
+			xas_set_range(&xas, first, last);
+			xas_store(&xas, entry);
+			if (xas_error(&xas))
+				goto unlock;
+			first += xas_size(&xas);
+		} while (first <= last);
+unlock:
+		xas_unlock(&xas);
+	} while (xas_nomem(&xas, gfp));
+
+	return xas_result(&xas, NULL);
+}
+EXPORT_SYMBOL(xa_store_range);
+#endif /* CONFIG_XARRAY_MULTI */
 
 /**
  * __xa_alloc() - Find somewhere to store this entry in the XArray.

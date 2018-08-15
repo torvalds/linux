@@ -1039,6 +1039,39 @@ static noinline void check_create_range(struct xarray *xa)
 	check_create_range_3();
 }
 
+static noinline void __check_store_range(struct xarray *xa, unsigned long first,
+		unsigned long last)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	xa_store_range(xa, first, last, xa_mk_value(first), GFP_KERNEL);
+
+	XA_BUG_ON(xa, xa_load(xa, first) != xa_mk_value(first));
+	XA_BUG_ON(xa, xa_load(xa, last) != xa_mk_value(first));
+	XA_BUG_ON(xa, xa_load(xa, first - 1) != NULL);
+	XA_BUG_ON(xa, xa_load(xa, last + 1) != NULL);
+
+	xa_store_range(xa, first, last, NULL, GFP_KERNEL);
+#endif
+
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
+static noinline void check_store_range(struct xarray *xa)
+{
+	unsigned long i, j;
+
+	for (i = 0; i < 128; i++) {
+		for (j = i; j < 128; j++) {
+			__check_store_range(xa, i, j);
+			__check_store_range(xa, 128 + i, 128 + j);
+			__check_store_range(xa, 4095 + i, 4095 + j);
+			__check_store_range(xa, 4096 + i, 4096 + j);
+			__check_store_range(xa, 123456 + i, 123456 + j);
+			__check_store_range(xa, UINT_MAX + i, UINT_MAX + j);
+		}
+	}
+}
+
 static LIST_HEAD(shadow_nodes);
 
 static void test_update_node(struct xa_node *node)
@@ -1184,6 +1217,7 @@ static int xarray_checks(void)
 	check_destroy(&array);
 	check_move(&array);
 	check_create_range(&array);
+	check_store_range(&array);
 	check_store_iter(&array);
 
 	check_workingset(&array, 0);

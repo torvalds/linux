@@ -98,6 +98,13 @@ the XArray by calling :c:func:`xa_for_each`.  You may prefer to use
 :c:func:`xa_find` or :c:func:`xa_find_after` to move to the next present
 entry in the XArray.
 
+Calling :c:func:`xa_store_range` stores the same entry in a range
+of indices.  If you do this, some of the other operations will behave
+in a slightly odd way.  For example, marking the entry at one index
+may result in the entry being marked at some, but not all of the other
+indices.  Storing into one index may result in the entry retrieved by
+some, but not all of the other indices changing.
+
 Finally, you can remove all entries from an XArray by calling
 :c:func:`xa_destroy`.  If the XArray entries are pointers, you may wish
 to free the entries first.  You can do this by iterating over all present
@@ -156,6 +163,7 @@ Takes xa_lock internally:
  * :c:func:`xa_erase_bh`
  * :c:func:`xa_erase_irq`
  * :c:func:`xa_cmpxchg`
+ * :c:func:`xa_store_range`
  * :c:func:`xa_alloc`
  * :c:func:`xa_alloc_bh`
  * :c:func:`xa_alloc_irq`
