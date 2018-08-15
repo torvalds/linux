@@ -1545,7 +1545,7 @@ static struct hv_pci_dev *new_pcichild_device(struct hv_pcibus_device *hbus,
 	unsigned long flags;
 	int ret;
 
-	hpdev = kzalloc(sizeof(*hpdev), GFP_ATOMIC);
+	hpdev = kzalloc(sizeof(*hpdev), GFP_KERNEL);
 	if (!hpdev)
 		return NULL;
 
