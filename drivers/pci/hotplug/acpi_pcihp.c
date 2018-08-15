@@ -7,7 +7,6 @@
  * All rights reserved.
  *
  * Send feedback to <kristen.c.accardi@intel.com>
- *
  */
 
 #include <linux/module.h>
@@ -87,8 +86,17 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 		return 0;
 
 	/* If _OSC exists, we should not evaluate OSHP */
+
+	/*
+	 * If there's no ACPI host bridge (i.e., ACPI support is compiled
+	 * into the kernel but the hardware platform doesn't support ACPI),
+	 * there's nothing to do here.
+	 */
 	host = pci_find_host_bridge(pdev->bus);
 	root = acpi_pci_find_root(ACPI_HANDLE(&host->dev));
+	if (!root)
+		return 0;
+
 	if (root->osc_support_set)
 		goto no_control;
 
