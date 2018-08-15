@@ -380,6 +380,22 @@ if [ -n "$kernver" ]; then
 			make mt7623n_evb_fwu_defconfig
 			;;
 
+		"ic")
+			echo "menu for multiple conf-files...currently in developement"
+			files=();
+			i=1;
+			for f in $(cd arch/arm/configs/; ls mt7623n*defconfig)
+			do
+				echo "[$i] $f"
+				files+=($f)
+				i=$(($i+1))
+			done
+			read -n1 -p "choice [1..${#files[@]}]:" choice
+			echo
+			set -x
+			make ${files[$(($choice-1))]}
+			set +x
+		;;
 	  	"config")
 			make menuconfig
 			;;
