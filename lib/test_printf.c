@@ -206,6 +206,7 @@ test_string(void)
 #define PTR_WIDTH 16
 #define PTR ((void *)0xffff0123456789abUL)
 #define PTR_STR "ffff0123456789ab"
+#define PTR_VAL_NO_CRNG "(____ptrval____)"
 #define ZEROS "00000000"	/* hex 32 zero bits */
 
 static int __init
@@ -216,7 +217,16 @@ plain_format(void)
 
 	nchars = snprintf(buf, PLAIN_BUF_SIZE, "%p", PTR);
 
-	if (nchars != PTR_WIDTH || strncmp(buf, ZEROS, strlen(ZEROS)) != 0)
+	if (nchars != PTR_WIDTH)
+		return -1;
+
+	if (strncmp(buf, PTR_VAL_NO_CRNG, PTR_WIDTH) == 0) {
+		pr_warn("crng possibly not yet initialized. plain 'p' buffer contains \"%s\"",
+			PTR_VAL_NO_CRNG);
+		return 0;
+	}
+
+	if (strncmp(buf, ZEROS, strlen(ZEROS)) != 0)
 		return -1;
 
 	return 0;
@@ -227,6 +237,7 @@ plain_format(void)
 #define PTR_WIDTH 8
 #define PTR ((void *)0x456789ab)
 #define PTR_STR "456789ab"
+#define PTR_VAL_NO_CRNG "(ptrval)"
 
 static int __init
 plain_format(void)
@@ -245,7 +256,16 @@ plain_hash(void)
 
 	nchars = snprintf(buf, PLAIN_BUF_SIZE, "%p", PTR);
 
-	if (nchars != PTR_WIDTH || strncmp(buf, PTR_STR, PTR_WIDTH) == 0)
+	if (nchars != PTR_WIDTH)
+		return -1;
+
+	if (strncmp(buf, PTR_VAL_NO_CRNG, PTR_WIDTH) == 0) {
+		pr_warn("crng possibly not yet initialized. plain 'p' buffer contains \"%s\"",
+			PTR_VAL_NO_CRNG);
+		return 0;
+	}
+
+	if (strncmp(buf, PTR_STR, PTR_WIDTH) == 0)
 		return -1;
 
 	return 0;
