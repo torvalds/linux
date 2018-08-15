@@ -259,6 +259,8 @@ static atomic_t barrier_cbs_invoked;	/* Barrier callbacks invoked. */
 static wait_queue_head_t *barrier_cbs_wq; /* Coordinate barrier testing. */
 static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
 
+static bool rcu_fwd_cb_nodelay;		/* Short rcu_torture_delay() delays. */
+
 /*
  * Allocate an element from the rcu_tortures pool.
  */
@@ -348,7 +350,8 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	 * period, and we want a long delay occasionally to trigger
 	 * force_quiescent_state. */
 
-	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
+	if (!rcu_fwd_cb_nodelay &&
+	    !(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
 		started = cur_ops->get_gp_seq();
 		ts = rcu_trace_clock_local();
 		if (preempt_count() & (SOFTIRQ_MASK | HARDIRQ_MASK))
@@ -1674,6 +1677,43 @@ static void rcu_torture_fwd_prog_cb(struct rcu_head *rhp)
 	cur_ops->call(&fcsp->rh, rcu_torture_fwd_prog_cb);
 }
 
+/* State for continuous-flood RCU callbacks. */
+struct rcu_fwd_cb {
+	struct rcu_head rh;
+	struct rcu_fwd_cb *rfc_next;
+	int rfc_gps;
+};
+static DEFINE_SPINLOCK(rcu_fwd_lock);
+static struct rcu_fwd_cb *rcu_fwd_cb_head;
+static struct rcu_fwd_cb **rcu_fwd_cb_tail = &rcu_fwd_cb_head;
+static long n_launders_cb;
+static unsigned long rcu_fwd_startat;
+#define MAX_FWD_CB_JIFFIES	(8 * HZ) /* Maximum CB test duration. */
+#define MIN_FWD_CB_LAUNDERS	3	/* This many CB invocations to count. */
+#define MIN_FWD_CBS_LAUNDERED	100	/* Number of counted CBs. */
+static long n_launders_hist[2 * MAX_FWD_CB_JIFFIES / HZ];
+
+/* Callback function for continuous-flood RCU callbacks. */
+static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
+{
+	int i;
+	struct rcu_fwd_cb *rfcp = container_of(rhp, struct rcu_fwd_cb, rh);
+	struct rcu_fwd_cb **rfcpp;
+
+	rfcp->rfc_next = NULL;
+	rfcp->rfc_gps++;
+	spin_lock(&rcu_fwd_lock);
+	rfcpp = rcu_fwd_cb_tail;
+	rcu_fwd_cb_tail = &rfcp->rfc_next;
+	WRITE_ONCE(*rfcpp, rfcp);
+	WRITE_ONCE(n_launders_cb, n_launders_cb + 1);
+	i = ((jiffies - rcu_fwd_startat) / HZ);
+	if (i >= ARRAY_SIZE(n_launders_hist))
+		i = ARRAY_SIZE(n_launders_hist) - 1;
+	n_launders_hist[i]++;
+	spin_unlock(&rcu_fwd_lock);
+}
+
 /* Carry out grace-period forward-progress testing. */
 static int rcu_torture_fwd_prog(void *args)
 {
@@ -1681,11 +1721,21 @@ static int rcu_torture_fwd_prog(void *args)
 	unsigned long dur;
 	struct fwd_cb_state fcs;
 	unsigned long gps;
+	int i;
 	int idx;
+	int j;
+	long n_launders;
+	long n_launders_cb_snap;
+	long n_launders_sa;
+	long n_max_cbs;
+	long n_max_gps;
+	struct rcu_fwd_cb *rfcp;
+	struct rcu_fwd_cb *rfcpn;
 	int sd;
 	int sd4;
 	bool selfpropcb = false;
 	unsigned long stopat;
+	unsigned long stoppedat;
 	int tested = 0;
 	int tested_tries = 0;
 	static DEFINE_TORTURE_RANDOM(trs);
@@ -1699,6 +1749,8 @@ static int rcu_torture_fwd_prog(void *args)
 	}
 	do {
 		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
+
+		/* Tight loop containing cond_resched(). */
 		if  (selfpropcb) {
 			WRITE_ONCE(fcs.stop, 0);
 			cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
@@ -1708,7 +1760,8 @@ static int rcu_torture_fwd_prog(void *args)
 		sd = cur_ops->stall_dur() + 1;
 		sd4 = (sd + fwd_progress_div - 1) / fwd_progress_div;
 		dur = sd4 + torture_random(&trs) % (sd - sd4);
-		stopat = jiffies + dur;
+		rcu_fwd_startat = jiffies;
+		stopat = rcu_fwd_startat + dur;
 		while (time_before(jiffies, stopat) && !torture_must_stop()) {
 			idx = cur_ops->readlock();
 			udelay(10);
@@ -1729,6 +1782,78 @@ static int rcu_torture_fwd_prog(void *args)
 			cur_ops->sync(); /* Wait for running CB to complete. */
 			cur_ops->cb_barrier(); /* Wait for queued callbacks. */
 		}
+
+		/* Loop continuously posting RCU callbacks. */
+		WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+		cur_ops->sync(); /* Later readers see above write. */
+		rcu_fwd_startat = jiffies;
+		stopat = rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
+		n_launders = 0;
+		n_launders_cb = 0;
+		n_launders_sa = 0;
+		n_max_cbs = 0;
+		n_max_gps = 0;
+		for (i = 0; i < ARRAY_SIZE(n_launders_hist); i++)
+			n_launders_hist[i] = 0;
+		cver = READ_ONCE(rcu_torture_current_version);
+		gps = cur_ops->get_gp_seq();
+		while (time_before(jiffies, stopat) && !torture_must_stop()) {
+			rfcp = READ_ONCE(rcu_fwd_cb_head);
+			rfcpn = NULL;
+			if (rfcp)
+				rfcpn = READ_ONCE(rfcp->rfc_next);
+			if (rfcpn) {
+				if (rfcp->rfc_gps >= MIN_FWD_CB_LAUNDERS &&
+				    ++n_max_gps >= MIN_FWD_CBS_LAUNDERED)
+					break;
+				rcu_fwd_cb_head = rfcpn;
+				n_launders++;
+				n_launders_sa++;
+			} else {
+				rfcp = kmalloc(sizeof(*rfcp), GFP_KERNEL);
+				if (WARN_ON_ONCE(!rfcp)) {
+					schedule_timeout_interruptible(1);
+					continue;
+				}
+				n_max_cbs++;
+				n_launders_sa = 0;
+				rfcp->rfc_gps = 0;
+			}
+			cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
+			cond_resched();
+		}
+		stoppedat = jiffies;
+		n_launders_cb_snap = READ_ONCE(n_launders_cb);
+		cver = READ_ONCE(rcu_torture_current_version) - cver;
+		gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
+		cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
+		for (;;) {
+			rfcp = rcu_fwd_cb_head;
+			if (!rfcp)
+				break;
+			rcu_fwd_cb_head = rfcp->rfc_next;
+			kfree(rfcp);
+		}
+		rcu_fwd_cb_tail = &rcu_fwd_cb_head;
+		WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+		if (!torture_must_stop()) {
+			WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
+			pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld\n",
+				 __func__,
+				 stoppedat - rcu_fwd_startat,
+				 jiffies - stoppedat,
+				 n_launders + n_max_cbs - n_launders_cb_snap,
+				 n_launders, n_launders_sa,
+				 n_max_gps, n_max_cbs, cver, gps);
+			for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
+				if (n_launders_hist[i] > 0)
+					break;
+			pr_alert("Callback-invocation histogram:");
+			for (j = 0; j <= i; j++)
+				pr_cont(" %ds: %ld", j + 1, n_launders_hist[j]);
+			pr_cont("\n");
+		}
+
 		/* Avoid slow periods, better to test when busy. */
 		stutter_wait("rcu_torture_fwd_prog");
 	} while (!torture_must_stop());
