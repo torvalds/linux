@@ -3187,9 +3187,16 @@ static int devfreq_vcodec_get_cur_freq(struct device *dev,
 	return 0;
 }
 
+static int devfreq_vcodec_get_dev_status(struct device *dev,
+					 struct devfreq_dev_status *stat)
+{
+	return 0;
+}
+
 static struct devfreq_dev_profile devfreq_vcodec_profile = {
 	.target		= devfreq_vcodec_target,
 	.get_cur_freq	= devfreq_vcodec_get_cur_freq,
+	.get_dev_status	= devfreq_vcodec_get_dev_status,
 };
 
 static unsigned long model_static_power(struct devfreq *devfreq,
