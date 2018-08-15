@@ -67,8 +67,8 @@ $(KMODULE_NAME)-y += $(KERN_SRCS:.c=.o)
 
 obj-$(CONFIG_SSV6200_CORE) += $(KMODULE_NAME).o
 
-$(shell cp  $(KBUILD_TOP)/firmware/ssv6051-wifi.cfg $(FIRMWARE_PATH)/)
-$(shell cp  $(KBUILD_TOP)/firmware/ssv6051-sw.bin $(FIRMWARE_PATH)/)
+#$(shell cp  $(KBUILD_TOP)/firmware/ssv6051-wifi.cfg $(FIRMWARE_PATH)/)
+#$(shell cp  $(KBUILD_TOP)/firmware/ssv6051-sw.bin $(FIRMWARE_PATH)/)
 #$(shell cp  $(KBUILD_TOP)/ssv6051.ko $(KO_PATH)/ssv6051.ko)
 
 
