@@ -1980,7 +1980,7 @@
 		compatible = "rockchip,rk3399-dw-hdmi";
 		reg = <0x0 0xff940000 0x0 0x20000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&hdmi_i2c_xfer>, <&hdmi_cec>;
+		pinctrl-0 = <&hdmi_i2c_xfer>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru PCLK_HDMI_CTRL>,
 			 <&cru SCLK_HDMI_SFR>,
