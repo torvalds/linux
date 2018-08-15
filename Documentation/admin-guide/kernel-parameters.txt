@@ -816,6 +816,17 @@
 	disable=	[IPV6]
 			See Documentation/networking/ipv6.txt.
 
+	hardened_usercopy=
+                        [KNL] Under CONFIG_HARDENED_USERCOPY, whether
+                        hardening is enabled for this boot. Hardened
+                        usercopy checking is used to protect the kernel
+                        from reading or writing beyond known memory
+                        allocation boundaries as a proactive defense
+                        against bounds-checking flaws in the kernel's
+                        copy_to_user()/copy_from_user() interface.
+                on      Perform hardened usercopy checks (default).
+                off     Disable hardened usercopy checks.
+
 	disable_radix	[PPC]
 			Disable RADIX MMU mode on POWER9
 
