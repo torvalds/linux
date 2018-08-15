@@ -92,7 +92,7 @@ static void tty_audit_buf_push(struct tty_audit_buf *buf)
 {
 	if (buf->valid == 0)
 		return;
-	if (audit_enabled == 0) {
+	if (audit_enabled == AUDIT_OFF) {
 		buf->valid = 0;
 		return;
 	}
