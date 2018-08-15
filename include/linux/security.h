@@ -159,6 +159,27 @@ extern int mmap_min_addr_handler(struct ctl_table *table, int write,
 typedef int (*initxattrs) (struct inode *inode,
 			   const struct xattr *xattr_array, void *fs_data);
 
+
+/* Keep the kernel_load_data_id enum in sync with kernel_read_file_id */
+#define __data_id_enumify(ENUM, dummy) LOADING_ ## ENUM,
+#define __data_id_stringify(dummy, str) #str,
+
+enum kernel_load_data_id {
+	__kernel_read_file_id(__data_id_enumify)
+};
+
+static const char * const kernel_load_data_str[] = {
+	__kernel_read_file_id(__data_id_stringify)
+};
+
+static inline const char *kernel_load_data_id_str(enum kernel_load_data_id id)
+{
+	if ((unsigned)id >= LOADING_MAX_ID)
+		return kernel_load_data_str[LOADING_UNKNOWN];
+
+	return kernel_load_data_str[id];
+}
+
 #ifdef CONFIG_SECURITY
 
 struct security_mnt_opts {
@@ -320,6 +341,7 @@ void security_cred_getsecid(const struct cred *c, u32 *secid);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
 int security_kernel_module_request(char *kmod_name);
+int security_kernel_load_data(enum kernel_load_data_id id);
 int security_kernel_read_file(struct file *file, enum kernel_read_file_id id);
 int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
 				   enum kernel_read_file_id id);
@@ -904,6 +926,11 @@ static inline int security_kernel_create_files_as(struct cred *cred,
 }
 
 static inline int security_kernel_module_request(char *kmod_name)
+{
+	return 0;
+}
+
+static inline int security_kernel_load_data(enum kernel_load_data_id id)
 {
 	return 0;
 }
