@@ -23,6 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include "../pci.h"
+
 /* register offsets and bit positions */
 
 /*
@@ -130,7 +132,7 @@ struct mobiveil_pcie {
 	void __iomem *config_axi_slave_base;	/* endpoint config base */
 	void __iomem *csr_axi_slave_base;	/* root port config base */
 	void __iomem *apb_csr_base;	/* MSI register base */
-	void __iomem *pcie_reg_base;	/* Physical PCIe Controller Base */
+	phys_addr_t pcie_reg_base;	/* Physical PCIe Controller Base */
 	struct irq_domain *intx_domain;
 	raw_spinlock_t intx_mask_lock;
 	int irq;
