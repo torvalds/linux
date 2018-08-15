@@ -415,7 +415,6 @@ static unsigned int armada_3700_pm_dvfs_get_cpu_parent(struct regmap *base)
 static u8 clk_pm_cpu_get_parent(struct clk_hw *hw)
 {
 	struct clk_pm_cpu *pm_cpu = to_clk_pm_cpu(hw);
-	int num_parents = clk_hw_get_num_parents(hw);
 	u32 val;
 
 	if (armada_3700_pm_dvfs_is_enabled(pm_cpu->nb_pm_base)) {
@@ -424,9 +423,6 @@ static u8 clk_pm_cpu_get_parent(struct clk_hw *hw)
 		val = readl(pm_cpu->reg_mux) >> pm_cpu->shift_mux;
 		val &= pm_cpu->mask_mux;
 	}
-
-	if (val >= num_parents)
-		return -EINVAL;
 
 	return val;
 }
