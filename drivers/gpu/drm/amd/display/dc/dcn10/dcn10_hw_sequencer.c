@@ -58,9 +58,11 @@
 
 /*print is 17 wide, first two characters are spaces*/
 #define DTN_INFO_MICRO_SEC(ref_cycle) \
-	print_microsec(dc_ctx, ref_cycle)
+	print_microsec(dc_ctx, log_ctx, ref_cycle)
 
-void print_microsec(struct dc_context *dc_ctx, uint32_t ref_cycle)
+void print_microsec(struct dc_context *dc_ctx,
+	struct dc_log_buffer_ctx *log_ctx,
+	uint32_t ref_cycle)
 {
 	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
@@ -71,7 +73,8 @@ void print_microsec(struct dc_context *dc_ctx, uint32_t ref_cycle)
 			us_x10 % frac);
 }
 
-static void log_mpc_crc(struct dc *dc)
+static void log_mpc_crc(struct dc *dc,
+	struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -84,7 +87,7 @@ static void log_mpc_crc(struct dc *dc)
 		REG_READ(DPP_TOP0_DPP_CRC_VAL_B_A), REG_READ(DPP_TOP0_DPP_CRC_VAL_R_G));
 }
 
-void dcn10_log_hubbub_state(struct dc *dc)
+void dcn10_log_hubbub_state(struct dc *dc, struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dcn_hubbub_wm wm = {0};
@@ -111,7 +114,7 @@ void dcn10_log_hubbub_state(struct dc *dc)
 	DTN_INFO("\n");
 }
 
-static void dcn10_log_hubp_states(struct dc *dc)
+static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
@@ -226,7 +229,8 @@ static void dcn10_log_hubp_states(struct dc *dc)
 	DTN_INFO("\n");
 }
 
-void dcn10_log_hw_state(struct dc *dc)
+void dcn10_log_hw_state(struct dc *dc,
+	struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
@@ -234,9 +238,9 @@ void dcn10_log_hw_state(struct dc *dc)
 
 	DTN_INFO_BEGIN();
 
-	dcn10_log_hubbub_state(dc);
+	dcn10_log_hubbub_state(dc, log_ctx);
 
-	dcn10_log_hubp_states(dc);
+	dcn10_log_hubp_states(dc, log_ctx);
 
 	DTN_INFO("DPP:    IGAM format  IGAM mode    DGAM mode    RGAM mode"
 			"  GAMUT mode  C11 C12   C13 C14   C21 C22   C23 C24   "
@@ -347,7 +351,7 @@ void dcn10_log_hw_state(struct dc *dc)
 			dc->current_state->bw.dcn.clk.fclk_khz,
 			dc->current_state->bw.dcn.clk.socclk_khz);
 
-	log_mpc_crc(dc);
+	log_mpc_crc(dc, log_ctx);
 
 	DTN_INFO_END();
 }
@@ -857,7 +861,7 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 
 	if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub)) {
 		if (should_log_hw_state) {
-			dcn10_log_hw_state(dc);
+			dcn10_log_hw_state(dc, NULL);
 		}
 		BREAK_TO_DEBUGGER();
 		if (dcn10_hw_wa_force_recovery(dc)) {

@@ -66,6 +66,12 @@
 
 struct dal_logger;
 
+struct dc_log_buffer_ctx {
+	char *buf;
+	size_t pos;
+	size_t size;
+};
+
 enum dc_log_type {
 	LOG_ERROR = 0,
 	LOG_WARNING,
