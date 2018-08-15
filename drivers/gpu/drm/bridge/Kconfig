@@ -142,6 +142,7 @@ config DRM_TI_SN65DSI86
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_PANEL
+	select DRM_MIPI_DSI
 	help
 	  Texas Instruments SN65DSI86 DSI to eDP Bridge driver
 
