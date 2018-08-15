@@ -140,7 +140,8 @@ PNAME(mux_usb480m_p)		= { "xin24m", "usb480m_phy", "clk_rtc32k_pmu" };
 PNAME(mux_armclk_p)		= { "apll_core", "gpll_core" };
 PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_ddr" };
 PNAME(mux_ddrstdby_p)		= { "clk_ddrphy1x", "clk_stdby_2wrap" };
-PNAME(mux_4plls_p)		= { "gpll", "dummy_cpll", "usb480m", "npll" };
+PNAME(mux_gpll_dmycpll_usb480m_npll_p)		= { "gpll", "dummy_cpll", "usb480m", "npll" };
+PNAME(mux_gpll_dmycpll_usb480m_dmynpll_p)	= { "gpll", "dummy_cpll", "usb480m", "dummy_npll" };
 PNAME(mux_cpll_npll_p)		= { "cpll", "npll" };
 PNAME(mux_npll_cpll_p)		= { "npll", "cpll" };
 PNAME(mux_gpll_cpll_p)		= { "gpll", "dummy_cpll" };
@@ -303,17 +304,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKGATE_CON(17), 4, GFLAGS),
 
 	/* PD_GPU */
-	COMPOSITE_NODIV(0, "clk_gpu_src", mux_4plls_p, 0,
-			PX30_CLKSEL_CON(1), 6, 2, MFLAGS,
-			PX30_CLKGATE_CON(0), 8, GFLAGS),
-	COMPOSITE_NOMUX(0, "clk_gpu_div", "clk_gpu_src", 0,
-			PX30_CLKSEL_CON(1), 0, 4, DFLAGS,
-			PX30_CLKGATE_CON(0), 12, GFLAGS),
-	COMPOSITE_NOMUX_HALFDIV(0, "clk_gpu_np5", "clk_gpu_src", 0,
-			PX30_CLKSEL_CON(1), 8, 4, DFLAGS,
-			PX30_CLKGATE_CON(0), 9, GFLAGS),
-	COMPOSITE_NODIV(SCLK_GPU, "clk_gpu", mux_gpu_p, CLK_SET_RATE_PARENT,
-			PX30_CLKSEL_CON(1), 15, 1, MFLAGS,
+	GATE(SCLK_GPU, "clk_gpu", "clk_gpu_src", 0,
 			PX30_CLKGATE_CON(0), 10, GFLAGS),
 	COMPOSITE_NOMUX(0, "aclk_gpu", "clk_gpu", CLK_IGNORE_UNUSED,
 			PX30_CLKSEL_CON(1), 13, 2, DFLAGS,
@@ -912,6 +903,18 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKGATE_CON(8), 3, GFLAGS),
 };
 
+static struct rockchip_clk_branch px30_gpu_src_clk[] __initdata = {
+	COMPOSITE(0, "clk_gpu_src", mux_gpll_dmycpll_usb480m_dmynpll_p, 0,
+			PX30_CLKSEL_CON(1), 6, 2, MFLAGS, 0, 4, DFLAGS,
+			PX30_CLKGATE_CON(0), 8, GFLAGS),
+};
+
+static struct rockchip_clk_branch rk3326_gpu_src_clk[] __initdata = {
+	COMPOSITE(0, "clk_gpu_src", mux_gpll_dmycpll_usb480m_npll_p, 0,
+			PX30_CLKSEL_CON(1), 6, 2, MFLAGS, 0, 4, DFLAGS,
+			PX30_CLKGATE_CON(0), 8, GFLAGS),
+};
+
 static struct rockchip_clk_branch px30_clk_pmu_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 2
@@ -1023,6 +1026,12 @@ static void __init px30_clk_init(struct device_node *np)
 				   PX30_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(ctx, px30_clk_branches,
 				       ARRAY_SIZE(px30_clk_branches));
+	if (of_machine_is_compatible("rockchip,px30"))
+		rockchip_clk_register_branches(ctx, px30_gpu_src_clk,
+				       ARRAY_SIZE(px30_gpu_src_clk));
+	else
+		rockchip_clk_register_branches(ctx, rk3326_gpu_src_clk,
+				       ARRAY_SIZE(rk3326_gpu_src_clk));
 
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
 				     mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
