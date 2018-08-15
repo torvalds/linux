@@ -3,6 +3,14 @@
 # General architecture dependent options
 #
 
+#
+# Note: arch/$(SRCARCH)/Kconfig needs to be included first so that it can
+# override the default values in this file.
+#
+source "arch/$(SRCARCH)/Kconfig"
+
+menu "General architecture-dependent options"
+
 config CRASH_CORE
 	bool
 
@@ -734,6 +742,9 @@ config COMPAT_32BIT_TIME
 config ARCH_NO_COHERENT_DMA_MMAP
 	bool
 
+config ARCH_NO_PREEMPT
+	bool
+
 config CPU_NO_EFFICIENT_FFS
 	def_bool n
 
@@ -833,3 +844,5 @@ config REFCOUNT_FULL
 source "kernel/gcov/Kconfig"
 
 source "scripts/gcc-plugins/Kconfig"
+
+endmenu

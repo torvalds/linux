@@ -60,9 +60,6 @@ config HZ
 	int
 	default 100
 
-source "init/Kconfig"
-source "kernel/Kconfig.freezer"
-
 config LOCKDEP_SUPPORT
 	def_bool y
 
@@ -175,8 +172,6 @@ config XTENSA_UNALIGNED_USER
 	  Per default, unaligned memory accesses are disabled in user space.
 
 	  Say Y here to enable unaligned memory access in user space.
-
-source "kernel/Kconfig.preempt"
 
 config HAVE_SMP
 	bool "System Supports SMP (MX)"
@@ -491,8 +486,6 @@ config SIMDISK1_FILENAME
 	  Another simulated disk in a host file for a buildroot-independent
 	  storage.
 
-source "mm/Kconfig"
-
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	default "11"
@@ -567,30 +560,8 @@ config XTFPGA_LCD_8BIT_ACCESS
 
 endmenu
 
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
 menu "Power management options"
 
 source "kernel/power/Kconfig"
 
 endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/xtensa/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-
-

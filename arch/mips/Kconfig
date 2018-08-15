@@ -2635,8 +2635,6 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
-source "mm/Kconfig"
-
 config SMP
 	bool "Multi-Processing support"
 	depends on SYS_SUPPORTS_SMP
@@ -2814,8 +2812,6 @@ config HZ
 config SCHED_HRTICK
 	def_bool HIGH_RES_TIMERS
 
-source "kernel/Kconfig.preempt"
-
 config KEXEC
 	bool "Kexec system call"
 	select KEXEC_CORE
@@ -2991,10 +2987,6 @@ config PGTABLE_LEVELS
 config MIPS_AUTO_PFN_OFFSET
 	bool
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 
 config HW_HAS_EISA
@@ -3127,10 +3119,6 @@ source "drivers/rapidio/Kconfig"
 
 endmenu
 
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
 config TRAD_SIGNALS
 	bool
 
@@ -3176,8 +3164,6 @@ config BINFMT_ELF32
 	default y if MIPS32_O32 || MIPS32_N32
 	select ELFCORE
 
-endmenu
-
 menu "Power management options"
 
 config ARCH_HIBERNATION_POSSIBLE
@@ -3205,20 +3191,6 @@ source "drivers/cpuidle/Kconfig"
 
 endmenu
 
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
 source "drivers/firmware/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/mips/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
 
 source "arch/mips/kvm/Kconfig"

@@ -184,10 +184,6 @@ config PGTABLE_LEVELS
 	int
 	default 5
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 source "kernel/livepatch/Kconfig"
 
 menu "Processor type and features"
@@ -515,8 +511,6 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
-source kernel/Kconfig.preempt
-
 source kernel/Kconfig.hz
 
 config KEXEC
@@ -626,8 +620,6 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 config FORCE_MAX_ZONEORDER
 	int
 	default "9"
-
-source "mm/Kconfig"
 
 config MAX_PHYSMEM_BITS
 	int "Maximum size of supported physical memory in bits (42-53)"
@@ -798,10 +790,6 @@ config CRASH_DUMP
 
 endmenu
 
-menu "Executable file formats / Emulations"
-
-source "fs/Kconfig.binfmt"
-
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
@@ -819,8 +807,6 @@ config SECCOMP
 
 	  If unsure, say Y.
 
-endmenu
-
 menu "Power Management"
 
 config ARCH_HIBERNATION_POSSIBLE
@@ -830,29 +816,15 @@ source "kernel/power/Kconfig"
 
 endmenu
 
-source "net/Kconfig"
-
 config PCMCIA
 	def_bool n
 
 config CCW
 	def_bool y
 
-source "drivers/Kconfig"
-
 config HAVE_PNETID
 	tristate
 	default (SMC || CCWGROUP)
-
-source "fs/Kconfig"
-
-source "arch/s390/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
 
 menu "Virtualization"
 

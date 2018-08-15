@@ -170,10 +170,6 @@ config PGTABLE_LEVELS
 	default 3 if X2TLB
 	default 2
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 menu "System type"
 
 #
@@ -715,8 +711,6 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
 
-source "kernel/Kconfig.preempt"
-
 config GUSA
 	def_bool y
 	depends on !SMP && SUPERH32
@@ -884,12 +878,6 @@ source "drivers/pcmcia/Kconfig"
 
 endmenu
 
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
 menu "Power management options (EXPERIMENTAL)"
 
 source "kernel/power/Kconfig"
@@ -897,17 +885,3 @@ source "kernel/power/Kconfig"
 source "drivers/cpuidle/Kconfig"
 
 endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/sh/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
