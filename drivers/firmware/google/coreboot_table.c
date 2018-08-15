@@ -16,12 +16,15 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "coreboot_table.h"
@@ -91,7 +94,7 @@ void coreboot_driver_unregister(struct coreboot_driver *driver)
 }
 EXPORT_SYMBOL(coreboot_driver_unregister);
 
-int coreboot_table_init(struct device *dev, void __iomem *ptr)
+static int coreboot_table_init(struct device *dev, void __iomem *ptr)
 {
 	int i, ret;
 	void *ptr_entry;
@@ -144,9 +147,38 @@ out:
 	iounmap(ptr);
 	return ret;
 }
-EXPORT_SYMBOL(coreboot_table_init);
 
-int coreboot_table_exit(void)
+static int coreboot_table_probe(struct platform_device *pdev)
+{
+	phys_addr_t phyaddr;
+	resource_size_t len;
+	struct coreboot_table_header __iomem *header = NULL;
+	struct resource *res;
+	void __iomem *ptr = NULL;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
+
+	len = resource_size(res);
+	if (!res->start || !len)
+		return -EINVAL;
+
+	phyaddr = res->start;
+	header = ioremap_cache(phyaddr, sizeof(*header));
+	if (header == NULL)
+		return -ENOMEM;
+
+	ptr = ioremap_cache(phyaddr,
+			    header->header_bytes + header->table_bytes);
+	iounmap(header);
+	if (!ptr)
+		return -ENOMEM;
+
+	return coreboot_table_init(&pdev->dev, ptr);
+}
+
+static int coreboot_table_remove(struct platform_device *pdev)
 {
 	if (ptr_header) {
 		bus_unregister(&coreboot_bus_type);
@@ -155,7 +187,33 @@ int coreboot_table_exit(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(coreboot_table_exit);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id cros_coreboot_acpi_match[] = {
+	{ "GOOGCB00", 0 },
+	{ "BOOT0000", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, cros_coreboot_acpi_match);
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id coreboot_of_match[] = {
+	{ .compatible = "coreboot" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, coreboot_of_match);
+#endif
+
+static struct platform_driver coreboot_table_driver = {
+	.probe = coreboot_table_probe,
+	.remove = coreboot_table_remove,
+	.driver = {
+		.name = "coreboot_table",
+		.acpi_match_table = ACPI_PTR(cros_coreboot_acpi_match),
+		.of_match_table = of_match_ptr(coreboot_of_match),
+	},
+};
+module_platform_driver(coreboot_table_driver);
 MODULE_AUTHOR("Google, Inc.");
 MODULE_LICENSE("GPL");

@@ -19,28 +19,22 @@ config GOOGLE_SMI
 	  variables.
 
 config GOOGLE_COREBOOT_TABLE
-	tristate
-	depends on GOOGLE_COREBOOT_TABLE_ACPI || GOOGLE_COREBOOT_TABLE_OF
-
-config GOOGLE_COREBOOT_TABLE_ACPI
-	tristate "Coreboot Table Access - ACPI"
-	depends on ACPI
-	select GOOGLE_COREBOOT_TABLE
+	tristate "Coreboot Table Access"
+	depends on ACPI || OF
 	help
 	  This option enables the coreboot_table module, which provides other
-	  firmware modules to access to the coreboot table. The coreboot table
-	  pointer is accessed through the ACPI "GOOGCB00" object.
+	  firmware modules access to the coreboot table. The coreboot table
+	  pointer is accessed through the ACPI "GOOGCB00" object or the
+	  device tree node /firmware/coreboot.
 	  If unsure say N.
 
-config GOOGLE_COREBOOT_TABLE_OF
-	tristate "Coreboot Table Access - Device Tree"
-	depends on OF
+config GOOGLE_COREBOOT_TABLE_ACPI
+	tristate
 	select GOOGLE_COREBOOT_TABLE
-	help
-	  This option enable the coreboot_table module, which provide other
-	  firmware modules to access coreboot table. The coreboot table pointer
-	  is accessed through the device tree node /firmware/coreboot.
-	  If unsure say N.
+
+config GOOGLE_COREBOOT_TABLE_OF
+	tristate
+	select GOOGLE_COREBOOT_TABLE
 
 config GOOGLE_MEMCONSOLE
 	tristate
