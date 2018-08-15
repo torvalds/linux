@@ -641,15 +641,17 @@ static const struct kpp_testvec dh_tv_template[] = {
 	.secret =
 #ifdef __LITTLE_ENDIAN
 	"\x01\x00" /* type */
-	"\x11\x02" /* len */
+	"\x15\x02" /* len */
 	"\x00\x01\x00\x00" /* key_size */
 	"\x00\x01\x00\x00" /* p_size */
+	"\x00\x00\x00\x00" /* q_size */
 	"\x01\x00\x00\x00" /* g_size */
 #else
 	"\x00\x01" /* type */
-	"\x02\x11" /* len */
+	"\x02\x15" /* len */
 	"\x00\x00\x01\x00" /* key_size */
 	"\x00\x00\x01\x00" /* p_size */
+	"\x00\x00\x00\x00" /* q_size */
 	"\x00\x00\x00\x01" /* g_size */
 #endif
 	/* xa */
@@ -739,7 +741,7 @@ static const struct kpp_testvec dh_tv_template[] = {
 	"\xd3\x34\x49\xad\x64\xa6\xb1\xc0\x59\x28\x75\x60\xa7\x8a\xb0\x11"
 	"\x56\x89\x42\x74\x11\xf5\xf6\x5e\x6f\x16\x54\x6a\xb1\x76\x4d\x50"
 	"\x8a\x68\xc1\x5b\x82\xb9\x0d\x00\x32\x50\xed\x88\x87\x48\x92\x17",
-	.secret_size = 529,
+	.secret_size = 533,
 	.b_public_size = 256,
 	.expected_a_public_size = 256,
 	.expected_ss_size = 256,
@@ -748,15 +750,17 @@ static const struct kpp_testvec dh_tv_template[] = {
 	.secret =
 #ifdef __LITTLE_ENDIAN
 	"\x01\x00" /* type */
-	"\x11\x02" /* len */
+	"\x15\x02" /* len */
 	"\x00\x01\x00\x00" /* key_size */
 	"\x00\x01\x00\x00" /* p_size */
+	"\x00\x00\x00\x00" /* q_size */
 	"\x01\x00\x00\x00" /* g_size */
 #else
 	"\x00\x01" /* type */
-	"\x02\x11" /* len */
+	"\x02\x15" /* len */
 	"\x00\x00\x01\x00" /* key_size */
 	"\x00\x00\x01\x00" /* p_size */
+	"\x00\x00\x00\x00" /* q_size */
 	"\x00\x00\x00\x01" /* g_size */
 #endif
 	/* xa */
@@ -846,7 +850,7 @@ static const struct kpp_testvec dh_tv_template[] = {
 	"\x5e\x5a\x64\xbd\xf6\x85\x04\xe8\x28\x6a\xac\xef\xce\x19\x8e\x9a"
 	"\xfe\x75\xc0\x27\x69\xe3\xb3\x7b\x21\xa7\xb1\x16\xa4\x85\x23\xee"
 	"\xb0\x1b\x04\x6e\xbd\xab\x16\xde\xfd\x86\x6b\xa9\x95\xd7\x0b\xfd",
-	.secret_size = 529,
+	.secret_size = 533,
 	.b_public_size = 256,
 	.expected_a_public_size = 256,
 	.expected_ss_size = 256,
@@ -4603,105 +4607,158 @@ static const struct hash_testvec aes_xcbc128_tv_template[] = {
 	}
 };
 
-static const char vmac_string1[128] = {'\x01', '\x01', '\x01', '\x01',
-				       '\x02', '\x03', '\x02', '\x02',
-				       '\x02', '\x04', '\x01', '\x07',
-				       '\x04', '\x01', '\x04', '\x03',};
-static const char vmac_string2[128] = {'a', 'b', 'c',};
-static const char vmac_string3[128] = {'a', 'b', 'c', 'a', 'b', 'c',
-				       'a', 'b', 'c', 'a', 'b', 'c',
-				       'a', 'b', 'c', 'a', 'b', 'c',
-				       'a', 'b', 'c', 'a', 'b', 'c',
-				       'a', 'b', 'c', 'a', 'b', 'c',
-				       'a', 'b', 'c', 'a', 'b', 'c',
-				       'a', 'b', 'c', 'a', 'b', 'c',
-				       'a', 'b', 'c', 'a', 'b', 'c',
-				      };
+static const char vmac64_string1[144] = {
+	'\0',     '\0',   '\0',   '\0',   '\0',   '\0',   '\0',   '\0',
+	'\0',     '\0',   '\0',   '\0',   '\0',   '\0',   '\0',   '\0',
+	'\x01', '\x01', '\x01', '\x01', '\x02', '\x03', '\x02', '\x02',
+	'\x02', '\x04', '\x01', '\x07', '\x04', '\x01', '\x04', '\x03',
+};
 
-static const char vmac_string4[17] = {'b', 'c', 'e', 'f',
-				      'i', 'j', 'l', 'm',
-				      'o', 'p', 'r', 's',
-				      't', 'u', 'w', 'x', 'z'};
+static const char vmac64_string2[144] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	 'a',  'b',  'c',
+};
 
-static const char vmac_string5[127] = {'r', 'm', 'b', 't', 'c',
-				       'o', 'l', 'k', ']', '%',
-				       '9', '2', '7', '!', 'A'};
+static const char vmac64_string3[144] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	 'a',  'b',  'c',  'a',  'b',  'c',  'a',  'b',
+	 'c',  'a',  'b',  'c',  'a',  'b',  'c',  'a',
+	 'b',  'c',  'a',  'b',  'c',  'a',  'b',  'c',
+	 'a',  'b',  'c',  'a',  'b',  'c',  'a',  'b',
+	 'c',  'a',  'b',  'c',  'a',  'b',  'c',  'a',
+	 'b',  'c',  'a',  'b',  'c',  'a',  'b',  'c',
+};
 
-static const char vmac_string6[129] = {'p', 't', '*', '7', 'l',
-				       'i', '!', '#', 'w', '0',
-				       'z', '/', '4', 'A', 'n'};
+static const char vmac64_string4[33] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'b',   'c',  'e',  'f',  'i',  'j',  'l',  'm',
+	'o',   'p',  'r',  's',  't',  'u',  'w',  'x',
+	'z',
+};
 
-static const struct hash_testvec aes_vmac128_tv_template[] = {
-	{
+static const char vmac64_string5[143] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	 'r',  'm',  'b',  't',  'c',  'o',  'l',  'k',
+	 ']',  '%',  '9',  '2',  '7',  '!',  'A',
+};
+
+static const char vmac64_string6[145] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	 'p',  't',  '*',  '7',  'l',  'i',  '!',  '#',
+	 'w',  '0',  'z',  '/',  '4',  'A',  'n',
+};
+
+static const struct hash_testvec vmac64_aes_tv_template[] = {
+	{ /* draft-krovetz-vmac-01 test vector 1 */
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi",
+		.psize	= 16,
+		.digest	= "\x25\x76\xbe\x1c\x56\xd8\xb8\x1b",
+	}, { /* draft-krovetz-vmac-01 test vector 2 */
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\0\0\0\0\0\0\0\0bcdefghiabc",
+		.psize	= 19,
+		.digest	= "\x2d\x37\x6c\xf5\xb1\x81\x3c\xe5",
+	}, { /* draft-krovetz-vmac-01 test vector 3 */
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc",
+		.psize	= 64,
+		.digest	= "\xe8\x42\x1f\x61\xd5\x73\xd2\x98",
+	}, { /* draft-krovetz-vmac-01 test vector 4 */
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabc",
+		.psize	= 316,
+		.digest	= "\x44\x92\xdf\x6c\x5c\xac\x1b\xbe",
+		.tap	= { 1, 100, 200, 15 },
+		.np	= 4,
+	}, {
 		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
 			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-		.plaintext = NULL,
-		.digest	= "\x07\x58\x80\x35\x77\xa4\x7b\x54",
-		.psize	= 0,
 		.ksize	= 16,
+		.plaintext = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.psize	= 16,
+		.digest	= "\x54\x7b\xa4\x77\x35\x80\x58\x07",
 	}, {
-		.key    = "\x00\x01\x02\x03\x04\x05\x06\x07"
+		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
 			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-		.plaintext = vmac_string1,
-		.digest = "\xce\xf5\x3c\xd3\xae\x68\x8c\xa1",
-		.psize  = 128,
-		.ksize  = 16,
+		.ksize	= 16,
+		.plaintext = vmac64_string1,
+		.psize	= sizeof(vmac64_string1),
+		.digest	= "\xa1\x8c\x68\xae\xd3\x3c\xf5\xce",
 	}, {
-		.key    = "\x00\x01\x02\x03\x04\x05\x06\x07"
+		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
 			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-		.plaintext = vmac_string2,
-		.digest = "\xc9\x27\xb0\x73\x81\xbd\x14\x2d",
-		.psize  = 128,
-		.ksize  = 16,
+		.ksize	= 16,
+		.plaintext = vmac64_string2,
+		.psize	= sizeof(vmac64_string2),
+		.digest	= "\x2d\x14\xbd\x81\x73\xb0\x27\xc9",
 	}, {
-		.key    = "\x00\x01\x02\x03\x04\x05\x06\x07"
+		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
 			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-		.plaintext = vmac_string3,
-		.digest = "\x8d\x1a\x95\x8c\x98\x47\x0b\x19",
-		.psize  = 128,
-		.ksize  = 16,
+		.ksize	= 16,
+		.plaintext = vmac64_string3,
+		.psize	= sizeof(vmac64_string3),
+		.digest	= "\x19\x0b\x47\x98\x8c\x95\x1a\x8d",
 	}, {
 		.key	= "abcdefghijklmnop",
-		.plaintext = NULL,
-		.digest	= "\x3b\x89\xa1\x26\x9e\x55\x8f\x84",
-		.psize	= 0,
 		.ksize	= 16,
+		.plaintext = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.psize	= 16,
+		.digest	= "\x84\x8f\x55\x9e\x26\xa1\x89\x3b",
 	}, {
-		.key    = "abcdefghijklmnop",
-		.plaintext = vmac_string1,
-		.digest = "\xab\x5e\xab\xb0\xf6\x8d\x74\xc2",
-		.psize  = 128,
-		.ksize  = 16,
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = vmac64_string1,
+		.psize	= sizeof(vmac64_string1),
+		.digest	= "\xc2\x74\x8d\xf6\xb0\xab\x5e\xab",
 	}, {
-		.key    = "abcdefghijklmnop",
-		.plaintext = vmac_string2,
-		.digest = "\x11\x15\x68\x42\x3d\x7b\x09\xdf",
-		.psize  = 128,
-		.ksize  = 16,
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = vmac64_string2,
+		.psize	= sizeof(vmac64_string2),
+		.digest	= "\xdf\x09\x7b\x3d\x42\x68\x15\x11",
 	}, {
-		.key    = "abcdefghijklmnop",
-		.plaintext = vmac_string3,
-		.digest = "\x8b\x32\x8f\xe1\xed\x8f\xfa\xd4",
-		.psize  = 128,
-		.ksize  = 16,
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = vmac64_string3,
+		.psize	= sizeof(vmac64_string3),
+		.digest	= "\xd4\xfa\x8f\xed\xe1\x8f\x32\x8b",
 	}, {
-		.key = "a09b5cd!f#07K\x00\x00\x00",
-		.plaintext = vmac_string4,
-		.digest = "\xab\xa5\x0f\xea\x42\x4e\xa1\x5f",
-		.psize = sizeof(vmac_string4),
-		.ksize = 16,
+		.key	= "a09b5cd!f#07K\x00\x00\x00",
+		.ksize	= 16,
+		.plaintext = vmac64_string4,
+		.psize	= sizeof(vmac64_string4),
+		.digest	= "\x5f\xa1\x4e\x42\xea\x0f\xa5\xab",
 	}, {
-		.key = "a09b5cd!f#07K\x00\x00\x00",
-		.plaintext = vmac_string5,
-		.digest = "\x25\x31\x98\xbc\x1d\xe8\x67\x60",
-		.psize = sizeof(vmac_string5),
-		.ksize = 16,
+		.key	= "a09b5cd!f#07K\x00\x00\x00",
+		.ksize	= 16,
+		.plaintext = vmac64_string5,
+		.psize	= sizeof(vmac64_string5),
+		.digest	= "\x60\x67\xe8\x1d\xbc\x98\x31\x25",
 	}, {
-		.key = "a09b5cd!f#07K\x00\x00\x00",
-		.plaintext = vmac_string6,
-		.digest = "\xc4\xae\x9b\x47\x95\x65\xeb\x41",
-		.psize = sizeof(vmac_string6),
-		.ksize = 16,
+		.key	= "a09b5cd!f#07K\x00\x00\x00",
+		.ksize	= 16,
+		.plaintext = vmac64_string6,
+		.psize	= sizeof(vmac64_string6),
+		.digest	= "\x41\xeb\x65\x95\x47\x9b\xae\xc4",
 	},
 };
 

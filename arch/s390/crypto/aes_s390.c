@@ -1035,7 +1035,6 @@ static struct aead_alg gcm_aes_aead = {
 	.chunksize		= AES_BLOCK_SIZE,
 
 	.base			= {
-		.cra_flags		= CRYPTO_ALG_TYPE_AEAD,
 		.cra_blocksize		= 1,
 		.cra_ctxsize		= sizeof(struct s390_aes_ctx),
 		.cra_priority		= 900,

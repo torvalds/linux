@@ -1183,8 +1183,7 @@ static int mv_cesa_ahmac_setkey(const char *hash_alg_name,
 	u8 *opad;
 	int ret;
 
-	tfm = crypto_alloc_ahash(hash_alg_name, CRYPTO_ALG_TYPE_AHASH,
-				 CRYPTO_ALG_TYPE_AHASH_MASK);
+	tfm = crypto_alloc_ahash(hash_alg_name, 0, 0);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 

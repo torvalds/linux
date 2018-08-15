@@ -7364,7 +7364,7 @@ M:	Megha Dey <megha.dey@linux.intel.com>
 R:	Tim Chen <tim.c.chen@linux.intel.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
-F:	arch/x86/crypto/sha*-mb
+F:	arch/x86/crypto/sha*-mb/
 F:	crypto/mcryptd.c
 
 INTEL TELEMETRY DRIVER

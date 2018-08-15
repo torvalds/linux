@@ -97,7 +97,7 @@ static int chtls_set_tcb_field(struct sock *sk, u16 word, u64 mask, u64 val)
 int chtls_set_tcb_tflag(struct sock *sk, unsigned int bit_pos, int val)
 {
 	return chtls_set_tcb_field(sk, 1, 1ULL << bit_pos,
-				   val << bit_pos);
+				   (u64)val << bit_pos);
 }
 
 static int chtls_set_tcb_keyid(struct sock *sk, int keyid)

@@ -42,7 +42,7 @@ static void chain_to_walk(struct scatterlist *sg, struct scatter_walk *walk)
 	sg_set_page(sg, sg_page(src),
 		    src->length - diff, walk->offset);
 
-	scatterwalk_crypto_chain(sg, sg_next(src), 0, 2);
+	scatterwalk_crypto_chain(sg, sg_next(src), 2);
 }
 
 static int tls_enc_record(struct aead_request *aead_req,
