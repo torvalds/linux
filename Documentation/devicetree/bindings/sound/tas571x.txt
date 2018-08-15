@@ -1,4 +1,4 @@
-Texas Instruments TAS5711/TAS5717/TAS5719 stereo power amplifiers
+Texas Instruments TAS5711/TAS5717/TAS5719/TAS5731 stereo power amplifiers
 
 The codec is controlled through an I2C interface.  It also has two other
 signals that can be wired up to GPIOs: reset (strongly recommended), and
@@ -6,7 +6,7 @@ powerdown (optional).
 
 Required properties:
 
-- compatible: "ti,tas5711", "ti,tas5717", or "ti,tas5719"
+- compatible: "ti,tas5711", "ti,tas5717", "ti,tas5719", or "ti,tas5731"
 - reg: The I2C address of the device
 - #sound-dai-cells: must be equal to 0
 
