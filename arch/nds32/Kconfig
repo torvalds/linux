@@ -41,6 +41,7 @@ config NDS32
 	select RTC_LIB
 	select THREAD_INFO_IN_TASK
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
 	help
 	  Andes(nds32) Linux support.
 
