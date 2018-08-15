@@ -1828,7 +1828,8 @@ execlists_reset_prepare(struct intel_engine_cs *engine)
 	struct i915_request *request, *active;
 	unsigned long flags;
 
-	GEM_TRACE("%s\n", engine->name);
+	GEM_TRACE("%s: depth<-%d\n", engine->name,
+		  atomic_read(&execlists->tasklet.count));
 
 	/*
 	 * Prevent request submission to the hardware until we have
@@ -1976,7 +1977,8 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 	 */
 	__tasklet_enable_sync_once(&execlists->tasklet);
 
-	GEM_TRACE("%s\n", engine->name);
+	GEM_TRACE("%s: depth->%d\n", engine->name,
+		  atomic_read(&execlists->tasklet.count));
 }
 
 static int intel_logical_ring_emit_pdps(struct i915_request *rq)
