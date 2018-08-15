@@ -112,8 +112,8 @@ static u32 vi_smc_rreg(struct amdgpu_device *adev, u32 reg)
 	u32 r;
 
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
-	WREG32(mmSMC_IND_INDEX_11, (reg));
-	r = RREG32(mmSMC_IND_DATA_11);
+	WREG32_NO_KIQ(mmSMC_IND_INDEX_11, (reg));
+	r = RREG32_NO_KIQ(mmSMC_IND_DATA_11);
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 	return r;
 }
