@@ -6,6 +6,7 @@
  * Copyright (C) 2016 Intel Corp.
  */
 
+#include <linux/aer.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -16,10 +17,8 @@
 
 struct dpc_dev {
 	struct pcie_device	*dev;
-	struct work_struct	work;
 	u16			cap_pos;
 	bool			rp_extensions;
-	u32			rp_pio_status;
 	u8			rp_log_size;
 };
 
@@ -65,19 +64,13 @@ static int dpc_wait_rp_inactive(struct dpc_dev *dpc)
 	return 0;
 }
 
-static void dpc_wait_link_inactive(struct dpc_dev *dpc)
-{
-	struct pci_dev *pdev = dpc->dev->port;
-
-	pcie_wait_for_link(pdev, false);
-}
-
 static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 {
 	struct dpc_dev *dpc;
 	struct pcie_device *pciedev;
 	struct device *devdpc;
-	u16 cap, ctl;
+
+	u16 cap;
 
 	/*
 	 * DPC disables the Link automatically in hardware, so it has
@@ -92,34 +85,17 @@ static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 	 * Wait until the Link is inactive, then clear DPC Trigger Status
 	 * to allow the Port to leave DPC.
 	 */
-	dpc_wait_link_inactive(dpc);
+	pcie_wait_for_link(pdev, false);
 
 	if (dpc->rp_extensions && dpc_wait_rp_inactive(dpc))
 		return PCI_ERS_RESULT_DISCONNECT;
-	if (dpc->rp_extensions && dpc->rp_pio_status) {
-		pci_write_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_STATUS,
-				       dpc->rp_pio_status);
-		dpc->rp_pio_status = 0;
-	}
 
 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
 			      PCI_EXP_DPC_STATUS_TRIGGER);
 
-	pci_read_config_word(pdev, cap + PCI_EXP_DPC_CTL, &ctl);
-	pci_write_config_word(pdev, cap + PCI_EXP_DPC_CTL,
-			      ctl | PCI_EXP_DPC_CTL_INT_EN);
-
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-static void dpc_work(struct work_struct *work)
-{
-	struct dpc_dev *dpc = container_of(work, struct dpc_dev, work);
-	struct pci_dev *pdev = dpc->dev->port;
-
-	/* We configure DPC so it only triggers on ERR_FATAL */
-	pcie_do_fatal_recovery(pdev, PCIE_PORT_SERVICE_DPC);
-}
 
 static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 {
@@ -134,8 +110,6 @@ static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 	dev_err(dev, "rp_pio_status: %#010x, rp_pio_mask: %#010x\n",
 		status, mask);
 
-	dpc->rp_pio_status = status;
-
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_SEVERITY, &sev);
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_SYSERROR, &syserr);
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_EXCEPTION, &exc);
@@ -146,15 +120,14 @@ static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &dpc_status);
 	first_error = (dpc_status & 0x1f00) >> 8;
 
-	status &= ~mask;
 	for (i = 0; i < ARRAY_SIZE(rp_pio_error_string); i++) {
-		if (status & (1 << i))
+		if ((status & ~mask) & (1 << i))
 			dev_err(dev, "[%2d] %s%s\n", i, rp_pio_error_string[i],
 				first_error == i ? " (First)" : "");
 	}
 
 	if (dpc->rp_log_size < 4)
-		return;
+		goto clear_status;
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_HEADER_LOG,
 			      &dw0);
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_HEADER_LOG + 4,
@@ -167,7 +140,7 @@ static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 		dw0, dw1, dw2, dw3);
 
 	if (dpc->rp_log_size < 5)
-		return;
+		goto clear_status;
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_IMPSPEC_LOG, &log);
 	dev_err(dev, "RP PIO ImpSpec Log %#010x\n", log);
 
@@ -176,43 +149,26 @@ static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 			cap + PCI_EXP_DPC_RP_PIO_TLPPREFIX_LOG, &prefix);
 		dev_err(dev, "TLP Prefix Header: dw%d, %#010x\n", i, prefix);
 	}
+ clear_status:
+	pci_write_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_STATUS, status);
 }
 
-static irqreturn_t dpc_irq(int irq, void *context)
+static irqreturn_t dpc_handler(int irq, void *context)
 {
-	struct dpc_dev *dpc = (struct dpc_dev *)context;
+	struct aer_err_info info;
+	struct dpc_dev *dpc = context;
 	struct pci_dev *pdev = dpc->dev->port;
 	struct device *dev = &dpc->dev->device;
-	u16 cap = dpc->cap_pos, ctl, status, source, reason, ext_reason;
-
-	pci_read_config_word(pdev, cap + PCI_EXP_DPC_CTL, &ctl);
-
-	if (!(ctl & PCI_EXP_DPC_CTL_INT_EN) || ctl == (u16)(~0))
-		return IRQ_NONE;
+	u16 cap = dpc->cap_pos, status, source, reason, ext_reason;
 
 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
-
-	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT))
-		return IRQ_NONE;
-
-	if (!(status & PCI_EXP_DPC_STATUS_TRIGGER)) {
-		pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
-				      PCI_EXP_DPC_STATUS_INTERRUPT);
-		return IRQ_HANDLED;
-	}
-
-	pci_write_config_word(pdev, cap + PCI_EXP_DPC_CTL,
-			      ctl & ~PCI_EXP_DPC_CTL_INT_EN);
-
-	pci_read_config_word(pdev, cap + PCI_EXP_DPC_SOURCE_ID,
-			     &source);
+	pci_read_config_word(pdev, cap + PCI_EXP_DPC_SOURCE_ID, &source);
 
 	dev_info(dev, "DPC containment event, status:%#06x source:%#06x\n",
-		status, source);
+		 status, source);
 
 	reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN) >> 1;
 	ext_reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN_EXT) >> 5;
-
 	dev_warn(dev, "DPC %s detected, remove downstream devices\n",
 		 (reason == 0) ? "unmasked uncorrectable error" :
 		 (reason == 1) ? "ERR_NONFATAL" :
@@ -220,15 +176,36 @@ static irqreturn_t dpc_irq(int irq, void *context)
 		 (ext_reason == 0) ? "RP PIO error" :
 		 (ext_reason == 1) ? "software trigger" :
 				     "reserved error");
+
 	/* show RP PIO error detail information */
 	if (dpc->rp_extensions && reason == 3 && ext_reason == 0)
 		dpc_process_rp_pio_error(dpc);
+	else if (reason == 0 && aer_get_device_error_info(pdev, &info)) {
+		aer_print_error(pdev, &info);
+		pci_cleanup_aer_uncorrect_error_status(pdev);
+	}
+
+	/* We configure DPC so it only triggers on ERR_FATAL */
+	pcie_do_fatal_recovery(pdev, PCIE_PORT_SERVICE_DPC);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t dpc_irq(int irq, void *context)
+{
+	struct dpc_dev *dpc = (struct dpc_dev *)context;
+	struct pci_dev *pdev = dpc->dev->port;
+	u16 cap = dpc->cap_pos, status;
+
+	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
+
+	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT) || status == (u16)(~0))
+		return IRQ_NONE;
 
 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
 			      PCI_EXP_DPC_STATUS_INTERRUPT);
-
-	schedule_work(&dpc->work);
-
+	if (status & PCI_EXP_DPC_STATUS_TRIGGER)
+		return IRQ_WAKE_THREAD;
 	return IRQ_HANDLED;
 }
 
@@ -250,11 +227,11 @@ static int dpc_probe(struct pcie_device *dev)
 
 	dpc->cap_pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_DPC);
 	dpc->dev = dev;
-	INIT_WORK(&dpc->work, dpc_work);
 	set_service_data(dev, dpc);
 
-	status = devm_request_irq(device, dev->irq, dpc_irq, IRQF_SHARED,
-				  "pcie-dpc", dpc);
+	status = devm_request_threaded_irq(device, dev->irq, dpc_irq,
+					   dpc_handler, IRQF_SHARED,
+					   "pcie-dpc", dpc);
 	if (status) {
 		dev_warn(device, "request IRQ%d failed: %d\n", dev->irq,
 			 status);
