@@ -40,6 +40,7 @@ config NDS32
 	select NO_IOPORT_MAP
 	select RTC_LIB
 	select THREAD_INFO_IN_TASK
+	select HAVE_FUNCTION_TRACER
 	help
 	  Andes(nds32) Linux support.
 
