@@ -3,7 +3,8 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += xconfig gconfig menuconfig config localmodconfig localyesconfig
+PHONY += xconfig gconfig menuconfig config localmodconfig localyesconfig \
+	build_menuconfig build_nconfig build_gconfig build_xconfig
 
 ifdef KBUILD_KCONFIG
 Kconfig := $(KBUILD_KCONFIG)
@@ -32,6 +33,14 @@ config: $(obj)/conf
 
 nconfig: $(obj)/nconf
 	$< $(silent) $(Kconfig)
+
+build_menuconfig: $(obj)/mconf
+
+build_nconfig: $(obj)/nconf
+
+build_gconfig: $(obj)/gconf
+
+build_xconfig: $(obj)/qconf
 
 localyesconfig localmodconfig: $(obj)/conf
 	$(Q)perl $(srctree)/$(src)/streamline_config.pl --$@ $(srctree) $(Kconfig) > .tmp.config
