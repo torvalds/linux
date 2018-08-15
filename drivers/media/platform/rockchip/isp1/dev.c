@@ -299,7 +299,7 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 		ret = media_entity_create_link(
 				&sensor->sd->entity, pad,
 				&dev->isp_sdev.sd.entity,
-				RKISP1_ISP_PAD_SINK + s,
+				RKISP1_ISP_PAD_SINK,
 				s ? 0 : MEDIA_LNK_FL_ENABLED);
 		if (ret) {
 			dev_err(dev->dev,
