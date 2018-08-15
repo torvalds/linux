@@ -537,6 +537,8 @@ static int ac97_bus_remove(struct device *dev)
 	if (ret == 0)
 		ac97_put_disable_clk(adev);
 
+	pm_runtime_disable(dev);
+
 	return ret;
 }
 
