@@ -5229,19 +5229,37 @@ void amdgpu_dm_add_sink_to_freesync_module(struct drm_connector *connector,
 			dm_con_state->freesync_capable = true;
 		}
 	}
-
-	/*
-	 * TODO figure out how to notify user-mode or DRM of freesync caps
-	 * once we figure out how to deal with freesync in an upstreamable
-	 * fashion
-	 */
-
 }
 
 void amdgpu_dm_remove_sink_from_freesync_module(struct drm_connector *connector)
 {
-	/*
-	 * TODO fill in once we figure out how to deal with freesync in
-	 * an upstreamable fashion
-	 */
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+			to_amdgpu_dm_connector(connector);
+	struct dm_connector_state *dm_con_state;
+	struct drm_device *dev = connector->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+
+	if (!amdgpu_dm_connector->dc_sink || !adev->dm.freesync_module) {
+		DRM_ERROR("dc_sink NULL or no free_sync module.\n");
+		return;
+	}
+
+	if (!connector->state) {
+		DRM_ERROR("%s - Connector has no state", __func__);
+		return;
+	}
+
+	dm_con_state = to_dm_connector_state(connector->state);
+
+	amdgpu_dm_connector->min_vfreq = 0;
+	amdgpu_dm_connector->max_vfreq = 0;
+	amdgpu_dm_connector->pixel_clock_mhz = 0;
+
+	memset(&amdgpu_dm_connector->caps, 0, sizeof(amdgpu_dm_connector->caps));
+
+	dm_con_state->freesync_capable = false;
+
+	dm_con_state->user_enable.enable_for_gaming = false;
+	dm_con_state->user_enable.enable_for_static = false;
+	dm_con_state->user_enable.enable_for_video = false;
 }
