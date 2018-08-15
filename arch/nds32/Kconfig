@@ -42,6 +42,7 @@ config NDS32
 	select THREAD_INFO_IN_TASK
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FTRACE_MCOUNT_RECORD
 	help
 	  Andes(nds32) Linux support.
 
