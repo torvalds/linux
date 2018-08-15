@@ -674,6 +674,8 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.adjusted_y = plane_state->color_plane[0].y;
 	cache->plane.y = plane_state->base.src.y1 >> 16;
 
+	cache->plane.pixel_blend_mode = plane_state->base.pixel_blend_mode;
+
 	if (!cache->plane.visible)
 		return;
 
@@ -745,6 +747,12 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
 		fbc->no_fbc_reason = "pixel format is invalid";
+		return false;
+	}
+
+	if (cache->plane.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE &&
+	    cache->fb.format->has_alpha) {
+		fbc->no_fbc_reason = "per-pixel alpha blending is incompatible with FBC";
 		return false;
 	}
 

@@ -380,6 +380,7 @@ skl_update_plane(struct intel_plane *plane,
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
+	u32 keymsk = 0, keymax = 0;
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -393,9 +394,18 @@ skl_update_plane(struct intel_plane *plane,
 
 	if (key->flags) {
 		I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
-		I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), key->max_value);
-		I915_WRITE_FW(PLANE_KEYMSK(pipe, plane_id), key->channel_mask);
+
+		keymax |= key->max_value & 0xffffff;
+		keymsk |= key->channel_mask & 0x3ffffff;
 	}
+
+	keymax |= (plane_state->base.alpha >> 8) << PLANE_KEYMAX_ALPHA_SHIFT;
+
+	if (plane_state->base.alpha < 0xff00)
+		keymsk |= PLANE_KEYMSK_ALPHA_ENABLE;
+
+	I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), keymax);
+	I915_WRITE_FW(PLANE_KEYMSK(pipe, plane_id), keymsk);
 
 	I915_WRITE_FW(PLANE_OFFSET(pipe, plane_id), (y << 16) | x);
 	I915_WRITE_FW(PLANE_STRIDE(pipe, plane_id), stride);
@@ -1915,6 +1925,15 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
 					  DRM_COLOR_YCBCR_BT709,
 					  DRM_COLOR_YCBCR_LIMITED_RANGE);
+
+	if (INTEL_GEN(dev_priv) >= 9) {
+		drm_plane_create_alpha_property(&intel_plane->base);
+
+		drm_plane_create_blend_mode_property(&intel_plane->base,
+						     BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+						     BIT(DRM_MODE_BLEND_PREMULTI) |
+						     BIT(DRM_MODE_BLEND_COVERAGE));
+	}
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 

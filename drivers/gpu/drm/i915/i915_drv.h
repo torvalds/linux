@@ -548,6 +548,8 @@ struct intel_fbc {
 			int adjusted_y;
 
 			int y;
+
+			uint16_t pixel_blend_mode;
 		} plane;
 
 		struct {
