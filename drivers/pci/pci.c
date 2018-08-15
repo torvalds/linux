@@ -5710,8 +5710,19 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
  * @dev: the PCI device for which alias is added
  * @devfn: alias slot and function
  *
- * This helper encodes 8-bit devfn as bit number in dma_alias_mask.
- * It should be called early, preferably as PCI fixup header quirk.
+ * This helper encodes an 8-bit devfn as a bit number in dma_alias_mask
+ * which is used to program permissible bus-devfn source addresses for DMA
+ * requests in an IOMMU.  These aliases factor into IOMMU group creation
+ * and are useful for devices generating DMA requests beyond or different
+ * from their logical bus-devfn.  Examples include device quirks where the
+ * device simply uses the wrong devfn, as well as non-transparent bridges
+ * where the alias may be a proxy for devices in another domain.
+ *
+ * IOMMU group creation is performed during device discovery or addition,
+ * prior to any potential DMA mapping and therefore prior to driver probing
+ * (especially for userspace assigned devices where IOMMU group definition
+ * cannot be left as a userspace activity).  DMA aliases should therefore
+ * be configured via quirks, such as the PCI fixup header quirk.
  */
 void pci_add_dma_alias(struct pci_dev *dev, u8 devfn)
 {
