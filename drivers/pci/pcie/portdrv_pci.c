@@ -65,10 +65,12 @@ static int pcie_port_runtime_idle(struct device *dev)
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
+	.resume_noirq	= pcie_port_device_resume_noirq,
 	.resume		= pcie_port_device_resume,
 	.freeze		= pcie_port_device_suspend,
 	.thaw		= pcie_port_device_resume,
 	.poweroff	= pcie_port_device_suspend,
+	.restore_noirq	= pcie_port_device_resume_noirq,
 	.restore	= pcie_port_device_resume,
 	.runtime_suspend = pcie_port_runtime_suspend,
 	.runtime_resume	= pcie_port_runtime_resume,
