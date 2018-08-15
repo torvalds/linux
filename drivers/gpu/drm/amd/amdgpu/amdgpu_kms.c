@@ -619,7 +619,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		vm_size -= AMDGPU_VA_RESERVED_SIZE;
 
 		/* Older VCE FW versions are buggy and can handle only 40bits */
-		if (adev->vce.fw_version < AMDGPU_VCE_FW_53_45)
+		if (adev->vce.fw_version &&
+		    adev->vce.fw_version < AMDGPU_VCE_FW_53_45)
 			vm_size = min(vm_size, 1ULL << 40);
 
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
