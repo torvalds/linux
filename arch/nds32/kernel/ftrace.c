@@ -74,6 +74,14 @@ void _ftrace_caller(unsigned long parent_ip)
 		"nop			\n\t"
 		"nop			\n\t");
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	/* a placeholder for the call to ftrace_graph_caller */
+	__asm__ __volatile__ (
+		"ftrace_graph_call:	\n\t"
+		"nop			\n\t"
+		"nop			\n\t"
+		"nop			\n\t");
+#endif
 	/* restore all state needed by the compiler epilogue */
 }
 
@@ -257,5 +265,33 @@ void __naked return_to_handler(void)
 		/* restore state nedded by the ABI  */
 		"lmw.bim $r0,[$sp],$r1,#0x0  \n\t");
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern unsigned long ftrace_graph_call;
+
+static int ftrace_modify_graph_caller(bool enable)
+{
+	unsigned long pc = (unsigned long)&ftrace_graph_call;
+	unsigned long nop_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+	unsigned long call_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+
+	ftrace_gen_call_insn(call_insn, (unsigned long)ftrace_graph_caller);
+
+	if (enable)
+		return ftrace_modify_code(pc, nop_insn, call_insn, true);
+	else
+		return ftrace_modify_code(pc, call_insn, nop_insn, true);
+}
+
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	return ftrace_modify_graph_caller(true);
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	return ftrace_modify_graph_caller(false);
+}
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
