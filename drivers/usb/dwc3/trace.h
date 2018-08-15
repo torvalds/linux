@@ -199,7 +199,7 @@ DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
 		__entry->param2 = params->param2;
 		__entry->cmd_status = cmd_status;
 	),
-	TP_printk("%s: cmd '%s' [%d] params %08x %08x %08x --> status: %s",
+	TP_printk("%s: cmd '%s' [%x] params %08x %08x %08x --> status: %s",
 		__get_str(name), dwc3_gadget_ep_cmd_string(__entry->cmd),
 		__entry->cmd, __entry->param0,
 		__entry->param1, __entry->param2,
