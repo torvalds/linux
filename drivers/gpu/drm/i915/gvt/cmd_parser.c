@@ -874,7 +874,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	if (!intel_gvt_mmio_is_cmd_access(gvt, offset)) {
 		gvt_vgpu_err("%s access to non-render register (%x)\n",
 				cmd, offset);
-		return 0;
+		return -EBADRQC;
 	}
 
 	if (is_shadowed_mmio(offset)) {

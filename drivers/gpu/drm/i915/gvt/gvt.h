@@ -486,6 +486,7 @@ void intel_gvt_destroy_idle_vgpu(struct intel_vgpu *vgpu);
 struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 					 struct intel_vgpu_type *type);
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_release_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 				 unsigned int engine_mask);
 void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu);
@@ -563,7 +564,8 @@ struct intel_gvt_ops {
 				unsigned int);
 	struct intel_vgpu *(*vgpu_create)(struct intel_gvt *,
 				struct intel_vgpu_type *);
-	void (*vgpu_destroy)(struct intel_vgpu *);
+	void (*vgpu_destroy)(struct intel_vgpu *vgpu);
+	void (*vgpu_release)(struct intel_vgpu *vgpu);
 	void (*vgpu_reset)(struct intel_vgpu *);
 	void (*vgpu_activate)(struct intel_vgpu *);
 	void (*vgpu_deactivate)(struct intel_vgpu *);
