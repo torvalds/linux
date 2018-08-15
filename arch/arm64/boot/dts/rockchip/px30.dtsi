@@ -1008,9 +1008,6 @@
 		rockchip,boost = <&cpu_boost>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
-
-		assigned-clocks = <&cru PLL_NPLL>;
-		assigned-clock-rates = <1188000000>;
 	};
 
 	cpu_boost: cpu-boost@ff2b8000 {
