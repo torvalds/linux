@@ -692,6 +692,9 @@ struct fuse_conn {
 	/* Send DESTROY request */
 	unsigned int destroy:1;
 
+	/* Delete dentries that have gone stale */
+	unsigned int delete_stale:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
