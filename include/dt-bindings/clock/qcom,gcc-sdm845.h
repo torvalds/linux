@@ -192,6 +192,8 @@
 #define GCC_VS_CTRL_CLK_SRC					182
 #define GCC_VSENSOR_CLK_SRC					183
 #define GPLL4							184
+#define GCC_CPUSS_DVM_BUS_CLK					185
+#define GCC_CPUSS_GNOC_CLK					186
 
 /* GCC Resets */
 #define GCC_MMSS_BCR						0
