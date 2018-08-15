@@ -4,6 +4,7 @@
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
+#ifndef CONFIG_DYNAMIC_FTRACE
 extern void (*ftrace_trace_function)(unsigned long, unsigned long,
 				     struct ftrace_ops*, struct pt_regs*);
 extern int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace);
@@ -34,6 +35,168 @@ noinline void _mcount(unsigned long parent_ip)
 	/* restore all state by the compiler epilogue */
 }
 EXPORT_SYMBOL(_mcount);
+
+#else /* CONFIG_DYNAMIC_FTRACE */
+
+noinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
+				  struct ftrace_ops *op, struct pt_regs *regs)
+{
+	__asm__ ("");  /* avoid to optimize as pure function */
+}
+
+noinline void __naked _mcount(unsigned long parent_ip)
+{
+	__asm__ ("");  /* avoid to optimize as pure function */
+}
+EXPORT_SYMBOL(_mcount);
+
+#define XSTR(s) STR(s)
+#define STR(s) #s
+void _ftrace_caller(unsigned long parent_ip)
+{
+	/* save all state needed by the compiler prologue */
+
+	/*
+	 * prepare arguments for real tracing function
+	 * first  arg : __builtin_return_address(0) - MCOUNT_INSN_SIZE
+	 * second arg : parent_ip
+	 */
+	__asm__ __volatile__ (
+		"move $r1, %0				   \n\t"
+		"addi $r0, %1, #-" XSTR(MCOUNT_INSN_SIZE) "\n\t"
+		:
+		: "r" (parent_ip), "r" (__builtin_return_address(0)));
+
+	/* a placeholder for the call to a real tracing function */
+	__asm__ __volatile__ (
+		"ftrace_call:		\n\t"
+		"nop			\n\t"
+		"nop			\n\t"
+		"nop			\n\t");
+
+	/* restore all state needed by the compiler epilogue */
+}
+
+int __init ftrace_dyn_arch_init(void)
+{
+	return 0;
+}
+
+int ftrace_arch_code_modify_prepare(void)
+{
+	set_all_modules_text_rw();
+	return 0;
+}
+
+int ftrace_arch_code_modify_post_process(void)
+{
+	set_all_modules_text_ro();
+	return 0;
+}
+
+static unsigned long gen_sethi_insn(unsigned long addr)
+{
+	unsigned long opcode = 0x46000000;
+	unsigned long imm = addr >> 12;
+	unsigned long rt_num = 0xf << 20;
+
+	return ENDIAN_CONVERT(opcode | rt_num | imm);
+}
+
+static unsigned long gen_ori_insn(unsigned long addr)
+{
+	unsigned long opcode = 0x58000000;
+	unsigned long imm = addr & 0x0000fff;
+	unsigned long rt_num = 0xf << 20;
+	unsigned long ra_num = 0xf << 15;
+
+	return ENDIAN_CONVERT(opcode | rt_num | ra_num | imm);
+}
+
+static unsigned long gen_jral_insn(unsigned long addr)
+{
+	unsigned long opcode = 0x4a000001;
+	unsigned long rt_num = 0x1e << 20;
+	unsigned long rb_num = 0xf << 10;
+
+	return ENDIAN_CONVERT(opcode | rt_num | rb_num);
+}
+
+static void ftrace_gen_call_insn(unsigned long *call_insns,
+				 unsigned long addr)
+{
+	call_insns[0] = gen_sethi_insn(addr); /* sethi $r15, imm20u       */
+	call_insns[1] = gen_ori_insn(addr);   /* ori   $r15, $r15, imm15u */
+	call_insns[2] = gen_jral_insn(addr);  /* jral  $lp,  $r15         */
+}
+
+static int __ftrace_modify_code(unsigned long pc, unsigned long *old_insn,
+				unsigned long *new_insn, bool validate)
+{
+	unsigned long orig_insn[3];
+
+	if (validate) {
+		if (probe_kernel_read(orig_insn, (void *)pc, MCOUNT_INSN_SIZE))
+			return -EFAULT;
+		if (memcmp(orig_insn, old_insn, MCOUNT_INSN_SIZE))
+			return -EINVAL;
+	}
+
+	if (probe_kernel_write((void *)pc, new_insn, MCOUNT_INSN_SIZE))
+		return -EPERM;
+
+	return 0;
+}
+
+static int ftrace_modify_code(unsigned long pc, unsigned long *old_insn,
+			      unsigned long *new_insn, bool validate)
+{
+	int ret;
+
+	ret = __ftrace_modify_code(pc, old_insn, new_insn, validate);
+	if (ret)
+		return ret;
+
+	flush_icache_range(pc, pc + MCOUNT_INSN_SIZE);
+
+	return ret;
+}
+
+int ftrace_update_ftrace_func(ftrace_func_t func)
+{
+	unsigned long pc = (unsigned long)&ftrace_call;
+	unsigned long old_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+	unsigned long new_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+
+	if (func != ftrace_stub)
+		ftrace_gen_call_insn(new_insn, (unsigned long)func);
+
+	return ftrace_modify_code(pc, old_insn, new_insn, false);
+}
+
+int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned long pc = rec->ip;
+	unsigned long nop_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+	unsigned long call_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+
+	ftrace_gen_call_insn(call_insn, addr);
+
+	return ftrace_modify_code(pc, nop_insn, call_insn, true);
+}
+
+int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+		    unsigned long addr)
+{
+	unsigned long pc = rec->ip;
+	unsigned long nop_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+	unsigned long call_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+
+	ftrace_gen_call_insn(call_insn, addr);
+
+	return ftrace_modify_code(pc, call_insn, nop_insn, true);
+}
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
@@ -94,4 +257,5 @@ void __naked return_to_handler(void)
 		/* restore state nedded by the ABI  */
 		"lmw.bim $r0,[$sp],$r1,#0x0  \n\t");
 }
+
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
