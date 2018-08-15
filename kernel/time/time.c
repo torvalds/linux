@@ -196,22 +196,21 @@ int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz
 	return 0;
 }
 
-SYSCALL_DEFINE2(settimeofday, struct timeval __user *, tv,
+SYSCALL_DEFINE2(settimeofday, struct __kernel_old_timeval __user *, tv,
 		struct timezone __user *, tz)
 {
 	struct timespec64 new_ts;
-	struct timeval user_tv;
 	struct timezone new_tz;
 
 	if (tv) {
-		if (copy_from_user(&user_tv, tv, sizeof(*tv)))
+		if (get_user(new_ts.tv_sec, &tv->tv_sec) ||
+		    get_user(new_ts.tv_nsec, &tv->tv_usec))
 			return -EFAULT;
 
-		if (!timeval_valid(&user_tv))
+		if (new_ts.tv_nsec > USEC_PER_SEC || new_ts.tv_nsec < 0)
 			return -EINVAL;
 
-		new_ts.tv_sec = user_tv.tv_sec;
-		new_ts.tv_nsec = user_tv.tv_usec * NSEC_PER_USEC;
+		new_ts.tv_nsec *= NSEC_PER_USEC;
 	}
 	if (tz) {
 		if (copy_from_user(&new_tz, tz, sizeof(*tz)))
@@ -245,18 +244,17 @@ COMPAT_SYSCALL_DEFINE2(settimeofday, struct old_timeval32 __user *, tv,
 		       struct timezone __user *, tz)
 {
 	struct timespec64 new_ts;
-	struct timeval user_tv;
 	struct timezone new_tz;
 
 	if (tv) {
-		if (compat_get_timeval(&user_tv, tv))
+		if (get_user(new_ts.tv_sec, &tv->tv_sec) ||
+		    get_user(new_ts.tv_nsec, &tv->tv_usec))
 			return -EFAULT;
 
-		if (!timeval_valid(&user_tv))
+		if (new_ts.tv_nsec > USEC_PER_SEC || new_ts.tv_nsec < 0)
 			return -EINVAL;
 
-		new_ts.tv_sec = user_tv.tv_sec;
-		new_ts.tv_nsec = user_tv.tv_usec * NSEC_PER_USEC;
+		new_ts.tv_nsec *= NSEC_PER_USEC;
 	}
 	if (tz) {
 		if (copy_from_user(&new_tz, tz, sizeof(*tz)))
