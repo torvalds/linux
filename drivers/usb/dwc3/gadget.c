@@ -1386,8 +1386,6 @@ static int __dwc3_gadget_start_isoc(struct dwc3_ep *dep)
 	struct dwc3 *dwc = dep->dwc;
 
 	if (list_empty(&dep->pending_list)) {
-		dev_info(dep->dwc->dev, "%s: ran out of requests\n",
-				dep->name);
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
 		return -EAGAIN;
 	}
