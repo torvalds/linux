@@ -101,8 +101,8 @@ const char *dbg_sym_flags(int val)
 		strcat(buf, "write/");
 	if (val & SYMBOL_CHANGED)
 		strcat(buf, "changed/");
-	if (val & SYMBOL_AUTO)
-		strcat(buf, "auto/");
+	if (val & SYMBOL_NO_WRITE)
+		strcat(buf, "no_write/");
 
 	buf[strlen(buf) - 1] = '\0';
 
@@ -525,6 +525,7 @@ void on_save_activate(GtkMenuItem * menuitem, gpointer user_data)
 {
 	if (conf_write(NULL))
 		text_insert_msg("Error", "Unable to save configuration !");
+	conf_write_autoconf(0);
 }
 
 
