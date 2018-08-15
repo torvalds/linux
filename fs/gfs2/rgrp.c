@@ -1103,12 +1103,35 @@ static int gfs2_rgrp_lvb_valid(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_rgrp_lvb *rgl = rgd->rd_rgl;
 	struct gfs2_rgrp *str = (struct gfs2_rgrp *)rgd->rd_bits[0].bi_bh->b_data;
+	int valid = 1;
 
-	if (rgl->rl_flags != str->rg_flags || rgl->rl_free != str->rg_free ||
-	    rgl->rl_dinodes != str->rg_dinodes ||
-	    rgl->rl_igeneration != str->rg_igeneration)
-		return 0;
-	return 1;
+	if (rgl->rl_flags != str->rg_flags) {
+		printk(KERN_WARNING "GFS2: rgd: %llu lvb flag mismatch %u/%u",
+		       (unsigned long long)rgd->rd_addr,
+		       be32_to_cpu(rgl->rl_flags), be32_to_cpu(str->rg_flags));
+		valid = 0;
+	}
+	if (rgl->rl_free != str->rg_free) {
+		printk(KERN_WARNING "GFS2: rgd: %llu lvb free mismatch %u/%u",
+		       (unsigned long long)rgd->rd_addr,
+		       be32_to_cpu(rgl->rl_free), be32_to_cpu(str->rg_free));
+		valid = 0;
+	}
+	if (rgl->rl_dinodes != str->rg_dinodes) {
+		printk(KERN_WARNING "GFS2: rgd: %llu lvb dinode mismatch %u/%u",
+		       (unsigned long long)rgd->rd_addr,
+		       be32_to_cpu(rgl->rl_dinodes),
+		       be32_to_cpu(str->rg_dinodes));
+		valid = 0;
+	}
+	if (rgl->rl_igeneration != str->rg_igeneration) {
+		printk(KERN_WARNING "GFS2: rgd: %llu lvb igen mismatch "
+		       "%llu/%llu", (unsigned long long)rgd->rd_addr,
+		       (unsigned long long)be64_to_cpu(rgl->rl_igeneration),
+		       (unsigned long long)be64_to_cpu(str->rg_igeneration));
+		valid = 0;
+	}
+	return valid;
 }
 
 static u32 count_unlinked(struct gfs2_rgrpd *rgd)
@@ -2244,6 +2267,14 @@ void gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
 		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes,
 		       rgd->rd_reserved, rgd->rd_extfail_pt);
+	if (rgd->rd_sbd->sd_args.ar_rgrplvb) {
+		struct gfs2_rgrp_lvb *rgl = rgd->rd_rgl;
+
+		gfs2_print_dbg(seq, "  L: f:%02x b:%u i:%u\n",
+			       be32_to_cpu(rgl->rl_flags),
+			       be32_to_cpu(rgl->rl_free),
+			       be32_to_cpu(rgl->rl_dinodes));
+	}
 	spin_lock(&rgd->rd_rsspin);
 	for (n = rb_first(&rgd->rd_rstree); n; n = rb_next(&trs->rs_node)) {
 		trs = rb_entry(n, struct gfs2_blkreserv, rs_node);
