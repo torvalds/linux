@@ -635,17 +635,18 @@ void hinic_sq_write_wqe(struct hinic_sq *sq, u16 prod_idx,
 }
 
 /**
- * hinic_sq_read_wqe - read wqe ptr in the current ci and update the ci
+ * hinic_sq_read_wqebb - read wqe ptr in the current ci and update the ci, the
+ * wqe only have one wqebb
  * @sq: send queue
  * @skb: return skb that was saved
- * @wqe_size: the size of the wqe
+ * @wqe_size: the wqe size ptr
  * @cons_idx: consumer index of the wqe
  *
  * Return wqe in ci position
  **/
-struct hinic_sq_wqe *hinic_sq_read_wqe(struct hinic_sq *sq,
-				       struct sk_buff **skb,
-				       unsigned int *wqe_size, u16 *cons_idx)
+struct hinic_sq_wqe *hinic_sq_read_wqebb(struct hinic_sq *sq,
+					 struct sk_buff **skb,
+					 unsigned int *wqe_size, u16 *cons_idx)
 {
 	struct hinic_hw_wqe *hw_wqe;
 	struct hinic_sq_wqe *sq_wqe;
@@ -658,6 +659,8 @@ struct hinic_sq_wqe *hinic_sq_read_wqe(struct hinic_sq *sq,
 	if (IS_ERR(hw_wqe))
 		return NULL;
 
+	*skb = sq->saved_skb[*cons_idx];
+
 	sq_wqe = &hw_wqe->sq_wqe;
 	ctrl = &sq_wqe->ctrl;
 	ctrl_info = be32_to_cpu(ctrl->ctrl_info);
@@ -665,11 +668,28 @@ struct hinic_sq_wqe *hinic_sq_read_wqe(struct hinic_sq *sq,
 
 	*wqe_size = sizeof(*ctrl) + sizeof(sq_wqe->task);
 	*wqe_size += SECT_SIZE_FROM_8BYTES(buf_sect_len);
+	*wqe_size = ALIGN(*wqe_size, sq->wq->wqebb_size);
 
+	return &hw_wqe->sq_wqe;
+}
+
+/**
+ * hinic_sq_read_wqe - read wqe ptr in the current ci and update the ci
+ * @sq: send queue
+ * @skb: return skb that was saved
+ * @wqe_size: the size of the wqe
+ * @cons_idx: consumer index of the wqe
+ *
+ * Return wqe in ci position
+ **/
+struct hinic_sq_wqe *hinic_sq_read_wqe(struct hinic_sq *sq,
+				       struct sk_buff **skb,
+				       unsigned int wqe_size, u16 *cons_idx)
+{
+	struct hinic_hw_wqe *hw_wqe;
+
+	hw_wqe = hinic_read_wqe(sq->wq, wqe_size, cons_idx);
 	*skb = sq->saved_skb[*cons_idx];
-
-	/* using the real wqe size to read wqe again */
-	hw_wqe = hinic_read_wqe(sq->wq, *wqe_size, cons_idx);
 
 	return &hw_wqe->sq_wqe;
 }

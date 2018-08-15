@@ -283,7 +283,11 @@ static void free_all_tx_skbs(struct hinic_txq *txq)
 	int nr_sges;
 	u16 ci;
 
-	while ((sq_wqe = hinic_sq_read_wqe(sq, &skb, &wqe_size, &ci))) {
+	while ((sq_wqe = hinic_sq_read_wqebb(sq, &skb, &wqe_size, &ci))) {
+		sq_wqe = hinic_sq_read_wqe(sq, &skb, wqe_size, &ci);
+		if (!sq_wqe)
+			break;
+
 		nr_sges = skb_shinfo(skb)->nr_frags + 1;
 
 		hinic_sq_get_sges(sq_wqe, txq->free_sges, nr_sges);
@@ -319,10 +323,20 @@ static int free_tx_poll(struct napi_struct *napi, int budget)
 	do {
 		hw_ci = HW_CONS_IDX(sq) & wq->mask;
 
-		sq_wqe = hinic_sq_read_wqe(sq, &skb, &wqe_size, &sw_ci);
+		/* Reading a WQEBB to get real WQE size and consumer index. */
+		sq_wqe = hinic_sq_read_wqebb(sq, &skb, &wqe_size, &sw_ci);
 		if ((!sq_wqe) ||
 		    (((hw_ci - sw_ci) & wq->mask) * wq->wqebb_size < wqe_size))
 			break;
+
+		/* If this WQE have multiple WQEBBs, we will read again to get
+		 * full size WQE.
+		 */
+		if (wqe_size > wq->wqebb_size) {
+			sq_wqe = hinic_sq_read_wqe(sq, &skb, wqe_size, &sw_ci);
+			if (unlikely(!sq_wqe))
+				break;
+		}
 
 		tx_bytes += skb->len;
 		pkts++;

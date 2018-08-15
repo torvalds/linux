@@ -1889,13 +1889,6 @@ static int netcp_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 	return err;
 }
 
-static u16 netcp_select_queue(struct net_device *dev, struct sk_buff *skb,
-			      void *accel_priv,
-			      select_queue_fallback_t fallback)
-{
-	return 0;
-}
-
 static int netcp_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			  void *type_data)
 {
@@ -1972,7 +1965,7 @@ static const struct net_device_ops netcp_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= netcp_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= netcp_rx_kill_vid,
 	.ndo_tx_timeout		= netcp_ndo_tx_timeout,
-	.ndo_select_queue	= netcp_select_queue,
+	.ndo_select_queue	= dev_pick_tx_zero,
 	.ndo_setup_tc		= netcp_setup_tc,
 };
 
@@ -2052,7 +2045,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		if (is_valid_ether_addr(efuse_mac_addr))
 			ether_addr_copy(ndev->dev_addr, efuse_mac_addr);
 		else
-			random_ether_addr(ndev->dev_addr);
+			eth_random_addr(ndev->dev_addr);
 
 		devm_iounmap(dev, efuse);
 		devm_release_mem_region(dev, res.start, size);
@@ -2061,7 +2054,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		if (mac_addr)
 			ether_addr_copy(ndev->dev_addr, mac_addr);
 		else
-			random_ether_addr(ndev->dev_addr);
+			eth_random_addr(ndev->dev_addr);
 	}
 
 	ret = of_property_read_string(node_interface, "rx-channel",

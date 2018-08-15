@@ -500,7 +500,6 @@ sticky_done:
 		struct ipv6_txoptions *opt = NULL;
 		struct msghdr msg;
 		struct flowi6 fl6;
-		struct sockcm_cookie sockc_junk;
 		struct ipcm6_cookie ipc6;
 
 		memset(&fl6, 0, sizeof(fl6));
@@ -533,7 +532,7 @@ sticky_done:
 		msg.msg_control = (void *)(opt+1);
 		ipc6.opt = opt;
 
-		retv = ip6_datagram_send_ctl(net, sk, &msg, &fl6, &ipc6, &sockc_junk);
+		retv = ip6_datagram_send_ctl(net, sk, &msg, &fl6, &ipc6);
 		if (retv)
 			goto done;
 update:

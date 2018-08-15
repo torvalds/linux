@@ -23,7 +23,7 @@ struct bpf_prog;
 struct bpf_map;
 struct sock;
 struct seq_file;
-struct btf;
+struct btf_type;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
 struct bpf_map_ops {
@@ -48,8 +48,9 @@ struct bpf_map_ops {
 	u32 (*map_fd_sys_lookup_elem)(void *ptr);
 	void (*map_seq_show_elem)(struct bpf_map *map, void *key,
 				  struct seq_file *m);
-	int (*map_check_btf)(const struct bpf_map *map, const struct btf *btf,
-			     u32 key_type_id, u32 value_type_id);
+	int (*map_check_btf)(const struct bpf_map *map,
+			     const struct btf_type *key_type,
+			     const struct btf_type *value_type);
 };
 
 struct bpf_map {
@@ -85,6 +86,7 @@ struct bpf_map {
 	char name[BPF_OBJ_NAME_LEN];
 };
 
+struct bpf_offload_dev;
 struct bpf_offloaded_map;
 
 struct bpf_map_dev_ops {
@@ -117,8 +119,12 @@ static inline bool bpf_map_offload_neutral(const struct bpf_map *map)
 
 static inline bool bpf_map_support_seq_show(const struct bpf_map *map)
 {
-	return map->ops->map_seq_show_elem && map->ops->map_check_btf;
+	return map->btf && map->ops->map_seq_show_elem;
 }
+
+int map_check_no_btf(const struct bpf_map *map,
+		     const struct btf_type *key_type,
+		     const struct btf_type *value_type);
 
 extern const struct bpf_map_ops bpf_map_offload_ops;
 
@@ -154,6 +160,7 @@ enum bpf_arg_type {
 enum bpf_return_type {
 	RET_INTEGER,			/* function returns integer */
 	RET_VOID,			/* function doesn't return anything */
+	RET_PTR_TO_MAP_VALUE,		/* returns a pointer to map elem value */
 	RET_PTR_TO_MAP_VALUE_OR_NULL,	/* returns a pointer to map elem value or NULL */
 };
 
@@ -281,6 +288,7 @@ struct bpf_prog_aux {
 	struct bpf_prog *prog;
 	struct user_struct *user;
 	u64 load_time; /* ns since boottime */
+	struct bpf_map *cgroup_storage;
 	char name[BPF_OBJ_NAME_LEN];
 #ifdef CONFIG_SECURITY
 	void *security;
@@ -347,12 +355,17 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
  * The 'struct bpf_prog_array *' should only be replaced with xchg()
  * since other cpus are walking the array of pointers in parallel.
  */
-struct bpf_prog_array {
-	struct rcu_head rcu;
-	struct bpf_prog *progs[0];
+struct bpf_prog_array_item {
+	struct bpf_prog *prog;
+	struct bpf_cgroup_storage *cgroup_storage;
 };
 
-struct bpf_prog_array __rcu *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags);
+struct bpf_prog_array {
+	struct rcu_head rcu;
+	struct bpf_prog_array_item items[0];
+};
+
+struct bpf_prog_array *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags);
 void bpf_prog_array_free(struct bpf_prog_array __rcu *progs);
 int bpf_prog_array_length(struct bpf_prog_array __rcu *progs);
 int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
@@ -370,7 +383,8 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 
 #define __BPF_PROG_RUN_ARRAY(array, ctx, func, check_non_null)	\
 	({						\
-		struct bpf_prog **_prog, *__prog;	\
+		struct bpf_prog_array_item *_item;	\
+		struct bpf_prog *_prog;			\
 		struct bpf_prog_array *_array;		\
 		u32 _ret = 1;				\
 		preempt_disable();			\
@@ -378,10 +392,11 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 		_array = rcu_dereference(array);	\
 		if (unlikely(check_non_null && !_array))\
 			goto _out;			\
-		_prog = _array->progs;			\
-		while ((__prog = READ_ONCE(*_prog))) {	\
-			_ret &= func(__prog, ctx);	\
-			_prog++;			\
+		_item = &_array->items[0];		\
+		while ((_prog = READ_ONCE(_item->prog))) {		\
+			bpf_cgroup_storage_set(_item->cgroup_storage);	\
+			_ret &= func(_prog, ctx);	\
+			_item++;			\
 		}					\
 _out:							\
 		rcu_read_unlock();			\
@@ -434,6 +449,8 @@ struct bpf_map * __must_check bpf_map_inc(struct bpf_map *map, bool uref);
 void bpf_map_put_with_uref(struct bpf_map *map);
 void bpf_map_put(struct bpf_map *map);
 int bpf_map_precharge_memlock(u32 pages);
+int bpf_map_charge_memlock(struct bpf_map *map, u32 pages);
+void bpf_map_uncharge_memlock(struct bpf_map *map, u32 pages);
 void *bpf_map_area_alloc(size_t size, int numa_node);
 void bpf_map_area_free(void *base);
 void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);
@@ -512,6 +529,7 @@ static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
 }
 
 struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type);
+int array_map_alloc_check(union bpf_attr *attr);
 
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
@@ -648,7 +666,15 @@ int bpf_map_offload_delete_elem(struct bpf_map *map, void *key);
 int bpf_map_offload_get_next_key(struct bpf_map *map,
 				 void *key, void *next_key);
 
-bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map);
+bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map);
+
+struct bpf_offload_dev *bpf_offload_dev_create(void);
+void bpf_offload_dev_destroy(struct bpf_offload_dev *offdev);
+int bpf_offload_dev_netdev_register(struct bpf_offload_dev *offdev,
+				    struct net_device *netdev);
+void bpf_offload_dev_netdev_unregister(struct bpf_offload_dev *offdev,
+				       struct net_device *netdev);
+bool bpf_offload_dev_match(struct bpf_prog *prog, struct net_device *netdev);
 
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr);
@@ -749,6 +775,33 @@ static inline void __xsk_map_flush(struct bpf_map *map)
 }
 #endif
 
+#if defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL)
+void bpf_sk_reuseport_detach(struct sock *sk);
+int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
+				       void *value);
+int bpf_fd_reuseport_array_update_elem(struct bpf_map *map, void *key,
+				       void *value, u64 map_flags);
+#else
+static inline void bpf_sk_reuseport_detach(struct sock *sk)
+{
+}
+
+#ifdef CONFIG_BPF_SYSCALL
+static inline int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map,
+						     void *key, void *value)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int bpf_fd_reuseport_array_update_elem(struct bpf_map *map,
+						     void *key, void *value,
+						     u64 map_flags)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_BPF_SYSCALL */
+#endif /* defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL) */
+
 /* verifier prototypes for helper functions called from eBPF programs */
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
 extern const struct bpf_func_proto bpf_map_update_elem_proto;
@@ -767,6 +820,8 @@ extern const struct bpf_func_proto bpf_get_stack_proto;
 extern const struct bpf_func_proto bpf_sock_map_update_proto;
 extern const struct bpf_func_proto bpf_sock_hash_update_proto;
 extern const struct bpf_func_proto bpf_get_current_cgroup_id_proto;
+
+extern const struct bpf_func_proto bpf_get_local_storage_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);

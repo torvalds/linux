@@ -78,6 +78,17 @@ enum devlink_command {
 	 */
 	DEVLINK_CMD_RELOAD,
 
+	DEVLINK_CMD_PARAM_GET,		/* can dump */
+	DEVLINK_CMD_PARAM_SET,
+	DEVLINK_CMD_PARAM_NEW,
+	DEVLINK_CMD_PARAM_DEL,
+
+	DEVLINK_CMD_REGION_GET,
+	DEVLINK_CMD_REGION_SET,
+	DEVLINK_CMD_REGION_NEW,
+	DEVLINK_CMD_REGION_DEL,
+	DEVLINK_CMD_REGION_READ,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -140,6 +151,16 @@ enum devlink_port_flavour {
 	DEVLINK_PORT_FLAVOUR_DSA, /* Distributed switch architecture
 				   * interconnect port.
 				   */
+};
+
+enum devlink_param_cmode {
+	DEVLINK_PARAM_CMODE_RUNTIME,
+	DEVLINK_PARAM_CMODE_DRIVERINIT,
+	DEVLINK_PARAM_CMODE_PERMANENT,
+
+	/* Add new configuration modes above */
+	__DEVLINK_PARAM_CMODE_MAX,
+	DEVLINK_PARAM_CMODE_MAX = __DEVLINK_PARAM_CMODE_MAX - 1
 };
 
 enum devlink_attr {
@@ -237,6 +258,27 @@ enum devlink_attr {
 	DEVLINK_ATTR_PORT_FLAVOUR,		/* u16 */
 	DEVLINK_ATTR_PORT_NUMBER,		/* u32 */
 	DEVLINK_ATTR_PORT_SPLIT_SUBPORT_NUMBER,	/* u32 */
+
+	DEVLINK_ATTR_PARAM,			/* nested */
+	DEVLINK_ATTR_PARAM_NAME,		/* string */
+	DEVLINK_ATTR_PARAM_GENERIC,		/* flag */
+	DEVLINK_ATTR_PARAM_TYPE,		/* u8 */
+	DEVLINK_ATTR_PARAM_VALUES_LIST,		/* nested */
+	DEVLINK_ATTR_PARAM_VALUE,		/* nested */
+	DEVLINK_ATTR_PARAM_VALUE_DATA,		/* dynamic */
+	DEVLINK_ATTR_PARAM_VALUE_CMODE,		/* u8 */
+
+	DEVLINK_ATTR_REGION_NAME,               /* string */
+	DEVLINK_ATTR_REGION_SIZE,               /* u64 */
+	DEVLINK_ATTR_REGION_SNAPSHOTS,          /* nested */
+	DEVLINK_ATTR_REGION_SNAPSHOT,           /* nested */
+	DEVLINK_ATTR_REGION_SNAPSHOT_ID,        /* u32 */
+
+	DEVLINK_ATTR_REGION_CHUNKS,             /* nested */
+	DEVLINK_ATTR_REGION_CHUNK,              /* nested */
+	DEVLINK_ATTR_REGION_CHUNK_DATA,         /* binary */
+	DEVLINK_ATTR_REGION_CHUNK_ADDR,         /* u64 */
+	DEVLINK_ATTR_REGION_CHUNK_LEN,          /* u64 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

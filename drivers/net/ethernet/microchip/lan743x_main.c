@@ -11,7 +11,9 @@
 #include <linux/phy.h>
 #include <linux/rtnetlink.h>
 #include <linux/iopoll.h>
+#include <linux/crc16.h>
 #include "lan743x_main.h"
+#include "lan743x_ethtool.h"
 
 static void lan743x_pci_cleanup(struct lan743x_adapter *adapter)
 {
@@ -53,13 +55,13 @@ return_error:
 	return ret;
 }
 
-static u32 lan743x_csr_read(struct lan743x_adapter *adapter, int offset)
+u32 lan743x_csr_read(struct lan743x_adapter *adapter, int offset)
 {
 	return ioread32(&adapter->csr.csr_address[offset]);
 }
 
-static void lan743x_csr_write(struct lan743x_adapter *adapter, int offset,
-			      u32 data)
+void lan743x_csr_write(struct lan743x_adapter *adapter, int offset,
+		       u32 data)
 {
 	iowrite32(data, &adapter->csr.csr_address[offset]);
 }
@@ -264,6 +266,10 @@ static void lan743x_intr_shared_isr(void *context, u32 int_sts, u32 flags)
 		if (int_sts & INT_BIT_SW_GP_) {
 			lan743x_intr_software_isr(adapter);
 			int_sts &= ~INT_BIT_SW_GP_;
+		}
+		if (int_sts & INT_BIT_1588_) {
+			lan743x_ptp_isr(adapter);
+			int_sts &= ~INT_BIT_1588_;
 		}
 	}
 	if (int_sts)
@@ -828,7 +834,7 @@ static int lan743x_mac_init(struct lan743x_adapter *adapter)
 	}
 
 	if (!mac_address_valid)
-		random_ether_addr(adapter->mac_address);
+		eth_random_addr(adapter->mac_address);
 	lan743x_mac_set_address(adapter, adapter->mac_address);
 	ether_addr_copy(netdev->dev_addr, adapter->mac_address);
 	return 0;
@@ -974,6 +980,7 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 					       ksettings.base.duplex,
 					       local_advertisement,
 					       remote_advertisement);
+		lan743x_ptp_update_latency(adapter, ksettings.base.speed);
 	}
 }
 
@@ -1021,6 +1028,24 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 
 return_error:
 	return ret;
+}
+
+static void lan743x_rfe_open(struct lan743x_adapter *adapter)
+{
+	lan743x_csr_write(adapter, RFE_RSS_CFG,
+		RFE_RSS_CFG_UDP_IPV6_EX_ |
+		RFE_RSS_CFG_TCP_IPV6_EX_ |
+		RFE_RSS_CFG_IPV6_EX_ |
+		RFE_RSS_CFG_UDP_IPV6_ |
+		RFE_RSS_CFG_TCP_IPV6_ |
+		RFE_RSS_CFG_IPV6_ |
+		RFE_RSS_CFG_UDP_IPV4_ |
+		RFE_RSS_CFG_TCP_IPV4_ |
+		RFE_RSS_CFG_IPV4_ |
+		RFE_RSS_CFG_VALID_HASH_BITS_ |
+		RFE_RSS_CFG_RSS_QUEUE_ENABLE_ |
+		RFE_RSS_CFG_RSS_HASH_STORE_ |
+		RFE_RSS_CFG_RSS_ENABLE_);
 }
 
 static void lan743x_rfe_update_mac_address(struct lan743x_adapter *adapter)
@@ -1206,6 +1231,7 @@ static void lan743x_tx_release_desc(struct lan743x_tx *tx,
 	struct lan743x_tx_buffer_info *buffer_info = NULL;
 	struct lan743x_tx_descriptor *descriptor = NULL;
 	u32 descriptor_type = 0;
+	bool ignore_sync;
 
 	descriptor = &tx->ring_cpu_ptr[descriptor_index];
 	buffer_info = &tx->buffer_info[descriptor_index];
@@ -1236,10 +1262,26 @@ clean_up_data_descriptor:
 		buffer_info->dma_ptr = 0;
 		buffer_info->buffer_length = 0;
 	}
-	if (buffer_info->skb) {
+	if (!buffer_info->skb)
+		goto clear_active;
+
+	if (!(buffer_info->flags & TX_BUFFER_INFO_FLAG_TIMESTAMP_REQUESTED)) {
 		dev_kfree_skb(buffer_info->skb);
-		buffer_info->skb = NULL;
+		goto clear_skb;
 	}
+
+	if (cleanup) {
+		lan743x_ptp_unrequest_tx_timestamp(tx->adapter);
+		dev_kfree_skb(buffer_info->skb);
+	} else {
+		ignore_sync = (buffer_info->flags &
+			       TX_BUFFER_INFO_FLAG_IGNORE_SYNC) != 0;
+		lan743x_ptp_tx_timestamp_skb(tx->adapter,
+					     buffer_info->skb, ignore_sync);
+	}
+
+clear_skb:
+	buffer_info->skb = NULL;
 
 clear_active:
 	buffer_info->flags &= ~TX_BUFFER_INFO_FLAG_ACTIVE;
@@ -1301,10 +1343,25 @@ static int lan743x_tx_get_avail_desc(struct lan743x_tx *tx)
 		return last_head - last_tail - 1;
 }
 
+void lan743x_tx_set_timestamping_mode(struct lan743x_tx *tx,
+				      bool enable_timestamping,
+				      bool enable_onestep_sync)
+{
+	if (enable_timestamping)
+		tx->ts_flags |= TX_TS_FLAG_TIMESTAMPING_ENABLED;
+	else
+		tx->ts_flags &= ~TX_TS_FLAG_TIMESTAMPING_ENABLED;
+	if (enable_onestep_sync)
+		tx->ts_flags |= TX_TS_FLAG_ONE_STEP_SYNC;
+	else
+		tx->ts_flags &= ~TX_TS_FLAG_ONE_STEP_SYNC;
+}
+
 static int lan743x_tx_frame_start(struct lan743x_tx *tx,
 				  unsigned char *first_buffer,
 				  unsigned int first_buffer_length,
 				  unsigned int frame_length,
+				  bool time_stamp,
 				  bool check_sum)
 {
 	/* called only from within lan743x_tx_xmit_frame.
@@ -1342,6 +1399,8 @@ static int lan743x_tx_frame_start(struct lan743x_tx *tx,
 		TX_DESC_DATA0_DTYPE_DATA_ |
 		TX_DESC_DATA0_FS_ |
 		TX_DESC_DATA0_FCS_;
+	if (time_stamp)
+		tx->frame_data0 |= TX_DESC_DATA0_TSE_;
 
 	if (check_sum)
 		tx->frame_data0 |= TX_DESC_DATA0_ICE_ |
@@ -1455,6 +1514,7 @@ static int lan743x_tx_frame_add_fragment(struct lan743x_tx *tx,
 
 static void lan743x_tx_frame_end(struct lan743x_tx *tx,
 				 struct sk_buff *skb,
+				 bool time_stamp,
 				 bool ignore_sync)
 {
 	/* called only from within lan743x_tx_xmit_frame
@@ -1472,6 +1532,8 @@ static void lan743x_tx_frame_end(struct lan743x_tx *tx,
 	tx_descriptor = &tx->ring_cpu_ptr[tx->frame_tail];
 	buffer_info = &tx->buffer_info[tx->frame_tail];
 	buffer_info->skb = skb;
+	if (time_stamp)
+		buffer_info->flags |= TX_BUFFER_INFO_FLAG_TIMESTAMP_REQUESTED;
 	if (ignore_sync)
 		buffer_info->flags |= TX_BUFFER_INFO_FLAG_IGNORE_SYNC;
 
@@ -1500,6 +1562,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	unsigned int frame_length = 0;
 	unsigned int head_length = 0;
 	unsigned long irq_flags = 0;
+	bool do_timestamp = false;
 	bool ignore_sync = false;
 	int nr_frags = 0;
 	bool gso = false;
@@ -1521,6 +1584,14 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	}
 
 	/* space available, transmit skb  */
+	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+	    (tx->ts_flags & TX_TS_FLAG_TIMESTAMPING_ENABLED) &&
+	    (lan743x_ptp_request_tx_timestamp(tx->adapter))) {
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		do_timestamp = true;
+		if (tx->ts_flags & TX_TS_FLAG_ONE_STEP_SYNC)
+			ignore_sync = true;
+	}
 	head_length = skb_headlen(skb);
 	frame_length = skb_pagelen(skb);
 	nr_frags = skb_shinfo(skb)->nr_frags;
@@ -1534,6 +1605,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	if (lan743x_tx_frame_start(tx,
 				   skb->data, head_length,
 				   start_frame_length,
+				   do_timestamp,
 				   skb->ip_summed == CHECKSUM_PARTIAL)) {
 		dev_kfree_skb(skb);
 		goto unlock;
@@ -1561,7 +1633,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	}
 
 finish:
-	lan743x_tx_frame_end(tx, skb, ignore_sync);
+	lan743x_tx_frame_end(tx, skb, do_timestamp, ignore_sync);
 
 unlock:
 	spin_unlock_irqrestore(&tx->ring_lock, irq_flags);
@@ -2390,6 +2462,8 @@ static int lan743x_netdev_close(struct net_device *netdev)
 	for (index = 0; index < LAN743X_USED_RX_CHANNELS; index++)
 		lan743x_rx_close(&adapter->rx[index]);
 
+	lan743x_ptp_close(adapter);
+
 	lan743x_phy_close(adapter);
 
 	lan743x_mac_close(adapter);
@@ -2417,6 +2491,12 @@ static int lan743x_netdev_open(struct net_device *netdev)
 	if (ret)
 		goto close_mac;
 
+	ret = lan743x_ptp_open(adapter);
+	if (ret)
+		goto close_phy;
+
+	lan743x_rfe_open(adapter);
+
 	for (index = 0; index < LAN743X_USED_RX_CHANNELS; index++) {
 		ret = lan743x_rx_open(&adapter->rx[index]);
 		if (ret)
@@ -2434,6 +2514,9 @@ close_rx:
 		if (adapter->rx[index].ring_cpu_ptr)
 			lan743x_rx_close(&adapter->rx[index]);
 	}
+	lan743x_ptp_close(adapter);
+
+close_phy:
 	lan743x_phy_close(adapter);
 
 close_mac:
@@ -2461,6 +2544,8 @@ static int lan743x_netdev_ioctl(struct net_device *netdev,
 {
 	if (!netif_running(netdev))
 		return -EINVAL;
+	if (cmd == SIOCSHWTSTAMP)
+		return lan743x_ptp_ioctl(netdev, ifr, cmd);
 	return phy_mii_ioctl(netdev->phydev, ifr, cmd);
 }
 
@@ -2585,11 +2670,20 @@ static int lan743x_hardware_init(struct lan743x_adapter *adapter,
 	adapter->intr.irq = adapter->pdev->irq;
 	lan743x_csr_write(adapter, INT_EN_CLR, 0xFFFFFFFF);
 	mutex_init(&adapter->dp_lock);
+
+	ret = lan743x_gpio_init(adapter);
+	if (ret)
+		return ret;
+
 	ret = lan743x_mac_init(adapter);
 	if (ret)
 		return ret;
 
 	ret = lan743x_phy_init(adapter);
+	if (ret)
+		return ret;
+
+	ret = lan743x_ptp_init(adapter);
 	if (ret)
 		return ret;
 
@@ -2689,6 +2783,7 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 		goto cleanup_hardware;
 
 	adapter->netdev->netdev_ops = &lan743x_netdev_ops;
+	adapter->netdev->ethtool_ops = &lan743x_ethtool_ops;
 	adapter->netdev->features = NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
 	adapter->netdev->hw_features = adapter->netdev->features;
 
@@ -2747,9 +2842,181 @@ static void lan743x_pcidev_shutdown(struct pci_dev *pdev)
 		lan743x_netdev_close(netdev);
 	rtnl_unlock();
 
+#ifdef CONFIG_PM
+	pci_save_state(pdev);
+#endif
+
 	/* clean up lan743x portion */
 	lan743x_hardware_cleanup(adapter);
 }
+
+#ifdef CONFIG_PM
+static u16 lan743x_pm_wakeframe_crc16(const u8 *buf, int len)
+{
+	return bitrev16(crc16(0xFFFF, buf, len));
+}
+
+static void lan743x_pm_set_wol(struct lan743x_adapter *adapter)
+{
+	const u8 ipv4_multicast[3] = { 0x01, 0x00, 0x5E };
+	const u8 ipv6_multicast[3] = { 0x33, 0x33 };
+	const u8 arp_type[2] = { 0x08, 0x06 };
+	int mask_index;
+	u32 pmtctl;
+	u32 wucsr;
+	u32 macrx;
+	u16 crc;
+
+	for (mask_index = 0; mask_index < MAC_NUM_OF_WUF_CFG; mask_index++)
+		lan743x_csr_write(adapter, MAC_WUF_CFG(mask_index), 0);
+
+	/* clear wake settings */
+	pmtctl = lan743x_csr_read(adapter, PMT_CTL);
+	pmtctl |= PMT_CTL_WUPS_MASK_;
+	pmtctl &= ~(PMT_CTL_GPIO_WAKEUP_EN_ | PMT_CTL_EEE_WAKEUP_EN_ |
+		PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_ |
+		PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_ | PMT_CTL_ETH_PHY_WAKE_EN_);
+
+	macrx = lan743x_csr_read(adapter, MAC_RX);
+
+	wucsr = 0;
+	mask_index = 0;
+
+	pmtctl |= PMT_CTL_ETH_PHY_D3_COLD_OVR_ | PMT_CTL_ETH_PHY_D3_OVR_;
+
+	if (adapter->wolopts & WAKE_PHY) {
+		pmtctl |= PMT_CTL_ETH_PHY_EDPD_PLL_CTL_;
+		pmtctl |= PMT_CTL_ETH_PHY_WAKE_EN_;
+	}
+	if (adapter->wolopts & WAKE_MAGIC) {
+		wucsr |= MAC_WUCSR_MPEN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+	}
+	if (adapter->wolopts & WAKE_UCAST) {
+		wucsr |= MAC_WUCSR_RFE_WAKE_EN_ | MAC_WUCSR_PFDA_EN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
+	}
+	if (adapter->wolopts & WAKE_BCAST) {
+		wucsr |= MAC_WUCSR_RFE_WAKE_EN_ | MAC_WUCSR_BCST_EN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
+	}
+	if (adapter->wolopts & WAKE_MCAST) {
+		/* IPv4 multicast */
+		crc = lan743x_pm_wakeframe_crc16(ipv4_multicast, 3);
+		lan743x_csr_write(adapter, MAC_WUF_CFG(mask_index),
+				  MAC_WUF_CFG_EN_ | MAC_WUF_CFG_TYPE_MCAST_ |
+				  (0 << MAC_WUF_CFG_OFFSET_SHIFT_) |
+				  (crc & MAC_WUF_CFG_CRC16_MASK_));
+		lan743x_csr_write(adapter, MAC_WUF_MASK0(mask_index), 7);
+		lan743x_csr_write(adapter, MAC_WUF_MASK1(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK2(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK3(mask_index), 0);
+		mask_index++;
+
+		/* IPv6 multicast */
+		crc = lan743x_pm_wakeframe_crc16(ipv6_multicast, 2);
+		lan743x_csr_write(adapter, MAC_WUF_CFG(mask_index),
+				  MAC_WUF_CFG_EN_ | MAC_WUF_CFG_TYPE_MCAST_ |
+				  (0 << MAC_WUF_CFG_OFFSET_SHIFT_) |
+				  (crc & MAC_WUF_CFG_CRC16_MASK_));
+		lan743x_csr_write(adapter, MAC_WUF_MASK0(mask_index), 3);
+		lan743x_csr_write(adapter, MAC_WUF_MASK1(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK2(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK3(mask_index), 0);
+		mask_index++;
+
+		wucsr |= MAC_WUCSR_RFE_WAKE_EN_ | MAC_WUCSR_WAKE_EN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
+	}
+	if (adapter->wolopts & WAKE_ARP) {
+		/* set MAC_WUF_CFG & WUF_MASK
+		 * for packettype (offset 12,13) = ARP (0x0806)
+		 */
+		crc = lan743x_pm_wakeframe_crc16(arp_type, 2);
+		lan743x_csr_write(adapter, MAC_WUF_CFG(mask_index),
+				  MAC_WUF_CFG_EN_ | MAC_WUF_CFG_TYPE_ALL_ |
+				  (0 << MAC_WUF_CFG_OFFSET_SHIFT_) |
+				  (crc & MAC_WUF_CFG_CRC16_MASK_));
+		lan743x_csr_write(adapter, MAC_WUF_MASK0(mask_index), 0x3000);
+		lan743x_csr_write(adapter, MAC_WUF_MASK1(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK2(mask_index), 0);
+		lan743x_csr_write(adapter, MAC_WUF_MASK3(mask_index), 0);
+		mask_index++;
+
+		wucsr |= MAC_WUCSR_RFE_WAKE_EN_ | MAC_WUCSR_WAKE_EN_;
+		macrx |= MAC_RX_RXEN_;
+		pmtctl |= PMT_CTL_WOL_EN_ | PMT_CTL_MAC_D3_RX_CLK_OVR_;
+		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
+	}
+
+	lan743x_csr_write(adapter, MAC_WUCSR, wucsr);
+	lan743x_csr_write(adapter, PMT_CTL, pmtctl);
+	lan743x_csr_write(adapter, MAC_RX, macrx);
+}
+
+static int lan743x_pm_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	int ret;
+
+	lan743x_pcidev_shutdown(pdev);
+
+	/* clear all wakes */
+	lan743x_csr_write(adapter, MAC_WUCSR, 0);
+	lan743x_csr_write(adapter, MAC_WUCSR2, 0);
+	lan743x_csr_write(adapter, MAC_WK_SRC, 0xFFFFFFFF);
+
+	if (adapter->wolopts)
+		lan743x_pm_set_wol(adapter);
+
+	/* Host sets PME_En, put D3hot */
+	ret = pci_prepare_to_sleep(pdev);
+
+	return 0;
+}
+
+static int lan743x_pm_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	int ret;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
+
+	ret = lan743x_hardware_init(adapter, pdev);
+	if (ret) {
+		netif_err(adapter, probe, adapter->netdev,
+			  "lan743x_hardware_init returned %d\n", ret);
+	}
+
+	/* open netdev when netdev is at running state while resume.
+	 * For instance, it is true when system wakesup after pm-suspend
+	 * However, it is false when system wakes up after suspend GUI menu
+	 */
+	if (netif_running(netdev))
+		lan743x_netdev_open(netdev);
+
+	netif_device_attach(netdev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops lan743x_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(lan743x_pm_suspend, lan743x_pm_resume)
+};
+#endif /*CONFIG_PM */
 
 static const struct pci_device_id lan743x_pcidev_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SMSC, PCI_DEVICE_ID_SMSC_LAN7430) },
@@ -2761,6 +3028,9 @@ static struct pci_driver lan743x_pcidev_driver = {
 	.id_table = lan743x_pcidev_tbl,
 	.probe    = lan743x_pcidev_probe,
 	.remove   = lan743x_pcidev_remove,
+#ifdef CONFIG_PM
+	.driver.pm = &lan743x_pm_ops,
+#endif
 	.shutdown = lan743x_pcidev_shutdown,
 };
 

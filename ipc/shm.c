@@ -43,6 +43,7 @@
 #include <linux/nsproxy.h>
 #include <linux/mount.h>
 #include <linux/ipc_namespace.h>
+#include <linux/rhashtable.h>
 
 #include <linux/uaccess.h>
 

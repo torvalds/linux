@@ -590,6 +590,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	 */
 	smp_wmb();
 	chan->call_id	= call_id;
+	chan->call_debug_id = call->debug_id;
 	rcu_assign_pointer(chan->call, call);
 	wake_up(&call->waitq);
 }
@@ -1051,7 +1052,6 @@ void rxrpc_discard_expired_client_conns(struct work_struct *work)
 		container_of(work, struct rxrpc_net, client_conn_reaper);
 	unsigned long expiry, conn_expires_at, now;
 	unsigned int nr_conns;
-	bool did_discard = false;
 
 	_enter("");
 
@@ -1113,7 +1113,6 @@ next:
 	 * If someone re-sets the flag and re-gets the ref, that's fine.
 	 */
 	rxrpc_put_connection(conn);
-	did_discard = true;
 	nr_conns--;
 	goto next;
 

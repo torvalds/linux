@@ -1089,6 +1089,7 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 				break;
 			case PCTRL_CMD_FTM:
 				p1 = 2;
+				/* fall through */
 			case PCTRL_CMD_FTH:
 				sendmsg(cs, dps | ISAR_HIS_PUMPCTRL,
 					PCTRL_CMD_SILON, 1, &p1);
@@ -1097,6 +1098,7 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 			case PCTRL_CMD_FRM:
 				if (frm_extra_delay)
 					mdelay(frm_extra_delay);
+				/* fall through */
 			case PCTRL_CMD_FRH:
 				p1 = bcs->hw.isar.mod = bcs->hw.isar.newmod;
 				bcs->hw.isar.newmod = 0;

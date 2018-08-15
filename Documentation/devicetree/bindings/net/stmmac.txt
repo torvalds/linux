@@ -1,7 +1,8 @@
-* STMicroelectronics 10/100/1000 Ethernet driver (GMAC)
+* STMicroelectronics 10/100/1000/2500/10000 Ethernet (GMAC/XGMAC)
 
 Required properties:
-- compatible: Should be "snps,dwmac-<ip_version>", "snps,dwmac"
+- compatible: Should be "snps,dwmac-<ip_version>", "snps,dwmac" or
+	"snps,dwxgmac-<ip_version>", "snps,dwxgmac".
 	For backwards compatibility: "st,spear600-gmac" is also supported.
 - reg: Address and length of the register set for the device
 - interrupts: Should contain the STMMAC interrupts

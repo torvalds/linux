@@ -1278,7 +1278,7 @@ static int cfg80211_wext_giwrate(struct net_device *dev,
 	if (err)
 		return err;
 
-	if (!(sinfo.filled & BIT(NL80211_STA_INFO_TX_BITRATE)))
+	if (!(sinfo.filled & BIT_ULL(NL80211_STA_INFO_TX_BITRATE)))
 		return -EOPNOTSUPP;
 
 	rate->value = 100000 * cfg80211_calculate_bitrate(&sinfo.txrate);
@@ -1320,7 +1320,7 @@ static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 
 	switch (rdev->wiphy.signal_type) {
 	case CFG80211_SIGNAL_TYPE_MBM:
-		if (sinfo.filled & BIT(NL80211_STA_INFO_SIGNAL)) {
+		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_SIGNAL)) {
 			int sig = sinfo.signal;
 			wstats.qual.updated |= IW_QUAL_LEVEL_UPDATED;
 			wstats.qual.updated |= IW_QUAL_QUAL_UPDATED;
@@ -1334,7 +1334,7 @@ static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 			break;
 		}
 	case CFG80211_SIGNAL_TYPE_UNSPEC:
-		if (sinfo.filled & BIT(NL80211_STA_INFO_SIGNAL)) {
+		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_SIGNAL)) {
 			wstats.qual.updated |= IW_QUAL_LEVEL_UPDATED;
 			wstats.qual.updated |= IW_QUAL_QUAL_UPDATED;
 			wstats.qual.level = sinfo.signal;
@@ -1347,9 +1347,9 @@ static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 	}
 
 	wstats.qual.updated |= IW_QUAL_NOISE_INVALID;
-	if (sinfo.filled & BIT(NL80211_STA_INFO_RX_DROP_MISC))
+	if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC))
 		wstats.discard.misc = sinfo.rx_dropped_misc;
-	if (sinfo.filled & BIT(NL80211_STA_INFO_TX_FAILED))
+	if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_TX_FAILED))
 		wstats.discard.retries = sinfo.tx_failed;
 
 	return &wstats;

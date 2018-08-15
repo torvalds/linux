@@ -757,13 +757,16 @@ static int decode_evnt(struct dp83640_private *dp83640,
 
 	phy_txts = data;
 
-	switch (words) { /* fall through in every case */
+	switch (words) {
 	case 3:
 		dp83640->edata.sec_hi = phy_txts->sec_hi;
+		/* fall through */
 	case 2:
 		dp83640->edata.sec_lo = phy_txts->sec_lo;
+		/* fall through */
 	case 1:
 		dp83640->edata.ns_hi = phy_txts->ns_hi;
+		/* fall through */
 	case 0:
 		dp83640->edata.ns_lo = phy_txts->ns_lo;
 	}

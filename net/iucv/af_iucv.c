@@ -150,7 +150,6 @@ static int afiucv_pm_freeze(struct device *dev)
 {
 	struct iucv_sock *iucv;
 	struct sock *sk;
-	int err = 0;
 
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "afiucv_pm_freeze\n");
@@ -175,7 +174,7 @@ static int afiucv_pm_freeze(struct device *dev)
 		skb_queue_purge(&iucv->backlog_skb_q);
 	}
 	read_unlock(&iucv_sk_list.lock);
-	return err;
+	return 0;
 }
 
 /**
@@ -1494,7 +1493,7 @@ __poll_t iucv_sock_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	__poll_t mask = 0;
 
-	sock_poll_wait(file, sk_sleep(sk), wait);
+	sock_poll_wait(file, wait);
 
 	if (sk->sk_state == IUCV_LISTEN)
 		return iucv_accept_poll(sk);
@@ -2515,4 +2514,3 @@ MODULE_DESCRIPTION("IUCV Sockets ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_IUCV);
-

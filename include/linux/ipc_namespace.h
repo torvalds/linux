@@ -9,7 +9,7 @@
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/refcount.h>
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 
 struct user_namespace;
 

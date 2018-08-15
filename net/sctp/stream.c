@@ -37,6 +37,53 @@
 #include <net/sctp/sm.h>
 #include <net/sctp/stream_sched.h>
 
+static struct flex_array *fa_alloc(size_t elem_size, size_t elem_count,
+				   gfp_t gfp)
+{
+	struct flex_array *result;
+	int err;
+
+	result = flex_array_alloc(elem_size, elem_count, gfp);
+	if (result) {
+		err = flex_array_prealloc(result, 0, elem_count, gfp);
+		if (err) {
+			flex_array_free(result);
+			result = NULL;
+		}
+	}
+
+	return result;
+}
+
+static void fa_free(struct flex_array *fa)
+{
+	if (fa)
+		flex_array_free(fa);
+}
+
+static void fa_copy(struct flex_array *fa, struct flex_array *from,
+		    size_t index, size_t count)
+{
+	void *elem;
+
+	while (count--) {
+		elem = flex_array_get(from, index);
+		flex_array_put(fa, index, elem, 0);
+		index++;
+	}
+}
+
+static void fa_zero(struct flex_array *fa, size_t index, size_t count)
+{
+	void *elem;
+
+	while (count--) {
+		elem = flex_array_get(fa, index);
+		memset(elem, 0, fa->element_size);
+		index++;
+	}
+}
+
 /* Migrates chunks from stream queues to new stream queues if needed,
  * but not across associations. Also, removes those chunks to streams
  * higher than the new max.
@@ -78,34 +125,33 @@ static void sctp_stream_outq_migrate(struct sctp_stream *stream,
 		 * sctp_stream_update will swap ->out pointers.
 		 */
 		for (i = 0; i < outcnt; i++) {
-			kfree(new->out[i].ext);
-			new->out[i].ext = stream->out[i].ext;
-			stream->out[i].ext = NULL;
+			kfree(SCTP_SO(new, i)->ext);
+			SCTP_SO(new, i)->ext = SCTP_SO(stream, i)->ext;
+			SCTP_SO(stream, i)->ext = NULL;
 		}
 	}
 
 	for (i = outcnt; i < stream->outcnt; i++)
-		kfree(stream->out[i].ext);
+		kfree(SCTP_SO(stream, i)->ext);
 }
 
 static int sctp_stream_alloc_out(struct sctp_stream *stream, __u16 outcnt,
 				 gfp_t gfp)
 {
-	struct sctp_stream_out *out;
+	struct flex_array *out;
+	size_t elem_size = sizeof(struct sctp_stream_out);
 
-	out = kmalloc_array(outcnt, sizeof(*out), gfp);
+	out = fa_alloc(elem_size, outcnt, gfp);
 	if (!out)
 		return -ENOMEM;
 
 	if (stream->out) {
-		memcpy(out, stream->out, min(outcnt, stream->outcnt) *
-					 sizeof(*out));
-		kfree(stream->out);
+		fa_copy(out, stream->out, 0, min(outcnt, stream->outcnt));
+		fa_free(stream->out);
 	}
 
 	if (outcnt > stream->outcnt)
-		memset(out + stream->outcnt, 0,
-		       (outcnt - stream->outcnt) * sizeof(*out));
+		fa_zero(out, stream->outcnt, (outcnt - stream->outcnt));
 
 	stream->out = out;
 
@@ -115,22 +161,20 @@ static int sctp_stream_alloc_out(struct sctp_stream *stream, __u16 outcnt,
 static int sctp_stream_alloc_in(struct sctp_stream *stream, __u16 incnt,
 				gfp_t gfp)
 {
-	struct sctp_stream_in *in;
+	struct flex_array *in;
+	size_t elem_size = sizeof(struct sctp_stream_in);
 
-	in = kmalloc_array(incnt, sizeof(*stream->in), gfp);
-
+	in = fa_alloc(elem_size, incnt, gfp);
 	if (!in)
 		return -ENOMEM;
 
 	if (stream->in) {
-		memcpy(in, stream->in, min(incnt, stream->incnt) *
-				       sizeof(*in));
-		kfree(stream->in);
+		fa_copy(in, stream->in, 0, min(incnt, stream->incnt));
+		fa_free(stream->in);
 	}
 
 	if (incnt > stream->incnt)
-		memset(in + stream->incnt, 0,
-		       (incnt - stream->incnt) * sizeof(*in));
+		fa_zero(in, stream->incnt, (incnt - stream->incnt));
 
 	stream->in = in;
 
@@ -162,7 +206,7 @@ int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 
 	stream->outcnt = outcnt;
 	for (i = 0; i < stream->outcnt; i++)
-		stream->out[i].state = SCTP_STREAM_OPEN;
+		SCTP_SO(stream, i)->state = SCTP_STREAM_OPEN;
 
 	sched->init(stream);
 
@@ -174,7 +218,7 @@ in:
 	ret = sctp_stream_alloc_in(stream, incnt, gfp);
 	if (ret) {
 		sched->free(stream);
-		kfree(stream->out);
+		fa_free(stream->out);
 		stream->out = NULL;
 		stream->outcnt = 0;
 		goto out;
@@ -193,7 +237,7 @@ int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid)
 	soute = kzalloc(sizeof(*soute), GFP_KERNEL);
 	if (!soute)
 		return -ENOMEM;
-	stream->out[sid].ext = soute;
+	SCTP_SO(stream, sid)->ext = soute;
 
 	return sctp_sched_init_sid(stream, sid, GFP_KERNEL);
 }
@@ -205,9 +249,9 @@ void sctp_stream_free(struct sctp_stream *stream)
 
 	sched->free(stream);
 	for (i = 0; i < stream->outcnt; i++)
-		kfree(stream->out[i].ext);
-	kfree(stream->out);
-	kfree(stream->in);
+		kfree(SCTP_SO(stream, i)->ext);
+	fa_free(stream->out);
+	fa_free(stream->in);
 }
 
 void sctp_stream_clear(struct sctp_stream *stream)
@@ -215,12 +259,12 @@ void sctp_stream_clear(struct sctp_stream *stream)
 	int i;
 
 	for (i = 0; i < stream->outcnt; i++) {
-		stream->out[i].mid = 0;
-		stream->out[i].mid_uo = 0;
+		SCTP_SO(stream, i)->mid = 0;
+		SCTP_SO(stream, i)->mid_uo = 0;
 	}
 
 	for (i = 0; i < stream->incnt; i++)
-		stream->in[i].mid = 0;
+		SCTP_SI(stream, i)->mid = 0;
 }
 
 void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new)
@@ -273,8 +317,8 @@ static bool sctp_stream_outq_is_empty(struct sctp_stream *stream,
 	for (i = 0; i < str_nums; i++) {
 		__u16 sid = ntohs(str_list[i]);
 
-		if (stream->out[sid].ext &&
-		    !list_empty(&stream->out[sid].ext->outq))
+		if (SCTP_SO(stream, sid)->ext &&
+		    !list_empty(&SCTP_SO(stream, sid)->ext->outq))
 			return false;
 	}
 
@@ -361,11 +405,11 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 	if (out) {
 		if (str_nums)
 			for (i = 0; i < str_nums; i++)
-				stream->out[str_list[i]].state =
+				SCTP_SO(stream, str_list[i])->state =
 						       SCTP_STREAM_CLOSED;
 		else
 			for (i = 0; i < stream->outcnt; i++)
-				stream->out[i].state = SCTP_STREAM_CLOSED;
+				SCTP_SO(stream, i)->state = SCTP_STREAM_CLOSED;
 	}
 
 	asoc->strreset_chunk = chunk;
@@ -380,11 +424,11 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 
 		if (str_nums)
 			for (i = 0; i < str_nums; i++)
-				stream->out[str_list[i]].state =
+				SCTP_SO(stream, str_list[i])->state =
 						       SCTP_STREAM_OPEN;
 		else
 			for (i = 0; i < stream->outcnt; i++)
-				stream->out[i].state = SCTP_STREAM_OPEN;
+				SCTP_SO(stream, i)->state = SCTP_STREAM_OPEN;
 
 		goto out;
 	}
@@ -418,7 +462,7 @@ int sctp_send_reset_assoc(struct sctp_association *asoc)
 
 	/* Block further xmit of data until this request is completed */
 	for (i = 0; i < stream->outcnt; i++)
-		stream->out[i].state = SCTP_STREAM_CLOSED;
+		SCTP_SO(stream, i)->state = SCTP_STREAM_CLOSED;
 
 	asoc->strreset_chunk = chunk;
 	sctp_chunk_hold(asoc->strreset_chunk);
@@ -429,7 +473,7 @@ int sctp_send_reset_assoc(struct sctp_association *asoc)
 		asoc->strreset_chunk = NULL;
 
 		for (i = 0; i < stream->outcnt; i++)
-			stream->out[i].state = SCTP_STREAM_OPEN;
+			SCTP_SO(stream, i)->state = SCTP_STREAM_OPEN;
 
 		return retval;
 	}
@@ -609,10 +653,10 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 		}
 
 		for (i = 0; i < nums; i++)
-			stream->in[ntohs(str_p[i])].mid = 0;
+			SCTP_SI(stream, ntohs(str_p[i]))->mid = 0;
 	} else {
 		for (i = 0; i < stream->incnt; i++)
-			stream->in[i].mid = 0;
+			SCTP_SI(stream, i)->mid = 0;
 	}
 
 	result = SCTP_STRRESET_PERFORMED;
@@ -683,11 +727,11 @@ struct sctp_chunk *sctp_process_strreset_inreq(
 
 	if (nums)
 		for (i = 0; i < nums; i++)
-			stream->out[ntohs(str_p[i])].state =
+			SCTP_SO(stream, ntohs(str_p[i]))->state =
 					       SCTP_STREAM_CLOSED;
 	else
 		for (i = 0; i < stream->outcnt; i++)
-			stream->out[i].state = SCTP_STREAM_CLOSED;
+			SCTP_SO(stream, i)->state = SCTP_STREAM_CLOSED;
 
 	asoc->strreset_chunk = chunk;
 	asoc->strreset_outstanding = 1;
@@ -786,11 +830,11 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 	 *      incoming and outgoing streams.
 	 */
 	for (i = 0; i < stream->outcnt; i++) {
-		stream->out[i].mid = 0;
-		stream->out[i].mid_uo = 0;
+		SCTP_SO(stream, i)->mid = 0;
+		SCTP_SO(stream, i)->mid_uo = 0;
 	}
 	for (i = 0; i < stream->incnt; i++)
-		stream->in[i].mid = 0;
+		SCTP_SI(stream, i)->mid = 0;
 
 	result = SCTP_STRRESET_PERFORMED;
 
@@ -979,15 +1023,18 @@ struct sctp_chunk *sctp_process_strreset_resp(
 		       sizeof(__u16);
 
 		if (result == SCTP_STRRESET_PERFORMED) {
+			struct sctp_stream_out *sout;
 			if (nums) {
 				for (i = 0; i < nums; i++) {
-					stream->out[ntohs(str_p[i])].mid = 0;
-					stream->out[ntohs(str_p[i])].mid_uo = 0;
+					sout = SCTP_SO(stream, ntohs(str_p[i]));
+					sout->mid = 0;
+					sout->mid_uo = 0;
 				}
 			} else {
 				for (i = 0; i < stream->outcnt; i++) {
-					stream->out[i].mid = 0;
-					stream->out[i].mid_uo = 0;
+					sout = SCTP_SO(stream, i);
+					sout->mid = 0;
+					sout->mid_uo = 0;
 				}
 			}
 
@@ -995,7 +1042,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 		}
 
 		for (i = 0; i < stream->outcnt; i++)
-			stream->out[i].state = SCTP_STREAM_OPEN;
+			SCTP_SO(stream, i)->state = SCTP_STREAM_OPEN;
 
 		*evp = sctp_ulpevent_make_stream_reset_event(asoc, flags,
 			nums, str_p, GFP_ATOMIC);
@@ -1050,15 +1097,15 @@ struct sctp_chunk *sctp_process_strreset_resp(
 			asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
 
 			for (i = 0; i < stream->outcnt; i++) {
-				stream->out[i].mid = 0;
-				stream->out[i].mid_uo = 0;
+				SCTP_SO(stream, i)->mid = 0;
+				SCTP_SO(stream, i)->mid_uo = 0;
 			}
 			for (i = 0; i < stream->incnt; i++)
-				stream->in[i].mid = 0;
+				SCTP_SI(stream, i)->mid = 0;
 		}
 
 		for (i = 0; i < stream->outcnt; i++)
-			stream->out[i].state = SCTP_STREAM_OPEN;
+			SCTP_SO(stream, i)->state = SCTP_STREAM_OPEN;
 
 		*evp = sctp_ulpevent_make_assoc_reset_event(asoc, flags,
 			stsn, rtsn, GFP_ATOMIC);
@@ -1072,7 +1119,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 
 		if (result == SCTP_STRRESET_PERFORMED)
 			for (i = number; i < stream->outcnt; i++)
-				stream->out[i].state = SCTP_STREAM_OPEN;
+				SCTP_SO(stream, i)->state = SCTP_STREAM_OPEN;
 		else
 			stream->outcnt = number;
 

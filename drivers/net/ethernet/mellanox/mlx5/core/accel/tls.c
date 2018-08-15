@@ -37,17 +37,26 @@
 #include "mlx5_core.h"
 #include "fpga/tls.h"
 
-int mlx5_accel_tls_add_tx_flow(struct mlx5_core_dev *mdev, void *flow,
-			       struct tls_crypto_info *crypto_info,
-			       u32 start_offload_tcp_sn, u32 *p_swid)
+int mlx5_accel_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
+			    struct tls_crypto_info *crypto_info,
+			    u32 start_offload_tcp_sn, u32 *p_swid,
+			    bool direction_sx)
 {
-	return mlx5_fpga_tls_add_tx_flow(mdev, flow, crypto_info,
-					 start_offload_tcp_sn, p_swid);
+	return mlx5_fpga_tls_add_flow(mdev, flow, crypto_info,
+				      start_offload_tcp_sn, p_swid,
+				      direction_sx);
 }
 
-void mlx5_accel_tls_del_tx_flow(struct mlx5_core_dev *mdev, u32 swid)
+void mlx5_accel_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
+			     bool direction_sx)
 {
-	mlx5_fpga_tls_del_tx_flow(mdev, swid, GFP_KERNEL);
+	mlx5_fpga_tls_del_flow(mdev, swid, GFP_KERNEL, direction_sx);
+}
+
+int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
+			     u64 rcd_sn)
+{
+	return mlx5_fpga_tls_resync_rx(mdev, handle, seq, rcd_sn);
 }
 
 bool mlx5_accel_is_tls_device(struct mlx5_core_dev *mdev)

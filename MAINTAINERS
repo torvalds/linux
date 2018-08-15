@@ -9002,6 +9002,14 @@ F:	include/uapi/linux/meye.h
 F:	include/uapi/linux/ivtv*
 F:	include/uapi/linux/uvcvideo.h
 
+MEDIATEK BLUETOOTH DRIVER
+M:	Sean Wang <sean.wang@mediatek.com>
+L:	linux-bluetooth@vger.kernel.org
+L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/mediatek-bluetooth.txt
+F:	drivers/bluetooth/btmtkuart.c
+
 MEDIATEK CIR DRIVER
 M:	Sean Wang <sean.wang@mediatek.com>
 S:	Maintained
@@ -9174,6 +9182,7 @@ S:	Supported
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlxsw/
+F:	tools/testing/selftests/drivers/net/mlxsw/
 
 MELLANOX FIRMWARE FLASH LIBRARY (mlxfw)
 M:	mlxsw@mellanox.com
@@ -12079,6 +12088,13 @@ S:	Maintained
 F:	sound/soc/codecs/rt*
 F:	include/sound/rt*.h
 
+REALTEK RTL83xx SMI DSA ROUTER CHIPS
+M:	Linus Walleij <linus.walleij@linaro.org>
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/dsa/realtek-smi.txt
+F:	drivers/net/dsa/realtek-smi*
+F:	drivers/net/dsa/rtl83*
+
 REGISTER MAP ABSTRACTION
 M:	Mark Brown <broonie@kernel.org>
 L:	linux-kernel@vger.kernel.org
@@ -12186,6 +12202,8 @@ S:	Maintained
 F:	Documentation/rfkill.txt
 F:	Documentation/ABI/stable/sysfs-class-rfkill
 F:	net/rfkill/
+F:	include/linux/rfkill.h
+F:	include/uapi/linux/rfkill.h
 
 RHASHTABLE
 M:	Thomas Graf <tgraf@suug.ch>
@@ -12193,7 +12211,9 @@ M:	Herbert Xu <herbert@gondor.apana.org.au>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	lib/rhashtable.c
+F:	lib/test_rhashtable.c
 F:	include/linux/rhashtable.h
+F:	include/linux/rhashtable-types.h
 
 RICOH R5C592 MEMORYSTICK DRIVER
 M:	Maxim Levitsky <maximlevitsky@gmail.com>

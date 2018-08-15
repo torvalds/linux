@@ -96,14 +96,14 @@
  * way:
  *
  * Let's assume that each packet in a bundle of the maximum bundle size
- * (HTC_HOST_MAX_MSG_PER_BUNDLE) has the HTC header bundle count set
- * to the maximum value (HTC_HOST_MAX_MSG_PER_BUNDLE).
+ * (HTC_HOST_MAX_MSG_PER_RX_BUNDLE) has the HTC header bundle count set
+ * to the maximum value (HTC_HOST_MAX_MSG_PER_RX_BUNDLE).
  *
  * in this case the driver must allocate
- * (HTC_HOST_MAX_MSG_PER_BUNDLE * HTC_HOST_MAX_MSG_PER_BUNDLE) skb's.
+ * (HTC_HOST_MAX_MSG_PER_RX_BUNDLE * HTC_HOST_MAX_MSG_PER_RX_BUNDLE) skb's.
  */
 #define ATH10K_SDIO_MAX_RX_MSGS \
-	(HTC_HOST_MAX_MSG_PER_BUNDLE * HTC_HOST_MAX_MSG_PER_BUNDLE)
+	(HTC_HOST_MAX_MSG_PER_RX_BUNDLE * HTC_HOST_MAX_MSG_PER_RX_BUNDLE)
 
 #define ATH10K_FIFO_TIMEOUT_AND_CHIP_CONTROL   0x00000868u
 #define ATH10K_FIFO_TIMEOUT_AND_CHIP_CONTROL_DISABLE_SLEEP_OFF 0xFFFEFFFF

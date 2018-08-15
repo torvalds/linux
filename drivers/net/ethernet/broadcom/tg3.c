@@ -725,6 +725,7 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 	case TG3_APE_LOCK_GPIO:
 		if (tg3_asic_rev(tp) == ASIC_REV_5761)
 			return 0;
+		/* else: fall through */
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
 		if (!tp->pci_fn)
@@ -785,6 +786,7 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 	case TG3_APE_LOCK_GPIO:
 		if (tg3_asic_rev(tp) == ASIC_REV_5761)
 			return;
+		/* else: fall through */
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
 		if (!tp->pci_fn)
@@ -10719,28 +10721,40 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	switch (limit) {
 	case 16:
 		tw32(MAC_RCV_RULE_15,  0); tw32(MAC_RCV_VALUE_15,  0);
+		/* fall through */
 	case 15:
 		tw32(MAC_RCV_RULE_14,  0); tw32(MAC_RCV_VALUE_14,  0);
+		/* fall through */
 	case 14:
 		tw32(MAC_RCV_RULE_13,  0); tw32(MAC_RCV_VALUE_13,  0);
+		/* fall through */
 	case 13:
 		tw32(MAC_RCV_RULE_12,  0); tw32(MAC_RCV_VALUE_12,  0);
+		/* fall through */
 	case 12:
 		tw32(MAC_RCV_RULE_11,  0); tw32(MAC_RCV_VALUE_11,  0);
+		/* fall through */
 	case 11:
 		tw32(MAC_RCV_RULE_10,  0); tw32(MAC_RCV_VALUE_10,  0);
+		/* fall through */
 	case 10:
 		tw32(MAC_RCV_RULE_9,  0); tw32(MAC_RCV_VALUE_9,  0);
+		/* fall through */
 	case 9:
 		tw32(MAC_RCV_RULE_8,  0); tw32(MAC_RCV_VALUE_8,  0);
+		/* fall through */
 	case 8:
 		tw32(MAC_RCV_RULE_7,  0); tw32(MAC_RCV_VALUE_7,  0);
+		/* fall through */
 	case 7:
 		tw32(MAC_RCV_RULE_6,  0); tw32(MAC_RCV_VALUE_6,  0);
+		/* fall through */
 	case 6:
 		tw32(MAC_RCV_RULE_5,  0); tw32(MAC_RCV_VALUE_5,  0);
+		/* fall through */
 	case 5:
 		tw32(MAC_RCV_RULE_4,  0); tw32(MAC_RCV_VALUE_4,  0);
+		/* fall through */
 	case 4:
 		/* tw32(MAC_RCV_RULE_3,  0); tw32(MAC_RCV_VALUE_3,  0); */
 	case 3:

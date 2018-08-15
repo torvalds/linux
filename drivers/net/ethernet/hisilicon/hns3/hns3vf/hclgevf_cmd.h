@@ -82,6 +82,7 @@ struct hclgevf_cmq {
 enum hclgevf_opcode_type {
 	/* Generic command */
 	HCLGEVF_OPC_QUERY_FW_VER	= 0x0001,
+	HCLGEVF_OPC_QUERY_VF_RSRC	= 0x0024,
 	/* TQP command */
 	HCLGEVF_OPC_QUERY_TX_STATUS	= 0x0B03,
 	HCLGEVF_OPC_QUERY_RX_STATUS	= 0x0B13,
@@ -132,6 +133,19 @@ struct hclgevf_ctrl_vector_chain {
 struct hclgevf_query_version_cmd {
 	__le32 firmware;
 	__le32 firmware_rsv[5];
+};
+
+#define HCLGEVF_MSIX_OFT_ROCEE_S       0
+#define HCLGEVF_MSIX_OFT_ROCEE_M       (0xffff << HCLGEVF_MSIX_OFT_ROCEE_S)
+#define HCLGEVF_VEC_NUM_S              0
+#define HCLGEVF_VEC_NUM_M              (0xff << HCLGEVF_VEC_NUM_S)
+struct hclgevf_query_res_cmd {
+	__le16 tqp_num;
+	__le16 reserved;
+	__le16 msixcap_localid_ba_nic;
+	__le16 msixcap_localid_ba_rocee;
+	__le16 vf_intr_vector_number;
+	__le16 rsv[7];
 };
 
 #define HCLGEVF_RSS_HASH_KEY_OFFSET	4

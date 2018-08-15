@@ -221,11 +221,12 @@ static int udp_reuseport_add_sock(struct sock *sk, struct udp_hslot *hslot)
 		    (sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
 		    sk2->sk_reuseport && uid_eq(uid, sock_i_uid(sk2)) &&
 		    inet_rcv_saddr_equal(sk, sk2, false)) {
-			return reuseport_add_sock(sk, sk2);
+			return reuseport_add_sock(sk, sk2,
+						  inet_rcv_saddr_any(sk));
 		}
 	}
 
-	return reuseport_alloc(sk);
+	return reuseport_alloc(sk, inet_rcv_saddr_any(sk));
 }
 
 /**
@@ -498,6 +499,8 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 						  daddr, hnum, dif, sdif,
 						  exact_dif, hslot2, skb);
 		}
+		if (unlikely(IS_ERR(result)))
+			return NULL;
 		return result;
 	}
 begin:
@@ -512,6 +515,8 @@ begin:
 						   saddr, sport);
 				result = reuseport_select_sock(sk, hash, skb,
 							sizeof(struct udphdr));
+				if (unlikely(IS_ERR(result)))
+					return NULL;
 				if (result)
 					return result;
 			}
@@ -926,11 +931,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (msg->msg_flags & MSG_OOB) /* Mirror BSD error message compatibility */
 		return -EOPNOTSUPP;
 
-	ipc.opt = NULL;
-	ipc.tx_flags = 0;
-	ipc.ttl = 0;
-	ipc.tos = -1;
-
 	getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
 
 	fl4 = &inet->cork.fl.u.ip4;
@@ -977,9 +977,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		connected = 1;
 	}
 
-	ipc.sockc.tsflags = sk->sk_tsflags;
-	ipc.addr = inet->inet_saddr;
-	ipc.oif = sk->sk_bound_dev_if;
+	ipcm_init_sk(&ipc, inet);
 	ipc.gso_size = up->gso_size;
 
 	if (msg->msg_controllen) {
@@ -1026,8 +1024,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	saddr = ipc.addr;
 	ipc.addr = faddr = daddr;
-
-	sock_tx_timestamp(sk, ipc.sockc.tsflags, &ipc.tx_flags);
 
 	if (ipc.opt && ipc.opt->opt.srr) {
 		if (!daddr) {

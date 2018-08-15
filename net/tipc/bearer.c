@@ -395,6 +395,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 		tipc_net_init(net, node_id, 0);
 	}
 	if (!tipc_own_id(net)) {
+		dev_put(dev);
 		pr_warn("Failed to obtain node identity\n");
 		return -EINVAL;
 	}
@@ -610,6 +611,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev))
 			break;
+		/* else: fall through */
 	case NETDEV_UP:
 		test_and_set_bit_lock(0, &b->up);
 		break;

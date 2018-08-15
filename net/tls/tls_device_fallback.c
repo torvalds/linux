@@ -214,7 +214,7 @@ static void complete_skb(struct sk_buff *nskb, struct sk_buff *skb, int headln)
 
 static int fill_sg_in(struct scatterlist *sg_in,
 		      struct sk_buff *skb,
-		      struct tls_offload_context *ctx,
+		      struct tls_offload_context_tx *ctx,
 		      u64 *rcd_sn,
 		      s32 *sync_size,
 		      int *resync_sgs)
@@ -299,7 +299,7 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 				   s32 sync_size, u64 rcd_sn)
 {
 	int tcp_payload_offset = skb_transport_offset(skb) + tcp_hdrlen(skb);
-	struct tls_offload_context *ctx = tls_offload_ctx(tls_ctx);
+	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
 	int payload_len = skb->len - tcp_payload_offset;
 	void *buf, *iv, *aad, *dummy_buf;
 	struct aead_request *aead_req;
@@ -361,7 +361,7 @@ static struct sk_buff *tls_sw_fallback(struct sock *sk, struct sk_buff *skb)
 {
 	int tcp_payload_offset = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_offload_context *ctx = tls_offload_ctx(tls_ctx);
+	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
 	int payload_len = skb->len - tcp_payload_offset;
 	struct scatterlist *sg_in, sg_out[3];
 	struct sk_buff *nskb = NULL;
@@ -413,9 +413,10 @@ struct sk_buff *tls_validate_xmit_skb(struct sock *sk,
 
 	return tls_sw_fallback(sk, skb);
 }
+EXPORT_SYMBOL_GPL(tls_validate_xmit_skb);
 
 int tls_sw_fallback_init(struct sock *sk,
-			 struct tls_offload_context *offload_ctx,
+			 struct tls_offload_context_tx *offload_ctx,
 			 struct tls_crypto_info *crypto_info)
 {
 	const u8 *key;

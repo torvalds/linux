@@ -2,6 +2,7 @@
  * Common logic shared by IPv4 [ipmr] and IPv6 [ip6mr] implementation
  */
 
+#include <linux/rhashtable.h>
 #include <linux/mroute_base.h>
 
 /* Sets everything common except 'dev', since that is done under locking */

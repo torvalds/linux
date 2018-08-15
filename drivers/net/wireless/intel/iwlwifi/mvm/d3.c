@@ -1037,6 +1037,13 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			cpu_to_le32(IWL_WAKEUP_D3_CONFIG_FW_ERROR);
 #endif
 
+	/*
+	 * TODO: this is needed because the firmware is not stopping
+	 * the recording automatically before entering D3.  This can
+	 * be removed once the FW starts doing that.
+	 */
+	iwl_fw_dbg_stop_recording(&mvm->fwrt);
+
 	/* must be last -- this switches firmware state */
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
 	if (ret)

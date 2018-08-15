@@ -349,6 +349,11 @@ int cudbg_fill_meminfo(struct adapter *padap,
 	meminfo_buff->up_extmem2_hi = hi;
 
 	lo = t4_read_reg(padap, TP_PMM_RX_MAX_PAGE_A);
+	for (i = 0, meminfo_buff->free_rx_cnt = 0; i < 2; i++)
+		meminfo_buff->free_rx_cnt +=
+			FREERXPAGECOUNT_G(t4_read_reg(padap,
+						      TP_FLM_FREE_RX_CNT_A));
+
 	meminfo_buff->rx_pages_data[0] =  PMRXMAXPAGE_G(lo);
 	meminfo_buff->rx_pages_data[1] =
 		t4_read_reg(padap, TP_PMM_RX_PAGE_SIZE_A) >> 10;
@@ -356,6 +361,11 @@ int cudbg_fill_meminfo(struct adapter *padap,
 
 	lo = t4_read_reg(padap, TP_PMM_TX_MAX_PAGE_A);
 	hi = t4_read_reg(padap, TP_PMM_TX_PAGE_SIZE_A);
+	for (i = 0, meminfo_buff->free_tx_cnt = 0; i < 4; i++)
+		meminfo_buff->free_tx_cnt +=
+			FREETXPAGECOUNT_G(t4_read_reg(padap,
+						      TP_FLM_FREE_TX_CNT_A));
+
 	meminfo_buff->tx_pages_data[0] = PMTXMAXPAGE_G(lo);
 	meminfo_buff->tx_pages_data[1] =
 		hi >= (1 << 20) ? (hi >> 20) : (hi >> 10);
@@ -364,6 +374,8 @@ int cudbg_fill_meminfo(struct adapter *padap,
 	meminfo_buff->tx_pages_data[3] = 1 << PMTXNUMCHN_G(lo);
 
 	meminfo_buff->p_structs = t4_read_reg(padap, TP_CMM_MM_MAX_PSTRUCT_A);
+	meminfo_buff->p_structs_free_cnt =
+		FREEPSTRUCTCOUNT_G(t4_read_reg(padap, TP_FLM_FREE_PS_CNT_A));
 
 	for (i = 0; i < 4; i++) {
 		if (CHELSIO_CHIP_VERSION(padap->params.chip) > CHELSIO_T5)
@@ -1465,14 +1477,23 @@ int cudbg_collect_meminfo(struct cudbg_init *pdbg_init,
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
 	struct cudbg_meminfo *meminfo_buff;
+	struct cudbg_ver_hdr *ver_hdr;
 	int rc;
 
-	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(struct cudbg_meminfo),
+	rc = cudbg_get_buff(pdbg_init, dbg_buff,
+			    sizeof(struct cudbg_ver_hdr) +
+			    sizeof(struct cudbg_meminfo),
 			    &temp_buff);
 	if (rc)
 		return rc;
 
-	meminfo_buff = (struct cudbg_meminfo *)temp_buff.data;
+	ver_hdr = (struct cudbg_ver_hdr *)temp_buff.data;
+	ver_hdr->signature = CUDBG_ENTITY_SIGNATURE;
+	ver_hdr->revision = CUDBG_MEMINFO_REV;
+	ver_hdr->size = sizeof(struct cudbg_meminfo);
+
+	meminfo_buff = (struct cudbg_meminfo *)(temp_buff.data +
+						sizeof(*ver_hdr));
 	rc = cudbg_fill_meminfo(padap, meminfo_buff);
 	if (rc) {
 		cudbg_err->sys_err = rc;
@@ -2586,15 +2607,24 @@ int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
 	struct cudbg_ulptx_la *ulptx_la_buff;
+	struct cudbg_ver_hdr *ver_hdr;
 	u32 i, j;
 	int rc;
 
-	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(struct cudbg_ulptx_la),
+	rc = cudbg_get_buff(pdbg_init, dbg_buff,
+			    sizeof(struct cudbg_ver_hdr) +
+			    sizeof(struct cudbg_ulptx_la),
 			    &temp_buff);
 	if (rc)
 		return rc;
 
-	ulptx_la_buff = (struct cudbg_ulptx_la *)temp_buff.data;
+	ver_hdr = (struct cudbg_ver_hdr *)temp_buff.data;
+	ver_hdr->signature = CUDBG_ENTITY_SIGNATURE;
+	ver_hdr->revision = CUDBG_ULPTX_LA_REV;
+	ver_hdr->size = sizeof(struct cudbg_ulptx_la);
+
+	ulptx_la_buff = (struct cudbg_ulptx_la *)(temp_buff.data +
+						  sizeof(*ver_hdr));
 	for (i = 0; i < CUDBG_NUM_ULPTX; i++) {
 		ulptx_la_buff->rdptr[i] = t4_read_reg(padap,
 						      ULP_TX_LA_RDPTR_0_A +
@@ -2610,6 +2640,25 @@ int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
 				t4_read_reg(padap,
 					    ULP_TX_LA_RDDATA_0_A + 0x10 * i);
 	}
+
+	for (i = 0; i < CUDBG_NUM_ULPTX_ASIC_READ; i++) {
+		t4_write_reg(padap, ULP_TX_ASIC_DEBUG_CTRL_A, 0x1);
+		ulptx_la_buff->rdptr_asic[i] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_CTRL_A);
+		ulptx_la_buff->rddata_asic[i][0] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_0_A);
+		ulptx_la_buff->rddata_asic[i][1] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_1_A);
+		ulptx_la_buff->rddata_asic[i][2] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_2_A);
+		ulptx_la_buff->rddata_asic[i][3] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_3_A);
+		ulptx_la_buff->rddata_asic[i][4] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_4_A);
+		ulptx_la_buff->rddata_asic[i][5] =
+				t4_read_reg(padap, PM_RX_BASE_ADDR);
+	}
+
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 

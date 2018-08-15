@@ -52,6 +52,7 @@ hostprogs-y += xdp_adjust_tail
 hostprogs-y += xdpsock
 hostprogs-y += xdp_fwd
 hostprogs-y += task_fd_query
+hostprogs-y += xdp_sample_pkts
 
 # Libbpf dependencies
 LIBBPF = $(TOOLS_PATH)/lib/bpf/libbpf.a
@@ -104,9 +105,10 @@ xdp_rxq_info-objs := xdp_rxq_info_user.o
 syscall_tp-objs := bpf_load.o syscall_tp_user.o
 cpustat-objs := bpf_load.o cpustat_user.o
 xdp_adjust_tail-objs := xdp_adjust_tail_user.o
-xdpsock-objs := bpf_load.o xdpsock_user.o
-xdp_fwd-objs := bpf_load.o xdp_fwd_user.o
+xdpsock-objs := xdpsock_user.o
+xdp_fwd-objs := xdp_fwd_user.o
 task_fd_query-objs := bpf_load.o task_fd_query_user.o $(TRACE_HELPERS)
+xdp_sample_pkts-objs := xdp_sample_pkts_user.o $(TRACE_HELPERS)
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -163,6 +165,7 @@ always += xdp_adjust_tail_kern.o
 always += xdpsock_kern.o
 always += xdp_fwd_kern.o
 always += task_fd_query_kern.o
+always += xdp_sample_pkts_kern.o
 
 KBUILD_HOSTCFLAGS += -I$(objtree)/usr/include
 KBUILD_HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -179,6 +182,7 @@ HOSTCFLAGS_spintest_user.o += -I$(srctree)/tools/lib/bpf/
 HOSTCFLAGS_trace_event_user.o += -I$(srctree)/tools/lib/bpf/
 HOSTCFLAGS_sampleip_user.o += -I$(srctree)/tools/lib/bpf/
 HOSTCFLAGS_task_fd_query_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_xdp_sample_pkts_user.o += -I$(srctree)/tools/lib/bpf/
 
 KBUILD_HOSTLDLIBS		+= $(LIBBPF) -lelf
 HOSTLDLIBS_tracex4		+= -lrt
@@ -191,11 +195,23 @@ HOSTLDLIBS_xdpsock		+= -pthread
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
 LLC ?= llc
 CLANG ?= clang
+LLVM_OBJCOPY ?= llvm-objcopy
+BTF_PAHOLE ?= pahole
 
 # Detect that we're cross compiling and use the cross compiler
 ifdef CROSS_COMPILE
 HOSTCC = $(CROSS_COMPILE)gcc
 CLANG_ARCH_ARGS = -target $(ARCH)
+endif
+
+BTF_LLC_PROBE := $(shell $(LLC) -march=bpf -mattr=help 2>&1 | grep dwarfris)
+BTF_PAHOLE_PROBE := $(shell $(BTF_PAHOLE) --help 2>&1 | grep BTF)
+BTF_OBJCOPY_PROBE := $(shell $(LLVM_OBJCOPY) --help 2>&1 | grep -i 'usage.*llvm')
+
+ifneq ($(and $(BTF_LLC_PROBE),$(BTF_PAHOLE_PROBE),$(BTF_OBJCOPY_PROBE)),)
+	EXTRA_CFLAGS += -g
+	LLC_FLAGS += -mattr=dwarfris
+	DWARF2BTF = y
 endif
 
 # Trick to allow make to be run from this directory
@@ -256,4 +272,7 @@ $(obj)/%.o: $(src)/%.c
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \
 		-Wno-unknown-warning-option $(CLANG_ARCH_ARGS) \
-		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@
+		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf $(LLC_FLAGS) -filetype=obj -o $@
+ifeq ($(DWARF2BTF),y)
+	$(BTF_PAHOLE) -J $@
+endif

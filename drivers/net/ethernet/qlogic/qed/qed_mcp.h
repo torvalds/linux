@@ -840,6 +840,22 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf);
 
 /**
+ * @brief Read from sfp
+ *
+ *  @param p_hwfn - hw function
+ *  @param p_ptt  - PTT required for register access
+ *  @param port   - transceiver port
+ *  @param addr   - I2C address
+ *  @param offset - offset in sfp
+ *  @param len    - buffer length
+ *  @param p_buf  - buffer to read into
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_phy_sfp_read(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u32 port, u32 addr, u32 offset, u32 len, u8 *p_buf);
+
+/**
  * @brief indicates whether the MFW objects [under mcp_info] are accessible
  *
  * @param p_hwfn

@@ -239,6 +239,80 @@ mt76_dma_kick_queue(struct mt76_dev *dev, struct mt76_queue *q)
 	iowrite32(q->head, &q->regs->cpu_idx);
 }
 
+int mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+			  struct sk_buff *skb, struct mt76_wcid *wcid,
+			  struct ieee80211_sta *sta)
+{
+	struct mt76_queue_entry e;
+	struct mt76_txwi_cache *t;
+	struct mt76_queue_buf buf[32];
+	struct sk_buff *iter;
+	dma_addr_t addr;
+	int len;
+	u32 tx_info = 0;
+	int n, ret;
+
+	t = mt76_get_txwi(dev);
+	if (!t) {
+		ieee80211_free_txskb(dev->hw, skb);
+		return -ENOMEM;
+	}
+
+	dma_sync_single_for_cpu(dev->dev, t->dma_addr, sizeof(t->txwi),
+				DMA_TO_DEVICE);
+	ret = dev->drv->tx_prepare_skb(dev, &t->txwi, skb, q, wcid, sta,
+				       &tx_info);
+	dma_sync_single_for_device(dev->dev, t->dma_addr, sizeof(t->txwi),
+				   DMA_TO_DEVICE);
+	if (ret < 0)
+		goto free;
+
+	len = skb->len - skb->data_len;
+	addr = dma_map_single(dev->dev, skb->data, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev->dev, addr)) {
+		ret = -ENOMEM;
+		goto free;
+	}
+
+	n = 0;
+	buf[n].addr = t->dma_addr;
+	buf[n++].len = dev->drv->txwi_size;
+	buf[n].addr = addr;
+	buf[n++].len = len;
+
+	skb_walk_frags(skb, iter) {
+		if (n == ARRAY_SIZE(buf))
+			goto unmap;
+
+		addr = dma_map_single(dev->dev, iter->data, iter->len,
+				      DMA_TO_DEVICE);
+		if (dma_mapping_error(dev->dev, addr))
+			goto unmap;
+
+		buf[n].addr = addr;
+		buf[n++].len = iter->len;
+	}
+
+	if (q->queued + (n + 1) / 2 >= q->ndesc - 1)
+		goto unmap;
+
+	return dev->queue_ops->add_buf(dev, q, buf, n, tx_info, skb, t);
+
+unmap:
+	ret = -ENOMEM;
+	for (n--; n > 0; n--)
+		dma_unmap_single(dev->dev, buf[n].addr, buf[n].len,
+				 DMA_TO_DEVICE);
+
+free:
+	e.skb = skb;
+	e.txwi = t;
+	dev->drv->tx_complete_skb(dev, q, &e, true);
+	mt76_put_txwi(dev, t);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt76_dma_tx_queue_skb);
+
 static int
 mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q, bool napi)
 {
@@ -400,7 +474,7 @@ mt76_dma_rx_poll(struct napi_struct *napi, int budget)
 
 	do {
 		cur = mt76_dma_rx_process(dev, &dev->q_rx[qid], budget - done);
-		mt76_rx_poll_complete(dev, qid);
+		mt76_rx_poll_complete(dev, qid, napi);
 		done += cur;
 	} while (cur && done < budget);
 
@@ -436,6 +510,7 @@ static const struct mt76_queue_ops mt76_dma_ops = {
 	.init = mt76_dma_init,
 	.alloc = mt76_dma_alloc_queue,
 	.add_buf = mt76_dma_add_buf,
+	.tx_queue_skb = mt76_dma_tx_queue_skb,
 	.tx_cleanup = mt76_dma_tx_cleanup,
 	.rx_reset = mt76_dma_rx_reset,
 	.kick = mt76_dma_kick_queue,

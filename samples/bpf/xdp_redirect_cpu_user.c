@@ -22,7 +22,7 @@ static const char *__doc__ =
 #define MAX_CPUS 64 /* WARNING - sync with _kern.c */
 
 /* How many xdp_progs are defined in _kern.c */
-#define MAX_PROG 5
+#define MAX_PROG 6
 
 /* Wanted to get rid of bpf_load.h and fake-"libbpf.h" (and instead
  * use bpf/libbpf.h), but cannot as (currently) needed for XDP
@@ -567,7 +567,7 @@ int main(int argc, char **argv)
 	int added_cpus = 0;
 	int longindex = 0;
 	int interval = 2;
-	int prog_num = 0;
+	int prog_num = 5;
 	int add_cpu = -1;
 	__u32 qsize;
 	int opt;

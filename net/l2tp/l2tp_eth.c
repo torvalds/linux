@@ -199,7 +199,6 @@ static void l2tp_eth_delete(struct l2tp_session *session)
 	}
 }
 
-#if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
 static void l2tp_eth_show(struct seq_file *m, void *arg)
 {
 	struct l2tp_session *session = arg;
@@ -219,29 +218,25 @@ static void l2tp_eth_show(struct seq_file *m, void *arg)
 
 	dev_put(dev);
 }
-#endif
 
 static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 				struct l2tp_session *session,
 				struct net_device *dev)
 {
 	unsigned int overhead = 0;
-	struct dst_entry *dst;
 	u32 l3_overhead = 0;
+	u32 mtu;
 
 	/* if the encap is UDP, account for UDP header size */
 	if (tunnel->encap == L2TP_ENCAPTYPE_UDP) {
 		overhead += sizeof(struct udphdr);
 		dev->needed_headroom += sizeof(struct udphdr);
 	}
-	if (session->mtu != 0) {
-		dev->mtu = session->mtu;
-		dev->needed_headroom += session->hdr_len;
-		return;
-	}
+
 	lock_sock(tunnel->sock);
 	l3_overhead = kernel_sock_ip_overhead(tunnel->sock);
 	release_sock(tunnel->sock);
+
 	if (l3_overhead == 0) {
 		/* L3 Overhead couldn't be identified, this could be
 		 * because tunnel->sock was NULL or the socket's
@@ -255,18 +250,12 @@ static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 	 */
 	overhead += session->hdr_len + ETH_HLEN + l3_overhead;
 
-	/* If PMTU discovery was enabled, use discovered MTU on L2TP device */
-	dst = sk_dst_get(tunnel->sock);
-	if (dst) {
-		/* dst_mtu will use PMTU if found, else fallback to intf MTU */
-		u32 pmtu = dst_mtu(dst);
+	mtu = l2tp_tunnel_dst_mtu(tunnel) - overhead;
+	if (mtu < dev->min_mtu || mtu > dev->max_mtu)
+		dev->mtu = ETH_DATA_LEN - overhead;
+	else
+		dev->mtu = mtu;
 
-		if (pmtu != 0)
-			dev->mtu = pmtu;
-		dst_release(dst);
-	}
-	session->mtu = dev->mtu - overhead;
-	dev->mtu = session->mtu;
 	dev->needed_headroom += session->hdr_len;
 }
 
@@ -314,9 +303,8 @@ static int l2tp_eth_create(struct net *net, struct l2tp_tunnel *tunnel,
 
 	session->recv_skb = l2tp_eth_dev_recv;
 	session->session_close = l2tp_eth_delete;
-#if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
-	session->show = l2tp_eth_show;
-#endif
+	if (IS_ENABLED(CONFIG_L2TP_DEBUGFS))
+		session->show = l2tp_eth_show;
 
 	spriv = l2tp_session_priv(session);
 

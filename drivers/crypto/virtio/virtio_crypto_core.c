@@ -146,7 +146,7 @@ static void virtcrypto_clean_affinity(struct virtio_crypto *vi, long hcpu)
 
 	if (vi->affinity_hint_set) {
 		for (i = 0; i < vi->max_data_queues; i++)
-			virtqueue_set_affinity(vi->data_vq[i].vq, -1);
+			virtqueue_set_affinity(vi->data_vq[i].vq, NULL);
 
 		vi->affinity_hint_set = false;
 	}
@@ -173,7 +173,7 @@ static void virtcrypto_set_affinity(struct virtio_crypto *vcrypto)
 	 *
 	 */
 	for_each_online_cpu(cpu) {
-		virtqueue_set_affinity(vcrypto->data_vq[i].vq, cpu);
+		virtqueue_set_affinity(vcrypto->data_vq[i].vq, cpumask_of(cpu));
 		if (++i >= vcrypto->max_data_queues)
 			break;
 	}
