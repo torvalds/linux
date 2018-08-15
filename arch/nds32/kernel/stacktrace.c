@@ -4,6 +4,7 @@
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
+#include <linux/ftrace.h>
 
 void save_stack_trace(struct stack_trace *trace)
 {
@@ -16,6 +17,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	unsigned long *fpn;
 	int skip = trace->skip;
 	int savesched;
+	int graph_idx = 0;
 
 	if (tsk == current) {
 		__asm__ __volatile__("\tori\t%0, $fp, #0\n":"=r"(fpn));
@@ -33,6 +35,8 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 		fpp = fpn[FP_OFFSET];
 		if (!__kernel_text_address(lpp))
 			break;
+		else
+			lpp = ftrace_graph_ret_addr(tsk, &graph_idx, lpp, NULL);
 
 		if (savesched || !in_sched_functions(lpp)) {
 			if (skip) {

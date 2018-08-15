@@ -8,6 +8,7 @@
 #include <linux/kdebug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
+#include <linux/ftrace.h>
 
 #include <asm/proc-fns.h>
 #include <asm/unistd.h>
@@ -94,28 +95,6 @@ static void dump_instr(struct pt_regs *regs)
 	set_fs(fs);
 }
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-#include <linux/ftrace.h>
-static void
-get_real_ret_addr(unsigned long *addr, struct task_struct *tsk, int *graph)
-{
-	if (*addr == (unsigned long)return_to_handler) {
-		int index = tsk->curr_ret_stack;
-
-		if (tsk->ret_stack && index >= *graph) {
-			index -= *graph;
-			*addr = tsk->ret_stack[index].ret;
-			(*graph)++;
-		}
-	}
-}
-#else
-static inline void
-get_real_ret_addr(unsigned long *addr, struct task_struct *tsk, int *graph)
-{
-}
-#endif
-
 #define LOOP_TIMES (100)
 static void __dump(struct task_struct *tsk, unsigned long *base_reg)
 {
@@ -126,7 +105,8 @@ static void __dump(struct task_struct *tsk, unsigned long *base_reg)
 		while (!kstack_end(base_reg)) {
 			ret_addr = *base_reg++;
 			if (__kernel_text_address(ret_addr)) {
-				get_real_ret_addr(&ret_addr, tsk, &graph);
+				ret_addr = ftrace_graph_ret_addr(
+						tsk, &graph, ret_addr, NULL);
 				print_ip_sym(ret_addr);
 			}
 			if (--cnt < 0)
@@ -145,7 +125,9 @@ static void __dump(struct task_struct *tsk, unsigned long *base_reg)
 			next_fp = base_reg[FP_OFFSET];
 #endif
 			if (__kernel_text_address(ret_addr)) {
-				get_real_ret_addr(&ret_addr, tsk, &graph);
+
+				ret_addr = ftrace_graph_ret_addr(
+						tsk, &graph, ret_addr, NULL);
 				print_ip_sym(ret_addr);
 			}
 			if (--cnt < 0)
