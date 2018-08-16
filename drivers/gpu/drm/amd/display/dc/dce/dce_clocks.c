@@ -30,7 +30,7 @@
 #include "bios_parser_interface.h"
 #include "dc.h"
 #include "dmcu.h"
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn_calcs.h"
 #endif
 #include "core_types.h"
@@ -484,7 +484,7 @@ static void dce12_update_clocks(struct dccg *dccg,
 	}
 }
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 static int dcn1_determine_dppclk_threshold(struct dccg *dccg, struct dc_clocks *new_clocks)
 {
 	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
@@ -674,7 +674,7 @@ static void dce_update_clocks(struct dccg *dccg,
 	}
 }
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 static const struct display_clock_funcs dcn1_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.set_dispclk = dce112_set_clock,
@@ -829,7 +829,7 @@ struct dccg *dce120_dccg_create(struct dc_context *ctx)
 	return &clk_dce->base;
 }
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 {
 	struct dc_debug_options *debug = &ctx->dc->debug;
