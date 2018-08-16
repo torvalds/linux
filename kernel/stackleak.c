@@ -60,3 +60,31 @@ asmlinkage void stackleak_erase(void)
 	current->lowest_stack = current_top_of_stack() - THREAD_SIZE/64;
 }
 
+void __used stackleak_track_stack(void)
+{
+	/*
+	 * N.B. stackleak_erase() fills the kernel stack with the poison value,
+	 * which has the register width. That code assumes that the value
+	 * of 'lowest_stack' is aligned on the register width boundary.
+	 *
+	 * That is true for x86 and x86_64 because of the kernel stack
+	 * alignment on these platforms (for details, see 'cc_stack_align' in
+	 * arch/x86/Makefile). Take care of that when you port STACKLEAK to
+	 * new platforms.
+	 */
+	unsigned long sp = (unsigned long)&sp;
+
+	/*
+	 * Having CONFIG_STACKLEAK_TRACK_MIN_SIZE larger than
+	 * STACKLEAK_SEARCH_DEPTH makes the poison search in
+	 * stackleak_erase() unreliable. Let's prevent that.
+	 */
+	BUILD_BUG_ON(CONFIG_STACKLEAK_TRACK_MIN_SIZE > STACKLEAK_SEARCH_DEPTH);
+
+	if (sp < current->lowest_stack &&
+	    sp >= (unsigned long)task_stack_page(current) +
+						sizeof(unsigned long)) {
+		current->lowest_stack = sp;
+	}
+}
+EXPORT_SYMBOL(stackleak_track_stack);
