@@ -62,16 +62,6 @@
 /* Hardware limit for SDMA packet size */
 #define MAX_SDMA_PKT_SIZE ((16 * 1024) - 1)
 
-#define SDMA_TXREQ_S_OK        0
-#define SDMA_TXREQ_S_SENDERROR 1
-#define SDMA_TXREQ_S_ABORTED   2
-#define SDMA_TXREQ_S_SHUTDOWN  3
-
-/* flags bits */
-#define SDMA_TXREQ_F_URGENT       0x0001
-#define SDMA_TXREQ_F_AHG_COPY     0x0002
-#define SDMA_TXREQ_F_USE_AHG      0x0004
-
 #define SDMA_MAP_NONE          0
 #define SDMA_MAP_SINGLE        1
 #define SDMA_MAP_PAGE          2
