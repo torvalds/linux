@@ -621,6 +621,8 @@ struct rvt_sge_state;
 #define HFI1_RCVCTRL_NO_RHQ_DROP_DIS 0x8000
 #define HFI1_RCVCTRL_NO_EGR_DROP_ENB 0x10000
 #define HFI1_RCVCTRL_NO_EGR_DROP_DIS 0x20000
+#define HFI1_RCVCTRL_URGENT_ENB 0x40000
+#define HFI1_RCVCTRL_URGENT_DIS 0x80000
 
 /* partition enforcement flags */
 #define HFI1_PART_ENFORCE_IN	0x1

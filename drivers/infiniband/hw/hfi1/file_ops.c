@@ -639,9 +639,6 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 
 	hfi1_cdbg(PROC, "closing ctxt %u:%u", uctxt->ctxt, fdata->subctxt);
 
-	set_intr_bits(dd, IS_RCVURGENT_START + uctxt->ctxt,
-		      IS_RCVURGENT_START + uctxt->ctxt, false);
-
 	flush_wc();
 	/* drain user sdma queue */
 	hfi1_user_sdma_free_queues(fdata, uctxt);
@@ -684,7 +681,8 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 		     HFI1_RCVCTRL_TAILUPD_DIS |
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
 		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
-		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt);
+		     HFI1_RCVCTRL_NO_EGR_DROP_DIS |
+		     HFI1_RCVCTRL_URGENT_DIS, uctxt);
 	/* Clear the context's J_KEY */
 	hfi1_clear_ctxt_jkey(dd, uctxt);
 	/*
@@ -1099,6 +1097,7 @@ static void user_init(struct hfi1_ctxtdata *uctxt)
 	hfi1_set_ctxt_jkey(uctxt->dd, uctxt, uctxt->jkey);
 
 	rcvctrl_ops = HFI1_RCVCTRL_CTXT_ENB;
+	rcvctrl_ops |= HFI1_RCVCTRL_URGENT_ENB;
 	if (HFI1_CAP_UGET_MASK(uctxt->flags, HDRSUPP))
 		rcvctrl_ops |= HFI1_RCVCTRL_TIDFLOW_ENB;
 	/*
@@ -1219,10 +1218,6 @@ static int setup_base_ctxt(struct hfi1_filedata *fd,
 	/* Now that the context is set up, the fd can get a reference. */
 	fd->uctxt = uctxt;
 	hfi1_rcd_get(uctxt);
-
-	/* Enable the Urgent IRQ for this user context */
-	set_intr_bits(dd, IS_RCVURGENT_START + uctxt->ctxt,
-		      IS_RCVURGENT_START + uctxt->ctxt, true);
 
 done:
 	if (uctxt->subctxt_cnt) {
