@@ -1786,8 +1786,11 @@ static int sock_map_delete_elem(struct bpf_map *map, void *key)
 	if (!psock)
 		goto out;
 
-	if (psock->bpf_parse)
+	if (psock->bpf_parse) {
+		write_lock_bh(&sock->sk_callback_lock);
 		smap_stop_sock(psock, sock);
+		write_unlock_bh(&sock->sk_callback_lock);
+	}
 	smap_list_map_remove(psock, &stab->sock_map[k]);
 	smap_release_sock(psock, sock);
 out:
