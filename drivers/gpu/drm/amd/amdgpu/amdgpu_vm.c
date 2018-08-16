@@ -369,7 +369,6 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	uint64_t addr;
 	int r;
 
-	addr = amdgpu_bo_gpu_offset(bo);
 	entries = amdgpu_bo_size(bo) / 8;
 
 	if (pte_support_ats) {
@@ -401,6 +400,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
+	addr = amdgpu_bo_gpu_offset(bo);
 	if (ats_entries) {
 		uint64_t ats_value;
 
