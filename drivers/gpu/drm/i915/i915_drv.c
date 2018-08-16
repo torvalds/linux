@@ -1281,6 +1281,8 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	 */
 	if (INTEL_INFO(dev_priv)->num_pipes)
 		drm_kms_helper_poll_init(dev);
+
+	intel_runtime_pm_enable(dev_priv);
 }
 
 /**
@@ -1289,6 +1291,8 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
  */
 static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 {
+	intel_runtime_pm_disable(dev_priv);
+
 	intel_fbdev_unregister(dev_priv);
 	intel_audio_deinit(dev_priv);
 
@@ -1366,16 +1370,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_fini;
 
 	pci_set_drvdata(pdev, &dev_priv->drm);
-	/*
-	 * Disable the system suspend direct complete optimization, which can
-	 * leave the device suspended skipping the driver's suspend handlers
-	 * if the device was already runtime suspended. This is needed due to
-	 * the difference in our runtime and system suspend sequence and
-	 * becaue the HDA driver may require us to enable the audio power
-	 * domain during system suspend.
-	 */
-	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NEVER_SKIP);
-
 	ret = i915_driver_init_early(dev_priv, ent);
 	if (ret < 0)
 		goto out_pci_disable;
@@ -1408,8 +1402,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i915_driver_register(dev_priv);
 
-	intel_runtime_pm_enable(dev_priv);
-
 	intel_init_ipc(dev_priv);
 
 	intel_runtime_pm_put(dev_priv);
@@ -1441,12 +1433,12 @@ void i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+
 	i915_driver_unregister(dev_priv);
 
 	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
-
-	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
 	drm_atomic_helper_shutdown(dev);
 
@@ -1474,6 +1466,7 @@ void i915_driver_unload(struct drm_device *dev)
 	i915_driver_cleanup_mmio(dev_priv);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+	WARN_ON(atomic_read(&dev_priv->runtime_pm.wakeref_count));
 }
 
 static void i915_driver_release(struct drm_device *dev)

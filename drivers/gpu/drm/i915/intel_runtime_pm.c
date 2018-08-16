@@ -3793,29 +3793,19 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
  */
 void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv)
 {
-	struct device *kdev = &dev_priv->drm.pdev->dev;
-
 	/*
 	 * The i915.ko module is still not prepared to be loaded when
 	 * the power well is not enabled, so just enable it in case
 	 * we're going to unload/reload.
-	 * The following also reacquires the RPM reference the core passed
-	 * to the driver during loading, which is dropped in
-	 * intel_runtime_pm_enable(). We have to hand back the control of the
-	 * device to the core with this reference held.
 	 */
-	intel_display_set_init_power(dev_priv, true);
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+
+	/* Keep the power well enabled, but cancel its rpm wakeref. */
+	intel_runtime_pm_put(dev_priv);
 
 	/* Remove the refcount we took to keep power well support disabled. */
 	if (!i915_modparams.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
-
-	/*
-	 * Remove the refcount we took in intel_runtime_pm_enable() in case
-	 * the platform doesn't support runtime PM.
-	 */
-	if (!HAS_RUNTIME_PM(dev_priv))
-		pm_runtime_put(kdev);
 }
 
 /**
@@ -4048,6 +4038,16 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct device *kdev = &pdev->dev;
 
+	/*
+	 * Disable the system suspend direct complete optimization, which can
+	 * leave the device suspended skipping the driver's suspend handlers
+	 * if the device was already runtime suspended. This is needed due to
+	 * the difference in our runtime and system suspend sequence and
+	 * becaue the HDA driver may require us to enable the audio power
+	 * domain during system suspend.
+	 */
+	dev_pm_set_driver_flags(kdev, DPM_FLAG_NEVER_SKIP);
+
 	pm_runtime_set_autosuspend_delay(kdev, 10000); /* 10s */
 	pm_runtime_mark_last_busy(kdev);
 
@@ -4073,4 +4073,19 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	 * intel_power_domains_fini().
 	 */
 	pm_runtime_put_autosuspend(kdev);
+}
+
+void intel_runtime_pm_disable(struct drm_i915_private *dev_priv)
+{
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
+
+	/* Transfer rpm ownership back to core */
+	WARN(pm_runtime_get_sync(&dev_priv->drm.pdev->dev) < 0,
+	     "Failed to pass rpm ownership back to core\n");
+
+	pm_runtime_dont_use_autosuspend(kdev);
+
+	if (!HAS_RUNTIME_PM(dev_priv))
+		pm_runtime_put(kdev);
 }
