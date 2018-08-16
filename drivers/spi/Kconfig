@@ -596,6 +596,12 @@ config SPI_SIRF
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
 
+config SPI_SPRD
+	tristate "Spreadtrum SPI controller"
+	depends on ARCH_SPRD || COMPILE_TEST
+	help
+	  SPI driver for Spreadtrum SoCs.
+
 config SPI_SPRD_ADI
 	tristate "Spreadtrum ADI controller"
 	depends on ARCH_SPRD || COMPILE_TEST
