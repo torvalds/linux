@@ -61,11 +61,6 @@
  */
 
 /*
- * Code to adjust PCIe capabilities.
- */
-static void tune_pcie_caps(struct hfi1_devdata *);
-
-/*
  * Do all the common PCIe setup and initialization.
  * devdata is not yet allocated, and is not allocated until after this
  * routine returns success.  Therefore dd_dev_err() can't be used for error
@@ -359,8 +354,6 @@ int request_msix(struct hfi1_devdata *dd, u32 msireq)
 		return nvec;
 	}
 
-	tune_pcie_caps(dd);
-
 	return nvec;
 }
 
@@ -479,14 +472,19 @@ error:
  * Check and optionally adjust them to maximize our throughput.
  */
 static int hfi1_pcie_caps;
-module_param_named(pcie_caps, hfi1_pcie_caps, int, S_IRUGO);
+module_param_named(pcie_caps, hfi1_pcie_caps, int, 0444);
 MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
 
 uint aspm_mode = ASPM_MODE_DISABLED;
-module_param_named(aspm, aspm_mode, uint, S_IRUGO);
+module_param_named(aspm, aspm_mode, uint, 0444);
 MODULE_PARM_DESC(aspm, "PCIe ASPM: 0: disable, 1: enable, 2: dynamic");
 
-static void tune_pcie_caps(struct hfi1_devdata *dd)
+/**
+ * tune_pcie_caps() - Code to adjust PCIe capabilities.
+ * @dd: Valid device data structure
+ *
+ */
+void tune_pcie_caps(struct hfi1_devdata *dd)
 {
 	struct pci_dev *parent;
 	u16 rc_mpss, rc_mps, ep_mpss, ep_mps;

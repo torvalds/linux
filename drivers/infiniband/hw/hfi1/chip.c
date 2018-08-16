@@ -15123,6 +15123,12 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret)
 		goto bail_cleanup;
 
+	/*
+	 * This should probably occur in hfi1_pcie_init(), but historically
+	 * occurs after the do_pcie_gen3_transition() code.
+	 */
+	tune_pcie_caps(dd);
+
 	/* start setting dd values and adjusting CSRs */
 	init_early_variables(dd);
 
