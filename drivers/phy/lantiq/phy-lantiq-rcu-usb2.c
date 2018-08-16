@@ -196,10 +196,8 @@ static int ltq_rcu_usb2_of_parse(struct ltq_rcu_usb2_priv *priv,
 	}
 
 	priv->phy_reset = devm_reset_control_get_optional(dev, "phy");
-	if (IS_ERR(priv->phy_reset))
-		return PTR_ERR(priv->phy_reset);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->phy_reset);
 }
 
 static int ltq_rcu_usb2_phy_probe(struct platform_device *pdev)
