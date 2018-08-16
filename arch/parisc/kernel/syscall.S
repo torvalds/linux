@@ -108,12 +108,8 @@ linux_gateway_entry:
 	mtsp	%r0,%sr6			/* get kernel space into sr6 */
 
 #ifdef CONFIG_64BIT
-	/* for now we can *always* set the W bit on entry to the syscall
-	 * since we don't support wide userland processes.  We could
-	 * also save the current SM other than in r0 and restore it on
-	 * exit from the syscall, and also use that value to know
-	 * whether to do narrow or wide syscalls. -PB
-	 */
+	/* Store W bit on entry to the syscall in case it's a wide userland
+	 * process. */
 	ssm	PSW_SM_W, %r1
 	extrd,u	%r1,PSW_W_BIT,1,%r1
 	/* sp must be aligned on 4, so deposit the W bit setting into
@@ -478,16 +474,13 @@ tracesys_sigexit:
 lws_start:
 
 #ifdef CONFIG_64BIT
-	/* FIXME: If we are a 64-bit kernel just
-	 *        turn this on unconditionally.
-	 */
 	ssm	PSW_SM_W, %r1
 	extrd,u	%r1,PSW_W_BIT,1,%r1
 	/* sp must be aligned on 4, so deposit the W bit setting into
 	 * the bottom of sp temporarily */
 	or,ev	%r1,%r30,%r30
 
-	/* Clip LWS number to a 32-bit value always */
+	/* Clip LWS number to a 32-bit value for 32-bit processes */
 	depdi	0, 31, 32, %r20
 #endif	
 
