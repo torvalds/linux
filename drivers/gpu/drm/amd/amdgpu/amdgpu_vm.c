@@ -183,6 +183,22 @@ static unsigned amdgpu_vm_num_entries(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_num_ats_entries - return the number of ATS entries in the root PD
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns:
+ * The number of entries in the root page directory which needs the ATS setting.
+ */
+static unsigned amdgpu_vm_num_ats_entries(struct amdgpu_device *adev)
+{
+	unsigned shift;
+
+	shift = amdgpu_vm_level_shift(adev, adev->vm_manager.root_level);
+	return AMDGPU_GMC_HOLE_START >> (shift + AMDGPU_GPU_PAGE_SHIFT);
+}
+
+/**
  * amdgpu_vm_entries_mask - the mask to get the entry number of a PD/PT
  *
  * @adev: amdgpu_device pointer
@@ -747,8 +763,6 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
  * @adev: amdgpu_device pointer
  * @vm: VM to clear BO from
  * @bo: BO to clear
- * @level: level this BO is at
- * @pte_support_ats: indicate ATS support from PTE
  *
  * Root PD needs to be reserved when calling this.
  *
@@ -756,10 +770,12 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
  * 0 on success, errno otherwise.
  */
 static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
-			      struct amdgpu_vm *vm, struct amdgpu_bo *bo,
-			      unsigned level, bool pte_support_ats)
+			      struct amdgpu_vm *vm,
+			      struct amdgpu_bo *bo)
 {
 	struct ttm_operation_ctx ctx = { true, false };
+	unsigned level = adev->vm_manager.root_level;
+	struct amdgpu_bo *ancestor = bo;
 	struct dma_fence *fence = NULL;
 	unsigned entries, ats_entries;
 	struct amdgpu_ring *ring;
@@ -767,21 +783,35 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	uint64_t addr;
 	int r;
 
-	entries = amdgpu_bo_size(bo) / 8;
+	/* Figure out our place in the hierarchy */
+	if (ancestor->parent) {
+		++level;
+		while (ancestor->parent->parent) {
+			++level;
+			ancestor = ancestor->parent;
+		}
+	}
 
-	if (pte_support_ats) {
-		if (level == adev->vm_manager.root_level) {
-			ats_entries = amdgpu_vm_level_shift(adev, level);
-			ats_entries += AMDGPU_GPU_PAGE_SHIFT;
-			ats_entries = AMDGPU_GMC_HOLE_START >> ats_entries;
-			ats_entries = min(ats_entries, entries);
-			entries -= ats_entries;
+	entries = amdgpu_bo_size(bo) / 8;
+	if (!vm->pte_support_ats) {
+		ats_entries = 0;
+
+	} else if (!bo->parent) {
+		ats_entries = amdgpu_vm_num_ats_entries(adev);
+		ats_entries = min(ats_entries, entries);
+		entries -= ats_entries;
+
+	} else {
+		struct amdgpu_vm_pt *pt;
+
+		pt = container_of(ancestor->vm_bo, struct amdgpu_vm_pt, base);
+		ats_entries = amdgpu_vm_num_ats_entries(adev);
+		if ((pt - vm->root.entries) >= ats_entries) {
+			ats_entries = 0;
 		} else {
 			ats_entries = entries;
 			entries = 0;
 		}
-	} else {
-		ats_entries = 0;
 	}
 
 	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
@@ -908,7 +938,6 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 {
 	struct amdgpu_vm_pt_cursor cursor;
 	struct amdgpu_bo *pt;
-	bool ats = false;
 	uint64_t eaddr;
 	int r;
 
@@ -917,9 +946,6 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	eaddr = saddr + size - 1;
-
-	if (vm->pte_support_ats)
-		ats = saddr < AMDGPU_GMC_HOLE_START;
 
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
@@ -969,7 +995,7 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 
 		amdgpu_vm_bo_base_init(&entry->base, vm, pt);
 
-		r = amdgpu_vm_clear_bo(adev, vm, pt, cursor.level, ats);
+		r = amdgpu_vm_clear_bo(adev, vm, pt);
 		if (r)
 			goto error_free_pt;
 	}
@@ -3044,9 +3070,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	amdgpu_vm_bo_base_init(&vm->root.base, vm, root);
 
-	r = amdgpu_vm_clear_bo(adev, vm, root,
-			       adev->vm_manager.root_level,
-			       vm->pte_support_ats);
+	r = amdgpu_vm_clear_bo(adev, vm, root);
 	if (r)
 		goto error_unreserve;
 
@@ -3141,9 +3165,8 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, uns
 	 * changing any other state, in case it fails.
 	 */
 	if (pte_support_ats != vm->pte_support_ats) {
-		r = amdgpu_vm_clear_bo(adev, vm, vm->root.base.bo,
-			       adev->vm_manager.root_level,
-			       pte_support_ats);
+		vm->pte_support_ats = pte_support_ats;
+		r = amdgpu_vm_clear_bo(adev, vm, vm->root.base.bo);
 		if (r)
 			goto free_idr;
 	}
@@ -3151,7 +3174,6 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, uns
 	/* Update VM state */
 	vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
 				    AMDGPU_VM_USE_CPU_FOR_COMPUTE);
-	vm->pte_support_ats = pte_support_ats;
 	DRM_DEBUG_DRIVER("VM update mode is %s\n",
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
 	WARN_ONCE((vm->use_cpu_for_update && !amdgpu_gmc_vram_full_visible(&adev->gmc)),
