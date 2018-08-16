@@ -3716,6 +3716,8 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	cmn->desc->ops->disable(dev_priv, cmn);
 }
 
+static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
+
 /**
  * intel_power_domains_init_hw - initialize hardware power domain state
  * @dev_priv: i915 device instance
@@ -3767,6 +3769,8 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 	intel_power_domains_sync_hw(dev_priv);
 	power_domains->initializing = false;
+
+	intel_power_domains_verify_state(dev_priv);
 }
 
 /**
@@ -3788,6 +3792,8 @@ void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv)
 	/* Remove the refcount we took to keep power well support disabled. */
 	if (!i915_modparams.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	intel_power_domains_verify_state(dev_priv);
 }
 
 /**
@@ -3805,6 +3811,8 @@ void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv)
 void intel_power_domains_enable(struct drm_i915_private *dev_priv)
 {
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	intel_power_domains_verify_state(dev_priv);
 }
 
 /**
@@ -3817,6 +3825,8 @@ void intel_power_domains_enable(struct drm_i915_private *dev_priv)
 void intel_power_domains_disable(struct drm_i915_private *dev_priv)
 {
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+
+	intel_power_domains_verify_state(dev_priv);
 }
 
 /**
@@ -3845,15 +3855,19 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
 	 * firmware was inactive.
 	 */
 	if (!IS_GEN9_LP(dev_priv) && suspend_mode == I915_DRM_SUSPEND_IDLE &&
-	    dev_priv->csr.dmc_payload != NULL)
+	    dev_priv->csr.dmc_payload != NULL) {
+		intel_power_domains_verify_state(dev_priv);
 		return;
+	}
 
 	/*
 	 * Even if power well support was disabled we still want to disable
 	 * power wells if power domains must be deinitialized for suspend.
 	 */
-	if (!i915_modparams.disable_power_well)
+	if (!i915_modparams.disable_power_well) {
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+		intel_power_domains_verify_state(dev_priv);
+	}
 
 	if (IS_ICELAKE(dev_priv))
 		icl_display_core_uninit(dev_priv);
@@ -3884,12 +3898,14 @@ void intel_power_domains_resume(struct drm_i915_private *dev_priv)
 	if (power_domains->display_core_suspended) {
 		intel_power_domains_init_hw(dev_priv, true);
 		power_domains->display_core_suspended = false;
-
-		return;
+	} else {
+		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 	}
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+	intel_power_domains_verify_state(dev_priv);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 
 static void intel_power_domains_dump_info(struct drm_i915_private *dev_priv)
 {
@@ -3919,7 +3935,7 @@ static void intel_power_domains_dump_info(struct drm_i915_private *dev_priv)
  * acquiring reference counts for any power wells in use and disabling the
  * ones left on by BIOS but not required by any active output.
  */
-void intel_power_domains_verify_state(struct drm_i915_private *dev_priv)
+static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
@@ -3973,6 +3989,14 @@ void intel_power_domains_verify_state(struct drm_i915_private *dev_priv)
 
 	mutex_unlock(&power_domains->lock);
 }
+
+#else
+
+static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv)
+{
+}
+
+#endif
 
 /**
  * intel_runtime_pm_get - grab a runtime pm reference

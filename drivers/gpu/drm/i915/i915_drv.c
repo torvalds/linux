@@ -1331,6 +1331,8 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 		DRM_INFO("DRM_I915_DEBUG enabled\n");
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		DRM_INFO("DRM_I915_DEBUG_GEM enabled\n");
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM))
+		DRM_INFO("DRM_I915_DEBUG_RUNTIME_PM enabled\n");
 }
 
 /**

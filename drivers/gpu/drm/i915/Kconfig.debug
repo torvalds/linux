@@ -30,6 +30,7 @@ config DRM_I915_DEBUG
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
+	select DRM_I915_DEBUG_RUNTIME_PM
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -167,3 +168,14 @@ config DRM_I915_DEBUG_VBLANK_EVADE
 	  the vblank.
 
 	  If in doubt, say "N".
+
+config DRM_I915_DEBUG_RUNTIME_PM
+	bool "Enable extra state checking for runtime PM"
+	depends on DRM_I915
+	default n
+	help
+	  Choose this option to turn on extra state checking for the
+	  runtime PM functionality. This may introduce overhead during
+	  driver loading, suspend and resume operations.
+
+	  If in doubt, say "N"
