@@ -1013,5 +1013,9 @@
 			     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&{/cpus/cpu@0}>,
+				     <&{/cpus/cpu@1}>,
+				     <&{/cpus/cpu@2}>,
+				     <&{/cpus/cpu@3}>;
 	};
 };
