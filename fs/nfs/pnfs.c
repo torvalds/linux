@@ -1982,15 +1982,6 @@ lookup_again:
 				lseg = NULL;
 			break;
 		case -ERECALLCONFLICT:
-			/* Huh? We hold no layouts, how is there a recall? */
-			if (first) {
-				lseg = NULL;
-				break;
-			}
-			/* Destroy the existing layout and start over */
-			if (time_after(jiffies, giveup))
-				pnfs_destroy_layout(NFS_I(ino));
-			/* Fallthrough */
 		case -EAGAIN:
 			break;
 		default:
