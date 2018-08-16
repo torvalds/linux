@@ -46,8 +46,6 @@
 
 #define MLX5E_REP_PARAMS_LOG_SQ_SIZE \
 	max(0x6, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)
-#define MLX5E_REP_PARAMS_LOG_RQ_SIZE \
-	max(0x6, MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE)
 
 static const char mlx5e_rep_driver_name[] = "mlx5e_rep";
 
@@ -934,14 +932,15 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 	params->hard_mtu    = MLX5E_ETH_HARD_MTU;
 	params->sw_mtu      = mtu;
 	params->log_sq_size = MLX5E_REP_PARAMS_LOG_SQ_SIZE;
-	params->rq_wq_type  = MLX5_WQ_TYPE_CYCLIC;
-	params->log_rq_mtu_frames = MLX5E_REP_PARAMS_LOG_RQ_SIZE;
 
+	/* RQ */
+	mlx5e_build_rq_params(mdev, params);
+
+	/* CQ moderation params */
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(params, cq_period_mode);
 
 	params->num_tc                = 1;
-	params->lro_wqe_sz            = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 }
@@ -1077,7 +1076,7 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 	.max_nch		= mlx5e_get_rep_max_num_channels,
 	.update_carrier		= NULL,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
-	.rx_handlers.handle_rx_cqe_mpwqe = NULL /* Not supported */,
+	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
 	.max_tc			= 1,
 };
 
