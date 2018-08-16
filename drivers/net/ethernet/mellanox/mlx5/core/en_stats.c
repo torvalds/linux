@@ -848,7 +848,7 @@ static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
 
 #define NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS	ARRAY_SIZE(pport_per_prio_traffic_stats_desc)
 
-static int mlx5e_grp_per_prio_traffic_get_num_stats(struct mlx5e_priv *priv)
+static int mlx5e_grp_per_prio_traffic_get_num_stats(void)
 {
 	return NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * NUM_PPORT_PRIO;
 }
@@ -1006,7 +1006,7 @@ static int mlx5e_grp_per_prio_pfc_fill_stats(struct mlx5e_priv *priv,
 
 static int mlx5e_grp_per_prio_get_num_stats(struct mlx5e_priv *priv)
 {
-	return mlx5e_grp_per_prio_traffic_get_num_stats(priv) +
+	return mlx5e_grp_per_prio_traffic_get_num_stats() +
 		mlx5e_grp_per_prio_pfc_get_num_stats(priv);
 }
 
