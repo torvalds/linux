@@ -113,8 +113,6 @@
 #define IWL7265D_FW_PRE "iwlwifi-7265D-"
 #define IWL7265D_MODULE_FIRMWARE(api) IWL7265D_FW_PRE __stringify(api) ".ucode"
 
-#define NVM_HW_SECTION_NUM_FAMILY_7000		0
-
 static const struct iwl_base_params iwl7000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_16K,
 	.num_of_queues = 31,
@@ -159,7 +157,7 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 	.device_family = IWL_DEVICE_FAMILY_7000,		\
 	.base_params = &iwl7000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_7000,	\
+	.nvm_hw_section_num = 0,				\
 	.non_shared_ant = ANT_A,				\
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
 	.dccm_offset = IWL7000_DCCM_OFFSET,			\

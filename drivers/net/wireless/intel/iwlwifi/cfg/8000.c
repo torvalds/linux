@@ -93,7 +93,6 @@
 #define IWL8265_MODULE_FIRMWARE(api) \
 	IWL8265_FW_PRE __stringify(api) ".ucode"
 
-#define NVM_HW_SECTION_NUM_FAMILY_8000		10
 #define DEFAULT_NVM_FILE_FAMILY_8000C		"nvmData-8000C"
 
 static const struct iwl_base_params iwl8000_base_params = {
@@ -139,7 +138,7 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.device_family = IWL_DEVICE_FAMILY_8000,			\
 	.base_params = &iwl8000_base_params,				\
 	.led_mode = IWL_LED_RF_STATE,					\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,		\
+	.nvm_hw_section_num = 10,					\
 	.features = NETIF_F_RXCSUM,					\
 	.non_shared_ant = ANT_A,					\
 	.dccm_offset = IWL8260_DCCM_OFFSET,				\

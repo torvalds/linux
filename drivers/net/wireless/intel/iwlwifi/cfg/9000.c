@@ -90,8 +90,6 @@
 #define IWL9260B_MODULE_FIRMWARE(api) \
 	IWL9260B_FW_PRE __stringify(api) ".ucode"
 
-#define NVM_HW_SECTION_NUM_FAMILY_9000		10
-
 static const struct iwl_base_params iwl9000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 31,
@@ -137,7 +135,7 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.device_family = IWL_DEVICE_FAMILY_9000,			\
 	.base_params = &iwl9000_base_params,				\
 	.led_mode = IWL_LED_RF_STATE,					\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_9000,		\
+	.nvm_hw_section_num = 10,					\
 	.non_shared_ant = ANT_B,					\
 	.dccm_offset = IWL9000_DCCM_OFFSET,				\
 	.dccm_len = IWL9000_DCCM_LEN,					\
