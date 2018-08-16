@@ -457,7 +457,7 @@ static void ssd_commit_flushed(struct dm_writecache *wc)
 		COMPLETION_INITIALIZER_ONSTACK(endio.c),
 		ATOMIC_INIT(1),
 	};
-	unsigned bitmap_bits = wc->dirty_bitmap_size * BITS_PER_LONG;
+	unsigned bitmap_bits = wc->dirty_bitmap_size * 8;
 	unsigned i = 0;
 
 	while (1) {
