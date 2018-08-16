@@ -6821,18 +6821,14 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 	em->len = (u64)-1;
 	em->block_len = (u64)-1;
 
+	path = btrfs_alloc_path();
 	if (!path) {
-		path = btrfs_alloc_path();
-		if (!path) {
-			err = -ENOMEM;
-			goto out;
-		}
-		/*
-		 * Chances are we'll be called again, so go ahead and do
-		 * readahead
-		 */
-		path->reada = READA_FORWARD;
+		err = -ENOMEM;
+		goto out;
 	}
+
+	/* Chances are we'll be called again, so go ahead and do readahead */
+	path->reada = READA_FORWARD;
 
 	ret = btrfs_lookup_file_extent(NULL, root, path, objectid, start, 0);
 	if (ret < 0) {
