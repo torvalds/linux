@@ -699,7 +699,8 @@ int rkflash_dev_init(void __iomem *reg_addr, enum flash_con_type con_type)
 						rkflash_vendor_write);
 		ret = rk_sftl_vendor_storage_init();
 		if (!ret) {
-			rk_vendor_register(sftl_vendor_read, sftl_vendor_write);
+			rk_vendor_register(rk_sftl_vendor_read,
+					   rk_sftl_vendor_write);
 			rk_sftl_vendor_register();
 			pr_info("rkflashd vendor storage init ok !\n");
 		} else {
