@@ -1,5 +1,5 @@
-#include <linux/uaccess.h>
-#include <linux/termios.h>
+// SPDX-License-Identifier: GPL-2.0
+#include <linux/termios_internal.h>
 
 /*
  * c_cc characters in the termio structure.  Oh, how I love being
