@@ -22,6 +22,12 @@ static inline void stackleak_task_init(struct task_struct *t)
 	t->prev_lowest_stack = t->lowest_stack;
 # endif
 }
+
+#ifdef CONFIG_STACKLEAK_RUNTIME_DISABLE
+int stack_erasing_sysctl(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos);
+#endif
+
 #else /* !CONFIG_GCC_PLUGIN_STACKLEAK */
 static inline void stackleak_task_init(struct task_struct *t) { }
 #endif
