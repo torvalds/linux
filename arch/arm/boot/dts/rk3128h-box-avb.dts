@@ -52,10 +52,22 @@
 	};
 };
 
+&pinctrl {
+	sdmmc {
+		sdmmc_det: sdmmc-det {
+			rockchip,pins = <1 RK_PC1 RK_FUNC_1 &pcfg_pull_none>;
+		};
+	};
+};
+
 &secure_memory {
 	/*
 	 * enable like this:
 	 * reg = <0x80000000 0x10000000>;
 	 */
 	reg = <0x80000000 0x8000000>;
+};
+
+&sdmmc {
+	pinctrl-0 = <&sdmmc_pwr &sdmmc_clk &sdmmc_cmd &sdmmc_bus4 &sdmmc_det>;
 };
