@@ -76,6 +76,7 @@ struct sdhci_acpi_slot {
 	size_t		priv_size;
 	int (*probe_slot)(struct platform_device *, const char *, const char *);
 	int (*remove_slot)(struct platform_device *);
+	int (*free_slot)(struct platform_device *pdev);
 	int (*setup_host)(struct platform_device *pdev);
 };
 
@@ -756,6 +757,9 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 err_cleanup:
 	sdhci_cleanup_host(c->host);
 err_free:
+	if (c->slot && c->slot->free_slot)
+		c->slot->free_slot(pdev);
+
 	sdhci_free_host(c->host);
 	return err;
 }
@@ -777,6 +781,10 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 
 	dead = (sdhci_readl(c->host, SDHCI_INT_STATUS) == ~0);
 	sdhci_remove_host(c->host, dead);
+
+	if (c->slot && c->slot->free_slot)
+		c->slot->free_slot(pdev);
+
 	sdhci_free_host(c->host);
 
 	return 0;
