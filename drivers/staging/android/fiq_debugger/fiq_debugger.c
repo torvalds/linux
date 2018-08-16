@@ -1217,6 +1217,8 @@ static int fiq_tty_proc_show(struct seq_file *m, void *v)
 	seq_puts(m, "fiq-debugger driver\n");
 	for (i = 0; i < MAX_FIQ_DEBUGGER_PORTS; i++) {
 		state = states[i];
+		if (!state)
+			continue;
 
 		seq_printf(m, "%d:", i);
 		seq_printf(m, " state:%d", state->console_enable);
