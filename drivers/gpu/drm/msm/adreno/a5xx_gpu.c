@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <linux/qcom_scm.h>
@@ -20,6 +21,7 @@
 #include <linux/pm_opp.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/iopoll.h>
+#include <linux/slab.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "a5xx_gpu.h"
@@ -92,12 +94,13 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname)
 		ret = qcom_mdt_load(dev, fw, fwname, GPU_PAS_ID,
 				mem_region, mem_phys, mem_size, NULL);
 	} else {
-		char newname[strlen("qcom/") + strlen(fwname) + 1];
+		char *newname;
 
-		sprintf(newname, "qcom/%s", fwname);
+		newname = kasprintf(GFP_KERNEL, "qcom/%s", fwname);
 
 		ret = qcom_mdt_load(dev, fw, newname, GPU_PAS_ID,
 				mem_region, mem_phys, mem_size, NULL);
+		kfree(newname);
 	}
 	if (ret)
 		goto out;
