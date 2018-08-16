@@ -44,6 +44,7 @@
 MODULE_AUTHOR("Mellanox Technologies");
 MODULE_DESCRIPTION("Transport Layer Security Support");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_ALIAS_TCP_ULP("tls");
 
 static struct proto tls_base_prot;
 static struct proto tls_sw_prot;
