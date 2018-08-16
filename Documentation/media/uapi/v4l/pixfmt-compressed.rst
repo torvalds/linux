@@ -95,3 +95,10 @@ Compressed Formats
       - ``V4L2_PIX_FMT_HEVC``
       - 'HEVC'
       - HEVC/H.265 video elementary stream.
+    * .. _V4L2-PIX-FMT-FWHT:
+
+      - ``V4L2_PIX_FMT_FWHT``
+      - 'FWHT'
+      - Video elementary stream using a codec based on the Fast Walsh Hadamard
+        Transform. This codec is implemented by the vicodec ('Virtual Codec')
+	driver. See the vicodec-codec.h header for more details.

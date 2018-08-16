@@ -16,6 +16,7 @@ obj-$(CONFIG_VIDEO_VIU) += fsl-viu.o
 obj-$(CONFIG_VIDEO_VIMC)		+= vimc/
 obj-$(CONFIG_VIDEO_VIVID)		+= vivid/
 obj-$(CONFIG_VIDEO_VIM2M)		+= vim2m.o
+obj-$(CONFIG_VIDEO_VICODEC)		+= vicodec/
 
 obj-$(CONFIG_VIDEO_TI_VPE)		+= ti-vpe/
 
@@ -88,7 +89,7 @@ obj-$(CONFIG_VIDEO_MEDIATEK_MDP)	+= mtk-mdp/
 
 obj-$(CONFIG_VIDEO_MEDIATEK_JPEG)	+= mtk-jpeg/
 
-obj-$(CONFIG_VIDEO_QCOM_CAMSS)		+= qcom/camss-8x16/
+obj-$(CONFIG_VIDEO_QCOM_CAMSS)		+= qcom/camss/
 
 obj-$(CONFIG_VIDEO_QCOM_VENUS)		+= qcom/venus/
 

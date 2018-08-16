@@ -29,6 +29,9 @@ Optional properties
 - reset-gpios: XSHUTDOWN GPIO
 - flash-leds: See ../video-interfaces.txt
 - lens-focus: See ../video-interfaces.txt
+- rotation: Integer property; valid values are 0 (sensor mounted upright)
+	    and 180 (sensor mounted upside down). See
+	    ../video-interfaces.txt .
 
 
 Endpoint node mandatory properties

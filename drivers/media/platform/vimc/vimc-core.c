@@ -328,7 +328,6 @@ static int vimc_probe(struct platform_device *pdev)
 	if (ret) {
 		media_device_cleanup(&vimc->mdev);
 		vimc_rm_subdevs(vimc);
-		kfree(vimc);
 		return ret;
 	}
 

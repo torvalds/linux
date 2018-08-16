@@ -394,10 +394,10 @@ static int qt1010_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops qt1010_tuner_ops = {
 	.info = {
-		.name           = "Quantek QT1010",
-		.frequency_min  = QT1010_MIN_FREQ,
-		.frequency_max  = QT1010_MAX_FREQ,
-		.frequency_step = QT1010_STEP,
+		.name              = "Quantek QT1010",
+		.frequency_min_hz  = QT1010_MIN_FREQ,
+		.frequency_max_hz  = QT1010_MAX_FREQ,
+		.frequency_step_hz = QT1010_STEP,
 	},
 
 	.release       = qt1010_release,

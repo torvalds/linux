@@ -128,7 +128,7 @@ struct vpfe_video_device {
 	spinlock_t				irqlock;
 	/* IRQ lock for DMA queue */
 	spinlock_t				dma_queue_lock;
-	/* lock used to access this structure */
+	/* lock used to serialize all video4linux ioctls */
 	struct mutex				lock;
 	/* number of users performing IO */
 	u32					io_usrs;

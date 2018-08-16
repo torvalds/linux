@@ -517,7 +517,6 @@ ignore define V4L2_CTRL_WHICH_DEF_VAL
 ignore define V4L2_OUT_CAP_CUSTOM_TIMINGS
 ignore define V4L2_CID_MAX_CTRLS
 
-ignore ioctl VIDIOC_RESERVED
 ignore define BASE_VIDIOC_PRIVATE
 
 # Associate ioctls with their counterparts
