@@ -1,15 +1,18 @@
-Marvell Armada CP110 System Controller 0
-========================================
+Marvell Armada CP110 System Controller
+======================================
 
 The CP110 is one of the two core HW blocks of the Marvell Armada 7K/8K
-SoCs. It contains two sets of system control registers, System
-Controller 0 and System Controller 1. This Device Tree binding allows
-to describe the first system controller, which provides registers to
-configure various aspects of the SoC.
+SoCs. It contains system controllers, which provide several registers
+giving access to numerous features: clocks, pin-muxing and many other
+SoC configuration items. This DT binding allows to describe these
+system controllers.
 
 For the top level node:
  - compatible: must be: "syscon", "simple-mfd";
- - reg: register area of the CP110 system controller 0
+ - reg: register area of the CP110 system controller
+
+SYSTEM CONTROLLER 0
+===================
 
 Clocks:
 -------
@@ -163,26 +166,60 @@ Required properties:
 
 Example:
 
-cpm_syscon0: system-controller@440000 {
+CP110_LABEL(syscon0): system-controller@440000 {
 	compatible = "syscon", "simple-mfd";
 	reg = <0x440000 0x1000>;
 
-	cpm_clk: clock {
+	CP110_LABEL(clk): clock {
 		compatible = "marvell,cp110-clock";
 		#clock-cells = <2>;
 	};
 
-	cpm_pinctrl: pinctrl {
+	CP110_LABEL(pinctrl): pinctrl {
 		compatible = "marvell,armada-8k-cpm-pinctrl";
 	};
 
-	cpm_gpio1: gpio@100 {
+	CP110_LABEL(gpio1): gpio@100 {
 		compatible = "marvell,armada-8k-gpio";
 		offset = <0x100>;
 		ngpios = <32>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		gpio-ranges = <&cpm_pinctrl 0 0 32>;
+		gpio-ranges = <&CP110_LABEL(pinctrl) 0 0 32>;
 	};
 
+};
+
+SYSTEM CONTROLLER 1
+===================
+
+Thermal:
+--------
+
+The thermal IP can probe the temperature all around the processor. It
+may feature several channels, each of them wired to one sensor.
+
+For common binding part and usage, refer to
+Documentation/devicetree/bindings/thermal/thermal.txt
+
+Required properties:
+- compatible: must be one of:
+  * marvell,armada-cp110-thermal
+- reg: register range associated with the thermal functions.
+
+Optional properties:
+- #thermal-sensor-cells: shall be <1> when thermal-zones subnodes refer
+  to this IP and represents the channel ID. There is one sensor per
+  channel. O refers to the thermal IP internal channel.
+
+Example:
+CP110_LABEL(syscon1): system-controller@6f8000 {
+	compatible = "syscon", "simple-mfd";
+	reg = <0x6f8000 0x1000>;
+
+	CP110_LABEL(thermal): thermal-sensor@70 {
+		compatible = "marvell,armada-cp110-thermal";
+		reg = <0x70 0x10>;
+		#thermal-sensor-cells = <1>;
+	};
 };
