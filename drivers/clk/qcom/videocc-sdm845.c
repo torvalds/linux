@@ -18,8 +18,6 @@
 #include "clk-pll.h"
 #include "gdsc.h"
 
-#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
-
 enum {
 	P_BI_TCXO,
 	P_CORE_BI_PLL_TEST_SE,

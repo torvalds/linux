@@ -91,6 +91,9 @@ Required properties:
 		at91 audio pll output on AUDIOPLLCLK that feeds the PMC
 		and can be used by peripheral clock or generic clock
 
+	"atmel,sama5d2-clk-i2s-mux" (under pmc node):
+		at91 I2S clock source selection
+
 Required properties for SCKC node:
 - reg : defines the IO memory reserved for the SCKC.
 - #size-cells : shall be 0 (reg is used to encode clk id).
@@ -498,5 +501,37 @@ For example:
 			#clock-cells = <0>;
 			reg = <38>;
 			atmel,clk-output-range = <0 83000000>;
+		};
+	};
+
+Required properties for I2S mux clocks:
+- #size-cells : shall be 0 (reg is used to encode I2S bus id).
+- #address-cells : shall be 1 (reg is used to encode I2S bus id).
+- name: device tree node describing a specific mux clock.
+	* #clock-cells : from common clock binding; shall be set to 0.
+	* clocks : shall be the mux clock parent phandles; shall be 2 phandles:
+	  peripheral and generated clock; the first phandle shall belong to the
+	  peripheral clock and the second one shall belong to the generated
+	  clock; "clock-indices" property can be user to specify
+	  the correct order.
+	* reg: I2S bus id of the corresponding mux clock.
+	  e.g. reg = <0>; for i2s0, reg = <1>; for i2s1
+
+For example:
+	i2s_clkmux {
+		compatible = "atmel,sama5d2-clk-i2s-mux";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2s0muxck: i2s0_muxclk {
+			clocks = <&i2s0_clk>, <&i2s0_gclk>;
+			#clock-cells = <0>;
+			reg = <0>;
+		};
+
+		i2s1muxck: i2s1_muxclk {
+			clocks = <&i2s1_clk>, <&i2s1_gclk>;
+			#clock-cells = <0>;
+			reg = <1>;
 		};
 	};
