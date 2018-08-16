@@ -129,6 +129,8 @@ void tcp_cleanup_ulp(struct sock *sk)
 	if (icsk->icsk_ulp_ops->release)
 		icsk->icsk_ulp_ops->release(sk);
 	module_put(icsk->icsk_ulp_ops->owner);
+
+	icsk->icsk_ulp_ops = NULL;
 }
 
 /* Change upper layer protocol for socket */
