@@ -50,10 +50,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW 0>,
-			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW 0>,
-			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW 0>,
-			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW 0>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 		arm,no-tick-in-suspend;
 	};
 
@@ -66,7 +66,7 @@
 
 	gic: interrupt-controller@ff100000 {
 		compatible = "arm,gic-v3";
-		#interrupt-cells = <4>;
+		#interrupt-cells = <3>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -77,16 +77,11 @@
 		      <0x0 0xff300000 0 0x10000>, /* GICC */
 		      <0x0 0xff310000 0 0x10000>, /* GICH */
 		      <0x0 0xff320000 0 0x10000>; /* GICV */
-		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		its: interrupt-controller@ff120000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			reg = <0x0 0xff120000 0x0 0x20000>;
-		};
-		ppi-partitions {
-			ppi_cluster0: interrupt-partition-0 {
-				affinity = <&cpu0, &cpu1>;
-			};
 		};
 	};
 
@@ -171,9 +166,9 @@
 		status = "disabled";
 	};
 
-	pwm6: pwm@fff3d8020 {
+	pwm6: pwm@ff3d8020 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
-		reg = <0x0 0xfff3d8020 0x0 0x10>;
+		reg = <0x0 0xff3d8020 0x0 0x10>;
 		#pwm-cells = <3>;
 		//pinctrl-names = "active";
 		//pinctrl-0 = <&pwm6_pin>;
@@ -203,7 +198,7 @@
 	i2c0: i2c@ff410000 {
 		compatible = "rockchip,rk3399-i2c";
 		reg = <0x0 0xff410000 0x0 0x1000>;
-		clocks =  <&cru SCLK_I2C0>, <&cru PCLK_I2C0>;
+		clocks =  <&cru SCLK_PMU_I2C0>, <&cru PCLK_I2C0_PMU>;
 		clock-names = "i2c", "pclk";
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		//pinctrl-names = "default";
@@ -230,9 +225,9 @@
 		dmac: dmac@ff4e0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xff4e0000 0x0 0x4000>;
-			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH 0>;
-			clocks = <&cru ACLK_DMAC>;
-			clock-names = "apb_pclk";
+			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+			//clocks = <&cru ACLK_DMAC>;
+			//clock-names = "apb_pclk";
 			#dma-cells = <1>;
 			peripherals-req-type-burst;
 		};
@@ -306,7 +301,7 @@
 	uart2: serial@ff550000 {
 		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff550000 0x0 0x100>;
-		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		status = "disabled";
@@ -361,7 +356,7 @@
 		reg = <0x0 0xffcf0000 0x0 0x4000>;
 		max-frequency = <150000000>;
 		fifo-depth = <0x100>;
-		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -369,7 +364,7 @@
 		compatible = "rockchip,rk1808-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xffd00000 0x0 0x4000>;
 		fifo-depth = <0x100>;
-		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -384,7 +379,7 @@
 		gpio0: gpio0@ff4c0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff4c0000 0x0 0x100>;
-			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmucru PCLK_GPIO0_PMU>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -396,7 +391,7 @@
 		gpio1: gpio1@ff690000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff690000 0x0 0x100>;
-			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO1>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -408,7 +403,7 @@
 		gpio2: gpio2@ff6a0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff6a0000 0x0 0x100>;
-			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO2>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -420,7 +415,7 @@
 		gpio3: gpio3@ff6b0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff6b0000 0x0 0x100>;
-			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO3>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -432,7 +427,7 @@
 		gpio4: gpio4@ff6c0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff6c0000 0x0 0x100>;
-			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO4>;
 			gpio-controller;
 			#gpio-cells = <2>;
