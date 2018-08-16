@@ -557,7 +557,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		cpu_lpmc(5, regs);
 		return;
 
-	case  6:
+	case  PARISC_ITLB_TRAP:
 		/* Instruction TLB miss fault/Instruction page fault */
 		fault_address = regs->iaoq[0];
 		fault_space   = regs->iasq[0];

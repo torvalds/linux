@@ -36,6 +36,7 @@
 #include <asm/signal.h>
 #include <asm/unistd.h>
 #include <asm/ldcw.h>
+#include <asm/traps.h>
 #include <asm/thread_info.h>
 
 #include <linux/linkage.h>
@@ -692,7 +693,7 @@ ENTRY(fault_vector_20)
 	def		 3
 	extint		 4
 	def		 5
-	itlb_20		 6
+	itlb_20		 PARISC_ITLB_TRAP
 	def		 7
 	def		 8
 	def              9
@@ -735,7 +736,7 @@ ENTRY(fault_vector_11)
 	def		 3
 	extint		 4
 	def		 5
-	itlb_11		 6
+	itlb_11		 PARISC_ITLB_TRAP
 	def		 7
 	def		 8
 	def              9
@@ -1068,21 +1069,12 @@ ENTRY_CFI(intr_save)		/* for os_hpmc */
 	save_specials	%r29
 
 	/* If this trap is a itlb miss, skip saving/adjusting isr/ior */
-
-	/*
-	 * FIXME: 1) Use a #define for the hardwired "6" below (and in
-	 *           traps.c.
-	 *        2) Once we start executing code above 4 Gb, we need
-	 *           to adjust iasq/iaoq here in the same way we
-	 *           adjust isr/ior below.
-	 */
-
-	cmpib,COND(=),n        6,%r26,skip_save_ior
+	cmpib,COND(=),n        PARISC_ITLB_TRAP,%r26,skip_save_ior
 
 
-	mfctl           %cr20, %r16 /* isr */
+	mfctl           %isr, %r16
 	nop		/* serialize mfctl on PA 2.0 to avoid 4 cycle penalty */
-	mfctl           %cr21, %r17 /* ior */
+	mfctl           %ior, %r17
 
 
 #ifdef CONFIG_64BIT
@@ -1094,22 +1086,34 @@ ENTRY_CFI(intr_save)		/* for os_hpmc */
 	extrd,u,*<>     %r8,PSW_W_BIT,1,%r0
 	depdi           0,1,2,%r17
 
-	/*
-	 * FIXME: This code has hardwired assumptions about the split
-	 *        between space bits and offset bits. This will change
-	 *        when we allow alternate page sizes.
-	 */
-
-	/* adjust isr/ior. */
-	extrd,u         %r16,63,SPACEID_SHIFT,%r1	/* get high bits from isr for ior */
-	depd            %r1,31,SPACEID_SHIFT,%r17	/* deposit them into ior */
-	depdi           0,63,SPACEID_SHIFT,%r16		/* clear them from isr */
+	/* adjust isr/ior: get high bits from isr and deposit in ior */
+	space_adjust	%r16,%r17,%r1
 #endif
 	STREG           %r16, PT_ISR(%r29)
 	STREG           %r17, PT_IOR(%r29)
 
+#if 0 && defined(CONFIG_64BIT)
+	/* Revisit when we have 64-bit code above 4Gb */
+	b,n		intr_save2
 
 skip_save_ior:
+	/* We have a itlb miss, and when executing code above 4 Gb on ILP64, we
+	 * need to adjust iasq/iaoq here in the same way we adjusted isr/ior
+	 * above.
+	 */
+	extrd,u,*	%r8,PSW_W_BIT,1,%r1
+	cmpib,COND(=),n	1,%r1,intr_save2
+	LDREG		PT_IASQ0(%r29), %r16
+	LDREG		PT_IAOQ0(%r29), %r17
+	/* adjust iasq/iaoq */
+	space_adjust	%r16,%r17,%r1
+	STREG           %r16, PT_IASQ0(%r29)
+	STREG           %r17, PT_IAOQ0(%r29)
+#else
+skip_save_ior:
+#endif
+
+intr_save2:
 	virt_map
 	save_general	%r29
 
