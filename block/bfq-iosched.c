@@ -3298,6 +3298,27 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 		 */
 	} else
 		entity->service = 0;
+
+	/*
+	 * Reset the received-service counter for every parent entity.
+	 * Differently from what happens with bfqq->entity.service,
+	 * the resetting of this counter never needs to be postponed
+	 * for parent entities. In fact, in case bfqq may have a
+	 * chance to go on being served using the last, partially
+	 * consumed budget, bfqq->entity.service needs to be kept,
+	 * because if bfqq then actually goes on being served using
+	 * the same budget, the last value of bfqq->entity.service is
+	 * needed to properly decrement bfqq->entity.budget by the
+	 * portion already consumed. In contrast, it is not necessary
+	 * to keep entity->service for parent entities too, because
+	 * the bubble up of the new value of bfqq->entity.budget will
+	 * make sure that the budgets of parent entities are correct,
+	 * even in case bfqq and thus parent entities go on receiving
+	 * service with the same budget.
+	 */
+	entity = entity->parent;
+	for_each_entity(entity)
+		entity->service = 0;
 }
 
 /*
