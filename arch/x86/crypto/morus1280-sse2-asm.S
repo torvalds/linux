@@ -652,6 +652,7 @@ ENTRY(crypto_morus1280_sse2_enc_tail)
 	movdqu STATE4_HI, (9 * 16)(%rdi)
 
 	FRAME_END
+	ret
 ENDPROC(crypto_morus1280_sse2_enc_tail)
 
 /*

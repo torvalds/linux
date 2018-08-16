@@ -222,6 +222,8 @@ qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
 	sp->fcport = fcport;
 	sp->iocbs = 1;
 	sp->vha = qpair->vha;
+	INIT_LIST_HEAD(&sp->elem);
+
 done:
 	if (!sp)
 		QLA_QPAIR_MARK_NOT_BUSY(qpair);

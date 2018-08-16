@@ -234,7 +234,8 @@ static const struct irq_chip cht_wc_i2c_irq_chip = {
 	.name			= "cht_wc_ext_chrg_irq_chip",
 };
 
-static const char * const bq24190_suppliers[] = { "fusb302-typec-source" };
+static const char * const bq24190_suppliers[] = {
+	"tcpm-source-psy-i2c-fusb302" };
 
 static const struct property_entry bq24190_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_suppliers),

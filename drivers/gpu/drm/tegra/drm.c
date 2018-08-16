@@ -398,7 +398,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		 * unaligned offset is malformed and cause commands stream
 		 * corruption on the buffer address relocation.
 		 */
-		if (offset & 3 || offset >= obj->gem.size) {
+		if (offset & 3 || offset > obj->gem.size) {
 			err = -EINVAL;
 			goto fail;
 		}

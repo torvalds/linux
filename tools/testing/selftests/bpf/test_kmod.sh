@@ -1,6 +1,15 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
+msg="skip all tests:"
+if [ "$(id -u)" != "0" ]; then
+	echo $msg please run this as root >&2
+	exit $ksft_skip
+fi
+
 SRC_TREE=../../../../
 
 test_run()

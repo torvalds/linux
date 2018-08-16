@@ -156,7 +156,7 @@ static char *do_shell(int argc, char *argv[])
 		nread--;
 
 	/* remove trailing new lines */
-	while (buf[nread - 1] == '\n')
+	while (nread > 0 && buf[nread - 1] == '\n')
 		nread--;
 
 	buf[nread] = 0;

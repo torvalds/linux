@@ -56,7 +56,7 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 .PP
 \fB--hide column\fP do not show the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--hide sysfs" to hide the sysfs statistics columns as a group.
 .PP
-\fB--enable column\fP show the specified built-in columns, which are otherwise disabled, by default.  Currently the only built-in counters disabled by default are "usec" and "Time_Of_Day_Seconds".
+\fB--enable column\fP show the specified built-in columns, which are otherwise disabled, by default.  Currently the only built-in counters disabled by default are "usec", "Time_Of_Day_Seconds", "APIC" and "X2APIC".
 The column name "all" can be used to enable all disabled-by-default built-in counters.
 .PP
 \fB--show column\fP show only the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--show sysfs" to show the sysfs statistics columns as a group.
@@ -106,7 +106,7 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 \fBC1%, C2%, C3%\fP The residency percentage that Linux requested C1, C2, C3....  The system summary is the average of all CPUs in the system.  Note that these are software, reflecting what was requested.  The hardware counters reflect what was actually achieved.
 \fBCPU%c1, CPU%c3, CPU%c6, CPU%c7\fP show the percentage residency in hardware core idle states.  These numbers are from hardware residency counters.
 \fBCoreTmp\fP Degrees Celsius reported by the per-core Digital Thermal Sensor.
-\fBPkgTtmp\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
+\fBPkgTmp\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
 \fBGFX%rc6\fP The percentage of time the GPU is in the "render C6" state, rc6, during the measurement interval. From /sys/class/drm/card0/power/rc6_residency_ms.
 \fBGFXMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz.
 \fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.  These numbers are from hardware residency counters.
@@ -114,7 +114,7 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 \fBCorWatt\fP Watts consumed by the core part of the package.
 \fBGFXWatt\fP Watts consumed by the Graphics part of the package -- available only on client processors.
 \fBRAMWatt\fP Watts consumed by the DRAM DIMMS -- available only on server processors.
-\fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.
+\fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.  Note that the system summary is the sum of the package throttling time, and thus may be higher than 100% on a multi-package system.  Note that the meaning of this field is model specific.  For example, some hardware increments this counter when RAPL responds to thermal limits, but does not increment this counter when RAPL responds to power limits.  Comparing PkgWatt and PkgTmp to system limits is necessary.
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .fi
 .SH TOO MUCH INFORMATION EXAMPLE

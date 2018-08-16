@@ -492,21 +492,25 @@ static void gsc_src_set_fmt(struct gsc_context *ctx, u32 fmt)
 			GSC_IN_CHROMA_ORDER_CRCB);
 		break;
 	case DRM_FORMAT_NV21:
+		cfg |= (GSC_IN_CHROMA_ORDER_CRCB | GSC_IN_YUV420_2P);
+		break;
 	case DRM_FORMAT_NV61:
-		cfg |= (GSC_IN_CHROMA_ORDER_CRCB |
-			GSC_IN_YUV420_2P);
+		cfg |= (GSC_IN_CHROMA_ORDER_CRCB | GSC_IN_YUV422_2P);
 		break;
 	case DRM_FORMAT_YUV422:
 		cfg |= GSC_IN_YUV422_3P;
 		break;
 	case DRM_FORMAT_YUV420:
+		cfg |= (GSC_IN_CHROMA_ORDER_CBCR | GSC_IN_YUV420_3P);
+		break;
 	case DRM_FORMAT_YVU420:
-		cfg |= GSC_IN_YUV420_3P;
+		cfg |= (GSC_IN_CHROMA_ORDER_CRCB | GSC_IN_YUV420_3P);
 		break;
 	case DRM_FORMAT_NV12:
+		cfg |= (GSC_IN_CHROMA_ORDER_CBCR | GSC_IN_YUV420_2P);
+		break;
 	case DRM_FORMAT_NV16:
-		cfg |= (GSC_IN_CHROMA_ORDER_CBCR |
-			GSC_IN_YUV420_2P);
+		cfg |= (GSC_IN_CHROMA_ORDER_CBCR | GSC_IN_YUV422_2P);
 		break;
 	}
 
@@ -523,30 +527,30 @@ static void gsc_src_set_transf(struct gsc_context *ctx, unsigned int rotation)
 
 	switch (degree) {
 	case DRM_MODE_ROTATE_0:
-		if (rotation & DRM_MODE_REFLECT_Y)
-			cfg |= GSC_IN_ROT_XFLIP;
 		if (rotation & DRM_MODE_REFLECT_X)
+			cfg |= GSC_IN_ROT_XFLIP;
+		if (rotation & DRM_MODE_REFLECT_Y)
 			cfg |= GSC_IN_ROT_YFLIP;
 		break;
 	case DRM_MODE_ROTATE_90:
 		cfg |= GSC_IN_ROT_90;
-		if (rotation & DRM_MODE_REFLECT_Y)
-			cfg |= GSC_IN_ROT_XFLIP;
 		if (rotation & DRM_MODE_REFLECT_X)
+			cfg |= GSC_IN_ROT_XFLIP;
+		if (rotation & DRM_MODE_REFLECT_Y)
 			cfg |= GSC_IN_ROT_YFLIP;
 		break;
 	case DRM_MODE_ROTATE_180:
 		cfg |= GSC_IN_ROT_180;
-		if (rotation & DRM_MODE_REFLECT_Y)
-			cfg &= ~GSC_IN_ROT_XFLIP;
 		if (rotation & DRM_MODE_REFLECT_X)
+			cfg &= ~GSC_IN_ROT_XFLIP;
+		if (rotation & DRM_MODE_REFLECT_Y)
 			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	case DRM_MODE_ROTATE_270:
 		cfg |= GSC_IN_ROT_270;
-		if (rotation & DRM_MODE_REFLECT_Y)
-			cfg &= ~GSC_IN_ROT_XFLIP;
 		if (rotation & DRM_MODE_REFLECT_X)
+			cfg &= ~GSC_IN_ROT_XFLIP;
+		if (rotation & DRM_MODE_REFLECT_Y)
 			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	}
@@ -577,7 +581,7 @@ static void gsc_src_set_size(struct gsc_context *ctx,
 	cfg &= ~(GSC_SRCIMG_HEIGHT_MASK |
 		GSC_SRCIMG_WIDTH_MASK);
 
-	cfg |= (GSC_SRCIMG_WIDTH(buf->buf.width) |
+	cfg |= (GSC_SRCIMG_WIDTH(buf->buf.pitch[0] / buf->format->cpp[0]) |
 		GSC_SRCIMG_HEIGHT(buf->buf.height));
 
 	gsc_write(cfg, GSC_SRCIMG_SIZE);
@@ -672,18 +676,25 @@ static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt)
 			GSC_OUT_CHROMA_ORDER_CRCB);
 		break;
 	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV61:
 		cfg |= (GSC_OUT_CHROMA_ORDER_CRCB | GSC_OUT_YUV420_2P);
 		break;
+	case DRM_FORMAT_NV61:
+		cfg |= (GSC_OUT_CHROMA_ORDER_CRCB | GSC_OUT_YUV422_2P);
+		break;
 	case DRM_FORMAT_YUV422:
+		cfg |= GSC_OUT_YUV422_3P;
+		break;
 	case DRM_FORMAT_YUV420:
+		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR | GSC_OUT_YUV420_3P);
+		break;
 	case DRM_FORMAT_YVU420:
-		cfg |= GSC_OUT_YUV420_3P;
+		cfg |= (GSC_OUT_CHROMA_ORDER_CRCB | GSC_OUT_YUV420_3P);
 		break;
 	case DRM_FORMAT_NV12:
+		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR | GSC_OUT_YUV420_2P);
+		break;
 	case DRM_FORMAT_NV16:
-		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR |
-			GSC_OUT_YUV420_2P);
+		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR | GSC_OUT_YUV422_2P);
 		break;
 	}
 
@@ -868,7 +879,7 @@ static void gsc_dst_set_size(struct gsc_context *ctx,
 	/* original size */
 	cfg = gsc_read(GSC_DSTIMG_SIZE);
 	cfg &= ~(GSC_DSTIMG_HEIGHT_MASK | GSC_DSTIMG_WIDTH_MASK);
-	cfg |= GSC_DSTIMG_WIDTH(buf->buf.width) |
+	cfg |= GSC_DSTIMG_WIDTH(buf->buf.pitch[0] / buf->format->cpp[0]) |
 	       GSC_DSTIMG_HEIGHT(buf->buf.height);
 	gsc_write(cfg, GSC_DSTIMG_SIZE);
 
@@ -1341,7 +1352,7 @@ static const struct drm_exynos_ipp_limit gsc_5420_limits[] = {
 };
 
 static const struct drm_exynos_ipp_limit gsc_5433_limits[] = {
-	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, 8191, 2 }, .v = { 16, 8191, 2 }) },
+	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, 8191, 16 }, .v = { 16, 8191, 2 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 16, 4800, 1 }, .v = { 8, 3344, 1 }) },
 	{ IPP_SIZE_LIMIT(ROTATED, .h = { 32, 2047 }, .v = { 8, 8191 }) },
 	{ IPP_SCALE_LIMIT(.h = { (1 << 16) / 16, (1 << 16) * 8 },

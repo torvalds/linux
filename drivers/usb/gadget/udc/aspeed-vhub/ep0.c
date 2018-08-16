@@ -108,6 +108,13 @@ void ast_vhub_ep0_handle_setup(struct ast_vhub_ep *ep)
 	/* Check our state, cancel pending requests if needed */
 	if (ep->ep0.state != ep0_state_token) {
 		EPDBG(ep, "wrong state\n");
+		ast_vhub_nuke(ep, -EIO);
+
+		/*
+		 * Accept the packet regardless, this seems to happen
+		 * when stalling a SETUP packet that has an OUT data
+		 * phase.
+		 */
 		ast_vhub_nuke(ep, 0);
 		goto stall;
 	}
@@ -212,6 +219,8 @@ static void ast_vhub_ep0_do_send(struct ast_vhub_ep *ep,
 	if (chunk && req->req.buf)
 		memcpy(ep->buf, req->req.buf + req->req.actual, chunk);
 
+	vhub_dma_workaround(ep->buf);
+
 	/* Remember chunk size and trigger send */
 	reg = VHUB_EP0_SET_TX_LEN(chunk);
 	writel(reg, ep->ep0.ctlstat);
@@ -224,7 +233,7 @@ static void ast_vhub_ep0_rx_prime(struct ast_vhub_ep *ep)
 	EPVDBG(ep, "rx prime\n");
 
 	/* Prime endpoint for receiving data */
-	writel(VHUB_EP0_RX_BUFF_RDY, ep->ep0.ctlstat + AST_VHUB_EP0_CTRL);
+	writel(VHUB_EP0_RX_BUFF_RDY, ep->ep0.ctlstat);
 }
 
 static void ast_vhub_ep0_do_receive(struct ast_vhub_ep *ep, struct ast_vhub_req *req,

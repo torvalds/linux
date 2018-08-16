@@ -1201,13 +1201,18 @@ static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
 				l2tp_session_get(sock_net(sk), tunnel,
 						 stats.session_id);
 
-			if (session && session->pwtype == L2TP_PWTYPE_PPP) {
-				err = pppol2tp_session_ioctl(session, cmd,
-							     arg);
-				l2tp_session_dec_refcount(session);
-			} else {
+			if (!session) {
 				err = -EBADR;
+				break;
 			}
+			if (session->pwtype != L2TP_PWTYPE_PPP) {
+				l2tp_session_dec_refcount(session);
+				err = -EBADR;
+				break;
+			}
+
+			err = pppol2tp_session_ioctl(session, cmd, arg);
+			l2tp_session_dec_refcount(session);
 			break;
 		}
 #ifdef CONFIG_XFRM
@@ -1818,7 +1823,7 @@ static const struct proto_ops pppol2tp_ops = {
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,
 	.getname	= pppol2tp_getname,
-	.poll_mask	= datagram_poll_mask,
+	.poll		= datagram_poll,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= pppol2tp_setsockopt,

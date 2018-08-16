@@ -512,14 +512,82 @@ int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr, BIOS_CLKI
 	return 0;
 }
 
+static void pp_atomfwctrl_copy_vbios_bootup_values_3_2(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_bios_boot_up_values *boot_values,
+			struct atom_firmware_info_v3_2 *fw_info)
+{
+	uint32_t frequency = 0;
+
+	boot_values->ulRevision = fw_info->firmware_revision;
+	boot_values->ulGfxClk   = fw_info->bootup_sclk_in10khz;
+	boot_values->ulUClk     = fw_info->bootup_mclk_in10khz;
+	boot_values->usVddc     = fw_info->bootup_vddc_mv;
+	boot_values->usVddci    = fw_info->bootup_vddci_mv;
+	boot_values->usMvddc    = fw_info->bootup_mvddc_mv;
+	boot_values->usVddGfx   = fw_info->bootup_vddgfx_mv;
+	boot_values->ucCoolingID = fw_info->coolingsolution_id;
+	boot_values->ulSocClk   = 0;
+	boot_values->ulDCEFClk   = 0;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_SOCCLK_ID, &frequency))
+		boot_values->ulSocClk   = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_DCEFCLK_ID, &frequency))
+		boot_values->ulDCEFClk  = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_ECLK_ID, &frequency))
+		boot_values->ulEClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_VCLK_ID, &frequency))
+		boot_values->ulVClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_DCLK_ID, &frequency))
+		boot_values->ulDClk     = frequency;
+}
+
+static void pp_atomfwctrl_copy_vbios_bootup_values_3_1(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_bios_boot_up_values *boot_values,
+			struct atom_firmware_info_v3_1 *fw_info)
+{
+	uint32_t frequency = 0;
+
+	boot_values->ulRevision = fw_info->firmware_revision;
+	boot_values->ulGfxClk   = fw_info->bootup_sclk_in10khz;
+	boot_values->ulUClk     = fw_info->bootup_mclk_in10khz;
+	boot_values->usVddc     = fw_info->bootup_vddc_mv;
+	boot_values->usVddci    = fw_info->bootup_vddci_mv;
+	boot_values->usMvddc    = fw_info->bootup_mvddc_mv;
+	boot_values->usVddGfx   = fw_info->bootup_vddgfx_mv;
+	boot_values->ucCoolingID = fw_info->coolingsolution_id;
+	boot_values->ulSocClk   = 0;
+	boot_values->ulDCEFClk   = 0;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_SOCCLK_ID, &frequency))
+		boot_values->ulSocClk   = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCEFCLK_ID, &frequency))
+		boot_values->ulDCEFClk  = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_ECLK_ID, &frequency))
+		boot_values->ulEClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_VCLK_ID, &frequency))
+		boot_values->ulVClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCLK_ID, &frequency))
+		boot_values->ulDClk     = frequency;
+}
+
 int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_bios_boot_up_values *boot_values)
 {
-	struct atom_firmware_info_v3_1 *info = NULL;
+	struct atom_firmware_info_v3_2 *fwinfo_3_2;
+	struct atom_firmware_info_v3_1 *fwinfo_3_1;
+	struct atom_common_table_header *info = NULL;
 	uint16_t ix;
 
 	ix = GetIndexIntoMasterDataTable(firmwareinfo);
-	info = (struct atom_firmware_info_v3_1 *)
+	info = (struct atom_common_table_header *)
 		smu_atom_get_data_table(hwmgr->adev,
 				ix, NULL, NULL, NULL);
 
@@ -528,16 +596,18 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 	}
 
-	boot_values->ulRevision = info->firmware_revision;
-	boot_values->ulGfxClk   = info->bootup_sclk_in10khz;
-	boot_values->ulUClk     = info->bootup_mclk_in10khz;
-	boot_values->usVddc     = info->bootup_vddc_mv;
-	boot_values->usVddci    = info->bootup_vddci_mv;
-	boot_values->usMvddc    = info->bootup_mvddc_mv;
-	boot_values->usVddGfx   = info->bootup_vddgfx_mv;
-	boot_values->ucCoolingID = info->coolingsolution_id;
-	boot_values->ulSocClk   = 0;
-	boot_values->ulDCEFClk   = 0;
+	if ((info->format_revision == 3) && (info->content_revision == 2)) {
+		fwinfo_3_2 = (struct atom_firmware_info_v3_2 *)info;
+		pp_atomfwctrl_copy_vbios_bootup_values_3_2(hwmgr,
+				boot_values, fwinfo_3_2);
+	} else if ((info->format_revision == 3) && (info->content_revision == 1)) {
+		fwinfo_3_1 = (struct atom_firmware_info_v3_1 *)info;
+		pp_atomfwctrl_copy_vbios_bootup_values_3_1(hwmgr,
+				boot_values, fwinfo_3_1);
+	} else {
+		pr_info("Fw info table revision does not match!");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -628,6 +698,8 @@ int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
 	param->acggfxclkspreadenabled = info->acggfxclkspreadenabled;
 	param->acggfxclkspreadpercent = info->acggfxclkspreadpercent;
 	param->acggfxclkspreadfreq = info->acggfxclkspreadfreq;
+
+	param->Vr2_I2C_address = info->Vr2_I2C_address;
 
 	return 0;
 }

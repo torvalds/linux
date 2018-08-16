@@ -322,55 +322,41 @@ ENDPROC(pmull_ghash_update_p8)
 	.endm
 
 	.macro		pmull_gcm_do_crypt, enc
-	frame_push	10
+	ld1		{SHASH.2d}, [x4]
+	ld1		{XL.2d}, [x1]
+	ldr		x8, [x5, #8]			// load lower counter
 
-	mov		x19, x0
-	mov		x20, x1
-	mov		x21, x2
-	mov		x22, x3
-	mov		x23, x4
-	mov		x24, x5
-	mov		x25, x6
-	mov		x26, x7
-	.if		\enc == 1
-	ldr		x27, [sp, #96]			// first stacked arg
-	.endif
-
-	ldr		x28, [x24, #8]			// load lower counter
-CPU_LE(	rev		x28, x28	)
-
-0:	mov		x0, x25
-	load_round_keys	w26, x0
-	ld1		{SHASH.2d}, [x23]
-	ld1		{XL.2d}, [x20]
+	load_round_keys	w7, x6
 
 	movi		MASK.16b, #0xe1
 	ext		SHASH2.16b, SHASH.16b, SHASH.16b, #8
+CPU_LE(	rev		x8, x8		)
 	shl		MASK.2d, MASK.2d, #57
 	eor		SHASH2.16b, SHASH2.16b, SHASH.16b
 
 	.if		\enc == 1
-	ld1		{KS.16b}, [x27]
+	ldr		x10, [sp]
+	ld1		{KS.16b}, [x10]
 	.endif
 
-1:	ld1		{CTR.8b}, [x24]			// load upper counter
-	ld1		{INP.16b}, [x22], #16
-	rev		x9, x28
-	add		x28, x28, #1
-	sub		w19, w19, #1
+0:	ld1		{CTR.8b}, [x5]			// load upper counter
+	ld1		{INP.16b}, [x3], #16
+	rev		x9, x8
+	add		x8, x8, #1
+	sub		w0, w0, #1
 	ins		CTR.d[1], x9			// set lower counter
 
 	.if		\enc == 1
 	eor		INP.16b, INP.16b, KS.16b	// encrypt input
-	st1		{INP.16b}, [x21], #16
+	st1		{INP.16b}, [x2], #16
 	.endif
 
 	rev64		T1.16b, INP.16b
 
-	cmp		w26, #12
-	b.ge		4f				// AES-192/256?
+	cmp		w7, #12
+	b.ge		2f				// AES-192/256?
 
-2:	enc_round	CTR, v21
+1:	enc_round	CTR, v21
 
 	ext		T2.16b, XL.16b, XL.16b, #8
 	ext		IN1.16b, T1.16b, T1.16b, #8
@@ -425,39 +411,27 @@ CPU_LE(	rev		x28, x28	)
 
 	.if		\enc == 0
 	eor		INP.16b, INP.16b, KS.16b
-	st1		{INP.16b}, [x21], #16
+	st1		{INP.16b}, [x2], #16
 	.endif
 
-	cbz		w19, 3f
+	cbnz		w0, 0b
 
-	if_will_cond_yield_neon
-	st1		{XL.2d}, [x20]
+CPU_LE(	rev		x8, x8		)
+	st1		{XL.2d}, [x1]
+	str		x8, [x5, #8]			// store lower counter
+
 	.if		\enc == 1
-	st1		{KS.16b}, [x27]
-	.endif
-	do_cond_yield_neon
-	b		0b
-	endif_yield_neon
-
-	b		1b
-
-3:	st1		{XL.2d}, [x20]
-	.if		\enc == 1
-	st1		{KS.16b}, [x27]
+	st1		{KS.16b}, [x10]
 	.endif
 
-CPU_LE(	rev		x28, x28	)
-	str		x28, [x24, #8]			// store lower counter
-
-	frame_pop
 	ret
 
-4:	b.eq		5f				// AES-192?
+2:	b.eq		3f				// AES-192?
 	enc_round	CTR, v17
 	enc_round	CTR, v18
-5:	enc_round	CTR, v19
+3:	enc_round	CTR, v19
 	enc_round	CTR, v20
-	b		2b
+	b		1b
 	.endm
 
 	/*
