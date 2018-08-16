@@ -833,7 +833,6 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->frag_seqno, random_seqno);
 
 	bat_priv->primary_if = NULL;
-	bat_priv->num_ifaces = 0;
 
 	batadv_nc_init_bat_priv(bat_priv);
 
