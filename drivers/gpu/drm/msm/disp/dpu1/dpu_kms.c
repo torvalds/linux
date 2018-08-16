@@ -450,7 +450,7 @@ static void _dpu_kms_initialize_dsi(struct drm_device *dev,
 	int i, rc;
 
 	/*TODO: Support two independent DSI connectors */
-	encoder = dpu_encoder_init(dev, DRM_MODE_CONNECTOR_DSI);
+	encoder = dpu_encoder_init(dev, DRM_MODE_ENCODER_DSI);
 	if (IS_ERR_OR_NULL(encoder)) {
 		DPU_ERROR("encoder init failed for dsi display\n");
 		return;
