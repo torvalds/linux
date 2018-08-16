@@ -67,8 +67,6 @@
 #include "debugfs.h"
 #include "fault.h"
 
-#define NUM_IB_PORTS 1
-
 uint kdeth_qp;
 module_param_named(kdeth_qp, kdeth_qp, uint, S_IRUGO);
 MODULE_PARM_DESC(kdeth_qp, "Set the KDETH queue pair prefix");
@@ -14914,20 +14912,16 @@ err_exit:
 }
 
 /**
- * Allocate and initialize the device structure for the hfi.
+ * hfi1_init_dd() - Initialize most of the dd structure.
  * @dev: the pci_dev for hfi1_ib device
  * @ent: pci_device_id struct for this dev
- *
- * Also allocates, initializes, and returns the devdata struct for this
- * device instance
  *
  * This is global, and is called directly at init to set up the
  * chip-specific function pointers for later use.
  */
-struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+int hfi1_init_dd(struct hfi1_devdata *dd)
 {
-	struct hfi1_devdata *dd;
+	struct pci_dev *pdev = dd->pcidev;
 	struct hfi1_pportdata *ppd;
 	u64 reg;
 	int i, ret;
@@ -14938,13 +14932,8 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		"Functional simulator"
 	};
 	struct pci_dev *parent = pdev->bus->self;
-	u32 sdma_engines;
+	u32 sdma_engines = chip_sdma_engines(dd);
 
-	dd = hfi1_alloc_devdata(pdev, NUM_IB_PORTS *
-				sizeof(struct hfi1_pportdata));
-	if (IS_ERR(dd))
-		goto bail;
-	sdma_engines = chip_sdma_engines(dd);
 	ppd = dd->pport;
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
 		int vl;
@@ -15246,9 +15235,8 @@ bail_cleanup:
 	hfi1_pcie_ddcleanup(dd);
 bail_free:
 	hfi1_free_devdata(dd);
-	dd = ERR_PTR(ret);
 bail:
-	return dd;
+	return ret;
 }
 
 static u16 delay_cycles(struct hfi1_pportdata *ppd, u32 desired_egress_rate,

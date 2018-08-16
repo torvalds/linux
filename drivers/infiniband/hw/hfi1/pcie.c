@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -62,13 +62,11 @@
 
 /*
  * Do all the common PCIe setup and initialization.
- * devdata is not yet allocated, and is not allocated until after this
- * routine returns success.  Therefore dd_dev_err() can't be used for error
- * printing.
  */
-int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
+int hfi1_pcie_init(struct hfi1_devdata *dd)
 {
 	int ret;
+	struct pci_dev *pdev = dd->pcidev;
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
@@ -84,15 +82,13 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 * about that, it appears.  If the original BAR was retained
 		 * in the kernel data structures, this may be OK.
 		 */
-		hfi1_early_err(&pdev->dev, "pci enable failed: error %d\n",
-			       -ret);
-		goto done;
+		dd_dev_err(dd, "pci enable failed: error %d\n", -ret);
+		return ret;
 	}
 
 	ret = pci_request_regions(pdev, DRIVER_NAME);
 	if (ret) {
-		hfi1_early_err(&pdev->dev,
-			       "pci_request_regions fails: err %d\n", -ret);
+		dd_dev_err(dd, "pci_request_regions fails: err %d\n", -ret);
 		goto bail;
 	}
 
@@ -105,8 +101,7 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 */
 		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (ret) {
-			hfi1_early_err(&pdev->dev,
-				       "Unable to set DMA mask: %d\n", ret);
+			dd_dev_err(dd, "Unable to set DMA mask: %d\n", ret);
 			goto bail;
 		}
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
@@ -114,18 +109,16 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	}
 	if (ret) {
-		hfi1_early_err(&pdev->dev,
-			       "Unable to set DMA consistent mask: %d\n", ret);
+		dd_dev_err(dd, "Unable to set DMA consistent mask: %d\n", ret);
 		goto bail;
 	}
 
 	pci_set_master(pdev);
 	(void)pci_enable_pcie_error_reporting(pdev);
-	goto done;
+	return 0;
 
 bail:
 	hfi1_pcie_cleanup(pdev);
-done:
 	return ret;
 }
 
@@ -201,7 +194,7 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 		dd_dev_err(dd, "WC mapping of send buffers failed\n");
 		goto nomem;
 	}
-	dd_dev_info(dd, "WC piobase: %p\n for %x", dd->piobase, TXE_PIO_SIZE);
+	dd_dev_info(dd, "WC piobase: %p for %x\n", dd->piobase, TXE_PIO_SIZE);
 
 	dd->physaddr = addr;        /* used for io_remap, etc. */
 

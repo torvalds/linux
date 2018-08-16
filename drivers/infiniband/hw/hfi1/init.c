@@ -83,6 +83,8 @@
 #define HFI1_MIN_EAGER_BUFFER_SIZE (4 * 1024) /* 4KB */
 #define HFI1_MAX_EAGER_BUFFER_SIZE (256 * 1024) /* 256KB */
 
+#define NUM_IB_PORTS 1
+
 /*
  * Number of user receive contexts we are configured to use (to allow for more
  * pio buffers per ctxt, etc.)  Zero means use one user context per CPU.
@@ -654,9 +656,8 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 	ppd->part_enforce |= HFI1_PART_ENFORCE_IN;
 
 	if (loopback) {
-		hfi1_early_err(&pdev->dev,
-			       "Faking data partition 0x8001 in idx %u\n",
-			       !default_pkey_idx);
+		dd_dev_err(dd, "Faking data partition 0x8001 in idx %u\n",
+			   !default_pkey_idx);
 		ppd->pkeys[!default_pkey_idx] = 0x8001;
 	}
 
@@ -702,9 +703,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 	return;
 
 bail:
-
-	hfi1_early_err(&pdev->dev,
-		       "Congestion Control Agent disabled for port %d\n", port);
+	dd_dev_err(dd, "Congestion Control Agent disabled for port %d\n", port);
 }
 
 /*
@@ -1246,15 +1245,19 @@ void hfi1_free_devdata(struct hfi1_devdata *dd)
 	kobject_put(&dd->kobj);
 }
 
-/*
- * Allocate our primary per-unit data structure.  Must be done via verbs
- * allocator, because the verbs cleanup process both does cleanup and
- * free of the data structure.
+/**
+ * hfi1_alloc_devdata - Allocate our primary per-unit data structure.
+ * @pdev: Valid PCI device
+ * @extra: How many bytes to alloc past the default
+ *
+ * Must be done via verbs allocator, because the verbs cleanup process
+ * both does cleanup and free of the data structure.
  * "extra" is for chip-specific data.
  *
  * Use the idr mechanism to get a unit number for this unit.
  */
-struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
+static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
+					       size_t extra)
 {
 	unsigned long flags;
 	struct hfi1_devdata *dd;
@@ -1287,8 +1290,8 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	idr_preload_end();
 
 	if (ret < 0) {
-		hfi1_early_err(&pdev->dev,
-			       "Could not allocate unit ID: error %d\n", -ret);
+		dev_err(&pdev->dev,
+			"Could not allocate unit ID: error %d\n", -ret);
 		goto bail;
 	}
 	rvt_set_ibdev_name(&dd->verbs_dev.rdi, "%s_%d", class_name(), dd->unit);
@@ -1604,23 +1607,23 @@ static void postinit_cleanup(struct hfi1_devdata *dd)
 	hfi1_free_devdata(dd);
 }
 
-static int init_validate_rcvhdrcnt(struct device *dev, uint thecnt)
+static int init_validate_rcvhdrcnt(struct hfi1_devdata *dd, uint thecnt)
 {
 	if (thecnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
-		hfi1_early_err(dev, "Receive header queue count too small\n");
+		dd_dev_err(dd, "Receive header queue count too small\n");
 		return -EINVAL;
 	}
 
 	if (thecnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
-		hfi1_early_err(dev,
-			       "Receive header queue count cannot be greater than %u\n",
-			       HFI1_MAX_HDRQ_EGRBUF_CNT);
+		dd_dev_err(dd,
+			   "Receive header queue count cannot be greater than %u\n",
+			   HFI1_MAX_HDRQ_EGRBUF_CNT);
 		return -EINVAL;
 	}
 
 	if (thecnt % HDRQ_INCREMENT) {
-		hfi1_early_err(dev, "Receive header queue count %d must be divisible by %lu\n",
-			       thecnt, HDRQ_INCREMENT);
+		dd_dev_err(dd, "Receive header queue count %d must be divisible by %lu\n",
+			   thecnt, HDRQ_INCREMENT);
 		return -EINVAL;
 	}
 
@@ -1639,22 +1642,29 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Validate dev ids */
 	if (!(ent->device == PCI_DEVICE_ID_INTEL0 ||
 	      ent->device == PCI_DEVICE_ID_INTEL1)) {
-		hfi1_early_err(&pdev->dev,
-			       "Failing on unknown Intel deviceid 0x%x\n",
-			       ent->device);
+		dev_err(&pdev->dev, "Failing on unknown Intel deviceid 0x%x\n",
+			ent->device);
 		ret = -ENODEV;
 		goto bail;
 	}
 
+	/* Allocate the dd so we can get to work */
+	dd = hfi1_alloc_devdata(pdev, NUM_IB_PORTS *
+				sizeof(struct hfi1_pportdata));
+	if (IS_ERR(dd)) {
+		ret = PTR_ERR(dd);
+		goto bail;
+	}
+
 	/* Validate some global module parameters */
-	ret = init_validate_rcvhdrcnt(&pdev->dev, rcvhdrcnt);
+	ret = init_validate_rcvhdrcnt(dd, rcvhdrcnt);
 	if (ret)
 		goto bail;
 
 	/* use the encoding function as a sanitization check */
 	if (!encode_rcv_header_entry_size(hfi1_hdrq_entsize)) {
-		hfi1_early_err(&pdev->dev, "Invalid HdrQ Entry size %u\n",
-			       hfi1_hdrq_entsize);
+		dd_dev_err(dd, "Invalid HdrQ Entry size %u\n",
+			   hfi1_hdrq_entsize);
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -1676,10 +1686,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			clamp_val(eager_buffer_size,
 				  MIN_EAGER_BUFFER * 8,
 				  MAX_EAGER_BUFFER_TOTAL);
-		hfi1_early_info(&pdev->dev, "Eager buffer size %u\n",
-				eager_buffer_size);
+		dd_dev_info(dd, "Eager buffer size %u\n",
+			    eager_buffer_size);
 	} else {
-		hfi1_early_err(&pdev->dev, "Invalid Eager buffer size of 0\n");
+		dd_dev_err(dd, "Invalid Eager buffer size of 0\n");
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -1687,7 +1697,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* restrict value of hfi1_rcvarr_split */
 	hfi1_rcvarr_split = clamp_val(hfi1_rcvarr_split, 0, 100);
 
-	ret = hfi1_pcie_init(pdev, ent);
+	ret = hfi1_pcie_init(dd);
 	if (ret)
 		goto bail;
 
@@ -1695,12 +1705,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * Do device-specific initialization, function table setup, dd
 	 * allocation, etc.
 	 */
-	dd = hfi1_init_dd(pdev, ent);
-
-	if (IS_ERR(dd)) {
-		ret = PTR_ERR(dd);
+	ret = hfi1_init_dd(dd);
+	if (ret)
 		goto clean_bail; /* error already printed */
-	}
 
 	ret = create_workqueues(dd);
 	if (ret)
