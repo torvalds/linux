@@ -161,8 +161,8 @@ static int ebt_stp_mt_check(const struct xt_mtchk_param *par)
 	/* Make sure the match only receives stp frames */
 	if (!par->nft_compat &&
 	    (!ether_addr_equal(e->destmac, eth_stp_addr) ||
-	     !is_broadcast_ether_addr(e->destmsk) ||
-	     !(e->bitmask & EBT_DESTMAC)))
+	     !(e->bitmask & EBT_DESTMAC) ||
+	     !is_broadcast_ether_addr(e->destmsk)))
 		return -EINVAL;
 
 	return 0;

@@ -336,22 +336,32 @@ static irqreturn_t bnxt_qplib_nq_irq(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
+void bnxt_qplib_nq_stop_irq(struct bnxt_qplib_nq *nq, bool kill)
+{
+	tasklet_disable(&nq->worker);
+	/* Mask h/w interrupt */
+	NQ_DB(nq->bar_reg_iomem, nq->hwq.cons, nq->hwq.max_elements);
+	/* Sync with last running IRQ handler */
+	synchronize_irq(nq->vector);
+	if (kill)
+		tasklet_kill(&nq->worker);
+	if (nq->requested) {
+		irq_set_affinity_hint(nq->vector, NULL);
+		free_irq(nq->vector, nq);
+		nq->requested = false;
+	}
+}
+
 void bnxt_qplib_disable_nq(struct bnxt_qplib_nq *nq)
 {
 	if (nq->cqn_wq) {
 		destroy_workqueue(nq->cqn_wq);
 		nq->cqn_wq = NULL;
 	}
-	/* Make sure the HW is stopped! */
-	synchronize_irq(nq->vector);
-	tasklet_disable(&nq->worker);
-	tasklet_kill(&nq->worker);
 
-	if (nq->requested) {
-		irq_set_affinity_hint(nq->vector, NULL);
-		free_irq(nq->vector, nq);
-		nq->requested = false;
-	}
+	/* Make sure the HW is stopped! */
+	bnxt_qplib_nq_stop_irq(nq, true);
+
 	if (nq->bar_reg_iomem)
 		iounmap(nq->bar_reg_iomem);
 	nq->bar_reg_iomem = NULL;
@@ -359,6 +369,40 @@ void bnxt_qplib_disable_nq(struct bnxt_qplib_nq *nq)
 	nq->cqn_handler = NULL;
 	nq->srqn_handler = NULL;
 	nq->vector = 0;
+}
+
+int bnxt_qplib_nq_start_irq(struct bnxt_qplib_nq *nq, int nq_indx,
+			    int msix_vector, bool need_init)
+{
+	int rc;
+
+	if (nq->requested)
+		return -EFAULT;
+
+	nq->vector = msix_vector;
+	if (need_init)
+		tasklet_init(&nq->worker, bnxt_qplib_service_nq,
+			     (unsigned long)nq);
+	else
+		tasklet_enable(&nq->worker);
+
+	snprintf(nq->name, sizeof(nq->name), "bnxt_qplib_nq-%d", nq_indx);
+	rc = request_irq(nq->vector, bnxt_qplib_nq_irq, 0, nq->name, nq);
+	if (rc)
+		return rc;
+
+	cpumask_clear(&nq->mask);
+	cpumask_set_cpu(nq_indx, &nq->mask);
+	rc = irq_set_affinity_hint(nq->vector, &nq->mask);
+	if (rc) {
+		dev_warn(&nq->pdev->dev,
+			 "QPLIB: set affinity failed; vector: %d nq_idx: %d\n",
+			 nq->vector, nq_indx);
+	}
+	nq->requested = true;
+	NQ_DB_REARM(nq->bar_reg_iomem, nq->hwq.cons, nq->hwq.max_elements);
+
+	return rc;
 }
 
 int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
@@ -372,41 +416,17 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 	resource_size_t nq_base;
 	int rc = -1;
 
-	nq->pdev = pdev;
-	nq->vector = msix_vector;
 	if (cqn_handler)
 		nq->cqn_handler = cqn_handler;
 
 	if (srqn_handler)
 		nq->srqn_handler = srqn_handler;
 
-	tasklet_init(&nq->worker, bnxt_qplib_service_nq, (unsigned long)nq);
-
 	/* Have a task to schedule CQ notifiers in post send case */
 	nq->cqn_wq  = create_singlethread_workqueue("bnxt_qplib_nq");
 	if (!nq->cqn_wq)
-		goto fail;
+		return -ENOMEM;
 
-	nq->requested = false;
-	memset(nq->name, 0, 32);
-	sprintf(nq->name, "bnxt_qplib_nq-%d", nq_idx);
-	rc = request_irq(nq->vector, bnxt_qplib_nq_irq, 0, nq->name, nq);
-	if (rc) {
-		dev_err(&nq->pdev->dev,
-			"Failed to request IRQ for NQ: %#x", rc);
-		goto fail;
-	}
-
-	cpumask_clear(&nq->mask);
-	cpumask_set_cpu(nq_idx, &nq->mask);
-	rc = irq_set_affinity_hint(nq->vector, &nq->mask);
-	if (rc) {
-		dev_warn(&nq->pdev->dev,
-			 "QPLIB: set affinity failed; vector: %d nq_idx: %d\n",
-			 nq->vector, nq_idx);
-	}
-
-	nq->requested = true;
 	nq->bar_reg = NQ_CONS_PCI_BAR_REGION;
 	nq->bar_reg_off = bar_reg_offset;
 	nq_base = pci_resource_start(pdev, nq->bar_reg);
@@ -419,7 +439,13 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 		rc = -ENOMEM;
 		goto fail;
 	}
-	NQ_DB_REARM(nq->bar_reg_iomem, nq->hwq.cons, nq->hwq.max_elements);
+
+	rc = bnxt_qplib_nq_start_irq(nq, nq_idx, msix_vector, true);
+	if (rc) {
+		dev_err(&nq->pdev->dev,
+			"QPLIB: Failed to request irq for nq-idx %d", nq_idx);
+		goto fail;
+	}
 
 	return 0;
 fail:

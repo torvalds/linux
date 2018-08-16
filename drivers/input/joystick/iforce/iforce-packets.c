@@ -19,10 +19,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
 #include "iforce.h"
@@ -33,14 +29,10 @@ static struct {
 } iforce_hat_to_axis[16] = {{ 0,-1}, { 1,-1}, { 1, 0}, { 1, 1}, { 0, 1}, {-1, 1}, {-1, 0}, {-1,-1}};
 
 
-void iforce_dump_packet(char *msg, u16 cmd, unsigned char *data)
+void iforce_dump_packet(struct iforce *iforce, char *msg, u16 cmd, unsigned char *data)
 {
-	int i;
-
-	printk(KERN_DEBUG __FILE__ ": %s cmd = %04x, data = ", msg, cmd);
-	for (i = 0; i < LO(cmd); i++)
-		printk("%02x ", data[i]);
-	printk("\n");
+	dev_dbg(iforce->dev->dev.parent, "%s %s cmd = %04x, data = %*ph\n",
+		__func__, msg, cmd, LO(cmd), data);
 }
 
 /*
@@ -255,7 +247,7 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 		iforce->cr.bRequest = packet[0];
 		iforce->ctrl->dev = iforce->usbdev;
 
-		status = usb_submit_urb(iforce->ctrl, GFP_ATOMIC);
+		status = usb_submit_urb(iforce->ctrl, GFP_KERNEL);
 		if (status) {
 			dev_err(&iforce->intf->dev,
 				"usb_submit_urb failed %d\n", status);

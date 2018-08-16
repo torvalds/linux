@@ -331,7 +331,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 		switch (info->ae_id) {
 		case I40IW_AE_LLP_FIN_RECEIVED:
 			if (qp->term_flags)
-				continue;
+				break;
 			if (atomic_inc_return(&iwqp->close_timer_started) == 1) {
 				iwqp->hw_tcp_state = I40IW_TCP_STATE_CLOSE_WAIT;
 				if ((iwqp->hw_tcp_state == I40IW_TCP_STATE_CLOSE_WAIT) &&
@@ -360,7 +360,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			break;
 		case I40IW_AE_LLP_CONNECTION_RESET:
 			if (atomic_read(&iwqp->close_timer_started))
-				continue;
+				break;
 			i40iw_cm_disconn(iwqp);
 			break;
 		case I40IW_AE_QP_SUSPEND_COMPLETE:

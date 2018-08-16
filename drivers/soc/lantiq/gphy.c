@@ -30,7 +30,6 @@ struct xway_gphy_priv {
 	struct clk *gphy_clk_gate;
 	struct reset_control *gphy_reset;
 	struct reset_control *gphy_reset2;
-	struct notifier_block gphy_reboot_nb;
 	void __iomem *membase;
 	char *fw_name;
 };
@@ -63,24 +62,6 @@ static const struct of_device_id xway_gphy_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, xway_gphy_match);
-
-static struct xway_gphy_priv *to_xway_gphy_priv(struct notifier_block *nb)
-{
-	return container_of(nb, struct xway_gphy_priv, gphy_reboot_nb);
-}
-
-static int xway_gphy_reboot_notify(struct notifier_block *reboot_nb,
-				   unsigned long code, void *unused)
-{
-	struct xway_gphy_priv *priv = to_xway_gphy_priv(reboot_nb);
-
-	if (priv) {
-		reset_control_assert(priv->gphy_reset);
-		reset_control_assert(priv->gphy_reset2);
-	}
-
-	return NOTIFY_DONE;
-}
 
 static int xway_gphy_load(struct device *dev, struct xway_gphy_priv *priv,
 			  dma_addr_t *dev_addr)
@@ -205,14 +186,6 @@ static int xway_gphy_probe(struct platform_device *pdev)
 	reset_control_deassert(priv->gphy_reset);
 	reset_control_deassert(priv->gphy_reset2);
 
-	/* assert the gphy reset because it can hang after a reboot: */
-	priv->gphy_reboot_nb.notifier_call = xway_gphy_reboot_notify;
-	priv->gphy_reboot_nb.priority = -1;
-
-	ret = register_reboot_notifier(&priv->gphy_reboot_nb);
-	if (ret)
-		dev_warn(dev, "Failed to register reboot notifier\n");
-
 	platform_set_drvdata(pdev, priv);
 
 	return ret;
@@ -220,20 +193,11 @@ static int xway_gphy_probe(struct platform_device *pdev)
 
 static int xway_gphy_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct xway_gphy_priv *priv = platform_get_drvdata(pdev);
-	int ret;
-
-	reset_control_assert(priv->gphy_reset);
-	reset_control_assert(priv->gphy_reset2);
 
 	iowrite32be(0, priv->membase);
 
 	clk_disable_unprepare(priv->gphy_clk_gate);
-
-	ret = unregister_reboot_notifier(&priv->gphy_reboot_nb);
-	if (ret)
-		dev_warn(dev, "Failed to unregister reboot notifier\n");
 
 	return 0;
 }

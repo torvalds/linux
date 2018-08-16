@@ -57,6 +57,13 @@ KSZ9031:
       - txd2-skew-ps : Skew control of TX data 2 pad
       - txd3-skew-ps : Skew control of TX data 3 pad
 
+    - micrel,force-master:
+        Boolean, force phy to master mode. Only set this option if the phy
+        reference clock provided at CLK125_NDO pin is used as MAC reference
+        clock because the clock jitter in slave mode is to high (errata#2).
+        Attention: The link partner must be configurable as slave otherwise
+        no link will be established.
+
 Examples:
 
 	mdio {

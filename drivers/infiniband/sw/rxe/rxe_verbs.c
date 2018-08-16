@@ -761,7 +761,6 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, struct ib_send_wr *wr,
 	unsigned int mask;
 	unsigned int length = 0;
 	int i;
-	int must_sched;
 
 	while (wr) {
 		mask = wr_opcode_mask(wr->opcode, qp);
@@ -791,14 +790,7 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, struct ib_send_wr *wr,
 		wr = wr->next;
 	}
 
-	/*
-	 * Must sched in case of GSI QP because ib_send_mad() hold irq lock,
-	 * and the requester call ip_local_out_sk() that takes spin_lock_bh.
-	 */
-	must_sched = (qp_type(qp) == IB_QPT_GSI) ||
-			(queue_count(qp->sq.queue) > 1);
-
-	rxe_run_task(&qp->req.task, must_sched);
+	rxe_run_task(&qp->req.task, 1);
 	if (unlikely(qp->req.state == QP_STATE_ERROR))
 		rxe_run_task(&qp->comp.task, 1);
 

@@ -1158,7 +1158,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
 		 * nodes have to go through register_node.
 		 * TODO clean up this mess.
 		 */
-		ret = link_mem_sections(nid, start_pfn, nr_pages);
+		ret = link_mem_sections(nid, start_pfn, nr_pages, false);
 register_fail:
 		/*
 		 * If sysfs file of new node can't create, cpu on the node

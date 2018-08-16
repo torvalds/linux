@@ -977,7 +977,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	return 0;
 
 errout_idr:
-	if (fnew->handle)
+	if (!fold)
 		idr_remove(&head->handle_idr, fnew->handle);
 errout:
 	tcf_exts_destroy(&fnew->exts);

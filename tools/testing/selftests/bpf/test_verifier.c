@@ -11713,6 +11713,11 @@ static void get_unpriv_disabled()
 	FILE *fd;
 
 	fd = fopen("/proc/sys/"UNPRIV_SYSCTL, "r");
+	if (!fd) {
+		perror("fopen /proc/sys/"UNPRIV_SYSCTL);
+		unpriv_disabled = true;
+		return;
+	}
 	if (fgets(buf, 2, fd) == buf && atoi(buf))
 		unpriv_disabled = true;
 	fclose(fd);

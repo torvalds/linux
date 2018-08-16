@@ -144,6 +144,7 @@ static int stm32_dfsdm_set_osrs(struct stm32_dfsdm_filter *fl,
 	 * Leave as soon as if exact resolution if reached.
 	 * Otherwise the higher resolution below 32 bits is kept.
 	 */
+	fl->res = 0;
 	for (fosr = 1; fosr <= DFSDM_MAX_FL_OVERSAMPLING; fosr++) {
 		for (iosr = 1; iosr <= DFSDM_MAX_INT_OVERSAMPLING; iosr++) {
 			if (fast)
@@ -193,7 +194,7 @@ static int stm32_dfsdm_set_osrs(struct stm32_dfsdm_filter *fl,
 		}
 	}
 
-	if (!fl->fosr)
+	if (!fl->res)
 		return -EINVAL;
 
 	return 0;
@@ -770,7 +771,7 @@ static int stm32_dfsdm_write_raw(struct iio_dev *indio_dev,
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
 	struct stm32_dfsdm_filter *fl = &adc->dfsdm->fl_list[adc->fl_id];
 	struct stm32_dfsdm_channel *ch = &adc->dfsdm->ch_list[chan->channel];
-	unsigned int spi_freq = adc->spi_freq;
+	unsigned int spi_freq;
 	int ret = -EINVAL;
 
 	switch (mask) {
@@ -784,8 +785,18 @@ static int stm32_dfsdm_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (!val)
 			return -EINVAL;
-		if (ch->src != DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL)
+
+		switch (ch->src) {
+		case DFSDM_CHANNEL_SPI_CLOCK_INTERNAL:
 			spi_freq = adc->dfsdm->spi_master_freq;
+			break;
+		case DFSDM_CHANNEL_SPI_CLOCK_INTERNAL_DIV2_FALLING:
+		case DFSDM_CHANNEL_SPI_CLOCK_INTERNAL_DIV2_RISING:
+			spi_freq = adc->dfsdm->spi_master_freq / 2;
+			break;
+		default:
+			spi_freq = adc->spi_freq;
+		}
 
 		if (spi_freq % val)
 			dev_warn(&indio_dev->dev,

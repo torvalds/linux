@@ -570,16 +570,7 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
 		     current_page, vec_len, vec_start);
 
 		len = bio_add_page(bio, page, vec_len, vec_start);
-		if (len != vec_len) {
-			mlog(ML_ERROR, "Adding page[%d] to bio failed, "
-			     "page %p, len %d, vec_len %u, vec_start %u, "
-			     "bi_sector %llu\n", current_page, page, len,
-			     vec_len, vec_start,
-			     (unsigned long long)bio->bi_iter.bi_sector);
-			bio_put(bio);
-			bio = ERR_PTR(-EIO);
-			return bio;
-		}
+		if (len != vec_len) break;
 
 		cs += vec_len / (PAGE_SIZE/spp);
 		vec_start = 0;

@@ -43,7 +43,10 @@ mr_table_alloc(struct net *net, u32 id,
 	write_pnet(&mrt->net, net);
 
 	mrt->ops = *ops;
-	rhltable_init(&mrt->mfc_hash, mrt->ops.rht_params);
+	if (rhltable_init(&mrt->mfc_hash, mrt->ops.rht_params)) {
+		kfree(mrt);
+		return NULL;
+	}
 	INIT_LIST_HEAD(&mrt->mfc_cache_list);
 	INIT_LIST_HEAD(&mrt->mfc_unres_queue);
 

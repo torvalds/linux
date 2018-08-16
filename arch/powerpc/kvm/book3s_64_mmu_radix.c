@@ -162,7 +162,7 @@ static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG))
 		asm volatile(PPC_TLBIE_5(%0, %1, 0, 0, 1)
 			     : : "r" (addr), "r" (kvm->arch.lpid) : "memory");
-	asm volatile("ptesync": : :"memory");
+	asm volatile("eieio ; tlbsync ; ptesync": : :"memory");
 }
 
 static void kvmppc_radix_flush_pwc(struct kvm *kvm, unsigned long addr)
@@ -173,7 +173,7 @@ static void kvmppc_radix_flush_pwc(struct kvm *kvm, unsigned long addr)
 	/* RIC=1 PRS=0 R=1 IS=2 */
 	asm volatile(PPC_TLBIE_5(%0, %1, 1, 0, 1)
 		     : : "r" (rb), "r" (kvm->arch.lpid) : "memory");
-	asm volatile("ptesync": : :"memory");
+	asm volatile("eieio ; tlbsync ; ptesync": : :"memory");
 }
 
 unsigned long kvmppc_radix_update_pte(struct kvm *kvm, pte_t *ptep,
@@ -584,7 +584,7 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep)) {
-		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT, 0,
+		old = kvmppc_radix_update_pte(kvm, ptep, ~0UL, 0,
 					      gpa, shift);
 		kvmppc_radix_tlbie_page(kvm, gpa, shift);
 		if ((old & _PAGE_DIRTY) && memslot->dirty_bitmap) {
