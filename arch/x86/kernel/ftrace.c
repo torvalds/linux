@@ -27,6 +27,7 @@
 
 #include <asm/set_memory.h>
 #include <asm/kprobes.h>
+#include <asm/sections.h>
 #include <asm/ftrace.h>
 #include <asm/nops.h>
 

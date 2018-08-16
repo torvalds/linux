@@ -438,9 +438,9 @@ static void u2_phy_instance_init(struct mtk_tphy *tphy,
 	u32 index = instance->index;
 	u32 tmp;
 
-	/* switch to USB function. (system register, force ip into usb mode) */
+	/* switch to USB function, and enable usb pll */
 	tmp = readl(com + U3P_U2PHYDTM0);
-	tmp &= ~P2C_FORCE_UART_EN;
+	tmp &= ~(P2C_FORCE_UART_EN | P2C_FORCE_SUSPENDM);
 	tmp |= P2C_RG_XCVRSEL_VAL(1) | P2C_RG_DATAIN_VAL(0);
 	writel(tmp, com + U3P_U2PHYDTM0);
 
@@ -500,10 +500,8 @@ static void u2_phy_instance_power_on(struct mtk_tphy *tphy,
 	u32 index = instance->index;
 	u32 tmp;
 
-	/* (force_suspendm=0) (let suspendm=1, enable usb 480MHz pll) */
 	tmp = readl(com + U3P_U2PHYDTM0);
-	tmp &= ~(P2C_FORCE_SUSPENDM | P2C_RG_XCVRSEL);
-	tmp &= ~(P2C_RG_DATAIN | P2C_DTM0_PART_MASK);
+	tmp &= ~(P2C_RG_XCVRSEL | P2C_RG_DATAIN | P2C_DTM0_PART_MASK);
 	writel(tmp, com + U3P_U2PHYDTM0);
 
 	/* OTG Enable */
@@ -538,7 +536,6 @@ static void u2_phy_instance_power_off(struct mtk_tphy *tphy,
 
 	tmp = readl(com + U3P_U2PHYDTM0);
 	tmp &= ~(P2C_RG_XCVRSEL | P2C_RG_DATAIN);
-	tmp |= P2C_FORCE_SUSPENDM;
 	writel(tmp, com + U3P_U2PHYDTM0);
 
 	/* OTG Disable */
@@ -546,18 +543,16 @@ static void u2_phy_instance_power_off(struct mtk_tphy *tphy,
 	tmp &= ~PA6_RG_U2_OTG_VBUSCMP_EN;
 	writel(tmp, com + U3P_USBPHYACR6);
 
-	/* let suspendm=0, set utmi into analog power down */
-	tmp = readl(com + U3P_U2PHYDTM0);
-	tmp &= ~P2C_RG_SUSPENDM;
-	writel(tmp, com + U3P_U2PHYDTM0);
-	udelay(1);
-
 	tmp = readl(com + U3P_U2PHYDTM1);
 	tmp &= ~(P2C_RG_VBUSVALID | P2C_RG_AVALID);
 	tmp |= P2C_RG_SESSEND;
 	writel(tmp, com + U3P_U2PHYDTM1);
 
 	if (tphy->pdata->avoid_rx_sen_degradation && index) {
+		tmp = readl(com + U3P_U2PHYDTM0);
+		tmp &= ~(P2C_RG_SUSPENDM | P2C_FORCE_SUSPENDM);
+		writel(tmp, com + U3P_U2PHYDTM0);
+
 		tmp = readl(com + U3D_U2PHYDCR0);
 		tmp &= ~P2C_RG_SIF_U2PLL_FORCE_ON;
 		writel(tmp, com + U3D_U2PHYDCR0);

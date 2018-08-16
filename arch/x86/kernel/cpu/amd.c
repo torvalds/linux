@@ -298,7 +298,6 @@ static int nearby_node(int apicid)
 }
 #endif
 
-#ifdef CONFIG_SMP
 /*
  * Fix up cpu_core_id for pre-F17h systems to be in the
  * [0 .. cores_per_node - 1] range. Not really needed but
@@ -313,6 +312,13 @@ static void legacy_fixup_core_id(struct cpuinfo_x86 *c)
 
 	cus_per_node = c->x86_max_cores / nodes_per_socket;
 	c->cpu_core_id %= cus_per_node;
+}
+
+
+static void amd_get_topology_early(struct cpuinfo_x86 *c)
+{
+	if (cpu_has(c, X86_FEATURE_TOPOEXT))
+		smp_num_siblings = ((cpuid_ebx(0x8000001e) >> 8) & 0xff) + 1;
 }
 
 /*
@@ -333,7 +339,6 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
 
 		node_id  = ecx & 0xff;
-		smp_num_siblings = ((ebx >> 8) & 0xff) + 1;
 
 		if (c->x86 == 0x15)
 			c->cu_id = ebx & 0xff;
@@ -376,7 +381,6 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		legacy_fixup_core_id(c);
 	}
 }
-#endif
 
 /*
  * On a AMD dual core setup the lower bits of the APIC id distinguish the cores.
@@ -384,7 +388,6 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
  */
 static void amd_detect_cmp(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_SMP
 	unsigned bits;
 	int cpu = smp_processor_id();
 
@@ -396,16 +399,11 @@ static void amd_detect_cmp(struct cpuinfo_x86 *c)
 	/* use socket ID also for last level cache */
 	per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
 	amd_get_topology(c);
-#endif
 }
 
 u16 amd_get_nb_id(int cpu)
 {
-	u16 id = 0;
-#ifdef CONFIG_SMP
-	id = per_cpu(cpu_llc_id, cpu);
-#endif
-	return id;
+	return per_cpu(cpu_llc_id, cpu);
 }
 EXPORT_SYMBOL_GPL(amd_get_nb_id);
 
@@ -579,6 +577,7 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 
 static void early_init_amd(struct cpuinfo_x86 *c)
 {
+	u64 value;
 	u32 dummy;
 
 	early_init_amd_mc(c);
@@ -668,6 +667,22 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 			clear_cpu_cap(c, X86_FEATURE_SME);
 		}
 	}
+
+	/* Re-enable TopologyExtensions if switched off by BIOS */
+	if (c->x86 == 0x15 &&
+	    (c->x86_model >= 0x10 && c->x86_model <= 0x6f) &&
+	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
+
+		if (msr_set_bit(0xc0011005, 54) > 0) {
+			rdmsrl(0xc0011005, value);
+			if (value & BIT_64(54)) {
+				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
+				pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
+			}
+		}
+	}
+
+	amd_get_topology_early(c);
 }
 
 static void init_amd_k8(struct cpuinfo_x86 *c)
@@ -759,19 +774,6 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 {
 	u64 value;
 
-	/* re-enable TopologyExtensions if switched off by BIOS */
-	if ((c->x86_model >= 0x10) && (c->x86_model <= 0x6f) &&
-	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
-
-		if (msr_set_bit(0xc0011005, 54) > 0) {
-			rdmsrl(0xc0011005, value);
-			if (value & BIT_64(54)) {
-				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
-				pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
-			}
-		}
-	}
-
 	/*
 	 * The way access filter has a performance penalty on some workloads.
 	 * Disable it on the affected CPUs.
@@ -835,15 +837,8 @@ static void init_amd(struct cpuinfo_x86 *c)
 
 	cpu_detect_cache_sizes(c);
 
-	/* Multi core CPU? */
-	if (c->extended_cpuid_level >= 0x80000008) {
-		amd_detect_cmp(c);
-		srat_detect_node(c);
-	}
-
-#ifdef CONFIG_X86_32
-	detect_ht(c);
-#endif
+	amd_detect_cmp(c);
+	srat_detect_node(c);
 
 	init_amd_cacheinfo(c);
 

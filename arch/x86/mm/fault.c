@@ -24,6 +24,7 @@
 #include <asm/vsyscall.h>		/* emulate_vsyscall		*/
 #include <asm/vm86.h>			/* struct vm86			*/
 #include <asm/mmu_context.h>		/* vma_pkey()			*/
+#include <asm/sections.h>
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
