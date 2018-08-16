@@ -93,7 +93,7 @@
 #define NVM_HW_SECTION_NUM_FAMILY_9000		10
 
 static const struct iwl_base_params iwl9000_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_9000,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 31,
 	.max_tfd_queue_size = 256,
 	.shadow_ram_support = true,

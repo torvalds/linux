@@ -97,7 +97,7 @@
 #define DEFAULT_NVM_FILE_FAMILY_8000C		"nvmData-8000C"
 
 static const struct iwl_base_params iwl8000_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_8000,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 31,
 	.max_tfd_queue_size = 256,
 	.shadow_ram_support = true,

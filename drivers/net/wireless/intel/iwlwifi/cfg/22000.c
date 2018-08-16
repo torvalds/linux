@@ -109,7 +109,7 @@
 #define NVM_HW_SECTION_NUM_FAMILY_22000		10
 
 static const struct iwl_base_params iwl_22000_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_22000,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 256,
 	.shadow_ram_support = true,
@@ -121,7 +121,7 @@ static const struct iwl_base_params iwl_22000_base_params = {
 };
 
 static const struct iwl_base_params iwl_22560_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_22000,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 65536,
 	.shadow_ram_support = true,
