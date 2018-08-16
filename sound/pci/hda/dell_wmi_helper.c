@@ -30,7 +30,7 @@ static void alc_fixup_dell_wmi(struct hda_codec *codec,
 
 		removefunc = (dell_micmute_led_set_func(false) < 0) ||
 			(snd_hda_gen_add_micmute_led(codec,
-						     dell_micmute_update) <= 0);
+						     dell_micmute_update) < 0);
 	}
 
 	if (dell_micmute_led_set_func && (action == HDA_FIXUP_ACT_FREE || removefunc)) {
