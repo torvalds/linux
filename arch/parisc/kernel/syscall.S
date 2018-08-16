@@ -227,8 +227,7 @@ linux_gateway_entry:
 	or,=	%r2,%r2,%r2
 	ldo	R%sys_call_table64(%r1), %r19
 #else
-	ldil	L%sys_call_table, %r1
-	ldo     R%sys_call_table(%r1), %r19
+	load32	sys_call_table, %r19
 #endif	
 	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
 	b,n	.Lsyscall_nosys
@@ -331,8 +330,6 @@ tracesys_next:
 	 *  task->thread.regs.gr[20] above.
 	 */
 	copy	%ret0,%r20
-	ldil	L%sys_call_table,%r1
-	ldo     R%sys_call_table(%r1), %r19
 
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
 	LDREG	TI_TASK(%r1), %r1
@@ -353,6 +350,23 @@ tracesys_next:
 	cmpib,COND(=),n -1,%r20,tracesys_exit /* seccomp may have returned -1 */
 	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
 	b,n	.Ltracesys_nosys
+
+	/* Note!  We cannot use the syscall table that is mapped
+	nearby since the gateway page is mapped execute-only. */
+
+#ifdef CONFIG_64BIT
+	LDREG	TASK_PT_GR30(%r1), %r19		/* get users sp back */
+	extrd,u	%r19,63,1,%r2			/* W hidden in bottom bit */
+
+	ldil	L%sys_call_table, %r1
+	or,=	%r2,%r2,%r2
+	addil	L%(sys_call_table64-sys_call_table), %r1
+	ldo	R%sys_call_table(%r1), %r19
+	or,=	%r2,%r2,%r2
+	ldo	R%sys_call_table64(%r1), %r19
+#else
+	load32	sys_call_table, %r19
+#endif
 
 	LDREGX  %r20(%r19), %r19
 
