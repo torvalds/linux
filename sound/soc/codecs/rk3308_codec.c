@@ -55,7 +55,7 @@
 
 #define ADC_GRP_SKIP_MAGIC		0x1001
 #define ADC_LR_GROUP_MAX		4
-#define ADC_STABLE_MS			20
+#define ADC_STABLE_MS			200
 #define DEBUG_POP_ALWAYS		0
 #define ENABLE_AGC			0
 #define HPDET_POLL_MS			2000
