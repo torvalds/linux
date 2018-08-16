@@ -51,14 +51,14 @@
 #include "hfi.h"
 
 /* MSIx interface */
-int request_msix(struct hfi1_devdata *dd, u32 msireq);
-int set_up_interrupts(struct hfi1_devdata *dd);
-int request_msix_irqs(struct hfi1_devdata *dd);
-void hfi1_clean_up_interrupts(struct hfi1_devdata *dd);
+int msix_initialize(struct hfi1_devdata *dd);
+int msix_request_irqs(struct hfi1_devdata *dd);
+void msix_clean_up_interrupts(struct hfi1_devdata *dd);
+int msix_request_rcd_irq(struct hfi1_ctxtdata *rcd);
+int msix_request_sdma_irq(struct sdma_engine *sde);
+void msix_free_irq(struct hfi1_devdata *dd, u8 msix_intr);
 
 /* VNIC interface */
-void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd);
-void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd);
-void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd);
+void msix_vnic_synchronize_irq(struct hfi1_devdata *dd);
 
 #endif

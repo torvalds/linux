@@ -405,6 +405,7 @@ struct sdma_engine {
 	struct list_head flushlist;
 	struct cpumask cpu_mask;
 	struct kobject kobj;
+	u32 msix_intr;
 };
 
 int sdma_init(struct hfi1_devdata *dd, u8 port);

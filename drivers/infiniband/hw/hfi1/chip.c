@@ -13099,6 +13099,35 @@ void reset_interrupts(struct hfi1_devdata *dd)
 		write_csr(dd, CCE_INT_MAP + (8 * i), 0);
 }
 
+/**
+ * set_up_interrupts() - Initialize the IRQ resources and state
+ * @dd: valid devdata
+ *
+ */
+static int set_up_interrupts(struct hfi1_devdata *dd)
+{
+	int ret;
+
+	/* mask all interrupts */
+	set_intr_state(dd, 0);
+	/* clear all pending interrupts */
+	clear_all_interrupts(dd);
+
+	/* reset general handler mask, chip MSI-X mappings */
+	reset_interrupts(dd);
+
+	/* ask for MSI-X interrupts */
+	ret = msix_initialize(dd);
+	if (ret)
+		return ret;
+
+	ret = msix_request_irqs(dd);
+	if (ret)
+		msix_clean_up_interrupts(dd);
+
+	return ret;
+}
+
 /*
  * Set up context values in dd.  Sets:
  *
@@ -14966,7 +14995,7 @@ bail_free_cntrs:
 	free_cntrs(dd);
 bail_clear_intr:
 	hfi1_comp_vectors_clean_up(dd);
-	hfi1_clean_up_interrupts(dd);
+	msix_clean_up_interrupts(dd);
 bail_cleanup:
 	hfi1_pcie_ddcleanup(dd);
 bail_free:
