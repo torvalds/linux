@@ -1009,10 +1009,13 @@ static int mlx5e_create_rep_vport_rx_rule(struct mlx5e_priv *priv)
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 	struct mlx5_flow_handle *flow_rule;
+	struct mlx5_flow_destination dest;
 
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+	dest.tir_num = priv->direct_tir[0].tirn;
 	flow_rule = mlx5_eswitch_create_vport_rx_rule(esw,
 						      rep->vport,
-						      priv->direct_tir[0].tirn);
+						      &dest);
 	if (IS_ERR(flow_rule))
 		return PTR_ERR(flow_rule);
 	rpriv->vport_rx_rule = flow_rule;
