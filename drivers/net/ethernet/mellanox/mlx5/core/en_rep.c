@@ -962,6 +962,16 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	netdev->features	 |= NETIF_F_VLAN_CHALLENGED | NETIF_F_HW_TC | NETIF_F_NETNS_LOCAL;
 	netdev->hw_features      |= NETIF_F_HW_TC;
 
+	netdev->hw_features    |= NETIF_F_SG;
+	netdev->hw_features    |= NETIF_F_IP_CSUM;
+	netdev->hw_features    |= NETIF_F_IPV6_CSUM;
+	netdev->hw_features    |= NETIF_F_GRO;
+	netdev->hw_features    |= NETIF_F_TSO;
+	netdev->hw_features    |= NETIF_F_TSO6;
+	netdev->hw_features    |= NETIF_F_RXCSUM;
+
+	netdev->features |= netdev->hw_features;
+
 	eth_hw_addr_random(netdev);
 
 	netdev->min_mtu = ETH_MIN_MTU;
