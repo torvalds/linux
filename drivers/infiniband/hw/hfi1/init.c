@@ -832,6 +832,23 @@ wq_error:
 }
 
 /**
+ * enable_general_intr() - Enable the IRQs that will be handled by the
+ * general interrupt handler.
+ * @dd: valid devdata
+ *
+ */
+static void enable_general_intr(struct hfi1_devdata *dd)
+{
+	set_intr_bits(dd, CCE_ERR_INT, MISC_ERR_INT, true);
+	set_intr_bits(dd, PIO_ERR_INT, TXE_ERR_INT, true);
+	set_intr_bits(dd, IS_SENDCTXT_ERR_START, IS_SENDCTXT_ERR_END, true);
+	set_intr_bits(dd, PBC_INT, GPIO_ASSERT_INT, true);
+	set_intr_bits(dd, TCRIT_INT, TCRIT_INT, true);
+	set_intr_bits(dd, IS_DC_START, IS_DC_END, true);
+	set_intr_bits(dd, IS_SENDCREDIT_START, IS_SENDCREDIT_END, true);
+}
+
+/**
  * hfi1_init - do the actual initialization sequence on the chip
  * @dd: the hfi1_ib device
  * @reinit: re-initializing, so don't allocate new memory
@@ -915,6 +932,7 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 				   "failed to allocate kernel ctxt's rcvhdrq and/or egr bufs\n");
 			ret = lastfail;
 		}
+		/* enable IRQ */
 		hfi1_rcd_put(rcd);
 	}
 
@@ -953,7 +971,8 @@ done:
 			HFI1_STATUS_INITTED;
 	if (!ret) {
 		/* enable all interrupts from the chip */
-		set_intr_state(dd, 1);
+		enable_general_intr(dd);
+		init_qsfp_int(dd);
 
 		/* chip is OK for user apps; mark it as initialized */
 		for (pidx = 0; pidx < dd->num_pports; ++pidx) {
@@ -1050,8 +1069,8 @@ static void shutdown_device(struct hfi1_devdata *dd)
 	}
 	dd->flags &= ~HFI1_INITTED;
 
-	/* mask and clean up interrupts, but not errors */
-	set_intr_state(dd, 0);
+	/* mask and clean up interrupts */
+	set_intr_bits(dd, IS_FIRST_SOURCE, IS_LAST_SOURCE, false);
 	msix_clean_up_interrupts(dd);
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
@@ -1312,6 +1331,7 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 	spin_lock_init(&dd->pio_map_lock);
 	mutex_init(&dd->dc8051_lock);
 	init_waitqueue_head(&dd->event_queue);
+	spin_lock_init(&dd->irq_src_lock);
 
 	dd->int_counter = alloc_percpu(u64);
 	if (!dd->int_counter) {

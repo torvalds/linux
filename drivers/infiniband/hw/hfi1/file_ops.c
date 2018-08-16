@@ -639,6 +639,9 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 
 	hfi1_cdbg(PROC, "closing ctxt %u:%u", uctxt->ctxt, fdata->subctxt);
 
+	set_intr_bits(dd, IS_RCVURGENT_START + uctxt->ctxt,
+		      IS_RCVURGENT_START + uctxt->ctxt, false);
+
 	flush_wc();
 	/* drain user sdma queue */
 	hfi1_user_sdma_free_queues(fdata, uctxt);
@@ -1216,6 +1219,10 @@ static int setup_base_ctxt(struct hfi1_filedata *fd,
 	/* Now that the context is set up, the fd can get a reference. */
 	fd->uctxt = uctxt;
 	hfi1_rcd_get(uctxt);
+
+	/* Enable the Urgent IRQ for this user context */
+	set_intr_bits(dd, IS_RCVURGENT_START + uctxt->ctxt,
+		      IS_RCVURGENT_START + uctxt->ctxt, true);
 
 done:
 	if (uctxt->subctxt_cnt) {

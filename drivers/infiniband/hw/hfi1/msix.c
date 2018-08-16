@@ -241,6 +241,21 @@ int msix_request_sdma_irq(struct sdma_engine *sde)
 }
 
 /**
+ * enable_sdma_src() - Helper to enable SDMA IRQ srcs
+ * @dd: valid devdata structure
+ * @i: index of SDMA engine
+ */
+static void enable_sdma_srcs(struct hfi1_devdata *dd, int i)
+{
+	set_intr_bits(dd, IS_SDMA_START + i, IS_SDMA_START + i, true);
+	set_intr_bits(dd, IS_SDMA_PROGRESS_START + i,
+		      IS_SDMA_PROGRESS_START + i, true);
+	set_intr_bits(dd, IS_SDMA_IDLE_START + i, IS_SDMA_IDLE_START + i, true);
+	set_intr_bits(dd, IS_SDMAENG_ERR_START + i, IS_SDMAENG_ERR_START + i,
+		      true);
+}
+
+/**
  * msix_request_irqs() - Allocate all MSIx IRQs
  * @dd: valid devdata structure
  *
@@ -262,6 +277,7 @@ int msix_request_irqs(struct hfi1_devdata *dd)
 		ret = msix_request_sdma_irq(sde);
 		if (ret)
 			return ret;
+		enable_sdma_srcs(sde->dd, i);
 	}
 
 	for (i = 0; i < dd->n_krcv_queues; i++) {

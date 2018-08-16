@@ -1213,9 +1213,6 @@ struct hfi1_devdata {
 
 	struct diag_client *diag_client;
 
-	/* MSI-X information */
-	struct hfi1_msix_info msix_info;
-
 	/* general interrupt: mask of handled interrupts */
 	u64 gi_mask[CCE_NUM_INT_CSRS];
 
@@ -1228,6 +1225,9 @@ struct hfi1_devdata {
 	 * 64 bit synthetic counters
 	 */
 	struct timer_list synth_stats_timer;
+
+	/* MSI-X information */
+	struct hfi1_msix_info msix_info;
 
 	/*
 	 * device counters
@@ -1355,6 +1355,8 @@ struct hfi1_devdata {
 
 	/* vnic data */
 	struct hfi1_vnic_data vnic;
+	/* Lock to protect IRQ SRC register access */
+	spinlock_t irq_src_lock;
 };
 
 static inline bool hfi1_vnic_is_rsm_full(struct hfi1_devdata *dd, int spare)

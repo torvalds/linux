@@ -1098,9 +1098,9 @@ struct err_reg_info {
 	const char *desc;
 };
 
-#define NUM_MISC_ERRS (IS_GENERAL_ERR_END - IS_GENERAL_ERR_START)
-#define NUM_DC_ERRS (IS_DC_END - IS_DC_START)
-#define NUM_VARIOUS (IS_VARIOUS_END - IS_VARIOUS_START)
+#define NUM_MISC_ERRS (IS_GENERAL_ERR_END + 1 - IS_GENERAL_ERR_START)
+#define NUM_DC_ERRS (IS_DC_END + 1 - IS_DC_START)
+#define NUM_VARIOUS (IS_VARIOUS_END + 1 - IS_VARIOUS_START)
 
 /*
  * Helpers for building HFI and DC error interrupt table entries.  Different
@@ -8176,7 +8176,7 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 /**
  * is_rcv_urgent_int() - User receive context urgent IRQ handler
  * @dd: valid dd
- * @source: logical IRQ source (ofse from IS_RCVURGENT_START)
+ * @source: logical IRQ source (offset from IS_RCVURGENT_START)
  *
  * RX block receive urgent interrupt.  Source is < 160.
  *
@@ -8226,7 +8226,7 @@ static const struct is_table is_table[] = {
 				is_sdma_eng_err_name,	is_sdma_eng_err_int },
 { IS_SENDCTXT_ERR_START, IS_SENDCTXT_ERR_END,
 				is_sendctxt_err_name,	is_sendctxt_err_int },
-{ IS_SDMA_START,	     IS_SDMA_END,
+{ IS_SDMA_START,	     IS_SDMA_IDLE_END,
 				is_sdma_eng_name,	is_sdma_eng_int },
 { IS_VARIOUS_START,	     IS_VARIOUS_END,
 				is_various_name,	is_various_int },
@@ -8252,7 +8252,7 @@ static void is_interrupt(struct hfi1_devdata *dd, unsigned int source)
 
 	/* avoids a double compare by walking the table in-order */
 	for (entry = &is_table[0]; entry->is_name; entry++) {
-		if (source < entry->end) {
+		if (source <= entry->end) {
 			trace_hfi1_interrupt(dd, entry, source);
 			entry->is_int(dd, source - entry->start);
 			return;
@@ -9646,30 +9646,10 @@ void qsfp_event(struct work_struct *work)
 	}
 }
 
-static void init_qsfp_int(struct hfi1_devdata *dd)
+void init_qsfp_int(struct hfi1_devdata *dd)
 {
 	struct hfi1_pportdata *ppd = dd->pport;
-	u64 qsfp_mask, cce_int_mask;
-	const int qsfp1_int_smask = QSFP1_INT % 64;
-	const int qsfp2_int_smask = QSFP2_INT % 64;
-
-	/*
-	 * disable QSFP1 interrupts for HFI1, QSFP2 interrupts for HFI0
-	 * Qsfp1Int and Qsfp2Int are adjacent bits in the same CSR,
-	 * therefore just one of QSFP1_INT/QSFP2_INT can be used to find
-	 * the index of the appropriate CSR in the CCEIntMask CSR array
-	 */
-	cce_int_mask = read_csr(dd, CCE_INT_MASK +
-				(8 * (QSFP1_INT / 64)));
-	if (dd->hfi1_id) {
-		cce_int_mask &= ~((u64)1 << qsfp1_int_smask);
-		write_csr(dd, CCE_INT_MASK + (8 * (QSFP1_INT / 64)),
-			  cce_int_mask);
-	} else {
-		cce_int_mask &= ~((u64)1 << qsfp2_int_smask);
-		write_csr(dd, CCE_INT_MASK + (8 * (QSFP2_INT / 64)),
-			  cce_int_mask);
-	}
+	u64 qsfp_mask;
 
 	qsfp_mask = (u64)(QSFP_HFI0_INT_N | QSFP_HFI0_MODPRST_N);
 	/* Clear current status to avoid spurious interrupts */
@@ -9686,6 +9666,12 @@ static void init_qsfp_int(struct hfi1_devdata *dd)
 	write_csr(dd,
 		  dd->hfi1_id ? ASIC_QSFP2_INVERT : ASIC_QSFP1_INVERT,
 		  qsfp_mask);
+
+	/* Enable the appropriate QSFP IRQ source */
+	if (!dd->hfi1_id)
+		set_intr_bits(dd, QSFP1_INT, QSFP1_INT, true);
+	else
+		set_intr_bits(dd, QSFP2_INT, QSFP2_INT, true);
 }
 
 /*
@@ -11926,10 +11912,16 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 
 		rcvctrl &= ~RCV_CTXT_CTRL_ENABLE_SMASK;
 	}
-	if (op & HFI1_RCVCTRL_INTRAVAIL_ENB)
+	if (op & HFI1_RCVCTRL_INTRAVAIL_ENB) {
+		set_intr_bits(dd, IS_RCVAVAIL_START + rcd->ctxt,
+			      IS_RCVAVAIL_START + rcd->ctxt, true);
 		rcvctrl |= RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
-	if (op & HFI1_RCVCTRL_INTRAVAIL_DIS)
+	}
+	if (op & HFI1_RCVCTRL_INTRAVAIL_DIS) {
+		set_intr_bits(dd, IS_RCVAVAIL_START + rcd->ctxt,
+			      IS_RCVAVAIL_START + rcd->ctxt, false);
 		rcvctrl &= ~RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
+	}
 	if ((op & HFI1_RCVCTRL_TAILUPD_ENB) && rcd->rcvhdrtail_kvaddr)
 		rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 	if (op & HFI1_RCVCTRL_TAILUPD_DIS) {
@@ -12957,57 +12949,65 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp)
 	return ret;
 }
 
-/**
- * get_int_mask - get 64 bit int mask
- * @dd - the devdata
- * @i - the csr (relative to CCE_INT_MASK)
- *
- * Returns the mask with the urgent interrupt mask
- * bit clear for kernel receive contexts.
- */
-static u64 get_int_mask(struct hfi1_devdata *dd, u32 i)
-{
-	u64 mask = U64_MAX; /* default to no change */
-
-	if (i >= (IS_RCVURGENT_START / 64) && i < (IS_RCVURGENT_END / 64)) {
-		int j = (i - (IS_RCVURGENT_START / 64)) * 64;
-		int k = !j ? IS_RCVURGENT_START % 64 : 0;
-
-		if (j)
-			j -= IS_RCVURGENT_START % 64;
-		/* j = 0..dd->first_dyn_alloc_ctxt - 1,k = 0..63 */
-		for (; j < dd->first_dyn_alloc_ctxt && k < 64; j++, k++)
-			/* convert to bit in mask and clear */
-			mask &= ~BIT_ULL(k);
-	}
-	return mask;
-}
-
 /* ========================================================================= */
 
-/*
- * Enable/disable chip from delivering interrupts.
+/**
+ * read_mod_write() - Calculate the IRQ register index and set/clear the bits
+ * @dd: valid devdata
+ * @src: IRQ source to determine register index from
+ * @bits: the bits to set or clear
+ * @set: true == set the bits, false == clear the bits
+ *
  */
-void set_intr_state(struct hfi1_devdata *dd, u32 enable)
+static void read_mod_write(struct hfi1_devdata *dd, u16 src, u64 bits,
+			   bool set)
 {
-	int i;
+	u64 reg;
+	u16 idx = src / BITS_PER_REGISTER;
 
-	/*
-	 * In HFI, the mask needs to be 1 to allow interrupts.
-	 */
-	if (enable) {
-		/* enable all interrupts but urgent on kernel contexts */
-		for (i = 0; i < CCE_NUM_INT_CSRS; i++) {
-			u64 mask = get_int_mask(dd, i);
+	spin_lock(&dd->irq_src_lock);
+	reg = read_csr(dd, CCE_INT_MASK + (8 * idx));
+	if (set)
+		reg |= bits;
+	else
+		reg &= ~bits;
+	write_csr(dd, CCE_INT_MASK + (8 * idx), reg);
+	spin_unlock(&dd->irq_src_lock);
+}
 
-			write_csr(dd, CCE_INT_MASK + (8 * i), mask);
+/**
+ * set_intr_bits() - Enable/disable a range (one or more) IRQ sources
+ * @dd: valid devdata
+ * @first: first IRQ source to set/clear
+ * @last: last IRQ source (inclusive) to set/clear
+ * @set: true == set the bits, false == clear the bits
+ *
+ * If first == last, set the exact source.
+ */
+int set_intr_bits(struct hfi1_devdata *dd, u16 first, u16 last, bool set)
+{
+	u64 bits = 0;
+	u64 bit;
+	u16 src;
+
+	if (first > NUM_INTERRUPT_SOURCES || last > NUM_INTERRUPT_SOURCES)
+		return -EINVAL;
+
+	if (last < first)
+		return -ERANGE;
+
+	for (src = first; src <= last; src++) {
+		bit = src % BITS_PER_REGISTER;
+		/* wrapped to next register? */
+		if (!bit && bits) {
+			read_mod_write(dd, src - 1, bits, set);
+			bits = 0;
 		}
-
-		init_qsfp_int(dd);
-	} else {
-		for (i = 0; i < CCE_NUM_INT_CSRS; i++)
-			write_csr(dd, CCE_INT_MASK + (8 * i), 0ull);
+		bits |= BIT_ULL(bit);
 	}
+	read_mod_write(dd, src, bits, set);
+
+	return 0;
 }
 
 /*
@@ -13074,12 +13074,9 @@ void remap_sdma_interrupts(struct hfi1_devdata *dd, int engine, int msix_intr)
 	 *	SDMAProgress
 	 *	SDMAIdle
 	 */
-	remap_intr(dd, IS_SDMA_START + 0 * TXE_NUM_SDMA_ENGINES + engine,
-		   msix_intr);
-	remap_intr(dd, IS_SDMA_START + 1 * TXE_NUM_SDMA_ENGINES + engine,
-		   msix_intr);
-	remap_intr(dd, IS_SDMA_START + 2 * TXE_NUM_SDMA_ENGINES + engine,
-		   msix_intr);
+	remap_intr(dd, IS_SDMA_START + engine, msix_intr);
+	remap_intr(dd, IS_SDMA_PROGRESS_START + engine, msix_intr);
+	remap_intr(dd, IS_SDMA_IDLE_START + engine, msix_intr);
 }
 
 /*
@@ -13109,7 +13106,8 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	int ret;
 
 	/* mask all interrupts */
-	set_intr_state(dd, 0);
+	set_intr_bits(dd, IS_FIRST_SOURCE, IS_LAST_SOURCE, false);
+
 	/* clear all pending interrupts */
 	clear_all_interrupts(dd);
 
