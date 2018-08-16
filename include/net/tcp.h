@@ -2065,6 +2065,10 @@ int tcp_set_ulp_id(struct sock *sk, const int ulp);
 void tcp_get_available_ulp(char *buf, size_t len);
 void tcp_cleanup_ulp(struct sock *sk);
 
+#define MODULE_ALIAS_TCP_ULP(name)				\
+	__MODULE_INFO(alias, alias_userspace, name);		\
+	__MODULE_INFO(alias, alias_tcp_ulp, "tcp-ulp-" name)
+
 /* Call BPF_SOCK_OPS program that returns an int. If the return value
  * is < 0, then the BPF op failed (for example if the loaded BPF
  * program does not support the chosen operation or there is no BPF
