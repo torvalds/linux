@@ -708,7 +708,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 {
 	struct i2c_client *client = chip->client;
 
-	if (irq_base != -1 && (chip->driver_data & PCA_INT))
+	if (client->irq && irq_base != -1 && (chip->driver_data & PCA_INT))
 		dev_warn(&client->dev, "interrupt support not compiled in\n");
 
 	return 0;

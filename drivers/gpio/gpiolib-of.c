@@ -621,9 +621,6 @@ int of_gpiochip_add(struct gpio_chip *chip)
 {
 	int status;
 
-	if ((!chip->of_node) && (chip->parent))
-		chip->of_node = chip->parent->of_node;
-
 	if (!chip->of_node)
 		return 0;
 
