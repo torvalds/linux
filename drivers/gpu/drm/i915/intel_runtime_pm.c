@@ -257,30 +257,6 @@ bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-/**
- * intel_display_set_init_power - set the initial power domain state
- * @dev_priv: i915 device instance
- * @enable: whether to enable or disable the initial power domain state
- *
- * For simplicity our driver load/unload and system suspend/resume code assumes
- * that all power domains are always enabled. This functions controls the state
- * of this little hack. While the initial power domain state is enabled runtime
- * pm is effectively disabled.
- */
-void intel_display_set_init_power(struct drm_i915_private *dev_priv,
-				  bool enable)
-{
-	if (dev_priv->power_domains.init_power_on == enable)
-		return;
-
-	if (enable)
-		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
-	else
-		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
-
-	dev_priv->power_domains.init_power_on = enable;
-}
-
 /*
  * Starting with Haswell, we have a "Power Down Well" that can be turned off
  * when not needed anymore. We have 4 registers that can request the power well
@@ -3750,6 +3726,10 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
  * domains (and not in the INIT domain) are referenced or disabled during the
  * modeset state HW readout. After that the reference count of each power well
  * must match its HW enabled state, see intel_power_domains_verify_state().
+ *
+ * It will return with power domains disabled (to be enabled later by
+ * intel_power_domains_enable()) and must be paired with
+ * intel_power_domains_fini_hw().
  */
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 {
@@ -3775,8 +3755,13 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 		mutex_unlock(&power_domains->lock);
 	}
 
-	/* For now, we need the power well to be always enabled. */
-	intel_display_set_init_power(dev_priv, true);
+	/*
+	 * Keep all power wells enabled for any dependent HW access during
+	 * initialization and to make sure we keep BIOS enabled display HW
+	 * resources powered until display HW readout is complete. We drop
+	 * this reference in intel_power_domains_enable().
+	 */
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 	/* Disable power support if the user asked so. */
 	if (!i915_modparams.disable_power_well)
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
@@ -3790,16 +3775,13 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
  *
  * De-initializes the display power domain HW state. It also ensures that the
  * device stays powered up so that the driver can be reloaded.
+ *
+ * It must be called with power domains already disabled (after a call to
+ * intel_power_domains_disable()) and must be paired with
+ * intel_power_domains_init_hw().
  */
 void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv)
 {
-	/*
-	 * The i915.ko module is still not prepared to be loaded when
-	 * the power well is not enabled, so just enable it in case
-	 * we're going to unload/reload.
-	 */
-	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
-
 	/* Keep the power well enabled, but cancel its rpm wakeref. */
 	intel_runtime_pm_put(dev_priv);
 
@@ -3809,17 +3791,66 @@ void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_power_domains_suspend - suspend power domain state
+ * intel_power_domains_enable - enable toggling of display power wells
  * @dev_priv: i915 device instance
  *
- * This function prepares the hardware power domain state before entering
- * system suspend. It must be paired with intel_power_domains_init_hw().
+ * Enable the ondemand enabling/disabling of the display power wells. Note that
+ * power wells not belonging to POWER_DOMAIN_INIT are allowed to be toggled
+ * only at specific points of the display modeset sequence, thus they are not
+ * affected by the intel_power_domains_enable()/disable() calls. The purpose
+ * of these function is to keep the rest of power wells enabled until the end
+ * of display HW readout (which will acquire the power references reflecting
+ * the current HW state).
  */
-void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
+void intel_power_domains_enable(struct drm_i915_private *dev_priv)
 {
+	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+}
+
+/**
+ * intel_power_domains_disable - disable toggling of display power wells
+ * @dev_priv: i915 device instance
+ *
+ * Disable the ondemand enabling/disabling of the display power wells. See
+ * intel_power_domains_enable() for which power wells this call controls.
+ */
+void intel_power_domains_disable(struct drm_i915_private *dev_priv)
+{
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+}
+
+/**
+ * intel_power_domains_suspend - suspend power domain state
+ * @dev_priv: i915 device instance
+ * @suspend_mode: specifies the target suspend state (idle, mem, hibernation)
+ *
+ * This function prepares the hardware power domain state before entering
+ * system suspend.
+ *
+ * It must be called with power domains already disabled (after a call to
+ * intel_power_domains_disable()) and paired with intel_power_domains_resume().
+ */
+void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
+				 enum i915_drm_suspend_mode suspend_mode)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	/*
+	 * In case of firmware assisted context save/restore don't manually
+	 * deinit the power domains. This also means the CSR/DMC firmware will
+	 * stay active, it will power down any HW resources as required and
+	 * also enable deeper system power states that would be blocked if the
+	 * firmware was inactive.
+	 */
+	if (!IS_GEN9_LP(dev_priv) && suspend_mode == I915_DRM_SUSPEND_IDLE &&
+	    dev_priv->csr.dmc_payload != NULL)
+		return;
+
 	/*
 	 * Even if power well support was disabled we still want to disable
-	 * power wells while we are system suspended.
+	 * power wells if power domains must be deinitialized for suspend.
 	 */
 	if (!i915_modparams.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
@@ -3832,6 +3863,32 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 		skl_display_core_uninit(dev_priv);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_display_core_uninit(dev_priv);
+
+	power_domains->display_core_suspended = true;
+}
+
+/**
+ * intel_power_domains_resume - resume power domain state
+ * @dev_priv: i915 device instance
+ *
+ * This function resume the hardware power domain state during system resume.
+ *
+ * It will return with power domain support disabled (to be enabled later by
+ * intel_power_domains_enable()) and must be paired with
+ * intel_power_domains_suspend().
+ */
+void intel_power_domains_resume(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	if (power_domains->display_core_suspended) {
+		intel_power_domains_init_hw(dev_priv, true);
+		power_domains->display_core_suspended = false;
+
+		return;
+	}
+
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 }
 
 static void intel_power_domains_dump_info(struct drm_i915_private *dev_priv)
@@ -4030,8 +4087,8 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
  * This function enables runtime pm at the end of the driver load sequence.
  *
  * Note that this function does currently not enable runtime pm for the
- * subordinate display power domains. That is only done on the first modeset
- * using intel_display_set_init_power().
+ * subordinate display power domains. That is done by
+ * intel_power_domains_enable().
  */
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 {

@@ -15846,6 +15846,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	struct intel_encoder *encoder;
 	int i;
 
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+
 	intel_early_display_was(dev_priv);
 	intel_modeset_readout_hw_state(dev);
 
@@ -15900,7 +15902,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 		if (WARN_ON(put_domains))
 			modeset_put_power_domains(dev_priv, put_domains);
 	}
-	intel_display_set_init_power(dev_priv, false);
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 	intel_power_domains_verify_state(dev_priv);
 

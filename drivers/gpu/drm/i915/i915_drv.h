@@ -935,8 +935,8 @@ struct i915_power_domains {
 	 * Power wells needed for initialization at driver init and suspend
 	 * time are on. They are kept on until after the first modeset.
 	 */
-	bool init_power_on;
 	bool initializing;
+	bool display_core_suspended;
 	int power_well_count;
 
 	struct mutex lock;

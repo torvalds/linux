@@ -1954,7 +1954,18 @@ int intel_power_domains_init(struct drm_i915_private *);
 void intel_power_domains_cleanup(struct drm_i915_private *dev_priv);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume);
 void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv);
-void intel_power_domains_suspend(struct drm_i915_private *dev_priv);
+void intel_power_domains_enable(struct drm_i915_private *dev_priv);
+void intel_power_domains_disable(struct drm_i915_private *dev_priv);
+
+enum i915_drm_suspend_mode {
+	I915_DRM_SUSPEND_IDLE,
+	I915_DRM_SUSPEND_MEM,
+	I915_DRM_SUSPEND_HIBERNATE,
+};
+
+void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
+				 enum i915_drm_suspend_mode);
+void intel_power_domains_resume(struct drm_i915_private *dev_priv);
 void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
 void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume);
 void bxt_display_core_uninit(struct drm_i915_private *dev_priv);
@@ -2036,8 +2047,6 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
 bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
-
-void intel_display_set_init_power(struct drm_i915_private *dev, bool enable);
 
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 			     bool override, unsigned int mask);
