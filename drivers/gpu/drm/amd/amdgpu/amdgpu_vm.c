@@ -788,44 +788,61 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (r)
-		goto error;
+		return r;
 
 	r = amdgpu_ttm_alloc_gart(&bo->tbo);
 	if (r)
 		return r;
 
+	if (bo->shadow) {
+		r = ttm_bo_validate(&bo->shadow->tbo, &bo->shadow->placement,
+				    &ctx);
+		if (r)
+			return r;
+
+		r = amdgpu_ttm_alloc_gart(&bo->shadow->tbo);
+		if (r)
+			return r;
+
+	}
+
 	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
 	if (r)
-		goto error;
+		return r;
 
-	addr = amdgpu_bo_gpu_offset(bo);
-	if (ats_entries) {
-		uint64_t ats_value;
+	do {
+		addr = amdgpu_bo_gpu_offset(bo);
+		if (ats_entries) {
+			uint64_t ats_value;
 
-		ats_value = AMDGPU_PTE_DEFAULT_ATC;
-		if (level != AMDGPU_VM_PTB)
-			ats_value |= AMDGPU_PDE_PTE;
+			ats_value = AMDGPU_PTE_DEFAULT_ATC;
+			if (level != AMDGPU_VM_PTB)
+				ats_value |= AMDGPU_PDE_PTE;
 
-		amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
-				      ats_entries, 0, ats_value);
-		addr += ats_entries * 8;
-	}
+			amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
+					      ats_entries, 0, ats_value);
+			addr += ats_entries * 8;
+		}
 
-	if (entries) {
-		uint64_t value = 0;
+		if (entries) {
+			uint64_t value = 0;
 
-		/* Workaround for fault priority problem on GMC9 */
-		if (level == AMDGPU_VM_PTB && adev->asic_type >= CHIP_VEGA10)
-			value = AMDGPU_PTE_EXECUTABLE;
+			/* Workaround for fault priority problem on GMC9 */
+			if (level == AMDGPU_VM_PTB &&
+			    adev->asic_type >= CHIP_VEGA10)
+				value = AMDGPU_PTE_EXECUTABLE;
 
-		amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
-				      entries, 0, value);
-	}
+			amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
+					      entries, 0, value);
+		}
+
+		bo = bo->shadow;
+	} while (bo);
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 
 	WARN_ON(job->ibs[0].length_dw > 64);
-	r = amdgpu_sync_resv(adev, &job->sync, bo->tbo.resv,
+	r = amdgpu_sync_resv(adev, &job->sync, vm->root.base.bo->tbo.resv,
 			     AMDGPU_FENCE_OWNER_KFD, false);
 	if (r)
 		goto error_free;
@@ -835,19 +852,13 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	amdgpu_bo_fence(bo, fence, true);
+	amdgpu_bo_fence(vm->root.base.bo, fence, true);
 	dma_fence_put(fence);
-
-	if (bo->shadow)
-		return amdgpu_vm_clear_bo(adev, vm, bo->shadow,
-					  level, pte_support_ats);
 
 	return 0;
 
 error_free:
 	amdgpu_job_free(job);
-
-error:
 	return r;
 }
 
