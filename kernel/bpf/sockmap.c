@@ -370,6 +370,7 @@ static void bpf_tcp_close(struct sock *sk, long timeout)
 			}
 			raw_spin_unlock_bh(&b->lock);
 		}
+		kfree(e);
 		e = psock_map_pop(sk, psock);
 	}
 	rcu_read_unlock();
@@ -1675,8 +1676,10 @@ static void smap_list_map_remove(struct smap_psock *psock,
 
 	spin_lock_bh(&psock->maps_lock);
 	list_for_each_entry_safe(e, tmp, &psock->maps, list) {
-		if (e->entry == entry)
+		if (e->entry == entry) {
 			list_del(&e->list);
+			kfree(e);
+		}
 	}
 	spin_unlock_bh(&psock->maps_lock);
 }
@@ -1690,8 +1693,10 @@ static void smap_list_hash_remove(struct smap_psock *psock,
 	list_for_each_entry_safe(e, tmp, &psock->maps, list) {
 		struct htab_elem *c = rcu_dereference(e->hash_link);
 
-		if (c == hash_link)
+		if (c == hash_link) {
 			list_del(&e->list);
+			kfree(e);
+		}
 	}
 	spin_unlock_bh(&psock->maps_lock);
 }
