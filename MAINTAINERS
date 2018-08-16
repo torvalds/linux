@@ -734,6 +734,14 @@ S:	Supported
 F:	drivers/crypto/ccp/
 F:	include/linux/ccp.h
 
+AMD DISPLAY CORE
+M:	Harry Wentland <harry.wentland@amd.com>
+M:	Leo Li <sunpeng.li@amd.com>
+L:	amd-gfx@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~agd5f/linux
+S:	Supported
+F:	drivers/gpu/drm/amd/display/
+
 AMD FAM15H PROCESSOR POWER MONITORING DRIVER
 M:	Huang Rui <ray.huang@amd.com>
 L:	linux-hwmon@vger.kernel.org
@@ -782,6 +790,14 @@ F:	drivers/gpu/drm/amd/include/kgd_kfd_interface.h
 F:	drivers/gpu/drm/amd/include/vi_structs.h
 F:	drivers/gpu/drm/amd/include/v9_structs.h
 F:	include/uapi/linux/kfd_ioctl.h
+
+AMD POWERPLAY
+M:	Rex Zhu <rex.zhu@amd.com>
+M:	Evan Quan <evan.quan@amd.com>
+L:	amd-gfx@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/amd/powerplay/
+T:	git git://people.freedesktop.org/~agd5f/linux
 
 AMD SEATTLE DEVICE TREE SUPPORT
 M:	Brijesh Singh <brijeshkumar.singh@amd.com>
@@ -4897,7 +4913,8 @@ F:	Documentation/gpu/xen-front.rst
 
 DRM TTM SUBSYSTEM
 M:	Christian Koenig <christian.koenig@amd.com>
-M:	Roger He <Hongbo.He@amd.com>
+M:	Huang Rui <ray.huang@amd.com>
+M:	Junwei Zhang <Jerry.Zhang@amd.com>
 T:	git git://people.freedesktop.org/~agd5f/linux
 S:	Maintained
 L:	dri-devel@lists.freedesktop.org

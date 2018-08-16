@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright 2009 VMware, Inc.
  *
@@ -75,11 +76,12 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 	r = amdgpu_bo_reserve(vram_obj, false);
 	if (unlikely(r != 0))
 		goto out_unref;
-	r = amdgpu_bo_pin(vram_obj, AMDGPU_GEM_DOMAIN_VRAM, &vram_addr);
+	r = amdgpu_bo_pin(vram_obj, AMDGPU_GEM_DOMAIN_VRAM);
 	if (r) {
 		DRM_ERROR("Failed to pin VRAM object\n");
 		goto out_unres;
 	}
+	vram_addr = amdgpu_bo_gpu_offset(vram_obj);
 	for (i = 0; i < n; i++) {
 		void *gtt_map, *vram_map;
 		void **gart_start, **gart_end;
@@ -96,11 +98,17 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		r = amdgpu_bo_reserve(gtt_obj[i], false);
 		if (unlikely(r != 0))
 			goto out_lclean_unref;
-		r = amdgpu_bo_pin(gtt_obj[i], AMDGPU_GEM_DOMAIN_GTT, &gart_addr);
+		r = amdgpu_bo_pin(gtt_obj[i], AMDGPU_GEM_DOMAIN_GTT);
 		if (r) {
 			DRM_ERROR("Failed to pin GTT object %d\n", i);
 			goto out_lclean_unres;
 		}
+		r = amdgpu_ttm_alloc_gart(&gtt_obj[i]->tbo);
+		if (r) {
+			DRM_ERROR("%p bind failed\n", gtt_obj[i]);
+			goto out_lclean_unpin;
+		}
+		gart_addr = amdgpu_bo_gpu_offset(gtt_obj[i]);
 
 		r = amdgpu_bo_kmap(gtt_obj[i], &gtt_map);
 		if (r) {

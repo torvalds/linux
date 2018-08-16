@@ -1257,6 +1257,37 @@ void optc1_read_otg_state(struct optc *optc1,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
 }
 
+bool optc1_get_otg_active_size(struct timing_generator *optc,
+		uint32_t *otg_active_width,
+		uint32_t *otg_active_height)
+{
+	uint32_t otg_enabled;
+	uint32_t v_blank_start;
+	uint32_t v_blank_end;
+	uint32_t h_blank_start;
+	uint32_t h_blank_end;
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+
+	REG_GET(OTG_CONTROL,
+			OTG_MASTER_EN, &otg_enabled);
+
+	if (otg_enabled == 0)
+		return false;
+
+	REG_GET_2(OTG_V_BLANK_START_END,
+			OTG_V_BLANK_START, &v_blank_start,
+			OTG_V_BLANK_END, &v_blank_end);
+
+	REG_GET_2(OTG_H_BLANK_START_END,
+			OTG_H_BLANK_START, &h_blank_start,
+			OTG_H_BLANK_END, &h_blank_end);
+
+	*otg_active_width = v_blank_start - v_blank_end;
+	*otg_active_height = h_blank_start - h_blank_end;
+	return true;
+}
+
 void optc1_clear_optc_underflow(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -1293,6 +1324,72 @@ bool optc1_is_optc_underflow_occurred(struct timing_generator *optc)
 	return (underflow_occurred == 1);
 }
 
+bool optc1_configure_crc(struct timing_generator *optc,
+			  const struct crc_params *params)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	/* Cannot configure crc on a CRTC that is disabled */
+	if (!optc1_is_tg_enabled(optc))
+		return false;
+
+	REG_WRITE(OTG_CRC_CNTL, 0);
+
+	if (!params->enable)
+		return true;
+
+	/* Program frame boundaries */
+	/* Window A x axis start and end. */
+	REG_UPDATE_2(OTG_CRC0_WINDOWA_X_CONTROL,
+			OTG_CRC0_WINDOWA_X_START, params->windowa_x_start,
+			OTG_CRC0_WINDOWA_X_END, params->windowa_x_end);
+
+	/* Window A y axis start and end. */
+	REG_UPDATE_2(OTG_CRC0_WINDOWA_Y_CONTROL,
+			OTG_CRC0_WINDOWA_Y_START, params->windowa_y_start,
+			OTG_CRC0_WINDOWA_Y_END, params->windowa_y_end);
+
+	/* Window B x axis start and end. */
+	REG_UPDATE_2(OTG_CRC0_WINDOWB_X_CONTROL,
+			OTG_CRC0_WINDOWB_X_START, params->windowb_x_start,
+			OTG_CRC0_WINDOWB_X_END, params->windowb_x_end);
+
+	/* Window B y axis start and end. */
+	REG_UPDATE_2(OTG_CRC0_WINDOWB_Y_CONTROL,
+			OTG_CRC0_WINDOWB_Y_START, params->windowb_y_start,
+			OTG_CRC0_WINDOWB_Y_END, params->windowb_y_end);
+
+	/* Set crc mode and selection, and enable. Only using CRC0*/
+	REG_UPDATE_3(OTG_CRC_CNTL,
+			OTG_CRC_CONT_EN, params->continuous_mode ? 1 : 0,
+			OTG_CRC0_SELECT, params->selection,
+			OTG_CRC_EN, 1);
+
+	return true;
+}
+
+bool optc1_get_crc(struct timing_generator *optc,
+		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+{
+	uint32_t field = 0;
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_GET(OTG_CRC_CNTL, OTG_CRC_EN, &field);
+
+	/* Early return if CRC is not enabled for this CRTC */
+	if (!field)
+		return false;
+
+	REG_GET_2(OTG_CRC0_DATA_RG,
+			CRC0_R_CR, r_cr,
+			CRC0_G_Y, g_y);
+
+	REG_GET(OTG_CRC0_DATA_B,
+			CRC0_B_CB, b_cb);
+
+	return true;
+}
+
 static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -1305,6 +1402,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
 		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_otg_active_size = optc1_get_otg_active_size,
 		.set_early_control = optc1_set_early_control,
 		/* used by enable_timing_synchronization. Not need for FPGA */
 		.wait_for_state = optc1_wait_for_state,
@@ -1328,6 +1426,8 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.is_tg_enabled = optc1_is_tg_enabled,
 		.is_optc_underflow_occurred = optc1_is_optc_underflow_occurred,
 		.clear_optc_underflow = optc1_clear_optc_underflow,
+		.get_crc = optc1_get_crc,
+		.configure_crc = optc1_configure_crc,
 };
 
 void dcn10_timing_generator_init(struct optc *optc1)

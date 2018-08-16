@@ -14,8 +14,8 @@
  * to the HW only when it has completed the last one, instead of
  * filling up the CT[01]Q FIFOs with jobs.  Similarly, we use
  * v3d_job_dependency() to manage the dependency between bin and
- * render, instead of having the clients submit jobs with using the
- * HW's semaphores to interlock between them.
+ * render, instead of having the clients submit jobs using the HW's
+ * semaphores to interlock between them.
  */
 
 #include <linux/kthread.h>
@@ -114,8 +114,8 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	v3d_invalidate_caches(v3d);
 
 	fence = v3d_fence_create(v3d, q);
-	if (!fence)
-		return fence;
+	if (IS_ERR(fence))
+		return NULL;
 
 	if (job->done_fence)
 		dma_fence_put(job->done_fence);
@@ -153,7 +153,25 @@ v3d_job_timedout(struct drm_sched_job *sched_job)
 	struct v3d_job *job = to_v3d_job(sched_job);
 	struct v3d_exec_info *exec = job->exec;
 	struct v3d_dev *v3d = exec->v3d;
+	enum v3d_queue job_q = job == &exec->bin ? V3D_BIN : V3D_RENDER;
 	enum v3d_queue q;
+	u32 ctca = V3D_CORE_READ(0, V3D_CLE_CTNCA(job_q));
+	u32 ctra = V3D_CORE_READ(0, V3D_CLE_CTNRA(job_q));
+
+	/* If the current address or return address have changed, then
+	 * the GPU has probably made progress and we should delay the
+	 * reset.  This could fail if the GPU got in an infinite loop
+	 * in the CL, but that is pretty unlikely outside of an i-g-t
+	 * testcase.
+	 */
+	if (job->timedout_ctca != ctca || job->timedout_ctra != ctra) {
+		job->timedout_ctca = ctca;
+		job->timedout_ctra = ctra;
+
+		schedule_delayed_work(&job->base.work_tdr,
+				      job->base.sched->timeout);
+		return;
+	}
 
 	mutex_lock(&v3d->reset_lock);
 

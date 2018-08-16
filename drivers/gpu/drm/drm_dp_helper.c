@@ -185,6 +185,20 @@ EXPORT_SYMBOL(drm_dp_bw_code_to_link_rate);
 
 #define AUX_RETRY_INTERVAL 500 /* us */
 
+static inline void
+drm_dp_dump_access(const struct drm_dp_aux *aux,
+		   u8 request, uint offset, void *buffer, int ret)
+{
+	const char *arrow = request == DP_AUX_NATIVE_READ ? "->" : "<-";
+
+	if (ret > 0)
+		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
+			aux->name, offset, arrow, ret, min(ret, 20), buffer);
+	else
+		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d)\n",
+			aux->name, offset, arrow, ret);
+}
+
 /**
  * DOC: dp helpers
  *
@@ -288,10 +302,14 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, buffer,
 				 1);
 	if (ret != 1)
-		return ret;
+		goto out;
 
-	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
-				  size);
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
+				 size);
+
+out:
+	drm_dp_dump_access(aux, DP_AUX_NATIVE_READ, offset, buffer, ret);
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read);
 
@@ -312,8 +330,12 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
 ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 			  void *buffer, size_t size)
 {
-	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
-				  size);
+	int ret;
+
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
+				 size);
+	drm_dp_dump_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer, ret);
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_write);
 
@@ -1087,6 +1109,7 @@ static void drm_dp_aux_crc_work(struct work_struct *work)
 void drm_dp_aux_init(struct drm_dp_aux *aux)
 {
 	mutex_init(&aux->hw_mutex);
+	mutex_init(&aux->cec.lock);
 	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
 
 	aux->ddc.algo = &drm_dp_i2c_algo;

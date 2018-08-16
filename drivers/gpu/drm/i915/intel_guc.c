@@ -27,6 +27,8 @@
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 
+static void guc_init_ggtt_pin_bias(struct intel_guc *guc);
+
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -73,7 +75,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	guc->notify = gen8_guc_raise_irq;
 }
 
-int intel_guc_init_wq(struct intel_guc *guc)
+static int guc_init_wq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -124,7 +126,7 @@ int intel_guc_init_wq(struct intel_guc *guc)
 	return 0;
 }
 
-void intel_guc_fini_wq(struct intel_guc *guc)
+static void guc_fini_wq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -133,6 +135,28 @@ void intel_guc_fini_wq(struct intel_guc *guc)
 		destroy_workqueue(guc->preempt_wq);
 
 	destroy_workqueue(guc->log.relay.flush_wq);
+}
+
+int intel_guc_init_misc(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+	int ret;
+
+	guc_init_ggtt_pin_bias(guc);
+
+	ret = guc_init_wq(guc);
+	if (ret)
+		return ret;
+
+	intel_uc_fw_fetch(i915, &guc->fw);
+
+	return 0;
+}
+
+void intel_guc_fini_misc(struct intel_guc *guc)
+{
+	intel_uc_fw_fini(&guc->fw);
+	guc_fini_wq(guc);
 }
 
 static int guc_shared_data_create(struct intel_guc *guc)
@@ -169,7 +193,7 @@ int intel_guc_init(struct intel_guc *guc)
 
 	ret = guc_shared_data_create(guc);
 	if (ret)
-		return ret;
+		goto err_fetch;
 	GEM_BUG_ON(!guc->shared_data);
 
 	ret = intel_guc_log_create(&guc->log);
@@ -190,6 +214,8 @@ err_log:
 	intel_guc_log_destroy(&guc->log);
 err_shared:
 	guc_shared_data_destroy(guc);
+err_fetch:
+	intel_uc_fw_fini(&guc->fw);
 	return ret;
 }
 
@@ -201,14 +227,17 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
 	guc_shared_data_destroy(guc);
+	intel_uc_fw_fini(&guc->fw);
 }
 
-static u32 get_log_control_flags(void)
+static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
-	u32 level = i915_modparams.guc_log_level;
-	u32 flags = 0;
+	u32 level = intel_guc_log_get_level(&guc->log);
+	u32 flags;
+	u32 ads;
 
-	GEM_BUG_ON(level < 0);
+	ads = intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT;
+	flags = ads << GUC_ADS_ADDR_SHIFT | GUC_ADS_ENABLED;
 
 	if (!GUC_LOG_LEVEL_IS_ENABLED(level))
 		flags |= GUC_LOG_DEFAULT_DISABLED;
@@ -218,6 +247,78 @@ static u32 get_log_control_flags(void)
 	else
 		flags |= GUC_LOG_LEVEL_TO_VERBOSITY(level) <<
 			 GUC_LOG_VERBOSITY_SHIFT;
+
+	return flags;
+}
+
+static u32 guc_ctl_feature_flags(struct intel_guc *guc)
+{
+	u32 flags = 0;
+
+	flags |=  GUC_CTL_VCS2_ENABLED;
+
+	if (USES_GUC_SUBMISSION(guc_to_i915(guc)))
+		flags |= GUC_CTL_KERNEL_SUBMISSIONS;
+	else
+		flags |= GUC_CTL_DISABLE_SCHEDULER;
+
+	return flags;
+}
+
+static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
+{
+	u32 flags = 0;
+
+	if (USES_GUC_SUBMISSION(guc_to_i915(guc))) {
+		u32 ctxnum, base;
+
+		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
+		ctxnum = GUC_MAX_STAGE_DESCRIPTORS / 16;
+
+		base >>= PAGE_SHIFT;
+		flags |= (base << GUC_CTL_BASE_ADDR_SHIFT) |
+			(ctxnum << GUC_CTL_CTXNUM_IN16_SHIFT);
+	}
+	return flags;
+}
+
+static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
+{
+	u32 offset = intel_guc_ggtt_offset(guc, guc->log.vma) >> PAGE_SHIFT;
+	u32 flags;
+
+	#if (((CRASH_BUFFER_SIZE) % SZ_1M) == 0)
+	#define UNIT SZ_1M
+	#define FLAG GUC_LOG_ALLOC_IN_MEGABYTE
+	#else
+	#define UNIT SZ_4K
+	#define FLAG 0
+	#endif
+
+	BUILD_BUG_ON(!CRASH_BUFFER_SIZE);
+	BUILD_BUG_ON(!IS_ALIGNED(CRASH_BUFFER_SIZE, UNIT));
+	BUILD_BUG_ON(!DPC_BUFFER_SIZE);
+	BUILD_BUG_ON(!IS_ALIGNED(DPC_BUFFER_SIZE, UNIT));
+	BUILD_BUG_ON(!ISR_BUFFER_SIZE);
+	BUILD_BUG_ON(!IS_ALIGNED(ISR_BUFFER_SIZE, UNIT));
+
+	BUILD_BUG_ON((CRASH_BUFFER_SIZE / UNIT - 1) >
+			(GUC_LOG_CRASH_MASK >> GUC_LOG_CRASH_SHIFT));
+	BUILD_BUG_ON((DPC_BUFFER_SIZE / UNIT - 1) >
+			(GUC_LOG_DPC_MASK >> GUC_LOG_DPC_SHIFT));
+	BUILD_BUG_ON((ISR_BUFFER_SIZE / UNIT - 1) >
+			(GUC_LOG_ISR_MASK >> GUC_LOG_ISR_SHIFT));
+
+	flags = GUC_LOG_VALID |
+		GUC_LOG_NOTIFY_ON_HALF_FULL |
+		FLAG |
+		((CRASH_BUFFER_SIZE / UNIT - 1) << GUC_LOG_CRASH_SHIFT) |
+		((DPC_BUFFER_SIZE / UNIT - 1) << GUC_LOG_DPC_SHIFT) |
+		((ISR_BUFFER_SIZE / UNIT - 1) << GUC_LOG_ISR_SHIFT) |
+		(offset << GUC_LOG_BUF_ADDR_SHIFT);
+
+	#undef UNIT
+	#undef FLAG
 
 	return flags;
 }
@@ -245,32 +346,13 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	params[GUC_CTL_WA] |= GUC_CTL_WA_UK_BY_DRIVER;
 
-	params[GUC_CTL_FEATURE] |= GUC_CTL_DISABLE_SCHEDULER |
-			GUC_CTL_VCS2_ENABLED;
+	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
+	params[GUC_CTL_LOG_PARAMS]  = guc_ctl_log_params_flags(guc);
+	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
+	params[GUC_CTL_CTXINFO] = guc_ctl_ctxinfo_flags(guc);
 
-	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
-
-	params[GUC_CTL_DEBUG] = get_log_control_flags();
-
-	/* If GuC submission is enabled, set up additional parameters here */
-	if (USES_GUC_SUBMISSION(dev_priv)) {
-		u32 ads = intel_guc_ggtt_offset(guc,
-						guc->ads_vma) >> PAGE_SHIFT;
-		u32 pgs = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
-		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
-
-		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
-		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
-
-		pgs >>= PAGE_SHIFT;
-		params[GUC_CTL_CTXINFO] = (pgs << GUC_CTL_BASE_ADDR_SHIFT) |
-			(ctx_in_16 << GUC_CTL_CTXNUM_IN16_SHIFT);
-
-		params[GUC_CTL_FEATURE] |= GUC_CTL_KERNEL_SUBMISSIONS;
-
-		/* Unmask this bit to enable the GuC's internal scheduler */
-		params[GUC_CTL_FEATURE] &= ~GUC_CTL_DISABLE_SCHEDULER;
-	}
+	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
+		DRM_DEBUG_DRIVER("param[%2d] = %#x\n", i, params[i]);
 
 	/*
 	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
@@ -346,10 +428,8 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 		ret = -EIO;
 
 	if (ret) {
-		DRM_DEBUG_DRIVER("INTEL_GUC_SEND: Action 0x%X failed;"
-				 " ret=%d status=0x%08X response=0x%08X\n",
-				 action[0], ret, status,
-				 I915_READ(SOFT_SCRATCH(15)));
+		DRM_ERROR("MMIO: GuC action %#x failed with error %d %#x\n",
+			  action[0], ret, status);
 		goto out;
 	}
 
@@ -386,11 +466,13 @@ void intel_guc_to_host_event_handler_mmio(struct intel_guc *guc)
 	 * could happen that GuC sets the bit for 2nd interrupt but Host
 	 * clears out the bit on handling the 1st interrupt.
 	 */
+	disable_rpm_wakeref_asserts(dev_priv);
 	spin_lock(&guc->irq_lock);
 	val = I915_READ(SOFT_SCRATCH(15));
 	msg = val & guc->msg_enabled_mask;
 	I915_WRITE(SOFT_SCRATCH(15), val & ~msg);
 	spin_unlock(&guc->irq_lock);
+	enable_rpm_wakeref_asserts(dev_priv);
 
 	intel_guc_to_host_process_recv_msg(guc, msg);
 }
@@ -532,13 +614,13 @@ int intel_guc_resume(struct intel_guc *guc)
  */
 
 /**
- * intel_guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
+ * guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
  * @guc: intel_guc structure.
  *
  * This function will calculate and initialize the ggtt_pin_bias value based on
  * overall WOPCM size and GuC WOPCM size.
  */
-void intel_guc_init_ggtt_pin_bias(struct intel_guc *guc)
+static void guc_init_ggtt_pin_bias(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 
@@ -572,7 +654,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &dev_priv->ggtt.vm, NULL);
 	if (IS_ERR(vma))
 		goto err;
 

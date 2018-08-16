@@ -150,6 +150,17 @@ config FRAMEBUFFER_CONSOLE_ROTATION
          such that other users of the framebuffer will remain normally
          oriented.
 
+config FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
+	bool "Framebuffer Console Deferred Takeover"
+	depends on FRAMEBUFFER_CONSOLE=y && DUMMY_CONSOLE=y
+	help
+	  If enabled this defers the framebuffer console taking over the
+	  console from the dummy console until the first text is displayed on
+	  the console. This is useful in combination with the "quiet" kernel
+	  commandline option to keep the framebuffer contents initially put up
+	  by the firmware in place, rather then replacing the contents with a
+	  black screen as soon as fbcon loads.
+
 config STI_CONSOLE
         bool "STI text console"
 	depends on PARISC && HAS_IOMEM

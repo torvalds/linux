@@ -40,11 +40,11 @@
 
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
-#define FIRMWARE_BONAIRE	"radeon/bonaire_vce.bin"
-#define FIRMWARE_KABINI	"radeon/kabini_vce.bin"
-#define FIRMWARE_KAVERI	"radeon/kaveri_vce.bin"
-#define FIRMWARE_HAWAII	"radeon/hawaii_vce.bin"
-#define FIRMWARE_MULLINS	"radeon/mullins_vce.bin"
+#define FIRMWARE_BONAIRE	"amdgpu/bonaire_vce.bin"
+#define FIRMWARE_KABINI	"amdgpu/kabini_vce.bin"
+#define FIRMWARE_KAVERI	"amdgpu/kaveri_vce.bin"
+#define FIRMWARE_HAWAII	"amdgpu/hawaii_vce.bin"
+#define FIRMWARE_MULLINS	"amdgpu/mullins_vce.bin"
 #endif
 #define FIRMWARE_TONGA		"amdgpu/tonga_vce.bin"
 #define FIRMWARE_CARRIZO	"amdgpu/carrizo_vce.bin"
@@ -190,8 +190,7 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 
 	ring = &adev->vce.ring[0];
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-	r = drm_sched_entity_init(&ring->sched, &adev->vce.entity,
-				  rq, NULL);
+	r = drm_sched_entity_init(&adev->vce.entity, &rq, 1, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCE run queue.\n");
 		return r;
@@ -222,7 +221,7 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
-	drm_sched_entity_fini(&adev->vce.ring[0].sched, &adev->vce.entity);
+	drm_sched_entity_destroy(&adev->vce.entity);
 
 	amdgpu_bo_free_kernel(&adev->vce.vcpu_bo, &adev->vce.gpu_addr,
 		(void **)&adev->vce.cpu_addr);
@@ -470,12 +469,10 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -532,19 +529,13 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-		job->fence = dma_fence_get(f);
-		if (r)
-			goto err;
-
-		amdgpu_job_free(job);
-	} else {
-		r = amdgpu_job_submit(job, ring, &ring->adev->vce.entity,
+	if (direct)
+		r = amdgpu_job_submit_direct(job, ring, &f);
+	else
+		r = amdgpu_job_submit(job, &ring->adev->vce.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
-		if (r)
-			goto err;
-	}
+	if (r)
+		goto err;
 
 	if (fence)
 		*fence = dma_fence_get(f);

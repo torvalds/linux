@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/mm_types.h>
 #include <linux/reservation.h>
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
@@ -72,6 +73,7 @@ struct vc4_dev {
 	struct vc4_dpi *dpi;
 	struct vc4_dsi *dsi1;
 	struct vc4_vec *vec;
+	struct vc4_txp *txp;
 
 	struct vc4_hang_state *hang_state;
 
@@ -674,7 +676,7 @@ int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
-int vc4_fault(struct vm_fault *vmf);
+vm_fault_t vc4_fault(struct vm_fault *vmf);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
@@ -697,6 +699,8 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     bool in_vblank_irq, int *vpos, int *hpos,
 			     ktime_t *stime, ktime_t *etime,
 			     const struct drm_display_mode *mode);
+void vc4_crtc_handle_vblank(struct vc4_crtc *crtc);
+void vc4_crtc_txp_armed(struct drm_crtc_state *state);
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
@@ -743,6 +747,10 @@ int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused);
 /* vc4_vec.c */
 extern struct platform_driver vc4_vec_driver;
 int vc4_vec_debugfs_regs(struct seq_file *m, void *unused);
+
+/* vc4_txp.c */
+extern struct platform_driver vc4_txp_driver;
+int vc4_txp_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_irq.c */
 irqreturn_t vc4_irq(int irq, void *arg);

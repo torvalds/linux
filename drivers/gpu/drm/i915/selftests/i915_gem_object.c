@@ -113,7 +113,7 @@ static int igt_gem_huge(void *arg)
 
 	obj = huge_gem_object(i915,
 			      nreal * PAGE_SIZE,
-			      i915->ggtt.base.total + PAGE_SIZE);
+			      i915->ggtt.vm.total + PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -169,9 +169,16 @@ static u64 tiled_offset(const struct tile *tile, u64 v)
 		v += y * tile->width;
 		v += div64_u64_rem(x, tile->width, &x) << tile->size;
 		v += x;
-	} else {
+	} else if (tile->width == 128) {
 		const unsigned int ytile_span = 16;
-		const unsigned int ytile_height = 32 * ytile_span;
+		const unsigned int ytile_height = 512;
+
+		v += y * ytile_span;
+		v += div64_u64_rem(x, ytile_span, &x) * ytile_height;
+		v += x;
+	} else {
+		const unsigned int ytile_span = 32;
+		const unsigned int ytile_height = 256;
 
 		v += y * ytile_span;
 		v += div64_u64_rem(x, ytile_span, &x) * ytile_height;
@@ -288,6 +295,8 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		kunmap(p);
 		if (err)
 			return err;
+
+		i915_vma_destroy(vma);
 	}
 
 	return 0;
@@ -311,7 +320,7 @@ static int igt_partial_tiling(void *arg)
 
 	obj = huge_gem_object(i915,
 			      nreal << PAGE_SHIFT,
-			      (1 + next_prime_number(i915->ggtt.base.total >> PAGE_SHIFT)) << PAGE_SHIFT);
+			      (1 + next_prime_number(i915->ggtt.vm.total >> PAGE_SHIFT)) << PAGE_SHIFT);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -347,6 +356,14 @@ static int igt_partial_tiling(void *arg)
 		unsigned int pitch;
 		struct tile tile;
 
+		if (i915->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+			/*
+			 * The swizzling pattern is actually unknown as it
+			 * varies based on physical address of each page.
+			 * See i915_gem_detect_bit_6_swizzle().
+			 */
+			break;
+
 		tile.tiling = tiling;
 		switch (tiling) {
 		case I915_TILING_X:
@@ -357,7 +374,8 @@ static int igt_partial_tiling(void *arg)
 			break;
 		}
 
-		if (tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN ||
+		GEM_BUG_ON(tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN);
+		if (tile.swizzle == I915_BIT_6_SWIZZLE_9_17 ||
 		    tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
 			continue;
 
@@ -440,7 +458,7 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int err;
 
-	vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
@@ -454,12 +472,14 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 		return PTR_ERR(rq);
 	}
 
-	i915_vma_move_to_active(vma, rq, 0);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+
 	i915_request_add(rq);
 
-	i915_gem_object_set_active_reference(obj);
+	__i915_gem_object_release_unless_active(obj);
 	i915_vma_unpin(vma);
-	return 0;
+
+	return err;
 }
 
 static bool assert_mmap_offset(struct drm_i915_private *i915,
@@ -488,6 +508,15 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	u64 hole_start, hole_end;
 	int loop, err;
 
+	/* Disable background reaper */
+	mutex_lock(&i915->drm.struct_mutex);
+	if (!i915->gt.active_requests++)
+		i915_gem_unpark(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	cancel_delayed_work_sync(&i915->gt.retire_work);
+	cancel_delayed_work_sync(&i915->gt.idle_work);
+	GEM_BUG_ON(!i915->gt.awake);
+
 	/* Trim the device mmap space to only a page */
 	memset(&resv, 0, sizeof(resv));
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
@@ -496,7 +525,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		err = drm_mm_reserve_node(mm, &resv);
 		if (err) {
 			pr_err("Failed to trim VMA manager, err=%d\n", err);
-			return err;
+			goto out_park;
 		}
 		break;
 	}
@@ -538,6 +567,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 	/* Now fill with busy dead objects that we expect to reap */
 	for (loop = 0; loop < 3; loop++) {
+		if (i915_terminally_wedged(&i915->gpu_error))
+			break;
+
 		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 		if (IS_ERR(obj)) {
 			err = PTR_ERR(obj);
@@ -554,6 +586,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 			goto err_obj;
 		}
 
+		/* NB we rely on the _active_ reference to access obj now */
 		GEM_BUG_ON(!i915_gem_object_is_active(obj));
 		err = i915_gem_object_create_mmap_offset(obj);
 		if (err) {
@@ -565,6 +598,13 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 out:
 	drm_mm_remove_node(&resv);
+out_park:
+	mutex_lock(&i915->drm.struct_mutex);
+	if (--i915->gt.active_requests)
+		queue_delayed_work(i915->wq, &i915->gt.retire_work, 0);
+	else
+		queue_delayed_work(i915->wq, &i915->gt.idle_work, 0);
+	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 err_obj:
 	i915_gem_object_put(obj);
@@ -586,7 +626,7 @@ int i915_gem_object_mock_selftests(void)
 
 	err = i915_subtests(tests, i915);
 
-	drm_dev_unref(&i915->drm);
+	drm_dev_put(&i915->drm);
 	return err;
 }
 

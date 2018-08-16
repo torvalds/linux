@@ -3010,9 +3010,9 @@ bool bw_calcs(struct dc_context *ctx,
 		struct bw_fixed low_yclk = vbios->low_yclk;
 
 		if (ctx->dc->debug.bandwidth_calcs_trace) {
-			print_bw_calcs_dceip(ctx->logger, dceip);
-			print_bw_calcs_vbios(ctx->logger, vbios);
-			print_bw_calcs_data(ctx->logger, data);
+			print_bw_calcs_dceip(ctx, dceip);
+			print_bw_calcs_vbios(ctx, vbios);
+			print_bw_calcs_data(ctx, data);
 		}
 		calculate_bandwidth(dceip, vbios, data);
 

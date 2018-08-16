@@ -316,4 +316,19 @@ enum {
 	PWRDN_IRQ_LEVEL		= 1 << 0,
 };
 
+static inline u32 armada_rect_hw_fp(struct drm_rect *r)
+{
+	return (drm_rect_height(r) & 0xffff0000) | drm_rect_width(r) >> 16;
+}
+
+static inline u32 armada_rect_hw(struct drm_rect *r)
+{
+	return drm_rect_height(r) << 16 | (drm_rect_width(r) & 0x0000ffff);
+}
+
+static inline u32 armada_rect_yx(struct drm_rect *r)
+{
+	return (r)->y1 << 16 | ((r)->x1 & 0x0000ffff);
+}
+
 #endif

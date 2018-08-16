@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 ccflags-y := -Idrivers/gpu/drm/msm
+ccflags-y += -Idrivers/gpu/drm/msm/disp/dpu1
 ccflags-$(CONFIG_DRM_MSM_DSI) += -Idrivers/gpu/drm/msm/dsi
 
 msm-y := \
@@ -45,6 +46,33 @@ msm-y := \
 	disp/mdp5/mdp5_mixer.o \
 	disp/mdp5/mdp5_plane.o \
 	disp/mdp5/mdp5_smp.o \
+	disp/dpu1/dpu_core_irq.o \
+	disp/dpu1/dpu_core_perf.o \
+	disp/dpu1/dpu_crtc.o \
+	disp/dpu1/dpu_encoder.o \
+	disp/dpu1/dpu_encoder_phys_cmd.o \
+	disp/dpu1/dpu_encoder_phys_vid.o \
+	disp/dpu1/dpu_formats.o \
+	disp/dpu1/dpu_hw_blk.o \
+	disp/dpu1/dpu_hw_catalog.o \
+	disp/dpu1/dpu_hw_cdm.o \
+	disp/dpu1/dpu_hw_ctl.o \
+	disp/dpu1/dpu_hw_interrupts.o \
+	disp/dpu1/dpu_hw_intf.o \
+	disp/dpu1/dpu_hw_lm.o \
+	disp/dpu1/dpu_hw_pingpong.o \
+	disp/dpu1/dpu_hw_sspp.o \
+	disp/dpu1/dpu_hw_top.o \
+	disp/dpu1/dpu_hw_util.o \
+	disp/dpu1/dpu_hw_vbif.o \
+	disp/dpu1/dpu_io_util.o \
+	disp/dpu1/dpu_irq.o \
+	disp/dpu1/dpu_kms.o \
+	disp/dpu1/dpu_mdss.o \
+	disp/dpu1/dpu_plane.o \
+	disp/dpu1/dpu_power_handle.o \
+	disp/dpu1/dpu_rm.o \
+	disp/dpu1/dpu_vbif.o \
 	msm_atomic.o \
 	msm_debugfs.o \
 	msm_drv.o \
@@ -62,7 +90,8 @@ msm-y := \
 	msm_ringbuffer.o \
 	msm_submitqueue.o
 
-msm-$(CONFIG_DEBUG_FS) += adreno/a5xx_debugfs.o
+msm-$(CONFIG_DEBUG_FS) += adreno/a5xx_debugfs.o \
+			  disp/dpu1/dpu_dbg.o
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += disp/mdp4/mdp4_lvds_pll.o

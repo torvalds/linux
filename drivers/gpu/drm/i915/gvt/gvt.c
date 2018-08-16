@@ -238,18 +238,15 @@ static void init_device_info(struct intel_gvt *gvt)
 	struct intel_gvt_device_info *info = &gvt->device_info;
 	struct pci_dev *pdev = gvt->dev_priv->drm.pdev;
 
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
-		|| IS_KABYLAKE(gvt->dev_priv)) {
-		info->max_support_vgpus = 8;
-		info->cfg_space_size = PCI_CFG_SPACE_EXP_SIZE;
-		info->mmio_size = 2 * 1024 * 1024;
-		info->mmio_bar = 0;
-		info->gtt_start_offset = 8 * 1024 * 1024;
-		info->gtt_entry_size = 8;
-		info->gtt_entry_size_shift = 3;
-		info->gmadr_bytes_in_cmd = 8;
-		info->max_surface_size = 36 * 1024 * 1024;
-	}
+	info->max_support_vgpus = 8;
+	info->cfg_space_size = PCI_CFG_SPACE_EXP_SIZE;
+	info->mmio_size = 2 * 1024 * 1024;
+	info->mmio_bar = 0;
+	info->gtt_start_offset = 8 * 1024 * 1024;
+	info->gtt_entry_size = 8;
+	info->gtt_entry_size_shift = 3;
+	info->gmadr_bytes_in_cmd = 8;
+	info->max_surface_size = 36 * 1024 * 1024;
 	info->msi_cap_offset = pdev->msi_cap;
 }
 
@@ -271,11 +268,8 @@ static int gvt_service_thread(void *data)
 			continue;
 
 		if (test_and_clear_bit(INTEL_GVT_REQUEST_EMULATE_VBLANK,
-					(void *)&gvt->service_request)) {
-			mutex_lock(&gvt->lock);
+					(void *)&gvt->service_request))
 			intel_gvt_emulate_vblank(gvt);
-			mutex_unlock(&gvt->lock);
-		}
 
 		if (test_bit(INTEL_GVT_REQUEST_SCHED,
 				(void *)&gvt->service_request) ||
@@ -379,6 +373,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	idr_init(&gvt->vgpu_idr);
 	spin_lock_init(&gvt->scheduler.mmio_context_lock);
 	mutex_init(&gvt->lock);
+	mutex_init(&gvt->sched_lock);
 	gvt->dev_priv = dev_priv;
 
 	init_device_info(gvt);
@@ -473,3 +468,7 @@ out_clean_idr:
 	kfree(gvt);
 	return ret;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
+MODULE_SOFTDEP("pre: kvmgt");
+#endif

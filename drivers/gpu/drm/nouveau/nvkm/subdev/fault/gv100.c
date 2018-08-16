@@ -176,8 +176,17 @@ gv100_fault_init(struct nvkm_fault *fault)
 	nvkm_notify_get(&fault->nrpfb);
 }
 
+static int
+gv100_fault_oneinit(struct nvkm_fault *fault)
+{
+	return nvkm_notify_init(&fault->buffer[0]->object, &fault->event,
+				gv100_fault_ntfy_nrpfb, false, NULL, 0, 0,
+				&fault->nrpfb);
+}
+
 static const struct nvkm_fault_func
 gv100_fault = {
+	.oneinit = gv100_fault_oneinit,
 	.init = gv100_fault_init,
 	.fini = gv100_fault_fini,
 	.intr = gv100_fault_intr,
@@ -192,15 +201,5 @@ int
 gv100_fault_new(struct nvkm_device *device, int index,
 		struct nvkm_fault **pfault)
 {
-	struct nvkm_fault *fault;
-	int ret;
-
-	ret = nvkm_fault_new_(&gv100_fault, device, index, &fault);
-	*pfault = fault;
-	if (ret)
-		return ret;
-
-	return nvkm_notify_init(&fault->buffer[0]->object, &fault->event,
-				gv100_fault_ntfy_nrpfb, false, NULL, 0, 0,
-				&fault->nrpfb);
+	return nvkm_fault_new_(&gv100_fault, device, index, pfault);
 }

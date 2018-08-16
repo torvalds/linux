@@ -623,7 +623,7 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 	}
 	tv->connector.interlace_allowed = true;
 
-	drm_mode_connector_attach_encoder(&tv->connector, &tv->encoder);
+	drm_connector_attach_encoder(&tv->connector, &tv->encoder);
 
 	return 0;
 

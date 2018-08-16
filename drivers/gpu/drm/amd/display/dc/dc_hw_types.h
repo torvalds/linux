@@ -192,13 +192,14 @@ enum surface_pixel_format {
 	/*swaped & float*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F,
 	/*grow graphics here if necessary */
-
+	SURFACE_PIXEL_FORMAT_VIDEO_AYCrCb8888,
 	SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr =
 		SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb,
+		SURFACE_PIXEL_FORMAT_SUBSAMPLE_END,
 	SURFACE_PIXEL_FORMAT_INVALID
 
 	/*grow 444 video here if necessary */
@@ -403,9 +404,11 @@ struct dc_cursor_position {
 struct dc_cursor_mi_param {
 	unsigned int pixel_clk_khz;
 	unsigned int ref_clk_khz;
-	unsigned int viewport_x_start;
-	unsigned int viewport_width;
+	struct rect viewport;
 	struct fixed31_32 h_scale_ratio;
+	struct fixed31_32 v_scale_ratio;
+	enum dc_rotation_angle rotation;
+	bool mirror;
 };
 
 /* IPP related types */
@@ -414,6 +417,7 @@ enum {
 	GAMMA_RGB_256_ENTRIES = 256,
 	GAMMA_RGB_FLOAT_1024_ENTRIES = 1024,
 	GAMMA_CS_TFM_1D_ENTRIES = 4096,
+	GAMMA_CUSTOM_ENTRIES = 4096,
 	GAMMA_MAX_ENTRIES = 4096
 };
 
@@ -421,6 +425,7 @@ enum dc_gamma_type {
 	GAMMA_RGB_256 = 1,
 	GAMMA_RGB_FLOAT_1024 = 2,
 	GAMMA_CS_TFM_1D = 3,
+	GAMMA_CUSTOM = 4,
 };
 
 struct dc_csc_transform {
@@ -489,11 +494,17 @@ struct dc_cursor_attributes {
 	uint32_t height;
 
 	enum dc_cursor_color_format color_format;
+	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* In case we support HW Cursor rotation in the future */
 	enum dc_rotation_angle rotation_angle;
 
 	union dc_cursor_attribute_flags attribute_flags;
+};
+
+struct dpp_cursor_attributes {
+	int bias;
+	int scale;
 };
 
 /* OPP */
@@ -567,25 +578,25 @@ struct scaling_taps {
 };
 
 enum dc_timing_standard {
-	TIMING_STANDARD_UNDEFINED,
-	TIMING_STANDARD_DMT,
-	TIMING_STANDARD_GTF,
-	TIMING_STANDARD_CVT,
-	TIMING_STANDARD_CVT_RB,
-	TIMING_STANDARD_CEA770,
-	TIMING_STANDARD_CEA861,
-	TIMING_STANDARD_HDMI,
-	TIMING_STANDARD_TV_NTSC,
-	TIMING_STANDARD_TV_NTSC_J,
-	TIMING_STANDARD_TV_PAL,
-	TIMING_STANDARD_TV_PAL_M,
-	TIMING_STANDARD_TV_PAL_CN,
-	TIMING_STANDARD_TV_SECAM,
-	TIMING_STANDARD_EXPLICIT,
+	DC_TIMING_STANDARD_UNDEFINED,
+	DC_TIMING_STANDARD_DMT,
+	DC_TIMING_STANDARD_GTF,
+	DC_TIMING_STANDARD_CVT,
+	DC_TIMING_STANDARD_CVT_RB,
+	DC_TIMING_STANDARD_CEA770,
+	DC_TIMING_STANDARD_CEA861,
+	DC_TIMING_STANDARD_HDMI,
+	DC_TIMING_STANDARD_TV_NTSC,
+	DC_TIMING_STANDARD_TV_NTSC_J,
+	DC_TIMING_STANDARD_TV_PAL,
+	DC_TIMING_STANDARD_TV_PAL_M,
+	DC_TIMING_STANDARD_TV_PAL_CN,
+	DC_TIMING_STANDARD_TV_SECAM,
+	DC_TIMING_STANDARD_EXPLICIT,
 	/*!< For explicit timings from EDID, VBIOS, etc.*/
-	TIMING_STANDARD_USER_OVERRIDE,
+	DC_TIMING_STANDARD_USER_OVERRIDE,
 	/*!< For mode timing override by user*/
-	TIMING_STANDARD_MAX
+	DC_TIMING_STANDARD_MAX
 };
 
 enum dc_color_depth {

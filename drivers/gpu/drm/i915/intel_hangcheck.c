@@ -294,6 +294,7 @@ static void hangcheck_store_sample(struct intel_engine_cs *engine,
 	engine->hangcheck.seqno = hc->seqno;
 	engine->hangcheck.action = hc->action;
 	engine->hangcheck.stalled = hc->stalled;
+	engine->hangcheck.wedged = hc->wedged;
 }
 
 static enum intel_engine_hangcheck_action
@@ -368,6 +369,9 @@ static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
 
 	hc->stalled = time_after(jiffies,
 				 engine->hangcheck.action_timestamp + timeout);
+	hc->wedged = time_after(jiffies,
+				 engine->hangcheck.action_timestamp +
+				 I915_ENGINE_WEDGED_TIMEOUT);
 }
 
 static void hangcheck_declare_hang(struct drm_i915_private *i915,
@@ -409,7 +413,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			     gpu_error.hangcheck_work.work);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	unsigned int hung = 0, stuck = 0;
+	unsigned int hung = 0, stuck = 0, wedged = 0;
 
 	if (!i915_modparams.enable_hangcheck)
 		return;
@@ -440,6 +444,17 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			if (hc.action != ENGINE_DEAD)
 				stuck |= intel_engine_flag(engine);
 		}
+
+		if (engine->hangcheck.wedged)
+			wedged |= intel_engine_flag(engine);
+	}
+
+	if (wedged) {
+		dev_err(dev_priv->drm.dev,
+			"GPU recovery timed out,"
+			" cancelling all in-flight rendering.\n");
+		GEM_TRACE_DUMP();
+		i915_gem_set_wedged(dev_priv);
 	}
 
 	if (hung)

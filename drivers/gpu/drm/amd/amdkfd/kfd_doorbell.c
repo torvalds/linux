@@ -188,9 +188,9 @@ void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 	*doorbell_off = kfd->doorbell_id_offset + inx;
 
 	pr_debug("Get kernel queue doorbell\n"
-			 "     doorbell offset   == 0x%08X\n"
-			 "     kernel address    == %p\n",
-		*doorbell_off, (kfd->doorbell_kernel_ptr + inx));
+			"     doorbell offset   == 0x%08X\n"
+			"     doorbell index    == 0x%x\n",
+		*doorbell_off, inx);
 
 	return kfd->doorbell_kernel_ptr + inx;
 }
@@ -199,7 +199,8 @@ void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr)
 {
 	unsigned int inx;
 
-	inx = (unsigned int)(db_addr - kfd->doorbell_kernel_ptr);
+	inx = (unsigned int)(db_addr - kfd->doorbell_kernel_ptr)
+		* sizeof(u32) / kfd->device_info->doorbell_size;
 
 	mutex_lock(&kfd->doorbell_mutex);
 	__clear_bit(inx, kfd->doorbell_available_index);

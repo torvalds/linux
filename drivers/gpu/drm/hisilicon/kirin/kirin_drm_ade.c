@@ -859,7 +859,6 @@ static int ade_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	if (src_w != crtc_w || src_h != crtc_h) {
-		DRM_ERROR("Scale not support!!!\n");
 		return -EINVAL;
 	}
 

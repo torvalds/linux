@@ -435,7 +435,7 @@ int phm_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 }
 
 int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+					void *clock_ranges)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
@@ -443,7 +443,7 @@ int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges(hwmgr,
-			wm_with_clock_ranges);
+								clock_ranges);
 }
 
 int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,

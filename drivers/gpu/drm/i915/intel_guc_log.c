@@ -215,11 +215,11 @@ static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
 {
 	switch (type) {
 	case GUC_ISR_LOG_BUFFER:
-		return (GUC_LOG_ISR_PAGES + 1) * PAGE_SIZE;
+		return ISR_BUFFER_SIZE;
 	case GUC_DPC_LOG_BUFFER:
-		return (GUC_LOG_DPC_PAGES + 1) * PAGE_SIZE;
+		return DPC_BUFFER_SIZE;
 	case GUC_CRASH_DUMP_LOG_BUFFER:
-		return (GUC_LOG_CRASH_PAGES + 1) * PAGE_SIZE;
+		return CRASH_BUFFER_SIZE;
 	default:
 		MISSING_CASE(type);
 	}
@@ -397,7 +397,7 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	lockdep_assert_held(&log->relay.lock);
 
 	 /* Keep the size of sub buffers same as shared log buffer */
-	subbuf_size = GUC_LOG_SIZE;
+	subbuf_size = log->vma->size;
 
 	/*
 	 * Store up to 8 snapshots, which is large enough to buffer sufficient
@@ -452,13 +452,34 @@ int intel_guc_log_create(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
 	struct i915_vma *vma;
-	unsigned long offset;
-	u32 flags;
+	u32 guc_log_size;
 	int ret;
 
 	GEM_BUG_ON(log->vma);
 
-	vma = intel_guc_allocate_vma(guc, GUC_LOG_SIZE);
+	/*
+	 *  GuC Log buffer Layout
+	 *
+	 *  +===============================+ 00B
+	 *  |    Crash dump state header    |
+	 *  +-------------------------------+ 32B
+	 *  |       DPC state header        |
+	 *  +-------------------------------+ 64B
+	 *  |       ISR state header        |
+	 *  +-------------------------------+ 96B
+	 *  |                               |
+	 *  +===============================+ PAGE_SIZE (4KB)
+	 *  |        Crash Dump logs        |
+	 *  +===============================+ + CRASH_SIZE
+	 *  |           DPC logs            |
+	 *  +===============================+ + DPC_SIZE
+	 *  |           ISR logs            |
+	 *  +===============================+ + ISR_SIZE
+	 */
+	guc_log_size = PAGE_SIZE + CRASH_BUFFER_SIZE + DPC_BUFFER_SIZE +
+			ISR_BUFFER_SIZE;
+
+	vma = intel_guc_allocate_vma(guc, guc_log_size);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err;
@@ -466,20 +487,12 @@ int intel_guc_log_create(struct intel_guc_log *log)
 
 	log->vma = vma;
 
-	/* each allocated unit is a page */
-	flags = GUC_LOG_VALID | GUC_LOG_NOTIFY_ON_HALF_FULL |
-		(GUC_LOG_DPC_PAGES << GUC_LOG_DPC_SHIFT) |
-		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
-		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
-
-	offset = intel_guc_ggtt_offset(guc, vma) >> PAGE_SHIFT;
-	log->flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
+	log->level = i915_modparams.guc_log_level;
 
 	return 0;
 
 err:
-	/* logging will be off */
-	i915_modparams.guc_log_level = 0;
+	DRM_ERROR("Failed to allocate GuC log buffer. %d\n", ret);
 	return ret;
 }
 
@@ -488,15 +501,7 @@ void intel_guc_log_destroy(struct intel_guc_log *log)
 	i915_vma_unpin_and_release(&log->vma);
 }
 
-int intel_guc_log_level_get(struct intel_guc_log *log)
-{
-	GEM_BUG_ON(!log->vma);
-	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
-
-	return i915_modparams.guc_log_level;
-}
-
-int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
+int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 {
 	struct intel_guc *guc = log_to_guc(log);
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -504,33 +509,32 @@ int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
 
 	BUILD_BUG_ON(GUC_LOG_VERBOSITY_MIN != 0);
 	GEM_BUG_ON(!log->vma);
-	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
 
 	/*
 	 * GuC is recognizing log levels starting from 0 to max, we're using 0
 	 * as indication that logging should be disabled.
 	 */
-	if (val < GUC_LOG_LEVEL_DISABLED || val > GUC_LOG_LEVEL_MAX)
+	if (level < GUC_LOG_LEVEL_DISABLED || level > GUC_LOG_LEVEL_MAX)
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
-	if (i915_modparams.guc_log_level == val) {
+	if (log->level == level) {
 		ret = 0;
 		goto out_unlock;
 	}
 
 	intel_runtime_pm_get(dev_priv);
-	ret = guc_action_control_log(guc, GUC_LOG_LEVEL_IS_VERBOSE(val),
-				     GUC_LOG_LEVEL_IS_ENABLED(val),
-				     GUC_LOG_LEVEL_TO_VERBOSITY(val));
+	ret = guc_action_control_log(guc, GUC_LOG_LEVEL_IS_VERBOSE(level),
+				     GUC_LOG_LEVEL_IS_ENABLED(level),
+				     GUC_LOG_LEVEL_TO_VERBOSITY(level));
 	intel_runtime_pm_put(dev_priv);
 	if (ret) {
 		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);
 		goto out_unlock;
 	}
 
-	i915_modparams.guc_log_level = val;
+	log->level = level;
 
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);

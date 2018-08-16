@@ -1702,15 +1702,9 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	const u32 base = engine->mmio_base;
-	const i915_reg_t mode = RING_MI_MODE(base);
 
-	I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
-	if (__intel_wait_for_register_fw(dev_priv,
-					 mode, MODE_IDLE, MODE_IDLE,
-					 500, 0,
-					 NULL))
-		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n",
-				 engine->name);
+	if (intel_engine_stop_cs(engine))
+		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n", engine->name);
 
 	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
 	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */
@@ -2099,21 +2093,25 @@ static int gen8_reset_engines(struct drm_i915_private *dev_priv,
 {
 	struct intel_engine_cs *engine;
 	unsigned int tmp;
+	int ret;
 
-	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
-		if (gen8_reset_engine_start(engine))
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+		if (gen8_reset_engine_start(engine)) {
+			ret = -EIO;
 			goto not_ready;
+		}
+	}
 
 	if (INTEL_GEN(dev_priv) >= 11)
-		return gen11_reset_engines(dev_priv, engine_mask);
+		ret = gen11_reset_engines(dev_priv, engine_mask);
 	else
-		return gen6_reset_engines(dev_priv, engine_mask);
+		ret = gen6_reset_engines(dev_priv, engine_mask);
 
 not_ready:
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		gen8_reset_engine_cancel(engine);
 
-	return -EIO;
+	return ret;
 }
 
 typedef int (*reset_func)(struct drm_i915_private *, unsigned engine_mask);
@@ -2175,6 +2173,8 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 		 * the reset is issued, regardless of READY_TO_RESET ack.
 		 * Thus assume it is best to stop engines on all gens
 		 * where we have a gpu reset.
+		 *
+		 * WaKBLVECSSemaphoreWaitPoll:kbl (on ALL_ENGINES)
 		 *
 		 * WaMediaResetMainRingCleanup:ctg,elk (presumably)
 		 *

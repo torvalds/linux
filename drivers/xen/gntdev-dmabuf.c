@@ -217,7 +217,6 @@ out:
 }
 
 static int dmabuf_exp_ops_attach(struct dma_buf *dma_buf,
-				 struct device *target_dev,
 				 struct dma_buf_attachment *attach)
 {
 	struct gntdev_dmabuf_attachment *gntdev_dmabuf_attach;

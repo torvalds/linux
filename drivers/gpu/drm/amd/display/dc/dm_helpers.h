@@ -40,6 +40,14 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 	const struct dc_edid *edid,
 	struct dc_edid_caps *edid_caps);
 
+
+/*
+ * Update DP branch info
+ */
+void dm_helpers_dp_update_branch_info(
+		struct dc_context *ctx,
+		const struct dc_link *link);
+
 /*
  * Writes payload allocation table in immediate downstream device.
  */
@@ -102,6 +110,9 @@ bool dm_helpers_submit_i2c(
 		struct dc_context *ctx,
 		const struct dc_link *link,
 		struct i2c_command *cmd);
+
+bool dm_helpers_is_dp_sink_present(
+		struct dc_link *link);
 
 enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_context *ctx,

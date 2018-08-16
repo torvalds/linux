@@ -44,6 +44,8 @@
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
 #define AMDGPU_FENCE_FLAG_TC_WB_ONLY    (1 << 2)
 
+#define to_amdgpu_ring(s) container_of((s), struct amdgpu_ring, sched)
+
 enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_GFX,
 	AMDGPU_RING_TYPE_COMPUTE,
@@ -53,7 +55,8 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_KIQ,
 	AMDGPU_RING_TYPE_UVD_ENC,
 	AMDGPU_RING_TYPE_VCN_DEC,
-	AMDGPU_RING_TYPE_VCN_ENC
+	AMDGPU_RING_TYPE_VCN_ENC,
+	AMDGPU_RING_TYPE_VCN_JPEG
 };
 
 struct amdgpu_device;
@@ -112,6 +115,7 @@ struct amdgpu_ring_funcs {
 	u32			nop;
 	bool			support_64bit_ptrs;
 	unsigned		vmhub;
+	unsigned		extra_dw;
 
 	/* ring read/write ptr handling */
 	u64 (*get_rptr)(struct amdgpu_ring *ring);
@@ -119,6 +123,7 @@ struct amdgpu_ring_funcs {
 	void (*set_wptr)(struct amdgpu_ring *ring);
 	/* validating and patching of IBs */
 	int (*parse_cs)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
+	int (*patch_cs_in_place)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
 	/* constants to calculate how many DW are needed for an emit */
 	unsigned emit_frame_size;
 	unsigned emit_ib_size;

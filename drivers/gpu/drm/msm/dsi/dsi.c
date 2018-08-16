@@ -208,6 +208,9 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		goto fail;
 	}
 
+	if (!msm_dsi_manager_validate_current_config(msm_dsi->id))
+		goto fail;
+
 	msm_dsi->encoder = encoder;
 
 	msm_dsi->bridge = msm_dsi_manager_bridge_init(msm_dsi->id);

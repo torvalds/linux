@@ -503,7 +503,7 @@ static int ps8622_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(&ps8622->connector,
 					&ps8622_connector_helper_funcs);
 	drm_connector_register(&ps8622->connector);
-	drm_mode_connector_attach_encoder(&ps8622->connector,
+	drm_connector_attach_encoder(&ps8622->connector,
 							bridge->encoder);
 
 	if (ps8622->panel)

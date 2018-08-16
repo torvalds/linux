@@ -204,7 +204,7 @@ static int tinydrm_register(struct tinydrm_device *tdev)
 	if (ret)
 		return ret;
 
-	ret = drm_fb_cma_fbdev_init_with_funcs(drm, 0, 0, tdev->fb_funcs);
+	ret = drm_fbdev_generic_setup(drm, 0);
 	if (ret)
 		DRM_ERROR("Failed to initialize fbdev: %d\n", ret);
 
@@ -214,7 +214,6 @@ static int tinydrm_register(struct tinydrm_device *tdev)
 static void tinydrm_unregister(struct tinydrm_device *tdev)
 {
 	drm_atomic_helper_shutdown(tdev->drm);
-	drm_fb_cma_fbdev_fini(tdev->drm);
 	drm_dev_unregister(tdev->drm);
 }
 

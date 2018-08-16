@@ -26,7 +26,6 @@
 #include <linux/seq_file.h>
 #include "amd_powerplay.h"
 #include "hardwaremanager.h"
-#include "pp_power_source.h"
 #include "hwmgr_ppt.h"
 #include "ppatomctrl.h"
 #include "hwmgr_ppt.h"
@@ -195,7 +194,7 @@ struct pp_smumgr_func {
 	int (*request_smu_load_fw)(struct pp_hwmgr  *hwmgr);
 	int (*request_smu_load_specific_fw)(struct pp_hwmgr  *hwmgr,
 					    uint32_t firmware);
-	int (*get_argument)(struct pp_hwmgr  *hwmgr);
+	uint32_t (*get_argument)(struct pp_hwmgr  *hwmgr);
 	int (*send_msg_to_smc)(struct pp_hwmgr  *hwmgr, uint16_t msg);
 	int (*send_msg_to_smc_with_parameter)(struct pp_hwmgr  *hwmgr,
 					  uint16_t msg, uint32_t parameter);
@@ -294,8 +293,7 @@ struct pp_hwmgr_func {
 	int (*get_clock_by_type_with_voltage)(struct pp_hwmgr *hwmgr,
 			enum amd_pp_clock_type type,
 			struct pp_clock_levels_with_voltage *clocks);
-	int (*set_watermarks_for_clocks_ranges)(struct pp_hwmgr *hwmgr,
-			struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+	int (*set_watermarks_for_clocks_ranges)(struct pp_hwmgr *hwmgr, void *clock_ranges);
 	int (*display_clock_voltage_request)(struct pp_hwmgr *hwmgr,
 			struct pp_display_clock_request *clock);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
@@ -303,7 +301,7 @@ struct pp_hwmgr_func {
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
-	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
+	int (*powergate_gfx)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*get_sclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_sclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
@@ -328,7 +326,7 @@ struct pp_hwmgr_func {
 					enum PP_OD_DPM_TABLE_COMMAND type,
 					long *input, uint32_t size);
 	int (*set_power_limit)(struct pp_hwmgr *hwmgr, uint32_t n);
-	int (*set_mmhub_powergating_by_smu)(struct pp_hwmgr *hwmgr);
+	int (*powergate_mmhub)(struct pp_hwmgr *hwmgr);
 	int (*smus_notify_pwe)(struct pp_hwmgr *hwmgr);
 };
 
@@ -741,7 +739,6 @@ struct pp_hwmgr {
 	const struct pp_table_func *pptable_func;
 
 	struct pp_power_state    *ps;
-	enum pp_power_source  power_source;
 	uint32_t num_ps;
 	struct pp_thermal_controller_info thermal_controller;
 	bool fan_ctrl_is_in_default_mode;

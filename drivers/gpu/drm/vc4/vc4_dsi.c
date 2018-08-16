@@ -814,7 +814,9 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
 
+	drm_bridge_disable(dsi->bridge);
 	vc4_dsi_ulps(dsi, true);
+	drm_bridge_post_disable(dsi->bridge);
 
 	clk_disable_unprepare(dsi->pll_phy_clock);
 	clk_disable_unprepare(dsi->escape_clock);
@@ -1089,21 +1091,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	/* Display reset sequence timeout */
 	DSI_PORT_WRITE(PR_TO_CNT, 100000);
 
-	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
-		DSI_PORT_WRITE(DISP0_CTRL,
-			       VC4_SET_FIELD(dsi->divider,
-					     DSI_DISP0_PIX_CLK_DIV) |
-			       VC4_SET_FIELD(dsi->format, DSI_DISP0_PFORMAT) |
-			       VC4_SET_FIELD(DSI_DISP0_LP_STOP_PERFRAME,
-					     DSI_DISP0_LP_STOP_CTRL) |
-			       DSI_DISP0_ST_END |
-			       DSI_DISP0_ENABLE);
-	} else {
-		DSI_PORT_WRITE(DISP0_CTRL,
-			       DSI_DISP0_COMMAND_MODE |
-			       DSI_DISP0_ENABLE);
-	}
-
 	/* Set up DISP1 for transferring long command payloads through
 	 * the pixfifo.
 	 */
@@ -1127,6 +1114,25 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	vc4_dsi_ulps(dsi, false);
+
+	drm_bridge_pre_enable(dsi->bridge);
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		DSI_PORT_WRITE(DISP0_CTRL,
+			       VC4_SET_FIELD(dsi->divider,
+					     DSI_DISP0_PIX_CLK_DIV) |
+			       VC4_SET_FIELD(dsi->format, DSI_DISP0_PFORMAT) |
+			       VC4_SET_FIELD(DSI_DISP0_LP_STOP_PERFRAME,
+					     DSI_DISP0_LP_STOP_CTRL) |
+			       DSI_DISP0_ST_END |
+			       DSI_DISP0_ENABLE);
+	} else {
+		DSI_PORT_WRITE(DISP0_CTRL,
+			       DSI_DISP0_COMMAND_MODE |
+			       DSI_DISP0_ENABLE);
+	}
+
+	drm_bridge_enable(dsi->bridge);
 
 	if (debug_dump_regs) {
 		DRM_INFO("DSI regs after:\n");
@@ -1606,8 +1612,18 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
 					  &panel, &dsi->bridge);
-	if (ret)
+	if (ret) {
+		/* If the bridge or panel pointed by dev->of_node is not
+		 * enabled, just return 0 here so that we don't prevent the DRM
+		 * dev from being registered. Of course that means the DSI
+		 * encoder won't be exposed, but that's not a problem since
+		 * nothing is connected to it.
+		 */
+		if (ret == -ENODEV)
+			return 0;
+
 		return ret;
+	}
 
 	if (panel) {
 		dsi->bridge = devm_drm_panel_bridge_add(dev, panel,
@@ -1639,6 +1655,12 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		dev_err(dev, "bridge attach failed: %d\n", ret);
 		return ret;
 	}
+	/* Disable the atomic helper calls into the bridge.  We
+	 * manually call the bridge pre_enable / enable / etc. calls
+	 * from our driver, since we need to sequence them within the
+	 * encoder's enable/disable paths.
+	 */
+	dsi->encoder->bridge = NULL;
 
 	pm_runtime_enable(dev);
 
@@ -1652,7 +1674,8 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_dsi *dsi = dev_get_drvdata(dev);
 
-	pm_runtime_disable(dev);
+	if (dsi->bridge)
+		pm_runtime_disable(dev);
 
 	vc4_dsi_encoder_destroy(dsi->encoder);
 

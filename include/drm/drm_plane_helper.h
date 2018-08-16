@@ -67,8 +67,10 @@ int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			    int crtc_x, int crtc_y,
 			    unsigned int crtc_w, unsigned int crtc_h,
 			    uint32_t src_x, uint32_t src_y,
-			    uint32_t src_w, uint32_t src_h);
-int drm_plane_helper_disable(struct drm_plane *plane);
+			    uint32_t src_w, uint32_t src_h,
+			    struct drm_modeset_acquire_ctx *ctx);
+int drm_plane_helper_disable(struct drm_plane *plane,
+			     struct drm_modeset_acquire_ctx *ctx);
 
 /* For use by drm_crtc_helper.c */
 int drm_plane_helper_commit(struct drm_plane *plane,

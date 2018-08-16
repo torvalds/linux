@@ -139,6 +139,7 @@ static int crtc_crc_data_count(struct drm_crtc_crc *crc)
 static void crtc_crc_cleanup(struct drm_crtc_crc *crc)
 {
 	kfree(crc->entries);
+	crc->overflow = false;
 	crc->entries = NULL;
 	crc->head = 0;
 	crc->tail = 0;
@@ -391,8 +392,14 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 	tail = crc->tail;
 
 	if (CIRC_SPACE(head, tail, DRM_CRC_ENTRIES_NR) < 1) {
+		bool was_overflow = crc->overflow;
+
+		crc->overflow = true;
 		spin_unlock(&crc->lock);
-		DRM_ERROR("Overflow of CRC buffer, userspace reads too slow.\n");
+
+		if (!was_overflow)
+			DRM_ERROR("Overflow of CRC buffer, userspace reads too slow.\n");
+
 		return -ENOBUFS;
 	}
 

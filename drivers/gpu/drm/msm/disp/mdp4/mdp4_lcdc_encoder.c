@@ -341,7 +341,7 @@ static void mdp4_lcdc_encoder_disable(struct drm_encoder *encoder)
 	mdp4_write(mdp4_kms, REG_MDP4_LCDC_ENABLE, 0);
 
 	panel = of_drm_find_panel(mdp4_lcdc_encoder->panel_node);
-	if (panel) {
+	if (!IS_ERR(panel)) {
 		drm_panel_disable(panel);
 		drm_panel_unprepare(panel);
 	}
@@ -410,7 +410,7 @@ static void mdp4_lcdc_encoder_enable(struct drm_encoder *encoder)
 		dev_err(dev->dev, "failed to enable lcdc_clk: %d\n", ret);
 
 	panel = of_drm_find_panel(mdp4_lcdc_encoder->panel_node);
-	if (panel) {
+	if (!IS_ERR(panel)) {
 		drm_panel_prepare(panel);
 		drm_panel_enable(panel);
 	}

@@ -70,7 +70,7 @@ struct kernel_queue {
 
 	/* data */
 	struct kfd_dev		*dev;
-	struct mqd_manager	*mqd;
+	struct mqd_manager	*mqd_mgr;
 	struct queue		*queue;
 	uint64_t		pending_wptr64;
 	uint32_t		pending_wptr;

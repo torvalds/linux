@@ -109,6 +109,15 @@ Framebuffer CMA Helper Functions Reference
 
 .. _drm_bridges:
 
+Framebuffer GEM Helper Reference
+================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+   :export:
+
 Bridges
 =======
 
@@ -167,6 +176,15 @@ Display Port Helper Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_dp_helper.c
+   :export:
+
+Display Port CEC Helper Functions Reference
+===========================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_dp_cec.c
+   :doc: dp cec helpers
+
+.. kernel-doc:: drivers/gpu/drm/drm_dp_cec.c
    :export:
 
 Display Port Dual Mode Adaptor Helper Functions Reference
@@ -282,13 +300,13 @@ Auxiliary Modeset Helpers
 .. kernel-doc:: drivers/gpu/drm/drm_modeset_helper.c
    :export:
 
-Framebuffer GEM Helper Reference
-================================
+OF/DT Helpers
+=============
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_of.c
    :doc: overview
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_of.c
    :export:
 
 Legacy Plane Helper Reference
