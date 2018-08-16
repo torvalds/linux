@@ -7231,14 +7231,10 @@ nfs4_state_start(void)
 {
 	int ret;
 
-	ret = set_callback_cred();
-	if (ret)
-		return ret;
-
 	laundry_wq = alloc_workqueue("%s", WQ_UNBOUND, 0, "nfsd4");
 	if (laundry_wq == NULL) {
 		ret = -ENOMEM;
-		goto out_cleanup_cred;
+		goto out;
 	}
 	ret = nfsd4_create_callback_queue();
 	if (ret)
@@ -7249,8 +7245,7 @@ nfs4_state_start(void)
 
 out_free_laundry:
 	destroy_workqueue(laundry_wq);
-out_cleanup_cred:
-	cleanup_callback_cred();
+out:
 	return ret;
 }
 
@@ -7287,7 +7282,6 @@ nfs4_state_shutdown(void)
 {
 	destroy_workqueue(laundry_wq);
 	nfsd4_destroy_callback_queue();
-	cleanup_callback_cred();
 }
 
 static void
