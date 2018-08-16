@@ -64,7 +64,6 @@
 
 /* NVM versions */
 #define IWL9000_NVM_VERSION		0x0a1d
-#define IWL9000_TX_POWER_VERSION	0xffff /* meaningless */
 
 /* Memory offsets and lengths */
 #define IWL9000_DCCM_OFFSET		0x800000
@@ -158,7 +157,6 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.d3_debug_data_length = 92 * 1024,				\
 	.ht_params = &iwl9000_ht_params,				\
 	.nvm_ver = IWL9000_NVM_VERSION,					\
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,			\
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K
 
 

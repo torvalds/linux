@@ -63,7 +63,6 @@
 
 /* NVM versions */
 #define IWL_22000_NVM_VERSION		0x0a1d
-#define IWL_22000_TX_POWER_VERSION	0xffff /* meaningless */
 
 /* Memory offsets and lengths */
 #define IWL_22000_DCCM_OFFSET		0x800000 /* LMAC1 */
@@ -155,7 +154,6 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.mac_addr_from_csr = true,					\
 	.ht_params = &iwl_22000_ht_params,				\
 	.nvm_ver = IWL_22000_NVM_VERSION,				\
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,			\
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,		\
 	.use_tfh = true,						\
 	.rf_id = true,							\
