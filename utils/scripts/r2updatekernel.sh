@@ -15,14 +15,26 @@ ASSETS_URL=$(curl $GITHUB_RELEASES_PAGE | jq --raw-output '.assets_url');
 ASSETS_FILE=/tmp/assets.json
 curl $ASSETS_URL -o $ASSETS_FILE
 
-# .deb file
-ASSETS=$(cat $ASSETS_FILE | jq --raw-output '.[0].browser_download_url');
-echo $ASSETS;
+FILES=()
+i=0;
+while true;
+do
+	# .deb file
+	FILE_URL=$(cat $ASSETS_FILE | jq --raw-output ".[$i].browser_download_url");
+	if [[ "$FILE_URL" != "null" ]];then
+	FILE_NAME=$(cat $ASSETS_FILE | jq --raw-output ".[$i].name");
+	FILE_CHG=$(cat $ASSETS_FILE | jq --raw-output ".[$i].updated_at");
+		#FILES+=("$FILE_NAME,$FILE_CHG,$FILE_URL");
+		FILES+=("$FILE_URL");
+		echo "[$i] $FILE_NAME ($FILE_CHG)"
+		i=$(($i+1))
+	else
+		break;
+	fi
+done
 
-# .tar.gz
-ASSETS=$(cat $ASSETS_FILE | jq --raw-output '.[1].browser_download_url');
-echo $ASSETS;
+read -p "choice: " -n1 choice;
+echo
+val=${FILES[$choice]}
+curl -L $val -O
 
-# .tar.gz.md5
-ASSETS=$(cat $ASSETS_FILE | jq --raw-output '.[2].browser_download_url');
-echo $ASSETS;
