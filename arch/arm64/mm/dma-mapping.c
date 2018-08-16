@@ -324,7 +324,7 @@ static int __swiotlb_dma_supported(struct device *hwdev, u64 mask)
 static int __swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t addr)
 {
 	if (swiotlb)
-		return swiotlb_dma_mapping_error(hwdev, addr);
+		return dma_direct_mapping_error(hwdev, addr);
 	return 0;
 }
 
