@@ -41,6 +41,10 @@ asmlinkage void stackleak_erase(void)
 	if (kstack_ptr == boundary)
 		kstack_ptr += sizeof(unsigned long);
 
+#ifdef CONFIG_STACKLEAK_METRICS
+	current->prev_lowest_stack = kstack_ptr;
+#endif
+
 	/*
 	 * Now write the poison value to the kernel stack. Start from
 	 * 'kstack_ptr' and move up till the new 'boundary'. We assume that
