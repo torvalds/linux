@@ -9847,12 +9847,6 @@ F:	drivers/scsi/mac_scsi.*
 F:	drivers/scsi/sun3_scsi.*
 F:	drivers/scsi/sun3_scsi_vme.c
 
-NCR DUAL 700 SCSI DRIVER (MICROCHANNEL)
-M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
-L:	linux-scsi@vger.kernel.org
-S:	Maintained
-F:	drivers/scsi/NCR_D700.*
-
 NCSI LIBRARY:
 M:	Samuel Mendoza-Jonas <sam@mendozajonas.com>
 S:	Maintained

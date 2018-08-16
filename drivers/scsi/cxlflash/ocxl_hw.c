@@ -1141,7 +1141,7 @@ static int afu_release(struct inode *inode, struct file *file)
  *
  * Return: 0 on success, -errno on failure
  */
-static int ocxlflash_mmap_fault(struct vm_fault *vmf)
+static vm_fault_t ocxlflash_mmap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct ocxlflash_context *ctx = vma->vm_file->private_data;
@@ -1164,8 +1164,7 @@ static int ocxlflash_mmap_fault(struct vm_fault *vmf)
 	mmio_area = ctx->psn_phys;
 	mmio_area += offset;
 
-	vm_insert_pfn(vma, vmf->address, mmio_area >> PAGE_SHIFT);
-	return VM_FAULT_NOPAGE;
+	return vmf_insert_pfn(vma, vmf->address, mmio_area >> PAGE_SHIFT);
 }
 
 static const struct vm_operations_struct ocxlflash_vmops = {

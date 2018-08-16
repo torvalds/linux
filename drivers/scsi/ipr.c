@@ -2412,6 +2412,28 @@ static void ipr_log_sis64_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
 }
 
 /**
+ * ipr_log_sis64_service_required_error - Log a sis64 service required error.
+ * @ioa_cfg:    ioa config struct
+ * @hostrcb:    hostrcb struct
+ *
+ * Return value:
+ *      none
+ **/
+static void ipr_log_sis64_service_required_error(struct ipr_ioa_cfg *ioa_cfg,
+				       struct ipr_hostrcb *hostrcb)
+{
+	struct ipr_hostrcb_type_41_error *error;
+
+	error = &hostrcb->hcam.u.error64.u.type_41_error;
+
+	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+	ipr_err("Primary Failure Reason: %s\n", error->failure_reason);
+	ipr_log_hex_data(ioa_cfg, error->data,
+			 be32_to_cpu(hostrcb->hcam.length) -
+			 (offsetof(struct ipr_hostrcb_error, u) +
+			  offsetof(struct ipr_hostrcb_type_41_error, data)));
+}
+/**
  * ipr_log_generic_error - Log an adapter error.
  * @ioa_cfg:	ioa config struct
  * @hostrcb:	hostrcb struct
@@ -2585,6 +2607,9 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_30:
 		ipr_log_sis64_fabric_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_41:
+		ipr_log_sis64_service_required_error(ioa_cfg, hostrcb);
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_1:
 	case IPR_HOST_RCB_OVERLAY_ID_DEFAULT:

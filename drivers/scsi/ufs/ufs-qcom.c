@@ -50,19 +50,10 @@ static void ufs_qcom_get_default_testbus_cfg(struct ufs_qcom_host *host);
 static int ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(struct ufs_hba *hba,
 						       u32 clk_cycles);
 
-static void ufs_qcom_dump_regs(struct ufs_hba *hba, int offset, int len,
-		char *prefix)
-{
-	print_hex_dump(KERN_ERR, prefix,
-			len > 4 ? DUMP_PREFIX_OFFSET : DUMP_PREFIX_NONE,
-			16, 4, (void __force *)hba->mmio_base + offset,
-			len * 4, false);
-}
-
 static void ufs_qcom_dump_regs_wrapper(struct ufs_hba *hba, int offset, int len,
-		char *prefix, void *priv)
+				       const char *prefix, void *priv)
 {
-	ufs_qcom_dump_regs(hba, offset, len, prefix);
+	ufshcd_dump_regs(hba, offset, len * 4, prefix);
 }
 
 static int ufs_qcom_get_connected_tx_lanes(struct ufs_hba *hba, u32 *tx_lanes)
@@ -1431,7 +1422,7 @@ out:
 
 static void ufs_qcom_print_hw_debug_reg_all(struct ufs_hba *hba,
 		void *priv, void (*print_fn)(struct ufs_hba *hba,
-		int offset, int num_regs, char *str, void *priv))
+		int offset, int num_regs, const char *str, void *priv))
 {
 	u32 reg;
 	struct ufs_qcom_host *host;
@@ -1613,7 +1604,7 @@ int ufs_qcom_testbus_config(struct ufs_qcom_host *host)
 
 static void ufs_qcom_testbus_read(struct ufs_hba *hba)
 {
-	ufs_qcom_dump_regs(hba, UFS_TEST_BUS, 1, "UFS_TEST_BUS ");
+	ufshcd_dump_regs(hba, UFS_TEST_BUS, 4, "UFS_TEST_BUS ");
 }
 
 static void ufs_qcom_print_unipro_testbus(struct ufs_hba *hba)
@@ -1639,8 +1630,8 @@ static void ufs_qcom_print_unipro_testbus(struct ufs_hba *hba)
 
 static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 {
-	ufs_qcom_dump_regs(hba, REG_UFS_SYS1CLK_1US, 16,
-			"HCI Vendor Specific Registers ");
+	ufshcd_dump_regs(hba, REG_UFS_SYS1CLK_1US, 16 * 4,
+			 "HCI Vendor Specific Registers ");
 
 	/* sleep a bit intermittently as we are dumping too much data */
 	ufs_qcom_print_hw_debug_reg_all(hba, NULL, ufs_qcom_dump_regs_wrapper);

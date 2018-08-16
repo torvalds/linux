@@ -267,9 +267,6 @@ out_error:
  * @scmd: pointer to scsi command object
  * @raid_device: pointer to raid device data structure
  * @mpi_request: pointer to the SCSI_IO reqest message frame
- * @smid: system request message index
- *
- * Returns nothing
  */
 void
 mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,

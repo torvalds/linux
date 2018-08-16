@@ -162,9 +162,9 @@
 #define BIGSECS         63                      /* mapping 255*63 */
 
 /* special command ptr. */
-#define UNUSED_CMND     ((Scsi_Cmnd *)-1)
-#define INTERNAL_CMND   ((Scsi_Cmnd *)-2)
-#define SCREEN_CMND     ((Scsi_Cmnd *)-3)
+#define UNUSED_CMND     ((struct scsi_cmnd *)-1)
+#define INTERNAL_CMND   ((struct scsi_cmnd *)-2)
+#define SCREEN_CMND     ((struct scsi_cmnd *)-3)
 #define SPECIAL_SCP(p)  (p==UNUSED_CMND || p==INTERNAL_CMND || p==SCREEN_CMND)
 
 /* controller services */
@@ -867,7 +867,7 @@ typedef struct {
     u16              service;                /* service/firmware ver./.. */
     u32             info;
     u32             info2;                  /* additional info */
-    Scsi_Cmnd           *req_first;             /* top of request queue */
+    struct scsi_cmnd           *req_first;             /* top of request queue */
     struct {
         u8          present;                /* Flag: host drive present? */
         u8          is_logdrv;              /* Flag: log. drive (master)? */
@@ -896,7 +896,7 @@ typedef struct {
         u32         id_list[MAXID];         /* IDs of the phys. devices */
     } raw[MAXBUS];                              /* SCSI channels */
     struct {
-        Scsi_Cmnd       *cmnd;                  /* pending request */
+        struct scsi_cmnd       *cmnd;                  /* pending request */
         u16          service;                /* service */
     } cmd_tab[GDTH_MAXCMDS];                    /* table of pend. requests */
     struct gdth_cmndinfo {                      /* per-command private info */
