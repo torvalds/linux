@@ -231,6 +231,50 @@ struct sfp_eeprom_id {
 	struct sfp_eeprom_ext ext;
 } __packed;
 
+struct sfp_diag {
+	__be16 temp_high_alarm;
+	__be16 temp_low_alarm;
+	__be16 temp_high_warn;
+	__be16 temp_low_warn;
+	__be16 volt_high_alarm;
+	__be16 volt_low_alarm;
+	__be16 volt_high_warn;
+	__be16 volt_low_warn;
+	__be16 bias_high_alarm;
+	__be16 bias_low_alarm;
+	__be16 bias_high_warn;
+	__be16 bias_low_warn;
+	__be16 txpwr_high_alarm;
+	__be16 txpwr_low_alarm;
+	__be16 txpwr_high_warn;
+	__be16 txpwr_low_warn;
+	__be16 rxpwr_high_alarm;
+	__be16 rxpwr_low_alarm;
+	__be16 rxpwr_high_warn;
+	__be16 rxpwr_low_warn;
+	__be16 laser_temp_high_alarm;
+	__be16 laser_temp_low_alarm;
+	__be16 laser_temp_high_warn;
+	__be16 laser_temp_low_warn;
+	__be16 tec_cur_high_alarm;
+	__be16 tec_cur_low_alarm;
+	__be16 tec_cur_high_warn;
+	__be16 tec_cur_low_warn;
+	__be32 cal_rxpwr4;
+	__be32 cal_rxpwr3;
+	__be32 cal_rxpwr2;
+	__be32 cal_rxpwr1;
+	__be32 cal_rxpwr0;
+	__be16 cal_txi_slope;
+	__be16 cal_txi_offset;
+	__be16 cal_txpwr_slope;
+	__be16 cal_txpwr_offset;
+	__be16 cal_t_slope;
+	__be16 cal_t_offset;
+	__be16 cal_v_slope;
+	__be16 cal_v_offset;
+} __packed;
+
 /* SFP EEPROM registers */
 enum {
 	SFP_PHYS_ID			= 0x00,
@@ -384,7 +428,33 @@ enum {
 	SFP_TEC_CUR			= 0x6c,
 
 	SFP_STATUS			= 0x6e,
-	SFP_ALARM			= 0x70,
+	SFP_ALARM0			= 0x70,
+	SFP_ALARM0_TEMP_HIGH		= BIT(7),
+	SFP_ALARM0_TEMP_LOW		= BIT(6),
+	SFP_ALARM0_VCC_HIGH		= BIT(5),
+	SFP_ALARM0_VCC_LOW		= BIT(4),
+	SFP_ALARM0_TX_BIAS_HIGH		= BIT(3),
+	SFP_ALARM0_TX_BIAS_LOW		= BIT(2),
+	SFP_ALARM0_TXPWR_HIGH		= BIT(1),
+	SFP_ALARM0_TXPWR_LOW		= BIT(0),
+
+	SFP_ALARM1			= 0x71,
+	SFP_ALARM1_RXPWR_HIGH		= BIT(7),
+	SFP_ALARM1_RXPWR_LOW		= BIT(6),
+
+	SFP_WARN0			= 0x74,
+	SFP_WARN0_TEMP_HIGH		= BIT(7),
+	SFP_WARN0_TEMP_LOW		= BIT(6),
+	SFP_WARN0_VCC_HIGH		= BIT(5),
+	SFP_WARN0_VCC_LOW		= BIT(4),
+	SFP_WARN0_TX_BIAS_HIGH		= BIT(3),
+	SFP_WARN0_TX_BIAS_LOW		= BIT(2),
+	SFP_WARN0_TXPWR_HIGH		= BIT(1),
+	SFP_WARN0_TXPWR_LOW		= BIT(0),
+
+	SFP_WARN1			= 0x75,
+	SFP_WARN1_RXPWR_HIGH		= BIT(7),
+	SFP_WARN1_RXPWR_LOW		= BIT(6),
 
 	SFP_EXT_STATUS			= 0x76,
 	SFP_VSL				= 0x78,

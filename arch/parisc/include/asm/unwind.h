@@ -4,6 +4,9 @@
 
 #include <linux/list.h>
 
+/* Max number of levels to backtrace */
+#define MAX_UNWIND_ENTRIES	30
+
 /* From ABI specifications */
 struct unwind_table_entry {
 	unsigned int region_start;

@@ -86,6 +86,8 @@ struct i2c_engine {
 	struct engine base;
 	const struct i2c_engine_funcs *funcs;
 	uint32_t timeout_delay;
+	uint32_t setup_limit;
+	uint32_t send_reset_length;
 };
 
 void dal_i2c_engine_construct(

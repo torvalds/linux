@@ -3,6 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. _linux_doc:
+
 The Linux Kernel documentation
 ==============================
 
@@ -90,6 +92,7 @@ needed).
    crypto/index
    filesystems/index
    vm/index
+   bpf/index
 
 Architecture-specific documentation
 -----------------------------------
@@ -102,29 +105,24 @@ implementation.
 
    sh/index
 
-Korean translations
--------------------
+Filesystem Documentation
+------------------------
+
+The documentation in this section are provided by specific filesystem
+subprojects.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   translations/ko_KR/index
+   filesystems/ext4/index
 
-Chinese translations
---------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   translations/zh_CN/index
-
-Japanese translations
----------------------
+Translations
+------------
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   translations/ja_JP/index
+   translations/index
 
 Indices and tables
 ==================

@@ -25,18 +25,11 @@
 
 #define ATOMIC_INIT(i)	{ (i) }
 
-#define __atomic_op_acquire(op, args...)				\
-({									\
-	typeof(op##_relaxed(args)) __ret  = op##_relaxed(args);		\
-	__asm__ __volatile__(RISCV_ACQUIRE_BARRIER "" ::: "memory");	\
-	__ret;								\
-})
+#define __atomic_acquire_fence()					\
+	__asm__ __volatile__(RISCV_ACQUIRE_BARRIER "" ::: "memory")
 
-#define __atomic_op_release(op, args...)				\
-({									\
-	__asm__ __volatile__(RISCV_RELEASE_BARRIER "" ::: "memory");	\
-	op##_relaxed(args);						\
-})
+#define __atomic_release_fence()					\
+	__asm__ __volatile__(RISCV_RELEASE_BARRIER "" ::: "memory");
 
 static __always_inline int atomic_read(const atomic_t *v)
 {
@@ -209,130 +202,8 @@ ATOMIC_OPS(xor, xor, i)
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 
-/*
- * The extra atomic operations that are constructed from one of the core
- * AMO-based operations above (aside from sub, which is easier to fit above).
- * These are required to perform a full barrier, but they're OK this way
- * because atomic_*_return is also required to perform a full barrier.
- *
- */
-#define ATOMIC_OP(op, func_op, comp_op, I, c_type, prefix)		\
-static __always_inline							\
-bool atomic##prefix##_##op(c_type i, atomic##prefix##_t *v)		\
-{									\
-	return atomic##prefix##_##func_op##_return(i, v) comp_op I;	\
-}
-
-#ifdef CONFIG_GENERIC_ATOMIC64
-#define ATOMIC_OPS(op, func_op, comp_op, I)				\
-        ATOMIC_OP(op, func_op, comp_op, I,  int,   )
-#else
-#define ATOMIC_OPS(op, func_op, comp_op, I)				\
-        ATOMIC_OP(op, func_op, comp_op, I,  int,   )			\
-        ATOMIC_OP(op, func_op, comp_op, I, long, 64)
-#endif
-
-ATOMIC_OPS(add_and_test, add, ==, 0)
-ATOMIC_OPS(sub_and_test, sub, ==, 0)
-ATOMIC_OPS(add_negative, add,  <, 0)
-
-#undef ATOMIC_OP
-#undef ATOMIC_OPS
-
-#define ATOMIC_OP(op, func_op, I, c_type, prefix)			\
-static __always_inline							\
-void atomic##prefix##_##op(atomic##prefix##_t *v)			\
-{									\
-	atomic##prefix##_##func_op(I, v);				\
-}
-
-#define ATOMIC_FETCH_OP(op, func_op, I, c_type, prefix)			\
-static __always_inline							\
-c_type atomic##prefix##_fetch_##op##_relaxed(atomic##prefix##_t *v)	\
-{									\
-	return atomic##prefix##_fetch_##func_op##_relaxed(I, v);	\
-}									\
-static __always_inline							\
-c_type atomic##prefix##_fetch_##op(atomic##prefix##_t *v)		\
-{									\
-	return atomic##prefix##_fetch_##func_op(I, v);			\
-}
-
-#define ATOMIC_OP_RETURN(op, asm_op, c_op, I, c_type, prefix)		\
-static __always_inline							\
-c_type atomic##prefix##_##op##_return_relaxed(atomic##prefix##_t *v)	\
-{									\
-        return atomic##prefix##_fetch_##op##_relaxed(v) c_op I;		\
-}									\
-static __always_inline							\
-c_type atomic##prefix##_##op##_return(atomic##prefix##_t *v)		\
-{									\
-        return atomic##prefix##_fetch_##op(v) c_op I;			\
-}
-
-#ifdef CONFIG_GENERIC_ATOMIC64
-#define ATOMIC_OPS(op, asm_op, c_op, I)					\
-        ATOMIC_OP(       op, asm_op,       I,  int,   )			\
-        ATOMIC_FETCH_OP( op, asm_op,       I,  int,   )			\
-        ATOMIC_OP_RETURN(op, asm_op, c_op, I,  int,   )
-#else
-#define ATOMIC_OPS(op, asm_op, c_op, I)					\
-        ATOMIC_OP(       op, asm_op,       I,  int,   )			\
-        ATOMIC_FETCH_OP( op, asm_op,       I,  int,   )			\
-        ATOMIC_OP_RETURN(op, asm_op, c_op, I,  int,   )			\
-        ATOMIC_OP(       op, asm_op,       I, long, 64)			\
-        ATOMIC_FETCH_OP( op, asm_op,       I, long, 64)			\
-        ATOMIC_OP_RETURN(op, asm_op, c_op, I, long, 64)
-#endif
-
-ATOMIC_OPS(inc, add, +,  1)
-ATOMIC_OPS(dec, add, +, -1)
-
-#define atomic_inc_return_relaxed	atomic_inc_return_relaxed
-#define atomic_dec_return_relaxed	atomic_dec_return_relaxed
-#define atomic_inc_return		atomic_inc_return
-#define atomic_dec_return		atomic_dec_return
-
-#define atomic_fetch_inc_relaxed	atomic_fetch_inc_relaxed
-#define atomic_fetch_dec_relaxed	atomic_fetch_dec_relaxed
-#define atomic_fetch_inc		atomic_fetch_inc
-#define atomic_fetch_dec		atomic_fetch_dec
-
-#ifndef CONFIG_GENERIC_ATOMIC64
-#define atomic64_inc_return_relaxed	atomic64_inc_return_relaxed
-#define atomic64_dec_return_relaxed	atomic64_dec_return_relaxed
-#define atomic64_inc_return		atomic64_inc_return
-#define atomic64_dec_return		atomic64_dec_return
-
-#define atomic64_fetch_inc_relaxed	atomic64_fetch_inc_relaxed
-#define atomic64_fetch_dec_relaxed	atomic64_fetch_dec_relaxed
-#define atomic64_fetch_inc		atomic64_fetch_inc
-#define atomic64_fetch_dec		atomic64_fetch_dec
-#endif
-
-#undef ATOMIC_OPS
-#undef ATOMIC_OP
-#undef ATOMIC_FETCH_OP
-#undef ATOMIC_OP_RETURN
-
-#define ATOMIC_OP(op, func_op, comp_op, I, prefix)			\
-static __always_inline							\
-bool atomic##prefix##_##op(atomic##prefix##_t *v)			\
-{									\
-	return atomic##prefix##_##func_op##_return(v) comp_op I;	\
-}
-
-ATOMIC_OP(inc_and_test, inc, ==, 0,   )
-ATOMIC_OP(dec_and_test, dec, ==, 0,   )
-#ifndef CONFIG_GENERIC_ATOMIC64
-ATOMIC_OP(inc_and_test, inc, ==, 0, 64)
-ATOMIC_OP(dec_and_test, dec, ==, 0, 64)
-#endif
-
-#undef ATOMIC_OP
-
 /* This is required to provide a full barrier on success. */
-static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
+static __always_inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
        int prev, rc;
 
@@ -349,9 +220,10 @@ static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
 		: "memory");
 	return prev;
 }
+#define atomic_fetch_add_unless atomic_fetch_add_unless
 
 #ifndef CONFIG_GENERIC_ATOMIC64
-static __always_inline long __atomic64_add_unless(atomic64_t *v, long a, long u)
+static __always_inline long atomic64_fetch_add_unless(atomic64_t *v, long a, long u)
 {
        long prev, rc;
 
@@ -368,27 +240,7 @@ static __always_inline long __atomic64_add_unless(atomic64_t *v, long a, long u)
 		: "memory");
 	return prev;
 }
-
-static __always_inline int atomic64_add_unless(atomic64_t *v, long a, long u)
-{
-	return __atomic64_add_unless(v, a, u) != u;
-}
-#endif
-
-/*
- * The extra atomic operations that are constructed from one of the core
- * LR/SC-based operations above.
- */
-static __always_inline int atomic_inc_not_zero(atomic_t *v)
-{
-        return __atomic_add_unless(v, 1, 0);
-}
-
-#ifndef CONFIG_GENERIC_ATOMIC64
-static __always_inline long atomic64_inc_not_zero(atomic64_t *v)
-{
-        return atomic64_add_unless(v, 1, 0);
-}
+#define atomic64_fetch_add_unless atomic64_fetch_add_unless
 #endif
 
 /*

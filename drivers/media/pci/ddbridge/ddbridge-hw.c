@@ -318,7 +318,8 @@ static const struct ddb_info ddb_s2x_48 = {
 	.port_num = 4,
 	.i2c_mask = 0x00,
 	.tempmon_irq = 24,
-	.mci      = 4
+	.mci_ports = 4,
+	.mci_type = 0,
 };
 
 /****************************************************************************/

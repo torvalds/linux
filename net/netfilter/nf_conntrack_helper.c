@@ -24,7 +24,6 @@
 #include <linux/rtnetlink.h>
 
 #include <net/netfilter/nf_conntrack.h>
-#include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -193,8 +192,7 @@ void nf_conntrack_helper_put(struct nf_conntrack_helper *helper)
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_put);
 
 struct nf_conn_help *
-nf_ct_helper_ext_add(struct nf_conn *ct,
-		     struct nf_conntrack_helper *helper, gfp_t gfp)
+nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
 {
 	struct nf_conn_help *help;
 
@@ -263,7 +261,7 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	}
 
 	if (help == NULL) {
-		help = nf_ct_helper_ext_add(ct, helper, flags);
+		help = nf_ct_helper_ext_add(ct, flags);
 		if (help == NULL)
 			return -ENOMEM;
 	} else {
@@ -564,12 +562,12 @@ int nf_conntrack_helper_init(void)
 
 	return 0;
 out_extend:
-	nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
+	kvfree(nf_ct_helper_hash);
 	return ret;
 }
 
 void nf_conntrack_helper_fini(void)
 {
 	nf_ct_extend_unregister(&helper_extend);
-	nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
+	kvfree(nf_ct_helper_hash);
 }

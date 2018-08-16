@@ -105,28 +105,29 @@ $(obj)/uImage: $(obj)/uImage.$(suffix-y)
 # Flattened Image Tree (.itb) images
 #
 
-targets += vmlinux.itb
-targets += vmlinux.gz.itb
-targets += vmlinux.bz2.itb
-targets += vmlinux.lzma.itb
-targets += vmlinux.lzo.itb
-
 ifeq ($(ADDR_BITS),32)
-	itb_addr_cells = 1
+itb_addr_cells = 1
 endif
 ifeq ($(ADDR_BITS),64)
-	itb_addr_cells = 2
+itb_addr_cells = 2
 endif
 
-quiet_cmd_its_cat = CAT     $@
-      cmd_its_cat = cat $^ >$@
+targets += vmlinux.its.S
 
-$(obj)/vmlinux.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS))
+quiet_cmd_its_cat = CAT     $@
+      cmd_its_cat = cat $(filter-out $(PHONY), $^) >$@
+
+$(obj)/vmlinux.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS)) FORCE
 	$(call if_changed,its_cat)
 
+targets += vmlinux.its
+targets += vmlinux.gz.its
+targets += vmlinux.bz2.its
+targets += vmlinux.lzmo.its
+targets += vmlinux.lzo.its
+
 quiet_cmd_cpp_its_S = ITS     $@
-      cmd_cpp_its_S = $(CPP) $(cpp_flags) -P -C -o $@ $< \
-			-D__ASSEMBLY__ \
+      cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
 		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
 			-DVMLINUX_BINARY="\"$(3)\"" \
 			-DVMLINUX_COMPRESSION="\"$(2)\"" \
@@ -136,19 +137,25 @@ quiet_cmd_cpp_its_S = ITS     $@
 			-DADDR_CELLS=$(itb_addr_cells)
 
 $(obj)/vmlinux.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed_dep,cpp_its_S,none,vmlinux.bin)
+	$(call if_changed,cpp_its_S,none,vmlinux.bin)
 
 $(obj)/vmlinux.gz.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed_dep,cpp_its_S,gzip,vmlinux.bin.gz)
+	$(call if_changed,cpp_its_S,gzip,vmlinux.bin.gz)
 
 $(obj)/vmlinux.bz2.its: $(obj)/vmlinux.its.S $(VMLINUX)  FORCE
-	$(call if_changed_dep,cpp_its_S,bzip2,vmlinux.bin.bz2)
+	$(call if_changed,cpp_its_S,bzip2,vmlinux.bin.bz2)
 
 $(obj)/vmlinux.lzma.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed_dep,cpp_its_S,lzma,vmlinux.bin.lzma)
+	$(call if_changed,cpp_its_S,lzma,vmlinux.bin.lzma)
 
 $(obj)/vmlinux.lzo.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed_dep,cpp_its_S,lzo,vmlinux.bin.lzo)
+	$(call if_changed,cpp_its_S,lzo,vmlinux.bin.lzo)
+
+targets += vmlinux.itb
+targets += vmlinux.gz.itb
+targets += vmlinux.bz2.itb
+targets += vmlinux.lzma.itb
+targets += vmlinux.lzo.itb
 
 quiet_cmd_itb-image = ITB     $@
       cmd_itb-image = \
@@ -162,14 +169,5 @@ quiet_cmd_itb-image = ITB     $@
 $(obj)/vmlinux.itb: $(obj)/vmlinux.its $(obj)/vmlinux.bin FORCE
 	$(call if_changed,itb-image,$<)
 
-$(obj)/vmlinux.gz.itb: $(obj)/vmlinux.gz.its $(obj)/vmlinux.bin.gz FORCE
-	$(call if_changed,itb-image,$<)
-
-$(obj)/vmlinux.bz2.itb: $(obj)/vmlinux.bz2.its $(obj)/vmlinux.bin.bz2 FORCE
-	$(call if_changed,itb-image,$<)
-
-$(obj)/vmlinux.lzma.itb: $(obj)/vmlinux.lzma.its $(obj)/vmlinux.bin.lzma FORCE
-	$(call if_changed,itb-image,$<)
-
-$(obj)/vmlinux.lzo.itb: $(obj)/vmlinux.lzo.its $(obj)/vmlinux.bin.lzo FORCE
+$(obj)/vmlinux.%.itb: $(obj)/vmlinux.%.its $(obj)/vmlinux.bin.% FORCE
 	$(call if_changed,itb-image,$<)

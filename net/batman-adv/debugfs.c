@@ -118,7 +118,7 @@ static int batadv_bla_backbone_table_open(struct inode *inode,
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 /**
- * batadv_dat_cache_open() - Prepare file handler for reads from dat_chache
+ * batadv_dat_cache_open() - Prepare file handler for reads from dat_cache
  * @inode: inode which was opened
  * @file: file handle to be initialized
  *

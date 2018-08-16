@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
+#include <asm/setup.h>
 
 static void __iomem *serial8250_base;
 static unsigned int serial8250_reg_shift;

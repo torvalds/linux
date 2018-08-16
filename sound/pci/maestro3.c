@@ -2103,7 +2103,7 @@ static const u16 minisrc_lpf[MINISRC_LPF_LEN] = {
 static void snd_m3_assp_init(struct snd_m3 *chip)
 {
 	unsigned int i;
-	const u16 *data;
+	const __le16 *data;
 
 	/* zero kernel data */
 	for (i = 0; i < (REV_B_DATA_MEMORY_UNIT_LENGTH * NUM_UNITS_KERNEL_DATA) / 2; i++)
@@ -2121,7 +2121,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 			  KDATA_DMA_XFER0);
 
 	/* write kernel into code memory.. */
-	data = (const u16 *)chip->assp_kernel_image->data;
+	data = (const __le16 *)chip->assp_kernel_image->data;
 	for (i = 0 ; i * 2 < chip->assp_kernel_image->size; i++) {
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
 				  REV_B_CODE_MEMORY_BEGIN + i,
@@ -2134,7 +2134,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 	 * drop it there.  It seems that the minisrc doesn't
 	 * need vectors, so we won't bother with them..
 	 */
-	data = (const u16 *)chip->assp_minisrc_image->data;
+	data = (const __le16 *)chip->assp_minisrc_image->data;
 	for (i = 0; i * 2 < chip->assp_minisrc_image->size; i++) {
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
 				  0x400 + i, le16_to_cpu(data[i]));

@@ -6,7 +6,6 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/writeback.h>
-#include <linux/pagevec.h>
 #include "ctree.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
@@ -421,129 +420,6 @@ out:
 	return ret == 0;
 }
 
-/* Needs to either be called under a log transaction or the log_mutex */
-void btrfs_get_logged_extents(struct btrfs_inode *inode,
-			      struct list_head *logged_list,
-			      const loff_t start,
-			      const loff_t end)
-{
-	struct btrfs_ordered_inode_tree *tree;
-	struct btrfs_ordered_extent *ordered;
-	struct rb_node *n;
-	struct rb_node *prev;
-
-	tree = &inode->ordered_tree;
-	spin_lock_irq(&tree->lock);
-	n = __tree_search(&tree->tree, end, &prev);
-	if (!n)
-		n = prev;
-	for (; n; n = rb_prev(n)) {
-		ordered = rb_entry(n, struct btrfs_ordered_extent, rb_node);
-		if (ordered->file_offset > end)
-			continue;
-		if (entry_end(ordered) <= start)
-			break;
-		if (test_and_set_bit(BTRFS_ORDERED_LOGGED, &ordered->flags))
-			continue;
-		list_add(&ordered->log_list, logged_list);
-		refcount_inc(&ordered->refs);
-	}
-	spin_unlock_irq(&tree->lock);
-}
-
-void btrfs_put_logged_extents(struct list_head *logged_list)
-{
-	struct btrfs_ordered_extent *ordered;
-
-	while (!list_empty(logged_list)) {
-		ordered = list_first_entry(logged_list,
-					   struct btrfs_ordered_extent,
-					   log_list);
-		list_del_init(&ordered->log_list);
-		btrfs_put_ordered_extent(ordered);
-	}
-}
-
-void btrfs_submit_logged_extents(struct list_head *logged_list,
-				 struct btrfs_root *log)
-{
-	int index = log->log_transid % 2;
-
-	spin_lock_irq(&log->log_extents_lock[index]);
-	list_splice_tail(logged_list, &log->logged_list[index]);
-	spin_unlock_irq(&log->log_extents_lock[index]);
-}
-
-void btrfs_wait_logged_extents(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *log, u64 transid)
-{
-	struct btrfs_ordered_extent *ordered;
-	int index = transid % 2;
-
-	spin_lock_irq(&log->log_extents_lock[index]);
-	while (!list_empty(&log->logged_list[index])) {
-		struct inode *inode;
-		ordered = list_first_entry(&log->logged_list[index],
-					   struct btrfs_ordered_extent,
-					   log_list);
-		list_del_init(&ordered->log_list);
-		inode = ordered->inode;
-		spin_unlock_irq(&log->log_extents_lock[index]);
-
-		if (!test_bit(BTRFS_ORDERED_IO_DONE, &ordered->flags) &&
-		    !test_bit(BTRFS_ORDERED_DIRECT, &ordered->flags)) {
-			u64 start = ordered->file_offset;
-			u64 end = ordered->file_offset + ordered->len - 1;
-
-			WARN_ON(!inode);
-			filemap_fdatawrite_range(inode->i_mapping, start, end);
-		}
-		wait_event(ordered->wait, test_bit(BTRFS_ORDERED_IO_DONE,
-						   &ordered->flags));
-
-		/*
-		 * In order to keep us from losing our ordered extent
-		 * information when committing the transaction we have to make
-		 * sure that any logged extents are completed when we go to
-		 * commit the transaction.  To do this we simply increase the
-		 * current transactions pending_ordered counter and decrement it
-		 * when the ordered extent completes.
-		 */
-		if (!test_bit(BTRFS_ORDERED_COMPLETE, &ordered->flags)) {
-			struct btrfs_ordered_inode_tree *tree;
-
-			tree = &BTRFS_I(inode)->ordered_tree;
-			spin_lock_irq(&tree->lock);
-			if (!test_bit(BTRFS_ORDERED_COMPLETE, &ordered->flags)) {
-				set_bit(BTRFS_ORDERED_PENDING, &ordered->flags);
-				atomic_inc(&trans->transaction->pending_ordered);
-			}
-			spin_unlock_irq(&tree->lock);
-		}
-		btrfs_put_ordered_extent(ordered);
-		spin_lock_irq(&log->log_extents_lock[index]);
-	}
-	spin_unlock_irq(&log->log_extents_lock[index]);
-}
-
-void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid)
-{
-	struct btrfs_ordered_extent *ordered;
-	int index = transid % 2;
-
-	spin_lock_irq(&log->log_extents_lock[index]);
-	while (!list_empty(&log->logged_list[index])) {
-		ordered = list_first_entry(&log->logged_list[index],
-					   struct btrfs_ordered_extent,
-					   log_list);
-		list_del_init(&ordered->log_list);
-		spin_unlock_irq(&log->log_extents_lock[index]);
-		btrfs_put_ordered_extent(ordered);
-		spin_lock_irq(&log->log_extents_lock[index]);
-	}
-	spin_unlock_irq(&log->log_extents_lock[index]);
-}
-
 /*
  * used to drop a reference on an ordered extent.  This will free
  * the extent if the last reference is dropped
@@ -911,20 +787,6 @@ out:
 		refcount_inc(&entry->refs);
 	spin_unlock_irq(&tree->lock);
 	return entry;
-}
-
-bool btrfs_have_ordered_extents_in_range(struct inode *inode,
-					 u64 file_offset,
-					 u64 len)
-{
-	struct btrfs_ordered_extent *oe;
-
-	oe = btrfs_lookup_ordered_range(BTRFS_I(inode), file_offset, len);
-	if (oe) {
-		btrfs_put_ordered_extent(oe);
-		return true;
-	}
-	return false;
 }
 
 /*

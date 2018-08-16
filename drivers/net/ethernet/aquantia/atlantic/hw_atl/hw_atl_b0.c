@@ -20,30 +20,32 @@
 #include "hw_atl_llh_internal.h"
 
 #define DEFAULT_B0_BOARD_BASIC_CAPABILITIES \
-	.is_64_dma = true,	\
-	.msix_irqs = 4U,	\
-	.irq_mask = ~0U,	\
-	.vecs = HW_ATL_B0_RSS_MAX,	\
-	.tcs = HW_ATL_B0_TC_MAX,	\
-	.rxd_alignment = 1U,		\
-	.rxd_size = HW_ATL_B0_RXD_SIZE, \
-	.rxds = 4U * 1024U,		\
-	.txd_alignment = 1U,		\
-	.txd_size = HW_ATL_B0_TXD_SIZE, \
-	.txds = 8U * 1024U,		\
-	.txhwb_alignment = 4096U,	\
-	.tx_rings = HW_ATL_B0_TX_RINGS, \
-	.rx_rings = HW_ATL_B0_RX_RINGS, \
-	.hw_features = NETIF_F_HW_CSUM | \
-			NETIF_F_RXCSUM | \
-			NETIF_F_RXHASH | \
-			NETIF_F_SG |  \
-			NETIF_F_TSO | \
-			NETIF_F_LRO,  \
-	.hw_priv_flags = IFF_UNICAST_FLT,   \
-	.flow_control = true,		\
-	.mtu = HW_ATL_B0_MTU_JUMBO,	\
-	.mac_regs_count = 88,		\
+	.is_64_dma = true,		  \
+	.msix_irqs = 4U,		  \
+	.irq_mask = ~0U,		  \
+	.vecs = HW_ATL_B0_RSS_MAX,	  \
+	.tcs = HW_ATL_B0_TC_MAX,	  \
+	.rxd_alignment = 1U,		  \
+	.rxd_size = HW_ATL_B0_RXD_SIZE,   \
+	.rxds_max = HW_ATL_B0_MAX_RXD,    \
+	.rxds_min = HW_ATL_B0_MIN_RXD,    \
+	.txd_alignment = 1U,		  \
+	.txd_size = HW_ATL_B0_TXD_SIZE,   \
+	.txds_max = HW_ATL_B0_MAX_TXD,    \
+	.txds_min = HW_ATL_B0_MIN_TXD,    \
+	.txhwb_alignment = 4096U,	  \
+	.tx_rings = HW_ATL_B0_TX_RINGS,   \
+	.rx_rings = HW_ATL_B0_RX_RINGS,   \
+	.hw_features = NETIF_F_HW_CSUM |  \
+			NETIF_F_RXCSUM |  \
+			NETIF_F_RXHASH |  \
+			NETIF_F_SG |      \
+			NETIF_F_TSO |     \
+			NETIF_F_LRO,      \
+	.hw_priv_flags = IFF_UNICAST_FLT, \
+	.flow_control = true,		  \
+	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
+	.mac_regs_count = 88,		  \
 	.hw_alive_check_addr = 0x10U
 
 const struct aq_hw_caps_s hw_atl_b0_caps_aqc100 = {
@@ -933,7 +935,6 @@ static int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self,
 const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
 	.hw_init              = hw_atl_b0_hw_init,
-	.hw_deinit            = hw_atl_utils_hw_deinit,
 	.hw_set_power         = hw_atl_utils_hw_set_power,
 	.hw_reset             = hw_atl_b0_hw_reset,
 	.hw_start             = hw_atl_b0_hw_start,

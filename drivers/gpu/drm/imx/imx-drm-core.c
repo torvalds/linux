@@ -35,12 +35,6 @@
 
 #define MAX_CRTC	4
 
-struct imx_drm_device {
-	struct drm_device			*drm;
-	unsigned int				pipes;
-	struct drm_atomic_state			*state;
-};
-
 #if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
 static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
@@ -219,21 +213,11 @@ static int compare_of(struct device *dev, void *data)
 static int imx_drm_bind(struct device *dev)
 {
 	struct drm_device *drm;
-	struct imx_drm_device *imxdrm;
 	int ret;
 
 	drm = drm_dev_alloc(&imx_drm_driver, dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
-
-	imxdrm = devm_kzalloc(dev, sizeof(*imxdrm), GFP_KERNEL);
-	if (!imxdrm) {
-		ret = -ENOMEM;
-		goto err_unref;
-	}
-
-	imxdrm->drm = drm;
-	drm->dev_private = imxdrm;
 
 	/*
 	 * enable drm irq mode.
@@ -306,8 +290,7 @@ err_unbind:
 	component_unbind_all(drm->dev, drm);
 err_kms:
 	drm_mode_config_cleanup(drm);
-err_unref:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -327,7 +310,7 @@ static void imx_drm_unbind(struct device *dev)
 	component_unbind_all(drm->dev, drm);
 	dev_set_drvdata(dev, NULL);
 
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops imx_drm_ops = {
@@ -355,37 +338,15 @@ static int imx_drm_platform_remove(struct platform_device *pdev)
 static int imx_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct imx_drm_device *imxdrm;
 
-	/* The drm_dev is NULL before .load hook is called */
-	if (drm_dev == NULL)
-		return 0;
-
-	drm_kms_helper_poll_disable(drm_dev);
-
-	imxdrm = drm_dev->dev_private;
-	imxdrm->state = drm_atomic_helper_suspend(drm_dev);
-	if (IS_ERR(imxdrm->state)) {
-		drm_kms_helper_poll_enable(drm_dev);
-		return PTR_ERR(imxdrm->state);
-	}
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm_dev);
 }
 
 static int imx_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct imx_drm_device *imx_drm;
 
-	if (drm_dev == NULL)
-		return 0;
-
-	imx_drm = drm_dev->dev_private;
-	drm_atomic_helper_resume(drm_dev, imx_drm->state);
-	drm_kms_helper_poll_enable(drm_dev);
-
-	return 0;
+	return drm_mode_config_helper_resume(drm_dev);
 }
 #endif
 

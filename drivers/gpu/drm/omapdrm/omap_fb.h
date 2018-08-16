@@ -38,8 +38,6 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb);
 void omap_framebuffer_unpin(struct drm_framebuffer *fb);
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		struct drm_plane_state *state, struct omap_overlay_info *info);
-struct drm_connector *omap_framebuffer_get_next_connector(
-		struct drm_framebuffer *fb, struct drm_connector *from);
 bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb);
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
 

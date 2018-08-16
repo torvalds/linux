@@ -44,7 +44,7 @@ Optional subnode-properties:
 - nvidia,tristate: Integer.
     0: drive, 1: tristate.
 - nvidia,enable-input: Integer. Enable the pin's input path.
-    enable :TEGRA_PIN_ENABLE0 and
+    enable :TEGRA_PIN_ENABLE and
     disable or output only: TEGRA_PIN_DISABLE.
 - nvidia,open-drain: Integer.
     enable: TEGRA_PIN_ENABLE.

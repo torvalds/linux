@@ -172,6 +172,10 @@ static int nested;
 module_param(nested, int, S_IRUGO);
 MODULE_PARM_DESC(nested, "Nested virtualization support");
 
+/* allow 1m huge page guest backing, if !nested */
+static int hpage;
+module_param(hpage, int, 0444);
+MODULE_PARM_DESC(hpage, "1m huge page backing support");
 
 /*
  * For now we handle at most 16 double words as this is what the s390 base
@@ -475,6 +479,11 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_AIS_MIGRATION:
 		r = 1;
 		break;
+	case KVM_CAP_S390_HPAGE_1M:
+		r = 0;
+		if (hpage)
+			r = 1;
+		break;
 	case KVM_CAP_S390_MEM_OP:
 		r = MEM_OP_MAX_SIZE;
 		break;
@@ -511,19 +520,30 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 }
 
 static void kvm_s390_sync_dirty_log(struct kvm *kvm,
-					struct kvm_memory_slot *memslot)
+				    struct kvm_memory_slot *memslot)
 {
+	int i;
 	gfn_t cur_gfn, last_gfn;
-	unsigned long address;
+	unsigned long gaddr, vmaddr;
 	struct gmap *gmap = kvm->arch.gmap;
+	DECLARE_BITMAP(bitmap, _PAGE_ENTRIES);
 
-	/* Loop over all guest pages */
+	/* Loop over all guest segments */
+	cur_gfn = memslot->base_gfn;
 	last_gfn = memslot->base_gfn + memslot->npages;
-	for (cur_gfn = memslot->base_gfn; cur_gfn <= last_gfn; cur_gfn++) {
-		address = gfn_to_hva_memslot(memslot, cur_gfn);
+	for (; cur_gfn <= last_gfn; cur_gfn += _PAGE_ENTRIES) {
+		gaddr = gfn_to_gpa(cur_gfn);
+		vmaddr = gfn_to_hva_memslot(memslot, cur_gfn);
+		if (kvm_is_error_hva(vmaddr))
+			continue;
 
-		if (test_and_clear_guest_dirty(gmap->mm, address))
-			mark_page_dirty(kvm, cur_gfn);
+		bitmap_zero(bitmap, _PAGE_ENTRIES);
+		gmap_sync_dirty_log_pmd(gmap, bitmap, gaddr, vmaddr);
+		for (i = 0; i < _PAGE_ENTRIES; i++) {
+			if (test_bit(i, bitmap))
+				mark_page_dirty(kvm, cur_gfn + i);
+		}
+
 		if (fatal_signal_pending(current))
 			return;
 		cond_resched();
@@ -667,6 +687,27 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_GS %s",
 			 r ? "(not available)" : "(success)");
 		break;
+	case KVM_CAP_S390_HPAGE_1M:
+		mutex_lock(&kvm->lock);
+		if (kvm->created_vcpus)
+			r = -EBUSY;
+		else if (!hpage || kvm->arch.use_cmma)
+			r = -EINVAL;
+		else {
+			r = 0;
+			kvm->mm->context.allow_gmap_hpage_1m = 1;
+			/*
+			 * We might have to create fake 4k page
+			 * tables. To avoid that the hardware works on
+			 * stale PGSTEs, we emulate these instructions.
+			 */
+			kvm->arch.use_skf = 0;
+			kvm->arch.use_pfmfi = 0;
+		}
+		mutex_unlock(&kvm->lock);
+		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_HPAGE %s",
+			 r ? "(not available)" : "(success)");
+		break;
 	case KVM_CAP_S390_USER_STSI:
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_USER_STSI");
 		kvm->arch.user_stsi = 1;
@@ -714,10 +755,13 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		if (!sclp.has_cmma)
 			break;
 
-		ret = -EBUSY;
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CMMA support");
 		mutex_lock(&kvm->lock);
-		if (!kvm->created_vcpus) {
+		if (kvm->created_vcpus)
+			ret = -EBUSY;
+		else if (kvm->mm->context.allow_gmap_hpage_1m)
+			ret = -EINVAL;
+		else {
 			kvm->arch.use_cmma = 1;
 			/* Not compatible with cmma. */
 			kvm->arch.use_pfmfi = 0;
@@ -1540,6 +1584,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	uint8_t *keys;
 	uint64_t hva;
 	int srcu_idx, i, r = 0;
+	bool unlocked;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -1564,9 +1609,11 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (r)
 		goto out;
 
+	i = 0;
 	down_read(&current->mm->mmap_sem);
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	for (i = 0; i < args->count; i++) {
+        while (i < args->count) {
+		unlocked = false;
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
 			r = -EFAULT;
@@ -1580,8 +1627,14 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		}
 
 		r = set_guest_storage_key(current->mm, hva, keys[i], 0);
-		if (r)
-			break;
+		if (r) {
+			r = fixup_user_fault(current, current->mm, hva,
+					     FAULT_FLAG_WRITE, &unlocked);
+			if (r)
+				break;
+		}
+		if (!r)
+			i++;
 	}
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&current->mm->mmap_sem);
@@ -4080,6 +4133,11 @@ static int __init kvm_s390_init(void)
 	if (!sclp.has_sief2) {
 		pr_info("SIE not available\n");
 		return -ENODEV;
+	}
+
+	if (nested && hpage) {
+		pr_info("nested (vSIE) and hpage (huge page backing) can currently not be activated concurrently");
+		return -EINVAL;
 	}
 
 	for (i = 0; i < 16; i++)

@@ -304,10 +304,10 @@ static void mt2266_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops mt2266_tuner_ops = {
 	.info = {
-		.name           = "Microtune MT2266",
-		.frequency_min  = 174000000,
-		.frequency_max  = 862000000,
-		.frequency_step =     50000,
+		.name              = "Microtune MT2266",
+		.frequency_min_hz  = 174 * MHz,
+		.frequency_max_hz  = 862 * MHz,
+		.frequency_step_hz =  50 * kHz,
 	},
 	.release       = mt2266_release,
 	.init          = mt2266_init,

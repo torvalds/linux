@@ -805,6 +805,10 @@ qlt_plogi_ack_find_add(struct scsi_qla_host *vha, port_id_t *id,
 
 	list_for_each_entry(pla, &vha->plogi_ack_list, list) {
 		if (pla->id.b24 == id->b24) {
+			ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0x210d,
+			    "%s %d %8phC Term INOT due to new INOT",
+			    __func__, __LINE__,
+			    pla->iocb.u.isp24.port_name);
 			qlt_send_term_imm_notif(vha, &pla->iocb, 1);
 			memcpy(&pla->iocb, iocb, sizeof(pla->iocb));
 			return pla;
@@ -982,8 +986,9 @@ void qlt_free_session_done(struct work_struct *work)
 
 			logo.id = sess->d_id;
 			logo.cmd_count = 0;
+			if (!own)
+				qlt_send_first_logo(vha, &logo);
 			sess->send_els_logo = 0;
-			qlt_send_first_logo(vha, &logo);
 		}
 
 		if (sess->logout_on_delete && sess->loop_id != FC_NO_LOOP_ID) {
@@ -1053,7 +1058,6 @@ void qlt_free_session_done(struct work_struct *work)
 	sess->disc_state = DSC_DELETED;
 	sess->fw_login_state = DSC_LS_PORT_UNAVAIL;
 	sess->deleted = QLA_SESS_DELETED;
-	sess->login_retry = vha->hw->login_retry_count;
 
 	if (sess->login_succ && !IS_SW_RESV_ADDR(sess->d_id)) {
 		vha->fcport_count--;
@@ -1073,6 +1077,7 @@ void qlt_free_session_done(struct work_struct *work)
 		struct qlt_plogi_ack_t *con =
 		    sess->plogi_link[QLT_PLOGI_LINK_CONFLICT];
 		struct imm_ntfy_from_isp *iocb;
+		own = sess->plogi_link[QLT_PLOGI_LINK_SAME_WWN];
 
 		if (con) {
 			iocb = &con->iocb;
@@ -1156,7 +1161,7 @@ void qlt_unreg_sess(struct fc_port *sess)
 	if (sess->se_sess)
 		vha->hw->tgt.tgt_ops->clear_nacl_from_fcport_map(sess);
 
-	qla2x00_mark_device_lost(vha, sess, 1, 1);
+	qla2x00_mark_device_lost(vha, sess, 0, 0);
 
 	sess->deleted = QLA_SESS_DELETION_IN_PROGRESS;
 	sess->disc_state = DSC_DELETE_PEND;
@@ -3782,7 +3787,7 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 		return;
 	}
 	cmd->jiffies_at_free = get_jiffies_64();
-	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
+	target_free_tag(sess->se_sess, &cmd->se_cmd);
 }
 EXPORT_SYMBOL(qlt_free_cmd);
 
@@ -4145,7 +4150,7 @@ out_term:
 	qlt_send_term_exchange(qpair, NULL, &cmd->atio, 1, 0);
 
 	qlt_decr_num_pend_cmds(vha);
-	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
+	target_free_tag(sess->se_sess, &cmd->se_cmd);
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
@@ -4276,9 +4281,9 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 {
 	struct se_session *se_sess = sess->se_sess;
 	struct qla_tgt_cmd *cmd;
-	int tag;
+	int tag, cpu;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
+	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0)
 		return NULL;
 
@@ -4291,6 +4296,7 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	qlt_incr_num_pend_cmds(vha);
 	cmd->vha = vha;
 	cmd->se_cmd.map_tag = tag;
+	cmd->se_cmd.map_cpu = cpu;
 	cmd->sess = sess;
 	cmd->loop_id = sess->loop_id;
 	cmd->conf_compl_supported = sess->conf_compl_supported;
@@ -4714,6 +4720,10 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 
 	pla = qlt_plogi_ack_find_add(vha, &port_id, iocb);
 	if (!pla) {
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+		    "%s %d %8phC Term INOT due to mem alloc fail",
+		    __func__, __LINE__,
+		    iocb->u.isp24.port_name);
 		qlt_send_term_imm_notif(vha, iocb, 1);
 		goto out;
 	}
@@ -5293,7 +5303,7 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	struct fc_port *sess;
 	struct se_session *se_sess;
 	struct qla_tgt_cmd *cmd;
-	int tag;
+	int tag, cpu;
 	unsigned long flags;
 
 	if (unlikely(tgt->tgt_stop)) {
@@ -5325,7 +5335,7 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 
 	se_sess = sess->se_sess;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
+	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0)
 		return;
 
@@ -5356,6 +5366,7 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	cmd->reset_count = ha->base_qpair->chip_reset;
 	cmd->q_full = 1;
 	cmd->qpair = ha->base_qpair;
+	cmd->se_cmd.map_cpu = cpu;
 
 	if (qfull) {
 		cmd->q_full = 1;

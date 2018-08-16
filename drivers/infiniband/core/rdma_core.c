@@ -79,7 +79,7 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj,
 	 */
 	switch (mode) {
 	case UVERBS_LOOKUP_READ:
-		return __atomic_add_unless(&uobj->usecnt, 1, -1) == -1 ?
+		return atomic_fetch_add_unless(&uobj->usecnt, 1, -1) == -1 ?
 			-EBUSY : 0;
 	case UVERBS_LOOKUP_WRITE:
 		/* lock is exclusive */

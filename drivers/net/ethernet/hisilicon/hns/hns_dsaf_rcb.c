@@ -705,7 +705,7 @@ void hns_rcb_get_queue_mode(enum dsaf_mode dsaf_mode, u16 *max_vfn,
 	}
 }
 
-int hns_rcb_get_ring_num(struct dsaf_device *dsaf_dev)
+static int hns_rcb_get_ring_num(struct dsaf_device *dsaf_dev)
 {
 	switch (dsaf_dev->dsaf_mode) {
 	case DSAF_MODE_ENABLE_FIX:
@@ -741,7 +741,7 @@ int hns_rcb_get_ring_num(struct dsaf_device *dsaf_dev)
 	}
 }
 
-void __iomem *hns_rcb_common_get_vaddr(struct rcb_common_cb *rcb_common)
+static void __iomem *hns_rcb_common_get_vaddr(struct rcb_common_cb *rcb_common)
 {
 	struct dsaf_device *dsaf_dev = rcb_common->dsaf_dev;
 

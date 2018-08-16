@@ -253,7 +253,7 @@ int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 	struct dma_buf *dma_buf;
 	struct dma_fence *fence;
 
-	if (plane->state->fb == state->fb || !state->fb)
+	if (!state->fb)
 		return 0;
 
 	dma_buf = drm_gem_fb_get_obj(state->fb, 0)->dma_buf;

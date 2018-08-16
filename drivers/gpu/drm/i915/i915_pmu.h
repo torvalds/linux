@@ -65,6 +65,14 @@ struct i915_pmu {
 	 * event types.
 	 */
 	u64 enable;
+
+	/**
+	 * @timer_last:
+	 *
+	 * Timestmap of the previous timer invocation.
+	 */
+	ktime_t timer_last;
+
 	/**
 	 * @enable_count: Reference counts for the enabled events.
 	 *

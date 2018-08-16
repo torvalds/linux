@@ -28,25 +28,6 @@ static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 	return ret;
 }
 
-static inline uint64_t  bcache_flash_devs_sectors_dirty(struct cache_set *c)
-{
-	uint64_t i, ret = 0;
-
-	mutex_lock(&bch_register_lock);
-
-	for (i = 0; i < c->devices_max_used; i++) {
-		struct bcache_device *d = c->devices[i];
-
-		if (!d || !UUID_FLASH_ONLY(&c->uuids[i]))
-			continue;
-		ret += bcache_dev_sectors_dirty(d);
-	}
-
-	mutex_unlock(&bch_register_lock);
-
-	return ret;
-}
-
 static inline unsigned offset_to_stripe(struct bcache_device *d,
 					uint64_t offset)
 {

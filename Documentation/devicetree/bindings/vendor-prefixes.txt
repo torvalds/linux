@@ -8,6 +8,7 @@ abracon	Abracon Corporation
 actions	Actions Semiconductor Co., Ltd.
 active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
+adafruit	Adafruit Industries, LLC
 adapteva	Adapteva, Inc.
 adaptrum	Adaptrum, Inc.
 adh	AD Holdings Plc.
@@ -41,6 +42,7 @@ arrow	Arrow Electronics
 artesyn	Artesyn Embedded Technologies Inc.
 asahi-kasei	Asahi Kasei Corp.
 aspeed	ASPEED Technology Inc.
+asus	AsusTek Computer Inc.
 atlas	Atlas Scientific LLC
 atmel	Atmel Corporation
 auo	AU Optronics Corporation
@@ -53,6 +55,7 @@ axentia	Axentia Technologies AB
 axis	Axis Communications AB
 bananapi BIPAI KEJI LIMITED
 bhf	Beckhoff Automation GmbH & Co. KG
+bitmain	Bitmain Technologies
 boe	BOE Technology Group Co., Ltd.
 bosch	Bosch Sensortec GmbH
 boundary	Boundary Devices Inc.
@@ -85,6 +88,7 @@ cubietech	Cubietech, Ltd.
 cypress	Cypress Semiconductor Corporation
 cznic	CZ.NIC, z.s.p.o.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
+dataimage	DataImage, Inc.
 davicom	DAVICOM Semiconductor, Inc.
 delta	Delta Electronics, Inc.
 denx	Denx Software Engineering
@@ -93,6 +97,7 @@ dh	DH electronics GmbH
 digi	Digi International Inc.
 digilent	Diglent, Inc.
 dioo	Dioo Microcircuit Co., Ltd
+dlc	DLC Display Co., Ltd.
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
@@ -188,6 +193,7 @@ keymile	Keymile GmbH
 khadas	Khadas
 kiebackpeter    Kieback & Peter GmbH
 kinetic Kinetic Technologies
+kingdisplay	King & Display Technology Co., Ltd.
 kingnovel	Kingnovel Technology Co., Ltd.
 koe	Kaohsiung Opto-Electronics Inc.
 kosagi	Sutajio Ko-Usagi PTE Ltd.
@@ -395,6 +401,7 @@ v3	V3 Semiconductor
 variscite	Variscite Ltd.
 via	VIA Technologies, Inc.
 virtio	Virtual I/O Device Specification, developed by the OASIS consortium
+vitesse	Vitesse Semiconductor Corporation
 vivante	Vivante Corporation
 vocore VoCore Studio
 voipac	Voipac Technologies s.r.o.
@@ -412,6 +419,7 @@ xes	Extreme Engineering Solutions (X-ES)
 xillybus	Xillybus Ltd.
 xlnx	Xilinx
 xunlong	Shenzhen Xunlong Software CO.,Limited
+ysoft	Y Soft Corporation a.s.
 zarlink	Zarlink Semiconductor
 zeitec	ZEITEC Semiconductor Co., LTD.
 zidoo	Shenzhen Zidoo Technology Co., Ltd.

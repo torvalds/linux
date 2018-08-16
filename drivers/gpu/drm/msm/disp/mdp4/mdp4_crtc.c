@@ -201,7 +201,7 @@ static void blend_setup(struct drm_crtc *crtc)
 		int idx = idxs[pipe_id];
 		if (idx > 0) {
 			const struct mdp_format *format =
-					to_mdp_format(msm_framebuffer_format(plane->fb));
+					to_mdp_format(msm_framebuffer_format(plane->state->fb));
 			alpha[idx-1] = format->alpha_enable;
 		}
 	}
@@ -665,7 +665,6 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs,
 				  NULL);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
-	plane->crtc = crtc;
 
 	return crtc;
 }

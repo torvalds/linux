@@ -246,7 +246,7 @@ int speed_idx_ep11(int req_type)
  * @ap_msg: pointer to AP message
  * @mex: pointer to user input data
  *
- * Returns 0 on success or -EFAULT.
+ * Returns 0 on success or negative errno value.
  */
 static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
 				       struct ap_message *ap_msg,
@@ -271,6 +271,14 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
 		char text[0];
 	} __packed * msg = ap_msg->message;
 	int size;
+
+	/*
+	 * The inputdatalength was a selection criteria in the dispatching
+	 * function zcrypt_rsa_modexpo(). However, make sure the following
+	 * copy_from_user() never exceeds the allocated buffer space.
+	 */
+	if (WARN_ON_ONCE(mex->inputdatalength > PAGE_SIZE))
+		return -EINVAL;
 
 	/* VUD.ciphertext */
 	msg->length = mex->inputdatalength + 2;
@@ -307,7 +315,7 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
  * @ap_msg: pointer to AP message
  * @crt: pointer to user input data
  *
- * Returns 0 on success or -EFAULT.
+ * Returns 0 on success or negative errno value.
  */
 static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_queue *zq,
 				       struct ap_message *ap_msg,
@@ -333,6 +341,14 @@ static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_queue *zq,
 		char text[0];
 	} __packed * msg = ap_msg->message;
 	int size;
+
+	/*
+	 * The inputdatalength was a selection criteria in the dispatching
+	 * function zcrypt_rsa_crt(). However, make sure the following
+	 * copy_from_user() never exceeds the allocated buffer space.
+	 */
+	if (WARN_ON_ONCE(crt->inputdatalength > PAGE_SIZE))
+		return -EINVAL;
 
 	/* VUD.ciphertext */
 	msg->length = crt->inputdatalength + 2;

@@ -1,24 +1,13 @@
-/*
- * flexcan.c - FLEXCAN CAN controller driver
- *
- * Copyright (c) 2005-2006 Varma Electronics Oy
- * Copyright (c) 2009 Sascha Hauer, Pengutronix
- * Copyright (c) 2010-2017 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
- * Copyright (c) 2014 David Jander, Protonic Holland
- *
- * Based on code originally by Andrey Volkov <avolkov@varma-el.com>
- *
- * LICENCE:
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// flexcan.c - FLEXCAN CAN controller driver
+//
+// Copyright (c) 2005-2006 Varma Electronics Oy
+// Copyright (c) 2009 Sascha Hauer, Pengutronix
+// Copyright (c) 2010-2017 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
+// Copyright (c) 2014 David Jander, Protonic Holland
+//
+// Based on code originally by Andrey Volkov <avolkov@varma-el.com>
 
 #include <linux/netdevice.h>
 #include <linux/can.h>
@@ -523,7 +512,7 @@ static int flexcan_get_berr_counter(const struct net_device *dev,
 	return err;
 }
 
-static int flexcan_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t flexcan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	const struct flexcan_priv *priv = netdev_priv(dev);
 	struct can_frame *cf = (struct can_frame *)skb->data;

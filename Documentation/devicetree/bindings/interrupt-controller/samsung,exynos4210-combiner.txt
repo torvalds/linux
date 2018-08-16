@@ -32,8 +32,6 @@ Optional properties:
 - samsung,combiner-nr: The number of interrupt combiners supported. If this
   property is not specified, the default number of combiners is assumed
   to be 16.
-- interrupt-parent: pHandle of the parent interrupt controller, if not
-  inherited from the parent node.
 
 
 Example:

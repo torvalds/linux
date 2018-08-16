@@ -6424,6 +6424,7 @@ void ata_host_init(struct ata_host *host, struct device *dev,
 	host->n_tags = ATA_MAX_QUEUE;
 	host->dev = dev;
 	host->ops = ops;
+	kref_init(&host->kref);
 }
 
 void __ata_port_probe(struct ata_port *ap)
@@ -7391,3 +7392,5 @@ EXPORT_SYMBOL_GPL(ata_cable_80wire);
 EXPORT_SYMBOL_GPL(ata_cable_unknown);
 EXPORT_SYMBOL_GPL(ata_cable_ignore);
 EXPORT_SYMBOL_GPL(ata_cable_sata);
+EXPORT_SYMBOL_GPL(ata_host_get);
+EXPORT_SYMBOL_GPL(ata_host_put);

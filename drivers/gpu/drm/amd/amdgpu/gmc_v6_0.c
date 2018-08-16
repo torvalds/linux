@@ -41,11 +41,11 @@ static void gmc_v6_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static int gmc_v6_0_wait_for_idle(void *handle);
 
-MODULE_FIRMWARE("radeon/tahiti_mc.bin");
-MODULE_FIRMWARE("radeon/pitcairn_mc.bin");
-MODULE_FIRMWARE("radeon/verde_mc.bin");
-MODULE_FIRMWARE("radeon/oland_mc.bin");
-MODULE_FIRMWARE("radeon/si58_mc.bin");
+MODULE_FIRMWARE("amdgpu/tahiti_mc.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_mc.bin");
+MODULE_FIRMWARE("amdgpu/verde_mc.bin");
+MODULE_FIRMWARE("amdgpu/oland_mc.bin");
+MODULE_FIRMWARE("amdgpu/si58_mc.bin");
 
 #define MC_SEQ_MISC0__MT__MASK   0xf0000000
 #define MC_SEQ_MISC0__MT__GDDR1  0x10000000
@@ -134,9 +134,9 @@ static int gmc_v6_0_init_microcode(struct amdgpu_device *adev)
 		is_58_fw = true;
 
 	if (is_58_fw)
-		snprintf(fw_name, sizeof(fw_name), "radeon/si58_mc.bin");
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/si58_mc.bin");
 	else
-		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mc.bin", chip_name);
 	err = request_firmware(&adev->gmc.fw, fw_name, adev->dev);
 	if (err)
 		goto out;

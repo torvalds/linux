@@ -164,6 +164,14 @@ struct amdgpu_vm_pt {
 #define AMDGPU_VM_FAULT_PASID(fault) ((u64)(fault) >> 48)
 #define AMDGPU_VM_FAULT_ADDR(fault)  ((u64)(fault) & 0xfffffffff000ULL)
 
+
+struct amdgpu_task_info {
+	char	process_name[TASK_COMM_LEN];
+	char	task_name[TASK_COMM_LEN];
+	pid_t	pid;
+	pid_t	tgid;
+};
+
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
@@ -215,6 +223,9 @@ struct amdgpu_vm {
 
 	/* Valid while the PD is reserved or fenced */
 	uint64_t		pd_phys_addr;
+
+	/* Some basic info about the task */
+	struct amdgpu_task_info task_info;
 };
 
 struct amdgpu_vm_manager {
@@ -307,6 +318,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 				uint64_t saddr, uint64_t size);
 struct amdgpu_bo_va_mapping *amdgpu_vm_bo_lookup_mapping(struct amdgpu_vm *vm,
 							 uint64_t addr);
+void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket);
 void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va);
 void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
@@ -316,5 +328,10 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job);
 void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
+
+void amdgpu_vm_get_task_info(struct amdgpu_device *adev, unsigned int pasid,
+			 struct amdgpu_task_info *task_info);
+
+void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 
 #endif

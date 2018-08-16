@@ -87,6 +87,18 @@ config EFI_RUNTIME_WRAPPERS
 config EFI_ARMSTUB
 	bool
 
+config EFI_ARMSTUB_DTB_LOADER
+	bool "Enable the DTB loader"
+	depends on EFI_ARMSTUB
+	help
+	  Select this config option to add support for the dtb= command
+	  line parameter, allowing a device tree blob to be loaded into
+	  memory from the EFI System Partition by the stub.
+
+	  The device tree is typically provided by the platform or by
+	  the bootloader, so this option is mostly for development
+	  purposes only.
+
 config EFI_BOOTLOADER_CONTROL
 	tristate "EFI Bootloader Control"
 	depends on EFI_VARS

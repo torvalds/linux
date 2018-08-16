@@ -133,7 +133,7 @@ static bool calculate_fb_and_fractional_fb_divider(
 	uint64_t feedback_divider;
 
 	feedback_divider =
-		(uint64_t)(target_pix_clk_khz * ref_divider * post_divider);
+		(uint64_t)target_pix_clk_khz * ref_divider * post_divider;
 	feedback_divider *= 10;
 	/* additional factor, since we divide by 10 afterwards */
 	feedback_divider *= (uint64_t)(calc_pll_cs->fract_fb_divider_factor);
@@ -145,8 +145,8 @@ static bool calculate_fb_and_fractional_fb_divider(
  * of fractional feedback decimal point and the fractional FB Divider precision
  * is 2 then the equation becomes (ullfeedbackDivider + 5*100) / (10*100))*/
 
-	feedback_divider += (uint64_t)
-			(5 * calc_pll_cs->fract_fb_divider_precision_factor);
+	feedback_divider += 5ULL *
+			    calc_pll_cs->fract_fb_divider_precision_factor;
 	feedback_divider =
 		div_u64(feedback_divider,
 			calc_pll_cs->fract_fb_divider_precision_factor * 10);
@@ -203,8 +203,8 @@ static bool calc_fb_divider_checking_tolerance(
 			&fract_feedback_divider);
 
 	/*Actual calculated value*/
-	actual_calc_clk_khz = (uint64_t)(feedback_divider *
-					calc_pll_cs->fract_fb_divider_factor) +
+	actual_calc_clk_khz = (uint64_t)feedback_divider *
+					calc_pll_cs->fract_fb_divider_factor +
 							fract_feedback_divider;
 	actual_calc_clk_khz *= calc_pll_cs->ref_freq_khz;
 	actual_calc_clk_khz =
@@ -592,7 +592,7 @@ static uint32_t dce110_get_pix_clk_dividers(
 	case DCE_VERSION_11_2:
 	case DCE_VERSION_11_22:
 	case DCE_VERSION_12_0:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case DCN_VERSION_1_0:
 #endif
 
@@ -909,7 +909,7 @@ static bool dce110_program_pix_clk(
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
 		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
 		unsigned dp_dto_ref_kHz = 700000;
@@ -982,7 +982,7 @@ static bool dce110_program_pix_clk(
 	case DCE_VERSION_11_2:
 	case DCE_VERSION_11_22:
 	case DCE_VERSION_12_0:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case DCN_VERSION_1_0:
 #endif
 

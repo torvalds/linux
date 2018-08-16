@@ -36,6 +36,7 @@
 #include "bif/bif_5_1_d.h"
 #include "gmc/gmc_8_1_d.h"
 #include "vi.h"
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 /* Polaris10/11/12 firmware version */
 #define FW_1_130_16 ((1 << 24) | (130 << 16) | (16 << 8))
@@ -247,12 +248,10 @@ static int uvd_v6_0_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t handle
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -311,19 +310,13 @@ static int uvd_v6_0_enc_get_destroy_msg(struct amdgpu_ring *ring,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-		job->fence = dma_fence_get(f);
-		if (r)
-			goto err;
-
-		amdgpu_job_free(job);
-	} else {
-		r = amdgpu_job_submit(job, ring, &ring->adev->vce.entity,
+	if (direct)
+		r = amdgpu_job_submit_direct(job, ring, &f);
+	else
+		r = amdgpu_job_submit(job, &ring->adev->vce.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
-		if (r)
-			goto err;
-	}
+	if (r)
+		goto err;
 
 	if (fence)
 		*fence = dma_fence_get(f);
@@ -400,14 +393,14 @@ static int uvd_v6_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* UVD TRAP */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 124, &adev->uvd.inst->irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_UVD_SYSTEM_MESSAGE, &adev->uvd.inst->irq);
 	if (r)
 		return r;
 
 	/* UVD ENC TRAP */
 	if (uvd_v6_0_enc_support(adev)) {
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
-			r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i + 119, &adev->uvd.inst->irq);
+			r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i + VISLANDS30_IV_SRCID_UVD_ENC_GEN_PURP, &adev->uvd.inst->irq);
 			if (r)
 				return r;
 		}
@@ -425,16 +418,6 @@ static int uvd_v6_0_sw_init(void *handle)
 		adev->uvd.num_enc_rings = 0;
 
 		DRM_INFO("UVD ENC is disabled\n");
-	} else {
-		struct drm_sched_rq *rq;
-		ring = &adev->uvd.inst->ring_enc[0];
-		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-		r = drm_sched_entity_init(&ring->sched, &adev->uvd.inst->entity_enc,
-					  rq, NULL);
-		if (r) {
-			DRM_ERROR("Failed setting up UVD ENC run queue.\n");
-			return r;
-		}
 	}
 
 	r = amdgpu_uvd_resume(adev);
@@ -470,8 +453,6 @@ static int uvd_v6_0_sw_fini(void *handle)
 		return r;
 
 	if (uvd_v6_0_enc_support(adev)) {
-		drm_sched_entity_fini(&adev->uvd.inst->ring_enc[0].sched, &adev->uvd.inst->entity_enc);
-
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->uvd.inst->ring_enc[i]);
 	}
@@ -1569,7 +1550,6 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
-	.nop = PACKET0(mmUVD_NO_OP, 0),
 	.support_64bit_ptrs = false,
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
@@ -1587,7 +1567,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_nop = uvd_v6_0_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,

@@ -348,23 +348,23 @@ void context_clock_trace(
 		struct dc *dc,
 		struct dc_state *context)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	DC_LOGGER_INIT(dc->ctx->logger);
 	CLOCK_TRACE("Current: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
 			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",
-			context->bw.dcn.calc_clk.dispclk_khz,
-			context->bw.dcn.calc_clk.dppclk_khz,
-			context->bw.dcn.calc_clk.dcfclk_khz,
-			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
-			context->bw.dcn.calc_clk.fclk_khz,
-			context->bw.dcn.calc_clk.socclk_khz);
+			context->bw.dcn.clk.dispclk_khz,
+			context->bw.dcn.clk.dppclk_khz,
+			context->bw.dcn.clk.dcfclk_khz,
+			context->bw.dcn.clk.dcfclk_deep_sleep_khz,
+			context->bw.dcn.clk.fclk_khz,
+			context->bw.dcn.clk.socclk_khz);
 	CLOCK_TRACE("Calculated: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
 			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",
-			context->bw.dcn.calc_clk.dispclk_khz,
-			context->bw.dcn.calc_clk.dppclk_khz,
-			context->bw.dcn.calc_clk.dcfclk_khz,
-			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
-			context->bw.dcn.calc_clk.fclk_khz,
-			context->bw.dcn.calc_clk.socclk_khz);
+			context->bw.dcn.clk.dispclk_khz,
+			context->bw.dcn.clk.dppclk_khz,
+			context->bw.dcn.clk.dcfclk_khz,
+			context->bw.dcn.clk.dcfclk_deep_sleep_khz,
+			context->bw.dcn.clk.fclk_khz,
+			context->bw.dcn.clk.socclk_khz);
 #endif
 }

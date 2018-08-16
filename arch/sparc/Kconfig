@@ -155,10 +155,6 @@ config PGTABLE_LEVELS
 config ARCH_SUPPORTS_UPROBES
 	def_bool y if SPARC64
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 menu "Processor type and features"
 
 config SMP
@@ -331,8 +327,6 @@ config FORCE_MAX_ZONEORDER
 	  This config option is actually maximum order plus one. For example,
 	  a value of 13 means that the largest free memory block is 2^12 pages.
 
-source "mm/Kconfig"
-
 if SPARC64
 source "kernel/power/Kconfig"
 endif
@@ -354,8 +348,6 @@ config SCHED_MC
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
 	  increased overhead in some places. If unsure say N here.
-
-source "kernel/Kconfig.preempt"
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
@@ -556,10 +548,6 @@ config SPARC64_PCI_MSI
 
 endmenu
 
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
 config COMPAT
 	bool
 	depends on SPARC64
@@ -574,20 +562,4 @@ config SYSVIPC_COMPAT
 	depends on COMPAT && SYSVIPC
 	default y
 
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
 source "drivers/sbus/char/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/sparc/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

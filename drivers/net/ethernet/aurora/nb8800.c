@@ -304,12 +304,10 @@ static int nb8800_poll(struct napi_struct *napi, int budget)
 
 again:
 	do {
-		struct nb8800_rx_buf *rxb;
 		unsigned int len;
 
 		next = (last + 1) % RX_DESC_COUNT;
 
-		rxb = &priv->rx_bufs[next];
 		rxd = &priv->rx_descs[next];
 
 		if (!rxd->report)

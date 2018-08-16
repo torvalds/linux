@@ -93,8 +93,9 @@ struct i915_request {
 	 * i915_request_free() will then decrement the refcount on the
 	 * context.
 	 */
-	struct i915_gem_context *ctx;
+	struct i915_gem_context *gem_context;
 	struct intel_engine_cs *engine;
+	struct intel_context *hw_context;
 	struct intel_ring *ring;
 	struct i915_timeline *timeline;
 	struct intel_signal_node signaling;
@@ -132,6 +133,9 @@ struct i915_request {
 
 	/** Position in the ring of the start of the request */
 	u32 head;
+
+	/** Position in the ring of the start of the user packets */
+	u32 infix;
 
 	/**
 	 * Position in the ring of the start of the postfix.
@@ -249,12 +253,12 @@ int i915_request_await_object(struct i915_request *to,
 int i915_request_await_dma_fence(struct i915_request *rq,
 				 struct dma_fence *fence);
 
-void __i915_request_add(struct i915_request *rq, bool flush_caches);
-#define i915_request_add(rq) \
-	__i915_request_add(rq, false)
+void i915_request_add(struct i915_request *rq);
 
 void __i915_request_submit(struct i915_request *request);
 void i915_request_submit(struct i915_request *request);
+
+void i915_request_skip(struct i915_request *request, int error);
 
 void __i915_request_unsubmit(struct i915_request *request);
 void i915_request_unsubmit(struct i915_request *request);
@@ -266,6 +270,7 @@ long i915_request_wait(struct i915_request *rq,
 #define I915_WAIT_INTERRUPTIBLE	BIT(0)
 #define I915_WAIT_LOCKED	BIT(1) /* struct_mutex held, handle GPU reset */
 #define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
+#define I915_WAIT_FOR_IDLE_BOOST BIT(3)
 
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
 
@@ -375,6 +380,7 @@ static inline void
 init_request_active(struct i915_gem_active *active,
 		    i915_gem_retire_fn retire)
 {
+	RCU_INIT_POINTER(active->request, NULL);
 	INIT_LIST_HEAD(&active->link);
 	active->retire = retire ?: i915_gem_retire_noop;
 }

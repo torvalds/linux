@@ -227,6 +227,5 @@ const struct bpf_map_ops xsk_map_ops = {
 	.map_lookup_elem = xsk_map_lookup_elem,
 	.map_update_elem = xsk_map_update_elem,
 	.map_delete_elem = xsk_map_delete_elem,
+	.map_check_btf = map_check_no_btf,
 };
-
-

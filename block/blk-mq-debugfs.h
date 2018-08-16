@@ -80,4 +80,13 @@ static inline void blk_mq_debugfs_unregister_sched_hctx(struct blk_mq_hw_ctx *hc
 }
 #endif
 
+#ifdef CONFIG_BLK_DEBUG_FS_ZONED
+int queue_zone_wlock_show(void *data, struct seq_file *m);
+#else
+static inline int queue_zone_wlock_show(void *data, struct seq_file *m)
+{
+	return 0;
+}
+#endif
+
 #endif

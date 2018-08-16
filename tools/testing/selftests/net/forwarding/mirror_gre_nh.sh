@@ -35,6 +35,8 @@ setup_prepare()
 	vrf_prepare
 	mirror_gre_topo_create
 
+	sysctl_set net.ipv4.conf.v$h3.rp_filter 0
+
 	ip address add dev $swp3 192.0.2.161/28
 	ip address add dev $h3 192.0.2.162/28
 	ip address add dev gt4 192.0.2.129/32
@@ -60,6 +62,8 @@ cleanup()
 
 	ip address del dev $h3 192.0.2.162/28
 	ip address del dev $swp3 192.0.2.161/28
+
+	sysctl_restore net.ipv4.conf.v$h3.rp_filter 0
 
 	mirror_gre_topo_destroy
 	vrf_cleanup

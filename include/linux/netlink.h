@@ -170,7 +170,6 @@ netlink_skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 struct netlink_callback {
 	struct sk_buff		*skb;
 	const struct nlmsghdr	*nlh;
-	int			(*start)(struct netlink_callback *);
 	int			(*dump)(struct sk_buff * skb,
 					struct netlink_callback *cb);
 	int			(*done)(struct netlink_callback *cb);

@@ -64,9 +64,6 @@
 	 */
 
 ENTRY_CFI(lclear_user)
-	.proc
-	.callinfo NO_CALLS
-	.entry
 	comib,=,n   0,%r25,$lclu_done
 	get_sr
 $lclu_loop:
@@ -81,12 +78,8 @@ $lclu_done:
 	ldo         1(%r25),%r25
 
 	ASM_EXCEPTIONTABLE_ENTRY(1b,2b)
-
-	.exit
 ENDPROC_CFI(lclear_user)
 
-
-	.procend
 
 	/*
 	 * long lstrnlen_user(char *s, long n)
@@ -97,9 +90,6 @@ ENDPROC_CFI(lclear_user)
 	 */
 
 ENTRY_CFI(lstrnlen_user)
-	.proc
-	.callinfo NO_CALLS
-	.entry
 	comib,=     0,%r25,$lslen_nzero
 	copy	    %r26,%r24
 	get_sr
@@ -111,7 +101,6 @@ $lslen_loop:
 $lslen_done:
 	bv          %r0(%r2)
 	sub	    %r26,%r24,%r28
-	.exit
 
 $lslen_nzero:
 	b           $lslen_done
@@ -124,9 +113,6 @@ $lslen_nzero:
 	ASM_EXCEPTIONTABLE_ENTRY(2b,3b)
 
 ENDPROC_CFI(lstrnlen_user)
-
-	.procend
-
 
 
 /*
@@ -186,10 +172,6 @@ ENDPROC_CFI(lstrnlen_user)
 	save_len = r31
 
 ENTRY_CFI(pa_memcpy)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	/* Last destination address */
 	add	dst,len,end
 
@@ -439,9 +421,6 @@ ENTRY_CFI(pa_memcpy)
 	b	.Lcopy_done
 10:	stw,ma	t1,4(dstspc,dst)
 	ASM_EXCEPTIONTABLE_ENTRY(10b,.Lcopy_done)
-
-	.exit
 ENDPROC_CFI(pa_memcpy)
-	.procend
 
 	.end

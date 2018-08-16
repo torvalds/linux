@@ -39,7 +39,7 @@ rcutorture_param_onoff () {
 	if ! bootparam_hotplug_cpu "$1" && configfrag_hotplug_cpu "$2"
 	then
 		echo CPU-hotplug kernel, adding rcutorture onoff. 1>&2
-		echo rcutorture.onoff_interval=3 rcutorture.onoff_holdoff=30
+		echo rcutorture.onoff_interval=1000 rcutorture.onoff_holdoff=30
 	fi
 }
 

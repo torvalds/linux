@@ -1634,7 +1634,6 @@ il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 {
 	struct il_channel_info *ch_info;
 	s8 max_power;
-	u8 a_band;
 	u8 i;
 
 	if (il->tx_power_user_lmt == power) {
@@ -1650,7 +1649,6 @@ il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 
 	for (i = 0; i < il->channel_count; i++) {
 		ch_info = &il->channel_info[i];
-		a_band = il_is_channel_a_band(ch_info);
 
 		/* find minimum power of all user and regulatory constraints
 		 *    (does not consider h/w clipping limitations) */

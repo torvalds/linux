@@ -439,10 +439,15 @@ static void sh_eth_modify(struct net_device *ndev, int enum_index, u32 clear,
 		     enum_index);
 }
 
+static u16 sh_eth_tsu_get_offset(struct sh_eth_private *mdp, int enum_index)
+{
+	return mdp->reg_offset[enum_index];
+}
+
 static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
 			     int enum_index)
 {
-	u16 offset = mdp->reg_offset[enum_index];
+	u16 offset = sh_eth_tsu_get_offset(mdp, enum_index);
 
 	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
 		return;
@@ -452,7 +457,7 @@ static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
 
 static u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 {
-	u16 offset = mdp->reg_offset[enum_index];
+	u16 offset = sh_eth_tsu_get_offset(mdp, enum_index);
 
 	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
 		return ~0U;
@@ -622,7 +627,6 @@ static struct sh_eth_cpu_data r7s72100_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.xdfar_rw	= 1,
@@ -672,7 +676,6 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.xdfar_rw	= 1,
@@ -798,7 +801,6 @@ static struct sh_eth_cpu_data r8a77980_data = {
 	.hw_swap	= 1,
 	.nbst		= 1,
 	.rpadir		= 1,
-	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.xdfar_rw	= 1,
@@ -851,7 +853,6 @@ static struct sh_eth_cpu_data sh7724_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.rpadir_value	= 0x00020000, /* NET_IP_ALIGN assumed to be 2 */
 };
 
 static void sh_eth_set_rate_sh7757(struct net_device *ndev)
@@ -898,7 +899,6 @@ static struct sh_eth_cpu_data sh7757_data = {
 	.hw_swap	= 1,
 	.no_ade		= 1,
 	.rpadir		= 1,
-	.rpadir_value   = 2 << 16,
 	.rtrate		= 1,
 	.dual_port	= 1,
 };
@@ -978,7 +978,6 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.xdfar_rw	= 1,
@@ -1467,7 +1466,7 @@ static int sh_eth_dev_init(struct net_device *ndev)
 	/* Descriptor format */
 	sh_eth_ring_format(ndev);
 	if (mdp->cd->rpadir)
-		sh_eth_write(ndev, mdp->cd->rpadir_value, RPADIR);
+		sh_eth_write(ndev, NET_IP_ALIGN << 16, RPADIR);
 
 	/* all sh_eth int mask */
 	sh_eth_write(ndev, 0, EESIPR);
@@ -1527,9 +1526,9 @@ static int sh_eth_dev_init(struct net_device *ndev)
 
 	/* mask reset */
 	if (mdp->cd->apr)
-		sh_eth_write(ndev, APR_AP, APR);
+		sh_eth_write(ndev, 1, APR);
 	if (mdp->cd->mpr)
-		sh_eth_write(ndev, MPR_MP, MPR);
+		sh_eth_write(ndev, 1, MPR);
 	if (mdp->cd->tpauser)
 		sh_eth_write(ndev, TPAUSER_UNLIMITED, TPAUSER);
 
@@ -2677,34 +2676,36 @@ static int sh_eth_tsu_busy(struct net_device *ndev)
 	return 0;
 }
 
-static int sh_eth_tsu_write_entry(struct net_device *ndev, void *reg,
+static int sh_eth_tsu_write_entry(struct net_device *ndev, u16 offset,
 				  const u8 *addr)
 {
+	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 val;
 
 	val = addr[0] << 24 | addr[1] << 16 | addr[2] << 8 | addr[3];
-	iowrite32(val, reg);
+	iowrite32(val, mdp->tsu_addr + offset);
 	if (sh_eth_tsu_busy(ndev) < 0)
 		return -EBUSY;
 
 	val = addr[4] << 8 | addr[5];
-	iowrite32(val, reg + 4);
+	iowrite32(val, mdp->tsu_addr + offset + 4);
 	if (sh_eth_tsu_busy(ndev) < 0)
 		return -EBUSY;
 
 	return 0;
 }
 
-static void sh_eth_tsu_read_entry(void *reg, u8 *addr)
+static void sh_eth_tsu_read_entry(struct net_device *ndev, u16 offset, u8 *addr)
 {
+	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 val;
 
-	val = ioread32(reg);
+	val = ioread32(mdp->tsu_addr + offset);
 	addr[0] = (val >> 24) & 0xff;
 	addr[1] = (val >> 16) & 0xff;
 	addr[2] = (val >> 8) & 0xff;
 	addr[3] = val & 0xff;
-	val = ioread32(reg + 4);
+	val = ioread32(mdp->tsu_addr + offset + 4);
 	addr[4] = (val >> 8) & 0xff;
 	addr[5] = val & 0xff;
 }
@@ -2713,12 +2714,12 @@ static void sh_eth_tsu_read_entry(void *reg, u8 *addr)
 static int sh_eth_tsu_find_entry(struct net_device *ndev, const u8 *addr)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	u16 reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int i;
 	u8 c_addr[ETH_ALEN];
 
 	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
-		sh_eth_tsu_read_entry(reg_offset, c_addr);
+		sh_eth_tsu_read_entry(ndev, reg_offset, c_addr);
 		if (ether_addr_equal(addr, c_addr))
 			return i;
 	}
@@ -2740,7 +2741,7 @@ static int sh_eth_tsu_disable_cam_entry_table(struct net_device *ndev,
 					      int entry)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	u16 reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int ret;
 	u8 blank[ETH_ALEN];
 
@@ -2757,7 +2758,7 @@ static int sh_eth_tsu_disable_cam_entry_table(struct net_device *ndev,
 static int sh_eth_tsu_add_entry(struct net_device *ndev, const u8 *addr)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	u16 reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int i, ret;
 
 	if (!mdp->cd->tsu)
@@ -2831,15 +2832,15 @@ static int sh_eth_tsu_purge_all(struct net_device *ndev)
 static void sh_eth_tsu_purge_mcast(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u16 reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	u8 addr[ETH_ALEN];
-	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int i;
 
 	if (!mdp->cd->tsu)
 		return;
 
 	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
-		sh_eth_tsu_read_entry(reg_offset, addr);
+		sh_eth_tsu_read_entry(ndev, reg_offset, addr);
 		if (is_multicast_ether_addr(addr))
 			sh_eth_tsu_del_entry(ndev, addr);
 	}

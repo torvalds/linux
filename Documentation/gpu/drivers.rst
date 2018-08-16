@@ -4,6 +4,7 @@ GPU Driver Documentation
 
 .. toctree::
 
+   amdgpu
    i915
    meson
    pl111

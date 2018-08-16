@@ -245,6 +245,7 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 	};
 	int i, ret = -EOPNOTSUPP;
 	u16 status = WLAN_STATUS_REQUEST_DECLINED;
+	u16 max_buf_size;
 
 	if (tid >= IEEE80211_FIRST_TSPEC_TSID) {
 		ht_dbg(sta->sdata,
@@ -268,13 +269,18 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 		goto end;
 	}
 
+	if (sta->sta.he_cap.has_he)
+		max_buf_size = IEEE80211_MAX_AMPDU_BUF;
+	else
+		max_buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
+
 	/* sanity check for incoming parameters:
 	 * check if configuration can support the BA policy
 	 * and if buffer size does not exceeds max value */
 	/* XXX: check own ht delayed BA capability?? */
 	if (((ba_policy != 1) &&
 	     (!(sta->sta.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA))) ||
-	    (buf_size > IEEE80211_MAX_AMPDU_BUF)) {
+	    (buf_size > max_buf_size)) {
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 		ht_dbg_ratelimited(sta->sdata,
 				   "AddBA Req with bad params from %pM on tid %u. policy %d, buffer size %d\n",
@@ -283,7 +289,7 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 	}
 	/* determine default buffer size */
 	if (buf_size == 0)
-		buf_size = IEEE80211_MAX_AMPDU_BUF;
+		buf_size = max_buf_size;
 
 	/* make sure the size doesn't exceed the maximum supported by the hw */
 	if (buf_size > sta->sta.max_rx_aggregation_subframes)

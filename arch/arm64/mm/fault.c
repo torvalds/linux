@@ -727,12 +727,7 @@ static const struct fault_info fault_info[] = {
 
 int handle_guest_sea(phys_addr_t addr, unsigned int esr)
 {
-	int ret = -ENOENT;
-
-	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
-		ret = ghes_notify_sea();
-
-	return ret;
+	return ghes_notify_sea();
 }
 
 asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
@@ -879,7 +874,7 @@ void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused)
 	 */
 	WARN_ON_ONCE(in_interrupt());
 
-	config_sctlr_el1(SCTLR_EL1_SPAN, 0);
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_SPAN, 0);
 	asm(SET_PSTATE_PAN(1));
 }
 #endif /* CONFIG_ARM64_PAN */

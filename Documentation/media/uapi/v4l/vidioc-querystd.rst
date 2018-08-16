@@ -2,14 +2,14 @@
 
 .. _VIDIOC_QUERYSTD:
 
-*********************
-ioctl VIDIOC_QUERYSTD
-*********************
+*********************************************
+ioctl VIDIOC_QUERYSTD, VIDIOC_SUBDEV_QUERYSTD
+*********************************************
 
 Name
 ====
 
-VIDIOC_QUERYSTD - Sense the video standard received by the current input
+VIDIOC_QUERYSTD - VIDIOC_SUBDEV_QUERYSTD - Sense the video standard received by the current input
 
 
 Synopsis
@@ -17,6 +17,9 @@ Synopsis
 
 .. c:function:: int ioctl( int fd, VIDIOC_QUERYSTD, v4l2_std_id *argp )
     :name: VIDIOC_QUERYSTD
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_QUERYSTD, v4l2_std_id *argp )
+    :name: VIDIOC_SUBDEV_QUERYSTD
 
 
 Arguments

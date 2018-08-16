@@ -26,6 +26,13 @@
 #ifndef __DAL_FIXED31_32_H__
 #define __DAL_FIXED31_32_H__
 
+#ifndef LLONG_MAX
+#define LLONG_MAX 9223372036854775807ll
+#endif
+#ifndef LLONG_MIN
+#define LLONG_MIN (-LLONG_MAX - 1ll)
+#endif
+
 #define FIXED31_32_BITS_PER_FRACTIONAL_PART 32
 #ifndef LLONG_MIN
 #define LLONG_MIN (1LL<<63)

@@ -387,7 +387,9 @@ sti_dvo_connector_detect(struct drm_connector *connector, bool force)
 
 	if (!dvo->panel) {
 		dvo->panel = of_drm_find_panel(dvo->panel_node);
-		if (dvo->panel)
+		if (IS_ERR(dvo->panel))
+			dvo->panel = NULL;
+		else
 			drm_panel_attach(dvo->panel, connector);
 	}
 
@@ -484,7 +486,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	drm_connector_helper_add(drm_connector,
 				 &sti_dvo_connector_helper_funcs);
 
-	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
+	err = drm_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
 		goto err_sysfs;

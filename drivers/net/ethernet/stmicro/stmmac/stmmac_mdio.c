@@ -29,6 +29,7 @@
 #include <linux/phy.h>
 #include <linux/slab.h>
 
+#include "dwxgmac2.h"
 #include "stmmac.h"
 
 #define MII_BUSY 0x00000001
@@ -38,6 +39,115 @@
 #define MII_GMAC4_GOC_SHIFT		2
 #define MII_GMAC4_WRITE			(1 << MII_GMAC4_GOC_SHIFT)
 #define MII_GMAC4_READ			(3 << MII_GMAC4_GOC_SHIFT)
+
+/* XGMAC defines */
+#define MII_XGMAC_SADDR			BIT(18)
+#define MII_XGMAC_CMD_SHIFT		16
+#define MII_XGMAC_WRITE			(1 << MII_XGMAC_CMD_SHIFT)
+#define MII_XGMAC_READ			(3 << MII_XGMAC_CMD_SHIFT)
+#define MII_XGMAC_BUSY			BIT(22)
+#define MII_XGMAC_MAX_C22ADDR		3
+#define MII_XGMAC_C22P_MASK		GENMASK(MII_XGMAC_MAX_C22ADDR, 0)
+
+static int stmmac_xgmac2_c22_format(struct stmmac_priv *priv, int phyaddr,
+				    int phyreg, u32 *hw_addr)
+{
+	unsigned int mii_data = priv->hw->mii.data;
+	u32 tmp;
+
+	/* HW does not support C22 addr >= 4 */
+	if (phyaddr > MII_XGMAC_MAX_C22ADDR)
+		return -ENODEV;
+	/* Wait until any existing MII operation is complete */
+	if (readl_poll_timeout(priv->ioaddr + mii_data, tmp,
+			       !(tmp & MII_XGMAC_BUSY), 100, 10000))
+		return -EBUSY;
+
+	/* Set port as Clause 22 */
+	tmp = readl(priv->ioaddr + XGMAC_MDIO_C22P);
+	tmp &= ~MII_XGMAC_C22P_MASK;
+	tmp |= BIT(phyaddr);
+	writel(tmp, priv->ioaddr + XGMAC_MDIO_C22P);
+
+	*hw_addr = (phyaddr << 16) | (phyreg & 0x1f);
+	return 0;
+}
+
+static int stmmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
+{
+	struct net_device *ndev = bus->priv;
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	unsigned int mii_address = priv->hw->mii.addr;
+	unsigned int mii_data = priv->hw->mii.data;
+	u32 tmp, addr, value = MII_XGMAC_BUSY;
+	int ret;
+
+	if (phyreg & MII_ADDR_C45) {
+		return -EOPNOTSUPP;
+	} else {
+		ret = stmmac_xgmac2_c22_format(priv, phyaddr, phyreg, &addr);
+		if (ret)
+			return ret;
+	}
+
+	value |= (priv->clk_csr << priv->hw->mii.clk_csr_shift)
+		& priv->hw->mii.clk_csr_mask;
+	value |= MII_XGMAC_SADDR | MII_XGMAC_READ;
+
+	/* Wait until any existing MII operation is complete */
+	if (readl_poll_timeout(priv->ioaddr + mii_data, tmp,
+			       !(tmp & MII_XGMAC_BUSY), 100, 10000))
+		return -EBUSY;
+
+	/* Set the MII address register to read */
+	writel(addr, priv->ioaddr + mii_address);
+	writel(value, priv->ioaddr + mii_data);
+
+	/* Wait until any existing MII operation is complete */
+	if (readl_poll_timeout(priv->ioaddr + mii_data, tmp,
+			       !(tmp & MII_XGMAC_BUSY), 100, 10000))
+		return -EBUSY;
+
+	/* Read the data from the MII data register */
+	return readl(priv->ioaddr + mii_data) & GENMASK(15, 0);
+}
+
+static int stmmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
+				    int phyreg, u16 phydata)
+{
+	struct net_device *ndev = bus->priv;
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	unsigned int mii_address = priv->hw->mii.addr;
+	unsigned int mii_data = priv->hw->mii.data;
+	u32 addr, tmp, value = MII_XGMAC_BUSY;
+	int ret;
+
+	if (phyreg & MII_ADDR_C45) {
+		return -EOPNOTSUPP;
+	} else {
+		ret = stmmac_xgmac2_c22_format(priv, phyaddr, phyreg, &addr);
+		if (ret)
+			return ret;
+	}
+
+	value |= (priv->clk_csr << priv->hw->mii.clk_csr_shift)
+		& priv->hw->mii.clk_csr_mask;
+	value |= phydata | MII_XGMAC_SADDR;
+	value |= MII_XGMAC_WRITE;
+
+	/* Wait until any existing MII operation is complete */
+	if (readl_poll_timeout(priv->ioaddr + mii_data, tmp,
+			       !(tmp & MII_XGMAC_BUSY), 100, 10000))
+		return -EBUSY;
+
+	/* Set the MII address register to write */
+	writel(addr, priv->ioaddr + mii_address);
+	writel(value, priv->ioaddr + mii_data);
+
+	/* Wait until any existing MII operation is complete */
+	return readl_poll_timeout(priv->ioaddr + mii_data, tmp,
+				  !(tmp & MII_XGMAC_BUSY), 100, 10000);
+}
 
 /**
  * stmmac_mdio_read
@@ -205,7 +315,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	struct device_node *mdio_node = priv->plat->mdio_node;
 	struct device *dev = ndev->dev.parent;
-	int addr, found;
+	int addr, found, max_addr;
 
 	if (!mdio_bus_data)
 		return 0;
@@ -223,8 +333,23 @@ int stmmac_mdio_register(struct net_device *ndev)
 #endif
 
 	new_bus->name = "stmmac";
-	new_bus->read = &stmmac_mdio_read;
-	new_bus->write = &stmmac_mdio_write;
+
+	if (priv->plat->has_xgmac) {
+		new_bus->read = &stmmac_xgmac2_mdio_read;
+		new_bus->write = &stmmac_xgmac2_mdio_write;
+
+		/* Right now only C22 phys are supported */
+		max_addr = MII_XGMAC_MAX_C22ADDR + 1;
+
+		/* Check if DT specified an unsupported phy addr */
+		if (priv->plat->phy_addr > MII_XGMAC_MAX_C22ADDR)
+			dev_err(dev, "Unsupported phy_addr (max=%d)\n",
+					MII_XGMAC_MAX_C22ADDR);
+	} else {
+		new_bus->read = &stmmac_mdio_read;
+		new_bus->write = &stmmac_mdio_write;
+		max_addr = PHY_MAX_ADDR;
+	}
 
 	new_bus->reset = &stmmac_mdio_reset;
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
@@ -243,7 +368,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		goto bus_register_done;
 
 	found = 0;
-	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+	for (addr = 0; addr < max_addr; addr++) {
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
 
 		if (!phydev)

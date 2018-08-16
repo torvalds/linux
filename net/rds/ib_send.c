@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -305,7 +305,7 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 
 	/* We expect errors as the qp is drained during shutdown */
 	if (wc->status != IB_WC_SUCCESS && rds_conn_up(conn)) {
-		rds_ib_conn_error(conn, "send completion on <%pI4,%pI4> had status %u (%s), disconnecting and reconnecting\n",
+		rds_ib_conn_error(conn, "send completion on <%pI6c,%pI6c> had status %u (%s), disconnecting and reconnecting\n",
 				  &conn->c_laddr, &conn->c_faddr, wc->status,
 				  ib_wc_status_msg(wc->status));
 	}
@@ -730,7 +730,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		 first, &first->s_wr, ret, failed_wr);
 	BUG_ON(failed_wr != &first->s_wr);
 	if (ret) {
-		printk(KERN_WARNING "RDS/IB: ib_post_send to %pI4 "
+		printk(KERN_WARNING "RDS/IB: ib_post_send to %pI6c "
 		       "returned %d\n", &conn->c_faddr, ret);
 		rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc);
 		rds_ib_sub_signaled(ic, nr_sig);
@@ -759,13 +759,10 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct rds_ib_send_work *send = NULL;
 	const struct ib_send_wr *failed_wr;
-	struct rds_ib_device *rds_ibdev;
 	u32 pos;
 	u32 work_alloc;
 	int ret;
 	int nr_sig = 0;
-
-	rds_ibdev = ib_get_client_data(ic->i_cm_id->device, &rds_ib_client);
 
 	work_alloc = rds_ib_ring_alloc(&ic->i_send_ring, 1, &pos);
 	if (work_alloc != 1) {
@@ -827,7 +824,7 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 		 send, &send->s_atomic_wr, ret, failed_wr);
 	BUG_ON(failed_wr != &send->s_atomic_wr.wr);
 	if (ret) {
-		printk(KERN_WARNING "RDS/IB: atomic ib_post_send to %pI4 "
+		printk(KERN_WARNING "RDS/IB: atomic ib_post_send to %pI6c "
 		       "returned %d\n", &conn->c_faddr, ret);
 		rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc);
 		rds_ib_sub_signaled(ic, nr_sig);
@@ -967,7 +964,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		 first, &first->s_rdma_wr.wr, ret, failed_wr);
 	BUG_ON(failed_wr != &first->s_rdma_wr.wr);
 	if (ret) {
-		printk(KERN_WARNING "RDS/IB: rdma ib_post_send to %pI4 "
+		printk(KERN_WARNING "RDS/IB: rdma ib_post_send to %pI6c "
 		       "returned %d\n", &conn->c_faddr, ret);
 		rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc);
 		rds_ib_sub_signaled(ic, nr_sig);

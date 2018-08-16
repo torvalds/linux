@@ -22,6 +22,7 @@
 
 #include <media/v4l2-subdev.h>
 
+#define LM3559_NAME	"lm3559"
 #define LM3560_NAME	"lm3560"
 #define LM3560_I2C_ADDR	(0x53)
 

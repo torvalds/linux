@@ -15,6 +15,7 @@
 
 #include <linux/device.h>
 #include <linux/types.h>
+#include <asm/isc.h>
 #include <asm/ap.h>
 
 #define AP_DEVICES 256		/* Number of AP devices. */

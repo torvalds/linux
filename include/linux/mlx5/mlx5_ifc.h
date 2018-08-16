@@ -672,7 +672,9 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         swp[0x1];
 	u8         swp_csum[0x1];
 	u8         swp_lso[0x1];
-	u8         reserved_at_23[0x1b];
+	u8         reserved_at_23[0xd];
+	u8         max_vxlan_udp_ports[0x8];
+	u8         reserved_at_38[0x6];
 	u8         max_geneve_opt_len[0x1];
 	u8         tunnel_stateless_geneve_rx[0x1];
 
@@ -1135,7 +1137,10 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         general_obj_types[0x40];
 
-	u8         reserved_at_440[0x40];
+	u8         reserved_at_440[0x20];
+
+	u8         reserved_at_460[0x10];
+	u8         max_num_eqs[0x10];
 
 	u8         reserved_at_480[0x3];
 	u8         log_max_l2_table[0x5];
@@ -3764,8 +3769,8 @@ struct mlx5_ifc_query_vport_state_out_bits {
 };
 
 enum {
-	MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT  = 0x0,
-	MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT   = 0x1,
+	MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT  = 0x0,
+	MLX5_VPORT_STATE_OP_MOD_ESW_VPORT   = 0x1,
 };
 
 struct mlx5_ifc_query_vport_state_in_bits {

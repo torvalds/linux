@@ -873,6 +873,17 @@ struct netvsc_ethtool_stats {
 	unsigned long wake_queue;
 };
 
+struct netvsc_ethtool_pcpu_stats {
+	u64     rx_packets;
+	u64     rx_bytes;
+	u64     tx_packets;
+	u64     tx_bytes;
+	u64     vf_rx_packets;
+	u64     vf_rx_bytes;
+	u64     vf_tx_packets;
+	u64     vf_tx_bytes;
+};
+
 struct netvsc_vf_pcpu_stats {
 	u64     rx_packets;
 	u64     rx_bytes;

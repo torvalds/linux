@@ -7,7 +7,6 @@ Required properties:
 
 Optional properties:
   - interrupts : should contain interrupt.
-  - interrupt-parent : interrupt source phandle.
   - ctrl-reg : Contains the initial value of the control register also
     called "Register B".
   - freq-reg : Contains the initial value of the frequency register also

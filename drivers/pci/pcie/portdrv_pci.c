@@ -42,17 +42,6 @@ __setup("pcie_ports=", pcie_port_setup);
 
 /* global data */
 
-static int pcie_portdrv_restore_config(struct pci_dev *dev)
-{
-	int retval;
-
-	retval = pci_enable_device(dev);
-	if (retval)
-		return retval;
-	pci_set_master(dev);
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int pcie_port_runtime_suspend(struct device *dev)
 {
@@ -76,10 +65,12 @@ static int pcie_port_runtime_idle(struct device *dev)
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
+	.resume_noirq	= pcie_port_device_resume_noirq,
 	.resume		= pcie_port_device_resume,
 	.freeze		= pcie_port_device_suspend,
 	.thaw		= pcie_port_device_resume,
 	.poweroff	= pcie_port_device_suspend,
+	.restore_noirq	= pcie_port_device_resume_noirq,
 	.restore	= pcie_port_device_resume,
 	.runtime_suspend = pcie_port_runtime_suspend,
 	.runtime_resume	= pcie_port_runtime_resume,
@@ -160,19 +151,6 @@ static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
-{
-	/* If fatal, restore cfg space for possible link reset at upstream */
-	if (dev->error_state == pci_channel_io_frozen) {
-		dev->state_saved = true;
-		pci_restore_state(dev);
-		pcie_portdrv_restore_config(dev);
-		pci_enable_pcie_error_reporting(dev);
-	}
-
-	return PCI_ERS_RESULT_RECOVERED;
-}
-
 static int resume_iter(struct device *device, void *data)
 {
 	struct pcie_device *pcie_device;
@@ -208,7 +186,6 @@ static const struct pci_device_id port_pci_ids[] = { {
 static const struct pci_error_handlers pcie_portdrv_err_handler = {
 	.error_detected = pcie_portdrv_error_detected,
 	.mmio_enabled = pcie_portdrv_mmio_enabled,
-	.slot_reset = pcie_portdrv_slot_reset,
 	.resume = pcie_portdrv_err_resume,
 };
 

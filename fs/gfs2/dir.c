@@ -1011,7 +1011,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	u64 bn, leaf_no;
 	__be64 *lp;
 	u32 index;
-	int x, moved = 0;
+	int x;
 	int error;
 
 	index = name->hash >> (32 - dip->i_depth);
@@ -1113,8 +1113,6 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 
 			if (!prev)
 				prev = dent;
-
-			moved = 1;
 		} else {
 			prev = dent;
 		}

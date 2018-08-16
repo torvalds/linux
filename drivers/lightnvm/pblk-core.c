@@ -35,7 +35,7 @@ static void pblk_line_mark_bb(struct work_struct *work)
 		line = &pblk->lines[pblk_ppa_to_line(*ppa)];
 		pos = pblk_ppa_to_pos(&dev->geo, *ppa);
 
-		pr_err("pblk: failed to mark bb, line:%d, pos:%d\n",
+		pblk_err(pblk, "failed to mark bb, line:%d, pos:%d\n",
 				line->id, pos);
 	}
 
@@ -51,12 +51,12 @@ static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
 	struct ppa_addr *ppa;
 	int pos = pblk_ppa_to_pos(geo, ppa_addr);
 
-	pr_debug("pblk: erase failed: line:%d, pos:%d\n", line->id, pos);
+	pblk_debug(pblk, "erase failed: line:%d, pos:%d\n", line->id, pos);
 	atomic_long_inc(&pblk->erase_failed);
 
 	atomic_dec(&line->blk_in_line);
 	if (test_and_set_bit(pos, line->blk_bitmap))
-		pr_err("pblk: attempted to erase bb: line:%d, pos:%d\n",
+		pblk_err(pblk, "attempted to erase bb: line:%d, pos:%d\n",
 							line->id, pos);
 
 	/* Not necessary to mark bad blocks on 2.0 spec. */
@@ -194,7 +194,7 @@ void pblk_map_invalidate(struct pblk *pblk, struct ppa_addr ppa)
 	u64 paddr;
 	int line_id;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a device address */
 	BUG_ON(pblk_addr_in_cache(ppa));
 	BUG_ON(pblk_ppa_empty(ppa));
@@ -264,6 +264,7 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type)
 	switch (type) {
 	case PBLK_WRITE:
 		kfree(((struct pblk_c_ctx *)nvm_rq_to_pdu(rqd))->lun_bitmap);
+		/* fall through */
 	case PBLK_WRITE_INT:
 		pool = &pblk->w_rq_pool;
 		break;
@@ -274,7 +275,7 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type)
 		pool = &pblk->e_rq_pool;
 		break;
 	default:
-		pr_err("pblk: trying to free unknown rqd type\n");
+		pblk_err(pblk, "trying to free unknown rqd type\n");
 		return;
 	}
 
@@ -310,7 +311,7 @@ int pblk_bio_add_pages(struct pblk *pblk, struct bio *bio, gfp_t flags,
 
 		ret = bio_add_pc_page(q, bio, page, PBLK_EXPOSED_PAGE_SIZE, 0);
 		if (ret != PBLK_EXPOSED_PAGE_SIZE) {
-			pr_err("pblk: could not add page to bio\n");
+			pblk_err(pblk, "could not add page to bio\n");
 			mempool_free(page, &pblk->page_bio_pool);
 			goto err;
 		}
@@ -410,7 +411,7 @@ struct list_head *pblk_line_gc_list(struct pblk *pblk, struct pblk_line *line)
 		line->state = PBLK_LINESTATE_CORRUPT;
 		line->gc_group = PBLK_LINEGC_NONE;
 		move_list =  &l_mg->corrupt_list;
-		pr_err("pblk: corrupted vsc for line %d, vsc:%d (%d/%d/%d)\n",
+		pblk_err(pblk, "corrupted vsc for line %d, vsc:%d (%d/%d/%d)\n",
 						line->id, vsc,
 						line->sec_in_line,
 						lm->high_thrs, lm->mid_thrs);
@@ -430,7 +431,7 @@ void pblk_discard(struct pblk *pblk, struct bio *bio)
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	atomic_long_inc(&pblk->write_failed);
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	pblk_print_failed_rqd(pblk, rqd, rqd->error);
 #endif
 }
@@ -452,9 +453,9 @@ void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd)
 		atomic_long_inc(&pblk->read_failed);
 		break;
 	default:
-		pr_err("pblk: unknown read error:%d\n", rqd->error);
+		pblk_err(pblk, "unknown read error:%d\n", rqd->error);
 	}
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	pblk_print_failed_rqd(pblk, rqd, rqd->error);
 #endif
 }
@@ -470,7 +471,7 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 
 	atomic_inc(&pblk->inflight_io);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	if (pblk_check_io(pblk, rqd))
 		return NVM_IO_ERR;
 #endif
@@ -484,7 +485,7 @@ int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 
 	atomic_inc(&pblk->inflight_io);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	if (pblk_check_io(pblk, rqd))
 		return NVM_IO_ERR;
 #endif
@@ -517,7 +518,7 @@ struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 	for (i = 0; i < nr_secs; i++) {
 		page = vmalloc_to_page(kaddr);
 		if (!page) {
-			pr_err("pblk: could not map vmalloc bio\n");
+			pblk_err(pblk, "could not map vmalloc bio\n");
 			bio_put(bio);
 			bio = ERR_PTR(-ENOMEM);
 			goto out;
@@ -525,7 +526,7 @@ struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 
 		ret = bio_add_pc_page(dev->q, bio, page, PAGE_SIZE, 0);
 		if (ret != PAGE_SIZE) {
-			pr_err("pblk: could not add page to bio\n");
+			pblk_err(pblk, "could not add page to bio\n");
 			bio_put(bio);
 			bio = ERR_PTR(-ENOMEM);
 			goto out;
@@ -711,7 +712,7 @@ next_rq:
 			while (test_bit(pos, line->blk_bitmap)) {
 				paddr += min;
 				if (pblk_boundary_paddr_checks(pblk, paddr)) {
-					pr_err("pblk: corrupt emeta line:%d\n",
+					pblk_err(pblk, "corrupt emeta line:%d\n",
 								line->id);
 					bio_put(bio);
 					ret = -EINTR;
@@ -723,7 +724,7 @@ next_rq:
 			}
 
 			if (pblk_boundary_paddr_checks(pblk, paddr + min)) {
-				pr_err("pblk: corrupt emeta line:%d\n",
+				pblk_err(pblk, "corrupt emeta line:%d\n",
 								line->id);
 				bio_put(bio);
 				ret = -EINTR;
@@ -738,7 +739,7 @@ next_rq:
 
 	ret = pblk_submit_io_sync(pblk, &rqd);
 	if (ret) {
-		pr_err("pblk: emeta I/O submission failed: %d\n", ret);
+		pblk_err(pblk, "emeta I/O submission failed: %d\n", ret);
 		bio_put(bio);
 		goto free_rqd_dma;
 	}
@@ -843,7 +844,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	 */
 	ret = pblk_submit_io_sync(pblk, &rqd);
 	if (ret) {
-		pr_err("pblk: smeta I/O submission failed: %d\n", ret);
+		pblk_err(pblk, "smeta I/O submission failed: %d\n", ret);
 		bio_put(bio);
 		goto free_ppa_list;
 	}
@@ -905,7 +906,7 @@ static int pblk_blk_erase_sync(struct pblk *pblk, struct ppa_addr ppa)
 		struct nvm_tgt_dev *dev = pblk->dev;
 		struct nvm_geo *geo = &dev->geo;
 
-		pr_err("pblk: could not sync erase line:%d,blk:%d\n",
+		pblk_err(pblk, "could not sync erase line:%d,blk:%d\n",
 					pblk_ppa_to_line(ppa),
 					pblk_ppa_to_pos(geo, ppa));
 
@@ -945,7 +946,7 @@ int pblk_line_erase(struct pblk *pblk, struct pblk_line *line)
 
 		ret = pblk_blk_erase_sync(pblk, ppa);
 		if (ret) {
-			pr_err("pblk: failed to erase line %d\n", line->id);
+			pblk_err(pblk, "failed to erase line %d\n", line->id);
 			return ret;
 		}
 	} while (1);
@@ -1012,7 +1013,7 @@ static int pblk_line_init_metadata(struct pblk *pblk, struct pblk_line *line,
 		list_add_tail(&line->list, &l_mg->bad_list);
 		spin_unlock(&l_mg->free_lock);
 
-		pr_debug("pblk: line %d is bad\n", line->id);
+		pblk_debug(pblk, "line %d is bad\n", line->id);
 
 		return 0;
 	}
@@ -1122,7 +1123,7 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	line->cur_sec = off + lm->smeta_sec;
 
 	if (init && pblk_line_submit_smeta_io(pblk, line, off, PBLK_WRITE)) {
-		pr_debug("pblk: line smeta I/O failed. Retry\n");
+		pblk_debug(pblk, "line smeta I/O failed. Retry\n");
 		return 0;
 	}
 
@@ -1154,7 +1155,7 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 		spin_unlock(&line->lock);
 
 		list_add_tail(&line->list, &l_mg->bad_list);
-		pr_err("pblk: unexpected line %d is bad\n", line->id);
+		pblk_err(pblk, "unexpected line %d is bad\n", line->id);
 
 		return 0;
 	}
@@ -1299,7 +1300,7 @@ struct pblk_line *pblk_line_get(struct pblk *pblk)
 
 retry:
 	if (list_empty(&l_mg->free_list)) {
-		pr_err("pblk: no free lines\n");
+		pblk_err(pblk, "no free lines\n");
 		return NULL;
 	}
 
@@ -1315,7 +1316,7 @@ retry:
 
 		list_add_tail(&line->list, &l_mg->bad_list);
 
-		pr_debug("pblk: line %d is bad\n", line->id);
+		pblk_debug(pblk, "line %d is bad\n", line->id);
 		goto retry;
 	}
 
@@ -1329,7 +1330,7 @@ retry:
 			list_add(&line->list, &l_mg->corrupt_list);
 			goto retry;
 		default:
-			pr_err("pblk: failed to prepare line %d\n", line->id);
+			pblk_err(pblk, "failed to prepare line %d\n", line->id);
 			list_add(&line->list, &l_mg->free_list);
 			l_mg->nr_free_lines++;
 			return NULL;
@@ -1477,7 +1478,7 @@ static void pblk_line_close_meta_sync(struct pblk *pblk)
 
 			ret = pblk_submit_meta_io(pblk, line);
 			if (ret) {
-				pr_err("pblk: sync meta line %d failed (%d)\n",
+				pblk_err(pblk, "sync meta line %d failed (%d)\n",
 							line->id, ret);
 				return;
 			}
@@ -1507,7 +1508,7 @@ void __pblk_pipeline_flush(struct pblk *pblk)
 
 	ret = pblk_recov_pad(pblk);
 	if (ret) {
-		pr_err("pblk: could not close data on teardown(%d)\n", ret);
+		pblk_err(pblk, "could not close data on teardown(%d)\n", ret);
 		return;
 	}
 
@@ -1687,7 +1688,7 @@ int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr ppa)
 		struct nvm_tgt_dev *dev = pblk->dev;
 		struct nvm_geo *geo = &dev->geo;
 
-		pr_err("pblk: could not async erase line:%d,blk:%d\n",
+		pblk_err(pblk, "could not async erase line:%d,blk:%d\n",
 					pblk_ppa_to_line(ppa),
 					pblk_ppa_to_pos(geo, ppa));
 	}
@@ -1726,7 +1727,7 @@ void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 	struct list_head *move_list;
 	int i;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	WARN(!bitmap_full(line->map_bitmap, lm->sec_per_line),
 				"pblk: corrupt closed line %d\n", line->id);
 #endif
@@ -1856,7 +1857,7 @@ static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
 	 * Only send one inflight I/O per LUN. Since we map at a page
 	 * granurality, all ppas in the I/O will map to the same LUN
 	 */
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	int i;
 
 	for (i = 1; i < nr_ppas; i++)
@@ -1866,7 +1867,8 @@ static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
 
 	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(30000));
 	if (ret == -ETIME || ret == -EINTR)
-		pr_err("pblk: taking lun semaphore timed out: err %d\n", -ret);
+		pblk_err(pblk, "taking lun semaphore timed out: err %d\n",
+				-ret);
 }
 
 void pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
@@ -1901,7 +1903,7 @@ void pblk_up_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
 	struct pblk_lun *rlun;
 	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	int i;
 
 	for (i = 1; i < nr_ppas; i++)
@@ -1951,7 +1953,7 @@ void pblk_update_map(struct pblk *pblk, sector_t lba, struct ppa_addr ppa)
 void pblk_update_map_cache(struct pblk *pblk, sector_t lba, struct ppa_addr ppa)
 {
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a cache address */
 	BUG_ON(!pblk_addr_in_cache(ppa));
 	BUG_ON(pblk_rb_pos_oob(&pblk->rwb, pblk_addr_to_cacheline(ppa)));
@@ -1966,7 +1968,7 @@ int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa_new,
 	struct ppa_addr ppa_l2p, ppa_gc;
 	int ret = 1;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a cache address */
 	BUG_ON(!pblk_addr_in_cache(ppa_new));
 	BUG_ON(pblk_rb_pos_oob(&pblk->rwb, pblk_addr_to_cacheline(ppa_new)));
@@ -2003,14 +2005,14 @@ void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 {
 	struct ppa_addr ppa_l2p;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a device address */
 	BUG_ON(pblk_addr_in_cache(ppa_mapped));
 #endif
 	/* Invalidate and discard padded entries */
 	if (lba == ADDR_EMPTY) {
 		atomic64_inc(&pblk->pad_wa);
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 		atomic_long_inc(&pblk->padded_wb);
 #endif
 		if (!pblk_ppa_empty(ppa_mapped))
@@ -2036,7 +2038,7 @@ void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 		goto out;
 	}
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	WARN_ON(!pblk_addr_in_cache(ppa_l2p) && !pblk_ppa_empty(ppa_l2p));
 #endif
 

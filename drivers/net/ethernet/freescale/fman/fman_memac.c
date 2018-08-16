@@ -964,6 +964,11 @@ int memac_set_allmulti(struct fman_mac *memac, bool enable)
 	return 0;
 }
 
+int memac_set_tstamp(struct fman_mac *memac, bool enable)
+{
+	return 0; /* Always enabled. */
+}
+
 int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 {
 	struct memac_regs __iomem *regs = memac->regs;

@@ -4,6 +4,8 @@
 #include <linux/swap.h>
 #include <linux/memblock.h>
 #include <linux/bootmem.h>	/* for max_low_pfn */
+#include <linux/swapfile.h>
+#include <linux/swapops.h>
 
 #include <asm/set_memory.h>
 #include <asm/e820/api.h>
@@ -773,13 +775,44 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	}
 }
 
+/*
+ * begin/end can be in the direct map or the "high kernel mapping"
+ * used for the kernel image only.  free_init_pages() will do the
+ * right thing for either kind of address.
+ */
+void free_kernel_image_pages(void *begin, void *end)
+{
+	unsigned long begin_ul = (unsigned long)begin;
+	unsigned long end_ul = (unsigned long)end;
+	unsigned long len_pages = (end_ul - begin_ul) >> PAGE_SHIFT;
+
+
+	free_init_pages("unused kernel image", begin_ul, end_ul);
+
+	/*
+	 * PTI maps some of the kernel into userspace.  For performance,
+	 * this includes some kernel areas that do not contain secrets.
+	 * Those areas might be adjacent to the parts of the kernel image
+	 * being freed, which may contain secrets.  Remove the "high kernel
+	 * image mapping" for these freed areas, ensuring they are not even
+	 * potentially vulnerable to Meltdown regardless of the specific
+	 * optimizations PTI is currently using.
+	 *
+	 * The "noalias" prevents unmapping the direct map alias which is
+	 * needed to access the freed pages.
+	 *
+	 * This is only valid for 64bit kernels. 32bit has only one mapping
+	 * which can't be treated in this way for obvious reasons.
+	 */
+	if (IS_ENABLED(CONFIG_X86_64) && cpu_feature_enabled(X86_FEATURE_PTI))
+		set_memory_np_noalias(begin_ul, len_pages);
+}
+
 void __ref free_initmem(void)
 {
 	e820__reallocate_tables();
 
-	free_init_pages("unused kernel",
-			(unsigned long)(&__init_begin),
-			(unsigned long)(&__init_end));
+	free_kernel_image_pages(&__init_begin, &__init_end);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -880,3 +913,26 @@ void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache)
 	__cachemode2pte_tbl[cache] = __cm_idx2pte(entry);
 	__pte2cachemode_tbl[entry] = cache;
 }
+
+#ifdef CONFIG_SWAP
+unsigned long max_swapfile_size(void)
+{
+	unsigned long pages;
+
+	pages = generic_max_swapfile_size();
+
+	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
+		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
+		unsigned long l1tf_limit = l1tf_pfn_limit() + 1;
+		/*
+		 * We encode swap offsets also with 3 bits below those for pfn
+		 * which makes the usable limit higher.
+		 */
+#if CONFIG_PGTABLE_LEVELS > 2
+		l1tf_limit <<= PAGE_SHIFT - SWP_OFFSET_FIRST_BIT;
+#endif
+		pages = min_t(unsigned long, l1tf_limit, pages);
+	}
+	return pages;
+}
+#endif

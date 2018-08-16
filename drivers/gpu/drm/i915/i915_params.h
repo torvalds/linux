@@ -36,7 +36,6 @@ struct drm_printer;
 #define I915_PARAMS_FOR_EACH(param) \
 	param(char *, vbt_firmware, NULL) \
 	param(int, modeset, -1) \
-	param(int, panel_ignore_lid, 1) \
 	param(int, lvds_channel_mode, 0) \
 	param(int, panel_use_ssc, -1) \
 	param(int, vbt_sdvo_panel_type, -1) \
@@ -58,7 +57,6 @@ struct drm_printer;
 	param(unsigned int, inject_load_failure, 0) \
 	/* leave bools at the end to not create holes */ \
 	param(bool, alpha_support, IS_ENABLED(CONFIG_DRM_I915_ALPHA_SUPPORT)) \
-	param(bool, enable_cmd_parser, true) \
 	param(bool, enable_hangcheck, true) \
 	param(bool, fastboot, false) \
 	param(bool, prefault_disable, false) \

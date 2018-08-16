@@ -507,14 +507,15 @@ early_initcall(check_cpu_stall_init);
 #ifdef CONFIG_TASKS_RCU
 
 /*
- * Simple variant of RCU whose quiescent states are voluntary context switch,
- * user-space execution, and idle.  As such, grace periods can take one good
- * long time.  There are no read-side primitives similar to rcu_read_lock()
- * and rcu_read_unlock() because this implementation is intended to get
- * the system into a safe state for some of the manipulations involved in
- * tracing and the like.  Finally, this implementation does not support
- * high call_rcu_tasks() rates from multiple CPUs.  If this is required,
- * per-CPU callback lists will be needed.
+ * Simple variant of RCU whose quiescent states are voluntary context
+ * switch, cond_resched_rcu_qs(), user-space execution, and idle.
+ * As such, grace periods can take one good long time.  There are no
+ * read-side primitives similar to rcu_read_lock() and rcu_read_unlock()
+ * because this implementation is intended to get the system into a safe
+ * state for some of the manipulations involved in tracing and the like.
+ * Finally, this implementation does not support high call_rcu_tasks()
+ * rates from multiple CPUs.  If this is required, per-CPU callback lists
+ * will be needed.
  */
 
 /* Global list of callbacks and associated lock. */
@@ -542,11 +543,11 @@ static struct task_struct *rcu_tasks_kthread_ptr;
  * period elapses, in other words after all currently executing RCU
  * read-side critical sections have completed. call_rcu_tasks() assumes
  * that the read-side critical sections end at a voluntary context
- * switch (not a preemption!), entry into idle, or transition to usermode
- * execution.  As such, there are no read-side primitives analogous to
- * rcu_read_lock() and rcu_read_unlock() because this primitive is intended
- * to determine that all tasks have passed through a safe state, not so
- * much for data-strcuture synchronization.
+ * switch (not a preemption!), cond_resched_rcu_qs(), entry into idle,
+ * or transition to usermode execution.  As such, there are no read-side
+ * primitives analogous to rcu_read_lock() and rcu_read_unlock() because
+ * this primitive is intended to determine that all tasks have passed
+ * through a safe state, not so much for data-strcuture synchronization.
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
@@ -667,6 +668,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	struct rcu_head *list;
 	struct rcu_head *next;
 	LIST_HEAD(rcu_tasks_holdouts);
+	int fract;
 
 	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
 	housekeeping_affine(current, HK_FLAG_RCU);
@@ -748,13 +750,25 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		 * holdouts.  When the list is empty, we are done.
 		 */
 		lastreport = jiffies;
-		while (!list_empty(&rcu_tasks_holdouts)) {
+
+		/* Start off with HZ/10 wait and slowly back off to 1 HZ wait*/
+		fract = 10;
+
+		for (;;) {
 			bool firstreport;
 			bool needreport;
 			int rtst;
 			struct task_struct *t1;
 
-			schedule_timeout_interruptible(HZ);
+			if (list_empty(&rcu_tasks_holdouts))
+				break;
+
+			/* Slowly back off waiting for holdouts */
+			schedule_timeout_interruptible(HZ/fract);
+
+			if (fract > 1)
+				fract--;
+
 			rtst = READ_ONCE(rcu_task_stall_timeout);
 			needreport = rtst > 0 &&
 				     time_after(jiffies, lastreport + rtst);
@@ -800,6 +814,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 			list = next;
 			cond_resched();
 		}
+		/* Paranoid sleep to keep this from entering a tight loop */
 		schedule_timeout_uninterruptible(HZ/10);
 	}
 }

@@ -334,7 +334,7 @@ static int amdgpu_amdkfd_bo_validate(struct amdgpu_bo *bo, uint32_t domain,
 		 "Called with userptr BO"))
 		return -EINVAL;
 
-	amdgpu_ttm_placement_from_domain(bo, domain);
+	amdgpu_bo_placement_from_domain(bo, domain);
 
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (ret)
@@ -622,7 +622,7 @@ static int init_user_pages(struct kgd_mem *mem, struct mm_struct *mm,
 		pr_err("%s: Failed to reserve BO\n", __func__);
 		goto release_out;
 	}
-	amdgpu_ttm_placement_from_domain(bo, mem->domain);
+	amdgpu_bo_placement_from_domain(bo, mem->domain);
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (ret)
 		pr_err("%s: failed to validate BO\n", __func__);
@@ -1587,7 +1587,7 @@ int amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(struct kgd_dev *kgd,
 		goto bo_reserve_failed;
 	}
 
-	ret = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT, NULL);
+	ret = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
 	if (ret) {
 		pr_err("Failed to pin bo. ret %d\n", ret);
 		goto pin_failed;
@@ -1619,6 +1619,20 @@ bo_reserve_failed:
 	mutex_unlock(&mem->process_info->lock);
 
 	return ret;
+}
+
+int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct kgd_dev *kgd,
+					      struct kfd_vm_fault_info *mem)
+{
+	struct amdgpu_device *adev;
+
+	adev = (struct amdgpu_device *)kgd;
+	if (atomic_read(&adev->gmc.vm_fault_info_updated) == 1) {
+		*mem = *adev->gmc.vm_fault_info;
+		mb();
+		atomic_set(&adev->gmc.vm_fault_info_updated, 0);
+	}
+	return 0;
 }
 
 /* Evict a userptr BO by stopping the queues if necessary
@@ -1680,7 +1694,7 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 
 		if (amdgpu_bo_reserve(bo, true))
 			return -EAGAIN;
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
+		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
 		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		amdgpu_bo_unreserve(bo);
 		if (ret) {
@@ -1824,7 +1838,7 @@ static int validate_invalid_user_pages(struct amdkfd_process_info *process_info)
 		if (mem->user_pages[0]) {
 			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
 						     mem->user_pages);
-			amdgpu_ttm_placement_from_domain(bo, mem->domain);
+			amdgpu_bo_placement_from_domain(bo, mem->domain);
 			ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 			if (ret) {
 				pr_err("%s: failed to validate BO\n", __func__);

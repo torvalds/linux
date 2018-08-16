@@ -39,6 +39,7 @@ struct bpf_create_map_attr {
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
 	__u32 map_ifindex;
+	__u32 inner_map_fd;
 };
 
 int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr);

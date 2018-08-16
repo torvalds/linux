@@ -448,6 +448,7 @@ enum efx_sync_events_state {
  *	__efx_rx_packet(), or zero if there is none
  * @rx_pkt_index: Ring index of first buffer for next packet to be delivered
  *	by __efx_rx_packet(), if @rx_pkt_n_frags != 0
+ * @rx_list: list of SKBs from current RX, awaiting processing
  * @rx_queue: RX queue for this channel
  * @tx_queue: TX queues for this channel
  * @sync_events_state: Current state of sync events on this channel
@@ -499,6 +500,8 @@ struct efx_channel {
 
 	unsigned int rx_pkt_n_frags;
 	unsigned int rx_pkt_index;
+
+	struct list_head *rx_list;
 
 	struct efx_rx_queue rx_queue;
 	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];

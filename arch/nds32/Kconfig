@@ -71,8 +71,6 @@ config FIX_EARLYCON_MEM
 config PGTABLE_LEVELS
 	default 2
 
-source "init/Kconfig"
-
 menu "System Type"
 source "arch/nds32/Kconfig.cpu"
 config NR_CPUS
@@ -90,24 +88,5 @@ config NDS32_BUILTIN_DTB
 endmenu
 
 menu "Kernel Features"
-source "kernel/Kconfig.preempt"
-source "kernel/Kconfig.freezer"
-source "mm/Kconfig"
 source "kernel/Kconfig.hz"
 endmenu
-
-menu "Executable file formats"
-source "fs/Kconfig.binfmt"
-endmenu
-
-source "net/Kconfig"
-source "drivers/Kconfig"
-source "fs/Kconfig"
-
-menu "Kernel hacking"
-source "lib/Kconfig.debug"
-endmenu
-
-source "security/Kconfig"
-source "crypto/Kconfig"
-source "lib/Kconfig"

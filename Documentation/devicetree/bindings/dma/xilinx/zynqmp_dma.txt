@@ -5,7 +5,6 @@ control and rate control support for slave/peripheral dma access.
 Required properties:
 - compatible		: Should be "xlnx,zynqmp-dma-1.0"
 - reg			: Memory map for gdma/adma module access.
-- interrupt-parent	: Interrupt controller the interrupt is routed through
 - interrupts		: Should contain DMA channel interrupt.
 - xlnx,bus-width	: Axi buswidth in bits. Should contain 128 or 64
 - clock-names		: List of input clocks "clk_main", "clk_apb"

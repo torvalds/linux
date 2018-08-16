@@ -25,8 +25,10 @@
 #include <linux/sched.h>
 #include <linux/ktime.h>
 #include <linux/mm.h>
+#include <linux/nvme.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/pm_runtime.h>
+#include <linux/switchtec.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -460,6 +462,7 @@ static void quirk_nfp6000(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETRONOME,	PCI_DEVICE_ID_NETRONOME_NFP4000,	quirk_nfp6000);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETRONOME,	PCI_DEVICE_ID_NETRONOME_NFP6000,	quirk_nfp6000);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETRONOME,	PCI_DEVICE_ID_NETRONOME_NFP5000,	quirk_nfp6000);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETRONOME,	PCI_DEVICE_ID_NETRONOME_NFP6000_VF,	quirk_nfp6000);
 
 /*  On IBM Crocodile ipr SAS adapters, expand BAR to system page size */
@@ -2105,6 +2108,7 @@ static void quirk_netmos(struct pci_dev *dev)
 		if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 				dev->subsystem_device == 0x0299)
 			return;
+		/* else: fall through */
 	case PCI_DEVICE_ID_NETMOS_9735:
 	case PCI_DEVICE_ID_NETMOS_9745:
 	case PCI_DEVICE_ID_NETMOS_9845:
@@ -2352,6 +2356,9 @@ static void quirk_paxc_bridge(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x16cd, quirk_paxc_bridge);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x16f0, quirk_paxc_bridge);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0xd750, quirk_paxc_bridge);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0xd802, quirk_paxc_bridge);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0xd804, quirk_paxc_bridge);
 #endif
 
 /*
@@ -3664,6 +3671,108 @@ static int reset_chelsio_generic_dev(struct pci_dev *dev, int probe)
 #define PCI_DEVICE_ID_INTEL_IVB_M_VGA      0x0156
 #define PCI_DEVICE_ID_INTEL_IVB_M2_VGA     0x0166
 
+/*
+ * The Samsung SM961/PM961 controller can sometimes enter a fatal state after
+ * FLR where config space reads from the device return -1.  We seem to be
+ * able to avoid this condition if we disable the NVMe controller prior to
+ * FLR.  This quirk is generic for any NVMe class device requiring similar
+ * assistance to quiesce the device prior to FLR.
+ *
+ * NVMe specification: https://nvmexpress.org/resources/specifications/
+ * Revision 1.0e:
+ *    Chapter 2: Required and optional PCI config registers
+ *    Chapter 3: NVMe control registers
+ *    Chapter 7.3: Reset behavior
+ */
+static int nvme_disable_and_flr(struct pci_dev *dev, int probe)
+{
+	void __iomem *bar;
+	u16 cmd;
+	u32 cfg;
+
+	if (dev->class != PCI_CLASS_STORAGE_EXPRESS ||
+	    !pcie_has_flr(dev) || !pci_resource_start(dev, 0))
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	bar = pci_iomap(dev, 0, NVME_REG_CC + sizeof(cfg));
+	if (!bar)
+		return -ENOTTY;
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	pci_write_config_word(dev, PCI_COMMAND, cmd | PCI_COMMAND_MEMORY);
+
+	cfg = readl(bar + NVME_REG_CC);
+
+	/* Disable controller if enabled */
+	if (cfg & NVME_CC_ENABLE) {
+		u32 cap = readl(bar + NVME_REG_CAP);
+		unsigned long timeout;
+
+		/*
+		 * Per nvme_disable_ctrl() skip shutdown notification as it
+		 * could complete commands to the admin queue.  We only intend
+		 * to quiesce the device before reset.
+		 */
+		cfg &= ~(NVME_CC_SHN_MASK | NVME_CC_ENABLE);
+
+		writel(cfg, bar + NVME_REG_CC);
+
+		/*
+		 * Some controllers require an additional delay here, see
+		 * NVME_QUIRK_DELAY_BEFORE_CHK_RDY.  None of those are yet
+		 * supported by this quirk.
+		 */
+
+		/* Cap register provides max timeout in 500ms increments */
+		timeout = ((NVME_CAP_TIMEOUT(cap) + 1) * HZ / 2) + jiffies;
+
+		for (;;) {
+			u32 status = readl(bar + NVME_REG_CSTS);
+
+			/* Ready status becomes zero on disable complete */
+			if (!(status & NVME_CSTS_RDY))
+				break;
+
+			msleep(100);
+
+			if (time_after(jiffies, timeout)) {
+				pci_warn(dev, "Timeout waiting for NVMe ready status to clear after disable\n");
+				break;
+			}
+		}
+	}
+
+	pci_iounmap(dev, bar);
+
+	pcie_flr(dev);
+
+	return 0;
+}
+
+/*
+ * Intel DC P3700 NVMe controller will timeout waiting for ready status
+ * to change after NVMe enable if the driver starts interacting with the
+ * device too soon after FLR.  A 250ms delay after FLR has heuristically
+ * proven to produce reliably working results for device assignment cases.
+ */
+static int delay_250ms_after_flr(struct pci_dev *dev, int probe)
+{
+	if (!pcie_has_flr(dev))
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	pcie_flr(dev);
+
+	msleep(250);
+
+	return 0;
+}
+
 static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82599_SFP_VF,
 		 reset_intel_82599_sfp_virtfn },
@@ -3671,6 +3780,8 @@ static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 		reset_ivb_igd },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_M2_VGA,
 		reset_ivb_igd },
+	{ PCI_VENDOR_ID_SAMSUNG, 0xa804, nvme_disable_and_flr },
+	{ PCI_VENDOR_ID_INTEL, 0x0953, delay_250ms_after_flr },
 	{ PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
 		reset_chelsio_generic_dev },
 	{ 0 }
@@ -3739,6 +3850,9 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x917a,
 			 quirk_dma_func1_alias);
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c78 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9182,
+			 quirk_dma_func1_alias);
+/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c134 */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9183,
 			 quirk_dma_func1_alias);
 /* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c46 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x91a0,
@@ -4553,27 +4667,79 @@ static int pci_quirk_enable_intel_spt_pch_acs(struct pci_dev *dev)
 	return 0;
 }
 
-static const struct pci_dev_enable_acs {
+static int pci_quirk_disable_intel_spt_pch_acs_redir(struct pci_dev *dev)
+{
+	int pos;
+	u32 cap, ctrl;
+
+	if (!pci_quirk_intel_spt_pch_acs_match(dev))
+		return -ENOTTY;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS);
+	if (!pos)
+		return -ENOTTY;
+
+	pci_read_config_dword(dev, pos + PCI_ACS_CAP, &cap);
+	pci_read_config_dword(dev, pos + INTEL_SPT_ACS_CTRL, &ctrl);
+
+	ctrl &= ~(PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_EC);
+
+	pci_write_config_dword(dev, pos + INTEL_SPT_ACS_CTRL, ctrl);
+
+	pci_info(dev, "Intel SPT PCH root port workaround: disabled ACS redirect\n");
+
+	return 0;
+}
+
+static const struct pci_dev_acs_ops {
 	u16 vendor;
 	u16 device;
 	int (*enable_acs)(struct pci_dev *dev);
-} pci_dev_enable_acs[] = {
-	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_enable_intel_pch_acs },
-	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_enable_intel_spt_pch_acs },
-	{ 0 }
+	int (*disable_acs_redir)(struct pci_dev *dev);
+} pci_dev_acs_ops[] = {
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
+	    .enable_acs = pci_quirk_enable_intel_pch_acs,
+	},
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
+	    .enable_acs = pci_quirk_enable_intel_spt_pch_acs,
+	    .disable_acs_redir = pci_quirk_disable_intel_spt_pch_acs_redir,
+	},
 };
 
 int pci_dev_specific_enable_acs(struct pci_dev *dev)
 {
-	const struct pci_dev_enable_acs *i;
-	int ret;
+	const struct pci_dev_acs_ops *p;
+	int i, ret;
 
-	for (i = pci_dev_enable_acs; i->enable_acs; i++) {
-		if ((i->vendor == dev->vendor ||
-		     i->vendor == (u16)PCI_ANY_ID) &&
-		    (i->device == dev->device ||
-		     i->device == (u16)PCI_ANY_ID)) {
-			ret = i->enable_acs(dev);
+	for (i = 0; i < ARRAY_SIZE(pci_dev_acs_ops); i++) {
+		p = &pci_dev_acs_ops[i];
+		if ((p->vendor == dev->vendor ||
+		     p->vendor == (u16)PCI_ANY_ID) &&
+		    (p->device == dev->device ||
+		     p->device == (u16)PCI_ANY_ID) &&
+		    p->enable_acs) {
+			ret = p->enable_acs(dev);
+			if (ret >= 0)
+				return ret;
+		}
+	}
+
+	return -ENOTTY;
+}
+
+int pci_dev_specific_disable_acs_redir(struct pci_dev *dev)
+{
+	const struct pci_dev_acs_ops *p;
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(pci_dev_acs_ops); i++) {
+		p = &pci_dev_acs_ops[i];
+		if ((p->vendor == dev->vendor ||
+		     p->vendor == (u16)PCI_ANY_ID) &&
+		    (p->device == dev->device ||
+		     p->device == (u16)PCI_ANY_ID) &&
+		    p->disable_acs_redir) {
+			ret = p->disable_acs_redir(dev);
 			if (ret >= 0)
 				return ret;
 		}
@@ -4753,3 +4919,197 @@ DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMD, PCI_ANY_ID,
 			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
 			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);
+
+/*
+ * Some IDT switches incorrectly flag an ACS Source Validation error on
+ * completions for config read requests even though PCIe r4.0, sec
+ * 6.12.1.1, says that completions are never affected by ACS Source
+ * Validation.  Here's the text of IDT 89H32H8G3-YC, erratum #36:
+ *
+ *   Item #36 - Downstream port applies ACS Source Validation to Completions
+ *   Section 6.12.1.1 of the PCI Express Base Specification 3.1 states that
+ *   completions are never affected by ACS Source Validation.  However,
+ *   completions received by a downstream port of the PCIe switch from a
+ *   device that has not yet captured a PCIe bus number are incorrectly
+ *   dropped by ACS Source Validation by the switch downstream port.
+ *
+ * The workaround suggested by IDT is to issue a config write to the
+ * downstream device before issuing the first config read.  This allows the
+ * downstream device to capture its bus and device numbers (see PCIe r4.0,
+ * sec 2.2.9), thus avoiding the ACS error on the completion.
+ *
+ * However, we don't know when the device is ready to accept the config
+ * write, so we do config reads until we receive a non-Config Request Retry
+ * Status, then do the config write.
+ *
+ * To avoid hitting the erratum when doing the config reads, we disable ACS
+ * SV around this process.
+ */
+int pci_idt_bus_quirk(struct pci_bus *bus, int devfn, u32 *l, int timeout)
+{
+	int pos;
+	u16 ctrl = 0;
+	bool found;
+	struct pci_dev *bridge = bus->self;
+
+	pos = pci_find_ext_capability(bridge, PCI_EXT_CAP_ID_ACS);
+
+	/* Disable ACS SV before initial config reads */
+	if (pos) {
+		pci_read_config_word(bridge, pos + PCI_ACS_CTRL, &ctrl);
+		if (ctrl & PCI_ACS_SV)
+			pci_write_config_word(bridge, pos + PCI_ACS_CTRL,
+					      ctrl & ~PCI_ACS_SV);
+	}
+
+	found = pci_bus_generic_read_dev_vendor_id(bus, devfn, l, timeout);
+
+	/* Write Vendor ID (read-only) so the endpoint latches its bus/dev */
+	if (found)
+		pci_bus_write_config_word(bus, devfn, PCI_VENDOR_ID, 0);
+
+	/* Re-enable ACS_SV if it was previously enabled */
+	if (ctrl & PCI_ACS_SV)
+		pci_write_config_word(bridge, pos + PCI_ACS_CTRL, ctrl);
+
+	return found;
+}
+
+/*
+ * Microsemi Switchtec NTB uses devfn proxy IDs to move TLPs between
+ * NT endpoints via the internal switch fabric. These IDs replace the
+ * originating requestor ID TLPs which access host memory on peer NTB
+ * ports. Therefore, all proxy IDs must be aliased to the NTB device
+ * to permit access when the IOMMU is turned on.
+ */
+static void quirk_switchtec_ntb_dma_alias(struct pci_dev *pdev)
+{
+	void __iomem *mmio;
+	struct ntb_info_regs __iomem *mmio_ntb;
+	struct ntb_ctrl_regs __iomem *mmio_ctrl;
+	struct sys_info_regs __iomem *mmio_sys_info;
+	u64 partition_map;
+	u8 partition;
+	int pp;
+
+	if (pci_enable_device(pdev)) {
+		pci_err(pdev, "Cannot enable Switchtec device\n");
+		return;
+	}
+
+	mmio = pci_iomap(pdev, 0, 0);
+	if (mmio == NULL) {
+		pci_disable_device(pdev);
+		pci_err(pdev, "Cannot iomap Switchtec device\n");
+		return;
+	}
+
+	pci_info(pdev, "Setting Switchtec proxy ID aliases\n");
+
+	mmio_ntb = mmio + SWITCHTEC_GAS_NTB_OFFSET;
+	mmio_ctrl = (void __iomem *) mmio_ntb + SWITCHTEC_NTB_REG_CTRL_OFFSET;
+	mmio_sys_info = mmio + SWITCHTEC_GAS_SYS_INFO_OFFSET;
+
+	partition = ioread8(&mmio_ntb->partition_id);
+
+	partition_map = ioread32(&mmio_ntb->ep_map);
+	partition_map |= ((u64) ioread32(&mmio_ntb->ep_map + 4)) << 32;
+	partition_map &= ~(1ULL << partition);
+
+	for (pp = 0; pp < (sizeof(partition_map) * 8); pp++) {
+		struct ntb_ctrl_regs __iomem *mmio_peer_ctrl;
+		u32 table_sz = 0;
+		int te;
+
+		if (!(partition_map & (1ULL << pp)))
+			continue;
+
+		pci_dbg(pdev, "Processing partition %d\n", pp);
+
+		mmio_peer_ctrl = &mmio_ctrl[pp];
+
+		table_sz = ioread16(&mmio_peer_ctrl->req_id_table_size);
+		if (!table_sz) {
+			pci_warn(pdev, "Partition %d table_sz 0\n", pp);
+			continue;
+		}
+
+		if (table_sz > 512) {
+			pci_warn(pdev,
+				 "Invalid Switchtec partition %d table_sz %d\n",
+				 pp, table_sz);
+			continue;
+		}
+
+		for (te = 0; te < table_sz; te++) {
+			u32 rid_entry;
+			u8 devfn;
+
+			rid_entry = ioread32(&mmio_peer_ctrl->req_id_table[te]);
+			devfn = (rid_entry >> 1) & 0xFF;
+			pci_dbg(pdev,
+				"Aliasing Partition %d Proxy ID %02x.%d\n",
+				pp, PCI_SLOT(devfn), PCI_FUNC(devfn));
+			pci_add_dma_alias(pdev, devfn);
+		}
+	}
+
+	pci_iounmap(pdev, mmio);
+	pci_disable_device(pdev);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8531,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8532,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8533,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8534,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8535,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8536,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8543,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8544,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8545,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8546,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8551,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8552,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8553,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8554,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8555,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8556,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8561,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8562,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8563,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8564,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8565,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8566,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8571,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8572,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8573,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8574,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8575,
+			quirk_switchtec_ntb_dma_alias);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8576,
+			quirk_switchtec_ntb_dma_alias);

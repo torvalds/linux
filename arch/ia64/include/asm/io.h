@@ -83,12 +83,14 @@ virt_to_phys (volatile void *address)
 {
 	return (unsigned long) address - PAGE_OFFSET;
 }
+#define virt_to_phys virt_to_phys
 
 static inline void*
 phys_to_virt (unsigned long address)
 {
 	return (void *) (address + PAGE_OFFSET);
 }
+#define phys_to_virt phys_to_virt
 
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 extern u64 kern_mem_attribute (unsigned long phys_addr, unsigned long size);
@@ -433,9 +435,11 @@ static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned lo
 {
 	return ioremap(phys_addr, size);
 }
+#define ioremap ioremap
+#define ioremap_nocache ioremap_nocache
 #define ioremap_cache ioremap_cache
 #define ioremap_uc ioremap_nocache
-
+#define iounmap iounmap
 
 /*
  * String version of IO memory access ops:
@@ -443,6 +447,13 @@ static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned lo
 extern void memcpy_fromio(void *dst, const volatile void __iomem *src, long n);
 extern void memcpy_toio(volatile void __iomem *dst, const void *src, long n);
 extern void memset_io(volatile void __iomem *s, int c, long n);
+
+#define memcpy_fromio memcpy_fromio
+#define memcpy_toio memcpy_toio
+#define memset_io memset_io
+#define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
+#define xlate_dev_mem_ptr xlate_dev_mem_ptr
+#include <asm-generic/io.h>
 
 # endif /* __KERNEL__ */
 

@@ -265,7 +265,7 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct pcm186x_priv *priv = snd_soc_component_get_drvdata(component);
 	unsigned int rate = params_rate(params);
-	unsigned int format = params_format(params);
+	snd_pcm_format_t format = params_format(params);
 	unsigned int width = params_width(params);
 	unsigned int channels = params_channels(params);
 	unsigned int div_lrck;

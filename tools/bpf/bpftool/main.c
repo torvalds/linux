@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -30,8 +30,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-/* Author: Jakub Kicinski <kubakici@wp.pl> */
 
 #include <bfd.h>
 #include <ctype.h>

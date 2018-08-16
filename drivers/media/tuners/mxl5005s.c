@@ -4075,10 +4075,10 @@ static void mxl5005s_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops mxl5005s_tuner_ops = {
 	.info = {
-		.name           = "MaxLinear MXL5005S",
-		.frequency_min  =  48000000,
-		.frequency_max  = 860000000,
-		.frequency_step =     50000,
+		.name              = "MaxLinear MXL5005S",
+		.frequency_min_hz  =  48 * MHz,
+		.frequency_max_hz  = 860 * MHz,
+		.frequency_step_hz =  50 * kHz,
 	},
 
 	.release       = mxl5005s_release,

@@ -310,7 +310,6 @@ struct smu7_hwmgr {
 	/* ---- Power Gating States ---- */
 	bool                           uvd_power_gated;
 	bool                           vce_power_gated;
-	bool                           samu_power_gated;
 	bool                           need_long_memory_training;
 
 	/* Application power optimization parameters */

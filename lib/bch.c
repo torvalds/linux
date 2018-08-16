@@ -78,14 +78,21 @@
 #define GF_M(_p)               (CONFIG_BCH_CONST_M)
 #define GF_T(_p)               (CONFIG_BCH_CONST_T)
 #define GF_N(_p)               ((1 << (CONFIG_BCH_CONST_M))-1)
+#define BCH_MAX_M              (CONFIG_BCH_CONST_M)
 #else
 #define GF_M(_p)               ((_p)->m)
 #define GF_T(_p)               ((_p)->t)
 #define GF_N(_p)               ((_p)->n)
+#define BCH_MAX_M              15
 #endif
+
+#define BCH_MAX_T              (((1 << BCH_MAX_M) - 1) / BCH_MAX_M)
 
 #define BCH_ECC_WORDS(_p)      DIV_ROUND_UP(GF_M(_p)*GF_T(_p), 32)
 #define BCH_ECC_BYTES(_p)      DIV_ROUND_UP(GF_M(_p)*GF_T(_p), 8)
+
+#define BCH_ECC_MAX_WORDS      DIV_ROUND_UP(BCH_MAX_M * BCH_MAX_T, 32)
+#define BCH_ECC_MAX_BYTES      DIV_ROUND_UP(BCH_MAX_M * BCH_MAX_T, 8)
 
 #ifndef dbg
 #define dbg(_fmt, args...)     do {} while (0)
@@ -187,7 +194,8 @@ void encode_bch(struct bch_control *bch, const uint8_t *data,
 	const unsigned int l = BCH_ECC_WORDS(bch)-1;
 	unsigned int i, mlen;
 	unsigned long m;
-	uint32_t w, r[l+1];
+	uint32_t w, r[BCH_ECC_MAX_WORDS];
+	const size_t r_bytes = BCH_ECC_WORDS(bch) * sizeof(*r);
 	const uint32_t * const tab0 = bch->mod8_tab;
 	const uint32_t * const tab1 = tab0 + 256*(l+1);
 	const uint32_t * const tab2 = tab1 + 256*(l+1);
@@ -198,7 +206,7 @@ void encode_bch(struct bch_control *bch, const uint8_t *data,
 		/* load ecc parity bytes into internal 32-bit buffer */
 		load_ecc8(bch, bch->ecc_buf, ecc);
 	} else {
-		memset(bch->ecc_buf, 0, sizeof(r));
+		memset(bch->ecc_buf, 0, r_bytes);
 	}
 
 	/* process first unaligned data bytes */
@@ -215,7 +223,7 @@ void encode_bch(struct bch_control *bch, const uint8_t *data,
 	mlen  = len/4;
 	data += 4*mlen;
 	len  -= 4*mlen;
-	memcpy(r, bch->ecc_buf, sizeof(r));
+	memcpy(r, bch->ecc_buf, r_bytes);
 
 	/*
 	 * split each 32-bit word into 4 polynomials of weight 8 as follows:
@@ -241,7 +249,7 @@ void encode_bch(struct bch_control *bch, const uint8_t *data,
 
 		r[l] = p0[l]^p1[l]^p2[l]^p3[l];
 	}
-	memcpy(bch->ecc_buf, r, sizeof(r));
+	memcpy(bch->ecc_buf, r, r_bytes);
 
 	/* process last unaligned bytes */
 	if (len)
@@ -434,7 +442,7 @@ static int solve_linear_system(struct bch_control *bch, unsigned int *rows,
 {
 	const int m = GF_M(bch);
 	unsigned int tmp, mask;
-	int rem, c, r, p, k, param[m];
+	int rem, c, r, p, k, param[BCH_MAX_M];
 
 	k = 0;
 	mask = 1 << m;
@@ -1114,7 +1122,7 @@ static int build_deg2_base(struct bch_control *bch)
 {
 	const int m = GF_M(bch);
 	int i, j, r;
-	unsigned int sum, x, y, remaining, ak = 0, xi[m];
+	unsigned int sum, x, y, remaining, ak = 0, xi[BCH_MAX_M];
 
 	/* find k s.t. Tr(a^k) = 1 and 0 <= k < m */
 	for (i = 0; i < m; i++) {
@@ -1254,7 +1262,6 @@ struct bch_control *init_bch(int m, int t, unsigned int prim_poly)
 	struct bch_control *bch = NULL;
 
 	const int min_m = 5;
-	const int max_m = 15;
 
 	/* default primitive polynomials */
 	static const unsigned int prim_poly_tab[] = {
@@ -1270,7 +1277,7 @@ struct bch_control *init_bch(int m, int t, unsigned int prim_poly)
 		goto fail;
 	}
 #endif
-	if ((m < min_m) || (m > max_m))
+	if ((m < min_m) || (m > BCH_MAX_M))
 		/*
 		 * values of m greater than 15 are not currently supported;
 		 * supporting m > 15 would require changing table base type

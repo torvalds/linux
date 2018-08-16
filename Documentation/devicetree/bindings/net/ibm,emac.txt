@@ -18,7 +18,6 @@
 			  "ibm,emac4".  For Axon, thus, we have: "ibm,emac-axon",
 			  "ibm,emac4"
     - interrupts        : <interrupt mapping for EMAC IRQ and WOL IRQ>
-    - interrupt-parent  : optional, if needed for interrupt mapping
     - reg               : <registers mapping>
     - local-mac-address : 6 bytes, MAC address
     - mal-device        : phandle of the associated McMAL node

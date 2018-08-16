@@ -27,6 +27,7 @@
 #include <linux/atomic.h>
 #include <linux/ctype.h>
 #include <linux/blk-cgroup.h>
+#include <linux/tracehook.h>
 #include "blk.h"
 
 #define MAX_KEY_LEN 100
@@ -49,6 +50,8 @@ struct cgroup_subsys_state * const blkcg_root_css = &blkcg_root.css;
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
 static LIST_HEAD(all_blkcgs);		/* protected by blkcg_pol_mutex */
+
+static bool blkcg_debug_stats = false;
 
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
@@ -564,6 +567,7 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 		[BLKG_RWSTAT_WRITE]	= "Write",
 		[BLKG_RWSTAT_SYNC]	= "Sync",
 		[BLKG_RWSTAT_ASYNC]	= "Async",
+		[BLKG_RWSTAT_DISCARD]	= "Discard",
 	};
 	const char *dname = blkg_dev_name(pd->blkg);
 	u64 v;
@@ -577,7 +581,8 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 			   (unsigned long long)atomic64_read(&rwstat->aux_cnt[i]));
 
 	v = atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_READ]) +
-		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_WRITE]);
+		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_WRITE]) +
+		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_DISCARD]);
 	seq_printf(sf, "%s Total %llu\n", dname, (unsigned long long)v);
 	return v;
 }
@@ -954,12 +959,24 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
 		const char *dname;
+		char *buf;
 		struct blkg_rwstat rwstat;
-		u64 rbytes, wbytes, rios, wios;
+		u64 rbytes, wbytes, rios, wios, dbytes, dios;
+		size_t size = seq_get_buf(sf, &buf), off = 0;
+		int i;
+		bool has_stats = false;
 
 		dname = blkg_dev_name(blkg);
 		if (!dname)
 			continue;
+
+		/*
+		 * Hooray string manipulation, count is the size written NOT
+		 * INCLUDING THE \0, so size is now count+1 less than what we
+		 * had before, but we want to start writing the next bit from
+		 * the \0 so we only add count to buf.
+		 */
+		off += scnprintf(buf+off, size-off, "%s ", dname);
 
 		spin_lock_irq(blkg->q->queue_lock);
 
@@ -967,17 +984,52 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 					offsetof(struct blkcg_gq, stat_bytes));
 		rbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
 		wbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
+		dbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_DISCARD]);
 
 		rwstat = blkg_rwstat_recursive_sum(blkg, NULL,
 					offsetof(struct blkcg_gq, stat_ios));
 		rios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
 		wios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
+		dios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_DISCARD]);
 
 		spin_unlock_irq(blkg->q->queue_lock);
 
-		if (rbytes || wbytes || rios || wios)
-			seq_printf(sf, "%s rbytes=%llu wbytes=%llu rios=%llu wios=%llu\n",
-				   dname, rbytes, wbytes, rios, wios);
+		if (rbytes || wbytes || rios || wios) {
+			has_stats = true;
+			off += scnprintf(buf+off, size-off,
+					 "rbytes=%llu wbytes=%llu rios=%llu wios=%llu dbytes=%llu dios=%llu",
+					 rbytes, wbytes, rios, wios,
+					 dbytes, dios);
+		}
+
+		if (!blkcg_debug_stats)
+			goto next;
+
+		if (atomic_read(&blkg->use_delay)) {
+			has_stats = true;
+			off += scnprintf(buf+off, size-off,
+					 " use_delay=%d delay_nsec=%llu",
+					 atomic_read(&blkg->use_delay),
+					(unsigned long long)atomic64_read(&blkg->delay_nsec));
+		}
+
+		for (i = 0; i < BLKCG_MAX_POLS; i++) {
+			struct blkcg_policy *pol = blkcg_policy[i];
+			size_t written;
+
+			if (!blkg->pd[i] || !pol->pd_stat_fn)
+				continue;
+
+			written = pol->pd_stat_fn(blkg->pd[i], buf+off, size-off);
+			if (written)
+				has_stats = true;
+			off += written;
+		}
+next:
+		if (has_stats) {
+			off += scnprintf(buf+off, size-off, "\n");
+			seq_commit(sf, off);
+		}
 	}
 
 	rcu_read_unlock();
@@ -1191,6 +1243,14 @@ int blkcg_init_queue(struct request_queue *q)
 	if (preloaded)
 		radix_tree_preload_end();
 
+	ret = blk_iolatency_init(q);
+	if (ret) {
+		spin_lock_irq(q->queue_lock);
+		blkg_destroy_all(q);
+		spin_unlock_irq(q->queue_lock);
+		return ret;
+	}
+
 	ret = blk_throtl_init(q);
 	if (ret) {
 		spin_lock_irq(q->queue_lock);
@@ -1288,6 +1348,13 @@ static void blkcg_bind(struct cgroup_subsys_state *root_css)
 	mutex_unlock(&blkcg_pol_mutex);
 }
 
+static void blkcg_exit(struct task_struct *tsk)
+{
+	if (tsk->throttle_queue)
+		blk_put_queue(tsk->throttle_queue);
+	tsk->throttle_queue = NULL;
+}
+
 struct cgroup_subsys io_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
 	.css_offline = blkcg_css_offline,
@@ -1297,6 +1364,7 @@ struct cgroup_subsys io_cgrp_subsys = {
 	.dfl_cftypes = blkcg_files,
 	.legacy_cftypes = blkcg_legacy_files,
 	.legacy_name = "blkio",
+	.exit = blkcg_exit,
 #ifdef CONFIG_MEMCG
 	/*
 	 * This ensures that, if available, memcg is automatically enabled
@@ -1547,3 +1615,209 @@ out_unlock:
 	mutex_unlock(&blkcg_pol_register_mutex);
 }
 EXPORT_SYMBOL_GPL(blkcg_policy_unregister);
+
+/*
+ * Scale the accumulated delay based on how long it has been since we updated
+ * the delay.  We only call this when we are adding delay, in case it's been a
+ * while since we added delay, and when we are checking to see if we need to
+ * delay a task, to account for any delays that may have occurred.
+ */
+static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
+{
+	u64 old = atomic64_read(&blkg->delay_start);
+
+	/*
+	 * We only want to scale down every second.  The idea here is that we
+	 * want to delay people for min(delay_nsec, NSEC_PER_SEC) in a certain
+	 * time window.  We only want to throttle tasks for recent delay that
+	 * has occurred, in 1 second time windows since that's the maximum
+	 * things can be throttled.  We save the current delay window in
+	 * blkg->last_delay so we know what amount is still left to be charged
+	 * to the blkg from this point onward.  blkg->last_use keeps track of
+	 * the use_delay counter.  The idea is if we're unthrottling the blkg we
+	 * are ok with whatever is happening now, and we can take away more of
+	 * the accumulated delay as we've already throttled enough that
+	 * everybody is happy with their IO latencies.
+	 */
+	if (time_before64(old + NSEC_PER_SEC, now) &&
+	    atomic64_cmpxchg(&blkg->delay_start, old, now) == old) {
+		u64 cur = atomic64_read(&blkg->delay_nsec);
+		u64 sub = min_t(u64, blkg->last_delay, now - old);
+		int cur_use = atomic_read(&blkg->use_delay);
+
+		/*
+		 * We've been unthrottled, subtract a larger chunk of our
+		 * accumulated delay.
+		 */
+		if (cur_use < blkg->last_use)
+			sub = max_t(u64, sub, blkg->last_delay >> 1);
+
+		/*
+		 * This shouldn't happen, but handle it anyway.  Our delay_nsec
+		 * should only ever be growing except here where we subtract out
+		 * min(last_delay, 1 second), but lord knows bugs happen and I'd
+		 * rather not end up with negative numbers.
+		 */
+		if (unlikely(cur < sub)) {
+			atomic64_set(&blkg->delay_nsec, 0);
+			blkg->last_delay = 0;
+		} else {
+			atomic64_sub(sub, &blkg->delay_nsec);
+			blkg->last_delay = cur - sub;
+		}
+		blkg->last_use = cur_use;
+	}
+}
+
+/*
+ * This is called when we want to actually walk up the hierarchy and check to
+ * see if we need to throttle, and then actually throttle if there is some
+ * accumulated delay.  This should only be called upon return to user space so
+ * we're not holding some lock that would induce a priority inversion.
+ */
+static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
+{
+	u64 now = ktime_to_ns(ktime_get());
+	u64 exp;
+	u64 delay_nsec = 0;
+	int tok;
+
+	while (blkg->parent) {
+		if (atomic_read(&blkg->use_delay)) {
+			blkcg_scale_delay(blkg, now);
+			delay_nsec = max_t(u64, delay_nsec,
+					   atomic64_read(&blkg->delay_nsec));
+		}
+		blkg = blkg->parent;
+	}
+
+	if (!delay_nsec)
+		return;
+
+	/*
+	 * Let's not sleep for all eternity if we've amassed a huge delay.
+	 * Swapping or metadata IO can accumulate 10's of seconds worth of
+	 * delay, and we want userspace to be able to do _something_ so cap the
+	 * delays at 1 second.  If there's 10's of seconds worth of delay then
+	 * the tasks will be delayed for 1 second for every syscall.
+	 */
+	delay_nsec = min_t(u64, delay_nsec, 250 * NSEC_PER_MSEC);
+
+	/*
+	 * TODO: the use_memdelay flag is going to be for the upcoming psi stuff
+	 * that hasn't landed upstream yet.  Once that stuff is in place we need
+	 * to do a psi_memstall_enter/leave if memdelay is set.
+	 */
+
+	exp = ktime_add_ns(now, delay_nsec);
+	tok = io_schedule_prepare();
+	do {
+		__set_current_state(TASK_KILLABLE);
+		if (!schedule_hrtimeout(&exp, HRTIMER_MODE_ABS))
+			break;
+	} while (!fatal_signal_pending(current));
+	io_schedule_finish(tok);
+}
+
+/**
+ * blkcg_maybe_throttle_current - throttle the current task if it has been marked
+ *
+ * This is only called if we've been marked with set_notify_resume().  Obviously
+ * we can be set_notify_resume() for reasons other than blkcg throttling, so we
+ * check to see if current->throttle_queue is set and if not this doesn't do
+ * anything.  This should only ever be called by the resume code, it's not meant
+ * to be called by people willy-nilly as it will actually do the work to
+ * throttle the task if it is setup for throttling.
+ */
+void blkcg_maybe_throttle_current(void)
+{
+	struct request_queue *q = current->throttle_queue;
+	struct cgroup_subsys_state *css;
+	struct blkcg *blkcg;
+	struct blkcg_gq *blkg;
+	bool use_memdelay = current->use_memdelay;
+
+	if (!q)
+		return;
+
+	current->throttle_queue = NULL;
+	current->use_memdelay = false;
+
+	rcu_read_lock();
+	css = kthread_blkcg();
+	if (css)
+		blkcg = css_to_blkcg(css);
+	else
+		blkcg = css_to_blkcg(task_css(current, io_cgrp_id));
+
+	if (!blkcg)
+		goto out;
+	blkg = blkg_lookup(blkcg, q);
+	if (!blkg)
+		goto out;
+	blkg = blkg_try_get(blkg);
+	if (!blkg)
+		goto out;
+	rcu_read_unlock();
+
+	blkcg_maybe_throttle_blkg(blkg, use_memdelay);
+	blkg_put(blkg);
+	blk_put_queue(q);
+	return;
+out:
+	rcu_read_unlock();
+	blk_put_queue(q);
+}
+EXPORT_SYMBOL_GPL(blkcg_maybe_throttle_current);
+
+/**
+ * blkcg_schedule_throttle - this task needs to check for throttling
+ * @q - the request queue IO was submitted on
+ * @use_memdelay - do we charge this to memory delay for PSI
+ *
+ * This is called by the IO controller when we know there's delay accumulated
+ * for the blkg for this task.  We do not pass the blkg because there are places
+ * we call this that may not have that information, the swapping code for
+ * instance will only have a request_queue at that point.  This set's the
+ * notify_resume for the task to check and see if it requires throttling before
+ * returning to user space.
+ *
+ * We will only schedule once per syscall.  You can call this over and over
+ * again and it will only do the check once upon return to user space, and only
+ * throttle once.  If the task needs to be throttled again it'll need to be
+ * re-set at the next time we see the task.
+ */
+void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
+{
+	if (unlikely(current->flags & PF_KTHREAD))
+		return;
+
+	if (!blk_get_queue(q))
+		return;
+
+	if (current->throttle_queue)
+		blk_put_queue(current->throttle_queue);
+	current->throttle_queue = q;
+	if (use_memdelay)
+		current->use_memdelay = use_memdelay;
+	set_notify_resume(current);
+}
+EXPORT_SYMBOL_GPL(blkcg_schedule_throttle);
+
+/**
+ * blkcg_add_delay - add delay to this blkg
+ * @now - the current time in nanoseconds
+ * @delta - how many nanoseconds of delay to add
+ *
+ * Charge @delta to the blkg's current delay accumulation.  This is used to
+ * throttle tasks if an IO controller thinks we need more throttling.
+ */
+void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta)
+{
+	blkcg_scale_delay(blkg, now);
+	atomic64_add(delta, &blkg->delay_nsec);
+}
+EXPORT_SYMBOL_GPL(blkcg_add_delay);
+
+module_param(blkcg_debug_stats, bool, 0644);
+MODULE_PARM_DESC(blkcg_debug_stats, "True if you want debug stats, false if not");

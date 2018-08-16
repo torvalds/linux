@@ -1765,8 +1765,7 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "exynos-sha1",
 		.cra_priority		= 100,
-		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-					  CRYPTO_ALG_KERN_DRIVER_ONLY |
+		.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 					  CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,
@@ -1791,8 +1790,7 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 		.cra_name		= "md5",
 		.cra_driver_name	= "exynos-md5",
 		.cra_priority		= 100,
-		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-					  CRYPTO_ALG_KERN_DRIVER_ONLY |
+		.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 					  CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,
@@ -1817,8 +1815,7 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 		.cra_name		= "sha256",
 		.cra_driver_name	= "exynos-sha256",
 		.cra_priority		= 100,
-		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-					  CRYPTO_ALG_KERN_DRIVER_ONLY |
+		.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 					  CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,

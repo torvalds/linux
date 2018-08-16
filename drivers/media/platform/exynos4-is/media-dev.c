@@ -1201,8 +1201,7 @@ static const struct media_device_ops fimc_md_ops = {
 static ssize_t fimc_md_sysfs_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fimc_md *fmd = platform_get_drvdata(pdev);
+	struct fimc_md *fmd = dev_get_drvdata(dev);
 
 	if (fmd->user_subdev_api)
 		return strlcpy(buf, "Sub-device API (sub-dev)\n", PAGE_SIZE);
@@ -1214,8 +1213,7 @@ static ssize_t fimc_md_sysfs_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fimc_md *fmd = platform_get_drvdata(pdev);
+	struct fimc_md *fmd = dev_get_drvdata(dev);
 	bool subdev_api;
 	int i;
 

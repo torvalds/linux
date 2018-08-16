@@ -801,4 +801,11 @@ struct sctp_strreset_resptsn {
 	__be32 receivers_next_tsn;
 };
 
+enum {
+	SCTP_DSCP_SET_MASK = 0x1,
+	SCTP_DSCP_VAL_MASK = 0xfc,
+	SCTP_FLOWLABEL_SET_MASK = 0x100000,
+	SCTP_FLOWLABEL_VAL_MASK = 0xfffff
+};
+
 #endif /* __LINUX_SCTP_H__ */

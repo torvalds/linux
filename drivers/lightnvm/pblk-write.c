@@ -38,7 +38,7 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 			/* Release flags on context. Protect from writes */
 			smp_store_release(&w_ctx->flags, flags);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 			atomic_dec(&rwb->inflight_flush_point);
 #endif
 		}
@@ -51,7 +51,7 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 		pblk_bio_free_pages(pblk, rqd->bio, c_ctx->nr_valid,
 							c_ctx->nr_padded);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_add(rqd->nr_ppas, &pblk->sync_writes);
 #endif
 
@@ -78,7 +78,7 @@ static void pblk_complete_write(struct pblk *pblk, struct nvm_rq *rqd,
 	unsigned long flags;
 	unsigned long pos;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_sub(c_ctx->nr_valid, &pblk->inflight_writes);
 #endif
 
@@ -196,7 +196,7 @@ static void pblk_queue_resubmit(struct pblk *pblk, struct pblk_c_ctx *c_ctx)
 	list_add_tail(&r_ctx->list, &pblk->resubmit_list);
 	spin_unlock(&pblk->resubmit_lock);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_add(c_ctx->nr_valid, &pblk->recov_writes);
 #endif
 }
@@ -238,7 +238,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
 
 	recovery = mempool_alloc(&pblk->rec_pool, GFP_ATOMIC);
 	if (!recovery) {
-		pr_err("pblk: could not allocate recovery work\n");
+		pblk_err(pblk, "could not allocate recovery work\n");
 		return;
 	}
 
@@ -258,7 +258,7 @@ static void pblk_end_io_write(struct nvm_rq *rqd)
 		pblk_end_w_fail(pblk, rqd);
 		return;
 	}
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	else
 		WARN_ONCE(rqd->bio->bi_status, "pblk: corrupted write error\n");
 #endif
@@ -279,7 +279,7 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 
 	if (rqd->error) {
 		pblk_log_write_err(pblk, rqd);
-		pr_err("pblk: metadata I/O failed. Line %d\n", line->id);
+		pblk_err(pblk, "metadata I/O failed. Line %d\n", line->id);
 		line->w_err_gc->has_write_err = 1;
 	}
 
@@ -356,11 +356,11 @@ static int pblk_calc_secs_to_sync(struct pblk *pblk, unsigned int secs_avail,
 
 	secs_to_sync = pblk_calc_secs(pblk, secs_avail, secs_to_flush);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	if ((!secs_to_sync && secs_to_flush)
 			|| (secs_to_sync < 0)
 			|| (secs_to_sync > secs_avail && !secs_to_flush)) {
-		pr_err("pblk: bad sector calculation (a:%d,s:%d,f:%d)\n",
+		pblk_err(pblk, "bad sector calculation (a:%d,s:%d,f:%d)\n",
 				secs_avail, secs_to_sync, secs_to_flush);
 	}
 #endif
@@ -397,7 +397,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	bio = pblk_bio_map_addr(pblk, data, rq_ppas, rq_len,
 					l_mg->emeta_alloc_type, GFP_KERNEL);
 	if (IS_ERR(bio)) {
-		pr_err("pblk: failed to map emeta io");
+		pblk_err(pblk, "failed to map emeta io");
 		ret = PTR_ERR(bio);
 		goto fail_free_rqd;
 	}
@@ -428,7 +428,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
-		pr_err("pblk: emeta I/O submission failed: %d\n", ret);
+		pblk_err(pblk, "emeta I/O submission failed: %d\n", ret);
 		goto fail_rollback;
 	}
 
@@ -518,7 +518,7 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 	/* Assign lbas to ppas and populate request structure */
 	err = pblk_setup_w_rq(pblk, rqd, &erase_ppa);
 	if (err) {
-		pr_err("pblk: could not setup write request: %d\n", err);
+		pblk_err(pblk, "could not setup write request: %d\n", err);
 		return NVM_IO_ERR;
 	}
 
@@ -527,7 +527,7 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 	/* Submit data write for current data line */
 	err = pblk_submit_io(pblk, rqd);
 	if (err) {
-		pr_err("pblk: data I/O submission failed: %d\n", err);
+		pblk_err(pblk, "data I/O submission failed: %d\n", err);
 		return NVM_IO_ERR;
 	}
 
@@ -549,7 +549,8 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 		/* Submit metadata write for previous data line */
 		err = pblk_submit_meta_io(pblk, meta_line);
 		if (err) {
-			pr_err("pblk: metadata I/O submission failed: %d", err);
+			pblk_err(pblk, "metadata I/O submission failed: %d",
+					err);
 			return NVM_IO_ERR;
 		}
 	}
@@ -614,7 +615,7 @@ static int pblk_submit_write(struct pblk *pblk)
 		secs_to_sync = pblk_calc_secs_to_sync(pblk, secs_avail,
 					secs_to_flush);
 		if (secs_to_sync > pblk->max_write_pgs) {
-			pr_err("pblk: bad buffer sync calculation\n");
+			pblk_err(pblk, "bad buffer sync calculation\n");
 			return 1;
 		}
 
@@ -633,14 +634,14 @@ static int pblk_submit_write(struct pblk *pblk)
 
 	if (pblk_rb_read_to_bio(&pblk->rwb, rqd, pos, secs_to_sync,
 								secs_avail)) {
-		pr_err("pblk: corrupted write bio\n");
+		pblk_err(pblk, "corrupted write bio\n");
 		goto fail_put_bio;
 	}
 
 	if (pblk_submit_io_set(pblk, rqd))
 		goto fail_free_bio;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_add(secs_to_sync, &pblk->sub_writes);
 #endif
 

@@ -81,6 +81,7 @@ union bpf_attr;
 #include <linux/unistd.h>
 #include <linux/quota.h>
 #include <linux/key.h>
+#include <linux/personality.h>
 #include <trace/syscall.h>
 
 #ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
@@ -506,9 +507,9 @@ asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
 /* fs/timerfd.c */
 asmlinkage long sys_timerfd_create(int clockid, int flags);
 asmlinkage long sys_timerfd_settime(int ufd, int flags,
-				    const struct itimerspec __user *utmr,
-				    struct itimerspec __user *otmr);
-asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
+				    const struct __kernel_itimerspec __user *utmr,
+				    struct __kernel_itimerspec __user *otmr);
+asmlinkage long sys_timerfd_gettime(int ufd, struct __kernel_itimerspec __user *otmr);
 
 /* fs/utimes.c */
 asmlinkage long sys_utimensat(int dfd, const char __user *filename,
@@ -573,10 +574,10 @@ asmlinkage long sys_timer_create(clockid_t which_clock,
 				 struct sigevent __user *timer_event_spec,
 				 timer_t __user * created_timer_id);
 asmlinkage long sys_timer_gettime(timer_t timer_id,
-				struct itimerspec __user *setting);
+				struct __kernel_itimerspec __user *setting);
 asmlinkage long sys_timer_getoverrun(timer_t timer_id);
 asmlinkage long sys_timer_settime(timer_t timer_id, int flags,
-				const struct itimerspec __user *new_setting,
+				const struct __kernel_itimerspec __user *new_setting,
 				struct itimerspec __user *old_setting);
 asmlinkage long sys_timer_delete(timer_t timer_id);
 asmlinkage long sys_clock_settime(clockid_t which_clock,
@@ -1280,6 +1281,16 @@ extern long do_sys_truncate(const char __user *pathname, loff_t length);
 static inline long ksys_truncate(const char __user *pathname, loff_t length)
 {
 	return do_sys_truncate(pathname, length);
+}
+
+static inline unsigned int ksys_personality(unsigned int personality)
+{
+	unsigned int old = current->personality;
+
+	if (personality != 0xffffffff)
+		set_personality(personality);
+
+	return old;
 }
 
 #endif

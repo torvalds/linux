@@ -16,9 +16,6 @@
  * GNU General Public License for more details.
  */
 
-/* We need to access legacy defines from linux/media.h */
-#define __NEED_MEDIA_LEGACY_API
-
 #include <linux/compat.h>
 #include <linux/export.h>
 #include <linux/idr.h>
@@ -28,12 +25,23 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/usb.h>
+#include <linux/version.h>
 
 #include <media/media-device.h>
 #include <media/media-devnode.h>
 #include <media/media-entity.h>
 
 #ifdef CONFIG_MEDIA_CONTROLLER
+
+/*
+ * Legacy defines from linux/media.h. This is the only place we need this
+ * so we just define it here. The media.h header doesn't expose it to the
+ * kernel to prevent it from being used by drivers, but here (and only here!)
+ * we need it to handle the legacy behavior.
+ */
+#define MEDIA_ENT_SUBTYPE_MASK			0x0000ffff
+#define MEDIA_ENT_T_DEVNODE_UNKNOWN		(MEDIA_ENT_F_OLD_BASE | \
+						 MEDIA_ENT_SUBTYPE_MASK)
 
 /* -----------------------------------------------------------------------------
  * Userspace API
@@ -259,6 +267,7 @@ static long media_device_get_topology(struct media_device *mdev, void *arg)
 		memset(&kentity, 0, sizeof(kentity));
 		kentity.id = entity->graph_obj.id;
 		kentity.function = entity->function;
+		kentity.flags = entity->flags;
 		strlcpy(kentity.name, entity->name,
 			sizeof(kentity.name));
 
@@ -324,6 +333,7 @@ static long media_device_get_topology(struct media_device *mdev, void *arg)
 		kpad.id = pad->graph_obj.id;
 		kpad.entity_id = pad->entity->graph_obj.id;
 		kpad.flags = pad->flags;
+		kpad.index = pad->index;
 
 		if (copy_to_user(upad, &kpad, sizeof(kpad)))
 			ret = -EFAULT;

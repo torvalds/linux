@@ -236,7 +236,6 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 {
 	struct device *dma_dev = bgmac->dma_dev;
 	int empty_slot;
-	bool freed = false;
 	unsigned bytes_compl = 0, pkts_compl = 0;
 
 	/* The last slot that hardware didn't consume yet */
@@ -279,7 +278,6 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 
 		slot->dma_addr = 0;
 		ring->start++;
-		freed = true;
 	}
 
 	if (!pkts_compl)

@@ -155,9 +155,6 @@ static int __init pci_iommu_init(void)
 {
 	struct iommu_table_entry *p;
 
-#ifdef CONFIG_PCI
-	dma_debug_add_bus(&pci_bus_type);
-#endif
 	x86_init.iommu.iommu_init();
 
 	for (p = __iommu_table; p < __iommu_table_end; p++) {
@@ -175,7 +172,7 @@ rootfs_initcall(pci_iommu_init);
 
 static int via_no_dac_cb(struct pci_dev *pdev, void *data)
 {
-	pdev->dev.dma_32bit_limit = true;
+	pdev->dev.bus_dma_mask = DMA_BIT_MASK(32);
 	return 0;
 }
 

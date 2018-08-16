@@ -235,7 +235,7 @@ ENDPROC(__morus1280_update_zero)
  *   %r9
  */
 __load_partial:
-	xor %r9, %r9
+	xor %r9d, %r9d
 	pxor MSG_LO, MSG_LO
 	pxor MSG_HI, MSG_HI
 

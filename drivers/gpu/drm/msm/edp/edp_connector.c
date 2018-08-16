@@ -56,7 +56,7 @@ static int edp_connector_get_modes(struct drm_connector *connector)
 	if (ret)
 		return ret;
 
-	drm_mode_connector_update_edid_property(connector, drm_edid);
+	drm_connector_update_edid_property(connector, drm_edid);
 	if (drm_edid)
 		ret = drm_add_edid_modes(connector, drm_edid);
 
@@ -134,7 +134,7 @@ struct drm_connector *msm_edp_connector_init(struct msm_edp *edp)
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_mode_connector_attach_encoder(connector, edp->encoder);
+	drm_connector_attach_encoder(connector, edp->encoder);
 
 	return connector;
 }

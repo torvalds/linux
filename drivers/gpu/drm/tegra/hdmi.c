@@ -1488,7 +1488,7 @@ static int tegra_hdmi_init(struct host1x_client *client)
 	drm_encoder_helper_add(&hdmi->output.encoder,
 			       &tegra_hdmi_encoder_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&hdmi->output.connector,
+	drm_connector_attach_encoder(&hdmi->output.connector,
 					  &hdmi->output.encoder);
 	drm_connector_register(&hdmi->output.connector);
 

@@ -256,6 +256,11 @@ static void setup_panel_mode(
 	enum dp_panel_mode panel_mode)
 {
 	uint32_t value;
+	struct dc_context *ctx = enc110->base.ctx;
+
+	/* if psp set panel mode, dal should be program it */
+	if (ctx->dc->caps.psp_setup_panel_mode)
+		return;
 
 	ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
 	value = REG_READ(DP_DPHY_INTERNAL_CTRL);
@@ -646,6 +651,9 @@ static bool dce110_link_encoder_validate_hdmi_output(
 	if (!enc110->base.features.flags.bits.HDMI_6GB_EN &&
 		adjusted_pix_clk_khz >= 300000)
 		return false;
+	if (enc110->base.ctx->dc->debug.hdmi20_disable &&
+		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		return false;
 	return true;
 }
 
@@ -772,6 +780,9 @@ void dce110_link_encoder_construct(
 		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
 				__func__,
 				result);
+	}
+	if (enc110->base.ctx->dc->debug.hdmi20_disable) {
+		enc110->base.features.flags.bits.HDMI_6GB_EN = 0;
 	}
 }
 

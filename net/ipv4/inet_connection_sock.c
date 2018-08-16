@@ -107,6 +107,15 @@ bool inet_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
 }
 EXPORT_SYMBOL(inet_rcv_saddr_equal);
 
+bool inet_rcv_saddr_any(const struct sock *sk)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		return ipv6_addr_any(&sk->sk_v6_rcv_saddr);
+#endif
+	return !sk->sk_rcv_saddr;
+}
+
 void inet_get_local_port_range(struct net *net, int *low, int *high)
 {
 	unsigned int seq;

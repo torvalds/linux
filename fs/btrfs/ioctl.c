@@ -5,23 +5,18 @@
 
 #include <linux/kernel.h>
 #include <linux/bio.h>
-#include <linux/buffer_head.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/fsnotify.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/time.h>
-#include <linux/init.h>
 #include <linux/string.h>
 #include <linux/backing-dev.h>
 #include <linux/mount.h>
-#include <linux/mpage.h>
 #include <linux/namei.h>
-#include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/compat.h>
-#include <linux/bit_spinlock.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
 #include <linux/mm.h>
@@ -606,7 +601,7 @@ static noinline int create_subvol(struct inode *dir,
 	trans->block_rsv = &block_rsv;
 	trans->bytes_reserved = block_rsv.size;
 
-	ret = btrfs_qgroup_inherit(trans, fs_info, 0, objectid, inherit);
+	ret = btrfs_qgroup_inherit(trans, 0, objectid, inherit);
 	if (ret)
 		goto fail;
 
@@ -616,14 +611,6 @@ static noinline int create_subvol(struct inode *dir,
 		goto fail;
 	}
 
-	memzero_extent_buffer(leaf, 0, sizeof(struct btrfs_header));
-	btrfs_set_header_bytenr(leaf, leaf->start);
-	btrfs_set_header_generation(leaf, trans->transid);
-	btrfs_set_header_backref_rev(leaf, BTRFS_MIXED_BACKREF_REV);
-	btrfs_set_header_owner(leaf, objectid);
-
-	write_extent_buffer_fsid(leaf, fs_info->fsid);
-	write_extent_buffer_chunk_tree_uuid(leaf, fs_info->chunk_tree_uuid);
 	btrfs_mark_buffer_dirty(leaf);
 
 	inode_item = &root_item->inode;
@@ -711,8 +698,7 @@ static noinline int create_subvol(struct inode *dir,
 	ret = btrfs_update_inode(trans, root, dir);
 	BUG_ON(ret);
 
-	ret = btrfs_add_root_ref(trans, fs_info,
-				 objectid, root->root_key.objectid,
+	ret = btrfs_add_root_ref(trans, objectid, root->root_key.objectid,
 				 btrfs_ino(BTRFS_I(dir)), index, name, namelen);
 	BUG_ON(ret);
 
@@ -2507,8 +2493,8 @@ out:
 static noinline int btrfs_ioctl_ino_lookup(struct file *file,
 					   void __user *argp)
 {
-	 struct btrfs_ioctl_ino_lookup_args *args;
-	 struct inode *inode;
+	struct btrfs_ioctl_ino_lookup_args *args;
+	struct inode *inode;
 	int ret = 0;
 
 	args = memdup_user(argp, sizeof(*args));
@@ -2941,8 +2927,14 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 		ret = btrfs_defrag_root(root);
 		break;
 	case S_IFREG:
-		if (!(file->f_mode & FMODE_WRITE)) {
-			ret = -EINVAL;
+		/*
+		 * Note that this does not check the file descriptor for write
+		 * access. This prevents defragmenting executables that are
+		 * running and allows defrag on files open in read-only mode.
+		 */
+		if (!capable(CAP_SYS_ADMIN) &&
+		    inode_permission(inode, MAY_WRITE)) {
+			ret = -EPERM;
 			goto out;
 		}
 
@@ -3165,10 +3157,8 @@ static long btrfs_ioctl_dev_info(struct btrfs_fs_info *fs_info,
 	di_args->total_bytes = btrfs_device_get_total_bytes(dev);
 	memcpy(di_args->uuid, dev->uuid, sizeof(di_args->uuid));
 	if (dev->name) {
-		struct rcu_string *name;
-
-		name = rcu_dereference(dev->name);
-		strncpy(di_args->path, name->str, sizeof(di_args->path) - 1);
+		strncpy(di_args->path, rcu_str_deref(dev->name),
+				sizeof(di_args->path) - 1);
 		di_args->path[sizeof(di_args->path) - 1] = 0;
 	} else {
 		di_args->path[0] = '\0';
@@ -5118,9 +5108,7 @@ static long btrfs_ioctl_quota_ctl(struct file *file, void __user *arg)
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ioctl_quota_ctl_args *sa;
-	struct btrfs_trans_handle *trans = NULL;
 	int ret;
-	int err;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -5136,28 +5124,19 @@ static long btrfs_ioctl_quota_ctl(struct file *file, void __user *arg)
 	}
 
 	down_write(&fs_info->subvol_sem);
-	trans = btrfs_start_transaction(fs_info->tree_root, 2);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		goto out;
-	}
 
 	switch (sa->cmd) {
 	case BTRFS_QUOTA_CTL_ENABLE:
-		ret = btrfs_quota_enable(trans, fs_info);
+		ret = btrfs_quota_enable(fs_info);
 		break;
 	case BTRFS_QUOTA_CTL_DISABLE:
-		ret = btrfs_quota_disable(trans, fs_info);
+		ret = btrfs_quota_disable(fs_info);
 		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
-	err = btrfs_commit_transaction(trans);
-	if (err && !ret)
-		ret = err;
-out:
 	kfree(sa);
 	up_write(&fs_info->subvol_sem);
 drop_write:
@@ -5195,15 +5174,13 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 	}
 
 	if (sa->assign) {
-		ret = btrfs_add_qgroup_relation(trans, fs_info,
-						sa->src, sa->dst);
+		ret = btrfs_add_qgroup_relation(trans, sa->src, sa->dst);
 	} else {
-		ret = btrfs_del_qgroup_relation(trans, fs_info,
-						sa->src, sa->dst);
+		ret = btrfs_del_qgroup_relation(trans, sa->src, sa->dst);
 	}
 
 	/* update qgroup status and info */
-	err = btrfs_run_qgroups(trans, fs_info);
+	err = btrfs_run_qgroups(trans);
 	if (err < 0)
 		btrfs_handle_fs_error(fs_info, err,
 				      "failed to update qgroup status and info");
@@ -5221,7 +5198,6 @@ drop_write:
 static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 {
 	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ioctl_qgroup_create_args *sa;
 	struct btrfs_trans_handle *trans;
@@ -5253,9 +5229,9 @@ static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 	}
 
 	if (sa->create) {
-		ret = btrfs_create_qgroup(trans, fs_info, sa->qgroupid);
+		ret = btrfs_create_qgroup(trans, sa->qgroupid);
 	} else {
-		ret = btrfs_remove_qgroup(trans, fs_info, sa->qgroupid);
+		ret = btrfs_remove_qgroup(trans, sa->qgroupid);
 	}
 
 	err = btrfs_end_transaction(trans);
@@ -5272,7 +5248,6 @@ drop_write:
 static long btrfs_ioctl_qgroup_limit(struct file *file, void __user *arg)
 {
 	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ioctl_qgroup_limit_args *sa;
 	struct btrfs_trans_handle *trans;
@@ -5305,7 +5280,7 @@ static long btrfs_ioctl_qgroup_limit(struct file *file, void __user *arg)
 		qgroupid = root->root_key.objectid;
 	}
 
-	ret = btrfs_limit_qgroup(trans, fs_info, qgroupid, &sa->lim);
+	ret = btrfs_limit_qgroup(trans, qgroupid, &sa->lim);
 
 	err = btrfs_end_transaction(trans);
 	if (err && !ret)

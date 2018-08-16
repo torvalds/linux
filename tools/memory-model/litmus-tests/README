@@ -18,7 +18,7 @@ CoWW+poonceonce.litmus
 	Test of write-write coherence, that is, whether or not two
 	successive writes to the same variable are ordered.
 
-IRIW+mbonceonces+OnceOnce.litmus
+IRIW+fencembonceonces+OnceOnce.litmus
 	Test of independent reads from independent writes with smp_mb()
 	between each pairs of reads.  In other words, is smp_mb()
 	sufficient to cause two different reading processes to agree on
@@ -47,7 +47,7 @@ ISA2+pooncerelease+poacquirerelease+poacquireonce.litmus
 	Can a release-acquire chain order a prior store against
 	a later load?
 
-LB+ctrlonceonce+mbonceonce.litmus
+LB+fencembonceonce+ctrlonceonce.litmus
 	Does a control dependency and an smp_mb() suffice for the
 	load-buffering litmus test, where each process reads from one
 	of two variables then writes to the other?
@@ -88,14 +88,14 @@ MP+porevlocks.litmus
 	As below, but with the first access of the writer process
 	and the second access of reader process protected by a lock.
 
-MP+wmbonceonce+rmbonceonce.litmus
+MP+fencewmbonceonce+fencermbonceonce.litmus
 	Does a smp_wmb() (between the stores) and an smp_rmb() (between
 	the loads) suffice for the message-passing litmus test, where one
 	process writes data and then a flag, and the other process reads
 	the flag and then the data.  (This is similar to the ISA2 tests,
 	but with two processes instead of three.)
 
-R+mbonceonces.litmus
+R+fencembonceonces.litmus
 	This is the fully ordered (via smp_mb()) version of one of
 	the classic counterintuitive litmus tests that illustrates the
 	effects of store propagation delays.
@@ -103,7 +103,7 @@ R+mbonceonces.litmus
 R+poonceonces.litmus
 	As above, but without the smp_mb() invocations.
 
-SB+mbonceonces.litmus
+SB+fencembonceonces.litmus
 	This is the fully ordered (again, via smp_mb() version of store
 	buffering, which forms the core of Dekker's mutual-exclusion
 	algorithm.
@@ -111,15 +111,24 @@ SB+mbonceonces.litmus
 SB+poonceonces.litmus
 	As above, but without the smp_mb() invocations.
 
+SB+rfionceonce-poonceonces.litmus
+	This litmus test demonstrates that LKMM is not fully multicopy
+	atomic.  (Neither is it other multicopy atomic.)  This litmus test
+	also demonstrates the "locations" debugging aid, which designates
+	additional registers and locations to be printed out in the dump
+	of final states in the herd7 output.  Without the "locations"
+	statement, only those registers and locations mentioned in the
+	"exists" clause will be printed.
+
 S+poonceonces.litmus
 	As below, but without the smp_wmb() and acquire load.
 
-S+wmbonceonce+poacquireonce.litmus
+S+fencewmbonceonce+poacquireonce.litmus
 	Can a smp_wmb(), instead of a release, and an acquire order
 	a prior store against a subsequent store?
 
 WRC+poonceonces+Once.litmus
-WRC+pooncerelease+rmbonceonce+Once.litmus
+WRC+pooncerelease+fencermbonceonce+Once.litmus
 	These two are members of an extension of the MP litmus-test
 	class in which the first write is moved to a separate process.
 	The second is forbidden because smp_store_release() is
@@ -134,7 +143,7 @@ Z6.0+pooncelock+poonceLock+pombonce.litmus
 	As above, but with smp_mb__after_spinlock() immediately
 	following the spin_lock().
 
-Z6.0+pooncerelease+poacquirerelease+mbonceonce.litmus
+Z6.0+pooncerelease+poacquirerelease+fencembonceonce.litmus
 	Is the ordering provided by a release-acquire chain sufficient
 	to make ordering apparent to accesses by a process that does
 	not participate in that release-acquire chain?

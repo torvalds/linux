@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.

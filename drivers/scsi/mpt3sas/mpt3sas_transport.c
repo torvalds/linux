@@ -134,7 +134,7 @@ _transport_convert_phy_link_rate(u8 link_rate)
  *
  * Populates sas identify info.
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _transport_set_identify(struct MPT3SAS_ADAPTER *ioc, u16 handle,
@@ -226,8 +226,8 @@ _transport_set_identify(struct MPT3SAS_ADAPTER *ioc, u16 handle,
  * Callback handler when sending internal generated transport cmds.
  * The callback index passed is `ioc->transport_cb_idx`
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Return: 1 meaning mf should be freed from _base_interrupt
+ *         0 means the mf is freed from this function.
  */
 u8
 mpt3sas_transport_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -287,7 +287,7 @@ struct rep_manu_reply {
  *
  * Fills in the sas_expander_device object when SMP port is created.
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
@@ -460,8 +460,6 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
  * _transport_delete_port - helper function to removing a port
  * @ioc: per adapter object
  * @mpt3sas_port: mpt3sas per port object
- *
- * Returns nothing.
  */
 static void
 _transport_delete_port(struct MPT3SAS_ADAPTER *ioc,
@@ -489,8 +487,6 @@ _transport_delete_port(struct MPT3SAS_ADAPTER *ioc,
  * @ioc: per adapter object
  * @mpt3sas_port: mpt3sas per port object
  * @mpt3sas_phy: mpt3sas per phy object
- *
- * Returns nothing.
  */
 static void
 _transport_delete_phy(struct MPT3SAS_ADAPTER *ioc,
@@ -513,8 +509,6 @@ _transport_delete_phy(struct MPT3SAS_ADAPTER *ioc,
  * @ioc: per adapter object
  * @mpt3sas_port: mpt3sas per port object
  * @mpt3sas_phy: mpt3sas per phy object
- *
- * Returns nothing.
  */
 static void
 _transport_add_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_port *mpt3sas_port,
@@ -538,8 +532,6 @@ _transport_add_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_port *mpt3sas_port,
  * @sas_node: sas node object (either expander or sas host)
  * @mpt3sas_phy: mpt3sas per phy object
  * @sas_address: sas address of device/expander were phy needs to be added to
- *
- * Returns nothing.
  */
 static void
 _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
@@ -563,7 +555,7 @@ _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 				return;
 		}
 		_transport_add_phy(ioc, mpt3sas_port, mpt3sas_phy);
-			return;
+		return;
 	}
 
 }
@@ -573,8 +565,6 @@ _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
  * @ioc: per adapter object
  * @sas_node: sas node object (either expander or sas host)
  * @mpt3sas_phy: mpt3sas per phy object
- *
- * Returns nothing.
  */
 static void
 _transport_del_phy_from_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
@@ -635,7 +625,7 @@ _transport_sanity_check(struct MPT3SAS_ADAPTER *ioc, struct _sas_node *sas_node,
  *
  * Adding new port object to the sas_node->sas_port_list.
  *
- * Returns mpt3sas_port.
+ * Return: mpt3sas_port.
  */
 struct _sas_port *
 mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
@@ -794,8 +784,6 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
  *
  * Removing object and freeing associated memory from the
  * ioc->sas_port_list.
- *
- * Return nothing.
  */
 void
 mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
@@ -860,7 +848,7 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
  * @phy_pg0: sas phy page 0
  * @parent_dev: parent device class object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 int
 mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
@@ -928,7 +916,7 @@ mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
  * @expander_pg1: expander page 1
  * @parent_dev: parent device class object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 int
 mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
@@ -995,10 +983,8 @@ mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
  * @ioc: per adapter object
  * @sas_address: sas address of parent expander or sas host
  * @handle: attached device handle
- * @phy_numberv: phy number
+ * @phy_number: phy number
  * @link_rate: new link rate
- *
- * Returns nothing.
  */
 void
 mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
@@ -1090,7 +1076,7 @@ struct phy_error_log_reply {
  * @ioc: per adapter object
  * @phy: The sas phy object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  *
  */
 static int
@@ -1262,7 +1248,7 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
  * _transport_get_linkerrors - return phy counters for both hba and expanders
  * @phy: The sas phy object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  *
  */
 static int
@@ -1311,10 +1297,11 @@ _transport_get_linkerrors(struct sas_phy *phy)
 
 /**
  * _transport_get_enclosure_identifier -
- * @phy: The sas phy object
+ * @rphy: The sas phy object
+ * @identifier: ?
  *
  * Obtain the enclosure logical id for an expander.
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _transport_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
@@ -1342,9 +1329,9 @@ _transport_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
 
 /**
  * _transport_get_bay_identifier -
- * @phy: The sas phy object
+ * @rphy: The sas phy object
  *
- * Returns the slot id for a device that resides inside an enclosure.
+ * Return: the slot id for a device that resides inside an enclosure.
  */
 static int
 _transport_get_bay_identifier(struct sas_rphy *rphy)
@@ -1400,8 +1387,9 @@ struct phy_control_reply {
  * _transport_expander_phy_control - expander phy control
  * @ioc: per adapter object
  * @phy: The sas phy object
+ * @phy_operation: ?
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  *
  */
 static int
@@ -1571,7 +1559,7 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
  * @phy: The sas phy object
  * @hard_reset:
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _transport_phy_reset(struct sas_phy *phy, int hard_reset)
@@ -1623,7 +1611,7 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
  * @enable: enable phy when true
  *
  * Only support sas_host direct attached phys.
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _transport_phy_enable(struct sas_phy *phy, int enable)
@@ -1761,7 +1749,8 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
  * @rates: rates defined in sas_phy_linkrates
  *
  * Only support sas_host direct attached phys.
- * Returns 0 for success, non-zero for failure.
+ *
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _transport_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates)
@@ -1904,9 +1893,9 @@ _transport_unmap_smp_buffer(struct device *dev, struct bsg_buffer *buf,
 
 /**
  * _transport_smp_handler - transport portal for smp passthru
+ * @job: ?
  * @shost: shost object
  * @rphy: sas transport rphy object
- * @req:
  *
  * This used primarily for smp_utils.
  * Example:
@@ -1936,12 +1925,12 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		pr_info(MPT3SAS_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		rc = -EFAULT;
-		goto out;
+		goto job_done;
 	}
 
 	rc = mutex_lock_interruptible(&ioc->transport_cmds.mutex);
 	if (rc)
-		goto out;
+		goto job_done;
 
 	if (ioc->transport_cmds.status != MPT3_CMD_NOT_USED) {
 		pr_err(MPT3SAS_FMT "%s: transport_cmds in use\n", ioc->name,
@@ -2066,6 +2055,7 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
  out:
 	ioc->transport_cmds.status = MPT3_CMD_NOT_USED;
 	mutex_unlock(&ioc->transport_cmds.mutex);
+job_done:
 	bsg_job_done(job, rc, reslen);
 }
 

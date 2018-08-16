@@ -153,8 +153,6 @@ void intel_frontbuffer_flip_prepare(struct drm_i915_private *dev_priv,
 	/* Remove stale busy bits due to the old buffer. */
 	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
 	spin_unlock(&dev_priv->fb_tracking.lock);
-
-	intel_psr_single_frame_update(dev_priv, frontbuffer_bits);
 }
 
 /**

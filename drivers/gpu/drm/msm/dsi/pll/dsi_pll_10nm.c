@@ -798,6 +798,8 @@ struct msm_dsi_pll *msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
 		return ERR_PTR(-ENOMEM);
 	}
 
+	spin_lock_init(&pll_10nm->postdiv_lock);
+
 	pll = &pll_10nm->base;
 	pll->min_rate = 1000000000UL;
 	pll->max_rate = 3500000000UL;

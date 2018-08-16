@@ -14,26 +14,6 @@
 #include <asm/facility.h>
 
 #include "ap_bus.h"
-#include "ap_asm.h"
-
-/**
- * ap_queue_irq_ctrl(): Control interruption on a AP queue.
- * @qirqctrl: struct ap_qirq_ctrl (64 bit value)
- * @ind: The notification indicator byte
- *
- * Returns AP queue status.
- *
- * Control interruption on the given AP queue.
- * Just a simple wrapper function for the low level PQAP(AQIC)
- * instruction available for other kernel modules.
- */
-struct ap_queue_status ap_queue_irq_ctrl(ap_qid_t qid,
-					 struct ap_qirq_ctrl qirqctrl,
-					 void *ind)
-{
-	return ap_aqic(qid, qirqctrl, ind);
-}
-EXPORT_SYMBOL(ap_queue_irq_ctrl);
 
 /**
  * ap_queue_enable_interruption(): Enable interruption on an AP queue.

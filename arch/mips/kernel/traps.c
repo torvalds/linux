@@ -1221,13 +1221,6 @@ static int enable_restore_fp_context(int msa)
 {
 	int err, was_fpu_owner, prior_msa;
 
-	/*
-	 * If an FP mode switch is currently underway, wait for it to
-	 * complete before proceeding.
-	 */
-	wait_var_event(&current->mm->context.fp_mode_switching,
-		       !atomic_read(&current->mm->context.fp_mode_switching));
-
 	if (!used_math()) {
 		/* First time FP context user. */
 		preempt_disable();

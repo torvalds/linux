@@ -554,3 +554,17 @@ config ADI
 
 endmenu
 
+config RANDOM_TRUST_CPU
+	bool "Trust the CPU manufacturer to initialize Linux's CRNG"
+	depends on X86 || S390 || PPC
+	default n
+	help
+	Assume that CPU manufacturer (e.g., Intel or AMD for RDSEED or
+	RDRAND, IBM for the S390 and Power PC architectures) is trustworthy
+	for the purposes of initializing Linux's CRNG.  Since this is not
+	something that can be independently audited, this amounts to trusting
+	that CPU manufacturer (perhaps with the insistence or mandate
+	of a Nation State's intelligence or law enforcement agencies)
+	has not installed a hidden back door to compromise the CPU's
+	random number generation facilities.
+

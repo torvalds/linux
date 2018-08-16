@@ -1653,6 +1653,10 @@ struct radeon_pm {
 	struct radeon_dpm       dpm;
 };
 
+#define RADEON_PCIE_SPEED_25 1
+#define RADEON_PCIE_SPEED_50 2
+#define RADEON_PCIE_SPEED_80 4
+
 int radeon_pm_get_type_index(struct radeon_device *rdev,
 			     enum radeon_pm_state_type ps_type,
 			     int instance);

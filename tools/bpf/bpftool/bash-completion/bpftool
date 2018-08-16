@@ -99,6 +99,35 @@ _bpftool_get_prog_tags()
         command sed -n 's/.*"tag": "\(.*\)",$/\1/p' )" -- "$cur" ) )
 }
 
+_bpftool_get_obj_map_names()
+{
+    local obj
+
+    obj=$1
+
+    maps=$(objdump -j maps -t $obj 2>/dev/null | \
+        command awk '/g     . maps/ {print $NF}')
+
+    COMPREPLY+=( $( compgen -W "$maps" -- "$cur" ) )
+}
+
+_bpftool_get_obj_map_idxs()
+{
+    local obj
+
+    obj=$1
+
+    nmaps=$(objdump -j maps -t $obj 2>/dev/null | grep -c 'g     . maps')
+
+    COMPREPLY+=( $( compgen -W "$(seq 0 $((nmaps - 1)))" -- "$cur" ) )
+}
+
+_sysfs_get_netdevs()
+{
+    COMPREPLY+=( $( compgen -W "$( ls /sys/class/net 2>/dev/null )" -- \
+        "$cur" ) )
+}
+
 # For bpftool map update: retrieve type of the map to update.
 _bpftool_map_update_map_type()
 {
@@ -153,6 +182,13 @@ _bpftool()
     local cur prev words objword
     _init_completion || return
 
+    # Deal with options
+    if [[ ${words[cword]} == -* ]]; then
+        local c='--version --json --pretty --bpffs'
+        COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
+        return 0
+    fi
+
     # Deal with simplest keywords
     case $prev in
         help|hex|opcodes|visual)
@@ -172,20 +208,23 @@ _bpftool()
             ;;
     esac
 
-    # Search for object and command
-    local object command cmdword
-    for (( cmdword=1; cmdword < ${#words[@]}-1; cmdword++ )); do
-        [[ -n $object ]] && command=${words[cmdword]} && break
-        [[ ${words[cmdword]} != -* ]] && object=${words[cmdword]}
+    # Remove all options so completions don't have to deal with them.
+    local i
+    for (( i=1; i < ${#words[@]}; )); do
+        if [[ ${words[i]::1} == - ]]; then
+            words=( "${words[@]:0:i}" "${words[@]:i+1}" )
+            [[ $i -le $cword ]] && cword=$(( cword - 1 ))
+        else
+            i=$(( ++i ))
+        fi
     done
+    cur=${words[cword]}
+    prev=${words[cword - 1]}
 
-    if [[ -z $object ]]; then
+    local object=${words[1]} command=${words[2]}
+
+    if [[ -z $object || $cword -eq 1 ]]; then
         case $cur in
-            -*)
-                local c='--version --json --pretty'
-                COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
-                return 0
-                ;;
             *)
                 COMPREPLY=( $( compgen -W "$( bpftool help 2>&1 | \
                     command sed \
@@ -204,12 +243,14 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            case $prev in
-                id)
-                    _bpftool_get_prog_ids
-                    return 0
-                    ;;
-            esac
+            if [[ $command != "load" ]]; then
+                case $prev in
+                    id)
+                        _bpftool_get_prog_ids
+                        return 0
+                        ;;
+                esac
+            fi
 
             local PROG_TYPE='id pinned tag'
             case $command in
@@ -252,8 +293,57 @@ _bpftool()
                     return 0
                     ;;
                 load)
-                    _filedir
-                    return 0
+                    local obj
+
+                    if [[ ${#words[@]} -lt 6 ]]; then
+                        _filedir
+                        return 0
+                    fi
+
+                    obj=${words[3]}
+
+                    if [[ ${words[-4]} == "map" ]]; then
+                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
+                        return 0
+                    fi
+                    if [[ ${words[-3]} == "map" ]]; then
+                        if [[ ${words[-2]} == "idx" ]]; then
+                            _bpftool_get_obj_map_idxs $obj
+                        elif [[ ${words[-2]} == "name" ]]; then
+                            _bpftool_get_obj_map_names $obj
+                        fi
+                        return 0
+                    fi
+                    if [[ ${words[-2]} == "map" ]]; then
+                        COMPREPLY=( $( compgen -W "idx name" -- "$cur" ) )
+                        return 0
+                    fi
+
+                    case $prev in
+                        type)
+                            COMPREPLY=( $( compgen -W "socket kprobe kretprobe classifier action tracepoint raw_tracepoint xdp perf_event cgroup/skb cgroup/sock cgroup/dev lwt_in lwt_out lwt_xmit lwt_seg6local sockops sk_skb sk_msg lirc_mode2 cgroup/bind4 cgroup/bind6 cgroup/connect4 cgroup/connect6 cgroup/sendmsg4 cgroup/sendmsg6 cgroup/post_bind4 cgroup/post_bind6" -- \
+                                                   "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            _bpftool_get_map_ids
+                            return 0
+                            ;;
+                        pinned)
+                            _filedir
+                            return 0
+                            ;;
+                        dev)
+                            _sysfs_get_netdevs
+                            return 0
+                            ;;
+                        *)
+                            COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
+                            _bpftool_once_attr 'type'
+                            _bpftool_once_attr 'dev'
+                            return 0
+                            ;;
+                    esac
                     ;;
                 *)
                     [[ $prev == $object ]] && \
@@ -404,6 +494,10 @@ _bpftool()
                     _filedir
                     return 0
                     ;;
+		tree)
+		    _filedir
+		    return 0
+		    ;;
                 attach|detach)
                     local ATTACH_TYPES='ingress egress sock_create sock_ops \
                         device bind4 bind6 post_bind4 post_bind6 connect4 \
@@ -445,7 +539,7 @@ _bpftool()
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'help attach detach \
-                            show list' -- "$cur" ) )
+                            show list tree' -- "$cur" ) )
                     ;;
             esac
             ;;

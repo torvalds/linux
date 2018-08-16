@@ -1833,9 +1833,9 @@ static enum dvbfe_algo cxd2880_get_frontend_algo(struct dvb_frontend *fe)
 static struct dvb_frontend_ops cxd2880_dvbt_t2_ops = {
 	.info = {
 		.name = "Sony CXD2880",
-		.frequency_min =  174000000,
-		.frequency_max = 862000000,
-		.frequency_stepsize = 1000,
+		.frequency_min_hz = 174 * MHz,
+		.frequency_max_hz = 862 * MHz,
+		.frequency_stepsize_hz = 1 * kHz,
 		.caps = FE_CAN_INVERSION_AUTO |
 				FE_CAN_FEC_1_2 |
 				FE_CAN_FEC_2_3 |

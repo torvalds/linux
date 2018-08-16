@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -438,7 +438,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_connector;
 	}
 
-	(void) drm_mode_connector_attach_encoder(connector, encoder);
+	(void) drm_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
 
@@ -547,11 +547,11 @@ int vmw_kms_ldu_close_display(struct vmw_private *dev_priv)
 }
 
 
-int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
-				struct vmw_framebuffer *framebuffer,
-				unsigned flags, unsigned color,
-				struct drm_clip_rect *clips,
-				unsigned num_clips, int increment)
+int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
+			    struct vmw_framebuffer *framebuffer,
+			    unsigned int flags, unsigned int color,
+			    struct drm_clip_rect *clips,
+			    unsigned int num_clips, int increment)
 {
 	size_t fifo_size;
 	int i;

@@ -18,7 +18,7 @@
  */
 
 #include "pch_gbe.h"
-#include "pch_gbe_api.h"
+#include "pch_gbe_phy.h"
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
@@ -34,7 +34,6 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PCH_GBE_DMA_ALIGN		0
 #define PCH_GBE_DMA_PADDING		2
 #define PCH_GBE_WATCHDOG_PERIOD		(5 * HZ)	/* watchdog time */
-#define PCH_GBE_COPYBREAK_DEFAULT	256
 #define PCH_GBE_PCI_BAR			1
 #define PCH_GBE_RESERVE_MEMORY		0x200000	/* 2MB */
 
@@ -112,8 +111,6 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
 
 #define MINNOW_PHY_RESET_GPIO		13
-
-static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
 
 static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
 static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
@@ -290,7 +287,7 @@ static inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
  * Returns:
  *	0:			Successful.
  */
-s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
+static s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
 {
 	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	u32  adr1a, adr1b;
@@ -369,9 +366,7 @@ static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 	/* Read the MAC address. and store to the private data */
 	pch_gbe_mac_read_mac_addr(hw);
 	iowrite32(PCH_GBE_ALL_RST, &hw->reg->RESET);
-#ifdef PCH_GBE_MAC_IFOP_RGMII
 	iowrite32(PCH_GBE_MODE_GMII_ETHER, &hw->reg->MODE);
-#endif
 	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
 	/* Setup the receive addresses */
 	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
@@ -414,44 +409,6 @@ static void pch_gbe_mac_init_rx_addrs(struct pch_gbe_hw *hw, u16 mar_count)
 	iowrite32(0xFFFE, &hw->reg->ADDR_MASK);
 	/* wait busy */
 	pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
-}
-
-
-/**
- * pch_gbe_mac_mc_addr_list_update - Update Multicast addresses
- * @hw:	            Pointer to the HW structure
- * @mc_addr_list:   Array of multicast addresses to program
- * @mc_addr_count:  Number of multicast addresses to program
- * @mar_used_count: The first MAC Address register free to program
- * @mar_total_num:  Total number of supported MAC Address Registers
- */
-static void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
-					    u8 *mc_addr_list, u32 mc_addr_count,
-					    u32 mar_used_count, u32 mar_total_num)
-{
-	u32 i, adrmask;
-
-	/* Load the first set of multicast addresses into the exact
-	 * filters (RAR).  If there are not enough to fill the RAR
-	 * array, clear the filters.
-	 */
-	for (i = mar_used_count; i < mar_total_num; i++) {
-		if (mc_addr_count) {
-			pch_gbe_mac_mar_set(hw, mc_addr_list, i);
-			mc_addr_count--;
-			mc_addr_list += ETH_ALEN;
-		} else {
-			/* Clear MAC address mask */
-			adrmask = ioread32(&hw->reg->ADDR_MASK);
-			iowrite32((adrmask | (0x0001 << i)),
-					&hw->reg->ADDR_MASK);
-			/* wait busy */
-			pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
-			/* Clear MAC address */
-			iowrite32(0, &hw->reg->mac_adr[i].high);
-			iowrite32(0, &hw->reg->mac_adr[i].low);
-		}
-	}
 }
 
 /**
@@ -763,14 +720,23 @@ void pch_gbe_reinit_locked(struct pch_gbe_adapter *adapter)
 void pch_gbe_reset(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct pch_gbe_hw *hw = &adapter->hw;
+	s32 ret_val;
 
-	pch_gbe_mac_reset_hw(&adapter->hw);
+	pch_gbe_mac_reset_hw(hw);
 	/* reprogram multicast address register after reset */
 	pch_gbe_set_multi(netdev);
 	/* Setup the receive address. */
-	pch_gbe_mac_init_rx_addrs(&adapter->hw, PCH_GBE_MAR_ENTRIES);
-	if (pch_gbe_hal_init_hw(&adapter->hw))
-		netdev_err(netdev, "Hardware Error\n");
+	pch_gbe_mac_init_rx_addrs(hw, PCH_GBE_MAR_ENTRIES);
+
+	ret_val = pch_gbe_phy_get_id(hw);
+	if (ret_val) {
+		netdev_err(adapter->netdev, "pch_gbe_phy_get_id error\n");
+		return;
+	}
+	pch_gbe_phy_init_setting(hw);
+	/* Setup Mac interface option RGMII */
+	pch_gbe_phy_set_rgmii(hw);
 }
 
 /**
@@ -1036,7 +1002,6 @@ static void pch_gbe_set_rgmii_ctrl(struct pch_gbe_adapter *adapter, u16 speed,
 	unsigned long rgmii = 0;
 
 	/* Set the RGMII control. */
-#ifdef PCH_GBE_MAC_IFOP_RGMII
 	switch (speed) {
 	case SPEED_10:
 		rgmii = (PCH_GBE_RGMII_RATE_2_5M |
@@ -1052,10 +1017,6 @@ static void pch_gbe_set_rgmii_ctrl(struct pch_gbe_adapter *adapter, u16 speed,
 		break;
 	}
 	iowrite32(rgmii, &hw->reg->RGMII_CTRL);
-#else	/* GMII */
-	rgmii = 0;
-	iowrite32(rgmii, &hw->reg->RGMII_CTRL);
-#endif
 }
 static void pch_gbe_set_mode(struct pch_gbe_adapter *adapter, u16 speed,
 			      u16 duplex)
@@ -2029,12 +1990,8 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 	adapter->rx_buffer_len = PCH_GBE_FRAME_SIZE_2048;
 	hw->mac.max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	hw->mac.min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+	hw->phy.reset_delay_us = PCH_GBE_PHY_RESET_DELAY_US;
 
-	/* Initialize the hardware-specific values */
-	if (pch_gbe_hal_setup_init_funcs(hw)) {
-		netdev_err(netdev, "Hardware Initialization Failure\n");
-		return -EIO;
-	}
 	if (pch_gbe_alloc_queues(adapter)) {
 		netdev_err(netdev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
@@ -2075,7 +2032,7 @@ static int pch_gbe_open(struct net_device *netdev)
 	err = pch_gbe_setup_rx_resources(adapter, adapter->rx_ring);
 	if (err)
 		goto err_setup_rx;
-	pch_gbe_hal_power_up_phy(hw);
+	pch_gbe_phy_power_up(hw);
 	err = pch_gbe_up(adapter);
 	if (err)
 		goto err_up;
@@ -2084,7 +2041,7 @@ static int pch_gbe_open(struct net_device *netdev)
 
 err_up:
 	if (!adapter->wake_up_evt)
-		pch_gbe_hal_power_down_phy(hw);
+		pch_gbe_phy_power_down(hw);
 	pch_gbe_free_rx_resources(adapter, adapter->rx_ring);
 err_setup_rx:
 	pch_gbe_free_tx_resources(adapter, adapter->tx_ring);
@@ -2107,7 +2064,7 @@ static int pch_gbe_stop(struct net_device *netdev)
 
 	pch_gbe_down(adapter);
 	if (!adapter->wake_up_evt)
-		pch_gbe_hal_power_down_phy(hw);
+		pch_gbe_phy_power_down(hw);
 	pch_gbe_free_tx_resources(adapter, adapter->tx_ring);
 	pch_gbe_free_rx_resources(adapter, adapter->rx_ring);
 	return 0;
@@ -2148,50 +2105,52 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;
 	struct netdev_hw_addr *ha;
-	u8 *mta_list;
-	u32 rctl;
-	int i;
-	int mc_count;
+	u32 rctl, adrmask;
+	int mc_count, i;
 
 	netdev_dbg(netdev, "netdev->flags : 0x%08x\n", netdev->flags);
 
-	/* Check for Promiscuous and All Multicast modes */
+	/* By default enable address & multicast filtering */
 	rctl = ioread32(&hw->reg->RX_MODE);
+	rctl |= PCH_GBE_ADD_FIL_EN | PCH_GBE_MLT_FIL_EN;
+
+	/* Promiscuous mode disables all hardware address filtering */
+	if (netdev->flags & IFF_PROMISC)
+		rctl &= ~(PCH_GBE_ADD_FIL_EN | PCH_GBE_MLT_FIL_EN);
+
+	/* If we want to monitor more multicast addresses than the hardware can
+	 * support then disable hardware multicast filtering.
+	 */
 	mc_count = netdev_mc_count(netdev);
-	if ((netdev->flags & IFF_PROMISC)) {
-		rctl &= ~PCH_GBE_ADD_FIL_EN;
+	if ((netdev->flags & IFF_ALLMULTI) || mc_count >= PCH_GBE_MAR_ENTRIES)
 		rctl &= ~PCH_GBE_MLT_FIL_EN;
-	} else if ((netdev->flags & IFF_ALLMULTI)) {
-		/* all the multicasting receive permissions */
-		rctl |= PCH_GBE_ADD_FIL_EN;
-		rctl &= ~PCH_GBE_MLT_FIL_EN;
-	} else {
-		if (mc_count >= PCH_GBE_MAR_ENTRIES) {
-			/* all the multicasting receive permissions */
-			rctl |= PCH_GBE_ADD_FIL_EN;
-			rctl &= ~PCH_GBE_MLT_FIL_EN;
-		} else {
-			rctl |= (PCH_GBE_ADD_FIL_EN | PCH_GBE_MLT_FIL_EN);
-		}
-	}
+
 	iowrite32(rctl, &hw->reg->RX_MODE);
 
-	if (mc_count >= PCH_GBE_MAR_ENTRIES)
-		return;
-	mta_list = kmalloc_array(ETH_ALEN, mc_count, GFP_ATOMIC);
-	if (!mta_list)
+	/* If we're not using multicast filtering then there's no point
+	 * configuring the unused MAC address registers.
+	 */
+	if (!(rctl & PCH_GBE_MLT_FIL_EN))
 		return;
 
-	/* The shared function expects a packed array of only addresses. */
-	i = 0;
-	netdev_for_each_mc_addr(ha, netdev) {
-		if (i == mc_count)
-			break;
-		memcpy(mta_list + (i++ * ETH_ALEN), &ha->addr, ETH_ALEN);
+	/* Load the first set of multicast addresses into MAC address registers
+	 * for use by hardware filtering.
+	 */
+	i = 1;
+	netdev_for_each_mc_addr(ha, netdev)
+		pch_gbe_mac_mar_set(hw, ha->addr, i++);
+
+	/* If there are spare MAC registers, mask & clear them */
+	for (; i < PCH_GBE_MAR_ENTRIES; i++) {
+		/* Clear MAC address mask */
+		adrmask = ioread32(&hw->reg->ADDR_MASK);
+		iowrite32(adrmask | BIT(i), &hw->reg->ADDR_MASK);
+		/* wait busy */
+		pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
+		/* Clear MAC address */
+		iowrite32(0, &hw->reg->mac_adr[i].high);
+		iowrite32(0, &hw->reg->mac_adr[i].low);
 	}
-	pch_gbe_mac_mc_addr_list_update(hw, mta_list, i, 1,
-					PCH_GBE_MAR_ENTRIES);
-	kfree(mta_list);
 
 	netdev_dbg(netdev,
 		 "RX_MODE reg(check bit31,30 ADD,MLT) : 0x%08x  netdev->mc_count : 0x%08x\n",
@@ -2437,7 +2396,7 @@ static pci_ers_result_t pch_gbe_io_slot_reset(struct pci_dev *pdev)
 	}
 	pci_set_master(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
-	pch_gbe_hal_power_up_phy(hw);
+	pch_gbe_phy_power_up(hw);
 	pch_gbe_reset(adapter);
 	/* Clear wake up status */
 	pch_gbe_mac_set_wol_event(hw, 0);
@@ -2482,7 +2441,7 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 		pch_gbe_mac_set_wol_event(hw, wufc);
 		pci_disable_device(pdev);
 	} else {
-		pch_gbe_hal_power_down_phy(hw);
+		pch_gbe_phy_power_down(hw);
 		pch_gbe_mac_set_wol_event(hw, wufc);
 		pci_disable_device(pdev);
 	}
@@ -2511,7 +2470,7 @@ static int pch_gbe_resume(struct device *device)
 		return err;
 	}
 	pci_set_master(pdev);
-	pch_gbe_hal_power_up_phy(hw);
+	pch_gbe_phy_power_up(hw);
 	pch_gbe_reset(adapter);
 	/* Clear wake on lan control and status */
 	pch_gbe_mac_set_wol_event(hw, 0);
@@ -2541,7 +2500,7 @@ static void pch_gbe_remove(struct pci_dev *pdev)
 	cancel_work_sync(&adapter->reset_task);
 	unregister_netdev(netdev);
 
-	pch_gbe_hal_phy_hw_reset(&adapter->hw);
+	pch_gbe_phy_hw_reset(&adapter->hw);
 
 	free_netdev(netdev);
 }
@@ -2627,10 +2586,9 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "PHY initialize error\n");
 		goto err_free_adapter;
 	}
-	pch_gbe_hal_get_bus_info(&adapter->hw);
 
 	/* Read the MAC address. and store to the private data */
-	ret = pch_gbe_hal_read_mac_addr(&adapter->hw);
+	ret = pch_gbe_mac_read_mac_addr(&adapter->hw);
 	if (ret) {
 		dev_err(&pdev->dev, "MAC address Read Error\n");
 		goto err_free_adapter;
@@ -2677,7 +2635,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	return 0;
 
 err_free_adapter:
-	pch_gbe_hal_phy_hw_reset(&adapter->hw);
+	pch_gbe_phy_hw_reset(&adapter->hw);
 err_free_netdev:
 	free_netdev(netdev);
 	return ret;
@@ -2776,41 +2734,12 @@ static struct pci_driver pch_gbe_driver = {
 	.shutdown = pch_gbe_shutdown,
 	.err_handler = &pch_gbe_err_handler
 };
-
-
-static int __init pch_gbe_init_module(void)
-{
-	int ret;
-
-	pr_info("EG20T PCH Gigabit Ethernet Driver - version %s\n",DRV_VERSION);
-	ret = pci_register_driver(&pch_gbe_driver);
-	if (copybreak != PCH_GBE_COPYBREAK_DEFAULT) {
-		if (copybreak == 0) {
-			pr_info("copybreak disabled\n");
-		} else {
-			pr_info("copybreak enabled for packets <= %u bytes\n",
-				copybreak);
-		}
-	}
-	return ret;
-}
-
-static void __exit pch_gbe_exit_module(void)
-{
-	pci_unregister_driver(&pch_gbe_driver);
-}
-
-module_init(pch_gbe_init_module);
-module_exit(pch_gbe_exit_module);
+module_pci_driver(pch_gbe_driver);
 
 MODULE_DESCRIPTION("EG20T PCH Gigabit ethernet Driver");
 MODULE_AUTHOR("LAPIS SEMICONDUCTOR, <tshimizu818@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, pch_gbe_pcidev_id);
-
-module_param(copybreak, uint, 0644);
-MODULE_PARM_DESC(copybreak,
-	"Maximum size of packet that is copied to a new buffer on receive");
 
 /* pch_gbe_main.c */

@@ -399,7 +399,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
  */
 static int fuse_create_open(struct inode *dir, struct dentry *entry,
 			    struct file *file, unsigned flags,
-			    umode_t mode, int *opened)
+			    umode_t mode)
 {
 	int err;
 	struct inode *inode;
@@ -469,7 +469,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	d_instantiate(entry, inode);
 	fuse_change_entry_timeout(entry, &outentry);
 	fuse_invalidate_attr(dir);
-	err = finish_open(file, entry, generic_file_open, opened);
+	err = finish_open(file, entry, generic_file_open);
 	if (err) {
 		fuse_sync_release(ff, flags);
 	} else {
@@ -489,7 +489,7 @@ out_err:
 static int fuse_mknod(struct inode *, struct dentry *, umode_t, dev_t);
 static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 			    struct file *file, unsigned flags,
-			    umode_t mode, int *opened)
+			    umode_t mode)
 {
 	int err;
 	struct fuse_conn *fc = get_fuse_conn(dir);
@@ -508,12 +508,12 @@ static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 		goto no_open;
 
 	/* Only creates */
-	*opened |= FILE_CREATED;
+	file->f_mode |= FMODE_CREATED;
 
 	if (fc->no_create)
 		goto mknod;
 
-	err = fuse_create_open(dir, entry, file, flags, mode, opened);
+	err = fuse_create_open(dir, entry, file, flags, mode);
 	if (err == -ENOSYS) {
 		fc->no_create = 1;
 		goto mknod;
@@ -539,6 +539,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_args *args,
 {
 	struct fuse_entry_out outarg;
 	struct inode *inode;
+	struct dentry *d;
 	int err;
 	struct fuse_forget_link *forget;
 
@@ -570,11 +571,17 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_args *args,
 	}
 	kfree(forget);
 
-	err = d_instantiate_no_diralias(entry, inode);
-	if (err)
-		return err;
+	d_drop(entry);
+	d = d_splice_alias(inode, entry);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
 
-	fuse_change_entry_timeout(entry, &outarg);
+	if (d) {
+		fuse_change_entry_timeout(d, &outarg);
+		dput(d);
+	} else {
+		fuse_change_entry_timeout(entry, &outarg);
+	}
 	fuse_invalidate_attr(dir);
 	return 0;
 

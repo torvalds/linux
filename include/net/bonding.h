@@ -411,6 +411,19 @@ static inline bool bond_slave_can_tx(struct slave *slave)
 	       bond_is_active_slave(slave);
 }
 
+static inline bool bond_is_active_slave_dev(const struct net_device *slave_dev)
+{
+	struct slave *slave;
+	bool active;
+
+	rcu_read_lock();
+	slave = bond_slave_get_rcu(slave_dev);
+	active = bond_is_active_slave(slave);
+	rcu_read_unlock();
+
+	return active;
+}
+
 static inline void bond_hw_addr_copy(u8 *dst, const u8 *src, unsigned int len)
 {
 	if (len == ETH_ALEN) {

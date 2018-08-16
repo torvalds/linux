@@ -11,14 +11,16 @@
 #define _LINUX_IMA_H
 
 #include <linux/fs.h>
+#include <linux/security.h>
 #include <linux/kexec.h>
 struct linux_binprm;
 
 #ifdef CONFIG_IMA
 extern int ima_bprm_check(struct linux_binprm *bprm);
-extern int ima_file_check(struct file *file, int mask, int opened);
+extern int ima_file_check(struct file *file, int mask);
 extern void ima_file_free(struct file *file);
 extern int ima_file_mmap(struct file *file, unsigned long prot);
+extern int ima_load_data(enum kernel_load_data_id id);
 extern int ima_read_file(struct file *file, enum kernel_read_file_id id);
 extern int ima_post_read_file(struct file *file, void *buf, loff_t size,
 			      enum kernel_read_file_id id);
@@ -34,7 +36,7 @@ static inline int ima_bprm_check(struct linux_binprm *bprm)
 	return 0;
 }
 
-static inline int ima_file_check(struct file *file, int mask, int opened)
+static inline int ima_file_check(struct file *file, int mask)
 {
 	return 0;
 }
@@ -45,6 +47,11 @@ static inline void ima_file_free(struct file *file)
 }
 
 static inline int ima_file_mmap(struct file *file, unsigned long prot)
+{
+	return 0;
+}
+
+static inline int ima_load_data(enum kernel_load_data_id id)
 {
 	return 0;
 }

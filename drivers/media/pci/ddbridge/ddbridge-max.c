@@ -457,21 +457,29 @@ int ddb_fe_attach_mxl5xx(struct ddb_input *input)
 /******************************************************************************/
 /* MAX MCI related functions */
 
-int ddb_fe_attach_mci(struct ddb_input *input)
+int ddb_fe_attach_mci(struct ddb_input *input, u32 type)
 {
 	struct ddb *dev = input->port->dev;
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct ddb_port *port = input->port;
 	struct ddb_link *link = &dev->link[port->lnr];
 	int demod, tuner;
+	struct mci_cfg cfg;
 
 	demod = input->nr;
 	tuner = demod & 3;
-	if (fmode == 3)
-		tuner = 0;
-	dvb->fe = ddb_mci_attach(input, 0, demod, &dvb->set_input);
+	switch (type) {
+	case DDB_TUNER_MCI_SX8:
+		cfg = ddb_max_sx8_cfg;
+		if (fmode == 3)
+			tuner = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+	dvb->fe = ddb_mci_attach(input, &cfg, demod, &dvb->set_input);
 	if (!dvb->fe) {
-		dev_err(dev->dev, "No MAXSX8 found!\n");
+		dev_err(dev->dev, "No MCI card found!\n");
 		return -ENODEV;
 	}
 	if (!dvb->set_input) {

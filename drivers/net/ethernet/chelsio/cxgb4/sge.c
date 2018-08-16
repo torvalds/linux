@@ -1288,13 +1288,13 @@ static inline void t6_fill_tnl_lso(struct sk_buff *skb,
 }
 
 /**
- *	t4_eth_xmit - add a packet to an Ethernet Tx queue
+ *	cxgb4_eth_xmit - add a packet to an Ethernet Tx queue
  *	@skb: the packet
  *	@dev: the egress net device
  *
  *	Add a packet to an SGE Ethernet Tx queue.  Runs with softirqs disabled.
  */
-netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	u32 wr_mid, ctrl0, op;
 	u64 cntrl, *end, *sgl;
@@ -1545,6 +1545,374 @@ out_free:	dev_kfree_skb_any(skb);
 	if (ptp_enabled)
 		spin_unlock(&adap->ptp_lock);
 	return NETDEV_TX_OK;
+}
+
+/* Constants ... */
+enum {
+	/* Egress Queue sizes, producer and consumer indices are all in units
+	 * of Egress Context Units bytes.  Note that as far as the hardware is
+	 * concerned, the free list is an Egress Queue (the host produces free
+	 * buffers which the hardware consumes) and free list entries are
+	 * 64-bit PCI DMA addresses.
+	 */
+	EQ_UNIT = SGE_EQ_IDXSIZE,
+	FL_PER_EQ_UNIT = EQ_UNIT / sizeof(__be64),
+	TXD_PER_EQ_UNIT = EQ_UNIT / sizeof(__be64),
+
+	T4VF_ETHTXQ_MAX_HDR = (sizeof(struct fw_eth_tx_pkt_vm_wr) +
+			       sizeof(struct cpl_tx_pkt_lso_core) +
+			       sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64),
+};
+
+/**
+ *	t4vf_is_eth_imm - can an Ethernet packet be sent as immediate data?
+ *	@skb: the packet
+ *
+ *	Returns whether an Ethernet packet is small enough to fit completely as
+ *	immediate data.
+ */
+static inline int t4vf_is_eth_imm(const struct sk_buff *skb)
+{
+	/* The VF Driver uses the FW_ETH_TX_PKT_VM_WR firmware Work Request
+	 * which does not accommodate immediate data.  We could dike out all
+	 * of the support code for immediate data but that would tie our hands
+	 * too much if we ever want to enhace the firmware.  It would also
+	 * create more differences between the PF and VF Drivers.
+	 */
+	return false;
+}
+
+/**
+ *	t4vf_calc_tx_flits - calculate the number of flits for a packet TX WR
+ *	@skb: the packet
+ *
+ *	Returns the number of flits needed for a TX Work Request for the
+ *	given Ethernet packet, including the needed WR and CPL headers.
+ */
+static inline unsigned int t4vf_calc_tx_flits(const struct sk_buff *skb)
+{
+	unsigned int flits;
+
+	/* If the skb is small enough, we can pump it out as a work request
+	 * with only immediate data.  In that case we just have to have the
+	 * TX Packet header plus the skb data in the Work Request.
+	 */
+	if (t4vf_is_eth_imm(skb))
+		return DIV_ROUND_UP(skb->len + sizeof(struct cpl_tx_pkt),
+				    sizeof(__be64));
+
+	/* Otherwise, we're going to have to construct a Scatter gather list
+	 * of the skb body and fragments.  We also include the flits necessary
+	 * for the TX Packet Work Request and CPL.  We always have a firmware
+	 * Write Header (incorporated as part of the cpl_tx_pkt_lso and
+	 * cpl_tx_pkt structures), followed by either a TX Packet Write CPL
+	 * message or, if we're doing a Large Send Offload, an LSO CPL message
+	 * with an embedded TX Packet Write CPL message.
+	 */
+	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
+	if (skb_shinfo(skb)->gso_size)
+		flits += (sizeof(struct fw_eth_tx_pkt_vm_wr) +
+			  sizeof(struct cpl_tx_pkt_lso_core) +
+			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
+	else
+		flits += (sizeof(struct fw_eth_tx_pkt_vm_wr) +
+			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
+	return flits;
+}
+
+/**
+ *	cxgb4_vf_eth_xmit - add a packet to an Ethernet TX queue
+ *	@skb: the packet
+ *	@dev: the egress net device
+ *
+ *	Add a packet to an SGE Ethernet TX queue.  Runs with softirqs disabled.
+ */
+static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
+{
+	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+	const struct skb_shared_info *ssi;
+	struct fw_eth_tx_pkt_vm_wr *wr;
+	int qidx, credits, max_pkt_len;
+	struct cpl_tx_pkt_core *cpl;
+	const struct port_info *pi;
+	unsigned int flits, ndesc;
+	struct sge_eth_txq *txq;
+	struct adapter *adapter;
+	u64 cntrl, *end;
+	u32 wr_mid;
+	const size_t fw_hdr_copy_len = sizeof(wr->ethmacdst) +
+				       sizeof(wr->ethmacsrc) +
+				       sizeof(wr->ethtype) +
+				       sizeof(wr->vlantci);
+
+	/* The chip minimum packet length is 10 octets but the firmware
+	 * command that we are using requires that we copy the Ethernet header
+	 * (including the VLAN tag) into the header so we reject anything
+	 * smaller than that ...
+	 */
+	if (unlikely(skb->len < fw_hdr_copy_len))
+		goto out_free;
+
+	/* Discard the packet if the length is greater than mtu */
+	max_pkt_len = ETH_HLEN + dev->mtu;
+	if (skb_vlan_tag_present(skb))
+		max_pkt_len += VLAN_HLEN;
+	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+		goto out_free;
+
+	/* Figure out which TX Queue we're going to use. */
+	pi = netdev_priv(dev);
+	adapter = pi->adapter;
+	qidx = skb_get_queue_mapping(skb);
+	WARN_ON(qidx >= pi->nqsets);
+	txq = &adapter->sge.ethtxq[pi->first_qset + qidx];
+
+	/* Take this opportunity to reclaim any TX Descriptors whose DMA
+	 * transfers have completed.
+	 */
+	cxgb4_reclaim_completed_tx(adapter, &txq->q, true);
+
+	/* Calculate the number of flits and TX Descriptors we're going to
+	 * need along with how many TX Descriptors will be left over after
+	 * we inject our Work Request.
+	 */
+	flits = t4vf_calc_tx_flits(skb);
+	ndesc = flits_to_desc(flits);
+	credits = txq_avail(&txq->q) - ndesc;
+
+	if (unlikely(credits < 0)) {
+		/* Not enough room for this packet's Work Request.  Stop the
+		 * TX Queue and return a "busy" condition.  The queue will get
+		 * started later on when the firmware informs us that space
+		 * has opened up.
+		 */
+		eth_txq_stop(txq);
+		dev_err(adapter->pdev_dev,
+			"%s: TX ring %u full while queue awake!\n",
+			dev->name, qidx);
+		return NETDEV_TX_BUSY;
+	}
+
+	if (!t4vf_is_eth_imm(skb) &&
+	    unlikely(cxgb4_map_skb(adapter->pdev_dev, skb, addr) < 0)) {
+		/* We need to map the skb into PCI DMA space (because it can't
+		 * be in-lined directly into the Work Request) and the mapping
+		 * operation failed.  Record the error and drop the packet.
+		 */
+		txq->mapping_err++;
+		goto out_free;
+	}
+
+	wr_mid = FW_WR_LEN16_V(DIV_ROUND_UP(flits, 2));
+	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
+		/* After we're done injecting the Work Request for this
+		 * packet, we'll be below our "stop threshold" so stop the TX
+		 * Queue now and schedule a request for an SGE Egress Queue
+		 * Update message.  The queue will get started later on when
+		 * the firmware processes this Work Request and sends us an
+		 * Egress Queue Status Update message indicating that space
+		 * has opened up.
+		 */
+		eth_txq_stop(txq);
+		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+	}
+
+	/* Start filling in our Work Request.  Note that we do _not_ handle
+	 * the WR Header wrapping around the TX Descriptor Ring.  If our
+	 * maximum header size ever exceeds one TX Descriptor, we'll need to
+	 * do something else here.
+	 */
+	WARN_ON(DIV_ROUND_UP(T4VF_ETHTXQ_MAX_HDR, TXD_PER_EQ_UNIT) > 1);
+	wr = (void *)&txq->q.desc[txq->q.pidx];
+	wr->equiq_to_len16 = cpu_to_be32(wr_mid);
+	wr->r3[0] = cpu_to_be32(0);
+	wr->r3[1] = cpu_to_be32(0);
+	skb_copy_from_linear_data(skb, (void *)wr->ethmacdst, fw_hdr_copy_len);
+	end = (u64 *)wr + flits;
+
+	/* If this is a Large Send Offload packet we'll put in an LSO CPL
+	 * message with an encapsulated TX Packet CPL message.  Otherwise we
+	 * just use a TX Packet CPL message.
+	 */
+	ssi = skb_shinfo(skb);
+	if (ssi->gso_size) {
+		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
+		bool v6 = (ssi->gso_type & SKB_GSO_TCPV6) != 0;
+		int l3hdr_len = skb_network_header_len(skb);
+		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
+
+		wr->op_immdlen =
+			cpu_to_be32(FW_WR_OP_V(FW_ETH_TX_PKT_VM_WR) |
+				    FW_WR_IMMDLEN_V(sizeof(*lso) +
+						    sizeof(*cpl)));
+		 /* Fill in the LSO CPL message. */
+		lso->lso_ctrl =
+			cpu_to_be32(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
+				    LSO_FIRST_SLICE_F |
+				    LSO_LAST_SLICE_F |
+				    LSO_IPV6_V(v6) |
+				    LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
+				    LSO_IPHDR_LEN_V(l3hdr_len / 4) |
+				    LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
+		lso->ipid_ofst = cpu_to_be16(0);
+		lso->mss = cpu_to_be16(ssi->gso_size);
+		lso->seqno_offset = cpu_to_be32(0);
+		if (is_t4(adapter->params.chip))
+			lso->len = cpu_to_be32(skb->len);
+		else
+			lso->len = cpu_to_be32(LSO_T5_XFER_SIZE_V(skb->len));
+
+		/* Set up TX Packet CPL pointer, control word and perform
+		 * accounting.
+		 */
+		cpl = (void *)(lso + 1);
+
+		if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+			cntrl = TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+		else
+			cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+
+		cntrl |= TXPKT_CSUM_TYPE_V(v6 ?
+					   TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
+			 TXPKT_IPHDR_LEN_V(l3hdr_len);
+		txq->tso++;
+		txq->tx_cso += ssi->gso_segs;
+	} else {
+		int len;
+
+		len = (t4vf_is_eth_imm(skb)
+		       ? skb->len + sizeof(*cpl)
+		       : sizeof(*cpl));
+		wr->op_immdlen =
+			cpu_to_be32(FW_WR_OP_V(FW_ETH_TX_PKT_VM_WR) |
+				    FW_WR_IMMDLEN_V(len));
+
+		/* Set up TX Packet CPL pointer, control word and perform
+		 * accounting.
+		 */
+		cpl = (void *)(wr + 1);
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			cntrl = hwcsum(adapter->params.chip, skb) |
+				TXPKT_IPCSUM_DIS_F;
+			txq->tx_cso++;
+		} else {
+			cntrl = TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F;
+		}
+	}
+
+	/* If there's a VLAN tag present, add that to the list of things to
+	 * do in this Work Request.
+	 */
+	if (skb_vlan_tag_present(skb)) {
+		txq->vlan_ins++;
+		cntrl |= TXPKT_VLAN_VLD_F | TXPKT_VLAN_V(skb_vlan_tag_get(skb));
+	}
+
+	 /* Fill in the TX Packet CPL message header. */
+	cpl->ctrl0 = cpu_to_be32(TXPKT_OPCODE_V(CPL_TX_PKT_XT) |
+				 TXPKT_INTF_V(pi->port_id) |
+				 TXPKT_PF_V(0));
+	cpl->pack = cpu_to_be16(0);
+	cpl->len = cpu_to_be16(skb->len);
+	cpl->ctrl1 = cpu_to_be64(cntrl);
+
+	/* Fill in the body of the TX Packet CPL message with either in-lined
+	 * data or a Scatter/Gather List.
+	 */
+	if (t4vf_is_eth_imm(skb)) {
+		/* In-line the packet's data and free the skb since we don't
+		 * need it any longer.
+		 */
+		cxgb4_inline_tx_skb(skb, &txq->q, cpl + 1);
+		dev_consume_skb_any(skb);
+	} else {
+		/* Write the skb's Scatter/Gather list into the TX Packet CPL
+		 * message and retain a pointer to the skb so we can free it
+		 * later when its DMA completes.  (We store the skb pointer
+		 * in the Software Descriptor corresponding to the last TX
+		 * Descriptor used by the Work Request.)
+		 *
+		 * The retained skb will be freed when the corresponding TX
+		 * Descriptors are reclaimed after their DMAs complete.
+		 * However, this could take quite a while since, in general,
+		 * the hardware is set up to be lazy about sending DMA
+		 * completion notifications to us and we mostly perform TX
+		 * reclaims in the transmit routine.
+		 *
+		 * This is good for performamce but means that we rely on new
+		 * TX packets arriving to run the destructors of completed
+		 * packets, which open up space in their sockets' send queues.
+		 * Sometimes we do not get such new packets causing TX to
+		 * stall.  A single UDP transmitter is a good example of this
+		 * situation.  We have a clean up timer that periodically
+		 * reclaims completed packets but it doesn't run often enough
+		 * (nor do we want it to) to prevent lengthy stalls.  A
+		 * solution to this problem is to run the destructor early,
+		 * after the packet is queued but before it's DMAd.  A con is
+		 * that we lie to socket memory accounting, but the amount of
+		 * extra memory is reasonable (limited by the number of TX
+		 * descriptors), the packets do actually get freed quickly by
+		 * new packets almost always, and for protocols like TCP that
+		 * wait for acks to really free up the data the extra memory
+		 * is even less.  On the positive side we run the destructors
+		 * on the sending CPU rather than on a potentially different
+		 * completing CPU, usually a good thing.
+		 *
+		 * Run the destructor before telling the DMA engine about the
+		 * packet to make sure it doesn't complete and get freed
+		 * prematurely.
+		 */
+		struct ulptx_sgl *sgl = (struct ulptx_sgl *)(cpl + 1);
+		struct sge_txq *tq = &txq->q;
+		int last_desc;
+
+		/* If the Work Request header was an exact multiple of our TX
+		 * Descriptor length, then it's possible that the starting SGL
+		 * pointer lines up exactly with the end of our TX Descriptor
+		 * ring.  If that's the case, wrap around to the beginning
+		 * here ...
+		 */
+		if (unlikely((void *)sgl == (void *)tq->stat)) {
+			sgl = (void *)tq->desc;
+			end = (void *)((void *)tq->desc +
+				       ((void *)end - (void *)tq->stat));
+		}
+
+		cxgb4_write_sgl(skb, tq, sgl, end, 0, addr);
+		skb_orphan(skb);
+
+		last_desc = tq->pidx + ndesc - 1;
+		if (last_desc >= tq->size)
+			last_desc -= tq->size;
+		tq->sdesc[last_desc].skb = skb;
+		tq->sdesc[last_desc].sgl = sgl;
+	}
+
+	/* Advance our internal TX Queue state, tell the hardware about
+	 * the new TX descriptors and return success.
+	 */
+	txq_advance(&txq->q, ndesc);
+
+	cxgb4_ring_tx_db(adapter, &txq->q, ndesc);
+	return NETDEV_TX_OK;
+
+out_free:
+	/* An error of some sort happened.  Free the TX skb and tell the
+	 * OS that we've "dealt" with the packet ...
+	 */
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
+}
+
+netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct port_info *pi = netdev_priv(dev);
+
+	if (unlikely(pi->eth_flags & PRIV_FLAG_PORT_TX_VM))
+		return cxgb4_vf_eth_xmit(skb, dev);
+
+	return cxgb4_eth_xmit(skb, dev);
 }
 
 /**
@@ -3044,7 +3412,9 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	c.iqsize = htons(iq->size);
 	c.iqaddr = cpu_to_be64(iq->phys_addr);
 	if (cong >= 0)
-		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_IQFLINTCONGEN_F);
+		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_IQFLINTCONGEN_F |
+				FW_IQ_CMD_IQTYPE_V(cong ? FW_IQ_IQTYPE_NIC
+							:  FW_IQ_IQTYPE_OFLD));
 
 	if (fl) {
 		enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);

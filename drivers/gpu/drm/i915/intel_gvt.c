@@ -47,6 +47,8 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 		return true;
 	if (IS_KABYLAKE(dev_priv))
 		return true;
+	if (IS_BROXTON(dev_priv))
+		return true;
 	return false;
 }
 
@@ -89,6 +91,9 @@ bail:
 int intel_gvt_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
+
+	if (i915_inject_load_failure())
+		return -ENODEV;
 
 	if (!i915_modparams.enable_gvt) {
 		DRM_DEBUG_DRIVER("GVT-g is disabled by kernel params\n");

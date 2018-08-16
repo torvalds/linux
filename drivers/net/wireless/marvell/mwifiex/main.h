@@ -517,6 +517,14 @@ enum mwifiex_iface_work_flags {
 	MWIFIEX_IFACE_WORK_CARD_RESET,
 };
 
+enum mwifiex_adapter_work_flags {
+	MWIFIEX_SURPRISE_REMOVED,
+	MWIFIEX_IS_CMD_TIMEDOUT,
+	MWIFIEX_IS_SUSPENDED,
+	MWIFIEX_IS_HS_CONFIGURED,
+	MWIFIEX_IS_HS_ENABLING,
+};
+
 struct mwifiex_band_config {
 	u8 chan_band:2;
 	u8 chan_width:2;
@@ -616,9 +624,6 @@ struct mwifiex_private {
 	struct list_head rx_reorder_tbl_ptr;
 	/* spin lock for rx_reorder_tbl_ptr queue */
 	spinlock_t rx_reorder_tbl_lock;
-	/* spin lock for Rx packets */
-	spinlock_t rx_pkt_lock;
-
 #define MWIFIEX_ASSOC_RSP_BUF_SIZE  500
 	u8 assoc_rsp_buf[MWIFIEX_ASSOC_RSP_BUF_SIZE];
 	u32 assoc_rsp_size;
@@ -875,7 +880,7 @@ struct mwifiex_adapter {
 	struct device *dev;
 	struct wiphy *wiphy;
 	u8 perm_addr[ETH_ALEN];
-	bool surprise_removed;
+	unsigned long work_flags;
 	u32 fw_release_number;
 	u8 intf_hdr_len;
 	u16 init_wait_q_woken;
@@ -929,7 +934,6 @@ struct mwifiex_adapter {
 	struct cmd_ctrl_node *curr_cmd;
 	/* spin lock for command */
 	spinlock_t mwifiex_cmd_lock;
-	u8 is_cmd_timedout;
 	u16 last_init_cmd;
 	struct timer_list cmd_timer;
 	struct list_head cmd_free_q;
@@ -979,13 +983,10 @@ struct mwifiex_adapter {
 	u16 pps_uapsd_mode;
 	u32 pm_wakeup_fw_try;
 	struct timer_list wakeup_timer;
-	u8 is_hs_configured;
 	struct mwifiex_hs_config_param hs_cfg;
 	u8 hs_activated;
 	u16 hs_activate_wait_q_woken;
 	wait_queue_head_t hs_activate_wait_q;
-	bool is_suspended;
-	bool hs_enabling;
 	u8 event_body[MAX_EVENT_SIZE];
 	u32 hw_dot_11n_dev_cap;
 	u8 hw_dev_mcs_support;

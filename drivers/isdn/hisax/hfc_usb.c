@@ -432,16 +432,12 @@ fill_isoc_urb(struct urb *urb, struct usb_device *dev, unsigned int pipe,
 {
 	int k;
 
-	urb->dev = dev;
-	urb->pipe = pipe;
-	urb->complete = complete;
+	usb_fill_int_urb(urb, dev, pipe, buf, packet_size * num_packets,
+			 complete, context, interval);
+
 	urb->number_of_packets = num_packets;
-	urb->transfer_buffer_length = packet_size * num_packets;
-	urb->context = context;
-	urb->transfer_buffer = buf;
 	urb->transfer_flags = URB_ISO_ASAP;
 	urb->actual_length = 0;
-	urb->interval = interval;
 	for (k = 0; k < num_packets; k++) {
 		urb->iso_frame_desc[k].offset = packet_size * k;
 		urb->iso_frame_desc[k].length = packet_size;

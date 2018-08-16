@@ -316,7 +316,6 @@ struct q6afe {
 	struct mutex lock;
 	struct list_head port_list;
 	spinlock_t port_list_lock;
-	struct platform_device *pdev_dais;
 };
 
 struct afe_port_cmd_device_start {
@@ -515,6 +514,20 @@ static struct afe_port_map port_maps[AFE_PORT_MAX] = {
 				SLIMBUS_5_RX, 1, 1},
 	[SLIMBUS_6_RX] = { AFE_PORT_ID_SLIMBUS_MULTI_CHAN_6_RX,
 				SLIMBUS_6_RX, 1, 1},
+	[SLIMBUS_0_TX] = { AFE_PORT_ID_SLIMBUS_MULTI_CHAN_0_TX,
+				SLIMBUS_0_TX, 0, 1},
+	[SLIMBUS_1_TX] = { AFE_PORT_ID_SLIMBUS_MULTI_CHAN_1_TX,
+				SLIMBUS_1_TX, 0, 1},
+	[SLIMBUS_2_TX] = { AFE_PORT_ID_SLIMBUS_MULTI_CHAN_2_TX,
+				SLIMBUS_2_TX, 0, 1},
+	[SLIMBUS_3_TX] = { AFE_PORT_ID_SLIMBUS_MULTI_CHAN_3_TX,
+				SLIMBUS_3_TX, 0, 1},
+	[SLIMBUS_4_TX] = { AFE_PORT_ID_SLIMBUS_MULTI_CHAN_4_TX,
+				SLIMBUS_4_TX, 0, 1},
+	[SLIMBUS_5_TX] = { AFE_PORT_ID_SLIMBUS_MULTI_CHAN_5_TX,
+				SLIMBUS_5_TX, 0, 1},
+	[SLIMBUS_6_TX] = { AFE_PORT_ID_SLIMBUS_MULTI_CHAN_6_TX,
+				SLIMBUS_6_TX, 0, 1},
 	[PRIMARY_MI2S_RX] = { AFE_PORT_ID_PRIMARY_MI2S_RX,
 				PRIMARY_MI2S_RX, 1, 1},
 	[PRIMARY_MI2S_TX] = { AFE_PORT_ID_PRIMARY_MI2S_TX,
@@ -777,7 +790,7 @@ static int q6afe_callback(struct apr_device *adev, struct apr_resp_pkt *data)
  */
 int q6afe_get_port_id(int index)
 {
-	if (index < 0 || index > AFE_PORT_MAX)
+	if (index < 0 || index >= AFE_PORT_MAX)
 		return -EINVAL;
 
 	return port_maps[index].port_id;
@@ -1014,7 +1027,7 @@ int q6afe_port_stop(struct q6afe_port *port)
 
 	port_id = port->id;
 	index = port->token;
-	if (index < 0 || index > AFE_PORT_MAX) {
+	if (index < 0 || index >= AFE_PORT_MAX) {
 		dev_err(afe->dev, "AFE port index[%d] invalid!\n", index);
 		return -EINVAL;
 	}
@@ -1355,7 +1368,7 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	unsigned long flags;
 	int cfg_type;
 
-	if (id < 0 || id > AFE_PORT_MAX) {
+	if (id < 0 || id >= AFE_PORT_MAX) {
 		dev_err(dev, "AFE port token[%d] invalid!\n", id);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1373,6 +1386,13 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	case AFE_PORT_ID_MULTICHAN_HDMI_RX:
 		cfg_type = AFE_PARAM_ID_HDMI_CONFIG;
 		break;
+	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_0_TX:
+	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_1_TX:
+	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_2_TX:
+	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_3_TX:
+	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_4_TX:
+	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_5_TX:
+	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_6_TX:
 	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_0_RX:
 	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_1_RX:
 	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_2_RX:
@@ -1438,7 +1458,6 @@ static int q6afe_probe(struct apr_device *adev)
 {
 	struct q6afe *afe;
 	struct device *dev = &adev->dev;
-	struct device_node *dais_np;
 
 	afe = devm_kzalloc(dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
@@ -1453,22 +1472,12 @@ static int q6afe_probe(struct apr_device *adev)
 
 	dev_set_drvdata(dev, afe);
 
-	dais_np = of_get_child_by_name(dev->of_node, "dais");
-	if (dais_np) {
-		afe->pdev_dais = of_platform_device_create(dais_np,
-							   "q6afe-dai", dev);
-		of_node_put(dais_np);
-	}
-
-	return 0;
+	return of_platform_populate(dev->of_node, NULL, NULL, dev);
 }
 
 static int q6afe_remove(struct apr_device *adev)
 {
-	struct q6afe *afe = dev_get_drvdata(&adev->dev);
-
-	if (afe->pdev_dais)
-		of_platform_device_destroy(&afe->pdev_dais->dev, NULL);
+	of_platform_depopulate(&adev->dev);
 
 	return 0;
 }

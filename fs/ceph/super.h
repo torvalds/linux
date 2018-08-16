@@ -1025,8 +1025,7 @@ extern const struct file_operations ceph_file_fops;
 extern int ceph_renew_caps(struct inode *inode);
 extern int ceph_open(struct inode *inode, struct file *file);
 extern int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
-			    struct file *file, unsigned flags, umode_t mode,
-			    int *opened);
+			    struct file *file, unsigned flags, umode_t mode);
 extern int ceph_release(struct inode *inode, struct file *filp);
 extern void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
 				  char *data, size_t len);

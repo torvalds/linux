@@ -359,6 +359,15 @@ config GPIO_MPC8XXX
 	  Say Y here if you're going to use hardware that connects to the
 	  MPC512x/831x/834x/837x/8572/8610/QorIQ GPIOs.
 
+config GPIO_MT7621
+	bool "Mediatek MT7621 GPIO Support"
+	depends on SOC_MT7620 || SOC_MT7621 || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the Mediatek MT7621 SoC GPIO device
+
 config GPIO_MVEBU
 	def_bool y
 	depends on PLAT_ORION || ARCH_MVEBU
@@ -684,7 +693,8 @@ config GPIO_IT87
 	  Say yes here to support GPIO functionality of IT87xx Super I/O chips.
 
 	  This driver is tested with ITE IT8728 and IT8732 Super I/O chips, and
-	  supports the IT8761E, IT8620E and IT8628E Super I/O chip as well.
+	  supports the IT8761E, IT8613, IT8620E, and IT8628E Super I/O chips as
+	  well.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called gpio_it87

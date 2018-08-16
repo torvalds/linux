@@ -5,7 +5,6 @@ Required properties:
 				  for I2C slave, use "adi,ad7879-1"
 - reg				: SPI chipselect/I2C slave address
 				  See spi-bus.txt for more SPI slave properties
-- interrupt-parent		: the phandle for the interrupt controller
 - interrupts			: touch controller interrupt
 - touchscreen-max-pressure	: maximum reported pressure
 - adi,resistance-plate-x	: total resistance of X-plate (for pressure

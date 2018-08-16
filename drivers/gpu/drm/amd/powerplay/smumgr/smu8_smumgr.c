@@ -52,10 +52,10 @@ static const enum smu8_scratch_entry firmware_list[] = {
 	SMU8_SCRATCH_ENTRY_UCODE_ID_RLC_G,
 };
 
-static int smu8_get_argument(struct pp_hwmgr *hwmgr)
+static uint32_t smu8_get_argument(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr == NULL || hwmgr->device == NULL)
-		return -EINVAL;
+		return 0;
 
 	return cgs_read_register(hwmgr->device,
 					mmSMU_MP1_SRBM2P_ARG_0);

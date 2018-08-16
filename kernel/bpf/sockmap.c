@@ -725,10 +725,7 @@ static int bpf_tcp_sendmsg_do_redirect(struct sock *sk, int send,
 {
 	bool ingress = !!(md->flags & BPF_F_INGRESS);
 	struct smap_psock *psock;
-	struct scatterlist *sg;
 	int err = 0;
-
-	sg = md->sg_data;
 
 	rcu_read_lock();
 	psock = smap_psock_sk(sk);
@@ -2501,6 +2498,7 @@ const struct bpf_map_ops sock_map_ops = {
 	.map_update_elem = sock_map_update_elem,
 	.map_delete_elem = sock_map_delete_elem,
 	.map_release_uref = sock_map_release,
+	.map_check_btf = map_check_no_btf,
 };
 
 const struct bpf_map_ops sock_hash_ops = {
@@ -2511,6 +2509,7 @@ const struct bpf_map_ops sock_hash_ops = {
 	.map_update_elem = sock_hash_update_elem,
 	.map_delete_elem = sock_hash_delete_elem,
 	.map_release_uref = sock_map_release,
+	.map_check_btf = map_check_no_btf,
 };
 
 BPF_CALL_4(bpf_sock_map_update, struct bpf_sock_ops_kern *, bpf_sock,

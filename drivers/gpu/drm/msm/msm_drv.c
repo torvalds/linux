@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -15,6 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 #include <drm/drm_of.h>
 
 #include "msm_drv.h"
@@ -149,7 +152,7 @@ struct vblank_event {
 	bool enable;
 };
 
-static void vblank_ctrl_worker(struct work_struct *work)
+static void vblank_ctrl_worker(struct kthread_work *work)
 {
 	struct msm_vblank_ctrl *vbl_ctrl = container_of(work,
 						struct msm_vblank_ctrl, work);
@@ -197,7 +200,8 @@ static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 	list_add_tail(&vbl_ev->node, &vbl_ctrl->event_list);
 	spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
 
-	queue_work(priv->wq, &vbl_ctrl->work);
+	kthread_queue_work(&priv->disp_thread[crtc_id].worker,
+			&vbl_ctrl->work);
 
 	return 0;
 }
@@ -208,17 +212,34 @@ static int msm_drm_uninit(struct device *dev)
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 	struct msm_drm_private *priv = ddev->dev_private;
 	struct msm_kms *kms = priv->kms;
+	struct msm_mdss *mdss = priv->mdss;
 	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
 	struct vblank_event *vbl_ev, *tmp;
+	int i;
 
 	/* We must cancel and cleanup any pending vblank enable/disable
 	 * work before drm_irq_uninstall() to avoid work re-enabling an
 	 * irq after uninstall has disabled it.
 	 */
-	cancel_work_sync(&vbl_ctrl->work);
+	kthread_flush_work(&vbl_ctrl->work);
 	list_for_each_entry_safe(vbl_ev, tmp, &vbl_ctrl->event_list, node) {
 		list_del(&vbl_ev->node);
 		kfree(vbl_ev);
+	}
+
+	/* clean up display commit/event worker threads */
+	for (i = 0; i < priv->num_crtcs; i++) {
+		if (priv->disp_thread[i].thread) {
+			kthread_flush_worker(&priv->disp_thread[i].worker);
+			kthread_stop(priv->disp_thread[i].thread);
+			priv->disp_thread[i].thread = NULL;
+		}
+
+		if (priv->event_thread[i].thread) {
+			kthread_flush_worker(&priv->event_thread[i].worker);
+			kthread_stop(priv->event_thread[i].thread);
+			priv->event_thread[i].thread = NULL;
+		}
 	}
 
 	msm_gem_shrinker_cleanup(ddev);
@@ -243,9 +264,6 @@ static int msm_drm_uninit(struct device *dev)
 	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
 
-	flush_workqueue(priv->atomic_wq);
-	destroy_workqueue(priv->atomic_wq);
-
 	if (kms && kms->funcs)
 		kms->funcs->destroy(kms);
 
@@ -258,7 +276,8 @@ static int msm_drm_uninit(struct device *dev)
 
 	component_unbind_all(dev, ddev);
 
-	msm_mdss_destroy(ddev);
+	if (mdss && mdss->funcs)
+		mdss->funcs->destroy(ddev);
 
 	ddev->dev_private = NULL;
 	drm_dev_unref(ddev);
@@ -267,6 +286,10 @@ static int msm_drm_uninit(struct device *dev)
 
 	return 0;
 }
+
+#define KMS_MDP4 4
+#define KMS_MDP5 5
+#define KMS_DPU  3
 
 static int get_mdp_ver(struct platform_device *pdev)
 {
@@ -357,7 +380,9 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	struct drm_device *ddev;
 	struct msm_drm_private *priv;
 	struct msm_kms *kms;
-	int ret;
+	struct msm_mdss *mdss;
+	int ret, i;
+	struct sched_param param;
 
 	ddev = drm_dev_alloc(drv, dev);
 	if (IS_ERR(ddev)) {
@@ -369,52 +394,60 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		drm_dev_unref(ddev);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_unref_drm_dev;
 	}
 
 	ddev->dev_private = priv;
 	priv->dev = ddev;
 
-	ret = msm_mdss_init(ddev);
-	if (ret) {
-		kfree(priv);
-		drm_dev_unref(ddev);
-		return ret;
+	switch (get_mdp_ver(pdev)) {
+	case KMS_MDP5:
+		ret = mdp5_mdss_init(ddev);
+		break;
+	case KMS_DPU:
+		ret = dpu_mdss_init(ddev);
+		break;
+	default:
+		ret = 0;
+		break;
 	}
+	if (ret)
+		goto err_free_priv;
+
+	mdss = priv->mdss;
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
-	priv->atomic_wq = alloc_ordered_workqueue("msm:atomic", 0);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 	INIT_LIST_HEAD(&priv->vblank_ctrl.event_list);
-	INIT_WORK(&priv->vblank_ctrl.work, vblank_ctrl_worker);
+	kthread_init_work(&priv->vblank_ctrl.work, vblank_ctrl_worker);
 	spin_lock_init(&priv->vblank_ctrl.lock);
 
 	drm_mode_config_init(ddev);
 
 	/* Bind all our sub-components: */
 	ret = component_bind_all(dev, ddev);
-	if (ret) {
-		msm_mdss_destroy(ddev);
-		kfree(priv);
-		drm_dev_unref(ddev);
-		return ret;
-	}
+	if (ret)
+		goto err_destroy_mdss;
 
 	ret = msm_init_vram(ddev);
 	if (ret)
-		goto fail;
+		goto err_msm_uninit;
 
 	msm_gem_shrinker_init(ddev);
 
 	switch (get_mdp_ver(pdev)) {
-	case 4:
+	case KMS_MDP4:
 		kms = mdp4_kms_init(ddev);
 		priv->kms = kms;
 		break;
-	case 5:
+	case KMS_MDP5:
 		kms = mdp5_kms_init(ddev);
+		break;
+	case KMS_DPU:
+		kms = dpu_kms_init(ddev);
+		priv->kms = kms;
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
@@ -430,24 +463,100 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		 */
 		dev_err(dev, "failed to load kms\n");
 		ret = PTR_ERR(kms);
-		goto fail;
+		goto err_msm_uninit;
 	}
+
+	/* Enable normalization of plane zpos */
+	ddev->mode_config.normalize_zpos = true;
 
 	if (kms) {
 		ret = kms->funcs->hw_init(kms);
 		if (ret) {
 			dev_err(dev, "kms hw init failed: %d\n", ret);
-			goto fail;
+			goto err_msm_uninit;
 		}
 	}
 
 	ddev->mode_config.funcs = &mode_config_funcs;
 	ddev->mode_config.helper_private = &mode_config_helper_funcs;
 
+	/**
+	 * this priority was found during empiric testing to have appropriate
+	 * realtime scheduling to process display updates and interact with
+	 * other real time and normal priority task
+	 */
+	param.sched_priority = 16;
+	for (i = 0; i < priv->num_crtcs; i++) {
+
+		/* initialize display thread */
+		priv->disp_thread[i].crtc_id = priv->crtcs[i]->base.id;
+		kthread_init_worker(&priv->disp_thread[i].worker);
+		priv->disp_thread[i].dev = ddev;
+		priv->disp_thread[i].thread =
+			kthread_run(kthread_worker_fn,
+				&priv->disp_thread[i].worker,
+				"crtc_commit:%d", priv->disp_thread[i].crtc_id);
+		ret = sched_setscheduler(priv->disp_thread[i].thread,
+							SCHED_FIFO, &param);
+		if (ret)
+			pr_warn("display thread priority update failed: %d\n",
+									ret);
+
+		if (IS_ERR(priv->disp_thread[i].thread)) {
+			dev_err(dev, "failed to create crtc_commit kthread\n");
+			priv->disp_thread[i].thread = NULL;
+		}
+
+		/* initialize event thread */
+		priv->event_thread[i].crtc_id = priv->crtcs[i]->base.id;
+		kthread_init_worker(&priv->event_thread[i].worker);
+		priv->event_thread[i].dev = ddev;
+		priv->event_thread[i].thread =
+			kthread_run(kthread_worker_fn,
+				&priv->event_thread[i].worker,
+				"crtc_event:%d", priv->event_thread[i].crtc_id);
+		/**
+		 * event thread should also run at same priority as disp_thread
+		 * because it is handling frame_done events. A lower priority
+		 * event thread and higher priority disp_thread can causes
+		 * frame_pending counters beyond 2. This can lead to commit
+		 * failure at crtc commit level.
+		 */
+		ret = sched_setscheduler(priv->event_thread[i].thread,
+							SCHED_FIFO, &param);
+		if (ret)
+			pr_warn("display event thread priority update failed: %d\n",
+									ret);
+
+		if (IS_ERR(priv->event_thread[i].thread)) {
+			dev_err(dev, "failed to create crtc_event kthread\n");
+			priv->event_thread[i].thread = NULL;
+		}
+
+		if ((!priv->disp_thread[i].thread) ||
+				!priv->event_thread[i].thread) {
+			/* clean up previously created threads if any */
+			for ( ; i >= 0; i--) {
+				if (priv->disp_thread[i].thread) {
+					kthread_stop(
+						priv->disp_thread[i].thread);
+					priv->disp_thread[i].thread = NULL;
+				}
+
+				if (priv->event_thread[i].thread) {
+					kthread_stop(
+						priv->event_thread[i].thread);
+					priv->event_thread[i].thread = NULL;
+				}
+			}
+			goto err_msm_uninit;
+		}
+	}
+
 	ret = drm_vblank_init(ddev, priv->num_crtcs);
 	if (ret < 0) {
 		dev_err(dev, "failed to initialize vblank\n");
-		goto fail;
+		goto err_msm_uninit;
 	}
 
 	if (kms) {
@@ -456,13 +565,13 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		pm_runtime_put_sync(dev);
 		if (ret < 0) {
 			dev_err(dev, "failed to install IRQ handler\n");
-			goto fail;
+			goto err_msm_uninit;
 		}
 	}
 
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
-		goto fail;
+		goto err_msm_uninit;
 
 	drm_mode_config_reset(ddev);
 
@@ -473,14 +582,22 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	ret = msm_debugfs_late_init(ddev);
 	if (ret)
-		goto fail;
+		goto err_msm_uninit;
 
 	drm_kms_helper_poll_init(ddev);
 
 	return 0;
 
-fail:
+err_msm_uninit:
 	msm_drm_uninit(dev);
+	return ret;
+err_destroy_mdss:
+	if (mdss && mdss->funcs)
+		mdss->funcs->destroy(ddev);
+err_free_priv:
+	kfree(priv);
+err_unref_drm_dev:
+	drm_dev_unref(ddev);
 	return ret;
 }
 
@@ -894,8 +1011,20 @@ static struct drm_driver msm_driver = {
 static int msm_pm_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	/* TODO: Use atomic helper suspend/resume */
+	if (kms && kms->funcs && kms->funcs->pm_suspend)
+		return kms->funcs->pm_suspend(dev);
 
 	drm_kms_helper_poll_disable(ddev);
+
+	priv->pm_state = drm_atomic_helper_suspend(ddev);
+	if (IS_ERR(priv->pm_state)) {
+		drm_kms_helper_poll_enable(ddev);
+		return PTR_ERR(priv->pm_state);
+	}
 
 	return 0;
 }
@@ -903,7 +1032,14 @@ static int msm_pm_suspend(struct device *dev)
 static int msm_pm_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_kms *kms = priv->kms;
 
+	/* TODO: Use atomic helper suspend/resume */
+	if (kms && kms->funcs && kms->funcs->pm_resume)
+		return kms->funcs->pm_resume(dev);
+
+	drm_atomic_helper_resume(ddev, priv->pm_state);
 	drm_kms_helper_poll_enable(ddev);
 
 	return 0;
@@ -915,11 +1051,12 @@ static int msm_runtime_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_mdss *mdss = priv->mdss;
 
 	DBG("");
 
-	if (priv->mdss)
-		return msm_mdss_disable(priv->mdss);
+	if (mdss && mdss->funcs)
+		return mdss->funcs->disable(mdss);
 
 	return 0;
 }
@@ -928,11 +1065,12 @@ static int msm_runtime_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_mdss *mdss = priv->mdss;
 
 	DBG("");
 
-	if (priv->mdss)
-		return msm_mdss_enable(priv->mdss);
+	if (mdss && mdss->funcs)
+		return mdss->funcs->enable(mdss);
 
 	return 0;
 }
@@ -1031,12 +1169,13 @@ static int add_display_components(struct device *dev,
 	int ret;
 
 	/*
-	 * MDP5 based devices don't have a flat hierarchy. There is a top level
-	 * parent: MDSS, and children: MDP5, DSI, HDMI, eDP etc. Populate the
-	 * children devices, find the MDP5 node, and then add the interfaces
-	 * to our components list.
+	 * MDP5/DPU based devices don't have a flat hierarchy. There is a top
+	 * level parent: MDSS, and children: MDP5/DPU, DSI, HDMI, eDP etc.
+	 * Populate the children devices, find the MDP5/DPU node, and then add
+	 * the interfaces to our components list.
 	 */
-	if (of_device_is_compatible(dev->of_node, "qcom,mdss")) {
+	if (of_device_is_compatible(dev->of_node, "qcom,mdss") ||
+	    of_device_is_compatible(dev->of_node, "qcom,sdm845-mdss")) {
 		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
 		if (ret) {
 			dev_err(dev, "failed to populate children devices\n");
@@ -1146,8 +1285,9 @@ static int msm_pdev_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdp4", .data = (void *)4 },	/* MDP4 */
-	{ .compatible = "qcom,mdss", .data = (void *)5 },	/* MDP5 MDSS */
+	{ .compatible = "qcom,mdp4", .data = (void *)KMS_MDP4 },
+	{ .compatible = "qcom,mdss", .data = (void *)KMS_MDP5 },
+	{ .compatible = "qcom,sdm845-mdss", .data = (void *)KMS_DPU },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
@@ -1169,6 +1309,7 @@ static int __init msm_drm_register(void)
 
 	DBG("init");
 	msm_mdp_register();
+	msm_dpu_register();
 	msm_dsi_register();
 	msm_edp_register();
 	msm_hdmi_register();
@@ -1185,6 +1326,7 @@ static void __exit msm_drm_unregister(void)
 	msm_edp_unregister();
 	msm_dsi_unregister();
 	msm_mdp_unregister();
+	msm_dpu_unregister();
 }
 
 module_init(msm_drm_register);

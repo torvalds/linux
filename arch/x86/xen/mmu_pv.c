@@ -1230,8 +1230,7 @@ static void __init xen_pagetable_p2m_free(void)
 	 * We roundup to the PMD, which means that if anybody at this stage is
 	 * using the __ka address of xen_start_info or
 	 * xen_start_info->shared_info they are in going to crash. Fortunatly
-	 * we have already revectored in xen_setup_kernel_pagetable and in
-	 * xen_setup_shared_info.
+	 * we have already revectored in xen_setup_kernel_pagetable.
 	 */
 	size = roundup(size, PMD_SIZE);
 
@@ -1292,8 +1291,7 @@ static void __init xen_pagetable_init(void)
 
 	/* Remap memory freed due to conflicts with E820 map */
 	xen_remap_memory();
-
-	xen_setup_shared_info();
+	xen_setup_mfn_list_list();
 }
 static void xen_write_cr2(unsigned long cr2)
 {

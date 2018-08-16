@@ -91,6 +91,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <asm/unaligned.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/errqueue.h>
@@ -249,58 +250,13 @@ static const char *const af_family_kern_clock_key_strings[AF_MAX+1] = {
 	_sock_locks("k-clock-")
 };
 static const char *const af_family_rlock_key_strings[AF_MAX+1] = {
-  "rlock-AF_UNSPEC", "rlock-AF_UNIX"     , "rlock-AF_INET"     ,
-  "rlock-AF_AX25"  , "rlock-AF_IPX"      , "rlock-AF_APPLETALK",
-  "rlock-AF_NETROM", "rlock-AF_BRIDGE"   , "rlock-AF_ATMPVC"   ,
-  "rlock-AF_X25"   , "rlock-AF_INET6"    , "rlock-AF_ROSE"     ,
-  "rlock-AF_DECnet", "rlock-AF_NETBEUI"  , "rlock-AF_SECURITY" ,
-  "rlock-AF_KEY"   , "rlock-AF_NETLINK"  , "rlock-AF_PACKET"   ,
-  "rlock-AF_ASH"   , "rlock-AF_ECONET"   , "rlock-AF_ATMSVC"   ,
-  "rlock-AF_RDS"   , "rlock-AF_SNA"      , "rlock-AF_IRDA"     ,
-  "rlock-AF_PPPOX" , "rlock-AF_WANPIPE"  , "rlock-AF_LLC"      ,
-  "rlock-27"       , "rlock-28"          , "rlock-AF_CAN"      ,
-  "rlock-AF_TIPC"  , "rlock-AF_BLUETOOTH", "rlock-AF_IUCV"     ,
-  "rlock-AF_RXRPC" , "rlock-AF_ISDN"     , "rlock-AF_PHONET"   ,
-  "rlock-AF_IEEE802154", "rlock-AF_CAIF" , "rlock-AF_ALG"      ,
-  "rlock-AF_NFC"   , "rlock-AF_VSOCK"    , "rlock-AF_KCM"      ,
-  "rlock-AF_QIPCRTR", "rlock-AF_SMC"     , "rlock-AF_XDP"      ,
-  "rlock-AF_MAX"
+	_sock_locks("rlock-")
 };
 static const char *const af_family_wlock_key_strings[AF_MAX+1] = {
-  "wlock-AF_UNSPEC", "wlock-AF_UNIX"     , "wlock-AF_INET"     ,
-  "wlock-AF_AX25"  , "wlock-AF_IPX"      , "wlock-AF_APPLETALK",
-  "wlock-AF_NETROM", "wlock-AF_BRIDGE"   , "wlock-AF_ATMPVC"   ,
-  "wlock-AF_X25"   , "wlock-AF_INET6"    , "wlock-AF_ROSE"     ,
-  "wlock-AF_DECnet", "wlock-AF_NETBEUI"  , "wlock-AF_SECURITY" ,
-  "wlock-AF_KEY"   , "wlock-AF_NETLINK"  , "wlock-AF_PACKET"   ,
-  "wlock-AF_ASH"   , "wlock-AF_ECONET"   , "wlock-AF_ATMSVC"   ,
-  "wlock-AF_RDS"   , "wlock-AF_SNA"      , "wlock-AF_IRDA"     ,
-  "wlock-AF_PPPOX" , "wlock-AF_WANPIPE"  , "wlock-AF_LLC"      ,
-  "wlock-27"       , "wlock-28"          , "wlock-AF_CAN"      ,
-  "wlock-AF_TIPC"  , "wlock-AF_BLUETOOTH", "wlock-AF_IUCV"     ,
-  "wlock-AF_RXRPC" , "wlock-AF_ISDN"     , "wlock-AF_PHONET"   ,
-  "wlock-AF_IEEE802154", "wlock-AF_CAIF" , "wlock-AF_ALG"      ,
-  "wlock-AF_NFC"   , "wlock-AF_VSOCK"    , "wlock-AF_KCM"      ,
-  "wlock-AF_QIPCRTR", "wlock-AF_SMC"     , "wlock-AF_XDP"      ,
-  "wlock-AF_MAX"
+	_sock_locks("wlock-")
 };
 static const char *const af_family_elock_key_strings[AF_MAX+1] = {
-  "elock-AF_UNSPEC", "elock-AF_UNIX"     , "elock-AF_INET"     ,
-  "elock-AF_AX25"  , "elock-AF_IPX"      , "elock-AF_APPLETALK",
-  "elock-AF_NETROM", "elock-AF_BRIDGE"   , "elock-AF_ATMPVC"   ,
-  "elock-AF_X25"   , "elock-AF_INET6"    , "elock-AF_ROSE"     ,
-  "elock-AF_DECnet", "elock-AF_NETBEUI"  , "elock-AF_SECURITY" ,
-  "elock-AF_KEY"   , "elock-AF_NETLINK"  , "elock-AF_PACKET"   ,
-  "elock-AF_ASH"   , "elock-AF_ECONET"   , "elock-AF_ATMSVC"   ,
-  "elock-AF_RDS"   , "elock-AF_SNA"      , "elock-AF_IRDA"     ,
-  "elock-AF_PPPOX" , "elock-AF_WANPIPE"  , "elock-AF_LLC"      ,
-  "elock-27"       , "elock-28"          , "elock-AF_CAN"      ,
-  "elock-AF_TIPC"  , "elock-AF_BLUETOOTH", "elock-AF_IUCV"     ,
-  "elock-AF_RXRPC" , "elock-AF_ISDN"     , "elock-AF_PHONET"   ,
-  "elock-AF_IEEE802154", "elock-AF_CAIF" , "elock-AF_ALG"      ,
-  "elock-AF_NFC"   , "elock-AF_VSOCK"    , "elock-AF_KCM"      ,
-  "elock-AF_QIPCRTR", "elock-AF_SMC"     , "elock-AF_XDP"      ,
-  "elock-AF_MAX"
+	_sock_locks("elock-")
 };
 
 /*
@@ -697,6 +653,7 @@ EXPORT_SYMBOL(sk_mc_loop);
 int sock_setsockopt(struct socket *sock, int level, int optname,
 		    char __user *optval, unsigned int optlen)
 {
+	struct sock_txtime sk_txtime;
 	struct sock *sk = sock->sk;
 	int val;
 	int valbool;
@@ -1070,6 +1027,26 @@ set_rcvbuf:
 		}
 		break;
 
+	case SO_TXTIME:
+		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
+			ret = -EPERM;
+		} else if (optlen != sizeof(struct sock_txtime)) {
+			ret = -EINVAL;
+		} else if (copy_from_user(&sk_txtime, optval,
+			   sizeof(struct sock_txtime))) {
+			ret = -EFAULT;
+		} else if (sk_txtime.flags & ~SOF_TXTIME_FLAGS_MASK) {
+			ret = -EINVAL;
+		} else {
+			sock_valbool_flag(sk, SOCK_TXTIME, true);
+			sk->sk_clockid = sk_txtime.clockid;
+			sk->sk_txtime_deadline_mode =
+				!!(sk_txtime.flags & SOF_TXTIME_DEADLINE_MODE);
+			sk->sk_txtime_report_errors =
+				!!(sk_txtime.flags & SOF_TXTIME_REPORT_ERRORS);
+		}
+		break;
+
 	default:
 		ret = -ENOPROTOOPT;
 		break;
@@ -1115,6 +1092,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		u64 val64;
 		struct linger ling;
 		struct timeval tm;
+		struct sock_txtime txtime;
 	} v;
 
 	int lv = sizeof(int);
@@ -1401,6 +1379,15 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_ZEROCOPY:
 		v.val = sock_flag(sk, SOCK_ZEROCOPY);
+		break;
+
+	case SO_TXTIME:
+		lv = sizeof(v.txtime);
+		v.txtime.clockid = sk->sk_clockid;
+		v.txtime.flags |= sk->sk_txtime_deadline_mode ?
+				  SOF_TXTIME_DEADLINE_MODE : 0;
+		v.txtime.flags |= sk->sk_txtime_report_errors ?
+				  SOF_TXTIME_REPORT_ERRORS : 0;
 		break;
 
 	default:
@@ -2137,6 +2124,13 @@ int __sock_cmsg_send(struct sock *sk, struct msghdr *msg, struct cmsghdr *cmsg,
 		sockc->tsflags &= ~SOF_TIMESTAMPING_TX_RECORD_MASK;
 		sockc->tsflags |= tsflags;
 		break;
+	case SCM_TXTIME:
+		if (!sock_flag(sk, SOCK_TXTIME))
+			return -EINVAL;
+		if (cmsg->cmsg_len != CMSG_LEN(sizeof(u64)))
+			return -EINVAL;
+		sockc->transmit_time = get_unaligned((u64 *)CMSG_DATA(cmsg));
+		break;
 	/* SCM_RIGHTS and SCM_CREDENTIALS are semantically in SOL_UNIX. */
 	case SCM_RIGHTS:
 	case SCM_CREDENTIALS:
@@ -2401,9 +2395,10 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 {
 	struct proto *prot = sk->sk_prot;
 	long allocated = sk_memory_allocated_add(sk, amt);
+	bool charged = true;
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
-	    !mem_cgroup_charge_skmem(sk->sk_memcg, amt))
+	    !(charged = mem_cgroup_charge_skmem(sk->sk_memcg, amt)))
 		goto suppress_allocation;
 
 	/* Under limit. */
@@ -2461,7 +2456,8 @@ suppress_allocation:
 			return 1;
 	}
 
-	trace_sock_exceed_buf_limit(sk, prot, allocated);
+	if (kind == SK_MEM_SEND || (kind == SK_MEM_RECV && charged))
+		trace_sock_exceed_buf_limit(sk, prot, allocated, kind);
 
 	sk_memory_allocated_sub(sk, amt);
 
@@ -2818,6 +2814,8 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_pacing_rate = ~0U;
 	sk->sk_pacing_shift = 10;
 	sk->sk_incoming_cpu = -1;
+
+	sk_rx_queue_clear(sk);
 	/*
 	 * Before updating sk_refcnt, we must commit prior changes to memory
 	 * (Documentation/RCU/rculist_nulls.txt for details)
@@ -2902,8 +2900,8 @@ EXPORT_SYMBOL(lock_sock_fast);
 int sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 {
 	struct timeval tv;
-	if (!sock_flag(sk, SOCK_TIMESTAMP))
-		sock_enable_timestamp(sk, SOCK_TIMESTAMP);
+
+	sock_enable_timestamp(sk, SOCK_TIMESTAMP);
 	tv = ktime_to_timeval(sk->sk_stamp);
 	if (tv.tv_sec == -1)
 		return -ENOENT;
@@ -2918,8 +2916,8 @@ EXPORT_SYMBOL(sock_get_timestamp);
 int sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
 {
 	struct timespec ts;
-	if (!sock_flag(sk, SOCK_TIMESTAMP))
-		sock_enable_timestamp(sk, SOCK_TIMESTAMP);
+
+	sock_enable_timestamp(sk, SOCK_TIMESTAMP);
 	ts = ktime_to_timespec(sk->sk_stamp);
 	if (ts.tv_sec == -1)
 		return -ENOENT;

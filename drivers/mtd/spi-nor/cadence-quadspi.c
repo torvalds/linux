@@ -525,15 +525,14 @@ static int cqspi_indirect_read_execute(struct spi_nor *nor, u8 *rxbuf,
 	       reg_base + CQSPI_REG_INDIRECTRD);
 
 	while (remaining > 0) {
-		ret = wait_for_completion_timeout(&cqspi->transfer_complete,
-						  msecs_to_jiffies
-						  (CQSPI_READ_TIMEOUT_MS));
+		if (!wait_for_completion_timeout(&cqspi->transfer_complete,
+				msecs_to_jiffies(CQSPI_READ_TIMEOUT_MS)))
+			ret = -ETIMEDOUT;
 
 		bytes_to_read = cqspi_get_rd_sram_level(cqspi);
 
-		if (!ret && bytes_to_read == 0) {
+		if (ret && bytes_to_read == 0) {
 			dev_err(nor->dev, "Indirect read timeout, no bytes\n");
-			ret = -ETIMEDOUT;
 			goto failrd;
 		}
 
@@ -649,10 +648,8 @@ static int cqspi_indirect_write_execute(struct spi_nor *nor, loff_t to_addr,
 		iowrite32_rep(cqspi->ahb_base, txbuf,
 			      DIV_ROUND_UP(write_bytes, 4));
 
-		ret = wait_for_completion_timeout(&cqspi->transfer_complete,
-						  msecs_to_jiffies
-						  (CQSPI_TIMEOUT_MS));
-		if (!ret) {
+		if (!wait_for_completion_timeout(&cqspi->transfer_complete,
+					msecs_to_jiffies(CQSPI_TIMEOUT_MS))) {
 			dev_err(nor->dev, "Indirect write timeout\n");
 			ret = -ETIMEDOUT;
 			goto failwr;
@@ -988,9 +985,8 @@ static int cqspi_direct_read_execute(struct spi_nor *nor, u_char *buf,
 	}
 
 	dma_async_issue_pending(cqspi->rx_chan);
-	ret = wait_for_completion_timeout(&cqspi->rx_dma_complete,
-					  msecs_to_jiffies(len));
-	if (ret <= 0) {
+	if (!wait_for_completion_timeout(&cqspi->rx_dma_complete,
+					 msecs_to_jiffies(len))) {
 		dmaengine_terminate_sync(cqspi->rx_chan);
 		dev_err(nor->dev, "DMA wait_for_completion_timeout\n");
 		ret = -ETIMEDOUT;

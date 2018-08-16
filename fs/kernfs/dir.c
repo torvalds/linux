@@ -619,6 +619,7 @@ struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
 
 static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 					     const char *name, umode_t mode,
+					     kuid_t uid, kgid_t gid,
 					     unsigned flags)
 {
 	struct kernfs_node *kn;
@@ -661,8 +662,22 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	kn->mode = mode;
 	kn->flags = flags;
 
+	if (!uid_eq(uid, GLOBAL_ROOT_UID) || !gid_eq(gid, GLOBAL_ROOT_GID)) {
+		struct iattr iattr = {
+			.ia_valid = ATTR_UID | ATTR_GID,
+			.ia_uid = uid,
+			.ia_gid = gid,
+		};
+
+		ret = __kernfs_setattr(kn, &iattr);
+		if (ret < 0)
+			goto err_out3;
+	}
+
 	return kn;
 
+ err_out3:
+	idr_remove(&root->ino_idr, kn->id.ino);
  err_out2:
 	kmem_cache_free(kernfs_node_cache, kn);
  err_out1:
@@ -672,11 +687,13 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 
 struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 				    const char *name, umode_t mode,
+				    kuid_t uid, kgid_t gid,
 				    unsigned flags)
 {
 	struct kernfs_node *kn;
 
-	kn = __kernfs_new_node(kernfs_root(parent), name, mode, flags);
+	kn = __kernfs_new_node(kernfs_root(parent),
+			       name, mode, uid, gid, flags);
 	if (kn) {
 		kernfs_get(parent);
 		kn->parent = parent;
@@ -946,6 +963,7 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 	root->next_generation = 1;
 
 	kn = __kernfs_new_node(root, "", S_IFDIR | S_IRUGO | S_IXUGO,
+			       GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
 			       KERNFS_DIR);
 	if (!kn) {
 		idr_destroy(&root->ino_idr);
@@ -984,6 +1002,8 @@ void kernfs_destroy_root(struct kernfs_root *root)
  * @parent: parent in which to create a new directory
  * @name: name of the new directory
  * @mode: mode of the new directory
+ * @uid: uid of the new directory
+ * @gid: gid of the new directory
  * @priv: opaque data associated with the new directory
  * @ns: optional namespace tag of the directory
  *
@@ -991,13 +1011,15 @@ void kernfs_destroy_root(struct kernfs_root *root)
  */
 struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 					 const char *name, umode_t mode,
+					 kuid_t uid, kgid_t gid,
 					 void *priv, const void *ns)
 {
 	struct kernfs_node *kn;
 	int rc;
 
 	/* allocate */
-	kn = kernfs_new_node(parent, name, mode | S_IFDIR, KERNFS_DIR);
+	kn = kernfs_new_node(parent, name, mode | S_IFDIR,
+			     uid, gid, KERNFS_DIR);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -1028,7 +1050,8 @@ struct kernfs_node *kernfs_create_empty_dir(struct kernfs_node *parent,
 	int rc;
 
 	/* allocate */
-	kn = kernfs_new_node(parent, name, S_IRUGO|S_IXUGO|S_IFDIR, KERNFS_DIR);
+	kn = kernfs_new_node(parent, name, S_IRUGO|S_IXUGO|S_IFDIR,
+			     GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, KERNFS_DIR);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 

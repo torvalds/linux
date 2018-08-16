@@ -209,22 +209,35 @@ extern struct { char _entry[32]; } hypercall_page[];
 })
 
 static inline long
-privcmd_call(unsigned call,
-	     unsigned long a1, unsigned long a2,
-	     unsigned long a3, unsigned long a4,
-	     unsigned long a5)
+xen_single_call(unsigned int call,
+		unsigned long a1, unsigned long a2,
+		unsigned long a3, unsigned long a4,
+		unsigned long a5)
 {
 	__HYPERCALL_DECLS;
 	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);
 
-	stac();
 	asm volatile(CALL_NOSPEC
 		     : __HYPERCALL_5PARAM
 		     : [thunk_target] "a" (&hypercall_page[call])
 		     : __HYPERCALL_CLOBBER5);
-	clac();
 
 	return (long)__res;
+}
+
+static inline long
+privcmd_call(unsigned int call,
+	     unsigned long a1, unsigned long a2,
+	     unsigned long a3, unsigned long a4,
+	     unsigned long a5)
+{
+	long res;
+
+	stac();
+	res = xen_single_call(call, a1, a2, a3, a4, a5);
+	clac();
+
+	return res;
 }
 
 static inline int

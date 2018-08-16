@@ -90,7 +90,7 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @num_vf:	Called to find out how many virtual functions a device on this
  *		bus supports.
  * @dma_configure:	Called to setup DMA configuration on a device on
-			this bus.
+ *			this bus.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
  * @iommu_ops:  IOMMU specific operations for this bus, used to attach IOMMU
@@ -384,6 +384,9 @@ int subsys_virtual_register(struct bus_type *subsys,
  * @shutdown_pre: Called at shut-down time before driver shutdown.
  * @ns_type:	Callbacks so sysfs can detemine namespaces.
  * @namespace:	Namespace of the device belongs to this class.
+ * @get_ownership: Allows class to specify uid/gid of the sysfs directories
+ *		for the devices belonging to the class. Usually tied to
+ *		device's namespace.
  * @pm:		The default device power management operations of this class.
  * @p:		The private data of the driver core, no one other than the
  *		driver core can touch this.
@@ -412,6 +415,8 @@ struct class {
 
 	const struct kobj_ns_type_operations *ns_type;
 	const void *(*namespace)(struct device *dev);
+
+	void (*get_ownership)(struct device *dev, kuid_t *uid, kgid_t *gid);
 
 	const struct dev_pm_ops *pm;
 
@@ -784,14 +789,16 @@ enum device_link_state {
  * Device link flags.
  *
  * STATELESS: The core won't track the presence of supplier/consumer drivers.
- * AUTOREMOVE: Remove this link automatically on consumer driver unbind.
+ * AUTOREMOVE_CONSUMER: Remove the link automatically on consumer driver unbind.
  * PM_RUNTIME: If set, the runtime PM framework will use this link.
  * RPM_ACTIVE: Run pm_runtime_get_sync() on the supplier during link creation.
+ * AUTOREMOVE_SUPPLIER: Remove the link automatically on supplier driver unbind.
  */
-#define DL_FLAG_STATELESS	BIT(0)
-#define DL_FLAG_AUTOREMOVE	BIT(1)
-#define DL_FLAG_PM_RUNTIME	BIT(2)
-#define DL_FLAG_RPM_ACTIVE	BIT(3)
+#define DL_FLAG_STATELESS		BIT(0)
+#define DL_FLAG_AUTOREMOVE_CONSUMER	BIT(1)
+#define DL_FLAG_PM_RUNTIME		BIT(2)
+#define DL_FLAG_RPM_ACTIVE		BIT(3)
+#define DL_FLAG_AUTOREMOVE_SUPPLIER	BIT(4)
 
 /**
  * struct device_link - Device link representation.
@@ -886,6 +893,8 @@ struct dev_links_info {
  * @coherent_dma_mask: Like dma_mask, but for alloc_coherent mapping as not all
  * 		hardware supports 64-bit addresses for consistent allocations
  * 		such descriptors.
+ * @bus_dma_mask: Mask of an upstream bridge or bus which imposes a smaller DMA
+ *		limit than the device itself supports.
  * @dma_pfn_offset: offset of DMA memory range relatively of RAM
  * @dma_parms:	A low level driver may set these to teach IOMMU code about
  * 		segment limitations.
@@ -912,8 +921,6 @@ struct dev_links_info {
  * @offline:	Set after successful invocation of bus type's .offline().
  * @of_node_reused: Set if the device-tree node is shared with an ancestor
  *              device.
- * @dma_32bit_limit: bridge limited to 32bit DMA even if the device itself
- *		indicates support for a higher limit in the dma_mask field.
  *
  * At the lowest level, every device in a Linux system is represented by an
  * instance of struct device. The device structure contains the information
@@ -967,6 +974,7 @@ struct device {
 					     not all hardware supports
 					     64 bit addresses for consistent
 					     allocations such descriptors. */
+	u64		bus_dma_mask;	/* upstream dma_mask constraint */
 	unsigned long	dma_pfn_offset;
 
 	struct device_dma_parameters *dma_parms;
@@ -1002,7 +1010,6 @@ struct device {
 	bool			offline_disabled:1;
 	bool			offline:1;
 	bool			of_node_reused:1;
-	bool			dma_32bit_limit:1;
 };
 
 static inline struct device *kobj_to_dev(struct kobject *kobj)
@@ -1316,6 +1323,7 @@ extern const char *dev_driver_string(const struct device *dev);
 struct device_link *device_link_add(struct device *consumer,
 				    struct device *supplier, u32 flags);
 void device_link_del(struct device_link *link);
+void device_link_remove(void *consumer, struct device *supplier);
 
 #ifdef CONFIG_PRINTK
 

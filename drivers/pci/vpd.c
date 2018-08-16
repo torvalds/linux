@@ -146,7 +146,7 @@ static int pci_vpd_wait(struct pci_dev *dev)
 	if (!vpd->busy)
 		return 0;
 
-	while (time_before(jiffies, timeout)) {
+	do {
 		ret = pci_user_read_config_word(dev, vpd->cap + PCI_VPD_ADDR,
 						&status);
 		if (ret < 0)
@@ -160,10 +160,13 @@ static int pci_vpd_wait(struct pci_dev *dev)
 		if (fatal_signal_pending(current))
 			return -EINTR;
 
+		if (time_after(jiffies, timeout))
+			break;
+
 		usleep_range(10, max_sleep);
 		if (max_sleep < 1024)
 			max_sleep *= 2;
-	}
+	} while (true);
 
 	pci_warn(dev, "VPD access failed.  This is likely a firmware bug on this device.  Contact the card vendor for a firmware update\n");
 	return -ETIMEDOUT;

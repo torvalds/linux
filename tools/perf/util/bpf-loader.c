@@ -747,7 +747,9 @@ int bpf__load(struct bpf_object *obj)
 
 	err = bpf_object__load(obj);
 	if (err) {
-		pr_debug("bpf: load objects failed\n");
+		char bf[128];
+		libbpf_strerror(err, bf, sizeof(bf));
+		pr_debug("bpf: load objects failed: err=%d: (%s)\n", err, bf);
 		return err;
 	}
 	return 0;

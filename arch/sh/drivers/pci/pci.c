@@ -160,8 +160,6 @@ static int __init pcibios_init(void)
 	for (hose = hose_head; hose; hose = hose->next)
 		pcibios_scanbus(hose);
 
-	dma_debug_add_bus(&pci_bus_type);
-
 	pci_initialized = 1;
 
 	return 0;

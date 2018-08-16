@@ -2041,15 +2041,15 @@ static void intel_pmu_disable_event(struct perf_event *event)
 	cpuc->intel_ctrl_host_mask &= ~(1ull << hwc->idx);
 	cpuc->intel_cp_status &= ~(1ull << hwc->idx);
 
+	if (unlikely(event->attr.precise_ip))
+		intel_pmu_pebs_disable(event);
+
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
 		intel_pmu_disable_fixed(hwc);
 		return;
 	}
 
 	x86_pmu_disable_event(event);
-
-	if (unlikely(event->attr.precise_ip))
-		intel_pmu_pebs_disable(event);
 }
 
 static void intel_pmu_del_event(struct perf_event *event)
@@ -2068,17 +2068,19 @@ static void intel_pmu_read_event(struct perf_event *event)
 		x86_perf_event_update(event);
 }
 
-static void intel_pmu_enable_fixed(struct hw_perf_event *hwc)
+static void intel_pmu_enable_fixed(struct perf_event *event)
 {
+	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx - INTEL_PMC_IDX_FIXED;
-	u64 ctrl_val, bits, mask;
+	u64 ctrl_val, mask, bits = 0;
 
 	/*
-	 * Enable IRQ generation (0x8),
+	 * Enable IRQ generation (0x8), if not PEBS,
 	 * and enable ring-3 counting (0x2) and ring-0 counting (0x1)
 	 * if requested:
 	 */
-	bits = 0x8ULL;
+	if (!event->attr.precise_ip)
+		bits |= 0x8;
 	if (hwc->config & ARCH_PERFMON_EVENTSEL_USR)
 		bits |= 0x2;
 	if (hwc->config & ARCH_PERFMON_EVENTSEL_OS)
@@ -2120,13 +2122,13 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	if (unlikely(event_is_checkpointed(event)))
 		cpuc->intel_cp_status |= (1ull << hwc->idx);
 
-	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
-		intel_pmu_enable_fixed(hwc);
-		return;
-	}
-
 	if (unlikely(event->attr.precise_ip))
 		intel_pmu_pebs_enable(event);
+
+	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
+		intel_pmu_enable_fixed(event);
+		return;
+	}
 
 	__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
 }
@@ -2280,7 +2282,10 @@ again:
 	 * counters from the GLOBAL_STATUS mask and we always process PEBS
 	 * events via drain_pebs().
 	 */
-	status &= ~(cpuc->pebs_enabled & PEBS_COUNTER_MASK);
+	if (x86_pmu.flags & PMU_FL_PEBS_ALL)
+		status &= ~cpuc->pebs_enabled;
+	else
+		status &= ~(cpuc->pebs_enabled & PEBS_COUNTER_MASK);
 
 	/*
 	 * PEBS overflow sets bit 62 in the global status register
@@ -4072,7 +4077,6 @@ __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_skl();
 
 		x86_pmu.event_constraints = intel_slm_event_constraints;
-		x86_pmu.pebs_constraints = intel_glp_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_glm_extra_regs;
 		/*
 		 * It's recommended to use CPU_CLK_UNHALTED.CORE_P + NPEBS
@@ -4082,6 +4086,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.pebs_prec_dist = true;
 		x86_pmu.lbr_pt_coexist = true;
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
+		x86_pmu.flags |= PMU_FL_PEBS_ALL;
 		x86_pmu.get_event_constraints = glp_get_event_constraints;
 		x86_pmu.cpu_events = glm_events_attrs;
 		/* Goldmont Plus has 4-wide pipeline */

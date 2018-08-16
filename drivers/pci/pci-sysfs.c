@@ -23,7 +23,6 @@
 #include <linux/fs.h>
 #include <linux/capability.h>
 #include <linux/security.h>
-#include <linux/pci-aspm.h>
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
 #include <linux/pm_runtime.h>
@@ -1449,7 +1448,9 @@ static ssize_t reset_store(struct device *dev, struct device_attribute *attr,
 	if (val != 1)
 		return -EINVAL;
 
+	pm_runtime_get_sync(dev);
 	result = pci_reset_function(pdev);
+	pm_runtime_put(dev);
 	if (result < 0)
 		return result;
 
@@ -1746,6 +1747,9 @@ static const struct attribute_group *pci_dev_attr_groups[] = {
 #endif
 	&pci_bridge_attr_group,
 	&pcie_dev_attr_group,
+#ifdef CONFIG_PCIEAER
+	&aer_stats_attr_group,
+#endif
 	NULL,
 };
 

@@ -670,7 +670,7 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 	/* FIXME - module parameter arrays constrain max instances */
 	i = atomic_inc_return(&cobalt_instance) - 1;
 
-	cobalt = kzalloc(sizeof(struct cobalt), GFP_ATOMIC);
+	cobalt = kzalloc(sizeof(struct cobalt), GFP_KERNEL);
 	if (cobalt == NULL)
 		return -ENOMEM;
 	cobalt->pci_dev = pci_dev;

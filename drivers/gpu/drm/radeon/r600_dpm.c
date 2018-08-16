@@ -1327,9 +1327,9 @@ enum radeon_pcie_gen r600_get_pcie_gen_support(struct radeon_device *rdev,
 	case RADEON_PCIE_GEN3:
 		return RADEON_PCIE_GEN3;
 	default:
-		if ((sys_mask & DRM_PCIE_SPEED_80) && (default_gen == RADEON_PCIE_GEN3))
+		if ((sys_mask & RADEON_PCIE_SPEED_80) && (default_gen == RADEON_PCIE_GEN3))
 			return RADEON_PCIE_GEN3;
-		else if ((sys_mask & DRM_PCIE_SPEED_50) && (default_gen == RADEON_PCIE_GEN2))
+		else if ((sys_mask & RADEON_PCIE_SPEED_50) && (default_gen == RADEON_PCIE_GEN2))
 			return RADEON_PCIE_GEN2;
 		else
 			return RADEON_PCIE_GEN1;

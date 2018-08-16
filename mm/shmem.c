@@ -1239,8 +1239,8 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
 	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
 	 * Charged back to the user (not to caller) when swap account is used.
 	 */
-	error = mem_cgroup_try_charge(page, current->mm, GFP_KERNEL, &memcg,
-			false);
+	error = mem_cgroup_try_charge_delay(page, current->mm, GFP_KERNEL,
+					    &memcg, false);
 	if (error)
 		goto out;
 	/* No radix_tree_preload: swap entry keeps a place for page in tree */
@@ -1713,7 +1713,7 @@ repeat:
 				goto failed;
 		}
 
-		error = mem_cgroup_try_charge(page, charge_mm, gfp, &memcg,
+		error = mem_cgroup_try_charge_delay(page, charge_mm, gfp, &memcg,
 				false);
 		if (!error) {
 			error = shmem_add_to_page_cache(page, mapping, index,
@@ -1819,7 +1819,7 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, inode,
 		if (sgp == SGP_WRITE)
 			__SetPageReferenced(page);
 
-		error = mem_cgroup_try_charge(page, charge_mm, gfp, &memcg,
+		error = mem_cgroup_try_charge_delay(page, charge_mm, gfp, &memcg,
 				PageTransHuge(page));
 		if (error)
 			goto unacct;
@@ -2292,7 +2292,7 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 	__SetPageSwapBacked(page);
 	__SetPageUptodate(page);
 
-	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
+	ret = mem_cgroup_try_charge_delay(page, dst_mm, gfp, &memcg, false);
 	if (ret)
 		goto out_release;
 
@@ -3897,18 +3897,11 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 /* common code */
 
-static const struct dentry_operations anon_ops = {
-	.d_dname = simple_dname
-};
-
 static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, loff_t size,
 				       unsigned long flags, unsigned int i_flags)
 {
-	struct file *res;
 	struct inode *inode;
-	struct path path;
-	struct super_block *sb;
-	struct qstr this;
+	struct file *res;
 
 	if (IS_ERR(mnt))
 		return ERR_CAST(mnt);
@@ -3919,41 +3912,21 @@ static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, l
 	if (shmem_acct_size(flags, size))
 		return ERR_PTR(-ENOMEM);
 
-	res = ERR_PTR(-ENOMEM);
-	this.name = name;
-	this.len = strlen(name);
-	this.hash = 0; /* will go */
-	sb = mnt->mnt_sb;
-	path.mnt = mntget(mnt);
-	path.dentry = d_alloc_pseudo(sb, &this);
-	if (!path.dentry)
-		goto put_memory;
-	d_set_d_op(path.dentry, &anon_ops);
-
-	res = ERR_PTR(-ENOSPC);
-	inode = shmem_get_inode(sb, NULL, S_IFREG | 0777, 0, flags);
-	if (!inode)
-		goto put_memory;
-
+	inode = shmem_get_inode(mnt->mnt_sb, NULL, S_IFREG | S_IRWXUGO, 0,
+				flags);
+	if (unlikely(!inode)) {
+		shmem_unacct_size(flags, size);
+		return ERR_PTR(-ENOSPC);
+	}
 	inode->i_flags |= i_flags;
-	d_instantiate(path.dentry, inode);
 	inode->i_size = size;
 	clear_nlink(inode);	/* It is unlinked */
 	res = ERR_PTR(ramfs_nommu_expand_for_mapping(inode, size));
+	if (!IS_ERR(res))
+		res = alloc_file_pseudo(inode, mnt, name, O_RDWR,
+				&shmem_file_operations);
 	if (IS_ERR(res))
-		goto put_path;
-
-	res = alloc_file(&path, FMODE_WRITE | FMODE_READ,
-		  &shmem_file_operations);
-	if (IS_ERR(res))
-		goto put_path;
-
-	return res;
-
-put_memory:
-	shmem_unacct_size(flags, size);
-put_path:
-	path_put(&path);
+		iput(inode);
 	return res;
 }
 

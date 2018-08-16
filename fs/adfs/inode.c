@@ -287,7 +287,7 @@ adfs_iget(struct super_block *sb, struct object_info *obj)
 		ADFS_I(inode)->mmu_private = inode->i_size;
 	}
 
-	insert_inode_hash(inode);
+	inode_fake_hash(inode);
 
 out:
 	return inode;

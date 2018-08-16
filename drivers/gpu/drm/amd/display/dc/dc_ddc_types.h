@@ -25,6 +25,65 @@
 #ifndef DC_DDC_TYPES_H_
 #define DC_DDC_TYPES_H_
 
+enum aux_transaction_type {
+	AUX_TRANSACTION_TYPE_DP,
+	AUX_TRANSACTION_TYPE_I2C
+};
+
+
+enum i2caux_transaction_action {
+	I2CAUX_TRANSACTION_ACTION_I2C_WRITE = 0x00,
+	I2CAUX_TRANSACTION_ACTION_I2C_READ = 0x10,
+	I2CAUX_TRANSACTION_ACTION_I2C_STATUS_REQUEST = 0x20,
+
+	I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT = 0x40,
+	I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT = 0x50,
+	I2CAUX_TRANSACTION_ACTION_I2C_STATUS_REQUEST_MOT = 0x60,
+
+	I2CAUX_TRANSACTION_ACTION_DP_WRITE = 0x80,
+	I2CAUX_TRANSACTION_ACTION_DP_READ = 0x90
+};
+
+enum aux_channel_operation_result {
+	AUX_CHANNEL_OPERATION_SUCCEEDED,
+	AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN,
+	AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY,
+	AUX_CHANNEL_OPERATION_FAILED_TIMEOUT,
+	AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON
+};
+
+
+struct aux_request_transaction_data {
+	enum aux_transaction_type type;
+	enum i2caux_transaction_action action;
+	/* 20-bit AUX channel transaction address */
+	uint32_t address;
+	/* delay, in 100-microsecond units */
+	uint8_t delay;
+	uint32_t length;
+	uint8_t *data;
+};
+
+enum aux_transaction_reply {
+	AUX_TRANSACTION_REPLY_AUX_ACK = 0x00,
+	AUX_TRANSACTION_REPLY_AUX_NACK = 0x01,
+	AUX_TRANSACTION_REPLY_AUX_DEFER = 0x02,
+
+	AUX_TRANSACTION_REPLY_I2C_ACK = 0x00,
+	AUX_TRANSACTION_REPLY_I2C_NACK = 0x10,
+	AUX_TRANSACTION_REPLY_I2C_DEFER = 0x20,
+
+	AUX_TRANSACTION_REPLY_HPD_DISCON = 0x40,
+
+	AUX_TRANSACTION_REPLY_INVALID = 0xFF
+};
+
+struct aux_reply_transaction_data {
+	enum aux_transaction_reply status;
+	uint32_t length;
+	uint8_t *data;
+};
+
 struct i2c_payload {
 	bool write;
 	uint8_t address;
@@ -109,7 +168,7 @@ struct ddc_service {
 
 	uint32_t address;
 	uint32_t edid_buf_len;
-	uint8_t edid_buf[MAX_EDID_BUFFER_SIZE];
+	uint8_t edid_buf[DC_MAX_EDID_BUFFER_SIZE];
 };
 
 #endif /* DC_DDC_TYPES_H_ */

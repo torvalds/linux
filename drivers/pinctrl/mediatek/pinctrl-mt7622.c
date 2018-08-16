@@ -1263,6 +1263,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 					       MTK_DISABLE);
 			if (err)
 				goto err;
+			/* else: fall through */
 		case PIN_CONFIG_INPUT_ENABLE:
 		case PIN_CONFIG_SLEW_RATE:
 			reg = (param == PIN_CONFIG_SLEW_RATE) ?
@@ -1537,7 +1538,7 @@ static int mtk_build_groups(struct mtk_pinctrl *hw)
 		err = pinctrl_generic_add_group(hw->pctrl, group->name,
 						group->pins, group->num_pins,
 						group->data);
-		if (err) {
+		if (err < 0) {
 			dev_err(hw->dev, "Failed to register group %s\n",
 				group->name);
 			return err;
@@ -1558,7 +1559,7 @@ static int mtk_build_functions(struct mtk_pinctrl *hw)
 						  func->group_names,
 						  func->num_group_names,
 						  func->data);
-		if (err) {
+		if (err < 0) {
 			dev_err(hw->dev, "Failed to register function %s\n",
 				func->name);
 			return err;

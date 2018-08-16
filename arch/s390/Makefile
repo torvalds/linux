@@ -14,8 +14,18 @@ LD_BFD		:= elf64-s390
 LDFLAGS		:= -m elf64_s390
 KBUILD_AFLAGS_MODULE += -fPIC
 KBUILD_CFLAGS_MODULE += -fPIC
-KBUILD_CFLAGS	+= -m64
 KBUILD_AFLAGS	+= -m64
+KBUILD_CFLAGS	+= -m64
+aflags_dwarf	:= -Wa,-gdwarf-2
+KBUILD_AFLAGS_DECOMPRESSOR := -m64 -D__ASSEMBLY__
+KBUILD_AFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO),$(aflags_dwarf))
+KBUILD_CFLAGS_DECOMPRESSOR := -m64 -O2
+KBUILD_CFLAGS_DECOMPRESSOR += -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY
+KBUILD_CFLAGS_DECOMPRESSOR += -fno-delete-null-pointer-checks -msoft-float
+KBUILD_CFLAGS_DECOMPRESSOR += -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS_DECOMPRESSOR += $(call cc-option,-ffreestanding)
+KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO),-g)
+KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO_DWARF4), $(call cc-option, -gdwarf-4,))
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= 16384
 CHECKFLAGS	+= -D__s390__ -D__s390x__
@@ -52,17 +62,13 @@ cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 #
 cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
 
-# old style option for packed stacks
-ifeq ($(call cc-option-yn,-mkernel-backchain),y)
-cflags-$(CONFIG_PACK_STACK)  += -mkernel-backchain -D__PACK_STACK
-aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
-endif
-
-# new style option for packed stacks
 ifeq ($(call cc-option-yn,-mpacked-stack),y)
 cflags-$(CONFIG_PACK_STACK)  += -mpacked-stack -D__PACK_STACK
 aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
 endif
+
+KBUILD_AFLAGS_DECOMPRESSOR += $(aflags-y)
+KBUILD_CFLAGS_DECOMPRESSOR += $(cflags-y)
 
 ifeq ($(call cc-option-yn,-mstack-size=8192 -mstack-guard=128),y)
 cflags-$(CONFIG_CHECK_STACK) += -mstack-size=$(STACK_SIZE)
@@ -71,8 +77,11 @@ cflags-$(CONFIG_CHECK_STACK) += -mstack-guard=$(CONFIG_STACK_GUARD)
 endif
 endif
 
-ifeq ($(call cc-option-yn,-mwarn-dynamicstack),y)
-cflags-$(CONFIG_WARN_DYNAMIC_STACK) += -mwarn-dynamicstack
+ifdef CONFIG_WARN_DYNAMIC_STACK
+  ifeq ($(call cc-option-yn,-mwarn-dynamicstack),y)
+    KBUILD_CFLAGS += -mwarn-dynamicstack
+    KBUILD_CFLAGS_DECOMPRESSOR += -mwarn-dynamicstack
+  endif
 endif
 
 ifdef CONFIG_EXPOLINE
@@ -82,6 +91,7 @@ ifdef CONFIG_EXPOLINE
     CC_FLAGS_EXPOLINE += -mindirect-branch-table
     export CC_FLAGS_EXPOLINE
     cflags-y += $(CC_FLAGS_EXPOLINE) -DCC_USING_EXPOLINE
+    aflags-y += -DCC_USING_EXPOLINE
   endif
 endif
 
@@ -102,11 +112,12 @@ KBUILD_CFLAGS	+= -mbackchain -msoft-float $(cflags-y)
 KBUILD_CFLAGS	+= -pipe -fno-strength-reduce -Wno-sign-compare
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables $(cfi)
 KBUILD_AFLAGS	+= $(aflags-y) $(cfi)
+export KBUILD_AFLAGS_DECOMPRESSOR
+export KBUILD_CFLAGS_DECOMPRESSOR
 
 OBJCOPYFLAGS	:= -O binary
 
-head-y		:= arch/s390/kernel/head.o
-head-y		+= arch/s390/kernel/head64.o
+head-y		:= arch/s390/kernel/head64.o
 
 # See arch/s390/Kbuild for content of core part of the kernel
 core-y		+= arch/s390/
@@ -121,7 +132,7 @@ boot		:= arch/s390/boot
 syscalls	:= arch/s390/kernel/syscalls
 tools		:= arch/s390/tools
 
-all: image bzImage
+all: bzImage
 
 #KBUILD_IMAGE is necessary for packaging targets like rpm-pkg, deb-pkg...
 KBUILD_IMAGE	:= $(boot)/bzImage
@@ -129,7 +140,7 @@ KBUILD_IMAGE	:= $(boot)/bzImage
 install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
-image bzImage: vmlinux
+bzImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 zfcpdump:
@@ -152,8 +163,7 @@ archprepare:
 
 # Don't use tabs in echo arguments
 define archhelp
-  echo  '* image           - Kernel image for IPL ($(boot)/image)'
-  echo	'* bzImage         - Compressed kernel image for IPL ($(boot)/bzImage)'
+  echo	'* bzImage         - Kernel image for IPL ($(boot)/bzImage)'
   echo	'  install         - Install kernel using'
   echo	'                    (your) ~/bin/$(INSTALLKERNEL) or'
   echo	'                    (distribution) /sbin/$(INSTALLKERNEL) or'

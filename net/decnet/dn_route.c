@@ -404,7 +404,7 @@ void dn_rt_cache_flush(int delay)
 
 	if (delay <= 0) {
 		spin_unlock_bh(&dn_rt_flush_lock);
-		dn_run_flush(0);
+		dn_run_flush(NULL);
 		return;
 	}
 
@@ -1920,9 +1920,8 @@ void __init dn_route_init(void)
 void __exit dn_route_cleanup(void)
 {
 	del_timer(&dn_route_timer);
-	dn_run_flush(0);
+	dn_run_flush(NULL);
 
 	remove_proc_entry("decnet_cache", init_net.proc_net);
 	dst_entries_destroy(&dn_dst_ops);
 }
-

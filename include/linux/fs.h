@@ -148,6 +148,9 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 /* Has write method(s) */
 #define FMODE_CAN_WRITE         ((__force fmode_t)0x40000)
 
+#define FMODE_OPENED		((__force fmode_t)0x80000)
+#define FMODE_CREATED		((__force fmode_t)0x100000)
+
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY		((__force fmode_t)0x4000000)
 
@@ -275,6 +278,7 @@ struct writeback_control;
 
 /*
  * Write life time hint values.
+ * Stored in struct inode as u8.
  */
 enum rw_hint {
 	WRITE_LIFE_NOT_SET	= 0,
@@ -609,8 +613,8 @@ struct inode {
 	struct timespec64	i_ctime;
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
 	unsigned short          i_bytes;
-	unsigned int		i_blkbits;
-	enum rw_hint		i_write_hint;
+	u8			i_blkbits;
+	u8			i_write_hint;
 	blkcnt_t		i_blocks;
 
 #ifdef __NEED_I_SIZE_ORDERED
@@ -682,6 +686,17 @@ static inline unsigned int i_blocksize(const struct inode *node)
 static inline int inode_unhashed(struct inode *inode)
 {
 	return hlist_unhashed(&inode->i_hash);
+}
+
+/*
+ * __mark_inode_dirty expects inodes to be hashed.  Since we don't
+ * want special inodes in the fileset inode space, we make them
+ * appear hashed, but do not put on any lists.  hlist_del()
+ * will work fine and require no locking.
+ */
+static inline void inode_fake_hash(struct inode *inode)
+{
+	hlist_add_fake(&inode->i_hash);
 }
 
 /*
@@ -1776,7 +1791,7 @@ struct inode_operations {
 	int (*update_time)(struct inode *, struct timespec64 *, int);
 	int (*atomic_open)(struct inode *, struct dentry *,
 			   struct file *, unsigned open_flag,
-			   umode_t create_mode, int *opened);
+			   umode_t create_mode);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
 	int (*set_acl)(struct inode *, struct posix_acl *, int);
 } ____cacheline_aligned;
@@ -2014,6 +2029,8 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
  * I_OVL_INUSE		Used by overlayfs to get exclusive ownership on upper
  *			and work dirs among overlayfs mounts.
  *
+ * I_CREATING		New object's inode in the middle of setting up.
+ *
  * Q: What is the difference between I_WILL_FREE and I_FREEING?
  */
 #define I_DIRTY_SYNC		(1 << 0)
@@ -2034,7 +2051,8 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
 #define __I_DIRTY_TIME_EXPIRED	12
 #define I_DIRTY_TIME_EXPIRED	(1 << __I_DIRTY_TIME_EXPIRED)
 #define I_WB_SWITCH		(1 << 13)
-#define I_OVL_INUSE			(1 << 14)
+#define I_OVL_INUSE		(1 << 14)
+#define I_CREATING		(1 << 15)
 
 #define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
 #define I_DIRTY (I_DIRTY_INODE | I_DIRTY_PAGES)
@@ -2420,7 +2438,10 @@ extern struct file *filp_open(const char *, int, umode_t);
 extern struct file *file_open_root(struct dentry *, struct vfsmount *,
 				   const char *, int, umode_t);
 extern struct file * dentry_open(const struct path *, int, const struct cred *);
-extern struct file *filp_clone_open(struct file *);
+static inline struct file *file_clone_open(struct file *file)
+{
+	return dentry_open(&file->f_path, file->f_flags, file->f_cred);
+}
 extern int filp_close(struct file *, fl_owner_t id);
 
 extern struct filename *getname_flags(const char __user *, int, int *);
@@ -2428,13 +2449,8 @@ extern struct filename *getname(const char __user *);
 extern struct filename *getname_kernel(const char *);
 extern void putname(struct filename *name);
 
-enum {
-	FILE_CREATED = 1,
-	FILE_OPENED = 2
-};
 extern int finish_open(struct file *file, struct dentry *dentry,
-			int (*open)(struct inode *, struct file *),
-			int *opened);
+			int (*open)(struct inode *, struct file *));
 extern int finish_no_open(struct file *file, struct dentry *dentry);
 
 /* fs/ioctl.c */
@@ -2622,8 +2638,6 @@ static inline int filemap_fdatawait(struct address_space *mapping)
 
 extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
 				  loff_t lend);
-extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
-						loff_t lend);
 extern int filemap_write_and_wait(struct address_space *mapping);
 extern int filemap_write_and_wait_range(struct address_space *mapping,
 				        loff_t lstart, loff_t lend);
@@ -2918,6 +2932,7 @@ extern void lockdep_annotate_inode_mutex_key(struct inode *inode);
 static inline void lockdep_annotate_inode_mutex_key(struct inode *inode) { };
 #endif
 extern void unlock_new_inode(struct inode *);
+extern void discard_new_inode(struct inode *);
 extern unsigned int get_next_ino(void);
 extern void evict_inodes(struct super_block *sb);
 

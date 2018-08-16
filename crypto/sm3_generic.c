@@ -184,7 +184,6 @@ static struct shash_alg sm3_alg = {
 	.base		=	{
 		.cra_name	 =	"sm3",
 		.cra_driver_name =	"sm3-generic",
-		.cra_flags	 =	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	 =	SM3_BLOCK_SIZE,
 		.cra_module	 =	THIS_MODULE,
 	}

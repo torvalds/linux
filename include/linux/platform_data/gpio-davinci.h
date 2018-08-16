@@ -22,6 +22,7 @@
 #include <asm-generic/gpio.h>
 
 #define MAX_REGS_BANKS		5
+#define MAX_INT_PER_BANK 32
 
 struct davinci_gpio_platform_data {
 	u32	ngpio;
@@ -41,7 +42,7 @@ struct davinci_gpio_controller {
 	spinlock_t		lock;
 	void __iomem		*regs[MAX_REGS_BANKS];
 	int			gpio_unbanked;
-	unsigned int		base_irq;
+	int			irqs[MAX_INT_PER_BANK];
 	unsigned int		base;
 };
 

@@ -28,6 +28,8 @@ source mirror_lib.sh
 source mirror_gre_lib.sh
 source mirror_gre_topo_lib.sh
 
+require_command $ARPING
+
 setup_prepare()
 {
 	h1=${NETIFS[p1]}
@@ -38,6 +40,12 @@ setup_prepare()
 
 	swp3=${NETIFS[p5]}
 	h3=${NETIFS[p6]}
+
+	# gt4's remote address is at $h3.555, not $h3. Thus the packets arriving
+	# directly to $h3 for test_gretap_untagged_egress() are rejected by
+	# rp_filter and the test spuriously fails.
+	sysctl_set net.ipv4.conf.all.rp_filter 0
+	sysctl_set net.ipv4.conf.$h3.rp_filter 0
 
 	vrf_prepare
 	mirror_gre_topo_create
@@ -65,6 +73,9 @@ cleanup()
 
 	mirror_gre_topo_destroy
 	vrf_cleanup
+
+	sysctl_restore net.ipv4.conf.$h3.rp_filter
+	sysctl_restore net.ipv4.conf.all.rp_filter
 }
 
 test_vlan_match()
@@ -79,12 +90,14 @@ test_vlan_match()
 
 test_gretap()
 {
-	test_vlan_match gt4 'vlan_id 555 vlan_ethtype ip' "mirror to gretap"
+	test_vlan_match gt4 'skip_hw vlan_id 555 vlan_ethtype ip' \
+			"mirror to gretap"
 }
 
 test_ip6gretap()
 {
-	test_vlan_match gt6 'vlan_id 555 vlan_ethtype ipv6' "mirror to ip6gretap"
+	test_vlan_match gt6 'skip_hw vlan_id 555 vlan_ethtype ip' \
+			"mirror to ip6gretap"
 }
 
 test_span_gre_forbidden_cpu()
@@ -138,7 +151,7 @@ test_span_gre_forbidden_egress()
 
 	bridge vlan add dev $swp3 vid 555
 	# Re-prime FDB
-	arping -I br1.555 192.0.2.130 -fqc 1
+	$ARPING -I br1.555 192.0.2.130 -fqc 1
 	sleep 1
 	quick_test_span_gre_dir $tundev ingress
 
@@ -212,7 +225,7 @@ test_span_gre_fdb_roaming()
 
 	bridge fdb del dev $swp2 $h3mac vlan 555 master
 	# Re-prime FDB
-	arping -I br1.555 192.0.2.130 -fqc 1
+	$ARPING -I br1.555 192.0.2.130 -fqc 1
 	sleep 1
 	quick_test_span_gre_dir $tundev ingress
 

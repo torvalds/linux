@@ -492,7 +492,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 		    "Couldn't allocate vp_id.\n");
 		goto create_vhost_failed;
 	}
-	vha->mgmt_svr_loop_id = NPH_MGMT_SERVER;
+	vha->mgmt_svr_loop_id = qla2x00_reserve_mgmt_server_loop_id(vha);
 
 	vha->dpc_flags = 0L;
 

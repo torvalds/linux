@@ -252,7 +252,7 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	init_waitqueue_head(&wq->wait);
 	wq->fasync_list = NULL;
 	wq->flags = 0;
-	RCU_INIT_POINTER(ei->socket.wq, wq);
+	ei->socket.wq = wq;
 
 	ei->socket.state = SS_UNCONNECTED;
 	ei->socket.flags = 0;
@@ -266,11 +266,9 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 static void sock_destroy_inode(struct inode *inode)
 {
 	struct socket_alloc *ei;
-	struct socket_wq *wq;
 
 	ei = container_of(inode, struct socket_alloc, vfs_inode);
-	wq = rcu_dereference_protected(ei->socket.wq, 1);
-	kfree_rcu(wq, rcu);
+	kfree_rcu(ei->socket.wq, rcu);
 	kmem_cache_free(sock_inode_cachep, ei);
 }
 
@@ -388,39 +386,20 @@ static struct file_system_type sock_fs_type = {
 
 struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 {
-	struct qstr name = { .name = "" };
-	struct path path;
 	struct file *file;
 
-	if (dname) {
-		name.name = dname;
-		name.len = strlen(name.name);
-	} else if (sock->sk) {
-		name.name = sock->sk->sk_prot_creator->name;
-		name.len = strlen(name.name);
-	}
-	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
-	if (unlikely(!path.dentry)) {
-		sock_release(sock);
-		return ERR_PTR(-ENOMEM);
-	}
-	path.mnt = mntget(sock_mnt);
+	if (!dname)
+		dname = sock->sk ? sock->sk->sk_prot_creator->name : "";
 
-	d_instantiate(path.dentry, SOCK_INODE(sock));
-
-	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,
-		  &socket_file_ops);
+	file = alloc_file_pseudo(SOCK_INODE(sock), sock_mnt, dname,
+				O_RDWR | (flags & O_NONBLOCK),
+				&socket_file_ops);
 	if (IS_ERR(file)) {
-		/* drop dentry, keep inode for a bit */
-		ihold(d_inode(path.dentry));
-		path_put(&path);
-		/* ... and now kill it properly */
 		sock_release(sock);
 		return file;
 	}
 
 	sock->file = file;
-	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
 	file->private_data = sock;
 	return file;
 }
@@ -604,7 +583,7 @@ static void __sock_release(struct socket *sock, struct inode *inode)
 		module_put(owner);
 	}
 
-	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
+	if (sock->wq->fasync_list)
 		pr_err("%s: fasync list not empty!\n", __func__);
 
 	if (!sock->file) {
@@ -1131,12 +1110,21 @@ EXPORT_SYMBOL(sock_create_lite);
 static __poll_t sock_poll(struct file *file, poll_table *wait)
 {
 	struct socket *sock = file->private_data;
-	__poll_t events = poll_requested_events(wait);
+	__poll_t events = poll_requested_events(wait), flag = 0;
 
-	sock_poll_busy_loop(sock, events);
 	if (!sock->ops->poll)
 		return 0;
-	return sock->ops->poll(file, sock, wait) | sock_poll_busy_flag(sock);
+
+	if (sk_can_busy_loop(sock->sk)) {
+		/* poll once if requested by the syscall */
+		if (events & POLL_BUSY_LOOP)
+			sk_busy_loop(sock->sk, 1);
+
+		/* if this socket can poll_ll, tell the system call */
+		flag = POLL_BUSY_LOOP;
+	}
+
+	return sock->ops->poll(file, sock, wait) | flag;
 }
 
 static int sock_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1173,7 +1161,7 @@ static int sock_fasync(int fd, struct file *filp, int on)
 		return -EINVAL;
 
 	lock_sock(sk);
-	wq = rcu_dereference_protected(sock->wq, lockdep_sock_is_held(sk));
+	wq = sock->wq;
 	fasync_helper(fd, filp, on, &wq->fasync_list);
 
 	if (!wq->fasync_list)
@@ -2690,8 +2678,7 @@ EXPORT_SYMBOL(sock_unregister);
 
 bool sock_is_registered(int family)
 {
-	return family < NPROTO &&
-		rcu_access_pointer(net_families[array_index_nospec(family, NPROTO)]);
+	return family < NPROTO && rcu_access_pointer(net_families[family]);
 }
 
 static int __init sock_init(void)

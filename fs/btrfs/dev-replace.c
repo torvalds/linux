@@ -6,14 +6,9 @@
 #include <linux/sched.h>
 #include <linux/bio.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 #include <linux/blkdev.h>
-#include <linux/random.h>
-#include <linux/iocontext.h>
-#include <linux/capability.h>
 #include <linux/kthread.h>
 #include <linux/math64.h>
-#include <asm/div64.h>
 #include "ctree.h"
 #include "extent_map.h"
 #include "disk-io.h"
@@ -465,7 +460,7 @@ int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	 * go to the tgtdev as well (refer to btrfs_map_block()).
 	 */
 	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED;
-	dev_replace->time_started = get_seconds();
+	dev_replace->time_started = ktime_get_real_seconds();
 	dev_replace->cursor_left = 0;
 	dev_replace->committed_cursor_left = 0;
 	dev_replace->cursor_left_last_write_of_item = 0;
@@ -511,7 +506,7 @@ leave:
 	dev_replace->srcdev = NULL;
 	dev_replace->tgtdev = NULL;
 	btrfs_dev_replace_write_unlock(dev_replace);
-	btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+	btrfs_destroy_dev_replace_tgtdev(tgt_device);
 	return ret;
 }
 
@@ -618,7 +613,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 			  : BTRFS_IOCTL_DEV_REPLACE_STATE_FINISHED;
 	dev_replace->tgtdev = NULL;
 	dev_replace->srcdev = NULL;
-	dev_replace->time_stopped = get_seconds();
+	dev_replace->time_stopped = ktime_get_real_seconds();
 	dev_replace->item_needs_writeback = 1;
 
 	/* replace old device with new one in mapping tree */
@@ -637,7 +632,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		btrfs_rm_dev_replace_blocked(fs_info);
 		if (tgt_device)
-			btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+			btrfs_destroy_dev_replace_tgtdev(tgt_device);
 		btrfs_rm_dev_replace_unblocked(fs_info);
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 
@@ -663,7 +658,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	tgt_device->commit_total_bytes = src_device->commit_total_bytes;
 	tgt_device->commit_bytes_used = src_device->bytes_used;
 
-	btrfs_assign_next_active_device(fs_info, src_device, tgt_device);
+	btrfs_assign_next_active_device(src_device, tgt_device);
 
 	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
 	fs_info->fs_devices->rw_devices++;
@@ -672,9 +667,15 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 
 	btrfs_rm_dev_replace_blocked(fs_info);
 
-	btrfs_rm_dev_replace_remove_srcdev(fs_info, src_device);
+	btrfs_rm_dev_replace_remove_srcdev(src_device);
 
 	btrfs_rm_dev_replace_unblocked(fs_info);
+
+	/*
+	 * Increment dev_stats_ccnt so that btrfs_run_dev_stats() will
+	 * update on-disk dev stats value during commit transaction
+	 */
+	atomic_inc(&tgt_device->dev_stats_ccnt);
 
 	/*
 	 * this is again a consistent state where no dev_replace procedure
@@ -807,7 +808,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		break;
 	}
 	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_CANCELED;
-	dev_replace->time_stopped = get_seconds();
+	dev_replace->time_stopped = ktime_get_real_seconds();
 	dev_replace->item_needs_writeback = 1;
 	btrfs_dev_replace_write_unlock(dev_replace);
 	btrfs_scrub_cancel(fs_info);
@@ -826,7 +827,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		btrfs_dev_name(tgt_device));
 
 	if (tgt_device)
-		btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+		btrfs_destroy_dev_replace_tgtdev(tgt_device);
 
 leave:
 	mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
@@ -848,7 +849,7 @@ void btrfs_dev_replace_suspend_for_unmount(struct btrfs_fs_info *fs_info)
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 		dev_replace->replace_state =
 			BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED;
-		dev_replace->time_stopped = get_seconds();
+		dev_replace->time_stopped = ktime_get_real_seconds();
 		dev_replace->item_needs_writeback = 1;
 		btrfs_info(fs_info, "suspending dev_replace for unmount");
 		break;

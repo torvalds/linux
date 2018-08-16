@@ -107,7 +107,7 @@ static int bch_keylist_realloc(struct keylist *l, unsigned u64s,
 	/*
 	 * The journalling code doesn't handle the case where the keys to insert
 	 * is bigger than an empty write: If we just return -ENOMEM here,
-	 * bio_insert() and bio_invalidate() will insert the keys created so far
+	 * bch_data_insert_keys() will insert the keys created so far
 	 * and finish the rest when the keylist is empty.
 	 */
 	if (newsize * sizeof(uint64_t) > block_bytes(c) - sizeof(struct jset))
@@ -667,8 +667,7 @@ static void backing_request_endio(struct bio *bio)
 static void bio_complete(struct search *s)
 {
 	if (s->orig_bio) {
-		generic_end_io_acct(s->d->disk->queue,
-				    bio_data_dir(s->orig_bio),
+		generic_end_io_acct(s->d->disk->queue, bio_op(s->orig_bio),
 				    &s->d->disk->part0, s->start_time);
 
 		trace_bcache_request_end(s->d, s->orig_bio);
@@ -702,6 +701,8 @@ static void search_free(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, cl);
 
+	atomic_dec(&s->d->c->search_inflight);
+
 	if (s->iop.bio)
 		bio_put(s->iop.bio);
 
@@ -719,6 +720,7 @@ static inline struct search *search_alloc(struct bio *bio,
 
 	closure_init(&s->cl, NULL);
 	do_bio_hook(s, bio, request_endio);
+	atomic_inc(&d->c->search_inflight);
 
 	s->orig_bio		= bio;
 	s->cache_miss		= NULL;
@@ -1062,8 +1064,7 @@ static void detached_dev_end_io(struct bio *bio)
 	bio->bi_end_io = ddip->bi_end_io;
 	bio->bi_private = ddip->bi_private;
 
-	generic_end_io_acct(ddip->d->disk->queue,
-			    bio_data_dir(bio),
+	generic_end_io_acct(ddip->d->disk->queue, bio_op(bio),
 			    &ddip->d->disk->part0, ddip->start_time);
 
 	if (bio->bi_status) {
@@ -1102,6 +1103,44 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
 		generic_make_request(bio);
 }
 
+static void quit_max_writeback_rate(struct cache_set *c,
+				    struct cached_dev *this_dc)
+{
+	int i;
+	struct bcache_device *d;
+	struct cached_dev *dc;
+
+	/*
+	 * mutex bch_register_lock may compete with other parallel requesters,
+	 * or attach/detach operations on other backing device. Waiting to
+	 * the mutex lock may increase I/O request latency for seconds or more.
+	 * To avoid such situation, if mutext_trylock() failed, only writeback
+	 * rate of current cached device is set to 1, and __update_write_back()
+	 * will decide writeback rate of other cached devices (remember now
+	 * c->idle_counter is 0 already).
+	 */
+	if (mutex_trylock(&bch_register_lock)) {
+		for (i = 0; i < c->devices_max_used; i++) {
+			if (!c->devices[i])
+				continue;
+
+			if (UUID_FLASH_ONLY(&c->uuids[i]))
+				continue;
+
+			d = c->devices[i];
+			dc = container_of(d, struct cached_dev, disk);
+			/*
+			 * set writeback rate to default minimum value,
+			 * then let update_writeback_rate() to decide the
+			 * upcoming rate.
+			 */
+			atomic_long_set(&dc->writeback_rate.rate, 1);
+		}
+		mutex_unlock(&bch_register_lock);
+	} else
+		atomic_long_set(&this_dc->writeback_rate.rate, 1);
+}
+
 /* Cached devices - read & write stuff */
 
 static blk_qc_t cached_dev_make_request(struct request_queue *q,
@@ -1119,8 +1158,25 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
 		return BLK_QC_T_NONE;
 	}
 
-	atomic_set(&dc->backing_idle, 0);
-	generic_start_io_acct(q, rw, bio_sectors(bio), &d->disk->part0);
+	if (likely(d->c)) {
+		if (atomic_read(&d->c->idle_counter))
+			atomic_set(&d->c->idle_counter, 0);
+		/*
+		 * If at_max_writeback_rate of cache set is true and new I/O
+		 * comes, quit max writeback rate of all cached devices
+		 * attached to this cache set, and set at_max_writeback_rate
+		 * to false.
+		 */
+		if (unlikely(atomic_read(&d->c->at_max_writeback_rate) == 1)) {
+			atomic_set(&d->c->at_max_writeback_rate, 0);
+			quit_max_writeback_rate(d->c, dc);
+		}
+	}
+
+	generic_start_io_acct(q,
+			      bio_op(bio),
+			      bio_sectors(bio),
+			      &d->disk->part0);
 
 	bio_set_dev(bio, dc->bdev);
 	bio->bi_iter.bi_sector += dc->sb.data_offset;
@@ -1229,7 +1285,6 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
 	struct search *s;
 	struct closure *cl;
 	struct bcache_device *d = bio->bi_disk->private_data;
-	int rw = bio_data_dir(bio);
 
 	if (unlikely(d->c && test_bit(CACHE_SET_IO_DISABLE, &d->c->flags))) {
 		bio->bi_status = BLK_STS_IOERR;
@@ -1237,7 +1292,7 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
 		return BLK_QC_T_NONE;
 	}
 
-	generic_start_io_acct(q, rw, bio_sectors(bio), &d->disk->part0);
+	generic_start_io_acct(q, bio_op(bio), bio_sectors(bio), &d->disk->part0);
 
 	s = search_alloc(bio, d);
 	cl = &s->cl;
@@ -1254,7 +1309,7 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
 				      flash_dev_nodata,
 				      bcache_wq);
 		return BLK_QC_T_NONE;
-	} else if (rw) {
+	} else if (bio_data_dir(bio)) {
 		bch_keybuf_check_overlapping(&s->iop.c->moving_gc_keys,
 					&KEY(d->id, bio->bi_iter.bi_sector, 0),
 					&KEY(d->id, bio_end_sector(bio), 0));

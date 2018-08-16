@@ -40,9 +40,6 @@ following properties:
 - #interrupt-cells: must be identical to the that of the parent interrupt
   controller.
 
-- interrupt-parent: a phandle indicating which interrupt controller
-  this PMU signals interrupts to.
-
 
 Optional nodes:
 

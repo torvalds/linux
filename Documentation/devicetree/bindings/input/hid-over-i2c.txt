@@ -14,7 +14,6 @@ Required properties:
 - compatible: must be "hid-over-i2c"
 - reg: i2c slave address
 - hid-descr-addr: HID descriptor address
-- interrupt-parent: the phandle for the interrupt controller
 - interrupts: interrupt line
 
 Additional optional properties:

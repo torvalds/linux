@@ -739,6 +739,16 @@ config DVB_TC90522
 	  Toshiba TC90522 2xISDB-S 8PSK + 2xISDB-T OFDM demodulator.
 	  Say Y when you want to support this frontend.
 
+config DVB_MN88443X
+	tristate "Socionext MN88443x"
+	depends on DVB_CORE && I2C
+	select REGMAP_I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A driver for Socionext/Panasonic MN884433 and MN884434
+	  ISDB-S + ISDB-T demodulator.
+	  Say Y when you want to support this frontend.
+
 comment "Digital terrestrial only tuners/PLL"
 	depends on DVB_CORE
 

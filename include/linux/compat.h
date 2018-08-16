@@ -115,11 +115,6 @@ typedef	compat_ulong_t		compat_aio_context_t;
 struct compat_sel_arg_struct;
 struct rusage;
 
-struct compat_itimerspec {
-	struct compat_timespec it_interval;
-	struct compat_timespec it_value;
-};
-
 struct compat_utimbuf {
 	compat_time_t		actime;
 	compat_time_t		modtime;
@@ -300,10 +295,6 @@ extern int compat_get_timespec(struct timespec *, const void __user *);
 extern int compat_put_timespec(const struct timespec *, void __user *);
 extern int compat_get_timeval(struct timeval *, const void __user *);
 extern int compat_put_timeval(const struct timeval *, void __user *);
-extern int get_compat_itimerspec64(struct itimerspec64 *its,
-			const struct compat_itimerspec __user *uits);
-extern int put_compat_itimerspec64(const struct itimerspec64 *its,
-			struct compat_itimerspec __user *uits);
 
 struct compat_iovec {
 	compat_uptr_t	iov_base;
@@ -1027,6 +1018,17 @@ static inline struct compat_timeval ns_to_compat_timeval(s64 nsec)
 
 	return ctv;
 }
+
+/*
+ * Kernel code should not call compat syscalls (i.e., compat_sys_xyzyyz())
+ * directly.  Instead, use one of the functions which work equivalently, such
+ * as the kcompat_sys_xyzyyz() functions prototyped below.
+ */
+
+int kcompat_sys_statfs64(const char __user * pathname, compat_size_t sz,
+		     struct compat_statfs64 __user * buf);
+int kcompat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
+			  struct compat_statfs64 __user * buf);
 
 #else /* !CONFIG_COMPAT */
 

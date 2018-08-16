@@ -575,7 +575,8 @@ enum {
 
 /* /proc/sys/net/ipv6/icmp */
 enum {
-	NET_IPV6_ICMP_RATELIMIT=1
+	NET_IPV6_ICMP_RATELIMIT = 1,
+	NET_IPV6_ICMP_ECHO_IGNORE_ALL = 2
 };
 
 /* /proc/sys/net/<protocol>/neigh/<dev> */

@@ -570,12 +570,13 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_mcp_nvm_wr_cmd(struct qed_hwfn *p_hwfn,
-		       struct qed_ptt *p_ptt,
-		       u32 cmd,
-		       u32 param,
-		       u32 *o_mcp_resp,
-		       u32 *o_mcp_param, u32 i_txn_size, u32 *i_buf)
+static int
+qed_mcp_nvm_wr_cmd(struct qed_hwfn *p_hwfn,
+		   struct qed_ptt *p_ptt,
+		   u32 cmd,
+		   u32 param,
+		   u32 *o_mcp_resp,
+		   u32 *o_mcp_param, u32 i_txn_size, u32 *i_buf)
 {
 	struct qed_mcp_mb_params mb_params;
 	int rc;
@@ -1551,7 +1552,8 @@ qed_mcp_handle_ufp_event(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	if (p_hwfn->ufp_info.mode == QED_UFP_MODE_VNIC_BW) {
 		p_hwfn->qm_info.ooo_tc = p_hwfn->ufp_info.tc;
-		p_hwfn->hw_info.offload_tc = p_hwfn->ufp_info.tc;
+		qed_hw_info_set_offload_tc(&p_hwfn->hw_info,
+					   p_hwfn->ufp_info.tc);
 
 		qed_qm_reconf(p_hwfn, p_ptt);
 	} else if (p_hwfn->ufp_info.mode == QED_UFP_MODE_ETS) {
@@ -2473,6 +2475,55 @@ out:
 	return rc;
 }
 
+int qed_mcp_phy_sfp_read(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u32 port, u32 addr, u32 offset, u32 len, u8 *p_buf)
+{
+	u32 bytes_left, bytes_to_copy, buf_size, nvm_offset = 0;
+	u32 resp, param;
+	int rc;
+
+	nvm_offset |= (port << DRV_MB_PARAM_TRANSCEIVER_PORT_OFFSET) &
+		       DRV_MB_PARAM_TRANSCEIVER_PORT_MASK;
+	nvm_offset |= (addr << DRV_MB_PARAM_TRANSCEIVER_I2C_ADDRESS_OFFSET) &
+		       DRV_MB_PARAM_TRANSCEIVER_I2C_ADDRESS_MASK;
+
+	addr = offset;
+	offset = 0;
+	bytes_left = len;
+	while (bytes_left > 0) {
+		bytes_to_copy = min_t(u32, bytes_left,
+				      MAX_I2C_TRANSACTION_SIZE);
+		nvm_offset &= (DRV_MB_PARAM_TRANSCEIVER_I2C_ADDRESS_MASK |
+			       DRV_MB_PARAM_TRANSCEIVER_PORT_MASK);
+		nvm_offset |= ((addr + offset) <<
+			       DRV_MB_PARAM_TRANSCEIVER_OFFSET_OFFSET) &
+			       DRV_MB_PARAM_TRANSCEIVER_OFFSET_MASK;
+		nvm_offset |= (bytes_to_copy <<
+			       DRV_MB_PARAM_TRANSCEIVER_SIZE_OFFSET) &
+			       DRV_MB_PARAM_TRANSCEIVER_SIZE_MASK;
+		rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
+					DRV_MSG_CODE_TRANSCEIVER_READ,
+					nvm_offset, &resp, &param, &buf_size,
+					(u32 *)(p_buf + offset));
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to send a transceiver read command to the MFW. rc = %d.\n",
+				  rc);
+			return rc;
+		}
+
+		if (resp == FW_MSG_CODE_TRANSCEIVER_NOT_PRESENT)
+			return -ENODEV;
+		else if (resp != FW_MSG_CODE_TRANSCEIVER_DIAG_OK)
+			return -EINVAL;
+
+		offset += buf_size;
+		bytes_left -= buf_size;
+	}
+
+	return 0;
+}
+
 int qed_mcp_bist_register_test(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 drv_mb_param = 0, rsp, param;
@@ -2959,7 +3010,7 @@ static int qed_mcp_resource_cmd(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int
+static int
 __qed_mcp_resc_lock(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    struct qed_resc_lock_params *p_params)

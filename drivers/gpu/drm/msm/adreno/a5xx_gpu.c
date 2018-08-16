@@ -19,6 +19,7 @@
 #include <linux/soc/qcom/mdt_loader.h>
 #include <linux/pm_opp.h>
 #include <linux/nvmem-consumer.h>
+#include <linux/iopoll.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "a5xx_gpu.h"
@@ -1123,8 +1124,9 @@ static const u32 a5xx_registers[] = {
 	0xE800, 0xE806, 0xE810, 0xE89A, 0xE8A0, 0xE8A4, 0xE8AA, 0xE8EB,
 	0xE900, 0xE905, 0xEB80, 0xEB8F, 0xEBB0, 0xEBB0, 0xEC00, 0xEC05,
 	0xEC08, 0xECE9, 0xECF0, 0xECF0, 0xEA80, 0xEA80, 0xEA82, 0xEAA3,
-	0xEAA5, 0xEAC2, 0xA800, 0xA8FF, 0xAC60, 0xAC60, 0xB000, 0xB97F,
-	0xB9A0, 0xB9BF, ~0
+	0xEAA5, 0xEAC2, 0xA800, 0xA800, 0xA820, 0xA828, 0xA840, 0xA87D,
+	0XA880, 0xA88D, 0xA890, 0xA8A3, 0xA8D0, 0xA8D8, 0xA8E0, 0xA8F5,
+	0xAC60, 0xAC60, ~0,
 };
 
 static void a5xx_dump(struct msm_gpu *gpu)
@@ -1195,19 +1197,231 @@ static int a5xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void a5xx_show(struct msm_gpu *gpu, struct seq_file *m)
-{
-	seq_printf(m, "status:   %08x\n",
-			gpu_read(gpu, REG_A5XX_RBBM_STATUS));
+struct a5xx_crashdumper {
+	void *ptr;
+	struct drm_gem_object *bo;
+	u64 iova;
+};
 
-	/*
-	 * Temporarily disable hardware clock gating before going into
-	 * adreno_show to avoid issues while reading the registers
-	 */
+struct a5xx_gpu_state {
+	struct msm_gpu_state base;
+	u32 *hlsqregs;
+};
+
+#define gpu_poll_timeout(gpu, addr, val, cond, interval, timeout) \
+	readl_poll_timeout((gpu)->mmio + ((addr) << 2), val, cond, \
+		interval, timeout)
+
+static int a5xx_crashdumper_init(struct msm_gpu *gpu,
+		struct a5xx_crashdumper *dumper)
+{
+	dumper->ptr = msm_gem_kernel_new_locked(gpu->dev,
+		SZ_1M, MSM_BO_UNCACHED, gpu->aspace,
+		&dumper->bo, &dumper->iova);
+
+	if (IS_ERR(dumper->ptr))
+		return PTR_ERR(dumper->ptr);
+
+	return 0;
+}
+
+static void a5xx_crashdumper_free(struct msm_gpu *gpu,
+		struct a5xx_crashdumper *dumper)
+{
+	msm_gem_put_iova(dumper->bo, gpu->aspace);
+	msm_gem_put_vaddr(dumper->bo);
+
+	drm_gem_object_unreference(dumper->bo);
+}
+
+static int a5xx_crashdumper_run(struct msm_gpu *gpu,
+		struct a5xx_crashdumper *dumper)
+{
+	u32 val;
+
+	if (IS_ERR_OR_NULL(dumper->ptr))
+		return -EINVAL;
+
+	gpu_write64(gpu, REG_A5XX_CP_CRASH_SCRIPT_BASE_LO,
+		REG_A5XX_CP_CRASH_SCRIPT_BASE_HI, dumper->iova);
+
+	gpu_write(gpu, REG_A5XX_CP_CRASH_DUMP_CNTL, 1);
+
+	return gpu_poll_timeout(gpu, REG_A5XX_CP_CRASH_DUMP_CNTL, val,
+		val & 0x04, 100, 10000);
+}
+
+/*
+ * These are a list of the registers that need to be read through the HLSQ
+ * aperture through the crashdumper.  These are not nominally accessible from
+ * the CPU on a secure platform.
+ */
+static const struct {
+	u32 type;
+	u32 regoffset;
+	u32 count;
+} a5xx_hlsq_aperture_regs[] = {
+	{ 0x35, 0xe00, 0x32 },   /* HSLQ non-context */
+	{ 0x31, 0x2080, 0x1 },   /* HLSQ 2D context 0 */
+	{ 0x33, 0x2480, 0x1 },   /* HLSQ 2D context 1 */
+	{ 0x32, 0xe780, 0x62 },  /* HLSQ 3D context 0 */
+	{ 0x34, 0xef80, 0x62 },  /* HLSQ 3D context 1 */
+	{ 0x3f, 0x0ec0, 0x40 },  /* SP non-context */
+	{ 0x3d, 0x2040, 0x1 },   /* SP 2D context 0 */
+	{ 0x3b, 0x2440, 0x1 },   /* SP 2D context 1 */
+	{ 0x3e, 0xe580, 0x170 }, /* SP 3D context 0 */
+	{ 0x3c, 0xed80, 0x170 }, /* SP 3D context 1 */
+	{ 0x3a, 0x0f00, 0x1c },  /* TP non-context */
+	{ 0x38, 0x2000, 0xa },   /* TP 2D context 0 */
+	{ 0x36, 0x2400, 0xa },   /* TP 2D context 1 */
+	{ 0x39, 0xe700, 0x80 },  /* TP 3D context 0 */
+	{ 0x37, 0xef00, 0x80 },  /* TP 3D context 1 */
+};
+
+static void a5xx_gpu_state_get_hlsq_regs(struct msm_gpu *gpu,
+		struct a5xx_gpu_state *a5xx_state)
+{
+	struct a5xx_crashdumper dumper = { 0 };
+	u32 offset, count = 0;
+	u64 *ptr;
+	int i;
+
+	if (a5xx_crashdumper_init(gpu, &dumper))
+		return;
+
+	/* The script will be written at offset 0 */
+	ptr = dumper.ptr;
+
+	/* Start writing the data at offset 256k */
+	offset = dumper.iova + (256 * SZ_1K);
+
+	/* Count how many additional registers to get from the HLSQ aperture */
+	for (i = 0; i < ARRAY_SIZE(a5xx_hlsq_aperture_regs); i++)
+		count += a5xx_hlsq_aperture_regs[i].count;
+
+	a5xx_state->hlsqregs = kcalloc(count, sizeof(u32), GFP_KERNEL);
+	if (!a5xx_state->hlsqregs)
+		return;
+
+	/* Build the crashdump script */
+	for (i = 0; i < ARRAY_SIZE(a5xx_hlsq_aperture_regs); i++) {
+		u32 type = a5xx_hlsq_aperture_regs[i].type;
+		u32 c = a5xx_hlsq_aperture_regs[i].count;
+
+		/* Write the register to select the desired bank */
+		*ptr++ = ((u64) type << 8);
+		*ptr++ = (((u64) REG_A5XX_HLSQ_DBG_READ_SEL) << 44) |
+			(1 << 21) | 1;
+
+		*ptr++ = offset;
+		*ptr++ = (((u64) REG_A5XX_HLSQ_DBG_AHB_READ_APERTURE) << 44)
+			| c;
+
+		offset += c * sizeof(u32);
+	}
+
+	/* Write two zeros to close off the script */
+	*ptr++ = 0;
+	*ptr++ = 0;
+
+	if (a5xx_crashdumper_run(gpu, &dumper)) {
+		kfree(a5xx_state->hlsqregs);
+		a5xx_crashdumper_free(gpu, &dumper);
+		return;
+	}
+
+	/* Copy the data from the crashdumper to the state */
+	memcpy(a5xx_state->hlsqregs, dumper.ptr + (256 * SZ_1K),
+		count * sizeof(u32));
+
+	a5xx_crashdumper_free(gpu, &dumper);
+}
+
+static struct msm_gpu_state *a5xx_gpu_state_get(struct msm_gpu *gpu)
+{
+	struct a5xx_gpu_state *a5xx_state = kzalloc(sizeof(*a5xx_state),
+			GFP_KERNEL);
+
+	if (!a5xx_state)
+		return ERR_PTR(-ENOMEM);
+
+	/* Temporarily disable hardware clock gating before reading the hw */
 	a5xx_set_hwcg(gpu, false);
-	adreno_show(gpu, m);
+
+	/* First get the generic state from the adreno core */
+	adreno_gpu_state_get(gpu, &(a5xx_state->base));
+
+	a5xx_state->base.rbbm_status = gpu_read(gpu, REG_A5XX_RBBM_STATUS);
+
+	/* Get the HLSQ regs with the help of the crashdumper */
+	a5xx_gpu_state_get_hlsq_regs(gpu, a5xx_state);
+
 	a5xx_set_hwcg(gpu, true);
+
+	return &a5xx_state->base;
+}
+
+static void a5xx_gpu_state_destroy(struct kref *kref)
+{
+	struct msm_gpu_state *state = container_of(kref,
+		struct msm_gpu_state, ref);
+	struct a5xx_gpu_state *a5xx_state = container_of(state,
+		struct a5xx_gpu_state, base);
+
+	kfree(a5xx_state->hlsqregs);
+
+	adreno_gpu_state_destroy(state);
+	kfree(a5xx_state);
+}
+
+int a5xx_gpu_state_put(struct msm_gpu_state *state)
+{
+	if (IS_ERR_OR_NULL(state))
+		return 1;
+
+	return kref_put(&state->ref, a5xx_gpu_state_destroy);
+}
+
+
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+void a5xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
+		struct drm_printer *p)
+{
+	int i, j;
+	u32 pos = 0;
+	struct a5xx_gpu_state *a5xx_state = container_of(state,
+		struct a5xx_gpu_state, base);
+
+	if (IS_ERR_OR_NULL(state))
+		return;
+
+	adreno_show(gpu, state, p);
+
+	/* Dump the additional a5xx HLSQ registers */
+	if (!a5xx_state->hlsqregs)
+		return;
+
+	drm_printf(p, "registers-hlsq:\n");
+
+	for (i = 0; i < ARRAY_SIZE(a5xx_hlsq_aperture_regs); i++) {
+		u32 o = a5xx_hlsq_aperture_regs[i].regoffset;
+		u32 c = a5xx_hlsq_aperture_regs[i].count;
+
+		for (j = 0; j < c; j++, pos++, o++) {
+			/*
+			 * To keep the crashdump simple we pull the entire range
+			 * for each register type but not all of the registers
+			 * in the range are valid. Fortunately invalid registers
+			 * stick out like a sore thumb with a value of
+			 * 0xdeadbeef
+			 */
+			if (a5xx_state->hlsqregs[pos] == 0xdeadbeef)
+				continue;
+
+			drm_printf(p, "  - { offset: 0x%04x, value: 0x%08x }\n",
+				o << 2, a5xx_state->hlsqregs[pos]);
+		}
+	}
 }
 #endif
 
@@ -1239,11 +1453,15 @@ static const struct adreno_gpu_funcs funcs = {
 		.active_ring = a5xx_active_ring,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = a5xx_show,
+#endif
+#if defined(CONFIG_DEBUG_FS)
 		.debugfs_init = a5xx_debugfs_init,
 #endif
 		.gpu_busy = a5xx_gpu_busy,
+		.gpu_state_get = a5xx_gpu_state_get,
+		.gpu_state_put = a5xx_gpu_state_put,
 	},
 	.get_timestamp = a5xx_get_timestamp,
 };

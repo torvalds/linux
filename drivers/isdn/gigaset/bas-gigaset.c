@@ -739,6 +739,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_OPEN_B2CHANNEL_ACK:
 		++channel;
+		/* fall through */
 	case HD_OPEN_B1CHANNEL_ACK:
 		bcs = cs->bcs + channel;
 		update_basstate(ucs, BS_B1OPEN << channel, 0);
@@ -752,6 +753,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_CLOSE_B2CHANNEL_ACK:
 		++channel;
+		/* fall through */
 	case HD_CLOSE_B1CHANNEL_ACK:
 		bcs = cs->bcs + channel;
 		update_basstate(ucs, 0, BS_B1OPEN << channel);
@@ -765,6 +767,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_B2_FLOW_CONTROL:
 		++channel;
+		/* fall through */
 	case HD_B1_FLOW_CONTROL:
 		bcs = cs->bcs + channel;
 		atomic_add((l - BAS_NORMFRAME) * BAS_CORRFRAMES,
@@ -972,16 +975,14 @@ static int starturbs(struct bc_state *bcs)
 			rc = -EFAULT;
 			goto error;
 		}
+		usb_fill_int_urb(urb, bcs->cs->hw.bas->udev,
+				 usb_rcvisocpipe(urb->dev, 3 + 2 * bcs->channel),
+				 ubc->isoinbuf + k * BAS_INBUFSIZE,
+				 BAS_INBUFSIZE, read_iso_callback, bcs,
+				 BAS_FRAMETIME);
 
-		urb->dev = bcs->cs->hw.bas->udev;
-		urb->pipe = usb_rcvisocpipe(urb->dev, 3 + 2 * bcs->channel);
 		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = ubc->isoinbuf + k * BAS_INBUFSIZE;
-		urb->transfer_buffer_length = BAS_INBUFSIZE;
 		urb->number_of_packets = BAS_NUMFRAMES;
-		urb->interval = BAS_FRAMETIME;
-		urb->complete = read_iso_callback;
-		urb->context = bcs;
 		for (j = 0; j < BAS_NUMFRAMES; j++) {
 			urb->iso_frame_desc[j].offset = j * BAS_MAXFRAME;
 			urb->iso_frame_desc[j].length = BAS_MAXFRAME;
@@ -1005,15 +1006,15 @@ static int starturbs(struct bc_state *bcs)
 			rc = -EFAULT;
 			goto error;
 		}
-		urb->dev = bcs->cs->hw.bas->udev;
-		urb->pipe = usb_sndisocpipe(urb->dev, 4 + 2 * bcs->channel);
+		usb_fill_int_urb(urb, bcs->cs->hw.bas->udev,
+				 usb_sndisocpipe(urb->dev, 4 + 2 * bcs->channel),
+				 ubc->isooutbuf->data,
+				 sizeof(ubc->isooutbuf->data),
+				 write_iso_callback, &ubc->isoouturbs[k],
+				 BAS_FRAMETIME);
+
 		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = ubc->isooutbuf->data;
-		urb->transfer_buffer_length = sizeof(ubc->isooutbuf->data);
 		urb->number_of_packets = BAS_NUMFRAMES;
-		urb->interval = BAS_FRAMETIME;
-		urb->complete = write_iso_callback;
-		urb->context = &ubc->isoouturbs[k];
 		for (j = 0; j < BAS_NUMFRAMES; ++j) {
 			urb->iso_frame_desc[j].offset = BAS_OUTBUFSIZE;
 			urb->iso_frame_desc[j].length = BAS_NORMFRAME;

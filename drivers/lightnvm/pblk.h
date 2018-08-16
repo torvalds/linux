@@ -119,6 +119,16 @@ struct pblk_g_ctx {
 	u64 lba;
 };
 
+/* partial read context */
+struct pblk_pr_ctx {
+	struct bio *orig_bio;
+	DECLARE_BITMAP(bitmap, NVM_MAX_VLBA);
+	unsigned int orig_nr_secs;
+	unsigned int bio_init_idx;
+	void *ppa_ptr;
+	dma_addr_t dma_ppa_list;
+};
+
 /* Pad context */
 struct pblk_pad_rq {
 	struct pblk *pblk;
@@ -193,7 +203,7 @@ struct pblk_rb {
 	spinlock_t w_lock;		/* Write lock */
 	spinlock_t s_lock;		/* Sync lock */
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_t inflight_flush_point;	/* Not served REQ_FLUSH | REQ_FUA */
 #endif
 };
@@ -608,9 +618,6 @@ struct pblk {
 
 	int min_write_pgs; /* Minimum amount of pages required by controller */
 	int max_write_pgs; /* Maximum amount of pages supported by controller */
-	int pgs_in_buffer; /* Number of pages that need to be held in buffer to
-			    * guarantee successful reads.
-			    */
 
 	sector_t capacity; /* Device capacity when bad blocks are subtracted */
 
@@ -639,7 +646,7 @@ struct pblk {
 	u64 nr_flush_rst;		/* Flushes reset value for pad dist.*/
 	atomic64_t nr_flush;		/* Number of flush/fua I/O */
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Non-persistent debug counters, 4kb sector I/Os */
 	atomic_long_t inflight_writes;	/* Inflight writes (user and gc) */
 	atomic_long_t padded_writes;	/* Sectors padded due to flush/fua */
@@ -705,6 +712,15 @@ struct pblk_line_ws {
 
 #define pblk_g_rq_size (sizeof(struct nvm_rq) + sizeof(struct pblk_g_ctx))
 #define pblk_w_rq_size (sizeof(struct nvm_rq) + sizeof(struct pblk_c_ctx))
+
+#define pblk_err(pblk, fmt, ...)			\
+	pr_err("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
+#define pblk_info(pblk, fmt, ...)			\
+	pr_info("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
+#define pblk_warn(pblk, fmt, ...)			\
+	pr_warn("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
+#define pblk_debug(pblk, fmt, ...)			\
+	pr_debug("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
 
 /*
  * pblk ring buffer operations
@@ -1282,20 +1298,22 @@ static inline int pblk_io_aligned(struct pblk *pblk, int nr_secs)
 	return !(nr_secs % pblk->min_write_pgs);
 }
 
-#ifdef CONFIG_NVM_DEBUG
-static inline void print_ppa(struct nvm_geo *geo, struct ppa_addr *p,
+#ifdef CONFIG_NVM_PBLK_DEBUG
+static inline void print_ppa(struct pblk *pblk, struct ppa_addr *p,
 			     char *msg, int error)
 {
+	struct nvm_geo *geo = &pblk->dev->geo;
+
 	if (p->c.is_cached) {
-		pr_err("ppa: (%s: %x) cache line: %llu\n",
+		pblk_err(pblk, "ppa: (%s: %x) cache line: %llu\n",
 				msg, error, (u64)p->c.line);
 	} else if (geo->version == NVM_OCSSD_SPEC_12) {
-		pr_err("ppa: (%s: %x):ch:%d,lun:%d,blk:%d,pg:%d,pl:%d,sec:%d\n",
+		pblk_err(pblk, "ppa: (%s: %x):ch:%d,lun:%d,blk:%d,pg:%d,pl:%d,sec:%d\n",
 			msg, error,
 			p->g.ch, p->g.lun, p->g.blk,
 			p->g.pg, p->g.pl, p->g.sec);
 	} else {
-		pr_err("ppa: (%s: %x):ch:%d,lun:%d,chk:%d,sec:%d\n",
+		pblk_err(pblk, "ppa: (%s: %x):ch:%d,lun:%d,chk:%d,sec:%d\n",
 			msg, error,
 			p->m.grp, p->m.pu, p->m.chk, p->m.sec);
 	}
@@ -1307,16 +1325,16 @@ static inline void pblk_print_failed_rqd(struct pblk *pblk, struct nvm_rq *rqd,
 	int bit = -1;
 
 	if (rqd->nr_ppas ==  1) {
-		print_ppa(&pblk->dev->geo, &rqd->ppa_addr, "rqd", error);
+		print_ppa(pblk, &rqd->ppa_addr, "rqd", error);
 		return;
 	}
 
 	while ((bit = find_next_bit((void *)&rqd->ppa_status, rqd->nr_ppas,
 						bit + 1)) < rqd->nr_ppas) {
-		print_ppa(&pblk->dev->geo, &rqd->ppa_list[bit], "rqd", error);
+		print_ppa(pblk, &rqd->ppa_list[bit], "rqd", error);
 	}
 
-	pr_err("error:%d, ppa_status:%llx\n", error, rqd->ppa_status);
+	pblk_err(pblk, "error:%d, ppa_status:%llx\n", error, rqd->ppa_status);
 }
 
 static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
@@ -1347,7 +1365,7 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 				continue;
 		}
 
-		print_ppa(geo, ppa, "boundary", i);
+		print_ppa(tgt_dev->q->queuedata, ppa, "boundary", i);
 
 		return 1;
 	}
@@ -1377,7 +1395,7 @@ static inline int pblk_check_io(struct pblk *pblk, struct nvm_rq *rqd)
 
 			spin_lock(&line->lock);
 			if (line->state != PBLK_LINESTATE_OPEN) {
-				pr_err("pblk: bad ppa: line:%d,state:%d\n",
+				pblk_err(pblk, "bad ppa: line:%d,state:%d\n",
 							line->id, line->state);
 				WARN_ON(1);
 				spin_unlock(&line->lock);

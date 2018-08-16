@@ -623,7 +623,7 @@ static int displback_initwait(struct xen_drm_front_info *front_info)
 	if (ret < 0)
 		return ret;
 
-	DRM_INFO("Have %d conector(s)\n", cfg->num_connectors);
+	DRM_INFO("Have %d connector(s)\n", cfg->num_connectors);
 	/* Create event channels for all connectors and publish */
 	ret = xen_drm_front_evtchnl_create_all(front_info);
 	if (ret < 0)

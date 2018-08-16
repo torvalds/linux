@@ -46,6 +46,7 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 
 	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) = VGT_CAPS_FULL_48BIT_PPGTT;
 	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) |= VGT_CAPS_HWSP_EMULATION;
+	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) |= VGT_CAPS_HUGE_GTT;
 
 	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.mappable_gmadr.base)) =
 		vgpu_aperture_gmadr_base(vgpu);
@@ -57,6 +58,9 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 		vgpu_hidden_sz(vgpu);
 
 	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.fence_num)) = vgpu_fence_sz(vgpu);
+
+	vgpu_vreg_t(vgpu, vgtif_reg(cursor_x_hot)) = UINT_MAX;
+	vgpu_vreg_t(vgpu, vgtif_reg(cursor_y_hot)) = UINT_MAX;
 
 	gvt_dbg_core("Populate PVINFO PAGE for vGPU %d\n", vgpu->id);
 	gvt_dbg_core("aperture base [GMADR] 0x%llx size 0x%llx\n",
@@ -223,22 +227,20 @@ void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu)
  */
 void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu)
 {
-	struct intel_gvt *gvt = vgpu->gvt;
-
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 
 	vgpu->active = false;
 
 	if (atomic_read(&vgpu->submission.running_workload_num)) {
-		mutex_unlock(&gvt->lock);
+		mutex_unlock(&vgpu->vgpu_lock);
 		intel_gvt_wait_vgpu_idle(vgpu);
-		mutex_lock(&gvt->lock);
+		mutex_lock(&vgpu->vgpu_lock);
 	}
 
 	intel_vgpu_stop_schedule(vgpu);
 	intel_vgpu_dmabuf_cleanup(vgpu);
 
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 }
 
 /**
@@ -252,14 +254,11 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 
 	WARN(vgpu->active, "vGPU is still active!\n");
 
 	intel_gvt_debugfs_remove_vgpu(vgpu);
-	idr_remove(&gvt->vgpu_idr, vgpu->id);
-	if (idr_is_empty(&gvt->vgpu_idr))
-		intel_gvt_clean_irq(gvt);
 	intel_vgpu_clean_sched_policy(vgpu);
 	intel_vgpu_clean_submission(vgpu);
 	intel_vgpu_clean_display(vgpu);
@@ -269,10 +268,16 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	intel_vgpu_free_resource(vgpu);
 	intel_vgpu_clean_mmio(vgpu);
 	intel_vgpu_dmabuf_cleanup(vgpu);
-	vfree(vgpu);
+	mutex_unlock(&vgpu->vgpu_lock);
 
+	mutex_lock(&gvt->lock);
+	idr_remove(&gvt->vgpu_idr, vgpu->id);
+	if (idr_is_empty(&gvt->vgpu_idr))
+		intel_gvt_clean_irq(gvt);
 	intel_gvt_update_vgpu_types(gvt);
 	mutex_unlock(&gvt->lock);
+
+	vfree(vgpu);
 }
 
 #define IDLE_VGPU_IDR 0
@@ -298,6 +303,7 @@ struct intel_vgpu *intel_gvt_create_idle_vgpu(struct intel_gvt *gvt)
 
 	vgpu->id = IDLE_VGPU_IDR;
 	vgpu->gvt = gvt;
+	mutex_init(&vgpu->vgpu_lock);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++)
 		INIT_LIST_HEAD(&vgpu->submission.workload_q_head[i]);
@@ -324,7 +330,10 @@ out_free_vgpu:
  */
 void intel_gvt_destroy_idle_vgpu(struct intel_vgpu *vgpu)
 {
+	mutex_lock(&vgpu->vgpu_lock);
 	intel_vgpu_clean_sched_policy(vgpu);
+	mutex_unlock(&vgpu->vgpu_lock);
+
 	vfree(vgpu);
 }
 
@@ -342,8 +351,6 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (!vgpu)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&gvt->lock);
-
 	ret = idr_alloc(&gvt->vgpu_idr, vgpu, IDLE_VGPU_IDR + 1, GVT_MAX_VGPU,
 		GFP_KERNEL);
 	if (ret < 0)
@@ -353,6 +360,7 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	vgpu->handle = param->handle;
 	vgpu->gvt = gvt;
 	vgpu->sched_ctl.weight = param->weight;
+	mutex_init(&vgpu->vgpu_lock);
 	INIT_LIST_HEAD(&vgpu->dmabuf_obj_list_head);
 	INIT_RADIX_TREE(&vgpu->page_track_tree, GFP_KERNEL);
 	idr_init(&vgpu->object_idr);
@@ -400,8 +408,6 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_clean_sched_policy;
 
-	mutex_unlock(&gvt->lock);
-
 	return vgpu;
 
 out_clean_sched_policy:
@@ -424,7 +430,6 @@ out_clean_idr:
 	idr_remove(&gvt->vgpu_idr, vgpu->id);
 out_free_vgpu:
 	vfree(vgpu);
-	mutex_unlock(&gvt->lock);
 	return ERR_PTR(ret);
 }
 
@@ -456,12 +461,12 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	param.low_gm_sz = BYTES_TO_MB(param.low_gm_sz);
 	param.high_gm_sz = BYTES_TO_MB(param.high_gm_sz);
 
+	mutex_lock(&gvt->lock);
 	vgpu = __intel_gvt_create_vgpu(gvt, &param);
-	if (IS_ERR(vgpu))
-		return vgpu;
-
-	/* calculate left instance change for types */
-	intel_gvt_update_vgpu_types(gvt);
+	if (!IS_ERR(vgpu))
+		/* calculate left instance change for types */
+		intel_gvt_update_vgpu_types(gvt);
+	mutex_unlock(&gvt->lock);
 
 	return vgpu;
 }
@@ -473,7 +478,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
  * @engine_mask: engines to reset for GT reset
  *
  * This function is called when user wants to reset a virtual GPU through
- * device model reset or GT reset. The caller should hold the gvt lock.
+ * device model reset or GT reset. The caller should hold the vgpu lock.
  *
  * vGPU Device Model Level Reset (DMLR) simulates the PCI level reset to reset
  * the whole vGPU to default state as when it is created. This vGPU function
@@ -513,9 +518,9 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 	 * scheduler when the reset is triggered by current vgpu.
 	 */
 	if (scheduler->current_vgpu == NULL) {
-		mutex_unlock(&gvt->lock);
+		mutex_unlock(&vgpu->vgpu_lock);
 		intel_gvt_wait_vgpu_idle(vgpu);
-		mutex_lock(&gvt->lock);
+		mutex_lock(&vgpu->vgpu_lock);
 	}
 
 	intel_vgpu_reset_submission(vgpu, resetting_eng);
@@ -555,7 +560,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
  */
 void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu)
 {
-	mutex_lock(&vgpu->gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 	intel_gvt_reset_vgpu_locked(vgpu, true, 0);
-	mutex_unlock(&vgpu->gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 }

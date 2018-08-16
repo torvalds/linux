@@ -114,23 +114,27 @@ enum intel_dpll_id {
 	 */
 	DPLL_ID_ICL_DPLL1 = 1,
 	/**
+	 * @DPLL_ID_ICL_TBTPLL: ICL TBT PLL
+	 */
+	DPLL_ID_ICL_TBTPLL = 2,
+	/**
 	 * @DPLL_ID_ICL_MGPLL1: ICL MG PLL 1 port 1 (C)
 	 */
-	DPLL_ID_ICL_MGPLL1 = 2,
+	DPLL_ID_ICL_MGPLL1 = 3,
 	/**
 	 * @DPLL_ID_ICL_MGPLL2: ICL MG PLL 1 port 2 (D)
 	 */
-	DPLL_ID_ICL_MGPLL2 = 3,
+	DPLL_ID_ICL_MGPLL2 = 4,
 	/**
 	 * @DPLL_ID_ICL_MGPLL3: ICL MG PLL 1 port 3 (E)
 	 */
-	DPLL_ID_ICL_MGPLL3 = 4,
+	DPLL_ID_ICL_MGPLL3 = 5,
 	/**
 	 * @DPLL_ID_ICL_MGPLL4: ICL MG PLL 1 port 4 (F)
 	 */
-	DPLL_ID_ICL_MGPLL4 = 5,
+	DPLL_ID_ICL_MGPLL4 = 6,
 };
-#define I915_NUM_PLLS 6
+#define I915_NUM_PLLS 7
 
 struct intel_dpll_hw_state {
 	/* i9xx, pch plls */
@@ -176,6 +180,8 @@ struct intel_dpll_hw_state {
 	uint32_t mg_pll_ssc;
 	uint32_t mg_pll_bias;
 	uint32_t mg_pll_tdc_coldst_bias;
+	uint32_t mg_pll_bias_mask;
+	uint32_t mg_pll_tdc_coldst_bias_mask;
 };
 
 /**
@@ -336,5 +342,7 @@ void intel_shared_dpll_init(struct drm_device *dev);
 
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state);
+int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
+			       uint32_t pll_id);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

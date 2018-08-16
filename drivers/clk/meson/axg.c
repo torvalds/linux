@@ -12,7 +12,6 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/init.h>
-#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
@@ -626,6 +625,137 @@ static struct clk_regmap axg_mpll3 = {
 	},
 };
 
+static const struct pll_rate_table axg_pcie_pll_rate_table[] = {
+	{
+		.rate	= 100000000,
+		.m	= 200,
+		.n	= 3,
+		.od	= 1,
+		.od2	= 3,
+	},
+	{ /* sentinel */ },
+};
+
+static const struct reg_sequence axg_pcie_init_regs[] = {
+	{ .reg = HHI_PCIE_PLL_CNTL,	.def = 0x400106c8 },
+	{ .reg = HHI_PCIE_PLL_CNTL1,	.def = 0x0084a2aa },
+	{ .reg = HHI_PCIE_PLL_CNTL2,	.def = 0xb75020be },
+	{ .reg = HHI_PCIE_PLL_CNTL3,	.def = 0x0a47488e },
+	{ .reg = HHI_PCIE_PLL_CNTL4,	.def = 0xc000004d },
+	{ .reg = HHI_PCIE_PLL_CNTL5,	.def = 0x00078000 },
+	{ .reg = HHI_PCIE_PLL_CNTL6,	.def = 0x002323c6 },
+};
+
+static struct clk_regmap axg_pcie_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_PCIE_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_PCIE_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_PCIE_PLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.od2 = {
+			.reg_off = HHI_PCIE_PLL_CNTL6,
+			.shift   = 6,
+			.width   = 2,
+		},
+		.frac = {
+			.reg_off = HHI_PCIE_PLL_CNTL1,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.l = {
+			.reg_off = HHI_PCIE_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_PCIE_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = axg_pcie_pll_rate_table,
+		.init_regs = axg_pcie_init_regs,
+		.init_count = ARRAY_SIZE(axg_pcie_init_regs),
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_pll",
+		.ops = &meson_clk_pll_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap axg_pcie_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_PCIE_PLL_CNTL6,
+		.mask = 0x1,
+		.shift = 2,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = (const char *[]){ "mpll3", "pcie_pll" },
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_pcie_ref = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_PCIE_PLL_CNTL6,
+		.mask = 0x1,
+		.shift = 1,
+		/* skip the parent 0, reserved for debug */
+		.table = (u32[]){ 1 },
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_ref",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = (const char *[]){ "pcie_mux" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_pcie_cml_en0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_PCIE_PLL_CNTL6,
+		.bit_idx = 4,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "pcie_cml_en0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "pcie_ref" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+
+	},
+};
+
+static struct clk_regmap axg_pcie_cml_en1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_PCIE_PLL_CNTL6,
+		.bit_idx = 3,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "pcie_cml_en1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "pcie_ref" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 static u32 mux_table_clk81[]	= { 0, 2, 3, 4, 5, 6, 7 };
 static const char * const clk81_parent_names[] = {
 	"xtal", "fclk_div7", "mpll1", "mpll2", "fclk_div4",
@@ -779,6 +909,63 @@ static struct clk_regmap axg_sd_emmc_c_clk0 = {
 	},
 };
 
+static u32 mux_table_gen_clk[]	= { 0, 4, 5, 6, 7, 8,
+				    9, 10, 11, 13, 14, };
+static const char * const gen_clk_parent_names[] = {
+	"xtal", "hifi_pll", "mpll0", "mpll1", "mpll2", "mpll3",
+	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7", "gp0_pll",
+};
+
+static struct clk_regmap axg_gen_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.mask = 0xf,
+		.shift = 12,
+		.table = mux_table_gen_clk,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk_sel",
+		.ops = &clk_regmap_mux_ops,
+		/*
+		 * bits 15:12 selects from 14 possible parents:
+		 * xtal, [rtc_oscin_i], [sys_cpu_div16], [ddr_dpll_pt],
+		 * hifi_pll, mpll0, mpll1, mpll2, mpll3, fdiv4,
+		 * fdiv3, fdiv5, [cts_msr_clk], fdiv7, gp0_pll
+		 */
+		.parent_names = gen_clk_parent_names,
+		.num_parents = ARRAY_SIZE(gen_clk_parent_names),
+	},
+};
+
+static struct clk_regmap axg_gen_clk_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.shift = 0,
+		.width = 11,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "gen_clk_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_gen_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.bit_idx = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "gen_clk_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 static MESON_GATE(axg_ddr, HHI_GCLK_MPEG0, 0);
 static MESON_GATE(axg_audio_locker, HHI_GCLK_MPEG0, 2);
@@ -821,6 +1008,7 @@ static MESON_GATE(axg_mmc_pclk, HHI_GCLK_MPEG2, 11);
 static MESON_GATE(axg_vpu_intr, HHI_GCLK_MPEG2, 25);
 static MESON_GATE(axg_sec_ahb_ahb3_bridge, HHI_GCLK_MPEG2, 26);
 static MESON_GATE(axg_gic, HHI_GCLK_MPEG2, 30);
+static MESON_GATE(axg_mipi_enable, HHI_MIPI_CNTL0, 29);
 
 /* Always On (AO) domain gates */
 
@@ -910,6 +1098,15 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 		[CLKID_FCLK_DIV4_DIV]		= &axg_fclk_div4_div.hw,
 		[CLKID_FCLK_DIV5_DIV]		= &axg_fclk_div5_div.hw,
 		[CLKID_FCLK_DIV7_DIV]		= &axg_fclk_div7_div.hw,
+		[CLKID_PCIE_PLL]		= &axg_pcie_pll.hw,
+		[CLKID_PCIE_MUX]		= &axg_pcie_mux.hw,
+		[CLKID_PCIE_REF]		= &axg_pcie_ref.hw,
+		[CLKID_PCIE_CML_EN0]		= &axg_pcie_cml_en0.hw,
+		[CLKID_PCIE_CML_EN1]		= &axg_pcie_cml_en1.hw,
+		[CLKID_MIPI_ENABLE]		= &axg_mipi_enable.hw,
+		[CLKID_GEN_CLK_SEL]		= &axg_gen_clk_sel.hw,
+		[CLKID_GEN_CLK_DIV]		= &axg_gen_clk_div.hw,
+		[CLKID_GEN_CLK]			= &axg_gen_clk.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -988,6 +1185,15 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_fclk_div4,
 	&axg_fclk_div5,
 	&axg_fclk_div7,
+	&axg_pcie_pll,
+	&axg_pcie_mux,
+	&axg_pcie_ref,
+	&axg_pcie_cml_en0,
+	&axg_pcie_cml_en1,
+	&axg_mipi_enable,
+	&axg_gen_clk_sel,
+	&axg_gen_clk_div,
+	&axg_gen_clk,
 };
 
 static const struct of_device_id clkc_match_table[] = {
@@ -995,49 +1201,17 @@ static const struct of_device_id clkc_match_table[] = {
 	{}
 };
 
-static const struct regmap_config clkc_regmap_config = {
-	.reg_bits       = 32,
-	.val_bits       = 32,
-	.reg_stride     = 4,
-};
-
 static int axg_clkc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
-	void __iomem *clk_base = NULL;
 	struct regmap *map;
 	int ret, i;
 
 	/* Get the hhi system controller node if available */
 	map = syscon_node_to_regmap(of_get_parent(dev->of_node));
 	if (IS_ERR(map)) {
-		dev_err(dev,
-			"failed to get HHI regmap - Trying obsolete regs\n");
-
-		/*
-		 * FIXME: HHI registers should be accessed through
-		 * the appropriate system controller. This is required because
-		 * there is more than just clocks in this register space
-		 *
-		 * This fallback method is only provided temporarily until
-		 * all the platform DTs are properly using the syscon node
-		 */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -EINVAL;
-
-
-		clk_base = devm_ioremap(dev, res->start, resource_size(res));
-		if (!clk_base) {
-			dev_err(dev, "Unable to map clk base\n");
-			return -ENXIO;
-		}
-
-		map = devm_regmap_init_mmio(dev, clk_base,
-					    &clkc_regmap_config);
-		if (IS_ERR(map))
-			return PTR_ERR(map);
+		dev_err(dev, "failed to get HHI regmap\n");
+		return PTR_ERR(map);
 	}
 
 	/* Populate regmap for the regmap backed clocks */
