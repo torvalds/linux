@@ -699,25 +699,6 @@ static int fillslotinfo(struct hotplug_slot *hotplug_slot)
 	return rc;
 }
 
-static void release_slot(struct hotplug_slot *hotplug_slot)
-{
-	struct slot *slot;
-
-	if (!hotplug_slot || !hotplug_slot->private)
-		return;
-
-	slot = hotplug_slot->private;
-	kfree(slot->hotplug_slot->info);
-	kfree(slot->hotplug_slot);
-	slot->ctrl = NULL;
-	slot->bus_on = NULL;
-
-	/* we don't want to actually remove the resources, since free_resources will do just that */
-	ibmphp_unconfigure_card(&slot, -1);
-
-	kfree(slot);
-}
-
 static struct pci_driver ibmphp_driver;
 
 /*
@@ -941,7 +922,6 @@ static int __init ebda_rsrc_controller(void)
 			tmp_slot->hotplug_slot = hp_slot_ptr;
 
 			hp_slot_ptr->private = tmp_slot;
-			hp_slot_ptr->release = release_slot;
 
 			rc = fillslotinfo(hp_slot_ptr);
 			if (rc)

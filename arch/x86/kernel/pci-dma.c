@@ -155,9 +155,6 @@ static int __init pci_iommu_init(void)
 {
 	struct iommu_table_entry *p;
 
-#ifdef CONFIG_PCI
-	dma_debug_add_bus(&pci_bus_type);
-#endif
 	x86_init.iommu.iommu_init();
 
 	for (p = __iommu_table; p < __iommu_table_end; p++) {

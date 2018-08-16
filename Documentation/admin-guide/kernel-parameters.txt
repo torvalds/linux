@@ -3089,8 +3089,31 @@
 			See header of drivers/block/paride/pcd.c.
 			See also Documentation/blockdev/paride.txt.
 
-	pci=option[,option...]	[PCI] various PCI subsystem options:
-		earlydump	[X86] dump PCI config space before the kernel
+	pci=option[,option...]	[PCI] various PCI subsystem options.
+
+				Some options herein operate on a specific device
+				or a set of devices (<pci_dev>). These are
+				specified in one of the following formats:
+
+				[<domain>:]<bus>:<dev>.<func>[/<dev>.<func>]*
+				pci:<vendor>:<device>[:<subvendor>:<subdevice>]
+
+				Note: the first format specifies a PCI
+				bus/device/function address which may change
+				if new hardware is inserted, if motherboard
+				firmware changes, or due to changes caused
+				by other kernel parameters. If the
+				domain is left unspecified, it is
+				taken to be zero. Optionally, a path
+				to a device through multiple device/function
+				addresses can be specified after the base
+				address (this is more robust against
+				renumbering issues).  The second format
+				selects devices using IDs from the
+				configuration space which may match multiple
+				devices in the system.
+
+		earlydump	dump PCI config space before the kernel
 				changes anything
 		off		[X86] don't probe for the PCI bus
 		bios		[X86-32] force use of PCI BIOS, don't access
@@ -3218,11 +3241,10 @@
 				window. The default value is 64 megabytes.
 		resource_alignment=
 				Format:
-				[<order of align>@][<domain>:]<bus>:<slot>.<func>[; ...]
-				[<order of align>@]pci:<vendor>:<device>\
-						[:<subvendor>:<subdevice>][; ...]
+				[<order of align>@]<pci_dev>[; ...]
 				Specifies alignment and device to reassign
-				aligned memory resources.
+				aligned memory resources. How to
+				specify the device is described above.
 				If <order of align> is not specified,
 				PAGE_SIZE is used as alignment.
 				PCI-PCI bridge can be specified, if resource
@@ -3265,6 +3287,15 @@
 				Adding the window is slightly risky (it may
 				conflict with unreported devices), so this
 				taints the kernel.
+		disable_acs_redir=<pci_dev>[; ...]
+				Specify one or more PCI devices (in the format
+				specified above) separated by semicolons.
+				Each device specified will have the PCI ACS
+				redirect capabilities forced off which will
+				allow P2P traffic between devices through
+				bridges without forcing it upstream. Note:
+				this removes isolation between devices and
+				may put more devices in an IOMMU group.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
