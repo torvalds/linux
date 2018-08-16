@@ -22,6 +22,7 @@ hfi1-y := \
 	intr.o \
 	mad.o \
 	mmu_rb.o \
+	msix.o \
 	pcie.o \
 	pio.o \
 	pio_copy.o \

@@ -332,24 +332,6 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	return 0;
 }
 
-/*
- * Returns:
- *	- actual number of interrupts allocated or
- *      - error
- */
-int request_msix(struct hfi1_devdata *dd, u32 msireq)
-{
-	int nvec;
-
-	nvec = pci_alloc_irq_vectors(dd->pcidev, msireq, msireq, PCI_IRQ_MSIX);
-	if (nvec < 0) {
-		dd_dev_err(dd, "pci_alloc_irq_vectors() failed: %d\n", nvec);
-		return nvec;
-	}
-
-	return nvec;
-}
-
 /* restore command and BARs after a reset has wiped them out */
 int restore_pci_variables(struct hfi1_devdata *dd)
 {

@@ -1416,6 +1416,16 @@ void hfi1_read_link_quality(struct hfi1_devdata *dd, u8 *link_quality);
 void hfi1_init_vnic_rsm(struct hfi1_devdata *dd);
 void hfi1_deinit_vnic_rsm(struct hfi1_devdata *dd);
 
+irqreturn_t general_interrupt(int irq, void *data);
+irqreturn_t sdma_interrupt(int irq, void *data);
+irqreturn_t receive_context_interrupt(int irq, void *data);
+irqreturn_t receive_context_thread(int irq, void *data);
+
+void clear_all_interrupts(struct hfi1_devdata *dd);
+void remap_intr(struct hfi1_devdata *dd, int isrc, int msix_intr);
+void remap_sdma_interrupts(struct hfi1_devdata *dd, int engine, int msix_intr);
+void reset_interrupts(struct hfi1_devdata *dd);
+
 /*
  * Interrupt source table.
  *
