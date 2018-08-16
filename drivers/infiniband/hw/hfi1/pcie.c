@@ -1005,6 +1005,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	const u8 (*ctle_tunings)[4];
 	uint static_ctle_mode;
 	int return_error = 0;
+	u32 target_width;
 
 	/* PCIe Gen3 is for the ASIC only */
 	if (dd->icode != ICODE_RTL_SILICON)
@@ -1043,6 +1044,9 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 			    __func__);
 		return 0;
 	}
+
+	/* Previous Gen1/Gen2 bus width */
+	target_width = dd->lbus_width;
 
 	/*
 	 * Do the Gen3 transition.  Steps are those of the PCIe Gen3
@@ -1412,11 +1416,12 @@ retry:
 	dd_dev_info(dd, "%s: new speed and width: %s\n", __func__,
 		    dd->lbus_info);
 
-	if (dd->lbus_speed != target_speed) { /* not target */
+	if (dd->lbus_speed != target_speed ||
+	    dd->lbus_width < target_width) { /* not target */
 		/* maybe retry */
 		do_retry = retry_count < pcie_retry;
-		dd_dev_err(dd, "PCIe link speed did not switch to Gen%d%s\n",
-			   pcie_target, do_retry ? ", retrying" : "");
+		dd_dev_err(dd, "PCIe link speed or width did not match target%s\n",
+			   do_retry ? ", retrying" : "");
 		retry_count++;
 		if (do_retry) {
 			msleep(100); /* allow time to settle */
