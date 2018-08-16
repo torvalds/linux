@@ -1908,7 +1908,9 @@ static void dce110_reset_hw_ctx_wrap(
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
 					pipe_ctx_old->plane_res.mi, dc->current_state->stream_count);
 
-			if (old_clk)
+			if (old_clk && 0 == resource_get_clock_source_reference(&context->res_ctx,
+										dc->res_pool,
+										old_clk))
 				old_clk->funcs->cs_power_down(old_clk);
 
 			dc->hwss.disable_plane(dc, pipe_ctx_old);
