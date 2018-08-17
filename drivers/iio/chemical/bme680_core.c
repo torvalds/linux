@@ -206,7 +206,7 @@ static int bme680_read_calib(struct bme680_data *data,
 		return ret;
 	}
 	calib->par_h1 = (tmp_msb << BME680_HUM_REG_SHIFT_VAL) |
-			(tmp_lsb & BME680_BIT_H1_DATA_MSK);
+			(tmp_lsb & BME680_BIT_H1_DATA_MASK);
 
 	ret = regmap_read(data->regmap, BME680_H2_MSB_REG, &tmp_msb);
 	if (ret < 0) {
@@ -285,7 +285,7 @@ static int bme680_read_calib(struct bme680_data *data,
 		dev_err(dev, "failed to read resistance heat range\n");
 		return ret;
 	}
-	calib->res_heat_range = (tmp & BME680_RHRANGE_MSK) / 16;
+	calib->res_heat_range = (tmp & BME680_RHRANGE_MASK) / 16;
 
 	ret = regmap_read(data->regmap, BME680_REG_RES_HEAT_VAL, &tmp);
 	if (ret < 0) {
@@ -299,7 +299,7 @@ static int bme680_read_calib(struct bme680_data *data,
 		dev_err(dev, "failed to read range software error\n");
 		return ret;
 	}
-	calib->range_sw_err = (tmp & BME680_RSERROR_MSK) / 16;
+	calib->range_sw_err = (tmp & BME680_RSERROR_MASK) / 16;
 
 	return 0;
 }
