@@ -12969,8 +12969,11 @@ static int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	    INTEL_INFO(dev_priv)->cursor_needs_physical) {
 		struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 		const int align = intel_cursor_alignment(dev_priv);
+		int err;
 
-		return i915_gem_object_attach_phys(obj, align);
+		err = i915_gem_object_attach_phys(obj, align);
+		if (err)
+			return err;
 	}
 
 	vma = intel_pin_and_fence_fb_obj(fb,
