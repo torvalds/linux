@@ -408,13 +408,20 @@ unsigned long __init section_map_size(void)
 }
 
 #else
+unsigned long __init section_map_size(void)
+{
+	return PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
+}
+
 struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
 		struct vmem_altmap *altmap)
 {
-	struct page *map;
-	unsigned long size;
+	unsigned long size = section_map_size();
+	struct page *map = sparse_buffer_alloc(size);
 
-	size = PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
+	if (map)
+		return map;
+
 	map = memblock_virt_alloc_try_nid(size,
 					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
 					  BOOTMEM_ALLOC_ACCESSIBLE, nid);
@@ -425,42 +432,22 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 					  unsigned long pnum_end,
 					  unsigned long map_count, int nodeid)
 {
-	void *map;
 	unsigned long pnum;
-	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-	int nr_consumed_maps;
+	unsigned long size = section_map_size();
+	int nr_consumed_maps = 0;
 
-	size = PAGE_ALIGN(size);
-	map = memblock_virt_alloc_try_nid_raw(size * map_count,
-					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
-	if (map) {
-		nr_consumed_maps = 0;
-		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-			if (!present_section_nr(pnum))
-				continue;
-			map_map[nr_consumed_maps] = map;
-			map += size;
-			nr_consumed_maps++;
-		}
-		return;
-	}
-
-	/* fallback */
-	nr_consumed_maps = 0;
+	sparse_buffer_init(size * map_count, nodeid);
 	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-		struct mem_section *ms;
-
 		if (!present_section_nr(pnum))
 			continue;
 		map_map[nr_consumed_maps] =
 				sparse_mem_map_populate(pnum, nodeid, NULL);
 		if (map_map[nr_consumed_maps++])
 			continue;
-		ms = __nr_to_section(pnum);
 		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
 		       __func__);
 	}
+	sparse_buffer_fini();
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
