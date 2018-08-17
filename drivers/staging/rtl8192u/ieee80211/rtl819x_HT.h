@@ -20,7 +20,7 @@
 
 #define HT_SUPPORTED_MCS_1SS_BITMAP					0x000000ff
 #define HT_SUPPORTED_MCS_2SS_BITMAP					0x0000ff00
-#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP			HT_MCS_1SS_BITMAP|HT_MCS_1SS_2SS_BITMAP
+#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP			HT_MCS_1SS_BITMAP | HT_MCS_1SS_2SS_BITMAP
 
 //
 // Represent Channel Width in HT Capabilities
@@ -300,13 +300,13 @@ extern u8 MCS_FILTER_1SS[16];
    STA in A/B/G mode and AP is still in N mode. The macro will be wrong. We have
    to add a macro to judge wireless mode. */
 #define PICK_RATE(_nLegacyRate, _nMcsRate)	\
-		(_nMcsRate==0)?(_nLegacyRate&0x7f):(_nMcsRate)
+		(_nMcsRate == 0) ? (_nLegacyRate & 0x7f) : (_nMcsRate)
 /* 2007/07/12 MH We only define legacy and HT wireless mode now. */
 #define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
 
 #define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)	\
-					((WirelessMode & (LEGACY_WIRELESS_MODE))!=0)?\
-						(LegacyRate):\
+					((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ?\
+						(LegacyRate) :\
 						(PICK_RATE(LegacyRate, HTRate))
 
 // MCS Bw 40 {1~7, 12~15,32}
@@ -314,7 +314,7 @@ extern u8 MCS_FILTER_1SS[16];
 #define	RATE_ADPT_2SS_MASK		0xF0 //Skip MCS8~11 because mcs7 > mcs6, 9, 10, 11. 2007.01.16 by Emily
 #define	RATE_ADPT_MCS32_MASK		0x01
 
-#define		IS_11N_MCS_RATE(rate)		(rate&0x80)
+#define		IS_11N_MCS_RATE(rate)		(rate & 0x80)
 
 typedef enum _HT_AGGRE_SIZE {
 	HT_AGG_SIZE_8K = 0,
@@ -331,7 +331,7 @@ typedef enum _HT_IOT_PEER
 	HT_IOT_PEER_BROADCOM = 2,
 	HT_IOT_PEER_RALINK = 3,
 	HT_IOT_PEER_ATHEROS = 4,
-	HT_IOT_PEER_CISCO= 5,
+	HT_IOT_PEER_CISCO = 5,
 	HT_IOT_PEER_MAX = 6
 }HT_IOT_PEER_E, *PHTIOT_PEER_E;
 
