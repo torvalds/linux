@@ -103,6 +103,11 @@ void resource_reference_clock_source(
 		const struct resource_pool *pool,
 		struct clock_source *clock_source);
 
+int resource_get_clock_source_reference(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source);
+
 bool resource_are_streams_timing_synchronizable(
 		struct dc_stream_state *stream1,
 		struct dc_stream_state *stream2);

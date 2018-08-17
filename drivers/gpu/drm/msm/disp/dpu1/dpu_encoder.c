@@ -421,7 +421,7 @@ int dpu_encoder_helper_unregister_irq(struct dpu_encoder_phys *phys_enc,
 
 	ret = dpu_core_irq_disable(phys_enc->dpu_kms, &irq->irq_idx, 1);
 	if (ret) {
-		DRM_ERROR("diable failed id=%u, intr=%d, hw=%d, irq=%d ret=%d",
+		DRM_ERROR("disable failed id=%u, intr=%d, hw=%d, irq=%d ret=%d",
 			  DRMID(phys_enc->parent), intr_idx, irq->hw_idx,
 			  irq->irq_idx, ret);
 	}
@@ -2444,6 +2444,8 @@ int dpu_encoder_wait_for_event(struct drm_encoder *drm_enc,
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
+		if (!phys)
+			continue;
 
 		switch (event) {
 		case MSM_ENC_COMMIT_DONE:
@@ -2461,7 +2463,7 @@ int dpu_encoder_wait_for_event(struct drm_encoder *drm_enc,
 			return -EINVAL;
 		};
 
-		if (phys && fn_wait) {
+		if (fn_wait) {
 			DPU_ATRACE_BEGIN("wait_for_completion_event");
 			ret = fn_wait(phys);
 			DPU_ATRACE_END("wait_for_completion_event");

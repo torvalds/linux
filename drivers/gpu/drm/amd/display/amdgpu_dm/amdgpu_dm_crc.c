@@ -98,9 +98,15 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name,
  */
 void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 {
-	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
-	struct dc_stream_state *stream_state = crtc_state->stream;
+	struct dm_crtc_state *crtc_state;
+	struct dc_stream_state *stream_state;
 	uint32_t crcs[3];
+
+	if (crtc == NULL)
+		return;
+
+	crtc_state = to_dm_crtc_state(crtc->state);
+	stream_state = crtc_state->stream;
 
 	/* Early return if CRC capture is not enabled. */
 	if (!crtc_state->crc_enabled)

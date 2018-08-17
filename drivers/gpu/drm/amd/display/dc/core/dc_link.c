@@ -1812,6 +1812,8 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 	bool is_vga_mode = (stream->timing.h_addressable == 640)
 			&& (stream->timing.v_addressable == 480);
 
+	if (stream->phy_pix_clk == 0)
+		stream->phy_pix_clk = stream->timing.pix_clk_khz;
 	if (stream->phy_pix_clk > 340000)
 		is_over_340mhz = true;
 

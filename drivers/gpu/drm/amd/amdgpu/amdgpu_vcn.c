@@ -111,9 +111,10 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			version_major, version_minor, family_id);
 	}
 
-	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
-		  +  AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_HEAP_SIZE
+	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_HEAP_SIZE
 		  +  AMDGPU_VCN_SESSION_SIZE * 40;
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
+		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.vcpu_bo,
 				    &adev->vcn.gpu_addr, &adev->vcn.cpu_addr);
@@ -129,7 +130,7 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 {
 	int i;
 
-	kfree(adev->vcn.saved_bo);
+	kvfree(adev->vcn.saved_bo);
 
 	amdgpu_bo_free_kernel(&adev->vcn.vcpu_bo,
 			      &adev->vcn.gpu_addr,
@@ -160,7 +161,7 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 	size = amdgpu_bo_size(adev->vcn.vcpu_bo);
 	ptr = adev->vcn.cpu_addr;
 
-	adev->vcn.saved_bo = kmalloc(size, GFP_KERNEL);
+	adev->vcn.saved_bo = kvmalloc(size, GFP_KERNEL);
 	if (!adev->vcn.saved_bo)
 		return -ENOMEM;
 
@@ -182,18 +183,20 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 
 	if (adev->vcn.saved_bo != NULL) {
 		memcpy_toio(ptr, adev->vcn.saved_bo, size);
-		kfree(adev->vcn.saved_bo);
+		kvfree(adev->vcn.saved_bo);
 		adev->vcn.saved_bo = NULL;
 	} else {
 		const struct common_firmware_header *hdr;
 		unsigned offset;
 
 		hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
-		offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-		memcpy_toio(adev->vcn.cpu_addr, adev->vcn.fw->data + offset,
-			    le32_to_cpu(hdr->ucode_size_bytes));
-		size -= le32_to_cpu(hdr->ucode_size_bytes);
-		ptr += le32_to_cpu(hdr->ucode_size_bytes);
+		if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+			offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
+			memcpy_toio(adev->vcn.cpu_addr, adev->vcn.fw->data + offset,
+				    le32_to_cpu(hdr->ucode_size_bytes));
+			size -= le32_to_cpu(hdr->ucode_size_bytes);
+			ptr += le32_to_cpu(hdr->ucode_size_bytes);
+		}
 		memset_io(ptr, 0, size);
 	}
 

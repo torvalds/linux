@@ -410,6 +410,7 @@ static int uvd_v7_0_early_init(void *handle)
 static int uvd_v7_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
+
 	int i, j, r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
@@ -477,6 +478,10 @@ static int uvd_v7_0_sw_init(void *handle)
 				return r;
 		}
 	}
+
+	r = amdgpu_uvd_entity_init(adev);
+	if (r)
+		return r;
 
 	r = amdgpu_virt_alloc_mm_table(adev);
 	if (r)
