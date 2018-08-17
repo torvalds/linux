@@ -422,6 +422,19 @@ unlock:
 	mutex_unlock(&memcg_shrinker_map_mutex);
 	return ret;
 }
+
+void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int shrinker_id)
+{
+	if (shrinker_id >= 0 && memcg && !mem_cgroup_is_root(memcg)) {
+		struct memcg_shrinker_map *map;
+
+		rcu_read_lock();
+		map = rcu_dereference(memcg->nodeinfo[nid]->shrinker_map);
+		set_bit(shrinker_id, map->map);
+		rcu_read_unlock();
+	}
+}
+
 #else /* CONFIG_MEMCG_KMEM */
 static int memcg_alloc_shrinker_maps(struct mem_cgroup *memcg)
 {

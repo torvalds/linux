@@ -1286,6 +1286,8 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
 
 extern int memcg_expand_shrinker_maps(int new_id);
 
+extern void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
+				   int nid, int shrinker_id);
 #else
 #define for_each_memcg_cache_index(_idx)	\
 	for (; NULL; )
@@ -1308,6 +1310,8 @@ static inline void memcg_put_cache_ids(void)
 {
 }
 
+static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
+					  int nid, int shrinker_id) { }
 #endif /* CONFIG_MEMCG_KMEM */
 
 #endif /* _LINUX_MEMCONTROL_H */
