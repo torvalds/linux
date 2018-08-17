@@ -6,7 +6,7 @@
 #include "debug.h"
 
 static int test(const char *path, bool alloc_name, bool alloc_ext,
-		bool kmod, bool comp, const char *name, const char *ext)
+		bool kmod, int comp, const char *name, const char *ext)
 {
 	struct kmod_path m;
 
@@ -54,47 +54,47 @@ static int test_is_kernel_module(const char *path, int cpumode, bool expect)
 int test__kmod_path__parse(struct test *t __maybe_unused, int subtest __maybe_unused)
 {
 	/* path                alloc_name  alloc_ext   kmod  comp   name     ext */
-	T("/xxxx/xxxx/x-x.ko", true      , true      , true, false, "[x_x]", NULL);
-	T("/xxxx/xxxx/x-x.ko", false     , true      , true, false, NULL   , NULL);
-	T("/xxxx/xxxx/x-x.ko", true      , false     , true, false, "[x_x]", NULL);
-	T("/xxxx/xxxx/x-x.ko", false     , false     , true, false, NULL   , NULL);
+	T("/xxxx/xxxx/x-x.ko", true      , true      , true, 0    , "[x_x]", NULL);
+	T("/xxxx/xxxx/x-x.ko", false     , true      , true, 0    , NULL   , NULL);
+	T("/xxxx/xxxx/x-x.ko", true      , false     , true, 0    , "[x_x]", NULL);
+	T("/xxxx/xxxx/x-x.ko", false     , false     , true, 0    , NULL   , NULL);
 	M("/xxxx/xxxx/x-x.ko", PERF_RECORD_MISC_CPUMODE_UNKNOWN, true);
 	M("/xxxx/xxxx/x-x.ko", PERF_RECORD_MISC_KERNEL, true);
 	M("/xxxx/xxxx/x-x.ko", PERF_RECORD_MISC_USER, false);
 
 #ifdef HAVE_ZLIB_SUPPORT
 	/* path                alloc_name  alloc_ext   kmod  comp  name   ext */
-	T("/xxxx/xxxx/x.ko.gz", true     , true      , true, true, "[x]", "gz");
-	T("/xxxx/xxxx/x.ko.gz", false    , true      , true, true, NULL , "gz");
-	T("/xxxx/xxxx/x.ko.gz", true     , false     , true, true, "[x]", NULL);
-	T("/xxxx/xxxx/x.ko.gz", false    , false     , true, true, NULL , NULL);
+	T("/xxxx/xxxx/x.ko.gz", true     , true      , true, 1   , "[x]", "gz");
+	T("/xxxx/xxxx/x.ko.gz", false    , true      , true, 1   , NULL , "gz");
+	T("/xxxx/xxxx/x.ko.gz", true     , false     , true, 1   , "[x]", NULL);
+	T("/xxxx/xxxx/x.ko.gz", false    , false     , true, 1   , NULL , NULL);
 	M("/xxxx/xxxx/x.ko.gz", PERF_RECORD_MISC_CPUMODE_UNKNOWN, true);
 	M("/xxxx/xxxx/x.ko.gz", PERF_RECORD_MISC_KERNEL, true);
 	M("/xxxx/xxxx/x.ko.gz", PERF_RECORD_MISC_USER, false);
 
 	/* path              alloc_name  alloc_ext  kmod   comp  name    ext */
-	T("/xxxx/xxxx/x.gz", true      , true     , false, true, "x.gz" ,"gz");
-	T("/xxxx/xxxx/x.gz", false     , true     , false, true, NULL   ,"gz");
-	T("/xxxx/xxxx/x.gz", true      , false    , false, true, "x.gz" , NULL);
-	T("/xxxx/xxxx/x.gz", false     , false    , false, true, NULL   , NULL);
+	T("/xxxx/xxxx/x.gz", true      , true     , false, 1   , "x.gz" ,"gz");
+	T("/xxxx/xxxx/x.gz", false     , true     , false, 1   , NULL   ,"gz");
+	T("/xxxx/xxxx/x.gz", true      , false    , false, 1   , "x.gz" , NULL);
+	T("/xxxx/xxxx/x.gz", false     , false    , false, 1   , NULL   , NULL);
 	M("/xxxx/xxxx/x.gz", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
 	M("/xxxx/xxxx/x.gz", PERF_RECORD_MISC_KERNEL, false);
 	M("/xxxx/xxxx/x.gz", PERF_RECORD_MISC_USER, false);
 
 	/* path   alloc_name  alloc_ext  kmod   comp  name     ext */
-	T("x.gz", true      , true     , false, true, "x.gz", "gz");
-	T("x.gz", false     , true     , false, true, NULL  , "gz");
-	T("x.gz", true      , false    , false, true, "x.gz", NULL);
-	T("x.gz", false     , false    , false, true, NULL  , NULL);
+	T("x.gz", true      , true     , false, 1   , "x.gz", "gz");
+	T("x.gz", false     , true     , false, 1   , NULL  , "gz");
+	T("x.gz", true      , false    , false, 1   , "x.gz", NULL);
+	T("x.gz", false     , false    , false, 1   , NULL  , NULL);
 	M("x.gz", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
 	M("x.gz", PERF_RECORD_MISC_KERNEL, false);
 	M("x.gz", PERF_RECORD_MISC_USER, false);
 
 	/* path      alloc_name  alloc_ext  kmod  comp  name  ext */
-	T("x.ko.gz", true      , true     , true, true, "[x]", "gz");
-	T("x.ko.gz", false     , true     , true, true, NULL , "gz");
-	T("x.ko.gz", true      , false    , true, true, "[x]", NULL);
-	T("x.ko.gz", false     , false    , true, true, NULL , NULL);
+	T("x.ko.gz", true      , true     , true, 1   , "[x]", "gz");
+	T("x.ko.gz", false     , true     , true, 1   , NULL , "gz");
+	T("x.ko.gz", true      , false    , true, 1   , "[x]", NULL);
+	T("x.ko.gz", false     , false    , true, 1   , NULL , NULL);
 	M("x.ko.gz", PERF_RECORD_MISC_CPUMODE_UNKNOWN, true);
 	M("x.ko.gz", PERF_RECORD_MISC_KERNEL, true);
 	M("x.ko.gz", PERF_RECORD_MISC_USER, false);

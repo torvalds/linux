@@ -262,7 +262,7 @@ int dso__decompress_kmodule_path(struct dso *dso, const char *name,
 struct kmod_path {
 	char *name;
 	char *ext;
-	bool  comp;
+	int   comp;
 	bool  kmod;
 };
 
