@@ -32,7 +32,7 @@ def read_spdxdata(repo):
 
     # The subdirectories of LICENSES in the kernel source
     license_dirs = [ "preferred", "other", "exceptions" ]
-    lictree = repo.heads.master.commit.tree['LICENSES']
+    lictree = repo.head.commit.tree['LICENSES']
 
     spdx = SPDXdata()
 
@@ -198,8 +198,6 @@ def scan_git_tree(tree):
         if el.path.startswith("LICENSES"):
             continue
         if el.path.find("license-rules.rst") >= 0:
-            continue
-        if el.path == 'scripts/checkpatch.pl':
             continue
         if not os.path.isfile(el.path):
             continue
