@@ -366,10 +366,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 	unsigned long nodes;
 	unsigned long cache;
 
-	/* list_lru lock nests inside the IRQ-safe i_pages lock */
-	local_irq_disable();
 	nodes = list_lru_shrink_count(&shadow_nodes, sc);
-	local_irq_enable();
 
 	/*
 	 * Approximate a reasonable limit for the radix tree nodes
