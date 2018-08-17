@@ -14,9 +14,12 @@ DEFINE_STATIC_KEY_TRUE(pkey_disabled);
 bool pkey_execute_disable_supported;
 int  pkeys_total;		/* Total pkeys as per device tree */
 bool pkeys_devtree_defined;	/* pkey property exported by device tree */
-u32  initial_allocation_mask;	/* Bits set for reserved keys */
-u64  pkey_amr_uamor_mask;	/* Bits in AMR/UMOR not to be touched */
+u32  initial_allocation_mask;   /* Bits set for the initially allocated keys */
+u32  reserved_allocation_mask;  /* Bits set for reserved keys */
+u64  pkey_amr_mask;		/* Bits in AMR not to be touched */
 u64  pkey_iamr_mask;		/* Bits in AMR not to be touched */
+u64  pkey_uamor_mask;		/* Bits in UMOR not to be touched */
+int  execute_only_key = 2;
 
 #define AMR_BITS_PER_PKEY 2
 #define AMR_RD_BIT 0x1UL
@@ -91,7 +94,7 @@ int pkey_initialize(void)
 	 * arch-neutral code.
 	 */
 	pkeys_total = min_t(int, pkeys_total,
-			(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT));
+			((ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)+1));
 
 	if (!pkey_mmu_enabled() || radix_enabled() || !pkeys_total)
 		static_branch_enable(&pkey_disabled);
@@ -119,20 +122,39 @@ int pkey_initialize(void)
 #else
 	os_reserved = 0;
 #endif
-	initial_allocation_mask = ~0x0;
-	pkey_amr_uamor_mask = ~0x0ul;
+	/* Bits are in LE format. */
+	reserved_allocation_mask = (0x1 << 1) | (0x1 << execute_only_key);
+
+	/* register mask is in BE format */
+	pkey_amr_mask = ~0x0ul;
+	pkey_amr_mask &= ~(0x3ul << pkeyshift(0));
+
 	pkey_iamr_mask = ~0x0ul;
-	/*
-	 * key 0, 1 are reserved.
-	 * key 0 is the default key, which allows read/write/execute.
-	 * key 1 is recommended not to be used. PowerISA(3.0) page 1015,
-	 * programming note.
-	 */
-	for (i = 2; i < (pkeys_total - os_reserved); i++) {
-		initial_allocation_mask &= ~(0x1 << i);
-		pkey_amr_uamor_mask &= ~(0x3ul << pkeyshift(i));
-		pkey_iamr_mask &= ~(0x1ul << pkeyshift(i));
+	pkey_iamr_mask &= ~(0x3ul << pkeyshift(0));
+	pkey_iamr_mask &= ~(0x3ul << pkeyshift(execute_only_key));
+
+	pkey_uamor_mask = ~0x0ul;
+	pkey_uamor_mask &= ~(0x3ul << pkeyshift(0));
+	pkey_uamor_mask &= ~(0x3ul << pkeyshift(execute_only_key));
+
+	/* mark the rest of the keys as reserved and hence unavailable */
+	for (i = (pkeys_total - os_reserved); i < pkeys_total; i++) {
+		reserved_allocation_mask |= (0x1 << i);
+		pkey_uamor_mask &= ~(0x3ul << pkeyshift(i));
 	}
+	initial_allocation_mask = reserved_allocation_mask | (0x1 << 0);
+
+	if (unlikely((pkeys_total - os_reserved) <= execute_only_key)) {
+		/*
+		 * Insufficient number of keys to support
+		 * execute only key. Mark it unavailable.
+		 * Any AMR, UAMOR, IAMR bit set for
+		 * this key is irrelevant since this key
+		 * can never be allocated.
+		 */
+		execute_only_key = -1;
+	}
+
 	return 0;
 }
 
@@ -143,8 +165,7 @@ void pkey_mm_init(struct mm_struct *mm)
 	if (static_branch_likely(&pkey_disabled))
 		return;
 	mm_pkey_allocation_map(mm) = initial_allocation_mask;
-	/* -1 means unallocated or invalid */
-	mm->context.execute_only_pkey = -1;
+	mm->context.execute_only_pkey = execute_only_key;
 }
 
 static inline u64 read_amr(void)
@@ -213,33 +234,6 @@ static inline void init_iamr(int pkey, u8 init_bits)
 	write_iamr(old_iamr | new_iamr_bits);
 }
 
-static void pkey_status_change(int pkey, bool enable)
-{
-	u64 old_uamor;
-
-	/* Reset the AMR and IAMR bits for this key */
-	init_amr(pkey, 0x0);
-	init_iamr(pkey, 0x0);
-
-	/* Enable/disable key */
-	old_uamor = read_uamor();
-	if (enable)
-		old_uamor |= (0x3ul << pkeyshift(pkey));
-	else
-		old_uamor &= ~(0x3ul << pkeyshift(pkey));
-	write_uamor(old_uamor);
-}
-
-void __arch_activate_pkey(int pkey)
-{
-	pkey_status_change(pkey, true);
-}
-
-void __arch_deactivate_pkey(int pkey)
-{
-	pkey_status_change(pkey, false);
-}
-
 /*
  * Set the access rights in AMR IAMR and UAMOR registers for @pkey to that
  * specified in @init_val.
@@ -289,9 +283,6 @@ void thread_pkey_regs_restore(struct thread_struct *new_thread,
 	if (static_branch_likely(&pkey_disabled))
 		return;
 
-	/*
-	 * TODO: Just set UAMOR to zero if @new_thread hasn't used any keys yet.
-	 */
 	if (old_thread->amr != new_thread->amr)
 		write_amr(new_thread->amr);
 	if (old_thread->iamr != new_thread->iamr)
@@ -305,9 +296,13 @@ void thread_pkey_regs_init(struct thread_struct *thread)
 	if (static_branch_likely(&pkey_disabled))
 		return;
 
-	thread->amr = read_amr() & pkey_amr_uamor_mask;
-	thread->iamr = read_iamr() & pkey_iamr_mask;
-	thread->uamor = read_uamor() & pkey_amr_uamor_mask;
+	thread->amr = pkey_amr_mask;
+	thread->iamr = pkey_iamr_mask;
+	thread->uamor = pkey_uamor_mask;
+
+	write_uamor(pkey_uamor_mask);
+	write_amr(pkey_amr_mask);
+	write_iamr(pkey_iamr_mask);
 }
 
 static inline bool pkey_allows_readwrite(int pkey)
@@ -322,48 +317,7 @@ static inline bool pkey_allows_readwrite(int pkey)
 
 int __execute_only_pkey(struct mm_struct *mm)
 {
-	bool need_to_set_mm_pkey = false;
-	int execute_only_pkey = mm->context.execute_only_pkey;
-	int ret;
-
-	/* Do we need to assign a pkey for mm's execute-only maps? */
-	if (execute_only_pkey == -1) {
-		/* Go allocate one to use, which might fail */
-		execute_only_pkey = mm_pkey_alloc(mm);
-		if (execute_only_pkey < 0)
-			return -1;
-		need_to_set_mm_pkey = true;
-	}
-
-	/*
-	 * We do not want to go through the relatively costly dance to set AMR
-	 * if we do not need to. Check it first and assume that if the
-	 * execute-only pkey is readwrite-disabled than we do not have to set it
-	 * ourselves.
-	 */
-	if (!need_to_set_mm_pkey && !pkey_allows_readwrite(execute_only_pkey))
-		return execute_only_pkey;
-
-	/*
-	 * Set up AMR so that it denies access for everything other than
-	 * execution.
-	 */
-	ret = __arch_set_user_pkey_access(current, execute_only_pkey,
-					  PKEY_DISABLE_ACCESS |
-					  PKEY_DISABLE_WRITE);
-	/*
-	 * If the AMR-set operation failed somehow, just return 0 and
-	 * effectively disable execute-only support.
-	 */
-	if (ret) {
-		mm_pkey_free(mm, execute_only_pkey);
-		return -1;
-	}
-
-	/* We got one, store it and use it from here on out */
-	if (need_to_set_mm_pkey)
-		mm->context.execute_only_pkey = execute_only_pkey;
-	return execute_only_pkey;
+	return mm->context.execute_only_pkey;
 }
 
 static inline bool vma_is_pkey_exec_only(struct vm_area_struct *vma)
@@ -406,9 +360,6 @@ static bool pkey_access_permitted(int pkey, bool write, bool execute)
 {
 	int pkey_shift;
 	u64 amr;
-
-	if (!pkey)
-		return true;
 
 	if (!is_pkey_enabled(pkey))
 		return true;

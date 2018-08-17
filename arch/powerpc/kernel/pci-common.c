@@ -368,9 +368,6 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 
 	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
 
-#ifdef DEBUG
-	memset(&oirq, 0xff, sizeof(oirq));
-#endif
 	/* Try to get a mapping from the device-tree */
 	virq = of_irq_parse_and_map_pci(pci_dev, 0, 0);
 	if (virq <= 0) {

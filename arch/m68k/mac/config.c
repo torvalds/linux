@@ -889,7 +889,7 @@ static void __init mac_identify(void)
 #ifdef CONFIG_ADB_CUDA
 	find_via_cuda();
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 	find_via_pmu();
 #endif
 }

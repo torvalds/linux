@@ -17,6 +17,9 @@
  * Authors: Alexander Graf <agraf@suse.de>
  */
 
+#include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
+
 #define SHADOW_SLB_ENTRY_LEN	0x10
 #define OFFSET_ESID(x)		(SHADOW_SLB_ENTRY_LEN * x)
 #define OFFSET_VSID(x)		((SHADOW_SLB_ENTRY_LEN * x) + 8)

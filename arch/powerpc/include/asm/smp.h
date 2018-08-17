@@ -56,7 +56,6 @@ struct smp_ops_t {
 	int   (*cpu_bootable)(unsigned int nr);
 };
 
-extern void smp_flush_nmi_ipi(u64 delay_us);
 extern int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern int smp_send_safe_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern void smp_send_debugger_break(void);

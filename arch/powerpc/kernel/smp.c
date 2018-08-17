@@ -423,7 +423,8 @@ int smp_handle_nmi_ipi(struct pt_regs *regs)
 	fn(regs);
 
 	nmi_ipi_lock();
-	nmi_ipi_busy_count--;
+	if (nmi_ipi_busy_count > 1) /* Can race with caller time-out */
+		nmi_ipi_busy_count--;
 out:
 	nmi_ipi_unlock_end(&flags);
 
@@ -448,29 +449,11 @@ static void do_smp_send_nmi_ipi(int cpu, bool safe)
 	}
 }
 
-void smp_flush_nmi_ipi(u64 delay_us)
-{
-	unsigned long flags;
-
-	nmi_ipi_lock_start(&flags);
-	while (nmi_ipi_busy_count) {
-		nmi_ipi_unlock_end(&flags);
-		udelay(1);
-		if (delay_us) {
-			delay_us--;
-			if (!delay_us)
-				return;
-		}
-		nmi_ipi_lock_start(&flags);
-	}
-	nmi_ipi_unlock_end(&flags);
-}
-
 /*
  * - cpu is the target CPU (must not be this CPU), or NMI_IPI_ALL_OTHERS.
  * - fn is the target callback function.
  * - delay_us > 0 is the delay before giving up waiting for targets to
- *   enter the handler, == 0 specifies indefinite delay.
+ *   complete executing the handler, == 0 specifies indefinite delay.
  */
 int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us, bool safe)
 {
@@ -507,8 +490,12 @@ int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us, bool
 
 	do_smp_send_nmi_ipi(cpu, safe);
 
+	nmi_ipi_lock();
+	/* nmi_ipi_busy_count is held here, so unlock/lock is okay */
 	while (!cpumask_empty(&nmi_ipi_pending_mask)) {
+		nmi_ipi_unlock();
 		udelay(1);
+		nmi_ipi_lock();
 		if (delay_us) {
 			delay_us--;
 			if (!delay_us)
@@ -516,12 +503,28 @@ int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us, bool
 		}
 	}
 
-	nmi_ipi_lock();
+	while (nmi_ipi_busy_count > 1) {
+		nmi_ipi_unlock();
+		udelay(1);
+		nmi_ipi_lock();
+		if (delay_us) {
+			delay_us--;
+			if (!delay_us)
+				break;
+		}
+	}
+
 	if (!cpumask_empty(&nmi_ipi_pending_mask)) {
-		/* Could not gather all CPUs */
+		/* Timeout waiting for CPUs to call smp_handle_nmi_ipi */
 		ret = 0;
 		cpumask_clear(&nmi_ipi_pending_mask);
 	}
+	if (nmi_ipi_busy_count > 1) {
+		/* Timeout waiting for CPUs to execute fn */
+		ret = 0;
+		nmi_ipi_busy_count = 1;
+	}
+
 	nmi_ipi_busy_count--;
 	nmi_ipi_unlock_end(&flags);
 
@@ -597,7 +600,8 @@ static void nmi_stop_this_cpu(struct pt_regs *regs)
 	 * IRQs are already hard disabled by the smp_handle_nmi_ipi.
 	 */
 	nmi_ipi_lock();
-	nmi_ipi_busy_count--;
+	if (nmi_ipi_busy_count > 1)
+		nmi_ipi_busy_count--;
 	nmi_ipi_unlock();
 
 	spin_begin();

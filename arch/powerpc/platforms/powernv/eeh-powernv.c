@@ -223,6 +223,14 @@ int pnv_eeh_post_init(void)
 	eeh_probe_devices();
 	eeh_addr_cache_build();
 
+	if (eeh_has_flag(EEH_POSTPONED_PROBE)) {
+		eeh_clear_flag(EEH_POSTPONED_PROBE);
+		if (eeh_enabled())
+			pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
+		else
+			pr_info("EEH: No capable adapters found\n");
+	}
+
 	/* Register OPAL event notifier */
 	eeh_event_irq = opal_event_request(ilog2(OPAL_EVENT_PCI_ERROR));
 	if (eeh_event_irq < 0) {
@@ -384,8 +392,10 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 		return NULL;
 
 	/* Skip if we haven't probed yet */
-	if (phb->ioda.pe_rmap[config_addr] == IODA_INVALID_PE)
+	if (phb->ioda.pe_rmap[config_addr] == IODA_INVALID_PE) {
+		eeh_add_flag(EEH_POSTPONED_PROBE);
 		return NULL;
+	}
 
 	/* Initialize eeh device */
 	edev->class_code = pdn->class_code;

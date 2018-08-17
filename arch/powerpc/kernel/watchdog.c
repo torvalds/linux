@@ -174,7 +174,6 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 				continue;
 			smp_send_nmi_ipi(c, wd_lockup_ipi, 1000000);
 		}
-		smp_flush_nmi_ipi(1000000);
 	}
 
 	/* Take the stuck CPUs out of the watch group */

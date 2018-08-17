@@ -219,12 +219,6 @@ static struct attribute_group power9_pmu_events_group = {
 	.attrs = power9_events_attr,
 };
 
-static const struct attribute_group *power9_isa207_pmu_attr_groups[] = {
-	&isa207_pmu_format_group,
-	&power9_pmu_events_group,
-	NULL,
-};
-
 PMU_FORMAT_ATTR(event,		"config:0-51");
 PMU_FORMAT_ATTR(pmcxsel,	"config:0-7");
 PMU_FORMAT_ATTR(mark,		"config:8");
@@ -265,17 +259,6 @@ static const struct attribute_group *power9_pmu_attr_groups[] = {
 	&power9_pmu_format_group,
 	&power9_pmu_events_group,
 	NULL,
-};
-
-static int power9_generic_events_dd1[] = {
-	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
-	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_ICT_NOSLOT_CYC,
-	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =	PM_CMPLU_STALL,
-	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_DISP,
-	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BR_CMPL_ALT,
-	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
-	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
-	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_MISS_L1_FIN,
 };
 
 static int power9_generic_events[] = {
@@ -439,25 +422,6 @@ static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 
 #undef C
 
-static struct power_pmu power9_isa207_pmu = {
-	.name			= "POWER9",
-	.n_counter		= MAX_PMU_COUNTERS,
-	.add_fields		= ISA207_ADD_FIELDS,
-	.test_adder		= P9_DD1_TEST_ADDER,
-	.compute_mmcr		= isa207_compute_mmcr,
-	.config_bhrb		= power9_config_bhrb,
-	.bhrb_filter_map	= power9_bhrb_filter_map,
-	.get_constraint		= isa207_get_constraint,
-	.get_alternatives	= power9_get_alternatives,
-	.disable_pmc		= isa207_disable_pmc,
-	.flags			= PPMU_NO_SIAR | PPMU_ARCH_207S,
-	.n_generic		= ARRAY_SIZE(power9_generic_events_dd1),
-	.generic_events		= power9_generic_events_dd1,
-	.cache_events		= &power9_cache_events,
-	.attr_groups		= power9_isa207_pmu_attr_groups,
-	.bhrb_nr		= 32,
-};
-
 static struct power_pmu power9_pmu = {
 	.name			= "POWER9",
 	.n_counter		= MAX_PMU_COUNTERS,
@@ -500,23 +464,7 @@ static int __init init_power9_pmu(void)
 		}
 	}
 
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		/*
-		 * Since PM_INST_CMPL may not provide right counts in all
-		 * sampling scenarios in power9 DD1, instead use PM_INST_DISP.
-		 */
-		EVENT_VAR(PM_INST_CMPL, _g).id = PM_INST_DISP;
-		/*
-		 * Power9 DD1 should use PM_BR_CMPL_ALT event code for
-		 * "branches" to provide correct counter value.
-		 */
-		EVENT_VAR(PM_BR_CMPL, _g).id = PM_BR_CMPL_ALT;
-		EVENT_VAR(PM_BR_CMPL, _c).id = PM_BR_CMPL_ALT;
-		rc = register_power_pmu(&power9_isa207_pmu);
-	} else {
-		rc = register_power_pmu(&power9_pmu);
-	}
-
+	rc = register_power_pmu(&power9_pmu);
 	if (rc)
 		return rc;
 

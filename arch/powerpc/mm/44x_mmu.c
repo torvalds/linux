@@ -229,7 +229,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 }
 
 #ifdef CONFIG_SMP
-void mmu_init_secondary(int cpu)
+void __init mmu_init_secondary(int cpu)
 {
 	unsigned long addr;
 	unsigned long memstart = memstart_addr & ~(PPC_PIN_SIZE - 1);

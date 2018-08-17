@@ -53,7 +53,6 @@
 #include <asm/disassemble.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
-#include <asm/tlbflush.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/kvm_ppc.h>
@@ -1693,14 +1692,6 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		r = set_vpa(vcpu, &vcpu->arch.dtl, addr, len);
 		break;
 	case KVM_REG_PPC_TB_OFFSET:
-		/*
-		 * POWER9 DD1 has an erratum where writing TBU40 causes
-		 * the timebase to lose ticks.  So we don't let the
-		 * timebase offset be changed on P9 DD1.  (It is
-		 * initialized to zero.)
-		 */
-		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-			break;
 		/* round up to multiple of 2^24 */
 		vcpu->arch.vcore->tb_offset =
 			ALIGN(set_reg_val(id, *val), 1UL << 24);
@@ -2026,8 +2017,6 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	/*
 	 * Set the default HFSCR for the guest from the host value.
 	 * This value is only used on POWER9.
-	 * On POWER9 DD1, TM doesn't work, so we make sure to
-	 * prevent the guest from using it.
 	 * On POWER9, we want to virtualize the doorbell facility, so we
 	 * turn off the HFSCR bit, which causes those instructions to trap.
 	 */

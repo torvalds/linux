@@ -5,8 +5,7 @@
 
 #include <linux/types.h>
 
-#include <asm/asm-compat.h>
-#include <asm/feature-fixups.h>
+#include <asm/asm-const.h>
 
 /*
  * MMU features bit definitions

@@ -10,6 +10,7 @@
  */
 
 #include <asm/ppc_asm.h>
+#include <asm/asm-compat.h>
 #include "bpf_jit32.h"
 
 /*
