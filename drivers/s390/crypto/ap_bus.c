@@ -43,12 +43,12 @@
  */
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
 static DEFINE_SPINLOCK(ap_domain_lock);
-module_param_named(domain, ap_domain_index, int, S_IRUSR|S_IRGRP);
+module_param_named(domain, ap_domain_index, int, 0440);
 MODULE_PARM_DESC(domain, "domain index for ap devices");
 EXPORT_SYMBOL(ap_domain_index);
 
-static int ap_thread_flag = 0;
-module_param_named(poll_thread, ap_thread_flag, int, S_IRUSR|S_IRGRP);
+static int ap_thread_flag;
+module_param_named(poll_thread, ap_thread_flag, int, 0440);
 MODULE_PARM_DESC(poll_thread, "Turn on/off poll thread, default is 0 (off).");
 
 static struct device *ap_root_device;
@@ -78,22 +78,26 @@ static DECLARE_WORK(ap_scan_work, ap_scan_bus);
 static void ap_tasklet_fn(unsigned long);
 static DECLARE_TASKLET(ap_tasklet, ap_tasklet_fn, 0);
 static DECLARE_WAIT_QUEUE_HEAD(ap_poll_wait);
-static struct task_struct *ap_poll_kthread = NULL;
+static struct task_struct *ap_poll_kthread;
 static DEFINE_MUTEX(ap_poll_thread_mutex);
 static DEFINE_SPINLOCK(ap_poll_timer_lock);
 static struct hrtimer ap_poll_timer;
-/* In LPAR poll with 4kHz frequency. Poll every 250000 nanoseconds.
- * If z/VM change to 1500000 nanoseconds to adjust to z/VM polling.*/
+/*
+ * In LPAR poll with 4kHz frequency. Poll every 250000 nanoseconds.
+ * If z/VM change to 1500000 nanoseconds to adjust to z/VM polling.
+ */
 static unsigned long long poll_timeout = 250000;
 
 /* Suspend flag */
 static int ap_suspend_flag;
 /* Maximum domain id */
 static int ap_max_domain_id;
-/* Flag to check if domain was set through module parameter domain=. This is
+/*
+ * Flag to check if domain was set through module parameter domain=. This is
  * important when supsend and resume is done in a z/VM environment where the
- * domain might change. */
-static int user_set_domain = 0;
+ * domain might change.
+ */
+static int user_set_domain;
 static struct bus_type ap_bus_type;
 
 /* Adapter interrupt definitions */
@@ -531,7 +535,7 @@ static int ap_bus_match(struct device *dev, struct device_driver *drv)
  * It sets up a single environment variable DEV_TYPE which contains the
  * hardware device type.
  */
-static int ap_uevent (struct device *dev, struct kobj_uevent_env *env)
+static int ap_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	int retval = 0;
@@ -570,7 +574,7 @@ static int ap_dev_resume(struct device *dev)
 
 static void ap_bus_suspend(void)
 {
-	AP_DBF(DBF_DEBUG, "ap_bus_suspend running\n");
+	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
 
 	ap_suspend_flag = 1;
 	/*
@@ -607,7 +611,7 @@ static void ap_bus_resume(void)
 {
 	int rc;
 
-	AP_DBF(DBF_DEBUG, "ap_bus_resume running\n");
+	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
 
 	/* remove all queue devices */
 	bus_for_each_dev(&ap_bus_type, NULL, NULL,
@@ -775,7 +779,7 @@ static ssize_t ap_domain_store(struct bus_type *bus,
 	return count;
 }
 
-static BUS_ATTR(ap_domain, 0644, ap_domain_show, ap_domain_store);
+static BUS_ATTR_RW(ap_domain);
 
 static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
 {
@@ -790,8 +794,7 @@ static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
 			ap_configuration->adm[6], ap_configuration->adm[7]);
 }
 
-static BUS_ATTR(ap_control_domain_mask, 0444,
-		ap_control_domain_mask_show, NULL);
+static BUS_ATTR_RO(ap_control_domain_mask);
 
 static ssize_t ap_usage_domain_mask_show(struct bus_type *bus, char *buf)
 {
@@ -806,13 +809,7 @@ static ssize_t ap_usage_domain_mask_show(struct bus_type *bus, char *buf)
 			ap_configuration->aqm[6], ap_configuration->aqm[7]);
 }
 
-static BUS_ATTR(ap_usage_domain_mask, 0444,
-		ap_usage_domain_mask_show, NULL);
-
-static ssize_t ap_config_time_show(struct bus_type *bus, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", ap_config_time);
-}
+static BUS_ATTR_RO(ap_usage_domain_mask);
 
 static ssize_t ap_interrupts_show(struct bus_type *bus, char *buf)
 {
@@ -820,10 +817,15 @@ static ssize_t ap_interrupts_show(struct bus_type *bus, char *buf)
 			ap_using_interrupts() ? 1 : 0);
 }
 
-static BUS_ATTR(ap_interrupts, 0444, ap_interrupts_show, NULL);
+static BUS_ATTR_RO(ap_interrupts);
 
-static ssize_t ap_config_time_store(struct bus_type *bus,
-				    const char *buf, size_t count)
+static ssize_t config_time_show(struct bus_type *bus, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", ap_config_time);
+}
+
+static ssize_t config_time_store(struct bus_type *bus,
+				 const char *buf, size_t count)
 {
 	int time;
 
@@ -834,15 +836,15 @@ static ssize_t ap_config_time_store(struct bus_type *bus,
 	return count;
 }
 
-static BUS_ATTR(config_time, 0644, ap_config_time_show, ap_config_time_store);
+static BUS_ATTR_RW(config_time);
 
-static ssize_t ap_poll_thread_show(struct bus_type *bus, char *buf)
+static ssize_t poll_thread_show(struct bus_type *bus, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", ap_poll_kthread ? 1 : 0);
 }
 
-static ssize_t ap_poll_thread_store(struct bus_type *bus,
-				    const char *buf, size_t count)
+static ssize_t poll_thread_store(struct bus_type *bus,
+				 const char *buf, size_t count)
 {
 	int flag, rc;
 
@@ -857,7 +859,7 @@ static ssize_t ap_poll_thread_store(struct bus_type *bus,
 	return count;
 }
 
-static BUS_ATTR(poll_thread, 0644, ap_poll_thread_show, ap_poll_thread_store);
+static BUS_ATTR_RW(poll_thread);
 
 static ssize_t poll_timeout_show(struct bus_type *bus, char *buf)
 {
@@ -886,7 +888,7 @@ static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 	return count;
 }
 
-static BUS_ATTR(poll_timeout, 0644, poll_timeout_show, poll_timeout_store);
+static BUS_ATTR_RW(poll_timeout);
 
 static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 {
@@ -899,7 +901,7 @@ static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
 }
 
-static BUS_ATTR(ap_max_domain_id, 0444, ap_max_domain_id_show, NULL);
+static BUS_ATTR_RO(ap_max_domain_id);
 
 static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
@@ -956,7 +958,7 @@ static int ap_select_domain(void)
 			best_domain = i;
 		}
 	}
-	if (best_domain >= 0){
+	if (best_domain >= 0) {
 		ap_domain_index = best_domain;
 		AP_DBF(DBF_DEBUG, "new ap_domain_index=%d\n", ap_domain_index);
 		spin_unlock_bh(&ap_domain_lock);
@@ -1038,7 +1040,7 @@ static void ap_scan_bus(struct work_struct *unused)
 	unsigned int func = 0;
 	int rc, id, dom, borked, domains, defdomdevs = 0;
 
-	AP_DBF(DBF_DEBUG, "ap_scan_bus running\n");
+	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
 
 	ap_query_configuration(ap_configuration);
 	if (ap_select_domain() != 0)
@@ -1163,7 +1165,8 @@ static void ap_scan_bus(struct work_struct *unused)
 	} /* end device loop */
 
 	if (defdomdevs < 1)
-		AP_DBF(DBF_INFO, "no queue device with default domain %d available\n",
+		AP_DBF(DBF_INFO,
+		       "no queue device with default domain %d available\n",
 		       ap_domain_index);
 
 out:

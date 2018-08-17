@@ -95,7 +95,7 @@ static int zcrypt_pcixcc_rng_supported(struct ap_queue *aq)
 		struct type86_hdr hdr;
 		struct type86_fmt2_ext fmt2;
 		struct CPRBX cprbx;
-	} __attribute__((packed)) *reply;
+	} __packed *reply;
 	struct {
 		struct type6_hdr hdr;
 		struct CPRBX cprbx;
@@ -104,7 +104,7 @@ static int zcrypt_pcixcc_rng_supported(struct ap_queue *aq)
 		char rule[8];
 		short int verb_length;
 		short int key_length;
-	} __packed * msg;
+	} __packed *msg;
 	int rc, i;
 
 	ap_init_message(&ap_msg);

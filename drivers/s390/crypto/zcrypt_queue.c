@@ -38,18 +38,18 @@
  * Device attributes common for all crypto queue devices.
  */
 
-static ssize_t zcrypt_queue_online_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t online_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
 {
 	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", zq->online);
 }
 
-static ssize_t zcrypt_queue_online_store(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf, size_t count)
+static ssize_t online_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
 	struct zcrypt_card *zc = zq->zcard;
@@ -72,19 +72,18 @@ static ssize_t zcrypt_queue_online_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(online, 0644, zcrypt_queue_online_show,
-		   zcrypt_queue_online_store);
+static DEVICE_ATTR_RW(online);
 
-static ssize_t zcrypt_queue_load_show(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
+static ssize_t load_show(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
 {
 	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zq->load));
 }
 
-static DEVICE_ATTR(load, 0444, zcrypt_queue_load_show, NULL);
+static DEVICE_ATTR_RO(load);
 
 static struct attribute *zcrypt_queue_attrs[] = {
 	&dev_attr_online.attr,

@@ -32,12 +32,12 @@
  * - length(n_modulus) = inputdatalength
  */
 struct ica_rsa_modexpo {
-	char __user *	inputdata;
-	unsigned int	inputdatalength;
-	char __user *	outputdata;
-	unsigned int	outputdatalength;
-	char __user *	b_key;
-	char __user *	n_modulus;
+	char __user  *inputdata;
+	unsigned int  inputdatalength;
+	char __user  *outputdata;
+	unsigned int  outputdatalength;
+	char __user  *b_key;
+	char __user  *n_modulus;
 };
 
 /**
@@ -55,15 +55,15 @@ struct ica_rsa_modexpo {
  * - length(u_mult_inv) = inputdatalength/2 + 8
  */
 struct ica_rsa_modexpo_crt {
-	char __user *	inputdata;
-	unsigned int	inputdatalength;
-	char __user *	outputdata;
-	unsigned int	outputdatalength;
-	char __user *	bp_key;
-	char __user *	bq_key;
-	char __user *	np_prime;
-	char __user *	nq_prime;
-	char __user *	u_mult_inv;
+	char __user  *inputdata;
+	unsigned int  inputdatalength;
+	char __user  *outputdata;
+	unsigned int  outputdatalength;
+	char __user  *bp_key;
+	char __user  *bq_key;
+	char __user  *np_prime;
+	char __user  *nq_prime;
+	char __user  *u_mult_inv;
 };
 
 /**
@@ -93,18 +93,18 @@ struct CPRBX {
 	unsigned int	req_extbl;	/* request extension block len	 */
 	unsigned char	pad_001[4];	/* reserved			 */
 	unsigned int	rpld_extbl;	/* replied extension block len	 */
-	unsigned char	padx000[16 - sizeof (char *)];
-	unsigned char *	req_parmb;	/* request parm block 'address'	 */
-	unsigned char	padx001[16 - sizeof (char *)];
-	unsigned char *	req_datab;	/* request data block 'address'	 */
-	unsigned char	padx002[16 - sizeof (char *)];
-	unsigned char *	rpl_parmb;	/* reply parm block 'address'	 */
-	unsigned char	padx003[16 - sizeof (char *)];
-	unsigned char *	rpl_datab;	/* reply data block 'address'	 */
-	unsigned char	padx004[16 - sizeof (char *)];
-	unsigned char *	req_extb;	/* request extension block 'addr'*/
-	unsigned char	padx005[16 - sizeof (char *)];
-	unsigned char *	rpl_extb;	/* reply extension block 'address'*/
+	unsigned char	padx000[16 - sizeof(char *)];
+	unsigned char  *req_parmb;	/* request parm block 'address'	 */
+	unsigned char	padx001[16 - sizeof(char *)];
+	unsigned char  *req_datab;	/* request data block 'address'	 */
+	unsigned char	padx002[16 - sizeof(char *)];
+	unsigned char  *rpl_parmb;	/* reply parm block 'address'	 */
+	unsigned char	padx003[16 - sizeof(char *)];
+	unsigned char  *rpl_datab;	/* reply data block 'address'	 */
+	unsigned char	padx004[16 - sizeof(char *)];
+	unsigned char  *req_extb;	/* request extension block 'addr'*/
+	unsigned char	padx005[16 - sizeof(char *)];
+	unsigned char  *rpl_extb;	/* reply extension block 'address'*/
 	unsigned short	ccp_rtcode;	/* server return code		 */
 	unsigned short	ccp_rscode;	/* server reason code		 */
 	unsigned int	mac_data_len;	/* Mac Data Length		 */
@@ -127,17 +127,17 @@ struct ica_xcRB {
 	unsigned int	user_defined;
 	unsigned short	request_ID;
 	unsigned int	request_control_blk_length;
-	unsigned char	padding1[16 - sizeof (char *)];
-	char __user *	request_control_blk_addr;
+	unsigned char	padding1[16 - sizeof(char *)];
+	char __user    *request_control_blk_addr;
 	unsigned int	request_data_length;
-	char		padding2[16 - sizeof (char *)];
-	char __user *	request_data_address;
+	char		padding2[16 - sizeof(char *)];
+	char __user    *request_data_address;
 	unsigned int	reply_control_blk_length;
-	char		padding3[16 - sizeof (char *)];
-	char __user *	reply_control_blk_addr;
+	char		padding3[16 - sizeof(char *)];
+	char __user    *reply_control_blk_addr;
 	unsigned int	reply_data_length;
-	char		padding4[16 - sizeof (char *)];
-	char __user *	reply_data_addr;
+	char		padding4[16 - sizeof(char *)];
+	char __user    *reply_data_addr;
 	unsigned short	priority_window;
 	unsigned int	status;
 } __attribute__((packed));
@@ -233,7 +233,7 @@ struct zcrypt_device_matrix_ext {
 	struct zcrypt_device_status_ext device[MAX_ZDEV_ENTRIES_EXT];
 };
 
-#define AUTOSELECT ((unsigned int)0xFFFFFFFF)
+#define AUTOSELECT 0xFFFFFFFF
 
 #define ZCRYPT_IOCTL_MAGIC 'z'
 
