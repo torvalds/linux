@@ -676,7 +676,8 @@ int hmm_vma_get_pfns(struct hmm_range *range)
 		return -EINVAL;
 
 	/* FIXME support hugetlb fs */
-	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL)) {
+	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL) ||
+			vma_is_dax(vma)) {
 		hmm_pfns_special(range);
 		return -EINVAL;
 	}
@@ -849,7 +850,8 @@ int hmm_vma_fault(struct hmm_range *range, bool block)
 		return -EINVAL;
 
 	/* FIXME support hugetlb fs */
-	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL)) {
+	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL) ||
+			vma_is_dax(vma)) {
 		hmm_pfns_special(range);
 		return -EINVAL;
 	}
