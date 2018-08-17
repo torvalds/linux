@@ -10,6 +10,9 @@ git:
   quiet: false
   
 if: tag IS blank
+branches:
+  only:
+    - /^.*-main$/
 
 install:
     - git checkout $TRAVIS_BRANCH
@@ -25,8 +28,8 @@ script:
     - bash build.sh pack
 before_deploy:
     # Set up git user name and tag this commit
-    - git config --local user.name "Ramon Smit"
-    - git config --local user.email "rsmit@daltcore.com"
+    - git config --local user.name "Frank Wunderlich"
+    - git config --local user.email "frank-w@public-files.de"
     - git tag "CI-BUILD-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)"
 deploy:
     provider: releases
