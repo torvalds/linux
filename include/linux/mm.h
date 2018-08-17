@@ -2671,9 +2671,6 @@ void sparse_mem_maps_populate_node(struct page **map_map,
 				   unsigned long map_count,
 				   int nodeid);
 
-unsigned long __init section_map_size(void);
-void sparse_buffer_init(unsigned long size, int nid);
-void sparse_buffer_fini(void);
 void *sparse_buffer_alloc(unsigned long size);
 struct page *sparse_mem_map_populate(unsigned long pnum, int nid,
 		struct vmem_altmap *altmap);

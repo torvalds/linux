@@ -401,14 +401,14 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-unsigned long __init section_map_size(void)
+static unsigned long __init section_map_size(void)
 
 {
 	return ALIGN(sizeof(struct page) * PAGES_PER_SECTION, PMD_SIZE);
 }
 
 #else
-unsigned long __init section_map_size(void)
+static unsigned long __init section_map_size(void)
 {
 	return PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
 }
@@ -433,10 +433,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 					  unsigned long map_count, int nodeid)
 {
 	unsigned long pnum;
-	unsigned long size = section_map_size();
 	int nr_consumed_maps = 0;
 
-	sparse_buffer_init(size * map_count, nodeid);
 	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
 		if (!present_section_nr(pnum))
 			continue;
@@ -447,14 +445,13 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
 		       __func__);
 	}
-	sparse_buffer_fini();
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
 static void *sparsemap_buf __meminitdata;
 static void *sparsemap_buf_end __meminitdata;
 
-void __init sparse_buffer_init(unsigned long size, int nid)
+static void __init sparse_buffer_init(unsigned long size, int nid)
 {
 	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
 	sparsemap_buf =
@@ -464,7 +461,7 @@ void __init sparse_buffer_init(unsigned long size, int nid)
 	sparsemap_buf_end = sparsemap_buf + size;
 }
 
-void __init sparse_buffer_fini(void)
+static void __init sparse_buffer_fini(void)
 {
 	unsigned long size = sparsemap_buf_end - sparsemap_buf;
 
@@ -494,8 +491,11 @@ static void __init sparse_early_mem_maps_alloc_node(void *data,
 				 unsigned long map_count, int nodeid)
 {
 	struct page **map_map = (struct page **)data;
+
+	sparse_buffer_init(section_map_size() * map_count, nodeid);
 	sparse_mem_maps_populate_node(map_map, pnum_begin, pnum_end,
 					 map_count, nodeid);
+	sparse_buffer_fini();
 }
 #else
 static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
