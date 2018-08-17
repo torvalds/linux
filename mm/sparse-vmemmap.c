@@ -281,6 +281,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 	unsigned long pnum;
 	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
 	void *vmemmap_buf_start;
+	int nr_consumed_maps = 0;
 
 	size = ALIGN(size, PMD_SIZE);
 	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
@@ -295,8 +296,9 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 		if (!present_section_nr(pnum))
 			continue;
 
-		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
-		if (map_map[pnum])
+		map_map[nr_consumed_maps] =
+				sparse_mem_map_populate(pnum, nodeid, NULL);
+		if (map_map[nr_consumed_maps++])
 			continue;
 		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
 		       __func__);
