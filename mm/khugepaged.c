@@ -397,10 +397,11 @@ static inline int khugepaged_test_exit(struct mm_struct *mm)
 	return atomic_read(&mm->mm_users) == 0;
 }
 
-static bool hugepage_vma_check(struct vm_area_struct *vma)
+static bool hugepage_vma_check(struct vm_area_struct *vma,
+			       unsigned long vm_flags)
 {
-	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
-	    (vma->vm_flags & VM_NOHUGEPAGE) ||
+	if ((!(vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
+	    (vm_flags & VM_NOHUGEPAGE) ||
 	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
 		return false;
 	if (shmem_file(vma->vm_file)) {
@@ -413,7 +414,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
 		return false;
 	if (is_vma_temporary_stack(vma))
 		return false;
-	return !(vma->vm_flags & VM_NO_KHUGEPAGED);
+	return !(vm_flags & VM_NO_KHUGEPAGED);
 }
 
 int __khugepaged_enter(struct mm_struct *mm)
@@ -458,7 +459,7 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
 	 * khugepaged does not yet work on non-shmem files or special
 	 * mappings. And file-private shmem THP is not supported.
 	 */
-	if (!hugepage_vma_check(vma))
+	if (!hugepage_vma_check(vma, vm_flags))
 		return 0;
 
 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
@@ -861,7 +862,7 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
 	hend = vma->vm_end & HPAGE_PMD_MASK;
 	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
 		return SCAN_ADDRESS_RANGE;
-	if (!hugepage_vma_check(vma))
+	if (!hugepage_vma_check(vma, vma->vm_flags))
 		return SCAN_VMA_CHECK;
 	return 0;
 }
@@ -1695,7 +1696,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
 			progress++;
 			break;
 		}
-		if (!hugepage_vma_check(vma)) {
+		if (!hugepage_vma_check(vma, vma->vm_flags)) {
 skip:
 			progress++;
 			continue;
