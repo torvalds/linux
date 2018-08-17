@@ -1122,7 +1122,6 @@ void HTInitializeHTInfo(struct ieee80211_device *ieee)
 	memset(&pHTInfo->PeerHTInfoBuf, 0, sizeof(pHTInfo->PeerHTInfoBuf));
 
 	pHTInfo->bSwBwInProgress = false;
-	pHTInfo->ChnlOp = CHNLOP_NONE;
 
 	// Set default IEEE spec for Draft N
 	pHTInfo->ePeerHTSpecVer = HT_SPEC_VER_IEEE;

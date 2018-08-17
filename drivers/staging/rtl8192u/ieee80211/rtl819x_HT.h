@@ -37,13 +37,6 @@ enum ht_extension_chan_offset {
 	HT_EXTCHNL_OFFSET_LOWER = 3,
 };
 
-typedef enum _CHNLOP {
-	CHNLOP_NONE = 0, // No Action now
-	CHNLOP_SCAN = 1, // Scan in progress
-	CHNLOP_SWBW = 2, // Bandwidth switching in progress
-	CHNLOP_SWCHNL = 3, // Software Channel switching in progress
-} CHNLOP, *PCHNLOP;
-
 typedef	struct _HT_CAPABILITY_ELE {
 	//HT capability info
 	u8	AdvCoding:1;
@@ -192,7 +185,6 @@ typedef struct _RT_HIGH_THROUGHPUT {
 
 	// For Bandwidth Switching
 	u8				bSwBwInProgress;
-	CHNLOP				ChnlOp; // software switching channel in progress. By Bruce, 2008-02-15.
 	u8				SwBwStep;
 	//struct timer_list		SwBwTimer;  //moved to ieee80211_device. as timer_list need include some header file here.
 
