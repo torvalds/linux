@@ -400,7 +400,14 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
 	}
 }
 
-#ifndef CONFIG_SPARSEMEM_VMEMMAP
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+unsigned long __init section_map_size(void)
+
+{
+	return ALIGN(sizeof(struct page) * PAGES_PER_SECTION, PMD_SIZE);
+}
+
+#else
 struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
 		struct vmem_altmap *altmap)
 {
@@ -456,6 +463,42 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 	}
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+
+static void *sparsemap_buf __meminitdata;
+static void *sparsemap_buf_end __meminitdata;
+
+void __init sparse_buffer_init(unsigned long size, int nid)
+{
+	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
+	sparsemap_buf =
+		memblock_virt_alloc_try_nid_raw(size, PAGE_SIZE,
+						__pa(MAX_DMA_ADDRESS),
+						BOOTMEM_ALLOC_ACCESSIBLE, nid);
+	sparsemap_buf_end = sparsemap_buf + size;
+}
+
+void __init sparse_buffer_fini(void)
+{
+	unsigned long size = sparsemap_buf_end - sparsemap_buf;
+
+	if (sparsemap_buf && size > 0)
+		memblock_free_early(__pa(sparsemap_buf), size);
+	sparsemap_buf = NULL;
+}
+
+void * __meminit sparse_buffer_alloc(unsigned long size)
+{
+	void *ptr = NULL;
+
+	if (sparsemap_buf) {
+		ptr = PTR_ALIGN(sparsemap_buf, size);
+		if (ptr + size > sparsemap_buf_end)
+			ptr = NULL;
+		else
+			sparsemap_buf = ptr + size;
+	}
+	return ptr;
+}
 
 #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
 static void __init sparse_early_mem_maps_alloc_node(void *data,
