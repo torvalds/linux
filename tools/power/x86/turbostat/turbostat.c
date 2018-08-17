@@ -1985,6 +1985,11 @@ retry:
 			return -16;
 		p->rapl_dram_perf_status = msr & 0xFFFFFFFF;
 	}
+	if (do_rapl & RAPL_AMD_F17H) {
+		if (get_msr(cpu, MSR_PKG_ENERGY_STAT, &msr))
+			return -13;
+		p->energy_pkg = msr & 0xFFFFFFFF;
+	}
 	if (DO_BIC(BIC_PkgTmp)) {
 		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_STATUS, &msr))
 			return -17;
@@ -3979,10 +3984,13 @@ void rapl_probe_amd(unsigned int family, unsigned int model)
 	switch (family) {
 	case 0x17: /* Zen, Zen+ */
 		do_rapl = RAPL_AMD_F17H | RAPL_PER_CORE_ENERGY;
-		if (rapl_joules)
+		if (rapl_joules) {
+			BIC_PRESENT(BIC_Pkg_J);
 			BIC_PRESENT(BIC_Cor_J);
-		else
+		} else {
+			BIC_PRESENT(BIC_PkgWatt);
 			BIC_PRESENT(BIC_CorWatt);
+		}
 		break;
 	default:
 		return;
