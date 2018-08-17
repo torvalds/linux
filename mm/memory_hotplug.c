@@ -1123,6 +1123,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
 	u64 start, size;
 	bool new_node = false;
 	int ret;
+	unsigned long start_pfn, nr_pages;
 
 	start = res->start;
 	size = resource_size(res);
@@ -1151,33 +1152,22 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
 	if (ret < 0)
 		goto error;
 
-	/* we online node here. we can't roll back from here. */
-	node_set_online(nid);
-
 	if (new_node) {
-		unsigned long start_pfn = start >> PAGE_SHIFT;
-		unsigned long nr_pages = size >> PAGE_SHIFT;
-
-		ret = __register_one_node(nid);
-		if (ret)
-			goto register_fail;
-
-		/*
-		 * link memory sections under this node. This is already
-		 * done when creatig memory section in register_new_memory
-		 * but that depends to have the node registered so offline
-		 * nodes have to go through register_node.
-		 * TODO clean up this mess.
-		 */
-		ret = link_mem_sections(nid, start_pfn, nr_pages, false);
-register_fail:
-		/*
-		 * If sysfs file of new node can't create, cpu on the node
+		/* If sysfs file of new node can't be created, cpu on the node
 		 * can't be hot-added. There is no rollback way now.
 		 * So, check by BUG_ON() to catch it reluctantly..
+		 * We online node here. We can't roll back from here.
 		 */
+		node_set_online(nid);
+		ret = __register_one_node(nid);
 		BUG_ON(ret);
 	}
+
+	/* link memory sections under this node.*/
+	start_pfn = start >> PAGE_SHIFT;
+	nr_pages = size >> PAGE_SHIFT;
+	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
+	BUG_ON(ret);
 
 	/* create new memmap entry */
 	firmware_map_add_hotplug(start, start + size, "System RAM");
