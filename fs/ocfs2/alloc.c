@@ -932,13 +932,11 @@ static int ocfs2_validate_extent_block(struct super_block *sb,
 		goto bail;
 	}
 
-	if (le32_to_cpu(eb->h_fs_generation) != OCFS2_SB(sb)->fs_generation) {
+	if (le32_to_cpu(eb->h_fs_generation) != OCFS2_SB(sb)->fs_generation)
 		rc = ocfs2_error(sb,
 				 "Extent block #%llu has an invalid h_fs_generation of #%u\n",
 				 (unsigned long long)bh->b_blocknr,
 				 le32_to_cpu(eb->h_fs_generation));
-		goto bail;
-	}
 bail:
 	return rc;
 }
@@ -1596,10 +1594,8 @@ static int ocfs2_grow_tree(handle_t *handle, struct ocfs2_extent_tree *et,
 	 * the new data. */
 	ret = ocfs2_add_branch(handle, et, bh, last_eb_bh,
 			       meta_ac);
-	if (ret < 0) {
+	if (ret < 0)
 		mlog_errno(ret);
-		goto out;
-	}
 
 out:
 	if (final_depth)
@@ -5518,10 +5514,8 @@ static int ocfs2_truncate_rec(handle_t *handle,
 	ocfs2_journal_dirty(handle, path_leaf_bh(path));
 
 	ret = ocfs2_rotate_tree_left(handle, et, path, dealloc);
-	if (ret) {
+	if (ret)
 		mlog_errno(ret);
-		goto out;
-	}
 
 out:
 	ocfs2_free_path(left_path);
@@ -5654,10 +5648,8 @@ int ocfs2_remove_extent(handle_t *handle,
 
 		ret = ocfs2_truncate_rec(handle, et, path, index, dealloc,
 					 cpos, len);
-		if (ret) {
+		if (ret)
 			mlog_errno(ret);
-			goto out;
-		}
 	}
 
 out:
@@ -5702,7 +5694,6 @@ static int ocfs2_reserve_blocks_for_rec_trunc(struct inode *inode,
 		if (ret < 0) {
 			if (ret != -ENOSPC)
 				mlog_errno(ret);
-			goto out;
 		}
 	}
 
