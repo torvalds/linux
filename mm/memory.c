@@ -4705,11 +4705,31 @@ static void copy_user_gigantic_page(struct page *dst, struct page *src,
 	}
 }
 
+struct copy_subpage_arg {
+	struct page *dst;
+	struct page *src;
+	struct vm_area_struct *vma;
+};
+
+static void copy_subpage(unsigned long addr, int idx, void *arg)
+{
+	struct copy_subpage_arg *copy_arg = arg;
+
+	copy_user_highpage(copy_arg->dst + idx, copy_arg->src + idx,
+			   addr, copy_arg->vma);
+}
+
 void copy_user_huge_page(struct page *dst, struct page *src,
-			 unsigned long addr, struct vm_area_struct *vma,
+			 unsigned long addr_hint, struct vm_area_struct *vma,
 			 unsigned int pages_per_huge_page)
 {
-	int i;
+	unsigned long addr = addr_hint &
+		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
+	struct copy_subpage_arg arg = {
+		.dst = dst,
+		.src = src,
+		.vma = vma,
+	};
 
 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
 		copy_user_gigantic_page(dst, src, addr, vma,
@@ -4717,11 +4737,7 @@ void copy_user_huge_page(struct page *dst, struct page *src,
 		return;
 	}
 
-	might_sleep();
-	for (i = 0; i < pages_per_huge_page; i++) {
-		cond_resched();
-		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
-	}
+	process_huge_page(addr_hint, pages_per_huge_page, copy_subpage, &arg);
 }
 
 long copy_huge_page_from_user(struct page *dst_page,

@@ -1328,7 +1328,8 @@ alloc:
 	if (!page)
 		clear_huge_page(new_page, vmf->address, HPAGE_PMD_NR);
 	else
-		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+		copy_user_huge_page(new_page, page, vmf->address,
+				    vma, HPAGE_PMD_NR);
 	__SetPageUptodate(new_page);
 
 	mmun_start = haddr;

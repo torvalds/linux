@@ -2752,7 +2752,8 @@ extern void clear_huge_page(struct page *page,
 			    unsigned long addr_hint,
 			    unsigned int pages_per_huge_page);
 extern void copy_user_huge_page(struct page *dst, struct page *src,
-				unsigned long addr, struct vm_area_struct *vma,
+				unsigned long addr_hint,
+				struct vm_area_struct *vma,
 				unsigned int pages_per_huge_page);
 extern long copy_huge_page_from_user(struct page *dst_page,
 				const void __user *usr_src,
