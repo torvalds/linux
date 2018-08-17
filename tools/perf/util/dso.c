@@ -239,7 +239,7 @@ bool is_kernel_module(const char *pathname, int cpumode)
 	return m.kmod;
 }
 
-bool decompress_to_file(const char *ext, const char *filename, int output_fd)
+static bool decompress_to_file(const char *ext, const char *filename, int output_fd)
 {
 	unsigned i;
 
