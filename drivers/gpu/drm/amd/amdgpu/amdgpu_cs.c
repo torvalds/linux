@@ -804,98 +804,15 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error,
 	amdgpu_bo_unref(&parser->uf_entry.robj);
 }
 
-static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
+static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 {
+	struct amdgpu_ring *ring = to_amdgpu_ring(p->entity->rq->sched);
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_device *adev = p->adev;
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_list_entry *e;
 	struct amdgpu_bo_va *bo_va;
 	struct amdgpu_bo *bo;
-	int r;
-
-	r = amdgpu_vm_clear_freed(adev, vm, NULL);
-	if (r)
-		return r;
-
-	r = amdgpu_vm_bo_update(adev, fpriv->prt_va, false);
-	if (r)
-		return r;
-
-	r = amdgpu_sync_fence(adev, &p->job->sync,
-			      fpriv->prt_va->last_pt_update, false);
-	if (r)
-		return r;
-
-	if (amdgpu_sriov_vf(adev)) {
-		struct dma_fence *f;
-
-		bo_va = fpriv->csa_va;
-		BUG_ON(!bo_va);
-		r = amdgpu_vm_bo_update(adev, bo_va, false);
-		if (r)
-			return r;
-
-		f = bo_va->last_pt_update;
-		r = amdgpu_sync_fence(adev, &p->job->sync, f, false);
-		if (r)
-			return r;
-	}
-
-	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
-		struct dma_fence *f;
-
-		/* ignore duplicates */
-		bo = e->robj;
-		if (!bo)
-			continue;
-
-		bo_va = e->bo_va;
-		if (bo_va == NULL)
-			continue;
-
-		r = amdgpu_vm_bo_update(adev, bo_va, false);
-		if (r)
-			return r;
-
-		f = bo_va->last_pt_update;
-		r = amdgpu_sync_fence(adev, &p->job->sync, f, false);
-		if (r)
-			return r;
-	}
-
-	r = amdgpu_vm_handle_moved(adev, vm);
-	if (r)
-		return r;
-
-	r = amdgpu_vm_update_directories(adev, vm);
-	if (r)
-		return r;
-
-	r = amdgpu_sync_fence(adev, &p->job->sync, vm->last_update, false);
-	if (r)
-		return r;
-
-	if (amdgpu_vm_debug) {
-		/* Invalidate all BOs to test for userspace bugs */
-		amdgpu_bo_list_for_each_entry(e, p->bo_list) {
-			/* ignore duplicates */
-			if (!e->robj)
-				continue;
-
-			amdgpu_vm_bo_invalidate(adev, e->robj, false);
-		}
-	}
-
-	return r;
-}
-
-static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
-				 struct amdgpu_cs_parser *p)
-{
-	struct amdgpu_ring *ring = to_amdgpu_ring(p->entity->rq->sched);
-	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	struct amdgpu_vm *vm = &fpriv->vm;
 	int r;
 
 	/* Only for UVD/VCE VM emulation */
@@ -959,16 +876,87 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 		}
 	}
 
-	if (p->job->vm) {
-		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->root.base.bo);
+	if (!p->job->vm)
+		return amdgpu_cs_sync_rings(p);
 
-		r = amdgpu_bo_vm_update_pte(p);
+
+	r = amdgpu_vm_clear_freed(adev, vm, NULL);
+	if (r)
+		return r;
+
+	r = amdgpu_vm_bo_update(adev, fpriv->prt_va, false);
+	if (r)
+		return r;
+
+	r = amdgpu_sync_fence(adev, &p->job->sync,
+			      fpriv->prt_va->last_pt_update, false);
+	if (r)
+		return r;
+
+	if (amdgpu_sriov_vf(adev)) {
+		struct dma_fence *f;
+
+		bo_va = fpriv->csa_va;
+		BUG_ON(!bo_va);
+		r = amdgpu_vm_bo_update(adev, bo_va, false);
 		if (r)
 			return r;
 
-		r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
+		f = bo_va->last_pt_update;
+		r = amdgpu_sync_fence(adev, &p->job->sync, f, false);
 		if (r)
 			return r;
+	}
+
+	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
+		struct dma_fence *f;
+
+		/* ignore duplicates */
+		bo = e->robj;
+		if (!bo)
+			continue;
+
+		bo_va = e->bo_va;
+		if (bo_va == NULL)
+			continue;
+
+		r = amdgpu_vm_bo_update(adev, bo_va, false);
+		if (r)
+			return r;
+
+		f = bo_va->last_pt_update;
+		r = amdgpu_sync_fence(adev, &p->job->sync, f, false);
+		if (r)
+			return r;
+	}
+
+	r = amdgpu_vm_handle_moved(adev, vm);
+	if (r)
+		return r;
+
+	r = amdgpu_vm_update_directories(adev, vm);
+	if (r)
+		return r;
+
+	r = amdgpu_sync_fence(adev, &p->job->sync, vm->last_update, false);
+	if (r)
+		return r;
+
+	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
+	if (r)
+		return r;
+
+	p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->root.base.bo);
+
+	if (amdgpu_vm_debug) {
+		/* Invalidate all BOs to test for userspace bugs */
+		amdgpu_bo_list_for_each_entry(e, p->bo_list) {
+			/* ignore duplicates */
+			if (!e->robj)
+				continue;
+
+			amdgpu_vm_bo_invalidate(adev, e->robj, false);
+		}
 	}
 
 	return amdgpu_cs_sync_rings(p);
@@ -1309,7 +1297,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	for (i = 0; i < parser.job->num_ibs; i++)
 		trace_amdgpu_cs(&parser, i);
 
-	r = amdgpu_cs_ib_vm_chunk(adev, &parser);
+	r = amdgpu_cs_vm_handling(&parser);
 	if (r)
 		goto out;
 
