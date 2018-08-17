@@ -1354,16 +1354,12 @@ distclean: mrproper
 
 # Packaging of the kernel to various formats
 # ---------------------------------------------------------------------------
-# rpm target kept for backward compatibility
 package-dir	:= scripts/package
 
 %src-pkg: FORCE
 	$(Q)$(MAKE) $(build)=$(package-dir) $@
 %pkg: include/config/kernel.release FORCE
 	$(Q)$(MAKE) $(build)=$(package-dir) $@
-rpm: rpm-pkg
-	@echo "  WARNING: \"rpm\" target will be removed after Linux 4.18"
-	@echo "           Please use \"rpm-pkg\" instead."
 
 
 # Brief documentation of the typical targets used
