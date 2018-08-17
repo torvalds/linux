@@ -5060,26 +5060,29 @@ static int gfx_v8_0_hw_init(void *handle)
 	return r;
 }
 
-static int gfx_v8_0_kcq_disable(struct amdgpu_ring *kiq_ring,struct amdgpu_ring *ring)
+static int gfx_v8_0_kcq_disable(struct amdgpu_device *adev)
 {
-	int r;
+	int r, i;
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
 
-	r = amdgpu_ring_alloc(kiq_ring, 6);
+	r = amdgpu_ring_alloc(kiq_ring, 6 * adev->gfx.num_compute_rings);
 	if (r)
 		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
 
-	/* unmap queues */
-	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_UNMAP_QUEUES, 4));
-	amdgpu_ring_write(kiq_ring, /* Q_sel: 0, vmid: 0, engine: 0, num_Q: 1 */
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
+
+		amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_UNMAP_QUEUES, 4));
+		amdgpu_ring_write(kiq_ring, /* Q_sel: 0, vmid: 0, engine: 0, num_Q: 1 */
 						PACKET3_UNMAP_QUEUES_ACTION(1) | /* RESET_QUEUES */
 						PACKET3_UNMAP_QUEUES_QUEUE_SEL(0) |
 						PACKET3_UNMAP_QUEUES_ENGINE_SEL(0) |
 						PACKET3_UNMAP_QUEUES_NUM_QUEUES(1));
-	amdgpu_ring_write(kiq_ring, PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET0(ring->doorbell_index));
-	amdgpu_ring_write(kiq_ring, 0);
-	amdgpu_ring_write(kiq_ring, 0);
-	amdgpu_ring_write(kiq_ring, 0);
-
+		amdgpu_ring_write(kiq_ring, PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET0(ring->doorbell_index));
+		amdgpu_ring_write(kiq_ring, 0);
+		amdgpu_ring_write(kiq_ring, 0);
+		amdgpu_ring_write(kiq_ring, 0);
+	}
 	r = amdgpu_ring_test_ring(kiq_ring);
 	if (r)
 		DRM_ERROR("KCQ disable failed\n");
@@ -5090,7 +5093,6 @@ static int gfx_v8_0_kcq_disable(struct amdgpu_ring *kiq_ring,struct amdgpu_ring 
 static int gfx_v8_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
 
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
@@ -5100,8 +5102,7 @@ static int gfx_v8_0_hw_fini(void *handle)
 	amdgpu_irq_put(adev, &adev->gfx.sq_irq, 0);
 
 	/* disable KCQ to avoid CPC touch memory not valid anymore */
-	for (i = 0; i < adev->gfx.num_compute_rings; i++)
-		gfx_v8_0_kcq_disable(&adev->gfx.kiq.ring, &adev->gfx.compute_ring[i]);
+	gfx_v8_0_kcq_disable(adev);
 
 	if (amdgpu_sriov_vf(adev)) {
 		pr_debug("For SRIOV client, shouldn't do anything.\n");
