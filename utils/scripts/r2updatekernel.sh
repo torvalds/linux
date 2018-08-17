@@ -1,6 +1,6 @@
 #!/bin/bash
 
-GITHUB_RELEASES_PAGE="https://api.github.com/repos/RamonSmit/BPI-R2-4.14/releases/latest"
+GITHUB_RELEASES_PAGE="https://api.github.com/repos/frank-w/BPI-R2-4.14/releases/latest"
 
 if ! [ -x "$(command -v jq)" ]; then
     echo "Please install jq (https://stedolan.github.io/jq/download/)";
@@ -33,8 +33,15 @@ do
 	fi
 done
 
+echo "[x] exit"
+
 read -p "choice: " -n1 choice;
 echo
-val=${FILES[$choice]}
-curl -L $val -O
-
+case $choice in
+	[0-9]*)
+		val=${FILES[$choice]}
+		curl -L $val -O
+	;;
+	x) exit
+	;;
+esac
