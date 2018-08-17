@@ -3706,17 +3706,17 @@ static inline int btrfs_defrag_cancelled(struct btrfs_fs_info *fs_info)
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 void btrfs_test_inode_set_ops(struct inode *inode);
 void btrfs_test_destroy_inode(struct inode *inode);
-#endif
 
 static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
 {
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	if (unlikely(test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO,
-			      &fs_info->fs_state)))
-		return 1;
-#endif
+	return test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
+}
+#else
+static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
+{
 	return 0;
 }
+#endif
 
 static inline void cond_wake_up(struct wait_queue_head *wq)
 {
