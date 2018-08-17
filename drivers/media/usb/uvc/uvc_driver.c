@@ -2040,10 +2040,7 @@ static int uvc_register_chains(struct uvc_device *dev)
  * USB probe, disconnect, suspend and resume
  */
 
-struct uvc_device_info {
-	u32	quirks;
-	u32	meta_format;
-};
+static const struct uvc_device_info uvc_quirk_none = { 0 };
 
 static int uvc_probe(struct usb_interface *intf,
 		     const struct usb_device_id *id)
@@ -2052,7 +2049,6 @@ static int uvc_probe(struct usb_interface *intf,
 	struct uvc_device *dev;
 	const struct uvc_device_info *info =
 		(const struct uvc_device_info *)id->driver_info;
-	u32 quirks = info ? info->quirks : 0;
 	int function;
 	int ret;
 
@@ -2079,10 +2075,9 @@ static int uvc_probe(struct usb_interface *intf,
 	dev->udev = usb_get_dev(udev);
 	dev->intf = usb_get_intf(intf);
 	dev->intfnum = intf->cur_altsetting->desc.bInterfaceNumber;
-	dev->quirks = (uvc_quirks_param == -1)
-		    ? quirks : uvc_quirks_param;
-	if (info)
-		dev->meta_format = info->meta_format;
+	dev->info = info ? info : &uvc_quirk_none;
+	dev->quirks = uvc_quirks_param == -1
+		    ? dev->info->quirks : uvc_quirks_param;
 
 	if (udev->product != NULL)
 		strlcpy(dev->name, udev->product, sizeof(dev->name));
@@ -2123,7 +2118,7 @@ static int uvc_probe(struct usb_interface *intf,
 		le16_to_cpu(udev->descriptor.idVendor),
 		le16_to_cpu(udev->descriptor.idProduct));
 
-	if (dev->quirks != quirks) {
+	if (dev->quirks != dev->info->quirks) {
 		uvc_printk(KERN_INFO, "Forcing device quirks to 0x%x by module "
 			"parameter for testing purpose.\n", dev->quirks);
 		uvc_printk(KERN_INFO, "Please report required quirks to the "

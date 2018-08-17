@@ -74,7 +74,8 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 
 	memset(fmt, 0, sizeof(*fmt));
 
-	fmt->dataformat = fmeta == dev->meta_format ? fmeta : V4L2_META_FMT_UVC;
+	fmt->dataformat = fmeta == dev->info->meta_format
+			? fmeta : V4L2_META_FMT_UVC;
 	fmt->buffersize = UVC_METATADA_BUF_SIZE;
 
 	return 0;
@@ -118,14 +119,14 @@ static int uvc_meta_v4l2_enum_formats(struct file *file, void *fh,
 	u32 index = fdesc->index;
 
 	if (fdesc->type != vfh->vdev->queue->type ||
-	    index > 1U || (index && !dev->meta_format))
+	    index > 1U || (index && !dev->info->meta_format))
 		return -EINVAL;
 
 	memset(fdesc, 0, sizeof(*fdesc));
 
 	fdesc->type = vfh->vdev->queue->type;
 	fdesc->index = index;
-	fdesc->pixelformat = index ? dev->meta_format : V4L2_META_FMT_UVC;
+	fdesc->pixelformat = index ? dev->info->meta_format : V4L2_META_FMT_UVC;
 
 	return 0;
 }
