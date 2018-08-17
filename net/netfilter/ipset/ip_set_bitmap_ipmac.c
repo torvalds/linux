@@ -235,6 +235,9 @@ bitmap_ipmac_kadt(struct ip_set *set, const struct sk_buff *skb,
 	else
 		ether_addr_copy(e.ether, eth_hdr(skb)->h_dest);
 
+	if (is_zero_ether_addr(e.ether))
+		return -EINVAL;
+
 	return adtfn(set, &e, &ext, &opt->ext, opt->cmdflags);
 }
 
