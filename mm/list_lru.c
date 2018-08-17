@@ -287,8 +287,8 @@ unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
 	long isolated = 0;
 	int memcg_idx;
 
-	isolated += __list_lru_walk_one(lru, nid, -1, isolate, cb_arg,
-					nr_to_walk);
+	isolated += list_lru_walk_one(lru, nid, NULL, isolate, cb_arg,
+				      nr_to_walk);
 	if (*nr_to_walk > 0 && list_lru_memcg_aware(lru)) {
 		for_each_memcg_cache_index(memcg_idx) {
 			isolated += __list_lru_walk_one(lru, nid, memcg_idx,
