@@ -31,6 +31,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/sched/user.h>
+#include <linux/sched/mm.h>
 
 #include "inotify.h"
 
@@ -98,7 +99,11 @@ int inotify_handle_event(struct fsnotify_group *group,
 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
 			      fsn_mark);
 
-	event = kmalloc(alloc_len, GFP_KERNEL);
+	/* Whoever is interested in the event, pays for the allocation. */
+	memalloc_use_memcg(group->memcg);
+	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT);
+	memalloc_unuse_memcg();
+
 	if (unlikely(!event)) {
 		/*
 		 * Treat lost event due to ENOMEM the same way as queue
