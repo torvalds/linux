@@ -4599,6 +4599,57 @@ EXPORT_SYMBOL(__might_fault);
 #endif
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
+/*
+ * Process all subpages of the specified huge page with the specified
+ * operation.  The target subpage will be processed last to keep its
+ * cache lines hot.
+ */
+static inline void process_huge_page(
+	unsigned long addr_hint, unsigned int pages_per_huge_page,
+	void (*process_subpage)(unsigned long addr, int idx, void *arg),
+	void *arg)
+{
+	int i, n, base, l;
+	unsigned long addr = addr_hint &
+		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
+
+	/* Process target subpage last to keep its cache lines hot */
+	might_sleep();
+	n = (addr_hint - addr) / PAGE_SIZE;
+	if (2 * n <= pages_per_huge_page) {
+		/* If target subpage in first half of huge page */
+		base = 0;
+		l = n;
+		/* Process subpages at the end of huge page */
+		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
+			cond_resched();
+			process_subpage(addr + i * PAGE_SIZE, i, arg);
+		}
+	} else {
+		/* If target subpage in second half of huge page */
+		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
+		l = pages_per_huge_page - n;
+		/* Process subpages at the begin of huge page */
+		for (i = 0; i < base; i++) {
+			cond_resched();
+			process_subpage(addr + i * PAGE_SIZE, i, arg);
+		}
+	}
+	/*
+	 * Process remaining subpages in left-right-left-right pattern
+	 * towards the target subpage
+	 */
+	for (i = 0; i < l; i++) {
+		int left_idx = base + i;
+		int right_idx = base + 2 * l - 1 - i;
+
+		cond_resched();
+		process_subpage(addr + left_idx * PAGE_SIZE, left_idx, arg);
+		cond_resched();
+		process_subpage(addr + right_idx * PAGE_SIZE, right_idx, arg);
+	}
+}
+
 static void clear_gigantic_page(struct page *page,
 				unsigned long addr,
 				unsigned int pages_per_huge_page)
@@ -4613,10 +4664,17 @@ static void clear_gigantic_page(struct page *page,
 		clear_user_highpage(p, addr + i * PAGE_SIZE);
 	}
 }
+
+static void clear_subpage(unsigned long addr, int idx, void *arg)
+{
+	struct page *page = arg;
+
+	clear_user_highpage(page + idx, addr);
+}
+
 void clear_huge_page(struct page *page,
 		     unsigned long addr_hint, unsigned int pages_per_huge_page)
 {
-	int i, n, base, l;
 	unsigned long addr = addr_hint &
 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
 
@@ -4625,43 +4683,7 @@ void clear_huge_page(struct page *page,
 		return;
 	}
 
-	/* Clear sub-page to access last to keep its cache lines hot */
-	might_sleep();
-	n = (addr_hint - addr) / PAGE_SIZE;
-	if (2 * n <= pages_per_huge_page) {
-		/* If sub-page to access in first half of huge page */
-		base = 0;
-		l = n;
-		/* Clear sub-pages at the end of huge page */
-		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
-			cond_resched();
-			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-		}
-	} else {
-		/* If sub-page to access in second half of huge page */
-		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
-		l = pages_per_huge_page - n;
-		/* Clear sub-pages at the begin of huge page */
-		for (i = 0; i < base; i++) {
-			cond_resched();
-			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-		}
-	}
-	/*
-	 * Clear remaining sub-pages in left-right-left-right pattern
-	 * towards the sub-page to access
-	 */
-	for (i = 0; i < l; i++) {
-		int left_idx = base + i;
-		int right_idx = base + 2 * l - 1 - i;
-
-		cond_resched();
-		clear_user_highpage(page + left_idx,
-				    addr + left_idx * PAGE_SIZE);
-		cond_resched();
-		clear_user_highpage(page + right_idx,
-				    addr + right_idx * PAGE_SIZE);
-	}
+	process_huge_page(addr_hint, pages_per_huge_page, clear_subpage, page);
 }
 
 static void copy_user_gigantic_page(struct page *dst, struct page *src,
