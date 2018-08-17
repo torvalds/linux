@@ -161,10 +161,8 @@ static int zx_drm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	for_each_available_child_of_node(parent, child) {
+	for_each_available_child_of_node(parent, child)
 		component_match_add(dev, &match, compare_of, child);
-		of_node_put(child);
-	}
 
 	return component_master_add_with_match(dev, &zx_drm_master_ops, match);
 }
