@@ -12,12 +12,11 @@
 //
 #define MIMO_PS_STATIC				0
 
-//
-//	There should be 128 bits to cover all of the MCS rates. However, since
-//	8190 does not support too much rates, one integer is quite enough.
-//
-
-#define sHTCLng	4
+/*
+ * There should be 128 bits to cover all of the MCS rates. However, since
+ * 8190 does not support too much rates, one integer is quite enough.
+ */
+#define HTCLNG	4
 
 
 #define HT_SUPPORTED_MCS_1SS_BITMAP					0x000000ff

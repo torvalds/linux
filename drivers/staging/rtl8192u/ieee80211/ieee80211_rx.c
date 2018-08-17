@@ -794,7 +794,7 @@ static u8 parse_subframe(struct sk_buff *skb,
 	}
 
 	if (rx_stats->bContainHTC) {
-		LLCOffset += sHTCLng;
+		LLCOffset += HTCLNG;
 	}
 	// Null packet, don't indicate it to upper layer
 	ChkLength = LLCOffset;/* + (Frame_WEP(frame)!=0 ?Adapter->MgntInfo.SecurityInfo.EncryptionHeadOverhead:0);*/
