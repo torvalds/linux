@@ -177,8 +177,12 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 	/* For killed process disable any more IBs enqueue right now */
 	last_user = cmpxchg(&entity->last_user, current->group_leader, NULL);
 	if ((!last_user || last_user == current->group_leader) &&
-	    (current->flags & PF_EXITING) && (current->exit_code == SIGKILL))
+	    (current->flags & PF_EXITING) && (current->exit_code == SIGKILL)) {
+		spin_lock(&entity->rq_lock);
+		entity->stopped = true;
 		drm_sched_rq_remove_entity(entity->rq, entity);
+		spin_unlock(&entity->rq_lock);
+	}
 
 	return ret;
 }
@@ -504,6 +508,12 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 	if (first) {
 		/* Add the entity to the run queue */
 		spin_lock(&entity->rq_lock);
+		if (entity->stopped) {
+			spin_unlock(&entity->rq_lock);
+
+			DRM_ERROR("Trying to push to a killed entity\n");
+			return;
+		}
 		drm_sched_rq_add_entity(entity->rq, entity);
 		spin_unlock(&entity->rq_lock);
 		drm_sched_wakeup(entity->rq->sched);
