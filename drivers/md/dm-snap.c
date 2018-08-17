@@ -85,7 +85,7 @@ struct dm_snapshot {
 	 * A list of pending exceptions that completed out of order.
 	 * Protected by kcopyd single-threaded callback.
 	 */
-	struct list_head out_of_order_list;
+	struct rb_root out_of_order_tree;
 
 	mempool_t pending_pool;
 
@@ -200,7 +200,7 @@ struct dm_snap_pending_exception {
 	/* A sequence number, it is used for in-order completion. */
 	sector_t exception_sequence;
 
-	struct list_head out_of_order_entry;
+	struct rb_node out_of_order_node;
 
 	/*
 	 * For writing a complete chunk, bypassing the copy.
@@ -1173,7 +1173,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	atomic_set(&s->pending_exceptions_count, 0);
 	s->exception_start_sequence = 0;
 	s->exception_complete_sequence = 0;
-	INIT_LIST_HEAD(&s->out_of_order_list);
+	s->out_of_order_tree = RB_ROOT;
 	mutex_init(&s->lock);
 	INIT_LIST_HEAD(&s->list);
 	spin_lock_init(&s->pe_lock);
@@ -1539,28 +1539,41 @@ static void copy_callback(int read_err, unsigned long write_err, void *context)
 	pe->copy_error = read_err || write_err;
 
 	if (pe->exception_sequence == s->exception_complete_sequence) {
+		struct rb_node *next;
+
 		s->exception_complete_sequence++;
 		complete_exception(pe);
 
-		while (!list_empty(&s->out_of_order_list)) {
-			pe = list_entry(s->out_of_order_list.next,
-					struct dm_snap_pending_exception, out_of_order_entry);
+		next = rb_first(&s->out_of_order_tree);
+		while (next) {
+			pe = rb_entry(next, struct dm_snap_pending_exception,
+					out_of_order_node);
 			if (pe->exception_sequence != s->exception_complete_sequence)
 				break;
+			next = rb_next(next);
 			s->exception_complete_sequence++;
-			list_del(&pe->out_of_order_entry);
+			rb_erase(&pe->out_of_order_node, &s->out_of_order_tree);
 			complete_exception(pe);
+			cond_resched();
 		}
 	} else {
-		struct list_head *lh;
+		struct rb_node *parent = NULL;
+		struct rb_node **p = &s->out_of_order_tree.rb_node;
 		struct dm_snap_pending_exception *pe2;
 
-		list_for_each_prev(lh, &s->out_of_order_list) {
-			pe2 = list_entry(lh, struct dm_snap_pending_exception, out_of_order_entry);
-			if (pe2->exception_sequence < pe->exception_sequence)
-				break;
+		while (*p) {
+			pe2 = rb_entry(*p, struct dm_snap_pending_exception, out_of_order_node);
+			parent = *p;
+
+			BUG_ON(pe->exception_sequence == pe2->exception_sequence);
+			if (pe->exception_sequence < pe2->exception_sequence)
+				p = &((*p)->rb_left);
+			else
+				p = &((*p)->rb_right);
 		}
-		list_add(&pe->out_of_order_entry, lh);
+
+		rb_link_node(&pe->out_of_order_node, parent, p);
+		rb_insert_color(&pe->out_of_order_node, &s->out_of_order_tree);
 	}
 }
 
@@ -1694,8 +1707,6 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	if (!s->valid)
 		return DM_MAPIO_KILL;
 
-	/* FIXME: should only take write lock if we need
-	 * to copy an exception */
 	mutex_lock(&s->lock);
 
 	if (!s->valid || (unlikely(s->snapshot_overflowed) &&
