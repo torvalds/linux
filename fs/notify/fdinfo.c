@@ -15,7 +15,7 @@
 #include <linux/exportfs.h>
 
 #include "inotify/inotify.h"
-#include "../fs/mount.h"
+#include "fsnotify.h"
 
 #if defined(CONFIG_PROC_FS)
 
@@ -81,7 +81,7 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 		return;
 
 	inode_mark = container_of(mark, struct inotify_inode_mark, fsn_mark);
-	inode = igrab(mark->connector->inode);
+	inode = igrab(fsnotify_conn_inode(mark->connector));
 	if (inode) {
 		/*
 		 * IN_ALL_EVENTS represents all of the mask bits
@@ -117,7 +117,7 @@ static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 		mflags |= FAN_MARK_IGNORED_SURV_MODIFY;
 
 	if (mark->connector->type == FSNOTIFY_OBJ_TYPE_INODE) {
-		inode = igrab(mark->connector->inode);
+		inode = igrab(fsnotify_conn_inode(mark->connector));
 		if (!inode)
 			return;
 		seq_printf(m, "fanotify ino:%lx sdev:%x mflags:%x mask:%x ignored_mask:%x ",
@@ -127,7 +127,7 @@ static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 		seq_putc(m, '\n');
 		iput(inode);
 	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
-		struct mount *mnt = real_mount(mark->connector->mnt);
+		struct mount *mnt = fsnotify_conn_mount(mark->connector);
 
 		seq_printf(m, "fanotify mnt_id:%x mflags:%x mask:%x ignored_mask:%x\n",
 			   mnt->mnt_id, mflags, mark->mask, mark->ignored_mask);

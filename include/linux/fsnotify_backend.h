@@ -210,6 +210,11 @@ enum fsnotify_obj_type {
 #define FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL	(1U << FSNOTIFY_OBJ_TYPE_VFSMOUNT)
 #define FSNOTIFY_OBJ_ALL_TYPES_MASK	((1U << FSNOTIFY_OBJ_TYPE_COUNT) - 1)
 
+static inline bool fsnotify_valid_obj_type(unsigned int type)
+{
+	return (type < FSNOTIFY_OBJ_TYPE_COUNT);
+}
+
 struct fsnotify_iter_info {
 	struct fsnotify_mark *marks[FSNOTIFY_OBJ_TYPE_COUNT];
 	unsigned int report_mask;
@@ -251,6 +256,13 @@ FSNOTIFY_ITER_FUNCS(vfsmount, VFSMOUNT)
 	for (type = 0; type < FSNOTIFY_OBJ_TYPE_COUNT; type++)
 
 /*
+ * fsnotify_connp_t is what we embed in objects which connector can be attached
+ * to. fsnotify_connp_t * is how we refer from connector back to object.
+ */
+struct fsnotify_mark_connector;
+typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
+
+/*
  * Inode / vfsmount point to this structure which tracks all marks attached to
  * the inode / vfsmount. The reference to inode / vfsmount is held by this
  * structure. We destroy this structure when there are no more marks attached
@@ -259,9 +271,9 @@ FSNOTIFY_ITER_FUNCS(vfsmount, VFSMOUNT)
 struct fsnotify_mark_connector {
 	spinlock_t lock;
 	unsigned int type;	/* Type of object [lock] */
-	union {	/* Object pointer [lock] */
-		struct inode *inode;
-		struct vfsmount *mnt;
+	union {
+		/* Object pointer [lock] */
+		fsnotify_connp_t *obj;
 		/* Used listing heads to free after srcu period expires */
 		struct fsnotify_mark_connector *destroy_next;
 	};
@@ -389,32 +401,36 @@ extern struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group 
 
 /* functions used to manipulate the marks attached to inodes */
 
+/* Get mask of events for a list of marks */
+extern __u32 fsnotify_conn_mask(struct fsnotify_mark_connector *conn);
 /* Calculate mask of events for a list of marks */
 extern void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn);
 extern void fsnotify_init_mark(struct fsnotify_mark *mark,
 			       struct fsnotify_group *group);
 /* Find mark belonging to given group in the list of marks */
-extern struct fsnotify_mark *fsnotify_find_mark(
-				struct fsnotify_mark_connector __rcu **connp,
-				struct fsnotify_group *group);
-/* attach the mark to the inode or vfsmount */
-extern int fsnotify_add_mark(struct fsnotify_mark *mark, struct inode *inode,
-			     struct vfsmount *mnt, int allow_dups);
+extern struct fsnotify_mark *fsnotify_find_mark(fsnotify_connp_t *connp,
+						struct fsnotify_group *group);
+/* attach the mark to the object */
+extern int fsnotify_add_mark(struct fsnotify_mark *mark,
+			     fsnotify_connp_t *connp, unsigned int type,
+			     int allow_dups);
 extern int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
-				    struct inode *inode, struct vfsmount *mnt,
+				    fsnotify_connp_t *connp, unsigned int type,
 				    int allow_dups);
 /* attach the mark to the inode */
 static inline int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 					  struct inode *inode,
 					  int allow_dups)
 {
-	return fsnotify_add_mark(mark, inode, NULL, allow_dups);
+	return fsnotify_add_mark(mark, &inode->i_fsnotify_marks,
+				 FSNOTIFY_OBJ_TYPE_INODE, allow_dups);
 }
 static inline int fsnotify_add_inode_mark_locked(struct fsnotify_mark *mark,
 						 struct inode *inode,
 						 int allow_dups)
 {
-	return fsnotify_add_mark_locked(mark, inode, NULL, allow_dups);
+	return fsnotify_add_mark_locked(mark, &inode->i_fsnotify_marks,
+					FSNOTIFY_OBJ_TYPE_INODE, allow_dups);
 }
 /* given a group and a mark, flag mark to be freed when all references are dropped */
 extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
