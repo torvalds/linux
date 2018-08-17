@@ -935,7 +935,6 @@ static int flexcan_chip_start(struct net_device *dev)
 	/* MCR
 	 *
 	 * enable freeze
-	 * enable fifo
 	 * halt now
 	 * only supervisor access
 	 * enable warning int
@@ -950,6 +949,12 @@ static int flexcan_chip_start(struct net_device *dev)
 		FLEXCAN_MCR_WRN_EN | FLEXCAN_MCR_SRX_DIS | FLEXCAN_MCR_IRMQ |
 		FLEXCAN_MCR_IDAM_C | FLEXCAN_MCR_MAXMB(FLEXCAN_TX_MB);
 
+	/* MCR
+	 *
+	 * FIFO:
+	 * - disable for timestamp mode
+	 * - enable for FIFO mode
+	 */
 	if (priv->devtype_data->quirks & FLEXCAN_QUIRK_USE_OFF_TIMESTAMP)
 		reg_mcr &= ~FLEXCAN_MCR_FEN;
 	else
