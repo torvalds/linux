@@ -649,7 +649,7 @@ static void hidp_process_transmit(struct hidp_session *session,
 }
 
 static int hidp_setup_input(struct hidp_session *session,
-				struct hidp_connadd_req *req)
+				const struct hidp_connadd_req *req)
 {
 	struct input_dev *input;
 	int i;
@@ -748,7 +748,7 @@ EXPORT_SYMBOL_GPL(hidp_hid_driver);
 /* This function sets up the hid device. It does not add it
    to the HID system. That is done in hidp_add_connection(). */
 static int hidp_setup_hid(struct hidp_session *session,
-				struct hidp_connadd_req *req)
+				const struct hidp_connadd_req *req)
 {
 	struct hid_device *hid;
 	int err;
@@ -807,7 +807,7 @@ fault:
 
 /* initialize session devices */
 static int hidp_session_dev_init(struct hidp_session *session,
-				 struct hidp_connadd_req *req)
+				 const struct hidp_connadd_req *req)
 {
 	int ret;
 
@@ -906,7 +906,7 @@ static void hidp_session_dev_work(struct work_struct *work)
 static int hidp_session_new(struct hidp_session **out, const bdaddr_t *bdaddr,
 			    struct socket *ctrl_sock,
 			    struct socket *intr_sock,
-			    struct hidp_connadd_req *req,
+			    const struct hidp_connadd_req *req,
 			    struct l2cap_conn *conn)
 {
 	struct hidp_session *session;
@@ -1335,7 +1335,7 @@ static int hidp_verify_sockets(struct socket *ctrl_sock,
 	return 0;
 }
 
-int hidp_connection_add(struct hidp_connadd_req *req,
+int hidp_connection_add(const struct hidp_connadd_req *req,
 			struct socket *ctrl_sock,
 			struct socket *intr_sock)
 {
