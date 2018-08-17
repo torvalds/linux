@@ -41,12 +41,6 @@ extern struct kmem_cache *btrfs_path_cachep;
 extern struct kmem_cache *btrfs_free_space_cachep;
 struct btrfs_ordered_sum;
 
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-#define STATIC noinline
-#else
-#define STATIC static noinline
-#endif
-
 #define BTRFS_MAGIC 0x4D5F53665248425FULL /* ascii _BHRfS_M, no null */
 
 #define BTRFS_MAX_MIRRORS 3
