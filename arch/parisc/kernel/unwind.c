@@ -403,9 +403,31 @@ void unwind_frame_init_from_blocked_task(struct unwind_frame_info *info, struct 
 	kfree(r2);
 }
 
-void unwind_frame_init_running(struct unwind_frame_info *info, struct pt_regs *regs)
+#define get_parisc_stackpointer() ({ \
+	unsigned long sp; \
+	__asm__("copy %%r30, %0" : "=r"(sp)); \
+	(sp); \
+})
+
+void unwind_frame_init_task(struct unwind_frame_info *info,
+	struct task_struct *task, struct pt_regs *regs)
 {
-	unwind_frame_init(info, current, regs);
+	task = task ? task : current;
+
+	if (task == current) {
+		struct pt_regs r;
+
+		if (!regs) {
+			memset(&r, 0, sizeof(r));
+			r.iaoq[0] =  _THIS_IP_;
+			r.gr[2] = _RET_IP_;
+			r.gr[30] = get_parisc_stackpointer();
+			regs = &r;
+		}
+		unwind_frame_init(info, task, &r);
+	} else {
+		unwind_frame_init_from_blocked_task(info, task);
+	}
 }
 
 int unwind_once(struct unwind_frame_info *next_frame)
@@ -442,19 +464,12 @@ int unwind_to_user(struct unwind_frame_info *info)
 unsigned long return_address(unsigned int level)
 {
 	struct unwind_frame_info info;
-	struct pt_regs r;
-	unsigned long sp;
 
 	/* initialize unwind info */
-	asm volatile ("copy %%r30, %0" : "=r"(sp));
-	memset(&r, 0, sizeof(struct pt_regs));
-	r.iaoq[0] = _THIS_IP_;
-	r.gr[2] = _RET_IP_;
-	r.gr[30] = sp;
-	unwind_frame_init(&info, current, &r);
+	unwind_frame_init_task(&info, current, NULL);
 
 	/* unwind stack */
-	++level;
+	level += 2;
 	do {
 		if (unwind_once(&info) < 0 || info.ip == 0)
 			return 0;
