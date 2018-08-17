@@ -482,6 +482,59 @@ static void gfx_v9_0_init_rlc_ext_microcode(struct amdgpu_device *adev)
 			le32_to_cpu(rlc_hdr->reg_list_format_direct_reg_list_length);
 }
 
+static void gfx_v9_0_check_fw_write_wait(struct amdgpu_device *adev)
+{
+	adev->gfx.me_fw_write_wait = false;
+	adev->gfx.mec_fw_write_wait = false;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		if ((adev->gfx.me_fw_version >= 0x0000009c) &&
+		    (adev->gfx.me_feature_version >= 42) &&
+		    (adev->gfx.pfp_fw_version >=  0x000000b1) &&
+		    (adev->gfx.pfp_feature_version >= 42))
+			adev->gfx.me_fw_write_wait = true;
+
+		if ((adev->gfx.mec_fw_version >=  0x00000193) &&
+		    (adev->gfx.mec_feature_version >= 42))
+			adev->gfx.mec_fw_write_wait = true;
+		break;
+	case CHIP_VEGA12:
+		if ((adev->gfx.me_fw_version >= 0x0000009c) &&
+		    (adev->gfx.me_feature_version >= 44) &&
+		    (adev->gfx.pfp_fw_version >=  0x000000b2) &&
+		    (adev->gfx.pfp_feature_version >= 44))
+			adev->gfx.me_fw_write_wait = true;
+
+		if ((adev->gfx.mec_fw_version >=  0x00000196) &&
+		    (adev->gfx.mec_feature_version >= 44))
+			adev->gfx.mec_fw_write_wait = true;
+		break;
+	case CHIP_VEGA20:
+		if ((adev->gfx.me_fw_version >= 0x0000009c) &&
+		    (adev->gfx.me_feature_version >= 44) &&
+		    (adev->gfx.pfp_fw_version >=  0x000000b2) &&
+		    (adev->gfx.pfp_feature_version >= 44))
+			adev->gfx.me_fw_write_wait = true;
+
+		if ((adev->gfx.mec_fw_version >=  0x00000197) &&
+		    (adev->gfx.mec_feature_version >= 44))
+			adev->gfx.mec_fw_write_wait = true;
+		break;
+	case CHIP_RAVEN:
+		if ((adev->gfx.me_fw_version >= 0x0000009c) &&
+		    (adev->gfx.me_feature_version >= 42) &&
+		    (adev->gfx.pfp_fw_version >=  0x000000b1) &&
+		    (adev->gfx.pfp_feature_version >= 42))
+			adev->gfx.me_fw_write_wait = true;
+
+		if ((adev->gfx.mec_fw_version >=  0x00000192) &&
+		    (adev->gfx.mec_feature_version >= 42))
+			adev->gfx.mec_fw_write_wait = true;
+		break;
+	}
+}
+
 static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 {
 	const char *chip_name;
@@ -716,6 +769,7 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	}
 
 out:
+	gfx_v9_0_check_fw_write_wait(adev);
 	if (err) {
 		dev_err(adev->dev,
 			"gfx9: Failed to load firmware \"%s\"\n",
@@ -4353,8 +4407,11 @@ static void gfx_v9_0_ring_emit_reg_write_reg_wait(struct amdgpu_ring *ring,
 						  uint32_t ref, uint32_t mask)
 {
 	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
+	struct amdgpu_device *adev = ring->adev;
+	bool fw_version_ok = (ring->funcs->type == AMDGPU_RING_TYPE_GFX) ?
+		adev->gfx.me_fw_write_wait : adev->gfx.mec_fw_write_wait;
 
-	if (amdgpu_sriov_vf(ring->adev))
+	if (fw_version_ok)
 		gfx_v9_0_wait_reg_mem(ring, usepfp, 0, 1, reg0, reg1,
 				      ref, mask, 0x20);
 	else
