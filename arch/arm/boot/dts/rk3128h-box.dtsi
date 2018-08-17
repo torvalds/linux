@@ -88,7 +88,7 @@
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,rk3229";
+		simple-audio-card,name = "rockchip-rk3229";
 		simple-audio-card,cpu {
 			sound-dai = <&i2s1>;
 		};
@@ -102,7 +102,7 @@
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <128>;
-		simple-audio-card,name = "rockchip,hdmi";
+		simple-audio-card,name = "rockchip-hdmi";
 		simple-audio-card,cpu {
 			sound-dai = <&i2s0>;
 		};
@@ -163,7 +163,7 @@
 	spdif_sound: spdif-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "ROCKCHIP,SPDIF";
+		simple-audio-card,name = "ROCKCHIP-SPDIF";
 		simple-audio-card,cpu {
 			sound-dai = <&spdif>;
 		};
