@@ -298,7 +298,6 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_YCBCR420;
-		REG_UPDATE(DP_VID_TIMING, DP_VID_N_MUL, 1);
 		break;
 	default:
 		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_RGB444;
@@ -833,12 +832,16 @@ void enc1_stream_encoder_dp_unblank(
 	if (param->link_settings.link_rate != LINK_RATE_UNKNOWN) {
 		uint32_t n_vid = 0x8000;
 		uint32_t m_vid;
+		uint32_t n_multiply = 0;
+		uint64_t m_vid_l = n_vid;
+
+		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
+		if (param->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			n_multiply = 1;
 
 		/* M / N = Fstream / Flink
 		 * m_vid / n_vid = pixel rate / link rate
 		 */
-
-		uint64_t m_vid_l = n_vid;
 
 		m_vid_l *= param->pixel_clk_khz;
 		m_vid_l = div_u64(m_vid_l,
@@ -859,7 +862,9 @@ void enc1_stream_encoder_dp_unblank(
 
 		REG_UPDATE(DP_VID_M, DP_VID_M, m_vid);
 
-		REG_UPDATE(DP_VID_TIMING, DP_VID_M_N_GEN_EN, 1);
+		REG_UPDATE_2(DP_VID_TIMING,
+				DP_VID_M_N_GEN_EN, 1,
+				DP_VID_N_MUL, n_multiply);
 	}
 
 	/* set DIG_START to 0x1 to resync FIFO */

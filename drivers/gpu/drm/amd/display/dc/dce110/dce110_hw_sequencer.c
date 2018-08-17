@@ -1054,6 +1054,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	/* only 3 items below are used by unblank */
 	params.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
 	params.link_settings.link_rate = link_settings->link_rate;
+	params.pixel_encoding = pipe_ctx->stream->timing.pixel_encoding;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
