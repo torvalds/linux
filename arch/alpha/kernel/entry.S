@@ -791,7 +791,7 @@ ret_from_kernel_thread:
 
 /*
  * Special system calls.  Most of these are special in that they either
- * have to play switch_stack games or in some way use the pt_regs struct.
+ * have to play switch_stack games.
  */
 
 .macro	fork_like name
@@ -812,35 +812,25 @@ fork_like fork
 fork_like vfork
 fork_like clone
 
+.macro	sigreturn_like name
 	.align	4
-	.globl	sys_sigreturn
-	.ent	sys_sigreturn
-sys_sigreturn:
+	.globl	sys_\name
+	.ent	sys_\name
+sys_\name:
 	.prologue 0
 	lda	$9, ret_from_straced
 	cmpult	$26, $9, $9
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
-	jsr	$26, do_sigreturn
+	jsr	$26, do_\name
 	bne	$9, 1f
 	jsr	$26, syscall_trace_leave
 1:	br	$1, undo_switch_stack
 	br	ret_from_sys_call
-.end sys_sigreturn
+.end sys_\name
+.endm
 
-	.align	4
-	.globl	sys_rt_sigreturn
-	.ent	sys_rt_sigreturn
-sys_rt_sigreturn:
-	.prologue 0
-	lda	$9, ret_from_straced
-	cmpult	$26, $9, $9
-	lda	$sp, -SWITCH_STACK_SIZE($sp)
-	jsr	$26, do_rt_sigreturn
-	bne	$9, 1f
-	jsr	$26, syscall_trace_leave
-1:	br	$1, undo_switch_stack
-	br	ret_from_sys_call
-.end sys_rt_sigreturn
+sigreturn_like sigreturn
+sigreturn_like rt_sigreturn
 
 	.align	4
 	.globl	alpha_syscall_zero
