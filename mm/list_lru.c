@@ -219,7 +219,6 @@ __list_lru_walk_one(struct list_lru *lru, int nid, int memcg_idx,
 	struct list_head *item, *n;
 	unsigned long isolated = 0;
 
-	spin_lock(&nlru->lock);
 	l = list_lru_from_memcg_idx(nlru, memcg_idx);
 restart:
 	list_for_each_safe(item, n, &l->list) {
@@ -265,8 +264,6 @@ restart:
 			BUG();
 		}
 	}
-
-	spin_unlock(&nlru->lock);
 	return isolated;
 }
 
@@ -275,8 +272,14 @@ list_lru_walk_one(struct list_lru *lru, int nid, struct mem_cgroup *memcg,
 		  list_lru_walk_cb isolate, void *cb_arg,
 		  unsigned long *nr_to_walk)
 {
-	return __list_lru_walk_one(lru, nid, memcg_cache_id(memcg),
-				   isolate, cb_arg, nr_to_walk);
+	struct list_lru_node *nlru = &lru->node[nid];
+	unsigned long ret;
+
+	spin_lock(&nlru->lock);
+	ret = __list_lru_walk_one(lru, nid, memcg_cache_id(memcg),
+				  isolate, cb_arg, nr_to_walk);
+	spin_unlock(&nlru->lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(list_lru_walk_one);
 
@@ -291,8 +294,13 @@ unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
 				      nr_to_walk);
 	if (*nr_to_walk > 0 && list_lru_memcg_aware(lru)) {
 		for_each_memcg_cache_index(memcg_idx) {
+			struct list_lru_node *nlru = &lru->node[nid];
+
+			spin_lock(&nlru->lock);
 			isolated += __list_lru_walk_one(lru, nid, memcg_idx,
 						isolate, cb_arg, nr_to_walk);
+			spin_unlock(&nlru->lock);
+
 			if (*nr_to_walk <= 0)
 				break;
 		}
