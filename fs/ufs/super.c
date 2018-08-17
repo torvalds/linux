@@ -698,7 +698,7 @@ static int ufs_sync_fs(struct super_block *sb, int wait)
 	usb1 = ubh_get_usb_first(uspi);
 	usb3 = ubh_get_usb_third(uspi);
 
-	usb1->fs_time = cpu_to_fs32(sb, get_seconds());
+	usb1->fs_time = ufs_get_seconds(sb);
 	if ((flags & UFS_ST_MASK) == UFS_ST_SUN  ||
 	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
 	    (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
@@ -1342,7 +1342,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	 */
 	if (*mount_flags & SB_RDONLY) {
 		ufs_put_super_internal(sb);
-		usb1->fs_time = cpu_to_fs32(sb, get_seconds());
+		usb1->fs_time = ufs_get_seconds(sb);
 		if ((flags & UFS_ST_MASK) == UFS_ST_SUN
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNOS
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNx86) 
