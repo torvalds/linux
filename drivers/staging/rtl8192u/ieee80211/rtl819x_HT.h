@@ -18,7 +18,6 @@
  */
 #define HTCLNG	4
 
-
 #define HT_SUPPORTED_MCS_1SS_BITMAP					0x000000ff
 #define HT_SUPPORTED_MCS_2SS_BITMAP					0x0000ff00
 #define HT_SUPPORTED_MCS_1SS_2SS_BITMAP			HT_MCS_1SS_BITMAP|HT_MCS_1SS_2SS_BITMAP
@@ -88,7 +87,6 @@ typedef	union _HT_CAPABILITY_MACPARA{
 */
 
 typedef	struct _HT_CAPABILITY_ELE {
-
 	//HT capability info
 	u8	AdvCoding:1;
 	u8	ChlWidth:1;
@@ -112,7 +110,6 @@ typedef	struct _HT_CAPABILITY_ELE {
 
 	//Supported MCS set
 	u8	MCS[16];
-
 
 	//Extended HT Capability Info
 	u16	ExtHTCapInfo;
@@ -193,7 +190,6 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	// 802.11n spec version for "peer"
 	HT_SPEC_VER			ePeerHTSpecVer;
 
-
 	// HT related information for "Self"
 	HT_CAPABILITY_ELE	SelfHTCap;		// This is HT cap element sent to peer STA, which also indicate HT Rx capabilities.
 	HT_INFORMATION_ELE	SelfHTInfo;		// This is HT info element sent to peer STA, which also indicate HT Rx capabilities.
@@ -202,13 +198,11 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	u8				PeerHTCapBuf[32];
 	u8				PeerHTInfoBuf[32];
 
-
 	// A-MSDU related
 	u8				bAMSDU_Support;			// This indicates Tx A-MSDU capability
 	u16				nAMSDU_MaxSize;			// This indicates Tx A-MSDU capability
 	u8				bCurrent_AMSDU_Support;	// This indicates Tx A-MSDU capability
 	u16				nCurrent_AMSDU_MaxSize;	// This indicates Tx A-MSDU capability
-
 
 	// AMPDU  related <2006.08.10 Emily>
 	u8				bAMPDUEnable;				// This indicate Tx A-MPDU capability
@@ -283,7 +277,6 @@ typedef struct _RT_HIGH_THROUGHPUT {
 //------------------------------------------------------------
 
 typedef struct _BSS_HT {
-
 	u8				bdSupportHT;
 
 	// HT related elements
@@ -315,8 +308,6 @@ extern u8 MCS_FILTER_1SS[16];
 					((WirelessMode & (LEGACY_WIRELESS_MODE))!=0)?\
 						(LegacyRate):\
 						(PICK_RATE(LegacyRate, HTRate))
-
-
 
 // MCS Bw 40 {1~7, 12~15,32}
 #define	RATE_ADPT_1SS_MASK		0xFF
