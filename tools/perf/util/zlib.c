@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <zlib.h>
+#include <linux/compiler.h>
 
 #include "util/compress.h"
 #include "util/util.h"
@@ -78,4 +79,9 @@ out_close:
 	close(input_fd);
 
 	return ret == Z_STREAM_END ? 0 : -1;
+}
+
+bool gzip_is_compressed(const char *input __maybe_unused)
+{
+	return true;
 }

@@ -99,3 +99,8 @@ err_fclose:
 	fclose(infile);
 	return err;
 }
+
+bool lzma_is_compressed(const char *input __maybe_unused)
+{
+	return true;
+}
