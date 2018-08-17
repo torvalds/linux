@@ -166,6 +166,23 @@ unsigned long list_lru_walk_one(struct list_lru *lru,
 				int nid, struct mem_cgroup *memcg,
 				list_lru_walk_cb isolate, void *cb_arg,
 				unsigned long *nr_to_walk);
+/**
+ * list_lru_walk_one_irq: walk a list_lru, isolating and disposing freeable items.
+ * @lru: the lru pointer.
+ * @nid: the node id to scan from.
+ * @memcg: the cgroup to scan from.
+ * @isolate: callback function that is resposible for deciding what to do with
+ *  the item currently being scanned
+ * @cb_arg: opaque type that will be passed to @isolate
+ * @nr_to_walk: how many items to scan.
+ *
+ * Same as @list_lru_walk_one except that the spinlock is acquired with
+ * spin_lock_irq().
+ */
+unsigned long list_lru_walk_one_irq(struct list_lru *lru,
+				    int nid, struct mem_cgroup *memcg,
+				    list_lru_walk_cb isolate, void *cb_arg,
+				    unsigned long *nr_to_walk);
 unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
 				 list_lru_walk_cb isolate, void *cb_arg,
 				 unsigned long *nr_to_walk);
@@ -176,6 +193,14 @@ list_lru_shrink_walk(struct list_lru *lru, struct shrink_control *sc,
 {
 	return list_lru_walk_one(lru, sc->nid, sc->memcg, isolate, cb_arg,
 				 &sc->nr_to_scan);
+}
+
+static inline unsigned long
+list_lru_shrink_walk_irq(struct list_lru *lru, struct shrink_control *sc,
+			 list_lru_walk_cb isolate, void *cb_arg)
+{
+	return list_lru_walk_one_irq(lru, sc->nid, sc->memcg, isolate, cb_arg,
+				     &sc->nr_to_scan);
 }
 
 static inline unsigned long

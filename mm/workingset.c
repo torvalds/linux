@@ -483,13 +483,9 @@ out:
 static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
 				       struct shrink_control *sc)
 {
-	unsigned long ret;
-
 	/* list_lru lock nests inside the IRQ-safe i_pages lock */
-	local_irq_disable();
-	ret = list_lru_shrink_walk(&shadow_nodes, sc, shadow_lru_isolate, NULL);
-	local_irq_enable();
-	return ret;
+	return list_lru_shrink_walk_irq(&shadow_nodes, sc, shadow_lru_isolate,
+					NULL);
 }
 
 static struct shrinker workingset_shadow_shrinker = {
