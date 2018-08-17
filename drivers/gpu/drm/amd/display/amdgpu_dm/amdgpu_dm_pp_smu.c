@@ -101,18 +101,10 @@ bool dm_pp_apply_display_requirements(
 			adev->pm.pm_display_cfg.displays[i].controller_id = dc_cfg->pipe_idx + 1;
 		}
 
-		/* TODO: complete implementation of
-		 * pp_display_configuration_change().
-		 * Follow example of:
-		 * PHM_StoreDALConfigurationData - powerplay\hwmgr\hardwaremanager.c
-		 * PP_IRI_DisplayConfigurationChange - powerplay\eventmgr\iri.c */
 		if (adev->powerplay.pp_funcs->display_configuration_change)
 			adev->powerplay.pp_funcs->display_configuration_change(
 				adev->powerplay.pp_handle,
 				&adev->pm.pm_display_cfg);
-
-		/* TODO: replace by a separate call to 'apply display cfg'? */
-		amdgpu_pm_compute_clocks(adev);
 	}
 
 	return true;
