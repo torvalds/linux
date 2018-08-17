@@ -14,6 +14,15 @@ u32 sftl_get_density(void);
 s32 sftl_gc(void);
 int sftl_vendor_read(u32 index, u32 count, u8 *buf);
 int sftl_vendor_write(u32 index, u32 count, u8 *buf);
+
+/*
+ * rknand_proc_ftlread() Read FTL info which's about 2KB size
+ *
+ * @size: buf size(>= 2KB)
+ * @buf: buf for caching ftl info
+ * @return real size of caching ftl info
+ */
+int rknand_proc_ftlread(int size, char *buf);
 int rk_sftl_vendor_read(u32 id, u8 *buf, u32 size);
 int rk_sftl_vendor_write(u32 id, u8 *buf, u32 size);
 int rk_sftl_vendor_register(void);
