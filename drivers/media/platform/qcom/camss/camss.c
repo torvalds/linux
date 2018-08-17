@@ -993,12 +993,12 @@ static const struct of_device_id camss_dt_match[] = {
 
 MODULE_DEVICE_TABLE(of, camss_dt_match);
 
-static int camss_runtime_suspend(struct device *dev)
+static int __maybe_unused camss_runtime_suspend(struct device *dev)
 {
 	return 0;
 }
 
-static int camss_runtime_resume(struct device *dev)
+static int __maybe_unused camss_runtime_resume(struct device *dev)
 {
 	return 0;
 }
