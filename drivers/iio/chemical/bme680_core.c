@@ -408,10 +408,7 @@ static u32 bme680_compensate_humid(struct bme680_data *data,
 	var6 = (var4 * var5) >> 1;
 	calc_hum = (((var3 + var6) >> 10) * 1000) >> 12;
 
-	if (calc_hum > 100000) /* Cap at 100%rH */
-		calc_hum = 100000;
-	else if (calc_hum < 0)
-		calc_hum = 0;
+	calc_hum = clamp(calc_hum, 0, 100000); /* clamp between 0-100 %rH */
 
 	return calc_hum;
 }
