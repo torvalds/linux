@@ -18,10 +18,6 @@
  */
 #define HTCLNG	4
 
-#define HT_SUPPORTED_MCS_1SS_BITMAP					0x000000ff
-#define HT_SUPPORTED_MCS_2SS_BITMAP					0x0000ff00
-#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP			HT_MCS_1SS_BITMAP | HT_MCS_1SS_2SS_BITMAP
-
 //
 // Represent Channel Width in HT Capabilities
 //
