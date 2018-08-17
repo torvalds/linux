@@ -1740,7 +1740,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		} else {
 			if (arch_needs_pgtable_deposit())
 				zap_deposited_table(tlb->mm, pmd);
-			add_mm_counter(tlb->mm, MM_FILEPAGES, -HPAGE_PMD_NR);
+			add_mm_counter(tlb->mm, mm_counter_file(page), -HPAGE_PMD_NR);
 		}
 
 		spin_unlock(ptl);
@@ -2090,7 +2090,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 			SetPageReferenced(page);
 		page_remove_rmap(page, true);
 		put_page(page);
-		add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
+		add_mm_counter(mm, mm_counter_file(page), -HPAGE_PMD_NR);
 		return;
 	} else if (is_huge_zero_pmd(*pmd)) {
 		/*
