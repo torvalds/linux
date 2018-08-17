@@ -86,14 +86,21 @@ dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
 {
 	struct drm_gem_cma_object *obj;
 	dma_addr_t paddr;
+	u8 h_div = 1, v_div = 1;
 
 	obj = drm_fb_cma_get_gem_obj(fb, plane);
 	if (!obj)
 		return 0;
 
 	paddr = obj->paddr + fb->offsets[plane];
-	paddr += fb->format->cpp[plane] * (state->src_x >> 16);
-	paddr += fb->pitches[plane] * (state->src_y >> 16);
+
+	if (plane > 0) {
+		h_div = fb->format->hsub;
+		v_div = fb->format->vsub;
+	}
+
+	paddr += (fb->format->cpp[plane] * (state->src_x >> 16)) / h_div;
+	paddr += (fb->pitches[plane] * (state->src_y >> 16)) / v_div;
 
 	return paddr;
 }
