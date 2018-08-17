@@ -2,14 +2,14 @@
 #ifndef _RTL819XU_HTTYPE_H_
 #define _RTL819XU_HTTYPE_H_
 
-//------------------------------------------------------------
-// The HT Capability element is present in beacons, association request,
-//	reassociation request and probe response frames
-//------------------------------------------------------------
+/*
+ * The HT Capability element is present in beacons, association request,
+ * reassociation request and probe response frames
+ */
 
-//
-// MIMO Power Save Settings
-//
+/*
+ * MIMO Power Save Settings
+ */
 #define MIMO_PS_STATIC				0
 
 /*
@@ -18,18 +18,18 @@
  */
 #define HTCLNG	4
 
-//
-// Represent Channel Width in HT Capabilities
-//
+/*
+ * Represent Channel Width in HT Capabilities
+ */
 enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
 };
 
-//
-// Represent Extension Channel Offset in HT Capabilities
-// This is available only in 40Mhz mode.
-//
+/*
+ * Represent Extension Channel Offset in HT Capabilities
+ * This is available only in 40Mhz mode.
+ */
 enum ht_extension_chan_offset {
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
 	HT_EXTCHNL_OFFSET_UPPER = 1,
@@ -118,11 +118,10 @@ typedef	struct _HT_CAPABILITY_ELE {
 
 } __attribute__ ((packed)) HT_CAPABILITY_ELE, *PHT_CAPABILITY_ELE;
 
-//------------------------------------------------------------
-// The HT Information element is present in beacons
-// Only AP is required to include this element
-//------------------------------------------------------------
-
+/*
+ * The HT Information element is present in beacons
+ * Only AP is required to include this element
+ */
 typedef struct _HT_INFORMATION_ELE {
 	u8	ControlChl;
 
@@ -161,12 +160,11 @@ typedef enum _HT_AGGRE_MODE_E {
 	HT_AGG_FORCE_DISABLE = 2,
 }HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
 
-//------------------------------------------------------------
-//  The Data structure is used to keep HT related variables when card is
-//  configured as non-AP STA mode.  **Note**  Current_xxx should be set
-//	to default value in HTInitializeHTInfo()
-//------------------------------------------------------------
-
+/*
+ *  The Data structure is used to keep HT related variables when card is
+ *  configured as non-AP STA mode.  **Note**  Current_xxx should be set
+ *  to default value in HTInitializeHTInfo()
+ */
 typedef struct _RT_HIGH_THROUGHPUT {
 	u8				bEnableHT;
 	u8				bCurrentHTSupport;
@@ -267,11 +265,10 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	u32				IOTAction;
 } __attribute__ ((packed)) RT_HIGH_THROUGHPUT, *PRT_HIGH_THROUGHPUT;
 
-//------------------------------------------------------------
-// The Data structure is used to keep HT related variable for "each AP"
-// when card is configured as "STA mode"
-//------------------------------------------------------------
-
+/*
+ * The Data structure is used to keep HT related variable for "each AP"
+ * when card is configured as "STA mode"
+ */
 typedef struct _BSS_HT {
 	u8				bdSupportHT;
 
@@ -292,9 +289,11 @@ typedef struct _BSS_HT {
 extern u8 MCS_FILTER_ALL[16];
 extern u8 MCS_FILTER_1SS[16];
 
-/* 2007/07/11 MH Modify the macro. Becaus STA may link with a N-AP. If we set
-   STA in A/B/G mode and AP is still in N mode. The macro will be wrong. We have
-   to add a macro to judge wireless mode. */
+/*
+ * 2007/07/11 MH Modify the macro. Becaus STA may link with a N-AP. If we set
+ * STA in A/B/G mode and AP is still in N mode. The macro will be wrong. We have
+ * to add a macro to judge wireless mode.
+ */
 #define PICK_RATE(_nLegacyRate, _nMcsRate)	\
 		(_nMcsRate == 0) ? (_nLegacyRate & 0x7f) : (_nMcsRate)
 /* 2007/07/12 MH We only define legacy and HT wireless mode now. */
@@ -331,9 +330,9 @@ typedef enum _HT_IOT_PEER
 	HT_IOT_PEER_MAX = 6
 }HT_IOT_PEER_E, *PHTIOT_PEER_E;
 
-//
-// IOT Action for different AP
-//
+/*
+ * IOT Action for different AP
+ */
 typedef enum _HT_IOT_ACTION {
 	HT_IOT_ACT_TX_USE_AMSDU_4K = 0x00000001,
 	HT_IOT_ACT_TX_USE_AMSDU_8K = 0x00000002,
