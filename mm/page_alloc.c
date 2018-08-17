@@ -6405,8 +6405,11 @@ void __paginginit zero_resv_unavail(void)
 	pgcnt = 0;
 	for_each_resv_unavail_range(i, &start, &end) {
 		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
-			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
+			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages))) {
+				pfn = ALIGN_DOWN(pfn, pageblock_nr_pages)
+					+ pageblock_nr_pages - 1;
 				continue;
+			}
 			mm_zero_struct_page(pfn_to_page(pfn));
 			pgcnt++;
 		}
