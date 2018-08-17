@@ -4,6 +4,7 @@
 
 from argparse import ArgumentParser
 from ply import lex, yacc
+import locale
 import traceback
 import sys
 import git
@@ -102,7 +103,7 @@ class id_parser(object):
                 raise ParserException(tok, 'Invalid License ID')
             self.lastid = id
         elif tok.type == 'EXC':
-            if not self.spdx.exceptions.has_key(id):
+            if id not in self.spdx.exceptions:
                 raise ParserException(tok, 'Invalid Exception ID')
             if self.lastid not in self.spdx.exceptions[id]:
                 raise ParserException(tok, 'Exception not valid for license %s' %self.lastid)
@@ -167,6 +168,7 @@ class id_parser(object):
         self.curline = 0
         try:
             for line in fd:
+                line = line.decode(locale.getpreferredencoding(False), errors='ignore')
                 self.curline += 1
                 if self.curline > maxlines:
                     break
@@ -201,7 +203,8 @@ def scan_git_tree(tree):
             continue
         if not os.path.isfile(el.path):
             continue
-        parser.parse_lines(open(el.path), args.maxlines, el.path)
+        with open(el.path, 'rb') as fd:
+            parser.parse_lines(fd, args.maxlines, el.path)
 
 def scan_git_subtree(tree, path):
     for p in path.strip('/').split('/'):
