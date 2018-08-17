@@ -3102,7 +3102,7 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 
 	for (index = 0; index < nr_pages; index++) {
 		__do_readpage(tree, pages[index], btrfs_get_extent, em_cached,
-				bio, 0, bio_flags, 0, prev_em_start);
+				bio, 0, bio_flags, REQ_RAHEAD, prev_em_start);
 		put_page(pages[index]);
 	}
 }
