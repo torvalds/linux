@@ -4,9 +4,18 @@
 
 #ifndef __ASSEMBLY__
 
+/*
+ * A clear pte value is special, and doesn't get inverted.
+ *
+ * Note that even users that only pass a pgprot_t (rather
+ * than a full pte) won't trigger the special zero case,
+ * because even PAGE_NONE has _PAGE_PROTNONE | _PAGE_ACCESSED
+ * set. So the all zero case really is limited to just the
+ * cleared page table entry case.
+ */
 static inline bool __pte_needs_invert(u64 val)
 {
-	return !(val & _PAGE_PRESENT);
+	return val && !(val & _PAGE_PRESENT);
 }
 
 /* Get a mask to xor with the page table entry to get the correct pfn. */
