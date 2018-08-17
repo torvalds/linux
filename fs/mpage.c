@@ -137,11 +137,11 @@ struct mpage_readpage_args {
 	struct bio *bio;
 	struct page *page;
 	unsigned int nr_pages;
+	bool is_readahead;
 	sector_t last_block_in_bio;
 	struct buffer_head map_bh;
 	unsigned long first_logical_block;
 	get_block_t *get_block;
-	gfp_t gfp;
 };
 
 /*
@@ -170,8 +170,18 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 	struct block_device *bdev = NULL;
 	int length;
 	int fully_mapped = 1;
+	int op_flags;
 	unsigned nblocks;
 	unsigned relative_block;
+	gfp_t gfp;
+
+	if (args->is_readahead) {
+		op_flags = REQ_RAHEAD;
+		gfp = readahead_gfp_mask(page->mapping);
+	} else {
+		op_flags = 0;
+		gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
+	}
 
 	if (page_has_buffers(page))
 		goto confused;
@@ -284,7 +294,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 	 * This page will go to BIO.  Do we need to send this BIO off first?
 	 */
 	if (args->bio && (args->last_block_in_bio != blocks[0] - 1))
-		args->bio = mpage_bio_submit(REQ_OP_READ, 0, args->bio);
+		args->bio = mpage_bio_submit(REQ_OP_READ, op_flags, args->bio);
 
 alloc_new:
 	if (args->bio == NULL) {
@@ -296,14 +306,14 @@ alloc_new:
 		args->bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
 					min_t(int, args->nr_pages,
 					      BIO_MAX_PAGES),
-					args->gfp);
+					gfp);
 		if (args->bio == NULL)
 			goto confused;
 	}
 
 	length = first_hole << blkbits;
 	if (bio_add_page(args->bio, page, length, 0) < length) {
-		args->bio = mpage_bio_submit(REQ_OP_READ, 0, args->bio);
+		args->bio = mpage_bio_submit(REQ_OP_READ, op_flags, args->bio);
 		goto alloc_new;
 	}
 
@@ -311,7 +321,7 @@ alloc_new:
 	nblocks = map_bh->b_size >> blkbits;
 	if ((buffer_boundary(map_bh) && relative_block == nblocks) ||
 	    (first_hole != blocks_per_page))
-		args->bio = mpage_bio_submit(REQ_OP_READ, 0, args->bio);
+		args->bio = mpage_bio_submit(REQ_OP_READ, op_flags, args->bio);
 	else
 		args->last_block_in_bio = blocks[blocks_per_page - 1];
 out:
@@ -319,7 +329,7 @@ out:
 
 confused:
 	if (args->bio)
-		args->bio = mpage_bio_submit(REQ_OP_READ, 0, args->bio);
+		args->bio = mpage_bio_submit(REQ_OP_READ, op_flags, args->bio);
 	if (!PageUptodate(page))
 		block_read_full_page(page, args->get_block);
 	else
@@ -377,7 +387,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 {
 	struct mpage_readpage_args args = {
 		.get_block = get_block,
-		.gfp = readahead_gfp_mask(mapping),
+		.is_readahead = true,
 	};
 	unsigned page_idx;
 
@@ -388,7 +398,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 		list_del(&page->lru);
 		if (!add_to_page_cache_lru(page, mapping,
 					page->index,
-					args.gfp)) {
+					readahead_gfp_mask(mapping))) {
 			args.page = page;
 			args.nr_pages = nr_pages - page_idx;
 			args.bio = do_mpage_readpage(&args);
@@ -397,7 +407,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 	}
 	BUG_ON(!list_empty(pages));
 	if (args.bio)
-		mpage_bio_submit(REQ_OP_READ, 0, args.bio);
+		mpage_bio_submit(REQ_OP_READ, REQ_RAHEAD, args.bio);
 	return 0;
 }
 EXPORT_SYMBOL(mpage_readpages);
@@ -411,7 +421,6 @@ int mpage_readpage(struct page *page, get_block_t get_block)
 		.page = page,
 		.nr_pages = 1,
 		.get_block = get_block,
-		.gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL),
 	};
 
 	args.bio = do_mpage_readpage(&args);
