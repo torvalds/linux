@@ -22,9 +22,6 @@
  */
 
 #include "amdgpu.h"
-#define MAX_KIQ_REG_WAIT	5000 /* in usecs, 5ms */
-#define MAX_KIQ_REG_BAILOUT_INTERVAL	5 /* in msecs, 5ms */
-#define MAX_KIQ_REG_TRY 20
 
 uint64_t amdgpu_csa_vaddr(struct amdgpu_device *adev)
 {
