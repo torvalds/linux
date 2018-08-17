@@ -431,7 +431,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 
 	/* Coming from the list, invert the lock order */
 	if (!xa_trylock(&mapping->i_pages)) {
-		spin_unlock(lru_lock);
+		spin_unlock_irq(lru_lock);
 		ret = LRU_RETRY;
 		goto out;
 	}
@@ -469,13 +469,11 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 				 workingset_lookup_update(mapping));
 
 out_invalid:
-	xa_unlock(&mapping->i_pages);
+	xa_unlock_irq(&mapping->i_pages);
 	ret = LRU_REMOVED_RETRY;
 out:
-	local_irq_enable();
 	cond_resched();
-	local_irq_disable();
-	spin_lock(lru_lock);
+	spin_lock_irq(lru_lock);
 	return ret;
 }
 
