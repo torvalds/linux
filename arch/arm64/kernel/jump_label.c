@@ -36,7 +36,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 		insn = aarch64_insn_gen_nop();
 	}
 
-	aarch64_insn_patch_text(&addr, &insn, 1);
+	aarch64_insn_patch_text_nosync(addr, insn);
 }
 
 void arch_jump_label_transform_static(struct jump_entry *entry,
