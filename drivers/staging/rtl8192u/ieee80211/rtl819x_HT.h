@@ -44,10 +44,6 @@ typedef enum _CHNLOP {
 	CHNLOP_SWCHNL = 3, // Software Channel switching in progress
 } CHNLOP, *PCHNLOP;
 
-// Determine if the Channel Operation is in progress
-#define CHHLOP_IN_PROGRESS(_pHTInfo)	\
-		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? TRUE : FALSE
-
 /*
 typedef	union _HT_CAPABILITY{
 	u16	ShortData;
