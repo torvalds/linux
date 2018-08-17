@@ -53,7 +53,7 @@ static int amdgpu_sched_process_priority_override(struct amdgpu_device *adev,
 						  int fd,
 						  enum drm_sched_priority priority)
 {
-	struct file *filp = fcheck(fd);
+	struct file *filp = fget(fd);
 	struct drm_file *file;
 	struct pid *pid;
 	struct amdgpu_fpriv *fpriv;
@@ -77,6 +77,8 @@ static int amdgpu_sched_process_priority_override(struct amdgpu_device *adev,
 	mutex_unlock(&adev->ddev->filelist_mutex);
 
 	put_pid(pid);
+
+	fput(filp);
 
 	return 0;
 }
