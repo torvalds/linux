@@ -149,7 +149,7 @@ out:
 	return fw;
 }
 
-static int adreno_load_fw(struct adreno_gpu *adreno_gpu)
+int adreno_load_fw(struct adreno_gpu *adreno_gpu)
 {
 	int i;
 

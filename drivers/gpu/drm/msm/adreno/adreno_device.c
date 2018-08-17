@@ -111,6 +111,16 @@ static const struct adreno_info gpulist[] = {
 			ADRENO_QUIRK_FAULT_DETECT_MASK,
 		.init = a5xx_gpu_init,
 		.zapfw = "a530_zap.mdt",
+	}, {
+		.rev = ADRENO_REV(6, 3, 0, ANY_ID),
+		.revn = 630,
+		.name = "A630",
+		.fw = {
+			[ADRENO_FW_SQE] = "a630_sqe.fw",
+			[ADRENO_FW_GMU] = "a630_gmu.bin",
+		},
+		.gmem = SZ_1M,
+		.init = a6xx_gpu_init,
 	},
 };
 
@@ -127,6 +137,8 @@ MODULE_FIRMWARE("qcom/a530_zap.mdt");
 MODULE_FIRMWARE("qcom/a530_zap.b00");
 MODULE_FIRMWARE("qcom/a530_zap.b01");
 MODULE_FIRMWARE("qcom/a530_zap.b02");
+MODULE_FIRMWARE("qcom/a630_sqe.fw");
+MODULE_FIRMWARE("qcom/a630_gmu.bin");
 
 static inline bool _rev_match(uint8_t entry, uint8_t id)
 {
@@ -155,6 +167,7 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
 	struct msm_gpu *gpu = NULL;
+	struct adreno_gpu *adreno_gpu;
 	int ret;
 
 	if (pdev)
@@ -165,7 +178,27 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 		return NULL;
 	}
 
-	pm_runtime_get_sync(&pdev->dev);
+	adreno_gpu = to_adreno_gpu(gpu);
+
+	/*
+	 * The number one reason for HW init to fail is if the firmware isn't
+	 * loaded yet. Try that first and don't bother continuing on
+	 * otherwise
+	 */
+
+	ret = adreno_load_fw(adreno_gpu);
+	if (ret)
+		return NULL;
+
+	/* Make sure pm runtime is active and reset any previous errors */
+	pm_runtime_set_active(&pdev->dev);
+
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "Couldn't power up the GPU: %d\n", ret);
+		return NULL;
+	}
+
 	mutex_lock(&dev->struct_mutex);
 	ret = msm_gpu_hw_init(gpu);
 	mutex_unlock(&dev->struct_mutex);
