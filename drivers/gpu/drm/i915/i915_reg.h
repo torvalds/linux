@@ -9397,6 +9397,7 @@ enum skl_power_gate {
 #define   MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_5		(2 << 12)
 #define   MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_7		(3 << 12)
 #define   MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO(x)		((x) << 8)
+#define   MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_SHIFT		8
 #define   MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK		(0xf << 8)
 #define MG_CLKTOP2_HSCLKCTL(port) _MMIO_PORT((port) - PORT_C, \
 					     _MG_CLKTOP2_HSCLKCTL_PORT1, \
@@ -9407,7 +9408,10 @@ enum skl_power_gate {
 #define _MG_PLL_DIV0_PORT3				0x16AA00
 #define _MG_PLL_DIV0_PORT4				0x16BA00
 #define   MG_PLL_DIV0_FRACNEN_H				(1 << 30)
+#define   MG_PLL_DIV0_FBDIV_FRAC_MASK			(0x3fffff << 8)
+#define   MG_PLL_DIV0_FBDIV_FRAC_SHIFT			8
 #define   MG_PLL_DIV0_FBDIV_FRAC(x)			((x) << 8)
+#define   MG_PLL_DIV0_FBDIV_INT_MASK			(0xff << 0)
 #define   MG_PLL_DIV0_FBDIV_INT(x)			((x) << 0)
 #define MG_PLL_DIV0(port) _MMIO_PORT((port) - PORT_C, _MG_PLL_DIV0_PORT1, \
 				     _MG_PLL_DIV0_PORT2)
@@ -9422,6 +9426,7 @@ enum skl_power_gate {
 #define   MG_PLL_DIV1_DITHER_DIV_4			(2 << 12)
 #define   MG_PLL_DIV1_DITHER_DIV_8			(3 << 12)
 #define   MG_PLL_DIV1_NDIVRATIO(x)			((x) << 4)
+#define   MG_PLL_DIV1_FBPREDIV_MASK			(0xf << 0)
 #define   MG_PLL_DIV1_FBPREDIV(x)			((x) << 0)
 #define MG_PLL_DIV1(port) _MMIO_PORT((port) - PORT_C, _MG_PLL_DIV1_PORT1, \
 				     _MG_PLL_DIV1_PORT2)

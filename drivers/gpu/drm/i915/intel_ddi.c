@@ -1427,6 +1427,81 @@ static int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	return dco_freq / (p0 * p1 * p2 * 5);
 }
 
+static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
+				 enum port port)
+{
+	u32 val = I915_READ(DDI_CLK_SEL(port)) & DDI_CLK_SEL_MASK;
+
+	switch (val) {
+	case DDI_CLK_SEL_NONE:
+		return 0;
+	case DDI_CLK_SEL_TBT_162:
+		return 162000;
+	case DDI_CLK_SEL_TBT_270:
+		return 270000;
+	case DDI_CLK_SEL_TBT_540:
+		return 540000;
+	case DDI_CLK_SEL_TBT_810:
+		return 810000;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static int icl_calc_mg_pll_link(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	u32 mg_pll_div0, mg_clktop_hsclkctl;
+	u32 m1, m2_int, m2_frac, div1, div2, refclk;
+	u64 tmp;
+
+	refclk = dev_priv->cdclk.hw.ref;
+
+	mg_pll_div0 = I915_READ(MG_PLL_DIV0(port));
+	mg_clktop_hsclkctl = I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+
+	m1 = I915_READ(MG_PLL_DIV1(port)) & MG_PLL_DIV1_FBPREDIV_MASK;
+	m2_int = mg_pll_div0 & MG_PLL_DIV0_FBDIV_INT_MASK;
+	m2_frac = (mg_pll_div0 & MG_PLL_DIV0_FRACNEN_H) ?
+		  (mg_pll_div0 & MG_PLL_DIV0_FBDIV_FRAC_MASK) >>
+		  MG_PLL_DIV0_FBDIV_FRAC_SHIFT : 0;
+
+	switch (mg_clktop_hsclkctl & MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK) {
+	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_2:
+		div1 = 2;
+		break;
+	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_3:
+		div1 = 3;
+		break;
+	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_5:
+		div1 = 5;
+		break;
+	case MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_7:
+		div1 = 7;
+		break;
+	default:
+		MISSING_CASE(mg_clktop_hsclkctl);
+		return 0;
+	}
+
+	div2 = (mg_clktop_hsclkctl & MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK) >>
+		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_SHIFT;
+	/* div2 value of 0 is same as 1 means no div */
+	if (div2 == 0)
+		div2 = 1;
+
+	/*
+	 * Adjust the original formula to delay the division by 2^22 in order to
+	 * minimize possible rounding errors.
+	 */
+	tmp = (u64)m1 * m2_int * refclk +
+	      (((u64)m1 * m2_frac * refclk) >> 22);
+	tmp = div_u64(tmp, 5 * div1 * div2);
+
+	return tmp;
+}
+
 static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 {
 	int dotclock;
@@ -1467,8 +1542,10 @@ static void icl_ddi_clock_get(struct intel_encoder *encoder,
 			link_clock = icl_calc_dp_combo_pll_link(dev_priv,
 								pll_id);
 	} else {
-		/* FIXME - Add for MG PLL */
-		WARN(1, "MG PLL clock_get code not implemented yet\n");
+		if (pll_id == DPLL_ID_ICL_TBTPLL)
+			link_clock = icl_calc_tbt_pll_link(dev_priv, port);
+		else
+			link_clock = icl_calc_mg_pll_link(dev_priv, port);
 	}
 
 	pipe_config->port_clock = link_clock;
