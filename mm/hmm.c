@@ -299,14 +299,14 @@ static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long addr,
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
 	struct vm_area_struct *vma = walk->vma;
-	int r;
+	vm_fault_t ret;
 
 	flags |= hmm_vma_walk->block ? 0 : FAULT_FLAG_ALLOW_RETRY;
 	flags |= write_fault ? FAULT_FLAG_WRITE : 0;
-	r = handle_mm_fault(vma, addr, flags);
-	if (r & VM_FAULT_RETRY)
+	ret = handle_mm_fault(vma, addr, flags);
+	if (ret & VM_FAULT_RETRY)
 		return -EBUSY;
-	if (r & VM_FAULT_ERROR) {
+	if (ret & VM_FAULT_ERROR) {
 		*pfn = range->values[HMM_PFN_ERROR];
 		return -EFAULT;
 	}

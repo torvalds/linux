@@ -134,7 +134,7 @@ static int cxl_handle_segment_miss(struct cxl_context *ctx,
 
 int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar)
 {
-	unsigned flt = 0;
+	vm_fault_t flt = 0;
 	int result;
 	unsigned long access, flags, inv_flags = 0;
 

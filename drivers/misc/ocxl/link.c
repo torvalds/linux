@@ -2,6 +2,7 @@
 // Copyright 2017 IBM Corp.
 #include <linux/sched/mm.h>
 #include <linux/mutex.h>
+#include <linux/mm_types.h>
 #include <linux/mmu_context.h>
 #include <asm/copro.h>
 #include <asm/pnv-ocxl.h>
@@ -126,7 +127,7 @@ static void ack_irq(struct spa *spa, enum xsl_response r)
 
 static void xsl_fault_handler_bh(struct work_struct *fault_work)
 {
-	unsigned int flt = 0;
+	vm_fault_t flt = 0;
 	unsigned long access, flags, inv_flags = 0;
 	enum xsl_response r;
 	struct xsl_fault *fault = container_of(fault_work, struct xsl_fault,

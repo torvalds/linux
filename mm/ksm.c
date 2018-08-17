@@ -470,7 +470,7 @@ static inline bool ksm_test_exit(struct mm_struct *mm)
 static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
 {
 	struct page *page;
-	int ret = 0;
+	vm_fault_t ret = 0;
 
 	do {
 		cond_resched();
