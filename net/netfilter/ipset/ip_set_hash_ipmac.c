@@ -103,7 +103,11 @@ hash_ipmac4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	    (skb_mac_header(skb) + ETH_HLEN) > skb->data)
 		return -EINVAL;
 
-	memcpy(e.ether, eth_hdr(skb)->h_source, ETH_ALEN);
+	if (opt->flags & IPSET_DIM_ONE_SRC)
+		ether_addr_copy(e.ether, eth_hdr(skb)->h_source);
+	else
+		ether_addr_copy(e.ether, eth_hdr(skb)->h_dest);
+
 	if (ether_addr_equal(e.ether, invalid_ether))
 		return -EINVAL;
 
@@ -211,15 +215,15 @@ hash_ipmac6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	};
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
-	 /* MAC can be src only */
-	if (!(opt->flags & IPSET_DIM_TWO_SRC))
-		return 0;
-
 	if (skb_mac_header(skb) < skb->head ||
 	    (skb_mac_header(skb) + ETH_HLEN) > skb->data)
 		return -EINVAL;
 
-	memcpy(e.ether, eth_hdr(skb)->h_source, ETH_ALEN);
+	if (opt->flags & IPSET_DIM_ONE_SRC)
+		ether_addr_copy(e.ether, eth_hdr(skb)->h_source);
+	else
+		ether_addr_copy(e.ether, eth_hdr(skb)->h_dest);
+
 	if (ether_addr_equal(e.ether, invalid_ether))
 		return -EINVAL;
 
