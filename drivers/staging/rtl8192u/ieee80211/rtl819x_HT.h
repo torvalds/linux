@@ -44,40 +44,6 @@ typedef enum _CHNLOP {
 	CHNLOP_SWCHNL = 3, // Software Channel switching in progress
 } CHNLOP, *PCHNLOP;
 
-/*
-typedef	union _HT_CAPABILITY{
-	u16	ShortData;
-	u8	CharData[2];
-	struct
-	{
-		u16	AdvCoding:1;
-		u16	ChlWidth:1;
-		u16	MimoPwrSave:2;
-		u16	GreenField:1;
-		u16	ShortGI20Mhz:1;
-		u16	ShortGI40Mhz:1;
-		u16	STBC:1;
-		u16	BeamForm:1;
-		u16	DelayBA:1;
-		u16	MaxAMSDUSize:1;
-		u16	DssCCk:1;
-		u16	PSMP:1;
-		u16	Rsvd:3;
-	}Field;
-}HT_CAPABILITY, *PHT_CAPABILITY;
-
-typedef	union _HT_CAPABILITY_MACPARA{
-	u8	ShortData;
-	u8	CharData[1];
-	struct
-	{
-		u8	MaxRxAMPDU:2;
-		u8	MPDUDensity:2;
-		u8	Rsvd:4;
-	}Field;
-}HT_CAPABILITY_MACPARA, *PHT_CAPABILITY_MACPARA;
-*/
-
 typedef	struct _HT_CAPABILITY_ELE {
 	//HT capability info
 	u8	AdvCoding:1;
