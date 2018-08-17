@@ -88,7 +88,7 @@ static struct devfreq_dev_profile msm_devfreq_profile = {
 static void msm_devfreq_init(struct msm_gpu *gpu)
 {
 	/* We need target support to do devfreq */
-	if (!gpu->funcs->gpu_busy)
+	if (!gpu->funcs->gpu_busy || !gpu->core_clk)
 		return;
 
 	msm_devfreq_profile.initial_freq = gpu->fast_rate;
@@ -142,8 +142,6 @@ static int disable_pwrrail(struct msm_gpu *gpu)
 
 static int enable_clk(struct msm_gpu *gpu)
 {
-	int i;
-
 	if (gpu->core_clk && gpu->fast_rate)
 		clk_set_rate(gpu->core_clk, gpu->fast_rate);
 
@@ -151,28 +149,12 @@ static int enable_clk(struct msm_gpu *gpu)
 	if (gpu->rbbmtimer_clk)
 		clk_set_rate(gpu->rbbmtimer_clk, 19200000);
 
-	for (i = gpu->nr_clocks - 1; i >= 0; i--)
-		if (gpu->grp_clks[i])
-			clk_prepare(gpu->grp_clks[i]);
-
-	for (i = gpu->nr_clocks - 1; i >= 0; i--)
-		if (gpu->grp_clks[i])
-			clk_enable(gpu->grp_clks[i]);
-
-	return 0;
+	return clk_bulk_prepare_enable(gpu->nr_clocks, gpu->grp_clks);
 }
 
 static int disable_clk(struct msm_gpu *gpu)
 {
-	int i;
-
-	for (i = gpu->nr_clocks - 1; i >= 0; i--)
-		if (gpu->grp_clks[i])
-			clk_disable(gpu->grp_clks[i]);
-
-	for (i = gpu->nr_clocks - 1; i >= 0; i--)
-		if (gpu->grp_clks[i])
-			clk_unprepare(gpu->grp_clks[i]);
+	clk_bulk_disable_unprepare(gpu->nr_clocks, gpu->grp_clks);
 
 	/*
 	 * Set the clock to a deliberately low rate. On older targets the clock
@@ -785,44 +767,22 @@ static irqreturn_t irq_handler(int irq, void *data)
 	return gpu->funcs->irq(gpu);
 }
 
-static struct clk *get_clock(struct device *dev, const char *name)
-{
-	struct clk *clk = devm_clk_get(dev, name);
-
-	return IS_ERR(clk) ? NULL : clk;
-}
-
 static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 {
-	struct device *dev = &pdev->dev;
-	struct property *prop;
-	const char *name;
-	int i = 0;
+	int ret = msm_clk_bulk_get(&pdev->dev, &gpu->grp_clks);
 
-	gpu->nr_clocks = of_property_count_strings(dev->of_node, "clock-names");
-	if (gpu->nr_clocks < 1) {
+	if (ret < 1) {
 		gpu->nr_clocks = 0;
-		return 0;
+		return ret;
 	}
 
-	gpu->grp_clks = devm_kcalloc(dev, sizeof(struct clk *), gpu->nr_clocks,
-		GFP_KERNEL);
-	if (!gpu->grp_clks) {
-		gpu->nr_clocks = 0;
-		return -ENOMEM;
-	}
+	gpu->nr_clocks = ret;
 
-	of_property_for_each_string(dev->of_node, "clock-names", prop, name) {
-		gpu->grp_clks[i] = get_clock(dev, name);
+	gpu->core_clk = msm_clk_bulk_get_clock(gpu->grp_clks,
+		gpu->nr_clocks, "core");
 
-		/* Remember the key clocks that we need to control later */
-		if (!strcmp(name, "core") || !strcmp(name, "core_clk"))
-			gpu->core_clk = gpu->grp_clks[i];
-		else if (!strcmp(name, "rbbmtimer") || !strcmp(name, "rbbmtimer_clk"))
-			gpu->rbbmtimer_clk = gpu->grp_clks[i];
-
-		++i;
-	}
+	gpu->rbbmtimer_clk = msm_clk_bulk_get_clock(gpu->grp_clks,
+		gpu->nr_clocks, "rbbmtimer");
 
 	return 0;
 }
