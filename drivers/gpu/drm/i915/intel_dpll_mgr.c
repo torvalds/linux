@@ -2643,7 +2643,8 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 
 		for (div2 = 10; div2 > 0; div2--) {
 			int dco = div1 * div2 * clock_khz * 5;
-			int a_divratio, tlinedrv, inputsel, hsdiv;
+			int a_divratio, tlinedrv, inputsel;
+			u32 hsdiv;
 
 			if (dco < dco_min_freq || dco > dco_max_freq)
 				continue;
@@ -2662,16 +2663,16 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				MISSING_CASE(div1);
 				/* fall through */
 			case 2:
-				hsdiv = 0;
+				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_2;
 				break;
 			case 3:
-				hsdiv = 1;
+				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_3;
 				break;
 			case 5:
-				hsdiv = 2;
+				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_5;
 				break;
 			case 7:
-				hsdiv = 3;
+				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_7;
 				break;
 			}
 
@@ -2685,7 +2686,7 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 			state->mg_clktop2_hsclkctl =
 				MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL(tlinedrv) |
 				MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL(inputsel) |
-				MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO(hsdiv) |
+				hsdiv |
 				MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO(div2);
 
 			return true;
