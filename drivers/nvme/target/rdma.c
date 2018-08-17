@@ -435,7 +435,6 @@ static void nvmet_rdma_free_rsps(struct nvmet_rdma_queue *queue)
 static int nvmet_rdma_post_recv(struct nvmet_rdma_device *ndev,
 		struct nvmet_rdma_cmd *cmd)
 {
-	struct ib_recv_wr *bad_wr;
 	int ret;
 
 	ib_dma_sync_single_for_device(ndev->device,
@@ -443,9 +442,9 @@ static int nvmet_rdma_post_recv(struct nvmet_rdma_device *ndev,
 		DMA_FROM_DEVICE);
 
 	if (ndev->srq)
-		ret = ib_post_srq_recv(ndev->srq, &cmd->wr, &bad_wr);
+		ret = ib_post_srq_recv(ndev->srq, &cmd->wr, NULL);
 	else
-		ret = ib_post_recv(cmd->queue->cm_id->qp, &cmd->wr, &bad_wr);
+		ret = ib_post_recv(cmd->queue->cm_id->qp, &cmd->wr, NULL);
 
 	if (unlikely(ret))
 		pr_err("post_recv cmd failed\n");
@@ -532,7 +531,7 @@ static void nvmet_rdma_queue_response(struct nvmet_req *req)
 	struct nvmet_rdma_rsp *rsp =
 		container_of(req, struct nvmet_rdma_rsp, req);
 	struct rdma_cm_id *cm_id = rsp->queue->cm_id;
-	struct ib_send_wr *first_wr, *bad_wr;
+	struct ib_send_wr *first_wr;
 
 	if (rsp->flags & NVMET_RDMA_REQ_INVALIDATE_RKEY) {
 		rsp->send_wr.opcode = IB_WR_SEND_WITH_INV;
@@ -553,7 +552,7 @@ static void nvmet_rdma_queue_response(struct nvmet_req *req)
 		rsp->send_sge.addr, rsp->send_sge.length,
 		DMA_TO_DEVICE);
 
-	if (unlikely(ib_post_send(cm_id->qp, first_wr, &bad_wr))) {
+	if (unlikely(ib_post_send(cm_id->qp, first_wr, NULL))) {
 		pr_err("sending cmd response failed\n");
 		nvmet_rdma_release_rsp(rsp);
 	}
@@ -892,7 +891,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 
 	inline_page_count = num_pages(port->inline_data_size);
 	inline_sge_count = max(cm_id->device->attrs.max_sge_rd,
-				cm_id->device->attrs.max_sge) - 1;
+				cm_id->device->attrs.max_recv_sge) - 1;
 	if (inline_page_count > inline_sge_count) {
 		pr_warn("inline_data_size %d cannot be supported by device %s. Reducing to %lu.\n",
 			port->inline_data_size, cm_id->device->name,
@@ -969,7 +968,7 @@ static int nvmet_rdma_create_queue_ib(struct nvmet_rdma_queue *queue)
 	qp_attr.cap.max_send_wr = queue->send_queue_size + 1;
 	qp_attr.cap.max_rdma_ctxs = queue->send_queue_size;
 	qp_attr.cap.max_send_sge = max(ndev->device->attrs.max_sge_rd,
-					ndev->device->attrs.max_sge);
+					ndev->device->attrs.max_send_sge);
 
 	if (ndev->srq) {
 		qp_attr.srq = ndev->srq;

@@ -120,7 +120,7 @@ static inline bool rdma_is_valid_unicast_lid(struct rdma_ah_attr *attr)
 	if (attr->type == RDMA_AH_ATTR_TYPE_IB) {
 		if (!rdma_ah_get_dlid(attr) ||
 		    rdma_ah_get_dlid(attr) >=
-		    be32_to_cpu(IB_MULTICAST_LID_BASE))
+		    be16_to_cpu(IB_MULTICAST_LID_BASE))
 			return false;
 	} else if (attr->type == RDMA_AH_ATTR_TYPE_OPA) {
 		if (!rdma_ah_get_dlid(attr) ||

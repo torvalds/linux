@@ -71,7 +71,7 @@ static u16 ocrdma_hdr_type_to_proto_num(int devid, u8 hdr_type)
 }
 
 static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
-			struct rdma_ah_attr *attr, union ib_gid *sgid,
+			struct rdma_ah_attr *attr, const union ib_gid *sgid,
 			int pdid, bool *isvlan, u16 vlan_tag)
 {
 	int status;
@@ -164,17 +164,14 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 	struct ocrdma_ah *ah;
 	bool isvlan = false;
 	u16 vlan_tag = 0xffff;
-	struct ib_gid_attr sgid_attr;
+	const struct ib_gid_attr *sgid_attr;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
-	const struct ib_global_route *grh;
-	union ib_gid sgid;
 
 	if ((attr->type != RDMA_AH_ATTR_TYPE_ROCE) ||
 	    !(rdma_ah_get_ah_flags(attr) & IB_AH_GRH))
 		return ERR_PTR(-EINVAL);
 
-	grh = rdma_ah_read_grh(attr);
 	if (atomic_cmpxchg(&dev->update_sl, 1, 0))
 		ocrdma_init_service_level(dev);
 
@@ -186,20 +183,15 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 	if (status)
 		goto av_err;
 
-	status = ib_get_cached_gid(&dev->ibdev, 1, grh->sgid_index, &sgid,
-				   &sgid_attr);
-	if (status) {
-		pr_err("%s(): Failed to query sgid, status = %d\n",
-		      __func__, status);
-		goto av_conf_err;
-	}
-	if (is_vlan_dev(sgid_attr.ndev))
-		vlan_tag = vlan_dev_vlan_id(sgid_attr.ndev);
-	dev_put(sgid_attr.ndev);
-	/* Get network header type for this GID */
-	ah->hdr_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
+	sgid_attr = attr->grh.sgid_attr;
+	if (is_vlan_dev(sgid_attr->ndev))
+		vlan_tag = vlan_dev_vlan_id(sgid_attr->ndev);
 
-	status = set_av_attr(dev, ah, attr, &sgid, pd->id, &isvlan, vlan_tag);
+	/* Get network header type for this GID */
+	ah->hdr_type = rdma_gid_attr_network_type(sgid_attr);
+
+	status = set_av_attr(dev, ah, attr, &sgid_attr->gid, pd->id,
+			     &isvlan, vlan_tag);
 	if (status)
 		goto av_conf_err;
 
@@ -260,12 +252,6 @@ int ocrdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 			be32_to_cpu(grh->tclass_flow) >> 24);
 	rdma_ah_set_dgid_raw(attr, &grh->dgid[0]);
 	return 0;
-}
-
-int ocrdma_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
-{
-	/* modify_ah is unsupported */
-	return -ENOSYS;
 }
 
 int ocrdma_process_mad(struct ib_device *ibdev,

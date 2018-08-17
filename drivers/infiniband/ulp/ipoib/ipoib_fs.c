@@ -262,15 +262,15 @@ static const struct file_operations ipoib_path_fops = {
 void ipoib_create_debug_files(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-	char name[IFNAMSIZ + sizeof "_path"];
+	char name[IFNAMSIZ + sizeof("_path")];
 
-	snprintf(name, sizeof name, "%s_mcg", dev->name);
+	snprintf(name, sizeof(name), "%s_mcg", dev->name);
 	priv->mcg_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
 					       ipoib_root, dev, &ipoib_mcg_fops);
 	if (!priv->mcg_dentry)
 		ipoib_warn(priv, "failed to create mcg debug file\n");
 
-	snprintf(name, sizeof name, "%s_path", dev->name);
+	snprintf(name, sizeof(name), "%s_path", dev->name);
 	priv->path_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
 						ipoib_root, dev, &ipoib_path_fops);
 	if (!priv->path_dentry)

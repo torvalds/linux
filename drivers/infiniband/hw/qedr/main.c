@@ -191,6 +191,11 @@ static int qedr_register_device(struct qedr_dev *dev)
 				     QEDR_UVERBS(MODIFY_QP) |
 				     QEDR_UVERBS(QUERY_QP) |
 				     QEDR_UVERBS(DESTROY_QP) |
+				     QEDR_UVERBS(CREATE_SRQ) |
+				     QEDR_UVERBS(DESTROY_SRQ) |
+				     QEDR_UVERBS(QUERY_SRQ) |
+				     QEDR_UVERBS(MODIFY_SRQ) |
+				     QEDR_UVERBS(POST_SRQ_RECV) |
 				     QEDR_UVERBS(REG_MR) |
 				     QEDR_UVERBS(DEREG_MR) |
 				     QEDR_UVERBS(POLL_CQ) |
@@ -229,6 +234,11 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.query_qp = qedr_query_qp;
 	dev->ibdev.destroy_qp = qedr_destroy_qp;
 
+	dev->ibdev.create_srq = qedr_create_srq;
+	dev->ibdev.destroy_srq = qedr_destroy_srq;
+	dev->ibdev.modify_srq = qedr_modify_srq;
+	dev->ibdev.query_srq = qedr_query_srq;
+	dev->ibdev.post_srq_recv = qedr_post_srq_recv;
 	dev->ibdev.query_pkey = qedr_query_pkey;
 
 	dev->ibdev.create_ah = qedr_create_ah;
@@ -325,8 +335,8 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	spin_lock_init(&dev->sgid_lock);
 
 	if (IS_IWARP(dev)) {
-		spin_lock_init(&dev->idr_lock);
-		idr_init(&dev->qpidr);
+		spin_lock_init(&dev->qpidr.idr_lock);
+		idr_init(&dev->qpidr.idr);
 		dev->iwarp_wq = create_singlethread_workqueue("qedr_iwarpq");
 	}
 
@@ -653,42 +663,70 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 #define EVENT_TYPE_NOT_DEFINED	0
 #define EVENT_TYPE_CQ		1
 #define EVENT_TYPE_QP		2
+#define EVENT_TYPE_SRQ		3
 	struct qedr_dev *dev = (struct qedr_dev *)context;
 	struct regpair *async_handle = (struct regpair *)fw_handle;
 	u64 roce_handle64 = ((u64) async_handle->hi << 32) + async_handle->lo;
 	u8 event_type = EVENT_TYPE_NOT_DEFINED;
 	struct ib_event event;
+	struct ib_srq *ibsrq;
+	struct qedr_srq *srq;
+	unsigned long flags;
 	struct ib_cq *ibcq;
 	struct ib_qp *ibqp;
 	struct qedr_cq *cq;
 	struct qedr_qp *qp;
+	u16 srq_id;
 
-	switch (e_code) {
-	case ROCE_ASYNC_EVENT_CQ_OVERFLOW_ERR:
-		event.event = IB_EVENT_CQ_ERR;
-		event_type = EVENT_TYPE_CQ;
-		break;
-	case ROCE_ASYNC_EVENT_SQ_DRAINED:
-		event.event = IB_EVENT_SQ_DRAINED;
-		event_type = EVENT_TYPE_QP;
-		break;
-	case ROCE_ASYNC_EVENT_QP_CATASTROPHIC_ERR:
-		event.event = IB_EVENT_QP_FATAL;
-		event_type = EVENT_TYPE_QP;
-		break;
-	case ROCE_ASYNC_EVENT_LOCAL_INVALID_REQUEST_ERR:
-		event.event = IB_EVENT_QP_REQ_ERR;
-		event_type = EVENT_TYPE_QP;
-		break;
-	case ROCE_ASYNC_EVENT_LOCAL_ACCESS_ERR:
-		event.event = IB_EVENT_QP_ACCESS_ERR;
-		event_type = EVENT_TYPE_QP;
-		break;
-	default:
+	if (IS_ROCE(dev)) {
+		switch (e_code) {
+		case ROCE_ASYNC_EVENT_CQ_OVERFLOW_ERR:
+			event.event = IB_EVENT_CQ_ERR;
+			event_type = EVENT_TYPE_CQ;
+			break;
+		case ROCE_ASYNC_EVENT_SQ_DRAINED:
+			event.event = IB_EVENT_SQ_DRAINED;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_QP_CATASTROPHIC_ERR:
+			event.event = IB_EVENT_QP_FATAL;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_LOCAL_INVALID_REQUEST_ERR:
+			event.event = IB_EVENT_QP_REQ_ERR;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_LOCAL_ACCESS_ERR:
+			event.event = IB_EVENT_QP_ACCESS_ERR;
+			event_type = EVENT_TYPE_QP;
+			break;
+		case ROCE_ASYNC_EVENT_SRQ_LIMIT:
+			event.event = IB_EVENT_SRQ_LIMIT_REACHED;
+			event_type = EVENT_TYPE_SRQ;
+			break;
+		case ROCE_ASYNC_EVENT_SRQ_EMPTY:
+			event.event = IB_EVENT_SRQ_ERR;
+			event_type = EVENT_TYPE_SRQ;
+			break;
+		default:
+			DP_ERR(dev, "unsupported event %d on handle=%llx\n",
+			       e_code, roce_handle64);
+		}
+	} else {
+		switch (e_code) {
+		case QED_IWARP_EVENT_SRQ_LIMIT:
+			event.event = IB_EVENT_SRQ_LIMIT_REACHED;
+			event_type = EVENT_TYPE_SRQ;
+			break;
+		case QED_IWARP_EVENT_SRQ_EMPTY:
+			event.event = IB_EVENT_SRQ_ERR;
+			event_type = EVENT_TYPE_SRQ;
+			break;
+		default:
 		DP_ERR(dev, "unsupported event %d on handle=%llx\n", e_code,
 		       roce_handle64);
+		}
 	}
-
 	switch (event_type) {
 	case EVENT_TYPE_CQ:
 		cq = (struct qedr_cq *)(uintptr_t)roce_handle64;
@@ -722,6 +760,25 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 		}
 		DP_ERR(dev, "QP event %d on handle %p\n", e_code, qp);
 		break;
+	case EVENT_TYPE_SRQ:
+		srq_id = (u16)roce_handle64;
+		spin_lock_irqsave(&dev->srqidr.idr_lock, flags);
+		srq = idr_find(&dev->srqidr.idr, srq_id);
+		if (srq) {
+			ibsrq = &srq->ibsrq;
+			if (ibsrq->event_handler) {
+				event.device = ibsrq->device;
+				event.element.srq = ibsrq;
+				ibsrq->event_handler(&event,
+						     ibsrq->srq_context);
+			}
+		} else {
+			DP_NOTICE(dev,
+				  "SRQ event with NULL pointer ibsrq. Handle=%llx\n",
+				  roce_handle64);
+		}
+		spin_unlock_irqrestore(&dev->srqidr.idr_lock, flags);
+		DP_NOTICE(dev, "SRQ event %d on handle %p\n", e_code, srq);
 	default:
 		break;
 	}

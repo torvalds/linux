@@ -58,41 +58,6 @@ static int fastreg_support = 1;
 module_param(fastreg_support, int, 0644);
 MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=1)");
 
-static struct ib_ah *c4iw_ah_create(struct ib_pd *pd,
-				    struct rdma_ah_attr *ah_attr,
-				    struct ib_udata *udata)
-
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-static int c4iw_ah_destroy(struct ib_ah *ah)
-{
-	return -ENOSYS;
-}
-
-static int c4iw_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	return -ENOSYS;
-}
-
-static int c4iw_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	return -ENOSYS;
-}
-
-static int c4iw_process_mad(struct ib_device *ibdev, int mad_flags,
-			    u8 port_num, const struct ib_wc *in_wc,
-			    const struct ib_grh *in_grh,
-			    const struct ib_mad_hdr *in_mad,
-			    size_t in_mad_size,
-			    struct ib_mad_hdr *out_mad,
-			    size_t *out_mad_size,
-			    u16 *out_mad_pkey_index)
-{
-	return -ENOSYS;
-}
-
 void _c4iw_free_ucontext(struct kref *kref)
 {
 	struct c4iw_ucontext *ucontext;
@@ -342,8 +307,12 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 	props->vendor_part_id = (u32)dev->rdev.lldi.pdev->device;
 	props->max_mr_size = T4_MAX_MR_SIZE;
 	props->max_qp = dev->rdev.lldi.vr->qp.size / 2;
+	props->max_srq = dev->rdev.lldi.vr->srq.size;
 	props->max_qp_wr = dev->rdev.hw_queue.t4_max_qp_depth;
-	props->max_sge = T4_MAX_RECV_SGE;
+	props->max_srq_wr = dev->rdev.hw_queue.t4_max_qp_depth;
+	props->max_send_sge = min(T4_MAX_SEND_SGE, T4_MAX_WRITE_SGE);
+	props->max_recv_sge = T4_MAX_RECV_SGE;
+	props->max_srq_sge = T4_MAX_RECV_SGE;
 	props->max_sge_rd = 1;
 	props->max_res_rd_atom = dev->rdev.lldi.max_ird_adapter;
 	props->max_qp_rd_atom = min(dev->rdev.lldi.max_ordird_qp,
@@ -592,7 +561,10 @@ void c4iw_register_device(struct work_struct *work)
 	    (1ull << IB_USER_VERBS_CMD_POLL_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND) |
-	    (1ull << IB_USER_VERBS_CMD_POST_RECV);
+	    (1ull << IB_USER_VERBS_CMD_POST_RECV) |
+	    (1ull << IB_USER_VERBS_CMD_CREATE_SRQ) |
+	    (1ull << IB_USER_VERBS_CMD_MODIFY_SRQ) |
+	    (1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	BUILD_BUG_ON(sizeof(C4IW_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));
@@ -608,15 +580,15 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.mmap = c4iw_mmap;
 	dev->ibdev.alloc_pd = c4iw_allocate_pd;
 	dev->ibdev.dealloc_pd = c4iw_deallocate_pd;
-	dev->ibdev.create_ah = c4iw_ah_create;
-	dev->ibdev.destroy_ah = c4iw_ah_destroy;
 	dev->ibdev.create_qp = c4iw_create_qp;
 	dev->ibdev.modify_qp = c4iw_ib_modify_qp;
 	dev->ibdev.query_qp = c4iw_ib_query_qp;
 	dev->ibdev.destroy_qp = c4iw_destroy_qp;
+	dev->ibdev.create_srq = c4iw_create_srq;
+	dev->ibdev.modify_srq = c4iw_modify_srq;
+	dev->ibdev.destroy_srq = c4iw_destroy_srq;
 	dev->ibdev.create_cq = c4iw_create_cq;
 	dev->ibdev.destroy_cq = c4iw_destroy_cq;
-	dev->ibdev.resize_cq = c4iw_resize_cq;
 	dev->ibdev.poll_cq = c4iw_poll_cq;
 	dev->ibdev.get_dma_mr = c4iw_get_dma_mr;
 	dev->ibdev.reg_user_mr = c4iw_reg_user_mr;
@@ -625,12 +597,10 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.dealloc_mw = c4iw_dealloc_mw;
 	dev->ibdev.alloc_mr = c4iw_alloc_mr;
 	dev->ibdev.map_mr_sg = c4iw_map_mr_sg;
-	dev->ibdev.attach_mcast = c4iw_multicast_attach;
-	dev->ibdev.detach_mcast = c4iw_multicast_detach;
-	dev->ibdev.process_mad = c4iw_process_mad;
 	dev->ibdev.req_notify_cq = c4iw_arm_cq;
 	dev->ibdev.post_send = c4iw_post_send;
 	dev->ibdev.post_recv = c4iw_post_receive;
+	dev->ibdev.post_srq_recv = c4iw_post_srq_recv;
 	dev->ibdev.alloc_hw_stats = c4iw_alloc_stats;
 	dev->ibdev.get_hw_stats = c4iw_get_mib;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;

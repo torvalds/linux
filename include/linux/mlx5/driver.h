@@ -1235,14 +1235,11 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
-
-static inline void mlx5_rdma_netdev_free(struct net_device *netdev) {}
 #else
 struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 					  struct ib_device *ibdev,
 					  const char *name,
 					  void (*setup)(struct net_device *));
-void mlx5_rdma_netdev_free(struct net_device *netdev);
 #endif /* CONFIG_MLX5_CORE_IPOIB */
 
 struct mlx5_profile {

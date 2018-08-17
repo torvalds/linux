@@ -172,12 +172,7 @@ struct sa_path_rec_ib {
  */
 struct sa_path_rec_roce {
 	bool	route_resolved;
-	u8           dmac[ETH_ALEN];
-	/* ignored in IB */
-	int	     ifindex;
-	/* ignored in IB */
-	struct net  *net;
-
+	u8	dmac[ETH_ALEN];
 };
 
 struct sa_path_rec_opa {
@@ -556,13 +551,10 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 			     enum ib_gid_type gid_type,
 			     struct rdma_ah_attr *ah_attr);
 
-/**
- * ib_init_ah_attr_from_path - Initialize address handle attributes based on
- *   an SA path record.
- */
 int ib_init_ah_attr_from_path(struct ib_device *device, u8 port_num,
 			      struct sa_path_rec *rec,
-			      struct rdma_ah_attr *ah_attr);
+			      struct rdma_ah_attr *ah_attr,
+			      const struct ib_gid_attr *sgid_attr);
 
 /**
  * ib_sa_pack_path - Conert a path record from struct ib_sa_path_rec
@@ -667,45 +659,10 @@ static inline void sa_path_set_dmac_zero(struct sa_path_rec *rec)
 		eth_zero_addr(rec->roce.dmac);
 }
 
-static inline void sa_path_set_ifindex(struct sa_path_rec *rec, int ifindex)
-{
-	if (sa_path_is_roce(rec))
-		rec->roce.ifindex = ifindex;
-}
-
-static inline void sa_path_set_ndev(struct sa_path_rec *rec, struct net *net)
-{
-	if (sa_path_is_roce(rec))
-		rec->roce.net = net;
-}
-
 static inline u8 *sa_path_get_dmac(struct sa_path_rec *rec)
 {
 	if (sa_path_is_roce(rec))
 		return rec->roce.dmac;
 	return NULL;
 }
-
-static inline int sa_path_get_ifindex(struct sa_path_rec *rec)
-{
-	if (sa_path_is_roce(rec))
-		return rec->roce.ifindex;
-	return 0;
-}
-
-static inline struct net *sa_path_get_ndev(struct sa_path_rec *rec)
-{
-	if (sa_path_is_roce(rec))
-		return rec->roce.net;
-	return NULL;
-}
-
-static inline struct net_device *ib_get_ndev_from_path(struct sa_path_rec *rec)
-{
-	return sa_path_get_ndev(rec) ?
-		dev_get_by_index(sa_path_get_ndev(rec),
-				 sa_path_get_ifindex(rec))
-		: NULL;
-}
-
 #endif /* IB_SA_H */

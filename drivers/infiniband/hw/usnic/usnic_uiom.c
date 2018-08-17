@@ -41,6 +41,7 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <rdma/ib_verbs.h>
 
 #include "usnic_log.h"
 #include "usnic_uiom.h"
@@ -88,7 +89,7 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
 		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
 			page = sg_page(sg);
 			pa = sg_phys(sg);
-			if (dirty)
+			if (!PageDirty(page) && dirty)
 				set_page_dirty_lock(page);
 			put_page(page);
 			usnic_dbg("pa: %pa\n", &pa);
@@ -114,6 +115,16 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 	dma_addr_t pa;
 	unsigned int gup_flags;
 
+	/*
+	 * If the combination of the addr and size requested for this memory
+	 * region causes an integer overflow, return error.
+	 */
+	if (((addr + size) < addr) || PAGE_ALIGN(addr + size) < (addr + size))
+		return -EINVAL;
+
+	if (!size)
+		return -EINVAL;
+
 	if (!can_do_mlock())
 		return -EPERM;
 
@@ -127,7 +138,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 
 	down_write(&current->mm->mmap_sem);
 
-	locked = npages + current->mm->locked_vm;
+	locked = npages + current->mm->pinned_vm;
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 
 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
@@ -143,7 +154,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 	ret = 0;
 
 	while (npages) {
-		ret = get_user_pages(cur_base,
+		ret = get_user_pages_longterm(cur_base,
 					min_t(unsigned long, npages,
 					PAGE_SIZE / sizeof(struct page *)),
 					gup_flags, page_list, NULL);
@@ -186,7 +197,7 @@ out:
 	if (ret < 0)
 		usnic_uiom_put_pages(chunk_list, 0);
 	else
-		current->mm->locked_vm = locked;
+		current->mm->pinned_vm = locked;
 
 	up_write(&current->mm->mmap_sem);
 	free_page((unsigned long) page_list);
@@ -420,18 +431,22 @@ out_free_uiomr:
 	return ERR_PTR(err);
 }
 
-void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr, int closing)
+void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr,
+			    struct ib_ucontext *ucontext)
 {
+	struct task_struct *task;
 	struct mm_struct *mm;
 	unsigned long diff;
 
 	__usnic_uiom_reg_release(uiomr->pd, uiomr, 1);
 
-	mm = get_task_mm(current);
-	if (!mm) {
-		kfree(uiomr);
-		return;
-	}
+	task = get_pid_task(ucontext->tgid, PIDTYPE_PID);
+	if (!task)
+		goto out;
+	mm = get_task_mm(task);
+	put_task_struct(task);
+	if (!mm)
+		goto out;
 
 	diff = PAGE_ALIGN(uiomr->length + uiomr->offset) >> PAGE_SHIFT;
 
@@ -443,7 +458,7 @@ void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr, int closing)
 	 * up here and not be able to take the mmap_sem.  In that case
 	 * we defer the vm_locked accounting to the system workqueue.
 	 */
-	if (closing) {
+	if (ucontext->closing) {
 		if (!down_write_trylock(&mm->mmap_sem)) {
 			INIT_WORK(&uiomr->work, usnic_uiom_reg_account);
 			uiomr->mm = mm;
@@ -455,9 +470,10 @@ void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr, int closing)
 	} else
 		down_write(&mm->mmap_sem);
 
-	current->mm->locked_vm -= diff;
+	mm->pinned_vm -= diff;
 	up_write(&mm->mmap_sem);
 	mmput(mm);
+out:
 	kfree(uiomr);
 }
 

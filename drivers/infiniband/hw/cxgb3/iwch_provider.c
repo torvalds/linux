@@ -61,42 +61,6 @@
 #include <rdma/cxgb3-abi.h>
 #include "common.h"
 
-static struct ib_ah *iwch_ah_create(struct ib_pd *pd,
-				    struct rdma_ah_attr *ah_attr,
-				    struct ib_udata *udata)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-static int iwch_ah_destroy(struct ib_ah *ah)
-{
-	return -ENOSYS;
-}
-
-static int iwch_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	return -ENOSYS;
-}
-
-static int iwch_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	return -ENOSYS;
-}
-
-static int iwch_process_mad(struct ib_device *ibdev,
-			    int mad_flags,
-			    u8 port_num,
-			    const struct ib_wc *in_wc,
-			    const struct ib_grh *in_grh,
-			    const struct ib_mad_hdr *in_mad,
-			    size_t in_mad_size,
-			    struct ib_mad_hdr *out_mad,
-			    size_t *out_mad_size,
-			    u16 *out_mad_pkey_index)
-{
-	return -ENOSYS;
-}
-
 static int iwch_dealloc_ucontext(struct ib_ucontext *context)
 {
 	struct iwch_dev *rhp = to_iwch_dev(context->device);
@@ -1103,7 +1067,8 @@ static int iwch_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 	props->max_mr_size = dev->attr.max_mr_size;
 	props->max_qp = dev->attr.max_qps;
 	props->max_qp_wr = dev->attr.max_wrs;
-	props->max_sge = dev->attr.max_sge_per_wr;
+	props->max_send_sge = dev->attr.max_sge_per_wr;
+	props->max_recv_sge = dev->attr.max_sge_per_wr;
 	props->max_sge_rd = 1;
 	props->max_qp_rd_atom = dev->attr.max_rdma_reads_per_qp;
 	props->max_qp_init_rd_atom = dev->attr.max_rdma_reads_per_qp;
@@ -1398,8 +1363,6 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.mmap = iwch_mmap;
 	dev->ibdev.alloc_pd = iwch_allocate_pd;
 	dev->ibdev.dealloc_pd = iwch_deallocate_pd;
-	dev->ibdev.create_ah = iwch_ah_create;
-	dev->ibdev.destroy_ah = iwch_ah_destroy;
 	dev->ibdev.create_qp = iwch_create_qp;
 	dev->ibdev.modify_qp = iwch_ib_modify_qp;
 	dev->ibdev.destroy_qp = iwch_destroy_qp;
@@ -1414,9 +1377,6 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.dealloc_mw = iwch_dealloc_mw;
 	dev->ibdev.alloc_mr = iwch_alloc_mr;
 	dev->ibdev.map_mr_sg = iwch_map_mr_sg;
-	dev->ibdev.attach_mcast = iwch_multicast_attach;
-	dev->ibdev.detach_mcast = iwch_multicast_detach;
-	dev->ibdev.process_mad = iwch_process_mad;
 	dev->ibdev.req_notify_cq = iwch_arm_cq;
 	dev->ibdev.post_send = iwch_post_send;
 	dev->ibdev.post_recv = iwch_post_receive;

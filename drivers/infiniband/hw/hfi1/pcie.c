@@ -157,6 +157,7 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 	unsigned long len;
 	resource_size_t addr;
 	int ret = 0;
+	u32 rcv_array_count;
 
 	addr = pci_resource_start(pdev, 0);
 	len = pci_resource_len(pdev, 0);
@@ -186,9 +187,9 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 		goto nomem;
 	}
 
-	dd->chip_rcv_array_count = readq(dd->kregbase1 + RCV_ARRAY_CNT);
-	dd_dev_info(dd, "RcvArray count: %u\n", dd->chip_rcv_array_count);
-	dd->base2_start  = RCV_ARRAY + dd->chip_rcv_array_count * 8;
+	rcv_array_count = readq(dd->kregbase1 + RCV_ARRAY_CNT);
+	dd_dev_info(dd, "RcvArray count: %u\n", rcv_array_count);
+	dd->base2_start  = RCV_ARRAY + rcv_array_count * 8;
 
 	dd->kregbase2 = ioremap_nocache(
 		addr + dd->base2_start,
@@ -214,13 +215,13 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 	 * to write an entire cacheline worth of entries in one shot.
 	 */
 	dd->rcvarray_wc = ioremap_wc(addr + RCV_ARRAY,
-				     dd->chip_rcv_array_count * 8);
+				     rcv_array_count * 8);
 	if (!dd->rcvarray_wc) {
 		dd_dev_err(dd, "WC mapping of receive array failed\n");
 		goto nomem;
 	}
 	dd_dev_info(dd, "WC RcvArray: %p for %x\n",
-		    dd->rcvarray_wc, dd->chip_rcv_array_count * 8);
+		    dd->rcvarray_wc, rcv_array_count * 8);
 
 	dd->flags |= HFI1_PRESENT;	/* chip.c CSR routines now work */
 	return 0;
@@ -346,25 +347,19 @@ int pcie_speeds(struct hfi1_devdata *dd)
 /*
  * Returns:
  *	- actual number of interrupts allocated or
- *	- 0 if fell back to INTx.
  *      - error
  */
 int request_msix(struct hfi1_devdata *dd, u32 msireq)
 {
 	int nvec;
 
-	nvec = pci_alloc_irq_vectors(dd->pcidev, 1, msireq,
-				     PCI_IRQ_MSIX | PCI_IRQ_LEGACY);
+	nvec = pci_alloc_irq_vectors(dd->pcidev, msireq, msireq, PCI_IRQ_MSIX);
 	if (nvec < 0) {
 		dd_dev_err(dd, "pci_alloc_irq_vectors() failed: %d\n", nvec);
 		return nvec;
 	}
 
 	tune_pcie_caps(dd);
-
-	/* check for legacy IRQ */
-	if (nvec == 1 && !dd->pcidev->msix_enabled)
-		return 0;
 
 	return nvec;
 }

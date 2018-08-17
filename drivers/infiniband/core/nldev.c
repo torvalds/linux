@@ -237,15 +237,15 @@ static int fill_port_info(struct sk_buff *msg,
 	if (ret)
 		return ret;
 
-	BUILD_BUG_ON(sizeof(attr.port_cap_flags) > sizeof(u64));
-	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CAP_FLAGS,
-			      (u64)attr.port_cap_flags, RDMA_NLDEV_ATTR_PAD))
-		return -EMSGSIZE;
-	if (rdma_protocol_ib(device, port) &&
-	    nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_SUBNET_PREFIX,
-			      attr.subnet_prefix, RDMA_NLDEV_ATTR_PAD))
-		return -EMSGSIZE;
 	if (rdma_protocol_ib(device, port)) {
+		BUILD_BUG_ON(sizeof(attr.port_cap_flags) > sizeof(u64));
+		if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CAP_FLAGS,
+				      (u64)attr.port_cap_flags,
+				      RDMA_NLDEV_ATTR_PAD))
+			return -EMSGSIZE;
+		if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_SUBNET_PREFIX,
+				      attr.subnet_prefix, RDMA_NLDEV_ATTR_PAD))
+			return -EMSGSIZE;
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_LID, attr.lid))
 			return -EMSGSIZE;
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_SM_LID, attr.sm_lid))

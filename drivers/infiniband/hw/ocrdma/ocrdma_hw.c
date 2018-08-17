@@ -1365,8 +1365,9 @@ static int ocrdma_mbx_get_ctrl_attribs(struct ocrdma_dev *dev)
 		dev->hba_port_num = (hba_attribs->ptpnum_maxdoms_hbast_cv &
 					OCRDMA_HBA_ATTRB_PTNUM_MASK)
 					>> OCRDMA_HBA_ATTRB_PTNUM_SHIFT;
-		strncpy(dev->model_number,
-			hba_attribs->controller_model_number, 31);
+		strlcpy(dev->model_number,
+			hba_attribs->controller_model_number,
+			sizeof(dev->model_number));
 	}
 	dma_free_coherent(&dev->nic_info.pdev->dev, dma.size, dma.va, dma.pa);
 free_mqe:
@@ -2494,8 +2495,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 {
 	int status;
 	struct rdma_ah_attr *ah_attr = &attrs->ah_attr;
-	union ib_gid sgid;
-	struct ib_gid_attr sgid_attr;
+	const struct ib_gid_attr *sgid_attr;
 	u32 vlan_id = 0xFFFF;
 	u8 mac_addr[6], hdr_type;
 	union {
@@ -2525,25 +2525,23 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	memcpy(&cmd->params.dgid[0], &grh->dgid.raw[0],
 	       sizeof(cmd->params.dgid));
 
-	status = ib_get_cached_gid(&dev->ibdev, 1, grh->sgid_index,
-				   &sgid, &sgid_attr);
-	if (!status) {
-		vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
-		memcpy(mac_addr, sgid_attr.ndev->dev_addr, ETH_ALEN);
-		dev_put(sgid_attr.ndev);
-	}
+	sgid_attr = ah_attr->grh.sgid_attr;
+	vlan_id = rdma_vlan_dev_vlan_id(sgid_attr->ndev);
+	memcpy(mac_addr, sgid_attr->ndev->dev_addr, ETH_ALEN);
 
 	qp->sgid_idx = grh->sgid_index;
-	memcpy(&cmd->params.sgid[0], &sgid.raw[0], sizeof(cmd->params.sgid));
+	memcpy(&cmd->params.sgid[0], &sgid_attr->gid.raw[0],
+	       sizeof(cmd->params.sgid));
 	status = ocrdma_resolve_dmac(dev, ah_attr, &mac_addr[0]);
 	if (status)
 		return status;
+
 	cmd->params.dmac_b0_to_b3 = mac_addr[0] | (mac_addr[1] << 8) |
 				(mac_addr[2] << 16) | (mac_addr[3] << 24);
 
-	hdr_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
+	hdr_type = rdma_gid_attr_network_type(sgid_attr);
 	if (hdr_type == RDMA_NETWORK_IPV4) {
-		rdma_gid2ip(&sgid_addr._sockaddr, &sgid);
+		rdma_gid2ip(&sgid_addr._sockaddr, &sgid_attr->gid);
 		rdma_gid2ip(&dgid_addr._sockaddr, &grh->dgid);
 		memcpy(&cmd->params.dgid[0],
 		       &dgid_addr._sockaddr_in.sin_addr.s_addr, 4);

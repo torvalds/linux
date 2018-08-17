@@ -436,7 +436,8 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	props->max_mr_size = 0x80000000;
 	props->max_qp = nesibdev->max_qp;
 	props->max_qp_wr = nesdev->nesadapter->max_qp_wr - 2;
-	props->max_sge = nesdev->nesadapter->max_sge;
+	props->max_send_sge = nesdev->nesadapter->max_sge;
+	props->max_recv_sge = nesdev->nesadapter->max_sge;
 	props->max_cq = nesibdev->max_cq;
 	props->max_cqe = nesdev->nesadapter->max_cqe;
 	props->max_mr = nesibdev->max_mr;
@@ -750,26 +751,6 @@ static int nes_dealloc_pd(struct ib_pd *ibpd)
 	kfree(nespd);
 
 	return 0;
-}
-
-
-/**
- * nes_create_ah
- */
-static struct ib_ah *nes_create_ah(struct ib_pd *pd,
-				   struct rdma_ah_attr *ah_attr,
-				   struct ib_udata *udata)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-
-/**
- * nes_destroy_ah
- */
-static int nes_destroy_ah(struct ib_ah *ah)
-{
-	return -ENOSYS;
 }
 
 
@@ -3004,42 +2985,9 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return err;
 }
 
-
-/**
- * nes_muticast_attach
- */
-static int nes_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
-
-/**
- * nes_multicast_detach
- */
-static int nes_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
-
-/**
- * nes_process_mad
- */
-static int nes_process_mad(struct ib_device *ibdev, int mad_flags,
-		u8 port_num, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		const struct ib_mad_hdr *in, size_t in_mad_size,
-		struct ib_mad_hdr *out, size_t *out_mad_size,
-		u16 *out_mad_pkey_index)
-{
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
-}
-
 static inline void
-fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, struct ib_send_wr *ib_wr, u32 uselkey)
+fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, const struct ib_send_wr *ib_wr,
+		 u32 uselkey)
 {
 	int sge_index;
 	int total_payload_length = 0;
@@ -3065,8 +3013,8 @@ fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, struct ib_send_wr *ib_wr, u32 uselke
 /**
  * nes_post_send
  */
-static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
-		struct ib_send_wr **bad_wr)
+static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
+			 const struct ib_send_wr **bad_wr)
 {
 	u64 u64temp;
 	unsigned long flags = 0;
@@ -3327,8 +3275,8 @@ out:
 /**
  * nes_post_recv
  */
-static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
-		struct ib_recv_wr **bad_wr)
+static int nes_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *ib_wr,
+			 const struct ib_recv_wr **bad_wr)
 {
 	u64 u64temp;
 	unsigned long flags = 0;
@@ -3735,8 +3683,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.mmap = nes_mmap;
 	nesibdev->ibdev.alloc_pd = nes_alloc_pd;
 	nesibdev->ibdev.dealloc_pd = nes_dealloc_pd;
-	nesibdev->ibdev.create_ah = nes_create_ah;
-	nesibdev->ibdev.destroy_ah = nes_destroy_ah;
 	nesibdev->ibdev.create_qp = nes_create_qp;
 	nesibdev->ibdev.modify_qp = nes_modify_qp;
 	nesibdev->ibdev.query_qp = nes_query_qp;
@@ -3752,10 +3698,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 
 	nesibdev->ibdev.alloc_mr = nes_alloc_mr;
 	nesibdev->ibdev.map_mr_sg = nes_map_mr_sg;
-
-	nesibdev->ibdev.attach_mcast = nes_multicast_attach;
-	nesibdev->ibdev.detach_mcast = nes_multicast_detach;
-	nesibdev->ibdev.process_mad = nes_process_mad;
 
 	nesibdev->ibdev.req_notify_cq = nes_req_notify_cq;
 	nesibdev->ibdev.post_send = nes_post_send;

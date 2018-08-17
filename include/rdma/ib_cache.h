@@ -37,45 +37,23 @@
 
 #include <rdma/ib_verbs.h>
 
-/**
- * ib_get_cached_gid - Returns a cached GID table entry
- * @device: The device to query.
- * @port_num: The port number of the device to query.
- * @index: The index into the cached GID table to query.
- * @gid: The GID value found at the specified index.
- * @attr: The GID attribute found at the specified index (only in RoCE).
- *   NULL means ignore (output parameter).
- *
- * ib_get_cached_gid() fetches the specified GID table entry stored in
- * the local software cache.
- */
-int ib_get_cached_gid(struct ib_device    *device,
-		      u8                   port_num,
-		      int                  index,
-		      union ib_gid        *gid,
-		      struct ib_gid_attr  *attr);
+int rdma_query_gid(struct ib_device *device, u8 port_num, int index,
+		   union ib_gid *gid);
+const struct ib_gid_attr *rdma_find_gid(struct ib_device *device,
+					const union ib_gid *gid,
+					enum ib_gid_type gid_type,
+					struct net_device *ndev);
+const struct ib_gid_attr *rdma_find_gid_by_port(struct ib_device *ib_dev,
+						const union ib_gid *gid,
+						enum ib_gid_type gid_type,
+						u8 port,
+						struct net_device *ndev);
+const struct ib_gid_attr *rdma_find_gid_by_filter(
+	struct ib_device *device, const union ib_gid *gid, u8 port_num,
+	bool (*filter)(const union ib_gid *gid, const struct ib_gid_attr *,
+		       void *),
+	void *context);
 
-int ib_find_cached_gid(struct ib_device *device,
-		       const union ib_gid *gid,
-		       enum ib_gid_type gid_type,
-		       struct net_device *ndev,
-		       u8               *port_num,
-		       u16              *index);
-
-int ib_find_cached_gid_by_port(struct ib_device *device,
-			       const union ib_gid *gid,
-			       enum ib_gid_type gid_type,
-			       u8               port_num,
-			       struct net_device *ndev,
-			       u16              *index);
-
-int ib_find_gid_by_filter(struct ib_device *device,
-			  const union ib_gid *gid,
-			  u8 port_num,
-			  bool (*filter)(const union ib_gid *gid,
-					 const struct ib_gid_attr *,
-					 void *),
-			  void *context, u16 *index);
 /**
  * ib_get_cached_pkey - Returns a cached PKey table entry
  * @device: The device to query.
@@ -150,4 +128,33 @@ int ib_get_cached_port_state(struct ib_device *device,
 			      enum ib_port_state *port_active);
 
 bool rdma_is_zero_gid(const union ib_gid *gid);
+const struct ib_gid_attr *rdma_get_gid_attr(struct ib_device *device,
+					    u8 port_num, int index);
+void rdma_put_gid_attr(const struct ib_gid_attr *attr);
+void rdma_hold_gid_attr(const struct ib_gid_attr *attr);
+
+/*
+ * This is to be removed. It only exists to make merging rdma and smc simpler.
+ */
+static inline __deprecated int ib_query_gid(struct ib_device *device,
+					    u8 port_num, int index,
+					    union ib_gid *gid,
+					    struct ib_gid_attr *attr_out)
+{
+	const struct ib_gid_attr *attr;
+
+	memset(attr_out, 0, sizeof(*attr_out));
+	attr = rdma_get_gid_attr(device, port_num, index);
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	if (attr->ndev)
+		dev_hold(attr->ndev);
+	*attr_out = *attr;
+
+	rdma_put_gid_attr(attr);
+
+	return 0;
+}
+
 #endif /* _IB_CACHE_H */

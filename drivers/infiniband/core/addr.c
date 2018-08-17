@@ -188,7 +188,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 	return -ENODATA;
 }
 
-int rdma_addr_size(struct sockaddr *addr)
+int rdma_addr_size(const struct sockaddr *addr)
 {
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -315,19 +315,17 @@ static int dst_fetch_ha(const struct dst_entry *dst,
 	int ret = 0;
 
 	n = dst_neigh_lookup(dst, daddr);
+	if (!n)
+		return -ENODATA;
 
-	rcu_read_lock();
-	if (!n || !(n->nud_state & NUD_VALID)) {
-		if (n)
-			neigh_event_send(n, NULL);
+	if (!(n->nud_state & NUD_VALID)) {
+		neigh_event_send(n, NULL);
 		ret = -ENODATA;
 	} else {
 		rdma_copy_addr(dev_addr, dst->dev, n->ha);
 	}
-	rcu_read_unlock();
 
-	if (n)
-		neigh_release(n);
+	neigh_release(n);
 
 	return ret;
 }
@@ -587,7 +585,7 @@ static void process_one_req(struct work_struct *_work)
 	spin_unlock_bh(&lock);
 }
 
-int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
+int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),

@@ -16,6 +16,7 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_cache.h>
 
 #include "smc.h"
 #include "smc_clc.h"

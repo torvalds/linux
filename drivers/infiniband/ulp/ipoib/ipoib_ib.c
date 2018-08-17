@@ -40,6 +40,7 @@
 
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <rdma/ib_cache.h>
 
 #include "ipoib.h"
 
@@ -57,7 +58,7 @@ struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 	struct ipoib_ah *ah;
 	struct ib_ah *vah;
 
-	ah = kmalloc(sizeof *ah, GFP_KERNEL);
+	ah = kmalloc(sizeof(*ah), GFP_KERNEL);
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 
@@ -100,7 +101,6 @@ static void ipoib_ud_dma_unmap_rx(struct ipoib_dev_priv *priv,
 static int ipoib_ib_post_receive(struct net_device *dev, int id)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-	struct ib_recv_wr *bad_wr;
 	int ret;
 
 	priv->rx_wr.wr_id   = id | IPOIB_OP_RECV;
@@ -108,7 +108,7 @@ static int ipoib_ib_post_receive(struct net_device *dev, int id)
 	priv->rx_sge[1].addr = priv->rx_ring[id].mapping[1];
 
 
-	ret = ib_post_recv(priv->qp, &priv->rx_wr, &bad_wr);
+	ret = ib_post_recv(priv->qp, &priv->rx_wr, NULL);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "receive failed for buf %d (%d)\n", id, ret);
 		ipoib_ud_dma_unmap_rx(priv, priv->rx_ring[id].mapping);
@@ -202,7 +202,7 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	}
 
 	memcpy(mapping, priv->rx_ring[wr_id].mapping,
-	       IPOIB_UD_RX_SG * sizeof *mapping);
+	       IPOIB_UD_RX_SG * sizeof(*mapping));
 
 	/*
 	 * If we can't allocate a new RX buffer, dump
@@ -541,7 +541,6 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 			    struct ipoib_tx_buf *tx_req,
 			    void *head, int hlen)
 {
-	struct ib_send_wr *bad_wr;
 	struct sk_buff *skb = tx_req->skb;
 
 	ipoib_build_sge(priv, tx_req);
@@ -558,7 +557,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 	} else
 		priv->tx_wr.wr.opcode	= IB_WR_SEND;
 
-	return ib_post_send(priv->qp, &priv->tx_wr.wr, &bad_wr);
+	return ib_post_send(priv->qp, &priv->tx_wr.wr, NULL);
 }
 
 int ipoib_send(struct net_device *dev, struct sk_buff *skb,
@@ -568,7 +567,7 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	struct ipoib_tx_buf *tx_req;
 	int hlen, rc;
 	void *phead;
-	unsigned usable_sge = priv->max_send_sge - !!skb_headlen(skb);
+	unsigned int usable_sge = priv->max_send_sge - !!skb_headlen(skb);
 
 	if (skb_is_gso(skb)) {
 		hlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
@@ -1069,7 +1068,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	bool ret = false;
 
 	netdev_gid = (union ib_gid *)(priv->dev->dev_addr + 4);
-	if (ib_query_gid(priv->ca, priv->port, 0, &gid0, NULL))
+	if (rdma_query_gid(priv->ca, priv->port, 0, &gid0))
 		return false;
 
 	netif_addr_lock_bh(priv->dev);

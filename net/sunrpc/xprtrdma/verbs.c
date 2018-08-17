@@ -508,7 +508,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	unsigned int max_sge;
 	int rc;
 
-	max_sge = min_t(unsigned int, ia->ri_device->attrs.max_sge,
+	max_sge = min_t(unsigned int, ia->ri_device->attrs.max_send_sge,
 			RPCRDMA_MAX_SEND_SGES);
 	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
 		pr_warn("rpcrdma: HCA provides only %d send SGEs\n", max_sge);
@@ -1559,7 +1559,8 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 	if (!count)
 		return;
 
-	rc = ib_post_recv(r_xprt->rx_ia.ri_id->qp, wr, &bad_wr);
+	rc = ib_post_recv(r_xprt->rx_ia.ri_id->qp, wr,
+			  (const struct ib_recv_wr **)&bad_wr);
 	if (rc) {
 		for (wr = bad_wr; wr; wr = wr->next) {
 			struct rpcrdma_rep *rep;

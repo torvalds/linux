@@ -57,7 +57,7 @@ struct usnic_fwd_dev {
 	char				mac[ETH_ALEN];
 	unsigned int			mtu;
 	__be32				inaddr;
-	char				name[IFNAMSIZ+1];
+	char				name[IFNAMSIZ];
 };
 
 struct usnic_fwd_flow {
