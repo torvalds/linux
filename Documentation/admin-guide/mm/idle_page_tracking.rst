@@ -65,6 +65,11 @@ workload one should:
     are not reclaimable, he or she can filter them out using
     ``/proc/kpageflags``.
 
+The page-types tool in the tools/vm directory can be used to assist in this.
+If the tool is run initially with the appropriate option, it will mark all the
+queried pages as idle.  Subsequent runs of the tool can then show which pages have
+their idle flag cleared in the interim.
+
 See :ref:`Documentation/admin-guide/mm/pagemap.rst <pagemap>` for more
 information about ``/proc/pid/pagemap``, ``/proc/kpageflags``, and
 ``/proc/kpagecgroup``.
