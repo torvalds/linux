@@ -1123,7 +1123,6 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
 	u64 start, size;
 	bool new_node = false;
 	int ret;
-	unsigned long start_pfn, nr_pages;
 
 	start = res->start;
 	size = resource_size(res);
@@ -1164,9 +1163,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
 	}
 
 	/* link memory sections under this node.*/
-	start_pfn = start >> PAGE_SHIFT;
-	nr_pages = size >> PAGE_SHIFT;
-	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
+	ret = link_mem_sections(nid, PFN_DOWN(start), PFN_UP(start + size - 1));
 	BUG_ON(ret);
 
 	/* create new memmap entry */
