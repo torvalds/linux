@@ -37,7 +37,7 @@ enum ht_extension_chan_offset {
 	HT_EXTCHNL_OFFSET_LOWER = 3,
 };
 
-typedef	struct _HT_CAPABILITY_ELE {
+struct ht_capability_ele {
 	//HT capability info
 	u8	AdvCoding:1;
 	u8	ChlWidth:1;
@@ -71,7 +71,7 @@ typedef	struct _HT_CAPABILITY_ELE {
 	//Antenna Selection Capabilities
 	u8	ASCap;
 
-} __attribute__ ((packed)) HT_CAPABILITY_ELE, *PHT_CAPABILITY_ELE;
+} __packed;
 
 /*
  * The HT Information element is present in beacons
@@ -140,7 +140,7 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	HT_SPEC_VER			ePeerHTSpecVer;
 
 	// HT related information for "Self"
-	HT_CAPABILITY_ELE	SelfHTCap;		// This is HT cap element sent to peer STA, which also indicate HT Rx capabilities.
+	struct ht_capability_ele	SelfHTCap;		// This is HT cap element sent to peer STA, which also indicate HT Rx capabilities.
 	HT_INFORMATION_ELE	SelfHTInfo;		// This is HT info element sent to peer STA, which also indicate HT Rx capabilities.
 
 	// HT related information for "Peer"
@@ -233,7 +233,7 @@ typedef struct _BSS_HT {
 	u16					bdHTInfoLen;
 
 	HT_SPEC_VER				bdHTSpecVer;
-	//HT_CAPABILITY_ELE			bdHTCapEle;
+	//struct ht_capability_ele              bdHTCapEle;
 	//HT_INFORMATION_ELE		bdHTInfoEle;
 
 	u8					bdRT2RTAggregation;
