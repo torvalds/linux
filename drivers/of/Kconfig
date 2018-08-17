@@ -12,6 +12,13 @@ menuconfig OF
 
 if OF
 
+config DTC_SYMBOLS
+	bool "Enable dtc generation of symbols for overlays support"
+	depends on DTC
+	help
+	  Set DTC_FLAGS += -@
+	  Android OS must enable this option.
+
 config OF_UNITTEST
 	bool "Device Tree runtime unit tests"
 	depends on !SPARC
