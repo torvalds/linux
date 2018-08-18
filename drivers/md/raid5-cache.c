@@ -324,10 +324,10 @@ void r5c_handle_cached_data_endio(struct r5conf *conf,
 		if (sh->dev[i].written) {
 			set_bit(R5_UPTODATE, &sh->dev[i].flags);
 			r5c_return_dev_pending_writes(conf, &sh->dev[i]);
-			bitmap_endwrite(conf->mddev->bitmap, sh->sector,
-					STRIPE_SECTORS,
-					!test_bit(STRIPE_DEGRADED, &sh->state),
-					0);
+			md_bitmap_endwrite(conf->mddev->bitmap, sh->sector,
+					   STRIPE_SECTORS,
+					   !test_bit(STRIPE_DEGRADED, &sh->state),
+					   0);
 		}
 	}
 }
