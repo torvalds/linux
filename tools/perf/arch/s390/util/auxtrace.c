@@ -30,6 +30,7 @@ cpumsf_info_fill(struct auxtrace_record *itr __maybe_unused,
 		 struct auxtrace_info_event *auxtrace_info __maybe_unused,
 		 size_t priv_size __maybe_unused)
 {
+	auxtrace_info->type = PERF_AUXTRACE_S390_CPUMSF;
 	return 0;
 }
 
