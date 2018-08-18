@@ -132,7 +132,7 @@ irda_usb_find_class_desc(struct usb_serial *serial, unsigned int ifnum)
 			0, ifnum, desc, sizeof(*desc), 1000);
 
 	dev_dbg(&serial->dev->dev, "%s -  ret=%d\n", __func__, ret);
-	if (ret < sizeof(*desc)) {
+	if (ret < (int)sizeof(*desc)) {
 		dev_dbg(&serial->dev->dev,
 			"%s - class descriptor read %s (%d)\n", __func__,
 			(ret < 0) ? "failed" : "too short", ret);

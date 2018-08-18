@@ -47,6 +47,12 @@ Required properties (port (child) node):
 			- PHY_TYPE_PCIE
 			- PHY_TYPE_SATA
 
+Optional properties (PHY_TYPE_USB2 port (child) node):
+- mediatek,eye-src	: u32, the value of slew rate calibrate
+- mediatek,eye-vrt	: u32, the selection of VRT reference voltage
+- mediatek,eye-term	: u32, the selection of HS_TX TERM reference voltage
+- mediatek,bc12	: bool, enable BC12 of u2phy if support it
+
 Example:
 
 u3phy: usb-phy@11290000 {

@@ -913,11 +913,9 @@ static ssize_t dbc_store(struct device *dev,
 			 struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	struct xhci_dbc		*dbc;
 	struct xhci_hcd		*xhci;
 
 	xhci = hcd_to_xhci(dev_get_drvdata(dev));
-	dbc = xhci->dbc;
 
 	if (!strncmp(buf, "enable", 6))
 		xhci_dbc_start(xhci);

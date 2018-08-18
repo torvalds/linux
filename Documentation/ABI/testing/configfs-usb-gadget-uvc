@@ -263,3 +263,8 @@ Description:	Specific streaming header descriptors
 					is connected
 		bmInfo			- capabilities of this video streaming
 					interface
+
+What:		/sys/class/udc/udc.name/device/gadget/video4linux/video.name/function_name
+Date:		May 2018
+KernelVersion:	4.19
+Description:	UVC configfs function instance name

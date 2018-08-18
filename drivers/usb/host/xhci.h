@@ -2114,9 +2114,11 @@ void xhci_hc_died(struct xhci_hcd *xhci);
 #ifdef CONFIG_PM
 int xhci_bus_suspend(struct usb_hcd *hcd);
 int xhci_bus_resume(struct usb_hcd *hcd);
+unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd);
 #else
 #define	xhci_bus_suspend	NULL
 #define	xhci_bus_resume		NULL
+#define	xhci_get_resuming_ports	NULL
 #endif	/* CONFIG_PM */
 
 u32 xhci_port_state_to_neutral(u32 state);
