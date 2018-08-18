@@ -161,6 +161,16 @@ config MENF21BMC_WATCHDOG
 	  This driver can also be built as a module. If so the module
 	  will be called menf21bmc_wdt.
 
+config MENZ069_WATCHDOG
+	tristate "MEN 16Z069 Watchdog"
+	depends on MCB
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the MEN 16Z069 Watchdog.
+
+	  This driver can also be built as a module. If so the module
+	  will be called menz069_wdt.
+
 config TANGOX_WATCHDOG
 	tristate "Sigma Designs SMP86xx/SMP87xx watchdog"
 	select WATCHDOG_CORE
