@@ -120,7 +120,7 @@ bool is_sibling_entry(const struct radix_tree_node *parent, void *node)
 static inline unsigned long
 get_slot_offset(const struct radix_tree_node *parent, void __rcu **slot)
 {
-	return slot - parent->slots;
+	return parent ? slot - parent->slots : 0;
 }
 
 static unsigned int radix_tree_descend(const struct radix_tree_node *parent,
