@@ -89,18 +89,33 @@ struct hv_ring_buffer {
 	u32 interrupt_mask;
 
 	/*
-	 * Win8 uses some of the reserved bits to implement
-	 * interrupt driven flow management. On the send side
-	 * we can request that the receiver interrupt the sender
-	 * when the ring transitions from being full to being able
-	 * to handle a message of size "pending_send_sz".
+	 * WS2012/Win8 and later versions of Hyper-V implement interrupt
+	 * driven flow management. The feature bit feat_pending_send_sz
+	 * is set by the host on the host->guest ring buffer, and by the
+	 * guest on the guest->host ring buffer.
 	 *
-	 * Add necessary state for this enhancement.
+	 * The meaning of the feature bit is a bit complex in that it has
+	 * semantics that apply to both ring buffers.  If the guest sets
+	 * the feature bit in the guest->host ring buffer, the guest is
+	 * telling the host that:
+	 * 1) It will set the pending_send_sz field in the guest->host ring
+	 *    buffer when it is waiting for space to become available, and
+	 * 2) It will read the pending_send_sz field in the host->guest
+	 *    ring buffer and interrupt the host when it frees enough space
+	 *
+	 * Similarly, if the host sets the feature bit in the host->guest
+	 * ring buffer, the host is telling the guest that:
+	 * 1) It will set the pending_send_sz field in the host->guest ring
+	 *    buffer when it is waiting for space to become available, and
+	 * 2) It will read the pending_send_sz field in the guest->host
+	 *    ring buffer and interrupt the guest when it frees enough space
+	 *
+	 * If either the guest or host does not set the feature bit that it
+	 * owns, that guest or host must do polling if it encounters a full
+	 * ring buffer, and not signal the other end with an interrupt.
 	 */
 	u32 pending_send_sz;
-
 	u32 reserved1[12];
-
 	union {
 		struct {
 			u32 feat_pending_send_sz:1;
@@ -1045,6 +1060,8 @@ extern int vmbus_establish_gpadl(struct vmbus_channel *channel,
 
 extern int vmbus_teardown_gpadl(struct vmbus_channel *channel,
 				     u32 gpadl_handle);
+
+void vmbus_reset_channel_cb(struct vmbus_channel *channel);
 
 extern int vmbus_recvpacket(struct vmbus_channel *channel,
 				  void *buffer,

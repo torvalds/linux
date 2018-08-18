@@ -125,3 +125,8 @@ Messaging APIs:
 ~~~~~~~~~~~~~~~
 .. kernel-doc:: drivers/slimbus/messaging.c
    :export:
+
+Streaming APIs:
+~~~~~~~~~~~~~~~
+.. kernel-doc:: drivers/slimbus/stream.c
+   :export:

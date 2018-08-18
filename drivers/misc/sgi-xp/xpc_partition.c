@@ -415,7 +415,6 @@ xpc_discovery(void)
 	int region_size;
 	int max_regions;
 	int nasid;
-	struct xpc_rsvd_page *rp;
 	unsigned long *discovered_nasids;
 	enum xp_retval ret;
 
@@ -432,8 +431,6 @@ xpc_discovery(void)
 		return;
 	}
 
-	rp = (struct xpc_rsvd_page *)xpc_rsvd_page;
-
 	/*
 	 * The term 'region' in this context refers to the minimum number of
 	 * nodes that can comprise an access protection grouping. The access
@@ -449,8 +446,10 @@ xpc_discovery(void)
 		switch (region_size) {
 		case 128:
 			max_regions *= 2;
+			/* fall through */
 		case 64:
 			max_regions *= 2;
+			/* fall through */
 		case 32:
 			max_regions *= 2;
 			region_size = 16;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/uio/uio.c
  *
@@ -9,8 +10,6 @@
  * Userspace IO
  *
  * Base Functions
- *
- * Licensed under the GPLv2 only.
  */
 
 #include <linux/module.h>
@@ -625,6 +624,12 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 	ssize_t retval;
 	s32 irq_on;
 
+	if (count != sizeof(s32))
+		return -EINVAL;
+
+	if (copy_from_user(&irq_on, buf, count))
+		return -EFAULT;
+
 	mutex_lock(&idev->info_lock);
 	if (!idev->info) {
 		retval = -EINVAL;
@@ -636,18 +641,8 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 		goto out;
 	}
 
-	if (count != sizeof(s32)) {
-		retval = -EINVAL;
-		goto out;
-	}
-
 	if (!idev->info->irqcontrol) {
 		retval = -ENOSYS;
-		goto out;
-	}
-
-	if (copy_from_user(&irq_on, buf, count)) {
-		retval = -EFAULT;
 		goto out;
 	}
 
@@ -814,7 +809,7 @@ static int uio_mmap(struct file *filep, struct vm_area_struct *vma)
 
 out:
 	mutex_unlock(&idev->info_lock);
-	return 0;
+	return ret;
 }
 
 static const struct file_operations uio_fops = {
@@ -958,8 +953,6 @@ int __uio_register_device(struct module *owner,
 	if (ret)
 		goto err_uio_dev_add_attributes;
 
-	info->uio_dev = idev;
-
 	if (info->irq && (info->irq != UIO_IRQ_CUSTOM)) {
 		/*
 		 * Note that we deliberately don't use devm_request_irq
@@ -976,6 +969,7 @@ int __uio_register_device(struct module *owner,
 			goto err_request_irq;
 	}
 
+	info->uio_dev = idev;
 	return 0;
 
 err_request_irq:

@@ -31,6 +31,17 @@ config CORESIGHT_LINK_AND_SINK_TMC
 	  complies with the generic implementation of the component without
 	  special enhancement or added features.
 
+config CORESIGHT_CATU
+	bool "Coresight Address Translation Unit (CATU) driver"
+	depends on CORESIGHT_LINK_AND_SINK_TMC
+	help
+	   Enable support for the Coresight Address Translation Unit (CATU).
+	   CATU supports a scatter gather table of 4K pages, with forward/backward
+	   lookup. CATU helps TMC ETR to use a large physically non-contiguous trace
+	   buffer by translating the addresses used by ETR to the physical address
+	   by looking up the provided table. CATU can also be used in pass-through
+	   mode where the address is not translated.
+
 config CORESIGHT_SINK_TPIU
 	bool "Coresight generic TPIU driver"
 	depends on CORESIGHT_LINKS_AND_SINKS

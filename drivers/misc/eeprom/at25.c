@@ -94,8 +94,10 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	switch (at25->addrlen) {
 	default:	/* case 3 */
 		*cp++ = offset >> 16;
+		/* fall through */
 	case 2:
 		*cp++ = offset >> 8;
+		/* fall through */
 	case 1:
 	case 0:	/* can't happen: for better codegen */
 		*cp++ = offset >> 0;
@@ -180,8 +182,10 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		switch (at25->addrlen) {
 		default:	/* case 3 */
 			*cp++ = offset >> 16;
+			/* fall through */
 		case 2:
 			*cp++ = offset >> 8;
+			/* fall through */
 		case 1:
 		case 0:	/* can't happen: for better codegen */
 			*cp++ = offset >> 0;

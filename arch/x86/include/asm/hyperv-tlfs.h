@@ -35,9 +35,9 @@
 /* VP Runtime (HV_X64_MSR_VP_RUNTIME) available */
 #define HV_X64_MSR_VP_RUNTIME_AVAILABLE		(1 << 0)
 /* Partition Reference Counter (HV_X64_MSR_TIME_REF_COUNT) available*/
-#define HV_X64_MSR_TIME_REF_COUNT_AVAILABLE	(1 << 1)
+#define HV_MSR_TIME_REF_COUNT_AVAILABLE		(1 << 1)
 /* Partition reference TSC MSR is available */
-#define HV_X64_MSR_REFERENCE_TSC_AVAILABLE              (1 << 9)
+#define HV_MSR_REFERENCE_TSC_AVAILABLE		(1 << 9)
 
 /* A partition's reference time stamp counter (TSC) page */
 #define HV_X64_MSR_REFERENCE_TSC		0x40000021
@@ -60,7 +60,7 @@
  * Synthetic Timer MSRs (HV_X64_MSR_STIMER0_CONFIG through
  * HV_X64_MSR_STIMER3_COUNT) available
  */
-#define HV_X64_MSR_SYNTIMER_AVAILABLE		(1 << 3)
+#define HV_MSR_SYNTIMER_AVAILABLE		(1 << 3)
 /*
  * APIC access MSRs (HV_X64_MSR_EOI, HV_X64_MSR_ICR and HV_X64_MSR_TPR)
  * are available
@@ -86,7 +86,7 @@
 #define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE (1 << 10)
 
 /* stimer Direct Mode is available */
-#define HV_X64_STIMER_DIRECT_MODE_AVAILABLE	(1 << 19)
+#define HV_STIMER_DIRECT_MODE_AVAILABLE		(1 << 19)
 
 /*
  * Feature identification: EBX indicates which flags were specified at
@@ -160,9 +160,9 @@
 #define HV_X64_RELAXED_TIMING_RECOMMENDED	(1 << 5)
 
 /*
- * Virtual APIC support
+ * Recommend not using Auto End-Of-Interrupt feature
  */
-#define HV_X64_DEPRECATING_AEOI_RECOMMENDED	(1 << 9)
+#define HV_DEPRECATING_AEOI_RECOMMENDED		(1 << 9)
 
 /*
  * Recommend using cluster IPI hypercalls.
@@ -176,9 +176,10 @@
 #define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED    (1 << 14)
 
 /*
- * Crash notification flag.
+ * Crash notification flags.
  */
-#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
+#define HV_CRASH_CTL_CRASH_NOTIFY_MSG	BIT_ULL(62)
+#define HV_CRASH_CTL_CRASH_NOTIFY	BIT_ULL(63)
 
 /* MSR used to identify the guest OS. */
 #define HV_X64_MSR_GUEST_OS_ID			0x40000000

@@ -900,7 +900,32 @@ static void nhi_complete(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
 
-	tb_domain_complete(tb);
+	/*
+	 * If we were runtime suspended when system suspend started,
+	 * schedule runtime resume now. It should bring the domain back
+	 * to functional state.
+	 */
+	if (pm_runtime_suspended(&pdev->dev))
+		pm_runtime_resume(&pdev->dev);
+	else
+		tb_domain_complete(tb);
+}
+
+static int nhi_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	return tb_domain_runtime_suspend(tb);
+}
+
+static int nhi_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	nhi_enable_int_throttling(tb->nhi);
+	return tb_domain_runtime_resume(tb);
 }
 
 static void nhi_shutdown(struct tb_nhi *nhi)
@@ -1015,6 +1040,14 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	spin_lock_init(&nhi->lock);
 
+	res = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (res)
+		res = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (res) {
+		dev_err(&pdev->dev, "failed to set DMA mask\n");
+		return res;
+	}
+
 	pci_set_master(pdev);
 
 	tb = icm_probe(nhi);
@@ -1040,6 +1073,11 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	pci_set_drvdata(pdev, tb);
 
+	pm_runtime_allow(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, TB_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
+
 	return 0;
 }
 
@@ -1047,6 +1085,10 @@ static void nhi_remove(struct pci_dev *pdev)
 {
 	struct tb *tb = pci_get_drvdata(pdev);
 	struct tb_nhi *nhi = tb->nhi;
+
+	pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_forbid(&pdev->dev);
 
 	tb_domain_remove(tb);
 	nhi_shutdown(nhi);
@@ -1070,6 +1112,8 @@ static const struct dev_pm_ops nhi_pm_ops = {
 	.freeze = nhi_suspend,
 	.poweroff = nhi_suspend,
 	.complete = nhi_complete,
+	.runtime_suspend = nhi_runtime_suspend,
+	.runtime_resume = nhi_runtime_resume,
 };
 
 static struct pci_device_id nhi_ids[] = {

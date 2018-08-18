@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * uio_hv_generic - generic UIO driver for VMBus
  *
  * Copyright (c) 2013-2016 Brocade Communications Systems, Inc.
  * Copyright (c) 2016, Microsoft Corporation.
- *
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Since the driver does not declare any device ids, you must allocate
  * id and bind the device to the driver yourself.  For example:

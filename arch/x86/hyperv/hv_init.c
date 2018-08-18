@@ -333,7 +333,7 @@ void __init hyperv_init(void)
 	 * Register Hyper-V specific clocksource.
 	 */
 #ifdef CONFIG_HYPERV_TSCPAGE
-	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
+	if (ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE) {
 		union hv_x64_msr_hypercall_contents tsc_msr;
 
 		tsc_pg = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL);
@@ -362,7 +362,7 @@ register_msr_cs:
 	 */
 
 	hyperv_cs = &hyperv_cs_msr;
-	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)
+	if (ms_hyperv.features & HV_MSR_TIME_REF_COUNT_AVAILABLE)
 		clocksource_register_hz(&hyperv_cs_msr, NSEC_PER_SEC/100);
 
 	return;
@@ -425,6 +425,33 @@ void hyperv_report_panic(struct pt_regs *regs, long err)
 	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
 }
 EXPORT_SYMBOL_GPL(hyperv_report_panic);
+
+/**
+ * hyperv_report_panic_msg - report panic message to Hyper-V
+ * @pa: physical address of the panic page containing the message
+ * @size: size of the message in the page
+ */
+void hyperv_report_panic_msg(phys_addr_t pa, size_t size)
+{
+	/*
+	 * P3 to contain the physical address of the panic page & P4 to
+	 * contain the size of the panic data in that page. Rest of the
+	 * registers are no-op when the NOTIFY_MSG flag is set.
+	 */
+	wrmsrl(HV_X64_MSR_CRASH_P0, 0);
+	wrmsrl(HV_X64_MSR_CRASH_P1, 0);
+	wrmsrl(HV_X64_MSR_CRASH_P2, 0);
+	wrmsrl(HV_X64_MSR_CRASH_P3, pa);
+	wrmsrl(HV_X64_MSR_CRASH_P4, size);
+
+	/*
+	 * Let Hyper-V know there is crash data available along with
+	 * the panic message.
+	 */
+	wrmsrl(HV_X64_MSR_CRASH_CTL,
+	       (HV_CRASH_CTL_CRASH_NOTIFY | HV_CRASH_CTL_CRASH_NOTIFY_MSG));
+}
+EXPORT_SYMBOL_GPL(hyperv_report_panic_msg);
 
 bool hv_is_hyperv_initialized(void)
 {

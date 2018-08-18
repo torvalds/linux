@@ -1748,8 +1748,6 @@ static int cm4000_config_check(struct pcmcia_device *p_dev, void *priv_data)
 
 static int cm4000_config(struct pcmcia_device * link, int devno)
 {
-	struct cm4000_dev *dev;
-
 	link->config_flags |= CONF_AUTO_SET_IO;
 
 	/* read the config-tuples */
@@ -1758,8 +1756,6 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 
 	if (pcmcia_enable_device(link))
 		goto cs_release;
-
-	dev = link->priv;
 
 	return 0;
 
