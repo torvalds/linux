@@ -75,6 +75,7 @@ static void xsk_map_free(struct bpf_map *map)
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
 	int i;
 
+	bpf_clear_redirect_map(map);
 	synchronize_net();
 
 	for (i = 0; i < map->max_entries; i++) {

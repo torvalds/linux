@@ -45,6 +45,7 @@
 MODULE_AUTHOR("Mellanox Technologies");
 MODULE_DESCRIPTION("Transport Layer Security Support");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_ALIAS_TCP_ULP("tls");
 
 enum {
 	TLSV4,
