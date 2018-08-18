@@ -105,7 +105,7 @@ static int device_is_dependent(struct device *dev, void *target)
 	struct device_link *link;
 	int ret;
 
-	if (WARN_ON(dev == target))
+	if (dev == target)
 		return 1;
 
 	ret = device_for_each_child(dev, target, device_is_dependent);
@@ -113,7 +113,7 @@ static int device_is_dependent(struct device *dev, void *target)
 		return ret;
 
 	list_for_each_entry(link, &dev->links.consumers, s_node) {
-		if (WARN_ON(link->consumer == target))
+		if (link->consumer == target)
 			return 1;
 
 		ret = device_is_dependent(link->consumer, target);
@@ -1647,6 +1647,8 @@ static void cleanup_glue_dir(struct device *dev, struct kobject *glue_dir)
 		return;
 
 	mutex_lock(&gdp_mutex);
+	if (!kobject_has_children(glue_dir))
+		kobject_del(glue_dir);
 	kobject_put(glue_dir);
 	mutex_unlock(&gdp_mutex);
 }
@@ -1786,7 +1788,7 @@ static void device_remove_sys_dev_entry(struct device *dev)
 	}
 }
 
-int device_private_init(struct device *dev)
+static int device_private_init(struct device *dev)
 {
 	dev->p = kzalloc(sizeof(*dev->p), GFP_KERNEL);
 	if (!dev->p)
@@ -2859,6 +2861,9 @@ void device_shutdown(void)
 {
 	struct device *dev, *parent;
 
+	wait_for_device_probe();
+	device_block_probing();
+
 	spin_lock(&devices_kset->list_lock);
 	/*
 	 * Walk the devices list backward, shutting down each in turn.
@@ -3052,12 +3057,12 @@ void func(const struct device *dev, const char *fmt, ...)	\
 }								\
 EXPORT_SYMBOL(func);
 
-define_dev_printk_level(dev_emerg, KERN_EMERG);
-define_dev_printk_level(dev_alert, KERN_ALERT);
-define_dev_printk_level(dev_crit, KERN_CRIT);
-define_dev_printk_level(dev_err, KERN_ERR);
-define_dev_printk_level(dev_warn, KERN_WARNING);
-define_dev_printk_level(dev_notice, KERN_NOTICE);
+define_dev_printk_level(_dev_emerg, KERN_EMERG);
+define_dev_printk_level(_dev_alert, KERN_ALERT);
+define_dev_printk_level(_dev_crit, KERN_CRIT);
+define_dev_printk_level(_dev_err, KERN_ERR);
+define_dev_printk_level(_dev_warn, KERN_WARNING);
+define_dev_printk_level(_dev_notice, KERN_NOTICE);
 define_dev_printk_level(_dev_info, KERN_INFO);
 
 #endif

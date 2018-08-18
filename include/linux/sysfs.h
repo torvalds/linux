@@ -91,9 +91,9 @@ struct attribute_group {
 	struct bin_attribute	**bin_attrs;
 };
 
-/**
- * Use these macros to make defining attributes easier. See include/linux/device.h
- * for examples..
+/*
+ * Use these macros to make defining attributes easier.
+ * See include/linux/device.h for examples..
  */
 
 #define SYSFS_PREALLOC 010000

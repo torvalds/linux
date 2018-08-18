@@ -1284,8 +1284,6 @@ static int __init rk_iommu_init(void)
 }
 subsys_initcall(rk_iommu_init);
 
-IOMMU_OF_DECLARE(rk_iommu_of, "rockchip,iommu");
-
 MODULE_DESCRIPTION("IOMMU API for Rockchip");
 MODULE_AUTHOR("Simon Xue <xxm@rock-chips.com> and Daniel Kurtz <djkurtz@chromium.org>");
 MODULE_ALIAS("platform:rockchip-iommu");
