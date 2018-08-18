@@ -44,7 +44,6 @@
 #include "regression.h"
 
 static RADIX_TREE(mt_tree, GFP_KERNEL);
-static pthread_mutex_t mt_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct page {
 	pthread_mutex_t lock;
@@ -126,29 +125,29 @@ static void *regression1_fn(void *arg)
 			struct page *p;
 
 			p = page_alloc(0);
-			pthread_mutex_lock(&mt_lock);
+			xa_lock(&mt_tree);
 			radix_tree_insert(&mt_tree, 0, p);
-			pthread_mutex_unlock(&mt_lock);
+			xa_unlock(&mt_tree);
 
 			p = page_alloc(1);
-			pthread_mutex_lock(&mt_lock);
+			xa_lock(&mt_tree);
 			radix_tree_insert(&mt_tree, 1, p);
-			pthread_mutex_unlock(&mt_lock);
+			xa_unlock(&mt_tree);
 
-			pthread_mutex_lock(&mt_lock);
+			xa_lock(&mt_tree);
 			p = radix_tree_delete(&mt_tree, 1);
 			pthread_mutex_lock(&p->lock);
 			p->count--;
 			pthread_mutex_unlock(&p->lock);
-			pthread_mutex_unlock(&mt_lock);
+			xa_unlock(&mt_tree);
 			page_free(p);
 
-			pthread_mutex_lock(&mt_lock);
+			xa_lock(&mt_tree);
 			p = radix_tree_delete(&mt_tree, 0);
 			pthread_mutex_lock(&p->lock);
 			p->count--;
 			pthread_mutex_unlock(&p->lock);
-			pthread_mutex_unlock(&mt_lock);
+			xa_unlock(&mt_tree);
 			page_free(p);
 		}
 	} else {

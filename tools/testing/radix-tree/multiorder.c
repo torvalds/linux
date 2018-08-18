@@ -59,7 +59,7 @@ static void __multiorder_tag_test(int index, int order)
 		assert(!radix_tree_tag_get(&tree, i, 1));
 	}
 
-	assert(tag_tagged_items(&tree, NULL, 0, ~0UL, 10, 0, 1) == 1);
+	assert(tag_tagged_items(&tree, 0, ~0UL, 10, XA_MARK_0, XA_MARK_1) == 1);
 	assert(radix_tree_tag_clear(&tree, index, 0));
 
 	for_each_index(i, base, order) {
@@ -87,7 +87,7 @@ static void __multiorder_tag_test2(unsigned order, unsigned long index2)
 	assert(radix_tree_tag_set(&tree, 0, 0));
 	assert(radix_tree_tag_set(&tree, index2, 0));
 
-	assert(tag_tagged_items(&tree, NULL, 0, ~0UL, 10, 0, 1) == 2);
+	assert(tag_tagged_items(&tree, 0, ~0UL, 10, XA_MARK_0, XA_MARK_1) == 2);
 
 	item_kill_tree(&tree);
 }
@@ -318,8 +318,8 @@ void multiorder_tagged_iteration(void)
 		}
 	}
 
-	assert(tag_tagged_items(&tree, NULL, 0, ~0UL, TAG_ENTRIES, 1, 2) ==
-				TAG_ENTRIES);
+	assert(tag_tagged_items(&tree, 0, ~0UL, TAG_ENTRIES, XA_MARK_1,
+				XA_MARK_2) == TAG_ENTRIES);
 
 	for (j = 0; j < 256; j++) {
 		int mask, k;
@@ -345,8 +345,8 @@ void multiorder_tagged_iteration(void)
 		}
 	}
 
-	assert(tag_tagged_items(&tree, NULL, 1, ~0UL, MT_NUM_ENTRIES * 2, 1, 0)
-			== TAG_ENTRIES);
+	assert(tag_tagged_items(&tree, 1, ~0UL, MT_NUM_ENTRIES * 2, XA_MARK_1,
+				XA_MARK_0) == TAG_ENTRIES);
 	i = 0;
 	radix_tree_for_each_tagged(slot, &tree, &iter, 0, 0) {
 		assert(iter.index == tag_index[i]);

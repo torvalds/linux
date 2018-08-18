@@ -18,10 +18,9 @@
 
 #define NUM_THREADS	5
 #define MAX_IDX		100
-#define TAG		0
-#define NEW_TAG		1
+#define TAG		XA_MARK_0
+#define NEW_TAG		XA_MARK_1
 
-static pthread_mutex_t tree_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t threads[NUM_THREADS];
 static unsigned int seeds[3];
 static RADIX_TREE(tree, GFP_KERNEL);
@@ -38,7 +37,7 @@ static void *add_entries_fn(void *arg)
 		int order;
 
 		for (pgoff = 0; pgoff < MAX_IDX; pgoff++) {
-			pthread_mutex_lock(&tree_lock);
+			xa_lock(&tree);
 			for (order = max_order; order >= 0; order--) {
 				if (item_insert_order(&tree, pgoff, order)
 						== 0) {
@@ -46,7 +45,7 @@ static void *add_entries_fn(void *arg)
 					break;
 				}
 			}
-			pthread_mutex_unlock(&tree_lock);
+			xa_unlock(&tree);
 		}
 	}
 
@@ -150,9 +149,9 @@ static void *remove_entries_fn(void *arg)
 
 		pgoff = rand_r(&seeds[2]) % MAX_IDX;
 
-		pthread_mutex_lock(&tree_lock);
+		xa_lock(&tree);
 		item_delete(&tree, pgoff);
-		pthread_mutex_unlock(&tree_lock);
+		xa_unlock(&tree);
 	}
 
 	rcu_unregister_thread();
@@ -165,8 +164,7 @@ static void *tag_entries_fn(void *arg)
 	rcu_register_thread();
 
 	while (!test_complete) {
-		tag_tagged_items(&tree, &tree_lock, 0, MAX_IDX, 10, TAG,
-					NEW_TAG);
+		tag_tagged_items(&tree, 0, MAX_IDX, 10, TAG, NEW_TAG);
 	}
 	rcu_unregister_thread();
 	return NULL;

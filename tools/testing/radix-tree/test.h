@@ -29,9 +29,8 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 			unsigned long nr, int chunk);
 void item_kill_tree(struct radix_tree_root *root);
 
-int tag_tagged_items(struct radix_tree_root *, pthread_mutex_t *,
-			unsigned long start, unsigned long end, unsigned batch,
-			unsigned iftag, unsigned thentag);
+int tag_tagged_items(struct xarray *, unsigned long start, unsigned long end,
+		unsigned batch, xa_mark_t iftag, xa_mark_t thentag);
 
 void xarray_tests(void);
 void tag_check(void);

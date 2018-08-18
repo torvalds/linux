@@ -214,7 +214,7 @@ void copy_tag_check(void)
 	}
 
 //	printf("\ncopying tags...\n");
-	tagged = tag_tagged_items(&tree, NULL, start, end, ITEMS, 0, 1);
+	tagged = tag_tagged_items(&tree, start, end, ITEMS, XA_MARK_0, XA_MARK_1);
 
 //	printf("checking copied tags\n");
 	assert(tagged == count);
@@ -223,7 +223,7 @@ void copy_tag_check(void)
 	/* Copy tags in several rounds */
 //	printf("\ncopying tags...\n");
 	tmp = rand() % (count / 10 + 2);
-	tagged = tag_tagged_items(&tree, NULL, start, end, tmp, 0, 2);
+	tagged = tag_tagged_items(&tree, start, end, tmp, XA_MARK_0, XA_MARK_2);
 	assert(tagged == count);
 
 //	printf("%lu %lu %lu\n", tagged, tmp, count);

@@ -176,35 +176,28 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 }
 
 /* Use the same pattern as tag_pages_for_writeback() in mm/page-writeback.c */
-int tag_tagged_items(struct radix_tree_root *root, pthread_mutex_t *lock,
-			unsigned long start, unsigned long end, unsigned batch,
-			unsigned iftag, unsigned thentag)
+int tag_tagged_items(struct xarray *xa, unsigned long start, unsigned long end,
+		unsigned batch, xa_mark_t iftag, xa_mark_t thentag)
 {
-	unsigned long tagged = 0;
-	struct radix_tree_iter iter;
-	void **slot;
+	XA_STATE(xas, xa, start);
+	unsigned int tagged = 0;
+	struct item *item;
 
 	if (batch == 0)
 		batch = 1;
 
-	if (lock)
-		pthread_mutex_lock(lock);
-	radix_tree_for_each_tagged(slot, root, &iter, start, iftag) {
-		if (iter.index > end)
-			break;
-		radix_tree_iter_tag_set(root, &iter, thentag);
-		tagged++;
-		if ((tagged % batch) != 0)
+	xas_lock_irq(&xas);
+	xas_for_each_marked(&xas, item, end, iftag) {
+		xas_set_mark(&xas, thentag);
+		if (++tagged % batch)
 			continue;
-		slot = radix_tree_iter_resume(slot, &iter);
-		if (lock) {
-			pthread_mutex_unlock(lock);
-			rcu_barrier();
-			pthread_mutex_lock(lock);
-		}
+
+		xas_pause(&xas);
+		xas_unlock_irq(&xas);
+		rcu_barrier();
+		xas_lock_irq(&xas);
 	}
-	if (lock)
-		pthread_mutex_unlock(lock);
+	xas_unlock_irq(&xas);
 
 	return tagged;
 }
