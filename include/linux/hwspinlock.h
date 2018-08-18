@@ -52,7 +52,7 @@ struct hwspinlock_pdata {
 	int base_id;
 };
 
-#if defined(CONFIG_HWSPINLOCK) || defined(CONFIG_HWSPINLOCK_MODULE)
+#ifdef CONFIG_HWSPINLOCK
 
 int hwspin_lock_register(struct hwspinlock_device *bank, struct device *dev,
 		const struct hwspinlock_ops *ops, int base_id, int num_locks);
@@ -66,6 +66,17 @@ int __hwspin_lock_timeout(struct hwspinlock *, unsigned int, int,
 							unsigned long *);
 int __hwspin_trylock(struct hwspinlock *, int, unsigned long *);
 void __hwspin_unlock(struct hwspinlock *, int, unsigned long *);
+int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name);
+int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock);
+struct hwspinlock *devm_hwspin_lock_request(struct device *dev);
+struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
+						     unsigned int id);
+int devm_hwspin_lock_unregister(struct device *dev,
+				struct hwspinlock_device *bank);
+int devm_hwspin_lock_register(struct device *dev,
+			      struct hwspinlock_device *bank,
+			      const struct hwspinlock_ops *ops,
+			      int base_id, int num_locks);
 
 #else /* !CONFIG_HWSPINLOCK */
 
@@ -123,6 +134,30 @@ static inline int of_hwspin_lock_get_id(struct device_node *np, int index)
 static inline int hwspin_lock_get_id(struct hwspinlock *hwlock)
 {
 	return 0;
+}
+
+static inline
+int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name)
+{
+	return 0;
+}
+
+static inline
+int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock)
+{
+	return 0;
+}
+
+static inline struct hwspinlock *devm_hwspin_lock_request(struct device *dev)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline
+struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
+						     unsigned int id)
+{
+	return ERR_PTR(-ENODEV);
 }
 
 #endif /* !CONFIG_HWSPINLOCK */
