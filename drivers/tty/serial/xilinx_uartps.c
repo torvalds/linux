@@ -167,6 +167,7 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define CDNS_UART_SR_TXEMPTY	0x00000008 /* TX FIFO empty */
 #define CDNS_UART_SR_TXFULL	0x00000010 /* TX FIFO full */
 #define CDNS_UART_SR_RXTRIG	0x00000001 /* Rx Trigger */
+#define CDNS_UART_SR_TACTIVE	0x00000800 /* TX state machine active */
 
 /* baud dividers min/max values */
 #define CDNS_UART_BDIV_MIN	4
@@ -829,7 +830,7 @@ static int cdns_uart_startup(struct uart_port *port)
 	 * the receiver.
 	 */
 	status = readl(port->membase + CDNS_UART_CR);
-	status &= CDNS_UART_CR_RX_DIS;
+	status &= ~CDNS_UART_CR_RX_DIS;
 	status |= CDNS_UART_CR_RX_EN;
 	writel(status, port->membase + CDNS_UART_CR);
 
@@ -1099,23 +1100,14 @@ static const struct uart_ops cdns_uart_ops = {
 
 #ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
 /**
- * cdns_uart_console_wait_tx - Wait for the TX to be full
- * @port: Handle to the uart port structure
- */
-static void cdns_uart_console_wait_tx(struct uart_port *port)
-{
-	while (!(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXEMPTY))
-		barrier();
-}
-
-/**
  * cdns_uart_console_putchar - write the character to the FIFO buffer
  * @port: Handle to the uart port structure
  * @ch: Character to be written
  */
 static void cdns_uart_console_putchar(struct uart_port *port, int ch)
 {
-	cdns_uart_console_wait_tx(port);
+	while (readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL)
+		cpu_relax();
 	writel(ch, port->membase + CDNS_UART_FIFO);
 }
 
@@ -1206,9 +1198,10 @@ static void cdns_uart_console_write(struct console *co, const char *s,
 	writel(ctrl, port->membase + CDNS_UART_CR);
 
 	uart_console_write(port, s, count, cdns_uart_console_putchar);
-	cdns_uart_console_wait_tx(port);
-
-	writel(ctrl, port->membase + CDNS_UART_CR);
+	while ((readl(port->membase + CDNS_UART_SR) &
+			(CDNS_UART_SR_TXEMPTY | CDNS_UART_SR_TACTIVE)) !=
+			CDNS_UART_SR_TXEMPTY)
+		cpu_relax();
 
 	/* restore interrupt state */
 	writel(imr, port->membase + CDNS_UART_IER);
