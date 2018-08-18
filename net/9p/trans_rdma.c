@@ -320,6 +320,7 @@ recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (wc->status != IB_WC_SUCCESS)
 		goto err_out;
 
+	c->rc->size = wc->byte_len;
 	err = p9_parse_header(c->rc, NULL, NULL, &tag, 1);
 	if (err)
 		goto err_out;
@@ -643,6 +644,9 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	struct p9_trans_rdma *rdma;
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
+
+	if (addr == NULL)
+		return -EINVAL;
 
 	/* Parse the transport specific mount options */
 	err = parse_opts(args, &opts);
