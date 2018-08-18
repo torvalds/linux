@@ -354,7 +354,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	u16 auth_type;
 	unsigned char temp[256];
 	struct ether_hdr *eth_hdr;
-	unsigned short eth_proto;
 	struct ieee802_1x_hdr *aa1x_hdr;
 	size_t size;
 	int ret;
@@ -369,7 +368,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	get_word(priv);	/* Reserve Area */
 
 	eth_hdr = (struct ether_hdr *)(priv->rxp);
-	eth_proto = ntohs(eth_hdr->h_proto);
 
 	/* source address check */
 	if (ether_addr_equal(&priv->eth_addr[0], eth_hdr->h_source)) {

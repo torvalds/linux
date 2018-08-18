@@ -4,6 +4,7 @@ Required properties:
 - compatible:	depending on the SoC this should be one of:
 			- "amlogic,meson8-saradc" for Meson8
 			- "amlogic,meson8b-saradc" for Meson8b
+			- "amlogic,meson8m2-saradc" for Meson8m2
 			- "amlogic,meson-gxbb-saradc" for GXBB
 			- "amlogic,meson-gxl-saradc" for GXL
 			- "amlogic,meson-gxm-saradc" for GXM

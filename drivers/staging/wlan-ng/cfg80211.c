@@ -148,40 +148,26 @@ static int prism2_add_key(struct wiphy *wiphy, struct net_device *dev,
 	struct wlandevice *wlandev = dev->ml_priv;
 	u32 did;
 
-	int err = 0;
-	int result = 0;
-
 	if (key_index >= NUM_WEPKEYS)
 		return -EINVAL;
 
-	switch (params->cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
-		result = prism2_domibset_uint32(wlandev,
-						DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
-						key_index);
-		if (result)
-			goto exit;
-
-		/* send key to driver */
-		did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(key_index + 1);
-
-		result = prism2_domibset_pstr32(wlandev, did,
-						params->key_len, params->key);
-		if (result)
-			goto exit;
-		break;
-
-	default:
+	if (params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
+	    params->cipher != WLAN_CIPHER_SUITE_WEP104) {
 		pr_debug("Unsupported cipher suite\n");
-		result = 1;
+		return -EFAULT;
 	}
 
-exit:
-	if (result)
-		err = -EFAULT;
+	if (prism2_domibset_uint32(wlandev,
+				   DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
+				   key_index))
+		return -EFAULT;
 
-	return err;
+	/* send key to driver */
+	did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(key_index + 1);
+
+	if (prism2_domibset_pstr32(wlandev, did, params->key_len, params->key))
+		return -EFAULT;
+	return 0;
 }
 
 static int prism2_get_key(struct wiphy *wiphy, struct net_device *dev,
@@ -282,9 +268,9 @@ static int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (result == 0) {
 		sinfo->txrate.legacy = quality.txrate.data;
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 		sinfo->signal = quality.level.data;
-		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 	}
 
 	return result;

@@ -38,8 +38,8 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 
-		/* FIXME: there should be way to detect this */
-		clock-frequency = <50000000>;
+		/* This is normally 1/4 of cpuclock */
+		clock-frequency = <220000000>;
 	};
 
 	palmbus: palmbus@1E000000 {
@@ -61,37 +61,14 @@
 		};
 
 		gpio: gpio@600 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
 			compatible = "mediatek,mt7621-gpio";
+			gpio-controller;
+			interrupt-controller;
 			reg = <0x600 0x100>;
-
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-
-			gpio0: bank@0 {
-				reg = <0>;
-				compatible = "mediatek,mt7621-gpio-bank";
-				gpio-controller;
-				#gpio-cells = <2>;
-			};
-
-			gpio1: bank@1 {
-				reg = <1>;
-				compatible = "mediatek,mt7621-gpio-bank";
-				gpio-controller;
-				#gpio-cells = <2>;
-			};
-
-			gpio2: bank@2 {
-				reg = <2>;
-				compatible = "mediatek,mt7621-gpio-bank";
-				gpio-controller;
-				#gpio-cells = <2>;
-			};
 		};
 
 		i2c: i2c@900 {
@@ -227,83 +204,83 @@
 
 		i2c_pins: i2c {
 			i2c {
-				ralink,group = "i2c";
-				ralink,function = "i2c";
+				group = "i2c";
+				function = "i2c";
 			};
 		};
 
 		spi_pins: spi {
 			spi {
-				ralink,group = "spi";
-				ralink,function = "spi";
+				group = "spi";
+				function = "spi";
 			};
 		};
 
 		uart1_pins: uart1 {
 			uart1 {
-				ralink,group = "uart1";
-				ralink,function = "uart1";
+				group = "uart1";
+				function = "uart1";
 			};
 		};
 
 		uart2_pins: uart2 {
 			uart2 {
-				ralink,group = "uart2";
-				ralink,function = "uart2";
+				group = "uart2";
+				function = "uart2";
 			};
 		};
 
 		uart3_pins: uart3 {
 			uart3 {
-				ralink,group = "uart3";
-				ralink,function = "uart3";
+				group = "uart3";
+				function = "uart3";
 			};
 		};
 
 		rgmii1_pins: rgmii1 {
 			rgmii1 {
-				ralink,group = "rgmii1";
-				ralink,function = "rgmii1";
+				group = "rgmii1";
+				function = "rgmii1";
 			};
 		};
 
 		rgmii2_pins: rgmii2 {
 			rgmii2 {
-				ralink,group = "rgmii2";
-				ralink,function = "rgmii2";
+				group = "rgmii2";
+				function = "rgmii2";
 			};
 		};
 
 		mdio_pins: mdio {
 			mdio {
-				ralink,group = "mdio";
-				ralink,function = "mdio";
+				group = "mdio";
+				function = "mdio";
 			};
 		};
 
 		pcie_pins: pcie {
 			pcie {
-				ralink,group = "pcie";
-				ralink,function = "pcie rst";
+				group = "pcie";
+				function = "pcie rst";
 			};
 		};
 
 		nand_pins: nand {
 			spi-nand {
-				ralink,group = "spi";
-				ralink,function = "nand1";
+				group = "spi";
+				function = "nand1";
 			};
 
 			sdhci-nand {
-				ralink,group = "sdhci";
-				ralink,function = "nand2";
+				group = "sdhci";
+				function = "nand2";
 			};
 		};
 
 		sdhci_pins: sdhci {
 			sdhci {
-				ralink,group = "sdhci";
-				ralink,function = "sdhci";
+				group = "sdhci";
+				function = "sdhci";
 			};
 		};
 	};
@@ -417,8 +394,10 @@
 
 	pcie: pcie@1e140000 {
 		compatible = "mediatek,mt7621-pci";
-		reg = <0x1e140000 0x100
-			0x1e142000 0x100>;
+		reg = <0x1e140000 0x100     /* host-pci bridge registers */
+			0x1e142000 0x100    /* pcie port 0 RC control registers */
+			0x1e143000 0x100    /* pcie port 1 RC control registers */
+			0x1e144000 0x100>;  /* pcie port 2 RC control registers */
 
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -447,31 +426,28 @@
 		clocks = <&clkctrl 24 &clkctrl 25 &clkctrl 26>;
 		clock-names = "pcie0", "pcie1", "pcie2";
 
-		pcie0 {
+		pcie@0,0 {
 			reg = <0x0000 0 0 0 0>;
-
 			#address-cells = <3>;
 			#size-cells = <2>;
-
-			device_type = "pci";
+			ranges;
+			bus-range = <0x00 0xff>;
 		};
 
-		pcie1 {
+		pcie@1,0 {
 			reg = <0x0800 0 0 0 0>;
-
 			#address-cells = <3>;
 			#size-cells = <2>;
-
-			device_type = "pci";
+			ranges;
+			bus-range = <0x00 0xff>;
 		};
 
-		pcie2 {
+		pcie@2,0 {
 			reg = <0x1000 0 0 0 0>;
-
 			#address-cells = <3>;
 			#size-cells = <2>;
-
-			device_type = "pci";
+			ranges;
+			bus-range = <0x00 0xff>;
 		};
 	};
 };

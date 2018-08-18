@@ -679,22 +679,27 @@ static int flexfb_probe_common(struct spi_device *sdev,
 			if (par->spi->master->bits_per_word_mask
 			    & SPI_BPW_MASK(9)) {
 				par->spi->bits_per_word = 9;
-			} else {
-				dev_warn(dev,
-					"9-bit SPI not available, emulating using 8-bit.\n");
-				/* allocate buffer with room for dc bits */
-				par->extra = devm_kzalloc(par->info->device,
-						par->txbuf.len + (par->txbuf.len / 8) + 8,
-						GFP_KERNEL);
-				if (!par->extra) {
-					ret = -ENOMEM;
-					goto out_release;
-				}
-				par->fbtftops.write = fbtft_write_spi_emulate_9;
+				break;
 			}
+
+			dev_warn(dev,
+				 "9-bit SPI not available, emulating using 8-bit.\n");
+			/* allocate buffer with room for dc bits */
+			par->extra = devm_kzalloc(par->info->device,
+						  par->txbuf.len
+						  + (par->txbuf.len / 8) + 8,
+						  GFP_KERNEL);
+			if (!par->extra) {
+				ret = -ENOMEM;
+				goto out_release;
+			}
+			par->fbtftops.write = fbtft_write_spi_emulate_9;
+
 			break;
 		default:
-			dev_err(dev, "argument 'buswidth': %d is not supported with SPI.\n", buswidth);
+			dev_err(dev,
+				"argument 'buswidth': %d is not supported with SPI.\n",
+				buswidth);
 			return -EINVAL;
 		}
 	} else {

@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries
+ * All rights reserved.
+ */
+
 #ifndef HOST_INT_H
 #define HOST_INT_H
 #include <linux/ieee80211.h>
@@ -81,7 +86,7 @@ struct host_if_pmkid_attr {
 	struct host_if_pmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
 };
 
-enum CURRENT_TXRATE {
+enum current_tx_rate {
 	AUTORATE	= 0,
 	MBPS_1		= 1,
 	MBPS_2		= 2,
@@ -113,12 +118,12 @@ struct cfg_param_attr {
 	u8 txop_prot_disabled;
 	u16 beacon_interval;
 	u16 dtim_period;
-	enum SITESURVEY site_survey_enabled;
+	enum site_survey site_survey_enabled;
 	u16 site_survey_scan_time;
 	u8 scan_source;
 	u16 active_scan_time;
 	u16 passive_scan_time;
-	enum CURRENT_TXRATE curr_tx_rate;
+	enum current_tx_rate curr_tx_rate;
 
 };
 
@@ -199,7 +204,7 @@ struct hidden_network {
 struct user_scan_req {
 	wilc_scan_result scan_result;
 	void *arg;
-	u32 rcvd_ch_cnt;
+	u32 ch_cnt;
 	struct found_net_info net_info[MAX_NUM_SCANNED_NETWORKS];
 };
 
@@ -207,7 +212,7 @@ struct user_conn_req {
 	u8 *bssid;
 	u8 *ssid;
 	u8 security;
-	enum AUTHTYPE auth_type;
+	enum authtype auth_type;
 	size_t ssid_len;
 	u8 *ies;
 	size_t ies_len;
@@ -252,12 +257,6 @@ struct reg_frame {
 	u8 reg_id;
 };
 
-enum p2p_listen_state {
-	P2P_IDLE,
-	P2P_LISTEN,
-	P2P_GRP_FORMATION
-};
-
 struct wilc;
 struct host_if_drv {
 	struct user_scan_req usr_scan_req;
@@ -273,10 +272,6 @@ struct host_if_drv {
 	struct cfg_param_attr cfg_values;
 	/*lock to protect concurrent setting of cfg params*/
 	struct mutex cfg_values_lock;
-	struct completion comp_test_key_block;
-	struct completion comp_test_disconn_block;
-	struct completion comp_get_rssi;
-	struct completion comp_inactive_time;
 
 	struct timer_list scan_timer;
 	struct wilc_vif *scan_timer_vif;
@@ -287,7 +282,7 @@ struct host_if_drv {
 	struct timer_list remain_on_ch_timer;
 	struct wilc_vif *remain_on_ch_timer_vif;
 
-	bool IFC_UP;
+	bool ifc_up;
 	int driver_handler_id;
 };
 
@@ -308,7 +303,7 @@ int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index);
 int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
 			     u8 index);
 int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
-			    u8 index, u8 mode, enum AUTHTYPE auth_type);
+			    u8 index, u8 mode, enum authtype auth_type);
 int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		 const u8 *mac_addr, const u8 *rx_mic, const u8 *tx_mic,
 		 u8 mode, u8 cipher_mode, u8 index);
@@ -324,7 +319,7 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr);
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssid_len, const u8 *ies, size_t ies_len,
 		      wilc_connect_result connect_result, void *user_arg,
-		      u8 security, enum AUTHTYPE auth_type,
+		      u8 security, enum authtype auth_type,
 		      u8 channel, void *join_params);
 int wilc_disconnect(struct wilc_vif *vif, u16 reason_code);
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);
@@ -359,7 +354,8 @@ int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg);
 int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 			     u8 ifc_id);
 int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode);
-int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats);
+int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats,
+			bool is_sync);
 void wilc_resolve_disconnect_aberration(struct wilc_vif *vif);
 int wilc_get_vif_idx(struct wilc_vif *vif);
 int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power);

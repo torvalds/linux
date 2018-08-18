@@ -8,20 +8,9 @@
 //------------------------------------------------------------
 
 //
-// Operation mode value
-//
-#define HT_OPMODE_NO_PROTECT		0
-#define HT_OPMODE_OPTIONAL		1
-#define HT_OPMODE_40MHZ_PROTECT	2
-#define HT_OPMODE_MIXED			3
-
-//
 // MIMO Power Save Settings
 //
 #define MIMO_PS_STATIC				0
-#define MIMO_PS_DYNAMIC			1
-#define MIMO_PS_NOLIMIT			3
-
 
 //
 //	There should be 128 bits to cover all of the MCS rates. However, since
@@ -35,45 +24,24 @@
 #define HT_SUPPORTED_MCS_2SS_BITMAP					0x0000ff00
 #define HT_SUPPORTED_MCS_1SS_2SS_BITMAP			HT_MCS_1SS_BITMAP|HT_MCS_1SS_2SS_BITMAP
 
-
-typedef enum _HT_MCS_RATE {
-	HT_MCS0   = 0x00000001,
-	HT_MCS1   = 0x00000002,
-	HT_MCS2   = 0x00000004,
-	HT_MCS3   = 0x00000008,
-	HT_MCS4   = 0x00000010,
-	HT_MCS5   = 0x00000020,
-	HT_MCS6   = 0x00000040,
-	HT_MCS7   = 0x00000080,
-	HT_MCS8   = 0x00000100,
-	HT_MCS9   = 0x00000200,
-	HT_MCS10 = 0x00000400,
-	HT_MCS11 = 0x00000800,
-	HT_MCS12 = 0x00001000,
-	HT_MCS13 = 0x00002000,
-	HT_MCS14 = 0x00004000,
-	HT_MCS15 = 0x00008000,
-	// Do not define MCS32 here although 8190 support MCS32
-} HT_MCS_RATE, *PHT_MCS_RATE;
-
 //
 // Represent Channel Width in HT Capabilities
 //
-typedef enum _HT_CHANNEL_WIDTH {
+enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
-}HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
+};
 
 //
 // Represent Extension Channel Offset in HT Capabilities
 // This is available only in 40Mhz mode.
 //
-typedef enum _HT_EXTCHNL_OFFSET {
+enum ht_extension_chan_offset {
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
 	HT_EXTCHNL_OFFSET_UPPER = 1,
 	HT_EXTCHNL_OFFSET_NO_DEF = 2,
 	HT_EXTCHNL_OFFSET_LOWER = 3,
-}HT_EXTCHNL_OFFSET, *PHT_EXTCHNL_OFFSET;
+};
 
 typedef enum _CHNLOP {
 	CHNLOP_NONE = 0, // No Action now
@@ -119,28 +87,6 @@ typedef	union _HT_CAPABILITY_MACPARA{
 	}Field;
 }HT_CAPABILITY_MACPARA, *PHT_CAPABILITY_MACPARA;
 */
-
-typedef enum _HT_ACTION {
-	ACT_RECOMMAND_WIDTH		= 0,
-	ACT_MIMO_PWR_SAVE		= 1,
-	ACT_PSMP					= 2,
-	ACT_SET_PCO_PHASE		= 3,
-	ACT_MIMO_CHL_MEASURE	= 4,
-	ACT_RECIPROCITY_CORRECT	= 5,
-	ACT_MIMO_CSI_MATRICS		= 6,
-	ACT_MIMO_NOCOMPR_STEER	= 7,
-	ACT_MIMO_COMPR_STEER		= 8,
-	ACT_ANTENNA_SELECT		= 9,
-} HT_ACTION, *PHT_ACTION;
-
-
-/* 2007/06/07 MH Define sub-carrier mode for 40MHZ. */
-typedef enum _HT_Bandwidth_40MHZ_Sub_Carrier {
-	SC_MODE_DUPLICATE = 0,
-	SC_MODE_LOWER = 1,
-	SC_MODE_UPPER = 2,
-	SC_MODE_FULL40MHZ = 3,
-}HT_BW40_SC_E;
 
 typedef	struct _HT_CAPABILITY_ELE {
 
@@ -211,16 +157,6 @@ typedef struct _HT_INFORMATION_ELE {
 
 	u8	BasicMSC[16];
 } __attribute__ ((packed)) HT_INFORMATION_ELE, *PHT_INFORMATION_ELE;
-
-//
-// MIMO Power Save control field.
-// This is appear in MIMO Power Save Action Frame
-//
-typedef struct _MIMOPS_CTRL {
-	u8	MimoPsEnable:1;
-	u8	MimoPsMode:1;
-	u8	Reserved:6;
-} MIMOPS_CTRL, *PMIMOPS_CTRL;
 
 typedef enum _HT_SPEC_VER {
 	HT_SPEC_VER_IEEE = 0,
@@ -301,7 +237,7 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	u8				PeerMimoPs;
 
 	// 40MHz Channel Offset settings.
-	HT_EXTCHNL_OFFSET	CurSTAExtChnlOffset;
+	enum ht_extension_chan_offset	CurSTAExtChnlOffset;
 	u8				bCurTxBW40MHz;	// If we use 40 MHz to Tx
 	u8				PeerBandwidth;
 
@@ -342,37 +278,6 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	u32				IOTAction;
 } __attribute__ ((packed)) RT_HIGH_THROUGHPUT, *PRT_HIGH_THROUGHPUT;
 
-
-//------------------------------------------------------------
-// The Data structure is used to keep HT related variable for "each Sta"
-// when card is configured as "AP mode"
-//------------------------------------------------------------
-
-typedef struct _RT_HTINFO_STA_ENTRY {
-	u8			bEnableHT;
-
-	u8			bSupportCck;
-
-	u16			AMSDU_MaxSize;
-
-	u8			AMPDU_Factor;
-	u8			MPDU_Density;
-
-	u8			HTHighestOperaRate;
-
-	u8			bBw40MHz;
-
-	u8			MimoPs;
-
-	u8			McsRateSet[16];
-
-
-}RT_HTINFO_STA_ENTRY, *PRT_HTINFO_STA_ENTRY;
-
-
-
-
-
 //------------------------------------------------------------
 // The Data structure is used to keep HT related variable for "each AP"
 // when card is configured as "STA mode"
@@ -395,28 +300,6 @@ typedef struct _BSS_HT {
 	u8					bdRT2RTAggregation;
 	u8					bdRT2RTLongSlotTime;
 } __attribute__ ((packed)) BSS_HT, *PBSS_HT;
-
-typedef struct _MIMO_RSSI {
-	u32	EnableAntenna;
-	u32	AntennaA;
-	u32	AntennaB;
-	u32	AntennaC;
-	u32	AntennaD;
-	u32	Average;
-}MIMO_RSSI, *PMIMO_RSSI;
-
-typedef struct _MIMO_EVM {
-	u32	EVM1;
-	u32    EVM2;
-}MIMO_EVM, *PMIMO_EVM;
-
-typedef struct _FALSE_ALARM_STATISTICS {
-	u32	Cnt_Parity_Fail;
-	u32    Cnt_Rate_Illegal;
-	u32	Cnt_Crc8_fail;
-	u32	Cnt_all;
-}FALSE_ALARM_STATISTICS, *PFALSE_ALARM_STATISTICS;
-
 
 extern u8 MCS_FILTER_ALL[16];
 extern u8 MCS_FILTER_1SS[16];

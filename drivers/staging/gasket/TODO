@@ -1,0 +1,9 @@
+This is a list of things that need to be done to get this driver out of the
+staging directory.
+- Document sysfs files with Documentation/ABI/ entries.
+- Use misc interface instead of major number for driver version description.
+- Add descriptions of module_param's
+- apex_get_status() should actually check status.
+- "drivers" should never be dealing with "raw" sysfs calls or mess around with
+  kobjects at all. The driver core should handle all of this for you
+  automaically. There should not be a need for raw attribute macros.

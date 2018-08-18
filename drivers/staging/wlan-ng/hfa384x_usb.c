@@ -1290,7 +1290,7 @@ cleanup:
  *	cmdcb		command-specific callback
  *	usercb		user callback for async calls, NULL for DOWAIT calls
  *	usercb_data	user supplied data pointer for async calls, NULL
- *			for DOASYNC calls
+ *			for DOWAIT calls
  *
  * Returns:
  *	0		success

@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
+ */
+
 #ifndef WILC_WFI_NETDEVICE
 #define WILC_WFI_NETDEVICE
 
@@ -7,6 +12,7 @@
 #include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
+#include <linux/gpio/consumer.h>
 
 #include "host_interface.h"
 #include "wilc_wlan.h"
@@ -21,6 +27,11 @@
 
 #define NUM_REG_FRAME				2
 
+#define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
+#define DEFAULT_LINK_SPEED			72
+
+#define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
+
 struct wilc_wfi_stats {
 	unsigned long rx_packets;
 	unsigned long tx_packets;
@@ -30,11 +41,6 @@ struct wilc_wfi_stats {
 	u64 tx_time;
 
 };
-
-/*
- * This structure is private to each device. It is used to pass
- * packets in and out, so there is place for a packet
- */
 
 struct wilc_wfi_key {
 	u8 *key;
@@ -74,14 +80,10 @@ struct wilc_priv {
 
 	u8 associated_bss[ETH_ALEN];
 	struct sta_info assoc_stainfo;
-	struct net_device_stats stats;
-	u8 monitor_flag;
-	int status;
 	struct sk_buff *skb;
 	struct net_device *dev;
 	struct host_if_drv *hif_drv;
 	struct host_if_pmkid_attr pmkid_list;
-	struct wilc_wfi_stats netstats;
 	u8 wep_key[4][WLAN_KEY_LEN_WEP104];
 	u8 wep_key_len[4];
 	/* The real interface that the monitor is on */
@@ -91,9 +93,6 @@ struct wilc_priv {
 	u8 wilc_groupkey;
 	/* mutexes */
 	struct mutex scan_req_lock;
-	/*  */
-	bool auto_rate_adjusted;
-
 	bool p2p_listen_state;
 
 };
@@ -123,7 +122,7 @@ struct wilc {
 	const struct wilc_hif_func *hif_func;
 	int io_type;
 	int mac_status;
-	int gpio;
+	struct gpio_desc *gpio_irq;
 	bool initialized;
 	int dev_irq_num;
 	int close;
@@ -136,6 +135,7 @@ struct wilc {
 	spinlock_t txq_spinlock;
 	/*protect rxq_entry_t receiver queue*/
 	struct mutex rxq_cs;
+	/* lock to protect hif access */
 	struct mutex hif_cs;
 
 	struct completion cfg_event;
@@ -155,19 +155,10 @@ struct wilc {
 	u32 rx_buffer_offset;
 	u8 *tx_buffer;
 
-	unsigned long txq_spinlock_flags;
-
-	struct txq_entry_t *txq_head;
-	struct txq_entry_t *txq_tail;
+	struct txq_entry_t txq_head;
 	int txq_entries;
-	int txq_exit;
 
-	struct rxq_entry_t *rxq_head;
-	struct rxq_entry_t *rxq_tail;
-	int rxq_entries;
-	int rxq_exit;
-
-	unsigned char eth_src_address[NUM_CONCURRENT_IFC][6];
+	struct rxq_entry_t rxq_head;
 
 	const struct firmware *firmware;
 
@@ -185,7 +176,7 @@ void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc);
 void wilc_netdev_cleanup(struct wilc *wilc);
 int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
-		     int gpio, const struct wilc_hif_func *ops);
+		     const struct wilc_hif_func *ops);
 void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
 

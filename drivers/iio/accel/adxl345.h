@@ -11,8 +11,13 @@
 #ifndef _ADXL345_H_
 #define _ADXL345_H_
 
+enum adxl345_device_type {
+	ADXL345,
+	ADXL375,
+};
+
 int adxl345_core_probe(struct device *dev, struct regmap *regmap,
-		       const char *name);
+		       enum adxl345_device_type type, const char *name);
 int adxl345_core_remove(struct device *dev);
 
 #endif /* _ADXL345_H_ */

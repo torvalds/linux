@@ -405,7 +405,7 @@ static int handle_vsoc_cond_wait(struct file *filp, struct vsoc_cond_wait *arg)
 	int ret = 0;
 	struct vsoc_device_region *region_p = vsoc_region_from_filep(filp);
 	atomic_t *address = NULL;
-	struct timespec ts;
+	ktime_t wake_time;
 
 	/* Ensure that the offset is aligned */
 	if (arg->offset & (sizeof(uint32_t) - 1))
@@ -433,14 +433,13 @@ static int handle_vsoc_cond_wait(struct file *filp, struct vsoc_cond_wait *arg)
 		 * We do things this way to flatten differences between 32 bit
 		 * and 64 bit timespecs.
 		 */
-		ts.tv_sec = arg->wake_time_sec;
-		ts.tv_nsec = arg->wake_time_nsec;
-
-		if (!timespec_valid(&ts))
+		if (arg->wake_time_nsec >= NSEC_PER_SEC)
 			return -EINVAL;
+		wake_time = ktime_set(arg->wake_time_sec, arg->wake_time_nsec);
+
 		hrtimer_init_on_stack(&to->timer, CLOCK_MONOTONIC,
 				      HRTIMER_MODE_ABS);
-		hrtimer_set_expires_range_ns(&to->timer, timespec_to_ktime(ts),
+		hrtimer_set_expires_range_ns(&to->timer, wake_time,
 					     current->timer_slack_ns);
 
 		hrtimer_init_sleeper(to, current);

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _IEEE80211_C
@@ -47,24 +39,23 @@ u8 RSN_CIPHER_SUITE_WEP104[] = { 0x00, 0x0f, 0xac, 5 };
 /*  for adhoc-master to generate ie and provide supported-rate to fw */
 /*  */
 
-static u8	WIFI_CCKRATES[] = {
-	(IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK),
-	(IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK),
-	(IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK),
-	(IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK)
-	};
+static u8 WIFI_CCKRATES[] = {
+	IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK
+};
 
-static u8	WIFI_OFDMRATES[] = {
-	 (IEEE80211_OFDM_RATE_6MB),
-	 (IEEE80211_OFDM_RATE_9MB),
-	 (IEEE80211_OFDM_RATE_12MB),
-	 (IEEE80211_OFDM_RATE_18MB),
-	 (IEEE80211_OFDM_RATE_24MB),
+static u8 WIFI_OFDMRATES[] = {
+	 IEEE80211_OFDM_RATE_6MB,
+	 IEEE80211_OFDM_RATE_9MB,
+	 IEEE80211_OFDM_RATE_12MB,
+	 IEEE80211_OFDM_RATE_18MB,
+	 IEEE80211_OFDM_RATE_24MB,
 	 IEEE80211_OFDM_RATE_36MB,
 	 IEEE80211_OFDM_RATE_48MB,
 	 IEEE80211_OFDM_RATE_54MB
-	};
-
+};
 
 int rtw_get_bit_value_from_ieee_value(u8 val)
 {
@@ -81,28 +72,27 @@ int rtw_get_bit_value_from_ieee_value(u8 val)
 	return 0;
 }
 
-uint	rtw_is_cckrates_included(u8 *rate)
+bool rtw_is_cckrates_included(u8 *rate)
 {
-	u32	i = 0;
+	while (*rate) {
+		u8 r = *rate & 0x7f;
 
-	while (rate[i] != 0) {
-		if  ((((rate[i]) & 0x7f) == 2) || (((rate[i]) & 0x7f) == 4) ||
-		     (((rate[i]) & 0x7f) == 11)  || (((rate[i]) & 0x7f) == 22))
+		if (r == 2 || r == 4 || r == 11 || r == 22)
 			return true;
-		i++;
+		rate++;
 	}
+
 	return false;
 }
 
-uint	rtw_is_cckratesonly_included(u8 *rate)
+bool rtw_is_cckratesonly_included(u8 *rate)
 {
-	u32 i = 0;
+	while (*rate) {
+		u8 r = *rate & 0x7f;
 
-	while (rate[i] != 0) {
-		if  ((((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
-		     (((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22))
+		if (r != 2 && r != 4 && r != 11 && r != 22)
 			return false;
-		i++;
+		rate++;
 	}
 
 	return true;
@@ -111,14 +101,14 @@ uint	rtw_is_cckratesonly_included(u8 *rate)
 int rtw_check_network_type(unsigned char *rate, int ratelen, int channel)
 {
 	if (channel > 14) {
-		if ((rtw_is_cckrates_included(rate)) == true)
+		if (rtw_is_cckrates_included(rate))
 			return WIRELESS_INVALID;
 		else
 			return WIRELESS_11A;
 	} else {  /*  could be pure B, pure G, or B/G */
-		if ((rtw_is_cckratesonly_included(rate)) == true)
+		if (rtw_is_cckratesonly_included(rate))
 			return WIRELESS_11B;
-		else if ((rtw_is_cckrates_included(rate)) == true)
+		else if (rtw_is_cckrates_included(rate))
 			return	WIRELESS_11BG;
 		else
 			return WIRELESS_11G;
@@ -186,7 +176,6 @@ u8 *rtw_get_ie(u8 *pbuf, int index, uint *len, int limit)
 
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 {
-
 	memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
 	switch (mode) {
@@ -209,28 +198,23 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 	}
 }
 
-uint	rtw_get_rateset_len(u8	*rateset)
+uint rtw_get_rateset_len(u8 *rateset)
 {
-	uint i = 0;
+	uint i;
 
-	while (1) {
-		if ((rateset[i]) == 0)
+	for (i = 0; i < 13; i++)
+		if (rateset[i] == 0)
 			break;
-		if (i > 12)
-			break;
-		i++;
-	}
 	return i;
 }
 
 int rtw_generate_ie(struct registry_priv *pregistrypriv)
 {
-	u8	wireless_mode;
-	int	rateLen;
-	uint    sz = 0;
+	u8 wireless_mode;
+	int rateLen;
+	uint sz = 0;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->ies;
-
 
 	/* timestamp will be inserted by hardware */
 	sz += 8;
@@ -334,7 +318,6 @@ check_next_ie:
 
 unsigned char *rtw_get_wpa2_ie(unsigned char *pie, uint *rsn_ie_len, int limit)
 {
-
 	return rtw_get_ie(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
 }
 
@@ -370,7 +353,6 @@ int rtw_get_wpa2_cipher_suite(u8 *s)
 	return 0;
 }
 
-
 int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;
@@ -383,7 +365,6 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 		return _FAIL;
 	}
 
-
 	if ((*wpa_ie != _WPA_IE_ID_) || (*(wpa_ie + 1) != (u8)(wpa_ie_len - 2)) ||
 	    (memcmp(wpa_ie + 2, RTW_WPA_OUI_TYPE, WPA_SELECTOR_LEN)))
 		return _FAIL;
@@ -392,7 +373,6 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 
 	pos += 8;
 	left = wpa_ie_len - 8;
-
 
 	/* group_cipher */
 	if (left >= WPA_SELECTOR_LEN) {
@@ -451,7 +431,6 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 		/* No RSN IE - fail silently */
 		return _FAIL;
 	}
-
 
 	if ((*rsn_ie != _WPA2_IE_ID_) || (*(rsn_ie + 1) != (u8)(rsn_ie_len - 2)))
 		return _FAIL;
@@ -513,8 +492,7 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 {
 	u8 authmode, sec_idx, i;
 	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
-	uint	cnt;
-
+	uint cnt;
 
 	/* Search required WPA or WPA2 IE and copy to sec_ie[] */
 
@@ -567,7 +545,6 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 			}
 		}
 	}
-
 
 	return *rsn_len + *wpa_len;
 }
@@ -931,28 +908,18 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 
 	if (rtw_initmac && mac_pton(rtw_initmac, mac)) {
 		/* Users specify the mac address */
-		memcpy(mac_addr, mac, ETH_ALEN);
+		ether_addr_copy(mac_addr, mac);
 	} else {
 		/* Use the mac address stored in the Efuse */
-		memcpy(mac, mac_addr, ETH_ALEN);
+		ether_addr_copy(mac, mac_addr);
 	}
 
-	if (((mac[0] == 0xff) && (mac[1] == 0xff) && (mac[2] == 0xff) &&
-	     (mac[3] == 0xff) && (mac[4] == 0xff) && (mac[5] == 0xff)) ||
-	    ((mac[0] == 0x0) && (mac[1] == 0x0) && (mac[2] == 0x0) &&
-	     (mac[3] == 0x0) && (mac[4] == 0x0) && (mac[5] == 0x0))) {
-		mac[0] = 0x00;
-		mac[1] = 0xe0;
-		mac[2] = 0x4c;
-		mac[3] = 0x87;
-		mac[4] = 0x00;
-		mac[5] = 0x00;
-		/*  use default mac address */
-		memcpy(mac_addr, mac, ETH_ALEN);
-		DBG_88E("MAC Address from efuse error, assign default one !!!\n");
+	if (is_broadcast_ether_addr(mac) || is_zero_ether_addr(mac)) {
+		eth_random_addr(mac_addr);
+		DBG_88E("MAC Address from efuse error, assign random one !!!\n");
 	}
 
-	DBG_88E("%s MAC Address  = %pM\n", __func__, (mac_addr));
+	DBG_88E("%s MAC Address  = %pM\n", __func__, mac_addr);
 }
 
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
@@ -1003,7 +970,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	u16 wpa_len = 0, rsn_len = 0;
 	struct HT_info_element *pht_info = NULL;
 	uint len;
-	unsigned char		*p;
+	unsigned char *p;
 
 	memcpy(&le_tmp, rtw_get_capability_from_ie(pnetwork->network.ies), 2);
 	cap = le16_to_cpu(le_tmp);

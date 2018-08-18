@@ -240,7 +240,7 @@ enum db2k_boardid {
 
 struct db2k_boardtype {
 	const char *name;
-	bool has_2_ao:1;	/* false: 4 AO chans; true: 2 AO chans */
+	unsigned int has_2_ao:1;/* false: 4 AO chans; true: 2 AO chans */
 };
 
 static const struct db2k_boardtype db2k_boardtypes[] = {
