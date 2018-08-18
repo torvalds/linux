@@ -1500,6 +1500,8 @@ static const struct pci_device_id pci_ids[] = {
 	SDHCI_PCI_DEVICE(INTEL, CNP_EMMC,  intel_glk_emmc),
 	SDHCI_PCI_DEVICE(INTEL, CNP_SD,    intel_byt_sd),
 	SDHCI_PCI_DEVICE(INTEL, CNPH_SD,   intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, ICP_EMMC,  intel_glk_emmc),
+	SDHCI_PCI_DEVICE(INTEL, ICP_SD,    intel_byt_sd),
 	SDHCI_PCI_DEVICE(O2, 8120,     o2),
 	SDHCI_PCI_DEVICE(O2, 8220,     o2),
 	SDHCI_PCI_DEVICE(O2, 8221,     o2),
@@ -1511,6 +1513,7 @@ static const struct pci_device_id pci_ids[] = {
 	SDHCI_PCI_DEVICE(O2, SEABIRD0, o2),
 	SDHCI_PCI_DEVICE(O2, SEABIRD1, o2),
 	SDHCI_PCI_DEVICE(ARASAN, PHY_EMMC, arasan),
+	SDHCI_PCI_DEVICE(SYNOPSYS, DWC_MSHC, snps),
 	SDHCI_PCI_DEVICE_CLASS(AMD, SYSTEM_SDHCI, PCI_CLASS_MASK, amd),
 	/* Generic SD host controller */
 	{PCI_DEVICE_CLASS(SYSTEM_SDHCI, PCI_CLASS_MASK)},

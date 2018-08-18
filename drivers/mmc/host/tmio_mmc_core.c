@@ -199,6 +199,14 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 		tmio_mmc_clk_stop(host);
 		return;
 	}
+	/*
+	 * Both HS400 and HS200/SD104 set 200MHz, but some devices need to
+	 * set 400MHz to distinguish the CPG settings in HS400.
+	 */
+	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400 &&
+	    host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400 &&
+	    new_clock == 200000000)
+		new_clock = 400000000;
 
 	if (host->clk_update)
 		clock = host->clk_update(host, new_clock) / 512;
@@ -209,8 +217,13 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 		clock <<= 1;
 
 	/* 1/1 clock is option */
-	if ((host->pdata->flags & TMIO_MMC_CLK_ACTUAL) && ((clk >> 22) & 0x1))
-		clk |= 0xff;
+	if ((host->pdata->flags & TMIO_MMC_CLK_ACTUAL) &&
+	    ((clk >> 22) & 0x1)) {
+		if (!(host->mmc->ios.timing == MMC_TIMING_MMC_HS400))
+			clk |= 0xff;
+		else
+			clk &= ~0xff;
+	}
 
 	if (host->set_clk_div)
 		host->set_clk_div(host->pdev, (clk >> 22) & 1);
@@ -309,7 +322,6 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 {
 	struct mmc_data *data = host->data;
 	int c = cmd->opcode;
-	u32 irq_mask = TMIO_MASK_CMD;
 
 	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_NONE: c |= RESP_NONE; break;
@@ -349,7 +361,7 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 			c |= TRANSFER_READ;
 	}
 
-	tmio_mmc_enable_mmc_irqs(host, irq_mask);
+	tmio_mmc_enable_mmc_irqs(host, TMIO_MASK_CMD);
 
 	/* Fire off the command */
 	sd_ctrl_write32_as_16_and_16(host, CTL_ARG_REG, cmd->arg);
@@ -805,8 +817,6 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			host->prepare_tuning(host, i % host->tap_num);
 
 		ret = mmc_send_tuning(mmc, opcode, NULL);
-		if (ret && ret != -EILSEQ)
-			goto out;
 		if (ret == 0)
 			set_bit(i, host->taps);
 
@@ -1087,6 +1097,33 @@ static int tmio_multi_io_quirk(struct mmc_card *card,
 	return blk_size;
 }
 
+static int tmio_mmc_prepare_hs400_tuning(struct mmc_host *mmc,
+					 struct mmc_ios *ios)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	if (host->prepare_hs400_tuning)
+		host->prepare_hs400_tuning(host);
+
+	return 0;
+}
+
+static void tmio_mmc_hs400_downgrade(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	if (host->hs400_downgrade)
+		host->hs400_downgrade(host);
+}
+
+static void tmio_mmc_hs400_complete(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	if (host->hs400_complete)
+		host->hs400_complete(host);
+}
+
 static const struct mmc_host_ops tmio_mmc_ops = {
 	.request	= tmio_mmc_request,
 	.set_ios	= tmio_mmc_set_ios,
@@ -1096,6 +1133,9 @@ static const struct mmc_host_ops tmio_mmc_ops = {
 	.multi_io_quirk	= tmio_multi_io_quirk,
 	.hw_reset	= tmio_mmc_hw_reset,
 	.execute_tuning = tmio_mmc_execute_tuning,
+	.prepare_hs400_tuning = tmio_mmc_prepare_hs400_tuning,
+	.hs400_downgrade = tmio_mmc_hs400_downgrade,
+	.hs400_complete	= tmio_mmc_hs400_complete,
 };
 
 static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
