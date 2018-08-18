@@ -447,6 +447,11 @@ static inline clock_t jiffies_delta_to_clock_t(long delta)
 	return jiffies_to_clock_t(max(0L, delta));
 }
 
+static inline unsigned int jiffies_delta_to_msecs(long delta)
+{
+	return jiffies_to_msecs(max(0L, delta));
+}
+
 extern unsigned long clock_t_to_jiffies(unsigned long x);
 extern u64 jiffies_64_to_clock_t(u64 x);
 extern u64 nsec_to_clock_t(u64 x);
