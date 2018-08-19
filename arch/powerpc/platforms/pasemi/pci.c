@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 
 #include <asm/pci-bridge.h>
+#include <asm/isa-bridge.h>
 #include <asm/machdep.h>
 
 #include <asm/ppc-pci.h>
@@ -181,6 +182,8 @@ static int pa_pxp_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	addr = pa_pxp_cfg_addr(hose, bus->number, devfn, offset);
 
+	sb600_set_flag(bus->number);
+
 	/*
 	 * Note: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
@@ -214,6 +217,8 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	addr = pa_pxp_cfg_addr(hose, bus->number, devfn, offset);
+
+	sb600_set_flag(bus->number);
 
 	/*
 	 * Note: the caller has already checked that offset is
@@ -264,6 +269,12 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 	/* Interpret the "ranges" property */
 	pci_process_bridge_OF_ranges(hose, dev, 1);
+
+	/*
+	 * Scan for an isa bridge. This is needed to find the SB600 on the nemo
+	 * and does nothing on machines without one.
+	 */
+	isa_bridge_find_early(hose);
 
 	return 0;
 }
