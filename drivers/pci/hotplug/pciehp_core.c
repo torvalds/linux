@@ -23,8 +23,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include "pciehp.h"
-#include <linux/interrupt.h>
-#include <linux/time.h>
 
 #include "../pci.h"
 

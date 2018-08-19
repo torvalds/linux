@@ -19,7 +19,6 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/delay.h>
-#include <linux/sched/signal.h>		/* signal_pending() */
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/workqueue.h>

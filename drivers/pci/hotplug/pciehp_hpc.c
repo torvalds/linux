@@ -13,15 +13,12 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/types.h>
-#include <linux/signal.h>
 #include <linux/jiffies.h>
 #include <linux/kthread.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
-#include <linux/time.h>
 #include <linux/slab.h>
 
 #include "../pci.h"
