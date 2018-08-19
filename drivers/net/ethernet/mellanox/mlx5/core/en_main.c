@@ -4497,6 +4497,14 @@ void mlx5e_build_rq_params(struct mlx5_core_dev *mdev,
 	mlx5e_init_rq_type_params(mdev, params);
 }
 
+void mlx5e_build_rss_params(struct mlx5e_params *params)
+{
+	params->rss_hfunc = ETH_RSS_HASH_XOR;
+	netdev_rss_key_fill(params->toeplitz_hash_key, sizeof(params->toeplitz_hash_key));
+	mlx5e_build_default_indir_rqt(params->indirection_rqt,
+				      MLX5E_INDIR_RQT_SIZE, params->num_channels);
+}
+
 void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			    struct mlx5e_params *params,
 			    u16 max_channels, u16 mtu)
@@ -4545,10 +4553,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	params->tx_min_inline_mode = mlx5e_params_calculate_tx_min_inline(mdev);
 
 	/* RSS */
-	params->rss_hfunc = ETH_RSS_HASH_XOR;
-	netdev_rss_key_fill(params->toeplitz_hash_key, sizeof(params->toeplitz_hash_key));
-	mlx5e_build_default_indir_rqt(params->indirection_rqt,
-				      MLX5E_INDIR_RQT_SIZE, max_channels);
+	mlx5e_build_rss_params(params);
 }
 
 static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
