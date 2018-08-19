@@ -1177,8 +1177,7 @@ err_out:
 	return err;
 }
 
-static int tcf_action_delete(struct net *net, struct tc_action *actions[],
-			     struct netlink_ext_ack *extack)
+static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 {
 	int i;
 
@@ -1227,7 +1226,7 @@ tcf_del_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
 	}
 
 	/* now do the delete */
-	ret = tcf_action_delete(net, actions, extack);
+	ret = tcf_action_delete(net, actions);
 	if (ret < 0) {
 		NL_SET_ERR_MSG(extack, "Failed to delete TC action");
 		kfree_skb(skb);
