@@ -34,8 +34,9 @@ done
 if [ ${PACKAGE_Error} == 1 ]; then exit 1; fi
 
 kernver=$(make kernelversion)
-kernbranch=$(git rev-parse --abbrev-ref HEAD)
-gitbranch=$(git rev-parse --abbrev-ref HEAD|sed 's/^4\.[0-9]\+-//')
+#kernbranch=$(git rev-parse --abbrev-ref HEAD)
+kernbranch=$(git branch --contains $(git log -n 1 --pretty='%h') | grep -v '(HEAD' | head -1 | sed 's/^..//')
+gitbranch=$(echo $kernbranch|sed 's/^4\.[0-9]\+-//')
 
 function increase_kernel {
         #echo $kernver
