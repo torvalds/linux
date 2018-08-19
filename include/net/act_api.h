@@ -28,7 +28,6 @@ struct tc_action {
 	u32				tcfa_index;
 	refcount_t			tcfa_refcnt;
 	atomic_t			tcfa_bindcnt;
-	u32				tcfa_capab;
 	int				tcfa_action;
 	struct tcf_t			tcfa_tm;
 	struct gnet_stats_basic_packed	tcfa_bstats;
@@ -43,7 +42,6 @@ struct tc_action {
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt
 #define tcf_bindcnt	common.tcfa_bindcnt
-#define tcf_capab	common.tcfa_capab
 #define tcf_action	common.tcfa_action
 #define tcf_tm		common.tcfa_tm
 #define tcf_bstats	common.tcfa_bstats
