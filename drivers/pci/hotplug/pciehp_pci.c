@@ -74,6 +74,9 @@ void pciehp_unconfigure_device(struct slot *p_slot)
 		 __func__, pci_domain_nr(parent), parent->number);
 	pciehp_get_adapter_status(p_slot, &presence);
 
+	if (!presence)
+		pci_walk_bus(parent, pci_dev_set_disconnected, NULL);
+
 	pci_lock_rescan_remove();
 
 	/*
@@ -85,12 +88,6 @@ void pciehp_unconfigure_device(struct slot *p_slot)
 	list_for_each_entry_safe_reverse(dev, temp, &parent->devices,
 					 bus_list) {
 		pci_dev_get(dev);
-		if (!presence) {
-			pci_dev_set_disconnected(dev, NULL);
-			if (pci_has_subordinate(dev))
-				pci_walk_bus(dev->subordinate,
-					     pci_dev_set_disconnected, NULL);
-		}
 		pci_stop_and_remove_bus_device(dev);
 		/*
 		 * Ensure that no new Requests will be generated from

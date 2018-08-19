@@ -292,17 +292,13 @@ void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
 		udev = dev->bus->self;
 
 	parent = udev->subordinate;
+	pci_walk_bus(parent, pci_dev_set_disconnected, NULL);
+
 	pci_lock_rescan_remove();
 	pci_dev_get(dev);
 	list_for_each_entry_safe_reverse(pdev, temp, &parent->devices,
 					 bus_list) {
-		pci_dev_get(pdev);
-		pci_dev_set_disconnected(pdev, NULL);
-		if (pci_has_subordinate(pdev))
-			pci_walk_bus(pdev->subordinate,
-				     pci_dev_set_disconnected, NULL);
 		pci_stop_and_remove_bus_device(pdev);
-		pci_dev_put(pdev);
 	}
 
 	result = reset_link(udev, service);
