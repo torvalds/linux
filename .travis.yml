@@ -9,7 +9,7 @@ git:
   depth: false
   quiet: false
   
-if: tag IS blank
+if: tag =~ ^release.*$
 branches:
   only:
     - /^.*-main$/
