@@ -315,6 +315,26 @@ function prepare_SD {
 	fi
 }
 
+function release
+{
+	lc=$(git log -n 1 --pretty=format:'%s')
+	reltag="Release_${kernver}"
+	if [[ ${lc} =~ ^Merge ]];
+	then
+		echo Merge;
+	else
+		echo "normal commit";
+		reltag="${reltag}_${lc}"
+	fi
+	echo "RelTag:"$reltag
+	if [[ -z "$(git tag -l $reltag)" ]]; then
+	git tag $reltag
+	git push origin $reltag
+	else
+		echo "Tag already used, please use another"
+	fi
+}
+
 #Test if the Kernel is there
 if [ -n "$kernver" ]; then
 	action=$1
@@ -445,6 +465,9 @@ if [ -n "$kernver" ]; then
 			( cd utils; make )
 			;;
 
+		"release")
+			release
+			;;
 		"all-pack")
 			echo "Update Repo, Create Kernel & Build Archive"
 			$0 update
