@@ -38,6 +38,7 @@ deploy:
     file:
     - "debian/*"
     - "../SD/*"
+    name: $TRAVIS_BRANCH-$(date +'%Y%m%d%H%M%S')
     skip_cleanup: true
     on:
         all_branches: true
