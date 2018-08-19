@@ -265,11 +265,8 @@ static const char *ife_meta_id2name(u32 metaid)
 #endif
 
 /* called when adding new meta information
- * under ife->tcf_lock for existing action
 */
-static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
-				void *val, int len, bool exists,
-				bool rtnl_held)
+static int load_metaops_and_vet(u32 metaid, void *val, int len, bool rtnl_held)
 {
 	struct tcf_meta_ops *ops = find_ife_oplist(metaid);
 	int ret = 0;
@@ -277,15 +274,11 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
 	if (!ops) {
 		ret = -ENOENT;
 #ifdef CONFIG_MODULES
-		if (exists)
-			spin_unlock_bh(&ife->tcf_lock);
 		if (rtnl_held)
 			rtnl_unlock();
 		request_module("ife-meta-%s", ife_meta_id2name(metaid));
 		if (rtnl_held)
 			rtnl_lock();
-		if (exists)
-			spin_lock_bh(&ife->tcf_lock);
 		ops = find_ife_oplist(metaid);
 #endif
 	}
@@ -302,10 +295,9 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
 }
 
 /* called when adding new meta information
- * under ife->tcf_lock for existing action
 */
 static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
-			int len, bool atomic)
+			int len, bool atomic, bool exists)
 {
 	struct tcf_meta_info *mi = NULL;
 	struct tcf_meta_ops *ops = find_ife_oplist(metaid);
@@ -332,12 +324,16 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 		}
 	}
 
+	if (exists)
+		spin_lock_bh(&ife->tcf_lock);
 	list_add_tail(&mi->metalist, &ife->metalist);
+	if (exists)
+		spin_unlock_bh(&ife->tcf_lock);
 
 	return ret;
 }
 
-static int use_all_metadata(struct tcf_ife_info *ife)
+static int use_all_metadata(struct tcf_ife_info *ife, bool exists)
 {
 	struct tcf_meta_ops *o;
 	int rc = 0;
@@ -345,7 +341,7 @@ static int use_all_metadata(struct tcf_ife_info *ife)
 
 	read_lock(&ife_mod_lock);
 	list_for_each_entry(o, &ifeoplist, list) {
-		rc = add_metainfo(ife, o->metaid, NULL, 0, true);
+		rc = add_metainfo(ife, o->metaid, NULL, 0, true, exists);
 		if (rc == 0)
 			installed += 1;
 	}
@@ -422,7 +418,6 @@ static void tcf_ife_cleanup(struct tc_action *a)
 		kfree_rcu(p, rcu);
 }
 
-/* under ife->tcf_lock for existing action */
 static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb,
 			     bool exists, bool rtnl_held)
 {
@@ -436,12 +431,11 @@ static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb,
 			val = nla_data(tb[i]);
 			len = nla_len(tb[i]);
 
-			rc = load_metaops_and_vet(ife, i, val, len, exists,
-						  rtnl_held);
+			rc = load_metaops_and_vet(i, val, len, rtnl_held);
 			if (rc != 0)
 				return rc;
 
-			rc = add_metainfo(ife, i, val, len, exists);
+			rc = add_metainfo(ife, i, val, len, false, exists);
 			if (rc)
 				return rc;
 		}
@@ -540,8 +534,6 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 		p->eth_type = ife_type;
 	}
 
-	if (exists)
-		spin_lock_bh(&ife->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
 		INIT_LIST_HEAD(&ife->metalist);
@@ -551,10 +543,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 				       NULL, NULL);
 		if (err) {
 metadata_parse_err:
-			if (exists)
-				spin_unlock_bh(&ife->tcf_lock);
 			tcf_idr_release(*a, bind);
-
 			kfree(p);
 			return err;
 		}
@@ -569,17 +558,16 @@ metadata_parse_err:
 		 * as we can. You better have at least one else we are
 		 * going to bail out
 		 */
-		err = use_all_metadata(ife);
+		err = use_all_metadata(ife, exists);
 		if (err) {
-			if (exists)
-				spin_unlock_bh(&ife->tcf_lock);
 			tcf_idr_release(*a, bind);
-
 			kfree(p);
 			return err;
 		}
 	}
 
+	if (exists)
+		spin_lock_bh(&ife->tcf_lock);
 	ife->tcf_action = parm->action;
 	/* protected by tcf_lock when modifying existing action */
 	rcu_swap_protected(ife->params, p, 1);
