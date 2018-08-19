@@ -122,7 +122,7 @@ static int check_keys(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 			set_bad_pkey_cntr(port);
 			goto err1;
 		}
-	} else if (qpn != 0) {
+	} else {
 		if (unlikely(!pkey_match(pkey,
 					 port->pkey_tbl[qp->attr.pkey_index]
 					))) {
@@ -134,7 +134,7 @@ static int check_keys(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	}
 
 	if ((qp_type(qp) == IB_QPT_UD || qp_type(qp) == IB_QPT_GSI) &&
-	    qpn != 0 && pkt->mask) {
+	    pkt->mask) {
 		u32 qkey = (qpn == 1) ? GSI_QKEY : qp->attr.qkey;
 
 		if (unlikely(deth_qkey(pkt) != qkey)) {
