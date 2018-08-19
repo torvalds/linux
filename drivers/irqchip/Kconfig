@@ -372,3 +372,15 @@ config QCOM_PDC
 	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
 
 endmenu
+
+config SIFIVE_PLIC
+	bool "SiFive Platform-Level Interrupt Controller"
+	depends on RISCV
+	help
+	   This enables support for the PLIC chip found in SiFive (and
+	   potentially other) RISC-V systems.  The PLIC controls devices
+	   interrupts and connects them to each core's local interrupt
+	   controller.  Aside from timer and software interrupts, all other
+	   interrupt sources are subordinate to the PLIC.
+
+	   If you don't know what to do here, say Y.

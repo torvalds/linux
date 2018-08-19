@@ -13,37 +13,10 @@
  */
 
 #include <linux/clocksource.h>
-#include <linux/clockchips.h>
 #include <linux/delay.h>
-
-#ifdef CONFIG_RISCV_TIMER
-#include <linux/timer_riscv.h>
-#endif
-
 #include <asm/sbi.h>
 
 unsigned long riscv_timebase;
-
-DECLARE_PER_CPU(struct clock_event_device, riscv_clock_event);
-
-void riscv_timer_interrupt(void)
-{
-#ifdef CONFIG_RISCV_TIMER
-	/*
-	 * FIXME: This needs to be cleaned up along with the rest of the IRQ
-	 * handling cleanup.  See irq.c for more details.
-	 */
-	struct clock_event_device *evdev = this_cpu_ptr(&riscv_clock_event);
-
-	evdev->event_handler(evdev);
-#endif
-}
-
-void __init init_clockevent(void)
-{
-	timer_probe();
-	csr_set(sie, SIE_STIE);
-}
 
 void __init time_init(void)
 {
@@ -56,6 +29,5 @@ void __init time_init(void)
 	riscv_timebase = prop;
 
 	lpj_fine = riscv_timebase / HZ;
-
-	init_clockevent();
+	timer_probe();
 }
