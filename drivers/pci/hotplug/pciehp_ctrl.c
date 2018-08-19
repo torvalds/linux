@@ -364,8 +364,9 @@ static int pciehp_disable_slot(struct slot *slot, bool safe_removal)
 	return ret;
 }
 
-int pciehp_sysfs_enable_slot(struct slot *p_slot)
+int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot)
 {
+	struct slot *p_slot = hotplug_slot->private;
 	struct controller *ctrl = p_slot->ctrl;
 
 	mutex_lock(&p_slot->lock);
@@ -402,8 +403,9 @@ int pciehp_sysfs_enable_slot(struct slot *p_slot)
 	return -ENODEV;
 }
 
-int pciehp_sysfs_disable_slot(struct slot *p_slot)
+int pciehp_sysfs_disable_slot(struct hotplug_slot *hotplug_slot)
 {
+	struct slot *p_slot = hotplug_slot->private;
 	struct controller *ctrl = p_slot->ctrl;
 
 	mutex_lock(&p_slot->lock);

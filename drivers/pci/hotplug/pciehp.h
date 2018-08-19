@@ -173,8 +173,6 @@ struct controller {
 #define NO_CMD_CMPL(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_NCCS)
 #define PSN(ctrl)		(((ctrl)->slot_cap & PCI_EXP_SLTCAP_PSN) >> 19)
 
-int pciehp_sysfs_enable_slot(struct slot *slot);
-int pciehp_sysfs_disable_slot(struct slot *slot);
 void pciehp_request(struct controller *ctrl, int action);
 void pciehp_handle_button_press(struct slot *slot);
 void pciehp_handle_disable_request(struct slot *slot);
@@ -189,7 +187,6 @@ void pcie_clear_hotplug_events(struct controller *ctrl);
 int pciehp_power_on_slot(struct slot *slot);
 void pciehp_power_off_slot(struct slot *slot);
 void pciehp_get_power_status(struct slot *slot, u8 *status);
-void pciehp_get_attention_status(struct slot *slot, u8 *status);
 
 void pciehp_set_attention_status(struct slot *slot, u8 status);
 void pciehp_get_latch_status(struct slot *slot, u8 *status);
@@ -201,8 +198,11 @@ void pciehp_green_led_blink(struct slot *slot);
 int pciehp_check_link_status(struct controller *ctrl);
 bool pciehp_check_link_active(struct controller *ctrl);
 void pciehp_release_ctrl(struct controller *ctrl);
-int pciehp_reset_slot(struct slot *slot, int probe);
 
+int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot);
+int pciehp_sysfs_disable_slot(struct hotplug_slot *hotplug_slot);
+int pciehp_reset_slot(struct hotplug_slot *hotplug_slot, int probe);
+int pciehp_get_attention_status(struct hotplug_slot *hotplug_slot, u8 *status);
 int pciehp_set_raw_indicator_status(struct hotplug_slot *h_slot, u8 status);
 int pciehp_get_raw_indicator_status(struct hotplug_slot *h_slot, u8 *status);
 

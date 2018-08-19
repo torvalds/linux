@@ -45,13 +45,9 @@ MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
 #define PCIE_MODULE_NAME "pciehp"
 
 static int set_attention_status(struct hotplug_slot *slot, u8 value);
-static int enable_slot(struct hotplug_slot *slot);
-static int disable_slot(struct hotplug_slot *slot);
 static int get_power_status(struct hotplug_slot *slot, u8 *value);
-static int get_attention_status(struct hotplug_slot *slot, u8 *value);
 static int get_latch_status(struct hotplug_slot *slot, u8 *value);
 static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
-static int reset_slot(struct hotplug_slot *slot, int probe);
 
 static int init_slot(struct controller *ctrl)
 {
@@ -75,15 +71,15 @@ static int init_slot(struct controller *ctrl)
 	if (!ops)
 		goto out;
 
-	ops->enable_slot = enable_slot;
-	ops->disable_slot = disable_slot;
+	ops->enable_slot = pciehp_sysfs_enable_slot;
+	ops->disable_slot = pciehp_sysfs_disable_slot;
 	ops->get_power_status = get_power_status;
 	ops->get_adapter_status = get_adapter_status;
-	ops->reset_slot = reset_slot;
+	ops->reset_slot = pciehp_reset_slot;
 	if (MRL_SENS(ctrl))
 		ops->get_latch_status = get_latch_status;
 	if (ATTN_LED(ctrl)) {
-		ops->get_attention_status = get_attention_status;
+		ops->get_attention_status = pciehp_get_attention_status;
 		ops->set_attention_status = set_attention_status;
 	} else if (ctrl->pcie->port->hotplug_user_indicators) {
 		ops->get_attention_status = pciehp_get_raw_indicator_status;
@@ -134,22 +130,6 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 	return 0;
 }
 
-
-static int enable_slot(struct hotplug_slot *hotplug_slot)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	return pciehp_sysfs_enable_slot(slot);
-}
-
-
-static int disable_slot(struct hotplug_slot *hotplug_slot)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	return pciehp_sysfs_disable_slot(slot);
-}
-
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = hotplug_slot->private;
@@ -158,14 +138,6 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	pci_config_pm_runtime_get(pdev);
 	pciehp_get_power_status(slot, value);
 	pci_config_pm_runtime_put(pdev);
-	return 0;
-}
-
-static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	pciehp_get_attention_status(slot, value);
 	return 0;
 }
 
@@ -189,13 +161,6 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	pciehp_get_adapter_status(slot, value);
 	pci_config_pm_runtime_put(pdev);
 	return 0;
-}
-
-static int reset_slot(struct hotplug_slot *hotplug_slot, int probe)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	return pciehp_reset_slot(slot, probe);
 }
 
 /**
