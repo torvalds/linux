@@ -1003,13 +1003,25 @@ static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
 	mlx5e_timestamp_init(priv);
 }
 
-static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
+static int mlx5e_create_rep_vport_rx_rule(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_flow_handle *flow_rule;
+
+	flow_rule = mlx5_eswitch_create_vport_rx_rule(esw,
+						      rep->vport,
+						      priv->direct_tir[0].tirn);
+	if (IS_ERR(flow_rule))
+		return PTR_ERR(flow_rule);
+	rpriv->vport_rx_rule = flow_rule;
+	return 0;
+}
+
+static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
 	mlx5e_init_l2_addr(priv);
@@ -1028,14 +1040,9 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_direct_rqts;
 
-	flow_rule = mlx5_eswitch_create_vport_rx_rule(esw,
-						      rep->vport,
-						      priv->direct_tir[0].tirn);
-	if (IS_ERR(flow_rule)) {
-		err = PTR_ERR(flow_rule);
+	err = mlx5e_create_rep_vport_rx_rule(priv);
+	if (err)
 		goto err_destroy_direct_tirs;
-	}
-	rpriv->vport_rx_rule = flow_rule;
 
 	return 0;
 
