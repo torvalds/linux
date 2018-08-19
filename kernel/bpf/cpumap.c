@@ -479,6 +479,8 @@ static void cpu_map_free(struct bpf_map *map)
 	 * It does __not__ ensure pending flush operations (if any) are
 	 * complete.
 	 */
+
+	bpf_clear_redirect_map(map);
 	synchronize_rcu();
 
 	/* To ensure all pending flush operations have completed wait for flush

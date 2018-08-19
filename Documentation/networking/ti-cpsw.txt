@@ -469,17 +469,18 @@ $ tc -g class show dev eth1
 
 14)
 // Set rate for class A - 31 Mbit (tc0, txq2) using CBS Qdisc for Eth1
-// here only idle slope is important, others ignored
+// here only idle slope is important, others ignored, but calculated
+// for interface speed - 100Mb for eth1 port.
 // Set it +1 Mb for reserve (important!)
-$ tc qdisc add dev eth1 parent 100:3 cbs locredit -1453 \
-hicredit 47 sendslope -969000 idleslope 31000 offload 1
+$ tc qdisc add dev eth1 parent 100:3 cbs locredit -1035 \
+hicredit 465 sendslope -69000 idleslope 31000 offload 1
 net eth1: set FIFO3 bw = 31
 
 15)
 // Set rate for class B - 11 Mbit (tc1, txq3) using CBS Qdisc for Eth1
 // Set it +1 Mb for reserve (important!)
-$ tc qdisc add dev eth1 parent 100:4 cbs locredit -1483 \
-hicredit 34 sendslope -989000 idleslope 11000 offload 1
+$ tc qdisc add dev eth1 parent 100:4 cbs locredit -1335 \
+hicredit 405 sendslope -89000 idleslope 11000 offload 1
 net eth1: set FIFO2 bw = 11
 
 16)

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 
 char bpf_log_buf[BPF_LOG_BUF_SIZE];

@@ -82,12 +82,14 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 	const struct nft_tproxy *priv = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct in6_addr taddr = {0};
+	struct in6_addr taddr;
 	int thoff = pkt->xt.thoff;
 	struct udphdr _hdr, *hp;
 	__be16 tport = 0;
 	struct sock *sk;
 	int l4proto;
+
+	memset(&taddr, 0, sizeof(taddr));
 
 	if (!pkt->tprot_set) {
 		regs->verdict.code = NFT_BREAK;

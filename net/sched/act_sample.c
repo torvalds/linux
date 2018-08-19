@@ -44,6 +44,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_SAMPLE_MAX + 1];
 	struct psample_group *psample_group;
 	struct tc_sample *parm;
+	u32 psample_group_num;
 	struct tcf_sample *s;
 	bool exists = false;
 	int ret, err;
@@ -78,25 +79,27 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
-	s = to_sample(*a);
 
-	spin_lock(&s->tcf_lock);
-	s->tcf_action = parm->action;
-	s->rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
-	s->psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
-	psample_group = psample_group_get(net, s->psample_group_num);
+	psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
+	psample_group = psample_group_get(net, psample_group_num);
 	if (!psample_group) {
-		spin_unlock(&s->tcf_lock);
 		tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
+
+	s = to_sample(*a);
+
+	spin_lock_bh(&s->tcf_lock);
+	s->tcf_action = parm->action;
+	s->rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
+	s->psample_group_num = psample_group_num;
 	RCU_INIT_POINTER(s->psample_group, psample_group);
 
 	if (tb[TCA_SAMPLE_TRUNC_SIZE]) {
 		s->truncate = true;
 		s->trunc_size = nla_get_u32(tb[TCA_SAMPLE_TRUNC_SIZE]);
 	}
-	spin_unlock(&s->tcf_lock);
+	spin_unlock_bh(&s->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -183,7 +186,7 @@ static int tcf_sample_dump(struct sk_buff *skb, struct tc_action *a,
 	};
 	struct tcf_t t;
 
-	spin_lock(&s->tcf_lock);
+	spin_lock_bh(&s->tcf_lock);
 	opt.action = s->tcf_action;
 	if (nla_put(skb, TCA_SAMPLE_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -201,12 +204,12 @@ static int tcf_sample_dump(struct sk_buff *skb, struct tc_action *a,
 
 	if (nla_put_u32(skb, TCA_SAMPLE_PSAMPLE_GROUP, s->psample_group_num))
 		goto nla_put_failure;
-	spin_unlock(&s->tcf_lock);
+	spin_unlock_bh(&s->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock(&s->tcf_lock);
+	spin_unlock_bh(&s->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }

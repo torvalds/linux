@@ -96,11 +96,11 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	}
 	params_new->update_flags = parm->update_flags;
 
-	spin_lock(&p->tcf_lock);
+	spin_lock_bh(&p->tcf_lock);
 	p->tcf_action = parm->action;
 	rcu_swap_protected(p->params, params_new,
 			   lockdep_is_held(&p->tcf_lock));
-	spin_unlock(&p->tcf_lock);
+	spin_unlock_bh(&p->tcf_lock);
 
 	if (params_new)
 		kfree_rcu(params_new, rcu);
@@ -604,7 +604,7 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	};
 	struct tcf_t t;
 
-	spin_lock(&p->tcf_lock);
+	spin_lock_bh(&p->tcf_lock);
 	params = rcu_dereference_protected(p->params,
 					   lockdep_is_held(&p->tcf_lock));
 	opt.action = p->tcf_action;
@@ -616,12 +616,12 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	tcf_tm_dump(&t, &p->tcf_tm);
 	if (nla_put_64bit(skb, TCA_CSUM_TM, sizeof(t), &t, TCA_CSUM_PAD))
 		goto nla_put_failure;
-	spin_unlock(&p->tcf_lock);
+	spin_unlock_bh(&p->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock(&p->tcf_lock);
+	spin_unlock_bh(&p->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }

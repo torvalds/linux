@@ -3354,7 +3354,7 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 	struct nft_set *set;
 	struct nft_ctx ctx;
 	char *name;
-	unsigned int size;
+	u64 size;
 	u64 timeout;
 	u32 ktype, dtype, flags, policy, gc_int, objtype;
 	struct nft_set_desc desc;
@@ -5925,10 +5925,7 @@ static int nf_tables_flowtable_event(struct notifier_block *this,
 	if (event != NETDEV_UNREGISTER)
 		return 0;
 
-	net = maybe_get_net(dev_net(dev));
-	if (!net)
-		return 0;
-
+	net = dev_net(dev);
 	mutex_lock(&net->nft.commit_mutex);
 	list_for_each_entry(table, &net->nft.tables, list) {
 		list_for_each_entry(flowtable, &table->flowtables, list) {
@@ -5936,7 +5933,7 @@ static int nf_tables_flowtable_event(struct notifier_block *this,
 		}
 	}
 	mutex_unlock(&net->nft.commit_mutex);
-	put_net(net);
+
 	return NOTIFY_DONE;
 }
 
@@ -7273,21 +7270,36 @@ static int __init nf_tables_module_init(void)
 {
 	int err;
 
-	nft_chain_filter_init();
-
-	err = nf_tables_core_module_init();
+	err = register_pernet_subsys(&nf_tables_net_ops);
 	if (err < 0)
 		return err;
 
+	err = nft_chain_filter_init();
+	if (err < 0)
+		goto err1;
+
+	err = nf_tables_core_module_init();
+	if (err < 0)
+		goto err2;
+
+	err = register_netdevice_notifier(&nf_tables_flowtable_notifier);
+	if (err < 0)
+		goto err3;
+
+	/* must be last */
 	err = nfnetlink_subsys_register(&nf_tables_subsys);
 	if (err < 0)
-		goto err;
+		goto err4;
 
-	register_netdevice_notifier(&nf_tables_flowtable_notifier);
-
-	return register_pernet_subsys(&nf_tables_net_ops);
-err:
+	return err;
+err4:
+	unregister_netdevice_notifier(&nf_tables_flowtable_notifier);
+err3:
 	nf_tables_core_module_exit();
+err2:
+	nft_chain_filter_fini();
+err1:
+	unregister_pernet_subsys(&nf_tables_net_ops);
 	return err;
 }
 

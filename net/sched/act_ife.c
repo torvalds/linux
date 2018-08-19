@@ -551,9 +551,6 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 				       NULL, NULL);
 		if (err) {
 metadata_parse_err:
-			if (ret == ACT_P_CREATED)
-				tcf_idr_release(*a, bind);
-
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
 			tcf_idr_release(*a, bind);
@@ -574,11 +571,10 @@ metadata_parse_err:
 		 */
 		err = use_all_metadata(ife);
 		if (err) {
-			if (ret == ACT_P_CREATED)
-				tcf_idr_release(*a, bind);
-
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
+			tcf_idr_release(*a, bind);
+
 			kfree(p);
 			return err;
 		}

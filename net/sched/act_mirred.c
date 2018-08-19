@@ -159,14 +159,14 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 	m = to_mirred(*a);
 
-	spin_lock(&m->tcf_lock);
+	spin_lock_bh(&m->tcf_lock);
 	m->tcf_action = parm->action;
 	m->tcfm_eaction = parm->eaction;
 
 	if (parm->ifindex) {
 		dev = dev_get_by_index(net, parm->ifindex);
 		if (!dev) {
-			spin_unlock(&m->tcf_lock);
+			spin_unlock_bh(&m->tcf_lock);
 			tcf_idr_release(*a, bind);
 			return -ENODEV;
 		}
@@ -177,7 +177,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			dev_put(dev);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
-	spin_unlock(&m->tcf_lock);
+	spin_unlock_bh(&m->tcf_lock);
 
 	if (ret == ACT_P_CREATED) {
 		spin_lock(&mirred_list_lock);
@@ -305,7 +305,7 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	struct net_device *dev;
 	struct tcf_t t;
 
-	spin_lock(&m->tcf_lock);
+	spin_lock_bh(&m->tcf_lock);
 	opt.action = m->tcf_action;
 	opt.eaction = m->tcfm_eaction;
 	dev = tcf_mirred_dev_dereference(m);
@@ -318,12 +318,12 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	tcf_tm_dump(&t, &m->tcf_tm);
 	if (nla_put_64bit(skb, TCA_MIRRED_TM, sizeof(t), &t, TCA_MIRRED_PAD))
 		goto nla_put_failure;
-	spin_unlock(&m->tcf_lock);
+	spin_unlock_bh(&m->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock(&m->tcf_lock);
+	spin_unlock_bh(&m->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -356,7 +356,7 @@ static int mirred_device_event(struct notifier_block *unused,
 	if (event == NETDEV_UNREGISTER) {
 		spin_lock(&mirred_list_lock);
 		list_for_each_entry(m, &mirred_list, tcfm_list) {
-			spin_lock(&m->tcf_lock);
+			spin_lock_bh(&m->tcf_lock);
 			if (tcf_mirred_dev_dereference(m) == dev) {
 				dev_put(dev);
 				/* Note : no rcu grace period necessary, as
@@ -364,7 +364,7 @@ static int mirred_device_event(struct notifier_block *unused,
 				 */
 				RCU_INIT_POINTER(m->tcfm_dev, NULL);
 			}
-			spin_unlock(&m->tcf_lock);
+			spin_unlock_bh(&m->tcf_lock);
 		}
 		spin_unlock(&mirred_list_lock);
 	}

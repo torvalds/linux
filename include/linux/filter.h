@@ -543,7 +543,6 @@ struct bpf_redirect_info {
 	u32 flags;
 	struct bpf_map *map;
 	struct bpf_map *map_to_flush;
-	unsigned long   map_owner;
 	u32 kern_flags;
 };
 
@@ -780,6 +779,8 @@ static inline bool bpf_dump_raw_ok(void)
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
+
+void bpf_clear_redirect_map(struct bpf_map *map);
 
 static inline bool xdp_return_frame_no_direct(void)
 {

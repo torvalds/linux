@@ -1579,7 +1579,7 @@ static bool bpf_prog_array_copy_core(struct bpf_prog_array __rcu *array,
 	struct bpf_prog_array_item *item;
 	int i = 0;
 
-	item = rcu_dereference(array)->items;
+	item = rcu_dereference_check(array, 1)->items;
 	for (; item->prog; item++) {
 		if (item->prog == &dummy_bpf_prog.prog)
 			continue;
