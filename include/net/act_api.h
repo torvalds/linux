@@ -23,7 +23,6 @@ struct tc_action {
 	const struct tc_action_ops	*ops;
 	__u32				type; /* for backward compat(TCA_OLD_COMPAT) */
 	__u32				order;
-	struct list_head		list;
 	struct tcf_idrinfo		*idrinfo;
 
 	u32				tcfa_index;
