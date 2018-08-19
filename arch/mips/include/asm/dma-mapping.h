@@ -25,7 +25,7 @@ static inline void arch_setup_dma_ops(struct device *dev, u64 dma_base,
 				      bool coherent)
 {
 #ifdef CONFIG_DMA_PERDEV_COHERENT
-	dev->archdata.dma_coherent = coherent;
+	dev->dma_coherent = coherent;
 #endif
 }
 

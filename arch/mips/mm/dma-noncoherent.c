@@ -14,26 +14,6 @@
 #include <asm/dma-coherence.h>
 #include <asm/io.h>
 
-#ifdef CONFIG_DMA_PERDEV_COHERENT
-static inline int dev_is_coherent(struct device *dev)
-{
-	return dev->archdata.dma_coherent;
-}
-#else
-static inline int dev_is_coherent(struct device *dev)
-{
-	switch (coherentio) {
-	default:
-	case IO_COHERENCE_DEFAULT:
-		return hw_coherentio;
-	case IO_COHERENCE_ENABLED:
-		return 1;
-	case IO_COHERENCE_DISABLED:
-		return 0;
-	}
-}
-#endif /* CONFIG_DMA_PERDEV_COHERENT */
-
 /*
  * The affected CPUs below in 'cpu_needs_post_dma_flush()' can speculatively
  * fill random cachelines with stale data at any time, requiring an extra
@@ -49,7 +29,7 @@ static inline int dev_is_coherent(struct device *dev)
  */
 static inline bool cpu_needs_post_dma_flush(struct device *dev)
 {
-	if (dev_is_coherent(dev))
+	if (dev_is_dma_coherent(dev))
 		return false;
 
 	switch (boot_cpu_type()) {
@@ -76,7 +56,7 @@ void *arch_dma_alloc(struct device *dev, size_t size,
 	if (!ret)
 		return NULL;
 
-	if (!dev_is_coherent(dev) && !(attrs & DMA_ATTR_NON_CONSISTENT)) {
+	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_NON_CONSISTENT)) {
 		dma_cache_wback_inv((unsigned long) ret, size);
 		ret = (void *)UNCAC_ADDR(ret);
 	}
@@ -87,7 +67,7 @@ void *arch_dma_alloc(struct device *dev, size_t size,
 void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs)
 {
-	if (!(attrs & DMA_ATTR_NON_CONSISTENT) && !dev_is_coherent(dev))
+	if (!(attrs & DMA_ATTR_NON_CONSISTENT) && !dev_is_dma_coherent(dev))
 		cpu_addr = (void *)CAC_ADDR((unsigned long)cpu_addr);
 	dma_direct_free(dev, size, cpu_addr, dma_addr, attrs);
 }
@@ -103,7 +83,7 @@ int arch_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 	unsigned long pfn;
 	int ret = -ENXIO;
 
-	if (!dev_is_coherent(dev))
+	if (!dev_is_dma_coherent(dev))
 		addr = CAC_ADDR(addr);
 
 	pfn = page_to_pfn(virt_to_page((void *)addr));
@@ -187,7 +167,7 @@ static inline void dma_sync_phys(phys_addr_t paddr, size_t size,
 void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 		size_t size, enum dma_data_direction dir)
 {
-	if (!dev_is_coherent(dev))
+	if (!dev_is_dma_coherent(dev))
 		dma_sync_phys(paddr, size, dir);
 }
 
@@ -203,6 +183,6 @@ void arch_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 {
 	BUG_ON(direction == DMA_NONE);
 
-	if (!dev_is_coherent(dev))
+	if (!dev_is_dma_coherent(dev))
 		dma_sync_virt(vaddr, size, direction);
 }

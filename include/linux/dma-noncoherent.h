@@ -4,6 +4,22 @@
 
 #include <linux/dma-mapping.h>
 
+#ifdef CONFIG_ARCH_HAS_DMA_COHERENCE_H
+#include <asm/dma-coherence.h>
+#elif defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
+	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
+	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
+static inline bool dev_is_dma_coherent(struct device *dev)
+{
+	return dev->dma_coherent;
+}
+#else
+static inline bool dev_is_dma_coherent(struct device *dev)
+{
+	return true;
+}
+#endif /* CONFIG_ARCH_HAS_DMA_COHERENCE_H */
+
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs);
 void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
