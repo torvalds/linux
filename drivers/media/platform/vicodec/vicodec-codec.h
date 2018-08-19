@@ -103,6 +103,8 @@ struct cframe_hdr {
 
 struct cframe {
 	unsigned int width, height;
+	u16 i_frame_qp;
+	u16 p_frame_qp;
 	__be16 *rlc_data;
 	s16 coeffs[8 * 8];
 	s16 de_coeffs[8 * 8];

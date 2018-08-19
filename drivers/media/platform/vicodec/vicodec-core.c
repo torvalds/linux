@@ -96,9 +96,10 @@ struct vicodec_ctx {
 	spinlock_t		*lock;
 
 	struct v4l2_ctrl_handler hdl;
-	struct v4l2_ctrl	*ctrl_gop_size;
 	unsigned int		gop_size;
 	unsigned int		gop_cnt;
+	u16			i_frame_qp;
+	u16			p_frame_qp;
 
 	/* Abort requested by m2m */
 	int			aborting;
@@ -191,13 +192,15 @@ static void encode(struct vicodec_ctx *ctx,
 
 	cf.width = q_data->width;
 	cf.height = q_data->height;
+	cf.i_frame_qp = ctx->i_frame_qp;
+	cf.p_frame_qp = ctx->p_frame_qp;
 	cf.rlc_data = (__be16 *)(p_out + sizeof(*p_hdr));
 
 	encoding = encode_frame(&rf, &ctx->ref_frame, &cf, !ctx->gop_cnt,
 				ctx->gop_cnt == ctx->gop_size - 1);
 	if (encoding != FRAME_PCODED)
 		ctx->gop_cnt = 0;
-	if (++ctx->gop_cnt == ctx->gop_size)
+	if (++ctx->gop_cnt >= ctx->gop_size)
 		ctx->gop_cnt = 0;
 
 	p_hdr = (struct cframe_hdr *)p_out;
@@ -1140,8 +1143,6 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 	ctx->ref_frame.cr = ctx->ref_frame.cb + size / 4;
 	ctx->last_src_buf = NULL;
 	ctx->last_dst_buf = NULL;
-	v4l2_ctrl_grab(ctx->ctrl_gop_size, true);
-	ctx->gop_size = v4l2_ctrl_g_ctrl(ctx->ctrl_gop_size);
 	ctx->gop_cnt = 0;
 	ctx->cur_buf_offset = 0;
 	ctx->comp_size = 0;
@@ -1162,7 +1163,6 @@ static void vicodec_stop_streaming(struct vb2_queue *q)
 
 	kvfree(ctx->ref_frame.luma);
 	kvfree(ctx->compressed_frame);
-	v4l2_ctrl_grab(ctx->ctrl_gop_size, false);
 }
 
 static const struct vb2_ops vicodec_qops = {
@@ -1211,6 +1211,55 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	return vb2_queue_init(dst_vq);
 }
 
+#define VICODEC_CID_CUSTOM_BASE		(V4L2_CID_MPEG_BASE | 0xf000)
+#define VICODEC_CID_I_FRAME_QP		(VICODEC_CID_CUSTOM_BASE + 0)
+#define VICODEC_CID_P_FRAME_QP		(VICODEC_CID_CUSTOM_BASE + 1)
+
+static int vicodec_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vicodec_ctx *ctx = container_of(ctrl->handler,
+					       struct vicodec_ctx, hdl);
+
+	switch (ctrl->id) {
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		ctx->gop_size = ctrl->val;
+		return 0;
+	case VICODEC_CID_I_FRAME_QP:
+		ctx->i_frame_qp = ctrl->val;
+		return 0;
+	case VICODEC_CID_P_FRAME_QP:
+		ctx->p_frame_qp = ctrl->val;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static const struct v4l2_ctrl_ops vicodec_ctrl_ops = {
+	.s_ctrl = vicodec_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config vicodec_ctrl_i_frame = {
+	.ops = &vicodec_ctrl_ops,
+	.id = VICODEC_CID_I_FRAME_QP,
+	.name = "FWHT I-Frame QP Value",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 1,
+	.max = 31,
+	.def = 20,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config vicodec_ctrl_p_frame = {
+	.ops = &vicodec_ctrl_ops,
+	.id = VICODEC_CID_P_FRAME_QP,
+	.name = "FWHT P-Frame QP Value",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 1,
+	.max = 31,
+	.def = 20,
+	.step = 1,
+};
+
 /*
  * File operations
  */
@@ -1239,9 +1288,10 @@ static int vicodec_open(struct file *file)
 	ctx->dev = dev;
 	hdl = &ctx->hdl;
 	v4l2_ctrl_handler_init(hdl, 4);
-	ctx->ctrl_gop_size = v4l2_ctrl_new_std(hdl, NULL,
-					       V4L2_CID_MPEG_VIDEO_GOP_SIZE,
-					       1, 16, 1, 10);
+	v4l2_ctrl_new_std(hdl, &vicodec_ctrl_ops, V4L2_CID_MPEG_VIDEO_GOP_SIZE,
+			  1, 16, 1, 10);
+	v4l2_ctrl_new_custom(hdl, &vicodec_ctrl_i_frame, NULL);
+	v4l2_ctrl_new_custom(hdl, &vicodec_ctrl_p_frame, NULL);
 	if (hdl->error) {
 		rc = hdl->error;
 		v4l2_ctrl_handler_free(hdl);

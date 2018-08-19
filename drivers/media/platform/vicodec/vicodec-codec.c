@@ -13,7 +13,6 @@
 #include "vicodec-codec.h"
 
 #define ALL_ZEROS 15
-#define DEADZONE_WIDTH 20
 
 static const uint8_t zigzag[64] = {
 	0,
@@ -164,7 +163,7 @@ static const int quant_table_p[] = {
 	3, 3, 3, 6, 6, 9,  9,  10,
 };
 
-static void quantize_intra(s16 *coeff, s16 *de_coeff)
+static void quantize_intra(s16 *coeff, s16 *de_coeff, u16 qp)
 {
 	const int *quant = quant_table;
 	int i, j;
@@ -172,8 +171,7 @@ static void quantize_intra(s16 *coeff, s16 *de_coeff)
 	for (j = 0; j < 8; j++) {
 		for (i = 0; i < 8; i++, quant++, coeff++, de_coeff++) {
 			*coeff >>= *quant;
-			if (*coeff >= -DEADZONE_WIDTH &&
-			    *coeff <= DEADZONE_WIDTH)
+			if (*coeff >= -qp && *coeff <= qp)
 				*coeff = *de_coeff = 0;
 			else
 				*de_coeff = *coeff << *quant;
@@ -191,7 +189,7 @@ static void dequantize_intra(s16 *coeff)
 			*coeff <<= *quant;
 }
 
-static void quantize_inter(s16 *coeff, s16 *de_coeff)
+static void quantize_inter(s16 *coeff, s16 *de_coeff, u16 qp)
 {
 	const int *quant = quant_table_p;
 	int i, j;
@@ -199,8 +197,7 @@ static void quantize_inter(s16 *coeff, s16 *de_coeff)
 	for (j = 0; j < 8; j++) {
 		for (i = 0; i < 8; i++, quant++, coeff++, de_coeff++) {
 			*coeff >>= *quant;
-			if (*coeff >= -DEADZONE_WIDTH &&
-			    *coeff <= DEADZONE_WIDTH)
+			if (*coeff >= -qp && *coeff <= qp)
 				*coeff = *de_coeff = 0;
 			else
 				*de_coeff = *coeff << *quant;
@@ -639,13 +636,15 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 					deltablock, width, input_step);
 			if (is_intra || blocktype == IBLOCK) {
 				fwht(input, cf->coeffs, width, input_step, 1);
-				quantize_intra(cf->coeffs, cf->de_coeffs);
+				quantize_intra(cf->coeffs, cf->de_coeffs,
+					       cf->i_frame_qp);
 				blocktype = IBLOCK;
 			} else {
 				/* inter code */
 				encoding |= FRAME_PCODED;
 				fwht16(deltablock, cf->coeffs, 8, 0);
-				quantize_inter(cf->coeffs, cf->de_coeffs);
+				quantize_inter(cf->coeffs, cf->de_coeffs,
+					       cf->p_frame_qp);
 			}
 			if (!next_is_intra) {
 				ifwht(cf->de_coeffs, cf->de_fwht, blocktype);
