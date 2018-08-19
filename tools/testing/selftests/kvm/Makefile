@@ -9,6 +9,8 @@ LIBKVM_x86_64 = lib/x86.c lib/vmx.c
 TEST_GEN_PROGS_x86_64 = set_sregs_test
 TEST_GEN_PROGS_x86_64 += sync_regs_test
 TEST_GEN_PROGS_x86_64 += vmx_tsc_adjust_test
+TEST_GEN_PROGS_x86_64 += cr4_cpuid_sync_test
+TEST_GEN_PROGS_x86_64 += state_test
 
 TEST_GEN_PROGS += $(TEST_GEN_PROGS_$(UNAME_M))
 LIBKVM += $(LIBKVM_$(UNAME_M))

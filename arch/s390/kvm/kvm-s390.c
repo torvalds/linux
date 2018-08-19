@@ -906,54 +906,37 @@ static void kvm_s390_sync_request_broadcast(struct kvm *kvm, int req)
  */
 static int kvm_s390_vm_start_migration(struct kvm *kvm)
 {
-	struct kvm_s390_migration_state *mgs;
 	struct kvm_memory_slot *ms;
-	/* should be the only one */
 	struct kvm_memslots *slots;
-	unsigned long ram_pages;
+	unsigned long ram_pages = 0;
 	int slotnr;
 
 	/* migration mode already enabled */
-	if (kvm->arch.migration_state)
+	if (kvm->arch.migration_mode)
 		return 0;
-
 	slots = kvm_memslots(kvm);
 	if (!slots || !slots->used_slots)
 		return -EINVAL;
 
-	mgs = kzalloc(sizeof(*mgs), GFP_KERNEL);
-	if (!mgs)
-		return -ENOMEM;
-	kvm->arch.migration_state = mgs;
-
-	if (kvm->arch.use_cmma) {
-		/*
-		 * Get the first slot. They are reverse sorted by base_gfn, so
-		 * the first slot is also the one at the end of the address
-		 * space. We have verified above that at least one slot is
-		 * present.
-		 */
-		ms = slots->memslots;
-		/* round up so we only use full longs */
-		ram_pages = roundup(ms->base_gfn + ms->npages, BITS_PER_LONG);
-		/* allocate enough bytes to store all the bits */
-		mgs->pgste_bitmap = vmalloc(ram_pages / 8);
-		if (!mgs->pgste_bitmap) {
-			kfree(mgs);
-			kvm->arch.migration_state = NULL;
-			return -ENOMEM;
-		}
-
-		mgs->bitmap_size = ram_pages;
-		atomic64_set(&mgs->dirty_pages, ram_pages);
-		/* mark all the pages in active slots as dirty */
-		for (slotnr = 0; slotnr < slots->used_slots; slotnr++) {
-			ms = slots->memslots + slotnr;
-			bitmap_set(mgs->pgste_bitmap, ms->base_gfn, ms->npages);
-		}
-
-		kvm_s390_sync_request_broadcast(kvm, KVM_REQ_START_MIGRATION);
+	if (!kvm->arch.use_cmma) {
+		kvm->arch.migration_mode = 1;
+		return 0;
 	}
+	/* mark all the pages in active slots as dirty */
+	for (slotnr = 0; slotnr < slots->used_slots; slotnr++) {
+		ms = slots->memslots + slotnr;
+		/*
+		 * The second half of the bitmap is only used on x86,
+		 * and would be wasted otherwise, so we put it to good
+		 * use here to keep track of the state of the storage
+		 * attributes.
+		 */
+		memset(kvm_second_dirty_bitmap(ms), 0xff, kvm_dirty_bitmap_bytes(ms));
+		ram_pages += ms->npages;
+	}
+	atomic64_set(&kvm->arch.cmma_dirty_pages, ram_pages);
+	kvm->arch.migration_mode = 1;
+	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_START_MIGRATION);
 	return 0;
 }
 
@@ -963,21 +946,12 @@ static int kvm_s390_vm_start_migration(struct kvm *kvm)
  */
 static int kvm_s390_vm_stop_migration(struct kvm *kvm)
 {
-	struct kvm_s390_migration_state *mgs;
-
 	/* migration mode already disabled */
-	if (!kvm->arch.migration_state)
+	if (!kvm->arch.migration_mode)
 		return 0;
-	mgs = kvm->arch.migration_state;
-	kvm->arch.migration_state = NULL;
-
-	if (kvm->arch.use_cmma) {
+	kvm->arch.migration_mode = 0;
+	if (kvm->arch.use_cmma)
 		kvm_s390_sync_request_broadcast(kvm, KVM_REQ_STOP_MIGRATION);
-		/* We have to wait for the essa emulation to finish */
-		synchronize_srcu(&kvm->srcu);
-		vfree(mgs->pgste_bitmap);
-	}
-	kfree(mgs);
 	return 0;
 }
 
@@ -1005,7 +979,7 @@ static int kvm_s390_vm_set_migration(struct kvm *kvm,
 static int kvm_s390_vm_get_migration(struct kvm *kvm,
 				     struct kvm_device_attr *attr)
 {
-	u64 mig = (kvm->arch.migration_state != NULL);
+	u64 mig = kvm->arch.migration_mode;
 
 	if (attr->attr != KVM_S390_VM_MIGRATION_STATUS)
 		return -ENXIO;
@@ -1653,6 +1627,134 @@ out:
 #define KVM_S390_CMMA_SIZE_MAX ((u32)KVM_S390_SKEYS_MAX)
 
 /*
+ * Similar to gfn_to_memslot, but returns the index of a memslot also when the
+ * address falls in a hole. In that case the index of one of the memslots
+ * bordering the hole is returned.
+ */
+static int gfn_to_memslot_approx(struct kvm_memslots *slots, gfn_t gfn)
+{
+	int start = 0, end = slots->used_slots;
+	int slot = atomic_read(&slots->lru_slot);
+	struct kvm_memory_slot *memslots = slots->memslots;
+
+	if (gfn >= memslots[slot].base_gfn &&
+	    gfn < memslots[slot].base_gfn + memslots[slot].npages)
+		return slot;
+
+	while (start < end) {
+		slot = start + (end - start) / 2;
+
+		if (gfn >= memslots[slot].base_gfn)
+			end = slot;
+		else
+			start = slot + 1;
+	}
+
+	if (gfn >= memslots[start].base_gfn &&
+	    gfn < memslots[start].base_gfn + memslots[start].npages) {
+		atomic_set(&slots->lru_slot, start);
+	}
+
+	return start;
+}
+
+static int kvm_s390_peek_cmma(struct kvm *kvm, struct kvm_s390_cmma_log *args,
+			      u8 *res, unsigned long bufsize)
+{
+	unsigned long pgstev, hva, cur_gfn = args->start_gfn;
+
+	args->count = 0;
+	while (args->count < bufsize) {
+		hva = gfn_to_hva(kvm, cur_gfn);
+		/*
+		 * We return an error if the first value was invalid, but we
+		 * return successfully if at least one value was copied.
+		 */
+		if (kvm_is_error_hva(hva))
+			return args->count ? 0 : -EFAULT;
+		if (get_pgste(kvm->mm, hva, &pgstev) < 0)
+			pgstev = 0;
+		res[args->count++] = (pgstev >> 24) & 0x43;
+		cur_gfn++;
+	}
+
+	return 0;
+}
+
+static unsigned long kvm_s390_next_dirty_cmma(struct kvm_memslots *slots,
+					      unsigned long cur_gfn)
+{
+	int slotidx = gfn_to_memslot_approx(slots, cur_gfn);
+	struct kvm_memory_slot *ms = slots->memslots + slotidx;
+	unsigned long ofs = cur_gfn - ms->base_gfn;
+
+	if (ms->base_gfn + ms->npages <= cur_gfn) {
+		slotidx--;
+		/* If we are above the highest slot, wrap around */
+		if (slotidx < 0)
+			slotidx = slots->used_slots - 1;
+
+		ms = slots->memslots + slotidx;
+		ofs = 0;
+	}
+	ofs = find_next_bit(kvm_second_dirty_bitmap(ms), ms->npages, ofs);
+	while ((slotidx > 0) && (ofs >= ms->npages)) {
+		slotidx--;
+		ms = slots->memslots + slotidx;
+		ofs = find_next_bit(kvm_second_dirty_bitmap(ms), ms->npages, 0);
+	}
+	return ms->base_gfn + ofs;
+}
+
+static int kvm_s390_get_cmma(struct kvm *kvm, struct kvm_s390_cmma_log *args,
+			     u8 *res, unsigned long bufsize)
+{
+	unsigned long mem_end, cur_gfn, next_gfn, hva, pgstev;
+	struct kvm_memslots *slots = kvm_memslots(kvm);
+	struct kvm_memory_slot *ms;
+
+	cur_gfn = kvm_s390_next_dirty_cmma(slots, args->start_gfn);
+	ms = gfn_to_memslot(kvm, cur_gfn);
+	args->count = 0;
+	args->start_gfn = cur_gfn;
+	if (!ms)
+		return 0;
+	next_gfn = kvm_s390_next_dirty_cmma(slots, cur_gfn + 1);
+	mem_end = slots->memslots[0].base_gfn + slots->memslots[0].npages;
+
+	while (args->count < bufsize) {
+		hva = gfn_to_hva(kvm, cur_gfn);
+		if (kvm_is_error_hva(hva))
+			return 0;
+		/* Decrement only if we actually flipped the bit to 0 */
+		if (test_and_clear_bit(cur_gfn - ms->base_gfn, kvm_second_dirty_bitmap(ms)))
+			atomic64_dec(&kvm->arch.cmma_dirty_pages);
+		if (get_pgste(kvm->mm, hva, &pgstev) < 0)
+			pgstev = 0;
+		/* Save the value */
+		res[args->count++] = (pgstev >> 24) & 0x43;
+		/* If the next bit is too far away, stop. */
+		if (next_gfn > cur_gfn + KVM_S390_MAX_BIT_DISTANCE)
+			return 0;
+		/* If we reached the previous "next", find the next one */
+		if (cur_gfn == next_gfn)
+			next_gfn = kvm_s390_next_dirty_cmma(slots, cur_gfn + 1);
+		/* Reached the end of memory or of the buffer, stop */
+		if ((next_gfn >= mem_end) ||
+		    (next_gfn - args->start_gfn >= bufsize))
+			return 0;
+		cur_gfn++;
+		/* Reached the end of the current memslot, take the next one. */
+		if (cur_gfn - ms->base_gfn >= ms->npages) {
+			ms = gfn_to_memslot(kvm, cur_gfn);
+			if (!ms)
+				return 0;
+		}
+	}
+	return 0;
+}
+
+/*
  * This function searches for the next page with dirty CMMA attributes, and
  * saves the attributes in the buffer up to either the end of the buffer or
  * until a block of at least KVM_S390_MAX_BIT_DISTANCE clean bits is found;
@@ -1663,22 +1765,18 @@ out:
 static int kvm_s390_get_cmma_bits(struct kvm *kvm,
 				  struct kvm_s390_cmma_log *args)
 {
-	struct kvm_s390_migration_state *s = kvm->arch.migration_state;
-	unsigned long bufsize, hva, pgstev, i, next, cur;
-	int srcu_idx, peek, r = 0, rr;
-	u8 *res;
+	unsigned long bufsize;
+	int srcu_idx, peek, ret;
+	u8 *values;
 
-	cur = args->start_gfn;
-	i = next = pgstev = 0;
-
-	if (unlikely(!kvm->arch.use_cmma))
+	if (!kvm->arch.use_cmma)
 		return -ENXIO;
 	/* Invalid/unsupported flags were specified */
 	if (args->flags & ~KVM_S390_CMMA_PEEK)
 		return -EINVAL;
 	/* Migration mode query, and we are not doing a migration */
 	peek = !!(args->flags & KVM_S390_CMMA_PEEK);
-	if (!peek && !s)
+	if (!peek && !kvm->arch.migration_mode)
 		return -EINVAL;
 	/* CMMA is disabled or was not used, or the buffer has length zero */
 	bufsize = min(args->count, KVM_S390_CMMA_SIZE_MAX);
@@ -1686,74 +1784,35 @@ static int kvm_s390_get_cmma_bits(struct kvm *kvm,
 		memset(args, 0, sizeof(*args));
 		return 0;
 	}
-
-	if (!peek) {
-		/* We are not peeking, and there are no dirty pages */
-		if (!atomic64_read(&s->dirty_pages)) {
-			memset(args, 0, sizeof(*args));
-			return 0;
-		}
-		cur = find_next_bit(s->pgste_bitmap, s->bitmap_size,
-				    args->start_gfn);
-		if (cur >= s->bitmap_size)	/* nothing found, loop back */
-			cur = find_next_bit(s->pgste_bitmap, s->bitmap_size, 0);
-		if (cur >= s->bitmap_size) {	/* again! (very unlikely) */
-			memset(args, 0, sizeof(*args));
-			return 0;
-		}
-		next = find_next_bit(s->pgste_bitmap, s->bitmap_size, cur + 1);
+	/* We are not peeking, and there are no dirty pages */
+	if (!peek && !atomic64_read(&kvm->arch.cmma_dirty_pages)) {
+		memset(args, 0, sizeof(*args));
+		return 0;
 	}
 
-	res = vmalloc(bufsize);
-	if (!res)
+	values = vmalloc(bufsize);
+	if (!values)
 		return -ENOMEM;
-
-	args->start_gfn = cur;
 
 	down_read(&kvm->mm->mmap_sem);
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	while (i < bufsize) {
-		hva = gfn_to_hva(kvm, cur);
-		if (kvm_is_error_hva(hva)) {
-			r = -EFAULT;
-			break;
-		}
-		/* decrement only if we actually flipped the bit to 0 */
-		if (!peek && test_and_clear_bit(cur, s->pgste_bitmap))
-			atomic64_dec(&s->dirty_pages);
-		r = get_pgste(kvm->mm, hva, &pgstev);
-		if (r < 0)
-			pgstev = 0;
-		/* save the value */
-		res[i++] = (pgstev >> 24) & 0x43;
-		/*
-		 * if the next bit is too far away, stop.
-		 * if we reached the previous "next", find the next one
-		 */
-		if (!peek) {
-			if (next > cur + KVM_S390_MAX_BIT_DISTANCE)
-				break;
-			if (cur == next)
-				next = find_next_bit(s->pgste_bitmap,
-						     s->bitmap_size, cur + 1);
-		/* reached the end of the bitmap or of the buffer, stop */
-			if ((next >= s->bitmap_size) ||
-			    (next >= args->start_gfn + bufsize))
-				break;
-		}
-		cur++;
-	}
+	if (peek)
+		ret = kvm_s390_peek_cmma(kvm, args, values, bufsize);
+	else
+		ret = kvm_s390_get_cmma(kvm, args, values, bufsize);
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&kvm->mm->mmap_sem);
-	args->count = i;
-	args->remaining = s ? atomic64_read(&s->dirty_pages) : 0;
 
-	rr = copy_to_user((void __user *)args->values, res, args->count);
-	if (rr)
-		r = -EFAULT;
+	if (kvm->arch.migration_mode)
+		args->remaining = atomic64_read(&kvm->arch.cmma_dirty_pages);
+	else
+		args->remaining = 0;
 
-	vfree(res);
-	return r;
+	if (copy_to_user((void __user *)args->values, values, args->count))
+		ret = -EFAULT;
+
+	vfree(values);
+	return ret;
 }
 
 /*
@@ -2192,10 +2251,6 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
 	kvm_s390_vsie_destroy(kvm);
-	if (kvm->arch.migration_state) {
-		vfree(kvm->arch.migration_state->pgste_bitmap);
-		kfree(kvm->arch.migration_state);
-	}
 	KVM_EVENT(3, "vm 0x%pK destroyed", kvm);
 }
 
@@ -2353,6 +2408,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_BPBC;
 	if (test_kvm_facility(vcpu->kvm, 133))
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_GSCB;
+	if (test_kvm_facility(vcpu->kvm, 156))
+		vcpu->run->kvm_valid_regs |= KVM_SYNC_ETOKEN;
 	/* fprs can be synchronized via vrs, even if the guest has no vx. With
 	 * MACHINE_HAS_VX, (load|store)_fpu_regs() will work with vrs format.
 	 */
@@ -2602,7 +2659,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 	if (test_kvm_facility(vcpu->kvm, 139))
 		vcpu->arch.sie_block->ecd |= ECD_MEF;
-
+	if (test_kvm_facility(vcpu->kvm, 156))
+		vcpu->arch.sie_block->ecd |= ECD_ETOKENF;
 	if (vcpu->arch.sie_block->gd) {
 		vcpu->arch.sie_block->eca |= ECA_AIV;
 		VCPU_EVENT(vcpu, 3, "AIV gisa format-%u enabled for cpu %03u",
@@ -3520,6 +3578,7 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 		preempt_enable();
 	}
+	/* SIE will load etoken directly from SDNX and therefore kvm_run */
 
 	kvm_run->kvm_dirty_regs = 0;
 }
@@ -3559,7 +3618,7 @@ static void store_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			__ctl_clear_bit(2, 4);
 		vcpu->arch.host_gscb = NULL;
 	}
-
+	/* SIE will save etoken directly into SDNX and therefore kvm_run */
 }
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
