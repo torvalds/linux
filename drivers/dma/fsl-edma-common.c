@@ -43,20 +43,20 @@
 
 static void fsl_edma_enable_request(struct fsl_edma_chan *fsl_chan)
 {
-	void __iomem *addr = fsl_chan->edma->membase;
+	struct edma_regs *regs = &fsl_chan->edma->regs;
 	u32 ch = fsl_chan->vchan.chan.chan_id;
 
-	edma_writeb(fsl_chan->edma, EDMA_SEEI_SEEI(ch), addr + EDMA_SEEI);
-	edma_writeb(fsl_chan->edma, ch, addr + EDMA_SERQ);
+	edma_writeb(fsl_chan->edma, EDMA_SEEI_SEEI(ch), regs->seei);
+	edma_writeb(fsl_chan->edma, ch, regs->serq);
 }
 
 void fsl_edma_disable_request(struct fsl_edma_chan *fsl_chan)
 {
-	void __iomem *addr = fsl_chan->edma->membase;
+	struct edma_regs *regs = &fsl_chan->edma->regs;
 	u32 ch = fsl_chan->vchan.chan.chan_id;
 
-	edma_writeb(fsl_chan->edma, ch, addr + EDMA_CERQ);
-	edma_writeb(fsl_chan->edma, EDMA_CEEI_CEEI(ch), addr + EDMA_CEEI);
+	edma_writeb(fsl_chan->edma, ch, regs->cerq);
+	edma_writeb(fsl_chan->edma, EDMA_CEEI_CEEI(ch), regs->ceei);
 }
 EXPORT_SYMBOL_GPL(fsl_edma_disable_request);
 
@@ -184,7 +184,7 @@ static size_t fsl_edma_desc_residue(struct fsl_edma_chan *fsl_chan,
 		struct virt_dma_desc *vdesc, bool in_progress)
 {
 	struct fsl_edma_desc *edesc = fsl_chan->edesc;
-	void __iomem *addr = fsl_chan->edma->membase;
+	struct edma_regs *regs = &fsl_chan->edma->regs;
 	u32 ch = fsl_chan->vchan.chan.chan_id;
 	enum dma_transfer_direction dir = fsl_chan->fsc.dir;
 	dma_addr_t cur_addr, dma_addr;
@@ -200,11 +200,9 @@ static size_t fsl_edma_desc_residue(struct fsl_edma_chan *fsl_chan,
 		return len;
 
 	if (dir == DMA_MEM_TO_DEV)
-		cur_addr = edma_readl(
-			fsl_chan->edma, addr + EDMA_TCD_SADDR(ch));
+		cur_addr = edma_readl(fsl_chan->edma, &regs->tcd[ch].saddr);
 	else
-		cur_addr = edma_readl(
-			fsl_chan->edma, addr + EDMA_TCD_DADDR(ch));
+		cur_addr = edma_readl(fsl_chan->edma, &regs->tcd[ch].daddr);
 
 	/* figure out the finished and calculate the residue */
 	for (i = 0; i < fsl_chan->edesc->n_tcds; i++) {
@@ -261,7 +259,7 @@ static void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan,
 				  struct fsl_edma_hw_tcd *tcd)
 {
 	struct fsl_edma_engine *edma = fsl_chan->edma;
-	void __iomem *addr = fsl_chan->edma->membase;
+	struct edma_regs *regs = &fsl_chan->edma->regs;
 	u32 ch = fsl_chan->vchan.chan.chan_id;
 
 	/*
@@ -269,24 +267,24 @@ static void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan,
 	 * endian format. However, we need to load the TCD registers in
 	 * big- or little-endian obeying the eDMA engine model endian.
 	 */
-	edma_writew(edma, 0, addr + EDMA_TCD_CSR(ch));
-	edma_writel(edma, le32_to_cpu(tcd->saddr), addr + EDMA_TCD_SADDR(ch));
-	edma_writel(edma, le32_to_cpu(tcd->daddr), addr + EDMA_TCD_DADDR(ch));
+	edma_writew(edma, 0,  &regs->tcd[ch].csr);
+	edma_writel(edma, le32_to_cpu(tcd->saddr), &regs->tcd[ch].saddr);
+	edma_writel(edma, le32_to_cpu(tcd->daddr), &regs->tcd[ch].daddr);
 
-	edma_writew(edma, le16_to_cpu(tcd->attr), addr + EDMA_TCD_ATTR(ch));
-	edma_writew(edma, le16_to_cpu(tcd->soff), addr + EDMA_TCD_SOFF(ch));
+	edma_writew(edma, le16_to_cpu(tcd->attr), &regs->tcd[ch].attr);
+	edma_writew(edma, le16_to_cpu(tcd->soff), &regs->tcd[ch].soff);
 
-	edma_writel(edma, le32_to_cpu(tcd->nbytes), addr + EDMA_TCD_NBYTES(ch));
-	edma_writel(edma, le32_to_cpu(tcd->slast), addr + EDMA_TCD_SLAST(ch));
+	edma_writel(edma, le32_to_cpu(tcd->nbytes), &regs->tcd[ch].nbytes);
+	edma_writel(edma, le32_to_cpu(tcd->slast), &regs->tcd[ch].slast);
 
-	edma_writew(edma, le16_to_cpu(tcd->citer), addr + EDMA_TCD_CITER(ch));
-	edma_writew(edma, le16_to_cpu(tcd->biter), addr + EDMA_TCD_BITER(ch));
-	edma_writew(edma, le16_to_cpu(tcd->doff), addr + EDMA_TCD_DOFF(ch));
+	edma_writew(edma, le16_to_cpu(tcd->citer), &regs->tcd[ch].citer);
+	edma_writew(edma, le16_to_cpu(tcd->biter), &regs->tcd[ch].biter);
+	edma_writew(edma, le16_to_cpu(tcd->doff), &regs->tcd[ch].doff);
 
-	edma_writel(edma,
-		    le32_to_cpu(tcd->dlast_sga), addr + EDMA_TCD_DLAST_SGA(ch));
+	edma_writel(edma, le32_to_cpu(tcd->dlast_sga),
+			&regs->tcd[ch].dlast_sga);
 
-	edma_writew(edma, le16_to_cpu(tcd->csr), addr + EDMA_TCD_CSR(ch));
+	edma_writew(edma, le16_to_cpu(tcd->csr), &regs->tcd[ch].csr);
 }
 
 static inline
@@ -308,15 +306,15 @@ void fsl_edma_fill_tcd(struct fsl_edma_hw_tcd *tcd, u32 src, u32 dst,
 
 	tcd->attr = cpu_to_le16(attr);
 
-	tcd->soff = cpu_to_le16(EDMA_TCD_SOFF_SOFF(soff));
+	tcd->soff = cpu_to_le16(soff);
 
-	tcd->nbytes = cpu_to_le32(EDMA_TCD_NBYTES_NBYTES(nbytes));
-	tcd->slast = cpu_to_le32(EDMA_TCD_SLAST_SLAST(slast));
+	tcd->nbytes = cpu_to_le32(nbytes);
+	tcd->slast = cpu_to_le32(slast);
 
 	tcd->citer = cpu_to_le16(EDMA_TCD_CITER_CITER(citer));
-	tcd->doff = cpu_to_le16(EDMA_TCD_DOFF_DOFF(doff));
+	tcd->doff = cpu_to_le16(doff);
 
-	tcd->dlast_sga = cpu_to_le32(EDMA_TCD_DLAST_SGA_DLAST_SGA(dlast_sga));
+	tcd->dlast_sga = cpu_to_le32(dlast_sga);
 
 	tcd->biter = cpu_to_le16(EDMA_TCD_BITER_BITER(biter));
 	if (major_int)
@@ -548,5 +546,53 @@ void fsl_edma_cleanup_vchan(struct dma_device *dmadev)
 	}
 }
 EXPORT_SYMBOL_GPL(fsl_edma_cleanup_vchan);
+
+/*
+ * On the 32 channels Vybrid/mpc577x edma version (here called "v1"),
+ * register offsets are different compared to ColdFire mcf5441x 64 channels
+ * edma (here called "v2").
+ *
+ * This function sets up register offsets as per proper declared version
+ * so must be called in xxx_edma_probe() just after setting the
+ * edma "version" and "membase" appropriately.
+ */
+void fsl_edma_setup_regs(struct fsl_edma_engine *edma)
+{
+	edma->regs.cr = edma->membase + EDMA_CR;
+	edma->regs.es = edma->membase + EDMA_ES;
+	edma->regs.erql = edma->membase + EDMA_ERQ;
+	edma->regs.eeil = edma->membase + EDMA_EEI;
+
+	edma->regs.serq = edma->membase + ((edma->version == v1) ?
+			EDMA_SERQ : EDMA64_SERQ);
+	edma->regs.cerq = edma->membase + ((edma->version == v1) ?
+			EDMA_CERQ : EDMA64_CERQ);
+	edma->regs.seei = edma->membase + ((edma->version == v1) ?
+			EDMA_SEEI : EDMA64_SEEI);
+	edma->regs.ceei = edma->membase + ((edma->version == v1) ?
+			EDMA_CEEI : EDMA64_CEEI);
+	edma->regs.cint = edma->membase + ((edma->version == v1) ?
+			EDMA_CINT : EDMA64_CINT);
+	edma->regs.cerr = edma->membase + ((edma->version == v1) ?
+			EDMA_CERR : EDMA64_CERR);
+	edma->regs.ssrt = edma->membase + ((edma->version == v1) ?
+			EDMA_SSRT : EDMA64_SSRT);
+	edma->regs.cdne = edma->membase + ((edma->version == v1) ?
+			EDMA_CDNE : EDMA64_CDNE);
+	edma->regs.intl = edma->membase + ((edma->version == v1) ?
+			EDMA_INTR : EDMA64_INTL);
+	edma->regs.errl = edma->membase + ((edma->version == v1) ?
+			EDMA_ERR : EDMA64_ERRL);
+
+	if (edma->version == v2) {
+		edma->regs.erqh = edma->membase + EDMA64_ERQH;
+		edma->regs.eeih = edma->membase + EDMA64_EEIH;
+		edma->regs.errh = edma->membase + EDMA64_ERRH;
+		edma->regs.inth = edma->membase + EDMA64_INTH;
+	}
+
+	edma->regs.tcd = edma->membase + EDMA_TCD;
+}
+EXPORT_SYMBOL_GPL(fsl_edma_setup_regs);
 
 MODULE_LICENSE("GPL v2");

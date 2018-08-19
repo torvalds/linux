@@ -8,35 +8,6 @@
 
 #include "virt-dma.h"
 
-#define EDMA_CR			0x00
-#define EDMA_ES			0x04
-#define EDMA_ERQ		0x0C
-#define EDMA_EEI		0x14
-#define EDMA_SERQ		0x1B
-#define EDMA_CERQ		0x1A
-#define EDMA_SEEI		0x19
-#define EDMA_CEEI		0x18
-#define EDMA_CINT		0x1F
-#define EDMA_CERR		0x1E
-#define EDMA_SSRT		0x1D
-#define EDMA_CDNE		0x1C
-#define EDMA_INTR		0x24
-#define EDMA_ERR		0x2C
-
-#define EDMA_TCD_SADDR(x)	(0x1000 + 32 * (x))
-#define EDMA_TCD_SOFF(x)	(0x1004 + 32 * (x))
-#define EDMA_TCD_ATTR(x)	(0x1006 + 32 * (x))
-#define EDMA_TCD_NBYTES(x)	(0x1008 + 32 * (x))
-#define EDMA_TCD_SLAST(x)	(0x100C + 32 * (x))
-#define EDMA_TCD_DADDR(x)	(0x1010 + 32 * (x))
-#define EDMA_TCD_DOFF(x)	(0x1014 + 32 * (x))
-#define EDMA_TCD_CITER_ELINK(x)	(0x1016 + 32 * (x))
-#define EDMA_TCD_CITER(x)	(0x1016 + 32 * (x))
-#define EDMA_TCD_DLAST_SGA(x)	(0x1018 + 32 * (x))
-#define EDMA_TCD_CSR(x)		(0x101C + 32 * (x))
-#define EDMA_TCD_BITER_ELINK(x)	(0x101E + 32 * (x))
-#define EDMA_TCD_BITER(x)	(0x101E + 32 * (x))
-
 #define EDMA_CR_EDBG		BIT(1)
 #define EDMA_CR_ERCA		BIT(2)
 #define EDMA_CR_ERGA		BIT(3)
@@ -114,6 +85,31 @@ struct fsl_edma_hw_tcd {
 	__le16	biter;
 };
 
+/*
+ * These are iomem pointers, for both v32 and v64.
+ */
+struct edma_regs {
+	void __iomem *cr;
+	void __iomem *es;
+	void __iomem *erqh;
+	void __iomem *erql;	/* aka erq on v32 */
+	void __iomem *eeih;
+	void __iomem *eeil;	/* aka eei on v32 */
+	void __iomem *seei;
+	void __iomem *ceei;
+	void __iomem *serq;
+	void __iomem *cerq;
+	void __iomem *cint;
+	void __iomem *cerr;
+	void __iomem *ssrt;
+	void __iomem *cdne;
+	void __iomem *inth;
+	void __iomem *intl;
+	void __iomem *errh;
+	void __iomem *errl;
+	struct fsl_edma_hw_tcd __iomem *tcd;
+};
+
 struct fsl_edma_sw_tcd {
 	dma_addr_t			ptcd;
 	struct fsl_edma_hw_tcd		*vtcd;
@@ -147,6 +143,11 @@ struct fsl_edma_desc {
 	struct fsl_edma_sw_tcd		tcd[];
 };
 
+enum edma_version {
+	v1, /* 32ch, Vybdir, mpc57x, etc */
+	v2, /* 64ch Coldfire */
+};
+
 struct fsl_edma_engine {
 	struct dma_device	dma_dev;
 	void __iomem		*membase;
@@ -157,6 +158,8 @@ struct fsl_edma_engine {
 	int			txirq;
 	int			errirq;
 	bool			big_endian;
+	enum edma_version	version;
+	struct edma_regs	regs;
 	struct fsl_edma_chan	chans[];
 };
 
@@ -237,5 +240,6 @@ void fsl_edma_issue_pending(struct dma_chan *chan);
 int fsl_edma_alloc_chan_resources(struct dma_chan *chan);
 void fsl_edma_free_chan_resources(struct dma_chan *chan);
 void fsl_edma_cleanup_vchan(struct dma_device *dmadev);
+void fsl_edma_setup_regs(struct fsl_edma_engine *edma);
 
 #endif /* _FSL_EDMA_COMMON_H_ */

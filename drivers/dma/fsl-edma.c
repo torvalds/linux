@@ -28,19 +28,16 @@ static irqreturn_t fsl_edma_tx_handler(int irq, void *dev_id)
 {
 	struct fsl_edma_engine *fsl_edma = dev_id;
 	unsigned int intr, ch;
-	void __iomem *base_addr;
+	struct edma_regs *regs = &fsl_edma->regs;
 	struct fsl_edma_chan *fsl_chan;
 
-	base_addr = fsl_edma->membase;
-
-	intr = edma_readl(fsl_edma, base_addr + EDMA_INTR);
+	intr = edma_readl(fsl_edma, regs->intl);
 	if (!intr)
 		return IRQ_NONE;
 
 	for (ch = 0; ch < fsl_edma->n_chans; ch++) {
 		if (intr & (0x1 << ch)) {
-			edma_writeb(fsl_edma, EDMA_CINT_CINT(ch),
-				base_addr + EDMA_CINT);
+			edma_writeb(fsl_edma, EDMA_CINT_CINT(ch), regs->cint);
 
 			fsl_chan = &fsl_edma->chans[ch];
 
@@ -68,16 +65,16 @@ static irqreturn_t fsl_edma_err_handler(int irq, void *dev_id)
 {
 	struct fsl_edma_engine *fsl_edma = dev_id;
 	unsigned int err, ch;
+	struct edma_regs *regs = &fsl_edma->regs;
 
-	err = edma_readl(fsl_edma, fsl_edma->membase + EDMA_ERR);
+	err = edma_readl(fsl_edma, regs->errl);
 	if (!err)
 		return IRQ_NONE;
 
 	for (ch = 0; ch < fsl_edma->n_chans; ch++) {
 		if (err & (0x1 << ch)) {
 			fsl_edma_disable_request(&fsl_edma->chans[ch]);
-			edma_writeb(fsl_edma, EDMA_CERR_CERR(ch),
-				fsl_edma->membase + EDMA_CERR);
+			edma_writeb(fsl_edma, EDMA_CERR_CERR(ch), regs->cerr);
 			fsl_edma->chans[ch].status = DMA_ERROR;
 			fsl_edma->chans[ch].idle = true;
 		}
@@ -192,6 +189,7 @@ static int fsl_edma_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct fsl_edma_engine *fsl_edma;
 	struct fsl_edma_chan *fsl_chan;
+	struct edma_regs *regs;
 	struct resource *res;
 	int len, chans;
 	int ret, i;
@@ -207,6 +205,7 @@ static int fsl_edma_probe(struct platform_device *pdev)
 	if (!fsl_edma)
 		return -ENOMEM;
 
+	fsl_edma->version = v1;
 	fsl_edma->n_chans = chans;
 	mutex_init(&fsl_edma->fsl_edma_mutex);
 
@@ -214,6 +213,9 @@ static int fsl_edma_probe(struct platform_device *pdev)
 	fsl_edma->membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(fsl_edma->membase))
 		return PTR_ERR(fsl_edma->membase);
+
+	fsl_edma_setup_regs(fsl_edma);
+	regs = &fsl_edma->regs;
 
 	for (i = 0; i < DMAMUX_NR; i++) {
 		char clkname[32];
@@ -255,11 +257,11 @@ static int fsl_edma_probe(struct platform_device *pdev)
 		fsl_chan->vchan.desc_free = fsl_edma_free_desc;
 		vchan_init(&fsl_chan->vchan, &fsl_edma->dma_dev);
 
-		edma_writew(fsl_edma, 0x0, fsl_edma->membase + EDMA_TCD_CSR(i));
+		edma_writew(fsl_edma, 0x0, &regs->tcd[i].csr);
 		fsl_edma_chan_mux(fsl_chan, 0, false);
 	}
 
-	edma_writel(fsl_edma, ~0, fsl_edma->membase + EDMA_INTR);
+	edma_writel(fsl_edma, ~0, regs->intl);
 	ret = fsl_edma_irq_init(pdev, fsl_edma);
 	if (ret)
 		return ret;
@@ -306,7 +308,7 @@ static int fsl_edma_probe(struct platform_device *pdev)
 	}
 
 	/* enable round robin arbitration */
-	edma_writel(fsl_edma, EDMA_CR_ERGA | EDMA_CR_ERCA, fsl_edma->membase + EDMA_CR);
+	edma_writel(fsl_edma, EDMA_CR_ERGA | EDMA_CR_ERCA, regs->cr);
 
 	return 0;
 }
@@ -353,18 +355,18 @@ static int fsl_edma_resume_early(struct device *dev)
 {
 	struct fsl_edma_engine *fsl_edma = dev_get_drvdata(dev);
 	struct fsl_edma_chan *fsl_chan;
+	struct edma_regs *regs = &fsl_edma->regs;
 	int i;
 
 	for (i = 0; i < fsl_edma->n_chans; i++) {
 		fsl_chan = &fsl_edma->chans[i];
 		fsl_chan->pm_state = RUNNING;
-		edma_writew(fsl_edma, 0x0, fsl_edma->membase + EDMA_TCD_CSR(i));
+		edma_writew(fsl_edma, 0x0, &regs->tcd[i].csr);
 		if (fsl_chan->slave_id != 0)
 			fsl_edma_chan_mux(fsl_chan, fsl_chan->slave_id, true);
 	}
 
-	edma_writel(fsl_edma, EDMA_CR_ERGA | EDMA_CR_ERCA,
-			fsl_edma->membase + EDMA_CR);
+	edma_writel(fsl_edma, EDMA_CR_ERGA | EDMA_CR_ERCA, regs->cr);
 
 	return 0;
 }
