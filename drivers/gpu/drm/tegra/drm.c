@@ -15,6 +15,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+#include <asm/dma-iommu.h>
+#endif
+
 #include "drm.h"
 #include "gem.h"
 
@@ -1068,6 +1072,14 @@ struct iommu_group *host1x_client_iommu_attach(struct host1x_client *client,
 		}
 
 		if (!shared || (shared && (group != tegra->group))) {
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+			if (client->dev->archdata.mapping) {
+				struct dma_iommu_mapping *mapping =
+					to_dma_iommu_mapping(client->dev);
+				arm_iommu_detach_device(client->dev);
+				arm_iommu_release_mapping(mapping);
+			}
+#endif
 			err = iommu_attach_group(tegra->domain, group);
 			if (err < 0) {
 				iommu_group_put(group);
