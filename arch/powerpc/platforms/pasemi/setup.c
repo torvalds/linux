@@ -34,6 +34,7 @@
 #include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
+#include <asm/i8259.h>
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
@@ -182,6 +183,42 @@ static int __init pas_setup_mce_regs(void)
 	return 0;
 }
 machine_device_initcall(pasemi, pas_setup_mce_regs);
+
+#ifdef CONFIG_PPC_PASEMI_NEMO
+static void sb600_8259_cascade(struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int cascade_irq = i8259_irq();
+
+	if (cascade_irq)
+		generic_handle_irq(cascade_irq);
+
+	chip->irq_eoi(&desc->irq_data);
+}
+
+static void nemo_init_IRQ(struct mpic *mpic)
+{
+	struct device_node *np;
+	int gpio_virq;
+	/* Connect the SB600's legacy i8259 controller */
+	np = of_find_node_by_path("/pxp@0,e0000000");
+	i8259_init(np, 0);
+	of_node_put(np);
+
+	gpio_virq = irq_create_mapping(NULL, 3);
+	irq_set_irq_type(gpio_virq, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_chained_handler(gpio_virq, sb600_8259_cascade);
+	mpic_unmask_irq(irq_get_irq_data(gpio_virq));
+
+	irq_set_default_host(mpic->irqhost);
+}
+
+#else
+
+static inline void nemo_init_IRQ(struct mpic *mpic)
+{
+}
+#endif
 
 static __init void pas_init_IRQ(void)
 {
