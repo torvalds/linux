@@ -686,14 +686,18 @@ static int tcf_action_put(struct tc_action *p)
 	return __tcf_action_put(p, false);
 }
 
+/* Put all actions in this array, skip those NULL's. */
 static void tcf_action_put_many(struct tc_action *actions[])
 {
 	int i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
+	for (i = 0; i < TCA_ACT_MAX_PRIO; i++) {
 		struct tc_action *a = actions[i];
-		const struct tc_action_ops *ops = a->ops;
+		const struct tc_action_ops *ops;
 
+		if (!a)
+			continue;
+		ops = a->ops;
 		if (tcf_action_put(a))
 			module_put(ops->owner);
 	}
@@ -1176,7 +1180,7 @@ err_out:
 }
 
 static int tcf_action_delete(struct net *net, struct tc_action *actions[],
-			     int *acts_deleted, struct netlink_ext_ack *extack)
+			     struct netlink_ext_ack *extack)
 {
 	u32 act_index;
 	int ret, i;
@@ -1196,20 +1200,17 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[],
 		} else  {
 			/* now do the delete */
 			ret = ops->delete(net, act_index);
-			if (ret < 0) {
-				*acts_deleted = i + 1;
+			if (ret < 0)
 				return ret;
-			}
 		}
+		actions[i] = NULL;
 	}
-	*acts_deleted = i;
 	return 0;
 }
 
 static int
 tcf_del_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
-	       int *acts_deleted, u32 portid, size_t attr_size,
-	       struct netlink_ext_ack *extack)
+	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct sk_buff *skb;
@@ -1227,7 +1228,7 @@ tcf_del_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
 	}
 
 	/* now do the delete */
-	ret = tcf_action_delete(net, actions, acts_deleted, extack);
+	ret = tcf_action_delete(net, actions, extack);
 	if (ret < 0) {
 		NL_SET_ERR_MSG(extack, "Failed to delete TC action");
 		kfree_skb(skb);
@@ -1249,8 +1250,7 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
 	size_t attr_size = 0;
-	struct tc_action *actions[TCA_ACT_MAX_PRIO + 1] = {};
-	int acts_deleted = 0;
+	struct tc_action *actions[TCA_ACT_MAX_PRIO] = {};
 
 	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, extack);
 	if (ret < 0)
@@ -1280,14 +1280,13 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	if (event == RTM_GETACTION)
 		ret = tcf_get_notify(net, portid, n, actions, event, extack);
 	else { /* delete */
-		ret = tcf_del_notify(net, n, actions, &acts_deleted, portid,
-				     attr_size, extack);
+		ret = tcf_del_notify(net, n, actions, portid, attr_size, extack);
 		if (ret)
 			goto err;
-		return ret;
+		return 0;
 	}
 err:
-	tcf_action_put_many(&actions[acts_deleted]);
+	tcf_action_put_many(actions);
 	return ret;
 }
 
