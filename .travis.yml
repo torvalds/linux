@@ -9,10 +9,7 @@ git:
   depth: false
   quiet: false
   
-if: tag =~ ^release.*$
-branches:
-  only:
-    - /^.*-main$/
+if: tag =~ /^[rR]elease.*$/
 
 install:
     - git checkout $TRAVIS_BRANCH
