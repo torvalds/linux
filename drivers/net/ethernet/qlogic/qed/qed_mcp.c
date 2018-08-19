@@ -320,6 +320,12 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	u32 org_mcp_reset_seq, seq, delay = QED_MCP_RESP_ITER_US, cnt = 0;
 	int rc = 0;
 
+	if (p_hwfn->mcp_info->b_block_cmd) {
+		DP_NOTICE(p_hwfn,
+			  "The MFW is not responsive. Avoid sending MCP_RESET mailbox command.\n");
+		return -EBUSY;
+	}
+
 	/* Ensure that only a single thread is accessing the mailbox */
 	spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
 
@@ -445,6 +451,33 @@ static void __qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		   (p_mb_params->cmd | seq_num), p_mb_params->param);
 }
 
+static void qed_mcp_cmd_set_blocking(struct qed_hwfn *p_hwfn, bool block_cmd)
+{
+	p_hwfn->mcp_info->b_block_cmd = block_cmd;
+
+	DP_INFO(p_hwfn, "%s sending of mailbox commands to the MFW\n",
+		block_cmd ? "Block" : "Unblock");
+}
+
+static void qed_mcp_print_cpu_info(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt)
+{
+	u32 cpu_mode, cpu_state, cpu_pc_0, cpu_pc_1, cpu_pc_2;
+	u32 delay = QED_MCP_RESP_ITER_US;
+
+	cpu_mode = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
+	cpu_state = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_STATE);
+	cpu_pc_0 = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_PROGRAM_COUNTER);
+	udelay(delay);
+	cpu_pc_1 = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_PROGRAM_COUNTER);
+	udelay(delay);
+	cpu_pc_2 = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_PROGRAM_COUNTER);
+
+	DP_NOTICE(p_hwfn,
+		  "MCP CPU info: mode 0x%08x, state 0x%08x, pc {0x%08x, 0x%08x, 0x%08x}\n",
+		  cpu_mode, cpu_state, cpu_pc_0, cpu_pc_1, cpu_pc_2);
+}
+
 static int
 _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		       struct qed_ptt *p_ptt,
@@ -531,10 +564,14 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn,
 			  "The MFW failed to respond to command 0x%08x [param 0x%08x].\n",
 			  p_mb_params->cmd, p_mb_params->param);
+		qed_mcp_print_cpu_info(p_hwfn, p_ptt);
 
 		spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
 		qed_mcp_cmd_del_elem(p_hwfn, p_cmd_elem);
 		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
+
+		if (!QED_MB_FLAGS_IS_SET(p_mb_params, AVOID_BLOCK))
+			qed_mcp_cmd_set_blocking(p_hwfn, true);
 
 		return -EAGAIN;
 	}
@@ -570,6 +607,13 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 	/* MCP not initialized */
 	if (!qed_mcp_is_init(p_hwfn)) {
 		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
+		return -EBUSY;
+	}
+
+	if (p_hwfn->mcp_info->b_block_cmd) {
+		DP_NOTICE(p_hwfn,
+			  "The MFW is not responsive. Avoid sending mailbox command 0x%08x [param 0x%08x].\n",
+			  p_mb_params->cmd, p_mb_params->param);
 		return -EBUSY;
 	}
 
@@ -806,7 +850,7 @@ __qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	mb_params.data_src_size = sizeof(load_req);
 	mb_params.p_data_dst = &load_rsp;
 	mb_params.data_dst_size = sizeof(load_rsp);
-	mb_params.flags = QED_MB_FLAG_CAN_SLEEP;
+	mb_params.flags = QED_MB_FLAG_CAN_SLEEP | QED_MB_FLAG_AVOID_BLOCK;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SP,
 		   "Load Request: param 0x%08x [init_hw %d, drv_type %d, hsi_ver %d, pda 0x%04x]\n",
@@ -1050,7 +1094,7 @@ int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = DRV_MSG_CODE_UNLOAD_REQ;
 	mb_params.param = wol_param;
-	mb_params.flags = QED_MB_FLAG_CAN_SLEEP;
+	mb_params.flags = QED_MB_FLAG_CAN_SLEEP | QED_MB_FLAG_AVOID_BLOCK;
 
 	return qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 }
@@ -2158,6 +2202,8 @@ int qed_mcp_halt(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		return -EBUSY;
 	}
 
+	qed_mcp_cmd_set_blocking(p_hwfn, true);
+
 	return 0;
 }
 
@@ -2181,6 +2227,8 @@ int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			  cpu_mode, cpu_state);
 		return -EBUSY;
 	}
+
+	qed_mcp_cmd_set_blocking(p_hwfn, false);
 
 	return 0;
 }

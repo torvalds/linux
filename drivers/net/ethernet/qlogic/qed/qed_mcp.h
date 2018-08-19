@@ -635,11 +635,14 @@ struct qed_mcp_info {
 	 */
 	spinlock_t				cmd_lock;
 
+	/* Flag to indicate whether sending a MFW mailbox command is blocked */
+	bool					b_block_cmd;
+
 	/* Spinlock used for syncing SW link-changes and link-changes
 	 * originating from attention context.
 	 */
 	spinlock_t				link_lock;
-	bool					block_mb_sending;
+
 	u32					public_base;
 	u32					drv_mb_addr;
 	u32					mfw_mb_addr;
@@ -670,6 +673,7 @@ struct qed_mcp_mb_params {
 	u32 mcp_param;
 	u32 flags;
 #define QED_MB_FLAG_CAN_SLEEP	(0x1 << 0)
+#define QED_MB_FLAG_AVOID_BLOCK	(0x1 << 1)
 #define QED_MB_FLAGS_IS_SET(params, flag) \
 	({ typeof(params) __params = (params); \
 	   (__params && (__params->flags & QED_MB_FLAG_ ## flag)); })
