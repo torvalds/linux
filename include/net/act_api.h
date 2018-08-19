@@ -102,7 +102,6 @@ struct tc_action_ops {
 	size_t  (*get_fill_size)(const struct tc_action *act);
 	struct net_device *(*get_dev)(const struct tc_action *a);
 	void	(*put_dev)(struct net_device *dev);
-	int     (*delete)(struct net *net, u32 index);
 };
 
 struct tc_action_net {
@@ -158,7 +157,6 @@ void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a);
 void tcf_idr_cleanup(struct tc_action_net *tn, u32 index);
 int tcf_idr_check_alloc(struct tc_action_net *tn, u32 *index,
 			struct tc_action **a, int bind);
-int tcf_idr_delete_index(struct tc_action_net *tn, u32 index);
 int __tcf_idr_release(struct tc_action *a, bool bind, bool strict);
 
 static inline int tcf_idr_release(struct tc_action *a, bool bind)

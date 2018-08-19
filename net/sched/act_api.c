@@ -337,9 +337,8 @@ bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 }
 EXPORT_SYMBOL(tcf_idr_check);
 
-int tcf_idr_delete_index(struct tc_action_net *tn, u32 index)
+static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 {
-	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 	struct tc_action *p;
 	int ret = 0;
 
@@ -370,7 +369,6 @@ int tcf_idr_delete_index(struct tc_action_net *tn, u32 index)
 	spin_unlock(&idrinfo->lock);
 	return ret;
 }
-EXPORT_SYMBOL(tcf_idr_delete_index);
 
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
@@ -1182,24 +1180,25 @@ err_out:
 static int tcf_action_delete(struct net *net, struct tc_action *actions[],
 			     struct netlink_ext_ack *extack)
 {
-	u32 act_index;
-	int ret, i;
+	int i;
 
 	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
 		struct tc_action *a = actions[i];
 		const struct tc_action_ops *ops = a->ops;
-
 		/* Actions can be deleted concurrently so we must save their
 		 * type and id to search again after reference is released.
 		 */
-		act_index = a->tcfa_index;
+		struct tcf_idrinfo *idrinfo = a->idrinfo;
+		u32 act_index = a->tcfa_index;
 
 		if (tcf_action_put(a)) {
 			/* last reference, action was deleted concurrently */
 			module_put(ops->owner);
 		} else  {
+			int ret;
+
 			/* now do the delete */
-			ret = ops->delete(net, act_index);
+			ret = tcf_idr_delete_index(idrinfo, act_index);
 			if (ret < 0)
 				return ret;
 		}
