@@ -229,7 +229,8 @@ static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
 	stride *= input_step;
 
 	for (i = 0; i < 8; i++, tmp += stride, out += 8) {
-		if (input_step == 1) {
+		switch (input_step) {
+		case 1:
 			workspace1[0]  = tmp[0] + tmp[1] - add;
 			workspace1[1]  = tmp[0] - tmp[1];
 
@@ -241,7 +242,8 @@ static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
 
 			workspace1[6]  = tmp[6] + tmp[7] - add;
 			workspace1[7]  = tmp[6] - tmp[7];
-		} else {
+			break;
+		case 2:
 			workspace1[0]  = tmp[0] + tmp[2] - add;
 			workspace1[1]  = tmp[0] - tmp[2];
 
@@ -253,6 +255,33 @@ static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
 
 			workspace1[6]  = tmp[12] + tmp[14] - add;
 			workspace1[7]  = tmp[12] - tmp[14];
+			break;
+		case 3:
+			workspace1[0]  = tmp[0] + tmp[3] - add;
+			workspace1[1]  = tmp[0] - tmp[3];
+
+			workspace1[2]  = tmp[6] + tmp[9] - add;
+			workspace1[3]  = tmp[6] - tmp[9];
+
+			workspace1[4]  = tmp[12] + tmp[15] - add;
+			workspace1[5]  = tmp[12] - tmp[15];
+
+			workspace1[6]  = tmp[18] + tmp[21] - add;
+			workspace1[7]  = tmp[18] - tmp[21];
+			break;
+		default:
+			workspace1[0]  = tmp[0] + tmp[4] - add;
+			workspace1[1]  = tmp[0] - tmp[4];
+
+			workspace1[2]  = tmp[8] + tmp[12] - add;
+			workspace1[3]  = tmp[8] - tmp[12];
+
+			workspace1[4]  = tmp[16] + tmp[20] - add;
+			workspace1[5]  = tmp[16] - tmp[20];
+
+			workspace1[6]  = tmp[24] + tmp[28] - add;
+			workspace1[7]  = tmp[24] - tmp[28];
+			break;
 		}
 
 		/* stage 2 */
@@ -704,25 +733,28 @@ u32 encode_frame(struct raw_frame *frm, struct raw_frame *ref_frm,
 	__be16 *rlco = cf->rlc_data;
 	__be16 *rlco_max;
 	u32 encoding;
+	u32 chroma_h = frm->height / frm->height_div;
+	u32 chroma_w = frm->width / frm->width_div;
+	unsigned int chroma_size = chroma_h * chroma_w;
 
 	rlco_max = rlco + size / 2 - 256;
 	encoding = encode_plane(frm->luma, ref_frm->luma, &rlco, rlco_max, cf,
-				  frm->height, frm->width,
-				  1, is_intra, next_is_intra);
+				frm->height, frm->width,
+				frm->luma_step, is_intra, next_is_intra);
 	if (encoding & FRAME_UNENCODED)
 		encoding |= LUMA_UNENCODED;
 	encoding &= ~FRAME_UNENCODED;
-	rlco_max = rlco + size / 8 - 256;
+	rlco_max = rlco + chroma_size / 2 - 256;
 	encoding |= encode_plane(frm->cb, ref_frm->cb, &rlco, rlco_max, cf,
-				   frm->height / 2, frm->width / 2,
-				   frm->chroma_step, is_intra, next_is_intra);
+				 chroma_h, chroma_w,
+				 frm->chroma_step, is_intra, next_is_intra);
 	if (encoding & FRAME_UNENCODED)
 		encoding |= CB_UNENCODED;
 	encoding &= ~FRAME_UNENCODED;
-	rlco_max = rlco + size / 8 - 256;
+	rlco_max = rlco + chroma_size / 2 - 256;
 	encoding |= encode_plane(frm->cr, ref_frm->cr, &rlco, rlco_max, cf,
-				   frm->height / 2, frm->width / 2,
-				   frm->chroma_step, is_intra, next_is_intra);
+				 chroma_h, chroma_w,
+				 frm->chroma_step, is_intra, next_is_intra);
 	if (encoding & FRAME_UNENCODED)
 		encoding |= CR_UNENCODED;
 	encoding &= ~FRAME_UNENCODED;
@@ -786,11 +818,17 @@ static void decode_plane(struct cframe *cf, const __be16 **rlco, u8 *ref,
 void decode_frame(struct cframe *cf, struct raw_frame *ref, u32 hdr_flags)
 {
 	const __be16 *rlco = cf->rlc_data;
+	u32 h = cf->height / 2;
+	u32 w = cf->width / 2;
 
+	if (hdr_flags & VICODEC_FL_CHROMA_FULL_HEIGHT)
+		h *= 2;
+	if (hdr_flags & VICODEC_FL_CHROMA_FULL_WIDTH)
+		w *= 2;
 	decode_plane(cf, &rlco, ref->luma, cf->height, cf->width,
 		     hdr_flags & VICODEC_FL_LUMA_IS_UNCOMPRESSED);
-	decode_plane(cf, &rlco, ref->cb, cf->height / 2, cf->width / 2,
+	decode_plane(cf, &rlco, ref->cb, h, w,
 		     hdr_flags & VICODEC_FL_CB_IS_UNCOMPRESSED);
-	decode_plane(cf, &rlco, ref->cr, cf->height / 2, cf->width / 2,
+	decode_plane(cf, &rlco, ref->cr, h, w,
 		     hdr_flags & VICODEC_FL_CR_IS_UNCOMPRESSED);
 }

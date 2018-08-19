@@ -87,6 +87,8 @@
 #define VICODEC_FL_LUMA_IS_UNCOMPRESSED	BIT(4)
 #define VICODEC_FL_CB_IS_UNCOMPRESSED	BIT(5)
 #define VICODEC_FL_CR_IS_UNCOMPRESSED	BIT(6)
+#define VICODEC_FL_CHROMA_FULL_HEIGHT	BIT(7)
+#define VICODEC_FL_CHROMA_FULL_WIDTH	BIT(8)
 
 struct cframe_hdr {
 	u32 magic1;
@@ -114,6 +116,9 @@ struct cframe {
 
 struct raw_frame {
 	unsigned int width, height;
+	unsigned int width_div;
+	unsigned int height_div;
+	unsigned int luma_step;
 	unsigned int chroma_step;
 	u8 *luma, *cb, *cr;
 };
