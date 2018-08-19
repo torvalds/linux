@@ -92,8 +92,6 @@ static void tfp410_set_timings(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	tfp410_fix_timings(vm);
-
 	ddata->vm = *vm;
 
 	src->ops->set_timings(src, vm);
