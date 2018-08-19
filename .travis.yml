@@ -12,7 +12,7 @@ git:
 if: tag =~ /^[rR]elease.*$/
 
 install:
-    - git checkout 4.14-main
+    - git checkout $(git branch --contains tags/$TRAVIS_BRANCH|sed 's/^..//')
     - sudo apt-add-repository 'deb http://archive.ubuntu.com/ubuntu xenial main'
     - sudo apt-get update -qq
     - sudo apt-get install -qq ccache libssl-dev u-boot-tools python-mako debhelper fakeroot gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu make
