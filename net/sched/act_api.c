@@ -300,21 +300,17 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(tcf_generic_walker);
 
-static bool __tcf_idr_check(struct tc_action_net *tn, u32 index,
-			    struct tc_action **a, int bind)
+int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
 {
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 	struct tc_action *p;
 
 	spin_lock(&idrinfo->lock);
 	p = idr_find(&idrinfo->action_idr, index);
-	if (IS_ERR(p)) {
+	if (IS_ERR(p))
 		p = NULL;
-	} else if (p) {
+	else if (p)
 		refcount_inc(&p->tcfa_refcnt);
-		if (bind)
-			atomic_inc(&p->tcfa_bindcnt);
-	}
 	spin_unlock(&idrinfo->lock);
 
 	if (p) {
@@ -323,19 +319,7 @@ static bool __tcf_idr_check(struct tc_action_net *tn, u32 index,
 	}
 	return false;
 }
-
-int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
-{
-	return __tcf_idr_check(tn, index, a, 0);
-}
 EXPORT_SYMBOL(tcf_idr_search);
-
-bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
-		   int bind)
-{
-	return __tcf_idr_check(tn, index, a, bind);
-}
-EXPORT_SYMBOL(tcf_idr_check);
 
 static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 {
