@@ -449,6 +449,13 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 {
 	unsigned int limit;
 
+	/*
+	 * If we got disabled, just return UINT_MAX. This ensures that
+	 * we'll properly inc a new IO, and dec+wakeup at the end.
+	 */
+	if (!rwb_enabled(rwb))
+		return UINT_MAX;
+
 	if ((rw & REQ_OP_MASK) == REQ_OP_DISCARD)
 		return rwb->wb_background;
 
@@ -486,16 +493,6 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
 	DECLARE_WAITQUEUE(wait, current);
 
-	/*
-	* inc it here even if disabled, since we'll dec it at completion.
-	* this only happens if the task was sleeping in __wbt_wait(),
-	* and someone turned it off at the same time.
-	*/
-	if (!rwb_enabled(rwb)) {
-		atomic_inc(&rqw->inflight);
-		return;
-	}
-
 	if (!waitqueue_active(&rqw->wait)
 		&& rq_wait_inc_below(rqw, get_limit(rwb, rw)))
 		return;
@@ -503,11 +500,6 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 	add_wait_queue_exclusive(&rqw->wait, &wait);
 	do {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-
-		if (!rwb_enabled(rwb)) {
-			atomic_inc(&rqw->inflight);
-			break;
-		}
 
 		if (rq_wait_inc_below(rqw, get_limit(rwb, rw)))
 			break;
