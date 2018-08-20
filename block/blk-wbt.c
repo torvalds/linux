@@ -118,7 +118,7 @@ static void rwb_wake_all(struct rq_wb *rwb)
 	for (i = 0; i < WBT_NUM_RWQ; i++) {
 		struct rq_wait *rqw = &rwb->rq_wait[i];
 
-		if (waitqueue_active(&rqw->wait))
+		if (wq_has_sleeper(&rqw->wait))
 			wake_up_all(&rqw->wait);
 	}
 }
@@ -162,7 +162,7 @@ static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
 	if (inflight && inflight >= limit)
 		return;
 
-	if (waitqueue_active(&rqw->wait)) {
+	if (wq_has_sleeper(&rqw->wait)) {
 		int diff = limit - inflight;
 
 		if (!inflight || diff >= rwb->wb_background / 2)
@@ -493,8 +493,8 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
 	DECLARE_WAITQUEUE(wait, current);
 
-	if (!waitqueue_active(&rqw->wait)
-		&& rq_wait_inc_below(rqw, get_limit(rwb, rw)))
+	if (!wq_has_sleeper(&rqw->wait) &&
+	    rq_wait_inc_below(rqw, get_limit(rwb, rw)))
 		return;
 
 	add_wait_queue_exclusive(&rqw->wait, &wait);
