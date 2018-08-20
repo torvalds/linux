@@ -1538,9 +1538,15 @@ static int bxt_phy_ctl_family_write(struct intel_vgpu *vgpu,
 	u32 v = *(u32 *)p_data;
 	u32 data = v & COMMON_RESET_DIS ? BXT_PHY_LANE_ENABLED : 0;
 
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_A) = data;
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_B) = data;
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_C) = data;
+	switch (offset) {
+	case _PHY_CTL_FAMILY_EDP:
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_A) = data;
+		break;
+	case _PHY_CTL_FAMILY_DDI:
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_B) = data;
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_C) = data;
+		break;
+	}
 
 	vgpu_vreg(vgpu, offset) = v;
 
