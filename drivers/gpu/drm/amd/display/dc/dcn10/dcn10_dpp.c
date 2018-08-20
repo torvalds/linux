@@ -116,12 +116,14 @@ void dpp_read_state(struct dpp *dpp_base,
 	REG_GET(CM_GAMUT_REMAP_CONTROL,
 			CM_GAMUT_REMAP_MODE, &s->gamut_remap_mode);
 
-	s->gamut_remap_c11_c12 = REG_READ(CM_GAMUT_REMAP_C11_C12);
-	s->gamut_remap_c13_c14 = REG_READ(CM_GAMUT_REMAP_C13_C14);
-	s->gamut_remap_c21_c22 = REG_READ(CM_GAMUT_REMAP_C21_C22);
-	s->gamut_remap_c23_c24 = REG_READ(CM_GAMUT_REMAP_C23_C24);
-	s->gamut_remap_c31_c32 = REG_READ(CM_GAMUT_REMAP_C31_C32);
-	s->gamut_remap_c33_c34 = REG_READ(CM_GAMUT_REMAP_C33_C34);
+	if (s->gamut_remap_mode) {
+		s->gamut_remap_c11_c12 = REG_READ(CM_GAMUT_REMAP_C11_C12);
+		s->gamut_remap_c13_c14 = REG_READ(CM_GAMUT_REMAP_C13_C14);
+		s->gamut_remap_c21_c22 = REG_READ(CM_GAMUT_REMAP_C21_C22);
+		s->gamut_remap_c23_c24 = REG_READ(CM_GAMUT_REMAP_C23_C24);
+		s->gamut_remap_c31_c32 = REG_READ(CM_GAMUT_REMAP_C31_C32);
+		s->gamut_remap_c33_c34 = REG_READ(CM_GAMUT_REMAP_C33_C34);
+	}
 }
 
 /* Program gamut remap in bypass mode */
