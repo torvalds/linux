@@ -31,7 +31,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	       && (fpn >= (unsigned long *)TASK_SIZE)) {
 		unsigned long lpp, fpp;
 
-		lpp = fpn[-1];
+		lpp = fpn[LP_OFFSET];
 		fpp = fpn[FP_OFFSET];
 		if (!__kernel_text_address(lpp))
 			break;
