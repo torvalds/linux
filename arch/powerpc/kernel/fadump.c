@@ -35,6 +35,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
+#include <linux/cma.h>
 
 #include <asm/debugfs.h>
 #include <asm/page.h>
@@ -46,12 +47,76 @@
 static struct fw_dump fw_dump;
 static struct fadump_mem_struct fdm;
 static const struct fadump_mem_struct *fdm_active;
+#ifdef CONFIG_CMA
+static struct cma *fadump_cma;
+#endif
 
 static DEFINE_MUTEX(fadump_mutex);
 struct fad_crash_memory_ranges *crash_memory_ranges;
 int crash_memory_ranges_size;
 int crash_mem_ranges;
 int max_crash_mem_ranges;
+
+#ifdef CONFIG_CMA
+/*
+ * fadump_cma_init() - Initialize CMA area from a fadump reserved memory
+ *
+ * This function initializes CMA area from fadump reserved memory.
+ * The total size of fadump reserved memory covers for boot memory size
+ * + cpu data size + hpte size and metadata.
+ * Initialize only the area equivalent to boot memory size for CMA use.
+ * The reamining portion of fadump reserved memory will be not given
+ * to CMA and pages for thoes will stay reserved. boot memory size is
+ * aligned per CMA requirement to satisy cma_init_reserved_mem() call.
+ * But for some reason even if it fails we still have the memory reservation
+ * with us and we can still continue doing fadump.
+ */
+int __init fadump_cma_init(void)
+{
+	unsigned long long base, size;
+	int rc;
+
+	if (!fw_dump.fadump_enabled)
+		return 0;
+
+	/*
+	 * Do not use CMA if user has provided fadump=nocma kernel parameter.
+	 * Return 1 to continue with fadump old behaviour.
+	 */
+	if (fw_dump.nocma)
+		return 1;
+
+	base = fw_dump.reserve_dump_area_start;
+	size = fw_dump.boot_memory_size;
+
+	if (!size)
+		return 0;
+
+	rc = cma_init_reserved_mem(base, size, 0, "fadump_cma", &fadump_cma);
+	if (rc) {
+		pr_err("Failed to init cma area for firmware-assisted dump,%d\n", rc);
+		/*
+		 * Though the CMA init has failed we still have memory
+		 * reservation with us. The reserved memory will be
+		 * blocked from production system usage.  Hence return 1,
+		 * so that we can continue with fadump.
+		 */
+		return 1;
+	}
+
+	/*
+	 * So we now have successfully initialized cma area for fadump.
+	 */
+	pr_info("Initialized 0x%lx bytes cma area at %ldMB from 0x%lx "
+		"bytes of memory reserved for firmware-assisted dump\n",
+		cma_get_size(fadump_cma),
+		(unsigned long)cma_get_base(fadump_cma) >> 20,
+		fw_dump.reserve_dump_area_size);
+	return 1;
+}
+#else
+static int __init fadump_cma_init(void) { return 1; }
+#endif /* CONFIG_CMA */
 
 /* Scan the Firmware Assisted dump configuration details. */
 int __init early_init_dt_scan_fw_dump(unsigned long node,
@@ -378,8 +443,15 @@ int __init fadump_reserve_mem(void)
 	 */
 	if (fdm_active)
 		fw_dump.boot_memory_size = be64_to_cpu(fdm_active->rmr_region.source_len);
-	else
+	else {
 		fw_dump.boot_memory_size = fadump_calculate_reserve_size();
+#ifdef CONFIG_CMA
+		if (!fw_dump.nocma)
+			fw_dump.boot_memory_size =
+				ALIGN(fw_dump.boot_memory_size,
+							FADUMP_CMA_ALIGNMENT);
+#endif
+	}
 
 	/*
 	 * Calculate the memory boundary.
@@ -426,8 +498,9 @@ int __init fadump_reserve_mem(void)
 		fw_dump.fadumphdr_addr =
 				be64_to_cpu(fdm_active->rmr_region.destination_address) +
 				be64_to_cpu(fdm_active->rmr_region.source_len);
-		pr_debug("fadumphdr_addr = %p\n",
-				(void *) fw_dump.fadumphdr_addr);
+		pr_debug("fadumphdr_addr = %pa\n", &fw_dump.fadumphdr_addr);
+		fw_dump.reserve_dump_area_start = base;
+		fw_dump.reserve_dump_area_size = size;
 	} else {
 		size = get_fadump_area_size();
 
@@ -455,10 +528,11 @@ int __init fadump_reserve_mem(void)
 			(unsigned long)(size >> 20),
 			(unsigned long)(base >> 20),
 			(unsigned long)(memblock_phys_mem_size() >> 20));
-	}
 
-	fw_dump.reserve_dump_area_start = base;
-	fw_dump.reserve_dump_area_size = size;
+		fw_dump.reserve_dump_area_start = base;
+		fw_dump.reserve_dump_area_size = size;
+		return fadump_cma_init();
+	}
 	return 1;
 }
 
@@ -477,6 +551,10 @@ static int __init early_fadump_param(char *p)
 		fw_dump.fadump_enabled = 1;
 	else if (strncmp(p, "off", 3) == 0)
 		fw_dump.fadump_enabled = 0;
+	else if (strncmp(p, "nocma", 5) == 0) {
+		fw_dump.fadump_enabled = 1;
+		fw_dump.nocma = 1;
+	}
 
 	return 0;
 }
@@ -1229,7 +1307,7 @@ static int fadump_unregister_dump(struct fadump_mem_struct *fdm)
 	return 0;
 }
 
-static int fadump_invalidate_dump(struct fadump_mem_struct *fdm)
+static int fadump_invalidate_dump(const struct fadump_mem_struct *fdm)
 {
 	int rc = 0;
 	unsigned int wait_time;
@@ -1260,9 +1338,8 @@ void fadump_cleanup(void)
 {
 	/* Invalidate the registration only if dump is active. */
 	if (fw_dump.dump_active) {
-		init_fadump_mem_struct(&fdm,
-			be64_to_cpu(fdm_active->cpu_state_data.destination_address));
-		fadump_invalidate_dump(&fdm);
+		/* pass the same memory dump structure provided by platform */
+		fadump_invalidate_dump(fdm_active);
 	} else if (fw_dump.dump_registered) {
 		/* Un-register Firmware-assisted dump if it was registered. */
 		fadump_unregister_dump(&fdm);
