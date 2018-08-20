@@ -857,9 +857,13 @@ void ap_bus_force_rescan(void)
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
 /*
- * AP bus attributes.
+ * hex2bitmap() - parse hex mask string and set bitmap.
+ * Valid strings are "0x012345678" with at least one valid hex number.
+ * Rest of the bitmap to the right is padded with 0. No spaces allowed
+ * within the string, the leading 0x may be omitted.
+ * Returns the bitmask with exactly the bits set as given by the hex
+ * string (both in big endian order).
  */
-
 static int hex2bitmap(const char *str, unsigned long *bitmap, int bits)
 {
 	int i, n, b;
@@ -883,11 +887,132 @@ static int hex2bitmap(const char *str, unsigned long *bitmap, int bits)
 		i += 4;
 	}
 
-	if (i < 4 || isxdigit(*str))
+	if (*str == '\n')
+		str++;
+	if (*str)
 		return -EINVAL;
+	return 0;
+}
+
+/*
+ * str2clrsetmasks() - parse bitmask argument and set the clear and
+ * the set bitmap mask. A concatenation (done with ',') of these terms
+ * is recognized:
+ *   +<bitnr>[-<bitnr>] or -<bitnr>[-<bitnr>]
+ * <bitnr> may be any valid number (hex, decimal or octal) in the range
+ * 0...bits-1; the leading + or - is required. Here are some examples:
+ *   +0-15,+32,-128,-0xFF
+ *   -0-255,+1-16,+0x128
+ *   +1,+2,+3,+4,-5,-7-10
+ * Returns a clear and a set bitmask. Every positive value in the string
+ * results in a bit set in the set mask and every negative value in the
+ * string results in a bit SET in the clear mask. As a bit may be touched
+ * more than once, the last 'operation' wins: +0-255,-128 = all but bit
+ * 128 set in the set mask, only bit 128 set in the clear mask.
+ */
+static int str2clrsetmasks(const char *str,
+			   unsigned long *clrmap,
+			   unsigned long *setmap,
+			   int bits)
+{
+	int a, i, z;
+	char *np, sign;
+
+	/* bits needs to be a multiple of 8 */
+	if (bits & 0x07)
+		return -EINVAL;
+
+	memset(clrmap, 0, bits / 8);
+	memset(setmap, 0, bits / 8);
+
+	while (*str) {
+		sign = *str++;
+		if (sign != '+' && sign != '-')
+			return -EINVAL;
+		a = z = simple_strtoul(str, &np, 0);
+		if (str == np || a >= bits)
+			return -EINVAL;
+		str = np;
+		if (*str == '-') {
+			z = simple_strtoul(++str, &np, 0);
+			if (str == np || a > z || z >= bits)
+				return -EINVAL;
+			str = np;
+		}
+		for (i = a; i <= z; i++)
+			if (sign == '+') {
+				set_bit_inv(i, setmap);
+				clear_bit_inv(i, clrmap);
+			} else {
+				clear_bit_inv(i, setmap);
+				set_bit_inv(i, clrmap);
+			}
+		while (*str == ',' || *str == '\n')
+			str++;
+	}
 
 	return 0;
 }
+
+/*
+ * process_mask_arg() - parse a bitmap string and clear/set the
+ * bits in the bitmap accordingly. The string may be given as
+ * absolute value, a hex string like 0x1F2E3D4C5B6A" simple over-
+ * writing the current content of the bitmap. Or as relative string
+ * like "+1-16,-32,-0x40,+128" where only single bits or ranges of
+ * bits are cleared or set. Distinction is done based on the very
+ * first character which may be '+' or '-' for the relative string
+ * and othewise assume to be an absolute value string. If parsing fails
+ * a negative errno value is returned. All arguments and bitmaps are
+ * big endian order.
+ */
+static int process_mask_arg(const char *str,
+			    unsigned long *bitmap, int bits,
+			    struct mutex *lock)
+{
+	int i;
+
+	/* bits needs to be a multiple of 8 */
+	if (bits & 0x07)
+		return -EINVAL;
+
+	if (*str == '+' || *str == '-') {
+		DECLARE_BITMAP(clrm, bits);
+		DECLARE_BITMAP(setm, bits);
+
+		i = str2clrsetmasks(str, clrm, setm, bits);
+		if (i)
+			return i;
+		if (mutex_lock_interruptible(lock))
+			return -ERESTARTSYS;
+		for (i = 0; i < bits; i++) {
+			if (test_bit_inv(i, clrm))
+				clear_bit_inv(i, bitmap);
+			if (test_bit_inv(i, setm))
+				set_bit_inv(i, bitmap);
+		}
+	} else {
+		DECLARE_BITMAP(setm, bits);
+
+		i = hex2bitmap(str, setm, bits);
+		if (i)
+			return i;
+		if (mutex_lock_interruptible(lock))
+			return -ERESTARTSYS;
+		for (i = 0; i < bits; i++)
+			if (test_bit_inv(i, setm))
+				set_bit_inv(i, bitmap);
+			else
+				clear_bit_inv(i, bitmap);
+	}
+	mutex_unlock(lock);
+
+	return 0;
+}
+
+/*
+ * AP bus attributes.
+ */
 
 static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
 {
@@ -1054,34 +1179,11 @@ static ssize_t apmask_show(struct bus_type *bus, char *buf)
 static ssize_t apmask_store(struct bus_type *bus, const char *buf,
 			    size_t count)
 {
-	int i;
+	int rc;
 
-	if (*buf == '+' || *buf == '-') {
-		if (kstrtoint(buf, 0, &i))
-			return -EINVAL;
-		if (i <= -AP_DEVICES || i >= AP_DEVICES)
-			return -EINVAL;
-		if (mutex_lock_interruptible(&ap_perms_mutex))
-			return -ERESTARTSYS;
-		if (*buf == '-')
-			clear_bit_inv(-i, ap_perms.apm);
-		else
-			set_bit_inv(i, ap_perms.apm);
-	} else {
-		DECLARE_BITMAP(apm, AP_DEVICES);
-
-		i = hex2bitmap(buf, apm, AP_DEVICES);
-		if (i)
-			return i;
-		if (mutex_lock_interruptible(&ap_perms_mutex))
-			return -ERESTARTSYS;
-		for (i = 0; i < AP_DEVICES; i++)
-			if (test_bit_inv(i, apm))
-				set_bit_inv(i, ap_perms.apm);
-			else
-				clear_bit_inv(i, ap_perms.apm);
-	}
-	mutex_unlock(&ap_perms_mutex);
+	rc = process_mask_arg(buf, ap_perms.apm, AP_DEVICES, &ap_perms_mutex);
+	if (rc)
+		return rc;
 
 	ap_bus_revise_bindings();
 
@@ -1108,34 +1210,11 @@ static ssize_t aqmask_show(struct bus_type *bus, char *buf)
 static ssize_t aqmask_store(struct bus_type *bus, const char *buf,
 			    size_t count)
 {
-	int i;
+	int rc;
 
-	if (*buf == '+' || *buf == '-') {
-		if (kstrtoint(buf, 0, &i))
-			return -EINVAL;
-		if (i <= -AP_DEVICES || i >= AP_DEVICES)
-			return -EINVAL;
-		if (mutex_lock_interruptible(&ap_perms_mutex))
-			return -ERESTARTSYS;
-		if (*buf == '-')
-			clear_bit_inv(-i, ap_perms.aqm);
-		else
-			set_bit_inv(i, ap_perms.aqm);
-	} else {
-		DECLARE_BITMAP(aqm, AP_DEVICES);
-
-		i = hex2bitmap(buf, aqm, AP_DEVICES);
-		if (i)
-			return i;
-		if (mutex_lock_interruptible(&ap_perms_mutex))
-			return -ERESTARTSYS;
-		for (i = 0; i < AP_DEVICES; i++)
-			if (test_bit_inv(i, aqm))
-				set_bit_inv(i, ap_perms.aqm);
-			else
-				clear_bit_inv(i, ap_perms.aqm);
-	}
-	mutex_unlock(&ap_perms_mutex);
+	rc = process_mask_arg(buf, ap_perms.aqm, AP_DOMAINS, &ap_perms_mutex);
+	if (rc)
+		return rc;
 
 	ap_bus_revise_bindings();
 
@@ -1436,32 +1515,22 @@ static int __init ap_debug_init(void)
 
 static void __init ap_perms_init(void)
 {
-	int i, rc;
-
-	/* start with all resources useable */
+	/* all resources useable if no kernel parameter string given */
 	memset(&ap_perms.apm, 0xFF, sizeof(ap_perms.apm));
 	memset(&ap_perms.aqm, 0xFF, sizeof(ap_perms.aqm));
 
-	/* process kernel parameters apm and aqm if given */
+	/* apm kernel parameter string */
 	if (apm_str) {
-		DECLARE_BITMAP(apm, AP_DEVICES);
-
-		rc = hex2bitmap(apm_str, apm, AP_DEVICES);
-		if (rc == 0) {
-			for (i = 0; i < AP_DEVICES; i++)
-				if (!test_bit_inv(i, apm))
-					clear_bit_inv(i, ap_perms.apm);
-		}
+		memset(&ap_perms.apm, 0, sizeof(ap_perms.apm));
+		process_mask_arg(apm_str, ap_perms.apm, AP_DEVICES,
+				 &ap_perms_mutex);
 	}
-	if (aqm_str) {
-		DECLARE_BITMAP(aqm, AP_DOMAINS);
 
-		rc = hex2bitmap(aqm_str, aqm, AP_DOMAINS);
-		if (rc == 0) {
-			for (i = 0; i < AP_DOMAINS; i++)
-				if (!test_bit_inv(i, aqm))
-					clear_bit_inv(i, ap_perms.aqm);
-		}
+	/* aqm kernel parameter string */
+	if (aqm_str) {
+		memset(&ap_perms.aqm, 0, sizeof(ap_perms.aqm));
+		process_mask_arg(aqm_str, ap_perms.aqm, AP_DOMAINS,
+				 &ap_perms_mutex);
 	}
 }
 
