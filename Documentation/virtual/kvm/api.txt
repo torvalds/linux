@@ -909,10 +909,10 @@ Serviceability (RAS) Specification").
 
 SError exceptions always have an ESR value. Some CPUs have the ability to
 specify what the virtual SError's ESR value should be. These systems will
-advertise KVM_CAP_ARM_SET_SERROR_ESR. In this case exception.has_esr will
+advertise KVM_CAP_ARM_INJECT_SERROR_ESR. In this case exception.has_esr will
 always have a non-zero value when read, and the agent making an SError pending
 should specify the ISS field in the lower 24 bits of exception.serror_esr. If
-the system supports KVM_CAP_ARM_SET_SERROR_ESR, but user-space sets the events
+the system supports KVM_CAP_ARM_INJECT_SERROR_ESR, but user-space sets the events
 with exception.has_esr as zero, KVM will choose an ESR.
 
 Specifying exception.has_esr on a system that does not support it will return
@@ -4749,7 +4749,7 @@ hypercalls:
 HvFlushVirtualAddressSpace, HvFlushVirtualAddressSpaceEx,
 HvFlushVirtualAddressList, HvFlushVirtualAddressListEx.
 
-8.19 KVM_CAP_ARM_SET_SERROR_ESR
+8.19 KVM_CAP_ARM_INJECT_SERROR_ESR
 
 Architectures: arm, arm64
 
