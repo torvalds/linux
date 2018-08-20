@@ -237,6 +237,35 @@ static int is_boot_memory_area_contiguous(void)
 	return ret;
 }
 
+/*
+ * Returns true, if there are no holes in reserved memory area,
+ * false otherwise.
+ */
+static bool is_reserved_memory_area_contiguous(void)
+{
+	struct memblock_region *reg;
+	unsigned long start, end;
+	unsigned long d_start = fw_dump.reserve_dump_area_start;
+	unsigned long d_end = d_start + fw_dump.reserve_dump_area_size;
+
+	for_each_memblock(memory, reg) {
+		start = max(d_start, (unsigned long)reg->base);
+		end = min(d_end, (unsigned long)(reg->base + reg->size));
+		if (d_start < end) {
+			/* Memory hole from d_start to start */
+			if (start > d_start)
+				break;
+
+			if (end == d_end)
+				return true;
+
+			d_start = end + 1;
+		}
+	}
+
+	return false;
+}
+
 /* Print firmware assisted dump configurations for debugging purpose. */
 static void fadump_show_config(void)
 {
@@ -603,8 +632,10 @@ static int register_fw_dump(struct fadump_mem_struct *fdm)
 		break;
 	case -3:
 		if (!is_boot_memory_area_contiguous())
-			pr_err("Can't have holes in boot memory area while "
-			       "registering fadump\n");
+			pr_err("Can't have holes in boot memory area while registering fadump\n");
+		else if (!is_reserved_memory_area_contiguous())
+			pr_err("Can't have holes in reserved memory area while"
+			       " registering fadump\n");
 
 		printk(KERN_ERR "Failed to register firmware-assisted kernel"
 			" dump. Parameter Error(%d).\n", rc);
