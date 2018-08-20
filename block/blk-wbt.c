@@ -492,16 +492,17 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 {
 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
 	DECLARE_WAITQUEUE(wait, current);
+	bool has_sleeper;
 
-	if (!wq_has_sleeper(&rqw->wait) &&
-	    rq_wait_inc_below(rqw, get_limit(rwb, rw)))
+	has_sleeper = wq_has_sleeper(&rqw->wait);
+	if (!has_sleeper && rq_wait_inc_below(rqw, get_limit(rwb, rw)))
 		return;
 
 	add_wait_queue_exclusive(&rqw->wait, &wait);
 	do {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 
-		if (rq_wait_inc_below(rqw, get_limit(rwb, rw)))
+		if (!has_sleeper && rq_wait_inc_below(rqw, get_limit(rwb, rw)))
 			break;
 
 		if (lock) {
@@ -510,6 +511,7 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 			spin_lock_irq(lock);
 		} else
 			io_schedule();
+		has_sleeper = false;
 	} while (1);
 
 	__set_current_state(TASK_RUNNING);
