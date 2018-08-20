@@ -1132,7 +1132,6 @@ struct snd_soc_pcm_runtime {
 	/* runtime devices */
 	struct snd_pcm *pcm;
 	struct snd_compr *compr;
-	struct snd_sof_pcm *sof;
 	struct snd_soc_codec *codec;
 	struct snd_soc_platform *platform; /* will be removed */
 	struct snd_soc_dai *codec_dai;
@@ -1153,6 +1152,9 @@ struct snd_soc_pcm_runtime {
 	/* bit field */
 	unsigned int dev_registered:1;
 	unsigned int pop_wait:1;
+
+	/* private data - core does not touch */
+	void *private;
 };
 
 /* mixer control */
