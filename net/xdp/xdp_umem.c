@@ -132,8 +132,10 @@ static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 
 static void xdp_umem_unaccount_pages(struct xdp_umem *umem)
 {
-	atomic_long_sub(umem->npgs, &umem->user->locked_vm);
-	free_uid(umem->user);
+	if (umem->user) {
+		atomic_long_sub(umem->npgs, &umem->user->locked_vm);
+		free_uid(umem->user);
+	}
 }
 
 static void xdp_umem_release(struct xdp_umem *umem)
@@ -202,7 +204,8 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
 	long npgs;
 	int err;
 
-	umem->pgs = kcalloc(umem->npgs, sizeof(*umem->pgs), GFP_KERNEL);
+	umem->pgs = kcalloc(umem->npgs, sizeof(*umem->pgs),
+			    GFP_KERNEL | __GFP_NOWARN);
 	if (!umem->pgs)
 		return -ENOMEM;
 

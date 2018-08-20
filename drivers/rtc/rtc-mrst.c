@@ -45,7 +45,6 @@ struct mrst_rtc {
 	struct rtc_device	*rtc;
 	struct device		*dev;
 	int			irq;
-	struct resource		*iomem;
 
 	u8			enabled_wake;
 	u8			suspend_ctrl;
@@ -329,24 +328,22 @@ static int vrtc_mrst_do_probe(struct device *dev, struct resource *iomem,
 	if (!iomem)
 		return -ENODEV;
 
-	iomem = request_mem_region(iomem->start, resource_size(iomem),
-				   driver_name);
+	iomem = devm_request_mem_region(dev, iomem->start, resource_size(iomem),
+					driver_name);
 	if (!iomem) {
 		dev_dbg(dev, "i/o mem already in use.\n");
 		return -EBUSY;
 	}
 
 	mrst_rtc.irq = rtc_irq;
-	mrst_rtc.iomem = iomem;
 	mrst_rtc.dev = dev;
 	dev_set_drvdata(dev, &mrst_rtc);
 
-	mrst_rtc.rtc = rtc_device_register(driver_name, dev,
-				&mrst_rtc_ops, THIS_MODULE);
-	if (IS_ERR(mrst_rtc.rtc)) {
-		retval = PTR_ERR(mrst_rtc.rtc);
-		goto cleanup0;
-	}
+	mrst_rtc.rtc = devm_rtc_allocate_device(dev);
+	if (IS_ERR(mrst_rtc.rtc))
+		return PTR_ERR(mrst_rtc.rtc);
+
+	mrst_rtc.rtc->ops = &mrst_rtc_ops;
 
 	rename_region(iomem, dev_name(&mrst_rtc.rtc->dev));
 
@@ -359,23 +356,27 @@ static int vrtc_mrst_do_probe(struct device *dev, struct resource *iomem,
 		dev_dbg(dev, "TODO: support more than 24-hr BCD mode\n");
 
 	if (rtc_irq) {
-		retval = request_irq(rtc_irq, mrst_rtc_irq,
-				0, dev_name(&mrst_rtc.rtc->dev),
-				mrst_rtc.rtc);
+		retval = devm_request_irq(dev, rtc_irq, mrst_rtc_irq,
+					  0, dev_name(&mrst_rtc.rtc->dev),
+					  mrst_rtc.rtc);
 		if (retval < 0) {
 			dev_dbg(dev, "IRQ %d is already in use, err %d\n",
 				rtc_irq, retval);
-			goto cleanup1;
+			goto cleanup0;
 		}
 	}
+
+	retval = rtc_register_device(mrst_rtc.rtc);
+	if (retval) {
+		retval = PTR_ERR(mrst_rtc.rtc);
+		goto cleanup0;
+	}
+
 	dev_dbg(dev, "initialised\n");
 	return 0;
 
-cleanup1:
-	rtc_device_unregister(mrst_rtc.rtc);
 cleanup0:
 	mrst_rtc.dev = NULL;
-	release_mem_region(iomem->start, resource_size(iomem));
 	dev_err(dev, "rtc-mrst: unable to initialise\n");
 	return retval;
 }
@@ -390,20 +391,10 @@ static void rtc_mrst_do_shutdown(void)
 static void rtc_mrst_do_remove(struct device *dev)
 {
 	struct mrst_rtc	*mrst = dev_get_drvdata(dev);
-	struct resource *iomem;
 
 	rtc_mrst_do_shutdown();
 
-	if (mrst->irq)
-		free_irq(mrst->irq, mrst->rtc);
-
-	rtc_device_unregister(mrst->rtc);
 	mrst->rtc = NULL;
-
-	iomem = mrst->iomem;
-	release_mem_region(iomem->start, resource_size(iomem));
-	mrst->iomem = NULL;
-
 	mrst->dev = NULL;
 }
 

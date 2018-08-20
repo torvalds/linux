@@ -728,22 +728,9 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 			sock_valbool_flag(sk, SOCK_DBG, valbool);
 		break;
 	case SO_REUSEADDR:
-		val = (valbool ? SK_CAN_REUSE : SK_NO_REUSE);
-		if ((sk->sk_family == PF_INET || sk->sk_family == PF_INET6) &&
-		    inet_sk(sk)->inet_num &&
-		    (sk->sk_reuse != val)) {
-			ret = (sk->sk_state == TCP_ESTABLISHED) ? -EISCONN : -EUCLEAN;
-			break;
-		}
-		sk->sk_reuse = val;
+		sk->sk_reuse = (valbool ? SK_CAN_REUSE : SK_NO_REUSE);
 		break;
 	case SO_REUSEPORT:
-		if ((sk->sk_family == PF_INET || sk->sk_family == PF_INET6) &&
-		    inet_sk(sk)->inet_num &&
-		    (sk->sk_reuseport != valbool)) {
-			ret = (sk->sk_state == TCP_ESTABLISHED) ? -EISCONN : -EUCLEAN;
-			break;
-		}
 		sk->sk_reuseport = valbool;
 		break;
 	case SO_TYPE:
@@ -3256,7 +3243,8 @@ static int req_prot_init(const struct proto *prot)
 
 	rsk_prot->slab = kmem_cache_create(rsk_prot->slab_name,
 					   rsk_prot->obj_size, 0,
-					   prot->slab_flags, NULL);
+					   SLAB_ACCOUNT | prot->slab_flags,
+					   NULL);
 
 	if (!rsk_prot->slab) {
 		pr_crit("%s: Can't create request sock SLAB cache!\n",
@@ -3271,7 +3259,8 @@ int proto_register(struct proto *prot, int alloc_slab)
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create_usercopy(prot->name,
 					prot->obj_size, 0,
-					SLAB_HWCACHE_ALIGN | prot->slab_flags,
+					SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
+					prot->slab_flags,
 					prot->useroffset, prot->usersize,
 					NULL);
 
@@ -3294,6 +3283,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 				kmem_cache_create(prot->twsk_prot->twsk_slab_name,
 						  prot->twsk_prot->twsk_obj_size,
 						  0,
+						  SLAB_ACCOUNT |
 						  prot->slab_flags,
 						  NULL);
 			if (prot->twsk_prot->twsk_slab == NULL)

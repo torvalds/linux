@@ -322,6 +322,7 @@ acpi_db_walk_and_match_name(acpi_handle obj_handle,
 		acpi_os_printf("Could Not get pathname for object %p\n",
 			       obj_handle);
 	} else {
+		info.count = 0;
 		info.owner_id = ACPI_OWNER_ID_MAX;
 		info.debug_level = ACPI_UINT32_MAX;
 		info.display_type = ACPI_DISPLAY_SUMMARY | ACPI_DISPLAY_SHORT;

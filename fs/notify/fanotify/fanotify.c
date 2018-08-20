@@ -87,17 +87,17 @@ static int fanotify_get_response(struct fsnotify_group *group,
 	return ret;
 }
 
-static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
-				       struct fsnotify_mark *vfsmnt_mark,
-				       u32 event_mask,
-				       const void *data, int data_type)
+static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
+				       u32 event_mask, const void *data,
+				       int data_type)
 {
 	__u32 marks_mask = 0, marks_ignored_mask = 0;
 	const struct path *path = data;
+	struct fsnotify_mark *mark;
+	int type;
 
-	pr_debug("%s: inode_mark=%p vfsmnt_mark=%p mask=%x data=%p"
-		 " data_type=%d\n", __func__, inode_mark, vfsmnt_mark,
-		 event_mask, data, data_type);
+	pr_debug("%s: report_mask=%x mask=%x data=%p data_type=%d\n",
+		 __func__, iter_info->report_mask, event_mask, data, data_type);
 
 	/* if we don't have enough info to send an event to userspace say no */
 	if (data_type != FSNOTIFY_EVENT_PATH)
@@ -108,20 +108,21 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 	    !d_can_lookup(path->dentry))
 		return false;
 
-	/*
-	 * if the event is for a child and this inode doesn't care about
-	 * events on the child, don't send it!
-	 */
-	if (inode_mark &&
-	    (!(event_mask & FS_EVENT_ON_CHILD) ||
-	     (inode_mark->mask & FS_EVENT_ON_CHILD))) {
-		marks_mask |= inode_mark->mask;
-		marks_ignored_mask |= inode_mark->ignored_mask;
-	}
+	fsnotify_foreach_obj_type(type) {
+		if (!fsnotify_iter_should_report_type(iter_info, type))
+			continue;
+		mark = iter_info->marks[type];
+		/*
+		 * if the event is for a child and this inode doesn't care about
+		 * events on the child, don't send it!
+		 */
+		if (type == FSNOTIFY_OBJ_TYPE_INODE &&
+		    (event_mask & FS_EVENT_ON_CHILD) &&
+		    !(mark->mask & FS_EVENT_ON_CHILD))
+			continue;
 
-	if (vfsmnt_mark) {
-		marks_mask |= vfsmnt_mark->mask;
-		marks_ignored_mask |= vfsmnt_mark->ignored_mask;
+		marks_mask |= mark->mask;
+		marks_ignored_mask |= mark->ignored_mask;
 	}
 
 	if (d_is_dir(path->dentry) &&
@@ -178,8 +179,6 @@ init: __maybe_unused
 
 static int fanotify_handle_event(struct fsnotify_group *group,
 				 struct inode *inode,
-				 struct fsnotify_mark *inode_mark,
-				 struct fsnotify_mark *fanotify_mark,
 				 u32 mask, const void *data, int data_type,
 				 const unsigned char *file_name, u32 cookie,
 				 struct fsnotify_iter_info *iter_info)
@@ -199,8 +198,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
 	BUILD_BUG_ON(FAN_ONDIR != FS_ISDIR);
 
-	if (!fanotify_should_send_event(inode_mark, fanotify_mark, mask, data,
-					data_type))
+	if (!fanotify_should_send_event(iter_info, mask, data, data_type))
 		return 0;
 
 	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,

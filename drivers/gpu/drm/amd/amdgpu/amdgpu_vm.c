@@ -1463,7 +1463,9 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 			uint64_t count;
 
 			max_entries = min(max_entries, 16ull * 1024ull);
-			for (count = 1; count < max_entries; ++count) {
+			for (count = 1;
+			     count < max_entries / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
+			     ++count) {
 				uint64_t idx = pfn + count;
 
 				if (pages_addr[idx] !=
@@ -1476,7 +1478,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				dma_addr = pages_addr;
 			} else {
 				addr = pages_addr[pfn];
-				max_entries = count;
+				max_entries = count * (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
 			}
 
 		} else if (flags & AMDGPU_PTE_VALID) {
@@ -1491,7 +1493,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
-		pfn += last - start + 1;
+		pfn += (last - start + 1) / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
 		if (nodes && nodes->size == pfn) {
 			pfn = 0;
 			++nodes;
@@ -2123,7 +2125,8 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 			before->last = saddr - 1;
 			before->offset = tmp->offset;
 			before->flags = tmp->flags;
-			list_add(&before->list, &tmp->list);
+			before->bo_va = tmp->bo_va;
+			list_add(&before->list, &tmp->bo_va->invalids);
 		}
 
 		/* Remember mapping split at the end */
@@ -2133,7 +2136,8 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 			after->offset = tmp->offset;
 			after->offset += after->start - tmp->start;
 			after->flags = tmp->flags;
-			list_add(&after->list, &tmp->list);
+			after->bo_va = tmp->bo_va;
+			list_add(&after->list, &tmp->bo_va->invalids);
 		}
 
 		list_del(&tmp->list);

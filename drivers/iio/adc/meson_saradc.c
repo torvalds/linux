@@ -219,13 +219,17 @@ enum meson_sar_adc_chan7_mux_sel {
 	CHAN7_MUX_CH7_INPUT = 0x7,
 };
 
-struct meson_sar_adc_data {
+struct meson_sar_adc_param {
 	bool					has_bl30_integration;
 	unsigned long				clock_rate;
 	u32					bandgap_reg;
 	unsigned int				resolution;
-	const char				*name;
 	const struct regmap_config		*regmap_config;
+};
+
+struct meson_sar_adc_data {
+	const struct meson_sar_adc_param	*param;
+	const char				*name;
 };
 
 struct meson_sar_adc_priv {
@@ -276,7 +280,7 @@ static int meson_sar_adc_calib_val(struct iio_dev *indio_dev, int val)
 	/* use val_calib = scale * val_raw + offset calibration function */
 	tmp = div_s64((s64)val * priv->calibscale, MILLION) + priv->calibbias;
 
-	return clamp(tmp, 0, (1 << priv->data->resolution) - 1);
+	return clamp(tmp, 0, (1 << priv->data->param->resolution) - 1);
 }
 
 static int meson_sar_adc_wait_busy_clear(struct iio_dev *indio_dev)
@@ -328,7 +332,7 @@ static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
 	}
 
 	fifo_val = FIELD_GET(MESON_SAR_ADC_FIFO_RD_SAMPLE_VALUE_MASK, regval);
-	fifo_val &= GENMASK(priv->data->resolution - 1, 0);
+	fifo_val &= GENMASK(priv->data->param->resolution - 1, 0);
 	*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
 
 	return 0;
@@ -447,7 +451,7 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 
 	mutex_lock(&indio_dev->mlock);
 
-	if (priv->data->has_bl30_integration) {
+	if (priv->data->param->has_bl30_integration) {
 		/* prevent BL30 from using the SAR ADC while we are using it */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
 				MESON_SAR_ADC_DELAY_KERNEL_BUSY,
@@ -475,7 +479,7 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 
-	if (priv->data->has_bl30_integration)
+	if (priv->data->param->has_bl30_integration)
 		/* allow BL30 to use the SAR ADC again */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
 				MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
@@ -559,7 +563,7 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 		}
 
 		*val = ret / 1000;
-		*val2 = priv->data->resolution;
+		*val2 = priv->data->param->resolution;
 		return IIO_VAL_FRACTIONAL_LOG2;
 
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -632,7 +636,7 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 	 */
 	meson_sar_adc_set_chan7_mux(indio_dev, CHAN7_MUX_CH7_INPUT);
 
-	if (priv->data->has_bl30_integration) {
+	if (priv->data->param->has_bl30_integration) {
 		/*
 		 * leave sampling delay and the input clocks as configured by
 		 * BL30 to make sure BL30 gets the values it expects when
@@ -712,7 +716,7 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 		return ret;
 	}
 
-	ret = clk_set_rate(priv->adc_clk, priv->data->clock_rate);
+	ret = clk_set_rate(priv->adc_clk, priv->data->param->clock_rate);
 	if (ret) {
 		dev_err(indio_dev->dev.parent,
 			"failed to set adc clock rate\n");
@@ -725,14 +729,15 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 static void meson_sar_adc_set_bandgap(struct iio_dev *indio_dev, bool on_off)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+	const struct meson_sar_adc_param *param = priv->data->param;
 	u32 enable_mask;
 
-	if (priv->data->bandgap_reg == MESON_SAR_ADC_REG11)
+	if (param->bandgap_reg == MESON_SAR_ADC_REG11)
 		enable_mask = MESON_SAR_ADC_REG11_BANDGAP_EN;
 	else
 		enable_mask = MESON_SAR_ADC_DELTA_10_TS_VBG_EN;
 
-	regmap_update_bits(priv->regmap, priv->data->bandgap_reg, enable_mask,
+	regmap_update_bits(priv->regmap, param->bandgap_reg, enable_mask,
 			   on_off ? enable_mask : 0);
 }
 
@@ -844,8 +849,8 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 	int ret, nominal0, nominal1, value0, value1;
 
 	/* use points 25% and 75% for calibration */
-	nominal0 = (1 << priv->data->resolution) / 4;
-	nominal1 = (1 << priv->data->resolution) * 3 / 4;
+	nominal0 = (1 << priv->data->param->resolution) / 4;
+	nominal1 = (1 << priv->data->param->resolution) * 3 / 4;
 
 	meson_sar_adc_set_chan7_mux(indio_dev, CHAN7_MUX_VDD_DIV4);
 	usleep_range(10, 20);
@@ -883,49 +888,58 @@ static const struct iio_info meson_sar_adc_iio_info = {
 	.read_raw = meson_sar_adc_iio_info_read_raw,
 };
 
-static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
+static const struct meson_sar_adc_param meson_sar_adc_meson8_param = {
 	.has_bl30_integration = false,
 	.clock_rate = 1150000,
 	.bandgap_reg = MESON_SAR_ADC_DELTA_10,
 	.regmap_config = &meson_sar_adc_regmap_config_meson8,
 	.resolution = 10,
+};
+
+static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
+	.has_bl30_integration = true,
+	.clock_rate = 1200000,
+	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
+	.resolution = 10,
+};
+
+static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
+	.has_bl30_integration = true,
+	.clock_rate = 1200000,
+	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
+	.resolution = 12,
+};
+
+static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
+	.param = &meson_sar_adc_meson8_param,
 	.name = "meson-meson8-saradc",
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_meson8b_data = {
-	.has_bl30_integration = false,
-	.clock_rate = 1150000,
-	.bandgap_reg = MESON_SAR_ADC_DELTA_10,
-	.regmap_config = &meson_sar_adc_regmap_config_meson8,
-	.resolution = 10,
+	.param = &meson_sar_adc_meson8_param,
 	.name = "meson-meson8b-saradc",
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_gxbb_data = {
-	.has_bl30_integration = true,
-	.clock_rate = 1200000,
-	.bandgap_reg = MESON_SAR_ADC_REG11,
-	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
-	.resolution = 10,
+	.param = &meson_sar_adc_gxbb_param,
 	.name = "meson-gxbb-saradc",
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_gxl_data = {
-	.has_bl30_integration = true,
-	.clock_rate = 1200000,
-	.bandgap_reg = MESON_SAR_ADC_REG11,
-	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
-	.resolution = 12,
+	.param = &meson_sar_adc_gxl_param,
 	.name = "meson-gxl-saradc",
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_gxm_data = {
-	.has_bl30_integration = true,
-	.clock_rate = 1200000,
-	.bandgap_reg = MESON_SAR_ADC_REG11,
-	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
-	.resolution = 12,
+	.param = &meson_sar_adc_gxl_param,
 	.name = "meson-gxm-saradc",
+};
+
+static const struct meson_sar_adc_data meson_sar_adc_axg_data = {
+	.param = &meson_sar_adc_gxl_param,
+	.name = "meson-axg-saradc",
 };
 
 static const struct of_device_id meson_sar_adc_of_match[] = {
@@ -946,6 +960,9 @@ static const struct of_device_id meson_sar_adc_of_match[] = {
 	}, {
 		.compatible = "amlogic,meson-gxm-saradc",
 		.data = &meson_sar_adc_gxm_data,
+	}, {
+		.compatible = "amlogic,meson-axg-saradc",
+		.data = &meson_sar_adc_axg_data,
 	},
 	{},
 };
@@ -1001,7 +1018,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 		return ret;
 
 	priv->regmap = devm_regmap_init_mmio(&pdev->dev, base,
-					     priv->data->regmap_config);
+					     priv->data->param->regmap_config);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 

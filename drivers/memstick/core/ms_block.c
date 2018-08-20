@@ -1201,7 +1201,8 @@ static int msb_read_boot_blocks(struct msb_data *msb)
 	dbg_verbose("Start of a scan for the boot blocks");
 
 	if (!msb->boot_page) {
-		page = kmalloc(sizeof(struct ms_boot_page)*2, GFP_KERNEL);
+		page = kmalloc_array(2, sizeof(struct ms_boot_page),
+				     GFP_KERNEL);
 		if (!page)
 			return -ENOMEM;
 
@@ -1341,7 +1342,8 @@ static int msb_ftl_initialize(struct msb_data *msb)
 	msb->used_blocks_bitmap = kzalloc(msb->block_count / 8, GFP_KERNEL);
 	msb->erased_blocks_bitmap = kzalloc(msb->block_count / 8, GFP_KERNEL);
 	msb->lba_to_pba_table =
-		kmalloc(msb->logical_block_count * sizeof(u16), GFP_KERNEL);
+		kmalloc_array(msb->logical_block_count, sizeof(u16),
+			      GFP_KERNEL);
 
 	if (!msb->used_blocks_bitmap || !msb->lba_to_pba_table ||
 						!msb->erased_blocks_bitmap) {

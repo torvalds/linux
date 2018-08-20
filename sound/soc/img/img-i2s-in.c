@@ -509,8 +509,8 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
-	i2s->suspend_ch_ctl = devm_kzalloc(dev,
-		sizeof(*i2s->suspend_ch_ctl) * i2s->max_i2s_chan, GFP_KERNEL);
+	i2s->suspend_ch_ctl = devm_kcalloc(dev,
+		i2s->max_i2s_chan, sizeof(*i2s->suspend_ch_ctl), GFP_KERNEL);
 	if (!i2s->suspend_ch_ctl) {
 		ret = -ENOMEM;
 		goto err_suspend;

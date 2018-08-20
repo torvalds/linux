@@ -477,8 +477,9 @@ int fnic_trace_buf_init(void)
 	}
 	memset((void *)fnic_trace_buf_p, 0, (trace_max_pages * PAGE_SIZE));
 
-	fnic_trace_entries.page_offset = vmalloc(fnic_max_trace_entries *
-						  sizeof(unsigned long));
+	fnic_trace_entries.page_offset =
+		vmalloc(array_size(fnic_max_trace_entries,
+				   sizeof(unsigned long)));
 	if (!fnic_trace_entries.page_offset) {
 		printk(KERN_ERR PFX "Failed to allocate memory for"
 				  " page_offset\n");
@@ -555,8 +556,9 @@ int fnic_fc_trace_init(void)
 
 	fc_trace_max_entries = (fnic_fc_trace_max_pages * PAGE_SIZE)/
 				FC_TRC_SIZE_BYTES;
-	fnic_fc_ctlr_trace_buf_p = (unsigned long)vmalloc(
-					fnic_fc_trace_max_pages * PAGE_SIZE);
+	fnic_fc_ctlr_trace_buf_p =
+		(unsigned long)vmalloc(array_size(PAGE_SIZE,
+						  fnic_fc_trace_max_pages));
 	if (!fnic_fc_ctlr_trace_buf_p) {
 		pr_err("fnic: Failed to allocate memory for "
 		       "FC Control Trace Buf\n");
@@ -568,8 +570,9 @@ int fnic_fc_trace_init(void)
 			fnic_fc_trace_max_pages * PAGE_SIZE);
 
 	/* Allocate memory for page offset */
-	fc_trace_entries.page_offset = vmalloc(fc_trace_max_entries *
-						sizeof(unsigned long));
+	fc_trace_entries.page_offset =
+		vmalloc(array_size(fc_trace_max_entries,
+				   sizeof(unsigned long)));
 	if (!fc_trace_entries.page_offset) {
 		pr_err("fnic:Failed to allocate memory for page_offset\n");
 		if (fnic_fc_ctlr_trace_buf_p) {

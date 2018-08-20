@@ -561,8 +561,6 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 	res->start += start_pad;
 	res->end -= end_trunc;
 
-	pgmap->type = MEMORY_DEVICE_HOST;
-
 	if (nd_pfn->mode == PFN_MODE_RAM) {
 		if (offset < SZ_8K)
 			return -EINVAL;

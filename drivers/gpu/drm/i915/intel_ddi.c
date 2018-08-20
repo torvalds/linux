@@ -2453,12 +2453,13 @@ void icl_map_plls_to_ports(struct drm_crtc *crtc,
 	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(conn_state->best_encoder);
-		enum port port = encoder->port;
+		enum port port;
 		uint32_t val;
 
 		if (conn_state->crtc != crtc)
 			continue;
 
+		port = encoder->port;
 		mutex_lock(&dev_priv->dpll_lock);
 
 		val = I915_READ(DPCLKA_CFGCR0_ICL);
@@ -2490,11 +2491,12 @@ void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
 	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
 		struct intel_encoder *encoder =
 			to_intel_encoder(old_conn_state->best_encoder);
-		enum port port = encoder->port;
+		enum port port;
 
 		if (old_conn_state->crtc != crtc)
 			continue;
 
+		port = encoder->port;
 		mutex_lock(&dev_priv->dpll_lock);
 		I915_WRITE(DPCLKA_CFGCR0_ICL,
 			   I915_READ(DPCLKA_CFGCR0_ICL) |

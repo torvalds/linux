@@ -91,7 +91,7 @@ int alloc_event_buffer(void)
 		return -EINVAL;
 
 	buffer_pos = 0;
-	event_buffer = vmalloc(sizeof(unsigned long) * buffer_size);
+	event_buffer = vmalloc(array_size(buffer_size, sizeof(unsigned long)));
 	if (!event_buffer)
 		return -ENOMEM;
 

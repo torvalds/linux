@@ -352,7 +352,7 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq,
 {
 	int wq_sz = mlx5_wq_ll_get_size(&rq->mpwqe.wq);
 
-	rq->mpwqe.info = kzalloc_node(wq_sz * sizeof(*rq->mpwqe.info),
+	rq->mpwqe.info = kcalloc_node(wq_sz, sizeof(*rq->mpwqe.info),
 				      GFP_KERNEL, cpu_to_node(c->cpu));
 	if (!rq->mpwqe.info)
 		return -ENOMEM;
@@ -448,7 +448,7 @@ static int mlx5e_init_di_list(struct mlx5e_rq *rq,
 {
 	int len = wq_sz << rq->wqe.info.log_num_frags;
 
-	rq->wqe.di = kvzalloc_node(len * sizeof(*rq->wqe.di),
+	rq->wqe.di = kvzalloc_node(array_size(len, sizeof(*rq->wqe.di)),
 				   GFP_KERNEL, cpu_to_node(cpu));
 	if (!rq->wqe.di)
 		return -ENOMEM;
@@ -563,8 +563,8 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 		rq->wqe.info = rqp->frags_info;
 		rq->wqe.frags =
-			kvzalloc_node((wq_sz << rq->wqe.info.log_num_frags) *
-				      sizeof(*rq->wqe.frags),
+			kvzalloc_node(array_size(sizeof(*rq->wqe.frags),
+					(wq_sz << rq->wqe.info.log_num_frags)),
 				      GFP_KERNEL, cpu_to_node(c->cpu));
 		if (!rq->wqe.frags) {
 			err = -ENOMEM;
@@ -972,7 +972,7 @@ static int mlx5e_alloc_xdpsq_db(struct mlx5e_xdpsq *sq, int numa)
 {
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 
-	sq->db.di = kzalloc_node(sizeof(*sq->db.di) * wq_sz,
+	sq->db.di = kcalloc_node(wq_sz, sizeof(*sq->db.di),
 				     GFP_KERNEL, numa);
 	if (!sq->db.di) {
 		mlx5e_free_xdpsq_db(sq);
@@ -1031,7 +1031,7 @@ static int mlx5e_alloc_icosq_db(struct mlx5e_icosq *sq, int numa)
 {
 	u8 wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 
-	sq->db.ico_wqe = kzalloc_node(sizeof(*sq->db.ico_wqe) * wq_sz,
+	sq->db.ico_wqe = kcalloc_node(wq_sz, sizeof(*sq->db.ico_wqe),
 				      GFP_KERNEL, numa);
 	if (!sq->db.ico_wqe)
 		return -ENOMEM;
@@ -1086,9 +1086,9 @@ static int mlx5e_alloc_txqsq_db(struct mlx5e_txqsq *sq, int numa)
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 	int df_sz = wq_sz * MLX5_SEND_WQEBB_NUM_DS;
 
-	sq->db.dma_fifo = kzalloc_node(df_sz * sizeof(*sq->db.dma_fifo),
+	sq->db.dma_fifo = kcalloc_node(df_sz, sizeof(*sq->db.dma_fifo),
 					   GFP_KERNEL, numa);
-	sq->db.wqe_info = kzalloc_node(wq_sz * sizeof(*sq->db.wqe_info),
+	sq->db.wqe_info = kcalloc_node(wq_sz, sizeof(*sq->db.wqe_info),
 					   GFP_KERNEL, numa);
 	if (!sq->db.dma_fifo || !sq->db.wqe_info) {
 		mlx5e_free_txqsq_db(sq);
@@ -2846,7 +2846,7 @@ void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 	mlx5e_activate_channels(&priv->channels);
 	netif_tx_start_all_queues(priv->netdev);
 
-	if (MLX5_VPORT_MANAGER(priv->mdev))
+	if (MLX5_ESWITCH_MANAGER(priv->mdev))
 		mlx5e_add_sqs_fwd_rules(priv);
 
 	mlx5e_wait_channels_min_rx_wqes(&priv->channels);
@@ -2857,7 +2857,7 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 {
 	mlx5e_redirect_rqts_to_drop(priv);
 
-	if (MLX5_VPORT_MANAGER(priv->mdev))
+	if (MLX5_ESWITCH_MANAGER(priv->mdev))
 		mlx5e_remove_sqs_fwd_rules(priv);
 
 	/* FIXME: This is a W/A only for tx timeout watch dog false alarm when
@@ -4597,7 +4597,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	mlx5e_set_netdev_dev_addr(netdev);
 
 #if IS_ENABLED(CONFIG_MLX5_ESWITCH)
-	if (MLX5_VPORT_MANAGER(mdev))
+	if (MLX5_ESWITCH_MANAGER(mdev))
 		netdev->switchdev_ops = &mlx5e_switchdev_ops;
 #endif
 
@@ -4753,7 +4753,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 
 	mlx5e_enable_async_events(priv);
 
-	if (MLX5_VPORT_MANAGER(priv->mdev))
+	if (MLX5_ESWITCH_MANAGER(priv->mdev))
 		mlx5e_register_vport_reps(priv);
 
 	if (netdev->reg_state != NETREG_REGISTERED)
@@ -4788,7 +4788,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 
-	if (MLX5_VPORT_MANAGER(priv->mdev))
+	if (MLX5_ESWITCH_MANAGER(priv->mdev))
 		mlx5e_unregister_vport_reps(priv);
 
 	mlx5e_disable_async_events(priv);
@@ -4972,7 +4972,7 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 		return NULL;
 
 #ifdef CONFIG_MLX5_ESWITCH
-	if (MLX5_VPORT_MANAGER(mdev)) {
+	if (MLX5_ESWITCH_MANAGER(mdev)) {
 		rpriv = mlx5e_alloc_nic_rep_priv(mdev);
 		if (!rpriv) {
 			mlx5_core_warn(mdev, "Failed to alloc NIC rep priv data\n");

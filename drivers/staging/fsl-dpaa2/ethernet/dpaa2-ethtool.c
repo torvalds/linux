@@ -30,6 +30,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/net_tstamp.h>
+
 #include "dpni.h"	/* DPNI_LINK_OPT_* */
 #include "dpaa2-eth.h"
 
@@ -274,6 +276,26 @@ static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 	return 0;
 }
 
+int dpaa2_phc_index = -1;
+EXPORT_SYMBOL(dpaa2_phc_index);
+
+static int dpaa2_eth_get_ts_info(struct net_device *dev,
+				 struct ethtool_ts_info *info)
+{
+	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
+				SOF_TIMESTAMPING_RX_HARDWARE |
+				SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	info->phc_index = dpaa2_phc_index;
+
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
+			 (1 << HWTSTAMP_TX_ON);
+
+	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			   (1 << HWTSTAMP_FILTER_ALL);
+	return 0;
+}
+
 const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -283,4 +305,5 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_ethtool_stats = dpaa2_eth_get_ethtool_stats,
 	.get_strings = dpaa2_eth_get_strings,
 	.get_rxnfc = dpaa2_eth_get_rxnfc,
+	.get_ts_info = dpaa2_eth_get_ts_info,
 };

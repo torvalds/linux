@@ -336,8 +336,8 @@ static int read_port_immutable(struct ib_device *device)
 	 * Therefore port_immutable is declared as a 1 based array with
 	 * potential empty slots at the beginning.
 	 */
-	device->port_immutable = kzalloc(sizeof(*device->port_immutable)
-					 * (end_port + 1),
+	device->port_immutable = kcalloc(end_port + 1,
+					 sizeof(*device->port_immutable),
 					 GFP_KERNEL);
 	if (!device->port_immutable)
 		return -ENOMEM;

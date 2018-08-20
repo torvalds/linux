@@ -180,7 +180,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 	return 0;
 }
 
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);

@@ -141,7 +141,7 @@ nv84_fence_suspend(struct nouveau_drm *drm)
 	struct nv84_fence_priv *priv = drm->fence;
 	int i;
 
-	priv->suspend = vmalloc(drm->chan.nr * sizeof(u32));
+	priv->suspend = vmalloc(array_size(sizeof(u32), drm->chan.nr));
 	if (priv->suspend) {
 		for (i = 0; i < drm->chan.nr; i++)
 			priv->suspend[i] = nouveau_bo_rd32(priv->bo, i*4);

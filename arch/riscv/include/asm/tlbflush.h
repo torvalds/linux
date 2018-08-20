@@ -49,7 +49,7 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 
 #include <asm/sbi.h>
 
-#define flush_tlb_all() sbi_remote_sfence_vma(0, 0, -1)
+#define flush_tlb_all() sbi_remote_sfence_vma(NULL, 0, -1)
 #define flush_tlb_page(vma, addr) flush_tlb_range(vma, addr, 0)
 #define flush_tlb_range(vma, start, end) \
 	sbi_remote_sfence_vma(mm_cpumask((vma)->vm_mm)->bits, \

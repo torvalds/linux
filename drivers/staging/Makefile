@@ -3,8 +3,6 @@
 
 obj-y				+= media/
 obj-y				+= typec/
-obj-$(CONFIG_IPX)		+= ipx/
-obj-$(CONFIG_NCP_FS)		+= ncpfs/
 obj-$(CONFIG_PRISM2_USB)	+= wlan-ng/
 obj-$(CONFIG_COMEDI)		+= comedi/
 obj-$(CONFIG_FB_OLPC_DCON)	+= olpc_dcon/
@@ -32,7 +30,6 @@ obj-$(CONFIG_STAGING_BOARD)	+= board/
 obj-$(CONFIG_LTE_GDM724X)	+= gdm724x/
 obj-$(CONFIG_FIREWIRE_SERIAL)	+= fwserial/
 obj-$(CONFIG_GOLDFISH)		+= goldfish/
-obj-$(CONFIG_LNET)		+= lustre/
 obj-$(CONFIG_DGNC)			+= dgnc/
 obj-$(CONFIG_MTD_SPINAND_MT29F)	+= mt29f_spinand/
 obj-$(CONFIG_GS_FPGABOOT)	+= gs_fpgaboot/

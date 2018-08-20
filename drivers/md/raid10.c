@@ -175,7 +175,7 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 		nalloc_rp = nalloc;
 	else
 		nalloc_rp = nalloc * 2;
-	rps = kmalloc(sizeof(struct resync_pages) * nalloc_rp, gfp_flags);
+	rps = kmalloc_array(nalloc_rp, sizeof(struct resync_pages), gfp_flags);
 	if (!rps)
 		goto out_free_r10bio;
 
@@ -255,9 +255,11 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 	for (j = conf->copies; j--; ) {
 		struct bio *bio = r10bio->devs[j].bio;
 
-		rp = get_resync_pages(bio);
-		resync_free_pages(rp);
-		bio_put(bio);
+		if (bio) {
+			rp = get_resync_pages(bio);
+			resync_free_pages(rp);
+			bio_put(bio);
+		}
 
 		bio = r10bio->devs[j].repl_bio;
 		if (bio)
@@ -2362,7 +2364,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 {
 	int sect = 0; /* Offset from r10_bio->sector */
 	int sectors = r10_bio->sectors;
-	struct md_rdev*rdev;
+	struct md_rdev *rdev;
 	int max_read_errors = atomic_read(&mddev->max_corr_read_errors);
 	int d = r10_bio->devs[r10_bio->read_slot].devnum;
 
@@ -3686,8 +3688,8 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 		goto out;
 
 	/* FIXME calc properly */
-	conf->mirrors = kzalloc(sizeof(struct raid10_info)*(mddev->raid_disks +
-							    max(0,-mddev->delta_disks)),
+	conf->mirrors = kcalloc(mddev->raid_disks + max(0, -mddev->delta_disks),
+				sizeof(struct raid10_info),
 				GFP_KERNEL);
 	if (!conf->mirrors)
 		goto out;
@@ -3891,6 +3893,13 @@ static int raid10_run(struct mddev *mddev)
 			    disk->rdev->saved_raid_disk < 0)
 				conf->fullsync = 1;
 		}
+
+		if (disk->replacement &&
+		    !test_bit(In_sync, &disk->replacement->flags) &&
+		    disk->replacement->saved_raid_disk < 0) {
+			conf->fullsync = 1;
+		}
+
 		disk->recovery_disabled = mddev->recovery_disabled - 1;
 	}
 
@@ -4127,11 +4136,10 @@ static int raid10_check_reshape(struct mddev *mddev)
 	conf->mirrors_new = NULL;
 	if (mddev->delta_disks > 0) {
 		/* allocate new 'mirrors' list */
-		conf->mirrors_new = kzalloc(
-			sizeof(struct raid10_info)
-			*(mddev->raid_disks +
-			  mddev->delta_disks),
-			GFP_KERNEL);
+		conf->mirrors_new =
+			kcalloc(mddev->raid_disks + mddev->delta_disks,
+				sizeof(struct raid10_info),
+				GFP_KERNEL);
 		if (!conf->mirrors_new)
 			return -ENOMEM;
 	}

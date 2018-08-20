@@ -1803,8 +1803,9 @@ static int ieee80211_reconfig_nan(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON(res))
 		return res;
 
-	funcs = kzalloc((sdata->local->hw.max_nan_de_entries + 1) *
-			sizeof(*funcs), GFP_KERNEL);
+	funcs = kcalloc(sdata->local->hw.max_nan_de_entries + 1,
+			sizeof(*funcs),
+			GFP_KERNEL);
 	if (!funcs)
 		return -ENOMEM;
 

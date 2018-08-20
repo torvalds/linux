@@ -2741,11 +2741,11 @@ static const struct seq_operations vmalloc_op = {
 static int __init proc_vmalloc_init(void)
 {
 	if (IS_ENABLED(CONFIG_NUMA))
-		proc_create_seq_private("vmallocinfo", S_IRUSR, NULL,
+		proc_create_seq_private("vmallocinfo", 0400, NULL,
 				&vmalloc_op,
 				nr_node_ids * sizeof(unsigned int), NULL);
 	else
-		proc_create_seq("vmallocinfo", S_IRUSR, NULL, &vmalloc_op);
+		proc_create_seq("vmallocinfo", 0400, NULL, &vmalloc_op);
 	return 0;
 }
 module_init(proc_vmalloc_init);

@@ -2413,7 +2413,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->control_cnt = CTRLDEF_COUNT;
 	hdw->control_cnt += MPEGDEF_COUNT;
-	hdw->controls = kzalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
+	hdw->controls = kcalloc(hdw->control_cnt, sizeof(struct pvr2_ctrl),
 				GFP_KERNEL);
 	if (!hdw->controls) goto fail;
 	hdw->hdw_desc = hdw_desc;

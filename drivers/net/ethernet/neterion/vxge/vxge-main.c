@@ -3429,8 +3429,8 @@ static int vxge_device_register(struct __vxge_hw_device *hldev,
 	vxge_initialize_ethtool_ops(ndev);
 
 	/* Allocate memory for vpath */
-	vdev->vpaths = kzalloc((sizeof(struct vxge_vpath)) *
-				no_of_vpath, GFP_KERNEL);
+	vdev->vpaths = kcalloc(no_of_vpath, sizeof(struct vxge_vpath),
+			       GFP_KERNEL);
 	if (!vdev->vpaths) {
 		vxge_debug_init(VXGE_ERR,
 			"%s: vpath memory allocation failed",

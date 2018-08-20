@@ -769,14 +769,14 @@ static int vcn_v1_0_stop(struct amdgpu_device *adev)
 	return 0;
 }
 
-bool vcn_v1_0_is_idle(void *handle)
+static bool vcn_v1_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	return (RREG32_SOC15(VCN, 0, mmUVD_STATUS) == 0x2);
 }
 
-int vcn_v1_0_wait_for_idle(void *handle)
+static int vcn_v1_0_wait_for_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret = 0;

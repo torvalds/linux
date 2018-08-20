@@ -240,7 +240,7 @@ static int tls_copy_ivs(struct sock *sk, struct sk_buff *skb)
 	}
 
 	/* generate the  IVs */
-	ivs = kmalloc(number_of_ivs * CIPHER_BLOCK_SIZE, GFP_ATOMIC);
+	ivs = kmalloc_array(CIPHER_BLOCK_SIZE, number_of_ivs, GFP_ATOMIC);
 	if (!ivs)
 		return -ENOMEM;
 	get_random_bytes(ivs, number_of_ivs * CIPHER_BLOCK_SIZE);
@@ -1548,15 +1548,14 @@ skip_copy:
 			tp->urg_data = 0;
 
 		if ((avail + offset) >= skb->len) {
-			if (likely(skb))
-				chtls_free_skb(sk, skb);
-			buffers_freed++;
 			if (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_TLS_HDR) {
 				tp->copied_seq += skb->len;
 				hws->rcvpld = skb->hdr_len;
 			} else {
 				tp->copied_seq += hws->rcvpld;
 			}
+			chtls_free_skb(sk, skb);
+			buffers_freed++;
 			hws->copied_seq = 0;
 			if (copied >= target &&
 			    !skb_peek(&sk->sk_receive_queue))

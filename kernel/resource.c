@@ -415,6 +415,7 @@ int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
 
 	return __walk_iomem_res_desc(&res, desc, false, arg, func);
 }
+EXPORT_SYMBOL_GPL(walk_iomem_res_desc);
 
 /*
  * This function calls the @func callback against all memory ranges of type

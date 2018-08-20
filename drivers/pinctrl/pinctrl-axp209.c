@@ -328,7 +328,8 @@ static void axp20x_funcs_groups_from_mask(struct device *dev, unsigned int mask,
 
 	func->ngroups = ngroups;
 	if (func->ngroups > 0) {
-		func->groups = devm_kzalloc(dev, ngroups * sizeof(const char *),
+		func->groups = devm_kcalloc(dev,
+					    ngroups, sizeof(const char *),
 					    GFP_KERNEL);
 		group = func->groups;
 		for_each_set_bit(bit, &mask_cpy, mask_len) {
@@ -358,8 +359,8 @@ static void axp20x_build_funcs_groups(struct platform_device *pdev)
 	/* Every pin supports GPIO_OUT and GPIO_IN functions */
 	for (i = 0; i <= AXP20X_FUNC_GPIO_IN; i++) {
 		pctl->funcs[i].ngroups = npins;
-		pctl->funcs[i].groups = devm_kzalloc(&pdev->dev,
-						     npins * sizeof(char *),
+		pctl->funcs[i].groups = devm_kcalloc(&pdev->dev,
+						     npins, sizeof(char *),
 						     GFP_KERNEL);
 		for (pin = 0; pin < npins; pin++)
 			pctl->funcs[i].groups[pin] = pctl->desc->pins[pin].name;

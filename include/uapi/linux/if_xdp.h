@@ -63,8 +63,8 @@ struct xdp_statistics {
 /* Pgoff for mmaping the rings */
 #define XDP_PGOFF_RX_RING			  0
 #define XDP_PGOFF_TX_RING		 0x80000000
-#define XDP_UMEM_PGOFF_FILL_RING	0x100000000
-#define XDP_UMEM_PGOFF_COMPLETION_RING	0x180000000
+#define XDP_UMEM_PGOFF_FILL_RING	0x100000000ULL
+#define XDP_UMEM_PGOFF_COMPLETION_RING	0x180000000ULL
 
 /* Rx/Tx descriptor */
 struct xdp_desc {

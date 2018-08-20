@@ -14,9 +14,6 @@
 struct regulator_init_data;
 
 struct arizona_ldo1_pdata {
-	/** GPIO controlling LDOENA, if any */
-	int ldoena;
-
 	/** Regulator configuration for LDO1 */
 	const struct regulator_init_data *init_data;
 };

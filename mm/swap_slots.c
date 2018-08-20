@@ -122,12 +122,12 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 	 * as kvzalloc could trigger reclaim and get_swap_page,
 	 * which can lock swap_slots_cache_mutex.
 	 */
-	slots = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
+	slots = kvcalloc(SWAP_SLOTS_CACHE_SIZE, sizeof(swp_entry_t),
 			 GFP_KERNEL);
 	if (!slots)
 		return -ENOMEM;
 
-	slots_ret = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
+	slots_ret = kvcalloc(SWAP_SLOTS_CACHE_SIZE, sizeof(swp_entry_t),
 			     GFP_KERNEL);
 	if (!slots_ret) {
 		kvfree(slots);

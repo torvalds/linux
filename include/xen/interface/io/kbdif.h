@@ -317,7 +317,7 @@ struct xenkbd_position {
  * Linux [2] and Windows [3] multi-touch support.
  *
  * [1] https://cgit.freedesktop.org/wayland/wayland/tree/protocol/wayland.xml
- * [2] https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.txt
+ * [2] https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.rst
  * [3] https://msdn.microsoft.com/en-us/library/jj151564(v=vs.85).aspx
  *
  *

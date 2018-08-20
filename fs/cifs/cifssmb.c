@@ -107,10 +107,10 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	}
 	spin_unlock(&tcon->open_file_lock);
 
-	mutex_lock(&tcon->prfid_mutex);
-	tcon->valid_root_fid = false;
-	memset(tcon->prfid, 0, sizeof(struct cifs_fid));
-	mutex_unlock(&tcon->prfid_mutex);
+	mutex_lock(&tcon->crfid.fid_mutex);
+	tcon->crfid.is_valid = false;
+	memset(tcon->crfid.fid, 0, sizeof(struct cifs_fid));
+	mutex_unlock(&tcon->crfid.fid_mutex);
 
 	/*
 	 * BB Add call to invalidate_inodes(sb) for all superblocks mounted
@@ -157,8 +157,14 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	 * greater than cifs socket timeout which is 7 seconds
 	 */
 	while (server->tcpStatus == CifsNeedReconnect) {
-		wait_event_interruptible_timeout(server->response_q,
-			(server->tcpStatus != CifsNeedReconnect), 10 * HZ);
+		rc = wait_event_interruptible_timeout(server->response_q,
+						      (server->tcpStatus != CifsNeedReconnect),
+						      10 * HZ);
+		if (rc < 0) {
+			cifs_dbg(FYI, "%s: aborting reconnect due to a received"
+				 " signal by the process\n", __func__);
+			return -ERESTARTSYS;
+		}
 
 		/* are we still trying to reconnect? */
 		if (server->tcpStatus != CifsNeedReconnect)
@@ -2077,7 +2083,7 @@ struct cifs_writedata *
 cifs_writedata_alloc(unsigned int nr_pages, work_func_t complete)
 {
 	struct page **pages =
-		kzalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
+		kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
 	if (pages)
 		return cifs_writedata_direct_alloc(pages, complete);
 

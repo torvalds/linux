@@ -124,7 +124,11 @@ The available PMUs and their raw parameters can be listed with
 For example the raw event "LSD.UOPS" core pmu event above could
 be specified as
 
-  perf stat -e cpu/event=0xa8,umask=0x1,name=LSD.UOPS_CYCLES,cmask=1/ ...
+  perf stat -e cpu/event=0xa8,umask=0x1,name=LSD.UOPS_CYCLES,cmask=0x1/ ...
+
+  or using extended name syntax
+
+  perf stat -e cpu/event=0xa8,umask=0x1,cmask=0x1,name=\'LSD.UOPS_CYCLES:cmask=0x1\'/ ...
 
 PER SOCKET PMUS
 ---------------

@@ -2738,8 +2738,9 @@ static int atmel_serial_probe(struct platform_device *pdev)
 
 	if (!atmel_use_pdc_rx(&atmel_port->uart)) {
 		ret = -ENOMEM;
-		data = kmalloc(sizeof(struct atmel_uart_char)
-				* ATMEL_SERIAL_RINGSIZE, GFP_KERNEL);
+		data = kmalloc_array(ATMEL_SERIAL_RINGSIZE,
+				     sizeof(struct atmel_uart_char),
+				     GFP_KERNEL);
 		if (!data)
 			goto err_alloc_ring;
 		atmel_port->rx_ring.buf = data;

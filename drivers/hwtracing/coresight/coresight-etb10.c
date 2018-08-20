@@ -683,8 +683,8 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 	if (drvdata->buffer_depth & 0x80000000)
 		return -EINVAL;
 
-	drvdata->buf = devm_kzalloc(dev,
-				    drvdata->buffer_depth * 4, GFP_KERNEL);
+	drvdata->buf = devm_kcalloc(dev,
+				    drvdata->buffer_depth, 4, GFP_KERNEL);
 	if (!drvdata->buf)
 		return -ENOMEM;
 

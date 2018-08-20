@@ -61,9 +61,9 @@
 #define ATLAS_REG_ORP_CALIB_STATUS	0x0d
 #define ATLAS_REG_ORP_DATA		0x0e
 
-#define ATLAS_PH_INT_TIME_IN_US		450000
-#define ATLAS_EC_INT_TIME_IN_US		650000
-#define ATLAS_ORP_INT_TIME_IN_US	450000
+#define ATLAS_PH_INT_TIME_IN_MS		450
+#define ATLAS_EC_INT_TIME_IN_MS		650
+#define ATLAS_ORP_INT_TIME_IN_MS	450
 
 enum {
 	ATLAS_PH_SM,
@@ -270,21 +270,21 @@ static struct atlas_device atlas_devices[] = {
 				.num_channels = 3,
 				.data_reg = ATLAS_REG_PH_DATA,
 				.calibration = &atlas_check_ph_calibration,
-				.delay = ATLAS_PH_INT_TIME_IN_US,
+				.delay = ATLAS_PH_INT_TIME_IN_MS,
 	},
 	[ATLAS_EC_SM] = {
 				.channels = atlas_ec_channels,
 				.num_channels = 5,
 				.data_reg = ATLAS_REG_EC_DATA,
 				.calibration = &atlas_check_ec_calibration,
-				.delay = ATLAS_EC_INT_TIME_IN_US,
+				.delay = ATLAS_EC_INT_TIME_IN_MS,
 	},
 	[ATLAS_ORP_SM] = {
 				.channels = atlas_orp_channels,
 				.num_channels = 2,
 				.data_reg = ATLAS_REG_ORP_DATA,
 				.calibration = &atlas_check_orp_calibration,
-				.delay = ATLAS_ORP_INT_TIME_IN_US,
+				.delay = ATLAS_ORP_INT_TIME_IN_MS,
 	},
 };
 
@@ -393,7 +393,7 @@ static int atlas_read_measurement(struct atlas_data *data, int reg, __be32 *val)
 	}
 
 	if (suspended)
-		usleep_range(data->chip->delay, data->chip->delay + 100000);
+		msleep(data->chip->delay);
 
 	ret = regmap_bulk_read(data->regmap, reg, (u8 *) val, sizeof(*val));
 

@@ -698,8 +698,8 @@ static int cifs_set_super(struct super_block *sb, void *data)
 }
 
 static struct dentry *
-cifs_do_mount(struct file_system_type *fs_type,
-	      int flags, const char *dev_name, void *data)
+cifs_smb3_do_mount(struct file_system_type *fs_type,
+	      int flags, const char *dev_name, void *data, bool is_smb3)
 {
 	int rc;
 	struct super_block *sb;
@@ -710,7 +710,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	cifs_dbg(FYI, "Devname: %s flags: %d\n", dev_name, flags);
 
-	volume_info = cifs_get_volume_info((char *)data, dev_name);
+	volume_info = cifs_get_volume_info((char *)data, dev_name, is_smb3);
 	if (IS_ERR(volume_info))
 		return ERR_CAST(volume_info);
 
@@ -788,6 +788,20 @@ out_free:
 out_nls:
 	unload_nls(volume_info->local_nls);
 	goto out;
+}
+
+static struct dentry *
+smb3_do_mount(struct file_system_type *fs_type,
+	      int flags, const char *dev_name, void *data)
+{
+	return cifs_smb3_do_mount(fs_type, flags, dev_name, data, true);
+}
+
+static struct dentry *
+cifs_do_mount(struct file_system_type *fs_type,
+	      int flags, const char *dev_name, void *data)
+{
+	return cifs_smb3_do_mount(fs_type, flags, dev_name, data, false);
 }
 
 static ssize_t
@@ -925,7 +939,7 @@ MODULE_ALIAS_FS("cifs");
 static struct file_system_type smb3_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "smb3",
-	.mount = cifs_do_mount,
+	.mount = smb3_do_mount,
 	.kill_sb = cifs_kill_sb,
 	/*  .fs_flags */
 };

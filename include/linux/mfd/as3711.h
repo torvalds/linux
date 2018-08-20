@@ -108,9 +108,9 @@ struct as3711_regulator_pdata {
 };
 
 struct as3711_bl_pdata {
-	const char *su1_fb;
+	bool su1_fb;
 	int su1_max_uA;
-	const char *su2_fb;
+	bool su2_fb;
 	int su2_max_uA;
 	enum as3711_su2_feedback su2_feedback;
 	enum as3711_su2_fbprot su2_fbprot;

@@ -1133,6 +1133,11 @@ struct sctp_input_cb {
 };
 #define SCTP_INPUT_CB(__skb)	((struct sctp_input_cb *)&((__skb)->cb[0]))
 
+struct sctp_output_cb {
+	struct sk_buff *last;
+};
+#define SCTP_OUTPUT_CB(__skb)	((struct sctp_output_cb *)&((__skb)->cb[0]))
+
 static inline const struct sk_buff *sctp_gso_headskb(const struct sk_buff *skb)
 {
 	const struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;

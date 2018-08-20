@@ -165,79 +165,6 @@
 			bm@c8000 {
 				status = "okay";
 			};
-
-			nand@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-				nand-ecc-strength = <4>;
-				nand-ecc-step-size = <512>;
-
-				partition@0 {
-					label = "u-boot";
-					reg = <0x0000000 0x100000>;  /* 1MB */
-					read-only;
-				};
-
-				partition@100000 {
-					label = "u_env";
-					reg = <0x100000 0x40000>;    /* 256KB */
-				};
-
-				partition@140000 {
-					label = "s_env";
-					reg = <0x140000 0x40000>;    /* 256KB */
-				};
-
-				partition@900000 {
-					label = "devinfo";
-					reg = <0x900000 0x100000>;   /* 1MB */
-					read-only;
-				};
-
-				/* kernel1 overlaps with rootfs1 by design */
-				partition@a00000 {
-					label = "kernel1";
-					reg = <0xa00000 0x2800000>;  /* 40MB */
-				};
-
-				partition@d00000 {
-					label = "rootfs1";
-					reg = <0xd00000 0x2500000>;  /* 37MB */
-				};
-
-				/* kernel2 overlaps with rootfs2 by design */
-				partition@3200000 {
-					label = "kernel2";
-					reg = <0x3200000 0x2800000>; /* 40MB */
-				};
-
-				partition@3500000 {
-					label = "rootfs2";
-					reg = <0x3500000 0x2500000>; /* 37MB */
-				};
-
-				/*
-				 * 38MB, last MB is for the BBT, not writable
-				 */
-				partition@5a00000 {
-					label = "syscfg";
-					reg = <0x5a00000 0x2600000>;
-				};
-
-				/*
-				 * Unused area between "s_env" and "devinfo".
-				 * Moved here because otherwise the renumbered
-				 * partitions would break the bootloader
-				 * supplied bootargs
-				 */
-				partition@180000 {
-					label = "unused_area";
-					reg = <0x180000 0x780000>;   /* 7.5MB */
-				};
-			};
 		};
 
 		bm-bppi {
@@ -430,6 +357,89 @@
 					speed = <1000>;
 					full-duplex;
 				};
+			};
+		};
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x100000>;  /* 1MB */
+				read-only;
+			};
+
+			partition@100000 {
+				label = "u_env";
+				reg = <0x100000 0x40000>;    /* 256KB */
+			};
+
+			partition@140000 {
+				label = "s_env";
+				reg = <0x140000 0x40000>;    /* 256KB */
+			};
+
+			partition@900000 {
+				label = "devinfo";
+				reg = <0x900000 0x100000>;   /* 1MB */
+				read-only;
+			};
+
+			/* kernel1 overlaps with rootfs1 by design */
+			partition@a00000 {
+				label = "kernel1";
+				reg = <0xa00000 0x2800000>;  /* 40MB */
+			};
+
+			partition@d00000 {
+				label = "rootfs1";
+				reg = <0xd00000 0x2500000>;  /* 37MB */
+			};
+
+			/* kernel2 overlaps with rootfs2 by design */
+			partition@3200000 {
+				label = "kernel2";
+				reg = <0x3200000 0x2800000>; /* 40MB */
+			};
+
+			partition@3500000 {
+				label = "rootfs2";
+				reg = <0x3500000 0x2500000>; /* 37MB */
+			};
+
+			/*
+			 * 38MB, last MB is for the BBT, not writable
+			 */
+			partition@5a00000 {
+				label = "syscfg";
+				reg = <0x5a00000 0x2600000>;
+			};
+
+			/*
+			 * Unused area between "s_env" and "devinfo".
+			 * Moved here because otherwise the renumbered
+			 * partitions would break the bootloader
+			 * supplied bootargs
+			 */
+			partition@180000 {
+				label = "unused_area";
+				reg = <0x180000 0x780000>;   /* 7.5MB */
 			};
 		};
 	};

@@ -34,7 +34,7 @@ Optional properties:
 - mali-supply : Phandle to regulator for the Mali device. Refer to
   Documentation/devicetree/bindings/regulator/regulator.txt for details.
 
-- operating-points-v2 : Refer to Documentation/devicetree/bindings/power/opp.txt
+- operating-points-v2 : Refer to Documentation/devicetree/bindings/opp/opp.txt
   for details.
 
 

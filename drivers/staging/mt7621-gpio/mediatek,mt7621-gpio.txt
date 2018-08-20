@@ -1,0 +1,68 @@
+Mediatek SoC GPIO controller bindings
+
+The IP core used inside these SoCs has 3 banks of 32 GPIOs each.
+The registers of all the banks are interwoven inside one single IO range.
+We load one GPIO controller instance per bank. To make this possible
+we support 2 types of nodes. The parent node defines the memory I/O range and
+has 3 children each describing a single bank. Also the GPIO controller can receive
+interrupts on any of the GPIOs, either edge or level. It then interrupts the CPU
+using GIC INT12.
+
+Required properties for the top level node:
+- compatible:
+  - "mediatek,mt7621-gpio" for Mediatek controllers
+- reg : Physical base address and length of the controller's registers
+- interrupt-parent : phandle of the parent interrupt controller.
+- interrupts : Interrupt specifier for the controllers interrupt.
+- interrupt-controller : Mark the device node as an interrupt controller.
+- #interrupt-cells : Should be 2. The first cell defines the interrupt number.
+   The second cell bits[3:0] is used to specify trigger type as follows:
+	- 1 = low-to-high edge triggered.
+	- 2 = high-to-low edge triggered.
+	- 4 = active high level-sensitive.
+	- 8 = active low level-sensitive.
+
+
+Required properties for the GPIO bank node:
+- compatible:
+  - "mediatek,mt7621-gpio-bank" for Mediatek banks
+- #gpio-cells : Should be two. The first cell is the GPIO pin number and the
+   second cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>.
+   Only the GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
+- gpio-controller : Marks the device node as a GPIO controller.
+- reg : The id of the bank that the node describes.
+
+Example:
+	gpio@600 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		compatible = "mediatek,mt7621-gpio";
+		reg = <0x600 0x100>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		gpio0: bank@0 {
+			reg = <0>;
+			compatible = "mediatek,mt7621-gpio-bank";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpio1: bank@1 {
+			reg = <1>;
+			compatible = "mediatek,mt7621-gpio-bank";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpio2: bank@2 {
+			reg = <2>;
+			compatible = "mediatek,mt7621-gpio-bank";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};

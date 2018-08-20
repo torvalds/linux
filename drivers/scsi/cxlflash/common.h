@@ -211,6 +211,7 @@ struct hwq {
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
 	ctx_hndl_t ctx_hndl;	/* master's context handle */
 	u32 index;		/* Index of this hwq */
+	int num_irqs;		/* Number of interrupts requested for context */
 	struct list_head pending_cmds;	/* Commands pending completion */
 
 	atomic_t hsq_credits;
@@ -223,6 +224,7 @@ struct hwq {
 	u64 *hrrq_end;
 	u64 *hrrq_curr;
 	bool toggle;
+	bool hrrq_online;
 
 	s64 room;
 
@@ -231,13 +233,14 @@ struct hwq {
 
 struct afu {
 	struct hwq hwqs[CXLFLASH_MAX_HWQS];
-	int (*send_cmd)(struct afu *, struct afu_cmd *);
-	int (*context_reset)(struct hwq *);
+	int (*send_cmd)(struct afu *afu, struct afu_cmd *cmd);
+	int (*context_reset)(struct hwq *hwq);
 
 	/* AFU HW */
 	struct cxlflash_afu_map __iomem *afu_map;	/* entire MMIO map */
 
 	atomic_t cmds_active;	/* Number of currently active AFU commands */
+	struct mutex sync_active;	/* Mutex to serialize AFU commands */
 	u64 hb;
 	u32 internal_lun;	/* User-desired LUN mode for this AFU */
 
@@ -270,6 +273,11 @@ static inline bool afu_has_cap(struct afu *afu, u64 cap)
 	u64 afu_cap = afu->interface_version >> SISL_INTVER_CAP_SHIFT;
 
 	return afu_cap & cap;
+}
+
+static inline bool afu_is_ocxl_lisn(struct afu *afu)
+{
+	return afu_has_cap(afu, SISL_INTVER_CAP_OCXL_LISN);
 }
 
 static inline bool afu_is_afu_debug(struct afu *afu)

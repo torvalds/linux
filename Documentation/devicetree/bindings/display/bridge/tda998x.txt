@@ -30,7 +30,7 @@ Optional properties:
   - nxp,calib-gpios: calibration GPIO, which must correspond with the
 	gpio used for the TDA998x interrupt pin.
 
-[1] Documentation/sound/alsa/soc/DAI.txt
+[1] Documentation/sound/soc/dai.rst
 [2] include/dt-bindings/display/tda998x.h
 
 Example:

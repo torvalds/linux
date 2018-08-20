@@ -451,10 +451,10 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 
 static void update_ctime(struct inode *inode)
 {
-	struct timespec now = current_time(inode);
+	struct timespec64 now = current_time(inode);
 
 	if (inode_unhashed(inode) || !inode->i_nlink ||
-	    timespec_equal(&inode->i_ctime, &now))
+	    timespec64_equal(&inode->i_ctime, &now))
 		return;
 
 	inode->i_ctime = current_time(inode);

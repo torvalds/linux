@@ -8,6 +8,7 @@
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include "imx6q.dtsi"
 
 / {
@@ -43,7 +44,7 @@
 		recovery-button {
 			label = "recovery";
 			gpios = <&gpio3 16 1>;
-			linux,code = <0x198>; /* KEY_RESTART */
+			linux,code = <KEY_RESTART>;
 			wakeup-source;
 		};
 	};

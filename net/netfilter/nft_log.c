@@ -111,7 +111,7 @@ static void nft_log_eval(const struct nft_expr *expr,
 	const struct nft_log *priv = nft_expr_priv(expr);
 
 	if (priv->loginfo.type == NF_LOG_TYPE_LOG &&
-	    priv->loginfo.u.log.level == LOGLEVEL_AUDIT) {
+	    priv->loginfo.u.log.level == NFT_LOGLEVEL_AUDIT) {
 		nft_log_eval_audit(pkt);
 		return;
 	}
@@ -166,9 +166,9 @@ static int nft_log_init(const struct nft_ctx *ctx,
 			li->u.log.level =
 				ntohl(nla_get_be32(tb[NFTA_LOG_LEVEL]));
 		} else {
-			li->u.log.level = LOGLEVEL_WARNING;
+			li->u.log.level = NFT_LOGLEVEL_WARNING;
 		}
-		if (li->u.log.level > LOGLEVEL_AUDIT) {
+		if (li->u.log.level > NFT_LOGLEVEL_AUDIT) {
 			err = -EINVAL;
 			goto err1;
 		}
@@ -196,7 +196,7 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		break;
 	}
 
-	if (li->u.log.level == LOGLEVEL_AUDIT)
+	if (li->u.log.level == NFT_LOGLEVEL_AUDIT)
 		return 0;
 
 	err = nf_logger_find_get(ctx->family, li->type);
@@ -220,7 +220,7 @@ static void nft_log_destroy(const struct nft_ctx *ctx,
 	if (priv->prefix != nft_log_null_prefix)
 		kfree(priv->prefix);
 
-	if (li->u.log.level == LOGLEVEL_AUDIT)
+	if (li->u.log.level == NFT_LOGLEVEL_AUDIT)
 		return;
 
 	nf_logger_put(ctx->family, li->type);

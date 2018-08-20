@@ -3208,13 +3208,13 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 
 	IPW_DEBUG_TRACE("<< :\n");
 
-	virts = kmalloc(sizeof(void *) * CB_NUMBER_OF_ELEMENTS_SMALL,
-			GFP_KERNEL);
+	virts = kmalloc_array(CB_NUMBER_OF_ELEMENTS_SMALL, sizeof(void *),
+			      GFP_KERNEL);
 	if (!virts)
 		return -ENOMEM;
 
-	phys = kmalloc(sizeof(dma_addr_t) * CB_NUMBER_OF_ELEMENTS_SMALL,
-			GFP_KERNEL);
+	phys = kmalloc_array(CB_NUMBER_OF_ELEMENTS_SMALL, sizeof(dma_addr_t),
+			     GFP_KERNEL);
 	if (!phys) {
 		kfree(virts);
 		return -ENOMEM;
@@ -3782,7 +3782,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 {
 	struct pci_dev *dev = priv->pci_dev;
 
-	q->txb = kmalloc(sizeof(q->txb[0]) * count, GFP_KERNEL);
+	q->txb = kmalloc_array(count, sizeof(q->txb[0]), GFP_KERNEL);
 	if (!q->txb) {
 		IPW_ERROR("vmalloc for auxiliary BD structures failed\n");
 		return -ENOMEM;

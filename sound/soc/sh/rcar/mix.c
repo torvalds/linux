@@ -294,7 +294,7 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 		goto rsnd_mix_probe_done;
 	}
 
-	mix	= devm_kzalloc(dev, sizeof(*mix) * nr, GFP_KERNEL);
+	mix	= devm_kcalloc(dev, nr, sizeof(*mix), GFP_KERNEL);
 	if (!mix) {
 		ret = -ENOMEM;
 		goto rsnd_mix_probe_done;

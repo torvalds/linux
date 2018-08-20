@@ -894,7 +894,7 @@ static int aspeed_create_fan(struct device *dev,
 	count = of_property_count_u8_elems(child, "aspeed,fan-tach-ch");
 	if (count < 1)
 		return -EINVAL;
-	fan_tach_ch = devm_kzalloc(dev, sizeof(*fan_tach_ch) * count,
+	fan_tach_ch = devm_kcalloc(dev, count, sizeof(*fan_tach_ch),
 				   GFP_KERNEL);
 	if (!fan_tach_ch)
 		return -ENOMEM;

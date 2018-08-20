@@ -29,6 +29,8 @@
 #include "nfit_test.h"
 #include "../watermark.h"
 
+#include <asm/mcsafe_test.h>
+
 /*
  * Generate an NFIT table to describe the following topology:
  *
@@ -2681,6 +2683,107 @@ static struct platform_driver nfit_test_driver = {
 	.id_table = nfit_test_id,
 };
 
+static char mcsafe_buf[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
+
+enum INJECT {
+	INJECT_NONE,
+	INJECT_SRC,
+	INJECT_DST,
+};
+
+static void mcsafe_test_init(char *dst, char *src, size_t size)
+{
+	size_t i;
+
+	memset(dst, 0xff, size);
+	for (i = 0; i < size; i++)
+		src[i] = (char) i;
+}
+
+static bool mcsafe_test_validate(unsigned char *dst, unsigned char *src,
+		size_t size, unsigned long rem)
+{
+	size_t i;
+
+	for (i = 0; i < size - rem; i++)
+		if (dst[i] != (unsigned char) i) {
+			pr_info_once("%s:%d: offset: %zd got: %#x expect: %#x\n",
+					__func__, __LINE__, i, dst[i],
+					(unsigned char) i);
+			return false;
+		}
+	for (i = size - rem; i < size; i++)
+		if (dst[i] != 0xffU) {
+			pr_info_once("%s:%d: offset: %zd got: %#x expect: 0xff\n",
+					__func__, __LINE__, i, dst[i]);
+			return false;
+		}
+	return true;
+}
+
+void mcsafe_test(void)
+{
+	char *inject_desc[] = { "none", "source", "destination" };
+	enum INJECT inj;
+
+	if (IS_ENABLED(CONFIG_MCSAFE_TEST)) {
+		pr_info("%s: run...\n", __func__);
+	} else {
+		pr_info("%s: disabled, skip.\n", __func__);
+		return;
+	}
+
+	for (inj = INJECT_NONE; inj <= INJECT_DST; inj++) {
+		int i;
+
+		pr_info("%s: inject: %s\n", __func__, inject_desc[inj]);
+		for (i = 0; i < 512; i++) {
+			unsigned long expect, rem;
+			void *src, *dst;
+			bool valid;
+
+			switch (inj) {
+			case INJECT_NONE:
+				mcsafe_inject_src(NULL);
+				mcsafe_inject_dst(NULL);
+				dst = &mcsafe_buf[2048];
+				src = &mcsafe_buf[1024 - i];
+				expect = 0;
+				break;
+			case INJECT_SRC:
+				mcsafe_inject_src(&mcsafe_buf[1024]);
+				mcsafe_inject_dst(NULL);
+				dst = &mcsafe_buf[2048];
+				src = &mcsafe_buf[1024 - i];
+				expect = 512 - i;
+				break;
+			case INJECT_DST:
+				mcsafe_inject_src(NULL);
+				mcsafe_inject_dst(&mcsafe_buf[2048]);
+				dst = &mcsafe_buf[2048 - i];
+				src = &mcsafe_buf[1024];
+				expect = 512 - i;
+				break;
+			}
+
+			mcsafe_test_init(dst, src, 512);
+			rem = __memcpy_mcsafe(dst, src, 512);
+			valid = mcsafe_test_validate(dst, src, 512, expect);
+			if (rem == expect && valid)
+				continue;
+			pr_info("%s: copy(%#lx, %#lx, %d) off: %d rem: %ld %s expect: %ld\n",
+					__func__,
+					((unsigned long) dst) & ~PAGE_MASK,
+					((unsigned long ) src) & ~PAGE_MASK,
+					512, i, rem, valid ? "valid" : "bad",
+					expect);
+		}
+	}
+
+	mcsafe_inject_src(NULL);
+	mcsafe_inject_dst(NULL);
+}
+
 static __init int nfit_test_init(void)
 {
 	int rc, i;
@@ -2689,6 +2792,7 @@ static __init int nfit_test_init(void)
 	libnvdimm_test();
 	acpi_nfit_test();
 	device_dax_test();
+	mcsafe_test();
 
 	nfit_test_setup(nfit_test_lookup, nfit_test_evaluate_dsm);
 

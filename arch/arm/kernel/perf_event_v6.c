@@ -303,12 +303,10 @@ static void armv6pmu_enable_event(struct perf_event *event)
 }
 
 static irqreturn_t
-armv6pmu_handle_irq(int irq_num,
-		    void *dev)
+armv6pmu_handle_irq(struct arm_pmu *cpu_pmu)
 {
 	unsigned long pmcr = armv6_pmcr_read();
 	struct perf_sample_data data;
-	struct arm_pmu *cpu_pmu = (struct arm_pmu *)dev;
 	struct pmu_hw_events *cpuc = this_cpu_ptr(cpu_pmu->hw_events);
 	struct pt_regs *regs;
 	int idx;

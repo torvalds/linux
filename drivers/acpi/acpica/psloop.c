@@ -515,6 +515,22 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
 				}
+				if (walk_state->opcode == AML_SCOPE_OP) {
+					/*
+					 * If the scope op fails to parse, skip the body of the
+					 * scope op because the parse failure indicates that the
+					 * device may not exist.
+					 */
+					walk_state->parser_state.aml =
+					    walk_state->aml + 1;
+					walk_state->parser_state.aml =
+					    acpi_ps_get_next_package_end
+					    (&walk_state->parser_state);
+					walk_state->aml =
+					    walk_state->parser_state.aml;
+					ACPI_ERROR((AE_INFO,
+						    "Skipping Scope block"));
+				}
 
 				continue;
 			}
@@ -557,7 +573,40 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
 				}
+				if ((walk_state->control_state) &&
+				    ((walk_state->control_state->control.
+				      opcode == AML_IF_OP)
+				     || (walk_state->control_state->control.
+					 opcode == AML_WHILE_OP))) {
+					/*
+					 * If the if/while op fails to parse, we will skip parsing
+					 * the body of the op.
+					 */
+					parser_state->aml =
+					    walk_state->control_state->control.
+					    aml_predicate_start + 1;
+					parser_state->aml =
+					    acpi_ps_get_next_package_end
+					    (parser_state);
+					walk_state->aml = parser_state->aml;
 
+					ACPI_ERROR((AE_INFO,
+						    "Skipping While/If block"));
+					if (*walk_state->aml == AML_ELSE_OP) {
+						ACPI_ERROR((AE_INFO,
+							    "Skipping Else block"));
+						walk_state->parser_state.aml =
+						    walk_state->aml + 1;
+						walk_state->parser_state.aml =
+						    acpi_ps_get_next_package_end
+						    (parser_state);
+						walk_state->aml =
+						    parser_state->aml;
+					}
+					ACPI_FREE(acpi_ut_pop_generic_state
+						  (&walk_state->control_state));
+				}
+				op = NULL;
 				continue;
 			}
 		}

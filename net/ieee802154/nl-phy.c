@@ -38,7 +38,7 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 {
 	void *hdr;
 	int i, pages = 0;
-	uint32_t *buf = kzalloc(32 * sizeof(uint32_t), GFP_KERNEL);
+	uint32_t *buf = kcalloc(32, sizeof(uint32_t), GFP_KERNEL);
 
 	pr_debug("%s\n", __func__);
 

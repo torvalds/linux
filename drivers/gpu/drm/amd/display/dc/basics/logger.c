@@ -364,7 +364,7 @@ void dm_logger_open(
 	entry->type = log_type;
 	entry->logger = logger;
 
-	entry->buf = kzalloc(DAL_LOGGER_BUFFER_MAX_SIZE * sizeof(char),
+	entry->buf = kzalloc(DAL_LOGGER_BUFFER_MAX_SIZE,
 			     GFP_KERNEL);
 
 	entry->buf_offset = 0;

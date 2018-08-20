@@ -1326,8 +1326,6 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_clk_notifier;
 
-	dev_info(&pdev->dev, "Initialized RK3xxx I2C bus at %p\n", i2c->regs);
-
 	return 0;
 
 err_clk_notifier:

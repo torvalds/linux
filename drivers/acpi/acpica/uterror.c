@@ -189,13 +189,13 @@ acpi_ut_prefixed_namespace_error(const char *module_name,
 	case AE_NOT_FOUND:
 
 		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
-		message = "Failure looking up";
+		message = "Could not resolve";
 		break;
 
 	default:
 
 		acpi_os_printf(ACPI_MSG_ERROR);
-		message = "Failure looking up";
+		message = "Failure resolving";
 		break;
 	}
 

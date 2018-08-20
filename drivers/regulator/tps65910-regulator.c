@@ -1131,18 +1131,24 @@ static int tps65910_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pmic->desc = devm_kzalloc(&pdev->dev, pmic->num_regulators *
-			sizeof(struct regulator_desc), GFP_KERNEL);
+	pmic->desc = devm_kcalloc(&pdev->dev,
+				  pmic->num_regulators,
+				  sizeof(struct regulator_desc),
+				  GFP_KERNEL);
 	if (!pmic->desc)
 		return -ENOMEM;
 
-	pmic->info = devm_kzalloc(&pdev->dev, pmic->num_regulators *
-			sizeof(struct tps_info *), GFP_KERNEL);
+	pmic->info = devm_kcalloc(&pdev->dev,
+				  pmic->num_regulators,
+				  sizeof(struct tps_info *),
+				  GFP_KERNEL);
 	if (!pmic->info)
 		return -ENOMEM;
 
-	pmic->rdev = devm_kzalloc(&pdev->dev, pmic->num_regulators *
-			sizeof(struct regulator_dev *), GFP_KERNEL);
+	pmic->rdev = devm_kcalloc(&pdev->dev,
+				  pmic->num_regulators,
+				  sizeof(struct regulator_dev *),
+				  GFP_KERNEL);
 	if (!pmic->rdev)
 		return -ENOMEM;
 

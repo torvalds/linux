@@ -1730,6 +1730,18 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 			}
 		}
 	}
+
+	if (adev->powerplay.pp_feature & PP_GFXOFF_MASK) {
+		/* enable gfx powergating */
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_GFX,
+						       AMD_PG_STATE_GATE);
+		/* enable gfxoff */
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_SMC,
+						       AMD_PG_STATE_GATE);
+	}
+
 	return 0;
 }
 
@@ -2146,10 +2158,18 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	switch (asic_type) {
 #if defined(CONFIG_DRM_AMD_DC)
 	case CHIP_BONAIRE:
-	case CHIP_HAWAII:
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
+		/*
+		 * We have systems in the wild with these ASICs that require
+		 * LVDS and VGA support which is not supported with DC.
+		 *
+		 * Fallback to the non-DC driver here by default so as not to
+		 * cause regressions.
+		 */
+		return amdgpu_dc > 0;
+	case CHIP_HAWAII:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 	case CHIP_POLARIS10:

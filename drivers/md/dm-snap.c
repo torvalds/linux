@@ -326,8 +326,8 @@ static int init_origin_hash(void)
 {
 	int i;
 
-	_origins = kmalloc(ORIGIN_HASH_SIZE * sizeof(struct list_head),
-			   GFP_KERNEL);
+	_origins = kmalloc_array(ORIGIN_HASH_SIZE, sizeof(struct list_head),
+				 GFP_KERNEL);
 	if (!_origins) {
 		DMERR("unable to allocate memory for _origins");
 		return -ENOMEM;
@@ -335,8 +335,9 @@ static int init_origin_hash(void)
 	for (i = 0; i < ORIGIN_HASH_SIZE; i++)
 		INIT_LIST_HEAD(_origins + i);
 
-	_dm_origins = kmalloc(ORIGIN_HASH_SIZE * sizeof(struct list_head),
-			      GFP_KERNEL);
+	_dm_origins = kmalloc_array(ORIGIN_HASH_SIZE,
+				    sizeof(struct list_head),
+				    GFP_KERNEL);
 	if (!_dm_origins) {
 		DMERR("unable to allocate memory for _dm_origins");
 		kfree(_origins);

@@ -1511,8 +1511,9 @@ static int spi_imx_probe(struct platform_device *pdev)
 	if (mxc_platform_info) {
 		master->num_chipselect = mxc_platform_info->num_chipselect;
 		if (mxc_platform_info->chipselect) {
-			master->cs_gpios = devm_kzalloc(&master->dev,
-				sizeof(int) * master->num_chipselect, GFP_KERNEL);
+			master->cs_gpios = devm_kcalloc(&master->dev,
+				master->num_chipselect, sizeof(int),
+				GFP_KERNEL);
 			if (!master->cs_gpios)
 				return -ENOMEM;
 

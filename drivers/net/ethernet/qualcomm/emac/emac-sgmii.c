@@ -384,6 +384,7 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		}
 
 		sgmii_pdev = of_find_device_by_node(np);
+		of_node_put(np);
 		if (!sgmii_pdev) {
 			dev_err(&pdev->dev, "invalid internal-phy property\n");
 			return -ENODEV;

@@ -134,7 +134,7 @@ void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags)
 {
 	kvmppc_unfixup_split_real(vcpu);
 	kvmppc_set_srr0(vcpu, kvmppc_get_pc(vcpu));
-	kvmppc_set_srr1(vcpu, kvmppc_get_msr(vcpu) | flags);
+	kvmppc_set_srr1(vcpu, (kvmppc_get_msr(vcpu) & ~0x783f0000ul) | flags);
 	kvmppc_set_pc(vcpu, kvmppc_interrupt_offset(vcpu) + vec);
 	vcpu->arch.mmu.reset_msr(vcpu);
 }
@@ -256,18 +256,15 @@ void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong dar,
 {
 	kvmppc_set_dar(vcpu, dar);
 	kvmppc_set_dsisr(vcpu, flags);
-	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE, 0);
 }
-EXPORT_SYMBOL_GPL(kvmppc_core_queue_data_storage);	/* used by kvm_hv */
+EXPORT_SYMBOL_GPL(kvmppc_core_queue_data_storage);
 
 void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong flags)
 {
-	u64 msr = kvmppc_get_msr(vcpu);
-	msr &= ~(SRR1_ISI_NOPT | SRR1_ISI_N_OR_G | SRR1_ISI_PROT);
-	msr |= flags & (SRR1_ISI_NOPT | SRR1_ISI_N_OR_G | SRR1_ISI_PROT);
-	kvmppc_set_msr_fast(vcpu, msr);
-	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_INST_STORAGE);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_INST_STORAGE, flags);
 }
+EXPORT_SYMBOL_GPL(kvmppc_core_queue_inst_storage);
 
 static int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu,
 					 unsigned int priority)
@@ -450,8 +447,8 @@ int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, enum xlate_instdata xlid,
 	return r;
 }
 
-int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
-					 u32 *inst)
+int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
+		enum instruction_fetch_type type, u32 *inst)
 {
 	ulong pc = kvmppc_get_pc(vcpu);
 	int r;
@@ -509,8 +506,6 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
 	int i;
 
-	vcpu_load(vcpu);
-
 	regs->pc = kvmppc_get_pc(vcpu);
 	regs->cr = kvmppc_get_cr(vcpu);
 	regs->ctr = kvmppc_get_ctr(vcpu);
@@ -532,15 +527,12 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
 
-	vcpu_put(vcpu);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
 	int i;
-
-	vcpu_load(vcpu);
 
 	kvmppc_set_pc(vcpu, regs->pc);
 	kvmppc_set_cr(vcpu, regs->cr);
@@ -562,7 +554,6 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
 
-	vcpu_put(vcpu);
 	return 0;
 }
 

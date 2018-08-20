@@ -4,7 +4,7 @@
  * Copyright (C) 1997 Richard Günther
  *
  * binfmt_misc detects binaries via a magic or filename extension and invokes
- * a specified wrapper. See Documentation/binfmt_misc.txt for more details.
+ * a specified wrapper. See Documentation/admin-guide/binfmt-misc.rst for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -277,6 +265,22 @@ xfs_mount_validate_sb(
 		xfs_notice(mp, "SB sanity check failed");
 		return -EFSCORRUPTED;
 	}
+
+	if (sbp->sb_unit) {
+		if (!xfs_sb_version_hasdalign(sbp) ||
+		    sbp->sb_unit > sbp->sb_width ||
+		    (sbp->sb_width % sbp->sb_unit) != 0) {
+			xfs_notice(mp, "SB stripe unit sanity check failed");
+			return -EFSCORRUPTED;
+		}
+	} else if (xfs_sb_version_hasdalign(sbp)) {
+		xfs_notice(mp, "SB stripe alignment sanity check failed");
+		return -EFSCORRUPTED;
+	} else if (sbp->sb_width) {
+		xfs_notice(mp, "SB stripe width sanity check failed");
+		return -EFSCORRUPTED;
+	}
+
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    sbp->sb_blocksize < XFS_MIN_CRC_BLOCKSIZE) {
@@ -767,7 +771,7 @@ xfs_sb_mount_common(
 	mp->m_refc_mnr[1] = mp->m_refc_mxr[1] / 2;
 
 	mp->m_bsize = XFS_FSB_TO_BB(mp, 1);
-	mp->m_ialloc_inos = (int)MAX((uint16_t)XFS_INODES_PER_CHUNK,
+	mp->m_ialloc_inos = max_t(uint16_t, XFS_INODES_PER_CHUNK,
 					sbp->sb_inopblock);
 	mp->m_ialloc_blks = mp->m_ialloc_inos >> sbp->sb_inopblog;
 
@@ -970,14 +974,16 @@ xfs_sync_sb_buf(
 	struct xfs_mount	*mp)
 {
 	struct xfs_trans	*tp;
+	struct xfs_buf		*bp;
 	int			error;
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
 	if (error)
 		return error;
 
+	bp = xfs_trans_getsb(tp, mp, 0);
 	xfs_log_sb(tp);
-	xfs_trans_bhold(tp, mp->m_sb_bp);
+	xfs_trans_bhold(tp, bp);
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp);
 	if (error)
@@ -985,9 +991,9 @@ xfs_sync_sb_buf(
 	/*
 	 * write out the sb buffer to get the changes to disk
 	 */
-	error = xfs_bwrite(mp->m_sb_bp);
+	error = xfs_bwrite(bp);
 out:
-	xfs_buf_relse(mp->m_sb_bp);
+	xfs_buf_relse(bp);
 	return error;
 }
 

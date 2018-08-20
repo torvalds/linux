@@ -14,7 +14,7 @@
 #include <asm-generic/module.h>
 
 
-#ifdef CC_USING_MPROFILE_KERNEL
+#ifdef CONFIG_MPROFILE_KERNEL
 #define MODULE_ARCH_VERMAGIC_FTRACE	"mprofile-kernel "
 #else
 #define MODULE_ARCH_VERMAGIC_FTRACE	""

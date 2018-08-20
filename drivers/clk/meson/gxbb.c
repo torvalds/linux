@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * AmLogic S905 / GXBB Clock Controller Driver
- *
  * Copyright (c) 2016 AmLogic, Inc.
  * Michael Turquette <mturquette@baylibre.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -1543,6 +1530,102 @@ static struct clk_regmap gxbb_vapb = {
 	},
 };
 
+/* VDEC clocks */
+
+static const char * const gxbb_vdec_parent_names[] = {
+	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"
+};
+
+static struct clk_regmap gxbb_vdec_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vdec_1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = gxbb_vdec_parent_names,
+		.num_parents = ARRAY_SIZE(gxbb_vdec_parent_names),
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap gxbb_vdec_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDEC_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vdec_1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "vdec_1_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap gxbb_vdec_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDEC_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdec_1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "vdec_1_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap gxbb_vdec_hevc_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDEC2_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 25,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vdec_hevc_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = gxbb_vdec_parent_names,
+		.num_parents = ARRAY_SIZE(gxbb_vdec_parent_names),
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap gxbb_vdec_hevc_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDEC2_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vdec_hevc_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "vdec_hevc_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap gxbb_vdec_hevc = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDEC2_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vdec_hevc",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "vdec_hevc_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 static MESON_GATE(gxbb_ddr, HHI_GCLK_MPEG0, 0);
 static MESON_GATE(gxbb_dos, HHI_GCLK_MPEG0, 1);
@@ -1786,6 +1869,12 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_FCLK_DIV4_DIV]	    = &gxbb_fclk_div4_div.hw,
 		[CLKID_FCLK_DIV5_DIV]	    = &gxbb_fclk_div5_div.hw,
 		[CLKID_FCLK_DIV7_DIV]	    = &gxbb_fclk_div7_div.hw,
+		[CLKID_VDEC_1_SEL]	    = &gxbb_vdec_1_sel.hw,
+		[CLKID_VDEC_1_DIV]	    = &gxbb_vdec_1_div.hw,
+		[CLKID_VDEC_1]		    = &gxbb_vdec_1.hw,
+		[CLKID_VDEC_HEVC_SEL]	    = &gxbb_vdec_hevc_sel.hw,
+		[CLKID_VDEC_HEVC_DIV]	    = &gxbb_vdec_hevc_div.hw,
+		[CLKID_VDEC_HEVC]	    = &gxbb_vdec_hevc.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
@@ -1942,6 +2031,12 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 		[CLKID_FCLK_DIV4_DIV]	    = &gxbb_fclk_div4_div.hw,
 		[CLKID_FCLK_DIV5_DIV]	    = &gxbb_fclk_div5_div.hw,
 		[CLKID_FCLK_DIV7_DIV]	    = &gxbb_fclk_div7_div.hw,
+		[CLKID_VDEC_1_SEL]	    = &gxbb_vdec_1_sel.hw,
+		[CLKID_VDEC_1_DIV]	    = &gxbb_vdec_1_div.hw,
+		[CLKID_VDEC_1]		    = &gxbb_vdec_1.hw,
+		[CLKID_VDEC_HEVC_SEL]	    = &gxbb_vdec_hevc_sel.hw,
+		[CLKID_VDEC_HEVC_DIV]	    = &gxbb_vdec_hevc_div.hw,
+		[CLKID_VDEC_HEVC]	    = &gxbb_vdec_hevc.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
@@ -2100,6 +2195,12 @@ static struct clk_regmap *const gx_clk_regmaps[] = {
 	&gxbb_fclk_div4,
 	&gxbb_fclk_div5,
 	&gxbb_fclk_div7,
+	&gxbb_vdec_1_sel,
+	&gxbb_vdec_1_div,
+	&gxbb_vdec_1,
+	&gxbb_vdec_hevc_sel,
+	&gxbb_vdec_hevc_div,
+	&gxbb_vdec_hevc,
 };
 
 struct clkc_data {

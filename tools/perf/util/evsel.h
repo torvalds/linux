@@ -459,6 +459,11 @@ static inline bool perf_evsel__has_branch_callstack(const struct perf_evsel *evs
 	return evsel->attr.branch_sample_type & PERF_SAMPLE_BRANCH_CALL_STACK;
 }
 
+static inline bool evsel__has_callchain(const struct perf_evsel *evsel)
+{
+	return (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) != 0;
+}
+
 typedef int (*attr__fprintf_f)(FILE *, const char *, const char *, void *);
 
 int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,

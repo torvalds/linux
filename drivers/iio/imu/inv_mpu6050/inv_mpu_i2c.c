@@ -29,25 +29,18 @@ static int inv_mpu6050_select_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 {
 	struct iio_dev *indio_dev = i2c_mux_priv(muxc);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
-	int ret = 0;
+	int ret;
 
-	/* Use the same mutex which was used everywhere to protect power-op */
 	mutex_lock(&st->lock);
-	if (!st->powerup_count) {
-		ret = regmap_write(st->map, st->reg->pwr_mgmt_1, 0);
-		if (ret)
-			goto write_error;
 
-		usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
-			     INV_MPU6050_REG_UP_TIME_MAX);
-	}
-	if (!ret) {
-		st->powerup_count++;
-		ret = regmap_write(st->map, st->reg->int_pin_cfg,
-				   INV_MPU6050_INT_PIN_CFG |
-				   INV_MPU6050_BIT_BYPASS_EN);
-	}
-write_error:
+	ret = inv_mpu6050_set_power_itg(st, true);
+	if (ret)
+		goto error_unlock;
+
+	ret = regmap_write(st->map, st->reg->int_pin_cfg,
+			   st->irq_mask | INV_MPU6050_BIT_BYPASS_EN);
+
+error_unlock:
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -59,12 +52,11 @@ static int inv_mpu6050_deselect_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
-	/* It doesn't really mattter, if any of the calls fails */
-	regmap_write(st->map, st->reg->int_pin_cfg, INV_MPU6050_INT_PIN_CFG);
-	st->powerup_count--;
-	if (!st->powerup_count)
-		regmap_write(st->map, st->reg->pwr_mgmt_1,
-			     INV_MPU6050_BIT_SLEEP);
+
+	/* It doesn't really matter if any of the calls fail */
+	regmap_write(st->map, st->reg->int_pin_cfg, st->irq_mask);
+	inv_mpu6050_set_power_itg(st, false);
+
 	mutex_unlock(&st->lock);
 
 	return 0;
@@ -133,29 +125,32 @@ static int inv_mpu_probe(struct i2c_client *client,
 		return result;
 
 	st = iio_priv(dev_get_drvdata(&client->dev));
-	st->muxc = i2c_mux_alloc(client->adapter, &client->dev,
-				 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
-				 inv_mpu6050_select_bypass,
-				 inv_mpu6050_deselect_bypass);
-	if (!st->muxc) {
-		result = -ENOMEM;
-		goto out_unreg_device;
+	switch (st->chip_type) {
+	case INV_ICM20608:
+		/* no i2c auxiliary bus on the chip */
+		break;
+	default:
+		/* declare i2c auxiliary bus */
+		st->muxc = i2c_mux_alloc(client->adapter, &client->dev,
+					 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
+					 inv_mpu6050_select_bypass,
+					 inv_mpu6050_deselect_bypass);
+		if (!st->muxc)
+			return -ENOMEM;
+		st->muxc->priv = dev_get_drvdata(&client->dev);
+		result = i2c_mux_add_adapter(st->muxc, 0, 0, 0);
+		if (result)
+			return result;
+		result = inv_mpu_acpi_create_mux_client(client);
+		if (result)
+			goto out_del_mux;
+		break;
 	}
-	st->muxc->priv = dev_get_drvdata(&client->dev);
-	result = i2c_mux_add_adapter(st->muxc, 0, 0, 0);
-	if (result)
-		goto out_unreg_device;
-
-	result = inv_mpu_acpi_create_mux_client(client);
-	if (result)
-		goto out_del_mux;
 
 	return 0;
 
 out_del_mux:
 	i2c_mux_del_adapters(st->muxc);
-out_unreg_device:
-	inv_mpu_core_remove(&client->dev);
 	return result;
 }
 
@@ -164,10 +159,12 @@ static int inv_mpu_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
-	inv_mpu_acpi_delete_mux_client(client);
-	i2c_mux_del_adapters(st->muxc);
+	if (st->muxc) {
+		inv_mpu_acpi_delete_mux_client(client);
+		i2c_mux_del_adapters(st->muxc);
+	}
 
-	return inv_mpu_core_remove(&client->dev);
+	return 0;
 }
 
 /*
@@ -179,6 +176,7 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu6500", INV_MPU6500},
 	{"mpu9150", INV_MPU9150},
 	{"mpu9250", INV_MPU9250},
+	{"mpu9255", INV_MPU9255},
 	{"icm20608", INV_ICM20608},
 	{}
 };
@@ -201,6 +199,10 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,mpu9250",
 		.data = (void *)INV_MPU9250
+	},
+	{
+		.compatible = "invensense,mpu9255",
+		.data = (void *)INV_MPU9255
 	},
 	{
 		.compatible = "invensense,icm20608",

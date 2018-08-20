@@ -234,9 +234,11 @@ struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
 int of_genpd_parse_idle_states(struct device_node *dn,
 			       struct genpd_power_state **states, int *n);
 unsigned int of_genpd_opp_to_performance_state(struct device *dev,
-				struct device_node *opp_node);
+				struct device_node *np);
 
 int genpd_dev_pm_attach(struct device *dev);
+struct device *genpd_dev_pm_attach_by_id(struct device *dev,
+					 unsigned int index);
 #else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
 static inline int of_genpd_add_provider_simple(struct device_node *np,
 					struct generic_pm_domain *genpd)
@@ -272,14 +274,20 @@ static inline int of_genpd_parse_idle_states(struct device_node *dn,
 
 static inline unsigned int
 of_genpd_opp_to_performance_state(struct device *dev,
-				  struct device_node *opp_node)
+				  struct device_node *np)
 {
-	return -ENODEV;
+	return 0;
 }
 
 static inline int genpd_dev_pm_attach(struct device *dev)
 {
 	return 0;
+}
+
+static inline struct device *genpd_dev_pm_attach_by_id(struct device *dev,
+						       unsigned int index)
+{
+	return NULL;
 }
 
 static inline
@@ -291,12 +299,19 @@ struct generic_pm_domain *of_genpd_remove_last(struct device_node *np)
 
 #ifdef CONFIG_PM
 int dev_pm_domain_attach(struct device *dev, bool power_on);
+struct device *dev_pm_domain_attach_by_id(struct device *dev,
+					  unsigned int index);
 void dev_pm_domain_detach(struct device *dev, bool power_off);
 void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd);
 #else
 static inline int dev_pm_domain_attach(struct device *dev, bool power_on)
 {
 	return 0;
+}
+static inline struct device *dev_pm_domain_attach_by_id(struct device *dev,
+							unsigned int index)
+{
+	return NULL;
 }
 static inline void dev_pm_domain_detach(struct device *dev, bool power_off) {}
 static inline void dev_pm_domain_set(struct device *dev,

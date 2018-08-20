@@ -1470,7 +1470,7 @@ static const struct proto_ops rose_proto_ops = {
 	.socketpair	=	sock_no_socketpair,
 	.accept		=	rose_accept,
 	.getname	=	rose_getname,
-	.poll_mask	=	datagram_poll_mask,
+	.poll		=	datagram_poll,
 	.ioctl		=	rose_ioctl,
 	.listen		=	rose_listen,
 	.shutdown	=	sock_no_shutdown,
@@ -1514,7 +1514,8 @@ static int __init rose_proto_init(void)
 
 	rose_callsign = null_ax25_address;
 
-	dev_rose = kzalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
+	dev_rose = kcalloc(rose_ndevs, sizeof(struct net_device *),
+			   GFP_KERNEL);
 	if (dev_rose == NULL) {
 		printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate device structure\n");
 		rc = -ENOMEM;

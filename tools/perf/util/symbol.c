@@ -40,7 +40,6 @@ char **vmlinux_path;
 struct symbol_conf symbol_conf = {
 	.use_modules		= true,
 	.try_vmlinux_path	= true,
-	.annotate_src		= true,
 	.demangle		= true,
 	.demangle_kernel	= false,
 	.cumulate_callchain	= true,
@@ -74,7 +73,7 @@ static enum dso_binary_type binary_type_symtab[] = {
 static bool symbol_type__filter(char symbol_type)
 {
 	symbol_type = toupper(symbol_type);
-	return symbol_type == 'T' || symbol_type == 'W' || symbol_type == 'D';
+	return symbol_type == 'T' || symbol_type == 'W' || symbol_type == 'D' || symbol_type == 'B';
 }
 
 static int prefix_underscores_count(const char *str)

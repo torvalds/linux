@@ -560,7 +560,7 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	cfg = devm_kzalloc(dev, sizeof(*cfg) * num_channels, GFP_KERNEL);
+	cfg = devm_kcalloc(dev, num_channels, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
 		return ERR_PTR(-ENOMEM);
 

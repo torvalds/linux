@@ -35,11 +35,11 @@ static void gpio_poweroff_do_poweroff(void)
 	gpiod_direction_output(reset_gpio, 1);
 	mdelay(100);
 	/* drive inactive, also active->inactive edge */
-	gpiod_set_value(reset_gpio, 0);
+	gpiod_set_value_cansleep(reset_gpio, 0);
 	mdelay(100);
 
 	/* drive it active, also inactive->active edge */
-	gpiod_set_value(reset_gpio, 1);
+	gpiod_set_value_cansleep(reset_gpio, 1);
 
 	/* give it some time */
 	mdelay(timeout);

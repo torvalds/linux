@@ -49,8 +49,8 @@
 	compatible = "boundary,imx7d-nitrogen7", "fsl,imx7d";
 
 	aliases {
-		fb_lcd = &lcdif;
-		t_lcd = &t_lcd;
+		fb-lcd = &lcdif;
+		t-lcd = &t_lcd;
 	};
 
 	memory@80000000 {
@@ -144,7 +144,7 @@
 };
 
 &cpu0 {
-	arm-supply = <&sw1a_reg>;
+	cpu-supply = <&sw1a_reg>;
 };
 
 &fec1 {

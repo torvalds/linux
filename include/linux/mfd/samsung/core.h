@@ -39,6 +39,8 @@
 #define STEP_12_5_MV		12500
 #define STEP_6_25_MV		6250
 
+struct gpio_desc;
+
 enum sec_device_type {
 	S5M8751X,
 	S5M8763X,
@@ -151,7 +153,7 @@ struct sec_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
 	struct device_node		*reg_node;
-	int				ext_control_gpio;
+	struct gpio_desc		*ext_control_gpiod;
 };
 
 /*

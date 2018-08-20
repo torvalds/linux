@@ -1928,13 +1928,11 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 
 int intel_panel_init(struct intel_panel *panel,
 		     struct drm_display_mode *fixed_mode,
-		     struct drm_display_mode *alt_fixed_mode,
 		     struct drm_display_mode *downclock_mode)
 {
 	intel_panel_init_backlight_funcs(panel);
 
 	panel->fixed_mode = fixed_mode;
-	panel->alt_fixed_mode = alt_fixed_mode;
 	panel->downclock_mode = downclock_mode;
 
 	return 0;
@@ -1947,10 +1945,6 @@ void intel_panel_fini(struct intel_panel *panel)
 
 	if (panel->fixed_mode)
 		drm_mode_destroy(intel_connector->base.dev, panel->fixed_mode);
-
-	if (panel->alt_fixed_mode)
-		drm_mode_destroy(intel_connector->base.dev,
-				panel->alt_fixed_mode);
 
 	if (panel->downclock_mode)
 		drm_mode_destroy(intel_connector->base.dev,

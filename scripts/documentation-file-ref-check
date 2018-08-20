@@ -21,7 +21,7 @@ GetOptions(
 );
 
 if ($help != 0) {
-    print "$scriptname [--help] [--fix-rst]\n";
+    print "$scriptname [--help] [--fix]\n";
     exit -1;
 }
 
@@ -38,16 +38,31 @@ while (<IN>) {
 	my $f = $1;
 	my $ln = $2;
 
-	# Makefiles contain nasty expressions to parse docs
-	next if ($f =~ m/Makefile/);
+	# Makefiles and scripts contain nasty expressions to parse docs
+	next if ($f =~ m/Makefile/ || $f =~ m/\.sh$/);
+
 	# Skip this script
 	next if ($f eq $scriptname);
 
-	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*+-]*),) {
+	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*\[\]\?+-]*)(.*),) {
 		my $prefix = $1;
 		my $ref = $2;
 		my $base = $2;
+		my $extra = $3;
 
+		# some file references are like:
+		# /usr/src/linux/Documentation/DMA-{API,mapping}.txt
+		# For now, ignore them
+		next if ($extra =~ m/^{/);
+
+		# Remove footnotes at the end like:
+		# Documentation/devicetree/dt-object-internal.txt[1]
+		$ref =~ s/(txt|rst)\[\d+]$/$1/;
+
+		# Remove ending ']' without any '['
+		$ref =~ s/\].*// if (!($ref =~ m/\[/));
+
+		# Remove puntuation marks at the end
 		$ref =~ s/[\,\.]+$//;
 
 		my $fulref = "$prefix$ref";
@@ -63,8 +78,15 @@ while (<IN>) {
 		# Check if exists, evaluating wildcards
 		next if (grep -e, glob("$ref $fulref"));
 
+		# Accept relative Documentation patches for tools/
+		if ($f =~ m/tools/) {
+			my $path = $f;
+			$path =~ s,(.*)/.*,$1,;
+			next if (grep -e, glob("$path/$ref $path/$fulref"));
+		}
+
 		if ($fix) {
-			if (!($ref =~ m/(devicetree|scripts|Kconfig|Kbuild)/)) {
+			if (!($ref =~ m/(scripts|Kconfig|Kbuild)/)) {
 				$broken_ref{$ref}++;
 			}
 		} else {
@@ -84,15 +106,35 @@ foreach my $ref (keys %broken_ref) {
 	# get just the basename
 	$new =~ s,.*/,,;
 
-	# Seek for the same name on another place, as it may have been moved
 	my $f="";
 
-	$f = qx(find . -iname $new) if ($new);
+	# usual reason for breakage: DT file moved around
+	if ($ref =~ /devicetree/) {
+		my $search = $new;
+		$search =~ s,^.*/,,;
+		$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+		if (!$f) {
+			# Manufacturer name may have changed
+			$search =~ s/^.*,//;
+			$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+		}
+	}
 
 	# usual reason for breakage: file renamed to .rst
 	if (!$f) {
 		$new =~ s/\.txt$/.rst/;
 		$f=qx(find . -iname $new) if ($new);
+	}
+
+	# usual reason for breakage: use dash or underline
+	if (!$f) {
+		$new =~ s/[-_]/[-_]/g;
+		$f=qx(find . -iname $new) if ($new);
+	}
+
+	# Wild guess: seek for the same name on another place
+	if (!$f) {
+		$f = qx(find . -iname $new) if ($new);
 	}
 
 	my @find = split /\s+/, $f;

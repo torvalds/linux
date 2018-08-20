@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0
+/ {
+	aliases {
+		ethernet0 = &ethernet;
+	};
+};
+
+&usb {
+	usb-port@1 {
+		compatible = "usb424,2514";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb-port@1 {
+			compatible = "usb424,2514";
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet: ethernet@1 {
+				compatible = "usb424,7800";
+				reg = <1>;
+			};
+		};
+	};
+};

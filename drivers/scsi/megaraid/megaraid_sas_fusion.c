@@ -487,7 +487,7 @@ megasas_alloc_cmdlist_fusion(struct megasas_instance *instance)
 	 * commands.
 	 */
 	fusion->cmd_list =
-		kzalloc(sizeof(struct megasas_cmd_fusion *) * max_mpt_cmd,
+		kcalloc(max_mpt_cmd, sizeof(struct megasas_cmd_fusion *),
 			GFP_KERNEL);
 	if (!fusion->cmd_list) {
 		dev_err(&instance->pdev->dev,
@@ -684,15 +684,14 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 	array_size = sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) *
 		     MAX_MSIX_QUEUES_FUSION;
 
-	fusion->rdpq_virt = pci_alloc_consistent(instance->pdev, array_size,
-						 &fusion->rdpq_phys);
+	fusion->rdpq_virt = pci_zalloc_consistent(instance->pdev, array_size,
+						  &fusion->rdpq_phys);
 	if (!fusion->rdpq_virt) {
 		dev_err(&instance->pdev->dev,
 			"Failed from %s %d\n",  __func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	memset(fusion->rdpq_virt, 0, array_size);
 	msix_count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
 
 	fusion->reply_frames_desc_pool = dma_pool_create("mr_rdpq",
@@ -2981,6 +2980,9 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 		pRAID_Context->timeout_value = cpu_to_le16(os_timeout_value);
 		pRAID_Context->virtual_disk_tgt_id = cpu_to_le16(device_id);
 	} else {
+		if (os_timeout_value)
+			os_timeout_value++;
+
 		/* system pd Fast Path */
 		io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
 		timeout_limit = (scmd->device->type == TYPE_DISK) ?
@@ -4827,8 +4829,9 @@ megasas_alloc_fusion_context(struct megasas_instance *instance)
 		(PLD_SPAN_INFO)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 						fusion->log_to_span_pages);
 	if (!fusion->log_to_span) {
-		fusion->log_to_span = vzalloc(MAX_LOGICAL_DRIVES_EXT *
-					      sizeof(LD_SPAN_INFO));
+		fusion->log_to_span =
+			vzalloc(array_size(MAX_LOGICAL_DRIVES_EXT,
+					   sizeof(LD_SPAN_INFO)));
 		if (!fusion->log_to_span) {
 			dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 				__func__, __LINE__);
@@ -4842,8 +4845,9 @@ megasas_alloc_fusion_context(struct megasas_instance *instance)
 		(struct LD_LOAD_BALANCE_INFO *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 		fusion->load_balance_info_pages);
 	if (!fusion->load_balance_info) {
-		fusion->load_balance_info = vzalloc(MAX_LOGICAL_DRIVES_EXT *
-			sizeof(struct LD_LOAD_BALANCE_INFO));
+		fusion->load_balance_info =
+			vzalloc(array_size(MAX_LOGICAL_DRIVES_EXT,
+					   sizeof(struct LD_LOAD_BALANCE_INFO)));
 		if (!fusion->load_balance_info)
 			dev_err(&instance->pdev->dev, "Failed to allocate load_balance_info, "
 				"continuing without Load Balance support\n");

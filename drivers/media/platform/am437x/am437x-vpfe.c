@@ -2586,8 +2586,10 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 
-	vpfe->sd = devm_kzalloc(&pdev->dev, sizeof(struct v4l2_subdev *) *
-				ARRAY_SIZE(vpfe->cfg->asd), GFP_KERNEL);
+	vpfe->sd = devm_kcalloc(&pdev->dev,
+				ARRAY_SIZE(vpfe->cfg->asd),
+				sizeof(struct v4l2_subdev *),
+				GFP_KERNEL);
 	if (!vpfe->sd) {
 		ret = -ENOMEM;
 		goto probe_out_v4l2_unregister;

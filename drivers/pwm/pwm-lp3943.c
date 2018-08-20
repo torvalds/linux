@@ -225,7 +225,7 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 		if (num_outputs == 0)
 			continue;
 
-		output = devm_kzalloc(dev, sizeof(*output) * num_outputs,
+		output = devm_kcalloc(dev, num_outputs, sizeof(*output),
 				      GFP_KERNEL);
 		if (!output)
 			return -ENOMEM;

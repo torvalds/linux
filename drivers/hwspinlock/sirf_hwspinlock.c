@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SIRF hardware spinlock driver
  *
  * Copyright (c) 2015 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2.
  */
 
 #include <linux/kernel.h>

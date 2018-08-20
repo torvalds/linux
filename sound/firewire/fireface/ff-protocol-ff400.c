@@ -147,7 +147,7 @@ static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
 	__le32 *reg;
 	int i;
 
-	reg = kzalloc(sizeof(__le32) * 18, GFP_KERNEL);
+	reg = kcalloc(18, sizeof(__le32), GFP_KERNEL);
 	if (reg == NULL)
 		return -ENOMEM;
 

@@ -35,6 +35,7 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/interrupt.h>
+#include <linux/reciprocal_div.h>
 
 #define MAX_PAGE_BUFFER_COUNT				32
 #define MAX_MULTIPAGE_BUFFER_COUNT			32 /* 128K */
@@ -120,6 +121,7 @@ struct hv_ring_buffer {
 struct hv_ring_buffer_info {
 	struct hv_ring_buffer *ring_buffer;
 	u32 ring_size;			/* Include the shared header */
+	struct reciprocal_value ring_size_div10_reciprocal;
 	spinlock_t ring_lock;
 
 	u32 ring_datasize;		/* < ring_size */
@@ -152,6 +154,16 @@ static inline u32 hv_get_bytes_to_write(const struct hv_ring_buffer_info *rbi)
 	write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
 		read_loc - write_loc;
 	return write;
+}
+
+static inline u32 hv_get_avail_to_write_percent(
+		const struct hv_ring_buffer_info *rbi)
+{
+	u32 avail_write = hv_get_bytes_to_write(rbi);
+
+	return reciprocal_divide(
+			(avail_write  << 3) + (avail_write << 1),
+			rbi->ring_size_div10_reciprocal);
 }
 
 /*

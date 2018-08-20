@@ -21,14 +21,3 @@ less copy it needed to do.
 The bulk_receive() does some manual cache flushing that are 32-bit ARM
 only, which we should convert to proper cross-platform APIs.
 
-4) Convert to be a platform driver.
-
-Right now when the module probes, it tries to initialize VCHI and
-errors out if it wasn't ready yet.  If bcm2835-v4l2 was built in, then
-VCHI generally isn't ready because it depends on both the firmware and
-mailbox drivers having already loaded.
-
-We should have VCHI create a platform device once it's initialized,
-and have this driver bind to it, so that we automatically load the
-v4l2 module after VCHI loads.
-

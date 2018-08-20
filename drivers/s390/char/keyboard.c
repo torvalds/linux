@@ -78,7 +78,7 @@ kbd_alloc(void) {
 		}
 	}
 	kbd->fn_handler =
-		kzalloc(sizeof(fn_handler_fn *) * NR_FN_HANDLER, GFP_KERNEL);
+		kcalloc(NR_FN_HANDLER, sizeof(fn_handler_fn *), GFP_KERNEL);
 	if (!kbd->fn_handler)
 		goto out_func;
 	kbd->accent_table = kmemdup(ebc_accent_table,

@@ -901,7 +901,7 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 	eeprom_len = last_word - first_word + 1;
 
-	eeprom_buff = kmalloc(sizeof(u16) * eeprom_len, GFP_KERNEL);
+	eeprom_buff = kmalloc_array(eeprom_len, sizeof(u16), GFP_KERNEL);
 	if (!eeprom_buff)
 		return -ENOMEM;
 
@@ -1063,7 +1063,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 	/* allocate temporary buffer to store rings in */
 	i = max_t(int, adapter->num_tx_queues + adapter->num_xdp_queues,
 		  adapter->num_rx_queues);
-	temp_ring = vmalloc(i * sizeof(struct ixgbe_ring));
+	temp_ring = vmalloc(array_size(i, sizeof(struct ixgbe_ring)));
 
 	if (!temp_ring) {
 		err = -ENOMEM;

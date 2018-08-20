@@ -36,13 +36,13 @@
 /* DF_CS_AON0_DramBaseAddress0 */
 #define DF_CS_UMC_AON0_DramBaseAddress0__AddrRngVal__SHIFT						0x0
 #define DF_CS_UMC_AON0_DramBaseAddress0__LgcyMmioHoleEn__SHIFT						0x1
-#define DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan__SHIFT						0x4
-#define DF_CS_UMC_AON0_DramBaseAddress0__IntLvAddrSel__SHIFT						0x8
+#define DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan__SHIFT						0x2
+#define DF_CS_UMC_AON0_DramBaseAddress0__IntLvAddrSel__SHIFT						0x9
 #define DF_CS_UMC_AON0_DramBaseAddress0__DramBaseAddr__SHIFT						0xc
 #define DF_CS_UMC_AON0_DramBaseAddress0__AddrRngVal_MASK						0x00000001L
 #define DF_CS_UMC_AON0_DramBaseAddress0__LgcyMmioHoleEn_MASK						0x00000002L
-#define DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan_MASK						0x000000F0L
-#define DF_CS_UMC_AON0_DramBaseAddress0__IntLvAddrSel_MASK						0x00000700L
+#define DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan_MASK						0x0000003CL
+#define DF_CS_UMC_AON0_DramBaseAddress0__IntLvAddrSel_MASK						0x00000E00L
 #define DF_CS_UMC_AON0_DramBaseAddress0__DramBaseAddr_MASK						0xFFFFF000L
 
 #endif

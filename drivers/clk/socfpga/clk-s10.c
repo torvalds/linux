@@ -260,46 +260,45 @@ static int s10_clk_register_pll(const struct stratix10_pll_clock *clks,
 	return 0;
 }
 
-static struct stratix10_clock_data *__socfpga_s10_clk_init(struct device_node *np,
+static struct stratix10_clock_data *__socfpga_s10_clk_init(struct platform_device *pdev,
 						    int nr_clks)
 {
+	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct stratix10_clock_data *clk_data;
 	struct clk **clk_table;
+	struct resource *res;
 	void __iomem *base;
 
-	base = of_iomap(np, 0);
-	if (!base) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base)) {
 		pr_err("%s: failed to map clock registers\n", __func__);
-		goto err;
+		return ERR_CAST(base);
 	}
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = devm_kzalloc(dev, sizeof(*clk_data), GFP_KERNEL);
 	if (!clk_data)
-		goto err;
+		return ERR_PTR(-ENOMEM);
 
 	clk_data->base = base;
-	clk_table = kcalloc(nr_clks, sizeof(*clk_table), GFP_KERNEL);
+	clk_table = devm_kcalloc(dev, nr_clks, sizeof(*clk_table), GFP_KERNEL);
 	if (!clk_table)
-		goto err_data;
+		return ERR_PTR(-ENOMEM);
 
 	clk_data->clk_data.clks = clk_table;
 	clk_data->clk_data.clk_num = nr_clks;
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data->clk_data);
 	return clk_data;
-
-err_data:
-	kfree(clk_data);
-err:
-	return NULL;
 }
 
-static int s10_clkmgr_init(struct device_node *np)
+static int s10_clkmgr_init(struct platform_device *pdev)
 {
 	struct stratix10_clock_data *clk_data;
 
-	clk_data = __socfpga_s10_clk_init(np, STRATIX10_NUM_CLKS);
-	if (!clk_data)
-		return -ENOMEM;
+	clk_data = __socfpga_s10_clk_init(pdev, STRATIX10_NUM_CLKS);
+	if (IS_ERR(clk_data))
+		return PTR_ERR(clk_data);
 
 	s10_clk_register_pll(s10_pll_clks, ARRAY_SIZE(s10_pll_clks), clk_data);
 
@@ -317,11 +316,7 @@ static int s10_clkmgr_init(struct device_node *np)
 
 static int s10_clkmgr_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-
-	s10_clkmgr_init(np);
-
-	return 0;
+	return	s10_clkmgr_init(pdev);
 }
 
 static const struct of_device_id stratix10_clkmgr_match_table[] = {
@@ -334,6 +329,7 @@ static struct platform_driver stratix10_clkmgr_driver = {
 	.probe		= s10_clkmgr_probe,
 	.driver		= {
 		.name	= "stratix10-clkmgr",
+		.suppress_bind_attrs = true,
 		.of_match_table = stratix10_clkmgr_match_table,
 	},
 };

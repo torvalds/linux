@@ -859,8 +859,9 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->cq_size = rdev->lldi.vr->cq.size;
 
 	if (c4iw_wr_log) {
-		rdev->wr_log = kzalloc((1 << c4iw_wr_log_size_order) *
-				       sizeof(*rdev->wr_log), GFP_KERNEL);
+		rdev->wr_log = kcalloc(1 << c4iw_wr_log_size_order,
+				       sizeof(*rdev->wr_log),
+				       GFP_KERNEL);
 		if (rdev->wr_log) {
 			rdev->wr_log_size = 1 << c4iw_wr_log_size_order;
 			atomic_set(&rdev->wr_log_idx, 0);
@@ -1445,7 +1446,7 @@ static void recover_queues(struct uld_ctx *ctx)
 	ctx->dev->db_state = RECOVERY;
 	idr_for_each(&ctx->dev->qpidr, count_qps, &count);
 
-	qp_list.qps = kzalloc(count * sizeof *qp_list.qps, GFP_ATOMIC);
+	qp_list.qps = kcalloc(count, sizeof(*qp_list.qps), GFP_ATOMIC);
 	if (!qp_list.qps) {
 		spin_unlock_irq(&ctx->dev->lock);
 		return;

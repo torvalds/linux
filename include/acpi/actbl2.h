@@ -67,7 +67,7 @@
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049C, May 2017
+ * Document number: ARM DEN 0049D, March 2018
  *
  ******************************************************************************/
 
@@ -98,7 +98,8 @@ enum acpi_iort_node_type {
 	ACPI_IORT_NODE_NAMED_COMPONENT = 0x01,
 	ACPI_IORT_NODE_PCI_ROOT_COMPLEX = 0x02,
 	ACPI_IORT_NODE_SMMU = 0x03,
-	ACPI_IORT_NODE_SMMU_V3 = 0x04
+	ACPI_IORT_NODE_SMMU_V3 = 0x04,
+	ACPI_IORT_NODE_PMCG = 0x05
 };
 
 struct acpi_iort_id_mapping {
@@ -152,10 +153,17 @@ struct acpi_iort_named_component {
 	char device_name[1];	/* Path of namespace object */
 };
 
+/* Masks for Flags field above */
+
+#define ACPI_IORT_NC_STALL_SUPPORTED    (1)
+#define ACPI_IORT_NC_PASID_BITS         (31<<1)
+
 struct acpi_iort_root_complex {
 	u64 memory_properties;	/* Memory access properties */
 	u32 ats_attribute;
 	u32 pci_segment_number;
+	u8 memory_address_limit;	/* Memory address size limit */
+	u8 reserved[3];		/* Reserved, must be zero */
 };
 
 /* Values for ats_attribute field above */
@@ -209,9 +217,7 @@ struct acpi_iort_smmu_v3 {
 	u32 pri_gsiv;
 	u32 gerr_gsiv;
 	u32 sync_gsiv;
-	u8 pxm;
-	u8 reserved1;
-	u16 reserved2;
+	u32 pxm;
 	u32 id_mapping_index;
 };
 
@@ -224,8 +230,15 @@ struct acpi_iort_smmu_v3 {
 /* Masks for Flags field above */
 
 #define ACPI_IORT_SMMU_V3_COHACC_OVERRIDE   (1)
-#define ACPI_IORT_SMMU_V3_HTTU_OVERRIDE     (1<<1)
+#define ACPI_IORT_SMMU_V3_HTTU_OVERRIDE     (3<<1)
 #define ACPI_IORT_SMMU_V3_PXM_VALID         (1<<3)
+
+struct acpi_iort_pmcg {
+	u64 page0_base_address;
+	u32 overflow_gsiv;
+	u32 node_reference;
+	u64 page1_base_address;
+};
 
 /*******************************************************************************
  *

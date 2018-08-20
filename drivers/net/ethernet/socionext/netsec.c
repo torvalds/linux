@@ -973,7 +973,7 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 		goto err;
 	}
 
-	dring->desc = kzalloc(DESC_NUM * sizeof(*dring->desc), GFP_KERNEL);
+	dring->desc = kcalloc(DESC_NUM, sizeof(*dring->desc), GFP_KERNEL);
 	if (!dring->desc) {
 		ret = -ENOMEM;
 		goto err;

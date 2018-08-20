@@ -1,24 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  thermal_core.h
  *
  *  Copyright (C) 2012  Intel Corp
  *  Author: Durgadoss R <durgadoss.r@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #ifndef __THERMAL_CORE_H__
@@ -75,15 +60,10 @@ void thermal_zone_destroy_device_groups(struct thermal_zone_device *);
 void thermal_cooling_device_setup_sysfs(struct thermal_cooling_device *);
 void thermal_cooling_device_destroy_sysfs(struct thermal_cooling_device *cdev);
 /* used only at binding time */
-ssize_t
-thermal_cooling_device_trip_point_show(struct device *,
-				       struct device_attribute *, char *);
-ssize_t thermal_cooling_device_weight_show(struct device *,
-					   struct device_attribute *, char *);
-
-ssize_t thermal_cooling_device_weight_store(struct device *,
-					    struct device_attribute *,
-					    const char *, size_t);
+ssize_t trip_point_show(struct device *, struct device_attribute *, char *);
+ssize_t weight_show(struct device *, struct device_attribute *, char *);
+ssize_t weight_store(struct device *, struct device_attribute *, const char *,
+		     size_t);
 
 #ifdef CONFIG_THERMAL_STATISTICS
 void thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,

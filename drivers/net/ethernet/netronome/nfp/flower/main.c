@@ -455,6 +455,7 @@ static int nfp_flower_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 
 	eth_hw_addr_random(nn->dp.netdev);
 	netif_keep_dst(nn->dp.netdev);
+	nn->vnic_no_name = true;
 
 	return 0;
 

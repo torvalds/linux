@@ -149,7 +149,7 @@
 
 		CP110_LABEL(icu): interrupt-controller@1e0000 {
 			compatible = "marvell,cp110-icu";
-			reg = <0x1e0000 0x10>;
+			reg = <0x1e0000 0x440>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			msi-parent = <&gicp>;
@@ -236,6 +236,7 @@
 			compatible = "marvell,armada-8k-ahci",
 			"generic-ahci";
 			reg = <0x540000 0x30000>;
+			dma-coherent;
 			interrupts = <ICU_GRP_NSR 107 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&CP110_LABEL(clk) 1 15>,
 				 <&CP110_LABEL(clk) 1 16>;

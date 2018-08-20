@@ -239,7 +239,7 @@ static void *page_align_ptr(void *ptr)
 static void *diag204_alloc_vbuf(int pages)
 {
 	/* The buffer has to be page aligned! */
-	diag204_buf_vmalloc = vmalloc(PAGE_SIZE * (pages + 1));
+	diag204_buf_vmalloc = vmalloc(array_size(PAGE_SIZE, (pages + 1)));
 	if (!diag204_buf_vmalloc)
 		return ERR_PTR(-ENOMEM);
 	diag204_buf = page_align_ptr(diag204_buf_vmalloc);

@@ -2491,7 +2491,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	 * to override an explicitely set --max-stack global setting.
 	 */
 	evlist__for_each_entry(evlist, evsel) {
-		if ((evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) &&
+		if (evsel__has_callchain(evsel) &&
 		    evsel->attr.sample_max_stack == 0)
 			evsel->attr.sample_max_stack = trace->max_stack;
 	}

@@ -88,7 +88,7 @@ static void pblk_gc_line_ws(struct work_struct *work)
 
 	up(&gc->gc_sem);
 
-	gc_rq->data = vmalloc(gc_rq->nr_secs * geo->csecs);
+	gc_rq->data = vmalloc(array_size(gc_rq->nr_secs, geo->csecs));
 	if (!gc_rq->data) {
 		pr_err("pblk: could not GC line:%d (%d/%d)\n",
 					line->id, *line->vsc, gc_rq->nr_secs);
@@ -203,7 +203,7 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 		if (!lba_list) {
 			pr_err("pblk: could not interpret emeta (line %d)\n",
 					line->id);
-			goto fail_free_ws;
+			goto fail_free_invalid_bitmap;
 		}
 	}
 
@@ -280,6 +280,7 @@ fail_free_gc_rq:
 	kfree(gc_rq);
 fail_free_lba_list:
 	pblk_mfree(lba_list, l_mg->emeta_alloc_type);
+fail_free_invalid_bitmap:
 	kfree(invalid_bitmap);
 fail_free_ws:
 	kfree(line_ws);

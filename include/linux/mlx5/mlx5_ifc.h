@@ -922,7 +922,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         vnic_env_queue_counters[0x1];
 	u8         ets[0x1];
 	u8         nic_flow_table[0x1];
-	u8         eswitch_flow_table[0x1];
+	u8         eswitch_manager[0x1];
 	u8         device_memory[0x1];
 	u8         mcam_reg[0x1];
 	u8         pcam_reg[0x1];

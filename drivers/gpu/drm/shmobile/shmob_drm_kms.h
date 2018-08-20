@@ -24,7 +24,6 @@ struct shmob_drm_format_info {
 	unsigned int bpp;
 	bool yuv;
 	u32 lddfr;
-	unsigned int meram;
 };
 
 const struct shmob_drm_format_info *shmob_drm_format_info(u32 fourcc);

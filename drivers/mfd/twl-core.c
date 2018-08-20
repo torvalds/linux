@@ -1139,8 +1139,9 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	num_slaves = twl_get_num_slaves();
-	twl_priv->twl_modules = devm_kzalloc(&client->dev,
-					 sizeof(struct twl_client) * num_slaves,
+	twl_priv->twl_modules = devm_kcalloc(&client->dev,
+					 num_slaves,
+					 sizeof(struct twl_client),
 					 GFP_KERNEL);
 	if (!twl_priv->twl_modules) {
 		status = -ENOMEM;
@@ -1177,7 +1178,7 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	twl_priv->ready = true;
 
 	/* setup clock framework */
-	clocks_init(&pdev->dev, pdata ? pdata->clock : NULL);
+	clocks_init(&client->dev, pdata ? pdata->clock : NULL);
 
 	/* read TWL IDCODE Register */
 	if (twl_class_is_4030()) {

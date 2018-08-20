@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/io_orderings.txt
+Chinese translated version of Documentation/io_ordering.txt
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem

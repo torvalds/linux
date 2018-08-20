@@ -19,7 +19,7 @@
 #include "include/audit.h"
 #include "include/policy.h"
 #include "include/policy_ns.h"
-
+#include "include/secid.h"
 
 const char *const audit_mode_names[] = {
 	"normal",
@@ -162,4 +162,92 @@ int aa_audit(int type, struct aa_profile *profile, struct common_audit_data *sa,
 		return complain_error(aad(sa)->error);
 
 	return aad(sa)->error;
+}
+
+struct aa_audit_rule {
+	struct aa_label *label;
+};
+
+void aa_audit_rule_free(void *vrule)
+{
+	struct aa_audit_rule *rule = vrule;
+
+	if (rule) {
+		if (!IS_ERR(rule->label))
+			aa_put_label(rule->label);
+		kfree(rule);
+	}
+}
+
+int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
+{
+	struct aa_audit_rule *rule;
+
+	switch (field) {
+	case AUDIT_SUBJ_ROLE:
+		if (op != Audit_equal && op != Audit_not_equal)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	rule = kzalloc(sizeof(struct aa_audit_rule), GFP_KERNEL);
+
+	if (!rule)
+		return -ENOMEM;
+
+	/* Currently rules are treated as coming from the root ns */
+	rule->label = aa_label_parse(&root_ns->unconfined->label, rulestr,
+				     GFP_KERNEL, true, false);
+	if (IS_ERR(rule->label)) {
+		aa_audit_rule_free(rule);
+		return PTR_ERR(rule->label);
+	}
+
+	*vrule = rule;
+	return 0;
+}
+
+int aa_audit_rule_known(struct audit_krule *rule)
+{
+	int i;
+
+	for (i = 0; i < rule->field_count; i++) {
+		struct audit_field *f = &rule->fields[i];
+
+		switch (f->type) {
+		case AUDIT_SUBJ_ROLE:
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+int aa_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
+			struct audit_context *actx)
+{
+	struct aa_audit_rule *rule = vrule;
+	struct aa_label *label;
+	int found = 0;
+
+	label = aa_secid_to_label(sid);
+
+	if (!label)
+		return -ENOENT;
+
+	if (aa_label_is_subset(label, rule->label))
+		found = 1;
+
+	switch (field) {
+	case AUDIT_SUBJ_ROLE:
+		switch (op) {
+		case Audit_equal:
+			return found;
+		case Audit_not_equal:
+			return !found;
+		}
+	}
+	return 0;
 }

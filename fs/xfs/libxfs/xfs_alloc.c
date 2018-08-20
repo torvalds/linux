@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -227,15 +215,37 @@ xfs_alloc_get_rec(
 	xfs_extlen_t		*len,	/* output: length of extent */
 	int			*stat)	/* output: success/failure */
 {
+	struct xfs_mount	*mp = cur->bc_mp;
+	xfs_agnumber_t		agno = cur->bc_private.a.agno;
 	union xfs_btree_rec	*rec;
 	int			error;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
-	if (!error && *stat == 1) {
-		*bno = be32_to_cpu(rec->alloc.ar_startblock);
-		*len = be32_to_cpu(rec->alloc.ar_blockcount);
-	}
-	return error;
+	if (error || !(*stat))
+		return error;
+	if (rec->alloc.ar_blockcount == 0)
+		goto out_bad_rec;
+
+	*bno = be32_to_cpu(rec->alloc.ar_startblock);
+	*len = be32_to_cpu(rec->alloc.ar_blockcount);
+
+	/* check for valid extent range, including overflow */
+	if (!xfs_verify_agbno(mp, agno, *bno))
+		goto out_bad_rec;
+	if (*bno > *bno + *len)
+		goto out_bad_rec;
+	if (!xfs_verify_agbno(mp, agno, *bno + *len - 1))
+		goto out_bad_rec;
+
+	return 0;
+
+out_bad_rec:
+	xfs_warn(mp,
+		"%s Freespace BTree record corruption in AG %d detected!",
+		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size", agno);
+	xfs_warn(mp,
+		"start block 0x%x block count 0x%x", *bno, *len);
+	return -EFSCORRUPTED;
 }
 
 /*
@@ -3111,55 +3121,6 @@ xfs_alloc_query_all(
 	query.priv = priv;
 	query.fn = fn;
 	return xfs_btree_query_all(cur, xfs_alloc_query_range_helper, &query);
-}
-
-/* Find the size of the AG, in blocks. */
-xfs_agblock_t
-xfs_ag_block_count(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
-{
-	ASSERT(agno < mp->m_sb.sb_agcount);
-
-	if (agno < mp->m_sb.sb_agcount - 1)
-		return mp->m_sb.sb_agblocks;
-	return mp->m_sb.sb_dblocks - (agno * mp->m_sb.sb_agblocks);
-}
-
-/*
- * Verify that an AG block number pointer neither points outside the AG
- * nor points at static metadata.
- */
-bool
-xfs_verify_agbno(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		agbno)
-{
-	xfs_agblock_t		eoag;
-
-	eoag = xfs_ag_block_count(mp, agno);
-	if (agbno >= eoag)
-		return false;
-	if (agbno <= XFS_AGFL_BLOCK(mp))
-		return false;
-	return true;
-}
-
-/*
- * Verify that an FS block number pointer neither points outside the
- * filesystem nor points at static AG metadata.
- */
-bool
-xfs_verify_fsbno(
-	struct xfs_mount	*mp,
-	xfs_fsblock_t		fsbno)
-{
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, fsbno);
-
-	if (agno >= mp->m_sb.sb_agcount)
-		return false;
-	return xfs_verify_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
 }
 
 /* Is there a record covering a given extent? */

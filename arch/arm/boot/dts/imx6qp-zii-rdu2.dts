@@ -53,3 +53,8 @@
 		reg = <0x10000000 0>;
 	};
 };
+
+&gpu_3d {
+	assigned-clocks = <&clks IMX6QDL_CLK_GPU3D_SHADER_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL2_PFD1_594M>;
+};

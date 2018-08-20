@@ -297,7 +297,7 @@ int orangefs_permission(struct inode *inode, int mask)
 	return generic_permission(inode, mask);
 }
 
-int orangefs_update_time(struct inode *inode, struct timespec *time, int flags)
+int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags)
 {
 	struct iattr iattr;
 	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_update_time: %pU\n",

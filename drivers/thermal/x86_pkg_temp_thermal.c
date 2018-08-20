@@ -516,7 +516,8 @@ static int __init pkg_temp_thermal_init(void)
 		return -ENODEV;
 
 	max_packages = topology_max_packages();
-	packages = kzalloc(max_packages * sizeof(struct pkg_device *), GFP_KERNEL);
+	packages = kcalloc(max_packages, sizeof(struct pkg_device *),
+			   GFP_KERNEL);
 	if (!packages)
 		return -ENOMEM;
 

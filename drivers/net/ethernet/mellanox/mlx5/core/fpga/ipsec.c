@@ -381,7 +381,7 @@ int mlx5_fpga_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
 
 	count = mlx5_fpga_ipsec_counters_count(mdev);
 
-	data = kzalloc(sizeof(*data) * count * 2, GFP_KERNEL);
+	data = kzalloc(array3_size(sizeof(*data), count, 2), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto out;

@@ -184,7 +184,7 @@ struct mpt3_ioctl_iocinfo {
 
 
 /* number of event log entries */
-#define MPT3SAS_CTL_EVENT_LOG_SIZE (50)
+#define MPT3SAS_CTL_EVENT_LOG_SIZE (200)
 
 /**
  * struct mpt3_ioctl_eventquery - query event count and type

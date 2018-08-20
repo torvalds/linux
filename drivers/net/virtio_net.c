@@ -53,6 +53,10 @@ module_param(napi_tx, bool, 0644);
 /* Amount of XDP headroom to prepend to packets for use by xdp_adjust_head */
 #define VIRTIO_XDP_HEADROOM 256
 
+/* Separating two types of XDP xmit */
+#define VIRTIO_XDP_TX		BIT(0)
+#define VIRTIO_XDP_REDIR	BIT(1)
+
 /* RX packet size EWMA. The average packet size is used to determine the packet
  * buffer size when refilling RX rings. As the entire RX ring may be refilled
  * at once, the weight is chosen so that the EWMA will be insensitive to short-
@@ -582,7 +586,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 				     struct receive_queue *rq,
 				     void *buf, void *ctx,
 				     unsigned int len,
-				     bool *xdp_xmit)
+				     unsigned int *xdp_xmit)
 {
 	struct sk_buff *skb;
 	struct bpf_prog *xdp_prog;
@@ -654,14 +658,14 @@ static struct sk_buff *receive_small(struct net_device *dev,
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				goto err_xdp;
 			}
-			*xdp_xmit = true;
+			*xdp_xmit |= VIRTIO_XDP_TX;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		case XDP_REDIRECT:
 			err = xdp_do_redirect(dev, &xdp, xdp_prog);
 			if (err)
 				goto err_xdp;
-			*xdp_xmit = true;
+			*xdp_xmit |= VIRTIO_XDP_REDIR;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		default:
@@ -723,7 +727,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 					 void *buf,
 					 void *ctx,
 					 unsigned int len,
-					 bool *xdp_xmit)
+					 unsigned int *xdp_xmit)
 {
 	struct virtio_net_hdr_mrg_rxbuf *hdr = buf;
 	u16 num_buf = virtio16_to_cpu(vi->vdev, hdr->num_buffers);
@@ -818,7 +822,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 					put_page(xdp_page);
 				goto err_xdp;
 			}
-			*xdp_xmit = true;
+			*xdp_xmit |= VIRTIO_XDP_TX;
 			if (unlikely(xdp_page != page))
 				put_page(page);
 			rcu_read_unlock();
@@ -830,7 +834,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 					put_page(xdp_page);
 				goto err_xdp;
 			}
-			*xdp_xmit = true;
+			*xdp_xmit |= VIRTIO_XDP_REDIR;
 			if (unlikely(xdp_page != page))
 				put_page(page);
 			rcu_read_unlock();
@@ -939,7 +943,8 @@ xdp_xmit:
 }
 
 static int receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
-		       void *buf, unsigned int len, void **ctx, bool *xdp_xmit)
+		       void *buf, unsigned int len, void **ctx,
+		       unsigned int *xdp_xmit)
 {
 	struct net_device *dev = vi->dev;
 	struct sk_buff *skb;
@@ -1232,7 +1237,8 @@ static void refill_work(struct work_struct *work)
 	}
 }
 
-static int virtnet_receive(struct receive_queue *rq, int budget, bool *xdp_xmit)
+static int virtnet_receive(struct receive_queue *rq, int budget,
+			   unsigned int *xdp_xmit)
 {
 	struct virtnet_info *vi = rq->vq->vdev->priv;
 	unsigned int len, received = 0, bytes = 0;
@@ -1321,7 +1327,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 	struct virtnet_info *vi = rq->vq->vdev->priv;
 	struct send_queue *sq;
 	unsigned int received, qp;
-	bool xdp_xmit = false;
+	unsigned int xdp_xmit = 0;
 
 	virtnet_poll_cleantx(rq);
 
@@ -1331,12 +1337,14 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 	if (received < budget)
 		virtqueue_napi_complete(napi, rq->vq, received);
 
-	if (xdp_xmit) {
+	if (xdp_xmit & VIRTIO_XDP_REDIR)
+		xdp_do_flush_map();
+
+	if (xdp_xmit & VIRTIO_XDP_TX) {
 		qp = vi->curr_queue_pairs - vi->xdp_queue_pairs +
 		     smp_processor_id();
 		sq = &vi->sq[qp];
 		virtqueue_kick(sq->vq);
-		xdp_do_flush_map();
 	}
 
 	return received;
@@ -1411,7 +1419,8 @@ static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
 		hdr = skb_vnet_hdr(skb);
 
 	if (virtio_net_hdr_from_skb(skb, &hdr->hdr,
-				    virtio_is_little_endian(vi->vdev), false))
+				    virtio_is_little_endian(vi->vdev), false,
+				    0))
 		BUG();
 
 	if (vi->mergeable_rx_bufs)
@@ -2551,17 +2560,17 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 		    virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ);
 
 	/* Allocate space for find_vqs parameters */
-	vqs = kzalloc(total_vqs * sizeof(*vqs), GFP_KERNEL);
+	vqs = kcalloc(total_vqs, sizeof(*vqs), GFP_KERNEL);
 	if (!vqs)
 		goto err_vq;
-	callbacks = kmalloc(total_vqs * sizeof(*callbacks), GFP_KERNEL);
+	callbacks = kmalloc_array(total_vqs, sizeof(*callbacks), GFP_KERNEL);
 	if (!callbacks)
 		goto err_callback;
-	names = kmalloc(total_vqs * sizeof(*names), GFP_KERNEL);
+	names = kmalloc_array(total_vqs, sizeof(*names), GFP_KERNEL);
 	if (!names)
 		goto err_names;
 	if (!vi->big_packets || vi->mergeable_rx_bufs) {
-		ctx = kzalloc(total_vqs * sizeof(*ctx), GFP_KERNEL);
+		ctx = kcalloc(total_vqs, sizeof(*ctx), GFP_KERNEL);
 		if (!ctx)
 			goto err_ctx;
 	} else {
@@ -2625,10 +2634,10 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 	vi->ctrl = kzalloc(sizeof(*vi->ctrl), GFP_KERNEL);
 	if (!vi->ctrl)
 		goto err_ctrl;
-	vi->sq = kzalloc(sizeof(*vi->sq) * vi->max_queue_pairs, GFP_KERNEL);
+	vi->sq = kcalloc(vi->max_queue_pairs, sizeof(*vi->sq), GFP_KERNEL);
 	if (!vi->sq)
 		goto err_sq;
-	vi->rq = kzalloc(sizeof(*vi->rq) * vi->max_queue_pairs, GFP_KERNEL);
+	vi->rq = kcalloc(vi->max_queue_pairs, sizeof(*vi->rq), GFP_KERNEL);
 	if (!vi->rq)
 		goto err_rq;
 

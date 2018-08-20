@@ -81,7 +81,7 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
 
 	/* Disable the adapter */
-	__i2c_dw_enable_and_wait(dev, false);
+	__i2c_dw_disable(dev);
 
 	/* Set standard and fast speed deviders for high/low periods */
 
@@ -180,7 +180,7 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 	u32 ic_con, ic_tar = 0;
 
 	/* Disable the adapter */
-	__i2c_dw_enable_and_wait(dev, false);
+	__i2c_dw_disable(dev);
 
 	/* If the slave address is ten bit address, enable 10BITADDR */
 	ic_con = dw_readl(dev, DW_IC_CON);
@@ -209,7 +209,7 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 	i2c_dw_disable_int(dev);
 
 	/* Enable the adapter */
-	__i2c_dw_enable(dev, true);
+	__i2c_dw_enable(dev);
 
 	/* Dummy read to avoid the register getting stuck on Bay Trail */
 	dw_readl(dev, DW_IC_ENABLE_STATUS);
@@ -462,7 +462,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	 * additional interrupts are a hardware bug or this driver doesn't
 	 * handle them correctly yet.
 	 */
-	__i2c_dw_enable(dev, false);
+	__i2c_dw_disable_nowait(dev);
 
 	if (dev->msg_err) {
 		ret = dev->msg_err;

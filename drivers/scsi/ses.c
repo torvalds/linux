@@ -747,7 +747,7 @@ static int ses_intf_add(struct device *cdev,
 		buf = NULL;
 	}
 page2_not_supported:
-	scomp = kzalloc(sizeof(struct ses_component) * components, GFP_KERNEL);
+	scomp = kcalloc(components, sizeof(struct ses_component), GFP_KERNEL);
 	if (!scomp)
 		goto err_free;
 

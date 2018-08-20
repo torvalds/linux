@@ -11,11 +11,23 @@ struct bpf_map_def SEC("maps") cg_ids = {
 	.max_entries = 1,
 };
 
+struct bpf_map_def SEC("maps") pidmap = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(__u32),
+	.value_size = sizeof(__u32),
+	.max_entries = 1,
+};
+
 SEC("tracepoint/syscalls/sys_enter_nanosleep")
 int trace(void *ctx)
 {
-	__u32 key = 0;
+	__u32 pid = bpf_get_current_pid_tgid();
+	__u32 key = 0, *expected_pid;
 	__u64 *val;
+
+	expected_pid = bpf_map_lookup_elem(&pidmap, &key);
+	if (!expected_pid || *expected_pid != pid)
+		return 0;
 
 	val = bpf_map_lookup_elem(&cg_ids, &key);
 	if (val)

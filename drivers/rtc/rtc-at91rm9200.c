@@ -440,6 +440,8 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, 1);
 
 	rtc->ops = &at91_rtc_ops;
+	rtc->range_min = RTC_TIMESTAMP_BEGIN_1900;
+	rtc->range_max = RTC_TIMESTAMP_END_2099;
 	ret = rtc_register_device(rtc);
 	if (ret)
 		goto err_clk;

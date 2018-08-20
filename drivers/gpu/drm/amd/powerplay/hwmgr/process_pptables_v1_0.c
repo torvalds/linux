@@ -870,12 +870,6 @@ static int init_over_drive_limits(
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.overdriveVDDCStep = 0;
 
-	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0 \
-		|| hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0) {
-		hwmgr->od_enabled = false;
-		pr_debug("OverDrive feature not support by VBIOS\n");
-	}
-
 	return 0;
 }
 

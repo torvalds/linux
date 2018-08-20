@@ -1,3 +1,14 @@
+config AUTOFS4_FS
+	tristate "Old Kconfig name for Kernel automounter support"
+	select AUTOFS_FS
+	help
+	   This name exists for people to just automatically pick up the
+	   new name of the autofs Kconfig option. All it does is select
+	   the new option name.
+
+	   It will go away in a release or two as people have
+	   transitioned to just plain AUTOFS_FS.
+
 config AUTOFS_FS
 	tristate "Kernel automounter support (supports v3, v4 and v5)"
 	default n

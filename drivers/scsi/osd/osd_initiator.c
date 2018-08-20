@@ -1840,14 +1840,14 @@ int osd_req_decode_sense_full(struct osd_request *or,
 		case osd_sense_response_integrity_check:
 		{
 			struct osd_sense_response_integrity_check_descriptor
-				*osricd = cur_descriptor;
-			const unsigned len =
-					  sizeof(osricd->integrity_check_value);
-			char key_dump[len*4 + 2]; /* 2nibbles+space+ASCII */
+				*d = cur_descriptor;
+			/* 2nibbles+space+ASCII */
+			char dump[sizeof(d->integrity_check_value) * 4 + 2];
 
-			hex_dump_to_buffer(osricd->integrity_check_value, len,
-				       32, 1, key_dump, sizeof(key_dump), true);
-			OSD_SENSE_PRINT2("response_integrity [%s]\n", key_dump);
+			hex_dump_to_buffer(d->integrity_check_value,
+					sizeof(d->integrity_check_value),
+					32, 1, dump, sizeof(dump), true);
+			OSD_SENSE_PRINT2("response_integrity [%s]\n", dump);
 		}
 		case osd_sense_attribute_identification:
 		{

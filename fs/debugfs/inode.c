@@ -512,9 +512,7 @@ struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 	if (unlikely(!inode))
 		return failed_creating(dentry);
 
-	if (!parent)
-		parent = debugfs_mount->mnt_root;
-	inode->i_mode = S_IFDIR | ((d_inode(parent)->i_mode & 0770));
+	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 

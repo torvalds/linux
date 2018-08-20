@@ -494,20 +494,31 @@ static inline bool tcp_stream_is_readable(const struct tcp_sock *tp,
 }
 
 /*
- * Socket is not locked. We are protected from async events by poll logic and
- * correct handling of state changes made by other threads is impossible in
- * any case.
+ *	Wait for a TCP event.
+ *
+ *	Note that we don't need to lock the socket, as the upper poll layers
+ *	take care of normal races (between the test and the event) and we don't
+ *	go look at any of the socket buffers directly.
  */
-__poll_t tcp_poll_mask(struct socket *sock, __poll_t events)
+__poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
+	__poll_t mask;
 	struct sock *sk = sock->sk;
 	const struct tcp_sock *tp = tcp_sk(sk);
-	__poll_t mask = 0;
 	int state;
+
+	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	state = inet_sk_state_load(sk);
 	if (state == TCP_LISTEN)
 		return inet_csk_listen_poll(sk);
+
+	/* Socket is not locked. We are protected from async events
+	 * by poll logic and correct handling of state changes
+	 * made by other threads is impossible in any case.
+	 */
+
+	mask = 0;
 
 	/*
 	 * EPOLLHUP is certainly not done right. But poll() doesn't
@@ -589,7 +600,7 @@ __poll_t tcp_poll_mask(struct socket *sock, __poll_t events)
 
 	return mask;
 }
-EXPORT_SYMBOL(tcp_poll_mask);
+EXPORT_SYMBOL(tcp_poll);
 
 int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
@@ -1694,6 +1705,13 @@ EXPORT_SYMBOL(tcp_peek_len);
 /* Make sure sk_rcvbuf is big enough to satisfy SO_RCVLOWAT hint */
 int tcp_set_rcvlowat(struct sock *sk, int val)
 {
+	int cap;
+
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
+		cap = sk->sk_rcvbuf >> 1;
+	else
+		cap = sock_net(sk)->ipv4.sysctl_tcp_rmem[2] >> 1;
+	val = min(val, cap);
 	sk->sk_rcvlowat = val ? : 1;
 
 	/* Check if we need to signal EPOLLIN right now */
@@ -1702,12 +1720,7 @@ int tcp_set_rcvlowat(struct sock *sk, int val)
 	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
 		return 0;
 
-	/* val comes from user space and might be close to INT_MAX */
 	val <<= 1;
-	if (val < 0)
-		val = INT_MAX;
-
-	val = min(val, sock_net(sk)->ipv4.sysctl_tcp_rmem[2]);
 	if (val > sk->sk_rcvbuf) {
 		sk->sk_rcvbuf = val;
 		tcp_sk(sk)->window_clamp = tcp_win_from_space(sk, val);

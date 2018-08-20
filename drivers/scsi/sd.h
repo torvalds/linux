@@ -74,12 +74,12 @@ struct scsi_disk {
 	struct gendisk	*disk;
 	struct opal_dev *opal_dev;
 #ifdef CONFIG_BLK_DEV_ZONED
-	unsigned int	nr_zones;
-	unsigned int	zone_blocks;
-	unsigned int	zone_shift;
-	unsigned int	zones_optimal_open;
-	unsigned int	zones_optimal_nonseq;
-	unsigned int	zones_max_open;
+	u32		nr_zones;
+	u32		zone_blocks;
+	u32		zone_shift;
+	u32		zones_optimal_open;
+	u32		zones_optimal_nonseq;
+	u32		zones_max_open;
 #endif
 	atomic_t	openers;
 	sector_t	capacity;	/* size in logical blocks */

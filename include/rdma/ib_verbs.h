@@ -2093,10 +2093,7 @@ struct ib_flow_attr {
 	u32	     flags;
 	u8	     num_of_specs;
 	u8	     port;
-	/* Following are the optional layers according to user request
-	 * struct ib_flow_spec_xxx
-	 * struct ib_flow_spec_yyy
-	 */
+	union ib_flow_spec flows[];
 };
 
 struct ib_flow {
@@ -3394,11 +3391,14 @@ int ib_process_cq_direct(struct ib_cq *cq, int budget);
  *
  * Users can examine the cq structure to determine the actual CQ size.
  */
-struct ib_cq *ib_create_cq(struct ib_device *device,
-			   ib_comp_handler comp_handler,
-			   void (*event_handler)(struct ib_event *, void *),
-			   void *cq_context,
-			   const struct ib_cq_init_attr *cq_attr);
+struct ib_cq *__ib_create_cq(struct ib_device *device,
+			     ib_comp_handler comp_handler,
+			     void (*event_handler)(struct ib_event *, void *),
+			     void *cq_context,
+			     const struct ib_cq_init_attr *cq_attr,
+			     const char *caller);
+#define ib_create_cq(device, cmp_hndlr, evt_hndlr, cq_ctxt, cq_attr) \
+	__ib_create_cq((device), (cmp_hndlr), (evt_hndlr), (cq_ctxt), (cq_attr), KBUILD_MODNAME)
 
 /**
  * ib_resize_cq - Modifies the capacity of the CQ.

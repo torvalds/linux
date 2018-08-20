@@ -1089,14 +1089,14 @@ static void do_attr_changes(struct inode *inode, const struct iattr *attr)
 	if (attr->ia_valid & ATTR_GID)
 		inode->i_gid = attr->ia_gid;
 	if (attr->ia_valid & ATTR_ATIME)
-		inode->i_atime = timespec_trunc(attr->ia_atime,
-						inode->i_sb->s_time_gran);
+		inode->i_atime = timespec64_trunc(attr->ia_atime,
+						  inode->i_sb->s_time_gran);
 	if (attr->ia_valid & ATTR_MTIME)
-		inode->i_mtime = timespec_trunc(attr->ia_mtime,
-						inode->i_sb->s_time_gran);
+		inode->i_mtime = timespec64_trunc(attr->ia_mtime,
+						  inode->i_sb->s_time_gran);
 	if (attr->ia_valid & ATTR_CTIME)
-		inode->i_ctime = timespec_trunc(attr->ia_ctime,
-						inode->i_sb->s_time_gran);
+		inode->i_ctime = timespec64_trunc(attr->ia_ctime,
+						  inode->i_sb->s_time_gran);
 	if (attr->ia_valid & ATTR_MODE) {
 		umode_t mode = attr->ia_mode;
 
@@ -1367,8 +1367,9 @@ out:
 static inline int mctime_update_needed(const struct inode *inode,
 				       const struct timespec *now)
 {
-	if (!timespec_equal(&inode->i_mtime, now) ||
-	    !timespec_equal(&inode->i_ctime, now))
+	struct timespec64 now64 = timespec_to_timespec64(*now);
+	if (!timespec64_equal(&inode->i_mtime, &now64) ||
+	    !timespec64_equal(&inode->i_ctime, &now64))
 		return 1;
 	return 0;
 }
@@ -1380,7 +1381,7 @@ static inline int mctime_update_needed(const struct inode *inode,
  *
  * This function updates time of the inode.
  */
-int ubifs_update_time(struct inode *inode, struct timespec *time,
+int ubifs_update_time(struct inode *inode, struct timespec64 *time,
 			     int flags)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
@@ -1424,7 +1425,7 @@ int ubifs_update_time(struct inode *inode, struct timespec *time,
  */
 static int update_mctime(struct inode *inode)
 {
-	struct timespec now = current_time(inode);
+	struct timespec now = timespec64_to_timespec(current_time(inode));
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
@@ -1513,12 +1514,12 @@ static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
  * mmap()d file has taken write protection fault and is being made writable.
  * UBIFS must ensure page is budgeted for.
  */
-static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
+static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
-	struct timespec now = current_time(inode);
+	struct timespec now = timespec64_to_timespec(current_time(inode));
 	struct ubifs_budget_req req = { .new_page = 1 };
 	int err, update_time;
 
@@ -1567,8 +1568,7 @@ static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 	if (unlikely(page->mapping != inode->i_mapping ||
 		     page_offset(page) > i_size_read(inode))) {
 		/* Page got truncated out from underneath us */
-		err = -EINVAL;
-		goto out_unlock;
+		goto sigbus;
 	}
 
 	if (PagePrivate(page))
@@ -1597,12 +1597,10 @@ static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 	wait_for_stable_page(page);
 	return VM_FAULT_LOCKED;
 
-out_unlock:
+sigbus:
 	unlock_page(page);
 	ubifs_release_budget(c, &req);
-	if (err)
-		err = VM_FAULT_SIGBUS;
-	return err;
+	return VM_FAULT_SIGBUS;
 }
 
 static const struct vm_operations_struct ubifs_file_vm_ops = {

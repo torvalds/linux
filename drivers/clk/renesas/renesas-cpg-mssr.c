@@ -653,6 +653,12 @@ static const struct of_device_id cpg_mssr_match[] = {
 		.data = &r8a7745_cpg_mssr_info,
 	},
 #endif
+#ifdef CONFIG_CLK_R8A77470
+	{
+		.compatible = "renesas,r8a77470-cpg-mssr",
+		.data = &r8a77470_cpg_mssr_info,
+	},
+#endif
 #ifdef CONFIG_CLK_R8A7790
 	{
 		.compatible = "renesas,r8a7790-cpg-mssr",
@@ -710,6 +716,12 @@ static const struct of_device_id cpg_mssr_match[] = {
 	{
 		.compatible = "renesas,r8a77980-cpg-mssr",
 		.data = &r8a77980_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A77990
+	{
+		.compatible = "renesas,r8a77990-cpg-mssr",
+		.data = &r8a77990_cpg_mssr_info,
 	},
 #endif
 #ifdef CONFIG_CLK_R8A77995

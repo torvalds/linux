@@ -435,6 +435,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"4080: IOA exceeded maximum operating temperature"},
 	{0x060B8000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4085: Service required"},
+	{0x060B8100, 0, IPR_DEFAULT_LOG_LEVEL,
+	"4086: SAS Adapter Hardware Configuration Error"},
 	{0x06288000, 0, IPR_DEFAULT_LOG_LEVEL,
 	"3140: Device bus not ready to ready transition"},
 	{0x06290000, 0, IPR_DEFAULT_LOG_LEVEL,
@@ -758,7 +760,6 @@ static void ipr_mask_and_clear_interrupts(struct ipr_ioa_cfg *ioa_cfg,
 		ioa_cfg->hrrq[i].allow_interrupts = 0;
 		spin_unlock(&ioa_cfg->hrrq[i]._lock);
 	}
-	wmb();
 
 	/* Set interrupt mask to stop all new interrupts */
 	if (ioa_cfg->sis64)
@@ -4329,9 +4330,11 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	}
 
 	if (ioa_cfg->sis64)
-		ioa_data = vmalloc(IPR_FMT3_MAX_NUM_DUMP_PAGES * sizeof(__be32 *));
+		ioa_data = vmalloc(array_size(IPR_FMT3_MAX_NUM_DUMP_PAGES,
+					      sizeof(__be32 *)));
 	else
-		ioa_data = vmalloc(IPR_FMT2_MAX_NUM_DUMP_PAGES * sizeof(__be32 *));
+		ioa_data = vmalloc(array_size(IPR_FMT2_MAX_NUM_DUMP_PAGES,
+					      sizeof(__be32 *)));
 
 	if (!ioa_data) {
 		ipr_err("Dump memory allocation failed\n");
@@ -8399,7 +8402,6 @@ static int ipr_reset_enable_ioa(struct ipr_cmnd *ipr_cmd)
 		ioa_cfg->hrrq[i].allow_interrupts = 1;
 		spin_unlock(&ioa_cfg->hrrq[i]._lock);
 	}
-	wmb();
 	if (ioa_cfg->sis64) {
 		/* Set the adapter to the correct endian mode. */
 		writel(IPR_ENDIAN_SWAP_KEY, ioa_cfg->regs.endian_swap_reg);
@@ -9711,8 +9713,9 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 	int i, rc = -ENOMEM;
 
 	ENTER;
-	ioa_cfg->res_entries = kzalloc(sizeof(struct ipr_resource_entry) *
-				       ioa_cfg->max_devs_supported, GFP_KERNEL);
+	ioa_cfg->res_entries = kcalloc(ioa_cfg->max_devs_supported,
+				       sizeof(struct ipr_resource_entry),
+				       GFP_KERNEL);
 
 	if (!ioa_cfg->res_entries)
 		goto out;
@@ -9773,8 +9776,9 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 		list_add_tail(&ioa_cfg->hostrcb[i]->queue, &ioa_cfg->hostrcb_free_q);
 	}
 
-	ioa_cfg->trace = kzalloc(sizeof(struct ipr_trace_entry) *
-				 IPR_NUM_TRACE_ENTRIES, GFP_KERNEL);
+	ioa_cfg->trace = kcalloc(IPR_NUM_TRACE_ENTRIES,
+				 sizeof(struct ipr_trace_entry),
+				 GFP_KERNEL);
 
 	if (!ioa_cfg->trace)
 		goto out_free_hostrcb_dma;

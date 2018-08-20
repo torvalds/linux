@@ -139,7 +139,7 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	inode->i_op = &empty_iops;
 	inode->i_fop = &empty_fops;
 
-	inode->i_flags |= S_SYNC | S_NOATIME | S_NOCMTIME | S_NOQUOTA;
+	inode->i_flags |= S_SYNC | S_NOATIME | S_NOCMTIME;
 	ui = ubifs_inode(inode);
 	ui->xattr = 1;
 	ui->flags |= UBIFS_XATTR_FL;

@@ -90,7 +90,6 @@ struct intlist;
 
 struct symbol_conf {
 	unsigned short	priv_size;
-	unsigned short	nr_events;
 	bool		try_vmlinux_path,
 			init_annotation,
 			force,
@@ -109,8 +108,6 @@ struct symbol_conf {
 			show_cpu_utilization,
 			initialized,
 			kptr_restrict,
-			annotate_asm_raw,
-			annotate_src,
 			event_group,
 			demangle,
 			demangle_kernel,

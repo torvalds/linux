@@ -1807,9 +1807,6 @@ again:
 	if (!bio_integrity_endio(bio))
 		return;
 
-	if (WARN_ONCE(bio->bi_next, "driver left bi_next not NULL"))
-		bio->bi_next = NULL;
-
 	/*
 	 * Need to have a real endio function for chained bios, otherwise
 	 * various corner cases will break (like stacking block devices that
@@ -1997,6 +1994,24 @@ bad:
 }
 EXPORT_SYMBOL(bioset_init);
 
+/*
+ * Initialize and setup a new bio_set, based on the settings from
+ * another bio_set.
+ */
+int bioset_init_from_src(struct bio_set *bs, struct bio_set *src)
+{
+	int flags;
+
+	flags = 0;
+	if (src->bvec_pool.min_nr)
+		flags |= BIOSET_NEED_BVECS;
+	if (src->rescue_workqueue)
+		flags |= BIOSET_NEED_RESCUER;
+
+	return bioset_init(bs, src->bio_pool.min_nr, src->front_pad, flags);
+}
+EXPORT_SYMBOL(bioset_init_from_src);
+
 #ifdef CONFIG_BLK_CGROUP
 
 /**
@@ -2073,7 +2088,8 @@ static int __init init_bio(void)
 {
 	bio_slab_max = 2;
 	bio_slab_nr = 0;
-	bio_slabs = kzalloc(bio_slab_max * sizeof(struct bio_slab), GFP_KERNEL);
+	bio_slabs = kcalloc(bio_slab_max, sizeof(struct bio_slab),
+			    GFP_KERNEL);
 	if (!bio_slabs)
 		panic("bio: can't allocate bios\n");
 

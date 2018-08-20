@@ -16,9 +16,7 @@ LDLIBS += -lcap -lelf -lrt -lpthread
 TEST_CUSTOM_PROGS = $(OUTPUT)/urandom_read
 all: $(TEST_CUSTOM_PROGS)
 
-$(TEST_CUSTOM_PROGS): urandom_read
-
-urandom_read: urandom_read.c
+$(TEST_CUSTOM_PROGS): $(OUTPUT)/%: %.c
 	$(CC) -o $(TEST_CUSTOM_PROGS) -static $< -Wl,--build-id
 
 # Order correspond to 'make run_tests' order

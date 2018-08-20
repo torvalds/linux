@@ -557,6 +557,9 @@ static int parse_options(char *options, struct super_block *sb,
 			set_opt (opts->s_mount_opt, NO_UID32);
 			break;
 		case Opt_nocheck:
+			ext2_msg(sb, KERN_WARNING,
+				"Option nocheck/check=none is deprecated and"
+				" will be removed in June 2020.");
 			clear_opt (opts->s_mount_opt, CHECK);
 			break;
 		case Opt_debug:
@@ -1082,7 +1085,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
  					/ EXT2_BLOCKS_PER_GROUP(sb)) + 1;
 	db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(sb) - 1) /
 		   EXT2_DESC_PER_BLOCK(sb);
-	sbi->s_group_desc = kmalloc (db_count * sizeof (struct buffer_head *), GFP_KERNEL);
+	sbi->s_group_desc = kmalloc_array (db_count,
+					   sizeof(struct buffer_head *),
+					   GFP_KERNEL);
 	if (sbi->s_group_desc == NULL) {
 		ext2_msg(sb, KERN_ERR, "error: not enough memory");
 		goto failed_mount;
@@ -1333,9 +1338,6 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	new_opts.s_resgid = sbi->s_resgid;
 	spin_unlock(&sbi->s_lock);
 
-	/*
-	 * Allow the "check" option to be passed as a remount option.
-	 */
 	if (!parse_options(data, sb, &new_opts))
 		return -EINVAL;
 

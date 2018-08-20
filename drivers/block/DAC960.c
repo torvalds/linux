@@ -5719,8 +5719,8 @@ static bool DAC960_CheckStatusBuffer(DAC960_Controller_T *Controller,
       Controller->CombinedStatusBufferLength = NewStatusBufferLength;
       return true;
     }
-  NewStatusBuffer = kmalloc(2 * Controller->CombinedStatusBufferLength,
-			     GFP_ATOMIC);
+  NewStatusBuffer = kmalloc_array(2, Controller->CombinedStatusBufferLength,
+                                  GFP_ATOMIC);
   if (NewStatusBuffer == NULL)
     {
       DAC960_Warning("Unable to expand Combined Status Buffer - Truncating\n",

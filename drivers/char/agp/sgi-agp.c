@@ -280,9 +280,9 @@ static int agp_sgi_init(void)
 	else
 		return 0;
 
-	sgi_tioca_agp_bridges = kmalloc(tioca_gart_found *
-					sizeof(struct agp_bridge_data *),
-					GFP_KERNEL);
+	sgi_tioca_agp_bridges = kmalloc_array(tioca_gart_found,
+					      sizeof(struct agp_bridge_data *),
+					      GFP_KERNEL);
 	if (!sgi_tioca_agp_bridges)
 		return -ENOMEM;
 

@@ -928,6 +928,7 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 static int stmmac_init_phy(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	struct phy_device *phydev;
 	char phy_id_fmt[MII_BUS_ID_SIZE + 3];
 	char bus_id[MII_BUS_ID_SIZE];
@@ -967,6 +968,15 @@ static int stmmac_init_phy(struct net_device *dev)
 		(max_speed < 1000 && max_speed > 0))
 		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
 					 SUPPORTED_1000baseT_Full);
+
+	/*
+	 * Half-duplex mode not supported with multiqueue
+	 * half-duplex can only works with single queue
+	 */
+	if (tx_cnt > 1)
+		phydev->supported &= ~(SUPPORTED_1000baseT_Half |
+				       SUPPORTED_100baseT_Half |
+				       SUPPORTED_10baseT_Half);
 
 	/*
 	 * Broken HW is sometimes missing the pull-up resistor on the
@@ -1794,6 +1804,8 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 
 		stmmac_dma_rx_mode(priv, priv->ioaddr, rxmode, chan,
 				rxfifosz, qmode);
+		stmmac_set_dma_bfsize(priv, priv->ioaddr, priv->dma_buf_sz,
+				chan);
 	}
 
 	for (chan = 0; chan < tx_channels_count; chan++) {
@@ -3182,17 +3194,22 @@ dma_map_err:
 
 static void stmmac_rx_vlan(struct net_device *dev, struct sk_buff *skb)
 {
-	struct ethhdr *ehdr;
+	struct vlan_ethhdr *veth;
+	__be16 vlan_proto;
 	u16 vlanid;
 
-	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) ==
-	    NETIF_F_HW_VLAN_CTAG_RX &&
-	    !__vlan_get_tag(skb, &vlanid)) {
+	veth = (struct vlan_ethhdr *)skb->data;
+	vlan_proto = veth->h_vlan_proto;
+
+	if ((vlan_proto == htons(ETH_P_8021Q) &&
+	     dev->features & NETIF_F_HW_VLAN_CTAG_RX) ||
+	    (vlan_proto == htons(ETH_P_8021AD) &&
+	     dev->features & NETIF_F_HW_VLAN_STAG_RX)) {
 		/* pop the vlan tag */
-		ehdr = (struct ethhdr *)skb->data;
-		memmove(skb->data + VLAN_HLEN, ehdr, ETH_ALEN * 2);
+		vlanid = ntohs(veth->h_vlan_TCI);
+		memmove(skb->data + VLAN_HLEN, veth, ETH_ALEN * 2);
 		skb_pull(skb, VLAN_HLEN);
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlanid);
+		__vlan_hwaccel_put_tag(skb, vlan_proto, vlanid);
 	}
 }
 
@@ -4130,6 +4147,13 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	if (priv->dma_cap.tsoen)
 		dev_info(priv->device, "TSO supported\n");
 
+	/* Run HW quirks, if any */
+	if (priv->hwif_quirks) {
+		ret = priv->hwif_quirks(priv);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -4235,7 +4259,7 @@ int stmmac_dvr_probe(struct device *device,
 	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Both mac100 and gmac support receive VLAN tag detection */
-	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX;
+	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX;
 #endif
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
 

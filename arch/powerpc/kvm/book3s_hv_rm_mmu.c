@@ -418,7 +418,8 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		    long pte_index, unsigned long pteh, unsigned long ptel)
 {
 	return kvmppc_do_h_enter(vcpu->kvm, flags, pte_index, pteh, ptel,
-				 vcpu->arch.pgdir, true, &vcpu->arch.gpr[4]);
+				 vcpu->arch.pgdir, true,
+				 &vcpu->arch.regs.gpr[4]);
 }
 
 #ifdef __BIG_ENDIAN__
@@ -434,24 +435,6 @@ static inline int is_mmio_hpte(unsigned long v, unsigned long r)
 		(HPTE_R_KEY_HI | HPTE_R_KEY_LO));
 }
 
-static inline int try_lock_tlbie(unsigned int *lock)
-{
-	unsigned int tmp, old;
-	unsigned int token = LOCK_TOKEN;
-
-	asm volatile("1:lwarx	%1,0,%2\n"
-		     "	cmpwi	cr0,%1,0\n"
-		     "	bne	2f\n"
-		     "  stwcx.	%3,0,%2\n"
-		     "	bne-	1b\n"
-		     "  isync\n"
-		     "2:"
-		     : "=&r" (tmp), "=&r" (old)
-		     : "r" (lock), "r" (token)
-		     : "cc", "memory");
-	return old == 0;
-}
-
 static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 		      long npages, int global, bool need_sync)
 {
@@ -463,8 +446,6 @@ static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 	 * the RS field, this is backwards-compatible with P7 and P8.
 	 */
 	if (global) {
-		while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
-			cpu_relax();
 		if (need_sync)
 			asm volatile("ptesync" : : : "memory");
 		for (i = 0; i < npages; ++i) {
@@ -483,7 +464,6 @@ static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 		}
 
 		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
-		kvm->arch.tlbie_lock = 0;
 	} else {
 		if (need_sync)
 			asm volatile("ptesync" : : : "memory");
@@ -561,13 +541,13 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 		     unsigned long pte_index, unsigned long avpn)
 {
 	return kvmppc_do_h_remove(vcpu->kvm, flags, pte_index, avpn,
-				  &vcpu->arch.gpr[4]);
+				  &vcpu->arch.regs.gpr[4]);
 }
 
 long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long *args = &vcpu->arch.gpr[4];
+	unsigned long *args = &vcpu->arch.regs.gpr[4];
 	__be64 *hp, *hptes[4];
 	unsigned long tlbrb[4];
 	long int i, j, k, n, found, indexes[4];
@@ -787,8 +767,8 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 			r = rev[i].guest_rpte | (r & (HPTE_R_R | HPTE_R_C));
 			r &= ~HPTE_GR_RESERVED;
 		}
-		vcpu->arch.gpr[4 + i * 2] = v;
-		vcpu->arch.gpr[5 + i * 2] = r;
+		vcpu->arch.regs.gpr[4 + i * 2] = v;
+		vcpu->arch.regs.gpr[5 + i * 2] = r;
 	}
 	return H_SUCCESS;
 }
@@ -834,7 +814,7 @@ long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
 			}
 		}
 	}
-	vcpu->arch.gpr[4] = gr;
+	vcpu->arch.regs.gpr[4] = gr;
 	ret = H_SUCCESS;
  out:
 	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);
@@ -881,7 +861,7 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 			kvmppc_set_dirty_from_hpte(kvm, v, gr);
 		}
 	}
-	vcpu->arch.gpr[4] = gr;
+	vcpu->arch.regs.gpr[4] = gr;
 	ret = H_SUCCESS;
  out:
 	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);

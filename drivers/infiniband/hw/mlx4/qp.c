@@ -573,8 +573,8 @@ static int alloc_proxy_bufs(struct ib_device *dev, struct mlx4_ib_qp *qp)
 	int i;
 
 	qp->sqp_proxy_rcv =
-		kmalloc(sizeof (struct mlx4_ib_buf) * qp->rq.wqe_cnt,
-			GFP_KERNEL);
+		kmalloc_array(qp->rq.wqe_cnt, sizeof(struct mlx4_ib_buf),
+			      GFP_KERNEL);
 	if (!qp->sqp_proxy_rcv)
 		return -ENOMEM;
 	for (i = 0; i < qp->rq.wqe_cnt; i++) {

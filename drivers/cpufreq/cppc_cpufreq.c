@@ -313,7 +313,8 @@ static int __init cppc_cpufreq_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	all_cpu_data = kzalloc(sizeof(void *) * num_possible_cpus(), GFP_KERNEL);
+	all_cpu_data = kcalloc(num_possible_cpus(), sizeof(void *),
+			       GFP_KERNEL);
 	if (!all_cpu_data)
 		return -ENOMEM;
 

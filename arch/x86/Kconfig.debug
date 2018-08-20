@@ -72,6 +72,9 @@ config EARLY_PRINTK_USB_XDBC
 	  You should normally say N here, unless you want to debug early
 	  crashes or need a very simple printk logging facility.
 
+config MCSAFE_TEST
+	def_bool n
+
 config X86_PTDUMP_CORE
 	def_bool n
 

@@ -18,6 +18,8 @@
 #include <linux/idr.h>
 #include "most/core.h"
 
+#define CHRDEV_REGION_SIZE 50
+
 static struct cdev_component {
 	dev_t devno;
 	struct ida minor_id;
@@ -51,7 +53,7 @@ static inline bool ch_has_mbo(struct comp_channel *c)
 	return channel_has_mbo(c->iface, c->channel_id, &comp.cc) > 0;
 }
 
-static inline bool ch_get_mbo(struct comp_channel *c, struct mbo **mbo)
+static inline struct mbo *ch_get_mbo(struct comp_channel *c, struct mbo **mbo)
 {
 	if (!kfifo_peek(&c->fifo, mbo)) {
 		*mbo = most_get_mbo(c->iface, c->channel_id, &comp.cc);
@@ -242,7 +244,7 @@ static ssize_t
 comp_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 {
 	size_t to_copy, not_copied, copied;
-	struct mbo *mbo;
+	struct mbo *mbo = NULL;
 	struct comp_channel *c = filp->private_data;
 
 	mutex_lock(&c->io_mutex);
@@ -290,13 +292,15 @@ static __poll_t comp_poll(struct file *filp, poll_table *wait)
 
 	poll_wait(filp, &c->wq, wait);
 
+	mutex_lock(&c->io_mutex);
 	if (c->cfg->direction == MOST_CH_RX) {
-		if (!kfifo_is_empty(&c->fifo))
+		if (!c->dev || !kfifo_is_empty(&c->fifo))
 			mask |= EPOLLIN | EPOLLRDNORM;
 	} else {
-		if (!kfifo_is_empty(&c->fifo) || ch_has_mbo(c))
+		if (!c->dev || !kfifo_is_empty(&c->fifo) || ch_has_mbo(c))
 			mask |= EPOLLOUT | EPOLLWRNORM;
 	}
+	mutex_unlock(&c->io_mutex);
 	return mask;
 }
 
@@ -513,7 +517,7 @@ static int __init mod_init(void)
 	spin_lock_init(&ch_list_lock);
 	ida_init(&comp.minor_id);
 
-	err = alloc_chrdev_region(&comp.devno, 0, 50, "cdev");
+	err = alloc_chrdev_region(&comp.devno, 0, CHRDEV_REGION_SIZE, "cdev");
 	if (err < 0)
 		goto dest_ida;
 	comp.major = MAJOR(comp.devno);
@@ -523,7 +527,7 @@ static int __init mod_init(void)
 	return 0;
 
 free_cdev:
-	unregister_chrdev_region(comp.devno, 1);
+	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
 dest_ida:
 	ida_destroy(&comp.minor_id);
 	class_destroy(comp.class);

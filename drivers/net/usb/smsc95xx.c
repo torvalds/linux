@@ -1661,7 +1661,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	}
 
 	if (pdata->wolopts & (WAKE_BCAST | WAKE_MCAST | WAKE_ARP | WAKE_UCAST)) {
-		u32 *filter_mask = kzalloc(sizeof(u32) * 32, GFP_KERNEL);
+		u32 *filter_mask = kcalloc(32, sizeof(u32), GFP_KERNEL);
 		u32 command[2];
 		u32 offset[2];
 		u32 crc[4];

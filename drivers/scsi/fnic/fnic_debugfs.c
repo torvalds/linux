@@ -233,8 +233,8 @@ static int fnic_trace_debugfs_open(struct inode *inode,
 		return -ENOMEM;
 
 	if (*rdata_ptr == fc_trc_flag->fnic_trace) {
-		fnic_dbg_prt->buffer = vmalloc(3 *
-					(trace_max_pages * PAGE_SIZE));
+		fnic_dbg_prt->buffer = vmalloc(array3_size(3, trace_max_pages,
+							   PAGE_SIZE));
 		if (!fnic_dbg_prt->buffer) {
 			kfree(fnic_dbg_prt);
 			return -ENOMEM;
@@ -244,7 +244,8 @@ static int fnic_trace_debugfs_open(struct inode *inode,
 		fnic_dbg_prt->buffer_len = fnic_get_trace_data(fnic_dbg_prt);
 	} else {
 		fnic_dbg_prt->buffer =
-			vmalloc(3 * (fnic_fc_trace_max_pages * PAGE_SIZE));
+			vmalloc(array3_size(3, fnic_fc_trace_max_pages,
+					    PAGE_SIZE));
 		if (!fnic_dbg_prt->buffer) {
 			kfree(fnic_dbg_prt);
 			return -ENOMEM;

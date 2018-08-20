@@ -173,8 +173,9 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 	if (count < 0)
 		return count;
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct pbias_regulator_data)
-			       * count, GFP_KERNEL);
+	drvdata = devm_kcalloc(&pdev->dev,
+			       count, sizeof(struct pbias_regulator_data),
+			       GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 

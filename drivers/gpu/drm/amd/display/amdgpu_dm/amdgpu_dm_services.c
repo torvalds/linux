@@ -234,6 +234,33 @@ static void pp_to_dc_clock_levels(
 	}
 }
 
+static void pp_to_dc_clock_levels_with_latency(
+		const struct pp_clock_levels_with_latency *pp_clks,
+		struct dm_pp_clock_levels_with_latency *clk_level_info,
+		enum dm_pp_clock_type dc_clk_type)
+{
+	uint32_t i;
+
+	if (pp_clks->num_levels > DM_PP_MAX_CLOCK_LEVELS) {
+		DRM_INFO("DM_PPLIB: Warning: %s clock: number of levels %d exceeds maximum of %d!\n",
+				DC_DECODE_PP_CLOCK_TYPE(dc_clk_type),
+				pp_clks->num_levels,
+				DM_PP_MAX_CLOCK_LEVELS);
+
+		clk_level_info->num_levels = DM_PP_MAX_CLOCK_LEVELS;
+	} else
+		clk_level_info->num_levels = pp_clks->num_levels;
+
+	DRM_DEBUG("DM_PPLIB: values for %s clock\n",
+			DC_DECODE_PP_CLOCK_TYPE(dc_clk_type));
+
+	for (i = 0; i < clk_level_info->num_levels; i++) {
+		DRM_DEBUG("DM_PPLIB:\t %d\n", pp_clks->data[i].clocks_in_khz);
+		clk_level_info->data[i].clocks_in_khz = pp_clks->data[i].clocks_in_khz;
+		clk_level_info->data[i].latency_in_us = pp_clks->data[i].latency_in_us;
+	}
+}
+
 bool dm_pp_get_clock_levels_by_type(
 		const struct dc_context *ctx,
 		enum dm_pp_clock_type clk_type,
@@ -311,8 +338,22 @@ bool dm_pp_get_clock_levels_by_type_with_latency(
 	enum dm_pp_clock_type clk_type,
 	struct dm_pp_clock_levels_with_latency *clk_level_info)
 {
-	/* TODO: to be implemented */
-	return false;
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	struct pp_clock_levels_with_latency pp_clks = { 0 };
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->get_clock_by_type_with_latency)
+		return false;
+
+	if (pp_funcs->get_clock_by_type_with_latency(pp_handle,
+						     dc_to_pp_clock_type(clk_type),
+						     &pp_clks))
+		return false;
+
+	pp_to_dc_clock_levels_with_latency(&pp_clks, clk_level_info, clk_type);
+
+	return true;
 }
 
 bool dm_pp_get_clock_levels_by_type_with_voltage(

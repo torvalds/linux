@@ -426,20 +426,20 @@ int main(void)
 	OFFSET(VCPU_HOST_STACK, kvm_vcpu, arch.host_stack);
 	OFFSET(VCPU_HOST_PID, kvm_vcpu, arch.host_pid);
 	OFFSET(VCPU_GUEST_PID, kvm_vcpu, arch.pid);
-	OFFSET(VCPU_GPRS, kvm_vcpu, arch.gpr);
+	OFFSET(VCPU_GPRS, kvm_vcpu, arch.regs.gpr);
 	OFFSET(VCPU_VRSAVE, kvm_vcpu, arch.vrsave);
 	OFFSET(VCPU_FPRS, kvm_vcpu, arch.fp.fpr);
 #ifdef CONFIG_ALTIVEC
 	OFFSET(VCPU_VRS, kvm_vcpu, arch.vr.vr);
 #endif
-	OFFSET(VCPU_XER, kvm_vcpu, arch.xer);
-	OFFSET(VCPU_CTR, kvm_vcpu, arch.ctr);
-	OFFSET(VCPU_LR, kvm_vcpu, arch.lr);
+	OFFSET(VCPU_XER, kvm_vcpu, arch.regs.xer);
+	OFFSET(VCPU_CTR, kvm_vcpu, arch.regs.ctr);
+	OFFSET(VCPU_LR, kvm_vcpu, arch.regs.link);
 #ifdef CONFIG_PPC_BOOK3S
 	OFFSET(VCPU_TAR, kvm_vcpu, arch.tar);
 #endif
 	OFFSET(VCPU_CR, kvm_vcpu, arch.cr);
-	OFFSET(VCPU_PC, kvm_vcpu, arch.pc);
+	OFFSET(VCPU_PC, kvm_vcpu, arch.regs.nip);
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	OFFSET(VCPU_MSR, kvm_vcpu, arch.shregs.msr);
 	OFFSET(VCPU_SRR0, kvm_vcpu, arch.shregs.srr0);
@@ -696,10 +696,10 @@ int main(void)
 
 #else /* CONFIG_PPC_BOOK3S */
 	OFFSET(VCPU_CR, kvm_vcpu, arch.cr);
-	OFFSET(VCPU_XER, kvm_vcpu, arch.xer);
-	OFFSET(VCPU_LR, kvm_vcpu, arch.lr);
-	OFFSET(VCPU_CTR, kvm_vcpu, arch.ctr);
-	OFFSET(VCPU_PC, kvm_vcpu, arch.pc);
+	OFFSET(VCPU_XER, kvm_vcpu, arch.regs.xer);
+	OFFSET(VCPU_LR, kvm_vcpu, arch.regs.link);
+	OFFSET(VCPU_CTR, kvm_vcpu, arch.regs.ctr);
+	OFFSET(VCPU_PC, kvm_vcpu, arch.regs.nip);
 	OFFSET(VCPU_SPRG9, kvm_vcpu, arch.sprg9);
 	OFFSET(VCPU_LAST_INST, kvm_vcpu, arch.last_inst);
 	OFFSET(VCPU_FAULT_DEAR, kvm_vcpu, arch.fault_dear);

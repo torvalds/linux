@@ -31,7 +31,6 @@
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
 #include <linux/prefetch.h>
-#include <linux/reciprocal_div.h>
 
 #include <asm/sync_bitops.h>
 
@@ -66,6 +65,41 @@ void netvsc_switch_datapath(struct net_device *ndev, bool vf)
 			       VM_PKT_DATA_INBAND, 0);
 }
 
+/* Worker to setup sub channels on initial setup
+ * Initial hotplug event occurs in softirq context
+ * and can't wait for channels.
+ */
+static void netvsc_subchan_work(struct work_struct *w)
+{
+	struct netvsc_device *nvdev =
+		container_of(w, struct netvsc_device, subchan_work);
+	struct rndis_device *rdev;
+	int i, ret;
+
+	/* Avoid deadlock with device removal already under RTNL */
+	if (!rtnl_trylock()) {
+		schedule_work(w);
+		return;
+	}
+
+	rdev = nvdev->extension;
+	if (rdev) {
+		ret = rndis_set_subchannel(rdev->ndev, nvdev);
+		if (ret == 0) {
+			netif_device_attach(rdev->ndev);
+		} else {
+			/* fallback to only primary channel */
+			for (i = 1; i < nvdev->num_chn; i++)
+				netif_napi_del(&nvdev->chan_table[i].napi);
+
+			nvdev->max_chn = 1;
+			nvdev->num_chn = 1;
+		}
+	}
+
+	rtnl_unlock();
+}
+
 static struct netvsc_device *alloc_net_device(void)
 {
 	struct netvsc_device *net_device;
@@ -82,7 +116,7 @@ static struct netvsc_device *alloc_net_device(void)
 
 	init_completion(&net_device->channel_init_wait);
 	init_waitqueue_head(&net_device->subchan_open);
-	INIT_WORK(&net_device->subchan_work, rndis_set_subchannel);
+	INIT_WORK(&net_device->subchan_work, netvsc_subchan_work);
 
 	return net_device;
 }
@@ -635,17 +669,6 @@ void netvsc_device_remove(struct hv_device *device)
 #define RING_AVAIL_PERCENT_HIWATER 20
 #define RING_AVAIL_PERCENT_LOWATER 10
 
-/*
- * Get the percentage of available bytes to write in the ring.
- * The return value is in range from 0 to 100.
- */
-static u32 hv_ringbuf_avail_percent(const struct hv_ring_buffer_info *ring_info)
-{
-	u32 avail_write = hv_get_bytes_to_write(ring_info);
-
-	return reciprocal_divide(avail_write  * 100, netvsc_ring_reciprocal);
-}
-
 static inline void netvsc_free_send_slot(struct netvsc_device *net_device,
 					 u32 index)
 {
@@ -694,8 +717,8 @@ static void netvsc_send_tx_complete(struct net_device *ndev,
 		struct netdev_queue *txq = netdev_get_tx_queue(ndev, q_idx);
 
 		if (netif_tx_queue_stopped(txq) &&
-		    (hv_ringbuf_avail_percent(&channel->outbound) > RING_AVAIL_PERCENT_HIWATER ||
-		     queue_sends < 1)) {
+		    (hv_get_avail_to_write_percent(&channel->outbound) >
+		     RING_AVAIL_PERCENT_HIWATER || queue_sends < 1)) {
 			netif_tx_wake_queue(txq);
 			ndev_ctx->eth_stats.wake_queue++;
 		}
@@ -802,7 +825,7 @@ static inline int netvsc_send_pkt(
 	struct netdev_queue *txq = netdev_get_tx_queue(ndev, packet->q_idx);
 	u64 req_id;
 	int ret;
-	u32 ring_avail = hv_ringbuf_avail_percent(&out_channel->outbound);
+	u32 ring_avail = hv_get_avail_to_write_percent(&out_channel->outbound);
 
 	nvmsg.hdr.msg_type = NVSP_MSG1_TYPE_SEND_RNDIS_PKT;
 	if (skb)

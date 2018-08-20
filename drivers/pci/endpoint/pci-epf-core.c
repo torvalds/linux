@@ -145,10 +145,10 @@ EXPORT_SYMBOL_GPL(pci_epf_alloc_space);
  */
 void pci_epf_unregister_driver(struct pci_epf_driver *driver)
 {
-	struct config_group *group;
+	struct config_group *group, *tmp;
 
 	mutex_lock(&pci_epf_mutex);
-	list_for_each_entry(group, &driver->epf_group, group_entry)
+	list_for_each_entry_safe(group, tmp, &driver->epf_group, group_entry)
 		pci_ep_cfs_remove_epf_group(group);
 	list_del(&driver->epf_group);
 	mutex_unlock(&pci_epf_mutex);

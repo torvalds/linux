@@ -117,10 +117,8 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from);
 static int sock_mmap(struct file *file, struct vm_area_struct *vma);
 
 static int sock_close(struct inode *inode, struct file *file);
-static struct wait_queue_head *sock_get_poll_head(struct file *file,
-		__poll_t events);
-static __poll_t sock_poll_mask(struct file *file, __poll_t);
-static __poll_t sock_poll(struct file *file, struct poll_table_struct *wait);
+static __poll_t sock_poll(struct file *file,
+			      struct poll_table_struct *wait);
 static long sock_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_COMPAT
 static long compat_sock_ioctl(struct file *file,
@@ -143,8 +141,6 @@ static const struct file_operations socket_file_ops = {
 	.llseek =	no_llseek,
 	.read_iter =	sock_read_iter,
 	.write_iter =	sock_write_iter,
-	.get_poll_head = sock_get_poll_head,
-	.poll_mask =	sock_poll_mask,
 	.poll =		sock_poll,
 	.unlocked_ioctl = sock_ioctl,
 #ifdef CONFIG_COMPAT
@@ -541,7 +537,10 @@ static int sockfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (!err && (iattr->ia_valid & ATTR_UID)) {
 		struct socket *sock = SOCKET_I(d_inode(dentry));
 
-		sock->sk->sk_uid = iattr->ia_uid;
+		if (sock->sk)
+			sock->sk->sk_uid = iattr->ia_uid;
+		else
+			err = -ENOENT;
 	}
 
 	return err;
@@ -590,12 +589,16 @@ EXPORT_SYMBOL(sock_alloc);
  *	an inode not a file.
  */
 
-void sock_release(struct socket *sock)
+static void __sock_release(struct socket *sock, struct inode *inode)
 {
 	if (sock->ops) {
 		struct module *owner = sock->ops->owner;
 
+		if (inode)
+			inode_lock(inode);
 		sock->ops->release(sock);
+		if (inode)
+			inode_unlock(inode);
 		sock->ops = NULL;
 		module_put(owner);
 	}
@@ -608,6 +611,11 @@ void sock_release(struct socket *sock)
 		return;
 	}
 	sock->file = NULL;
+}
+
+void sock_release(struct socket *sock)
+{
+	__sock_release(sock, NULL);
 }
 EXPORT_SYMBOL(sock_release);
 
@@ -1118,48 +1126,16 @@ out_release:
 }
 EXPORT_SYMBOL(sock_create_lite);
 
-static struct wait_queue_head *sock_get_poll_head(struct file *file,
-		__poll_t events)
-{
-	struct socket *sock = file->private_data;
-
-	if (!sock->ops->poll_mask)
-		return NULL;
-	sock_poll_busy_loop(sock, events);
-	return sk_sleep(sock->sk);
-}
-
-static __poll_t sock_poll_mask(struct file *file, __poll_t events)
-{
-	struct socket *sock = file->private_data;
-
-	/*
-	 * We need to be sure we are in sync with the socket flags modification.
-	 *
-	 * This memory barrier is paired in the wq_has_sleeper.
-	 */
-	smp_mb();
-
-	/* this socket can poll_ll so tell the system call */
-	return sock->ops->poll_mask(sock, events) |
-		(sk_can_busy_loop(sock->sk) ? POLL_BUSY_LOOP : 0);
-}
-
 /* No kernel lock held - perfect */
 static __poll_t sock_poll(struct file *file, poll_table *wait)
 {
 	struct socket *sock = file->private_data;
-	__poll_t events = poll_requested_events(wait), mask = 0;
+	__poll_t events = poll_requested_events(wait);
 
-	if (sock->ops->poll) {
-		sock_poll_busy_loop(sock, events);
-		mask = sock->ops->poll(file, sock, wait);
-	} else if (sock->ops->poll_mask) {
-		sock_poll_wait(file, sock_get_poll_head(file, events), wait);
-		mask = sock->ops->poll_mask(sock, events);
-	}
-
-	return mask | sock_poll_busy_flag(sock);
+	sock_poll_busy_loop(sock, events);
+	if (!sock->ops->poll)
+		return 0;
+	return sock->ops->poll(file, sock, wait) | sock_poll_busy_flag(sock);
 }
 
 static int sock_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1171,7 +1147,7 @@ static int sock_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int sock_close(struct inode *inode, struct file *filp)
 {
-	sock_release(SOCKET_I(inode));
+	__sock_release(SOCKET_I(inode), inode);
 	return 0;
 }
 

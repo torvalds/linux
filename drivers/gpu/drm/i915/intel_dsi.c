@@ -326,6 +326,9 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 						conn_state->scaling_mode);
 	}
 
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
 	adjusted_mode->flags = 0;
 
@@ -1266,6 +1269,9 @@ intel_dsi_mode_valid(struct drm_connector *connector,
 
 	DRM_DEBUG_KMS("\n");
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	if (fixed_mode) {
 		if (mode->hdisplay > fixed_mode->hdisplay)
 			return MODE_PANEL;
@@ -1846,7 +1852,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	connector->display_info.width_mm = fixed_mode->width_mm;
 	connector->display_info.height_mm = fixed_mode->height_mm;
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL, NULL);
+	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	intel_dsi_add_properties(intel_connector);

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -37,7 +25,6 @@
 #include "xfs_da_btree.h"
 #include "xfs_dir2.h"
 #include "xfs_trans_space.h"
-#include "xfs_pnfs.h"
 #include "xfs_iomap.h"
 
 #include <linux/capability.h>
@@ -1030,14 +1017,19 @@ xfs_vn_setattr(
 	int			error;
 
 	if (iattr->ia_valid & ATTR_SIZE) {
-		struct xfs_inode	*ip = XFS_I(d_inode(dentry));
-		uint			iolock = XFS_IOLOCK_EXCL;
-
-		error = xfs_break_layouts(d_inode(dentry), &iolock);
-		if (error)
-			return error;
+		struct inode		*inode = d_inode(dentry);
+		struct xfs_inode	*ip = XFS_I(inode);
+		uint			iolock;
 
 		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+		iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+
+		error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
+		if (error) {
+			xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
+			return error;
+		}
+
 		error = xfs_vn_setattr_size(dentry, iattr);
 		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
@@ -1050,7 +1042,7 @@ xfs_vn_setattr(
 STATIC int
 xfs_vn_update_time(
 	struct inode		*inode,
-	struct timespec		*now,
+	struct timespec64	*now,
 	int			flags)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
@@ -1270,6 +1262,14 @@ xfs_setup_inode(
 	xfs_diflags_to_iflags(inode, ip);
 
 	if (S_ISDIR(inode->i_mode)) {
+		/*
+		 * We set the i_rwsem class here to avoid potential races with
+		 * lockdep_annotate_inode_mutex_key() reinitialising the lock
+		 * after a filehandle lookup has already found the inode in
+		 * cache before it has been unlocked via unlock_new_inode().
+		 */
+		lockdep_set_class(&inode->i_rwsem,
+				  &inode->i_sb->s_type->i_mutex_dir_key);
 		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_dir_ilock_class);
 		ip->d_ops = ip->i_mount->m_dir_inode_ops;
 	} else {

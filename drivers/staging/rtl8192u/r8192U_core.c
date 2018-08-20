@@ -1640,8 +1640,8 @@ static short rtl8192_usb_initendpoints(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	priv->rx_urb = kmalloc(sizeof(struct urb *) * (MAX_RX_URB + 1),
-			       GFP_KERNEL);
+	priv->rx_urb = kmalloc_array(MAX_RX_URB + 1, sizeof(struct urb *),
+				     GFP_KERNEL);
 	if (!priv->rx_urb)
 		return -ENOMEM;
 
@@ -4996,7 +4996,7 @@ static void rtl8192_usb_disconnect(struct usb_interface *intf)
 		kfree(priv->pFirmware);
 		priv->pFirmware = NULL;
 		rtl8192_usb_deleteendpoints(dev);
-		mdelay(10);
+		usleep_range(10000, 11000);
 	}
 	free_ieee80211(dev);
 	RT_TRACE(COMP_DOWN, "wlan driver removed\n");

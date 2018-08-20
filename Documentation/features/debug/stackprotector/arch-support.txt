@@ -1,6 +1,6 @@
 #
 # Feature name:          stackprotector
-#         Kconfig:       HAVE_CC_STACKPROTECTOR
+#         Kconfig:       HAVE_STACKPROTECTOR
 #         description:   arch supports compiler driven stack overflow protection
 #
     -----------------------

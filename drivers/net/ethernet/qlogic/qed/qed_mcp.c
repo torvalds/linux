@@ -2578,9 +2578,9 @@ int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
 		goto err0;
 	}
 
-	nvm_info->image_att = kmalloc(nvm_info->num_images *
-				      sizeof(struct bist_nvm_image_att),
-				      GFP_KERNEL);
+	nvm_info->image_att = kmalloc_array(nvm_info->num_images,
+					    sizeof(struct bist_nvm_image_att),
+					    GFP_KERNEL);
 	if (!nvm_info->image_att) {
 		rc = -ENOMEM;
 		goto err0;

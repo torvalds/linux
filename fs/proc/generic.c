@@ -409,7 +409,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	if (!ent)
 		goto out;
 
-	if (qstr.len + 1 <= sizeof(ent->inline_name)) {
+	if (qstr.len + 1 <= SIZEOF_PDE_INLINE_NAME) {
 		ent->name = ent->inline_name;
 	} else {
 		ent->name = kmalloc(qstr.len + 1, GFP_KERNEL);
@@ -564,11 +564,20 @@ static int proc_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, de->seq_ops);
 }
 
+static int proc_seq_release(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *de = PDE(inode);
+
+	if (de->state_size)
+		return seq_release_private(inode, file);
+	return seq_release(inode, file);
+}
+
 static const struct file_operations proc_seq_fops = {
 	.open		= proc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= proc_seq_release,
 };
 
 struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,
@@ -740,3 +749,27 @@ void *PDE_DATA(const struct inode *inode)
 	return __PDE_DATA(inode);
 }
 EXPORT_SYMBOL(PDE_DATA);
+
+/*
+ * Pull a user buffer into memory and pass it to the file's write handler if
+ * one is supplied.  The ->write() method is permitted to modify the
+ * kernel-side buffer.
+ */
+ssize_t proc_simple_write(struct file *f, const char __user *ubuf, size_t size,
+			  loff_t *_pos)
+{
+	struct proc_dir_entry *pde = PDE(file_inode(f));
+	char *buf;
+	int ret;
+
+	if (!pde->write)
+		return -EACCES;
+	if (size == 0 || size > PAGE_SIZE - 1)
+		return -EINVAL;
+	buf = memdup_user_nul(ubuf, size);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+	ret = pde->write(f, buf, size);
+	kfree(buf);
+	return ret == 0 ? size : ret;
+}

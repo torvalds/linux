@@ -886,11 +886,11 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 
 	dev = xhci->devs[slot_id];
 
-	trace_xhci_free_virt_device(dev);
-
 	xhci->dcbaa->dev_context_ptrs[slot_id] = 0;
 	if (!dev)
 		return;
+
+	trace_xhci_free_virt_device(dev);
 
 	if (dev->tt_info)
 		old_active_eps = dev->tt_info->active_eps;
@@ -2274,8 +2274,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		xhci->hw_ports[i].hw_portnum = i;
 	}
 
-	xhci->rh_bw = kzalloc_node(sizeof(*xhci->rh_bw)*num_ports, flags,
-			dev_to_node(dev));
+	xhci->rh_bw = kcalloc_node(num_ports, sizeof(*xhci->rh_bw), flags,
+				   dev_to_node(dev));
 	if (!xhci->rh_bw)
 		return -ENOMEM;
 	for (i = 0; i < num_ports; i++) {

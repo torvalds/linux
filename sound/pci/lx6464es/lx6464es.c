@@ -1016,6 +1016,11 @@ static int snd_lx6464es_create(struct snd_card *card,
 
 	/* dsp port */
 	chip->port_dsp_bar = pci_ioremap_bar(pci, 2);
+	if (!chip->port_dsp_bar) {
+		dev_err(card->dev, "cannot remap PCI memory region\n");
+		err = -ENOMEM;
+		goto remap_pci_failed;
+	}
 
 	err = request_threaded_irq(pci->irq, lx_interrupt, lx_threaded_irq,
 				   IRQF_SHARED, KBUILD_MODNAME, chip);
@@ -1055,6 +1060,9 @@ device_new_failed:
 	free_irq(pci->irq, chip);
 
 request_irq_failed:
+	iounmap(chip->port_dsp_bar);
+
+remap_pci_failed:
 	pci_release_regions(pci);
 
 request_regions_failed:

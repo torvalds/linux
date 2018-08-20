@@ -237,7 +237,9 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* Account for a different sized first fragment */
 	if (msg_len >= first_len) {
 		msg->can_delay = 0;
-		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_FRAGUSRMSGS);
+		if (msg_len > first_len)
+			SCTP_INC_STATS(sock_net(asoc->base.sk),
+				       SCTP_MIB_FRAGUSRMSGS);
 	} else {
 		/* Which may be the only one... */
 		first_len = msg_len;

@@ -368,9 +368,10 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		goto err;
 	}
 
-	wm8994->supplies = devm_kzalloc(wm8994->dev,
-					sizeof(struct regulator_bulk_data) *
-					wm8994->num_supplies, GFP_KERNEL);
+	wm8994->supplies = devm_kcalloc(wm8994->dev,
+					wm8994->num_supplies,
+					sizeof(struct regulator_bulk_data),
+					GFP_KERNEL);
 	if (!wm8994->supplies) {
 		ret = -ENOMEM;
 		goto err;

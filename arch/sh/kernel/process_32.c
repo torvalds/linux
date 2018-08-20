@@ -177,7 +177,7 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 {
 	struct thread_struct *next_t = &next->thread;
 
-#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	__stack_chk_guard = next->stack_canary;
 #endif
 

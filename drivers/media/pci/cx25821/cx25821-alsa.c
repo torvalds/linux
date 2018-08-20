@@ -159,7 +159,7 @@ static int cx25821_alsa_dma_init(struct cx25821_audio_dev *chip, int nr_pages)
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
 	buf->nr_pages = nr_pages;
 
-	buf->sglist = vzalloc(buf->nr_pages * sizeof(*buf->sglist));
+	buf->sglist = vzalloc(array_size(sizeof(*buf->sglist), buf->nr_pages));
 	if (NULL == buf->sglist)
 		goto vzalloc_err;
 

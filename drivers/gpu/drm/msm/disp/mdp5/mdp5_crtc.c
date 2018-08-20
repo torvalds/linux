@@ -430,6 +430,7 @@ static void mdp5_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct device *dev = &mdp5_kms->pdev->dev;
+	unsigned long flags;
 
 	DBG("%s", crtc->name);
 
@@ -444,6 +445,14 @@ static void mdp5_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->err);
 	pm_runtime_put_sync(dev);
+
+	if (crtc->state->event && !crtc->state->active) {
+		WARN_ON(mdp5_crtc->event);
+		spin_lock_irqsave(&mdp5_kms->dev->event_lock, flags);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+		spin_unlock_irqrestore(&mdp5_kms->dev->event_lock, flags);
+	}
 
 	mdp5_crtc->enabled = false;
 }

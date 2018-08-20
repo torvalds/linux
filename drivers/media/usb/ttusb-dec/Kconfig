@@ -12,9 +12,9 @@ config DVB_TTUSB_DEC
 	  an external software decoder to watch TV on your computer.
 
 	  This driver needs external firmware. Please use the commands
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware dec2000t",
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware dec2540t",
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware dec3000s",
+	  "<kerneldir>/scripts/get_dvb_firmware dec2000t",
+	  "<kerneldir>/scripts/get_dvb_firmware dec2540t",
+	  "<kerneldir>/scripts/get_dvb_firmware dec3000s",
 	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 

@@ -304,8 +304,7 @@ EXPORT_SYMBOL(hid_sensor_setup_trigger);
 
 static int __maybe_unused hid_sensor_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct hid_sensor_common *attrb = iio_device_get_drvdata(indio_dev);
 
 	return _hid_sensor_power_state(attrb, false);
@@ -313,8 +312,7 @@ static int __maybe_unused hid_sensor_suspend(struct device *dev)
 
 static int __maybe_unused hid_sensor_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct hid_sensor_common *attrb = iio_device_get_drvdata(indio_dev);
 	schedule_work(&attrb->work);
 	return 0;
@@ -322,8 +320,7 @@ static int __maybe_unused hid_sensor_resume(struct device *dev)
 
 static int __maybe_unused hid_sensor_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct hid_sensor_common *attrb = iio_device_get_drvdata(indio_dev);
 	return _hid_sensor_power_state(attrb, true);
 }

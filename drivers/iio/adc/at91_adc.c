@@ -624,8 +624,8 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
 	struct at91_adc_state *st = iio_priv(idev);
 	int i, ret;
 
-	st->trig = devm_kzalloc(&idev->dev,
-				st->trigger_number * sizeof(*st->trig),
+	st->trig = devm_kcalloc(&idev->dev,
+				st->trigger_number, sizeof(*st->trig),
 				GFP_KERNEL);
 
 	if (st->trig == NULL) {
@@ -908,7 +908,8 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	st->registers = &st->caps->registers;
 	st->num_channels = st->caps->num_channels;
 	st->trigger_number = of_get_child_count(node);
-	st->trigger_list = devm_kzalloc(&idev->dev, st->trigger_number *
+	st->trigger_list = devm_kcalloc(&idev->dev,
+					st->trigger_number,
 					sizeof(struct at91_adc_trigger),
 					GFP_KERNEL);
 	if (!st->trigger_list) {

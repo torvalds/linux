@@ -134,8 +134,11 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 	}
 
 	if (parser->device->maxcollection == parser->device->collection_size) {
-		collection = kmalloc(sizeof(struct hid_collection) *
-				parser->device->collection_size * 2, GFP_KERNEL);
+		collection = kmalloc(
+				array3_size(sizeof(struct hid_collection),
+					    parser->device->collection_size,
+					    2),
+				GFP_KERNEL);
 		if (collection == NULL) {
 			hid_err(parser->device, "failed to reallocate collection array\n");
 			return -ENOMEM;
@@ -1278,7 +1281,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	__s32 max = field->logical_maximum;
 	__s32 *value;
 
-	value = kmalloc(sizeof(__s32) * count, GFP_ATOMIC);
+	value = kmalloc_array(count, sizeof(__s32), GFP_ATOMIC);
 	if (!value)
 		return;
 
@@ -1935,6 +1938,29 @@ static int hid_bus_match(struct device *dev, struct device_driver *drv)
 
 	return hid_match_device(hdev, hdrv) != NULL;
 }
+
+/**
+ * hid_compare_device_paths - check if both devices share the same path
+ * @hdev_a: hid device
+ * @hdev_b: hid device
+ * @separator: char to use as separator
+ *
+ * Check if two devices share the same path up to the last occurrence of
+ * the separator char. Both paths must exist (i.e., zero-length paths
+ * don't match).
+ */
+bool hid_compare_device_paths(struct hid_device *hdev_a,
+			      struct hid_device *hdev_b, char separator)
+{
+	int n1 = strrchr(hdev_a->phys, separator) - hdev_a->phys;
+	int n2 = strrchr(hdev_b->phys, separator) - hdev_b->phys;
+
+	if (n1 != n2 || n1 <= 0 || n2 <= 0)
+		return false;
+
+	return !strncmp(hdev_a->phys, hdev_b->phys, n1);
+}
+EXPORT_SYMBOL_GPL(hid_compare_device_paths);
 
 static int hid_device_probe(struct device *dev)
 {

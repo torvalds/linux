@@ -443,6 +443,9 @@ int acpi_check_resource_conflict(const struct resource *res);
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
 
+acpi_status acpi_release_memory(acpi_handle handle, struct resource *res,
+				u32 level);
+
 int acpi_resources_are_enforced(void);
 
 #ifdef CONFIG_HIBERNATION
@@ -1294,6 +1297,25 @@ int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res)
 int lpit_read_residency_count_address(u64 *address);
 #else
 static inline int lpit_read_residency_count_address(u64 *address)
+{
+	return -EINVAL;
+}
+#endif
+
+#ifdef CONFIG_ACPI_PPTT
+int find_acpi_cpu_topology(unsigned int cpu, int level);
+int find_acpi_cpu_topology_package(unsigned int cpu);
+int find_acpi_cpu_cache_topology(unsigned int cpu, int level);
+#else
+static inline int find_acpi_cpu_topology(unsigned int cpu, int level)
+{
+	return -EINVAL;
+}
+static inline int find_acpi_cpu_topology_package(unsigned int cpu)
+{
+	return -EINVAL;
+}
+static inline int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 {
 	return -EINVAL;
 }

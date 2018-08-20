@@ -599,8 +599,8 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
 
 	if (!q->hh_flows) {
 		/* Initialize heavy-hitter flow table. */
-		q->hh_flows = kvzalloc(HH_FLOWS_CNT *
-					 sizeof(struct list_head), GFP_KERNEL);
+		q->hh_flows = kvcalloc(HH_FLOWS_CNT, sizeof(struct list_head),
+				       GFP_KERNEL);
 		if (!q->hh_flows)
 			return -ENOMEM;
 		for (i = 0; i < HH_FLOWS_CNT; i++)
@@ -614,8 +614,9 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
 
 		/* Initialize heavy-hitter filter arrays. */
 		for (i = 0; i < HHF_ARRAYS_CNT; i++) {
-			q->hhf_arrays[i] = kvzalloc(HHF_ARRAYS_LEN *
-						      sizeof(u32), GFP_KERNEL);
+			q->hhf_arrays[i] = kvcalloc(HHF_ARRAYS_LEN,
+						    sizeof(u32),
+						    GFP_KERNEL);
 			if (!q->hhf_arrays[i]) {
 				/* Note: hhf_destroy() will be called
 				 * by our caller.

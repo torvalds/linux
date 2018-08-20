@@ -115,16 +115,6 @@ config OMAP_SERIAL_WAKE
 	  to data on the serial RX line. This allows you to wake the
 	  system from serial console.
 
-choice
-	prompt "OMAP PM layer selection"
-	depends on ARCH_OMAP
-	default OMAP_PM_NOOP
-
-config OMAP_PM_NOOP
-	bool "No-op/debug PM layer"
-
-endchoice
-
 endmenu
 
 endif

@@ -420,6 +420,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 	int max_dotclk;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	max_dotclk = intel_dp_downstream_max_dotclock(intel_dp);
 
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
@@ -1679,23 +1682,6 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 	return bpp;
 }
 
-static bool intel_edp_compare_alt_mode(struct drm_display_mode *m1,
-				       struct drm_display_mode *m2)
-{
-	bool bres = false;
-
-	if (m1 && m2)
-		bres = (m1->hdisplay == m2->hdisplay &&
-			m1->hsync_start == m2->hsync_start &&
-			m1->hsync_end == m2->hsync_end &&
-			m1->htotal == m2->htotal &&
-			m1->vdisplay == m2->vdisplay &&
-			m1->vsync_start == m2->vsync_start &&
-			m1->vsync_end == m2->vsync_end &&
-			m1->vtotal == m2->vtotal);
-	return bres;
-}
-
 /* Adjust link config limits based on compliance test requests. */
 static void
 intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
@@ -1860,16 +1846,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_audio = intel_conn_state->force_audio == HDMI_AUDIO_ON;
 
 	if (intel_dp_is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
-		struct drm_display_mode *panel_mode =
-			intel_connector->panel.alt_fixed_mode;
-		struct drm_display_mode *req_mode = &pipe_config->base.mode;
-
-		if (!intel_edp_compare_alt_mode(req_mode, panel_mode))
-			panel_mode = intel_connector->panel.fixed_mode;
-
-		drm_mode_debug_printmodeline(panel_mode);
-
-		intel_fixed_panel_mode(panel_mode, adjusted_mode);
+		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
+				       adjusted_mode);
 
 		if (INTEL_GEN(dev_priv) >= 9) {
 			int ret;
@@ -1887,7 +1865,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 						conn_state->scaling_mode);
 	}
 
-	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
+	if (HAS_GMCH_DISPLAY(dev_priv) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
@@ -2809,16 +2790,6 @@ static void g4x_disable_dp(struct intel_encoder *encoder,
 			   const struct drm_connector_state *old_conn_state)
 {
 	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
-
-	/* disable the port before the pipe on g4x */
-	intel_dp_link_down(encoder, old_crtc_state);
-}
-
-static void ilk_disable_dp(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *old_crtc_state,
-			   const struct drm_connector_state *old_conn_state)
-{
-	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
 }
 
 static void vlv_disable_dp(struct intel_encoder *encoder,
@@ -2832,13 +2803,19 @@ static void vlv_disable_dp(struct intel_encoder *encoder,
 	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
 }
 
-static void ilk_post_disable_dp(struct intel_encoder *encoder,
+static void g4x_post_disable_dp(struct intel_encoder *encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = encoder->port;
 
+	/*
+	 * Bspec does not list a specific disable sequence for g4x DP.
+	 * Follow the ilk+ sequence (disable pipe before the port) for
+	 * g4x DP as it does not suffer from underruns like the normal
+	 * g4x modeset sequence (disable pipe after the port).
+	 */
 	intel_dp_link_down(encoder, old_crtc_state);
 
 	/* Only ilk+ has port A */
@@ -6159,7 +6136,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_connector *connector = &intel_connector->base;
 	struct drm_display_mode *fixed_mode = NULL;
-	struct drm_display_mode *alt_fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	bool has_dpcd;
 	struct drm_display_mode *scan;
@@ -6214,14 +6190,13 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 	intel_connector->edid = edid;
 
-	/* prefer fixed mode from EDID if available, save an alt mode also */
+	/* prefer fixed mode from EDID if available */
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
 			fixed_mode = drm_mode_duplicate(dev, scan);
 			downclock_mode = intel_dp_drrs_init(
 						intel_connector, fixed_mode);
-		} else if (!alt_fixed_mode) {
-			alt_fixed_mode = drm_mode_duplicate(dev, scan);
+			break;
 		}
 	}
 
@@ -6258,8 +6233,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 			      pipe_name(pipe));
 	}
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, alt_fixed_mode,
-			 downclock_mode);
+	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 	intel_connector->panel.backlight.power = intel_edp_backlight_power;
 	intel_panel_setup_backlight(connector, pipe);
 
@@ -6365,7 +6339,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
+	if (!HAS_GMCH_DISPLAY(dev_priv))
 		connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
@@ -6464,15 +6438,11 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		intel_encoder->enable = vlv_enable_dp;
 		intel_encoder->disable = vlv_disable_dp;
 		intel_encoder->post_disable = vlv_post_disable_dp;
-	} else if (INTEL_GEN(dev_priv) >= 5) {
-		intel_encoder->pre_enable = g4x_pre_enable_dp;
-		intel_encoder->enable = g4x_enable_dp;
-		intel_encoder->disable = ilk_disable_dp;
-		intel_encoder->post_disable = ilk_post_disable_dp;
 	} else {
 		intel_encoder->pre_enable = g4x_pre_enable_dp;
 		intel_encoder->enable = g4x_enable_dp;
 		intel_encoder->disable = g4x_disable_dp;
+		intel_encoder->post_disable = g4x_post_disable_dp;
 	}
 
 	intel_dig_port->dp.output_reg = output_reg;

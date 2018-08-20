@@ -679,7 +679,7 @@ static int srcimp_rsc_init(struct srcimp *srcimp,
 		return err;
 
 	/* Reserve memory for imapper nodes */
-	srcimp->imappers = kzalloc(sizeof(struct imapper)*desc->msr,
+	srcimp->imappers = kcalloc(desc->msr, sizeof(struct imapper),
 				   GFP_KERNEL);
 	if (!srcimp->imappers) {
 		err = -ENOMEM;

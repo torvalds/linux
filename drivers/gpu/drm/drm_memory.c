@@ -80,7 +80,7 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 	 * page-table instead (that's probably faster anyhow...).
 	 */
 	/* note: use vmalloc() because num_pages could be large... */
-	page_map = vmalloc(num_pages * sizeof(struct page *));
+	page_map = vmalloc(array_size(num_pages, sizeof(struct page *)));
 	if (!page_map)
 		return NULL;
 

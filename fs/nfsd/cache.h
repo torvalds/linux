@@ -67,11 +67,6 @@ enum {
 	RC_REPLBUFF,
 };
 
-/*
- * If requests are retransmitted within this interval, they're dropped.
- */
-#define RC_DELAY		(HZ/5)
-
 /* Cache entries expire after this time period */
 #define RC_EXPIRE		(120 * HZ)
 

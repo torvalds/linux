@@ -255,8 +255,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 						       processed - as);
 		if (!areq->tsgl_entries)
 			areq->tsgl_entries = 1;
-		areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) *
-					      areq->tsgl_entries,
+		areq->tsgl = sock_kmalloc(sk, array_size(sizeof(*areq->tsgl),
+							 areq->tsgl_entries),
 					  GFP_KERNEL);
 		if (!areq->tsgl) {
 			err = -ENOMEM;
@@ -375,7 +375,7 @@ static struct proto_ops algif_aead_ops = {
 	.sendmsg	=	aead_sendmsg,
 	.sendpage	=	af_alg_sendpage,
 	.recvmsg	=	aead_recvmsg,
-	.poll_mask	=	af_alg_poll_mask,
+	.poll		=	af_alg_poll,
 };
 
 static int aead_check_key(struct socket *sock)
@@ -471,7 +471,7 @@ static struct proto_ops algif_aead_ops_nokey = {
 	.sendmsg	=	aead_sendmsg_nokey,
 	.sendpage	=	aead_sendpage_nokey,
 	.recvmsg	=	aead_recvmsg_nokey,
-	.poll_mask	=	af_alg_poll_mask,
+	.poll		=	af_alg_poll,
 };
 
 static void *aead_bind(const char *name, u32 type, u32 mask)

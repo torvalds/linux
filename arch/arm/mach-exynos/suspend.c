@@ -30,8 +30,6 @@
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
-#include <mach/map.h>
-
 #include <plat/pm-common.h>
 
 #include "common.h"
@@ -401,7 +399,7 @@ static void exynos_pm_resume(void)
 		goto early_wakeup;
 
 	if (cpuid == ARM_CPU_PART_CORTEX_A9)
-		scu_enable(S5P_VA_SCU);
+		exynos_scu_enable();
 
 	if (call_firmware_op(resume) == -ENOSYS
 	    && cpuid == ARM_CPU_PART_CORTEX_A9)

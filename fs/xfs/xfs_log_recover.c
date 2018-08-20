@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -1248,6 +1236,25 @@ xlog_verify_head(
 }
 
 /*
+ * We need to make sure we handle log wrapping properly, so we can't use the
+ * calculated logbno directly. Make sure it wraps to the correct bno inside the
+ * log.
+ *
+ * The log is limited to 32 bit sizes, so we use the appropriate modulus
+ * operation here and cast it back to a 64 bit daddr on return.
+ */
+static inline xfs_daddr_t
+xlog_wrap_logbno(
+	struct xlog		*log,
+	xfs_daddr_t		bno)
+{
+	int			mod;
+
+	div_s64_rem(bno, log->l_logBBsize, &mod);
+	return mod;
+}
+
+/*
  * Check whether the head of the log points to an unmount record. In other
  * words, determine whether the log is clean. If so, update the in-core state
  * appropriately.
@@ -1295,12 +1302,13 @@ xlog_check_unmount_rec(
 	} else {
 		hblks = 1;
 	}
-	after_umount_blk = rhead_blk + hblks + BTOBB(be32_to_cpu(rhead->h_len));
-	after_umount_blk = do_mod(after_umount_blk, log->l_logBBsize);
+
+	after_umount_blk = xlog_wrap_logbno(log,
+			rhead_blk + hblks + BTOBB(be32_to_cpu(rhead->h_len)));
+
 	if (*head_blk == after_umount_blk &&
 	    be32_to_cpu(rhead->h_num_logops) == 1) {
-		umount_data_blk = rhead_blk + hblks;
-		umount_data_blk = do_mod(umount_data_blk, log->l_logBBsize);
+		umount_data_blk = xlog_wrap_logbno(log, rhead_blk + hblks);
 		error = xlog_bread(log, umount_data_blk, 1, bp, &offset);
 		if (error)
 			return error;
@@ -1816,7 +1824,7 @@ xlog_clear_stale_blocks(
 	 * we don't waste all day writing from the head to the tail
 	 * for no reason.
 	 */
-	max_distance = MIN(max_distance, tail_distance);
+	max_distance = min(max_distance, tail_distance);
 
 	if ((head_block + max_distance) <= log->l_logBBsize) {
 		/*
@@ -2884,14 +2892,14 @@ xlog_recover_buffer_pass2(
 	 * buffers in the log can be a different size if the log was generated
 	 * by an older kernel using unclustered inode buffers or a newer kernel
 	 * running with a different inode cluster size.  Regardless, if the
-	 * the inode buffer size isn't MAX(blocksize, mp->m_inode_cluster_size)
+	 * the inode buffer size isn't max(blocksize, mp->m_inode_cluster_size)
 	 * for *our* value of mp->m_inode_cluster_size, then we need to keep
 	 * the buffer out of the buffer cache so that the buffer won't
 	 * overlap with future reads of those inodes.
 	 */
 	if (XFS_DINODE_MAGIC ==
 	    be16_to_cpu(*((__be16 *)xfs_buf_offset(bp, 0))) &&
-	    (BBTOB(bp->b_io_length) != MAX(log->l_mp->m_sb.sb_blocksize,
+	    (BBTOB(bp->b_io_length) != max(log->l_mp->m_sb.sb_blocksize,
 			(uint32_t)log->l_mp->m_inode_cluster_size))) {
 		xfs_buf_stale(bp);
 		error = xfs_bwrite(bp);
@@ -3115,7 +3123,8 @@ xlog_recover_inode_pass2(
 		if ((ldip->di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (ldip->di_format != XFS_DINODE_FMT_BTREE)) {
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(3)",
-					 XFS_ERRLEVEL_LOW, mp, ldip);
+					 XFS_ERRLEVEL_LOW, mp, ldip,
+					 sizeof(*ldip));
 			xfs_alert(mp,
 		"%s: Bad regular inode log record, rec ptr "PTR_FMT", "
 		"ino ptr = "PTR_FMT", ino bp = "PTR_FMT", ino %Ld",
@@ -3128,7 +3137,8 @@ xlog_recover_inode_pass2(
 		    (ldip->di_format != XFS_DINODE_FMT_BTREE) &&
 		    (ldip->di_format != XFS_DINODE_FMT_LOCAL)) {
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(4)",
-					     XFS_ERRLEVEL_LOW, mp, ldip);
+					     XFS_ERRLEVEL_LOW, mp, ldip,
+					     sizeof(*ldip));
 			xfs_alert(mp,
 		"%s: Bad dir inode log record, rec ptr "PTR_FMT", "
 		"ino ptr = "PTR_FMT", ino bp = "PTR_FMT", ino %Ld",
@@ -3139,7 +3149,8 @@ xlog_recover_inode_pass2(
 	}
 	if (unlikely(ldip->di_nextents + ldip->di_anextents > ldip->di_nblocks)){
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(5)",
-				     XFS_ERRLEVEL_LOW, mp, ldip);
+				     XFS_ERRLEVEL_LOW, mp, ldip,
+				     sizeof(*ldip));
 		xfs_alert(mp,
 	"%s: Bad inode log record, rec ptr "PTR_FMT", dino ptr "PTR_FMT", "
 	"dino bp "PTR_FMT", ino %Ld, total extents = %d, nblocks = %Ld",
@@ -3151,7 +3162,8 @@ xlog_recover_inode_pass2(
 	}
 	if (unlikely(ldip->di_forkoff > mp->m_sb.sb_inodesize)) {
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(6)",
-				     XFS_ERRLEVEL_LOW, mp, ldip);
+				     XFS_ERRLEVEL_LOW, mp, ldip,
+				     sizeof(*ldip));
 		xfs_alert(mp,
 	"%s: Bad inode log record, rec ptr "PTR_FMT", dino ptr "PTR_FMT", "
 	"dino bp "PTR_FMT", ino %Ld, forkoff 0x%x", __func__,
@@ -3162,7 +3174,8 @@ xlog_recover_inode_pass2(
 	isize = xfs_log_dinode_size(ldip->di_version);
 	if (unlikely(item->ri_buf[1].i_len > isize)) {
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(7)",
-				     XFS_ERRLEVEL_LOW, mp, ldip);
+				     XFS_ERRLEVEL_LOW, mp, ldip,
+				     sizeof(*ldip));
 		xfs_alert(mp,
 			"%s: Bad inode log record length %d, rec ptr "PTR_FMT,
 			__func__, item->ri_buf[1].i_len, item);
@@ -5466,9 +5479,7 @@ xlog_do_recovery_pass(
 			 */
 			if (blk_no + bblks <= log->l_logBBsize ||
 			    blk_no >= log->l_logBBsize) {
-				/* mod blk_no in case the header wrapped and
-				 * pushed it beyond the end of the log */
-				rblk_no = do_mod(blk_no, log->l_logBBsize);
+				rblk_no = xlog_wrap_logbno(log, blk_no);
 				error = xlog_bread(log, rblk_no, bblks, dbp,
 						   &offset);
 				if (error)

@@ -303,9 +303,9 @@ static int imx_media_alloc_pad_vdev_lists(struct imx_media_dev *imxmd)
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
 		entity = &sd->entity;
-		vdev_lists = devm_kzalloc(
+		vdev_lists = devm_kcalloc(
 			imxmd->md.dev,
-			entity->num_pads * sizeof(*vdev_lists),
+			entity->num_pads, sizeof(*vdev_lists),
 			GFP_KERNEL);
 		if (!vdev_lists)
 			return -ENOMEM;
@@ -544,7 +544,7 @@ static int imx_media_probe(struct platform_device *pdev)
 		goto unreg_dev;
 	}
 
-	subdevs = devm_kzalloc(imxmd->md.dev, sizeof(*subdevs) * num_subdevs,
+	subdevs = devm_kcalloc(imxmd->md.dev, num_subdevs, sizeof(*subdevs),
 			       GFP_KERNEL);
 	if (!subdevs) {
 		ret = -ENOMEM;

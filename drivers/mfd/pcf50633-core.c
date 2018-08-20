@@ -242,8 +242,10 @@ static int pcf50633_probe(struct i2c_client *client,
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++) {
 		pdev = platform_device_alloc("pcf50633-regulator", i);
-		if (!pdev)
-			return -ENOMEM;
+		if (!pdev) {
+			ret = -ENOMEM;
+			goto err2;
+		}
 
 		pdev->dev.parent = pcf->dev;
 		ret = platform_device_add_data(pdev, &pdata->reg_init_data[i],
@@ -269,6 +271,7 @@ static int pcf50633_probe(struct i2c_client *client,
 
 err:
 	platform_device_put(pdev);
+err2:
 	for (j = 0; j < i; j++)
 		platform_device_put(pcf->regulator_pdev[j]);
 

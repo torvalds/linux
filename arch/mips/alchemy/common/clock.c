@@ -985,7 +985,7 @@ static int __init alchemy_clk_setup_imux(int ctype)
 		return -ENODEV;
 	}
 
-	a = kzalloc((sizeof(*a)) * 6, GFP_KERNEL);
+	a = kcalloc(6, sizeof(*a), GFP_KERNEL);
 	if (!a)
 		return -ENOMEM;
 

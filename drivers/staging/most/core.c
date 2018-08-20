@@ -111,8 +111,10 @@ static void most_free_mbo_coherent(struct mbo *mbo)
 	struct most_channel *c = mbo->context;
 	u16 const coherent_buf_size = c->cfg.buffer_size + c->cfg.extra_len;
 
-	dma_free_coherent(NULL, coherent_buf_size, mbo->virt_address,
-			  mbo->bus_address);
+	if (c->iface->dma_free)
+		c->iface->dma_free(mbo, coherent_buf_size);
+	else
+		kfree(mbo->virt_address);
 	kfree(mbo);
 	if (atomic_sub_and_test(1, &c->mbo_ref))
 		complete(&c->cleanup);
@@ -420,6 +422,26 @@ static ssize_t set_packets_per_xact_store(struct device *dev,
 	return count;
 }
 
+static ssize_t set_dbr_size_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct most_channel *c = to_channel(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.dbr_size);
+}
+
+static ssize_t set_dbr_size_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct most_channel *c = to_channel(dev);
+	int ret = kstrtou16(buf, 0, &c->cfg.dbr_size);
+
+	if (ret)
+		return ret;
+	return count;
+}
+
 #define DEV_ATTR(_name)  (&dev_attr_##_name.attr)
 
 static DEVICE_ATTR_RO(available_directions);
@@ -435,6 +457,7 @@ static DEVICE_ATTR_RW(set_direction);
 static DEVICE_ATTR_RW(set_datatype);
 static DEVICE_ATTR_RW(set_subbuffer_size);
 static DEVICE_ATTR_RW(set_packets_per_xact);
+static DEVICE_ATTR_RW(set_dbr_size);
 
 static struct attribute *channel_attrs[] = {
 	DEV_ATTR(available_directions),
@@ -450,6 +473,7 @@ static struct attribute *channel_attrs[] = {
 	DEV_ATTR(set_datatype),
 	DEV_ATTR(set_subbuffer_size),
 	DEV_ATTR(set_packets_per_xact),
+	DEV_ATTR(set_dbr_size),
 	NULL,
 };
 
@@ -952,45 +976,49 @@ static int arm_mbo_chain(struct most_channel *c, int dir,
 			 void (*compl)(struct mbo *))
 {
 	unsigned int i;
-	int retval;
 	struct mbo *mbo;
+	unsigned long flags;
 	u32 coherent_buf_size = c->cfg.buffer_size + c->cfg.extra_len;
 
 	atomic_set(&c->mbo_nq_level, 0);
 
 	for (i = 0; i < c->cfg.num_buffers; i++) {
 		mbo = kzalloc(sizeof(*mbo), GFP_KERNEL);
-		if (!mbo) {
-			retval = i;
-			goto _exit;
-		}
+		if (!mbo)
+			goto flush_fifos;
+
 		mbo->context = c;
 		mbo->ifp = c->iface;
 		mbo->hdm_channel_id = c->channel_id;
-		mbo->virt_address = dma_alloc_coherent(NULL,
-						       coherent_buf_size,
-						       &mbo->bus_address,
-						       GFP_KERNEL);
-		if (!mbo->virt_address) {
-			pr_info("WARN: No DMA coherent buffer.\n");
-			retval = i;
-			goto _error1;
+		if (c->iface->dma_alloc) {
+			mbo->virt_address =
+				c->iface->dma_alloc(mbo, coherent_buf_size);
+		} else {
+			mbo->virt_address =
+				kzalloc(coherent_buf_size, GFP_KERNEL);
 		}
+		if (!mbo->virt_address)
+			goto release_mbo;
+
 		mbo->complete = compl;
 		mbo->num_buffers_ptr = &dummy_num_buffers;
 		if (dir == MOST_CH_RX) {
 			nq_hdm_mbo(mbo);
 			atomic_inc(&c->mbo_nq_level);
 		} else {
-			arm_mbo(mbo);
+			spin_lock_irqsave(&c->fifo_lock, flags);
+			list_add_tail(&mbo->list, &c->fifo);
+			spin_unlock_irqrestore(&c->fifo_lock, flags);
 		}
 	}
-	return i;
+	return c->cfg.num_buffers;
 
-_error1:
+release_mbo:
 	kfree(mbo);
-_exit:
-	return retval;
+
+flush_fifos:
+	flush_channel_fifos(c);
+	return 0;
 }
 
 /**

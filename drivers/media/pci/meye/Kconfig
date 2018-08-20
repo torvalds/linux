@@ -5,7 +5,7 @@ config VIDEO_MEYE
 	---help---
 	  This is the video4linux driver for the Motion Eye camera found
 	  in the Vaio Picturebook laptops. Please read the material in
-	  <file:Documentation/video4linux/meye.txt> for more information.
+	  <file:Documentation/media/v4l-drivers/meye.rst> for more information.
 
 	  If you say Y or M here, you need to say Y or M to "Sony Laptop
 	  Extras" in the misc device section.

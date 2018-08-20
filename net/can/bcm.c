@@ -923,8 +923,9 @@ static int bcm_tx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 
 		/* create array for CAN frames and copy the data */
 		if (msg_head->nframes > 1) {
-			op->frames = kmalloc(msg_head->nframes * op->cfsiz,
-					     GFP_KERNEL);
+			op->frames = kmalloc_array(msg_head->nframes,
+						   op->cfsiz,
+						   GFP_KERNEL);
 			if (!op->frames) {
 				kfree(op);
 				return -ENOMEM;
@@ -1095,15 +1096,17 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 
 		if (msg_head->nframes > 1) {
 			/* create array for CAN frames and copy the data */
-			op->frames = kmalloc(msg_head->nframes * op->cfsiz,
-					     GFP_KERNEL);
+			op->frames = kmalloc_array(msg_head->nframes,
+						   op->cfsiz,
+						   GFP_KERNEL);
 			if (!op->frames) {
 				kfree(op);
 				return -ENOMEM;
 			}
 
 			/* create and init array for received CAN frames */
-			op->last_frames = kzalloc(msg_head->nframes * op->cfsiz,
+			op->last_frames = kcalloc(msg_head->nframes,
+						  op->cfsiz,
 						  GFP_KERNEL);
 			if (!op->last_frames) {
 				kfree(op->frames);
@@ -1657,7 +1660,7 @@ static const struct proto_ops bcm_ops = {
 	.socketpair    = sock_no_socketpair,
 	.accept        = sock_no_accept,
 	.getname       = sock_no_getname,
-	.poll_mask     = datagram_poll_mask,
+	.poll          = datagram_poll,
 	.ioctl         = can_ioctl,	/* use can_ioctl() from af_can.c */
 	.listen        = sock_no_listen,
 	.shutdown      = sock_no_shutdown,

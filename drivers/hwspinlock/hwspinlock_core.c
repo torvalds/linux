@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Hardware spinlock framework
  *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com
  *
  * Contact: Ohad Ben-Cohen <ohad@wizery.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)    "%s: " fmt, __func__
@@ -71,10 +63,16 @@ static DEFINE_MUTEX(hwspinlock_tree_lock);
  * This function attempts to lock an hwspinlock, and will immediately
  * fail if the hwspinlock is already taken.
  *
- * Upon a successful return from this function, preemption (and possibly
- * interrupts) is disabled, so the caller must not sleep, and is advised to
- * release the hwspinlock as soon as possible. This is required in order to
- * minimize remote cores polling on the hardware interconnect.
+ * Caution: If the mode is HWLOCK_RAW, that means user must protect the routine
+ * of getting hardware lock with mutex or spinlock. Since in some scenarios,
+ * user need some time-consuming or sleepable operations under the hardware
+ * lock, they need one sleepable lock (like mutex) to protect the operations.
+ *
+ * If the mode is not HWLOCK_RAW, upon a successful return from this function,
+ * preemption (and possibly interrupts) is disabled, so the caller must not
+ * sleep, and is advised to release the hwspinlock as soon as possible. This is
+ * required in order to minimize remote cores polling on the hardware
+ * interconnect.
  *
  * The user decides whether local interrupts are disabled or not, and if yes,
  * whether he wants their previous state to be saved. It is up to the user
@@ -106,12 +104,20 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 	 *    problems with hwspinlock usage (e.g. scheduler checks like
 	 *    'scheduling while atomic' etc.)
 	 */
-	if (mode == HWLOCK_IRQSTATE)
+	switch (mode) {
+	case HWLOCK_IRQSTATE:
 		ret = spin_trylock_irqsave(&hwlock->lock, *flags);
-	else if (mode == HWLOCK_IRQ)
+		break;
+	case HWLOCK_IRQ:
 		ret = spin_trylock_irq(&hwlock->lock);
-	else
+		break;
+	case HWLOCK_RAW:
+		ret = 1;
+		break;
+	default:
 		ret = spin_trylock(&hwlock->lock);
+		break;
+	}
 
 	/* is lock already taken by another context on the local cpu ? */
 	if (!ret)
@@ -122,12 +128,20 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 
 	/* if hwlock is already taken, undo spin_trylock_* and exit */
 	if (!ret) {
-		if (mode == HWLOCK_IRQSTATE)
+		switch (mode) {
+		case HWLOCK_IRQSTATE:
 			spin_unlock_irqrestore(&hwlock->lock, *flags);
-		else if (mode == HWLOCK_IRQ)
+			break;
+		case HWLOCK_IRQ:
 			spin_unlock_irq(&hwlock->lock);
-		else
+			break;
+		case HWLOCK_RAW:
+			/* Nothing to do */
+			break;
+		default:
 			spin_unlock(&hwlock->lock);
+			break;
+		}
 
 		return -EBUSY;
 	}
@@ -160,9 +174,14 @@ EXPORT_SYMBOL_GPL(__hwspin_trylock);
  * is already taken, the function will busy loop waiting for it to
  * be released, but give up after @timeout msecs have elapsed.
  *
- * Upon a successful return from this function, preemption is disabled
- * (and possibly local interrupts, too), so the caller must not sleep,
- * and is advised to release the hwspinlock as soon as possible.
+ * Caution: If the mode is HWLOCK_RAW, that means user must protect the routine
+ * of getting hardware lock with mutex or spinlock. Since in some scenarios,
+ * user need some time-consuming or sleepable operations under the hardware
+ * lock, they need one sleepable lock (like mutex) to protect the operations.
+ *
+ * If the mode is not HWLOCK_RAW, upon a successful return from this function,
+ * preemption is disabled (and possibly local interrupts, too), so the caller
+ * must not sleep, and is advised to release the hwspinlock as soon as possible.
  * This is required in order to minimize remote cores polling on the
  * hardware interconnect.
  *
@@ -249,12 +268,20 @@ void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 	hwlock->bank->ops->unlock(hwlock);
 
 	/* Undo the spin_trylock{_irq, _irqsave} called while locking */
-	if (mode == HWLOCK_IRQSTATE)
+	switch (mode) {
+	case HWLOCK_IRQSTATE:
 		spin_unlock_irqrestore(&hwlock->lock, *flags);
-	else if (mode == HWLOCK_IRQ)
+		break;
+	case HWLOCK_IRQ:
 		spin_unlock_irq(&hwlock->lock);
-	else
+		break;
+	case HWLOCK_RAW:
+		/* Nothing to do */
+		break;
+	default:
 		spin_unlock(&hwlock->lock);
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(__hwspin_unlock);
 

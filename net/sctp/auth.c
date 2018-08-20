@@ -482,8 +482,9 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 		return 0;
 
 	/* Allocated the array of pointers to transorms */
-	ep->auth_hmacs = kzalloc(sizeof(struct crypto_shash *) *
-				 SCTP_AUTH_NUM_HMACS, gfp);
+	ep->auth_hmacs = kcalloc(SCTP_AUTH_NUM_HMACS,
+				 sizeof(struct crypto_shash *),
+				 gfp);
 	if (!ep->auth_hmacs)
 		return -ENOMEM;
 

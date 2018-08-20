@@ -34,6 +34,10 @@ Raspberry Pi 3 Model B
 Required root node properties:
 compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
 
+Raspberry Pi 3 Model B+
+Required root node properties:
+compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
+
 Raspberry Pi Compute Module
 Required root node properties:
 compatible = "raspberrypi,compute-module", "brcm,bcm2835";

@@ -14,6 +14,8 @@ struct seq_operations;
 
 #ifdef CONFIG_PROC_FS
 
+typedef int (*proc_write_t)(struct file *, char *, size_t);
+
 extern void proc_root_init(void);
 extern void proc_flush_task(struct task_struct *);
 
@@ -61,6 +63,16 @@ struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
 		struct proc_dir_entry *parent,
 		int (*show)(struct seq_file *, void *), void *data);
+struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode,
+						  struct proc_dir_entry *parent,
+						  const struct seq_operations *ops,
+						  proc_write_t write,
+						  unsigned int state_size, void *data);
+struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mode,
+						    struct proc_dir_entry *parent,
+						    int (*show)(struct seq_file *, void *),
+						    proc_write_t write,
+						    void *data);
 
 #else /* CONFIG_PROC_FS */
 

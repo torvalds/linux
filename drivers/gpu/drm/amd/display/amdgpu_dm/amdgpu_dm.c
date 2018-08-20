@@ -46,6 +46,7 @@
 #include <linux/moduleparam.h>
 #include <linux/version.h>
 #include <linux/types.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -2095,12 +2096,6 @@ convert_color_depth_from_display_info(const struct drm_connector *connector)
 {
 	uint32_t bpc = connector->display_info.bpc;
 
-	/* Limited color depth to 8bit
-	 * TODO: Still need to handle deep color
-	 */
-	if (bpc > 8)
-		bpc = 8;
-
 	switch (bpc) {
 	case 0:
 		/* Temporary Work around, DRM don't parse color depth for
@@ -2180,6 +2175,46 @@ get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing)
 	return color_space;
 }
 
+static void reduce_mode_colour_depth(struct dc_crtc_timing *timing_out)
+{
+	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
+		return;
+
+	timing_out->display_color_depth--;
+}
+
+static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_out,
+						const struct drm_display_info *info)
+{
+	int normalized_clk;
+	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
+		return;
+	do {
+		normalized_clk = timing_out->pix_clk_khz;
+		/* YCbCr 4:2:0 requires additional adjustment of 1/2 */
+		if (timing_out->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			normalized_clk /= 2;
+		/* Adjusting pix clock following on HDMI spec based on colour depth */
+		switch (timing_out->display_color_depth) {
+		case COLOR_DEPTH_101010:
+			normalized_clk = (normalized_clk * 30) / 24;
+			break;
+		case COLOR_DEPTH_121212:
+			normalized_clk = (normalized_clk * 36) / 24;
+			break;
+		case COLOR_DEPTH_161616:
+			normalized_clk = (normalized_clk * 48) / 24;
+			break;
+		default:
+			return;
+		}
+		if (normalized_clk <= info->max_tmds_clock)
+			return;
+		reduce_mode_colour_depth(timing_out);
+
+	} while (timing_out->display_color_depth > COLOR_DEPTH_888);
+
+}
 /*****************************************************************************/
 
 static void
@@ -2188,6 +2223,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 					     const struct drm_connector *connector)
 {
 	struct dc_crtc_timing *timing_out = &stream->timing;
+	const struct drm_display_info *info = &connector->display_info;
 
 	memset(timing_out, 0, sizeof(struct dc_crtc_timing));
 
@@ -2196,8 +2232,10 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 	timing_out->v_border_top = 0;
 	timing_out->v_border_bottom = 0;
 	/* TODO: un-hardcode */
-
-	if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
+	if (drm_mode_is_420_only(info, mode_in)
+			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
+	else if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
 			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR444;
 	else
@@ -2233,6 +2271,8 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 
 	stream->out_transfer_func->type = TF_TYPE_PREDEFINED;
 	stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
+	if (stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+		adjust_colour_depth_from_display_info(timing_out, info);
 }
 
 static void fill_audio_info(struct audio_info *audio_info,
@@ -2316,27 +2356,22 @@ decide_crtc_timing_for_drm_display_mode(struct drm_display_mode *drm_mode,
 	}
 }
 
-static int create_fake_sink(struct amdgpu_dm_connector *aconnector)
+static struct dc_sink *
+create_fake_sink(struct amdgpu_dm_connector *aconnector)
 {
-	struct dc_sink *sink = NULL;
 	struct dc_sink_init_data sink_init_data = { 0 };
-
+	struct dc_sink *sink = NULL;
 	sink_init_data.link = aconnector->dc_link;
 	sink_init_data.sink_signal = aconnector->dc_link->connector_signal;
 
 	sink = dc_sink_create(&sink_init_data);
 	if (!sink) {
 		DRM_ERROR("Failed to create sink!\n");
-		return -ENOMEM;
+		return NULL;
 	}
-
 	sink->sink_signal = SIGNAL_TYPE_VIRTUAL;
-	aconnector->fake_enable = true;
 
-	aconnector->dc_sink = sink;
-	aconnector->dc_link->local_sink = sink;
-
-	return 0;
+	return sink;
 }
 
 static void set_multisync_trigger_params(
@@ -2399,7 +2434,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	struct dc_stream_state *stream = NULL;
 	struct drm_display_mode mode = *drm_mode;
 	bool native_mode_found = false;
-
+	struct dc_sink *sink = NULL;
 	if (aconnector == NULL) {
 		DRM_ERROR("aconnector is NULL!\n");
 		return stream;
@@ -2417,15 +2452,18 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			return stream;
 		}
 
-		if (create_fake_sink(aconnector))
+		sink = create_fake_sink(aconnector);
+		if (!sink)
 			return stream;
+	} else {
+		sink = aconnector->dc_sink;
 	}
 
-	stream = dc_create_stream_for_sink(aconnector->dc_sink);
+	stream = dc_create_stream_for_sink(sink);
 
 	if (stream == NULL) {
 		DRM_ERROR("Failed to create stream for sink!\n");
-		return stream;
+		goto finish;
 	}
 
 	list_for_each_entry(preferred_mode, &aconnector->base.modes, head) {
@@ -2464,12 +2502,15 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	fill_audio_info(
 		&stream->audio_info,
 		drm_connector,
-		aconnector->dc_sink);
+		sink);
 
 	update_stream_signal(stream);
 
 	if (dm_state && dm_state->freesync_capable)
 		stream->ignore_msa_timing_param = true;
+finish:
+	if (sink && sink->sink_signal == SIGNAL_TYPE_VIRTUAL)
+		dc_sink_release(sink);
 
 	return stream;
 }
@@ -2714,6 +2755,9 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 	struct dm_connector_state *state =
 		to_dm_connector_state(connector->state);
 
+	if (connector->state)
+		__drm_atomic_helper_connector_destroy_state(connector->state);
+
 	kfree(state);
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
@@ -2724,8 +2768,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
 
-		connector->state = &state->base;
-		connector->state->connector = connector;
+		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
 }
 
@@ -3083,17 +3126,6 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		}
 	}
 
-	/* It's a hack for s3 since in 4.9 kernel filter out cursor buffer
-	 * prepare and cleanup in drm_atomic_helper_prepare_planes
-	 * and drm_atomic_helper_cleanup_planes because fb doens't in s3.
-	 * IN 4.10 kernel this code should be removed and amdgpu_device_suspend
-	 * code touching fram buffers should be avoided for DC.
-	 */
-	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(new_state->crtc);
-
-		acrtc->cursor_bo = obj;
-	}
 	return 0;
 }
 
@@ -3941,9 +3973,10 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	if (acrtc->base.state->event)
 		prepare_flip_isr(acrtc);
 
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
 	surface_updates->surface = dc_stream_get_status(acrtc_state->stream)->plane_states[0];
 	surface_updates->flip_addr = &addr;
-
 
 	dc_commit_updates_for_stream(adev->dm.dc,
 					     surface_updates,
@@ -3957,9 +3990,6 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 			 __func__,
 			 addr.address.grph.addr.high_part,
 			 addr.address.grph.addr.low_part);
-
-
-	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
 /*
@@ -4219,6 +4249,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_connector *connector;
 	struct drm_connector_state *old_con_state, *new_con_state;
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
+	int crtc_disable_count = 0;
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
 
@@ -4280,6 +4311,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 			if (dm_old_crtc_state->stream)
 				remove_stream(adev, acrtc, dm_old_crtc_state->stream);
+
+			pm_runtime_get_noresume(dev->dev);
 
 			acrtc->enabled = true;
 			acrtc->hw_mode = new_crtc_state->mode;
@@ -4421,6 +4454,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 		bool modeset_needed;
 
+		if (old_crtc_state->active && !new_crtc_state->active)
+			crtc_disable_count++;
+
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 		modeset_needed = modeset_required(
@@ -4469,6 +4505,14 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		drm_atomic_helper_wait_for_flip_done(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
+
+	/* Finally, drop a runtime PM reference for each newly disabled CRTC,
+	 * so we can put the GPU into runtime suspend if we're not driving any
+	 * displays anymore
+	 */
+	for (i = 0; i < crtc_disable_count; i++)
+		pm_runtime_put_autosuspend(dev->dev);
+	pm_runtime_mark_last_busy(dev->dev);
 }
 
 

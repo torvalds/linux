@@ -139,7 +139,8 @@ static int xen_blkif_alloc_rings(struct xen_blkif *blkif)
 {
 	unsigned int r;
 
-	blkif->rings = kzalloc(blkif->nr_rings * sizeof(struct xen_blkif_ring), GFP_KERNEL);
+	blkif->rings = kcalloc(blkif->nr_rings, sizeof(struct xen_blkif_ring),
+			       GFP_KERNEL);
 	if (!blkif->rings)
 		return -ENOMEM;
 

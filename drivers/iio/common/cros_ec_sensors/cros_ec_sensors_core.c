@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/common/cros_ec_sensors_core.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
@@ -26,8 +27,6 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/platform_device.h>
-
-#include "cros_ec_sensors_core.h"
 
 static char *cros_ec_loc[] = {
 	[MOTIONSENSE_LOC_BASE] = "base",
@@ -448,8 +447,7 @@ EXPORT_SYMBOL_GPL(cros_ec_sensors_core_write);
 
 static int __maybe_unused cros_ec_sensors_prepare(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
 
 	if (st->curr_sampl_freq == 0)
@@ -471,8 +469,7 @@ static int __maybe_unused cros_ec_sensors_prepare(struct device *dev)
 
 static void __maybe_unused cros_ec_sensors_complete(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
 
 	if (st->curr_sampl_freq == 0)

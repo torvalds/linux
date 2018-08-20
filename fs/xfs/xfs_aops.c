@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_shared.h"
@@ -543,8 +531,19 @@ xfs_submit_ioend(
 {
 	/* Convert CoW extents to regular */
 	if (!status && ioend->io_type == XFS_IO_COW) {
+		/*
+		 * Yuk. This can do memory allocation, but is not a
+		 * transactional operation so everything is done in GFP_KERNEL
+		 * context. That can deadlock, because we hold pages in
+		 * writeback state and GFP_KERNEL allocations can block on them.
+		 * Hence we must operate in nofs conditions here.
+		 */
+		unsigned nofs_flag;
+
+		nofs_flag = memalloc_nofs_save();
 		status = xfs_reflink_convert_cow(XFS_I(ioend->io_inode),
 				ioend->io_offset, ioend->io_size);
+		memalloc_nofs_restore(nofs_flag);
 	}
 
 	/* Reserve log space if we might write beyond the on-disk inode size. */

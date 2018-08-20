@@ -197,8 +197,9 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		vaddr = (unsigned long)z_remap_nocache_nonser(paddr, size);
 #endif
 		z2ram_map = 
-			kmalloc((size/Z2RAM_CHUNKSIZE)*sizeof(z2ram_map[0]),
-				GFP_KERNEL);
+			kmalloc_array(size / Z2RAM_CHUNKSIZE,
+                                      sizeof(z2ram_map[0]),
+                                      GFP_KERNEL);
 		if ( z2ram_map == NULL )
 		{
 		    printk( KERN_ERR DEVICE_NAME

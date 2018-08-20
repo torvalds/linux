@@ -317,8 +317,8 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	u16 n_entries;
 	int i, rc;
 
-	dev->sgid_tbl = kzalloc(sizeof(union ib_gid) *
-				QEDR_MAX_SGID, GFP_KERNEL);
+	dev->sgid_tbl = kcalloc(QEDR_MAX_SGID, sizeof(union ib_gid),
+				GFP_KERNEL);
 	if (!dev->sgid_tbl)
 		return -ENOMEM;
 

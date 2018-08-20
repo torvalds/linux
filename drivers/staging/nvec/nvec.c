@@ -17,12 +17,11 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/list.h>
 #include <linux/mfd/core.h>
 #include <linux/mutex.h>
@@ -236,8 +235,8 @@ static size_t nvec_msg_size(struct nvec_msg *msg)
 static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 {
 	dev_dbg(nvec->dev, "GPIO changed from %u to %u\n",
-		gpio_get_value(nvec->gpio), value);
-	gpio_set_value(nvec->gpio, value);
+		gpiod_get_value(nvec->gpiod), value);
+	gpiod_set_value(nvec->gpiod, value);
 }
 
 /**
@@ -761,31 +760,11 @@ static void nvec_power_off(void)
 	nvec_write_async(nvec_power_handle, ap_pwr_down, 2);
 }
 
-/*
- *  Parse common device tree data
- */
-static int nvec_i2c_parse_dt_pdata(struct nvec_chip *nvec)
-{
-	nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
-
-	if (nvec->gpio < 0) {
-		dev_err(nvec->dev, "no gpio specified");
-		return -ENODEV;
-	}
-
-	if (of_property_read_u32(nvec->dev->of_node, "slave-addr",
-				 &nvec->i2c_addr)) {
-		dev_err(nvec->dev, "no i2c address specified");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	struct clk *i2c_clk;
+	struct device *dev = &pdev->dev;
 	struct nvec_chip *nvec;
 	struct nvec_msg *msg;
 	struct resource *res;
@@ -794,42 +773,43 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
 		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "must be instantiated using device tree\n");
+	if (!dev->of_node) {
+		dev_err(dev, "must be instantiated using device tree\n");
 		return -ENODEV;
 	}
 
-	nvec = devm_kzalloc(&pdev->dev, sizeof(struct nvec_chip), GFP_KERNEL);
+	nvec = devm_kzalloc(dev, sizeof(struct nvec_chip), GFP_KERNEL);
 	if (!nvec)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, nvec);
-	nvec->dev = &pdev->dev;
+	nvec->dev = dev;
 
-	err = nvec_i2c_parse_dt_pdata(nvec);
-	if (err < 0)
-		return err;
+	if (of_property_read_u32(dev->of_node, "slave-addr", &nvec->i2c_addr)) {
+		dev_err(dev, "no i2c address specified");
+		return -ENODEV;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	nvec->irq = platform_get_irq(pdev, 0);
 	if (nvec->irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
+		dev_err(dev, "no irq resource?\n");
 		return -ENODEV;
 	}
 
-	i2c_clk = devm_clk_get(&pdev->dev, "div-clk");
+	i2c_clk = devm_clk_get(dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {
-		dev_err(nvec->dev, "failed to get controller clock\n");
+		dev_err(dev, "failed to get controller clock\n");
 		return -ENODEV;
 	}
 
-	nvec->rst = devm_reset_control_get_exclusive(&pdev->dev, "i2c");
+	nvec->rst = devm_reset_control_get_exclusive(dev, "i2c");
 	if (IS_ERR(nvec->rst)) {
-		dev_err(nvec->dev, "failed to get controller reset\n");
+		dev_err(dev, "failed to get controller reset\n");
 		return PTR_ERR(nvec->rst);
 	}
 
@@ -849,17 +829,16 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	INIT_WORK(&nvec->rx_work, nvec_dispatch);
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
 
-	err = devm_gpio_request_one(&pdev->dev, nvec->gpio, GPIOF_OUT_INIT_HIGH,
-				    "nvec gpio");
-	if (err < 0) {
-		dev_err(nvec->dev, "couldn't request gpio\n");
-		return -ENODEV;
+	nvec->gpiod = devm_gpiod_get(dev, "request", GPIOD_OUT_HIGH);
+	if (IS_ERR(nvec->gpiod)) {
+		dev_err(dev, "couldn't request gpio\n");
+		return PTR_ERR(nvec->gpiod);
 	}
 
-	err = devm_request_irq(&pdev->dev, nvec->irq, nvec_interrupt, 0,
+	err = devm_request_irq(dev, nvec->irq, nvec_interrupt, 0,
 			       "nvec", nvec);
 	if (err) {
-		dev_err(nvec->dev, "couldn't request irq\n");
+		dev_err(dev, "couldn't request irq\n");
 		return -ENODEV;
 	}
 	disable_irq(nvec->irq);
@@ -879,7 +858,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	err = nvec_write_sync(nvec, get_firmware_version, 2, &msg);
 
 	if (!err) {
-		dev_warn(nvec->dev,
+		dev_warn(dev,
 			 "ec firmware version %02x.%02x.%02x / %02x\n",
 			 msg->data[4], msg->data[5],
 			 msg->data[6], msg->data[7]);
@@ -887,10 +866,10 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		nvec_msg_free(nvec, msg);
 	}
 
-	ret = mfd_add_devices(nvec->dev, 0, nvec_devices,
+	ret = mfd_add_devices(dev, 0, nvec_devices,
 			      ARRAY_SIZE(nvec_devices), NULL, 0, NULL);
 	if (ret)
-		dev_err(nvec->dev, "error adding subdevices\n");
+		dev_err(dev, "error adding subdevices\n");
 
 	/* unmute speakers? */
 	nvec_write_async(nvec, unmute_speakers, 4);
@@ -925,8 +904,7 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 static int nvec_suspend(struct device *dev)
 {
 	int err;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct nvec_chip *nvec = platform_get_drvdata(pdev);
+	struct nvec_chip *nvec = dev_get_drvdata(dev);
 	struct nvec_msg *msg;
 	char ap_suspend[] = { NVEC_SLEEP, AP_SUSPEND };
 
@@ -946,8 +924,7 @@ static int nvec_suspend(struct device *dev)
 
 static int nvec_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct nvec_chip *nvec = platform_get_drvdata(pdev);
+	struct nvec_chip *nvec = dev_get_drvdata(dev);
 
 	dev_dbg(nvec->dev, "resuming\n");
 	tegra_init_i2c_slave(nvec);

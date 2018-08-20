@@ -1058,7 +1058,7 @@ static s32 brcmf_p2p_act_frm_search(struct brcmf_p2p_info *p2p, u16 channel)
 		channel_cnt = AF_PEER_SEARCH_CNT;
 	else
 		channel_cnt = SOCIAL_CHAN_CNT;
-	default_chan_list = kzalloc(channel_cnt * sizeof(*default_chan_list),
+	default_chan_list = kcalloc(channel_cnt, sizeof(*default_chan_list),
 				    GFP_KERNEL);
 	if (default_chan_list == NULL) {
 		brcmf_err("channel list allocation failed\n");

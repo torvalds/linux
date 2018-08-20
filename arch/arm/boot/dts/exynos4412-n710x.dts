@@ -13,15 +13,13 @@
 
 	/* bootargs are passed in by bootloader */
 
-	regulators {
-		cam_vdda_reg: voltage-regulator-9 {
-			compatible = "regulator-fixed";
-			regulator-name = "CAM_SENSOR_CORE_1.2V";
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
-			gpio = <&gpm4 1 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	cam_vdda_reg: voltage-regulator-6 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAM_SENSOR_CORE_1.2V";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		gpio = <&gpm4 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 

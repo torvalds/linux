@@ -1,14 +1,10 @@
-/*
- * Regulator Driver for Freescale MC13783 PMIC
- *
- * Copyright 2010 Yong Shen <yong.shen@linaro.org>
- * Copyright (C) 2008 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
- * Copyright 2009 Alberto Panizzo <maramaopercheseimorto@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Regulator Driver for Freescale MC13783 PMIC
+//
+// Copyright 2010 Yong Shen <yong.shen@linaro.org>
+// Copyright (C) 2008 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
+// Copyright 2009 Alberto Panizzo <maramaopercheseimorto@gmail.com>
 
 #include <linux/mfd/mc13783.h>
 #include <linux/regulator/machine.h>

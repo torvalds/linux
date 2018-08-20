@@ -452,7 +452,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			ATOM_PPLIB_PhaseSheddingLimits_Record *entry;
 
 			adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries =
-				kzalloc(psl->ucNumEntries *
+				kcalloc(psl->ucNumEntries,
 					sizeof(struct amdgpu_phase_shedding_limits_entry),
 					GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {

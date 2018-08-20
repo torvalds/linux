@@ -1355,7 +1355,7 @@ static const struct proto_ops nr_proto_ops = {
 	.socketpair	=	sock_no_socketpair,
 	.accept		=	nr_accept,
 	.getname	=	nr_getname,
-	.poll_mask	=	datagram_poll_mask,
+	.poll		=	datagram_poll,
 	.ioctl		=	nr_ioctl,
 	.listen		=	nr_listen,
 	.shutdown	=	sock_no_shutdown,
@@ -1395,7 +1395,7 @@ static int __init nr_proto_init(void)
 		return -1;
 	}
 
-	dev_nr = kzalloc(nr_ndevs * sizeof(struct net_device *), GFP_KERNEL);
+	dev_nr = kcalloc(nr_ndevs, sizeof(struct net_device *), GFP_KERNEL);
 	if (dev_nr == NULL) {
 		printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device array\n");
 		return -1;

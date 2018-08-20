@@ -367,7 +367,7 @@ static int __init test_overflow_allocation(void)
 
 	/* Create dummy device for devm_kmalloc()-family tests. */
 	dev = root_device_register(device_name);
-	if (!dev) {
+	if (IS_ERR(dev)) {
 		pr_warn("Cannot register test device\n");
 		return 1;
 	}

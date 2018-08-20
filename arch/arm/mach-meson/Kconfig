@@ -19,14 +19,7 @@ config MACH_MESON6
 	select MESON6_TIMER
 
 config MACH_MESON8
-	bool "Amlogic Meson8 SoCs support"
-	default ARCH_MESON
-	select MESON6_TIMER
-	select COMMON_CLK_MESON8B
-	select MESON_IRQ_GPIO
-
-config MACH_MESON8B
-	bool "Amlogic Meson8b SoCs support"
+	bool "Amlogic Meson8, Meson8b and Meson8m2 SoCs support"
 	default ARCH_MESON
 	select MESON6_TIMER
 	select COMMON_CLK_MESON8B

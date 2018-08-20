@@ -8,6 +8,21 @@ config DEFCONFIG_LIST
 	default ARCH_DEFCONFIG
 	default "arch/$(ARCH)/defconfig"
 
+config CC_IS_GCC
+	def_bool $(success,$(CC) --version | head -n 1 | grep -q gcc)
+
+config GCC_VERSION
+	int
+	default $(shell,$(srctree)/scripts/gcc-version.sh -p $(CC) | sed 's/^0*//') if CC_IS_GCC
+	default 0
+
+config CC_IS_CLANG
+	def_bool $(success,$(CC) --version | head -n 1 | grep -q clang)
+
+config CLANG_VERSION
+	int
+	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
+
 config CONSTRUCTORS
 	bool
 	depends on !UML
@@ -1036,10 +1051,9 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 	depends on HAVE_LD_DEAD_CODE_DATA_ELIMINATION
 	depends on EXPERT
 	help
-	  Select this if the architecture wants to do dead code and
-	  data elimination with the linker by compiling with
-	  -ffunction-sections -fdata-sections, and linking with
-	  --gc-sections.
+	  Enable this if you want to do dead code and data elimination with
+	  the linker by compiling with -ffunction-sections -fdata-sections,
+	  and linking with --gc-sections.
 
 	  This can reduce on disk and in-memory size of the kernel
 	  code and static data, particularly for small configs and
@@ -1428,6 +1442,29 @@ config ARCH_HAS_MEMBARRIER_CALLBACKS
 config ARCH_HAS_MEMBARRIER_SYNC_CORE
 	bool
 
+config RSEQ
+	bool "Enable rseq() system call" if EXPERT
+	default y
+	depends on HAVE_RSEQ
+	select MEMBARRIER
+	help
+	  Enable the restartable sequences system call. It provides a
+	  user-space cache for the current CPU number value, which
+	  speeds up getting the current CPU number from user-space,
+	  as well as an ABI to speed up user-space operations on
+	  per-CPU data.
+
+	  If unsure, say Y.
+
+config DEBUG_RSEQ
+	default n
+	bool "Enabled debugging of rseq() system call" if EXPERT
+	depends on RSEQ && DEBUG_KERNEL
+	help
+	  Enable extra debugging checks for the rseq system call.
+
+	  If unsure, say N.
+
 config EMBEDDED
 	bool "Embedded system"
 	option allnoconfig_y
@@ -1680,10 +1717,6 @@ config TRACEPOINTS
 source "arch/Kconfig"
 
 endmenu		# General setup
-
-config HAVE_GENERIC_DMA_COHERENT
-	bool
-	default n
 
 config RT_MUTEXES
 	bool

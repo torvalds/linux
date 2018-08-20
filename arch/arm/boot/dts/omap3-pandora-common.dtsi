@@ -27,6 +27,13 @@
 		display0 = &lcd;
 	};
 
+	/* fixed 26MHz oscillator */
+	hfclk_26m: oscillator {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
+	};
+
 	tv: connector {
 		compatible = "connector-analog-tv";
 		label = "tv";
@@ -357,6 +364,9 @@
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
 
+		clocks = <&hfclk_26m>;
+		clock-names = "fck";
+
 		twl_power: power {
 			compatible = "ti,twl4030-power-reset";
 			ti,use_poweroff;
@@ -611,7 +621,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&penirq_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <30 0>;	/* GPIO_94 */
+		interrupts = <30 IRQ_TYPE_NONE>;	/* GPIO_94 */
 		pendown-gpio = <&gpio3 30 GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&vaux4>;
 

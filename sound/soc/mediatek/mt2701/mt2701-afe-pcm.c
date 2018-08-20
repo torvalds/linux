@@ -1347,7 +1347,8 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->dev = &pdev->dev;
 	dev = afe->dev;
 
-	afe_priv->i2s_path = devm_kzalloc(dev, afe_priv->soc->i2s_num *
+	afe_priv->i2s_path = devm_kcalloc(dev,
+					  afe_priv->soc->i2s_num,
 					  sizeof(struct mt2701_i2s_path),
 					  GFP_KERNEL);
 	if (!afe_priv->i2s_path)

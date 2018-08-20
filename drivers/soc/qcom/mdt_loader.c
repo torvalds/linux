@@ -50,7 +50,7 @@ ssize_t qcom_mdt_get_size(const struct firmware *fw)
 	const struct elf32_phdr *phdrs;
 	const struct elf32_phdr *phdr;
 	const struct elf32_hdr *ehdr;
-	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
+	phys_addr_t min_addr = PHYS_ADDR_MAX;
 	phys_addr_t max_addr = 0;
 	int i;
 
@@ -97,7 +97,7 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	const struct elf32_hdr *ehdr;
 	const struct firmware *seg_fw;
 	phys_addr_t mem_reloc;
-	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
+	phys_addr_t min_addr = PHYS_ADDR_MAX;
 	phys_addr_t max_addr = 0;
 	size_t fw_name_len;
 	ssize_t offset;

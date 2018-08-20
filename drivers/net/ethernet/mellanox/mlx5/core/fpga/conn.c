@@ -549,15 +549,17 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 	if (err)
 		goto out;
 
-	conn->qp.rq.bufs = kvzalloc(sizeof(conn->qp.rq.bufs[0]) *
-				    conn->qp.rq.size, GFP_KERNEL);
+	conn->qp.rq.bufs = kvcalloc(conn->qp.rq.size,
+				    sizeof(conn->qp.rq.bufs[0]),
+				    GFP_KERNEL);
 	if (!conn->qp.rq.bufs) {
 		err = -ENOMEM;
 		goto err_wq;
 	}
 
-	conn->qp.sq.bufs = kvzalloc(sizeof(conn->qp.sq.bufs[0]) *
-				    conn->qp.sq.size, GFP_KERNEL);
+	conn->qp.sq.bufs = kvcalloc(conn->qp.sq.size,
+				    sizeof(conn->qp.sq.bufs[0]),
+				    GFP_KERNEL);
 	if (!conn->qp.sq.bufs) {
 		err = -ENOMEM;
 		goto err_rq_bufs;

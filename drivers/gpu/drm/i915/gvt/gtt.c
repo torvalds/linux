@@ -1585,12 +1585,14 @@ static struct intel_vgpu_mm *intel_vgpu_create_ggtt_mm(struct intel_vgpu *vgpu)
 	mm->type = INTEL_GVT_MM_GGTT;
 
 	nr_entries = gvt_ggtt_gm_sz(vgpu->gvt) >> I915_GTT_PAGE_SHIFT;
-	mm->ggtt_mm.virtual_ggtt = vzalloc(nr_entries *
-					vgpu->gvt->device_info.gtt_entry_size);
+	mm->ggtt_mm.virtual_ggtt =
+		vzalloc(array_size(nr_entries,
+				   vgpu->gvt->device_info.gtt_entry_size));
 	if (!mm->ggtt_mm.virtual_ggtt) {
 		vgpu_free_mm(mm);
 		return ERR_PTR(-ENOMEM);
 	}
+	mm->ggtt_mm.last_partial_off = -1UL;
 
 	return mm;
 }
@@ -1615,6 +1617,7 @@ void _intel_vgpu_mm_release(struct kref *mm_ref)
 		invalidate_ppgtt_mm(mm);
 	} else {
 		vfree(mm->ggtt_mm.virtual_ggtt);
+		mm->ggtt_mm.last_partial_off = -1UL;
 	}
 
 	vgpu_free_mm(mm);
@@ -1866,6 +1869,62 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 
 	memcpy((void *)&e.val64 + (off & (info->gtt_entry_size - 1)), p_data,
 			bytes);
+
+	/* If ggtt entry size is 8 bytes, and it's split into two 4 bytes
+	 * write, we assume the two 4 bytes writes are consecutive.
+	 * Otherwise, we abort and report error
+	 */
+	if (bytes < info->gtt_entry_size) {
+		if (ggtt_mm->ggtt_mm.last_partial_off == -1UL) {
+			/* the first partial part*/
+			ggtt_mm->ggtt_mm.last_partial_off = off;
+			ggtt_mm->ggtt_mm.last_partial_data = e.val64;
+			return 0;
+		} else if ((g_gtt_index ==
+				(ggtt_mm->ggtt_mm.last_partial_off >>
+				info->gtt_entry_size_shift)) &&
+			(off !=	ggtt_mm->ggtt_mm.last_partial_off)) {
+			/* the second partial part */
+
+			int last_off = ggtt_mm->ggtt_mm.last_partial_off &
+				(info->gtt_entry_size - 1);
+
+			memcpy((void *)&e.val64 + last_off,
+				(void *)&ggtt_mm->ggtt_mm.last_partial_data +
+				last_off, bytes);
+
+			ggtt_mm->ggtt_mm.last_partial_off = -1UL;
+		} else {
+			int last_offset;
+
+			gvt_vgpu_err("failed to populate guest ggtt entry: abnormal ggtt entry write sequence, last_partial_off=%lx, offset=%x, bytes=%d, ggtt entry size=%d\n",
+					ggtt_mm->ggtt_mm.last_partial_off, off,
+					bytes, info->gtt_entry_size);
+
+			/* set host ggtt entry to scratch page and clear
+			 * virtual ggtt entry as not present for last
+			 * partially write offset
+			 */
+			last_offset = ggtt_mm->ggtt_mm.last_partial_off &
+					(~(info->gtt_entry_size - 1));
+
+			ggtt_get_host_entry(ggtt_mm, &m, last_offset);
+			ggtt_invalidate_pte(vgpu, &m);
+			ops->set_pfn(&m, gvt->gtt.scratch_mfn);
+			ops->clear_present(&m);
+			ggtt_set_host_entry(ggtt_mm, &m, last_offset);
+			ggtt_invalidate(gvt->dev_priv);
+
+			ggtt_get_guest_entry(ggtt_mm, &e, last_offset);
+			ops->clear_present(&e);
+			ggtt_set_guest_entry(ggtt_mm, &e, last_offset);
+
+			ggtt_mm->ggtt_mm.last_partial_off = off;
+			ggtt_mm->ggtt_mm.last_partial_data = e.val64;
+
+			return 0;
+		}
+	}
 
 	if (ops->test_present(&e)) {
 		gfn = ops->get_pfn(&e);

@@ -4242,8 +4242,8 @@ int mwifiex_init_channel_scan_gap(struct mwifiex_adapter *adapter)
 	 * additional active scan request for hidden SSIDs on passive channels.
 	 */
 	adapter->num_in_chan_stats = 2 * (n_channels_bg + n_channels_a);
-	adapter->chan_stats = vmalloc(sizeof(*adapter->chan_stats) *
-				      adapter->num_in_chan_stats);
+	adapter->chan_stats = vmalloc(array_size(sizeof(*adapter->chan_stats),
+						 adapter->num_in_chan_stats));
 
 	if (!adapter->chan_stats)
 		return -ENOMEM;

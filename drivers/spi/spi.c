@@ -2049,7 +2049,7 @@ static int of_spi_register_master(struct spi_controller *ctlr)
 	else if (nb < 0)
 		return nb;
 
-	cs = devm_kzalloc(&ctlr->dev, sizeof(int) * ctlr->num_chipselect,
+	cs = devm_kcalloc(&ctlr->dev, ctlr->num_chipselect, sizeof(int),
 			  GFP_KERNEL);
 	ctlr->cs_gpios = cs;
 

@@ -970,8 +970,9 @@ static int stm32_hash_export(struct ahash_request *req, void *out)
 	while (!(stm32_hash_read(hdev, HASH_SR) & HASH_SR_DATA_INPUT_READY))
 		cpu_relax();
 
-	rctx->hw_context = kmalloc(sizeof(u32) * (3 + HASH_CSR_REGISTER_NUMBER),
-				   GFP_KERNEL);
+	rctx->hw_context = kmalloc_array(3 + HASH_CSR_REGISTER_NUMBER,
+					 sizeof(u32),
+					 GFP_KERNEL);
 
 	preg = rctx->hw_context;
 

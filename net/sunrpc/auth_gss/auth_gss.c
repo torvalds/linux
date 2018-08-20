@@ -1753,7 +1753,8 @@ alloc_enc_pages(struct rpc_rqst *rqstp)
 	last = (snd_buf->page_base + snd_buf->page_len - 1) >> PAGE_SHIFT;
 	rqstp->rq_enc_pages_num = last - first + 1 + 1;
 	rqstp->rq_enc_pages
-		= kmalloc(rqstp->rq_enc_pages_num * sizeof(struct page *),
+		= kmalloc_array(rqstp->rq_enc_pages_num,
+				sizeof(struct page *),
 				GFP_NOFS);
 	if (!rqstp->rq_enc_pages)
 		goto out;

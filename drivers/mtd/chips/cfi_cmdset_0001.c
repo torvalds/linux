@@ -608,8 +608,9 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 	mtd->size = devsize * cfi->numchips;
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
-	mtd->eraseregions = kzalloc(sizeof(struct mtd_erase_region_info)
-			* mtd->numeraseregions, GFP_KERNEL);
+	mtd->eraseregions = kcalloc(mtd->numeraseregions,
+				    sizeof(struct mtd_erase_region_info),
+				    GFP_KERNEL);
 	if (!mtd->eraseregions)
 		goto setup_err;
 
@@ -758,7 +759,9 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 		newcfi = kmalloc(sizeof(struct cfi_private) + numvirtchips * sizeof(struct flchip), GFP_KERNEL);
 		if (!newcfi)
 			return -ENOMEM;
-		shared = kmalloc(sizeof(struct flchip_shared) * cfi->numchips, GFP_KERNEL);
+		shared = kmalloc_array(cfi->numchips,
+				       sizeof(struct flchip_shared),
+				       GFP_KERNEL);
 		if (!shared) {
 			kfree(newcfi);
 			return -ENOMEM;

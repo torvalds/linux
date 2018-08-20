@@ -552,9 +552,7 @@ static struct irq_chip stm32_exti_h_chip = {
 	.irq_set_type		= stm32_exti_h_set_type,
 	.irq_set_wake		= stm32_exti_h_set_wake,
 	.flags			= IRQCHIP_MASK_ON_SUSPEND,
-#ifdef CONFIG_SMP
-	.irq_set_affinity	= stm32_exti_h_set_affinity,
-#endif
+	.irq_set_affinity	= IS_ENABLED(CONFIG_SMP) ? stm32_exti_h_set_affinity : NULL,
 };
 
 static int stm32_exti_h_domain_alloc(struct irq_domain *dm,

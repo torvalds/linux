@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -1266,6 +1266,9 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	uint64_t tot, data1, data2, data3;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_register reg_data;
+	struct nvme_fc_local_port *localport;
+	struct lpfc_nvme_lport *lport;
+	struct lpfc_nvme_ctrl_stat *cstat;
 	void __iomem *eqdreg = phba->sli4_hba.u.if_type2.EQDregaddr;
 
 	vports = lpfc_create_vport_work_array(phba);
@@ -1299,14 +1302,25 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				tot += atomic_read(&tgtp->xmt_fcp_release);
 				tot = atomic_read(&tgtp->rcv_fcp_cmd_in) - tot;
 			} else {
-				tot = atomic_read(&phba->fc4NvmeIoCmpls);
-				data1 = atomic_read(
-					&phba->fc4NvmeInputRequests);
-				data2 = atomic_read(
-					&phba->fc4NvmeOutputRequests);
-				data3 = atomic_read(
-					&phba->fc4NvmeControlRequests);
-				tot =  (data1 + data2 + data3) - tot;
+				localport = phba->pport->localport;
+				if (!localport || !localport->private)
+					goto skip_eqdelay;
+				lport = (struct lpfc_nvme_lport *)
+					localport->private;
+				tot = 0;
+				for (i = 0;
+					i < phba->cfg_nvme_io_channel; i++) {
+					cstat = &lport->cstat[i];
+					data1 = atomic_read(
+						&cstat->fc4NvmeInputRequests);
+					data2 = atomic_read(
+						&cstat->fc4NvmeOutputRequests);
+					data3 = atomic_read(
+						&cstat->fc4NvmeControlRequests);
+					tot += (data1 + data2 + data3);
+					tot -= atomic_read(
+						&cstat->fc4NvmeIoCmpls);
+				}
 			}
 		}
 
@@ -4265,32 +4279,24 @@ lpfc_sli4_fcf_redisc_wait_tmo(struct timer_list *t)
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async link completion queue entry.
  *
- * This routine is to parse the SLI4 link-attention link fault code and
- * translate it into the base driver's read link attention mailbox command
- * status.
- *
- * Return: Link-attention status in terms of base driver's coding.
+ * This routine is to parse the SLI4 link-attention link fault code.
  **/
-static uint16_t
+static void
 lpfc_sli4_parse_latt_fault(struct lpfc_hba *phba,
 			   struct lpfc_acqe_link *acqe_link)
 {
-	uint16_t latt_fault;
-
 	switch (bf_get(lpfc_acqe_link_fault, acqe_link)) {
 	case LPFC_ASYNC_LINK_FAULT_NONE:
 	case LPFC_ASYNC_LINK_FAULT_LOCAL:
 	case LPFC_ASYNC_LINK_FAULT_REMOTE:
-		latt_fault = 0;
+	case LPFC_ASYNC_LINK_FAULT_LR_LRR:
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0398 Invalid link fault code: x%x\n",
+				"0398 Unknown link fault code: x%x\n",
 				bf_get(lpfc_acqe_link_fault, acqe_link));
-		latt_fault = MBXERR_ERROR;
 		break;
 	}
-	return latt_fault;
 }
 
 /**
@@ -4565,9 +4571,12 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	 * the READ_TOPOLOGY completion routine to continue without actually
 	 * sending the READ_TOPOLOGY mailbox command to the port.
 	 */
-	/* Parse and translate status field */
+	/* Initialize completion status */
 	mb = &pmb->u.mb;
-	mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba, acqe_link);
+	mb->mbxStatus = MBX_SUCCESS;
+
+	/* Parse port fault information field */
+	lpfc_sli4_parse_latt_fault(phba, acqe_link);
 
 	/* Parse and translate link attention fields */
 	la = (struct lpfc_mbx_read_top *) &pmb->u.mb.un.varReadTop;
@@ -4695,10 +4704,12 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 			break;
 		}
 
-		/* Parse and translate status field */
+		/* Initialize completion status */
 		mb = &pmb->u.mb;
-		mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba,
-							   (void *)acqe_fc);
+		mb->mbxStatus = MBX_SUCCESS;
+
+		/* Parse port fault information field */
+		lpfc_sli4_parse_latt_fault(phba, (void *)acqe_fc);
 
 		/* Parse and translate link attention fields */
 		la = (struct lpfc_mbx_read_top *)&pmb->u.mb.un.varReadTop;
@@ -5103,7 +5114,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
 					LOG_DISCOVERY,
-					"2772 Issue FCF rediscover mabilbox "
+					"2772 Issue FCF rediscover mailbox "
 					"command failed, fail through to FCF "
 					"dead event\n");
 			spin_lock_irq(&phba->hbalock);
@@ -5195,7 +5206,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
 						LOG_DISCOVERY,
 						"2774 Issue FCF rediscover "
-						"mabilbox command failed, "
+						"mailbox command failed, "
 						"through to CVL event\n");
 				spin_lock_irq(&phba->hbalock);
 				phba->fcf.fcf_flag &= ~FCF_ACVL_DISC;
@@ -5712,8 +5723,9 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	if (!phba->sli.sli3_ring)
-		phba->sli.sli3_ring = kzalloc(LPFC_SLI3_MAX_RING *
-			sizeof(struct lpfc_sli_ring), GFP_KERNEL);
+		phba->sli.sli3_ring = kcalloc(LPFC_SLI3_MAX_RING,
+					      sizeof(struct lpfc_sli_ring),
+					      GFP_KERNEL);
 	if (!phba->sli.sli3_ring)
 		return -ENOMEM;
 
@@ -5839,6 +5851,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	int fof_vectors = 0;
 	int extra;
 	uint64_t wwn;
+	u32 if_type;
+	u32 if_fam;
 
 	phba->sli4_hba.num_online_cpu = num_online_cpus();
 	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
@@ -6160,15 +6174,28 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 */
 	rc = lpfc_get_sli4_parameters(phba, mboxq);
 	if (rc) {
+		if_type = bf_get(lpfc_sli_intf_if_type,
+				 &phba->sli4_hba.sli_intf);
+		if_fam = bf_get(lpfc_sli_intf_sli_family,
+				&phba->sli4_hba.sli_intf);
 		if (phba->sli4_hba.extents_in_use &&
 		    phba->sli4_hba.rpi_hdrs_in_use) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2999 Unsupported SLI4 Parameters "
 				"Extents and RPI headers enabled.\n");
+			if (if_type == LPFC_SLI_INTF_IF_TYPE_0 &&
+			    if_fam ==  LPFC_SLI_INTF_FAMILY_BE2) {
+				mempool_free(mboxq, phba->mbox_mem_pool);
+				rc = -EIO;
+				goto out_free_bsmbx;
+			}
 		}
-		mempool_free(mboxq, phba->mbox_mem_pool);
-		rc = -EIO;
-		goto out_free_bsmbx;
+		if (!(if_type == LPFC_SLI_INTF_IF_TYPE_0 &&
+		      if_fam == LPFC_SLI_INTF_FAMILY_BE2)) {
+			mempool_free(mboxq, phba->mbox_mem_pool);
+			rc = -EIO;
+			goto out_free_bsmbx;
+		}
 	}
 
 	mempool_free(mboxq, phba->mbox_mem_pool);
@@ -6207,7 +6234,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* Allocate eligible FCF bmask memory for FCF roundrobin failover */
 	longs = (LPFC_SLI4_FCF_TBL_INDX_MAX + BITS_PER_LONG - 1)/BITS_PER_LONG;
-	phba->fcf.fcf_rr_bmask = kzalloc(longs * sizeof(unsigned long),
+	phba->fcf.fcf_rr_bmask = kcalloc(longs, sizeof(unsigned long),
 					 GFP_KERNEL);
 	if (!phba->fcf.fcf_rr_bmask) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -6406,8 +6433,11 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 		return error;
 	}
 
-	/* workqueue for deferred irq use */
-	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+	/* The lpfc_wq workqueue for deferred irq use, is only used for SLI4 */
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+	else
+		phba->wq = NULL;
 
 	return 0;
 }
@@ -6430,7 +6460,8 @@ lpfc_unset_driver_resource_phase2(struct lpfc_hba *phba)
 	}
 
 	/* Stop kernel worker thread */
-	kthread_stop(phba->worker_thread);
+	if (phba->worker_thread)
+		kthread_stop(phba->worker_thread);
 }
 
 /**
@@ -6895,12 +6926,6 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	atomic_set(&phba->fc4ScsiOutputRequests, 0);
 	atomic_set(&phba->fc4ScsiControlRequests, 0);
 	atomic_set(&phba->fc4ScsiIoCmpls, 0);
-	atomic_set(&phba->fc4NvmeInputRequests, 0);
-	atomic_set(&phba->fc4NvmeOutputRequests, 0);
-	atomic_set(&phba->fc4NvmeControlRequests, 0);
-	atomic_set(&phba->fc4NvmeIoCmpls, 0);
-	atomic_set(&phba->fc4NvmeLsRequests, 0);
-	atomic_set(&phba->fc4NvmeLsCmpls, 0);
 	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
 	if (!vport)
 		return -ENODEV;
@@ -7781,6 +7806,40 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->sli4_hba.max_cfg_param.max_wq,
 				phba->sli4_hba.max_cfg_param.max_rq);
 
+		/*
+		 * Calculate NVME queue resources based on how
+		 * many WQ/CQs are available.
+		 */
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			length = phba->sli4_hba.max_cfg_param.max_wq;
+			if (phba->sli4_hba.max_cfg_param.max_cq <
+			    phba->sli4_hba.max_cfg_param.max_wq)
+				length = phba->sli4_hba.max_cfg_param.max_cq;
+
+			/*
+			 * Whats left after this can go toward NVME.
+			 * The minus 6 accounts for ELS, NVME LS, MBOX
+			 * fof plus a couple extra. When configured for
+			 * NVMET, FCP io channel WQs are not created.
+			 */
+			length -= 6;
+			if (!phba->nvmet_support)
+				length -= phba->cfg_fcp_io_channel;
+
+			if (phba->cfg_nvme_io_channel > length) {
+				lpfc_printf_log(
+					phba, KERN_ERR, LOG_SLI,
+					"2005 Reducing NVME IO channel to %d: "
+					"WQ %d CQ %d NVMEIO %d FCPIO %d\n",
+					length,
+					phba->sli4_hba.max_cfg_param.max_wq,
+					phba->sli4_hba.max_cfg_param.max_cq,
+					phba->cfg_nvme_io_channel,
+					phba->cfg_fcp_io_channel);
+
+				phba->cfg_nvme_io_channel = length;
+			}
+		}
 	}
 
 	if (rc)
@@ -10533,6 +10592,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_pc_sli4_params *sli4_params;
 	uint32_t mbox_tmo;
 	int length;
+	bool exp_wqcq_pages = true;
 	struct lpfc_sli4_parameters *mbx_sli4_parameters;
 
 	/*
@@ -10659,8 +10719,15 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			phba->nvme_support, phba->nvme_embed_pbde,
 			phba->cfg_nvme_embed_cmd, phba->cfg_suppress_rsp);
 
+	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	    LPFC_SLI_INTF_IF_TYPE_2) &&
+	    (bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf) ==
+		 LPFC_SLI_INTF_FAMILY_LNCR_A0))
+		exp_wqcq_pages = false;
+
 	if ((bf_get(cfg_cqpsize, mbx_sli4_parameters) & LPFC_CQ_16K_PAGE_SZ) &&
 	    (bf_get(cfg_wqpsize, mbx_sli4_parameters) & LPFC_WQ_16K_PAGE_SZ) &&
+	    exp_wqcq_pages &&
 	    (sli4_params->wqsize & LPFC_WQ_SZ128_SUPPORT))
 		phba->enab_exp_wqcq_pages = 1;
 	else
@@ -11322,7 +11389,11 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 	uint32_t magic_number, uint32_t ftype, uint32_t fid, uint32_t fsize,
 	const struct firmware *fw)
 {
-	if (offset == ADD_STATUS_FW_NOT_SUPPORTED)
+	if ((offset == ADD_STATUS_FW_NOT_SUPPORTED) ||
+	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
+	     magic_number != MAGIC_NUMER_G6) ||
+	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC &&
+	     magic_number != MAGIC_NUMER_G7))
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"3030 This firmware version is not supported on "
 			"this HBA model. Device:%x Magic:%x Type:%x "
@@ -11719,6 +11790,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	lpfc_nvme_free(phba);
 	lpfc_free_iocb_list(phba);
 
+	lpfc_unset_driver_resource_phase2(phba);
 	lpfc_sli4_driver_resource_unset(phba);
 
 	/* Unmap adapter Control and Doorbell registers */

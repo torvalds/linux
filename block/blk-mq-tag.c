@@ -311,35 +311,6 @@ void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 }
 EXPORT_SYMBOL(blk_mq_tagset_busy_iter);
 
-int blk_mq_tagset_iter(struct blk_mq_tag_set *set, void *data,
-			 int (fn)(void *, struct request *))
-{
-	int i, j, ret = 0;
-
-	if (WARN_ON_ONCE(!fn))
-		goto out;
-
-	for (i = 0; i < set->nr_hw_queues; i++) {
-		struct blk_mq_tags *tags = set->tags[i];
-
-		if (!tags)
-			continue;
-
-		for (j = 0; j < tags->nr_tags; j++) {
-			if (!tags->static_rqs[j])
-				continue;
-
-			ret = fn(data, tags->static_rqs[j]);
-			if (ret)
-				goto out;
-		}
-	}
-
-out:
-	return ret;
-}
-EXPORT_SYMBOL_GPL(blk_mq_tagset_iter);
-
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 		void *priv)
 {

@@ -76,7 +76,7 @@ int main(void)
 	DEFINE(TASK_PID, offsetof (struct task_struct, pid));
 	DEFINE(TASK_THREAD, offsetof (struct task_struct, thread));
 	DEFINE(TASK_THREAD_INFO, offsetof (struct task_struct, stack));
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 	DEFINE(TASK_STACK_CANARY, offsetof(struct task_struct, stack_canary));
 #endif
 	DEFINE(TASK_STRUCT_SIZE, sizeof (struct task_struct));

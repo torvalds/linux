@@ -520,8 +520,9 @@ xpnet_init(void)
 
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
 
-	xpnet_broadcast_partitions = kzalloc(BITS_TO_LONGS(xp_max_npartitions) *
-					     sizeof(long), GFP_KERNEL);
+	xpnet_broadcast_partitions = kcalloc(BITS_TO_LONGS(xp_max_npartitions),
+					     sizeof(long),
+					     GFP_KERNEL);
 	if (xpnet_broadcast_partitions == NULL)
 		return -ENOMEM;
 

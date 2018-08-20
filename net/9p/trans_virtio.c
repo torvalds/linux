@@ -360,7 +360,8 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 		nr_pages = DIV_ROUND_UP((unsigned long)p + len, PAGE_SIZE) -
 			   (unsigned long)p / PAGE_SIZE;
 
-		*pages = kmalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
+		*pages = kmalloc_array(nr_pages, sizeof(struct page *),
+				       GFP_NOFS);
 		if (!*pages)
 			return -ENOMEM;
 

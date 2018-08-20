@@ -610,11 +610,6 @@ error:
 	mutex_unlock(&f54->data_mutex);
 }
 
-static int rmi_f54_attention(struct rmi_function *fn, unsigned long *irqbits)
-{
-	return 0;
-}
-
 static int rmi_f54_config(struct rmi_function *fn)
 {
 	struct rmi_driver *drv = fn->rmi_dev->driver;
@@ -685,7 +680,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
 	rx = f54->num_rx_electrodes;
 	tx = f54->num_tx_electrodes;
 	f54->report_data = devm_kzalloc(&fn->dev,
-					sizeof(u16) * tx * rx,
+					array3_size(tx, rx, sizeof(u16)),
 					GFP_KERNEL);
 	if (f54->report_data == NULL)
 		return -ENOMEM;
@@ -756,6 +751,5 @@ struct rmi_function_handler rmi_f54_handler = {
 	.func = 0x54,
 	.probe = rmi_f54_probe,
 	.config = rmi_f54_config,
-	.attention = rmi_f54_attention,
 	.remove = rmi_f54_remove,
 };

@@ -155,7 +155,7 @@ ath10k_wmi_tlv_parse_alloc(struct ath10k *ar, const void *ptr,
 	const void **tb;
 	int ret;
 
-	tb = kzalloc(sizeof(*tb) * WMI_TLV_TAG_MAX, gfp);
+	tb = kcalloc(WMI_TLV_TAG_MAX, sizeof(*tb), gfp);
 	if (!tb)
 		return ERR_PTR(-ENOMEM);
 

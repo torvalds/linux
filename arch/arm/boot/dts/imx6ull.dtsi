@@ -45,6 +45,8 @@
 
 /* Delete UART8 in AIPS-1 (i.MX6UL specific) */
 /delete-node/ &uart8;
+/* Delete CAAM node in AIPS-2 (i.MX6UL specific) */
+/delete-node/ &crypto;
 
 / {
 	soc {

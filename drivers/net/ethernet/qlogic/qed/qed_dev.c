@@ -814,26 +814,26 @@ static int qed_alloc_qm_data(struct qed_hwfn *p_hwfn)
 	if (rc)
 		goto alloc_err;
 
-	qm_info->qm_pq_params = kzalloc(sizeof(*qm_info->qm_pq_params) *
-					qed_init_qm_get_num_pqs(p_hwfn),
+	qm_info->qm_pq_params = kcalloc(qed_init_qm_get_num_pqs(p_hwfn),
+					sizeof(*qm_info->qm_pq_params),
 					GFP_KERNEL);
 	if (!qm_info->qm_pq_params)
 		goto alloc_err;
 
-	qm_info->qm_vport_params = kzalloc(sizeof(*qm_info->qm_vport_params) *
-					   qed_init_qm_get_num_vports(p_hwfn),
+	qm_info->qm_vport_params = kcalloc(qed_init_qm_get_num_vports(p_hwfn),
+					   sizeof(*qm_info->qm_vport_params),
 					   GFP_KERNEL);
 	if (!qm_info->qm_vport_params)
 		goto alloc_err;
 
-	qm_info->qm_port_params = kzalloc(sizeof(*qm_info->qm_port_params) *
-					  p_hwfn->cdev->num_ports_in_engine,
+	qm_info->qm_port_params = kcalloc(p_hwfn->cdev->num_ports_in_engine,
+					  sizeof(*qm_info->qm_port_params),
 					  GFP_KERNEL);
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
 
-	qm_info->wfq_data = kzalloc(sizeof(*qm_info->wfq_data) *
-				    qed_init_qm_get_num_vports(p_hwfn),
+	qm_info->wfq_data = kcalloc(qed_init_qm_get_num_vports(p_hwfn),
+				    sizeof(*qm_info->wfq_data),
 				    GFP_KERNEL);
 	if (!qm_info->wfq_data)
 		goto alloc_err;
@@ -1804,7 +1804,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			DP_INFO(p_hwfn, "Failed to update driver state\n");
 
 		rc = qed_mcp_ov_update_eswitch(p_hwfn, p_hwfn->p_main_ptt,
-					       QED_OV_ESWITCH_VEB);
+					       QED_OV_ESWITCH_NONE);
 		if (rc)
 			DP_INFO(p_hwfn, "Failed to update eswitch mode\n");
 	}

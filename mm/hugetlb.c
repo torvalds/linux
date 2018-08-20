@@ -2163,6 +2163,7 @@ static void __init gather_bootmem_prealloc(void)
 		 */
 		if (hstate_is_gigantic(h))
 			adjust_managed_page_count(page, 1 << h->order);
+		cond_resched();
 	}
 }
 
@@ -2798,7 +2799,8 @@ static int __init hugetlb_init(void)
 	num_fault_mutexes = 1;
 #endif
 	hugetlb_fault_mutex_table =
-		kmalloc(sizeof(struct mutex) * num_fault_mutexes, GFP_KERNEL);
+		kmalloc_array(num_fault_mutexes, sizeof(struct mutex),
+			      GFP_KERNEL);
 	BUG_ON(!hugetlb_fault_mutex_table);
 
 	for (i = 0; i < num_fault_mutexes; i++)

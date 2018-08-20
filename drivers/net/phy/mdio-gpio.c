@@ -26,10 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/mdio-bitbang.h>
 #include <linux/mdio-gpio.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
-
-#include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
 
 struct mdio_gpio_info {

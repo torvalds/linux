@@ -1,0 +1,142 @@
+/*
+ * Copyright (C) 2016 Derald D. Woods <woods.technical@gmail.com>
+ *
+ * Based on am3517-evm.dts
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vdd_core_reg>;
+		};
+	};
+};
+
+&gpmc {
+	ranges = <0 0 0x30000000 0x1000000>;	/* CS0: 16MB for NAND */
+
+	nand@0,0 {
+		compatible = "ti,omap2-nand";
+		linux,mtd-name = "micron,mt29f4g16abchch";
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		nand-bus-width = <16>;
+		ti,nand-ecc-opt = "bch8";
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		gpmc,device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+
+	s35390a: s35390a@30 {
+		compatible = "sii,s35390a";
+		reg = <0x30>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_pins>;
+		interrupts-extended = <&gpio2 23 IRQ_TYPE_EDGE_FALLING>; /* gpio_55 */
+	};
+
+	tps: tps65023@48 {
+		compatible = "ti,tps65023";
+		reg = <0x48>;
+
+		regulators {
+			vdd_core_reg: VDCDC1 {
+				regulator-name = "vdd_core";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			vdd_io_reg: VDCDC2 {
+				regulator-name = "vdd_io";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			vdd_1v8_reg: VDCDC3 {
+				regulator-name = "vdd_1v8";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			vdd_usb18_reg: LDO1 {
+				regulator-name = "vdd_usb18";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			vdd_usb33_reg: LDO2 {
+				regulator-name = "vdd_usb33";
+				compatible = "regulator-fixed";
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+
+	touchscreen: tsc2004@4b {
+		compatible = "ti,tsc2004";
+		reg = <0x4b>;
+
+		vio-supply = <&vdd_io_reg>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsc2004_pins>;
+		interrupts-extended = <&gpio3 1 IRQ_TYPE_EDGE_RISING>; /* gpio_65 */
+
+		touchscreen-fuzz-x = <4>;
+		touchscreen-fuzz-y = <7>;
+		touchscreen-fuzz-pressure = <2>;
+		touchscreen-size-x = <480>;
+		touchscreen-size-y = <272>;
+		touchscreen-max-pressure = <2048>;
+
+		ti,x-plate-ohms = <280>;
+		ti,esd-recovery-timeout-ms = <8000>;
+	};
+};
+
+&omap3_pmx_core {
+
+	rtc_pins: pinmux_rtc_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20b6, PIN_INPUT_PULLUP | MUX_MODE4) /* gpmc_ncs4.gpio_55 */
+		>;
+	};
+
+	tsc2004_pins: pinmux_tsc2004_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20d2, PIN_INPUT | MUX_MODE4) /* gpmc_wait3.gpio_65 */
+		>;
+	};
+};

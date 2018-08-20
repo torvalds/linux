@@ -94,15 +94,27 @@ struct davinci_psc_init_data {
 	int (*psc_init)(struct device *dev, void __iomem *base);
 };
 
+#ifdef CONFIG_ARCH_DAVINCI_DA830
 extern const struct davinci_psc_init_data da830_psc0_init_data;
 extern const struct davinci_psc_init_data da830_psc1_init_data;
+#endif
+#ifdef CONFIG_ARCH_DAVINCI_DA850
 extern const struct davinci_psc_init_data da850_psc0_init_data;
 extern const struct davinci_psc_init_data da850_psc1_init_data;
 extern const struct davinci_psc_init_data of_da850_psc0_init_data;
 extern const struct davinci_psc_init_data of_da850_psc1_init_data;
+#endif
+#ifdef CONFIG_ARCH_DAVINCI_DM355
 extern const struct davinci_psc_init_data dm355_psc_init_data;
+#endif
+#ifdef CONFIG_ARCH_DAVINCI_DM365
 extern const struct davinci_psc_init_data dm365_psc_init_data;
+#endif
+#ifdef CONFIG_ARCH_DAVINCI_DM644x
 extern const struct davinci_psc_init_data dm644x_psc_init_data;
+#endif
+#ifdef CONFIG_ARCH_DAVINCI_DM646x
 extern const struct davinci_psc_init_data dm646x_psc_init_data;
+#endif
 
 #endif /* __CLK_DAVINCI_PSC_H__ */

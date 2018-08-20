@@ -98,7 +98,8 @@ struct gpio_service *dal_gpio_service_create(
 			if (number_of_bits) {
 				uint32_t index_of_uint = 0;
 
-				slot = kzalloc(number_of_uints * sizeof(uint32_t),
+				slot = kcalloc(number_of_uints,
+					       sizeof(uint32_t),
 					       GFP_KERNEL);
 
 				if (!slot) {
