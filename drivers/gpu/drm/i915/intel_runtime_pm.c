@@ -1087,16 +1087,11 @@ static struct i915_power_well *
 lookup_power_well(struct drm_i915_private *dev_priv,
 		  enum i915_power_well_id power_well_id)
 {
-	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	int i;
+	struct i915_power_well *power_well;
 
-	for (i = 0; i < power_domains->power_well_count; i++) {
-		struct i915_power_well *power_well;
-
-		power_well = &power_domains->power_wells[i];
+	for_each_power_well(dev_priv, power_well)
 		if (power_well->desc->id == power_well_id)
 			return power_well;
-	}
 
 	/*
 	 * It's not feasible to add error checking code to the callers since
@@ -1106,7 +1101,7 @@ lookup_power_well(struct drm_i915_private *dev_priv,
 	 * our driver.
 	 */
 	WARN(1, "Power well %d not defined for this platform\n", power_well_id);
-	return &power_domains->power_wells[0];
+	return &dev_priv->power_domains.power_wells[0];
 }
 
 #define BITS_SET(val, bits) (((val) & (bits)) == (bits))
