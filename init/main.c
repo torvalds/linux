@@ -882,7 +882,23 @@ asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
 	build_all_zonelists(NULL);
 	page_alloc_init();
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	{
+		const char *s = saved_command_line;
+		const char *e = &saved_command_line[strlen(saved_command_line)];
+		int n =
+		    pr_notice("Kernel command line: %s\n", saved_command_line);
+		n -= strlen("Kernel command line: ");
+		s += n;
+		/* command line maybe too long to print one time */
+		while (n > 0 && s < e) {
+			n = pr_cont("%s\n", s);
+			s += n;
+		}
+	}
+#else
 	pr_notice("Kernel command line: %s\n", saved_command_line);
+#endif
 	/* parameters may set static keys */
 	jump_label_init();
 	parse_early_param();
