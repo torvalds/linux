@@ -573,7 +573,7 @@ struct virtchnl_filter {
 	enum	virtchnl_flow_type flow_type;
 	enum	virtchnl_action action;
 	u32	action_meta;
-	__u8	field_flags;
+	u8	field_flags;
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(272, virtchnl_filter);
