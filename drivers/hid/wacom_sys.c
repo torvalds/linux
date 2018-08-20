@@ -210,6 +210,57 @@ static int wacom_calc_hid_res(int logical_extents, int physical_extents,
 	return hidinput_calc_abs_res(&field, ABS_X);
 }
 
+static void wacom_hid_usage_quirk(struct hid_device *hdev,
+		struct hid_field *field, struct hid_usage *usage)
+{
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct wacom_features *features = &wacom->wacom_wac.features;
+	unsigned int equivalent_usage = wacom_equivalent_usage(usage->hid);
+
+	/*
+	 * The Dell Canvas 27 needs to be switched to its vendor-defined
+	 * report to provide the best resolution.
+	 */
+	if (hdev->vendor == USB_VENDOR_ID_WACOM &&
+	    hdev->product == 0x4200 &&
+	    field->application == HID_UP_MSVENDOR) {
+		wacom->wacom_wac.mode_report = field->report->id;
+		wacom->wacom_wac.mode_value = 2;
+	}
+
+	/*
+	 * ISDv4 devices which predate HID's adoption of the
+	 * HID_DG_BARELSWITCH2 usage use 0x000D0000 in its
+	 * position instead. We can accurately detect if a
+	 * usage with that value should be HID_DG_BARRELSWITCH2
+	 * based on the surrounding usages, which have remained
+	 * constant across generations.
+	 */
+	if (features->type == HID_GENERIC &&
+	    usage->hid == 0x000D0000 &&
+	    field->application == HID_DG_PEN &&
+	    field->physical == HID_DG_STYLUS) {
+		int i = usage->usage_index;
+
+		if (i-4 >= 0 && i+1 < field->maxusage &&
+		    field->usage[i-4].hid == HID_DG_TIPSWITCH &&
+		    field->usage[i-3].hid == HID_DG_BARRELSWITCH &&
+		    field->usage[i-2].hid == HID_DG_ERASER &&
+		    field->usage[i-1].hid == HID_DG_INVERT &&
+		    field->usage[i+1].hid == HID_DG_INRANGE) {
+			usage->hid = HID_DG_BARRELSWITCH2;
+		}
+	}
+
+	/* 2nd-generation Intuos Pro Large has incorrect Y maximum */
+	if (hdev->vendor == USB_VENDOR_ID_WACOM &&
+	    hdev->product == 0x0358 &&
+	    WACOM_PEN_FIELD(field) &&
+	    equivalent_usage == HID_GD_Y) {
+		field->logical_maximum = 43200;
+	}
+}
+
 static void wacom_feature_mapping(struct hid_device *hdev,
 		struct hid_field *field, struct hid_usage *usage)
 {
@@ -220,6 +271,8 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	u8 *data;
 	int ret;
 	u32 n;
+
+	wacom_hid_usage_quirk(hdev, field, usage);
 
 	switch (equivalent_usage) {
 	case HID_DG_CONTACTMAX:
@@ -300,13 +353,6 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 		kfree(data);
 		break;
 	}
-
-	if (hdev->vendor == USB_VENDOR_ID_WACOM &&
-	    hdev->product == 0x4200 /* Dell Canvas 27 */ &&
-	    field->application == HID_UP_MSVENDOR) {
-		wacom->wacom_wac.mode_report = field->report->id;
-		wacom->wacom_wac.mode_value = 2;
-	}
 }
 
 /*
@@ -348,6 +394,7 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 	struct wacom_features *features = &wacom->wacom_wac.features;
 	bool finger = WACOM_FINGER_FIELD(field);
 	bool pen = WACOM_PEN_FIELD(field);
+	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
 	/*
 	* Requiring Stylus Usage will ignore boot mouse
@@ -361,49 +408,9 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 	else
 		return;
 
-	/*
-	 * Bamboo models do not support HID_DG_CONTACTMAX.
-	 * And, Bamboo Pen only descriptor contains touch.
-	 */
-	if (features->type > BAMBOO_PT) {
-		/* ISDv4 touch devices at least supports one touch point */
-		if (finger && !features->touch_max)
-			features->touch_max = 1;
-	}
+	wacom_hid_usage_quirk(hdev, field, usage);
 
-	/*
-	 * ISDv4 devices which predate HID's adoption of the
-	 * HID_DG_BARELSWITCH2 usage use 0x000D0000 in its
-	 * position instead. We can accurately detect if a
-	 * usage with that value should be HID_DG_BARRELSWITCH2
-	 * based on the surrounding usages, which have remained
-	 * constant across generations.
-	 */
-	if (features->type == HID_GENERIC &&
-	    usage->hid == 0x000D0000 &&
-	    field->application == HID_DG_PEN &&
-	    field->physical == HID_DG_STYLUS) {
-		int i = usage->usage_index;
-
-		if (i-4 >= 0 && i+1 < field->maxusage &&
-		    field->usage[i-4].hid == HID_DG_TIPSWITCH &&
-		    field->usage[i-3].hid == HID_DG_BARRELSWITCH &&
-		    field->usage[i-2].hid == HID_DG_ERASER &&
-		    field->usage[i-1].hid == HID_DG_INVERT &&
-		    field->usage[i+1].hid == HID_DG_INRANGE) {
-			usage->hid = HID_DG_BARRELSWITCH2;
-		}
-	}
-
-	/* 2nd-generation Intuos Pro Large has incorrect Y maximum */
-	if (hdev->vendor == USB_VENDOR_ID_WACOM &&
-	    hdev->product == 0x0358 &&
-	    WACOM_PEN_FIELD(field) &&
-	    wacom_equivalent_usage(usage->hid) == HID_GD_Y) {
-		field->logical_maximum = 43200;
-	}
-
-	switch (usage->hid) {
+	switch (equivalent_usage) {
 	case HID_GD_X:
 		features->x_max = field->logical_maximum;
 		if (finger) {
