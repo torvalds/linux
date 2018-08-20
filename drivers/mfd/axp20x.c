@@ -221,6 +221,11 @@ static const struct resource axp803_pek_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP803_IRQ_PEK_FAL_EDGE, "PEK_DBF"),
 };
 
+static const struct resource axp806_pek_resources[] = {
+	DEFINE_RES_IRQ_NAMED(AXP806_IRQ_POK_RISE, "PEK_DBR"),
+	DEFINE_RES_IRQ_NAMED(AXP806_IRQ_POK_FALL, "PEK_DBF"),
+};
+
 static const struct resource axp809_pek_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP809_IRQ_PEK_RIS_EDGE, "PEK_DBR"),
 	DEFINE_RES_IRQ_NAMED(AXP809_IRQ_PEK_FAL_EDGE, "PEK_DBF"),
@@ -730,6 +735,15 @@ static const struct mfd_cell axp803_cells[] = {
 	{	.name			= "axp20x-regulator" },
 };
 
+static const struct mfd_cell axp806_self_working_cells[] = {
+	{
+		.name			= "axp221-pek",
+		.num_resources		= ARRAY_SIZE(axp806_pek_resources),
+		.resources		= axp806_pek_resources,
+	},
+	{	.name			= "axp20x-regulator" },
+};
+
 static const struct mfd_cell axp806_cells[] = {
 	{
 		.id			= 2,
@@ -842,8 +856,14 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		axp20x->regmap_irq_chip = &axp803_regmap_irq_chip;
 		break;
 	case AXP806_ID:
-		axp20x->nr_cells = ARRAY_SIZE(axp806_cells);
-		axp20x->cells = axp806_cells;
+		if (of_property_read_bool(axp20x->dev->of_node,
+					  "x-powers,self-working-mode")) {
+			axp20x->nr_cells = ARRAY_SIZE(axp806_self_working_cells);
+			axp20x->cells = axp806_self_working_cells;
+		} else {
+			axp20x->nr_cells = ARRAY_SIZE(axp806_cells);
+			axp20x->cells = axp806_cells;
+		}
 		axp20x->regmap_cfg = &axp806_regmap_config;
 		axp20x->regmap_irq_chip = &axp806_regmap_irq_chip;
 		break;
@@ -901,7 +921,9 @@ int axp20x_device_probe(struct axp20x_dev *axp20x)
 	 */
 	if (axp20x->variant == AXP806_ID) {
 		if (of_property_read_bool(axp20x->dev->of_node,
-					  "x-powers,master-mode"))
+					  "x-powers,master-mode") ||
+		    of_property_read_bool(axp20x->dev->of_node,
+					  "x-powers,self-working-mode"))
 			regmap_write(axp20x->regmap, AXP806_REG_ADDR_EXT,
 				     AXP806_REG_ADDR_EXT_ADDR_MASTER_MODE);
 		else

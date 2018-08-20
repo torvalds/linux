@@ -146,6 +146,7 @@ static const struct of_device_id sec_dt_match[] = {
 		/* Sentinel */
 	},
 };
+MODULE_DEVICE_TABLE(of, sec_dt_match);
 #endif
 
 static bool s2mpa01_volatile(struct device *dev, unsigned int reg)

@@ -3562,6 +3562,22 @@ M:	Christian Benvenuti <benve@cisco.com>
 S:	Supported
 F:	drivers/infiniband/hw/usnic/
 
+CIRRUS LOGIC MADERA CODEC DRIVERS
+M:	Charles Keepax <ckeepax@opensource.cirrus.com>
+M:	Richard Fitzgerald <rf@opensource.cirrus.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	patches@opensource.cirrus.com
+T:	git https://github.com/CirrusLogic/linux-drivers.git
+W:	https://github.com/CirrusLogic/linux-drivers/wiki
+S:	Supported
+F:	Documentation/devicetree/bindings/mfd/madera.txt
+F:	Documentation/devicetree/bindings/pinctrl/cirrus,madera-pinctrl.txt
+F:	include/linux/mfd/madera/*
+F:	drivers/gpio/gpio-madera*
+F:	drivers/mfd/madera*
+F:	drivers/mfd/cs47l*
+F:	drivers/pinctrl/cirrus/*
+
 CLANG-FORMAT FILE
 M:	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
 S:	Maintained
