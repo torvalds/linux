@@ -29,7 +29,7 @@ static int sof_compressed_open(struct snd_compr_stream *cstream)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 
 	mutex_lock(&spcm->mutex);
 	pm_runtime_get_sync(sdev->dev);
@@ -44,7 +44,7 @@ static int sof_compressed_free(struct snd_compr_stream *cstream)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 
 	mutex_lock(&spcm->mutex);
 	pm_runtime_put(sdev->dev);
@@ -92,7 +92,7 @@ static int sof_compressed_trigger(struct snd_compr_stream *cstream, int cmd)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
 
@@ -133,7 +133,7 @@ static int sof_compressed_pointer(struct snd_compr_stream *cstream,
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
 	struct sof_ipc_stream_posn posn;
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 
 	snd_sof_ipc_stream_posn(sdev, spcm, cstream->direction, &posn);
 
