@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NAND Flash Controller Device Driver
  * Copyright © 2009-2010, Intel Corporation and its suppliers.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * Copyright (c) 2017 Socionext Inc.
+ *   Reworked by Masahiro Yamada <yamada.masahiro@socionext.com>
  */
 
 #include <linux/bitfield.h>
@@ -24,8 +19,6 @@
 #include <linux/spinlock.h>
 
 #include "denali.h"
-
-MODULE_LICENSE("GPL");
 
 #define DENALI_NAND_NAME    "denali-nand"
 
@@ -1391,3 +1384,7 @@ void denali_remove(struct denali_nand_info *denali)
 	denali_disable_irq(denali);
 }
 EXPORT_SYMBOL(denali_remove);
+
+MODULE_DESCRIPTION("Driver core for Denali NAND controller");
+MODULE_AUTHOR("Intel Corporation and its suppliers");
+MODULE_LICENSE("GPL v2");
