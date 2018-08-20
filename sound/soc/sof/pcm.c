@@ -40,7 +40,7 @@ static int create_page_table(struct snd_pcm_substream *substream,
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 	struct snd_dma_buffer *dmab = snd_pcm_get_dma_buf(substream);
 	int stream = substream->stream;
 
@@ -58,7 +58,7 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 	struct sof_ipc_pcm_params pcm;
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
 	int posn_offset;
@@ -177,7 +177,7 @@ static int sof_pcm_hw_free(struct snd_pcm_substream *substream)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
 	int ret;
@@ -235,7 +235,7 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
 	int ret = 0;
@@ -335,7 +335,7 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_pcm_substream *substream)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 	snd_pcm_uframes_t host = 0, dai = 0;
 
 	/* nothing todo for BE */
@@ -362,7 +362,7 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 	struct snd_soc_tplg_stream_caps *caps =
 		&spcm->pcm.caps[substream->stream];
 
@@ -428,7 +428,7 @@ static int sof_pcm_close(struct snd_pcm_substream *substream)
 		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pcm *spcm = rtd->sof;
+	struct snd_sof_pcm *spcm = rtd->private;
 
 	/* nothing todo for BE */
 	if (rtd->dai_link->no_pcm)
@@ -475,7 +475,7 @@ static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			 rtd->dai_link->id);
 		return 0;
 	}
-	rtd->sof = spcm;
+	rtd->private = spcm;
 
 	dev_dbg(sdev->dev, "creating new PCM %s\n", spcm->pcm.pcm_name);
 
