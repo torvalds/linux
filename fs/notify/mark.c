@@ -132,13 +132,13 @@ static void __fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 	struct fsnotify_mark *mark;
 
 	assert_spin_locked(&conn->lock);
+	/* We can get detached connector here when inode is getting unlinked. */
+	if (!fsnotify_valid_obj_type(conn->type))
+		return;
 	hlist_for_each_entry(mark, &conn->list, obj_list) {
 		if (mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED)
 			new_mask |= mark->mask;
 	}
-	if (WARN_ON(!fsnotify_valid_obj_type(conn->type)))
-		return;
-
 	*fsnotify_conn_mask_p(conn) = new_mask;
 }
 
