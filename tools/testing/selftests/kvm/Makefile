@@ -6,7 +6,8 @@ UNAME_M := $(shell uname -m)
 LIBKVM = lib/assert.c lib/elf.c lib/io.c lib/kvm_util.c lib/sparsebit.c
 LIBKVM_x86_64 = lib/x86.c lib/vmx.c
 
-TEST_GEN_PROGS_x86_64 = set_sregs_test
+TEST_GEN_PROGS_x86_64 = platform_info_test
+TEST_GEN_PROGS_x86_64 += set_sregs_test
 TEST_GEN_PROGS_x86_64 += sync_regs_test
 TEST_GEN_PROGS_x86_64 += vmx_tsc_adjust_test
 TEST_GEN_PROGS_x86_64 += cr4_cpuid_sync_test
