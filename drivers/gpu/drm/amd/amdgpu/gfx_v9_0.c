@@ -532,6 +532,8 @@ static void gfx_v9_0_check_fw_write_wait(struct amdgpu_device *adev)
 		    (adev->gfx.mec_feature_version >= 42))
 			adev->gfx.mec_fw_write_wait = true;
 		break;
+	default:
+		break;
 	}
 }
 
