@@ -812,26 +812,26 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 {
 	struct lineevent_state *le = p;
 	struct gpioevent_data ge;
-	int ret, level;
+	int ret;
 
 	/* Do not leak kernel stack to userspace */
 	memset(&ge, 0, sizeof(ge));
 
 	ge.timestamp = le->timestamp;
-	level = gpiod_get_value_cansleep(le->desc);
 
 	if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE
 	    && le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
+		int level = gpiod_get_value_cansleep(le->desc);
 		if (level)
 			/* Emit low-to-high event */
 			ge.id = GPIOEVENT_EVENT_RISING_EDGE;
 		else
 			/* Emit high-to-low event */
 			ge.id = GPIOEVENT_EVENT_FALLING_EDGE;
-	} else if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE && level) {
+	} else if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE) {
 		/* Emit low-to-high event */
 		ge.id = GPIOEVENT_EVENT_RISING_EDGE;
-	} else if (le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE && !level) {
+	} else if (le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
 		/* Emit high-to-low event */
 		ge.id = GPIOEVENT_EVENT_FALLING_EDGE;
 	} else {
@@ -942,7 +942,6 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	if (eflags & GPIOEVENT_REQUEST_FALLING_EDGE)
 		irqflags |= IRQF_TRIGGER_FALLING;
 	irqflags |= IRQF_ONESHOT;
-	irqflags |= IRQF_SHARED;
 
 	INIT_KFIFO(le->events);
 	init_waitqueue_head(&le->wait);
