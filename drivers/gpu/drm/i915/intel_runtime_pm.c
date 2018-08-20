@@ -52,10 +52,6 @@
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 					 enum i915_power_well_id power_well_id);
 
-static struct i915_power_well *
-lookup_power_well(struct drm_i915_private *dev_priv,
-		  enum i915_power_well_id power_well_id);
-
 const char *
 intel_display_power_domain_str(enum intel_display_power_domain domain)
 {
@@ -652,6 +648,27 @@ static void assert_csr_loaded(struct drm_i915_private *dev_priv)
 	WARN_ONCE(!I915_READ(CSR_HTP_SKL), "CSR HTP Not fine\n");
 }
 
+static struct i915_power_well *
+lookup_power_well(struct drm_i915_private *dev_priv,
+		  enum i915_power_well_id power_well_id)
+{
+	struct i915_power_well *power_well;
+
+	for_each_power_well(dev_priv, power_well)
+		if (power_well->desc->id == power_well_id)
+			return power_well;
+
+	/*
+	 * It's not feasible to add error checking code to the callers since
+	 * this condition really shouldn't happen and it doesn't even make sense
+	 * to abort things like display initialization sequences. Just return
+	 * the first power well and hope the WARN gets reported so we can fix
+	 * our driver.
+	 */
+	WARN(1, "Power well %d not defined for this platform\n", power_well_id);
+	return &dev_priv->power_domains.power_wells[0];
+}
+
 static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 {
 	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
@@ -1082,27 +1099,6 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 }
 
 #define POWER_DOMAIN_MASK (GENMASK_ULL(POWER_DOMAIN_NUM - 1, 0))
-
-static struct i915_power_well *
-lookup_power_well(struct drm_i915_private *dev_priv,
-		  enum i915_power_well_id power_well_id)
-{
-	struct i915_power_well *power_well;
-
-	for_each_power_well(dev_priv, power_well)
-		if (power_well->desc->id == power_well_id)
-			return power_well;
-
-	/*
-	 * It's not feasible to add error checking code to the callers since
-	 * this condition really shouldn't happen and it doesn't even make sense
-	 * to abort things like display initialization sequences. Just return
-	 * the first power well and hope the WARN gets reported so we can fix
-	 * our driver.
-	 */
-	WARN(1, "Power well %d not defined for this platform\n", power_well_id);
-	return &dev_priv->power_domains.power_wells[0];
-}
 
 #define BITS_SET(val, bits) (((val) & (bits)) == (bits))
 
