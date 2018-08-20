@@ -194,6 +194,47 @@ done:
 		 best_diff);
 }
 
+struct du_clk_params {
+	struct clk *clk;
+	unsigned long rate;
+	unsigned long diff;
+	u32 escr;
+};
+
+static void rcar_du_escr_divider(struct clk *clk, unsigned long target,
+				 u32 escr, struct du_clk_params *params)
+{
+	unsigned long rate;
+	unsigned long diff;
+	u32 div;
+
+	/*
+	 * If the target rate has already been achieved perfectly we can't do
+	 * better.
+	 */
+	if (params->diff == 0)
+		return;
+
+	/*
+	 * Compute the input clock rate and internal divisor values to obtain
+	 * the clock rate closest to the target frequency.
+	 */
+	rate = clk_round_rate(clk, target);
+	div = clamp(DIV_ROUND_CLOSEST(rate, target), 1UL, 64UL) - 1;
+	diff = abs(rate / (div + 1) - target);
+
+	/*
+	 * Store the parameters if the resulting frequency is better than any
+	 * previously calculated value.
+	 */
+	if (diff < params->diff) {
+		params->clk = clk;
+		params->rate = rate;
+		params->diff = diff;
+		params->escr = escr | div;
+	}
+}
+
 static const struct soc_device_attribute rcar_du_r8a7795_es1[] = {
 	{ .soc_id = "r8a7795", .revision = "ES1.*" },
 	{ /* sentinel */ }
@@ -254,41 +295,23 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 		escr = ESCR_DCLKSEL_DCLKIN | div;
 	} else {
-		unsigned long clk;
-		u32 div;
+		struct du_clk_params params = { .diff = (unsigned long)-1 };
 
-		/*
-		 * Compute the clock divisor and select the internal or external
-		 * dot clock based on the requested frequency.
-		 */
-		clk = clk_get_rate(rcrtc->clock);
-		div = DIV_ROUND_CLOSEST(clk, mode_clock);
-		div = clamp(div, 1U, 64U) - 1;
+		rcar_du_escr_divider(rcrtc->clock, mode_clock,
+				     ESCR_DCLKSEL_CLKS, &params);
+		if (rcrtc->extclock)
+			rcar_du_escr_divider(rcrtc->extclock, mode_clock,
+					     ESCR_DCLKSEL_DCLKIN, &params);
 
-		escr = ESCR_DCLKSEL_CLKS | div;
+		dev_dbg(rcrtc->group->dev->dev,	"mode clock %lu %s rate %lu\n",
+			mode_clock, params.clk == rcrtc->clock ? "cpg" : "ext",
+			params.rate);
 
-		if (rcrtc->extclock) {
-			unsigned long extclk;
-			unsigned long extrate;
-			unsigned long rate;
-			u32 extdiv;
-
-			extclk = clk_get_rate(rcrtc->extclock);
-			extdiv = DIV_ROUND_CLOSEST(extclk, mode_clock);
-			extdiv = clamp(extdiv, 1U, 64U) - 1;
-
-			extrate = extclk / (extdiv + 1);
-			rate = clk / (div + 1);
-
-			if (abs((long)extrate - (long)mode_clock) <
-			    abs((long)rate - (long)mode_clock))
-				escr = ESCR_DCLKSEL_DCLKIN | extdiv;
-
-			dev_dbg(rcrtc->group->dev->dev,
-				"mode clock %lu extrate %lu rate %lu ESCR 0x%08x\n",
-				mode_clock, extrate, rate, escr);
-		}
+		clk_set_rate(params.clk, params.rate);
+		escr = params.escr;
 	}
+
+	dev_dbg(rcrtc->group->dev->dev, "%s: ESCR 0x%08x\n", __func__, escr);
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? ESCR2 : ESCR,
 			    escr);
