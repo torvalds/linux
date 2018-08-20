@@ -117,13 +117,8 @@ static void __dump(struct task_struct *tsk, unsigned long *base_reg)
 		       !((unsigned long)base_reg & 0x3) &&
 		       ((unsigned long)base_reg >= TASK_SIZE)) {
 			unsigned long next_fp;
-#if !defined(__NDS32_ABI_2)
-			ret_addr = base_reg[0];
-			next_fp = base_reg[1];
-#else
 			ret_addr = base_reg[-1];
 			next_fp = base_reg[FP_OFFSET];
-#endif
 			if (__kernel_text_address(ret_addr)) {
 
 				ret_addr = ftrace_graph_ret_addr(
