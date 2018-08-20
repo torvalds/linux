@@ -14,8 +14,8 @@
 };
 
 &acodec {
-	/* The grp1/2 (ADC3-6) keeps enabled always for VAD */
-	rockchip,en-always-grps = <1 2>;
+	/* The grp2/3 (ADC5-8) keeps enabled always for VAD */
+	rockchip,en-always-grps = <2 3>;
 };
 
 &bluetooth_sound {
