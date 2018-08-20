@@ -54,8 +54,6 @@
 #define BME680_REG_CTRL_GAS_1			0x71
 #define   BME680_RUN_GAS_MASK			BIT(4)
 #define   BME680_NB_CONV_MASK			GENMASK(3, 0)
-#define     BME680_RUN_GAS_EN_BIT		BIT(4)
-#define     BME680_NB_CONV_0_VAL		0
 
 #define BME680_REG_MEAS_STAT_0			0x1D
 #define   BME680_GAS_MEAS_BIT			BIT(6)

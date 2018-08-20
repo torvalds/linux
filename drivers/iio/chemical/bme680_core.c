@@ -572,10 +572,11 @@ static int bme680_gas_config(struct bme680_data *data)
 		return ret;
 	}
 
-	/* Selecting the runGas and NB conversion settings for the sensor */
+	/* Enable the gas sensor and select heater profile set-point 0 */
 	ret = regmap_update_bits(data->regmap, BME680_REG_CTRL_GAS_1,
 				 BME680_RUN_GAS_MASK | BME680_NB_CONV_MASK,
-				 BME680_RUN_GAS_EN_BIT | BME680_NB_CONV_0_VAL);
+				 FIELD_PREP(BME680_RUN_GAS_MASK, 1) |
+				 FIELD_PREP(BME680_NB_CONV_MASK, 0));
 	if (ret < 0)
 		dev_err(dev, "failed to write ctrl_gas_1 register\n");
 
