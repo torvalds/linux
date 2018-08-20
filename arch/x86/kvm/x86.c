@@ -2779,6 +2779,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.osvw.status;
 		break;
 	case MSR_PLATFORM_INFO:
+		if (!msr_info->host_initiated &&
+		    !vcpu->kvm->arch.guest_can_read_msr_platform_info)
+			return 1;
 		msr_info->data = vcpu->arch.msr_platform_info;
 		break;
 	case MSR_MISC_FEATURES_ENABLES:
@@ -2926,6 +2929,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
  	case KVM_CAP_SPLIT_IRQCHIP:
 	case KVM_CAP_IMMEDIATE_EXIT:
 	case KVM_CAP_GET_MSR_FEATURES:
+	case KVM_CAP_MSR_PLATFORM_INFO:
 		r = 1;
 		break;
 	case KVM_CAP_SYNC_REGS:
@@ -4347,6 +4351,10 @@ split_irqchip_unlock:
 			kvm->arch.hlt_in_guest = true;
 		if (cap->args[0] & KVM_X86_DISABLE_EXITS_PAUSE)
 			kvm->arch.pause_in_guest = true;
+		r = 0;
+		break;
+	case KVM_CAP_MSR_PLATFORM_INFO:
+		kvm->arch.guest_can_read_msr_platform_info = cap->args[0];
 		r = 0;
 		break;
 	default:
@@ -8856,6 +8864,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	kvm->arch.kvmclock_offset = -ktime_get_boot_ns();
 	pvclock_update_vm_gtod_copy(kvm);
+
+	kvm->arch.guest_can_read_msr_platform_info = true;
 
 	INIT_DELAYED_WORK(&kvm->arch.kvmclock_update_work, kvmclock_update_fn);
 	INIT_DELAYED_WORK(&kvm->arch.kvmclock_sync_work, kvmclock_sync_fn);

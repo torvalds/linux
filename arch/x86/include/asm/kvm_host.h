@@ -869,6 +869,8 @@ struct kvm_arch {
 
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
+
+	bool guest_can_read_msr_platform_info;
 };
 
 struct kvm_vm_stat {

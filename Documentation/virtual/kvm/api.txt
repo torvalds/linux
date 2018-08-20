@@ -4522,6 +4522,15 @@ hpage module parameter is not set to 1, -EINVAL is returned.
 While it is generally possible to create a huge page backed VM without
 this capability, the VM will not be able to run.
 
+7.14 KVM_CAP_MSR_PLATFORM_INFO
+
+Architectures: x86
+Parameters: args[0] whether feature should be enabled or not
+
+With this capability, a guest may read the MSR_PLATFORM_INFO MSR. Otherwise,
+a #GP would be raised when the guest tries to access. Currently, this
+capability does not enable write permissions of this MSR for the guest.
+
 8. Other capabilities.
 ----------------------
 
