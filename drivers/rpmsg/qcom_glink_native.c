@@ -91,6 +91,7 @@ struct glink_core_rx_intent {
  * @idr_lock:	synchronizes @lcids and @rcids modifications
  * @lcids:	idr of all channels with a known local channel id
  * @rcids:	idr of all channels with a known remote channel id
+ * @in_reset:	reset status of this edge
  * @features:	remote features
  * @intentless:	flag to indicate that there is no intent
  * @tx_avail_notify: Waitqueue for pending tx tasks
@@ -119,6 +120,8 @@ struct qcom_glink {
 	spinlock_t idr_lock;
 	struct idr lcids;
 	struct idr rcids;
+
+	atomic_t in_reset;
 	unsigned long features;
 
 	bool intentless;
@@ -155,7 +158,8 @@ enum {
  * @open_req:	completed once open-request has been received
  * @intent_req_lock: Synchronises multiple intent requests
  * @intent_req_result: Result of intent request
- * @intent_req_comp: Completion for intent_req signalling
+ * @intent_req_comp: Status of intent request completion
+ * @intent_req_event: Waitqueue for @intent_req_comp
  */
 struct glink_channel {
 	struct rpmsg_endpoint ept;
@@ -186,8 +190,9 @@ struct glink_channel {
 
 	struct mutex intent_req_lock;
 	bool intent_req_result;
-	struct completion intent_req_comp;
 	bool channel_ready;
+	atomic_t intent_req_comp;
+	wait_queue_head_t intent_req_event;
 };
 
 #define to_glink_channel(_ept) container_of(_ept, struct glink_channel, ept)
@@ -232,7 +237,8 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 
 	init_completion(&channel->open_req);
 	init_completion(&channel->open_ack);
-	init_completion(&channel->intent_req_comp);
+	atomic_set(&channel->intent_req_comp, 0);
+	init_waitqueue_head(&channel->intent_req_event);
 
 	INIT_LIST_HEAD(&channel->done_intents);
 	INIT_WORK(&channel->intent_work, qcom_glink_rx_done_work);
@@ -254,8 +260,9 @@ static void qcom_glink_channel_release(struct kref *ref)
 	int iid;
 
 	channel->intent_req_result = false;
-	complete_all(&channel->intent_req_comp);
+	atomic_inc(&channel->intent_req_comp);
 
+	wake_up(&channel->intent_req_event);
 	/* cancel pending rx_done work */
 	cancel_work_sync(&channel->intent_work);
 
@@ -337,6 +344,9 @@ static int qcom_glink_tx(struct qcom_glink *glink,
 	if (tlen >= glink->tx_pipe->length)
 		return -EINVAL;
 
+	if (atomic_read(&glink->in_reset))
+		return -ECONNRESET;
+
 	spin_lock_irqsave(&glink->tx_lock, flags);
 
 	while (qcom_glink_tx_avail(glink) < tlen) {
@@ -357,6 +367,11 @@ static int qcom_glink_tx(struct qcom_glink *glink,
 				   qcom_glink_tx_avail(glink) >= tlen, 10 * HZ);
 
 		spin_lock_irqsave(&glink->tx_lock, flags);
+
+		if (atomic_read(&glink->in_reset)) {
+			ret = -ECONNRESET;
+			goto out;
+		}
 
 		if (qcom_glink_tx_avail(glink) >= tlen)
 			glink->sent_read_notify = false;
@@ -422,7 +437,8 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
 	}
 
 	channel->intent_req_result = granted;
-	complete(&channel->intent_req_comp);
+	atomic_inc(&channel->intent_req_comp);
+	wake_up(&channel->intent_req_event);
 }
 
 /**
@@ -1336,7 +1352,7 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 
 	mutex_lock(&channel->intent_req_lock);
 
-	reinit_completion(&channel->intent_req_comp);
+	atomic_set(&channel->intent_req_comp, 0);
 
 	cmd.id = RPM_CMD_RX_INTENT_REQ;
 	cmd.cid = channel->lcid;
@@ -1346,10 +1362,14 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 	if (ret)
 		goto unlock;
 
-	ret = wait_for_completion_timeout(&channel->intent_req_comp, 10 * HZ);
+	ret = wait_event_timeout(channel->intent_req_event,
+				 atomic_read(&channel->intent_req_comp) ||
+				 atomic_read(&glink->in_reset), 10 * HZ);
 	if (!ret) {
 		dev_err(glink->dev, "intent request timed out\n");
 		ret = -ETIMEDOUT;
+	} else if (atomic_read(&glink->in_reset)) {
+		ret = -ECONNRESET;
 	} else {
 		ret = channel->intent_req_result ? 0 : -ECANCELED;
 	}
@@ -1396,6 +1416,9 @@ static int __qcom_glink_send(struct glink_channel *channel,
 			/* We found an available intent */
 			if (intent)
 				break;
+
+			if (atomic_read(&glink->in_reset))
+				return -ECONNRESET;
 
 			if (!wait)
 				return -EBUSY;
@@ -1820,6 +1843,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	spin_lock_init(&glink->idr_lock);
 	idr_init(&glink->lcids);
 	idr_init(&glink->rcids);
+	atomic_set(&glink->in_reset, 0);
 
 	glink->dev->groups = qcom_glink_groups;
 
@@ -1875,11 +1899,20 @@ static int qcom_glink_remove_device(struct device *dev, void *data)
 void qcom_glink_native_remove(struct qcom_glink *glink)
 {
 	struct glink_channel *channel;
+	unsigned long flags;
 	int cid;
 	int ret;
 
+	atomic_inc(&glink->in_reset);
 	disable_irq(glink->irq);
 	qcom_glink_cancel_rx_work(glink);
+
+	/* Signal all threads to cancel tx */
+	spin_lock_irqsave(&glink->idr_lock, flags);
+	idr_for_each_entry(&glink->lcids, channel, cid) {
+		wake_up(&channel->intent_req_event);
+	}
+	spin_unlock_irqrestore(&glink->idr_lock, flags);
 
 	ret = device_for_each_child(glink->dev, NULL, qcom_glink_remove_device);
 	if (ret)
