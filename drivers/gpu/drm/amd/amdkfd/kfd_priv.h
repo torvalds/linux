@@ -36,6 +36,8 @@
 #include <linux/seq_file.h>
 #include <linux/kref.h>
 #include <linux/sysfs.h>
+#include <linux/device_cgroup.h>
+#include <drm/drmP.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -1041,6 +1043,21 @@ bool kfd_is_locked(void);
 /* Compute profile */
 void kfd_inc_compute_active(struct kfd_dev *dev);
 void kfd_dec_compute_active(struct kfd_dev *dev);
+
+/* Cgroup Support */
+/* Check with device cgroup if @kfd device is accessible */
+static inline int kfd_devcgroup_check_permission(struct kfd_dev *kfd)
+{
+#if defined(CONFIG_CGROUP_DEVICE)
+	struct drm_device *ddev = kfd->ddev;
+
+	return devcgroup_check_permission(DEVCG_DEV_CHAR, ddev->driver->major,
+					  ddev->render->index,
+					  DEVCG_ACC_WRITE | DEVCG_ACC_READ);
+#else
+	return 0;
+#endif
+}
 
 /* Debugfs */
 #if defined(CONFIG_DEBUG_FS)
