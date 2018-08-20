@@ -454,6 +454,7 @@ extern void memset_io(volatile void __iomem *s, int c, long n);
 #define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
 #define xlate_dev_mem_ptr xlate_dev_mem_ptr
 #include <asm-generic/io.h>
+#undef PCI_IOBASE
 
 # endif /* __KERNEL__ */
 
