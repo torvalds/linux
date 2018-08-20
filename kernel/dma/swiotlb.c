@@ -544,26 +544,6 @@ found:
 }
 
 /*
- * Allocates bounce buffer and returns its physical address.
- */
-static phys_addr_t
-map_single(struct device *hwdev, phys_addr_t phys, size_t size,
-	   enum dma_data_direction dir, unsigned long attrs)
-{
-	dma_addr_t start_dma_addr;
-
-	if (swiotlb_force == SWIOTLB_NO_FORCE) {
-		dev_warn_ratelimited(hwdev, "Cannot do DMA to address %pa\n",
-				     &phys);
-		return SWIOTLB_MAP_ERROR;
-	}
-
-	start_dma_addr = __phys_to_dma(hwdev, io_tlb_start);
-	return swiotlb_tbl_map_single(hwdev, start_dma_addr, phys, size,
-				      dir, attrs);
-}
-
-/*
  * tlb_addr is the physical address of the bounce buffer to unmap.
  */
 void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
@@ -714,6 +694,34 @@ static bool swiotlb_free_buffer(struct device *dev, size_t size,
 	return true;
 }
 
+static dma_addr_t swiotlb_bounce_page(struct device *dev, phys_addr_t *phys,
+		size_t size, enum dma_data_direction dir, unsigned long attrs)
+{
+	dma_addr_t dma_addr;
+
+	if (unlikely(swiotlb_force == SWIOTLB_NO_FORCE)) {
+		dev_warn_ratelimited(dev,
+			"Cannot do DMA to address %pa\n", phys);
+		return DIRECT_MAPPING_ERROR;
+	}
+
+	/* Oh well, have to allocate and map a bounce buffer. */
+	*phys = swiotlb_tbl_map_single(dev, __phys_to_dma(dev, io_tlb_start),
+			*phys, size, dir, attrs);
+	if (*phys == SWIOTLB_MAP_ERROR)
+		return DIRECT_MAPPING_ERROR;
+
+	/* Ensure that the address returned is DMA'ble */
+	dma_addr = __phys_to_dma(dev, *phys);
+	if (unlikely(!dma_capable(dev, dma_addr, size))) {
+		swiotlb_tbl_unmap_single(dev, *phys, size, dir,
+			attrs | DMA_ATTR_SKIP_CPU_SYNC);
+		return DIRECT_MAPPING_ERROR;
+	}
+
+	return dma_addr;
+}
+
 /*
  * Map a single buffer of the indicated size for DMA in streaming mode.  The
  * physical address to use is returned.
@@ -726,7 +734,7 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 			    enum dma_data_direction dir,
 			    unsigned long attrs)
 {
-	phys_addr_t map, phys = page_to_phys(page) + offset;
+	phys_addr_t phys = page_to_phys(page) + offset;
 	dma_addr_t dev_addr = phys_to_dma(dev, phys);
 
 	BUG_ON(dir == DMA_NONE);
@@ -739,22 +747,7 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 		return dev_addr;
 
 	trace_swiotlb_bounced(dev, dev_addr, size, swiotlb_force);
-
-	/* Oh well, have to allocate and map a bounce buffer. */
-	map = map_single(dev, phys, size, dir, attrs);
-	if (map == SWIOTLB_MAP_ERROR)
-		return DIRECT_MAPPING_ERROR;
-
-	dev_addr = __phys_to_dma(dev, map);
-
-	/* Ensure that the address returned is DMA'ble */
-	if (dma_capable(dev, dev_addr, size))
-		return dev_addr;
-
-	attrs |= DMA_ATTR_SKIP_CPU_SYNC;
-	swiotlb_tbl_unmap_single(dev, map, size, dir, attrs);
-
-	return DIRECT_MAPPING_ERROR;
+	return swiotlb_bounce_page(dev, &phys, size, dir, attrs);
 }
 
 /*
