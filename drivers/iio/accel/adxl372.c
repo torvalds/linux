@@ -762,11 +762,24 @@ static int adxl372_dready_trig_set_state(struct iio_trigger *trig,
 	return adxl372_set_interrupts(st, mask, 0);
 }
 
+static int adxl372_validate_trigger(struct iio_dev *indio_dev,
+				    struct iio_trigger *trig)
+{
+	struct adxl372_state *st = iio_priv(indio_dev);
+
+	if (st->dready_trig != trig)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct iio_trigger_ops adxl372_trigger_ops = {
+	.validate_device = &iio_trigger_validate_own_device,
 	.set_trigger_state = adxl372_dready_trig_set_state,
 };
 
 static const struct iio_info adxl372_info = {
+	.validate_trigger = &adxl372_validate_trigger,
 	.read_raw = adxl372_read_raw,
 	.debugfs_reg_access = &adxl372_reg_access,
 	.hwfifo_set_watermark = adxl372_set_watermark,
