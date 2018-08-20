@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Industrial I/O driver for Microchip digital potentiometers
  * Copyright (c) 2015  Axentia Technologies AB
@@ -22,10 +23,6 @@
  * mcp4652	2	257		5, 10, 50, 100          01011xx
  * mcp4661	2	257		5, 10, 50, 100          0101xxx
  * mcp4662	2	257		5, 10, 50, 100          01011xx
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -400,4 +397,4 @@ module_i2c_driver(mcp4531_driver);
 
 MODULE_AUTHOR("Peter Rosin <peda@axentia.se>");
 MODULE_DESCRIPTION("MCP4531 digital potentiometer");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
