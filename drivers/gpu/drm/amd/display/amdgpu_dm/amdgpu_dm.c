@@ -5070,6 +5070,100 @@ static int dm_update_planes_state(struct dc *dc,
 
 	return ret;
 }
+enum surface_update_type dm_determine_update_type_for_commit(struct dc *dc, struct drm_atomic_state *state)
+{
+
+
+	int i, j, num_plane;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
+	struct dm_plane_state *new_dm_plane_state, *old_dm_plane_state;
+	struct drm_crtc *new_plane_crtc, *old_plane_crtc;
+	struct drm_plane *plane;
+
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *new_crtc_state, *old_crtc_state;
+	struct dm_crtc_state *new_dm_crtc_state, *old_dm_crtc_state;
+	struct dc_stream_status *status = NULL;
+
+	struct dc_surface_update *updates = kzalloc(MAX_SURFACES * sizeof(struct dc_surface_update), GFP_KERNEL);
+	struct dc_plane_state *surface = kzalloc(MAX_SURFACES * sizeof(struct dc_plane_state), GFP_KERNEL);
+	struct dc_stream_update stream_update;
+	enum surface_update_type update_type = UPDATE_TYPE_FAST;
+
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		new_dm_crtc_state = to_dm_crtc_state(new_crtc_state);
+		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
+		num_plane = 0;
+
+		if (new_dm_crtc_state->stream) {
+
+			for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, j) {
+				new_plane_crtc = new_plane_state->crtc;
+				old_plane_crtc = old_plane_state->crtc;
+				new_dm_plane_state = to_dm_plane_state(new_plane_state);
+				old_dm_plane_state = to_dm_plane_state(old_plane_state);
+
+				if (plane->type == DRM_PLANE_TYPE_CURSOR)
+					continue;
+
+				if (!state->allow_modeset)
+					continue;
+
+				if (crtc == new_plane_crtc) {
+					updates[num_plane].surface = &surface[num_plane];
+
+					if (new_crtc_state->mode_changed) {
+						updates[num_plane].surface->src_rect =
+									new_dm_plane_state->dc_state->src_rect;
+						updates[num_plane].surface->dst_rect =
+									new_dm_plane_state->dc_state->dst_rect;
+						updates[num_plane].surface->rotation =
+									new_dm_plane_state->dc_state->rotation;
+						updates[num_plane].surface->in_transfer_func =
+									new_dm_plane_state->dc_state->in_transfer_func;
+						stream_update.dst = new_dm_crtc_state->stream->dst;
+						stream_update.src = new_dm_crtc_state->stream->src;
+					}
+
+					if (new_crtc_state->color_mgmt_changed) {
+						updates[num_plane].gamma =
+								new_dm_plane_state->dc_state->gamma_correction;
+						updates[num_plane].in_transfer_func =
+								new_dm_plane_state->dc_state->in_transfer_func;
+						stream_update.gamut_remap =
+								&new_dm_crtc_state->stream->gamut_remap_matrix;
+						stream_update.out_transfer_func =
+								new_dm_crtc_state->stream->out_transfer_func;
+					}
+
+					num_plane++;
+				}
+			}
+
+			if (num_plane > 0) {
+				status = dc_stream_get_status(new_dm_crtc_state->stream);
+				update_type = dc_check_update_surfaces_for_stream(dc, updates, num_plane,
+										  &stream_update, status);
+
+				if (update_type > UPDATE_TYPE_MED) {
+					update_type = UPDATE_TYPE_FULL;
+					goto ret;
+				}
+			}
+
+		} else if (!new_dm_crtc_state->stream && old_dm_crtc_state->stream) {
+			update_type = UPDATE_TYPE_FULL;
+			goto ret;
+		}
+	}
+
+ret:
+	kfree(updates);
+	kfree(surface);
+
+	return update_type;
+}
 
 static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				  struct drm_atomic_state *state)
@@ -5081,6 +5175,9 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct drm_connector_state *old_con_state, *new_con_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	enum surface_update_type update_type = UPDATE_TYPE_FAST;
+	enum surface_update_type overall_update_type = UPDATE_TYPE_FAST;
+
 	int ret, i;
 
 	/*
@@ -5166,6 +5263,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		if (!is_scaling_state_different(dm_new_con_state, dm_old_con_state))
 			continue;
 
+		overall_update_type = UPDATE_TYPE_FULL;
 		lock_and_validation_needed = true;
 	}
 
@@ -5178,8 +5276,24 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 * will wait for completion of any outstanding flip using DRMs
 	 * synchronization events.
 	 */
+	update_type = dm_determine_update_type_for_commit(dc, state);
 
-	if (lock_and_validation_needed) {
+	if (overall_update_type < update_type)
+		overall_update_type = update_type;
+
+	/*
+	 * lock_and_validation_needed was an old way to determine if we need to set
+	 * the global lock. Leaving it in to check if we broke any corner cases
+	 * lock_and_validation_needed true = UPDATE_TYPE_FULL or UPDATE_TYPE_MED
+	 * lock_and_validation_needed false = UPDATE_TYPE_FAST
+	 */
+	if (lock_and_validation_needed && overall_update_type <= UPDATE_TYPE_FAST)
+		WARN(1, "Global lock should be Set, overall_update_type should be UPDATE_TYPE_MED or UPDATE_TYPE_FULL");
+	else if (!lock_and_validation_needed && overall_update_type > UPDATE_TYPE_FAST)
+		WARN(1, "Global lock should NOT be set, overall_update_type should be UPDATE_TYPE_FAST");
+
+
+	if (overall_update_type > UPDATE_TYPE_FAST) {
 
 		ret = do_aquire_global_lock(dev, state);
 		if (ret)
