@@ -63,16 +63,21 @@ void item_sanity(struct item *item, unsigned long index)
 	assert((item->index | mask) == (index | mask));
 }
 
+void item_free(struct item *item, unsigned long index)
+{
+	item_sanity(item, index);
+	free(item);
+}
+
 int item_delete(struct radix_tree_root *root, unsigned long index)
 {
 	struct item *item = radix_tree_delete(root, index);
 
-	if (item) {
-		item_sanity(item, index);
-		free(item);
-		return 1;
-	}
-	return 0;
+	if (!item)
+		return 0;
+
+	item_free(item, index);
+	return 1;
 }
 
 static void item_free_rcu(struct rcu_head *head)
