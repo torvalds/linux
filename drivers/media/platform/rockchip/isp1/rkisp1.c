@@ -474,6 +474,14 @@ static void rkisp1_config_clk(struct rkisp1_device *dev)
 		CIF_ICCL_IE_CLK | CIF_ICCL_MIPI_CLK | CIF_ICCL_DCROP_CLK;
 
 	writel(val, dev->base_addr + CIF_ICCL);
+
+	if (dev->isp_ver == ISP_V12) {
+		val = CIF_CLK_CTRL_MI_Y12 | CIF_CLK_CTRL_MI_SP |
+		      CIF_CLK_CTRL_MI_RAW0 | CIF_CLK_CTRL_MI_RAW1 |
+		      CIF_CLK_CTRL_MI_READ | CIF_CLK_CTRL_MI_RAWRD |
+		      CIF_CLK_CTRL_CP | CIF_CLK_CTRL_IE;
+		writel(val, dev->base_addr + CIF_VI_ISP_CLK_CTRL_V12);
+	}
 }
 
 /***************************** isp sub-devs *******************************/
