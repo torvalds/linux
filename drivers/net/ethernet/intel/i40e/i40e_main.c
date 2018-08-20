@@ -8509,14 +8509,9 @@ static void i40e_link_event(struct i40e_pf *pf)
 	i40e_status status;
 	bool new_link, old_link;
 
-	/* save off old link status information */
-	pf->hw.phy.link_info_old = pf->hw.phy.link_info;
-
 	/* set this to force the get_link_status call to refresh state */
 	pf->hw.phy.get_link_info = true;
-
 	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
-
 	status = i40e_get_link_status(&pf->hw, &new_link);
 
 	/* On success, disable temp link polling */
