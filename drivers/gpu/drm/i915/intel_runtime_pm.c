@@ -1098,7 +1098,15 @@ lookup_power_well(struct drm_i915_private *dev_priv,
 			return power_well;
 	}
 
-	return NULL;
+	/*
+	 * It's not feasible to add error checking code to the callers since
+	 * this condition really shouldn't happen and it doesn't even make sense
+	 * to abort things like display initialization sequences. Just return
+	 * the first power well and hope the WARN gets reported so we can fix
+	 * our driver.
+	 */
+	WARN(1, "Power well %d not defined for this platform\n", power_well_id);
+	return &power_domains->power_wells[0];
 }
 
 #define BITS_SET(val, bits) (((val) & (bits)) == (bits))
