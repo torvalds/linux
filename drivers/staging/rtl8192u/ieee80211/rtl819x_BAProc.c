@@ -187,7 +187,7 @@ static struct sk_buff *ieee80211_DELBA(
 	u16			 ReasonCode
 	)
 {
-	DELBA_PARAM_SET	DelbaParamSet;
+	union delba_param_set	DelbaParamSet;
 	struct sk_buff *skb = NULL;
 	 struct rtl_80211_hdr_3addr *Delba = NULL;
 	u8 *tag = NULL;
@@ -543,7 +543,7 @@ OnADDBARsp_Reject:
 int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
 	 struct rtl_80211_hdr_3addr *delba = NULL;
-	PDELBA_PARAM_SET	pDelBaParamSet = NULL;
+	union delba_param_set   *pDelBaParamSet = NULL;
 	u8			*dst = NULL;
 
 	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 6) {
@@ -563,7 +563,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 	delba = (struct rtl_80211_hdr_3addr *)skb->data;
 	dst = &delba->addr2[0];
-	pDelBaParamSet = (PDELBA_PARAM_SET)&delba->payload[2];
+	pDelBaParamSet = (union delba_param_set *)&delba->payload[2];
 
 	if (pDelBaParamSet->field.Initiator == 1) {
 		struct rx_ts_record *pRxTs;
