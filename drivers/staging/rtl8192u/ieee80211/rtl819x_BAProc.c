@@ -91,7 +91,7 @@ void ResetBaEntry(struct ba_record *pBA)
 {
 	pBA->valid			= false;
 	pBA->param_set.short_data	= 0;
-	pBA->BaTimeoutValue		= 0;
+	pBA->timeout_value		= 0;
 	pBA->dialog_token		= 0;
 	pBA->BaStartSeqCtrl.short_data	= 0;
 }
@@ -155,7 +155,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 	tag += 2;
 	// BA Timeout Value
 
-	put_unaligned_le16(pBA->BaTimeoutValue, tag);
+	put_unaligned_le16(pBA->timeout_value, tag);
 	tag += 2;
 
 	if (ACT_ADDBAREQ == type) {
@@ -384,14 +384,14 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	DeActivateBAEntry(ieee, pBA);
 	pBA->dialog_token = *pDialogToken;
 	pBA->param_set = *pBaParamSet;
-	pBA->BaTimeoutValue = *pBaTimeoutVal;
+	pBA->timeout_value = *pBaTimeoutVal;
 	pBA->BaStartSeqCtrl = *pBaStartSeqCtrl;
 	//for half N mode we only aggregate 1 frame
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 	pBA->param_set.field.buffer_size = 1;
 	else
 	pBA->param_set.field.buffer_size = 32;
-	ActivateBAEntry(ieee, pBA, pBA->BaTimeoutValue);
+	ActivateBAEntry(ieee, pBA, pBA->timeout_value);
 	ieee80211_send_ADDBARsp(ieee, dst, pBA, ADDBA_STATUS_SUCCESS);
 
 	// End of procedure.
@@ -401,7 +401,7 @@ OnADDBAReq_Fail:
 	{
 		struct ba_record	BA;
 		BA.param_set = *pBaParamSet;
-		BA.BaTimeoutValue = *pBaTimeoutVal;
+		BA.timeout_value = *pBaTimeoutVal;
 		BA.dialog_token = *pDialogToken;
 		BA.param_set.field.ba_policy = BA_POLICY_IMMEDIATE;
 		ieee80211_send_ADDBARsp(ieee, dst, &BA, rc);
@@ -511,7 +511,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		// Admitted condition
 		//
 		pAdmittedBA->dialog_token = *pDialogToken;
-		pAdmittedBA->BaTimeoutValue = *pBaTimeoutVal;
+		pAdmittedBA->timeout_value = *pBaTimeoutVal;
 		pAdmittedBA->BaStartSeqCtrl = pPendingBA->BaStartSeqCtrl;
 		pAdmittedBA->param_set = *pBaParamSet;
 		DeActivateBAEntry(ieee, pAdmittedBA);
@@ -629,7 +629,7 @@ TsInitAddBA(
 	pBA->param_set.field.tid = pTS->ts_common_info.t_spec.ts_info.uc_tsid;	// TID
 	// buffer_size: This need to be set according to A-MPDU vector
 	pBA->param_set.field.buffer_size = 32;		// buffer_size: This need to be set according to A-MPDU vector
-	pBA->BaTimeoutValue = 0;					// Timeout value: Set 0 to disable Timer
+	pBA->timeout_value = 0;					// Timeout value: Set 0 to disable Timer
 	pBA->BaStartSeqCtrl.field.seq_num = (pTS->tx_cur_seq + 3) % 4096;	// Block Ack will start after 3 packets later.
 
 	ActivateBAEntry(ieee, pBA, BA_SETUP_TIMEOUT);
