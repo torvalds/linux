@@ -298,19 +298,13 @@ static inline void tcf_exts_put_net(struct tcf_exts *exts)
 #endif
 }
 
-static inline void tcf_exts_to_list(const struct tcf_exts *exts,
-				    struct list_head *actions)
-{
 #ifdef CONFIG_NET_CLS_ACT
-	int i;
-
-	for (i = 0; i < exts->nr_actions; i++) {
-		struct tc_action *a = exts->actions[i];
-
-		list_add_tail(&a->list, actions);
-	}
+#define tcf_exts_for_each_action(i, a, exts) \
+	for (i = 0; i < TCA_ACT_MAX_PRIO && ((a) = (exts)->actions[i]); i++)
+#else
+#define tcf_exts_for_each_action(i, a, exts) \
+	for (; 0; )
 #endif
-}
 
 static inline void
 tcf_exts_stats_update(const struct tcf_exts *exts,
@@ -358,6 +352,15 @@ static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
 	return exts->nr_actions == 1;
 #else
 	return false;
+#endif
+}
+
+static inline struct tc_action *tcf_exts_first_action(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	return exts->actions[0];
+#else
+	return NULL;
 #endif
 }
 

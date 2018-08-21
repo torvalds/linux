@@ -61,7 +61,7 @@ static int tc_fill_actions(struct stmmac_tc_entry *entry,
 	struct stmmac_tc_entry *action_entry = entry;
 	const struct tc_action *act;
 	struct tcf_exts *exts;
-	LIST_HEAD(actions);
+	int i;
 
 	exts = cls->knode.exts;
 	if (!tcf_exts_has_actions(exts))
@@ -69,8 +69,7 @@ static int tc_fill_actions(struct stmmac_tc_entry *entry,
 	if (frag)
 		action_entry = frag;
 
-	tcf_exts_to_list(exts, &actions);
-	list_for_each_entry(act, &actions, list) {
+	tcf_exts_for_each_action(i, act, exts) {
 		/* Accept */
 		if (is_tcf_gact_ok(act)) {
 			action_entry->val.af = 1;

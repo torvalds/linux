@@ -460,13 +460,6 @@ static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
-static int tcf_pedit_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, pedit_net_id);
-
-	return tcf_idr_delete_index(tn, index);
-}
-
 static struct tc_action_ops act_pedit_ops = {
 	.kind		=	"pedit",
 	.type		=	TCA_ACT_PEDIT,
@@ -477,7 +470,6 @@ static struct tc_action_ops act_pedit_ops = {
 	.init		=	tcf_pedit_init,
 	.walk		=	tcf_pedit_walker,
 	.lookup		=	tcf_pedit_search,
-	.delete		=	tcf_pedit_delete,
 	.size		=	sizeof(struct tcf_pedit),
 };
 

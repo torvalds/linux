@@ -796,11 +796,10 @@ int nfp_flower_compile_action(struct nfp_app *app,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow)
 {
-	int act_len, act_cnt, err, tun_out_cnt, out_cnt;
+	int act_len, act_cnt, err, tun_out_cnt, out_cnt, i;
 	enum nfp_flower_tun_type tun_type;
 	const struct tc_action *a;
 	u32 csum_updated = 0;
-	LIST_HEAD(actions);
 
 	memset(nfp_flow->action_data, 0, NFP_FL_MAX_A_SIZ);
 	nfp_flow->meta.act_len = 0;
@@ -810,8 +809,7 @@ int nfp_flower_compile_action(struct nfp_app *app,
 	tun_out_cnt = 0;
 	out_cnt = 0;
 
-	tcf_exts_to_list(flow->exts, &actions);
-	list_for_each_entry(a, &actions, list) {
+	tcf_exts_for_each_action(i, a, flow->exts) {
 		err = nfp_flower_loop_action(app, a, flow, nfp_flow, &act_len,
 					     netdev, &tun_type, &tun_out_cnt,
 					     &out_cnt, &csum_updated);
