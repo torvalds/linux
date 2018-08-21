@@ -93,7 +93,7 @@ void ResetBaEntry(PBA_RECORD pBA)
 	pBA->BaParamSet.shortData	= 0;
 	pBA->BaTimeoutValue		= 0;
 	pBA->DialogToken		= 0;
-	pBA->BaStartSeqCtrl.ShortData	= 0;
+	pBA->BaStartSeqCtrl.short_data	= 0;
 }
 //These functions need porting here or not?
 /*******************************************************************************************************************************

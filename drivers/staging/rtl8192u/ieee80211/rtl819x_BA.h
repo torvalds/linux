@@ -23,7 +23,7 @@ struct ieee80211_ADDBA_Req{
 */
 //Is this need?I put here just to make it easier to define structure BA_RECORD //WB
 union sequence_control {
-	u16 ShortData;
+	u16 short_data;
 	struct {
 		u16	FragNum:4;
 		u16	SeqNum:12;
