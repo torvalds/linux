@@ -8,7 +8,9 @@
 #include <dt-bindings/power/rk1808-power.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/thermal/thermal.h>
+#include "rk1808-dram-default-timing.dtsi"
 
 / {
 	compatible = "rockchip,rk1808";
@@ -1041,6 +1043,11 @@
 		status = "disabled";
 	};
 
+	dcf: dcf@ff640000 {
+		compatible = "syscon";
+		reg = <0x0 0xff640000 0x0 0x1000>;
+	};
+
 	wdt: watchdog@ff720000 {
 		compatible = "snps,dw-wdt";
 		reg = <0x0 0xff720000 0x0 0x100>;
@@ -1124,6 +1131,74 @@
 		rockchip,det-channel = <0>;
 		rockchip,mode = <1>;
 		status = "disabled";
+	};
+
+	dfi: dfi@ff9c0000 {
+		reg = <0x00 0xff9c0000 0x00 0x400>;
+		compatible = "rockchip,rk1808-dfi";
+		rockchip,pmugrf = <&pmugrf>;
+		status = "disabled";
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk1808-dmc";
+		dcf_reg = <&dcf>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "complete_irq";
+		devfreq-events = <&dfi>;
+		clocks = <&cru SCLK_DDRCLK>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		ddr_timing = <&ddr_timing>;
+		upthreshold = <40>;
+		downdifferential = <20>;
+		system-status-freq = <
+			/*system status         freq(KHz)*/
+			SYS_STATUS_NORMAL       924000
+			SYS_STATUS_REBOOT       450000
+			SYS_STATUS_SUSPEND      328000
+			SYS_STATUS_VIDEO_1080P  924000
+			SYS_STATUS_BOOST        924000
+			SYS_STATUS_ISP          924000
+			SYS_STATUS_PERFORMANCE  924000
+		>;
+		auto-min-freq = <328000>;
+		auto-freq-en = <0>;
+		#cooling-cells = <2>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: dmc-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-194000000 {
+			opp-hz = /bits/ 64 <194000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-328000000 {
+			opp-hz = /bits/ 64 <328000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-450000000 {
+			opp-hz = /bits/ 64 <450000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-666000000 {
+			opp-hz = /bits/ 64 <666000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-786000000 {
+			opp-hz = /bits/ 64 <786000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-924000000 {
+			opp-hz = /bits/ 64 <924000000>;
+			opp-microvolt = <800000>;
+		};
 	};
 
 	rk_rga: rk_rga@ffaf0000 {
