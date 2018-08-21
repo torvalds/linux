@@ -41,12 +41,11 @@ union ba_param_set {
 };
 
 union delba_param_set {
-	u8 charData[2];
-	u16 shortData;
+	u16 short_data;
 	struct {
-		u16 Reserved:11;
-		u16 Initiator:1;
-		u16 TID:4;
+		u16 reserved:11;
+		u16 initiator:1;
+		u16 tid:4;
 	} field;
 };
 

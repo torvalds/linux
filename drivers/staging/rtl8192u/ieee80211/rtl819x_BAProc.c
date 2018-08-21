@@ -201,8 +201,8 @@ static struct sk_buff *ieee80211_DELBA(
 
 	memset(&DelbaParamSet, 0, 2);
 
-	DelbaParamSet.field.Initiator	= (TxRxSelect == TX_DIR) ? 1 : 0;
-	DelbaParamSet.field.TID	= pBA->BaParamSet.field.tid;
+	DelbaParamSet.field.initiator	= (TxRxSelect == TX_DIR) ? 1 : 0;
+	DelbaParamSet.field.tid	= pBA->BaParamSet.field.tid;
 
 	skb = dev_alloc_skb(len + sizeof(struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
 	if (!skb) {
@@ -226,7 +226,7 @@ static struct sk_buff *ieee80211_DELBA(
 
 	// DELBA Parameter Set
 
-	put_unaligned_le16(DelbaParamSet.shortData, tag);
+	put_unaligned_le16(DelbaParamSet.short_data, tag);
 	tag += 2;
 	// Reason Code
 
@@ -565,14 +565,14 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	dst = &delba->addr2[0];
 	pDelBaParamSet = (union delba_param_set *)&delba->payload[2];
 
-	if (pDelBaParamSet->field.Initiator == 1) {
+	if (pDelBaParamSet->field.initiator == 1) {
 		struct rx_ts_record *pRxTs;
 
 		if (!GetTs(
 				ieee,
 				(struct ts_common_info **)&pRxTs,
 				dst,
-				(u8)pDelBaParamSet->field.TID,
+				(u8)pDelBaParamSet->field.tid,
 				RX_DIR,
 				false)) {
 			IEEE80211_DEBUG(IEEE80211_DL_ERR,  "can't get TS for RXTS in %s()\n", __func__);
@@ -587,7 +587,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 			ieee,
 			(struct ts_common_info **)&pTxTs,
 			dst,
-			(u8)pDelBaParamSet->field.TID,
+			(u8)pDelBaParamSet->field.tid,
 			TX_DIR,
 			false)) {
 			IEEE80211_DEBUG(IEEE80211_DL_ERR,  "can't get TS for TXTS in %s()\n", __func__);
