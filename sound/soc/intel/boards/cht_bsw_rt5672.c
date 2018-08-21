@@ -16,6 +16,7 @@
  *  General Public License for more details.
  */
 
+#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -211,6 +212,10 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 				    ARRAY_SIZE(cht_bsw_headset_pins));
         if (ret)
                 return ret;
+
+	snd_jack_set_key(ctx->headset.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
+	snd_jack_set_key(ctx->headset.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
+	snd_jack_set_key(ctx->headset.jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
 
 	rt5670_set_jack_detect(component, &ctx->headset);
 	if (ctx->mclk) {
