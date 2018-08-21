@@ -2140,7 +2140,9 @@ static struct bpf_map *sock_hash_alloc(union bpf_attr *attr)
 		return ERR_PTR(-EPERM);
 
 	/* check sanity of attributes */
-	if (attr->max_entries == 0 || attr->value_size != 4 ||
+	if (attr->max_entries == 0 ||
+	    attr->key_size == 0 ||
+	    attr->value_size != 4 ||
 	    attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
 
