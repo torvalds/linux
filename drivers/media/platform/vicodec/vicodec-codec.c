@@ -663,11 +663,10 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 			if (!is_intra)
 				blocktype = decide_blocktype(input, refp,
 					deltablock, width, input_step);
-			if (is_intra || blocktype == IBLOCK) {
+			if (blocktype == IBLOCK) {
 				fwht(input, cf->coeffs, width, input_step, 1);
 				quantize_intra(cf->coeffs, cf->de_coeffs,
 					       cf->i_frame_qp);
-				blocktype = IBLOCK;
 			} else {
 				/* inter code */
 				encoding |= FRAME_PCODED;
