@@ -105,8 +105,8 @@ static void amdgpu_irq_reset_work_func(struct work_struct *work)
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
 						  reset_work);
 
-	if (!amdgpu_sriov_vf(adev))
-		amdgpu_device_gpu_recover(adev, NULL, false);
+	if (!amdgpu_sriov_vf(adev) && amdgpu_device_should_recover_gpu(adev))
+		amdgpu_device_gpu_recover(adev, NULL);
 }
 
 /**

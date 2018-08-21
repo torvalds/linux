@@ -701,7 +701,7 @@ static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
 	struct amdgpu_device *adev = dev->dev_private;
 
 	seq_printf(m, "gpu recover\n");
-	amdgpu_device_gpu_recover(adev, NULL, true);
+	amdgpu_device_gpu_recover(adev, NULL);
 
 	return 0;
 }

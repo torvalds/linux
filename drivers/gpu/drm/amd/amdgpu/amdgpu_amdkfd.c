@@ -267,7 +267,8 @@ void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	amdgpu_device_gpu_recover(adev, NULL, false);
+	if (amdgpu_device_should_recover_gpu(adev))
+		amdgpu_device_gpu_recover(adev, NULL);
 }
 
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,

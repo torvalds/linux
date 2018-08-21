@@ -266,8 +266,8 @@ flr_done:
 	}
 
 	/* Trigger recovery for world switch failure if no TDR */
-	if (amdgpu_lockup_timeout == 0)
-		amdgpu_device_gpu_recover(adev, NULL, true);
+	if (amdgpu_device_should_recover_gpu(adev))
+		amdgpu_device_gpu_recover(adev, NULL);
 }
 
 static int xgpu_ai_set_mailbox_rcv_irq(struct amdgpu_device *adev,

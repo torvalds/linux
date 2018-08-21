@@ -3244,30 +3244,42 @@ error:
 }
 
 /**
+ * amdgpu_device_should_recover_gpu - check if we should try GPU recovery
+ *
+ * @adev: amdgpu device pointer
+ *
+ * Check amdgpu_gpu_recovery and SRIOV status to see if we should try to recover
+ * a hung GPU.
+ */
+bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
+{
+	if (!amdgpu_device_ip_check_soft_reset(adev)) {
+		DRM_INFO("Timeout, but no hardware hang detected.\n");
+		return false;
+	}
+
+	if (amdgpu_gpu_recovery == 0 || (amdgpu_gpu_recovery == -1  &&
+					 !amdgpu_sriov_vf(adev))) {
+		DRM_INFO("GPU recovery disabled.\n");
+		return false;
+	}
+
+	return true;
+}
+
+/**
  * amdgpu_device_gpu_recover - reset the asic and recover scheduler
  *
  * @adev: amdgpu device pointer
  * @job: which job trigger hang
- * @force: forces reset regardless of amdgpu_gpu_recovery
  *
  * Attempt to reset the GPU if it has hung (all asics).
  * Returns 0 for success or an error on failure.
  */
 int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
-			      struct amdgpu_job *job, bool force)
+			      struct amdgpu_job *job)
 {
 	int i, r, resched;
-
-	if (!force && !amdgpu_device_ip_check_soft_reset(adev)) {
-		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
-		return 0;
-	}
-
-	if (!force && (amdgpu_gpu_recovery == 0 ||
-			(amdgpu_gpu_recovery == -1  && !amdgpu_sriov_vf(adev)))) {
-		DRM_INFO("GPU recovery disabled.\n");
-		return 0;
-	}
 
 	dev_info(adev->dev, "GPU reset begin!\n");
 
