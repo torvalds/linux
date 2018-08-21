@@ -372,7 +372,8 @@ static const struct resource_caps res_cap = {
 	.num_timing_generator = 6,
 	.num_audio = 6,
 	.num_stream_encoder = 6,
-	.num_pll = 3
+	.num_pll = 3,
+	.num_ddc = 6,
 };
 
 #define CTX  ctx
@@ -1004,6 +1005,9 @@ static bool construct(
 				"DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
+	}
+
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce100_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
 			BREAK_TO_DEBUGGER();

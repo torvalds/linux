@@ -367,6 +367,7 @@ static const struct resource_caps res_cap = {
 		.num_audio = 6,
 		.num_stream_encoder = 6,
 		.num_pll = 3,
+		.num_ddc = 6,
 };
 
 static const struct resource_caps res_cap_81 = {
@@ -374,6 +375,7 @@ static const struct resource_caps res_cap_81 = {
 		.num_audio = 7,
 		.num_stream_encoder = 7,
 		.num_pll = 3,
+		.num_ddc = 6,
 };
 
 static const struct resource_caps res_cap_83 = {
@@ -381,6 +383,7 @@ static const struct resource_caps res_cap_83 = {
 		.num_audio = 6,
 		.num_stream_encoder = 6,
 		.num_pll = 2,
+		.num_ddc = 2,
 };
 
 static const struct dce_dmcu_registers dmcu_regs = {
@@ -992,7 +995,9 @@ static bool dce80_construct(
 			dm_error("DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
+	}
 
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce80_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -1200,6 +1205,16 @@ static bool dce81_construct(
 			dm_error("DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
+	}
+
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+		pool->base.engines[i] = dce80_aux_engine_create(ctx, i);
+		if (pool->base.engines[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create aux engine!!\n");
+			goto res_create_fail;
+		}
 		pool->base.hw_i2cs[i] = dce80_i2c_hw_create(ctx, i);
 		if (pool->base.hw_i2cs[i] == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -1394,6 +1409,16 @@ static bool dce83_construct(
 		if (pool->base.opps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error("DC: failed to create output pixel processor!\n");
+			goto res_create_fail;
+		}
+	}
+
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+		pool->base.engines[i] = dce80_aux_engine_create(ctx, i);
+		if (pool->base.engines[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create aux engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.hw_i2cs[i] = dce80_i2c_hw_create(ctx, i);

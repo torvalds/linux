@@ -378,6 +378,7 @@ static const struct resource_caps carrizo_resource_cap = {
 		.num_audio = 3,
 		.num_stream_encoder = 3,
 		.num_pll = 2,
+		.num_ddc = 3,
 };
 
 static const struct resource_caps stoney_resource_cap = {
@@ -386,6 +387,7 @@ static const struct resource_caps stoney_resource_cap = {
 		.num_audio = 3,
 		.num_stream_encoder = 3,
 		.num_pll = 2,
+		.num_ddc = 3,
 };
 
 #define CTX  ctx
@@ -1336,7 +1338,9 @@ static bool construct(
 				"DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
+	}
 
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce110_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
 			BREAK_TO_DEBUGGER();
