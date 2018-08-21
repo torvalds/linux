@@ -482,11 +482,11 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 				(unsigned long long int) 0);
 
 		sysfs_show_32bit_prop(buffer, "fw_version",
-			dev->gpu->kfd2kgd->get_fw_version(
-						dev->gpu->kgd,
-						KGD_ENGINE_MEC1));
+				dev->gpu->mec_fw_version);
 		sysfs_show_32bit_prop(buffer, "capability",
 				dev->node_props.capability);
+		sysfs_show_32bit_prop(buffer, "sdma_fw_version",
+				dev->gpu->sdma_fw_version);
 	}
 
 	return sysfs_show_32bit_prop(buffer, "max_engine_clk_ccompute",
