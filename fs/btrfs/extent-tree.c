@@ -8398,6 +8398,19 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	if (IS_ERR(buf))
 		return buf;
 
+	/*
+	 * Extra safety check in case the extent tree is corrupted and extent
+	 * allocator chooses to use a tree block which is already used and
+	 * locked.
+	 */
+	if (buf->lock_owner == current->pid) {
+		btrfs_err_rl(fs_info,
+"tree block %llu owner %llu already locked by pid=%d, extent tree corruption detected",
+			buf->start, btrfs_header_owner(buf), current->pid);
+		free_extent_buffer(buf);
+		return ERR_PTR(-EUCLEAN);
+	}
+
 	btrfs_set_header_generation(buf, trans->transid);
 	btrfs_set_buffer_lockdep_class(root->root_key.objectid, buf, level);
 	btrfs_tree_lock(buf);
