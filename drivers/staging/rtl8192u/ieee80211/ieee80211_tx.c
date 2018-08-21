@@ -335,7 +335,7 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 			printk("===>can't get TS\n");
 			return;
 		}
-		if (!pTxTs->tx_admitted_ba_record.bValid)
+		if (!pTxTs->tx_admitted_ba_record.valid)
 		{
 			TsStartAddBaProcess(ieee, pTxTs);
 			goto FORCED_AGG_SETTING;

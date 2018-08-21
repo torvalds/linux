@@ -18,7 +18,7 @@
  ********************************************************************************************************************/
 static void ActivateBAEntry(struct ieee80211_device *ieee, struct ba_record *pBA, u16 Time)
 {
-	pBA->bValid = true;
+	pBA->valid = true;
 	if (Time != 0)
 		mod_timer(&pBA->timer, jiffies + msecs_to_jiffies(Time));
 }
@@ -30,7 +30,7 @@ static void ActivateBAEntry(struct ieee80211_device *ieee, struct ba_record *pBA
  ********************************************************************************************************************/
 static void DeActivateBAEntry(struct ieee80211_device *ieee, struct ba_record *pBA)
 {
-	pBA->bValid = false;
+	pBA->valid = false;
 	del_timer_sync(&pBA->timer);
 }
 /********************************************************************************************************************
@@ -47,13 +47,13 @@ static u8 TxTsDeleteBA(struct ieee80211_device *ieee, struct tx_ts_record *pTxTs
 	u8			bSendDELBA = false;
 
 	// Delete pending BA
-	if (pPendingBa->bValid) {
+	if (pPendingBa->valid) {
 		DeActivateBAEntry(ieee, pPendingBa);
 		bSendDELBA = true;
 	}
 
 	// Delete admitted BA
-	if (pAdmittedBa->bValid) {
+	if (pAdmittedBa->valid) {
 		DeActivateBAEntry(ieee, pAdmittedBa);
 		bSendDELBA = true;
 	}
@@ -73,7 +73,7 @@ static u8 RxTsDeleteBA(struct ieee80211_device *ieee, struct rx_ts_record *pRxTs
 	struct ba_record       *pBa = &pRxTs->rx_admitted_ba_record;
 	u8			bSendDELBA = false;
 
-	if (pBa->bValid) {
+	if (pBa->valid) {
 		DeActivateBAEntry(ieee, pBa);
 		bSendDELBA = true;
 	}
@@ -89,7 +89,7 @@ static u8 RxTsDeleteBA(struct ieee80211_device *ieee, struct rx_ts_record *pRxTs
  ********************************************************************************************************************/
 void ResetBaEntry(struct ba_record *pBA)
 {
-	pBA->bValid			= false;
+	pBA->valid			= false;
 	pBA->BaParamSet.short_data	= 0;
 	pBA->BaTimeoutValue		= 0;
 	pBA->DialogToken		= 0;
@@ -478,11 +478,11 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	// Check if related BA is waiting for setup.
 	// If not, reject by sending DELBA frame.
 	//
-	if (pAdmittedBA->bValid) {
+	if (pAdmittedBA->valid) {
 		// Since BA is already setup, we ignore all other ADDBA Response.
 		IEEE80211_DEBUG(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. Drop because already admit it! \n");
 		return -1;
-	} else if ((!pPendingBA->bValid) || (*pDialogToken != pPendingBA->DialogToken)) {
+	} else if ((!pPendingBA->valid) || (*pDialogToken != pPendingBA->DialogToken)) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,  "OnADDBARsp(): Recv ADDBA Rsp. BA invalid, DELBA! \n");
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
@@ -617,7 +617,7 @@ TsInitAddBA(
 {
 	struct ba_record *pBA = &pTS->tx_pending_ba_record;
 
-	if (pBA->bValid && !bOverwritePending)
+	if (pBA->valid && !bOverwritePending)
 		return;
 
 	// Set parameters to "Pending" variable set
@@ -647,7 +647,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 			ieee80211_send_DELBA(
 				ieee,
 				pTsCommonInfo->addr,
-				(pTxTs->tx_admitted_ba_record.bValid)?(&pTxTs->tx_admitted_ba_record):(&pTxTs->tx_pending_ba_record),
+				(pTxTs->tx_admitted_ba_record.valid)?(&pTxTs->tx_admitted_ba_record):(&pTxTs->tx_pending_ba_record),
 				TxRxSelect,
 				DELBA_REASON_END_BA);
 	} else if (TxRxSelect == RX_DIR) {
@@ -673,7 +673,7 @@ void BaSetupTimeOut(struct timer_list *t)
 
 	pTxTs->add_ba_req_in_progress = false;
 	pTxTs->add_ba_req_delayed = true;
-	pTxTs->tx_pending_ba_record.bValid = false;
+	pTxTs->tx_pending_ba_record.valid = false;
 }
 
 void TxBaInactTimeout(struct timer_list *t)
