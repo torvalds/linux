@@ -2735,7 +2735,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	psr_source_status(dev_priv, m);
 	mutex_unlock(&dev_priv->psr.lock);
 
-	if (READ_ONCE(dev_priv->psr.debug)) {
+	if (READ_ONCE(dev_priv->psr.debug) & I915_PSR_DEBUG_IRQ) {
 		seq_printf(m, "Last attempted entry at: %lld\n",
 			   dev_priv->psr.last_entry_attempt);
 		seq_printf(m, "Last exit at: %lld\n",
