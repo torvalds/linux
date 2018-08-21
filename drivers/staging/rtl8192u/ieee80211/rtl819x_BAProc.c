@@ -92,7 +92,7 @@ void ResetBaEntry(struct ba_record *pBA)
 	pBA->valid			= false;
 	pBA->BaParamSet.short_data	= 0;
 	pBA->BaTimeoutValue		= 0;
-	pBA->DialogToken		= 0;
+	pBA->dialog_token		= 0;
 	pBA->BaStartSeqCtrl.short_data	= 0;
 }
 //These functions need porting here or not?
@@ -140,7 +140,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 	*tag++ = ACT_CAT_BA;
 	*tag++ = type;
 	// Dialog Token
-	*tag++ = pBA->DialogToken;
+	*tag++ = pBA->dialog_token;
 
 	if (ACT_ADDBARSP == type) {
 		// Status Code
@@ -382,7 +382,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 		// Admit the ADDBA Request
 	//
 	DeActivateBAEntry(ieee, pBA);
-	pBA->DialogToken = *pDialogToken;
+	pBA->dialog_token = *pDialogToken;
 	pBA->BaParamSet = *pBaParamSet;
 	pBA->BaTimeoutValue = *pBaTimeoutVal;
 	pBA->BaStartSeqCtrl = *pBaStartSeqCtrl;
@@ -402,7 +402,7 @@ OnADDBAReq_Fail:
 		struct ba_record	BA;
 		BA.BaParamSet = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
-		BA.DialogToken = *pDialogToken;
+		BA.dialog_token = *pDialogToken;
 		BA.BaParamSet.field.ba_policy = BA_POLICY_IMMEDIATE;
 		ieee80211_send_ADDBARsp(ieee, dst, &BA, rc);
 		return 0; //we send RSP out.
@@ -482,7 +482,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		// Since BA is already setup, we ignore all other ADDBA Response.
 		IEEE80211_DEBUG(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. Drop because already admit it! \n");
 		return -1;
-	} else if ((!pPendingBA->valid) || (*pDialogToken != pPendingBA->DialogToken)) {
+	} else if ((!pPendingBA->valid) || (*pDialogToken != pPendingBA->dialog_token)) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,  "OnADDBARsp(): Recv ADDBA Rsp. BA invalid, DELBA! \n");
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
@@ -510,7 +510,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		//
 		// Admitted condition
 		//
-		pAdmittedBA->DialogToken = *pDialogToken;
+		pAdmittedBA->dialog_token = *pDialogToken;
 		pAdmittedBA->BaTimeoutValue = *pBaTimeoutVal;
 		pAdmittedBA->BaStartSeqCtrl = pPendingBA->BaStartSeqCtrl;
 		pAdmittedBA->BaParamSet = *pBaParamSet;
@@ -623,7 +623,7 @@ TsInitAddBA(
 	// Set parameters to "Pending" variable set
 	DeActivateBAEntry(ieee, pBA);
 
-	pBA->DialogToken++;						// DialogToken: Only keep the latest dialog token
+	pBA->dialog_token++;						// DialogToken: Only keep the latest dialog token
 	pBA->BaParamSet.field.amsdu_support = 0;	// Do not support A-MSDU with A-MPDU now!!
 	pBA->BaParamSet.field.ba_policy = Policy;	// Policy: Delayed or Immediate
 	pBA->BaParamSet.field.tid = pTS->ts_common_info.t_spec.ts_info.uc_tsid;	// TID

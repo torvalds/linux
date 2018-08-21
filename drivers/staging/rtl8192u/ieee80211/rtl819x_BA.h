@@ -52,7 +52,7 @@ union delba_param_set {
 struct ba_record {
 	struct timer_list		timer;
 	u8				valid;
-	u8				DialogToken;
+	u8				dialog_token;
 	union ba_param_set		BaParamSet;
 	u16				BaTimeoutValue;
 	union sequence_control	BaStartSeqCtrl;
