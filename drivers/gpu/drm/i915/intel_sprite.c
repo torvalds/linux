@@ -83,6 +83,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	bool need_vlv_dsi_wa = (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
 	DEFINE_WAIT(wait);
+	u32 psr_status;
 
 	vblank_start = adjusted_mode->crtc_vblank_start;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -104,8 +105,9 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	 * VBL interrupts will start the PSR exit and prevent a PSR
 	 * re-entry as well.
 	 */
-	if (intel_psr_wait_for_idle(new_crtc_state))
-		DRM_ERROR("PSR idle timed out, atomic update may fail\n");
+	if (intel_psr_wait_for_idle(new_crtc_state, &psr_status))
+		DRM_ERROR("PSR idle timed out 0x%x, atomic update may fail\n",
+			  psr_status);
 
 	local_irq_disable();
 

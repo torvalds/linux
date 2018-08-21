@@ -766,7 +766,8 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	cancel_work_sync(&dev_priv->psr.work);
 }
 
-int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
+int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
+			    u32 *out_value)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -799,8 +800,10 @@ int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
 	 * 6 ms of exit training time + 1.5 ms of aux channel
 	 * handshake. 50 msec is defesive enough to cover everything.
 	 */
-	return intel_wait_for_register(dev_priv, reg, mask,
-				       EDP_PSR_STATUS_STATE_IDLE, 50);
+
+	return __intel_wait_for_register(dev_priv, reg, mask,
+					 EDP_PSR_STATUS_STATE_IDLE, 2, 50,
+					 out_value);
 }
 
 static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
