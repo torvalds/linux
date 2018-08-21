@@ -36,7 +36,16 @@ static inline int __btree_iter_pos_cmp(struct btree_iter *iter,
 		return cmp;
 	if (bkey_deleted(k))
 		return -1;
-	if (iter->flags & BTREE_ITER_IS_EXTENTS)
+
+	/*
+	 * Normally, for extents we want the first key strictly greater than
+	 * the iterator position - with the exception that for interior nodes,
+	 * we don't want to advance past the last key if the iterator position
+	 * is POS_MAX:
+	 */
+	if (iter->flags & BTREE_ITER_IS_EXTENTS &&
+	    (!interior_node ||
+	     bkey_cmp_left_packed_byval(b, k, POS_MAX)))
 		return -1;
 	return 1;
 }
@@ -691,8 +700,7 @@ static inline bool btree_iter_pos_after_node(struct btree_iter *iter,
 					     struct btree *b)
 {
 	return __btree_iter_pos_cmp(iter, NULL,
-			bkey_to_packed(&b->key), true) < 0 &&
-		bkey_cmp(b->key.k.p, POS_MAX);
+			bkey_to_packed(&b->key), true) < 0;
 }
 
 static inline bool btree_iter_pos_in_node(struct btree_iter *iter,
