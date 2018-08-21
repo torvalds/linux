@@ -513,7 +513,14 @@ static bool within_notrace_func(struct trace_kprobe *tk)
 	if (!addr || !kallsyms_lookup_size_offset(addr, &size, &offset))
 		return false;
 
-	return !ftrace_location_range(addr - offset, addr - offset + size);
+	/* Get the entry address of the target function */
+	addr -= offset;
+
+	/*
+	 * Since ftrace_location_range() does inclusive range check, we need
+	 * to subtract 1 byte from the end address.
+	 */
+	return !ftrace_location_range(addr, addr + size - 1);
 }
 #else
 #define within_notrace_func(tk)	(false)
