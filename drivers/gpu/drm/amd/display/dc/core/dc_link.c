@@ -2497,8 +2497,8 @@ void core_link_enable_stream(
 
 	/* eDP lit up by bios already, no need to enable again. */
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
-		core_dc->apply_edp_fast_boot_optimization) {
-		core_dc->apply_edp_fast_boot_optimization = false;
+			pipe_ctx->stream->apply_edp_fast_boot_optimization) {
+		pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
 		pipe_ctx->stream->dpms_off = false;
 		return;
 	}

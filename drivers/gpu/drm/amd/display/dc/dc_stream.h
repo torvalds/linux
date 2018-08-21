@@ -102,6 +102,7 @@ struct dc_stream_state {
 	int phy_pix_clk;
 	enum signal_type signal;
 	bool dpms_off;
+	bool apply_edp_fast_boot_optimization;
 
 	struct dc_stream_status status;
 

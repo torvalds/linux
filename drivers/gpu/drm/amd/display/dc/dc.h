@@ -311,8 +311,6 @@ struct dc {
 
 	bool optimized_required;
 
-	bool apply_edp_fast_boot_optimization;
-
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
 
