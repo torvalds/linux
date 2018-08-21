@@ -97,11 +97,6 @@ struct iwl_mvm_mac_iface_iterator_data {
 	bool found_vif;
 };
 
-struct iwl_mvm_hw_queues_iface_iterator_data {
-	struct ieee80211_vif *exclude_vif;
-	unsigned long used_hw_queues;
-};
-
 static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
 				    struct ieee80211_vif *vif)
 {
@@ -208,61 +203,6 @@ static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
 		data->preferred_tsf = NUM_TSF_IDS;
 }
 
-/*
- * Get the mask of the queues used by the vif
- */
-u32 iwl_mvm_mac_get_queues_mask(struct ieee80211_vif *vif)
-{
-	u32 qmask = 0, ac;
-
-	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
-		return BIT(IWL_MVM_OFFCHANNEL_QUEUE);
-
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
-			qmask |= BIT(vif->hw_queue[ac]);
-	}
-
-	if (vif->type == NL80211_IFTYPE_AP ||
-	    vif->type == NL80211_IFTYPE_ADHOC)
-		qmask |= BIT(vif->cab_queue);
-
-	return qmask;
-}
-
-static void iwl_mvm_iface_hw_queues_iter(void *_data, u8 *mac,
-					 struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_hw_queues_iface_iterator_data *data = _data;
-
-	/* exclude the given vif */
-	if (vif == data->exclude_vif)
-		return;
-
-	data->used_hw_queues |= iwl_mvm_mac_get_queues_mask(vif);
-}
-
-unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
-					 struct ieee80211_vif *exclude_vif)
-{
-	struct iwl_mvm_hw_queues_iface_iterator_data data = {
-		.exclude_vif = exclude_vif,
-		.used_hw_queues =
-			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
-			BIT(mvm->aux_queue) |
-			BIT(IWL_MVM_DQA_GCAST_QUEUE),
-	};
-
-	lockdep_assert_held(&mvm->mutex);
-
-	/* mark all VIF used hw queues */
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
-		iwl_mvm_iface_hw_queues_iter, &data);
-
-	return data.used_hw_queues;
-}
-
 static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 				       struct ieee80211_vif *vif)
 {
@@ -360,8 +300,6 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		iwl_mvm_mac_iface_iterator, &data);
 
-	used_hw_queues = iwl_mvm_get_used_hw_queues(mvm, vif);
-
 	/*
 	 * In the case we're getting here during resume, it's similar to
 	 * firmware restart, and with RESUME_ALL the iterator will find
@@ -416,9 +354,6 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * the ones here - no real limit
 	 */
 	queue_limit = IEEE80211_MAX_QUEUES;
-	BUILD_BUG_ON(IEEE80211_MAX_QUEUES >
-		     BITS_PER_BYTE *
-		     sizeof(mvm->hw_queue_to_mac80211[0]));
 
 	/*
 	 * Find available queues, and allocate them to the ACs. When in
@@ -446,9 +381,6 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		 * queue value (when queue is enabled).
 		 */
 		mvmvif->cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
-		vif->cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
-	} else {
-		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 	}
 
 	mvmvif->bcast_sta.sta_id = IWL_MVM_INVALID_STA;
@@ -462,8 +394,6 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 exit_fail:
 	memset(mvmvif, 0, sizeof(struct iwl_mvm_vif));
-	memset(vif->hw_queue, IEEE80211_INVAL_HW_QUEUE, sizeof(vif->hw_queue));
-	vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 	return ret;
 }
 
@@ -1185,7 +1115,7 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 
 	if (!fw_has_api(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_API_STA_TYPE))
-		ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
+		ctxt_ap->mcast_qid = cpu_to_le32(mvmvif->cab_queue);
 
 	/*
 	 * Only set the beacon time when the MAC is being added, when we
