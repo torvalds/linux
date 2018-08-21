@@ -1823,12 +1823,6 @@ pnfs_update_layout(struct inode *ino,
 		goto out;
 	}
 
-	if (iomode == IOMODE_READ && i_size_read(ino) == 0) {
-		trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
-				 PNFS_UPDATE_LAYOUT_RD_ZEROLEN);
-		goto out;
-	}
-
 	if (pnfs_within_mdsthreshold(ctx, ino, iomode)) {
 		trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
 				 PNFS_UPDATE_LAYOUT_MDSTHRESH);
