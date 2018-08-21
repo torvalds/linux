@@ -2396,7 +2396,7 @@ void TsInitDelBA(struct ieee80211_device *ieee,
 void BaSetupTimeOut(struct timer_list *t);
 void TxBaInactTimeout(struct timer_list *t);
 void RxBaInactTimeout(struct timer_list *t);
-void ResetBaEntry(PBA_RECORD pBA);
+void ResetBaEntry(struct ba_record *pBA);
 //function in TS.c
 bool GetTs(
 	struct ieee80211_device		*ieee,

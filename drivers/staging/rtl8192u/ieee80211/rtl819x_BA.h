@@ -49,13 +49,13 @@ union delba_param_set {
 	} field;
 };
 
-typedef struct _BA_RECORD {
+struct ba_record {
 	struct timer_list		Timer;
 	u8				bValid;
 	u8				DialogToken;
 	union ba_param_set		BaParamSet;
 	u16				BaTimeoutValue;
 	union sequence_control	BaStartSeqCtrl;
-} BA_RECORD, *PBA_RECORD;
+};
 
 #endif //end _BATYPE_H_

@@ -12,11 +12,11 @@
 
 /********************************************************************************************************************
  *function:  Activate BA entry. And if Time is nozero, start timer.
- *   input:  PBA_RECORD			pBA  //BA entry to be enabled
+ *   input:  struct ba_record          *pBA  //BA entry to be enabled
  *	     u16			Time //indicate time delay.
  *  output:  none
  ********************************************************************************************************************/
-static void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 Time)
+static void ActivateBAEntry(struct ieee80211_device *ieee, struct ba_record *pBA, u16 Time)
 {
 	pBA->bValid = true;
 	if (Time != 0)
@@ -25,10 +25,10 @@ static void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 T
 
 /********************************************************************************************************************
  *function:  deactivate BA entry, including its timer.
- *   input:  PBA_RECORD			pBA  //BA entry to be disabled
+ *   input:  struct ba_record       *pBA  //BA entry to be disabled
  *  output:  none
  ********************************************************************************************************************/
-static void DeActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA)
+static void DeActivateBAEntry(struct ieee80211_device *ieee, struct ba_record *pBA)
 {
 	pBA->bValid = false;
 	del_timer_sync(&pBA->Timer);
@@ -42,8 +42,8 @@ static void DeActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA)
  ********************************************************************************************************************/
 static u8 TxTsDeleteBA(struct ieee80211_device *ieee, struct tx_ts_record *pTxTs)
 {
-	PBA_RECORD		pAdmittedBa = &pTxTs->tx_admitted_ba_record;  //These two BA entries must exist in TS structure
-	PBA_RECORD		pPendingBa = &pTxTs->tx_pending_ba_record;
+	struct ba_record *pAdmittedBa = &pTxTs->tx_admitted_ba_record;  //These two BA entries must exist in TS structure
+	struct ba_record *pPendingBa = &pTxTs->tx_pending_ba_record;
 	u8			bSendDELBA = false;
 
 	// Delete pending BA
@@ -70,7 +70,7 @@ static u8 TxTsDeleteBA(struct ieee80211_device *ieee, struct tx_ts_record *pTxTs
  ********************************************************************************************************************/
 static u8 RxTsDeleteBA(struct ieee80211_device *ieee, struct rx_ts_record *pRxTs)
 {
-	PBA_RECORD		pBa = &pRxTs->rx_admitted_ba_record;
+	struct ba_record       *pBa = &pRxTs->rx_admitted_ba_record;
 	u8			bSendDELBA = false;
 
 	if (pBa->bValid) {
@@ -84,10 +84,10 @@ static u8 RxTsDeleteBA(struct ieee80211_device *ieee, struct rx_ts_record *pRxTs
 /********************************************************************************************************************
  *function: reset BA entry
  *   input:
- *	     PBA_RECORD		pBA //entry to be reset
+ *	     struct ba_record *pBA //entry to be reset
  *  output:  none
  ********************************************************************************************************************/
-void ResetBaEntry(PBA_RECORD pBA)
+void ResetBaEntry(struct ba_record *pBA)
 {
 	pBA->bValid			= false;
 	pBA->BaParamSet.short_data	= 0;
@@ -99,13 +99,13 @@ void ResetBaEntry(PBA_RECORD pBA)
 /*******************************************************************************************************************************
  *function:  construct ADDBAREQ and ADDBARSP frame here together.
  *   input:  u8*		Dst	//ADDBA frame's destination
- *	     PBA_RECORD		pBA	//BA_RECORD entry which stores the necessary information for BA.
+ *	     struct ba_record  *pBA	//BA_RECORD entry which stores the necessary information for BA.
  *	     u16		StatusCode  //status code in RSP and I will use it to indicate whether it's RSP or REQ(will I?)
  *	     u8			type	//indicate whether it's RSP(ACT_ADDBARSP) ow REQ(ACT_ADDBAREQ)
  *  output:  none
  *  return:  sk_buff*		skb     //return constructed skb to xmit
  *******************************************************************************************************************************/
-static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, PBA_RECORD pBA, u16 StatusCode, u8 type)
+static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, struct ba_record *pBA, u16 StatusCode, u8 type)
 {
 	struct sk_buff *skb = NULL;
 	 struct rtl_80211_hdr_3addr *BAReq = NULL;
@@ -173,7 +173,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 /********************************************************************************************************************
  *function:  construct DELBA frame
  *   input:  u8*		dst	//DELBA frame's destination
- *	     PBA_RECORD		pBA	//BA_RECORD entry which stores the necessary information for BA
+ *	     struct ba_record  *pBA	//BA_RECORD entry which stores the necessary information for BA
  *	     enum tr_select	TxRxSelect  //TX RX direction
  *	     u16		ReasonCode  //status code.
  *  output:  none
@@ -182,7 +182,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 static struct sk_buff *ieee80211_DELBA(
 	struct ieee80211_device  *ieee,
 	u8		         *dst,
-	PBA_RECORD		 pBA,
+	struct ba_record         *pBA,
 	enum tr_select		 TxRxSelect,
 	u16			 ReasonCode
 	)
@@ -243,12 +243,12 @@ static struct sk_buff *ieee80211_DELBA(
 /********************************************************************************************************************
  *function: send ADDBAReq frame out
  *   input:  u8*		dst	//ADDBAReq frame's destination
- *	     PBA_RECORD		pBA	//BA_RECORD entry which stores the necessary information for BA
+ *	     struct ba_record  *pBA	//BA_RECORD entry which stores the necessary information for BA
  *  output:  none
  *  notice: If any possible, please hide pBA in ieee. And temporarily use Manage Queue as softmac_mgmt_xmit() usually does
  ********************************************************************************************************************/
 static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
-				    u8 *dst, PBA_RECORD pBA)
+				    u8 *dst, struct ba_record *pBA)
 {
 	struct sk_buff *skb;
 	skb = ieee80211_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ); //construct ACT_ADDBAREQ frames so set statuscode zero.
@@ -266,13 +266,13 @@ static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
 /********************************************************************************************************************
  *function: send ADDBARSP frame out
  *   input:  u8*		dst	//DELBA frame's destination
- *	     PBA_RECORD		pBA	//BA_RECORD entry which stores the necessary information for BA
+ *	     struct ba_record  *pBA	//BA_RECORD entry which stores the necessary information for BA
  *	     u16		StatusCode //RSP StatusCode
  *  output:  none
  *  notice: If any possible, please hide pBA in ieee. And temporarily use Manage Queue as softmac_mgmt_xmit() usually does
  ********************************************************************************************************************/
 static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
-				    PBA_RECORD pBA, u16 StatusCode)
+				    struct ba_record *pBA, u16 StatusCode)
 {
 	struct sk_buff *skb;
 	skb = ieee80211_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP); //construct ACT_ADDBARSP frames
@@ -289,7 +289,7 @@ static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
 /********************************************************************************************************************
  *function: send ADDBARSP frame out
  *   input:  u8*		dst	//DELBA frame's destination
- *	     PBA_RECORD		pBA	//BA_RECORD entry which stores the necessary information for BA
+ *	     struct ba_record  *pBA	//BA_RECORD entry which stores the necessary information for BA
  *	     enum tr_select     TxRxSelect //TX or RX
  *	     u16		ReasonCode //DEL ReasonCode
  *  output:  none
@@ -297,7 +297,7 @@ static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
  ********************************************************************************************************************/
 
 static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
-				 PBA_RECORD pBA, enum tr_select TxRxSelect,
+				 struct ba_record *pBA, enum tr_select TxRxSelect,
 				 u16 ReasonCode)
 {
 	struct sk_buff *skb;
@@ -321,7 +321,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	 struct rtl_80211_hdr_3addr *req = NULL;
 	u16 rc = 0;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
-	PBA_RECORD pBA = NULL;
+	struct ba_record *pBA = NULL;
 	union ba_param_set     *pBaParamSet = NULL;
 	u16 *pBaTimeoutVal = NULL;
 	union sequence_control *pBaStartSeqCtrl = NULL;
@@ -399,7 +399,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 OnADDBAReq_Fail:
 	{
-		BA_RECORD	BA;
+		struct ba_record	BA;
 		BA.BaParamSet = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
 		BA.DialogToken = *pDialogToken;
@@ -419,7 +419,7 @@ OnADDBAReq_Fail:
 int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
 	 struct rtl_80211_hdr_3addr *rsp = NULL;
-	PBA_RECORD		pPendingBA, pAdmittedBA;
+	struct ba_record        *pPendingBA, *pAdmittedBA;
 	struct tx_ts_record     *pTS = NULL;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	u16 *pStatusCode = NULL, *pBaTimeoutVal = NULL;
@@ -526,7 +526,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 OnADDBARsp_Reject:
 	{
-		BA_RECORD	BA;
+		struct ba_record	BA;
 		BA.BaParamSet = *pBaParamSet;
 		ieee80211_send_DELBA(ieee, dst, &BA, TX_DIR, ReasonCode);
 		return 0;
@@ -615,7 +615,7 @@ TsInitAddBA(
 	u8		bOverwritePending
 	)
 {
-	PBA_RECORD			pBA = &pTS->tx_pending_ba_record;
+	struct ba_record *pBA = &pTS->tx_pending_ba_record;
 
 	if (pBA->bValid && !bOverwritePending)
 		return;
