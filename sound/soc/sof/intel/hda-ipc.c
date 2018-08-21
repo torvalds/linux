@@ -45,6 +45,12 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
 					       HDA_DSP_REG_HIPCT,
 					       HDA_DSP_REG_HIPCT_BUSY,
 					       HDA_DSP_REG_HIPCT_BUSY);
+
+		/* unmask BUSY interrupt */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
+					HDA_DSP_REG_HIPCCTL,
+					HDA_DSP_REG_HIPCCTL_BUSY,
+					HDA_DSP_REG_HIPCCTL_BUSY);
 	} else {
 		/*
 		 * set DONE bit - tell DSP we have received the reply msg
@@ -197,11 +203,11 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 			snd_sof_ipc_msgs_rx(sdev);
 		}
 
-		/* clear busy interrupt */
-		snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
-					       HDA_DSP_REG_HIPCT,
-					       HDA_DSP_REG_HIPCT_BUSY,
-					       HDA_DSP_REG_HIPCT_BUSY);
+		/* mask BUSY interrupt */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
+					HDA_DSP_REG_HIPCCTL,
+					HDA_DSP_REG_HIPCCTL_BUSY, 0);
+
 		ret = IRQ_HANDLED;
 	}
 
