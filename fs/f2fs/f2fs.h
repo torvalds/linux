@@ -99,6 +99,7 @@ extern char *f2fs_fault_name[FAULT_MAX];
 #define F2FS_MOUNT_QUOTA		0x00400000
 #define F2FS_MOUNT_INLINE_XATTR_SIZE	0x00800000
 #define F2FS_MOUNT_RESERVE_ROOT		0x01000000
+#define F2FS_MOUNT_DISABLE_CHECKPOINT	0x02000000
 
 #define F2FS_OPTION(sbi)	((sbi)->mount_opt)
 #define clear_opt(sbi, option)	(F2FS_OPTION(sbi).opt &= ~F2FS_MOUNT_##option)
@@ -178,6 +179,7 @@ enum {
 #define	CP_RECOVERY	0x00000008
 #define	CP_DISCARD	0x00000010
 #define CP_TRIMMED	0x00000020
+#define CP_PAUSE	0x00000040
 
 #define MAX_DISCARD_BLOCKS(sbi)		BLKS_PER_SEC(sbi)
 #define DEF_MAX_DISCARD_REQUEST		8	/* issue 8 discards per round */
@@ -187,6 +189,7 @@ enum {
 #define DEF_DISCARD_URGENT_UTIL		80	/* do more discard over 80% */
 #define DEF_CP_INTERVAL			60	/* 60 secs */
 #define DEF_IDLE_INTERVAL		5	/* 5 secs */
+#define DEF_DISABLE_INTERVAL		5	/* 5 secs */
 
 struct cp_control {
 	int reason;
@@ -1092,6 +1095,7 @@ enum {
 	SBI_NEED_CP,				/* need to checkpoint */
 	SBI_IS_SHUTDOWN,			/* shutdown by ioctl */
 	SBI_IS_RECOVERED,			/* recovered orphan/data */
+	SBI_CP_DISABLED,			/* CP was disabled last mount */
 };
 
 enum {
@@ -1099,6 +1103,7 @@ enum {
 	REQ_TIME,
 	DISCARD_TIME,
 	GC_TIME,
+	DISABLE_TIME,
 	MAX_TIME,
 };
 
@@ -1224,6 +1229,9 @@ struct f2fs_sb_info {
 	block_t last_valid_block_count;		/* for recovery */
 	block_t reserved_blocks;		/* configurable reserved blocks */
 	block_t current_reserved_blocks;	/* current reserved blocks */
+
+	/* Additional tracking for no checkpoint mode */
+	block_t unusable_block_count;		/* # of blocks saved by last cp */
 
 	unsigned int nquota_files;		/* # of quota sysfile */
 
@@ -1735,7 +1743,8 @@ static inline int inc_valid_block_count(struct f2fs_sb_info *sbi,
 
 	if (!__allow_reserved_blocks(sbi, inode, true))
 		avail_user_block_count -= F2FS_OPTION(sbi).root_reserved_blocks;
-
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
+		avail_user_block_count -= sbi->unusable_block_count;
 	if (unlikely(sbi->total_valid_block_count > avail_user_block_count)) {
 		diff = sbi->total_valid_block_count - avail_user_block_count;
 		if (diff > *count)
@@ -1942,6 +1951,8 @@ static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 
 	if (!__allow_reserved_blocks(sbi, inode, false))
 		valid_block_count += F2FS_OPTION(sbi).root_reserved_blocks;
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
+		valid_block_count += sbi->unusable_block_count;
 
 	if (unlikely(valid_block_count > sbi->user_block_count)) {
 		spin_unlock(&sbi->stat_lock);
@@ -2945,6 +2956,8 @@ void f2fs_stop_discard_thread(struct f2fs_sb_info *sbi);
 bool f2fs_wait_discard_bios(struct f2fs_sb_info *sbi);
 void f2fs_clear_prefree_segments(struct f2fs_sb_info *sbi,
 					struct cp_control *cpc);
+void f2fs_dirty_to_prefree(struct f2fs_sb_info *sbi);
+int f2fs_disable_cp_again(struct f2fs_sb_info *sbi);
 void f2fs_release_discard_addrs(struct f2fs_sb_info *sbi);
 int f2fs_npages_for_summary_flush(struct f2fs_sb_info *sbi, bool for_ra);
 void f2fs_allocate_new_segments(struct f2fs_sb_info *sbi);
@@ -3532,6 +3545,9 @@ static inline bool f2fs_force_buffered_io(struct inode *inode,
 	if (test_opt(sbi, LFS) && (rw == WRITE) &&
 				block_unaligned_IO(inode, iocb, iter))
 		return true;
+	if (is_sbi_flag_set(F2FS_I_SB(inode), SBI_CP_DISABLED))
+		return true;
+
 	return false;
 }
 

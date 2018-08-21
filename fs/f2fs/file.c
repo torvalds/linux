@@ -210,7 +210,8 @@ static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 	};
 	unsigned int seq_id = 0;
 
-	if (unlikely(f2fs_readonly(inode->i_sb)))
+	if (unlikely(f2fs_readonly(inode->i_sb) ||
+				is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
 		return 0;
 
 	trace_f2fs_sync_file_enter(inode);
@@ -2157,6 +2158,12 @@ static int f2fs_ioc_write_checkpoint(struct file *filp, unsigned long arg)
 	if (f2fs_readonly(sbi->sb))
 		return -EROFS;
 
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"Skipping Checkpoint. Checkpoints currently disabled.");
+		return -EINVAL;
+	}
+
 	ret = mnt_want_write_file(filp);
 	if (ret)
 		return ret;
@@ -2527,6 +2534,9 @@ static int f2fs_ioc_flush_device(struct file *filp, unsigned long arg)
 
 	if (f2fs_readonly(sbi->sb))
 		return -EROFS;
+
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
+		return -EINVAL;
 
 	if (copy_from_user(&range, (struct f2fs_flush_device __user *)arg,
 							sizeof(range)))
