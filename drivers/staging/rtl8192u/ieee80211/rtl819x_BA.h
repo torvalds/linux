@@ -53,7 +53,7 @@ struct ba_record {
 	struct timer_list		timer;
 	u8				valid;
 	u8				dialog_token;
-	union ba_param_set		BaParamSet;
+	union ba_param_set		param_set;
 	u16				BaTimeoutValue;
 	union sequence_control	BaStartSeqCtrl;
 };

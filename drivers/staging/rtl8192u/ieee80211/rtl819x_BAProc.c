@@ -90,7 +90,7 @@ static u8 RxTsDeleteBA(struct ieee80211_device *ieee, struct rx_ts_record *pRxTs
 void ResetBaEntry(struct ba_record *pBA)
 {
 	pBA->valid			= false;
-	pBA->BaParamSet.short_data	= 0;
+	pBA->param_set.short_data	= 0;
 	pBA->BaTimeoutValue		= 0;
 	pBA->dialog_token		= 0;
 	pBA->BaStartSeqCtrl.short_data	= 0;
@@ -151,7 +151,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 	}
 	// BA Parameter Set
 
-	put_unaligned_le16(pBA->BaParamSet.short_data, tag);
+	put_unaligned_le16(pBA->param_set.short_data, tag);
 	tag += 2;
 	// BA Timeout Value
 
@@ -202,7 +202,7 @@ static struct sk_buff *ieee80211_DELBA(
 	memset(&DelbaParamSet, 0, 2);
 
 	DelbaParamSet.field.initiator	= (TxRxSelect == TX_DIR) ? 1 : 0;
-	DelbaParamSet.field.tid	= pBA->BaParamSet.field.tid;
+	DelbaParamSet.field.tid	= pBA->param_set.field.tid;
 
 	skb = dev_alloc_skb(len + sizeof(struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
 	if (!skb) {
@@ -383,14 +383,14 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	//
 	DeActivateBAEntry(ieee, pBA);
 	pBA->dialog_token = *pDialogToken;
-	pBA->BaParamSet = *pBaParamSet;
+	pBA->param_set = *pBaParamSet;
 	pBA->BaTimeoutValue = *pBaTimeoutVal;
 	pBA->BaStartSeqCtrl = *pBaStartSeqCtrl;
 	//for half N mode we only aggregate 1 frame
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
-	pBA->BaParamSet.field.buffer_size = 1;
+	pBA->param_set.field.buffer_size = 1;
 	else
-	pBA->BaParamSet.field.buffer_size = 32;
+	pBA->param_set.field.buffer_size = 32;
 	ActivateBAEntry(ieee, pBA, pBA->BaTimeoutValue);
 	ieee80211_send_ADDBARsp(ieee, dst, pBA, ADDBA_STATUS_SUCCESS);
 
@@ -400,10 +400,10 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 OnADDBAReq_Fail:
 	{
 		struct ba_record	BA;
-		BA.BaParamSet = *pBaParamSet;
+		BA.param_set = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
 		BA.dialog_token = *pDialogToken;
-		BA.BaParamSet.field.ba_policy = BA_POLICY_IMMEDIATE;
+		BA.param_set.field.ba_policy = BA_POLICY_IMMEDIATE;
 		ieee80211_send_ADDBARsp(ieee, dst, &BA, rc);
 		return 0; //we send RSP out.
 	}
@@ -513,7 +513,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		pAdmittedBA->dialog_token = *pDialogToken;
 		pAdmittedBA->BaTimeoutValue = *pBaTimeoutVal;
 		pAdmittedBA->BaStartSeqCtrl = pPendingBA->BaStartSeqCtrl;
-		pAdmittedBA->BaParamSet = *pBaParamSet;
+		pAdmittedBA->param_set = *pBaParamSet;
 		DeActivateBAEntry(ieee, pAdmittedBA);
 		ActivateBAEntry(ieee, pAdmittedBA, *pBaTimeoutVal);
 	} else {
@@ -527,7 +527,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 OnADDBARsp_Reject:
 	{
 		struct ba_record	BA;
-		BA.BaParamSet = *pBaParamSet;
+		BA.param_set = *pBaParamSet;
 		ieee80211_send_DELBA(ieee, dst, &BA, TX_DIR, ReasonCode);
 		return 0;
 	}
@@ -624,11 +624,11 @@ TsInitAddBA(
 	DeActivateBAEntry(ieee, pBA);
 
 	pBA->dialog_token++;						// DialogToken: Only keep the latest dialog token
-	pBA->BaParamSet.field.amsdu_support = 0;	// Do not support A-MSDU with A-MPDU now!!
-	pBA->BaParamSet.field.ba_policy = Policy;	// Policy: Delayed or Immediate
-	pBA->BaParamSet.field.tid = pTS->ts_common_info.t_spec.ts_info.uc_tsid;	// TID
+	pBA->param_set.field.amsdu_support = 0;	// Do not support A-MSDU with A-MPDU now!!
+	pBA->param_set.field.ba_policy = Policy;	// Policy: Delayed or Immediate
+	pBA->param_set.field.tid = pTS->ts_common_info.t_spec.ts_info.uc_tsid;	// TID
 	// buffer_size: This need to be set according to A-MPDU vector
-	pBA->BaParamSet.field.buffer_size = 32;		// buffer_size: This need to be set according to A-MPDU vector
+	pBA->param_set.field.buffer_size = 32;		// buffer_size: This need to be set according to A-MPDU vector
 	pBA->BaTimeoutValue = 0;					// Timeout value: Set 0 to disable Timer
 	pBA->BaStartSeqCtrl.field.seq_num = (pTS->tx_cur_seq + 3) % 4096;	// Block Ack will start after 3 packets later.
 
