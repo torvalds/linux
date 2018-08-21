@@ -57,6 +57,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/delay.h>

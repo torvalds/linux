@@ -1487,6 +1487,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	init_waitqueue_head(&sig->wait_chldexit);
 	sig->curr_target = tsk;
 	init_sigpending(&sig->shared_pending);
+	INIT_HLIST_HEAD(&sig->multiprocess);
 	seqlock_init(&sig->stats_lock);
 	prev_cputime_init(&sig->prev_cputime);
 
@@ -1580,10 +1581,22 @@ static void posix_cpu_timers_init(struct task_struct *tsk)
 static inline void posix_cpu_timers_init(struct task_struct *tsk) { }
 #endif
 
+static inline void init_task_pid_links(struct task_struct *task)
+{
+	enum pid_type type;
+
+	for (type = PIDTYPE_PID; type < PIDTYPE_MAX; ++type) {
+		INIT_HLIST_NODE(&task->pid_links[type]);
+	}
+}
+
 static inline void
 init_task_pid(struct task_struct *task, enum pid_type type, struct pid *pid)
 {
-	 task->pids[type].pid = pid;
+	if (type == PIDTYPE_PID)
+		task->thread_pid = pid;
+	else
+		task->signal->pids[type] = pid;
 }
 
 static inline void rcu_copy_process(struct task_struct *p)
@@ -1621,6 +1634,7 @@ static __latent_entropy struct task_struct *copy_process(
 {
 	int retval;
 	struct task_struct *p;
+	struct multiprocess_signals delayed;
 
 	/*
 	 * Don't allow sharing the root directory with processes in a different
@@ -1667,6 +1681,24 @@ static __latent_entropy struct task_struct *copy_process(
 				current->nsproxy->pid_ns_for_children))
 			return ERR_PTR(-EINVAL);
 	}
+
+	/*
+	 * Force any signals received before this point to be delivered
+	 * before the fork happens.  Collect up signals sent to multiple
+	 * processes that happen during the fork and delay them so that
+	 * they appear to happen after the fork.
+	 */
+	sigemptyset(&delayed.signal);
+	INIT_HLIST_NODE(&delayed.node);
+
+	spin_lock_irq(&current->sighand->siglock);
+	if (!(clone_flags & CLONE_THREAD))
+		hlist_add_head(&delayed.node, &current->signal->multiprocess);
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+	retval = -ERESTARTNOINTR;
+	if (signal_pending(current))
+		goto fork_out;
 
 	retval = -ENOMEM;
 	p = dup_task_struct(current, node);
@@ -1941,29 +1973,26 @@ static __latent_entropy struct task_struct *copy_process(
 
 	rseq_fork(p, clone_flags);
 
-	/*
-	 * Process group and session signals need to be delivered to just the
-	 * parent before the fork or both the parent and the child after the
-	 * fork. Restart if a signal comes in before we add the new process to
-	 * it's process group.
-	 * A fatal signal pending means that current will exit, so the new
-	 * thread can't slip out of an OOM kill (or normal SIGKILL).
-	*/
-	recalc_sigpending();
-	if (signal_pending(current)) {
-		retval = -ERESTARTNOINTR;
-		goto bad_fork_cancel_cgroup;
-	}
+	/* Don't start children in a dying pid namespace */
 	if (unlikely(!(ns_of_pid(pid)->pid_allocated & PIDNS_ADDING))) {
 		retval = -ENOMEM;
 		goto bad_fork_cancel_cgroup;
 	}
 
+	/* Let kill terminate clone/fork in the middle */
+	if (fatal_signal_pending(current)) {
+		retval = -EINTR;
+		goto bad_fork_cancel_cgroup;
+	}
+
+
+	init_task_pid_links(p);
 	if (likely(p->pid)) {
 		ptrace_init_task(p, (clone_flags & CLONE_PTRACE) || trace);
 
 		init_task_pid(p, PIDTYPE_PID, pid);
 		if (thread_group_leader(p)) {
+			init_task_pid(p, PIDTYPE_TGID, pid);
 			init_task_pid(p, PIDTYPE_PGID, task_pgrp(current));
 			init_task_pid(p, PIDTYPE_SID, task_session(current));
 
@@ -1971,8 +2000,7 @@ static __latent_entropy struct task_struct *copy_process(
 				ns_of_pid(pid)->child_reaper = p;
 				p->signal->flags |= SIGNAL_UNKILLABLE;
 			}
-
-			p->signal->leader_pid = pid;
+			p->signal->shared_pending.signal = delayed.signal;
 			p->signal->tty = tty_kref_get(current->signal->tty);
 			/*
 			 * Inherit has_child_subreaper flag under the same
@@ -1983,6 +2011,7 @@ static __latent_entropy struct task_struct *copy_process(
 							 p->real_parent->signal->is_child_subreaper;
 			list_add_tail(&p->sibling, &p->real_parent->children);
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
+			attach_pid(p, PIDTYPE_TGID);
 			attach_pid(p, PIDTYPE_PGID);
 			attach_pid(p, PIDTYPE_SID);
 			__this_cpu_inc(process_counts);
@@ -1990,6 +2019,7 @@ static __latent_entropy struct task_struct *copy_process(
 			current->signal->nr_threads++;
 			atomic_inc(&current->signal->live);
 			atomic_inc(&current->signal->sigcnt);
+			task_join_group_stop(p);
 			list_add_tail_rcu(&p->thread_group,
 					  &p->group_leader->thread_group);
 			list_add_tail_rcu(&p->thread_node,
@@ -1998,8 +2028,8 @@ static __latent_entropy struct task_struct *copy_process(
 		attach_pid(p, PIDTYPE_PID);
 		nr_threads++;
 	}
-
 	total_forks++;
+	hlist_del_init(&delayed.node);
 	spin_unlock(&current->sighand->siglock);
 	syscall_tracepoint_update(p);
 	write_unlock_irq(&tasklist_lock);
@@ -2064,16 +2094,19 @@ bad_fork_free:
 	put_task_stack(p);
 	free_task(p);
 fork_out:
+	spin_lock_irq(&current->sighand->siglock);
+	hlist_del_init(&delayed.node);
+	spin_unlock_irq(&current->sighand->siglock);
 	return ERR_PTR(retval);
 }
 
-static inline void init_idle_pids(struct pid_link *links)
+static inline void init_idle_pids(struct task_struct *idle)
 {
 	enum pid_type type;
 
 	for (type = PIDTYPE_PID; type < PIDTYPE_MAX; ++type) {
-		INIT_HLIST_NODE(&links[type].node); /* not really needed */
-		links[type].pid = &init_struct_pid;
+		INIT_HLIST_NODE(&idle->pid_links[type]); /* not really needed */
+		init_task_pid(idle, type, &init_struct_pid);
 	}
 }
 
@@ -2083,7 +2116,7 @@ struct task_struct *fork_idle(int cpu)
 	task = copy_process(CLONE_VM, 0, 0, NULL, &init_struct_pid, 0, 0,
 			    cpu_to_node(cpu));
 	if (!IS_ERR(task)) {
-		init_idle_pids(task->pids);
+		init_idle_pids(task);
 		init_idle(task, cpu);
 	}
 
