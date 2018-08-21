@@ -127,11 +127,9 @@ static ssize_t crc_control_write(struct file *file, const char __user *ubuf,
 	if (source[len] == '\n')
 		source[len] = '\0';
 
-	if (crtc->funcs->verify_crc_source) {
-		ret = crtc->funcs->verify_crc_source(crtc, source, &values_cnt);
-		if (ret)
-			return ret;
-	}
+	ret = crtc->funcs->verify_crc_source(crtc, source, &values_cnt);
+	if (ret)
+		return ret;
 
 	spin_lock_irq(&crc->lock);
 
@@ -197,40 +195,40 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 			return ret;
 	}
 
-	spin_lock_irq(&crc->lock);
-	if (!crc->opened)
-		crc->opened = true;
-	else
-		ret = -EBUSY;
-	spin_unlock_irq(&crc->lock);
-
+	ret = crtc->funcs->verify_crc_source(crtc, crc->source, &values_cnt);
 	if (ret)
 		return ret;
 
-	ret = crtc->funcs->set_crc_source(crtc, crc->source, &values_cnt);
+	if (WARN_ON(values_cnt > DRM_MAX_CRC_NR))
+		return -EINVAL;
+
+	if (WARN_ON(values_cnt == 0))
+		return -EINVAL;
+
+	entries = kcalloc(DRM_CRC_ENTRIES_NR, sizeof(*entries), GFP_KERNEL);
+	if (!entries)
+		return -ENOMEM;
+
+	spin_lock_irq(&crc->lock);
+	if (!crc->opened) {
+		crc->opened = true;
+		crc->entries = entries;
+		crc->values_cnt = values_cnt;
+	} else {
+		ret = -EBUSY;
+	}
+	spin_unlock_irq(&crc->lock);
+
+	if (ret) {
+		kfree(entries);
+		return ret;
+	}
+
+	ret = crtc->funcs->set_crc_source(crtc, crc->source);
 	if (ret)
 		goto err;
 
-	if (WARN_ON(values_cnt > DRM_MAX_CRC_NR)) {
-		ret = -EINVAL;
-		goto err_disable;
-	}
-
-	if (WARN_ON(values_cnt == 0)) {
-		ret = -EINVAL;
-		goto err_disable;
-	}
-
-	entries = kcalloc(DRM_CRC_ENTRIES_NR, sizeof(*entries), GFP_KERNEL);
-	if (!entries) {
-		ret = -ENOMEM;
-		goto err_disable;
-	}
-
 	spin_lock_irq(&crc->lock);
-	crc->entries = entries;
-	crc->values_cnt = values_cnt;
-
 	/*
 	 * Only return once we got a first frame, so userspace doesn't have to
 	 * guess when this particular piece of HW will be ready to start
@@ -247,7 +245,7 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	return 0;
 
 err_disable:
-	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
+	crtc->funcs->set_crc_source(crtc, NULL);
 err:
 	spin_lock_irq(&crc->lock);
 	crtc_crc_cleanup(crc);
@@ -259,9 +257,8 @@ static int crtc_crc_release(struct inode *inode, struct file *filep)
 {
 	struct drm_crtc *crtc = filep->f_inode->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
-	size_t values_cnt;
 
-	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
+	crtc->funcs->set_crc_source(crtc, NULL);
 
 	spin_lock_irq(&crc->lock);
 	crtc_crc_cleanup(crc);
@@ -367,7 +364,7 @@ int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 {
 	struct dentry *crc_ent, *ent;
 
-	if (!crtc->funcs->set_crc_source)
+	if (!crtc->funcs->set_crc_source || !crtc->funcs->verify_crc_source)
 		return 0;
 
 	crc_ent = debugfs_create_dir("crc", crtc->debugfs_entry);

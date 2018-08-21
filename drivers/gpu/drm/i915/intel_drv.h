@@ -2151,8 +2151,7 @@ void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
 /* intel_pipe_crc.c */
 int intel_pipe_crc_create(struct drm_minor *minor);
 #ifdef CONFIG_DEBUG_FS
-int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
-			      size_t *values_cnt);
+int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name);
 int intel_crtc_verify_crc_source(struct drm_crtc *crtc,
 				 const char *source_name, size_t *values_cnt);
 const char *const *intel_crtc_get_crc_sources(struct drm_crtc *crtc,

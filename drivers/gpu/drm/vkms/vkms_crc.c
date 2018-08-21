@@ -101,8 +101,7 @@ int vkms_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	return 0;
 }
 
-int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name,
-			size_t *values_cnt)
+int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 {
 	struct vkms_output *out = drm_crtc_to_vkms_output(crtc);
 	bool enabled = false;
@@ -110,8 +109,6 @@ int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name,
 	int ret = 0;
 
 	ret = vkms_crc_parse_source(src_name, &enabled);
-
-	*values_cnt = 1;
 
 	/* make sure nothing is scheduled on crtc workq */
 	flush_workqueue(out->crc_workq);
