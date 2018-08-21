@@ -672,8 +672,8 @@ static int nl80211_msg_put_wmm_rules(struct sk_buff *msg,
 				rule->wmm_rule.client[j].cw_max) ||
 		    nla_put_u8(msg, NL80211_WMMR_AIFSN,
 			       rule->wmm_rule.client[j].aifsn) ||
-		    nla_put_u8(msg, NL80211_WMMR_TXOP,
-			       rule->wmm_rule.client[j].cot))
+		    nla_put_u16(msg, NL80211_WMMR_TXOP,
+			        rule->wmm_rule.client[j].cot))
 			goto nla_put_failure;
 
 		nla_nest_end(msg, nl_wmm_rule);
