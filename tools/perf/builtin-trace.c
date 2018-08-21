@@ -1144,11 +1144,9 @@ static void sig_handler(int sig)
 	interrupted = sig == SIGINT;
 }
 
-static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thread,
-					u64 duration, bool duration_calculated, u64 tstamp, FILE *fp)
+static size_t trace__fprintf_comm_tid(struct trace *trace, struct thread *thread, FILE *fp)
 {
-	size_t printed = trace__fprintf_tstamp(trace, tstamp, fp);
-	printed += fprintf_duration(duration, duration_calculated, fp);
+	size_t printed = 0;
 
 	if (trace->multiple_threads) {
 		if (trace->show_comm)
@@ -1157,6 +1155,14 @@ static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thre
 	}
 
 	return printed;
+}
+
+static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thread,
+					u64 duration, bool duration_calculated, u64 tstamp, FILE *fp)
+{
+	size_t printed = trace__fprintf_tstamp(trace, tstamp, fp);
+	printed += fprintf_duration(duration, duration_calculated, fp);
+	return printed + trace__fprintf_comm_tid(trace, thread, fp);
 }
 
 static int trace__process_event(struct trace *trace, struct machine *machine,
