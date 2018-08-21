@@ -30,7 +30,7 @@ union sequence_control {
 	} field;
 };
 
-typedef union _BA_PARAM_SET {
+union ba_param_set {
 	u8 charData[2];
 	u16 shortData;
 	struct {
@@ -39,7 +39,7 @@ typedef union _BA_PARAM_SET {
 		u16 TID:4;
 		u16 BufferSize:10;
 	} field;
-} BA_PARAM_SET, *PBA_PARAM_SET;
+};
 
 typedef union _DELBA_PARAM_SET {
 	u8 charData[2];
@@ -55,7 +55,7 @@ typedef struct _BA_RECORD {
 	struct timer_list		Timer;
 	u8				bValid;
 	u8				DialogToken;
-	BA_PARAM_SET		BaParamSet;
+	union ba_param_set		BaParamSet;
 	u16				BaTimeoutValue;
 	union sequence_control	BaStartSeqCtrl;
 } BA_RECORD, *PBA_RECORD;
