@@ -83,4 +83,15 @@ struct syscall_enter_inotify_add_watch_args {
 
 augmented_filename_syscall_enter(inotify_add_watch);
 
+struct statbuf;
+
+struct syscall_enter_newstat_args {
+	unsigned long long common_tp_fields;
+	long		   syscall_nr;
+	char		   *filename_ptr;
+	struct stat	   *statbuf;
+};
+
+augmented_filename_syscall_enter(newstat);
+
 license(GPL);
