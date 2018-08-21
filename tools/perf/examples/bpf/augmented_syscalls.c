@@ -88,4 +88,31 @@ int syscall_enter(open)(struct syscall_enter_open_args *args)
 	return 0;
 }
 
+struct syscall_enter_inotify_add_watch_args {
+	unsigned long long common_tp_fields;
+	long		   syscall_nr;
+	long		   fd;
+	char		   *pathname_ptr;
+	long		   mask;
+};
+
+struct augmented_enter_inotify_add_watch_args {
+	struct syscall_enter_inotify_add_watch_args args;
+	struct augmented_filename		    pathname;
+};
+
+int syscall_enter(inotify_add_watch)(struct syscall_enter_inotify_add_watch_args *args)
+{
+	struct augmented_enter_inotify_add_watch_args augmented_args = { .pathname.reserved = 0, };
+
+	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);
+	augmented_args.pathname.size = probe_read_str(&augmented_args.pathname.value,
+						      sizeof(augmented_args.pathname.value),
+						      args->pathname_ptr);
+	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU,
+			  &augmented_args,
+			  sizeof(augmented_args) - sizeof(augmented_args.pathname.value) + augmented_args.pathname.size);
+	return 0;
+}
+
 license(GPL);
