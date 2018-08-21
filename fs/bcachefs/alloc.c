@@ -610,7 +610,7 @@ static unsigned long bucket_sort_key(struct bch_fs *c, struct bch_dev *ca,
 
 	return  (data_wantness << 9) |
 		(needs_journal_commit << 8) |
-		bucket_gc_gen(ca, b);
+		(bucket_gc_gen(ca, b) / 16);
 }
 
 static inline int bucket_alloc_cmp(alloc_heap *h,
