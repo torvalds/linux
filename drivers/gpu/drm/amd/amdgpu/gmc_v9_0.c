@@ -836,7 +836,7 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj) {
+	if (adev->gart.bo) {
 		WARN(1, "VEGA10 PCIE GART already initialized\n");
 		return 0;
 	}
@@ -1062,7 +1062,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 						golden_settings_vega10_hdp,
 						ARRAY_SIZE(golden_settings_vega10_hdp));
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}

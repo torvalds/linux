@@ -810,7 +810,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	int r, i;
 	u32 tmp, field;
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
@@ -928,7 +928,7 @@ static int gmc_v8_0_gart_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj) {
+	if (adev->gart.bo) {
 		WARN(1, "R600 PCIE GART already initialized\n");
 		return 0;
 	}

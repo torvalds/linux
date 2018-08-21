@@ -41,7 +41,7 @@ struct amdgpu_bo;
 
 struct amdgpu_gart {
 	u64				table_addr;
-	struct amdgpu_bo		*robj;
+	struct amdgpu_bo		*bo;
 	void				*ptr;
 	unsigned			num_gpu_pages;
 	unsigned			num_cpu_pages;
