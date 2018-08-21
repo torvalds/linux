@@ -35,7 +35,7 @@ static void btree_node_interior_verify(struct btree *b)
 
 	BUG_ON(!b->level);
 
-	bch2_btree_node_iter_init(&iter, b, b->key.k.p, false);
+	bch2_btree_node_iter_init(&iter, b, &b->key.k.p);
 #if 1
 	BUG_ON(!(k = bch2_btree_node_iter_peek(&iter, b)) ||
 	       bkey_cmp_left_packed(b, k, &b->key.k.p));
@@ -1191,7 +1191,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 			     gc_pos_btree_node(b), &stats, 0, 0);
 
 	while ((k = bch2_btree_node_iter_peek_all(node_iter, b)) &&
-	       !btree_iter_pos_cmp_packed(b, &insert->k.p, k, false))
+	       bkey_iter_pos_cmp(b, &insert->k.p, k) > 0)
 		bch2_btree_node_iter_advance(node_iter, b);
 
 	/*
@@ -1322,7 +1322,7 @@ static void btree_split_insert_keys(struct btree_update *as, struct btree *b,
 
 	BUG_ON(btree_node_type(b) != BKEY_TYPE_BTREE);
 
-	bch2_btree_node_iter_init(&node_iter, b, k->k.p, false);
+	bch2_btree_node_iter_init(&node_iter, b, &k->k.p);
 
 	while (!bch2_keylist_empty(keys)) {
 		k = bch2_keylist_front(keys);

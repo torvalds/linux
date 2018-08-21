@@ -271,6 +271,42 @@ static void test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 	bch2_btree_iter_unlock(&iter);
 }
 
+/*
+ * XXX: we really want to make sure we've got a btree with depth > 0 for these
+ * tests
+ */
+static void test_peek_end(struct bch_fs *c, u64 nr)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+
+	bch2_btree_iter_init(&iter, c, BTREE_ID_DIRENTS, POS_MIN, 0);
+
+	k = bch2_btree_iter_peek(&iter);
+	BUG_ON(k.k);
+
+	k = bch2_btree_iter_peek(&iter);
+	BUG_ON(k.k);
+
+	bch2_btree_iter_unlock(&iter);
+}
+
+static void test_peek_end_extents(struct bch_fs *c, u64 nr)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+
+	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS, POS_MIN, 0);
+
+	k = bch2_btree_iter_peek(&iter);
+	BUG_ON(k.k);
+
+	k = bch2_btree_iter_peek(&iter);
+	BUG_ON(k.k);
+
+	bch2_btree_iter_unlock(&iter);
+}
+
 /* extent unit tests */
 
 u64 test_version;
@@ -555,6 +591,8 @@ void bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	perf_test(test_iterate_extents);
 	perf_test(test_iterate_slots);
 	perf_test(test_iterate_slots_extents);
+	perf_test(test_peek_end);
+	perf_test(test_peek_end_extents);
 
 	perf_test(test_extent_overwrite_front);
 	perf_test(test_extent_overwrite_back);

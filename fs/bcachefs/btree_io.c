@@ -21,10 +21,7 @@
 
 /* btree_node_iter_large: */
 
-#define btree_node_iter_cmp_heap(h, _l, _r)				\
-	__btree_node_iter_cmp(b,					\
-			       __btree_node_offset_to_key(b, (_l).k),	\
-			       __btree_node_offset_to_key(b, (_r).k))
+#define btree_node_iter_cmp_heap(h, _l, _r) btree_node_iter_cmp(b, _l, _r)
 
 void bch2_btree_node_iter_large_push(struct btree_node_iter_large *iter,
 				     struct btree *b,

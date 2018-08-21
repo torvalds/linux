@@ -368,41 +368,6 @@ static inline int bkey_cmp_p_or_unp(const struct btree *b,
 	return __bch2_bkey_cmp_left_packed_format_checked(b, l, r);
 }
 
-/* Returns true if @k is after iterator position @pos */
-static inline bool btree_iter_pos_cmp(struct btree_iter *iter,
-				      const struct bkey *k)
-{
-	int cmp = bkey_cmp(k->p, iter->pos);
-
-	return cmp > 0 ||
-		(cmp == 0 &&
-		 !(iter->flags & BTREE_ITER_IS_EXTENTS) && !bkey_deleted(k));
-}
-
-/* Returns true if @k is after iterator position @pos */
-static inline bool btree_iter_pos_cmp_packed(const struct btree *b,
-					     struct bpos *pos,
-					     const struct bkey_packed *k,
-					     bool strictly_greater)
-{
-	int cmp = bkey_cmp_left_packed(b, k, pos);
-
-	return cmp > 0 ||
-		(cmp == 0 && !strictly_greater && !bkey_deleted(k));
-}
-
-static inline bool btree_iter_pos_cmp_p_or_unp(const struct btree *b,
-					struct bpos pos,
-					const struct bkey_packed *pos_packed,
-					const struct bkey_packed *k,
-					bool strictly_greater)
-{
-	int cmp = bkey_cmp_p_or_unp(b, k, pos_packed, &pos);
-
-	return cmp > 0 ||
-		(cmp == 0 && !strictly_greater && !bkey_deleted(k));
-}
-
 static inline struct bset_tree *
 bch2_bkey_to_bset_inlined(struct btree *b, struct bkey_packed *k)
 {
@@ -459,7 +424,7 @@ void bch2_btree_node_iter_push(struct btree_node_iter *, struct btree *,
 			      const struct bkey_packed *,
 			      const struct bkey_packed *);
 void bch2_btree_node_iter_init(struct btree_node_iter *, struct btree *,
-			       struct bpos, bool);
+			       struct bpos *);
 void bch2_btree_node_iter_init_from_start(struct btree_node_iter *,
 					  struct btree *);
 struct bkey_packed *bch2_btree_node_iter_bset_pos(struct btree_node_iter *,
@@ -488,11 +453,16 @@ static inline bool bch2_btree_node_iter_end(struct btree_node_iter *iter)
 	return __btree_node_iter_set_end(iter, 0);
 }
 
-static inline int __btree_node_iter_cmp(struct btree *b,
-					const struct bkey_packed *l,
-					const struct bkey_packed *r)
+/*
+ * When keys compare equal, deleted keys compare first:
+ *
+ * XXX: only need to compare pointers for keys that are both within a
+ * btree_node_iterator - we need to break ties for prev() to work correctly
+ */
+static inline int bkey_iter_cmp(struct btree *b,
+				const struct bkey_packed *l,
+				const struct bkey_packed *r)
 {
-	/* When keys compare equal deleted keys come first */
 	return bkey_cmp_packed(b, l, r)
 		?: (int) bkey_deleted(r) - (int) bkey_deleted(l)
 		?: (l > r) - (l < r);
@@ -502,28 +472,27 @@ static inline int btree_node_iter_cmp(struct btree *b,
 				      struct btree_node_iter_set l,
 				      struct btree_node_iter_set r)
 {
-	return __btree_node_iter_cmp(b,
+	return bkey_iter_cmp(b,
 			__btree_node_offset_to_key(b, l.k),
 			__btree_node_offset_to_key(b, r.k));
 }
 
-static inline void __bch2_btree_node_iter_push(struct btree_node_iter *iter,
-			      struct btree *b,
-			      const struct bkey_packed *k,
-			      const struct bkey_packed *end)
+/* These assume l (the search key) is not a deleted key: */
+static inline int bkey_iter_pos_cmp(struct btree *b,
+			struct bpos *l,
+			const struct bkey_packed *r)
 {
-	if (k != end) {
-		struct btree_node_iter_set *pos;
+	return -bkey_cmp_left_packed(b, r, l)
+		?: (int) bkey_deleted(r);
+}
 
-		btree_node_iter_for_each(iter, pos)
-			;
-
-		BUG_ON(pos >= iter->data + ARRAY_SIZE(iter->data));
-		*pos = (struct btree_node_iter_set) {
-			__btree_node_key_to_offset(b, k),
-			__btree_node_key_to_offset(b, end)
-		};
-	}
+static inline int bkey_iter_cmp_p_or_unp(struct btree *b,
+			struct bpos *l,
+			const struct bkey_packed *l_packed,
+			const struct bkey_packed *r)
+{
+	return -bkey_cmp_p_or_unp(b, r, l_packed, l)
+		?: (int) bkey_deleted(r);
 }
 
 static inline struct bkey_packed *
