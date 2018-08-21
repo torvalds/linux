@@ -703,6 +703,7 @@ static int cdce925_probe(struct i2c_client *client,
 				0x12 + (i*CDCE925_OFFSET_PLL),
 				0x07, value & 0x07);
 		}
+		of_node_put(np_output);
 	}
 
 	/* Register output clock Y1 */
