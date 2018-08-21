@@ -2069,6 +2069,7 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 			struct thread *thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 
 			if (thread) {
+				trace__fprintf_comm_tid(trace, thread, trace->output);
 				fprintf(trace->output, "%s(", sc->name);
 				trace__fprintf_sys_enter(trace, evsel, sample);
 				fputc(')', trace->output);
