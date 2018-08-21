@@ -194,16 +194,22 @@ ceph_decode_skip_n(p, end, sizeof(u8), bad)
 	} while (0)
 
 /*
- * struct ceph_timespec <-> struct timespec
+ * struct ceph_timespec <-> struct timespec64
  */
-static inline void ceph_decode_timespec(struct timespec *ts,
-					const struct ceph_timespec *tv)
+static inline void ceph_decode_timespec64(struct timespec64 *ts,
+					  const struct ceph_timespec *tv)
 {
-	ts->tv_sec = (__kernel_time_t)le32_to_cpu(tv->tv_sec);
+	/*
+	 * This will still overflow in year 2106.  We could extend
+	 * the protocol to steal two more bits from tv_nsec to
+	 * add three more 136 year epochs after that the way ext4
+	 * does if necessary.
+	 */
+	ts->tv_sec = (time64_t)le32_to_cpu(tv->tv_sec);
 	ts->tv_nsec = (long)le32_to_cpu(tv->tv_nsec);
 }
-static inline void ceph_encode_timespec(struct ceph_timespec *tv,
-					const struct timespec *ts)
+static inline void ceph_encode_timespec64(struct ceph_timespec *tv,
+					  const struct timespec64 *ts)
 {
 	tv->tv_sec = cpu_to_le32((u32)ts->tv_sec);
 	tv->tv_nsec = cpu_to_le32((u32)ts->tv_nsec);

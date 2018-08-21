@@ -224,8 +224,8 @@ static size_t ceph_vxattrcb_dir_rbytes(struct ceph_inode_info *ci, char *val,
 static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 				       size_t size)
 {
-	return snprintf(val, size, "%ld.09%ld", (long)ci->i_rctime.tv_sec,
-			(long)ci->i_rctime.tv_nsec);
+	return snprintf(val, size, "%lld.09%ld", ci->i_rctime.tv_sec,
+			ci->i_rctime.tv_nsec);
 }
 
 /* quotas */

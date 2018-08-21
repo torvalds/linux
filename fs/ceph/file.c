@@ -720,7 +720,7 @@ struct ceph_aio_request {
 	struct list_head osd_reqs;
 	unsigned num_reqs;
 	atomic_t pending_reqs;
-	struct timespec mtime;
+	struct timespec64 mtime;
 	struct ceph_cap_flush *prealloc_cf;
 };
 
@@ -922,7 +922,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 	int num_pages = 0;
 	int flags;
 	int ret;
-	struct timespec mtime = timespec64_to_timespec(current_time(inode));
+	struct timespec64 mtime = current_time(inode);
 	size_t count = iov_iter_count(iter);
 	loff_t pos = iocb->ki_pos;
 	bool write = iov_iter_rw(iter) == WRITE;
@@ -1130,7 +1130,7 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 	int flags;
 	int ret;
 	bool check_caps = false;
-	struct timespec mtime = timespec64_to_timespec(current_time(inode));
+	struct timespec64 mtime = current_time(inode);
 	size_t count = iov_iter_count(from);
 
 	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
@@ -1383,12 +1383,12 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct ceph_file_info *fi = file->private_data;
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_osd_client *osdc =
-		&ceph_sb_to_client(inode->i_sb)->client->osdc;
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_cap_flush *prealloc_cf;
 	ssize_t count, written = 0;
 	int err, want, got;
 	loff_t pos;
+	loff_t limit = max(i_size_read(inode), fsc->max_file_size);
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
@@ -1414,6 +1414,13 @@ retry_snap:
 		goto out;
 
 	pos = iocb->ki_pos;
+	if (unlikely(pos >= limit)) {
+		err = -EFBIG;
+		goto out;
+	} else {
+		iov_iter_truncate(from, limit - pos);
+	}
+
 	count = iov_iter_count(from);
 	if (ceph_quota_is_max_bytes_exceeded(inode, pos + count)) {
 		err = -EDQUOT;
@@ -1435,7 +1442,7 @@ retry_snap:
 	}
 
 	/* FIXME: not complete since it doesn't account for being at quota */
-	if (ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL)) {
+	if (ceph_osdmap_flag(&fsc->client->osdc, CEPH_OSDMAP_FULL)) {
 		err = -ENOSPC;
 		goto out;
 	}
@@ -1525,7 +1532,7 @@ retry_snap:
 	}
 
 	if (written >= 0) {
-		if (ceph_osdmap_flag(osdc, CEPH_OSDMAP_NEARFULL))
+		if (ceph_osdmap_flag(&fsc->client->osdc, CEPH_OSDMAP_NEARFULL))
 			iocb->ki_flags |= IOCB_DSYNC;
 		written = generic_write_sync(iocb, written);
 	}
@@ -1546,6 +1553,7 @@ out_unlocked:
 static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	loff_t i_size;
 	loff_t ret;
 
@@ -1590,7 +1598,7 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 		break;
 	}
 
-	ret = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+	ret = vfs_setpos(file, offset, max(i_size, fsc->max_file_size));
 
 out:
 	inode_unlock(inode);
@@ -1662,7 +1670,7 @@ static int ceph_zero_partial_object(struct inode *inode,
 		goto out;
 	}
 
-	req->r_mtime = timespec64_to_timespec(inode->i_mtime);
+	req->r_mtime = inode->i_mtime;
 	ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);
 	if (!ret) {
 		ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
@@ -1727,14 +1735,16 @@ static long ceph_fallocate(struct file *file, int mode,
 	struct ceph_file_info *fi = file->private_data;
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_osd_client *osdc =
-		&ceph_inode_to_client(inode)->client->osdc;
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_cap_flush *prealloc_cf;
 	int want, got = 0;
 	int dirty;
 	int ret = 0;
 	loff_t endoff = 0;
 	loff_t size;
+
+	if ((offset + length) > max(i_size_read(inode), fsc->max_file_size))
+		return -EFBIG;
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
 		return -EOPNOTSUPP;
@@ -1759,7 +1769,7 @@ static long ceph_fallocate(struct file *file, int mode,
 		goto unlock;
 	}
 
-	if (ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL) &&
+	if (ceph_osdmap_flag(&fsc->client->osdc, CEPH_OSDMAP_FULL) &&
 	    !(mode & FALLOC_FL_PUNCH_HOLE)) {
 		ret = -ENOSPC;
 		goto unlock;

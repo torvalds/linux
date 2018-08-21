@@ -16,6 +16,18 @@
 #include <linux/ceph/mdsmap.h>
 #include <linux/ceph/auth.h>
 
+/* The first 8 bits are reserved for old ceph releases */
+#define CEPHFS_FEATURE_MIMIC    8
+
+#define CEPHFS_FEATURES_ALL {           \
+  0, 1, 2, 3, 4, 5, 6, 7,		\
+  CEPHFS_FEATURE_MIMIC,                 \
+}
+
+#define CEPHFS_FEATURES_CLIENT_SUPPORTED CEPHFS_FEATURES_ALL
+#define CEPHFS_FEATURES_CLIENT_REQUIRED {}
+
+
 /*
  * Some lock dependencies:
  *
@@ -229,7 +241,7 @@ struct ceph_mds_request {
 	int r_fmode;        /* file mode, if expecting cap */
 	kuid_t r_uid;
 	kgid_t r_gid;
-	struct timespec r_stamp;
+	struct timespec64 r_stamp;
 
 	/* for choosing which mds to send this request to */
 	int r_direct_mode;

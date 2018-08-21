@@ -514,7 +514,7 @@ static int crush_choose_firstn(const struct crush_map *map,
 						in, work->work[-1-in->id],
 						x, r,
 						(choose_args ?
-						 &choose_args[-1-in->id] : 0),
+						 &choose_args[-1-in->id] : NULL),
 						outpos);
 				if (item >= map->max_devices) {
 					dprintk("   bad item %d\n", item);
@@ -725,7 +725,7 @@ static void crush_choose_indep(const struct crush_map *map,
 					in, work->work[-1-in->id],
 					x, r,
 					(choose_args ?
-					 &choose_args[-1-in->id] : 0),
+					 &choose_args[-1-in->id] : NULL),
 					outpos);
 				if (item >= map->max_devices) {
 					dprintk("   bad item %d\n", item);
