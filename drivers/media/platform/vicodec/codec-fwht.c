@@ -10,7 +10,18 @@
  */
 
 #include <linux/string.h>
-#include "vicodec-codec.h"
+#include "codec-fwht.h"
+
+/*
+ * Note: bit 0 of the header must always be 0. Otherwise it cannot
+ * be guaranteed that the magic 8 byte sequence (see below) can
+ * never occur in the rlc output.
+ */
+#define PFRAME_BIT BIT(15)
+#define DUPS_MASK 0x1ffe
+
+#define PBLOCK 0
+#define IBLOCK 1
 
 #define ALL_ZEROS 15
 
@@ -642,7 +653,7 @@ static void add_deltas(s16 *deltas, const u8 *ref, int stride)
 }
 
 static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
-			struct cframe *cf, u32 height, u32 width,
+			struct fwht_cframe *cf, u32 height, u32 width,
 			unsigned int input_step,
 			bool is_intra, bool next_is_intra)
 {
@@ -669,7 +680,7 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 					       cf->i_frame_qp);
 			} else {
 				/* inter code */
-				encoding |= FRAME_PCODED;
+				encoding |= FWHT_FRAME_PCODED;
 				fwht16(deltablock, cf->coeffs, 8, 0);
 				quantize_inter(cf->coeffs, cf->de_coeffs,
 					       cf->p_frame_qp);
@@ -700,7 +711,7 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 				*rlco += size;
 			}
 			if (*rlco >= rlco_max) {
-				encoding |= FRAME_UNENCODED;
+				encoding |= FWHT_FRAME_UNENCODED;
 				goto exit_loop;
 			}
 			last_size = size;
@@ -709,7 +720,7 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 	}
 
 exit_loop:
-	if (encoding & FRAME_UNENCODED) {
+	if (encoding & FWHT_FRAME_UNENCODED) {
 		u8 *out = (u8 *)rlco_start;
 
 		input = input_start;
@@ -722,13 +733,15 @@ exit_loop:
 		for (i = 0; i < height * width; i++, input += input_step)
 			*out++ = (*input == 0xff) ? 0xfe : *input;
 		*rlco = (__be16 *)out;
-		encoding &= ~FRAME_PCODED;
+		encoding &= ~FWHT_FRAME_PCODED;
 	}
 	return encoding;
 }
 
-u32 encode_frame(struct raw_frame *frm, struct raw_frame *ref_frm,
-		 struct cframe *cf, bool is_intra, bool next_is_intra)
+u32 fwht_encode_frame(struct fwht_raw_frame *frm,
+		      struct fwht_raw_frame *ref_frm,
+		      struct fwht_cframe *cf,
+		      bool is_intra, bool next_is_intra)
 {
 	unsigned int size = frm->height * frm->width;
 	__be16 *rlco = cf->rlc_data;
@@ -742,28 +755,28 @@ u32 encode_frame(struct raw_frame *frm, struct raw_frame *ref_frm,
 	encoding = encode_plane(frm->luma, ref_frm->luma, &rlco, rlco_max, cf,
 				frm->height, frm->width,
 				frm->luma_step, is_intra, next_is_intra);
-	if (encoding & FRAME_UNENCODED)
-		encoding |= LUMA_UNENCODED;
-	encoding &= ~FRAME_UNENCODED;
+	if (encoding & FWHT_FRAME_UNENCODED)
+		encoding |= FWHT_LUMA_UNENCODED;
+	encoding &= ~FWHT_FRAME_UNENCODED;
 	rlco_max = rlco + chroma_size / 2 - 256;
 	encoding |= encode_plane(frm->cb, ref_frm->cb, &rlco, rlco_max, cf,
 				 chroma_h, chroma_w,
 				 frm->chroma_step, is_intra, next_is_intra);
-	if (encoding & FRAME_UNENCODED)
-		encoding |= CB_UNENCODED;
-	encoding &= ~FRAME_UNENCODED;
+	if (encoding & FWHT_FRAME_UNENCODED)
+		encoding |= FWHT_CB_UNENCODED;
+	encoding &= ~FWHT_FRAME_UNENCODED;
 	rlco_max = rlco + chroma_size / 2 - 256;
 	encoding |= encode_plane(frm->cr, ref_frm->cr, &rlco, rlco_max, cf,
 				 chroma_h, chroma_w,
 				 frm->chroma_step, is_intra, next_is_intra);
-	if (encoding & FRAME_UNENCODED)
-		encoding |= CR_UNENCODED;
-	encoding &= ~FRAME_UNENCODED;
+	if (encoding & FWHT_FRAME_UNENCODED)
+		encoding |= FWHT_CR_UNENCODED;
+	encoding &= ~FWHT_FRAME_UNENCODED;
 	cf->size = (rlco - cf->rlc_data) * sizeof(*rlco);
 	return encoding;
 }
 
-static void decode_plane(struct cframe *cf, const __be16 **rlco, u8 *ref,
+static void decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
 			 u32 height, u32 width, bool uncompressed)
 {
 	unsigned int copies = 0;
@@ -816,20 +829,21 @@ static void decode_plane(struct cframe *cf, const __be16 **rlco, u8 *ref,
 	}
 }
 
-void decode_frame(struct cframe *cf, struct raw_frame *ref, u32 hdr_flags)
+void fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
+		       u32 hdr_flags)
 {
 	const __be16 *rlco = cf->rlc_data;
 	u32 h = cf->height / 2;
 	u32 w = cf->width / 2;
 
-	if (hdr_flags & VICODEC_FL_CHROMA_FULL_HEIGHT)
+	if (hdr_flags & FWHT_FL_CHROMA_FULL_HEIGHT)
 		h *= 2;
-	if (hdr_flags & VICODEC_FL_CHROMA_FULL_WIDTH)
+	if (hdr_flags & FWHT_FL_CHROMA_FULL_WIDTH)
 		w *= 2;
 	decode_plane(cf, &rlco, ref->luma, cf->height, cf->width,
-		     hdr_flags & VICODEC_FL_LUMA_IS_UNCOMPRESSED);
+		     hdr_flags & FWHT_FL_LUMA_IS_UNCOMPRESSED);
 	decode_plane(cf, &rlco, ref->cb, h, w,
-		     hdr_flags & VICODEC_FL_CB_IS_UNCOMPRESSED);
+		     hdr_flags & FWHT_FL_CB_IS_UNCOMPRESSED);
 	decode_plane(cf, &rlco, ref->cr, h, w,
-		     hdr_flags & VICODEC_FL_CR_IS_UNCOMPRESSED);
+		     hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED);
 }

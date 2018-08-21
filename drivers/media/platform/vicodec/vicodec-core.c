@@ -23,7 +23,7 @@
 #include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
 
-#include "vicodec-codec.h"
+#include "codec-fwht.h"
 
 MODULE_DESCRIPTION("Virtual codec device");
 MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
@@ -152,7 +152,7 @@ struct vicodec_ctx {
 
 	/* Source and destination queue data */
 	struct vicodec_q_data   q_data[2];
-	struct raw_frame	ref_frame;
+	struct fwht_raw_frame	ref_frame;
 	u8			*compressed_frame;
 	u32			cur_buf_offset;
 	u32			comp_max_size;
@@ -191,9 +191,9 @@ static void encode(struct vicodec_ctx *ctx,
 {
 	unsigned int size = q_data->width * q_data->height;
 	const struct pixfmt_info *info = q_data->info;
-	struct cframe_hdr *p_hdr;
-	struct cframe cf;
-	struct raw_frame rf;
+	struct fwht_cframe_hdr *p_hdr;
+	struct fwht_cframe cf;
+	struct fwht_raw_frame rf;
 	u32 encoding;
 
 	rf.width = q_data->width;
@@ -279,29 +279,29 @@ static void encode(struct vicodec_ctx *ctx,
 	cf.p_frame_qp = ctx->p_frame_qp;
 	cf.rlc_data = (__be16 *)(p_out + sizeof(*p_hdr));
 
-	encoding = encode_frame(&rf, &ctx->ref_frame, &cf, !ctx->gop_cnt,
-				ctx->gop_cnt == ctx->gop_size - 1);
-	if (!(encoding & FRAME_PCODED))
+	encoding = fwht_encode_frame(&rf, &ctx->ref_frame, &cf, !ctx->gop_cnt,
+				     ctx->gop_cnt == ctx->gop_size - 1);
+	if (!(encoding & FWHT_FRAME_PCODED))
 		ctx->gop_cnt = 0;
 	if (++ctx->gop_cnt >= ctx->gop_size)
 		ctx->gop_cnt = 0;
 
-	p_hdr = (struct cframe_hdr *)p_out;
-	p_hdr->magic1 = VICODEC_MAGIC1;
-	p_hdr->magic2 = VICODEC_MAGIC2;
-	p_hdr->version = htonl(VICODEC_VERSION);
+	p_hdr = (struct fwht_cframe_hdr *)p_out;
+	p_hdr->magic1 = FWHT_MAGIC1;
+	p_hdr->magic2 = FWHT_MAGIC2;
+	p_hdr->version = htonl(FWHT_VERSION);
 	p_hdr->width = htonl(cf.width);
 	p_hdr->height = htonl(cf.height);
-	if (encoding & LUMA_UNENCODED)
-		flags |= VICODEC_FL_LUMA_IS_UNCOMPRESSED;
-	if (encoding & CB_UNENCODED)
-		flags |= VICODEC_FL_CB_IS_UNCOMPRESSED;
-	if (encoding & CR_UNENCODED)
-		flags |= VICODEC_FL_CR_IS_UNCOMPRESSED;
+	if (encoding & FWHT_LUMA_UNENCODED)
+		flags |= FWHT_FL_LUMA_IS_UNCOMPRESSED;
+	if (encoding & FWHT_CB_UNENCODED)
+		flags |= FWHT_FL_CB_IS_UNCOMPRESSED;
+	if (encoding & FWHT_CR_UNENCODED)
+		flags |= FWHT_FL_CR_IS_UNCOMPRESSED;
 	if (rf.height_div == 1)
-		flags |= VICODEC_FL_CHROMA_FULL_HEIGHT;
+		flags |= FWHT_FL_CHROMA_FULL_HEIGHT;
 	if (rf.width_div == 1)
-		flags |= VICODEC_FL_CHROMA_FULL_WIDTH;
+		flags |= FWHT_FL_CHROMA_FULL_WIDTH;
 	p_hdr->flags = htonl(flags);
 	p_hdr->colorspace = htonl(ctx->colorspace);
 	p_hdr->xfer_func = htonl(ctx->xfer_func);
@@ -320,11 +320,11 @@ static int decode(struct vicodec_ctx *ctx,
 	unsigned int chroma_size = size;
 	unsigned int i;
 	u32 flags;
-	struct cframe_hdr *p_hdr;
-	struct cframe cf;
+	struct fwht_cframe_hdr *p_hdr;
+	struct fwht_cframe cf;
 	u8 *p;
 
-	p_hdr = (struct cframe_hdr *)p_in;
+	p_hdr = (struct fwht_cframe_hdr *)p_in;
 	cf.width = ntohl(p_hdr->width);
 	cf.height = ntohl(p_hdr->height);
 	flags = ntohl(p_hdr->flags);
@@ -334,13 +334,13 @@ static int decode(struct vicodec_ctx *ctx,
 	ctx->quantization = ntohl(p_hdr->quantization);
 	cf.rlc_data = (__be16 *)(p_in + sizeof(*p_hdr));
 
-	if (p_hdr->magic1 != VICODEC_MAGIC1 ||
-	    p_hdr->magic2 != VICODEC_MAGIC2 ||
-	    ntohl(p_hdr->version) != VICODEC_VERSION ||
-	    cf.width < VICODEC_MIN_WIDTH ||
-	    cf.width > VICODEC_MAX_WIDTH ||
-	    cf.height < VICODEC_MIN_HEIGHT ||
-	    cf.height > VICODEC_MAX_HEIGHT ||
+	if (p_hdr->magic1 != FWHT_MAGIC1 ||
+	    p_hdr->magic2 != FWHT_MAGIC2 ||
+	    ntohl(p_hdr->version) != FWHT_VERSION ||
+	    cf.width < MIN_WIDTH ||
+	    cf.width > MAX_WIDTH ||
+	    cf.height < MIN_HEIGHT ||
+	    cf.height > MAX_HEIGHT ||
 	    (cf.width & 7) || (cf.height & 7))
 		return -EINVAL;
 
@@ -348,12 +348,12 @@ static int decode(struct vicodec_ctx *ctx,
 	if (cf.width != q_data->width || cf.height != q_data->height)
 		return -EINVAL;
 
-	if (!(flags & VICODEC_FL_CHROMA_FULL_WIDTH))
+	if (!(flags & FWHT_FL_CHROMA_FULL_WIDTH))
 		chroma_size /= 2;
-	if (!(flags & VICODEC_FL_CHROMA_FULL_HEIGHT))
+	if (!(flags & FWHT_FL_CHROMA_FULL_HEIGHT))
 		chroma_size /= 2;
 
-	decode_frame(&cf, &ctx->ref_frame, flags);
+	fwht_decode_frame(&cf, &ctx->ref_frame, flags);
 
 	switch (q_data->info->id) {
 	case V4L2_PIX_FMT_YUV420:
@@ -484,7 +484,7 @@ static int device_process(struct vicodec_ctx *ctx,
 	}
 
 	if (ctx->is_enc) {
-		struct cframe_hdr *p_hdr = (struct cframe_hdr *)p_out;
+		struct fwht_cframe_hdr *p_hdr = (struct fwht_cframe_hdr *)p_out;
 
 		encode(ctx, q_out, p_in, p_out, 0);
 		vb2_set_plane_payload(&out_vb->vb2_buf, 0,
@@ -635,9 +635,10 @@ restart:
 		}
 		ctx->comp_size = sizeof(magic);
 	}
-	if (ctx->comp_size < sizeof(struct cframe_hdr)) {
-		struct cframe_hdr *p_hdr = (struct cframe_hdr *)ctx->compressed_frame;
-		u32 copy = sizeof(struct cframe_hdr) - ctx->comp_size;
+	if (ctx->comp_size < sizeof(struct fwht_cframe_hdr)) {
+		struct fwht_cframe_hdr *p_hdr =
+			(struct fwht_cframe_hdr *)ctx->compressed_frame;
+		u32 copy = sizeof(struct fwht_cframe_hdr) - ctx->comp_size;
 
 		if (copy > p_out + sz - p)
 			copy = p_out + sz - p;
@@ -645,7 +646,7 @@ restart:
 		       p, copy);
 		p += copy;
 		ctx->comp_size += copy;
-		if (ctx->comp_size < sizeof(struct cframe_hdr)) {
+		if (ctx->comp_size < sizeof(struct fwht_cframe_hdr)) {
 			job_remove_out_buf(ctx, state);
 			goto restart;
 		}
@@ -670,8 +671,8 @@ restart:
 	ctx->cur_buf_offset = p - p_out;
 	ctx->comp_has_frame = true;
 	ctx->comp_has_next_frame = false;
-	if (sz - ctx->cur_buf_offset >= sizeof(struct cframe_hdr)) {
-		struct cframe_hdr *p_hdr = (struct cframe_hdr *)p;
+	if (sz - ctx->cur_buf_offset >= sizeof(struct fwht_cframe_hdr)) {
+		struct fwht_cframe_hdr *p_hdr = (struct fwht_cframe_hdr *)p;
 		u32 frame_size = ntohl(p_hdr->size);
 		u32 remaining = sz - ctx->cur_buf_offset - sizeof(*p_hdr);
 
@@ -845,7 +846,7 @@ static int vidioc_try_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 		pix->sizeimage = pix->width * pix->height *
 			info->sizeimage_mult / info->sizeimage_div;
 		if (pix->pixelformat == V4L2_PIX_FMT_FWHT)
-			pix->sizeimage += sizeof(struct cframe_hdr);
+			pix->sizeimage += sizeof(struct fwht_cframe_hdr);
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
@@ -863,7 +864,7 @@ static int vidioc_try_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 		plane->sizeimage = pix_mp->width * pix_mp->height *
 			info->sizeimage_mult / info->sizeimage_div;
 		if (pix_mp->pixelformat == V4L2_PIX_FMT_FWHT)
-			plane->sizeimage += sizeof(struct cframe_hdr);
+			plane->sizeimage += sizeof(struct fwht_cframe_hdr);
 		memset(pix_mp->reserved, 0, sizeof(pix_mp->reserved));
 		memset(plane->reserved, 0, sizeof(plane->reserved));
 		break;
@@ -1308,7 +1309,7 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 	ctx->ref_frame.width = ctx->ref_frame.height = 0;
 	ctx->ref_frame.luma = kvmalloc(size + 2 * size / chroma_div, GFP_KERNEL);
 	ctx->comp_max_size = size + 2 * size / chroma_div +
-			     sizeof(struct cframe_hdr);
+			     sizeof(struct fwht_cframe_hdr);
 	ctx->compressed_frame = kvmalloc(ctx->comp_max_size, GFP_KERNEL);
 	if (!ctx->ref_frame.luma || !ctx->compressed_frame) {
 		kvfree(ctx->ref_frame.luma);
@@ -1493,7 +1494,7 @@ static int vicodec_open(struct file *file)
 	ctx->q_data[V4L2_M2M_DST].sizeimage = size;
 	ctx->colorspace = V4L2_COLORSPACE_REC709;
 
-	size += sizeof(struct cframe_hdr);
+	size += sizeof(struct fwht_cframe_hdr);
 	if (ctx->is_enc) {
 		ctx->q_data[V4L2_M2M_DST].sizeimage = size;
 		ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->enc_dev, ctx,
