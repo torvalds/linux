@@ -168,6 +168,8 @@ struct amdgpu_ring_funcs {
 	/* priority functions */
 	void (*set_priority) (struct amdgpu_ring *ring,
 			      enum drm_sched_priority priority);
+	/* Try to soft recover the ring to make the fence signal */
+	void (*soft_recovery)(struct amdgpu_ring *ring, unsigned vmid);
 };
 
 struct amdgpu_ring {
@@ -260,6 +262,8 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring);
 void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
 						uint32_t reg0, uint32_t val0,
 						uint32_t reg1, uint32_t val1);
+bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
+			       struct dma_fence *fence);
 
 static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
