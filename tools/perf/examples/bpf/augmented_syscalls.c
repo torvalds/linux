@@ -49,7 +49,7 @@ int syscall_enter(openat)(struct syscall_enter_openat_args *args)
 	probe_read_str(&augmented_args.filename, sizeof(augmented_args.filename), args->filename_ptr);
 	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU,
 			  &augmented_args, sizeof(augmented_args));
-	return 1;
+	return 0;
 }
 
 license(GPL);
