@@ -1345,20 +1345,19 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 
 	if (HAS_EXECLISTS(dev_priv)) {
 		const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
-		u32 ptr, read, write;
 		unsigned int idx;
+		u8 read, write;
 
 		drm_printf(m, "\tExeclist status: 0x%08x %08x\n",
 			   I915_READ(RING_EXECLIST_STATUS_LO(engine)),
 			   I915_READ(RING_EXECLIST_STATUS_HI(engine)));
 
-		ptr = I915_READ(RING_CONTEXT_STATUS_PTR(engine));
-		read = GEN8_CSB_READ_PTR(ptr);
-		write = GEN8_CSB_WRITE_PTR(ptr);
-		drm_printf(m, "\tExeclist CSB read %d [%d cached], write %d [%d from hws], tasklet queued? %s (%s)\n",
-			   read, execlists->csb_head,
-			   write,
-			   intel_read_status_page(engine, intel_hws_csb_write_index(engine->i915)),
+		read = execlists->csb_head;
+		write = READ_ONCE(*execlists->csb_write);
+
+		drm_printf(m, "\tExeclist CSB read %d, write %d [mmio:%d], tasklet queued? %s (%s)\n",
+			   read, write,
+			   GEN8_CSB_WRITE_PTR(I915_READ(RING_CONTEXT_STATUS_PTR(engine))),
 			   yesno(test_bit(TASKLET_STATE_SCHED,
 					  &engine->execlists.tasklet.state)),
 			   enableddisabled(!atomic_read(&engine->execlists.tasklet.count)));
@@ -1370,12 +1369,12 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 			write += GEN8_CSB_ENTRIES;
 		while (read < write) {
 			idx = ++read % GEN8_CSB_ENTRIES;
-			drm_printf(m, "\tExeclist CSB[%d]: 0x%08x [0x%08x in hwsp], context: %d [%d in hwsp]\n",
+			drm_printf(m, "\tExeclist CSB[%d]: 0x%08x [mmio:0x%08x], context: %d [mmio:%d]\n",
 				   idx,
-				   I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, idx)),
 				   hws[idx * 2],
-				   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)),
-				   hws[idx * 2 + 1]);
+				   I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, idx)),
+				   hws[idx * 2 + 1],
+				   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)));
 		}
 
 		rcu_read_lock();
