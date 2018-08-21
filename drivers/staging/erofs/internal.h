@@ -443,7 +443,7 @@ erofs_grab_bio(struct super_block *sb,
 
 	bio->bi_end_io = endio;
 	bio_set_dev(bio, sb->s_bdev);
-	bio->bi_iter.bi_sector = blkaddr << LOG_SECTORS_PER_BLOCK;
+	bio->bi_iter.bi_sector = (sector_t)blkaddr << LOG_SECTORS_PER_BLOCK;
 	return bio;
 }
 
