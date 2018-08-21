@@ -228,24 +228,8 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	if (ret)
 		goto err;
 
-	spin_lock_irq(&crc->lock);
-	/*
-	 * Only return once we got a first frame, so userspace doesn't have to
-	 * guess when this particular piece of HW will be ready to start
-	 * generating CRCs.
-	 */
-	ret = wait_event_interruptible_lock_irq(crc->wq,
-						crtc_crc_data_count(crc),
-						crc->lock);
-	spin_unlock_irq(&crc->lock);
-
-	if (ret)
-		goto err_disable;
-
 	return 0;
 
-err_disable:
-	crtc->funcs->set_crc_source(crtc, NULL);
 err:
 	spin_lock_irq(&crc->lock);
 	crtc_crc_cleanup(crc);
