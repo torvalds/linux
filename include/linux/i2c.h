@@ -231,7 +231,6 @@ enum i2c_alert_protocol {
 /**
  * struct i2c_driver - represent an I2C device driver
  * @class: What kind of i2c device we instantiate (for detect)
- * @attach_adapter: Callback for bus addition (deprecated)
  * @probe: Callback for device binding - soon to be deprecated
  * @probe_new: New callback for device binding
  * @remove: Callback for device unbinding
@@ -267,11 +266,6 @@ enum i2c_alert_protocol {
  */
 struct i2c_driver {
 	unsigned int class;
-
-	/* Notifies the driver that a new bus has appeared. You should avoid
-	 * using this, it will be removed in a near future.
-	 */
-	int (*attach_adapter)(struct i2c_adapter *) __deprecated;
 
 	/* Standard driver model interfaces */
 	int (*probe)(struct i2c_client *, const struct i2c_device_id *);
