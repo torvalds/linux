@@ -70,6 +70,37 @@ void vkms_crc_work_handle(struct work_struct *work)
 	drm_crtc_add_crc_entry(crtc, true, crtc_state->n_frame, &crc32);
 }
 
+static int vkms_crc_parse_source(const char *src_name, bool *enabled)
+{
+	int ret = 0;
+
+	if (!src_name) {
+		*enabled = false;
+	} else if (strcmp(src_name, "auto") == 0) {
+		*enabled = true;
+	} else {
+		*enabled = false;
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+int vkms_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
+			   size_t *values_cnt)
+{
+	bool enabled;
+
+	if (vkms_crc_parse_source(src_name, &enabled) < 0) {
+		DRM_DEBUG_DRIVER("unknown source %s\n", src_name);
+		return -EINVAL;
+	}
+
+	*values_cnt = 1;
+
+	return 0;
+}
+
 int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name,
 			size_t *values_cnt)
 {
@@ -78,10 +109,7 @@ int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name,
 	unsigned long flags;
 	int ret = 0;
 
-	if (src_name && strcmp(src_name, "auto") == 0)
-		enabled = true;
-	else if (src_name)
-		ret = -EINVAL;
+	ret = vkms_crc_parse_source(src_name, &enabled);
 
 	*values_cnt = 1;
 
