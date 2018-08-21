@@ -89,6 +89,54 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 	rcar_du_group_write(rgrp, DEFR8, defr8);
 }
 
+static void rcar_du_group_setup_didsr(struct rcar_du_group *rgrp)
+{
+	struct rcar_du_device *rcdu = rgrp->dev;
+	struct rcar_du_crtc *rcrtc;
+	unsigned int num_crtcs = 0;
+	unsigned int i;
+	u32 didsr;
+
+	/*
+	 * Configure input dot clock routing with a hardcoded configuration. If
+	 * the DU channel can use the LVDS encoder output clock as the dot
+	 * clock, do so. Otherwise route DU_DOTCLKINn signal to DUn.
+	 *
+	 * Each channel can then select between the dot clock configured here
+	 * and the clock provided by the CPG through the ESCR register.
+	 */
+	if (rcdu->info->gen < 3 && rgrp->index == 0) {
+		/*
+		 * On Gen2 a single register in the first group controls dot
+		 * clock selection for all channels.
+		 */
+		rcrtc = rcdu->crtcs;
+		num_crtcs = rcdu->num_crtcs;
+	} else if (rcdu->info->gen == 3 && rgrp->num_crtcs > 1) {
+		/*
+		 * On Gen3 dot clocks are setup through per-group registers,
+		 * only available when the group has two channels.
+		 */
+		rcrtc = &rcdu->crtcs[rgrp->index * 2];
+		num_crtcs = rgrp->num_crtcs;
+	}
+
+	if (!num_crtcs)
+		return;
+
+	didsr = DIDSR_CODE;
+	for (i = 0; i < num_crtcs; ++i, ++rcrtc) {
+		if (rcdu->info->lvds_clk_mask & BIT(rcrtc->index))
+			didsr |= DIDSR_LCDS_LVDS0(i)
+			      |  DIDSR_PDCS_CLK(i, 0);
+		else
+			didsr |= DIDSR_LCDS_DCLKIN(i)
+			      |  DIDSR_PDCS_CLK(i, 0);
+	}
+
+	rcar_du_group_write(rgrp, DIDSR, didsr);
+}
+
 static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_device *rcdu = rgrp->dev;
@@ -106,21 +154,7 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 
 	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_EXT_CTRL_REGS)) {
 		rcar_du_group_setup_defr8(rgrp);
-
-		/*
-		 * Configure input dot clock routing. We currently hardcode the
-		 * configuration to routing DOTCLKINn to DUn. Register fields
-		 * depend on the DU generation, but the resulting value is 0 in
-		 * all cases.
-		 *
-		 * On Gen2 a single register in the first group controls dot
-		 * clock selection for all channels, while on Gen3 dot clocks
-		 * are setup through per-group registers, only available when
-		 * the group has two channels.
-		 */
-		if ((rcdu->info->gen < 3 && rgrp->index == 0) ||
-		    (rcdu->info->gen == 3 &&  rgrp->num_crtcs > 1))
-			rcar_du_group_write(rgrp, DIDSR, DIDSR_CODE);
+		rcar_du_group_setup_didsr(rgrp);
 	}
 
 	if (rcdu->info->gen >= 3)
