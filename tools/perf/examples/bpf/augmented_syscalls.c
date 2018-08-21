@@ -27,6 +27,12 @@ struct bpf_map SEC("maps") __augmented_syscalls__ = {
        .max_entries = __NR_CPUS__,
 };
 
+struct augmented_filename {
+	int	size;
+	int	reserved;
+	char	value[256];
+};
+
 struct syscall_enter_openat_args {
 	unsigned long long common_tp_fields;
 	long		   syscall_nr;
@@ -38,17 +44,20 @@ struct syscall_enter_openat_args {
 
 struct augmented_enter_openat_args {
 	struct syscall_enter_openat_args args;
-	char				 filename[64];
+	struct augmented_filename	 filename;
 };
 
 int syscall_enter(openat)(struct syscall_enter_openat_args *args)
 {
-	struct augmented_enter_openat_args augmented_args;
+	struct augmented_enter_openat_args augmented_args = { .filename.reserved = 0, };
 
 	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);
-	probe_read_str(&augmented_args.filename, sizeof(augmented_args.filename), args->filename_ptr);
+	augmented_args.filename.size = probe_read_str(&augmented_args.filename.value,
+						      sizeof(augmented_args.filename.value),
+						      args->filename_ptr);
 	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU,
-			  &augmented_args, sizeof(augmented_args));
+			  &augmented_args,
+			  sizeof(augmented_args) - sizeof(augmented_args.filename.value) + augmented_args.filename.size);
 	return 0;
 }
 
