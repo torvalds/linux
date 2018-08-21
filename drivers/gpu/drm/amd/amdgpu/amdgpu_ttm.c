@@ -2048,7 +2048,10 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 	if (r)
 		return r;
 
-	job->vm_needs_flush = vm_needs_flush;
+	if (vm_needs_flush) {
+		job->vm_pd_addr = adev->gart.table_addr;
+		job->vm_needs_flush = true;
+	}
 	if (resv) {
 		r = amdgpu_sync_resv(adev, &job->sync, resv,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
