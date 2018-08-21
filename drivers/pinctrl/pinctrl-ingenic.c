@@ -717,7 +717,7 @@ static const struct of_device_id ingenic_pinctrl_of_match[] = {
 	{},
 };
 
-static int ingenic_pinctrl_probe(struct platform_device *pdev)
+static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ingenic_pinctrl *jzpc;
@@ -837,14 +837,13 @@ static struct platform_driver ingenic_pinctrl_driver = {
 	.driver = {
 		.name = "pinctrl-ingenic",
 		.of_match_table = of_match_ptr(ingenic_pinctrl_of_match),
-		.suppress_bind_attrs = true,
 	},
-	.probe = ingenic_pinctrl_probe,
 	.id_table = ingenic_pinctrl_ids,
 };
 
 static int __init ingenic_pinctrl_drv_register(void)
 {
-	return platform_driver_register(&ingenic_pinctrl_driver);
+	return platform_driver_probe(&ingenic_pinctrl_driver,
+				     ingenic_pinctrl_probe);
 }
 subsys_initcall(ingenic_pinctrl_drv_register);
