@@ -476,6 +476,9 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 		return;
 
 	rq = drm_sched_entity_get_free_sched(entity);
+	if (rq == entity->rq)
+		return;
+
 	spin_lock(&entity->rq_lock);
 	drm_sched_rq_remove_entity(entity->rq, entity);
 	entity->rq = rq;
