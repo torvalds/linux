@@ -16,16 +16,7 @@ unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent d)
 	unsigned len = bkey_val_bytes(d.k) -
 		offsetof(struct bch_dirent, d_name);
 
-	while (len && !d.v->d_name[len - 1])
-		--len;
-
-	return len;
-}
-
-static unsigned dirent_val_u64s(unsigned len)
-{
-	return DIV_ROUND_UP(offsetof(struct bch_dirent, d_name) + len,
-			    sizeof(u64));
+	return strnlen(d.v->d_name, len);
 }
 
 static u64 bch2_dirent_hash(const struct bch_hash_info *info,
@@ -107,9 +98,6 @@ const char *bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 
 		if (len > BCH_NAME_MAX)
 			return "dirent name too big";
-
-		if (memchr(d.v->d_name, '/', len))
-			return "dirent name has invalid characters";
 
 		return NULL;
 	case BCH_DIRENT_WHITEOUT:

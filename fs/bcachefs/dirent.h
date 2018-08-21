@@ -23,6 +23,12 @@ struct bch_inode_info;
 
 unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent);
 
+static inline unsigned dirent_val_u64s(unsigned len)
+{
+	return DIV_ROUND_UP(offsetof(struct bch_dirent, d_name) + len,
+			    sizeof(u64));
+}
+
 int __bch2_dirent_create(struct btree_trans *, u64,
 			 const struct bch_hash_info *, u8,
 			 const struct qstr *, u64, int);

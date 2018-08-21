@@ -248,6 +248,29 @@ fsck_err:
 	return ret;
 }
 
+static bool key_has_correct_hash(const struct bch_hash_desc desc,
+				 struct hash_check *h, struct bch_fs *c,
+				 struct btree_iter *k_iter, struct bkey_s_c k)
+{
+	u64 hash;
+
+	if (k.k->type != desc.whiteout_type &&
+	    k.k->type != desc.key_type)
+		return true;
+
+	if (k.k->p.offset != h->next)
+		bch2_btree_iter_copy(h->chain, k_iter);
+	h->next = k.k->p.offset + 1;
+
+	if (k.k->type != desc.key_type)
+		return true;
+
+	hash = desc.hash_bkey(&h->info, k);
+
+	return hash >= h->chain->pos.offset &&
+		hash <= k.k->p.offset;
+}
+
 static int hash_check_key(const struct bch_hash_desc desc,
 			  struct hash_check *h, struct bch_fs *c,
 			  struct btree_iter *k_iter, struct bkey_s_c k)
@@ -271,9 +294,10 @@ static int hash_check_key(const struct bch_hash_desc desc,
 
 	if (fsck_err_on(hashed < h->chain->pos.offset ||
 			hashed > k.k->p.offset, c,
-			"hash table key at wrong offset: %llu, "
+			"hash table key at wrong offset: btree %u, %llu, "
 			"hashed to %llu chain starts at %llu\n%s",
-			k.k->p.offset, hashed, h->chain->pos.offset,
+			desc.btree_id, k.k->p.offset,
+			hashed, h->chain->pos.offset,
 			(bch2_bkey_val_to_text(c, bkey_type(0, desc.btree_id),
 					       buf, sizeof(buf), k), buf))) {
 		ret = hash_redo_key(desc, h, c, k_iter, k, hashed);
@@ -287,6 +311,90 @@ static int hash_check_key(const struct bch_hash_desc desc,
 	ret = hash_check_duplicates(desc, h, c, k_iter, k);
 fsck_err:
 	return ret;
+}
+
+static int check_dirent_hash(struct hash_check *h, struct bch_fs *c,
+			     struct btree_iter *iter, struct bkey_s_c *k)
+{
+	struct bkey_i_dirent *d = NULL;
+	int ret = -EINVAL;
+	char buf[200];
+	unsigned len;
+	u64 hash;
+
+	if (key_has_correct_hash(bch2_dirent_hash_desc, h, c, iter, *k))
+		return 0;
+
+	len = bch2_dirent_name_bytes(bkey_s_c_to_dirent(*k));
+	BUG_ON(!len);
+
+	memcpy(buf, bkey_s_c_to_dirent(*k).v->d_name, len);
+	buf[len] = '\0';
+
+	d = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
+	if (!d) {
+		bch_err(c, "memory allocation failure");
+		return -ENOMEM;
+	}
+
+	bkey_reassemble(&d->k_i, *k);
+
+	do {
+		--len;
+		if (!len)
+			goto err_redo;
+
+		d->k.u64s = BKEY_U64s + dirent_val_u64s(len);
+
+		BUG_ON(bkey_val_bytes(&d->k) <
+		       offsetof(struct bch_dirent, d_name) + len);
+
+		memset(d->v.d_name + len, 0,
+		       bkey_val_bytes(&d->k) -
+		       offsetof(struct bch_dirent, d_name) - len);
+
+		hash = bch2_dirent_hash_desc.hash_bkey(&h->info,
+						bkey_i_to_s_c(&d->k_i));
+	} while (hash < h->chain->pos.offset ||
+		 hash > k->k->p.offset);
+
+	if (fsck_err(c, "dirent with junk at end, was %s (%zu) now %s (%u)",
+		     buf, strlen(buf), d->v.d_name, len)) {
+		ret = bch2_btree_insert_at(c, NULL, NULL,
+					   BTREE_INSERT_NOFAIL,
+					   BTREE_INSERT_ENTRY(iter, &d->k_i));
+		if (ret)
+			goto err;
+
+		*k = bch2_btree_iter_peek(iter);
+
+		BUG_ON(k->k->type != BCH_DIRENT);
+	}
+err:
+fsck_err:
+	kfree(d);
+	return ret;
+err_redo:
+	bch_err(c, "cannot fix dirent by removing trailing garbage %s (%zu)",
+		buf, strlen(buf));
+
+	hash = bch2_dirent_hash_desc.hash_bkey(&h->info, *k);
+
+	if (fsck_err(c, "hash table key at wrong offset: btree %u, offset %llu, "
+			"hashed to %llu chain starts at %llu\n%s",
+			BTREE_ID_DIRENTS,
+			k->k->p.offset, hash, h->chain->pos.offset,
+			(bch2_bkey_val_to_text(c, bkey_type(0, BTREE_ID_DIRENTS),
+					       buf, sizeof(buf), *k), buf))) {
+		ret = hash_redo_key(bch2_dirent_hash_desc,
+				    h, c, iter, *k, hash);
+		if (ret)
+			bch_err(c, "hash_redo_key err %i", ret);
+		else
+			ret = 1;
+	}
+
+	goto err;
 }
 
 static int bch2_inode_truncate(struct bch_fs *c, u64 inode_nr, u64 new_size)
@@ -435,11 +543,13 @@ static int check_dirents(struct bch_fs *c)
 		if (w.first_this_inode && w.have_inode)
 			hash_check_set_inode(&h, c, &w.inode);
 
-		ret = hash_check_key(bch2_dirent_hash_desc, &h, c, iter, k);
+		ret = check_dirent_hash(&h, c, iter, &k);
 		if (ret > 0) {
 			ret = 0;
 			continue;
 		}
+		if (ret)
+			goto fsck_err;
 
 		if (ret)
 			goto fsck_err;
@@ -458,7 +568,12 @@ static int check_dirents(struct bch_fs *c)
 				". dirent") ||
 		    fsck_err_on(name_len == 2 &&
 				!memcmp(d.v->d_name, "..", 2), c,
-				".. dirent")) {
+				".. dirent") ||
+		    fsck_err_on(name_len == 2 &&
+				!memcmp(d.v->d_name, "..", 2), c,
+				".. dirent") ||
+		    fsck_err_on(memchr(d.v->d_name, '/', name_len), c,
+				"dirent name has invalid chars")) {
 			ret = remove_dirent(c, iter, d);
 			if (ret)
 				goto err;
