@@ -61,4 +61,31 @@ int syscall_enter(openat)(struct syscall_enter_openat_args *args)
 	return 0;
 }
 
+struct syscall_enter_open_args {
+	unsigned long long common_tp_fields;
+	long		   syscall_nr;
+	char		   *filename_ptr;
+	long		   flags;
+	long		   mode;
+};
+
+struct augmented_enter_open_args {
+	struct syscall_enter_open_args args;
+	struct augmented_filename      filename;
+};
+
+int syscall_enter(open)(struct syscall_enter_open_args *args)
+{
+	struct augmented_enter_open_args augmented_args = { .filename.reserved = 0, };
+
+	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);
+	augmented_args.filename.size = probe_read_str(&augmented_args.filename.value,
+						      sizeof(augmented_args.filename.value),
+						      args->filename_ptr);
+	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU,
+			  &augmented_args,
+			  sizeof(augmented_args) - sizeof(augmented_args.filename.value) + augmented_args.filename.size);
+	return 0;
+}
+
 license(GPL);
