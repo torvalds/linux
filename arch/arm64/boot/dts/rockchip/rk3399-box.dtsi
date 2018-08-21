@@ -188,6 +188,11 @@
 	status = "okay";
 };
 
+&hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_i2c_xfer>, <&hdmi_cec>;
+};
+
 &sdmmc {
 	clock-frequency = <100000000>;
 	clock-freq-min-max = <100000 100000000>;
