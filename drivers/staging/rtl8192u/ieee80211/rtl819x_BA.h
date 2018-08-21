@@ -55,7 +55,7 @@ struct ba_record {
 	u8				dialog_token;
 	union ba_param_set		param_set;
 	u16				timeout_value;
-	union sequence_control	BaStartSeqCtrl;
+	union sequence_control	start_seq_ctrl;
 };
 
 #endif //end _BATYPE_H_

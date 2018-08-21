@@ -93,7 +93,7 @@ void ResetBaEntry(struct ba_record *pBA)
 	pBA->param_set.short_data	= 0;
 	pBA->timeout_value		= 0;
 	pBA->dialog_token		= 0;
-	pBA->BaStartSeqCtrl.short_data	= 0;
+	pBA->start_seq_ctrl.short_data	= 0;
 }
 //These functions need porting here or not?
 /*******************************************************************************************************************************
@@ -160,7 +160,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 
 	if (ACT_ADDBAREQ == type) {
 	// BA Start SeqCtrl
-		memcpy(tag, (u8 *)&(pBA->BaStartSeqCtrl), 2);
+		memcpy(tag, (u8 *)&(pBA->start_seq_ctrl), 2);
 		tag += 2;
 	}
 
@@ -385,7 +385,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	pBA->dialog_token = *pDialogToken;
 	pBA->param_set = *pBaParamSet;
 	pBA->timeout_value = *pBaTimeoutVal;
-	pBA->BaStartSeqCtrl = *pBaStartSeqCtrl;
+	pBA->start_seq_ctrl = *pBaStartSeqCtrl;
 	//for half N mode we only aggregate 1 frame
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 	pBA->param_set.field.buffer_size = 1;
@@ -512,7 +512,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		//
 		pAdmittedBA->dialog_token = *pDialogToken;
 		pAdmittedBA->timeout_value = *pBaTimeoutVal;
-		pAdmittedBA->BaStartSeqCtrl = pPendingBA->BaStartSeqCtrl;
+		pAdmittedBA->start_seq_ctrl = pPendingBA->start_seq_ctrl;
 		pAdmittedBA->param_set = *pBaParamSet;
 		DeActivateBAEntry(ieee, pAdmittedBA);
 		ActivateBAEntry(ieee, pAdmittedBA, *pBaTimeoutVal);
@@ -630,7 +630,7 @@ TsInitAddBA(
 	// buffer_size: This need to be set according to A-MPDU vector
 	pBA->param_set.field.buffer_size = 32;		// buffer_size: This need to be set according to A-MPDU vector
 	pBA->timeout_value = 0;					// Timeout value: Set 0 to disable Timer
-	pBA->BaStartSeqCtrl.field.seq_num = (pTS->tx_cur_seq + 3) % 4096;	// Block Ack will start after 3 packets later.
+	pBA->start_seq_ctrl.field.seq_num = (pTS->tx_cur_seq + 3) % 4096;	// Block Ack will start after 3 packets later.
 
 	ActivateBAEntry(ieee, pBA, BA_SETUP_TIMEOUT);
 
