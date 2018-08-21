@@ -46,8 +46,7 @@ static enum amdgpu_dm_pipe_crc_source dm_parse_crc_source(const char *source)
 	return AMDGPU_DM_PIPE_CRC_SOURCE_INVALID;
 }
 
-int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name,
-			   size_t *values_cnt)
+int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 {
 	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
 	struct dc_stream_state *stream_state = crtc_state->stream;
@@ -88,7 +87,6 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name,
 			return -EINVAL;
 	}
 
-	*values_cnt = 3;
 	/* Reset crc_skipped on dm state */
 	crtc_state->crc_skip_count = 0;
 	return 0;

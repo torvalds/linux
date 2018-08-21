@@ -744,8 +744,7 @@ struct drm_crtc_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*set_crc_source)(struct drm_crtc *crtc, const char *source,
-			      size_t *values_cnt);
+	int (*set_crc_source)(struct drm_crtc *crtc, const char *source);
 	/**
 	 * @verify_crc_source:
 	 *
