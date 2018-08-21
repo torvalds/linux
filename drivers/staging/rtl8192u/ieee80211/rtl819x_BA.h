@@ -25,8 +25,8 @@ struct ieee80211_ADDBA_Req{
 union sequence_control {
 	u16 short_data;
 	struct {
-		u16	FragNum:4;
-		u16	SeqNum:12;
+		u16	frag_num:4;
+		u16	seq_num:12;
 	} field;
 };
 
