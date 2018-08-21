@@ -20,7 +20,7 @@ static void ActivateBAEntry(struct ieee80211_device *ieee, struct ba_record *pBA
 {
 	pBA->bValid = true;
 	if (Time != 0)
-		mod_timer(&pBA->Timer, jiffies + msecs_to_jiffies(Time));
+		mod_timer(&pBA->timer, jiffies + msecs_to_jiffies(Time));
 }
 
 /********************************************************************************************************************
@@ -31,7 +31,7 @@ static void ActivateBAEntry(struct ieee80211_device *ieee, struct ba_record *pBA
 static void DeActivateBAEntry(struct ieee80211_device *ieee, struct ba_record *pBA)
 {
 	pBA->bValid = false;
-	del_timer_sync(&pBA->Timer);
+	del_timer_sync(&pBA->timer);
 }
 /********************************************************************************************************************
  *function: deactivete BA entry in Tx Ts, and send DELBA.
@@ -669,7 +669,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
  ********************************************************************************************************************/
 void BaSetupTimeOut(struct timer_list *t)
 {
-	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, tx_pending_ba_record.Timer);
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, tx_pending_ba_record.timer);
 
 	pTxTs->add_ba_req_in_progress = false;
 	pTxTs->add_ba_req_delayed = true;
@@ -678,7 +678,7 @@ void BaSetupTimeOut(struct timer_list *t)
 
 void TxBaInactTimeout(struct timer_list *t)
 {
-	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, tx_admitted_ba_record.Timer);
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, tx_admitted_ba_record.timer);
 	struct ieee80211_device *ieee = container_of(pTxTs, struct ieee80211_device, TxTsRecord[pTxTs->num]);
 	TxTsDeleteBA(ieee, pTxTs);
 	ieee80211_send_DELBA(
@@ -691,7 +691,7 @@ void TxBaInactTimeout(struct timer_list *t)
 
 void RxBaInactTimeout(struct timer_list *t)
 {
-	struct rx_ts_record *pRxTs = from_timer(pRxTs, t, rx_admitted_ba_record.Timer);
+	struct rx_ts_record *pRxTs = from_timer(pRxTs, t, rx_admitted_ba_record.timer);
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
 
 	RxTsDeleteBA(ieee, pRxTs);

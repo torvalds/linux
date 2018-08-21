@@ -151,9 +151,9 @@ void TSInitialize(struct ieee80211_device *ieee)
 		timer_setup(&pTxTS->ts_common_info.inact_timer, TsInactTimeout,
 			    0);
 		timer_setup(&pTxTS->ts_add_ba_timer, TsAddBaProcess, 0);
-		timer_setup(&pTxTS->tx_pending_ba_record.Timer, BaSetupTimeOut,
+		timer_setup(&pTxTS->tx_pending_ba_record.timer, BaSetupTimeOut,
 			    0);
-		timer_setup(&pTxTS->tx_admitted_ba_record.Timer,
+		timer_setup(&pTxTS->tx_admitted_ba_record.timer,
 			    TxBaInactTimeout, 0);
 		ResetTxTsEntry(pTxTS);
 		list_add_tail(&pTxTS->ts_common_info.list, &ieee->Tx_TS_Unused_List);
@@ -171,7 +171,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 			    0);
 		timer_setup(&pRxTS->ts_common_info.inact_timer, TsInactTimeout,
 			    0);
-		timer_setup(&pRxTS->rx_admitted_ba_record.Timer,
+		timer_setup(&pRxTS->rx_admitted_ba_record.timer,
 			    RxBaInactTimeout, 0);
 		timer_setup(&pRxTS->rx_pkt_pending_timer, RxPktPendingTimeout, 0);
 		ResetRxTsEntry(pRxTS);
