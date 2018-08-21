@@ -362,7 +362,7 @@ struct mlx5_frag_buf {
 struct mlx5_frag_buf_ctrl {
 	struct mlx5_frag_buf	frag_buf;
 	u32			sz_m1;
-	u32			frag_sz_m1;
+	u16			frag_sz_m1;
 	u32			strides_offset;
 	u8			log_sz;
 	u8			log_stride;
