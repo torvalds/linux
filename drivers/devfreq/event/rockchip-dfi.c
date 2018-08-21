@@ -625,6 +625,7 @@ static __init int rk3328_dfi_init(struct platform_device *pdev,
 
 static const struct of_device_id rockchip_dfi_id_match[] = {
 	{ .compatible = "rockchip,px30-dfi", .data = px30_dfi_init },
+	{ .compatible = "rockchip,rk1808-dfi", .data = px30_dfi_init },
 	{ .compatible = "rockchip,rk3128-dfi", .data = rk3128_dfi_init },
 	{ .compatible = "rockchip,rk3288-dfi", .data = rk3288_dfi_init },
 	{ .compatible = "rockchip,rk3328-dfi", .data = rk3328_dfi_init },
