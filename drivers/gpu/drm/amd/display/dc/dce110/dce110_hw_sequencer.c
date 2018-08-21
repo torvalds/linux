@@ -1286,6 +1286,8 @@ static enum dc_status dce110_enable_stream_timing(
 	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 	struct tg_color black_color = {0};
+	struct drr_params params = {0};
+	unsigned int event_triggers = 0;
 
 	if (!pipe_ctx_old->stream) {
 
@@ -1315,9 +1317,19 @@ static enum dc_status dce110_enable_stream_timing(
 				&stream->timing,
 				true);
 
-		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg,
-				0x182);
+		params.vertical_total_min = stream->adjust.v_total_min;
+		params.vertical_total_max = stream->adjust.v_total_max;
+		if (pipe_ctx->stream_res.tg->funcs->set_drr)
+			pipe_ctx->stream_res.tg->funcs->set_drr(
+				pipe_ctx->stream_res.tg, &params);
+
+		// DRR should set trigger event to monitor surface update event
+		if (stream->adjust.v_total_min != 0 &&
+				stream->adjust.v_total_max != 0)
+			event_triggers = 0x80;
+		if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
+			pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
+				pipe_ctx->stream_res.tg, event_triggers);
 	}
 
 	if (!pipe_ctx_old->stream) {
@@ -1327,8 +1339,6 @@ static enum dc_status dce110_enable_stream_timing(
 			return DC_ERROR_UNEXPECTED;
 		}
 	}
-
-
 
 	return DC_OK;
 }
@@ -1719,16 +1729,24 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 {
 	int i = 0;
 	struct drr_params params = {0};
+	// DRR should set trigger event to monitor surface update event
+	unsigned int event_triggers = 0x80;
 
 	params.vertical_total_max = vmax;
 	params.vertical_total_min = vmin;
 
 	/* TODO: If multiple pipes are to be supported, you need
-	 * some GSL stuff
+	 * some GSL stuff. Static screen triggers may be programmed differently
+	 * as well.
 	 */
-
 	for (i = 0; i < num_pipes; i++) {
-		pipe_ctx[i]->stream_res.tg->funcs->set_drr(pipe_ctx[i]->stream_res.tg, &params);
+		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
+			pipe_ctx[i]->stream_res.tg, &params);
+
+		if (vmax != 0 && vmin != 0)
+			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
+					pipe_ctx[i]->stream_res.tg,
+					event_triggers);
 	}
 }
 

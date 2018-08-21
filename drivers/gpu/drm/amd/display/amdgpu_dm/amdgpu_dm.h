@@ -167,9 +167,6 @@ struct amdgpu_dm_connector {
 	int max_vfreq ;
 	int pixel_clock_mhz;
 
-	/*freesync caps*/
-	struct mod_freesync_caps caps;
-
 	struct mutex hpd_lock;
 
 	bool fake_enable;
@@ -197,9 +194,13 @@ struct dm_crtc_state {
 
 	int crc_skip_count;
 	bool crc_enabled;
+
+	bool freesync_enabled;
+	struct dc_crtc_timing_adjust adjust;
+	struct dc_info_packet vrr_infopacket;
 };
 
-#define to_dm_crtc_state(x)    container_of(x, struct dm_crtc_state, base)
+#define to_dm_crtc_state(x) container_of(x, struct dm_crtc_state, base)
 
 struct dm_atomic_state {
 	struct drm_atomic_state base;
@@ -216,7 +217,7 @@ struct dm_connector_state {
 	uint8_t underscan_vborder;
 	uint8_t underscan_hborder;
 	bool underscan_enable;
-	struct mod_freesync_user_enable user_enable;
+	bool freesync_enable;
 	bool freesync_capable;
 };
 
@@ -250,11 +251,8 @@ enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connec
 void dm_restore_drm_connector_state(struct drm_device *dev,
 				    struct drm_connector *connector);
 
-void amdgpu_dm_add_sink_to_freesync_module(struct drm_connector *connector,
-					   struct edid *edid);
-
-void
-amdgpu_dm_remove_sink_from_freesync_module(struct drm_connector *connector);
+void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
+					struct edid *edid);
 
 /* amdgpu_dm_crc.c */
 #ifdef CONFIG_DEBUG_FS

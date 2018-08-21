@@ -234,8 +234,9 @@ void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 	dc_sink->priv = aconnector;
 	aconnector->dc_sink = dc_sink;
 
-	amdgpu_dm_add_sink_to_freesync_module(
-			connector, aconnector->edid);
+	if (aconnector->dc_sink)
+		amdgpu_dm_update_freesync_caps(
+				connector, aconnector->edid);
 }
 
 static int dm_dp_mst_get_modes(struct drm_connector *connector)
@@ -275,8 +276,9 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 		aconnector->dc_sink = dc_sink;
 
 		if (aconnector->dc_sink)
-			amdgpu_dm_add_sink_to_freesync_module(
+			amdgpu_dm_update_freesync_caps(
 					connector, aconnector->edid);
+
 	}
 
 	drm_connector_update_edid_property(
@@ -439,7 +441,7 @@ static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	aconnector->port = NULL;
 	if (aconnector->dc_sink) {
-		amdgpu_dm_remove_sink_from_freesync_module(connector);
+		amdgpu_dm_update_freesync_caps(connector, NULL);
 		dc_link_remove_remote_sink(aconnector->dc_link, aconnector->dc_sink);
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;

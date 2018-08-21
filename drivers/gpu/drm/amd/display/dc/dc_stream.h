@@ -45,18 +45,24 @@ struct dc_stream_status {
 	struct dc_link *link;
 };
 
+// TODO: References to this needs to be removed..
+struct freesync_context {
+	bool dummy;
+};
+
 struct dc_stream_state {
 	struct dc_sink *sink;
 	struct dc_crtc_timing timing;
-	struct dc_crtc_timing_adjust timing_adjust;
-	struct vrr_params vrr_params;
+	struct dc_crtc_timing_adjust adjust;
+	struct dc_info_packet vrr_infopacket;
 
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
 
-	struct audio_info audio_info;
-
+	// TODO: References to this needs to be removed..
 	struct freesync_context freesync_ctx;
+
+	struct audio_info audio_info;
 
 	struct dc_info_packet hdr_static_metadata;
 	PHYSICAL_ADDRESS_LOC dmdata_address;
@@ -120,6 +126,8 @@ struct dc_stream_update {
 	unsigned int *abm_level;
 
 	unsigned long long *periodic_fn_vsync_delta;
+	struct dc_crtc_timing_adjust *adjust;
+	struct dc_info_packet *vrr_infopacket;
 };
 
 bool dc_is_stream_unchanged(
@@ -258,10 +266,8 @@ bool dc_stream_set_cursor_position(
 
 
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
-				struct dc_stream_state **stream,
-				int num_streams,
-				int vmin,
-				int vmax);
+				struct dc_stream_state *stream,
+				struct dc_crtc_timing_adjust *adjust);
 
 bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
@@ -287,13 +293,6 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 
 void dc_stream_set_dither_option(struct dc_stream_state *stream,
 				 enum dc_dither_option option);
-
-
-bool dc_stream_adjust_vmin_vmax(struct dc *dc,
-				struct dc_stream_state **stream,
-				int num_streams,
-				int vmin,
-				int vmax);
 
 bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
