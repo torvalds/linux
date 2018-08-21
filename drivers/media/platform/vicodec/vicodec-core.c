@@ -281,7 +281,7 @@ static void encode(struct vicodec_ctx *ctx,
 
 	encoding = encode_frame(&rf, &ctx->ref_frame, &cf, !ctx->gop_cnt,
 				ctx->gop_cnt == ctx->gop_size - 1);
-	if (encoding != FRAME_PCODED)
+	if (!(encoding & FRAME_PCODED))
 		ctx->gop_cnt = 0;
 	if (++ctx->gop_cnt >= ctx->gop_size)
 		ctx->gop_cnt = 0;

@@ -685,9 +685,6 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 			input += 8 * input_step;
 			refp += 8 * 8;
 
-			if (encoding & FRAME_UNENCODED)
-				continue;
-
 			size = rlc(cf->coeffs, *rlco, blocktype);
 			if (last_size == size &&
 			    !memcmp(*rlco + 1, *rlco - size + 1, 2 * size - 2)) {
@@ -702,12 +699,16 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 			} else {
 				*rlco += size;
 			}
-			if (*rlco >= rlco_max)
+			if (*rlco >= rlco_max) {
 				encoding |= FRAME_UNENCODED;
+				goto exit_loop;
+			}
 			last_size = size;
 		}
 		input += width * 7 * input_step;
 	}
+
+exit_loop:
 	if (encoding & FRAME_UNENCODED) {
 		u8 *out = (u8 *)rlco_start;
 
@@ -721,6 +722,7 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 		for (i = 0; i < height * width; i++, input += input_step)
 			*out++ = (*input == 0xff) ? 0xfe : *input;
 		*rlco = (__be16 *)out;
+		encoding &= ~FRAME_PCODED;
 	}
 	return encoding;
 }
