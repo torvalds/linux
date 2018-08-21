@@ -34,8 +34,9 @@ done
 if [ ${PACKAGE_Error} == 1 ]; then exit 1; fi
 
 kernver=$(make kernelversion)
-kernbranch=$(git rev-parse --abbrev-ref HEAD)
-gitbranch=$(git rev-parse --abbrev-ref HEAD|sed 's/^4\.[0-9]\+-//')
+#kernbranch=$(git rev-parse --abbrev-ref HEAD)
+kernbranch=$(git branch --contains $(git log -n 1 --pretty='%h') | grep -v '(HEAD' | head -1 | sed 's/^..//')
+gitbranch=$(echo $kernbranch|sed 's/^4\.[0-9]\+-//')
 
 function increase_kernel {
         #echo $kernver
@@ -315,9 +316,30 @@ function prepare_SD {
 	fi
 }
 
+function release
+{
+	lc=$(git log -n 1 --pretty=format:'%s')
+	reltag="Release_${kernver}"
+	if [[ ${lc} =~ ^Merge ]];
+	then
+		echo Merge;
+	else
+		echo "normal commit";
+		reltag="${reltag}_${lc}"
+	fi
+	echo "RelTag:"$reltag
+	if [[ -z "$(git tag -l $reltag)" ]]; then
+	git tag $reltag
+	git push origin $reltag
+	else
+		echo "Tag already used, please use another"
+	fi
+}
+
 #Test if the Kernel is there
 if [ -n "$kernver" ]; then
 	action=$1
+	file=$2
 	LANG=C
 	CFLAGS=-j$(grep ^processor /proc/cpuinfo  | wc -l)
 
@@ -376,10 +398,36 @@ if [ -n "$kernver" ]; then
 
 
 		"importconfig")
-			echo "Import fwu config"
-			make mt7623n_evb_fwu_defconfig
+			if [[ -z "$file" ]];then
+				echo "Import fwu config"
+				make mt7623n_evb_fwu_defconfig
+			else
+				f=mt7623n_${file}_defconfig
+				echo "Import config: $f"
+				if [[ -e "arch/arm/configs/${f}" ]];then
+					make ${f}
+				else
+					echo "file not found"
+				fi
+			fi
 			;;
 
+		"ic")
+			echo "menu for multiple conf-files...currently in developement"
+			files=();
+			i=1;
+			for f in $(cd arch/arm/configs/; ls mt7623n*defconfig)
+			do
+				echo "[$i] $f"
+				files+=($f)
+				i=$(($i+1))
+			done
+			read -n1 -p "choice [1..${#files[@]}]:" choice
+			echo
+			set -x
+			make ${files[$(($choice-1))]}
+			set +x
+		;;
 	  	"config")
 			make menuconfig
 			;;
@@ -418,6 +466,9 @@ if [ -n "$kernver" ]; then
 			( cd utils; make )
 			;;
 
+		"release")
+			release
+			;;
 		"all-pack")
 			echo "Update Repo, Create Kernel & Build Archive"
 			$0 update

@@ -13,6 +13,9 @@ config KEXEC_CORE
 config HAVE_IMA_KEXEC
 	bool
 
+config HOTPLUG_SMT
+	bool
+
 config OPROFILE
 	tristate "OProfile system profiling"
 	depends on PROFILING

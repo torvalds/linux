@@ -16,6 +16,8 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/htirq.h>
+#include <linux/irq.h>
+
 #include <asm/irqdomain.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
