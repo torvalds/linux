@@ -194,11 +194,23 @@ torture_onoff(void *arg)
 	int cpu;
 	int maxcpu = -1;
 	DEFINE_TORTURE_RANDOM(rand);
+	int ret;
 
 	VERBOSE_TOROUT_STRING("torture_onoff task started");
 	for_each_online_cpu(cpu)
 		maxcpu = cpu;
 	WARN_ON(maxcpu < 0);
+	if (!IS_MODULE(CONFIG_TORTURE_TEST))
+		for_each_possible_cpu(cpu) {
+			if (cpu_online(cpu))
+				continue;
+			ret = cpu_up(cpu);
+			if (ret && verbose) {
+				pr_alert("%s" TORTURE_FLAG
+					 "%s: Initial online %d: errno %d\n",
+					 __func__, torture_type, cpu, ret);
+			}
+		}
 
 	if (maxcpu == 0) {
 		VERBOSE_TOROUT_STRING("Only one CPU, so CPU-hotplug testing is disabled");
