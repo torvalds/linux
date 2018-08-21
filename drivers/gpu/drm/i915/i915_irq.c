@@ -4048,7 +4048,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	if (IS_HASWELL(dev_priv)) {
 		gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
-		intel_psr_irq_control(dev_priv, dev_priv->psr.debug & I915_PSR_DEBUG_IRQ);
+		intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
 

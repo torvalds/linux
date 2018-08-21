@@ -79,7 +79,7 @@ static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 	}
 }
 
-void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug)
+void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 debug)
 {
 	u32 debug_mask, mask;
 
@@ -100,7 +100,7 @@ void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug)
 			      EDP_PSR_PRE_ENTRY(TRANSCODER_C);
 	}
 
-	if (debug)
+	if (debug & I915_PSR_DEBUG_IRQ)
 		mask |= debug_mask;
 
 	I915_WRITE(EDP_PSR_IMR, ~mask);
@@ -904,7 +904,7 @@ int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
 	if (crtc)
 		dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
 
-	intel_psr_irq_control(dev_priv, dev_priv->psr.debug & I915_PSR_DEBUG_IRQ);
+	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 
 	if (dev_priv->psr.prepared && enable)
 		intel_psr_enable_locked(dev_priv, crtc_state);
