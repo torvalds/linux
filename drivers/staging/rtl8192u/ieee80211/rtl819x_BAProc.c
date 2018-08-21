@@ -90,7 +90,7 @@ static u8 RxTsDeleteBA(struct ieee80211_device *ieee, struct rx_ts_record *pRxTs
 void ResetBaEntry(PBA_RECORD pBA)
 {
 	pBA->bValid			= false;
-	pBA->BaParamSet.shortData	= 0;
+	pBA->BaParamSet.short_data	= 0;
 	pBA->BaTimeoutValue		= 0;
 	pBA->DialogToken		= 0;
 	pBA->BaStartSeqCtrl.short_data	= 0;
@@ -151,7 +151,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 	}
 	// BA Parameter Set
 
-	put_unaligned_le16(pBA->BaParamSet.shortData, tag);
+	put_unaligned_le16(pBA->BaParamSet.short_data, tag);
 	tag += 2;
 	// BA Timeout Value
 

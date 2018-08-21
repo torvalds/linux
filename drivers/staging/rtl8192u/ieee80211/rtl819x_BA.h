@@ -31,8 +31,7 @@ union sequence_control {
 };
 
 union ba_param_set {
-	u8 charData[2];
-	u16 shortData;
+	u16 short_data;
 	struct {
 		u16 AMSDU_Support:1;
 		u16 BAPolicy:1;
