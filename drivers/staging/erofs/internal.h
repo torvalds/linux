@@ -485,10 +485,10 @@ struct erofs_map_blocks_iter {
 
 
 static inline struct page *
-erofs_get_inline_page_nofail(struct inode *inode,
-			     erofs_blk_t blkaddr)
+erofs_get_inline_page(struct inode *inode,
+		      erofs_blk_t blkaddr)
 {
-	return erofs_get_meta_page_nofail(inode->i_sb,
+	return erofs_get_meta_page(inode->i_sb,
 		blkaddr, S_ISDIR(inode->i_mode));
 }
 
