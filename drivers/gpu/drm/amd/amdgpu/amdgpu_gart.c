@@ -157,7 +157,6 @@ int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev)
 	if (r)
 		amdgpu_bo_unpin(adev->gart.bo);
 	amdgpu_bo_unreserve(adev->gart.bo);
-	adev->gart.table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
 	return r;
 }
 

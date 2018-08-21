@@ -1988,7 +1988,7 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 	src_addr = num_dw * 4;
 	src_addr += job->ibs[0].gpu_addr;
 
-	dst_addr = adev->gart.table_addr;
+	dst_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
 	dst_addr += window * AMDGPU_GTT_MAX_TRANSFER_SIZE * 8;
 	amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_addr,
 				dst_addr, num_bytes);
@@ -2049,7 +2049,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		return r;
 
 	if (vm_needs_flush) {
-		job->vm_pd_addr = adev->gart.table_addr;
+		job->vm_pd_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
 		job->vm_needs_flush = true;
 	}
 	if (resv) {

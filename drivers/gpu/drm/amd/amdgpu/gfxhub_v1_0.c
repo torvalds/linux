@@ -37,11 +37,10 @@ u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev)
 
 static void gfxhub_v1_0_init_gart_pt_regs(struct amdgpu_device *adev)
 {
-	uint64_t value;
+	uint64_t value = amdgpu_bo_gpu_offset(adev->gart.bo);
 
-	BUG_ON(adev->gart.table_addr & (~0x0000FFFFFFFFF000ULL));
-	value = adev->gart.table_addr - adev->gmc.vram_start
-		+ adev->vm_manager.vram_base_offset;
+	BUG_ON(value & (~0x0000FFFFFFFFF000ULL));
+	value -= adev->gmc.vram_start + adev->vm_manager.vram_base_offset;
 	value &= 0x0000FFFFFFFFF000ULL;
 	value |= 0x1; /*valid bit*/
 

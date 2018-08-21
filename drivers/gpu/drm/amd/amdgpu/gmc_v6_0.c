@@ -494,6 +494,7 @@ static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 
 static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 {
+	uint64_t table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
 	int r, i;
 	u32 field;
 
@@ -532,7 +533,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->gmc.gart_start >> 12);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->gmc.gart_end >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, adev->gart.table_addr >> 12);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, table_addr >> 12);
 	WREG32(mmVM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(adev->dummy_page_addr >> 12));
 	WREG32(mmVM_CONTEXT0_CNTL2, 0);
@@ -556,10 +557,10 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 		else
 			WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + i - 8,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 	}
 
 	/* enable context1-15 */
@@ -579,7 +580,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	gmc_v6_0_flush_gpu_tlb(adev, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
-		 (unsigned long long)adev->gart.table_addr);
+		 (unsigned long long)table_addr);
 	adev->gart.ready = true;
 	return 0;
 }

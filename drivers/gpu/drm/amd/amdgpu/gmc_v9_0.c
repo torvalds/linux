@@ -1106,7 +1106,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
-		 (unsigned long long)adev->gart.table_addr);
+		 (unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
 	adev->gart.ready = true;
 	return 0;
 }
