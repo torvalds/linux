@@ -170,6 +170,11 @@ static inline int srcu_read_lock_held(const struct srcu_struct *sp)
 #define srcu_dereference(p, sp) srcu_dereference_check((p), (sp), 0)
 
 /**
+ * srcu_dereference_notrace - no tracing and no lockdep calls from here
+ */
+#define srcu_dereference_notrace(p, sp) srcu_dereference_check((p), (sp), 1)
+
+/**
  * srcu_read_lock - register a new reader for an SRCU-protected structure.
  * @sp: srcu_struct in which to register the new reader.
  *
