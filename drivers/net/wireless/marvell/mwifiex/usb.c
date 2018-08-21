@@ -299,6 +299,12 @@ static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size)
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
 
 	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
+		if (card->rx_cmd_ep == ctx->ep) {
+			mwifiex_dbg(adapter, INFO, "%s: free rx_cmd skb\n",
+				    __func__);
+			dev_kfree_skb_any(ctx->skb);
+			ctx->skb = NULL;
+		}
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: card removed/suspended, EP %d rx_cmd URB submit skipped\n",
 			    __func__, ctx->ep);
