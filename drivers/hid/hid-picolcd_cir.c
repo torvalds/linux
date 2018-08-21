@@ -45,7 +45,7 @@ int picolcd_raw_cir(struct picolcd_data *data,
 {
 	unsigned long flags;
 	int i, w, sz;
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 
 	/* ignore if rc_dev is NULL or status is shunned */
 	spin_lock_irqsave(&data->lock, flags);
@@ -67,7 +67,6 @@ int picolcd_raw_cir(struct picolcd_data *data,
 	 */
 	sz = size > 0 ? min((int)raw_data[0], size-1) : 0;
 	for (i = 0; i+1 < sz; i += 2) {
-		init_ir_raw_event(&rawir);
 		w = (raw_data[i] << 8) | (raw_data[i+1]);
 		rawir.pulse = !!(w & 0x8000);
 		rawir.duration = US_TO_NS(rawir.pulse ? (65536 - w) : w);

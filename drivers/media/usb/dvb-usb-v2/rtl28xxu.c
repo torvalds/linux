@@ -1674,7 +1674,7 @@ static int rtl2832u_rc_query(struct dvb_usb_device *d)
 {
 	int ret, i, len;
 	struct rtl28xxu_dev *dev = d->priv;
-	struct ir_raw_event ev;
+	struct ir_raw_event ev = {};
 	u8 buf[128];
 	static const struct rtl28xxu_reg_val_mask refresh_tab[] = {
 		{IR_RX_IF,               0x03, 0xff},
@@ -1740,8 +1740,6 @@ static int rtl2832u_rc_query(struct dvb_usb_device *d)
 	}
 
 	/* pass data to Kernel IR decoder */
-	init_ir_raw_event(&ev);
-
 	for (i = 0; i < len; i++) {
 		ev.pulse = buf[i] >> 7;
 		ev.duration = 50800 * (buf[i] & 0x7f);

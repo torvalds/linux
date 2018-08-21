@@ -124,7 +124,7 @@ static int au8522_rc_andor(struct au0828_rc *ir, u16 reg, u8 mask, u8 value)
 static int au0828_get_key_au8522(struct au0828_rc *ir)
 {
 	unsigned char buf[40];
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	int i, j, rc;
 	int prv_bit, bit, width;
 	bool first = true;
@@ -178,7 +178,6 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 			if (first) {
 				first = false;
 
-				init_ir_raw_event(&rawir);
 				rawir.pulse = true;
 				if (width > NEC_START_SPACE - 2 &&
 				    width < NEC_START_SPACE + 2) {
@@ -197,7 +196,6 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 				ir_raw_event_store(ir->rc, &rawir);
 			}
 
-			init_ir_raw_event(&rawir);
 			rawir.pulse = prv_bit ? false : true;
 			rawir.duration = AU8522_UNIT * width;
 			dprintk(16, "Storing %s with duration %d",
@@ -210,7 +208,6 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 		}
 	}
 
-	init_ir_raw_event(&rawir);
 	rawir.pulse = prv_bit ? false : true;
 	rawir.duration = AU8522_UNIT * width;
 	dprintk(16, "Storing end %s with duration %d",
