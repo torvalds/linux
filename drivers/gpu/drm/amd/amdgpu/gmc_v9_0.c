@@ -321,9 +321,6 @@ signed long  amdgpu_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	struct amdgpu_ring *ring = &kiq->ring;
 
-	if (!ring->ready)
-		return -EINVAL;
-
 	spin_lock_irqsave(&kiq->ring_lock, flags);
 
 	amdgpu_ring_alloc(ring, 32);
@@ -390,10 +387,14 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
 		struct amdgpu_vmhub *hub = &adev->vmhub[i];
 		u32 tmp = gmc_v9_0_get_invalidate_req(vmid);
 
-		r = amdgpu_kiq_reg_write_reg_wait(adev, hub->vm_inv_eng0_req + eng,
-			hub->vm_inv_eng0_ack + eng, tmp, 1 << vmid);
-		if (!r)
-			continue;
+		if (adev->gfx.kiq.ring.ready &&
+		    (amdgpu_sriov_runtime(adev) ||
+		     !amdgpu_sriov_vf(adev))) {
+			r = amdgpu_kiq_reg_write_reg_wait(adev, hub->vm_inv_eng0_req + eng,
+				hub->vm_inv_eng0_ack + eng, tmp, 1 << vmid);
+			if (!r)
+				continue;
+		}
 
 		spin_lock(&adev->gmc.invalidate_lock);
 
