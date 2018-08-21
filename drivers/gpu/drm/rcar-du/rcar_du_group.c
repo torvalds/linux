@@ -56,8 +56,6 @@ static void rcar_du_group_setup_pins(struct rcar_du_group *rgrp)
 static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_device *rcdu = rgrp->dev;
-	unsigned int possible_crtcs =
-		rcdu->info->routes[RCAR_DU_OUTPUT_DPAD0].possible_crtcs;
 	u32 defr8 = DEFR8_CODE;
 
 	if (rcdu->info->gen < 3) {
@@ -69,21 +67,18 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 		 * DU instances that support it.
 		 */
 		if (rgrp->index == 0) {
-			if (possible_crtcs > 1)
-				defr8 |= DEFR8_DRGBS_DU(rcdu->dpad0_source);
+			defr8 |= DEFR8_DRGBS_DU(rcdu->dpad0_source);
 			if (rgrp->dev->vspd1_sink == 2)
 				defr8 |= DEFR8_VSCS;
 		}
 	} else {
 		/*
-		 * On Gen3 VSPD routing can't be configured, but DPAD routing
-		 * needs to be set despite having a single option available.
+		 * On Gen3 VSPD routing can't be configured, and DPAD routing
+		 * is set in the group corresponding to the DPAD output (no Gen3
+		 * SoC has multiple DPAD sources belonging to separate groups).
 		 */
-		unsigned int rgb_crtc = ffs(possible_crtcs) - 1;
-		struct rcar_du_crtc *crtc = &rcdu->crtcs[rgb_crtc];
-
-		if (crtc->index / 2 == rgrp->index)
-			defr8 |= DEFR8_DRGBS_DU(crtc->index);
+		if (rgrp->index == rcdu->dpad0_source / 2)
+			defr8 |= DEFR8_DRGBS_DU(rcdu->dpad0_source);
 	}
 
 	rcar_du_group_write(rgrp, DEFR8, defr8);
