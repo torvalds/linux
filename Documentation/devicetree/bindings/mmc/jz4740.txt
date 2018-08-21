@@ -7,6 +7,7 @@ described in mmc.txt.
 Required properties:
 - compatible: Should be one of the following:
   - "ingenic,jz4740-mmc" for the JZ4740
+  - "ingenic,jz4725b-mmc" for the JZ4725B
   - "ingenic,jz4780-mmc" for the JZ4780
 - reg: Should contain the MMC controller registers location and length.
 - interrupts: Should contain the interrupt specifier of the MMC controller.
