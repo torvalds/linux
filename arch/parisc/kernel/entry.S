@@ -777,7 +777,7 @@ END(fault_vector_11)
 	 * copy_thread moved args into task save area.
 	 */
 
-ENTRY_CFI(ret_from_kernel_thread)
+ENTRY(ret_from_kernel_thread)
 	/* Call schedule_tail first though */
 	BL	schedule_tail, %r2
 	nop
@@ -792,7 +792,7 @@ ENTRY_CFI(ret_from_kernel_thread)
 	copy	%r31, %r2
 	b	finish_child_return
 	nop
-ENDPROC_CFI(ret_from_kernel_thread)
+END(ret_from_kernel_thread)
 
 
 	/*
@@ -816,9 +816,8 @@ ENTRY_CFI(_switch_to)
 	LDREG	TASK_THREAD_INFO(%r25), %r25
 	bv	%r0(%r2)
 	mtctl   %r25,%cr30
-ENDPROC_CFI(_switch_to)
 
-ENTRY_CFI(_switch_to_ret)
+ENTRY(_switch_to_ret)
 	mtctl	%r0, %cr0		/* Needed for single stepping */
 	callee_rest
 	callee_rest_float
@@ -826,7 +825,7 @@ ENTRY_CFI(_switch_to_ret)
 	LDREG	-RP_OFFSET(%r30), %r2
 	bv	%r0(%r2)
 	copy	%r26, %r28
-ENDPROC_CFI(_switch_to_ret)
+ENDPROC_CFI(_switch_to)
 
 	/*
 	 * Common rfi return path for interruptions, kernel execve, and
@@ -887,14 +886,12 @@ ENTRY_CFI(syscall_exit_rfi)
 	STREG   %r19,PT_SR5(%r16)
 	STREG   %r19,PT_SR6(%r16)
 	STREG   %r19,PT_SR7(%r16)
-ENDPROC_CFI(syscall_exit_rfi)
 
-ENTRY_CFI(intr_return)
+ENTRY(intr_return)
 	/* check for reschedule */
 	mfctl   %cr30,%r1
 	LDREG   TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
 	bb,<,n	%r19,31-TIF_NEED_RESCHED,intr_do_resched /* forward */
-ENDPROC_CFI(intr_return)
 
 	.import do_notify_resume,code
 intr_check_sig:
@@ -1050,6 +1047,7 @@ intr_extint:
 
 	b	do_cpu_irq_mask
 	ldo	R%intr_return(%r2), %r2	/* return to intr_return, not here */
+ENDPROC_CFI(syscall_exit_rfi)
 
 
 	/* Generic interruptions (illegal insn, unaligned, page fault, etc) */
@@ -1751,7 +1749,7 @@ fork_like fork
 fork_like vfork
 
 	/* Set the return value for the child */
-ENTRY_CFI(child_return)
+ENTRY(child_return)
 	BL	schedule_tail, %r2
 	nop
 finish_child_return:
@@ -1763,7 +1761,7 @@ finish_child_return:
 	reg_restore %r1
 	b	syscall_exit
 	copy	%r0,%r28
-ENDPROC_CFI(child_return)
+END(child_return)
 
 ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
@@ -1795,7 +1793,7 @@ ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	PT_GR28(%r1),%r28  /* reload original r28 for syscall_exit */
 ENDPROC_CFI(sys_rt_sigreturn_wrapper)
 
-ENTRY_CFI(syscall_exit)
+ENTRY(syscall_exit)
 	/* NOTE: Not all syscalls exit this way.  rt_sigreturn will exit
 	 * via syscall_exit_rfi if the signal was received while the process
 	 * was running.
@@ -1994,15 +1992,13 @@ syscall_do_resched:
 #else
 	nop
 #endif
-ENDPROC_CFI(syscall_exit)
+END(syscall_exit)
 
 
 #ifdef CONFIG_FUNCTION_TRACER
 
 	.import ftrace_function_trampoline,code
 	.align L1_CACHE_BYTES
-	.globl mcount
-	.type  mcount, @function
 ENTRY_CFI(mcount, caller)
 _mcount:
 	.export _mcount,data
@@ -2031,8 +2027,6 @@ ENDPROC_CFI(mcount)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.align 8
-	.globl return_to_handler
-	.type  return_to_handler, @function
 ENTRY_CFI(return_to_handler, caller,frame=FRAME_SIZE)
 	.export parisc_return_to_handler,data
 parisc_return_to_handler:
@@ -2082,6 +2076,7 @@ ENDPROC_CFI(return_to_handler)
 /* void call_on_stack(unsigned long param1, void *func,
 		      unsigned long new_stack) */
 ENTRY_CFI(call_on_stack, FRAME=2*FRAME_SIZE,CALLS,SAVE_RP,SAVE_SP)
+ENTRY(_call_on_stack)
 	copy	%sp, %r1
 
 	/* Regarding the HPPA calling conventions for function pointers,

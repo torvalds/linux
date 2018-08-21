@@ -209,6 +209,8 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	 * We have to use void * instead of a function pointer, because
 	 * function pointers aren't a pointer to the function on 64-bit.
 	 * Make them const so the compiler knows they live in .text
+	 * Note: We could use dereference_kernel_function_descriptor()
+	 * instead but we want to keep it simple here.
 	 */
 	extern void * const handle_interruption;
 	extern void * const ret_from_kernel_thread;
@@ -216,7 +218,7 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	extern void * const intr_return;
 	extern void * const _switch_to_ret;
 #ifdef CONFIG_IRQSTACKS
-	extern void * const call_on_stack;
+	extern void * const _call_on_stack;
 #endif /* CONFIG_IRQSTACKS */
 
 	if (pc == (unsigned long) &handle_interruption) {
@@ -251,7 +253,7 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	}
 
 #ifdef CONFIG_IRQSTACKS
-	if (pc == (unsigned long) &call_on_stack) {
+	if (pc == (unsigned long) &_call_on_stack) {
 		info->prev_sp = *(unsigned long *)(info->sp - FRAME_SIZE - REG_SZ);
 		info->prev_ip = *(unsigned long *)(info->sp - FRAME_SIZE - RP_OFFSET);
 		return 1;
