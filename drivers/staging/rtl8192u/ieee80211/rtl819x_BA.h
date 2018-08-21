@@ -22,13 +22,13 @@ struct ieee80211_ADDBA_Req{
 } __attribute__ ((packed));
 */
 //Is this need?I put here just to make it easier to define structure BA_RECORD //WB
-typedef union _SEQUENCE_CONTROL{
+union sequence_control {
 	u16 ShortData;
 	struct {
 		u16	FragNum:4;
 		u16	SeqNum:12;
 	} field;
-} SEQUENCE_CONTROL, *PSEQUENCE_CONTROL;
+};
 
 typedef union _BA_PARAM_SET {
 	u8 charData[2];
@@ -57,7 +57,7 @@ typedef struct _BA_RECORD {
 	u8				DialogToken;
 	BA_PARAM_SET		BaParamSet;
 	u16				BaTimeoutValue;
-	SEQUENCE_CONTROL	BaStartSeqCtrl;
+	union sequence_control	BaStartSeqCtrl;
 } BA_RECORD, *PBA_RECORD;
 
 #endif //end _BATYPE_H_

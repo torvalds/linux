@@ -324,7 +324,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	PBA_RECORD pBA = NULL;
 	PBA_PARAM_SET	pBaParamSet = NULL;
 	u16 *pBaTimeoutVal = NULL;
-	PSEQUENCE_CONTROL pBaStartSeqCtrl = NULL;
+	union sequence_control *pBaStartSeqCtrl = NULL;
 	struct rx_ts_record  *pTS = NULL;
 
 	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 9) {
@@ -344,7 +344,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	pDialogToken = tag + 2;  //category+action
 	pBaParamSet = (PBA_PARAM_SET)(tag + 3);   //+DialogToken
 	pBaTimeoutVal = (u16 *)(tag + 5);
-	pBaStartSeqCtrl = (PSEQUENCE_CONTROL)(req + 7);
+	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
 	netdev_info(ieee->dev, "====================>rx ADDBAREQ from :%pM\n", dst);
 //some other capability is not ready now.
