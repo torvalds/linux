@@ -535,7 +535,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	struct cx88_IR *ir = core->ir;
 	u32 samples;
 	unsigned int todo, bits;
-	struct ir_raw_event ev;
+	struct ir_raw_event ev = {};
 
 	if (!ir || !ir->sampling)
 		return;
@@ -550,7 +550,6 @@ void cx88_ir_irq(struct cx88_core *core)
 	if (samples == 0xff && ir->dev->idle)
 		return;
 
-	init_ir_raw_event(&ev);
 	for (todo = 32; todo > 0; todo -= bits) {
 		ev.pulse = samples & 0x80000000 ? false : true;
 		bits = min(todo, 32U - fls(ev.pulse ? samples : ~samples));

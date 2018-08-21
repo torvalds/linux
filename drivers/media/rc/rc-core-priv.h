@@ -181,9 +181,10 @@ static inline void init_ir_raw_event_duration(struct ir_raw_event *ev,
 					      unsigned int pulse,
 					      u32 duration)
 {
-	init_ir_raw_event(ev);
-	ev->duration = duration;
-	ev->pulse = pulse;
+	*ev = (struct ir_raw_event) {
+		.duration = duration,
+		.pulse = pulse
+	};
 }
 
 /**
