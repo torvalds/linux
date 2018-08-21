@@ -238,10 +238,6 @@ static void mmc_mq_exit_request(struct blk_mq_tag_set *set, struct request *req,
 	mmc_exit_request(mq->queue, req);
 }
 
-/*
- * We use BLK_MQ_F_BLOCKING and have only 1 hardware queue, which means requests
- * will not be dispatched in parallel.
- */
 static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 				    const struct blk_mq_queue_data *bd)
 {
@@ -264,7 +260,7 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	spin_lock_irq(q->queue_lock);
 
-	if (mq->recovery_needed) {
+	if (mq->recovery_needed || mq->busy) {
 		spin_unlock_irq(q->queue_lock);
 		return BLK_STS_RESOURCE;
 	}
@@ -290,6 +286,9 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		req->timeout = 600 * HZ;
 		break;
 	}
+
+	/* Parallel dispatch of requests is not supported at the moment */
+	mq->busy = true;
 
 	mq->in_flight[issue_type] += 1;
 	get_card = (mmc_tot_in_flight(mq) == 1);
@@ -333,9 +332,12 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		mq->in_flight[issue_type] -= 1;
 		if (mmc_tot_in_flight(mq) == 0)
 			put_card = true;
+		mq->busy = false;
 		spin_unlock_irq(q->queue_lock);
 		if (put_card)
 			mmc_put_card(card, &mq->ctx);
+	} else {
+		WRITE_ONCE(mq->busy, false);
 	}
 
 	return ret;
