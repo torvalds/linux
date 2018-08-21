@@ -38,6 +38,7 @@ static void init_inode_xattrs(struct inode *inode)
 	struct xattr_iter it;
 	unsigned i;
 	struct erofs_xattr_ibody_header *ih;
+	struct super_block *sb;
 	struct erofs_sb_info *sbi;
 	struct erofs_vnode *vi;
 	bool atomic_map;
@@ -48,11 +49,12 @@ static void init_inode_xattrs(struct inode *inode)
 	vi = EROFS_V(inode);
 	BUG_ON(!vi->xattr_isize);
 
-	sbi = EROFS_I_SB(inode);
+	sb = inode->i_sb;
+	sbi = EROFS_SB(sb);
 	it.blkaddr = erofs_blknr(iloc(sbi, vi->nid) + vi->inode_isize);
 	it.ofs = erofs_blkoff(iloc(sbi, vi->nid) + vi->inode_isize);
 
-	it.page = erofs_get_inline_page(inode, it.blkaddr);
+	it.page = erofs_get_inline_page_nofail(inode, it.blkaddr);
 	BUG_ON(IS_ERR(it.page));
 
 	/* read in shared xattr array (non-atomic, see kmalloc below) */
@@ -75,7 +77,7 @@ static void init_inode_xattrs(struct inode *inode)
 			BUG_ON(it.ofs != EROFS_BLKSIZ);
 			xattr_iter_end(&it, atomic_map);
 
-			it.page = erofs_get_meta_page(inode->i_sb,
+			it.page = erofs_get_meta_page_nofail(sb,
 				++it.blkaddr, S_ISDIR(inode->i_mode));
 			BUG_ON(IS_ERR(it.page));
 
@@ -105,7 +107,8 @@ static void xattr_iter_fixup(struct xattr_iter *it)
 		xattr_iter_end(it, true);
 
 		it->blkaddr += erofs_blknr(it->ofs);
-		it->page = erofs_get_meta_page(it->sb, it->blkaddr, false);
+		it->page = erofs_get_meta_page_nofail(it->sb,
+			it->blkaddr, false);
 		BUG_ON(IS_ERR(it->page));
 
 		it->kaddr = kmap_atomic(it->page);
@@ -131,7 +134,7 @@ static int inline_xattr_iter_begin(struct xattr_iter *it,
 	it->blkaddr = erofs_blknr(iloc(sbi, vi->nid) + inline_xattr_ofs);
 	it->ofs = erofs_blkoff(iloc(sbi, vi->nid) + inline_xattr_ofs);
 
-	it->page = erofs_get_inline_page(inode, it->blkaddr);
+	it->page = erofs_get_inline_page_nofail(inode, it->blkaddr);
 	BUG_ON(IS_ERR(it->page));
 	it->kaddr = kmap_atomic(it->page);
 
@@ -300,7 +303,8 @@ static int inline_getxattr(struct inode *inode, struct getxattr_iter *it)
 static int shared_getxattr(struct inode *inode, struct getxattr_iter *it)
 {
 	struct erofs_vnode *const vi = EROFS_V(inode);
-	struct erofs_sb_info *const sbi = EROFS_SB(inode->i_sb);
+	struct super_block *const sb = inode->i_sb;
+	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	unsigned i;
 	int ret = -ENOATTR;
 
@@ -314,7 +318,7 @@ static int shared_getxattr(struct inode *inode, struct getxattr_iter *it)
 			if (i)
 				xattr_iter_end(&it->it, true);
 
-			it->it.page = erofs_get_meta_page(inode->i_sb,
+			it->it.page = erofs_get_meta_page_nofail(sb,
 				blkaddr, false);
 			BUG_ON(IS_ERR(it->it.page));
 			it->it.kaddr = kmap_atomic(it->it.page);
@@ -524,7 +528,8 @@ static int shared_listxattr(struct listxattr_iter *it)
 {
 	struct inode *const inode = d_inode(it->dentry);
 	struct erofs_vnode *const vi = EROFS_V(inode);
-	struct erofs_sb_info *const sbi = EROFS_I_SB(inode);
+	struct super_block *const sb = inode->i_sb;
+	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	unsigned i;
 	int ret = 0;
 
@@ -537,7 +542,7 @@ static int shared_listxattr(struct listxattr_iter *it)
 			if (i)
 				xattr_iter_end(&it->it, true);
 
-			it->it.page = erofs_get_meta_page(inode->i_sb,
+			it->it.page = erofs_get_meta_page_nofail(sb,
 				blkaddr, false);
 			BUG_ON(IS_ERR(it->it.page));
 			it->it.kaddr = kmap_atomic(it->it.page);

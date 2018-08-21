@@ -453,8 +453,27 @@ static inline void __submit_bio(struct bio *bio, unsigned op, unsigned op_flags)
 	submit_bio(bio);
 }
 
-extern struct page *erofs_get_meta_page(struct super_block *sb,
-	erofs_blk_t blkaddr, bool prio);
+#ifndef CONFIG_EROFS_FS_IO_MAX_RETRIES
+#define EROFS_IO_MAX_RETRIES_NOFAIL	0
+#else
+#define EROFS_IO_MAX_RETRIES_NOFAIL	CONFIG_EROFS_FS_IO_MAX_RETRIES
+#endif
+
+extern struct page *__erofs_get_meta_page(struct super_block *sb,
+	erofs_blk_t blkaddr, bool prio, bool nofail);
+
+static inline struct page *erofs_get_meta_page(struct super_block *sb,
+	erofs_blk_t blkaddr, bool prio)
+{
+	return __erofs_get_meta_page(sb, blkaddr, prio, false);
+}
+
+static inline struct page *erofs_get_meta_page_nofail(struct super_block *sb,
+	erofs_blk_t blkaddr, bool prio)
+{
+	return __erofs_get_meta_page(sb, blkaddr, prio, true);
+}
+
 extern int erofs_map_blocks(struct inode *, struct erofs_map_blocks *, int);
 extern int erofs_map_blocks_iter(struct inode *, struct erofs_map_blocks *,
 	struct page **, int);
@@ -465,10 +484,11 @@ struct erofs_map_blocks_iter {
 };
 
 
-static inline struct page *erofs_get_inline_page(struct inode *inode,
-	erofs_blk_t blkaddr)
+static inline struct page *
+erofs_get_inline_page_nofail(struct inode *inode,
+			     erofs_blk_t blkaddr)
 {
-	return erofs_get_meta_page(inode->i_sb,
+	return erofs_get_meta_page_nofail(inode->i_sb,
 		blkaddr, S_ISDIR(inode->i_mode));
 }
 

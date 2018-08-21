@@ -1488,7 +1488,8 @@ static erofs_off_t vle_get_logical_extent_head(
 	erofs_blk_t blkaddr = vle_extent_blkaddr(inode, lcn);
 	struct z_erofs_vle_decompressed_index *di;
 	unsigned long long ofs;
-	const unsigned int clusterbits = EROFS_SB(inode->i_sb)->clusterbits;
+	struct super_block *const sb = inode->i_sb;
+	const unsigned int clusterbits = EROFS_SB(sb)->clusterbits;
 	const unsigned int clustersize = 1 << clusterbits;
 
 	if (page->index != blkaddr) {
@@ -1496,8 +1497,8 @@ static erofs_off_t vle_get_logical_extent_head(
 		unlock_page(page);
 		put_page(page);
 
-		*page_iter = page = erofs_get_meta_page(inode->i_sb,
-			blkaddr, false);
+		page = erofs_get_meta_page_nofail(sb, blkaddr, false);
+		*page_iter = page;
 		*kaddr_iter = kmap_atomic(page);
 	}
 
@@ -1538,7 +1539,8 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 	struct page *mpage = *mpage_ret;
 	void *kaddr;
 	bool initial;
-	const unsigned int clusterbits = EROFS_SB(inode->i_sb)->clusterbits;
+	struct super_block *const sb = inode->i_sb;
+	const unsigned int clusterbits = EROFS_SB(sb)->clusterbits;
 	const unsigned int clustersize = 1 << clusterbits;
 	int err = 0;
 
@@ -1569,7 +1571,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 		if (mpage != NULL)
 			put_page(mpage);
 
-		mpage = erofs_get_meta_page(inode->i_sb, e_blkaddr, false);
+		mpage = erofs_get_meta_page_nofail(sb, e_blkaddr, false);
 		*mpage_ret = mpage;
 	} else {
 		lock_page(mpage);
