@@ -1123,7 +1123,7 @@ static void ti_break(struct tty_struct *tty, int break_state)
 
 static int ti_get_port_from_code(unsigned char code)
 {
-	return (code >> 4) - 3;
+	return (code >> 6) & 0x01;
 }
 
 static int ti_get_func_from_code(unsigned char code)
