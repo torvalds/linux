@@ -13,6 +13,7 @@ use POSIX;
 use File::Basename;
 use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants);
+use Encode qw(decode encode);
 
 my $P = $0;
 my $D = dirname(abs_path($P));
@@ -2236,6 +2237,8 @@ sub process {
 
 	our $clean = 1;
 	my $signoff = 0;
+	my $author = '';
+	my $authorsignoff = 0;
 	my $is_patch = 0;
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
@@ -2518,10 +2521,24 @@ sub process {
 			}
 		}
 
+# Check the patch for a From:
+		if (decode("MIME-Header", $line) =~ /^From:\s*(.*)/) {
+			$author = $1;
+			$author = encode("utf8", $author) if ($line =~ /=\?utf-8\?/i);
+			$author =~ s/"//g;
+		}
+
 # Check the patch for a signoff:
 		if ($line =~ /^\s*signed-off-by:/i) {
 			$signoff++;
 			$in_commit_log = 0;
+			if ($author ne '') {
+				my $l = $line;
+				$l =~ s/"//g;
+				if ($l =~ /^\s*signed-off-by:\s*\Q$author\E/i) {
+				    $authorsignoff = 1;
+				}
+			}
 		}
 
 # Check if MAINTAINERS is being updated.  If so, there's probably no need to
@@ -6507,9 +6524,14 @@ sub process {
 		ERROR("NOT_UNIFIED_DIFF",
 		      "Does not appear to be a unified-diff format patch\n");
 	}
-	if ($is_patch && $has_commit_log && $chk_signoff && $signoff == 0) {
-		ERROR("MISSING_SIGN_OFF",
-		      "Missing Signed-off-by: line(s)\n");
+	if ($is_patch && $has_commit_log && $chk_signoff) {
+		if ($signoff == 0) {
+			ERROR("MISSING_SIGN_OFF",
+			      "Missing Signed-off-by: line(s)\n");
+		} elsif (!$authorsignoff) {
+			WARN("NO_AUTHOR_SIGN_OFF",
+			     "Missing Signed-off-by: line by nominal patch author '$author'\n");
+		}
 	}
 
 	print report_dump();
