@@ -643,8 +643,13 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	/*
 	 * Select switch sync mode. This stops display operation and configures
 	 * the HSYNC and VSYNC signals as inputs.
+	 *
+	 * TODO: Find another way to stop the display for DUs that don't support
+	 * TVM sync.
 	 */
-	rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_TVM_MASK, DSYSR_TVM_SWITCH);
+	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_TVM_SYNC))
+		rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_TVM_MASK,
+					   DSYSR_TVM_SWITCH);
 
 	rcar_du_group_start_stop(rcrtc->group, false);
 }
