@@ -68,12 +68,29 @@ static void ep93xx_gpio_update_int_params(struct ep93xx_gpio *epg, unsigned port
 	       epg->base + int_en_register_offset[port]);
 }
 
-static void ep93xx_gpio_int_debounce(struct ep93xx_gpio *epg,
-				     unsigned int irq, bool enable)
+static int ep93xx_gpio_port(struct gpio_chip *gc)
 {
-	int line = irq_to_gpio(irq);
-	int port = line >> 3;
-	int port_mask = 1 << (line & 7);
+	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
+	int port = 0;
+
+	while (gc != &epg->gc[port] && port < sizeof(epg->gc))
+		port++;
+
+	/* This should not happen but is there as a last safeguard */
+	if (gc != &epg->gc[port]) {
+		pr_crit("can't find the GPIO port\n");
+		return 0;
+	}
+
+	return port;
+}
+
+static void ep93xx_gpio_int_debounce(struct gpio_chip *gc,
+				     unsigned int offset, bool enable)
+{
+	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
+	int port = ep93xx_gpio_port(gc);
+	int port_mask = BIT(offset);
 
 	if (enable)
 		gpio_int_debounce[port] |= port_mask;
@@ -331,19 +348,13 @@ static struct ep93xx_gpio_bank ep93xx_gpio_banks[] = {
 static int ep93xx_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 				  unsigned long config)
 {
-	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
-	int gpio = gc->base + offset;
-	int irq = gpio_to_irq(gpio);
 	u32 debounce;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
 		return -ENOTSUPP;
 
-	if (irq < 0)
-		return -EINVAL;
-
 	debounce = pinconf_to_config_argument(config);
-	ep93xx_gpio_int_debounce(epg, irq, debounce ? true : false);
+	ep93xx_gpio_int_debounce(gc, offset, debounce ? true : false);
 
 	return 0;
 }
