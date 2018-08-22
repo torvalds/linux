@@ -3186,11 +3186,16 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->vcpu_put(vcpu);
 	vcpu->arch.last_host_tsc = rdtsc();
 	/*
-	 * If userspace has set any breakpoints or watchpoints, dr6 is restored
-	 * on every vmexit, but if not, we might have a stale dr6 from the
-	 * guest. do_debug expects dr6 to be cleared after it runs, do the same.
+	 * Here dr6 is either zero or, if the guest has run and userspace
+	 * has not set any breakpoints or watchpoints, it can be set to
+	 * the guest dr6 (stored in vcpu->arch.dr6). do_debug expects dr6
+	 * to be cleared after it runs, so clear the host register.  However,
+	 * MOV to DR can be expensive when running nested, omit it if
+	 * vcpu->arch.dr6 is already zero: in that case, the host dr6 cannot
+	 * currently be nonzero.
 	 */
-	set_debugreg(0, 6);
+	if (vcpu->arch.dr6)
+		set_debugreg(0, 6);
 }
 
 static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
