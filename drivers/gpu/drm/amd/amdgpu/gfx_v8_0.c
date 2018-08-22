@@ -4622,7 +4622,6 @@ static int gfx_v8_0_kiq_kcq_enable(struct amdgpu_device *adev)
 		queue_mask |= (1ull << i);
 	}
 
-	kiq_ring->ready = true;
 	r = amdgpu_ring_alloc(kiq_ring, (8 * adev->gfx.num_compute_rings) + 8);
 	if (r) {
 		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
@@ -4949,26 +4948,33 @@ static void gfx_v8_0_set_mec_doorbell_range(struct amdgpu_device *adev)
 
 static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring = NULL;
-	int r = 0, i;
-
-	gfx_v8_0_cp_compute_enable(adev, true);
+	struct amdgpu_ring *ring;
+	int r;
 
 	ring = &adev->gfx.kiq.ring;
 
 	r = amdgpu_bo_reserve(ring->mqd_obj, false);
 	if (unlikely(r != 0))
-		goto done;
+		return r;
 
 	r = amdgpu_bo_kmap(ring->mqd_obj, &ring->mqd_ptr);
-	if (!r) {
-		r = gfx_v8_0_kiq_init_queue(ring);
-		amdgpu_bo_kunmap(ring->mqd_obj);
-		ring->mqd_ptr = NULL;
-	}
+	if (unlikely(r != 0))
+		return r;
+
+	gfx_v8_0_kiq_init_queue(ring);
+	amdgpu_bo_kunmap(ring->mqd_obj);
+	ring->mqd_ptr = NULL;
 	amdgpu_bo_unreserve(ring->mqd_obj);
-	if (r)
-		goto done;
+	ring->ready = true;
+	return 0;
+}
+
+static int gfx_v8_0_kcq_resume(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring = NULL;
+	int r = 0, i;
+
+	gfx_v8_0_cp_compute_enable(adev, true);
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
@@ -5024,14 +5030,17 @@ static int gfx_v8_0_cp_resume(struct amdgpu_device *adev)
 			return r;
 	}
 
-	r = gfx_v8_0_cp_gfx_resume(adev);
-	if (r)
-		return r;
-
 	r = gfx_v8_0_kiq_resume(adev);
 	if (r)
 		return r;
 
+	r = gfx_v8_0_cp_gfx_resume(adev);
+	if (r)
+		return r;
+
+	r = gfx_v8_0_kcq_resume(adev);
+	if (r)
+		return r;
 	gfx_v8_0_enable_gui_idle_interrupt(adev, true);
 
 	return 0;
@@ -5334,10 +5343,6 @@ static int gfx_v8_0_post_soft_reset(void *handle)
 	srbm_soft_reset = adev->gfx.srbm_soft_reset;
 
 	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
-	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_GFX))
-		gfx_v8_0_cp_gfx_resume(adev);
-
-	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
 	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CPF) ||
 	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CPC) ||
 	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CPG)) {
@@ -5353,7 +5358,13 @@ static int gfx_v8_0_post_soft_reset(void *handle)
 			mutex_unlock(&adev->srbm_mutex);
 		}
 		gfx_v8_0_kiq_resume(adev);
+		gfx_v8_0_kcq_resume(adev);
 	}
+
+	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
+	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_GFX))
+		gfx_v8_0_cp_gfx_resume(adev);
+
 	gfx_v8_0_rlc_start(adev);
 
 	return 0;
