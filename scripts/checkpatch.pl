@@ -852,9 +852,10 @@ sub is_maintained_obsolete {
 sub is_SPDX_License_valid {
 	my ($license) = @_;
 
-	return 1 if (!$tree || which("python") eq "" || !(-e "$root/scripts/spdxcheck.py"));
+	return 1 if (!$tree || which("python") eq "" || !(-e "$root/scripts/spdxcheck.py") || !(-e "$root/.git"));
 
-	my $status = `echo "$license" | python $root/scripts/spdxcheck.py -`;
+	my $root_path = abs_path($root);
+	my $status = `cd "$root_path"; echo "$license" | python scripts/spdxcheck.py -`;
 	return 0 if ($status ne "");
 	return 1;
 }
