@@ -44,7 +44,8 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 	WARN_ON(refcount_read(&transaction->use_count) == 0);
 	if (refcount_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
-		WARN_ON(!RB_EMPTY_ROOT(&transaction->delayed_refs.href_root));
+		WARN_ON(!RB_EMPTY_ROOT(
+				&transaction->delayed_refs.href_root.rb_root));
 		if (transaction->delayed_refs.pending_csums)
 			btrfs_err(transaction->fs_info,
 				  "pending csums is %llu",
@@ -245,7 +246,7 @@ loop:
 
 	memset(&cur_trans->delayed_refs, 0, sizeof(cur_trans->delayed_refs));
 
-	cur_trans->delayed_refs.href_root = RB_ROOT;
+	cur_trans->delayed_refs.href_root = RB_ROOT_CACHED;
 	cur_trans->delayed_refs.dirty_extent_root = RB_ROOT;
 	atomic_set(&cur_trans->delayed_refs.num_entries, 0);
 

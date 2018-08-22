@@ -148,7 +148,7 @@ struct btrfs_delayed_data_ref {
 
 struct btrfs_delayed_ref_root {
 	/* head ref rbtree */
-	struct rb_root href_root;
+	struct rb_root_cached href_root;
 
 	/* dirty extent records */
 	struct rb_root dirty_extent_root;

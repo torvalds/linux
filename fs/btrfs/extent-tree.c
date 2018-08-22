@@ -2454,7 +2454,7 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 		return 1;
 	}
 	delayed_refs->num_heads--;
-	rb_erase(&head->href_node, &delayed_refs->href_root);
+	rb_erase_cached(&head->href_node, &delayed_refs->href_root);
 	RB_CLEAR_NODE(&head->href_node);
 	spin_unlock(&head->lock);
 	spin_unlock(&delayed_refs->lock);
@@ -2940,7 +2940,7 @@ again:
 			btrfs_create_pending_block_groups(trans);
 
 		spin_lock(&delayed_refs->lock);
-		node = rb_first(&delayed_refs->href_root);
+		node = rb_first_cached(&delayed_refs->href_root);
 		if (!node) {
 			spin_unlock(&delayed_refs->lock);
 			goto out;
@@ -6929,7 +6929,7 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	 * at this point we have a head with no other entries.  Go
 	 * ahead and process it.
 	 */
-	rb_erase(&head->href_node, &delayed_refs->href_root);
+	rb_erase_cached(&head->href_node, &delayed_refs->href_root);
 	RB_CLEAR_NODE(&head->href_node);
 	atomic_dec(&delayed_refs->num_entries);
 
