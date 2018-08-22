@@ -48,6 +48,7 @@ my $output_roles = 0;
 my $output_rolestats = 1;
 my $output_section_maxlen = 50;
 my $scm = 0;
+my $tree = 1;
 my $web = 0;
 my $subsystem = 0;
 my $status = 0;
@@ -255,6 +256,7 @@ if (!GetOptions(
 		'subsystem!' => \$subsystem,
 		'status!' => \$status,
 		'scm!' => \$scm,
+		'tree!' => \$tree,
 		'web!' => \$web,
 		'letters=s' => \$letters,
 		'pattern-depth=i' => \$pattern_depth,
@@ -319,7 +321,7 @@ if ($email &&
     die "$P: Please select at least 1 email option\n";
 }
 
-if (!top_of_kernel_tree($lk_path)) {
+if ($tree && !top_of_kernel_tree($lk_path)) {
     die "$P: The current directory does not appear to be "
 	. "a linux kernel source tree.\n";
 }
@@ -1031,13 +1033,14 @@ Other options:
   --sections => print all of the subsystem sections with pattern matches
   --letters => print all matching 'letter' types from all matching sections
   --mailmap => use .mailmap file (default: $email_use_mailmap)
+  --no-tree => run without a kernel tree
   --self-test => show potential issues with MAINTAINERS file content
   --version => show version
   --help => show this help information
 
 Default options:
-  [--email --nogit --git-fallback --m --r --n --l --multiline --pattern-depth=0
-   --remove-duplicates --rolestats]
+  [--email --tree --nogit --git-fallback --m --r --n --l --multiline
+   --pattern-depth=0 --remove-duplicates --rolestats]
 
 Notes:
   Using "-f directory" may give unexpected results:
