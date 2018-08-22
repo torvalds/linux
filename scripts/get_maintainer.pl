@@ -396,19 +396,18 @@ sub read_all_maintainer_files {
 
     if (-d $path) {
 	$path .= '/' if ($path !~ m@/$@);
-	if ($path eq "${lk_path}MAINTAINERS/") {
+	if ($find_maintainer_files) {
+	    find( { wanted => \&find_is_maintainer_file,
+		    preprocess => \&find_ignore_git,
+		    no_chdir => 1,
+		}, "$path");
+	} else {
 	    opendir(DIR, "$path") or die $!;
 	    my @files = readdir(DIR);
 	    closedir(DIR);
 	    foreach my $file (@files) {
 		push(@mfiles, "$path$file") if ($file !~ /^\./);
 	    }
-	}
-	if ($find_maintainer_files) {
-	    find( { wanted => \&find_is_maintainer_file,
-		    preprocess => \&find_ignore_git,
-		    no_chdir => 1,
-		}, "$path");
 	}
     } elsif (-f "$path") {
 	push(@mfiles, "$path");
