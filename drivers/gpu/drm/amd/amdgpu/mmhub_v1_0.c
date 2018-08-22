@@ -47,12 +47,7 @@ u64 mmhub_v1_0_get_fb_location(struct amdgpu_device *adev)
 
 static void mmhub_v1_0_init_gart_pt_regs(struct amdgpu_device *adev)
 {
-	uint64_t value = amdgpu_bo_gpu_offset(adev->gart.bo);
-
-	BUG_ON(value & (~0x0000FFFFFFFFF000ULL));
-	value -= adev->gmc.vram_start + adev->vm_manager.vram_base_offset;
-	value &= 0x0000FFFFFFFFF000ULL;
-	value |= 0x1; /* valid bit */
+	uint64_t value = amdgpu_gmc_pd_addr(adev->gart.bo);
 
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
 		     lower_32_bits(value));

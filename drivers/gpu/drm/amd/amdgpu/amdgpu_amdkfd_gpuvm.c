@@ -364,7 +364,6 @@ static int vm_validate_pt_pd_bos(struct amdgpu_vm *vm)
 	struct amdgpu_bo *pd = vm->root.base.bo;
 	struct amdgpu_device *adev = amdgpu_ttm_adev(pd->tbo.bdev);
 	struct amdgpu_vm_parser param;
-	uint64_t addr, flags = AMDGPU_PTE_VALID;
 	int ret;
 
 	param.domain = AMDGPU_GEM_DOMAIN_VRAM;
@@ -383,9 +382,7 @@ static int vm_validate_pt_pd_bos(struct amdgpu_vm *vm)
 		return ret;
 	}
 
-	addr = amdgpu_bo_gpu_offset(vm->root.base.bo);
-	amdgpu_gmc_get_vm_pde(adev, -1, &addr, &flags);
-	vm->pd_phys_addr = addr;
+	vm->pd_phys_addr = amdgpu_gmc_pd_addr(vm->root.base.bo);
 
 	if (vm->use_cpu_for_update) {
 		ret = amdgpu_bo_kmap(pd, NULL);
