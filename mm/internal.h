@@ -389,18 +389,6 @@ static inline struct page *mem_map_next(struct page *iter,
 	return iter + 1;
 }
 
-/*
- * FLATMEM and DISCONTIGMEM configurations use alloc_bootmem_node,
- * so all functions starting at paging_init should be marked __init
- * in those cases. SPARSEMEM, however, allows for memory hotplug,
- * and alloc_bootmem_node is not used.
- */
-#ifdef CONFIG_SPARSEMEM
-#define __paginginit __meminit
-#else
-#define __paginginit __init
-#endif
-
 /* Memory initialisation debug and verification */
 enum mminit_level {
 	MMINIT_WARNING,
