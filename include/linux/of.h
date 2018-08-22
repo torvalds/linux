@@ -353,6 +353,8 @@ extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
 extern struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
+extern struct device_node *of_get_next_cpu_node(struct device_node *prev);
+
 #define for_each_property_of_node(dn, pp) \
 	for (pp = dn->properties; pp != NULL; pp = pp->next)
 
@@ -750,6 +752,11 @@ static inline const void *of_get_property(const struct device_node *node,
 
 static inline struct device_node *of_get_cpu_node(int cpu,
 					unsigned int *thread)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_get_next_cpu_node(struct device_node *prev)
 {
 	return NULL;
 }
@@ -1216,6 +1223,10 @@ static inline int of_property_read_s32(const struct device_node *np,
 #define for_each_available_child_of_node(parent, child) \
 	for (child = of_get_next_available_child(parent, NULL); child != NULL; \
 	     child = of_get_next_available_child(parent, child))
+
+#define for_each_of_cpu_node(cpu) \
+	for (cpu = of_get_next_cpu_node(NULL); cpu != NULL; \
+	     cpu = of_get_next_cpu_node(cpu))
 
 #define for_each_node_with_property(dn, prop_name) \
 	for (dn = of_find_node_with_property(NULL, prop_name); dn; \
