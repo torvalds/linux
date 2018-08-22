@@ -424,10 +424,10 @@ static struct dentry *should_expire(struct dentry *dentry,
  *  - it is unused by any user process
  *  - it has been unused for exp_timeout time
  */
-struct dentry *autofs_expire_indirect(struct super_block *sb,
-				      struct vfsmount *mnt,
-				      struct autofs_sb_info *sbi,
-				      int how)
+static struct dentry *autofs_expire_indirect(struct super_block *sb,
+					     struct vfsmount *mnt,
+					     struct autofs_sb_info *sbi,
+					     int how)
 {
 	unsigned long timeout;
 	struct dentry *root = sb->s_root;
