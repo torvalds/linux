@@ -16,6 +16,15 @@
 #include "../skylake/skl.h"
 #include "skl_hda_dsp_common.h"
 
+static const struct snd_soc_dapm_widget skl_hda_widgets[] = {
+	SND_SOC_DAPM_HP("Analog Out", NULL),
+	SND_SOC_DAPM_MIC("Analog In", NULL),
+	SND_SOC_DAPM_HP("Alt Analog Out", NULL),
+	SND_SOC_DAPM_MIC("Alt Analog In", NULL),
+	SND_SOC_DAPM_SPK("Digital Out", NULL),
+	SND_SOC_DAPM_MIC("Digital In", NULL),
+};
+
 static const struct snd_soc_dapm_route skl_hda_map[] = {
 	{ "hifi3", NULL, "iDisp3 Tx"},
 	{ "iDisp3 Tx", NULL, "iDisp3_out"},
@@ -23,6 +32,29 @@ static const struct snd_soc_dapm_route skl_hda_map[] = {
 	{ "iDisp2 Tx", NULL, "iDisp2_out"},
 	{ "hifi1", NULL, "iDisp1 Tx"},
 	{ "iDisp1 Tx", NULL, "iDisp1_out"},
+
+	{ "Analog Out", NULL, "Codec Output Pin1" },
+	{ "Digital Out", NULL, "Codec Output Pin2" },
+	{ "Alt Analog Out", NULL, "Codec Output Pin3" },
+
+	{ "Codec Input Pin1", NULL, "Analog In" },
+	{ "Codec Input Pin2", NULL, "Digital In" },
+	{ "Codec Input Pin3", NULL, "Alt Analog In" },
+
+	/* CODEC BE connections */
+	{ "Analog Codec Playback", NULL, "Analog CPU Playback" },
+	{ "Analog CPU Playback", NULL, "codec0_out" },
+	{ "Digital Codec Playback", NULL, "Digital CPU Playback" },
+	{ "Digital CPU Playback", NULL, "codec1_out" },
+	{ "Alt Analog Codec Playback", NULL, "Alt Analog CPU Playback" },
+	{ "Alt Analog CPU Playback", NULL, "codec2_out" },
+
+	{ "codec0_in", NULL, "Analog CPU Capture" },
+	{ "Analog CPU Capture", NULL, "Analog Codec Capture" },
+	{ "codec1_in", NULL, "Digital CPU Capture" },
+	{ "Digital CPU Capture", NULL, "Digital Codec Capture" },
+	{ "codec2_in", NULL, "Alt Analog CPU Capture" },
+	{ "Alt Analog CPU Capture", NULL, "Alt Analog Codec Capture" },
 };
 
 static int skl_hda_card_late_probe(struct snd_soc_card *card)
@@ -57,6 +89,7 @@ static struct snd_soc_card hda_soc_card = {
 	.name = "skl_hda_card",
 	.owner = THIS_MODULE,
 	.dai_link = skl_hda_be_dai_links,
+	.dapm_widgets = skl_hda_widgets,
 	.dapm_routes = skl_hda_map,
 	.add_dai_link = skl_hda_add_dai_link,
 	.fully_routed = true,
@@ -80,6 +113,11 @@ static int skl_hda_fill_card_info(struct skl_machine_pdata *pdata)
 	if (codec_count == 1 && pdata->codec_mask & IDISP_CODEC_MASK) {
 		num_links = IDISP_DAI_COUNT;
 		num_route = IDISP_ROUTE_COUNT;
+	} else if (codec_count == 2 && codec_mask & IDISP_CODEC_MASK) {
+		num_links = ARRAY_SIZE(skl_hda_be_dai_links);
+		num_route = ARRAY_SIZE(skl_hda_map),
+		card->dapm_widgets = skl_hda_widgets;
+		card->num_dapm_widgets = ARRAY_SIZE(skl_hda_widgets);
 	} else {
 		return -EINVAL;
 	}
