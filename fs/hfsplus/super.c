@@ -564,8 +564,8 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 				goto out_put_hidden_dir;
 			}
 
-			err = hfsplus_init_inode_security(sbi->hidden_dir,
-								root, &str);
+			err = hfsplus_init_security(sbi->hidden_dir,
+							root, &str);
 			if (err == -EOPNOTSUPP)
 				err = 0; /* Operation is not supported. */
 			else if (err) {
