@@ -670,6 +670,8 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 	struct epitem *epi, *nepi;
 	LIST_HEAD(txlist);
 
+	lockdep_assert_irqs_enabled();
+
 	/*
 	 * We need to lock this because we could be hit by
 	 * eventpoll_release_file() and epoll_ctl().
@@ -763,6 +765,8 @@ static void epi_rcu_free(struct rcu_head *head)
 static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 {
 	struct file *file = epi->ffd.file;
+
+	lockdep_assert_irqs_enabled();
 
 	/*
 	 * Removes poll wait queue hooks.
@@ -1412,6 +1416,8 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	struct epitem *epi;
 	struct ep_pqueue epq;
 
+	lockdep_assert_irqs_enabled();
+
 	user_watches = atomic_long_read(&ep->user->epoll_watches);
 	if (unlikely(user_watches >= max_user_watches))
 		return -ENOSPC;
@@ -1539,6 +1545,8 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 {
 	int pwake = 0;
 	poll_table pt;
+
+	lockdep_assert_irqs_enabled();
 
 	init_poll_funcptr(&pt, NULL);
 
