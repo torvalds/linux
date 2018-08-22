@@ -332,6 +332,7 @@ static int ahci_platform_get_regulator(struct ahci_host_priv *hpriv, u32 port,
 /**
  * ahci_platform_get_resources - Get platform resources
  * @pdev: platform device to get resources for
+ * @flags: bitmap representing the resource to get
  *
  * This function allocates an ahci_host_priv struct, and gets the following
  * resources, storing a reference to them inside the returned struct:
@@ -345,7 +346,8 @@ static int ahci_platform_get_regulator(struct ahci_host_priv *hpriv, u32 port,
  * RETURNS:
  * The allocated ahci_host_priv on success, otherwise an ERR_PTR value
  */
-struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
+struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
+						   unsigned int flags)
 {
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;

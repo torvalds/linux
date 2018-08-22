@@ -425,7 +425,7 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 
 	brcm_sata_phys_enable(priv);
 
-	hpriv = ahci_platform_get_resources(pdev);
+	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 	hpriv->plat_data = priv;
