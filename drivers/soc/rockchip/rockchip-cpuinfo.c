@@ -88,7 +88,6 @@ static struct platform_driver rockchip_cpuinfo_driver = {
 	},
 };
 
-#ifdef CONFIG_ARM
 static void rk3288_init(void)
 {
 	void __iomem *base;
@@ -124,6 +123,21 @@ static void rk3126_init(void)
 	}
 }
 
+static void rk3308_init(void)
+{
+	void __iomem *base;
+
+	rockchip_soc_id = ROCKCHIP_SOC_RK3308;
+#define RK3308_GRF_PHYS		0xFF000000
+#define RK3308_GRF_CHIP_ID	0x800
+	base = ioremap(RK3308_GRF_PHYS, SZ_4K);
+	if (base) {
+		if (readl_relaxed(base + RK3308_GRF_CHIP_ID) == 0x3308)
+			rockchip_soc_id = ROCKCHIP_SOC_RK3308B;
+		iounmap(base);
+	}
+}
+
 static int __init rockchip_soc_id_init(void)
 {
 	if (cpu_is_rk3288()) {
@@ -133,12 +147,13 @@ static int __init rockchip_soc_id_init(void)
 			rockchip_soc_id = ROCKCHIP_SOC_RK3128;
 		else
 			rk3126_init();
+	} else if (cpu_is_rk3308()) {
+		rk3308_init();
 	}
 
 	return 0;
 }
 pure_initcall(rockchip_soc_id_init);
-#endif
 
 static int __init rockchip_cpuinfo_init(void)
 {
