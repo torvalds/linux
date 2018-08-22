@@ -192,6 +192,7 @@ static const struct arm64_ftr_bits ftr_id_aa64mmfr1[] = {
 };
 
 static const struct arm64_ftr_bits ftr_id_aa64mmfr2[] = {
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_FWB_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_AT_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_LVA_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_IESB_SHIFT, 4, 0),
@@ -1026,6 +1027,14 @@ static void cpu_copy_el2regs(const struct arm64_cpu_capabilities *__unused)
 }
 #endif
 
+static void cpu_has_fwb(const struct arm64_cpu_capabilities *__unused)
+{
+	u64 val = read_sysreg_s(SYS_CLIDR_EL1);
+
+	/* Check that CLIDR_EL1.LOU{U,IS} are both 0 */
+	WARN_ON(val & (7 << 27 | 7 << 21));
+}
+
 static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.desc = "GIC system register CPU interface",
@@ -1181,6 +1190,17 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_CACHE_DIC,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cache_dic,
+	},
+	{
+		.desc = "Stage-2 Force Write-Back",
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.capability = ARM64_HAS_STAGE2_FWB,
+		.sys_reg = SYS_ID_AA64MMFR2_EL1,
+		.sign = FTR_UNSIGNED,
+		.field_pos = ID_AA64MMFR2_FWB_SHIFT,
+		.min_field_value = 1,
+		.matches = has_cpuid_feature,
+		.cpu_enable = cpu_has_fwb,
 	},
 #ifdef CONFIG_ARM64_HW_AFDBM
 	{
