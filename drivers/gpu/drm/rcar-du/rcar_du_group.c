@@ -202,9 +202,10 @@ void rcar_du_group_put(struct rcar_du_group *rgrp)
 
 static void __rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
 {
-	rcar_du_group_write(rgrp, DSYSR,
-		(rcar_du_group_read(rgrp, DSYSR) & ~(DSYSR_DRES | DSYSR_DEN)) |
-		(start ? DSYSR_DEN : DSYSR_DRES));
+	struct rcar_du_crtc *rcrtc = &rgrp->dev->crtcs[rgrp->index * 2];
+
+	rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
+				   start ? DSYSR_DEN : DSYSR_DRES);
 }
 
 void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)

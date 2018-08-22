@@ -57,13 +57,12 @@ static void rcar_du_crtc_set(struct rcar_du_crtc *rcrtc, u32 reg, u32 set)
 		      rcar_du_read(rcdu, rcrtc->mmio_offset + reg) | set);
 }
 
-static void rcar_du_crtc_clr_set(struct rcar_du_crtc *rcrtc, u32 reg,
-				 u32 clr, u32 set)
+void rcar_du_crtc_dsysr_clr_set(struct rcar_du_crtc *rcrtc, u32 clr, u32 set)
 {
 	struct rcar_du_device *rcdu = rcrtc->group->dev;
-	u32 value = rcar_du_read(rcdu, rcrtc->mmio_offset + reg);
 
-	rcar_du_write(rcdu, rcrtc->mmio_offset + reg, (value & ~clr) | set);
+	rcrtc->dsysr = (rcrtc->dsysr & ~clr) | set;
+	rcar_du_write(rcdu, rcrtc->mmio_offset + DSYSR, rcrtc->dsysr);
 }
 
 /* -----------------------------------------------------------------------------
@@ -576,9 +575,9 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	 * actively driven).
 	 */
 	interlaced = rcrtc->crtc.mode.flags & DRM_MODE_FLAG_INTERLACE;
-	rcar_du_crtc_clr_set(rcrtc, DSYSR, DSYSR_TVM_MASK | DSYSR_SCM_MASK,
-			     (interlaced ? DSYSR_SCM_INT_VIDEO : 0) |
-			     DSYSR_TVM_MASTER);
+	rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_TVM_MASK | DSYSR_SCM_MASK,
+				   (interlaced ? DSYSR_SCM_INT_VIDEO : 0) |
+				   DSYSR_TVM_MASTER);
 
 	rcar_du_group_start_stop(rcrtc->group, true);
 }
@@ -645,7 +644,7 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	 * Select switch sync mode. This stops display operation and configures
 	 * the HSYNC and VSYNC signals as inputs.
 	 */
-	rcar_du_crtc_clr_set(rcrtc, DSYSR, DSYSR_TVM_MASK, DSYSR_TVM_SWITCH);
+	rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_TVM_MASK, DSYSR_TVM_SWITCH);
 
 	rcar_du_group_start_stop(rcrtc->group, false);
 }
@@ -1121,6 +1120,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 	rcrtc->group = rgrp;
 	rcrtc->mmio_offset = mmio_offsets[hwindex];
 	rcrtc->index = hwindex;
+	rcrtc->dsysr = (rcrtc->index % 2 ? 0 : DSYSR_DRES) | DSYSR_TVM_TVSYNC;
 
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE))
 		primary = &rcrtc->vsp->planes[rcrtc->vsp_pipe].plane;
