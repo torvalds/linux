@@ -65,16 +65,13 @@ struct proc_dir_entry {
 	char inline_name[];
 } __randomize_layout;
 
-#define OFFSETOF_PDE_NAME offsetof(struct proc_dir_entry, inline_name)
-#define SIZEOF_PDE_SLOT					\
-	(OFFSETOF_PDE_NAME + 34 <= 64 ? 64 :		\
-	 OFFSETOF_PDE_NAME + 34 <= 128 ? 128 :		\
-	 OFFSETOF_PDE_NAME + 34 <= 192 ? 192 :		\
-	 OFFSETOF_PDE_NAME + 34 <= 256 ? 256 :		\
-	 OFFSETOF_PDE_NAME + 34 <= 512 ? 512 :		\
-	 0)
-
-#define SIZEOF_PDE_INLINE_NAME (SIZEOF_PDE_SLOT - OFFSETOF_PDE_NAME)
+#define SIZEOF_PDE	(				\
+	sizeof(struct proc_dir_entry) < 128 ? 128 :	\
+	sizeof(struct proc_dir_entry) < 192 ? 192 :	\
+	sizeof(struct proc_dir_entry) < 256 ? 256 :	\
+	sizeof(struct proc_dir_entry) < 512 ? 512 :	\
+	0)
+#define SIZEOF_PDE_INLINE_NAME (SIZEOF_PDE - sizeof(struct proc_dir_entry))
 
 extern struct kmem_cache *proc_dir_entry_cache;
 void pde_free(struct proc_dir_entry *pde);
