@@ -63,9 +63,9 @@ struct shrinker {
 	unsigned long (*scan_objects)(struct shrinker *,
 				      struct shrink_control *sc);
 
-	int seeks;	/* seeks to recreate an obj */
 	long batch;	/* reclaim batch size, 0 = default */
-	unsigned long flags;
+	int seeks;	/* seeks to recreate an obj */
+	unsigned flags;
 
 	/* These are for internal use */
 	struct list_head list;
