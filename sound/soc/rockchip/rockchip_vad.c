@@ -490,7 +490,7 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
-	unsigned int val = 0, mask = 0, frame_bytes;
+	unsigned int val = 0, mask = 0, frame_bytes, buf_time;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return 0;
@@ -535,7 +535,15 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 	if (vad->buffer_time) {
 		frame_bytes = snd_pcm_format_size(params_format(params),
 						  params_channels(params));
-		val = params_rate(params) * vad->buffer_time / 1000;
+
+		buf_time = VAD_SRAM_BUFFER_END - vad->memphy + 0x8;
+		buf_time *= 1000;
+		buf_time /= (frame_bytes * params_rate(params));
+		if (buf_time < vad->buffer_time)
+			dev_info(vad->dev, "max buffer time: %u ms.\n", buf_time);
+		buf_time = min(buf_time, vad->buffer_time);
+
+		val = params_rate(params) * buf_time / 1000;
 		val *= frame_bytes;
 		val += vad->memphy;
 		val -= 0x8;
