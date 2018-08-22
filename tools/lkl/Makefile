@@ -103,7 +103,7 @@ headers_install: $(TARGETS)
 	$(call QUIET_INSTALL, headers) \
 	    install -d $(DESTDIR)$(PREFIX)/include ; \
 	    install -m 644 include/lkl.h include/lkl_host.h $(OUTPUT)include/lkl_autoconf.h \
-	      $(DESTDIR)$(PREFIX)/include ; \
+	      include/lkl_config.h $(DESTDIR)$(PREFIX)/include ; \
 	    cp -r $(OUTPUT)include/lkl $(DESTDIR)$(PREFIX)/include
 
 libraries_install: $(libs-y:%=$(OUTPUT)%$(SOSUF)) $(OUTPUT)liblkl.a

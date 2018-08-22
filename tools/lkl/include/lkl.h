@@ -30,6 +30,9 @@ extern "C" {
 
 #if defined(__MINGW32__)
 #define strtok_r strtok_s
+#define inet_pton lkl_inet_pton
+
+int inet_pton(int af, const char *src, void *dst);
 #endif
 
 #if defined(__ANDROID__) && __LKL__BITS_PER_LONG == 32

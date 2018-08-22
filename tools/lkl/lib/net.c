@@ -3,6 +3,42 @@
 #include "endian.h"
 #include <lkl_host.h>
 
+#ifdef __MINGW32__
+#include <ws2tcpip.h>
+
+int lkl_inet_pton(int af, const char *src, void *dst)
+{
+	struct addrinfo hint, *res = NULL;
+	int err;
+
+	memset(&hint, 0, sizeof(struct addrinfo));
+
+	hint.ai_family = af;
+	hint.ai_flags = AI_NUMERICHOST;
+
+	err = getaddrinfo(src, NULL, &hint, &res);
+	if (err)
+		return 0;
+
+	switch (af) {
+	case AF_INET:
+		*(struct in_addr *)dst =
+			((struct sockaddr_in *)&res->ai_addr)->sin_addr;
+		break;
+	case AF_INET6:
+		*(struct in6_addr *)dst =
+			((struct sockaddr_in6 *)&res->ai_addr)->sin6_addr;
+		break;
+	default:
+		freeaddrinfo(res);
+		return 0;
+	}
+
+	freeaddrinfo(res);
+	return 1;
+}
+#endif
+
 static inline void set_sockaddr(struct lkl_sockaddr_in *sin, unsigned int addr,
 				unsigned short port)
 {

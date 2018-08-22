@@ -2,26 +2,31 @@
 #define _LKL_LIB_CONFIG_H
 
 #define LKL_CONFIG_JSON_TOKEN_MAX 300
-/* TODO dynamically allocate interface info arr */
-#define LKL_IF_MAX 16
+
+struct lkl_config_iface {
+	struct lkl_config_iface *next;
+	struct lkl_netdev *nd;
+
+	/* OBSOLETE: should use IFTYPE and IFPARAMS */
+	char *iftap;
+	char *iftype;
+	char *ifparams;
+	char *ifmtu_str;
+	char *ifip;
+	char *ifipv6;
+	char *ifgateway;
+	char *ifgateway6;
+	char *ifmac_str;
+	char *ifnetmask_len;
+	char *ifnetmask6_len;
+	char *ifoffload_str;
+	char *ifneigh_entries;
+	char *ifqdisc_entries;
+};
 
 struct lkl_config {
 	int ifnum;
-	/* OBSOLETE: should use IFTYPE and IFPARAMS */
-	char *iftap[LKL_IF_MAX];
-	char *iftype[LKL_IF_MAX];
-	char *ifparams[LKL_IF_MAX];
-	char *ifmtu_str[LKL_IF_MAX];
-	char *ifip[LKL_IF_MAX];
-	char *ifipv6[LKL_IF_MAX];
-	char *ifgateway[LKL_IF_MAX];
-	char *ifgateway6[LKL_IF_MAX];
-	char *ifmac_str[LKL_IF_MAX];
-	char *ifnetmask_len[LKL_IF_MAX];
-	char *ifnetmask6_len[LKL_IF_MAX];
-	char *ifoffload_str[LKL_IF_MAX];
-	char *ifneigh_entries[LKL_IF_MAX];
-	char *ifqdisc_entries[LKL_IF_MAX];
+	struct lkl_config_iface *ifaces;
 
 	char *gateway;
 	char *gateway6;
@@ -45,10 +50,11 @@ struct lkl_config {
 	char *delay_main;
 };
 
-int init_config(struct lkl_config *cfg);
-int load_config_json(struct lkl_config *cfg, char *jstr);
-int load_config_env(struct lkl_config *cfg);
-int clean_config(struct lkl_config *cfg);
+int lkl_load_config_json(struct lkl_config *cfg, char *jstr);
+int lkl_load_config_env(struct lkl_config *cfg);
 void show_config(struct lkl_config *cfg);
+int lkl_load_config_pre(struct lkl_config *cfg);
+int lkl_load_config_post(struct lkl_config *cfg);
+int lkl_unload_config(struct lkl_config *cfg);
 
 #endif /* _LKL_LIB_CONFIG_H */
