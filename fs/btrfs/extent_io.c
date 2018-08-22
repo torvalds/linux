@@ -1424,20 +1424,15 @@ int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			  struct extent_state **cached_state)
 {
 	struct extent_state *state;
-	struct rb_node *n;
 	int ret = 1;
 
 	spin_lock(&tree->lock);
 	if (cached_state && *cached_state) {
 		state = *cached_state;
 		if (state->end == start - 1 && extent_state_in_tree(state)) {
-			n = rb_next(&state->rb_node);
-			while (n) {
-				state = rb_entry(n, struct extent_state,
-						 rb_node);
+			while ((state = next_state(state)) != NULL) {
 				if (state->state & bits)
 					goto got_it;
-				n = rb_next(n);
 			}
 			free_extent_state(*cached_state);
 			*cached_state = NULL;
