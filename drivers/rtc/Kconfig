@@ -341,6 +341,16 @@ config RTC_DRV_RK808
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
 
+config RTC_DRV_RK_TIMER
+	tristate "Rockchip timer RTC"
+	depends on OF
+	help
+	  If you say yes here you will get support for the
+	  RTC of Rockchip timer.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rk-timer.
+
 config RTC_DRV_MAX77802
 	tristate "Maxim 77802 RTC"
 	depends on MFD_MAX77686
