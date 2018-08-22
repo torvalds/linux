@@ -250,6 +250,13 @@
 		)
 	>;
 
+	rockchip,wakeup-config = <
+		(0
+		| RKPM_GPIO0_WAKEUP_EN
+		| RKPM_TIMER_WAKEUP_EN
+		)
+	>;
+
 	status = "okay";
 };
 
