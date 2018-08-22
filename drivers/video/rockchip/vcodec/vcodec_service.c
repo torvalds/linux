@@ -2320,8 +2320,8 @@ static void rkvdec_set_clk(struct vpu_service_info *pservice,
 			clk_set_rate(pservice->clk_cabac, cabac_rate);
 		} else {
 			clk_set_rate(pservice->aclk_vcodec, vcodec_rate / div);
-			clk_set_rate(pservice->clk_core, vcodec_rate / div);
-			clk_set_rate(pservice->clk_cabac, vcodec_rate / div);
+			clk_set_rate(pservice->clk_core, core_rate / div);
+			clk_set_rate(pservice->clk_cabac, cabac_rate / div);
 		}
 		pservice->vcodec_rate = vcodec_rate;
 		pservice->core_rate = core_rate;
