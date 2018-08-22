@@ -1613,7 +1613,7 @@ static u64 find_next_chunk(struct btrfs_fs_info *fs_info)
 
 	em_tree = &fs_info->mapping_tree.map_tree;
 	read_lock(&em_tree->lock);
-	n = rb_last(&em_tree->map);
+	n = rb_last(&em_tree->map.rb_root);
 	if (n) {
 		em = rb_entry(n, struct extent_map, rb_node);
 		ret = em->start + em->len;
@@ -7445,7 +7445,7 @@ static int verify_chunk_dev_extent_mapping(struct btrfs_fs_info *fs_info)
 	int ret = 0;
 
 	read_lock(&em_tree->lock);
-	for (node = rb_first(&em_tree->map); node; node = rb_next(node)) {
+	for (node = rb_first_cached(&em_tree->map); node; node = rb_next(node)) {
 		em = rb_entry(node, struct extent_map, rb_node);
 		if (em->map_lookup->num_stripes !=
 		    em->map_lookup->verified_stripes) {

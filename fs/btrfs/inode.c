@@ -5222,10 +5222,10 @@ static void evict_inode_truncate_pages(struct inode *inode)
 	truncate_inode_pages_final(&inode->i_data);
 
 	write_lock(&map_tree->lock);
-	while (!RB_EMPTY_ROOT(&map_tree->map)) {
+	while (!RB_EMPTY_ROOT(&map_tree->map.rb_root)) {
 		struct extent_map *em;
 
-		node = rb_first(&map_tree->map);
+		node = rb_first_cached(&map_tree->map);
 		em = rb_entry(node, struct extent_map, rb_node);
 		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
