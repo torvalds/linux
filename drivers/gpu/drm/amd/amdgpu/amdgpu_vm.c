@@ -2612,8 +2612,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 {
 	struct amdgpu_bo_param bp;
 	struct amdgpu_bo *root;
-	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
-		AMDGPU_VM_PTE_COUNT(adev) * 8);
 	unsigned long size;
 	uint64_t flags;
 	int r, i;
@@ -2662,7 +2660,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	size = amdgpu_vm_bo_size(adev, adev->vm_manager.root_level);
 	memset(&bp, 0, sizeof(bp));
 	bp.size = size;
-	bp.byte_align = align;
+	bp.byte_align = AMDGPU_GPU_PAGE_SIZE;
 	bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
 	bp.flags = flags;
 	bp.type = ttm_bo_type_kernel;

@@ -49,9 +49,6 @@ struct amdgpu_bo_list_entry;
 /* number of entries in page table */
 #define AMDGPU_VM_PTE_COUNT(adev) (1 << (adev)->vm_manager.block_size)
 
-/* PTBs (Page Table Blocks) need to be aligned to 32K */
-#define AMDGPU_VM_PTB_ALIGN_SIZE   32768
-
 #define AMDGPU_PTE_VALID	(1ULL << 0)
 #define AMDGPU_PTE_SYSTEM	(1ULL << 1)
 #define AMDGPU_PTE_SNOOPED	(1ULL << 2)
