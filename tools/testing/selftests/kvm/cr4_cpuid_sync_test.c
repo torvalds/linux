@@ -23,20 +23,6 @@
 #define X86_FEATURE_OSXSAVE	(1<<27)
 #define VCPU_ID			1
 
-enum {
-	GUEST_UPDATE_CR4 = 0x1000,
-	GUEST_FAILED,
-	GUEST_DONE,
-};
-
-static void exit_to_hv(uint16_t port)
-{
-	__asm__ __volatile__("in %[port], %%al"
-			     :
-			     : [port]"d"(port)
-			     : "rax");
-}
-
 static inline bool cr4_cpuid_is_sync(void)
 {
 	int func, subfunc;
@@ -64,17 +50,15 @@ static void guest_code(void)
 	set_cr4(cr4);
 
 	/* verify CR4.OSXSAVE == CPUID.OSXSAVE */
-	if (!cr4_cpuid_is_sync())
-		exit_to_hv(GUEST_FAILED);
+	GUEST_ASSERT(cr4_cpuid_is_sync());
 
 	/* notify hypervisor to change CR4 */
-	exit_to_hv(GUEST_UPDATE_CR4);
+	GUEST_SYNC(0);
 
 	/* check again */
-	if (!cr4_cpuid_is_sync())
-		exit_to_hv(GUEST_FAILED);
+	GUEST_ASSERT(cr4_cpuid_is_sync());
 
-	exit_to_hv(GUEST_DONE);
+	GUEST_DONE();
 }
 
 int main(int argc, char *argv[])
@@ -95,7 +79,7 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, guest_code);
+	vm = vm_create_default(VCPU_ID, 0, guest_code);
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 	run = vcpu_state(vm, VCPU_ID);
 
@@ -104,16 +88,16 @@ int main(int argc, char *argv[])
 
 		if (run->exit_reason == KVM_EXIT_IO) {
 			switch (run->io.port) {
-			case GUEST_UPDATE_CR4:
+			case GUEST_PORT_SYNC:
 				/* emulate hypervisor clearing CR4.OSXSAVE */
 				vcpu_sregs_get(vm, VCPU_ID, &sregs);
 				sregs.cr4 &= ~X86_CR4_OSXSAVE;
 				vcpu_sregs_set(vm, VCPU_ID, &sregs);
 				break;
-			case GUEST_FAILED:
+			case GUEST_PORT_ABORT:
 				TEST_ASSERT(false, "Guest CR4 bit (OSXSAVE) unsynchronized with CPUID bit.");
 				break;
-			case GUEST_DONE:
+			case GUEST_PORT_DONE:
 				goto done;
 			default:
 				TEST_ASSERT(false, "Unknown port 0x%x.",

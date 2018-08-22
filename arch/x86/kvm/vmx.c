@@ -198,12 +198,14 @@ static enum vmx_l1d_flush_state __read_mostly vmentry_l1d_flush_param = VMENTER_
 
 static const struct {
 	const char *option;
-	enum vmx_l1d_flush_state cmd;
+	bool for_parse;
 } vmentry_l1d_param[] = {
-	{"auto",	VMENTER_L1D_FLUSH_AUTO},
-	{"never",	VMENTER_L1D_FLUSH_NEVER},
-	{"cond",	VMENTER_L1D_FLUSH_COND},
-	{"always",	VMENTER_L1D_FLUSH_ALWAYS},
+	[VMENTER_L1D_FLUSH_AUTO]	 = {"auto", true},
+	[VMENTER_L1D_FLUSH_NEVER]	 = {"never", true},
+	[VMENTER_L1D_FLUSH_COND]	 = {"cond", true},
+	[VMENTER_L1D_FLUSH_ALWAYS]	 = {"always", true},
+	[VMENTER_L1D_FLUSH_EPT_DISABLED] = {"EPT disabled", false},
+	[VMENTER_L1D_FLUSH_NOT_REQUIRED] = {"not required", false},
 };
 
 #define L1D_CACHE_ORDER 4
@@ -219,15 +221,15 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 		return 0;
 	}
 
-       if (boot_cpu_has(X86_FEATURE_ARCH_CAPABILITIES)) {
-	       u64 msr;
+	if (boot_cpu_has(X86_FEATURE_ARCH_CAPABILITIES)) {
+		u64 msr;
 
-	       rdmsrl(MSR_IA32_ARCH_CAPABILITIES, msr);
-	       if (msr & ARCH_CAP_SKIP_VMENTRY_L1DFLUSH) {
-		       l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_NOT_REQUIRED;
-		       return 0;
-	       }
-       }
+		rdmsrl(MSR_IA32_ARCH_CAPABILITIES, msr);
+		if (msr & ARCH_CAP_SKIP_VMENTRY_L1DFLUSH) {
+			l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_NOT_REQUIRED;
+			return 0;
+		}
+	}
 
 	/* If set to auto use the default l1tf mitigation method */
 	if (l1tf == VMENTER_L1D_FLUSH_AUTO) {
@@ -287,8 +289,9 @@ static int vmentry_l1d_flush_parse(const char *s)
 
 	if (s) {
 		for (i = 0; i < ARRAY_SIZE(vmentry_l1d_param); i++) {
-			if (sysfs_streq(s, vmentry_l1d_param[i].option))
-				return vmentry_l1d_param[i].cmd;
+			if (vmentry_l1d_param[i].for_parse &&
+			    sysfs_streq(s, vmentry_l1d_param[i].option))
+				return i;
 		}
 	}
 	return -EINVAL;
@@ -298,12 +301,12 @@ static int vmentry_l1d_flush_set(const char *s, const struct kernel_param *kp)
 {
 	int l1tf, ret;
 
-	if (!boot_cpu_has(X86_BUG_L1TF))
-		return 0;
-
 	l1tf = vmentry_l1d_flush_parse(s);
 	if (l1tf < 0)
 		return l1tf;
+
+	if (!boot_cpu_has(X86_BUG_L1TF))
+		return 0;
 
 	/*
 	 * Has vmx_init() run already? If not then this is the pre init
@@ -324,6 +327,9 @@ static int vmentry_l1d_flush_set(const char *s, const struct kernel_param *kp)
 
 static int vmentry_l1d_flush_get(char *s, const struct kernel_param *kp)
 {
+	if (WARN_ON_ONCE(l1tf_vmx_mitigation >= ARRAY_SIZE(vmentry_l1d_param)))
+		return sprintf(s, "???\n");
+
 	return sprintf(s, "%s\n", vmentry_l1d_param[l1tf_vmx_mitigation].option);
 }
 
@@ -1682,6 +1688,12 @@ static inline bool cpu_has_vmx_virtual_intr_delivery(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY;
+}
+
+static inline bool cpu_has_vmx_encls_vmexit(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_ENCLS_EXITING;
 }
 
 /*
@@ -4551,7 +4563,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_RDRAND_EXITING |
 			SECONDARY_EXEC_ENABLE_PML |
 			SECONDARY_EXEC_TSC_SCALING |
-			SECONDARY_EXEC_ENABLE_VMFUNC;
+			SECONDARY_EXEC_ENABLE_VMFUNC |
+			SECONDARY_EXEC_ENCLS_EXITING;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -6648,6 +6661,9 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
 		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
 	}
+
+	if (cpu_has_vmx_encls_vmexit())
+		vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
 }
 
 static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
@@ -9314,6 +9330,17 @@ fail:
 	return 1;
 }
 
+static int handle_encls(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * SGX virtualization is not yet supported.  There is no software
+	 * enable bit for SGX, so we have to trap ENCLS and inject a #UD
+	 * to prevent the guest from executing ENCLS.
+	 */
+	kvm_queue_exception(vcpu, UD_VECTOR);
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -9371,6 +9398,7 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_INVPCID]                 = handle_invpcid,
 	[EXIT_REASON_VMFUNC]                  = handle_vmfunc,
 	[EXIT_REASON_PREEMPTION_TIMER]	      = handle_preemption_timer,
+	[EXIT_REASON_ENCLS]		      = handle_encls,
 };
 
 static const int kvm_vmx_max_exit_handlers =
@@ -9740,6 +9768,9 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 		return false;
 	case EXIT_REASON_VMFUNC:
 		/* VM functions are emulated through L2->L0 vmexits. */
+		return false;
+	case EXIT_REASON_ENCLS:
+		/* SGX is never exposed to L1 */
 		return false;
 	default:
 		return true;
@@ -12100,6 +12131,9 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		 */
 		if (exec_control & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)
 			vmcs_write64(APIC_ACCESS_ADDR, -1ull);
+
+		if (exec_control & SECONDARY_EXEC_ENCLS_EXITING)
+			vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
 
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
 	}
