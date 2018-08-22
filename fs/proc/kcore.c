@@ -440,19 +440,18 @@ static ssize_t
 read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 {
 	char *buf = file->private_data;
-	ssize_t acc = 0;
 	size_t size, tsz;
 	size_t elf_buflen;
 	int nphdr;
 	unsigned long start;
+	size_t orig_buflen = buflen;
+	int ret = 0;
 
 	down_read(&kclist_lock);
 	size = get_kcore_size(&nphdr, &elf_buflen);
 
-	if (buflen == 0 || *fpos >= size) {
-		up_read(&kclist_lock);
-		return 0;
-	}
+	if (buflen == 0 || *fpos >= size)
+		goto out;
 
 	/* trim buflen to not go beyond EOF */
 	if (buflen > size - *fpos)
@@ -465,28 +464,26 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 		tsz = elf_buflen - *fpos;
 		if (buflen < tsz)
 			tsz = buflen;
-		elf_buf = kzalloc(elf_buflen, GFP_ATOMIC);
+		elf_buf = kzalloc(elf_buflen, GFP_KERNEL);
 		if (!elf_buf) {
-			up_read(&kclist_lock);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out;
 		}
 		elf_kcore_store_hdr(elf_buf, nphdr, elf_buflen);
-		up_read(&kclist_lock);
 		if (copy_to_user(buffer, elf_buf + *fpos, tsz)) {
 			kfree(elf_buf);
-			return -EFAULT;
+			ret = -EFAULT;
+			goto out;
 		}
 		kfree(elf_buf);
 		buflen -= tsz;
 		*fpos += tsz;
 		buffer += tsz;
-		acc += tsz;
 
 		/* leave now if filled buffer already */
 		if (buflen == 0)
-			return acc;
-	} else
-		up_read(&kclist_lock);
+			goto out;
+	}
 
 	/*
 	 * Check to see if our file offset matches with any of
@@ -499,25 +496,29 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 	while (buflen) {
 		struct kcore_list *m;
 
-		down_read(&kclist_lock);
 		list_for_each_entry(m, &kclist_head, list) {
 			if (start >= m->addr && start < (m->addr+m->size))
 				break;
 		}
-		up_read(&kclist_lock);
 
 		if (&m->list == &kclist_head) {
-			if (clear_user(buffer, tsz))
-				return -EFAULT;
+			if (clear_user(buffer, tsz)) {
+				ret = -EFAULT;
+				goto out;
+			}
 		} else if (m->type == KCORE_VMALLOC) {
 			vread(buf, (char *)start, tsz);
 			/* we have to zero-fill user buffer even if no read */
-			if (copy_to_user(buffer, buf, tsz))
-				return -EFAULT;
+			if (copy_to_user(buffer, buf, tsz)) {
+				ret = -EFAULT;
+				goto out;
+			}
 		} else if (m->type == KCORE_USER) {
 			/* User page is handled prior to normal kernel page: */
-			if (copy_to_user(buffer, (char *)start, tsz))
-				return -EFAULT;
+			if (copy_to_user(buffer, (char *)start, tsz)) {
+				ret = -EFAULT;
+				goto out;
+			}
 		} else {
 			if (kern_addr_valid(start)) {
 				/*
@@ -525,26 +526,35 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 				 * hardened user copy kernel text checks.
 				 */
 				if (probe_kernel_read(buf, (void *) start, tsz)) {
-					if (clear_user(buffer, tsz))
-						return -EFAULT;
+					if (clear_user(buffer, tsz)) {
+						ret = -EFAULT;
+						goto out;
+					}
 				} else {
-					if (copy_to_user(buffer, buf, tsz))
-						return -EFAULT;
+					if (copy_to_user(buffer, buf, tsz)) {
+						ret = -EFAULT;
+						goto out;
+					}
 				}
 			} else {
-				if (clear_user(buffer, tsz))
-					return -EFAULT;
+				if (clear_user(buffer, tsz)) {
+					ret = -EFAULT;
+					goto out;
+				}
 			}
 		}
 		buflen -= tsz;
 		*fpos += tsz;
 		buffer += tsz;
-		acc += tsz;
 		start += tsz;
 		tsz = (buflen > PAGE_SIZE ? PAGE_SIZE : buflen);
 	}
 
-	return acc;
+out:
+	up_read(&kclist_lock);
+	if (ret)
+		return ret;
+	return orig_buflen - buflen;
 }
 
 
