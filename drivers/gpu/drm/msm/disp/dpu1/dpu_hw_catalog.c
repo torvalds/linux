@@ -29,6 +29,9 @@
 	BIT(DPU_SSPP_TS_PREFILL) | BIT(DPU_SSPP_TS_PREFILL_REC1) |\
 	BIT(DPU_SSPP_CDP) | BIT(DPU_SSPP_EXCL_RECT))
 
+#define DMA_CURSOR_SDM845_MASK \
+	(DMA_SDM845_MASK | BIT(DPU_SSPP_CURSOR))
+
 #define MIXER_SDM845_MASK \
 	(BIT(DPU_MIXER_SOURCESPLIT) | BIT(DPU_DIM_LAYER))
 
@@ -174,45 +177,35 @@ static const struct dpu_sspp_sub_blks sdm845_dma_sblk_1 = _DMA_SBLK("9", 2);
 static const struct dpu_sspp_sub_blks sdm845_dma_sblk_2 = _DMA_SBLK("10", 3);
 static const struct dpu_sspp_sub_blks sdm845_dma_sblk_3 = _DMA_SBLK("11", 4);
 
-#define SSPP_VIG_BLK(_name, _id, _base, _sblk, _xinid, _clkctrl) \
+#define SSPP_BLK(_name, _id, _base, _features, \
+		_sblk, _xinid, _type, _clkctrl) \
 	{ \
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0x1c8, \
-	.features = VIG_SDM845_MASK, \
+	.features = _features, \
 	.sblk = &_sblk, \
 	.xin_id = _xinid, \
-	.type = SSPP_TYPE_VIG, \
-	.clk_ctrl = _clkctrl \
-	}
-
-#define SSPP_DMA_BLK(_name, _id, _base, _sblk, _xinid, _clkctrl) \
-	{ \
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0x1c8, \
-	.features = DMA_SDM845_MASK, \
-	.sblk = &_sblk, \
-	.xin_id = _xinid, \
-	.type = SSPP_TYPE_DMA, \
+	.type = _type, \
 	.clk_ctrl = _clkctrl \
 	}
 
 static struct dpu_sspp_cfg sdm845_sspp[] = {
-	SSPP_VIG_BLK("sspp_0", SSPP_VIG0, 0x4000,
-		sdm845_vig_sblk_0, 0, DPU_CLK_CTRL_VIG0),
-	SSPP_VIG_BLK("sspp_1", SSPP_VIG1, 0x6000,
-		sdm845_vig_sblk_1, 4, DPU_CLK_CTRL_VIG1),
-	SSPP_VIG_BLK("sspp_2", SSPP_VIG2, 0x8000,
-		sdm845_vig_sblk_2, 8, DPU_CLK_CTRL_VIG2),
-	SSPP_VIG_BLK("sspp_3", SSPP_VIG3, 0xa000,
-		sdm845_vig_sblk_3, 12, DPU_CLK_CTRL_VIG3),
-	SSPP_DMA_BLK("sspp_8", SSPP_DMA0, 0x24000,
-		sdm845_dma_sblk_0, 1, DPU_CLK_CTRL_DMA0),
-	SSPP_DMA_BLK("sspp_9", SSPP_DMA1, 0x26000,
-		sdm845_dma_sblk_1, 5, DPU_CLK_CTRL_DMA1),
-	SSPP_DMA_BLK("sspp_10", SSPP_DMA2, 0x28000,
-		sdm845_dma_sblk_2, 9, DPU_CLK_CTRL_CURSOR0),
-	SSPP_DMA_BLK("sspp_11", SSPP_DMA3, 0x2a000,
-		sdm845_dma_sblk_3, 13, DPU_CLK_CTRL_CURSOR1),
+	SSPP_BLK("sspp_0", SSPP_VIG0, 0x4000, VIG_SDM845_MASK,
+		sdm845_vig_sblk_0, 0,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG0),
+	SSPP_BLK("sspp_1", SSPP_VIG1, 0x6000, VIG_SDM845_MASK,
+		sdm845_vig_sblk_1, 4,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG1),
+	SSPP_BLK("sspp_2", SSPP_VIG2, 0x8000, VIG_SDM845_MASK,
+		sdm845_vig_sblk_2, 8, SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG2),
+	SSPP_BLK("sspp_3", SSPP_VIG3, 0xa000, VIG_SDM845_MASK,
+		sdm845_vig_sblk_3, 12,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG3),
+	SSPP_BLK("sspp_8", SSPP_DMA0, 0x24000,  DMA_SDM845_MASK,
+		sdm845_dma_sblk_0, 1, SSPP_TYPE_DMA, DPU_CLK_CTRL_DMA0),
+	SSPP_BLK("sspp_9", SSPP_DMA1, 0x26000,  DMA_SDM845_MASK,
+		sdm845_dma_sblk_1, 5, SSPP_TYPE_DMA, DPU_CLK_CTRL_DMA1),
+	SSPP_BLK("sspp_10", SSPP_DMA2, 0x28000,  DMA_CURSOR_SDM845_MASK,
+		sdm845_dma_sblk_2, 9, SSPP_TYPE_DMA, DPU_CLK_CTRL_CURSOR0),
+	SSPP_BLK("sspp_11", SSPP_DMA3, 0x2a000,  DMA_CURSOR_SDM845_MASK,
+		sdm845_dma_sblk_3, 13, SSPP_TYPE_DMA, DPU_CLK_CTRL_CURSOR1),
 };
 
 /*************************************************************

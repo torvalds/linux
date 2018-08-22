@@ -2082,7 +2082,8 @@ static const struct drm_crtc_helper_funcs dpu_crtc_helper_funcs = {
 };
 
 /* initialize crtc */
-struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane)
+struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
+				struct drm_plane *cursor)
 {
 	struct drm_crtc *crtc = NULL;
 	struct dpu_crtc *dpu_crtc = NULL;
@@ -2119,7 +2120,7 @@ struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane)
 				dpu_crtc_frame_event_work);
 	}
 
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &dpu_crtc_funcs,
+	drm_crtc_init_with_planes(dev, crtc, plane, cursor, &dpu_crtc_funcs,
 				NULL);
 
 	drm_crtc_helper_add(crtc, &dpu_crtc_helper_funcs);

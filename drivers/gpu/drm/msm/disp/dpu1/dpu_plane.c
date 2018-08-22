@@ -1829,7 +1829,7 @@ bool is_dpu_plane_virtual(struct drm_plane *plane)
 
 /* initialize plane */
 struct drm_plane *dpu_plane_init(struct drm_device *dev,
-		uint32_t pipe, bool primary_plane,
+		uint32_t pipe, enum drm_plane_type type,
 		unsigned long possible_crtcs, u32 master_plane_id)
 {
 	struct drm_plane *plane = NULL, *master_plane = NULL;
@@ -1837,7 +1837,6 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 	struct dpu_plane *pdpu;
 	struct msm_drm_private *priv;
 	struct dpu_kms *kms;
-	enum drm_plane_type type;
 	int zpos_max = DPU_ZPOS_MAX;
 	int ret = -EINVAL;
 
@@ -1918,12 +1917,6 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 		goto clean_sspp;
 	}
 
-	if (pdpu->features & BIT(DPU_SSPP_CURSOR))
-		type = DRM_PLANE_TYPE_CURSOR;
-	else if (primary_plane)
-		type = DRM_PLANE_TYPE_PRIMARY;
-	else
-		type = DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &dpu_plane_funcs,
 				pdpu->formats, pdpu->nformats,
 				NULL, type, NULL);
