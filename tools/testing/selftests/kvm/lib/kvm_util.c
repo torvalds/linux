@@ -14,6 +14,7 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <linux/kernel.h>
 
 #define KVM_DEV_PATH "/dev/kvm"
 
