@@ -10,8 +10,6 @@
 
 #include "autofs_i.h"
 
-static unsigned long now;
-
 /* Check if a dentry can be expired */
 static inline int autofs_can_expire(struct dentry *dentry,
 				    unsigned long timeout, int do_now)
@@ -24,7 +22,7 @@ static inline int autofs_can_expire(struct dentry *dentry,
 
 	if (!do_now) {
 		/* Too young to die */
-		if (!timeout || time_after(ino->last_used + timeout, now))
+		if (!timeout || time_after(ino->last_used + timeout, jiffies))
 			return 0;
 	}
 	return 1;
@@ -307,7 +305,6 @@ struct dentry *autofs_expire_direct(struct super_block *sb,
 	if (!root)
 		return NULL;
 
-	now = jiffies;
 	timeout = sbi->exp_timeout;
 
 	if (!autofs_direct_busy(mnt, root, timeout, do_now)) {
@@ -442,7 +439,6 @@ struct dentry *autofs_expire_indirect(struct super_block *sb,
 	if (!root)
 		return NULL;
 
-	now = jiffies;
 	timeout = sbi->exp_timeout;
 
 	dentry = NULL;
@@ -575,7 +571,7 @@ int autofs_expire_run(struct super_block *sb,
 	spin_lock(&sbi->fs_lock);
 	ino = autofs_dentry_ino(dentry);
 	/* avoid rapid-fire expire attempts if expiry fails */
-	ino->last_used = now;
+	ino->last_used = jiffies;
 	ino->flags &= ~(AUTOFS_INF_EXPIRING|AUTOFS_INF_WANT_EXPIRE);
 	complete_all(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
@@ -605,7 +601,7 @@ int autofs_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 
 		spin_lock(&sbi->fs_lock);
 		/* avoid rapid-fire expire attempts if expiry fails */
-		ino->last_used = now;
+		ino->last_used = jiffies;
 		ino->flags &= ~(AUTOFS_INF_EXPIRING|AUTOFS_INF_WANT_EXPIRE);
 		complete_all(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
