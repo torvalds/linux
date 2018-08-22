@@ -85,7 +85,7 @@ static bool sig_task_ignored(struct task_struct *t, int sig, bool force)
 	return sig_handler_ignored(handler, sig);
 }
 
-static int sig_ignored(struct task_struct *t, int sig, bool force)
+static bool sig_ignored(struct task_struct *t, int sig, bool force)
 {
 	/*
 	 * Blocked signals are never ignored, since the
@@ -93,7 +93,7 @@ static int sig_ignored(struct task_struct *t, int sig, bool force)
 	 * unblocked.
 	 */
 	if (sigismember(&t->blocked, sig) || sigismember(&t->real_blocked, sig))
-		return 0;
+		return false;
 
 	/*
 	 * Tracers may want to know about even ignored signal unless it
@@ -101,7 +101,7 @@ static int sig_ignored(struct task_struct *t, int sig, bool force)
 	 * by SIGNAL_UNKILLABLE task.
 	 */
 	if (t->ptrace && sig != SIGKILL)
-		return 0;
+		return false;
 
 	return sig_task_ignored(t, sig, force);
 }
