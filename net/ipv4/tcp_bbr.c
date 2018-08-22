@@ -95,11 +95,10 @@ struct bbr {
 	u32     mode:3,		     /* current bbr_mode in state machine */
 		prev_ca_state:3,     /* CA state on previous ACK */
 		packet_conservation:1,  /* use packet conservation? */
-		restore_cwnd:1,	     /* decided to revert cwnd to old value */
 		round_start:1,	     /* start of packet-timed tx->ack round? */
 		idle_restart:1,	     /* restarting after idle? */
 		probe_rtt_round_done:1,  /* a BBR_PROBE_RTT round at 4 pkts? */
-		unused:12,
+		unused:13,
 		lt_is_sampling:1,    /* taking long-term ("LT") samples now? */
 		lt_rtt_cnt:7,	     /* round trips in long-term interval */
 		lt_use_bw:1;	     /* use lt_bw as our bw estimate? */
@@ -396,16 +395,10 @@ static bool bbr_set_cwnd_to_recover_or_restore(
 		cwnd = tcp_packets_in_flight(tp) + acked;
 	} else if (prev_state >= TCP_CA_Recovery && state < TCP_CA_Recovery) {
 		/* Exiting loss recovery; restore cwnd saved before recovery. */
-		bbr->restore_cwnd = 1;
+		cwnd = max(cwnd, bbr->prior_cwnd);
 		bbr->packet_conservation = 0;
 	}
 	bbr->prev_ca_state = state;
-
-	if (bbr->restore_cwnd) {
-		/* Restore cwnd after exiting loss recovery or PROBE_RTT. */
-		cwnd = max(cwnd, bbr->prior_cwnd);
-		bbr->restore_cwnd = 0;
-	}
 
 	if (bbr->packet_conservation) {
 		*new_cwnd = max(cwnd, tcp_packets_in_flight(tp) + acked);
@@ -748,6 +741,20 @@ static void bbr_check_drain(struct sock *sk, const struct rate_sample *rs)
 		bbr_reset_probe_bw_mode(sk);  /* we estimate queue is drained */
 }
 
+static void bbr_check_probe_rtt_done(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct bbr *bbr = inet_csk_ca(sk);
+
+	if (!(bbr->probe_rtt_done_stamp &&
+	      after(tcp_jiffies32, bbr->probe_rtt_done_stamp)))
+		return;
+
+	bbr->min_rtt_stamp = tcp_jiffies32;  /* wait a while until PROBE_RTT */
+	tp->snd_cwnd = max(tp->snd_cwnd, bbr->prior_cwnd);
+	bbr_reset_mode(sk);
+}
+
 /* The goal of PROBE_RTT mode is to have BBR flows cooperatively and
  * periodically drain the bottleneck queue, to converge to measure the true
  * min_rtt (unloaded propagation delay). This allows the flows to keep queues
@@ -806,12 +813,8 @@ static void bbr_update_min_rtt(struct sock *sk, const struct rate_sample *rs)
 		} else if (bbr->probe_rtt_done_stamp) {
 			if (bbr->round_start)
 				bbr->probe_rtt_round_done = 1;
-			if (bbr->probe_rtt_round_done &&
-			    after(tcp_jiffies32, bbr->probe_rtt_done_stamp)) {
-				bbr->min_rtt_stamp = tcp_jiffies32;
-				bbr->restore_cwnd = 1;  /* snap to prior_cwnd */
-				bbr_reset_mode(sk);
-			}
+			if (bbr->probe_rtt_round_done)
+				bbr_check_probe_rtt_done(sk);
 		}
 	}
 	/* Restart after idle ends only once we process a new S/ACK for data */
@@ -862,7 +865,6 @@ static void bbr_init(struct sock *sk)
 	bbr->has_seen_rtt = 0;
 	bbr_init_pacing_rate_from_rtt(sk);
 
-	bbr->restore_cwnd = 0;
 	bbr->round_start = 0;
 	bbr->idle_restart = 0;
 	bbr->full_bw_reached = 0;
