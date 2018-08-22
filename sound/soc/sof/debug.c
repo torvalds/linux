@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-/*
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
- *
- * Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
- *         Yan Wang <yan.wan@linux.intel.com>
- *
- * Generic debug routines used to export DSP MMIO and memories to userspace
- * for firmware debugging.
- */
+//
+// This file is provided under a dual BSD/GPLv2 license.  When using or
+// redistributing this file, you may do so under either license.
+//
+// Copyright(c) 2018 Intel Corporation. All rights reserved.
+//
+// Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
+//         Yan Wang <yan.wan@linux.intel.com>
+//
+// Generic debug routines used to export DSP MMIO and memories to userspace
+// for firmware debugging.
+//
 
 #include <linux/delay.h>
 #include <linux/fs.h>
