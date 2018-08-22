@@ -4763,8 +4763,8 @@ const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
  *
  * Return: 0 on success. -ENODATA.
  */
-int reg_query_regdb_wmm(char *alpha2, int freq, u32 *ptr,
-			struct ieee80211_wmm_rule *rule);
+int reg_query_regdb_wmm(char *alpha2, int freq,
+			struct ieee80211_reg_rule *rule);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification

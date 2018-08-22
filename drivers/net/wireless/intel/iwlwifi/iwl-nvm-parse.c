@@ -877,15 +877,12 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	const u8 *nvm_chan = cfg->nvm_type == IWL_NVM_EXT ?
 			     iwl_ext_nvm_channels : iwl_nvm_channels;
 	struct ieee80211_regdomain *regd, *copy_rd;
-	int size_of_regd, regd_to_copy, wmms_to_copy;
-	int size_of_wmms = 0;
+	int size_of_regd, regd_to_copy;
 	struct ieee80211_reg_rule *rule;
-	struct ieee80211_wmm_rule *wmm_rule, *d_wmm, *s_wmm;
 	struct regdb_ptrs *regdb_ptrs;
 	enum nl80211_band band;
 	int center_freq, prev_center_freq = 0;
-	int valid_rules = 0, n_wmms = 0;
-	int i;
+	int valid_rules = 0;
 	bool new_rule;
 	int max_num_ch = cfg->nvm_type == IWL_NVM_EXT ?
 			 IWL_NVM_NUM_CHANNELS_EXT : IWL_NVM_NUM_CHANNELS;
@@ -904,11 +901,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		sizeof(struct ieee80211_regdomain) +
 		num_of_ch * sizeof(struct ieee80211_reg_rule);
 
-	if (geo_info & GEO_WMM_ETSI_5GHZ_INFO)
-		size_of_wmms =
-			num_of_ch * sizeof(struct ieee80211_wmm_rule);
-
-	regd = kzalloc(size_of_regd + size_of_wmms, GFP_KERNEL);
+	regd = kzalloc(size_of_regd, GFP_KERNEL);
 	if (!regd)
 		return ERR_PTR(-ENOMEM);
 
@@ -921,8 +914,6 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	/* set alpha2 from FW. */
 	regd->alpha2[0] = fw_mcc >> 8;
 	regd->alpha2[1] = fw_mcc & 0xff;
-
-	wmm_rule = (struct ieee80211_wmm_rule *)((u8 *)regd + size_of_regd);
 
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
 		ch_flags = (u16)__le32_to_cpup(channels + ch_idx);
@@ -977,26 +968,10 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		    band == NL80211_BAND_2GHZ)
 			continue;
 
-		if (!reg_query_regdb_wmm(regd->alpha2, center_freq,
-					 &regdb_ptrs[n_wmms].token, wmm_rule)) {
-			/* Add only new rules */
-			for (i = 0; i < n_wmms; i++) {
-				if (regdb_ptrs[i].token ==
-				    regdb_ptrs[n_wmms].token) {
-					rule->wmm_rule = regdb_ptrs[i].rule;
-					break;
-				}
-			}
-			if (i == n_wmms) {
-				rule->wmm_rule = wmm_rule;
-				regdb_ptrs[n_wmms++].rule = wmm_rule;
-				wmm_rule++;
-			}
-		}
+		reg_query_regdb_wmm(regd->alpha2, center_freq, rule);
 	}
 
 	regd->n_reg_rules = valid_rules;
-	regd->n_wmm_rules = n_wmms;
 
 	/*
 	 * Narrow down regdom for unused regulatory rules to prevent hole
@@ -1005,28 +980,13 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	regd_to_copy = sizeof(struct ieee80211_regdomain) +
 		valid_rules * sizeof(struct ieee80211_reg_rule);
 
-	wmms_to_copy = sizeof(struct ieee80211_wmm_rule) * n_wmms;
-
-	copy_rd = kzalloc(regd_to_copy + wmms_to_copy, GFP_KERNEL);
+	copy_rd = kzalloc(regd_to_copy, GFP_KERNEL);
 	if (!copy_rd) {
 		copy_rd = ERR_PTR(-ENOMEM);
 		goto out;
 	}
 
 	memcpy(copy_rd, regd, regd_to_copy);
-	memcpy((u8 *)copy_rd + regd_to_copy, (u8 *)regd + size_of_regd,
-	       wmms_to_copy);
-
-	d_wmm = (struct ieee80211_wmm_rule *)((u8 *)copy_rd + regd_to_copy);
-	s_wmm = (struct ieee80211_wmm_rule *)((u8 *)regd + size_of_regd);
-
-	for (i = 0; i < regd->n_reg_rules; i++) {
-		if (!regd->reg_rules[i].wmm_rule)
-			continue;
-
-		copy_rd->reg_rules[i].wmm_rule = d_wmm +
-			(regd->reg_rules[i].wmm_rule - s_wmm);
-	}
 
 out:
 	kfree(regdb_ptrs);

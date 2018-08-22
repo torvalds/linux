@@ -667,13 +667,13 @@ static int nl80211_msg_put_wmm_rules(struct sk_buff *msg,
 			goto nla_put_failure;
 
 		if (nla_put_u16(msg, NL80211_WMMR_CW_MIN,
-				rule->wmm_rule->client[j].cw_min) ||
+				rule->wmm_rule.client[j].cw_min) ||
 		    nla_put_u16(msg, NL80211_WMMR_CW_MAX,
-				rule->wmm_rule->client[j].cw_max) ||
+				rule->wmm_rule.client[j].cw_max) ||
 		    nla_put_u8(msg, NL80211_WMMR_AIFSN,
-			       rule->wmm_rule->client[j].aifsn) ||
+			       rule->wmm_rule.client[j].aifsn) ||
 		    nla_put_u8(msg, NL80211_WMMR_TXOP,
-			       rule->wmm_rule->client[j].cot))
+			       rule->wmm_rule.client[j].cot))
 			goto nla_put_failure;
 
 		nla_nest_end(msg, nl_wmm_rule);
@@ -766,7 +766,7 @@ static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 		const struct ieee80211_reg_rule *rule =
 			freq_reg_info(wiphy, chan->center_freq);
 
-		if (!IS_ERR(rule) && rule->wmm_rule) {
+		if (!IS_ERR_OR_NULL(rule) && rule->has_wmm) {
 			if (nl80211_msg_put_wmm_rules(msg, rule))
 				goto nla_put_failure;
 		}
