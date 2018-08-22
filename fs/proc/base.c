@@ -463,7 +463,7 @@ static int lstats_show_proc(struct seq_file *m, void *v)
 	if (!task)
 		return -ESRCH;
 	seq_puts(m, "Latency Top version : v0.1\n");
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < LT_SAVECOUNT; i++) {
 		struct latency_record *lr = &task->latency_record[i];
 		if (lr->backtrace[0]) {
 			int q;
