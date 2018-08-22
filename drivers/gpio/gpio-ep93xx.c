@@ -17,8 +17,6 @@
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
 #include <linux/bitops.h>
-/* FIXME: this is here for gpio_to_irq() - get rid of this! */
-#include <linux/gpio.h>
 
 #define EP93XX_GPIO_F_INT_STATUS 0x5c
 #define EP93XX_GPIO_A_INT_STATUS 0xa0
@@ -29,6 +27,15 @@
 
 /* Maximum value for irq capable line identifiers */
 #define EP93XX_GPIO_LINE_MAX_IRQ 23
+
+/*
+ * IRQ numbers used by this driver is 64 ..87
+ *
+ * Map GPIO A0..A7  (0..7)  to irq 64..71,
+ *          B0..B7  (7..15) to irq 72..79, and
+ *          F0..F7 (16..24) to irq 80..87.
+ */
+static unsigned int ep93xx_gpio_irq_base[3] = { 64, 72, 80 };
 
 struct ep93xx_gpio {
 	void __iomem		*base;
@@ -112,13 +119,13 @@ static void ep93xx_gpio_ab_irq_handler(struct irq_desc *desc)
 
 	stat = readb(epg->base + EP93XX_GPIO_A_INT_STATUS);
 	for_each_set_bit(offset, &stat, 8) {
-		int gpio_irq = gpio_to_irq(0) + offset;
+		int gpio_irq = ep93xx_gpio_irq_base[0] + offset;
 		generic_handle_irq(gpio_irq);
 	}
 
 	stat = readb(epg->base + EP93XX_GPIO_B_INT_STATUS);
 	for_each_set_bit(offset, &stat, 8) {
-		int gpio_irq = gpio_to_irq(8) + offset;
+		int gpio_irq = ep93xx_gpio_irq_base[1] + offset;
 		generic_handle_irq(gpio_irq);
 	}
 
@@ -130,12 +137,12 @@ static void ep93xx_gpio_f_irq_handler(struct irq_desc *desc)
 	/*
 	 * map discontiguous hw irq range to continuous sw irq range:
 	 *
-	 *  IRQ_EP93XX_GPIO{0..7}MUX -> gpio_to_irq(EP93XX_GPIO_LINE_F({0..7})
+	 *  IRQ_EP93XX_GPIO{0..7}MUX -> EP93XX_GPIO_LINE_F{0..7}
 	 */
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	unsigned int irq = irq_desc_get_irq(desc);
 	int port_f_idx = ((irq + 1) & 7) ^ 4; /* {19..22,47..50} -> {0..7} */
-	int gpio_irq = gpio_to_irq(16) + port_f_idx;
+	int gpio_irq = ep93xx_gpio_irq_base[2] + port_f_idx;
 
 	chained_irq_enter(irqchip, desc);
 	generic_handle_irq(gpio_irq);
@@ -268,27 +275,24 @@ static void ep93xx_gpio_init_irq(struct platform_device *pdev,
 	int i;
 
 	/* The A bank */
-	for (gpio_irq = gpio_to_irq(0);
-	     gpio_irq < gpio_to_irq(8);
-	     gpio_irq++) {
+	for (i = 0; i < 8; i++) {
+		gpio_irq = ep93xx_gpio_irq_base[0] + i;
 		irq_set_chip_data(gpio_irq, &epg->gc[0]);
 		irq_set_chip_and_handler(gpio_irq, &ep93xx_gpio_irq_chip,
 					 handle_level_irq);
 		irq_clear_status_flags(gpio_irq, IRQ_NOREQUEST);
 	}
 	/* The B bank */
-	for (gpio_irq = gpio_to_irq(8);
-	     gpio_irq < gpio_to_irq(16);
-	     gpio_irq++) {
+	for (i = 0; i < 8; i++) {
+		gpio_irq = ep93xx_gpio_irq_base[1] + i;
 		irq_set_chip_data(gpio_irq, &epg->gc[1]);
 		irq_set_chip_and_handler(gpio_irq, &ep93xx_gpio_irq_chip,
 					 handle_level_irq);
 		irq_clear_status_flags(gpio_irq, IRQ_NOREQUEST);
 	}
 	/* The F bank */
-	for (gpio_irq = gpio_to_irq(16);
-	     gpio_irq < gpio_to_irq(EP93XX_GPIO_LINE_MAX_IRQ);
-	     gpio_irq++) {
+	for (i = 0; i < 8; i++) {
+		gpio_irq = ep93xx_gpio_irq_base[2] + i;
 		irq_set_chip_data(gpio_irq, &epg->gc[5]);
 		irq_set_chip_and_handler(gpio_irq, &ep93xx_gpio_irq_chip,
 					 handle_level_irq);
@@ -350,19 +354,15 @@ static int ep93xx_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 	return 0;
 }
 
-/*
- * Map GPIO A0..A7  (0..7)  to irq 64..71,
- *          B0..B7  (7..15) to irq 72..79, and
- *          F0..F7 (16..24) to irq 80..87.
- */
-static int ep93xx_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+static int ep93xx_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
-	int gpio = chip->base + offset;
+	int port = ep93xx_gpio_port(gc);
 
-	if (gpio > EP93XX_GPIO_LINE_MAX_IRQ)
+	/* Those are the ports supporting IRQ */
+	if (port != 0 && port != 1 && port != 5)
 		return -EINVAL;
 
-	return 64 + gpio;
+	return ep93xx_gpio_irq_base[port] + offset;
 }
 
 static int ep93xx_gpio_add_bank(struct gpio_chip *gc, struct device *dev,
