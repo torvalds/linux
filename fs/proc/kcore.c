@@ -118,7 +118,7 @@ static void __kcore_update_ram(struct list_head *list)
 	LIST_HEAD(garbage);
 
 	write_lock(&kclist_lock);
-	if (kcore_need_update) {
+	if (xchg(&kcore_need_update, 0)) {
 		list_for_each_entry_safe(pos, tmp, &kclist_head, list) {
 			if (pos->type == KCORE_RAM
 				|| pos->type == KCORE_VMEMMAP)
@@ -127,7 +127,6 @@ static void __kcore_update_ram(struct list_head *list)
 		list_splice_tail(list, &kclist_head);
 	} else
 		list_splice(list, &garbage);
-	kcore_need_update = 0;
 	proc_root_kcore->size = get_kcore_size(&nphdr, &size);
 	write_unlock(&kclist_lock);
 
@@ -593,9 +592,8 @@ static int __meminit kcore_callback(struct notifier_block *self,
 	switch (action) {
 	case MEM_ONLINE:
 	case MEM_OFFLINE:
-		write_lock(&kclist_lock);
 		kcore_need_update = 1;
-		write_unlock(&kclist_lock);
+		break;
 	}
 	return NOTIFY_OK;
 }
