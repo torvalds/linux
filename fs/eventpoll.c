@@ -1746,10 +1746,11 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout)
 {
 	int res = 0, eavail, timed_out = 0;
-	unsigned long flags;
 	u64 slack = 0;
 	wait_queue_entry_t wait;
 	ktime_t expires, *to = NULL;
+
+	lockdep_assert_irqs_enabled();
 
 	if (timeout > 0) {
 		struct timespec64 end_time = ep_set_mstimeout(timeout);
@@ -1763,7 +1764,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		 * caller specified a non blocking operation.
 		 */
 		timed_out = 1;
-		spin_lock_irqsave(&ep->wq.lock, flags);
+		spin_lock_irq(&ep->wq.lock);
 		goto check_events;
 	}
 
@@ -1772,7 +1773,7 @@ fetch_events:
 	if (!ep_events_available(ep))
 		ep_busy_loop(ep, timed_out);
 
-	spin_lock_irqsave(&ep->wq.lock, flags);
+	spin_lock_irq(&ep->wq.lock);
 
 	if (!ep_events_available(ep)) {
 		/*
@@ -1814,11 +1815,11 @@ fetch_events:
 				break;
 			}
 
-			spin_unlock_irqrestore(&ep->wq.lock, flags);
+			spin_unlock_irq(&ep->wq.lock);
 			if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS))
 				timed_out = 1;
 
-			spin_lock_irqsave(&ep->wq.lock, flags);
+			spin_lock_irq(&ep->wq.lock);
 		}
 
 		__remove_wait_queue(&ep->wq, &wait);
@@ -1828,7 +1829,7 @@ check_events:
 	/* Is it worth to try to dig for events ? */
 	eavail = ep_events_available(ep);
 
-	spin_unlock_irqrestore(&ep->wq.lock, flags);
+	spin_unlock_irq(&ep->wq.lock);
 
 	/*
 	 * Try to transfer events to user space. In case we get 0 events and
