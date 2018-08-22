@@ -353,6 +353,7 @@ int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
 int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 			   unsigned mqd_size);
 void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev);
+int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev);
 
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev);
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev);

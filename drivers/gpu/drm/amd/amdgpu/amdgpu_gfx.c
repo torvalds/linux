@@ -431,6 +431,25 @@ void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
 			      &ring->mqd_ptr);
 }
 
+int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_ring *kiq_ring = &kiq->ring;
+	int i;
+
+	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
+		return -EINVAL;
+
+	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
+					adev->gfx.num_compute_rings))
+		return -ENOMEM;
+
+	for (i = 0; i < adev->gfx.num_compute_rings; i++)
+		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.compute_ring[i], true);
+
+	return amdgpu_ring_test_ring(kiq_ring);
+}
+
 /* amdgpu_gfx_off_ctrl - Handle gfx off feature enable/disable
  *
  * @adev: amdgpu_device pointer
