@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Makefile for the phy drivers.
+#
+
+obj-$(CONFIG_PHY_UNIPHIER_USB3)	+= phy-uniphier-usb3hs.o phy-uniphier-usb3ss.o

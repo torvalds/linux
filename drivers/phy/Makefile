@@ -22,5 +22,6 @@ obj-y					+= broadcom/	\
 					   qualcomm/	\
 					   ralink/	\
 					   samsung/	\
+					   socionext/	\
 					   st/		\
 					   ti/

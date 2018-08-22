@@ -1,0 +1,12 @@
+#
+# PHY drivers for Socionext platforms.
+#
+
+config PHY_UNIPHIER_USB3
+	tristate "UniPhier USB3 PHY driver"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support USB PHY implemented in USB3 controller
+	  on UniPhier SoCs. This controller supports USB3.0 and lower speed.
