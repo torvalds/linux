@@ -3829,6 +3829,26 @@ sub process {
 			     "type '$tmp' should be specified in [[un]signed] [short|int|long|long long] order\n" . $herecurr);
 		}
 
+# check for unnecessary <signed> int declarations of short/long/long long
+		while ($sline =~ m{\b($TypeMisordered(\s*\*)*|$C90_int_types)\b}g) {
+			my $type = trim($1);
+			next if ($type !~ /\bint\b/);
+			next if ($type !~ /\b(?:short|long\s+long|long)\b/);
+			my $new_type = $type;
+			$new_type =~ s/\b\s*int\s*\b/ /;
+			$new_type =~ s/\b\s*(?:un)?signed\b\s*/ /;
+			$new_type =~ s/^const\s+//;
+			$new_type = "unsigned $new_type" if ($type =~ /\bunsigned\b/);
+			$new_type = "const $new_type" if ($type =~ /^const\b/);
+			$new_type =~ s/\s+/ /g;
+			$new_type = trim($new_type);
+			if (WARN("UNNECESSARY_INT",
+				 "Prefer '$new_type' over '$type' as the int is unnecessary\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/\b\Q$type\E\b/$new_type/;
+			}
+		}
+
 # check for static const char * arrays.
 		if ($line =~ /\bstatic\s+const\s+char\s*\*\s*(\w+)\s*\[\s*\]\s*=\s*/) {
 			WARN("STATIC_CONST_CHAR_ARRAY",
