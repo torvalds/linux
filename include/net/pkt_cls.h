@@ -303,7 +303,7 @@ static inline void tcf_exts_put_net(struct tcf_exts *exts)
 	for (i = 0; i < TCA_ACT_MAX_PRIO && ((a) = (exts)->actions[i]); i++)
 #else
 #define tcf_exts_for_each_action(i, a, exts) \
-	for (; 0; )
+	for (; 0; (void)(i), (void)(a), (void)(exts))
 #endif
 
 static inline void
