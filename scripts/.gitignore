@@ -3,6 +3,7 @@ bin2c
 kallsyms
 unifdef
 recordmcount
+resource_tool
 sorttable
 asn1_compiler
 extract-cert
