@@ -138,7 +138,7 @@ static inline int ipc_get_maxidx(struct ipc_ids *ids)
  * refcount is initialized by ipc_addid(), before that point call_rcu()
  * must be used.
  */
-int ipc_rcu_getref(struct kern_ipc_perm *ptr);
+bool ipc_rcu_getref(struct kern_ipc_perm *ptr);
 void ipc_rcu_putref(struct kern_ipc_perm *ptr,
 			void (*func)(struct rcu_head *head));
 

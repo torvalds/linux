@@ -462,7 +462,7 @@ void ipc_set_key_private(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 	ipcp->key = IPC_PRIVATE;
 }
 
-int ipc_rcu_getref(struct kern_ipc_perm *ptr)
+bool ipc_rcu_getref(struct kern_ipc_perm *ptr)
 {
 	return refcount_inc_not_zero(&ptr->refcount);
 }
