@@ -834,7 +834,7 @@ static int nilfs_setup_super(struct super_block *sb, int is_mount)
 		sbp[0]->s_max_mnt_count = cpu_to_le16(NILFS_DFL_MAX_MNT_COUNT);
 
 	sbp[0]->s_mnt_count = cpu_to_le16(mnt_count + 1);
-	sbp[0]->s_mtime = cpu_to_le64(get_seconds());
+	sbp[0]->s_mtime = cpu_to_le64(ktime_get_real_seconds());
 
 skip_mount_setup:
 	sbp[0]->s_state =
