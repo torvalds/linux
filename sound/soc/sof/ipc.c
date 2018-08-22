@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-/*
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
- *
- * Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
- *
- * Generic IPC layer that can work over MMIO and SPI/I2C. PHY layer provided
- * by platform driver code.
- */
+//
+// This file is provided under a dual BSD/GPLv2 license.  When using or
+// redistributing this file, you may do so under either license.
+//
+// Copyright(c) 2018 Intel Corporation. All rights reserved.
+//
+// Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
+//
+// Generic IPC layer that can work over MMIO and SPI/I2C. PHY layer provided
+// by platform driver code.
+//
 
 #include <linux/types.h>
 #include <linux/kernel.h>
