@@ -65,6 +65,7 @@ static void usage(void)
 "    -o type=fstype         filesystem type\n"
 "    -o mb=memory in mb     ammount of memory to allocate\n"
 "    -o part=parition       partition to mount\n"
+"    -o ro                  open file read-only\n"
 "    -o opts=options        mount options (use \\ to escape , and =)\n"
 );
 }
