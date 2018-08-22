@@ -16,10 +16,9 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
+#include <linux/bitops.h>
 /* FIXME: this is here for gpio_to_irq() - get rid of this! */
 #include <linux/gpio.h>
-
-#define irq_to_gpio(irq)	((irq) - gpio_to_irq(0))
 
 #define EP93XX_GPIO_F_INT_STATUS 0x5c
 #define EP93XX_GPIO_A_INT_STATUS 0xa0
@@ -151,9 +150,8 @@ static void ep93xx_gpio_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
-	int line = irq_to_gpio(d->irq);
-	int port = line >> 3;
-	int port_mask = 1 << (line & 7);
+	int port = ep93xx_gpio_port(gc);
+	int port_mask = BIT(d->irq & 7);
 
 	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
@@ -167,9 +165,8 @@ static void ep93xx_gpio_irq_mask_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
-	int line = irq_to_gpio(d->irq);
-	int port = line >> 3;
-	int port_mask = 1 << (line & 7);
+	int port = ep93xx_gpio_port(gc);
+	int port_mask = BIT(d->irq & 7);
 
 	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH)
 		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
@@ -184,10 +181,9 @@ static void ep93xx_gpio_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
-	int line = irq_to_gpio(d->irq);
-	int port = line >> 3;
+	int port = ep93xx_gpio_port(gc);
 
-	gpio_int_unmasked[port] &= ~(1 << (line & 7));
+	gpio_int_unmasked[port] &= ~BIT(d->irq & 7);
 	ep93xx_gpio_update_int_params(epg, port);
 }
 
@@ -195,10 +191,9 @@ static void ep93xx_gpio_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
-	int line = irq_to_gpio(d->irq);
-	int port = line >> 3;
+	int port = ep93xx_gpio_port(gc);
 
-	gpio_int_unmasked[port] |= 1 << (line & 7);
+	gpio_int_unmasked[port] |= BIT(d->irq & 7);
 	ep93xx_gpio_update_int_params(epg, port);
 }
 
@@ -211,12 +206,12 @@ static int ep93xx_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
-	const int gpio = irq_to_gpio(d->irq);
-	const int port = gpio >> 3;
-	const int port_mask = 1 << (gpio & 7);
+	int port = ep93xx_gpio_port(gc);
+	int offset = d->irq & 7;
+	int port_mask = BIT(offset);
 	irq_flow_handler_t handler;
 
-	gpio_direction_input(gpio);
+	gc->direction_input(gc, offset);
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -242,7 +237,7 @@ static int ep93xx_gpio_irq_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_EDGE_BOTH:
 		gpio_int_type1[port] |= port_mask;
 		/* set initial polarity based on current input level */
-		if (gpio_get_value(gpio))
+		if (gc->get(gc, offset))
 			gpio_int_type2[port] &= ~port_mask; /* falling */
 		else
 			gpio_int_type2[port] |= port_mask; /* rising */
