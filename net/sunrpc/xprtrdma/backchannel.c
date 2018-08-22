@@ -51,7 +51,6 @@ static int rpcrdma_bc_setup_reqs(struct rpcrdma_xprt *r_xprt,
 		rqst = &req->rl_slot;
 
 		rqst->rq_xprt = xprt;
-		INIT_LIST_HEAD(&rqst->rq_list);
 		INIT_LIST_HEAD(&rqst->rq_bc_list);
 		__set_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state);
 		spin_lock_bh(&xprt->bc_pa_lock);

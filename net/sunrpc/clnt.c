@@ -1962,6 +1962,11 @@ call_transmit(struct rpc_task *task)
 			return;
 		}
 	}
+
+	/* Add task to reply queue before transmission to avoid races */
+	if (rpc_reply_expected(task))
+		xprt_request_enqueue_receive(task);
+
 	if (!xprt_prepare_transmit(task))
 		return;
 	task->tk_action = call_transmit_status;
