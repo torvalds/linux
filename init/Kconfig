@@ -436,7 +436,7 @@ config BSD_PROCESS_ACCT_V3
 	help
 	  If you say Y here, the process accounting information is written
 	  in a new file format that also logs the process IDs of each
-	  process and it's parent. Note that this file format is incompatible
+	  process and its parent. Note that this file format is incompatible
 	  with previous v0/v1/v2 file formats, so you will need updated tools
 	  for processing it. A preliminary version of these tools is available
 	  at <http://www.gnu.org/software/acct/>.
@@ -1702,7 +1702,7 @@ config MMAP_ALLOW_UNINITIALIZED
 	default n
 	help
 	  Normally, and according to the Linux spec, anonymous memory obtained
-	  from mmap() has it's contents cleared before it is passed to
+	  from mmap() has its contents cleared before it is passed to
 	  userspace.  Enabling this config option allows you to request that
 	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
 	  providing a huge performance boost.  If this option is not enabled,
