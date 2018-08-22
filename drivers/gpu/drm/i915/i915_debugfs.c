@@ -2708,6 +2708,8 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->psr.lock);
+	seq_printf(m, "PSR mode: %s\n",
+		   dev_priv->psr.psr2_enabled ? "PSR2" : "PSR1");
 	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->psr.enabled));
 	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
 		   dev_priv->psr.busy_frontbuffer_bits);
