@@ -505,13 +505,15 @@ flush_signal_handlers(struct task_struct *t, int force_default)
 	}
 }
 
-int unhandled_signal(struct task_struct *tsk, int sig)
+bool unhandled_signal(struct task_struct *tsk, int sig)
 {
 	void __user *handler = tsk->sighand->action[sig-1].sa.sa_handler;
 	if (is_global_init(tsk))
-		return 1;
+		return true;
+
 	if (handler != SIG_IGN && handler != SIG_DFL)
-		return 0;
+		return false;
+
 	/* if ptraced, let the tracer determine */
 	return !tsk->ptrace;
 }

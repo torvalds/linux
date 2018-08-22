@@ -287,7 +287,7 @@ static inline void disallow_signal(int sig)
 
 extern struct kmem_cache *sighand_cachep;
 
-int unhandled_signal(struct task_struct *tsk, int sig);
+extern bool unhandled_signal(struct task_struct *tsk, int sig);
 
 /*
  * In POSIX a signal is sent either to a specific thread (Linux task)
