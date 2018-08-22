@@ -144,4 +144,43 @@ allocate_kvm_dirty_log(struct kvm_userspace_memory_region *region);
 
 int vm_create_device(struct kvm_vm *vm, struct kvm_create_device *cd);
 
+#define GUEST_PORT_SYNC         0x1000
+#define GUEST_PORT_ABORT        0x1001
+#define GUEST_PORT_DONE         0x1002
+
+static inline void __exit_to_l0(uint16_t port, uint64_t arg0, uint64_t arg1)
+{
+	__asm__ __volatile__("in %[port], %%al"
+			     :
+			     : [port]"d"(port), "D"(arg0), "S"(arg1)
+			     : "rax");
+}
+
+/*
+ * Allows to pass three arguments to the host: port is 16bit wide,
+ * arg0 & arg1 are 64bit wide
+ */
+#define GUEST_SYNC_ARGS(_port, _arg0, _arg1) \
+	__exit_to_l0(_port, (uint64_t) (_arg0), (uint64_t) (_arg1))
+
+#define GUEST_ASSERT(_condition) do {				\
+		if (!(_condition))				\
+			GUEST_SYNC_ARGS(GUEST_PORT_ABORT,	\
+					"Failed guest assert: "	\
+					#_condition, __LINE__);	\
+	} while (0)
+
+#define GUEST_SYNC(stage)  GUEST_SYNC_ARGS(GUEST_PORT_SYNC, "hello", stage)
+
+#define GUEST_DONE()  GUEST_SYNC_ARGS(GUEST_PORT_DONE, 0, 0)
+
+struct guest_args {
+	uint64_t arg0;
+	uint64_t arg1;
+	uint16_t port;
+} __attribute__ ((packed));
+
+void guest_args_read(struct kvm_vm *vm, uint32_t vcpu_id,
+		     struct guest_args *args);
+
 #endif /* SELFTEST_KVM_UTIL_H */

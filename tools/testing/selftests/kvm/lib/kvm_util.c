@@ -1536,3 +1536,17 @@ void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	return addr_gpa2hva(vm, addr_gva2gpa(vm, gva));
 }
+
+void guest_args_read(struct kvm_vm *vm, uint32_t vcpu_id,
+		     struct guest_args *args)
+{
+	struct kvm_run *run = vcpu_state(vm, vcpu_id);
+	struct kvm_regs regs;
+
+	memset(&regs, 0, sizeof(regs));
+	vcpu_regs_get(vm, vcpu_id, &regs);
+
+	args->port = run->io.port;
+	args->arg0 = regs.rdi;
+	args->arg1 = regs.rsi;
+}
