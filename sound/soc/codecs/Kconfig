@@ -82,6 +82,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ES7241
 	select SND_SOC_GTM601
 	select SND_SOC_HDAC_HDMI
+	select SND_SOC_HDAC_HDA
 	select SND_SOC_ICS43432
 	select SND_SOC_INNO_RK3036
 	select SND_SOC_ISABELLE if I2C
@@ -614,6 +615,10 @@ config SND_SOC_HDAC_HDMI
 	select SND_HDA_EXT_CORE
 	select SND_PCM_ELD
 	select HDMI
+
+config SND_SOC_HDAC_HDA
+	tristate
+	select SND_HDA
 
 config SND_SOC_ICS43432
 	tristate
