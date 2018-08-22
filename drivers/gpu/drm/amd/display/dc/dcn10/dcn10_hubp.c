@@ -974,6 +974,9 @@ void hubp1_read_state(struct hubp *hubp)
 	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE_HIGH,
 			SURFACE_EARLIEST_INUSE_ADDRESS_HIGH, &s->inuse_addr_hi);
 
+	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE,
+			SURFACE_EARLIEST_INUSE_ADDRESS, &s->inuse_addr_lo);
+
 	REG_GET_2(DCSURF_PRI_VIEWPORT_DIMENSION,
 			PRI_VIEWPORT_WIDTH, &s->viewport_width,
 			PRI_VIEWPORT_HEIGHT, &s->viewport_height);

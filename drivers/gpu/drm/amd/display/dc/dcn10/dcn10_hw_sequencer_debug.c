@@ -105,7 +105,7 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 	return bufSize - remaining_buffer;
 }
 
-static unsigned int dcn10_get_hubp_states(struct dc *dc, char *pBuf, unsigned int bufSize)
+static unsigned int dcn10_get_hubp_states(struct dc *dc, char *pBuf, unsigned int bufSize, bool invarOnly)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
@@ -117,9 +117,15 @@ static unsigned int dcn10_get_hubp_states(struct dc *dc, char *pBuf, unsigned in
 	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
 
-	chars_printed = snprintf_count(pBuf, remaining_buffer, "instance,format,addr_hi,width,height,rotation,mirror,sw_mode,dcc_en,blank_en,ttu_dis,underflow,"
-		"min_ttu_vblank,qos_low_wm,qos_high_wm"
-		"\n");
+	if (invarOnly)
+		chars_printed = snprintf_count(pBuf, remaining_buffer, "instance,format,addr_hi,width,height,rotation,mirror,sw_mode,dcc_en,blank_en,ttu_dis,underflow,"
+			"min_ttu_vblank,qos_low_wm,qos_high_wm"
+			"\n");
+	else
+		chars_printed = snprintf_count(pBuf, remaining_buffer, "instance,format,addr_hi,addr_lo,width,height,rotation,mirror,sw_mode,dcc_en,blank_en,ttu_dis,underflow,"
+					"min_ttu_vblank,qos_low_wm,qos_high_wm"
+					"\n");
+
 	remaining_buffer -= chars_printed;
 	pBuf += chars_printed;
 
@@ -130,24 +136,45 @@ static unsigned int dcn10_get_hubp_states(struct dc *dc, char *pBuf, unsigned in
 		hubp->funcs->hubp_read_state(hubp);
 
 		if (!s->blank_en) {
-			chars_printed = snprintf_count(pBuf, remaining_buffer, "%x,%x,%x,%d,%d,%x,%x,%x,%x,%x,%x,%x,"
-				"%d.%03d,%d.%03d,%d.%03d"
-				"\n",
-				hubp->inst,
-				s->pixel_format,
-				s->inuse_addr_hi,
-				s->viewport_width,
-				s->viewport_height,
-				s->rotation_angle,
-				s->h_mirror_en,
-				s->sw_mode,
-				s->dcc_en,
-				s->blank_en,
-				s->ttu_disable,
-				s->underflow_status,
-				(s->min_ttu_vblank * frac) / ref_clk_mhz / frac, (s->min_ttu_vblank * frac) / ref_clk_mhz % frac,
-				(s->qos_level_low_wm * frac) / ref_clk_mhz / frac, (s->qos_level_low_wm * frac) / ref_clk_mhz % frac,
-				(s->qos_level_high_wm * frac) / ref_clk_mhz / frac, (s->qos_level_high_wm * frac) / ref_clk_mhz % frac);
+			if (invarOnly)
+				chars_printed = snprintf_count(pBuf, remaining_buffer, "%x,%x,%x,%d,%d,%x,%x,%x,%x,%x,%x,%x,"
+					"%d.%03d,%d.%03d,%d.%03d"
+					"\n",
+					hubp->inst,
+					s->pixel_format,
+					s->inuse_addr_hi,
+					s->viewport_width,
+					s->viewport_height,
+					s->rotation_angle,
+					s->h_mirror_en,
+					s->sw_mode,
+					s->dcc_en,
+					s->blank_en,
+					s->ttu_disable,
+					s->underflow_status,
+					(s->min_ttu_vblank * frac) / ref_clk_mhz / frac, (s->min_ttu_vblank * frac) / ref_clk_mhz % frac,
+					(s->qos_level_low_wm * frac) / ref_clk_mhz / frac, (s->qos_level_low_wm * frac) / ref_clk_mhz % frac,
+					(s->qos_level_high_wm * frac) / ref_clk_mhz / frac, (s->qos_level_high_wm * frac) / ref_clk_mhz % frac);
+			else
+				chars_printed = snprintf_count(pBuf, remaining_buffer, "%x,%x,%x,%x,%d,%d,%x,%x,%x,%x,%x,%x,%x,"
+					"%d.%03d,%d.%03d,%d.%03d"
+					"\n",
+					hubp->inst,
+					s->pixel_format,
+					s->inuse_addr_hi,
+					s->inuse_addr_lo,
+					s->viewport_width,
+					s->viewport_height,
+					s->rotation_angle,
+					s->h_mirror_en,
+					s->sw_mode,
+					s->dcc_en,
+					s->blank_en,
+					s->ttu_disable,
+					s->underflow_status,
+					(s->min_ttu_vblank * frac) / ref_clk_mhz / frac, (s->min_ttu_vblank * frac) / ref_clk_mhz % frac,
+					(s->qos_level_low_wm * frac) / ref_clk_mhz / frac, (s->qos_level_low_wm * frac) / ref_clk_mhz % frac,
+					(s->qos_level_high_wm * frac) / ref_clk_mhz / frac, (s->qos_level_high_wm * frac) / ref_clk_mhz % frac);
 
 			remaining_buffer -= chars_printed;
 			pBuf += chars_printed;
@@ -314,9 +341,6 @@ static unsigned int dcn10_get_cm_states(struct dc *dc, char *pBuf, unsigned int 
 		struct dpp *dpp = pool->dpps[i];
 		struct dcn_dpp_state s = {0};
 
-
-
-
 		dpp->funcs->dpp_read_state(dpp, &s);
 
 		if (s.is_enabled) {
@@ -462,6 +486,11 @@ static unsigned int dcn10_get_clock_states(struct dc *dc, char *pBuf, unsigned i
 
 void dcn10_get_hw_state(struct dc *dc, char *pBuf, unsigned int bufSize, unsigned int mask)
 {
+	/*
+	 *  Mask Format
+	 *  Bit 0 - 15: Hardware block mask
+	 *  Bit 15: 1 = Invariant Only, 0 = All
+	 */
 	const unsigned int DC_HW_STATE_MASK_HUBBUB 	= 0x1;
 	const unsigned int DC_HW_STATE_MASK_HUBP 	= 0x2;
 	const unsigned int DC_HW_STATE_MASK_RQ 		= 0x4;
@@ -471,12 +500,13 @@ void dcn10_get_hw_state(struct dc *dc, char *pBuf, unsigned int bufSize, unsigne
 	const unsigned int DC_HW_STATE_MASK_MPCC 	= 0x40;
 	const unsigned int DC_HW_STATE_MASK_OTG 	= 0x80;
 	const unsigned int DC_HW_STATE_MASK_CLOCKS 	= 0x100;
+	const unsigned int DC_HW_STATE_INVAR_ONLY	= 0x8000;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buf_size = bufSize;
 
 	if (mask == 0x0)
-		mask = 0xFFFF;
+		mask = 0xFFFF; // Default, capture all, invariant only
 
 	if ((mask & DC_HW_STATE_MASK_HUBBUB) && remaining_buf_size > 0) {
 		chars_printed = dcn10_get_hubbub_state(dc, pBuf, remaining_buf_size);
@@ -485,7 +515,7 @@ void dcn10_get_hw_state(struct dc *dc, char *pBuf, unsigned int bufSize, unsigne
 	}
 
 	if ((mask & DC_HW_STATE_MASK_HUBP) && remaining_buf_size > 0) {
-		chars_printed = dcn10_get_hubp_states(dc, pBuf, remaining_buf_size);
+		chars_printed = dcn10_get_hubp_states(dc, pBuf, remaining_buf_size, mask & DC_HW_STATE_INVAR_ONLY);
 		pBuf += chars_printed;
 		remaining_buf_size -= chars_printed;
 	}

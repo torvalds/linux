@@ -639,6 +639,7 @@ struct dcn_hubp_state {
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	uint32_t pixel_format;
 	uint32_t inuse_addr_hi;
+	uint32_t inuse_addr_lo;
 	uint32_t viewport_width;
 	uint32_t viewport_height;
 	uint32_t rotation_angle;
