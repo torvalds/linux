@@ -331,7 +331,7 @@ struct reiserfs_journal {
 
 	struct buffer_head *j_header_bh;
 
-	time_t j_trans_start_time;	/* time this transaction started */
+	time64_t j_trans_start_time;	/* time this transaction started */
 	struct mutex j_mutex;
 	struct mutex j_flush_mutex;
 
