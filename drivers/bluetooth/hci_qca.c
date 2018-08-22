@@ -499,7 +499,6 @@ static int qca_open(struct hci_uart *hu)
 	hu->priv = qca;
 
 	if (hu->serdev) {
-		serdev_device_open(hu->serdev);
 
 		qcadev = serdev_device_get_drvdata(hu->serdev);
 		if (qcadev->btsoc_type != QCA_WCN3990) {
@@ -613,7 +612,6 @@ static int qca_close(struct hci_uart *hu)
 		else
 			gpiod_set_value_cansleep(qcadev->bt_en, 0);
 
-		serdev_device_close(hu->serdev);
 	}
 
 	kfree_skb(qca->rx_skb);
