@@ -384,7 +384,8 @@ static long malidp500_se_calc_mclk(struct malidp_hw_device *hwdev,
 
 static int malidp500_enable_memwrite(struct malidp_hw_device *hwdev,
 				     dma_addr_t *addrs, s32 *pitches,
-				     int num_planes, u16 w, u16 h, u32 fmt_id)
+				     int num_planes, u16 w, u16 h, u32 fmt_id,
+				     const s16 *rgb2yuv_coeffs)
 {
 	u32 base = MALIDP500_SE_MEMWRITE_BASE;
 	u32 de_base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
@@ -416,6 +417,16 @@ static int malidp500_enable_memwrite(struct malidp_hw_device *hwdev,
 
 	malidp_hw_write(hwdev, MALIDP_DE_H_ACTIVE(w) | MALIDP_DE_V_ACTIVE(h),
 			MALIDP500_SE_MEMWRITE_OUT_SIZE);
+
+	if (rgb2yuv_coeffs) {
+		int i;
+
+		for (i = 0; i < MALIDP_COLORADJ_NUM_COEFFS; i++) {
+			malidp_hw_write(hwdev, rgb2yuv_coeffs[i],
+					MALIDP500_SE_RGB_YUV_COEFFS + i * 4);
+		}
+	}
+
 	malidp_hw_setbits(hwdev, MALIDP_SE_MEMWRITE_EN, MALIDP500_SE_CONTROL);
 
 	return 0;
@@ -658,7 +669,8 @@ static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
 
 static int malidp550_enable_memwrite(struct malidp_hw_device *hwdev,
 				     dma_addr_t *addrs, s32 *pitches,
-				     int num_planes, u16 w, u16 h, u32 fmt_id)
+				     int num_planes, u16 w, u16 h, u32 fmt_id,
+				     const s16 *rgb2yuv_coeffs)
 {
 	u32 base = MALIDP550_SE_MEMWRITE_BASE;
 	u32 de_base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
@@ -688,6 +700,15 @@ static int malidp550_enable_memwrite(struct malidp_hw_device *hwdev,
 			MALIDP550_SE_MEMWRITE_OUT_SIZE);
 	malidp_hw_setbits(hwdev, MALIDP550_SE_MEMWRITE_ONESHOT | MALIDP_SE_MEMWRITE_EN,
 			  MALIDP550_SE_CONTROL);
+
+	if (rgb2yuv_coeffs) {
+		int i;
+
+		for (i = 0; i < MALIDP_COLORADJ_NUM_COEFFS; i++) {
+			malidp_hw_write(hwdev, rgb2yuv_coeffs[i],
+					MALIDP550_SE_RGB_YUV_COEFFS + i * 4);
+		}
+	}
 
 	return 0;
 }

@@ -26,6 +26,8 @@ struct malidp_mw_connector_state {
 	s32 pitches[2];
 	u8 format;
 	u8 n_planes;
+	bool rgb2yuv_initialized;
+	const s16 *rgb2yuv_coeffs;
 };
 
 static int malidp_mw_connector_get_modes(struct drm_connector *connector)
@@ -84,7 +86,7 @@ static void malidp_mw_connector_destroy(struct drm_connector *connector)
 static struct drm_connector_state *
 malidp_mw_connector_duplicate_state(struct drm_connector *connector)
 {
-	struct malidp_mw_connector_state *mw_state;
+	struct malidp_mw_connector_state *mw_state, *mw_current_state;
 
 	if (WARN_ON(!connector->state))
 		return NULL;
@@ -93,7 +95,10 @@ malidp_mw_connector_duplicate_state(struct drm_connector *connector)
 	if (!mw_state)
 		return NULL;
 
-	/* No need to preserve any of our driver-local data */
+	mw_current_state = to_mw_state(connector->state);
+	mw_state->rgb2yuv_coeffs = mw_current_state->rgb2yuv_coeffs;
+	mw_state->rgb2yuv_initialized = mw_current_state->rgb2yuv_initialized;
+
 	__drm_atomic_helper_connector_duplicate_state(connector, &mw_state->base);
 
 	return &mw_state->base;
@@ -106,6 +111,13 @@ static const struct drm_connector_funcs malidp_mw_connector_funcs = {
 	.destroy = malidp_mw_connector_destroy,
 	.atomic_duplicate_state = malidp_mw_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static const s16 rgb2yuv_coeffs_bt709_limited[MALIDP_COLORADJ_NUM_COEFFS] = {
+	47,  157,   16,
+	-26,  -87,  112,
+	112, -102,  -10,
+	16,  128,  128
 };
 
 static int
@@ -156,6 +168,9 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 		mw_state->addrs[i] = obj->paddr + fb->offsets[i];
 	}
 	mw_state->n_planes = n_planes;
+
+	if (fb->format->is_yuv)
+		mw_state->rgb2yuv_coeffs = rgb2yuv_coeffs_bt709_limited;
 
 	return 0;
 }
@@ -239,10 +254,12 @@ void malidp_mw_atomic_commit(struct drm_device *drm,
 
 		drm_writeback_queue_job(mw_conn, conn_state->writeback_job);
 		conn_state->writeback_job = NULL;
-
 		hwdev->hw->enable_memwrite(hwdev, mw_state->addrs,
 					   mw_state->pitches, mw_state->n_planes,
-					   fb->width, fb->height, mw_state->format);
+					   fb->width, fb->height, mw_state->format,
+					   !mw_state->rgb2yuv_initialized ?
+					   mw_state->rgb2yuv_coeffs : NULL);
+		mw_state->rgb2yuv_initialized = !!mw_state->rgb2yuv_coeffs;
 	} else {
 		DRM_DEV_DEBUG_DRIVER(drm->dev, "Disable memwrite\n");
 		hwdev->hw->disable_memwrite(hwdev);

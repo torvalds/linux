@@ -191,7 +191,8 @@ struct malidp_hw {
 	 * @param fmt_id - internal format ID of output buffer
 	 */
 	int (*enable_memwrite)(struct malidp_hw_device *hwdev, dma_addr_t *addrs,
-			       s32 *pitches, int num_planes, u16 w, u16 h, u32 fmt_id);
+			       s32 *pitches, int num_planes, u16 w, u16 h, u32 fmt_id,
+			       const s16 *rgb2yuv_coeffs);
 
 	/*
 	 * Disable the writing to memory of the next frame's content.
