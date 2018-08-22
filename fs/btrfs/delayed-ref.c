@@ -133,13 +133,14 @@ static struct btrfs_delayed_ref_head *htree_insert(struct rb_root_cached *root,
 	return NULL;
 }
 
-static struct btrfs_delayed_ref_node* tree_insert(struct rb_root *root,
+static struct btrfs_delayed_ref_node* tree_insert(struct rb_root_cached *root,
 		struct btrfs_delayed_ref_node *ins)
 {
-	struct rb_node **p = &root->rb_node;
+	struct rb_node **p = &root->rb_root.rb_node;
 	struct rb_node *node = &ins->ref_node;
 	struct rb_node *parent_node = NULL;
 	struct btrfs_delayed_ref_node *entry;
+	bool leftmost = true;
 
 	while (*p) {
 		int comp;
@@ -148,16 +149,18 @@ static struct btrfs_delayed_ref_node* tree_insert(struct rb_root *root,
 		entry = rb_entry(parent_node, struct btrfs_delayed_ref_node,
 				 ref_node);
 		comp = comp_refs(ins, entry, true);
-		if (comp < 0)
+		if (comp < 0) {
 			p = &(*p)->rb_left;
-		else if (comp > 0)
+		} else if (comp > 0) {
 			p = &(*p)->rb_right;
-		else
+			leftmost = false;
+		} else {
 			return entry;
+		}
 	}
 
 	rb_link_node(node, parent_node, p);
-	rb_insert_color(node, root);
+	rb_insert_color_cached(node, root, leftmost);
 	return NULL;
 }
 
@@ -231,7 +234,7 @@ static inline void drop_delayed_ref(struct btrfs_trans_handle *trans,
 				    struct btrfs_delayed_ref_node *ref)
 {
 	lockdep_assert_held(&head->lock);
-	rb_erase(&ref->ref_node, &head->ref_tree);
+	rb_erase_cached(&ref->ref_node, &head->ref_tree);
 	RB_CLEAR_NODE(&ref->ref_node);
 	if (!list_empty(&ref->add_list))
 		list_del(&ref->add_list);
@@ -300,7 +303,7 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 
 	lockdep_assert_held(&head->lock);
 
-	if (RB_EMPTY_ROOT(&head->ref_tree))
+	if (RB_EMPTY_ROOT(&head->ref_tree.rb_root))
 		return;
 
 	/* We don't have too many refs to merge for data. */
@@ -318,7 +321,8 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 	spin_unlock(&fs_info->tree_mod_seq_lock);
 
 again:
-	for (node = rb_first(&head->ref_tree); node; node = rb_next(node)) {
+	for (node = rb_first_cached(&head->ref_tree); node;
+	     node = rb_next(node)) {
 		ref = rb_entry(node, struct btrfs_delayed_ref_node, ref_node);
 		if (seq && ref->seq >= seq)
 			continue;
@@ -573,7 +577,7 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	head_ref->must_insert_reserved = must_insert_reserved;
 	head_ref->is_data = is_data;
 	head_ref->is_system = is_system;
-	head_ref->ref_tree = RB_ROOT;
+	head_ref->ref_tree = RB_ROOT_CACHED;
 	INIT_LIST_HEAD(&head_ref->ref_add_list);
 	RB_CLEAR_NODE(&head_ref->href_node);
 	head_ref->processing = 0;

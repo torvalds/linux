@@ -79,7 +79,7 @@ struct btrfs_delayed_ref_head {
 	struct mutex mutex;
 
 	spinlock_t lock;
-	struct rb_root ref_tree;
+	struct rb_root_cached ref_tree;
 	/* accumulate add BTRFS_ADD_DELAYED_REF nodes to this ref_add_list. */
 	struct list_head ref_add_list;
 
