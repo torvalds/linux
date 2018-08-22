@@ -55,12 +55,32 @@ struct amdgpu_mec {
 	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 };
 
+struct kiq_pm4_funcs {
+	/* Support ASIC-specific kiq pm4 packets*/
+	void (*kiq_set_resources)(struct amdgpu_ring *kiq_ring,
+					uint64_t queue_mask);
+	void (*kiq_map_queues)(struct amdgpu_ring *kiq_ring,
+					struct amdgpu_ring *ring);
+	void (*kiq_unmap_queues)(struct amdgpu_ring *kiq_ring,
+				 struct amdgpu_ring *ring, bool reset);
+	void (*kiq_query_status)(struct amdgpu_ring *kiq_ring,
+					struct amdgpu_ring *ring,
+					u64 addr,
+					u64 seq);
+	/* Packet sizes */
+	int set_resources_size;
+	int map_queues_size;
+	int unmap_queues_size;
+	int query_status_size;
+};
+
 struct amdgpu_kiq {
 	u64			eop_gpu_addr;
 	struct amdgpu_bo	*eop_obj;
 	spinlock_t              ring_lock;
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
+	const struct kiq_pm4_funcs *pmf;
 };
 
 /*
