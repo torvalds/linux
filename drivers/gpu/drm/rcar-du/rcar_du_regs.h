@@ -489,8 +489,8 @@
  * External Synchronization Control Registers
  */
 
-#define ESCR			0x10000
-#define ESCR2			0x31000
+#define ESCR02			0x10000
+#define ESCR13			0x01000
 #define ESCR_DCLKOINV		(1 << 25)
 #define ESCR_DCLKSEL_DCLKIN	(0 << 20)
 #define ESCR_DCLKSEL_CLKS	(1 << 20)
@@ -501,8 +501,8 @@
 #define ESCR_SYNCSEL_EXHSYNC	(3 << 8)
 #define ESCR_FRQSEL_MASK	(0x3f << 0)
 
-#define OTAR			0x10004
-#define OTAR2			0x31004
+#define OTAR02			0x10004
+#define OTAR13			0x01004
 
 /* -----------------------------------------------------------------------------
  * Dual Display Output Control Registers
