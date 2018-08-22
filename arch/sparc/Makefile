@@ -9,10 +9,10 @@
 # Copyright (C) 1998 Jakub Jelinek (jj@ultra.linux.cz)
 
 # We are not yet configured - so test on arch
-ifeq ($(ARCH),sparc)
-        KBUILD_DEFCONFIG := sparc32_defconfig
-else
+ifeq ($(ARCH),sparc64)
         KBUILD_DEFCONFIG := sparc64_defconfig
+else
+        KBUILD_DEFCONFIG := sparc32_defconfig
 endif
 
 ifeq ($(CONFIG_SPARC32),y)
