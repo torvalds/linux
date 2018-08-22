@@ -43,4 +43,6 @@ int ahci_platform_resume_host(struct device *dev);
 int ahci_platform_suspend(struct device *dev);
 int ahci_platform_resume(struct device *dev);
 
+#define AHCI_PLATFORM_GET_RESETS	0x01
+
 #endif /* _AHCI_PLATFORM_H */
