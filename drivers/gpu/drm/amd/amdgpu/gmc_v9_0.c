@@ -560,7 +560,7 @@ static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
 static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				uint64_t *addr, uint64_t *flags)
 {
-	if (!(*flags & AMDGPU_PDE_PTE))
+	if (!(*flags & AMDGPU_PDE_PTE) && !(*flags & AMDGPU_PTE_SYSTEM))
 		*addr = adev->vm_manager.vram_base_offset + *addr -
 			adev->gmc.vram_start;
 	BUG_ON(*addr & 0xFFFF00000000003FULL);
