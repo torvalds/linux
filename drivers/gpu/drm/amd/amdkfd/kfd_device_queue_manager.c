@@ -358,8 +358,8 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 					struct queue *q,
 					struct qcm_process_device *qpd)
 {
-	int retval;
 	struct mqd_manager *mqd_mgr;
+	int retval;
 
 	mqd_mgr = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
 	if (!mqd_mgr)
@@ -387,8 +387,12 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 	if (!q->properties.is_active)
 		return 0;
 
-	retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, q->pipe, q->queue,
-			&q->properties, q->process->mm);
+	if (WARN(q->process->mm != current->mm,
+		 "should only run in user thread"))
+		retval = -EFAULT;
+	else
+		retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, q->pipe, q->queue,
+					   &q->properties, current->mm);
 	if (retval)
 		goto out_uninit_mqd;
 
@@ -545,9 +549,15 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 		retval = map_queues_cpsch(dqm);
 	else if (q->properties.is_active &&
 		 (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
-		  q->properties.type == KFD_QUEUE_TYPE_SDMA))
-		retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, q->pipe, q->queue,
-				       &q->properties, q->process->mm);
+		  q->properties.type == KFD_QUEUE_TYPE_SDMA)) {
+		if (WARN(q->process->mm != current->mm,
+			 "should only run in user thread"))
+			retval = -EFAULT;
+		else
+			retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd,
+						   q->pipe, q->queue,
+						   &q->properties, current->mm);
+	}
 
 out_unlock:
 	dqm_unlock(dqm);
@@ -653,6 +663,7 @@ out:
 static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 					  struct qcm_process_device *qpd)
 {
+	struct mm_struct *mm = NULL;
 	struct queue *q;
 	struct mqd_manager *mqd_mgr;
 	struct kfd_process_device *pdd;
@@ -686,6 +697,15 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 		kfd_flush_tlb(pdd);
 	}
 
+	/* Take a safe reference to the mm_struct, which may otherwise
+	 * disappear even while the kfd_process is still referenced.
+	 */
+	mm = get_task_mm(pdd->process->lead_thread);
+	if (!mm) {
+		retval = -EFAULT;
+		goto out;
+	}
+
 	/* activate all active queues on the qpd */
 	list_for_each_entry(q, &qpd->queues_list, list) {
 		if (!q->properties.is_evicted)
@@ -700,14 +720,15 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 		q->properties.is_evicted = false;
 		q->properties.is_active = true;
 		retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, q->pipe,
-				       q->queue, &q->properties,
-				       q->process->mm);
+				       q->queue, &q->properties, mm);
 		if (retval)
 			goto out;
 		dqm->queue_count++;
 	}
 	qpd->evicted = 0;
 out:
+	if (mm)
+		mmput(mm);
 	dqm_unlock(dqm);
 	return retval;
 }
