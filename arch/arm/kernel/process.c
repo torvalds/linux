@@ -330,16 +330,15 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
  * atomic helpers. Insert it into the gate_vma so that it is visible
  * through ptrace and /proc/<pid>/mem.
  */
-static struct vm_area_struct gate_vma = {
-	.vm_start	= 0xffff0000,
-	.vm_end		= 0xffff0000 + PAGE_SIZE,
-	.vm_flags	= VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYEXEC,
-};
+static struct vm_area_struct gate_vma;
 
 static int __init gate_vma_init(void)
 {
 	vma_init(&gate_vma, NULL);
 	gate_vma.vm_page_prot = PAGE_READONLY_EXEC;
+	gate_vma.vm_start = 0xffff0000;
+	gate_vma.vm_end	= 0xffff0000 + PAGE_SIZE;
+	gate_vma.vm_flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYEXEC;
 	return 0;
 }
 arch_initcall(gate_vma_init);

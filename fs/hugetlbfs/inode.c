@@ -410,7 +410,6 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 	int i, freed = 0;
 	bool truncate_op = (lend == LLONG_MAX);
 
-	memset(&pseudo_vma, 0, sizeof(struct vm_area_struct));
 	vma_init(&pseudo_vma, current->mm);
 	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);
 	pagevec_init(&pvec);
@@ -595,7 +594,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 	 * allocation routines.  If NUMA is configured, use page index
 	 * as input to create an allocation policy.
 	 */
-	memset(&pseudo_vma, 0, sizeof(struct vm_area_struct));
 	vma_init(&pseudo_vma, mm);
 	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);
 	pseudo_vma.vm_file = file;
