@@ -1932,9 +1932,6 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_virt_request_full_gpu(adev, false);
-
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
 
@@ -1952,9 +1949,6 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 			}
 		}
 	}
-
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_virt_release_full_gpu(adev, false);
 
 	return 0;
 }
@@ -2007,10 +2001,16 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 {
 	int r;
 
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_request_full_gpu(adev, false);
+
 	r = amdgpu_device_ip_suspend_phase1(adev);
 	if (r)
 		return r;
 	r = amdgpu_device_ip_suspend_phase2(adev);
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_release_full_gpu(adev, false);
 
 	return r;
 }
