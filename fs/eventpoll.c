@@ -762,7 +762,6 @@ static void epi_rcu_free(struct rcu_head *head)
  */
 static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 {
-	unsigned long flags;
 	struct file *file = epi->ffd.file;
 
 	/*
@@ -777,10 +776,10 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 
 	rb_erase_cached(&epi->rbn, &ep->rbr);
 
-	spin_lock_irqsave(&ep->wq.lock, flags);
+	spin_lock_irq(&ep->wq.lock);
 	if (ep_is_linked(&epi->rdllink))
 		list_del_init(&epi->rdllink);
-	spin_unlock_irqrestore(&ep->wq.lock, flags);
+	spin_unlock_irq(&ep->wq.lock);
 
 	wakeup_source_unregister(ep_wakeup_source(epi));
 	/*
@@ -1409,7 +1408,6 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 {
 	int error, pwake = 0;
 	__poll_t revents;
-	unsigned long flags;
 	long user_watches;
 	struct epitem *epi;
 	struct ep_pqueue epq;
@@ -1476,7 +1474,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 		goto error_remove_epi;
 
 	/* We have to drop the new item inside our item list to keep track of it */
-	spin_lock_irqsave(&ep->wq.lock, flags);
+	spin_lock_irq(&ep->wq.lock);
 
 	/* record NAPI ID of new item if present */
 	ep_set_busy_poll_napi_id(epi);
@@ -1493,7 +1491,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 			pwake++;
 	}
 
-	spin_unlock_irqrestore(&ep->wq.lock, flags);
+	spin_unlock_irq(&ep->wq.lock);
 
 	atomic_long_inc(&ep->user->epoll_watches);
 
@@ -1519,10 +1517,10 @@ error_unregister:
 	 * list, since that is used/cleaned only inside a section bound by "mtx".
 	 * And ep_insert() is called with "mtx" held.
 	 */
-	spin_lock_irqsave(&ep->wq.lock, flags);
+	spin_lock_irq(&ep->wq.lock);
 	if (ep_is_linked(&epi->rdllink))
 		list_del_init(&epi->rdllink);
-	spin_unlock_irqrestore(&ep->wq.lock, flags);
+	spin_unlock_irq(&ep->wq.lock);
 
 	wakeup_source_unregister(ep_wakeup_source(epi));
 
