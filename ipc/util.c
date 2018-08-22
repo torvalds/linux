@@ -194,45 +194,53 @@ static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
 	return NULL;
 }
 
-#ifdef CONFIG_CHECKPOINT_RESTORE
 /*
- * Specify desired id for next allocated IPC object.
+ * Insert new IPC object into idr tree, and set sequence number and id
+ * in the correct order.
+ * Especially:
+ * - the sequence number must be set before inserting the object into the idr,
+ *   because the sequence number is accessed without a lock.
+ * - the id can/must be set after inserting the object into the idr.
+ *   All accesses must be done after getting kern_ipc_perm.lock.
+ *
+ * The caller must own kern_ipc_perm.lock.of the new object.
+ * On error, the function returns a (negative) error code.
  */
-#define ipc_idr_alloc(ids, new)						\
-	idr_alloc(&(ids)->ipcs_idr, (new),				\
-		  (ids)->next_id < 0 ? 0 : ipcid_to_idx((ids)->next_id),\
-		  0, GFP_NOWAIT)
-
-static inline int ipc_buildid(int id, struct ipc_ids *ids,
-			      struct kern_ipc_perm *new)
+static inline int ipc_idr_alloc(struct ipc_ids *ids, struct kern_ipc_perm *new)
 {
-	if (ids->next_id < 0) { /* default, behave as !CHECKPOINT_RESTORE */
+	int idx, next_id = -1;
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	next_id = ids->next_id;
+	ids->next_id = -1;
+#endif
+
+	/*
+	 * As soon as a new object is inserted into the idr,
+	 * ipc_obtain_object_idr() or ipc_obtain_object_check() can find it,
+	 * and the lockless preparations for ipc operations can start.
+	 * This means especially: permission checks, audit calls, allocation
+	 * of undo structures, ...
+	 *
+	 * Thus the object must be fully initialized, and if something fails,
+	 * then the full tear-down sequence must be followed.
+	 * (i.e.: set new->deleted, reduce refcount, call_rcu())
+	 */
+
+	if (next_id < 0) { /* !CHECKPOINT_RESTORE or next_id is unset */
 		new->seq = ids->seq++;
 		if (ids->seq > IPCID_SEQ_MAX)
 			ids->seq = 0;
+		idx = idr_alloc(&ids->ipcs_idr, new, 0, 0, GFP_NOWAIT);
 	} else {
-		new->seq = ipcid_to_seqx(ids->next_id);
-		ids->next_id = -1;
+		new->seq = ipcid_to_seqx(next_id);
+		idx = idr_alloc(&ids->ipcs_idr, new, ipcid_to_idx(next_id),
+				0, GFP_NOWAIT);
 	}
-
-	return SEQ_MULTIPLIER * new->seq + id;
+	if (idx >= 0)
+		new->id = SEQ_MULTIPLIER * new->seq + idx;
+	return idx;
 }
-
-#else
-#define ipc_idr_alloc(ids, new)					\
-	idr_alloc(&(ids)->ipcs_idr, (new), 0, 0, GFP_NOWAIT)
-
-static inline int ipc_buildid(int id, struct ipc_ids *ids,
-			      struct kern_ipc_perm *new)
-{
-	new->seq = ids->seq++;
-	if (ids->seq > IPCID_SEQ_MAX)
-		ids->seq = 0;
-
-	return SEQ_MULTIPLIER * new->seq + id;
-}
-
-#endif /* CONFIG_CHECKPOINT_RESTORE */
 
 /**
  * ipc_addid - add an ipc identifier
@@ -251,7 +259,7 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 {
 	kuid_t euid;
 	kgid_t egid;
-	int id, err;
+	int idx, err;
 
 	if (limit > IPCMNI)
 		limit = IPCMNI;
@@ -271,30 +279,27 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 	new->cuid = new->uid = euid;
 	new->gid = new->cgid = egid;
 
-	id = ipc_idr_alloc(ids, new);
+	idx = ipc_idr_alloc(ids, new);
 	idr_preload_end();
 
-	if (id >= 0 && new->key != IPC_PRIVATE) {
+	if (idx >= 0 && new->key != IPC_PRIVATE) {
 		err = rhashtable_insert_fast(&ids->key_ht, &new->khtnode,
 					     ipc_kht_params);
 		if (err < 0) {
-			idr_remove(&ids->ipcs_idr, id);
-			id = err;
+			idr_remove(&ids->ipcs_idr, idx);
+			idx = err;
 		}
 	}
-	if (id < 0) {
+	if (idx < 0) {
 		spin_unlock(&new->lock);
 		rcu_read_unlock();
-		return id;
+		return idx;
 	}
 
 	ids->in_use++;
-	if (id > ids->max_id)
-		ids->max_id = id;
-
-	new->id = ipc_buildid(id, ids, new);
-
-	return id;
+	if (idx > ids->max_id)
+		ids->max_id = idx;
+	return idx;
 }
 
 /**

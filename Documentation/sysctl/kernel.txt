@@ -464,7 +464,8 @@ Notes:
 1) kernel doesn't guarantee, that new object will have desired id. So,
 it's up to userspace, how to handle an object with "wrong" id.
 2) Toggle with non-default value will be set back to -1 by kernel after
-successful IPC object allocation.
+successful IPC object allocation. If an IPC object allocation syscall
+fails, it is undefined if the value remains unmodified or is reset to -1.
 
 ==============================================================
 
