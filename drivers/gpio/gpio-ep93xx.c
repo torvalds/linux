@@ -88,8 +88,11 @@ static void ep93xx_gpio_ab_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
+	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	unsigned char status;
 	int i;
+
+	chained_irq_enter(irqchip, desc);
 
 	status = readb(epg->base + EP93XX_GPIO_A_INT_STATUS);
 	for (i = 0; i < 8; i++) {
@@ -106,6 +109,8 @@ static void ep93xx_gpio_ab_irq_handler(struct irq_desc *desc)
 			generic_handle_irq(gpio_irq);
 		}
 	}
+
+	chained_irq_exit(irqchip, desc);
 }
 
 static void ep93xx_gpio_f_irq_handler(struct irq_desc *desc)
@@ -115,11 +120,14 @@ static void ep93xx_gpio_f_irq_handler(struct irq_desc *desc)
 	 *
 	 *  IRQ_EP93XX_GPIO{0..7}MUX -> gpio_to_irq(EP93XX_GPIO_LINE_F({0..7})
 	 */
+	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	unsigned int irq = irq_desc_get_irq(desc);
 	int port_f_idx = ((irq + 1) & 7) ^ 4; /* {19..22,47..50} -> {0..7} */
 	int gpio_irq = gpio_to_irq(16) + port_f_idx;
 
+	chained_irq_enter(irqchip, desc);
 	generic_handle_irq(gpio_irq);
+	chained_irq_exit(irqchip, desc);
 }
 
 static void ep93xx_gpio_irq_ack(struct irq_data *d)
