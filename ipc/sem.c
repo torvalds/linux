@@ -1294,7 +1294,7 @@ static int semctl_info(struct ipc_namespace *ns, int semid,
 			 int cmd, void __user *p)
 {
 	struct seminfo seminfo;
-	int max_id;
+	int max_idx;
 	int err;
 
 	err = security_sem_semctl(NULL, cmd);
@@ -1318,11 +1318,11 @@ static int semctl_info(struct ipc_namespace *ns, int semid,
 		seminfo.semusz = SEMUSZ;
 		seminfo.semaem = SEMAEM;
 	}
-	max_id = ipc_get_maxid(&sem_ids(ns));
+	max_idx = ipc_get_maxidx(&sem_ids(ns));
 	up_read(&sem_ids(ns).rwsem);
 	if (copy_to_user(p, &seminfo, sizeof(struct seminfo)))
 		return -EFAULT;
-	return (max_id < 0) ? 0 : max_id;
+	return (max_idx < 0) ? 0 : max_idx;
 }
 
 static int semctl_setval(struct ipc_namespace *ns, int semid, int semnum,

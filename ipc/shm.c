@@ -948,7 +948,7 @@ static int shmctl_ipc_info(struct ipc_namespace *ns,
 		shminfo->shmall = ns->shm_ctlall;
 		shminfo->shmmin = SHMMIN;
 		down_read(&shm_ids(ns).rwsem);
-		err = ipc_get_maxid(&shm_ids(ns));
+		err = ipc_get_maxidx(&shm_ids(ns));
 		up_read(&shm_ids(ns).rwsem);
 		if (err < 0)
 			err = 0;
@@ -968,7 +968,7 @@ static int shmctl_shm_info(struct ipc_namespace *ns,
 		shm_info->shm_tot = ns->shm_tot;
 		shm_info->swap_attempts = 0;
 		shm_info->swap_successes = 0;
-		err = ipc_get_maxid(&shm_ids(ns));
+		err = ipc_get_maxidx(&shm_ids(ns));
 		up_read(&shm_ids(ns).rwsem);
 		if (err < 0)
 			err = 0;

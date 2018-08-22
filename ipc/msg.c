@@ -456,7 +456,7 @@ static int msgctl_info(struct ipc_namespace *ns, int msqid,
 			 int cmd, struct msginfo *msginfo)
 {
 	int err;
-	int max_id;
+	int max_idx;
 
 	/*
 	 * We must not return kernel stack data.
@@ -483,9 +483,9 @@ static int msgctl_info(struct ipc_namespace *ns, int msqid,
 		msginfo->msgpool = MSGPOOL;
 		msginfo->msgtql = MSGTQL;
 	}
-	max_id = ipc_get_maxid(&msg_ids(ns));
+	max_idx = ipc_get_maxidx(&msg_ids(ns));
 	up_read(&msg_ids(ns).rwsem);
-	return (max_id < 0) ? 0 : max_id;
+	return (max_idx < 0) ? 0 : max_idx;
 }
 
 static int msgctl_stat(struct ipc_namespace *ns, int msqid,

@@ -119,7 +119,7 @@ void ipc_init_ids(struct ipc_ids *ids)
 	init_rwsem(&ids->rwsem);
 	rhashtable_init(&ids->key_ht, &ipc_kht_params);
 	idr_init(&ids->ipcs_idr);
-	ids->max_id = -1;
+	ids->max_idx = -1;
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	ids->next_id = -1;
 #endif
@@ -237,7 +237,7 @@ static inline int ipc_idr_alloc(struct ipc_ids *ids, struct kern_ipc_perm *new)
  * @limit: limit for the number of used ids
  *
  * Add an entry 'new' to the ipc ids idr. The permissions object is
- * initialised and the first free entry is set up and the id assigned
+ * initialised and the first free entry is set up and the index assigned
  * is returned. The 'new' entry is returned in a locked state on success.
  *
  * On failure the entry is not locked and a negative err-code is returned.
@@ -291,8 +291,8 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 	}
 
 	ids->in_use++;
-	if (idx > ids->max_id)
-		ids->max_id = idx;
+	if (idx > ids->max_idx)
+		ids->max_idx = idx;
 	return idx;
 }
 
@@ -431,20 +431,20 @@ static void ipc_kht_remove(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
  */
 void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 {
-	int lid = ipcid_to_idx(ipcp->id);
+	int idx = ipcid_to_idx(ipcp->id);
 
-	idr_remove(&ids->ipcs_idr, lid);
+	idr_remove(&ids->ipcs_idr, idx);
 	ipc_kht_remove(ids, ipcp);
 	ids->in_use--;
 	ipcp->deleted = true;
 
-	if (unlikely(lid == ids->max_id)) {
+	if (unlikely(idx == ids->max_idx)) {
 		do {
-			lid--;
-			if (lid == -1)
+			idx--;
+			if (idx == -1)
 				break;
-		} while (!idr_find(&ids->ipcs_idr, lid));
-		ids->max_id = lid;
+		} while (!idr_find(&ids->ipcs_idr, idx));
+		ids->max_idx = idx;
 	}
 }
 
@@ -564,9 +564,9 @@ void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out)
 struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id)
 {
 	struct kern_ipc_perm *out;
-	int lid = ipcid_to_idx(id);
+	int idx = ipcid_to_idx(id);
 
-	out = idr_find(&ids->ipcs_idr, lid);
+	out = idr_find(&ids->ipcs_idr, idx);
 	if (!out)
 		return ERR_PTR(-EINVAL);
 

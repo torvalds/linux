@@ -113,12 +113,12 @@ void ipc_set_key_private(struct ipc_ids *, struct kern_ipc_perm *);
 int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
 
 /**
- * ipc_get_maxid - get the last assigned id
+ * ipc_get_maxidx - get the highest assigned index
  * @ids: ipc identifier set
  *
  * Called with ipc_ids.rwsem held for reading.
  */
-static inline int ipc_get_maxid(struct ipc_ids *ids)
+static inline int ipc_get_maxidx(struct ipc_ids *ids)
 {
 	if (ids->in_use == 0)
 		return -1;
@@ -126,7 +126,7 @@ static inline int ipc_get_maxid(struct ipc_ids *ids)
 	if (ids->in_use == IPCMNI)
 		return IPCMNI - 1;
 
-	return ids->max_id;
+	return ids->max_idx;
 }
 
 /*
@@ -172,9 +172,9 @@ extern struct msg_msg *load_msg(const void __user *src, size_t len);
 extern struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst);
 extern int store_msg(void __user *dest, struct msg_msg *msg, size_t len);
 
-static inline int ipc_checkid(struct kern_ipc_perm *ipcp, int uid)
+static inline int ipc_checkid(struct kern_ipc_perm *ipcp, int id)
 {
-	return uid / SEQ_MULTIPLIER != ipcp->seq;
+	return ipcid_to_seqx(id) != ipcp->seq;
 }
 
 static inline void ipc_lock_object(struct kern_ipc_perm *perm)
