@@ -116,24 +116,21 @@ config I2C_I801
 	    DH89xxCC (PCH)
 	    Panther Point (PCH)
 	    Lynx Point (PCH)
-	    Lynx Point-LP (PCH)
 	    Avoton (SOC)
 	    Wellsburg (PCH)
 	    Coleto Creek (PCH)
 	    Wildcat Point (PCH)
-	    Wildcat Point-LP (PCH)
 	    BayTrail (SOC)
 	    Braswell (SOC)
-	    Sunrise Point-H (PCH)
-	    Sunrise Point-LP (PCH)
-	    Kaby Lake-H (PCH)
+	    Sunrise Point (PCH)
+	    Kaby Lake (PCH)
 	    DNV (SOC)
 	    Broxton (SOC)
 	    Lewisburg (PCH)
 	    Gemini Lake (SOC)
-	    Cannon Lake-H (PCH)
-	    Cannon Lake-LP (PCH)
+	    Cannon Lake (PCH)
 	    Cedar Fork (PCH)
+	    Ice Lake (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -762,6 +759,13 @@ config I2C_OMAP
 	  Like OMAP1510/1610/1710/5912 and OMAP242x.
 	  For details see http://www.ti.com/omap.
 
+config I2C_OWL
+	tristate "Actions Semiconductor Owl I2C Controller"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	help
+	  Say Y here if you want to use the I2C bus controller on
+	  the Actions Semiconductor Owl SoC's.
+
 config I2C_PASEMI
 	tristate "PA Semi SMBus interface"
 	depends on PPC_PASEMI && PCI
@@ -827,6 +831,19 @@ config I2C_PXA_SLAVE
 	  Support I2C slave mode communications on the PXA I2C bus.  This
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
+
+config I2C_QCOM_GENI
+	tristate "Qualcomm Technologies Inc.'s GENI based I2C controller"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on QCOM_GENI_SE
+	help
+	  This driver supports GENI serial engine based I2C controller in
+	  master mode on the Qualcomm Technologies Inc.'s SoCs. If you say
+	  yes to this option, support will be included for the built-in I2C
+	  interface on the Qualcomm Technologies Inc.'s SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-qcom-geni.
 
 config I2C_QUP
 	tristate "Qualcomm QUP based I2C controller"
@@ -1329,5 +1346,16 @@ config I2C_ZX2967
 	  Selecting this option will add ZX2967 I2C driver.
 	  This driver can also be built as a module. If so, the module will be
 	  called i2c-zx2967.
+
+config I2C_FSI
+	tristate "FSI I2C driver"
+	depends on FSI
+	help
+	  Driver for FSI bus attached I2C masters. These are I2C masters that
+	  are connected to the system over an FSI bus, instead of the more
+	  common PCI or MMIO interface.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called as i2c-fsi.
 
 endmenu
