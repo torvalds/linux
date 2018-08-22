@@ -1409,8 +1409,7 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_ABGR8888:
-		if (modifier == I915_FORMAT_MOD_Yf_TILED_CCS ||
-		    modifier == I915_FORMAT_MOD_Y_TILED_CCS)
+		if (is_ccs_modifier(modifier))
 			return true;
 		/* fall through */
 	case DRM_FORMAT_RGB565:

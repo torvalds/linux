@@ -2474,6 +2474,12 @@ intel_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
 	}
 }
 
+bool is_ccs_modifier(u64 modifier)
+{
+	return modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
+	       modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
+}
+
 static int
 intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		   struct drm_framebuffer *fb)
@@ -2504,8 +2510,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 			return ret;
 		}
 
-		if ((fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-		     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS) && i == 1) {
+		if (is_ccs_modifier(fb->modifier) && i == 1) {
 			int hsub = fb->format->hsub;
 			int vsub = fb->format->vsub;
 			int tile_width, tile_height;
@@ -3055,8 +3060,7 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 	 * CCS AUX surface doesn't have its own x/y offsets, we must make sure
 	 * they match with the main surface x/y offsets.
 	 */
-	if (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-	    fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS) {
+	if (is_ccs_modifier(fb->modifier)) {
 		while (!skl_check_main_ccs_coordinates(plane_state, x, y, offset)) {
 			if (offset == 0)
 				break;
@@ -3190,8 +3194,7 @@ int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 		ret = skl_check_nv12_aux_surface(plane_state);
 		if (ret)
 			return ret;
-	} else if (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-		   fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS) {
+	} else if (is_ccs_modifier(fb->modifier)) {
 		ret = skl_check_ccs_aux_surface(plane_state);
 		if (ret)
 			return ret;
@@ -13398,8 +13401,7 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_ABGR8888:
-		if (modifier == I915_FORMAT_MOD_Yf_TILED_CCS ||
-		    modifier == I915_FORMAT_MOD_Y_TILED_CCS)
+		if (is_ccs_modifier(modifier))
 			return true;
 		/* fall through */
 	case DRM_FORMAT_RGB565:
@@ -14595,8 +14597,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		 * potential runtime errors at plane configuration time.
 		 */
 		if (IS_GEN9(dev_priv) && i == 0 && fb->width > 3840 &&
-		    (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-		     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS))
+		    is_ccs_modifier(fb->modifier))
 			stride_alignment *= 4;
 
 		if (fb->pitches[i] & (stride_alignment - 1)) {
