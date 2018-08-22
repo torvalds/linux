@@ -1223,7 +1223,6 @@ static int semctl_stat(struct ipc_namespace *ns, int semid,
 {
 	struct sem_array *sma;
 	time64_t semotime;
-	int id = 0;
 	int err;
 
 	memset(semid64, 0, sizeof(*semid64));
@@ -1235,7 +1234,6 @@ static int semctl_stat(struct ipc_namespace *ns, int semid,
 			err = PTR_ERR(sma);
 			goto out_unlock;
 		}
-		id = sma->sem_perm.id;
 	} else { /* IPC_STAT */
 		sma = sem_obtain_object_check(ns, semid);
 		if (IS_ERR(sma)) {
@@ -1275,10 +1273,20 @@ static int semctl_stat(struct ipc_namespace *ns, int semid,
 #endif
 	semid64->sem_nsems = sma->sem_nsems;
 
+	if (cmd == IPC_STAT) {
+		/*
+		 * As defined in SUS:
+		 * Return 0 on success
+		 */
+		err = 0;
+	} else {
+		/*
+		 * SEM_STAT and SEM_STAT_ANY (both Linux specific)
+		 * Return the full id, including the sequence number
+		 */
+		err = sma->sem_perm.id;
+	}
 	ipc_unlock_object(&sma->sem_perm);
-	rcu_read_unlock();
-	return id;
-
 out_unlock:
 	rcu_read_unlock();
 	return err;

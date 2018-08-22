@@ -962,7 +962,6 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 			int cmd, struct shmid64_ds *tbuf)
 {
 	struct shmid_kernel *shp;
-	int id = 0;
 	int err;
 
 	memset(tbuf, 0, sizeof(*tbuf));
@@ -974,7 +973,6 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 			err = PTR_ERR(shp);
 			goto out_unlock;
 		}
-		id = shp->shm_perm.id;
 	} else { /* IPC_STAT */
 		shp = shm_obtain_object_check(ns, shmid);
 		if (IS_ERR(shp)) {
@@ -1024,10 +1022,21 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 	tbuf->shm_lpid	= pid_vnr(shp->shm_lprid);
 	tbuf->shm_nattch = shp->shm_nattch;
 
-	ipc_unlock_object(&shp->shm_perm);
-	rcu_read_unlock();
-	return id;
+	if (cmd == IPC_STAT) {
+		/*
+		 * As defined in SUS:
+		 * Return 0 on success
+		 */
+		err = 0;
+	} else {
+		/*
+		 * SHM_STAT and SHM_STAT_ANY (both Linux specific)
+		 * Return the full id, including the sequence number
+		 */
+		err = shp->shm_perm.id;
+	}
 
+	ipc_unlock_object(&shp->shm_perm);
 out_unlock:
 	rcu_read_unlock();
 	return err;

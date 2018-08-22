@@ -492,7 +492,6 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 			 int cmd, struct msqid64_ds *p)
 {
 	struct msg_queue *msq;
-	int id = 0;
 	int err;
 
 	memset(p, 0, sizeof(*p));
@@ -504,7 +503,6 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 			err = PTR_ERR(msq);
 			goto out_unlock;
 		}
-		id = msq->q_perm.id;
 	} else { /* IPC_STAT */
 		msq = msq_obtain_object_check(ns, msqid);
 		if (IS_ERR(msq)) {
@@ -549,10 +547,21 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 	p->msg_lspid  = pid_vnr(msq->q_lspid);
 	p->msg_lrpid  = pid_vnr(msq->q_lrpid);
 
-	ipc_unlock_object(&msq->q_perm);
-	rcu_read_unlock();
-	return id;
+	if (cmd == IPC_STAT) {
+		/*
+		 * As defined in SUS:
+		 * Return 0 on success
+		 */
+		err = 0;
+	} else {
+		/*
+		 * MSG_STAT and MSG_STAT_ANY (both Linux specific)
+		 * Return the full id, including the sequence number
+		 */
+		err = msq->q_perm.id;
+	}
 
+	ipc_unlock_object(&msq->q_perm);
 out_unlock:
 	rcu_read_unlock();
 	return err;
