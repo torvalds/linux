@@ -667,7 +667,6 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 {
 	__poll_t res;
 	int pwake = 0;
-	unsigned long flags;
 	struct epitem *epi, *nepi;
 	LIST_HEAD(txlist);
 
@@ -687,17 +686,17 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 	 * because we want the "sproc" callback to be able to do it
 	 * in a lockless way.
 	 */
-	spin_lock_irqsave(&ep->wq.lock, flags);
+	spin_lock_irq(&ep->wq.lock);
 	list_splice_init(&ep->rdllist, &txlist);
 	ep->ovflist = NULL;
-	spin_unlock_irqrestore(&ep->wq.lock, flags);
+	spin_unlock_irq(&ep->wq.lock);
 
 	/*
 	 * Now call the callback function.
 	 */
 	res = (*sproc)(ep, &txlist, priv);
 
-	spin_lock_irqsave(&ep->wq.lock, flags);
+	spin_lock_irq(&ep->wq.lock);
 	/*
 	 * During the time we spent inside the "sproc" callback, some
 	 * other events might have been queued by the poll callback.
@@ -739,7 +738,7 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 		if (waitqueue_active(&ep->poll_wait))
 			pwake++;
 	}
-	spin_unlock_irqrestore(&ep->wq.lock, flags);
+	spin_unlock_irq(&ep->wq.lock);
 
 	if (!ep_locked)
 		mutex_unlock(&ep->mtx);
