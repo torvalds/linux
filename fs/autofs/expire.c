@@ -292,10 +292,10 @@ static struct dentry *autofs_check_leaves(struct vfsmount *mnt,
 }
 
 /* Check if we can expire a direct mount (possibly a tree) */
-struct dentry *autofs_expire_direct(struct super_block *sb,
-				    struct vfsmount *mnt,
-				    struct autofs_sb_info *sbi,
-				    int how)
+static struct dentry *autofs_expire_direct(struct super_block *sb,
+					   struct vfsmount *mnt,
+					   struct autofs_sb_info *sbi,
+					   int how)
 {
 	unsigned long timeout;
 	struct dentry *root = dget(sb->s_root);
