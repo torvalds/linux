@@ -1,0 +1,19 @@
+Rockchip rk timer RTC
+
+Required properties:
+- compatible: should be:
+  "rockchip,rk3308-timer-rtc": for Rockchip RK3308
+- reg: base address of the timer register and length of memory mapped region.
+- interrupts: should contain the interrupts for the timer
+- clocks : must contain an entry for each entry in clock-names
+- clock-names : must include the following entries:
+  "timer", "pclk"
+
+Example:
+	rk_timer_rtc: rk-timer-rtc@ff1a0020 {
+		compatible = "rockchip,rk3308-timer-rtc";
+		reg = <0x0 0xff1a0020 0x0 0x20>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_TIMER>, <&cru SCLK_TIMER1>;
+		clock-names = "pclk", "timer";
+	};
