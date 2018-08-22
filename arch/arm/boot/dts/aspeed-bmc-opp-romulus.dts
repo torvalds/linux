@@ -85,6 +85,11 @@
 			linux,code = <ASPEED_GPIO(Q, 7)>;
 		};
 	};
+
+	iio-hwmon-battery {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 12>;
+	};
 };
 
 &fmc {
@@ -285,5 +290,9 @@
 };
 
 &vhub {
+	status = "okay";
+};
+
+&adc {
 	status = "okay";
 };
