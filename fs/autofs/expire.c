@@ -467,7 +467,7 @@ struct dentry *autofs_expire_indirect(struct super_block *sb,
 		 * things have changed.
 		 */
 		flags &= ~AUTOFS_EXP_LEAVES;
-		found = should_expire(expired, mnt, timeout, how);
+		found = should_expire(expired, mnt, timeout, flags);
 		if (!found || found != expired)
 			/* Something has changed, continue */
 			goto next;
