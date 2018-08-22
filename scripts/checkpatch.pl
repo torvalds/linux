@@ -4967,6 +4967,7 @@ sub process {
 			if (defined $define_args && $define_args ne "") {
 				$define_args = substr($define_args, 1, length($define_args) - 2);
 				$define_args =~ s/\s*//g;
+				$define_args =~ s/\\\+?//g;
 				@def_args = split(",", $define_args);
 			}
 
