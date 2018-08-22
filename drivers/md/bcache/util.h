@@ -11,6 +11,7 @@
 #include <linux/ratelimit.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+#include <linux/crc64.h>
 
 #include "closure.h"
 
@@ -542,6 +543,22 @@ dup:									\
 #define RB_PREV(ptr, member)						\
 	container_of_or_null(rb_prev(&(ptr)->member), typeof(*ptr), member)
 
+static inline uint64_t bch_crc64(const void *p, size_t len)
+{
+	uint64_t crc = 0xffffffffffffffffULL;
+
+	crc = crc64_be(crc, p, len);
+	return crc ^ 0xffffffffffffffffULL;
+}
+
+static inline uint64_t bch_crc64_update(uint64_t crc,
+					const void *p,
+					size_t len)
+{
+	crc = crc64_be(crc, p, len);
+	return crc;
+}
+
 /* Does linear interpolation between powers of two */
 static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
 {
@@ -561,8 +578,4 @@ static inline sector_t bdev_sectors(struct block_device *bdev)
 {
 	return bdev->bd_inode->i_size >> 9;
 }
-
-uint64_t bch_crc64_update(uint64_t, const void *, size_t);
-uint64_t bch_crc64(const void *, size_t);
-
 #endif /* _BCACHE_UTIL_H */
