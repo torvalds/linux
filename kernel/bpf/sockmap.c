@@ -2269,8 +2269,10 @@ static struct htab_elem *alloc_sock_hash_elem(struct bpf_htab *htab,
 	}
 	l_new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
 			     htab->map.numa_node);
-	if (!l_new)
+	if (!l_new) {
+		atomic_dec(&htab->count);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	memcpy(l_new->key, key, key_size);
 	l_new->sk = sk;
