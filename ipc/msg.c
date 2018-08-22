@@ -386,7 +386,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 	down_write(&msg_ids(ns).rwsem);
 	rcu_read_lock();
 
-	ipcp = ipcctl_pre_down_nolock(ns, &msg_ids(ns), msqid, cmd,
+	ipcp = ipcctl_obtain_check(ns, &msg_ids(ns), msqid, cmd,
 				      &msqid64->msg_perm, msqid64->msg_qbytes);
 	if (IS_ERR(ipcp)) {
 		err = PTR_ERR(ipcp);
