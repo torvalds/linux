@@ -269,7 +269,9 @@ static inline void cluster_set_null(struct swap_cluster_info *info)
 
 static inline bool cluster_is_huge(struct swap_cluster_info *info)
 {
-	return info->flags & CLUSTER_FLAG_HUGE;
+	if (IS_ENABLED(CONFIG_THP_SWAP))
+		return info->flags & CLUSTER_FLAG_HUGE;
+	return false;
 }
 
 static inline void cluster_clear_huge(struct swap_cluster_info *info)
@@ -1423,9 +1425,6 @@ static bool swap_page_trans_huge_swapped(struct swap_info_struct *si,
 	unsigned long offset = round_down(roffset, SWAPFILE_CLUSTER);
 	int i;
 	bool ret = false;
-
-	if (!IS_ENABLED(CONFIG_THP_SWAP))
-		return swap_swapcount(si, entry) != 0;
 
 	ci = lock_cluster_or_swap_info(si, offset);
 	if (!ci || !cluster_is_huge(ci)) {
