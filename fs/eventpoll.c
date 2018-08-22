@@ -336,9 +336,9 @@ static inline int ep_cmp_ffd(struct epoll_filefd *p1,
 }
 
 /* Tells us if the item is currently linked */
-static inline int ep_is_linked(struct list_head *p)
+static inline int ep_is_linked(struct epitem *epi)
 {
-	return !list_empty(p);
+	return !list_empty(&epi->rdllink);
 }
 
 static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_entry_t *p)
@@ -721,7 +721,7 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 		 * queued into ->ovflist but the "txlist" might already
 		 * contain them, and the list_splice() below takes care of them.
 		 */
-		if (!ep_is_linked(&epi->rdllink)) {
+		if (!ep_is_linked(epi)) {
 			list_add_tail(&epi->rdllink, &ep->rdllist);
 			ep_pm_stay_awake(epi);
 		}
@@ -790,7 +790,7 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 	rb_erase_cached(&epi->rbn, &ep->rbr);
 
 	spin_lock_irq(&ep->wq.lock);
-	if (ep_is_linked(&epi->rdllink))
+	if (ep_is_linked(epi))
 		list_del_init(&epi->rdllink);
 	spin_unlock_irq(&ep->wq.lock);
 
@@ -1171,7 +1171,7 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	}
 
 	/* If this file is already in the ready list we exit soon */
-	if (!ep_is_linked(&epi->rdllink)) {
+	if (!ep_is_linked(epi)) {
 		list_add_tail(&epi->rdllink, &ep->rdllist);
 		ep_pm_stay_awake_rcu(epi);
 	}
@@ -1495,7 +1495,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	ep_set_busy_poll_napi_id(epi);
 
 	/* If the file is already "ready" we drop it inside the ready list */
-	if (revents && !ep_is_linked(&epi->rdllink)) {
+	if (revents && !ep_is_linked(epi)) {
 		list_add_tail(&epi->rdllink, &ep->rdllist);
 		ep_pm_stay_awake(epi);
 
@@ -1533,7 +1533,7 @@ error_unregister:
 	 * And ep_insert() is called with "mtx" held.
 	 */
 	spin_lock_irq(&ep->wq.lock);
-	if (ep_is_linked(&epi->rdllink))
+	if (ep_is_linked(epi))
 		list_del_init(&epi->rdllink);
 	spin_unlock_irq(&ep->wq.lock);
 
@@ -1601,7 +1601,7 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 	 */
 	if (ep_item_poll(epi, &pt, 1)) {
 		spin_lock_irq(&ep->wq.lock);
-		if (!ep_is_linked(&epi->rdllink)) {
+		if (!ep_is_linked(epi)) {
 			list_add_tail(&epi->rdllink, &ep->rdllist);
 			ep_pm_stay_awake(epi);
 
