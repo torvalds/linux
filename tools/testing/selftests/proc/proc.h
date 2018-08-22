@@ -14,6 +14,11 @@ static inline pid_t sys_getpid(void)
 	return syscall(SYS_getpid);
 }
 
+static inline pid_t sys_gettid(void)
+{
+	return syscall(SYS_gettid);
+}
+
 static inline bool streq(const char *s1, const char *s2)
 {
 	return strcmp(s1, s2) == 0;
