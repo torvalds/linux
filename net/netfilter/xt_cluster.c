@@ -133,6 +133,7 @@ xt_cluster_mt(const struct sk_buff *skb, struct xt_action_param *par)
 static int xt_cluster_mt_checkentry(const struct xt_mtchk_param *par)
 {
 	struct xt_cluster_match_info *info = par->matchinfo;
+	int ret;
 
 	if (info->total_nodes > XT_CLUSTER_NODES_MAX) {
 		pr_info("you have exceeded the maximum "
@@ -145,7 +146,17 @@ static int xt_cluster_mt_checkentry(const struct xt_mtchk_param *par)
 			"higher than the total number of nodes\n");
 		return -EDOM;
 	}
-	return 0;
+
+	ret = nf_ct_netns_get(par->net, par->family);
+	if (ret < 0)
+		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+				    par->family);
+	return ret;
+}
+
+static void xt_cluster_mt_destroy(const struct xt_mtdtor_param *par)
+{
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static struct xt_match xt_cluster_match __read_mostly = {
@@ -154,6 +165,7 @@ static struct xt_match xt_cluster_match __read_mostly = {
 	.match		= xt_cluster_mt,
 	.checkentry	= xt_cluster_mt_checkentry,
 	.matchsize	= sizeof(struct xt_cluster_match_info),
+	.destroy	= xt_cluster_mt_destroy,
 	.me		= THIS_MODULE,
 };
 
