@@ -22,15 +22,6 @@
 name:		ASM_NL\
 	.export name
 
-#ifdef CONFIG_64BIT
-#define ENDPROC(name) \
-	END(name)
-#else
-#define ENDPROC(name) \
-	.type name, @function !\
-	END(name)
-#endif
-
 #define ENTRY_CFI(name, ...) \
 	ENTRY(name)	ASM_NL\
 	.proc		ASM_NL\
