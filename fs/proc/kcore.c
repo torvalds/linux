@@ -10,6 +10,7 @@
  *	Safe accesses to vmalloc/direct-mapped discontiguous areas, Kanoj Sarcar <kanoj@sgi.com>
  */
 
+#include <linux/crash_core.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/kcore.h>
@@ -81,10 +82,13 @@ static size_t get_kcore_size(int *nphdr, size_t *phdrs_len, size_t *notes_len,
 	}
 
 	*phdrs_len = *nphdr * sizeof(struct elf_phdr);
-	*notes_len = (3 * (sizeof(struct elf_note) + ALIGN(sizeof(CORE_STR), 4)) +
+	*notes_len = (4 * sizeof(struct elf_note) +
+		      3 * ALIGN(sizeof(CORE_STR), 4) +
+		      VMCOREINFO_NOTE_NAME_BYTES +
 		      ALIGN(sizeof(struct elf_prstatus), 4) +
 		      ALIGN(sizeof(struct elf_prpsinfo), 4) +
-		      ALIGN(arch_task_struct_size, 4));
+		      ALIGN(arch_task_struct_size, 4) +
+		      ALIGN(vmcoreinfo_size, 4));
 	*data_offset = PAGE_ALIGN(sizeof(struct elfhdr) + *phdrs_len +
 				  *notes_len);
 	return *data_offset + size;
@@ -406,6 +410,16 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 				  sizeof(prpsinfo));
 		append_kcore_note(notes, &i, CORE_STR, NT_TASKSTRUCT, current,
 				  arch_task_struct_size);
+		/*
+		 * vmcoreinfo_size is mostly constant after init time, but it
+		 * can be changed by crash_save_vmcoreinfo(). Racing here with a
+		 * panic on another CPU before the machine goes down is insanely
+		 * unlikely, but it's better to not leave potential buffer
+		 * overflows lying around, regardless.
+		 */
+		append_kcore_note(notes, &i, VMCOREINFO_NOTE_NAME, 0,
+				  vmcoreinfo_data,
+				  min(vmcoreinfo_size, notes_len - i));
 
 		tsz = min_t(size_t, buflen, notes_offset + notes_len - *fpos);
 		if (copy_to_user(buffer, notes + *fpos - notes_offset, tsz)) {

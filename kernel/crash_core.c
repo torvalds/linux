@@ -14,8 +14,8 @@
 #include <asm/sections.h>
 
 /* vmcoreinfo stuff */
-static unsigned char *vmcoreinfo_data;
-static size_t vmcoreinfo_size;
+unsigned char *vmcoreinfo_data;
+size_t vmcoreinfo_size;
 u32 *vmcoreinfo_note;
 
 /* trusted vmcoreinfo, e.g. we can make a copy in the crash memory */
