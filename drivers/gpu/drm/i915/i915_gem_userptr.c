@@ -112,10 +112,11 @@ static void del_object(struct i915_mmu_object *mo)
 	mo->attached = false;
 }
 
-static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
+static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 						       struct mm_struct *mm,
 						       unsigned long start,
-						       unsigned long end)
+						       unsigned long end,
+						       bool blockable)
 {
 	struct i915_mmu_notifier *mn =
 		container_of(_mn, struct i915_mmu_notifier, mn);
@@ -124,7 +125,7 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	LIST_HEAD(cancelled);
 
 	if (RB_EMPTY_ROOT(&mn->objects.rb_root))
-		return;
+		return 0;
 
 	/* interval ranges are inclusive, but invalidate range is exclusive */
 	end--;
@@ -132,6 +133,10 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	spin_lock(&mn->lock);
 	it = interval_tree_iter_first(&mn->objects, start, end);
 	while (it) {
+		if (!blockable) {
+			spin_unlock(&mn->lock);
+			return -EAGAIN;
+		}
 		/* The mmu_object is released late when destroying the
 		 * GEM object so it is entirely possible to gain a
 		 * reference on an object in the process of being freed
@@ -154,6 +159,8 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 
 	if (!list_empty(&cancelled))
 		flush_workqueue(mn->wq);
+
+	return 0;
 }
 
 static const struct mmu_notifier_ops i915_gem_userptr_notifier = {

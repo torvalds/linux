@@ -3064,7 +3064,7 @@ void exit_mmap(struct mm_struct *mm)
 		 * reliably test it.
 		 */
 		mutex_lock(&oom_lock);
-		__oom_reap_task_mm(mm);
+		(void)__oom_reap_task_mm(mm);
 		mutex_unlock(&oom_lock);
 
 		set_bit(MMF_OOM_SKIP, &mm->flags);
