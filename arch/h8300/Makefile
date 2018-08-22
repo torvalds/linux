@@ -8,6 +8,8 @@
 # (C) Copyright 2002-2015 Yoshinori Sato <ysato@users.sourceforge.jp>
 #
 
+KBUILD_DEFCONFIG := edosk2674_defconfig
+
 cflags-$(CONFIG_CPU_H8300H)	:= -mh
 aflags-$(CONFIG_CPU_H8300H)	:= -mh -Wa,--mach=h8300h
 ldflags-$(CONFIG_CPU_H8300H)	:= -mh8300helf_linux
@@ -21,6 +23,8 @@ KBUILD_CFLAGS += -D__linux__
 KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 KBUILD_AFLAGS += $(aflags-y)
 LDFLAGS += $(ldflags-y)
+
+CHECKFLAGS += -msize-long
 
 ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := h8300-unknown-linux-
