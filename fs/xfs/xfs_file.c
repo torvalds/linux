@@ -931,31 +931,16 @@ xfs_file_clone_range(
 				     len, false);
 }
 
-STATIC ssize_t
+STATIC int
 xfs_file_dedupe_range(
-	struct file	*src_file,
-	u64		loff,
-	u64		len,
-	struct file	*dst_file,
-	u64		dst_loff)
+	struct file	*file_in,
+	loff_t		pos_in,
+	struct file	*file_out,
+	loff_t		pos_out,
+	u64		len)
 {
-	struct inode	*srci = file_inode(src_file);
-	u64		max_dedupe;
-	int		error;
-
-	/*
-	 * Since we have to read all these pages in to compare them, cut
-	 * it off at MAX_RW_COUNT/2 rounded down to the nearest block.
-	 * That means we won't do more than MAX_RW_COUNT IO per request.
-	 */
-	max_dedupe = (MAX_RW_COUNT >> 1) & ~(i_blocksize(srci) - 1);
-	if (len > max_dedupe)
-		len = max_dedupe;
-	error = xfs_reflink_remap_range(src_file, loff, dst_file, dst_loff,
+	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
 				     len, true);
-	if (error)
-		return error;
-	return len;
 }
 
 STATIC int

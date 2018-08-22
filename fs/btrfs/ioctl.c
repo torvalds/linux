@@ -3592,13 +3592,13 @@ out_unlock:
 	return ret;
 }
 
-ssize_t btrfs_dedupe_file_range(struct file *src_file, u64 loff, u64 olen,
-				struct file *dst_file, u64 dst_loff)
+int btrfs_dedupe_file_range(struct file *src_file, loff_t src_loff,
+			    struct file *dst_file, loff_t dst_loff,
+			    u64 olen)
 {
 	struct inode *src = file_inode(src_file);
 	struct inode *dst = file_inode(dst_file);
 	u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
-	ssize_t res;
 
 	if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
 		/*
@@ -3609,10 +3609,7 @@ ssize_t btrfs_dedupe_file_range(struct file *src_file, u64 loff, u64 olen,
 		return -EINVAL;
 	}
 
-	res = btrfs_extent_same(src, loff, olen, dst, dst_loff);
-	if (res)
-		return res;
-	return olen;
+	return btrfs_extent_same(src, src_loff, olen, dst, dst_loff);
 }
 
 static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
