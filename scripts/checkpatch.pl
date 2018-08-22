@@ -6251,6 +6251,13 @@ sub process {
 			     "Avoid using bool as bitfield.  Prefer bool bitfields as unsigned int or u<8|16|32>\n" . $herecurr);
 		}
 
+# check for bool use in .h files
+		if ($realfile =~ /\.h$/ &&
+		    $sline =~ /^.\s+bool\s*$Ident\s*(?::\s*d+\s*)?;/) {
+			CHK("BOOL_MEMBER",
+			    "Avoid using bool structure members because of possible alignment issues - see: https://lkml.org/lkml/2017/11/21/384\n" . $herecurr);
+		}
+
 # check for semaphores initialized locked
 		if ($line =~ /^.\s*sema_init.+,\W?0\W?\)/) {
 			WARN("CONSIDER_COMPLETION",
