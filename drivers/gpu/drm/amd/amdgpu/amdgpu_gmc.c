@@ -27,6 +27,38 @@
 #include "amdgpu.h"
 
 /**
+ * amdgpu_gmc_get_pde_for_bo - get the PDE for a BO
+ *
+ * @bo: the BO to get the PDE for
+ * @level: the level in the PD hirarchy
+ * @addr: resulting addr
+ * @flags: resulting flags
+ *
+ * Get the address and flags to be used for a PDE (Page Directory Entry).
+ */
+void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
+			       uint64_t *addr, uint64_t *flags)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	struct ttm_dma_tt *ttm;
+
+	switch (bo->tbo.mem.mem_type) {
+	case TTM_PL_TT:
+		ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
+		*addr = ttm->dma_address[0];
+		break;
+	case TTM_PL_VRAM:
+		*addr = amdgpu_bo_gpu_offset(bo);
+		break;
+	default:
+		*addr = 0;
+		break;
+	}
+	*flags = amdgpu_ttm_tt_pde_flags(bo->tbo.ttm, &bo->tbo.mem);
+	amdgpu_gmc_get_vm_pde(adev, level, addr, flags);
+}
+
+/**
  * amdgpu_gmc_pd_addr - return the address of the root directory
  *
  */
@@ -35,13 +67,14 @@ uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	uint64_t pd_addr;
 
-	pd_addr = amdgpu_bo_gpu_offset(bo);
 	/* TODO: move that into ASIC specific code */
 	if (adev->asic_type >= CHIP_VEGA10) {
 		uint64_t flags = AMDGPU_PTE_VALID;
 
-		amdgpu_gmc_get_vm_pde(adev, -1, &pd_addr, &flags);
+		amdgpu_gmc_get_pde_for_bo(bo, -1, &pd_addr, &flags);
 		pd_addr |= flags;
+	} else {
+		pd_addr = amdgpu_bo_gpu_offset(bo);
 	}
 	return pd_addr;
 }

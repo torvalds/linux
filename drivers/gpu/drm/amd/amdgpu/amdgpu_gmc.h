@@ -133,6 +133,8 @@ static inline bool amdgpu_gmc_vram_full_visible(struct amdgpu_gmc *gmc)
 	return (gmc->real_vram_size == gmc->visible_vram_size);
 }
 
+void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
+			       uint64_t *addr, uint64_t *flags);
 uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo);
 
 #endif

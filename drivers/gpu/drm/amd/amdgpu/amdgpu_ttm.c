@@ -1428,13 +1428,14 @@ bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm)
 }
 
 /**
- * amdgpu_ttm_tt_pte_flags - Compute PTE flags for ttm_tt object
+ * amdgpu_ttm_tt_pde_flags - Compute PDE flags for ttm_tt object
  *
  * @ttm: The ttm_tt object to compute the flags for
  * @mem: The memory registry backing this ttm_tt object
+ *
+ * Figure out the flags to use for a VM PDE (Page Directory Entry).
  */
-uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
-				 struct ttm_mem_reg *mem)
+uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 {
 	uint64_t flags = 0;
 
@@ -1447,6 +1448,22 @@ uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 		if (ttm->caching_state == tt_cached)
 			flags |= AMDGPU_PTE_SNOOPED;
 	}
+
+	return flags;
+}
+
+/**
+ * amdgpu_ttm_tt_pte_flags - Compute PTE flags for ttm_tt object
+ *
+ * @ttm: The ttm_tt object to compute the flags for
+ * @mem: The memory registry backing this ttm_tt object
+
+ * Figure out the flags to use for a VM PTE (Page Table Entry).
+ */
+uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
+				 struct ttm_mem_reg *mem)
+{
+	uint64_t flags = amdgpu_ttm_tt_pde_flags(ttm, mem);
 
 	flags |= adev->gart.gart_pte_flags;
 	flags |= AMDGPU_PTE_READABLE;

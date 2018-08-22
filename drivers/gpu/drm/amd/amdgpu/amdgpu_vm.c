@@ -1014,9 +1014,7 @@ static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
 		pbo = pbo->parent;
 
 	level += params->adev->vm_manager.root_level;
-	pt = amdgpu_bo_gpu_offset(entry->base.bo);
-	flags = AMDGPU_PTE_VALID;
-	amdgpu_gmc_get_vm_pde(params->adev, level, &pt, &flags);
+	amdgpu_gmc_get_pde_for_bo(entry->base.bo, level, &pt, &flags);
 	pde = (entry - parent->entries) * 8;
 	if (bo->shadow)
 		params->func(params, bo->shadow, pde, pt, 1, 0, flags);
