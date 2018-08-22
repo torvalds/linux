@@ -652,9 +652,9 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 	 * list_head to stay clear from the rb_parent_color union
 	 * (aligned and different than any node) and also different
 	 * from &migrate_nodes. This will verify that future list.h changes
-	 * don't break STABLE_NODE_DUP_HEAD.
+	 * don't break STABLE_NODE_DUP_HEAD. Only recent gcc can handle it.
 	 */
-#if GCC_VERSION >= 40903 /* only recent gcc can handle it */
+#if defined(GCC_VERSION) && GCC_VERSION >= 40903
 	BUILD_BUG_ON(STABLE_NODE_DUP_HEAD <= &migrate_nodes);
 	BUILD_BUG_ON(STABLE_NODE_DUP_HEAD >= &migrate_nodes + 1);
 #endif
