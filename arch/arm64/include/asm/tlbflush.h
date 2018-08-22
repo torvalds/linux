@@ -199,7 +199,7 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 
 	dsb(ishst);
 	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12))
-		__tlbi(vaae1is, addr);
+		__tlbi(vaale1is, addr);
 	dsb(ish);
 	isb();
 }
