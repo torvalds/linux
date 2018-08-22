@@ -790,8 +790,8 @@ KBUILD_CFLAGS += $(call cc-option, -fno-inline-functions-called-once)
 endif
 
 ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
-KBUILD_CFLAGS_KERNEL	+= $(call cc-option,-ffunction-sections,)
-KBUILD_CFLAGS_KERNEL	+= $(call cc-option,-fdata-sections,)
+KBUILD_CFLAGS_KERNEL += -ffunction-sections -fdata-sections
+LDFLAGS_vmlinux += --gc-sections
 endif
 
 # arch Makefile may override CC so keep this after arch Makefile is included
@@ -856,10 +856,6 @@ KBUILD_CFLAGS   += $(ARCH_CFLAGS)   $(KCFLAGS)
 LDFLAGS_BUILD_ID := $(call ld-option, --build-id)
 KBUILD_LDFLAGS_MODULE += $(LDFLAGS_BUILD_ID)
 LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
-
-ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
-LDFLAGS_vmlinux	+= $(call ld-option, --gc-sections,)
-endif
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
