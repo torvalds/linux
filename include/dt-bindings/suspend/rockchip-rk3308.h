@@ -49,6 +49,7 @@
 /* Reserved to be add... */
 
 /* All for debug */
+#define RKPM_DBG_INT_TIMER_TEST		BIT(22)
 #define RKPM_DBG_WOARKAROUND		BIT(23)
 #define RKPM_DBG_VAD_INT_OFF		BIT(24)
 #define RKPM_DBG_CLK_UNGATE		BIT(25)
