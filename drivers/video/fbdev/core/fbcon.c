@@ -284,8 +284,7 @@ static inline int fbcon_is_inactive(struct vc_data *vc, struct fb_info *info)
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	return (info->state != FBINFO_STATE_RUNNING ||
-		vc->vc_mode != KD_TEXT || ops->graphics) &&
-		!vt_force_oops_output(vc);
+		vc->vc_mode != KD_TEXT || ops->graphics);
 }
 
 static int get_color(struct vc_data *vc, struct fb_info *info,
