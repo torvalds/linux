@@ -124,11 +124,6 @@ struct snd_sof_dai *snd_sof_find_dai(struct snd_sof_dev *sdev,
 	return NULL;
 }
 
-static inline unsigned int sof_get_pages(size_t size)
-{
-	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-}
-
 /*
  * FW Panic/fault handling.
  */
@@ -191,6 +186,9 @@ EXPORT_SYMBOL(snd_sof_get_status);
 
 /*
  * Generic buffer page table creation.
+ * Take the each physical page address and drop the least significant unused
+ * bites from each (based on PAGE_SIZE). Then pack valid page address bits
+ * into compressed page table.
  */
 
 int snd_sof_create_page_table(struct snd_sof_dev *sdev,
