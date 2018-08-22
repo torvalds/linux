@@ -18,7 +18,6 @@
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 #include "xattr.h"
-#include "acl.h"
 
 static inline void hfsplus_instantiate(struct dentry *dentry,
 				       struct inode *inode, u32 cnid)
@@ -455,7 +454,7 @@ static int hfsplus_symlink(struct inode *dir, struct dentry *dentry,
 	if (res)
 		goto out_err;
 
-	res = hfsplus_init_inode_security(inode, dir, &dentry->d_name);
+	res = hfsplus_init_security(inode, dir, &dentry->d_name);
 	if (res == -EOPNOTSUPP)
 		res = 0; /* Operation is not supported. */
 	else if (res) {
@@ -496,7 +495,7 @@ static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
 	if (res)
 		goto failed_mknod;
 
-	res = hfsplus_init_inode_security(inode, dir, &dentry->d_name);
+	res = hfsplus_init_security(inode, dir, &dentry->d_name);
 	if (res == -EOPNOTSUPP)
 		res = 0; /* Operation is not supported. */
 	else if (res) {
@@ -567,10 +566,6 @@ const struct inode_operations hfsplus_dir_inode_operations = {
 	.mknod			= hfsplus_mknod,
 	.rename			= hfsplus_rename,
 	.listxattr		= hfsplus_listxattr,
-#ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
-	.get_acl		= hfsplus_get_posix_acl,
-	.set_acl		= hfsplus_set_posix_acl,
-#endif
 };
 
 const struct file_operations hfsplus_dir_operations = {

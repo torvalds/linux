@@ -129,7 +129,7 @@ int open_related_ns(struct ns_common *ns,
 		   struct ns_common *(*get_ns)(struct ns_common *ns));
 
 /* get the associated pid namespace for a file in procfs */
-static inline struct pid_namespace *proc_pid_ns(struct inode *inode)
+static inline struct pid_namespace *proc_pid_ns(const struct inode *inode)
 {
 	return inode->i_sb->s_fs_info;
 }
