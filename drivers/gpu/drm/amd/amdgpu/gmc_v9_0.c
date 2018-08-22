@@ -311,7 +311,7 @@ static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid)
 	return req;
 }
 
-signed long  amdgpu_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
+static signed long  amdgpu_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
 						  uint32_t reg0, uint32_t reg1,
 						  uint32_t ref, uint32_t mask)
 {
