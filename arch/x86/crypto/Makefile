@@ -60,9 +60,6 @@ endif
 ifeq ($(avx2_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX2_X86_64) += camellia-aesni-avx2.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX2_X86_64) += serpent-avx2.o
-	obj-$(CONFIG_CRYPTO_SHA1_MB) += sha1-mb/
-	obj-$(CONFIG_CRYPTO_SHA256_MB) += sha256-mb/
-	obj-$(CONFIG_CRYPTO_SHA512_MB) += sha512-mb/
 
 	obj-$(CONFIG_CRYPTO_MORUS1280_AVX2) += morus1280-avx2.o
 endif
