@@ -755,25 +755,6 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
 	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
 }
 
-static inline int zone_id(const struct zone *zone)
-{
-	struct pglist_data *pgdat = zone->zone_pgdat;
-
-	return zone - pgdat->node_zones;
-}
-
-#ifdef CONFIG_ZONE_DEVICE
-static inline bool is_dev_zone(const struct zone *zone)
-{
-	return zone_id(zone) == ZONE_DEVICE;
-}
-#else
-static inline bool is_dev_zone(const struct zone *zone)
-{
-	return false;
-}
-#endif
-
 #include <linux/memory_hotplug.h>
 
 void build_all_zonelists(pg_data_t *pgdat);
@@ -823,6 +804,18 @@ static inline int local_memory_node(int node_id) { return node_id; };
  * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
  */
 #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
+
+#ifdef CONFIG_ZONE_DEVICE
+static inline bool is_dev_zone(const struct zone *zone)
+{
+	return zone_idx(zone) == ZONE_DEVICE;
+}
+#else
+static inline bool is_dev_zone(const struct zone *zone)
+{
+	return false;
+}
+#endif
 
 /*
  * Returns true if a zone has pages managed by the buddy allocator.
