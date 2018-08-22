@@ -391,7 +391,6 @@ static bool ep_busy_loop_end(void *p, unsigned long start_time)
 
 	return ep_events_available(ep) || busy_loop_timeout(start_time);
 }
-#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 /*
  * Busy poll if globally on and supporting sockets found && no events,
@@ -401,20 +400,16 @@ static bool ep_busy_loop_end(void *p, unsigned long start_time)
  */
 static void ep_busy_loop(struct eventpoll *ep, int nonblock)
 {
-#ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int napi_id = READ_ONCE(ep->napi_id);
 
 	if ((napi_id >= MIN_NAPI_ID) && net_busy_loop_on())
 		napi_busy_loop(napi_id, nonblock ? NULL : ep_busy_loop_end, ep);
-#endif
 }
 
 static inline void ep_reset_busy_poll_napi_id(struct eventpoll *ep)
 {
-#ifdef CONFIG_NET_RX_BUSY_POLL
 	if (ep->napi_id)
 		ep->napi_id = 0;
-#endif
 }
 
 /*
@@ -422,7 +417,6 @@ static inline void ep_reset_busy_poll_napi_id(struct eventpoll *ep)
  */
 static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
 {
-#ifdef CONFIG_NET_RX_BUSY_POLL
 	struct eventpoll *ep;
 	unsigned int napi_id;
 	struct socket *sock;
@@ -452,8 +446,23 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
 
 	/* record NAPI ID for use in next busy poll */
 	ep->napi_id = napi_id;
-#endif
 }
+
+#else
+
+static inline void ep_busy_loop(struct eventpoll *ep, int nonblock)
+{
+}
+
+static inline void ep_reset_busy_poll_napi_id(struct eventpoll *ep)
+{
+}
+
+static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
+{
+}
+
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 /**
  * ep_call_nested - Perform a bound (possibly) nested call, by checking
