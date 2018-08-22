@@ -285,8 +285,6 @@ source "drivers/gpu/drm/bridge/Kconfig"
 
 source "drivers/gpu/drm/sti/Kconfig"
 
-source "drivers/gpu/drm/amd/amdkfd/Kconfig"
-
 source "drivers/gpu/drm/imx/Kconfig"
 
 source "drivers/gpu/drm/v3d/Kconfig"

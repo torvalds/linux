@@ -35,7 +35,8 @@ ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_DISPLAY_PATH) \
 	-I$(FULL_AMD_DISPLAY_PATH)/include \
 	-I$(FULL_AMD_DISPLAY_PATH)/dc \
-	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm
+	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm \
+	-I$(FULL_AMD_PATH)/amdkfd
 
 amdgpu-y := amdgpu_drv.o
 
@@ -136,6 +137,9 @@ amdgpu-y += \
 amdgpu-y += amdgpu_amdkfd.o
 
 ifneq ($(CONFIG_HSA_AMD),)
+AMDKFD_PATH := ../amdkfd
+include $(FULL_AMD_PATH)/amdkfd/Makefile
+amdgpu-y += $(AMDKFD_FILES)
 amdgpu-y += \
 	 amdgpu_amdkfd_fence.o \
 	 amdgpu_amdkfd_gpuvm.o \
