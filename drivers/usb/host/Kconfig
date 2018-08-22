@@ -276,7 +276,7 @@ config USB_EHCI_EXYNOS
 	Enable support for the Samsung Exynos SOC's on-chip EHCI controller.
 
 config USB_EHCI_MV
-	bool "EHCI support for Marvell PXA/MMP USB controller"
+	tristate "EHCI support for Marvell PXA/MMP USB controller"
 	depends on (ARCH_PXA || ARCH_MMP)
 	select USB_EHCI_ROOT_HUB_TT
 	---help---

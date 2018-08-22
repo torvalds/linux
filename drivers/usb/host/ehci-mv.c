@@ -12,12 +12,17 @@
 #include <linux/err.h>
 #include <linux/usb/otg.h>
 #include <linux/platform_data/mv_usb.h>
+#include <linux/io.h>
+
+#include <linux/usb/hcd.h>
+
+#include "ehci.h"
 
 #define CAPLENGTH_MASK         (0xff)
 
-struct ehci_hcd_mv {
-	struct usb_hcd *hcd;
+#define hcd_to_ehci_hcd_mv(h) ((struct ehci_hcd_mv *)hcd_to_ehci(h)->priv)
 
+struct ehci_hcd_mv {
 	/* Which mode does this ehci running OTG/Host ? */
 	int mode;
 
@@ -66,7 +71,7 @@ static void mv_ehci_disable(struct ehci_hcd_mv *ehci_mv)
 static int mv_ehci_reset(struct usb_hcd *hcd)
 {
 	struct device *dev = hcd->self.controller;
-	struct ehci_hcd_mv *ehci_mv = dev_get_drvdata(dev);
+	struct ehci_hcd_mv *ehci_mv = hcd_to_ehci_hcd_mv(hcd);
 	int retval;
 
 	if (ehci_mv == NULL) {
@@ -83,46 +88,11 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 	return retval;
 }
 
-static const struct hc_driver mv_ehci_hc_driver = {
-	.description = hcd_name,
-	.product_desc = "Marvell EHCI",
-	.hcd_priv_size = sizeof(struct ehci_hcd),
+static struct hc_driver __read_mostly ehci_platform_hc_driver;
 
-	/*
-	 * generic hardware linkage
-	 */
-	.irq = ehci_irq,
-	.flags = HCD_MEMORY | HCD_USB2 | HCD_BH,
-
-	/*
-	 * basic lifecycle operations
-	 */
-	.reset = mv_ehci_reset,
-	.start = ehci_run,
-	.stop = ehci_stop,
-	.shutdown = ehci_shutdown,
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue = ehci_urb_enqueue,
-	.urb_dequeue = ehci_urb_dequeue,
-	.endpoint_disable = ehci_endpoint_disable,
-	.endpoint_reset = ehci_endpoint_reset,
-	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number = ehci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data = ehci_hub_status_data,
-	.hub_control = ehci_hub_control,
-	.bus_suspend = ehci_bus_suspend,
-	.bus_resume = ehci_bus_resume,
+static const struct ehci_driver_overrides platform_overrides __initconst = {
+	.reset =		mv_ehci_reset,
+	.extra_priv_size =	sizeof(struct ehci_hcd_mv),
 };
 
 static int mv_ehci_probe(struct platform_device *pdev)
@@ -143,19 +113,13 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	if (usb_disabled())
 		return -ENODEV;
 
-	hcd = usb_create_hcd(&mv_ehci_hc_driver, &pdev->dev, "mv ehci");
+	hcd = usb_create_hcd(&ehci_platform_hc_driver, &pdev->dev, "mv ehci");
 	if (!hcd)
 		return -ENOMEM;
 
-	ehci_mv = devm_kzalloc(&pdev->dev, sizeof(*ehci_mv), GFP_KERNEL);
-	if (ehci_mv == NULL) {
-		retval = -ENOMEM;
-		goto err_put_hcd;
-	}
-
-	platform_set_drvdata(pdev, ehci_mv);
+	platform_set_drvdata(pdev, hcd);
+	ehci_mv = hcd_to_ehci_hcd_mv(hcd);
 	ehci_mv->pdata = pdata;
-	ehci_mv->hcd = hcd;
 
 	ehci_mv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ehci_mv->clk)) {
@@ -262,8 +226,8 @@ err_put_hcd:
 
 static int mv_ehci_remove(struct platform_device *pdev)
 {
-	struct ehci_hcd_mv *ehci_mv = platform_get_drvdata(pdev);
-	struct usb_hcd *hcd = ehci_mv->hcd;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ehci_hcd_mv *ehci_mv = hcd_to_ehci_hcd_mv(hcd);
 
 	if (hcd->rh_registered)
 		usb_remove_hcd(hcd);
@@ -295,8 +259,8 @@ static const struct platform_device_id ehci_id_table[] = {
 
 static void mv_ehci_shutdown(struct platform_device *pdev)
 {
-	struct ehci_hcd_mv *ehci_mv = platform_get_drvdata(pdev);
-	struct usb_hcd *hcd = ehci_mv->hcd;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ehci_hcd_mv *ehci_mv = hcd_to_ehci_hcd_mv(hcd);
 
 	if (!hcd->rh_registered)
 		return;
@@ -315,3 +279,25 @@ static struct platform_driver ehci_mv_driver = {
 		   },
 	.id_table = ehci_id_table,
 };
+
+static int __init ehci_platform_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	ehci_init_driver(&ehci_platform_hc_driver, &platform_overrides);
+	return platform_driver_register(&ehci_mv_driver);
+}
+module_init(ehci_platform_init);
+
+static void __exit ehci_platform_cleanup(void)
+{
+	platform_driver_unregister(&ehci_mv_driver);
+}
+module_exit(ehci_platform_cleanup);
+
+MODULE_DESCRIPTION("Marvell EHCI driver");
+MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
+MODULE_AUTHOR("Neil Zhang <zhangwm@marvell.com>");
+MODULE_ALIAS("mv-ehci");
+MODULE_LICENSE("GPL");
