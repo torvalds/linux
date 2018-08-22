@@ -127,7 +127,8 @@ kvm_get_supported_cpuid_entry(uint32_t function)
 	return kvm_get_supported_cpuid_index(function, 0);
 }
 
-struct kvm_vm *vm_create_default(uint32_t vcpuid, void *guest_code);
+struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_size,
+				 void *guest_code);
 void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code);
 
 typedef void (*vmx_guest_code_t)(vm_vaddr_t vmxon_vaddr,

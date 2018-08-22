@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, guest_code);
+	vm = vm_create_default(VCPU_ID, 0, guest_code);
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 	run = vcpu_state(vm, VCPU_ID);
 
