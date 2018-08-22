@@ -27,7 +27,7 @@
 #include <sound/core.h>
 #include <sound/jack.h>
 
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_beep.h"
