@@ -326,20 +326,16 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 
 #ifdef CONFIG_HAVE_RCU_TABLE_FREE
 
+/*
+ * See the comment near struct mmu_table_batch.
+ */
+
 static void tlb_remove_table_smp_sync(void *arg)
 {
-	struct mm_struct __maybe_unused *mm = arg;
-	/*
-	 * On most architectures this does nothing. Simply delivering the
-	 * interrupt is enough to prevent races with software page table
-	 * walking like that done in get_user_pages_fast.
-	 *
-	 * See the comment near struct mmu_table_batch.
-	 */
-	tlb_flush_remove_tables_local(mm);
+	/* Simply deliver the interrupt */
 }
 
-static void tlb_remove_table_one(void *table, struct mmu_gather *tlb)
+static void tlb_remove_table_one(void *table)
 {
 	/*
 	 * This isn't an RCU grace period and hence the page-tables cannot be
@@ -348,7 +344,7 @@ static void tlb_remove_table_one(void *table, struct mmu_gather *tlb)
 	 * It is however sufficient for software page-table walkers that rely on
 	 * IRQ disabling. See the comment near struct mmu_table_batch.
 	 */
-	smp_call_function(tlb_remove_table_smp_sync, tlb->mm, 1);
+	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
 	__tlb_remove_table(table);
 }
 
@@ -368,8 +364,6 @@ static void tlb_remove_table_rcu(struct rcu_head *head)
 void tlb_table_flush(struct mmu_gather *tlb)
 {
 	struct mmu_table_batch **batch = &tlb->batch;
-
-	tlb_flush_remove_tables(tlb->mm);
 
 	if (*batch) {
 		call_rcu_sched(&(*batch)->rcu, tlb_remove_table_rcu);
@@ -393,7 +387,7 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
 	if (*batch == NULL) {
 		*batch = (struct mmu_table_batch *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
 		if (*batch == NULL) {
-			tlb_remove_table_one(table, tlb);
+			tlb_remove_table_one(table);
 			return;
 		}
 		(*batch)->nr = 0;
