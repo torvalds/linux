@@ -96,14 +96,14 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp);
 static int sysvipc_shm_proc_show(struct seq_file *s, void *it);
 #endif
 
-int shm_init_ns(struct ipc_namespace *ns)
+void shm_init_ns(struct ipc_namespace *ns)
 {
 	ns->shm_ctlmax = SHMMAX;
 	ns->shm_ctlall = SHMALL;
 	ns->shm_ctlmni = SHMMNI;
 	ns->shm_rmid_forced = 0;
 	ns->shm_tot = 0;
-	return ipc_init_ids(&shm_ids(ns));
+	ipc_init_ids(&shm_ids(ns));
 }
 
 /*
@@ -136,9 +136,8 @@ void shm_exit_ns(struct ipc_namespace *ns)
 
 static int __init ipc_ns_init(void)
 {
-	const int err = shm_init_ns(&init_ipc_ns);
-	WARN(err, "ipc: sysv shm_init_ns failed: %d\n", err);
-	return err;
+	shm_init_ns(&init_ipc_ns);
+	return 0;
 }
 
 pure_initcall(ipc_ns_init);
