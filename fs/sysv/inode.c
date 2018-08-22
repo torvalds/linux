@@ -35,7 +35,7 @@
 static int sysv_sync_fs(struct super_block *sb, int wait)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
-	unsigned long time = get_seconds(), old_time;
+	u32 time = (u32)ktime_get_real_seconds(), old_time;
 
 	mutex_lock(&sbi->s_lock);
 
@@ -46,8 +46,8 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 	 */
 	old_time = fs32_to_cpu(sbi, *sbi->s_sb_time);
 	if (sbi->s_type == FSTYPE_SYSV4) {
-		if (*sbi->s_sb_state == cpu_to_fs32(sbi, 0x7c269d38 - old_time))
-			*sbi->s_sb_state = cpu_to_fs32(sbi, 0x7c269d38 - time);
+		if (*sbi->s_sb_state == cpu_to_fs32(sbi, 0x7c269d38u - old_time))
+			*sbi->s_sb_state = cpu_to_fs32(sbi, 0x7c269d38u - time);
 		*sbi->s_sb_time = cpu_to_fs32(sbi, time);
 		mark_buffer_dirty(sbi->s_bh2);
 	}
