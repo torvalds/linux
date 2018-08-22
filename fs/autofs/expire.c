@@ -29,7 +29,8 @@ static inline int autofs_can_expire(struct dentry *dentry,
 }
 
 /* Check a mount point for busyness */
-static int autofs_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
+static int autofs_mount_busy(struct vfsmount *mnt,
+			     struct dentry *dentry, unsigned int how)
 {
 	struct dentry *top = dentry;
 	struct path path = {.mnt = mnt, .dentry = dentry};
@@ -48,6 +49,12 @@ static int autofs_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 		/* This is an autofs submount, we can't expire it */
 		if (autofs_type_indirect(sbi->type))
 			goto done;
+	}
+
+	/* Not a submount, has a forced expire been requested */
+	if (how & AUTOFS_EXP_FORCED) {
+		status = 0;
+		goto done;
 	}
 
 	/* Update the expiry counter if fs is busy */
@@ -189,6 +196,10 @@ static int autofs_direct_busy(struct vfsmount *mnt,
 {
 	pr_debug("top %p %pd\n", top, top);
 
+	/* Forced expire, user space handles busy mounts */
+	if (how & AUTOFS_EXP_FORCED)
+		return 0;
+
 	/* If it's busy update the expiry counters */
 	if (!may_umount_tree(mnt)) {
 		struct autofs_info *ino;
@@ -235,7 +246,7 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 		 * If the fs is busy update the expiry counter.
 		 */
 		if (d_mountpoint(p)) {
-			if (autofs_mount_busy(mnt, p)) {
+			if (autofs_mount_busy(mnt, p, how)) {
 				top_ino->last_used = jiffies;
 				dput(p);
 				return 1;
@@ -257,6 +268,10 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 			}
 		}
 	}
+
+	/* Forced expire, user space handles busy mounts */
+	if (how & AUTOFS_EXP_FORCED)
+		return 0;
 
 	/* Timeout of a tree mount is ultimately determined by its top dentry */
 	if (!autofs_can_expire(top, timeout, how))
@@ -280,8 +295,14 @@ static struct dentry *autofs_check_leaves(struct vfsmount *mnt,
 
 		if (d_mountpoint(p)) {
 			/* Can we umount this guy */
-			if (autofs_mount_busy(mnt, p))
+			if (autofs_mount_busy(mnt, p, how))
 				continue;
+
+			/* This isn't a submount so if a forced expire
+			 * has been requested, user space handles busy
+			 * mounts */
+			if (how & AUTOFS_EXP_FORCED)
+				return p;
 
 			/* Can we expire this guy */
 			if (autofs_can_expire(p, timeout, how))
@@ -361,8 +382,14 @@ static struct dentry *should_expire(struct dentry *dentry,
 		pr_debug("checking mountpoint %p %pd\n", dentry, dentry);
 
 		/* Can we umount this guy */
-		if (autofs_mount_busy(mnt, dentry))
+		if (autofs_mount_busy(mnt, dentry, how))
 			return NULL;
+
+		/* This isn't a submount so if a forced expire
+		 * has been requested, user space handles busy
+		 * mounts */
+		if (how & AUTOFS_EXP_FORCED)
+			return dentry;
 
 		/* Can we expire this guy */
 		if (autofs_can_expire(dentry, timeout, how))
@@ -372,6 +399,11 @@ static struct dentry *should_expire(struct dentry *dentry,
 
 	if (d_really_is_positive(dentry) && d_is_symlink(dentry)) {
 		pr_debug("checking symlink %p %pd\n", dentry, dentry);
+
+		/* Forced expire, user space handles busy mounts */
+		if (how & AUTOFS_EXP_FORCED)
+			return dentry;
+
 		/*
 		 * A symlink can't be "busy" in the usual sense so
 		 * just check last used for expire timeout.
@@ -386,10 +418,13 @@ static struct dentry *should_expire(struct dentry *dentry,
 
 	/* Case 2: tree mount, expire iff entire tree is not busy */
 	if (!(how & AUTOFS_EXP_LEAVES)) {
-		/* Path walk currently on this dentry? */
-		ino_count = atomic_read(&ino->count) + 1;
-		if (d_count(dentry) > ino_count)
-			return NULL;
+		/* Not a forced expire? */
+		if (!(how & AUTOFS_EXP_FORCED)) {
+			/* ref-walk currently on this dentry? */
+			ino_count = atomic_read(&ino->count) + 1;
+			if (d_count(dentry) > ino_count)
+				return NULL;
+		}
 
 		if (!autofs_tree_busy(mnt, dentry, timeout, how))
 			return dentry;
@@ -398,12 +433,15 @@ static struct dentry *should_expire(struct dentry *dentry,
 	 *	   (autofs-4.1).
 	 */
 	} else {
-		/* Path walk currently on this dentry? */
 		struct dentry *expired;
 
-		ino_count = atomic_read(&ino->count) + 1;
-		if (d_count(dentry) > ino_count)
-			return NULL;
+		/* Not a forced expire? */
+		if (!(how & AUTOFS_EXP_FORCED)) {
+			/* ref-walk currently on this dentry? */
+			ino_count = atomic_read(&ino->count) + 1;
+			if (d_count(dentry) > ino_count)
+				return NULL;
+		}
 
 		expired = autofs_check_leaves(mnt, dentry, timeout, how);
 		if (expired) {
