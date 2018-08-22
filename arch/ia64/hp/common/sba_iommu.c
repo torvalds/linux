@@ -1805,7 +1805,7 @@ static struct ioc_iommu ioc_iommu_info[] __initdata = {
 	{ SX2000_IOC_ID, "sx2000", NULL },
 };
 
-static void ioc_init(unsigned long hpa, struct ioc *ioc)
+static void __init ioc_init(unsigned long hpa, struct ioc *ioc)
 {
 	struct ioc_iommu *info;
 
@@ -2002,7 +2002,7 @@ sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 #endif
 }
 
-static void acpi_sba_ioc_add(struct ioc *ioc)
+static void __init acpi_sba_ioc_add(struct ioc *ioc)
 {
 	acpi_handle handle = ioc->handle;
 	acpi_status status;
