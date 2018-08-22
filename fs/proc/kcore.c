@@ -98,53 +98,15 @@ static size_t get_kcore_size(int *nphdr, size_t *elf_buflen)
 	return size + *elf_buflen;
 }
 
-static void free_kclist_ents(struct list_head *head)
-{
-	struct kcore_list *tmp, *pos;
-
-	list_for_each_entry_safe(pos, tmp, head, list) {
-		list_del(&pos->list);
-		kfree(pos);
-	}
-}
-/*
- * Replace all KCORE_RAM/KCORE_VMEMMAP information with passed list.
- */
-static void __kcore_update_ram(struct list_head *list)
-{
-	int nphdr;
-	size_t size;
-	struct kcore_list *tmp, *pos;
-	LIST_HEAD(garbage);
-
-	down_write(&kclist_lock);
-	if (xchg(&kcore_need_update, 0)) {
-		list_for_each_entry_safe(pos, tmp, &kclist_head, list) {
-			if (pos->type == KCORE_RAM
-				|| pos->type == KCORE_VMEMMAP)
-				list_move(&pos->list, &garbage);
-		}
-		list_splice_tail(list, &kclist_head);
-	} else
-		list_splice(list, &garbage);
-	proc_root_kcore->size = get_kcore_size(&nphdr, &size);
-	up_write(&kclist_lock);
-
-	free_kclist_ents(&garbage);
-}
-
-
 #ifdef CONFIG_HIGHMEM
 /*
  * If no highmem, we can assume [0...max_low_pfn) continuous range of memory
  * because memory hole is not as big as !HIGHMEM case.
  * (HIGHMEM is special because part of memory is _invisible_ from the kernel.)
  */
-static int kcore_update_ram(void)
+static int kcore_ram_list(struct list_head *head)
 {
-	LIST_HEAD(head);
 	struct kcore_list *ent;
-	int ret = 0;
 
 	ent = kmalloc(sizeof(*ent), GFP_KERNEL);
 	if (!ent)
@@ -152,9 +114,8 @@ static int kcore_update_ram(void)
 	ent->addr = (unsigned long)__va(0);
 	ent->size = max_low_pfn << PAGE_SHIFT;
 	ent->type = KCORE_RAM;
-	list_add(&ent->list, &head);
-	__kcore_update_ram(&head);
-	return ret;
+	list_add(&ent->list, head);
+	return 0;
 }
 
 #else /* !CONFIG_HIGHMEM */
@@ -253,11 +214,10 @@ free_out:
 	return 1;
 }
 
-static int kcore_update_ram(void)
+static int kcore_ram_list(struct list_head *list)
 {
 	int nid, ret;
 	unsigned long end_pfn;
-	LIST_HEAD(head);
 
 	/* Not inialized....update now */
 	/* find out "max pfn" */
@@ -269,15 +229,50 @@ static int kcore_update_ram(void)
 			end_pfn = node_end;
 	}
 	/* scan 0 to max_pfn */
-	ret = walk_system_ram_range(0, end_pfn, &head, kclist_add_private);
-	if (ret) {
-		free_kclist_ents(&head);
+	ret = walk_system_ram_range(0, end_pfn, list, kclist_add_private);
+	if (ret)
 		return -ENOMEM;
-	}
-	__kcore_update_ram(&head);
-	return ret;
+	return 0;
 }
 #endif /* CONFIG_HIGHMEM */
+
+static int kcore_update_ram(void)
+{
+	LIST_HEAD(list);
+	LIST_HEAD(garbage);
+	int nphdr;
+	size_t size;
+	struct kcore_list *tmp, *pos;
+	int ret = 0;
+
+	down_write(&kclist_lock);
+	if (!xchg(&kcore_need_update, 0))
+		goto out;
+
+	ret = kcore_ram_list(&list);
+	if (ret) {
+		/* Couldn't get the RAM list, try again next time. */
+		WRITE_ONCE(kcore_need_update, 1);
+		list_splice_tail(&list, &garbage);
+		goto out;
+	}
+
+	list_for_each_entry_safe(pos, tmp, &kclist_head, list) {
+		if (pos->type == KCORE_RAM || pos->type == KCORE_VMEMMAP)
+			list_move(&pos->list, &garbage);
+	}
+	list_splice_tail(&list, &kclist_head);
+
+	proc_root_kcore->size = get_kcore_size(&nphdr, &size);
+
+out:
+	up_write(&kclist_lock);
+	list_for_each_entry_safe(pos, tmp, &garbage, list) {
+		list_del(&pos->list);
+		kfree(pos);
+	}
+	return ret;
+}
 
 /*****************************************************************************/
 /*
