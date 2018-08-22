@@ -225,7 +225,7 @@ static int proc_dopipe_max_size(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos);
 
 #ifdef CONFIG_MAGIC_SYSRQ
-/* Note: sysrq code uses it's own private copy */
+/* Note: sysrq code uses its own private copy */
 static int __sysrq_enabled = CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE;
 
 static int sysrq_sysctl_handler(struct ctl_table *table, int write,
@@ -1976,13 +1976,13 @@ static void warn_sysctl_write(struct ctl_table *table)
 }
 
 /**
- * proc_first_pos_non_zero_ignore - check if firs position is allowed
+ * proc_first_pos_non_zero_ignore - check if first position is allowed
  * @ppos: file position
  * @table: the sysctl table
  *
  * Returns true if the first position is non-zero and the sysctl_writes_strict
  * mode indicates this is not allowed for numeric input types. String proc
- * hadlers can ignore the return value.
+ * handlers can ignore the return value.
  */
 static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
 					   struct ctl_table *table)
