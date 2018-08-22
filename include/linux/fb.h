@@ -456,6 +456,13 @@ struct fb_tile_ops {
  * and host endianness. Drivers should not use this flag.
  */
 #define FBINFO_BE_MATH  0x100000
+/*
+ * Hide smem_start in the FBIOGET_FSCREENINFO IOCTL. This is used by modern DRM
+ * drivers to stop userspace from trying to share buffers behind the kernel's
+ * back. Instead dma-buf based buffer sharing should be used.
+ */
+#define FBINFO_HIDE_SMEM_START  0x200000
+
 
 struct fb_info {
 	atomic_t count;
