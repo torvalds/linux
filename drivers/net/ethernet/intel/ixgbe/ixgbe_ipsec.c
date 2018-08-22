@@ -894,7 +894,7 @@ int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 	 * device, so block these requests for now.
 	 */
 	if (!(sam->flags & XFRM_OFFLOAD_INBOUND)) {
-		err = -ENXIO;
+		err = -EOPNOTSUPP;
 		goto err_out;
 	}
 
