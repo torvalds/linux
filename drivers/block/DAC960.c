@@ -2428,16 +2428,20 @@ static bool DAC960_V2_ReportDeviceConfiguration(DAC960_Controller_T
     {
       DAC960_V2_LogicalDeviceInfo_T *LogicalDeviceInfo =
 	Controller->V2.LogicalDeviceInformation[LogicalDriveNumber];
-      unsigned char *ReadCacheStatus[] = { "Read Cache Disabled",
-					   "Read Cache Enabled",
-					   "Read Ahead Enabled",
-					   "Intelligent Read Ahead Enabled",
-					   "-", "-", "-", "-" };
-      unsigned char *WriteCacheStatus[] = { "Write Cache Disabled",
-					    "Logical Device Read Only",
-					    "Write Cache Enabled",
-					    "Intelligent Write Cache Enabled",
-					    "-", "-", "-", "-" };
+      static const unsigned char *ReadCacheStatus[] = {
+        "Read Cache Disabled",
+        "Read Cache Enabled",
+        "Read Ahead Enabled",
+        "Intelligent Read Ahead Enabled",
+        "-", "-", "-", "-"
+      };
+      static const unsigned char *WriteCacheStatus[] = {
+        "Write Cache Disabled",
+        "Logical Device Read Only",
+        "Write Cache Enabled",
+        "Intelligent Write Cache Enabled",
+        "-", "-", "-", "-"
+      };
       unsigned char *GeometryTranslation;
       if (LogicalDeviceInfo == NULL) continue;
       switch (LogicalDeviceInfo->DriveGeometry)
@@ -4339,14 +4343,16 @@ static void DAC960_V1_ProcessCompletedCommand(DAC960_Command_T *Command)
 static void DAC960_V2_ReadWriteError(DAC960_Command_T *Command)
 {
   DAC960_Controller_T *Controller = Command->Controller;
-  unsigned char *SenseErrors[] = { "NO SENSE", "RECOVERED ERROR",
-				   "NOT READY", "MEDIUM ERROR",
-				   "HARDWARE ERROR", "ILLEGAL REQUEST",
-				   "UNIT ATTENTION", "DATA PROTECT",
-				   "BLANK CHECK", "VENDOR-SPECIFIC",
-				   "COPY ABORTED", "ABORTED COMMAND",
-				   "EQUAL", "VOLUME OVERFLOW",
-				   "MISCOMPARE", "RESERVED" };
+  static const unsigned char *SenseErrors[] = {
+    "NO SENSE", "RECOVERED ERROR",
+    "NOT READY", "MEDIUM ERROR",
+    "HARDWARE ERROR", "ILLEGAL REQUEST",
+    "UNIT ATTENTION", "DATA PROTECT",
+    "BLANK CHECK", "VENDOR-SPECIFIC",
+    "COPY ABORTED", "ABORTED COMMAND",
+    "EQUAL", "VOLUME OVERFLOW",
+    "MISCOMPARE", "RESERVED"
+  };
   unsigned char *CommandName = "UNKNOWN";
   switch (Command->CommandType)
     {

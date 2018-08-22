@@ -2145,8 +2145,6 @@ static void blk_mq_exit_hctx(struct request_queue *q,
 	if (set->ops->exit_request)
 		set->ops->exit_request(set, hctx->fq->flush_rq, hctx_idx);
 
-	blk_mq_sched_exit_hctx(q, hctx, hctx_idx);
-
 	if (set->ops->exit_hctx)
 		set->ops->exit_hctx(hctx, hctx_idx);
 
@@ -2214,12 +2212,9 @@ static int blk_mq_init_hctx(struct request_queue *q,
 	    set->ops->init_hctx(hctx, set->driver_data, hctx_idx))
 		goto free_bitmap;
 
-	if (blk_mq_sched_init_hctx(q, hctx, hctx_idx))
-		goto exit_hctx;
-
 	hctx->fq = blk_alloc_flush_queue(q, hctx->numa_node, set->cmd_size);
 	if (!hctx->fq)
-		goto sched_exit_hctx;
+		goto exit_hctx;
 
 	if (blk_mq_init_request(set, hctx->fq->flush_rq, hctx_idx, node))
 		goto free_fq;
@@ -2233,8 +2228,6 @@ static int blk_mq_init_hctx(struct request_queue *q,
 
  free_fq:
 	kfree(hctx->fq);
- sched_exit_hctx:
-	blk_mq_sched_exit_hctx(q, hctx, hctx_idx);
  exit_hctx:
 	if (set->ops->exit_hctx)
 		set->ops->exit_hctx(hctx, hctx_idx);
@@ -2896,10 +2889,81 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	return ret;
 }
 
+/*
+ * request_queue and elevator_type pair.
+ * It is just used by __blk_mq_update_nr_hw_queues to cache
+ * the elevator_type associated with a request_queue.
+ */
+struct blk_mq_qe_pair {
+	struct list_head node;
+	struct request_queue *q;
+	struct elevator_type *type;
+};
+
+/*
+ * Cache the elevator_type in qe pair list and switch the
+ * io scheduler to 'none'
+ */
+static bool blk_mq_elv_switch_none(struct list_head *head,
+		struct request_queue *q)
+{
+	struct blk_mq_qe_pair *qe;
+
+	if (!q->elevator)
+		return true;
+
+	qe = kmalloc(sizeof(*qe), GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY);
+	if (!qe)
+		return false;
+
+	INIT_LIST_HEAD(&qe->node);
+	qe->q = q;
+	qe->type = q->elevator->type;
+	list_add(&qe->node, head);
+
+	mutex_lock(&q->sysfs_lock);
+	/*
+	 * After elevator_switch_mq, the previous elevator_queue will be
+	 * released by elevator_release. The reference of the io scheduler
+	 * module get by elevator_get will also be put. So we need to get
+	 * a reference of the io scheduler module here to prevent it to be
+	 * removed.
+	 */
+	__module_get(qe->type->elevator_owner);
+	elevator_switch_mq(q, NULL);
+	mutex_unlock(&q->sysfs_lock);
+
+	return true;
+}
+
+static void blk_mq_elv_switch_back(struct list_head *head,
+		struct request_queue *q)
+{
+	struct blk_mq_qe_pair *qe;
+	struct elevator_type *t = NULL;
+
+	list_for_each_entry(qe, head, node)
+		if (qe->q == q) {
+			t = qe->type;
+			break;
+		}
+
+	if (!t)
+		return;
+
+	list_del(&qe->node);
+	kfree(qe);
+
+	mutex_lock(&q->sysfs_lock);
+	elevator_switch_mq(q, t);
+	mutex_unlock(&q->sysfs_lock);
+}
+
 static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 							int nr_hw_queues)
 {
 	struct request_queue *q;
+	LIST_HEAD(head);
 
 	lockdep_assert_held(&set->tag_list_lock);
 
@@ -2910,6 +2974,18 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list)
 		blk_mq_freeze_queue(q);
+	/*
+	 * Sync with blk_mq_queue_tag_busy_iter.
+	 */
+	synchronize_rcu();
+	/*
+	 * Switch IO scheduler to 'none', cleaning up the data associated
+	 * with the previous scheduler. We will switch back once we are done
+	 * updating the new sw to hw queue mappings.
+	 */
+	list_for_each_entry(q, &set->tag_list, tag_set_list)
+		if (!blk_mq_elv_switch_none(&head, q))
+			goto switch_back;
 
 	set->nr_hw_queues = nr_hw_queues;
 	blk_mq_update_queue_map(set);
@@ -2917,6 +2993,10 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 		blk_mq_realloc_hw_ctxs(set, q);
 		blk_mq_queue_reinit(q);
 	}
+
+switch_back:
+	list_for_each_entry(q, &set->tag_list, tag_set_list)
+		blk_mq_elv_switch_back(&head, q);
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list)
 		blk_mq_unfreeze_queue(q);

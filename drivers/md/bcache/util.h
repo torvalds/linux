@@ -289,10 +289,10 @@ do {									\
 #define ANYSINT_MAX(t)							\
 	((((t) 1 << (sizeof(t) * 8 - 2)) - (t) 1) * (t) 2 + (t) 1)
 
-int bch_strtoint_h(const char *, int *);
-int bch_strtouint_h(const char *, unsigned int *);
-int bch_strtoll_h(const char *, long long *);
-int bch_strtoull_h(const char *, unsigned long long *);
+int bch_strtoint_h(const char *cp, int *res);
+int bch_strtouint_h(const char *cp, unsigned int *res);
+int bch_strtoll_h(const char *cp, long long *res);
+int bch_strtoull_h(const char *cp, unsigned long long *res);
 
 static inline int bch_strtol_h(const char *cp, long *res)
 {
@@ -348,7 +348,7 @@ static inline int bch_strtoul_h(const char *cp, long *res)
 	snprintf(buf, size,						\
 		__builtin_types_compatible_p(typeof(var), int)		\
 		     ? "%i\n" :						\
-		__builtin_types_compatible_p(typeof(var), unsigned)	\
+		__builtin_types_compatible_p(typeof(var), unsigned int)	\
 		     ? "%u\n" :						\
 		__builtin_types_compatible_p(typeof(var), long)		\
 		     ? "%li\n" :					\
@@ -380,7 +380,7 @@ struct time_stats {
 
 void bch_time_stats_update(struct time_stats *stats, uint64_t time);
 
-static inline unsigned local_clock_us(void)
+static inline unsigned int local_clock_us(void)
 {
 	return local_clock() >> 10;
 }
@@ -403,7 +403,8 @@ do {									\
 	__print_time_stat(stats, name,					\
 			  average_duration,	duration_units);	\
 	sysfs_print(name ## _ ##max_duration ## _ ## duration_units,	\
-			div_u64((stats)->max_duration, NSEC_PER_ ## duration_units));\
+			div_u64((stats)->max_duration,			\
+				NSEC_PER_ ## duration_units));		\
 									\
 	sysfs_print(name ## _last_ ## frequency_units, (stats)->last	\
 		    ? div_s64(local_clock() - (stats)->last,		\
@@ -560,9 +561,10 @@ static inline uint64_t bch_crc64_update(uint64_t crc,
 }
 
 /* Does linear interpolation between powers of two */
-static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
+static inline unsigned int fract_exp_two(unsigned int x,
+					 unsigned int fract_bits)
 {
-	unsigned fract = x & ~(~0 << fract_bits);
+	unsigned int fract = x & ~(~0 << fract_bits);
 
 	x >>= fract_bits;
 	x   = 1 << x;

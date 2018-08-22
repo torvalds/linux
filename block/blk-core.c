@@ -1036,7 +1036,6 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
 		    laptop_mode_timer_fn, 0);
 	timer_setup(&q->timeout, blk_rq_timed_out_timer, 0);
 	INIT_WORK(&q->timeout_work, NULL);
-	INIT_LIST_HEAD(&q->queue_head);
 	INIT_LIST_HEAD(&q->timeout_list);
 	INIT_LIST_HEAD(&q->icq_list);
 #ifdef CONFIG_BLK_CGROUP
@@ -2162,7 +2161,9 @@ static inline bool should_fail_request(struct hd_struct *part,
 
 static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 {
-	if (part->policy && op_is_write(bio_op(bio))) {
+	const int op = bio_op(bio);
+
+	if (part->policy && (op_is_write(op) && !op_is_flush(op))) {
 		char b[BDEVNAME_SIZE];
 
 		WARN_ONCE(1,
