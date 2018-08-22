@@ -1254,6 +1254,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 
 	spin_lock_bh(&mvmsta->lock);
 	tfd_queue_mask = mvmsta->tfd_queue_msk;
+	ssn = IEEE80211_SEQ_TO_SN(mvmsta->tid_data[tid].seq_number);
 	spin_unlock_bh(&mvmsta->lock);
 
 	/*
@@ -1340,13 +1341,8 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		}
 	}
 
-	ssn = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 	inc_ssn = iwl_mvm_enable_txq(mvm, queue, mac_queue,
 				     ssn, &cfg, wdg_timeout);
-	if (inc_ssn) {
-		ssn = (ssn + 1) & IEEE80211_SCTL_SEQ;
-		le16_add_cpu(&hdr->seq_ctrl, 0x10);
-	}
 
 	/*
 	 * Mark queue as shared in transport if shared
@@ -1363,8 +1359,10 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	 * this ra/tid in our Tx path since we stop the Qdisc when we
 	 * need to allocate a new TFD queue.
 	 */
-	if (inc_ssn)
+	if (inc_ssn) {
 		mvmsta->tid_data[tid].seq_number += 0x10;
+		ssn = (ssn + 1) & IEEE80211_SCTL_SEQ;
+	}
 	mvmsta->tid_data[tid].txq_id = queue;
 	mvmsta->tfd_queue_msk |= BIT(queue);
 	queue_state = mvmsta->tid_data[tid].state;
