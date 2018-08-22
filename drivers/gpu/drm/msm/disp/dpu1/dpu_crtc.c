@@ -297,14 +297,29 @@ static void dpu_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
-		struct dpu_plane_state *pstate)
+		struct dpu_plane_state *pstate, struct dpu_format *format)
 {
 	struct dpu_hw_mixer *lm = mixer->hw_lm;
+	uint32_t blend_op;
+	struct drm_format_name_buf format_name;
 
 	/* default to opaque blending */
-	lm->ops.setup_blend_config(lm, pstate->stage, 0XFF, 0,
-				DPU_BLEND_FG_ALPHA_FG_CONST |
-				DPU_BLEND_BG_ALPHA_BG_CONST);
+	blend_op = DPU_BLEND_FG_ALPHA_FG_CONST |
+		DPU_BLEND_BG_ALPHA_BG_CONST;
+
+	if (format->alpha_enable) {
+		/* coverage blending */
+		blend_op = DPU_BLEND_FG_ALPHA_FG_PIXEL |
+			DPU_BLEND_BG_ALPHA_FG_PIXEL |
+			DPU_BLEND_BG_INV_ALPHA;
+	}
+
+	lm->ops.setup_blend_config(lm, pstate->stage,
+				0xFF, 0, blend_op);
+
+	DPU_DEBUG("format:%s, alpha_en:%u blend_op:0x%x\n",
+		drm_get_format_name(format->base.pixel_format, &format_name),
+		format->alpha_enable, blend_op);
 }
 
 static void _dpu_crtc_program_lm_output_roi(struct drm_crtc *crtc)
@@ -401,7 +416,8 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 
 		/* blend config update */
 		for (lm_idx = 0; lm_idx < dpu_crtc->num_mixers; lm_idx++) {
-			_dpu_crtc_setup_blend_cfg(mixer + lm_idx, pstate);
+			_dpu_crtc_setup_blend_cfg(mixer + lm_idx,
+						pstate, format);
 
 			mixer[lm_idx].flush_mask |= flush_mask;
 
