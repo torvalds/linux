@@ -169,6 +169,16 @@ void kvm_vm_restart(struct kvm_vm *vmp, int perm)
 	}
 }
 
+void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
+{
+	struct kvm_dirty_log args = { .dirty_bitmap = log, .slot = slot };
+	int ret;
+
+	ret = ioctl(vm->fd, KVM_GET_DIRTY_LOG, &args);
+	TEST_ASSERT(ret == 0, "%s: KVM_GET_DIRTY_LOG failed: %s",
+		    strerror(-ret));
+}
+
 /* Userspace Memory Region Find
  *
  * Input Args:
@@ -922,6 +932,39 @@ vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 	}
 
 	return vaddr_start;
+}
+
+/*
+ * Map a range of VM virtual address to the VM's physical address
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vaddr - Virtuall address to map
+ *   paddr - VM Physical Address
+ *   size - The size of the range to map
+ *   pgd_memslot - Memory region slot for new virtual translation tables
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Within the VM given by vm, creates a virtual translation for the
+ * page range starting at vaddr to the page range starting at paddr.
+ */
+void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+	      size_t size, uint32_t pgd_memslot)
+{
+	size_t page_size = vm->page_size;
+	size_t npages = size / page_size;
+
+	TEST_ASSERT(vaddr + size > vaddr, "Vaddr overflow");
+	TEST_ASSERT(paddr + size > paddr, "Paddr overflow");
+
+	while (npages--) {
+		virt_pg_map(vm, vaddr, paddr, pgd_memslot);
+		vaddr += page_size;
+		paddr += page_size;
+	}
 }
 
 /* Address VM Physical to Host Virtual

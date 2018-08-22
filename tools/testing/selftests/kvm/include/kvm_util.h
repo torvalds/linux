@@ -55,6 +55,7 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm);
 void kvm_vm_free(struct kvm_vm *vmp);
 void kvm_vm_restart(struct kvm_vm *vmp, int perm);
 void kvm_vm_release(struct kvm_vm *vmp);
+void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log);
 
 int kvm_memcmp_hva_gva(void *hva,
 	struct kvm_vm *vm, const vm_vaddr_t gva, size_t len);
@@ -80,6 +81,8 @@ void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags);
 void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, int pgd_memslot, int gdt_memslot);
 vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 	uint32_t data_memslot, uint32_t pgd_memslot);
+void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+	      size_t size, uint32_t pgd_memslot);
 void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa);
 void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva);
 vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva);
