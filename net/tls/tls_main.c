@@ -195,9 +195,14 @@ static void tls_write_space(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
 
-	/* We are already sending pages, ignore notification */
-	if (ctx->in_tcp_sendpages)
+	/* If in_tcp_sendpages call lower protocol write space handler
+	 * to ensure we wake up any waiting operations there. For example
+	 * if do_tcp_sendpages where to call sk_wait_event.
+	 */
+	if (ctx->in_tcp_sendpages) {
+		ctx->sk_write_space(sk);
 		return;
+	}
 
 	if (!sk->sk_write_pending && tls_is_pending_closed_record(ctx)) {
 		gfp_t sk_allocation = sk->sk_allocation;
