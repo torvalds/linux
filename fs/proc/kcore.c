@@ -384,8 +384,10 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 		phdr->p_flags	= PF_R|PF_W|PF_X;
 		phdr->p_offset	= kc_vaddr_to_offset(m->addr) + dataoff;
 		phdr->p_vaddr	= (size_t)m->addr;
-		if (m->type == KCORE_RAM || m->type == KCORE_TEXT)
+		if (m->type == KCORE_RAM)
 			phdr->p_paddr	= __pa(m->addr);
+		else if (m->type == KCORE_TEXT)
+			phdr->p_paddr	= __pa_symbol(m->addr);
 		else
 			phdr->p_paddr	= (elf_addr_t)-1;
 		phdr->p_filesz	= phdr->p_memsz	= m->size;
