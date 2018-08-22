@@ -972,7 +972,7 @@ static void complete_signal(int sig, struct task_struct *p, int group)
 	return;
 }
 
-static inline int legacy_queue(struct sigpending *signals, int sig)
+static inline bool legacy_queue(struct sigpending *signals, int sig)
 {
 	return (sig < SIGRTMIN) && sigismember(&signals->signal, sig);
 }
