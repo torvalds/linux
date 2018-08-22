@@ -1063,8 +1063,9 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 		       "rc = [%d]\n", __func__, rc);
 		goto out_free_unlock;
 	}
-	while (s->decrypted_filename[s->i] != '\0'
-	       && s->i < s->block_aligned_filename_size)
+
+	while (s->i < s->block_aligned_filename_size &&
+	       s->decrypted_filename[s->i] != '\0')
 		s->i++;
 	if (s->i == s->block_aligned_filename_size) {
 		printk(KERN_WARNING "%s: Invalid tag 70 packet; could not "
