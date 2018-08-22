@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic EP93xx GPIO handling
  *
@@ -6,10 +7,6 @@
  *
  * Based on code originally from:
  *  linux/arch/arm/mach-ep93xx/core.c
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
