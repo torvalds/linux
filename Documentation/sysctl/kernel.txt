@@ -38,6 +38,7 @@ show up in /proc/sys/kernel:
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
+- hung_task_check_interval_secs
 - hung_task_warnings
 - hyperv_record_panic_msg
 - kexec_load_disabled
@@ -355,11 +356,23 @@ This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 hung_task_timeout_secs:
 
-Check interval. When a task in D state did not get scheduled
+When a task in D state did not get scheduled
 for more than this value report a warning.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 0: means infinite timeout - no checking done.
+Possible values to set are in range {0..LONG_MAX/HZ}.
+
+==============================================================
+
+hung_task_check_interval_secs:
+
+Hung task check interval. If hung task checking is enabled
+(see hung_task_timeout_secs), the check is done every
+hung_task_check_interval_secs seconds.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0 (default): means use hung_task_timeout_secs as checking interval.
 Possible values to set are in range {0..LONG_MAX/HZ}.
 
 ==============================================================
