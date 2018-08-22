@@ -62,7 +62,7 @@ my $self_test = undef;
 my $version = 0;
 my $help = 0;
 my $find_maintainer_files = 0;
-
+my $maintainer_path;
 my $vcs_used = 0;
 
 my $exit = 0;
@@ -265,6 +265,7 @@ if (!GetOptions(
 		'fe|file-emails!' => \$file_emails,
 		'f|file' => \$from_filename,
 		'find-maintainer-files' => \$find_maintainer_files,
+		'mpath|maintainer-path=s' => \$maintainer_path,
 		'self-test:s' => \$self_test,
 		'v|version' => \$version,
 		'h|help|usage' => \$help,
@@ -386,26 +387,37 @@ sub find_ignore_git {
 read_all_maintainer_files();
 
 sub read_all_maintainer_files {
-    if (-d "${lk_path}MAINTAINERS") {
-        opendir(DIR, "${lk_path}MAINTAINERS") or die $!;
-        my @files = readdir(DIR);
-        closedir(DIR);
-        foreach my $file (@files) {
-            push(@mfiles, "${lk_path}MAINTAINERS/$file") if ($file !~ /^\./);
-        }
+    my $path = "${lk_path}MAINTAINERS";
+    if (defined $maintainer_path) {
+	$path = $maintainer_path;
+	# Perl Cookbook tilde expansion if necessary
+	$path =~ s@^~([^/]*)@ $1 ? (getpwnam($1))[7] : ( $ENV{HOME} || $ENV{LOGDIR} || (getpwuid($<))[7])@ex;
     }
 
-    if ($find_maintainer_files) {
-        find( { wanted => \&find_is_maintainer_file,
-                preprocess => \&find_ignore_git,
-                no_chdir => 1,
-        }, "${lk_path}");
+    if (-d $path) {
+	$path .= '/' if ($path !~ m@/$@);
+	if ($path eq "${lk_path}MAINTAINERS/") {
+	    opendir(DIR, "$path") or die $!;
+	    my @files = readdir(DIR);
+	    closedir(DIR);
+	    foreach my $file (@files) {
+		push(@mfiles, "$path$file") if ($file !~ /^\./);
+	    }
+	}
+	if ($find_maintainer_files) {
+	    find( { wanted => \&find_is_maintainer_file,
+		    preprocess => \&find_ignore_git,
+		    no_chdir => 1,
+		}, "$path");
+	}
+    } elsif (-f "$path") {
+	push(@mfiles, "$path");
     } else {
-        push(@mfiles, "${lk_path}MAINTAINERS") if -f "${lk_path}MAINTAINERS";
+	die "$P: MAINTAINER file not found '$path'\n";
     }
-
+    die "$P: No MAINTAINER files found in '$path'\n" if (scalar(@mfiles) == 0);
     foreach my $file (@mfiles) {
-        read_maintainer_file("$file");
+	read_maintainer_file("$file");
     }
 }
 
