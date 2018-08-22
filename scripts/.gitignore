@@ -8,6 +8,8 @@ pnmtologo
 unifdef
 ihex2fw
 recordmcount
+resource_tool
+mkkrnlimg
 check-lc_ctype
 sortextable
 asn1_compiler
