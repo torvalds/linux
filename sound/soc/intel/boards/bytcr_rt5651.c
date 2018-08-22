@@ -738,7 +738,9 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	struct byt_rt5651_private *priv;
 	struct snd_soc_acpi_mach *mach;
 	const char *i2c_name = NULL;
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	bool is_bytcr = false;
+#endif
 	int ret_val = 0;
 	int dai_index = 0;
 	int i;
