@@ -332,15 +332,8 @@ signed long  amdgpu_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
 
 	r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
 
-	/* don't wait anymore for gpu reset case because this way may
-	 * block gpu_recover() routine forever, e.g. this virt_kiq_rreg
-	 * is triggered in TTM and ttm_bo_lock_delayed_workqueue() will
-	 * never return if we keep waiting in virt_kiq_rreg, which cause
-	 * gpu_recover() hang there.
-	 *
-	 * also don't wait anymore for IRQ context
-	 * */
-	if (r < 1 && (adev->in_gpu_reset || in_interrupt()))
+	/* don't wait anymore for IRQ context */
+	if (r < 1 && in_interrupt())
 		goto failed_kiq;
 
 	might_sleep();
@@ -388,8 +381,8 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
 		u32 tmp = gmc_v9_0_get_invalidate_req(vmid);
 
 		if (adev->gfx.kiq.ring.ready &&
-		    (amdgpu_sriov_runtime(adev) ||
-		     !amdgpu_sriov_vf(adev))) {
+		    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
+		    !adev->in_gpu_reset) {
 			r = amdgpu_kiq_reg_write_reg_wait(adev, hub->vm_inv_eng0_req + eng,
 				hub->vm_inv_eng0_ack + eng, tmp, 1 << vmid);
 			if (!r)
