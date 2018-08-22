@@ -457,10 +457,6 @@ struct fb_tile_ops {
  */
 #define FBINFO_BE_MATH  0x100000
 
-/* report to the VT layer that this fb driver can accept forced console
-   output like oopses */
-#define FBINFO_CAN_FORCE_OUTPUT     0x200000
-
 struct fb_info {
 	atomic_t count;
 	int node;
