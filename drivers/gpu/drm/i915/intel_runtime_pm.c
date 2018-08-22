@@ -3848,13 +3848,14 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 	/*
-	 * In case of firmware assisted context save/restore don't manually
-	 * deinit the power domains. This also means the CSR/DMC firmware will
-	 * stay active, it will power down any HW resources as required and
-	 * also enable deeper system power states that would be blocked if the
-	 * firmware was inactive.
+	 * In case of suspend-to-idle (aka S0ix) on a DMC platform without DC9
+	 * support don't manually deinit the power domains. This also means the
+	 * CSR/DMC firmware will stay active, it will power down any HW
+	 * resources as required and also enable deeper system power states
+	 * that would be blocked if the firmware was inactive.
 	 */
-	if (!IS_GEN9_LP(dev_priv) && suspend_mode == I915_DRM_SUSPEND_IDLE &&
+	if (!(dev_priv->csr.allowed_dc_mask & DC_STATE_EN_DC9) &&
+	    suspend_mode == I915_DRM_SUSPEND_IDLE &&
 	    dev_priv->csr.dmc_payload != NULL) {
 		intel_power_domains_verify_state(dev_priv);
 		return;
