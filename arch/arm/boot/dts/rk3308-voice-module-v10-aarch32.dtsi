@@ -243,6 +243,10 @@
 	console-size = <0x0 0x20000>;
 };
 
+&rk_timer_rtc {
+	status = "okay";
+};
+
 &rockchip_suspend {
 	rockchip,pwm-regulator-config = <
 		(0
