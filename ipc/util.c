@@ -251,7 +251,9 @@ static inline int ipc_idr_alloc(struct ipc_ids *ids, struct kern_ipc_perm *new)
  * Add an entry 'new' to the ipc ids idr. The permissions object is
  * initialised and the first free entry is set up and the id assigned
  * is returned. The 'new' entry is returned in a locked state on success.
+ *
  * On failure the entry is not locked and a negative err-code is returned.
+ * The caller must use ipc_rcu_putref() to free the identifier.
  *
  * Called with writer ipc_ids.rwsem held.
  */
@@ -261,6 +263,9 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 	kgid_t egid;
 	int idx, err;
 
+	/* 1) Initialize the refcount so that ipc_rcu_putref works */
+	refcount_set(&new->refcount, 1);
+
 	if (limit > IPCMNI)
 		limit = IPCMNI;
 
@@ -269,15 +274,15 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 
 	idr_preload(GFP_KERNEL);
 
-	refcount_set(&new->refcount, 1);
 	spin_lock_init(&new->lock);
-	new->deleted = false;
 	rcu_read_lock();
 	spin_lock(&new->lock);
 
 	current_euid_egid(&euid, &egid);
 	new->cuid = new->uid = euid;
 	new->gid = new->cgid = egid;
+
+	new->deleted = false;
 
 	idx = ipc_idr_alloc(ids, new);
 	idr_preload_end();
@@ -291,6 +296,7 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 		}
 	}
 	if (idx < 0) {
+		new->deleted = true;
 		spin_unlock(&new->lock);
 		rcu_read_unlock();
 		return idx;

@@ -684,6 +684,8 @@ no_id:
 	if (is_file_hugepages(file) && shp->mlock_user)
 		user_shm_unlock(size, shp->mlock_user);
 	fput(file);
+	ipc_rcu_putref(&shp->shm_perm, shm_rcu_free);
+	return error;
 no_file:
 	call_rcu(&shp->shm_perm.rcu, shm_rcu_free);
 	return error;

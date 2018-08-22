@@ -163,7 +163,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	/* ipc_addid() locks msq upon success. */
 	retval = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni);
 	if (retval < 0) {
-		call_rcu(&msq->q_perm.rcu, msg_rcu_free);
+		ipc_rcu_putref(&msq->q_perm, msg_rcu_free);
 		return retval;
 	}
 
