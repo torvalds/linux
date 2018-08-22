@@ -849,6 +849,16 @@ sub is_maintained_obsolete {
 	return $status =~ /obsolete/i;
 }
 
+sub is_SPDX_License_valid {
+	my ($license) = @_;
+
+	return 1 if (!$tree || which("python") eq "" || !(-e "$root/scripts/spdxcheck.py"));
+
+	my $status = `echo "$license" | python $root/scripts/spdxcheck.py -`;
+	return 0 if ($status ne "");
+	return 1;
+}
+
 my $camelcase_seeded = 0;
 sub seed_camelcase_includes {
 	return if ($camelcase_seeded);
@@ -2978,8 +2988,14 @@ sub process {
 
 				if ($comment !~ /^$/ &&
 				    $rawline !~ /^\+\Q$comment\E SPDX-License-Identifier: /) {
-					WARN("SPDX_LICENSE_TAG",
-					     "Missing or malformed SPDX-License-Identifier tag in line $checklicenseline\n" . $herecurr);
+					 WARN("SPDX_LICENSE_TAG",
+					      "Missing or malformed SPDX-License-Identifier tag in line $checklicenseline\n" . $herecurr);
+				} elsif ($rawline =~ /(SPDX-License-Identifier: .*)/) {
+					 my $spdx_license = $1;
+					 if (!is_SPDX_License_valid($spdx_license)) {
+						  WARN("SPDX_LICENSE_TAG",
+						       "'$spdx_license' is not supported in LICENSES/...\n" . $herecurr);
+					 }
 				}
 			}
 		}
