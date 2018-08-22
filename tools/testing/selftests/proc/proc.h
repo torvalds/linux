@@ -6,6 +6,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+
+static inline pid_t sys_getpid(void)
+{
+	return syscall(SYS_getpid);
+}
 
 static inline bool streq(const char *s1, const char *s2)
 {
