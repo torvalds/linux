@@ -12,6 +12,9 @@
 struct shrink_control {
 	gfp_t gfp_mask;
 
+	/* current node being shrunk (for NUMA aware shrinkers) */
+	int nid;
+
 	/*
 	 * How many objects scan_objects should scan and try to reclaim.
 	 * This is reset before every call, so it is safe for callees
@@ -25,9 +28,6 @@ struct shrink_control {
 	 * should track its actual progress.
 	 */
 	unsigned long nr_scanned;
-
-	/* current node being shrunk (for NUMA aware shrinkers) */
-	int nid;
 
 	/* current memcg being shrunk (for memcg aware shrinkers) */
 	struct mem_cgroup *memcg;
