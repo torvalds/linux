@@ -173,11 +173,10 @@ void die(const char *str, struct pt_regs *regs, int err)
 	pr_emerg("CPU: %i\n", smp_processor_id());
 	show_regs(regs);
 	pr_emerg("Process %s (pid: %d, stack limit = 0x%p)\n",
-		 tsk->comm, tsk->pid, task_thread_info(tsk) + 1);
+		 tsk->comm, tsk->pid, end_of_stack(tsk));
 
 	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem("Stack: ", regs->sp,
-			 THREAD_SIZE + (unsigned long)task_thread_info(tsk));
+		dump_mem("Stack: ", regs->sp, (regs->sp + PAGE_SIZE) & PAGE_MASK);
 		dump_instr(regs);
 		dump_stack();
 	}
