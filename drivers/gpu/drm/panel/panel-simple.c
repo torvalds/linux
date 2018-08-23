@@ -1385,6 +1385,9 @@ static const struct panel_desc innolux_tv123wam = {
 		.width = 259,
 		.height = 173,
 	},
+	.delay = {
+		.unprepare = 500,
+	},
 };
 
 static const struct drm_display_mode innolux_zj070na_01p_mode = {
