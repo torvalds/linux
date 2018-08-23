@@ -146,7 +146,8 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_decouple);
  */
 void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *stream)
 {
-	snd_hdac_updatel(stream->pplc_addr, AZX_REG_PPLCCTL, 0, AZX_PPLCCTL_RUN);
+	snd_hdac_updatel(stream->pplc_addr, AZX_REG_PPLCCTL,
+			 AZX_PPLCCTL_RUN, AZX_PPLCCTL_RUN);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_link_stream_start);
 
@@ -171,7 +172,8 @@ void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *stream)
 
 	snd_hdac_ext_link_stream_clear(stream);
 
-	snd_hdac_updatel(stream->pplc_addr, AZX_REG_PPLCCTL, 0, AZX_PPLCCTL_STRST);
+	snd_hdac_updatel(stream->pplc_addr, AZX_REG_PPLCCTL,
+			 AZX_PPLCCTL_STRST, AZX_PPLCCTL_STRST);
 	udelay(3);
 	timeout = 50;
 	do {
@@ -242,7 +244,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_link_set_stream_id);
 void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *link,
 				 int stream)
 {
-	snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV, 0, (1 << stream));
+	snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV, (1 << stream), 0);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_link_clear_stream_id);
 
@@ -415,7 +417,6 @@ void snd_hdac_ext_stream_spbcap_enable(struct hdac_bus *bus,
 				 bool enable, int index)
 {
 	u32 mask = 0;
-	u32 register_mask = 0;
 
 	if (!bus->spbcap) {
 		dev_err(bus->dev, "Address of SPB capability is NULL\n");
@@ -424,12 +425,8 @@ void snd_hdac_ext_stream_spbcap_enable(struct hdac_bus *bus,
 
 	mask |= (1 << index);
 
-	register_mask = readl(bus->spbcap + AZX_REG_SPB_SPBFCCTL);
-
-	mask |= register_mask;
-
 	if (enable)
-		snd_hdac_updatel(bus->spbcap, AZX_REG_SPB_SPBFCCTL, 0, mask);
+		snd_hdac_updatel(bus->spbcap, AZX_REG_SPB_SPBFCCTL, mask, mask);
 	else
 		snd_hdac_updatel(bus->spbcap, AZX_REG_SPB_SPBFCCTL, mask, 0);
 }
@@ -503,7 +500,6 @@ void snd_hdac_ext_stream_drsm_enable(struct hdac_bus *bus,
 				bool enable, int index)
 {
 	u32 mask = 0;
-	u32 register_mask = 0;
 
 	if (!bus->drsmcap) {
 		dev_err(bus->dev, "Address of DRSM capability is NULL\n");
@@ -512,12 +508,8 @@ void snd_hdac_ext_stream_drsm_enable(struct hdac_bus *bus,
 
 	mask |= (1 << index);
 
-	register_mask = readl(bus->drsmcap + AZX_REG_SPB_SPBFCCTL);
-
-	mask |= register_mask;
-
 	if (enable)
-		snd_hdac_updatel(bus->drsmcap, AZX_REG_DRSM_CTL, 0, mask);
+		snd_hdac_updatel(bus->drsmcap, AZX_REG_DRSM_CTL, mask, mask);
 	else
 		snd_hdac_updatel(bus->drsmcap, AZX_REG_DRSM_CTL, mask, 0);
 }
