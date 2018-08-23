@@ -1658,7 +1658,7 @@ dbit_fault:
 
 itlb_fault:
 	b               intr_save
-	ldi             6,%r8
+	ldi             PARISC_ITLB_TRAP,%r8
 
 nadtlb_fault:
 	b               intr_save
