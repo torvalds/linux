@@ -39,9 +39,22 @@ mkdir $T
 
 cat > $T/init << '__EOF___'
 #!/bin/sh
+# Run in userspace a few milliseconds every second.  This helps to
+# exercise the NO_HZ_FULL portions of RCU.
 while :
 do
-	sleep 1000000
+	q=
+	for i in \
+		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
+		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
+		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
+		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
+		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a \
+		a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a
+	do
+		q="$q $i"
+	done
+	sleep 1
 done
 __EOF___
 
@@ -70,15 +83,37 @@ mkdir initrd
 cd initrd
 cat > init.c << '___EOF___'
 #include <unistd.h>
+#include <sys/time.h>
+
+volatile unsigned long delaycount;
 
 int main(int argc, int argv[])
 {
-	for (;;)
-		sleep(1000*1000*1000); /* One gigasecond is ~30 years. */
+	int i;
+	struct timeval tv;
+	struct timeval tvb;
+
+	for (;;) {
+		sleep(1);
+		/* Need some userspace time. */
+		if (gettimeofday(&tvb, NULL))
+			continue;
+		do {
+			for (i = 0; i < 1000 * 100; i++)
+				delaycount = i * i;
+			if (gettimeofday(&tv, NULL))
+				break;
+			tv.tv_sec -= tvb.tv_sec;
+			if (tv.tv_sec > 1)
+				break;
+			tv.tv_usec += tv.tv_sec * 1000 * 1000;
+			tv.tv_usec -= tvb.tv_usec;
+		} while (tv.tv_usec < 1000);
+	}
 	return 0;
 }
 ___EOF___
-gcc -static -Os -o init init.c
+cc -static -Os -o init init.c
 strip init
 rm init.c
 echo "Done creating a statically linked C-language initrd"
