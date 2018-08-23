@@ -1154,6 +1154,8 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 		wil->max_agg_wsize = WIL_MAX_AGG_WSIZE;
 		wil->max_ampdu_size = WIL_MAX_AMPDU_SIZE;
 	}
+
+	update_supported_bands(wil);
 }
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)

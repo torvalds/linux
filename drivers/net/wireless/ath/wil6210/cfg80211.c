@@ -48,8 +48,28 @@ static struct ieee80211_channel wil_60ghz_channels[] = {
 	CHAN60G(1, 0),
 	CHAN60G(2, 0),
 	CHAN60G(3, 0),
-/* channel 4 not supported yet */
+	CHAN60G(4, 0),
 };
+
+static int wil_num_supported_channels(struct wil6210_priv *wil)
+{
+	int num_channels = ARRAY_SIZE(wil_60ghz_channels);
+
+	if (!test_bit(WMI_FW_CAPABILITY_CHANNEL_4, wil->fw_capabilities))
+		num_channels--;
+
+	return num_channels;
+}
+
+void update_supported_bands(struct wil6210_priv *wil)
+{
+	struct wiphy *wiphy = wil_to_wiphy(wil);
+
+	wil_dbg_misc(wil, "update supported bands");
+
+	wiphy->bands[NL80211_BAND_60GHZ]->n_channels =
+						wil_num_supported_channels(wil);
+}
 
 /* Vendor id to be used in vendor specific command and events
  * to user space.
