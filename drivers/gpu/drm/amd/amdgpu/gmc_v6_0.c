@@ -224,8 +224,8 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_device_vram_location(adev, &adev->gmc, base);
-	amdgpu_device_gart_location(adev, mc);
+	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+	amdgpu_gmc_gart_location(adev, mc);
 }
 
 static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
