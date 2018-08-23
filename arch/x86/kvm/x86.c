@@ -5873,6 +5873,9 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t cr2,
 	if (!(emulation_type & EMULTYPE_ALLOW_RETRY))
 		return false;
 
+	if (WARN_ON_ONCE(is_guest_mode(vcpu)))
+		return false;
+
 	if (!vcpu->arch.mmu.direct_map) {
 		/*
 		 * Write permission should be allowed since only
@@ -5959,6 +5962,9 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 	vcpu->arch.last_retry_eip = vcpu->arch.last_retry_addr = 0;
 
 	if (!(emulation_type & EMULTYPE_ALLOW_RETRY))
+		return false;
+
+	if (WARN_ON_ONCE(is_guest_mode(vcpu)))
 		return false;
 
 	if (x86_page_table_writing_insn(ctxt))

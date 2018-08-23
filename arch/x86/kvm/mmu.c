@@ -5264,9 +5264,12 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 	 * re-execute the instruction that caused the page fault.  Do not allow
 	 * retrying MMIO emulation, as it's not only pointless but could also
 	 * cause us to enter an infinite loop because the processor will keep
-	 * faulting on the non-existent MMIO address.
+	 * faulting on the non-existent MMIO address.  Retrying an instruction
+	 * from a nested guest is also pointless and dangerous as we are only
+	 * explicitly shadowing L1's page tables, i.e. unprotecting something
+	 * for L1 isn't going to magically fix whatever issue cause L2 to fail.
 	 */
-	if (!mmio_info_in_cache(vcpu, cr2, direct))
+	if (!mmio_info_in_cache(vcpu, cr2, direct) && !is_guest_mode(vcpu))
 		emulation_type = EMULTYPE_ALLOW_RETRY;
 emulate:
 	/*
