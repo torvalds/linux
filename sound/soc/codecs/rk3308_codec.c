@@ -629,10 +629,17 @@ static bool adc_for_each_grp(struct rk3308_codec_priv *rk3308,
 	return true;
 }
 
-/*
- * Maybe there are rk3308_codec_get_adc_path_state() and
- * rk3308_codec_set_adc_path_state() in future.
- */
+static int rk3308_codec_get_adc_path_state(struct rk3308_codec_priv *rk3308)
+{
+	return rk3308->adc_path_state;
+}
+
+static void rk3308_codec_set_adc_path_state(struct rk3308_codec_priv *rk3308,
+					    int state)
+{
+	rk3308->adc_path_state = state;
+}
+
 static int rk3308_codec_get_dac_path_state(struct rk3308_codec_priv *rk3308)
 {
 	return rk3308->dac_path_state;
@@ -691,6 +698,9 @@ static int rk3308_codec_reset(struct snd_soc_codec *codec)
 
 static int rk3308_codec_adc_dig_reset(struct rk3308_codec_priv *rk3308)
 {
+	if (rk3308_codec_get_adc_path_state(rk3308) == PATH_BUSY)
+		goto out;
+
 	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
 			   RK3308_ADC_DIG_WORK,
 			   RK3308_ADC_DIG_RESET);
@@ -699,6 +709,7 @@ static int rk3308_codec_adc_dig_reset(struct rk3308_codec_priv *rk3308)
 			   RK3308_ADC_DIG_WORK,
 			   RK3308_ADC_DIG_WORK);
 
+out:
 	return 0;
 }
 
@@ -2829,6 +2840,8 @@ static void rk3308_codec_update_adcs_status(struct rk3308_codec_priv *rk3308,
 			rk3308->skip_grps[en_always_grp] = 1;
 		}
 	}
+
+	rk3308_codec_set_adc_path_state(rk3308, state);
 }
 
 static int rk3308_hw_params(struct snd_pcm_substream *substream,
@@ -2957,12 +2970,13 @@ static void rk3308_pcm_shutdown(struct snd_pcm_substream *substream,
 		rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
 	} else {
 		rk3308_codec_close_capture(rk3308);
-		if (!has_en_always_grps(rk3308))
+		if (!has_en_always_grps(rk3308)) {
 			rk3308_codec_adc_mclk_disable(rk3308);
+			rk3308_codec_update_adcs_status(rk3308, PATH_IDLE);
+		}
 
 		regcache_cache_only(rk3308->regmap, false);
 		regcache_sync(rk3308->regmap);
-		rk3308_codec_update_adcs_status(rk3308, PATH_IDLE);
 	}
 }
 
