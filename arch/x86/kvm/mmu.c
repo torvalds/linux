@@ -5217,7 +5217,7 @@ static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 		       void *insn, int insn_len)
 {
-	int r, emulation_type = EMULTYPE_RETRY;
+	int r, emulation_type = EMULTYPE_RETRY | EMULTYPE_ALLOW_REEXECUTE;
 	enum emulation_result er;
 	bool direct = vcpu->arch.mmu.direct_map;
 
