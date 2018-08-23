@@ -46,15 +46,41 @@ done
 __EOF___
 
 # Try using dracut to create initrd
-command -v dracut >/dev/null 2>&1 || { echo >&2 "Dracut not installed"; exit 1; }
-echo Creating $D/initrd using dracut.
+if command -v dracut >/dev/null 2>&1
+then
+	echo Creating $D/initrd using dracut.
+	# Filesystem creation
+	dracut --force --no-hostonly --no-hostonly-cmdline --module "base" $T/initramfs.img
+	cd $D
+	mkdir initrd
+	cd initrd
+	zcat $T/initramfs.img | cpio -id
+	cp $T/init init
+	chmod +x init
+	echo Done creating $D/initrd using dracut
+	exit 0
+fi
 
-# Filesystem creation
-dracut --force --no-hostonly --no-hostonly-cmdline --module "base" $T/initramfs.img
+# No dracut, so create a C-language initrd/init program and statically
+# link it.  This results in a very small initrd, but might be a bit less
+# future-proof than dracut.
+echo "Could not find dracut, attempting C initrd"
 cd $D
 mkdir initrd
 cd initrd
-zcat $T/initramfs.img | cpio -id
-cp $T/init init
-echo Done creating $D/initrd using dracut
+cat > init.c << '___EOF___'
+#include <unistd.h>
+
+int main(int argc, int argv[])
+{
+	for (;;)
+		sleep(1000*1000*1000); /* One gigasecond is ~30 years. */
+	return 0;
+}
+___EOF___
+gcc -static -Os -o init init.c
+strip init
+rm init.c
+echo "Done creating a statically linked C-language initrd"
+
 exit 0
