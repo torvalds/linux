@@ -10,6 +10,7 @@
  * Copyright (C) 2004 Ian Molton
  */
 
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tmio.h>
@@ -19,6 +20,52 @@
 #include <linux/scatterlist.h>
 
 #include "tmio_mmc.h"
+
+static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
+{
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
+		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+
+	usleep_range(10000, 11000);
+	sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0100);
+	usleep_range(10000, 11000);
+}
+
+static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
+{
+	sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0000);
+	usleep_range(10000, 11000);
+
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
+		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+
+	usleep_range(10000, 11000);
+}
+
+static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
+			       unsigned int new_clock)
+{
+	u32 clk = 0, clock;
+
+	if (new_clock == 0) {
+		tmio_mmc_clk_stop(host);
+		return;
+	}
+
+	clock = host->mmc->f_min;
+
+	for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
+		clock <<= 1;
+
+	host->pdata->set_clk_div(host->pdev, (clk >> 22) & 1);
+
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
+			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, clk & CLK_CTL_DIV_MASK);
+	usleep_range(10000, 11000);
+
+	tmio_mmc_clk_start(host);
+}
 
 #ifdef CONFIG_PM_SLEEP
 static int tmio_mmc_suspend(struct device *dev)
@@ -97,6 +144,7 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 
 	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
 	host->bus_shift = resource_size(res) >> 10;
+	host->set_clock = tmio_mmc_set_clock;
 
 	host->mmc->f_max = pdata->hclk;
 	host->mmc->f_min = pdata->hclk / 512;
