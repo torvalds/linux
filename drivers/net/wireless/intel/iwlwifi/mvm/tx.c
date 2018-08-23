@@ -763,12 +763,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 							   hdr->frame_control);
 			if (queue < 0)
 				return -1;
-		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
-			   is_multicast_ether_addr(hdr->addr1)) {
-			u8 ap_sta_id = READ_ONCE(mvmvif->ap_sta_id);
-
-			if (ap_sta_id != IWL_MVM_INVALID_STA)
-				sta_id = ap_sta_id;
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
 			queue = mvm->snif_queue;
 			sta_id = mvm->snif_sta.sta_id;
