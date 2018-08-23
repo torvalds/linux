@@ -107,13 +107,12 @@ then ``EINVAL`` will be returned.
 An attempt to call :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` for a
 request that has already been queued will result in an ``EBUSY`` error.
 
-If ``request_fd`` is specified and ``which`` is set to ``V4L2_CTRL_WHICH_REQUEST_VAL``
-during a call to :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`, then the
-returned values will be the values currently set for the request (or the
-hardware value if none is set) if the request has not yet been queued, or the
-values of the controls at the time of request completion if it has already
-completed. Attempting to get controls while the request has been queued but
-not yet completed will result in an ``EBUSY`` error.
+If ``request_fd`` is specified and ``which`` is set to
+``V4L2_CTRL_WHICH_REQUEST_VAL`` during a call to
+:ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`, then it will return the
+values of the controls at the time of request completion.
+If the request is not yet completed, then this will result in an
+``EACCES`` error.
 
 The driver will only set/get these controls if all control values are
 correct. This prevents the situation where only some of the controls
@@ -405,8 +404,9 @@ ENOSPC
     and this error code is returned.
 
 EACCES
-    Attempt to try or set a read-only control or to get a write-only
-    control.
+    Attempt to try or set a read-only control, or to get a write-only
+    control, or to get a control from a request that has not yet been
+    completed.
 
 EPERM
     The ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL`` but the

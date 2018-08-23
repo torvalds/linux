@@ -3301,10 +3301,9 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct media_device *mdev,
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 
-		if (req->state != MEDIA_REQUEST_STATE_IDLE &&
-		    req->state != MEDIA_REQUEST_STATE_COMPLETE) {
+		if (req->state != MEDIA_REQUEST_STATE_COMPLETE) {
 			media_request_put(req);
-			return -EBUSY;
+			return -EACCES;
 		}
 
 		obj = v4l2_ctrls_find_req_obj(hdl, req, false);
