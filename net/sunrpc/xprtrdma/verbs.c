@@ -280,7 +280,6 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		++xprt->rx_xprt.connect_cookie;
 		connstate = -ECONNABORTED;
 connected:
-		xprt->rx_buf.rb_credits = 1;
 		ep->rep_connected = connstate;
 		rpcrdma_conn_func(ep);
 		wake_up_all(&ep->rep_connect_wait);
@@ -755,6 +754,7 @@ retry:
 	}
 
 	ep->rep_connected = 0;
+	rpcrdma_post_recvs(r_xprt, true);
 
 	rc = rdma_connect(ia->ri_id, &ep->rep_remote_cma);
 	if (rc) {
@@ -772,8 +772,6 @@ retry:
 	}
 
 	dprintk("RPC:       %s: connected\n", __func__);
-
-	rpcrdma_post_recvs(r_xprt, true);
 
 out:
 	if (rc)
@@ -1171,6 +1169,7 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 		list_add(&req->rl_list, &buf->rb_send_bufs);
 	}
 
+	buf->rb_credits = 1;
 	buf->rb_posted_receives = 0;
 	INIT_LIST_HEAD(&buf->rb_recv_bufs);
 
