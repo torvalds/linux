@@ -2853,28 +2853,6 @@ static const struct drm_connector_funcs amdgpu_dm_connector_funcs = {
 	.atomic_get_property = amdgpu_dm_connector_atomic_get_property
 };
 
-static struct drm_encoder *best_encoder(struct drm_connector *connector)
-{
-	int enc_id = connector->encoder_ids[0];
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
-	DRM_DEBUG_DRIVER("Finding the best encoder\n");
-
-	/* pick the encoder ids */
-	if (enc_id) {
-		obj = drm_mode_object_find(connector->dev, NULL, enc_id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj) {
-			DRM_ERROR("Couldn't find a matching encoder for our connector\n");
-			return NULL;
-		}
-		encoder = obj_to_encoder(obj);
-		return encoder;
-	}
-	DRM_ERROR("No encoder id\n");
-	return NULL;
-}
-
 static int get_modes(struct drm_connector *connector)
 {
 	return amdgpu_dm_connector_get_modes(connector);
@@ -2995,7 +2973,7 @@ amdgpu_dm_connector_helper_funcs = {
 	 */
 	.get_modes = get_modes,
 	.mode_valid = amdgpu_dm_connector_mode_valid,
-	.best_encoder = best_encoder
+	.best_encoder = drm_atomic_helper_best_encoder
 };
 
 static void dm_crtc_helper_disable(struct drm_crtc *crtc)
