@@ -129,4 +129,14 @@ struct pkey_verifykey {
 #define PKEY_VERIFY_ATTR_AES	   0x00000001  /* key is an AES key */
 #define PKEY_VERIFY_ATTR_OLD_MKVP  0x00000100  /* key has old MKVP value */
 
+/*
+ * Generate (AES) random protected key.
+ */
+struct pkey_genprotk {
+	__u32 keytype;			       /* in: key type to generate */
+	struct pkey_protkey protkey;	       /* out: the protected key   */
+};
+
+#define PKEY_GENPROTK _IOWR(PKEY_IOCTL_MAGIC, 0x08, struct pkey_genprotk)
+
 #endif /* _UAPI_PKEY_H */

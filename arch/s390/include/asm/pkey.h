@@ -109,4 +109,12 @@ int pkey_verifykey(const struct pkey_seckey *seckey,
 		   u16 *pcardnr, u16 *pdomain,
 		   u16 *pkeysize, u32 *pattributes);
 
+/*
+ * In-kernel API: Generate (AES) random protected key.
+ * @param keytype one of the PKEY_KEYTYPE values
+ * @param protkey pointer to buffer receiving the protected key
+ * @return 0 on success, negative errno value on failure
+ */
+int pkey_genprotkey(__u32 keytype, struct pkey_protkey *protkey);
+
 #endif /* _KAPI_PKEY_H */

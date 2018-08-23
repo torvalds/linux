@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/kallsyms.h>
 #include <linux/debugfs.h>
+#include <linux/random.h>
 #include <asm/zcrypt.h>
 #include <asm/cpacf.h>
 #include <asm/pkey.h>
@@ -1052,6 +1053,46 @@ out:
 EXPORT_SYMBOL(pkey_verifykey);
 
 /*
+ * Generate a random protected key
+ */
+int pkey_genprotkey(__u32 keytype, struct pkey_protkey *protkey)
+{
+	struct pkey_clrkey clrkey;
+	int keysize;
+	int rc;
+
+	switch (keytype) {
+	case PKEY_KEYTYPE_AES_128:
+		keysize = 16;
+		break;
+	case PKEY_KEYTYPE_AES_192:
+		keysize = 24;
+		break;
+	case PKEY_KEYTYPE_AES_256:
+		keysize = 32;
+		break;
+	default:
+		DEBUG_ERR("%s unknown/unsupported keytype %d\n", __func__,
+			  keytype);
+		return -EINVAL;
+	}
+
+	/* generate a dummy random clear key */
+	get_random_bytes(clrkey.clrkey, keysize);
+
+	/* convert it to a dummy protected key */
+	rc = pkey_clr2protkey(keytype, &clrkey, protkey);
+	if (rc)
+		return rc;
+
+	/* replace the key part of the protected key with random bytes */
+	get_random_bytes(protkey->protkey, keysize);
+
+	return 0;
+}
+EXPORT_SYMBOL(pkey_genprotkey);
+
+/*
  * File io functions
  */
 
@@ -1164,6 +1205,20 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		if (rc)
 			break;
 		if (copy_to_user(uvk, &kvk, sizeof(kvk)))
+			return -EFAULT;
+		break;
+	}
+	case PKEY_GENPROTK: {
+		struct pkey_genprotk __user *ugp = (void __user *) arg;
+		struct pkey_genprotk kgp;
+
+		if (copy_from_user(&kgp, ugp, sizeof(kgp)))
+			return -EFAULT;
+		rc = pkey_genprotkey(kgp.keytype, &kgp.protkey);
+		DEBUG_DBG("%s pkey_genprotkey()=%d\n", __func__, rc);
+		if (rc)
+			break;
+		if (copy_to_user(ugp, &kgp, sizeof(kgp)))
 			return -EFAULT;
 		break;
 	}
