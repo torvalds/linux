@@ -55,31 +55,9 @@ struct rockchip_rgb {
 	struct drm_bridge *bridge;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
-	int output_mode;
 	struct regmap *grf;
 	const struct rockchip_rgb_funcs *funcs;
 };
-
-static inline int name_to_output_mode(const char *s)
-{
-	static const struct {
-		const char *name;
-		int format;
-	} formats[] = {
-		{ "p888", ROCKCHIP_OUT_MODE_P888 },
-		{ "p666", ROCKCHIP_OUT_MODE_P666 },
-		{ "p565", ROCKCHIP_OUT_MODE_P565 },
-		{ "s888", ROCKCHIP_OUT_MODE_S888 },
-		{ "s888_dummy", ROCKCHIP_OUT_MODE_S888_DUMMY }
-	};
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(formats); i++)
-		if (!strncmp(s, formats[i].name, strlen(formats[i].name)))
-			return formats[i].format;
-
-	return -EINVAL;
-}
 
 static enum drm_connector_status
 rockchip_rgb_connector_detect(struct drm_connector *connector, bool force)
@@ -151,24 +129,29 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 				   struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
-	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
 	struct drm_connector *connector = conn_state->connector;
 	struct drm_display_info *info = &connector->display_info;
-
-	s->output_mode = rgb->output_mode;
-	s->output_type = DRM_MODE_CONNECTOR_LVDS;
 
 	if (info->num_bus_formats)
 		s->bus_format = info->bus_formats[0];
 	else
 		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
-	if (s->bus_format == MEDIA_BUS_FMT_RGB666_1X18)
+	switch (s->bus_format) {
+	case MEDIA_BUS_FMT_RGB666_1X18:
 		s->output_mode = ROCKCHIP_OUT_MODE_P666;
-	else if (s->bus_format == MEDIA_BUS_FMT_RGB565_1X16)
+		break;
+	case MEDIA_BUS_FMT_RGB565_1X16:
 		s->output_mode = ROCKCHIP_OUT_MODE_P565;
-	else
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
+	default:
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+		break;
+	}
+
+	s->output_type = DRM_MODE_CONNECTOR_LVDS;
 
 	return 0;
 }
@@ -194,7 +177,6 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 	struct device_node *remote = NULL;
 	struct device_node  *port, *endpoint;
 	u32 endpoint_id;
-	const char *name;
 	int ret = 0, child_count = 0;
 
 	rgb->drm_dev = drm_dev;
@@ -221,20 +203,6 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		DRM_DEV_ERROR(dev, "failed to find panel and bridge node\n");
 		ret = -EPROBE_DEFER;
 		goto err_put_port;
-	}
-	if (rgb->panel)
-		remote = rgb->panel->dev->of_node;
-	else
-		remote = rgb->bridge->of_node;
-	if (of_property_read_string(remote, "rgb-mode", &name))
-		/* default set it as output mode P888 */
-		rgb->output_mode = ROCKCHIP_OUT_MODE_P888;
-	else
-		rgb->output_mode = name_to_output_mode(name);
-	if (rgb->output_mode < 0) {
-		DRM_DEV_ERROR(dev, "invalid rockchip,rgb-mode [%s]\n", name);
-		ret = rgb->output_mode;
-		goto err_put_remote;
 	}
 
 	encoder = &rgb->encoder;

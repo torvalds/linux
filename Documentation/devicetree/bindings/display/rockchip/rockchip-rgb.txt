@@ -24,8 +24,6 @@ Their connections are modeled using the OF graph bindings specified in
 
 the panel described by:
 	Documentation/devicetree/bindings/display/panel/simple-panel.txt
-rgb-mode nodes described by:
-	Documentation/devicetree/bindings/display/panel/panel-rgb.txt
 Panel other required properties:
 - ports for remote rgb output.
 
@@ -34,7 +32,7 @@ Example:
 panel: panel {
 	compatible = "auo,b101ean01";
 	enable-gpios = <&gpio7 21 GPIO_ACTIVE_HIGH>;
-	rgb-mode = "p888";
+	bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
 
 	ports {
 		panel_in_rgb: endpoint {
