@@ -38,9 +38,6 @@
 #define RK1808_GRF_PD_VO_CON1		0x0444
 #define RK1808_RGB_DATA_SYNC_BYPASS(v)	HIWORD_UPDATE(v, 3, 3)
 
-#define connector_to_rgb(c) container_of(c, struct rockchip_rgb, connector)
-#define encoder_to_rgb(c) container_of(c, struct rockchip_rgb, encoder)
-
 struct rockchip_rgb;
 
 struct rockchip_rgb_funcs {
@@ -50,7 +47,6 @@ struct rockchip_rgb_funcs {
 
 struct rockchip_rgb {
 	struct device *dev;
-	struct drm_device *drm_dev;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	struct drm_connector connector;
@@ -58,6 +54,16 @@ struct rockchip_rgb {
 	struct regmap *grf;
 	const struct rockchip_rgb_funcs *funcs;
 };
+
+static inline struct rockchip_rgb *connector_to_rgb(struct drm_connector *c)
+{
+	return container_of(c, struct rockchip_rgb, connector);
+}
+
+static inline struct rockchip_rgb *encoder_to_rgb(struct drm_encoder *e)
+{
+	return container_of(e, struct rockchip_rgb, encoder);
+}
 
 static enum drm_connector_status
 rockchip_rgb_connector_detect(struct drm_connector *connector, bool force)
@@ -106,16 +112,20 @@ static void rockchip_rgb_encoder_enable(struct drm_encoder *encoder)
 	if (rgb->funcs && rgb->funcs->enable)
 		rgb->funcs->enable(rgb);
 
-	drm_panel_prepare(rgb->panel);
-	drm_panel_enable(rgb->panel);
+	if (rgb->panel) {
+		drm_panel_prepare(rgb->panel);
+		drm_panel_enable(rgb->panel);
+	}
 }
 
 static void rockchip_rgb_encoder_disable(struct drm_encoder *encoder)
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
 
-	drm_panel_disable(rgb->panel);
-	drm_panel_unprepare(rgb->panel);
+	if (rgb->panel) {
+		drm_panel_disable(rgb->panel);
+		drm_panel_unprepare(rgb->panel);
+	}
 
 	if (rgb->funcs && rgb->funcs->disable)
 		rgb->funcs->disable(rgb);
@@ -174,35 +184,13 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct device_node *remote = NULL;
-	struct device_node  *port, *endpoint;
-	u32 endpoint_id;
-	int ret = 0, child_count = 0;
+	int ret;
 
-	rgb->drm_dev = drm_dev;
-	port = of_graph_get_port_by_id(dev->of_node, 1);
-	if (!port) {
-		DRM_DEV_ERROR(dev,
-			      "can't found port point, please init rgb panel port!\n");
-		return -EINVAL;
-	}
-	for_each_child_of_node(port, endpoint) {
-		child_count++;
-		if (of_property_read_u32(endpoint, "reg", &endpoint_id))
-			endpoint_id = 0;
-		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, endpoint_id,
-						  &rgb->panel, &rgb->bridge);
-		if (!ret)
-			break;
-	}
-	if (!child_count) {
-		DRM_DEV_ERROR(dev, "rgb port does not have any children\n");
-		ret = -EINVAL;
-		goto err_put_port;
-	} else if (ret) {
-		DRM_DEV_ERROR(dev, "failed to find panel and bridge node\n");
-		ret = -EPROBE_DEFER;
-		goto err_put_port;
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
+					  &rgb->panel, &rgb->bridge);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "failed to find panel or bridge: %d\n", ret);
+		return ret;
 	}
 
 	encoder = &rgb->encoder;
@@ -212,21 +200,19 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 	ret = drm_encoder_init(drm_dev, encoder, &rockchip_rgb_encoder_funcs,
 			       DRM_MODE_ENCODER_NONE, NULL);
 	if (ret < 0) {
-		DRM_DEV_ERROR(drm_dev->dev,
-			      "failed to initialize encoder: %d\n", ret);
-		goto err_put_remote;
+		DRM_DEV_ERROR(dev, "failed to initialize encoder: %d\n", ret);
+		return ret;
 	}
 
 	drm_encoder_helper_add(encoder, &rockchip_rgb_encoder_helper_funcs);
 
 	if (rgb->panel) {
 		connector = &rgb->connector;
-		connector->dpms = DRM_MODE_DPMS_OFF;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_rgb_connector_funcs,
 					 DRM_MODE_CONNECTOR_LVDS);
 		if (ret < 0) {
-			DRM_DEV_ERROR(drm_dev->dev,
+			DRM_DEV_ERROR(dev,
 				      "failed to initialize connector: %d\n",
 				      ret);
 			goto err_free_encoder;
@@ -237,15 +223,14 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 
 		ret = drm_mode_connector_attach_encoder(connector, encoder);
 		if (ret < 0) {
-			DRM_DEV_ERROR(drm_dev->dev,
+			DRM_DEV_ERROR(dev,
 				      "failed to attach encoder: %d\n", ret);
 			goto err_free_connector;
 		}
 
 		ret = drm_panel_attach(rgb->panel, connector);
 		if (ret < 0) {
-			DRM_DEV_ERROR(drm_dev->dev,
-				      "failed to attach panel: %d\n", ret);
+			DRM_DEV_ERROR(dev, "failed to attach panel: %d\n", ret);
 			goto err_free_connector;
 		}
 		connector->port = dev->of_node;
@@ -253,15 +238,12 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		rgb->bridge->encoder = encoder;
 		ret = drm_bridge_attach(drm_dev, rgb->bridge);
 		if (ret) {
-			DRM_DEV_ERROR(drm_dev->dev,
+			DRM_DEV_ERROR(dev,
 				      "failed to attach bridge: %d\n", ret);
 			goto err_free_encoder;
 		}
 		encoder->bridge = rgb->bridge;
 	}
-
-	of_node_put(remote);
-	of_node_put(port);
 
 	return 0;
 
@@ -269,11 +251,6 @@ err_free_connector:
 	drm_connector_cleanup(connector);
 err_free_encoder:
 	drm_encoder_cleanup(encoder);
-err_put_remote:
-	of_node_put(remote);
-err_put_port:
-	of_node_put(port);
-
 	return ret;
 }
 
@@ -282,11 +259,11 @@ static void rockchip_rgb_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_rgb *rgb = dev_get_drvdata(dev);
 
-	rockchip_rgb_encoder_disable(&rgb->encoder);
 	if (rgb->panel) {
 		drm_panel_detach(rgb->panel);
 		drm_connector_cleanup(&rgb->connector);
 	}
+
 	drm_encoder_cleanup(&rgb->encoder);
 }
 
@@ -307,6 +284,7 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 
 	rgb->dev = dev;
 	rgb->funcs = of_device_get_match_data(dev);
+	platform_set_drvdata(pdev, rgb);
 
 	if (dev->parent && dev->parent->of_node) {
 		rgb->grf = syscon_node_to_regmap(dev->parent->of_node);
@@ -317,12 +295,7 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 		}
 	}
 
-	dev_set_drvdata(dev, rgb);
-	ret = component_add(&pdev->dev, &rockchip_rgb_component_ops);
-	if (ret < 0)
-		DRM_DEV_ERROR(dev, "failed to add component\n");
-
-	return ret;
+	return component_add(dev, &rockchip_rgb_component_ops);
 }
 
 static int rockchip_rgb_remove(struct platform_device *pdev)
