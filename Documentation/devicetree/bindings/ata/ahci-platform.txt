@@ -17,7 +17,6 @@ Required properties:
   - "marvell,armada-380-ahci"
   - "marvell,armada-3700-ahci"
   - "snps,dwc-ahci"
-  - "snps,exynos5440-ahci"
   - "snps,spear-ahci"
   - "generic-ahci"
 - interrupts        : <interrupt mapping for SATA IRQ>

@@ -82,6 +82,15 @@ config RESET_PISTACHIO
 	help
 	  This enables the reset driver for ImgTec Pistachio SoCs.
 
+config RESET_QCOM_AOSS
+	bool "Qcom AOSS Reset Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  This enables the AOSS (always on subsystem) reset driver
+	  for Qualcomm SDM845 SoCs. Say Y if you want to control
+	  reset signals provided by AOSS for Modem, Venus, ADSP,
+	  GPU, Camera, Wireless, Display subsystem. Otherwise, say N.
+
 config RESET_SIMPLE
 	bool "Simple Reset Controller Driver" if COMPILE_TEST
 	default ARCH_SOCFPGA || ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX || ARCH_ASPEED
@@ -137,6 +146,16 @@ config RESET_UNIPHIER
 	  Support for reset controllers on UniPhier SoCs.
 	  Say Y if you want to control reset signals provided by System Control
 	  block, Media I/O block, Peripheral Block.
+
+config RESET_UNIPHIER_USB3
+	tristate "USB3 reset driver for UniPhier SoCs"
+	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
+	default ARCH_UNIPHIER
+	select RESET_SIMPLE
+	help
+	  Support for the USB3 core reset on UniPhier SoCs.
+	  Say Y if you want to control reset signals provided by
+	  USB3 glue layer.
 
 config RESET_ZYNQ
 	bool "ZYNQ Reset Driver" if COMPILE_TEST

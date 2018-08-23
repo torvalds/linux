@@ -36,6 +36,7 @@ Required standard properties:
 		"ti,sysc-omap-aes"
 		"ti,sysc-mcasp"
 		"ti,sysc-usb-host-fs"
+		"ti,sysc-dra7-mcan"
 
 - reg		shall have register areas implemented for the interconnect
 		target module in question such as revision, sysc and syss
