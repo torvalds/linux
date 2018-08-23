@@ -120,24 +120,22 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 
 	mc->gart_size += adev->pm.smu_prv_buffer_size;
 
-	size_af = adev->gmc.mc_mask - mc->vram_end;
+	/* VCE doesn't like it when BOs cross a 4GB segment, so align
+	 * the GART base on a 4GB boundary as well.
+	 */
 	size_bf = mc->vram_start;
-	if (size_bf > size_af) {
-		if (mc->gart_size > size_bf) {
-			dev_warn(adev->dev, "limiting GART\n");
-			mc->gart_size = size_bf;
-		}
-		mc->gart_start = 0;
-	} else {
-		if (mc->gart_size > size_af) {
-			dev_warn(adev->dev, "limiting GART\n");
-			mc->gart_size = size_af;
-		}
-		/* VCE doesn't like it when BOs cross a 4GB segment, so align
-		 * the GART base on a 4GB boundary as well.
-		 */
-		mc->gart_start = ALIGN(mc->vram_end + 1, 0x100000000ULL);
+	size_af = adev->gmc.mc_mask + 1 -
+		ALIGN(mc->vram_end + 1, 0x100000000ULL);
+
+	if (mc->gart_size > max(size_bf, size_af)) {
+		dev_warn(adev->dev, "limiting GART\n");
+		mc->gart_size = max(size_bf, size_af);
 	}
+
+	if (size_bf > size_af)
+		mc->gart_start = 0;
+	else
+		mc->gart_start = ALIGN(mc->vram_end + 1, 0x100000000ULL);
 	mc->gart_end = mc->gart_start + mc->gart_size - 1;
 	dev_info(adev->dev, "GART: %lluM 0x%016llX - 0x%016llX\n",
 			mc->gart_size >> 20, mc->gart_start, mc->gart_end);
