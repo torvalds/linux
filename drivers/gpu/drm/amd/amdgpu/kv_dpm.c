@@ -65,7 +65,6 @@ static int kv_set_thermal_temperature_range(struct amdgpu_device *adev,
 					    int min_temp, int max_temp);
 static int kv_init_fps_limits(struct amdgpu_device *adev);
 
-static void kv_dpm_powergate_uvd(void *handle, bool gate);
 static void kv_dpm_powergate_samu(struct amdgpu_device *adev, bool gate);
 static void kv_dpm_powergate_acp(struct amdgpu_device *adev, bool gate);
 
@@ -1388,7 +1387,8 @@ static void kv_dpm_disable(struct amdgpu_device *adev)
 	kv_dpm_powergate_samu(adev, false);
 	if (pi->caps_vce_pg) /* power on the VCE block */
 		amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_VCEPowerON);
-	kv_dpm_powergate_uvd(adev, false);
+	if (pi->caps_uvd_pg) /* power on the UVD block */
+		amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_UVDPowerON);
 
 	kv_enable_smc_cac(adev, false);
 	kv_enable_didt(adev, false);
