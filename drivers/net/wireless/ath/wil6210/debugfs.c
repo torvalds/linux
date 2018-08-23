@@ -1669,6 +1669,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 		char *status = "unknown";
 		u8 aid = 0;
 		u8 mid;
+		bool sta_connected = false;
 
 		switch (p->status) {
 		case wil_sta_unused:
@@ -1683,8 +1684,20 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			break;
 		}
 		mid = (p->status != wil_sta_unused) ? p->mid : U8_MAX;
-		seq_printf(s, "[%d] %pM %s MID %d AID %d\n", i, p->addr, status,
-			   mid, aid);
+		if (mid < wil->max_vifs) {
+			struct wil6210_vif *vif = wil->vifs[mid];
+
+			if (vif->wdev.iftype == NL80211_IFTYPE_STATION &&
+			    p->status == wil_sta_connected)
+				sta_connected = true;
+		}
+		/* print roam counter only for connected stations */
+		if (sta_connected)
+			seq_printf(s, "[%d] %pM connected (roam counter %d) MID %d AID %d\n",
+				   i, p->addr, p->stats.ft_roams, mid, aid);
+		else
+			seq_printf(s, "[%d] %pM %s MID %d AID %d\n", i,
+				   p->addr, status, mid, aid);
 
 		if (p->status == wil_sta_connected) {
 			spin_lock_bh(&p->tid_rx_lock);

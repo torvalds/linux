@@ -361,6 +361,8 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 			vif->bss = NULL;
 		}
 		clear_bit(wil_vif_fwconnecting, vif->status);
+		clear_bit(wil_vif_ft_roam, vif->status);
+
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:

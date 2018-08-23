@@ -2370,6 +2370,7 @@ struct wmi_ft_reassoc_status_event {
 	__le16 beacon_ie_len;
 	__le16 reassoc_req_ie_len;
 	__le16 reassoc_resp_ie_len;
+	u8 reserved[4];
 	u8 ie_info[0];
 } __packed;
 
