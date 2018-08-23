@@ -1418,6 +1418,16 @@ snd_pcm_uframes_t snd_pcm_vad_avail(struct snd_pcm_substream *substream);
 bool snd_pcm_vad_attached(struct snd_pcm_substream *substream);
 int snd_pcm_vad_preprocess(struct snd_pcm_substream *substream,
 			   void *buf, snd_pcm_uframes_t size);
+/**
+ * snd_pcm_vad_memcpy - Copy vad data to dst
+ * @substream: PCM substream instance
+ * @buf: dst buf
+ * @frames:  size in frame
+ *
+ * Result is copied frames for success or errno for fail
+ */
+snd_pcm_sframes_t snd_pcm_vad_memcpy(struct snd_pcm_substream *substream,
+				     void *buf, snd_pcm_uframes_t frames);
 #endif
 
 /* printk helpers */

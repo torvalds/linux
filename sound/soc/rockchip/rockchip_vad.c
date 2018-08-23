@@ -315,6 +315,66 @@ bool snd_pcm_vad_attached(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL(snd_pcm_vad_attached);
 
+/**
+ * snd_pcm_vad_memcpy - Copy vad data to dst
+ * @substream: PCM substream instance
+ * @buf: dst buf
+ * @frames:  size in frame
+ *
+ * Result is copied frames for success or errno for fail
+ */
+snd_pcm_sframes_t snd_pcm_vad_memcpy(struct snd_pcm_substream *substream,
+				     void *buf, snd_pcm_uframes_t frames)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct rockchip_vad *vad = NULL;
+	struct vad_buf *vbuf;
+	snd_pcm_uframes_t avail;
+	int bytes;
+
+	vad = substream_get_drvdata(substream);
+
+	if (!vad)
+		return -EFAULT;
+
+	vbuf = &vad->vbuf;
+
+	avail = snd_pcm_vad_avail(substream);
+	avail = avail > frames ? frames : avail;
+	bytes = frames_to_bytes(runtime, avail);
+
+	if (bytes <= 0)
+		return -EFAULT;
+
+	dev_dbg(vad->dev,
+		"begin: %p, pos: %p, end: %p, size: %d, bytes: %d\n",
+		vbuf->begin, vbuf->pos, vbuf->end, vbuf->size, bytes);
+	if (!vbuf->loop) {
+		memcpy_fromio(buf, vbuf->pos, bytes);
+		vbuf->pos += bytes;
+	} else {
+		if ((vbuf->pos + bytes) <= vbuf->end) {
+			memcpy_fromio(buf, vbuf->pos, bytes);
+			vbuf->pos += bytes;
+		} else {
+			int part1 = vbuf->end - vbuf->pos;
+			int part2 = bytes - part1;
+
+			memcpy_fromio(buf, vbuf->pos, part1);
+			memcpy_fromio(buf + part1, vbuf->begin, part2);
+			vbuf->pos = vbuf->begin + part2;
+		}
+	}
+
+	vbuf->size -= bytes;
+	dev_dbg(vad->dev,
+		"begin: %p, pos: %p, end: %p, size: %d, bytes: %d\n",
+		vbuf->begin, vbuf->pos, vbuf->end, vbuf->size, bytes);
+
+	return avail;
+}
+EXPORT_SYMBOL(snd_pcm_vad_memcpy);
+
 static bool rockchip_vad_writeable_reg(struct device *dev, unsigned int reg)
 {
 	return true;
