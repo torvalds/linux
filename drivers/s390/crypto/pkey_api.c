@@ -56,6 +56,16 @@ static void __exit pkey_debug_exit(void)
 	debug_unregister(debug_info);
 }
 
+/* Key token types */
+#define TOKTYPE_NON_CCA		0x00 /* Non-CCA key token */
+#define TOKTYPE_CCA_INTERNAL	0x01 /* CCA internal key token */
+
+/* For TOKTYPE_NON_CCA: */
+#define TOKVER_PROTECTED_KEY	0x01 /* Protected key token */
+
+/* For TOKTYPE_CCA_INTERNAL: */
+#define TOKVER_CCA_AES		0x04 /* CCA AES key token */
+
 /* inside view of a secure key token (only type 0x01 version 0x04) */
 struct secaeskeytoken {
 	u8  type;     /* 0x01 for internal key token */
@@ -72,6 +82,17 @@ struct secaeskeytoken {
 	u8  tvv[4];   /* token validation value */
 } __packed;
 
+/* inside view of a protected key token (only type 0x00 version 0x01) */
+struct protaeskeytoken {
+	u8  type;     /* 0x00 for PAES specific key tokens */
+	u8  res0[3];
+	u8  version;  /* should be 0x01 for protected AES key token */
+	u8  res1[3];
+	u32 keytype;  /* key type, one of the PKEY_KEYTYPE values */
+	u32 len;      /* bytes actually stored in protkey[] */
+	u8  protkey[MAXPROTKEYSIZE]; /* the protected key blob */
+} __packed;
+
 /*
  * Simple check if the token is a valid CCA secure AES key
  * token. If keybitsize is given, the bitsize of the key is
@@ -81,16 +102,16 @@ static int check_secaeskeytoken(const u8 *token, int keybitsize)
 {
 	struct secaeskeytoken *t = (struct secaeskeytoken *) token;
 
-	if (t->type != 0x01) {
+	if (t->type != TOKTYPE_CCA_INTERNAL) {
 		DEBUG_ERR(
-			"%s secure token check failed, type mismatch 0x%02x != 0x01\n",
-			__func__, (int) t->type);
+			"%s secure token check failed, type mismatch 0x%02x != 0x%02x\n",
+			__func__, (int) t->type, TOKTYPE_CCA_INTERNAL);
 		return -EINVAL;
 	}
-	if (t->version != 0x04) {
+	if (t->version != TOKVER_CCA_AES) {
 		DEBUG_ERR(
-			"%s secure token check failed, version mismatch 0x%02x != 0x04\n",
-			__func__, (int) t->version);
+			"%s secure token check failed, version mismatch 0x%02x != 0x%02x\n",
+			__func__, (int) t->version, TOKVER_CCA_AES);
 		return -EINVAL;
 	}
 	if (keybitsize > 0 && t->bitsize != keybitsize) {
