@@ -312,6 +312,8 @@ struct v4l2_buffer
         and flag ``V4L2_BUF_FLAG_REQUEST_FD`` is set, then the buffer will be
 	queued to that request. This is set by the user when calling
 	:ref:`ioctl VIDIOC_QBUF <VIDIOC_QBUF>` and ignored by other ioctls.
+	Applications should not set ``V4L2_BUF_FLAG_REQUEST_FD`` for any ioctls
+	other than :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`.
 	If the device does not support requests, then ``EPERM`` will be returned.
 	If requests are supported but an invalid request file descriptor is
 	given, then ``EINVAL`` will be returned.
