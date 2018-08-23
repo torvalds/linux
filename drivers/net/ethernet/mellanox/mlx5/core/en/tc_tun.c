@@ -35,7 +35,7 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	dst_is_lag_dev = (uplink_upper &&
 			  netif_is_lag_master(uplink_upper) &&
 			  rt->dst.dev == uplink_upper &&
-			  mlx5_lag_is_active(priv->mdev));
+			  mlx5_lag_is_sriov(priv->mdev));
 
 	/* if the egress device isn't on the same HW e-switch or
 	 * it's a LAG device, use the uplink
@@ -94,7 +94,7 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	dst_is_lag_dev = (uplink_upper &&
 			  netif_is_lag_master(uplink_upper) &&
 			  dst->dev == uplink_upper &&
-			  mlx5_lag_is_active(priv->mdev));
+			  mlx5_lag_is_sriov(priv->mdev));
 
 	/* if the egress device isn't on the same HW e-switch or
 	 * it's a LAG device, use the uplink

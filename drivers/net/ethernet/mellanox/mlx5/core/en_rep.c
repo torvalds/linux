@@ -314,7 +314,7 @@ int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
 		attr->u.ppid.id_len = ETH_ALEN;
-		if (uplink_upper && mlx5_lag_is_active(uplink_priv->mdev)) {
+		if (uplink_upper && mlx5_lag_is_sriov(uplink_priv->mdev)) {
 			ether_addr_copy(attr->u.ppid.id, uplink_upper->dev_addr);
 		} else {
 			struct mlx5e_rep_priv *rpriv = priv->ppriv;

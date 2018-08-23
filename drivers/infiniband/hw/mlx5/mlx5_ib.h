@@ -936,6 +936,7 @@ struct mlx5_ib_dev {
 	struct mlx5_ib_delay_drop	delay_drop;
 	const struct mlx5_ib_profile	*profile;
 	struct mlx5_eswitch_rep		*rep;
+	int				lag_active;
 
 	struct mlx5_ib_lb_state		lb;
 	u8			umr_fence;
