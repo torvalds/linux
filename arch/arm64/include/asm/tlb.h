@@ -34,20 +34,21 @@ static void tlb_flush(struct mmu_gather *tlb);
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	struct vm_area_struct vma = TLB_FLUSH_VMA(tlb->mm, 0);
+	bool last_level = !tlb->freed_tables;
+	unsigned long stride = tlb_get_unmap_size(tlb);
 
 	/*
-	 * The ASID allocator will either invalidate the ASID or mark
-	 * it as used.
+	 * If we're tearing down the address space then we only care about
+	 * invalidating the walk-cache, since the ASID allocator won't
+	 * reallocate our ASID without invalidating the entire TLB.
 	 */
-	if (tlb->fullmm)
+	if (tlb->fullmm) {
+		if (!last_level)
+			flush_tlb_mm(tlb->mm);
 		return;
+	}
 
-	/*
-	 * The intermediate page table levels are already handled by
-	 * the __(pte|pmd|pud)_free_tlb() functions, so last level
-	 * TLBI is sufficient here.
-	 */
-	__flush_tlb_range(&vma, tlb->start, tlb->end, PAGE_SIZE, true);
+	__flush_tlb_range(&vma, tlb->start, tlb->end, stride, last_level);
 }
 
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
