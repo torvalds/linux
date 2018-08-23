@@ -3874,8 +3874,8 @@ static int emulate_on_interception(struct vcpu_svm *svm)
 
 static int rsm_interception(struct vcpu_svm *svm)
 {
-	return x86_emulate_instruction(&svm->vcpu, 0, 0,
-				       rsm_ins_bytes, 2) == EMULATE_DONE;
+	return kvm_emulate_instruction_from_buffer(&svm->vcpu,
+					rsm_ins_bytes, 2) == EMULATE_DONE;
 }
 
 static int rdpmc_interception(struct vcpu_svm *svm)

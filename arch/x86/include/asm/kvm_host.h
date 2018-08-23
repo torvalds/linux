@@ -1251,6 +1251,13 @@ static inline int emulate_instruction(struct kvm_vcpu *vcpu,
 			emulation_type | EMULTYPE_NO_REEXECUTE, NULL, 0);
 }
 
+static inline int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
+						      void *insn, int insn_len)
+{
+	return x86_emulate_instruction(vcpu, 0, EMULTYPE_NO_REEXECUTE,
+				       insn, insn_len);
+}
+
 void kvm_enable_efer_bits(u64);
 bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer);
 int kvm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr);
