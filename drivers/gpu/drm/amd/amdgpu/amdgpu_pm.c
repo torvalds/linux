@@ -1720,18 +1720,6 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 		mutex_lock(&adev->pm.mutex);
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_UVD, !enable);
 		mutex_unlock(&adev->pm.mutex);
-	} else {
-		if (enable) {
-			mutex_lock(&adev->pm.mutex);
-			adev->pm.dpm.uvd_active = true;
-			adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_UVD;
-			mutex_unlock(&adev->pm.mutex);
-		} else {
-			mutex_lock(&adev->pm.mutex);
-			adev->pm.dpm.uvd_active = false;
-			mutex_unlock(&adev->pm.mutex);
-		}
-		amdgpu_pm_compute_clocks(adev);
 	}
 }
 
@@ -1742,29 +1730,6 @@ void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 		mutex_lock(&adev->pm.mutex);
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_VCE, !enable);
 		mutex_unlock(&adev->pm.mutex);
-	} else {
-		if (enable) {
-			mutex_lock(&adev->pm.mutex);
-			adev->pm.dpm.vce_active = true;
-			/* XXX select vce level based on ring/task */
-			adev->pm.dpm.vce_level = AMD_VCE_LEVEL_AC_ALL;
-			mutex_unlock(&adev->pm.mutex);
-			amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							       AMD_CG_STATE_UNGATE);
-			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							       AMD_PG_STATE_UNGATE);
-			amdgpu_pm_compute_clocks(adev);
-		} else {
-			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							       AMD_PG_STATE_GATE);
-			amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							       AMD_CG_STATE_GATE);
-			mutex_lock(&adev->pm.mutex);
-			adev->pm.dpm.vce_active = false;
-			mutex_unlock(&adev->pm.mutex);
-			amdgpu_pm_compute_clocks(adev);
-		}
-
 	}
 }
 
