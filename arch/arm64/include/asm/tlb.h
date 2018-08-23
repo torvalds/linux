@@ -53,7 +53,7 @@ static inline void tlb_flush(struct mmu_gather *tlb)
 	 * the __(pte|pmd|pud)_free_tlb() functions, so last level
 	 * TLBI is sufficient here.
 	 */
-	__flush_tlb_range(&vma, tlb->start, tlb->end, true);
+	__flush_tlb_range(&vma, tlb->start, tlb->end, PAGE_SIZE, true);
 }
 
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
