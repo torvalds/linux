@@ -1472,7 +1472,6 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		iwl_mvm_get_agg_status(mvm, tx_resp);
 	u32 status = le16_to_cpu(agg_status->status);
 	u16 ssn = iwl_mvm_get_scd_ssn(mvm, tx_resp);
-	struct iwl_mvm_sta *mvmsta;
 	struct sk_buff_head skbs;
 	u8 skb_freed = 0;
 	u8 lq_color;
@@ -1620,7 +1619,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		goto out;
 
 	if (!IS_ERR(sta)) {
-		mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		iwl_mvm_tx_airtime(mvm, mvmsta,
 				   le16_to_cpu(tx_resp->wireless_media_time));
@@ -1683,10 +1682,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			mvmsta->next_status_eosp = false;
 			ieee80211_sta_eosp(sta);
 		}
-	} else {
-		mvmsta = NULL;
 	}
-
 out:
 	rcu_read_unlock();
 }
