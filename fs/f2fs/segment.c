@@ -3214,9 +3214,13 @@ void f2fs_wait_on_page_writeback(struct page *page,
 	}
 }
 
-void f2fs_wait_on_block_writeback(struct f2fs_sb_info *sbi, block_t blkaddr)
+void f2fs_wait_on_block_writeback(struct inode *inode, block_t blkaddr)
 {
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct page *cpage;
+
+	if (!f2fs_post_read_required(inode))
+		return;
 
 	if (!is_valid_data_blkaddr(sbi, blkaddr))
 		return;
