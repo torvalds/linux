@@ -295,3 +295,15 @@ int ftrace_disable_ftrace_graph_caller(void)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+noinline void __trace_hardirqs_off(void)
+{
+	trace_hardirqs_off();
+}
+noinline void __trace_hardirqs_on(void)
+{
+	trace_hardirqs_on();
+}
+#endif /* CONFIG_TRACE_IRQFLAGS */
