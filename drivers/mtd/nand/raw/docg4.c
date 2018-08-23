@@ -1218,7 +1218,7 @@ static int docg4_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static void __init init_mtd_structs(struct mtd_info *mtd)
+static void init_mtd_structs(struct mtd_info *mtd)
 {
 	/* initialize mtd and nand data structures */
 
@@ -1290,7 +1290,7 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 
 }
 
-static int __init read_id_reg(struct mtd_info *mtd)
+static int read_id_reg(struct mtd_info *mtd)
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct docg4_priv *doc = nand_get_controller_data(nand);
