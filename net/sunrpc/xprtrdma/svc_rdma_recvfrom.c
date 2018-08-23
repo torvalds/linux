@@ -365,9 +365,6 @@ static void svc_rdma_build_arg_xdr(struct svc_rqst *rqstp,
 	arg->page_base = 0;
 	arg->buflen = ctxt->rc_byte_len;
 	arg->len = ctxt->rc_byte_len;
-
-	rqstp->rq_respages = &rqstp->rq_pages[0];
-	rqstp->rq_next_page = rqstp->rq_respages + 1;
 }
 
 /* This accommodates the largest possible Write chunk,
@@ -728,6 +725,12 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	atomic_inc(&rdma_stat_recv);
 
 	svc_rdma_build_arg_xdr(rqstp, ctxt);
+
+	/* Prevent svc_xprt_release from releasing pages in rq_pages
+	 * if we return 0 or an error.
+	 */
+	rqstp->rq_respages = rqstp->rq_pages;
+	rqstp->rq_next_page = rqstp->rq_respages;
 
 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	ret = svc_rdma_xdr_decode_req(&rqstp->rq_arg);

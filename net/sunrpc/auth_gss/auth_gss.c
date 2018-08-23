@@ -284,7 +284,12 @@ err:
 	return p;
 }
 
-#define UPCALL_BUF_LEN 128
+/* XXX: Need some documentation about why UPCALL_BUF_LEN is so small.
+ *	Is user space expecting no more than UPCALL_BUF_LEN bytes?
+ *	Note that there are now _two_ NI_MAXHOST sized data items
+ *	being passed in this string.
+ */
+#define UPCALL_BUF_LEN	256
 
 struct gss_upcall_msg {
 	refcount_t count;
@@ -456,18 +461,44 @@ static int gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 	buflen -= len;
 	p += len;
 	gss_msg->msg.len = len;
+
+	/*
+	 * target= is a full service principal that names the remote
+	 * identity that we are authenticating to.
+	 */
 	if (target_name) {
 		len = scnprintf(p, buflen, "target=%s ", target_name);
 		buflen -= len;
 		p += len;
 		gss_msg->msg.len += len;
 	}
-	if (service_name != NULL) {
-		len = scnprintf(p, buflen, "service=%s ", service_name);
+
+	/*
+	 * gssd uses service= and srchost= to select a matching key from
+	 * the system's keytab to use as the source principal.
+	 *
+	 * service= is the service name part of the source principal,
+	 * or "*" (meaning choose any).
+	 *
+	 * srchost= is the hostname part of the source principal. When
+	 * not provided, gssd uses the local hostname.
+	 */
+	if (service_name) {
+		char *c = strchr(service_name, '@');
+
+		if (!c)
+			len = scnprintf(p, buflen, "service=%s ",
+					service_name);
+		else
+			len = scnprintf(p, buflen,
+					"service=%.*s srchost=%s ",
+					(int)(c - service_name),
+					service_name, c + 1);
 		buflen -= len;
 		p += len;
 		gss_msg->msg.len += len;
 	}
+
 	if (mech->gm_upcall_enctypes) {
 		len = scnprintf(p, buflen, "enctypes=%s ",
 				mech->gm_upcall_enctypes);
