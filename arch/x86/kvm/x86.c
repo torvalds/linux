@@ -4987,7 +4987,7 @@ int handle_ud(struct kvm_vcpu *vcpu)
 		emul_type = 0;
 	}
 
-	er = emulate_instruction(vcpu, emul_type);
+	er = kvm_emulate_instruction(vcpu, emul_type);
 	if (er == EMULATE_USER_EXIT)
 		return 0;
 	if (er != EMULATE_DONE)
@@ -7740,7 +7740,7 @@ static inline int complete_emulated_io(struct kvm_vcpu *vcpu)
 {
 	int r;
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-	r = emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
+	r = kvm_emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	if (r != EMULATE_DONE)
 		return 0;

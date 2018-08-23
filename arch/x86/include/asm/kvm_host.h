@@ -1243,7 +1243,7 @@ enum emulation_result {
 int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
 			    int emulation_type, void *insn, int insn_len);
 
-static inline int emulate_instruction(struct kvm_vcpu *vcpu,
+static inline int kvm_emulate_instruction(struct kvm_vcpu *vcpu,
 			int emulation_type)
 {
 	return x86_emulate_instruction(vcpu, 0, emulation_type, NULL, 0);
