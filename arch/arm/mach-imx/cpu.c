@@ -68,6 +68,7 @@ void __init imx_aips_allow_unprivileged_access(
 
 	for_each_compatible_node(np, NULL, compat) {
 		aips_base_addr = of_iomap(np, 0);
+		WARN_ON(!aips_base_addr);
 		imx_set_aips(aips_base_addr);
 	}
 }

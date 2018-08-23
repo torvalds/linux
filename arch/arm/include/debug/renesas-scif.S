@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Renesas SCIF(A) debugging macro include header
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2012-2013 Renesas Electronics Corporation
  * Copyright (C) 1994-1999 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define SCIF_PHYS	CONFIG_DEBUG_UART_PHYS
