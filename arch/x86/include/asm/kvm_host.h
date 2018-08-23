@@ -1240,20 +1240,9 @@ enum emulation_result {
 #define EMULTYPE_ALLOW_RETRY	    (1 << 3)
 #define EMULTYPE_NO_UD_ON_FAIL	    (1 << 4)
 #define EMULTYPE_VMWARE		    (1 << 5)
-int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
-			    int emulation_type, void *insn, int insn_len);
-
-static inline int kvm_emulate_instruction(struct kvm_vcpu *vcpu,
-			int emulation_type)
-{
-	return x86_emulate_instruction(vcpu, 0, emulation_type, NULL, 0);
-}
-
-static inline int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
-						      void *insn, int insn_len)
-{
-	return x86_emulate_instruction(vcpu, 0, 0, insn, insn_len);
-}
+int kvm_emulate_instruction(struct kvm_vcpu *vcpu, int emulation_type);
+int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
+					void *insn, int insn_len);
 
 void kvm_enable_efer_bits(u64);
 bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer);

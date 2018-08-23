@@ -6282,7 +6282,19 @@ restart:
 
 	return r;
 }
-EXPORT_SYMBOL_GPL(x86_emulate_instruction);
+
+int kvm_emulate_instruction(struct kvm_vcpu *vcpu, int emulation_type)
+{
+	return x86_emulate_instruction(vcpu, 0, emulation_type, NULL, 0);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_instruction);
+
+int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
+					void *insn, int insn_len)
+{
+	return x86_emulate_instruction(vcpu, 0, 0, insn, insn_len);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_instruction_from_buffer);
 
 static int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size,
 			    unsigned short port)
