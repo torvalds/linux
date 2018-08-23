@@ -66,6 +66,8 @@ struct rockchip_vad {
 	struct dentry *debugfs_dir;
 	void *buf;
 	bool acodec_cfg;
+	struct snd_soc_dai *cpu_dai;
+	struct snd_pcm_substream *substream;
 };
 
 struct audio_src_addr_map {
@@ -531,6 +533,8 @@ static void rockchip_vad_params_fixup(struct snd_pcm_substream *substream,
 	int i;
 
 	cpu_dai = rtd->cpu_dai;
+	vad->cpu_dai = cpu_dai;
+	vad->substream = substream;
 	np = cpu_dai->dev->of_node;
 	if (of_device_is_compatible(np, "rockchip,multi-dais")) {
 		audio_src_dai = rockchip_vad_find_dai(vad->audio_node);
@@ -623,18 +627,17 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int rockchip_vad_enable_cpudai(struct snd_pcm_substream *substream)
+static int rockchip_vad_enable_cpudai(struct rockchip_vad *vad)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai;
+	struct snd_pcm_substream *substream;
 	int ret = 0;
 
-	if (PCM_RUNTIME_CHECK(substream))
-		return -EFAULT;
-	if (!rtd)
-		return -EFAULT;
+	cpu_dai = vad->cpu_dai;
+	substream = vad->substream;
 
-	cpu_dai = rtd->cpu_dai;
+	if (!cpu_dai || !substream)
+		return 0;
 
 	pm_runtime_get_sync(cpu_dai->dev);
 
@@ -655,21 +658,6 @@ static int rockchip_vad_pcm_startup(struct snd_pcm_substream *substream,
 	vad_substream = substream;
 
 	return 0;
-}
-
-static void rockchip_vad_pcm_shutdown(struct snd_pcm_substream *substream,
-				      struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return;
-
-	rockchip_vad_enable_cpudai(substream);
-	rockchip_vad_setup(vad);
-
-	vad_substream = NULL;
 }
 
 static int rockchip_vad_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -699,7 +687,6 @@ static int rockchip_vad_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static struct snd_soc_dai_ops rockchip_vad_dai_ops = {
 	.hw_params = rockchip_vad_hw_params,
-	.shutdown = rockchip_vad_pcm_shutdown,
 	.startup = rockchip_vad_pcm_startup,
 	.trigger = rockchip_vad_trigger,
 };
@@ -799,6 +786,19 @@ static void rockchip_vad_init(struct rockchip_vad *vad)
 
 	regmap_update_bits(vad->regmap, VAD_CTRL, mask, val);
 }
+
+static int rockchip_vad_suspend(struct device *dev)
+{
+	struct rockchip_vad *vad = dev_get_drvdata(dev);
+
+	rockchip_vad_enable_cpudai(vad);
+	rockchip_vad_setup(vad);
+	return 0;
+}
+
+static const struct dev_pm_ops rockchip_vad_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rockchip_vad_suspend, NULL)
+};
 
 static int rockchip_vad_probe(struct platform_device *pdev)
 {
@@ -909,6 +909,7 @@ static struct platform_driver rockchip_vad_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(rockchip_vad_match),
+		.pm = &rockchip_vad_pm_ops,
 	},
 };
 module_platform_driver(rockchip_vad_driver);
