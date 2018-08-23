@@ -101,8 +101,8 @@ then the controls are not applied immediately when calling
 :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`, but instead are applied by
 the driver for the buffer associated with the same request.
 If the device does not support requests, then ``EPERM`` will be returned.
-If requests are supported but an invalid request FD is given, then
-``ENOENT`` will be returned.
+If requests are supported but an invalid request file descriptor is given,
+then ``EINVAL`` will be returned.
 
 An attempt to call :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` for a
 request that has already been queued will result in an ``EBUSY`` error.
@@ -301,8 +301,8 @@ still cause this situation.
       - File descriptor of the request to be used by this operation. Only
 	valid if ``which`` is set to ``V4L2_CTRL_WHICH_REQUEST_VAL``.
 	If the device does not support requests, then ``EPERM`` will be returned.
-	If requests are supported but an invalid request FD is given, then
-	``ENOENT`` will be returned.
+	If requests are supported but an invalid request file descriptor is
+	given, then ``EINVAL`` will be returned.
     * - __u32
       - ``reserved``\ [1]
       - Reserved for future extensions.
@@ -378,11 +378,13 @@ appropriately. The generic error codes are described at the
 
 EINVAL
     The struct :c:type:`v4l2_ext_control` ``id`` is
-    invalid, the struct :c:type:`v4l2_ext_controls`
+    invalid, or the struct :c:type:`v4l2_ext_controls`
     ``which`` is invalid, or the struct
     :c:type:`v4l2_ext_control` ``value`` was
     inappropriate (e.g. the given menu index is not supported by the
-    driver). This error code is also returned by the
+    driver), or the ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL``
+    but the given ``request_fd`` was invalid.
+    This error code is also returned by the
     :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` and :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctls if two or
     more control values are in conflict.
 
@@ -409,7 +411,3 @@ EACCES
 EPERM
     The ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL`` but the
     device does not support requests.
-
-ENOENT
-    The ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL`` but the
-    the given ``request_fd`` was invalid.

@@ -153,7 +153,7 @@ void media_request_put(struct media_request *req);
  * by the media device.
  *
  * Return a -EPERM error pointer if requests are not supported
- * by this driver. Return -ENOENT if the request was not found.
+ * by this driver. Return -EINVAL if the request was not found.
  * Return the pointer to the request if found: the caller will
  * have to call @media_request_put when it finished using the
  * request.

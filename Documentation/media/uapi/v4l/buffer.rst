@@ -313,8 +313,8 @@ struct v4l2_buffer
 	queued to that request. This is set by the user when calling
 	:ref:`ioctl VIDIOC_QBUF <VIDIOC_QBUF>` and ignored by other ioctls.
 	If the device does not support requests, then ``EPERM`` will be returned.
-	If requests are supported but an invalid request FD is given, then
-	``ENOENT`` will be returned.
+	If requests are supported but an invalid request file descriptor is
+	given, then ``EINVAL`` will be returned.
 
 
 

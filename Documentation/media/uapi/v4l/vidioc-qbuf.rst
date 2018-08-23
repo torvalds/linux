@@ -105,8 +105,8 @@ until the request itself is queued. Also, the driver will apply any
 settings associated with the request for this buffer. This field will
 be ignored unless the ``V4L2_BUF_FLAG_REQUEST_FD`` flag is set.
 If the device does not support requests, then ``EPERM`` will be returned.
-If requests are supported but an invalid request FD is given, then
-``ENOENT`` will be returned.
+If requests are supported but an invalid request file descriptor is given,
+then ``EINVAL`` will be returned.
 
 .. caution::
    It is not allowed to mix queuing requests with queuing buffers directly.
@@ -152,7 +152,9 @@ EAGAIN
 EINVAL
     The buffer ``type`` is not supported, or the ``index`` is out of
     bounds, or no buffers have been allocated yet, or the ``userptr`` or
-    ``length`` are invalid.
+    ``length`` are invalid, or the ``V4L2_BUF_FLAG_REQUEST_FD`` flag was
+    set but the the given ``request_fd`` was invalid, or ``m.fd`` was
+    an invalid DMABUF file descriptor.
 
 EIO
     ``VIDIOC_DQBUF`` failed due to an internal error. Can also indicate
@@ -179,7 +181,3 @@ EPERM
     the application now tries to queue it directly, or vice versa (it is
     not permitted to mix the two APIs). Or an attempt is made to queue a
     CAPTURE buffer to a request for a :ref:`memory-to-memory device <codec>`.
-
-ENOENT
-    The ``V4L2_BUF_FLAG_REQUEST_FD`` flag was set but the the given
-    ``request_fd`` was invalid.

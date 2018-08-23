@@ -244,7 +244,7 @@ media_request_get_by_fd(struct media_device *mdev, int request_fd)
 
 	filp = fget(request_fd);
 	if (!filp)
-		return ERR_PTR(-ENOENT);
+		goto err_no_req_fd;
 
 	if (filp->f_op != &request_fops)
 		goto err_fput;
@@ -268,7 +268,9 @@ media_request_get_by_fd(struct media_device *mdev, int request_fd)
 err_fput:
 	fput(filp);
 
-	return ERR_PTR(-ENOENT);
+err_no_req_fd:
+	dev_dbg(mdev->dev, "cannot find request_fd %d\n", request_fd);
+	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL_GPL(media_request_get_by_fd);
 
