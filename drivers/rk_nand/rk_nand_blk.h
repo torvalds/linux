@@ -48,6 +48,7 @@ struct nand_blk_ops {
 	struct module *owner;
 };
 
+extern struct device *g_nand_device;
 void rknand_dev_suspend(void);
 void rknand_dev_resume(void);
 void rknand_dev_shutdown(void);

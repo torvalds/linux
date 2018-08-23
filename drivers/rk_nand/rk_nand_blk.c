@@ -586,6 +586,7 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 			 part->name);
 	} else {
 		gd->flags = GENHD_FL_EXT_DEVT;
+		gd->driverfs_dev = g_nand_device;
 		gd->minors = 255;
 		snprintf(gd->disk_name,
 			 sizeof(gd->disk_name),
