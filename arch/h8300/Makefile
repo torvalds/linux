@@ -20,7 +20,7 @@ KBUILD_CFLAGS += -mint32 -fno-builtin
 KBUILD_CFLAGS += -D__linux__
 KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 KBUILD_AFLAGS += $(aflags-y)
-LDFLAGS += $(ldflags-y)
+KBUILD_LDFLAGS += $(ldflags-y)
 
 ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := h8300-unknown-linux-
