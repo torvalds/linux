@@ -57,6 +57,46 @@ i.MX6SLL EVK board
 Required root node properties:
     - compatible = "fsl,imx6sll-evk", "fsl,imx6sll";
 
+i.MX6 Quad Plus SABRE Smart Device Board
+Required root node properties:
+    - compatible = "fsl,imx6qp-sabresd", "fsl,imx6qp";
+
+i.MX6 Quad Plus SABRE Automotive Board
+Required root node properties:
+    - compatible = "fsl,imx6qp-sabreauto", "fsl,imx6qp";
+
+i.MX6 DualLite SABRE Smart Device Board
+Required root node properties:
+    - compatible = "fsl,imx6dl-sabresd", "fsl,imx6dl";
+
+i.MX6 DualLite/Solo SABRE Automotive Board
+Required root node properties:
+    - compatible = "fsl,imx6dl-sabreauto", "fsl,imx6dl";
+
+i.MX6 SoloLite EVK Board
+Required root node properties:
+    - compatible = "fsl,imx6sl-evk", "fsl,imx6sl";
+
+i.MX6 UltraLite 14x14 EVK Board
+Required root node properties:
+    - compatible = "fsl,imx6ul-14x14-evk", "fsl,imx6ul";
+
+i.MX6 UltraLiteLite 14x14 EVK Board
+Required root node properties:
+    - compatible = "fsl,imx6ull-14x14-evk", "fsl,imx6ull";
+
+i.MX6 SoloX SDB Board
+Required root node properties:
+    - compatible = "fsl,imx6sx-sdb", "fsl,imx6sx";
+
+i.MX6 SoloX Sabre Auto Board
+Required root node properties:
+    - compatible = "fsl,imx6sx-sabreauto", "fsl,imx6sx";
+
+i.MX7 SabreSD Board
+Required root node properties:
+    - compatible = "fsl,imx7d-sdb", "fsl,imx7d";
+
 Generic i.MX boards
 -------------------
 
