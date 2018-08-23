@@ -45,19 +45,27 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 			       unsigned int new_clock)
 {
-	u32 clk = 0, clock;
+	unsigned int clock, divisor;
+	u32 clk = 0;
+	int clk_sel;
 
 	if (new_clock == 0) {
 		tmio_mmc_clk_stop(host);
 		return;
 	}
 
-	clock = host->mmc->f_min;
+	divisor = host->pdata->hclk / new_clock;
 
-	for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
-		clock <<= 1;
+	if (divisor <= 1) {
+		clk_sel = 1;
+		clk = 0;
+	} else {
+		clk_sel = 0;
+		/* bit7 set: 1/512, ... bit0 set:1/4, all bits clear: 1/2 */
+		clk = roundup_pow_of_two(divisor) >> 2;
+	}
 
-	host->pdata->set_clk_div(host->pdev, (clk >> 22) & 1);
+	host->pdata->set_clk_div(host->pdev, clk_sel);
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
