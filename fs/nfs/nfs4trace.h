@@ -1194,7 +1194,7 @@ DECLARE_EVENT_CLASS(nfs4_inode_stateid_callback_event,
 		TP_fast_assign(
 			__entry->error = error;
 			__entry->fhandle = nfs_fhandle_hash(fhandle);
-			if (inode != NULL) {
+			if (!IS_ERR_OR_NULL(inode)) {
 				__entry->fileid = NFS_FILEID(inode);
 				__entry->dev = inode->i_sb->s_dev;
 			} else {
