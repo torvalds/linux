@@ -13988,9 +13988,6 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	    check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
 		return -EINVAL;
 
-	if (kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING)
-		vmx->nested.nested_run_pending = 1;
-
 	vmx->nested.dirty_vmcs12 = true;
 	ret = enter_vmx_non_root_mode(vcpu, NULL);
 	if (ret)
