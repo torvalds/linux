@@ -1301,7 +1301,7 @@ static int parse_pred(const char *str, void *data,
 		/* go past the last quote */
 		i++;
 
-	} else if (isdigit(str[i])) {
+	} else if (isdigit(str[i]) || str[i] == '-') {
 
 		/* Make sure the field is not a string */
 		if (is_string_field(field)) {
@@ -1313,6 +1313,9 @@ static int parse_pred(const char *str, void *data,
 			parse_error(pe, FILT_ERR_ILLEGAL_FIELD_OP, pos + i);
 			goto err_free;
 		}
+
+		if (str[i] == '-')
+			i++;
 
 		/* We allow 0xDEADBEEF */
 		while (isalnum(str[i]))
