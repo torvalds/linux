@@ -631,6 +631,16 @@ config MMC_SDHI_INTERNAL_DMAC
 	  using on-chip bus mastering. This supports the controllers
 	  found in arm64 based SoCs.
 
+config MMC_UNIPHIER
+	tristate "UniPhier SD/eMMC Host Controller support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF
+	select MMC_TMIO_CORE
+	help
+	  This provides support for the SD/eMMC controller found in
+	  UniPhier SoCs. The eMMC variant of this controller is used
+	  only for 32-bit SoCs.
+
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
 	depends on PCI
