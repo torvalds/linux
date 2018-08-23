@@ -2219,7 +2219,7 @@ void sdhci_send_tuning(struct sdhci_host *host, u32 opcode)
 }
 EXPORT_SYMBOL_GPL(sdhci_send_tuning);
 
-static void __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
+static int __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 {
 	int i;
 
@@ -2236,13 +2236,13 @@ static void __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 			pr_info("%s: Tuning timeout, falling back to fixed sampling clock\n",
 				mmc_hostname(host->mmc));
 			sdhci_abort_tuning(host, opcode);
-			return;
+			return -ETIMEDOUT;
 		}
 
 		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 		if (!(ctrl & SDHCI_CTRL_EXEC_TUNING)) {
 			if (ctrl & SDHCI_CTRL_TUNED_CLK)
-				return; /* Success! */
+				return 0; /* Success! */
 			break;
 		}
 
@@ -2254,6 +2254,7 @@ static void __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 	pr_info("%s: Tuning failed, falling back to fixed sampling clock\n",
 		mmc_hostname(host->mmc));
 	sdhci_reset_tuning(host);
+	return -EAGAIN;
 }
 
 int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
@@ -2315,7 +2316,7 @@ int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	sdhci_start_tuning(host);
 
-	__sdhci_execute_tuning(host, opcode);
+	host->tuning_err = __sdhci_execute_tuning(host, opcode);
 
 	sdhci_end_tuning(host);
 out:
