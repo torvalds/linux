@@ -8,6 +8,8 @@
  *  Author:	Rocky Craig <first.last@hp.com>
  */
 
+#define DEBUG /* So dev_dbg() is always available. */
+
 #include <linux/kernel.h> /* For printk. */
 #include <linux/string.h>
 #include <linux/module.h>
@@ -215,8 +217,8 @@ static int bt_start_transaction(struct si_sm_data *bt,
 		return IPMI_NOT_IN_MY_STATE_ERR;
 
 	if (bt_debug & BT_DEBUG_MSG) {
-		pr_warn("BT: +++++++++++++++++ New command\n");
-		pr_warn("BT: NetFn/LUN CMD [%d data]:", size - 2);
+		dev_dbg(bt->io->dev, "+++++++++++++++++ New command\n");
+		dev_dbg(bt->io->dev, "NetFn/LUN CMD [%d data]:", size - 2);
 		for (i = 0; i < size; i ++)
 			pr_cont(" %02x", data[i]);
 		pr_cont("\n");
@@ -260,7 +262,7 @@ static int bt_get_result(struct si_sm_data *bt,
 		memcpy(data + 2, bt->read_data + 4, msg_len - 2);
 
 	if (bt_debug & BT_DEBUG_MSG) {
-		pr_warn("BT: result %d bytes:", msg_len);
+		dev_dbg(bt->io->dev, "result %d bytes:", msg_len);
 		for (i = 0; i < msg_len; i++)
 			pr_cont(" %02x", data[i]);
 		pr_cont("\n");
@@ -274,7 +276,7 @@ static int bt_get_result(struct si_sm_data *bt,
 static void reset_flags(struct si_sm_data *bt)
 {
 	if (bt_debug)
-		pr_warn("IPMI BT: flag reset %s\n", status2txt(BT_STATUS));
+		dev_dbg(bt->io->dev, "flag reset %s\n", status2txt(BT_STATUS));
 	if (BT_STATUS & BT_H_BUSY)
 		BT_CONTROL(BT_H_BUSY);	/* force clear */
 	BT_CONTROL(BT_CLR_WR_PTR);	/* always reset */
@@ -300,7 +302,8 @@ static void drain_BMC2HOST(struct si_sm_data *bt)
 	BT_CONTROL(BT_B2H_ATN);		/* some BMCs are stubborn */
 	BT_CONTROL(BT_CLR_RD_PTR);	/* always reset */
 	if (bt_debug)
-		pr_warn("IPMI BT: stale response %s; ", status2txt(BT_STATUS));
+		dev_dbg(bt->io->dev, "stale response %s; ",
+			status2txt(BT_STATUS));
 	size = BMC2HOST;
 	for (i = 0; i < size ; i++)
 		BMC2HOST;
@@ -314,7 +317,7 @@ static inline void write_all_bytes(struct si_sm_data *bt)
 	int i;
 
 	if (bt_debug & BT_DEBUG_MSG) {
-		pr_warn("BT: write %d bytes seq=0x%02X",
+		dev_dbg(bt->io->dev, "write %d bytes seq=0x%02X",
 			bt->write_count, bt->seq);
 		for (i = 0; i < bt->write_count; i++)
 			pr_cont(" %02x", bt->write_data[i]);
@@ -338,7 +341,8 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 
 	if (bt->read_count < 4 || bt->read_count >= IPMI_MAX_MSG_LENGTH) {
 		if (bt_debug & BT_DEBUG_MSG)
-			pr_warn("BT: bad raw rsp len=%d\n", bt->read_count);
+			dev_dbg(bt->io->dev,
+				"bad raw rsp len=%d\n", bt->read_count);
 		bt->truncated = 1;
 		return 1;	/* let next XACTION START clean it up */
 	}
@@ -349,7 +353,8 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 	if (bt_debug & BT_DEBUG_MSG) {
 		int max = bt->read_count;
 
-		pr_warn("BT: got %d bytes seq=0x%02X", max, bt->read_data[2]);
+		dev_dbg(bt->io->dev,
+			"got %d bytes seq=0x%02X", max, bt->read_data[2]);
 		if (max > 16)
 			max = 16;
 		for (i = 0; i < max; i++)
@@ -364,7 +369,8 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 			return 1;
 
 	if (bt_debug & BT_DEBUG_MSG)
-		pr_warn("IPMI BT: bad packet: want 0x(%02X, %02X, %02X) got (%02X, %02X, %02X)\n",
+		dev_dbg(bt->io->dev,
+			"IPMI BT: bad packet: want 0x(%02X, %02X, %02X) got (%02X, %02X, %02X)\n",
 			bt->write_data[1] | 0x04, bt->write_data[2],
 			bt->write_data[3],
 			bt->read_data[1],  bt->read_data[2],  bt->read_data[3]);
@@ -390,8 +396,8 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 		break;
 	}
 
-	pr_warn("IPMI BT: %s in %s %s ", 	/* open-ended line */
-		reason, STATE2TXT, STATUS2TXT);
+	dev_warn(bt->io->dev, "IPMI BT: %s in %s %s ", /* open-ended line */
+		 reason, STATE2TXT, STATUS2TXT);
 
 	/*
 	 * Per the IPMI spec, retries are based on the sequence number
@@ -405,14 +411,14 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 		return SI_SM_CALL_WITHOUT_DELAY;
 	}
 
-	pr_warn("failed %d retries, sending error response\n",
-		bt->BT_CAP_retries);
+	dev_warn(bt->io->dev, "failed %d retries, sending error response\n",
+		 bt->BT_CAP_retries);
 	if (!bt->nonzero_status)
-		pr_err("IPMI BT: stuck, try power cycle\n");
+		dev_err(bt->io->dev, "stuck, try power cycle\n");
 
 	/* this is most likely during insmod */
 	else if (bt->seq <= (unsigned char)(bt->BT_CAP_retries & 0xFF)) {
-		pr_warn("IPMI: BT reset (takes 5 secs)\n");
+		dev_warn(bt->io->dev, "BT reset (takes 5 secs)\n");
 		bt->state = BT_STATE_RESET1;
 		return SI_SM_CALL_WITHOUT_DELAY;
 	}
@@ -448,7 +454,7 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 	status = BT_STATUS;
 	bt->nonzero_status |= status;
 	if ((bt_debug & BT_DEBUG_STATES) && (bt->state != last_printed)) {
-		pr_warn("BT: %s %s TO=%ld - %ld\n",
+		dev_dbg(bt->io->dev, "BT: %s %s TO=%ld - %ld\n",
 			STATE2TXT,
 			STATUS2TXT,
 			bt->timeout,
