@@ -1254,6 +1254,132 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 /*
  * Sysfs and file io operations
  */
+
+/*
+ * Sysfs attribute read function for all protected key binary attributes.
+ * The implementation can not deal with partial reads, because a new random
+ * protected key blob is generated with each read. In case of partial reads
+ * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
+ */
+static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
+					  loff_t off, size_t count)
+{
+	struct protaeskeytoken protkeytoken;
+	struct pkey_protkey protkey;
+	int rc;
+
+	if (off != 0 || count < sizeof(protkeytoken))
+		return -EINVAL;
+	if (is_xts)
+		if (count < 2 * sizeof(protkeytoken))
+			return -EINVAL;
+
+	memset(&protkeytoken, 0, sizeof(protkeytoken));
+	protkeytoken.type = TOKTYPE_NON_CCA;
+	protkeytoken.version = TOKVER_PROTECTED_KEY;
+	protkeytoken.keytype = keytype;
+
+	rc = pkey_genprotkey(protkeytoken.keytype, &protkey);
+	if (rc)
+		return rc;
+
+	protkeytoken.len = protkey.len;
+	memcpy(&protkeytoken.protkey, &protkey.protkey, protkey.len);
+
+	memcpy(buf, &protkeytoken, sizeof(protkeytoken));
+
+	if (is_xts) {
+		rc = pkey_genprotkey(protkeytoken.keytype, &protkey);
+		if (rc)
+			return rc;
+
+		protkeytoken.len = protkey.len;
+		memcpy(&protkeytoken.protkey, &protkey.protkey, protkey.len);
+
+		memcpy(buf + sizeof(protkeytoken), &protkeytoken,
+		       sizeof(protkeytoken));
+
+		return 2 * sizeof(protkeytoken);
+	}
+
+	return sizeof(protkeytoken);
+}
+
+static ssize_t protkey_aes_128_read(struct file *filp,
+				    struct kobject *kobj,
+				    struct bin_attribute *attr,
+				    char *buf, loff_t off,
+				    size_t count)
+{
+	return pkey_protkey_aes_attr_read(PKEY_KEYTYPE_AES_128, false, buf,
+					  off, count);
+}
+
+static ssize_t protkey_aes_192_read(struct file *filp,
+				    struct kobject *kobj,
+				    struct bin_attribute *attr,
+				    char *buf, loff_t off,
+				    size_t count)
+{
+	return pkey_protkey_aes_attr_read(PKEY_KEYTYPE_AES_192, false, buf,
+					  off, count);
+}
+
+static ssize_t protkey_aes_256_read(struct file *filp,
+				    struct kobject *kobj,
+				    struct bin_attribute *attr,
+				    char *buf, loff_t off,
+				    size_t count)
+{
+	return pkey_protkey_aes_attr_read(PKEY_KEYTYPE_AES_256, false, buf,
+					  off, count);
+}
+
+static ssize_t protkey_aes_128_xts_read(struct file *filp,
+					struct kobject *kobj,
+					struct bin_attribute *attr,
+					char *buf, loff_t off,
+					size_t count)
+{
+	return pkey_protkey_aes_attr_read(PKEY_KEYTYPE_AES_128, true, buf,
+					  off, count);
+}
+
+static ssize_t protkey_aes_256_xts_read(struct file *filp,
+					struct kobject *kobj,
+					struct bin_attribute *attr,
+					char *buf, loff_t off,
+					size_t count)
+{
+	return pkey_protkey_aes_attr_read(PKEY_KEYTYPE_AES_256, true, buf,
+					  off, count);
+}
+
+static BIN_ATTR_RO(protkey_aes_128, sizeof(struct protaeskeytoken));
+static BIN_ATTR_RO(protkey_aes_192, sizeof(struct protaeskeytoken));
+static BIN_ATTR_RO(protkey_aes_256, sizeof(struct protaeskeytoken));
+static BIN_ATTR_RO(protkey_aes_128_xts, 2 * sizeof(struct protaeskeytoken));
+static BIN_ATTR_RO(protkey_aes_256_xts, 2 * sizeof(struct protaeskeytoken));
+
+static struct bin_attribute *protkey_attrs[] = {
+	&bin_attr_protkey_aes_128,
+	&bin_attr_protkey_aes_192,
+	&bin_attr_protkey_aes_256,
+	&bin_attr_protkey_aes_128_xts,
+	&bin_attr_protkey_aes_256_xts,
+	NULL
+};
+
+static struct attribute_group protkey_attr_group = {
+	.name	   = "protkey",
+	.bin_attrs = protkey_attrs,
+};
+
+static const struct attribute_group *pkey_attr_groups[] = {
+	&protkey_attr_group,
+	NULL,
+};
+
 static const struct file_operations pkey_fops = {
 	.owner		= THIS_MODULE,
 	.open		= nonseekable_open,
@@ -1266,6 +1392,7 @@ static struct miscdevice pkey_dev = {
 	.minor	= MISC_DYNAMIC_MINOR,
 	.mode	= 0666,
 	.fops	= &pkey_fops,
+	.groups = pkey_attr_groups,
 };
 
 /*
