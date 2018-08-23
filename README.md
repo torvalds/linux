@@ -1,4 +1,6 @@
-Kernel 4.14 for BPI-R2
+# Kernel 4.14 for BPI-R2
+
+[![Build Status](https://travis-ci.com/frank-w/BPI-R2-4.14.svg)](https://travis-ci.com/frank-w/BPI-R2-4.14)
 
 ## Requirements
 
