@@ -97,6 +97,11 @@ parameters may be changed at runtime by the command
 			allowing boot to proceed.  none ignores them, expecting
 			user space to do the scan.
 
+	scsi_mod.use_blk_mq=
+			[SCSI] use blk-mq I/O path by default
+			See SCSI_MQ_DEFAULT in drivers/scsi/Kconfig.
+			Format: <y/n>
+
 	sim710=		[SCSI,HW]
 			See header of drivers/scsi/sim710.c.
 
