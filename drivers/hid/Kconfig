@@ -182,6 +182,19 @@ config HID_BETOP_FF
 	Currently the following devices are known to be supported:
 	 - BETOP 2185 PC & BFM MODE
 
+config HID_BIGBEN_FF
+	tristate "BigBen Interactive Kids' gamepad support"
+	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select INPUT_FF_MEMLESS
+	default !EXPERT
+	help
+	  Support for the "Kid-friendly Wired Controller" PS3OFMINIPAD
+	  gamepad made by BigBen Interactive, originally sold as a PS3
+	  accessory. This driver fixes input mapping and adds support for
+	  force feedback effects and LEDs on the device.
+
 config HID_CHERRY
 	tristate "Cherry Cymotion keyboard"
 	depends on HID
