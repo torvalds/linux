@@ -187,12 +187,10 @@ static u32 hclks[] = {50000000}; /* +/- by chhung */
 //============================================
 #define msdc_vcore_on(host) \
 	do {								\
-		INIT_MSG("[+]VMC ref. count<%d>", ++host->pwr_ref);	\
 		(void)hwPowerOn(MT65XX_POWER_LDO_VMC, VOL_3300, "SD");	\
 	} while (0)
 #define msdc_vcore_off(host) \
 	do {								\
-		INIT_MSG("[-]VMC ref. count<%d>", --host->pwr_ref);	\
 		(void)hwPowerDown(MT65XX_POWER_LDO_VMC, "SD");		\
 	} while (0)
 
@@ -439,7 +437,6 @@ static void msdc_select_clksrc(struct msdc_host *host, unsigned char clksrc)
 	u32 val;
 
 	BUG_ON(clksrc > 3);
-	INIT_MSG("set clock source to <%d>", clksrc);
 
 	val = readl(host->base + MSDC_CLKSRC_REG);
 	if (readl(host->base + MSDC_ECO_VER) >= 4) {
@@ -508,10 +505,6 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 	host->sclk = sclk;
 	host->mclk = hz;
 	msdc_set_timeout(host, host->timeout_ns, host->timeout_clks); // need?
-
-	INIT_MSG("================");
-	INIT_MSG("!!! Set<%dKHz> Source<%dKHz> -> sclk<%dKHz>", hz / 1000, hclk / 1000, sclk / 1000);
-	INIT_MSG("================");
 
 	msdc_irq_restore(flags);
 }
@@ -668,12 +661,6 @@ static void msdc_pm(pm_message_t state, void *data)
 {
 	struct msdc_host *host = (struct msdc_host *)data;
 	int evt = state.event;
-
-	if (evt == PM_EVENT_USER_RESUME || evt == PM_EVENT_USER_SUSPEND) {
-		INIT_MSG("USR_%s: suspend<%d> power<%d>",
-			evt == PM_EVENT_USER_RESUME ? "EVENT_USER_RESUME" : "EVENT_USER_SUSPEND",
-			host->suspend, host->power_mode);
-	}
 
 	if (evt == PM_EVENT_SUSPEND || evt == PM_EVENT_USER_SUSPEND) {
 		if (host->suspend) /* already suspend */  /* default 0*/
@@ -1711,7 +1698,6 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (host->mclk != ios->clock) {
 		if (ios->clock > 25000000) {
 			//if (!(host->hw->flags & MSDC_REMOVABLE)) {
-			INIT_MSG("SD data latch edge<%d>", MSDC_SMPL_FALLING);
 			sdr_set_field(host->base + MSDC_IOCON, MSDC_IOCON_RSPL,
 				      MSDC_SMPL_FALLING);
 			sdr_set_field(host->base + MSDC_IOCON, MSDC_IOCON_DSPL,
@@ -1764,7 +1750,6 @@ static int msdc_ops_get_cd(struct mmc_host *mmc)
 		return 1;
 #else
 		host->card_inserted = (host->pm_state.event == PM_EVENT_USER_RESUME) ? 1 : 0;
-		INIT_MSG("sdio ops_get_cd<%d>", host->card_inserted);
 		return host->card_inserted;
 #endif
 	}
@@ -1788,7 +1773,6 @@ static int msdc_ops_get_cd(struct mmc_host *mmc)
 		present = 0; /* TODO? Check DAT3 pins for card detection */
 	}
 
-	INIT_MSG("ops_get_cd return<%d>", present);
 	return present;
 }
 
