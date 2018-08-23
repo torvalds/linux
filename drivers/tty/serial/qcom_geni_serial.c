@@ -1263,14 +1263,12 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,geni-debug-uart"))
 		console = true;
 
-	if (pdev->dev.of_node) {
-		if (console) {
-			drv = &qcom_geni_console_driver;
-			line = of_alias_get_id(pdev->dev.of_node, "serial");
-		} else {
-			drv = &qcom_geni_uart_driver;
-			line = of_alias_get_id(pdev->dev.of_node, "hsuart");
-		}
+	if (console) {
+		drv = &qcom_geni_console_driver;
+		line = of_alias_get_id(pdev->dev.of_node, "serial");
+	} else {
+		drv = &qcom_geni_uart_driver;
+		line = of_alias_get_id(pdev->dev.of_node, "hsuart");
 	}
 
 	port = get_port_from_line(line, console);
