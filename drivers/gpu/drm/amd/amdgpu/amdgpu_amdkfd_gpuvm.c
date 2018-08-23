@@ -206,11 +206,9 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 					struct amdgpu_amdkfd_fence ***ef_list,
 					unsigned int *ef_count)
 {
-	struct reservation_object_list *fobj;
-	struct reservation_object *resv;
-	unsigned int i = 0, j = 0, k = 0, shared_count;
-	unsigned int count = 0;
-	struct amdgpu_amdkfd_fence **fence_list;
+	struct reservation_object *resv = bo->tbo.resv;
+	struct reservation_object_list *old, *new;
+	unsigned int i, j, k;
 
 	if (!ef && !ef_list)
 		return -EINVAL;
@@ -220,76 +218,67 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 		*ef_count = 0;
 	}
 
-	resv = bo->tbo.resv;
-	fobj = reservation_object_get_list(resv);
-
-	if (!fobj)
+	old = reservation_object_get_list(resv);
+	if (!old)
 		return 0;
 
-	preempt_disable();
-	write_seqcount_begin(&resv->seq);
-
-	/* Go through all the shared fences in the resevation object. If
-	 * ef is specified and it exists in the list, remove it and reduce the
-	 * count. If ef is not specified, then get the count of eviction fences
-	 * present.
-	 */
-	shared_count = fobj->shared_count;
-	for (i = 0; i < shared_count; ++i) {
-		struct dma_fence *f;
-
-		f = rcu_dereference_protected(fobj->shared[i],
-					      reservation_object_held(resv));
-
-		if (ef) {
-			if (f->context == ef->base.context) {
-				dma_fence_put(f);
-				fobj->shared_count--;
-			} else {
-				RCU_INIT_POINTER(fobj->shared[j++], f);
-			}
-		} else if (to_amdgpu_amdkfd_fence(f))
-			count++;
-	}
-	write_seqcount_end(&resv->seq);
-	preempt_enable();
-
-	if (ef || !count)
-		return 0;
-
-	/* Alloc memory for count number of eviction fence pointers. Fill the
-	 * ef_list array and ef_count
-	 */
-	fence_list = kcalloc(count, sizeof(struct amdgpu_amdkfd_fence *),
-			     GFP_KERNEL);
-	if (!fence_list)
+	new = kmalloc(offsetof(typeof(*new), shared[old->shared_max]),
+		      GFP_KERNEL);
+	if (!new)
 		return -ENOMEM;
 
-	preempt_disable();
-	write_seqcount_begin(&resv->seq);
-
-	j = 0;
-	for (i = 0; i < shared_count; ++i) {
+	/* Go through all the shared fences in the resevation object and sort
+	 * the interesting ones to the end of the list.
+	 */
+	for (i = 0, j = old->shared_count, k = 0; i < old->shared_count; ++i) {
 		struct dma_fence *f;
-		struct amdgpu_amdkfd_fence *efence;
 
-		f = rcu_dereference_protected(fobj->shared[i],
-			reservation_object_held(resv));
+		f = rcu_dereference_protected(old->shared[i],
+					      reservation_object_held(resv));
 
-		efence = to_amdgpu_amdkfd_fence(f);
-		if (efence) {
-			fence_list[k++] = efence;
-			fobj->shared_count--;
-		} else {
-			RCU_INIT_POINTER(fobj->shared[j++], f);
+		if ((ef && f->context == ef->base.context) ||
+		    (!ef && to_amdgpu_amdkfd_fence(f)))
+			RCU_INIT_POINTER(new->shared[--j], f);
+		else
+			RCU_INIT_POINTER(new->shared[k++], f);
+	}
+	new->shared_max = old->shared_max;
+	new->shared_count = k;
+
+	if (!ef) {
+		unsigned int count = old->shared_count - j;
+
+		/* Alloc memory for count number of eviction fence pointers.
+		 * Fill the ef_list array and ef_count
+		 */
+		*ef_list = kcalloc(count, sizeof(**ef_list), GFP_KERNEL);
+		*ef_count = count;
+
+		if (!*ef_list) {
+			kfree(new);
+			return -ENOMEM;
 		}
 	}
 
+	/* Install the new fence list, seqcount provides the barriers */
+	preempt_disable();
+	write_seqcount_begin(&resv->seq);
+	RCU_INIT_POINTER(resv->fence, new);
 	write_seqcount_end(&resv->seq);
 	preempt_enable();
 
-	*ef_list = fence_list;
-	*ef_count = k;
+	/* Drop the references to the removed fences or move them to ef_list */
+	for (i = j, k = 0; i < old->shared_count; ++i) {
+		struct dma_fence *f;
+
+		f = rcu_dereference_protected(new->shared[i],
+					      reservation_object_held(resv));
+		if (!ef)
+			(*ef_list)[k++] = to_amdgpu_amdkfd_fence(f);
+		else
+			dma_fence_put(f);
+	}
+	kfree_rcu(old, rcu);
 
 	return 0;
 }
