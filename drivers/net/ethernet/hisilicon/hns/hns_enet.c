@@ -530,7 +530,7 @@ static void hns_nic_reuse_page(struct sk_buff *skb, int i,
 	}
 
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
-			size - pull_len, truesize - pull_len);
+			size - pull_len, truesize);
 
 	 /* avoid re-using remote pages,flag default unreuse */
 	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
