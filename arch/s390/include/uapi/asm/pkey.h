@@ -139,4 +139,13 @@ struct pkey_genprotk {
 
 #define PKEY_GENPROTK _IOWR(PKEY_IOCTL_MAGIC, 0x08, struct pkey_genprotk)
 
+/*
+ * Verify an (AES) protected key.
+ */
+struct pkey_verifyprotk {
+	struct pkey_protkey protkey;	/* in: the protected key to verify */
+};
+
+#define PKEY_VERIFYPROTK _IOW(PKEY_IOCTL_MAGIC, 0x09, struct pkey_verifyprotk)
+
 #endif /* _UAPI_PKEY_H */

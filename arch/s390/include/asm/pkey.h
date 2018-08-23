@@ -117,4 +117,12 @@ int pkey_verifykey(const struct pkey_seckey *seckey,
  */
 int pkey_genprotkey(__u32 keytype, struct pkey_protkey *protkey);
 
+/*
+ * In-kernel API: Verify an (AES) protected key.
+ * @param protkey pointer to buffer containing the protected key to verify
+ * @return 0 on success, negative errno value on failure. In case the protected
+ * key is not valid -EKEYREJECTED is returned
+ */
+int pkey_verifyprotkey(const struct pkey_protkey *protkey);
+
 #endif /* _KAPI_PKEY_H */

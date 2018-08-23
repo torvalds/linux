@@ -20,6 +20,7 @@
 #include <asm/zcrypt.h>
 #include <asm/cpacf.h>
 #include <asm/pkey.h>
+#include <crypto/aes.h>
 
 #include "zcrypt_api.h"
 
@@ -1114,6 +1115,52 @@ int pkey_genprotkey(__u32 keytype, struct pkey_protkey *protkey)
 EXPORT_SYMBOL(pkey_genprotkey);
 
 /*
+ * Verify if a protected key is still valid
+ */
+int pkey_verifyprotkey(const struct pkey_protkey *protkey)
+{
+	unsigned long fc;
+	struct {
+		u8 iv[AES_BLOCK_SIZE];
+		u8 key[MAXPROTKEYSIZE];
+	} param;
+	u8 null_msg[AES_BLOCK_SIZE];
+	u8 dest_buf[AES_BLOCK_SIZE];
+	unsigned int k;
+
+	switch (protkey->type) {
+	case PKEY_KEYTYPE_AES_128:
+		fc = CPACF_KMC_PAES_128;
+		break;
+	case PKEY_KEYTYPE_AES_192:
+		fc = CPACF_KMC_PAES_192;
+		break;
+	case PKEY_KEYTYPE_AES_256:
+		fc = CPACF_KMC_PAES_256;
+		break;
+	default:
+		DEBUG_ERR("%s unknown/unsupported keytype %d\n", __func__,
+			  protkey->type);
+		return -EINVAL;
+	}
+
+	memset(null_msg, 0, sizeof(null_msg));
+
+	memset(param.iv, 0, sizeof(param.iv));
+	memcpy(param.key, protkey->protkey, sizeof(param.key));
+
+	k = cpacf_kmc(fc | CPACF_ENCRYPT, &param, null_msg, dest_buf,
+		      sizeof(null_msg));
+	if (k != sizeof(null_msg)) {
+		DEBUG_ERR("%s protected key is not valid\n", __func__);
+		return -EKEYREJECTED;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(pkey_verifyprotkey);
+
+/*
  * File io functions
  */
 
@@ -1241,6 +1288,16 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			break;
 		if (copy_to_user(ugp, &kgp, sizeof(kgp)))
 			return -EFAULT;
+		break;
+	}
+	case PKEY_VERIFYPROTK: {
+		struct pkey_verifyprotk __user *uvp = (void __user *) arg;
+		struct pkey_verifyprotk kvp;
+
+		if (copy_from_user(&kvp, uvp, sizeof(kvp)))
+			return -EFAULT;
+		rc = pkey_verifyprotkey(&kvp.protkey);
+		DEBUG_DBG("%s pkey_verifyprotkey()=%d\n", __func__, rc);
 		break;
 	}
 	default:
@@ -1504,7 +1561,7 @@ static struct miscdevice pkey_dev = {
  */
 static int __init pkey_init(void)
 {
-	cpacf_mask_t pckmo_functions;
+	cpacf_mask_t pckmo_functions, kmc_functions;
 
 	/* check for pckmo instructions available */
 	if (!cpacf_query(CPACF_PCKMO, &pckmo_functions))
@@ -1512,6 +1569,14 @@ static int __init pkey_init(void)
 	if (!cpacf_test_func(&pckmo_functions, CPACF_PCKMO_ENC_AES_128_KEY) ||
 	    !cpacf_test_func(&pckmo_functions, CPACF_PCKMO_ENC_AES_192_KEY) ||
 	    !cpacf_test_func(&pckmo_functions, CPACF_PCKMO_ENC_AES_256_KEY))
+		return -EOPNOTSUPP;
+
+	/* check for kmc instructions available */
+	if (!cpacf_query(CPACF_KMC, &kmc_functions))
+		return -EOPNOTSUPP;
+	if (!cpacf_test_func(&kmc_functions, CPACF_KMC_PAES_128) ||
+	    !cpacf_test_func(&kmc_functions, CPACF_KMC_PAES_192) ||
+	    !cpacf_test_func(&kmc_functions, CPACF_KMC_PAES_256))
 		return -EOPNOTSUPP;
 
 	pkey_debug_init();
