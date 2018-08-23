@@ -62,8 +62,8 @@
  * available sp source fmts: yuv, rgb
  */
 
-#define CIF_ISP_REQ_BUFS_MIN 1
-#define CIF_ISP_REQ_BUFS_MAX 8
+#define CIF_ISP_REQ_BUFS_MIN			0
+#define CIF_ISP_REQ_BUFS_MAX			8
 
 #define STREAM_PAD_SINK				0
 #define STREAM_PAD_SOURCE			1
