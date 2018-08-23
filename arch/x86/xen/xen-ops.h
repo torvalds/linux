@@ -50,7 +50,6 @@ void __init xen_inv_extra_mem(void);
 void __init xen_remap_memory(void);
 phys_addr_t __init xen_find_free_area(phys_addr_t size);
 char * __init xen_memory_setup(void);
-char * xen_auto_xlated_memory_setup(void);
 void __init xen_arch_setup(void);
 void xen_enable_sysenter(void);
 void xen_enable_syscall(void);

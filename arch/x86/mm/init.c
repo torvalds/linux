@@ -99,15 +99,22 @@ __ref void *alloc_low_pages(unsigned int num)
 	}
 
 	if ((pgt_buf_end + num) > pgt_buf_top || !can_use_brk_pgt) {
-		unsigned long ret;
-		if (min_pfn_mapped >= max_pfn_mapped)
-			panic("alloc_low_pages: ran out of memory");
-		ret = memblock_find_in_range(min_pfn_mapped << PAGE_SHIFT,
+		unsigned long ret = 0;
+
+		if (min_pfn_mapped < max_pfn_mapped) {
+			ret = memblock_find_in_range(
+					min_pfn_mapped << PAGE_SHIFT,
 					max_pfn_mapped << PAGE_SHIFT,
 					PAGE_SIZE * num , PAGE_SIZE);
+		}
+		if (ret)
+			memblock_reserve(ret, PAGE_SIZE * num);
+		else if (can_use_brk_pgt)
+			ret = __pa(extend_brk(PAGE_SIZE * num, PAGE_SIZE));
+
 		if (!ret)
 			panic("alloc_low_pages: can not alloc memory");
-		memblock_reserve(ret, PAGE_SIZE * num);
+
 		pfn = ret >> PAGE_SHIFT;
 	} else {
 		pfn = pgt_buf_end;

@@ -2171,6 +2171,8 @@ void __init xen_relocate_p2m(void)
 #else	/* !CONFIG_X86_64 */
 static RESERVE_BRK_ARRAY(pmd_t, initial_kernel_pmd, PTRS_PER_PMD);
 static RESERVE_BRK_ARRAY(pmd_t, swapper_kernel_pmd, PTRS_PER_PMD);
+RESERVE_BRK(fixup_kernel_pmd, PAGE_SIZE);
+RESERVE_BRK(fixup_kernel_pte, PAGE_SIZE);
 
 static void __init xen_write_cr3_init(unsigned long cr3)
 {

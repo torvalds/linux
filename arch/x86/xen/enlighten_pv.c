@@ -122,6 +122,8 @@ static void __init xen_banner(void)
 
 static void __init xen_pv_init_platform(void)
 {
+	populate_extra_pte(fix_to_virt(FIX_PARAVIRT_BOOTMAP));
+
 	set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_start_info->shared_info);
 	HYPERVISOR_shared_info = (void *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
 
@@ -1170,13 +1172,13 @@ static void __init xen_boot_params_init_edd(void)
  * we do this, we have to be careful not to call any stack-protected
  * function, which is most of the kernel.
  */
-static void xen_setup_gdt(int cpu)
+static void __init xen_setup_gdt(int cpu)
 {
 	pv_cpu_ops.write_gdt_entry = xen_write_gdt_entry_boot;
 	pv_cpu_ops.load_gdt = xen_load_gdt_boot;
 
-	setup_stack_canary_segment(0);
-	switch_to_new_gdt(0);
+	setup_stack_canary_segment(cpu);
+	switch_to_new_gdt(cpu);
 
 	pv_cpu_ops.write_gdt_entry = xen_write_gdt_entry;
 	pv_cpu_ops.load_gdt = xen_load_gdt;
@@ -1385,8 +1387,11 @@ asmlinkage __visible void __init xen_start_kernel(void)
 		xen_boot_params_init_edd();
 	}
 
-	add_preferred_console("tty", 0, NULL);
+	if (!boot_params.screen_info.orig_video_isVGA)
+		add_preferred_console("tty", 0, NULL);
 	add_preferred_console("hvc", 0, NULL);
+	if (boot_params.screen_info.orig_video_isVGA)
+		add_preferred_console("tty", 0, NULL);
 
 #ifdef CONFIG_PCI
 	/* PCI BIOS service won't work from a PV guest. */
