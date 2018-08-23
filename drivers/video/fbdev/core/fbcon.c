@@ -2234,8 +2234,8 @@ static int fbcon_switch(struct vc_data *vc)
 	 *
 	 * info->currcon = vc->vc_num;
 	 */
-	for (i = 0; i < FB_MAX; i++) {
-		if (registered_fb[i] != NULL && registered_fb[i]->fbcon_par) {
+	for_each_registered_fb(i) {
+		if (registered_fb[i]->fbcon_par) {
 			struct fbcon_ops *o = registered_fb[i]->fbcon_par;
 
 			o->currcon = vc->vc_num;
@@ -3124,11 +3124,9 @@ static int fbcon_fb_unregistered(struct fb_info *info)
 	if (idx == info_idx) {
 		info_idx = -1;
 
-		for (i = 0; i < FB_MAX; i++) {
-			if (registered_fb[i] != NULL) {
-				info_idx = i;
-				break;
-			}
+		for_each_registered_fb(i) {
+			info_idx = i;
+			break;
 		}
 	}
 
@@ -3594,13 +3592,24 @@ static int fbcon_init_device(void)
 }
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
+static void fbcon_register_existing_fbs(struct work_struct *work)
+{
+	int i;
+
+	console_lock();
+
+	for_each_registered_fb(i)
+		fbcon_fb_registered(registered_fb[i]);
+
+	console_unlock();
+}
+
 static struct notifier_block fbcon_output_nb;
+static DECLARE_WORK(fbcon_deferred_takeover_work, fbcon_register_existing_fbs);
 
 static int fbcon_output_notifier(struct notifier_block *nb,
 				 unsigned long action, void *data)
 {
-	int i;
-
 	WARN_CONSOLE_UNLOCKED();
 
 	pr_info("fbcon: Taking over console\n");
@@ -3609,45 +3618,37 @@ static int fbcon_output_notifier(struct notifier_block *nb,
 	deferred_takeover = false;
 	logo_shown = FBCON_LOGO_DONTSHOW;
 
-	for (i = 0; i < FB_MAX; i++) {
-		if (registered_fb[i])
-			fbcon_fb_registered(registered_fb[i]);
-	}
+	/* We may get called in atomic context */
+	schedule_work(&fbcon_deferred_takeover_work);
 
 	return NOTIFY_OK;
 }
-
-static void fbcon_register_output_notifier(void)
-{
-	fbcon_output_nb.notifier_call = fbcon_output_notifier;
-	dummycon_register_output_notifier(&fbcon_output_nb);
-}
-#else
-static inline void fbcon_register_output_notifier(void) {}
 #endif
 
 static void fbcon_start(void)
 {
+	WARN_CONSOLE_UNLOCKED();
+
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER
+	if (conswitchp != &dummy_con)
+		deferred_takeover = false;
+
 	if (deferred_takeover) {
-		fbcon_register_output_notifier();
+		fbcon_output_nb.notifier_call = fbcon_output_notifier;
+		dummycon_register_output_notifier(&fbcon_output_nb);
 		return;
 	}
+#endif
 
 	if (num_registered_fb) {
 		int i;
 
-		console_lock();
-
-		for (i = 0; i < FB_MAX; i++) {
-			if (registered_fb[i] != NULL) {
-				info_idx = i;
-				break;
-			}
+		for_each_registered_fb(i) {
+			info_idx = i;
+			break;
 		}
 
 		do_fbcon_takeover(0);
-		console_unlock();
-
 	}
 }
 
@@ -3669,14 +3670,11 @@ static void fbcon_exit(void)
 	kfree((void *)softback_buf);
 	softback_buf = 0UL;
 
-	for (i = 0; i < FB_MAX; i++) {
+	for_each_registered_fb(i) {
 		int pending = 0;
 
 		mapped = 0;
 		info = registered_fb[i];
-
-		if (info == NULL)
-			continue;
 
 		if (info->queue.func)
 			pending = cancel_work_sync(&info->queue);
@@ -3733,8 +3731,8 @@ void __init fb_console_init(void)
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
 		con2fb_map[i] = -1;
 
-	console_unlock();
 	fbcon_start();
+	console_unlock();
 }
 
 #ifdef MODULE
