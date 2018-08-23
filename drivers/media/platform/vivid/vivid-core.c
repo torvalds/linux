@@ -1077,6 +1077,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1097,6 +1098,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1117,6 +1119,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1137,6 +1140,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1156,6 +1160,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->min_buffers_needed = 8;
 		q->lock = &dev->mutex;
 		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
 
 		ret = vb2_queue_init(q);
 		if (ret)

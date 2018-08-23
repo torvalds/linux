@@ -251,7 +251,8 @@ struct v4l2_create_buffers32 {
 	__u32			count;
 	__u32			memory;	/* enum v4l2_memory */
 	struct v4l2_format32	format;
-	__u32			reserved[8];
+	__u32			capabilities;
+	__u32			reserved[7];
 };
 
 static int __bufsize_v4l2_format(struct v4l2_format32 __user *p32, u32 *size)
@@ -411,6 +412,7 @@ static int put_v4l2_create32(struct v4l2_create_buffers __user *p64,
 	if (!access_ok(VERIFY_WRITE, p32, sizeof(*p32)) ||
 	    copy_in_user(p32, p64,
 			 offsetof(struct v4l2_create_buffers32, format)) ||
+	    assign_in_user(&p32->capabilities, &p64->capabilities) ||
 	    copy_in_user(p32->reserved, p64->reserved, sizeof(p64->reserved)))
 		return -EFAULT;
 	return __put_v4l2_format32(&p64->format, &p32->format);

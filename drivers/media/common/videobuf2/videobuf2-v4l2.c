@@ -384,7 +384,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 			return -EPERM;
 		}
 		return 0;
-	} else if (q->uses_qbuf) {
+	} else if (q->uses_qbuf || !q->supports_requests) {
 		dprintk(1, "%s: queue does not use requests\n", opname);
 		return -EPERM;
 	}
@@ -619,10 +619,24 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 }
 EXPORT_SYMBOL(vb2_querybuf);
 
+static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+{
+	*caps = 0;
+	if (q->io_modes & VB2_MMAP)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP;
+	if (q->io_modes & VB2_USERPTR)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_USERPTR;
+	if (q->io_modes & VB2_DMABUF)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
+	if (q->supports_requests)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
+}
+
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 {
 	int ret = vb2_verify_memory_type(q, req->memory, req->type);
 
+	fill_buf_caps(q, &req->capabilities);
 	return ret ? ret : vb2_core_reqbufs(q, req->memory, &req->count);
 }
 EXPORT_SYMBOL_GPL(vb2_reqbufs);
@@ -654,6 +668,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	int ret = vb2_verify_memory_type(q, create->memory, f->type);
 	unsigned i;
 
+	fill_buf_caps(q, &create->capabilities);
 	create->index = q->num_buffers;
 	if (create->count == 0)
 		return ret != -EBUSY ? ret : 0;
@@ -861,6 +876,7 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
 	struct video_device *vdev = video_devdata(file);
 	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
 
+	fill_buf_caps(vdev->queue, &p->capabilities);
 	if (res)
 		return res;
 	if (vb2_queue_is_busy(vdev, file))
@@ -882,6 +898,7 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
 			p->format.type);
 
 	p->index = vdev->queue->num_buffers;
+	fill_buf_caps(vdev->queue, &p->capabilities);
 	/*
 	 * If count == 0, then just check if memory and type are valid.
 	 * Any -EBUSY result from vb2_verify_memory_type can be mapped to 0.
