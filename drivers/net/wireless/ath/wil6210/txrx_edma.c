@@ -279,9 +279,6 @@ static void wil_move_all_rx_buff_to_free_list(struct wil6210_priv *wil,
 		u16 buff_id;
 
 		*d = *_d;
-		pa = wil_rx_desc_get_addr_edma(&d->dma);
-		dmalen = le16_to_cpu(d->dma.length);
-		dma_unmap_single(dev, pa, dmalen, DMA_FROM_DEVICE);
 
 		/* Extract the SKB from the rx_buff management array */
 		buff_id = __le16_to_cpu(d->mac.buff_id);
@@ -291,10 +288,15 @@ static void wil_move_all_rx_buff_to_free_list(struct wil6210_priv *wil,
 		}
 		skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
 		wil->rx_buff_mgmt.buff_arr[buff_id].skb = NULL;
-		if (unlikely(!skb))
+		if (unlikely(!skb)) {
 			wil_err(wil, "No Rx skb at buff_id %d\n", buff_id);
-		else
+		} else {
+			pa = wil_rx_desc_get_addr_edma(&d->dma);
+			dmalen = le16_to_cpu(d->dma.length);
+			dma_unmap_single(dev, pa, dmalen, DMA_FROM_DEVICE);
+
 			kfree_skb(skb);
+		}
 
 		/* Move the buffer from the active to the free list */
 		list_move(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
@@ -906,6 +908,9 @@ again:
 	wil->rx_buff_mgmt.buff_arr[buff_id].skb = NULL;
 	if (!skb) {
 		wil_err(wil, "No Rx skb at buff_id %d\n", buff_id);
+		/* Move the buffer from the active list to the free list */
+		list_move(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
+			  &wil->rx_buff_mgmt.free);
 		goto again;
 	}
 
