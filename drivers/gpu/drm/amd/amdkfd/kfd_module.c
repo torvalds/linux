@@ -21,7 +21,6 @@
  */
 
 #include <linux/sched.h>
-#include <linux/moduleparam.h>
 #include <linux/device.h>
 #include "kfd_priv.h"
 
@@ -40,50 +39,6 @@ static const struct kgd2kfd_calls kgd2kfd = {
 	.pre_reset	= kgd2kfd_pre_reset,
 	.post_reset	= kgd2kfd_post_reset,
 };
-
-int sched_policy = KFD_SCHED_POLICY_HWS;
-module_param(sched_policy, int, 0444);
-MODULE_PARM_DESC(sched_policy,
-	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
-
-int hws_max_conc_proc = 8;
-module_param(hws_max_conc_proc, int, 0444);
-MODULE_PARM_DESC(hws_max_conc_proc,
-	"Max # processes HWS can execute concurrently when sched_policy=0 (0 = no concurrency, #VMIDs for KFD = Maximum(default))");
-
-int cwsr_enable = 1;
-module_param(cwsr_enable, int, 0444);
-MODULE_PARM_DESC(cwsr_enable, "CWSR enable (0 = off, 1 = on (default))");
-
-int max_num_of_queues_per_device = KFD_MAX_NUM_OF_QUEUES_PER_DEVICE_DEFAULT;
-module_param(max_num_of_queues_per_device, int, 0444);
-MODULE_PARM_DESC(max_num_of_queues_per_device,
-	"Maximum number of supported queues per device (1 = Minimum, 4096 = default)");
-
-int send_sigterm;
-module_param(send_sigterm, int, 0444);
-MODULE_PARM_DESC(send_sigterm,
-	"Send sigterm to HSA process on unhandled exception (0 = disable, 1 = enable)");
-
-int debug_largebar;
-module_param(debug_largebar, int, 0444);
-MODULE_PARM_DESC(debug_largebar,
-	"Debug large-bar flag used to simulate large-bar capability on non-large bar machine (0 = disable, 1 = enable)");
-
-int ignore_crat;
-module_param(ignore_crat, int, 0444);
-MODULE_PARM_DESC(ignore_crat,
-	"Ignore CRAT table during KFD initialization (0 = use CRAT (default), 1 = ignore CRAT)");
-
-int noretry;
-module_param(noretry, int, 0644);
-MODULE_PARM_DESC(noretry,
-	"Set sh_mem_config.retry_disable on GFXv9+ dGPUs (0 = retry enabled (default), 1 = retry disabled)");
-
-int halt_if_hws_hang;
-module_param(halt_if_hws_hang, int, 0644);
-MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (default), 1 = on)");
-
 
 static int kfd_init(void)
 {
